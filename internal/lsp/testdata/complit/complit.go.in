@@ -44,6 +44,7 @@ func _() {
 	}
 	_ = map[int]string{1: "" + s.A} //@complete("}", fieldAB, fieldAA)
 	_ = map[int]string{1: (func(i int) string { return "" })(s.A)} //@complete(")}", fieldAA, fieldAB)
+	_ = map[int]string{1: func() string { s.A }} //@complete(" }", fieldAA, fieldAB)
 }
 
 func _() {

@@ -196,13 +196,14 @@ func Completion(ctx context.Context, f File, pos token.Pos) ([]CompletionItem, s
 		path:                      path,
 		pos:                       pos,
 		seen:                      make(map[types.Object]bool),
-		expectedType:              expectedType(path, pos, pkg.GetTypesInfo()),
 		enclosingFunction:         enclosingFunction(path, pos, pkg.GetTypesInfo()),
 		preferTypeNames:           preferTypeNames(path, pos),
 		enclosingCompositeLiteral: lit,
 		enclosingKeyValue:         kv,
 		inCompositeLiteralField:   inCompositeLiteralField,
 	}
+
+	c.expectedType = expectedType(c)
 
 	// Composite literals are handled entirely separately.
 	if c.enclosingCompositeLiteral != nil {
@@ -458,14 +459,10 @@ func enclosingCompositeLiteral(path []ast.Node, pos token.Pos) (lit *ast.Composi
 				// don't show composite literal completions.
 				ok = pos <= kv.Colon
 			}
-		case *ast.FuncType, *ast.CallExpr, *ast.TypeAssertExpr:
-			// These node types break the type link between the leaf node and
-			// the composite literal. The type of the leaf node becomes unrelated
-			// to the type of the composite literal, so we return nil to avoid
-			// inappropriate completions. For example, "Foo{Bar: x.Baz(<>)}"
-			// should complete as a function argument to Baz, not part of the Foo
-			// composite literal.
-			return nil, nil, false
+		default:
+			if breaksExpectedTypeInference(n) {
+				return nil, nil, false
+			}
 		}
 	}
 	return lit, kv, ok
@@ -538,50 +535,111 @@ func (c *completer) expectedCompositeLiteralType(lit *ast.CompositeLit, kv *ast.
 }
 
 // expectedType returns the expected type for an expression at the query position.
-func expectedType(path []ast.Node, pos token.Pos, info *types.Info) types.Type {
-	for i, node := range path {
-		if i == 2 {
-			break
-		}
+func expectedType(c *completer) types.Type {
+	var (
+		derefCount int // count of deref "*" operators
+		refCount   int // count of reference "&" operators
+		typ        types.Type
+	)
+
+Nodes:
+	for _, node := range c.path {
 		switch expr := node.(type) {
 		case *ast.BinaryExpr:
 			// Determine if query position comes from left or right of op.
 			e := expr.X
-			if pos < expr.OpPos {
+			if c.pos < expr.OpPos {
 				e = expr.Y
 			}
-			if tv, ok := info.Types[e]; ok {
-				return tv.Type
+			if tv, ok := c.info.Types[e]; ok {
+				typ = tv.Type
+				break Nodes
 			}
 		case *ast.AssignStmt:
 			// Only rank completions if you are on the right side of the token.
-			if pos <= expr.TokPos {
-				break
-			}
-			i := indexExprAtPos(pos, expr.Rhs)
-			if i >= len(expr.Lhs) {
-				i = len(expr.Lhs) - 1
-			}
-			if tv, ok := info.Types[expr.Lhs[i]]; ok {
-				return tv.Type
-			}
-		case *ast.CallExpr:
-			if tv, ok := info.Types[expr.Fun]; ok {
-				if sig, ok := tv.Type.(*types.Signature); ok {
-					if sig.Params().Len() == 0 {
-						return nil
-					}
-					i := indexExprAtPos(pos, expr.Args)
-					// Make sure not to run past the end of expected parameters.
-					if i >= sig.Params().Len() {
-						i = sig.Params().Len() - 1
-					}
-					return sig.Params().At(i).Type()
+			if c.pos > expr.TokPos {
+				i := indexExprAtPos(c.pos, expr.Rhs)
+				if i >= len(expr.Lhs) {
+					i = len(expr.Lhs) - 1
 				}
+				if tv, ok := c.info.Types[expr.Lhs[i]]; ok {
+					typ = tv.Type
+					break Nodes
+				}
+			}
+			return nil
+		case *ast.CallExpr:
+			// Only consider CallExpr args if position falls between parens.
+			if expr.Lparen <= c.pos && c.pos <= expr.Rparen {
+				if tv, ok := c.info.Types[expr.Fun]; ok {
+					if sig, ok := tv.Type.(*types.Signature); ok {
+						if sig.Params().Len() == 0 {
+							return nil
+						}
+						i := indexExprAtPos(c.pos, expr.Args)
+						// Make sure not to run past the end of expected parameters.
+						if i >= sig.Params().Len() {
+							i = sig.Params().Len() - 1
+						}
+						typ = sig.Params().At(i).Type()
+						break Nodes
+					}
+				}
+			}
+			return nil
+		case *ast.ReturnStmt:
+			if sig := c.enclosingFunction; sig != nil {
+				// Find signature result that corresponds to our return expression.
+				if resultIdx := indexExprAtPos(c.pos, expr.Results); resultIdx < len(expr.Results) {
+					if resultIdx < sig.Results().Len() {
+						typ = sig.Results().At(resultIdx).Type()
+						break Nodes
+					}
+				}
+			}
+
+			return nil
+		case *ast.StarExpr:
+			derefCount++
+		case *ast.UnaryExpr:
+			if expr.Op == token.AND {
+				refCount++
+			}
+		default:
+			if breaksExpectedTypeInference(node) {
+				return nil
 			}
 		}
 	}
-	return nil
+
+	if typ != nil {
+		// For every "*" deref operator, add another pointer layer to expected type.
+		for i := 0; i < derefCount; i++ {
+			typ = types.NewPointer(typ)
+		}
+		// For every "&" ref operator, remove a pointer layer from expected type.
+		for i := 0; i < refCount; i++ {
+			if ptr, ok := typ.(*types.Pointer); ok {
+				typ = ptr.Elem()
+			} else {
+				break
+			}
+		}
+	}
+
+	return typ
+}
+
+// breaksExpectedTypeInference reports if an expression node's type is unrelated
+// to its child expression node types. For example, "Foo{Bar: x.Baz(<>)}" should
+// expect a function argument, not a composite literal value.
+func breaksExpectedTypeInference(n ast.Node) bool {
+	switch n.(type) {
+	case *ast.FuncLit, *ast.CallExpr, *ast.TypeAssertExpr, *ast.IndexExpr, *ast.SliceExpr, *ast.CompositeLit:
+		return true
+	default:
+		return false
+	}
 }
 
 // preferTypeNames checks if given token position is inside func receiver,

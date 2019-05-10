@@ -1,8 +1,8 @@
 package func_rank
 
-var stringAVar = "var" //@item(stringAVar, "stringAVar", "string", "var")
+var stringAVar = "var"    //@item(stringAVar, "stringAVar", "string", "var")
 func stringBFunc() string { return "str" } //@item(stringBFunc, "stringBFunc()", "string", "func")
-type stringer struct{}   //@item(stringer, "stringer", "struct{...}", "struct")
+type stringer struct{}    //@item(stringer, "stringer", "struct{...}", "struct")
 
 func _() stringer //@complete("tr", stringer, stringAVar, stringBFunc)
 
@@ -10,3 +10,35 @@ func _(val stringer) {} //@complete("tr", stringer, stringAVar, stringBFunc)
 
 func (stringer) _() {} //@complete("tr", stringer, stringAVar, stringBFunc)
 
+func _() {
+	var s struct {
+		AA int    //@item(rankAA, "AA", "int", "field")
+		AB string //@item(rankAB, "AB", "string", "field")
+		AC int    //@item(rankAC, "AC", "int", "field")
+	}
+	fnStr := func(string) {}
+	fnStr(s.A)      //@complete(")", rankAB, rankAA, rankAC)
+	fnStr("" + s.A) //@complete(")", rankAB, rankAA, rankAC)
+
+	fnInt := func(int) {}
+	fnInt(-s.A) //@complete(")", rankAA, rankAC, rankAB)
+
+	// no expected type
+	fnInt(func() int { s.A }) //@complete(" }", rankAA, rankAB, rankAC)
+	fnInt(s.A())              //@complete("()", rankAA, rankAB, rankAC)
+	fnInt([]int{}[s.A])       //@complete("])", rankAA, rankAB, rankAC)
+	fnInt([]int{}[:s.A])      //@complete("])", rankAA, rankAB, rankAC)
+
+	fnInt(s.A.(int)) //@complete(".(", rankAA, rankAB, rankAC)
+
+	fnPtr := func(*string) {}
+	fnPtr(&s.A) //@complete(")", rankAB, rankAA, rankAC)
+
+	var aaPtr *string //@item(rankAAPtr, "aaPtr", "*string", "var")
+	var abPtr *int    //@item(rankABPtr, "abPtr", "*int", "var")
+	fnInt(*a)         //@complete(")", rankABPtr, rankAAPtr)
+
+	_ = func() string {
+		return s.A //@complete(" //", rankAB, rankAA, rankAC)
+	}
+}
