@@ -2,6 +2,7 @@
 
 [!net] skip
 
+env GO111MODULE=on
 env GOPROXY=
 
 ! go get -d vcs-test.golang.org/insecure/go/insecure
