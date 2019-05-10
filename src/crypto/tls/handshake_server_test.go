@@ -272,6 +272,79 @@ func TestTLS12OnlyCipherSuites(t *testing.T) {
 	}
 }
 
+func TestTLSPointFormats(t *testing.T) {
+	// Test that a Server returns the ec_point_format extention when ECC is
+	// negotiated, and not returned on RSA handshake.
+	tests := []struct {
+		name                string
+		cipherSuites        []uint16
+		supportedCurves     []CurveID
+		supportedPoints     []uint8
+		wantSupportedPoints bool
+	}{
+		{"ECC", []uint16{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA}, []CurveID{CurveP256}, []uint8{compressionNone}, true},
+		{"RSA", []uint16{TLS_RSA_WITH_AES_256_GCM_SHA384}, nil, nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clientHello := &clientHelloMsg{
+				vers:               VersionTLS12,
+				random:             make([]byte, 32),
+				cipherSuites:       tt.cipherSuites,
+				compressionMethods: []uint8{compressionNone},
+				supportedCurves:    tt.supportedCurves,
+				supportedPoints:    tt.supportedPoints,
+			}
+
+			c, s := localPipe(t)
+			replyChan := make(chan interface{})
+			go func() {
+				cli := Client(c, testConfig)
+				cli.vers = clientHello.vers
+				cli.writeRecord(recordTypeHandshake, clientHello.marshal())
+				reply, err := cli.readHandshake()
+				c.Close()
+				if err != nil {
+					replyChan <- err
+				} else {
+					replyChan <- reply
+				}
+			}()
+			config := testConfig.Clone()
+			config.CipherSuites = clientHello.cipherSuites
+			Server(s, config).Handshake()
+			s.Close()
+			reply := <-replyChan
+			if err, ok := reply.(error); ok {
+				t.Fatal(err)
+			}
+			serverHello, ok := reply.(*serverHelloMsg)
+			if !ok {
+				t.Fatalf("didn't get ServerHello message in reply. Got %v\n", reply)
+			}
+			if tt.wantSupportedPoints {
+				if len(serverHello.supportedPoints) < 1 {
+					t.Fatal("missing ec_point_format extension from server")
+				}
+				found := false
+				for _, p := range serverHello.supportedPoints {
+					if p == pointFormatUncompressed {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Fatal("missing uncompressed format in ec_point_format extension from server")
+				}
+			} else {
+				if len(serverHello.supportedPoints) != 0 {
+					t.Fatalf("unexcpected ec_point_format extension from server: %v", serverHello.supportedPoints)
+				}
+			}
+		})
+	}
+}
+
 func TestAlertForwarding(t *testing.T) {
 	c, s := localPipe(t)
 	go func() {
