@@ -46,22 +46,17 @@ func RatherStupidConditions() {
 	_ = i+1 == 1 || i+1 == 1         // want `redundant or: i\+1 == 1 \|\| i\+1 == 1`
 	_ = i == 1 || j+1 == i || i == 1 // want `redundant or: i == 1 \|\| i == 1`
 
-	// The various r.* patterns are intended to match duplicate
-	// diagnostics reported for the same underlying problem.
-	// See https://golang.org/issue/28086.
-	// TODO(adonovan): fix the checker.
-
-	_ = i == 1 || i == 1 || f() == 1 // want `redundant or: i == 1 \|\| i == 1` `r.*`
+	_ = i == 1 || i == 1 || f() == 1 // want `redundant or: i == 1 \|\| i == 1`
 	_ = i == 1 || f() == 1 || i == 1 // OK f may alter i as a side effect
 	_ = f() == 1 || i == 1 || i == 1 // want `redundant or: i == 1 \|\| i == 1`
 
 	// Test partition edge cases
-	_ = f() == 1 || i == 1 || i == 1 || j == 1 // want `redundant or: i == 1 \|\| i == 1` `r.*`
+	_ = f() == 1 || i == 1 || i == 1 || j == 1 // want `redundant or: i == 1 \|\| i == 1`
 	_ = f() == 1 || j == 1 || i == 1 || i == 1 // want `redundant or: i == 1 \|\| i == 1`
 	_ = i == 1 || f() == 1 || i == 1 || i == 1 // want `redundant or: i == 1 \|\| i == 1`
-	_ = i == 1 || i == 1 || f() == 1 || i == 1 // want `redundant or: i == 1 \|\| i == 1` `r.*` `r.*`
-	_ = i == 1 || i == 1 || j == 1 || f() == 1 // want `redundant or: i == 1 \|\| i == 1` `r.*` `r.*`
-	_ = j == 1 || i == 1 || i == 1 || f() == 1 // want `redundant or: i == 1 \|\| i == 1` `r.*`
+	_ = i == 1 || i == 1 || f() == 1 || i == 1 // want `redundant or: i == 1 \|\| i == 1`
+	_ = i == 1 || i == 1 || j == 1 || f() == 1 // want `redundant or: i == 1 \|\| i == 1`
+	_ = j == 1 || i == 1 || i == 1 || f() == 1 // want `redundant or: i == 1 \|\| i == 1`
 	_ = i == 1 || f() == 1 || f() == 1 || i == 1
 
 	_ = i == 1 || (i == 1 || i == 2)             // want `redundant or: i == 1 \|\| i == 1`
@@ -76,9 +71,9 @@ func RatherStupidConditions() {
 	_ = j == 0 ||
 		i == 1 ||
 		f() == 1 ||
-		j == 0 || // want `redundant or: j == 0 \|\| j == 0` `r.*`
-		i == 1 || // want `redundant or: i == 1 \|\| i == 1` `r.*` `r.*` `r.*`
-		i == 1 || // want `redundant or: i == 1 \|\| i == 1` `r.*` `r.*`
+		j == 0 || // want `redundant or: j == 0 \|\| j == 0`
+		i == 1 || // want `redundant or: i == 1 \|\| i == 1`
+		i == 1 || // want `redundant or: i == 1 \|\| i == 1`
 		i == 1 ||
 		j == 0 ||
 		k == 0
@@ -94,7 +89,7 @@ func RatherStupidConditions() {
 	_ = 0 != <-c && 0 != <-c         // OK subsequent receives may yield different values
 	_ = f() != 0 && f() != 0         // OK f might have side effects
 	_ = f != nil && f != nil         // want `redundant and: f != nil && f != nil`
-	_ = i != 1 && i != 1 && f() != 1 // want `redundant and: i != 1 && i != 1` `r.*`
+	_ = i != 1 && i != 1 && f() != 1 // want `redundant and: i != 1 && i != 1`
 	_ = i != 1 && f() != 1 && i != 1 // OK f may alter i as a side effect
 	_ = f() != 1 && i != 1 && i != 1 // want `redundant and: i != 1 && i != 1`
 }

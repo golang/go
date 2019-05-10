@@ -30,8 +30,13 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	nodeFilter := []ast.Node{
 		(*ast.BinaryExpr)(nil),
 	}
+	seen := make(map[*ast.BinaryExpr]bool)
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
 		e := n.(*ast.BinaryExpr)
+		if seen[e] {
+			// Already processed as a subexpression of an earlier node.
+			return
+		}
 
 		var op boolOp
 		switch e.Op {
@@ -43,10 +48,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			return
 		}
 
-		// TODO(adonovan): this reports n(n-1)/2 errors for an
-		// expression e||...||e of depth n. Fix.
-		// See https://golang.org/issue/28086.
-		comm := op.commutativeSets(pass.TypesInfo, e)
+		comm := op.commutativeSets(pass.TypesInfo, e, seen)
 		for _, exprs := range comm {
 			op.checkRedundant(pass, exprs)
 			op.checkSuspect(pass, exprs)
@@ -70,8 +72,9 @@ var (
 // expressions in e that are connected by op.
 // For example, given 'a || b || f() || c || d' with the or op,
 // commutativeSets returns {{b, a}, {d, c}}.
-func (op boolOp) commutativeSets(info *types.Info, e *ast.BinaryExpr) [][]ast.Expr {
-	exprs := op.split(e)
+// commutativeSets adds any expanded BinaryExprs to seen.
+func (op boolOp) commutativeSets(info *types.Info, e *ast.BinaryExpr, seen map[*ast.BinaryExpr]bool) [][]ast.Expr {
+	exprs := op.split(e, seen)
 
 	// Partition the slice of expressions into commutative sets.
 	i := 0
@@ -188,11 +191,13 @@ func hasSideEffects(info *types.Info, e ast.Expr) bool {
 // split returns a slice of all subexpressions in e that are connected by op.
 // For example, given 'a || (b || c) || d' with the or op,
 // split returns []{d, c, b, a}.
-func (op boolOp) split(e ast.Expr) (exprs []ast.Expr) {
+// seen[e] is already true; any newly processed exprs are added to seen.
+func (op boolOp) split(e ast.Expr, seen map[*ast.BinaryExpr]bool) (exprs []ast.Expr) {
 	for {
 		e = unparen(e)
 		if b, ok := e.(*ast.BinaryExpr); ok && b.Op == op.tok {
-			exprs = append(exprs, op.split(b.Y)...)
+			seen[b] = true
+			exprs = append(exprs, op.split(b.Y, seen)...)
 			e = b.X
 		} else {
 			exprs = append(exprs, e)
