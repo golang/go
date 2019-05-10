@@ -357,7 +357,7 @@ func InitMod() {
 func modFileToBuildList() {
 	Target = modFile.Module.Mod
 	targetPrefix = Target.Path
-	if rel := search.InDir(cwd, cfg.GOROOTsrc); rel != "" && rel != filepath.FromSlash("cmd/vet/all") {
+	if rel := search.InDir(cwd, cfg.GOROOTsrc); rel != "" {
 		targetInGorootSrc = true
 		if Target.Path == "std" {
 			targetPrefix = ""

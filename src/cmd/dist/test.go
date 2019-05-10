@@ -383,22 +383,6 @@ func (t *tester) registerRaceBenchTest(pkg string) {
 var stdOutErrAreTerminals func() bool
 
 func (t *tester) registerTests() {
-	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-vetall") {
-		// Run vet over std and cmd and call it quits.
-		for k := range cgoEnabled {
-			osarch := k
-			t.tests = append(t.tests, distTest{
-				name:    "vet/" + osarch,
-				heading: "cmd/vet/all",
-				fn: func(dt *distTest) error {
-					t.addCmd(dt, "src/cmd/vet/all", "go", "run", "main.go", "-p="+osarch)
-					return nil
-				},
-			})
-		}
-		return
-	}
-
 	// Fast path to avoid the ~1 second of `go list std cmd` when
 	// the caller lists specific tests to run. (as the continuous
 	// build coordinator does).
