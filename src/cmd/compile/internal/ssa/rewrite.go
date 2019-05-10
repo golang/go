@@ -868,7 +868,7 @@ func logRule(s string) {
 		}
 		ruleFile = w
 	}
-	_, err := fmt.Fprintf(ruleFile, "rewrite %s\n", s)
+	_, err := fmt.Fprintln(ruleFile, s)
 	if err != nil {
 		panic(err)
 	}
