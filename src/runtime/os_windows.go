@@ -135,7 +135,8 @@ var (
 // to start new os thread.
 func tstart_stdcall(newm *m)
 
-func ctrlhandler(_type uint32)
+// Called by OS using stdcall ABI.
+func ctrlhandler()
 
 type mOS struct {
 	waitsema uintptr // semaphore for parking on locks
