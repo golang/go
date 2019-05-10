@@ -196,6 +196,15 @@ Curves:
 	}
 	hs.ecdhOk = supportedCurve && supportedPointFormat
 
+	if supportedPointFormat {
+		// Although omiting the ec_point_formats extension is permitted, some
+		// old OpenSSL version will refuse to handshake if not present.
+		//
+		// Per RFC 4492, section 5.1.2, implementations MUST support the
+		// uncompressed point format. See golang.org/issue/31943.
+		hs.hello.supportedPoints = []uint8{pointFormatUncompressed}
+	}
+
 	foundCompression := false
 	// We only support null compression, so check that the client offered it.
 	for _, compression := range hs.clientHello.compressionMethods {

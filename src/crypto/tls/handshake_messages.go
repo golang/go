@@ -606,6 +606,7 @@ type serverHelloMsg struct {
 	serverShare                  keyShare
 	selectedIdentityPresent      bool
 	selectedIdentity             uint16
+	supportedPoints              []uint8
 
 	// HelloRetryRequest extensions
 	cookie        []byte
@@ -705,6 +706,14 @@ func (m *serverHelloMsg) marshal() []byte {
 				b.AddUint16(extensionKeyShare)
 				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
 					b.AddUint16(uint16(m.selectedGroup))
+				})
+			}
+			if len(m.supportedPoints) > 0 {
+				b.AddUint16(extensionSupportedPoints)
+				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+					b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
+						b.AddBytes(m.supportedPoints)
+					})
 				})
 			}
 
@@ -809,6 +818,12 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
 		case extensionPreSharedKey:
 			m.selectedIdentityPresent = true
 			if !extData.ReadUint16(&m.selectedIdentity) {
+				return false
+			}
+		case extensionSupportedPoints:
+			// RFC 4492, Section 5.1.2
+			if !readUint8LengthPrefixed(&extData, &m.supportedPoints) ||
+				len(m.supportedPoints) == 0 {
 				return false
 			}
 		default:

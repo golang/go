@@ -201,6 +201,7 @@ func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	m.sessionId = randomBytes(rand.Intn(32), rand)
 	m.cipherSuite = uint16(rand.Int31())
 	m.compressionMethod = uint8(rand.Intn(256))
+	m.supportedPoints = randomBytes(rand.Intn(5)+1, rand)
 
 	if rand.Intn(10) > 5 {
 		m.ocspStapling = true
