@@ -149,6 +149,9 @@ const (
 	// R_ARM64_LDST64 sets a LD/ST immediate value to bits [11:3] of a local address.
 	R_ARM64_LDST64
 
+	// R_ARM64_LDST128 sets a LD/ST immediate value to bits [11:4] of a local address.
+	R_ARM64_LDST128
+
 	// PPC64.
 
 	// R_POWER_TLS_LE is used to implement the "local exec" model for tls
