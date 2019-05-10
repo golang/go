@@ -155,3 +155,13 @@ func (pkg *Package) GetTypesSizes() types.Sizes {
 func (pkg *Package) IsIllTyped() bool {
 	return pkg.types == nil && pkg.typesInfo == nil
 }
+
+func (pkg *Package) GetImport(pkgPath string) source.Package {
+	imported := pkg.imports[pkgPath]
+	// Be careful not to return a nil pointer because that still satisfies the
+	// interface.
+	if imported != nil {
+		return imported
+	}
+	return nil
+}

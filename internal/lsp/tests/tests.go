@@ -31,7 +31,7 @@ const (
 	ExpectedCompletionsCount       = 85
 	ExpectedDiagnosticsCount       = 17
 	ExpectedFormatCount            = 5
-	ExpectedDefinitionsCount       = 21
+	ExpectedDefinitionsCount       = 24
 	ExpectedTypeDefinitionsCount   = 2
 	ExpectedHighlightsCount        = 2
 	ExpectedSymbolsCount           = 1

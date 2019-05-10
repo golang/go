@@ -5,13 +5,13 @@
 package source
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"go/ast"
 	"go/format"
 	"go/token"
 	"go/types"
+	"strings"
 )
 
 // formatter returns the a hover value formatted with its documentation.
@@ -23,9 +23,9 @@ func (i *IdentifierInfo) Hover(ctx context.Context, qf types.Qualifier, enhanced
 		pkg := i.File.GetPackage(ctx)
 		qf = qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo())
 	}
-	b := bytes.NewBuffer(nil)
+	var b strings.Builder
 	f := func(x interface{}, c *ast.CommentGroup) (string, error) {
-		return writeHover(x, i.File.GetFileSet(ctx), b, c, markdownSupported, qf)
+		return writeHover(x, i.File.GetFileSet(ctx), &b, c, markdownSupported, qf)
 	}
 	obj := i.Declaration.Object
 	// TODO(rstambler): Remove this configuration when hover behavior is stable.
@@ -113,7 +113,7 @@ func formatVar(node ast.Spec, obj types.Object, f formatter) (string, error) {
 }
 
 // writeHover writes the hover for a given node and its documentation.
-func writeHover(x interface{}, fset *token.FileSet, b *bytes.Buffer, c *ast.CommentGroup, markdownSupported bool, qf types.Qualifier) (string, error) {
+func writeHover(x interface{}, fset *token.FileSet, b *strings.Builder, c *ast.CommentGroup, markdownSupported bool, qf types.Qualifier) (string, error) {
 	if c != nil {
 		b.WriteString(c.Text())
 		b.WriteRune('\n')

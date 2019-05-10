@@ -59,6 +59,7 @@ type Package interface {
 	GetTypesSizes() types.Sizes
 	IsIllTyped() bool
 	GetActionGraph(ctx context.Context, a *analysis.Analyzer) (*Action, error)
+	GetImport(pkgPath string) Package
 }
 
 // TextEdit represents a change to a section of a document.

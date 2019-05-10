@@ -1,5 +1,9 @@
 -- A-hover --
 type a.A string
+-- AImport-hover --
+package a ("golang.org/x/tools/internal/lsp/godef/a")
+-- PackageFoo-hover --
+
 -- S1-hover --
 type S1 struct{F1 int; S2; a.A}
 -- S1F1-hover --

@@ -1,4 +1,4 @@
-package foo
+package foo //@mark(PackageFoo, "foo")
 
 type StructFoo struct { //@item(StructFoo, "StructFoo", "struct{...}", "struct")
 	Value int //@item(Value, "Value", "int", "field")

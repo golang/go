@@ -28,7 +28,7 @@ type ParameterInformation struct {
 func SignatureHelp(ctx context.Context, f File, pos token.Pos) (*SignatureInformation, error) {
 	fAST := f.GetAST(ctx)
 	pkg := f.GetPackage(ctx)
-	if pkg.IsIllTyped() {
+	if pkg == nil || pkg.IsIllTyped() {
 		return nil, fmt.Errorf("package for %s is ill typed", f.URI())
 	}
 
