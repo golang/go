@@ -423,6 +423,9 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 	// engineered 96-bit partial SHA256 collision.
 	a.actionID = actionHash
 	actionID := hashToString(actionHash)
+	if a.json != nil {
+		a.json.ActionID = actionID
+	}
 	contentID := actionID // temporary placeholder, likely unique
 	a.buildID = actionID + buildIDSeparator + contentID
 
@@ -440,6 +443,9 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 		buildID, _ = buildid.ReadFile(target)
 		if strings.HasPrefix(buildID, actionID+buildIDSeparator) {
 			a.buildID = buildID
+			if a.json != nil {
+				a.json.BuildID = a.buildID
+			}
 			a.built = target
 			// Poison a.Target to catch uses later in the build.
 			a.Target = "DO NOT USE - " + a.Mode
@@ -482,6 +488,9 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 					// Poison a.Target to catch uses later in the build.
 					a.Target = "DO NOT USE - main build pseudo-cache Target"
 					a.built = "DO NOT USE - main build pseudo-cache built"
+					if a.json != nil {
+						a.json.BuildID = a.buildID
+					}
 					return true
 				}
 				// Otherwise restore old build ID for main build.
@@ -549,6 +558,9 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 						a.built = file
 						a.Target = "DO NOT USE - using cache"
 						a.buildID = buildID
+						if a.json != nil {
+							a.json.BuildID = a.buildID
+						}
 						if p := a.Package; p != nil {
 							// Clearer than explaining that something else is stale.
 							p.StaleReason = "not installed but available in build cache"
@@ -644,6 +656,9 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 
 	// Replace with new content-based ID.
 	a.buildID = newID
+	if a.json != nil {
+		a.json.BuildID = a.buildID
+	}
 	if len(matches) == 0 {
 		// Assume the user specified -buildid= to override what we were going to choose.
 		return nil

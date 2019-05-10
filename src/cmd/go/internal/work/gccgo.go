@@ -94,7 +94,7 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg 
 		args = append(args, mkAbs(p.Dir, f))
 	}
 
-	output, err = b.runOut(p.Dir, nil, args)
+	output, err = b.runOut(a, p.Dir, nil, args)
 	return ofile, output, err
 }
 
