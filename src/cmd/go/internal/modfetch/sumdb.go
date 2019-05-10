@@ -60,7 +60,7 @@ func dbDial() (dbName string, db *sumweb.Conn, err error) {
 	// $GOSUMDB can be "key" or "key url",
 	// and the key can be a full verifier key
 	// or a host on our list of known keys.
-	key := strings.Fields(cfg.Getenv("GOSUMDB"))
+	key := strings.Fields(cfg.GOSUMDB)
 	if len(key) >= 1 {
 		if k := knownGOSUMDB[key[0]]; k != "" {
 			key[0] = k
