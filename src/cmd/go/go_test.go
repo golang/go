@@ -5263,8 +5263,14 @@ func TestCacheVet(t *testing.T) {
 	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
 		t.Skip("GODEBUG gocacheverify")
 	}
-	if cfg.Getenv("GOCACHE") == "off" {
-		tooSlow(t)
+	if testing.Short() {
+		// In short mode, reuse cache.
+		// Test failures may be masked if the cache has just the right entries already
+		// (not a concern during all.bash, which runs in a clean cache).
+		if cfg.Getenv("GOCACHE") == "off" {
+			tooSlow(t)
+		}
+	} else {
 		tg.makeTempdir()
 		tg.setenv("GOCACHE", tg.path("cache"))
 	}

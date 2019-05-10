@@ -367,8 +367,8 @@ func (b *Builder) build(a *Action) (err error) {
 		return 0
 	}
 
-	cached := false
-	need := bit(needBuild, !b.IsCmdList || b.NeedExport) |
+	cachedBuild := false
+	need := bit(needBuild, !b.IsCmdList && a.needBuild || b.NeedExport) |
 		bit(needCgoHdr, b.needCgoHdr(a)) |
 		bit(needVet, a.needVet) |
 		bit(needCompiledGoFiles, b.NeedCompiledGoFiles)
@@ -377,6 +377,11 @@ func (b *Builder) build(a *Action) (err error) {
 		if b.useCache(a, p, b.buildActionID(a), p.Target) {
 			// We found the main output in the cache.
 			// If we don't need any other outputs, we can stop.
+			// Otherwise, we need to write files to a.Objdir (needVet, needCgoHdr).
+			// Remember that we might have them in cache
+			// and check again after we create a.Objdir.
+			cachedBuild = true
+			a.output = []byte{} // start saving output in case we miss any cache results
 			need &^= needBuild
 			if b.NeedExport {
 				p.Export = a.built
@@ -384,16 +389,11 @@ func (b *Builder) build(a *Action) (err error) {
 			if need&needCompiledGoFiles != 0 && b.loadCachedSrcFiles(a) {
 				need &^= needCompiledGoFiles
 			}
-			// Otherwise, we need to write files to a.Objdir (needVet, needCgoHdr).
-			// Remember that we might have them in cache
-			// and check again after we create a.Objdir.
-			cached = true
-			a.output = []byte{} // start saving output in case we miss any cache results
 		}
 
 		// Source files might be cached, even if the full action is not
 		// (e.g., go list -compiled -find).
-		if !cached && need&needCompiledGoFiles != 0 && b.loadCachedSrcFiles(a) {
+		if !cachedBuild && need&needCompiledGoFiles != 0 && b.loadCachedSrcFiles(a) {
 			need &^= needCompiledGoFiles
 		}
 
@@ -438,21 +438,20 @@ func (b *Builder) build(a *Action) (err error) {
 	}
 	objdir := a.Objdir
 
-	if cached {
-		if need&needCgoHdr != 0 && b.loadCachedCgoHdr(a) {
-			need &^= needCgoHdr
-		}
+	// Load cached cgo header, but only if we're skipping the main build (cachedBuild==true).
+	if cachedBuild && need&needCgoHdr != 0 && b.loadCachedCgoHdr(a) {
+		need &^= needCgoHdr
+	}
 
-		// Load cached vet config, but only if that's all we have left
-		// (need == needVet, not testing just the one bit).
-		// If we are going to do a full build anyway,
-		// we're going to regenerate the files below anyway.
-		if need == needVet && b.loadCachedVet(a) {
-			need &^= needVet
-		}
-		if need == 0 {
-			return nil
-		}
+	// Load cached vet config, but only if that's all we have left
+	// (need == needVet, not testing just the one bit).
+	// If we are going to do a full build anyway,
+	// we're going to regenerate the files below anyway.
+	if need == needVet && b.loadCachedVet(a) {
+		need &^= needVet
+	}
+	if need == 0 {
+		return nil
 	}
 
 	// make target directory
