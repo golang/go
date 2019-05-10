@@ -387,7 +387,7 @@ func stable(data Interface, n int) {
 // Radzik, editors, Algorithms - ESA 2004, volume 3221 of Lecture Notes in
 // Computer Science, pages 714-723. Springer, 2004.
 //
-// Let M = m-a and N = b-n. Wolog M < N.
+// Let M = m-a and N = b-n. Wolog(Without loss of generality) M < N.
 // The recursion depth is bound by ceil(log(N+M)).
 // The algorithm needs O(M*log(N/M + 1)) calls to data.Less.
 // The algorithm needs O((M+N)*log(M)) calls to data.Swap.
