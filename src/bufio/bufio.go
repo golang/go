@@ -737,9 +737,9 @@ func (b *Writer) ReadFrom(r io.Reader) (n int64, err error) {
 	if err == io.EOF {
 		// If we filled the buffer exactly, flush preemptively.
 		if b.Available() == 0 {
-			err = b.Flush()
-		} else {
 			err = nil
+		} else {
+			err = b.Flush()
 		}
 	}
 	return n, err
