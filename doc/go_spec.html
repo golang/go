@@ -2513,8 +2513,22 @@ For array and slice literals the following rules apply:
 generates a pointer to a unique <a href="#Variables">variable</a> initialized
 with the literal's value.
 </p>
+
 <pre>
 var pointer *Point3D = &amp;Point3D{y: 1000}
+</pre>
+
+<p>
+Note that the <a href="#The_zero_value">zero value</a> for a slice or map
+type is not the same as an initialized but empty value of the same type.
+Consequently, taking the address of an empty slice or map composite literal
+does not have the same effect as allocating a new slice or map value with
+<a href="#Allocation">new</a>.
+</p>
+
+<pre>
+p1 := &[]int{}    // p1 points to an initialized, empty slice with value []int{} and length 0
+p2 := new([]int)  // p2 points to an uninitialized slice with value nil and length 0
 </pre>
 
 <p>
