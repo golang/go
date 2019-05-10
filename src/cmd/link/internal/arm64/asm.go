@@ -194,6 +194,13 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		}
 		r.Type = objabi.R_ARM64_LDST64
 		return true
+
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_LDST128_ABS_LO12_NC):
+		if targ.Type == sym.SDYNIMPORT {
+			ld.Errorf(s, "unexpected relocation for dynamic symbol %s", targ.Name)
+		}
+		r.Type = objabi.R_ARM64_LDST128
+		return true
 	}
 
 	switch r.Type {
@@ -664,6 +671,14 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 			ld.Errorf(s, "invalid address: %x for relocation type: R_AARCH64_LDST64_ABS_LO12_NC", t)
 		}
 		o0 := (uint32(t&0xfff) >> 3) << 10
+		return val | int64(o0), true
+
+	case objabi.R_ARM64_LDST128:
+		t := ld.Symaddr(r.Sym) + r.Add - ((s.Value + int64(r.Off)) &^ 0xfff)
+		if t&15 != 0 {
+			ld.Errorf(s, "invalid address: %x for relocation type: R_AARCH64_LDST128_ABS_LO12_NC", t)
+		}
+		o0 := (uint32(t&0xfff) >> 4) << 10
 		return val | int64(o0), true
 	}
 
