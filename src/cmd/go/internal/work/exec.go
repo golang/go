@@ -75,13 +75,22 @@ func (b *Builder) Do(root *Action) {
 		a.priority = i
 	}
 
-	if cfg.DebugActiongraph != "" {
-		js := actionGraphJSON(root)
-		if err := ioutil.WriteFile(cfg.DebugActiongraph, []byte(js), 0666); err != nil {
-			fmt.Fprintf(os.Stderr, "go: writing action graph: %v\n", err)
-			base.SetExitStatus(1)
+	// Write action graph, without timing information, in case we fail and exit early.
+	writeActionGraph := func() {
+		if file := cfg.DebugActiongraph; file != "" {
+			if strings.HasSuffix(file, ".go") {
+				// Do not overwrite Go source code in:
+				//	go build -debug-actiongraph x.go
+				base.Fatalf("go: refusing to write action graph to %v\n", file)
+			}
+			js := actionGraphJSON(root)
+			if err := ioutil.WriteFile(file, []byte(js), 0666); err != nil {
+				fmt.Fprintf(os.Stderr, "go: writing action graph: %v\n", err)
+				base.SetExitStatus(1)
+			}
 		}
 	}
+	writeActionGraph()
 
 	b.readySema = make(chan bool, len(all))
 
@@ -100,10 +109,15 @@ func (b *Builder) Do(root *Action) {
 	// Handle runs a single action and takes care of triggering
 	// any actions that are runnable as a result.
 	handle := func(a *Action) {
+		if a.json != nil {
+			a.json.TimeStart = time.Now()
+		}
 		var err error
-
 		if a.Func != nil && (!a.Failed || a.IgnoreFail) {
 			err = a.Func(b, a)
+		}
+		if a.json != nil {
+			a.json.TimeDone = time.Now()
 		}
 
 		// The actions run in parallel but all the updates to the
@@ -170,6 +184,9 @@ func (b *Builder) Do(root *Action) {
 	}
 
 	wg.Wait()
+
+	// Write action graph again, this time with timing information.
+	writeActionGraph()
 }
 
 // buildActionID computes the action ID for a build action.
@@ -1322,7 +1339,7 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, 
 			}
 		}
 		var out []byte
-		out, err = b.runOut(p.Dir, nil, b.PkgconfigCmd(), "--cflags", pcflags, "--", pkgs)
+		out, err = b.runOut(nil, p.Dir, nil, b.PkgconfigCmd(), "--cflags", pcflags, "--", pkgs)
 		if err != nil {
 			b.showOutput(nil, p.Dir, b.PkgconfigCmd()+" --cflags "+strings.Join(pcflags, " ")+" -- "+strings.Join(pkgs, " "), string(out))
 			b.Print(err.Error() + "\n")
@@ -1337,7 +1354,7 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, 
 				return nil, nil, err
 			}
 		}
-		out, err = b.runOut(p.Dir, nil, b.PkgconfigCmd(), "--libs", pcflags, "--", pkgs)
+		out, err = b.runOut(nil, p.Dir, nil, b.PkgconfigCmd(), "--libs", pcflags, "--", pkgs)
 		if err != nil {
 			b.showOutput(nil, p.Dir, b.PkgconfigCmd()+" --libs "+strings.Join(pcflags, " ")+" -- "+strings.Join(pkgs, " "), string(out))
 			b.Print(err.Error() + "\n")
@@ -1437,6 +1454,9 @@ func BuildInstallFunc(b *Builder, a *Action) (err error) {
 
 	a1 := a.Deps[0]
 	a.buildID = a1.buildID
+	if a.json != nil {
+		a.json.BuildID = a.buildID
+	}
 
 	// If we are using the eventual install target as an up-to-date
 	// cached copy of the thing we built, then there's no need to
@@ -1853,7 +1873,7 @@ var cgoTypeSigRe = lazyregexp.New(`\b_C2?(type|func|var|macro)_\B`)
 // If the command fails, run prints information about the failure
 // and returns a non-nil error.
 func (b *Builder) run(a *Action, dir string, desc string, env []string, cmdargs ...interface{}) error {
-	out, err := b.runOut(dir, env, cmdargs...)
+	out, err := b.runOut(a, dir, env, cmdargs...)
 	if len(out) > 0 {
 		if desc == "" {
 			desc = b.fmtcmd(dir, "%s", strings.Join(str.StringList(cmdargs...), " "))
@@ -1885,7 +1905,8 @@ func (b *Builder) processOutput(out []byte) string {
 
 // runOut runs the command given by cmdline in the directory dir.
 // It returns the command output and any errors that occurred.
-func (b *Builder) runOut(dir string, env []string, cmdargs ...interface{}) ([]byte, error) {
+// It accumulates execution time in a.
+func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...interface{}) ([]byte, error) {
 	cmdline := str.StringList(cmdargs...)
 
 	for _, arg := range cmdline {
@@ -1926,7 +1947,17 @@ func (b *Builder) runOut(dir string, env []string, cmdargs ...interface{}) ([]by
 	cmd.Dir = dir
 	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
 	cmd.Env = append(cmd.Env, env...)
+	start := time.Now()
 	err := cmd.Run()
+	if a != nil && a.json != nil {
+		aj := a.json
+		aj.Cmd = append(aj.Cmd, joinUnambiguously(cmdline))
+		aj.CmdReal += time.Since(start)
+		if ps := cmd.ProcessState; ps != nil {
+			aj.CmdUser += ps.UserTime()
+			aj.CmdSys += ps.SystemTime()
+		}
+	}
 
 	// err can be something like 'exit status 1'.
 	// Add information about what program was running.
@@ -2124,7 +2155,7 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 	if !filepath.IsAbs(outfile) {
 		outfile = filepath.Join(p.Dir, outfile)
 	}
-	output, err := b.runOut(filepath.Dir(file), b.cCompilerEnv(), compiler, flags, "-o", outfile, "-c", filepath.Base(file))
+	output, err := b.runOut(a, filepath.Dir(file), b.cCompilerEnv(), compiler, flags, "-o", outfile, "-c", filepath.Base(file))
 	if len(output) > 0 {
 		// On FreeBSD 11, when we pass -g to clang 3.8 it
 		// invokes its internal assembler with -dwarf-version=2.
@@ -2157,7 +2188,7 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 }
 
 // gccld runs the gcc linker to create an executable from a set of object files.
-func (b *Builder) gccld(p *load.Package, objdir, outfile string, flags []string, objs []string) error {
+func (b *Builder) gccld(a *Action, p *load.Package, objdir, outfile string, flags []string, objs []string) error {
 	var cmd []string
 	if len(p.CXXFiles) > 0 || len(p.SwigCXXFiles) > 0 {
 		cmd = b.GxxCmd(p.Dir, objdir)
@@ -2167,7 +2198,7 @@ func (b *Builder) gccld(p *load.Package, objdir, outfile string, flags []string,
 
 	cmdargs := []interface{}{cmd, "-o", outfile, objs, flags}
 	dir := p.Dir
-	out, err := b.runOut(dir, b.cCompilerEnv(), cmdargs...)
+	out, err := b.runOut(a, dir, b.cCompilerEnv(), cmdargs...)
 	if len(out) > 0 {
 		// Filter out useless linker warnings caused by bugs outside Go.
 		// See also cmd/link/internal/ld's hostlink method.
@@ -2651,7 +2682,7 @@ func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe
 		}
 		ldflags = append(n, "-pie")
 	}
-	if err := b.gccld(p, objdir, dynobj, ldflags, linkobj); err != nil {
+	if err := b.gccld(a, p, objdir, dynobj, ldflags, linkobj); err != nil {
 		return err
 	}
 
@@ -2710,7 +2741,7 @@ var (
 )
 
 func (b *Builder) swigDoVersionCheck() error {
-	out, err := b.runOut("", nil, "swig", "-version")
+	out, err := b.runOut(nil, "", nil, "swig", "-version")
 	if err != nil {
 		return err
 	}
@@ -2865,7 +2896,7 @@ func (b *Builder) swigOne(a *Action, p *load.Package, file, objdir string, pcCFL
 		args = append(args, "-c++")
 	}
 
-	out, err := b.runOut(p.Dir, nil, "swig", args, file)
+	out, err := b.runOut(a, p.Dir, nil, "swig", args, file)
 	if err != nil {
 		if len(out) > 0 {
 			if bytes.Contains(out, []byte("-intgosize")) || bytes.Contains(out, []byte("-cgo")) {

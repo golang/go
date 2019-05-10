@@ -91,9 +91,10 @@ type Action struct {
 	output    []byte     // output redirect buffer (nil means use b.Print)
 
 	// Execution state.
-	pending  int  // number of deps yet to complete
-	priority int  // relative execution priority
-	Failed   bool // whether the action failed
+	pending  int         // number of deps yet to complete
+	priority int         // relative execution priority
+	Failed   bool        // whether the action failed
+	json     *actionJSON // action graph information
 }
 
 // BuildActionID returns the action ID section of a's build ID.
@@ -125,6 +126,9 @@ func (q *actionQueue) Pop() interface{} {
 }
 
 func (q *actionQueue) push(a *Action) {
+	if a.json != nil {
+		a.json.TimeReady = time.Now()
+	}
 	heap.Push(q, a)
 }
 
@@ -136,16 +140,28 @@ type actionJSON struct {
 	ID         int
 	Mode       string
 	Package    string
-	Deps       []int    `json:",omitempty"`
-	IgnoreFail bool     `json:",omitempty"`
-	Args       []string `json:",omitempty"`
-	Link       bool     `json:",omitempty"`
-	Objdir     string   `json:",omitempty"`
-	Target     string   `json:",omitempty"`
-	Priority   int      `json:",omitempty"`
-	Failed     bool     `json:",omitempty"`
-	Built      string   `json:",omitempty"`
-	VetxOnly   bool     `json:",omitempty"`
+	Deps       []int     `json:",omitempty"`
+	IgnoreFail bool      `json:",omitempty"`
+	Args       []string  `json:",omitempty"`
+	Link       bool      `json:",omitempty"`
+	Objdir     string    `json:",omitempty"`
+	Target     string    `json:",omitempty"`
+	Priority   int       `json:",omitempty"`
+	Failed     bool      `json:",omitempty"`
+	Built      string    `json:",omitempty"`
+	VetxOnly   bool      `json:",omitempty"`
+	NeedVet    bool      `json:",omitempty"`
+	NeedBuild  bool      `json:",omitempty"`
+	ActionID   string    `json:",omitempty"`
+	BuildID    string    `json:",omitempty"`
+	TimeReady  time.Time `json:",omitempty"`
+	TimeStart  time.Time `json:",omitempty"`
+	TimeDone   time.Time `json:",omitempty"`
+
+	Cmd     []string      // `json:",omitempty"`
+	CmdReal time.Duration `json:",omitempty"`
+	CmdUser time.Duration `json:",omitempty"`
+	CmdSys  time.Duration `json:",omitempty"`
 }
 
 // cacheKey is the key for the action cache.
@@ -175,26 +191,30 @@ func actionGraphJSON(a *Action) string {
 
 	var list []*actionJSON
 	for id, a := range workq {
-		aj := &actionJSON{
-			Mode:       a.Mode,
-			ID:         id,
-			IgnoreFail: a.IgnoreFail,
-			Args:       a.Args,
-			Objdir:     a.Objdir,
-			Target:     a.Target,
-			Failed:     a.Failed,
-			Priority:   a.priority,
-			Built:      a.built,
-			VetxOnly:   a.VetxOnly,
+		if a.json == nil {
+			a.json = &actionJSON{
+				Mode:       a.Mode,
+				ID:         id,
+				IgnoreFail: a.IgnoreFail,
+				Args:       a.Args,
+				Objdir:     a.Objdir,
+				Target:     a.Target,
+				Failed:     a.Failed,
+				Priority:   a.priority,
+				Built:      a.built,
+				VetxOnly:   a.VetxOnly,
+				NeedBuild:  a.needBuild,
+				NeedVet:    a.needVet,
+			}
+			if a.Package != nil {
+				// TODO(rsc): Make this a unique key for a.Package somehow.
+				a.json.Package = a.Package.ImportPath
+			}
+			for _, a1 := range a.Deps {
+				a.json.Deps = append(a.json.Deps, inWorkq[a1])
+			}
 		}
-		if a.Package != nil {
-			// TODO(rsc): Make this a unique key for a.Package somehow.
-			aj.Package = a.Package.ImportPath
-		}
-		for _, a1 := range a.Deps {
-			aj.Deps = append(aj.Deps, inWorkq[a1])
-		}
-		list = append(list, aj)
+		list = append(list, a.json)
 	}
 
 	js, err := json.MarshalIndent(list, "", "\t")
