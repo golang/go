@@ -44,7 +44,7 @@ func (h *handler) clear(sig int) {
 	h.mask[sig/32] &^= 1 << uint(sig&31)
 }
 
-// Stop relaying the signals, sigs, to any channels previously registered to
+// cancel relaying the signals, sigs, to any channels previously registered to
 // receive them and either reset the signal handlers to their original values
 // (action=disableSignal) or ignore the signals (action=ignoreSignal).
 func cancel(sigs []os.Signal, action func(int)) {
