@@ -1,0 +1,35 @@
+# Tests that the generated test main file has a generated code comment.
+# This is needed by analyzers that access source files through 'go list'.
+# Verifies golang.org/issue/31971.
+# TODO(jayconrod): This test is brittle. We should write _testmain.go as
+# a build action instead of with an ad-hoc WriteFile call
+# in internal/test/test.go. Then we could just grep 'go get -n'.
+go test x_test.go
+
+-- x_test.go --
+package x
+
+import (
+	"os"
+	"path/filepath"
+	"io/ioutil"
+	"regexp"
+	"testing"
+)
+
+func Test(t *testing.T) {
+	exePath, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	testmainPath := filepath.Join(filepath.Dir(exePath), "_testmain.go")
+	source, err := ioutil.ReadFile(testmainPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if matched, err := regexp.Match(`(?m)^// Code generated .* DO NOT EDIT\.$`, source); err != nil {
+		t.Fatal(err)
+	} else if !matched {
+		t.Error("_testmain.go does not have generated code comment")
+	}
+}
