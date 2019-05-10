@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch/codehost"
 )
 
@@ -25,6 +26,12 @@ func TestMain(m *testing.M) {
 
 func testMain(m *testing.M) int {
 	SetProxy("direct")
+
+	// The sum database is populated using a released version of the go command,
+	// but this test may include fixes for additional modules that previously
+	// could not be fetched. Since this test isn't executing any of the resolved
+	// code, bypass the sum database.
+	cfg.GOSUMDB = "off"
 
 	dir, err := ioutil.TempDir("", "gitrepo-test-")
 	if err != nil {
