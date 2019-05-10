@@ -1,19 +1,14 @@
 env GO111MODULE=on
 
-# Testing that a pseudo version with schematically higher version than the latest
-# tagged version isn't downgraded when running 'go get -u'.
+# For this test module there are three versions:
+#   * v0.1.1-0.20190429073117-b5426c86b553
+#   * v0.1.0
+#   * v0.0.0-20190429073000-30950c05d534
+# Only v0.1.0 is tagged.
+#
+# The latest pseudo-version is semantically higher than the latest tag.
+# 'get -u' should not downgrade to the (lower) tagged version.
 
-[!net] skip
-[!exec:git] skip
-
-# For this test repository there are three commits:
-#   * b5426c8 "master" (v0.1.1-0.20190429073117-b5426c86b553)
-#   * a90cfd2 (tag: v0.1.0)
-#   * 30950c0
-
-# When requesting master as specific version, a pseudo version is created with a
-# higher version than the latest tag. Running 'go get -u' doesn't downgrade the
-# version.
 go get -m example.com/pseudoupgrade@b5426c8
 go get -u
 go list -m -u all
