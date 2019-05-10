@@ -678,7 +678,8 @@ func (r *gitRepo) RecentTag(rev, prefix string) (tag string, err error) {
 			}
 
 			semtag := line[len(prefix):]
-			if semver.IsValid(semtag) {
+			// Consider only tags that are valid and complete (not just major.minor prefixes).
+			if c := semver.Canonical(semtag); c != "" && strings.HasPrefix(semtag, c) {
 				highest = semver.Max(highest, semtag)
 			}
 		}
