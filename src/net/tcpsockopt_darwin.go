@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// syscall.TCP_KEEPINTVL is missing on some darwin architectures.
 const sysTCP_KEEPINTVL = 0x101
 
 func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
