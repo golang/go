@@ -75,10 +75,9 @@ func selunlock(scases []scase, lockorder []uint16) {
 }
 
 func selparkcommit(gp *g, _ unsafe.Pointer) bool {
-	// This must not access gp's stack (see gopark). In
-	// particular, it must not access the *hselect. That's okay,
-	// because by the time this is called, gp.waiting has all
-	// channels in lock order.
+	// This must not access gp's stack (see gopark). 
+	// That's okay,because by the time this is called, 
+	// gp.waiting has all channels in lock order.
 	var lastc *hchan
 	for sg := gp.waiting; sg != nil; sg = sg.waitlink {
 		if sg.c != lastc && lastc != nil {
