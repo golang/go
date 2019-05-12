@@ -940,7 +940,7 @@ overflow:
 func Since(t Time) Duration {
 	var now Time
 	if t.wall&hasMonotonic != 0 {
-		// Common case optimization: if t has monotomic time, then Sub will use only it.
+		// Common case optimization: if t has monotonic time, then Sub will use only it.
 		now = Time{hasMonotonic, runtimeNano() - startNano, nil}
 	} else {
 		now = Now()
@@ -953,7 +953,7 @@ func Since(t Time) Duration {
 func Until(t Time) Duration {
 	var now Time
 	if t.wall&hasMonotonic != 0 {
-		// Common case optimization: if t has monotomic time, then Sub will use only it.
+		// Common case optimization: if t has monotonic time, then Sub will use only it.
 		now = Time{hasMonotonic, runtimeNano() - startNano, nil}
 	} else {
 		now = Now()
