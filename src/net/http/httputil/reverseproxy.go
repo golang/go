@@ -51,8 +51,7 @@ type ReverseProxy struct {
 
 	// ErrorLog specifies an optional logger for errors
 	// that occur when attempting to proxy the request.
-	// If nil, logging goes to os.Stderr via the log package's
-	// standard logger.
+	// If nil, logging is done via the log package's standard logger.
 	ErrorLog *log.Logger
 
 	// BufferPool optionally specifies a buffer pool to
