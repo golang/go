@@ -491,11 +491,11 @@ type m struct {
 	schedlink     muintptr
 	mcache        *mcache
 	lockedg       guintptr
-	createstack   [32]uintptr    // stack that created this thread.
-	lockedExt     uint32         // tracking for external LockOSThread
-	lockedInt     uint32         // tracking for internal lockOSThread
-	nextwaitm     muintptr       // next m waiting for lock
-	waitunlockf   unsafe.Pointer // todo go func(*g, unsafe.pointer) bool
+	createstack   [32]uintptr // stack that created this thread.
+	lockedExt     uint32      // tracking for external LockOSThread
+	lockedInt     uint32      // tracking for internal lockOSThread
+	nextwaitm     muintptr    // next m waiting for lock
+	waitunlockf   func(*g, unsafe.Pointer) bool
 	waitlock      unsafe.Pointer
 	waittraceev   byte
 	waittraceskip int

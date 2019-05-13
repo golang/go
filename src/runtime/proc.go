@@ -295,7 +295,7 @@ func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason w
 		throw("gopark: bad g status")
 	}
 	mp.waitlock = lock
-	mp.waitunlockf = *(*unsafe.Pointer)(unsafe.Pointer(&unlockf))
+	mp.waitunlockf = unlockf
 	gp.waitreason = reason
 	mp.waittraceev = traceEv
 	mp.waittraceskip = traceskip
@@ -2595,8 +2595,7 @@ func park_m(gp *g) {
 	casgstatus(gp, _Grunning, _Gwaiting)
 	dropg()
 
-	if _g_.m.waitunlockf != nil {
-		fn := *(*func(*g, unsafe.Pointer) bool)(unsafe.Pointer(&_g_.m.waitunlockf))
+	if fn := _g_.m.waitunlockf; fn != nil {
 		ok := fn(gp, _g_.m.waitlock)
 		_g_.m.waitunlockf = nil
 		_g_.m.waitlock = nil
