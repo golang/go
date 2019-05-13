@@ -186,7 +186,7 @@ func Query(path, query string, allowed func(module.Version) bool) (*modfetch.Rev
 	return nil, &NoMatchingVersionError{query: query}
 }
 
-// isSemverPrefix reports whether v is a semantic version prefix: v1 or  v1.2 (not wv1.2.3).
+// isSemverPrefix reports whether v is a semantic version prefix: v1 or v1.2 (not v1.2.3).
 // The caller is assumed to have checked that semver.IsValid(v) is true.
 func isSemverPrefix(v string) bool {
 	dots := 0
@@ -207,7 +207,7 @@ func isSemverPrefix(v string) bool {
 // matchSemverPrefix reports whether the shortened semantic version p
 // matches the full-width (non-shortened) semantic version v.
 func matchSemverPrefix(p, v string) bool {
-	return len(v) > len(p) && v[len(p)] == '.' && v[:len(p)] == p
+	return len(v) > len(p) && v[len(p)] == '.' && v[:len(p)] == p && semver.Prerelease(v) == ""
 }
 
 type QueryResult struct {

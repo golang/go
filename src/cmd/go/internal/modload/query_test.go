@@ -76,7 +76,7 @@ var queryTests = []struct {
 		git checkout v2
 		echo module vcs-test.golang.org/git/querytest.git/v2 >go.mod
 		git commit -m v2 go.mod
-		for i in v2.0.0 v2.1.0 v2.2.0 v2.5.5; do
+		for i in v2.0.0 v2.1.0 v2.2.0 v2.5.5 v2.6.0-pre1; do
 			echo before $i >status
 			git add status
 			git commit -m "before $i" status
@@ -84,6 +84,7 @@ var queryTests = []struct {
 			git commit -m "at $i" status
 			git tag $i
 		done
+		git checkout v2.5.5
 		echo after v2.5.5 >status
 		git commit -m 'after v2.5.5' status
 		git checkout master
@@ -117,6 +118,10 @@ var queryTests = []struct {
 	{path: queryRepoV2, query: ">v0.0.0", vers: "v2.0.0"},
 	{path: queryRepoV2, query: ">=v0.0.0", vers: "v2.0.0"},
 	{path: queryRepoV2, query: "v0.0.1+foo", vers: "v2.0.0-20180704023347-179bc86b1be3"},
+	{path: queryRepoV2, query: "v2", vers: "v2.5.5"},
+	{path: queryRepoV2, query: "v2.5", vers: "v2.5.5"},
+	{path: queryRepoV2, query: "v2.6", err: `no matching versions for query "v2.6"`},
+	{path: queryRepoV2, query: "v2.6.0-pre1", vers: "v2.6.0-pre1"},
 	{path: queryRepoV2, query: "latest", vers: "v2.5.5"},
 
 	{path: queryRepoV3, query: "latest", vers: "v3.0.0-20180704024501-e0cf3de987e6"},
