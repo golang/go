@@ -255,8 +255,6 @@ func markrootBlock(b0, n0 uintptr, ptrmask0 *uint8, gcw *gcWork, shard int) {
 //
 // This does not free stacks of dead Gs cached on Ps, but having a few
 // cached stacks around isn't a problem.
-//
-//TODO go:nowritebarrier
 func markrootFreeGStacks() {
 	// Take list of dead Gs with stacks.
 	lock(&sched.gFree.lock)
