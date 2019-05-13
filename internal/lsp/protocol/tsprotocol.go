@@ -1,7 +1,10 @@
-// Package protocol contains data types for LSP jsonrpcs
+// Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
-//  version of Fri Apr 05 2019 10:16:07 GMT-0400 (Eastern Daylight Time)
+// commit: 54f6caacea8aa0cf9f45527153d993010c1cc793
+// last fetched Fri Apr 05 2019 10:16:07 GMT-0400 (Eastern Daylight Time)
 package protocol
+
+// Code generated (see typescript/README.md) DO NOT EDIT.
 
 // WorkspaceFolder is
 type WorkspaceFolder struct {

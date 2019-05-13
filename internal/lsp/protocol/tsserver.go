@@ -1,6 +1,6 @@
 package protocol
 
-//automatically generated
+// Code generated (see typescript/README.md) DO NOT EDIT.
 
 import (
 	"context"
@@ -253,7 +253,8 @@ func serverHandler(log xlog.Logger, server Server) jsonrpc2.Handler {
 				conn.Reply(ctx, r, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidParams, "Expected no params"))
 				return
 			}
-			if err := server.Shutdown(ctx); err != nil {
+			err := server.Shutdown(ctx)
+			if err := conn.Reply(ctx, r, nil, err); err != nil {
 				log.Errorf(ctx, "%v", err)
 			}
 		case "textDocument/willSaveWaitUntil": // req

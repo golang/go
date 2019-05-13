@@ -1,6 +1,6 @@
 package protocol
 
-//automatically generated
+// Code generated (see typescript/README.md) DO NOT EDIT.
 
 import (
 	"context"
