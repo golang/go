@@ -87,6 +87,7 @@ var target = flag.String("target", "", "test disassembly of `goos/goarch` binary
 // can handle that one.
 
 func testDisasm(t *testing.T, printCode bool, flags ...string) {
+	t.Parallel()
 	goarch := runtime.GOARCH
 	if *target != "" {
 		f := strings.Split(*target, "/")
