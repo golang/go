@@ -574,7 +574,6 @@ func (enc *Encoder) Encode(w io.Writer, m image.Image) error {
 	if enc.BufferPool != nil {
 		buffer := enc.BufferPool.Get()
 		e = (*encoder)(buffer)
-
 	}
 	if e == nil {
 		e = &encoder{}
