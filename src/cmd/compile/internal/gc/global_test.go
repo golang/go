@@ -19,6 +19,7 @@ import (
 // fmt.scanf routines. See issue 6853.
 func TestScanfRemoval(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	t.Parallel()
 
 	// Make a directory to work in.
 	dir, err := ioutil.TempDir("", "issue6853a-")
@@ -66,6 +67,7 @@ func main() {
 // Make sure -S prints assembly code. See issue 14515.
 func TestDashS(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	t.Parallel()
 
 	// Make a directory to work in.
 	dir, err := ioutil.TempDir("", "issue14515-")
