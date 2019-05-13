@@ -406,7 +406,7 @@ func Readlink(name string) (string, error) {
 			continue
 		}
 		if e != nil {
-			return "", &PathError{"readlink", name, e}
+			return string(b[0:n]), &PathError{"readlink", name, e}
 		}
 		if n < len {
 			return string(b[0:n]), nil
