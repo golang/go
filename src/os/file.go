@@ -492,7 +492,7 @@ func UserHomeDir() (string, error) {
 //
 // On Windows, only the 0200 bit (owner writable) of mode is used; it
 // controls whether the file's read-only attribute is set or cleared.
-// The other bits are currently unused. For compatibilty with Go 1.12
+// The other bits are currently unused. For compatibility with Go 1.12
 // and earlier, use a non-zero mode. Use mode 0400 for a read-only
 // file and 0600 for a readable+writable file.
 //
