@@ -5,7 +5,6 @@
 package fmt
 
 import (
-	"errors"
 	"internal/fmtsort"
 	"io"
 	"os"
@@ -123,6 +122,10 @@ type pp struct {
 	panicking bool
 	// erroring is set when printing an error string to guard against calling handleMethods.
 	erroring bool
+	// wrapErrors is set when the format string may contain a %w verb.
+	wrapErrs bool
+	// wrappedErr records the target of the %w verb.
+	wrappedErr error
 }
 
 var ppFree = sync.Pool{
@@ -153,6 +156,7 @@ func (p *pp) free() {
 	p.buf = p.buf[:0]
 	p.arg = nil
 	p.value = reflect.Value{}
+	p.wrappedErr = nil
 	ppFree.Put(p)
 }
 
@@ -215,12 +219,6 @@ func Sprintf(format string, a ...interface{}) string {
 	s := string(p.buf)
 	p.free()
 	return s
-}
-
-// Errorf formats according to a format specifier and returns the string
-// as a value that satisfies error.
-func Errorf(format string, a ...interface{}) error {
-	return errors.New(Sprintf(format, a...))
 }
 
 // These routines do not take a format string
@@ -576,6 +574,21 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
 	if p.erroring {
 		return
 	}
+	if verb == 'w' {
+		// It is invalid to use %w other than with Errorf, more than once,
+		// or with a non-error arg.
+		err, ok := p.arg.(error)
+		if !ok || !p.wrapErrs || p.wrappedErr != nil {
+			p.wrappedErr = nil
+			p.wrapErrs = false
+			p.badVerb(verb)
+			return true
+		}
+		p.wrappedErr = err
+		// If the arg is a Formatter, pass 'v' as the verb to it.
+		verb = 'v'
+	}
+
 	// Is it a Formatter?
 	if formatter, ok := p.arg.(Formatter); ok {
 		handled = true
