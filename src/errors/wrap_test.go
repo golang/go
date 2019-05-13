@@ -5,7 +5,6 @@
 package errors_test
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -16,8 +15,6 @@ func TestIs(t *testing.T) {
 	err1 := errors.New("1")
 	erra := wrapped{"wrap 2", err1}
 	errb := wrapped{"wrap 3", erra}
-	erro := errors.Opaque(err1)
-	errco := wrapped{"opaque", erro}
 
 	err3 := errors.New("3")
 
@@ -35,9 +32,6 @@ func TestIs(t *testing.T) {
 		{err1, err1, true},
 		{erra, err1, true},
 		{errb, err1, true},
-		{errco, erro, true},
-		{errco, err1, false},
-		{erro, erro, true},
 		{err1, err3, false},
 		{erra, err3, false},
 		{errb, err3, false},
@@ -45,8 +39,6 @@ func TestIs(t *testing.T) {
 		{poser, err3, true},
 		{poser, erra, false},
 		{poser, errb, false},
-		{poser, erro, false},
-		{poser, errco, false},
 		{errorUncomparable{}, errorUncomparable{}, true},
 		{errorUncomparable{}, &errorUncomparable{}, false},
 		{&errorUncomparable{}, errorUncomparable{}, true},
@@ -107,10 +99,6 @@ func TestAs(t *testing.T) {
 		errF,
 		&errP,
 		true,
-	}, {
-		errors.Opaque(errT),
-		&errT,
-		false,
 	}, {
 		errorT{},
 		&errP,
@@ -187,7 +175,6 @@ func TestAsValidation(t *testing.T) {
 func TestUnwrap(t *testing.T) {
 	err1 := errors.New("1")
 	erra := wrapped{"wrap 2", err1}
-	erro := errors.Opaque(err1)
 
 	testCases := []struct {
 		err  error
@@ -198,47 +185,11 @@ func TestUnwrap(t *testing.T) {
 		{err1, nil},
 		{erra, err1},
 		{wrapped{"wrap 3", erra}, erra},
-
-		{erro, nil},
-		{wrapped{"opaque", erro}, erro},
 	}
 	for _, tc := range testCases {
 		if got := errors.Unwrap(tc.err); got != tc.want {
 			t.Errorf("Unwrap(%v) = %v, want %v", tc.err, got, tc.want)
 		}
-	}
-}
-
-func TestOpaque(t *testing.T) {
-	someError := errors.New("some error")
-	testCases := []struct {
-		err  error
-		next error
-	}{
-		{errorT{}, nil},
-		{wrapped{"b", nil}, nil},
-		{wrapped{"c", someError}, someError},
-	}
-	for _, tc := range testCases {
-		t.Run("", func(t *testing.T) {
-			opaque := errors.Opaque(tc.err)
-
-			f, ok := opaque.(errors.Formatter)
-			if !ok {
-				t.Fatal("Opaque error does not implement Formatter")
-			}
-			var p printer
-			next := f.FormatError(&p)
-			if next != tc.next {
-				t.Errorf("next was %v; want %v", next, tc.next)
-			}
-			if got, want := p.buf.String(), tc.err.Error(); got != want {
-				t.Errorf("error was %q; want %q", got, want)
-			}
-			if got := errors.Unwrap(opaque); got != nil {
-				t.Errorf("Unwrap returned non-nil error (%v)", got)
-			}
-		})
 	}
 }
 
@@ -254,18 +205,6 @@ type wrapped struct {
 func (e wrapped) Error() string { return e.msg }
 
 func (e wrapped) Unwrap() error { return e.err }
-
-func (e wrapped) FormatError(p errors.Printer) error {
-	p.Print(e.msg)
-	return e.err
-}
-
-type printer struct {
-	errors.Printer
-	buf bytes.Buffer
-}
-
-func (p *printer) Print(args ...interface{}) { fmt.Fprint(&p.buf, args...) }
 
 type errorUncomparable struct {
 	f []string

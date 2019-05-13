@@ -34,11 +34,6 @@ type fmtFlags struct {
 	// different, flagless formats set at the top level.
 	plusV  bool
 	sharpV bool
-
-	// error-related flags.
-	inDetail    bool
-	needNewline bool
-	needColon   bool
 }
 
 // A fmt is the raw formatter used by Printf etc.
