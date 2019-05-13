@@ -555,6 +555,13 @@ const (
 	inNonInitFunction
 )
 
+func (c initContext) String() string {
+	if c == inInitFunction {
+		return "inInitFunction"
+	}
+	return "inNonInitFunction"
+}
+
 // from here down is the walk analysis
 // of composite literals.
 // most of the work is to generate
@@ -913,7 +920,13 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 			break
 
 		case OARRAYLIT, OSTRUCTLIT:
-			fixedlit(ctxt, initKindDynamic, value, a, init)
+			k := initKindDynamic
+			if vstat == nil {
+				// Generate both static and dynamic initializations.
+				// See issue #31987.
+				k = initKindLocalCode
+			}
+			fixedlit(ctxt, k, value, a, init)
 			continue
 		}
 
