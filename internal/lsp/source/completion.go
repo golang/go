@@ -113,7 +113,7 @@ type completer struct {
 	items []CompletionItem
 
 	// prefix is the already-typed portion of the completion candidates.
-	prefix string
+	prefix Prefix
 
 	// expectedType is the type we expect the completion candidate to be.
 	// It may not be set.
@@ -152,6 +152,14 @@ type compLitInfo struct {
 	maybeInFieldName bool
 }
 
+type Prefix struct {
+	content string
+	pos     token.Pos
+}
+
+func (p Prefix) Content() string { return p.content }
+func (p Prefix) Pos() token.Pos  { return p.pos }
+
 // found adds a candidate completion.
 //
 // Only the first candidate of a given name is considered.
@@ -178,28 +186,28 @@ func (c *completer) found(obj types.Object, weight float64) {
 // The prefix is computed based on the preceding identifier and can be used by
 // the client to score the quality of the completion. For instance, some clients
 // may tolerate imperfect matches as valid completion results, since users may make typos.
-func Completion(ctx context.Context, f File, pos token.Pos) ([]CompletionItem, string, error) {
+func Completion(ctx context.Context, f File, pos token.Pos) ([]CompletionItem, Prefix, error) {
 	file := f.GetAST(ctx)
 	pkg := f.GetPackage(ctx)
 	if pkg == nil || pkg.IsIllTyped() {
-		return nil, "", fmt.Errorf("package for %s is ill typed", f.URI())
+		return nil, Prefix{}, fmt.Errorf("package for %s is ill typed", f.URI())
 	}
 
 	// Completion is based on what precedes the cursor.
 	// Find the path to the position before pos.
 	path, _ := astutil.PathEnclosingInterval(file, pos-1, pos-1)
 	if path == nil {
-		return nil, "", fmt.Errorf("cannot find node enclosing position")
+		return nil, Prefix{}, fmt.Errorf("cannot find node enclosing position")
 	}
 	// Skip completion inside comments.
 	for _, g := range file.Comments {
 		if g.Pos() <= pos && pos <= g.End() {
-			return nil, "", nil
+			return nil, Prefix{}, nil
 		}
 	}
 	// Skip completion inside any kind of literal.
 	if _, ok := path[0].(*ast.BasicLit); ok {
-		return nil, "", nil
+		return nil, Prefix{}, nil
 	}
 
 	clInfo := enclosingCompositeLiteral(path, pos, pkg.GetTypesInfo())
@@ -217,9 +225,12 @@ func Completion(ctx context.Context, f File, pos token.Pos) ([]CompletionItem, s
 		enclosingCompositeLiteral: clInfo,
 	}
 
+	// Set the filter prefix.
 	if ident, ok := path[0].(*ast.Ident); ok {
-		// Set the filter prefix.
-		c.prefix = ident.Name[:pos-ident.Pos()]
+		c.prefix = Prefix{
+			content: ident.Name[:pos-ident.Pos()],
+			pos:     ident.Pos(),
+		}
 	}
 
 	c.expectedType = expectedType(c)
@@ -227,7 +238,7 @@ func Completion(ctx context.Context, f File, pos token.Pos) ([]CompletionItem, s
 	// Struct literals are handled entirely separately.
 	if c.wantStructFieldCompletions() {
 		if err := c.structLiteralFieldName(); err != nil {
-			return nil, "", err
+			return nil, Prefix{}, err
 		}
 		return c.items, c.prefix, nil
 	}
@@ -237,7 +248,7 @@ func Completion(ctx context.Context, f File, pos token.Pos) ([]CompletionItem, s
 		// Is this the Sel part of a selector?
 		if sel, ok := path[1].(*ast.SelectorExpr); ok && sel.Sel == n {
 			if err := c.selector(sel); err != nil {
-				return nil, "", err
+				return nil, Prefix{}, err
 			}
 			return c.items, c.prefix, nil
 		}
@@ -251,11 +262,11 @@ func Completion(ctx context.Context, f File, pos token.Pos) ([]CompletionItem, s
 					qual := types.RelativeTo(pkg.GetTypes())
 					of += ", of " + types.ObjectString(obj, qual)
 				}
-				return nil, "", fmt.Errorf("this is a definition%s", of)
+				return nil, Prefix{}, fmt.Errorf("this is a definition%s", of)
 			}
 		}
 		if err := c.lexical(); err != nil {
-			return nil, "", err
+			return nil, Prefix{}, err
 		}
 
 	// The function name hasn't been typed yet, but the parens are there:
@@ -263,18 +274,18 @@ func Completion(ctx context.Context, f File, pos token.Pos) ([]CompletionItem, s
 	case *ast.TypeAssertExpr:
 		// Create a fake selector expression.
 		if err := c.selector(&ast.SelectorExpr{X: n.X}); err != nil {
-			return nil, "", err
+			return nil, Prefix{}, err
 		}
 
 	case *ast.SelectorExpr:
 		if err := c.selector(n); err != nil {
-			return nil, "", err
+			return nil, Prefix{}, err
 		}
 
 	default:
 		// fallback to lexical completions
 		if err := c.lexical(); err != nil {
-			return nil, "", err
+			return nil, Prefix{}, err
 		}
 	}
 

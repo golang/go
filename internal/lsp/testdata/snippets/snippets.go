@@ -10,21 +10,21 @@ type Foo struct {
 func (Foo) Baz() func() {} //@item(snipMethodBaz, "Baz()", "func()", "field")
 
 func _() {
-	f //@snippet(" //", snipFoo, "oo(${1})", "oo(${1:i int}, ${2:b bool})")
+	f //@snippet(" //", snipFoo, "foo(${1})", "foo(${1:i int}, ${2:b bool})")
 
-	bar //@snippet(" //", snipBar, "(${1})", "(${1:fn func()})")
+	bar //@snippet(" //", snipBar, "bar(${1})", "bar(${1:fn func()})")
 
-	bar(nil) //@snippet("(", snipBar, "", "")
-	bar(ba) //@snippet(")", snipBar, "r(${1})", "r(${1:fn func()})")
+	bar(nil) //@snippet("(", snipBar, "bar", "bar")
+	bar(ba) //@snippet(")", snipBar, "bar(${1})", "bar(${1:fn func()})")
 	var f Foo
-	bar(f.Ba) //@snippet(")", snipMethodBaz, "z()", "z()")
+	bar(f.Ba) //@snippet(")", snipMethodBaz, "Baz()", "Baz()")
 
 	Foo{
-		B //@snippet(" //", snipFieldBar, "ar: ${1},", "ar: ${1:int},")
+		B //@snippet(" //", snipFieldBar, "Bar: ${1},", "Bar: ${1:int},")
 	}
 
-	Foo{B} //@snippet("}", snipFieldBar, "ar: ${1}", "ar: ${1:int}")
+	Foo{B} //@snippet("}", snipFieldBar, "Bar: ${1}", "Bar: ${1:int}")
 	Foo{} //@snippet("}", snipFieldBar, "Bar: ${1}", "Bar: ${1:int}")
 
-	Foo{Foo{}.B} //@snippet("} ", snipFieldBar, "ar", "ar")
+	Foo{Foo{}.B} //@snippet("} ", snipFieldBar, "Bar", "Bar")
 }

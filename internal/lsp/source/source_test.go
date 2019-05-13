@@ -145,8 +145,10 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			if !wantBuiltins && isBuiltin(item) {
 				continue
 			}
-			if !strings.HasPrefix(item.Label, prefix) {
-				continue //TODO: why is this needed?
+			// We let the client do fuzzy matching, so we return all possible candidates.
+			// To simplify testing, filter results with prefixes that don't match exactly.
+			if !strings.HasPrefix(item.Label, prefix.Content()) {
+				continue
 			}
 			got = append(got, item)
 		}
@@ -174,7 +176,7 @@ func (r *runner) checkCompletionSnippets(ctx context.Context, t *testing.T, data
 			}
 			tok := f.GetToken(ctx)
 			pos := tok.Pos(src.Start().Offset())
-			list, prefix, err := source.Completion(ctx, f, pos)
+			list, _, err := source.Completion(ctx, f, pos)
 			if err != nil {
 				t.Fatalf("failed for %v: %v", src, err)
 			}
@@ -194,9 +196,9 @@ func (r *runner) checkCompletionSnippets(ctx context.Context, t *testing.T, data
 
 			var expected string
 			if usePlaceholders {
-				expected = prefix + want.PlaceholderSnippet
+				expected = want.PlaceholderSnippet
 			} else {
-				expected = prefix + want.PlainSnippet
+				expected = want.PlainSnippet
 			}
 			insertText := gotItem.InsertText
 			if usePlaceholders && gotItem.PlaceholderSnippet != nil {

@@ -33,11 +33,23 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	items, prefix, err := source.Completion(ctx, f, rng.Start)
 	if err != nil {
 		s.log.Infof(ctx, "no completions found for %s:%v:%v: %v", uri, int(params.Position.Line), int(params.Position.Character), err)
-		items = []source.CompletionItem{}
+	}
+	// We might need to adjust the position to account for the prefix.
+	pos := params.Position
+	if prefix.Pos().IsValid() {
+		spn, err := span.NewRange(view.FileSet(), prefix.Pos(), 0).Span()
+		if err != nil {
+			s.log.Infof(ctx, "failed to get span for prefix position: %s:%v:%v: %v", uri, int(params.Position.Line), int(params.Position.Character), err)
+		}
+		if prefixPos, err := m.Position(spn.Start()); err == nil {
+			pos = prefixPos
+		} else {
+			s.log.Infof(ctx, "failed to convert prefix position: %s:%v:%v: %v", uri, int(params.Position.Line), int(params.Position.Character), err)
+		}
 	}
 	return &protocol.CompletionList{
 		IsIncomplete: false,
-		Items:        toProtocolCompletionItems(items, prefix, params.Position, s.insertTextFormat, s.usePlaceholders),
+		Items:        toProtocolCompletionItems(items, prefix.Content(), pos, s.insertTextFormat, s.usePlaceholders),
 	}, nil
 }
 
@@ -45,7 +57,7 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string
 	sort.SliceStable(candidates, func(i, j int) bool {
 		return candidates[i].Score > candidates[j].Score
 	})
-	items := []protocol.CompletionItem{}
+	items := make([]protocol.CompletionItem, 0, len(candidates))
 	for i, candidate := range candidates {
 		// Match against the label.
 		if !strings.HasPrefix(candidate.Label, prefix) {
@@ -58,16 +70,6 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string
 			} else if candidate.Snippet != nil {
 				insertText = candidate.Snippet.String()
 			}
-		}
-		// If the user has already typed some part of the completion candidate,
-		// don't insert that portion of the text.
-		if strings.HasPrefix(insertText, prefix) {
-			insertText = insertText[len(prefix):]
-		}
-		// Don't filter on text that might have snippets in it.
-		filterText := candidate.InsertText
-		if strings.HasPrefix(filterText, prefix) {
-			filterText = filterText[len(prefix):]
 		}
 		item := protocol.CompletionItem{
 			Label:  candidate.Label,
@@ -85,7 +87,7 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string
 			// according to their score. This can be removed upon the resolution of
 			// https://github.com/Microsoft/language-server-protocol/issues/348.
 			SortText:   fmt.Sprintf("%05d", i),
-			FilterText: filterText,
+			FilterText: candidate.InsertText,
 			Preselect:  i == 0,
 		}
 		// Trigger signature help for any function or method completion.
