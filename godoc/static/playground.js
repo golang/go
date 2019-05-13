@@ -117,7 +117,7 @@ function HTTPTransport(enableVet) {
 			var playing;
 			$.ajax('/compile', {
 				type: 'POST',
-				data: {'version': 2, 'body': body},
+				data: {'version': 2, 'body': body, 'withVet': enableVet},
 				dataType: 'json',
 				success: function(data) {
 					if (seq != cur) return;
@@ -132,21 +132,31 @@ function HTTPTransport(enableVet) {
 						}
 						return;
 					}
+					if (!data.Events) {
+						data.Events = [];
+					}
+					if (data.VetErrors) {
+						// Inject errors from the vet as the first events in the output.
+						data.Events.unshift({Message: 'Go vet exited.\n\n', Kind: 'system', Delay: 0});
+						data.Events.unshift({Message: data.VetErrors, Kind: 'stderr', Delay: 0});
+					}
 
-					if (!enableVet) {
+					if (!enableVet || data.VetOK || data.VetErrors) {
 						playing = playback(output, data);
 						return;
 					}
 
+					// In case the server support doesn't support
+					// compile+vet in same request signaled by the
+					// 'withVet' parameter above, also try the old way.
+					// TODO: remove this when it falls out of use.
+					// It is 2019-05-13 now.
 					$.ajax("/vet", {
 						data: {"body": body},
 						type: "POST",
 						dataType: "json",
 						success: function(dataVet) {
 							if (dataVet.Errors) {
-								if (!data.Events) {
-									data.Events = [];
-								}
 								// inject errors from the vet as the first events in the output
 								data.Events.unshift({Message: 'Go vet exited.\n\n', Kind: 'system', Delay: 0});
 								data.Events.unshift({Message: dataVet.Errors, Kind: 'stderr', Delay: 0});
