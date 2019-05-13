@@ -149,28 +149,20 @@
 	1. If the operand is a reflect.Value, the operand is replaced by the
 	concrete value that it holds, and printing continues with the next rule.
 
-	2. If an operand implements the Formatter interface, and not
-	errors.Formatter, it will be invoked. Formatter provides fine
-	control of formatting.
+	2. If an operand implements the Formatter interface, it will
+	be invoked. Formatter provides fine control of formatting.
 
 	3. If the %v verb is used with the # flag (%#v) and the operand
 	implements the GoStringer interface, that will be invoked.
 
 	If the format (which is implicitly %v for Println etc.) is valid
-	for a string (%s %q %v %x %X), the following three rules apply:
+	for a string (%s %q %v %x %X), the following two rules apply:
 
-	4. If an operand implements errors.Formatter, the FormatError
-	method will be invoked with an errors.Printer to print the error.
-	If the %v flag is used with the + flag (%+v), the Detail method
-	of the Printer will return true and the error will be formatted
-	as a detailed error message. Otherwise the printed string will
-	be formatted as required by the verb (if any).
-
-	5. If an operand implements the error interface, the Error method
+	4. If an operand implements the error interface, the Error method
 	will be invoked to convert the object to a string, which will then
 	be formatted as required by the verb (if any).
 
-	6. If an operand implements method String() string, that method
+	5. If an operand implements method String() string, that method
 	will be invoked to convert the object to a string, which will then
 	be formatted as required by the verb (if any).
 
