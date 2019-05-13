@@ -389,6 +389,11 @@ func (p *ReverseProxy) copyResponse(dst io.Writer, src io.Reader, flushInterval 
 				latency: flushInterval,
 			}
 			defer mlw.stop()
+
+			// set up initial timer so headers get flushed even if body writes are delayed
+			mlw.flushPending = true
+			mlw.t = time.AfterFunc(flushInterval, mlw.delayedFlush)
+
 			dst = mlw
 		}
 	}

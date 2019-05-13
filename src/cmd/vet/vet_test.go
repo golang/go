@@ -88,6 +88,7 @@ func TestVet(t *testing.T) {
 		"method",
 		"nilfunc",
 		"print",
+		"print2",
 		"rangeloop",
 		"shift",
 		"structtag",

@@ -513,3 +513,116 @@ func MapTombstoneCheck(m map[int]int) {
 		}
 	}
 }
+
+// Span is a safe wrapper around an mspan, whose memory
+// is managed manually.
+type Span struct {
+	*mspan
+}
+
+func AllocSpan(base, npages uintptr) Span {
+	lock(&mheap_.lock)
+	s := (*mspan)(mheap_.spanalloc.alloc())
+	unlock(&mheap_.lock)
+	s.init(base, npages)
+	return Span{s}
+}
+
+func (s *Span) Free() {
+	lock(&mheap_.lock)
+	mheap_.spanalloc.free(unsafe.Pointer(s.mspan))
+	unlock(&mheap_.lock)
+	s.mspan = nil
+}
+
+func (s Span) Base() uintptr {
+	return s.mspan.base()
+}
+
+func (s Span) Pages() uintptr {
+	return s.mspan.npages
+}
+
+type TreapIter struct {
+	treapIter
+}
+
+func (t TreapIter) Span() Span {
+	return Span{t.span()}
+}
+
+func (t TreapIter) Valid() bool {
+	return t.valid()
+}
+
+func (t TreapIter) Next() TreapIter {
+	return TreapIter{t.next()}
+}
+
+func (t TreapIter) Prev() TreapIter {
+	return TreapIter{t.prev()}
+}
+
+// Treap is a safe wrapper around mTreap for testing.
+//
+// It must never be heap-allocated because mTreap is
+// notinheap.
+//
+//go:notinheap
+type Treap struct {
+	mTreap
+}
+
+func (t *Treap) Start() TreapIter {
+	return TreapIter{t.start()}
+}
+
+func (t *Treap) End() TreapIter {
+	return TreapIter{t.end()}
+}
+
+func (t *Treap) Insert(s Span) {
+	// mTreap uses a fixalloc in mheap_ for treapNode
+	// allocation which requires the mheap_ lock to manipulate.
+	// Locking here is safe because the treap itself never allocs
+	// or otherwise ends up grabbing this lock.
+	lock(&mheap_.lock)
+	t.insert(s.mspan)
+	unlock(&mheap_.lock)
+	t.CheckInvariants()
+}
+
+func (t *Treap) Find(npages uintptr) TreapIter {
+	return TreapIter{treapIter{t.find(npages)}}
+}
+
+func (t *Treap) Erase(i TreapIter) {
+	// mTreap uses a fixalloc in mheap_ for treapNode
+	// freeing which requires the mheap_ lock to manipulate.
+	// Locking here is safe because the treap itself never allocs
+	// or otherwise ends up grabbing this lock.
+	lock(&mheap_.lock)
+	t.erase(i.treapIter)
+	unlock(&mheap_.lock)
+	t.CheckInvariants()
+}
+
+func (t *Treap) RemoveSpan(s Span) {
+	// See Erase about locking.
+	lock(&mheap_.lock)
+	t.removeSpan(s.mspan)
+	unlock(&mheap_.lock)
+	t.CheckInvariants()
+}
+
+func (t *Treap) Size() int {
+	i := 0
+	t.mTreap.treap.walkTreap(func(t *treapNode) {
+		i++
+	})
+	return i
+}
+
+func (t *Treap) CheckInvariants() {
+	t.mTreap.treap.walkTreap(checkTreapNode)
+}

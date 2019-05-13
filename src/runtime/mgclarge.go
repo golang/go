@@ -134,16 +134,19 @@ func checkTreapNode(t *treapNode) {
 			return t.npagesKey < npages
 		}
 		// t.npagesKey == npages
-		return uintptr(unsafe.Pointer(t.spanKey)) < uintptr(unsafe.Pointer(s))
+		return t.spanKey.base() < s.base()
 	}
 
 	if t == nil {
 		return
 	}
-	if t.spanKey.npages != t.npagesKey || t.spanKey.next != nil {
+	if t.spanKey.next != nil || t.spanKey.prev != nil || t.spanKey.list != nil {
+		throw("span may be on an mSpanList while simultaneously in the treap")
+	}
+	if t.spanKey.npages != t.npagesKey {
 		println("runtime: checkTreapNode treapNode t=", t, "     t.npagesKey=", t.npagesKey,
 			"t.spanKey.npages=", t.spanKey.npages)
-		throw("why does span.npages and treap.ngagesKey do not match?")
+		throw("span.npages and treap.npagesKey do not match")
 	}
 	if t.left != nil && lessThan(t.left.npagesKey, t.left.spanKey) {
 		throw("t.lessThan(t.left.npagesKey, t.left.spanKey) is not false")
@@ -298,24 +301,30 @@ func (root *mTreap) removeNode(t *treapNode) {
 // find searches for, finds, and returns the treap node containing the
 // smallest span that can hold npages. If no span has at least npages
 // it returns nil.
-// This is slightly more complicated than a simple binary tree search
-// since if an exact match is not found the next larger node is
-// returned.
+// This is a simple binary tree search that tracks the best-fit node found
+// so far. The best-fit node is guaranteed to be on the path to a
+// (maybe non-existent) lowest-base exact match.
 func (root *mTreap) find(npages uintptr) *treapNode {
+	var best *treapNode
 	t := root.treap
 	for t != nil {
 		if t.spanKey == nil {
 			throw("treap node with nil spanKey found")
 		}
-		if t.npagesKey < npages {
-			t = t.right
-		} else if t.left != nil && t.left.npagesKey >= npages {
+		// If we found an exact match, try to go left anyway. There could be
+		// a span there with a lower base address.
+		//
+		// Don't bother checking nil-ness of left and right here; even if t
+		// becomes nil, we already know the other path had nothing better for
+		// us anyway.
+		if t.npagesKey >= npages {
+			best = t
 			t = t.left
 		} else {
-			return t
+			t = t.right
 		}
 	}
-	return nil
+	return best
 }
 
 // removeSpan searches for, finds, deletes span along with

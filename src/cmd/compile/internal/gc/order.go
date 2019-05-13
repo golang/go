@@ -1108,10 +1108,10 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		if n.Left.Type.IsInterface() {
 			break
 		}
-		if _, needsaddr := convFuncName(n.Left.Type, n.Type); needsaddr || consttype(n.Left) > 0 {
+		if _, needsaddr := convFuncName(n.Left.Type, n.Type); needsaddr || isStaticCompositeLiteral(n.Left) {
 			// Need a temp if we need to pass the address to the conversion function.
-			// We also process constants here, making a named static global whose
-			// address we can put directly in an interface (see OCONVIFACE case in walk).
+			// We also process static composite literal node here, making a named static global
+			// whose address we can put directly in an interface (see OCONVIFACE case in walk).
 			n.Left = o.addrTemp(n.Left)
 		}
 

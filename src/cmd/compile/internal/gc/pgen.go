@@ -267,7 +267,7 @@ func compile(fn *Node) {
 					// Also make sure we allocate a linker symbol
 					// for the stack object data, for the same reason.
 					if fn.Func.lsym.Func.StackObjects == nil {
-						fn.Func.lsym.Func.StackObjects = lookup(fmt.Sprintf("%s.stkobj", fn.funcname())).Linksym()
+						fn.Func.lsym.Func.StackObjects = Ctxt.Lookup(fn.Func.lsym.Name + ".stkobj")
 					}
 				}
 			}
@@ -597,8 +597,22 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, automDecls []*Node) ([]*Node, []
 		typename := dwarf.InfoPrefix + typesymname(n.Type)
 		decls = append(decls, n)
 		abbrev := dwarf.DW_ABRV_AUTO_LOCLIST
+		isReturnValue := (n.Class() == PPARAMOUT)
 		if n.Class() == PPARAM || n.Class() == PPARAMOUT {
 			abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
+		} else if n.Class() == PAUTOHEAP {
+			// If dcl in question has been promoted to heap, do a bit
+			// of extra work to recover original class (auto or param);
+			// see issue 30908. This insures that we get the proper
+			// signature in the abstract function DIE, but leaves a
+			// misleading location for the param (we want pointer-to-heap
+			// and not stack).
+			// TODO(thanm): generate a better location expression
+			stackcopy := n.Name.Param.Stackcopy
+			if stackcopy != nil && (stackcopy.Class() == PPARAM || stackcopy.Class() == PPARAMOUT) {
+				abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
+				isReturnValue = (stackcopy.Class() == PPARAMOUT)
+			}
 		}
 		inlIndex := 0
 		if genDwarfInline > 1 {
@@ -612,7 +626,7 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, automDecls []*Node) ([]*Node, []
 		declpos := Ctxt.InnermostPos(n.Pos)
 		vars = append(vars, &dwarf.Var{
 			Name:          n.Sym.Name,
-			IsReturnValue: n.Class() == PPARAMOUT,
+			IsReturnValue: isReturnValue,
 			Abbrev:        abbrev,
 			StackOffset:   int32(n.Xoffset),
 			Type:          Ctxt.Lookup(typename),

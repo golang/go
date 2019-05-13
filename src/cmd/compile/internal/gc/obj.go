@@ -287,7 +287,7 @@ func addGCLocals() {
 			}
 		}
 		if x := s.Func.StackObjects; x != nil {
-			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.LOCAL)
+			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
 		}
 	}
 }

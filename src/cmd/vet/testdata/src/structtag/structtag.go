@@ -6,6 +6,20 @@
 
 package structtag
 
+import "encoding/json"
+
 type StructTagTest struct {
 	A int "hello" // ERROR "`hello` not compatible with reflect.StructTag.Get: bad syntax for struct tag pair"
+}
+
+func Issue30465() {
+	type T1 struct {
+		X string `json:"x"`
+	}
+	type T2 struct {
+		T1
+		X string `json:"x"`
+	}
+	var t2 T2
+	json.Marshal(&t2)
 }
