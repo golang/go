@@ -1991,7 +1991,6 @@ func gcMarkWorkAvailable(p *p) bool {
 // gcMark runs the mark (or, for concurrent GC, mark termination)
 // All gcWork caches must be empty.
 // STW is in effect at this point.
-//TODO go:nowritebarrier
 func gcMark(start_time int64) {
 	if debug.allocfreetrace > 0 {
 		tracegc()
