@@ -603,9 +603,12 @@
 // The -t flag instructs get to consider modules needed to build tests of
 // packages specified on the command line.
 //
-// The -u flag instructs get to update dependencies to use newer minor or
-// patch releases when available. Continuing the previous example,
-// 'go get -u A' will use the latest A with B v1.3.1 (not B v1.2.3).
+// The -u flag instructs get to update modules providing dependencies
+// of packages named on the command line to use newer minor or patch
+// releases when available. Continuing the previous example, 'go get -u A'
+// will use the latest A with B v1.3.1 (not B v1.2.3). If B requires module C,
+// but C does not provide any packages needed to build packages in A
+// (not including tests), then C will not be updated.
 //
 // The -u=patch flag (not -u patch) also instructs get to update dependencies,
 // but changes the default to select patch releases.

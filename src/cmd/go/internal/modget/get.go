@@ -77,9 +77,12 @@ those requirements by taking the maximum requested version.)
 The -t flag instructs get to consider modules needed to build tests of
 packages specified on the command line.
 
-The -u flag instructs get to update dependencies to use newer minor or
-patch releases when available. Continuing the previous example,
-'go get -u A' will use the latest A with B v1.3.1 (not B v1.2.3).
+The -u flag instructs get to update modules providing dependencies
+of packages named on the command line to use newer minor or patch
+releases when available. Continuing the previous example, 'go get -u A'
+will use the latest A with B v1.3.1 (not B v1.2.3). If B requires module C,
+but C does not provide any packages needed to build packages in A
+(not including tests), then C will not be updated.
 
 The -u=patch flag (not -u patch) also instructs get to update dependencies,
 but changes the default to select patch releases.
@@ -757,6 +760,9 @@ func newUpgrader(cmdline map[string]*query, pkgs map[string]bool) *upgrader {
 			work = work[1:]
 			m := modload.PackageModule(pkg)
 			u.upgrade[m.Path] = true
+
+			// testImports is empty unless test imports were actually loaded,
+			// i.e., -t was set or "all" was one of the arguments.
 			imports, testImports := modload.PackageImports(pkg)
 			for _, imp := range imports {
 				add(imp)
