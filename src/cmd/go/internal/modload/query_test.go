@@ -62,7 +62,7 @@ var queryTests = []struct {
 		git add go.mod
 		git commit -m v1 go.mod
 		git tag start
-		for i in v0.0.0-pre1 v0.0.0 v0.0.1 v0.0.2 v0.0.3 v0.1.0 v0.1.1 v0.1.2 v0.3.0 v1.0.0 v1.1.0 v1.9.0 v1.9.9 v1.9.10-pre1; do
+		for i in v0.0.0-pre1 v0.0.0 v0.0.1 v0.0.2 v0.0.3 v0.1.0 v0.1.1 v0.1.2 v0.3.0 v1.0.0 v1.1.0 v1.9.0 v1.9.9 v1.9.10-pre1 v1.9.10-pre2+metadata; do
 			echo before $i >status
 			git add status
 			git commit -m "before $i" status
@@ -104,6 +104,9 @@ var queryTests = []struct {
 	{path: queryRepo, query: "v0.1", vers: "v0.1.2"},
 	{path: queryRepo, query: "v0.2", err: `no matching versions for query "v0.2"`},
 	{path: queryRepo, query: "v0.0", vers: "v0.0.3"},
+	{path: queryRepo, query: "v1.9.10-pre2+metadata", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
+	{path: queryRepo, query: "v1.9.10-pre2+wrongmetadata", err: `unknown revision v1.9.10-pre2+wrongmetadata`},
+	{path: queryRepo, query: "v1.9.10-pre2", err: `unknown revision v1.9.10-pre2`},
 	{path: queryRepo, query: "latest", vers: "v1.9.9"},
 	{path: queryRepo, query: "latest", allow: "NOMATCH", err: `no matching versions for query "latest"`},
 	{path: queryRepo, query: ">v1.9.9", vers: "v1.9.10-pre1"},

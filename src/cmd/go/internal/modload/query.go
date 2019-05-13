@@ -31,7 +31,7 @@ import (
 //	- <v1.2.3, <=v1.2.3, >v1.2.3, >=v1.2.3,
 //	   denoting the version closest to the target and satisfying the given operator,
 //	   with non-prereleases preferred over prereleases.
-//	- a repository commit identifier, denoting that commit.
+//	- a repository commit identifier or tag, denoting that commit.
 //
 // If the allowed function is non-nil, Query excludes any versions for which allowed returns false.
 //
@@ -106,18 +106,24 @@ func Query(path, query string, allowed func(module.Version) bool) (*modfetch.Rev
 		}
 		prefix = query + "."
 
-	case semver.IsValid(query):
-		vers := module.CanonicalVersion(query)
-		if !allowed(module.Version{Path: path, Version: vers}) {
-			return nil, fmt.Errorf("%s@%s excluded", path, vers)
-		}
-		return modfetch.Stat(path, vers)
-
 	default:
 		// Direct lookup of semantic version or commit identifier.
+		//
+		// If the identifier is not a canonical semver tag — including if it's a
+		// semver tag with a +metadata suffix — then modfetch.Stat will populate
+		// info.Version with a suitable pseudo-version.
 		info, err := modfetch.Stat(path, query)
 		if err != nil {
-			return nil, err
+			queryErr := err
+			// The full query doesn't correspond to a tag. If it is a semantic version
+			// with a +metadata suffix, see if there is a tag without that suffix:
+			// semantic versioning defines them to be equivalent.
+			if vers := module.CanonicalVersion(query); vers != "" && vers != query {
+				info, err = modfetch.Stat(path, vers)
+			}
+			if err != nil {
+				return nil, queryErr
+			}
 		}
 		if !allowed(module.Version{Path: path, Version: info.Version}) {
 			return nil, fmt.Errorf("%s@%s excluded", path, info.Version)
