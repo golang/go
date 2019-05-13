@@ -5,6 +5,7 @@
 package main
 
 import (
+	"crypto/md5"
 	"flag"
 	"fmt"
 	"go/build"
@@ -101,7 +102,8 @@ func testDisasm(t *testing.T, printCode bool, flags ...string) {
 		goarch = f[1]
 	}
 
-	hello := filepath.Join(tmp, "hello.exe")
+	hash := md5.Sum([]byte(fmt.Sprintf("%v-%v", flags, printCode)))
+	hello := filepath.Join(tmp, fmt.Sprintf("hello-%x.exe", hash))
 	args := []string{"build", "-o", hello}
 	args = append(args, flags...)
 	args = append(args, "testdata/fmthello.go")
