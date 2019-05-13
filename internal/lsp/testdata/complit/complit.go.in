@@ -32,19 +32,35 @@ func _() {
 		//@complete("", abVar, aaVar, structPosition)
 	}
 
-	_ = position{X: a} //@complete("}", abVar, aaVar)
-	_ = position{a}    //@complete("}", abVar, aaVar)
+	_ = []string{a: ""} //@complete(":", abVar, aaVar)
+	_ = [1]string{a: ""} //@complete(":", abVar, aaVar)
+
+	_ = position{X: a}   //@complete("}", abVar, aaVar)
+	_ = position{a}      //@complete("}", abVar, aaVar)
+	_ = position{a, }      //@complete("}", abVar, aaVar, structPosition)
 
 	_ = []int{a}  //@complete("a", abVar, aaVar, structPosition)
 	_ = [1]int{a} //@complete("a", abVar, aaVar, structPosition)
 
-	var s struct {
+	type myStruct struct {
 		AA int    //@item(fieldAA, "AA", "int", "field")
 		AB string //@item(fieldAB, "AB", "string", "field")
 	}
-	_ = map[int]string{1: "" + s.A} //@complete("}", fieldAB, fieldAA)
+
+	_ = myStruct{
+		AB: a, //@complete(",", aaVar, abVar)
+	}
+
+	var s myStruct
+
+	_ = map[int]string{1: "" + s.A}                                //@complete("}", fieldAB, fieldAA)
 	_ = map[int]string{1: (func(i int) string { return "" })(s.A)} //@complete(")}", fieldAA, fieldAB)
-	_ = map[int]string{1: func() string { s.A }} //@complete(" }", fieldAA, fieldAB)
+	_ = map[int]string{1: func() string { s.A }}                   //@complete(" }", fieldAA, fieldAB)
+
+	_ = position{s.A} //@complete("}", fieldAA, fieldAB)
+
+	var X int //@item(varX, "X", "int", "var")
+	_ = position{X}      //@complete("}", fieldX, varX)
 }
 
 func _() {

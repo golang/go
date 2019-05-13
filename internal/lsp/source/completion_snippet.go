@@ -13,28 +13,22 @@ import (
 
 // structFieldSnippets calculates the plain and placeholder snippets for struct literal field names.
 func (c *completer) structFieldSnippets(label, detail string) (*snippet.Builder, *snippet.Builder) {
-	if !c.inCompositeLiteralField {
+	clInfo := c.enclosingCompositeLiteral
+
+	if clInfo == nil || !clInfo.isStruct() {
 		return nil, nil
 	}
 
-	lit := c.enclosingCompositeLiteral
-	kv := c.enclosingKeyValue
-
-	// If we aren't in a composite literal or are already in a key-value expression,
-	// we don't want a snippet.
-	if lit == nil || kv != nil {
+	// If we are already in a key-value expression, we don't want a snippet.
+	if clInfo.kv != nil {
 		return nil, nil
 	}
-	// First, confirm that we are actually completing a struct field.
-	if len(lit.Elts) > 0 {
-		i := indexExprAtPos(c.pos, lit.Elts)
-		if i >= len(lit.Elts) {
-			return nil, nil
-		}
-		// If the expression is not an identifier, it is not a struct field name.
-		if _, ok := lit.Elts[i].(*ast.Ident); !ok {
-			return nil, nil
-		}
+
+	// We don't want snippet unless we are completing a field name. maybeInFieldName
+	// means we _might_ not be a struct field name, but this method is only called for
+	// struct fields, so we can ignore that possibility.
+	if !clInfo.inKey && !clInfo.maybeInFieldName {
+		return nil, nil
 	}
 
 	plain, placeholder := &snippet.Builder{}, &snippet.Builder{}
@@ -52,7 +46,7 @@ func (c *completer) structFieldSnippets(label, detail string) (*snippet.Builder,
 
 	// If the cursor position is on a different line from the literal's opening brace,
 	// we are in a multiline literal.
-	if c.view.FileSet().Position(c.pos).Line != c.view.FileSet().Position(lit.Lbrace).Line {
+	if c.view.FileSet().Position(c.pos).Line != c.view.FileSet().Position(clInfo.cl.Lbrace).Line {
 		plain.WriteText(",")
 		placeholder.WriteText(",")
 	}

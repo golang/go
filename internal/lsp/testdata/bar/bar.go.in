@@ -23,16 +23,16 @@ func _() {
 	var Valentine int //@item(Valentine, "Valentine", "int", "var")
 
 	_ = foo.StructFoo{
-		Val       //@complete("l", Value)
+		Valu //@complete(" //", Value)
 	}
   	_ = foo.StructFoo{
-		Va        //@complete("a", Value)
+		Va        //@complete("a", Value, Valentine)
 	}
 	_ = foo.StructFoo{
 		Value: 5, //@complete("a", Value)
 	}
 	_ = foo.StructFoo{
-		//@complete("", Value)
+		//@complete("", Value, Valentine, foo, Bar, helper)
 	}
 	_ = foo.StructFoo{
 		Value: Valen //@complete("le", Valentine)

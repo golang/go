@@ -126,14 +126,30 @@ type completer struct {
 	// not a value.
 	preferTypeNames bool
 
-	// enclosingCompositeLiteral is the composite literal enclosing the position.
-	enclosingCompositeLiteral *ast.CompositeLit
+	// enclosingCompositeLiteral contains information about the composite literal
+	// enclosing the position.
+	enclosingCompositeLiteral *compLitInfo
+}
 
-	// enclosingKeyValue is the key value expression enclosing the position.
-	enclosingKeyValue *ast.KeyValueExpr
+type compLitInfo struct {
+	// cl is the *ast.CompositeLit enclosing the position.
+	cl *ast.CompositeLit
 
-	// inCompositeLiteralField is true if we are completing a composite literal field.
-	inCompositeLiteralField bool
+	// clType is the type of cl.
+	clType types.Type
+
+	// kv is the *ast.KeyValueExpr enclosing the position, if any.
+	kv *ast.KeyValueExpr
+
+	// inKey is true if we are certain the position is in the key side
+	// of a key-value pair.
+	inKey bool
+
+	// maybeInFieldName is true if inKey is false and it is possible
+	// we are completing a struct field name. For example,
+	// "SomeStruct{<>}" will be inKey=false, but maybeInFieldName=true
+	// because we _could_ be completing a field name.
+	maybeInFieldName bool
 }
 
 // found adds a candidate completion.
@@ -186,7 +202,7 @@ func Completion(ctx context.Context, f File, pos token.Pos) ([]CompletionItem, s
 		return nil, "", nil
 	}
 
-	lit, kv, inCompositeLiteralField := enclosingCompositeLiteral(path, pos)
+	clInfo := enclosingCompositeLiteral(path, pos, pkg.GetTypesInfo())
 	c := &completer{
 		types:                     pkg.GetTypes(),
 		info:                      pkg.GetTypesInfo(),
@@ -198,30 +214,26 @@ func Completion(ctx context.Context, f File, pos token.Pos) ([]CompletionItem, s
 		seen:                      make(map[types.Object]bool),
 		enclosingFunction:         enclosingFunction(path, pos, pkg.GetTypesInfo()),
 		preferTypeNames:           preferTypeNames(path, pos),
-		enclosingCompositeLiteral: lit,
-		enclosingKeyValue:         kv,
-		inCompositeLiteralField:   inCompositeLiteralField,
+		enclosingCompositeLiteral: clInfo,
+	}
+
+	if ident, ok := path[0].(*ast.Ident); ok {
+		// Set the filter prefix.
+		c.prefix = ident.Name[:pos-ident.Pos()]
 	}
 
 	c.expectedType = expectedType(c)
 
-	// Composite literals are handled entirely separately.
-	if c.enclosingCompositeLiteral != nil {
-		c.expectedType = c.expectedCompositeLiteralType(c.enclosingCompositeLiteral, c.enclosingKeyValue)
-
-		if c.inCompositeLiteralField {
-			if err := c.compositeLiteral(c.enclosingCompositeLiteral, c.enclosingKeyValue); err != nil {
-				return nil, "", err
-			}
-			return c.items, c.prefix, nil
+	// Struct literals are handled entirely separately.
+	if c.wantStructFieldCompletions() {
+		if err := c.structLiteralFieldName(); err != nil {
+			return nil, "", err
 		}
+		return c.items, c.prefix, nil
 	}
 
 	switch n := path[0].(type) {
 	case *ast.Ident:
-		// Set the filter prefix.
-		c.prefix = n.Name[:pos-n.Pos()]
-
 		// Is this the Sel part of a selector?
 		if sel, ok := path[1].(*ast.SelectorExpr); ok && sel.Sel == n {
 			if err := c.selector(sel); err != nil {
@@ -265,7 +277,17 @@ func Completion(ctx context.Context, f File, pos token.Pos) ([]CompletionItem, s
 			return nil, "", err
 		}
 	}
+
 	return c.items, c.prefix, nil
+}
+
+func (c *completer) wantStructFieldCompletions() bool {
+	clInfo := c.enclosingCompositeLiteral
+	if clInfo == nil {
+		return false
+	}
+
+	return clInfo.isStruct() && (clInfo.inKey || clInfo.maybeInFieldName)
 }
 
 // selector finds completions for the specified selector expression.
@@ -370,23 +392,19 @@ func (c *completer) lexical() error {
 	return nil
 }
 
-// compositeLiteral finds completions for field names inside a composite literal.
-func (c *completer) compositeLiteral(lit *ast.CompositeLit, kv *ast.KeyValueExpr) error {
-	switch n := c.path[0].(type) {
-	case *ast.Ident:
-		c.prefix = n.Name[:c.pos-n.Pos()]
-	}
+// structLiteralFieldName finds completions for struct field names inside a struct literal.
+func (c *completer) structLiteralFieldName() error {
+	clInfo := c.enclosingCompositeLiteral
+
 	// Mark fields of the composite literal that have already been set,
 	// except for the current field.
-	hasKeys := kv != nil // true if the composite literal already has key-value pairs
 	addedFields := make(map[*types.Var]bool)
-	for _, el := range lit.Elts {
+	for _, el := range clInfo.cl.Elts {
 		if kvExpr, ok := el.(*ast.KeyValueExpr); ok {
-			if kv == kvExpr {
+			if clInfo.kv == kvExpr {
 				continue
 			}
 
-			hasKeys = true
 			if key, ok := kvExpr.Key.(*ast.Ident); ok {
 				if used, ok := c.info.Uses[key]; ok {
 					if usedVar, ok := used.(*types.Var); ok {
@@ -396,34 +414,36 @@ func (c *completer) compositeLiteral(lit *ast.CompositeLit, kv *ast.KeyValueExpr
 			}
 		}
 	}
-	// If the underlying type of the composite literal is a struct,
-	// collect completions for the fields of this struct.
-	if tv, ok := c.info.Types[lit]; ok {
-		switch t := tv.Type.Underlying().(type) {
-		case *types.Struct:
-			var structPkg *types.Package // package that struct is declared in
-			for i := 0; i < t.NumFields(); i++ {
-				field := t.Field(i)
-				if i == 0 {
-					structPkg = field.Pkg()
-				}
-				if !addedFields[field] {
-					c.found(field, highScore)
-				}
+
+	switch t := clInfo.clType.(type) {
+	case *types.Struct:
+		for i := 0; i < t.NumFields(); i++ {
+			field := t.Field(i)
+			if !addedFields[field] {
+				c.found(field, highScore)
 			}
-			// Add lexical completions if the user hasn't typed a key value expression
-			// and if the struct fields are defined in the same package as the user is in.
-			if !hasKeys && structPkg == c.types {
-				return c.lexical()
-			}
-		default:
+		}
+
+		// Add lexical completions if we aren't certain we are in the key part of a
+		// key-value pair.
+		if clInfo.maybeInFieldName {
 			return c.lexical()
 		}
+	default:
+		return c.lexical()
 	}
+
 	return nil
 }
 
-func enclosingCompositeLiteral(path []ast.Node, pos token.Pos) (lit *ast.CompositeLit, kv *ast.KeyValueExpr, ok bool) {
+func (cl *compLitInfo) isStruct() bool {
+	_, ok := cl.clType.(*types.Struct)
+	return ok
+}
+
+// enclosingCompositeLiteral returns information about the composite literal enclosing the
+// position.
+func enclosingCompositeLiteral(path []ast.Node, pos token.Pos, info *types.Info) *compLitInfo {
 	for _, n := range path {
 		switch n := n.(type) {
 		case *ast.CompositeLit:
@@ -433,39 +453,80 @@ func enclosingCompositeLiteral(path []ast.Node, pos token.Pos) (lit *ast.Composi
 			//
 			// The position is not part of the composite literal unless it falls within the
 			// curly braces (e.g. "foo.Foo<>Struct{}").
-			if n.Lbrace <= pos && pos <= n.Rbrace {
-				lit = n
+			if !(n.Lbrace <= pos && pos <= n.Rbrace) {
+				return nil
+			}
 
-				// If the cursor position is within a key-value expression inside the composite
-				// literal, we try to determine if it is before or after the colon. If it is before
-				// the colon, we return field completions. If the cursor does not belong to any
-				// expression within the composite literal, we show composite literal completions.
-				if expr, isKeyValue := exprAtPos(pos, n.Elts).(*ast.KeyValueExpr); kv == nil && isKeyValue {
-					kv = expr
+			tv, ok := info.Types[n]
+			if !ok {
+				return nil
+			}
 
-					// If the position belongs to a key-value expression and is after the colon,
-					// don't show composite literal completions.
-					ok = pos <= kv.Colon
-				} else if kv == nil {
-					ok = true
+			clInfo := compLitInfo{
+				cl:     n,
+				clType: tv.Type.Underlying(),
+			}
+
+			var (
+				expr    ast.Expr
+				hasKeys bool
+			)
+			for _, el := range n.Elts {
+				// Remember the expression that the position falls in, if any.
+				if el.Pos() <= pos && pos <= el.End() {
+					expr = el
+				}
+
+				if kv, ok := el.(*ast.KeyValueExpr); ok {
+					hasKeys = true
+					// If expr == el then we know the position falls in this expression,
+					// so also record kv as the enclosing *ast.KeyValueExpr.
+					if expr == el {
+						clInfo.kv = kv
+						break
+					}
 				}
 			}
-			return lit, kv, ok
-		case *ast.KeyValueExpr:
-			if kv == nil {
-				kv = n
 
-				// If the position belongs to a key-value expression and is after the colon,
-				// don't show composite literal completions.
-				ok = pos <= kv.Colon
+			if clInfo.kv != nil {
+				// If in a *ast.KeyValueExpr, we know we are in the key if the position
+				// is to the left of the colon (e.g. "Foo{F<>: V}".
+				clInfo.inKey = pos <= clInfo.kv.Colon
+			} else if hasKeys {
+				// If we aren't in a *ast.KeyValueExpr but the composite literal has
+				// other *ast.KeyValueExprs, we must be on the key side of a new
+				// *ast.KeyValueExpr (e.g. "Foo{F: V, <>}").
+				clInfo.inKey = true
+			} else {
+				switch clInfo.clType.(type) {
+				case *types.Struct:
+					if len(n.Elts) == 0 {
+						// If the struct literal is empty, next could be a struct field
+						// name or an expression (e.g. "Foo{<>}" could become "Foo{F:}"
+						// or "Foo{someVar}").
+						clInfo.maybeInFieldName = true
+					} else if len(n.Elts) == 1 {
+						// If there is one expression and the position is in that expression
+						// and the expression is an identifier, we may be writing a field
+						// name or an expression (e.g. "Foo{F<>}").
+						_, clInfo.maybeInFieldName = expr.(*ast.Ident)
+					}
+				case *types.Map:
+					// If we aren't in a *ast.KeyValueExpr we must be adding a new key
+					// to the map.
+					clInfo.inKey = true
+				}
 			}
+
+			return &clInfo
 		default:
 			if breaksExpectedTypeInference(n) {
-				return nil, nil, false
+				return nil
 			}
 		}
 	}
-	return lit, kv, ok
+
+	return nil
 }
 
 // enclosingFunction returns the signature of the function enclosing the given position.
@@ -485,50 +546,49 @@ func enclosingFunction(path []ast.Node, pos token.Pos, info *types.Info) *types.
 	return nil
 }
 
-func (c *completer) expectedCompositeLiteralType(lit *ast.CompositeLit, kv *ast.KeyValueExpr) types.Type {
-	litType, ok := c.info.Types[lit]
-	if !ok {
-		return nil
-	}
-	switch t := litType.Type.Underlying().(type) {
+func (c *completer) expectedCompositeLiteralType() types.Type {
+	clInfo := c.enclosingCompositeLiteral
+	switch t := clInfo.clType.(type) {
 	case *types.Slice:
+		if clInfo.inKey {
+			return types.Typ[types.Int]
+		}
 		return t.Elem()
 	case *types.Array:
+		if clInfo.inKey {
+			return types.Typ[types.Int]
+		}
 		return t.Elem()
 	case *types.Map:
-		if kv == nil || c.pos <= kv.Colon {
+		if clInfo.inKey {
 			return t.Key()
 		}
 		return t.Elem()
 	case *types.Struct:
-		//  If we are in a key-value expression.
-		if kv != nil {
-			// There is no expected type for a struct field name.
-			if c.pos <= kv.Colon {
-				return nil
-			}
-			// Find the type of the struct field whose name matches the key.
-			if key, ok := kv.Key.(*ast.Ident); ok {
+		// If we are completing a key (i.e. field name), there is no expected type.
+		if clInfo.inKey {
+			return nil
+		}
+
+		// If we are in a key-value pair, but not in the key, then we must be on the
+		// value side. The expected type of the value will be determined from the key.
+		if clInfo.kv != nil {
+			if key, ok := clInfo.kv.Key.(*ast.Ident); ok {
 				for i := 0; i < t.NumFields(); i++ {
 					if field := t.Field(i); field.Name() == key.Name {
 						return field.Type()
 					}
 				}
 			}
-			return nil
-		}
-		// We are in a struct literal, but not a specific key-value pair.
-		// If the struct literal doesn't have explicit field names,
-		// we may still be able to suggest an expected type.
-		for _, el := range lit.Elts {
-			if _, ok := el.(*ast.KeyValueExpr); ok {
-				return nil
+		} else {
+			// If we aren't in a key-value pair and aren't in the key, we must be using
+			// implicit field names.
+
+			// The order of the literal fields must match the order in the struct definition.
+			// Find the element that the position belongs to and suggest that field's type.
+			if i := indexExprAtPos(c.pos, clInfo.cl.Elts); i < t.NumFields() {
+				return t.Field(i).Type()
 			}
-		}
-		// The order of the literal fields must match the order in the struct definition.
-		// Find the element that the position belongs to and suggest that field's type.
-		if i := indexExprAtPos(c.pos, lit.Elts); i < t.NumFields() {
-			return t.Field(i).Type()
 		}
 	}
 	return nil
@@ -536,6 +596,10 @@ func (c *completer) expectedCompositeLiteralType(lit *ast.CompositeLit, kv *ast.
 
 // expectedType returns the expected type for an expression at the query position.
 func expectedType(c *completer) types.Type {
+	if c.enclosingCompositeLiteral != nil {
+		return c.expectedCompositeLiteralType()
+	}
+
 	var (
 		derefCount int // count of deref "*" operators
 		refCount   int // count of reference "&" operators
