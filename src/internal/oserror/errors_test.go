@@ -34,8 +34,7 @@ func TestIsTimeout(t *testing.T) {
 		{true, ttError{timeout: true}},
 		{true, isError{os.ErrTimeout}},
 		{true, os.ErrTimeout},
-		// TODO: restore when %w is reimplemented
-		//{true, fmt.Errorf("wrap: %w", os.ErrTimeout)},
+		{true, fmt.Errorf("wrap: %w", os.ErrTimeout)},
 		{false, ttError{timeout: false}},
 		{false, errors.New("error")},
 	} {
@@ -53,8 +52,7 @@ func TestIsTemporary(t *testing.T) {
 		{true, ttError{temporary: true}},
 		{true, isError{os.ErrTemporary}},
 		{true, os.ErrTemporary},
-		// TODO: restore when %w is reimplemented
-		//{true, fmt.Errorf("wrap: %w", os.ErrTemporary)},
+		{true, fmt.Errorf("wrap: %w", os.ErrTemporary)},
 		{false, ttError{temporary: false}},
 		{false, errors.New("error")},
 	} {
