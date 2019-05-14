@@ -81,8 +81,8 @@ func (c *completer) item(obj types.Object, score float64) CompletionItem {
 		Detail:             detail,
 		Kind:               kind,
 		Score:              score,
-		Snippet:            plainSnippet,
-		PlaceholderSnippet: placeholderSnippet,
+		plainSnippet:       plainSnippet,
+		placeholderSnippet: placeholderSnippet,
 	}
 }
 
@@ -126,7 +126,7 @@ func (c *completer) formatBuiltin(obj types.Object, score float64) CompletionIte
 		params, _ := c.formatFieldList(decl.Type.Params)
 		results, writeResultParens := c.formatFieldList(decl.Type.Results)
 		item.Label, item.Detail = formatFunction(obj.Name(), params, results, writeResultParens)
-		item.Snippet, item.PlaceholderSnippet = c.functionCallSnippets(obj.Name(), params)
+		item.plainSnippet, item.placeholderSnippet = c.functionCallSnippets(obj.Name(), params)
 	case *types.TypeName:
 		if types.IsInterface(obj.Type()) {
 			item.Kind = InterfaceCompletionItem

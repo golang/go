@@ -173,32 +173,22 @@ func (r *runner) checkCompletionSnippets(ctx context.Context, t *testing.T, data
 			}
 
 			wantCompletion := items[want.CompletionItem]
-			var gotItem *source.CompletionItem
+			var got *source.CompletionItem
 			for _, item := range list {
 				if item.Label == wantCompletion.Label {
-					gotItem = &item
+					got = &item
 					break
 				}
 			}
-
-			if gotItem == nil {
+			if got == nil {
 				t.Fatalf("%s: couldn't find completion matching %q", src.URI(), wantCompletion.Label)
 			}
 
-			var expected string
+			expected := want.PlainSnippet
 			if usePlaceholders {
 				expected = want.PlaceholderSnippet
-			} else {
-				expected = want.PlainSnippet
 			}
-			insertText := gotItem.InsertText
-			if usePlaceholders && gotItem.PlaceholderSnippet != nil {
-				insertText = gotItem.PlaceholderSnippet.String()
-			} else if gotItem.Snippet != nil {
-				insertText = gotItem.Snippet.String()
-			}
-
-			if expected != insertText {
+			if insertText := got.Snippet(usePlaceholders); expected != insertText {
 				t.Errorf("%s: expected snippet %q, got %q", src, expected, insertText)
 			}
 		}

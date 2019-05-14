@@ -65,11 +65,7 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string
 		}
 		insertText := candidate.InsertText
 		if insertTextFormat == protocol.SnippetTextFormat {
-			if usePlaceholders && candidate.PlaceholderSnippet != nil {
-				insertText = candidate.PlaceholderSnippet.String()
-			} else if candidate.Snippet != nil {
-				insertText = candidate.Snippet.String()
-			}
+			insertText = candidate.Snippet(usePlaceholders)
 		}
 		item := protocol.CompletionItem{
 			Label:  candidate.Label,

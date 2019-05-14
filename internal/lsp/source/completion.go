@@ -44,7 +44,7 @@ type CompletionItem struct {
 	//
 	//     foo(${1:})
 	//
-	Snippet *snippet.Builder
+	plainSnippet *snippet.Builder
 
 	// PlaceholderSnippet is the LSP snippet for the completion ite, containing
 	// placeholders. The LSP specification contains details about LSP snippets.
@@ -56,7 +56,21 @@ type CompletionItem struct {
 	//
 	//     foo(${1:a int}, ${2: b int}, ${3: c int})
 	//
-	PlaceholderSnippet *snippet.Builder
+	placeholderSnippet *snippet.Builder
+}
+
+// Snippet is a convenience function that determines the snippet that should be
+// used for an item, depending on if the callee wants placeholders or not.
+func (i *CompletionItem) Snippet(usePlaceholders bool) string {
+	if usePlaceholders {
+		if i.placeholderSnippet != nil {
+			return i.placeholderSnippet.String()
+		}
+	}
+	if i.plainSnippet != nil {
+		return i.plainSnippet.String()
+	}
+	return i.InsertText
 }
 
 type CompletionItemKind int
