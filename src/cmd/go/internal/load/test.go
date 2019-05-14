@@ -626,8 +626,7 @@ func checkTestFunc(fn *ast.FuncDecl, arg string) error {
 var testinginitTmpl = lazytemplate.New("init", `
 package {{.Name}}
 
-{{/* Avoid a name collision with a name "testing" in user code. */}}
-import testing_xxxxxxxxxxxx "testing"
+import _go_testing "testing"
 
 {{/*
 Call testing.Init before any other user initialization code runs.
@@ -636,7 +635,7 @@ This provides the illusion of the old behavior where testing flags
 were registered as part of the testing package's initialization.
 */}}
 var _ = func() bool {
-	testing_xxxxxxxxxxxx.Init()
+	_go_testing.Init()
 	return true
 }()
 `)
