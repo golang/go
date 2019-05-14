@@ -101,16 +101,14 @@ TEXT runtime·lwp_self(SB),NOSPLIT,$0
 
 // Exit the entire program (like C exit)
 TEXT runtime·exit(SB),NOSPLIT,$-8
-	MOVD	code+0(FP), R0		// arg 1 - exit status
+	MOVW	code+0(FP), R0		// arg 1 - exit status
 	SVC	$SYS_exit
 	MOVD	$0, R0			// If we're still running,
 	MOVD	R0, (R0)		// crash
 
-// XXX the use of R1 here does not make sense.
-// Does it not matter?
 // func exitThread(wait *uint32)
 TEXT runtime·exitThread(SB),NOSPLIT,$0-8
-	MOVW	wait+0(FP), R0
+	MOVD	wait+0(FP), R0
 	// We're done using the stack.
 	MOVW	$0, R1
 	STLRW	R1, (R0)
@@ -156,11 +154,11 @@ TEXT runtime·write(SB),NOSPLIT,$-8
 	BCC	ok
 	MOVW	$-1, R0
 ok:
-	MOVW	R1, ret+24(FP)
+	MOVW	R0, ret+24(FP)
 	RET
 
 TEXT runtime·usleep(SB),NOSPLIT,$24-4
-	MOVW	usec+0(FP), R3
+	MOVWU	usec+0(FP), R3
 	MOVD	R3, R5
 	MOVW	$1000000, R4
 	UDIV	R4, R3
@@ -171,7 +169,7 @@ TEXT runtime·usleep(SB),NOSPLIT,$24-4
 	MUL	R4, R5
 	MOVD	R5, 16(RSP)		// nsec
 
-	MOVD	RSP, R0			// arg 1 - rqtp
+	MOVD	$8(RSP), R0		// arg 1 - rqtp
 	MOVD	$0, R1			// arg 2 - rmtp
 	SVC	$SYS___nanosleep50
 	RET
@@ -200,11 +198,11 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-8
 // func walltime() (sec int64, nsec int32)
 TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVW	$CLOCK_REALTIME, R0	// arg 1 - clock_id
-	MOVW	8(RSP), R1		// arg 2 - tp
+	MOVD	$8(RSP), R1		// arg 2 - tp
 	SVC	$SYS___clock_gettime50
 
 	MOVD	8(RSP), R0		// sec
-	MOVW	16(RSP), R1		// nsec
+	MOVD	16(RSP), R1		// nsec
 
 	// sec is in R0, nsec in R1
 	MOVD	R0, sec+0(FP)
@@ -218,7 +216,7 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
 	MOVD	$8(RSP), R1		// arg 2 - tp
 	SVC	$SYS___clock_gettime50
 	MOVD	8(RSP), R0		// sec
-	MOVW	16(RSP), R2		// nsec
+	MOVD	16(RSP), R2		// nsec
 
 	// sec is in R0, nsec in R2
 	// return nsec in R2
@@ -333,7 +331,7 @@ ok:
 	MOVD	R0, ret+24(FP)
 	RET
 
-TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+TEXT runtime·sigaltstack(SB),NOSPLIT,$0
 	MOVD	new+0(FP), R0		// arg 1 - nss
 	MOVD	old+8(FP), R1		// arg 2 - oss
 	SVC	$SYS___sigaltstack14
