@@ -74,6 +74,9 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 	// Updates to the diagnostics for this package may need to be propagated.
 	for _, f := range f.GetActiveReverseDeps(ctx) {
 		pkg := f.GetPackage(ctx)
+		if pkg == nil {
+			continue
+		}
 		for _, filename := range pkg.GetFilenames() {
 			reports[span.FileURI(filename)] = []Diagnostic{}
 		}
