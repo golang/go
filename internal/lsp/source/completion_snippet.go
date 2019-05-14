@@ -56,13 +56,20 @@ func (c *completer) structFieldSnippets(label, detail string) (*snippet.Builder,
 
 // functionCallSnippets calculates the plain and placeholder snippets for function calls.
 func (c *completer) functionCallSnippets(name string, params []string) (*snippet.Builder, *snippet.Builder) {
-	for i := 1; i <= 2 && i < len(c.path); i++ {
-		call, ok := c.path[i].(*ast.CallExpr)
-
-		// If we are the left side (i.e. "Fun") part of a call expression,
-		// we don't want a snippet since there are already parens present.
-		if ok && call.Fun == c.path[i-1] {
-			return nil, nil
+	// If we are the left side (i.e. "Fun") part of a call expression,
+	// we don't want a snippet since there are already parens present.
+	if len(c.path) > 1 {
+		switch n := c.path[1].(type) {
+		case *ast.CallExpr:
+			if n.Fun == c.path[0] {
+				return nil, nil
+			}
+		case *ast.SelectorExpr:
+			if len(c.path) > 2 {
+				if call, ok := c.path[2].(*ast.CallExpr); ok && call.Fun == c.path[1] {
+					return nil, nil
+				}
+			}
 		}
 	}
 

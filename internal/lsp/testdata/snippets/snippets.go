@@ -18,6 +18,8 @@ func _() {
 	bar(ba) //@snippet(")", snipBar, "bar(${1})", "bar(${1:fn func()})")
 	var f Foo
 	bar(f.Ba) //@snippet(")", snipMethodBaz, "Baz()", "Baz()")
+	(bar)(nil) //@snippet(")", snipBar, "bar(${1})", "bar(${1:fn func()})")
+	(f.Ba)() //@snippet(")", snipMethodBaz, "Baz()", "Baz()")
 
 	Foo{
 		B //@snippet(" //", snipFieldBar, "Bar: ${1},", "Bar: ${1:int},")
