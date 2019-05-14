@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 13, 2019",
+	"Subtitle": "Version of May 14, 2019",
 	"Path": "/ref/spec"
 }-->
 
@@ -3261,6 +3261,14 @@ If the sliced operand of a valid slice expression is a <code>nil</code> slice, t
 is a <code>nil</code> slice. Otherwise, if the result is a slice, it shares its underlying
 array with the operand.
 </p>
+
+<pre>
+var a [10]int
+s1 := a[3:7]   // underlying array of s1 is array a; &s1[2] == &a[5]
+s2 := s1[1:4]  // underlying array of s2 is underlying array of s1 which is array a; &s2[1] == &a[5]
+s2[1] = 42     // s2[1] == s1[2] == a[5] == 42; they all refer to the same underlying array element
+</pre>
+
 
 <h4>Full slice expressions</h4>
 
