@@ -6,6 +6,7 @@ package x86
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"testing"
 )
 
@@ -208,13 +209,17 @@ func TestOclass(t *testing.T) {
 		}
 	}
 
-	t.Run("AMD64", func(t *testing.T) {
+	// TODO(quasilyte): test edge cases for Hsolaris, etc?
+
+	t.Run("linux/AMD64", func(t *testing.T) {
 		ctxtAMD64 := obj.Linknew(&Linkamd64)
+		ctxtAMD64.Headtype = objabi.Hlinux // See #32028
 		runTest(t, ctxtAMD64, oclassTestsAMD64)
 	})
 
-	t.Run("386", func(t *testing.T) {
+	t.Run("linux/386", func(t *testing.T) {
 		ctxt386 := obj.Linknew(&Link386)
+		ctxt386.Headtype = objabi.Hlinux // See #32028
 		runTest(t, ctxt386, oclassTests386)
 	})
 }
