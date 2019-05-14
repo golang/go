@@ -42,6 +42,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/net/http/httpguts"
@@ -6633,6 +6634,7 @@ type http2ClientConn struct {
 	t         *http2Transport
 	tconn     net.Conn             // usually *tls.Conn, except specialized impls
 	tlsState  *tls.ConnectionState // nil only for specialized impls
+	reused    uint32               // whether conn is being reused; atomic
 	singleUse bool                 // whether being used for a single http.Request
 
 	// readLoop goroutine fields:
@@ -6875,7 +6877,8 @@ func (t *http2Transport) RoundTripOpt(req *Request, opt http2RoundTripOpt) (*Res
 			t.vlogf("http2: Transport failed to get client conn for %s: %v", addr, err)
 			return nil, err
 		}
-		http2traceGotConn(req, cc)
+		reused := !atomic.CompareAndSwapUint32(&cc.reused, 0, 1)
+		http2traceGotConn(req, cc, reused)
 		res, gotErrAfterReqBodyWrite, err := cc.roundTrip(req)
 		if err != nil && retry <= 6 {
 			if req, err = http2shouldRetryRequest(req, err, gotErrAfterReqBodyWrite); err == nil {
@@ -8994,15 +8997,15 @@ func http2traceGetConn(req *Request, hostPort string) {
 	trace.GetConn(hostPort)
 }
 
-func http2traceGotConn(req *Request, cc *http2ClientConn) {
+func http2traceGotConn(req *Request, cc *http2ClientConn, reused bool) {
 	trace := httptrace.ContextClientTrace(req.Context())
 	if trace == nil || trace.GotConn == nil {
 		return
 	}
 	ci := httptrace.GotConnInfo{Conn: cc.tconn}
+	ci.Reused = reused
 	cc.mu.Lock()
-	ci.Reused = cc.nextStreamID > 1
-	ci.WasIdle = len(cc.streams) == 0 && ci.Reused
+	ci.WasIdle = len(cc.streams) == 0 && reused
 	if ci.WasIdle && !cc.lastActive.IsZero() {
 		ci.IdleTime = time.Now().Sub(cc.lastActive)
 	}
