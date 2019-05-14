@@ -138,11 +138,14 @@ func (r *Resolver) lookupIP(ctx context.Context, network, name string) ([]IPAddr
 		err   error
 	}
 
-	ch := make(chan ret, 1)
-	go func() {
-		addr, err := getaddr()
-		ch <- ret{addrs: addr, err: err}
-	}()
+	var ch chan ret
+	if ctx.Err() == nil {
+		ch = make(chan ret, 1)
+		go func() {
+			addr, err := getaddr()
+			ch <- ret{addrs: addr, err: err}
+		}()
+	}
 
 	select {
 	case r := <-ch:
