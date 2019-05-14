@@ -1246,20 +1246,22 @@ func (h *mheap) grow(npage uintptr) bool {
 		return false
 	}
 
-	// Scavenge some pages out of the free treap to make up for
-	// the virtual memory space we just allocated, but only if
-	// we need to.
-	h.scavengeIfNeededLocked(size)
-
 	// Create a fake "in use" span and free it, so that the
-	// right coalescing happens.
+	// right accounting and coalescing happens.
 	s := (*mspan)(h.spanalloc.alloc())
 	s.init(uintptr(v), size/pageSize)
 	h.setSpans(s.base(), s.npages, s)
-	atomic.Store(&s.sweepgen, h.sweepgen)
-	s.state = mSpanInUse
-	h.pagesInUse += uint64(s.npages)
-	h.freeSpanLocked(s, false, true)
+	s.state = mSpanFree
+	memstats.heap_idle += uint64(size)
+	// (*mheap).sysAlloc returns untouched/uncommitted memory.
+	s.scavenged = true
+	// s is always aligned to the heap arena size which is always > physPageSize,
+	// so its totally safe to just add directly to heap_released. Coalescing,
+	// if possible, will also always be correct in terms of accounting, because
+	// s.base() must be a physical page boundary.
+	memstats.heap_released += uint64(size)
+	h.coalesce(s)
+	h.free.insert(s)
 	return true
 }
 
@@ -1314,7 +1316,6 @@ func (h *mheap) freeManual(s *mspan, stat *uint64) {
 	unlock(&h.lock)
 }
 
-// s must be on the busy list or unlinked.
 func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool) {
 	switch s.state {
 	case mSpanManual:
