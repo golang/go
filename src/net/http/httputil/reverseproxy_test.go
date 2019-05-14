@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -168,10 +169,10 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
 		if c := r.Header.Get(someConnHeader); c != "" {
 			t.Errorf("handler got header %q = %q; want empty", someConnHeader, c)
 		}
+		w.Header().Add("Connection", "Upgrade, "+fakeConnectionToken)
 		w.Header().Add("Connection", someConnHeader)
-		w.Header().Add("Connection", fakeConnectionToken)
-		w.Header().Add(someConnHeader, "should be deleted")
-		w.Header().Add(fakeConnectionToken, "should be deleted")
+		w.Header().Set(someConnHeader, "should be deleted")
+		w.Header().Set(fakeConnectionToken, "should be deleted")
 		io.WriteString(w, backendResponse)
 	}))
 	defer backend.Close()
@@ -186,19 +187,31 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
 			t.Errorf("handler modified header %q = %q; want %q", someConnHeader, c, "should be deleted")
 		}
 		if c := r.Header.Get(fakeConnectionToken); c != "should be deleted" {
-			t.Errorf("handler modified header %q = %q; want %q", someConnHeader, c, "should be deleted")
+			t.Errorf("handler modified header %q = %q; want %q", fakeConnectionToken, c, "should be deleted")
 		}
-		if c := r.Header.Get("Connection"); reflect.DeepEqual(c,[]string{someConnHeader,fakeConnectionToken}){
-			t.Errorf("handler modified header %q = %q; want %q", someConnHeader, c, "should be deleted")
+		c := r.Header["Connection"]
+		var cf []string
+		for _, f := range c {
+			for _, sf := range strings.Split(f, ",") {
+				if sf = strings.TrimSpace(sf); sf != "" {
+					cf = append(cf, sf)
+				}
+			}
+		}
+		sort.Strings(cf)
+		expectedValues := []string{"Upgrade", someConnHeader, fakeConnectionToken}
+		sort.Strings(expectedValues)
+		if !reflect.DeepEqual(cf, expectedValues) {
+			t.Errorf("handler modified header %q = %q; want %q", "Connection", cf, expectedValues)
 		}
 	}))
 	defer frontend.Close()
 
 	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
+	getReq.Header.Add("Connection", "Upgrade, "+fakeConnectionToken)
 	getReq.Header.Add("Connection", someConnHeader)
-	getReq.Header.Add("Connection", fakeConnectionToken)
-	getReq.Header.Add(someConnHeader, "should be deleted")
-	getReq.Header.Add(fakeConnectionToken, "should be deleted")
+	getReq.Header.Set(someConnHeader, "should be deleted")
+	getReq.Header.Set(fakeConnectionToken, "should be deleted")
 	res, err := frontend.Client().Do(getReq)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
