@@ -334,4 +334,8 @@ const (
 	SYS_STATX                  = 5326
 	SYS_RSEQ                   = 5327
 	SYS_IO_PGETEVENTS          = 5328
+	SYS_PIDFD_SEND_SIGNAL      = 5424
+	SYS_IO_URING_SETUP         = 5425
+	SYS_IO_URING_ENTER         = 5426
+	SYS_IO_URING_REGISTER      = 5427
 )

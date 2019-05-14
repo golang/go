@@ -109,6 +109,12 @@ func IoctlGetInt(fd int, req uint) (int, error) {
 	return value, err
 }
 
+func IoctlGetUint32(fd int, req uint) (uint32, error) {
+	var value uint32
+	err := ioctl(fd, req, uintptr(unsafe.Pointer(&value)))
+	return value, err
+}
+
 func IoctlGetWinsize(fd int, req uint) (*Winsize, error) {
 	var value Winsize
 	err := ioctl(fd, req, uintptr(unsafe.Pointer(&value)))

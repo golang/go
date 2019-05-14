@@ -348,4 +348,23 @@ const (
 	SYS_PWRITEV2               = 359
 	SYS_STATX                  = 360
 	SYS_IO_PGETEVENTS          = 361
+	SYS_PKEY_MPROTECT          = 362
+	SYS_PKEY_ALLOC             = 363
+	SYS_PKEY_FREE              = 364
+	SYS_RSEQ                   = 365
+	SYS_SEMTIMEDOP             = 392
+	SYS_SEMGET                 = 393
+	SYS_SEMCTL                 = 394
+	SYS_SHMGET                 = 395
+	SYS_SHMCTL                 = 396
+	SYS_SHMAT                  = 397
+	SYS_SHMDT                  = 398
+	SYS_MSGGET                 = 399
+	SYS_MSGSND                 = 400
+	SYS_MSGRCV                 = 401
+	SYS_MSGCTL                 = 402
+	SYS_PIDFD_SEND_SIGNAL      = 424
+	SYS_IO_URING_SETUP         = 425
+	SYS_IO_URING_ENTER         = 426
+	SYS_IO_URING_REGISTER      = 427
 )
