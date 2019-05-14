@@ -359,8 +359,10 @@ func shouldPanicOnCopyError(req *http.Request) bool {
 func removeConnectionHeaders(h http.Header) {
 	if c := h["Connection"]; len(c) > 0 {
 		for _, f := range c {
-			if f = strings.TrimSpace(f); f != "" {
-				h.Del(f)
+			for _, sf := range strings.Split(f, ",") {
+				if sf = strings.TrimSpace(sf); sf != "" {
+					h.Del(sf)
+				}
 			}
 		}
 	}
