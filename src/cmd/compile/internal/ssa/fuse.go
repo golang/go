@@ -36,6 +36,9 @@ func fuse(f *Func, typ fuseType) {
 				changed = fuseBlockPlain(b) || changed
 			}
 		}
+		if changed {
+			f.invalidateCFG()
+		}
 	}
 }
 
@@ -207,7 +210,6 @@ func fuseBlockPlain(b *Block) bool {
 	if f.Entry == b {
 		f.Entry = c
 	}
-	f.invalidateCFG()
 
 	// trash b, just in case
 	b.Kind = BlockInvalid
