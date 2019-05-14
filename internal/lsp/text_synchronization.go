@@ -13,6 +13,10 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
+func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) error {
+	return s.cacheAndDiagnose(ctx, span.NewURI(params.TextDocument.URI), []byte(params.TextDocument.Text))
+}
+
 func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDocumentParams) error {
 	if len(params.ContentChanges) < 1 {
 		return jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "no content changes provided")
@@ -34,7 +38,19 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 		}
 		text = change.Text
 	}
-	return s.cacheAndDiagnose(ctx, span.NewURI(params.TextDocument.URI), text)
+	return s.cacheAndDiagnose(ctx, span.NewURI(params.TextDocument.URI), []byte(text))
+}
+
+func (s *Server) cacheAndDiagnose(ctx context.Context, uri span.URI, content []byte) error {
+	view := s.findView(ctx, uri)
+	if err := view.SetContent(ctx, uri, content); err != nil {
+		return err
+	}
+	go func() {
+		ctx := view.BackgroundContext()
+		s.Diagnostics(ctx, view, uri)
+	}()
+	return nil
 }
 
 func (s *Server) applyChanges(ctx context.Context, params *protocol.DidChangeTextDocumentParams) (string, error) {

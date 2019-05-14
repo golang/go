@@ -6,6 +6,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -272,14 +273,17 @@ func (v *View) GetFile(ctx context.Context, uri span.URI) (source.File, error) {
 
 // getFile is the unlocked internal implementation of GetFile.
 func (v *View) getFile(uri span.URI) (*File, error) {
+	filename, err := uri.Filename()
+	if err != nil {
+		return nil, err
+	}
+	if v.isIgnored(filename) {
+		return nil, fmt.Errorf("%s is ignored", filename)
+	}
 	if f, err := v.findFile(uri); err != nil {
 		return nil, err
 	} else if f != nil {
 		return f, nil
-	}
-	filename, err := uri.Filename()
-	if err != nil {
-		return nil, err
 	}
 	f := &File{
 		view:     v,
@@ -287,6 +291,20 @@ func (v *View) getFile(uri span.URI) (*File, error) {
 	}
 	v.mapFile(uri, f)
 	return f, nil
+}
+
+// isIgnored checks if the given filename is a file we ignore.
+// As of right now, we only ignore files in the "builtin" package.
+func (v *View) isIgnored(filename string) bool {
+	bpkg := v.BuiltinPackage()
+	if bpkg != nil {
+		for builtinFilename := range bpkg.Files {
+			if filename == builtinFilename {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // findFile checks the cache for any file matching the given uri.

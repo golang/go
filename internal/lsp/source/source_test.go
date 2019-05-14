@@ -156,15 +156,6 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			t.Errorf("%s: %s", src, diff)
 		}
 	}
-	// Make sure we don't crash completing the first position in file set.
-	uri := span.FileURI(r.view.FileSet().File(1).Name())
-	f, err := r.view.GetFile(ctx, uri)
-	if err != nil {
-		t.Fatalf("failed for %v: %v", uri, err)
-	}
-	source.Completion(ctx, f, 1)
-
-	r.checkCompletionSnippets(ctx, t, snippets, items)
 }
 
 func (r *runner) checkCompletionSnippets(ctx context.Context, t *testing.T, data tests.CompletionSnippets, items tests.CompletionItems) {
