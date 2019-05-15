@@ -48,11 +48,17 @@ func delta(u0, u1 uint32) int64 {
 // have the same bounds.
 func averageDelta(m0, m1 image.Image) int64 {
 	b := m0.Bounds()
+	return averageDeltaBound(m0, m1, b, b)
+}
+
+// averageDeltaBounds returns the average delta in RGB space. The average delta is
+// calulated in the specified bounds.
+func averageDeltaBound(m0, m1 image.Image, b0, b1 image.Rectangle) int64 {
 	var sum, n int64
-	for y := b.Min.Y; y < b.Max.Y; y++ {
-		for x := b.Min.X; x < b.Max.X; x++ {
+	for y := b0.Min.Y; y < b0.Max.Y; y++ {
+		for x := b0.Min.X; x < b0.Max.X; x++ {
 			c0 := m0.At(x, y)
-			c1 := m1.At(x, y)
+			c1 := m1.At(x-b0.Min.X+b1.Min.X, y-b0.Min.Y+b1.Min.Y)
 			r0, g0, b0, _ := c0.RGBA()
 			r1, g1, b1, _ := c1.RGBA()
 			sum += delta(r0, r1)
@@ -578,6 +584,75 @@ func TestEncodeCroppedSubImages(t *testing.T) {
 		if _, err := Decode(buf); err != nil {
 			t.Errorf("Decode: sr=%v: %v", sr, err)
 		}
+	}
+}
+
+type offsetImage struct {
+	image.Image
+	Rect image.Rectangle
+}
+
+func (i offsetImage) Bounds() image.Rectangle {
+	return i.Rect
+}
+
+func TestEncodeWrappedImage(t *testing.T) {
+	m0, err := readImg("../testdata/video-001.gif")
+	if err != nil {
+		t.Fatalf("readImg: %v", err)
+	}
+
+	// Case 1: Enocde a wrapped image.Image
+	buf := new(bytes.Buffer)
+	w0 := offsetImage{m0, m0.Bounds()}
+	err = Encode(buf, w0, nil)
+	if err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	w1, err := Decode(buf)
+	if err != nil {
+		t.Fatalf("Dencode: %v", err)
+	}
+	avgDelta := averageDelta(m0, w1)
+	if avgDelta > 0 {
+		t.Fatalf("Wrapped: average delta is too high. expected: 0, got %d", avgDelta)
+	}
+
+	// Case 2: Enocde a wrapped image.Image with offset
+	b0 := image.Rectangle{
+		Min: image.Point{
+			X: 128,
+			Y: 64,
+		},
+		Max: image.Point{
+			X: 256,
+			Y: 128,
+		},
+	}
+	w0 = offsetImage{m0, b0}
+	buf = new(bytes.Buffer)
+	err = Encode(buf, w0, nil)
+	if err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	w1, err = Decode(buf)
+	if err != nil {
+		t.Fatalf("Dencode: %v", err)
+	}
+
+	b1 := image.Rectangle{
+		Min: image.Point{
+			X: 0,
+			Y: 0,
+		},
+		Max: image.Point{
+			X: 128,
+			Y: 64,
+		},
+	}
+	avgDelta = averageDeltaBound(m0, w1, b0, b1)
+	if avgDelta > 0 {
+		t.Fatalf("Wrapped and offset: average delta is too high. expected: 0, got %d", avgDelta)
 	}
 }
 
