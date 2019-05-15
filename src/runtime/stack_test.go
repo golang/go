@@ -78,6 +78,10 @@ func TestStackMem(t *testing.T) {
 
 // Test stack growing in different contexts.
 func TestStackGrowth(t *testing.T) {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
+
 	if GOARCH == "wasm" {
 		t.Skip("fails on wasm (too slow?)")
 	}
