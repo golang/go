@@ -367,11 +367,9 @@ func Short() bool {
 	if short == nil {
 		panic("testing: Short called before Init")
 	}
-	// Catch code that calls this from TestMain without first
-	// calling flag.Parse. This shouldn't really be a panic.
+	// Catch code that calls this from TestMain without first calling flag.Parse.
 	if !flag.Parsed() {
-		fmt.Fprintf(os.Stderr, "testing: Short called before flag.Parse\n")
-		os.Exit(2)
+		panic("testing: Short called before Parse")
 	}
 
 	return *short
@@ -386,13 +384,12 @@ func CoverMode() string {
 
 // Verbose reports whether the -test.v flag is set.
 func Verbose() bool {
+	// Same as in Short.
 	if chatty == nil {
 		panic("testing: Verbose called before Init")
 	}
-	// Same as in Short.
 	if !flag.Parsed() {
-		fmt.Fprintf(os.Stderr, "testing: Verbose called before flag.Parse\n")
-		os.Exit(2)
+		panic("testing: Verbose called before Parse")
 	}
 	return *chatty
 }
