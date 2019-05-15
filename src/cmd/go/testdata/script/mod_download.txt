@@ -10,6 +10,7 @@ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.zip
 
 # download of an invalid path should report the error
+[short] skip
 ! go mod download this.domain.is.invalid/somemodule@v1.0.0
 stderr 'this.domain.is.invalid'
 ! go mod download -json this.domain.is.invalid/somemodule@v1.0.0

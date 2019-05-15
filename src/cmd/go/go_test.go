@@ -1898,6 +1898,7 @@ func TestGoListTest(t *testing.T) {
 }
 
 func TestGoListCompiledCgo(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2537,6 +2538,7 @@ func TestCoverageRuns(t *testing.T) {
 
 func TestCoverageDotImport(t *testing.T) {
 	skipIfGccgo(t, "gccgo has no cover tool")
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2716,6 +2718,7 @@ func TestCoverageFunc(t *testing.T) {
 // Issue 24588.
 func TestCoverageDashC(t *testing.T) {
 	skipIfGccgo(t, "gccgo has no cover tool")
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -3391,6 +3394,7 @@ func TestVetWithOnlyCgoFiles(t *testing.T) {
 	if !canCgo {
 		t.Skip("skipping because cgo not enabled")
 	}
+	tooSlow(t)
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -5654,6 +5658,7 @@ func TestTestSkipVetAfterFailedBuild(t *testing.T) {
 }
 
 func TestTestVetRebuild(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -5933,6 +5938,7 @@ func TestBadCgoDirectives(t *testing.T) {
 	if !canCgo {
 		t.Skip("no cgo")
 	}
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 
@@ -6047,6 +6053,7 @@ func TestTwoPkgConfigs(t *testing.T) {
 	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
 		t.Skipf("no shell scripts on %s", runtime.GOOS)
 	}
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -6077,6 +6084,8 @@ func TestCgoCache(t *testing.T) {
 	if !canCgo {
 		t.Skip("no cgo")
 	}
+	tooSlow(t)
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -6127,6 +6136,7 @@ func TestLinkerTmpDirIsDeleted(t *testing.T) {
 	if !canCgo {
 		t.Skip("skipping because cgo not enabled")
 	}
+	tooSlow(t)
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -6216,6 +6226,7 @@ func TestGoTestWithoutTests(t *testing.T) {
 
 // Issue 25579.
 func TestGoBuildDashODevNull(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -6228,6 +6239,7 @@ func TestGoBuildDashODevNull(t *testing.T) {
 // Issue 25093.
 func TestCoverpkgTestOnly(t *testing.T) {
 	skipIfGccgo(t, "gccgo has no cover tool")
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()

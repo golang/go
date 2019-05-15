@@ -1,4 +1,6 @@
 env GO111MODULE=on
+[short] skip
+
 # Check for correct naming of temporary executable
 
 #Test for single file specified

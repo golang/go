@@ -1,4 +1,5 @@
 env GO111MODULE=on
+[short] skip
 
 # If a pattern doesn't match any modules in the build list,
 # and -m is used, an error should be reported.

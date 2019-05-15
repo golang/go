@@ -1,6 +1,7 @@
 env GO111MODULE=off
 
 [!gc] skip
+[short] skip # clears cache, rebuilds too much
 
 # Set up fresh GOCACHE.
 env GOCACHE=$WORK/gocache

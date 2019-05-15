@@ -1,4 +1,5 @@
 # Test 'go get' with a local module with a name that is not valid for network lookup.
+[short] skip
 
 env GO111MODULE=on
 go mod edit -fmt

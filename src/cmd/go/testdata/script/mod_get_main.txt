@@ -1,4 +1,5 @@
 env GO111MODULE=on
+[short] skip
 
 # @patch and @latest within the main module refer to the current version.
 # The main module won't be upgraded, but missing dependencies will be added.

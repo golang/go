@@ -1,4 +1,5 @@
 env GO111MODULE=on
+[short] skip
 
 # This script tests commands in module mode outside of any module.
 #
