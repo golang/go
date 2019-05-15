@@ -18,30 +18,32 @@ import (
 )
 
 // NewClientServer
-func NewClientServer(client protocol.Client) *Server {
+func NewClientServer(cache source.Cache, client protocol.Client) *Server {
 	return &Server{
-		client: client,
-		log:    xlog.New(protocol.NewLogger(client)),
+		client:  client,
+		session: cache.NewSession(xlog.New(protocol.NewLogger(client))),
 	}
 }
 
 // NewServer starts an LSP server on the supplied stream, and waits until the
 // stream is closed.
-func NewServer(stream jsonrpc2.Stream) *Server {
+func NewServer(cache source.Cache, stream jsonrpc2.Stream) *Server {
 	s := &Server{}
-	s.Conn, s.client, s.log = protocol.NewServer(stream, s)
+	var log xlog.Logger
+	s.Conn, s.client, log = protocol.NewServer(stream, s)
+	s.session = cache.NewSession(log)
 	return s
 }
 
 // RunServerOnPort starts an LSP server on the given port and does not exit.
 // This function exists for debugging purposes.
-func RunServerOnPort(ctx context.Context, port int, h func(s *Server)) error {
-	return RunServerOnAddress(ctx, fmt.Sprintf(":%v", port), h)
+func RunServerOnPort(ctx context.Context, cache source.Cache, port int, h func(s *Server)) error {
+	return RunServerOnAddress(ctx, cache, fmt.Sprintf(":%v", port), h)
 }
 
 // RunServerOnPort starts an LSP server on the given port and does not exit.
 // This function exists for debugging purposes.
-func RunServerOnAddress(ctx context.Context, addr string, h func(s *Server)) error {
+func RunServerOnAddress(ctx context.Context, cache source.Cache, addr string, h func(s *Server)) error {
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
@@ -52,7 +54,7 @@ func RunServerOnAddress(ctx context.Context, addr string, h func(s *Server)) err
 			return err
 		}
 		stream := jsonrpc2.NewHeaderStream(conn, conn)
-		s := NewServer(stream)
+		s := NewServer(cache, stream)
 		h(s)
 		go s.Run(ctx)
 	}
@@ -65,7 +67,6 @@ func (s *Server) Run(ctx context.Context) error {
 type Server struct {
 	Conn   *jsonrpc2.Conn
 	client protocol.Client
-	log    xlog.Logger
 
 	initializedMu sync.Mutex
 	isInitialized bool // set once the server has received "initialize" request
@@ -81,9 +82,7 @@ type Server struct {
 
 	textDocumentSyncKind protocol.TextDocumentSyncKind
 
-	viewMu  sync.Mutex
-	views   []source.View
-	viewMap map[span.URI]source.View
+	session source.Session
 
 	// undelivered is a cache of any diagnostics that the server
 	// failed to deliver for some reason.

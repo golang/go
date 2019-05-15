@@ -32,14 +32,14 @@ type runner struct {
 }
 
 func testSource(t *testing.T, exporter packagestest.Exporter) {
-	ctx := context.Background()
-
 	data := tests.Load(t, exporter, "../testdata")
 	defer data.Exported.Cleanup()
 
 	log := xlog.New(xlog.StdSink{})
+	cache := cache.New()
+	session := cache.NewSession(log)
 	r := &runner{
-		view: cache.NewView(ctx, log, "source_test", span.FileURI(data.Config.Dir), &data.Config),
+		view: session.NewView("source_test", span.FileURI(data.Config.Dir), &data.Config),
 		data: data,
 	}
 	tests.Run(t, r, data)

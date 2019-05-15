@@ -17,5 +17,5 @@ import (
 )
 
 func main() {
-	tool.Main(context.Background(), &cmd.Application{}, os.Args[1:])
+	tool.Main(context.Background(), cmd.New(nil), os.Args[1:])
 }

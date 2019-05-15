@@ -125,7 +125,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 				}},
 			})
 		}
-		for _, view := range s.views {
+		for _, view := range s.session.Views() {
 			config, err := s.client.Configuration(ctx, &protocol.ConfigurationParams{
 				Items: []protocol.ConfigurationItem{{
 					ScopeURI: protocol.NewURI(view.Folder()),
@@ -142,7 +142,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	}
 	buf := &bytes.Buffer{}
 	PrintVersionInfo(buf, true, false)
-	s.log.Infof(ctx, "%s", buf)
+	s.session.Logger().Infof(ctx, "%s", buf)
 	return nil
 }
 
@@ -195,13 +195,7 @@ func (s *Server) shutdown(ctx context.Context) error {
 		return jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidRequest, "server not initialized")
 	}
 	// drop all the active views
-	s.viewMu.Lock()
-	defer s.viewMu.Unlock()
-	for _, v := range s.views {
-		v.Shutdown(ctx)
-	}
-	s.views = nil
-	s.viewMap = nil
+	s.session.Shutdown(ctx)
 	s.isInitialized = false
 	return nil
 }

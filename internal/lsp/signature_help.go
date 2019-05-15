@@ -14,7 +14,7 @@ import (
 
 func (s *Server) signatureHelp(ctx context.Context, params *protocol.TextDocumentPositionParams) (*protocol.SignatureHelp, error) {
 	uri := span.NewURI(params.TextDocument.URI)
-	view := s.findView(ctx, uri)
+	view := s.session.ViewOf(uri)
 	f, m, err := getGoFile(ctx, view, uri)
 	if err != nil {
 		return nil, err
@@ -29,7 +29,7 @@ func (s *Server) signatureHelp(ctx context.Context, params *protocol.TextDocumen
 	}
 	info, err := source.SignatureHelp(ctx, f, rng.Start)
 	if err != nil {
-		s.log.Infof(ctx, "no signature help for %s:%v:%v : %s", uri, int(params.Position.Line), int(params.Position.Character), err)
+		s.session.Logger().Infof(ctx, "no signature help for %s:%v:%v : %s", uri, int(params.Position.Line), int(params.Position.Character), err)
 	}
 	return toProtocolSignatureHelp(info), nil
 }

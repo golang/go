@@ -33,19 +33,20 @@ type runner struct {
 	data   *tests.Data
 }
 
-func testLSP(t *testing.T, exporter packagestest.Exporter) {
-	ctx := context.Background()
+const viewName = "lsp_test"
 
+func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	data := tests.Load(t, exporter, "testdata")
 	defer data.Exported.Cleanup()
 
 	log := xlog.New(xlog.StdSink{})
+	cache := cache.New()
+	session := cache.NewSession(log)
+	session.NewView(viewName, span.FileURI(data.Config.Dir), &data.Config)
 	r := &runner{
 		server: &Server{
-			views:       []source.View{cache.NewView(ctx, log, "lsp_test", span.FileURI(data.Config.Dir), &data.Config)},
-			viewMap:     make(map[span.URI]source.View),
+			session:     session,
 			undelivered: make(map[span.URI][]source.Diagnostic),
-			log:         log,
 		},
 		data: data,
 	}
@@ -53,7 +54,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 }
 
 func (r *runner) Diagnostics(t *testing.T, data tests.Diagnostics) {
-	v := r.server.views[0]
+	v := r.server.session.View(viewName)
 	for uri, want := range data {
 		results, err := source.Diagnostics(context.Background(), v, uri)
 		if err != nil {
@@ -293,7 +294,7 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 			}
 			continue
 		}
-		_, m, err := getSourceFile(ctx, r.server.findView(ctx, uri), uri)
+		_, m, err := getSourceFile(ctx, r.server.session.ViewOf(uri), uri)
 		if err != nil {
 			t.Error(err)
 		}

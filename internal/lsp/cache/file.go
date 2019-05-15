@@ -147,7 +147,7 @@ func (f *fileBase) read(ctx context.Context) {
 	// We don't know the content yet, so read it.
 	content, err := ioutil.ReadFile(f.filename())
 	if err != nil {
-		f.view.Logger().Errorf(ctx, "unable to read file %s: %v", f.filename(), err)
+		f.view.Session().Logger().Errorf(ctx, "unable to read file %s: %v", f.filename(), err)
 		return
 	}
 	f.content = content

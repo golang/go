@@ -157,29 +157,29 @@ func pointToSpan(ctx context.Context, v View, spn span.Span) span.Span {
 	// Don't set a range if it's anything other than a type error.
 	f, err := v.GetFile(ctx, spn.URI())
 	if err != nil {
-		v.Logger().Errorf(ctx, "Could find file for diagnostic: %v", spn.URI())
+		v.Session().Logger().Errorf(ctx, "Could find file for diagnostic: %v", spn.URI())
 		return spn
 	}
 	diagFile, ok := f.(GoFile)
 	if !ok {
-		v.Logger().Errorf(ctx, "Not a go file: %v", spn.URI())
+		v.Session().Logger().Errorf(ctx, "Not a go file: %v", spn.URI())
 		return spn
 	}
 	tok := diagFile.GetToken(ctx)
 	if tok == nil {
-		v.Logger().Errorf(ctx, "Could not find tokens for diagnostic: %v", spn.URI())
+		v.Session().Logger().Errorf(ctx, "Could not find tokens for diagnostic: %v", spn.URI())
 		return spn
 	}
 	content := diagFile.GetContent(ctx)
 	if content == nil {
-		v.Logger().Errorf(ctx, "Could not find content for diagnostic: %v", spn.URI())
+		v.Session().Logger().Errorf(ctx, "Could not find content for diagnostic: %v", spn.URI())
 		return spn
 	}
 	c := span.NewTokenConverter(diagFile.GetFileSet(ctx), tok)
 	s, err := spn.WithOffset(c)
 	//we just don't bother producing an error if this failed
 	if err != nil {
-		v.Logger().Errorf(ctx, "invalid span for diagnostic: %v: %v", spn.URI(), err)
+		v.Session().Logger().Errorf(ctx, "invalid span for diagnostic: %v: %v", spn.URI(), err)
 		return spn
 	}
 	start := s.Start()

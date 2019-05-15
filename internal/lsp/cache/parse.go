@@ -152,7 +152,7 @@ func (v *view) fix(ctx context.Context, file *ast.File, tok *token.File, src []b
 		switch n := n.(type) {
 		case *ast.BadStmt:
 			if err := v.parseDeferOrGoStmt(n, parent, tok, src); err != nil {
-				v.log.Debugf(ctx, "unable to parse defer or go from *ast.BadStmt: %v", err)
+				v.Session().Logger().Debugf(ctx, "unable to parse defer or go from *ast.BadStmt: %v", err)
 			}
 			return false
 		default:

@@ -14,7 +14,7 @@ import (
 
 func (s *Server) documentSymbol(ctx context.Context, params *protocol.DocumentSymbolParams) ([]protocol.DocumentSymbol, error) {
 	uri := span.NewURI(params.TextDocument.URI)
-	view := s.findView(ctx, uri)
+	view := s.session.ViewOf(uri)
 	f, m, err := getGoFile(ctx, view, uri)
 	if err != nil {
 		return nil, err

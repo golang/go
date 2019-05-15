@@ -17,7 +17,7 @@ import (
 
 func (s *Server) completion(ctx context.Context, params *protocol.CompletionParams) (*protocol.CompletionList, error) {
 	uri := span.NewURI(params.TextDocument.URI)
-	view := s.findView(ctx, uri)
+	view := s.session.ViewOf(uri)
 	f, m, err := getGoFile(ctx, view, uri)
 	if err != nil {
 		return nil, err
@@ -32,19 +32,19 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	}
 	items, prefix, err := source.Completion(ctx, f, rng.Start)
 	if err != nil {
-		s.log.Infof(ctx, "no completions found for %s:%v:%v: %v", uri, int(params.Position.Line), int(params.Position.Character), err)
+		s.session.Logger().Infof(ctx, "no completions found for %s:%v:%v: %v", uri, int(params.Position.Line), int(params.Position.Character), err)
 	}
 	// We might need to adjust the position to account for the prefix.
 	pos := params.Position
 	if prefix.Pos().IsValid() {
 		spn, err := span.NewRange(view.FileSet(), prefix.Pos(), 0).Span()
 		if err != nil {
-			s.log.Infof(ctx, "failed to get span for prefix position: %s:%v:%v: %v", uri, int(params.Position.Line), int(params.Position.Character), err)
+			s.session.Logger().Infof(ctx, "failed to get span for prefix position: %s:%v:%v: %v", uri, int(params.Position.Line), int(params.Position.Character), err)
 		}
 		if prefixPos, err := m.Position(spn.Start()); err == nil {
 			pos = prefixPos
 		} else {
-			s.log.Infof(ctx, "failed to convert prefix position: %s:%v:%v: %v", uri, int(params.Position.Line), int(params.Position.Character), err)
+			s.session.Logger().Infof(ctx, "failed to convert prefix position: %s:%v:%v: %v", uri, int(params.Position.Line), int(params.Position.Character), err)
 		}
 	}
 	return &protocol.CompletionList{

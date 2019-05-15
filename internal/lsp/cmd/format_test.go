@@ -41,7 +41,7 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 				//TODO: our error handling differs, for now just skip unformattable files
 				continue
 			}
-			app := &cmd.Application{}
+			app := cmd.New(nil)
 			app.Config = r.data.Config
 			got := captureStdOut(t, func() {
 				tool.Main(context.Background(), app, append([]string{"-remote=internal", "format"}, args...))

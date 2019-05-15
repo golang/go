@@ -138,7 +138,7 @@ func (v *view) link(ctx context.Context, pkgPath string, pkg *packages.Package, 
 		if f, _ := v.getFile(span.FileURI(filename)); f != nil {
 			gof, ok := f.(*goFile)
 			if !ok {
-				v.Logger().Errorf(ctx, "not a go file: %v", f.URI())
+				v.Session().Logger().Errorf(ctx, "not a go file: %v", f.URI())
 				continue
 			}
 			gof.meta = m
@@ -270,23 +270,23 @@ func (v *view) cachePackage(ctx context.Context, pkg *pkg, meta *metadata) {
 	for _, file := range pkg.GetSyntax() {
 		// TODO: If a file is in multiple packages, which package do we store?
 		if !file.Pos().IsValid() {
-			v.Logger().Errorf(ctx, "invalid position for file %v", file.Name)
+			v.Session().Logger().Errorf(ctx, "invalid position for file %v", file.Name)
 			continue
 		}
 		tok := v.config.Fset.File(file.Pos())
 		if tok == nil {
-			v.Logger().Errorf(ctx, "no token.File for %v", file.Name)
+			v.Session().Logger().Errorf(ctx, "no token.File for %v", file.Name)
 			continue
 		}
 		fURI := span.FileURI(tok.Name())
 		f, err := v.getFile(fURI)
 		if err != nil {
-			v.Logger().Errorf(ctx, "no file: %v", err)
+			v.Session().Logger().Errorf(ctx, "no file: %v", err)
 			continue
 		}
 		gof, ok := f.(*goFile)
 		if !ok {
-			v.Logger().Errorf(ctx, "not a go file: %v", f.URI())
+			v.Session().Logger().Errorf(ctx, "not a go file: %v", f.URI())
 			continue
 		}
 		gof.token = tok

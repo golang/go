@@ -42,7 +42,7 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 }
 
 func (s *Server) cacheAndDiagnose(ctx context.Context, uri span.URI, content []byte) error {
-	view := s.findView(ctx, uri)
+	view := s.session.ViewOf(uri)
 	if err := view.SetContent(ctx, uri, content); err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func (s *Server) applyChanges(ctx context.Context, params *protocol.DidChangeTex
 	}
 
 	uri := span.NewURI(params.TextDocument.URI)
-	view := s.findView(ctx, uri)
+	view := s.session.ViewOf(uri)
 	file, m, err := getSourceFile(ctx, view, uri)
 	if err != nil {
 		return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "file not found")
@@ -97,6 +97,6 @@ func (s *Server) didSave(ctx context.Context, params *protocol.DidSaveTextDocume
 
 func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocumentParams) error {
 	uri := span.NewURI(params.TextDocument.URI)
-	view := s.findView(ctx, uri)
+	view := s.session.ViewOf(uri)
 	return view.SetContent(ctx, uri, nil)
 }

@@ -16,7 +16,7 @@ import (
 
 func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionParams) ([]protocol.CodeAction, error) {
 	uri := span.NewURI(params.TextDocument.URI)
-	view := s.findView(ctx, uri)
+	view := s.session.ViewOf(uri)
 	_, m, err := getSourceFile(ctx, view, uri)
 	if err != nil {
 		return nil, err

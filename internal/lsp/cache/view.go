@@ -16,11 +16,12 @@ import (
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
 )
 
 type view struct {
+	session *session
+
 	// mu protects all mutable state of the view.
 	mu sync.Mutex
 
@@ -35,9 +36,6 @@ type view struct {
 	// cancel is called when all action being performed by the current view
 	// should be stopped.
 	cancel context.CancelFunc
-
-	// the logger to use to communicate back with the client
-	log xlog.Logger
 
 	// Name is the user visible name of this view.
 	name string
@@ -94,28 +92,8 @@ type entry struct {
 	ready chan struct{} // closed to broadcast ready condition
 }
 
-func NewView(ctx context.Context, log xlog.Logger, name string, folder span.URI, config *packages.Config) source.View {
-	backgroundCtx, cancel := context.WithCancel(ctx)
-	v := &view{
-		baseCtx:        ctx,
-		backgroundCtx:  backgroundCtx,
-		builtinPkg:     builtinPkg(*config),
-		cancel:         cancel,
-		log:            log,
-		config:         *config,
-		name:           name,
-		folder:         folder,
-		filesByURI:     make(map[span.URI]viewFile),
-		filesByBase:    make(map[string][]viewFile),
-		contentChanges: make(map[span.URI]func()),
-		mcache: &metadataCache{
-			packages: make(map[string]*metadata),
-		},
-		pcache: &packageCache{
-			packages: make(map[string]*entry),
-		},
-	}
-	return v
+func (v *view) Session() source.Session {
+	return v.session
 }
 
 // Name returns the user visible name of this view.
@@ -138,7 +116,11 @@ func (v *view) SetEnv(env []string) {
 	v.config.Env = env
 }
 
-func (v *view) Shutdown(context.Context) {
+func (v *view) Shutdown(ctx context.Context) {
+	v.session.removeView(ctx, v)
+}
+
+func (v *view) shutdown(context.Context) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	if v.cancel != nil {
@@ -392,8 +374,4 @@ func (v *view) mapFile(uri span.URI, f viewFile) {
 		basename := basename(f.filename())
 		v.filesByBase[basename] = append(v.filesByBase[basename], f)
 	}
-}
-
-func (v *view) Logger() xlog.Logger {
-	return v.log
 }

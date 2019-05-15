@@ -14,12 +14,12 @@ import (
 
 func (s *Server) Diagnostics(ctx context.Context, view source.View, uri span.URI) {
 	if ctx.Err() != nil {
-		s.log.Errorf(ctx, "canceling diagnostics for %s: %v", uri, ctx.Err())
+		s.session.Logger().Errorf(ctx, "canceling diagnostics for %s: %v", uri, ctx.Err())
 		return
 	}
 	reports, err := source.Diagnostics(ctx, view, uri)
 	if err != nil {
-		s.log.Errorf(ctx, "failed to compute diagnostics for %s: %v", uri, err)
+		s.session.Logger().Errorf(ctx, "failed to compute diagnostics for %s: %v", uri, err)
 		return
 	}
 

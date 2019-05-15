@@ -18,13 +18,47 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-// View abstracts the underlying architecture of the package using the source
-// package. The view provides access to files and their contents, so the source
+// Cache abstracts the core logic of dealing with the environment from the
+// higher level logic that processes the information to produce results.
+// The cache provides access to files and their contents, so the source
 // package does not directly access the file system.
+// A single cache is intended to be process wide, and is the primary point of
+// sharing between all consumers.
+// A cache may have many active sessions at any given time.
+type Cache interface {
+	// NewSession creates a new Session manager and returns it.
+	NewSession(log xlog.Logger) Session
+}
+
+// Session represents a single connection from a client.
+// This is the level at which things like open files are maintained on behalf
+// of the client.
+// A session may have many active views at any given time.
+type Session interface {
+	// NewView creates a new View and returns it.
+	NewView(name string, folder span.URI, config *packages.Config) View
+
+	// Cache returns the cache that created this session.
+	Cache() Cache
+
+	// Returns the logger in use for this session.
+	Logger() xlog.Logger
+
+	View(name string) View
+	ViewOf(uri span.URI) View
+	Views() []View
+
+	Shutdown(ctx context.Context)
+}
+
+// View represents a single workspace.
+// This is the level at which we maintain configuration like working directory
+// and build tags.
 type View interface {
+	// Session returns the session that created this view.
+	Session() Session
 	Name() string
 	Folder() span.URI
-	Logger() xlog.Logger
 	FileSet() *token.FileSet
 	BuiltinPackage() *ast.Package
 	GetFile(ctx context.Context, uri span.URI) (File, error)

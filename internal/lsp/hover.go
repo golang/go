@@ -15,7 +15,7 @@ import (
 
 func (s *Server) hover(ctx context.Context, params *protocol.TextDocumentPositionParams) (*protocol.Hover, error) {
 	uri := span.NewURI(params.TextDocument.URI)
-	view := s.findView(ctx, uri)
+	view := s.session.ViewOf(uri)
 	f, m, err := getGoFile(ctx, view, uri)
 	if err != nil {
 		return nil, err

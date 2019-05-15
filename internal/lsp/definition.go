@@ -14,7 +14,7 @@ import (
 
 func (s *Server) definition(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
 	uri := span.NewURI(params.TextDocument.URI)
-	view := s.findView(ctx, uri)
+	view := s.session.ViewOf(uri)
 	f, m, err := getGoFile(ctx, view, uri)
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func (s *Server) definition(ctx context.Context, params *protocol.TextDocumentPo
 
 func (s *Server) typeDefinition(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
 	uri := span.NewURI(params.TextDocument.URI)
-	view := s.findView(ctx, uri)
+	view := s.session.ViewOf(uri)
 	f, m, err := getGoFile(ctx, view, uri)
 	if err != nil {
 		return nil, err
