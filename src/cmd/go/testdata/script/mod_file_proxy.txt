@@ -21,6 +21,7 @@ grep v1.5.1 $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/list
 
 -- $WORK/x/go.mod --
 module x
+go 1.13
 require rsc.io/quote v1.5.1
 -- $WORK/x/x.go --
 package x
