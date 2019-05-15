@@ -756,6 +756,9 @@ func TestLogAfterComplete(t *T) {
 }
 
 func TestBenchmark(t *T) {
+	if Short() {
+		t.Skip("skipping in short mode")
+	}
 	res := Benchmark(func(b *B) {
 		for i := 0; i < 5; i++ {
 			b.Run("", func(b *B) {
