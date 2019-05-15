@@ -7,6 +7,7 @@ package plugin_test
 import (
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -22,6 +23,11 @@ import (
 var gcflags string = os.Getenv("GO_GCFLAGS")
 
 func TestMain(m *testing.M) {
+	flag.Parse()
+	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+		fmt.Printf("SKIP - short mode and $GO_BUILDER_NAME not set\n")
+		os.Exit(0)
+	}
 	log.SetFlags(log.Lshortfile)
 	os.Exit(testMain(m))
 }
