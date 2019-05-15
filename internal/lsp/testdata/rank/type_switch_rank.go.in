@@ -1,0 +1,11 @@
+package rank
+
+func _() {
+	type basket int   //@item(basket, "basket", "int", "type")
+	var banana string //@item(banana, "banana", "string", "var")
+
+	switch interface{}(pear).(type) {
+	case b: //@complete(":", basket, banana)
+		b //@complete(" //", banana, basket)
+	}
+}

@@ -1,0 +1,8 @@
+package rank
+
+func _() {
+	type flower int //@item(flower, "flower", "int", "type")
+	var fig string  //@item(fig, "fig", "string", "var")
+
+	_ = interface{}(nil).(f) //@complete(") //", flower, fig)
+}

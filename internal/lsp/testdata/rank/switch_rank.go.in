@@ -1,0 +1,12 @@
+package rank
+
+func _() {
+	switch pear {
+	case : //@complete(":", pear, apple)
+	}
+
+	switch pear {
+	case "hi":
+		//@complete("", apple, pear)
+	}
+}

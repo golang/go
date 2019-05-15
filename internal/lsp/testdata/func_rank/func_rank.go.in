@@ -26,8 +26,8 @@ func _() {
 	// no expected type
 	fnInt(func() int { s.A }) //@complete(" }", rankAA, rankAB, rankAC)
 	fnInt(s.A())              //@complete("()", rankAA, rankAB, rankAC)
-	fnInt([]int{}[s.A])       //@complete("])", rankAA, rankAB, rankAC)
-	fnInt([]int{}[:s.A])      //@complete("])", rankAA, rankAB, rankAC)
+	fnInt([]int{}[s.A])       //@complete("])", rankAA, rankAC, rankAB)
+	fnInt([]int{}[:s.A])      //@complete("])", rankAA, rankAC, rankAB)
 
 	fnInt(s.A.(int)) //@complete(".(", rankAA, rankAB, rankAC)
 
