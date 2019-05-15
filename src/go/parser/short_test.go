@@ -51,7 +51,7 @@ var valids = []string{
 	`package p; type T (*int)`,
 	`package p; type T(type P) struct { P }`,
 	`package p; type T(type P comparable) struct { P }`,
-	`package p; type T(type P comparable(P)) struct { P }`,
+	// `package p; type T(type P comparable(P)) struct { P }`,
 	`package p; type T(type P1, P2) struct { P1; f []P2 }`,
 	// `package p; type T[type] struct { P }`,
 	// `package p; type T[type P] struct { P }`,
@@ -68,7 +68,7 @@ var valids = []string{
 	`package p; func _((T(P1, P2, P3)))`,
 	`package p; func _(type A, B)(a A) B`,
 	`package p; func _(type A, B C)(a A) B`,
-	`package p; func _(type A, B C(A, B))(a A) B`,
+	// `package p; func _(type A, B C(A, B))(a A) B`,
 	// `package p; type _ struct { T[P] }`,
 	// `package p; type _ struct { T []E }`,
 	// `package p; type _ struct { T [P]E }`,
@@ -97,7 +97,7 @@ func TestValid(t *testing.T) {
 
 // TestSingle is useful to track down a problem with a single short test program.
 func TestSingle(t *testing.T) {
-	const src = `package p; func _((T(a, b,)))`
+	const src = `package p; var _ = T(P){}`
 	checkErrors(t, src, src)
 }
 

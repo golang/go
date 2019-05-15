@@ -18,8 +18,7 @@ type node(type K, V) struct {
 
 // New returns a new map.
 func New(type K, V)(compare func(K, K) int) *Map(K, V) {
-        // TODO
-	// return &Map(K, V){compare: compare}
+        return &Map(K, V){compare: compare}
 }
 
 // find looks up key in the map, and returns either a pointer
@@ -49,8 +48,7 @@ func (m *Map(K, V)) Insert(key K, val V) bool {
 		(*pn).val = val
 		return false
 	}
-        // TODO
-	// *pn = &node(K, V){key: key, val: val}
+        *pn = &node(K, V){key: key, val: val}
 	return true
 }
 

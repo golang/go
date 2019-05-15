@@ -1102,7 +1102,7 @@ func (p *parser) parseTypeParams(scope *ast.Scope) *ast.TypeParamList {
 	}
 	if p.tok == token.IDENT {
 		// contract
-		contract = p.parseType(true)
+		contract = p.parseTypeName(nil)
 	}
 
 	if lbrack.IsValid() {
@@ -1785,23 +1785,6 @@ func isTypeName(x ast.Expr) bool {
 	return true
 }
 
-// isLiteralType reports whether x is a legal composite literal type.
-func isLiteralType(x ast.Expr) bool {
-	switch t := x.(type) {
-	case *ast.BadExpr:
-	case *ast.Ident:
-	case *ast.SelectorExpr:
-		_, isIdent := t.X.(*ast.Ident)
-		return isIdent
-	case *ast.ArrayType:
-	case *ast.StructType:
-	case *ast.MapType:
-	default:
-		return false // all other nodes are not legal composite literal types
-	}
-	return true
-}
-
 // If x is of the form *T, deref returns T, otherwise it returns x.
 func deref(x ast.Expr) ast.Expr {
 	if p, isPtr := x.(*ast.StarExpr); isPtr {
@@ -1837,13 +1820,12 @@ func (p *parser) checkExprOrType(x ast.Expr) ast.Expr {
 }
 
 // If lhs is set and the result is an identifier, it is not resolved.
-func (p *parser) parsePrimaryExpr(lhs bool) ast.Expr {
+func (p *parser) parsePrimaryExpr(lhs bool) (x ast.Expr) {
 	if p.trace {
 		defer un(trace(p, "PrimaryExpr"))
 	}
 
-	x := p.parseOperand(lhs)
-L:
+	x = p.parseOperand(lhs)
 	for {
 		switch p.tok {
 		case token.PERIOD:
@@ -1874,23 +1856,31 @@ L:
 			}
 			x = p.parseCallOrConversion(p.checkExprOrType(x))
 		case token.LBRACE:
-			// TODO(gri) currently this doesn't accept instantiated types
-			// Use code from cmd/compile/internal/syntax/parser.go.
-			if isLiteralType(x) && (p.exprLev >= 0 || !isTypeName(x)) {
-				if lhs {
-					p.resolve(x)
+			// operand may have returned a parenthesized complit
+			// type; accept it but complain if we have a complit
+			t := unparen(x)
+			// determine if '{' belongs to a composite literal or a block statement
+			switch t.(type) {
+			case *ast.BadExpr, *ast.Ident, *ast.SelectorExpr, *ast.CallExpr: // *ast.CallExpr for instantiated types
+				if p.exprLev < 0 {
+					return
 				}
-				x = p.parseLiteralValue(x)
-			} else {
-				break L
+				// x is (possibly a) composite literal type
+			case *ast.ArrayType, *ast.StructType, *ast.MapType:
+				// x is a composite literal type
+			default:
+				return
 			}
+			if t != x {
+				p.error(t.Pos(), "cannot parenthesize type in composite literal")
+				// already progressed, no need to advance
+			}
+			x = p.parseLiteralValue(x)
 		default:
-			break L
+			return
 		}
 		lhs = false // no need to try to resolve again
 	}
-
-	return x
 }
 
 // If lhs is set and the result is an identifier, it is not resolved.
@@ -2215,7 +2205,7 @@ func (p *parser) parseIfHeader() (init ast.Stmt, cond ast.Expr) {
 	}
 	// p.tok != token.LBRACE
 
-	outer := p.exprLev
+	prevLev := p.exprLev
 	p.exprLev = -1
 
 	if p.tok != token.SEMICOLON {
@@ -2263,7 +2253,7 @@ func (p *parser) parseIfHeader() (init ast.Stmt, cond ast.Expr) {
 		cond = &ast.BadExpr{From: p.pos, To: p.pos}
 	}
 
-	p.exprLev = outer
+	p.exprLev = prevLev
 	return
 }
 
