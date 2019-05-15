@@ -991,7 +991,7 @@ func (t *tester) runHostTest(dir, pkg string) error {
 	if err := cmd.Run(); err != nil {
 		return err
 	}
-	return t.dirCmd(dir, "./test.test").Run()
+	return t.dirCmd(dir, "./test.test", "-test.short").Run()
 }
 
 func (t *tester) cgoTest(dt *distTest) error {

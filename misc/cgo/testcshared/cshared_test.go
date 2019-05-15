@@ -7,6 +7,7 @@ package cshared_test
 import (
 	"bytes"
 	"debug/elf"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -36,6 +37,11 @@ func TestMain(m *testing.M) {
 
 func testMain(m *testing.M) int {
 	log.SetFlags(log.Lshortfile)
+	flag.Parse()
+	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+		fmt.Printf("SKIP - short mode and $GO_BUILDER_NAME not set\n")
+		os.Exit(0)
+	}
 
 	GOOS = goEnv("GOOS")
 	GOARCH = goEnv("GOARCH")
