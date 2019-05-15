@@ -156,11 +156,8 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			t.Errorf("%s: %s", src, diff)
 		}
 	}
-}
-
-func (r *runner) checkCompletionSnippets(ctx context.Context, t *testing.T, data tests.CompletionSnippets, items tests.CompletionItems) {
 	for _, usePlaceholders := range []bool{true, false} {
-		for src, want := range data {
+		for src, want := range snippets {
 			f, err := r.view.GetFile(ctx, src.URI())
 			if err != nil {
 				t.Fatalf("failed for %v: %v", src, err)
@@ -171,25 +168,23 @@ func (r *runner) checkCompletionSnippets(ctx context.Context, t *testing.T, data
 			if err != nil {
 				t.Fatalf("failed for %v: %v", src, err)
 			}
-
-			wantCompletion := items[want.CompletionItem]
+			wantItem := items[want.CompletionItem]
 			var got *source.CompletionItem
 			for _, item := range list {
-				if item.Label == wantCompletion.Label {
+				if item.Label == wantItem.Label {
 					got = &item
 					break
 				}
 			}
 			if got == nil {
-				t.Fatalf("%s: couldn't find completion matching %q", src.URI(), wantCompletion.Label)
+				t.Fatalf("%s: couldn't find completion matching %q", src.URI(), wantItem.Label)
 			}
-
 			expected := want.PlainSnippet
 			if usePlaceholders {
 				expected = want.PlaceholderSnippet
 			}
-			if insertText := got.Snippet(usePlaceholders); expected != insertText {
-				t.Errorf("%s: expected snippet %q, got %q", src, expected, insertText)
+			if actual := got.Snippet(usePlaceholders); expected != actual {
+				t.Errorf("%s: expected placeholder snippet %q, got %q", src, expected, actual)
 			}
 		}
 	}

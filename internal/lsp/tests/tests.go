@@ -36,7 +36,7 @@ const (
 	ExpectedHighlightsCount        = 2
 	ExpectedSymbolsCount           = 1
 	ExpectedSignaturesCount        = 20
-	ExpectedCompletionSnippetCount = 11
+	ExpectedCompletionSnippetCount = 13
 	ExpectedLinksCount             = 2
 )
 

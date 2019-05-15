@@ -72,7 +72,6 @@ func (c *completer) functionCallSnippets(name string, params []string) (*snippet
 			}
 		}
 	}
-
 	plain, placeholder := &snippet.Builder{}, &snippet.Builder{}
 	label := fmt.Sprintf("%s(", name)
 
