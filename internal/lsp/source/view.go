@@ -22,11 +22,16 @@ import (
 // package. The view provides access to files and their contents, so the source
 // package does not directly access the file system.
 type View interface {
+	Name() string
+	Folder() span.URI
 	Logger() xlog.Logger
 	FileSet() *token.FileSet
 	BuiltinPackage() *ast.Package
 	GetFile(ctx context.Context, uri span.URI) (File, error)
 	SetContent(ctx context.Context, uri span.URI, content []byte) error
+	BackgroundContext() context.Context
+	Config() packages.Config
+	SetEnv([]string)
 }
 
 // File represents a Go source file that has been type-checked. It is the input

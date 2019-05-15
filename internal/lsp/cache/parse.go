@@ -37,9 +37,9 @@ func (imp *importer) parseFiles(filenames []string) ([]*ast.File, []error) {
 	parsed := make([]*ast.File, n)
 	errors := make([]error, n)
 	for i, filename := range filenames {
-		if imp.view.Config.Context.Err() != nil {
+		if imp.view.config.Context.Err() != nil {
 			parsed[i] = nil
-			errors[i] = imp.view.Config.Context.Err()
+			errors[i] = imp.view.config.Context.Err()
 			continue
 		}
 
@@ -63,7 +63,7 @@ func (imp *importer) parseFiles(filenames []string) ([]*ast.File, []error) {
 				// We don't have a cached AST for this file.
 				var src []byte
 				// Check for an available overlay.
-				for f, contents := range imp.view.Config.Overlay {
+				for f, contents := range imp.view.config.Overlay {
 					if sameFile(f, filename) {
 						src = contents
 					}
@@ -77,11 +77,11 @@ func (imp *importer) parseFiles(filenames []string) ([]*ast.File, []error) {
 					parsed[i], errors[i] = nil, err
 				} else {
 					// ParseFile may return both an AST and an error.
-					parsed[i], errors[i] = imp.view.Config.ParseFile(imp.view.Config.Fset, filename, src)
+					parsed[i], errors[i] = imp.view.config.ParseFile(imp.view.config.Fset, filename, src)
 
 					// Fix any badly parsed parts of the AST.
 					if file := parsed[i]; file != nil {
-						tok := imp.view.Config.Fset.File(file.Pos())
+						tok := imp.view.config.Fset.File(file.Pos())
 						imp.view.fix(imp.ctx, parsed[i], tok, src)
 					}
 				}
@@ -141,7 +141,7 @@ func sameFile(x, y string) bool {
 // fix inspects and potentially modifies any *ast.BadStmts or *ast.BadExprs in the AST.
 
 // We attempt to modify the AST such that we can type-check it more effectively.
-func (v *View) fix(ctx context.Context, file *ast.File, tok *token.File, src []byte) {
+func (v *view) fix(ctx context.Context, file *ast.File, tok *token.File, src []byte) {
 	var parent ast.Node
 	ast.Inspect(file, func(n ast.Node) bool {
 		if n == nil {
@@ -167,7 +167,7 @@ func (v *View) fix(ctx context.Context, file *ast.File, tok *token.File, src []b
 // this statement entirely, and we can't use the type information when completing.
 // Here, we try to generate a fake *ast.DeferStmt or *ast.GoStmt to put into the AST,
 // instead of the *ast.BadStmt.
-func (v *View) parseDeferOrGoStmt(bad *ast.BadStmt, parent ast.Node, tok *token.File, src []byte) error {
+func (v *view) parseDeferOrGoStmt(bad *ast.BadStmt, parent ast.Node, tok *token.File, src []byte) error {
 	// Check if we have a bad statement containing either a "go" or "defer".
 	s := &scanner.Scanner{}
 	s.Init(tok, src, nil, 0)
@@ -260,7 +260,7 @@ FindTo:
 
 // offsetPositions applies an offset to the positions in an ast.Node.
 // TODO(rstambler): Add more cases here as they become necessary.
-func (v *View) offsetPositions(expr ast.Expr, offset token.Pos) {
+func (v *view) offsetPositions(expr ast.Expr, offset token.Pos) {
 	ast.Inspect(expr, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.Ident:

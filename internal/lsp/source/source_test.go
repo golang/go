@@ -27,7 +27,7 @@ func TestSource(t *testing.T) {
 }
 
 type runner struct {
-	view *cache.View
+	view source.View
 	data *tests.Data
 }
 

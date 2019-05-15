@@ -7,13 +7,12 @@ package lsp
 import (
 	"context"
 
-	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 )
 
-func (s *Server) Diagnostics(ctx context.Context, view *cache.View, uri span.URI) {
+func (s *Server) Diagnostics(ctx context.Context, view source.View, uri span.URI) {
 	if ctx.Err() != nil {
 		s.log.Errorf(ctx, "canceling diagnostics for %s: %v", uri, ctx.Err())
 		return
@@ -48,7 +47,7 @@ func (s *Server) Diagnostics(ctx context.Context, view *cache.View, uri span.URI
 	}
 }
 
-func (s *Server) publishDiagnostics(ctx context.Context, view *cache.View, uri span.URI, diagnostics []source.Diagnostic) error {
+func (s *Server) publishDiagnostics(ctx context.Context, view source.View, uri span.URI, diagnostics []source.Diagnostic) error {
 	protocolDiagnostics, err := toProtocolDiagnostics(ctx, view, diagnostics)
 	if err != nil {
 		return err

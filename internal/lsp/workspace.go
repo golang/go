@@ -16,6 +16,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -59,7 +60,7 @@ func (s *Server) addView(ctx context.Context, name string, uri span.URI) error {
 		Tests: true,
 	}))
 	// we always need to drop the view map
-	s.viewMap = make(map[span.URI]*cache.View)
+	s.viewMap = make(map[span.URI]source.View)
 	return nil
 }
 
@@ -67,10 +68,10 @@ func (s *Server) removeView(ctx context.Context, name string, uri span.URI) erro
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 	// we always need to drop the view map
-	s.viewMap = make(map[span.URI]*cache.View)
+	s.viewMap = make(map[span.URI]source.View)
 	s.log.Infof(ctx, "drop view %v as %v", name, uri)
 	for i, view := range s.views {
-		if view.Name == name {
+		if view.Name() == name {
 			// delete this view... we don't care about order but we do want to make
 			// sure we can garbage collect the view
 			s.views[i] = s.views[len(s.views)-1]
@@ -85,7 +86,7 @@ func (s *Server) removeView(ctx context.Context, name string, uri span.URI) erro
 
 // findView returns the view corresponding to the given URI.
 // If the file is not already associated with a view, pick one using some heuristics.
-func (s *Server) findView(ctx context.Context, uri span.URI) *cache.View {
+func (s *Server) findView(ctx context.Context, uri span.URI) source.View {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 
@@ -102,14 +103,14 @@ func (s *Server) findView(ctx context.Context, uri span.URI) *cache.View {
 
 // bestView finds the best view to associate a given URI with.
 // viewMu must be held when calling this method.
-func (s *Server) bestView(ctx context.Context, uri span.URI) *cache.View {
+func (s *Server) bestView(ctx context.Context, uri span.URI) source.View {
 	// we need to find the best view for this file
-	var longest *cache.View
+	var longest source.View
 	for _, view := range s.views {
-		if longest != nil && len(longest.Folder) > len(view.Folder) {
+		if longest != nil && len(longest.Folder()) > len(view.Folder()) {
 			continue
 		}
-		if strings.HasPrefix(string(uri), string(view.Folder)) {
+		if strings.HasPrefix(string(uri), string(view.Folder())) {
 			longest = view
 		}
 	}

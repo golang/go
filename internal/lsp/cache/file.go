@@ -16,18 +16,18 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-// File holds all the information we know about a file.
-type File struct {
+// file holds all the information we know about a file.
+type file struct {
 	uris     []span.URI
 	filename string
 	basename string
 
-	view    *View
+	view    *view
 	active  bool
 	content []byte
 	ast     *ast.File
 	token   *token.File
-	pkg     *Package
+	pkg     *pkg
 	meta    *metadata
 	imports []*ast.ImportSpec
 }
@@ -36,17 +36,17 @@ func basename(filename string) string {
 	return strings.ToLower(filepath.Base(filename))
 }
 
-func (f *File) URI() span.URI {
+func (f *file) URI() span.URI {
 	return f.uris[0]
 }
 
 // View returns the view associated with the file.
-func (f *File) View() source.View {
+func (f *file) View() source.View {
 	return f.view
 }
 
 // GetContent returns the contents of the file, reading it from file system if needed.
-func (f *File) GetContent(ctx context.Context) []byte {
+func (f *file) GetContent(ctx context.Context) []byte {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
 
@@ -57,11 +57,11 @@ func (f *File) GetContent(ctx context.Context) []byte {
 	return f.content
 }
 
-func (f *File) GetFileSet(ctx context.Context) *token.FileSet {
-	return f.view.Config.Fset
+func (f *file) GetFileSet(ctx context.Context) *token.FileSet {
+	return f.view.config.Fset
 }
 
-func (f *File) GetToken(ctx context.Context) *token.File {
+func (f *file) GetToken(ctx context.Context) *token.File {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
 
@@ -73,7 +73,7 @@ func (f *File) GetToken(ctx context.Context) *token.File {
 	return f.token
 }
 
-func (f *File) GetAST(ctx context.Context) *ast.File {
+func (f *file) GetAST(ctx context.Context) *ast.File {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
 
@@ -85,7 +85,7 @@ func (f *File) GetAST(ctx context.Context) *ast.File {
 	return f.ast
 }
 
-func (f *File) GetPackage(ctx context.Context) source.Package {
+func (f *file) GetPackage(ctx context.Context) source.Package {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
 
@@ -93,7 +93,7 @@ func (f *File) GetPackage(ctx context.Context) source.Package {
 		if errs, err := f.view.parse(ctx, f); err != nil {
 			// Create diagnostics for errors if we are able to.
 			if len(errs) > 0 {
-				return &Package{errors: errs}
+				return &pkg{errors: errs}
 			}
 			return nil
 		}
@@ -103,7 +103,7 @@ func (f *File) GetPackage(ctx context.Context) source.Package {
 
 // read is the internal part of GetContent. It assumes that the caller is
 // holding the mutex of the file's view.
-func (f *File) read(ctx context.Context) {
+func (f *file) read(ctx context.Context) {
 	if f.content != nil {
 		if len(f.view.contentChanges) == 0 {
 			return
@@ -118,7 +118,7 @@ func (f *File) read(ctx context.Context) {
 		}
 	}
 	// We might have the content saved in an overlay.
-	if content, ok := f.view.Config.Overlay[f.filename]; ok {
+	if content, ok := f.view.config.Overlay[f.filename]; ok {
 		f.content = content
 		return
 	}
@@ -132,11 +132,11 @@ func (f *File) read(ctx context.Context) {
 }
 
 // isPopulated returns true if all of the computed fields of the file are set.
-func (f *File) isPopulated() bool {
+func (f *file) isPopulated() bool {
 	return f.ast != nil && f.token != nil && f.pkg != nil && f.meta != nil && f.imports != nil
 }
 
-func (f *File) GetActiveReverseDeps(ctx context.Context) []source.File {
+func (f *file) GetActiveReverseDeps(ctx context.Context) []source.File {
 	pkg := f.GetPackage(ctx)
 	if pkg == nil {
 		return nil
@@ -149,7 +149,7 @@ func (f *File) GetActiveReverseDeps(ctx context.Context) []source.File {
 	defer f.view.mcache.mu.Unlock()
 
 	seen := make(map[string]struct{}) // visited packages
-	results := make(map[*File]struct{})
+	results := make(map[*file]struct{})
 	f.view.reverseDeps(ctx, seen, results, pkg.PkgPath())
 
 	files := make([]source.File, 0, len(results))
@@ -166,7 +166,7 @@ func (f *File) GetActiveReverseDeps(ctx context.Context) []source.File {
 	return files
 }
 
-func (v *View) reverseDeps(ctx context.Context, seen map[string]struct{}, results map[*File]struct{}, pkgPath string) {
+func (v *view) reverseDeps(ctx context.Context, seen map[string]struct{}, results map[*file]struct{}, pkgPath string) {
 	if _, ok := seen[pkgPath]; ok {
 		return
 	}

@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	"golang.org/x/tools/internal/jsonrpc2"
-	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/xlog"
@@ -83,8 +82,8 @@ type Server struct {
 	textDocumentSyncKind protocol.TextDocumentSyncKind
 
 	viewMu  sync.Mutex
-	views   []*cache.View
-	viewMap map[span.URI]*cache.View
+	views   []source.View
+	viewMap map[span.URI]source.View
 
 	// undelivered is a cache of any diagnostics that the server
 	// failed to deliver for some reason.

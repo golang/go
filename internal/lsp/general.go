@@ -13,8 +13,8 @@ import (
 	"strings"
 
 	"golang.org/x/tools/internal/jsonrpc2"
-	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -128,7 +128,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 		for _, view := range s.views {
 			config, err := s.client.Configuration(ctx, &protocol.ConfigurationParams{
 				Items: []protocol.ConfigurationItem{{
-					ScopeURI: protocol.NewURI(view.Folder),
+					ScopeURI: protocol.NewURI(view.Folder()),
 					Section:  "gopls",
 				}},
 			})
@@ -146,7 +146,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	return nil
 }
 
-func (s *Server) processConfig(view *cache.View, config interface{}) error {
+func (s *Server) processConfig(view source.View, config interface{}) error {
 	// TODO: We should probably store and process more of the config.
 	if config == nil {
 		return nil // ignore error if you don't have a config
@@ -162,7 +162,7 @@ func (s *Server) processConfig(view *cache.View, config interface{}) error {
 			return fmt.Errorf("invalid config gopls.env type %T", env)
 		}
 		for k, v := range menv {
-			view.Config.Env = applyEnv(view.Config.Env, k, v)
+			view.SetEnv(applyEnv(view.Config().Env, k, v))
 		}
 	}
 	// Check if placeholders are enabled.

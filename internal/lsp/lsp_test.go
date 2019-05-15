@@ -42,8 +42,8 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	log := xlog.New(xlog.StdSink{})
 	r := &runner{
 		server: &Server{
-			views:       []*cache.View{cache.NewView(ctx, log, "lsp_test", span.FileURI(data.Config.Dir), &data.Config)},
-			viewMap:     make(map[span.URI]*cache.View),
+			views:       []source.View{cache.NewView(ctx, log, "lsp_test", span.FileURI(data.Config.Dir), &data.Config)},
+			viewMap:     make(map[span.URI]source.View),
 			undelivered: make(map[span.URI][]source.Diagnostic),
 			log:         log,
 		},
