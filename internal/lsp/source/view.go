@@ -67,6 +67,7 @@ type View interface {
 	Config() packages.Config
 	SetEnv([]string)
 	Shutdown(ctx context.Context)
+	Ignore(span.URI) bool
 }
 
 // File represents a source file of any type.

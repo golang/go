@@ -13,4 +13,7 @@ func Stuff() { //@Stuff
 
 	var err error         //@err
 	fmt.Printf("%v", err) //@godef("err", err)
+
+	var y string       //@string,hover("string", string)
+	_ = make([]int, 0) //@make,hover("make", make)
 }

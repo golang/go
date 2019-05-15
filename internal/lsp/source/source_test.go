@@ -310,11 +310,6 @@ func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 			rng = ident.Type.Range
 			hover = ""
 		}
-		if def, err := rng.Span(); err != nil {
-			t.Fatalf("failed for %v: %v", rng, err)
-		} else if def != d.Def {
-			t.Errorf("for %v got %v want %v", d.Src, def, d.Def)
-		}
 		if hover != "" {
 			tag := fmt.Sprintf("%s-hover", d.Name)
 			filename, err := d.Src.URI().Filename()
@@ -327,6 +322,14 @@ func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 			if hover != expectHover {
 				t.Errorf("for %v got %q want %q", d.Src, hover, expectHover)
 			}
+		} else if !d.OnlyHover {
+			if def, err := rng.Span(); err != nil {
+				t.Fatalf("failed for %v: %v", rng, err)
+			} else if def != d.Def {
+				t.Errorf("for %v got %v want %v", d.Src, def, d.Def)
+			}
+		} else {
+			t.Errorf("no tests ran for %s", d.Src.URI())
 		}
 	}
 }

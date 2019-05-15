@@ -66,17 +66,25 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 	// Prepare the reports we will send for this package.
 	reports := make(map[span.URI][]Diagnostic)
 	for _, filename := range pkg.GetFilenames() {
-		reports[span.FileURI(filename)] = []Diagnostic{}
+		uri := span.FileURI(filename)
+		if v.Ignore(uri) {
+			continue
+		}
+		reports[uri] = []Diagnostic{}
 	}
 	// Run diagnostics for the package that this URI belongs to.
 	if !diagnostics(ctx, v, pkg, reports) {
 		// If we don't have any list, parse, or type errors, run analyses.
 		if err := analyses(ctx, v, pkg, reports); err != nil {
-			return singleDiagnostic(uri, "failed to run analyses for %s", uri), nil
+			return singleDiagnostic(uri, "failed to run analyses for %s: %v", uri, err), nil
 		}
 	}
 	// Updates to the diagnostics for this package may need to be propagated.
 	for _, f := range gof.GetActiveReverseDeps(ctx) {
+		if f == nil {
+			v.Session().Logger().Errorf(ctx, "nil file in reverse active dependencies for %s", f.URI())
+			continue
+		}
 		pkg := f.GetPackage(ctx)
 		if pkg == nil {
 			continue

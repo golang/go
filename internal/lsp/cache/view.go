@@ -6,7 +6,6 @@ package cache
 
 import (
 	"context"
-	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -67,6 +66,9 @@ type view struct {
 
 	// builtinPkg is the AST package used to resolve builtin types.
 	builtinPkg *ast.Package
+
+	// ignoredURIs is the set of URIs of files that we ignore.
+	ignoredURIs map[span.URI]struct{}
 }
 
 type metadataCache struct {
@@ -290,17 +292,14 @@ func (v *view) GetFile(ctx context.Context, uri span.URI) (source.File, error) {
 
 // getFile is the unlocked internal implementation of GetFile.
 func (v *view) getFile(uri span.URI) (viewFile, error) {
-	filename, err := uri.Filename()
-	if err != nil {
-		return nil, err
-	}
-	if v.isIgnored(filename) {
-		return nil, fmt.Errorf("%s is ignored", filename)
-	}
 	if f, err := v.findFile(uri); err != nil {
 		return nil, err
 	} else if f != nil {
 		return f, nil
+	}
+	filename, err := uri.Filename()
+	if err != nil {
+		return nil, err
 	}
 	f := &goFile{
 		fileBase: fileBase{
@@ -312,18 +311,11 @@ func (v *view) getFile(uri span.URI) (viewFile, error) {
 	return f, nil
 }
 
-// isIgnored checks if the given filename is a file we ignore.
+// Ignore checks if the given URI is a URI we ignore.
 // As of right now, we only ignore files in the "builtin" package.
-func (v *view) isIgnored(filename string) bool {
-	bpkg := v.BuiltinPackage()
-	if bpkg != nil {
-		for builtinFilename := range bpkg.Files {
-			if filename == builtinFilename {
-				return true
-			}
-		}
-	}
-	return false
+func (v *view) Ignore(uri span.URI) bool {
+	_, ok := v.ignoredURIs[uri]
+	return ok
 }
 
 // findFile checks the cache for any file matching the given uri.

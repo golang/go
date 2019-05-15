@@ -32,7 +32,7 @@ const (
 	ExpectedCompletionSnippetCount = 13
 	ExpectedDiagnosticsCount       = 17
 	ExpectedFormatCount            = 5
-	ExpectedDefinitionsCount       = 33
+	ExpectedDefinitionsCount       = 35
 	ExpectedTypeDefinitionsCount   = 2
 	ExpectedHighlightsCount        = 2
 	ExpectedSymbolsCount           = 1
@@ -94,10 +94,11 @@ type Tests interface {
 }
 
 type Definition struct {
-	Name   string
-	Src    span.Span
-	IsType bool
-	Def    span.Span
+	Name      string
+	Src       span.Span
+	IsType    bool
+	OnlyHover bool
+	Def       span.Span
 }
 
 type CompletionSnippet struct {
@@ -203,6 +204,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		"format":    data.collectFormats,
 		"godef":     data.collectDefinitions,
 		"typdef":    data.collectTypeDefinitions,
+		"hover":     data.collectHoverDefinitions,
 		"highlight": data.collectHighlights,
 		"symbol":    data.collectSymbols,
 		"signature": data.collectSignatures,
@@ -217,9 +219,10 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 			symbols[i].Children = children
 		}
 	}
-	// run a second pass to collect names for some entries.
+	// Collect names for the entries that require golden files.
 	if err := data.Exported.Expect(map[string]interface{}{
 		"godef": data.collectDefinitionNames,
+		"hover": data.collectDefinitionNames,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -417,6 +420,14 @@ func (data *Data) collectDefinitions(src, target span.Span) {
 	data.Definitions[src] = Definition{
 		Src: src,
 		Def: target,
+	}
+}
+
+func (data *Data) collectHoverDefinitions(src, target span.Span) {
+	data.Definitions[src] = Definition{
+		Src:       src,
+		Def:       target,
+		OnlyHover: true,
 	}
 }
 

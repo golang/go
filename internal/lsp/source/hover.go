@@ -38,9 +38,19 @@ func (i *IdentifierInfo) Hover(ctx context.Context, qf types.Qualifier, markdown
 		case *types.TypeName, *types.Var, *types.Const, *types.Func:
 			return formatGenDecl(node, obj, obj.Type(), f)
 		}
+	case *ast.TypeSpec:
+		if obj.Parent() == types.Universe {
+			if obj.Name() == "error" {
+				return f(node, nil)
+			}
+			return f(node.Name, nil) // comments not needed for builtins
+		}
 	case *ast.FuncDecl:
-		if _, ok := obj.(*types.Func); ok {
+		switch obj.(type) {
+		case *types.Func:
 			return f(obj, node.Doc)
+		case *types.Builtin:
+			return f(node.Type, node.Doc)
 		}
 	}
 	return f(obj, nil)

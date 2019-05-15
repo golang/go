@@ -107,8 +107,8 @@ func (c *completer) formatBuiltin(obj types.Object, score float64) CompletionIte
 		item.Kind = ConstantCompletionItem
 	case *types.Builtin:
 		item.Kind = FunctionCompletionItem
-		decl := lookupBuiltin(c.view, obj.Name())
-		if decl == nil {
+		decl, ok := lookupBuiltinDecl(c.view, obj.Name()).(*ast.FuncDecl)
+		if !ok {
 			break
 		}
 		params, _ := formatFieldList(c.ctx, c.view, decl.Type.Params)
@@ -125,22 +125,6 @@ func (c *completer) formatBuiltin(obj types.Object, score float64) CompletionIte
 		item.Kind = VariableCompletionItem
 	}
 	return item
-}
-
-func lookupBuiltin(v View, name string) *ast.FuncDecl {
-	builtinPkg := v.BuiltinPackage()
-	if builtinPkg == nil || builtinPkg.Scope == nil {
-		return nil
-	}
-	fn := builtinPkg.Scope.Lookup(name)
-	if fn == nil {
-		return nil
-	}
-	decl, ok := fn.Decl.(*ast.FuncDecl)
-	if !ok {
-		return nil
-	}
-	return decl
 }
 
 var replacer = strings.NewReplacer(

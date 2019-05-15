@@ -64,8 +64,8 @@ func TestDefinitionHelpExample(t *testing.T) {
 
 func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 	for _, d := range data {
-		if d.IsType {
-			// TODO: support type definition queries
+		if d.IsType || d.OnlyHover {
+			// TODO: support type definition, hover queries
 			continue
 		}
 		d.Src = span.New(d.Src.URI(), span.NewPoint(0, 0, d.Src.Start().Offset()), span.Point{})

@@ -174,12 +174,12 @@ func (f *goFile) GetActiveReverseDeps(ctx context.Context) []source.GoFile {
 	results := make(map[*goFile]struct{})
 	f.view.reverseDeps(ctx, seen, results, pkg.PkgPath())
 
-	files := make([]source.GoFile, 0, len(results))
+	var files []source.GoFile
 	for rd := range results {
 		if rd == nil {
 			continue
 		}
-		// Don't return any of the active file's in this package.
+		// Don't return any of the active files in this package.
 		if rd.pkg != nil && rd.pkg == pkg {
 			continue
 		}

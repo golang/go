@@ -102,6 +102,18 @@ func resolveInvalid(obj types.Object, node ast.Node, info *types.Info) types.Obj
 	return formatResult(resultExpr)
 }
 
+func lookupBuiltinDecl(v View, name string) interface{} {
+	builtinPkg := v.BuiltinPackage()
+	if builtinPkg == nil || builtinPkg.Scope == nil {
+		return nil
+	}
+	obj := builtinPkg.Scope.Lookup(name)
+	if obj == nil {
+		return nil
+	}
+	return obj.Decl
+}
+
 func isPointer(T types.Type) bool {
 	_, ok := T.(*types.Pointer)
 	return ok

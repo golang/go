@@ -63,6 +63,10 @@ func (s *session) NewView(name string, folder span.URI, config *packages.Config)
 		pcache: &packageCache{
 			packages: make(map[string]*entry),
 		},
+		ignoredURIs: make(map[span.URI]struct{}),
+	}
+	for filename := range v.builtinPkg.Files {
+		v.ignoredURIs[span.NewURI(filename)] = struct{}{}
 	}
 	s.views = append(s.views, v)
 	// we always need to drop the view map
