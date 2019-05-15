@@ -257,11 +257,12 @@ func (f *FieldList) NumFields() int {
 	return n
 }
 
-// A TypeParamList represents a list of type parameters, enclosed by parentheses.
+// A TypeParamList represents a list of type parameters with contract, enclosed by parentheses.
 type TypeParamList struct {
-	Lparen token.Pos // position of "("
-	Names  []*Ident  // type parameter names; or nil
-	Rparen token.Pos // position of ")"
+	Lparen   token.Pos // position of "("
+	Names    []*Ident  // type parameter names; or nil
+	Contract Expr      // contract; or nil
+	Rparen   token.Pos // position of ")"
 }
 
 func (t *TypeParamList) Pos() token.Pos { return t.Lparen }
@@ -464,7 +465,7 @@ type (
 
 	// A ContractType node represents a contract.
 	ContractType struct {
-		Contract    token.Pos      // position of "contract" pseudo keeyword
+		Contract    token.Pos      // position of "contract" pseudo keyword
 		Params      *TypeParamList // list of type parameters; non-nil
 		Lbrace      token.Pos      // position of "{"
 		Constraints []*Constraint  // list of constraints
@@ -913,11 +914,12 @@ type (
 
 	// A TypeSpec node represents a type declaration (TypeSpec production).
 	TypeSpec struct {
-		Doc     *CommentGroup // associated documentation; or nil
-		Name    *Ident        // type name
-		Assign  token.Pos     // position of '=', if any
-		Type    Expr          // *Ident, *ParenExpr, *SelectorExpr, *StarExpr, or any of the *XxxTypes
-		Comment *CommentGroup // line comments; or nil
+		Doc     *CommentGroup  // associated documentation; or nil
+		Name    *Ident         // type name
+		TPar    *TypeParamList // type parameters; or nil
+		Assign  token.Pos      // position of '=', if any
+		Type    Expr           // *Ident, *ParenExpr, *SelectorExpr, *StarExpr, or any of the *XxxTypes
+		Comment *CommentGroup  // line comments; or nil
 	}
 )
 
