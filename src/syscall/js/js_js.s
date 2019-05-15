@@ -51,3 +51,11 @@ TEXT ·valueLoadString(SB), NOSPLIT, $0
 TEXT ·valueInstanceOf(SB), NOSPLIT, $0
   CallImport
   RET
+
+TEXT ·copyBytesToGo(SB), NOSPLIT, $0
+  CallImport
+  RET
+
+TEXT ·copyBytesToJS(SB), NOSPLIT, $0
+  CallImport
+  RET
