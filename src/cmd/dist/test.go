@@ -656,8 +656,8 @@ func (t *tester) registerTests() {
 	// recompile the entire standard library. If make.bash ran with
 	// special -gcflags, that's not true.
 	if t.cgoEnabled && gogcflags == "" {
-		t.registerTest("testso", "../misc/cgo/testso", t.goTest(), t.timeout(600))
-		t.registerTest("testsovar", "../misc/cgo/testsovar", t.goTest(), t.timeout(600))
+		t.registerTest("testso", "../misc/cgo/testso", t.goTest(), t.timeout(600), ".")
+		t.registerTest("testsovar", "../misc/cgo/testsovar", t.goTest(), t.timeout(600), ".")
 		if t.supportedBuildmode("c-archive") {
 			t.registerHostTest("testcarchive", "../misc/cgo/testcarchive", "misc/cgo/testcarchive", ".")
 		}
@@ -665,10 +665,10 @@ func (t *tester) registerTests() {
 			t.registerHostTest("testcshared", "../misc/cgo/testcshared", "misc/cgo/testcshared", ".")
 		}
 		if t.supportedBuildmode("shared") {
-			t.registerTest("testshared", "../misc/cgo/testshared", t.goTest(), t.timeout(600))
+			t.registerTest("testshared", "../misc/cgo/testshared", t.goTest(), t.timeout(600), ".")
 		}
 		if t.supportedBuildmode("plugin") {
-			t.registerTest("testplugin", "../misc/cgo/testplugin", t.goTest(), t.timeout(600))
+			t.registerTest("testplugin", "../misc/cgo/testplugin", t.goTest(), t.timeout(600), ".")
 		}
 		if gohostos == "linux" && goarch == "amd64" {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
