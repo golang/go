@@ -79,8 +79,7 @@ var (
 	valueTrue      = predefValue(3)
 	valueFalse     = predefValue(4)
 	valueGlobal    = predefValue(5)
-	memory         = predefValue(6) // WebAssembly linear memory
-	jsGo           = predefValue(7) // instance of the Go class in JavaScript
+	jsGo           = predefValue(6) // instance of the Go class in JavaScript
 
 	objectConstructor = valueGlobal.Get("Object")
 	arrayConstructor  = valueGlobal.Get("Array")
@@ -478,3 +477,29 @@ type ValueError struct {
 func (e *ValueError) Error() string {
 	return "syscall/js: call of " + e.Method + " on " + e.Type.String()
 }
+
+// CopyBytesToGo copies bytes from the Uint8Array src to dst.
+// It returns the number of bytes copied, which will be the minimum of the lengths of src and dst.
+// CopyBytesToGo panics if src is not an Uint8Array.
+func CopyBytesToGo(dst []byte, src Value) int {
+	n, ok := copyBytesToGo(dst, src.ref)
+	if !ok {
+		panic("syscall/js: CopyBytesToGo: expected src to be an Uint8Array")
+	}
+	return n
+}
+
+func copyBytesToGo(dst []byte, src ref) (int, bool)
+
+// CopyBytesToJS copies bytes from src to the Uint8Array dst.
+// It returns the number of bytes copied, which will be the minimum of the lengths of src and dst.
+// CopyBytesToJS panics if dst is not an Uint8Array.
+func CopyBytesToJS(dst Value, src []byte) int {
+	n, ok := copyBytesToJS(dst.ref, src)
+	if !ok {
+		panic("syscall/js: CopyBytesToJS: expected dst to be an Uint8Array")
+	}
+	return n
+}
+
+func copyBytesToJS(dst ref, src []byte) (int, bool)
