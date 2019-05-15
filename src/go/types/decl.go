@@ -649,7 +649,7 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	sig := new(Signature)
 	obj.typ = sig // guard against cycles
 	fdecl := decl.fdecl
-	check.funcType(sig, fdecl.Recv, fdecl.TPar, fdecl.Type)
+	check.funcType(sig, fdecl.Recv, fdecl.TParams, fdecl.Type)
 	if sig.recv == nil && obj.name == "init" && (sig.params.Len() > 0 || sig.results.Len() > 0) {
 		check.errorf(fdecl.Pos(), "func init must have no arguments and no return values")
 		// ok to continue

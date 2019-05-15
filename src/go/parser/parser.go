@@ -26,6 +26,9 @@ import (
 	"unicode"
 )
 
+// Enable parsing of type parameters in [] rather than () parentheses.
+// This code was an experiment which we eventually decided against due
+// to various unpleasant ambiguities. Leave around for now, just in case.
 const useBrackets = false
 
 // The parser structure holds the parser's internal state.
@@ -1081,7 +1084,7 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
 	return
 }
 
-func (p *parser) parseTypeParams(scope *ast.Scope) *ast.TypeParamList {
+func (p *parser) parseTypeParams(scope *ast.Scope) *ast.FieldList {
 	if p.trace {
 		defer un(trace(p, "TypeParams"))
 	}
@@ -1095,26 +1098,24 @@ func (p *parser) parseTypeParams(scope *ast.Scope) *ast.TypeParamList {
 		p.expect(token.TYPE)
 	}
 
-	var names []*ast.Ident
-	var contract ast.Expr
+	f := new(ast.Field)
 	if p.tok != token.RBRACK && p.tok != token.RPAREN {
-		names = p.parseIdentList()
+		f.Names = p.parseIdentList()
 	}
 	if p.tok == token.IDENT {
 		// contract
-		contract = p.parseTypeName(nil)
+		f.Type = p.parseTypeName(nil)
 	}
+	p.declare(f, nil, scope, ast.Typ, f.Names...)
 
 	if lbrack.IsValid() {
 		rbrack = p.expect(token.RBRACK)
 	}
 
-	tparams := &ast.TypeParamList{Lparen: lbrack, Names: names, Contract: contract, Rparen: rbrack}
-	p.declare(tparams, nil, scope, ast.Typ, names...)
-	return tparams
+	return &ast.FieldList{Opening: lbrack, List: []*ast.Field{f}, Closing: rbrack}
 }
 
-func (p *parser) parseParameters(scope *ast.Scope, typeParamsOk, ellipsisOk bool) (tparams *ast.TypeParamList, params *ast.FieldList) {
+func (p *parser) parseParameters(scope *ast.Scope, typeParamsOk, ellipsisOk bool) (tparams, params *ast.FieldList) {
 	if p.trace {
 		defer un(trace(p, "Parameters"))
 	}
@@ -1132,9 +1133,9 @@ func (p *parser) parseParameters(scope *ast.Scope, typeParamsOk, ellipsisOk bool
 			tparams = p.parseTypeParams(scope)
 			rparen := p.expect(token.RPAREN)
 
-			// fix tparams
-			tparams.Lparen = lparen
-			tparams.Rparen = rparen
+			// fix parentheses positions
+			tparams.Opening = lparen
+			tparams.Closing = rparen
 
 			lparen = p.expect(token.LPAREN)
 		}
@@ -1283,19 +1284,18 @@ func (p *parser) parseContractType() *ast.ContractType {
 		defer un(trace(p, "ContractType"))
 	}
 
-	var names []*ast.Ident
-	lparen := p.expect(token.LPAREN)
+	var params []*ast.Ident
+	p.expect(token.LPAREN)
 	scope := ast.NewScope(nil) // contract scope
 	for p.tok != token.RPAREN && p.tok != token.EOF {
-		names = append(names, p.parseIdent())
+		params = append(params, p.parseIdent())
 		if !p.atComma("contract parameter list", token.RPAREN) {
 			break
 		}
 		p.next()
 	}
-	p.declare(nil, nil, scope, ast.Typ, names...)
-	rparen := p.expect(token.RPAREN)
-	params := &ast.TypeParamList{Lparen: lparen, Names: names, Rparen: rparen}
+	p.declare(nil, nil, scope, ast.Typ, params...)
+	p.expect(token.RPAREN)
 
 	var constraints []*ast.Constraint
 	lbrace := p.expect(token.LBRACE)
@@ -1305,7 +1305,7 @@ func (p *parser) parseContractType() *ast.ContractType {
 	}
 	rbrace := p.expect(token.RBRACE)
 
-	return &ast.ContractType{Params: params, Lbrace: lbrace, Constraints: constraints, Rbrace: rbrace}
+	return &ast.ContractType{TParams: params, Lbrace: lbrace, Constraints: constraints, Rbrace: rbrace}
 }
 
 // Constraint       = TypeParam Type | TypeParam MethodName Signature | ContractTypeName "(" [ TypeList [ "," ] ] ")" .
@@ -2755,9 +2755,9 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Token, _ int) ast.
 			p.next()
 			p.openScope()
 			tparams := p.parseTypeParams(p.topScope)
-			tparams.Lparen = lbrack
-			tparams.Rparen = p.expect(token.RBRACK)
-			spec.TPar = tparams
+			tparams.Opening = lbrack
+			tparams.Closing = p.expect(token.RBRACK)
+			spec.TParams = tparams
 			if p.tok == token.ASSIGN {
 				// type alias
 				spec.Assign = p.pos
@@ -2781,9 +2781,9 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Token, _ int) ast.
 			p.next()
 			p.openScope()
 			tparams := p.parseTypeParams(p.topScope)
-			tparams.Lparen = lparen
-			tparams.Rparen = p.expect(token.RPAREN)
-			spec.TPar = tparams
+			tparams.Opening = lparen
+			tparams.Closing = p.expect(token.RPAREN)
+			spec.TParams = tparams
 			if p.tok == token.ASSIGN {
 				// type alias
 				spec.Assign = p.pos
@@ -2898,10 +2898,10 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	}
 
 	decl := &ast.FuncDecl{
-		Doc:  doc,
-		Recv: recv,
-		Name: ident,
-		TPar: tparams,
+		Doc:     doc,
+		Recv:    recv,
+		Name:    ident,
+		TParams: tparams,
 		Type: &ast.FuncType{
 			Func:    pos,
 			Params:  params,

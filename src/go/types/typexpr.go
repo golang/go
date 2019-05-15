@@ -143,10 +143,10 @@ func (check *Checker) definedType(e ast.Expr, def *Named) (T Type) {
 }
 
 // funcType type-checks a function or method type.
-func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, tpar *ast.TypeParamList, ftyp *ast.FuncType) {
+func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, tpar *ast.FieldList, ftyp *ast.FuncType) {
 	// type parameters are in a scope enclosing the function scope
 	// TODO(gri) should we always have this extra scope?
-	if tpar != nil && len(tpar.Names) > 0 {
+	if tpar.NumFields() != 0 {
 		check.scope = NewScope(check.scope, token.NoPos, token.NoPos, "function type parameters") // TODO(gri) replace with check.openScope call
 		defer check.closeScope()
 	}
@@ -406,16 +406,20 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 	return -1
 }
 
-func (check *Checker) collectTypeParams(scope *Scope, list *ast.TypeParamList) (tparams []*TypeName) {
+func (check *Checker) collectTypeParams(scope *Scope, list *ast.FieldList) (tparams []*TypeName) {
 	if list == nil {
 		return
 	}
 
-	for i, name := range list.Names {
-		tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
-		NewTypeParam(tpar, i) // assigns type to tpar as a side-effect
-		check.declare(scope, name, tpar, scope.pos)
-		tparams = append(tparams, tpar)
+	index := 0
+	for _, f := range list.List {
+		for _, name := range f.Names {
+			tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
+			NewTypeParam(tpar, index) // assigns type to tpar as a side-effect
+			check.declare(scope, name, tpar, scope.pos)
+			tparams = append(tparams, tpar)
+			index++
+		}
 	}
 
 	return

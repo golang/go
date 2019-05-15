@@ -1773,14 +1773,8 @@ func (p *printer) funcDecl(d *ast.FuncDecl) {
 		p.print(blank)
 	}
 	p.expr(d.Name)
-	// TODO(gri) decide if we should print empty type parameter lists "(type)" at all
-	if tparams := d.TPar; tparams != nil {
-		p.print(tparams.Lparen, token.LPAREN, token.TYPE)
-		if len(tparams.Names) > 0 {
-			p.print(blank)
-			p.identList(tparams.Names, true)
-		}
-		p.print(tparams.Rparen, token.RPAREN)
+	if d.TParams.NumFields() != 0 {
+		p.parameters(d.TParams)
 	}
 	p.signature(d.Type.Params, d.Type.Results)
 	p.funcBody(p.distanceFrom(d.Pos(), startCol), vtab, d.Body)

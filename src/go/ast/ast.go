@@ -191,8 +191,8 @@ func isDirective(c string) bool {
 //
 type Field struct {
 	Doc     *CommentGroup // associated documentation; or nil
-	Names   []*Ident      // field/method/parameter names; or nil
-	Type    Expr          // field/method/parameter type
+	Names   []*Ident      // field/method/(type) parameter names; or nil
+	Type    Expr          // field/method/parameter type or contract
 	Tag     *BasicLit     // field tag; or nil
 	Comment *CommentGroup // line comments; or nil
 }
@@ -242,7 +242,7 @@ func (f *FieldList) End() token.Pos {
 	return token.NoPos
 }
 
-// NumFields returns the number of parameters or struct fields represented by a FieldList.
+// NumFields returns the number of (type) parameters or struct fields represented by a FieldList.
 func (f *FieldList) NumFields() int {
 	n := 0
 	if f != nil {
@@ -256,17 +256,6 @@ func (f *FieldList) NumFields() int {
 	}
 	return n
 }
-
-// A TypeParamList represents a list of type parameters with contract, enclosed by parentheses.
-type TypeParamList struct {
-	Lparen   token.Pos // position of "("
-	Names    []*Ident  // type parameter names; or nil
-	Contract Expr      // contract; or nil
-	Rparen   token.Pos // position of ")"
-}
-
-func (t *TypeParamList) Pos() token.Pos { return t.Lparen }
-func (t *TypeParamList) End() token.Pos { return t.Rparen }
 
 // An expression is represented by a tree consisting of one
 // or more of the following concrete expression nodes.
@@ -465,18 +454,18 @@ type (
 
 	// A ContractType node represents a contract.
 	ContractType struct {
-		Contract    token.Pos      // position of "contract" pseudo keyword
-		Params      *TypeParamList // list of type parameters; non-nil
-		Lbrace      token.Pos      // position of "{"
-		Constraints []*Constraint  // list of constraints
-		Rbrace      token.Pos      // position of "}"
+		Contract    token.Pos     // position of "contract" pseudo keyword
+		TParams     []*Ident      // list of type parameters; or nil
+		Lbrace      token.Pos     // position of "{"
+		Constraints []*Constraint // list of constraints
+		Rbrace      token.Pos     // position of "}"
 	}
 )
 
 type Constraint struct {
 	Param *Ident // constrained type parameter; or nil (for embedded constraints)
-	MName *Ident // method name, "==" or "!="; or nil
-	Type  Expr   // embedded constraint (CallExpr), constraint type, BasicLit (0, 0.0, 0i), method type (*FuncType); or nil
+	MName *Ident // method name; or nil
+	Type  Expr   // embedded constraint (CallExpr), constraint type, method type (*FuncType); or nil
 }
 
 // Pos and End implementations for expression/type nodes.
@@ -914,12 +903,12 @@ type (
 
 	// A TypeSpec node represents a type declaration (TypeSpec production).
 	TypeSpec struct {
-		Doc     *CommentGroup  // associated documentation; or nil
-		Name    *Ident         // type name
-		TPar    *TypeParamList // type parameters; or nil
-		Assign  token.Pos      // position of '=', if any
-		Type    Expr           // *Ident, *ParenExpr, *SelectorExpr, *StarExpr, or any of the *XxxTypes
-		Comment *CommentGroup  // line comments; or nil
+		Doc     *CommentGroup // associated documentation; or nil
+		Name    *Ident        // type name
+		TParams *FieldList    // type parameters; or nil
+		Assign  token.Pos     // position of '=', if any
+		Type    Expr          // *Ident, *ParenExpr, *SelectorExpr, *StarExpr, or any of the *XxxTypes
+		Comment *CommentGroup // line comments; or nil
 	}
 )
 
@@ -992,12 +981,12 @@ type (
 
 	// A FuncDecl node represents a function declaration.
 	FuncDecl struct {
-		Doc  *CommentGroup  // associated documentation; or nil
-		Recv *FieldList     // receiver (methods); or nil (functions)
-		Name *Ident         // function/method name
-		TPar *TypeParamList // type parameters; or nil
-		Type *FuncType      // function signature: parameters, results, and position of "func" keyword
-		Body *BlockStmt     // function body; or nil for external (non-Go) function
+		Doc     *CommentGroup // associated documentation; or nil
+		Recv    *FieldList    // receiver (methods); or nil (functions)
+		Name    *Ident        // function/method name
+		TParams *FieldList    // type parameters; or nil
+		Type    *FuncType     // function signature: parameters, results, and position of "func" keyword
+		Body    *BlockStmt    // function body; or nil for external (non-Go) function
 	}
 )
 
