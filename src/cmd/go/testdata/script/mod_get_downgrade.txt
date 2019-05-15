@@ -1,4 +1,5 @@
 env GO111MODULE=on
+[short] skip
 
 # downgrade sampler should downgrade quote
 go get rsc.io/sampler@v1.0.0

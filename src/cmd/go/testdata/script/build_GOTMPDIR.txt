@@ -1,4 +1,5 @@
 env GO111MODULE=off
+[short] skip
 
 # Set GOCACHE to a clean directory to ensure that 'go build' has work to report.
 env GOCACHE=$WORK/gocache

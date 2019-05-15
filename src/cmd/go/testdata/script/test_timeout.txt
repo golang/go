@@ -1,3 +1,4 @@
+[short] skip
 env GO111MODULE=off
 cd a
 

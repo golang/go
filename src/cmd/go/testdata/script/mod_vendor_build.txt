@@ -1,4 +1,5 @@
 env GO111MODULE=on
+[short] skip
 
 # initial conditions: using sampler v1.3.0, not listed in go.mod.
 go list -deps

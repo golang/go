@@ -1,4 +1,5 @@
 env GO111MODULE=on
+[short] skip
 
 # Initially, we are at v1.0.0 for all dependencies.
 cp go.mod go.mod.orig
@@ -11,7 +12,7 @@ stdout '^patch.example.com/indirect v1.0.0'
 # of the package in the current directory, pulling in transitive dependencies
 # and also patching those.
 cp go.mod.orig go.mod
-go get -u=patch
+go get -d -u=patch
 go list -m all
 stdout '^patch.example.com/direct v1.0.1'
 stdout '^patch.example.com/indirect v1.0.1'
@@ -19,7 +20,7 @@ stdout '^patch.example.com/depofdirectpatch v1.0.0'
 
 # 'get all@patch' should be equivalent to 'get -u=patch all'
 cp go.mod.orig go.mod
-go get all@patch
+go get -d all@patch
 go list -m all
 stdout '^patch.example.com/direct v1.0.1'
 stdout '^patch.example.com/indirect v1.0.1'
@@ -28,7 +29,7 @@ stdout '^patch.example.com/depofdirectpatch v1.0.0'
 # Requesting the direct dependency with -u=patch but without an explicit version
 # should patch-update it and its dependencies.
 cp go.mod.orig go.mod
-go get -u=patch patch.example.com/direct
+go get -d -u=patch patch.example.com/direct
 go list -m all
 stdout '^patch.example.com/direct v1.0.1'
 stdout '^patch.example.com/indirect v1.0.1'
@@ -36,7 +37,7 @@ stdout '^patch.example.com/depofdirectpatch v1.0.0'
 
 # Requesting only the indirect dependency should not update the direct one.
 cp go.mod.orig go.mod
-go get -u=patch patch.example.com/indirect
+go get -d -u=patch patch.example.com/indirect
 go list -m all
 stdout '^patch.example.com/direct v1.0.0'
 stdout '^patch.example.com/indirect v1.0.1'
@@ -45,7 +46,7 @@ stdout '^patch.example.com/indirect v1.0.1'
 # @patch should apply only to the specific module,
 # but the result must reflect its upgraded requirements.
 cp go.mod.orig go.mod
-go get patch.example.com/direct@patch
+go get -d patch.example.com/direct@patch
 go list -m all
 stdout '^patch.example.com/direct v1.0.1'
 stdout '^patch.example.com/indirect v1.0.0'
@@ -53,7 +54,7 @@ stdout '^patch.example.com/depofdirectpatch v1.0.0'
 
 # An explicit @patch should override a general -u.
 cp go.mod.orig go.mod
-go get -u patch.example.com/direct@patch
+go get -d -u patch.example.com/direct@patch
 go list -m all
 stdout '^patch.example.com/direct v1.0.1'
 stdout '^patch.example.com/indirect v1.1.0'
@@ -61,7 +62,7 @@ stdout '^patch.example.com/depofdirectpatch v1.0.0'
 
 # An explicit @latest should override a general -u=patch.
 cp go.mod.orig go.mod
-go get -u=patch patch.example.com/direct@latest
+go get -d -u=patch patch.example.com/direct@latest
 go list -m all
 stdout '^patch.example.com/direct v1.1.0'
 stdout '^patch.example.com/indirect v1.0.1'
@@ -73,7 +74,7 @@ cp go.mod.orig go.mod
 stderr 'cannot use pattern .* with explicit version'
 
 # However, standard-library packages without explicit versions are fine.
-go get -u=patch -d cmd/go
+go get -d -u=patch -d cmd/go
 
 
 -- go.mod --

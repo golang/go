@@ -1,4 +1,5 @@
 env GO111MODULE=on
+[short] skip
 
 go get -m rsc.io/fortune/v2
 
