@@ -32,33 +32,25 @@ func (c *completer) item(obj types.Object, score float64) CompletionItem {
 		placeholderSnippet *snippet.Builder
 	)
 
-	switch o := obj.(type) {
+	switch obj := obj.(type) {
 	case *types.TypeName:
-		detail, kind = formatType(o.Type(), c.qf)
+		detail, kind = formatType(obj.Type(), c.qf)
 	case *types.Const:
-		if obj.Parent() == types.Universe {
-			detail = ""
-		} else {
-			val := o.Val().ExactString()
-			if !strings.ContainsRune(val, '\n') { // skip any multiline constants
-				label += " = " + val
-			}
-		}
 		kind = ConstantCompletionItem
 	case *types.Var:
-		if _, ok := o.Type().(*types.Struct); ok {
+		if _, ok := obj.Type().(*types.Struct); ok {
 			detail = "struct{...}" // for anonymous structs
 		}
-		if o.IsField() {
+		if obj.IsField() {
 			kind = FieldCompletionItem
 			plainSnippet, placeholderSnippet = c.structFieldSnippets(label, detail)
-		} else if c.isParameter(o) {
+		} else if c.isParameter(obj) {
 			kind = ParameterCompletionItem
 		} else {
 			kind = VariableCompletionItem
 		}
 	case *types.Func:
-		sig, ok := o.Type().(*types.Signature)
+		sig, ok := obj.Type().(*types.Signature)
 		if !ok {
 			break
 		}
@@ -75,7 +67,7 @@ func (c *completer) item(obj types.Object, score float64) CompletionItem {
 		}
 	case *types.PkgName:
 		kind = PackageCompletionItem
-		detail = fmt.Sprintf("\"%s\"", o.Imported().Path())
+		detail = fmt.Sprintf("\"%s\"", obj.Imported().Path())
 	}
 	detail = strings.TrimPrefix(detail, "untyped ")
 
