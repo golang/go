@@ -471,7 +471,7 @@ func summarizeSymbols(i int, want []source.Symbol, got []protocol.DocumentSymbol
 	return msg.String()
 }
 
-func (r *runner) Signature(t *testing.T, data tests.Signatures) {
+func (r *runner) SignatureHelp(t *testing.T, data tests.Signatures) {
 	for spn, expectedSignatures := range data {
 		m := r.mapper(spn.URI())
 		loc, err := m.Location(spn)

@@ -53,10 +53,11 @@ func Qux() {
 	var ms myStruct
 	ms.foo(nil) //@signature("nil", "foo(e *json.Decoder) (*big.Int, error)", 0)
 
-	_ = make([]int, 1, 2) //@signature("2", "make([]int, int, int) []int", 2)
+	_ = make([]int, 1, 2) //@signature("2", "make(t Type, size ...int) Type", 1)
 
 	Foo(myFunc(123), 456) //@signature("myFunc", "Foo(a string, b int) (c bool)", 0)
 	Foo(myFunc(123), 456) //@signature("123", "myFunc(foo int) string", 0)
 
-	panic("oops!") //@signature("oops", "panic(interface{})", 0)
+	panic("oops!")            //@signature("oops", "panic(v interface{})", 0)
+	println("hello", "world") //@signature("world", "println(args ...Type)", 0)
 }

@@ -55,7 +55,7 @@ func (r *runner) Symbol(t *testing.T, data tests.Symbols) {
 	//TODO: add command line symbol tests when it works
 }
 
-func (r *runner) Signature(t *testing.T, data tests.Signatures) {
+func (r *runner) SignatureHelp(t *testing.T, data tests.Signatures) {
 	//TODO: add command line signature tests when it works
 }
 

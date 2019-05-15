@@ -10,7 +10,6 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
 )
@@ -48,6 +47,22 @@ func SignatureHelp(ctx context.Context, f File, pos token.Pos) (*SignatureInform
 		return nil, fmt.Errorf("cannot find an enclosing function")
 	}
 
+	// Get the object representing the function, if available.
+	// There is no object in certain cases such as calling a function returned by
+	// a function (e.g. "foo()()").
+	var obj types.Object
+	switch t := callExpr.Fun.(type) {
+	case *ast.Ident:
+		obj = pkg.GetTypesInfo().ObjectOf(t)
+	case *ast.SelectorExpr:
+		obj = pkg.GetTypesInfo().ObjectOf(t.Sel)
+	}
+
+	// Handle builtin functions separately.
+	if obj, ok := obj.(*types.Builtin); ok {
+		return builtinSignature(ctx, f.View(), callExpr, obj.Name(), pos)
+	}
+
 	// Get the type information for the function being called.
 	sigType := pkg.GetTypesInfo().TypeOf(callExpr.Fun)
 	if sigType == nil {
@@ -60,21 +75,60 @@ func SignatureHelp(ctx context.Context, f File, pos token.Pos) (*SignatureInform
 	}
 
 	qf := qualifier(fAST, pkg.GetTypes(), pkg.GetTypesInfo())
-	var paramInfo []ParameterInformation
-	for i := 0; i < sig.Params().Len(); i++ {
-		param := sig.Params().At(i)
-		label := types.TypeString(param.Type(), qf)
-		if sig.Variadic() && i == sig.Params().Len()-1 {
-			label = strings.Replace(label, "[]", "...", 1)
-		}
-		if param.Name() != "" {
-			label = fmt.Sprintf("%s %s", param.Name(), label)
-		}
-		paramInfo = append(paramInfo, ParameterInformation{
-			Label: label,
-		})
-	}
+	params := formatParams(sig.Params(), sig.Variadic(), qf)
+	results, writeResultParens := formatResults(sig.Results(), qf)
+	activeParam := activeParameter(callExpr, sig.Params().Len(), sig.Variadic(), pos)
 
+	var name string
+	if obj != nil {
+		name = obj.Name()
+	} else {
+		name = "func"
+	}
+	return signatureInformation(name, params, results, writeResultParens, activeParam), nil
+}
+
+func builtinSignature(ctx context.Context, v View, callExpr *ast.CallExpr, name string, pos token.Pos) (*SignatureInformation, error) {
+	decl := lookupBuiltin(v, name)
+	if decl == nil {
+		return nil, fmt.Errorf("no function declaration for builtin: %s", name)
+	}
+	params, _ := formatFieldList(ctx, v, decl.Type.Params)
+	results, writeResultParens := formatFieldList(ctx, v, decl.Type.Results)
+
+	var (
+		numParams int
+		variadic  bool
+	)
+	if decl.Type.Params.List != nil {
+		numParams = len(decl.Type.Params.List)
+		lastParam := decl.Type.Params.List[numParams-1]
+		if _, ok := lastParam.Type.(*ast.Ellipsis); ok {
+			variadic = true
+		}
+	}
+	activeParam := activeParameter(callExpr, numParams, variadic, pos)
+	return signatureInformation(name, params, results, writeResultParens, activeParam), nil
+}
+
+func signatureInformation(name string, params, results []string, writeResultParens bool, activeParam int) *SignatureInformation {
+	paramInfo := make([]ParameterInformation, 0, len(params))
+	for _, p := range params {
+		paramInfo = append(paramInfo, ParameterInformation{Label: p})
+	}
+	label, detail := formatFunction(name, params, results, writeResultParens)
+	// Show return values of the function in the label.
+	if detail != "" {
+		label += " " + detail
+	}
+	return &SignatureInformation{
+		Label:           label,
+		Parameters:      paramInfo,
+		ActiveParameter: activeParam,
+	}
+}
+
+func activeParameter(callExpr *ast.CallExpr, numParams int, variadic bool, pos token.Pos) int {
 	// Determine the query position relative to the number of parameters in the function.
 	var activeParam int
 	var start, end token.Pos
@@ -88,38 +142,10 @@ func SignatureHelp(ctx context.Context, f File, pos token.Pos) (*SignatureInform
 		}
 
 		// Don't advance the active parameter for the last parameter of a variadic function.
-		if !sig.Variadic() || activeParam < sig.Params().Len()-1 {
+		if !variadic || activeParam < numParams-1 {
 			activeParam++
 		}
 		start = expr.Pos() + 1 // to account for commas
 	}
-
-	// Get the object representing the function, if available.
-	// There is no object in certain cases such as calling a function returned by
-	// a function (e.g. "foo()()").
-	var obj types.Object
-	switch t := callExpr.Fun.(type) {
-	case *ast.Ident:
-		obj = pkg.GetTypesInfo().ObjectOf(t)
-	case *ast.SelectorExpr:
-		obj = pkg.GetTypesInfo().ObjectOf(t.Sel)
-	}
-
-	var name string
-	if obj != nil {
-		name = obj.Name()
-	} else {
-		name = "func"
-	}
-
-	results, writeResultParens := formatResults(sig.Results(), qf)
-	label, detail := formatFunction(name, formatParams(sig.Params(), sig.Variadic(), qf), results, writeResultParens)
-	if sig.Results().Len() > 0 {
-		label += " " + detail
-	}
-	return &SignatureInformation{
-		Label:           label,
-		Parameters:      paramInfo,
-		ActiveParameter: activeParam,
-	}, nil
+	return activeParam
 }

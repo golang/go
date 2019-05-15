@@ -420,7 +420,7 @@ func summarizeSymbols(i int, want []source.Symbol, got []source.Symbol, reason s
 	return msg.String()
 }
 
-func (r *runner) Signature(t *testing.T, data tests.Signatures) {
+func (r *runner) SignatureHelp(t *testing.T, data tests.Signatures) {
 	ctx := context.Background()
 	for spn, expectedSignatures := range data {
 		f, err := r.view.GetFile(ctx, spn.URI())

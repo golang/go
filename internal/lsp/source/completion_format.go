@@ -6,6 +6,7 @@ package source
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"go/ast"
 	"go/printer"
@@ -111,20 +112,12 @@ func (c *completer) formatBuiltin(obj types.Object, score float64) CompletionIte
 		item.Kind = ConstantCompletionItem
 	case *types.Builtin:
 		item.Kind = FunctionCompletionItem
-		builtinPkg := c.view.BuiltinPackage()
-		if builtinPkg == nil || builtinPkg.Scope == nil {
+		decl := lookupBuiltin(c.view, obj.Name())
+		if decl == nil {
 			break
 		}
-		fn := builtinPkg.Scope.Lookup(obj.Name())
-		if fn == nil {
-			break
-		}
-		decl, ok := fn.Decl.(*ast.FuncDecl)
-		if !ok {
-			break
-		}
-		params, _ := c.formatFieldList(decl.Type.Params)
-		results, writeResultParens := c.formatFieldList(decl.Type.Results)
+		params, _ := formatFieldList(c.ctx, c.view, decl.Type.Params)
+		results, writeResultParens := formatFieldList(c.ctx, c.view, decl.Type.Results)
 		item.Label, item.Detail = formatFunction(obj.Name(), params, results, writeResultParens)
 		item.plainSnippet, item.placeholderSnippet = c.functionCallSnippets(obj.Name(), params)
 	case *types.TypeName:
@@ -139,13 +132,29 @@ func (c *completer) formatBuiltin(obj types.Object, score float64) CompletionIte
 	return item
 }
 
+func lookupBuiltin(v View, name string) *ast.FuncDecl {
+	builtinPkg := v.BuiltinPackage()
+	if builtinPkg == nil || builtinPkg.Scope == nil {
+		return nil
+	}
+	fn := builtinPkg.Scope.Lookup(name)
+	if fn == nil {
+		return nil
+	}
+	decl, ok := fn.Decl.(*ast.FuncDecl)
+	if !ok {
+		return nil
+	}
+	return decl
+}
+
 var replacer = strings.NewReplacer(
 	`ComplexType`, `complex128`,
 	`FloatType`, `float64`,
 	`IntegerType`, `int`,
 )
 
-func (c *completer) formatFieldList(list *ast.FieldList) ([]string, bool) {
+func formatFieldList(ctx context.Context, v View, list *ast.FieldList) ([]string, bool) {
 	if list == nil {
 		return nil, false
 	}
@@ -158,8 +167,8 @@ func (c *completer) formatFieldList(list *ast.FieldList) ([]string, bool) {
 		p := list.List[i]
 		cfg := printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 4}
 		b := &bytes.Buffer{}
-		if err := cfg.Fprint(b, c.view.FileSet(), p.Type); err != nil {
-			c.view.Logger().Errorf(c.ctx, "unable to print type %v", p.Type)
+		if err := cfg.Fprint(b, v.FileSet(), p.Type); err != nil {
+			v.Logger().Errorf(ctx, "unable to print type %v", p.Type)
 			continue
 		}
 		typ := replacer.Replace(b.String())

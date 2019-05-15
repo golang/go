@@ -35,7 +35,7 @@ const (
 	ExpectedTypeDefinitionsCount   = 2
 	ExpectedHighlightsCount        = 2
 	ExpectedSymbolsCount           = 1
-	ExpectedSignaturesCount        = 19
+	ExpectedSignaturesCount        = 20
 	ExpectedCompletionSnippetCount = 11
 	ExpectedLinksCount             = 2
 )
@@ -89,7 +89,7 @@ type Tests interface {
 	Definition(*testing.T, Definitions)
 	Highlight(*testing.T, Highlights)
 	Symbol(*testing.T, Symbols)
-	Signature(*testing.T, Signatures)
+	SignatureHelp(*testing.T, Signatures)
 	Link(*testing.T, Links)
 }
 
@@ -291,12 +291,12 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		tests.Symbol(t, data.Symbols)
 	})
 
-	t.Run("Signatures", func(t *testing.T) {
+	t.Run("SignatureHelp", func(t *testing.T) {
 		t.Helper()
 		if len(data.Signatures) != ExpectedSignaturesCount {
 			t.Errorf("got %v signatures expected %v", len(data.Signatures), ExpectedSignaturesCount)
 		}
-		tests.Signature(t, data.Signatures)
+		tests.SignatureHelp(t, data.Signatures)
 	})
 
 	t.Run("Links", func(t *testing.T) {
