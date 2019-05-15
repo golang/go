@@ -10,6 +10,8 @@ stdout '^example.com$'
 
 -- go.mod --
 module example.com
+
+go 1.13
 -- main.go --
 package main
 

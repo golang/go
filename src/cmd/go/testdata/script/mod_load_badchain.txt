@@ -37,6 +37,8 @@ cmp stderr list-missing-test-expected
 -- go.mod.orig --
 module m
 
+go 1.13
+
 require example.com/badchain/a v1.0.0
 -- use/use.go --
 package use
