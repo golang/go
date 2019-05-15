@@ -68,6 +68,9 @@ func TestResultString(t *testing.T) {
 }
 
 func TestRunParallel(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
 	testing.Benchmark(func(b *testing.B) {
 		procs := uint32(0)
 		iters := uint64(0)
