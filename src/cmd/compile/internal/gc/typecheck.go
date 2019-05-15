@@ -3671,7 +3671,11 @@ func typecheckdef(n *Node) {
 					n.SetDiag(true)
 					goto ret
 				}
-				n.Sym.Def = asTypesNode(p.Ntype)
+				// For package-level type aliases, set n.Sym.Def so we can identify
+				// it as a type alias during export. See also #31959.
+				if n.Name.Curfn == nil {
+					n.Sym.Def = asTypesNode(p.Ntype)
+				}
 			}
 			break
 		}
