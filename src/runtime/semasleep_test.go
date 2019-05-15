@@ -21,6 +21,9 @@ import (
 // shouldn't cause semasleep to retry with the same timeout which would
 // cause indefinite spinning.
 func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
 	testenv.MustHaveGoBuild(t)
 	tempDir, err := ioutil.TempDir("", "issue-27250")
 	if err != nil {
