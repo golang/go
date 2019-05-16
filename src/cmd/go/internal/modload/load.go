@@ -1208,11 +1208,15 @@ func (*mvsReqs) Upgrade(m module.Version) (module.Version, error) {
 func versions(path string) ([]string, error) {
 	// Note: modfetch.Lookup and repo.Versions are cached,
 	// so there's no need for us to add extra caching here.
-	repo, err := modfetch.Lookup(path)
-	if err != nil {
-		return nil, err
-	}
-	return repo.Versions("")
+	var versions []string
+	err := modfetch.TryProxies(func(proxy string) error {
+		repo, err := modfetch.Lookup(proxy, path)
+		if err == nil {
+			versions, err = repo.Versions("")
+		}
+		return err
+	})
+	return versions, err
 }
 
 // Previous returns the tagged version of m.Path immediately prior to

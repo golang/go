@@ -142,6 +142,9 @@ func (c *dbClient) initBase() {
 		return
 	}
 	for _, proxyURL := range urls {
+		if proxyURL == "noproxy" {
+			continue
+		}
 		if proxyURL == "direct" {
 			break
 		}

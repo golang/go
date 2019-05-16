@@ -28,7 +28,7 @@ func TestMain(m *testing.M) {
 }
 
 func testMain(m *testing.M) int {
-	modfetch.SetProxy("direct")
+	cfg.GOPROXY = "direct"
 
 	if _, err := exec.LookPath("git"); err != nil {
 		fmt.Fprintln(os.Stderr, "skipping because git binary not found")

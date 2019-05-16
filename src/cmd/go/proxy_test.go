@@ -8,6 +8,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -253,7 +254,11 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 		if !quiet {
 			fmt.Fprintf(os.Stderr, "go proxy: no archive %s %s: %v\n", path, vers, err)
 		}
-		http.Error(w, "cannot load archive", 500)
+		if errors.Is(err, os.ErrNotExist) {
+			http.NotFound(w, r)
+		} else {
+			http.Error(w, "cannot load archive", 500)
+		}
 		return
 	}
 
