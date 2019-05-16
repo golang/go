@@ -29,14 +29,18 @@ func runParallel(N, iter int, f func()) {
 }
 
 func TestXadduintptr(t *testing.T) {
-	const N = 20
-	const iter = 100000
+	N := 20
+	iter := 100000
+	if testing.Short() {
+		N = 10
+		iter = 10000
+	}
 	inc := uintptr(100)
 	total := uintptr(0)
 	runParallel(N, iter, func() {
 		atomic.Xadduintptr(&total, inc)
 	})
-	if want := uintptr(N * iter * inc); want != total {
+	if want := uintptr(N*iter) * inc; want != total {
 		t.Fatalf("xadduintpr error, want %d, got %d", want, total)
 	}
 	total = 0

@@ -207,11 +207,11 @@ ffffffffff600000-ffffffffff601000 r-xp 00000090 00:00 0                  [vsysca
 7ffc34343000 7ffc34345000 00000000 [vdso]
 ffffffffff600000 ffffffffff601000 00000090 [vsyscall]
 
-00400000-07000000 r-xp 00000000 00:00 0 
+00400000-07000000 r-xp 00000000 00:00 0
 07000000-07093000 r-xp 06c00000 00:2e 536754                             /path/to/gobench_server_main
 07093000-0722d000 rw-p 06c92000 00:2e 536754                             /path/to/gobench_server_main
-0722d000-07b21000 rw-p 00000000 00:00 0 
-c000000000-c000036000 rw-p 00000000 00:00 0 
+0722d000-07b21000 rw-p 00000000 00:00 0
+c000000000-c000036000 rw-p 00000000 00:00 0
 ->
 07000000 07093000 06c00000 /path/to/gobench_server_main
 `
@@ -301,7 +301,7 @@ func TestProcSelfMaps(t *testing.T) {
 	})
 }
 
-// TestMapping checkes the mapping section of CPU profiles
+// TestMapping checks the mapping section of CPU profiles
 // has the HasFunctions field set correctly. If all PCs included
 // in the samples are successfully symbolized, the corresponding
 // mapping entry (in this test case, only one entry) should have

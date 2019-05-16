@@ -551,7 +551,9 @@ func (t *tester) registerTests() {
 			name:    "nolibgcc:" + pkg,
 			heading: "Testing without libgcc.",
 			fn: func(dt *distTest) error {
-				t.addCmd(dt, "src", t.goTest(), "-ldflags=-linkmode=internal -libgcc=none", pkg, t.runFlag(run))
+				// What matters is that the tests build and start up.
+				// Skip expensive tests, especially x509 TestSystemRoots.
+				t.addCmd(dt, "src", t.goTest(), "-ldflags=-linkmode=internal -libgcc=none", "-run=^Test[^CS]", pkg, t.runFlag(run))
 				return nil
 			},
 		})
@@ -693,7 +695,10 @@ func (t *tester) registerTests() {
 	}
 
 	if goos != "android" && !t.iOS() {
-		t.registerTest("bench_go1", "../test/bench/go1", t.goTest(), t.timeout(600))
+		// There are no tests in this directory, only benchmarks.
+		// Check that the test binary builds but don't bother running it.
+		// (It has init-time work to set up for the benchmarks that is not worth doing unnecessarily.)
+		t.registerTest("bench_go1", "../test/bench/go1", t.goTest(), "-c", "-o="+os.DevNull)
 	}
 	if goos != "android" && !t.iOS() {
 		// Only start multiple test dir shards on builders,
@@ -1292,8 +1297,12 @@ func (t *tester) raceTest(dt *distTest) error {
 	// TODO(iant): Figure out how to catch this.
 	// t.addCmd(dt, "src", t.goTest(),  "-race", "-run=TestParallelTest", "cmd/go")
 	if t.cgoEnabled {
-		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-race")
-		cmd.Env = append(os.Environ(), "GOTRACEBACK=2")
+		// Building misc/cgo/test takes a long time.
+		// There are already cgo-enabled packages being tested with the race detector.
+		// We shouldn't need to redo all of misc/cgo/test too.
+		// The race buildler will take care of this.
+		// cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-race")
+		// cmd.Env = append(os.Environ(), "GOTRACEBACK=2")
 	}
 	if t.extLink() {
 		// Test with external linking; see issue 9133.
