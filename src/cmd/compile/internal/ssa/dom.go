@@ -20,7 +20,7 @@ const (
 // postorder computes a postorder traversal ordering for the
 // basic blocks in f. Unreachable blocks will not appear.
 func postorder(f *Func) []*Block {
-	return postorderWithNumbering(f, []int32{})
+	return postorderWithNumbering(f, nil)
 }
 
 type blockAndIndex struct {
@@ -34,7 +34,7 @@ func postorderWithNumbering(f *Func, ponums []int32) []*Block {
 	mark := make([]markKind, f.NumBlocks())
 
 	// result ordering
-	var order []*Block
+	order := make([]*Block, 0, len(f.Blocks))
 
 	// stack of blocks and next child to visit
 	// A constant bound allows this to be stack-allocated. 32 is
