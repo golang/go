@@ -21,13 +21,12 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/elliptic"
+	"crypto/internal/randutil"
 	"crypto/sha512"
 	"encoding/asn1"
 	"errors"
 	"io"
 	"math/big"
-
-	"crypto/internal/randutil"
 )
 
 // A invertible implements fast inverse mod Curve.Params().N
@@ -190,14 +189,21 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 
 	// See [NSA] 3.4.1
 	c := priv.PublicKey.Curve
+	e := hashToInt(hash, c)
+	r, s, err = sign(priv, &csprng, c, e)
+	return
+}
+
+func signGeneric(priv *PrivateKey, csprng *cipher.StreamReader, c elliptic.Curve, e *big.Int) (r, s *big.Int, err error) {
 	N := c.Params().N
 	if N.Sign() == 0 {
 		return nil, nil, errZeroParam
 	}
+
 	var k, kInv *big.Int
 	for {
 		for {
-			k, err = randFieldElement(c, csprng)
+			k, err = randFieldElement(c, *csprng)
 			if err != nil {
 				r = nil
 				return
@@ -215,8 +221,6 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 				break
 			}
 		}
-
-		e := hashToInt(hash, c)
 		s = new(big.Int).Mul(priv.D, r)
 		s.Add(s, e)
 		s.Mul(s, kInv)
@@ -225,7 +229,6 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 			break
 		}
 	}
-
 	return
 }
 
@@ -243,8 +246,12 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 		return false
 	}
 	e := hashToInt(hash, c)
+	return verify(pub, c, e, r, s)
+}
 
+func verifyGeneric(pub *PublicKey, c elliptic.Curve, e, r, s *big.Int) bool {
 	var w *big.Int
+	N := c.Params().N
 	if in, ok := c.(invertible); ok {
 		w = in.Inverse(s)
 	} else {
