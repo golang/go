@@ -121,9 +121,6 @@ func BuildList(target module.Version, reqs Reqs) ([]module.Version, error) {
 func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) module.Version) ([]module.Version, error) {
 	// Explore work graph in parallel in case reqs.Required
 	// does high-latency network operations.
-	var work par.Work
-	work.Add(target)
-
 	type modGraphNode struct {
 		m        module.Version
 		required []module.Version
@@ -137,6 +134,7 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) mo
 		haveErr  int32
 	)
 
+	var work par.Work
 	work.Add(target)
 	work.Do(10, func(item interface{}) {
 		m := item.(module.Version)
@@ -217,6 +215,11 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) mo
 	// Construct the list by traversing the graph again, replacing older
 	// modules with required minimum versions.
 	if v := min[target.Path]; v != target.Version {
+		// TODO(jayconrod): there is a special case in modload.mvsReqs.Max
+		// that prevents us from selecting a newer version of a module
+		// when the module has no version. This may only be the case for target.
+		// Should we always panic when target has a version?
+		// See golang.org/issue/31491, golang.org/issue/29773.
 		panic(fmt.Sprintf("mistake: chose version %q instead of target %+v", v, target)) // TODO: Don't panic.
 	}
 
