@@ -25,7 +25,7 @@ func TestMain(m *testing.M) {
 }
 
 func testMain(m *testing.M) int {
-	SetProxy("direct")
+	cfg.GOPROXY = "direct"
 
 	// The sum database is populated using a released version of the go command,
 	// but this test may include fixes for additional modules that previously
@@ -360,7 +360,7 @@ func TestCodeRepo(t *testing.T) {
 				return func(t *testing.T) {
 					t.Parallel()
 
-					repo, err := Lookup(tt.path)
+					repo, err := Lookup("direct", tt.path)
 					if tt.lookerr != "" {
 						if err != nil && err.Error() == tt.lookerr {
 							return
@@ -561,7 +561,7 @@ func TestCodeRepoVersions(t *testing.T) {
 				tt := tt
 				t.Parallel()
 
-				repo, err := Lookup(tt.path)
+				repo, err := Lookup("direct", tt.path)
 				if err != nil {
 					t.Fatalf("Lookup(%q): %v", tt.path, err)
 				}
@@ -616,7 +616,7 @@ func TestLatest(t *testing.T) {
 				tt := tt
 				t.Parallel()
 
-				repo, err := Lookup(tt.path)
+				repo, err := Lookup("direct", tt.path)
 				if err != nil {
 					t.Fatalf("Lookup(%q): %v", tt.path, err)
 				}

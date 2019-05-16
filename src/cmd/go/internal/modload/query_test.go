@@ -25,7 +25,7 @@ func TestMain(m *testing.M) {
 }
 
 func testMain(m *testing.M) int {
-	modfetch.SetProxy("direct")
+	cfg.GOPROXY = "direct"
 
 	dir, err := ioutil.TempDir("", "modload-test-")
 	if err != nil {

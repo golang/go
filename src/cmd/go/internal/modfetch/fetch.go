@@ -205,11 +205,14 @@ func downloadZip(mod module.Version, zipfile string) (err error) {
 		}
 	}()
 
-	repo, err := Lookup(mod.Path)
+	err = TryProxies(func(proxy string) error {
+		repo, err := Lookup(proxy, mod.Path)
+		if err != nil {
+			return err
+		}
+		return repo.Zip(f, mod.Version)
+	})
 	if err != nil {
-		return err
-	}
-	if err := repo.Zip(f, mod.Version); err != nil {
 		return err
 	}
 

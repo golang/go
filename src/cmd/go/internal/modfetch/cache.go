@@ -258,12 +258,12 @@ func (r *cachingRepo) Zip(dst io.Writer, version string) error {
 // Stat is like Lookup(path).Stat(rev) but avoids the
 // repository path resolution in Lookup if the result is
 // already cached on local disk.
-func Stat(path, rev string) (*RevInfo, error) {
+func Stat(proxy, path, rev string) (*RevInfo, error) {
 	_, info, err := readDiskStat(path, rev)
 	if err == nil {
 		return info, nil
 	}
-	repo, err := Lookup(path)
+	repo, err := Lookup(proxy, path)
 	if err != nil {
 		return nil, err
 	}
@@ -276,9 +276,22 @@ func InfoFile(path, version string) (string, error) {
 	if !semver.IsValid(version) {
 		return "", fmt.Errorf("invalid version %q", version)
 	}
-	if _, err := Stat(path, version); err != nil {
+
+	if file, _, err := readDiskStat(path, version); err == nil {
+		return file, nil
+	}
+
+	err := TryProxies(func(proxy string) error {
+		repo, err := Lookup(proxy, path)
+		if err == nil {
+			_, err = repo.Stat(version)
+		}
+		return err
+	})
+	if err != nil {
 		return "", err
 	}
+
 	// Stat should have populated the disk cache for us.
 	file, _, err := readDiskStat(path, version)
 	if err != nil {
@@ -294,21 +307,39 @@ func GoMod(path, rev string) ([]byte, error) {
 	// Convert commit hash to pseudo-version
 	// to increase cache hit rate.
 	if !semver.IsValid(rev) {
-		info, err := Stat(path, rev)
-		if err != nil {
-			return nil, err
+		if _, info, err := readDiskStat(path, rev); err == nil {
+			rev = info.Version
+		} else {
+			err := TryProxies(func(proxy string) error {
+				repo, err := Lookup(proxy, path)
+				if err != nil {
+					return err
+				}
+				info, err := repo.Stat(rev)
+				if err == nil {
+					rev = info.Version
+				}
+				return err
+			})
+			if err != nil {
+				return nil, err
+			}
 		}
-		rev = info.Version
 	}
+
 	_, data, err := readDiskGoMod(path, rev)
 	if err == nil {
 		return data, nil
 	}
-	repo, err := Lookup(path)
-	if err != nil {
-		return nil, err
-	}
-	return repo.GoMod(rev)
+
+	err = TryProxies(func(proxy string) error {
+		repo, err := Lookup(proxy, path)
+		if err == nil {
+			data, err = repo.GoMod(rev)
+		}
+		return err
+	})
+	return data, err
 }
 
 // GoModFile is like GoMod but returns the name of the file containing

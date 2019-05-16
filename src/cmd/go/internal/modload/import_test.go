@@ -21,7 +21,7 @@ var importTests = []struct {
 	},
 	{
 		path: "golang.org/x/net",
-		err:  "cannot find module providing package golang.org/x/net",
+		err:  "module golang.org/x/net@.* found, but does not contain package golang.org/x/net",
 	},
 	{
 		path: "golang.org/x/text",
