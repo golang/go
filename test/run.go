@@ -34,6 +34,7 @@ var (
 	keep           = flag.Bool("k", false, "keep. keep temporary directory.")
 	numParallel    = flag.Int("n", runtime.NumCPU(), "number of parallel tests to run")
 	summary        = flag.Bool("summary", false, "show summary of results")
+	allCodegen     = flag.Bool("all_codegen", false, "run all goos/goarch for codegen")
 	showSkips      = flag.Bool("show_skips", false, "show skipped tests")
 	runSkips       = flag.Bool("run_skips", false, "run skipped tests (ignore skip and build tags)")
 	linkshared     = flag.Bool("linkshared", false, "")
@@ -653,7 +654,13 @@ func (t *test) run() {
 		// Compile Go file and match the generated assembly
 		// against a set of regexps in comments.
 		ops := t.wantedAsmOpcodes(long)
+		self := runtime.GOOS + "/" + runtime.GOARCH
 		for _, env := range ops.Envs() {
+			// Only run checks relevant to the current GOOS/GOARCH,
+			// to avoid triggering a cross-compile of the runtime.
+			if string(env) != self && !strings.HasPrefix(string(env), self+"/") && !*allCodegen {
+				continue
+			}
 			// -S=2 forces outermost line numbers when disassembling inlined code.
 			cmdline := []string{"build", "-gcflags", "-S=2"}
 			cmdline = append(cmdline, flags...)
