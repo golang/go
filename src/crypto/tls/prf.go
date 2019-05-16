@@ -187,6 +187,8 @@ func hashFromSignatureScheme(signatureAlgorithm SignatureScheme) (crypto.Hash, e
 		return crypto.SHA384, nil
 	case PKCS1WithSHA512, PSSWithSHA512, ECDSAWithP521AndSHA512:
 		return crypto.SHA512, nil
+	case Ed25519:
+		return directSigning, nil
 	default:
 		return 0, fmt.Errorf("tls: unsupported signature algorithm: %#04x", signatureAlgorithm)
 	}
@@ -308,11 +310,11 @@ func (h finishedHash) serverSum(masterSecret []byte) []byte {
 	return out
 }
 
-// hashForClientCertificate returns a digest over the handshake messages so far,
-// suitable for signing by a TLS client certificate.
+// hashForClientCertificate returns the handshake messages so far, pre-hashed if
+// necessary, suitable for signing by a TLS client certificate.
 func (h finishedHash) hashForClientCertificate(sigType uint8, hashAlg crypto.Hash, masterSecret []byte) ([]byte, error) {
-	if (h.version == VersionSSL30 || h.version >= VersionTLS12) && h.buffer == nil {
-		panic("a handshake hash for a client-certificate was requested after discarding the handshake buffer")
+	if (h.version == VersionSSL30 || h.version >= VersionTLS12 || sigType == signatureEd25519) && h.buffer == nil {
+		panic("tls: handshake hash for a client certificate requested after discarding the handshake buffer")
 	}
 
 	if h.version == VersionSSL30 {
@@ -326,6 +328,11 @@ func (h finishedHash) hashForClientCertificate(sigType uint8, hashAlg crypto.Has
 		sha1Hash.Write(h.buffer)
 		return finishedSum30(md5Hash, sha1Hash, masterSecret, nil), nil
 	}
+
+	if sigType == signatureEd25519 {
+		return h.buffer, nil
+	}
+
 	if h.version >= VersionTLS12 {
 		hash := hashAlg.New()
 		hash.Write(h.buffer)

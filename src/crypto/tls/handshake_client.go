@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/subtle"
 	"crypto/x509"
@@ -581,7 +582,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 		if certVerify.hasSignatureAlgorithm {
 			certVerify.signatureAlgorithm = signatureAlgorithm
 		}
-		digest, err := hs.finishedHash.hashForClientCertificate(sigType, hashFunc, hs.masterSecret)
+		signed, err := hs.finishedHash.hashForClientCertificate(sigType, hashFunc, hs.masterSecret)
 		if err != nil {
 			c.sendAlert(alertInternalError)
 			return err
@@ -590,7 +591,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 		if sigType == signatureRSAPSS {
 			signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: hashFunc}
 		}
-		certVerify.signature, err = key.Sign(c.config.rand(), digest, signOpts)
+		certVerify.signature, err = key.Sign(c.config.rand(), signed, signOpts)
 		if err != nil {
 			c.sendAlert(alertInternalError)
 			return err
@@ -845,7 +846,7 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 	}
 
 	switch certs[0].PublicKey.(type) {
-	case *rsa.PublicKey, *ecdsa.PublicKey:
+	case *rsa.PublicKey, *ecdsa.PublicKey, ed25519.PublicKey:
 		break
 	default:
 		c.sendAlert(alertUnsupportedCertificate)
@@ -868,13 +869,13 @@ var (
 // certificateRequestInfoFromMsg generates a CertificateRequestInfo from a TLS
 // <= 1.2 CertificateRequest, making an effort to fill in missing information.
 func certificateRequestInfoFromMsg(certReq *certificateRequestMsg) *CertificateRequestInfo {
-	var rsaAvail, ecdsaAvail bool
+	var rsaAvail, ecAvail bool
 	for _, certType := range certReq.certificateTypes {
 		switch certType {
 		case certTypeRSASign:
 			rsaAvail = true
 		case certTypeECDSASign:
-			ecdsaAvail = true
+			ecAvail = true
 		}
 	}
 
@@ -888,11 +889,11 @@ func certificateRequestInfoFromMsg(certReq *certificateRequestMsg) *CertificateR
 		// case we use a plausible list based on the acceptable
 		// certificate types.
 		switch {
-		case rsaAvail && ecdsaAvail:
+		case rsaAvail && ecAvail:
 			cri.SignatureSchemes = tls11SignatureSchemes
 		case rsaAvail:
 			cri.SignatureSchemes = tls11SignatureSchemesRSA
-		case ecdsaAvail:
+		case ecAvail:
 			cri.SignatureSchemes = tls11SignatureSchemesECDSA
 		}
 		return cri
@@ -905,8 +906,8 @@ func certificateRequestInfoFromMsg(certReq *certificateRequestMsg) *CertificateR
 	cri.SignatureSchemes = make([]SignatureScheme, 0, len(certReq.supportedSignatureAlgorithms))
 	for _, sigScheme := range certReq.supportedSignatureAlgorithms {
 		switch signatureFromSignatureScheme(sigScheme) {
-		case signatureECDSA:
-			if ecdsaAvail {
+		case signatureECDSA, signatureEd25519:
+			if ecAvail {
 				cri.SignatureSchemes = append(cri.SignatureSchemes, sigScheme)
 			}
 		case signatureRSAPSS, signaturePKCS1v15:
