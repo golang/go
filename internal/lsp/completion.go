@@ -35,25 +35,28 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 		s.session.Logger().Infof(ctx, "no completions found for %s:%v:%v: %v", uri, int(params.Position.Line), int(params.Position.Character), err)
 	}
 	// We might need to adjust the position to account for the prefix.
-	pos := params.Position
+	prefixRng := protocol.Range{
+		Start: params.Position,
+		End:   params.Position,
+	}
 	if prefix.Pos().IsValid() {
 		spn, err := span.NewRange(view.FileSet(), prefix.Pos(), 0).Span()
 		if err != nil {
 			s.session.Logger().Infof(ctx, "failed to get span for prefix position: %s:%v:%v: %v", uri, int(params.Position.Line), int(params.Position.Character), err)
 		}
 		if prefixPos, err := m.Position(spn.Start()); err == nil {
-			pos = prefixPos
+			prefixRng.End = prefixPos
 		} else {
 			s.session.Logger().Infof(ctx, "failed to convert prefix position: %s:%v:%v: %v", uri, int(params.Position.Line), int(params.Position.Character), err)
 		}
 	}
 	return &protocol.CompletionList{
 		IsIncomplete: false,
-		Items:        toProtocolCompletionItems(items, prefix.Content(), pos, s.insertTextFormat, s.usePlaceholders),
+		Items:        toProtocolCompletionItems(items, prefix.Content(), prefixRng, s.insertTextFormat, s.usePlaceholders),
 	}, nil
 }
 
-func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string, pos protocol.Position, insertTextFormat protocol.InsertTextFormat, usePlaceholders bool) []protocol.CompletionItem {
+func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string, rng protocol.Range, insertTextFormat protocol.InsertTextFormat, usePlaceholders bool) []protocol.CompletionItem {
 	sort.SliceStable(candidates, func(i, j int) bool {
 		return candidates[i].Score > candidates[j].Score
 	})
@@ -73,10 +76,7 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string
 			Kind:   toProtocolCompletionItemKind(candidate.Kind),
 			TextEdit: &protocol.TextEdit{
 				NewText: insertText,
-				Range: protocol.Range{
-					Start: pos,
-					End:   pos,
-				},
+				Range:   rng,
 			},
 			InsertTextFormat: insertTextFormat,
 			// This is a hack so that the client sorts completion results in the order
