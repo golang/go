@@ -464,7 +464,7 @@ type (
 
 type Constraint struct {
 	Param *Ident // constrained type parameter; or nil (for embedded constraints)
-	MName *Ident // method name; or nil
+	MName *Ident // method name; or nil (for embedded contracts or type constraints)
 	Type  Expr   // embedded constraint (CallExpr), constraint type, or method type (*FuncType)
 }
 

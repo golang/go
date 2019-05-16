@@ -98,6 +98,9 @@ func (s *subster) typ(typ Type) (res Type) {
 			return targ
 		}
 
+	case *Contract:
+		panic("subst not implemented for contracts")
+
 	default:
 		panic("unimplemented")
 	}

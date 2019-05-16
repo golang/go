@@ -308,14 +308,14 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair, tparams 
 		}
 
 	case *TypeParam:
-		if tparams == nil {
-			unreachable()
-		}
 		if y, ok := y.(*TypeParam); ok {
 			// TODO(gri) do we need to look at type names here?
 			// - consider type-checking a generic function calling another generic function
 			// - what about self-recursive calls?
 			return x.index == y.index
+		}
+		if tparams == nil {
+			return false
 		}
 		if x := tparams[x.index]; x != nil {
 			return check.identical0(x, y, cmpTags, p, tparams)
