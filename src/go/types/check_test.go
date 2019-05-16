@@ -98,8 +98,10 @@ var tests = [][]string{
 	{"testdata/issue23203b.src"},
 	{"testdata/issue28251.src"},
 	{"testdata/issue6977.src"},
-	{"testdata/typeparams.src"},
-	{"testdata/contracts.src"},
+
+	// Go 2 tests (type parameters and contracts)
+	{"testdata/typeparams.go2"},
+	{"testdata/contracts.go2"},
 }
 
 var fset = token.NewFileSet()

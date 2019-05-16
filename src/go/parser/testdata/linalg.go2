@@ -1,0 +1,76 @@
+package linalg
+
+// Numeric is a contract that matches any numeric type.
+// It would likely be in a contracts package in the standard library.
+contract Numeric(T) {
+	T int; T int8; T int16; T int32; T int64
+	T uint; T uint8; T uint16; T uint32; T uint64; T uintptr
+	T float32; T float64
+	T complex64; T complex128
+}
+
+func DotProduct(type T Numeric)(s1, s2 []T) T {
+	if len(s1) != len(s2) {
+		panic("DotProduct: slices of unequal length")
+	}
+	var r T
+	for i := range s1 {
+		r += s1[i] * s2[i]
+	}
+	return r
+}
+
+// NumericAbs matches numeric types with an Abs method.
+contract NumericAbs(T) {
+	Numeric(T)
+	T Abs() T
+}
+
+// AbsDifference computes the absolute value of the difference of
+// a and b, where the absolute value is determined by the Abs method.
+func AbsDifference(type T NumericAbs)(a, b T) T {
+	d := a - b
+	return d.Abs()
+}
+
+// OrderedNumeric matches numeric types that support the < operator.
+contract OrderedNumeric(T) {
+	T int; T int8; T int16; T int32; T int64
+	T uint; T uint8; T uint16; T uint32; T uint64; T uintptr
+	T float32; T float64
+}
+
+// Complex matches the two complex types, which do not have a < operator.
+contract Complex(T) {
+	T complex64; T complex128
+}
+
+// OrderedAbs is a helper type that defines an Abs method for
+// ordered numeric types.
+type OrderedAbs(type T OrderedNumeric) T
+
+func (a OrderedAbs(T)) Abs() T {
+	if a < 0 {
+		return -a
+	}
+	return a
+}
+
+// ComplexAbs is a helper type that defines an Abs method for
+// complex types.
+type ComplexAbs(type T Complex) T
+
+func (a ComplexAbs(T)) Abs() T {
+	r := float64(real(a))
+	i := float64(imag(a))
+	d := math.Sqrt(r * r + i * i)
+	return T(complex(d, 0))
+}
+
+func OrderedAbsDifference(type T OrderedNumeric)(a, b T) T {
+	return T(AbsDifference(OrderedAbs(T)(a), OrderedAbs(T)(b)))
+}
+
+func ComplexAbsDifference(type T Complex)(a, b T) T {
+	return T(AbsDifference(ComplexAbs(T)(a), ComplexAbs(T)(b)))
+}
