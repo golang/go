@@ -97,7 +97,6 @@ func PrintfTests() {
 	fmt.Printf("%T", notstringerv)
 	fmt.Printf("%q", stringerarrayv)
 	fmt.Printf("%v", stringerarrayv)
-	fmt.Printf("%w", err)
 	fmt.Printf("%s", stringerarrayv)
 	fmt.Printf("%v", notstringerarrayv)
 	fmt.Printf("%T", notstringerarrayv)
@@ -323,6 +322,16 @@ func PrintfTests() {
 
 	// Issue 26486
 	dbg("", 1) // no error "call has arguments but no formatting directive"
+
+	// %w
+	_ = fmt.Errorf("%w", err)
+	_ = fmt.Errorf("%#w", err)
+	_ = fmt.Errorf("%[2]w %[1]s", "x", err)
+	_ = fmt.Errorf("%[2]w %[1]s", e, "x") // want `Errorf format %\[2\]w has arg "x" of wrong type string`
+	_ = fmt.Errorf("%w", "x")             // want `Errorf format %w has arg "x" of wrong type string`
+	_ = fmt.Errorf("%w %w", err, err)     // want `Errorf call has more than one error-wrapping directive %w`
+	fmt.Printf("%w", err)                 // want `Printf call has error-wrapping directive %w`
+	Errorf(0, "%w", err)
 }
 
 func someString() string { return "X" }
@@ -367,13 +376,13 @@ func printf(format string, args ...interface{}) { // want printf:"printfWrapper"
 
 // Errorf is used by the test for a case in which the first parameter
 // is not a format string.
-func Errorf(i int, format string, args ...interface{}) { // want Errorf:"printfWrapper"
+func Errorf(i int, format string, args ...interface{}) { // want Errorf:"errorfWrapper"
 	_ = fmt.Errorf(format, args...)
 }
 
 // errorf is used by the test for a case in which the function accepts multiple
 // string parameters before variadic arguments
-func errorf(level, format string, args ...interface{}) { // want errorf:"printfWrapper"
+func errorf(level, format string, args ...interface{}) { // want errorf:"errorfWrapper"
 	_ = fmt.Errorf(format, args...)
 }
 
