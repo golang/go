@@ -430,7 +430,7 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 	// by the install action during (*Builder).installAction.
 	buildAction := a
 	switch buildAction.Mode {
-	case "build", "built-in package":
+	case "build", "built-in package", "gccgo stdlib":
 		// ok
 	case "build-install":
 		buildAction = a.Deps[0]
