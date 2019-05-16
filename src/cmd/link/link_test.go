@@ -170,13 +170,16 @@ main.x: relocation target main.zero not defined
 	}
 }
 
-func TestBuildFortvOS(t *testing.T) {
+func TestBuildForTvOS(t *testing.T) {
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveGoBuild(t)
 
 	// Only run this on darwin/amd64, where we can cross build for tvOS.
 	if runtime.GOARCH != "amd64" || runtime.GOOS != "darwin" {
 		t.Skip("skipping on non-darwin/amd64 platform")
+	}
+	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+		t.Skip("skipping in -short mode with $GO_BUILDER_NAME empty")
 	}
 	if err := exec.Command("xcrun", "--help").Run(); err != nil {
 		t.Skipf("error running xcrun, required for iOS cross build: %v", err)

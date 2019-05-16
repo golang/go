@@ -112,12 +112,16 @@ func RecursivePanic() {
 }
 
 func GoexitExit() {
+	println("t1")
 	go func() {
 		time.Sleep(time.Millisecond)
 	}()
 	i := 0
+	println("t2")
 	runtime.SetFinalizer(&i, func(p *int) {})
+	println("t3")
 	runtime.GC()
+	println("t4")
 	runtime.Goexit()
 }
 

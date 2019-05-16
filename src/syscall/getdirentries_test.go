@@ -26,6 +26,9 @@ func TestGetdirentries(t *testing.T) {
 	}
 }
 func testGetdirentries(t *testing.T, count int) {
+	if count > 100 && testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+		t.Skip("skipping in -short mode")
+	}
 	d, err := ioutil.TempDir("", "getdirentries-test")
 	if err != nil {
 		t.Fatalf("Tempdir: %v", err)

@@ -345,6 +345,9 @@ func testToFromWithLimit(t *testing.T, input []byte, name string, limit [11]int)
 func TestDeflateInflate(t *testing.T) {
 	t.Parallel()
 	for i, h := range deflateInflateTests {
+		if testing.Short() && len(h.in) > 10000 {
+			continue
+		}
 		testToFromWithLimit(t, h.in, fmt.Sprintf("#%d", i), [11]int{})
 	}
 }
@@ -591,6 +594,9 @@ func TestBestSpeed(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
+		if i >= 3 && testing.Short() {
+			break
+		}
 		for _, firstN := range []int{1, 65534, 65535, 65536, 65537, 131072} {
 			tc[0] = firstN
 		outer:

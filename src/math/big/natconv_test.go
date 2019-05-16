@@ -446,6 +446,9 @@ func TestStringPowers(t *testing.T) {
 	var p Word
 	for b := 2; b <= 16; b++ {
 		for p = 0; p <= 512; p++ {
+			if testing.Short() && p > 10 {
+				break
+			}
 			x := nat(nil).expWW(Word(b), p)
 			xs := x.utoa(b)
 			xs2 := itoa(x, b)

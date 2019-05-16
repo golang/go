@@ -1417,6 +1417,9 @@ func TestEvalFieldErrors(t *testing.T) {
 }
 
 func TestMaxExecDepth(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in -short mode")
+	}
 	tmpl := Must(New("tmpl").Parse(`{{template "tmpl" .}}`))
 	err := tmpl.Execute(ioutil.Discard, nil)
 	got := "<nil>"
