@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !windows
+
 package cgotest
 
-import "C"
+import "syscall"
 
-//export issue29878exported
-func issue29878exported(arg int8) uint64 {
-	return uint64(arg)
-}
+var syscall_dot_SIGCHLD = syscall.SIGCHLD
