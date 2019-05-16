@@ -218,7 +218,7 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVL	$SYS___clock_gettime50, AX
 	SYSCALL
 	MOVQ	8(SP), AX		// sec
-	MOVL	16(SP), DX		// nsec
+	MOVQ	16(SP), DX		// nsec
 
 	// sec is in AX, nsec in DX
 	MOVQ	AX, sec+0(FP)
@@ -231,7 +231,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$32
 	MOVL	$SYS___clock_gettime50, AX
 	SYSCALL
 	MOVQ	8(SP), AX		// sec
-	MOVL	16(SP), DX		// nsec
+	MOVQ	16(SP), DX		// nsec
 
 	// sec is in AX, nsec in DX
 	// return nsec in AX
