@@ -497,6 +497,17 @@ func (t *Named) AddMethod(m *Func) {
 	}
 }
 
+// A Contract represents a contract.
+type Contract struct {
+	TParams []*TypeName
+}
+
+func NewContract(tparams []*TypeName) *Contract {
+	return &Contract{
+		TParams: tparams,
+	}
+}
+
 // A TypeParam represents a type parameter type.
 type TypeParam struct {
 	obj   *TypeName
@@ -525,6 +536,7 @@ func (t *Interface) Underlying() Type { return t }
 func (m *Map) Underlying() Type       { return m }
 func (c *Chan) Underlying() Type      { return c }
 func (t *Named) Underlying() Type     { return t.underlying }
+func (c *Contract) Underlying() Type  { return c }
 func (c *TypeParam) Underlying() Type { return c }
 
 func (b *Basic) String() string     { return TypeString(b, nil) }
@@ -538,4 +550,5 @@ func (t *Interface) String() string { return TypeString(t, nil) }
 func (m *Map) String() string       { return TypeString(m, nil) }
 func (c *Chan) String() string      { return TypeString(c, nil) }
 func (t *Named) String() string     { return TypeString(t, nil) }
+func (c *Contract) String() string  { return TypeString(c, nil) }
 func (c *TypeParam) String() string { return TypeString(c, nil) }

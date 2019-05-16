@@ -149,8 +149,10 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, tpar *ast
 	if tpar.NumFields() != 0 {
 		check.scope = NewScope(check.scope, token.NoPos, token.NoPos, "function type parameters") // TODO(gri) replace with check.openScope call
 		defer check.closeScope()
+		// TODO(gri) record this scope
 	}
 	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function")
+	// TODO(gri) should we close this scope?
 	scope.isFunc = true
 	check.recordScope(ftyp, scope)
 
@@ -343,6 +345,12 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 
 		typ.dir = dir
 		typ.elem = check.typ(e.Value)
+		return typ
+
+	case *ast.ContractType:
+		typ := new(Contract)
+		def.setUnderlying(typ)
+		check.contractType(typ, e)
 		return typ
 
 	default:
@@ -792,4 +800,58 @@ func embeddedFieldIdent(e ast.Expr) *ast.Ident {
 		return e.Sel
 	}
 	return nil // invalid embedded field
+}
+
+func (check *Checker) contractType(ctyp *Contract, e *ast.ContractType) {
+	scope := NewScope(check.scope, token.NoPos, token.NoPos, "contract type parameters")
+	check.scope = scope
+	defer check.closeScope()
+	check.recordScope(e, scope)
+
+	// collect type parameters
+	var tparams []*TypeName
+	for index, name := range e.TParams {
+		tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
+		NewTypeParam(tpar, index) // assigns type to tpar as a side-effect
+		check.declare(scope, name, tpar, scope.pos)
+		tparams = append(tparams, tpar)
+	}
+	ctyp.TParams = tparams
+
+	// collect constraints
+	for _, c := range e.Constraints {
+		if c.Param != nil {
+			// If a type name is present, it must be one of the contract's type parameters.
+			tpar := scope.Lookup(c.Param.Name)
+			if tpar == nil {
+				check.errorf(c.Param.Pos(), "%s not declared by contract", c.Param.Name)
+				continue // TODO(gri) should try fall through
+			}
+			if c.Type == nil {
+				check.invalidAST(c.Param.Pos(), "missing method or type constraint")
+				continue
+			}
+			typ := check.typ(c.Type)
+			if c.MName != nil {
+				// If a method name is present, it must be unique, and c.Type
+				// must must be a method signature (guaranteed by AST).
+				sig, _ := typ.(*Signature)
+				if sig == nil {
+					check.invalidAST(c.Type.Pos(), "invalid method type")
+				}
+				// TODO(gri) what requirements do we have for sig.scope, sig.recv?
+			} else {
+				// no method name => we have a type constraint
+				check.typeConstraint(typ)
+			}
+		} else {
+			// no type name => we have an embedded contract
+			panic("embedded contracts unimplemented")
+		}
+	}
+}
+
+func (check *Checker) typeConstraint(typ Type) {
+	// TODO(gri) verify that we have a valid type constraint
+	// - determine exact rules
 }

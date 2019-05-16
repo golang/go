@@ -99,6 +99,7 @@ var tests = [][]string{
 	{"testdata/issue28251.src"},
 	{"testdata/issue6977.src"},
 	{"testdata/typeparams.src"},
+	{"testdata/contracts.src"},
 }
 
 var fset = token.NewFileSet()

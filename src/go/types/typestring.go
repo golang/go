@@ -247,6 +247,17 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		}
 		buf.WriteString(s)
 
+	case *Contract:
+		buf.WriteString("contract(")
+		for i, p := range t.TParams {
+			if i > 0 {
+				buf.WriteString(", ")
+			}
+			buf.WriteString(p.name)
+		}
+		buf.WriteString("){}")
+		// TODO write contract body
+
 	case *TypeParam:
 		var s string
 		if t.obj != nil {
