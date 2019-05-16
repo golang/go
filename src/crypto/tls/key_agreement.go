@@ -105,8 +105,16 @@ func md5SHA1Hash(slices [][]byte) []byte {
 
 // hashForServerKeyExchange hashes the given slices and returns their digest
 // using the given hash function (for >= TLS 1.2) or using a default based on
-// the sigType (for earlier TLS versions).
+// the sigType (for earlier TLS versions). For Ed25519 signatures, which don't
+// do pre-hashing, it returns the concatenation of the slices.
 func hashForServerKeyExchange(sigType uint8, hashFunc crypto.Hash, version uint16, slices ...[]byte) []byte {
+	if sigType == signatureEd25519 {
+		var signed []byte
+		for _, slice := range slices {
+			signed = append(signed, slice...)
+		}
+		return signed
+	}
 	if version >= VersionTLS12 {
 		h := hashFunc.New()
 		for _, slice := range slices {
@@ -124,7 +132,7 @@ func hashForServerKeyExchange(sigType uint8, hashFunc crypto.Hash, version uint1
 // ecdheKeyAgreement implements a TLS key agreement where the server
 // generates an ephemeral EC public/private key pair and signs it. The
 // pre-master secret is then calculated using ECDH. The signature may
-// either be ECDSA or RSA.
+// be ECDSA, Ed25519 or RSA.
 type ecdheKeyAgreement struct {
 	version uint16
 	isRSA   bool
@@ -185,13 +193,13 @@ NextCandidate:
 		return nil, errors.New("tls: certificate cannot be used with the selected cipher suite")
 	}
 
-	digest := hashForServerKeyExchange(sigType, hashFunc, ka.version, clientHello.random, hello.random, serverECDHParams)
+	signed := hashForServerKeyExchange(sigType, hashFunc, ka.version, clientHello.random, hello.random, serverECDHParams)
 
 	signOpts := crypto.SignerOpts(hashFunc)
 	if sigType == signatureRSAPSS {
 		signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: hashFunc}
 	}
-	sig, err := priv.Sign(config.rand(), digest, signOpts)
+	sig, err := priv.Sign(config.rand(), signed, signOpts)
 	if err != nil {
 		return nil, errors.New("tls: failed to sign ECDHE parameters: " + err.Error())
 	}
@@ -294,8 +302,8 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 	}
 	sig = sig[2:]
 
-	digest := hashForServerKeyExchange(sigType, hashFunc, ka.version, clientHello.random, serverHello.random, serverECDHParams)
-	return verifyHandshakeSignature(sigType, cert.PublicKey, hashFunc, digest, sig)
+	signed := hashForServerKeyExchange(sigType, hashFunc, ka.version, clientHello.random, serverHello.random, serverECDHParams)
+	return verifyHandshakeSignature(sigType, cert.PublicKey, hashFunc, signed, sig)
 }
 
 func (ka *ecdheKeyAgreement) generateClientKeyExchange(config *Config, clientHello *clientHelloMsg, cert *x509.Certificate) ([]byte, *clientKeyExchangeMsg, error) {

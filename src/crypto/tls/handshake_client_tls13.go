@@ -462,10 +462,9 @@ func (hs *clientHandshakeStateTLS13) readServerCertificate() error {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: invalid certificate signature algorithm")
 	}
-	h := sigHash.New()
-	writeSignedMessage(h, serverSignatureContext, hs.transcript)
+	signed := signedMessage(sigHash, serverSignatureContext, hs.transcript)
 	if err := verifyHandshakeSignature(sigType, c.peerCertificates[0].PublicKey,
-		sigHash, h.Sum(nil), certVerify.signature); err != nil {
+		sigHash, signed, certVerify.signature); err != nil {
 		c.sendAlert(alertDecryptError)
 		return errors.New("tls: invalid certificate signature")
 	}
@@ -580,14 +579,13 @@ func (hs *clientHandshakeStateTLS13) sendClientCertificate() error {
 	if sigType == 0 || err != nil {
 		return c.sendAlert(alertInternalError)
 	}
-	h := sigHash.New()
-	writeSignedMessage(h, clientSignatureContext, hs.transcript)
 
+	signed := signedMessage(sigHash, clientSignatureContext, hs.transcript)
 	signOpts := crypto.SignerOpts(sigHash)
 	if sigType == signatureRSAPSS {
 		signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: sigHash}
 	}
-	sig, err := cert.PrivateKey.(crypto.Signer).Sign(c.config.rand(), h.Sum(nil), signOpts)
+	sig, err := cert.PrivateKey.(crypto.Signer).Sign(c.config.rand(), signed, signOpts)
 	if err != nil {
 		c.sendAlert(alertInternalError)
 		return errors.New("tls: failed to sign handshake: " + err.Error())

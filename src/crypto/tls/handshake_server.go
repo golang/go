@@ -7,6 +7,7 @@ package tls
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/subtle"
 	"crypto/x509"
@@ -23,8 +24,8 @@ type serverHandshakeState struct {
 	clientHello  *clientHelloMsg
 	hello        *serverHelloMsg
 	suite        *cipherSuite
-	ellipticOk   bool
-	ecdsaOk      bool
+	ecdhOk       bool
+	ecSignOk     bool
 	rsaDecryptOk bool
 	rsaSignOk    bool
 	sessionState *sessionState
@@ -193,7 +194,7 @@ Curves:
 			break
 		}
 	}
-	hs.ellipticOk = supportedCurve && supportedPointFormat
+	hs.ecdhOk = supportedCurve && supportedPointFormat
 
 	foundCompression := false
 	// We only support null compression, so check that the client offered it.
@@ -266,7 +267,9 @@ Curves:
 	if priv, ok := hs.cert.PrivateKey.(crypto.Signer); ok {
 		switch priv.Public().(type) {
 		case *ecdsa.PublicKey:
-			hs.ecdsaOk = true
+			hs.ecSignOk = true
+		case ed25519.PublicKey:
+			hs.ecSignOk = true
 		case *rsa.PublicKey:
 			hs.rsaSignOk = true
 		default:
@@ -565,9 +568,9 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 			return err
 		}
 
-		var digest []byte
-		if digest, err = hs.finishedHash.hashForClientCertificate(sigType, hashFunc, hs.masterSecret); err == nil {
-			err = verifyHandshakeSignature(sigType, pub, hashFunc, digest, certVerify.signature)
+		signed, err := hs.finishedHash.hashForClientCertificate(sigType, hashFunc, hs.masterSecret)
+		if err == nil {
+			err = verifyHandshakeSignature(sigType, pub, hashFunc, signed, certVerify.signature)
 		}
 		if err != nil {
 			c.sendAlert(alertBadCertificate)
@@ -754,7 +757,7 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 	}
 
 	switch certs[0].PublicKey.(type) {
-	case *ecdsa.PublicKey, *rsa.PublicKey:
+	case *ecdsa.PublicKey, *rsa.PublicKey, ed25519.PublicKey:
 	default:
 		c.sendAlert(alertUnsupportedCertificate)
 		return fmt.Errorf("tls: client's certificate contains an unsupported public key of type %T", certs[0].PublicKey)
@@ -771,33 +774,34 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 // It returns a bool indicating if the suite was set.
 func (hs *serverHandshakeState) setCipherSuite(id uint16, supportedCipherSuites []uint16, version uint16) bool {
 	for _, supported := range supportedCipherSuites {
-		if id == supported {
-			candidate := cipherSuiteByID(id)
-			if candidate == nil {
-				continue
-			}
-			// Don't select a ciphersuite which we can't
-			// support for this client.
-			if candidate.flags&suiteECDHE != 0 {
-				if !hs.ellipticOk {
-					continue
-				}
-				if candidate.flags&suiteECDSA != 0 {
-					if !hs.ecdsaOk {
-						continue
-					}
-				} else if !hs.rsaSignOk {
-					continue
-				}
-			} else if !hs.rsaDecryptOk {
-				continue
-			}
-			if version < VersionTLS12 && candidate.flags&suiteTLS12 != 0 {
-				continue
-			}
-			hs.suite = candidate
-			return true
+		if id != supported {
+			continue
 		}
+		candidate := cipherSuiteByID(id)
+		if candidate == nil {
+			continue
+		}
+		// Don't select a ciphersuite which we can't
+		// support for this client.
+		if candidate.flags&suiteECDHE != 0 {
+			if !hs.ecdhOk {
+				continue
+			}
+			if candidate.flags&suiteECSign != 0 {
+				if !hs.ecSignOk {
+					continue
+				}
+			} else if !hs.rsaSignOk {
+				continue
+			}
+		} else if !hs.rsaDecryptOk {
+			continue
+		}
+		if version < VersionTLS12 && candidate.flags&suiteTLS12 != 0 {
+			continue
+		}
+		hs.suite = candidate
+		return true
 	}
 	return false
 }
