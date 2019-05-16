@@ -557,7 +557,7 @@
 //
 // Usage:
 //
-// 	go get [-d] [-m] [-u] [-v] [-insecure] [build flags] [packages]
+// 	go get [-d] [-m] [-t] [-u] [-v] [-insecure] [build flags] [packages]
 //
 // Get resolves and adds dependencies to the current development module
 // and then builds and installs them.
@@ -600,6 +600,9 @@
 // are competing requirements for a particular module, then 'go get' resolves
 // those requirements by taking the maximum requested version.)
 //
+// The -t flag instructs get to consider modules needed to build tests of
+// packages specified on the command line.
+//
 // The -u flag instructs get to update dependencies to use newer minor or
 // patch releases when available. Continuing the previous example,
 // 'go get -u A' will use the latest A with B v1.3.1 (not B v1.2.3).
@@ -609,6 +612,9 @@
 // Continuing the previous example,
 // 'go get -u=patch A@latest' will use the latest A with B v1.2.4 (not B v1.2.3),
 // while 'go get -u=patch A' will use a patch release of A instead.
+//
+// When the -t and -u flags are used together, get will update
+// test dependencies as well.
 //
 // In general, adding a new dependency may require upgrading
 // existing dependencies to keep a working build, and 'go get' does
