@@ -499,7 +499,7 @@ func (t *Named) AddMethod(m *Func) {
 
 // A Contract represents a contract.
 type Contract struct {
-	TParams []*TypeName
+	TParams []*TypeName // TODO(gri) should this be a TypeParam?
 }
 
 func NewContract(tparams []*TypeName) *Contract {

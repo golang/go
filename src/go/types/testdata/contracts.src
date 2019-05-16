@@ -11,14 +11,21 @@ contract _(A, B, C){}
 contract _(A, B, A /* ERROR A redeclared */ ){}
 
 // For now we also allow this form of contract declaration.
+// TODO(gri) probably not a good idea. Disallow a local level for sure.
 type _ contract(){}
 type _ contract(A, B, A /* ERROR A redeclared */ ){}
 
 // method constraints
 contract _(A) { A } /* ERROR expected type */
-contract _(A) { A m() }
+contract _(A) { A m(); A add(A) int }
 contract _(A) { B /* ERROR B not declared by contract */ m() }
 
 // type constraints
 contract _(A) { A A }
 contract _(A) { A B /* ERROR undeclared name: B */ }
+contract _(A) { A int }
+contract _(A) { A []int }
+contract _(A) { A []B /* ERROR undeclared name: B */ }
+contract C(A) { A [ /* ERROR invalid type constraint */ ]C }
+contract _(A) { A struct { f int } }
+contract _(A, B) { A B }
