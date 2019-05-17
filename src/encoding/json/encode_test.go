@@ -13,13 +13,15 @@ import (
 	"regexp"
 	"strconv"
 	"testing"
+	"time"
 	"unicode"
 )
 
 type Optionals struct {
-	Sr string `json:"sr"`
-	So string `json:"so,omitempty"`
-	Sw string `json:"-"`
+	Sr  string    `json:"sr"`
+	So  string    `json:"so,omitempty"`
+	Tso time.Time `json:"tso,omitempty"`
+	Sw  string    `json:"-"`
 
 	Ir int `json:"omitempty"` // actually named omitempty, not an option
 	Io int `json:"io,omitempty"`

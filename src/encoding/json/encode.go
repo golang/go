@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 	"unicode/utf8"
 )
@@ -315,6 +316,8 @@ func (e *encodeState) error(err error) {
 	panic(jsonError{err})
 }
 
+var timeType = reflect.TypeOf(time.Time{})
+
 func isEmptyValue(v reflect.Value) bool {
 	switch v.Kind() {
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
@@ -329,6 +332,10 @@ func isEmptyValue(v reflect.Value) bool {
 		return v.Float() == 0
 	case reflect.Interface, reflect.Ptr:
 		return v.IsNil()
+	}
+
+	if v.Type() == timeType {
+		return v.Interface().(time.Time).IsZero()
 	}
 	return false
 }
