@@ -207,7 +207,7 @@ func (v *view) SetContent(ctx context.Context, uri span.URI, content []byte) err
 	v.backgroundCtx, v.cancel = context.WithCancel(v.baseCtx)
 
 	v.contentChanges[uri] = func() {
-		v.applyContentChange(uri, content)
+		v.session.SetOverlay(uri, content)
 	}
 
 	return nil
@@ -230,17 +230,6 @@ func (v *view) applyContentChanges(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-// applyContentChange applies a content update for a given file. It assumes that the
-// caller is holding the view's mutex.
-func (v *view) applyContentChange(uri span.URI, content []byte) {
-	v.session.SetOverlay(uri, content)
-	f, err := v.getFile(uri)
-	if err != nil {
-		return
-	}
-	f.invalidate()
 }
 
 func (f *goFile) invalidate() {
@@ -331,7 +320,9 @@ func (v *view) getFile(uri span.URI) (viewFile, error) {
 	default:
 		return nil, fmt.Errorf("unsupported file extension: %s", ext)
 	}
-
+	v.session.filesWatchMap.Watch(uri, func() {
+		f.invalidate()
+	})
 	v.mapFile(uri, f)
 	return f, nil
 }

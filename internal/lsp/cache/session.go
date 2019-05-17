@@ -27,7 +27,8 @@ type session struct {
 	overlayMu sync.Mutex
 	overlays  map[span.URI]*source.FileContent
 
-	openFiles sync.Map
+	openFiles     sync.Map
+	filesWatchMap *WatchMap
 }
 
 func (s *session) Shutdown(ctx context.Context) {
@@ -184,8 +185,10 @@ func (s *session) ReadFile(uri span.URI) *source.FileContent {
 
 func (s *session) SetOverlay(uri span.URI, data []byte) {
 	s.overlayMu.Lock()
-	defer s.overlayMu.Unlock()
-	//TODO: we also need to invoke and watchers in here
+	defer func() {
+		s.overlayMu.Unlock()
+		s.filesWatchMap.Notify(uri)
+	}()
 	if data == nil {
 		delete(s.overlays, uri)
 		return

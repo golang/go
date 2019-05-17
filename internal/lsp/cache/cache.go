@@ -28,9 +28,10 @@ type cache struct {
 
 func (c *cache) NewSession(log xlog.Logger) source.Session {
 	return &session{
-		cache:    c,
-		log:      log,
-		overlays: make(map[span.URI]*source.FileContent),
+		cache:         c,
+		log:           log,
+		overlays:      make(map[span.URI]*source.FileContent),
+		filesWatchMap: NewWatchMap(),
 	}
 }
 

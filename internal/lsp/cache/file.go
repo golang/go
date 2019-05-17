@@ -18,7 +18,6 @@ import (
 // viewFile extends source.File with helper methods for the view package.
 type viewFile interface {
 	source.File
-	invalidate()
 	filename() string
 	addURI(uri span.URI) int
 }
