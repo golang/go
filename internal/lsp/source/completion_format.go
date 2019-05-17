@@ -58,9 +58,6 @@ func (c *completer) item(obj types.Object, score float64) CompletionItem {
 		results, writeParens := formatResults(sig.Results(), c.qf)
 		label, detail = formatFunction(obj.Name(), params, results, writeParens)
 		plainSnippet, placeholderSnippet = c.functionCallSnippets(obj.Name(), params)
-		if plainSnippet == nil && placeholderSnippet == nil {
-			insert = ""
-		}
 		kind = FunctionCompletionItem
 		if sig.Recv() != nil {
 			kind = MethodCompletionItem

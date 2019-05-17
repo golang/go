@@ -15,7 +15,7 @@ func _() {
 
 	bar //@snippet(" //", snipBar, "bar(${1})", "bar(${1:fn func()})")
 
-	bar(nil) //@snippet("(", snipBar, "", "")
+	bar(nil) //@snippet("(", snipBar, "bar", "bar")
 	bar(ba) //@snippet(")", snipBar, "bar(${1})", "bar(${1:fn func()})")
 	var f Foo
 	bar(f.Ba) //@snippet(")", snipMethodBaz, "Baz()", "Baz()")
@@ -32,9 +32,8 @@ func _() {
 	Foo{Foo{}.B} //@snippet("} ", snipFieldBar, "Bar", "Bar")
 
 	var err error
-	err.Error() //@snippet("E", Error, "", "")
-	f.Baz()     //@snippet("B", snipMethodBaz, "", "")
+	err.Error() //@snippet("E", Error, "Error", "Error")
+	f.Baz()     //@snippet("B", snipMethodBaz, "Baz", "Baz")
 
-	// TODO(rstambler): Handle this case correctly.
-	f.Baz()     //@fails("(", snipMethodBazBar, "Bar", "Bar")
+	f.Baz()     //@snippet("(", snipMethodBazBar, "BazBar", "BazBar")
 }

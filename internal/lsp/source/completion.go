@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/lsp/snippet"
+	"golang.org/x/tools/internal/span"
 )
 
 type CompletionItem struct {
@@ -126,8 +127,8 @@ type completer struct {
 	// items is the list of completion items returned.
 	items []CompletionItem
 
-	// prefix is the already-typed portion of the completion candidates.
-	prefix Prefix
+	// surrounding describes the identifier surrounding the position.
+	surrounding *Selection
 
 	// expectedType is the type we expect the completion candidate to be.
 	// It may not be set.
@@ -166,13 +167,32 @@ type compLitInfo struct {
 	maybeInFieldName bool
 }
 
-type Prefix struct {
-	content string
-	pos     token.Pos
+// A Selection represents the cursor position and surrounding identifier.
+type Selection struct {
+	Content string
+	Range   span.Range
+	Cursor  token.Pos
 }
 
-func (p Prefix) Content() string { return p.content }
-func (p Prefix) Pos() token.Pos  { return p.pos }
+func (p Selection) Prefix() string {
+	return p.Content[:p.Cursor-p.Range.Start]
+}
+
+func (c *completer) setSurrounding(ident *ast.Ident) {
+	if c.surrounding != nil {
+		return
+	}
+
+	if !(ident.Pos() <= c.pos && c.pos <= ident.End()) {
+		return
+	}
+
+	c.surrounding = &Selection{
+		Content: ident.Name,
+		Range:   span.NewRange(c.view.FileSet(), ident.Pos(), ident.End()),
+		Cursor:  c.pos,
+	}
+}
 
 // found adds a candidate completion.
 //
@@ -197,31 +217,31 @@ func (c *completer) found(obj types.Object, weight float64) {
 // Completion returns a list of possible candidates for completion, given a
 // a file and a position.
 //
-// The prefix is computed based on the preceding identifier and can be used by
+// The selection is computed based on the preceding identifier and can be used by
 // the client to score the quality of the completion. For instance, some clients
 // may tolerate imperfect matches as valid completion results, since users may make typos.
-func Completion(ctx context.Context, f GoFile, pos token.Pos) ([]CompletionItem, Prefix, error) {
+func Completion(ctx context.Context, f GoFile, pos token.Pos) ([]CompletionItem, *Selection, error) {
 	file := f.GetAST(ctx)
 	pkg := f.GetPackage(ctx)
 	if pkg == nil || pkg.IsIllTyped() {
-		return nil, Prefix{}, fmt.Errorf("package for %s is ill typed", f.URI())
+		return nil, nil, fmt.Errorf("package for %s is ill typed", f.URI())
 	}
 
 	// Completion is based on what precedes the cursor.
 	// Find the path to the position before pos.
 	path, _ := astutil.PathEnclosingInterval(file, pos-1, pos-1)
 	if path == nil {
-		return nil, Prefix{}, fmt.Errorf("cannot find node enclosing position")
+		return nil, nil, fmt.Errorf("cannot find node enclosing position")
 	}
 	// Skip completion inside comments.
 	for _, g := range file.Comments {
 		if g.Pos() <= pos && pos <= g.End() {
-			return nil, Prefix{}, nil
+			return nil, nil, nil
 		}
 	}
 	// Skip completion inside any kind of literal.
 	if _, ok := path[0].(*ast.BasicLit); ok {
-		return nil, Prefix{}, nil
+		return nil, nil, nil
 	}
 
 	clInfo := enclosingCompositeLiteral(path, pos, pkg.GetTypesInfo())
@@ -239,12 +259,9 @@ func Completion(ctx context.Context, f GoFile, pos token.Pos) ([]CompletionItem,
 		enclosingCompositeLiteral: clInfo,
 	}
 
-	// Set the filter prefix.
+	// Set the filter surrounding.
 	if ident, ok := path[0].(*ast.Ident); ok {
-		c.prefix = Prefix{
-			content: ident.Name[:pos-ident.Pos()],
-			pos:     ident.Pos(),
-		}
+		c.setSurrounding(ident)
 	}
 
 	c.expectedType = expectedType(c)
@@ -252,9 +269,9 @@ func Completion(ctx context.Context, f GoFile, pos token.Pos) ([]CompletionItem,
 	// Struct literals are handled entirely separately.
 	if c.wantStructFieldCompletions() {
 		if err := c.structLiteralFieldName(); err != nil {
-			return nil, Prefix{}, err
+			return nil, nil, err
 		}
-		return c.items, c.prefix, nil
+		return c.items, c.surrounding, nil
 	}
 
 	switch n := path[0].(type) {
@@ -262,9 +279,9 @@ func Completion(ctx context.Context, f GoFile, pos token.Pos) ([]CompletionItem,
 		// Is this the Sel part of a selector?
 		if sel, ok := path[1].(*ast.SelectorExpr); ok && sel.Sel == n {
 			if err := c.selector(sel); err != nil {
-				return nil, Prefix{}, err
+				return nil, nil, err
 			}
-			return c.items, c.prefix, nil
+			return c.items, c.surrounding, nil
 		}
 		// reject defining identifiers
 		if obj, ok := pkg.GetTypesInfo().Defs[n]; ok {
@@ -276,11 +293,11 @@ func Completion(ctx context.Context, f GoFile, pos token.Pos) ([]CompletionItem,
 					qual := types.RelativeTo(pkg.GetTypes())
 					of += ", of " + types.ObjectString(obj, qual)
 				}
-				return nil, Prefix{}, fmt.Errorf("this is a definition%s", of)
+				return nil, nil, fmt.Errorf("this is a definition%s", of)
 			}
 		}
 		if err := c.lexical(); err != nil {
-			return nil, Prefix{}, err
+			return nil, nil, err
 		}
 
 	// The function name hasn't been typed yet, but the parens are there:
@@ -288,22 +305,24 @@ func Completion(ctx context.Context, f GoFile, pos token.Pos) ([]CompletionItem,
 	case *ast.TypeAssertExpr:
 		// Create a fake selector expression.
 		if err := c.selector(&ast.SelectorExpr{X: n.X}); err != nil {
-			return nil, Prefix{}, err
+			return nil, nil, err
 		}
 
 	case *ast.SelectorExpr:
+		c.setSurrounding(n.Sel)
+
 		if err := c.selector(n); err != nil {
-			return nil, Prefix{}, err
+			return nil, nil, err
 		}
 
 	default:
 		// fallback to lexical completions
 		if err := c.lexical(); err != nil {
-			return nil, Prefix{}, err
+			return nil, nil, err
 		}
 	}
 
-	return c.items, c.prefix, nil
+	return c.items, c.surrounding, nil
 }
 
 func (c *completer) wantStructFieldCompletions() bool {

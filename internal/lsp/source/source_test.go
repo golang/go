@@ -135,7 +135,7 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 		}
 		tok := f.(source.GoFile).GetToken(ctx)
 		pos := tok.Pos(src.Start().Offset())
-		list, prefix, err := source.Completion(ctx, f.(source.GoFile), pos)
+		list, surrounding, err := source.Completion(ctx, f.(source.GoFile), pos)
 		if err != nil {
 			t.Fatalf("failed for %v: %v", src, err)
 		}
@@ -145,9 +145,13 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			if !wantBuiltins && isBuiltin(item) {
 				continue
 			}
+			var prefix string
+			if surrounding != nil {
+				prefix = surrounding.Prefix()
+			}
 			// We let the client do fuzzy matching, so we return all possible candidates.
 			// To simplify testing, filter results with prefixes that don't match exactly.
-			if !strings.HasPrefix(item.Label, prefix.Content()) {
+			if !strings.HasPrefix(item.Label, prefix) {
 				continue
 			}
 			got = append(got, item)
