@@ -545,18 +545,23 @@ type Span struct {
 }
 
 func AllocSpan(base, npages uintptr, scavenged bool) Span {
-	lock(&mheap_.lock)
-	s := (*mspan)(mheap_.spanalloc.alloc())
-	unlock(&mheap_.lock)
+	var s *mspan
+	systemstack(func() {
+		lock(&mheap_.lock)
+		s = (*mspan)(mheap_.spanalloc.alloc())
+		unlock(&mheap_.lock)
+	})
 	s.init(base, npages)
 	s.scavenged = scavenged
 	return Span{s}
 }
 
 func (s *Span) Free() {
-	lock(&mheap_.lock)
-	mheap_.spanalloc.free(unsafe.Pointer(s.mspan))
-	unlock(&mheap_.lock)
+	systemstack(func() {
+		lock(&mheap_.lock)
+		mheap_.spanalloc.free(unsafe.Pointer(s.mspan))
+		unlock(&mheap_.lock)
+	})
 	s.mspan = nil
 }
 
@@ -629,9 +634,11 @@ func (t *Treap) Insert(s Span) {
 	// allocation which requires the mheap_ lock to manipulate.
 	// Locking here is safe because the treap itself never allocs
 	// or otherwise ends up grabbing this lock.
-	lock(&mheap_.lock)
-	t.insert(s.mspan)
-	unlock(&mheap_.lock)
+	systemstack(func() {
+		lock(&mheap_.lock)
+		t.insert(s.mspan)
+		unlock(&mheap_.lock)
+	})
 	t.CheckInvariants()
 }
 
@@ -644,17 +651,21 @@ func (t *Treap) Erase(i TreapIter) {
 	// freeing which requires the mheap_ lock to manipulate.
 	// Locking here is safe because the treap itself never allocs
 	// or otherwise ends up grabbing this lock.
-	lock(&mheap_.lock)
-	t.erase(i.treapIter)
-	unlock(&mheap_.lock)
+	systemstack(func() {
+		lock(&mheap_.lock)
+		t.erase(i.treapIter)
+		unlock(&mheap_.lock)
+	})
 	t.CheckInvariants()
 }
 
 func (t *Treap) RemoveSpan(s Span) {
 	// See Erase about locking.
-	lock(&mheap_.lock)
-	t.removeSpan(s.mspan)
-	unlock(&mheap_.lock)
+	systemstack(func() {
+		lock(&mheap_.lock)
+		t.removeSpan(s.mspan)
+		unlock(&mheap_.lock)
+	})
 	t.CheckInvariants()
 }
 
