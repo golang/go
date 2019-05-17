@@ -470,6 +470,9 @@ func readGCStats(pauses *[]uint64) {
 	})
 }
 
+// readGCStats_m must be called on the system stack because it acquires the heap
+// lock. See mheap for details.
+//go:systemstack
 func readGCStats_m(pauses *[]uint64) {
 	p := *pauses
 	// Calling code in runtime/debug should make the slice large enough.
