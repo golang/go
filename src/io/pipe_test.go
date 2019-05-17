@@ -421,3 +421,44 @@ func sortBytesInGroups(b []byte, n int) []byte {
 	sort.Slice(groups, func(i, j int) bool { return bytes.Compare(groups[i], groups[j]) < 0 })
 	return bytes.Join(groups, nil)
 }
+
+// Test WriteTo
+func TestPipeCopy(t *testing.T) {
+	done := make(chan struct{})
+	r, w := Pipe()
+
+	var expected bytes.Buffer
+	go func() {
+		defer close(done)
+		defer w.Close()
+		for i := 0; i < 10; i++ {
+			n1, _ := fmt.Fprintf(&expected, "message: %d\n", i)
+			n2, err := fmt.Fprintf(w, "message: %d\n", i)
+			if err != nil {
+				t.Errorf("write: %v", err)
+				return
+			}
+			if n1 != n2 {
+				t.Errorf("expected to write %d bytes, wrote %d", n1, n2)
+			}
+		}
+	}()
+
+	var actual bytes.Buffer
+	n, err := Copy(&actual, r)
+	if err != nil {
+		t.Errorf("read: %v", err)
+	}
+
+	// cleanup
+	r.Close()
+	<-done
+
+	if int(n) != actual.Len() {
+		t.Errorf("amount copied doesn't match amount read: %d != %d", n, actual.Len())
+	}
+
+	if !bytes.Equal(actual.Bytes(), expected.Bytes()) {
+		t.Errorf("did not read expected data")
+	}
+}

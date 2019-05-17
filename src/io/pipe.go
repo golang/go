@@ -57,6 +57,36 @@ func (p *pipe) Read(b []byte) (n int, err error) {
 	}
 }
 
+func (p *pipe) WriteTo(w Writer) (n int64, err error) {
+	for {
+		select {
+		case <-p.done:
+			err := p.readCloseError()
+			if err == EOF {
+				err = nil
+			}
+			return n, err
+		default:
+		}
+
+		select {
+		case bw := <-p.wrCh:
+			nr, err := w.Write(bw)
+			p.rdCh <- nr
+			n += int64(nr)
+			if err != nil {
+				return n, err
+			}
+		case <-p.done:
+			err := p.readCloseError()
+			if err == EOF {
+				err = nil
+			}
+			return n, err
+		}
+	}
+}
+
 func (p *pipe) readCloseError() error {
 	rerr := p.rerr.Load()
 	if werr := p.werr.Load(); rerr == nil && werr != nil {
@@ -125,6 +155,15 @@ type PipeReader struct {
 // returned as err; otherwise err is EOF.
 func (r *PipeReader) Read(data []byte) (n int, err error) {
 	return r.p.Read(data)
+}
+
+// WriteTo implements the standard WriterTo interface:
+// it forwards data from the pipe to the provided writer until the write end is
+// closed.
+// If the write end is closed with an error or the provided writer returns an
+// error, that error is returned.
+func (r *PipeReader) WriteTo(w Writer) (n int64, err error) {
+	return r.p.WriteTo(w)
 }
 
 // Close closes the reader; subsequent writes to the
