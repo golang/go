@@ -17,7 +17,6 @@ import (
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
 	"cmd/go/internal/semver"
-	"cmd/go/internal/str"
 	"cmd/go/internal/work"
 	"errors"
 	"fmt"
@@ -29,9 +28,9 @@ import (
 )
 
 var CmdGet = &base.Command{
-	// Note: -d -m -u are listed explicitly because they are the most common get flags.
+	// Note: -d -u are listed explicitly because they are the most common get flags.
 	// Do not send CLs removing them because they're covered by [get flags].
-	UsageLine: "go get [-d] [-m] [-t] [-u] [-v] [-insecure] [build flags] [packages]",
+	UsageLine: "go get [-d] [-t] [-u] [-v] [-insecure] [build flags] [packages]",
 	Short:     "add dependencies to current module and install them",
 	Long: `
 Get resolves and adds dependencies to the current development module
@@ -96,18 +95,6 @@ existing dependencies to keep a working build, and 'go get' does
 this automatically. Similarly, downgrading one dependency may
 require downgrading other dependencies, and 'go get' does
 this automatically as well.
-
-The -m flag instructs get to stop here, after resolving, upgrading,
-and downgrading modules and updating go.mod. When using -m,
-each specified package path must be a module path as well,
-not the import path of a package below the module root.
-
-When the -m and -u flags are used together, 'go get' will upgrade
-modules that provide packages depended on by the modules named on
-the command line. For example, 'go get -u -m A' will upgrade A and
-any module providing packages imported by packages in A.
-'go get -u -m' will upgrade modules that provided packages needed
-by the main module.
 
 The -insecure flag permits fetching from repositories and resolving
 custom domains using insecure schemes such as HTTP. Use with caution.
@@ -227,8 +214,7 @@ type querySpec struct {
 	// vers specifies what version of the module to get.
 	vers string
 
-	// forceModulePath is true if path should be interpreted as a module path
-	// even if -m is not specified.
+	// forceModulePath is true if path should be interpreted as a module path.
 	forceModulePath bool
 
 	// prevM is the previous version of the module. prevM is needed
@@ -266,6 +252,9 @@ func runGet(cmd *base.Command, args []string) {
 	}
 	if *getFix {
 		fmt.Fprintf(os.Stderr, "go get: -fix flag is a no-op when using modules\n")
+	}
+	if *getM {
+		base.Fatalf("go get: -m flag is no longer supported")
 	}
 	modload.LoadTests = *getT
 
@@ -318,12 +307,7 @@ func runGet(cmd *base.Command, args []string) {
 			// contains no wildcards (...), check that it is a package in
 			// the main module. If the path contains wildcards but matches no
 			// packages, we'll warn after package loading.
-			if len(args) > 0 && *getM {
-				base.Errorf("go get %s: -m requires a module path, but a relative path must be a package in the main module", arg)
-				continue
-			}
-
-			if !*getM && !strings.Contains(path, "...") {
+			if !strings.Contains(path, "...") {
 				pkgPath := modload.DirImportPath(filepath.FromSlash(path))
 				if pkgs := modload.TargetPackages(pkgPath); len(pkgs) == 0 {
 					abs, err := filepath.Abs(path)
@@ -341,25 +325,7 @@ func runGet(cmd *base.Command, args []string) {
 			}
 
 		case strings.Contains(path, "..."):
-			// If we're using -m, look up modules in the build list that match
-			// the pattern. Report an error if no modules match.
-			if *getM {
-				match := search.MatchPattern(path)
-				matched := false
-				for _, m := range modload.BuildList() {
-					if match(m.Path) || str.HasPathPrefix(path, m.Path) {
-						queries = append(queries, &query{querySpec: querySpec{path: m.Path, vers: vers, prevM: m, forceModulePath: true}, arg: arg})
-						matched = true
-					}
-				}
-				if !matched {
-					base.Errorf("go get %s: pattern matches no modules in build list", arg)
-					continue
-				}
-				break
-			}
-
-			// If we're not using -m, wait until we load packages to look up modules.
+			// Wait until we load packages to look up modules.
 			// We don't know yet whether any modules in the build list provide
 			// packages matching the pattern. For example, suppose
 			// golang.org/x/tools and golang.org/x/tools/playground are separate
@@ -369,34 +335,34 @@ func runGet(cmd *base.Command, args []string) {
 			// upgrade golang.org/x/tools.
 
 		case path == "all":
-			// This is the package pattern "all" not the module pattern "all",
-			// even if *getM. We won't create any queries yet, since we're going to
-			// need to load packages anyway.
+			// Don't query modules until we load packages. We'll automatically
+			// look up any missing modules.
 
 		case search.IsMetaPackage(path):
 			base.Errorf("go get %s: explicit requirement on standard-library module %s not allowed", path, path)
 			continue
 
 		default:
-			// The argument is a package path or module path or both.
-			q := &query{querySpec: querySpec{path: path, vers: vers}, arg: arg}
-			if vers == "patch" {
-				if *getM {
-					for _, m := range modload.BuildList() {
-						if m.Path == path {
-							q.prevM = m
-							break
-						}
-					}
-					queries = append(queries, q)
-				} else {
-					// We need to know the module containing path before asking for
-					// a specific version. Wait until we load packages later.
+			// The argument is a package path.
+			if pkgs := modload.TargetPackages(path); len(pkgs) != 0 {
+				// The path is in the main module. Nothing to query.
+				if vers != "" && vers != "latest" && vers != "patch" {
+					base.Errorf("go get %s: can't request explicit version of path in main module", arg)
 				}
+				continue
+			}
+
+			if vers == "patch" {
+				// We need to know the previous version of the module to find
+				// the new version, but we don't know what module provides this
+				// package yet. Wait until we load packages later.
+				// TODO(golang.org/issue/30634): @latest should also depend on
+				// the current version to prevent downgrading from newer pseudoversions.
 			} else {
 				// The requested version of path doesn't depend on the existing version,
-				// so don't bother resolving it.
-				queries = append(queries, q)
+				// so query the module before loading the package. This may let us
+				// load the package only once at the correct version.
+				queries = append(queries, &query{querySpec: querySpec{path: path, vers: vers}, arg: arg})
 			}
 		}
 	}
@@ -430,7 +396,7 @@ func runGet(cmd *base.Command, args []string) {
 			modOnly[q.m.Path] = q
 			continue
 		}
-		if !*getM && q.path == q.m.Path {
+		if q.path == q.m.Path {
 			wg.Add(1)
 			go func(q *query) {
 				if hasPkg, err := modload.ModuleHasRootPackage(q.m); err != nil {
@@ -477,17 +443,13 @@ func runGet(cmd *base.Command, args []string) {
 			// Don't load packages if pkgPatterns is empty. Both
 			// modload.ImportPathsQuiet and ModulePackages convert an empty list
 			// of patterns to []string{"."}, which is not what we want.
-			if *getM {
-				matches = modload.ModulePackages(pkgPatterns)
-			} else {
-				matches = modload.ImportPathsQuiet(pkgPatterns)
-			}
+			matches = modload.ImportPathsQuiet(pkgPatterns)
 			seenPkgs = make(map[string]bool)
 			install = make([]string, 0, len(pkgPatterns))
 			for i, match := range matches {
 				arg := pkgGets[i]
 
-				if !*getM && len(match.Pkgs) == 0 {
+				if len(match.Pkgs) == 0 {
 					// If the pattern did not match any packages, look up a new module.
 					// If the pattern doesn't match anything on the last iteration,
 					// we'll print a warning after the outer loop.
@@ -516,12 +478,8 @@ func runGet(cmd *base.Command, args []string) {
 					allStd = false
 					addQuery(&query{querySpec: querySpec{path: m.Path, vers: arg.vers, forceModulePath: true, prevM: m}, arg: arg.raw})
 				}
-				if allStd {
-					if *getM {
-						base.Errorf("go get %s: cannot use pattern %q with -m", arg.raw, arg.raw)
-					} else if arg.path != arg.raw {
-						base.Errorf("go get %s: cannot use pattern %q with explicit version", arg.raw, arg.raw)
-					}
+				if allStd && arg.path != arg.raw {
+					base.Errorf("go get %s: cannot use pattern %q with explicit version", arg.raw, arg.raw)
 				}
 			}
 		}
@@ -552,9 +510,7 @@ func runGet(cmd *base.Command, args []string) {
 		}
 		prevBuildList = buildList
 	}
-	if !*getM {
-		search.WarnUnmatched(matches) // don't warn on every iteration
-	}
+	search.WarnUnmatched(matches) // don't warn on every iteration
 
 	// Handle downgrades.
 	var down []module.Version
@@ -645,12 +601,14 @@ func runGet(cmd *base.Command, args []string) {
 	modload.AllowWriteGoMod()
 	modload.WriteGoMod()
 
-	// If -m or -d was specified, we're done after the module work. We've
-	// already downloaded modules by loading packages above. If neither flag
-	// we specified, we need build and install the packages.
-	// Note that 'go get -u' without any arguments results in len(install) == 1:
-	// search.CleanImportPaths returns "." for empty args.
-	if *getM || *getD || len(install) == 0 {
+	// If -d was specified, we're done after the module work.
+	// We've already downloaded modules by loading packages above.
+	// Otherwise, we need to build and install the packages matched
+	// by command line arguments.
+	// Note that 'go get -u' without any arguments results in
+	// len(install) == 1 if there's a package in the current directory.
+	// search.CleanPatterns returns "." for empty args.
+	if *getD || len(install) == 0 {
 		return
 	}
 	work.BuildInit()
@@ -726,7 +684,7 @@ func getQuery(path, vers string, prevM module.Version, forceModulePath bool) (mo
 		}
 	}
 
-	if forceModulePath || *getM || !strings.Contains(path, "...") {
+	if forceModulePath || !strings.Contains(path, "...") {
 		if path == modload.Target.Path {
 			if vers != "latest" {
 				return module.Version{}, fmt.Errorf("can't get a specific version of the main module")
@@ -740,7 +698,7 @@ func getQuery(path, vers string, prevM module.Version, forceModulePath bool) (mo
 		}
 
 		// If the query fails, and the path must be a real module, report the query error.
-		if forceModulePath || *getM {
+		if forceModulePath {
 			return module.Version{}, err
 		}
 	}

@@ -557,7 +557,7 @@
 //
 // Usage:
 //
-// 	go get [-d] [-m] [-t] [-u] [-v] [-insecure] [build flags] [packages]
+// 	go get [-d] [-t] [-u] [-v] [-insecure] [build flags] [packages]
 //
 // Get resolves and adds dependencies to the current development module
 // and then builds and installs them.
@@ -621,18 +621,6 @@
 // this automatically. Similarly, downgrading one dependency may
 // require downgrading other dependencies, and 'go get' does
 // this automatically as well.
-//
-// The -m flag instructs get to stop here, after resolving, upgrading,
-// and downgrading modules and updating go.mod. When using -m,
-// each specified package path must be a module path as well,
-// not the import path of a package below the module root.
-//
-// When the -m and -u flags are used together, 'go get' will upgrade
-// modules that provide packages depended on by the modules named on
-// the command line. For example, 'go get -u -m A' will upgrade A and
-// any module providing packages imported by packages in A.
-// 'go get -u -m' will upgrade modules that provided packages needed
-// by the main module.
 //
 // The -insecure flag permits fetching from repositories and resolving
 // custom domains using insecure schemes such as HTTP. Use with caution.
