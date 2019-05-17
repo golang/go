@@ -62,6 +62,8 @@ func (c *check) Run(ctx context.Context, args ...string) error {
 		case <-time.Tick(30 * time.Second):
 			return fmt.Errorf("timed out waiting for results from %v", file.uri)
 		}
+		file.diagnosticsMu.Lock()
+		defer file.diagnosticsMu.Unlock()
 		for _, d := range file.diagnostics {
 			spn, err := file.mapper.RangeSpan(d.Range)
 			if err != nil {

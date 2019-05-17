@@ -220,6 +220,7 @@ type cmdFile struct {
 	err            error
 	added          bool
 	hasDiagnostics chan struct{}
+	diagnosticsMu  sync.Mutex
 	diagnostics    []protocol.Diagnostic
 }
 
@@ -306,6 +307,8 @@ func (c *cmdClient) PublishDiagnostics(ctx context.Context, p *protocol.PublishD
 	defer c.filesMu.Unlock()
 	uri := span.URI(p.URI)
 	file := c.getFile(ctx, uri)
+	file.diagnosticsMu.Lock()
+	defer file.diagnosticsMu.Unlock()
 	hadDiagnostics := file.diagnostics != nil
 	file.diagnostics = p.Diagnostics
 	if file.diagnostics == nil {
