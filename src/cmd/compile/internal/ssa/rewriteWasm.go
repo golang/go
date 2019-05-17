@@ -3826,36 +3826,17 @@ func rewriteValueWasm_OpRotateLeft16_0(v *Value) bool {
 	return false
 }
 func rewriteValueWasm_OpRotateLeft32_0(v *Value) bool {
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (RotateLeft32 <t> x (I64Const [c]))
+	// match: (RotateLeft32 x y)
 	// cond:
-	// result: (Or32 (Lsh32x64 <t> x (I64Const [c&31])) (Rsh32Ux64 <t> x (I64Const [-c&31])))
+	// result: (I32Rotl x y)
 	for {
-		t := v.Type
-		_ = v.Args[1]
+		y := v.Args[1]
 		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpWasmI64Const {
-			break
-		}
-		c := v_1.AuxInt
-		v.reset(OpOr32)
-		v0 := b.NewValue0(v.Pos, OpLsh32x64, t)
-		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = c & 31
-		v0.AddArg(v1)
-		v.AddArg(v0)
-		v2 := b.NewValue0(v.Pos, OpRsh32Ux64, t)
-		v2.AddArg(x)
-		v3 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v3.AuxInt = -c & 31
-		v2.AddArg(v3)
-		v.AddArg(v2)
+		v.reset(OpWasmI32Rotl)
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueWasm_OpRotateLeft64_0(v *Value) bool {
 	// match: (RotateLeft64 x y)

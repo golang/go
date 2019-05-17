@@ -299,6 +299,12 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
 		getValue64(s, v.Args[1])
 		s.Prog(v.Op.Asm())
 
+	case ssa.OpWasmI32Rotl:
+		getValue32(s, v.Args[0])
+		getValue32(s, v.Args[1])
+		s.Prog(wasm.AI32Rotl)
+		s.Prog(wasm.AI64ExtendI32U)
+
 	case ssa.OpWasmI64DivS:
 		getValue64(s, v.Args[0])
 		getValue64(s, v.Args[1])
