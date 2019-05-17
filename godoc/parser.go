@@ -53,7 +53,7 @@ func (c *Corpus) parseFile(fset *token.FileSet, filename string, mode parser.Mod
 	}
 
 	// Temporary ad-hoc fix for issue 5247.
-	// TODO(gri) Remove this in favor of a better fix, eventually (see issue 7702).
+	// TODO(gri,dmitshur) Remove this in favor of a better fix, eventually (see issue 32092).
 	replaceLinePrefixCommentsWithBlankLine(src)
 
 	return parser.ParseFile(fset, filename, src, mode)

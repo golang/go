@@ -46,3 +46,24 @@ package main`}))
 		t.Error("pInfo.FSet = nil; want non-nil.")
 	}
 }
+
+func TestIssue5247(t *testing.T) {
+	const packagePath = "example.com/p"
+	c := NewCorpus(mapfs.New(map[string]string{
+		"src/" + packagePath + "/p.go": `package p
+
+//line notgen.go:3
+// F doc //line 1 should appear
+// line 2 should appear
+func F()
+//line foo.go:100`})) // No newline at end to check corner cases.
+
+	srv := &handlerServer{
+		p: &Presentation{Corpus: c},
+		c: c,
+	}
+	pInfo := srv.GetPageInfo("/src/"+packagePath, packagePath, 0, "linux", "amd64")
+	if got, want := pInfo.PDoc.Funcs[0].Doc, "F doc //line 1 should appear\nline 2 should appear\n"; got != want {
+		t.Errorf("pInfo.PDoc.Funcs[0].Doc = %q; want %q", got, want)
+	}
+}
