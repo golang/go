@@ -4,16 +4,6 @@
 
 package ssa
 
-// mark values
-type markKind uint8
-
-const (
-	notFound    markKind = 0 // block has not been discovered yet
-	notExplored markKind = 1 // discovered and in queue, outedges not processed yet
-	explored    markKind = 2 // discovered and in queue, outedges processed
-	done        markKind = 3 // all done, in output ordering
-)
-
 // This file contains code to compute the dominator tree
 // of a control-flow graph.
 
@@ -31,7 +21,7 @@ type blockAndIndex struct {
 // postorderWithNumbering provides a DFS postordering.
 // This seems to make loop-finding more robust.
 func postorderWithNumbering(f *Func, ponums []int32) []*Block {
-	mark := make([]markKind, f.NumBlocks())
+	seen := make([]bool, f.NumBlocks())
 
 	// result ordering
 	order := make([]*Block, 0, len(f.Blocks))
@@ -41,26 +31,25 @@ func postorderWithNumbering(f *Func, ponums []int32) []*Block {
 	// enough to cover almost every postorderWithNumbering call.
 	s := make([]blockAndIndex, 0, 32)
 	s = append(s, blockAndIndex{b: f.Entry})
-	mark[f.Entry.ID] = explored
+	seen[f.Entry.ID] = true
 	for len(s) > 0 {
 		tos := len(s) - 1
 		x := s[tos]
 		b := x.b
-		i := x.index
-		if i < len(b.Succs) {
+		if i := x.index; i < len(b.Succs) {
 			s[tos].index++
 			bb := b.Succs[i].Block()
-			if mark[bb.ID] == notFound {
-				mark[bb.ID] = explored
+			if !seen[bb.ID] {
+				seen[bb.ID] = true
 				s = append(s, blockAndIndex{b: bb})
 			}
-		} else {
-			s = s[:tos]
-			if len(ponums) > 0 {
-				ponums[b.ID] = int32(len(order))
-			}
-			order = append(order, b)
+			continue
 		}
+		s = s[:tos]
+		if ponums != nil {
+			ponums[b.ID] = int32(len(order))
+		}
+		order = append(order, b)
 	}
 	return order
 }
