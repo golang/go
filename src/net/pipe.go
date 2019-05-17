@@ -175,6 +175,34 @@ func (p *pipe) read(b []byte) (n int, err error) {
 	}
 }
 
+func (p *pipe) WriteTo(w io.Writer) (n int64, err error) {
+	for {
+		switch {
+		case isClosedChan(p.localDone):
+			return n, io.ErrClosedPipe
+		case isClosedChan(p.remoteDone):
+			return n, nil
+		case isClosedChan(p.readDeadline.wait()):
+			return n, timeoutError{}
+		}
+		select {
+		case bw := <-p.rdRx:
+			nr, err := w.Write(bw)
+			p.rdTx <- nr
+			n += int64(nr)
+			if err != nil {
+				return n, err
+			}
+		case <-p.localDone:
+			return n, io.ErrClosedPipe
+		case <-p.remoteDone:
+			return n, nil
+		case <-p.readDeadline.wait():
+			return n, timeoutError{}
+		}
+	}
+}
+
 func (p *pipe) Write(b []byte) (int, error) {
 	n, err := p.write(b)
 	if err != nil && err != io.ErrClosedPipe {
