@@ -67,7 +67,10 @@ func (imp *importer) parseFiles(filenames []string) ([]*ast.File, []error) {
 			} else {
 				// We don't have a cached AST for this file.
 				gof.read(imp.ctx)
-				src := gof.content
+				if gof.fc.Error != nil {
+					return
+				}
+				src := gof.fc.Data
 				if src == nil {
 					parsed[i], errors[i] = nil, fmt.Errorf("No source for %v", filename)
 				} else {

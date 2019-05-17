@@ -14,7 +14,9 @@ import (
 )
 
 func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) error {
-	return s.cacheAndDiagnose(ctx, span.NewURI(params.TextDocument.URI), []byte(params.TextDocument.Text))
+	uri := span.NewURI(params.TextDocument.URI)
+	s.session.DidOpen(uri)
+	return s.cacheAndDiagnose(ctx, uri, []byte(params.TextDocument.Text))
 }
 
 func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDocumentParams) error {
@@ -64,18 +66,20 @@ func (s *Server) applyChanges(ctx context.Context, params *protocol.DidChangeTex
 	}
 
 	uri := span.NewURI(params.TextDocument.URI)
-	view := s.session.ViewOf(uri)
-	f, m, err := getSourceFile(ctx, view, uri)
-	if err != nil {
+	fc := s.session.ReadFile(uri)
+	if fc.Error != nil {
 		return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "file not found")
 	}
-	fset := f.FileSet()
-	filename, err := f.URI().Filename()
+	content := fc.Data
+	fset := s.session.Cache().FileSet()
+	filename, err := uri.Filename()
 	if err != nil {
 		return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "no filename for %s", uri)
 	}
-	content := f.GetContent(ctx)
 	for _, change := range params.ContentChanges {
+		// Update column mapper along with the content.
+		m := protocol.NewColumnMapper(uri, filename, fset, nil, content)
+
 		spn, err := m.RangeSpan(*change.Range)
 		if err != nil {
 			return "", err
@@ -92,19 +96,19 @@ func (s *Server) applyChanges(ctx context.Context, params *protocol.DidChangeTex
 		buf.WriteString(change.Text)
 		buf.Write(content[end:])
 		content = buf.Bytes()
-
-		// Update column mapper along with the content.
-		m = protocol.NewColumnMapper(f.URI(), filename, fset, nil, content)
 	}
 	return string(content), nil
 }
 
 func (s *Server) didSave(ctx context.Context, params *protocol.DidSaveTextDocumentParams) error {
+	uri := span.NewURI(params.TextDocument.URI)
+	s.session.DidSave(uri)
 	return nil // ignore
 }
 
 func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocumentParams) error {
 	uri := span.NewURI(params.TextDocument.URI)
+	s.session.DidClose(uri)
 	view := s.session.ViewOf(uri)
 	return view.SetContent(ctx, uri, nil)
 }

@@ -205,8 +205,8 @@ func pointToSpan(ctx context.Context, v View, spn span.Span) span.Span {
 		v.Session().Logger().Errorf(ctx, "Could not find tokens for diagnostic: %v", spn.URI())
 		return spn
 	}
-	content := diagFile.GetContent(ctx)
-	if content == nil {
+	fc := diagFile.Content(ctx)
+	if fc.Error != nil {
 		v.Session().Logger().Errorf(ctx, "Could not find content for diagnostic: %v", spn.URI())
 		return spn
 	}
@@ -219,7 +219,7 @@ func pointToSpan(ctx context.Context, v View, spn span.Span) span.Span {
 	}
 	start := s.Start()
 	offset := start.Offset()
-	width := bytes.IndexAny(content[offset:], " \n,():;[]")
+	width := bytes.IndexAny(fc.Data[offset:], " \n,():;[]")
 	if width <= 0 {
 		return spn
 	}

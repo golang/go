@@ -25,7 +25,9 @@ type session struct {
 	viewMap map[span.URI]source.View
 
 	overlayMu sync.Mutex
-	overlays  map[span.URI][]byte
+	overlays  map[span.URI]*source.FileContent
+
+	openFiles sync.Map
 }
 
 func (s *session) Shutdown(ctx context.Context) {
@@ -153,25 +155,59 @@ func (s *session) Logger() xlog.Logger {
 	return s.log
 }
 
-func (s *session) setOverlay(uri span.URI, content []byte) {
+func (s *session) DidOpen(uri span.URI) {
+	s.openFiles.Store(uri, true)
+}
+
+func (s *session) DidSave(uri span.URI) {
+}
+
+func (s *session) DidClose(uri span.URI) {
+	s.openFiles.Delete(uri)
+}
+
+func (s *session) IsOpen(uri span.URI) bool {
+	_, open := s.openFiles.Load(uri)
+	return open
+}
+
+func (s *session) ReadFile(uri span.URI) *source.FileContent {
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
-	//TODO: we also need to invalidate anything that depended on this "file"
-	if content == nil {
+	// We might have the content saved in an overlay.
+	if overlay, ok := s.overlays[uri]; ok {
+		return overlay
+	}
+	// fall back to the cache level file system
+	return s.Cache().ReadFile(uri)
+}
+
+func (s *session) SetOverlay(uri span.URI, data []byte) {
+	s.overlayMu.Lock()
+	defer s.overlayMu.Unlock()
+	//TODO: we also need to invoke and watchers in here
+	if data == nil {
 		delete(s.overlays, uri)
 		return
 	}
-	s.overlays[uri] = content
+	s.overlays[uri] = &source.FileContent{
+		URI:  uri,
+		Data: data,
+		Hash: hashContents(data),
+	}
 }
 
 func (s *session) buildOverlay() map[string][]byte {
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
-	overlay := make(map[string][]byte)
-	for uri, content := range s.overlays {
+	overlays := make(map[string][]byte)
+	for uri, overlay := range s.overlays {
+		if overlay.Error != nil {
+			continue
+		}
 		if filename, err := uri.Filename(); err == nil {
-			overlay[filename] = content
+			overlays[filename] = overlay.Data
 		}
 	}
-	return overlay
+	return overlays
 }

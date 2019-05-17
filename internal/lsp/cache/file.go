@@ -8,7 +8,6 @@ import (
 	"context"
 	"go/ast"
 	"go/token"
-	"io/ioutil"
 	"path/filepath"
 	"strings"
 
@@ -19,10 +18,9 @@ import (
 // viewFile extends source.File with helper methods for the view package.
 type viewFile interface {
 	source.File
-	setContent(content []byte)
+	invalidate()
 	filename() string
 	addURI(uri span.URI) int
-	isActive() bool
 }
 
 // fileBase holds the common functionality for all files.
@@ -31,10 +29,9 @@ type fileBase struct {
 	uris  []span.URI
 	fname string
 
-	view    *view
-	active  bool
-	content []byte
-	token   *token.File
+	view  *view
+	fc    *source.FileContent
+	token *token.File
 }
 
 // goFile holds all the information we know about a go file.
@@ -59,25 +56,17 @@ func (f *fileBase) filename() string {
 	return f.fname
 }
 
-func (f *fileBase) isActive() bool {
-	return f.active
-}
-
 // View returns the view associated with the file.
 func (f *fileBase) View() source.View {
 	return f.view
 }
 
-// GetContent returns the contents of the file, reading it from file system if needed.
-func (f *fileBase) GetContent(ctx context.Context) []byte {
+// Content returns the contents of the file, reading it from file system if needed.
+func (f *fileBase) Content(ctx context.Context) *source.FileContent {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
-
-	if ctx.Err() == nil {
-		f.read(ctx)
-	}
-
-	return f.content
+	f.read(ctx)
+	return f.fc
 }
 
 func (f *fileBase) FileSet() *token.FileSet {
@@ -127,10 +116,14 @@ func (f *goFile) GetPackage(ctx context.Context) source.Package {
 	return f.pkg
 }
 
-// read is the internal part of GetContent. It assumes that the caller is
+// read is the internal part of Content. It assumes that the caller is
 // holding the mutex of the file's view.
 func (f *fileBase) read(ctx context.Context) {
-	if f.content != nil {
+	if err := ctx.Err(); err != nil {
+		f.fc = &source.FileContent{Error: err}
+		return
+	}
+	if f.fc != nil {
 		if len(f.view.contentChanges) == 0 {
 			return
 		}
@@ -139,24 +132,13 @@ func (f *fileBase) read(ctx context.Context) {
 		err := f.view.applyContentChanges(ctx)
 		f.view.mcache.mu.Unlock()
 
-		if err == nil {
+		if err != nil {
+			f.fc = &source.FileContent{Error: err}
 			return
 		}
 	}
-	// We might have the content saved in an overlay.
-	f.view.session.overlayMu.Lock()
-	defer f.view.session.overlayMu.Unlock()
-	if content, ok := f.view.session.overlays[f.URI()]; ok {
-		f.content = content
-		return
-	}
 	// We don't know the content yet, so read it.
-	content, err := ioutil.ReadFile(f.filename())
-	if err != nil {
-		f.view.Session().Logger().Errorf(ctx, "unable to read file %s: %v", f.filename(), err)
-		return
-	}
-	f.content = content
+	f.fc = f.view.Session().ReadFile(f.URI())
 }
 
 // isPopulated returns true if all of the computed fields of the file are set.
@@ -204,7 +186,8 @@ func (v *view) reverseDeps(ctx context.Context, seen map[string]struct{}, result
 		return
 	}
 	for _, filename := range m.files {
-		if f, err := v.getFile(span.FileURI(filename)); err == nil && f.isActive() {
+		uri := span.FileURI(filename)
+		if f, err := v.getFile(uri); err == nil && v.session.IsOpen(uri) {
 			results[f.(*goFile)] = struct{}{}
 		}
 	}

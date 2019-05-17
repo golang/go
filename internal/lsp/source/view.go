@@ -18,6 +18,21 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
+// FileContents is returned from FileSystem implementation to represent the
+// contents of a file.
+type FileContent struct {
+	URI   span.URI
+	Data  []byte
+	Error error
+	Hash  string
+}
+
+// FileSystem is the interface to something that provides file contents.
+type FileSystem interface {
+	// ReadFile reads the contents of a file and returns it.
+	ReadFile(uri span.URI) *FileContent
+}
+
 // Cache abstracts the core logic of dealing with the environment from the
 // higher level logic that processes the information to produce results.
 // The cache provides access to files and their contents, so the source
@@ -26,6 +41,9 @@ import (
 // sharing between all consumers.
 // A cache may have many active sessions at any given time.
 type Cache interface {
+	// A FileSystem that reads file contents from external storage.
+	FileSystem
+
 	// NewSession creates a new Session manager and returns it.
 	NewSession(log xlog.Logger) Session
 
@@ -58,6 +76,25 @@ type Session interface {
 
 	// Shutdown the session and all views it has created.
 	Shutdown(ctx context.Context)
+
+	// A FileSystem prefers the contents from overlays, and falls back to the
+	// content from the underlying cache if no overlay is present.
+	FileSystem
+
+	// DidOpen is invoked each time a file is opened in the editor.
+	DidOpen(uri span.URI)
+
+	// DidSave is invoked each time an open file is saved in the editor.
+	DidSave(uri span.URI)
+
+	// DidClose is invoked each time an open file is closed in the editor.
+	DidClose(uri span.URI)
+
+	// IsOpen can be called to check if the editor has a file currently open.
+	IsOpen(uri span.URI) bool
+
+	// Called to set the effective contents of a file from this session.
+	SetOverlay(uri span.URI, data []byte)
 }
 
 // View represents a single workspace.
@@ -103,7 +140,7 @@ type View interface {
 type File interface {
 	URI() span.URI
 	View() View
-	GetContent(ctx context.Context) []byte
+	Content(ctx context.Context) *FileContent
 	FileSet() *token.FileSet
 	GetToken(ctx context.Context) *token.File
 }

@@ -5,6 +5,8 @@
 package cache
 
 import (
+	"crypto/sha1"
+	"fmt"
 	"go/token"
 
 	"golang.org/x/tools/internal/lsp/source"
@@ -19,6 +21,8 @@ func New() source.Cache {
 }
 
 type cache struct {
+	nativeFileSystem
+
 	fset *token.FileSet
 }
 
@@ -26,10 +30,16 @@ func (c *cache) NewSession(log xlog.Logger) source.Session {
 	return &session{
 		cache:    c,
 		log:      log,
-		overlays: make(map[span.URI][]byte),
+		overlays: make(map[span.URI]*source.FileContent),
 	}
 }
 
 func (c *cache) FileSet() *token.FileSet {
 	return c.fset
+}
+
+func hashContents(contents []byte) string {
+	// TODO: consider whether sha1 is the best choice here
+	// This hash is used for internal identity detection only
+	return fmt.Sprintf("%x", sha1.Sum(contents))
 }

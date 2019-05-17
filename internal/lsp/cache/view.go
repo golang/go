@@ -232,19 +232,18 @@ func (v *view) applyContentChanges(ctx context.Context) error {
 	return nil
 }
 
-// setContent applies a content update for a given file. It assumes that the
+// applyContentChange applies a content update for a given file. It assumes that the
 // caller is holding the view's mutex.
 func (v *view) applyContentChange(uri span.URI, content []byte) {
+	v.session.SetOverlay(uri, content)
 	f, err := v.getFile(uri)
 	if err != nil {
 		return
 	}
-	f.setContent(content)
+	f.invalidate()
 }
 
-func (f *goFile) setContent(content []byte) {
-	f.content = content
-
+func (f *goFile) invalidate() {
 	// TODO(rstambler): Should we recompute these here?
 	f.ast = nil
 	f.token = nil
@@ -253,18 +252,7 @@ func (f *goFile) setContent(content []byte) {
 	if f.pkg != nil {
 		f.view.remove(f.pkg.pkgPath, map[string]struct{}{})
 	}
-
-	switch {
-	case f.active && content == nil:
-		// The file was active, so we need to forget its content.
-		f.active = false
-		f.view.session.setOverlay(f.URI(), nil)
-		f.content = nil
-	case content != nil:
-		// This is an active overlay, so we update the map.
-		f.active = true
-		f.view.session.setOverlay(f.URI(), f.content)
-	}
+	f.fc = nil
 }
 
 // remove invalidates a package and its reverse dependencies in the view's

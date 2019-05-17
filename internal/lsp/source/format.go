@@ -56,11 +56,15 @@ func hasParseErrors(errors []packages.Error) bool {
 
 // Imports formats a file using the goimports tool.
 func Imports(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) {
+	fc := f.Content(ctx)
+	if fc.Error != nil {
+		return nil, fc.Error
+	}
 	tok := f.GetToken(ctx)
 	if tok == nil {
 		return nil, fmt.Errorf("no token file for %s", f.URI())
 	}
-	formatted, err := imports.Process(tok.Name(), f.GetContent(ctx), nil)
+	formatted, err := imports.Process(f.GetToken(ctx).Name(), fc.Data, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +72,12 @@ func Imports(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) 
 }
 
 func computeTextEdits(ctx context.Context, file File, formatted string) (edits []TextEdit) {
-	u := diff.SplitLines(string(file.GetContent(ctx)))
+	fc := file.Content(ctx)
+	if fc.Error != nil {
+		file.View().Session().Logger().Errorf(ctx, "Cannot compute text edits: %v", fc.Error)
+		return nil
+	}
+	u := diff.SplitLines(string(fc.Data))
 	f := diff.SplitLines(formatted)
 	return DiffToEdits(file.URI(), diff.Operations(u, f))
 }

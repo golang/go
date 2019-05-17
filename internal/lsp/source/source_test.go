@@ -293,7 +293,12 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 			continue
 		}
 		ops := source.EditsToDiff(edits)
-		got := strings.Join(diff.ApplyEdits(diff.SplitLines(string(f.GetContent(ctx))), ops), "")
+		fc := f.Content(ctx)
+		if fc.Error != nil {
+			t.Error(err)
+			continue
+		}
+		got := strings.Join(diff.ApplyEdits(diff.SplitLines(string(fc.Data)), ops), "")
 		if gofmted != got {
 			t.Errorf("format failed for %s, expected:\n%v\ngot:\n%v", filename, gofmted, got)
 		}
