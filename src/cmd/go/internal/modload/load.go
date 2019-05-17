@@ -33,8 +33,7 @@ import (
 
 // buildList is the list of modules to use for building packages.
 // It is initialized by calling ImportPaths, ImportFromFiles,
-// ModulePackages, LoadALL, or LoadBuildList, each of which uses
-// loaded.load.
+// LoadALL, or LoadBuildList, each of which uses loaded.load.
 //
 // Ideally, exactly ONE of those functions would be called,
 // and exactly once. Most of the time, that's true.
@@ -170,81 +169,6 @@ func ImportPathsQuiet(patterns []string) []*search.Match {
 		}
 	}
 
-	return loadPatterns(patterns, true, updateMatches)
-}
-
-// ModulePackages returns packages provided by each module in patterns.
-// patterns may contain module paths, patterns matching module paths,
-// "all" (interpreted as package pattern "all"), and "." (interpreted
-// as the main module). Additional modules (including modules providing
-// dependencies) may be added to the build list or upgraded.
-func ModulePackages(patterns []string) []*search.Match {
-	updateMatches := func(matches []*search.Match, iterating bool) {
-		for _, m := range matches {
-			switch {
-			case search.IsRelativePath(m.Pattern) || filepath.IsAbs(m.Pattern):
-				if m.Pattern != "." {
-					base.Errorf("go: path %s is not a module", m.Pattern)
-					continue
-				}
-				m.Pkgs = matchPackages("...", loaded.tags, false, []module.Version{Target})
-
-			case strings.Contains(m.Pattern, "..."):
-				match := search.MatchPattern(m.Pattern)
-				var matched []module.Version
-				for _, mod := range buildList {
-					if match(mod.Path) || str.HasPathPrefix(m.Pattern, mod.Path) {
-						matched = append(matched, mod)
-					}
-				}
-				m.Pkgs = matchPackages(m.Pattern, loaded.tags, false, matched)
-
-			case m.Pattern == "all":
-				loaded.testAll = true
-				if iterating {
-					// Enumerate the packages in the main module.
-					// We'll load the dependencies as we find them.
-					m.Pkgs = matchPackages("...", loaded.tags, false, []module.Version{Target})
-				} else {
-					// Starting with the packages in the main module,
-					// enumerate the full list of "all".
-					m.Pkgs = loaded.computePatternAll(m.Pkgs)
-				}
-
-			default:
-				found := false
-				for _, mod := range buildList {
-					if mod.Path == m.Pattern {
-						found = true
-						m.Pkgs = matchPackages("...", loaded.tags, false, []module.Version{mod})
-						break
-					}
-				}
-				if !found {
-					base.Errorf("go %s: module not in build list", m.Pattern)
-				}
-			}
-		}
-	}
-	return loadPatterns(patterns, false, updateMatches)
-}
-
-// loadPatterns returns a set of packages matching the args (patterns),
-// adding modules to the build list as needed to satisfy new imports.
-//
-// useTags indicates whether to use the default build constraints to
-// filter source files. If useTags is false, only "ignore" and malformed
-// build tag requirements are considered false.
-//
-// The interpretation of patterns is determined by updateMatches, which will be
-// called repeatedly until the build list is finalized. updateMatches should
-// should store a list of matching packages in each search.Match when it is
-// called. The iterating parameter is true if the build list has not been
-// finalized yet.
-//
-// If errors are encountered, loadPatterns will print them and exit.
-// On success, loadPatterns will update the build list and write go.mod.
-func loadPatterns(patterns []string, useTags bool, updateMatches func(matches []*search.Match, iterating bool)) []*search.Match {
 	InitMod()
 
 	var matches []*search.Match
@@ -256,9 +180,6 @@ func loadPatterns(patterns []string, useTags bool, updateMatches func(matches []
 	}
 
 	loaded = newLoader()
-	if !useTags {
-		loaded.tags = anyTags
-	}
 	loaded.load(func() []string {
 		var roots []string
 		updateMatches(matches, true)

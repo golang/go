@@ -13,13 +13,13 @@ stdout '^sum.golang.org$'
 [!net] skip
 env GOSUMDB=sum.golang.org
 env GOPROXY=direct
-go get -m rsc.io/quote
+go get -d rsc.io/quote
 
 # download from proxy.golang.org with go.sum entry already
 go clean -modcache
 env GOSUMDB=
 env GOPROXY=
-go get -x -m rsc.io/quote
+go get -x -d rsc.io/quote
 ! stderr github
 stderr proxy.golang.org/rsc.io/quote
 ! stderr sum.golang.org/tile
@@ -27,7 +27,7 @@ stderr proxy.golang.org/rsc.io/quote
 
 # download again, using checksum database to validate new go.sum lines
 rm go.sum
-go get -x -m rsc.io/quote
+go get -x -d rsc.io/quote
 ! stderr github
 stderr proxy.golang.org/rsc.io/quote
 stderr sum.golang.org/tile
@@ -35,7 +35,7 @@ stderr sum.golang.org/lookup/rsc.io/quote
 
 # test fallback to direct
 env TESTGOPROXY404=1
-go get -x -m rsc.io/quote
+go get -x -d rsc.io/quote
 stderr 'proxy.golang.org.*404 testing'
 stderr github.com/rsc
 
