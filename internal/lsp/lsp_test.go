@@ -594,7 +594,7 @@ func (r *runner) mapper(uri span.URI) (*protocol.ColumnMapper, error) {
 	if err != nil {
 		return nil, err
 	}
-	return protocol.NewColumnMapper(uri, fset, f, content), nil
+	return protocol.NewColumnMapper(uri, filename, fset, f, content), nil
 }
 
 func TestBytesOffset(t *testing.T) {
@@ -624,7 +624,7 @@ func TestBytesOffset(t *testing.T) {
 		fset := token.NewFileSet()
 		f := fset.AddFile(fname, -1, len(test.text))
 		f.SetLinesForContent([]byte(test.text))
-		mapper := protocol.NewColumnMapper(span.FileURI(fname), fset, f, []byte(test.text))
+		mapper := protocol.NewColumnMapper(span.FileURI(fname), fname, fset, f, []byte(test.text))
 		got, err := mapper.Point(test.pos)
 		if err != nil && test.want != -1 {
 			t.Errorf("unexpected error: %v", err)

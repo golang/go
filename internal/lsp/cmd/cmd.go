@@ -339,7 +339,7 @@ func (c *cmdClient) getFile(ctx context.Context, uri span.URI) *cmdFile {
 		}
 		f := c.fset.AddFile(fname, -1, len(content))
 		f.SetLinesForContent(content)
-		file.mapper = protocol.NewColumnMapper(uri, c.fset, f, content)
+		file.mapper = protocol.NewColumnMapper(uri, fname, c.fset, f, content)
 	}
 	return file
 }

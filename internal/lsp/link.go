@@ -6,6 +6,7 @@ package lsp
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -21,6 +22,10 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 	}
 	// find the import block
 	ast := f.GetAST(ctx)
+	if ast == nil {
+		return nil, fmt.Errorf("no AST for %v", uri)
+	}
+
 	var result []protocol.DocumentLink
 	for _, imp := range ast.Imports {
 		spn, err := span.NewRange(f.GetFileSet(ctx), imp.Pos(), imp.End()).Span()

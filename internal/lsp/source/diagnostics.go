@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/asmdecl"
@@ -72,6 +73,12 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 		}
 		reports[uri] = []Diagnostic{}
 	}
+
+	// Prepare reports for package errors
+	for _, pkgErr := range pkg.GetErrors() {
+		reports[packageErrorSpan(pkgErr).URI()] = []Diagnostic{}
+	}
+
 	// Run diagnostics for the package that this URI belongs to.
 	if !diagnostics(ctx, v, pkg, reports) {
 		// If we don't have any list, parse, or type errors, run analyses.
@@ -117,7 +124,7 @@ func diagnostics(ctx context.Context, v View, pkg Package, reports map[span.URI]
 		diags = listErrors
 	}
 	for _, diag := range diags {
-		spn := span.Parse(diag.Pos)
+		spn := packageErrorSpan(diag)
 		if spn.IsPoint() && diag.Kind == packages.TypeError {
 			spn = pointToSpan(ctx, v, spn)
 		}
@@ -159,6 +166,29 @@ func analyses(ctx context.Context, v View, pkg Package, reports map[span.URI][]D
 		return err
 	}
 	return nil
+}
+
+// parseDiagnosticMessage attempts to parse a standard error message by stripping off the trailing error message.
+// Works only on errors where the message is prefixed by ": ".
+// e.g.:
+//   attributes.go:13:1: expected 'package', found 'type'
+func parseDiagnosticMessage(input string) span.Span {
+	input = strings.TrimSpace(input)
+
+	msgIndex := strings.Index(input, ": ")
+	if msgIndex < 0 {
+		return span.Parse(input)
+	}
+
+	return span.Parse(input[:msgIndex])
+}
+
+func packageErrorSpan(pkgErr packages.Error) span.Span {
+	if pkgErr.Pos == "" {
+		return parseDiagnosticMessage(pkgErr.Msg)
+	}
+
+	return span.Parse(pkgErr.Pos)
 }
 
 func pointToSpan(ctx context.Context, v View, spn span.Span) span.Span {
