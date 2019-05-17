@@ -37,7 +37,7 @@ func testCommandLine(t *testing.T, exporter packagestest.Exporter) {
 	r := &runner{
 		exporter: exporter,
 		data:     data,
-		app:      cmd.New(data.Exported.Config),
+		app:      cmd.New(data.Config.Dir, data.Exported.Config.Env),
 	}
 	tests.Run(t, r, data)
 }

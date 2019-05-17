@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync"
 
-	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
@@ -24,6 +23,9 @@ type session struct {
 	viewMu  sync.Mutex
 	views   []*view
 	viewMap map[span.URI]source.View
+
+	overlayMu sync.Mutex
+	overlays  map[span.URI][]byte
 }
 
 func (s *session) Shutdown(ctx context.Context) {
@@ -40,7 +42,7 @@ func (s *session) Cache() source.Cache {
 	return s.cache
 }
 
-func (s *session) NewView(name string, folder span.URI, config *packages.Config) source.View {
+func (s *session) NewView(name string, folder span.URI) source.View {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 	ctx := context.Background()
@@ -49,9 +51,7 @@ func (s *session) NewView(name string, folder span.URI, config *packages.Config)
 		session:        s,
 		baseCtx:        ctx,
 		backgroundCtx:  backgroundCtx,
-		builtinPkg:     builtinPkg(*config),
 		cancel:         cancel,
-		config:         *config,
 		name:           name,
 		folder:         folder,
 		filesByURI:     make(map[span.URI]viewFile),
@@ -64,9 +64,6 @@ func (s *session) NewView(name string, folder span.URI, config *packages.Config)
 			packages: make(map[string]*entry),
 		},
 		ignoredURIs: make(map[span.URI]struct{}),
-	}
-	for filename := range v.builtinPkg.Files {
-		v.ignoredURIs[span.NewURI(filename)] = struct{}{}
 	}
 	s.views = append(s.views, v)
 	// we always need to drop the view map
@@ -154,4 +151,27 @@ func (s *session) removeView(ctx context.Context, view *view) error {
 
 func (s *session) Logger() xlog.Logger {
 	return s.log
+}
+
+func (s *session) setOverlay(uri span.URI, content []byte) {
+	s.overlayMu.Lock()
+	defer s.overlayMu.Unlock()
+	//TODO: we also need to invalidate anything that depended on this "file"
+	if content == nil {
+		delete(s.overlays, uri)
+		return
+	}
+	s.overlays[uri] = content
+}
+
+func (s *session) buildOverlay() map[string][]byte {
+	s.overlayMu.Lock()
+	defer s.overlayMu.Unlock()
+	overlay := make(map[string][]byte)
+	for uri, content := range s.overlays {
+		if filename, err := uri.Filename(); err == nil {
+			overlay[filename] = content
+		}
+	}
+	return overlay
 }

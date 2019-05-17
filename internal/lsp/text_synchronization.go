@@ -69,7 +69,7 @@ func (s *Server) applyChanges(ctx context.Context, params *protocol.DidChangeTex
 	if err != nil {
 		return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "file not found")
 	}
-	fset := f.GetFileSet(ctx)
+	fset := f.FileSet()
 	filename, err := f.URI().Filename()
 	if err != nil {
 		return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "no filename for %s", uri)

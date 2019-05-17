@@ -55,7 +55,7 @@ func getSourceFile(ctx context.Context, v source.View, uri span.URI) (source.Fil
 	if err != nil {
 		return nil, nil, err
 	}
-	m := protocol.NewColumnMapper(f.URI(), filename, f.GetFileSet(ctx), f.GetToken(ctx), f.GetContent(ctx))
+	m := protocol.NewColumnMapper(f.URI(), filename, f.FileSet(), f.GetToken(ctx), f.GetContent(ctx))
 
 	return f, m, nil
 }

@@ -189,7 +189,7 @@ func (c *completer) setSurrounding(ident *ast.Ident) {
 
 	c.surrounding = &Selection{
 		Content: ident.Name,
-		Range:   span.NewRange(c.view.FileSet(), ident.Pos(), ident.End()),
+		Range:   span.NewRange(c.view.Session().Cache().FileSet(), ident.Pos(), ident.End()),
 		Cursor:  c.pos,
 	}
 }

@@ -37,7 +37,7 @@ func Format(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) {
 	// of Go used to build the LSP server will determine how it formats code.
 	// This should be acceptable for all users, who likely be prompted to rebuild
 	// the LSP server on each Go release.
-	fset := f.GetFileSet(ctx)
+	fset := f.FileSet()
 	buf := &bytes.Buffer{}
 	if err := format.Node(buf, fset, node); err != nil {
 		return nil, err

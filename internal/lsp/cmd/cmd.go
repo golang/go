@@ -11,8 +11,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"go/ast"
-	"go/parser"
 	"go/token"
 	"io/ioutil"
 	"log"
@@ -21,7 +19,6 @@ import (
 	"strings"
 	"sync"
 
-	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/cache"
@@ -44,11 +41,14 @@ type Application struct {
 	// TODO: Remove this when we stop allowing the serve verb by default.
 	Serve Serve
 
-	// An initial, common go/packages configuration
-	Config packages.Config
-
 	// The base cache to use for sessions from this application.
-	Cache source.Cache
+	cache source.Cache
+
+	// The working directory to run commands in.
+	wd string
+
+	// The environment variables to use.
+	env []string
 
 	// Support for remote lsp server
 	Remote string `flag:"remote" help:"*EXPERIMENTAL* - forward all commands to a remote lsp"`
@@ -58,12 +58,14 @@ type Application struct {
 }
 
 // Returns a new Application ready to run.
-func New(config *packages.Config) *Application {
-	app := &Application{
-		Cache: cache.New(),
+func New(wd string, env []string) *Application {
+	if wd == "" {
+		wd, _ = os.Getwd()
 	}
-	if config != nil {
-		app.Config = *config
+	app := &Application{
+		cache: cache.New(),
+		wd:    wd,
+		env:   env,
 	}
 	return app
 }
@@ -104,20 +106,6 @@ func (app *Application) Run(ctx context.Context, args ...string) error {
 		tool.Main(ctx, &app.Serve, args)
 		return nil
 	}
-	if app.Config.Dir == "" {
-		if wd, err := os.Getwd(); err == nil {
-			app.Config.Dir = wd
-		}
-	}
-	app.Config.Mode = packages.LoadSyntax
-	app.Config.Tests = true
-	if app.Config.Fset == nil {
-		app.Config.Fset = token.NewFileSet()
-	}
-	app.Config.Context = ctx
-	app.Config.ParseFile = func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
-		return parser.ParseFile(fset, filename, src, parser.AllErrors|parser.ParseComments)
-	}
 	command, args := args[0], args[1:]
 	for _, c := range app.commands() {
 		if c.Name() == command {
@@ -151,12 +139,12 @@ func (app *Application) connect(ctx context.Context) (*connection, error) {
 	switch app.Remote {
 	case "":
 		connection := newConnection(app)
-		connection.Server = lsp.NewClientServer(app.Cache, connection.Client)
+		connection.Server = lsp.NewClientServer(app.cache, connection.Client)
 		return connection, connection.initialize(ctx)
 	case "internal":
 		internalMu.Lock()
 		defer internalMu.Unlock()
-		if c := internalConnections[app.Config.Dir]; c != nil {
+		if c := internalConnections[app.wd]; c != nil {
 			return c, nil
 		}
 		connection := newConnection(app)
@@ -166,11 +154,11 @@ func (app *Application) connect(ctx context.Context) (*connection, error) {
 		var jc *jsonrpc2.Conn
 		jc, connection.Server, _ = protocol.NewClient(jsonrpc2.NewHeaderStream(cr, cw), connection.Client)
 		go jc.Run(ctx)
-		go lsp.NewServer(app.Cache, jsonrpc2.NewHeaderStream(sr, sw)).Run(ctx)
+		go lsp.NewServer(app.cache, jsonrpc2.NewHeaderStream(sr, sw)).Run(ctx)
 		if err := connection.initialize(ctx); err != nil {
 			return nil, err
 		}
-		internalConnections[app.Config.Dir] = connection
+		internalConnections[app.wd] = connection
 		return connection, nil
 	default:
 		connection := newConnection(app)
@@ -188,7 +176,7 @@ func (app *Application) connect(ctx context.Context) (*connection, error) {
 
 func (c *connection) initialize(ctx context.Context) error {
 	params := &protocol.InitializeParams{}
-	params.RootURI = string(span.FileURI(c.Client.app.Config.Dir))
+	params.RootURI = string(span.FileURI(c.Client.app.wd))
 	params.Capabilities.Workspace.Configuration = true
 	params.Capabilities.TextDocument.Hover.ContentFormat = []protocol.MarkupKind{protocol.PlainText}
 	if _, err := c.Server.Initialize(ctx, params); err != nil {
@@ -283,7 +271,7 @@ func (c *cmdClient) Configuration(ctx context.Context, p *protocol.Configuration
 			continue
 		}
 		env := map[string]interface{}{}
-		for _, value := range c.app.Config.Env {
+		for _, value := range c.app.env {
 			l := strings.SplitN(value, "=", 2)
 			if len(l) != 2 {
 				continue

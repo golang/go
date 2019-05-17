@@ -36,13 +36,18 @@ type runner struct {
 const viewName = "lsp_test"
 
 func testLSP(t *testing.T, exporter packagestest.Exporter) {
+	ctx := context.Background()
 	data := tests.Load(t, exporter, "testdata")
 	defer data.Exported.Cleanup()
 
 	log := xlog.New(xlog.StdSink{})
 	cache := cache.New()
 	session := cache.NewSession(log)
-	session.NewView(viewName, span.FileURI(data.Config.Dir), &data.Config)
+	view := session.NewView(viewName, span.FileURI(data.Config.Dir))
+	view.SetEnv(data.Config.Env)
+	for filename, content := range data.Config.Overlay {
+		view.SetContent(ctx, span.FileURI(filename), content)
+	}
 	r := &runner{
 		server: &Server{
 			session:     session,

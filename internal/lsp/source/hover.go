@@ -29,7 +29,7 @@ func (i *IdentifierInfo) Hover(ctx context.Context, qf types.Qualifier, markdown
 		if !wantComments {
 			c = nil
 		}
-		return writeHover(x, i.File.GetFileSet(ctx), &b, c, markdownSupported, qf)
+		return writeHover(x, i.File.FileSet(), &b, c, markdownSupported, qf)
 	}
 	obj := i.Declaration.Object
 	switch node := i.Declaration.Node.(type) {

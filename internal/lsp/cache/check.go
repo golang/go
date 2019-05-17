@@ -10,6 +10,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/scanner"
+	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
@@ -49,6 +50,7 @@ func (v *view) parse(ctx context.Context, file source.File) ([]packages.Error, e
 		view: v,
 		seen: make(map[string]struct{}),
 		ctx:  ctx,
+		fset: f.FileSet(),
 	}
 	// Start prefetching direct imports.
 	for importPath := range f.meta.children {
@@ -69,12 +71,11 @@ func (v *view) parse(ctx context.Context, file source.File) ([]packages.Error, e
 
 func (v *view) checkMetadata(ctx context.Context, f *goFile) ([]packages.Error, error) {
 	if v.reparseImports(ctx, f, f.filename()) {
-		cfg := v.config
-		cfg.Mode = packages.LoadImports | packages.NeedTypesSizes
-		pkgs, err := packages.Load(&cfg, fmt.Sprintf("file=%s", f.filename()))
+		cfg := v.buildConfig()
+		pkgs, err := packages.Load(cfg, fmt.Sprintf("file=%s", f.filename()))
 		if len(pkgs) == 0 {
 			if err == nil {
-				err = fmt.Errorf("no packages found for %s", f.filename())
+				err = fmt.Errorf("%s: no packages found", f.filename())
 			}
 			// Return this error as a diagnostic to the user.
 			return []packages.Error{
@@ -104,7 +105,7 @@ func (v *view) reparseImports(ctx context.Context, f *goFile, filename string) b
 	}
 	// Get file content in case we don't already have it?
 	f.read(ctx)
-	parsed, _ := parser.ParseFile(v.config.Fset, filename, f.content, parser.ImportsOnly)
+	parsed, _ := parser.ParseFile(f.FileSet(), filename, f.content, parser.ImportsOnly)
 	if parsed == nil {
 		return true
 	}
@@ -173,7 +174,8 @@ type importer struct {
 	// If we have seen a package that is already in this map, we have a circular import.
 	seen map[string]struct{}
 
-	ctx context.Context
+	ctx  context.Context
+	fset *token.FileSet
 }
 
 func (imp *importer) Import(pkgPath string) (*types.Package, error) {
@@ -255,9 +257,10 @@ func (imp *importer) typeCheck(pkgPath string) (*pkg, error) {
 			view: imp.view,
 			seen: seen,
 			ctx:  imp.ctx,
+			fset: imp.fset,
 		},
 	}
-	check := types.NewChecker(cfg, imp.view.config.Fset, pkg.types, pkg.typesInfo)
+	check := types.NewChecker(cfg, imp.fset, pkg.types, pkg.typesInfo)
 	check.Files(pkg.syntax)
 
 	// Add every file in this package to our cache.
@@ -273,7 +276,7 @@ func (v *view) cachePackage(ctx context.Context, pkg *pkg, meta *metadata) {
 			v.Session().Logger().Errorf(ctx, "invalid position for file %v", file.Name)
 			continue
 		}
-		tok := v.config.Fset.File(file.Pos())
+		tok := v.Session().Cache().FileSet().File(file.Pos())
 		if tok == nil {
 			v.Session().Logger().Errorf(ctx, "no token.File for %v", file.Name)
 			continue
@@ -341,7 +344,7 @@ func (v *view) appendPkgError(pkg *pkg, err error) {
 		}
 	case types.Error:
 		errs = append(errs, packages.Error{
-			Pos:  v.config.Fset.Position(err.Pos).String(),
+			Pos:  v.Session().Cache().FileSet().Position(err.Pos).String(),
 			Msg:  err.Msg,
 			Kind: packages.TypeError,
 		})

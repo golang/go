@@ -28,6 +28,9 @@ import (
 type Cache interface {
 	// NewSession creates a new Session manager and returns it.
 	NewSession(log xlog.Logger) Session
+
+	// FileSet returns the shared fileset used by all files in the system.
+	FileSet() *token.FileSet
 }
 
 // Session represents a single connection from a client.
@@ -36,7 +39,7 @@ type Cache interface {
 // A session may have many active views at any given time.
 type Session interface {
 	// NewView creates a new View and returns it.
-	NewView(name string, folder span.URI, config *packages.Config) View
+	NewView(name string, folder span.URI) View
 
 	// Cache returns the cache that created this session.
 	Cache() Cache
@@ -44,10 +47,16 @@ type Session interface {
 	// Returns the logger in use for this session.
 	Logger() xlog.Logger
 
+	// View returns a view with a mathing name, if the session has one.
 	View(name string) View
+
+	// ViewOf returns a view corresponding to the given URI.
 	ViewOf(uri span.URI) View
+
+	// Views returns the set of active views built by this session.
 	Views() []View
 
+	// Shutdown the session and all views it has created.
 	Shutdown(ctx context.Context)
 }
 
@@ -57,16 +66,36 @@ type Session interface {
 type View interface {
 	// Session returns the session that created this view.
 	Session() Session
+
+	// Name returns the name this view was constructed with.
 	Name() string
+
+	// Folder returns the root folder for this view.
 	Folder() span.URI
-	FileSet() *token.FileSet
+
+	// BuiltinPackage returns the ast for the special "builtin" package.
 	BuiltinPackage() *ast.Package
+
+	// GetFile returns the file object for a given uri.
 	GetFile(ctx context.Context, uri span.URI) (File, error)
+
+	// Called to set the effective contents of a file from this view.
 	SetContent(ctx context.Context, uri span.URI, content []byte) error
+
+	// BackgroundContext returns a context used for all background processing
+	// on behalf of this view.
 	BackgroundContext() context.Context
-	Config() packages.Config
+
+	// Env returns the current set of environment overrides on this view.
+	Env() []string
+
+	// SetEnv is used to adjust the environment applied to the view.
 	SetEnv([]string)
+
+	// Shutdown closes this view, and detaches it from it's session.
 	Shutdown(ctx context.Context)
+
+	// Ignore returns true if this file should be ignored by this view.
 	Ignore(span.URI) bool
 }
 
@@ -75,7 +104,7 @@ type File interface {
 	URI() span.URI
 	View() View
 	GetContent(ctx context.Context) []byte
-	GetFileSet(ctx context.Context) *token.FileSet
+	FileSet() *token.FileSet
 	GetToken(ctx context.Context) *token.File
 }
 

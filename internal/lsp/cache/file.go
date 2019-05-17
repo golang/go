@@ -80,8 +80,8 @@ func (f *fileBase) GetContent(ctx context.Context) []byte {
 	return f.content
 }
 
-func (f *fileBase) GetFileSet(ctx context.Context) *token.FileSet {
-	return f.view.config.Fset
+func (f *fileBase) FileSet() *token.FileSet {
+	return f.view.Session().Cache().FileSet()
 }
 
 func (f *goFile) GetToken(ctx context.Context) *token.File {
@@ -144,7 +144,9 @@ func (f *fileBase) read(ctx context.Context) {
 		}
 	}
 	// We might have the content saved in an overlay.
-	if content, ok := f.view.config.Overlay[f.filename()]; ok {
+	f.view.session.overlayMu.Lock()
+	defer f.view.session.overlayMu.Unlock()
+	if content, ok := f.view.session.overlays[f.URI()]; ok {
 		f.content = content
 		return
 	}

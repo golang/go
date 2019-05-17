@@ -42,7 +42,7 @@ func analyze(ctx context.Context, v View, pkgs []Package, analyzers []*analysis.
 	}
 
 	// Execute the graph in parallel.
-	if err := execAll(ctx, v.FileSet(), roots); err != nil {
+	if err := execAll(ctx, v.Session().Cache().FileSet(), roots); err != nil {
 		return nil, err
 	}
 	return roots, nil

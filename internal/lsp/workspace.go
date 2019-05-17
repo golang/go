@@ -7,12 +7,7 @@ package lsp
 import (
 	"context"
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
-	"os"
 
-	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
 )
@@ -36,25 +31,6 @@ func (s *Server) changeFolders(ctx context.Context, event protocol.WorkspaceFold
 }
 
 func (s *Server) addView(ctx context.Context, name string, uri span.URI) error {
-	// We need a "detached" context so it does not get timeout cancelled.
-	// TODO(iancottrell): Do we need to copy any values across?
-	viewContext := context.Background()
-	folderPath, err := uri.Filename()
-	if err != nil {
-		return err
-	}
-	s.session.NewView(name, uri, &packages.Config{
-		Context: viewContext,
-		Dir:     folderPath,
-		Env:     os.Environ(),
-		Mode:    packages.LoadImports,
-		Fset:    token.NewFileSet(),
-		Overlay: make(map[string][]byte),
-		ParseFile: func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
-			return parser.ParseFile(fset, filename, src, parser.AllErrors|parser.ParseComments)
-		},
-		Tests: true,
-	})
-
+	s.session.NewView(name, uri)
 	return nil
 }

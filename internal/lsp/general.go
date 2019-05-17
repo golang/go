@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"strings"
 
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -161,9 +160,11 @@ func (s *Server) processConfig(view source.View, config interface{}) error {
 		if !ok {
 			return fmt.Errorf("invalid config gopls.env type %T", env)
 		}
+		env := view.Env()
 		for k, v := range menv {
-			view.SetEnv(applyEnv(view.Config().Env, k, v))
+			env = append(env, fmt.Sprintf("%s=%s", k, v))
 		}
+		view.SetEnv(env)
 	}
 	// Check if placeholders are enabled.
 	if usePlaceholders, ok := c["usePlaceholders"].(bool); ok {
@@ -174,18 +175,6 @@ func (s *Server) processConfig(view source.View, config interface{}) error {
 		s.noDocsOnHover = noDocsOnHover
 	}
 	return nil
-}
-
-func applyEnv(env []string, k string, v interface{}) []string {
-	prefix := k + "="
-	value := prefix + fmt.Sprint(v)
-	for i, s := range env {
-		if strings.HasPrefix(s, prefix) {
-			env[i] = value
-			return env
-		}
-	}
-	return append(env, value)
 }
 
 func (s *Server) shutdown(ctx context.Context) error {

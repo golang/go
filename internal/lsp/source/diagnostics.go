@@ -141,7 +141,7 @@ func diagnostics(ctx context.Context, v View, pkg Package, reports map[span.URI]
 func analyses(ctx context.Context, v View, pkg Package, reports map[span.URI][]Diagnostic) error {
 	// Type checking and parsing succeeded. Run analyses.
 	if err := runAnalyses(ctx, v, pkg, func(a *analysis.Analyzer, diag analysis.Diagnostic) error {
-		r := span.NewRange(v.FileSet(), diag.Pos, 0)
+		r := span.NewRange(v.Session().Cache().FileSet(), diag.Pos, 0)
 		s, err := r.Span()
 		if err != nil {
 			// The diagnostic has an invalid position, so we don't have a valid span.
@@ -209,7 +209,7 @@ func pointToSpan(ctx context.Context, v View, spn span.Span) span.Span {
 		v.Session().Logger().Errorf(ctx, "Could not find content for diagnostic: %v", spn.URI())
 		return spn
 	}
-	c := span.NewTokenConverter(diagFile.GetFileSet(ctx), tok)
+	c := span.NewTokenConverter(diagFile.FileSet(), tok)
 	s, err := spn.WithOffset(c)
 	//we just don't bother producing an error if this failed
 	if err != nil {
