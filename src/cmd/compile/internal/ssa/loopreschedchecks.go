@@ -452,6 +452,16 @@ func findLastMems(f *Func) []*Value {
 	return lastMems
 }
 
+// mark values
+type markKind uint8
+
+const (
+	notFound    markKind = iota // block has not been discovered yet
+	notExplored                 // discovered and in queue, outedges not processed yet
+	explored                    // discovered and in queue, outedges processed
+	done                        // all done, in output ordering
+)
+
 type backedgesState struct {
 	b *Block
 	i int
