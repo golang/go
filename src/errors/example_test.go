@@ -36,11 +36,12 @@ func Example() {
 }
 
 func ExampleAs() {
-	_, err := os.Open("non-existing")
-	if err != nil {
+	if _, err := os.Open("non-existing"); err != nil {
 		var pathError *os.PathError
 		if errors.As(err, &pathError) {
 			fmt.Println("Failed at path:", pathError.Path)
+		} else {
+			fmt.Println(err)
 		}
 	}
 
