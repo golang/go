@@ -372,7 +372,9 @@ func testVerifyHostnameResumed(t *testing.T, version uint16) {
 		ClientSessionCache: NewLRUClientSessionCache(32),
 	}
 	for i := 0; i < 2; i++ {
-		c, err := Dial("tcp", "mail.google.com:https", config)
+		c, err := DialWithDialer(&net.Dialer{
+			Timeout: 10 * time.Second,
+		}, "tcp", "mail.google.com:https", config)
 		if err != nil {
 			t.Fatalf("Dial #%d: %v", i, err)
 		}
@@ -389,12 +391,13 @@ func testVerifyHostnameResumed(t *testing.T, version uint16) {
 		if err := c.VerifyHostname("mail.google.com"); err != nil {
 			t.Fatalf("verify mail.google.com #%d: %v", i, err)
 		}
-		// Give the client a chance to read the server session tickets.
-		c.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+		// Have the server send some data so session tickets are delivered.
+		c.SetDeadline(time.Now().Add(5 * time.Second))
+		if _, err := io.WriteString(c, "HEAD / HTTP/1.0\n\n"); err != nil {
+			t.Fatal(err)
+		}
 		if _, err := c.Read(make([]byte, 1)); err != nil {
-			if err, ok := err.(net.Error); !ok || !err.Timeout() {
-				t.Fatal(err)
-			}
+			t.Fatal(err)
 		}
 		c.Close()
 	}
