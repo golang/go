@@ -64,6 +64,9 @@ func (fd *FD) Writev(v *[][]byte) (int64, error) {
 		TestHookDidWritev(int(wrote))
 		n += int64(wrote)
 		consume(v, int64(wrote))
+		for i := range iovecs {
+			iovecs[i] = syscall.Iovec{}
+		}
 		if err != nil {
 			if err.(syscall.Errno) == syscall.EAGAIN {
 				if err = fd.pd.waitWrite(fd.isFile); err == nil {
