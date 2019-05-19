@@ -332,10 +332,91 @@ const (
 )
 
 const (
-	PTRACE_TRACEME = 0x0
-	PTRACE_CONT    = 0x7
-	PTRACE_KILL    = 0x8
+	PTRACE_ATTACH     = 0xa
+	PTRACE_CONT       = 0x7
+	PTRACE_DETACH     = 0xb
+	PTRACE_GETFPREGS  = 0x23
+	PTRACE_GETFSBASE  = 0x47
+	PTRACE_GETLWPLIST = 0xf
+	PTRACE_GETNUMLWPS = 0xe
+	PTRACE_GETREGS    = 0x21
+	PTRACE_GETXSTATE  = 0x45
+	PTRACE_IO         = 0xc
+	PTRACE_KILL       = 0x8
+	PTRACE_LWPEVENTS  = 0x18
+	PTRACE_LWPINFO    = 0xd
+	PTRACE_SETFPREGS  = 0x24
+	PTRACE_SETREGS    = 0x22
+	PTRACE_SINGLESTEP = 0x9
+	PTRACE_TRACEME    = 0x0
 )
+
+const (
+	PIOD_READ_D  = 0x1
+	PIOD_WRITE_D = 0x2
+	PIOD_READ_I  = 0x3
+	PIOD_WRITE_I = 0x4
+)
+
+const (
+	PL_FLAG_BORN   = 0x100
+	PL_FLAG_EXITED = 0x200
+	PL_FLAG_SI     = 0x20
+)
+
+const (
+	TRAP_BRKPT = 0x1
+	TRAP_TRACE = 0x2
+)
+
+type PtraceLwpInfoStruct struct {
+	Lwpid        int32
+	Event        int32
+	Flags        int32
+	Sigmask      Sigset_t
+	Siglist      Sigset_t
+	Siginfo      __Siginfo
+	Tdname       [20]int8
+	Child_pid    int32
+	Syscall_code uint32
+	Syscall_narg uint32
+}
+
+type __Siginfo struct {
+	Signo    int32
+	Errno    int32
+	Code     int32
+	Pid      int32
+	Uid      uint32
+	Status   int32
+	Addr     *byte
+	Value    [4]byte
+	X_reason [32]byte
+}
+
+type Sigset_t struct {
+	X__bits [4]uint32
+}
+
+type Reg struct {
+	R      [13]uint32
+	R_sp   uint32
+	R_lr   uint32
+	R_pc   uint32
+	R_cpsr uint32
+}
+
+type FpReg struct {
+	Fpr_fpsr uint32
+	Fpr      [8][3]uint32
+}
+
+type PtraceIoDesc struct {
+	Op   int32
+	Offs *byte
+	Addr *byte
+	Len  uint32
+}
 
 type Kevent_t struct {
 	Ident  uint32
