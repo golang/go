@@ -18,6 +18,8 @@ type iface interface {
 	m()
 }
 
+func two() (error, interface{}) { return nil, nil }
+
 func _() {
 	var (
 		e  error
@@ -37,4 +39,5 @@ func _() {
 	errors.As(nil, m)   // want `second argument to errors.As must be a pointer to an interface or a type implementing error`
 	errors.As(nil, f)   // want `second argument to errors.As must be a pointer to an interface or a type implementing error`
 	errors.As(nil, &i)  // want `second argument to errors.As must be a pointer to an interface or a type implementing error`
+	errors.As(two())
 }
