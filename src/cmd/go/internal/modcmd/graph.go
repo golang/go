@@ -8,6 +8,7 @@ package modcmd
 
 import (
 	"bufio"
+	"cmd/go/internal/cfg"
 	"os"
 	"sort"
 
@@ -32,6 +33,14 @@ path@version, except for the main module, which has no @version suffix.
 func runGraph(cmd *base.Command, args []string) {
 	if len(args) > 0 {
 		base.Fatalf("go mod graph: graph takes no arguments")
+	}
+	// Checks go mod expected behavior
+	if !modload.Enabled() {
+		if cfg.Getenv("GO111MODULE") == "off" {
+			base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
+		} else {
+			base.Fatalf("go: cannot find main module; see 'go help modules'")
+		}
 	}
 	modload.LoadBuildList()
 
