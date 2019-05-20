@@ -428,7 +428,7 @@ var passes = [...]pass{
 	{name: "gcse deadcode", fn: deadcode, required: true}, // clean out after cse and phiopt
 	{name: "nilcheckelim", fn: nilcheckelim},
 	{name: "prove", fn: prove},
-	{name: "fuse plain", fn: fusePlain},
+	{name: "early fuse", fn: fuseEarly},
 	{name: "decompose builtin", fn: decomposeBuiltIn, required: true},
 	{name: "softfloat", fn: softfloat, required: true},
 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
@@ -436,7 +436,7 @@ var passes = [...]pass{
 	{name: "generic deadcode", fn: deadcode, required: true}, // remove dead stores, which otherwise mess up store chain
 	{name: "check bce", fn: checkbce},
 	{name: "branchelim", fn: branchelim},
-	{name: "fuse", fn: fuseAll},
+	{name: "late fuse", fn: fuseLate},
 	{name: "dse", fn: dse},
 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
 	{name: "insert resched checks", fn: insertLoopReschedChecks,
@@ -491,7 +491,7 @@ var passOrder = [...]constraint{
 	// allow deadcode to clean up after nilcheckelim
 	{"nilcheckelim", "generic deadcode"},
 	// nilcheckelim generates sequences of plain basic blocks
-	{"nilcheckelim", "fuse"},
+	{"nilcheckelim", "late fuse"},
 	// nilcheckelim relies on opt to rewrite user nil checks
 	{"opt", "nilcheckelim"},
 	// tighten will be most effective when as many values have been removed as possible
