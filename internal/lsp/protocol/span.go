@@ -23,14 +23,13 @@ func NewURI(uri span.URI) string {
 	return string(uri)
 }
 
-func NewColumnMapper(uri span.URI, fn string, fset *token.FileSet, f *token.File, content []byte) *ColumnMapper {
+func NewColumnMapper(uri span.URI, filename string, fset *token.FileSet, f *token.File, content []byte) *ColumnMapper {
 	var converter *span.TokenConverter
 	if f == nil {
-		converter = span.NewContentConverter(fn, content)
+		converter = span.NewContentConverter(filename, content)
 	} else {
 		converter = span.NewTokenConverter(fset, f)
 	}
-
 	return &ColumnMapper{
 		URI:       uri,
 		Converter: converter,

@@ -88,10 +88,6 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 	}
 	// Updates to the diagnostics for this package may need to be propagated.
 	for _, f := range gof.GetActiveReverseDeps(ctx) {
-		if f == nil {
-			v.Session().Logger().Errorf(ctx, "nil file in reverse active dependencies for %s", f.URI())
-			continue
-		}
 		pkg := f.GetPackage(ctx)
 		if pkg == nil {
 			continue
