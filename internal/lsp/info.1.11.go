@@ -12,5 +12,5 @@ import (
 )
 
 func printBuildInfo(w io.Writer, verbose bool) {
-	fmt.Fprintf(w, "no module information, gopls not build with go 1.11 or earlier\n")
+	fmt.Fprintf(w, "no module information, gopls not built with go 1.11 or earlier\n")
 }

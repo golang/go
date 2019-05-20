@@ -89,6 +89,7 @@ func (f *goFile) GetToken(ctx context.Context) *token.File {
 	defer f.view.mu.Unlock()
 	if f.token == nil || len(f.view.contentChanges) > 0 {
 		if _, err := f.view.parse(ctx, f); err != nil {
+			f.View().Session().Logger().Errorf(ctx, "unable to check package for %s: %v", f.URI(), err)
 			return nil
 		}
 	}
@@ -101,6 +102,7 @@ func (f *goFile) GetAST(ctx context.Context) *ast.File {
 
 	if f.ast == nil || len(f.view.contentChanges) > 0 {
 		if _, err := f.view.parse(ctx, f); err != nil {
+			f.View().Session().Logger().Errorf(ctx, "unable to check package for %s: %v", f.URI(), err)
 			return nil
 		}
 	}
@@ -113,6 +115,8 @@ func (f *goFile) GetPackage(ctx context.Context) source.Package {
 
 	if f.pkg == nil || len(f.view.contentChanges) > 0 {
 		if errs, err := f.view.parse(ctx, f); err != nil {
+			f.View().Session().Logger().Errorf(ctx, "unable to check package for %s: %v", f.URI(), err)
+
 			// Create diagnostics for errors if we are able to.
 			if len(errs) > 0 {
 				return &pkg{errors: errs}
