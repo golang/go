@@ -20,14 +20,13 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 	if err != nil {
 		return nil, err
 	}
-	// find the import block
-	ast := f.GetAST(ctx)
-	if ast == nil {
+	file := f.GetAST(ctx)
+	if file == nil {
 		return nil, fmt.Errorf("no AST for %v", uri)
 	}
-
+	// Add a Godoc link for each imported package.
 	var result []protocol.DocumentLink
-	for _, imp := range ast.Imports {
+	for _, imp := range file.Imports {
 		spn, err := span.NewRange(f.GetFileSet(ctx), imp.Pos(), imp.End()).Span()
 		if err != nil {
 			return nil, err

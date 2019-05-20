@@ -20,12 +20,15 @@ import (
 
 // Format formats a file with a given range.
 func Format(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) {
+	file := f.GetAST(ctx)
+	if file == nil {
+		return nil, fmt.Errorf("no AST for %s", f.URI())
+	}
 	pkg := f.GetPackage(ctx)
 	if hasParseErrors(pkg.GetErrors()) {
 		return nil, fmt.Errorf("%s has parse errors, not formatting", f.URI())
 	}
-	fAST := f.GetAST(ctx)
-	path, exact := astutil.PathEnclosingInterval(fAST, rng.Start, rng.End)
+	path, exact := astutil.PathEnclosingInterval(file, rng.Start, rng.End)
 	if !exact || len(path) == 0 {
 		return nil, fmt.Errorf("no exact AST node matching the specified range")
 	}
@@ -53,7 +56,11 @@ func hasParseErrors(errors []packages.Error) bool {
 
 // Imports formats a file using the goimports tool.
 func Imports(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) {
-	formatted, err := imports.Process(f.GetToken(ctx).Name(), f.GetContent(ctx), nil)
+	tok := f.GetToken(ctx)
+	if tok == nil {
+		return nil, fmt.Errorf("no token file for %s", f.URI())
+	}
+	formatted, err := imports.Process(tok.Name(), f.GetContent(ctx), nil)
 	if err != nil {
 		return nil, err
 	}

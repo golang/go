@@ -222,6 +222,9 @@ func (c *completer) found(obj types.Object, weight float64) {
 // may tolerate imperfect matches as valid completion results, since users may make typos.
 func Completion(ctx context.Context, f GoFile, pos token.Pos) ([]CompletionItem, *Selection, error) {
 	file := f.GetAST(ctx)
+	if file == nil {
+		return nil, nil, fmt.Errorf("no AST for %s", f.URI())
+	}
 	pkg := f.GetPackage(ctx)
 	if pkg == nil || pkg.IsIllTyped() {
 		return nil, nil, fmt.Errorf("package for %s is ill typed", f.URI())

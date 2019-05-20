@@ -53,19 +53,22 @@ func Identifier(ctx context.Context, v View, f GoFile, pos token.Pos) (*Identifi
 
 // identifier checks a single position for a potential identifier.
 func identifier(ctx context.Context, v View, f GoFile, pos token.Pos) (*IdentifierInfo, error) {
-	fAST := f.GetAST(ctx)
+	file := f.GetAST(ctx)
+	if file == nil {
+		return nil, fmt.Errorf("no AST for %s", f.URI())
+	}
 	pkg := f.GetPackage(ctx)
 	if pkg == nil || pkg.IsIllTyped() {
 		return nil, fmt.Errorf("package for %s is ill typed", f.URI())
 	}
 
-	path, _ := astutil.PathEnclosingInterval(fAST, pos, pos)
+	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
 	if path == nil {
 		return nil, fmt.Errorf("can't find node enclosing position")
 	}
 
 	// Handle import specs separately, as there is no formal position for a package declaration.
-	if result, err := importSpec(f, fAST, pkg, pos); result != nil || err != nil {
+	if result, err := importSpec(f, file, pkg, pos); result != nil || err != nil {
 		return result, err
 	}
 

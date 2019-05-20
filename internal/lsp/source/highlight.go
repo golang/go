@@ -14,9 +14,12 @@ import (
 )
 
 func Highlight(ctx context.Context, f GoFile, pos token.Pos) []span.Span {
-	fAST := f.GetAST(ctx)
+	file := f.GetAST(ctx)
+	if file == nil {
+		return nil
+	}
 	fset := f.GetFileSet(ctx)
-	path, _ := astutil.PathEnclosingInterval(fAST, pos, pos)
+	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
 	if len(path) == 0 {
 		return nil
 	}
