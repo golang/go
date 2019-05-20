@@ -42,9 +42,6 @@ type Options struct {
 
 // Process implements golang.org/x/tools/imports.Process with explicit context in env.
 func Process(filename string, src []byte, opt *Options) ([]byte, error) {
-	if opt == nil {
-		opt = &Options{Comments: true, TabIndent: true, TabWidth: 8}
-	}
 	if src == nil {
 		b, err := ioutil.ReadFile(filename)
 		if err != nil {

@@ -35,6 +35,9 @@ var LocalPrefix string
 // so it is important that filename be accurate.
 // To process data ``as if'' it were in filename, pass the data as a non-nil src.
 func Process(filename string, src []byte, opt *Options) ([]byte, error) {
+	if opt == nil {
+		opt = &Options{Comments: true, TabIndent: true, TabWidth: 8}
+	}
 	intopt := &intimp.Options{
 		Env: &intimp.ProcessEnv{
 			GOPATH:      build.Default.GOPATH,
