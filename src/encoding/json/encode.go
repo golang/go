@@ -171,6 +171,22 @@ func Marshal(v interface{}) ([]byte, error) {
 	return buf, nil
 }
 
+//todo
+func MarshalFilterStruct(v interface{}, filterFunc FilterFunc) ([]byte, error) {
+	e := newEncodeState()
+
+	err := e.marshal(v, encOpts{escapeHTML: true, filterFunc: filterFunc})
+	if err != nil {
+		return nil, err
+	}
+	buf := append([]byte(nil), e.Bytes()...)
+
+	e.Reset()
+	encodeStatePool.Put(e)
+
+	return buf, nil
+}
+
 // MarshalIndent is like Marshal but applies Indent to format the output.
 // Each JSON element in the output will begin on a new line beginning with prefix
 // followed by one or more copies of indent according to the indentation nesting.
@@ -349,7 +365,11 @@ type encOpts struct {
 	quoted bool
 	// escapeHTML causes '<', '>', and '&' to be escaped in JSON strings.
 	escapeHTML bool
+	// filter structure
+	filterFunc FilterFunc
 }
+
+type FilterFunc func(fv interface{}) bool
 
 type encoderFunc func(e *encodeState, v reflect.Value, opts encOpts)
 
@@ -660,6 +680,13 @@ FieldLoop:
 		if f.omitEmpty && isEmptyValue(fv) {
 			continue
 		}
+
+		if f.omitEmpty && fv.Kind() == reflect.Struct {
+			if opts.filterFunc != nil && opts.filterFunc(fv.Interface()) == true {
+				continue
+			}
+		}
+
 		e.WriteByte(next)
 		next = ','
 		if opts.escapeHTML {
