@@ -112,8 +112,8 @@ FF53oIpvxe/SCOymfWq/LW849Ytv3Xwod0+wzAP8STXG4HSELS4UedPYeHJJJYcZ
 -----END PUBLIC KEY-----
 `
 
-var pemPrivateKey = `
------BEGIN RSA PRIVATE KEY-----
+var pemPrivateKey = testingKey(`
+-----BEGIN RSA TESTING KEY-----
 MIICXAIBAAKBgQCxoeCUW5KJxNPxMp+KmCxKLc1Zv9Ny+4CFqcUXVUYH69L3mQ7v
 IWrJ9GBfcaA7BPQqUlWxWM+OCEQZH1EZNIuqRMNQVuIGCbz5UQ8w6tS0gcgdeGX7
 J7jgCQ4RK3F/PuCM38QBLaHx988qG8NMc6VKErBjctCXFHQt14lerd5KpQIDAQAB
@@ -127,8 +127,8 @@ MTXIvf7Wmv6E++eFcnT461FlGAUHRV+bQQXGsItR/opIG7mGogIkVXa3E1MCQARX
 AAA7eoZ9AEHflUeuLn9QJI/r0hyQQLEtrpwv6rDT1GCWaLII5HJ6NUFVf4TTcqxo
 6vdM4QGKTJoO+SaCyP0CQFdpcxSAuzpFcKv0IlJ8XzS/cy+mweCMwyJ1PFEc4FX6
 wg/HcAJWY60xZTJDFN+Qfx8ZQvBEin6c2/h+zZi5IVY=
------END RSA PRIVATE KEY-----
-`
+-----END RSA TESTING KEY-----
+`)
 
 // pemEd25519Key is the example from RFC 8410, Secrion 4.
 var pemEd25519Key = `
@@ -1245,8 +1245,8 @@ func TestParsePEMCRL(t *testing.T) {
 func TestImports(t *testing.T) {
 	testenv.MustHaveGoRun(t)
 
-	if err := exec.Command(testenv.GoToolPath(t), "run", "x509_test_import.go").Run(); err != nil {
-		t.Errorf("failed to run x509_test_import.go: %s", err)
+	if out, err := exec.Command(testenv.GoToolPath(t), "run", "x509_test_import.go").CombinedOutput(); err != nil {
+		t.Errorf("failed to run x509_test_import.go: %s\n%s", err, out)
 	}
 }
 
