@@ -103,12 +103,17 @@ func (v *view) reparseImports(ctx context.Context, f *goFile, filename string) b
 	if f.meta == nil {
 		return true
 	}
-	// Get file content in case we don't already have it?
+	// Get file content in case we don't already have it.
 	f.read(ctx)
 	parsed, _ := parser.ParseFile(f.FileSet(), filename, f.content, parser.ImportsOnly)
 	if parsed == nil {
 		return true
 	}
+	// If the package name has changed, re-run `go list`.
+	if f.meta.name != parsed.Name.Name {
+		return true
+	}
+	// If the package's imports have changed, re-run `go list`.
 	if len(f.imports) != len(parsed.Imports) {
 		return true
 	}
