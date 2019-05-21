@@ -262,10 +262,6 @@ func (s *Server) Resolve(context.Context, *protocol.CompletionItem) (*protocol.C
 	return nil, notImplemented("Resolve")
 }
 
-func (s *Server) SelectionRange(context.Context, *protocol.SelectionRangeParams) ([][]protocol.SelectionRange, error) {
-	return nil, notImplemented("SelectionRange")
-}
-
 func (s *Server) SetTraceNotification(context.Context, *protocol.SetTraceParams) error {
 	return notImplemented("SetTraceNotification")
 }

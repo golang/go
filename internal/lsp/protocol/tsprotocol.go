@@ -1,7 +1,7 @@
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
-// commit: 54f6caacea8aa0cf9f45527153d993010c1cc793
-// last fetched Fri Apr 05 2019 10:16:07 GMT-0400 (Eastern Daylight Time)
+// commit: c1e8923f8ea3b1f9c61dadf97448244d9ffbf7ae
+// last fetched Tue May 21 2019 07:36:27 GMT-0400 (Eastern Daylight Time)
 package protocol
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
@@ -153,43 +153,6 @@ type FoldingRangeParams struct {
 	 * The text document.
 	 */
 	TextDocument TextDocumentIdentifier `json:"textDocument"`
-}
-
-// SelectionRangeProviderOptions is
-type SelectionRangeProviderOptions struct {
-}
-
-/*SelectionRange defined:
- * Represents a selection range
- */
-type SelectionRange struct {
-
-	/*Range defined:
-	 * Range of the selection.
-	 */
-	Range Range `json:"range"`
-
-	/*Kind defined:
-	 * Describes the kind of the selection range such as `statemet' or 'declaration'. See
-	 * [SelectionRangeKind](#SelectionRangeKind) for an enumeration of standardized kinds.
-	 */
-	Kind string `json:"kind"`
-}
-
-/*SelectionRangeParams defined:
- * A parameter literal used in selection range requests.
- */
-type SelectionRangeParams struct {
-
-	/*TextDocument defined:
-	 * The text document.
-	 */
-	TextDocument TextDocumentIdentifier `json:"textDocument"`
-
-	/*Positions defined:
-	 * The positions inside the text document.
-	 */
-	Positions []Position `json:"positions"`
 }
 
 /*Registration defined:
@@ -711,6 +674,17 @@ type TextDocumentClientCapabilities struct {
 		 */
 		TagSupport bool `json:"tagSupport,omitempty"`
 	} `json:"publishDiagnostics,omitempty"`
+}
+
+/*WindowClientCapabilities defined:
+ * Window specific client capabilities.
+ */
+type WindowClientCapabilities struct {
+
+	/*Progress defined:
+	 * Whether client supports handling progress notifications.
+	 */
+	Progress bool `json:"progress,omitempty"`
 }
 
 // ClientCapabilities is
@@ -1267,20 +1241,12 @@ type ClientCapabilities struct {
 			 */
 			LinkSupport bool `json:"linkSupport,omitempty"`
 		} `json:"declaration,omitempty"`
-
-		/*SelectionRange defined:
-		 * Capabilities specific to `textDocument/selectionRange` requests
-		 */
-		SelectionRange struct {
-
-			/*DynamicRegistration defined:
-			 * Whether implementation supports dynamic registration for selection range providers. If this is set to `true`
-			 * the client supports the new `(SelectionRangeProviderOptions & TextDocumentRegistrationOptions & StaticRegistrationOptions)`
-			 * return value for the corresponding server capability as well.
-			 */
-			DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
-		} `json:"selectionRange,omitempty"`
 	} `json:"textDocument,omitempty"`
+
+	/*Window defined:
+	 * Window specific client capabilities.
+	 */
+	Window WindowClientCapabilities `json:"window,omitempty"`
 
 	/*Experimental defined:
 	 * Experimental client capabilities.
@@ -1445,28 +1411,32 @@ type SaveOptions struct {
 type TextDocumentSyncOptions struct {
 
 	/*OpenClose defined:
-	 * Open and close notifications are sent to the server.
+	 * Open and close notifications are sent to the server. If omitted open close notification should not
+	 * be sent.
 	 */
 	OpenClose bool `json:"openClose,omitempty"`
 
 	/*Change defined:
 	 * Change notifications are sent to the server. See TextDocumentSyncKind.None, TextDocumentSyncKind.Full
-	 * and TextDocumentSyncKind.Incremental.
+	 * and TextDocumentSyncKind.Incremental. If omitted it defaults to TextDocumentSyncKind.None.
 	 */
 	Change TextDocumentSyncKind `json:"change,omitempty"`
 
 	/*WillSave defined:
-	 * Will save notifications are sent to the server.
+	 * If present will save notifications are sent to the server. If omitted the notification should not be
+	 * sent.
 	 */
 	WillSave bool `json:"willSave,omitempty"`
 
 	/*WillSaveWaitUntil defined:
-	 * Will save wait until requests are sent to the server.
+	 * If present will save wait until requests are sent to the server. If omitted the request should not be
+	 * sent.
 	 */
 	WillSaveWaitUntil bool `json:"willSaveWaitUntil,omitempty"`
 
 	/*Save defined:
-	 * Save notifications are sent to the server.
+	 * If present save notifications are sent to the server. If omitted the notification should not be
+	 * sent.
 	 */
 	Save *SaveOptions `json:"save,omitempty"`
 }
@@ -1630,11 +1600,6 @@ type ServerCapabilities struct {
 	 * The server provides Goto Type Definition support.
 	 */
 	DeclarationProvider bool `json:"declarationProvider,omitempty"` // boolean | (TextDocumentRegistrationOptions & StaticRegistrationOptions)
-
-	/*SelectionRangeProvider defined:
-	 * The server provides selection range support.
-	 */
-	SelectionRangeProvider bool `json:"selectionRangeProvider,omitempty"` // boolean | SelectionRangeProviderOptions | (SelectionRangeProviderOptions & TextDocumentRegistrationOptions & StaticRegistrationOptions)
 }
 
 // InitializeParams is
@@ -3405,9 +3370,6 @@ type Tracer struct {
 // FoldingRangeKind defines constants
 type FoldingRangeKind string
 
-// SelectionRangeKind defines constants
-type SelectionRangeKind string
-
 // ResourceOperationKind defines constants
 type ResourceOperationKind string
 
@@ -3493,23 +3455,6 @@ const (
 	 * Folding range for a region (e.g. `#region`)
 	 */
 	Region FoldingRangeKind = "region"
-
-	/*Empty defined:
-	 * Empty Kind.
-	 */
-	Empty SelectionRangeKind = ""
-
-	/*Statement defined:
-	 * The statment kind, its value is `statement`, possible extensions can be
-	 * `statement.if` etc
-	 */
-	Statement SelectionRangeKind = "statement"
-
-	/*Declaration defined:
-	 * The declaration kind, its value is `declaration`, possible extensions can be
-	 * `declaration.function`, `declaration.class` etc.
-	 */
-	Declaration SelectionRangeKind = "declaration"
 
 	/*Create defined:
 	 * Supports creating new files and folders.
