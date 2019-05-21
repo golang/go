@@ -143,7 +143,7 @@ static Boolean isRootCertificate(SecCertificateRef cert, CFErrorRef *errRef) {
 	return equal;
 }
 
-// FetchPEMRoots fetches the system's list of trusted X.509 root certificates
+// CopyPEMRoots fetches the system's list of trusted X.509 root certificates
 // for the kSecTrustSettingsPolicy SSL.
 //
 // On success it returns 0 and fills pemRoots with a CFDataRef that contains the extracted root
@@ -152,15 +152,15 @@ static Boolean isRootCertificate(SecCertificateRef cert, CFErrorRef *errRef) {
 //
 // Note: The CFDataRef returned in pemRoots and untrustedPemRoots must
 // be released (using CFRelease) after we've consumed its content.
-int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots, bool debugDarwinRoots) {
+int CopyPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots, bool debugDarwinRoots) {
 	int i;
 
 	if (debugDarwinRoots) {
-		printf("crypto/x509: kSecTrustSettingsResultInvalid = %d\n", kSecTrustSettingsResultInvalid);
-		printf("crypto/x509: kSecTrustSettingsResultTrustRoot = %d\n", kSecTrustSettingsResultTrustRoot);
-		printf("crypto/x509: kSecTrustSettingsResultTrustAsRoot = %d\n", kSecTrustSettingsResultTrustAsRoot);
-		printf("crypto/x509: kSecTrustSettingsResultDeny = %d\n", kSecTrustSettingsResultDeny);
-		printf("crypto/x509: kSecTrustSettingsResultUnspecified = %d\n", kSecTrustSettingsResultUnspecified);
+		fprintf(stderr, "crypto/x509: kSecTrustSettingsResultInvalid = %d\n", kSecTrustSettingsResultInvalid);
+		fprintf(stderr, "crypto/x509: kSecTrustSettingsResultTrustRoot = %d\n", kSecTrustSettingsResultTrustRoot);
+		fprintf(stderr, "crypto/x509: kSecTrustSettingsResultTrustAsRoot = %d\n", kSecTrustSettingsResultTrustAsRoot);
+		fprintf(stderr, "crypto/x509: kSecTrustSettingsResultDeny = %d\n", kSecTrustSettingsResultDeny);
+		fprintf(stderr, "crypto/x509: kSecTrustSettingsResultUnspecified = %d\n", kSecTrustSettingsResultUnspecified);
 	}
 
 	// Get certificates from all domains, not just System, this lets
@@ -170,7 +170,7 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots, bool debugD
 		kSecTrustSettingsDomainAdmin, kSecTrustSettingsDomainUser };
 
 	int numDomains = sizeof(domains)/sizeof(SecTrustSettingsDomain);
-	if (pemRoots == NULL) {
+	if (pemRoots == NULL || untrustedPemRoots == NULL) {
 		return -1;
 	}
 
@@ -186,8 +186,6 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots, bool debugD
 
 		CFIndex numCerts = CFArrayGetCount(certs);
 		for (j = 0; j < numCerts; j++) {
-			CFDataRef data = NULL;
-			CFArrayRef trustSettings = NULL;
 			SecCertificateRef cert = (SecCertificateRef)CFArrayGetValueAtIndex(certs, j);
 			if (cert == NULL) {
 				continue;
@@ -206,7 +204,7 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots, bool debugD
 					CFErrorRef errRef = NULL;
 					CFStringRef summary = SecCertificateCopyShortDescription(NULL, cert, &errRef);
 					if (errRef != NULL) {
-						printf("crypto/x509: SecCertificateCopyShortDescription failed\n");
+						fprintf(stderr, "crypto/x509: SecCertificateCopyShortDescription failed\n");
 						CFRelease(errRef);
 						continue;
 					}
@@ -215,7 +213,7 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots, bool debugD
 					CFIndex maxSize = CFStringGetMaximumSizeForEncoding(length, kCFStringEncodingUTF8) + 1;
 					char *buffer = malloc(maxSize);
 					if (CFStringGetCString(summary, buffer, maxSize, kCFStringEncodingUTF8)) {
-						printf("crypto/x509: %s returned %d\n", buffer, (int)result);
+						fprintf(stderr, "crypto/x509: %s returned %d\n", buffer, (int)result);
 					}
 					free(buffer);
 					CFRelease(summary);
@@ -251,6 +249,7 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots, bool debugD
 				continue;
 			}
 
+			CFDataRef data = NULL;
 			err = SecItemExport(cert, kSecFormatX509Cert, kSecItemPemArmour, NULL, &data);
 			if (err != noErr) {
 				continue;
@@ -274,22 +273,22 @@ import (
 )
 
 func loadSystemRoots() (*CertPool, error) {
-	roots := NewCertPool()
-
-	var data C.CFDataRef = 0
-	var untrustedData C.CFDataRef = 0
-	err := C.FetchPEMRoots(&data, &untrustedData, C.bool(debugDarwinRoots))
+	var data, untrustedData C.CFDataRef
+	err := C.CopyPEMRoots(&data, &untrustedData, C.bool(debugDarwinRoots))
 	if err == -1 {
 		return nil, errors.New("crypto/x509: failed to load darwin system roots with cgo")
 	}
-
 	defer C.CFRelease(C.CFTypeRef(data))
+	defer C.CFRelease(C.CFTypeRef(untrustedData))
+
 	buf := C.GoBytes(unsafe.Pointer(C.CFDataGetBytePtr(data)), C.int(C.CFDataGetLength(data)))
+	roots := NewCertPool()
 	roots.AppendCertsFromPEM(buf)
-	if untrustedData == 0 {
+
+	if C.CFDataGetLength(untrustedData) == 0 {
 		return roots, nil
 	}
-	defer C.CFRelease(C.CFTypeRef(untrustedData))
+
 	buf = C.GoBytes(unsafe.Pointer(C.CFDataGetBytePtr(untrustedData)), C.int(C.CFDataGetLength(untrustedData)))
 	untrustedRoots := NewCertPool()
 	untrustedRoots.AppendCertsFromPEM(buf)
