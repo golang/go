@@ -524,6 +524,10 @@ func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap i
 		dstCap = arrayNoInts[:0:0]
 	}
 
+	if r == nil && len(b)+len(s) < re.minInputLen {
+		return nil
+	}
+
 	if re.onepass != nil {
 		return re.doOnePass(r, b, s, pos, ncap, dstCap)
 	}

@@ -11,4 +11,5 @@ var certFiles = []string{
 	"/etc/ssl/ca-bundle.pem",                            // OpenSUSE
 	"/etc/pki/tls/cacert.pem",                           // OpenELEC
 	"/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem", // CentOS/RHEL 7
+	"/etc/ssl/cert.pem",                                 // Alpine Linux
 }

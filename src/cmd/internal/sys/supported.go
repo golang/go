@@ -6,6 +6,9 @@ package sys
 
 // RaceDetectorSupported reports whether goos/goarch supports the race
 // detector. There is a copy of this function in cmd/dist/test.go.
+// Race detector only supports 48-bit VMA on arm64. But it will always
+// return true for arm64, because we don't have VMA size information during
+// the compile time.
 func RaceDetectorSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":
@@ -26,4 +29,17 @@ func MSanSupported(goos, goarch string) bool {
 	default:
 		return false
 	}
+}
+
+// MustLinkExternal reports whether goos/goarch requires external linking.
+func MustLinkExternal(goos, goarch string) bool {
+	switch goos {
+	case "android":
+		return true
+	case "darwin":
+		if goarch == "arm" || goarch == "arm64" {
+			return true
+		}
+	}
+	return false
 }

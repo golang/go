@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"bytes"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"os"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 )
@@ -131,6 +133,21 @@ func Compile(f *Func) {
 		if checkEnabled {
 			checkFunc(f)
 		}
+	}
+
+	if f.ruleMatches != nil {
+		var keys []string
+		for key := range f.ruleMatches {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		buf := new(bytes.Buffer)
+		fmt.Fprintf(buf, "%s: ", f.Name)
+		for _, key := range keys {
+			fmt.Fprintf(buf, "%s=%d ", key, f.ruleMatches[key])
+		}
+		fmt.Fprint(buf, "\n")
+		fmt.Print(buf.String())
 	}
 
 	// Squash error printing defer
@@ -386,7 +403,7 @@ var passes = [...]pass{
 	{name: "short circuit", fn: shortcircuit},
 	{name: "decompose args", fn: decomposeArgs, required: true},
 	{name: "decompose user", fn: decomposeUser, required: true},
-	{name: "opt", fn: opt, required: true},               // TODO: split required rules and optimizing rules
+	{name: "opt", fn: opt, required: true},               // NB: some generic rules know the name of the opt pass. TODO: split required rules and optimizing rules
 	{name: "zero arg cse", fn: zcse, required: true},     // required to merge OpSB values
 	{name: "opt deadcode", fn: deadcode, required: true}, // remove any blocks orphaned during opt
 	{name: "generic cse", fn: cse},
@@ -414,9 +431,9 @@ var passes = [...]pass{
 	{name: "late phielim", fn: phielim},
 	{name: "late copyelim", fn: copyelim},
 	{name: "tighten", fn: tighten}, // move values closer to their uses
-	{name: "phi tighten", fn: phiTighten},
 	{name: "late deadcode", fn: deadcode},
 	{name: "critical", fn: critical, required: true}, // remove critical edges
+	{name: "phi tighten", fn: phiTighten},            // place rematerializable phi args near uses to reduce value lifetimes
 	{name: "likelyadjust", fn: likelyadjust},
 	{name: "layout", fn: layout, required: true},     // schedule blocks
 	{name: "schedule", fn: schedule, required: true}, // schedule values
@@ -467,6 +484,8 @@ var passOrder = [...]constraint{
 	{"decompose builtin", "late opt"},
 	// decompose builtin is the last pass that may introduce new float ops, so run softfloat after it
 	{"decompose builtin", "softfloat"},
+	// remove critical edges before phi tighten, so that phi args get better placement
+	{"critical", "phi tighten"},
 	// don't layout blocks until critical edges have been removed
 	{"critical", "layout"},
 	// regalloc requires the removal of all critical edges

@@ -87,6 +87,7 @@ type Pass struct {
 	OtherFiles []string       // names of non-Go files of this package
 	Pkg        *types.Package // type information about the package
 	TypesInfo  *types.Info    // type information about the syntax trees
+	TypesSizes types.Sizes    // function for computing sizes of types
 
 	// Report reports a Diagnostic, a finding about a specific location
 	// in the analyzed source code such as a potential mistake.
@@ -127,8 +128,30 @@ type Pass struct {
 	// See comments for ExportObjectFact.
 	ExportPackageFact func(fact Fact)
 
+	// AllPackageFacts returns a new slice containing all package facts in unspecified order.
+	// WARNING: This is an experimental API and may change in the future.
+	AllPackageFacts func() []PackageFact
+
+	// AllObjectFacts returns a new slice containing all object facts in unspecified order.
+	// WARNING: This is an experimental API and may change in the future.
+	AllObjectFacts func() []ObjectFact
+
 	/* Further fields may be added in future. */
 	// For example, suggested or applied refactorings.
+}
+
+// PackageFact is a package together with an associated fact.
+// WARNING: This is an experimental API and may change in the future.
+type PackageFact struct {
+	Package *types.Package
+	Fact    Fact
+}
+
+// ObjectFact is an object together with an associated fact.
+// WARNING: This is an experimental API and may change in the future.
+type ObjectFact struct {
+	Object types.Object
+	Fact   Fact
 }
 
 // Reportf is a helper function that reports a Diagnostic using the

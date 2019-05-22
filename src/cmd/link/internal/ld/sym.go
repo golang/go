@@ -61,6 +61,7 @@ func linknew(arch *sys.Arch) *Link {
 }
 
 // computeTLSOffset records the thread-local storage offset.
+// Not used for Android where the TLS offset is determined at runtime.
 func (ctxt *Link) computeTLSOffset() {
 	switch ctxt.HeadType {
 	default:
@@ -80,21 +81,7 @@ func (ctxt *Link) computeTLSOffset() {
 		objabi.Hopenbsd,
 		objabi.Hdragonfly,
 		objabi.Hsolaris:
-		if objabi.GOOS == "android" {
-			switch ctxt.Arch.Family {
-			case sys.AMD64:
-				// Android/amd64 constant - offset from 0(FS) to our TLS slot.
-				// Explained in src/runtime/cgo/gcc_android_*.c
-				ctxt.Tlsoffset = 0x1d0
-			case sys.I386:
-				// Android/386 constant - offset from 0(GS) to our TLS slot.
-				ctxt.Tlsoffset = 0xf8
-			default:
-				ctxt.Tlsoffset = -1 * ctxt.Arch.PtrSize
-			}
-		} else {
-			ctxt.Tlsoffset = -1 * ctxt.Arch.PtrSize
-		}
+		ctxt.Tlsoffset = -1 * ctxt.Arch.PtrSize
 
 	case objabi.Hnacl:
 		switch ctxt.Arch.Family {

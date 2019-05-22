@@ -173,3 +173,12 @@ func TestEarlyLocation(t *testing.T) {
 		t.Errorf("Zone offset == %d, want %d", tzOffset, want)
 	}
 }
+
+func TestMalformedTZData(t *testing.T) {
+	// The goal here is just that malformed tzdata results in an error, not a panic.
+	issue29437 := "TZif\x00000000000000000\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x0000"
+	_, err := time.LoadLocationFromTZData("abc", []byte(issue29437))
+	if err == nil {
+		t.Error("expected error, got none")
+	}
+}

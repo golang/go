@@ -5,6 +5,7 @@
 package mvs
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -446,7 +447,7 @@ func (r reqsMap) Upgrade(m module.Version) (module.Version, error) {
 		}
 	}
 	if u.Path == "" {
-		return module.Version{}, &MissingModuleError{module.Version{Path: m.Path, Version: ""}}
+		return module.Version{}, fmt.Errorf("missing module: %v", module.Version{Path: m.Path})
 	}
 	return u, nil
 }
@@ -467,7 +468,7 @@ func (r reqsMap) Previous(m module.Version) (module.Version, error) {
 func (r reqsMap) Required(m module.Version) ([]module.Version, error) {
 	rr, ok := r[m]
 	if !ok {
-		return nil, &MissingModuleError{m}
+		return nil, fmt.Errorf("missing module: %v", m)
 	}
 	return rr, nil
 }

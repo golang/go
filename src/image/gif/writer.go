@@ -435,12 +435,15 @@ func Encode(w io.Writer, m image.Image, o *Options) error {
 
 	pm, ok := m.(*image.Paletted)
 	if !ok || len(pm.Palette) > opts.NumColors {
+		// Set pm to be a palettedized copy of m, including its bounds, which
+		// might not start at (0, 0).
+		//
 		// TODO: Pick a better sub-sample of the Plan 9 palette.
 		pm = image.NewPaletted(b, palette.Plan9[:opts.NumColors])
 		if opts.Quantizer != nil {
 			pm.Palette = opts.Quantizer.Quantize(make(color.Palette, 0, opts.NumColors), m)
 		}
-		opts.Drawer.Draw(pm, b, m, image.ZP)
+		opts.Drawer.Draw(pm, b, m, b.Min)
 	}
 
 	// When calling Encode instead of EncodeAll, the single-frame image is

@@ -783,6 +783,12 @@ func fmtInt(buf []byte, v uint64) int {
 // Nanoseconds returns the duration as an integer nanosecond count.
 func (d Duration) Nanoseconds() int64 { return int64(d) }
 
+// Microseconds returns the duration as an integer microsecond count.
+func (d Duration) Microseconds() int64 { return int64(d) / 1e3 }
+
+// Milliseconds returns the duration as an integer millisecond count.
+func (d Duration) Milliseconds() int64 { return int64(d) / 1e6 }
+
 // These methods return float64 because the dominant
 // use case is for printing a floating point number like 1.5s, and
 // a truncation to integer would make them not useful in those cases.
@@ -900,16 +906,33 @@ func (t Time) Sub(u Time) Duration {
 		}
 		return d
 	}
-	d := Duration(t.sec()-u.sec())*Second + Duration(t.nsec()-u.nsec())
-	// Check for overflow or underflow.
-	switch {
-	case u.Add(d).Equal(t):
-		return d // d is correct
-	case t.Before(u):
-		return minDuration // t - u is negative out of range
-	default:
-		return maxDuration // t - u is positive out of range
+
+	ts, us := t.sec(), u.sec()
+
+	var sec, nsec, d int64
+
+	ssub := ts - us
+	if (ssub < ts) != (us > 0) {
+		goto overflow
 	}
+
+	if ssub < int64(minDuration/Second) || ssub > int64(maxDuration/Second) {
+		goto overflow
+	}
+	sec = ssub * int64(Second)
+
+	nsec = int64(t.nsec() - u.nsec())
+	d = sec + nsec
+	if (d > sec) != (nsec > 0) {
+		goto overflow
+	}
+	return Duration(d)
+
+overflow:
+	if t.Before(u) {
+		return minDuration // t - u is negative out of range
+	}
+	return maxDuration // t - u is positive out of range
 }
 
 // Since returns the time elapsed since t.
@@ -917,7 +940,7 @@ func (t Time) Sub(u Time) Duration {
 func Since(t Time) Duration {
 	var now Time
 	if t.wall&hasMonotonic != 0 {
-		// Common case optimization: if t has monotomic time, then Sub will use only it.
+		// Common case optimization: if t has monotonic time, then Sub will use only it.
 		now = Time{hasMonotonic, runtimeNano() - startNano, nil}
 	} else {
 		now = Now()
@@ -930,7 +953,7 @@ func Since(t Time) Duration {
 func Until(t Time) Duration {
 	var now Time
 	if t.wall&hasMonotonic != 0 {
-		// Common case optimization: if t has monotomic time, then Sub will use only it.
+		// Common case optimization: if t has monotonic time, then Sub will use only it.
 		now = Time{hasMonotonic, runtimeNano() - startNano, nil}
 	} else {
 		now = Now()

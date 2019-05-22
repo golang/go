@@ -1,0 +1,58 @@
+env GO111MODULE=on
+env GOPROXY=off
+
+[!gc] skip
+[short] skip
+
+# Outside of GOROOT, our vendored packages should be reported as part of the standard library.
+go list -f '{{if .Standard}}{{.ImportPath}}{{end}}' std cmd
+stdout ^vendor/golang.org/x/net/http2/hpack
+stdout ^cmd/vendor/golang\.org/x/arch/x86/x86asm
+
+# cmd/... should match the same packages it used to match in GOPATH mode.
+go list cmd/...
+stdout ^cmd/compile
+! stdout ^cmd/vendor/golang\.org/x/arch/x86/x86asm
+
+
+# Within the std module, listing ./... should omit the 'std' prefix:
+# the package paths should be the same via ./... or the 'std' meta-pattern.
+# TODO(golang.org/issue/30241): Make that work.
+# Today, they are listed in 'std' but not './...'.
+cd $GOROOT/src
+go list ./...
+! stdout ^vendor/golang.org/x  # TODO: should be included, or should be omitted from 'std'.
+
+cp stdout $WORK/listdot.txt
+go list std
+stdout ^vendor/golang.org/x  # TODO: remove vendor/ prefix
+# TODO: cmp stdout $WORK/listdot.txt
+
+go list all
+stdout ^vendor/golang.org/x  # TODO: remove vendor/ prefix.
+! stdout ^std/
+
+
+# Within the std module, the vendored dependencies of std should appear
+# to come from the actual modules.
+# TODO(golang.org/issue/30241): Make that work.
+# Today, they still have the vendor/ prefix.
+go list std
+stdout ^vendor/golang.org/x/net/http2/hpack  # TODO
+! stdout ^golang.org/x/net/http2/hpack       # TODO
+
+go list -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}' std
+# ! stdout ^vendor/golang.org/x/net/http2/hpack  # TODO
+! stdout ^golang.org/x/net/http2/hpack         # TODO
+
+
+# Within std, the vendored dependencies of cmd should still appear to be part of cmd.
+go list -f '{{if .Standard}}{{.ImportPath}}{{end}}' cmd
+stdout ^cmd/vendor/golang\.org/x/arch/x86/x86asm
+
+go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' cmd
+! stdout .
+
+go list cmd/...
+stdout ^cmd/compile
+! stdout ^cmd/vendor/golang\.org/x/arch/x86/x86asm

@@ -752,7 +752,11 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 			case types.IsExported(f.Sym.Name):
 				buf = append(buf, sconv(f.Sym, FmtShort, mode)...)
 			default:
-				buf = append(buf, sconv(f.Sym, FmtUnsigned, mode)...)
+				flag1 := FmtLeft
+				if flag&FmtUnsigned != 0 {
+					flag1 = FmtUnsigned
+				}
+				buf = append(buf, sconv(f.Sym, flag1, mode)...)
 			}
 			buf = append(buf, tconv(f.Type, FmtShort, mode, depth)...)
 		}
@@ -1404,14 +1408,11 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 		}
 		mode.Fprintf(s, "sliceheader{%v,%v,%v}", n.Left, n.List.First(), n.List.Second())
 
-	case OCOPY:
-		mode.Fprintf(s, "%#v(%v, %v)", n.Op, n.Left, n.Right)
-
-	case OCOMPLEX:
-		if n.List.Len() == 1 {
-			mode.Fprintf(s, "%#v(%v)", n.Op, n.List.First())
-		} else {
+	case OCOMPLEX, OCOPY:
+		if n.Left != nil {
 			mode.Fprintf(s, "%#v(%v, %v)", n.Op, n.Left, n.Right)
+		} else {
+			mode.Fprintf(s, "%#v(%.v)", n.Op, n.List)
 		}
 
 	case OCONV,
@@ -1540,6 +1541,8 @@ func (n *Node) nodefmt(s fmt.State, flag FmtFlag, mode fmtMode) {
 	if flag&FmtLong != 0 && t != nil {
 		if t.Etype == TNIL {
 			fmt.Fprint(s, "nil")
+		} else if n.Op == ONAME && n.Name.AutoTemp() {
+			mode.Fprintf(s, "%v value", t)
 		} else {
 			mode.Fprintf(s, "%v (type %v)", n, t)
 		}
@@ -1575,9 +1578,6 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
 	switch n.Op {
 	default:
 		mode.Fprintf(s, "%v%j", n.Op, n)
-
-	case OINDREGSP:
-		mode.Fprintf(s, "%v-SP%j", n.Op, n)
 
 	case OLITERAL:
 		mode.Fprintf(s, "%v-%v%j", n.Op, n.Val(), n)

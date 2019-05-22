@@ -150,16 +150,22 @@ const (
 // Certificate types (for certificateRequestMsg)
 const (
 	certTypeRSASign   = 1
-	certTypeECDSASign = 64 // RFC 4492, Section 5.5
+	certTypeECDSASign = 64 // ECDSA or EdDSA keys, see RFC 8422, Section 3.
 )
 
-// Signature algorithms (for internal signaling use). Starting at 16 to avoid overlap with
+// Signature algorithms (for internal signaling use). Starting at 225 to avoid overlap with
 // TLS 1.2 codepoints (RFC 5246, Appendix A.4.1), with which these have nothing to do.
 const (
-	signaturePKCS1v15 uint8 = iota + 16
-	signatureECDSA
+	signaturePKCS1v15 uint8 = iota + 225
 	signatureRSAPSS
+	signatureECDSA
+	signatureEd25519
 )
+
+// directSigning is a standard Hash value that signals that no pre-hashing
+// should be performed, and that the input should be signed directly. It is the
+// hash function associated with the Ed25519 signature scheme.
+var directSigning crypto.Hash = 0
 
 // defaultSupportedSignatureAlgorithms contains the signature and hash algorithms that
 // the code advertises as supported in a TLS 1.2+ ClientHello and in a TLS 1.2+
@@ -167,13 +173,14 @@ const (
 // Note that in TLS 1.2, the ECDSA algorithms are not constrained to P-256, etc.
 var defaultSupportedSignatureAlgorithms = []SignatureScheme{
 	PSSWithSHA256,
+	ECDSAWithP256AndSHA256,
+	Ed25519,
 	PSSWithSHA384,
 	PSSWithSHA512,
 	PKCS1WithSHA256,
-	ECDSAWithP256AndSHA256,
 	PKCS1WithSHA384,
-	ECDSAWithP384AndSHA384,
 	PKCS1WithSHA512,
+	ECDSAWithP384AndSHA384,
 	ECDSAWithP521AndSHA512,
 	PKCS1WithSHA1,
 	ECDSAWithSHA1,
@@ -307,6 +314,9 @@ const (
 	ECDSAWithP256AndSHA256 SignatureScheme = 0x0403
 	ECDSAWithP384AndSHA384 SignatureScheme = 0x0503
 	ECDSAWithP521AndSHA512 SignatureScheme = 0x0603
+
+	// EdDSA algorithms.
+	Ed25519 SignatureScheme = 0x0807
 
 	// Legacy signature and hash algorithms for TLS 1.2.
 	PKCS1WithSHA1 SignatureScheme = 0x0201
@@ -783,7 +793,7 @@ func (c *Config) supportedVersions(isClient bool) []uint16 {
 		if isClient && v < VersionTLS10 {
 			continue
 		}
-		// TLS 1.3 is opt-in in Go 1.12.
+		// TLS 1.3 is opt-out in Go 1.13.
 		if v == VersionTLS13 && !isTLS13Supported() {
 			continue
 		}
@@ -798,11 +808,11 @@ var tls13Support struct {
 	cached bool
 }
 
-// isTLS13Supported returns whether the program opted into TLS 1.3 via
-// GODEBUG=tls13=1. It's cached after the first execution.
+// isTLS13Supported returns whether the program enabled TLS 1.3 by not opting
+// out with GODEBUG=tls13=0. It's cached after the first execution.
 func isTLS13Supported() bool {
 	tls13Support.Do(func() {
-		tls13Support.cached = goDebugString("tls13") == "1"
+		tls13Support.cached = goDebugString("tls13") != "0"
 	})
 	return tls13Support.cached
 }
@@ -976,7 +986,7 @@ var writerMutex sync.Mutex
 type Certificate struct {
 	Certificate [][]byte
 	// PrivateKey contains the private key corresponding to the public key in
-	// Leaf. This must implement crypto.Signer with an RSA or ECDSA PublicKey.
+	// Leaf. This must implement crypto.Signer with an RSA, ECDSA or Ed25519 PublicKey.
 	// For a server up to TLS 1.2, it can also implement crypto.Decrypter with
 	// an RSA PublicKey.
 	PrivateKey crypto.PrivateKey
@@ -1193,6 +1203,8 @@ func signatureFromSignatureScheme(signatureAlgorithm SignatureScheme) uint8 {
 		return signatureRSAPSS
 	case ECDSAWithSHA1, ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512:
 		return signatureECDSA
+	case Ed25519:
+		return signatureEd25519
 	default:
 		return 0
 	}

@@ -222,6 +222,9 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	BL	R5
 	RET
 
+TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
+	RET
+
 TEXT runtime·sigtramp(SB),NOSPLIT,$64
 	// initialize essential registers (just in case)
 	XOR	R0, R0
@@ -445,4 +448,19 @@ TEXT runtime·sbrk0(SB),NOSPLIT|NOFRAME,$0-8
 	MOVW	$SYS_brk, R1
 	SYSCALL
 	MOVD	R2, ret+0(FP)
+	RET
+
+TEXT runtime·access(SB),$0-20
+	MOVD	$0, 2(R0) // unimplemented, only needed for android; declared in stubs_linux.go
+	MOVW	R0, ret+16(FP)
+	RET
+
+TEXT runtime·connect(SB),$0-28
+	MOVD	$0, 2(R0) // unimplemented, only needed for android; declared in stubs_linux.go
+	MOVW	R0, ret+24(FP)
+	RET
+
+TEXT runtime·socket(SB),$0-20
+	MOVD	$0, 2(R0) // unimplemented, only needed for android; declared in stubs_linux.go
+	MOVW	R0, ret+16(FP)
 	RET

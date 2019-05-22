@@ -15,12 +15,14 @@ func approx(x float64) {
 	// arm64:"FRINTPD"
 	// ppc64:"FRIP"
 	// ppc64le:"FRIP"
+	// wasm:"F64Ceil"
 	sink64[0] = math.Ceil(x)
 
 	// s390x:"FIDBR\t[$]7"
 	// arm64:"FRINTMD"
 	// ppc64:"FRIM"
 	// ppc64le:"FRIM"
+	// wasm:"F64Floor"
 	sink64[1] = math.Floor(x)
 
 	// s390x:"FIDBR\t[$]1"
@@ -33,10 +35,12 @@ func approx(x float64) {
 	// arm64:"FRINTZD"
 	// ppc64:"FRIZ"
 	// ppc64le:"FRIZ"
+	// wasm:"F64Trunc"
 	sink64[3] = math.Trunc(x)
 
 	// s390x:"FIDBR\t[$]4"
 	// arm64:"FRINTND"
+	// wasm:"F64Nearest"
 	sink64[4] = math.RoundToEven(x)
 }
 
@@ -47,6 +51,7 @@ func sqrt(x float64) float64 {
 	// arm/7:"SQRTD"
 	// mips/hardfloat:"SQRTD" mips/softfloat:-"SQRTD"
 	// mips64/hardfloat:"SQRTD" mips64/softfloat:-"SQRTD"
+	// wasm:"F64Sqrt"
 	return math.Sqrt(x)
 }
 
@@ -57,6 +62,7 @@ func abs(x, y float64) {
 	// s390x:"LPDFR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64:"FABS\t"
 	// ppc64le:"FABS\t"
+	// wasm:"F64Abs"
 	sink64[0] = math.Abs(x)
 
 	// amd64:"BTRQ\t[$]63","PXOR"    (TODO: this should be BTSQ)
@@ -78,6 +84,7 @@ func copysign(a, b, c float64) {
 	// s390x:"CPSDR",-"MOVD"         (no integer load/store)
 	// ppc64:"FCPSGN"
 	// ppc64le:"FCPSGN"
+	// wasm:"F64Copysign"
 	sink64[0] = math.Copysign(a, b)
 
 	// amd64:"BTSQ\t[$]63"

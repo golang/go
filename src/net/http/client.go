@@ -100,7 +100,7 @@ type Client struct {
 	// For compatibility, the Client will also use the deprecated
 	// CancelRequest method on Transport if found. New
 	// RoundTripper implementations should use the Request's Context
-	// for cancelation instead of implementing CancelRequest.
+	// for cancellation instead of implementing CancelRequest.
 	Timeout time.Duration
 }
 
@@ -238,7 +238,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
 		username := u.Username()
 		password, _ := u.Password()
 		forkReq()
-		req.Header = ireq.Header.clone()
+		req.Header = ireq.Header.Clone()
 		req.Header.Set("Authorization", "Basic "+basicAuth(username, password))
 	}
 
@@ -643,7 +643,7 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
 			reqBodyClosed = true
 			if !deadline.IsZero() && didTimeout() {
 				err = &httpError{
-					// TODO: early in cycle: s/Client.Timeout exceeded/timeout or context cancelation/
+					// TODO: early in cycle: s/Client.Timeout exceeded/timeout or context cancellation/
 					err:     err.Error() + " (Client.Timeout exceeded while awaiting headers)",
 					timeout: true,
 				}
@@ -668,7 +668,7 @@ func (c *Client) makeHeadersCopier(ireq *Request) func(*Request) {
 	// The headers to copy are from the very initial request.
 	// We use a closured callback to keep a reference to these original headers.
 	var (
-		ireqhdr  = ireq.Header.clone()
+		ireqhdr  = ireq.Header.Clone()
 		icookies map[string][]*Cookie
 	)
 	if c.Jar != nil && ireq.Header.Get("Cookie") != "" {
@@ -870,7 +870,7 @@ func (b *cancelTimerBody) Read(p []byte) (n int, err error) {
 	}
 	if b.reqDidTimeout() {
 		err = &httpError{
-			// TODO: early in cycle: s/Client.Timeout exceeded/timeout or context cancelation/
+			// TODO: early in cycle: s/Client.Timeout exceeded/timeout or context cancellation/
 			err:     err.Error() + " (Client.Timeout exceeded while reading body)",
 			timeout: true,
 		}
@@ -926,10 +926,9 @@ func isDomainOrSubdomain(sub, parent string) bool {
 }
 
 func stripPassword(u *url.URL) string {
-	pass, passSet := u.User.Password()
+	_, passSet := u.User.Password()
 	if passSet {
-		return strings.Replace(u.String(), pass+"@", "***@", 1)
+		return strings.Replace(u.String(), u.User.String()+"@", u.User.Username()+":***@", 1)
 	}
-
 	return u.String()
 }

@@ -237,7 +237,7 @@ func TestTraceStress(t *testing.T) {
 	runtime.GC()
 	// Trigger GC from malloc.
 	n := int(1e3)
-	if runtime.GOOS == "openbsd" && runtime.GOARCH == "arm" {
+	if isMemoryConstrained() {
 		// Reduce allocation to avoid running out of
 		// memory on the builder - see issue/12032.
 		n = 512
@@ -322,6 +322,21 @@ func TestTraceStress(t *testing.T) {
 	testBrokenTimestamps(t, trace)
 }
 
+// isMemoryConstrained reports whether the current machine is likely
+// to be memory constrained.
+// This was originally for the openbsd/arm builder (Issue 12032).
+// TODO: move this to testenv? Make this look at memory? Look at GO_BUILDER_NAME?
+func isMemoryConstrained() bool {
+	if runtime.GOOS == "plan9" {
+		return true
+	}
+	switch runtime.GOARCH {
+	case "arm", "mips", "mipsle":
+		return true
+	}
+	return false
+}
+
 // Do a bunch of various stuff (timers, GC, network, etc) in a separate goroutine.
 // And concurrently with all that start/stop trace 3 times.
 func TestTraceStressStartStop(t *testing.T) {
@@ -381,9 +396,9 @@ func TestTraceStressStartStop(t *testing.T) {
 		runtime.GC()
 		// Trigger GC from malloc.
 		n := int(1e3)
-		if runtime.GOOS == "openbsd" && runtime.GOARCH == "arm" {
+		if isMemoryConstrained() {
 			// Reduce allocation to avoid running out of
-			// memory on the builder - see issue/12032.
+			// memory on the builder.
 			n = 512
 		}
 		for i := 0; i < n; i++ {

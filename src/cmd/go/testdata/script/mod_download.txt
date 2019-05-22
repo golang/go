@@ -1,4 +1,5 @@
 env GO111MODULE=on
+env GOPROXY=$GOPROXY/quiet
 
 # download with version should print nothing
 go mod download rsc.io/quote@v1.5.0
@@ -9,6 +10,7 @@ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.zip
 
 # download of an invalid path should report the error
+[short] skip
 ! go mod download this.domain.is.invalid/somemodule@v1.0.0
 stderr 'this.domain.is.invalid'
 ! go mod download -json this.domain.is.invalid/somemodule@v1.0.0
@@ -80,6 +82,13 @@ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
 # download will not follow replacements for explicit module queries
 go mod download -json rsc.io/quote@v1.5.1
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.zip
+
+# allow go mod download without go.mod
+env GO111MODULE=auto
+rm go.mod
+rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.2.1.zip
+go mod download rsc.io/quote@v1.2.1
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.2.1.zip
 
 -- go.mod --
 module m

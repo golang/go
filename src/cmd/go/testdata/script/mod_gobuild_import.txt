@@ -1,3 +1,5 @@
+[short] skip
+
 # go/build's Import should find modules by invoking the go command
 
 go build -o $WORK/testimport.exe ./testimport
@@ -8,7 +10,7 @@ env GO111MODULE=off
 
 # GO111MODULE=auto in GOPATH/src
 env GO111MODULE=auto
-! exec $WORK/testimport.exe x/y/z/w .
+exec $WORK/testimport.exe x/y/z/w .
 
 # GO111MODULE=auto outside GOPATH/src
 cd $GOPATH/other
@@ -24,12 +26,18 @@ exec $WORK/testimport.exe other/x/y/z/w .
 stdout w2.go
 
 # GO111MODULE=on outside GOPATH/src
+env GO111MODULE=
+exec $WORK/testimport.exe other/x/y/z/w .
+stdout w2.go
 env GO111MODULE=on
 exec $WORK/testimport.exe other/x/y/z/w .
 stdout w2.go
 
 # GO111MODULE=on in GOPATH/src
 cd $GOPATH/src
+env GO111MODULE=
+exec $WORK/testimport.exe x/y/z/w .
+stdout w1.go
 env GO111MODULE=on
 exec $WORK/testimport.exe x/y/z/w .
 stdout w1.go

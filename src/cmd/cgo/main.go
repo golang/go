@@ -71,9 +71,6 @@ type File struct {
 	Edit     *edit.Buffer
 }
 
-// Untyped constants in the current package.
-var consts = make(map[string]bool)
-
 func (f *File) offset(p token.Pos) int {
 	return fset.Position(p).Offset
 }
@@ -154,6 +151,7 @@ type Type struct {
 	Go         ast.Expr
 	EnumValues map[string]int64
 	Typedef    string
+	BadPointer bool
 }
 
 // A FuncType collects information about a function type in both the C and Go worlds.

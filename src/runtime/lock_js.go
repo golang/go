@@ -11,8 +11,6 @@ import (
 )
 
 // js/wasm has no support for threads yet. There is no preemption.
-// Waiting for a mutex is implemented by allowing other goroutines
-// to run until the mutex gets unlocked.
 
 const (
 	mutex_unlocked = 0
@@ -28,15 +26,27 @@ const (
 )
 
 func lock(l *mutex) {
-	for l.key == mutex_locked {
-		mcall(gosched_m)
+	if l.key == mutex_locked {
+		// js/wasm is single-threaded so we should never
+		// observe this.
+		throw("self deadlock")
 	}
+	gp := getg()
+	if gp.m.locks < 0 {
+		throw("lock count")
+	}
+	gp.m.locks++
 	l.key = mutex_locked
 }
 
 func unlock(l *mutex) {
 	if l.key == mutex_unlocked {
 		throw("unlock of unlocked lock")
+	}
+	gp := getg()
+	gp.m.locks--
+	if gp.m.locks < 0 {
+		throw("lock count")
 	}
 	l.key = mutex_unlocked
 }

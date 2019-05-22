@@ -1,0 +1,31 @@
+env GO111MODULE=on
+env sumdb=$GOSUMDB
+env proxy=$GOPROXY
+env GOPROXY GONOPROXY GOSUMDB GONOSUMDB
+env dbname=localhost.localdev/sumdb
+
+# disagree with sumdb fails
+cp go.mod.orig go.mod
+env GOSUMDB=$sumdb' '$proxy/sumdb-wrong
+! go get rsc.io/quote
+stderr 'SECURITY ERROR'
+
+# but GONOSUMDB bypasses sumdb, for rsc.io/quote, rsc.io/sampler, golang.org/x/text
+env GONOSUMDB='*/quote,*/*mple*,golang.org/x'
+go get rsc.io/quote
+
+# and GONOPROXY bypasses proxy
+[!net] skip
+env GONOPROXY='*/fortune'
+! go get rsc.io/fortune # does not exist in real world, only on test proxy
+stderr 'git ls-remote'
+
+env GOSUMDB=
+env GONOPROXY='*/x'
+go get golang.org/x/text
+go list -m all
+! stdout 'text.*v0.0.0-2017' # should not have the version from the proxy
+
+
+-- go.mod.orig --
+module m

@@ -157,7 +157,7 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	if dst == src {
 		return
 	}
-	if typ.kind&kindNoPointers == 0 {
+	if typ.ptrdata != 0 {
 		bulkBarrierPreWrite(uintptr(dst), uintptr(src), typ.size)
 	}
 	// There's a race here: if some other goroutine can write to
@@ -186,11 +186,16 @@ func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	typedmemmove(typ, dst, src)
 }
 
+//go:linkname reflectlite_typedmemmove internal/reflectlite.typedmemmove
+func reflectlite_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+	reflect_typedmemmove(typ, dst, src)
+}
+
 // typedmemmovepartial is like typedmemmove but assumes that
 // dst and src point off bytes into the value and only copies size bytes.
 //go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
 func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
-	if writeBarrier.needed && typ.kind&kindNoPointers == 0 && size >= sys.PtrSize {
+	if writeBarrier.needed && typ.ptrdata != 0 && size >= sys.PtrSize {
 		// Pointer-align start address for bulk barrier.
 		adst, asrc, asize := dst, src, size
 		if frag := -off & (sys.PtrSize - 1); frag != 0 {
@@ -218,7 +223,7 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size 
 //
 //go:nosplit
 func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr) {
-	if writeBarrier.needed && typ != nil && typ.kind&kindNoPointers == 0 && size >= sys.PtrSize {
+	if writeBarrier.needed && typ != nil && typ.ptrdata != 0 && size >= sys.PtrSize {
 		bulkBarrierPreWrite(uintptr(dst), uintptr(src), size)
 	}
 	memmove(dst, src, size)
@@ -259,7 +264,7 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 		return n
 	}
 
-	// Note: No point in checking typ.kind&kindNoPointers here:
+	// Note: No point in checking typ.ptrdata here:
 	// compiler only emits calls to typedslicecopy for types with pointers,
 	// and growslice and reflect_typedslicecopy check for pointers
 	// before calling typedslicecopy.
@@ -275,7 +280,7 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 
 //go:linkname reflect_typedslicecopy reflect.typedslicecopy
 func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
-	if elemType.kind&kindNoPointers != 0 {
+	if elemType.ptrdata == 0 {
 		n := dst.len
 		if n > src.len {
 			n = src.len
@@ -312,7 +317,7 @@ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
 //
 //go:nosplit
 func typedmemclr(typ *_type, ptr unsafe.Pointer) {
-	if typ.kind&kindNoPointers == 0 {
+	if typ.ptrdata != 0 {
 		bulkBarrierPreWrite(uintptr(ptr), 0, typ.size)
 	}
 	memclrNoHeapPointers(ptr, typ.size)
@@ -325,7 +330,7 @@ func reflect_typedmemclr(typ *_type, ptr unsafe.Pointer) {
 
 //go:linkname reflect_typedmemclrpartial reflect.typedmemclrpartial
 func reflect_typedmemclrpartial(typ *_type, ptr unsafe.Pointer, off, size uintptr) {
-	if typ.kind&kindNoPointers == 0 {
+	if typ.ptrdata != 0 {
 		bulkBarrierPreWrite(uintptr(ptr), 0, size)
 	}
 	memclrNoHeapPointers(ptr, size)
@@ -333,7 +338,7 @@ func reflect_typedmemclrpartial(typ *_type, ptr unsafe.Pointer, off, size uintpt
 
 // memclrHasPointers clears n bytes of typed memory starting at ptr.
 // The caller must ensure that the type of the object at ptr has
-// pointers, usually by checking typ.kind&kindNoPointers. However, ptr
+// pointers, usually by checking typ.ptrdata. However, ptr
 // does not have to point to the start of the allocation.
 //
 //go:nosplit

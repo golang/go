@@ -50,8 +50,6 @@ var (
 	pendingUpdates int32
 )
 
-const pollVerbose = false
-
 func netpollinit() {
 	var p [2]int32
 
@@ -71,13 +69,7 @@ func netpollinit() {
 	fcntl(wrwake, _F_SETFD, _FD_CLOEXEC)
 
 	// Pre-allocate array of pollfd structures for poll.
-	if pollVerbose {
-		println("*** allocating")
-	}
 	pfds = make([]pollfd, 1, 128)
-	if pollVerbose {
-		println("*** allocating done", &pfds[0])
-	}
 
 	// Poll the read side of the pipe.
 	pfds[0].fd = rdwake
@@ -99,18 +91,12 @@ func netpolldescriptor() uintptr {
 func netpollwakeup() {
 	if pendingUpdates == 0 {
 		pendingUpdates = 1
-		if pollVerbose {
-			println("*** writing 1 byte")
-		}
 		b := [1]byte{0}
 		write(uintptr(wrwake), unsafe.Pointer(&b[0]), 1)
 	}
 }
 
 func netpollopen(fd uintptr, pd *pollDesc) int32 {
-	if pollVerbose {
-		println("*** netpollopen", fd)
-	}
 	lock(&mtxpoll)
 	netpollwakeup()
 
@@ -125,9 +111,6 @@ func netpollopen(fd uintptr, pd *pollDesc) int32 {
 }
 
 func netpollclose(fd uintptr) int32 {
-	if pollVerbose {
-		println("*** netpollclose", fd)
-	}
 	lock(&mtxpoll)
 	netpollwakeup()
 
@@ -150,9 +133,6 @@ func netpollclose(fd uintptr) int32 {
 }
 
 func netpollarm(pd *pollDesc, mode int) {
-	if pollVerbose {
-		println("*** netpollarm", pd.fd, mode)
-	}
 	lock(&mtxpoll)
 	netpollwakeup()
 
@@ -175,29 +155,17 @@ func netpoll(block bool) gList {
 		timeout = 0
 		return gList{}
 	}
-	if pollVerbose {
-		println("*** netpoll", block)
-	}
 retry:
 	lock(&mtxpoll)
 	lock(&mtxset)
 	pendingUpdates = 0
 	unlock(&mtxpoll)
 
-	if pollVerbose {
-		println("*** netpoll before poll")
-	}
 	n, e := poll(&pfds[0], uintptr(len(pfds)), timeout)
-	if pollVerbose {
-		println("*** netpoll after poll", n)
-	}
 	if n < 0 {
 		if e != _EINTR {
 			println("errno=", e, " len(pfds)=", len(pfds))
 			throw("poll failed")
-		}
-		if pollVerbose {
-			println("*** poll failed")
 		}
 		unlock(&mtxset)
 		goto retry
@@ -206,9 +174,6 @@ retry:
 	if n != 0 && pfds[0].revents&(_POLLIN|_POLLHUP|_POLLERR) != 0 {
 		var b [1]byte
 		for read(rdwake, unsafe.Pointer(&b[0]), 1) == 1 {
-			if pollVerbose {
-				println("*** read 1 byte from pipe")
-			}
 		}
 		// Do not look at the other fds in this case as the mode may have changed
 		// XXX only additions of flags are made, so maybe it is ok
@@ -229,8 +194,9 @@ retry:
 			pfd.events &= ^_POLLOUT
 		}
 		if mode != 0 {
-			if pollVerbose {
-				println("*** netpollready i=", i, "revents=", pfd.revents, "events=", pfd.events, "pd=", pds[i])
+			pds[i].everr = false
+			if pfd.revents == _POLLERR {
+				pds[i].everr = true
 			}
 			netpollready(&toRun, pds[i], mode)
 			n--
@@ -239,9 +205,6 @@ retry:
 	unlock(&mtxset)
 	if block && toRun.empty() {
 		goto retry
-	}
-	if pollVerbose {
-		println("*** netpoll returning end")
 	}
 	return toRun
 }

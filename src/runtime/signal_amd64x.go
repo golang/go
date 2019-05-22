@@ -46,21 +46,19 @@ func (c *sigctxt) fault() uintptr { return uintptr(c.sigaddr()) }
 
 // preparePanic sets up the stack to look like a call to sigpanic.
 func (c *sigctxt) preparePanic(sig uint32, gp *g) {
-	if GOOS == "darwin" {
-		// Work around Leopard bug that doesn't set FPE_INTDIV.
-		// Look at instruction to see if it is a divide.
-		// Not necessary in Snow Leopard (si_code will be != 0).
-		if sig == _SIGFPE && gp.sigcode0 == 0 {
-			pc := (*[4]byte)(unsafe.Pointer(gp.sigpc))
-			i := 0
-			if pc[i]&0xF0 == 0x40 { // 64-bit REX prefix
-				i++
-			} else if pc[i] == 0x66 { // 16-bit instruction prefix
-				i++
-			}
-			if pc[i] == 0xF6 || pc[i] == 0xF7 {
-				gp.sigcode0 = _FPE_INTDIV
-			}
+	// Work around Leopard bug that doesn't set FPE_INTDIV.
+	// Look at instruction to see if it is a divide.
+	// Not necessary in Snow Leopard (si_code will be != 0).
+	if GOOS == "darwin" && sig == _SIGFPE && gp.sigcode0 == 0 {
+		pc := (*[4]byte)(unsafe.Pointer(gp.sigpc))
+		i := 0
+		if pc[i]&0xF0 == 0x40 { // 64-bit REX prefix
+			i++
+		} else if pc[i] == 0x66 { // 16-bit instruction prefix
+			i++
+		}
+		if pc[i] == 0xF6 || pc[i] == 0xF7 {
+			gp.sigcode0 = _FPE_INTDIV
 		}
 	}
 

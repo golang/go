@@ -34,6 +34,9 @@
 # controls the default behavior of the linker's -linkmode option.  The
 # default value depends on the system.
 #
+# GO_LDSO: Sets the default dynamic linker/loader (ld.so) to be used
+# by the internal linker.
+#
 # CC: Command line to run to compile C code for GOHOSTARCH.
 # Default is "gcc". Also supported: "clang".
 #
@@ -62,6 +65,7 @@
 
 set -e
 
+export GOENV=off
 unset GOBIN # Issue 14340
 unset GOFLAGS
 unset GO111MODULE
@@ -126,6 +130,15 @@ if [ "$(uname -s)" = "GNU/kFreeBSD" ]; then
 	export CGO_ENABLED=0
 fi
 
+# On Alpine Linux, use the musl dynamic linker/loader
+if [ -f "/etc/alpine-release" ]; then
+	if type readelf >/dev/null 2>&1; then
+		echo "int main() { return 0; }" | ${CC:-gcc} -o ./test-alpine-ldso -x c -
+		export GO_LDSO=$(readelf -l ./test-alpine-ldso | grep 'interpreter:' | sed -e 's/^.*interpreter: \(.*\)[]]/\1/')
+		rm -f ./test-alpine-ldso
+	fi
+fi
+
 # Clean old generated file that will cause problems in the build.
 rm -f ./runtime/runtime_defs.go
 
@@ -164,7 +177,7 @@ if [ "$GOROOT_BOOTSTRAP" = "$GOROOT" ]; then
 	exit 1
 fi
 rm -f cmd/dist/dist
-GOROOT="$GOROOT_BOOTSTRAP" GOOS="" GOARCH="" "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
+GOROOT="$GOROOT_BOOTSTRAP" GOOS="" GOARCH="" GO111MODULE=off "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
 
 # -e doesn't propagate out of eval, so check success by hand.
 eval $(./cmd/dist/dist env -p || echo FAIL=true)

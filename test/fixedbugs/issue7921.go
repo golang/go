@@ -17,9 +17,9 @@ func bufferNotEscape() string {
 	// copied during String() call, but object "handle" itself
 	// can be stack-allocated.
 	var b bytes.Buffer
-	b.WriteString("123") // ERROR "bufferNotEscape b does not escape$"
-	b.Write([]byte{'4'}) // ERROR "bufferNotEscape \[\]byte literal does not escape$" "bufferNotEscape b does not escape$"
-	return b.String()    // ERROR "bufferNotEscape b does not escape$" "inlining call to bytes.\(\*Buffer\).String$" "string\(bytes.b.buf\[bytes.b.off:\]\) escapes to heap$"
+	b.WriteString("123")
+	b.Write([]byte{'4'}) // ERROR "bufferNotEscape \[\]byte literal does not escape$"
+	return b.String()    // ERROR "inlining call to bytes.\(\*Buffer\).String$" "string\(bytes.b.buf\[bytes.b.off:\]\) escapes to heap$"
 }
 
 func bufferNoEscape2(xs []string) int { // ERROR "bufferNoEscape2 xs does not escape$"
@@ -41,9 +41,9 @@ func bufferNoEscape3(xs []string) string { // ERROR "bufferNoEscape3 xs does not
 
 func bufferNoEscape4() []byte {
 	var b bytes.Buffer
-	b.Grow(64)       // ERROR "bufferNoEscape4 b does not escape$" "bufferNoEscape4 ignoring self-assignment in bytes.b.buf = bytes.b.buf\[:bytes.m·3\]$" "inlining call to bytes.\(\*Buffer\).Grow$"
-	useBuffer(&b)    // ERROR "bufferNoEscape4 &b does not escape$"
-	return b.Bytes() // ERROR "bufferNoEscape4 b does not escape$" "inlining call to bytes.\(\*Buffer\).Bytes$"
+	b.Grow(64)       // ERROR "bufferNoEscape4 ignoring self-assignment in bytes.b.buf = bytes.b.buf\[:bytes.m·3\]$" "inlining call to bytes.\(\*Buffer\).Grow$"
+	useBuffer(&b)
+	return b.Bytes() // ERROR "inlining call to bytes.\(\*Buffer\).Bytes$"
 }
 
 func bufferNoEscape5() { // ERROR "can inline bufferNoEscape5$"

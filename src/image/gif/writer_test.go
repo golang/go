@@ -339,7 +339,10 @@ func TestEncodeNonZeroMinPoint(t *testing.T) {
 		{+2, +2},
 	}
 	for _, p := range points {
-		src := image.NewPaletted(image.Rectangle{Min: p, Max: p.Add(image.Point{6, 6})}, palette.Plan9)
+		src := image.NewPaletted(image.Rectangle{
+			Min: p,
+			Max: p.Add(image.Point{6, 6}),
+		}, palette.Plan9)
 		var buf bytes.Buffer
 		if err := Encode(&buf, src, nil); err != nil {
 			t.Errorf("p=%v: Encode: %v", p, err)
@@ -352,6 +355,52 @@ func TestEncodeNonZeroMinPoint(t *testing.T) {
 		}
 		if got, want := m.Bounds(), image.Rect(0, 0, 6, 6); got != want {
 			t.Errorf("p=%v: got %v, want %v", p, got, want)
+		}
+	}
+
+	// Also test having a source image (gray on the diagonal) that has a
+	// non-zero Bounds().Min, but isn't an image.Paletted.
+	{
+		p := image.Point{+2, +2}
+		src := image.NewRGBA(image.Rectangle{
+			Min: p,
+			Max: p.Add(image.Point{6, 6}),
+		})
+		src.SetRGBA(2, 2, color.RGBA{0x22, 0x22, 0x22, 0xFF})
+		src.SetRGBA(3, 3, color.RGBA{0x33, 0x33, 0x33, 0xFF})
+		src.SetRGBA(4, 4, color.RGBA{0x44, 0x44, 0x44, 0xFF})
+		src.SetRGBA(5, 5, color.RGBA{0x55, 0x55, 0x55, 0xFF})
+		src.SetRGBA(6, 6, color.RGBA{0x66, 0x66, 0x66, 0xFF})
+		src.SetRGBA(7, 7, color.RGBA{0x77, 0x77, 0x77, 0xFF})
+
+		var buf bytes.Buffer
+		if err := Encode(&buf, src, nil); err != nil {
+			t.Errorf("gray-diagonal: Encode: %v", err)
+			return
+		}
+		m, err := Decode(&buf)
+		if err != nil {
+			t.Errorf("gray-diagonal: Decode: %v", err)
+			return
+		}
+		if got, want := m.Bounds(), image.Rect(0, 0, 6, 6); got != want {
+			t.Errorf("gray-diagonal: got %v, want %v", got, want)
+			return
+		}
+
+		rednessAt := func(x int, y int) uint32 {
+			r, _, _, _ := m.At(x, y).RGBA()
+			// Shift by 8 to convert from 16 bit color to 8 bit color.
+			return r >> 8
+		}
+
+		// Round-tripping a still (non-animated) image.Image through
+		// Encode+Decode should shift the origin to (0, 0).
+		if got, want := rednessAt(0, 0), uint32(0x22); got != want {
+			t.Errorf("gray-diagonal: rednessAt(0, 0): got 0x%02x, want 0x%02x", got, want)
+		}
+		if got, want := rednessAt(5, 5), uint32(0x77); got != want {
+			t.Errorf("gray-diagonal: rednessAt(5, 5): got 0x%02x, want 0x%02x", got, want)
 		}
 	}
 }

@@ -1,0 +1,25 @@
+[!net] skip
+
+env GOPROXY=
+env GOSUMDB=
+go env GOPROXY
+stdout '^direct$'
+go env GOSUMDB
+stdout '^off$'
+env GOPROXY=https://proxy.golang.org
+go env GOSUMDB
+stdout '^sum.golang.org$'
+
+# download direct from github
+env GOSUMDB=sum.golang.org
+env GOPROXY=direct
+go get -m rsc.io/quote
+
+# download from proxy.golang.org
+go clean -modcache
+env GOSUMDB='sum.golang.org https://sum.golang.org' # TODO remove URL
+env GOPROXY=https://proxy.golang.org
+go get -m rsc.io/quote
+
+-- go.mod --
+module m

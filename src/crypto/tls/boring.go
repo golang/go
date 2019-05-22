@@ -103,19 +103,26 @@ func isBoringCertificate(c *x509.Certificate) bool {
 	return true
 }
 
+// fipsSupportedSignatureAlgorithms currently are a subset of
+// defaultSupportedSignatureAlgorithms without Ed25519 and SHA-1.
+var fipsSupportedSignatureAlgorithms = []SignatureScheme{
+	PSSWithSHA256,
+	PSSWithSHA384,
+	PSSWithSHA512,
+	PKCS1WithSHA256,
+	ECDSAWithP256AndSHA256,
+	PKCS1WithSHA384,
+	ECDSAWithP384AndSHA384,
+	PKCS1WithSHA512,
+	ECDSAWithP521AndSHA512,
+}
+
 // supportedSignatureAlgorithms returns the supported signature algorithms.
-// It knows that the FIPS-allowed ones are all at the beginning of
-// defaultSupportedSignatureAlgorithms.
 func supportedSignatureAlgorithms() []SignatureScheme {
-	all := defaultSupportedSignatureAlgorithms
 	if !needFIPS() {
-		return all
+		return defaultSupportedSignatureAlgorithms
 	}
-	i := 0
-	for i < len(all) && all[i] != PKCS1WithSHA1 {
-		i++
-	}
-	return all[:i]
+	return fipsSupportedSignatureAlgorithms
 }
 
 var testingOnlyForceClientHelloSignatureAlgorithms []SignatureScheme

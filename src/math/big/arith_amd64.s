@@ -143,6 +143,8 @@ E2:	NEGQ CX
 // func addVW(z, x []Word, y Word) (c Word)
 TEXT ·addVW(SB),NOSPLIT,$0
 	MOVQ z_len+8(FP), DI
+	CMPQ DI, $32
+	JG large
 	MOVQ x+24(FP), R8
 	MOVQ y+48(FP), CX	// c = y
 	MOVQ z+0(FP), R10
@@ -189,12 +191,16 @@ L3:	// n > 0
 
 E3:	MOVQ CX, c+56(FP)	// return c
 	RET
+large:
+	JMP ·addVWlarge(SB)
 
 
 // func subVW(z, x []Word, y Word) (c Word)
 // (same as addVW except for SUBQ/SBBQ instead of ADDQ/ADCQ and label names)
 TEXT ·subVW(SB),NOSPLIT,$0
 	MOVQ z_len+8(FP), DI
+	CMPQ DI, $32
+	JG large
 	MOVQ x+24(FP), R8
 	MOVQ y+48(FP), CX	// c = y
 	MOVQ z+0(FP), R10
@@ -242,6 +248,8 @@ L4:	// n > 0
 
 E4:	MOVQ CX, c+56(FP)	// return c
 	RET
+large:
+	JMP ·subVWlarge(SB)
 
 
 // func shlVU(z, x []Word, s uint) (c Word)
@@ -256,7 +264,7 @@ TEXT ·shlVU(SB),NOSPLIT,$0
 	MOVQ s+48(FP), CX
 	MOVQ (R8)(BX*8), AX	// w1 = x[n-1]
 	MOVQ $0, DX
-	SHLQ CX, DX:AX		// w1>>ŝ
+	SHLQ CX, AX, DX		// w1>>ŝ
 	MOVQ DX, c+56(FP)
 
 	CMPQ BX, $0
@@ -265,7 +273,7 @@ TEXT ·shlVU(SB),NOSPLIT,$0
 	// i > 0
 L8:	MOVQ AX, DX		// w = w1
 	MOVQ -8(R8)(BX*8), AX	// w1 = x[i-1]
-	SHLQ CX, DX:AX		// w<<s | w1>>ŝ
+	SHLQ CX, AX, DX		// w<<s | w1>>ŝ
 	MOVQ DX, (R10)(BX*8)	// z[i] = w<<s | w1>>ŝ
 	SUBQ $1, BX		// i--
 	JG L8			// i > 0
@@ -291,7 +299,7 @@ TEXT ·shrVU(SB),NOSPLIT,$0
 	MOVQ s+48(FP), CX
 	MOVQ (R8), AX		// w1 = x[0]
 	MOVQ $0, DX
-	SHRQ CX, DX:AX		// w1<<ŝ
+	SHRQ CX, AX, DX		// w1<<ŝ
 	MOVQ DX, c+56(FP)
 
 	MOVQ $0, BX		// i = 0
@@ -300,7 +308,7 @@ TEXT ·shrVU(SB),NOSPLIT,$0
 	// i < n-1
 L9:	MOVQ AX, DX		// w = w1
 	MOVQ 8(R8)(BX*8), AX	// w1 = x[i+1]
-	SHRQ CX, DX:AX		// w>>s | w1<<ŝ
+	SHRQ CX, AX, DX		// w>>s | w1<<ŝ
 	MOVQ DX, (R10)(BX*8)	// z[i] = w>>s | w1<<ŝ
 	ADDQ $1, BX		// i++
 

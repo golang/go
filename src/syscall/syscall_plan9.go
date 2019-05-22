@@ -11,7 +11,10 @@
 
 package syscall
 
-import "unsafe"
+import (
+	"internal/oserror"
+	"unsafe"
+)
 
 const ImplementsGetwd = true
 const bitSize16 = 2
@@ -23,6 +26,45 @@ func (e ErrorString) Error() string { return string(e) }
 
 // NewError converts s to an ErrorString, which satisfies the Error interface.
 func NewError(s string) error { return ErrorString(s) }
+
+func (e ErrorString) Is(target error) bool {
+	switch target {
+	case oserror.ErrTemporary:
+		return e.Temporary()
+	case oserror.ErrTimeout:
+		return e.Timeout()
+	case oserror.ErrPermission:
+		return checkErrMessageContent(e, "permission denied")
+	case oserror.ErrExist:
+		return checkErrMessageContent(e, "exists", "is a directory")
+	case oserror.ErrNotExist:
+		return checkErrMessageContent(e, "does not exist", "not found",
+			"has been removed", "no parent")
+	}
+	return false
+}
+
+// checkErrMessageContent checks if err message contains one of msgs.
+func checkErrMessageContent(e ErrorString, msgs ...string) bool {
+	for _, msg := range msgs {
+		if contains(string(e), msg) {
+			return true
+		}
+	}
+	return false
+}
+
+// contains is a local version of strings.Contains. It knows len(sep) > 1.
+func contains(s, sep string) bool {
+	n := len(sep)
+	c := sep[0]
+	for i := 0; i+n <= len(s); i++ {
+		if s[i] == c && s[i:i+n] == sep {
+			return true
+		}
+	}
+	return false
+}
 
 func (e ErrorString) Temporary() bool {
 	return e == EINTR || e == EMFILE || e.Timeout()

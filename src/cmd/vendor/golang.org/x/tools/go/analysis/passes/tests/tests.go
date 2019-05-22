@@ -84,23 +84,25 @@ func isTestParam(typ ast.Expr, wantType string) bool {
 	return false
 }
 
-func lookup(pkg *types.Package, name string) types.Object {
+func lookup(pkg *types.Package, name string) []types.Object {
 	if o := pkg.Scope().Lookup(name); o != nil {
-		return o
+		return []types.Object{o}
 	}
 
-	// If this package is ".../foo_test" and it imports a package
-	// ".../foo", try looking in the latter package.
-	// This heuristic should work even on build systems that do not
-	// record any special link between the packages.
-	if basePath := strings.TrimSuffix(pkg.Path(), "_test"); basePath != pkg.Path() {
-		for _, imp := range pkg.Imports() {
-			if imp.Path() == basePath {
-				return imp.Scope().Lookup(name)
-			}
+	var ret []types.Object
+	// Search through the imports to see if any of them define name.
+	// It's hard to tell in general which package is being tested, so
+	// for the purposes of the analysis, allow the object to appear
+	// in any of the imports. This guarantees there are no false positives
+	// because the example needs to use the object so it must be defined
+	// in the package or one if its imports. On the other hand, false
+	// negatives are possible, but should be rare.
+	for _, imp := range pkg.Imports() {
+		if obj := imp.Scope().Lookup(name); obj != nil {
+			ret = append(ret, obj)
 		}
 	}
-	return nil
+	return ret
 }
 
 func checkExample(pass *analysis.Pass, fn *ast.FuncDecl) {
@@ -121,9 +123,9 @@ func checkExample(pass *analysis.Pass, fn *ast.FuncDecl) {
 		exName = strings.TrimPrefix(fnName, "Example")
 		elems  = strings.SplitN(exName, "_", 3)
 		ident  = elems[0]
-		obj    = lookup(pass.Pkg, ident)
+		objs   = lookup(pass.Pkg, ident)
 	)
-	if ident != "" && obj == nil {
+	if ident != "" && len(objs) == 0 {
 		// Check ExampleFoo and ExampleBadFoo.
 		pass.Reportf(fn.Pos(), "%s refers to unknown identifier: %s", fnName, ident)
 		// Abort since obj is absent and no subsequent checks can be performed.
@@ -145,7 +147,15 @@ func checkExample(pass *analysis.Pass, fn *ast.FuncDecl) {
 	mmbr := elems[1]
 	if !isExampleSuffix(mmbr) {
 		// Check ExampleFoo_Method and ExampleFoo_BadMethod.
-		if obj, _, _ := types.LookupFieldOrMethod(obj.Type(), true, obj.Pkg(), mmbr); obj == nil {
+		found := false
+		// Check if Foo.Method exists in this package or its imports.
+		for _, obj := range objs {
+			if obj, _, _ := types.LookupFieldOrMethod(obj.Type(), true, obj.Pkg(), mmbr); obj != nil {
+				found = true
+				break
+			}
+		}
+		if !found {
 			pass.Reportf(fn.Pos(), "%s refers to unknown field or method: %s.%s", fnName, ident, mmbr)
 		}
 	}

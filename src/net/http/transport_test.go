@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"go/token"
 	"internal/nettrace"
 	"io"
 	"io/ioutil"
@@ -42,7 +43,7 @@ import (
 	"testing"
 	"time"
 
-	"internal/x/net/http/httpguts"
+	"golang.org/x/net/http/httpguts"
 )
 
 // TODO: test 5 pipelined requests with responses: 1) OK, 2) OK, Connection: Close
@@ -588,6 +589,106 @@ func TestTransportMaxConnsPerHostIncludeDialInProgress(t *testing.T) {
 	<-reqComplete
 }
 
+func TestTransportMaxConnsPerHost(t *testing.T) {
+	defer afterTest(t)
+
+	h := HandlerFunc(func(w ResponseWriter, r *Request) {
+		_, err := w.Write([]byte("foo"))
+		if err != nil {
+			t.Fatalf("Write: %v", err)
+		}
+	})
+
+	testMaxConns := func(scheme string, ts *httptest.Server) {
+		defer ts.Close()
+
+		c := ts.Client()
+		tr := c.Transport.(*Transport)
+		tr.MaxConnsPerHost = 1
+		if err := ExportHttp2ConfigureTransport(tr); err != nil {
+			t.Fatalf("ExportHttp2ConfigureTransport: %v", err)
+		}
+
+		connCh := make(chan net.Conn, 1)
+		var dialCnt, gotConnCnt, tlsHandshakeCnt int32
+		tr.Dial = func(network, addr string) (net.Conn, error) {
+			atomic.AddInt32(&dialCnt, 1)
+			c, err := net.Dial(network, addr)
+			connCh <- c
+			return c, err
+		}
+
+		doReq := func() {
+			trace := &httptrace.ClientTrace{
+				GotConn: func(connInfo httptrace.GotConnInfo) {
+					if !connInfo.Reused {
+						atomic.AddInt32(&gotConnCnt, 1)
+					}
+				},
+				TLSHandshakeStart: func() {
+					atomic.AddInt32(&tlsHandshakeCnt, 1)
+				},
+			}
+			req, _ := NewRequest("GET", ts.URL, nil)
+			req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
+
+			resp, err := c.Do(req)
+			if err != nil {
+				t.Fatalf("request failed: %v", err)
+			}
+			defer resp.Body.Close()
+			_, err = ioutil.ReadAll(resp.Body)
+			if err != nil {
+				t.Fatalf("read body failed: %v", err)
+			}
+		}
+
+		wg := sync.WaitGroup{}
+		for i := 0; i < 10; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				doReq()
+			}()
+		}
+		wg.Wait()
+
+		expected := int32(tr.MaxConnsPerHost)
+		if dialCnt != expected {
+			t.Errorf("Too many dials (%s): %d", scheme, dialCnt)
+		}
+		if gotConnCnt != expected {
+			t.Errorf("Too many get connections (%s): %d", scheme, gotConnCnt)
+		}
+		if ts.TLS != nil && tlsHandshakeCnt != expected {
+			t.Errorf("Too many tls handshakes (%s): %d", scheme, tlsHandshakeCnt)
+		}
+
+		(<-connCh).Close()
+		tr.CloseIdleConnections()
+
+		doReq()
+		expected++
+		if dialCnt != expected {
+			t.Errorf("Too many dials (%s): %d", scheme, dialCnt)
+		}
+		if gotConnCnt != expected {
+			t.Errorf("Too many get connections (%s): %d", scheme, gotConnCnt)
+		}
+		if ts.TLS != nil && tlsHandshakeCnt != expected {
+			t.Errorf("Too many tls handshakes (%s): %d", scheme, tlsHandshakeCnt)
+		}
+	}
+
+	testMaxConns("http", httptest.NewServer(h))
+	testMaxConns("https", httptest.NewTLSServer(h))
+
+	ts := httptest.NewUnstartedServer(h)
+	ts.TLS = &tls.Config{NextProtos: []string{"h2"}}
+	ts.StartTLS()
+	testMaxConns("http2", ts)
+}
+
 func TestTransportRemovesDeadIdleConnections(t *testing.T) {
 	setParallel(t)
 	defer afterTest(t)
@@ -865,6 +966,10 @@ func TestRoundTripGzip(t *testing.T) {
 			req.Header.Set("Accept-Encoding", test.accept)
 		}
 		res, err := tr.RoundTrip(req)
+		if err != nil {
+			t.Errorf("%d. RoundTrip: %v", i, err)
+			continue
+		}
 		var body []byte
 		if test.compressed {
 			var r *gzip.Reader
@@ -2110,7 +2215,7 @@ func testCancelRequestWithChannelBeforeDo(t *testing.T, withCtx bool) {
 		}
 	} else {
 		if err == nil || !strings.Contains(err.Error(), "canceled") {
-			t.Errorf("Do error = %v; want cancelation", err)
+			t.Errorf("Do error = %v; want cancellation", err)
 		}
 	}
 }
@@ -3589,6 +3694,13 @@ func TestTransportAutomaticHTTP2(t *testing.T) {
 	testTransportAutoHTTP(t, &Transport{}, true)
 }
 
+func TestTransportAutomaticHTTP2_DialerAndTLSConfigSupportsHTTP2AndTLSConfig(t *testing.T) {
+	testTransportAutoHTTP(t, &Transport{
+		ForceAttemptHTTP2: true,
+		TLSClientConfig:   new(tls.Config),
+	}, true)
+}
+
 // golang.org/issue/14391: also check DefaultTransport
 func TestTransportAutomaticHTTP2_DefaultTransport(t *testing.T) {
 	testTransportAutoHTTP(t, DefaultTransport.(*Transport), true)
@@ -3616,6 +3728,13 @@ func TestTransportAutomaticHTTP2_Dial(t *testing.T) {
 	var d net.Dialer
 	testTransportAutoHTTP(t, &Transport{
 		Dial: d.Dial,
+	}, false)
+}
+
+func TestTransportAutomaticHTTP2_DialContext(t *testing.T) {
+	var d net.Dialer
+	testTransportAutoHTTP(t, &Transport{
+		DialContext: d.DialContext,
 	}, false)
 }
 
@@ -5057,5 +5176,198 @@ func TestTransportRequestReplayable(t *testing.T) {
 				t.Errorf("replyable = %v; want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+// testMockTCPConn is a mock TCP connection used to test that
+// ReadFrom is called when sending the request body.
+type testMockTCPConn struct {
+	*net.TCPConn
+
+	ReadFromCalled bool
+}
+
+func (c *testMockTCPConn) ReadFrom(r io.Reader) (int64, error) {
+	c.ReadFromCalled = true
+	return c.TCPConn.ReadFrom(r)
+}
+
+func TestTransportRequestWriteRoundTrip(t *testing.T) {
+	nBytes := int64(1 << 10)
+	newFileFunc := func() (r io.Reader, done func(), err error) {
+		f, err := ioutil.TempFile("", "net-http-newfilefunc")
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Write some bytes to the file to enable reading.
+		if _, err := io.CopyN(f, rand.Reader, nBytes); err != nil {
+			return nil, nil, fmt.Errorf("failed to write data to file: %v", err)
+		}
+		if _, err := f.Seek(0, 0); err != nil {
+			return nil, nil, fmt.Errorf("failed to seek to front: %v", err)
+		}
+
+		done = func() {
+			f.Close()
+			os.Remove(f.Name())
+		}
+
+		return f, done, nil
+	}
+
+	newBufferFunc := func() (io.Reader, func(), error) {
+		return bytes.NewBuffer(make([]byte, nBytes)), func() {}, nil
+	}
+
+	cases := []struct {
+		name             string
+		readerFunc       func() (io.Reader, func(), error)
+		contentLength    int64
+		expectedReadFrom bool
+	}{
+		{
+			name:             "file, length",
+			readerFunc:       newFileFunc,
+			contentLength:    nBytes,
+			expectedReadFrom: true,
+		},
+		{
+			name:       "file, no length",
+			readerFunc: newFileFunc,
+		},
+		{
+			name:          "file, negative length",
+			readerFunc:    newFileFunc,
+			contentLength: -1,
+		},
+		{
+			name:          "buffer",
+			contentLength: nBytes,
+			readerFunc:    newBufferFunc,
+		},
+		{
+			name:       "buffer, no length",
+			readerFunc: newBufferFunc,
+		},
+		{
+			name:          "buffer, length -1",
+			contentLength: -1,
+			readerFunc:    newBufferFunc,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r, cleanup, err := tc.readerFunc()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer cleanup()
+
+			tConn := &testMockTCPConn{}
+			trFunc := func(tr *Transport) {
+				tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+					var d net.Dialer
+					conn, err := d.DialContext(ctx, network, addr)
+					if err != nil {
+						return nil, err
+					}
+
+					tcpConn, ok := conn.(*net.TCPConn)
+					if !ok {
+						return nil, fmt.Errorf("%s/%s does not provide a *net.TCPConn", network, addr)
+					}
+
+					tConn.TCPConn = tcpConn
+					return tConn, nil
+				}
+			}
+
+			cst := newClientServerTest(
+				t,
+				h1Mode,
+				HandlerFunc(func(w ResponseWriter, r *Request) {
+					io.Copy(ioutil.Discard, r.Body)
+					r.Body.Close()
+					w.WriteHeader(200)
+				}),
+				trFunc,
+			)
+			defer cst.close()
+
+			req, err := NewRequest("PUT", cst.ts.URL, r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.ContentLength = tc.contentLength
+			req.Header.Set("Content-Type", "application/octet-stream")
+			resp, err := cst.c.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != 200 {
+				t.Fatalf("status code = %d; want 200", resp.StatusCode)
+			}
+
+			if !tConn.ReadFromCalled && tc.expectedReadFrom {
+				t.Fatalf("did not call ReadFrom")
+			}
+
+			if tConn.ReadFromCalled && !tc.expectedReadFrom {
+				t.Fatalf("ReadFrom was unexpectedly invoked")
+			}
+		})
+	}
+}
+
+func TestTransportClone(t *testing.T) {
+	tr := &Transport{
+		Proxy:                  func(*Request) (*url.URL, error) { panic("") },
+		DialContext:            func(ctx context.Context, network, addr string) (net.Conn, error) { panic("") },
+		Dial:                   func(network, addr string) (net.Conn, error) { panic("") },
+		DialTLS:                func(network, addr string) (net.Conn, error) { panic("") },
+		TLSClientConfig:        new(tls.Config),
+		TLSHandshakeTimeout:    time.Second,
+		DisableKeepAlives:      true,
+		DisableCompression:     true,
+		MaxIdleConns:           1,
+		MaxIdleConnsPerHost:    1,
+		MaxConnsPerHost:        1,
+		IdleConnTimeout:        time.Second,
+		ResponseHeaderTimeout:  time.Second,
+		ExpectContinueTimeout:  time.Second,
+		ProxyConnectHeader:     Header{},
+		MaxResponseHeaderBytes: 1,
+		ForceAttemptHTTP2:      true,
+		TLSNextProto: map[string]func(authority string, c *tls.Conn) RoundTripper{
+			"foo": func(authority string, c *tls.Conn) RoundTripper { panic("") },
+		},
+		ReadBufferSize:  1,
+		WriteBufferSize: 1,
+	}
+	tr2 := tr.Clone()
+	rv := reflect.ValueOf(tr2).Elem()
+	rt := rv.Type()
+	for i := 0; i < rt.NumField(); i++ {
+		sf := rt.Field(i)
+		if !token.IsExported(sf.Name) {
+			continue
+		}
+		if rv.Field(i).IsZero() {
+			t.Errorf("cloned field t2.%s is zero", sf.Name)
+		}
+	}
+
+	if _, ok := tr2.TLSNextProto["foo"]; !ok {
+		t.Errorf("cloned Transport lacked TLSNextProto 'foo' key")
+	}
+
+	// But test that a nil TLSNextProto is kept nil:
+	tr = new(Transport)
+	tr2 = tr.Clone()
+	if tr2.TLSNextProto != nil {
+		t.Errorf("Transport.TLSNextProto unexpected non-nil")
 	}
 }

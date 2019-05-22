@@ -34,8 +34,12 @@ func init() {
 }
 
 func TestCrashDumpsAllThreads(t *testing.T) {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
+
 	switch runtime.GOOS {
-	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "illumos", "solaris":
 	default:
 		t.Skipf("skipping; not supported on %v", runtime.GOOS)
 	}

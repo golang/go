@@ -7,7 +7,7 @@
 #include "funcdata.h"
 #include "textflag.h"
 
-TEXT runtime·rt0_go(SB), NOSPLIT, $0
+TEXT runtime·rt0_go(SB), NOSPLIT|NOFRAME, $0
 	// save m->g0 = g0
 	MOVD $runtime·g0(SB), runtime·m0+m_g0(SB)
 	// save m0 to g0->m
@@ -258,6 +258,7 @@ TEXT runtime·morestack(SB), NOSPLIT, $0-0
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
+	NOP	SP	// tell vet SP changed - stop checking offsets
 	MOVD 8(SP), m_morebuf+gobuf_pc(R1)
 	MOVD $16(SP), m_morebuf+gobuf_sp(R1) // f's caller's SP
 	MOVD g, m_morebuf+gobuf_g(R1)
@@ -366,7 +367,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-32; \
 	Set RET1; \
 	\
 	Get SP; \
-	I64ExtendUI32; \
+	I64ExtendI32U; \
 	Get R0; \
 	I64Add; \
 	Set RET2; \
@@ -443,7 +444,7 @@ TEXT runtime·gcWriteBarrier(SB), NOSPLIT, $16
 	// Record value
 	MOVD R1, 0(R5)
 	// Record *slot
-	MOVD R0, 8(R5)
+	MOVD (R0), 8(R5)
 
 	// Increment wbBuf.next
 	Get R5

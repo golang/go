@@ -5,6 +5,7 @@
 package os
 
 import (
+	"errors"
 	"internal/poll"
 	"internal/syscall/windows"
 	"runtime"
@@ -18,9 +19,10 @@ import (
 // can overwrite this data, which could cause the finalizer
 // to close the wrong file descriptor.
 type file struct {
-	pfd     poll.FD
-	name    string
-	dirinfo *dirInfo // nil unless directory being read
+	pfd        poll.FD
+	name       string
+	dirinfo    *dirInfo // nil unless directory being read
+	appendMode bool     // whether file is opened for appending
 }
 
 // Fd returns the Windows handle referencing the open file.
@@ -40,6 +42,9 @@ func newFile(h syscall.Handle, name string, kind string) *File {
 		var m uint32
 		if syscall.GetConsoleMode(h, &m) == nil {
 			kind = "console"
+		}
+		if t, err := syscall.GetFileType(h); err == nil && t == syscall.FILE_TYPE_PIPE {
+			kind = "pipe"
 		}
 	}
 
@@ -314,7 +319,7 @@ func Pipe() (r *File, w *File, err error) {
 	if e != nil {
 		return nil, nil, NewSyscallError("pipe", e)
 	}
-	return newFile(p[0], "|0", "file"), newFile(p[1], "|1", "file"), nil
+	return newFile(p[0], "|0", "pipe"), newFile(p[1], "|1", "pipe"), nil
 }
 
 func tempDir() string {
@@ -395,4 +400,123 @@ func Symlink(oldname, newname string) error {
 		return &LinkError{"symlink", oldname, newname, err}
 	}
 	return nil
+}
+
+// openSymlink calls CreateFile Windows API with FILE_FLAG_OPEN_REPARSE_POINT
+// parameter, so that Windows does not follow symlink, if path is a symlink.
+// openSymlink returns opened file handle.
+func openSymlink(path string) (syscall.Handle, error) {
+	p, err := syscall.UTF16PtrFromString(path)
+	if err != nil {
+		return 0, err
+	}
+	attrs := uint32(syscall.FILE_FLAG_BACKUP_SEMANTICS)
+	// Use FILE_FLAG_OPEN_REPARSE_POINT, otherwise CreateFile will follow symlink.
+	// See https://docs.microsoft.com/en-us/windows/desktop/FileIO/symbolic-link-effects-on-file-systems-functions#createfile-and-createfiletransacted
+	attrs |= syscall.FILE_FLAG_OPEN_REPARSE_POINT
+	h, err := syscall.CreateFile(p, 0, 0, nil, syscall.OPEN_EXISTING, attrs, 0)
+	if err != nil {
+		return 0, err
+	}
+	return h, nil
+}
+
+// normaliseLinkPath converts absolute paths returned by
+// DeviceIoControl(h, FSCTL_GET_REPARSE_POINT, ...)
+// into paths acceptable by all Windows APIs.
+// For example, it coverts
+//  \??\C:\foo\bar into C:\foo\bar
+//  \??\UNC\foo\bar into \\foo\bar
+//  \??\Volume{abc}\ into C:\
+func normaliseLinkPath(path string) (string, error) {
+	if len(path) < 4 || path[:4] != `\??\` {
+		// unexpected path, return it as is
+		return path, nil
+	}
+	// we have path that start with \??\
+	s := path[4:]
+	switch {
+	case len(s) >= 2 && s[1] == ':': // \??\C:\foo\bar
+		return s, nil
+	case len(s) >= 4 && s[:4] == `UNC\`: // \??\UNC\foo\bar
+		return `\\` + s[4:], nil
+	}
+
+	// handle paths, like \??\Volume{abc}\...
+
+	err := windows.LoadGetFinalPathNameByHandle()
+	if err != nil {
+		// we must be using old version of Windows
+		return "", err
+	}
+
+	h, err := openSymlink(path)
+	if err != nil {
+		return "", err
+	}
+	defer syscall.CloseHandle(h)
+
+	buf := make([]uint16, 100)
+	for {
+		n, err := windows.GetFinalPathNameByHandle(h, &buf[0], uint32(len(buf)), windows.VOLUME_NAME_DOS)
+		if err != nil {
+			return "", err
+		}
+		if n < uint32(len(buf)) {
+			break
+		}
+		buf = make([]uint16, n)
+	}
+	s = syscall.UTF16ToString(buf)
+	if len(s) > 4 && s[:4] == `\\?\` {
+		s = s[4:]
+		if len(s) > 3 && s[:3] == `UNC` {
+			// return path like \\server\share\...
+			return `\` + s[3:], nil
+		}
+		return s, nil
+	}
+	return "", errors.New("GetFinalPathNameByHandle returned unexpected path: " + s)
+}
+
+func readlink(path string) (string, error) {
+	h, err := openSymlink(path)
+	if err != nil {
+		return "", err
+	}
+	defer syscall.CloseHandle(h)
+
+	rdbbuf := make([]byte, syscall.MAXIMUM_REPARSE_DATA_BUFFER_SIZE)
+	var bytesReturned uint32
+	err = syscall.DeviceIoControl(h, syscall.FSCTL_GET_REPARSE_POINT, nil, 0, &rdbbuf[0], uint32(len(rdbbuf)), &bytesReturned, nil)
+	if err != nil {
+		return "", err
+	}
+
+	rdb := (*windows.REPARSE_DATA_BUFFER)(unsafe.Pointer(&rdbbuf[0]))
+	switch rdb.ReparseTag {
+	case syscall.IO_REPARSE_TAG_SYMLINK:
+		rb := (*windows.SymbolicLinkReparseBuffer)(unsafe.Pointer(&rdb.DUMMYUNIONNAME))
+		s := rb.Path()
+		if rb.Flags&windows.SYMLINK_FLAG_RELATIVE != 0 {
+			return s, nil
+		}
+		return normaliseLinkPath(s)
+	case windows.IO_REPARSE_TAG_MOUNT_POINT:
+		return normaliseLinkPath((*windows.MountPointReparseBuffer)(unsafe.Pointer(&rdb.DUMMYUNIONNAME)).Path())
+	default:
+		// the path is not a symlink or junction but another type of reparse
+		// point
+		return "", syscall.ENOENT
+	}
+}
+
+// Readlink returns the destination of the named symbolic link.
+// If there is an error, it will be of type *PathError.
+func Readlink(name string) (string, error) {
+	s, err := readlink(fixLongPath(name))
+	if err != nil {
+		return "", &PathError{"readlink", name, err}
+	}
+	return s, nil
 }

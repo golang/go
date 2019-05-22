@@ -38,9 +38,10 @@ type Func struct {
 	// Given an environment variable used for debug hash match,
 	// what file (if any) receives the yes/no logging?
 	logfiles       map[string]writeSyncer
-	HTMLWriter     *HTMLWriter // html writer, for debugging
-	DebugTest      bool        // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
-	PrintOrHtmlSSA bool        // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.
+	HTMLWriter     *HTMLWriter    // html writer, for debugging
+	DebugTest      bool           // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
+	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.
+	ruleMatches    map[string]int // number of times countRule was called during compilation for any given string
 
 	scheduled bool // Values in Blocks are in final order
 	laidout   bool // Blocks are ordered
@@ -64,11 +65,11 @@ type Func struct {
 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
 	freeBlocks *Block // free Blocks linked by succstorage[0].b.  All other fields except ID are 0/nil.
 
-	cachedPostorder  []*Block         // cached postorder traversal
-	cachedIdom       []*Block         // cached immediate dominators
-	cachedSdom       SparseTree       // cached dominator tree
-	cachedLoopnest   *loopnest        // cached loop nest information
-	cachedLineStarts *biasedSparseMap // cached map/set of line numbers to integers
+	cachedPostorder  []*Block   // cached postorder traversal
+	cachedIdom       []*Block   // cached immediate dominators
+	cachedSdom       SparseTree // cached dominator tree
+	cachedLoopnest   *loopnest  // cached loop nest information
+	cachedLineStarts *xposmap   // cached map/set of xpos to integers
 
 	auxmap    auxmap             // map from aux values to opaque ids used by CSE
 	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type
@@ -151,6 +152,33 @@ func (f *Func) newPoset() *poset {
 // retPoset returns a poset to the internal cache
 func (f *Func) retPoset(po *poset) {
 	f.Cache.scrPoset = append(f.Cache.scrPoset, po)
+}
+
+// newDeadcodeLive returns a slice for the
+// deadcode pass to use to indicate which values are live.
+func (f *Func) newDeadcodeLive() []bool {
+	r := f.Cache.deadcode.live
+	f.Cache.deadcode.live = nil
+	return r
+}
+
+// retDeadcodeLive returns a deadcode live value slice for re-use.
+func (f *Func) retDeadcodeLive(live []bool) {
+	f.Cache.deadcode.live = live
+}
+
+// newDeadcodeLiveOrderStmts returns a slice for the
+// deadcode pass to use to indicate which values
+// need special treatment for statement boundaries.
+func (f *Func) newDeadcodeLiveOrderStmts() []*Value {
+	r := f.Cache.deadcode.liveOrderStmts
+	f.Cache.deadcode.liveOrderStmts = nil
+	return r
+}
+
+// retDeadcodeLiveOrderStmts returns a deadcode liveOrderStmts slice for re-use.
+func (f *Func) retDeadcodeLiveOrderStmts(liveOrderStmts []*Value) {
+	f.Cache.deadcode.liveOrderStmts = liveOrderStmts
 }
 
 // newValue allocates a new Value with the given fields and places it at the end of b.Values.
@@ -477,6 +505,18 @@ func (b *Block) NewValue3A(pos src.XPos, op Op, t *types.Type, aux interface{}, 
 func (b *Block) NewValue4(pos src.XPos, op Op, t *types.Type, arg0, arg1, arg2, arg3 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = 0
+	v.Args = []*Value{arg0, arg1, arg2, arg3}
+	arg0.Uses++
+	arg1.Uses++
+	arg2.Uses++
+	arg3.Uses++
+	return v
+}
+
+// NewValue4I returns a new value in the block with four arguments and and auxint value.
+func (b *Block) NewValue4I(pos src.XPos, op Op, t *types.Type, auxint int64, arg0, arg1, arg2, arg3 *Value) *Value {
+	v := b.Func.newValue(op, t, b, pos)
+	v.AuxInt = auxint
 	v.Args = []*Value{arg0, arg1, arg2, arg3}
 	arg0.Uses++
 	arg1.Uses++

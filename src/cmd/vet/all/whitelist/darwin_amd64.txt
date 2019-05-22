@@ -1,3 +1,0 @@
-// darwin/amd64-specific vet whitelist. See readme.txt for details.
-
-runtime/sys_darwin_amd64.s: [amd64] settls: function settls missing Go declaration

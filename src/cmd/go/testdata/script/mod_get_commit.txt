@@ -1,10 +1,12 @@
 env GO111MODULE=on
+env GOPROXY=$GOPROXY/quiet
+[short] skip
 
 # @commit should resolve
 
 # golang.org/x/text/language@commit should not resolve with -m,
 # because that's not a module path.
-! go get -m golang.org/x/text/language@14c0d48
+! go get -d -m golang.org/x/text/language@14c0d48
 
 # ... but it should work without -m.
 # because of -d, the compiler should not run
@@ -12,12 +14,13 @@ go get -d -x golang.org/x/text/language@14c0d48
 ! stderr 'compile|cp|gccgo .*language\.a$'
 
 # go get should skip build with no Go files in root
-go get golang.org/x/text@14c0d48
+go get -d golang.org/x/text@14c0d48
 
 # ... and go get should skip build with -m
 go get -m golang.org/x/text@14c0d48
 
 # dropping -d, we should see a build.
+[short] skip
 go get -x golang.org/x/text/language@14c0d48
 stderr 'compile|cp|gccgo .*language\.a$'
 

@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"debug/elf"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -36,6 +37,11 @@ var GOOS, GOARCH, GOPATH string
 var libgodir string
 
 func TestMain(m *testing.M) {
+	flag.Parse()
+	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+		fmt.Printf("SKIP - short mode and $GO_BUILDER_NAME not set\n")
+		os.Exit(0)
+	}
 	log.SetFlags(log.Lshortfile)
 	os.Exit(testMain(m))
 }
@@ -110,6 +116,11 @@ func testMain(m *testing.M) int {
 		// TODO(crawshaw): can we do better?
 		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
 	}
+	if GOOS == "aix" {
+		// -Wl,-bnoobjreorder is mandatory to keep the same layout
+		// in .text section.
+		cc = append(cc, "-Wl,-bnoobjreorder")
+	}
 	libbase := GOOS + "_" + GOARCH
 	if runtime.Compiler == "gccgo" {
 		libbase = "gccgo_" + libgodir + "_fPIC"
@@ -119,7 +130,7 @@ func testMain(m *testing.M) int {
 			if GOARCH == "arm" || GOARCH == "arm64" {
 				libbase += "_shared"
 			}
-		case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+		case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris", "illumos":
 			libbase += "_shared"
 		}
 	}
@@ -318,8 +329,10 @@ func TestSignalForwarding(t *testing.T) {
 }
 
 func TestSignalForwardingExternal(t *testing.T) {
-	if GOOS == "freebsd" {
+	if GOOS == "freebsd" || GOOS == "aix" {
 		t.Skipf("skipping on %s/%s; signal always goes to the Go runtime", GOOS, GOARCH)
+	} else if GOOS == "darwin" && GOARCH == "amd64" {
+		t.Skipf("skipping on %s/%s: runtime does not permit SI_USER SIGSEGV", GOOS, GOARCH)
 	}
 	checkSignalForwardingTest(t)
 
@@ -518,6 +531,9 @@ func TestExtar(t *testing.T) {
 	if runtime.Compiler == "gccgo" {
 		t.Skip("skipping -extar test when using gccgo")
 	}
+	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+		t.Skip("shell scripts are not executable on iOS hosts")
+	}
 
 	defer func() {
 		os.Remove("libgo4.a")
@@ -594,13 +610,15 @@ func TestPIE(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	f, err := elf.Open("testp" + exeSuffix)
-	if err != nil {
-		t.Fatal("elf.Open failed: ", err)
-	}
-	defer f.Close()
-	if hasDynTag(t, f, elf.DT_TEXTREL) {
-		t.Errorf("%s has DT_TEXTREL flag", "testp"+exeSuffix)
+	if GOOS != "aix" {
+		f, err := elf.Open("testp" + exeSuffix)
+		if err != nil {
+			t.Fatal("elf.Open failed: ", err)
+		}
+		defer f.Close()
+		if hasDynTag(t, f, elf.DT_TEXTREL) {
+			t.Errorf("%s has DT_TEXTREL flag", "testp"+exeSuffix)
+		}
 	}
 }
 

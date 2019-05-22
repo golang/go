@@ -12,10 +12,8 @@ package shift
 
 import (
 	"go/ast"
-	"go/build"
 	"go/constant"
 	"go/token"
-	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -93,36 +91,9 @@ func checkLongShift(pass *analysis.Pass, node ast.Node, x, y ast.Expr) {
 	if t == nil {
 		return
 	}
-	b, ok := t.Underlying().(*types.Basic)
-	if !ok {
-		return
-	}
-	var size int64
-	switch b.Kind() {
-	case types.Uint8, types.Int8:
-		size = 8
-	case types.Uint16, types.Int16:
-		size = 16
-	case types.Uint32, types.Int32:
-		size = 32
-	case types.Uint64, types.Int64:
-		size = 64
-	case types.Int, types.Uint:
-		size = uintBitSize
-	case types.Uintptr:
-		size = uintptrBitSize
-	default:
-		return
-	}
+	size := 8 * pass.TypesSizes.Sizeof(t)
 	if amt >= size {
 		ident := analysisutil.Format(pass.Fset, x)
 		pass.Reportf(node.Pos(), "%s (%d bits) too small for shift of %d", ident, size, amt)
 	}
 }
-
-var (
-	uintBitSize    = 8 * archSizes.Sizeof(types.Typ[types.Uint])
-	uintptrBitSize = 8 * archSizes.Sizeof(types.Typ[types.Uintptr])
-)
-
-var archSizes = types.SizesFor("gc", build.Default.GOARCH)

@@ -110,7 +110,7 @@ TEXT runtime·setlasterror(SB),NOSPLIT,$0
 // exception record and context pointers.
 // Handler function is stored in AX.
 // Return 0 for 'not handled', -1 for handled.
-TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0-0
+TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0-0
 	// CX: PEXCEPTION_POINTERS ExceptionInfo
 
 	// DI SI BP BX R12 R13 R14 R15 registers and DF flag are preserved
@@ -200,15 +200,15 @@ done:
 
 TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
 	MOVQ	$runtime·exceptionhandler(SB), AX
-	JMP	runtime·sigtramp(SB)
+	JMP	sigtramp<>(SB)
 
 TEXT runtime·firstcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
 	MOVQ	$runtime·firstcontinuehandler(SB), AX
-	JMP	runtime·sigtramp(SB)
+	JMP	sigtramp<>(SB)
 
 TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
 	MOVQ	$runtime·lastcontinuehandler(SB), AX
-	JMP	runtime·sigtramp(SB)
+	JMP	sigtramp<>(SB)
 
 TEXT runtime·ctrlhandler(SB),NOSPLIT|NOFRAME,$8
 	MOVQ	CX, 16(SP)		// spill
@@ -413,7 +413,7 @@ TEXT runtime·onosstack(SB),NOSPLIT,$0
 	MOVQ	R12, m_libcallg(R13)
 	// sp must be the last, because once async cpu profiler finds
 	// all three values to be non-zero, it will use them
-	LEAQ	usec+0(FP), R12
+	LEAQ	fn+0(FP), R12
 	MOVQ	R12, m_libcallsp(R13)
 
 	MOVQ	m_g0(R13), R14

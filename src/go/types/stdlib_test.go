@@ -180,6 +180,7 @@ func TestStdFixed(t *testing.T) {
 		"issue22200b.go", // go/types does not have constraints on stack size
 		"issue25507.go",  // go/types does not have constraints on stack size
 		"issue20780.go",  // go/types does not have constraints on stack size
+		"issue31747.go",  // go/types does not have constraints on language level (-lang=go1.12) (see #31793)
 	)
 }
 

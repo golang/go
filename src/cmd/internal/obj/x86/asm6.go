@@ -92,7 +92,7 @@ type Optab struct {
 	op     opBytes
 }
 
-type Movtab struct {
+type movtab struct {
 	as   obj.As
 	ft   uint8
 	f3t  uint8
@@ -961,7 +961,6 @@ var optab =
 	{ABSRL, yml_rl, Pm, opBytes{0xbd}},
 	{ABSRQ, yml_rl, Pw, opBytes{0x0f, 0xbd}},
 	{ABSRW, yml_rl, Pq, opBytes{0xbd}},
-	{ABSWAPW, ybswap, Pe, opBytes{0x0f, 0xc8}},
 	{ABSWAPL, ybswap, Px, opBytes{0x0f, 0xc8}},
 	{ABSWAPQ, ybswap, Pw, opBytes{0x0f, 0xc8}},
 	{ABTCL, ybtl, Pm, opBytes{0xba, 07, 0xbb}},
@@ -1857,63 +1856,42 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		ctxt.Diag("x86 tables not initialized, call x86.instinit first")
 	}
 
-	var ab AsmBuf
-
 	for p := s.Func.Text; p != nil; p = p.Link {
-		if p.To.Type == obj.TYPE_BRANCH {
-			if p.Pcond == nil {
-				p.Pcond = p
-			}
+		if p.To.Type == obj.TYPE_BRANCH && p.Pcond == nil {
+			p.Pcond = p
 		}
 		if p.As == AADJSP {
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = REG_SP
-			v := int32(-p.From.Offset)
-			p.From.Offset = int64(v)
-			p.As = spadjop(ctxt, AADDL, AADDQ)
-			if v < 0 {
-				p.As = spadjop(ctxt, ASUBL, ASUBQ)
-				v = -v
-				p.From.Offset = int64(v)
-			}
-
-			if v == 0 {
+			// Generate 'ADDQ $x, SP' or 'SUBQ $x, SP', with x positive.
+			// One exception: It is smaller to encode $-0x80 than $0x80.
+			// For that case, flip the sign and the op:
+			// Instead of 'ADDQ $0x80, SP', generate 'SUBQ $-0x80, SP'.
+			switch v := p.From.Offset; {
+			case v == 0:
 				p.As = obj.ANOP
+			case v == 0x80 || (v < 0 && v != -0x80):
+				p.As = spadjop(ctxt, AADDL, AADDQ)
+				p.From.Offset *= -1
+			default:
+				p.As = spadjop(ctxt, ASUBL, ASUBQ)
 			}
 		}
 	}
 
-	var q *obj.Prog
 	var count int64 // rough count of number of instructions
 	for p := s.Func.Text; p != nil; p = p.Link {
 		count++
 		p.Back = branchShort // use short branches first time through
-		q = p.Pcond
-		if q != nil && (q.Back&branchShort != 0) {
+		if q := p.Pcond; q != nil && (q.Back&branchShort != 0) {
 			p.Back |= branchBackwards
 			q.Back |= branchLoopHead
-		}
-
-		if p.As == AADJSP {
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = REG_SP
-			v := int32(-p.From.Offset)
-			p.From.Offset = int64(v)
-			p.As = spadjop(ctxt, AADDL, AADDQ)
-			if v < 0 {
-				p.As = spadjop(ctxt, ASUBL, ASUBQ)
-				v = -v
-				p.From.Offset = int64(v)
-			}
-
-			if v == 0 {
-				p.As = obj.ANOP
-			}
 		}
 	}
 	s.GrowCap(count * 5) // preallocate roughly 5 bytes per instruction
 
-	n := 0
+	var ab AsmBuf
+	var n int
 	var c int32
 	errors := ctxt.Errors
 	for {
@@ -1975,7 +1953,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			p.Pc = int64(c)
 
 			// process forward jumps to p
-			for q = p.Rel; q != nil; q = q.Forwd {
+			for q := p.Rel; q != nil; q = q.Forwd {
 				v := int32(p.Pc - (q.Pc + int64(q.Isize)))
 				if q.Back&branchShort != 0 {
 					if v > 127 {
@@ -2366,17 +2344,14 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 	if ctxt.Arch.Family == sys.I386 {
 		if a.Index == REG_TLS && ctxt.Flag_shared {
 			// When building for inclusion into a shared library, an instruction of the form
-			//     MOVL 0(CX)(TLS*1), AX
+			//     MOVL off(CX)(TLS*1), AX
 			// becomes
-			//     mov %gs:(%ecx), %eax
+			//     mov %gs:off(%ecx), %eax
 			// which assumes that the correct TLS offset has been loaded into %ecx (today
 			// there is only one TLS variable -- g -- so this is OK). When not building for
 			// a shared library the instruction it becomes
-			//     mov 0x0(%ecx), $eax
+			//     mov 0x0(%ecx), %eax
 			// and a R_TLS_LE relocation, and so does not require a prefix.
-			if a.Offset != 0 {
-				ctxt.Diag("cannot handle non-0 offsets to TLS")
-			}
 			return 0x65 // GS
 		}
 		return 0
@@ -2395,15 +2370,12 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 	case REG_TLS:
 		if ctxt.Flag_shared && ctxt.Headtype != objabi.Hwindows {
 			// When building for inclusion into a shared library, an instruction of the form
-			//     MOV 0(CX)(TLS*1), AX
+			//     MOV off(CX)(TLS*1), AX
 			// becomes
-			//     mov %fs:(%rcx), %rax
+			//     mov %fs:off(%rcx), %rax
 			// which assumes that the correct TLS offset has been loaded into %rcx (today
 			// there is only one TLS variable -- g -- so this is OK). When not building for
 			// a shared library the instruction does not require a prefix.
-			if a.Offset != 0 {
-				log.Fatalf("cannot handle non-0 offsets to TLS")
-			}
 			return 0x64
 		}
 
@@ -3619,7 +3591,7 @@ const (
 	movTLSReg
 )
 
-var ymovtab = []Movtab{
+var ymovtab = []movtab{
 	// push
 	{APUSHL, Ycs, Ynone, Ynone, movLit, [4]uint8{0x0e, 0}},
 	{APUSHL, Yss, Ynone, Ynone, movLit, [4]uint8{0x16, 0}},
@@ -3733,8 +3705,8 @@ var ymovtab = []Movtab{
 	{AMOVW, Ytask, Ynone, Yml, movRegMem2op, [4]uint8{0x0f, 0x00, 1, 0}},
 
 	/* load full pointer - unsupported
-	Movtab{AMOVL, Yml, Ycol, movFullPtr, [4]uint8{0, 0, 0, 0}},
-	Movtab{AMOVW, Yml, Ycol, movFullPtr, [4]uint8{Pe, 0, 0, 0}},
+	{AMOVL, Yml, Ycol, movFullPtr, [4]uint8{0, 0, 0, 0}},
+	{AMOVW, Yml, Ycol, movFullPtr, [4]uint8{Pe, 0, 0, 0}},
 	*/
 
 	// double shift
@@ -5142,7 +5114,6 @@ bad:
 	}
 
 	ctxt.Diag("invalid instruction: %v", p)
-	//	ctxt.Diag("doasm: notfound ft=%d tt=%d %v %d %d", p.Ft, p.Tt, p, oclass(ctxt, p, &p.From), oclass(ctxt, p, &p.To))
 }
 
 // byteswapreg returns a byte-addressable register (AX, BX, CX, DX)
@@ -5395,7 +5366,7 @@ func (ab *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 		if int64(r.Off) < p.Pc {
 			break
 		}
-		if ab.rexflag != 0 && !ab.vexflag {
+		if ab.rexflag != 0 && !ab.vexflag && !ab.evexflag {
 			r.Off++
 		}
 		if r.Type == objabi.R_PCREL {

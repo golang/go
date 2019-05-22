@@ -434,9 +434,52 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
 	}
 }
 
+func TestUnshareUidGidMappingHelper(*testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	defer os.Exit(0)
+	if err := syscall.Chroot(os.TempDir()); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+}
+
+// Test for Issue 29789: unshare fails when uid/gid mapping is specified
+func TestUnshareUidGidMapping(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("test exercises unprivileged user namespace, fails with privileges")
+	}
+	checkUserNS(t)
+	cmd := exec.Command(os.Args[0], "-test.run=TestUnshareUidGidMappingHelper")
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Unshareflags:               syscall.CLONE_NEWNS | syscall.CLONE_NEWUSER,
+		GidMappingsEnableSetgroups: false,
+		UidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,
+				HostID:      syscall.Getuid(),
+				Size:        1,
+			},
+		},
+		GidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,
+				HostID:      syscall.Getgid(),
+				Size:        1,
+			},
+		},
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
+	}
+}
+
 type capHeader struct {
 	version uint32
-	pid     int
+	pid     int32
 }
 
 type capData struct {
@@ -446,6 +489,7 @@ type capData struct {
 }
 
 const CAP_SYS_TIME = 25
+const CAP_SYSLOG = 34
 
 type caps struct {
 	hdr  capHeader
@@ -506,15 +550,28 @@ func TestAmbientCapsHelper(*testing.T) {
 		fmt.Fprintln(os.Stderr, "CAP_SYS_TIME unexpectedly not in the effective capability mask")
 		os.Exit(2)
 	}
+	if caps.data[1].effective&(1<<uint(CAP_SYSLOG&31)) == 0 {
+		fmt.Fprintln(os.Stderr, "CAP_SYSLOG unexpectedly not in the effective capability mask")
+		os.Exit(2)
+	}
 }
 
 func TestAmbientCaps(t *testing.T) {
-	skipInContainer(t)
 	// Make sure we are running as root so we have permissions to use unshare
 	// and create a network namespace.
 	if os.Getuid() != 0 {
 		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
 	}
+
+	testAmbientCaps(t, false)
+}
+
+func TestAmbientCapsUserns(t *testing.T) {
+	testAmbientCaps(t, true)
+}
+
+func testAmbientCaps(t *testing.T, userns bool) {
+	skipInContainer(t)
 	mustSupportAmbientCaps(t)
 
 	// When running under the Go continuous build, skip tests for
@@ -525,23 +582,16 @@ func TestAmbientCaps(t *testing.T) {
 		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
 	}
 
+	// Skip the test if the sysctl that prevents unprivileged user
+	// from creating user namespaces is enabled.
+	data, errRead := ioutil.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
+	if errRead == nil && data[0] == '0' {
+		t.Skip("kernel prohibits user namespace in unprivileged process")
+	}
+
 	// skip on android, due to lack of lookup support
 	if runtime.GOOS == "android" {
 		t.Skip("skipping test on android; see Issue 27327")
-	}
-
-	caps, err := getCaps()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Add CAP_SYS_TIME to the permitted and inheritable capability mask,
-	// otherwise we will not be able to add it to the ambient capability mask.
-	caps.data[0].permitted |= 1 << uint(CAP_SYS_TIME)
-	caps.data[0].inheritable |= 1 << uint(CAP_SYS_TIME)
-
-	if _, _, errno := syscall.Syscall(syscall.SYS_CAPSET, uintptr(unsafe.Pointer(&caps.hdr)), uintptr(unsafe.Pointer(&caps.data[0])), 0); errno != 0 {
-		t.Fatalf("SYS_CAPSET: %v", errno)
 	}
 
 	u, err := user.Lookup("nobody")
@@ -588,7 +638,29 @@ func TestAmbientCaps(t *testing.T) {
 			Uid: uint32(uid),
 			Gid: uint32(gid),
 		},
-		AmbientCaps: []uintptr{CAP_SYS_TIME},
+		AmbientCaps: []uintptr{CAP_SYS_TIME, CAP_SYSLOG},
+	}
+	if userns {
+		cmd.SysProcAttr.Cloneflags = syscall.CLONE_NEWUSER
+		const nobody = 65534
+		uid := os.Getuid()
+		gid := os.Getgid()
+		cmd.SysProcAttr.UidMappings = []syscall.SysProcIDMap{{
+			ContainerID: int(nobody),
+			HostID:      int(uid),
+			Size:        int(1),
+		}}
+		cmd.SysProcAttr.GidMappings = []syscall.SysProcIDMap{{
+			ContainerID: int(nobody),
+			HostID:      int(gid),
+			Size:        int(1),
+		}}
+
+		// Set credentials to run as user and group nobody.
+		cmd.SysProcAttr.Credential = &syscall.Credential{
+			Uid: nobody,
+			Gid: nobody,
+		}
 	}
 	if err := cmd.Run(); err != nil {
 		t.Fatal(err.Error())

@@ -23,6 +23,7 @@ import (
 	"internal/xcoff"
 	"math"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
@@ -897,21 +898,16 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 			needsUnsafe = true
 		}
 
-		// Explicitly convert untyped constants to the
-		// parameter type, to avoid a type mismatch.
-		if p.isConst(f, arg) {
-			ptype := p.rewriteUnsafe(param.Go)
+		// Use "var x T = ..." syntax to explicitly convert untyped
+		// constants to the parameter type, to avoid a type mismatch.
+		ptype := p.rewriteUnsafe(param.Go)
+
+		if !p.needsPointerCheck(f, param.Go, args[i]) || param.BadPointer {
 			if ptype != param.Go {
 				needsUnsafe = true
 			}
-			arg = &ast.CallExpr{
-				Fun:  ptype,
-				Args: []ast.Expr{arg},
-			}
-		}
-
-		if !p.needsPointerCheck(f, param.Go, args[i]) {
-			fmt.Fprintf(&sb, "_cgo%d := %s; ", i, gofmtPos(arg, origArg.Pos()))
+			fmt.Fprintf(&sb, "var _cgo%d %s = %s; ", i,
+				gofmtLine(ptype), gofmtPos(arg, origArg.Pos()))
 			continue
 		}
 
@@ -1254,47 +1250,6 @@ func (p *Package) isType(t ast.Expr) bool {
 	return false
 }
 
-// isConst reports whether x is an untyped constant expression.
-func (p *Package) isConst(f *File, x ast.Expr) bool {
-	switch x := x.(type) {
-	case *ast.BasicLit:
-		return true
-	case *ast.SelectorExpr:
-		id, ok := x.X.(*ast.Ident)
-		if !ok || id.Name != "C" {
-			return false
-		}
-		name := f.Name[x.Sel.Name]
-		if name != nil {
-			return name.IsConst()
-		}
-	case *ast.Ident:
-		return x.Name == "nil" ||
-			strings.HasPrefix(x.Name, "_Ciconst_") ||
-			strings.HasPrefix(x.Name, "_Cfconst_") ||
-			strings.HasPrefix(x.Name, "_Csconst_") ||
-			consts[x.Name]
-	case *ast.UnaryExpr:
-		return p.isConst(f, x.X)
-	case *ast.BinaryExpr:
-		return p.isConst(f, x.X) && p.isConst(f, x.Y)
-	case *ast.ParenExpr:
-		return p.isConst(f, x.X)
-	case *ast.CallExpr:
-		// Calling the builtin function complex on two untyped
-		// constants returns an untyped constant.
-		// TODO: It's possible to construct a case that will
-		// erroneously succeed if there is a local function
-		// named "complex", shadowing the builtin, that returns
-		// a numeric type. I can't think of any cases that will
-		// erroneously fail.
-		if id, ok := x.Fun.(*ast.Ident); ok && id.Name == "complex" && len(x.Args) == 2 {
-			return p.isConst(f, x.Args[0]) && p.isConst(f, x.Args[1])
-		}
-	}
-	return false
-}
-
 // isVariable reports whether x is a variable, possibly with field references.
 func (p *Package) isVariable(x ast.Expr) bool {
 	switch x := x.(type) {
@@ -1633,6 +1588,7 @@ func (p *Package) gccCmd() []string {
 	c = append(c, p.gccMachine()...)
 	if goos == "aix" {
 		c = append(c, "-maix64")
+		c = append(c, "-mcmodel=large")
 	}
 	c = append(c, "-") //read input from standard input
 	return c
@@ -2091,6 +2047,8 @@ type typeConv struct {
 
 	ptrSize int64
 	intSize int64
+
+	exactWidthIntegerTypes map[string]*Type
 }
 
 var tagGen int
@@ -2132,6 +2090,21 @@ func (c *typeConv) Init(ptrSize, intSize int64) {
 		c.goVoidPtr = &ast.StarExpr{X: c.byte}
 	} else {
 		c.goVoidPtr = c.Ident("unsafe.Pointer")
+	}
+
+	c.exactWidthIntegerTypes = make(map[string]*Type)
+	for _, t := range []ast.Expr{
+		c.int8, c.int16, c.int32, c.int64,
+		c.uint8, c.uint16, c.uint32, c.uint64,
+	} {
+		name := t.(*ast.Ident).Name
+		u := new(Type)
+		*u = *goTypes[name]
+		if u.Align > ptrSize {
+			u.Align = ptrSize
+		}
+		u.Go = t
+		c.exactWidthIntegerTypes[name] = u
 	}
 }
 
@@ -2504,6 +2477,26 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 			t.Align = c.ptrSize
 			break
 		}
+		// Exact-width integer types.  These are always compatible with
+		// the corresponding Go types since the C standard requires
+		// them to have no padding bit and use the two’s complement
+		// representation.
+		if exactWidthIntegerType.MatchString(dt.Name) {
+			sub := c.Type(dt.Type, pos)
+			goname := strings.TrimPrefix(dt.Name, "__")
+			goname = strings.TrimSuffix(goname, "_t")
+			u := c.exactWidthIntegerTypes[goname]
+			if sub.Size != u.Size {
+				fatalf("%s: unexpected size: %d vs. %d – %s", lineno(pos), sub.Size, u.Size, dtype)
+			}
+			if sub.Align != u.Align {
+				fatalf("%s: unexpected alignment: %d vs. %d – %s", lineno(pos), sub.Align, u.Align, dtype)
+			}
+			t.Size = u.Size
+			t.Align = u.Align
+			t.Go = u.Go
+			break
+		}
 		name := c.Ident("_Ctype_" + dt.Name)
 		goIdent[name.Name] = name
 		sub := c.Type(dt.Type, pos)
@@ -2511,13 +2504,16 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 			// Treat this typedef as a uintptr.
 			s := *sub
 			s.Go = c.uintptr
+			s.BadPointer = true
 			sub = &s
 			// Make sure we update any previously computed type.
 			if oldType := typedef[name.Name]; oldType != nil {
 				oldType.Go = sub.Go
+				oldType.BadPointer = true
 			}
 		}
 		t.Go = name
+		t.BadPointer = sub.BadPointer
 		if unionWithPointer[sub.Go] {
 			unionWithPointer[t.Go] = true
 		}
@@ -2527,6 +2523,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		if oldType == nil {
 			tt := *t
 			tt.Go = sub.Go
+			tt.BadPointer = sub.BadPointer
 			typedef[name.Name] = &tt
 		}
 
@@ -2634,6 +2631,8 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 
 	return t
 }
+
+var exactWidthIntegerType = regexp.MustCompile(`^(__)?u?int(8|16|32|64)_t$`)
 
 // isStructUnionClass reports whether the type described by the Go syntax x
 // is a struct, union, or class with a tag.

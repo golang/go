@@ -326,7 +326,16 @@ func textsectionmap(ctxt *Link) uint32 {
 }
 
 func (ctxt *Link) symtab() {
-	dosymtype(ctxt)
+	switch ctxt.BuildMode {
+	case BuildModeCArchive, BuildModeCShared:
+		for _, s := range ctxt.Syms.Allsym {
+			// Create a new entry in the .init_array section that points to the
+			// library initializer function.
+			if s.Name == *flagEntrySymbol && ctxt.HeadType != objabi.Haix {
+				addinitarrdata(ctxt, s)
+			}
+		}
+	}
 
 	// Define these so that they'll get put into the symbol table.
 	// data.c:/^address will provide the actual values.
@@ -561,6 +570,20 @@ func (ctxt *Link) symtab() {
 	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.gcbss", 0))
 	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.types", 0))
 	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.etypes", 0))
+
+	if ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal {
+		// Add R_REF relocation to prevent ld's garbage collection of
+		// runtime.rodata, runtime.erodata and runtime.epclntab.
+		addRef := func(name string) {
+			r := moduledata.AddRel()
+			r.Sym = ctxt.Syms.Lookup(name, 0)
+			r.Type = objabi.R_XCOFFREF
+			r.Siz = uint8(ctxt.Arch.PtrSize)
+		}
+		addRef("runtime.rodata")
+		addRef("runtime.erodata")
+		addRef("runtime.epclntab")
+	}
 
 	// text section information
 	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.textsectionmap", 0))

@@ -1,3 +1,5 @@
+[short] skip
+
 # go list with path to directory should work
 
 env GO111MODULE=off

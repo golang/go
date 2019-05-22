@@ -206,6 +206,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARMADDD,
 		ssa.OpARMSUBF,
 		ssa.OpARMSUBD,
+		ssa.OpARMSLL,
+		ssa.OpARMSRL,
+		ssa.OpARMSRA,
 		ssa.OpARMMULF,
 		ssa.OpARMMULD,
 		ssa.OpARMNMULF,
@@ -242,18 +245,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		r2 := v.Args[1].Reg()
 		p := s.Prog(v.Op.Asm())
 		p.Scond = arm.C_SBIT
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = r2
-		p.Reg = r1
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-	case ssa.OpARMSLL,
-		ssa.OpARMSRL,
-		ssa.OpARMSRA:
-		r := v.Reg()
-		r1 := v.Args[0].Reg()
-		r2 := v.Args[1].Reg()
-		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r2
 		p.Reg = r1
@@ -659,6 +650,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpARMMVN,
 		ssa.OpARMCLZ,
 		ssa.OpARMREV,
+		ssa.OpARMREV16,
 		ssa.OpARMRBIT,
 		ssa.OpARMSQRTD,
 		ssa.OpARMNEGF,
@@ -710,6 +702,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = v.Aux.(*obj.LSym)
+	case ssa.OpARMLoweredPanicBoundsA, ssa.OpARMLoweredPanicBoundsB, ssa.OpARMLoweredPanicBoundsC:
+		p := s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.BoundsCheckFunc[v.AuxInt]
+		s.UseArgs(8) // space used in callee args area by assembly stubs
+	case ssa.OpARMLoweredPanicExtendA, ssa.OpARMLoweredPanicExtendB, ssa.OpARMLoweredPanicExtendC:
+		p := s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.ExtendCheckFunc[v.AuxInt]
+		s.UseArgs(12) // space used in callee args area by assembly stubs
 	case ssa.OpARMDUFFZERO:
 		p := s.Prog(obj.ADUFFZERO)
 		p.To.Type = obj.TYPE_MEM
@@ -916,7 +920,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		}
 
 	case ssa.BlockExit:
-		s.Prog(obj.AUNDEF) // tell plive.go that we never reach here
 
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)

@@ -111,9 +111,11 @@ The commands are:
   src can include "stdout" or "stderr" to use the standard output or standard error
   from the most recent exec or go command.
 
-- env [key=value...]
+- env [-r] [key=value...]
   With no arguments, print the environment (useful for debugging).
   Otherwise add the listed key=value pairs to the environment.
+  The -r flag causes the values to be escaped using regexp.QuoteMeta
+  before being recorded.
 
 - [!] exec program [args...] [&]
   Run the given executable program with the arguments.
@@ -135,9 +137,10 @@ The commands are:
   Run the (test copy of the) go command with the given arguments.
   It must (or must not) succeed.
 
-- [!] grep [-count=N] pattern file
+- [!] grep [-count=N] [-q] pattern file
   The file's content must (or must not) match the regular expression pattern.
   For positive matches, -count=N specifies an exact number of matches to require.
+  The -q flag disables printing the file content on a mismatch.
 
 - mkdir path...
   Create the listed directories, if they do not already exists.

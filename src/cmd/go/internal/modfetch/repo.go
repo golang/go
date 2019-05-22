@@ -17,6 +17,7 @@ import (
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/par"
 	"cmd/go/internal/semver"
+	"cmd/go/internal/str"
 	web "cmd/go/internal/web"
 )
 
@@ -160,12 +161,6 @@ type RevInfo struct {
 // To avoid version control access except when absolutely necessary,
 // Lookup does not attempt to connect to the repository itself.
 //
-// The Import function takes an import path found in source code and
-// determines which module to add to the requirement list to satisfy
-// that import. It checks successive truncations of the import path
-// to determine possible modules and stops when it finds a module
-// in which the latest version satisfies the import path.
-//
 // The ImportRepoRev function is a variant of Import which is limited
 // to code in a source code repository at a particular revision identifier
 // (usually a commit hash or source code repository tag, not necessarily
@@ -211,11 +206,14 @@ func lookup(path string) (r Repo, err error) {
 	if proxyURL == "off" {
 		return nil, fmt.Errorf("module lookup disabled by GOPROXY=%s", proxyURL)
 	}
-	if proxyURL != "" && proxyURL != "direct" {
+	if proxyURL != "" && proxyURL != "direct" && !str.GlobsMatchPath(cfg.GONOPROXY, path) {
 		return lookupProxy(path)
 	}
+	return lookupDirect(path)
+}
 
-	security := web.Secure
+func lookupDirect(path string) (Repo, error) {
+	security := web.SecureOnly
 	if get.Insecure {
 		security = web.Insecure
 	}
@@ -260,7 +258,7 @@ func ImportRepoRev(path, rev string) (Repo, *RevInfo, error) {
 	// Note: Because we are converting a code reference from a legacy
 	// version control system, we ignore meta tags about modules
 	// and use only direct source control entries (get.IgnoreMod).
-	security := web.Secure
+	security := web.SecureOnly
 	if get.Insecure {
 		security = web.Insecure
 	}

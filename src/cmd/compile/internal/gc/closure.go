@@ -73,6 +73,16 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
 
 func typecheckclosure(clo *Node, top int) {
 	xfunc := clo.Func.Closure
+	clo.Func.Ntype = typecheck(clo.Func.Ntype, Etype)
+	clo.Type = clo.Func.Ntype.Type
+	clo.Func.Top = top
+
+	// Do not typecheck xfunc twice, otherwise, we will end up pushing
+	// xfunc to xtop multiple times, causing initLSym called twice.
+	// See #30709
+	if xfunc.Typecheck() == 1 {
+		return
+	}
 
 	for _, ln := range xfunc.Func.Cvars.Slice() {
 		n := ln.Name.Defn
@@ -94,10 +104,6 @@ func typecheckclosure(clo *Node, top int) {
 	disableExport(xfunc.Func.Nname.Sym)
 	declare(xfunc.Func.Nname, PFUNC)
 	xfunc = typecheck(xfunc, ctxStmt)
-
-	clo.Func.Ntype = typecheck(clo.Func.Ntype, Etype)
-	clo.Type = clo.Func.Ntype.Type
-	clo.Func.Top = top
 
 	// Type check the body now, but only if we're inside a function.
 	// At top level (in a variable initialization: curfn==nil) we're not

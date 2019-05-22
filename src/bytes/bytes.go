@@ -12,23 +12,12 @@ import (
 	"unicode/utf8"
 )
 
-// Equal returns a boolean reporting whether a and b
+// Equal reports whether a and b
 // are the same length and contain the same bytes.
 // A nil argument is equivalent to an empty slice.
 func Equal(a, b []byte) bool {
-	return bytealg.Equal(a, b)
-}
-
-func equalPortable(a, b []byte) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, c := range a {
-		if c != b[i] {
-			return false
-		}
-	}
-	return true
+	// Neither cmd/compile nor gccgo allocates for these string conversions.
+	return string(a) == string(b)
 }
 
 // Compare returns an integer comparing two byte slices lexicographically.
@@ -114,12 +103,34 @@ func indexBytePortable(s []byte, c byte) int {
 // LastIndex returns the index of the last instance of sep in s, or -1 if sep is not present in s.
 func LastIndex(s, sep []byte) int {
 	n := len(sep)
-	if n == 0 {
+	switch {
+	case n == 0:
 		return len(s)
+	case n == 1:
+		return LastIndexByte(s, sep[0])
+	case n == len(s):
+		if Equal(s, sep) {
+			return 0
+		}
+		return -1
+	case n > len(s):
+		return -1
 	}
-	c := sep[0]
-	for i := len(s) - n; i >= 0; i-- {
-		if s[i] == c && (n == 1 || Equal(s[i:i+n], sep)) {
+	// Rabin-Karp search from the end of the string
+	hashss, pow := hashStrRev(sep)
+	last := len(s) - n
+	var h uint32
+	for i := len(s) - 1; i >= last; i-- {
+		h = h*primeRK + uint32(s[i])
+	}
+	if h == hashss && Equal(s[last:], sep) {
+		return last
+	}
+	for i := last - 1; i >= 0; i-- {
+		h *= primeRK
+		h += uint32(s[i])
+		h -= pow * uint32(s[i+n])
+		if h == hashss && Equal(s[i:i+n], sep) {
 			return i
 		}
 	}
@@ -477,13 +488,16 @@ func Map(mapping func(r rune) rune, s []byte) []byte {
 // It panics if count is negative or if
 // the result of (len(b) * count) overflows.
 func Repeat(b []byte, count int) []byte {
+	if count == 0 {
+		return []byte{}
+	}
 	// Since we cannot return an error on overflow,
 	// we should panic if the repeat will generate
 	// an overflow.
 	// See Issue golang.org/issue/16237.
 	if count < 0 {
 		panic("bytes: negative Repeat count")
-	} else if count > 0 && len(b)*count/count != len(b) {
+	} else if len(b)*count/count != len(b) {
 		panic("bytes: Repeat count causes overflow")
 	}
 
@@ -496,11 +510,66 @@ func Repeat(b []byte, count int) []byte {
 	return nb
 }
 
-// ToUpper treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters within it mapped to their upper case.
-func ToUpper(s []byte) []byte { return Map(unicode.ToUpper, s) }
+// ToUpper returns a copy of the byte slice s with all Unicode letters mapped to
+// their upper case.
+func ToUpper(s []byte) []byte {
+	isASCII, hasLower := true, false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= utf8.RuneSelf {
+			isASCII = false
+			break
+		}
+		hasLower = hasLower || ('a' <= c && c <= 'z')
+	}
 
-// ToLower treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters mapped to their lower case.
-func ToLower(s []byte) []byte { return Map(unicode.ToLower, s) }
+	if isASCII { // optimize for ASCII-only byte slices.
+		if !hasLower {
+			// Just return a copy.
+			return append([]byte(""), s...)
+		}
+		b := make([]byte, len(s))
+		for i := 0; i < len(s); i++ {
+			c := s[i]
+			if 'a' <= c && c <= 'z' {
+				c -= 'a' - 'A'
+			}
+			b[i] = c
+		}
+		return b
+	}
+	return Map(unicode.ToUpper, s)
+}
+
+// ToLower returns a copy of the byte slice s with all Unicode letters mapped to
+// their lower case.
+func ToLower(s []byte) []byte {
+	isASCII, hasUpper := true, false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= utf8.RuneSelf {
+			isASCII = false
+			break
+		}
+		hasUpper = hasUpper || ('A' <= c && c <= 'Z')
+	}
+
+	if isASCII { // optimize for ASCII-only byte slices.
+		if !hasUpper {
+			return append([]byte(""), s...)
+		}
+		b := make([]byte, len(s))
+		for i := 0; i < len(s); i++ {
+			c := s[i]
+			if 'A' <= c && c <= 'Z' {
+				c += 'a' - 'A'
+			}
+			b[i] = c
+		}
+		return b
+	}
+	return Map(unicode.ToLower, s)
+}
 
 // ToTitle treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters mapped to their title case.
 func ToTitle(s []byte) []byte { return Map(unicode.ToTitle, s) }
@@ -521,6 +590,35 @@ func ToLowerSpecial(c unicode.SpecialCase, s []byte) []byte {
 // title case, giving priority to the special casing rules.
 func ToTitleSpecial(c unicode.SpecialCase, s []byte) []byte {
 	return Map(c.ToTitle, s)
+}
+
+// ToValidUTF8 treats s as UTF-8-encoded bytes and returns a copy with each run of bytes
+// representing invalid UTF-8 replaced with the bytes in replacement, which may be empty.
+func ToValidUTF8(s, replacement []byte) []byte {
+	b := make([]byte, 0, len(s)+len(replacement))
+	invalid := false // previous byte was from an invalid UTF-8 sequence
+	for i := 0; i < len(s); {
+		c := s[i]
+		if c < utf8.RuneSelf {
+			i++
+			invalid = false
+			b = append(b, byte(c))
+			continue
+		}
+		_, wid := utf8.DecodeRune(s[i:])
+		if wid == 1 {
+			i++
+			if !invalid {
+				invalid = true
+				b = append(b, replacement...)
+			}
+			continue
+		}
+		invalid = false
+		b = append(b, s[i:i+wid]...)
+		i += wid
+	}
+	return b
 }
 
 // isSeparator reports whether the rune could mark a word boundary.
@@ -734,7 +832,41 @@ func TrimRight(s []byte, cutset string) []byte {
 // TrimSpace returns a subslice of s by slicing off all leading and
 // trailing white space, as defined by Unicode.
 func TrimSpace(s []byte) []byte {
-	return TrimFunc(s, unicode.IsSpace)
+	// Fast path for ASCII: look for the first ASCII non-space byte
+	start := 0
+	for ; start < len(s); start++ {
+		c := s[start]
+		if c >= utf8.RuneSelf {
+			// If we run into a non-ASCII byte, fall back to the
+			// slower unicode-aware method on the remaining bytes
+			return TrimFunc(s[start:], unicode.IsSpace)
+		}
+		if asciiSpace[c] == 0 {
+			break
+		}
+	}
+
+	// Now look for the first ASCII non-space byte from the end
+	stop := len(s)
+	for ; stop > start; stop-- {
+		c := s[stop-1]
+		if c >= utf8.RuneSelf {
+			return TrimFunc(s[start:stop], unicode.IsSpace)
+		}
+		if asciiSpace[c] == 0 {
+			break
+		}
+	}
+
+	// At this point s[start:stop] starts and ends with an ASCII
+	// non-space bytes, so we're done. Non-ASCII cases have already
+	// been handled above.
+	if start == stop {
+		// Special case to preserve previous TrimLeftFunc behavior,
+		// returning nil instead of empty slice if all spaces.
+		return nil
+	}
+	return s[start:stop]
 }
 
 // Runes interprets s as a sequence of UTF-8-encoded code points.
@@ -976,6 +1108,23 @@ const primeRK = 16777619
 func hashStr(sep []byte) (uint32, uint32) {
 	hash := uint32(0)
 	for i := 0; i < len(sep); i++ {
+		hash = hash*primeRK + uint32(sep[i])
+	}
+	var pow, sq uint32 = 1, primeRK
+	for i := len(sep); i > 0; i >>= 1 {
+		if i&1 != 0 {
+			pow *= sq
+		}
+		sq *= sq
+	}
+	return hash, pow
+}
+
+// hashStrRev returns the hash of the reverse of sep and the
+// appropriate multiplicative factor for use in Rabin-Karp algorithm.
+func hashStrRev(sep []byte) (uint32, uint32) {
+	hash := uint32(0)
+	for i := len(sep) - 1; i >= 0; i-- {
 		hash = hash*primeRK + uint32(sep[i])
 	}
 	var pow, sq uint32 = 1, primeRK

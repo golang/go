@@ -25,16 +25,16 @@ type iselOp struct {
 var iselRegs = [2]int16{ppc64.REG_R0, ppc64.REGTMP}
 
 var iselOps = map[ssa.Op]iselOp{
-	ssa.OpPPC64Equal:         iselOp{cond: ppc64.C_COND_EQ, valueIfCond: 1},
-	ssa.OpPPC64NotEqual:      iselOp{cond: ppc64.C_COND_EQ, valueIfCond: 0},
-	ssa.OpPPC64LessThan:      iselOp{cond: ppc64.C_COND_LT, valueIfCond: 1},
-	ssa.OpPPC64GreaterEqual:  iselOp{cond: ppc64.C_COND_LT, valueIfCond: 0},
-	ssa.OpPPC64GreaterThan:   iselOp{cond: ppc64.C_COND_GT, valueIfCond: 1},
-	ssa.OpPPC64LessEqual:     iselOp{cond: ppc64.C_COND_GT, valueIfCond: 0},
-	ssa.OpPPC64FLessThan:     iselOp{cond: ppc64.C_COND_LT, valueIfCond: 1},
-	ssa.OpPPC64FGreaterThan:  iselOp{cond: ppc64.C_COND_GT, valueIfCond: 1},
-	ssa.OpPPC64FLessEqual:    iselOp{cond: ppc64.C_COND_LT, valueIfCond: 1}, // 2 comparisons, 2nd is EQ
-	ssa.OpPPC64FGreaterEqual: iselOp{cond: ppc64.C_COND_GT, valueIfCond: 1}, // 2 comparisons, 2nd is EQ
+	ssa.OpPPC64Equal:         {cond: ppc64.C_COND_EQ, valueIfCond: 1},
+	ssa.OpPPC64NotEqual:      {cond: ppc64.C_COND_EQ, valueIfCond: 0},
+	ssa.OpPPC64LessThan:      {cond: ppc64.C_COND_LT, valueIfCond: 1},
+	ssa.OpPPC64GreaterEqual:  {cond: ppc64.C_COND_LT, valueIfCond: 0},
+	ssa.OpPPC64GreaterThan:   {cond: ppc64.C_COND_GT, valueIfCond: 1},
+	ssa.OpPPC64LessEqual:     {cond: ppc64.C_COND_GT, valueIfCond: 0},
+	ssa.OpPPC64FLessThan:     {cond: ppc64.C_COND_LT, valueIfCond: 1},
+	ssa.OpPPC64FGreaterThan:  {cond: ppc64.C_COND_GT, valueIfCond: 1},
+	ssa.OpPPC64FLessEqual:    {cond: ppc64.C_COND_LT, valueIfCond: 1}, // 2 comparisons, 2nd is EQ
+	ssa.OpPPC64FGreaterEqual: {cond: ppc64.C_COND_GT, valueIfCond: 1}, // 2 comparisons, 2nd is EQ
 }
 
 // markMoves marks any MOVXconst ops that need to avoid clobbering flags.
@@ -172,6 +172,31 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p1.To.Type = obj.TYPE_REG
 		p1.To.Reg = v.Reg1()
 
+	case ssa.OpPPC64LoweredAdd64Carry:
+		// ADDC		Rarg2, -1, Rtmp
+		// ADDE		Rarg1, Rarg0, Reg0
+		// ADDZE	Rzero, Reg1
+		r0 := v.Args[0].Reg()
+		r1 := v.Args[1].Reg()
+		r2 := v.Args[2].Reg()
+		p := s.Prog(ppc64.AADDC)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = -1
+		p.Reg = r2
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = ppc64.REGTMP
+		p1 := s.Prog(ppc64.AADDE)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = r1
+		p1.Reg = r0
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = v.Reg0()
+		p2 := s.Prog(ppc64.AADDZE)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = ppc64.REGZERO
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = v.Reg1()
+
 	case ssa.OpPPC64LoweredAtomicAnd8,
 		ssa.OpPPC64LoweredAtomicOr8:
 		// LWSYNC
@@ -298,18 +323,22 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		pisync := s.Prog(ppc64.AISYNC)
 		pisync.To.Type = obj.TYPE_NONE
 
-	case ssa.OpPPC64LoweredAtomicLoad32,
+	case ssa.OpPPC64LoweredAtomicLoad8,
+		ssa.OpPPC64LoweredAtomicLoad32,
 		ssa.OpPPC64LoweredAtomicLoad64,
 		ssa.OpPPC64LoweredAtomicLoadPtr:
 		// SYNC
-		// MOVD/MOVW (Rarg0), Rout
+		// MOVB/MOVD/MOVW (Rarg0), Rout
 		// CMP Rout,Rout
 		// BNE 1(PC)
 		// ISYNC
 		ld := ppc64.AMOVD
 		cmp := ppc64.ACMP
-		if v.Op == ssa.OpPPC64LoweredAtomicLoad32 {
-			ld = ppc64.AMOVW
+		switch v.Op {
+		case ssa.OpPPC64LoweredAtomicLoad8:
+			ld = ppc64.AMOVBZ
+		case ssa.OpPPC64LoweredAtomicLoad32:
+			ld = ppc64.AMOVWZ
 			cmp = ppc64.ACMPW
 		}
 		arg0 := v.Args[0].Reg()
@@ -620,7 +649,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = ppc64.REGTMP // Ignored; this is for the carry effect.
 
-	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FFLOOR, ssa.OpPPC64FTRUNC, ssa.OpPPC64FCEIL, ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FCFIDS, ssa.OpPPC64FRSP, ssa.OpPPC64CNTLZD, ssa.OpPPC64CNTLZW, ssa.OpPPC64POPCNTD, ssa.OpPPC64POPCNTW, ssa.OpPPC64POPCNTB, ssa.OpPPC64MFVSRD, ssa.OpPPC64MTVSRD, ssa.OpPPC64FABS, ssa.OpPPC64FNABS, ssa.OpPPC64FROUND:
+	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FFLOOR, ssa.OpPPC64FTRUNC, ssa.OpPPC64FCEIL,
+		ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FCFIDS, ssa.OpPPC64FRSP, ssa.OpPPC64CNTLZD, ssa.OpPPC64CNTLZW,
+		ssa.OpPPC64POPCNTD, ssa.OpPPC64POPCNTW, ssa.OpPPC64POPCNTB, ssa.OpPPC64MFVSRD, ssa.OpPPC64MTVSRD, ssa.OpPPC64FABS, ssa.OpPPC64FNABS,
+		ssa.OpPPC64FROUND, ssa.OpPPC64CNTTZW, ssa.OpPPC64CNTTZD:
 		r := v.Reg()
 		p := s.Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
@@ -1183,6 +1215,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = v.Aux.(*obj.LSym)
 
+	case ssa.OpPPC64LoweredPanicBoundsA, ssa.OpPPC64LoweredPanicBoundsB, ssa.OpPPC64LoweredPanicBoundsC:
+		p := s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.BoundsCheckFunc[v.AuxInt]
+		s.UseArgs(16) // space used in callee args area by assembly stubs
+
 	case ssa.OpPPC64LoweredNilCheck:
 		if objabi.GOOS == "aix" {
 			// CMP Rarg0, R0
@@ -1284,7 +1323,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
 		}
 	case ssa.BlockExit:
-		s.Prog(obj.AUNDEF) // tell plive.go that we never reach here
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
 	case ssa.BlockRetJmp:

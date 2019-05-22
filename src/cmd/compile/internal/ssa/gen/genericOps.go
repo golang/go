@@ -369,6 +369,14 @@ var genericOps = []opData{
 	// arch-dependent), and is not a safe-point.
 	{name: "WB", argLength: 3, typ: "Mem", aux: "Sym", symEffect: "None"}, // arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
 
+	// PanicBounds and PanicExtend generate a runtime panic.
+	// Their arguments provide index values to use in panic messages.
+	// Both PanicBounds and PanicExtend have an AuxInt value from the BoundsKind type (in ../op.go).
+	// PanicBounds' index is int sized.
+	// PanicExtend's index is int64 sized. (PanicExtend is only used on 32-bit archs.)
+	{name: "PanicBounds", argLength: 3, aux: "Int64", typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory.
+	{name: "PanicExtend", argLength: 4, aux: "Int64", typ: "Mem"}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory.
+
 	// Function calls. Arguments to the call have already been written to the stack.
 	// Return values appear on the stack. The method receiver, if any, is treated
 	// as a phantom first argument.
@@ -519,6 +527,7 @@ var genericOps = []opData{
 	// Atomic loads return a new memory so that the loads are properly ordered
 	// with respect to other loads and stores.
 	// TODO: use for sync/atomic at some point.
+	{name: "AtomicLoad8", argLength: 2, typ: "(UInt8,Mem)"},                                    // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
 	{name: "AtomicLoad32", argLength: 2, typ: "(UInt32,Mem)"},                                  // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
 	{name: "AtomicLoad64", argLength: 2, typ: "(UInt64,Mem)"},                                  // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
 	{name: "AtomicLoadPtr", argLength: 2, typ: "(BytePtr,Mem)"},                                // Load from arg0.  arg1=memory.  Returns loaded value and new memory.

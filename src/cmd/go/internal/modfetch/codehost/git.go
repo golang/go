@@ -19,6 +19,7 @@ import (
 
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/par"
+	"cmd/go/internal/semver"
 )
 
 // GitRepo returns the code repository at the given Git remote reference.
@@ -32,7 +33,7 @@ func LocalGitRepo(remote string) (Repo, error) {
 	return newGitRepoCached(remote, true)
 }
 
-const gitWorkDirType = "git2"
+const gitWorkDirType = "git3"
 
 var gitRepoCache par.Cache
 
@@ -166,7 +167,7 @@ func (r *gitRepo) loadRefs() {
 	if err != nil {
 		if rerr, ok := err.(*RunError); ok {
 			if bytes.Contains(rerr.Stderr, []byte("fatal: could not read Username")) {
-				rerr.HelpText = "If this is a private repository, see https://golang.org/doc/faq#git_https for additional information."
+				rerr.HelpText = "Confirm the import path was entered correctly.\nIf this is a private repository, see https://golang.org/doc/faq#git_https for additional information."
 			}
 		}
 		r.refsErr = err
@@ -339,8 +340,14 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
 		}
 	}
 
-	// If we know a specific commit we need, fetch it.
-	if r.fetchLevel <= fetchSome && hash != "" && !r.local {
+	// If we know a specific commit we need and its ref, fetch it.
+	// We do NOT fetch arbitrary hashes (when we don't know the ref)
+	// because we want to avoid ever importing a commit that isn't
+	// reachable from refs/tags/* or refs/heads/* or HEAD.
+	// Both Gerrit and GitHub expose every CL/PR as a named ref,
+	// and we don't want those commits masquerading as being real
+	// pseudo-versions in the main repo.
+	if r.fetchLevel <= fetchSome && ref != "" && hash != "" && !r.local {
 		r.fetchLevel = fetchSome
 		var refspec string
 		if ref != "" && ref != "HEAD" {
@@ -646,16 +653,41 @@ func (r *gitRepo) RecentTag(rev, prefix string) (tag string, err error) {
 	}
 	rev = info.Name // expand hash prefixes
 
-	// describe sets tag and err using 'git describe' and reports whether the
+	// describe sets tag and err using 'git for-each-ref' and reports whether the
 	// result is definitive.
 	describe := func() (definitive bool) {
 		var out []byte
-		out, err = Run(r.dir, "git", "describe", "--first-parent", "--always", "--abbrev=0", "--match", prefix+"v[0-9]*.[0-9]*.[0-9]*", "--tags", rev)
+		out, err = Run(r.dir, "git", "for-each-ref", "--format", "%(refname)", "refs/tags", "--merged", rev)
 		if err != nil {
-			return true // Because we use "--always", describe should never fail.
+			return true
 		}
 
-		tag = string(bytes.TrimSpace(out))
+		// prefixed tags aren't valid semver tags so compare without prefix, but only tags with correct prefix
+		var highest string
+		for _, line := range strings.Split(string(out), "\n") {
+			line = strings.TrimSpace(line)
+			// git do support lstrip in for-each-ref format, but it was added in v2.13.0. Stripping here
+			// instead gives support for git v2.7.0.
+			if !strings.HasPrefix(line, "refs/tags/") {
+				continue
+			}
+			line = line[len("refs/tags/"):]
+
+			if !strings.HasPrefix(line, prefix) {
+				continue
+			}
+
+			semtag := line[len(prefix):]
+			// Consider only tags that are valid and complete (not just major.minor prefixes).
+			if c := semver.Canonical(semtag); c != "" && strings.HasPrefix(semtag, c) {
+				highest = semver.Max(highest, semtag)
+			}
+		}
+
+		if highest != "" {
+			tag = prefix + highest
+		}
+
 		return tag != "" && !AllHex(tag)
 	}
 

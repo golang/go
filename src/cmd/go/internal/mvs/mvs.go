@@ -9,7 +9,9 @@ package mvs
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
+	"sync/atomic"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/module"
@@ -59,12 +61,55 @@ type Reqs interface {
 	Previous(m module.Version) (module.Version, error)
 }
 
-type MissingModuleError struct {
-	Module module.Version
+// BuildListError decorates an error that occurred gathering requirements
+// while constructing a build list. BuildListError prints the chain
+// of requirements to the module where the error occurred.
+type BuildListError struct {
+	Err   error
+	stack []buildListErrorElem
 }
 
-func (e *MissingModuleError) Error() string {
-	return fmt.Sprintf("missing module: %v", e.Module)
+type buildListErrorElem struct {
+	m module.Version
+
+	// nextReason is the reason this module depends on the next module in the
+	// stack. Typically either "requires", or "upgraded to".
+	nextReason string
+}
+
+// Module returns the module where the error occurred. If the module stack
+// is empty, this returns a zero value.
+func (e *BuildListError) Module() module.Version {
+	if len(e.stack) == 0 {
+		return module.Version{}
+	}
+	return e.stack[0].m
+}
+
+func (e *BuildListError) Error() string {
+	b := &strings.Builder{}
+	errMsg := e.Err.Error()
+	stack := e.stack
+
+	// Don't print modules at the beginning of the chain without a
+	// version. These always seem to be the main module or a
+	// synthetic module ("target@").
+	for len(stack) > 0 && stack[len(stack)-1].m.Version == "" {
+		stack = stack[:len(stack)-1]
+	}
+
+	// Don't print the last module if the error message already
+	// starts with module path and version.
+	errMentionsLast := len(stack) > 0 && strings.HasPrefix(errMsg, fmt.Sprintf("%s@%s: ", stack[0].m.Path, stack[0].m.Version))
+	for i := len(stack) - 1; i >= 1; i-- {
+		fmt.Fprintf(b, "%s@%s %s\n\t", stack[i].m.Path, stack[i].m.Version, stack[i].nextReason)
+	}
+	if errMentionsLast || len(stack) == 0 {
+		b.WriteString(errMsg)
+	} else {
+		fmt.Fprintf(b, "%s@%s: %s", stack[0].m.Path, stack[0].m.Version, errMsg)
+	}
+	return b.String()
 }
 
 // BuildList returns the build list for the target module.
@@ -76,35 +121,40 @@ func BuildList(target module.Version, reqs Reqs) ([]module.Version, error) {
 func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) module.Version) ([]module.Version, error) {
 	// Explore work graph in parallel in case reqs.Required
 	// does high-latency network operations.
-	var work par.Work
-	work.Add(target)
+	type modGraphNode struct {
+		m        module.Version
+		required []module.Version
+		upgrade  module.Version
+		err      error
+	}
 	var (
 		mu       sync.Mutex
-		min      = map[string]string{target.Path: target.Version}
-		firstErr error
+		modGraph = map[module.Version]*modGraphNode{}
+		min      = map[string]string{} // maps module path to minimum required version
+		haveErr  int32
 	)
+
+	var work par.Work
+	work.Add(target)
 	work.Do(10, func(item interface{}) {
 		m := item.(module.Version)
-		required, err := reqs.Required(m)
 
+		node := &modGraphNode{m: m}
 		mu.Lock()
-		if err != nil && firstErr == nil {
-			firstErr = err
-		}
-		if firstErr != nil {
-			mu.Unlock()
-			return
-		}
+		modGraph[m] = node
 		if v, ok := min[m.Path]; !ok || reqs.Max(v, m.Version) != v {
 			min[m.Path] = m.Version
 		}
 		mu.Unlock()
 
-		for _, r := range required {
-			if r.Path == "" {
-				base.Errorf("Required(%v) returned zero module in list", m)
-				continue
-			}
+		required, err := reqs.Required(m)
+		if err != nil {
+			node.err = err
+			atomic.StoreInt32(&haveErr, 1)
+			return
+		}
+		node.required = required
+		for _, r := range node.required {
 			work.Add(r)
 		}
 
@@ -114,25 +164,70 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) mo
 				base.Errorf("Upgrade(%v) returned zero module", m)
 				return
 			}
-			work.Add(u)
+			if u != m {
+				node.upgrade = u
+				work.Add(u)
+			}
 		}
 	})
 
-	if firstErr != nil {
-		return nil, firstErr
+	// If there was an error, find the shortest path from the target to the
+	// node where the error occurred so we can report a useful error message.
+	if haveErr != 0 {
+		// neededBy[a] = b means a was added to the module graph by b.
+		neededBy := make(map[*modGraphNode]*modGraphNode)
+		q := make([]*modGraphNode, 0, len(modGraph))
+		q = append(q, modGraph[target])
+		for len(q) > 0 {
+			node := q[0]
+			q = q[1:]
+
+			if node.err != nil {
+				err := &BuildListError{
+					Err:   node.err,
+					stack: []buildListErrorElem{{m: node.m}},
+				}
+				for n, prev := neededBy[node], node; n != nil; n, prev = neededBy[n], n {
+					reason := "requires"
+					if n.upgrade == prev.m {
+						reason = "updating to"
+					}
+					err.stack = append(err.stack, buildListErrorElem{m: n.m, nextReason: reason})
+				}
+				return nil, err
+			}
+
+			neighbors := node.required
+			if node.upgrade.Path != "" {
+				neighbors = append(neighbors, node.upgrade)
+			}
+			for _, neighbor := range neighbors {
+				nn := modGraph[neighbor]
+				if neededBy[nn] != nil {
+					continue
+				}
+				neededBy[nn] = node
+				q = append(q, nn)
+			}
+		}
 	}
+
+	// Construct the list by traversing the graph again, replacing older
+	// modules with required minimum versions.
 	if v := min[target.Path]; v != target.Version {
+		// TODO(jayconrod): there is a special case in modload.mvsReqs.Max
+		// that prevents us from selecting a newer version of a module
+		// when the module has no version. This may only be the case for target.
+		// Should we always panic when target has a version?
+		// See golang.org/issue/31491, golang.org/issue/29773.
 		panic(fmt.Sprintf("mistake: chose version %q instead of target %+v", v, target)) // TODO: Don't panic.
 	}
 
 	list := []module.Version{target}
 	listed := map[string]bool{target.Path: true}
 	for i := 0; i < len(list); i++ {
-		m := list[i]
-		required, err := reqs.Required(m)
-		if err != nil {
-			return nil, err
-		}
+		n := modGraph[list[i]]
+		required := n.required
 		for _, r := range required {
 			v := min[r.Path]
 			if r.Path != target.Path && reqs.Max(v, r.Version) != v {

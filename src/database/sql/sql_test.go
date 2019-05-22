@@ -131,6 +131,7 @@ func TestDriverPanic(t *testing.T) {
 }
 
 func exec(t testing.TB, db *DB, query string, args ...interface{}) {
+	t.Helper()
 	_, err := db.Exec(query, args...)
 	if err != nil {
 		t.Fatalf("Exec of %q: %v", query, err)
@@ -1401,7 +1402,7 @@ func TestInvalidNilValues(t *testing.T) {
 		{
 			name:          "int",
 			input:         &date2,
-			expectedError: `sql: Scan error on column index 0, name "bdate": converting driver.Value type <nil> ("<nil>") to a int: invalid syntax`,
+			expectedError: `sql: Scan error on column index 0, name "bdate": converting NULL to int is unsupported`,
 		},
 	}
 
@@ -1671,6 +1672,18 @@ func TestNullInt64Param(t *testing.T) {
 	nullTestRun(t, spec)
 }
 
+func TestNullInt32Param(t *testing.T) {
+	spec := nullTestSpec{"nullint32", "int32", [6]nullTestRow{
+		{NullInt32{31, true}, 1, NullInt32{31, true}},
+		{NullInt32{-22, false}, 1, NullInt32{0, false}},
+		{22, 1, NullInt32{22, true}},
+		{NullInt32{33, true}, 1, NullInt32{33, true}},
+		{NullInt32{222, false}, 1, NullInt32{0, false}},
+		{0, NullInt32{31, false}, nil},
+	}}
+	nullTestRun(t, spec)
+}
+
 func TestNullFloat64Param(t *testing.T) {
 	spec := nullTestSpec{"nullfloat64", "float64", [6]nullTestRow{
 		{NullFloat64{31.2, true}, 1, NullFloat64{31.2, true}},
@@ -1691,6 +1704,21 @@ func TestNullBoolParam(t *testing.T) {
 		{NullBool{true, true}, false, NullBool{true, true}},
 		{NullBool{true, false}, true, NullBool{false, false}},
 		{true, NullBool{true, false}, nil},
+	}}
+	nullTestRun(t, spec)
+}
+
+func TestNullTimeParam(t *testing.T) {
+	t0 := time.Time{}
+	t1 := time.Date(2000, 1, 1, 8, 9, 10, 11, time.UTC)
+	t2 := time.Date(2010, 1, 1, 8, 9, 10, 11, time.UTC)
+	spec := nullTestSpec{"nulldatetime", "datetime", [6]nullTestRow{
+		{NullTime{t1, true}, t2, NullTime{t1, true}},
+		{NullTime{t1, false}, t2, NullTime{t0, false}},
+		{t1, t2, NullTime{t1, true}},
+		{NullTime{t1, true}, t2, NullTime{t1, true}},
+		{NullTime{t1, false}, t2, NullTime{t0, false}},
+		{t2, NullTime{t1, false}, nil},
 	}}
 	nullTestRun(t, spec)
 }

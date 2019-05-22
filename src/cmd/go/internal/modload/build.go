@@ -12,6 +12,7 @@ import (
 	"cmd/go/internal/modinfo"
 	"cmd/go/internal/module"
 	"cmd/go/internal/search"
+	"cmd/go/internal/semver"
 	"encoding/hex"
 	"fmt"
 	"internal/goroot"
@@ -37,9 +38,6 @@ func findStandardImportPath(path string) string {
 	if search.IsStandardImportPath(path) {
 		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
 			return filepath.Join(cfg.GOROOT, "src", path)
-		}
-		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, "vendor/"+path) {
-			return filepath.Join(cfg.GOROOT, "src/vendor", path)
 		}
 	}
 	return ""
@@ -77,13 +75,15 @@ func ModuleInfo(path string) *modinfo.ModulePublic {
 
 // addUpdate fills in m.Update if an updated version is available.
 func addUpdate(m *modinfo.ModulePublic) {
-	if m.Version != "" {
-		if info, err := Query(m.Path, "latest", Allowed); err == nil && info.Version != m.Version {
-			m.Update = &modinfo.ModulePublic{
-				Path:    m.Path,
-				Version: info.Version,
-				Time:    &info.Time,
-			}
+	if m.Version == "" {
+		return
+	}
+
+	if info, err := Query(m.Path, "latest", Allowed); err == nil && semver.Compare(info.Version, m.Version) > 0 {
+		m.Update = &modinfo.ModulePublic{
+			Path:    m.Path,
+			Version: info.Version,
+			Time:    &info.Time,
 		}
 	}
 }
@@ -219,7 +219,7 @@ func PackageBuildInfo(path string, deps []string) string {
 		if r.Path == "" {
 			h = "\t" + modfetch.Sum(mod)
 		}
-		fmt.Fprintf(&buf, "dep\t%s\t%s%s\n", mod.Path, mod.Version, h)
+		fmt.Fprintf(&buf, "dep\t%s\t%s%s\n", mod.Path, mv, h)
 		if r.Path != "" {
 			fmt.Fprintf(&buf, "=>\t%s\t%s\t%s\n", r.Path, r.Version, modfetch.Sum(r))
 		}
@@ -250,21 +250,15 @@ func findModule(target, path string) module.Version {
 }
 
 func ModInfoProg(info string) []byte {
-	// Inject a variable with the debug information as runtime/debug.modinfo,
+	// Inject a variable with the debug information as runtime.modinfo,
 	// but compile it in package main so that it is specific to the binary.
-	//
 	// The variable must be a literal so that it will have the correct value
 	// before the initializer for package main runs.
 	//
-	// We also want the value to be present even if runtime/debug.modinfo is
-	// otherwise unused in the rest of the program. Reading it in an init function
-	// suffices for now.
-
+	// The runtime startup code refers to the variable, which keeps it live in all binaries.
 	return []byte(fmt.Sprintf(`package main
 import _ "unsafe"
-//go:linkname __debug_modinfo__ runtime/debug.modinfo
+//go:linkname __debug_modinfo__ runtime.modinfo
 var __debug_modinfo__ = %q
-var keepalive_modinfo = __debug_modinfo__
-func init() { keepalive_modinfo = __debug_modinfo__ }
 	`, string(infoStart)+info+string(infoEnd)))
 }

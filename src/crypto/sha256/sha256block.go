@@ -8,6 +8,8 @@
 
 package sha256
 
+import "math/bits"
+
 var _K = []uint32{
 	0x428a2f98,
 	0x71374491,
@@ -87,18 +89,18 @@ func blockGeneric(dig *digest, p []byte) {
 		}
 		for i := 16; i < 64; i++ {
 			v1 := w[i-2]
-			t1 := (v1>>17 | v1<<(32-17)) ^ (v1>>19 | v1<<(32-19)) ^ (v1 >> 10)
+			t1 := (bits.RotateLeft32(v1, -17)) ^ (bits.RotateLeft32(v1, -19)) ^ (v1 >> 10)
 			v2 := w[i-15]
-			t2 := (v2>>7 | v2<<(32-7)) ^ (v2>>18 | v2<<(32-18)) ^ (v2 >> 3)
+			t2 := (bits.RotateLeft32(v2, -7)) ^ (bits.RotateLeft32(v2, -18)) ^ (v2 >> 3)
 			w[i] = t1 + w[i-7] + t2 + w[i-16]
 		}
 
 		a, b, c, d, e, f, g, h := h0, h1, h2, h3, h4, h5, h6, h7
 
 		for i := 0; i < 64; i++ {
-			t1 := h + ((e>>6 | e<<(32-6)) ^ (e>>11 | e<<(32-11)) ^ (e>>25 | e<<(32-25))) + ((e & f) ^ (^e & g)) + _K[i] + w[i]
+			t1 := h + ((bits.RotateLeft32(e, -6)) ^ (bits.RotateLeft32(e, -11)) ^ (bits.RotateLeft32(e, -25))) + ((e & f) ^ (^e & g)) + _K[i] + w[i]
 
-			t2 := ((a>>2 | a<<(32-2)) ^ (a>>13 | a<<(32-13)) ^ (a>>22 | a<<(32-22))) + ((a & b) ^ (a & c) ^ (b & c))
+			t2 := ((bits.RotateLeft32(a, -2)) ^ (bits.RotateLeft32(a, -13)) ^ (bits.RotateLeft32(a, -22))) + ((a & b) ^ (a & c) ^ (b & c))
 
 			h = g
 			g = f

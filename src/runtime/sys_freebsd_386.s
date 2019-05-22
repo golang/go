@@ -22,8 +22,10 @@ TEXT runtime·thr_new(SB),NOSPLIT,$-4
 	MOVL	AX, ret+8(FP)
 	RET
 
+// Called by OS using C ABI.
 TEXT runtime·thr_start(SB),NOSPLIT,$0
-	MOVL	mm+0(FP), AX
+	NOP	SP	// tell vet SP changed - stop checking offsets
+	MOVL	4(SP), AX // m
 	MOVL	m_g0(AX), BX
 	LEAL	m_tls(AX), BP
 	MOVL	m_id(AX), DI
@@ -234,17 +236,19 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
 	MOVL	AX, SP
 	RET
 
+// Called by OS using C ABI.
 TEXT runtime·sigtramp(SB),NOSPLIT,$12
-	MOVL	signo+0(FP), BX
+	NOP	SP	// tell vet SP changed - stop checking offsets
+	MOVL	16(SP), BX	// signo
 	MOVL	BX, 0(SP)
-	MOVL	info+4(FP), BX
+	MOVL	20(SP), BX // info
 	MOVL	BX, 4(SP)
-	MOVL	context+8(FP), BX
+	MOVL	24(SP), BX // context
 	MOVL	BX, 8(SP)
 	CALL	runtime·sigtrampgo(SB)
 
 	// call sigreturn
-	MOVL	context+8(FP), AX
+	MOVL	24(SP), AX	// context
 	MOVL	$0, 0(SP)	// syscall gap
 	MOVL	AX, 4(SP)
 	MOVL	$417, AX	// sigreturn(ucontext)
@@ -295,7 +299,7 @@ int i386_set_ldt(int, const union ldt_entry *, int);
 
 // setldt(int entry, int address, int limit)
 TEXT runtime·setldt(SB),NOSPLIT,$32
-	MOVL	address+4(FP), BX	// aka base
+	MOVL	base+4(FP), BX
 	// see comment in sys_linux_386.s; freebsd is similar
 	ADDL	$0x4, BX
 
@@ -319,7 +323,7 @@ TEXT runtime·setldt(SB),NOSPLIT,$32
 	MOVL	$0xffffffff, 0(SP)	// auto-allocate entry and return in AX
 	MOVL	AX, 4(SP)
 	MOVL	$1, 8(SP)
-	CALL	runtime·i386_set_ldt(SB)
+	CALL	i386_set_ldt<>(SB)
 
 	// compute segment selector - (entry*8+7)
 	SHLL	$3, AX
@@ -327,7 +331,7 @@ TEXT runtime·setldt(SB),NOSPLIT,$32
 	MOVW	AX, GS
 	RET
 
-TEXT runtime·i386_set_ldt(SB),NOSPLIT,$16
+TEXT i386_set_ldt<>(SB),NOSPLIT,$16
 	LEAL	args+0(FP), AX	// 0(FP) == 4(SP) before SP got moved
 	MOVL	$0, 0(SP)	// syscall gap
 	MOVL	$1, 4(SP)

@@ -172,7 +172,7 @@ func (s *Symbol) SetUint(arch *sys.Arch, r int64, v uint64) int64 {
 	return s.setUintXX(arch, r, v, int64(arch.PtrSize))
 }
 
-func (s *Symbol) AddAddrPlus(arch *sys.Arch, t *Symbol, add int64) int64 {
+func (s *Symbol) addAddrPlus(arch *sys.Arch, t *Symbol, add int64, typ objabi.RelocType) int64 {
 	if s.Type == 0 {
 		s.Type = SDATA
 	}
@@ -184,9 +184,17 @@ func (s *Symbol) AddAddrPlus(arch *sys.Arch, t *Symbol, add int64) int64 {
 	r.Sym = t
 	r.Off = int32(i)
 	r.Siz = uint8(arch.PtrSize)
-	r.Type = objabi.R_ADDR
+	r.Type = typ
 	r.Add = add
 	return i + int64(r.Siz)
+}
+
+func (s *Symbol) AddAddrPlus(arch *sys.Arch, t *Symbol, add int64) int64 {
+	return s.addAddrPlus(arch, t, add, objabi.R_ADDR)
+}
+
+func (s *Symbol) AddCURelativeAddrPlus(arch *sys.Arch, t *Symbol, add int64) int64 {
+	return s.addAddrPlus(arch, t, add, objabi.R_ADDRCUOFF)
 }
 
 func (s *Symbol) AddPCRelPlus(arch *sys.Arch, t *Symbol, add int64) int64 {
@@ -203,6 +211,9 @@ func (s *Symbol) AddPCRelPlus(arch *sys.Arch, t *Symbol, add int64) int64 {
 	r.Add = add
 	r.Type = objabi.R_PCREL
 	r.Siz = 4
+	if arch.Family == sys.S390X || arch.Family == sys.PPC64 {
+		r.InitExt()
+	}
 	if arch.Family == sys.S390X {
 		r.Variant = RV_390_DBL
 	}

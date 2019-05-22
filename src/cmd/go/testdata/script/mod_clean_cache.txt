@@ -30,10 +30,9 @@ go clean -r -modcache
 ! exists ../replaced/test.out  # BUG: should still exist
 
 # 'go clean -modcache' should not download anything before cleaning.
-# BUG(golang.org/issue/28680): Today, it does.
 go mod edit -require rsc.io/quote@v1.99999999.0-not-a-real-version
-! go clean -modcache    # BUG: should succeed
-stderr 'finding rsc.io' # BUG: should not resolve module
+go clean -modcache
+! stderr 'finding rsc.io'
 go mod edit -droprequire rsc.io/quote
 
 -- go.mod --

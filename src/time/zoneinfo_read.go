@@ -216,7 +216,13 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
 	// Now we can build up a useful data structure.
 	// First the zone information.
 	//	utcoff[4] isdst[1] nameindex[1]
-	zone := make([]zone, n[NZone])
+	nzone := n[NZone]
+	if nzone == 0 {
+		// Reject tzdata files with no zones. There's nothing useful in them.
+		// This also avoids a panic later when we add and then use a fake transition (golang.org/issue/29437).
+		return nil, badData
+	}
+	zone := make([]zone, nzone)
 	for i := range zone {
 		var ok bool
 		var n uint32

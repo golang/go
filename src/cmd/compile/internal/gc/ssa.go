@@ -76,14 +76,13 @@ func initssaconfig() {
 	growslice = sysfunc("growslice")
 	msanread = sysfunc("msanread")
 	msanwrite = sysfunc("msanwrite")
+	newobject = sysfunc("newobject")
 	newproc = sysfunc("newproc")
 	panicdivide = sysfunc("panicdivide")
 	panicdottypeE = sysfunc("panicdottypeE")
 	panicdottypeI = sysfunc("panicdottypeI")
-	panicindex = sysfunc("panicindex")
 	panicnildottype = sysfunc("panicnildottype")
 	panicoverflow = sysfunc("panicoverflow")
-	panicslice = sysfunc("panicslice")
 	panicshift = sysfunc("panicshift")
 	raceread = sysfunc("raceread")
 	racereadrange = sysfunc("racereadrange")
@@ -96,6 +95,61 @@ func initssaconfig() {
 	typedmemmove = sysfunc("typedmemmove")
 	Udiv = sysvar("udiv")                 // asm func with special ABI
 	writeBarrier = sysvar("writeBarrier") // struct { bool; ... }
+	zerobaseSym = sysvar("zerobase")
+
+	if thearch.LinkArch.Family == sys.Wasm {
+		BoundsCheckFunc[ssa.BoundsIndex] = sysvar("goPanicIndex")
+		BoundsCheckFunc[ssa.BoundsIndexU] = sysvar("goPanicIndexU")
+		BoundsCheckFunc[ssa.BoundsSliceAlen] = sysvar("goPanicSliceAlen")
+		BoundsCheckFunc[ssa.BoundsSliceAlenU] = sysvar("goPanicSliceAlenU")
+		BoundsCheckFunc[ssa.BoundsSliceAcap] = sysvar("goPanicSliceAcap")
+		BoundsCheckFunc[ssa.BoundsSliceAcapU] = sysvar("goPanicSliceAcapU")
+		BoundsCheckFunc[ssa.BoundsSliceB] = sysvar("goPanicSliceB")
+		BoundsCheckFunc[ssa.BoundsSliceBU] = sysvar("goPanicSliceBU")
+		BoundsCheckFunc[ssa.BoundsSlice3Alen] = sysvar("goPanicSlice3Alen")
+		BoundsCheckFunc[ssa.BoundsSlice3AlenU] = sysvar("goPanicSlice3AlenU")
+		BoundsCheckFunc[ssa.BoundsSlice3Acap] = sysvar("goPanicSlice3Acap")
+		BoundsCheckFunc[ssa.BoundsSlice3AcapU] = sysvar("goPanicSlice3AcapU")
+		BoundsCheckFunc[ssa.BoundsSlice3B] = sysvar("goPanicSlice3B")
+		BoundsCheckFunc[ssa.BoundsSlice3BU] = sysvar("goPanicSlice3BU")
+		BoundsCheckFunc[ssa.BoundsSlice3C] = sysvar("goPanicSlice3C")
+		BoundsCheckFunc[ssa.BoundsSlice3CU] = sysvar("goPanicSlice3CU")
+	} else {
+		BoundsCheckFunc[ssa.BoundsIndex] = sysvar("panicIndex")
+		BoundsCheckFunc[ssa.BoundsIndexU] = sysvar("panicIndexU")
+		BoundsCheckFunc[ssa.BoundsSliceAlen] = sysvar("panicSliceAlen")
+		BoundsCheckFunc[ssa.BoundsSliceAlenU] = sysvar("panicSliceAlenU")
+		BoundsCheckFunc[ssa.BoundsSliceAcap] = sysvar("panicSliceAcap")
+		BoundsCheckFunc[ssa.BoundsSliceAcapU] = sysvar("panicSliceAcapU")
+		BoundsCheckFunc[ssa.BoundsSliceB] = sysvar("panicSliceB")
+		BoundsCheckFunc[ssa.BoundsSliceBU] = sysvar("panicSliceBU")
+		BoundsCheckFunc[ssa.BoundsSlice3Alen] = sysvar("panicSlice3Alen")
+		BoundsCheckFunc[ssa.BoundsSlice3AlenU] = sysvar("panicSlice3AlenU")
+		BoundsCheckFunc[ssa.BoundsSlice3Acap] = sysvar("panicSlice3Acap")
+		BoundsCheckFunc[ssa.BoundsSlice3AcapU] = sysvar("panicSlice3AcapU")
+		BoundsCheckFunc[ssa.BoundsSlice3B] = sysvar("panicSlice3B")
+		BoundsCheckFunc[ssa.BoundsSlice3BU] = sysvar("panicSlice3BU")
+		BoundsCheckFunc[ssa.BoundsSlice3C] = sysvar("panicSlice3C")
+		BoundsCheckFunc[ssa.BoundsSlice3CU] = sysvar("panicSlice3CU")
+	}
+	if thearch.LinkArch.PtrSize == 4 {
+		ExtendCheckFunc[ssa.BoundsIndex] = sysvar("panicExtendIndex")
+		ExtendCheckFunc[ssa.BoundsIndexU] = sysvar("panicExtendIndexU")
+		ExtendCheckFunc[ssa.BoundsSliceAlen] = sysvar("panicExtendSliceAlen")
+		ExtendCheckFunc[ssa.BoundsSliceAlenU] = sysvar("panicExtendSliceAlenU")
+		ExtendCheckFunc[ssa.BoundsSliceAcap] = sysvar("panicExtendSliceAcap")
+		ExtendCheckFunc[ssa.BoundsSliceAcapU] = sysvar("panicExtendSliceAcapU")
+		ExtendCheckFunc[ssa.BoundsSliceB] = sysvar("panicExtendSliceB")
+		ExtendCheckFunc[ssa.BoundsSliceBU] = sysvar("panicExtendSliceBU")
+		ExtendCheckFunc[ssa.BoundsSlice3Alen] = sysvar("panicExtendSlice3Alen")
+		ExtendCheckFunc[ssa.BoundsSlice3AlenU] = sysvar("panicExtendSlice3AlenU")
+		ExtendCheckFunc[ssa.BoundsSlice3Acap] = sysvar("panicExtendSlice3Acap")
+		ExtendCheckFunc[ssa.BoundsSlice3AcapU] = sysvar("panicExtendSlice3AcapU")
+		ExtendCheckFunc[ssa.BoundsSlice3B] = sysvar("panicExtendSlice3B")
+		ExtendCheckFunc[ssa.BoundsSlice3BU] = sysvar("panicExtendSlice3BU")
+		ExtendCheckFunc[ssa.BoundsSlice3C] = sysvar("panicExtendSlice3C")
+		ExtendCheckFunc[ssa.BoundsSlice3CU] = sysvar("panicExtendSlice3CU")
+	}
 
 	// GO386=387 runtime definitions
 	ControlWord64trunc = sysvar("controlWord64trunc") // uint16
@@ -575,6 +629,11 @@ func (s *state) newValue4(op ssa.Op, t *types.Type, arg0, arg1, arg2, arg3 *ssa.
 	return s.curBlock.NewValue4(s.peekPos(), op, t, arg0, arg1, arg2, arg3)
 }
 
+// newValue4 adds a new value with four arguments and an auxint value to the current block.
+func (s *state) newValue4I(op ssa.Op, t *types.Type, aux int64, arg0, arg1, arg2, arg3 *ssa.Value) *ssa.Value {
+	return s.curBlock.NewValue4I(s.peekPos(), op, t, aux, arg0, arg1, arg2, arg3)
+}
+
 // entryNewValue0 adds a new value with no arguments to the entry block.
 func (s *state) entryNewValue0(op ssa.Op, t *types.Type) *ssa.Value {
 	return s.f.Entry.NewValue0(src.NoXPos, op, t)
@@ -994,26 +1053,32 @@ func (s *state) stmt(n *Node) {
 		s.assign(n.Left, r, deref, skip)
 
 	case OIF:
-		bThen := s.f.NewBlock(ssa.BlockPlain)
 		bEnd := s.f.NewBlock(ssa.BlockPlain)
-		var bElse *ssa.Block
 		var likely int8
 		if n.Likely() {
 			likely = 1
 		}
+		var bThen *ssa.Block
+		if n.Nbody.Len() != 0 {
+			bThen = s.f.NewBlock(ssa.BlockPlain)
+		} else {
+			bThen = bEnd
+		}
+		var bElse *ssa.Block
 		if n.Rlist.Len() != 0 {
 			bElse = s.f.NewBlock(ssa.BlockPlain)
-			s.condBranch(n.Left, bThen, bElse, likely)
 		} else {
-			s.condBranch(n.Left, bThen, bEnd, likely)
+			bElse = bEnd
 		}
+		s.condBranch(n.Left, bThen, bElse, likely)
 
-		s.startBlock(bThen)
-		s.stmtList(n.Nbody)
-		if b := s.endBlock(); b != nil {
-			b.AddEdgeTo(bEnd)
+		if n.Nbody.Len() != 0 {
+			s.startBlock(bThen)
+			s.stmtList(n.Nbody)
+			if b := s.endBlock(); b != nil {
+				b.AddEdgeTo(bEnd)
+			}
 		}
-
 		if n.Rlist.Len() != 0 {
 			s.startBlock(bElse)
 			s.stmtList(n.Rlist)
@@ -1070,6 +1135,9 @@ func (s *state) stmt(n *Node) {
 		bBody := s.f.NewBlock(ssa.BlockPlain)
 		bIncr := s.f.NewBlock(ssa.BlockPlain)
 		bEnd := s.f.NewBlock(ssa.BlockPlain)
+
+		// ensure empty for loops have correct position; issue #30167
+		bBody.Pos = n.Pos
 
 		// first, jump to condition test (OFOR) or body (OFORUNTIL)
 		b := s.endBlock()
@@ -2026,7 +2094,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			addop := ssa.OpAdd64F
 			subop := ssa.OpSub64F
 			pt := floatForComplex(n.Type) // Could be Float32 or Float64
-			wt := types.Types[TFLOAT64]   // Compute in Float64 to minimize cancelation error
+			wt := types.Types[TFLOAT64]   // Compute in Float64 to minimize cancellation error
 
 			areal := s.newValue1(ssa.OpComplexReal, pt, a)
 			breal := s.newValue1(ssa.OpComplexReal, pt, b)
@@ -2069,7 +2137,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			subop := ssa.OpSub64F
 			divop := ssa.OpDiv64F
 			pt := floatForComplex(n.Type) // Could be Float32 or Float64
-			wt := types.Types[TFLOAT64]   // Compute in Float64 to minimize cancelation error
+			wt := types.Types[TFLOAT64]   // Compute in Float64 to minimize cancellation error
 
 			areal := s.newValue1(ssa.OpComplexReal, pt, a)
 			breal := s.newValue1(ssa.OpComplexReal, pt, b)
@@ -2208,7 +2276,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OADDR:
 		return s.addr(n.Left, n.Bounded())
 
-	case OINDREGSP:
+	case ORESULT:
 		addr := s.constOffPtrSP(types.NewPtr(n.Type), n.Xoffset)
 		return s.load(n.Type, addr)
 
@@ -2253,11 +2321,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 			}
 			a := s.expr(n.Left)
 			i := s.expr(n.Right)
-			i = s.extendIndex(i, panicindex)
-			if !n.Bounded() {
-				len := s.newValue1(ssa.OpStringLen, types.Types[TINT], a)
-				s.boundsCheck(i, len)
-			}
+			len := s.newValue1(ssa.OpStringLen, types.Types[TINT], a)
+			i = s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded())
 			ptrtyp := s.f.Config.Types.BytePtr
 			ptr := s.newValue1(ssa.OpStringPtr, ptrtyp, a)
 			if Isconst(n.Right, CTINT) {
@@ -2279,14 +2344,12 @@ func (s *state) expr(n *Node) *ssa.Value {
 					// Bounds check will never succeed.  Might as well
 					// use constants for the bounds check.
 					z := s.constInt(types.Types[TINT], 0)
-					s.boundsCheck(z, z)
+					s.boundsCheck(z, z, ssa.BoundsIndex, false)
 					// The return value won't be live, return junk.
 					return s.newValue0(ssa.OpUnknown, n.Type)
 				}
-				i = s.extendIndex(i, panicindex)
-				if !n.Bounded() {
-					s.boundsCheck(i, s.constInt(types.Types[TINT], bound))
-				}
+				len := s.constInt(types.Types[TINT], bound)
+				i = s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded())
 				return s.newValue1I(ssa.OpArraySelect, n.Type, 0, a)
 			}
 			p := s.addr(n, false)
@@ -2344,15 +2407,15 @@ func (s *state) expr(n *Node) *ssa.Value {
 		var i, j, k *ssa.Value
 		low, high, max := n.SliceBounds()
 		if low != nil {
-			i = s.extendIndex(s.expr(low), panicslice)
+			i = s.expr(low)
 		}
 		if high != nil {
-			j = s.extendIndex(s.expr(high), panicslice)
+			j = s.expr(high)
 		}
 		if max != nil {
-			k = s.extendIndex(s.expr(max), panicslice)
+			k = s.expr(max)
 		}
-		p, l, c := s.slice(n.Left.Type, v, i, j, k, n.Bounded())
+		p, l, c := s.slice(v, i, j, k, n.Bounded())
 		return s.newValue3(ssa.OpSliceMake, n.Type, p, l, c)
 
 	case OSLICESTR:
@@ -2360,12 +2423,12 @@ func (s *state) expr(n *Node) *ssa.Value {
 		var i, j *ssa.Value
 		low, high, _ := n.SliceBounds()
 		if low != nil {
-			i = s.extendIndex(s.expr(low), panicslice)
+			i = s.expr(low)
 		}
 		if high != nil {
-			j = s.extendIndex(s.expr(high), panicslice)
+			j = s.expr(high)
 		}
-		p, l, _ := s.slice(n.Left.Type, v, i, j, nil, n.Bounded())
+		p, l, _ := s.slice(v, i, j, nil, n.Bounded())
 		return s.newValue2(ssa.OpStringMake, n.Type, p, l)
 
 	case OCALLFUNC:
@@ -2392,6 +2455,14 @@ func (s *state) expr(n *Node) *ssa.Value {
 			Fatalf("literal with nonzero value in SSA: %v", n)
 		}
 		return s.zeroVal(n.Type)
+
+	case ONEWOBJ:
+		if n.Type.Elem().Size() == 0 {
+			return s.newValue1A(ssa.OpAddr, n.Type, zerobaseSym, s.sb)
+		}
+		typ := s.expr(n.Left)
+		vv := s.rtcall(newobject, true, []*types.Type{n.Type}, typ)
+		return vv[0]
 
 	default:
 		s.Fatalf("unhandled expr %v", n.Op)
@@ -2661,6 +2732,8 @@ func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask) 
 			return
 		}
 		if left.Op == OINDEX && left.Left.Type.IsArray() {
+			s.pushLine(left.Pos)
+			defer s.popLine()
 			// We're assigning to an element of an ssa-able array.
 			// a[i] = v
 			t := left.Left.Type
@@ -2671,15 +2744,15 @@ func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask) 
 				// The bounds check must fail.  Might as well
 				// ignore the actual index and just use zeros.
 				z := s.constInt(types.Types[TINT], 0)
-				s.boundsCheck(z, z)
+				s.boundsCheck(z, z, ssa.BoundsIndex, false)
 				return
 			}
 			if n != 1 {
 				s.Fatalf("assigning to non-1-length array")
 			}
 			// Rewrite to a = [1]{v}
-			i = s.extendIndex(i, panicindex)
-			s.boundsCheck(i, s.constInt(types.Types[TINT], 1))
+			len := s.constInt(types.Types[TINT], 1)
+			i = s.boundsCheck(i, len, ssa.BoundsIndex, false)
 			v := s.newValue1(ssa.OpArrayMake1, t, right)
 			s.assign(left.Left, v, false, 0)
 			return
@@ -3000,6 +3073,13 @@ func init() {
 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT32], v)
 		},
 		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.MIPS64, sys.PPC64)
+	addF("runtime/internal/atomic", "Load8",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			v := s.newValue2(ssa.OpAtomicLoad8, types.NewTuple(types.Types[TUINT8], types.TypeMem), args[0], s.mem())
+			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+			return s.newValue1(ssa.OpSelect0, types.Types[TUINT8], v)
+		},
+		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS64, sys.PPC64)
 	addF("runtime/internal/atomic", "Load64",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			v := s.newValue2(ssa.OpAtomicLoad64, types.NewTuple(types.Types[TUINT64], types.TypeMem), args[0], s.mem())
@@ -3181,22 +3261,22 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpSqrt, types.Types[TFLOAT64], args[0])
 		},
-		sys.I386, sys.AMD64, sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.S390X)
+		sys.I386, sys.AMD64, sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.S390X, sys.Wasm)
 	addF("math", "Trunc",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpTrunc, types.Types[TFLOAT64], args[0])
 		},
-		sys.ARM64, sys.PPC64, sys.S390X)
+		sys.ARM64, sys.PPC64, sys.S390X, sys.Wasm)
 	addF("math", "Ceil",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpCeil, types.Types[TFLOAT64], args[0])
 		},
-		sys.ARM64, sys.PPC64, sys.S390X)
+		sys.ARM64, sys.PPC64, sys.S390X, sys.Wasm)
 	addF("math", "Floor",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpFloor, types.Types[TFLOAT64], args[0])
 		},
-		sys.ARM64, sys.PPC64, sys.S390X)
+		sys.ARM64, sys.PPC64, sys.S390X, sys.Wasm)
 	addF("math", "Round",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpRound, types.Types[TFLOAT64], args[0])
@@ -3206,17 +3286,17 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpRoundToEven, types.Types[TFLOAT64], args[0])
 		},
-		sys.ARM64, sys.S390X)
+		sys.ARM64, sys.S390X, sys.Wasm)
 	addF("math", "Abs",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpAbs, types.Types[TFLOAT64], args[0])
 		},
-		sys.ARM64, sys.PPC64)
+		sys.ARM64, sys.PPC64, sys.Wasm)
 	addF("math", "Copysign",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpCopysign, types.Types[TFLOAT64], args[0], args[1])
 		},
-		sys.PPC64)
+		sys.PPC64, sys.Wasm)
 
 	makeRoundAMD64 := func(op ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
@@ -3266,12 +3346,12 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpCtz64, types.Types[TINT], args[0])
 		},
-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
 	addF("math/bits", "TrailingZeros32",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpCtz32, types.Types[TINT], args[0])
 		},
-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
 	addF("math/bits", "TrailingZeros16",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			x := s.newValue1(ssa.OpZeroExt16to32, types.Types[TUINT32], args[0])
@@ -3279,12 +3359,12 @@ func init() {
 			y := s.newValue2(ssa.OpOr32, types.Types[TUINT32], x, c)
 			return s.newValue1(ssa.OpCtz32, types.Types[TINT], y)
 		},
-		sys.ARM, sys.MIPS)
+		sys.MIPS)
 	addF("math/bits", "TrailingZeros16",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpCtz16, types.Types[TINT], args[0])
 		},
-		sys.AMD64)
+		sys.AMD64, sys.ARM, sys.ARM64, sys.Wasm)
 	addF("math/bits", "TrailingZeros16",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			x := s.newValue1(ssa.OpZeroExt16to64, types.Types[TUINT64], args[0])
@@ -3292,7 +3372,7 @@ func init() {
 			y := s.newValue2(ssa.OpOr64, types.Types[TUINT64], x, c)
 			return s.newValue1(ssa.OpCtz64, types.Types[TINT], y)
 		},
-		sys.ARM64, sys.S390X, sys.PPC64)
+		sys.S390X, sys.PPC64)
 	addF("math/bits", "TrailingZeros8",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			x := s.newValue1(ssa.OpZeroExt8to32, types.Types[TUINT32], args[0])
@@ -3300,12 +3380,12 @@ func init() {
 			y := s.newValue2(ssa.OpOr32, types.Types[TUINT32], x, c)
 			return s.newValue1(ssa.OpCtz32, types.Types[TINT], y)
 		},
-		sys.ARM, sys.MIPS)
+		sys.MIPS)
 	addF("math/bits", "TrailingZeros8",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpCtz8, types.Types[TINT], args[0])
 		},
-		sys.AMD64)
+		sys.AMD64, sys.ARM, sys.ARM64, sys.Wasm)
 	addF("math/bits", "TrailingZeros8",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			x := s.newValue1(ssa.OpZeroExt8to64, types.Types[TUINT64], args[0])
@@ -3313,7 +3393,7 @@ func init() {
 			y := s.newValue2(ssa.OpOr64, types.Types[TUINT64], x, c)
 			return s.newValue1(ssa.OpCtz64, types.Types[TINT], y)
 		},
-		sys.ARM64, sys.S390X)
+		sys.S390X)
 	alias("math/bits", "ReverseBytes64", "runtime/internal/sys", "Bswap64", all...)
 	alias("math/bits", "ReverseBytes32", "runtime/internal/sys", "Bswap32", all...)
 	// ReverseBytes inlines correctly, no need to intrinsify it.
@@ -3322,12 +3402,12 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], args[0])
 		},
-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
 	addF("math/bits", "Len32",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpBitLen32, types.Types[TINT], args[0])
 		},
-		sys.AMD64)
+		sys.AMD64, sys.ARM64)
 	addF("math/bits", "Len32",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			if s.config.PtrSize == 4 {
@@ -3336,7 +3416,7 @@ func init() {
 			x := s.newValue1(ssa.OpZeroExt32to64, types.Types[TUINT64], args[0])
 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], x)
 		},
-		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+		sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
 	addF("math/bits", "Len16",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			if s.config.PtrSize == 4 {
@@ -3346,7 +3426,7 @@ func init() {
 			x := s.newValue1(ssa.OpZeroExt16to64, types.Types[TUINT64], args[0])
 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], x)
 		},
-		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
 	addF("math/bits", "Len16",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpBitLen16, types.Types[TINT], args[0])
@@ -3361,7 +3441,7 @@ func init() {
 			x := s.newValue1(ssa.OpZeroExt8to64, types.Types[TUINT64], args[0])
 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], x)
 		},
-		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
 	addF("math/bits", "Len8",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpBitLen8, types.Types[TINT], args[0])
@@ -3374,7 +3454,7 @@ func init() {
 			}
 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], args[0])
 		},
-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
 	// LeadingZeros is handled because it trivially calls Len.
 	addF("math/bits", "Reverse64",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
@@ -3418,12 +3498,12 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpRotateLeft32, types.Types[TUINT32], args[0], args[1])
 		},
-		sys.AMD64, sys.ARM64, sys.S390X)
+		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64)
 	addF("math/bits", "RotateLeft64",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpRotateLeft64, types.Types[TUINT64], args[0], args[1])
 		},
-		sys.AMD64, sys.ARM64, sys.S390X)
+		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64, sys.Wasm)
 	alias("math/bits", "RotateLeft", "math/bits", "RotateLeft64", p8...)
 
 	makeOnesCountAMD64 := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
@@ -3467,7 +3547,7 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpPopCount64, types.Types[TINT], args[0])
 		},
-		sys.PPC64, sys.ARM64, sys.S390X)
+		sys.PPC64, sys.ARM64, sys.S390X, sys.Wasm)
 	addF("math/bits", "OnesCount32",
 		makeOnesCountAMD64(ssa.OpPopCount32, ssa.OpPopCount32),
 		sys.AMD64)
@@ -3475,7 +3555,7 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpPopCount32, types.Types[TINT], args[0])
 		},
-		sys.PPC64, sys.ARM64, sys.S390X)
+		sys.PPC64, sys.ARM64, sys.S390X, sys.Wasm)
 	addF("math/bits", "OnesCount16",
 		makeOnesCountAMD64(ssa.OpPopCount16, ssa.OpPopCount16),
 		sys.AMD64)
@@ -3483,12 +3563,12 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpPopCount16, types.Types[TINT], args[0])
 		},
-		sys.ARM64, sys.S390X, sys.PPC64)
+		sys.ARM64, sys.S390X, sys.PPC64, sys.Wasm)
 	addF("math/bits", "OnesCount8",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpPopCount8, types.Types[TINT], args[0])
 		},
-		sys.S390X, sys.PPC64)
+		sys.S390X, sys.PPC64, sys.Wasm)
 	addF("math/bits", "OnesCount",
 		makeOnesCountAMD64(ssa.OpPopCount64, ssa.OpPopCount32),
 		sys.AMD64)
@@ -3502,14 +3582,14 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssa.OpAdd64carry, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
 		},
-		sys.AMD64)
-	alias("math/bits", "Add", "math/bits", "Add64", sys.ArchAMD64)
+		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X)
+	alias("math/bits", "Add", "math/bits", "Add64", sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64, sys.ArchS390X)
 	addF("math/bits", "Sub64",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssa.OpSub64borrow, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
 		},
-		sys.AMD64)
-	alias("math/bits", "Sub", "math/bits", "Sub64", sys.ArchAMD64)
+		sys.AMD64, sys.ARM64, sys.S390X)
+	alias("math/bits", "Sub", "math/bits", "Sub64", sys.ArchAMD64, sys.ArchARM64, sys.ArchS390X)
 	addF("math/bits", "Div64",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			// check for divide-by-zero/overflow and panic with appropriate message
@@ -3823,6 +3903,11 @@ func etypesign(e types.EType) int8 {
 // If bounded is true then this address does not require a nil check for its operand
 // even if that would otherwise be implied.
 func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+	if n.Op != ONAME {
+		s.pushLine(n.Pos)
+		defer s.popLine()
+	}
+
 	t := types.NewPtr(n.Type)
 	switch n.Op {
 	case ONAME:
@@ -3858,29 +3943,22 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 			s.Fatalf("variable address class %v not implemented", n.Class())
 			return nil
 		}
-	case OINDREGSP:
-		// indirect off REGSP
-		// used for storing/loading arguments/returns to/from callees
+	case ORESULT:
+		// load return from callee
 		return s.constOffPtrSP(t, n.Xoffset)
 	case OINDEX:
 		if n.Left.Type.IsSlice() {
 			a := s.expr(n.Left)
 			i := s.expr(n.Right)
-			i = s.extendIndex(i, panicindex)
 			len := s.newValue1(ssa.OpSliceLen, types.Types[TINT], a)
-			if !n.Bounded() {
-				s.boundsCheck(i, len)
-			}
+			i = s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded())
 			p := s.newValue1(ssa.OpSlicePtr, t, a)
 			return s.newValue2(ssa.OpPtrIndex, t, p, i)
 		} else { // array
 			a := s.addr(n.Left, bounded)
 			i := s.expr(n.Right)
-			i = s.extendIndex(i, panicindex)
 			len := s.constInt(types.Types[TINT], n.Left.Type.NumElem())
-			if !n.Bounded() {
-				s.boundsCheck(i, len)
-			}
+			i = s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded())
 			return s.newValue2(ssa.OpPtrIndex, types.NewPtr(n.Left.Type.Elem()), a, i)
 		}
 	case ODEREF:
@@ -4019,51 +4097,70 @@ func (s *state) nilCheck(ptr *ssa.Value) {
 	s.newValue2(ssa.OpNilCheck, types.TypeVoid, ptr, s.mem())
 }
 
-// boundsCheck generates bounds checking code. Checks if 0 <= idx < len, branches to exit if not.
+// boundsCheck generates bounds checking code. Checks if 0 <= idx <[=] len, branches to exit if not.
 // Starts a new block on return.
-// idx is already converted to full int width.
-func (s *state) boundsCheck(idx, len *ssa.Value) {
-	if Debug['B'] != 0 {
-		return
+// On input, len must be converted to full int width and be nonnegative.
+// Returns idx converted to full int width.
+// If bounded is true then caller guarantees the index is not out of bounds
+// (but boundsCheck will still extend the index to full int width).
+func (s *state) boundsCheck(idx, len *ssa.Value, kind ssa.BoundsKind, bounded bool) *ssa.Value {
+	idx = s.extendIndex(idx, len, kind, bounded)
+
+	if bounded || Debug['B'] != 0 {
+		// If bounded or bounds checking is flag-disabled, then no check necessary,
+		// just return the extended index.
+		return idx
 	}
 
-	// bounds check
-	cmp := s.newValue2(ssa.OpIsInBounds, types.Types[TBOOL], idx, len)
-	s.check(cmp, panicindex)
-}
+	bNext := s.f.NewBlock(ssa.BlockPlain)
+	bPanic := s.f.NewBlock(ssa.BlockExit)
 
-func couldBeNegative(v *ssa.Value) bool {
-	switch v.Op {
-	case ssa.OpSliceLen, ssa.OpSliceCap, ssa.OpStringLen:
-		return false
-	case ssa.OpConst64:
-		return v.AuxInt < 0
-	case ssa.OpConst32:
-		return int32(v.AuxInt) < 0
-	}
-	return true
-}
-
-// sliceBoundsCheck generates slice bounds checking code. Checks if 0 <= idx <= len, branches to exit if not.
-// Starts a new block on return.
-// idx and len are already converted to full int width.
-func (s *state) sliceBoundsCheck(idx, len *ssa.Value) {
-	if Debug['B'] != 0 {
-		return
-	}
-	if couldBeNegative(len) {
-		// OpIsSliceInBounds requires second arg not negative; if it's not obviously true, must check.
-		cmpop := ssa.OpGeq64
-		if len.Type.Size() == 4 {
-			cmpop = ssa.OpGeq32
+	if !idx.Type.IsSigned() {
+		switch kind {
+		case ssa.BoundsIndex:
+			kind = ssa.BoundsIndexU
+		case ssa.BoundsSliceAlen:
+			kind = ssa.BoundsSliceAlenU
+		case ssa.BoundsSliceAcap:
+			kind = ssa.BoundsSliceAcapU
+		case ssa.BoundsSliceB:
+			kind = ssa.BoundsSliceBU
+		case ssa.BoundsSlice3Alen:
+			kind = ssa.BoundsSlice3AlenU
+		case ssa.BoundsSlice3Acap:
+			kind = ssa.BoundsSlice3AcapU
+		case ssa.BoundsSlice3B:
+			kind = ssa.BoundsSlice3BU
+		case ssa.BoundsSlice3C:
+			kind = ssa.BoundsSlice3CU
 		}
-		cmp := s.newValue2(cmpop, types.Types[TBOOL], len, s.zeroVal(len.Type))
-		s.check(cmp, panicslice)
 	}
 
-	// bounds check
-	cmp := s.newValue2(ssa.OpIsSliceInBounds, types.Types[TBOOL], idx, len)
-	s.check(cmp, panicslice)
+	var cmp *ssa.Value
+	if kind == ssa.BoundsIndex || kind == ssa.BoundsIndexU {
+		cmp = s.newValue2(ssa.OpIsInBounds, types.Types[TBOOL], idx, len)
+	} else {
+		cmp = s.newValue2(ssa.OpIsSliceInBounds, types.Types[TBOOL], idx, len)
+	}
+	b := s.endBlock()
+	b.Kind = ssa.BlockIf
+	b.SetControl(cmp)
+	b.Likely = ssa.BranchLikely
+	b.AddEdgeTo(bNext)
+	b.AddEdgeTo(bPanic)
+
+	s.startBlock(bPanic)
+	if thearch.LinkArch.Family == sys.Wasm {
+		// TODO(khr): figure out how to do "register" based calling convention for bounds checks.
+		// Should be similar to gcWriteBarrier, but I can't make it work.
+		s.rtcall(BoundsCheckFunc[kind], false, nil, idx, len)
+	} else {
+		mem := s.newValue3I(ssa.OpPanicBounds, types.TypeMem, int64(kind), idx, len, s.mem())
+		s.endBlock().SetControl(mem)
+	}
+	s.startBlock(bNext)
+
+	return idx
 }
 
 // If cmp (a bool) is false, panic using the given function.
@@ -4275,35 +4372,25 @@ func (s *state) storeArg(n *Node, t *types.Type, off int64) {
 
 // slice computes the slice v[i:j:k] and returns ptr, len, and cap of result.
 // i,j,k may be nil, in which case they are set to their default value.
-// t is a slice, ptr to array, or string type.
-func (s *state) slice(t *types.Type, v, i, j, k *ssa.Value, bounded bool) (p, l, c *ssa.Value) {
-	var elemtype *types.Type
-	var ptrtype *types.Type
-	var ptr *ssa.Value
-	var len *ssa.Value
-	var cap *ssa.Value
-	zero := s.constInt(types.Types[TINT], 0)
+// v may be a slice, string or pointer to an array.
+func (s *state) slice(v, i, j, k *ssa.Value, bounded bool) (p, l, c *ssa.Value) {
+	t := v.Type
+	var ptr, len, cap *ssa.Value
 	switch {
 	case t.IsSlice():
-		elemtype = t.Elem()
-		ptrtype = types.NewPtr(elemtype)
-		ptr = s.newValue1(ssa.OpSlicePtr, ptrtype, v)
+		ptr = s.newValue1(ssa.OpSlicePtr, types.NewPtr(t.Elem()), v)
 		len = s.newValue1(ssa.OpSliceLen, types.Types[TINT], v)
 		cap = s.newValue1(ssa.OpSliceCap, types.Types[TINT], v)
 	case t.IsString():
-		elemtype = types.Types[TUINT8]
-		ptrtype = types.NewPtr(elemtype)
-		ptr = s.newValue1(ssa.OpStringPtr, ptrtype, v)
+		ptr = s.newValue1(ssa.OpStringPtr, types.NewPtr(types.Types[TUINT8]), v)
 		len = s.newValue1(ssa.OpStringLen, types.Types[TINT], v)
 		cap = len
 	case t.IsPtr():
 		if !t.Elem().IsArray() {
 			s.Fatalf("bad ptr to array in slice %v\n", t)
 		}
-		elemtype = t.Elem().Elem()
-		ptrtype = types.NewPtr(elemtype)
 		s.nilCheck(v)
-		ptr = v
+		ptr = s.newValue1(ssa.OpCopy, types.NewPtr(t.Elem().Elem()), v)
 		len = s.constInt(types.Types[TINT], t.Elem().NumElem())
 		cap = len
 	default:
@@ -4312,66 +4399,89 @@ func (s *state) slice(t *types.Type, v, i, j, k *ssa.Value, bounded bool) (p, l,
 
 	// Set default values
 	if i == nil {
-		i = zero
+		i = s.constInt(types.Types[TINT], 0)
 	}
 	if j == nil {
 		j = len
 	}
+	three := true
 	if k == nil {
+		three = false
 		k = cap
 	}
 
-	if !bounded {
-		// Panic if slice indices are not in bounds.
-		s.sliceBoundsCheck(i, j)
-		if j != k {
-			s.sliceBoundsCheck(j, k)
-		}
+	// Panic if slice indices are not in bounds.
+	// Make sure we check these in reverse order so that we're always
+	// comparing against a value known to be nonnegative. See issue 28797.
+	if three {
 		if k != cap {
-			s.sliceBoundsCheck(k, cap)
+			kind := ssa.BoundsSlice3Alen
+			if t.IsSlice() {
+				kind = ssa.BoundsSlice3Acap
+			}
+			k = s.boundsCheck(k, cap, kind, bounded)
 		}
+		if j != k {
+			j = s.boundsCheck(j, k, ssa.BoundsSlice3B, bounded)
+		}
+		i = s.boundsCheck(i, j, ssa.BoundsSlice3C, bounded)
+	} else {
+		if j != k {
+			kind := ssa.BoundsSliceAlen
+			if t.IsSlice() {
+				kind = ssa.BoundsSliceAcap
+			}
+			j = s.boundsCheck(j, k, kind, bounded)
+		}
+		i = s.boundsCheck(i, j, ssa.BoundsSliceB, bounded)
 	}
 
-	// Generate the following code assuming that indexes are in bounds.
-	// The masking is to make sure that we don't generate a slice
-	// that points to the next object in memory.
-	// rlen = j - i
-	// rcap = k - i
-	// delta = i * elemsize
-	// rptr = p + delta&mask(rcap)
-	// result = (SliceMake rptr rlen rcap)
-	// where mask(x) is 0 if x==0 and -1 if x>0.
+	// Word-sized integer operations.
 	subOp := s.ssaOp(OSUB, types.Types[TINT])
 	mulOp := s.ssaOp(OMUL, types.Types[TINT])
 	andOp := s.ssaOp(OAND, types.Types[TINT])
+
+	// Calculate the length (rlen) and capacity (rcap) of the new slice.
+	// For strings the capacity of the result is unimportant. However,
+	// we use rcap to test if we've generated a zero-length slice.
+	// Use length of strings for that.
 	rlen := s.newValue2(subOp, types.Types[TINT], j, i)
-	var rcap *ssa.Value
-	switch {
-	case t.IsString():
-		// Capacity of the result is unimportant. However, we use
-		// rcap to test if we've generated a zero-length slice.
-		// Use length of strings for that.
-		rcap = rlen
-	case j == k:
-		rcap = rlen
-	default:
+	rcap := rlen
+	if j != k && !t.IsString() {
 		rcap = s.newValue2(subOp, types.Types[TINT], k, i)
 	}
 
-	var rptr *ssa.Value
 	if (i.Op == ssa.OpConst64 || i.Op == ssa.OpConst32) && i.AuxInt == 0 {
 		// No pointer arithmetic necessary.
-		rptr = ptr
-	} else {
-		// delta = # of bytes to offset pointer by.
-		delta := s.newValue2(mulOp, types.Types[TINT], i, s.constInt(types.Types[TINT], elemtype.Width))
-		// If we're slicing to the point where the capacity is zero,
-		// zero out the delta.
-		mask := s.newValue1(ssa.OpSlicemask, types.Types[TINT], rcap)
-		delta = s.newValue2(andOp, types.Types[TINT], delta, mask)
-		// Compute rptr = ptr + delta
-		rptr = s.newValue2(ssa.OpAddPtr, ptrtype, ptr, delta)
+		return ptr, rlen, rcap
 	}
+
+	// Calculate the base pointer (rptr) for the new slice.
+	//
+	// Generate the following code assuming that indexes are in bounds.
+	// The masking is to make sure that we don't generate a slice
+	// that points to the next object in memory. We cannot just set
+	// the pointer to nil because then we would create a nil slice or
+	// string.
+	//
+	//     rcap = k - i
+	//     rlen = j - i
+	//     rptr = ptr + (mask(rcap) & (i * stride))
+	//
+	// Where mask(x) is 0 if x==0 and -1 if x>0 and stride is the width
+	// of the element type.
+	stride := s.constInt(types.Types[TINT], ptr.Type.Elem().Width)
+
+	// The delta is the number of bytes to offset ptr by.
+	delta := s.newValue2(mulOp, types.Types[TINT], i, stride)
+
+	// If we're slicing to the point where the capacity is zero,
+	// zero out the delta.
+	mask := s.newValue1(ssa.OpSlicemask, types.Types[TINT], rcap)
+	delta = s.newValue2(andOp, types.Types[TINT], delta, mask)
+
+	// Compute rptr = ptr + delta.
+	rptr := s.newValue2(ssa.OpAddPtr, ptr.Type, ptr, delta)
 
 	return rptr, rlen, rcap
 }
@@ -4594,7 +4704,7 @@ var f32_u64 = f2uCvtTab{
 	or:         ssa.OpOr64,
 	floatValue: (*state).constFloat32,
 	intValue:   (*state).constInt64,
-	cutoff:     9223372036854775808,
+	cutoff:     1 << 63,
 }
 
 var f64_u64 = f2uCvtTab{
@@ -4604,7 +4714,7 @@ var f64_u64 = f2uCvtTab{
 	or:         ssa.OpOr64,
 	floatValue: (*state).constFloat64,
 	intValue:   (*state).constInt64,
-	cutoff:     9223372036854775808,
+	cutoff:     1 << 63,
 }
 
 var f32_u32 = f2uCvtTab{
@@ -4614,7 +4724,7 @@ var f32_u32 = f2uCvtTab{
 	or:         ssa.OpOr32,
 	floatValue: (*state).constFloat32,
 	intValue:   func(s *state, t *types.Type, v int64) *ssa.Value { return s.constInt32(t, int32(v)) },
-	cutoff:     2147483648,
+	cutoff:     1 << 31,
 }
 
 var f64_u32 = f2uCvtTab{
@@ -4624,7 +4734,7 @@ var f64_u32 = f2uCvtTab{
 	or:         ssa.OpOr32,
 	floatValue: (*state).constFloat64,
 	intValue:   func(s *state, t *types.Type, v int64) *ssa.Value { return s.constInt32(t, int32(v)) },
-	cutoff:     2147483648,
+	cutoff:     1 << 31,
 }
 
 func (s *state) float32ToUint64(n *Node, x *ssa.Value, ft, tt *types.Type) *ssa.Value {
@@ -5138,6 +5248,16 @@ func genssa(f *ssa.Func, pp *Progs) {
 		}
 	}
 
+	// inlMarks has an entry for each Prog that implements an inline mark.
+	// It maps from that Prog to the global inlining id of the inlined body
+	// which should unwind to this Prog's location.
+	var inlMarks map[*obj.Prog]int32
+	var inlMarkList []*obj.Prog
+
+	// inlMarksByPos maps from a (column 1) source position to the set of
+	// Progs that are in the set above and have that source position.
+	var inlMarksByPos map[src.XPos][]*obj.Prog
+
 	// Emit basic blocks
 	for i, b := range f.Blocks {
 		s.bstart[b.ID] = s.pp.next
@@ -5175,8 +5295,14 @@ func genssa(f *ssa.Func, pp *Progs) {
 				}
 			case ssa.OpInlMark:
 				p := thearch.Ginsnop(s.pp)
-				pp.curfn.Func.lsym.Func.AddInlMark(p, v.AuxInt32())
-				// TODO: if matching line number, merge somehow with previous instruction?
+				if inlMarks == nil {
+					inlMarks = map[*obj.Prog]int32{}
+					inlMarksByPos = map[src.XPos][]*obj.Prog{}
+				}
+				inlMarks[p] = v.AuxInt32()
+				inlMarkList = append(inlMarkList, p)
+				pos := v.Pos.AtColumn1()
+				inlMarksByPos[pos] = append(inlMarksByPos[pos], p)
 
 			default:
 				// let the backend handle it
@@ -5198,6 +5324,12 @@ func genssa(f *ssa.Func, pp *Progs) {
 				}
 			}
 		}
+		// If this is an empty infinite loop, stick a hardware NOP in there so that debuggers are less confused.
+		if s.bstart[b.ID] == s.pp.next && len(b.Succs) == 1 && b.Succs[0].Block() == b {
+			p := thearch.Ginsnop(s.pp)
+			p.Pos = p.Pos.WithIsStmt()
+			b.Pos = b.Pos.WithBogusLine() // Debuggers are not good about infinite loops, force a change in line number
+		}
 		// Emit control flow instructions for block
 		var next *ssa.Block
 		if i < len(f.Blocks)-1 && Debug['N'] == 0 {
@@ -5213,6 +5345,58 @@ func genssa(f *ssa.Func, pp *Progs) {
 		if f.PrintOrHtmlSSA {
 			for ; x != s.pp.next; x = x.Link {
 				progToBlock[x] = b
+			}
+		}
+	}
+	if f.Blocks[len(f.Blocks)-1].Kind == ssa.BlockExit {
+		// We need the return address of a panic call to
+		// still be inside the function in question. So if
+		// it ends in a call which doesn't return, add a
+		// nop (which will never execute) after the call.
+		thearch.Ginsnop(pp)
+	}
+
+	if inlMarks != nil {
+		// We have some inline marks. Try to find other instructions we're
+		// going to emit anyway, and use those instructions instead of the
+		// inline marks.
+		for p := pp.Text; p != nil; p = p.Link {
+			if p.As == obj.ANOP || p.As == obj.AFUNCDATA || p.As == obj.APCDATA || p.As == obj.ATEXT || p.As == obj.APCALIGN || thearch.LinkArch.Family == sys.Wasm {
+				// Don't use 0-sized instructions as inline marks, because we need
+				// to identify inline mark instructions by pc offset.
+				// (Some of these instructions are sometimes zero-sized, sometimes not.
+				// We must not use anything that even might be zero-sized.)
+				// TODO: are there others?
+				continue
+			}
+			if _, ok := inlMarks[p]; ok {
+				// Don't use inline marks themselves. We don't know
+				// whether they will be zero-sized or not yet.
+				continue
+			}
+			pos := p.Pos.AtColumn1()
+			s := inlMarksByPos[pos]
+			if len(s) == 0 {
+				continue
+			}
+			for _, m := range s {
+				// We found an instruction with the same source position as
+				// some of the inline marks.
+				// Use this instruction instead.
+				p.Pos = p.Pos.WithIsStmt() // promote position to a statement
+				pp.curfn.Func.lsym.Func.AddInlMark(p, inlMarks[m])
+				// Make the inline mark a real nop, so it doesn't generate any code.
+				m.As = obj.ANOP
+				m.Pos = src.NoXPos
+				m.From = obj.Addr{}
+				m.To = obj.Addr{}
+			}
+			delete(inlMarksByPos, pos)
+		}
+		// Any unmatched inline marks now need to be added to the inlining tree (and will generate a nop instruction).
+		for _, p := range inlMarkList {
+			if p.As != obj.ANOP {
+				pp.curfn.Func.lsym.Func.AddInlMark(p, inlMarks[p])
 			}
 		}
 	}
@@ -5244,7 +5428,10 @@ func genssa(f *ssa.Func, pp *Progs) {
 		br.P.To.Val = s.bstart[br.B.ID]
 		if br.P.Pos.IsStmt() != src.PosIsStmt {
 			br.P.Pos = br.P.Pos.WithNotStmt()
+		} else if v0 := br.B.FirstPossibleStmtValue(); v0 != nil && v0.Pos.Line() == br.P.Pos.Line() && v0.Pos.IsStmt() == src.PosIsStmt {
+			br.P.Pos = br.P.Pos.WithNotStmt()
 		}
+
 	}
 
 	if e.log { // spew to stdout
@@ -5437,26 +5624,66 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 }
 
 // extendIndex extends v to a full int width.
-// panic using the given function if v does not fit in an int (only on 32-bit archs).
-func (s *state) extendIndex(v *ssa.Value, panicfn *obj.LSym) *ssa.Value {
-	size := v.Type.Size()
+// panic with the given kind if v does not fit in an int (only on 32-bit archs).
+func (s *state) extendIndex(idx, len *ssa.Value, kind ssa.BoundsKind, bounded bool) *ssa.Value {
+	size := idx.Type.Size()
 	if size == s.config.PtrSize {
-		return v
+		return idx
 	}
 	if size > s.config.PtrSize {
 		// truncate 64-bit indexes on 32-bit pointer archs. Test the
 		// high word and branch to out-of-bounds failure if it is not 0.
-		if Debug['B'] == 0 {
-			hi := s.newValue1(ssa.OpInt64Hi, types.Types[TUINT32], v)
-			cmp := s.newValue2(ssa.OpEq32, types.Types[TBOOL], hi, s.constInt32(types.Types[TUINT32], 0))
-			s.check(cmp, panicfn)
+		var lo *ssa.Value
+		if idx.Type.IsSigned() {
+			lo = s.newValue1(ssa.OpInt64Lo, types.Types[TINT], idx)
+		} else {
+			lo = s.newValue1(ssa.OpInt64Lo, types.Types[TUINT], idx)
 		}
-		return s.newValue1(ssa.OpTrunc64to32, types.Types[TINT], v)
+		if bounded || Debug['B'] != 0 {
+			return lo
+		}
+		bNext := s.f.NewBlock(ssa.BlockPlain)
+		bPanic := s.f.NewBlock(ssa.BlockExit)
+		hi := s.newValue1(ssa.OpInt64Hi, types.Types[TUINT32], idx)
+		cmp := s.newValue2(ssa.OpEq32, types.Types[TBOOL], hi, s.constInt32(types.Types[TUINT32], 0))
+		if !idx.Type.IsSigned() {
+			switch kind {
+			case ssa.BoundsIndex:
+				kind = ssa.BoundsIndexU
+			case ssa.BoundsSliceAlen:
+				kind = ssa.BoundsSliceAlenU
+			case ssa.BoundsSliceAcap:
+				kind = ssa.BoundsSliceAcapU
+			case ssa.BoundsSliceB:
+				kind = ssa.BoundsSliceBU
+			case ssa.BoundsSlice3Alen:
+				kind = ssa.BoundsSlice3AlenU
+			case ssa.BoundsSlice3Acap:
+				kind = ssa.BoundsSlice3AcapU
+			case ssa.BoundsSlice3B:
+				kind = ssa.BoundsSlice3BU
+			case ssa.BoundsSlice3C:
+				kind = ssa.BoundsSlice3CU
+			}
+		}
+		b := s.endBlock()
+		b.Kind = ssa.BlockIf
+		b.SetControl(cmp)
+		b.Likely = ssa.BranchLikely
+		b.AddEdgeTo(bNext)
+		b.AddEdgeTo(bPanic)
+
+		s.startBlock(bPanic)
+		mem := s.newValue4I(ssa.OpPanicExtend, types.TypeMem, int64(kind), hi, lo, len, s.mem())
+		s.endBlock().SetControl(mem)
+		s.startBlock(bNext)
+
+		return lo
 	}
 
 	// Extend value to the required size
 	var op ssa.Op
-	if v.Type.IsSigned() {
+	if idx.Type.IsSigned() {
 		switch 10*size + s.config.PtrSize {
 		case 14:
 			op = ssa.OpSignExt8to32
@@ -5469,7 +5696,7 @@ func (s *state) extendIndex(v *ssa.Value, panicfn *obj.LSym) *ssa.Value {
 		case 48:
 			op = ssa.OpSignExt32to64
 		default:
-			s.Fatalf("bad signed index extension %s", v.Type)
+			s.Fatalf("bad signed index extension %s", idx.Type)
 		}
 	} else {
 		switch 10*size + s.config.PtrSize {
@@ -5484,10 +5711,10 @@ func (s *state) extendIndex(v *ssa.Value, panicfn *obj.LSym) *ssa.Value {
 		case 48:
 			op = ssa.OpZeroExt32to64
 		default:
-			s.Fatalf("bad unsigned index extension %s", v.Type)
+			s.Fatalf("bad unsigned index extension %s", idx.Type)
 		}
 	}
-	return s.newValue1(op, types.Types[TINT], v)
+	return s.newValue1(op, types.Types[TINT], idx)
 }
 
 // CheckLoweredPhi checks that regalloc and stackalloc correctly handled phi values.
@@ -5614,6 +5841,14 @@ func (s *SSAGenState) PrepareCall(v *ssa.Value) {
 
 	if s.maxarg < v.AuxInt {
 		s.maxarg = v.AuxInt
+	}
+}
+
+// UseArgs records the fact that an instruction needs a certain amount of
+// callee args space for its use.
+func (s *SSAGenState) UseArgs(n int64) {
+	if s.maxarg < n {
+		s.maxarg = n
 	}
 }
 

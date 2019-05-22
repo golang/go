@@ -53,7 +53,7 @@ func semasleep(ns int64) int32 {
 				return -1
 			}
 			var t timespec
-			t.set_nsec(ns - spent)
+			t.setNsec(ns - spent)
 			err := pthread_cond_timedwait_relative_np(&mp.cond, &mp.mutex, &t)
 			if err == _ETIMEDOUT {
 				pthread_mutex_unlock(&mp.mutex)

@@ -1,4 +1,5 @@
 env GO111MODULE=on
+[short] skip
 
 # TODO(bcmills): Convert the 'go test' calls below to 'go list -test' once 'go
 # list' is more sensitive to package loading errors.
@@ -6,8 +7,8 @@ env GO111MODULE=on
 # A test in the module's root package should work.
 cd a/
 cp go.mod.empty go.mod
-go test
-stdout PASS
+go list -test
+! stderr error
 
 cp go.mod.empty go.mod
 go list -deps
@@ -33,27 +34,27 @@ go list -test all
 stdout '^testing'
 
 cp go.mod.empty go.mod
-go test
-stdout PASS
+go list -test
+! stderr error
 
 # A test with the "_test" suffix in the module root should also work.
 cd ../b/
-go test
-stdout PASS
+go list -test
+! stderr error
 
 # A test with the "_test" suffix of a *package* with a "_test" suffix should
 # even work (not that you should ever do that).
 cd ../c_test
-go test
-stdout PASS
+go list -test
+! stderr error
 
 cd ../d_test
-go test
-stdout PASS
+go list -test
+! stderr error
 
 cd ../e
-go test
-stdout PASS
+go list -test
+! stderr error
 
 -- a/go.mod.empty --
 module example.com/user/a

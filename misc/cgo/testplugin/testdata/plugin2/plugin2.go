@@ -12,9 +12,10 @@ import "C"
 // void cfunc() {} // uses cgo_topofstack
 
 import (
-	"testplugin/common"
 	"reflect"
 	"strings"
+
+	"testplugin/common"
 )
 
 func init() {

@@ -341,38 +341,38 @@ func Fields(s string) []string {
 		wasSpace = isSpace
 	}
 
-	if setBits < utf8.RuneSelf { // ASCII fast path
-		a := make([]string, n)
-		na := 0
-		fieldStart := 0
-		i := 0
-		// Skip spaces in the front of the input.
+	if setBits >= utf8.RuneSelf {
+		// Some runes in the input string are not ASCII.
+		return FieldsFunc(s, unicode.IsSpace)
+	}
+	// ASCII fast path
+	a := make([]string, n)
+	na := 0
+	fieldStart := 0
+	i := 0
+	// Skip spaces in the front of the input.
+	for i < len(s) && asciiSpace[s[i]] != 0 {
+		i++
+	}
+	fieldStart = i
+	for i < len(s) {
+		if asciiSpace[s[i]] == 0 {
+			i++
+			continue
+		}
+		a[na] = s[fieldStart:i]
+		na++
+		i++
+		// Skip spaces in between fields.
 		for i < len(s) && asciiSpace[s[i]] != 0 {
 			i++
 		}
 		fieldStart = i
-		for i < len(s) {
-			if asciiSpace[s[i]] == 0 {
-				i++
-				continue
-			}
-			a[na] = s[fieldStart:i]
-			na++
-			i++
-			// Skip spaces in between fields.
-			for i < len(s) && asciiSpace[s[i]] != 0 {
-				i++
-			}
-			fieldStart = i
-		}
-		if fieldStart < len(s) { // Last field might end at EOF.
-			a[na] = s[fieldStart:]
-		}
-		return a
 	}
-
-	// Some runes in the input string are not ASCII.
-	return FieldsFunc(s, unicode.IsSpace)
+	if fieldStart < len(s) { // Last field might end at EOF.
+		a[na] = s[fieldStart:]
+	}
+	return a
 }
 
 // FieldsFunc splits the string s at each run of Unicode code points c satisfying f(c)
@@ -550,7 +550,7 @@ func Repeat(s string, count int) string {
 	return b.String()
 }
 
-// ToUpper returns a copy of the string s with all Unicode letters mapped to their upper case.
+// ToUpper returns s with all Unicode letters mapped to their upper case.
 func ToUpper(s string) string {
 	isASCII, hasLower := true, false
 	for i := 0; i < len(s); i++ {
@@ -559,7 +559,7 @@ func ToUpper(s string) string {
 			isASCII = false
 			break
 		}
-		hasLower = hasLower || (c >= 'a' && c <= 'z')
+		hasLower = hasLower || ('a' <= c && c <= 'z')
 	}
 
 	if isASCII { // optimize for ASCII-only strings.
@@ -570,7 +570,7 @@ func ToUpper(s string) string {
 		b.Grow(len(s))
 		for i := 0; i < len(s); i++ {
 			c := s[i]
-			if c >= 'a' && c <= 'z' {
+			if 'a' <= c && c <= 'z' {
 				c -= 'a' - 'A'
 			}
 			b.WriteByte(c)
@@ -580,7 +580,7 @@ func ToUpper(s string) string {
 	return Map(unicode.ToUpper, s)
 }
 
-// ToLower returns a copy of the string s with all Unicode letters mapped to their lower case.
+// ToLower returns s with all Unicode letters mapped to their lower case.
 func ToLower(s string) string {
 	isASCII, hasUpper := true, false
 	for i := 0; i < len(s); i++ {
@@ -589,7 +589,7 @@ func ToLower(s string) string {
 			isASCII = false
 			break
 		}
-		hasUpper = hasUpper || (c >= 'A' && c <= 'Z')
+		hasUpper = hasUpper || ('A' <= c && c <= 'Z')
 	}
 
 	if isASCII { // optimize for ASCII-only strings.
@@ -600,7 +600,7 @@ func ToLower(s string) string {
 		b.Grow(len(s))
 		for i := 0; i < len(s); i++ {
 			c := s[i]
-			if c >= 'A' && c <= 'Z' {
+			if 'A' <= c && c <= 'Z' {
 				c += 'a' - 'A'
 			}
 			b.WriteByte(c)
@@ -629,6 +629,56 @@ func ToLowerSpecial(c unicode.SpecialCase, s string) string {
 // title case, giving priority to the special casing rules.
 func ToTitleSpecial(c unicode.SpecialCase, s string) string {
 	return Map(c.ToTitle, s)
+}
+
+// ToValidUTF8 returns a copy of the string s with each run of invalid UTF-8 byte sequences
+// replaced by the replacement string, which may be empty.
+func ToValidUTF8(s, replacement string) string {
+	var b Builder
+
+	for i, c := range s {
+		if c != utf8.RuneError {
+			continue
+		}
+
+		_, wid := utf8.DecodeRuneInString(s[i:])
+		if wid == 1 {
+			b.Grow(len(s) + len(replacement))
+			b.WriteString(s[:i])
+			s = s[i:]
+			break
+		}
+	}
+
+	// Fast path for unchanged input
+	if b.Cap() == 0 { // didn't call b.Grow above
+		return s
+	}
+
+	invalid := false // previous byte was from an invalid UTF-8 sequence
+	for i := 0; i < len(s); {
+		c := s[i]
+		if c < utf8.RuneSelf {
+			i++
+			invalid = false
+			b.WriteByte(c)
+			continue
+		}
+		_, wid := utf8.DecodeRuneInString(s[i:])
+		if wid == 1 {
+			i++
+			if !invalid {
+				invalid = true
+				b.WriteString(replacement)
+			}
+			continue
+		}
+		invalid = false
+		b.WriteString(s[i : i+wid])
+		i += wid
+	}
+
+	return b.String()
 }
 
 // isSeparator reports whether the rune could mark a word boundary.
@@ -818,7 +868,36 @@ func TrimRight(s string, cutset string) string {
 // TrimSpace returns a slice of the string s, with all leading
 // and trailing white space removed, as defined by Unicode.
 func TrimSpace(s string) string {
-	return TrimFunc(s, unicode.IsSpace)
+	// Fast path for ASCII: look for the first ASCII non-space byte
+	start := 0
+	for ; start < len(s); start++ {
+		c := s[start]
+		if c >= utf8.RuneSelf {
+			// If we run into a non-ASCII byte, fall back to the
+			// slower unicode-aware method on the remaining bytes
+			return TrimFunc(s[start:], unicode.IsSpace)
+		}
+		if asciiSpace[c] == 0 {
+			break
+		}
+	}
+
+	// Now look for the first ASCII non-space byte from the end
+	stop := len(s)
+	for ; stop > start; stop-- {
+		c := s[stop-1]
+		if c >= utf8.RuneSelf {
+			return TrimFunc(s[start:stop], unicode.IsSpace)
+		}
+		if asciiSpace[c] == 0 {
+			break
+		}
+	}
+
+	// At this point s[start:stop] starts and ends with an ASCII
+	// non-space bytes, so we're done. Non-ASCII cases have already
+	// been handled above.
+	return s[start:stop]
 }
 
 // TrimPrefix returns s without the provided leading prefix string.

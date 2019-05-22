@@ -137,6 +137,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) [failretval==InvalidHandle] = CreateFileW
 //sys	ReadFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error)
 //sys	WriteFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error)
+//sys	GetOverlappedResult(handle Handle, overlapped *Overlapped, done *uint32, wait bool) (err error)
 //sys	SetFilePointer(handle Handle, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, err error) [failretval==0xffffffff]
 //sys	CloseHandle(handle Handle) (err error)
 //sys	GetStdHandle(stdhandle uint32) (handle Handle, err error) [failretval==InvalidHandle]
@@ -145,6 +146,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	findNextFile1(handle Handle, data *win32finddata1) (err error) = FindNextFileW
 //sys	FindClose(handle Handle) (err error)
 //sys	GetFileInformationByHandle(handle Handle, data *ByHandleFileInformation) (err error)
+//sys	GetFileInformationByHandleEx(handle Handle, class uint32, outBuffer *byte, outBufferLen uint32) (err error)
 //sys	GetCurrentDirectory(buflen uint32, buf *uint16) (n uint32, err error) = GetCurrentDirectoryW
 //sys	SetCurrentDirectory(path *uint16) (err error) = SetCurrentDirectoryW
 //sys	CreateDirectory(path *uint16, sa *SecurityAttributes) (err error) = CreateDirectoryW
@@ -559,9 +561,6 @@ func Fsync(fd Handle) (err error) {
 }
 
 func Chmod(path string, mode uint32) (err error) {
-	if mode == 0 {
-		return syscall.EINVAL
-	}
 	p, e := UTF16PtrFromString(path)
 	if e != nil {
 		return e

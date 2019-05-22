@@ -25,6 +25,11 @@ var (
 var _ Wrapper = TypedArray{} // TypedArray must implement Wrapper
 
 // TypedArray represents a JavaScript typed array.
+//
+// BUG(neelance): The typed array currently becomes inaccessible when Go requests more memory
+// from the WebAssembly host. It is recommended to only use the typed array synchronously
+// without keeping a long-lived reference. You can also check if the length property is zero
+// to detect this detached state of the typed array.
 type TypedArray struct {
 	Value
 }

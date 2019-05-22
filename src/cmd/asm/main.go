@@ -83,7 +83,7 @@ func main() {
 		}
 	}
 	if ok && !*flags.SymABIs {
-		obj.WriteObjFile(ctxt, buf)
+		obj.WriteObjFile(ctxt, buf, "")
 	}
 	if !ok || diag {
 		if failedFile != "" {

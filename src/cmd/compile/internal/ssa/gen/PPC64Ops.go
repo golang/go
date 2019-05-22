@@ -136,6 +136,7 @@ func init() {
 		gp11        = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
 		gp21        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
 		gp22        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, gp}}
+		gp32        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, gp}}
 		gp1cr       = regInfo{inputs: []regMask{gp | sp | sb}}
 		gp2cr       = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}}
 		crgp        = regInfo{inputs: nil, outputs: []regMask{gp}}
@@ -158,6 +159,10 @@ func init() {
 		fpstore     = regInfo{inputs: []regMask{gp | sp | sb, fp}}
 		fpstoreidx  = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, fp}}
 		callerSave  = regMask(gp | fp | gr)
+		r3          = buildReg("R3")
+		r4          = buildReg("R4")
+		r5          = buildReg("R5")
+		r6          = buildReg("R6")
 	)
 	ops := []opData{
 		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},     // arg0 + arg1
@@ -195,6 +200,7 @@ func init() {
 		{name: "ROTL", argLength: 2, reg: gp21, asm: "ROTL"},   // arg0 rotate left by arg1 mod 64
 		{name: "ROTLW", argLength: 2, reg: gp21, asm: "ROTLW"}, // uint32(arg0) rotate left by arg1 mod 32
 
+		{name: "LoweredAdd64Carry", argLength: 3, reg: gp32, resultNotInArgs: true},                                                                     // arg0 + arg1 + carry, returns (sum, carry)
 		{name: "ADDconstForCarry", argLength: 1, reg: regInfo{inputs: []regMask{gp | sp | sb}, clobbers: tmp}, aux: "Int16", asm: "ADDC", typ: "Flags"}, // _, carry := arg0 + aux
 		{name: "MaskIfNotCarry", argLength: 1, reg: crgp, asm: "ADDME", typ: "Int64"},                                                                   // carry - 1 (if carry then 0 else -1)
 
@@ -210,6 +216,9 @@ func init() {
 
 		{name: "CNTLZD", argLength: 1, reg: gp11, asm: "CNTLZD", clobberFlags: true}, // count leading zeros
 		{name: "CNTLZW", argLength: 1, reg: gp11, asm: "CNTLZW", clobberFlags: true}, // count leading zeros (32 bit)
+
+		{name: "CNTTZD", argLength: 1, reg: gp11, asm: "CNTTZD"}, // count trailing zeros
+		{name: "CNTTZW", argLength: 1, reg: gp11, asm: "CNTTZW"}, // count trailing zeros (32 bit)
 
 		{name: "POPCNTD", argLength: 1, reg: gp11, asm: "POPCNTD"}, // number of set bits in arg0
 		{name: "POPCNTW", argLength: 1, reg: gp11, asm: "POPCNTW"}, // number of set bits in each word of arg0 placed in corresponding word
@@ -476,6 +485,7 @@ func init() {
 		{name: "LoweredAtomicStore32", argLength: 3, reg: gpstore, typ: "Mem", aux: "Int64", faultOnNilArg0: true, hasSideEffects: true},
 		{name: "LoweredAtomicStore64", argLength: 3, reg: gpstore, typ: "Mem", aux: "Int64", faultOnNilArg0: true, hasSideEffects: true},
 
+		{name: "LoweredAtomicLoad8", argLength: 2, reg: gpload, typ: "UInt8", aux: "Int64", clobberFlags: true, faultOnNilArg0: true},
 		{name: "LoweredAtomicLoad32", argLength: 2, reg: gpload, typ: "UInt32", aux: "Int64", clobberFlags: true, faultOnNilArg0: true},
 		{name: "LoweredAtomicLoad64", argLength: 2, reg: gpload, typ: "Int64", aux: "Int64", clobberFlags: true, faultOnNilArg0: true},
 		{name: "LoweredAtomicLoadPtr", argLength: 2, reg: gpload, typ: "Int64", aux: "Int64", clobberFlags: true, faultOnNilArg0: true},
@@ -536,6 +546,13 @@ func init() {
 		// It preserves R0 through R15, g, and its arguments R20 and R21,
 		// but may clobber anything else, including R31 (REGTMP).
 		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R20"), buildReg("R21")}, clobbers: (callerSave &^ buildReg("R0 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R20 R21 g")) | buildReg("R31")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+
+		// There are three of these functions so that they can have three different register inputs.
+		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+		// default registers to match so we don't need to copy registers around unnecessarily.
+		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r5, r6}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r5}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r3, r4}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
 
 		// (InvertFlags (CMP a b)) == (CMP b a)
 		// So if we want (LessThan (CMP a b)) but we can't do that because a is a constant,

@@ -15,7 +15,7 @@ func typecheckrange(n *Node) {
 	// Typechecking order is important here:
 	// 0. first typecheck range expression (slice/map/chan),
 	//	it is evaluated only once and so logically it is not part of the loop.
-	// 1. typcheck produced values,
+	// 1. typecheck produced values,
 	//	this part can declare new vars and so it must be typechecked before body,
 	//	because body can contain a closure that captures the vars.
 	// 2. decldepth++ to denote loop body.
@@ -298,8 +298,8 @@ func walkrange(n *Node) *Node {
 		hit := prealloc[n]
 		th := hit.Type
 		n.Left = nil
-		keysym := th.Field(0).Sym // depends on layout of iterator struct.  See reflect.go:hiter
-		valsym := th.Field(1).Sym // ditto
+		keysym := th.Field(0).Sym  // depends on layout of iterator struct.  See reflect.go:hiter
+		elemsym := th.Field(1).Sym // ditto
 
 		fn := syslook("mapiterinit")
 
@@ -318,11 +318,11 @@ func walkrange(n *Node) *Node {
 		} else if v2 == nil {
 			body = []*Node{nod(OAS, v1, key)}
 		} else {
-			val := nodSym(ODOT, hit, valsym)
-			val = nod(ODEREF, val, nil)
+			elem := nodSym(ODOT, hit, elemsym)
+			elem = nod(ODEREF, elem, nil)
 			a := nod(OAS2, nil, nil)
 			a.List.Set2(v1, v2)
-			a.Rlist.Set2(key, val)
+			a.Rlist.Set2(key, elem)
 			body = []*Node{a}
 		}
 

@@ -12,7 +12,7 @@ import (
 // prevents us from allocating more stack.
 //go:nosplit
 func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
-	p, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANONYMOUS|_MAP_PRIVATE, -1, 0)
+	p, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
 	if err != 0 {
 		if err == _EACCES {
 			print("runtime: mmap: access denied\n")
@@ -22,7 +22,6 @@ func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
 			print("runtime: mmap: too much locked memory (check 'ulimit -l').\n")
 			exit(2)
 		}
-		//println("sysAlloc failed: ", err)
 		return nil
 	}
 	mSysStatInc(sysStat, n)
@@ -36,6 +35,9 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 func sysUsed(v unsafe.Pointer, n uintptr) {
 }
 
+func sysHugePage(v unsafe.Pointer, n uintptr) {
+}
+
 // Don't split the stack as this function may be invoked without a valid G,
 // which prevents us from allocating more stack.
 //go:nosplit
@@ -46,11 +48,11 @@ func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
 }
 
 func sysFault(v unsafe.Pointer, n uintptr) {
-	mmap(v, n, _PROT_NONE, _MAP_ANONYMOUS|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
+	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
 }
 
 func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
-	p, err := mmap(v, n, _PROT_NONE, _MAP_ANONYMOUS|_MAP_PRIVATE, -1, 0)
+	p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
 	if err != 0 {
 		return nil
 	}
@@ -63,7 +65,7 @@ func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
 	// AIX does not allow mapping a range that is already mapped.
 	// So always unmap first even if it is already unmapped.
 	munmap(v, n)
-	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANONYMOUS|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
 
 	if err == _ENOMEM {
 		throw("runtime: out of memory")

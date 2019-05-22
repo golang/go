@@ -288,6 +288,11 @@ func SetPrefix(prefix string) {
 	std.SetPrefix(prefix)
 }
 
+// Writer returns the output destination for the standard logger.
+func Writer() io.Writer {
+	return std.Writer()
+}
+
 // These functions write to the standard logger.
 
 // Print calls Output to print to the standard logger.

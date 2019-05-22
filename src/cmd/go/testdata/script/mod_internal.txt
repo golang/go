@@ -1,4 +1,5 @@
 env GO111MODULE=on
+[short] skip
 
 # golang.org/x/internal should be importable from other golang.org/x modules.
 rm go.mod

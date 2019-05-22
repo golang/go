@@ -81,7 +81,7 @@ func isBoringCurve(id CurveID) bool {
 func isECDSA(id uint16) bool {
 	for _, suite := range cipherSuites {
 		if suite.id == id {
-			return suite.flags&suiteECDSA == suiteECDSA
+			return suite.flags&suiteECSign == suiteECSign
 		}
 	}
 	panic(fmt.Sprintf("unknown cipher suite %#x", id))
@@ -210,9 +210,12 @@ func TestBoringServerSignatureAndHash(t *testing.T) {
 				serverConfig.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256}
 				serverConfig.Certificates[0].Certificate = [][]byte{testRSA2048Certificate}
 				serverConfig.Certificates[0].PrivateKey = testRSA2048PrivateKey
+			case Ed25519:
+				serverConfig.CipherSuites = []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256}
+				serverConfig.Certificates[0].Certificate = [][]byte{testEd25519Certificate}
+				serverConfig.Certificates[0].PrivateKey = testEd25519PrivateKey
 			default:
 				serverConfig.CipherSuites = []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256}
-				serverConfig.Certificates = make([]Certificate, 1)
 				serverConfig.Certificates[0].Certificate = [][]byte{testECDSACertificate}
 				serverConfig.Certificates[0].PrivateKey = testECDSAPrivateKey
 			}

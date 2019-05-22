@@ -184,28 +184,58 @@ func MatchFile(name string, tags map[string]bool) bool {
 	}
 	n := len(l)
 	if n >= 2 && KnownOS[l[n-2]] && KnownArch[l[n-1]] {
-		return tags[l[n-2]] && tags[l[n-1]]
+		return matchTag(l[n-2], tags, true) && matchTag(l[n-1], tags, true)
 	}
 	if n >= 1 && KnownOS[l[n-1]] {
-		return tags[l[n-1]]
+		return matchTag(l[n-1], tags, true)
 	}
 	if n >= 1 && KnownArch[l[n-1]] {
-		return tags[l[n-1]]
+		return matchTag(l[n-1], tags, true)
 	}
 	return true
 }
 
-var KnownOS = make(map[string]bool)
-var KnownArch = make(map[string]bool)
-
-func init() {
-	for _, v := range strings.Fields(goosList) {
-		KnownOS[v] = true
-	}
-	for _, v := range strings.Fields(goarchList) {
-		KnownArch[v] = true
-	}
+var KnownOS = map[string]bool{
+	"aix":       true,
+	"android":   true,
+	"darwin":    true,
+	"dragonfly": true,
+	"freebsd":   true,
+	"hurd":      true,
+	"illumos":   true,
+	"js":        true,
+	"linux":     true,
+	"nacl":      true,
+	"netbsd":    true,
+	"openbsd":   true,
+	"plan9":     true,
+	"solaris":   true,
+	"windows":   true,
+	"zos":       true,
 }
 
-const goosList = "aix android darwin dragonfly freebsd hurd js linux nacl netbsd openbsd plan9 solaris windows zos "
-const goarchList = "386 amd64 amd64p32 arm armbe arm64 arm64be ppc64 ppc64le mips mipsle mips64 mips64le mips64p32 mips64p32le ppc riscv riscv64 s390 s390x sparc sparc64 wasm "
+var KnownArch = map[string]bool{
+	"386":         true,
+	"amd64":       true,
+	"amd64p32":    true,
+	"arm":         true,
+	"armbe":       true,
+	"arm64":       true,
+	"arm64be":     true,
+	"ppc64":       true,
+	"ppc64le":     true,
+	"mips":        true,
+	"mipsle":      true,
+	"mips64":      true,
+	"mips64le":    true,
+	"mips64p32":   true,
+	"mips64p32le": true,
+	"ppc":         true,
+	"riscv":       true,
+	"riscv64":     true,
+	"s390":        true,
+	"s390x":       true,
+	"sparc":       true,
+	"sparc64":     true,
+	"wasm":        true,
+}

@@ -104,3 +104,19 @@ store:
 native_barrier2:
 	DMB	MB_ISH
 	RET
+
+TEXT	·Load8(SB),NOSPLIT,$0-5
+	MOVW	addr+0(FP), R0
+	MOVB	(R0), R1
+
+	MOVB	runtime·goarm(SB), R11
+	CMP	$7, R11
+	BGE	native_barrier
+	BL	memory_barrier<>(SB)
+	B	end
+native_barrier:
+	DMB	MB_ISH
+end:
+	MOVB	R1, ret+4(FP)
+	RET
+

@@ -159,9 +159,7 @@ func yyerror(format string, args ...interface{}) {
 }
 
 func Warn(fmt_ string, args ...interface{}) {
-	adderr(lineno, fmt_, args...)
-
-	hcrash()
+	Warnl(lineno, fmt_, args...)
 }
 
 func Warnl(line src.XPos, fmt_ string, args ...interface{}) {
@@ -306,20 +304,20 @@ func nodl(pos src.XPos, op Op, nleft, nright *Node) *Node {
 	switch op {
 	case OCLOSURE, ODCLFUNC:
 		var x struct {
-			Node
-			Func
+			n Node
+			f Func
 		}
-		n = &x.Node
-		n.Func = &x.Func
+		n = &x.n
+		n.Func = &x.f
 	case ONAME:
 		Fatalf("use newname instead")
 	case OLABEL, OPACK:
 		var x struct {
-			Node
-			Name
+			n Node
+			m Name
 		}
-		n = &x.Node
-		n.Name = &x.Name
+		n = &x.n
+		n.Name = &x.m
 	default:
 		n = new(Node)
 	}
@@ -347,13 +345,13 @@ func newnamel(pos src.XPos, s *types.Sym) *Node {
 	}
 
 	var x struct {
-		Node
-		Name
-		Param
+		n Node
+		m Name
+		p Param
 	}
-	n := &x.Node
-	n.Name = &x.Name
-	n.Name.Param = &x.Param
+	n := &x.n
+	n.Name = &x.m
+	n.Name.Param = &x.p
 
 	n.Op = ONAME
 	n.Pos = pos
@@ -416,12 +414,6 @@ func nodintconst(v int64) *Node {
 	return nodlit(Val{u})
 }
 
-func nodfltconst(v *Mpflt) *Node {
-	u := newMpflt()
-	u.Set(v)
-	return nodlit(Val{u})
-}
-
 func nodnil() *Node {
 	return nodlit(Val{new(NilVal)})
 }
@@ -435,10 +427,9 @@ func nodstr(s string) *Node {
 }
 
 // treecopy recursively copies n, with the exception of
-// ONAME, OLITERAL, OTYPE, and non-iota ONONAME leaves.
-// Copies of iota ONONAME nodes are assigned the current
-// value of iota_. If pos.IsKnown(), it sets the source
-// position of newly allocated nodes to pos.
+// ONAME, OLITERAL, OTYPE, and ONONAME leaves.
+// If pos.IsKnown(), it sets the source position of newly
+// allocated nodes to pos.
 func treecopy(n *Node, pos src.XPos) *Node {
 	if n == nil {
 		return nil
@@ -1581,7 +1572,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type && rcvr.Elem().Sym != nil {
 		inlcalls(fn)
 	}
-	escAnalyze([]*Node{fn}, false)
+	escapeImpl()([]*Node{fn}, false)
 
 	Curfn = nil
 	funccompile(fn)

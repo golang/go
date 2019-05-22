@@ -975,14 +975,8 @@ func Peinit(ctxt *Link) {
 	if *FlagTextAddr == -1 {
 		*FlagTextAddr = PEBASE + int64(PESECTHEADR)
 	}
-	if *FlagDataAddr == -1 {
-		*FlagDataAddr = 0
-	}
 	if *FlagRound == -1 {
 		*FlagRound = int(PESECTALIGN)
-	}
-	if *FlagDataAddr != 0 && *FlagRound != 0 {
-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*FlagDataAddr), uint32(*FlagRound))
 	}
 }
 
@@ -1407,7 +1401,7 @@ func addPEBaseRelocSym(ctxt *Link, s *sym.Symbol, rt *peBaseRelocTable) {
 		if !r.Sym.Attr.Reachable() {
 			continue
 		}
-		if r.Type >= 256 {
+		if r.Type >= objabi.ElfRelocOffset {
 			continue
 		}
 		if r.Siz == 0 { // informational relocation

@@ -8,6 +8,7 @@ package exec_test
 
 import (
 	"os/user"
+	"runtime"
 	"strconv"
 	"syscall"
 	"testing"
@@ -15,6 +16,10 @@ import (
 )
 
 func TestCredentialNoSetGroups(t *testing.T) {
+	if runtime.GOOS == "android" {
+		t.Skip("unsupported on Android")
+	}
+
 	u, err := user.Current()
 	if err != nil {
 		t.Fatalf("error getting current user: %v", err)

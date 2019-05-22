@@ -40,6 +40,14 @@ TEXT ·Load(SB),NOSPLIT,$0-8
 	MOVW	R1, ret+4(FP)
 	RET
 
+TEXT ·Load8(SB),NOSPLIT,$0-5
+	MOVW	ptr+0(FP), R1
+	SYNC
+	MOVB	0(R1), R1
+	SYNC
+	MOVB	R1, ret+4(FP)
+	RET
+
 TEXT ·Xadd(SB),NOSPLIT,$0-12
 	MOVW	ptr+0(FP), R2
 	MOVW	delta+4(FP), R3

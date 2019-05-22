@@ -29,7 +29,7 @@ func Swapper(slice interface{}) func(i, j int) {
 
 	typ := v.Type().Elem().(*rtype)
 	size := typ.Size()
-	hasPtr := typ.kind&kindNoPointers == 0
+	hasPtr := typ.ptrdata != 0
 
 	// Some common & small cases, without using memmove:
 	if hasPtr {

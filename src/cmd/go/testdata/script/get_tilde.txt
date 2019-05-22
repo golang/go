@@ -1,4 +1,5 @@
 env GO111MODULE=off
+[short] skip
 
 # Paths containing windows short names should be rejected before attempting to fetch.
 ! go get example.com/longna~1.dir/thing

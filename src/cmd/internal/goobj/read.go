@@ -97,6 +97,7 @@ type Func struct {
 	Frame    int64      // size in bytes of local variable frame
 	Leaf     bool       // function omits save of link register (ARM)
 	NoSplit  bool       // function omits stack split prologue
+	TopFrame bool       // function is the top of the call stack
 	Var      []Var      // detail about local variables
 	PCSP     Data       // PC → SP offset map
 	PCFile   Data       // PC → file number map (index into File)
@@ -576,6 +577,7 @@ func (r *objReader) parseObject(prefix []byte) error {
 			f.Frame = r.readInt()
 			flags := r.readInt()
 			f.Leaf = flags&(1<<0) != 0
+			f.TopFrame = flags&(1<<4) != 0
 			f.NoSplit = r.readInt() != 0
 			f.Var = make([]Var, r.readInt())
 			for i := range f.Var {

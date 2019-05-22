@@ -66,6 +66,7 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	ADD	$32768, R1, R2        // b9040021c22800008000
 	ADDC	R1, R2                // b9ea1022
 	ADDC	$1, R1, R2            // ec21000100db
+	ADDC	$-1, R1, R2           // ec21ffff00db
 	ADDC	R1, R2, R3            // b9ea1032
 	ADDW	R1, R2                // 1a21
 	ADDW	R1, R2, R3            // b9f81032
@@ -182,6 +183,21 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	XORW	(R1), R2              // 57201000
 	XORW	-1(R1), R2            // e3201fffff57
 
+	RNSBG	$0, $31, $32, R1, R2  // ec21001f2054
+	RXSBG	$17, $8, $16, R3, R4  // ec4311081057
+	ROSBG	$9, $24, $11, R5, R6  // ec6509180b56
+	RNSBGT	$0, $31, $32, R7, R8  // ec87801f2054
+	RXSBGT	$17, $8, $16, R9, R10 // eca991081057
+	ROSBGT	$9, $24, $11, R11, R0 // ec0b89180b56
+	RISBG	$0, $31, $32, R1, R2  // ec21001f2055
+	RISBGN	$17, $8, $16, R3, R4  // ec4311081059
+	RISBGZ	$9, $24, $11, R5, R6  // ec6509980b55
+	RISBGNZ	$0, $31, $32, R7, R8  // ec87009f2059
+	RISBHG	$17, $8, $16, R9, R10 // eca91108105d
+	RISBLG	$9, $24, $11, R11, R0 // ec0b09180b51
+	RISBHGZ	$17, $8, $16, R9, R10 // eca91188105d
+	RISBLGZ	$9, $24, $11, R11, R0 // ec0b09980b51
+
 	LAA	R1, R2, 524287(R3)    // eb213fff7ff8
 	LAAG	R4, R5, -524288(R6)   // eb54600080e8
 	LAAL	R7, R8, 8192(R9)      // eb87900002fa
@@ -218,6 +234,9 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	TMHL	R2, $1                 // a7230001
 	TMLH	R3, $0                 // a7300000
 	TMLL	R4, $32768             // a7418000
+
+	IPM	R3                     // b2220030
+	IPM	R12                    // b22200c0
 
 	BNE	0(PC)                  // a7740000
 	BEQ	0(PC)                  // a7840000

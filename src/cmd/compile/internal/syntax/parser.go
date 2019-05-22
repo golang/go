@@ -170,6 +170,20 @@ func (p *parser) want(tok token) {
 	}
 }
 
+// gotAssign is like got(_Assign) but it also accepts ":="
+// (and reports an error) for better parser error recovery.
+func (p *parser) gotAssign() bool {
+	switch p.tok {
+	case _Define:
+		p.syntaxError("expecting =")
+		fallthrough
+	case _Assign:
+		p.next()
+		return true
+	}
+	return false
+}
+
 // ----------------------------------------------------------------------------
 // Error handling
 
@@ -514,7 +528,7 @@ func (p *parser) constDecl(group *Group) Decl {
 	d.NameList = p.nameList(p.name())
 	if p.tok != _EOF && p.tok != _Semi && p.tok != _Rparen {
 		d.Type = p.typeOrNil()
-		if p.got(_Assign) {
+		if p.gotAssign() {
 			d.Values = p.exprList()
 		}
 	}
@@ -533,7 +547,7 @@ func (p *parser) typeDecl(group *Group) Decl {
 	d.pos = p.pos()
 
 	d.Name = p.name()
-	d.Alias = p.got(_Assign)
+	d.Alias = p.gotAssign()
 	d.Type = p.typeOrNil()
 	if d.Type == nil {
 		d.Type = p.bad()
@@ -556,11 +570,11 @@ func (p *parser) varDecl(group *Group) Decl {
 	d.pos = p.pos()
 
 	d.NameList = p.nameList(p.name())
-	if p.got(_Assign) {
+	if p.gotAssign() {
 		d.Values = p.exprList()
 	} else {
 		d.Type = p.type_()
-		if p.got(_Assign) {
+		if p.gotAssign() {
 			d.Values = p.exprList()
 		}
 	}

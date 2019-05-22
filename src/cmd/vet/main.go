@@ -1,6 +1,8 @@
 package main
 
 import (
+	"cmd/internal/objabi"
+
 	"golang.org/x/tools/go/analysis/unitchecker"
 
 	"golang.org/x/tools/go/analysis/passes/asmdecl"
@@ -27,6 +29,8 @@ import (
 )
 
 func main() {
+	objabi.AddVersionFlag()
+
 	unitchecker.Main(
 		asmdecl.Analyzer,
 		assign.Analyzer,

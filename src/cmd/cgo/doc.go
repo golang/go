@@ -148,6 +148,8 @@ C.long, C.ulong (unsigned long), C.longlong (long long),
 C.ulonglong (unsigned long long), C.float, C.double,
 C.complexfloat (complex float), and C.complexdouble (complex double).
 The C type void* is represented by Go's unsafe.Pointer.
+The C sized integer types (int8_t, uint8_t, …) are represented by their Go
+counterparts (int8, uint8, …).
 The C types __int128_t and __uint128_t are represented by [16]byte.
 
 A few special C types which would normally be represented by a pointer
@@ -296,7 +298,7 @@ Go functions can be exported for use by C code in the following way:
 
 They will be available in the C code as:
 
-	extern int64 MyFunction(int arg1, int arg2, GoString arg3);
+	extern int64_t MyFunction(int arg1, int arg2, GoString arg3);
 	extern struct MyFunction2_return MyFunction2(int arg1, int arg2, GoString arg3);
 
 found in the _cgo_export.h generated header, after any preambles
@@ -710,7 +712,7 @@ _cgo_main.c:
 
 	int main() { return 0; }
 	void crosscall2(void(*fn)(void*, int, uintptr_t), void *a, int c, uintptr_t ctxt) { }
-	uintptr_t _cgo_wait_runtime_init_done() { return 0; }
+	uintptr_t _cgo_wait_runtime_init_done(void) { return 0; }
 	void _cgo_release_context(uintptr_t ctxt) { }
 	char* _cgo_topofstack(void) { return (char*)0; }
 	void _cgo_allocate(void *a, int c) { }

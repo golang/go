@@ -58,7 +58,7 @@ func execSecurityRoots() (*CertPool, error) {
 		return nil, err
 	}
 	if debugDarwinRoots {
-		fmt.Printf("crypto/x509: %d certs have a trust policy\n", len(hasPolicy))
+		fmt.Fprintf(os.Stderr, "crypto/x509: %d certs have a trust policy\n", len(hasPolicy))
 	}
 
 	keychains := []string{"/Library/Keychains/System.keychain"}
@@ -68,7 +68,7 @@ func execSecurityRoots() (*CertPool, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		if debugDarwinRoots {
-			fmt.Printf("crypto/x509: can't get user home directory: %v\n", err)
+			fmt.Fprintf(os.Stderr, "crypto/x509: can't get user home directory: %v\n", err)
 		}
 	} else {
 		keychains = append(keychains,
@@ -148,7 +148,7 @@ func execSecurityRoots() (*CertPool, error) {
 	wg.Wait()
 
 	if debugDarwinRoots {
-		fmt.Printf("crypto/x509: ran security verify-cert %d times\n", numVerified)
+		fmt.Fprintf(os.Stderr, "crypto/x509: ran security verify-cert %d times\n", numVerified)
 	}
 
 	return roots, nil
@@ -205,12 +205,12 @@ func verifyCertWithSystem(cert *Certificate) bool {
 	}
 	if err := cmd.Run(); err != nil {
 		if debugDarwinRoots {
-			fmt.Printf("crypto/x509: verify-cert rejected %s: %q\n", cert.Subject, bytes.TrimSpace(stderr.Bytes()))
+			fmt.Fprintf(os.Stderr, "crypto/x509: verify-cert rejected %s: %q\n", cert.Subject, bytes.TrimSpace(stderr.Bytes()))
 		}
 		return false
 	}
 	if debugDarwinRoots {
-		fmt.Printf("crypto/x509: verify-cert approved %s\n", cert.Subject)
+		fmt.Fprintf(os.Stderr, "crypto/x509: verify-cert approved %s\n", cert.Subject)
 	}
 	return true
 }
@@ -243,7 +243,7 @@ func getCertsWithTrustPolicy() (map[string]bool, error) {
 			// localized on macOS, just interpret any failure to mean that
 			// there are no trust settings.
 			if debugDarwinRoots {
-				fmt.Printf("crypto/x509: exec %q: %v, %s\n", cmd.Args, err, stderr.Bytes())
+				fmt.Fprintf(os.Stderr, "crypto/x509: exec %q: %v, %s\n", cmd.Args, err, stderr.Bytes())
 			}
 			return nil
 		}

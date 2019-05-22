@@ -296,7 +296,7 @@ type decodeThis struct {
 	v interface{}
 }
 
-var tokenStreamCases []tokenStreamCase = []tokenStreamCase{
+var tokenStreamCases = []tokenStreamCase{
 	// streaming token cases
 	{json: `10`, expTokens: []interface{}{float64(10)}},
 	{json: ` [10] `, expTokens: []interface{}{
@@ -368,7 +368,6 @@ var tokenStreamCases []tokenStreamCase = []tokenStreamCase{
 }
 
 func TestDecodeInStream(t *testing.T) {
-
 	for ci, tcase := range tokenStreamCases {
 
 		dec := NewDecoder(strings.NewReader(tcase.json))
@@ -401,7 +400,6 @@ func TestDecodeInStream(t *testing.T) {
 			}
 		}
 	}
-
 }
 
 // Test from golang.org/issue/11893

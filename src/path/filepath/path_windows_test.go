@@ -529,6 +529,12 @@ func TestNTNamespaceSymlink(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 
+	// Make sure tmpdir is not a symlink, otherwise tests will fail.
+	tmpdir, err = filepath.EvalSymlinks(tmpdir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	vol := filepath.VolumeName(tmpdir)
 	output, err = exec.Command("cmd", "/c", "mountvol", vol, "/L").CombinedOutput()
 	if err != nil {

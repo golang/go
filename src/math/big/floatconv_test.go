@@ -72,6 +72,21 @@ func TestFloatSetFloat64String(t *testing.T) {
 		{"infinity", nan},
 		{"foobar", nan},
 
+		// invalid underscores
+		{"_", nan},
+		{"0_", nan},
+		{"1__0", nan},
+		{"123_.", nan},
+		{"123._", nan},
+		{"123._4", nan},
+		{"1_2.3_4_", nan},
+		{"_.123", nan},
+		{"_123.456", nan},
+		{"10._0", nan},
+		{"10.0e_0", nan},
+		{"10.0e0_", nan},
+		{"0P-0__0", nan},
+
 		// misc decimal values
 		{"3.14159265", 3.14159265},
 		{"-687436.79457e-245", -687436.79457e-245},
@@ -110,6 +125,27 @@ func TestFloatSetFloat64String(t *testing.T) {
 		{"0b0.01p2", 1},
 		{"0b0.01P+2", 1},
 
+		// octal mantissa, decimal exponent
+		{"0o0", 0},
+		{"-0o0", -zero_},
+		{"0o0e+10", 0},
+		{"-0o0e-10", -zero_},
+		{"0o12", 10},
+		{"0O12E2", 1000},
+		{"0o.4", 0.5},
+		{"0o.01", 0.015625},
+		{"0o.01e3", 15.625},
+
+		// octal mantissa, binary exponent
+		{"0o0p+10", 0},
+		{"-0o0p-10", -zero_},
+		{"0o.12p6", 10},
+		{"0o4p-3", 0.5},
+		{"0o0014p-6", 0.1875},
+		{"0o.001p9", 1},
+		{"0o0.01p7", 2},
+		{"0O0.01P+2", 0.0625},
+
 		// hexadecimal mantissa and exponent
 		{"0x0", 0},
 		{"-0x0", -zero_},
@@ -121,6 +157,16 @@ func TestFloatSetFloat64String(t *testing.T) {
 		{"-0X0.00008P+16", -0.5},
 		{"0x0.0000000000001p-1022", math.SmallestNonzeroFloat64},
 		{"0x1.fffffffffffffp1023", math.MaxFloat64},
+
+		// underscores
+		{"0_0", 0},
+		{"1_000.", 1000},
+		{"1_2_3.4_5_6", 123.456},
+		{"1.0e0_0", 1},
+		{"1p+1_0", 1024},
+		{"0b_1000", 0x8},
+		{"0b_1011_1101", 0xbd},
+		{"0x_f0_0d_1eP+0_8", 0xf00d1e00},
 	} {
 		var x Float
 		x.SetPrec(53)

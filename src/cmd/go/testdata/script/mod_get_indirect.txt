@@ -1,6 +1,15 @@
 env GO111MODULE=on
+[short] skip
 
-# get -u should find quote v1.5.2
+# get -u should not upgrade anything, since the package
+# in the current directory doesn't import anything.
+go get -u
+go list -m all
+stdout 'quote v1.5.1$'
+grep 'rsc.io/quote v1.5.1$' go.mod
+
+# get -u should find quote v1.5.2 once there is a use.
+cp $WORK/tmp/usequote.go x.go
 go get -u
 go list -m all
 stdout 'quote v1.5.2$'
@@ -11,11 +20,10 @@ go list -m -f '{{.Path}} {{.Version}}{{if .Indirect}} // indirect{{end}}' all
 stdout '^golang.org/x/text [v0-9a-f\.-]+ // indirect'
 grep 'golang.org/x/text [v0-9a-f\.-]+ // indirect' go.mod
 
-# importing an empty module root as a package makes it direct.
-# TODO(bcmills): This doesn't seem correct. Fix is in the next change.
+# importing an empty module root as a package does not remove indirect tag.
 cp $WORK/tmp/usetext.go x.go
 go list -e
-grep 'golang.org/x/text [v0-9a-f\.-]+ // indirect' go.mod
+grep 'golang.org/x/text v0.3.0 // indirect$' go.mod
 
 # indirect tag should be removed upon seeing direct import.
 cp $WORK/tmp/uselang.go x.go

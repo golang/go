@@ -9,32 +9,6 @@
 
 #define	REGCTXT	R22
 
-TEXT ·Equal(SB),NOSPLIT,$0-25
-	MOVW	a_len+4(FP), R3
-	MOVW	b_len+16(FP), R4
-	BNE	R3, R4, noteq	// unequal lengths are not equal
-
-	MOVW	a_base+0(FP), R1
-	MOVW	b_base+12(FP), R2
-	ADDU	R1, R3	// end
-
-loop:
-	BEQ	R1, R3, equal	// reached the end
-	MOVBU	(R1), R6
-	ADDU	$1, R1
-	MOVBU	(R2), R7
-	ADDU	$1, R2
-	BEQ	R6, R7, loop
-
-noteq:
-	MOVB	R0, ret+24(FP)
-	RET
-
-equal:
-	MOVW	$1, R1
-	MOVB	R1, ret+24(FP)
-	RET
-
 // memequal(a, b unsafe.Pointer, size uintptr) bool
 TEXT runtime·memequal(SB),NOSPLIT,$0-13
 	MOVW	a+0(FP), R1

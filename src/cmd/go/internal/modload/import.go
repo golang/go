@@ -28,6 +28,10 @@ import (
 type ImportMissingError struct {
 	ImportPath string
 	Module     module.Version
+
+	// newMissingVersion is set to a newer version of Module if one is present
+	// in the build list. When set, we can't automatically upgrade.
+	newMissingVersion string
 }
 
 func (e *ImportMissingError) Error() string {
@@ -61,17 +65,21 @@ func Import(path string) (m module.Version, dir string, err error) {
 	}
 
 	// Is the package in the standard library?
-	if search.IsStandardImportPath(path) {
-		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
-			dir := filepath.Join(cfg.GOROOT, "src", path)
-			return module.Version{}, dir, nil
+	if search.IsStandardImportPath(path) &&
+		goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
+		if targetInGorootSrc {
+			if dir, ok := dirInModule(path, targetPrefix, ModRoot(), true); ok {
+				return Target, dir, nil
+			}
 		}
+		dir := filepath.Join(cfg.GOROOT, "src", path)
+		return module.Version{}, dir, nil
 	}
 
 	// -mod=vendor is special.
 	// Everything must be in the main module or the main module's vendor directory.
 	if cfg.BuildMod == "vendor" {
-		mainDir, mainOK := dirInModule(path, Target.Path, ModRoot(), true)
+		mainDir, mainOK := dirInModule(path, targetPrefix, ModRoot(), true)
 		vendorDir, vendorOK := dirInModule(path, "", filepath.Join(ModRoot(), "vendor"), false)
 		if mainOK && vendorOK {
 			return module.Version{}, "", fmt.Errorf("ambiguous import: found %s in multiple directories:\n\t%s\n\t%s", path, mainDir, vendorDir)
@@ -178,14 +186,34 @@ func Import(path string) (m module.Version, dir string, err error) {
 		}
 	}
 
-	m, _, err = QueryPackage(path, "latest", Allowed)
+	candidates, err := QueryPackage(path, "latest", Allowed)
 	if err != nil {
 		if _, ok := err.(*codehost.VCSError); ok {
 			return module.Version{}, "", err
 		}
 		return module.Version{}, "", &ImportMissingError{ImportPath: path}
 	}
-	return m, "", &ImportMissingError{ImportPath: path, Module: m}
+	m = candidates[0].Mod
+	newMissingVersion := ""
+	for _, c := range candidates {
+		cm := c.Mod
+		for _, bm := range buildList {
+			if bm.Path == cm.Path && semver.Compare(bm.Version, cm.Version) > 0 {
+				// QueryPackage proposed that we add module cm to provide the package,
+				// but we already depend on a newer version of that module (and we don't
+				// have the package).
+				//
+				// This typically happens when a package is present at the "@latest"
+				// version (e.g., v1.0.0) of a module, but we have a newer version
+				// of the same module in the build list (e.g., v1.0.1-beta), and
+				// the package is not present there.
+				m = cm
+				newMissingVersion = bm.Version
+				break
+			}
+		}
+	}
+	return m, "", &ImportMissingError{ImportPath: path, Module: m, newMissingVersion: newMissingVersion}
 }
 
 // maybeInModule reports whether, syntactically,
@@ -229,8 +257,8 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 	if isLocal {
 		for d := dir; d != mdir && len(d) > len(mdir); {
 			haveGoMod := haveGoModCache.Do(d, func() interface{} {
-				_, err := os.Stat(filepath.Join(d, "go.mod"))
-				return err == nil
+				fi, err := os.Stat(filepath.Join(d, "go.mod"))
+				return err == nil && !fi.IsDir()
 			}).(bool)
 
 			if haveGoMod {

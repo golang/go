@@ -215,30 +215,30 @@ func CmpLogicalToZero(a, b, c uint32, d, e uint64) uint64 {
 
 	// ppc64:"ANDCC",-"CMPW"
 	// ppc64le:"ANDCC",-"CMPW"
-	if a & 63 == 0 {
+	if a&63 == 0 {
 		return 1
 	}
 
 	// ppc64:"ANDCC",-"CMP"
 	// ppc64le:"ANDCC",-"CMP"
-	if d & 255 == 0 {
+	if d&255 == 0 {
 		return 1
 	}
 
 	// ppc64:"ANDCC",-"CMP"
 	// ppc64le:"ANDCC",-"CMP"
-	if d & e == 0 {
+	if d&e == 0 {
 		return 1
 	}
 	// ppc64:"ORCC",-"CMP"
 	// ppc64le:"ORCC",-"CMP"
-	if d | e == 0 {
+	if d|e == 0 {
 		return 1
 	}
 
 	// ppc64:"XORCC",-"CMP"
 	// ppc64le:"XORCC",-"CMP"
-	if e ^ d == 0 {
+	if e^d == 0 {
 		return 1
 	}
 	return 0

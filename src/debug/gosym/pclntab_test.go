@@ -55,7 +55,7 @@ func endtest() {
 // These tests open and examine the test binary, and use elf.Open to do so.
 func skipIfNotELF(t *testing.T) {
 	switch runtime.GOOS {
-	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris", "illumos":
 		// OK.
 	default:
 		t.Skipf("skipping on non-ELF system %s", runtime.GOOS)

@@ -4,6 +4,11 @@
 
 package windows
 
+import (
+	"syscall"
+	"unsafe"
+)
+
 const (
 	FSCTL_SET_REPARSE_POINT    = 0x000900A4
 	IO_REPARSE_TAG_MOUNT_POINT = 0xA0000003
@@ -14,6 +19,13 @@ const (
 // These structures are described
 // in https://msdn.microsoft.com/en-us/library/cc232007.aspx
 // and https://msdn.microsoft.com/en-us/library/cc232006.aspx.
+
+type REPARSE_DATA_BUFFER struct {
+	ReparseTag        uint32
+	ReparseDataLength uint16
+	Reserved          uint16
+	DUMMYUNIONNAME    byte
+}
 
 // REPARSE_DATA_BUFFER_HEADER is a common part of REPARSE_DATA_BUFFER structure.
 type REPARSE_DATA_BUFFER_HEADER struct {
@@ -46,6 +58,12 @@ type SymbolicLinkReparseBuffer struct {
 	PathBuffer [1]uint16
 }
 
+// Path returns path stored in rb.
+func (rb *SymbolicLinkReparseBuffer) Path() string {
+	p := (*[0xffff]uint16)(unsafe.Pointer(&rb.PathBuffer[0]))
+	return syscall.UTF16ToString(p[rb.SubstituteNameOffset/2 : (rb.SubstituteNameOffset+rb.SubstituteNameLength)/2])
+}
+
 type MountPointReparseBuffer struct {
 	// The integer that contains the offset, in bytes,
 	// of the substitute name string in the PathBuffer array,
@@ -61,4 +79,10 @@ type MountPointReparseBuffer struct {
 	// PrintNameLength is similar to SubstituteNameLength.
 	PrintNameLength uint16
 	PathBuffer      [1]uint16
+}
+
+// Path returns path stored in rb.
+func (rb *MountPointReparseBuffer) Path() string {
+	p := (*[0xffff]uint16)(unsafe.Pointer(&rb.PathBuffer[0]))
+	return syscall.UTF16ToString(p[rb.SubstituteNameOffset/2 : (rb.SubstituteNameOffset+rb.SubstituteNameLength)/2])
 }

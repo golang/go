@@ -80,11 +80,19 @@ func (r Rule) parse() (match, cond, result string) {
 	return match, cond, result
 }
 
-func genRules(arch arch) {
+func genRules(arch arch)          { genRulesSuffix(arch, "") }
+func genSplitLoadRules(arch arch) { genRulesSuffix(arch, "splitload") }
+
+func genRulesSuffix(arch arch, suff string) {
 	// Open input file.
-	text, err := os.Open(arch.name + ".rules")
+	text, err := os.Open(arch.name + suff + ".rules")
 	if err != nil {
-		log.Fatalf("can't read rule file: %v", err)
+		if suff == "" {
+			// All architectures must have a plain rules file.
+			log.Fatalf("can't read rule file: %v", err)
+		}
+		// Some architectures have bonus rules files that others don't share. That's fine.
+		return
 	}
 
 	// oprules contains a list of rules for each block and opcode
@@ -122,7 +130,7 @@ func genRules(arch arch) {
 			continue
 		}
 
-		loc := fmt.Sprintf("%s.rules:%d", arch.name, ruleLineno)
+		loc := fmt.Sprintf("%s%s.rules:%d", arch.name, suff, ruleLineno)
 		for _, rule2 := range expandOr(rule) {
 			for _, rule3 := range commute(rule2, arch) {
 				r := Rule{rule: rule3, loc: loc}
@@ -156,7 +164,7 @@ func genRules(arch arch) {
 
 	// Start output buffer, write header.
 	w := new(bytes.Buffer)
-	fmt.Fprintf(w, "// Code generated from gen/%s.rules; DO NOT EDIT.\n", arch.name)
+	fmt.Fprintf(w, "// Code generated from gen/%s%s.rules; DO NOT EDIT.\n", arch.name, suff)
 	fmt.Fprintln(w, "// generated with: cd gen; go run *.go")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "package ssa")
@@ -174,7 +182,7 @@ func genRules(arch arch) {
 
 	const chunkSize = 10
 	// Main rewrite routine is a switch on v.Op.
-	fmt.Fprintf(w, "func rewriteValue%s(v *Value) bool {\n", arch.name)
+	fmt.Fprintf(w, "func rewriteValue%s%s(v *Value) bool {\n", arch.name, suff)
 	fmt.Fprintf(w, "switch v.Op {\n")
 	for _, op := range ops {
 		fmt.Fprintf(w, "case %s:\n", op)
@@ -183,7 +191,7 @@ func genRules(arch arch) {
 			if chunk > 0 {
 				fmt.Fprint(w, " || ")
 			}
-			fmt.Fprintf(w, "rewriteValue%s_%s_%d(v)", arch.name, op, chunk)
+			fmt.Fprintf(w, "rewriteValue%s%s_%s_%d(v)", arch.name, suff, op, chunk)
 		}
 		fmt.Fprintln(w)
 	}
@@ -209,7 +217,7 @@ func genRules(arch arch) {
 
 				canFail = false
 				fmt.Fprintf(buf, "for {\n")
-				pos, matchCanFail := genMatch(buf, arch, match, rule.loc)
+				pos, _, matchCanFail := genMatch(buf, arch, match, rule.loc)
 				if pos == "" {
 					pos = "v.Pos"
 				}
@@ -238,29 +246,23 @@ func genRules(arch arch) {
 			}
 
 			body := buf.String()
-			// Do a rough match to predict whether we need b, config, fe, and/or types.
-			// It's not precise--thus the blank assignments--but it's good enough
-			// to avoid generating needless code and doing pointless nil checks.
-			hasb := strings.Contains(body, "b.")
+			// Figure out whether we need b, config, fe, and/or types; provide them if so.
+			hasb := strings.Contains(body, " b.")
 			hasconfig := strings.Contains(body, "config.") || strings.Contains(body, "config)")
 			hasfe := strings.Contains(body, "fe.")
 			hastyps := strings.Contains(body, "typ.")
-			fmt.Fprintf(w, "func rewriteValue%s_%s_%d(v *Value) bool {\n", arch.name, op, chunk)
+			fmt.Fprintf(w, "func rewriteValue%s%s_%s_%d(v *Value) bool {\n", arch.name, suff, op, chunk)
 			if hasb || hasconfig || hasfe || hastyps {
 				fmt.Fprintln(w, "b := v.Block")
-				fmt.Fprintln(w, "_ = b")
 			}
 			if hasconfig {
 				fmt.Fprintln(w, "config := b.Func.Config")
-				fmt.Fprintln(w, "_ = config")
 			}
 			if hasfe {
 				fmt.Fprintln(w, "fe := b.Func.fe")
-				fmt.Fprintln(w, "_ = fe")
 			}
 			if hastyps {
 				fmt.Fprintln(w, "typ := &b.Func.Config.Types")
-				fmt.Fprintln(w, "_ = typ")
 			}
 			fmt.Fprint(w, body)
 			fmt.Fprintf(w, "}\n")
@@ -269,13 +271,12 @@ func genRules(arch arch) {
 
 	// Generate block rewrite function. There are only a few block types
 	// so we can make this one function with a switch.
-	fmt.Fprintf(w, "func rewriteBlock%s(b *Block) bool {\n", arch.name)
+	fmt.Fprintf(w, "func rewriteBlock%s%s(b *Block) bool {\n", arch.name, suff)
 	fmt.Fprintln(w, "config := b.Func.Config")
-	fmt.Fprintln(w, "_ = config")
-	fmt.Fprintln(w, "fe := b.Func.fe")
-	fmt.Fprintln(w, "_ = fe")
 	fmt.Fprintln(w, "typ := &config.Types")
 	fmt.Fprintln(w, "_ = typ")
+	fmt.Fprintln(w, "v := b.Control")
+	fmt.Fprintln(w, "_ = v")
 	fmt.Fprintf(w, "switch b.Kind {\n")
 	ops = nil
 	for op := range blockrules {
@@ -290,27 +291,26 @@ func genRules(arch arch) {
 			fmt.Fprintf(w, "// cond: %s\n", cond)
 			fmt.Fprintf(w, "// result: %s\n", result)
 
-			fmt.Fprintf(w, "for {\n")
-
 			_, _, _, aux, s := extract(match) // remove parens, then split
+
+			loopw := new(bytes.Buffer)
 
 			// check match of control value
 			pos := ""
+			checkOp := ""
 			if s[0] != "nil" {
-				fmt.Fprintf(w, "v := b.Control\n")
 				if strings.Contains(s[0], "(") {
-					pos, _ = genMatch0(w, arch, s[0], "v", map[string]struct{}{}, false, rule.loc)
+					pos, checkOp, _ = genMatch0(loopw, arch, s[0], "v", map[string]struct{}{}, rule.loc)
 				} else {
-					fmt.Fprintf(w, "_ = v\n") // in case we don't use v
-					fmt.Fprintf(w, "%s := b.Control\n", s[0])
+					fmt.Fprintf(loopw, "%s := b.Control\n", s[0])
 				}
 			}
 			if aux != "" {
-				fmt.Fprintf(w, "%s := b.Aux\n", aux)
+				fmt.Fprintf(loopw, "%s := b.Aux\n", aux)
 			}
 
 			if cond != "" {
-				fmt.Fprintf(w, "if !(%s) {\nbreak\n}\n", cond)
+				fmt.Fprintf(loopw, "if !(%s) {\nbreak\n}\n", cond)
 			}
 
 			// Rule matches. Generate result.
@@ -336,19 +336,19 @@ func genRules(arch arch) {
 				log.Fatalf("unmatched successors %v in %s", m, rule)
 			}
 
-			fmt.Fprintf(w, "b.Kind = %s\n", blockName(outop, arch))
+			fmt.Fprintf(loopw, "b.Kind = %s\n", blockName(outop, arch))
 			if t[0] == "nil" {
-				fmt.Fprintf(w, "b.SetControl(nil)\n")
+				fmt.Fprintf(loopw, "b.SetControl(nil)\n")
 			} else {
 				if pos == "" {
 					pos = "v.Pos"
 				}
-				fmt.Fprintf(w, "b.SetControl(%s)\n", genResult0(w, arch, t[0], new(int), false, false, rule.loc, pos))
+				fmt.Fprintf(loopw, "b.SetControl(%s)\n", genResult0(loopw, arch, t[0], new(int), false, false, rule.loc, pos))
 			}
 			if aux != "" {
-				fmt.Fprintf(w, "b.Aux = %s\n", aux)
+				fmt.Fprintf(loopw, "b.Aux = %s\n", aux)
 			} else {
-				fmt.Fprintln(w, "b.Aux = nil")
+				fmt.Fprintln(loopw, "b.Aux = nil")
 			}
 
 			succChanged := false
@@ -364,13 +364,20 @@ func genRules(arch arch) {
 				if succs[0] != newsuccs[1] || succs[1] != newsuccs[0] {
 					log.Fatalf("can only handle swapped successors in %s", rule)
 				}
-				fmt.Fprintln(w, "b.swapSuccessors()")
+				fmt.Fprintln(loopw, "b.swapSuccessors()")
 			}
 
 			if *genLog {
-				fmt.Fprintf(w, "logRule(\"%s\")\n", rule.loc)
+				fmt.Fprintf(loopw, "logRule(\"%s\")\n", rule.loc)
 			}
-			fmt.Fprintf(w, "return true\n")
+			fmt.Fprintf(loopw, "return true\n")
+
+			if checkOp != "" {
+				fmt.Fprintf(w, "for v.Op == %s {\n", checkOp)
+			} else {
+				fmt.Fprintf(w, "for {\n")
+			}
+			io.Copy(w, loopw)
 
 			fmt.Fprintf(w, "}\n")
 		}
@@ -388,7 +395,7 @@ func genRules(arch arch) {
 	}
 
 	// Write to file
-	err = ioutil.WriteFile("../rewrite"+arch.name+".go", src, 0666)
+	err = ioutil.WriteFile("../rewrite"+arch.name+suff+".go", src, 0666)
 	if err != nil {
 		log.Fatalf("can't write output: %v\n", err)
 	}
@@ -396,24 +403,18 @@ func genRules(arch arch) {
 
 // genMatch returns the variable whose source position should be used for the
 // result (or "" if no opinion), and a boolean that reports whether the match can fail.
-func genMatch(w io.Writer, arch arch, match string, loc string) (string, bool) {
-	return genMatch0(w, arch, match, "v", map[string]struct{}{}, true, loc)
+func genMatch(w io.Writer, arch arch, match string, loc string) (pos, checkOp string, canFail bool) {
+	return genMatch0(w, arch, match, "v", map[string]struct{}{}, loc)
 }
 
-func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, top bool, loc string) (string, bool) {
+func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, loc string) (pos, checkOp string, canFail bool) {
 	if match[0] != '(' || match[len(match)-1] != ')' {
 		panic("non-compound expr in genMatch0: " + match)
 	}
-	pos := ""
-	canFail := false
-
 	op, oparch, typ, auxint, aux, args := parseValue(match, arch, loc)
 
-	// check op
-	if !top {
-		fmt.Fprintf(w, "if %s.Op != Op%s%s {\nbreak\n}\n", v, oparch, op.name)
-		canFail = true
-	}
+	checkOp = fmt.Sprintf("Op%s%s", oparch, op.name)
+
 	if op.faultOnNilArg0 || op.faultOnNilArg1 {
 		// Prefer the position of an instruction which could fault.
 		pos = v + ".Pos"
@@ -455,7 +456,6 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 	}
 
 	if aux != "" {
-
 		if !isVariable(aux) {
 			// code
 			fmt.Fprintf(w, "if %s.Aux != %s {\nbreak\n}\n", v, aux)
@@ -472,8 +472,18 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 		}
 	}
 
+	// Access last argument first to minimize bounds checks.
 	if n := len(args); n > 1 {
-		fmt.Fprintf(w, "_ = %s.Args[%d]\n", v, n-1) // combine some bounds checks
+		a := args[n-1]
+		if _, set := m[a]; !set && a != "_" && isVariable(a) {
+			m[a] = struct{}{}
+			fmt.Fprintf(w, "%s := %s.Args[%d]\n", a, v, n-1)
+
+			// delete the last argument so it is not reprocessed
+			args = args[:n-1]
+		} else {
+			fmt.Fprintf(w, "_ = %s.Args[%d]\n", v, n-1)
+		}
 	}
 	for i, arg := range args {
 		if arg == "_" {
@@ -507,8 +517,16 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 			// autogenerated name
 			argname = fmt.Sprintf("%s_%d", v, i)
 		}
+		if argname == "b" {
+			log.Fatalf("don't name args 'b', it is ambiguous with blocks")
+		}
+
 		fmt.Fprintf(w, "%s := %s.Args[%d]\n", argname, v, i)
-		argPos, argCanFail := genMatch0(w, arch, arg, argname, m, false, loc)
+		w2 := new(bytes.Buffer)
+		argPos, argCheckOp, _ := genMatch0(w2, arch, arg, argname, m, loc)
+		fmt.Fprintf(w, "if %s.Op != %s {\nbreak\n}\n", argname, argCheckOp)
+		io.Copy(w, w2)
+
 		if argPos != "" {
 			// Keep the argument in preference to the parent, as the
 			// argument is normally earlier in program flow.
@@ -517,16 +535,14 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 			// in the program flow.
 			pos = argPos
 		}
-		if argCanFail {
-			canFail = true
-		}
+		canFail = true
 	}
 
 	if op.argLength == -1 {
 		fmt.Fprintf(w, "if len(%s.Args) != %d {\nbreak\n}\n", v, len(args))
 		canFail = true
 	}
-	return pos, canFail
+	return pos, checkOp, canFail
 }
 
 func genResult(w io.Writer, arch arch, result string, loc string, pos string) {
@@ -815,20 +831,39 @@ func isVariable(s string) bool {
 }
 
 // opRegexp is a regular expression to find the opcode portion of s-expressions.
-var opRegexp = regexp.MustCompile(`[(]\w*[(](\w+[|])+\w+[)]\w* `)
+var opRegexp = regexp.MustCompile(`[(](\w+[|])+\w+[)]`)
+
+// excludeFromExpansion reports whether the substring s[idx[0]:idx[1]] in a rule
+// should be disregarded as a candidate for | expansion.
+// It uses simple syntactic checks to see whether the substring
+// is inside an AuxInt expression or inside the && conditions.
+func excludeFromExpansion(s string, idx []int) bool {
+	left := s[:idx[0]]
+	if strings.LastIndexByte(left, '[') > strings.LastIndexByte(left, ']') {
+		// Inside an AuxInt expression.
+		return true
+	}
+	right := s[idx[1]:]
+	if strings.Contains(left, "&&") && strings.Contains(right, "->") {
+		// Inside && conditions.
+		return true
+	}
+	return false
+}
 
 // expandOr converts a rule into multiple rules by expanding | ops.
 func expandOr(r string) []string {
-	// Find every occurrence of |-separated things at the opcode position.
-	// They look like (MOV(B|W|L|Q|SS|SD)load
-	// Note: there might be false positives in parts of rules that are Go code
-	// (e.g. && conditions, AuxInt expressions, etc.).  There are currently no
-	// such false positives, so I'm not too worried about it.
+	// Find every occurrence of |-separated things.
+	// They look like MOV(B|W|L|Q|SS|SD)load or MOV(Q|L)loadidx(1|8).
 	// Generate rules selecting one case from each |-form.
 
 	// Count width of |-forms.  They must match.
 	n := 1
-	for _, s := range opRegexp.FindAllString(r, -1) {
+	for _, idx := range opRegexp.FindAllStringIndex(r, -1) {
+		if excludeFromExpansion(r, idx) {
+			continue
+		}
+		s := r[idx[0]:idx[1]]
 		c := strings.Count(s, "|") + 1
 		if c == 1 {
 			continue
@@ -842,16 +877,22 @@ func expandOr(r string) []string {
 		// No |-form in this rule.
 		return []string{r}
 	}
+	// Build each new rule.
 	res := make([]string, n)
 	for i := 0; i < n; i++ {
-		res[i] = opRegexp.ReplaceAllStringFunc(r, func(s string) string {
-			if strings.Count(s, "|") == 0 {
-				return s
+		buf := new(strings.Builder)
+		x := 0
+		for _, idx := range opRegexp.FindAllStringIndex(r, -1) {
+			if excludeFromExpansion(r, idx) {
+				continue
 			}
-			s = s[1 : len(s)-1] // remove leading "(" and trailing " "
-			x, y := strings.Index(s, "("), strings.Index(s, ")")
-			return "(" + s[:x] + strings.Split(s[x+1:y], "|")[i] + s[y+1:] + " "
-		})
+			buf.WriteString(r[x:idx[0]])              // write bytes we've skipped over so far
+			s := r[idx[0]+1 : idx[1]-1]               // remove leading "(" and trailing ")"
+			buf.WriteString(strings.Split(s, "|")[i]) // write the op component for this rule
+			x = idx[1]                                // note that we've written more bytes
+		}
+		buf.WriteString(r[x:])
+		res[i] = buf.String()
 	}
 	return res
 }
@@ -1019,5 +1060,6 @@ func normalizeWhitespace(x string) string {
 	x = strings.Join(strings.Fields(x), " ")
 	x = strings.Replace(x, "( ", "(", -1)
 	x = strings.Replace(x, " )", ")", -1)
+	x = strings.Replace(x, ")->", ") ->", -1)
 	return x
 }
