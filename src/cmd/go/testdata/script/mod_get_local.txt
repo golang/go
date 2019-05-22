@@ -1,4 +1,5 @@
 # Test 'go get' with a local module with a name that is not valid for network lookup.
+[short] skip
 
 env GO111MODULE=on
 go mod edit -fmt
@@ -17,32 +18,32 @@ cp go.mod.orig go.mod
 go get -u -m local
 cmp go.mod go.mod.implicitmod
 
-# 'go get -u -d' in the empty root of the main module should update the
-# dependencies of all packages in the module.
+# For the main module, @patch should be a no-op.
 cp go.mod.orig go.mod
-go get -u -d
+go get -u -m local@patch
 cmp go.mod go.mod.implicitmod
 
-# 'go get -u -d .' within a package in the main module updates all dependencies
-# of the main module.
-# TODO: Determine whether that behavior is a bug.
-# (https://golang.org/issue/26902)
+# 'go get -u -d' in the empty root of the main module should fail.
+# 'go get -u -d .' should also fail.
+cp go.mod.orig go.mod
+! go get -u -d
+! go get -u -d .
+
+# 'go get -u -d .' within a package in the main module updates the dependencies
+# of that package.
 cp go.mod.orig go.mod
 cd uselang
 go get -u -d .
 cd ..
-grep 'rsc.io/quote.*v1.5.2' go.mod
+grep 'rsc.io/quote.*v1.3.0' go.mod
 grep 'golang.org/x/text.*v0.3.0' go.mod
 cp go.mod go.mod.dotpkg
 
-# 'go get -u -d' with an explicit package in the main module updates
-# all dependencies of the main module.
-# TODO: Determine whether that behavior is a bug.
-# (https://golang.org/issue/26902)
+# 'go get -u -d' with an explicit package in the main module updates the
+# dependencies of that package.
 cp go.mod.orig go.mod
 go get -u -d local/uselang
 cmp go.mod go.mod.dotpkg
-
 
 -- go.mod --
 module local

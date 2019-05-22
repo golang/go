@@ -130,6 +130,7 @@ import (
 	"bufio"
 	"encoding/gob"
 	"errors"
+	"go/token"
 	"io"
 	"log"
 	"net"
@@ -137,8 +138,6 @@ import (
 	"reflect"
 	"strings"
 	"sync"
-	"unicode"
-	"unicode/utf8"
 )
 
 const (
@@ -202,12 +201,6 @@ func NewServer() *Server {
 // DefaultServer is the default instance of *Server.
 var DefaultServer = NewServer()
 
-// Is this an exported - upper case - name?
-func isExported(name string) bool {
-	rune, _ := utf8.DecodeRuneInString(name)
-	return unicode.IsUpper(rune)
-}
-
 // Is this type exported or a builtin?
 func isExportedOrBuiltinType(t reflect.Type) bool {
 	for t.Kind() == reflect.Ptr {
@@ -215,7 +208,7 @@ func isExportedOrBuiltinType(t reflect.Type) bool {
 	}
 	// PkgPath will be non-empty even for an exported type,
 	// so we need to check the type name as well.
-	return isExported(t.Name()) || t.PkgPath() == ""
+	return token.IsExported(t.Name()) || t.PkgPath() == ""
 }
 
 // Register publishes in the server the set of methods of the
@@ -251,7 +244,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 		log.Print(s)
 		return errors.New(s)
 	}
-	if !isExported(sname) && !useName {
+	if !token.IsExported(sname) && !useName {
 		s := "rpc.Register: type " + sname + " is not exported"
 		log.Print(s)
 		return errors.New(s)

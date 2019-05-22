@@ -20,6 +20,12 @@ func Loadp(ptr unsafe.Pointer) unsafe.Pointer {
 
 //go:nosplit
 //go:noinline
+func Load8(ptr *uint8) uint8 {
+	return *ptr
+}
+
+//go:nosplit
+//go:noinline
 func Load64(ptr *uint64) uint64 {
 	return *ptr
 }
@@ -42,11 +48,14 @@ func Store64(ptr *uint64, val uint64) {
 	*ptr = val
 }
 
+//go:notinheap
+type noWB struct{}
+
 // NO go:noescape annotation; see atomic_pointer.go.
 //go:noinline
 //go:nosplit
 func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer) {
-	*(*uintptr)(ptr) = uintptr(val)
+	*(**noWB)(ptr) = (*noWB)(val)
 }
 
 //go:noinline

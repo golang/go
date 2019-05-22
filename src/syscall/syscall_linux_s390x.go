@@ -288,6 +288,4 @@ func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint64(length)
 }
 
-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno) {
-	panic("not implemented")
-}
+func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)

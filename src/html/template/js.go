@@ -397,6 +397,7 @@ func isJSType(mimeType string) bool {
 		"application/ld+json",
 		"application/x-ecmascript",
 		"application/x-javascript",
+		"module",
 		"text/ecmascript",
 		"text/javascript",
 		"text/javascript1.0",

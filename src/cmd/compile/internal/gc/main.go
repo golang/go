@@ -19,7 +19,7 @@ import (
 	"cmd/internal/sys"
 	"flag"
 	"fmt"
-	"go/build"
+	"internal/goversion"
 	"io"
 	"io/ioutil"
 	"log"
@@ -27,6 +27,7 @@ import (
 	"path"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -139,6 +140,12 @@ func Main(archInit func(*Arch)) {
 	Ctxt.DiagFunc = yyerror
 	Ctxt.DiagFlush = flusherrors
 	Ctxt.Bso = bufio.NewWriter(os.Stdout)
+
+	// UseBASEntries is preferred because it shaves about 2% off build time, but LLDB, dsymutil, and dwarfdump
+	// on Darwin don't support it properly, especially since macOS 10.14 (Mojave).  This is exposed as a flag
+	// to allow testing with LLVM tools on Linux, and to help with reporting this bug to the LLVM project.
+	// See bugs 31188 and 21945 (CLs 170638, 98075, 72371).
+	Ctxt.UseBASEntries = Ctxt.Headtype != objabi.Hdarwin
 
 	localpkg = types.NewPkg("", "")
 	localpkg.Prefix = "\"\""
@@ -253,12 +260,14 @@ func Main(archInit func(*Arch)) {
 	flag.StringVar(&blockprofile, "blockprofile", "", "write block profile to `file`")
 	flag.StringVar(&mutexprofile, "mutexprofile", "", "write mutex profile to `file`")
 	flag.StringVar(&benchfile, "bench", "", "append benchmark times to `file`")
+	flag.BoolVar(&newescape, "newescape", true, "enable new escape analysis")
+	flag.BoolVar(&Ctxt.UseBASEntries, "dwarfbasentries", Ctxt.UseBASEntries, "use base address selection entries in DWARF")
 	objabi.Flagparse(usage)
 
 	// Record flags that affect the build result. (And don't
 	// record flags that don't, since that would cause spurious
 	// changes in the binary.)
-	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists")
+	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "newescape", "dwarfbasentries")
 
 	Ctxt.Flag_shared = flag_dynlink || flag_shared
 	Ctxt.Flag_dynlink = flag_dynlink
@@ -497,6 +506,8 @@ func Main(archInit func(*Arch)) {
 
 	finishUniverse()
 
+	recordPackageName()
+
 	typecheckok = true
 
 	// Process top-level declarations in phases.
@@ -713,7 +724,7 @@ func Main(archInit func(*Arch)) {
 	}
 
 	// Check whether any of the functions we have compiled have gigantic stack frames.
-	obj.SortSlice(largeStackFrames, func(i, j int) bool {
+	sort.Slice(largeStackFrames, func(i, j int) bool {
 		return largeStackFrames[i].pos.Before(largeStackFrames[j].pos)
 	})
 	for _, large := range largeStackFrames {
@@ -1303,7 +1314,7 @@ func clearImports() {
 		}
 	}
 
-	obj.SortSlice(unused, func(i, j int) bool { return unused[i].pos.Before(unused[j].pos) })
+	sort.Slice(unused, func(i, j int) bool { return unused[i].pos.Before(unused[j].pos) })
 	for _, pkg := range unused {
 		pkgnotused(pkg.pos, pkg.path, pkg.name)
 	}
@@ -1406,13 +1417,24 @@ func recordFlags(flags ...string) {
 	s.P = cmd.Bytes()[1:]
 }
 
+// recordPackageName records the name of the package being
+// compiled, so that the linker can save it in the compile unit's DIE.
+func recordPackageName() {
+	s := Ctxt.Lookup(dwarf.CUInfoPrefix + "packagename." + myimportpath)
+	s.Type = objabi.SDWARFINFO
+	// Sometimes (for example when building tests) we can link
+	// together two package main archives. So allow dups.
+	s.Set(obj.AttrDuplicateOK, true)
+	Ctxt.Data = append(Ctxt.Data, s)
+	s.P = []byte(localpkg.Name)
+}
+
 // flag_lang is the language version we are compiling for, set by the -lang flag.
 var flag_lang string
 
 // currentLang returns the current language version.
 func currentLang() string {
-	tags := build.Default.ReleaseTags
-	return tags[len(tags)-1]
+	return fmt.Sprintf("go1.%d", goversion.Version)
 }
 
 // goVersionRE is a regular expression that matches the valid

@@ -30,9 +30,9 @@ func F4(...uintptr) {} // ERROR "escaping ...uintptr"
 
 func G() {
 	var t int                        // ERROR "moved to heap"
-	F1(uintptr(unsafe.Pointer(&t)))  // ERROR "live at call to F1: .?autotmp" "&t escapes to heap" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+	F1(uintptr(unsafe.Pointer(&t)))  // ERROR "live at call to F1: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
 	var t2 int                       // ERROR "moved to heap"
-	F3(uintptr(unsafe.Pointer(&t2))) // ERROR "live at call to F3: .?autotmp" "&t2 escapes to heap"
+	F3(uintptr(unsafe.Pointer(&t2))) // ERROR "live at call to F3: .?autotmp"
 }
 
 func H() {

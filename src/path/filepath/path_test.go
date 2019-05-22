@@ -1377,16 +1377,6 @@ func TestIssue29372(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	if runtime.GOOS == "windows" {
-		// This test is broken on windows, if temporary directory
-		// is a symlink. See issue 29746.
-		// TODO(brainman): Remove this hack once issue #29746 is fixed.
-		tmpDir, err = filepath.EvalSymlinks(tmpDir)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-
 	path := filepath.Join(tmpDir, "file.txt")
 	err = ioutil.WriteFile(path, nil, 0644)
 	if err != nil {
@@ -1408,5 +1398,105 @@ func TestIssue29372(t *testing.T) {
 		if err != syscall.ENOTDIR {
 			t.Fatalf("test#%d: want %q, got %q", i, syscall.ENOTDIR, err)
 		}
+	}
+}
+
+// Issue 30520 part 1.
+func TestEvalSymlinksAboveRoot(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+
+	t.Parallel()
+
+	tmpDir, err := ioutil.TempDir("", "TestEvalSymlinksAboveRoot")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	evalTmpDir, err := filepath.EvalSymlinks(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.Mkdir(filepath.Join(evalTmpDir, "a"), 0777); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(evalTmpDir, "a"), filepath.Join(evalTmpDir, "b")); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(evalTmpDir, "a", "file"), nil, 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	// Count the number of ".." elements to get to the root directory.
+	vol := filepath.VolumeName(evalTmpDir)
+	c := strings.Count(evalTmpDir[len(vol):], string(os.PathSeparator))
+	var dd []string
+	for i := 0; i < c+2; i++ {
+		dd = append(dd, "..")
+	}
+
+	wantSuffix := strings.Join([]string{"a", "file"}, string(os.PathSeparator))
+
+	// Try different numbers of "..".
+	for _, i := range []int{c, c + 1, c + 2} {
+		check := strings.Join([]string{evalTmpDir, strings.Join(dd[:i], string(os.PathSeparator)), evalTmpDir[len(vol)+1:], "b", "file"}, string(os.PathSeparator))
+		if resolved, err := filepath.EvalSymlinks(check); err != nil {
+			t.Errorf("EvalSymlinks(%q) failed: %v", check, err)
+		} else if !strings.HasSuffix(resolved, wantSuffix) {
+			t.Errorf("EvalSymlinks(%q) = %q does not end with %q", check, resolved, wantSuffix)
+		} else {
+			t.Logf("EvalSymlinks(%q) = %q", check, resolved)
+		}
+	}
+}
+
+// Issue 30520 part 2.
+func TestEvalSymlinksAboveRootChdir(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+
+	tmpDir, err := ioutil.TempDir("", "TestEvalSymlinksAboveRootChdir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(wd)
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+
+	subdir := filepath.Join("a", "b")
+	if err := os.MkdirAll(subdir, 0777); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(subdir, "c"); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(subdir, "file"), nil, 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	subdir = filepath.Join("d", "e", "f")
+	if err := os.MkdirAll(subdir, 0777); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(subdir); err != nil {
+		t.Fatal(err)
+	}
+
+	check := filepath.Join("..", "..", "..", "c", "file")
+	wantSuffix := filepath.Join("a", "b", "file")
+	if resolved, err := filepath.EvalSymlinks(check); err != nil {
+		t.Errorf("EvalSymlinks(%q) failed: %v", check, err)
+	} else if !strings.HasSuffix(resolved, wantSuffix) {
+		t.Errorf("EvalSymlinks(%q) = %q does not end with %q", check, resolved, wantSuffix)
+	} else {
+		t.Logf("EvalSymlinks(%q) = %q", check, resolved)
 	}
 }

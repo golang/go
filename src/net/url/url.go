@@ -13,6 +13,7 @@ package url
 import (
 	"errors"
 	"fmt"
+	"internal/oserror"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,25 +26,10 @@ type Error struct {
 	Err error
 }
 
-func (e *Error) Error() string { return e.Op + " " + e.URL + ": " + e.Err.Error() }
-
-type timeout interface {
-	Timeout() bool
-}
-
-func (e *Error) Timeout() bool {
-	t, ok := e.Err.(timeout)
-	return ok && t.Timeout()
-}
-
-type temporary interface {
-	Temporary() bool
-}
-
-func (e *Error) Temporary() bool {
-	t, ok := e.Err.(temporary)
-	return ok && t.Temporary()
-}
+func (e *Error) Unwrap() error   { return e.Err }
+func (e *Error) Error() string   { return e.Op + " " + e.URL + ": " + e.Err.Error() }
+func (e *Error) Timeout() bool   { return oserror.IsTimeout(e.Err) }
+func (e *Error) Temporary() bool { return oserror.IsTemporary(e.Err) }
 
 func ishex(c byte) bool {
 	switch {
@@ -100,7 +86,7 @@ func (e InvalidHostError) Error() string {
 // reserved characters correctly. See golang.org/issue/5684.
 func shouldEscape(c byte, mode encoding) bool {
 	// §2.3 Unreserved characters (alphanum)
-	if 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' {
+	if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9' {
 		return false
 	}
 
@@ -250,29 +236,24 @@ func unescape(s string, mode encoding) (string, error) {
 		return s, nil
 	}
 
-	t := make([]byte, len(s)-2*n)
-	j := 0
-	for i := 0; i < len(s); {
+	var t strings.Builder
+	t.Grow(len(s) - 2*n)
+	for i := 0; i < len(s); i++ {
 		switch s[i] {
 		case '%':
-			t[j] = unhex(s[i+1])<<4 | unhex(s[i+2])
-			j++
-			i += 3
+			t.WriteByte(unhex(s[i+1])<<4 | unhex(s[i+2]))
+			i += 2
 		case '+':
 			if mode == encodeQueryComponent {
-				t[j] = ' '
+				t.WriteByte(' ')
 			} else {
-				t[j] = '+'
+				t.WriteByte('+')
 			}
-			j++
-			i++
 		default:
-			t[j] = s[i]
-			j++
-			i++
+			t.WriteByte(s[i])
 		}
 	}
-	return string(t), nil
+	return t.String(), nil
 }
 
 // QueryEscape escapes the string so it can be safely placed
@@ -281,8 +262,8 @@ func QueryEscape(s string) string {
 	return escape(s, encodeQueryComponent)
 }
 
-// PathEscape escapes the string so it can be safely placed
-// inside a URL path segment.
+// PathEscape escapes the string so it can be safely placed inside a URL path segment,
+// replacing special characters (including /) with %XX sequences as needed.
 func PathEscape(s string) string {
 	return escape(s, encodePathSegment)
 }

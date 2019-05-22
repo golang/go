@@ -83,8 +83,6 @@ func runTool(cmd *base.Command, args []string) {
 		Stdin:  os.Stdin,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
-		// Set $GOROOT, mainly for go tool dist.
-		Env: base.MergeEnvLists([]string{"GOROOT=" + cfg.GOROOT}, os.Environ()),
 	}
 	err := toolCmd.Run()
 	if err != nil {

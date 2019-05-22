@@ -1,0 +1,42 @@
+env GO111MODULE=on
+[short] skip
+
+# If a pattern doesn't match any modules in the build list,
+# and -m is used, an error should be reported.
+cp go.mod.orig go.mod
+! go get -m rsc.io/quote/...
+stderr 'pattern matches no modules in build list'
+
+# If a pattern doesn't match any modules in the build list,
+# we assume the pattern matches a single module where the
+# part of the pattern before "..." is the module path.
+cp go.mod.orig go.mod
+go get -d rsc.io/quote/...
+grep 'require rsc.io/quote' go.mod
+
+cp go.mod.orig go.mod
+! go get -d rsc.io/quote/x...
+stderr 'go get rsc.io/quote/x...: module rsc.io/quote@latest \(v1.5.2\) found, but does not contain packages matching rsc.io/quote/x...'
+! grep 'require rsc.io/quote' go.mod
+
+! go get -d rsc.io/quote/x/...
+stderr 'go get rsc.io/quote/x/...: module rsc.io/quote@latest \(v1.5.2\) found, but does not contain packages matching rsc.io/quote/x/...'
+! grep 'require rsc.io/quote' go.mod
+
+# If a pattern matches no packages within a module, the module should not
+# be upgraded, even if the module path matches the pattern.
+cp go.mod.orig go.mod
+go mod edit -require example.com/nest@v1.0.0
+go get example.com/nest/sub/y...
+grep 'example.com/nest/sub v1.0.0' go.mod
+grep 'example.com/nest v1.0.0' go.mod
+
+-- go.mod.orig --
+module m
+
+go 1.13
+
+-- use/use.go --
+package use
+
+import _ "rsc.io/quote"

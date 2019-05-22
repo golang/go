@@ -164,9 +164,9 @@ func main() {
 }`
 
 	want := map[string]map[string]bool{
-		"main.Foo": map[string]bool{"v": false},
-		"main.Bar": map[string]bool{"Foo": true, "name": false},
-		"main.Baz": map[string]bool{"Foo": true, "name": false},
+		"main.Foo": {"v": false},
+		"main.Bar": {"Foo": true, "name": false},
+		"main.Baz": {"Foo": true, "name": false},
 	}
 
 	dir, err := ioutil.TempDir("", "TestEmbeddedStructMarker")
@@ -574,8 +574,8 @@ func TestInlinedRoutineRecords(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
-	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
-		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
+	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" || runtime.GOOS == "darwin" {
+		t.Skip("skipping on solaris, illumos, and darwin, pending resolution of issue #23168")
 	}
 
 	t.Parallel()
@@ -801,8 +801,8 @@ func TestAbstractOriginSanity(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
-	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
-		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
+	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" || runtime.GOOS == "darwin" {
+		t.Skip("skipping on solaris, illumos, and darwin, pending resolution of issue #23168")
 	}
 
 	if wd, err := os.Getwd(); err == nil {
@@ -819,8 +819,8 @@ func TestAbstractOriginSanityIssue25459(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
-	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
-		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
+	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" || runtime.GOOS == "darwin" {
+		t.Skip("skipping on solaris, illumos, and darwin, pending resolution of issue #23168")
 	}
 	if runtime.GOARCH != "amd64" && runtime.GOARCH != "x86" {
 		t.Skip("skipping on not-amd64 not-x86; location lists not supported")
@@ -840,8 +840,8 @@ func TestAbstractOriginSanityIssue26237(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
-	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
-		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
+	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" || runtime.GOOS == "darwin" {
+		t.Skip("skipping on solaris, illumos, and darwin, pending resolution of issue #23168")
 	}
 	if wd, err := os.Getwd(); err == nil {
 		gopathdir := filepath.Join(wd, "testdata", "issue26237")
@@ -1139,6 +1139,59 @@ func main() {
 	for _, sym := range syms {
 		if strings.Contains(sym.Name, "stmp") {
 			t.Errorf("statictmp variable found in symbol table: %s", sym.Name)
+		}
+	}
+}
+
+func TestPackageNameAttr(t *testing.T) {
+	const dwarfAttrGoPackageName = dwarf.Attr(0x2905)
+	const dwarfGoLanguage = 22
+
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
+	t.Parallel()
+
+	dir, err := ioutil.TempDir("", "go-build")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	const prog = "package main\nfunc main() {\nprintln(\"hello world\")\n}\n"
+
+	f := gobuild(t, dir, prog, NoOpt)
+
+	defer f.Close()
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	rdr := d.Reader()
+	for {
+		e, err := rdr.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if e == nil {
+			break
+		}
+		if e.Tag != dwarf.TagCompileUnit {
+			continue
+		}
+		if lang, _ := e.Val(dwarf.AttrLanguage).(int64); lang != dwarfGoLanguage {
+			continue
+		}
+
+		_, ok := e.Val(dwarfAttrGoPackageName).(string)
+		if !ok {
+			name, _ := e.Val(dwarf.AttrName).(string)
+			t.Errorf("found compile unit without package name: %s", name)
 		}
 	}
 }

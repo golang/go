@@ -7,6 +7,7 @@ package constant
 import (
 	"fmt"
 	"go/token"
+	"math/big"
 	"strings"
 	"testing"
 )
@@ -592,6 +593,22 @@ func TestUnknown(t *testing.T) {
 			if got := Compare(x, token.EQL, y); got {
 				t.Errorf("%s == %s: got true; want false", x, y)
 			}
+		}
+	}
+}
+
+func TestMake(t *testing.T) {
+	for _, want := range []interface{}{
+		false,
+		"hello",
+		int64(1),
+		big.NewInt(10),
+		big.NewFloat(2.0),
+		big.NewRat(1, 3),
+	} {
+		got := Val(Make(want))
+		if got != want {
+			t.Errorf("got %v; want %v", got, want)
 		}
 	}
 }

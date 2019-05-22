@@ -338,11 +338,6 @@ func TestDialParallel(t *testing.T) {
 		if c != nil {
 			c.Close()
 		}
-		if tt.expectOk && err != nil {
-			t.Errorf("#%d (cancel): got %v; want nil", i, err)
-		} else if !tt.expectOk && err == nil {
-			t.Errorf("#%d (cancel): got nil; want non-nil", i)
-		}
 		elapsed = time.Now().Sub(startTime)
 		if elapsed > 100*time.Millisecond {
 			t.Errorf("#%d (cancel): got %v; want <= 100ms", i, elapsed)
@@ -468,7 +463,7 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 	origTestHookDialTCP := testHookDialTCP
 	defer func() { testHookDialTCP = origTestHookDialTCP }()
 	testHookDialTCP = func(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
-		// Sleep long enough for Happy Eyeballs to kick in, and inhibit cancelation.
+		// Sleep long enough for Happy Eyeballs to kick in, and inhibit cancellation.
 		// This forces dialParallel to juggle two successful connections.
 		time.Sleep(fallbackDelay * 2)
 
@@ -870,7 +865,7 @@ func TestCancelAfterDial(t *testing.T) {
 		d := &Dialer{Cancel: cancel}
 		c, err := d.Dial("tcp", ln.Addr().String())
 
-		// Immediately after dialing, request cancelation and sleep.
+		// Immediately after dialing, request cancellation and sleep.
 		// Before Issue 15078 was fixed, this would cause subsequent operations
 		// to fail with an i/o timeout roughly 50% of the time.
 		close(cancel)
@@ -978,11 +973,11 @@ func TestDialerControl(t *testing.T) {
 }
 
 // mustHaveExternalNetwork is like testenv.MustHaveExternalNetwork
-// except that it won't skip testing on non-iOS builders.
+// except that it won't skip testing on non-mobile builders.
 func mustHaveExternalNetwork(t *testing.T) {
 	t.Helper()
-	ios := runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
-	if testenv.Builder() == "" || ios {
+	mobile := runtime.GOOS == "android" || runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
+	if testenv.Builder() == "" || mobile {
 		testenv.MustHaveExternalNetwork(t)
 	}
 }

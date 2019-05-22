@@ -57,3 +57,8 @@ func NumCgoCall() int64 {
 func NumGoroutine() int {
 	return int(gcount())
 }
+
+//go:linkname debug_modinfo runtime/debug.modinfo
+func debug_modinfo() string {
+	return modinfo
+}

@@ -159,7 +159,9 @@ func TestRLockExcludesOnlyLock(t *testing.T) {
 	f2 := mustOpen(t, f.Name())
 	defer f2.Close()
 
-	if runtime.GOOS == "solaris" || runtime.GOOS == "aix" {
+	doUnlockTF := false
+	switch runtime.GOOS {
+	case "aix", "illumos", "solaris":
 		// When using POSIX locks (as on Solaris), we can't safely read-lock the
 		// same inode through two different descriptors at the same time: when the
 		// first descriptor is closed, the second descriptor would still be open but
@@ -167,8 +169,9 @@ func TestRLockExcludesOnlyLock(t *testing.T) {
 		lockF2 := mustBlock(t, "RLock", f2)
 		unlock(t, f)
 		lockF2(t)
-	} else {
+	default:
 		rLock(t, f2)
+		doUnlockTF = true
 	}
 
 	other := mustOpen(t, f.Name())
@@ -176,7 +179,7 @@ func TestRLockExcludesOnlyLock(t *testing.T) {
 	lockOther := mustBlock(t, "Lock", other)
 
 	unlock(t, f2)
-	if runtime.GOOS != "solaris" && runtime.GOOS != "aix" {
+	if doUnlockTF {
 		unlock(t, f)
 	}
 	lockOther(t)

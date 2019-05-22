@@ -39,6 +39,20 @@ func Creat(path string, mode uint32) (fd int, err error) {
 	return Open(path, O_CREAT|O_WRONLY|O_TRUNC, mode)
 }
 
+//sys	FanotifyInit(flags uint, event_f_flags uint) (fd int, err error)
+//sys	fanotifyMark(fd int, flags uint, mask uint64, dirFd int, pathname *byte) (err error)
+
+func FanotifyMark(fd int, flags uint, mask uint64, dirFd int, pathname string) (err error) {
+	if pathname == "" {
+		return fanotifyMark(fd, flags, mask, dirFd, nil)
+	}
+	p, err := BytePtrFromString(pathname)
+	if err != nil {
+		return err
+	}
+	return fanotifyMark(fd, flags, mask, dirFd, p)
+}
+
 //sys	fchmodat(dirfd int, path string, mode uint32) (err error)
 
 func Fchmodat(dirfd int, path string, mode uint32, flags int) (err error) {
@@ -990,7 +1004,25 @@ func GetsockoptString(fd, level, opt int) (string, error) {
 	return string(buf[:vallen-1]), nil
 }
 
+func GetsockoptTpacketStats(fd, level, opt int) (*TpacketStats, error) {
+	var value TpacketStats
+	vallen := _Socklen(SizeofTpacketStats)
+	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
+	return &value, err
+}
+
+func GetsockoptTpacketStatsV3(fd, level, opt int) (*TpacketStatsV3, error) {
+	var value TpacketStatsV3
+	vallen := _Socklen(SizeofTpacketStatsV3)
+	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
+	return &value, err
+}
+
 func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
+	return setsockopt(fd, level, opt, unsafe.Pointer(mreq), unsafe.Sizeof(*mreq))
+}
+
+func SetsockoptPacketMreq(fd, level, opt int, mreq *PacketMreq) error {
 	return setsockopt(fd, level, opt, unsafe.Pointer(mreq), unsafe.Sizeof(*mreq))
 }
 
@@ -1006,6 +1038,14 @@ func SetsockoptCanRawFilter(fd, level, opt int, filter []CanFilter) error {
 		p = unsafe.Pointer(&filter[0])
 	}
 	return setsockopt(fd, level, opt, p, uintptr(len(filter)*SizeofCanFilter))
+}
+
+func SetsockoptTpacketReq(fd, level, opt int, tp *TpacketReq) error {
+	return setsockopt(fd, level, opt, unsafe.Pointer(tp), unsafe.Sizeof(*tp))
+}
+
+func SetsockoptTpacketReq3(fd, level, opt int, tp *TpacketReq3) error {
+	return setsockopt(fd, level, opt, unsafe.Pointer(tp), unsafe.Sizeof(*tp))
 }
 
 // Keyctl Commands (http://man7.org/linux/man-pages/man2/keyctl.2.html)
@@ -1620,6 +1660,82 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
 	}
 
 	return EACCES
+}
+
+//sys nameToHandleAt(dirFD int, pathname string, fh *fileHandle, mountID *_C_int, flags int) (err error) = SYS_NAME_TO_HANDLE_AT
+//sys openByHandleAt(mountFD int, fh *fileHandle, flags int) (fd int, err error) = SYS_OPEN_BY_HANDLE_AT
+
+// fileHandle is the argument to nameToHandleAt and openByHandleAt. We
+// originally tried to generate it via unix/linux/types.go with "type
+// fileHandle C.struct_file_handle" but that generated empty structs
+// for mips64 and mips64le. Instead, hard code it for now (it's the
+// same everywhere else) until the mips64 generator issue is fixed.
+type fileHandle struct {
+	Bytes uint32
+	Type  int32
+}
+
+// FileHandle represents the C struct file_handle used by
+// name_to_handle_at (see NameToHandleAt) and open_by_handle_at (see
+// OpenByHandleAt).
+type FileHandle struct {
+	*fileHandle
+}
+
+// NewFileHandle constructs a FileHandle.
+func NewFileHandle(handleType int32, handle []byte) FileHandle {
+	const hdrSize = unsafe.Sizeof(fileHandle{})
+	buf := make([]byte, hdrSize+uintptr(len(handle)))
+	copy(buf[hdrSize:], handle)
+	fh := (*fileHandle)(unsafe.Pointer(&buf[0]))
+	fh.Type = handleType
+	fh.Bytes = uint32(len(handle))
+	return FileHandle{fh}
+}
+
+func (fh *FileHandle) Size() int   { return int(fh.fileHandle.Bytes) }
+func (fh *FileHandle) Type() int32 { return fh.fileHandle.Type }
+func (fh *FileHandle) Bytes() []byte {
+	n := fh.Size()
+	if n == 0 {
+		return nil
+	}
+	return (*[1 << 30]byte)(unsafe.Pointer(uintptr(unsafe.Pointer(&fh.fileHandle.Type)) + 4))[:n:n]
+}
+
+// NameToHandleAt wraps the name_to_handle_at system call; it obtains
+// a handle for a path name.
+func NameToHandleAt(dirfd int, path string, flags int) (handle FileHandle, mountID int, err error) {
+	var mid _C_int
+	// Try first with a small buffer, assuming the handle will
+	// only be 32 bytes.
+	size := uint32(32 + unsafe.Sizeof(fileHandle{}))
+	didResize := false
+	for {
+		buf := make([]byte, size)
+		fh := (*fileHandle)(unsafe.Pointer(&buf[0]))
+		fh.Bytes = size - uint32(unsafe.Sizeof(fileHandle{}))
+		err = nameToHandleAt(dirfd, path, fh, &mid, flags)
+		if err == EOVERFLOW {
+			if didResize {
+				// We shouldn't need to resize more than once
+				return
+			}
+			didResize = true
+			size = fh.Bytes + uint32(unsafe.Sizeof(fileHandle{}))
+			continue
+		}
+		if err != nil {
+			return
+		}
+		return FileHandle{fh}, int(mid), nil
+	}
+}
+
+// OpenByHandleAt wraps the open_by_handle_at system call; it opens a
+// file via a handle as previously returned by NameToHandleAt.
+func OpenByHandleAt(mountFD int, handle FileHandle, flags int) (fd int, err error) {
+	return openByHandleAt(mountFD, handle.fileHandle, flags)
 }
 
 /*

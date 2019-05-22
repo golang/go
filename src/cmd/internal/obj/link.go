@@ -489,6 +489,10 @@ const (
 	// target of an inline during compilation
 	AttrWasInlined
 
+	// TopFrame means that this function is an entry point and unwinders should not
+	// keep unwinding beyond this frame.
+	AttrTopFrame
+
 	// attrABIBase is the value at which the ABI is encoded in
 	// Attribute. This must be last; all bits after this are
 	// assumed to be an ABI value.
@@ -511,6 +515,7 @@ func (a Attribute) NeedCtxt() bool      { return a&AttrNeedCtxt != 0 }
 func (a Attribute) NoFrame() bool       { return a&AttrNoFrame != 0 }
 func (a Attribute) Static() bool        { return a&AttrStatic != 0 }
 func (a Attribute) WasInlined() bool    { return a&AttrWasInlined != 0 }
+func (a Attribute) TopFrame() bool      { return a&AttrTopFrame != 0 }
 
 func (a *Attribute) Set(flag Attribute, value bool) {
 	if value {
@@ -544,6 +549,7 @@ var textAttrStrings = [...]struct {
 	{bit: AttrNoFrame, s: "NOFRAME"},
 	{bit: AttrStatic, s: "STATIC"},
 	{bit: AttrWasInlined, s: ""},
+	{bit: AttrTopFrame, s: "TOPFRAME"},
 }
 
 // TextAttrString formats a for printing in as part of a TEXT prog.
@@ -642,6 +648,7 @@ type Link struct {
 
 	InParallel           bool // parallel backend phase in effect
 	Framepointer_enabled bool
+	UseBASEntries        bool // Use Base Address Selection Entries in location lists and PC ranges
 
 	// state for writing objects
 	Text []*LSym

@@ -181,7 +181,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		// Not
 		// If
 		//   Get SP
-		//   I64ExtendUI32
+		//   I64ExtendI32U
 		//   I64Const $framesize+8
 		//   I64Add
 		//   I64Load panic_argp(R0)
@@ -212,7 +212,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		p = appendp(p, AIf)
 
 		p = appendp(p, AGet, regAddr(REG_SP))
-		p = appendp(p, AI64ExtendUI32)
+		p = appendp(p, AI64ExtendI32U)
 		p = appendp(p, AI64Const, constAddr(framesize+8))
 		p = appendp(p, AI64Add)
 		p = appendp(p, AI64Load, panicargp)
@@ -341,47 +341,20 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		p = appendp(p, AEnd)
 	}
 
-	// Add Block instructions for resume points and BrTable to jump to selected resume point.
-	if numResumePoints > 0 {
-		p := s.Func.Text
-		p = appendp(p, ALoop) // entryPointLoop, used to jump between basic blocks
-
-		for i := 0; i < numResumePoints+1; i++ {
-			p = appendp(p, ABlock)
-		}
-		p = appendp(p, AGet, regAddr(REG_PC_B)) // read next basic block from PC_B
-		p = appendp(p, ABrTable, obj.Addr{Val: tableIdxs})
-		p = appendp(p, AEnd) // end of Block
-
-		for p.Link != nil {
-			p = p.Link
-		}
-
-		p = appendp(p, AEnd) // end of entryPointLoop
-		p = appendp(p, obj.AUNDEF)
-	}
-
-	p := s.Func.Text
+	// record the branches targeting the entry loop and the unwind exit,
+	// their targets with be filled in later
+	var entryPointLoopBranches []*obj.Prog
+	var unwindExitBranches []*obj.Prog
 	currentDepth := 0
-	blockDepths := make(map[*obj.Prog]int)
-	for p != nil {
+	for p := s.Func.Text; p != nil; p = p.Link {
 		switch p.As {
 		case ABlock, ALoop, AIf:
 			currentDepth++
-			blockDepths[p] = currentDepth
 		case AEnd:
 			currentDepth--
 		}
 
 		switch p.As {
-		case ABr, ABrIf:
-			if p.To.Type == obj.TYPE_BRANCH {
-				blockDepth, ok := blockDepths[p.To.Val.(*obj.Prog)]
-				if !ok {
-					panic("label not at block")
-				}
-				p.To = constAddr(int64(currentDepth - blockDepth))
-			}
 		case obj.AJMP:
 			jmp := *p
 			p.As = obj.ANOP
@@ -389,8 +362,9 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			if jmp.To.Type == obj.TYPE_BRANCH {
 				// jump to basic block
 				p = appendp(p, AI32Const, constAddr(jmp.To.Val.(*obj.Prog).Pc))
-				p = appendp(p, ASet, regAddr(REG_PC_B))               // write next basic block to PC_B
-				p = appendp(p, ABr, constAddr(int64(currentDepth-1))) // jump to beginning of entryPointLoop
+				p = appendp(p, ASet, regAddr(REG_PC_B)) // write next basic block to PC_B
+				p = appendp(p, ABr)                     // jump to beginning of entryPointLoop
+				entryPointLoopBranches = append(entryPointLoopBranches, p)
 				break
 			}
 
@@ -478,16 +452,16 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			}
 
 			// return value of call is on the top of the stack, indicating whether to unwind the WebAssembly stack
-			p = appendp(p, AIf)
 			if call.As == ACALLNORESUME && call.To.Sym != sigpanic { // sigpanic unwinds the stack, but it never resumes
 				// trying to unwind WebAssembly stack but call has no resume point, terminate with error
+				p = appendp(p, AIf)
 				p = appendp(p, obj.AUNDEF)
+				p = appendp(p, AEnd)
 			} else {
 				// unwinding WebAssembly stack to switch goroutine, return 1
-				p = appendp(p, AI32Const, constAddr(1))
-				p = appendp(p, AReturn)
+				p = appendp(p, ABrIf)
+				unwindExitBranches = append(unwindExitBranches, p)
 			}
-			p = appendp(p, AEnd)
 
 			// jump to before the call if jmpdefer has reset the return address to the call's PC
 			if call.To.Sym == deferreturn {
@@ -550,12 +524,9 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			p = appendp(p, AI32Const, constAddr(0))
 			p = appendp(p, AReturn)
 		}
-
-		p = p.Link
 	}
 
-	p = s.Func.Text
-	for p != nil {
+	for p := s.Func.Text; p != nil; p = p.Link {
 		switch p.From.Name {
 		case obj.NAME_AUTO:
 			p.From.Offset += int64(framesize)
@@ -584,7 +555,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				case obj.NAME_AUTO, obj.NAME_PARAM:
 					p = appendp(p, AGet, regAddr(get.From.Reg))
 					if get.From.Reg == REG_SP {
-						p = appendp(p, AI64ExtendUI32)
+						p = appendp(p, AI64ExtendI32U)
 					}
 					if get.From.Offset != 0 {
 						p = appendp(p, AI64Const, constAddr(get.From.Offset))
@@ -641,7 +612,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 					case obj.NAME_NONE, obj.NAME_PARAM, obj.NAME_AUTO:
 						p = appendp(p, AGet, regAddr(mov.From.Reg))
 						if mov.From.Reg == REG_SP {
-							p = appendp(p, AI64ExtendUI32)
+							p = appendp(p, AI64ExtendI32U)
 						}
 						p = appendp(p, AI64Const, constAddr(mov.From.Offset))
 						p = appendp(p, AI64Add)
@@ -654,7 +625,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				case obj.TYPE_REG:
 					p = appendp(p, AGet, mov.From)
 					if mov.From.Reg == REG_SP {
-						p = appendp(p, AI64ExtendUI32)
+						p = appendp(p, AI64ExtendI32U)
 					}
 
 				case obj.TYPE_MEM:
@@ -702,8 +673,65 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			p = appendp(p, ACall, obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: s})
 			p.Mark = WasmImport
 		}
+	}
 
-		p = p.Link
+	{
+		p := s.Func.Text
+		if len(unwindExitBranches) > 0 {
+			p = appendp(p, ABlock) // unwindExit, used to return 1 when unwinding the stack
+			for _, b := range unwindExitBranches {
+				b.To = obj.Addr{Type: obj.TYPE_BRANCH, Val: p}
+			}
+		}
+		if len(entryPointLoopBranches) > 0 {
+			p = appendp(p, ALoop) // entryPointLoop, used to jump between basic blocks
+			for _, b := range entryPointLoopBranches {
+				b.To = obj.Addr{Type: obj.TYPE_BRANCH, Val: p}
+			}
+		}
+		if numResumePoints > 0 {
+			// Add Block instructions for resume points and BrTable to jump to selected resume point.
+			for i := 0; i < numResumePoints+1; i++ {
+				p = appendp(p, ABlock)
+			}
+			p = appendp(p, AGet, regAddr(REG_PC_B)) // read next basic block from PC_B
+			p = appendp(p, ABrTable, obj.Addr{Val: tableIdxs})
+			p = appendp(p, AEnd) // end of Block
+		}
+		for p.Link != nil {
+			p = p.Link // function instructions
+		}
+		if len(entryPointLoopBranches) > 0 {
+			p = appendp(p, AEnd) // end of entryPointLoop
+		}
+		p = appendp(p, obj.AUNDEF)
+		if len(unwindExitBranches) > 0 {
+			p = appendp(p, AEnd) // end of unwindExit
+			p = appendp(p, AI32Const, constAddr(1))
+		}
+	}
+
+	currentDepth = 0
+	blockDepths := make(map[*obj.Prog]int)
+	for p := s.Func.Text; p != nil; p = p.Link {
+		switch p.As {
+		case ABlock, ALoop, AIf:
+			currentDepth++
+			blockDepths[p] = currentDepth
+		case AEnd:
+			currentDepth--
+		}
+
+		switch p.As {
+		case ABr, ABrIf:
+			if p.To.Type == obj.TYPE_BRANCH {
+				blockDepth, ok := blockDepths[p.To.Val.(*obj.Prog)]
+				if !ok {
+					panic("label not at block")
+				}
+				p.To = constAddr(int64(currentDepth - blockDepth))
+			}
+		}
 	}
 }
 
@@ -746,21 +774,34 @@ func countRegisters(s *obj.LSym) (numI, numF int16) {
 func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	w := new(bytes.Buffer)
 
-	numI, numF := countRegisters(s)
+	hasLocalSP := false
+	var r0, f0 int16
 
 	// Function starts with declaration of locals: numbers and types.
+	// Some functions use a special calling convention.
 	switch s.Name {
-	// memchr and memcmp don't use the normal Go calling convention and need i32 variables.
-	case "memchr":
-		writeUleb128(w, 1) // number of sets of locals
-		writeUleb128(w, 3) // number of locals
-		w.WriteByte(0x7F)  // i32
-	case "memcmp":
+	case "wasm_export_run", "runtime.wasmMove", "runtime.wasmZero", "runtime.wasmDiv", "runtime.wasmTruncS", "runtime.wasmTruncU", "memeqbody":
+		writeUleb128(w, 0) // number of sets of locals
+	case "memchr", "memcmp":
 		writeUleb128(w, 1) // number of sets of locals
 		writeUleb128(w, 2) // number of locals
 		w.WriteByte(0x7F)  // i32
+	case "cmpbody":
+		writeUleb128(w, 1) // number of sets of locals
+		writeUleb128(w, 2) // number of locals
+		w.WriteByte(0x7E)  // i64
+	case "runtime.gcWriteBarrier":
+		writeUleb128(w, 1) // number of sets of locals
+		writeUleb128(w, 4) // number of locals
+		w.WriteByte(0x7E)  // i64
 	default:
-		numTypes := 0
+		// Normal calling convention: No WebAssembly parameters. First local variable is local SP cache.
+		hasLocalSP = true
+		numI, numF := countRegisters(s)
+		r0 = 1
+		f0 = 1 + numI
+
+		numTypes := 1
 		if numI > 0 {
 			numTypes++
 		}
@@ -769,6 +810,8 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		writeUleb128(w, uint64(numTypes))
+		writeUleb128(w, 1) // number of locals (SP)
+		w.WriteByte(0x7F)  // i32
 		if numI > 0 {
 			writeUleb128(w, uint64(numI)) // number of locals
 			w.WriteByte(0x7E)             // i64
@@ -779,6 +822,10 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
+	if hasLocalSP {
+		// Copy SP from its global variable into a local variable. Accessing a local variable is more efficient.
+		updateLocalSP(w)
+	}
 	for p := s.Func.Text; p != nil; p = p.Link {
 		switch p.As {
 		case AGet:
@@ -787,15 +834,18 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			}
 			reg := p.From.Reg
 			switch {
+			case reg == REG_SP && hasLocalSP:
+				w.WriteByte(0x20)  // local.get
+				writeUleb128(w, 0) // local SP
 			case reg >= REG_PC_F && reg <= REG_PAUSE:
-				w.WriteByte(0x23) // get_global
+				w.WriteByte(0x23) // global.get
 				writeUleb128(w, uint64(reg-REG_PC_F))
 			case reg >= REG_R0 && reg <= REG_R15:
-				w.WriteByte(0x20) // get_local (i64)
-				writeUleb128(w, uint64(reg-REG_R0))
+				w.WriteByte(0x20) // local.get (i64)
+				writeUleb128(w, uint64(r0+(reg-REG_R0)))
 			case reg >= REG_F0 && reg <= REG_F15:
-				w.WriteByte(0x20) // get_local (f64)
-				writeUleb128(w, uint64(numI+(reg-REG_F0)))
+				w.WriteByte(0x20) // local.get (f64)
+				writeUleb128(w, uint64(f0+(reg-REG_F0)))
 			default:
 				panic("bad Get: invalid register")
 			}
@@ -808,19 +858,23 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			reg := p.To.Reg
 			switch {
 			case reg >= REG_PC_F && reg <= REG_PAUSE:
-				w.WriteByte(0x24) // set_global
+				if reg == REG_SP && hasLocalSP {
+					w.WriteByte(0x22)  // local.tee
+					writeUleb128(w, 0) // local SP
+				}
+				w.WriteByte(0x24) // global.set
 				writeUleb128(w, uint64(reg-REG_PC_F))
 			case reg >= REG_R0 && reg <= REG_F15:
 				if p.Link.As == AGet && p.Link.From.Reg == reg {
-					w.WriteByte(0x22) // tee_local
+					w.WriteByte(0x22) // local.tee
 					p = p.Link
 				} else {
-					w.WriteByte(0x21) // set_local
+					w.WriteByte(0x21) // local.set
 				}
 				if reg <= REG_R15 {
-					writeUleb128(w, uint64(reg-REG_R0))
+					writeUleb128(w, uint64(r0+(reg-REG_R0)))
 				} else {
-					writeUleb128(w, uint64(numI+(reg-REG_F0)))
+					writeUleb128(w, uint64(f0+(reg-REG_F0)))
 				}
 			default:
 				panic("bad Set: invalid register")
@@ -834,11 +888,11 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			reg := p.To.Reg
 			switch {
 			case reg >= REG_R0 && reg <= REG_R15:
-				w.WriteByte(0x22) // tee_local (i64)
-				writeUleb128(w, uint64(reg-REG_R0))
+				w.WriteByte(0x22) // local.tee (i64)
+				writeUleb128(w, uint64(r0+(reg-REG_R0)))
 			case reg >= REG_F0 && reg <= REG_F15:
-				w.WriteByte(0x22) // tee_local (f64)
-				writeUleb128(w, uint64(numI+(reg-REG_F0)))
+				w.WriteByte(0x22) // local.tee (f64)
+				writeUleb128(w, uint64(f0+(reg-REG_F0)))
 			default:
 				panic("bad Tee: invalid register")
 			}
@@ -858,7 +912,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		switch {
-		case p.As < AUnreachable || p.As > AF64ReinterpretI64:
+		case p.As < AUnreachable:
 			panic(fmt.Sprintf("unexpected assembler op: %s", p.As))
 		case p.As < AEnd:
 			w.WriteByte(byte(p.As - AUnreachable + 0x00))
@@ -866,8 +920,13 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			w.WriteByte(byte(p.As - AEnd + 0x0B))
 		case p.As < AI32Load:
 			w.WriteByte(byte(p.As - ADrop + 0x1A))
-		default:
+		case p.As < AI32TruncSatF32S:
 			w.WriteByte(byte(p.As - AI32Load + 0x28))
+		case p.As < ALast:
+			w.WriteByte(0xFC)
+			w.WriteByte(byte(p.As - AI32TruncSatF32S + 0x00))
+		default:
+			panic(fmt.Sprintf("unexpected assembler op: %s", p.As))
 		}
 
 		switch p.As {
@@ -909,6 +968,10 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 					r.Type = objabi.R_WASMIMPORT
 				}
 				r.Sym = p.To.Sym
+				if hasLocalSP {
+					// The stack may have moved, which changes SP. Update the local SP variable.
+					updateLocalSP(w)
+				}
 
 			default:
 				panic("bad type for Call")
@@ -917,6 +980,10 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		case ACallIndirect:
 			writeUleb128(w, uint64(p.To.Offset))
 			w.WriteByte(0x00) // reserved value
+			if hasLocalSP {
+				// The stack may have moved, which changes SP. Update the local SP variable.
+				updateLocalSP(w)
+			}
 
 		case AI32Const, AI64Const:
 			if p.From.Name == obj.NAME_EXTERN {
@@ -966,6 +1033,13 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	w.WriteByte(0x0b) // end
 
 	s.P = w.Bytes()
+}
+
+func updateLocalSP(w *bytes.Buffer) {
+	w.WriteByte(0x23)                        // global.get
+	writeUleb128(w, uint64(REG_SP-REG_PC_F)) // SP
+	w.WriteByte(0x21)                        // local.set
+	writeUleb128(w, 0)                       // local SP
 }
 
 func align(as obj.As) uint64 {

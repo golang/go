@@ -1,0 +1,86 @@
+# Tests for automatic testing.Init calls when using 'go test'.
+
+env GO111MODULE=on
+
+# A TestMain should be able to access testing flags if it calls flag.Parse
+# without needing to use testing.Init.
+# Test code can use the name 'testing' without colliding with generated
+# testinginit code.
+# Tests running under 'go test' should observe that testing.Init is called
+# before any user package initialization code runs.
+go test
+stdout TestMain
+stdout TestInit
+stdout TestExt
+
+-- go.mod --
+module m
+
+-- init_test.go --
+package testinitflag
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	Testing "testing"
+)
+
+func testFlagsInitialized() bool {
+	found := false
+	flag.VisitAll(func(f *flag.Flag) {
+		if f.Name == "test.count" {
+			found = true
+		}
+	})
+	return found
+}
+
+var testing int
+var testingInitAtInitialization = testFlagsInitialized()
+
+func TestInit(t *Testing.T) {
+	if !testingInitAtInitialization {
+		t.Fatal("testing.Init not called before package initialization")
+	}
+	fmt.Printf("TestInit\n")
+}
+
+func TestMain(m *Testing.M) {
+	fmt.Printf("TestMain\n")
+	flag.Parse()
+	if !testFlagsInitialized() {
+		fmt.Println("testing flags not registered")
+		os.Exit(1)
+	}
+	os.Exit(m.Run())
+}
+
+-- external_test.go --
+package testinitflag_test
+
+import (
+	"flag"
+	"fmt"
+	Testing "testing"
+)
+
+func testFlagsInitialized() bool {
+	found := false
+	flag.VisitAll(func(f *flag.Flag) {
+		if f.Name == "test.count" {
+			found = true
+		}
+	})
+	return found
+}
+
+var testing int
+var testingInitAtInitialization = testFlagsInitialized()
+
+func TestExt(t *Testing.T) {
+	fmt.Printf("TestExt\n")
+	if !testingInitAtInitialization {
+		t.Fatal("testing.Init not called before package initialization")
+	}
+}

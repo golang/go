@@ -1395,6 +1395,28 @@ func (t *Type) NumComponents(countBlank componentsIncludeBlankFields) int64 {
 	return 1
 }
 
+// SoleComponent returns the only primitive component in t,
+// if there is exactly one. Otherwise, it returns nil.
+// Components are counted as in NumComponents, including blank fields.
+func (t *Type) SoleComponent() *Type {
+	switch t.Etype {
+	case TSTRUCT:
+		if t.IsFuncArgStruct() {
+			Fatalf("SoleComponent func arg struct")
+		}
+		if t.NumFields() != 1 {
+			return nil
+		}
+		return t.Field(0).Type.SoleComponent()
+	case TARRAY:
+		if t.NumElem() != 1 {
+			return nil
+		}
+		return t.Elem().SoleComponent()
+	}
+	return t
+}
+
 // ChanDir returns the direction of a channel type t.
 // The direction will be one of Crecv, Csend, or Cboth.
 func (t *Type) ChanDir() ChanDir {

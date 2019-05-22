@@ -8,10 +8,13 @@
 package dwarf
 
 import (
+	"bytes"
 	"cmd/internal/objabi"
 	"errors"
 	"fmt"
+	"os/exec"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -88,18 +91,19 @@ type Range struct {
 // This container is used by the PutFunc* variants below when
 // creating the DWARF subprogram DIE(s) for a function.
 type FnState struct {
-	Name       string
-	Importpath string
-	Info       Sym
-	Filesym    Sym
-	Loc        Sym
-	Ranges     Sym
-	Absfn      Sym
-	StartPC    Sym
-	Size       int64
-	External   bool
-	Scopes     []Scope
-	InlCalls   InlCalls
+	Name          string
+	Importpath    string
+	Info          Sym
+	Filesym       Sym
+	Loc           Sym
+	Ranges        Sym
+	Absfn         Sym
+	StartPC       Sym
+	Size          int64
+	External      bool
+	Scopes        []Scope
+	InlCalls      InlCalls
+	UseBASEntries bool
 }
 
 func EnableLogging(doit bool) {
@@ -141,6 +145,20 @@ func (s *Scope) UnifyRanges(c *Scope) {
 	s.Ranges = out
 }
 
+// AppendRange adds r to s, if r is non-empty.
+// If possible, it extends the last Range in s.Ranges; if not, it creates a new one.
+func (s *Scope) AppendRange(r Range) {
+	if r.End <= r.Start {
+		return
+	}
+	i := len(s.Ranges)
+	if i > 0 && s.Ranges[i-1].End == r.Start {
+		s.Ranges[i-1].End = r.End
+		return
+	}
+	s.Ranges = append(s.Ranges, r)
+}
+
 type InlCalls struct {
 	Calls []InlCall
 }
@@ -178,6 +196,7 @@ type Context interface {
 	AddInt(s Sym, size int, i int64)
 	AddBytes(s Sym, b []byte)
 	AddAddress(s Sym, t interface{}, ofs int64)
+	AddCURelativeAddress(s Sym, t interface{}, ofs int64)
 	AddSectionOffset(s Sym, size int, t interface{}, ofs int64)
 	AddDWARFAddrSectionOffset(s Sym, t interface{}, ofs int64)
 	CurrentOffset(s Sym) int64
@@ -275,10 +294,12 @@ func Sleb128put(ctxt Context, s Sym, v int64) {
 }
 
 /*
- * Defining Abbrevs.  This is hardcoded, and there will be
- * only a handful of them.  The DWARF spec places no restriction on
- * the ordering of attributes in the Abbrevs and DIEs, and we will
- * always write them out in the order of declaration in the abbrev.
+ * Defining Abbrevs. This is hardcoded on a per-platform basis (that is,
+ * each platform will see a fixed abbrev table for all objects); the number
+ * of abbrev entries is fairly small (compared to C++ objects).  The DWARF
+ * spec places no restriction on the ordering of attributes in the
+ * Abbrevs and DIEs, and we will always write them out in the order
+ * of declaration in the abbrev.
  */
 type dwAttrForm struct {
 	attr uint16
@@ -294,6 +315,8 @@ const (
 	// Nonzero value indicates the struct field is an embedded field.
 	DW_AT_go_embedded_field = 0x2903
 	DW_AT_go_runtime_type   = 0x2904
+
+	DW_AT_go_package_name = 0x2905 // Attribute for DW_TAG_compile_unit
 
 	DW_AT_internal_location = 253 // params and locals; not emitted
 )
@@ -350,6 +373,45 @@ type dwAbbrev struct {
 	attr     []dwAttrForm
 }
 
+var abbrevsFinalized bool
+
+// expandPseudoForm takes an input DW_FORM_xxx value and translates it
+// into a platform-appropriate concrete form. Existing concrete/real
+// DW_FORM values are left untouched. For the moment the only
+// pseudo-form is DW_FORM_udata_pseudo, which gets expanded to
+// DW_FORM_data4 on Darwin and DW_FORM_udata everywhere else. See
+// issue #31459 for more context.
+func expandPseudoForm(form uint8) uint8 {
+	// Is this a pseudo-form?
+	if form != DW_FORM_udata_pseudo {
+		return form
+	}
+	expandedForm := DW_FORM_udata
+	if objabi.GOOS == "darwin" {
+		expandedForm = DW_FORM_data4
+	}
+	return uint8(expandedForm)
+}
+
+// Abbrevs() returns the finalized abbrev array for the platform,
+// expanding any DW_FORM pseudo-ops to real values.
+func Abbrevs() [DW_NABRV]dwAbbrev {
+	if abbrevsFinalized {
+		return abbrevs
+	}
+	for i := 1; i < DW_NABRV; i++ {
+		for j := 0; j < len(abbrevs[i].attr); j++ {
+			abbrevs[i].attr[j].form = expandPseudoForm(abbrevs[i].attr[j].form)
+		}
+	}
+	abbrevsFinalized = true
+	return abbrevs
+}
+
+// abbrevs is a raw table of abbrev entries; it needs to be post-processed
+// by the Abbrevs() function above prior to being consumed, to expand
+// the 'pseudo-form' entries below to real DWARF form values.
+
 var abbrevs = [DW_NABRV]dwAbbrev{
 	/* The mandatory DW_ABRV_NULL entry. */
 	{0, 0, []dwAttrForm{}},
@@ -366,6 +428,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_ranges, DW_FORM_sec_offset},
 			{DW_AT_comp_dir, DW_FORM_string},
 			{DW_AT_producer, DW_FORM_string},
+			{DW_AT_go_package_name, DW_FORM_string},
 		},
 	},
 
@@ -378,6 +441,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_language, DW_FORM_data1},
 			{DW_AT_comp_dir, DW_FORM_string},
 			{DW_AT_producer, DW_FORM_string},
+			{DW_AT_go_package_name, DW_FORM_string},
 		},
 	},
 
@@ -427,7 +491,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_low_pc, DW_FORM_addr},
 			{DW_AT_high_pc, DW_FORM_addr},
 			{DW_AT_call_file, DW_FORM_data4},
-			{DW_AT_call_line, DW_FORM_udata},
+			{DW_AT_call_line, DW_FORM_udata_pseudo}, // pseudo-form
 		},
 	},
 
@@ -439,7 +503,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_abstract_origin, DW_FORM_ref_addr},
 			{DW_AT_ranges, DW_FORM_sec_offset},
 			{DW_AT_call_file, DW_FORM_data4},
-			{DW_AT_call_line, DW_FORM_udata},
+			{DW_AT_call_line, DW_FORM_udata_pseudo}, // pseudo-form
 		},
 	},
 
@@ -798,6 +862,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 
 // GetAbbrev returns the contents of the .debug_abbrev section.
 func GetAbbrev() []byte {
+	abbrevs := Abbrevs()
 	var buf []byte
 	for i := 1; i < DW_NABRV; i++ {
 		// See section 7.5.3
@@ -954,6 +1019,7 @@ func putattr(ctxt Context, s Sym, abbrev int, form int, cls int, value int64, da
 // Note that we can (and do) add arbitrary attributes to a DIE, but
 // only the ones actually listed in the Abbrev will be written out.
 func PutAttrs(ctxt Context, s Sym, abbrev int, attr *DWAttr) {
+	abbrevs := Abbrevs()
 Outer:
 	for _, f := range abbrevs[abbrev].attr {
 		for ap := attr; ap != nil; ap = ap.Link {
@@ -969,6 +1035,7 @@ Outer:
 
 // HasChildren reports whether 'die' uses an abbrev that supports children.
 func HasChildren(die *DWDie) bool {
+	abbrevs := Abbrevs()
 	return abbrevs[die.Abbrev].children != 0
 }
 
@@ -980,22 +1047,40 @@ func PutIntConst(ctxt Context, info, typ Sym, name string, val int64) {
 	putattr(ctxt, info, DW_ABRV_INT_CONSTANT, DW_FORM_sdata, DW_CLS_CONSTANT, val, nil)
 }
 
-// PutRanges writes a range table to sym. All addresses in ranges are
-// relative to some base address. If base is not nil, then they're
-// relative to the start of base. If base is nil, then the caller must
-// arrange a base address some other way (such as a DW_AT_low_pc
-// attribute).
-func PutRanges(ctxt Context, sym Sym, base Sym, ranges []Range) {
+// PutBasedRanges writes a range table to sym. All addresses in ranges are
+// relative to some base address, which must be arranged by the caller
+// (e.g., with a DW_AT_low_pc attribute, or in a BASE-prefixed range).
+func PutBasedRanges(ctxt Context, sym Sym, ranges []Range) {
 	ps := ctxt.PtrSize()
-	// Write base address entry.
-	if base != nil {
-		ctxt.AddInt(sym, ps, -1)
-		ctxt.AddAddress(sym, base, 0)
-	}
 	// Write ranges.
 	for _, r := range ranges {
 		ctxt.AddInt(sym, ps, r.Start)
 		ctxt.AddInt(sym, ps, r.End)
+	}
+	// Write trailer.
+	ctxt.AddInt(sym, ps, 0)
+	ctxt.AddInt(sym, ps, 0)
+}
+
+// PutRanges writes a range table to s.Ranges.
+// All addresses in ranges are relative to s.base.
+func (s *FnState) PutRanges(ctxt Context, ranges []Range) {
+	ps := ctxt.PtrSize()
+	sym, base := s.Ranges, s.StartPC
+
+	if s.UseBASEntries {
+		// Using a Base Address Selection Entry reduces the number of relocations, but
+		// this is not done on macOS because it is not supported by dsymutil/dwarfdump/lldb
+		ctxt.AddInt(sym, ps, -1)
+		ctxt.AddAddress(sym, base, 0)
+		PutBasedRanges(ctxt, sym, ranges)
+		return
+	}
+
+	// Write ranges full of relocations
+	for _, r := range ranges {
+		ctxt.AddCURelativeAddress(sym, base, r.Start)
+		ctxt.AddCURelativeAddress(sym, base, r.End)
 	}
 	// Write trailer.
 	ctxt.AddInt(sym, ps, 0)
@@ -1195,7 +1280,7 @@ func PutInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error 
 
 	if abbrev == DW_ABRV_INLINED_SUBROUTINE_RANGES {
 		putattr(ctxt, s.Info, abbrev, DW_FORM_sec_offset, DW_CLS_PTR, s.Ranges.Len(), s.Ranges)
-		PutRanges(ctxt, s.Ranges, s.StartPC, ic.Ranges)
+		s.PutRanges(ctxt, ic.Ranges)
 	} else {
 		st := ic.Ranges[0].Start
 		en := ic.Ranges[0].End
@@ -1205,7 +1290,8 @@ func PutInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error 
 
 	// Emit call file, line attrs.
 	ctxt.AddFileRef(s.Info, ic.CallFile)
-	putattr(ctxt, s.Info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(ic.CallLine), nil)
+	form := int(expandPseudoForm(DW_FORM_udata_pseudo))
+	putattr(ctxt, s.Info, abbrev, form, DW_CLS_CONSTANT, int64(ic.CallLine), nil)
 
 	// Variables associated with this inlined routine instance.
 	vars := ic.InlVars
@@ -1350,7 +1436,7 @@ func putscope(ctxt Context, s *FnState, scopes []Scope, curscope int32, fnabbrev
 			Uleb128put(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_RANGES)
 			putattr(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_RANGES, DW_FORM_sec_offset, DW_CLS_PTR, s.Ranges.Len(), s.Ranges)
 
-			PutRanges(ctxt, s.Ranges, s.StartPC, scope.Ranges)
+			s.PutRanges(ctxt, scope.Ranges)
 		}
 
 		curscope = putscope(ctxt, s, scopes, curscope, fnabbrev, encbuf)
@@ -1526,3 +1612,42 @@ type byChildIndex []*Var
 func (s byChildIndex) Len() int           { return len(s) }
 func (s byChildIndex) Less(i, j int) bool { return s[i].ChildIndex < s[j].ChildIndex }
 func (s byChildIndex) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+
+// IsDWARFEnabledOnAIX returns true if DWARF is possible on the
+// current extld.
+// AIX ld doesn't support DWARF with -bnoobjreorder with version
+// prior to 7.2.2.
+func IsDWARFEnabledOnAIXLd(extld string) (bool, error) {
+	out, err := exec.Command(extld, "-Wl,-V").CombinedOutput()
+	if err != nil {
+		// The normal output should display ld version and
+		// then fails because ".main" is not defined:
+		// ld: 0711-317 ERROR: Undefined symbol: .main
+		if !bytes.Contains(out, []byte("0711-317")) {
+			return false, fmt.Errorf("%s -Wl,-V failed: %v\n%s", extld, err, out)
+		}
+	}
+	// gcc -Wl,-V output should be:
+	//   /usr/bin/ld: LD X.X.X(date)
+	//   ...
+	out = bytes.TrimPrefix(out, []byte("/usr/bin/ld: LD "))
+	vers := string(bytes.Split(out, []byte("("))[0])
+	subvers := strings.Split(vers, ".")
+	if len(subvers) != 3 {
+		return false, fmt.Errorf("cannot parse %s -Wl,-V (%s): %v\n", extld, out, err)
+	}
+	if v, err := strconv.Atoi(subvers[0]); err != nil || v < 7 {
+		return false, nil
+	} else if v > 7 {
+		return true, nil
+	}
+	if v, err := strconv.Atoi(subvers[1]); err != nil || v < 2 {
+		return false, nil
+	} else if v > 2 {
+		return true, nil
+	}
+	if v, err := strconv.Atoi(subvers[2]); err != nil || v < 2 {
+		return false, nil
+	}
+	return true, nil
+}

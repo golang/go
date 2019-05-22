@@ -400,8 +400,10 @@ var polarSC = []ff{
 }
 var vcPowSC = [][2]complex128{
 	{NaN(), NaN()},
+	{0, NaN()},
 }
 var powSC = []complex128{
+	NaN(),
 	NaN(),
 }
 var vcSinSC = []complex128{
@@ -734,8 +736,8 @@ func TestPow(t *testing.T) {
 		}
 	}
 	for i := 0; i < len(vcPowSC); i++ {
-		if f := Pow(vcPowSC[i][0], vcPowSC[i][0]); !cAlike(powSC[i], f) {
-			t.Errorf("Pow(%g, %g) = %g, want %g", vcPowSC[i][0], vcPowSC[i][0], f, powSC[i])
+		if f := Pow(vcPowSC[i][0], vcPowSC[i][1]); !cAlike(powSC[i], f) {
+			t.Errorf("Pow(%g, %g) = %g, want %g", vcPowSC[i][0], vcPowSC[i][1], f, powSC[i])
 		}
 	}
 	for _, pt := range branchPoints {

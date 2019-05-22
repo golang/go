@@ -5,9 +5,10 @@
 package main
 
 import (
-	"testplugin/iface_i"
 	"log"
 	"plugin"
+
+	"testplugin/iface_i"
 )
 
 func main() {

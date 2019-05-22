@@ -151,7 +151,7 @@ func delete(m map[Type]Type1, key Type)
 //	Slice, or map: the number of elements in v; if v is nil, len(v) is zero.
 //	String: the number of bytes in v.
 //	Channel: the number of elements queued (unread) in the channel buffer;
-//	if v is nil, len(v) is zero.
+//	         if v is nil, len(v) is zero.
 // For some arguments, such as a string literal or a simple array expression, the
 // result can be a constant. See the Go language specification's "Length and
 // capacity" section for details.
@@ -226,10 +226,9 @@ func close(c chan<- Type)
 // invocation of F then behaves like a call to panic, terminating G's
 // execution and running any deferred functions. This continues until all
 // functions in the executing goroutine have stopped, in reverse order. At
-// that point, the program is terminated and the error condition is reported,
-// including the value of the argument to panic. This termination sequence
-// is called panicking and can be controlled by the built-in function
-// recover.
+// that point, the program is terminated with a non-zero exit code. This
+// termination sequence is called panicking and can be controlled by the
+// built-in function recover.
 func panic(v interface{})
 
 // The recover built-in function allows a program to manage behavior of a

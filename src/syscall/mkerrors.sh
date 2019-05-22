@@ -28,6 +28,7 @@ includes_AIX='
 #include <sys/protosw.h>
 #include <sys/ptrace.h>
 #include <sys/stropts.h>
+#include <termios.h>
 '
 
 includes_Darwin='

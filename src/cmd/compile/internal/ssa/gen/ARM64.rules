@@ -92,14 +92,20 @@
 (Trunc x) -> (FRINTZD x)
 
 // lowering rotates
+(RotateLeft8 <t> x (MOVDconst [c])) -> (Or8 (Lsh8x64 <t> x (MOVDconst [c&7])) (Rsh8Ux64 <t> x (MOVDconst [-c&7])))
+(RotateLeft16 <t> x (MOVDconst [c])) -> (Or16 (Lsh16x64 <t> x (MOVDconst [c&15])) (Rsh16Ux64 <t> x (MOVDconst [-c&15])))
 (RotateLeft32 x y) -> (RORW x (NEG <y.Type> y))
 (RotateLeft64 x y) -> (ROR x (NEG <y.Type> y))
 
 (Ctz64NonZero x) -> (Ctz64 x)
 (Ctz32NonZero x) -> (Ctz32 x)
+(Ctz16NonZero x) -> (Ctz32 x)
+(Ctz8NonZero x) -> (Ctz32 x)
 
 (Ctz64 <t> x) -> (CLZ (RBIT <t> x))
 (Ctz32 <t> x) -> (CLZW (RBITW <t> x))
+(Ctz16 <t> x) -> (CLZW <t> (RBITW <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x)))
+(Ctz8 <t> x) -> (CLZW <t> (RBITW <typ.UInt32> (ORconst <typ.UInt32> [0x100] x)))
 
 (PopCount64 <t> x) -> (FMOVDfpgp <t> (VUADDLV <typ.Float64> (VCNT <typ.Float64> (FMOVDgpfp <typ.Float64> x))))
 (PopCount32 <t> x) -> (FMOVDfpgp <t> (VUADDLV <typ.Float64> (VCNT <typ.Float64> (FMOVDgpfp <typ.Float64> (ZeroExt32to64 x)))))
@@ -123,6 +129,7 @@
 (FMOVSload [off] {sym} ptr (MOVWstore [off] {sym} ptr val _)) -> (FMOVSgpfp val)
 
 (BitLen64 x) -> (SUB (MOVDconst [64]) (CLZ <typ.Int> x))
+(BitLen32 x) -> (SUB (MOVDconst [32]) (CLZW <typ.Int> x))
 
 (Bswap64 x) -> (REV x)
 (Bswap32 x) -> (REVW x)
@@ -131,6 +138,21 @@
 (BitRev32 x) -> (RBITW x)
 (BitRev16 x) -> (SRLconst [48] (RBIT <typ.UInt64> x))
 (BitRev8 x) -> (SRLconst [56] (RBIT <typ.UInt64> x))
+
+// In fact, UMOD will be translated into UREM instruction, and UREM is originally translated into
+// UDIV and MSUB instructions. But if there is already an identical UDIV instruction just before or
+// after UREM (case like quo, rem := z/y, z%y), then the second UDIV instruction becomes redundant.
+// The purpose of this rule is to have this extra UDIV instruction removed in CSE pass.
+(UMOD <typ.UInt64> x y) -> (MSUB <typ.UInt64> x y (UDIV <typ.UInt64> x y))
+(UMODW <typ.UInt32> x y) -> (MSUBW <typ.UInt32> x y (UDIVW <typ.UInt32> x y))
+
+// 64-bit addition with carry.
+(Select0 (Add64carry x y c)) -> (Select0 <typ.UInt64> (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] c))))
+(Select1 (Add64carry x y c)) -> (ADCzerocarry <typ.UInt64> (Select1 <types.TypeFlags> (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] c)))))
+
+// 64-bit subtraction with borrowing.
+(Select0 (Sub64borrow x y bo)) -> (Select0 <typ.UInt64> (SBCSflags x y (Select1 <types.TypeFlags> (NEGSflags bo))))
+(Select1 (Sub64borrow x y bo)) -> (NEG <typ.UInt64> (NGCzerocarry <typ.UInt64> (Select1 <types.TypeFlags> (SBCSflags x y (Select1 <types.TypeFlags> (NEGSflags bo))))))
 
 // boolean ops -- booleans are represented with 0=false, 1=true
 (AndB x y) -> (AND x y)
@@ -284,8 +306,14 @@
 (Less16 x y) -> (LessThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
 (Less32 x y) -> (LessThan (CMPW x y))
 (Less64 x y) -> (LessThan (CMP x y))
-(Less32F x y) -> (GreaterThan (FCMPS y x)) // reverse operands to work around NaN
-(Less64F x y) -> (GreaterThan (FCMPD y x)) // reverse operands to work around NaN
+
+// Set condition flags for floating-point comparisons "x < y"
+// and "x <= y". Because if either or both of the operands are
+// NaNs, all three of (x < y), (x == y) and (x > y) are false,
+// and ARM Manual says FCMP instruction sets PSTATE.<N,Z,C,V>
+// of this case to (0, 0, 1, 1).
+(Less32F x y) -> (LessThanF (FCMPS x y))
+(Less64F x y) -> (LessThanF (FCMPD x y))
 
 (Less8U x y)  -> (LessThanU (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Less16U x y) -> (LessThanU (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -296,8 +324,10 @@
 (Leq16 x y) -> (LessEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
 (Leq32 x y) -> (LessEqual (CMPW x y))
 (Leq64 x y) -> (LessEqual (CMP x y))
-(Leq32F x y) -> (GreaterEqual (FCMPS y x)) // reverse operands to work around NaN
-(Leq64F x y) -> (GreaterEqual (FCMPD y x)) // reverse operands to work around NaN
+
+// Refer to the comments for op Less64F above.
+(Leq32F x y) -> (LessEqualF (FCMPS x y))
+(Leq64F x y) -> (LessEqualF (FCMPD x y))
 
 (Leq8U x y)  -> (LessEqualU (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Leq16U x y) -> (LessEqualU (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -308,8 +338,8 @@
 (Greater16 x y) -> (GreaterThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
 (Greater32 x y) -> (GreaterThan (CMPW x y))
 (Greater64 x y) -> (GreaterThan (CMP x y))
-(Greater32F x y) -> (GreaterThan (FCMPS x y))
-(Greater64F x y) -> (GreaterThan (FCMPD x y))
+(Greater32F x y) -> (GreaterThanF (FCMPS x y))
+(Greater64F x y) -> (GreaterThanF (FCMPD x y))
 
 (Greater8U x y)  -> (GreaterThanU (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Greater16U x y) -> (GreaterThanU (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -320,17 +350,23 @@
 (Geq16 x y) -> (GreaterEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
 (Geq32 x y) -> (GreaterEqual (CMPW x y))
 (Geq64 x y) -> (GreaterEqual (CMP x y))
-(Geq32F x y) -> (GreaterEqual (FCMPS x y))
-(Geq64F x y) -> (GreaterEqual (FCMPD x y))
+(Geq32F x y) -> (GreaterEqualF (FCMPS x y))
+(Geq64F x y) -> (GreaterEqualF (FCMPD x y))
 
 (Geq8U x y)  -> (GreaterEqualU (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Geq16U x y) -> (GreaterEqualU (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Geq32U x y) -> (GreaterEqualU (CMPW x y))
 (Geq64U x y) -> (GreaterEqualU (CMP x y))
 
+// Optimize comparision between a floating-point value and 0.0 with "FCMP $(0.0), Fn"
+(FCMPS x (FMOVSconst [0])) -> (FCMPS0 x)
+(FCMPS (FMOVSconst [0]) x) -> (InvertFlags (FCMPS0 x))
+(FCMPD x (FMOVDconst [0])) -> (FCMPD0 x)
+(FCMPD (FMOVDconst [0]) x) -> (InvertFlags (FCMPD0 x))
+
 // CSEL needs a flag-generating argument. Synthesize a CMPW if necessary.
-(CondSelect x y bool) && flagArg(bool) != nil -> (CSEL {bool.Op} x y flagArg(bool))
-(CondSelect x y bool) && flagArg(bool) == nil -> (CSEL {OpARM64NotEqual} x y (CMPWconst [0] bool))
+(CondSelect x y boolval) && flagArg(boolval) != nil -> (CSEL {boolval.Op} x y flagArg(boolval))
+(CondSelect x y boolval) && flagArg(boolval) == nil -> (CSEL {OpARM64NotEqual} x y (CMPWconst [0] boolval))
 
 (OffPtr [off] ptr:(SP)) -> (MOVDaddr [off] ptr)
 (OffPtr [off] ptr) -> (ADDconst [off] ptr)
@@ -538,11 +574,16 @@
 (If (GreaterThanU cc) yes no) -> (UGT cc yes no)
 (If (GreaterEqual cc) yes no) -> (GE cc yes no)
 (If (GreaterEqualU cc) yes no) -> (UGE cc yes no)
+(If (LessThanF cc) yes no) -> (FLT cc yes no)
+(If (LessEqualF cc) yes no) -> (FLE cc yes no)
+(If (GreaterThanF cc) yes no) -> (FGT cc yes no)
+(If (GreaterEqualF cc) yes no) -> (FGE cc yes no)
 
 (If cond yes no) -> (NZ cond yes no)
 
 // atomic intrinsics
 // Note: these ops do not accept offset.
+(AtomicLoad8   ptr mem) -> (LDARB ptr mem)
 (AtomicLoad32  ptr mem) -> (LDARW ptr mem)
 (AtomicLoad64  ptr mem) -> (LDAR  ptr mem)
 (AtomicLoadPtr ptr mem) -> (LDAR  ptr mem)
@@ -570,6 +611,10 @@
 // Write barrier.
 (WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
 
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 0 -> (LoweredPanicBoundsA [kind] x y mem)
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 1 -> (LoweredPanicBoundsB [kind] x y mem)
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 2 -> (LoweredPanicBoundsC [kind] x y mem)
+
 // Optimizations
 
 // Absorb boolean tests into block
@@ -583,6 +628,10 @@
 (NZ (GreaterThanU cc) yes no) -> (UGT cc yes no)
 (NZ (GreaterEqual cc) yes no) -> (GE cc yes no)
 (NZ (GreaterEqualU cc) yes no) -> (UGE cc yes no)
+(NZ (LessThanF cc) yes no) -> (FLT cc yes no)
+(NZ (LessEqualF cc) yes no) -> (FLE cc yes no)
+(NZ (GreaterThanF cc) yes no) -> (FGT cc yes no)
+(NZ (GreaterEqualF cc) yes no) -> (FGE cc yes no)
 
 (EQ (CMPWconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (EQ (TSTWconst [c] y) yes no)
 (NE (CMPWconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (NE (TSTWconst [c] y) yes no)
@@ -1164,6 +1213,12 @@
 (ADD a l:(MNEGW x y)) && a.Type.Size() != 8 && l.Uses==1 && clobber(l) -> (MSUBW a x y)
 (SUB a l:(MNEGW x y)) && a.Type.Size() != 8 && l.Uses==1 && clobber(l) -> (MADDW a x y)
 
+// optimize ADCSflags, SBCSflags and friends
+(ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] (ADCzerocarry <typ.UInt64> c)))) -> (ADCSflags x y c)
+(ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] (MOVDconst [0])))) -> (ADDSflags x y)
+(SBCSflags x y (Select1 <types.TypeFlags> (NEGSflags (NEG <typ.UInt64> (NGCzerocarry <typ.UInt64> bo))))) -> (SBCSflags x y bo)
+(SBCSflags x y (Select1 <types.TypeFlags> (NEGSflags (MOVDconst [0])))) -> (SUBSflags x y)
+
 // mul by constant
 (MUL x (MOVDconst [-1])) -> (NEG x)
 (MUL _ (MOVDconst [0])) -> (MOVDconst [0])
@@ -1506,6 +1561,10 @@
 (UGE (InvertFlags cmp) yes no) -> (ULE cmp yes no)
 (EQ (InvertFlags cmp) yes no) -> (EQ cmp yes no)
 (NE (InvertFlags cmp) yes no) -> (NE cmp yes no)
+(FLT (InvertFlags cmp) yes no) -> (FGT cmp yes no)
+(FGT (InvertFlags cmp) yes no) -> (FLT cmp yes no)
+(FLE (InvertFlags cmp) yes no) -> (FGE cmp yes no)
+(FGE (InvertFlags cmp) yes no) -> (FLE cmp yes no)
 
 // absorb InvertFlags into CSEL(0)
 (CSEL {cc} x y (InvertFlags cmp)) -> (CSEL {arm64Invert(cc.(Op))} x y cmp)
@@ -1583,6 +1642,10 @@
 (LessEqualU (InvertFlags x)) -> (GreaterEqualU x)
 (GreaterEqual (InvertFlags x)) -> (LessEqual x)
 (GreaterEqualU (InvertFlags x)) -> (LessEqualU x)
+(LessThanF (InvertFlags x)) -> (GreaterThanF x)
+(LessEqualF (InvertFlags x)) -> (GreaterEqualF x)
+(GreaterThanF (InvertFlags x)) -> (LessThanF x)
+(GreaterEqualF (InvertFlags x)) -> (LessEqualF x)
 
 // Boolean-generating instructions always
 // zero upper bit of the register; no need to zero-extend
@@ -1595,14 +1658,14 @@
 (CSEL0 {cc} _ flag) && ccARM64Eval(cc, flag) < 0 -> (MOVDconst [0])
 
 // absorb flags back into boolean CSEL
-(CSEL {cc} x y (CMPWconst [0] bool)) && cc.(Op) == OpARM64NotEqual && flagArg(bool) != nil ->
-      (CSEL {bool.Op} x y flagArg(bool))
-(CSEL {cc} x y (CMPWconst [0] bool)) && cc.(Op) == OpARM64Equal && flagArg(bool) != nil ->
-      (CSEL {arm64Negate(bool.Op)} x y flagArg(bool))
-(CSEL0 {cc} x (CMPWconst [0] bool)) && cc.(Op) == OpARM64NotEqual && flagArg(bool) != nil ->
-      (CSEL0 {bool.Op} x flagArg(bool))
-(CSEL0 {cc} x (CMPWconst [0] bool)) && cc.(Op) == OpARM64Equal && flagArg(bool) != nil ->
-      (CSEL0 {arm64Negate(bool.Op)} x flagArg(bool))
+(CSEL {cc} x y (CMPWconst [0] boolval)) && cc.(Op) == OpARM64NotEqual && flagArg(boolval) != nil ->
+      (CSEL {boolval.Op} x y flagArg(boolval))
+(CSEL {cc} x y (CMPWconst [0] boolval)) && cc.(Op) == OpARM64Equal && flagArg(boolval) != nil ->
+      (CSEL {arm64Negate(boolval.Op)} x y flagArg(boolval))
+(CSEL0 {cc} x (CMPWconst [0] boolval)) && cc.(Op) == OpARM64NotEqual && flagArg(boolval) != nil ->
+      (CSEL0 {boolval.Op} x flagArg(boolval))
+(CSEL0 {cc} x (CMPWconst [0] boolval)) && cc.(Op) == OpARM64Equal && flagArg(boolval) != nil ->
+      (CSEL0 {arm64Negate(boolval.Op)} x flagArg(boolval))
 
 // absorb shifts into ops
 (NEG x:(SLLconst [c] y)) && clobberIfDead(x) -> (NEGshiftLL [c] y)
@@ -1743,11 +1806,11 @@
 ( ORshiftRL [c] (SLLconst x [64-c]) x) -> (RORconst [   c] x)
 (XORshiftRL [c] (SLLconst x [64-c]) x) -> (RORconst [   c] x)
 
-(ADDshiftLL <t> [c] (UBFX [bfc] x) x) && c < 32 && t.Size() == 4 && bfc == arm64BFAuxInt(32-c, c)
+(ADDshiftLL <t> [c] (UBFX [bfc] x) x) && c < 32 && t.Size() == 4 && bfc == armBFAuxInt(32-c, c)
 	-> (RORWconst [32-c] x)
-( ORshiftLL <t> [c] (UBFX [bfc] x) x) && c < 32 && t.Size() == 4 && bfc == arm64BFAuxInt(32-c, c)
+( ORshiftLL <t> [c] (UBFX [bfc] x) x) && c < 32 && t.Size() == 4 && bfc == armBFAuxInt(32-c, c)
 	-> (RORWconst [32-c] x)
-(XORshiftLL <t> [c] (UBFX [bfc] x) x) && c < 32 && t.Size() == 4 && bfc == arm64BFAuxInt(32-c, c)
+(XORshiftLL <t> [c] (UBFX [bfc] x) x) && c < 32 && t.Size() == 4 && bfc == armBFAuxInt(32-c, c)
 	-> (RORWconst [32-c] x)
 (ADDshiftRL <t> [c] (SLLconst x [32-c]) (MOVWUreg x)) && c < 32 && t.Size() == 4 -> (RORWconst [c] x)
 ( ORshiftRL <t> [c] (SLLconst x [32-c]) (MOVWUreg x)) && c < 32 && t.Size() == 4 -> (RORWconst [c] x)
@@ -1785,16 +1848,19 @@
 		(CMPconst [64]  (SUB <t> (MOVDconst [32]) (ANDconst <t> [31] y))))) && cc.(Op) == OpARM64LessThanU
 	-> (RORW x y)
 
+// ((x>>8) | (x<<8)) -> (REV16W x), the type of x is uint16, "|" can also be "^" or "+".
+((ADDshiftLL|ORshiftLL|XORshiftLL) <typ.UInt16> [8] (UBFX <typ.UInt16> [armBFAuxInt(8, 8)] x) x) -> (REV16W x)
+
 // Extract from reg pair
 (ADDshiftLL [c] (SRLconst x [64-c]) x2) -> (EXTRconst [64-c] x2 x)
 ( ORshiftLL [c] (SRLconst x [64-c]) x2) -> (EXTRconst [64-c] x2 x)
 (XORshiftLL [c] (SRLconst x [64-c]) x2) -> (EXTRconst [64-c] x2 x)
 
-(ADDshiftLL <t> [c] (UBFX [bfc] x) x2) && c < 32 && t.Size() == 4 && bfc == arm64BFAuxInt(32-c, c)
+(ADDshiftLL <t> [c] (UBFX [bfc] x) x2) && c < 32 && t.Size() == 4 && bfc == armBFAuxInt(32-c, c)
 	-> (EXTRWconst [32-c] x2 x)
-( ORshiftLL <t> [c] (UBFX [bfc] x) x2) && c < 32 && t.Size() == 4 && bfc == arm64BFAuxInt(32-c, c)
+( ORshiftLL <t> [c] (UBFX [bfc] x) x2) && c < 32 && t.Size() == 4 && bfc == armBFAuxInt(32-c, c)
 	-> (EXTRWconst [32-c] x2 x)
-(XORshiftLL <t> [c] (UBFX [bfc] x) x2) && c < 32 && t.Size() == 4 && bfc == arm64BFAuxInt(32-c, c)
+(XORshiftLL <t> [c] (UBFX [bfc] x) x2) && c < 32 && t.Size() == 4 && bfc == armBFAuxInt(32-c, c)
 	-> (EXTRWconst [32-c] x2 x)
 
 // Generic rules rewrite certain AND to a pair of shifts.
@@ -1810,88 +1876,88 @@
 
 // sbfiz
 // (x << lc) >> rc
-(SRAconst [rc] (SLLconst [lc] x)) && lc > rc -> (SBFIZ [arm64BFAuxInt(lc-rc, 64-lc)] x)
-(MOVWreg (SLLconst [lc] x)) && lc < 32 -> (SBFIZ [arm64BFAuxInt(lc, 32-lc)] x)
-(MOVHreg (SLLconst [lc] x)) && lc < 16 -> (SBFIZ [arm64BFAuxInt(lc, 16-lc)] x)
-(MOVBreg (SLLconst [lc] x)) && lc < 8 -> (SBFIZ [arm64BFAuxInt(lc, 8-lc)] x)
+(SRAconst [rc] (SLLconst [lc] x)) && lc > rc -> (SBFIZ [armBFAuxInt(lc-rc, 64-lc)] x)
+(MOVWreg (SLLconst [lc] x)) && lc < 32 -> (SBFIZ [armBFAuxInt(lc, 32-lc)] x)
+(MOVHreg (SLLconst [lc] x)) && lc < 16 -> (SBFIZ [armBFAuxInt(lc, 16-lc)] x)
+(MOVBreg (SLLconst [lc] x)) && lc < 8 -> (SBFIZ [armBFAuxInt(lc, 8-lc)] x)
 
 // sbfx
 // (x << lc) >> rc
-(SRAconst [rc] (SLLconst [lc] x)) && lc <= rc -> (SBFX [arm64BFAuxInt(rc-lc, 64-rc)] x)
-(SRAconst [rc] (MOVWreg x)) && rc < 32 -> (SBFX [arm64BFAuxInt(rc, 32-rc)] x)
-(SRAconst [rc] (MOVHreg x)) && rc < 16 -> (SBFX [arm64BFAuxInt(rc, 16-rc)] x)
-(SRAconst [rc] (MOVBreg x)) && rc < 8 -> (SBFX [arm64BFAuxInt(rc, 8-rc)] x)
+(SRAconst [rc] (SLLconst [lc] x)) && lc <= rc -> (SBFX [armBFAuxInt(rc-lc, 64-rc)] x)
+(SRAconst [rc] (MOVWreg x)) && rc < 32 -> (SBFX [armBFAuxInt(rc, 32-rc)] x)
+(SRAconst [rc] (MOVHreg x)) && rc < 16 -> (SBFX [armBFAuxInt(rc, 16-rc)] x)
+(SRAconst [rc] (MOVBreg x)) && rc < 8 -> (SBFX [armBFAuxInt(rc, 8-rc)] x)
 
 // sbfiz/sbfx combinations: merge shifts into bitfield ops
 (SRAconst [sc] (SBFIZ [bfc] x)) && sc < getARM64BFlsb(bfc)
-	-> (SBFIZ [arm64BFAuxInt(getARM64BFlsb(bfc)-sc, getARM64BFwidth(bfc))] x)
+	-> (SBFIZ [armBFAuxInt(getARM64BFlsb(bfc)-sc, getARM64BFwidth(bfc))] x)
 (SRAconst [sc] (SBFIZ [bfc] x)) && sc >= getARM64BFlsb(bfc)
 	&& sc < getARM64BFlsb(bfc)+getARM64BFwidth(bfc)
-	-> (SBFX [arm64BFAuxInt(sc-getARM64BFlsb(bfc), getARM64BFlsb(bfc)+getARM64BFwidth(bfc)-sc)] x)
+	-> (SBFX [armBFAuxInt(sc-getARM64BFlsb(bfc), getARM64BFlsb(bfc)+getARM64BFwidth(bfc)-sc)] x)
 
 // ubfiz
 // (x & ac) << sc
 (SLLconst [sc] (ANDconst [ac] x)) && isARM64BFMask(sc, ac, 0)
-	-> (UBFIZ [arm64BFAuxInt(sc, arm64BFWidth(ac, 0))] x)
-(SLLconst [sc] (MOVWUreg x)) && isARM64BFMask(sc, 1<<32-1, 0) -> (UBFIZ [arm64BFAuxInt(sc, 32)] x)
-(SLLconst [sc] (MOVHUreg x)) && isARM64BFMask(sc, 1<<16-1, 0) -> (UBFIZ [arm64BFAuxInt(sc, 16)] x)
-(SLLconst [sc] (MOVBUreg x)) && isARM64BFMask(sc, 1<<8-1, 0) -> (UBFIZ [arm64BFAuxInt(sc, 8)] x)
+	-> (UBFIZ [armBFAuxInt(sc, arm64BFWidth(ac, 0))] x)
+(SLLconst [sc] (MOVWUreg x)) && isARM64BFMask(sc, 1<<32-1, 0) -> (UBFIZ [armBFAuxInt(sc, 32)] x)
+(SLLconst [sc] (MOVHUreg x)) && isARM64BFMask(sc, 1<<16-1, 0) -> (UBFIZ [armBFAuxInt(sc, 16)] x)
+(SLLconst [sc] (MOVBUreg x)) && isARM64BFMask(sc, 1<<8-1, 0) -> (UBFIZ [armBFAuxInt(sc, 8)] x)
 // (x << sc) & ac
 (ANDconst [ac] (SLLconst [sc] x)) && isARM64BFMask(sc, ac, sc)
-	-> (UBFIZ [arm64BFAuxInt(sc, arm64BFWidth(ac, sc))] x)
+	-> (UBFIZ [armBFAuxInt(sc, arm64BFWidth(ac, sc))] x)
 (MOVWUreg (SLLconst [sc] x)) && isARM64BFMask(sc, 1<<32-1, sc)
-	-> (UBFIZ [arm64BFAuxInt(sc, arm64BFWidth(1<<32-1, sc))] x)
+	-> (UBFIZ [armBFAuxInt(sc, arm64BFWidth(1<<32-1, sc))] x)
 (MOVHUreg (SLLconst [sc] x)) && isARM64BFMask(sc, 1<<16-1, sc)
-	-> (UBFIZ [arm64BFAuxInt(sc, arm64BFWidth(1<<16-1, sc))] x)
+	-> (UBFIZ [armBFAuxInt(sc, arm64BFWidth(1<<16-1, sc))] x)
 (MOVBUreg (SLLconst [sc] x)) && isARM64BFMask(sc, 1<<8-1, sc)
-	-> (UBFIZ [arm64BFAuxInt(sc, arm64BFWidth(1<<8-1, sc))] x)
+	-> (UBFIZ [armBFAuxInt(sc, arm64BFWidth(1<<8-1, sc))] x)
 // (x << lc) >> rc
-(SRLconst [rc] (SLLconst [lc] x)) && lc > rc -> (UBFIZ [arm64BFAuxInt(lc-rc, 64-lc)] x)
+(SRLconst [rc] (SLLconst [lc] x)) && lc > rc -> (UBFIZ [armBFAuxInt(lc-rc, 64-lc)] x)
 
 // ubfx
 // (x >> sc) & ac
 (ANDconst [ac] (SRLconst [sc] x)) && isARM64BFMask(sc, ac, 0)
-	-> (UBFX [arm64BFAuxInt(sc, arm64BFWidth(ac, 0))] x)
-(MOVWUreg (SRLconst [sc] x)) && isARM64BFMask(sc, 1<<32-1, 0) -> (UBFX [arm64BFAuxInt(sc, 32)] x)
-(MOVHUreg (SRLconst [sc] x)) && isARM64BFMask(sc, 1<<16-1, 0) -> (UBFX [arm64BFAuxInt(sc, 16)] x)
-(MOVBUreg (SRLconst [sc] x)) && isARM64BFMask(sc, 1<<8-1, 0) -> (UBFX [arm64BFAuxInt(sc, 8)] x)
+	-> (UBFX [armBFAuxInt(sc, arm64BFWidth(ac, 0))] x)
+(MOVWUreg (SRLconst [sc] x)) && isARM64BFMask(sc, 1<<32-1, 0) -> (UBFX [armBFAuxInt(sc, 32)] x)
+(MOVHUreg (SRLconst [sc] x)) && isARM64BFMask(sc, 1<<16-1, 0) -> (UBFX [armBFAuxInt(sc, 16)] x)
+(MOVBUreg (SRLconst [sc] x)) && isARM64BFMask(sc, 1<<8-1, 0) -> (UBFX [armBFAuxInt(sc, 8)] x)
 // (x & ac) >> sc
 (SRLconst [sc] (ANDconst [ac] x)) && isARM64BFMask(sc, ac, sc)
-	-> (UBFX [arm64BFAuxInt(sc, arm64BFWidth(ac, sc))] x)
+	-> (UBFX [armBFAuxInt(sc, arm64BFWidth(ac, sc))] x)
 (SRLconst [sc] (MOVWUreg x)) && isARM64BFMask(sc, 1<<32-1, sc)
-	-> (UBFX [arm64BFAuxInt(sc, arm64BFWidth(1<<32-1, sc))] x)
+	-> (UBFX [armBFAuxInt(sc, arm64BFWidth(1<<32-1, sc))] x)
 (SRLconst [sc] (MOVHUreg x)) && isARM64BFMask(sc, 1<<16-1, sc)
-	-> (UBFX [arm64BFAuxInt(sc, arm64BFWidth(1<<16-1, sc))] x)
+	-> (UBFX [armBFAuxInt(sc, arm64BFWidth(1<<16-1, sc))] x)
 (SRLconst [sc] (MOVBUreg x)) && isARM64BFMask(sc, 1<<8-1, sc)
-	-> (UBFX [arm64BFAuxInt(sc, arm64BFWidth(1<<8-1, sc))] x)
+	-> (UBFX [armBFAuxInt(sc, arm64BFWidth(1<<8-1, sc))] x)
 // (x << lc) >> rc
-(SRLconst [rc] (SLLconst [lc] x)) && lc < rc -> (UBFX [arm64BFAuxInt(rc-lc, 64-rc)] x)
+(SRLconst [rc] (SLLconst [lc] x)) && lc < rc -> (UBFX [armBFAuxInt(rc-lc, 64-rc)] x)
 
 // ubfiz/ubfx combinations: merge shifts into bitfield ops
 (SRLconst [sc] (UBFX [bfc] x)) && sc < getARM64BFwidth(bfc)
-	-> (UBFX [arm64BFAuxInt(getARM64BFlsb(bfc)+sc, getARM64BFwidth(bfc)-sc)] x)
+	-> (UBFX [armBFAuxInt(getARM64BFlsb(bfc)+sc, getARM64BFwidth(bfc)-sc)] x)
 (UBFX [bfc] (SRLconst [sc] x)) && sc+getARM64BFwidth(bfc)+getARM64BFlsb(bfc) < 64
-	-> (UBFX [arm64BFAuxInt(getARM64BFlsb(bfc)+sc, getARM64BFwidth(bfc))] x)
+	-> (UBFX [armBFAuxInt(getARM64BFlsb(bfc)+sc, getARM64BFwidth(bfc))] x)
 (SLLconst [sc] (UBFIZ [bfc] x)) && sc+getARM64BFwidth(bfc)+getARM64BFlsb(bfc) < 64
-	-> (UBFIZ [arm64BFAuxInt(getARM64BFlsb(bfc)+sc, getARM64BFwidth(bfc))] x)
+	-> (UBFIZ [armBFAuxInt(getARM64BFlsb(bfc)+sc, getARM64BFwidth(bfc))] x)
 (UBFIZ [bfc] (SLLconst [sc] x)) && sc < getARM64BFwidth(bfc)
-	-> (UBFIZ [arm64BFAuxInt(getARM64BFlsb(bfc)+sc, getARM64BFwidth(bfc)-sc)] x)
+	-> (UBFIZ [armBFAuxInt(getARM64BFlsb(bfc)+sc, getARM64BFwidth(bfc)-sc)] x)
 // ((x << c1) >> c2) >> c3
 (SRLconst [sc] (UBFIZ [bfc] x)) && sc == getARM64BFlsb(bfc)
 	-> (ANDconst [1<<uint(getARM64BFwidth(bfc))-1] x)
 (SRLconst [sc] (UBFIZ [bfc] x)) && sc < getARM64BFlsb(bfc)
-	-> (UBFIZ [arm64BFAuxInt(getARM64BFlsb(bfc)-sc, getARM64BFwidth(bfc))] x)
+	-> (UBFIZ [armBFAuxInt(getARM64BFlsb(bfc)-sc, getARM64BFwidth(bfc))] x)
 (SRLconst [sc] (UBFIZ [bfc] x)) && sc > getARM64BFlsb(bfc)
 	&& sc < getARM64BFlsb(bfc)+getARM64BFwidth(bfc)
-	-> (UBFX [arm64BFAuxInt(sc-getARM64BFlsb(bfc), getARM64BFlsb(bfc)+getARM64BFwidth(bfc)-sc)] x)
+	-> (UBFX [armBFAuxInt(sc-getARM64BFlsb(bfc), getARM64BFlsb(bfc)+getARM64BFwidth(bfc)-sc)] x)
 // ((x << c1) << c2) >> c3
 (UBFX [bfc] (SLLconst [sc] x)) && sc == getARM64BFlsb(bfc)
 	-> (ANDconst [1<<uint(getARM64BFwidth(bfc))-1] x)
 (UBFX [bfc] (SLLconst [sc] x)) && sc < getARM64BFlsb(bfc)
-	-> (UBFX [arm64BFAuxInt(getARM64BFlsb(bfc)-sc, getARM64BFwidth(bfc))] x)
+	-> (UBFX [armBFAuxInt(getARM64BFlsb(bfc)-sc, getARM64BFwidth(bfc))] x)
 (UBFX [bfc] (SLLconst [sc] x)) && sc > getARM64BFlsb(bfc)
 	&& sc < getARM64BFlsb(bfc)+getARM64BFwidth(bfc)
-	-> (UBFIZ [arm64BFAuxInt(sc-getARM64BFlsb(bfc), getARM64BFlsb(bfc)+getARM64BFwidth(bfc)-sc)] x)
+	-> (UBFIZ [armBFAuxInt(sc-getARM64BFlsb(bfc), getARM64BFlsb(bfc)+getARM64BFwidth(bfc)-sc)] x)
 
 // bfi
 (OR (UBFIZ [bfc] x) (ANDconst [ac] y))
@@ -1899,7 +1965,7 @@
 	-> (BFI [bfc] y x)
 (ORshiftRL [rc] (ANDconst [ac] x) (SLLconst [lc] y))
 	&& lc > rc && ac == ^((1<<uint(64-lc)-1) << uint64(lc-rc))
-	-> (BFI [arm64BFAuxInt(lc-rc, 64-lc)] x y)
+	-> (BFI [armBFAuxInt(lc-rc, 64-lc)] x y)
 // bfxil
 (OR (UBFX [bfc] x) (ANDconst [ac] y)) && ac == ^(1<<uint(getARM64BFwidth(bfc))-1)
 	-> (BFXIL [bfc] y x)
@@ -2549,23 +2615,23 @@
 	&& x.Uses == 1
 	&& clobber(x)
 	-> (MOVHstoreidx ptr idx w mem)
-(MOVBstore [i] {s} ptr0 (UBFX [arm64BFAuxInt(8, 8)] w) x:(MOVBstore [i-1] {s} ptr1 w mem))
+(MOVBstore [i] {s} ptr0 (UBFX [armBFAuxInt(8, 8)] w) x:(MOVBstore [i-1] {s} ptr1 w mem))
 	&& x.Uses == 1
 	&& isSamePtr(ptr0, ptr1)
 	&& clobber(x)
 	-> (MOVHstore [i-1] {s} ptr0 w mem)
-(MOVBstore [1] {s} (ADD ptr0 idx0) (UBFX [arm64BFAuxInt(8, 8)] w) x:(MOVBstoreidx ptr1 idx1 w mem))
+(MOVBstore [1] {s} (ADD ptr0 idx0) (UBFX [armBFAuxInt(8, 8)] w) x:(MOVBstoreidx ptr1 idx1 w mem))
 	&& x.Uses == 1
 	&& s == nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& clobber(x)
 	-> (MOVHstoreidx ptr1 idx1 w mem)
-(MOVBstore [i] {s} ptr0 (UBFX [arm64BFAuxInt(8, 24)] w) x:(MOVBstore [i-1] {s} ptr1 w mem))
+(MOVBstore [i] {s} ptr0 (UBFX [armBFAuxInt(8, 24)] w) x:(MOVBstore [i-1] {s} ptr1 w mem))
 	&& x.Uses == 1
 	&& isSamePtr(ptr0, ptr1)
 	&& clobber(x)
 	-> (MOVHstore [i-1] {s} ptr0 w mem)
-(MOVBstore [1] {s} (ADD ptr0 idx0) (UBFX [arm64BFAuxInt(8, 24)] w) x:(MOVBstoreidx ptr1 idx1 w mem))
+(MOVBstore [1] {s} (ADD ptr0 idx0) (UBFX [armBFAuxInt(8, 24)] w) x:(MOVBstoreidx ptr1 idx1 w mem))
 	&& x.Uses == 1
 	&& s == nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
@@ -2642,18 +2708,18 @@
 	&& isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1)
 	&& clobber(x)
 	-> (MOVWstoreidx ptr1 (SLLconst <idx1.Type> [1] idx1) w mem)
-(MOVHstore [i] {s} ptr0 (UBFX [arm64BFAuxInt(16, 16)] w) x:(MOVHstore [i-2] {s} ptr1 w mem))
+(MOVHstore [i] {s} ptr0 (UBFX [armBFAuxInt(16, 16)] w) x:(MOVHstore [i-2] {s} ptr1 w mem))
 	&& x.Uses == 1
 	&& isSamePtr(ptr0, ptr1)
 	&& clobber(x)
 	-> (MOVWstore [i-2] {s} ptr0 w mem)
-(MOVHstore [2] {s} (ADD ptr0 idx0) (UBFX [arm64BFAuxInt(16, 16)] w) x:(MOVHstoreidx ptr1 idx1 w mem))
+(MOVHstore [2] {s} (ADD ptr0 idx0) (UBFX [armBFAuxInt(16, 16)] w) x:(MOVHstoreidx ptr1 idx1 w mem))
 	&& x.Uses == 1
 	&& s == nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& clobber(x)
 	-> (MOVWstoreidx ptr1 idx1 w mem)
-(MOVHstore [2] {s} (ADDshiftLL [1] ptr0 idx0) (UBFX [arm64BFAuxInt(16, 16)] w) x:(MOVHstoreidx2 ptr1 idx1 w mem))
+(MOVHstore [2] {s} (ADDshiftLL [1] ptr0 idx0) (UBFX [armBFAuxInt(16, 16)] w) x:(MOVHstoreidx2 ptr1 idx1 w mem))
 	&& x.Uses == 1
 	&& s == nil
 	&& isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1)
@@ -2781,9 +2847,9 @@
 	&& clobber(x6)
 	-> (MOVDstoreidx ptr0 idx0 (REV <w.Type> w) mem)
 (MOVBstore [i] {s} ptr w
-	x0:(MOVBstore [i-1] {s} ptr (UBFX [arm64BFAuxInt(8, 24)] w)
-	x1:(MOVBstore [i-2] {s} ptr (UBFX [arm64BFAuxInt(16, 16)] w)
-	x2:(MOVBstore [i-3] {s} ptr (UBFX [arm64BFAuxInt(24, 8)] w) mem))))
+	x0:(MOVBstore [i-1] {s} ptr (UBFX [armBFAuxInt(8, 24)] w)
+	x1:(MOVBstore [i-2] {s} ptr (UBFX [armBFAuxInt(16, 16)] w)
+	x2:(MOVBstore [i-3] {s} ptr (UBFX [armBFAuxInt(24, 8)] w) mem))))
 	&& x0.Uses == 1
 	&& x1.Uses == 1
 	&& x2.Uses == 1
@@ -2792,9 +2858,9 @@
 	&& clobber(x2)
 	-> (MOVWstore [i-3] {s} ptr (REVW <w.Type> w) mem)
 (MOVBstore [3] {s} p w
-	x0:(MOVBstore [2] {s} p (UBFX [arm64BFAuxInt(8, 24)] w)
-	x1:(MOVBstore [1] {s} p1:(ADD ptr1 idx1) (UBFX [arm64BFAuxInt(16, 16)] w)
-	x2:(MOVBstoreidx ptr0 idx0 (UBFX [arm64BFAuxInt(24, 8)] w) mem))))
+	x0:(MOVBstore [2] {s} p (UBFX [armBFAuxInt(8, 24)] w)
+	x1:(MOVBstore [1] {s} p1:(ADD ptr1 idx1) (UBFX [armBFAuxInt(16, 16)] w)
+	x2:(MOVBstoreidx ptr0 idx0 (UBFX [armBFAuxInt(24, 8)] w) mem))))
 	&& x0.Uses == 1
 	&& x1.Uses == 1
 	&& x2.Uses == 1
@@ -2806,9 +2872,9 @@
 	&& clobber(x2)
 	-> (MOVWstoreidx ptr0 idx0 (REVW <w.Type> w) mem)
 (MOVBstoreidx ptr (ADDconst [3] idx) w
-	x0:(MOVBstoreidx ptr (ADDconst [2] idx) (UBFX [arm64BFAuxInt(8, 24)] w)
-	x1:(MOVBstoreidx ptr (ADDconst [1] idx) (UBFX [arm64BFAuxInt(16, 16)] w)
-	x2:(MOVBstoreidx ptr idx (UBFX [arm64BFAuxInt(24, 8)] w) mem))))
+	x0:(MOVBstoreidx ptr (ADDconst [2] idx) (UBFX [armBFAuxInt(8, 24)] w)
+	x1:(MOVBstoreidx ptr (ADDconst [1] idx) (UBFX [armBFAuxInt(16, 16)] w)
+	x2:(MOVBstoreidx ptr idx (UBFX [armBFAuxInt(24, 8)] w) mem))))
 	&& x0.Uses == 1
 	&& x1.Uses == 1
 	&& x2.Uses == 1
@@ -2817,9 +2883,9 @@
 	&& clobber(x2)
 	-> (MOVWstoreidx ptr idx (REVW <w.Type> w) mem)
 (MOVBstoreidx ptr idx w
-	x0:(MOVBstoreidx ptr (ADDconst [1] idx) (UBFX [arm64BFAuxInt(8, 24)] w)
-	x1:(MOVBstoreidx ptr (ADDconst [2] idx) (UBFX [arm64BFAuxInt(16, 16)] w)
-	x2:(MOVBstoreidx ptr (ADDconst [3] idx) (UBFX [arm64BFAuxInt(24, 8)] w) mem))))
+	x0:(MOVBstoreidx ptr (ADDconst [1] idx) (UBFX [armBFAuxInt(8, 24)] w)
+	x1:(MOVBstoreidx ptr (ADDconst [2] idx) (UBFX [armBFAuxInt(16, 16)] w)
+	x2:(MOVBstoreidx ptr (ADDconst [3] idx) (UBFX [armBFAuxInt(24, 8)] w) mem))))
 	&& x0.Uses == 1
 	&& x1.Uses == 1
 	&& x2.Uses == 1
@@ -2887,21 +2953,21 @@
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& clobber(x)
 	-> (MOVHstoreidx ptr0 idx0 (REV16W <w.Type> w) mem)
-(MOVBstore [i] {s} ptr w x:(MOVBstore [i-1] {s} ptr (UBFX [arm64BFAuxInt(8, 8)] w) mem))
+(MOVBstore [i] {s} ptr w x:(MOVBstore [i-1] {s} ptr (UBFX [armBFAuxInt(8, 8)] w) mem))
 	&& x.Uses == 1
 	&& clobber(x)
 	-> (MOVHstore [i-1] {s} ptr (REV16W <w.Type> w) mem)
-(MOVBstore [1] {s} (ADD ptr1 idx1) w x:(MOVBstoreidx ptr0 idx0 (UBFX [arm64BFAuxInt(8, 8)] w) mem))
+(MOVBstore [1] {s} (ADD ptr1 idx1) w x:(MOVBstoreidx ptr0 idx0 (UBFX [armBFAuxInt(8, 8)] w) mem))
 	&& x.Uses == 1
 	&& s == nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& clobber(x)
 	-> (MOVHstoreidx ptr0 idx0 (REV16W <w.Type> w) mem)
-(MOVBstoreidx ptr (ADDconst [1] idx) w x:(MOVBstoreidx ptr idx (UBFX [arm64BFAuxInt(8, 8)] w) mem))
+(MOVBstoreidx ptr (ADDconst [1] idx) w x:(MOVBstoreidx ptr idx (UBFX [armBFAuxInt(8, 8)] w) mem))
 	&& x.Uses == 1
 	&& clobber(x)
 	-> (MOVHstoreidx ptr idx (REV16W <w.Type> w) mem)
-(MOVBstoreidx ptr idx w x:(MOVBstoreidx ptr (ADDconst [1] idx) (UBFX [arm64BFAuxInt(8, 8)] w) mem))
+(MOVBstoreidx ptr idx w x:(MOVBstoreidx ptr (ADDconst [1] idx) (UBFX [armBFAuxInt(8, 8)] w) mem))
 	&& x.Uses == 1
 	&& clobber(x)
 	-> (MOVHstoreidx ptr idx w mem)
@@ -2915,11 +2981,11 @@
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& clobber(x)
 	-> (MOVHstoreidx ptr0 idx0 (REV16W <w.Type> w) mem)
-(MOVBstore [i] {s} ptr w x:(MOVBstore [i-1] {s} ptr (UBFX [arm64BFAuxInt(8, 24)] w) mem))
+(MOVBstore [i] {s} ptr w x:(MOVBstore [i-1] {s} ptr (UBFX [armBFAuxInt(8, 24)] w) mem))
 	&& x.Uses == 1
 	&& clobber(x)
 	-> (MOVHstore [i-1] {s} ptr (REV16W <w.Type> w) mem)
-(MOVBstore [1] {s} (ADD ptr1 idx1) w x:(MOVBstoreidx ptr0 idx0 (UBFX [arm64BFAuxInt(8, 24)] w) mem))
+(MOVBstore [1] {s} (ADD ptr1 idx1) w x:(MOVBstoreidx ptr0 idx0 (UBFX [armBFAuxInt(8, 24)] w) mem))
 	&& x.Uses == 1
 	&& s == nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))

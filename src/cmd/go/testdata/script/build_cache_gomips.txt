@@ -1,4 +1,5 @@
 env GO111MODULE=off
+[short] skip # rebuilds std for mips
 
 # Set up fresh GOCACHE.
 env GOCACHE=$WORK/gocache

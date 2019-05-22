@@ -6,7 +6,6 @@ package tls
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
@@ -142,7 +141,7 @@ type clientTest struct {
 	// cert, if not empty, contains a DER-encoded certificate for the
 	// reference server.
 	cert []byte
-	// key, if not nil, contains either a *rsa.PrivateKey or
+	// key, if not nil, contains either a *rsa.PrivateKey, ed25519.PrivateKey or
 	// *ecdsa.PrivateKey which is the private key for the reference server.
 	key interface{}
 	// extensions, if not nil, contains a list of extension data to be returned
@@ -185,25 +184,13 @@ func (test *clientTest) connFromCommand() (conn *recordingConn, child *exec.Cmd,
 	if test.key != nil {
 		key = test.key
 	}
-	var pemType string
-	var derBytes []byte
-	switch key := key.(type) {
-	case *rsa.PrivateKey:
-		pemType = "RSA"
-		derBytes = x509.MarshalPKCS1PrivateKey(key)
-	case *ecdsa.PrivateKey:
-		pemType = "EC"
-		var err error
-		derBytes, err = x509.MarshalECPrivateKey(key)
-		if err != nil {
-			panic(err)
-		}
-	default:
-		panic("unknown key type")
+	derBytes, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		panic(err)
 	}
 
 	var pemOut bytes.Buffer
-	pem.Encode(&pemOut, &pem.Block{Type: pemType + " PRIVATE KEY", Bytes: derBytes})
+	pem.Encode(&pemOut, &pem.Block{Type: "PRIVATE KEY", Bytes: derBytes})
 
 	keyPath := tempFile(pemOut.String())
 	defer os.Remove(keyPath)
@@ -742,6 +729,29 @@ func TestHandshakeClientECDSATLS13(t *testing.T) {
 		cert: testECDSACertificate,
 		key:  testECDSAPrivateKey,
 	}
+	runClientTestTLS13(t, test)
+}
+
+func TestHandshakeClientEd25519(t *testing.T) {
+	test := &clientTest{
+		name: "Ed25519",
+		cert: testEd25519Certificate,
+		key:  testEd25519PrivateKey,
+	}
+	runClientTestTLS12(t, test)
+	runClientTestTLS13(t, test)
+
+	config := testConfig.Clone()
+	cert, _ := X509KeyPair([]byte(clientEd25519CertificatePEM), []byte(clientEd25519KeyPEM))
+	config.Certificates = []Certificate{cert}
+
+	test = &clientTest{
+		name:   "ClientCert-Ed25519",
+		args:   []string{"-Verify", "1"},
+		config: config,
+	}
+
+	runClientTestTLS12(t, test)
 	runClientTestTLS13(t, test)
 }
 

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"strings"
 )
 
 // implements float arithmetic
@@ -180,36 +179,16 @@ func (a *Mpflt) Neg() {
 }
 
 func (a *Mpflt) SetString(as string) {
-	// TODO(gri) remove this code once math/big.Float.Parse can handle separators
-	as = strings.Replace(as, "_", "", -1) // strip separators
-
 	// TODO(gri) why is this needed?
 	for len(as) > 0 && (as[0] == ' ' || as[0] == '\t') {
 		as = as[1:]
 	}
 
-	// Currently, Val.Parse below (== math/big.Float.Parse) does not
-	// handle the 0o-octal prefix which can appear with octal integers
-	// with 'i' suffix, which end up here as imaginary components of
-	// complex numbers. Handle explicitly for now.
-	// TODO(gri) remove once Float.Parse can handle octals (it handles 0b/0B)
-	var f *big.Float
-	if strings.HasPrefix(as, "0o") || strings.HasPrefix(as, "0O") {
-		x, ok := new(big.Int).SetString(as[2:], 8)
-		if !ok {
-			yyerror("malformed constant: %s", as)
-			a.Val.SetFloat64(0)
-			return
-		}
-		f = a.Val.SetInt(x)
-	} else {
-		var err error
-		f, _, err = a.Val.Parse(as, 0)
-		if err != nil {
-			yyerror("malformed constant: %s (%v)", as, err)
-			a.Val.SetFloat64(0)
-			return
-		}
+	f, _, err := a.Val.Parse(as, 0)
+	if err != nil {
+		yyerror("malformed constant: %s (%v)", as, err)
+		a.Val.SetFloat64(0)
+		return
 	}
 
 	if f.IsInf() {

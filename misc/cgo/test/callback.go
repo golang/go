@@ -199,7 +199,7 @@ func testCallbackCallers(t *testing.T) {
 		t.Errorf("expected %d frames, got %d", len(name), n)
 	}
 	for i := 0; i < n; i++ {
-		f := runtime.FuncForPC(pc[i])
+		f := runtime.FuncForPC(pc[i] - 1) // TODO: use runtime.CallersFrames
 		if f == nil {
 			t.Fatalf("expected non-nil Func for pc %d", pc[i])
 		}

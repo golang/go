@@ -74,7 +74,7 @@ func m() int {
 // address taking prevents closure inlining
 func n() int {
 	foo := func() int { return 1 } // ERROR "can inline n.func1" "func literal does not escape"
-	bar := &foo                    // ERROR "&foo does not escape"
+	bar := &foo
 	x := (*bar)() + foo()
 	return x
 }
@@ -115,7 +115,7 @@ func s0(x int) int {
 	foo := func() { // ERROR "can inline s0.func1" "s0 func literal does not escape"
 		x = x + 1
 	}
-	foo() // ERROR "inlining call to s0.func1" "&x does not escape"
+	foo() // ERROR "inlining call to s0.func1"
 	return x
 }
 
@@ -124,7 +124,7 @@ func s1(x int) int {
 		return x
 	}
 	x = x + 1
-	return foo() // ERROR "inlining call to s1.func1" "&x does not escape"
+	return foo() // ERROR "inlining call to s1.func1"
 }
 
 // can't currently inline functions with a break statement

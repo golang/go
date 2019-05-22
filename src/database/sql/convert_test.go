@@ -439,7 +439,7 @@ func TestDriverArgs(t *testing.T) {
 		0: {
 			args: []interface{}{Valuer_V("foo")},
 			want: []driver.NamedValue{
-				driver.NamedValue{
+				{
 					Ordinal: 1,
 					Value:   "FOO",
 				},
@@ -448,7 +448,7 @@ func TestDriverArgs(t *testing.T) {
 		1: {
 			args: []interface{}{nilValuerVPtr},
 			want: []driver.NamedValue{
-				driver.NamedValue{
+				{
 					Ordinal: 1,
 					Value:   nil,
 				},
@@ -457,7 +457,7 @@ func TestDriverArgs(t *testing.T) {
 		2: {
 			args: []interface{}{nilValuerPPtr},
 			want: []driver.NamedValue{
-				driver.NamedValue{
+				{
 					Ordinal: 1,
 					Value:   "nil-to-str",
 				},
@@ -466,7 +466,7 @@ func TestDriverArgs(t *testing.T) {
 		3: {
 			args: []interface{}{"plain-str"},
 			want: []driver.NamedValue{
-				driver.NamedValue{
+				{
 					Ordinal: 1,
 					Value:   "plain-str",
 				},
@@ -475,7 +475,7 @@ func TestDriverArgs(t *testing.T) {
 		4: {
 			args: []interface{}{nilStrPtr},
 			want: []driver.NamedValue{
-				driver.NamedValue{
+				{
 					Ordinal: 1,
 					Value:   nil,
 				},

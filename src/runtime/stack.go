@@ -1077,16 +1077,6 @@ func gostartcallfn(gobuf *gobuf, fv *funcval) {
 // gp must be stopped, but the world need not be.
 func shrinkstack(gp *g) {
 	gstatus := readgstatus(gp)
-	if gstatus&^_Gscan == _Gdead {
-		if gp.stack.lo != 0 {
-			// Free whole stack - it will get reallocated
-			// if G is used again.
-			stackfree(gp.stack)
-			gp.stack.lo = 0
-			gp.stack.hi = 0
-		}
-		return
-	}
 	if gp.stack.lo == 0 {
 		throw("missing stack in shrinkstack")
 	}

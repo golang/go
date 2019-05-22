@@ -12,7 +12,7 @@ C compiler from the Android NDK. For example,
 	CGO_ENABLED=1 \
 	GOOS=android \
 	GOARCH=arm64 \
-	CC=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang \
+	CC_FOR_TARGET=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang \
 	./all.bash
 
 To run tests on the Android device, add the bin directory to PATH so the

@@ -73,7 +73,7 @@ func ForCompiler(fset *token.FileSet, compiler string, lookup Lookup) types.Impo
 
 // For calls ForCompiler with a new FileSet.
 //
-// Deprecated: use ForCompiler, which populates a FileSet
+// Deprecated: Use ForCompiler, which populates a FileSet
 // with the positions of objects created by the importer.
 func For(compiler string, lookup Lookup) types.Importer {
 	return ForCompiler(token.NewFileSet(), compiler, lookup)

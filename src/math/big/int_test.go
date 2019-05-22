@@ -533,6 +533,9 @@ var expTests = []struct {
 	{"1", "0", "", "1"},
 	{"-10", "0", "", "1"},
 	{"1234", "-1", "", "1"},
+	{"1234", "-1", "0", "1"},
+	{"17", "-100", "1234", "865"},
+	{"2", "-100", "1234", ""},
 
 	// m == 1
 	{"0", "0", "1", "0"},
@@ -605,10 +608,15 @@ func TestExp(t *testing.T) {
 	for i, test := range expTests {
 		x, ok1 := new(Int).SetString(test.x, 0)
 		y, ok2 := new(Int).SetString(test.y, 0)
-		out, ok3 := new(Int).SetString(test.out, 0)
 
-		var ok4 bool
-		var m *Int
+		var ok3, ok4 bool
+		var out, m *Int
+
+		if len(test.out) == 0 {
+			out, ok3 = nil, true
+		} else {
+			out, ok3 = new(Int).SetString(test.out, 0)
+		}
 
 		if len(test.m) == 0 {
 			m, ok4 = nil, true
@@ -622,10 +630,10 @@ func TestExp(t *testing.T) {
 		}
 
 		z1 := new(Int).Exp(x, y, m)
-		if !isNormalized(z1) {
+		if z1 != nil && !isNormalized(z1) {
 			t.Errorf("#%d: %v is not normalized", i, *z1)
 		}
-		if z1.Cmp(out) != 0 {
+		if !(z1 == nil && out == nil || z1.Cmp(out) == 0) {
 			t.Errorf("#%d: got %x want %x", i, z1, out)
 		}
 
@@ -1332,6 +1340,31 @@ func TestBitSet(t *testing.T) {
 	z.SetBit(NewInt(0), 2, 1)
 	if z.Cmp(NewInt(4)) != 0 {
 		t.Errorf("destination leaked into result; got %s want 4", z)
+	}
+}
+
+var tzbTests = []struct {
+	in  string
+	out uint
+}{
+	{"0", 0},
+	{"1", 0},
+	{"-1", 0},
+	{"4", 2},
+	{"-8", 3},
+	{"0x4000000000000000000", 74},
+	{"-0x8000000000000000000", 75},
+}
+
+func TestTrailingZeroBits(t *testing.T) {
+	for i, test := range tzbTests {
+		in, _ := new(Int).SetString(test.in, 0)
+		want := test.out
+		got := in.TrailingZeroBits()
+
+		if got != want {
+			t.Errorf("#%d: got %v want %v", i, got, want)
+		}
 	}
 }
 

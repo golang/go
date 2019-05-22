@@ -198,15 +198,17 @@ func (f *Func) funcInfo() funcInfo {
 //
 // See funcdata.h and ../cmd/internal/objabi/funcdata.go.
 const (
-	_PCDATA_StackMapIndex       = 0
-	_PCDATA_InlTreeIndex        = 1
-	_PCDATA_RegMapIndex         = 2
+	_PCDATA_RegMapIndex   = 0
+	_PCDATA_StackMapIndex = 1
+	_PCDATA_InlTreeIndex  = 2
+
 	_FUNCDATA_ArgsPointerMaps   = 0
 	_FUNCDATA_LocalsPointerMaps = 1
-	_FUNCDATA_InlTree           = 2
-	_FUNCDATA_RegPointerMaps    = 3
-	_FUNCDATA_StackObjects      = 4
-	_ArgsSizeUnknown            = -0x80000000
+	_FUNCDATA_RegPointerMaps    = 2
+	_FUNCDATA_StackObjects      = 3
+	_FUNCDATA_InlTree           = 4
+
+	_ArgsSizeUnknown = -0x80000000
 )
 
 // A FuncID identifies particular functions that need to be treated
@@ -444,6 +446,9 @@ func moduledataverify1(datap *moduledata) {
 			println("function symbol table not sorted by program counter:", hex(datap.ftab[i].entry), funcname(f1), ">", hex(datap.ftab[i+1].entry), f2name)
 			for j := 0; j <= i; j++ {
 				print("\t", hex(datap.ftab[j].entry), " ", funcname(funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[j].funcoff])), datap}), "\n")
+			}
+			if GOOS == "aix" && isarchive {
+				println("-Wl,-bnoobjreorder is mandatory on aix/ppc64 with c-archive")
 			}
 			throw("invalid runtime symbol table")
 		}

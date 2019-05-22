@@ -1,4 +1,5 @@
 env GO111MODULE=off
+[short] skip
 
 # This test tests that we can link in-package syso files that provides symbols
 # for cgo. See issue 29253.

@@ -14,12 +14,17 @@ goos=$(go env GOOS)
 libext="so"
 if [ "$goos" = "darwin" ]; then
 	libext="dylib"
+elif [ "$goos" = "aix" ]; then
+	libtext="a"
 fi
 
 case "$FC" in
 *gfortran*)
   libpath=$(dirname $($FC -print-file-name=libgfortran.$libext))
-  export CGO_LDFLAGS="$CGO_LDFLAGS -Wl,-rpath,$libpath -L $libpath"
+  if [ "$goos" != "aix" ]; then
+	  RPATH_FLAG="-Wl,-rpath,$libpath"
+  fi
+  export CGO_LDFLAGS="$CGO_LDFLAGS $RPATH_FLAG -L $libpath"
   ;;
 esac
 

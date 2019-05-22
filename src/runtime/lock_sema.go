@@ -122,7 +122,13 @@ func unlock(l *mutex) {
 
 // One-time notifications.
 func noteclear(n *note) {
-	n.key = 0
+	if GOOS == "aix" {
+		// On AIX, semaphores might not synchronize the memory in some
+		// rare cases. See issue #30189.
+		atomic.Storeuintptr(&n.key, 0)
+	} else {
+		n.key = 0
+	}
 }
 
 func notewakeup(n *note) {
@@ -262,7 +268,7 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
 
 func notetsleep(n *note, ns int64) bool {
 	gp := getg()
-	if gp != gp.m.g0 && gp.m.preemptoff != "" {
+	if gp != gp.m.g0 {
 		throw("notetsleep not on g0")
 	}
 	semacreate(gp.m)

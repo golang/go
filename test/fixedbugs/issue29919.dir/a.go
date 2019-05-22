@@ -34,8 +34,8 @@ func f() int {
 	if !strings.Contains(s, "a.go:19") {
 		panic("missing a.go:19")
 	}
-	if !strings.Contains(s, "a.init.ializers") {
-		panic("missing a.init.ializers")
+	if !strings.Contains(s, "a.init") {
+		panic("missing a.init")
 	}
 
 	// Check the CallersFrames results.
@@ -58,15 +58,15 @@ func f() int {
 		panic("traceback truncated after f")
 	}
 	f, more = iter.Next()
-	if f.Function != "a.init.ializers" || !strings.HasSuffix(f.File, "a.go") || f.Line != 15 {
-		panic(fmt.Sprintf("bad init.ializers %v\n", f))
+	if f.Function != "a.init" || !strings.HasSuffix(f.File, "a.go") || f.Line != 15 {
+		panic(fmt.Sprintf("bad init %v\n", f))
 	}
 	if !more {
-		panic("traceback truncated after init.ializers")
+		panic("traceback truncated after init")
 	}
 	f, _ = iter.Next()
-	if f.Function != "runtime.main" {
-		panic("runtime.main missing")
+	if !strings.HasPrefix(f.Function, "runtime.") {
+		panic("runtime. driver missing")
 	}
 
 	return 0

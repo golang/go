@@ -8,8 +8,9 @@ package main
 import "C"
 
 import (
-	"testplugin/common"
 	"reflect"
+
+	"testplugin/common"
 )
 
 func F() int {

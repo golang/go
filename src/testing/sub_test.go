@@ -16,7 +16,7 @@ import (
 )
 
 func init() {
-	// Make benchmark tests run 10* faster.
+	// Make benchmark tests run 10x faster.
 	benchTime.d = 100 * time.Millisecond
 }
 
@@ -756,6 +756,9 @@ func TestLogAfterComplete(t *T) {
 }
 
 func TestBenchmark(t *T) {
+	if Short() {
+		t.Skip("skipping in short mode")
+	}
 	res := Benchmark(func(b *B) {
 		for i := 0; i < 5; i++ {
 			b.Run("", func(b *B) {

@@ -119,6 +119,18 @@
 (Bswap64 x) -> (MOVDBR x)
 (Bswap32 x) -> (MOVWBR x)
 
+// add with carry
+(Select0 (Add64carry x y c))
+  -> (Select0 <typ.UInt64> (ADDE x y (Select1 <types.TypeFlags> (ADDCconst c [-1]))))
+(Select1 (Add64carry x y c))
+  -> (Select0 <typ.UInt64> (ADDE (MOVDconst [0]) (MOVDconst [0]) (Select1 <types.TypeFlags> (ADDE x y (Select1 <types.TypeFlags> (ADDCconst c [-1]))))))
+
+// subtract with borrow
+(Select0 (Sub64borrow x y c))
+  -> (Select0 <typ.UInt64> (SUBE x y (Select1 <types.TypeFlags> (SUBC (MOVDconst [0]) c))))
+(Select1 (Sub64borrow x y c))
+  -> (NEG (Select0 <typ.UInt64> (SUBE (MOVDconst [0]) (MOVDconst [0]) (Select1 <types.TypeFlags> (SUBE x y (Select1 <types.TypeFlags> (SUBC (MOVDconst [0]) c)))))))
+
 // math package intrinsics
 (Sqrt        x) -> (FSQRT x)
 (Floor       x) -> (FIDBR [7] x)
@@ -128,6 +140,7 @@
 (Round       x) -> (FIDBR [1] x)
 
 // Atomic loads.
+(AtomicLoad8  ptr mem) -> (MOVBZatomicload ptr mem)
 (AtomicLoad32 ptr mem) -> (MOVWZatomicload ptr mem)
 (AtomicLoad64 ptr mem) -> (MOVDatomicload ptr mem)
 (AtomicLoadPtr ptr mem) -> (MOVDatomicload ptr mem)
@@ -234,6 +247,8 @@
 (Rsh(16|8)x8  x y) -> (SRAW (MOV(H|B)reg x) (MOVDGE <y.Type> y (MOVDconst <y.Type> [63]) (CMPWUconst (MOVBZreg y) [64])))
 
 // Lowering rotates
+(RotateLeft8 <t> x (MOVDconst [c])) -> (Or8 (Lsh8x64 <t> x (MOVDconst [c&7])) (Rsh8Ux64 <t> x (MOVDconst [-c&7])))
+(RotateLeft16 <t> x (MOVDconst [c])) -> (Or16 (Lsh16x64 <t> x (MOVDconst [c&15])) (Rsh16Ux64 <t> x (MOVDconst [-c&15])))
 (RotateLeft32 x y) -> (RLL  x y)
 (RotateLeft64 x y) -> (RLLG x y)
 
@@ -418,6 +433,10 @@
 
 // Write barrier.
 (WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
+
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 0 -> (LoweredPanicBoundsA [kind] x y mem)
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 1 -> (LoweredPanicBoundsB [kind] x y mem)
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 2 -> (LoweredPanicBoundsC [kind] x y mem)
 
 // ***************************
 // Above: lowering rules
@@ -1114,6 +1133,43 @@
 (MOVHZreg (ANDWconst [m] x)) -> (MOVWZreg (ANDWconst <typ.UInt32> [int64(uint16(m))] x))
 (MOVBreg  (ANDWconst [m] x)) &&  int8(m) >= 0 -> (MOVWZreg (ANDWconst <typ.UInt32> [int64( uint8(m))] x))
 (MOVHreg  (ANDWconst [m] x)) && int16(m) >= 0 -> (MOVWZreg (ANDWconst <typ.UInt32> [int64(uint16(m))] x))
+
+// carry flag generation
+// (only constant fold carry of zero)
+(Select1 (ADDCconst (MOVDconst [c]) [d]))
+  && uint64(c+d) >= uint64(c) && c+d == 0
+  -> (FlagEQ)
+(Select1 (ADDCconst (MOVDconst [c]) [d]))
+  && uint64(c+d) >= uint64(c) && c+d != 0
+  -> (FlagLT)
+
+// borrow flag generation
+// (only constant fold borrow of zero)
+(Select1 (SUBC (MOVDconst [c]) (MOVDconst [d])))
+  && uint64(d) <= uint64(c) && c-d == 0
+  -> (FlagGT)
+(Select1 (SUBC (MOVDconst [c]) (MOVDconst [d])))
+  && uint64(d) <= uint64(c) && c-d != 0
+  -> (FlagOV)
+
+// add with carry
+(ADDE x y (FlagEQ)) -> (ADDC x y)
+(ADDE x y (FlagLT)) -> (ADDC x y)
+(ADDC x (MOVDconst [c])) && is16Bit(c) -> (ADDCconst x [c])
+(Select0 (ADDCconst (MOVDconst [c]) [d])) -> (MOVDconst [c+d])
+
+// subtract with borrow
+(SUBE x y (FlagGT)) -> (SUBC x y)
+(SUBE x y (FlagOV)) -> (SUBC x y)
+(Select0 (SUBC (MOVDconst [c]) (MOVDconst [d]))) -> (MOVDconst [c-d])
+
+// collapse carry chain
+(ADDE x y (Select1 (ADDCconst [-1] (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) c)))))
+  -> (ADDE x y c)
+
+// collapse borrow chain
+(SUBE x y (Select1 (SUBC (MOVDconst [0]) (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) c))))))
+  -> (SUBE x y c)
 
 // fused multiply-add
 (FADD (FMUL y z) x) -> (FMADD x y z)

@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch/codehost"
 )
 
@@ -24,6 +25,14 @@ func TestMain(m *testing.M) {
 }
 
 func testMain(m *testing.M) int {
+	SetProxy("direct")
+
+	// The sum database is populated using a released version of the go command,
+	// but this test may include fixes for additional modules that previously
+	// could not be fetched. Since this test isn't executing any of the resolved
+	// code, bypass the sum database.
+	cfg.GOSUMDB = "off"
+
 	dir, err := ioutil.TempDir("", "gitrepo-test-")
 	if err != nil {
 		log.Fatal(err)
@@ -43,7 +52,7 @@ var altVgotests = []string{
 	vgotest1hg,
 }
 
-var codeRepoTests = []struct {
+type codeRepoTest struct {
 	path     string
 	lookerr  string
 	mpath    string
@@ -57,7 +66,9 @@ var codeRepoTests = []struct {
 	gomoderr string
 	zip      []string
 	ziperr   string
-}{
+}
+
+var codeRepoTests = []codeRepoTest{
 	{
 		path:    "github.com/rsc/vgotest1",
 		rev:     "v0.0.0",
@@ -284,10 +295,10 @@ var codeRepoTests = []struct {
 	{
 		path:    "gopkg.in/yaml.v2",
 		rev:     "v2",
-		version: "v2.2.2",
-		name:    "51d6538a90f86fe93ac480b35f37b2be17fef232",
-		short:   "51d6538a90f8",
-		time:    time.Date(2018, 11, 15, 11, 05, 04, 0, time.UTC),
+		version: "v2.2.3-0.20190319135612-7b8349ac747c",
+		name:    "7b8349ac747c6a24702b762d2c4fd9266cf4f1d6",
+		short:   "7b8349ac747c",
+		time:    time.Date(2019, 03, 19, 13, 56, 12, 0, time.UTC),
 		gomod:   "module \"gopkg.in/yaml.v2\"\n\nrequire (\n\t\"gopkg.in/check.v1\" v0.0.0-20161208181325-20d25e280405\n)\n",
 	},
 	{
@@ -323,136 +334,152 @@ var codeRepoTests = []struct {
 		time:    time.Date(2017, 5, 31, 16, 3, 50, 0, time.UTC),
 		gomod:   "module gopkg.in/natefinch/lumberjack.v2\n",
 	},
+	{
+		path:    "vcs-test.golang.org/go/v2module/v2",
+		rev:     "v2.0.0",
+		version: "v2.0.0",
+		name:    "203b91c896acd173aa719e4cdcb7d463c4b090fa",
+		short:   "203b91c896ac",
+		time:    time.Date(2019, 4, 3, 15, 52, 15, 0, time.UTC),
+		gomod:   "module vcs-test.golang.org/go/v2module/v2\n\ngo 1.12\n",
+	},
 }
 
 func TestCodeRepo(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	tmpdir, err := ioutil.TempDir("", "vgo-modfetch-test-")
+	tmpdir, err := ioutil.TempDir("", "modfetch-test-")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpdir)
-	for _, tt := range codeRepoTests {
-		f := func(t *testing.T) {
-			repo, err := Lookup(tt.path)
-			if tt.lookerr != "" {
-				if err != nil && err.Error() == tt.lookerr {
-					return
-				}
-				t.Errorf("Lookup(%q): %v, want error %q", tt.path, err, tt.lookerr)
-			}
-			if err != nil {
-				t.Fatalf("Lookup(%q): %v", tt.path, err)
-			}
-			if tt.mpath == "" {
-				tt.mpath = tt.path
-			}
-			if mpath := repo.ModulePath(); mpath != tt.mpath {
-				t.Errorf("repo.ModulePath() = %q, want %q", mpath, tt.mpath)
-			}
-			info, err := repo.Stat(tt.rev)
-			if err != nil {
-				if tt.err != "" {
-					if !strings.Contains(err.Error(), tt.err) {
-						t.Fatalf("repoStat(%q): %v, wanted %q", tt.rev, err, tt.err)
-					}
-					return
-				}
-				t.Fatalf("repo.Stat(%q): %v", tt.rev, err)
-			}
-			if tt.err != "" {
-				t.Errorf("repo.Stat(%q): success, wanted error", tt.rev)
-			}
-			if info.Version != tt.version {
-				t.Errorf("info.Version = %q, want %q", info.Version, tt.version)
-			}
-			if info.Name != tt.name {
-				t.Errorf("info.Name = %q, want %q", info.Name, tt.name)
-			}
-			if info.Short != tt.short {
-				t.Errorf("info.Short = %q, want %q", info.Short, tt.short)
-			}
-			if !info.Time.Equal(tt.time) {
-				t.Errorf("info.Time = %v, want %v", info.Time, tt.time)
-			}
-			if tt.gomod != "" || tt.gomoderr != "" {
-				data, err := repo.GoMod(tt.version)
-				if err != nil && tt.gomoderr == "" {
-					t.Errorf("repo.GoMod(%q): %v", tt.version, err)
-				} else if err != nil && tt.gomoderr != "" {
-					if err.Error() != tt.gomoderr {
-						t.Errorf("repo.GoMod(%q): %v, want %q", tt.version, err, tt.gomoderr)
-					}
-				} else if tt.gomoderr != "" {
-					t.Errorf("repo.GoMod(%q) = %q, want error %q", tt.version, data, tt.gomoderr)
-				} else if string(data) != tt.gomod {
-					t.Errorf("repo.GoMod(%q) = %q, want %q", tt.version, data, tt.gomod)
-				}
-			}
-			if tt.zip != nil || tt.ziperr != "" {
-				f, err := ioutil.TempFile(tmpdir, tt.version+".zip.")
-				if err != nil {
-					t.Fatalf("ioutil.TempFile: %v", err)
-				}
-				zipfile := f.Name()
-				err = repo.Zip(f, tt.version)
-				f.Close()
-				if err != nil {
-					if tt.ziperr != "" {
-						if err.Error() == tt.ziperr {
+
+	t.Run("parallel", func(t *testing.T) {
+		for _, tt := range codeRepoTests {
+			f := func(tt codeRepoTest) func(t *testing.T) {
+				return func(t *testing.T) {
+					t.Parallel()
+
+					repo, err := Lookup(tt.path)
+					if tt.lookerr != "" {
+						if err != nil && err.Error() == tt.lookerr {
 							return
 						}
-						t.Fatalf("repo.Zip(%q): %v, want error %q", tt.version, err, tt.ziperr)
+						t.Errorf("Lookup(%q): %v, want error %q", tt.path, err, tt.lookerr)
 					}
-					t.Fatalf("repo.Zip(%q): %v", tt.version, err)
-				}
-				if tt.ziperr != "" {
-					t.Errorf("repo.Zip(%q): success, want error %q", tt.version, tt.ziperr)
-				}
-				prefix := tt.path + "@" + tt.version + "/"
-				z, err := zip.OpenReader(zipfile)
-				if err != nil {
-					t.Fatalf("open zip %s: %v", zipfile, err)
-				}
-				var names []string
-				for _, file := range z.File {
-					if !strings.HasPrefix(file.Name, prefix) {
-						t.Errorf("zip entry %v does not start with prefix %v", file.Name, prefix)
-						continue
+					if err != nil {
+						t.Fatalf("Lookup(%q): %v", tt.path, err)
 					}
-					names = append(names, file.Name[len(prefix):])
+					if tt.mpath == "" {
+						tt.mpath = tt.path
+					}
+					if mpath := repo.ModulePath(); mpath != tt.mpath {
+						t.Errorf("repo.ModulePath() = %q, want %q", mpath, tt.mpath)
+					}
+					info, err := repo.Stat(tt.rev)
+					if err != nil {
+						if tt.err != "" {
+							if !strings.Contains(err.Error(), tt.err) {
+								t.Fatalf("repoStat(%q): %v, wanted %q", tt.rev, err, tt.err)
+							}
+							return
+						}
+						t.Fatalf("repo.Stat(%q): %v", tt.rev, err)
+					}
+					if tt.err != "" {
+						t.Errorf("repo.Stat(%q): success, wanted error", tt.rev)
+					}
+					if info.Version != tt.version {
+						t.Errorf("info.Version = %q, want %q", info.Version, tt.version)
+					}
+					if info.Name != tt.name {
+						t.Errorf("info.Name = %q, want %q", info.Name, tt.name)
+					}
+					if info.Short != tt.short {
+						t.Errorf("info.Short = %q, want %q", info.Short, tt.short)
+					}
+					if !info.Time.Equal(tt.time) {
+						t.Errorf("info.Time = %v, want %v", info.Time, tt.time)
+					}
+					if tt.gomod != "" || tt.gomoderr != "" {
+						data, err := repo.GoMod(tt.version)
+						if err != nil && tt.gomoderr == "" {
+							t.Errorf("repo.GoMod(%q): %v", tt.version, err)
+						} else if err != nil && tt.gomoderr != "" {
+							if err.Error() != tt.gomoderr {
+								t.Errorf("repo.GoMod(%q): %v, want %q", tt.version, err, tt.gomoderr)
+							}
+						} else if tt.gomoderr != "" {
+							t.Errorf("repo.GoMod(%q) = %q, want error %q", tt.version, data, tt.gomoderr)
+						} else if string(data) != tt.gomod {
+							t.Errorf("repo.GoMod(%q) = %q, want %q", tt.version, data, tt.gomod)
+						}
+					}
+					if tt.zip != nil || tt.ziperr != "" {
+						f, err := ioutil.TempFile(tmpdir, tt.version+".zip.")
+						if err != nil {
+							t.Fatalf("ioutil.TempFile: %v", err)
+						}
+						zipfile := f.Name()
+						err = repo.Zip(f, tt.version)
+						f.Close()
+						if err != nil {
+							if tt.ziperr != "" {
+								if err.Error() == tt.ziperr {
+									return
+								}
+								t.Fatalf("repo.Zip(%q): %v, want error %q", tt.version, err, tt.ziperr)
+							}
+							t.Fatalf("repo.Zip(%q): %v", tt.version, err)
+						}
+						if tt.ziperr != "" {
+							t.Errorf("repo.Zip(%q): success, want error %q", tt.version, tt.ziperr)
+						}
+						prefix := tt.path + "@" + tt.version + "/"
+						z, err := zip.OpenReader(zipfile)
+						if err != nil {
+							t.Fatalf("open zip %s: %v", zipfile, err)
+						}
+						var names []string
+						for _, file := range z.File {
+							if !strings.HasPrefix(file.Name, prefix) {
+								t.Errorf("zip entry %v does not start with prefix %v", file.Name, prefix)
+								continue
+							}
+							names = append(names, file.Name[len(prefix):])
+						}
+						z.Close()
+						if !reflect.DeepEqual(names, tt.zip) {
+							t.Fatalf("zip = %v\nwant %v\n", names, tt.zip)
+						}
+					}
 				}
-				z.Close()
-				if !reflect.DeepEqual(names, tt.zip) {
-					t.Fatalf("zip = %v\nwant %v\n", names, tt.zip)
+			}
+			t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.rev, f(tt))
+			if strings.HasPrefix(tt.path, vgotest1git) {
+				for _, alt := range altVgotests {
+					// Note: Communicating with f through tt; should be cleaned up.
+					old := tt
+					tt.path = alt + strings.TrimPrefix(tt.path, vgotest1git)
+					if strings.HasPrefix(tt.mpath, vgotest1git) {
+						tt.mpath = alt + strings.TrimPrefix(tt.mpath, vgotest1git)
+					}
+					var m map[string]string
+					if alt == vgotest1hg {
+						m = hgmap
+					}
+					tt.version = remap(tt.version, m)
+					tt.name = remap(tt.name, m)
+					tt.short = remap(tt.short, m)
+					tt.rev = remap(tt.rev, m)
+					tt.gomoderr = remap(tt.gomoderr, m)
+					tt.ziperr = remap(tt.ziperr, m)
+					t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.rev, f(tt))
+					tt = old
 				}
 			}
 		}
-		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.rev, f)
-		if strings.HasPrefix(tt.path, vgotest1git) {
-			for _, alt := range altVgotests {
-				// Note: Communicating with f through tt; should be cleaned up.
-				old := tt
-				tt.path = alt + strings.TrimPrefix(tt.path, vgotest1git)
-				if strings.HasPrefix(tt.mpath, vgotest1git) {
-					tt.mpath = alt + strings.TrimPrefix(tt.mpath, vgotest1git)
-				}
-				var m map[string]string
-				if alt == vgotest1hg {
-					m = hgmap
-				}
-				tt.version = remap(tt.version, m)
-				tt.name = remap(tt.name, m)
-				tt.short = remap(tt.short, m)
-				tt.rev = remap(tt.rev, m)
-				tt.gomoderr = remap(tt.gomoderr, m)
-				tt.ziperr = remap(tt.ziperr, m)
-				t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.rev, f)
-				tt = old
-			}
-		}
-	}
+	})
 }
 
 var hgmap = map[string]string{
@@ -527,21 +554,27 @@ func TestCodeRepoVersions(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpdir)
-	for _, tt := range codeRepoVersionsTests {
-		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
-			repo, err := Lookup(tt.path)
-			if err != nil {
-				t.Fatalf("Lookup(%q): %v", tt.path, err)
-			}
-			list, err := repo.Versions(tt.prefix)
-			if err != nil {
-				t.Fatalf("Versions(%q): %v", tt.prefix, err)
-			}
-			if !reflect.DeepEqual(list, tt.versions) {
-				t.Fatalf("Versions(%q):\nhave %v\nwant %v", tt.prefix, list, tt.versions)
-			}
-		})
-	}
+
+	t.Run("parallel", func(t *testing.T) {
+		for _, tt := range codeRepoVersionsTests {
+			t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
+				tt := tt
+				t.Parallel()
+
+				repo, err := Lookup(tt.path)
+				if err != nil {
+					t.Fatalf("Lookup(%q): %v", tt.path, err)
+				}
+				list, err := repo.Versions(tt.prefix)
+				if err != nil {
+					t.Fatalf("Versions(%q): %v", tt.prefix, err)
+				}
+				if !reflect.DeepEqual(list, tt.versions) {
+					t.Fatalf("Versions(%q):\nhave %v\nwant %v", tt.prefix, list, tt.versions)
+				}
+			})
+		}
+	})
 }
 
 var latestTests = []struct {
@@ -575,31 +608,37 @@ func TestLatest(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpdir)
-	for _, tt := range latestTests {
-		name := strings.ReplaceAll(tt.path, "/", "_")
-		t.Run(name, func(t *testing.T) {
-			repo, err := Lookup(tt.path)
-			if err != nil {
-				t.Fatalf("Lookup(%q): %v", tt.path, err)
-			}
-			info, err := repo.Latest()
-			if err != nil {
-				if tt.err != "" {
-					if err.Error() == tt.err {
-						return
-					}
-					t.Fatalf("Latest(): %v, want %q", err, tt.err)
+
+	t.Run("parallel", func(t *testing.T) {
+		for _, tt := range latestTests {
+			name := strings.ReplaceAll(tt.path, "/", "_")
+			t.Run(name, func(t *testing.T) {
+				tt := tt
+				t.Parallel()
+
+				repo, err := Lookup(tt.path)
+				if err != nil {
+					t.Fatalf("Lookup(%q): %v", tt.path, err)
 				}
-				t.Fatalf("Latest(): %v", err)
-			}
-			if tt.err != "" {
-				t.Fatalf("Latest() = %v, want error %q", info.Version, tt.err)
-			}
-			if info.Version != tt.version {
-				t.Fatalf("Latest() = %v, want %v", info.Version, tt.version)
-			}
-		})
-	}
+				info, err := repo.Latest()
+				if err != nil {
+					if tt.err != "" {
+						if err.Error() == tt.err {
+							return
+						}
+						t.Fatalf("Latest(): %v, want %q", err, tt.err)
+					}
+					t.Fatalf("Latest(): %v", err)
+				}
+				if tt.err != "" {
+					t.Fatalf("Latest() = %v, want error %q", info.Version, tt.err)
+				}
+				if info.Version != tt.version {
+					t.Fatalf("Latest() = %v, want %v", info.Version, tt.version)
+				}
+			})
+		}
+	})
 }
 
 // fixedTagsRepo is a fake codehost.Repo that returns a fixed list of tags

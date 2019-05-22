@@ -177,7 +177,7 @@ func (r *Resolver) LookupHost(ctx context.Context, host string) (addrs []string,
 	// Make sure that no matter what we do later, host=="" is rejected.
 	// parseIP, for example, does accept empty strings.
 	if host == "" {
-		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host}
+		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host, IsNotFound: true}
 	}
 	if ip, _ := parseIPZone(host); ip != nil {
 		return []string{host}, nil
@@ -238,7 +238,7 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 	// Make sure that no matter what we do later, host=="" is rejected.
 	// parseIP, for example, does accept empty strings.
 	if host == "" {
-		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host}
+		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host, IsNotFound: true}
 	}
 	if ip, zone := parseIPZone(host); ip != nil {
 		return []IPAddr{{IP: ip, Zone: zone}}, nil
@@ -255,15 +255,16 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 		resolverFunc = alt
 	}
 
-	// We don't want a cancelation of ctx to affect the
+	// We don't want a cancellation of ctx to affect the
 	// lookupGroup operation. Otherwise if our context gets
 	// canceled it might cause an error to be returned to a lookup
 	// using a completely different context. However we need to preserve
 	// only the values in context. See Issue 28600.
 	lookupGroupCtx, lookupGroupCancel := context.WithCancel(withUnexpiredValuesPreserved(ctx))
 
+	lookupKey := network + "\000" + host
 	dnsWaitGroup.Add(1)
-	ch, called := r.getLookupGroup().DoChan(host, func() (interface{}, error) {
+	ch, called := r.getLookupGroup().DoChan(lookupKey, func() (interface{}, error) {
 		defer dnsWaitGroup.Done()
 		return testHookLookupIP(lookupGroupCtx, resolverFunc, network, host)
 	})
@@ -280,7 +281,7 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 		// let the lookup continue uncanceled, and let later
 		// lookups with the same key share the result.
 		// See issues 8602, 20703, 22724.
-		if r.getLookupGroup().ForgetUnshared(host) {
+		if r.getLookupGroup().ForgetUnshared(lookupKey) {
 			lookupGroupCancel()
 		} else {
 			go func() {

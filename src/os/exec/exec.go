@@ -47,6 +47,8 @@ func (e *Error) Error() string {
 	return "exec: " + strconv.Quote(e.Name) + ": " + e.Err.Error()
 }
 
+func (e *Error) Unwrap() error { return e.Err }
+
 // Cmd represents an external command being prepared or run.
 //
 // A Cmd cannot be reused after calling its Run, Output or CombinedOutput
@@ -71,6 +73,8 @@ type Cmd struct {
 	// environment.
 	// If Env contains duplicate environment keys, only the last
 	// value in the slice for each duplicate key is used.
+	// As a special case on Windows, SYSTEMROOT is always added if
+	// missing and not explicitly set to the empty string.
 	Env []string
 
 	// Dir specifies the working directory of the command.
@@ -188,6 +192,25 @@ func CommandContext(ctx context.Context, name string, arg ...string) *Cmd {
 	cmd := Command(name, arg...)
 	cmd.ctx = ctx
 	return cmd
+}
+
+// String returns a human-readable description of c.
+// It is intended only for debugging.
+// In particular, it is not suitable for use as input to a shell.
+// The output of String may vary across Go releases.
+func (c *Cmd) String() string {
+	if c.lookPathErr != nil {
+		// failed to resolve path; report the original requested path (plus args)
+		return strings.Join(c.Args, " ")
+	}
+	// report the exact executable path (plus args)
+	b := new(strings.Builder)
+	b.WriteString(c.Path)
+	for _, a := range c.Args[1:] {
+		b.WriteByte(' ')
+		b.WriteString(a)
+	}
+	return b.String()
 }
 
 // interfaceEqual protects against panics from doing equality tests on
@@ -376,6 +399,7 @@ func (c *Cmd) Start() error {
 		}
 	}
 
+	c.childFiles = make([]*os.File, 0, 3+len(c.ExtraFiles))
 	type F func(*Cmd) (*os.File, error)
 	for _, setupFd := range []F{(*Cmd).stdin, (*Cmd).stdout, (*Cmd).stderr} {
 		fd, err := setupFd(c)
@@ -392,7 +416,7 @@ func (c *Cmd) Start() error {
 	c.Process, err = os.StartProcess(c.Path, c.argv(), &os.ProcAttr{
 		Dir:   c.Dir,
 		Files: c.childFiles,
-		Env:   dedupEnv(c.envv()),
+		Env:   addCriticalEnv(dedupEnv(c.envv())),
 		Sys:   c.SysProcAttr,
 	})
 	if err != nil {
@@ -403,11 +427,14 @@ func (c *Cmd) Start() error {
 
 	c.closeDescriptors(c.closeAfterStart)
 
-	c.errch = make(chan error, len(c.goroutine))
-	for _, fn := range c.goroutine {
-		go func(fn func() error) {
-			c.errch <- fn()
-		}(fn)
+	// Don't allocate the channel unless there are goroutines to fire.
+	if len(c.goroutine) > 0 {
+		c.errch = make(chan error, len(c.goroutine))
+		for _, fn := range c.goroutine {
+			go func(fn func() error) {
+				c.errch <- fn()
+			}(fn)
+		}
 	}
 
 	if c.ctx != nil {
@@ -713,7 +740,7 @@ func dedupEnv(env []string) []string {
 // If caseInsensitive is true, the case of keys is ignored.
 func dedupEnvCase(caseInsensitive bool, env []string) []string {
 	out := make([]string, 0, len(env))
-	saw := map[string]int{} // key => index into out
+	saw := make(map[string]int, len(env)) // key => index into out
 	for _, kv := range env {
 		eq := strings.Index(kv, "=")
 		if eq < 0 {
@@ -732,4 +759,25 @@ func dedupEnvCase(caseInsensitive bool, env []string) []string {
 		out = append(out, kv)
 	}
 	return out
+}
+
+// addCriticalEnv adds any critical environment variables that are required
+// (or at least almost always required) on the operating system.
+// Currently this is only used for Windows.
+func addCriticalEnv(env []string) []string {
+	if runtime.GOOS != "windows" {
+		return env
+	}
+	for _, kv := range env {
+		eq := strings.Index(kv, "=")
+		if eq < 0 {
+			continue
+		}
+		k := kv[:eq]
+		if strings.EqualFold(k, "SYSTEMROOT") {
+			// We already have it.
+			return env
+		}
+	}
+	return append(env, "SYSTEMROOT="+os.Getenv("SYSTEMROOT"))
 }

@@ -11,16 +11,7 @@ const (
 	_HWCAP_VFPv3 = 1 << 13
 )
 
-// AT_HWCAP is not available on FreeBSD-11.1-RELEASE or earlier.
-// Default to mandatory VFP hardware support for arm being available.
-// If AT_HWCAP is available goarmHWCap will be updated in archauxv.
-// TODO(moehrmann) remove once all go supported FreeBSD versions support _AT_HWCAP.
-var goarmHWCap uint = (_HWCAP_VFP | _HWCAP_VFPv3)
-
 func checkgoarm() {
-	// Update cpu.HWCap to match goarmHWCap in case they were not updated in archauxv.
-	cpu.HWCap = goarmHWCap
-
 	if goarm > 5 && cpu.HWCap&_HWCAP_VFP == 0 {
 		print("runtime: this CPU has no floating point hardware, so it cannot run\n")
 		print("this GOARM=", goarm, " binary. Recompile using GOARM=5.\n")
@@ -44,7 +35,6 @@ func archauxv(tag, val uintptr) {
 	switch tag {
 	case _AT_HWCAP:
 		cpu.HWCap = uint(val)
-		goarmHWCap = cpu.HWCap
 	case _AT_HWCAP2:
 		cpu.HWCap2 = uint(val)
 	}

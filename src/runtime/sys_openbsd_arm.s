@@ -86,8 +86,8 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT,$12
-	MOVW	$0x12B, R12
-	SWI	$0			// sys_getthrid
+	MOVW	$299, R12		// sys_getthrid
+	SWI	$0
 					// arg 1 - tid, already in R0
 	MOVW	sig+0(FP), R1		// arg 2 - signum
 	MOVW	$0, R2			// arg 3 - tcb

@@ -185,6 +185,17 @@ tour
   that build fails.
 </p>
 
+<p><!-- CL 147282, 147281 -->
+  This changed use of the <code>go</code> directive means that if you
+  use Go 1.12 to build a module, thus recording <code>go 1.12</code>
+  in the <code>go.mod</code> file, you will get an error when
+  attempting to build the same module with Go 1.11 through Go 1.11.3.
+  Go 1.11.4 or later will work fine, as will releases older than Go 1.11.
+  If you must use Go 1.11 through 1.11.3, you can avoid the problem by
+  setting the language version to 1.11, using the Go 1.12 go tool,
+  via <code>go mod edit -go=1.11</code>.
+</p>
+
 <p><!-- CL 152739 -->
   When an import cannot be resolved using the active modules,
   the <code>go</code> command will now try to use the modules mentioned in the
@@ -600,17 +611,6 @@ for {
 
 </dl><!-- io -->
 
-<dl id="lib/time"><dt><a href="/pkg/lib/time/">lib/time</a></dt>
-  <dd>
-    <p><!-- CL 151299 -->
-      The time zone database in <code>$GOROOT/lib/time/zoneinfo.zip</code>
-      has been updated to version 2018i. Note that this ZIP file is
-      only used if a time zone database is not provided by the operating
-      system.
-    </p>
-
-</dl><!-- lib/time -->
-
 <dl id="math"><dt><a href="/pkg/math/">math</a></dt>
   <dd>
     <p><!-- CL 153059 -->
@@ -791,7 +791,7 @@ for {
       A new <a href="/pkg/runtime/debug/#BuildInfo"><code>BuildInfo</code></a> type
       exposes the build information read from the running binary, available only in
       binaries built with module support. This includes the main package path, main
-      module information, and the module dependencies. This type is given though the
+      module information, and the module dependencies. This type is given through the
       <a href="/pkg/runtime/debug/#ReadBuildInfo"><code>ReadBuildInfo</code></a> function
       on <a href="/pkg/runtime/debug/#BuildInfo"><code>BuildInfo</code></a>.
     </p>
@@ -923,6 +923,17 @@ for {
       the <code>Execute</code> or <code>ExecuteTemplate</code> method.
     </p>
 </dl><!-- text/template -->
+
+<dl id="time"><dt><a href="/pkg/time/">time</a></dt>
+  <dd>
+    <p><!-- CL 151299 -->
+      The time zone database in <code>$GOROOT/lib/time/zoneinfo.zip</code>
+      has been updated to version 2018i. Note that this ZIP file is
+      only used if a time zone database is not provided by the operating
+      system.
+    </p>
+
+</dl><!-- time -->
 
 <dl id="unsafe"><dt><a href="/pkg/unsafe/">unsafe</a></dt>
   <dd>

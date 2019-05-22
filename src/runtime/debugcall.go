@@ -46,12 +46,32 @@ func debugCallCheck(pc uintptr) string {
 			return
 		}
 
+		name := funcname(f)
+
+		switch name {
+		case "debugCall32",
+			"debugCall64",
+			"debugCall128",
+			"debugCall256",
+			"debugCall512",
+			"debugCall1024",
+			"debugCall2048",
+			"debugCall4096",
+			"debugCall8192",
+			"debugCall16384",
+			"debugCall32768",
+			"debugCall65536":
+			// These functions are whitelisted so that the debugger can initiate multiple function calls.
+			// See: https://golang.org/cl/161137/
+			return
+		}
+
 		// Disallow calls from the runtime. We could
 		// potentially make this condition tighter (e.g., not
 		// when locks are held), but there are enough tightly
 		// coded sequences (e.g., defer handling) that it's
 		// better to play it safe.
-		if name, pfx := funcname(f), "runtime."; len(name) > len(pfx) && name[:len(pfx)] == pfx {
+		if pfx := "runtime."; len(name) > len(pfx) && name[:len(pfx)] == pfx {
 			ret = debugCallRuntime
 			return
 		}

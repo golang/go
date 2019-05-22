@@ -79,28 +79,27 @@ type Flock_t struct {
 }
 
 type Stat_t struct {
-	Dev       uint64
-	Ino       uint64
-	Mode      uint32
-	Nlink     int16
-	Flag      uint16
-	Uid       uint32
-	Gid       uint32
-	Rdev      uint64
-	Ssize     int32
-	Pad_cgo_0 [4]byte
-	Atim      StTimespec_t
-	Mtim      StTimespec_t
-	Ctim      StTimespec_t
-	Blksize   int64
-	Blocks    int64
-	Vfstype   int32
-	Vfs       uint32
-	Type      uint32
-	Gen       uint32
-	Reserved  [9]uint32
-	Padto_ll  uint32
-	Size      int64
+	Dev      uint64
+	Ino      uint64
+	Mode     uint32
+	Nlink    int16
+	Flag     uint16
+	Uid      uint32
+	Gid      uint32
+	Rdev     uint64
+	Ssize    int32
+	Atim     StTimespec_t
+	Mtim     StTimespec_t
+	Ctim     StTimespec_t
+	Blksize  int64
+	Blocks   int64
+	Vfstype  int32
+	Vfs      uint32
+	Type     uint32
+	Gen      uint32
+	Reserved [9]uint32
+	Padto_ll uint32
+	Size     int64
 }
 
 type Statfs_t struct {
@@ -114,7 +113,6 @@ type Statfs_t struct {
 	Ffree     uint64
 	Fsid      Fsid64_t
 	Vfstype   int32
-	Pad_cgo_0 [4]byte
 	Fsize     uint64
 	Vfsnumber int32
 	Vfsoff    int32
@@ -123,7 +121,7 @@ type Statfs_t struct {
 	Fname     [32]uint8
 	Fpack     [32]uint8
 	Name_max  int32
-	Pad_cgo_1 [4]byte
+	Pad_cgo_0 [4]byte
 }
 
 type Fsid64_t struct {
@@ -166,6 +164,17 @@ type RawSockaddrUnix struct {
 	Len    uint8
 	Family uint8
 	Path   [1023]uint8
+}
+
+type RawSockaddrDatalink struct {
+	Len    uint8
+	Family uint8
+	Index  uint16
+	Type   uint8
+	Nlen   uint8
+	Alen   uint8
+	Slen   uint8
+	Data   [120]uint8
 }
 
 type RawSockaddr struct {
@@ -214,26 +223,25 @@ type Linger struct {
 type Msghdr struct {
 	Name       *byte
 	Namelen    uint32
-	Pad_cgo_0  [4]byte
 	Iov        *Iovec
 	Iovlen     int32
-	Pad_cgo_1  [4]byte
 	Control    *byte
 	Controllen uint32
 	Flags      int32
 }
 
 const (
-	SizeofSockaddrInet4 = 0x10
-	SizeofSockaddrInet6 = 0x1c
-	SizeofSockaddrAny   = 0x404
-	SizeofSockaddrUnix  = 0x401
-	SizeofLinger        = 0x8
-	SizeofIPMreq        = 0x8
-	SizeofIPv6Mreq      = 0x14
-	SizeofMsghdr        = 0x30
-	SizeofCmsghdr       = 0xc
-	SizeofICMPv6Filter  = 0x20
+	SizeofSockaddrInet4    = 0x10
+	SizeofSockaddrInet6    = 0x1c
+	SizeofSockaddrAny      = 0x404
+	SizeofSockaddrUnix     = 0x401
+	SizeofSockaddrDatalink = 0x80
+	SizeofLinger           = 0x8
+	SizeofIPMreq           = 0x8
+	SizeofIPv6Mreq         = 0x14
+	SizeofMsghdr           = 0x30
+	SizeofCmsghdr          = 0xc
+	SizeofICMPv6Filter     = 0x20
 )
 
 const (
@@ -270,3 +278,11 @@ const (
 	_AT_REMOVEDIR        = 0x1
 	_AT_SYMLINK_NOFOLLOW = 0x1
 )
+
+type Termios struct {
+	Iflag uint32
+	Oflag uint32
+	Cflag uint32
+	Lflag uint32
+	Cc    [16]uint8
+}

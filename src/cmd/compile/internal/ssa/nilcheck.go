@@ -124,7 +124,7 @@ func nilcheckelim(f *Func) {
 					ptr := v.Args[0]
 					if nonNilValues[ptr.ID] {
 						if v.Pos.IsStmt() == src.PosIsStmt { // Boolean true is a terrible statement boundary.
-							pendingLines.add(v.Pos.Line())
+							pendingLines.add(v.Pos)
 							v.Pos = v.Pos.WithNotStmt()
 						}
 						// This is a redundant explicit nil check.
@@ -141,7 +141,7 @@ func nilcheckelim(f *Func) {
 							f.Warnl(v.Pos, "removed nil check")
 						}
 						if v.Pos.IsStmt() == src.PosIsStmt { // About to lose a statement boundary
-							pendingLines.add(v.Pos.Line())
+							pendingLines.add(v.Pos)
 						}
 						v.reset(OpUnknown)
 						f.freeValue(v)
@@ -154,15 +154,15 @@ func nilcheckelim(f *Func) {
 					work = append(work, bp{op: ClearPtr, ptr: ptr})
 					fallthrough // a non-eliminated nil check might be a good place for a statement boundary.
 				default:
-					if pendingLines.contains(v.Pos.Line()) && v.Pos.IsStmt() != src.PosNotStmt {
+					if pendingLines.contains(v.Pos) && v.Pos.IsStmt() != src.PosNotStmt {
 						v.Pos = v.Pos.WithIsStmt()
-						pendingLines.remove(v.Pos.Line())
+						pendingLines.remove(v.Pos)
 					}
 				}
 			}
-			if pendingLines.contains(b.Pos.Line()) {
+			if pendingLines.contains(b.Pos) {
 				b.Pos = b.Pos.WithIsStmt()
-				pendingLines.remove(b.Pos.Line())
+				pendingLines.remove(b.Pos)
 			}
 			for j := i; j < len(b.Values); j++ {
 				b.Values[j] = nil
@@ -212,7 +212,7 @@ func nilcheckelim2(f *Func) {
 					f.Warnl(v.Pos, "removed nil check")
 				}
 				if v.Pos.IsStmt() == src.PosIsStmt {
-					pendingLines.add(v.Pos.Line())
+					pendingLines.add(v.Pos)
 				}
 				v.reset(OpUnknown)
 				firstToRemove = i
@@ -273,16 +273,16 @@ func nilcheckelim2(f *Func) {
 		for j := i; j < len(b.Values); j++ {
 			v := b.Values[j]
 			if v.Op != OpUnknown {
-				if v.Pos.IsStmt() != src.PosNotStmt && pendingLines.contains(v.Pos.Line()) {
+				if v.Pos.IsStmt() != src.PosNotStmt && pendingLines.contains(v.Pos) {
 					v.Pos = v.Pos.WithIsStmt()
-					pendingLines.remove(v.Pos.Line())
+					pendingLines.remove(v.Pos)
 				}
 				b.Values[i] = v
 				i++
 			}
 		}
 
-		if pendingLines.contains(b.Pos.Line()) {
+		if pendingLines.contains(b.Pos) {
 			b.Pos = b.Pos.WithIsStmt()
 		}
 

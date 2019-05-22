@@ -7,7 +7,6 @@ package runtime_test
 import (
 	"bytes"
 	"fmt"
-	"go/build"
 	"internal/testenv"
 	"io/ioutil"
 	"os"
@@ -36,8 +35,6 @@ func checkGdbEnvironment(t *testing.T) {
 		if runtime.GOARCH == "mips" {
 			t.Skip("skipping gdb tests on linux/mips; see https://golang.org/issue/25939")
 		}
-	case "aix":
-		t.Skip("gdb does not work on AIX; see https://golang.org/issue/28558")
 	case "freebsd":
 		t.Skip("skipping gdb tests on FreeBSD; see https://golang.org/issue/29508")
 	}
@@ -84,6 +81,22 @@ func checkGdbPython(t *testing.T) {
 	}
 }
 
+// checkCleanBacktrace checks that the given backtrace is well formed and does
+// not contain any error messages from GDB.
+func checkCleanBacktrace(t *testing.T, backtrace string) {
+	backtrace = strings.TrimSpace(backtrace)
+	lines := strings.Split(backtrace, "\n")
+	if len(lines) == 0 {
+		t.Fatalf("empty backtrace")
+	}
+	for i, l := range lines {
+		if !strings.HasPrefix(l, fmt.Sprintf("#%v  ", i)) {
+			t.Fatalf("malformed backtrace at line %v: %v", i, l)
+		}
+	}
+	// TODO(mundaym): check for unknown frames (e.g. "??").
+}
+
 const helloSource = `
 import "fmt"
 import "runtime"
@@ -126,8 +139,8 @@ func TestGdbPythonCgo(t *testing.T) {
 }
 
 func testGdbPython(t *testing.T, cgo bool) {
-	if cgo && !build.Default.CgoEnabled {
-		t.Skip("skipping because cgo is not enabled")
+	if cgo {
+		testenv.MustHaveCGO(t)
 	}
 
 	checkGdbEnvironment(t)
@@ -166,6 +179,7 @@ func testGdbPython(t *testing.T, cgo bool) {
 	args := []string{"-nx", "-q", "--batch",
 		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
 		"-ex", "set startup-with-shell off",
+		"-ex", "set print thread-events off",
 	}
 	if cgo {
 		// When we build the cgo version of the program, the system's
@@ -202,6 +216,9 @@ func testGdbPython(t *testing.T, cgo bool) {
 		"-ex", "echo END\n",
 		"-ex", "echo BEGIN goroutine 2 bt\n",
 		"-ex", "goroutine 2 bt",
+		"-ex", "echo END\n",
+		"-ex", "echo BEGIN goroutine all bt\n",
+		"-ex", "goroutine all bt",
 		"-ex", "echo END\n",
 		"-ex", "clear main.go:15", // clear the previous break point
 		"-ex", fmt.Sprintf("br main.go:%d", nLines), // new break point at the end of main
@@ -274,6 +291,11 @@ func testGdbPython(t *testing.T, cgo bool) {
 		t.Fatalf("info locals failed: %s", bl)
 	}
 
+	// Check that the backtraces are well formed.
+	checkCleanBacktrace(t, blocks["goroutine 1 bt"])
+	checkCleanBacktrace(t, blocks["goroutine 2 bt"])
+	checkCleanBacktrace(t, blocks["goroutine 1 bt at the end"])
+
 	btGoroutine1Re := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?main\.main.+at`)
 	if bl := blocks["goroutine 1 bt"]; !btGoroutine1Re.MatchString(bl) {
 		t.Fatalf("goroutine 1 bt failed: %s", bl)
@@ -283,6 +305,11 @@ func testGdbPython(t *testing.T, cgo bool) {
 	if bl := blocks["goroutine 2 bt"]; !btGoroutine2Re.MatchString(bl) {
 		t.Fatalf("goroutine 2 bt failed: %s", bl)
 	}
+
+	if bl := blocks["goroutine all bt"]; !btGoroutine1Re.MatchString(bl) || !btGoroutine2Re.MatchString(bl) {
+		t.Fatalf("goroutine all bt failed: %s", bl)
+	}
+
 	btGoroutine1AtTheEndRe := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?main\.main.+at`)
 	if bl := blocks["goroutine 1 bt at the end"]; !btGoroutine1AtTheEndRe.MatchString(bl) {
 		t.Fatalf("goroutine 1 bt at the end failed: %s", bl)
@@ -395,6 +422,10 @@ func TestGdbAutotmpTypes(t *testing.T) {
 	checkGdbEnvironment(t)
 	t.Parallel()
 	checkGdbVersion(t)
+
+	if runtime.GOOS == "aix" && testing.Short() {
+		t.Skip("TestGdbAutotmpTypes is too slow on aix/ppc64")
+	}
 
 	dir, err := ioutil.TempDir("", "go-build")
 	if err != nil {

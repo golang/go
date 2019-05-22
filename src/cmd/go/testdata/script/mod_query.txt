@@ -3,13 +3,21 @@ env GO111MODULE=on
 go list -m -versions rsc.io/quote
 stdout '^rsc.io/quote v1.0.0 v1.1.0 v1.2.0 v1.2.1 v1.3.0 v1.4.0 v1.5.0 v1.5.1 v1.5.2 v1.5.3-pre1$'
 
-# latest rsc.io/quote should be v1.5.2 not v1.5.3-pre1
+# Latest rsc.io/quote should be v1.5.2, not v1.5.3-pre1.
 go list -m rsc.io/quote@latest
 stdout 'rsc.io/quote v1.5.2$'
 
+# Same for rsc.io/quote@v1 and rsc.io/quote@v1.5 (with no patch version).
+go list -m rsc.io/quote@v1
+stdout 'rsc.io/quote v1.5.2$'
+go list -m rsc.io/quote@v1.5
+stdout 'rsc.io/quote v1.5.2$'
+
+# We should fall back to prereleases if no release tags match...
 go list -m rsc.io/quote@>v1.5.2
 stdout 'rsc.io/quote v1.5.3-pre1$'
 
+# ...but prefer release versions when given the option.
 go list -m rsc.io/quote@<v1.5.4
 stdout 'rsc.io/quote v1.5.2$'
 

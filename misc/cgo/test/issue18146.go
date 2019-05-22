@@ -46,6 +46,8 @@ func test18146(t *testing.T) {
 	switch runtime.GOOS {
 	default:
 		setNproc = false
+	case "aix":
+		nproc = 9
 	case "linux":
 		nproc = 6
 	case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd":

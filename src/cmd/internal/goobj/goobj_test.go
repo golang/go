@@ -10,6 +10,7 @@ import (
 	"debug/pe"
 	"fmt"
 	"internal/testenv"
+	"internal/xcoff"
 	"io"
 	"io/ioutil"
 	"os"
@@ -292,6 +293,24 @@ func TestParseCGOArchive(t *testing.T) {
 				}
 			}
 		}
+	case "aix":
+		c1 = "." + c1
+		c2 = "." + c2
+		for _, obj := range p.Native {
+			xf, err := xcoff.NewFile(obj)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, s := range xf.Symbols {
+				switch s.Name {
+				case c1:
+					found1 = true
+				case c2:
+					found2 = true
+				}
+			}
+		}
+
 	default:
 		for _, obj := range p.Native {
 			ef, err := elf.NewFile(obj)

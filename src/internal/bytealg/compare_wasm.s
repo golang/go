@@ -44,7 +44,7 @@ TEXT cmpbody<>(SB), NOSPLIT, $0-0
 	Get R4
 	I32WrapI64
 	Call memcmp<>(SB)
-	I64ExtendSI32
+	I64ExtendI32S
 	Set R5
 
 	Get R5

@@ -76,7 +76,7 @@ TEXT runtime·setlasterror(SB),NOSPLIT,$0
 // exception record and context pointers.
 // Handler function is stored in AX.
 // Return 0 for 'not handled', -1 for handled.
-TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
+TEXT sigtramp<>(SB),NOSPLIT,$0-0
 	MOVL	ptrs+0(FP), CX
 	SUBL	$40, SP
 
@@ -155,7 +155,7 @@ done:
 
 TEXT runtime·exceptiontramp(SB),NOSPLIT,$0
 	MOVL	$runtime·exceptionhandler(SB), AX
-	JMP	runtime·sigtramp(SB)
+	JMP	sigtramp<>(SB)
 
 TEXT runtime·firstcontinuetramp(SB),NOSPLIT,$0-0
 	// is never called
@@ -163,17 +163,21 @@ TEXT runtime·firstcontinuetramp(SB),NOSPLIT,$0-0
 
 TEXT runtime·lastcontinuetramp(SB),NOSPLIT,$0-0
 	MOVL	$runtime·lastcontinuehandler(SB), AX
-	JMP	runtime·sigtramp(SB)
+	JMP	sigtramp<>(SB)
 
+// Called by OS using stdcall ABI: bool ctrlhandler(uint32).
 TEXT runtime·ctrlhandler(SB),NOSPLIT,$0
 	PUSHL	$runtime·ctrlhandler1(SB)
+	NOP	SP	// tell vet SP changed - stop checking offsets
 	CALL	runtime·externalthreadhandler(SB)
 	MOVL	4(SP), CX
 	ADDL	$12, SP
 	JMP	CX
 
+// Called by OS using stdcall ABI: uint32 profileloop(void*).
 TEXT runtime·profileloop(SB),NOSPLIT,$0
 	PUSHL	$runtime·profileloop1(SB)
+	NOP	SP	// tell vet SP changed - stop checking offsets
 	CALL	runtime·externalthreadhandler(SB)
 	MOVL	4(SP), CX
 	ADDL	$12, SP
@@ -232,7 +236,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 
 GLOBL runtime·cbctxts(SB), NOPTR, $4
 
-TEXT runtime·callbackasm1+0(SB),NOSPLIT,$0
+TEXT runtime·callbackasm1(SB),NOSPLIT,$0
   	MOVL	0(SP), AX	// will use to find our callback context
 
 	// remove return address from stack, we are not returning there
@@ -308,7 +312,7 @@ TEXT runtime·callbackasm1+0(SB),NOSPLIT,$0
 	RET
 
 // void tstart(M *newm);
-TEXT runtime·tstart(SB),NOSPLIT,$0
+TEXT tstart<>(SB),NOSPLIT,$0
 	MOVL	newm+0(FP), CX		// m
 	MOVL	m_g0(CX), DX		// g
 
@@ -340,7 +344,7 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
 	MOVL	newm+0(FP), BX
 
 	PUSHL	BX
-	CALL	runtime·tstart(SB)
+	CALL	tstart<>(SB)
 	POPL	BX
 
 	// Adjust stack for stdcall to return properly.
@@ -354,7 +358,7 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
 
 // setldt(int entry, int address, int limit)
 TEXT runtime·setldt(SB),NOSPLIT,$0
-	MOVL	address+4(FP), CX
+	MOVL	base+4(FP), CX
 	MOVL	CX, 0x14(FS)
 	RET
 
@@ -383,7 +387,7 @@ TEXT runtime·onosstack(SB),NOSPLIT,$0
 	MOVL	SI, m_libcallg(BP)
 	// sp must be the last, because once async cpu profiler finds
 	// all three values to be non-zero, it will use them
-	LEAL	usec+0(FP), SI
+	LEAL	fn+0(FP), SI
 	MOVL	SI, m_libcallsp(BP)
 
 	MOVL	m_g0(BP), SI

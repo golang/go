@@ -3,7 +3,11 @@ env GO111MODULE=on
 
 ! go get -d rsc.io/badzip
 stderr 'zip for rsc.io/badzip@v1.0.0 has unexpected file rsc.io/badzip@v1.0.0.txt'
+! grep rsc.io/badzip go.mod
 
+# TODO(golang.org/issue/31730): 'go build' should print the error below if the
+# requirement is not present.
+go mod edit -require rsc.io/badzip@v1.0.0
 ! go build rsc.io/badzip
 stderr 'zip for rsc.io/badzip@v1.0.0 has unexpected file rsc.io/badzip@v1.0.0.txt'
 

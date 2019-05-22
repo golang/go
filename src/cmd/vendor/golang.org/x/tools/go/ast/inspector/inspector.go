@@ -14,7 +14,7 @@
 // Experiments suggest the inspector's traversals are about 2.5x faster
 // than ast.Inspect, but it may take around 5 traversals for this
 // benefit to amortize the inspector's construction cost.
-// If efficiency is the primary concern, do not use use Inspector for
+// If efficiency is the primary concern, do not use Inspector for
 // one-off traversals.
 package inspector
 

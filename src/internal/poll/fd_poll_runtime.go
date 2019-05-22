@@ -42,7 +42,7 @@ func (pd *pollDesc) init(fd *FD) error {
 			runtime_pollUnblock(ctx)
 			runtime_pollClose(ctx)
 		}
-		return syscall.Errno(errno)
+		return errnoErr(syscall.Errno(errno))
 	}
 	pd.runtimeCtx = ctx
 	return nil
@@ -115,6 +115,8 @@ func convertErr(res int, isFile bool) error {
 		return errClosing(isFile)
 	case 2:
 		return ErrTimeout
+	case 3:
+		return ErrNotPollable
 	}
 	println("unreachable: ", res)
 	panic("unreachable")

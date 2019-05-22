@@ -98,6 +98,10 @@ func (e *LinkError) Error() string {
 	return e.Op + " " + e.Old + " " + e.New + ": " + e.Err.Error()
 }
 
+func (e *LinkError) Unwrap() error {
+	return e.Err
+}
+
 // Read reads up to len(b) bytes from the File.
 // It returns the number of bytes read and any error encountered.
 // At end of file, Read returns 0, io.EOF.
@@ -159,12 +163,19 @@ func (f *File) Write(b []byte) (n int, err error) {
 	return n, err
 }
 
+var errWriteAtInAppendMode = errors.New("os: invalid use of WriteAt on file opened with O_APPEND")
+
 // WriteAt writes len(b) bytes to the File starting at byte offset off.
 // It returns the number of bytes written and an error, if any.
 // WriteAt returns a non-nil error when n != len(b).
+//
+// If file was opened with the O_APPEND flag, WriteAt returns an error.
 func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 	if err := f.checkValid("write"); err != nil {
 		return 0, err
+	}
+	if f.appendMode {
+		return 0, errWriteAtInAppendMode
 	}
 
 	if off < 0 {
@@ -282,7 +293,13 @@ func Create(name string) (*File, error) {
 // If there is an error, it will be of type *PathError.
 func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 	testlog.Open(name)
-	return openFileNolog(name, flag, perm)
+	f, err := openFileNolog(name, flag, perm)
+	if err != nil {
+		return nil, err
+	}
+	f.appendMode = flag&O_APPEND != 0
+
+	return f, nil
 }
 
 // lstat is overridden in tests.
@@ -382,6 +399,57 @@ func UserCacheDir() (string, error) {
 	return dir, nil
 }
 
+// UserConfigDir returns the default root directory to use for user-specific
+// configuration data. Users should create their own application-specific
+// subdirectory within this one and use that.
+//
+// On Unix systems, it returns $XDG_CONFIG_HOME as specified by
+// https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html if
+// non-empty, else $HOME/.config.
+// On Darwin, it returns $HOME/Library/Preferences.
+// On Windows, it returns %AppData%.
+// On Plan 9, it returns $home/lib.
+//
+// If the location cannot be determined (for example, $HOME is not defined),
+// then it will return an error.
+func UserConfigDir() (string, error) {
+	var dir string
+
+	switch runtime.GOOS {
+	case "windows":
+		dir = Getenv("AppData")
+		if dir == "" {
+			return "", errors.New("%AppData% is not defined")
+		}
+
+	case "darwin":
+		dir = Getenv("HOME")
+		if dir == "" {
+			return "", errors.New("$HOME is not defined")
+		}
+		dir += "/Library/Preferences"
+
+	case "plan9":
+		dir = Getenv("home")
+		if dir == "" {
+			return "", errors.New("$home is not defined")
+		}
+		dir += "/lib"
+
+	default: // Unix
+		dir = Getenv("XDG_CONFIG_HOME")
+		if dir == "" {
+			dir = Getenv("HOME")
+			if dir == "" {
+				return "", errors.New("neither $XDG_CONFIG_HOME nor $HOME are defined")
+			}
+			dir += "/.config"
+		}
+	}
+
+	return dir, nil
+}
+
 // UserHomeDir returns the current user's home directory.
 //
 // On Unix, including macOS, it returns the $HOME environment variable.
@@ -394,15 +462,20 @@ func UserHomeDir() (string, error) {
 		env, enverr = "USERPROFILE", "%userprofile%"
 	case "plan9":
 		env, enverr = "home", "$home"
-	case "nacl", "android":
+	}
+	if v := Getenv(env); v != "" {
+		return v, nil
+	}
+	// On some geese the home directory is not always defined.
+	switch runtime.GOOS {
+	case "nacl":
 		return "/", nil
+	case "android":
+		return "/sdcard", nil
 	case "darwin":
 		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
 			return "/", nil
 		}
-	}
-	if v := Getenv(env); v != "" {
-		return v, nil
 	}
 	return "", errors.New(enverr + " is not defined")
 }
@@ -417,11 +490,11 @@ func UserHomeDir() (string, error) {
 // On Unix, the mode's permission bits, ModeSetuid, ModeSetgid, and
 // ModeSticky are used.
 //
-// On Windows, the mode must be non-zero but otherwise only the 0200
-// bit (owner writable) of mode is used; it controls whether the
-// file's read-only attribute is set or cleared. attribute. The other
-// bits are currently unused. Use mode 0400 for a read-only file and
-// 0600 for a readable+writable file.
+// On Windows, only the 0200 bit (owner writable) of mode is used; it
+// controls whether the file's read-only attribute is set or cleared.
+// The other bits are currently unused. For compatibility with Go 1.12
+// and earlier, use a non-zero mode. Use mode 0400 for a read-only
+// file and 0600 for a readable+writable file.
 //
 // On Plan 9, the mode's permission bits, ModeAppend, ModeExclusive,
 // and ModeTemporary are used.

@@ -139,10 +139,7 @@ func semasleep(ns int64) int32 {
 	var tsp *timespec
 	if ns >= 0 {
 		var ts timespec
-		var nsec int32
-		ns += nanotime()
-		ts.set_sec(int64(timediv(ns, 1000000000, &nsec)))
-		ts.set_nsec(nsec)
+		ts.setNsec(ns + nanotime())
 		tsp = &ts
 	}
 
@@ -305,6 +302,7 @@ func sigdelset(mask *sigset, i int) {
 	*mask &^= 1 << (uint32(i) - 1)
 }
 
+//go:nosplit
 func (c *sigctxt) fixsigcode(sig uint32) {
 }
 

@@ -241,7 +241,7 @@ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, 
 			if i == n-1 && call.Ellipsis.IsValid() {
 				ellipsis = call.Ellipsis
 			}
-			check.argument(call.Fun, sig, i, x, ellipsis, context)
+			check.argument(sig, i, x, ellipsis, context)
 		}
 	}
 
@@ -259,7 +259,7 @@ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, 
 
 // argument checks passing of argument x to the i'th parameter of the given signature.
 // If ellipsis is valid, the argument is followed by ... at that position in the call.
-func (check *Checker) argument(fun ast.Expr, sig *Signature, i int, x *operand, ellipsis token.Pos, context string) {
+func (check *Checker) argument(sig *Signature, i int, x *operand, ellipsis token.Pos, context string) {
 	check.singleValue(x)
 	if x.mode == invalid {
 		return

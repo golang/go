@@ -1,0 +1,14 @@
+github.com/Nvveen/Gotty a8b993ba6abdb0e0c12b0125c603323a71c7790c
+github.com/OpenDNS/vegadns2client a3fa4a771d87bda2514a90a157e1fed1b6897d2e
+github.com/PuerkitoBio/purell v1.0.0
+github.com/PuerkitoBio/urlesc 5bd2802263f21d8788851d5305584c82a5c75d7e
+github.com/Shopify/sarama 70f6a705d4a17af059acbc6946fb2bd30762acd7
+github.com/VividCortex/gohistogram v1.0.0
+github.com/abbot/go-http-auth 65b0cdae8d7fe5c05c7430e055938ef6d24a66c9
+github.com/abronan/valkeyrie 063d875e3c5fd734fa2aa12fac83829f62acfc70
+github.com/mesosphere/mesos-dns b47dc4c19f215e98da687b15b4c64e70f629bea5
+gopkg.in/fsnotify.v1 v1.4.2
+replace: github.com/Nvveen/Gotty a8b993ba6abdb0e0c12b0125c603323a71c7790c github.com/ijc25/Gotty a8b993ba6abdb0e0c12b0125c603323a71c7790c
+replace: github.com/abbot/go-http-auth 65b0cdae8d7fe5c05c7430e055938ef6d24a66c9 github.com/containous/go-http-auth 65b0cdae8d7fe5c05c7430e055938ef6d24a66c9
+replace: github.com/mesosphere/mesos-dns b47dc4c19f215e98da687b15b4c64e70f629bea5 github.com/containous/mesos-dns b47dc4c19f215e98da687b15b4c64e70f629bea5
+replace: gopkg.in/fsnotify.v1 v1.4.2 github.com/fsnotify/fsnotify v1.4.2

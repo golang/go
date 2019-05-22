@@ -4,7 +4,10 @@
 
 package ssa
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 type indVarFlags uint8
 
@@ -59,6 +62,7 @@ func findIndVar(f *Func) []indVar {
 
 		// Check thet the control if it either ind </<= max or max >/>= ind.
 		// TODO: Handle 32-bit comparisons.
+		// TODO: Handle unsigned comparisons?
 		switch b.Control.Op {
 		case OpLeq64:
 			flags |= indVarMaxInc
@@ -165,15 +169,101 @@ func findIndVar(f *Func) []indVar {
 			continue
 		}
 
-		// We can only guarantee that the loops runs within limits of induction variable
-		// if the increment is ±1 or when the limits are constants.
-		if step != 1 {
+		// We can only guarantee that the loop runs within limits of induction variable
+		// if (one of)
+		// (1) the increment is ±1
+		// (2) the limits are constants
+		// (3) loop is of the form k0 upto Known_not_negative-k inclusive, step <= k
+		// (4) loop is of the form k0 upto Known_not_negative-k exclusive, step <= k+1
+		// (5) loop is of the form Known_not_negative downto k0, minint+step < k0
+		if step > 1 {
 			ok := false
 			if min.Op == OpConst64 && max.Op == OpConst64 {
 				if max.AuxInt > min.AuxInt && max.AuxInt%step == min.AuxInt%step { // handle overflow
 					ok = true
 				}
 			}
+			// Handle induction variables of these forms.
+			// KNN is known-not-negative.
+			// SIGNED ARITHMETIC ONLY. (see switch on b.Control.Op above)
+			// Possibilitis for KNN are len and cap; perhaps we can infer others.
+			// for i := 0; i <= KNN-k    ; i += k
+			// for i := 0; i <  KNN-(k-1); i += k
+			// Also handle decreasing.
+
+			// "Proof" copied from https://go-review.googlesource.com/c/go/+/104041/10/src/cmd/compile/internal/ssa/loopbce.go#164
+			//
+			//	In the case of
+			//	// PC is Positive Constant
+			//	L := len(A)-PC
+			//	for i := 0; i < L; i = i+PC
+			//
+			//	we know:
+			//
+			//	0 + PC does not over/underflow.
+			//	len(A)-PC does not over/underflow
+			//	maximum value for L is MaxInt-PC
+			//	i < L <= MaxInt-PC means i + PC < MaxInt hence no overflow.
+
+			// To match in SSA:
+			// if  (a) min.Op == OpConst64(k0)
+			// and (b) k0 >= MININT + step
+			// and (c) max.Op == OpSubtract(Op{StringLen,SliceLen,SliceCap}, k)
+			// or  (c) max.Op == OpAdd(Op{StringLen,SliceLen,SliceCap}, -k)
+			// or  (c) max.Op == Op{StringLen,SliceLen,SliceCap}
+			// and (d) if upto loop, require indVarMaxInc && step <= k or !indVarMaxInc && step-1 <= k
+
+			if min.Op == OpConst64 && min.AuxInt >= step+math.MinInt64 {
+				knn := max
+				k := int64(0)
+				var kArg *Value
+
+				switch max.Op {
+				case OpSub64:
+					knn = max.Args[0]
+					kArg = max.Args[1]
+
+				case OpAdd64:
+					knn = max.Args[0]
+					kArg = max.Args[1]
+					if knn.Op == OpConst64 {
+						knn, kArg = kArg, knn
+					}
+				}
+				switch knn.Op {
+				case OpSliceLen, OpStringLen, OpSliceCap:
+				default:
+					knn = nil
+				}
+
+				if kArg != nil && kArg.Op == OpConst64 {
+					k = kArg.AuxInt
+					if max.Op == OpAdd64 {
+						k = -k
+					}
+				}
+				if k >= 0 && knn != nil {
+					if inc.AuxInt > 0 { // increasing iteration
+						// The concern for the relation between step and k is to ensure that iv never exceeds knn
+						// i.e., iv < knn-(K-1) ==> iv + K <= knn; iv <= knn-K ==> iv +K < knn
+						if step <= k || flags&indVarMaxInc == 0 && step-1 == k {
+							ok = true
+						}
+					} else { // decreasing iteration
+						// Will be decrementing from max towards min; max is knn-k; will only attempt decrement if
+						// knn-k >[=] min; underflow is only a concern if min-step is not smaller than min.
+						// This all assumes signed integer arithmetic
+						// This is already assured by the test above: min.AuxInt >= step+math.MinInt64
+						ok = true
+					}
+				}
+			}
+
+			// TODO: other unrolling idioms
+			// for i := 0; i < KNN - KNN % k ; i += k
+			// for i := 0; i < KNN&^(k-1) ; i += k // k a power of 2
+			// for i := 0; i < KNN&(-k) ; i += k // k a power of 2
+
 			if !ok {
 				continue
 			}

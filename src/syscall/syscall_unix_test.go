@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package syscall_test
 
@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"syscall"
 	"testing"
 	"time"
@@ -134,6 +135,26 @@ func TestPassFD(t *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		passFDChild()
 		return
+	}
+
+	if runtime.GOOS == "aix" {
+		// Unix network isn't properly working on AIX 7.2 with Technical Level < 2
+		out, err := exec.Command("oslevel", "-s").Output()
+		if err != nil {
+			t.Skipf("skipping on AIX because oslevel -s failed: %v", err)
+		}
+		if len(out) < len("7200-XX-ZZ-YYMM") { // AIX 7.2, Tech Level XX, Service Pack ZZ, date YYMM
+			t.Skip("skipping on AIX because oslevel -s hasn't the right length")
+		}
+		aixVer := string(out[:4])
+		tl, err := strconv.Atoi(string(out[5:7]))
+		if err != nil {
+			t.Skipf("skipping on AIX because oslevel -s output cannot be parsed: %v", err)
+		}
+		if aixVer < "7200" || (aixVer == "7200" && tl < 2) {
+			t.Skip("skipped on AIX versions previous to 7.2 TL 2")
+		}
+
 	}
 
 	tempDir, err := ioutil.TempDir("", "TestPassFD")
@@ -353,5 +374,13 @@ func TestSeekFailure(t *testing.T) {
 	t.Logf("Seek: %v", str)
 	if str == "" {
 		t.Fatalf("Seek(-1, 0, 0) return error with empty message")
+	}
+}
+
+func TestSetsockoptString(t *testing.T) {
+	// should not panic on empty string, see issue #31277
+	err := syscall.SetsockoptString(-1, 0, 0, "")
+	if err == nil {
+		t.Fatalf("SetsockoptString: did not fail")
 	}
 }

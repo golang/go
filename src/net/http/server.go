@@ -29,7 +29,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"internal/x/net/http/httpguts"
+	"golang.org/x/net/http/httpguts"
 )
 
 // Errors used by the HTTP server.
@@ -749,10 +749,8 @@ func (cr *connReader) handleReadError(_ error) {
 // may be called from multiple goroutines.
 func (cr *connReader) closeNotify() {
 	res, _ := cr.conn.curReq.Load().(*response)
-	if res != nil {
-		if atomic.CompareAndSwapInt32(&res.didCloseNotify, 0, 1) {
-			res.closeNotifyCh <- true
-		}
+	if res != nil && atomic.CompareAndSwapInt32(&res.didCloseNotify, 0, 1) {
+		res.closeNotifyCh <- true
 	}
 }
 
@@ -1060,7 +1058,7 @@ func (w *response) Header() Header {
 		// Accessing the header between logically writing it
 		// and physically writing it means we need to allocate
 		// a clone to snapshot the logically written state.
-		w.cw.header = w.handlerHeader.clone()
+		w.cw.header = w.handlerHeader.Clone()
 	}
 	w.calledHeader = true
 	return w.handlerHeader
@@ -1129,7 +1127,7 @@ func (w *response) WriteHeader(code int) {
 	w.status = code
 
 	if w.calledHeader && w.cw.header == nil {
-		w.cw.header = w.handlerHeader.clone()
+		w.cw.header = w.handlerHeader.Clone()
 	}
 
 	if cl := w.handlerHeader.get("Content-Length"); cl != "" {
@@ -1824,7 +1822,8 @@ func (c *conn) serve(ctx context.Context) {
 		if err != nil {
 			const errorHeaders = "\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n"
 
-			if err == errTooLarge {
+			switch {
+			case err == errTooLarge:
 				// Their HTTP client may or may not be
 				// able to read this if we're
 				// responding to them and hanging up
@@ -1834,18 +1833,31 @@ func (c *conn) serve(ctx context.Context) {
 				fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
 				c.closeWriteAndWait()
 				return
-			}
-			if isCommonNetReadError(err) {
+
+			case isUnsupportedTEError(err):
+				// Respond as per RFC 7230 Section 3.3.1 which says,
+				//      A server that receives a request message with a
+				//      transfer coding it does not understand SHOULD
+				//      respond with 501 (Unimplemented).
+				code := StatusNotImplemented
+
+				// We purposefully aren't echoing back the transfer-encoding's value,
+				// so as to mitigate the risk of cross side scripting by an attacker.
+				fmt.Fprintf(c.rwc, "HTTP/1.1 %d %s%sUnsupported transfer encoding", code, StatusText(code), errorHeaders)
+				return
+
+			case isCommonNetReadError(err):
 				return // don't reply
-			}
 
-			publicErr := "400 Bad Request"
-			if v, ok := err.(badRequestError); ok {
-				publicErr = publicErr + ": " + string(v)
-			}
+			default:
+				publicErr := "400 Bad Request"
+				if v, ok := err.(badRequestError); ok {
+					publicErr = publicErr + ": " + string(v)
+				}
 
-			fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
-			return
+				fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
+				return
+			}
 		}
 
 		// Expect 100 Continue support
@@ -2544,6 +2556,20 @@ type Server struct {
 	// If nil, logging is done via the log package's standard logger.
 	ErrorLog *log.Logger
 
+	// BaseContext optionally specifies a function that returns
+	// the base context for incoming requests on this server.
+	// The provided Listener is the specific Listener that's
+	// about to start accepting requests.
+	// If BaseContext is nil, the default is context.Background().
+	// If non-nil, it must return a non-nil context.
+	BaseContext func(net.Listener) context.Context
+
+	// ConnContext optionally specifies a function that modifies
+	// the context used for a newly connection c. The provided ctx
+	// is derived from the base context and has a ServerContextKey
+	// value.
+	ConnContext func(ctx context.Context, c net.Conn) context.Context
+
 	disableKeepAlives int32     // accessed atomically.
 	inShutdown        int32     // accessed atomically (non-zero means we're in Shutdown)
 	nextProtoOnce     sync.Once // guards setupHTTP2_* init
@@ -2794,7 +2820,7 @@ func (srv *Server) ListenAndServe() error {
 	if err != nil {
 		return err
 	}
-	return srv.Serve(tcpKeepAliveListener{ln.(*net.TCPListener)})
+	return srv.Serve(ln)
 }
 
 var testHookServerServe func(*Server, net.Listener) // used if non-nil
@@ -2840,6 +2866,7 @@ func (srv *Server) Serve(l net.Listener) error {
 		fn(srv, l) // call hook with unwrapped listener
 	}
 
+	origListener := l
 	l = &onceCloseListener{Listener: l}
 	defer l.Close()
 
@@ -2852,8 +2879,16 @@ func (srv *Server) Serve(l net.Listener) error {
 	}
 	defer srv.trackListener(&l, false)
 
-	var tempDelay time.Duration     // how long to sleep on accept failure
-	baseCtx := context.Background() // base is always background, per Issue 16220
+	var tempDelay time.Duration // how long to sleep on accept failure
+
+	baseCtx := context.Background()
+	if srv.BaseContext != nil {
+		baseCtx = srv.BaseContext(origListener)
+		if baseCtx == nil {
+			panic("BaseContext returned a nil context")
+		}
+	}
+
 	ctx := context.WithValue(baseCtx, ServerContextKey, srv)
 	for {
 		rw, e := l.Accept()
@@ -2877,6 +2912,12 @@ func (srv *Server) Serve(l net.Listener) error {
 				continue
 			}
 			return e
+		}
+		if cc := srv.ConnContext; cc != nil {
+			ctx = cc(ctx, rw)
+			if ctx == nil {
+				panic("ConnContext returned nil")
+			}
 		}
 		tempDelay = 0
 		c := srv.newConn(rw)
@@ -3078,7 +3119,7 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 
 	defer ln.Close()
 
-	return srv.ServeTLS(tcpKeepAliveListener{ln.(*net.TCPListener)}, certFile, keyFile)
+	return srv.ServeTLS(ln, certFile, keyFile)
 }
 
 // setupHTTP2_ServeTLS conditionally configures HTTP/2 on
@@ -3223,6 +3264,25 @@ type timeoutWriter struct {
 	code        int
 }
 
+var _ Pusher = (*timeoutWriter)(nil)
+var _ Flusher = (*timeoutWriter)(nil)
+
+// Push implements the Pusher interface.
+func (tw *timeoutWriter) Push(target string, opts *PushOptions) error {
+	if pusher, ok := tw.w.(Pusher); ok {
+		return pusher.Push(target, opts)
+	}
+	return ErrNotSupported
+}
+
+// Flush implements the Flusher interface.
+func (tw *timeoutWriter) Flush() {
+	f, ok := tw.w.(Flusher)
+	if ok {
+		f.Flush()
+	}
+}
+
 func (tw *timeoutWriter) Header() Header { return tw.h }
 
 func (tw *timeoutWriter) Write(p []byte) (int, error) {
@@ -3250,24 +3310,6 @@ func (tw *timeoutWriter) WriteHeader(code int) {
 func (tw *timeoutWriter) writeHeader(code int) {
 	tw.wroteHeader = true
 	tw.code = code
-}
-
-// tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
-// connections. It's used by ListenAndServe and ListenAndServeTLS so
-// dead TCP connections (e.g. closing laptop mid-download) eventually
-// go away.
-type tcpKeepAliveListener struct {
-	*net.TCPListener
-}
-
-func (ln tcpKeepAliveListener) Accept() (net.Conn, error) {
-	tc, err := ln.AcceptTCP()
-	if err != nil {
-		return nil, err
-	}
-	tc.SetKeepAlive(true)
-	tc.SetKeepAlivePeriod(3 * time.Minute)
-	return tc, nil
 }
 
 // onceCloseListener wraps a net.Listener, protecting it from

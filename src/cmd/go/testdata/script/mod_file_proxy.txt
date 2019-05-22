@@ -1,3 +1,5 @@
+[short] skip
+
 # Allow (cached) downloads for -mod=readonly.
 env GO111MODULE=on
 env GOPATH=$WORK/gopath1
@@ -19,7 +21,15 @@ grep v1.5.1 $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/list
 
 -- $WORK/x/go.mod --
 module x
+go 1.13
 require rsc.io/quote v1.5.1
 -- $WORK/x/x.go --
 package x
 import _ "rsc.io/quote"
+-- $WORK/x/go.sum --
+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:pvCbr/wm8HzDD3fVywevekufpn6tCGPY3spdHeZJEsw=
+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+rsc.io/quote v1.5.1 h1:ZE3OgnVGrhXtFkGw90HwW992ZRqcdli/33DLqEYsoxA=
+rsc.io/quote v1.5.1/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
+rsc.io/sampler v1.3.0 h1:HLGR/BgEtI3r0uymSP/nl2uPLsUnNJX8toRyhfpBTII=
+rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=

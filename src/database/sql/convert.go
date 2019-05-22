@@ -98,10 +98,12 @@ func defaultCheckNamedValue(nv *driver.NamedValue) (err error) {
 	return err
 }
 
-// driverArgs converts arguments from callers of Stmt.Exec and
+// driverArgsConnLocked converts arguments from callers of Stmt.Exec and
 // Stmt.Query into driver Values.
 //
 // The statement ds may be nil, if no statement is available.
+//
+// ci must be locked.
 func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []interface{}) ([]driver.NamedValue, error) {
 	nvargs := make([]driver.NamedValue, len(args))
 
@@ -420,6 +422,9 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
 		dv.Set(reflect.New(dv.Type().Elem()))
 		return convertAssignRows(dv.Interface(), src, rows)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if src == nil {
+			return fmt.Errorf("converting NULL to %s is unsupported", dv.Kind())
+		}
 		s := asString(src)
 		i64, err := strconv.ParseInt(s, 10, dv.Type().Bits())
 		if err != nil {
@@ -429,6 +434,9 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
 		dv.SetInt(i64)
 		return nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if src == nil {
+			return fmt.Errorf("converting NULL to %s is unsupported", dv.Kind())
+		}
 		s := asString(src)
 		u64, err := strconv.ParseUint(s, 10, dv.Type().Bits())
 		if err != nil {
@@ -438,6 +446,9 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
 		dv.SetUint(u64)
 		return nil
 	case reflect.Float32, reflect.Float64:
+		if src == nil {
+			return fmt.Errorf("converting NULL to %s is unsupported", dv.Kind())
+		}
 		s := asString(src)
 		f64, err := strconv.ParseFloat(s, dv.Type().Bits())
 		if err != nil {
@@ -447,6 +458,9 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
 		dv.SetFloat(f64)
 		return nil
 	case reflect.String:
+		if src == nil {
+			return fmt.Errorf("converting NULL to %s is unsupported", dv.Kind())
+		}
 		switch v := src.(type) {
 		case string:
 			dv.SetString(v)

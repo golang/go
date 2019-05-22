@@ -23,13 +23,6 @@ import (
 	"time"
 )
 
-func init() {
-	// TLS 1.3 is opt-in for Go 1.12, but we want to run most tests with it enabled.
-	// TestTLS13Switch below tests the disabled behavior. See Issue 30055.
-	tls13Support.Do(func() {}) // defuse the sync.Once
-	tls13Support.cached = true
-}
-
 var rsaCertPEM = `-----BEGIN CERTIFICATE-----
 MIIB0zCCAX2gAwIBAgIJAI/M7BYjwB+uMA0GCSqGSIb3DQEBBQUAMEUxCzAJBgNV
 BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX

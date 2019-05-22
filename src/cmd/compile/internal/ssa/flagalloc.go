@@ -4,30 +4,6 @@
 
 package ssa
 
-// When breaking up a combined load-compare to separated load and compare operations,
-// opLoad specifies the load operation, and opCmp specifies the compare operation.
-type typeCmdLoadMap struct {
-	opLoad Op
-	opCmp  Op
-}
-
-var opCmpLoadMap = map[Op]typeCmdLoadMap{
-	OpAMD64CMPQload:      {OpAMD64MOVQload, OpAMD64CMPQ},
-	OpAMD64CMPLload:      {OpAMD64MOVLload, OpAMD64CMPL},
-	OpAMD64CMPWload:      {OpAMD64MOVWload, OpAMD64CMPW},
-	OpAMD64CMPBload:      {OpAMD64MOVBload, OpAMD64CMPB},
-	Op386CMPLload:        {Op386MOVLload, Op386CMPL},
-	Op386CMPWload:        {Op386MOVWload, Op386CMPW},
-	Op386CMPBload:        {Op386MOVBload, Op386CMPB},
-	OpAMD64CMPQconstload: {OpAMD64MOVQload, OpAMD64CMPQconst},
-	OpAMD64CMPLconstload: {OpAMD64MOVLload, OpAMD64CMPLconst},
-	OpAMD64CMPWconstload: {OpAMD64MOVWload, OpAMD64CMPWconst},
-	OpAMD64CMPBconstload: {OpAMD64MOVBload, OpAMD64CMPBconst},
-	Op386CMPLconstload:   {Op386MOVLload, Op386CMPLconst},
-	Op386CMPWconstload:   {Op386MOVWload, Op386CMPWconst},
-	Op386CMPBconstload:   {Op386MOVBload, Op386CMPBconst},
-}
-
 // flagalloc allocates the flag register among all the flag-generating
 // instructions. Flag values are recomputed if they need to be
 // spilled/restored.
@@ -142,67 +118,10 @@ func flagalloc(f *Func) {
 
 			// If v will be spilled, and v uses memory, then we must split it
 			// into a load + a flag generator.
-			// TODO: figure out how to do this without arch-dependent code.
 			if spill[v.ID] && v.MemoryArg() != nil {
-				switch v.Op {
-				case OpAMD64CMPQload:
-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt64, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
-					v.Op = opCmpLoadMap[v.Op].opCmp
-					v.AuxInt = 0
-					v.Aux = nil
-					v.SetArgs2(load, v.Args[1])
-				case OpAMD64CMPLload, Op386CMPLload:
-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt32, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
-					v.Op = opCmpLoadMap[v.Op].opCmp
-					v.AuxInt = 0
-					v.Aux = nil
-					v.SetArgs2(load, v.Args[1])
-				case OpAMD64CMPWload, Op386CMPWload:
-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt16, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
-					v.Op = opCmpLoadMap[v.Op].opCmp
-					v.AuxInt = 0
-					v.Aux = nil
-					v.SetArgs2(load, v.Args[1])
-				case OpAMD64CMPBload, Op386CMPBload:
-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt8, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
-					v.Op = opCmpLoadMap[v.Op].opCmp
-					v.AuxInt = 0
-					v.Aux = nil
-					v.SetArgs2(load, v.Args[1])
-
-				case OpAMD64CMPQconstload:
-					vo := v.AuxValAndOff()
-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt64, vo.Off(), v.Aux, v.Args[0], v.Args[1])
-					v.Op = opCmpLoadMap[v.Op].opCmp
-					v.AuxInt = vo.Val()
-					v.Aux = nil
-					v.SetArgs1(load)
-				case OpAMD64CMPLconstload, Op386CMPLconstload:
-					vo := v.AuxValAndOff()
-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt32, vo.Off(), v.Aux, v.Args[0], v.Args[1])
-					v.Op = opCmpLoadMap[v.Op].opCmp
-					v.AuxInt = vo.Val()
-					v.Aux = nil
-					v.SetArgs1(load)
-				case OpAMD64CMPWconstload, Op386CMPWconstload:
-					vo := v.AuxValAndOff()
-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt16, vo.Off(), v.Aux, v.Args[0], v.Args[1])
-					v.Op = opCmpLoadMap[v.Op].opCmp
-					v.AuxInt = vo.Val()
-					v.Aux = nil
-					v.SetArgs1(load)
-				case OpAMD64CMPBconstload, Op386CMPBconstload:
-					vo := v.AuxValAndOff()
-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt8, vo.Off(), v.Aux, v.Args[0], v.Args[1])
-					v.Op = opCmpLoadMap[v.Op].opCmp
-					v.AuxInt = vo.Val()
-					v.Aux = nil
-					v.SetArgs1(load)
-
-				default:
+				if !f.Config.splitLoad(v) {
 					f.Fatalf("can't split flag generator: %s", v.LongString())
 				}
-
 			}
 
 			// Make sure any flag arg of v is in the flags register.

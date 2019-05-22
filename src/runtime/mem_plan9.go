@@ -173,6 +173,9 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 func sysUsed(v unsafe.Pointer, n uintptr) {
 }
 
+func sysHugePage(v unsafe.Pointer, n uintptr) {
+}
+
 func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
 	// sysReserve has already allocated all heap memory,
 	// but has not adjusted stats.

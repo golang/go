@@ -5,13 +5,14 @@
 package modcmd
 
 import (
+	"encoding/json"
+	"os"
+
 	"cmd/go/internal/base"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/module"
 	"cmd/go/internal/par"
-	"encoding/json"
-	"os"
 )
 
 var cmdDownload = &base.Command{

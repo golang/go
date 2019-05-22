@@ -117,6 +117,9 @@ func Xchguintptr(ptr *uintptr, new uintptr) uintptr
 func Load(ptr *uint32) uint32
 
 //go:noescape
+func Load8(ptr *uint8) uint8
+
+// NO go:noescape annotation; *ptr escapes if result escapes (#31525)
 func Loadp(ptr unsafe.Pointer) unsafe.Pointer
 
 //go:noescape

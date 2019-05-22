@@ -5,6 +5,8 @@
 package main
 
 import (
+	"bytes"
+	cmddwarf "cmd/internal/dwarf"
 	"cmd/internal/objfile"
 	"debug/dwarf"
 	"internal/testenv"
@@ -37,15 +39,29 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 		t.Fatalf("cmd/link is stale - run go install cmd/link")
 	}
 
-	tmpDir, err := ioutil.TempDir("", "go-link-TestDWARF")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
 	for _, prog := range []string{"testprog", "testprogcgo"} {
+		prog := prog
+		expectDWARF := expectDWARF
+		if runtime.GOOS == "aix" && prog == "testprogcgo" {
+			extld := os.Getenv("CC")
+			if extld == "" {
+				extld = "gcc"
+			}
+			expectDWARF, err = cmddwarf.IsDWARFEnabledOnAIXLd(extld)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+		}
+
 		t.Run(prog, func(t *testing.T) {
 			t.Parallel()
+
+			tmpDir, err := ioutil.TempDir("", "go-link-TestDWARF")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(tmpDir)
 
 			exe := filepath.Join(tmpDir, prog+".exe")
 			dir := "../../runtime/testdata/" + prog
@@ -71,6 +87,22 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 				}
 				exe = filepath.Join(tmpDir, "go.o")
 			}
+
+			if runtime.GOOS == "darwin" {
+				if _, err = exec.LookPath("symbols"); err == nil {
+					// Ensure Apple's tooling can parse our object for symbols.
+					out, err = exec.Command("symbols", exe).CombinedOutput()
+					if err != nil {
+						t.Fatal(err)
+					} else {
+						if bytes.HasPrefix(out, []byte("Unable to find file")) {
+							// This failure will cause the App Store to reject our binaries.
+							t.Fatalf("/usr/bin/symbols %v: failed to parse file", filepath.Base(exe))
+						}
+					}
+				}
+			}
+
 			f, err := objfile.Open(exe)
 			if err != nil {
 				t.Fatal(err)
@@ -133,6 +165,9 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 
 func TestDWARF(t *testing.T) {
 	testDWARF(t, "", true)
+	if runtime.GOOS == "darwin" {
+		testDWARF(t, "c-archive", true)
+	}
 }
 
 func TestDWARFiOS(t *testing.T) {

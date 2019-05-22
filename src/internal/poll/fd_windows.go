@@ -258,7 +258,7 @@ func (s *ioSrv) ExecIO(o *operation, submit func(o *operation) error) (int, erro
 		s.req <- ioSrvReq{o, nil}
 		<-o.errc
 	}
-	// Wait for cancelation to complete.
+	// Wait for cancellation to complete.
 	fd.pd.waitCanceled(int(o.mode))
 	if o.errno != 0 {
 		err = syscall.Errno(o.errno)
@@ -267,8 +267,8 @@ func (s *ioSrv) ExecIO(o *operation, submit func(o *operation) error) (int, erro
 		}
 		return 0, err
 	}
-	// We issued a cancelation request. But, it seems, IO operation succeeded
-	// before the cancelation request run. We need to treat the IO operation as
+	// We issued a cancellation request. But, it seems, IO operation succeeded
+	// before the cancellation request run. We need to treat the IO operation as
 	// succeeded (the bytes are actually sent/recv from network).
 	return int(o.qty), nil
 }
@@ -309,7 +309,6 @@ type FD struct {
 	l sync.Mutex
 
 	// For console I/O.
-	isConsole      bool
 	lastbits       []byte   // first few bytes of the last incomplete rune in last write
 	readuint16     []uint16 // buffer to hold uint16s obtained with ReadConsole
 	readbyte       []byte   // buffer to hold decoding of readuint16 from utf16 to utf8
@@ -328,12 +327,23 @@ type FD struct {
 	// message based socket connection.
 	ZeroReadIsEOF bool
 
-	// Whether this is a normal file.
+	// Whether this is a file rather than a network socket.
 	isFile bool
 
-	// Whether this is a directory.
-	isDir bool
+	// The kind of this file.
+	kind fileKind
 }
+
+// fileKind describes the kind of file.
+type fileKind byte
+
+const (
+	kindNet fileKind = iota
+	kindFile
+	kindConsole
+	kindDir
+	kindPipe
+)
 
 // logInitFD is set by tests to enable file descriptor initialization logging.
 var logInitFD func(net string, fd *FD, err error)
@@ -350,18 +360,22 @@ func (fd *FD) Init(net string, pollable bool) (string, error) {
 
 	switch net {
 	case "file":
-		fd.isFile = true
+		fd.kind = kindFile
 	case "console":
-		fd.isConsole = true
+		fd.kind = kindConsole
 	case "dir":
-		fd.isDir = true
-	case "tcp", "tcp4", "tcp6":
-	case "udp", "udp4", "udp6":
-	case "ip", "ip4", "ip6":
-	case "unix", "unixgram", "unixpacket":
+		fd.kind = kindDir
+	case "pipe":
+		fd.kind = kindPipe
+	case "tcp", "tcp4", "tcp6",
+		"udp", "udp4", "udp6",
+		"ip", "ip4", "ip6",
+		"unix", "unixgram", "unixpacket":
+		fd.kind = kindNet
 	default:
 		return "", errors.New("internal error: unknown network type " + net)
 	}
+	fd.isFile = fd.kind != kindNet
 
 	var err error
 	if pollable {
@@ -430,13 +444,14 @@ func (fd *FD) destroy() error {
 	// so this must be executed before fd.CloseFunc.
 	fd.pd.close()
 	var err error
-	if fd.isFile || fd.isConsole {
-		err = syscall.CloseHandle(fd.Sysfd)
-	} else if fd.isDir {
-		err = syscall.FindClose(fd.Sysfd)
-	} else {
+	switch fd.kind {
+	case kindNet:
 		// The net package uses the CloseFunc variable for testing.
 		err = CloseFunc(fd.Sysfd)
+	case kindDir:
+		err = syscall.FindClose(fd.Sysfd)
+	default:
+		err = syscall.CloseHandle(fd.Sysfd)
 	}
 	fd.Sysfd = syscall.InvalidHandle
 	runtime_Semrelease(&fd.csema)
@@ -448,6 +463,9 @@ func (fd *FD) destroy() error {
 func (fd *FD) Close() error {
 	if !fd.fdmu.increfAndClose() {
 		return errClosing(fd.isFile)
+	}
+	if fd.kind == kindPipe {
+		syscall.CancelIoEx(fd.Sysfd, nil)
 	}
 	// unblock pending reader and writer
 	fd.pd.evict()
@@ -485,13 +503,20 @@ func (fd *FD) Read(buf []byte) (int, error) {
 
 	var n int
 	var err error
-	if fd.isFile || fd.isDir || fd.isConsole {
+	if fd.isFile {
 		fd.l.Lock()
 		defer fd.l.Unlock()
-		if fd.isConsole {
+		switch fd.kind {
+		case kindConsole:
 			n, err = fd.readConsole(buf)
-		} else {
+		default:
 			n, err = syscall.Read(fd.Sysfd, buf)
+			if fd.kind == kindPipe && err == syscall.ERROR_OPERATION_ABORTED {
+				// Close uses CancelIoEx to interrupt concurrent I/O for pipes.
+				// If the fd is a pipe and the Read was interrupted by CancelIoEx,
+				// we assume it is interrupted by Close.
+				err = ErrFileClosing
+			}
 		}
 		if err != nil {
 			n = 0
@@ -660,6 +685,10 @@ func (fd *FD) Write(buf []byte) (int, error) {
 		return 0, err
 	}
 	defer fd.writeUnlock()
+	if fd.isFile {
+		fd.l.Lock()
+		defer fd.l.Unlock()
+	}
 
 	ntotal := 0
 	for len(buf) > 0 {
@@ -669,13 +698,18 @@ func (fd *FD) Write(buf []byte) (int, error) {
 		}
 		var n int
 		var err error
-		if fd.isFile || fd.isDir || fd.isConsole {
-			fd.l.Lock()
-			defer fd.l.Unlock()
-			if fd.isConsole {
+		if fd.isFile {
+			switch fd.kind {
+			case kindConsole:
 				n, err = fd.writeConsole(b)
-			} else {
+			default:
 				n, err = syscall.Write(fd.Sysfd, b)
+				if fd.kind == kindPipe && err == syscall.ERROR_OPERATION_ABORTED {
+					// Close uses CancelIoEx to interrupt concurrent I/O for pipes.
+					// If the fd is a pipe and the Write was interrupted by CancelIoEx,
+					// we assume it is interrupted by Close.
+					err = ErrFileClosing
+				}
 			}
 			if err != nil {
 				n = 0

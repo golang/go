@@ -106,18 +106,12 @@ L2:
 	LGDR	F2, R2
 	SRAD	$32, R2
 L4:
-	WORD	$0xEC3239BE	//risbg	%r3,%r2,57,128+62,64-25
-	BYTE	$0x27
-	BYTE	$0x55
+	RISBGZ	$57, $62, $39, R2, R3
 	MOVD	$·cbrttab12067<>+0(SB), R1
 	WORD	$0x48131000	//lh	%r1,0(%r3,%r1)
-	WORD	$0xEC3239BE	//risbg	%r3,%r2,57,128+62,64-19
-	BYTE	$0x2D
-	BYTE	$0x55
+	RISBGZ	$57, $62, $45, R2, R3
 	MOVD	$·cbrttab22068<>+0(SB), R5
-	WORD	$0xEC223CBF	//risbgn	%r2,%r2,64-4,128+63,64+44+4
-	BYTE	$0x70
-	BYTE	$0x59
+	RISBGNZ	$60, $63, $48, R2, R2
 	WORD	$0x4A135000	//ah	%r1,0(%r3,%r5)
 	BYTE	$0x18	//lr	%r3,%r1
 	BYTE	$0x31

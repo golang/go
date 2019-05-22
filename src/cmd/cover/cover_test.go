@@ -40,16 +40,20 @@ var (
 	htmlGolden = filepath.Join(testdata, "html", "html.golden")
 
 	// Temporary files.
-	tmpTestMain  string
-	coverInput   string
-	coverOutput  string
-	htmlProfile  string
-	htmlHTML     string
-	htmlUDir     string
-	htmlU        string
-	htmlUTest    string
-	htmlUProfile string
-	htmlUHTML    string
+	tmpTestMain    string
+	coverInput     string
+	coverOutput    string
+	htmlProfile    string
+	htmlHTML       string
+	htmlUDir       string
+	htmlU          string
+	htmlUTest      string
+	htmlUProfile   string
+	htmlUHTML      string
+	lineDupDir     string
+	lineDupGo      string
+	lineDupTestGo  string
+	lineDupProfile string
 )
 
 var (
@@ -77,11 +81,12 @@ var debug = flag.Bool("debug", false, "keep rewritten files for debugging")
 // We use TestMain to set up a temporary directory and remove it when
 // the tests are done.
 func TestMain(m *testing.M) {
-	dir, err := ioutil.TempDir("", "gotestcover")
+	dir, err := ioutil.TempDir("", "go-testcover")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	os.Setenv("GOPATH", filepath.Join(dir, "_gopath"))
 
 	testTempDir = dir
 
@@ -95,6 +100,10 @@ func TestMain(m *testing.M) {
 	htmlUTest = filepath.Join(htmlUDir, "htmlunformatted_test.go")
 	htmlUProfile = filepath.Join(htmlUDir, "htmlunformatted.cov")
 	htmlUHTML = filepath.Join(htmlUDir, "htmlunformatted.html")
+	lineDupDir = filepath.Join(dir, "linedup")
+	lineDupGo = filepath.Join(lineDupDir, "linedup.go")
+	lineDupTestGo = filepath.Join(lineDupDir, "linedup_test.go")
+	lineDupProfile = filepath.Join(lineDupDir, "linedup.out")
 
 	status := m.Run()
 
@@ -480,6 +489,75 @@ lab:
 	// testcover -html TMPDIR/htmlunformatted.cov -o unformatted.html
 	cmd = exec.Command(testcover, "-html", htmlUProfile, "-o", htmlUHTML)
 	cmd.Dir = htmlUDir
+	run(cmd, t)
+}
+
+// lineDupContents becomes linedup.go in TestFuncWithDuplicateLines.
+const lineDupContents = `
+package linedup
+
+var G int
+
+func LineDup(c int) {
+	for i := 0; i < c; i++ {
+//line ld.go:100
+		if i % 2 == 0 {
+			G++
+		}
+		if i % 3 == 0 {
+			G++; G++
+		}
+//line ld.go:100
+		if i % 4 == 0 {
+			G++; G++; G++
+		}
+		if i % 5 == 0 {
+			G++; G++; G++; G++
+		}
+	}
+}
+`
+
+// lineDupTestContents becomes linedup_test.go in TestFuncWithDuplicateLines.
+const lineDupTestContents = `
+package linedup
+
+import "testing"
+
+func TestLineDup(t *testing.T) {
+	LineDup(100)
+}
+`
+
+// Test -func with duplicate //line directives with different numbers
+// of statements.
+func TestFuncWithDuplicateLines(t *testing.T) {
+	t.Parallel()
+	testenv.MustHaveGoRun(t)
+	buildCover(t)
+
+	if err := os.Mkdir(lineDupDir, 0777); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ioutil.WriteFile(filepath.Join(lineDupDir, "go.mod"), []byte("module linedup\n"), 0444); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(lineDupGo, []byte(lineDupContents), 0444); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(lineDupTestGo, []byte(lineDupTestContents), 0444); err != nil {
+		t.Fatal(err)
+	}
+
+	// go test -cover -covermode count -coverprofile TMPDIR/linedup.out
+	cmd := exec.Command(testenv.GoToolPath(t), "test", toolexecArg, "-cover", "-covermode", "count", "-coverprofile", lineDupProfile)
+	cmd.Dir = lineDupDir
+	run(cmd, t)
+
+	// testcover -func=TMPDIR/linedup.out
+	cmd = exec.Command(testcover, "-func", lineDupProfile)
+	cmd.Dir = lineDupDir
 	run(cmd, t)
 }
 

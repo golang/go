@@ -39,7 +39,10 @@ func sigaction(sig uint32, new, old *sigactiont) {
 
 		var ret int32
 
-		g := getg()
+		var g *g
+		if mainStarted {
+			g = getg()
+		}
 		sp := uintptr(unsafe.Pointer(&sig))
 		switch {
 		case g == nil:

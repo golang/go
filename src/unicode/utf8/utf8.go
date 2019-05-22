@@ -25,25 +25,25 @@ const (
 )
 
 const (
-	t1 = 0x00 // 0000 0000
-	tx = 0x80 // 1000 0000
-	t2 = 0xC0 // 1100 0000
-	t3 = 0xE0 // 1110 0000
-	t4 = 0xF0 // 1111 0000
-	t5 = 0xF8 // 1111 1000
+	t1 = 0b00000000
+	tx = 0b10000000
+	t2 = 0b11000000
+	t3 = 0b11100000
+	t4 = 0b11110000
+	t5 = 0b11111000
 
-	maskx = 0x3F // 0011 1111
-	mask2 = 0x1F // 0001 1111
-	mask3 = 0x0F // 0000 1111
-	mask4 = 0x07 // 0000 0111
+	maskx = 0b00111111
+	mask2 = 0b00011111
+	mask3 = 0b00001111
+	mask4 = 0b00000111
 
 	rune1Max = 1<<7 - 1
 	rune2Max = 1<<11 - 1
 	rune3Max = 1<<16 - 1
 
 	// The default lowest and highest continuation byte.
-	locb = 0x80 // 1000 0000
-	hicb = 0xBF // 1011 1111
+	locb = 0b10000000
+	hicb = 0b10111111
 
 	// These names of these constants are chosen to give nice alignment in the
 	// table below. The first nibble is an index into acceptRanges or F for
@@ -89,7 +89,8 @@ type acceptRange struct {
 	hi uint8 // highest value for second byte.
 }
 
-var acceptRanges = [...]acceptRange{
+// acceptRanges has size 16 to avoid bounds checks in the code that uses it.
+var acceptRanges = [16]acceptRange{
 	0: {locb, hicb},
 	1: {0xA0, hicb},
 	2: {locb, 0x9F},
@@ -160,23 +161,23 @@ func DecodeRune(p []byte) (r rune, size int) {
 		mask := rune(x) << 31 >> 31 // Create 0x0000 or 0xFFFF.
 		return rune(p[0])&^mask | RuneError&mask, 1
 	}
-	sz := x & 7
+	sz := int(x & 7)
 	accept := acceptRanges[x>>4]
-	if n < int(sz) {
+	if n < sz {
 		return RuneError, 1
 	}
 	b1 := p[1]
 	if b1 < accept.lo || accept.hi < b1 {
 		return RuneError, 1
 	}
-	if sz == 2 {
+	if sz <= 2 { // <= instead of == to help the compiler eliminate some bounds checks
 		return rune(p0&mask2)<<6 | rune(b1&maskx), 2
 	}
 	b2 := p[2]
 	if b2 < locb || hicb < b2 {
 		return RuneError, 1
 	}
-	if sz == 3 {
+	if sz <= 3 {
 		return rune(p0&mask3)<<12 | rune(b1&maskx)<<6 | rune(b2&maskx), 3
 	}
 	b3 := p[3]
@@ -208,23 +209,23 @@ func DecodeRuneInString(s string) (r rune, size int) {
 		mask := rune(x) << 31 >> 31 // Create 0x0000 or 0xFFFF.
 		return rune(s[0])&^mask | RuneError&mask, 1
 	}
-	sz := x & 7
+	sz := int(x & 7)
 	accept := acceptRanges[x>>4]
-	if n < int(sz) {
+	if n < sz {
 		return RuneError, 1
 	}
 	s1 := s[1]
 	if s1 < accept.lo || accept.hi < s1 {
 		return RuneError, 1
 	}
-	if sz == 2 {
+	if sz <= 2 { // <= instead of == to help the compiler eliminate some bounds checks
 		return rune(s0&mask2)<<6 | rune(s1&maskx), 2
 	}
 	s2 := s[2]
 	if s2 < locb || hicb < s2 {
 		return RuneError, 1
 	}
-	if sz == 3 {
+	if sz <= 3 {
 		return rune(s0&mask3)<<12 | rune(s1&maskx)<<6 | rune(s2&maskx), 3
 	}
 	s3 := s[3]

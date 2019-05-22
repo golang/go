@@ -132,9 +132,24 @@ nocpuinfo:
 	MOVQ	_cgo_init(SB), AX
 	TESTQ	AX, AX
 	JZ	needtls
-	// g0 already in DI
-	MOVQ	DI, CX	// Win64 uses CX for first parameter
-	MOVQ	$setg_gcc<>(SB), SI
+	// arg 1: g0, already in DI
+	MOVQ	$setg_gcc<>(SB), SI // arg 2: setg_gcc
+#ifdef GOOS_android
+	MOVQ	$runtime·tls_g(SB), DX 	// arg 3: &tls_g
+	// arg 4: TLS base, stored in slot 0 (Android's TLS_SLOT_SELF).
+	// Compensate for tls_g (+16).
+	MOVQ	-16(TLS), CX
+#else
+	MOVQ	$0, DX	// arg 3, 4: not used when using platform's TLS
+	MOVQ	$0, CX
+#endif
+#ifdef GOOS_windows
+	// Adjust for the Win64 calling convention.
+	MOVQ	CX, R9 // arg 4
+	MOVQ	DX, R8 // arg 3
+	MOVQ	SI, DX // arg 2
+	MOVQ	DI, CX // arg 1
+#endif
 	CALL	AX
 
 	// update stackguard after _cgo_init
@@ -154,6 +169,10 @@ needtls:
 #endif
 #ifdef GOOS_solaris
 	// skip TLS setup on Solaris
+	JMP ok
+#endif
+#ifdef GOOS_illumos
+	// skip TLS setup on illumos
 	JMP ok
 #endif
 #ifdef GOOS_darwin
@@ -405,6 +424,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
+	NOP	SP	// tell vet SP changed - stop checking offsets
 	MOVQ	8(SP), AX	// f's caller's PC
 	MOVQ	AX, (m_morebuf+gobuf_pc)(BX)
 	LEAQ	16(SP), AX	// f's caller's SP
@@ -871,7 +891,7 @@ TEXT runtime·aeshash(SB),NOSPLIT,$0-32
 	MOVQ	p+0(FP), AX	// ptr to data
 	MOVQ	s+16(FP), CX	// size
 	LEAQ	ret+24(FP), DX
-	JMP	runtime·aeshashbody(SB)
+	JMP	aeshashbody<>(SB)
 
 // func aeshashstr(p unsafe.Pointer, h uintptr) uintptr
 TEXT runtime·aeshashstr(SB),NOSPLIT,$0-24
@@ -879,12 +899,12 @@ TEXT runtime·aeshashstr(SB),NOSPLIT,$0-24
 	MOVQ	8(AX), CX	// length of string
 	MOVQ	(AX), AX	// string data
 	LEAQ	ret+16(FP), DX
-	JMP	runtime·aeshashbody(SB)
+	JMP	aeshashbody<>(SB)
 
 // AX: data
 // CX: length
 // DX: address to put return value
-TEXT runtime·aeshashbody(SB),NOSPLIT,$0-0
+TEXT aeshashbody<>(SB),NOSPLIT,$0-0
 	// Fill an SSE register with our seeds.
 	MOVQ	h+8(FP), X0			// 64 bits of per-table hash seed
 	PINSRW	$4, CX, X0			// 16 bits of length
@@ -1438,10 +1458,8 @@ flush:
 	MOVQ	96(SP), R15
 	JMP	ret
 
-DATA	debugCallFrameTooLarge<>+0x00(SB)/8, $"call fra"
-DATA	debugCallFrameTooLarge<>+0x08(SB)/8, $"me too l"
-DATA	debugCallFrameTooLarge<>+0x10(SB)/4, $"arge"
-GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $0x14	// Size duplicated below
+DATA	debugCallFrameTooLarge<>+0x00(SB)/20, $"call frame too large"
+GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
 
 // debugCallV1 is the entry point for debugger-injected function
 // calls on running goroutines. It informs the runtime that a
@@ -1565,7 +1583,7 @@ good:
 	// The frame size is too large. Report the error.
 	MOVQ	$debugCallFrameTooLarge<>(SB), AX
 	MOVQ	AX, 0(SP)
-	MOVQ	$0x14, 8(SP)
+	MOVQ	$20, 8(SP) // length of debugCallFrameTooLarge string
 	MOVQ	$8, AX
 	BYTE	$0xcc
 	JMP	restore
@@ -1599,6 +1617,8 @@ restore:
 
 	RET
 
+// runtime.debugCallCheck assumes that functions defined with the
+// DEBUG_CALL_FN macro are safe points to inject calls.
 #define DEBUG_CALL_FN(NAME,MAXSIZE)		\
 TEXT NAME(SB),WRAPPER,$MAXSIZE-0;		\
 	NO_LOCAL_POINTERS;			\
@@ -1630,3 +1650,80 @@ TEXT runtime·debugCallPanicked(SB),NOSPLIT,$16-16
 	MOVQ	$2, AX
 	BYTE	$0xcc
 	RET
+
+// Note: these functions use a special calling convention to save generated code space.
+// Arguments are passed in registers, but the space for those arguments are allocated
+// in the caller's stack frame. These stubs write the args into that stack space and
+// then tail call to the corresponding runtime handler.
+// The tail call makes these stubs disappear in backtraces.
+TEXT runtime·panicIndex(SB),NOSPLIT,$0-16
+	MOVQ	AX, x+0(FP)
+	MOVQ	CX, y+8(FP)
+	JMP	runtime·goPanicIndex(SB)
+TEXT runtime·panicIndexU(SB),NOSPLIT,$0-16
+	MOVQ	AX, x+0(FP)
+	MOVQ	CX, y+8(FP)
+	JMP	runtime·goPanicIndexU(SB)
+TEXT runtime·panicSliceAlen(SB),NOSPLIT,$0-16
+	MOVQ	CX, x+0(FP)
+	MOVQ	DX, y+8(FP)
+	JMP	runtime·goPanicSliceAlen(SB)
+TEXT runtime·panicSliceAlenU(SB),NOSPLIT,$0-16
+	MOVQ	CX, x+0(FP)
+	MOVQ	DX, y+8(FP)
+	JMP	runtime·goPanicSliceAlenU(SB)
+TEXT runtime·panicSliceAcap(SB),NOSPLIT,$0-16
+	MOVQ	CX, x+0(FP)
+	MOVQ	DX, y+8(FP)
+	JMP	runtime·goPanicSliceAcap(SB)
+TEXT runtime·panicSliceAcapU(SB),NOSPLIT,$0-16
+	MOVQ	CX, x+0(FP)
+	MOVQ	DX, y+8(FP)
+	JMP	runtime·goPanicSliceAcapU(SB)
+TEXT runtime·panicSliceB(SB),NOSPLIT,$0-16
+	MOVQ	AX, x+0(FP)
+	MOVQ	CX, y+8(FP)
+	JMP	runtime·goPanicSliceB(SB)
+TEXT runtime·panicSliceBU(SB),NOSPLIT,$0-16
+	MOVQ	AX, x+0(FP)
+	MOVQ	CX, y+8(FP)
+	JMP	runtime·goPanicSliceBU(SB)
+TEXT runtime·panicSlice3Alen(SB),NOSPLIT,$0-16
+	MOVQ	DX, x+0(FP)
+	MOVQ	BX, y+8(FP)
+	JMP	runtime·goPanicSlice3Alen(SB)
+TEXT runtime·panicSlice3AlenU(SB),NOSPLIT,$0-16
+	MOVQ	DX, x+0(FP)
+	MOVQ	BX, y+8(FP)
+	JMP	runtime·goPanicSlice3AlenU(SB)
+TEXT runtime·panicSlice3Acap(SB),NOSPLIT,$0-16
+	MOVQ	DX, x+0(FP)
+	MOVQ	BX, y+8(FP)
+	JMP	runtime·goPanicSlice3Acap(SB)
+TEXT runtime·panicSlice3AcapU(SB),NOSPLIT,$0-16
+	MOVQ	DX, x+0(FP)
+	MOVQ	BX, y+8(FP)
+	JMP	runtime·goPanicSlice3AcapU(SB)
+TEXT runtime·panicSlice3B(SB),NOSPLIT,$0-16
+	MOVQ	CX, x+0(FP)
+	MOVQ	DX, y+8(FP)
+	JMP	runtime·goPanicSlice3B(SB)
+TEXT runtime·panicSlice3BU(SB),NOSPLIT,$0-16
+	MOVQ	CX, x+0(FP)
+	MOVQ	DX, y+8(FP)
+	JMP	runtime·goPanicSlice3BU(SB)
+TEXT runtime·panicSlice3C(SB),NOSPLIT,$0-16
+	MOVQ	AX, x+0(FP)
+	MOVQ	CX, y+8(FP)
+	JMP	runtime·goPanicSlice3C(SB)
+TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
+	MOVQ	AX, x+0(FP)
+	MOVQ	CX, y+8(FP)
+	JMP	runtime·goPanicSlice3CU(SB)
+
+#ifdef GOOS_android
+// Use the free TLS_SLOT_APP slot #2 on Android Q.
+// Earlier androids are set up in gcc_android.c.
+DATA runtime·tls_g+0(SB)/8, $16
+GLOBL runtime·tls_g+0(SB), NOPTR, $8
+#endif

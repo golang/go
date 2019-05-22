@@ -1,0 +1,19 @@
+env GO111MODULE=on
+
+# For this test module there are three versions:
+#   * v0.1.1-0.20190429073117-b5426c86b553
+#   * v0.1.0
+#   * v0.0.0-20190429073000-30950c05d534
+# Only v0.1.0 is tagged.
+#
+# The latest pseudo-version is semantically higher than the latest tag.
+# 'list -u' should not suggest a lower version as an upgrade.
+
+go get -m example.com/pseudoupgrade@b5426c8
+go list -m -u all
+stdout '^example.com/pseudoupgrade v0.1.1-0.20190429073117-b5426c86b553$'
+
+-- go.mod --
+module x
+
+go 1.12

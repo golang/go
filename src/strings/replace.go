@@ -26,6 +26,8 @@ type replacer interface {
 // NewReplacer returns a new Replacer from a list of old, new string
 // pairs. Replacements are performed in the order they appear in the
 // target string, without overlapping matches.
+//
+// NewReplacer panics if given an odd number of arguments.
 func NewReplacer(oldnew ...string) *Replacer {
 	if len(oldnew)%2 == 1 {
 		panic("strings.NewReplacer: odd argument count")

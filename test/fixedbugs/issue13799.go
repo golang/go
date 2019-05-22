@@ -50,10 +50,10 @@ func test1(iter int) {
 		// var fn func() // this makes it work, because fn stays off heap
 		j := 0        // ERROR "moved to heap: j$"
 		fn = func() { // ERROR "func literal escapes to heap$"
-			m[i] = append(m[i], 0) // ERROR "&i escapes to heap$"
-			if j < 25 {            // ERROR "&j escapes to heap$"
+			m[i] = append(m[i], 0)
+			if j < 25 {
 				j++
-				fn() // ERROR "&fn escapes to heap$"
+				fn()
 			}
 		}
 		fn()
@@ -92,16 +92,16 @@ func test3(iter int) {
 
 	const maxI = 500
 	var x int // ERROR "moved to heap: x$"
-	m := &x   // ERROR "&x escapes to heap$"
+	m := &x
 
 	var fn func() // ERROR "moved to heap: fn$"
 	for i := 0; i < maxI; i++ {
 		// var fn func() // this makes it work, because fn stays off heap
 		j := 0        // ERROR "moved to heap: j$"
 		fn = func() { // ERROR "func literal escapes to heap$"
-			if j < 100 { // ERROR "&j escapes to heap$"
+			if j < 100 {
 				j++
-				fn() // ERROR "&fn escapes to heap$"
+				fn()
 			} else {
 				*m = *m + 1
 			}
@@ -118,7 +118,7 @@ func test4(iter int) {
 
 	const maxI = 500
 	var x int
-	m := &x // ERROR "test4 &x does not escape$"
+	m := &x
 
 	// var fn func()
 	for i := 0; i < maxI; i++ {
@@ -157,7 +157,7 @@ func test5(iter int) {
 
 	const maxI = 500
 	var x int // ERROR "moved to heap: x$"
-	m := &x   // ERROR "&x escapes to heap$"
+	m := &x
 
 	var fn *str
 	for i := 0; i < maxI; i++ {
@@ -175,7 +175,7 @@ func test6(iter int) {
 
 	const maxI = 500
 	var x int
-	m := &x // ERROR "&x does not escape$"
+	m := &x
 
 	// var fn *str
 	for i := 0; i < maxI; i++ {

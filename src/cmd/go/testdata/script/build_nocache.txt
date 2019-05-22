@@ -12,6 +12,11 @@ env HOME=
 ! go build -o triv triv.go
 stderr 'build cache is required, but could not be located: GOCACHE is not defined and .*'
 
+# If GOCACHE is set but is not an absolute path, and we cannot build.
+env GOCACHE=test
+! go build -o triv triv.go
+stderr 'build cache is required, but could not be located: GOCACHE is not an absolute path'
+
 # An explicit GOCACHE=off also disables builds.
 env GOCACHE=off
 ! go build -o triv triv.go

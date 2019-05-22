@@ -514,7 +514,7 @@ func TestReadWriteDeadlineRace(t *testing.T) {
 }
 
 // TestRacyRead tests that it is safe to mutate the input Read buffer
-// immediately after cancelation has occurred.
+// immediately after cancellation has occurred.
 func TestRacyRead(t *testing.T) {
 	t.Parallel()
 
@@ -553,7 +553,7 @@ func TestRacyRead(t *testing.T) {
 }
 
 // TestRacyWrite tests that it is safe to mutate the input Write buffer
-// immediately after cancelation has occurred.
+// immediately after cancellation has occurred.
 func TestRacyWrite(t *testing.T) {
 	t.Parallel()
 

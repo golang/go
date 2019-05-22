@@ -66,7 +66,8 @@ func SyntaxError(cmd, msg string) {
 	} else {
 		fmt.Fprintf(os.Stderr, `run "go help %s" for more information`+"\n", cmd)
 	}
-	os.Exit(2)
+	base.SetExitStatus(2)
+	base.Exit()
 }
 
 // AddKnownFlags registers the flags in defns with base.AddKnownFlag.

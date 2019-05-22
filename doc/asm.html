@@ -57,58 +57,65 @@ func main() {
 	println(3)
 }
 $ GOOS=linux GOARCH=amd64 go tool compile -S x.go        # or: go build -gcflags -S x.go
-
---- prog list "main" ---
-0000 (x.go:3) TEXT    main+0(SB),$8-0
-0001 (x.go:3) FUNCDATA $0,gcargs·0+0(SB)
-0002 (x.go:3) FUNCDATA $1,gclocals·0+0(SB)
-0003 (x.go:4) MOVQ    $3,(SP)
-0004 (x.go:4) PCDATA  $0,$8
-0005 (x.go:4) CALL    ,runtime.printint+0(SB)
-0006 (x.go:4) PCDATA  $0,$-1
-0007 (x.go:4) PCDATA  $0,$0
-0008 (x.go:4) CALL    ,runtime.printnl+0(SB)
-0009 (x.go:4) PCDATA  $0,$-1
-0010 (x.go:5) RET     ,
+"".main STEXT size=74 args=0x0 locals=0x10
+	0x0000 00000 (x.go:3)	TEXT	"".main(SB), $16-0
+	0x0000 00000 (x.go:3)	MOVQ	(TLS), CX
+	0x0009 00009 (x.go:3)	CMPQ	SP, 16(CX)
+	0x000d 00013 (x.go:3)	JLS	67
+	0x000f 00015 (x.go:3)	SUBQ	$16, SP
+	0x0013 00019 (x.go:3)	MOVQ	BP, 8(SP)
+	0x0018 00024 (x.go:3)	LEAQ	8(SP), BP
+	0x001d 00029 (x.go:3)	FUNCDATA	$0, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+	0x001d 00029 (x.go:3)	FUNCDATA	$1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+	0x001d 00029 (x.go:3)	FUNCDATA	$2, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+	0x001d 00029 (x.go:4)	PCDATA	$0, $0
+	0x001d 00029 (x.go:4)	PCDATA	$1, $0
+	0x001d 00029 (x.go:4)	CALL	runtime.printlock(SB)
+	0x0022 00034 (x.go:4)	MOVQ	$3, (SP)
+	0x002a 00042 (x.go:4)	CALL	runtime.printint(SB)
+	0x002f 00047 (x.go:4)	CALL	runtime.printnl(SB)
+	0x0034 00052 (x.go:4)	CALL	runtime.printunlock(SB)
+	0x0039 00057 (x.go:5)	MOVQ	8(SP), BP
+	0x003e 00062 (x.go:5)	ADDQ	$16, SP
+	0x0042 00066 (x.go:5)	RET
+	0x0043 00067 (x.go:5)	NOP
+	0x0043 00067 (x.go:3)	PCDATA	$1, $-1
+	0x0043 00067 (x.go:3)	PCDATA	$0, $-1
+	0x0043 00067 (x.go:3)	CALL	runtime.morestack_noctxt(SB)
+	0x0048 00072 (x.go:3)	JMP	0
 ...
 </pre>
 
 <p>
 The <code>FUNCDATA</code> and <code>PCDATA</code> directives contain information
 for use by the garbage collector; they are introduced by the compiler.
-</p> 
-
-<!-- Commenting out because the feature is gone but it's popular and may come back.
+</p>
 
 <p>
-To see what gets put in the binary after linking, add the <code>-a</code> flag to the linker:
+To see what gets put in the binary after linking, use <code>go tool objdump</code>:
 </p>
 
 <pre>
-$ go tool 6l -a x.6        # or: go build -ldflags -a x.go
-codeblk [0x2000,0x1d059) at offset 0x1000
-002000	main.main            | (3)	TEXT	main.main+0(SB),$8
-002000	65488b0c25a0080000   | (3)	MOVQ	2208(GS),CX
-002009	483b21               | (3)	CMPQ	SP,(CX)
-00200c	7707                 | (3)	JHI	,2015
-00200e	e83da20100           | (3)	CALL	,1c250+runtime.morestack00
-002013	ebeb                 | (3)	JMP	,2000
-002015	4883ec08             | (3)	SUBQ	$8,SP
-002019	                     | (3)	FUNCDATA	$0,main.gcargs·0+0(SB)
-002019	                     | (3)	FUNCDATA	$1,main.gclocals·0+0(SB)
-002019	48c7042403000000     | (4)	MOVQ	$3,(SP)
-002021	                     | (4)	PCDATA	$0,$8
-002021	e8aad20000           | (4)	CALL	,f2d0+runtime.printint
-002026	                     | (4)	PCDATA	$0,$-1
-002026	                     | (4)	PCDATA	$0,$0
-002026	e865d40000           | (4)	CALL	,f490+runtime.printnl
-00202b	                     | (4)	PCDATA	$0,$-1
-00202b	4883c408             | (5)	ADDQ	$8,SP
-00202f	c3                   | (5)	RET	,
-...
+$ go build -o x.exe x.go
+$ go tool objdump -s main.main x.exe
+TEXT main.main(SB) /tmp/x.go
+  x.go:3		0x10501c0		65488b0c2530000000	MOVQ GS:0x30, CX
+  x.go:3		0x10501c9		483b6110		CMPQ 0x10(CX), SP
+  x.go:3		0x10501cd		7634			JBE 0x1050203
+  x.go:3		0x10501cf		4883ec10		SUBQ $0x10, SP
+  x.go:3		0x10501d3		48896c2408		MOVQ BP, 0x8(SP)
+  x.go:3		0x10501d8		488d6c2408		LEAQ 0x8(SP), BP
+  x.go:4		0x10501dd		e86e45fdff		CALL runtime.printlock(SB)
+  x.go:4		0x10501e2		48c7042403000000	MOVQ $0x3, 0(SP)
+  x.go:4		0x10501ea		e8e14cfdff		CALL runtime.printint(SB)
+  x.go:4		0x10501ef		e8ec47fdff		CALL runtime.printnl(SB)
+  x.go:4		0x10501f4		e8d745fdff		CALL runtime.printunlock(SB)
+  x.go:5		0x10501f9		488b6c2408		MOVQ 0x8(SP), BP
+  x.go:5		0x10501fe		4883c410		ADDQ $0x10, SP
+  x.go:5		0x1050202		c3			RET
+  x.go:3		0x1050203		e83882ffff		CALL runtime.morestack_noctxt(SB)
+  x.go:3		0x1050208		ebb6			JMP main.main(SB)
 </pre>
-
--->
 
 <h3 id="constants">Constants</h3>
 
@@ -266,7 +273,7 @@ that assembly programming is a fraught endeavor.
 </p>
 
 <p>
-In Go object files and binaries, the full name of a symbol is the 
+In Go object files and binaries, the full name of a symbol is the
 package path followed by a period and the symbol name:
 <code>fmt.Printf</code> or <code>math/rand.Int</code>.
 Because the assembler's parser treats period and slash as punctuation,
@@ -485,7 +492,7 @@ even for assembly functions not called directly from Go.
 At the start of the function, the arguments are assumed
 to be initialized but the results are assumed uninitialized.
 If the results will hold live pointers during a call instruction,
-the function should start by zeroing the results and then 
+the function should start by zeroing the results and then
 executing the pseudo-instruction <code>GO_RESULTS_INITIALIZED</code>.
 This instruction records that the results are now initialized
 and should be scanned during stack movement and garbage collection.
@@ -503,7 +510,7 @@ on the <code>TEXT</code> instruction.
 The pointer information can also be omitted if the
 function contains no call instructions.
 Otherwise, the local stack frame must not contain pointers,
-and the assembly must confirm this fact by executing the 
+and the assembly must confirm this fact by executing the
 pseudo-instruction <code>NO_LOCAL_POINTERS</code>.
 Because stack resizing is implemented by moving the stack,
 the stack pointer may change during any function call:
