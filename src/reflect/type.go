@@ -871,8 +871,12 @@ func hasPrefix(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }
 
+func (t *rtype) hasName() bool {
+	return t.tflag&tflagNamed != 0
+}
+
 func (t *rtype) Name() string {
-	if t.tflag&tflagNamed == 0 {
+	if !t.hasName() {
 		return ""
 	}
 	s := t.String()
@@ -1563,7 +1567,7 @@ func directlyAssignable(T, V *rtype) bool {
 
 	// Otherwise at least one of T and V must not be defined
 	// and they must have the same kind.
-	if T.Name() != "" && V.Name() != "" || T.Kind() != V.Kind() {
+	if T.hasName() && V.hasName() || T.Kind() != V.Kind() {
 		return false
 	}
 
