@@ -51,6 +51,7 @@ static SInt32 sslTrustSettingsResult(SecCertificateRef cert) {
 	}
 
 	// > no trust settings [...] means "this certificate must be verified to a known trusted certificate”
+	// (Should this cause a fallback from user to admin domain? It's unclear.)
 	if (err != errSecSuccess || trustSettings == NULL) {
 		if (trustSettings != NULL) CFRelease(trustSettings);
 		return kSecTrustSettingsResultUnspecified;
@@ -77,16 +78,12 @@ static SInt32 sslTrustSettingsResult(SecCertificateRef cert) {
 	for (m = 0; m < CFArrayGetCount(trustSettings); m++) {
 		CFDictionaryRef tSetting = (CFDictionaryRef)CFArrayGetValueAtIndex(trustSettings, m);
 
-		// First, check if this trust setting applies to our policy. We assume
-		// only one will. The docs suggest that there might be multiple applying
-		// but don't explain how to combine them.
+		// First, check if this trust setting is constrained to a non-SSL policy.
 		SecPolicyRef policyRef;
 		if (CFDictionaryGetValueIfPresent(tSetting, _kSecTrustSettingsPolicy, (const void**)&policyRef)) {
 			if (!isSSLPolicy(policyRef)) {
 				continue;
 			}
-		} else {
-			continue;
 		}
 
 		if (CFDictionaryContainsKey(tSetting, _kSecTrustSettingsPolicyString)) {
@@ -98,13 +95,23 @@ static SInt32 sslTrustSettingsResult(SecCertificateRef cert) {
 		if (CFDictionaryGetValueIfPresent(tSetting, _kSecTrustSettingsResult, (const void**)&cfNum)) {
 			CFNumberGetValue(cfNum, kCFNumberSInt32Type, &result);
 		} else {
-			// > If the value of the kSecTrustSettingsResult component is not
-			// > kSecTrustSettingsResultUnspecified for a usage constraints dictionary that has
-			// > no constraints, the default value kSecTrustSettingsResultTrustRoot is assumed.
+			// > If this key is not present, a default value of
+			// > kSecTrustSettingsResultTrustRoot is assumed.
 			result = kSecTrustSettingsResultTrustRoot;
 		}
 
-		break;
+		// If multiple dictionaries match, we are supposed to "OR" them,
+		// the semantics of which are not clear. Since TrustRoot and TrustAsRoot
+		// are mutually exclusive, Deny should probably override, and Invalid and
+		// Unspecified be overridden, approximate this by stopping at the first
+		// TrustRoot, TrustAsRoot or Deny.
+		if (result == kSecTrustSettingsResultTrustRoot) {
+			break;
+		} else if (result == kSecTrustSettingsResultTrustAsRoot) {
+			break;
+		} else if (result == kSecTrustSettingsResultDeny) {
+			break;
+		}
 	}
 
 	// If trust settings are present, but none of them match the policy...
@@ -244,6 +251,10 @@ int CopyPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots, bool debugDa
 			} else if (result == kSecTrustSettingsResultDeny) {
 				appendTo = combinedUntrustedData;
 			} else if (result == kSecTrustSettingsResultUnspecified) {
+				// Certificates with unspecified trust should probably be added to a pool of
+				// intermediates for chain building, or checked for transitive trust and
+				// added to the root pool (which is an imprecise approximation because it
+				// cuts chains short) but we don't support either at the moment. TODO.
 				continue;
 			} else {
 				continue;
