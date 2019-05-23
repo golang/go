@@ -124,6 +124,31 @@ func TestNSLookupTXT(t *testing.T) {
 	}
 }
 
+func TestLookupPTR(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	addr, err := localIP()
+	if err != nil {
+		t.Errorf("failed to get local ip: %s", err)
+	}
+	names, err := LookupAddr(addr.String())
+	if err != nil {
+		t.Errorf("failed %s: %s", addr, err)
+	}
+	if len(names) == 0 {
+		t.Errorf("no results")
+	}
+	expected, err := lookupPTR(addr.String())
+	if err != nil {
+		t.Logf("skipping failed lookup %s test: %s", addr.String(), err)
+	}
+	sort.Strings(expected)
+	sort.Strings(names)
+	if !reflect.DeepEqual(expected, names) {
+		t.Errorf("different results %s:\texp:%v\tgot:%v", addr, toJson(expected), toJson(names))
+	}
+}
+
 type byPrefAndHost []*MX
 
 func (s byPrefAndHost) Len() int { return len(s) }
@@ -229,4 +254,42 @@ func nslookupTXT(name string) (txt []string, err error) {
 		txt = append(txt, ans[2])
 	}
 	return
+}
+
+func ping(name string) (string, error) {
+	var out bytes.Buffer
+	var err bytes.Buffer
+	cmd := exec.Command("ping", "-n", "1", "-a", name)
+	cmd.Stdout = &out
+	cmd.Stderr = &err
+	if err := cmd.Run(); err != nil {
+		return "", err
+	}
+	r := strings.ReplaceAll(out.String(), "\r\n", "\n")
+	return r, nil
+}
+
+func lookupPTR(name string) (ptr []string, err error) {
+	var r string
+	if r, err = ping(name); err != nil {
+		return
+	}
+	ptr = make([]string, 0, 10)
+	rx := regexp.MustCompile(`(?m)^Pinging\s+([a-zA-Z0-9.\-]+)\s+\[.*$`)
+	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
+		ptr = append(ptr, ans[1]+".")
+	}
+	return
+}
+
+func localIP() (ip IP, err error) {
+	conn, err := Dial("udp", "golang.org:80")
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*UDPAddr)
+
+	return localAddr.IP, nil
 }
