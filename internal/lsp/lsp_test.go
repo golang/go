@@ -61,7 +61,15 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 func (r *runner) Diagnostics(t *testing.T, data tests.Diagnostics) {
 	v := r.server.session.View(viewName)
 	for uri, want := range data {
-		results, err := source.Diagnostics(context.Background(), v, uri)
+		f, err := v.GetFile(context.Background(), uri)
+		if err != nil {
+			t.Fatalf("no file for %s: %v", f, err)
+		}
+		gof, ok := f.(source.GoFile)
+		if !ok {
+			t.Fatalf("%s is not a Go file: %v", uri, err)
+		}
+		results, err := source.Diagnostics(context.Background(), v, gof)
 		if err != nil {
 			t.Fatal(err)
 		}

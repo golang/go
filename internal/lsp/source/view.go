@@ -156,6 +156,14 @@ type GoFile interface {
 	GetActiveReverseDeps(ctx context.Context) []GoFile
 }
 
+type ModFile interface {
+	File
+}
+
+type SumFile interface {
+	File
+}
+
 // Package represents a Go package that has been type-checked. It maintains
 // only the relevant fields of a *go/packages.Package.
 type Package interface {

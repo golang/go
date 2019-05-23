@@ -13,14 +13,24 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-func (s *Server) Diagnostics(ctx context.Context, view source.View, uri span.URI) {
+func (s *Server) Diagnostics(ctx context.Context, v source.View, uri span.URI) {
 	if ctx.Err() != nil {
 		s.session.Logger().Errorf(ctx, "canceling diagnostics for %s: %v", uri, ctx.Err())
 		return
 	}
-	reports, err := source.Diagnostics(ctx, view, uri)
+	f, err := v.GetFile(ctx, uri)
 	if err != nil {
-		s.session.Logger().Errorf(ctx, "failed to compute diagnostics for %s: %v", uri, err)
+		s.session.Logger().Errorf(ctx, "no file for %s: %v", uri, err)
+		return
+	}
+	// For non-Go files, don't return any diagnostics.
+	gof, ok := f.(source.GoFile)
+	if !ok {
+		return
+	}
+	reports, err := source.Diagnostics(ctx, v, gof)
+	if err != nil {
+		s.session.Logger().Errorf(ctx, "failed to compute diagnostics for %s: %v", gof.URI(), err)
 		return
 	}
 
@@ -28,7 +38,7 @@ func (s *Server) Diagnostics(ctx context.Context, view source.View, uri span.URI
 	defer s.undeliveredMu.Unlock()
 
 	for uri, diagnostics := range reports {
-		if err := s.publishDiagnostics(ctx, view, uri, diagnostics); err != nil {
+		if err := s.publishDiagnostics(ctx, v, uri, diagnostics); err != nil {
 			if s.undelivered == nil {
 				s.undelivered = make(map[span.URI][]source.Diagnostic)
 			}
@@ -41,7 +51,7 @@ func (s *Server) Diagnostics(ctx context.Context, view source.View, uri span.URI
 	// Anytime we compute diagnostics, make sure to also send along any
 	// undelivered ones (only for remaining URIs).
 	for uri, diagnostics := range s.undelivered {
-		err := s.publishDiagnostics(ctx, view, uri, diagnostics)
+		err := s.publishDiagnostics(ctx, v, uri, diagnostics)
 		if err != nil {
 			s.session.Logger().Errorf(ctx, "failed to deliver diagnostic for %s: %v", uri, err)
 		}

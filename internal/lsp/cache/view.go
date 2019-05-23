@@ -159,6 +159,13 @@ func (v *view) shutdown(context.Context) {
 	}
 }
 
+// Ignore checks if the given URI is a URI we ignore.
+// As of right now, we only ignore files in the "builtin" package.
+func (v *view) Ignore(uri span.URI) bool {
+	_, ok := v.ignoredURIs[uri]
+	return ok
+}
+
 func (v *view) BackgroundContext() context.Context {
 	v.mu.Lock()
 	defer v.mu.Unlock()
@@ -306,7 +313,7 @@ func (v *view) getFile(uri span.URI) (viewFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	var f *goFile
+	var f viewFile
 	switch ext := filepath.Ext(filename); ext {
 	case ".go":
 		f = &goFile{
@@ -315,23 +322,28 @@ func (v *view) getFile(uri span.URI) (viewFile, error) {
 				fname: filename,
 			},
 		}
+		v.session.filesWatchMap.Watch(uri, func() {
+			f.(*goFile).invalidate()
+		})
 	case ".mod":
-		return nil, fmt.Errorf("mod files are not yet supported")
+		f = &modFile{
+			fileBase: fileBase{
+				view:  v,
+				fname: filename,
+			},
+		}
+	case ".sum":
+		f = &sumFile{
+			fileBase: fileBase{
+				view:  v,
+				fname: filename,
+			},
+		}
 	default:
 		return nil, fmt.Errorf("unsupported file extension: %s", ext)
 	}
-	v.session.filesWatchMap.Watch(uri, func() {
-		f.invalidate()
-	})
 	v.mapFile(uri, f)
 	return f, nil
-}
-
-// Ignore checks if the given URI is a URI we ignore.
-// As of right now, we only ignore files in the "builtin" package.
-func (v *view) Ignore(uri span.URI) bool {
-	_, ok := v.ignoredURIs[uri]
-	return ok
 }
 
 // findFile checks the cache for any file matching the given uri.

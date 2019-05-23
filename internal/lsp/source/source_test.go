@@ -52,7 +52,11 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 
 func (r *runner) Diagnostics(t *testing.T, data tests.Diagnostics) {
 	for uri, want := range data {
-		results, err := source.Diagnostics(context.Background(), r.view, uri)
+		f, err := r.view.GetFile(context.Background(), uri)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results, err := source.Diagnostics(context.Background(), r.view, f.(source.GoFile))
 		if err != nil {
 			t.Fatal(err)
 		}

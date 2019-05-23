@@ -80,7 +80,7 @@ type packageFactKey struct {
 }
 
 func (act *Action) String() string {
-	return fmt.Sprintf("%s@%s", act.Analyzer, act.Pkg)
+	return fmt.Sprintf("%s@%s", act.Analyzer, act.Pkg.PkgPath())
 }
 
 func execAll(ctx context.Context, fset *token.FileSet, actions []*Action) error {
@@ -112,7 +112,7 @@ func (act *Action) execOnce(ctx context.Context, fset *token.FileSet) error {
 	var failed []string
 	for _, dep := range act.Deps {
 		if dep.err != nil {
-			failed = append(failed, dep.String())
+			failed = append(failed, fmt.Sprintf("%s: %v", dep.String(), dep.err))
 		}
 	}
 	if failed != nil {
@@ -159,7 +159,7 @@ func (act *Action) execOnce(ctx context.Context, fset *token.FileSet) error {
 	act.pass = pass
 
 	if len(act.Pkg.GetErrors()) > 0 && !pass.Analyzer.RunDespiteErrors {
-		act.err = fmt.Errorf("analysis skipped due to errors in package")
+		act.err = fmt.Errorf("analysis skipped due to errors in package: %v", act.Pkg.GetErrors())
 	} else {
 		act.result, act.err = pass.Analyzer.Run(pass)
 		if act.err == nil {
