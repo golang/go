@@ -6,6 +6,7 @@ package mime
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -481,8 +482,9 @@ var formatTests = []formatTest{
 	{"noslash", map[string]string{"X": "Y"}, "noslash; x=Y"}, // e.g. Content-Disposition values (RFC 2183); issue 11289
 	{"foo bar/baz", nil, ""},
 	{"foo/bar baz", nil, ""},
-	{"attachment", map[string]string{"filename": "ĄĄŽŽČČŠŠ"}, ""},
-	{"attachment", map[string]string{"filename": "ÁÁÊÊÇÇÎÎ"}, ""},
+	{"attachment", map[string]string{"filename": "ĄĄŽŽČČŠŠ"}, "attachment; filename*=utf-8''%C4%84%C4%84%C5%BD%C5%BD%C4%8C%C4%8C%C5%A0%C5%A0"},
+	{"attachment", map[string]string{"filename": "ÁÁÊÊÇÇÎÎ"}, "attachment; filename*=utf-8''%C3%81%C3%81%C3%8A%C3%8A%C3%87%C3%87%C3%8E%C3%8E"},
+	{"attachment", map[string]string{"filename": "数据统计.png"}, "attachment; filename*=utf-8''%E6%95%B0%E6%8D%AE%E7%BB%9F%E8%AE%A1.png"},
 	{"foo/BAR", nil, "foo/bar"},
 	{"foo/BAR", map[string]string{"X": "Y"}, "foo/bar; x=Y"},
 	{"foo/BAR", map[string]string{"space": "With space"}, `foo/bar; space="With space"`},
@@ -491,7 +493,8 @@ var formatTests = []formatTest{
 	{"foo/BAR", map[string]string{"both": `With \backslash and "quote`}, `foo/bar; both="With \\backslash and \"quote"`},
 	{"foo/BAR", map[string]string{"": "empty attribute"}, ""},
 	{"foo/BAR", map[string]string{"bad attribute": "baz"}, ""},
-	{"foo/BAR", map[string]string{"nonascii": "not an ascii character: ä"}, ""},
+	{"foo/BAR", map[string]string{"nonascii": "not an ascii character: ä"}, "foo/bar; nonascii*=utf-8''not%20an%20ascii%20character%3A%20%C3%A4"},
+	{"foo/BAR", map[string]string{"ctl": "newline: \n nil: \000"}, "foo/bar; ctl*=utf-8''newline%3A%20%0A%20nil%3A%20%00"},
 	{"foo/bar", map[string]string{"a": "av", "b": "bv", "c": "cv"}, "foo/bar; a=av; b=bv; c=cv"},
 	{"foo/bar", map[string]string{"0": "'", "9": "'"}, "foo/bar; 0='; 9='"},
 	{"foo", map[string]string{"bar": ""}, `foo; bar=""`},
@@ -502,6 +505,22 @@ func TestFormatMediaType(t *testing.T) {
 		got := FormatMediaType(tt.typ, tt.params)
 		if got != tt.want {
 			t.Errorf("%d. FormatMediaType(%q, %v) = %q; want %q", i, tt.typ, tt.params, got, tt.want)
+		}
+		if got == "" {
+			continue
+		}
+		typ, params, err := ParseMediaType(got)
+		if err != nil {
+			t.Errorf("%d. ParseMediaType(%q) err: %v", i, got, err)
+		}
+		if typ != strings.ToLower(tt.typ) {
+			t.Errorf("%d. ParseMediaType(%q) typ = %q; want %q", i, got, typ, tt.typ)
+		}
+		for k, v := range tt.params {
+			k = strings.ToLower(k)
+			if params[k] != v {
+				t.Errorf("%d. ParseMediaType(%q) params[%s] = %q; want %q", i, got, k, params[k], v)
+			}
 		}
 	}
 }
