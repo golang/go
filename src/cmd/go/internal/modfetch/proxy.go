@@ -40,7 +40,7 @@ control systems. Setting GOPROXY to "off" disallows downloading modules from
 any source. Otherwise, GOPROXY is expected to be a comma-separated list of
 the URLs of module proxies, in which case the go command will fetch modules
 from those proxies. For each request, the go command tries each proxy in sequence,
-only moving to the next if the current proxy returns a 404 or 410 HTTP response.
+only moving to the next if the current proxy failed.
 The string "direct" may appear in the proxy list, to cause a direct connection to
 be attempted at that point in the search.
 
@@ -415,7 +415,7 @@ func (r *lazyRepo) Zip(dst io.Writer, version string) error {
 // The list must be non-empty and all Repos
 // must return the same result from ModulePath.
 // For each method, the repos are tried in order
-// until one succeeds or returns a non-ErrNotExist (non-404) error.
+// until one succeeds.
 type listRepo []Repo
 
 func (l listRepo) ModulePath() string {
@@ -425,9 +425,10 @@ func (l listRepo) ModulePath() string {
 func (l listRepo) Versions(prefix string) ([]string, error) {
 	for i, r := range l {
 		v, err := r.Versions(prefix)
-		if i == len(l)-1 || !errors.Is(err, os.ErrNotExist) {
-			return v, err
+		if err != nil && i != len(l) - 1{
+			continue
 		}
+		return v, err
 	}
 	panic("no repos")
 }
@@ -435,9 +436,10 @@ func (l listRepo) Versions(prefix string) ([]string, error) {
 func (l listRepo) Stat(rev string) (*RevInfo, error) {
 	for i, r := range l {
 		info, err := r.Stat(rev)
-		if i == len(l)-1 || !errors.Is(err, os.ErrNotExist) {
-			return info, err
+		if err != nil && i != len(l) - 1{
+			continue
 		}
+		return info, err
 	}
 	panic("no repos")
 }
@@ -445,9 +447,10 @@ func (l listRepo) Stat(rev string) (*RevInfo, error) {
 func (l listRepo) Latest() (*RevInfo, error) {
 	for i, r := range l {
 		info, err := r.Latest()
-		if i == len(l)-1 || !errors.Is(err, os.ErrNotExist) {
-			return info, err
+		if err != nil && i != len(l) - 1{
+			continue
 		}
+		return info, err
 	}
 	panic("no repos")
 }
@@ -455,9 +458,10 @@ func (l listRepo) Latest() (*RevInfo, error) {
 func (l listRepo) GoMod(version string) ([]byte, error) {
 	for i, r := range l {
 		data, err := r.GoMod(version)
-		if i == len(l)-1 || !errors.Is(err, os.ErrNotExist) {
-			return data, err
+		if err != nil && i != len(l) - 1{
+			continue
 		}
+		return data, err
 	}
 	panic("no repos")
 }
@@ -465,9 +469,11 @@ func (l listRepo) GoMod(version string) ([]byte, error) {
 func (l listRepo) Zip(dst io.Writer, version string) error {
 	for i, r := range l {
 		err := r.Zip(dst, version)
-		if i == len(l)-1 || !errors.Is(err, os.ErrNotExist) {
-			return err
+		if err != nil && i != len(l) - 1{
+			continue
 		}
+		return err
 	}
 	panic("no repos")
 }
+
