@@ -13,15 +13,22 @@ import (
 type goFile struct {
 	fileBase
 
-	ast     *ast.File
+	ast *astFile
+
 	pkg     *pkg
 	meta    *metadata
 	imports []*ast.ImportSpec
 }
 
+type astFile struct {
+	file      *ast.File
+	isTrimmed bool
+}
+
 func (f *goFile) GetToken(ctx context.Context) *token.File {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
+
 	if f.isDirty() {
 		if _, err := f.view.loadParseTypecheck(ctx, f); err != nil {
 			f.View().Session().Logger().Errorf(ctx, "unable to check package for %s: %v", f.URI(), err)
@@ -31,7 +38,7 @@ func (f *goFile) GetToken(ctx context.Context) *token.File {
 	return f.token
 }
 
-func (f *goFile) GetAST(ctx context.Context) *ast.File {
+func (f *goFile) GetTrimmedAST(ctx context.Context) *ast.File {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
 
@@ -41,14 +48,27 @@ func (f *goFile) GetAST(ctx context.Context) *ast.File {
 			return nil
 		}
 	}
-	return f.ast
+	return f.ast.file
+}
+
+func (f *goFile) GetAST(ctx context.Context) *ast.File {
+	f.view.mu.Lock()
+	defer f.view.mu.Unlock()
+
+	if f.isDirty() || f.astIsTrimmed() {
+		if _, err := f.view.loadParseTypecheck(ctx, f); err != nil {
+			f.View().Session().Logger().Errorf(ctx, "unable to check package for %s: %v", f.URI(), err)
+			return nil
+		}
+	}
+	return f.ast.file
 }
 
 func (f *goFile) GetPackage(ctx context.Context) source.Package {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
 
-	if f.isDirty() {
+	if f.isDirty() || f.astIsTrimmed() {
 		if errs, err := f.view.loadParseTypecheck(ctx, f); err != nil {
 			f.View().Session().Logger().Errorf(ctx, "unable to check package for %s: %v", f.URI(), err)
 
@@ -66,6 +86,10 @@ func (f *goFile) GetPackage(ctx context.Context) source.Package {
 // It assumes that the file's view's mutex is held by the caller.
 func (f *goFile) isDirty() bool {
 	return f.meta == nil || f.imports == nil || f.token == nil || f.ast == nil || f.pkg == nil || len(f.view.contentChanges) > 0
+}
+
+func (f *goFile) astIsTrimmed() bool {
+	return f.ast != nil && f.ast.isTrimmed
 }
 
 func (f *goFile) GetActiveReverseDeps(ctx context.Context) []source.GoFile {

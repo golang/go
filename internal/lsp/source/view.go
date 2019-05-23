@@ -148,7 +148,15 @@ type File interface {
 // GoFile represents a Go source file that has been type-checked.
 type GoFile interface {
 	File
+
+	// GetTrimmedAST returns an AST that may or may not contain function bodies.
+	// It should be used in scenarios where function bodies are not necessary.
+	GetTrimmedAST(ctx context.Context) *ast.File
+
+	// GetAST returns the full AST for the file.
 	GetAST(ctx context.Context) *ast.File
+
+	// GetPackage returns the package that this file belongs to.
 	GetPackage(ctx context.Context) Package
 
 	// GetActiveReverseDeps returns the active files belonging to the reverse

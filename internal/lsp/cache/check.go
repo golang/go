@@ -24,6 +24,9 @@ type importer struct {
 	// If we have seen a package that is already in this map, we have a circular import.
 	seen map[string]struct{}
 
+	// topLevelPkgPath is the path of the package from which type-checking began.
+	topLevelPkgPath string
+
 	ctx  context.Context
 	fset *token.FileSet
 }
@@ -96,7 +99,9 @@ func (imp *importer) typeCheck(pkgPath string) (*pkg, error) {
 	appendError := func(err error) {
 		imp.view.appendPkgError(pkg, err)
 	}
-	files, errs := imp.parseFiles(meta.files)
+
+	// Don't type-check function bodies if we are not in the top-level package.
+	files, errs := imp.parseFiles(meta.files, imp.ignoreFuncBodies(pkg.pkgPath))
 	for _, err := range errs {
 		appendError(err)
 	}
@@ -112,10 +117,11 @@ func (imp *importer) typeCheck(pkgPath string) (*pkg, error) {
 	cfg := &types.Config{
 		Error: appendError,
 		Importer: &importer{
-			view: imp.view,
-			seen: seen,
-			ctx:  imp.ctx,
-			fset: imp.fset,
+			view:            imp.view,
+			ctx:             imp.ctx,
+			fset:            imp.fset,
+			topLevelPkgPath: imp.topLevelPkgPath,
+			seen:            seen,
 		},
 	}
 	check := types.NewChecker(cfg, imp.fset, pkg.types, pkg.typesInfo)
@@ -151,8 +157,11 @@ func (imp *importer) cachePackage(ctx context.Context, pkg *pkg, meta *metadata)
 			continue
 		}
 		gof.token = tok
-		gof.ast = file
-		gof.imports = gof.ast.Imports
+		gof.ast = &astFile{
+			file:      file,
+			isTrimmed: imp.ignoreFuncBodies(pkg.pkgPath),
+		}
+		gof.imports = file.Imports
 		gof.pkg = pkg
 	}
 
@@ -197,4 +206,8 @@ func (v *view) appendPkgError(pkg *pkg, err error) {
 		})
 	}
 	pkg.errors = append(pkg.errors, errs...)
+}
+
+func (imp *importer) ignoreFuncBodies(pkgPath string) bool {
+	return imp.topLevelPkgPath != pkgPath
 }

@@ -34,7 +34,7 @@ var ioLimit = make(chan bool, 20)
 // Because files are scanned in parallel, the token.Pos
 // positions of the resulting ast.Files are not ordered.
 //
-func (imp *importer) parseFiles(filenames []string) ([]*ast.File, []error) {
+func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) ([]*ast.File, []error) {
 	var wg sync.WaitGroup
 	n := len(filenames)
 	parsed := make([]*ast.File, n)
@@ -54,7 +54,7 @@ func (imp *importer) parseFiles(filenames []string) ([]*ast.File, []error) {
 		}
 		gof, ok := f.(*goFile)
 		if !ok {
-			parsed[i], errors[i] = nil, fmt.Errorf("Non go file in parse call: %v", filename)
+			parsed[i], errors[i] = nil, fmt.Errorf("non-Go file in parse call: %v", filename)
 			continue
 		}
 
@@ -66,24 +66,25 @@ func (imp *importer) parseFiles(filenames []string) ([]*ast.File, []error) {
 				wg.Done()
 			}()
 
-			if gof.ast != nil { // already have an ast
-				parsed[i], errors[i] = gof.ast, nil
+			// If we already have a cached AST, reuse it.
+			// If the AST is trimmed, only use it if we are ignoring function bodies.
+			if gof.ast != nil && (!gof.ast.isTrimmed || ignoreFuncBodies) {
+				parsed[i], errors[i] = gof.ast.file, nil
 				return
 			}
 
-			// No cached AST for this file, so try parsing it.
+			// We don't have a cached AST for this file, so we read its content and parse it.
 			gof.read(imp.ctx)
-			if gof.fc.Error != nil { // file content error, so abort
+			if gof.fc.Error != nil {
 				return
 			}
-
 			src := gof.fc.Data
-			if src == nil { // no source
-				parsed[i], errors[i] = nil, fmt.Errorf("No source for %v", filename)
+			if src == nil {
+				parsed[i], errors[i] = nil, fmt.Errorf("no source for %v", filename)
 				return
 			}
 
-			// ParseFile may return a partial AST AND an error.
+			// ParseFile may return a partial AST and an error.
 			parsed[i], errors[i] = parseFile(imp.fset, filename, src)
 
 			// Fix any badly parsed parts of the AST.
@@ -140,8 +141,44 @@ func sameFile(x, y string) bool {
 	return false
 }
 
-// fix inspects and potentially modifies any *ast.BadStmts or *ast.BadExprs in the AST.
+// trimAST clears any part of the AST not relevant to type checking
+// expressions at pos.
+func trimAST(file *ast.File) {
+	ast.Inspect(file, func(n ast.Node) bool {
+		if n == nil {
+			return false
+		}
+		switch n := n.(type) {
+		case *ast.FuncDecl:
+			n.Body = nil
+		case *ast.BlockStmt:
+			n.List = nil
+		case *ast.CaseClause:
+			n.Body = nil
+		case *ast.CommClause:
+			n.Body = nil
+		case *ast.CompositeLit:
+			// Leave elts in place for [...]T
+			// array literals, because they can
+			// affect the expression's type.
+			if !isEllipsisArray(n.Type) {
+				n.Elts = nil
+			}
+		}
+		return true
+	})
+}
 
+func isEllipsisArray(n ast.Expr) bool {
+	at, ok := n.(*ast.ArrayType)
+	if !ok {
+		return false
+	}
+	_, ok = at.Len.(*ast.Ellipsis)
+	return ok
+}
+
+// fix inspects and potentially modifies any *ast.BadStmts or *ast.BadExprs in the AST.
 // We attempt to modify the AST such that we can type-check it more effectively.
 func (v *view) fix(ctx context.Context, file *ast.File, tok *token.File, src []byte) {
 	var parent ast.Node

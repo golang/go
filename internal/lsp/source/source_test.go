@@ -32,7 +32,6 @@ type runner struct {
 }
 
 func testSource(t *testing.T, exporter packagestest.Exporter) {
-	ctx := context.Background()
 	data := tests.Load(t, exporter, "../testdata")
 	defer data.Exported.Cleanup()
 
@@ -45,7 +44,7 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 	}
 	r.view.SetEnv(data.Config.Env)
 	for filename, content := range data.Config.Overlay {
-		r.view.SetContent(ctx, span.FileURI(filename), content)
+		session.SetOverlay(span.FileURI(filename), content)
 	}
 	tests.Run(t, r, data)
 }

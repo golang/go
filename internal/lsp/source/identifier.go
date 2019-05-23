@@ -181,9 +181,15 @@ func objToNode(ctx context.Context, v View, obj types.Object, rng span.Range) (a
 	}
 	declFile, ok := f.(GoFile)
 	if !ok {
-		return nil, fmt.Errorf("not a go file %v", s.URI())
+		return nil, fmt.Errorf("not a Go file %v", s.URI())
 	}
-	declAST := declFile.GetAST(ctx)
+	// If the object is exported, we don't need the full AST to find its definition.
+	var declAST *ast.File
+	if obj.Exported() {
+		declAST = declFile.GetTrimmedAST(ctx)
+	} else {
+		declAST = declFile.GetAST(ctx)
+	}
 	path, _ := astutil.PathEnclosingInterval(declAST, rng.Start, rng.End)
 	if path == nil {
 		return nil, fmt.Errorf("no path for range %v", rng)
