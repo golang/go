@@ -6,10 +6,12 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/types"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"golang.org/x/tools/go/packages"
@@ -327,12 +329,21 @@ func (v *view) getFile(uri span.URI) (viewFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	f := &goFile{
-		fileBase: fileBase{
-			view:  v,
-			fname: filename,
-		},
+	var f *goFile
+	switch ext := filepath.Ext(filename); ext {
+	case ".go":
+		f = &goFile{
+			fileBase: fileBase{
+				view:  v,
+				fname: filename,
+			},
+		}
+	case ".mod":
+		return nil, fmt.Errorf("mod files are not yet supported")
+	default:
+		return nil, fmt.Errorf("unsupported file extension: %s", ext)
 	}
+
 	v.mapFile(uri, f)
 	return f, nil
 }

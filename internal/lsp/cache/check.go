@@ -15,22 +15,16 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 )
 
-func (v *view) parse(ctx context.Context, file source.File) ([]packages.Error, error) {
+func (v *view) parse(ctx context.Context, f *goFile) ([]packages.Error, error) {
 	v.mcache.mu.Lock()
 	defer v.mcache.mu.Unlock()
 
 	// Apply any queued-up content changes.
 	if err := v.applyContentChanges(ctx); err != nil {
 		return nil, err
-	}
-
-	f, ok := file.(*goFile)
-	if !ok {
-		return nil, fmt.Errorf("not a go file: %v", file.URI())
 	}
 
 	// If the package for the file has not been invalidated by the application

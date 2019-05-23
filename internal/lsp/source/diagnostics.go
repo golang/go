@@ -56,9 +56,10 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 	if err != nil {
 		return singleDiagnostic(uri, "no file found for %s", uri), nil
 	}
+	// For non-Go files, don't return any diagnostics.
 	gof, ok := f.(GoFile)
 	if !ok {
-		return singleDiagnostic(uri, "%s is not a go file", uri), nil
+		return nil, nil
 	}
 	pkg := gof.GetPackage(ctx)
 	if pkg == nil {
