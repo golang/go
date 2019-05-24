@@ -303,7 +303,7 @@ func goproxy() string {
 		return v
 	}
 
-	return "https://proxy.golang.org"
+	return "https://proxy.golang.org,direct"
 }
 
 func gosumdb() string {
