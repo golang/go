@@ -173,7 +173,7 @@ func parseTagFilterRange(filter string) func(int64, string) bool {
 	}
 	v, err := strconv.ParseInt(ranges[0][1], 10, 64)
 	if err != nil {
-		panic(fmt.Errorf("Failed to parse int %s: %v", ranges[0][1], err))
+		panic(fmt.Errorf("failed to parse int %s: %v", ranges[0][1], err))
 	}
 	scaledValue, unit := measurement.Scale(v, ranges[0][2], ranges[0][2])
 	if len(ranges) == 1 {
@@ -200,7 +200,7 @@ func parseTagFilterRange(filter string) func(int64, string) bool {
 		return nil
 	}
 	if v, err = strconv.ParseInt(ranges[1][1], 10, 64); err != nil {
-		panic(fmt.Errorf("Failed to parse int %s: %v", ranges[1][1], err))
+		panic(fmt.Errorf("failed to parse int %s: %v", ranges[1][1], err))
 	}
 	scaledValue2, unit2 := measurement.Scale(v, ranges[1][2], unit)
 	if unit != unit2 {
