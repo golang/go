@@ -212,7 +212,7 @@ function prevSlide() {
     updateSlides();
   }
 
-  if (notesEnabled) localStorage.setItem('destSlide', curSlide);
+  if (notesEnabled) localStorage.setItem(destSlideKey(), curSlide);
 };
 
 function nextSlide() {
@@ -223,7 +223,7 @@ function nextSlide() {
     updateSlides();
   }
 
-  if (notesEnabled) localStorage.setItem('destSlide', curSlide);
+  if (notesEnabled) localStorage.setItem(destSlideKey(), curSlide);
 };
 
 /* Slide events */
@@ -602,7 +602,7 @@ function setupNotesSync() {
 
   setupPlayCodeSync();
   setupPlayResizeSync();
-  localStorage.setItem('destSlide', curSlide);
+  localStorage.setItem(destSlideKey(), curSlide);
   window.addEventListener('storage', updateOtherWindow, false);
 }
 
@@ -613,7 +613,7 @@ function updateOtherWindow(e) {
   var isRemoveStorageEvent = !e.newValue;
   if (isRemoveStorageEvent) return;
 
-  var destSlide = localStorage.getItem('destSlide');
+  var destSlide = localStorage.getItem(destSlideKey());
   while (destSlide > curSlide) {
     nextSlide();
   }
