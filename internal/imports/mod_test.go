@@ -520,6 +520,7 @@ func setup(t *testing.T, main, wd string) *modTest {
 		GOPATH:      filepath.Join(dir, "gopath"),
 		GO111MODULE: "on",
 		GOPROXY:     proxyDirToURL(proxyDir),
+		GOSUMDB:     "off",
 		WorkingDir:  filepath.Join(mainDir, wd),
 	}
 

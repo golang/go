@@ -116,7 +116,9 @@ func (modules) Finalize(exported *Exported) error {
 	exported.Config.Env = append(exported.Config.Env,
 		"GO111MODULE=on",
 		"GOPATH="+filepath.Join(exported.temp, "modcache"),
-		"GOPROXY="+proxyDirToURL(proxyDir))
+		"GOPROXY="+proxyDirToURL(proxyDir),
+		"GOSUMDB=off",
+	)
 
 	// Run go mod download to recreate the mod cache dir with all the extra
 	// stuff in cache. All the files created by Export should be recreated.

@@ -506,8 +506,8 @@ type ProcessEnv struct {
 
 	// If non-empty, these will be used instead of the
 	// process-wide values.
-	GOPATH, GOROOT, GO111MODULE, GOPROXY, GOFLAGS string
-	WorkingDir                                    string
+	GOPATH, GOROOT, GO111MODULE, GOPROXY, GOFLAGS, GOSUMDB string
+	WorkingDir                                             string
 
 	// If true, use go/packages regardless of the environment.
 	ForceGoPackages bool
@@ -527,6 +527,7 @@ func (e *ProcessEnv) env() []string {
 	add("GO111MODULE", e.GO111MODULE)
 	add("GOPROXY", e.GOPROXY)
 	add("GOFLAGS", e.GOFLAGS)
+	add("GOSUMDB", e.GOSUMDB)
 	if e.WorkingDir != "" {
 		add("PWD", e.WorkingDir)
 	}

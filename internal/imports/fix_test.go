@@ -1572,6 +1572,7 @@ func (c testConfig) test(t *testing.T, fn func(*goimportTest)) {
 					GOROOT:          env["GOROOT"],
 					GOPATH:          env["GOPATH"],
 					GO111MODULE:     env["GO111MODULE"],
+					GOSUMDB:         env["GOSUMDB"],
 					WorkingDir:      exported.Config.Dir,
 					ForceGoPackages: forceGoPackages,
 					Debug:           *testDebug,
