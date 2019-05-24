@@ -3518,156 +3518,309 @@ var (
 	Zs     = _Zs // Zs is the set of Unicode characters in category Zs (Separator, space).
 )
 
+type ScriptName string
+
+const (
+	Adlam_Script                  ScriptName = "Adlam"
+	Ahom_Script                   ScriptName = "Ahom"
+	Anatolian_Hieroglyphs_Script  ScriptName = "Anatolian_Hieroglyphs"
+	Arabic_Script                 ScriptName = "Arabic"
+	Armenian_Script               ScriptName = "Armenian"
+	Avestan_Script                ScriptName = "Avestan"
+	Balinese_Script               ScriptName = "Balinese"
+	Bamum_Script                  ScriptName = "Bamum"
+	Bassa_Vah_Script              ScriptName = "Bassa_Vah"
+	Batak_Script                  ScriptName = "Batak"
+	Bengali_Script                ScriptName = "Bengali"
+	Bhaiksuki_Script              ScriptName = "Bhaiksuki"
+	Bopomofo_Script               ScriptName = "Bopomofo"
+	Brahmi_Script                 ScriptName = "Brahmi"
+	Braille_Script                ScriptName = "Braille"
+	Buginese_Script               ScriptName = "Buginese"
+	Buhid_Script                  ScriptName = "Buhid"
+	Canadian_Aboriginal_Script    ScriptName = "Canadian_Aboriginal"
+	Carian_Script                 ScriptName = "Carian"
+	Caucasian_Albanian_Script     ScriptName = "Caucasian_Albanian"
+	Chakma_Script                 ScriptName = "Chakma"
+	Cham_Script                   ScriptName = "Cham"
+	Cherokee_Script               ScriptName = "Cherokee"
+	Common_Script                 ScriptName = "Common"
+	Coptic_Script                 ScriptName = "Coptic"
+	Cuneiform_Script              ScriptName = "Cuneiform"
+	Cypriot_Script                ScriptName = "Cypriot"
+	Cyrillic_Script               ScriptName = "Cyrillic"
+	Deseret_Script                ScriptName = "Deseret"
+	Devanagari_Script             ScriptName = "Devanagari"
+	Dogra_Script                  ScriptName = "Dogra"
+	Duployan_Script               ScriptName = "Duployan"
+	Egyptian_Hieroglyphs_Script   ScriptName = "Egyptian_Hieroglyphs"
+	Elbasan_Script                ScriptName = "Elbasan"
+	Ethiopic_Script               ScriptName = "Ethiopic"
+	Georgian_Script               ScriptName = "Georgian"
+	Glagolitic_Script             ScriptName = "Glagolitic"
+	Gothic_Script                 ScriptName = "Gothic"
+	Grantha_Script                ScriptName = "Grantha"
+	Greek_Script                  ScriptName = "Greek"
+	Gujarati_Script               ScriptName = "Gujarati"
+	Gunjala_Gondi_Script          ScriptName = "Gunjala_Gondi"
+	Gurmukhi_Script               ScriptName = "Gurmukhi"
+	Han_Script                    ScriptName = "Han"
+	Hangul_Script                 ScriptName = "Hangul"
+	Hanifi_Rohingya_Script        ScriptName = "Hanifi_Rohingya"
+	Hanunoo_Script                ScriptName = "Hanunoo"
+	Hatran_Script                 ScriptName = "Hatran"
+	Hebrew_Script                 ScriptName = "Hebrew"
+	Hiragana_Script               ScriptName = "Hiragana"
+	Imperial_Aramaic_Script       ScriptName = "Imperial_Aramaic"
+	Inherited_Script              ScriptName = "Inherited"
+	Inscriptional_Pahlavi_Script  ScriptName = "Inscriptional_Pahlavi"
+	Inscriptional_Parthian_Script ScriptName = "Inscriptional_Parthian"
+	Javanese_Script               ScriptName = "Javanese"
+	Kaithi_Script                 ScriptName = "Kaithi"
+	Kannada_Script                ScriptName = "Kannada"
+	Katakana_Script               ScriptName = "Katakana"
+	Kayah_Li_Script               ScriptName = "Kayah_Li"
+	Kharoshthi_Script             ScriptName = "Kharoshthi"
+	Khmer_Script                  ScriptName = "Khmer"
+	Khojki_Script                 ScriptName = "Khojki"
+	Khudawadi_Script              ScriptName = "Khudawadi"
+	Lao_Script                    ScriptName = "Lao"
+	Latin_Script                  ScriptName = "Latin"
+	Lepcha_Script                 ScriptName = "Lepcha"
+	Limbu_Script                  ScriptName = "Limbu"
+	Linear_A_Script               ScriptName = "Linear_A"
+	Linear_B_Script               ScriptName = "Linear_B"
+	Lisu_Script                   ScriptName = "Lisu"
+	Lycian_Script                 ScriptName = "Lycian"
+	Lydian_Script                 ScriptName = "Lydian"
+	Mahajani_Script               ScriptName = "Mahajani"
+	Makasar_Script                ScriptName = "Makasar"
+	Malayalam_Script              ScriptName = "Malayalam"
+	Mandaic_Script                ScriptName = "Mandaic"
+	Manichaean_Script             ScriptName = "Manichaean"
+	Marchen_Script                ScriptName = "Marchen"
+	Masaram_Gondi_Script          ScriptName = "Masaram_Gondi"
+	Medefaidrin_Script            ScriptName = "Medefaidrin"
+	Meetei_Mayek_Script           ScriptName = "Meetei_Mayek"
+	Mende_Kikakui_Script          ScriptName = "Mende_Kikakui"
+	Meroitic_Cursive_Script       ScriptName = "Meroitic_Cursive"
+	Meroitic_Hieroglyphs_Script   ScriptName = "Meroitic_Hieroglyphs"
+	Miao_Script                   ScriptName = "Miao"
+	Modi_Script                   ScriptName = "Modi"
+	Mongolian_Script              ScriptName = "Mongolian"
+	Mro_Script                    ScriptName = "Mro"
+	Multani_Script                ScriptName = "Multani"
+	Myanmar_Script                ScriptName = "Myanmar"
+	Nabataean_Script              ScriptName = "Nabataean"
+	New_Tai_Lue_Script            ScriptName = "New_Tai_Lue"
+	Newa_Script                   ScriptName = "Newa"
+	Nko_Script                    ScriptName = "Nko"
+	Nushu_Script                  ScriptName = "Nushu"
+	Ogham_Script                  ScriptName = "Ogham"
+	Ol_Chiki_Script               ScriptName = "Ol_Chiki"
+	Old_Hungarian_Script          ScriptName = "Old_Hungarian"
+	Old_Italic_Script             ScriptName = "Old_Italic"
+	Old_North_Arabian_Script      ScriptName = "Old_North_Arabian"
+	Old_Permic_Script             ScriptName = "Old_Permic"
+	Old_Persian_Script            ScriptName = "Old_Persian"
+	Old_Sogdian_Script            ScriptName = "Old_Sogdian"
+	Old_South_Arabian_Script      ScriptName = "Old_South_Arabian"
+	Old_Turkic_Script             ScriptName = "Old_Turkic"
+	Oriya_Script                  ScriptName = "Oriya"
+	Osage_Script                  ScriptName = "Osage"
+	Osmanya_Script                ScriptName = "Osmanya"
+	Pahawh_Hmong_Script           ScriptName = "Pahawh_Hmong"
+	Palmyrene_Script              ScriptName = "Palmyrene"
+	Pau_Cin_Hau_Script            ScriptName = "Pau_Cin_Hau"
+	Phags_Pa_Script               ScriptName = "Phags_Pa"
+	Phoenician_Script             ScriptName = "Phoenician"
+	Psalter_Pahlavi_Script        ScriptName = "Psalter_Pahlavi"
+	Rejang_Script                 ScriptName = "Rejang"
+	Runic_Script                  ScriptName = "Runic"
+	Samaritan_Script              ScriptName = "Samaritan"
+	Saurashtra_Script             ScriptName = "Saurashtra"
+	Sharada_Script                ScriptName = "Sharada"
+	Shavian_Script                ScriptName = "Shavian"
+	Siddham_Script                ScriptName = "Siddham"
+	SignWriting_Script            ScriptName = "SignWriting"
+	Sinhala_Script                ScriptName = "Sinhala"
+	Sogdian_Script                ScriptName = "Sogdian"
+	Sora_Sompeng_Script           ScriptName = "Sora_Sompeng"
+	Soyombo_Script                ScriptName = "Soyombo"
+	Sundanese_Script              ScriptName = "Sundanese"
+	Syloti_Nagri_Script           ScriptName = "Syloti_Nagri"
+	Syriac_Script                 ScriptName = "Syriac"
+	Tagalog_Script                ScriptName = "Tagalog"
+	Tagbanwa_Script               ScriptName = "Tagbanwa"
+	Tai_Le_Script                 ScriptName = "Tai_Le"
+	Tai_Tham_Script               ScriptName = "Tai_Tham"
+	Tai_Viet_Script               ScriptName = "Tai_Viet"
+	Takri_Script                  ScriptName = "Takri"
+	Tamil_Script                  ScriptName = "Tamil"
+	Tangut_Script                 ScriptName = "Tangut"
+	Telugu_Script                 ScriptName = "Telugu"
+	Thaana_Script                 ScriptName = "Thaana"
+	Thai_Script                   ScriptName = "Thai"
+	Tibetan_Script                ScriptName = "Tibetan"
+	Tifinagh_Script               ScriptName = "Tifinagh"
+	Tirhuta_Script                ScriptName = "Tirhuta"
+	Ugaritic_Script               ScriptName = "Ugaritic"
+	Vai_Script                    ScriptName = "Vai"
+	Warang_Citi_Script            ScriptName = "Warang_Citi"
+	Yi_Script                     ScriptName = "Yi"
+	Zanabazar_Square_Script       ScriptName = "Zanabazar_Square"
+)
+
 // Scripts is the set of Unicode script tables.
-var Scripts = map[string]*RangeTable{
-	"Adlam":                  Adlam,
-	"Ahom":                   Ahom,
-	"Anatolian_Hieroglyphs":  Anatolian_Hieroglyphs,
-	"Arabic":                 Arabic,
-	"Armenian":               Armenian,
-	"Avestan":                Avestan,
-	"Balinese":               Balinese,
-	"Bamum":                  Bamum,
-	"Bassa_Vah":              Bassa_Vah,
-	"Batak":                  Batak,
-	"Bengali":                Bengali,
-	"Bhaiksuki":              Bhaiksuki,
-	"Bopomofo":               Bopomofo,
-	"Brahmi":                 Brahmi,
-	"Braille":                Braille,
-	"Buginese":               Buginese,
-	"Buhid":                  Buhid,
-	"Canadian_Aboriginal":    Canadian_Aboriginal,
-	"Carian":                 Carian,
-	"Caucasian_Albanian":     Caucasian_Albanian,
-	"Chakma":                 Chakma,
-	"Cham":                   Cham,
-	"Cherokee":               Cherokee,
-	"Common":                 Common,
-	"Coptic":                 Coptic,
-	"Cuneiform":              Cuneiform,
-	"Cypriot":                Cypriot,
-	"Cyrillic":               Cyrillic,
-	"Deseret":                Deseret,
-	"Devanagari":             Devanagari,
-	"Dogra":                  Dogra,
-	"Duployan":               Duployan,
-	"Egyptian_Hieroglyphs":   Egyptian_Hieroglyphs,
-	"Elbasan":                Elbasan,
-	"Ethiopic":               Ethiopic,
-	"Georgian":               Georgian,
-	"Glagolitic":             Glagolitic,
-	"Gothic":                 Gothic,
-	"Grantha":                Grantha,
-	"Greek":                  Greek,
-	"Gujarati":               Gujarati,
-	"Gunjala_Gondi":          Gunjala_Gondi,
-	"Gurmukhi":               Gurmukhi,
-	"Han":                    Han,
-	"Hangul":                 Hangul,
-	"Hanifi_Rohingya":        Hanifi_Rohingya,
-	"Hanunoo":                Hanunoo,
-	"Hatran":                 Hatran,
-	"Hebrew":                 Hebrew,
-	"Hiragana":               Hiragana,
-	"Imperial_Aramaic":       Imperial_Aramaic,
-	"Inherited":              Inherited,
-	"Inscriptional_Pahlavi":  Inscriptional_Pahlavi,
-	"Inscriptional_Parthian": Inscriptional_Parthian,
-	"Javanese":               Javanese,
-	"Kaithi":                 Kaithi,
-	"Kannada":                Kannada,
-	"Katakana":               Katakana,
-	"Kayah_Li":               Kayah_Li,
-	"Kharoshthi":             Kharoshthi,
-	"Khmer":                  Khmer,
-	"Khojki":                 Khojki,
-	"Khudawadi":              Khudawadi,
-	"Lao":                    Lao,
-	"Latin":                  Latin,
-	"Lepcha":                 Lepcha,
-	"Limbu":                  Limbu,
-	"Linear_A":               Linear_A,
-	"Linear_B":               Linear_B,
-	"Lisu":                   Lisu,
-	"Lycian":                 Lycian,
-	"Lydian":                 Lydian,
-	"Mahajani":               Mahajani,
-	"Makasar":                Makasar,
-	"Malayalam":              Malayalam,
-	"Mandaic":                Mandaic,
-	"Manichaean":             Manichaean,
-	"Marchen":                Marchen,
-	"Masaram_Gondi":          Masaram_Gondi,
-	"Medefaidrin":            Medefaidrin,
-	"Meetei_Mayek":           Meetei_Mayek,
-	"Mende_Kikakui":          Mende_Kikakui,
-	"Meroitic_Cursive":       Meroitic_Cursive,
-	"Meroitic_Hieroglyphs":   Meroitic_Hieroglyphs,
-	"Miao":                   Miao,
-	"Modi":                   Modi,
-	"Mongolian":              Mongolian,
-	"Mro":                    Mro,
-	"Multani":                Multani,
-	"Myanmar":                Myanmar,
-	"Nabataean":              Nabataean,
-	"New_Tai_Lue":            New_Tai_Lue,
-	"Newa":                   Newa,
-	"Nko":                    Nko,
-	"Nushu":                  Nushu,
-	"Ogham":                  Ogham,
-	"Ol_Chiki":               Ol_Chiki,
-	"Old_Hungarian":          Old_Hungarian,
-	"Old_Italic":             Old_Italic,
-	"Old_North_Arabian":      Old_North_Arabian,
-	"Old_Permic":             Old_Permic,
-	"Old_Persian":            Old_Persian,
-	"Old_Sogdian":            Old_Sogdian,
-	"Old_South_Arabian":      Old_South_Arabian,
-	"Old_Turkic":             Old_Turkic,
-	"Oriya":                  Oriya,
-	"Osage":                  Osage,
-	"Osmanya":                Osmanya,
-	"Pahawh_Hmong":           Pahawh_Hmong,
-	"Palmyrene":              Palmyrene,
-	"Pau_Cin_Hau":            Pau_Cin_Hau,
-	"Phags_Pa":               Phags_Pa,
-	"Phoenician":             Phoenician,
-	"Psalter_Pahlavi":        Psalter_Pahlavi,
-	"Rejang":                 Rejang,
-	"Runic":                  Runic,
-	"Samaritan":              Samaritan,
-	"Saurashtra":             Saurashtra,
-	"Sharada":                Sharada,
-	"Shavian":                Shavian,
-	"Siddham":                Siddham,
-	"SignWriting":            SignWriting,
-	"Sinhala":                Sinhala,
-	"Sogdian":                Sogdian,
-	"Sora_Sompeng":           Sora_Sompeng,
-	"Soyombo":                Soyombo,
-	"Sundanese":              Sundanese,
-	"Syloti_Nagri":           Syloti_Nagri,
-	"Syriac":                 Syriac,
-	"Tagalog":                Tagalog,
-	"Tagbanwa":               Tagbanwa,
-	"Tai_Le":                 Tai_Le,
-	"Tai_Tham":               Tai_Tham,
-	"Tai_Viet":               Tai_Viet,
-	"Takri":                  Takri,
-	"Tamil":                  Tamil,
-	"Tangut":                 Tangut,
-	"Telugu":                 Telugu,
-	"Thaana":                 Thaana,
-	"Thai":                   Thai,
-	"Tibetan":                Tibetan,
-	"Tifinagh":               Tifinagh,
-	"Tirhuta":                Tirhuta,
-	"Ugaritic":               Ugaritic,
-	"Vai":                    Vai,
-	"Warang_Citi":            Warang_Citi,
-	"Yi":                     Yi,
-	"Zanabazar_Square":       Zanabazar_Square,
+var Scripts = map[ScriptName]*RangeTable{
+	Adlam_Script:                  Adlam,
+	Ahom_Script:                   Ahom,
+	Anatolian_Hieroglyphs_Script:  Anatolian_Hieroglyphs,
+	Arabic_Script:                 Arabic,
+	Armenian_Script:               Armenian,
+	Avestan_Script:                Avestan,
+	Balinese_Script:               Balinese,
+	Bamum_Script:                  Bamum,
+	Bassa_Vah_Script:              Bassa_Vah,
+	Batak_Script:                  Batak,
+	Bengali_Script:                Bengali,
+	Bhaiksuki_Script:              Bhaiksuki,
+	Bopomofo_Script:               Bopomofo,
+	Brahmi_Script:                 Brahmi,
+	Braille_Script:                Braille,
+	Buginese_Script:               Buginese,
+	Buhid_Script:                  Buhid,
+	Canadian_Aboriginal_Script:    Canadian_Aboriginal,
+	Carian_Script:                 Carian,
+	Caucasian_Albanian_Script:     Caucasian_Albanian,
+	Chakma_Script:                 Chakma,
+	Cham_Script:                   Cham,
+	Cherokee_Script:               Cherokee,
+	Common_Script:                 Common,
+	Coptic_Script:                 Coptic,
+	Cuneiform_Script:              Cuneiform,
+	Cypriot_Script:                Cypriot,
+	Cyrillic_Script:               Cyrillic,
+	Deseret_Script:                Deseret,
+	Devanagari_Script:             Devanagari,
+	Dogra_Script:                  Dogra,
+	Duployan_Script:               Duployan,
+	Egyptian_Hieroglyphs_Script:   Egyptian_Hieroglyphs,
+	Elbasan_Script:                Elbasan,
+	Ethiopic_Script:               Ethiopic,
+	Georgian_Script:               Georgian,
+	Glagolitic_Script:             Glagolitic,
+	Gothic_Script:                 Gothic,
+	Grantha_Script:                Grantha,
+	Greek_Script:                  Greek,
+	Gujarati_Script:               Gujarati,
+	Gunjala_Gondi_Script:          Gunjala_Gondi,
+	Gurmukhi_Script:               Gurmukhi,
+	Han_Script:                    Han,
+	Hangul_Script:                 Hangul,
+	Hanifi_Rohingya_Script:        Hanifi_Rohingya,
+	Hanunoo_Script:                Hanunoo,
+	Hatran_Script:                 Hatran,
+	Hebrew_Script:                 Hebrew,
+	Hiragana_Script:               Hiragana,
+	Imperial_Aramaic_Script:       Imperial_Aramaic,
+	Inherited_Script:              Inherited,
+	Inscriptional_Pahlavi_Script:  Inscriptional_Pahlavi,
+	Inscriptional_Parthian_Script: Inscriptional_Parthian,
+	Javanese_Script:               Javanese,
+	Kaithi_Script:                 Kaithi,
+	Kannada_Script:                Kannada,
+	Katakana_Script:               Katakana,
+	Kayah_Li_Script:               Kayah_Li,
+	Kharoshthi_Script:             Kharoshthi,
+	Khmer_Script:                  Khmer,
+	Khojki_Script:                 Khojki,
+	Khudawadi_Script:              Khudawadi,
+	Lao_Script:                    Lao,
+	Latin_Script:                  Latin,
+	Lepcha_Script:                 Lepcha,
+	Limbu_Script:                  Limbu,
+	Linear_A_Script:               Linear_A,
+	Linear_B_Script:               Linear_B,
+	Lisu_Script:                   Lisu,
+	Lycian_Script:                 Lycian,
+	Lydian_Script:                 Lydian,
+	Mahajani_Script:               Mahajani,
+	Makasar_Script:                Makasar,
+	Malayalam_Script:              Malayalam,
+	Mandaic_Script:                Mandaic,
+	Manichaean_Script:             Manichaean,
+	Marchen_Script:                Marchen,
+	Masaram_Gondi_Script:          Masaram_Gondi,
+	Medefaidrin_Script:            Medefaidrin,
+	Meetei_Mayek_Script:           Meetei_Mayek,
+	Mende_Kikakui_Script:          Mende_Kikakui,
+	Meroitic_Cursive_Script:       Meroitic_Cursive,
+	Meroitic_Hieroglyphs_Script:   Meroitic_Hieroglyphs,
+	Miao_Script:                   Miao,
+	Modi_Script:                   Modi,
+	Mongolian_Script:              Mongolian,
+	Mro_Script:                    Mro,
+	Multani_Script:                Multani,
+	Myanmar_Script:                Myanmar,
+	Nabataean_Script:              Nabataean,
+	New_Tai_Lue_Script:            New_Tai_Lue,
+	Newa_Script:                   Newa,
+	Nko_Script:                    Nko,
+	Nushu_Script:                  Nushu,
+	Ogham_Script:                  Ogham,
+	Ol_Chiki_Script:               Ol_Chiki,
+	Old_Hungarian_Script:          Old_Hungarian,
+	Old_Italic_Script:             Old_Italic,
+	Old_North_Arabian_Script:      Old_North_Arabian,
+	Old_Permic_Script:             Old_Permic,
+	Old_Persian_Script:            Old_Persian,
+	Old_Sogdian_Script:            Old_Sogdian,
+	Old_South_Arabian_Script:      Old_South_Arabian,
+	Old_Turkic_Script:             Old_Turkic,
+	Oriya_Script:                  Oriya,
+	Osage_Script:                  Osage,
+	Osmanya_Script:                Osmanya,
+	Pahawh_Hmong_Script:           Pahawh_Hmong,
+	Palmyrene_Script:              Palmyrene,
+	Pau_Cin_Hau_Script:            Pau_Cin_Hau,
+	Phags_Pa_Script:               Phags_Pa,
+	Phoenician_Script:             Phoenician,
+	Psalter_Pahlavi_Script:        Psalter_Pahlavi,
+	Rejang_Script:                 Rejang,
+	Runic_Script:                  Runic,
+	Samaritan_Script:              Samaritan,
+	Saurashtra_Script:             Saurashtra,
+	Sharada_Script:                Sharada,
+	Shavian_Script:                Shavian,
+	Siddham_Script:                Siddham,
+	SignWriting_Script:            SignWriting,
+	Sinhala_Script:                Sinhala,
+	Sogdian_Script:                Sogdian,
+	Sora_Sompeng_Script:           Sora_Sompeng,
+	Soyombo_Script:                Soyombo,
+	Sundanese_Script:              Sundanese,
+	Syloti_Nagri_Script:           Syloti_Nagri,
+	Syriac_Script:                 Syriac,
+	Tagalog_Script:                Tagalog,
+	Tagbanwa_Script:               Tagbanwa,
+	Tai_Le_Script:                 Tai_Le,
+	Tai_Tham_Script:               Tai_Tham,
+	Tai_Viet_Script:               Tai_Viet,
+	Takri_Script:                  Takri,
+	Tamil_Script:                  Tamil,
+	Tangut_Script:                 Tangut,
+	Telugu_Script:                 Telugu,
+	Thaana_Script:                 Thaana,
+	Thai_Script:                   Thai,
+	Tibetan_Script:                Tibetan,
+	Tifinagh_Script:               Tifinagh,
+	Tirhuta_Script:                Tirhuta,
+	Ugaritic_Script:               Ugaritic,
+	Vai_Script:                    Vai,
+	Warang_Citi_Script:            Warang_Citi,
+	Yi_Script:                     Yi,
+	Zanabazar_Square_Script:       Zanabazar_Square,
 }
 
 var _Adlam = &RangeTable{
