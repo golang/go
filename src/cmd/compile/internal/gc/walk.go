@@ -3049,20 +3049,18 @@ func walkcompare(n *Node, init *Nodes) *Node {
 	n.Left = walkexpr(n.Left, init)
 	n.Right = walkexpr(n.Right, init)
 
-	// Given interface value l and concrete value r, rewrite
-	//   l == r
-	// into types-equal && data-equal.
+	// Given mixed interface/concrete comparison,
+	// rewrite into types-equal && data-equal.
 	// This is efficient, avoids allocations, and avoids runtime calls.
-	var l, r *Node
-	if n.Left.Type.IsInterface() && !n.Right.Type.IsInterface() {
-		l = n.Left
-		r = n.Right
-	} else if !n.Left.Type.IsInterface() && n.Right.Type.IsInterface() {
-		l = n.Right
-		r = n.Left
-	}
+	if n.Left.Type.IsInterface() != n.Right.Type.IsInterface() {
+		// Preserve side-effects in case of short-circuiting; see #32187.
+		l := cheapexpr(n.Left, init)
+		r := cheapexpr(n.Right, init)
+		// Swap so that l is the interface value and r is the concrete value.
+		if n.Right.Type.IsInterface() {
+			l, r = r, l
+		}
 
-	if l != nil {
 		// Handle both == and !=.
 		eq := n.Op
 		andor := OOROR
