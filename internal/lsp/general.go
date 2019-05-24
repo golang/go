@@ -167,6 +167,18 @@ func (s *Server) processConfig(view source.View, config interface{}) error {
 		}
 		view.SetEnv(env)
 	}
+	// Get the build flags for the go/packages config.
+	if buildFlags := c["buildFlags"]; buildFlags != nil {
+		iflags, ok := buildFlags.([]interface{})
+		if !ok {
+			return fmt.Errorf("invalid config gopls.buildFlags type %T", buildFlags)
+		}
+		flags := make([]string, 0, len(iflags))
+		for _, flag := range iflags {
+			flags = append(flags, fmt.Sprintf("%s", flag))
+		}
+		view.SetBuildFlags(flags)
+	}
 	// Check if placeholders are enabled.
 	if usePlaceholders, ok := c["usePlaceholders"].(bool); ok {
 		s.usePlaceholders = usePlaceholders

@@ -48,6 +48,9 @@ type view struct {
 	// env is the environment to use when invoking underlying tools.
 	env []string
 
+	// buildFlags is the build flags to use when invoking underlying tools.
+	buildFlags []string
+
 	// keep track of files by uri and by basename, a single file may be mapped
 	// to multiple uris, and the same basename may map to multiple files
 	filesByURI  map[span.URI]viewFile
@@ -119,9 +122,10 @@ func (v *view) buildConfig() *packages.Config {
 		folderPath = ""
 	}
 	return &packages.Config{
-		Context: v.backgroundCtx,
-		Dir:     folderPath,
-		Env:     v.env,
+		Context:    v.backgroundCtx,
+		Dir:        folderPath,
+		Env:        v.env,
+		BuildFlags: v.buildFlags,
 		Mode: packages.NeedName |
 			packages.NeedFiles |
 			packages.NeedCompiledGoFiles |
@@ -146,6 +150,12 @@ func (v *view) SetEnv(env []string) {
 	defer v.mu.Unlock()
 	//TODO: this should invalidate the entire view
 	v.env = env
+}
+
+func (v *view) SetBuildFlags(buildFlags []string) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.buildFlags = buildFlags
 }
 
 func (v *view) Shutdown(ctx context.Context) {

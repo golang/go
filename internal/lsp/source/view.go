@@ -129,6 +129,9 @@ type View interface {
 	// SetEnv is used to adjust the environment applied to the view.
 	SetEnv([]string)
 
+	// SetBuildFlags is used to adjust the build flags applied to the view.
+	SetBuildFlags([]string)
+
 	// Shutdown closes this view, and detaches it from it's session.
 	Shutdown(ctx context.Context)
 
