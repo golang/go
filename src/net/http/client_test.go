@@ -1709,6 +1709,7 @@ func TestShouldCopyHeaderOnRedirect(t *testing.T) {
 		{"www-authenticate", "http://foo.com/", "http://sub.foo.com/", true},
 		{"www-authenticate", "http://foo.com/", "http://notfoo.com/", false},
 		{"www-authenticate", "http://foo.com/", "https://foo.com/", false},
+		{"www-authenticate", "http://foo.com/", "https://foo.com/", true},
 		{"www-authenticate", "http://foo.com:80/", "http://foo.com/", true},
 		{"www-authenticate", "http://foo.com:80/", "http://sub.foo.com/", true},
 		{"www-authenticate", "http://foo.com:443/", "https://foo.com/", true},

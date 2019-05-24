@@ -913,6 +913,10 @@ func shouldCopyHeaderOnRedirect(headerKey string, initial, dest *url.URL) bool {
 //
 // Both domains must already be in canonical form.
 func isDomainOrSubdomain(sub, parent string) bool {
+	// remove the port from the url
+	sub = stripPort(sub)
+	parent = stripPort(parent)
+
 	if sub == parent {
 		return true
 	}
@@ -923,6 +927,16 @@ func isDomainOrSubdomain(sub, parent string) bool {
 		return false
 	}
 	return sub[len(sub)-len(parent)-1] == '.'
+}
+
+// stripPort simply removes the port from the url
+func stripPort(url string) string {
+	colon := strings.Index(url, ":")
+	if colon == -1 {
+		// we couldn't find a colon in the url
+		return url
+	}
+	return url[:colon]
 }
 
 func stripPassword(u *url.URL) string {
