@@ -18,6 +18,7 @@ import (
 )
 
 var nslookupTestServers = []string{"mail.golang.com", "gmail.com"}
+var lookupTestIPs = []string{"8.8.8.8", "1.1.1.1"}
 
 func toJson(v interface{}) string {
 	data, _ := json.Marshal(v)
@@ -124,7 +125,7 @@ func TestNSLookupTXT(t *testing.T) {
 	}
 }
 
-func TestLookupPTR(t *testing.T) {
+func TestLookupLocalPTR(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
 	addr, err := localIP()
@@ -146,6 +147,29 @@ func TestLookupPTR(t *testing.T) {
 	sort.Strings(names)
 	if !reflect.DeepEqual(expected, names) {
 		t.Errorf("different results %s:\texp:%v\tgot:%v", addr, toJson(expected), toJson(names))
+	}
+}
+
+func TestLookupPTR(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	for _, addr := range lookupTestIPs {
+		names, err := LookupAddr(addr)
+		if err != nil {
+			t.Errorf("failed %s: %s", addr, err)
+		}
+		if len(names) == 0 {
+			t.Errorf("no results")
+		}
+		expected, err := lookupPTR(addr)
+		if err != nil {
+			t.Logf("skipping failed lookup %s test: %s", addr, err)
+		}
+		sort.Strings(expected)
+		sort.Strings(names)
+		if !reflect.DeepEqual(expected, names) {
+			t.Errorf("different results %s:\texp:%v\tgot:%v", addr, toJson(expected), toJson(names))
+		}
 	}
 }
 
