@@ -1874,3 +1874,12 @@ func BenchmarkPathUnescape(b *testing.B) {
 		})
 	}
 }
+
+var sink string
+
+func BenchmarkSplit(b *testing.B) {
+	url := "http://www.google.com/?q=go+language#foo%26bar"
+	for i := 0; i < b.N; i++ {
+		sink, sink = split(url, '#', true)
+	}
+}

@@ -449,16 +449,16 @@ func getscheme(rawurl string) (scheme, path string, err error) {
 	return "", rawurl, nil
 }
 
-// Maybe s is of the form t c u.
-// If so, return t, c u (or t, u if cutc == true).
-// If not, return s, "".
-func split(s string, c string, cutc bool) (string, string) {
-	i := strings.Index(s, c)
+// split slices s into two substrings separated by the first occurence of
+// sep. If cutc is true then sep is included with the second substring.
+// If sep does not occur in s then s and the empty string is returned.
+func split(s string, sep byte, cutc bool) (string, string) {
+	i := strings.IndexByte(s, sep)
 	if i < 0 {
 		return s, ""
 	}
 	if cutc {
-		return s[:i], s[i+len(c):]
+		return s[:i], s[i+1:]
 	}
 	return s[:i], s[i:]
 }
@@ -471,7 +471,7 @@ func split(s string, c string, cutc bool) (string, string) {
 // error, due to parsing ambiguities.
 func Parse(rawurl string) (*URL, error) {
 	// Cut off #frag
-	u, frag := split(rawurl, "#", true)
+	u, frag := split(rawurl, '#', true)
 	url, err := parse(u, false)
 	if err != nil {
 		return nil, &Error{"parse", u, err}
@@ -531,7 +531,7 @@ func parse(rawurl string, viaRequest bool) (*URL, error) {
 		url.ForceQuery = true
 		rest = rest[:len(rest)-1]
 	} else {
-		rest, url.RawQuery = split(rest, "?", true)
+		rest, url.RawQuery = split(rest, '?', true)
 	}
 
 	if !strings.HasPrefix(rest, "/") {
@@ -560,7 +560,7 @@ func parse(rawurl string, viaRequest bool) (*URL, error) {
 
 	if (url.Scheme != "" || !viaRequest && !strings.HasPrefix(rest, "///")) && strings.HasPrefix(rest, "//") {
 		var authority string
-		authority, rest = split(rest[2:], "/", false)
+		authority, rest = split(rest[2:], '/', false)
 		url.User, url.Host, err = parseAuthority(authority)
 		if err != nil {
 			return nil, err
@@ -599,7 +599,7 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
 		}
 		user = User(userinfo)
 	} else {
-		username, password := split(userinfo, ":", true)
+		username, password := split(userinfo, ':', true)
 		if username, err = unescape(username, encodeUserPassword); err != nil {
 			return nil, "", err
 		}
