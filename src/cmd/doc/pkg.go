@@ -129,7 +129,10 @@ func parsePackage(writer io.Writer, pkg *build.Package, userPath string) *Packag
 		log.Fatal(err)
 	}
 	// Make sure they are all in one package.
-	if len(pkgs) != 1 {
+	if len(pkgs) == 0 {
+		log.Fatalf("no source-code package in directory %s", pkg.Dir)
+	}
+	if len(pkgs) > 1 {
 		log.Fatalf("multiple packages in directory %s", pkg.Dir)
 	}
 	astPkg := pkgs[pkg.Name]
