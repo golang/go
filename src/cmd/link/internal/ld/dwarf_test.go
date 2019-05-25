@@ -1195,3 +1195,26 @@ func TestPackageNameAttr(t *testing.T) {
 		}
 	}
 }
+
+func TestMachoIssue32233(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+
+	if runtime.GOOS != "darwin" {
+		t.Skip("skipping; test only interesting on darwin")
+	}
+
+	tmpdir, err := ioutil.TempDir("", "TestMachoIssue32233")
+	if err != nil {
+		t.Fatalf("could not create directory: %v", err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	wd, err2 := os.Getwd()
+	if err2 != nil {
+		t.Fatalf("where am I? %v", err)
+	}
+	pdir := filepath.Join(wd, "testdata", "issue32233", "main")
+	f := gobuildTestdata(t, tmpdir, pdir, DefaultOpt)
+	f.Close()
+}
