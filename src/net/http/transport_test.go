@@ -737,6 +737,8 @@ func TestTransportRemovesDeadIdleConnections(t *testing.T) {
 	}
 }
 
+// Test that the Transport notices when a server hangs up on its
+// unexpectedly (a keep-alive connection is closed).
 func TestTransportServerClosingUnexpectedly(t *testing.T) {
 	setParallel(t)
 	defer afterTest(t)
@@ -773,13 +775,14 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
 	body1 := fetch(1, 0)
 	body2 := fetch(2, 0)
 
-	ts.CloseClientConnections() // surprise!
-
-	// This test has an expected race. Sleeping for 25 ms prevents
-	// it on most fast machines, causing the next fetch() call to
-	// succeed quickly. But if we do get errors, fetch() will retry 5
-	// times with some delays between.
-	time.Sleep(25 * time.Millisecond)
+	// Close all the idle connections in a way that's similar to
+	// the server hanging up on us. We don't use
+	// httptest.Server.CloseClientConnections because it's
+	// best-effort and stops blocking after 5 seconds. On a loaded
+	// machine running many tests concurrently it's possible for
+	// that method to be async and cause the body3 fetch below to
+	// run on an old connection. This function is synchronous.
+	ExportCloseTransportConnsAbruptly(c.Transport.(*Transport))
 
 	body3 := fetch(3, 5)
 
