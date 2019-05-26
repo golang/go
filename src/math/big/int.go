@@ -323,6 +323,8 @@ func (x *Int) Cmp(y *Int) (r int) {
 	// (-x) cmp y == y
 	// (-x) cmp (-y) == -(x cmp y)
 	switch {
+	case x == y:
+		// nothing to do
 	case x.neg == y.neg:
 		r = x.abs.cmp(y.abs)
 		if x.neg {
