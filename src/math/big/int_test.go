@@ -1071,6 +1071,20 @@ func TestCmpAbs(t *testing.T) {
 	}
 }
 
+func TestIntCmpSelf(t *testing.T) {
+	for _, s := range cmpAbsTests {
+		x, ok := new(Int).SetString(s, 0)
+		if !ok {
+			t.Fatalf("SetString(%s, 0) failed", s)
+		}
+		got := x.Cmp(x)
+		want := 0
+		if got != want {
+			t.Errorf("x = %s: x.Cmp(x): got %d; want %d", x, got, want)
+		}
+	}
+}
+
 var int64Tests = []string{
 	// int64
 	"0",
