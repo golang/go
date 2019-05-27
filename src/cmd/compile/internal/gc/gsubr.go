@@ -306,18 +306,6 @@ func ggloblsym(s *obj.LSym, width int32, flags int16) {
 	Ctxt.Globl(s, int64(width), int(flags))
 }
 
-func isfat(t *types.Type) bool {
-	if t != nil {
-		switch t.Etype {
-		case TSTRUCT, TARRAY, TSLICE, TSTRING,
-			TINTER: // maybe remove later
-			return true
-		}
-	}
-
-	return false
-}
-
 func Addrconst(a *obj.Addr, v int64) {
 	a.Sym = nil
 	a.Type = obj.TYPE_CONST
