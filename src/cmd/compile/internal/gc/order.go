@@ -1028,7 +1028,6 @@ func (o *Order) expr(n, lhs *Node) *Node {
 			}
 		}
 
-		// key must be addressable
 	case OINDEXMAP:
 		n.Left = o.expr(n.Left, nil)
 		n.Right = o.expr(n.Right, nil)
@@ -1048,6 +1047,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 			}
 		}
 
+		// key must be addressable
 		n.Right = o.mapKeyTemp(n.Left.Type, n.Right)
 		if needCopy {
 			n = o.copyExpr(n, n.Type, false)
@@ -1205,10 +1205,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 
 	case ODOTTYPE, ODOTTYPE2:
 		n.Left = o.expr(n.Left, nil)
-		// TODO(rsc): The isfat is for consistency with componentgen and walkexpr.
-		// It needs to be removed in all three places.
-		// That would allow inlining x.(struct{*int}) the same as x.(*int).
-		if !isdirectiface(n.Type) || isfat(n.Type) || instrumenting {
+		if !isdirectiface(n.Type) || instrumenting {
 			n = o.copyExpr(n, n.Type, true)
 		}
 
