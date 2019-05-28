@@ -365,8 +365,9 @@ for future go command invocations.
 No matter the source of the modules, the go command checks downloads against
 known checksums, to detect unexpected changes in the content of any specific
 module version from one day to the next. This check first consults the current
-module's go.sum file but falls back to the Go checksum database.
-See 'go help module-auth' for details.
+module's go.sum file but falls back to the Go checksum database, controlled by
+the GOSUMDB and GONOSUMDB environment variables. See 'go help module-auth'
+for details.
 
 See 'go help goproxy' for details about the proxy protocol and also
 the format of the cached downloaded packages.
