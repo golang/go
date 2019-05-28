@@ -171,11 +171,11 @@ func (s *clientDispatcher) Configuration(ctx context.Context, params *Configurat
 }
 
 func (s *clientDispatcher) RegisterCapability(ctx context.Context, params *RegistrationParams) error {
-	return s.Conn.Notify(ctx, "client/registerCapability", params) // Notify? (not Call?)
+	return s.Conn.Call(ctx, "client/registerCapability", params, nil) // Call, not Notify
 }
 
 func (s *clientDispatcher) UnregisterCapability(ctx context.Context, params *UnregistrationParams) error {
-	return s.Conn.Notify(ctx, "client/unregisterCapability", params) // Notify? (not Call?)
+	return s.Conn.Call(ctx, "client/unregisterCapability", params, nil) // Call, not Notify
 }
 
 func (s *clientDispatcher) ShowMessageRequest(ctx context.Context, params *ShowMessageRequestParams) (*MessageActionItem, error) {
