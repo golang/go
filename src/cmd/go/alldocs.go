@@ -1567,7 +1567,18 @@
 // 	GOPATH
 // 		For more details see: 'go help gopath'.
 // 	GOPROXY
-// 		URL of Go module proxy. See 'go help goproxy'.
+// 		URL of Go module proxy. See 'go help modules'.
+// 	GONOPROXY
+// 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
+// 		of module path prefixes that should always be fetched directly, ignoring
+// 		the GOPROXY setting. See 'go help modules'.
+// 	GOSUMDB
+// 		The name of checksum database to use and optionally its public key and
+// 		URL. See 'go help module-auth'.
+// 	GONOSUMDB
+// 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
+// 		of module path prefixes that should not be compared against the checksum
+// 		database. See 'go help module-auth'.
 // 	GOROOT
 // 		The root of the go tree.
 // 	GOTMPDIR
@@ -2604,8 +2615,9 @@
 // No matter the source of the modules, the go command checks downloads against
 // known checksums, to detect unexpected changes in the content of any specific
 // module version from one day to the next. This check first consults the current
-// module's go.sum file but falls back to the Go checksum database.
-// See 'go help module-auth' for details.
+// module's go.sum file but falls back to the Go checksum database, controlled by
+// the GOSUMDB and GONOSUMDB environment variables. See 'go help module-auth'
+// for details.
 //
 // See 'go help goproxy' for details about the proxy protocol and also
 // the format of the cached downloaded packages.

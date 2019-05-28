@@ -509,7 +509,18 @@ General-purpose environment variables:
 	GOPATH
 		For more details see: 'go help gopath'.
 	GOPROXY
-		URL of Go module proxy. See 'go help goproxy'.
+		URL of Go module proxy. See 'go help modules'.
+	GONOPROXY
+		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
+		of module path prefixes that should always be fetched directly, ignoring
+		the GOPROXY setting. See 'go help modules'.
+	GOSUMDB
+		The name of checksum database to use and optionally its public key and
+		URL. See 'go help module-auth'.
+	GONOSUMDB
+		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
+		of module path prefixes that should not be compared against the checksum
+		database. See 'go help module-auth'.
 	GOROOT
 		The root of the go tree.
 	GOTMPDIR
