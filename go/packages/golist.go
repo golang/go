@@ -172,7 +172,19 @@ extractQueries:
 	// Check candidate packages for containFiles.
 	if len(containFiles) > 0 {
 		for _, id := range containsCandidates {
-			pkg := response.seenPackages[id]
+			pkg, ok := response.seenPackages[id]
+			if !ok {
+				response.addPackage(&Package{
+					ID: id,
+					Errors: []Error{
+						{
+							Kind: ListError,
+							Msg:  fmt.Sprintf("package %s expected but not seen", id),
+						},
+					},
+				})
+				continue
+			}
 			for _, f := range containFiles {
 				for _, g := range pkg.GoFiles {
 					if sameFile(f, g) {
