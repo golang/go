@@ -13,6 +13,7 @@ package testenv
 import (
 	"errors"
 	"flag"
+	"internal/cfg"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -87,6 +88,12 @@ func GoToolPath(t testing.TB) string {
 	path, err := GoTool()
 	if err != nil {
 		t.Fatal(err)
+	}
+	// Add all environment variables that affect the Go command to test metadata.
+	// Cached test results will be invalidate when these variables change.
+	// See golang.org/issue/32285.
+	for _, envVar := range strings.Fields(cfg.KnownEnv) {
+		os.Getenv(envVar)
 	}
 	return path
 }
