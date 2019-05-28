@@ -133,7 +133,7 @@ func diagnostics(ctx context.Context, v View, pkg Package, reports map[span.URI]
 func analyses(ctx context.Context, v View, pkg Package, reports map[span.URI][]Diagnostic) error {
 	// Type checking and parsing succeeded. Run analyses.
 	if err := runAnalyses(ctx, v, pkg, func(a *analysis.Analyzer, diag analysis.Diagnostic) error {
-		r := span.NewRange(v.Session().Cache().FileSet(), diag.Pos, 0)
+		r := span.NewRange(v.Session().Cache().FileSet(), diag.Pos, diag.End)
 		s, err := r.Span()
 		if err != nil {
 			// The diagnostic has an invalid position, so we don't have a valid span.

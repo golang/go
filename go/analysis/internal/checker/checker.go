@@ -295,7 +295,8 @@ func printDiagnostics(roots []*action) (exitcode int) {
 		// avoid double-reporting in source files that belong to
 		// multiple packages, such as foo and foo.test.
 		type key struct {
-			token.Position
+			pos token.Position
+			end token.Position
 			*analysis.Analyzer
 			message string
 		}
@@ -313,7 +314,8 @@ func printDiagnostics(roots []*action) (exitcode int) {
 					// as most users don't care.
 
 					posn := act.pkg.Fset.Position(diag.Pos)
-					k := key{posn, act.a, diag.Message}
+					end := act.pkg.Fset.Position(diag.End)
+					k := key{posn, end, act.a, diag.Message}
 					if seen[k] {
 						continue // duplicate
 					}

@@ -257,6 +257,7 @@ func check(t Testing, gopath string, pass *analysis.Pass, diagnostics []analysis
 
 	// Check the diagnostics match expectations.
 	for _, f := range diagnostics {
+		// TODO(matloob): Support ranges in analysistest.
 		posn := pass.Fset.Position(f.Pos)
 		checkMessage(posn, "diagnostic", "", f.Message)
 	}
