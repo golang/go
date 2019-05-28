@@ -7,6 +7,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 
@@ -56,6 +57,7 @@ func (s *session) NewView(name string, folder span.URI) source.View {
 		backgroundCtx:  backgroundCtx,
 		cancel:         cancel,
 		name:           name,
+		env:            os.Environ(),
 		folder:         folder,
 		filesByURI:     make(map[span.URI]viewFile),
 		filesByBase:    make(map[string][]viewFile),
