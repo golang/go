@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/build"
+	"internal/cfg"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -221,60 +222,8 @@ func Getenv(key string) string {
 
 // CanGetenv reports whether key is a valid go/env configuration key.
 func CanGetenv(key string) bool {
-	return strings.Contains(knownEnv, "\t"+key+"\n")
+	return strings.Contains(cfg.KnownEnv, "\t"+key+"\n")
 }
-
-var knownEnv = `
-	AR
-	CC
-	CGO_CFLAGS
-	CGO_CFLAGS_ALLOW
-	CGO_CFLAGS_DISALLOW
-	CGO_CPPFLAGS
-	CGO_CPPFLAGS_ALLOW
-	CGO_CPPFLAGS_DISALLOW
-	CGO_CXXFLAGS
-	CGO_CXXFLAGS_ALLOW
-	CGO_CXXFLAGS_DISALLOW
-	CGO_ENABLED
-	CGO_FFLAGS
-	CGO_FFLAGS_ALLOW
-	CGO_FFLAGS_DISALLOW
-	CGO_LDFLAGS
-	CGO_LDFLAGS_ALLOW
-	CGO_LDFLAGS_DISALLOW
-	CXX
-	FC
-	GCCGO
-	GO111MODULE
-	GO386
-	GOARCH
-	GOARM
-	GOBIN
-	GOCACHE
-	GOENV
-	GOEXE
-	GOFLAGS
-	GOGCCFLAGS
-	GOHOSTARCH
-	GOHOSTOS
-	GOMIPS
-	GOMIPS64
-	GONOPROXY
-	GONOSUMDB
-	GOOS
-	GOPATH
-	GOPPC64
-	GOPRIVATE
-	GOPROXY
-	GOROOT
-	GOSUMDB
-	GOTMPDIR
-	GOTOOLDIR
-	GOWASM
-	GO_EXTLINK_ENABLED
-	PKG_CONFIG
-`
 
 var (
 	GOROOT       = BuildContext.GOROOT
