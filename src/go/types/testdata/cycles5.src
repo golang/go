@@ -162,20 +162,29 @@ func makeArray() (res T12) { return }
 var r /* ERROR cycle */ = newReader()
 func newReader() r
 
-// variations of the theme of #8699 amd #20770
+// variations of the theme of #8699 and #20770
 var arr /* ERROR cycle */ = f()
 func f() [len(arr)]int
 
-// TODO(gri) here we should only get one error
-func ff /* ERROR cycle */ (ff /* ERROR not a type */ )
+// issue #25790
+func ff(ff /* ERROR not a type */ )
+func gg((gg /* ERROR not a type */ ))
 
 type T13 /* ERROR cycle */ [len(b13)]int
 var b13 T13
 
-func g /* ERROR cycle */ () [unsafe.Sizeof(x)]int
-var x = g
+func g1() [unsafe.Sizeof(g1)]int
+func g2() [unsafe.Sizeof(x2)]int
+var x2 = g2
 
-func h /* ERROR cycle */ () [h /* ERROR no value */ ()[0]]int { panic(0) }
+// verify that we get the correct sizes for the functions above
+// (note: assert is statically evaluated in go/types test mode)
+func init() {
+	assert(unsafe.Sizeof(g1) == 8)
+	assert(unsafe.Sizeof(x2) == 8)
+}
+
+func h() [h /* ERROR no value */ ()[0]]int { panic(0) }
 
 var c14 /* ERROR cycle */ T14
 type T14 [uintptr(unsafe.Sizeof(&c14))]byte

@@ -89,7 +89,7 @@ TEXT runtime·badsignal2(SB),NOSPLIT|NOFRAME,$48
 	MOVQ	$0, 32(SP)	// overlapped
 	MOVQ	runtime·_WriteFile(SB), AX
 	CALL	AX
-	
+
 	RET
 
 // faster get/set last error
@@ -110,7 +110,7 @@ TEXT runtime·setlasterror(SB),NOSPLIT,$0
 // exception record and context pointers.
 // Handler function is stored in AX.
 // Return 0 for 'not handled', -1 for handled.
-TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0-0
+TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0-0
 	// CX: PEXCEPTION_POINTERS ExceptionInfo
 
 	// DI SI BP BX R12 R13 R14 R15 registers and DF flag are preserved
@@ -200,15 +200,15 @@ done:
 
 TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
 	MOVQ	$runtime·exceptionhandler(SB), AX
-	JMP	runtime·sigtramp(SB)
+	JMP	sigtramp<>(SB)
 
 TEXT runtime·firstcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
 	MOVQ	$runtime·firstcontinuehandler(SB), AX
-	JMP	runtime·sigtramp(SB)
+	JMP	sigtramp<>(SB)
 
 TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
 	MOVQ	$runtime·lastcontinuehandler(SB), AX
-	JMP	runtime·sigtramp(SB)
+	JMP	sigtramp<>(SB)
 
 TEXT runtime·ctrlhandler(SB),NOSPLIT|NOFRAME,$8
 	MOVQ	CX, 16(SP)		// spill
@@ -351,7 +351,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	ADDQ	$64, SP
 	POPFQ
 
-	MOVL	-8(CX)(DX*1), AX  // return value
+	MOVQ	-8(CX)(DX*1), AX  // return value
 	POPQ	-8(CX)(DX*1)      // restore bytes just after the args
 	RET
 
@@ -363,7 +363,7 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
 	// Layout new m scheduler stack on os stack.
 	MOVQ	SP, AX
 	MOVQ	AX, (g_stack+stack_hi)(DX)
-	SUBQ	$(64*1024), AX		// inital stack size (adjusted later)
+	SUBQ	$(64*1024), AX		// initial stack size (adjusted later)
 	MOVQ	AX, (g_stack+stack_lo)(DX)
 	ADDQ	$const__StackGuard, AX
 	MOVQ	AX, g_stackguard0(DX)
@@ -413,7 +413,7 @@ TEXT runtime·onosstack(SB),NOSPLIT,$0
 	MOVQ	R12, m_libcallg(R13)
 	// sp must be the last, because once async cpu profiler finds
 	// all three values to be non-zero, it will use them
-	LEAQ	usec+0(FP), R12
+	LEAQ	fn+0(FP), R12
 	MOVQ	R12, m_libcallsp(R13)
 
 	MOVQ	m_g0(R13), R14
@@ -486,7 +486,6 @@ loop:
 	SHLQ	$32, CX
 	ORQ	BX, CX
 	IMULQ	$100, CX
-	SUBQ	runtime·startNano(SB), CX
 	MOVQ	CX, ret+0(FP)
 	RET
 useQPC:
@@ -506,7 +505,6 @@ loop:
 	SHLQ	$32, AX
 	ORQ	BX, AX
 	IMULQ	$100, AX
-	SUBQ	runtime·startNano(SB), AX
 	MOVQ	AX, mono+16(FP)
 
 	MOVQ	$_SYSTEM_TIME, DI

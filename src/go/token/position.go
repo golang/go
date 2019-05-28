@@ -146,7 +146,7 @@ func (f *File) AddLine(offset int) {
 // MergeLine will panic if given an invalid line number.
 //
 func (f *File) MergeLine(line int) {
-	if line <= 0 {
+	if line < 1 {
 		panic("illegal line number (line numbering starts at 1)")
 	}
 	f.mutex.Lock()
@@ -207,6 +207,21 @@ func (f *File) SetLinesForContent(content []byte) {
 	f.mutex.Lock()
 	f.lines = lines
 	f.mutex.Unlock()
+}
+
+// LineStart returns the Pos value of the start of the specified line.
+// It ignores any alternative positions set using AddLineColumnInfo.
+// LineStart panics if the 1-based line number is invalid.
+func (f *File) LineStart(line int) Pos {
+	if line < 1 {
+		panic("illegal line number (line numbering starts at 1)")
+	}
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+	if line > len(f.lines) {
+		panic("illegal line number")
+	}
+	return Pos(f.base + f.lines[line-1])
 }
 
 // A lineInfo object describes alternative file, line, and column

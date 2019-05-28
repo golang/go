@@ -1529,7 +1529,7 @@ func buildop(ctxt *obj.Link) {
 		return
 	}
 
-	deferreturn = ctxt.Lookup("runtime.deferreturn")
+	deferreturn = ctxt.LookupABI("runtime.deferreturn", obj.ABIInternal)
 
 	symdiv = ctxt.Lookup("runtime._div")
 	symdivu = ctxt.Lookup("runtime._divu")
@@ -2007,7 +2007,7 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o2 = c.oprrr(p, p.As, int(p.Scond))
 		o2 |= REGTMP & 15
 		r := int(p.Reg)
-		if p.As == AMOVW || p.As == AMVN {
+		if p.As == AMVN {
 			r = 0
 		} else if r == 0 {
 			r = int(p.To.Reg)

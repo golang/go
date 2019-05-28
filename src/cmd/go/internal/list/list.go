@@ -20,6 +20,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/str"
 	"cmd/go/internal/work"
 )
 
@@ -46,24 +47,25 @@ syntax of package template. The default output is equivalent
 to -f '{{.ImportPath}}'. The struct being passed to the template is:
 
     type Package struct {
-        Dir           string  // directory containing package sources
-        ImportPath    string  // import path of package in dir
-        ImportComment string  // path in import comment on package statement
-        Name          string  // package name
-        Doc           string  // package documentation string
-        Target        string  // install path
-        Shlib         string  // the shared library that contains this package (only set when -linkshared)
-        Goroot        bool    // is this package in the Go root?
-        Standard      bool    // is this package part of the standard Go library?
-        Stale         bool    // would 'go install' do anything for this package?
-        StaleReason   string  // explanation for Stale==true
-        Root          string  // Go root or Go path dir containing this package
-        ConflictDir   string  // this directory shadows Dir in $GOPATH
-        BinaryOnly    bool    // binary-only package: cannot be recompiled from sources
-        ForTest       string  // package is only for use in named test
-        DepOnly       bool    // package is only a dependency, not explicitly listed
-        Export        string  // file containing export data (when using -export)
-        Module        *Module // info about package's containing module, if any (can be nil)
+        Dir           string   // directory containing package sources
+        ImportPath    string   // import path of package in dir
+        ImportComment string   // path in import comment on package statement
+        Name          string   // package name
+        Doc           string   // package documentation string
+        Target        string   // install path
+        Shlib         string   // the shared library that contains this package (only set when -linkshared)
+        Goroot        bool     // is this package in the Go root?
+        Standard      bool     // is this package part of the standard Go library?
+        Stale         bool     // would 'go install' do anything for this package?
+        StaleReason   string   // explanation for Stale==true
+        Root          string   // Go root or Go path dir containing this package
+        ConflictDir   string   // this directory shadows Dir in $GOPATH
+        BinaryOnly    bool     // binary-only package (no longer supported)
+        ForTest       string   // package is only for use in named test
+        Export        string   // file containing export data (when using -export)
+        Module        *Module  // info about package's containing module, if any (can be nil)
+        Match         []string // command-line patterns matching this package
+        DepOnly       bool     // package is only a dependency, not explicitly listed
 
         // Source files
         GoFiles         []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
@@ -107,7 +109,7 @@ Packages stored in vendor directories report an ImportPath that includes the
 path to the vendor directory (for example, "d/vendor/p" instead of "p"),
 so that the ImportPath uniquely identifies a given copy of a package.
 The Imports, Deps, TestImports, and XTestImports lists also contain these
-expanded imports paths. See golang.org/s/go15vendor for more about vendoring.
+expanded import paths. See golang.org/s/go15vendor for more about vendoring.
 
 The error information, if any, is
 
@@ -146,7 +148,8 @@ instead of using the template format.
 The -compiled flag causes list to set CompiledGoFiles to the Go source
 files presented to the compiler. Typically this means that it repeats
 the files listed in GoFiles and then also adds the Go code generated
-by processing CgoFiles and SwigFiles.
+by processing CgoFiles and SwigFiles. The Imports list contains the
+union of all imports from both GoFiles and CompiledGoFiles.
 
 The -deps flag causes list to iterate over not just the named packages
 but also all their dependencies. It visits them in a depth-first post-order
@@ -199,17 +202,18 @@ When listing modules, the -f flag still specifies a format template
 applied to a Go struct, but now a Module struct:
 
     type Module struct {
-        Path     string       // module path
-        Version  string       // module version
-        Versions []string     // available module versions (with -versions)
-        Replace  *Module      // replaced by this module
-        Time     *time.Time   // time version was created
-        Update   *Module      // available update, if any (with -u)
-        Main     bool         // is this the main module?
-        Indirect bool         // is this module only an indirect dependency of main module?
-        Dir      string       // directory holding files for this module, if any
-        GoMod    string       // path to go.mod file for this module, if any
-        Error    *ModuleError // error loading module
+        Path      string       // module path
+        Version   string       // module version
+        Versions  []string     // available module versions (with -versions)
+        Replace   *Module      // replaced by this module
+        Time      *time.Time   // time version was created
+        Update    *Module      // available update, if any (with -u)
+        Main      bool         // is this the main module?
+        Indirect  bool         // is this module only an indirect dependency of main module?
+        Dir       string       // directory holding files for this module, if any
+        GoMod     string       // path to go.mod file for this module, if any
+        GoVersion string       // go version used in module
+        Error     *ModuleError // error loading module
     }
 
     type ModuleError struct {
@@ -266,7 +270,7 @@ A pattern containing "..." specifies the active modules whose
 module paths match the pattern.
 A query of the form path@version specifies the result of that query,
 which is not limited to active modules.
-See 'go help module' for more about module queries.
+See 'go help modules' for more about module queries.
 
 The template function "module" takes a single string argument
 that must be a module path or query and returns the specified
@@ -303,6 +307,7 @@ var (
 var nl = []byte{'\n'}
 
 func runList(cmd *base.Command, args []string) {
+	modload.LoadTests = *listTest
 	work.BuildInit()
 	out := newTrackingWriter(os.Stdout)
 	defer out.w.Flush()
@@ -442,37 +447,34 @@ func runList(cmd *base.Command, args []string) {
 				continue
 			}
 			if len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 {
-				pmain, ptest, pxtest, err := load.TestPackagesFor(p, nil)
-				if err != nil {
-					if *listE {
-						pkgs = append(pkgs, &load.Package{
-							PackagePublic: load.PackagePublic{
-								ImportPath: p.ImportPath + ".test",
-								Error:      &load.PackageError{Err: err.Error()},
-							},
-						})
-						continue
+				var pmain, ptest, pxtest *load.Package
+				var err error
+				if *listE {
+					pmain, ptest, pxtest = load.TestPackagesAndErrors(p, nil)
+				} else {
+					pmain, ptest, pxtest, err = load.TestPackagesFor(p, nil)
+					if err != nil {
+						base.Errorf("can't load test package: %s", err)
 					}
-					base.Errorf("can't load test package: %s", err)
-					continue
 				}
-				pkgs = append(pkgs, pmain)
-				if ptest != nil {
+				if pmain != nil {
+					pkgs = append(pkgs, pmain)
+					data := pmain.Internal.TestmainGo
+					h := cache.NewHash("testmain")
+					h.Write([]byte("testmain\n"))
+					h.Write(data)
+					out, _, err := c.Put(h.Sum(), bytes.NewReader(data))
+					if err != nil {
+						base.Fatalf("%s", err)
+					}
+					pmain.GoFiles[0] = c.OutputFile(out)
+				}
+				if ptest != nil && ptest != p {
 					pkgs = append(pkgs, ptest)
 				}
 				if pxtest != nil {
 					pkgs = append(pkgs, pxtest)
 				}
-
-				data := *pmain.Internal.TestmainGo
-				h := cache.NewHash("testmain")
-				h.Write([]byte("testmain\n"))
-				h.Write(data)
-				out, _, err := c.Put(h.Sum(), bytes.NewReader(data))
-				if err != nil {
-					base.Fatalf("%s", err)
-				}
-				pmain.GoFiles[0] = c.OutputFile(out)
 			}
 		}
 	}
@@ -506,7 +508,9 @@ func runList(cmd *base.Command, args []string) {
 		a := &work.Action{}
 		// TODO: Use pkgsFilter?
 		for _, p := range pkgs {
-			a.Deps = append(a.Deps, b.AutoAction(work.ModeInstall, work.ModeInstall, p))
+			if len(p.GoFiles)+len(p.CgoFiles) > 0 {
+				a.Deps = append(a.Deps, b.AutoAction(work.ModeInstall, work.ModeInstall, p))
+			}
 		}
 		b.Do(a)
 	}
@@ -516,6 +520,10 @@ func runList(cmd *base.Command, args []string) {
 		p.TestImports = p.Resolve(p.TestImports)
 		p.XTestImports = p.Resolve(p.XTestImports)
 		p.DepOnly = !cmdline[p]
+
+		if *listCompiled {
+			p.Imports = str.StringList(p.Imports, p.Internal.CompiledImports)
+		}
 	}
 
 	if *listTest {

@@ -177,13 +177,13 @@ func twoNonZero(h *HashSet, n int) {
 	b := make([]byte, n)
 
 	// all zero
-	h.addB(b[:])
+	h.addB(b)
 
 	// one non-zero byte
 	for i := 0; i < n; i++ {
 		for x := 1; x < 256; x++ {
 			b[i] = byte(x)
-			h.addB(b[:])
+			h.addB(b)
 			b[i] = 0
 		}
 	}
@@ -195,7 +195,7 @@ func twoNonZero(h *HashSet, n int) {
 			for j := i + 1; j < n; j++ {
 				for y := 1; y < 256; y++ {
 					b[j] = byte(y)
-					h.addB(b[:])
+					h.addB(b)
 					b[j] = 0
 				}
 			}

@@ -11,11 +11,12 @@ import (
 
 // Offsets into internal/cpu records for use in assembly.
 const (
-	x86_HasSSE2   = unsafe.Offsetof(cpu.X86.HasSSE2)
-	x86_HasSSE42  = unsafe.Offsetof(cpu.X86.HasSSE42)
-	x86_HasAVX2   = unsafe.Offsetof(cpu.X86.HasAVX2)
-	x86_HasPOPCNT = unsafe.Offsetof(cpu.X86.HasPOPCNT)
-	s390x_HasVX   = unsafe.Offsetof(cpu.S390X.HasVX)
+	offsetX86HasSSE2   = unsafe.Offsetof(cpu.X86.HasSSE2)
+	offsetX86HasSSE42  = unsafe.Offsetof(cpu.X86.HasSSE42)
+	offsetX86HasAVX2   = unsafe.Offsetof(cpu.X86.HasAVX2)
+	offsetX86HasPOPCNT = unsafe.Offsetof(cpu.X86.HasPOPCNT)
+
+	offsetS390xHasVX = unsafe.Offsetof(cpu.S390X.HasVX)
 )
 
 // MaxLen is the maximum length of the string to be searched for (argument b) in Index.

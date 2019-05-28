@@ -337,9 +337,11 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVL	flags+16(FP), DX
 	MOVQ	$75, AX	// madvise
 	SYSCALL
-	// ignore failure - maybe pages are locked
+	JCC	2(PC)
+	MOVL	$-1, AX
+	MOVL	AX, ret+24(FP)
 	RET
-	
+
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVQ	new+0(FP), DI
 	MOVQ	old+8(FP), SI

@@ -207,6 +207,7 @@ const detailOutput = false
 // corresponds to what we expect it to be.
 func TestScopeRanges(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	t.Parallel()
 
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
@@ -350,7 +351,6 @@ type scopexplainContext struct {
 	dwarfData   *dwarf.Data
 	dwarfReader *dwarf.Reader
 	scopegen    int
-	lines       map[line][]int
 }
 
 // readScope reads the DW_TAG_lexical_block or the DW_TAG_subprogram in
@@ -446,6 +446,7 @@ func gobuild(t *testing.T, dir string, optimized bool, testfile []testline) (str
 // See issue #23928.
 func TestEmptyDwarfRanges(t *testing.T) {
 	testenv.MustHaveGoRun(t)
+	t.Parallel()
 
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")

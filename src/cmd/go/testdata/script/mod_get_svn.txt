@@ -1,0 +1,20 @@
+[!net] skip
+[!exec:svn] skip
+
+env GO111MODULE=on
+env GOPROXY=direct # obtain llvm.org directory, not via svn.
+
+# Attempting to get a module zip using svn should fail with a reasonable
+# message instead of a panic.
+# TODO(golang.org/issue/26092): Really, it shouldn't fail at all.
+! go get -d llvm.org/llvm/bindings/go/llvm
+stderr 'ReadZip not implemented for svn'
+! go install .
+stderr 'ReadZip not implemented for svn'
+
+-- go.mod --
+module golang/go/issues/28943/main
+-- main.go --
+package main
+import _ "llvm.org/llvm/bindings/go/llvm"
+func main() {}

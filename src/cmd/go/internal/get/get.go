@@ -118,11 +118,6 @@ func runGet(cmd *base.Command, args []string) {
 		// Should not happen: main.go should install the separate module-enabled get code.
 		base.Fatalf("go get: modules not implemented")
 	}
-	if cfg.GoModInGOPATH != "" {
-		// Warn about not using modules with GO111MODULE=auto when go.mod exists.
-		// To silence the warning, users can set GO111MODULE=off.
-		fmt.Fprintf(os.Stderr, "go get: warning: modules disabled by GO111MODULE=auto in GOPATH/src;\n\tignoring %s;\n\tsee 'go help modules'\n", base.ShortPath(cfg.GoModInGOPATH))
-	}
 
 	work.BuildInit()
 
@@ -163,9 +158,8 @@ func runGet(cmd *base.Command, args []string) {
 	if *getT {
 		mode |= load.GetTestDeps
 	}
-	args = downloadPaths(args)
-	for _, arg := range args {
-		download(arg, nil, &stk, mode)
+	for _, pkg := range downloadPaths(args) {
+		download(pkg, nil, &stk, mode)
 	}
 	base.ExitIfErrors()
 
@@ -178,14 +172,7 @@ func runGet(cmd *base.Command, args []string) {
 	// everything.
 	load.ClearPackageCache()
 
-	// In order to rebuild packages information completely,
-	// we need to clear commands cache. Command packages are
-	// referring to evicted packages from the package cache.
-	// This leads to duplicated loads of the standard packages.
-	load.ClearCmdCache()
-
-	args = load.ImportPaths(args)
-	load.PackagesForBuild(args)
+	pkgs := load.PackagesForBuild(args)
 
 	// Phase 3. Install.
 	if *getD {
@@ -195,7 +182,7 @@ func runGet(cmd *base.Command, args []string) {
 		return
 	}
 
-	work.InstallPackages(args)
+	work.InstallPackages(args, pkgs)
 }
 
 // downloadPaths prepares the list of paths to pass to download.
@@ -203,34 +190,21 @@ func runGet(cmd *base.Command, args []string) {
 // for a particular pattern, downloadPaths leaves it in the result list,
 // in the hope that we can figure out the repository from the
 // initial ...-free prefix.
-func downloadPaths(args []string) []string {
-	for _, arg := range args {
+func downloadPaths(patterns []string) []string {
+	for _, arg := range patterns {
 		if strings.Contains(arg, "@") {
 			base.Fatalf("go: cannot use path@version syntax in GOPATH mode")
 		}
 	}
-
-	args = load.ImportPathsForGoGet(args)
-	var out []string
-	for _, a := range args {
-		if strings.Contains(a, "...") {
-			var expand []string
-			// Use matchPackagesInFS to avoid printing
-			// warnings. They will be printed by the
-			// eventual call to importPaths instead.
-			if build.IsLocalImport(a) {
-				expand = search.MatchPackagesInFS(a)
-			} else {
-				expand = search.MatchPackages(a)
-			}
-			if len(expand) > 0 {
-				out = append(out, expand...)
-				continue
-			}
+	var pkgs []string
+	for _, m := range search.ImportPathsQuiet(patterns) {
+		if len(m.Pkgs) == 0 && strings.Contains(m.Pattern, "...") {
+			pkgs = append(pkgs, m.Pattern)
+		} else {
+			pkgs = append(pkgs, m.Pkgs...)
 		}
-		out = append(out, a)
 	}
-	return out
+	return pkgs
 }
 
 // downloadCache records the import paths we have already
@@ -247,7 +221,7 @@ var downloadCache = map[string]bool{}
 var downloadRootCache = map[string]bool{}
 
 // download runs the download half of the get command
-// for the package named by the argument.
+// for the package or pattern named by the argument.
 func download(arg string, parent *load.Package, stk *load.ImportStack, mode int) {
 	if mode&load.ResolveImport != 0 {
 		// Caller is responsible for expanding vendor paths.
@@ -255,7 +229,8 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 	}
 	load1 := func(path string, mode int) *load.Package {
 		if parent == nil {
-			return load.LoadPackage(path, stk)
+			mode := 0 // don't do module or vendor resolution
+			return load.LoadImport(path, base.Cwd, nil, stk, nil, mode)
 		}
 		return load.LoadImport(path, parent.Dir, parent, stk, nil, mode|load.ResolveModule)
 	}
@@ -311,9 +286,9 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 		// for p has been replaced in the package cache.
 		if wildcardOkay && strings.Contains(arg, "...") {
 			if build.IsLocalImport(arg) {
-				args = search.MatchPackagesInFS(arg)
+				args = search.MatchPackagesInFS(arg).Pkgs
 			} else {
-				args = search.MatchPackages(arg)
+				args = search.MatchPackages(arg).Pkgs
 			}
 			isWildcard = true
 		}
@@ -344,7 +319,7 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 			base.Run(cfg.BuildToolexec, str.StringList(base.Tool("fix"), files))
 
 			// The imports might have changed, so reload again.
-			p = load.ReloadPackage(arg, stk)
+			p = load.ReloadPackageNoFlags(arg, stk)
 			if p.Error != nil {
 				base.Errorf("%s", p.Error)
 				return
@@ -412,9 +387,26 @@ func downloadPackage(p *load.Package) error {
 		blindRepo      bool // set if the repo has unusual configuration
 	)
 
-	security := web.Secure
+	security := web.SecureOnly
 	if Insecure {
 		security = web.Insecure
+	}
+
+	// p can be either a real package, or a pseudo-package whose “import path” is
+	// actually a wildcard pattern.
+	// Trim the path at the element containing the first wildcard,
+	// and hope that it applies to the wildcarded parts too.
+	// This makes 'go get rsc.io/pdf/...' work in a fresh GOPATH.
+	importPrefix := p.ImportPath
+	if i := strings.Index(importPrefix, "..."); i >= 0 {
+		slash := strings.LastIndexByte(importPrefix[:i], '/')
+		if slash < 0 {
+			return fmt.Errorf("cannot expand ... in %q", p.ImportPath)
+		}
+		importPrefix = importPrefix[:slash]
+	}
+	if err := CheckImportPath(importPrefix); err != nil {
+		return fmt.Errorf("%s: invalid import path: %v", p.ImportPath, err)
 	}
 
 	if p.Internal.Build.SrcRoot != "" {
@@ -436,7 +428,7 @@ func downloadPackage(p *load.Package) error {
 			}
 			repo = remote
 			if !*getF && err == nil {
-				if rr, err := RepoRootForImportPath(p.ImportPath, IgnoreMod, security); err == nil {
+				if rr, err := RepoRootForImportPath(importPrefix, IgnoreMod, security); err == nil {
 					repo := rr.Repo
 					if rr.vcs.resolveRepo != nil {
 						resolved, err := rr.vcs.resolveRepo(rr.vcs, dir, repo)
@@ -453,7 +445,7 @@ func downloadPackage(p *load.Package) error {
 	} else {
 		// Analyze the import path to determine the version control system,
 		// repository, and the import path for the root of the repository.
-		rr, err := RepoRootForImportPath(p.ImportPath, IgnoreMod, security)
+		rr, err := RepoRootForImportPath(importPrefix, IgnoreMod, security)
 		if err != nil {
 			return err
 		}

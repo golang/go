@@ -1,0 +1,19 @@
+env GO111MODULE=off
+[short] skip
+
+# go clean -testcache
+# should work (see golang.org/issue/29757).
+cd x
+go test x_test.go
+go clean -testcache
+go test x_test.go
+! stdout 'cached'
+
+
+-- x/x_test.go --
+package x_test
+import (
+    "testing"
+)
+func TestMain(t *testing.T) {
+}

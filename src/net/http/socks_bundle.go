@@ -380,6 +380,7 @@ func (d *socksDialer) Dial(network, address string) (net.Conn, error) {
 		return nil, &net.OpError{Op: d.cmd.String(), Net: network, Source: proxy, Addr: dst, Err: err}
 	}
 	if _, err := d.DialWithConn(context.Background(), c, network, address); err != nil {
+		c.Close()
 		return nil, err
 	}
 	return c, nil

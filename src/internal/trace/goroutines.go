@@ -37,7 +37,7 @@ type UserRegionDesc struct {
 
 	// Region end event. Normally EvUserRegion end event or nil,
 	// but can be EvGoStop or EvGoEnd event if the goroutine
-	// terminated without explicitely ending the region.
+	// terminated without explicitly ending the region.
 	End *Event
 
 	GExecutionStat

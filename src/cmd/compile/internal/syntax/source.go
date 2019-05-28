@@ -22,6 +22,9 @@ import (
 const linebase = 1
 const colbase = 1
 
+// max. number of bytes to unread
+const maxunread = 10
+
 // buf [...read...|...|...unread...|s|...free...]
 //         ^      ^   ^            ^
 //         |      |   |            |
@@ -33,7 +36,6 @@ type source struct {
 
 	// source buffer
 	buf         [4 << 10]byte
-	offs        int   // source offset of buf
 	r0, r, w    int   // previous/current read and write buf positions, excluding sentinel
 	line0, line uint  // previous/current line
 	col0, col   uint  // previous/current column (byte offsets from line start)
@@ -51,7 +53,6 @@ func (s *source) init(src io.Reader, errh func(line, pos uint, msg string)) {
 	s.errh = errh
 
 	s.buf[0] = utf8.RuneSelf // terminate with sentinel
-	s.offs = 0
 	s.r0, s.r, s.w = 0, 0, 0
 	s.line0, s.line = 0, linebase
 	s.col0, s.col = 0, colbase
@@ -61,19 +62,21 @@ func (s *source) init(src io.Reader, errh func(line, pos uint, msg string)) {
 	s.suf = -1
 }
 
-// ungetr ungets the most recently read rune.
+// ungetr sets the reading position to a previous reading
+// position, usually the one of the most recently read
+// rune, but possibly earlier (see unread below).
 func (s *source) ungetr() {
 	s.r, s.line, s.col = s.r0, s.line0, s.col0
 }
 
-// ungetr2 is like ungetr but enables a 2nd ungetr.
-// It must not be called if one of the runes seen
-// was a newline.
-func (s *source) ungetr2() {
-	s.ungetr()
-	// line must not have changed
-	s.r0--
-	s.col0--
+// unread moves the previous reading position to a position
+// that is n bytes earlier in the source. The next ungetr
+// call will set the reading position to that moved position.
+// The "unread" runes must be single byte and not contain any
+// newlines; and 0 <= n <= maxunread must hold.
+func (s *source) unread(n int) {
+	s.r0 -= n
+	s.col0 -= uint(n)
 }
 
 func (s *source) error(msg string) {
@@ -143,7 +146,7 @@ redo:
 	// BOM's are only allowed as the first character in a file
 	const BOM = 0xfeff
 	if r == BOM {
-		if s.r0 > 0 { // s.r0 is always > 0 after 1st character (fill will set it to 1)
+		if s.r0 > 0 { // s.r0 is always > 0 after 1st character (fill will set it to maxunread)
 			s.error("invalid BOM in the middle of the file")
 		}
 		goto redo
@@ -154,21 +157,25 @@ redo:
 
 func (s *source) fill() {
 	// Slide unread bytes to beginning but preserve last read char
-	// (for one ungetr call) plus one extra byte (for a 2nd ungetr
-	// call, only for ".." character sequence and float literals
-	// starting with ".").
-	if s.r0 > 1 {
+	// (for one ungetr call) plus maxunread extra bytes (for one
+	// unread call).
+	if s.r0 > maxunread {
+		n := s.r0 - maxunread // number of bytes to slide down
 		// save literal prefix, if any
-		// (We see at most one ungetr call while reading
-		// a literal, so make sure s.r0 remains in buf.)
+		// (make sure we keep maxunread bytes and the last
+		// read char in the buffer)
 		if s.suf >= 0 {
-			s.lit = append(s.lit, s.buf[s.suf:s.r0]...)
-			s.suf = 1 // == s.r0 after slide below
+			// we have a literal
+			if s.suf < n {
+				// save literal prefix
+				s.lit = append(s.lit, s.buf[s.suf:n]...)
+				s.suf = 0
+			} else {
+				s.suf -= n
+			}
 		}
-		n := s.r0 - 1
 		copy(s.buf[:], s.buf[n:s.w])
-		s.offs += n
-		s.r0 = 1 // eqv: s.r0 -= n
+		s.r0 = maxunread // eqv: s.r0 -= n
 		s.r -= n
 		s.w -= n
 	}
@@ -189,6 +196,7 @@ func (s *source) fill() {
 		}
 	}
 
+	s.buf[s.w] = utf8.RuneSelf // sentinel
 	s.ioerr = io.ErrNoProgress
 }
 

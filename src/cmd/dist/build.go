@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -32,6 +33,7 @@ var (
 	go386            string
 	gomips           string
 	gomips64         string
+	goppc64          string
 	goroot           string
 	goroot_final     string
 	goextlinkenabled string
@@ -47,6 +49,7 @@ var (
 	defaultcflags    string
 	defaultldflags   string
 	defaultpkgconfig string
+	defaultldso      string
 
 	rebuildall   bool
 	defaultclang bool
@@ -69,6 +72,7 @@ var okgoarch = []string{
 	"ppc64le",
 	"riscv64",
 	"s390x",
+	"sparc64",
 	"wasm",
 }
 
@@ -76,6 +80,7 @@ var okgoarch = []string{
 var okgoos = []string{
 	"darwin",
 	"dragonfly",
+	"illumos",
 	"js",
 	"linux",
 	"android",
@@ -86,6 +91,7 @@ var okgoos = []string{
 	"openbsd",
 	"plan9",
 	"windows",
+	"aix",
 }
 
 // find reports the first index of p in l[0:n], or else -1.
@@ -155,6 +161,12 @@ func xinit() {
 	}
 	gomips64 = b
 
+	b = os.Getenv("GOPPC64")
+	if b == "" {
+		b = "power8"
+	}
+	goppc64 = b
+
 	if p := pathf("%s/src/all.bash", goroot); !isfile(p) {
 		fatalf("$GOROOT is not set correctly or not exported\n"+
 			"\tGOROOT=%s\n"+
@@ -187,6 +199,7 @@ func xinit() {
 	}
 
 	gogcflags = os.Getenv("BOOT_GO_GCFLAGS")
+	goldflags = os.Getenv("BOOT_GO_LDFLAGS")
 
 	cc, cxx := "gcc", "g++"
 	if defaultclang {
@@ -204,6 +217,8 @@ func xinit() {
 	}
 	defaultpkgconfig = b
 
+	defaultldso = os.Getenv("GO_LDSO")
+
 	// For tools being invoked but also for os.ExpandEnv.
 	os.Setenv("GO386", go386)
 	os.Setenv("GOARCH", goarch)
@@ -213,6 +228,7 @@ func xinit() {
 	os.Setenv("GOOS", goos)
 	os.Setenv("GOMIPS", gomips)
 	os.Setenv("GOMIPS64", gomips64)
+	os.Setenv("GOPPC64", goppc64)
 	os.Setenv("GOROOT", goroot)
 	os.Setenv("GOROOT_FINAL", goroot_final)
 
@@ -480,6 +496,7 @@ func setup() {
 		xremoveall(p)
 	}
 	xmkdirall(p)
+	xatexit(func() { xremoveall(p) })
 
 	// Create tool directory.
 	// We keep it in pkg/, just like the object directory above.
@@ -643,7 +660,15 @@ func runInstall(dir string, ch chan struct{}) {
 		if elem == "go" {
 			elem = "go_bootstrap"
 		}
-		link = []string{pathf("%s/link", tooldir), "-o", pathf("%s/%s%s", tooldir, elem, exe)}
+		link = []string{pathf("%s/link", tooldir)}
+		if goos == "android" {
+			link = append(link, "-buildmode=pie")
+		}
+		if goldflags != "" {
+			link = append(link, goldflags)
+		}
+		link = append(link, "-extld="+compilerEnvLookup(defaultcc, goos, goarch))
+		link = append(link, "-o", pathf("%s/%s%s", tooldir, elem, exe))
 		targ = len(link) - 1
 	}
 	ttarg := mtime(link[targ])
@@ -680,7 +705,7 @@ func runInstall(dir string, ch chan struct{}) {
 	}
 
 	// Is the target up-to-date?
-	var gofiles, missing []string
+	var gofiles, sfiles, missing []string
 	stale := rebuildall
 	files = filter(files, func(p string) bool {
 		for _, suf := range depsuffix {
@@ -696,6 +721,8 @@ func runInstall(dir string, ch chan struct{}) {
 		}
 		if strings.HasSuffix(p, ".go") {
 			gofiles = append(gofiles, p)
+		} else if strings.HasSuffix(p, ".s") {
+			sfiles = append(sfiles, p)
 		}
 		if t.After(ttarg) {
 			stale = true
@@ -776,10 +803,42 @@ func runInstall(dir string, ch chan struct{}) {
 		return
 	}
 
+	asmArgs := []string{
+		pathf("%s/asm", tooldir),
+		"-I", workdir,
+		"-I", pathf("%s/pkg/include", goroot),
+		"-D", "GOOS_" + goos,
+		"-D", "GOARCH_" + goarch,
+		"-D", "GOOS_GOARCH_" + goos + "_" + goarch,
+	}
+	if goarch == "mips" || goarch == "mipsle" {
+		// Define GOMIPS_value from gomips.
+		asmArgs = append(asmArgs, "-D", "GOMIPS_"+gomips)
+	}
+	if goarch == "mips64" || goarch == "mipsle64" {
+		// Define GOMIPS64_value from gomips64.
+		asmArgs = append(asmArgs, "-D", "GOMIPS64_"+gomips64)
+	}
+	goasmh := pathf("%s/go_asm.h", workdir)
+
+	// Collect symabis from assembly code.
+	var symabis string
+	if len(sfiles) > 0 {
+		symabis = pathf("%s/symabis", workdir)
+		var wg sync.WaitGroup
+		asmabis := append(asmArgs[:len(asmArgs):len(asmArgs)], "-gensymabis", "-o", symabis)
+		asmabis = append(asmabis, sfiles...)
+		if err := ioutil.WriteFile(goasmh, nil, 0666); err != nil {
+			fatalf("cannot write empty go_asm.h: %s", err)
+		}
+		bgrun(&wg, path, asmabis...)
+		bgwait(&wg)
+	}
+
 	var archive string
 	// The next loop will compile individual non-Go files.
 	// Hand the Go files to the compiler en masse.
-	// For package runtime, this writes go_asm.h, which
+	// For packages containing assembly, this writes go_asm.h, which
 	// the assembly files will need.
 	pkg := dir
 	if strings.HasPrefix(dir, "cmd/") && strings.Count(dir, "/") == 1 {
@@ -792,48 +851,44 @@ func runInstall(dir string, ch chan struct{}) {
 	} else {
 		archive = b
 	}
+
+	// Compile Go code.
 	compile := []string{pathf("%s/compile", tooldir), "-std", "-pack", "-o", b, "-p", pkg}
 	if gogcflags != "" {
 		compile = append(compile, strings.Fields(gogcflags)...)
 	}
 	if dir == "runtime" {
-		compile = append(compile, "-+", "-asmhdr", pathf("%s/go_asm.h", workdir))
+		compile = append(compile, "-+")
 	}
-	if dir == "internal/bytealg" {
-		// TODO: why don't we generate go_asm.h for all packages
-		// that have any assembly?
-		compile = append(compile, "-asmhdr", pathf("%s/go_asm.h", workdir))
+	if len(sfiles) > 0 {
+		compile = append(compile, "-asmhdr", goasmh)
 	}
+	if symabis != "" {
+		compile = append(compile, "-symabis", symabis)
+	}
+	if dir == "runtime" || dir == "runtime/internal/atomic" {
+		// These packages define symbols referenced by
+		// assembly in other packages. In cmd/go, we work out
+		// the exact details. For bootstrapping, just tell the
+		// compiler to generate ABI wrappers for everything.
+		compile = append(compile, "-allabis")
+	}
+	if goos == "android" {
+		compile = append(compile, "-shared")
+	}
+
 	compile = append(compile, gofiles...)
-	run(path, CheckExit|ShowOutput, compile...)
+	var wg sync.WaitGroup
+	// We use bgrun and immediately wait for it instead of calling run() synchronously.
+	// This executes all jobs through the bgwork channel and allows the process
+	// to exit cleanly in case an error occurs.
+	bgrun(&wg, path, compile...)
+	bgwait(&wg)
 
 	// Compile the files.
-	var wg sync.WaitGroup
-	for _, p := range files {
-		if !strings.HasSuffix(p, ".s") {
-			continue
-		}
-
-		var compile []string
+	for _, p := range sfiles {
 		// Assembly file for a Go package.
-		compile = []string{
-			pathf("%s/asm", tooldir),
-			"-I", workdir,
-			"-I", pathf("%s/pkg/include", goroot),
-			"-D", "GOOS_" + goos,
-			"-D", "GOARCH_" + goarch,
-			"-D", "GOOS_GOARCH_" + goos + "_" + goarch,
-		}
-
-		if goarch == "mips" || goarch == "mipsle" {
-			// Define GOMIPS_value from gomips.
-			compile = append(compile, "-D", "GOMIPS_"+gomips)
-		}
-
-		if goarch == "mips64" || goarch == "mipsle64" {
-			// Define GOMIPS64_value from gomips64.
-			compile = append(compile, "-D", "GOMIPS64_"+gomips64)
-		}
+		compile := asmArgs[:len(asmArgs):len(asmArgs)]
 
 		doclean := true
 		b := pathf("%s/%s", workdir, filepath.Base(p))
@@ -858,7 +913,8 @@ func runInstall(dir string, ch chan struct{}) {
 
 	// Remove target before writing it.
 	xremove(link[targ])
-	run("", CheckExit|ShowOutput, link...)
+	bgrun(&wg, "", link...)
+	bgwait(&wg)
 }
 
 // matchfield reports whether the field (x,y,z) matches this build.
@@ -883,7 +939,7 @@ func matchtag(tag string) bool {
 		}
 		return !matchtag(tag[1:])
 	}
-	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" || (goos == "android" && tag == "linux")
+	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" || (goos == "android" && tag == "linux") || (goos == "illumos" && tag == "solaris")
 }
 
 // shouldbuild reports whether we should build this file.
@@ -897,7 +953,7 @@ func shouldbuild(file, dir string) bool {
 	name := filepath.Base(file)
 	excluded := func(list []string, ok string) bool {
 		for _, x := range list {
-			if x == ok || ok == "android" && x == "linux" {
+			if x == ok || (ok == "android" && x == "linux") || (ok == "illumos" && x == "solaris") {
 				continue
 			}
 			i := strings.Index(name, x)
@@ -1083,6 +1139,9 @@ func cmdenv() {
 	if goarch == "mips64" || goarch == "mips64le" {
 		xprintf(format, "GOMIPS64", gomips64)
 	}
+	if goarch == "ppc64" || goarch == "ppc64le" {
+		xprintf(format, "GOPPC64", goppc64)
+	}
 
 	if *path {
 		sep := ":"
@@ -1159,6 +1218,13 @@ func cmdbootstrap() {
 
 	xflagparse(0)
 
+	// Set GOPATH to an internal directory. We shouldn't actually
+	// need to store files here, since the toolchain won't
+	// depend on modules outside of vendor directories, but if
+	// GOPATH points somewhere else (e.g., to GOROOT), the
+	// go tool may complain.
+	os.Setenv("GOPATH", pathf("%s/pkg/obj/gopath", goroot))
+
 	if debug {
 		// cmd/buildid is used in debug mode.
 		toolchain = append(toolchain, "cmd/buildid")
@@ -1206,7 +1272,7 @@ func cmdbootstrap() {
 	}
 
 	gogcflags = os.Getenv("GO_GCFLAGS") // we were using $BOOT_GO_GCFLAGS until now
-	goldflags = os.Getenv("GO_LDFLAGS")
+	goldflags = os.Getenv("GO_LDFLAGS") // we were using $BOOT_GO_LDFLAGS until now
 	goBootstrap := pathf("%s/go_bootstrap", tooldir)
 	cmdGo := pathf("%s/go", gobin)
 	if debug {
@@ -1335,24 +1401,60 @@ func cmdbootstrap() {
 	// Remove go_bootstrap now that we're done.
 	xremove(pathf("%s/go_bootstrap", tooldir))
 
+	if goos == "android" {
+		// Make sure the exec wrapper will sync a fresh $GOROOT to the device.
+		xremove(pathf("%s/go_android_exec-adb-sync-status", os.TempDir()))
+	}
+
+	if wrapperPath := wrapperPathFor(goos, goarch); wrapperPath != "" {
+		oldcc := os.Getenv("CC")
+		os.Setenv("GOOS", gohostos)
+		os.Setenv("GOARCH", gohostarch)
+		os.Setenv("CC", compilerEnvLookup(defaultcc, gohostos, gohostarch))
+		goCmd(cmdGo, "build", "-o", pathf("%s/go_%s_%s_exec%s", gobin, goos, goarch, exe), wrapperPath)
+		// Restore environment.
+		// TODO(elias.naur): support environment variables in goCmd?
+		os.Setenv("GOOS", goos)
+		os.Setenv("GOARCH", goarch)
+		os.Setenv("CC", oldcc)
+	}
+
 	// Print trailing banner unless instructed otherwise.
 	if !noBanner {
 		banner()
 	}
 }
 
+func wrapperPathFor(goos, goarch string) string {
+	switch {
+	case goos == "android":
+		if gohostos != "android" {
+			return pathf("%s/misc/android/go_android_exec.go", goroot)
+		}
+	case goos == "darwin" && (goarch == "arm" || goarch == "arm64"):
+		if gohostos != "darwin" || (gohostarch != "arm" && gohostarch != "arm64") {
+			return pathf("%s/misc/ios/go_darwin_arm_exec.go", goroot)
+		}
+	}
+	return ""
+}
+
 func goInstall(goBinary string, args ...string) {
-	installCmd := []string{goBinary, "install", "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags}
+	goCmd(goBinary, "install", args...)
+}
+
+func goCmd(goBinary string, cmd string, args ...string) {
+	goCmd := []string{goBinary, cmd, "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags}
 	if vflag > 0 {
-		installCmd = append(installCmd, "-v")
+		goCmd = append(goCmd, "-v")
 	}
 
 	// Force only one process at a time on vx32 emulation.
 	if gohostos == "plan9" && os.Getenv("sysname") == "vx32" {
-		installCmd = append(installCmd, "-p=1")
+		goCmd = append(goCmd, "-p=1")
 	}
 
-	run(goroot, ShowOutput|CheckExit, append(installCmd, args...)...)
+	run(goroot, ShowOutput|CheckExit, append(goCmd, args...)...)
 }
 
 func checkNotStale(goBinary string, targets ...string) {
@@ -1382,14 +1484,16 @@ func checkNotStale(goBinary string, targets ...string) {
 // single point of truth for supported platforms. This list is used
 // by 'go tool dist list'.
 var cgoEnabled = map[string]bool{
-	"darwin/386":      true,
+	"aix/ppc64":       true,
+	"darwin/386":      false, // Issue 31751
 	"darwin/amd64":    true,
 	"darwin/arm":      true,
 	"darwin/arm64":    true,
 	"dragonfly/amd64": true,
 	"freebsd/386":     true,
 	"freebsd/amd64":   true,
-	"freebsd/arm":     false,
+	"freebsd/arm":     true,
+	"illumos/amd64":   true,
 	"linux/386":       true,
 	"linux/amd64":     true,
 	"linux/arm":       true,
@@ -1402,6 +1506,7 @@ var cgoEnabled = map[string]bool{
 	"linux/mips64le":  true,
 	"linux/riscv64":   true,
 	"linux/s390x":     true,
+	"linux/sparc64":   true,
 	"android/386":     true,
 	"android/amd64":   true,
 	"android/arm":     true,
@@ -1413,15 +1518,25 @@ var cgoEnabled = map[string]bool{
 	"netbsd/386":      true,
 	"netbsd/amd64":    true,
 	"netbsd/arm":      true,
+	"netbsd/arm64":    true,
 	"openbsd/386":     true,
 	"openbsd/amd64":   true,
-	"openbsd/arm":     false,
+	"openbsd/arm":     true,
+	"openbsd/arm64":   true,
 	"plan9/386":       false,
 	"plan9/amd64":     false,
 	"plan9/arm":       false,
 	"solaris/amd64":   true,
 	"windows/386":     true,
 	"windows/amd64":   true,
+	"windows/arm":     false,
+}
+
+// List of platforms which are supported but not complete yet. These get
+// filtered out of cgoEnabled for 'dist list'. See golang.org/issue/28944
+var incomplete = map[string]bool{
+	"linux/riscv64": true,
+	"linux/sparc64": true,
 }
 
 func needCC() bool {
@@ -1542,6 +1657,9 @@ func cmdlist() {
 
 	var plats []string
 	for p := range cgoEnabled {
+		if incomplete[p] {
+			continue
+		}
 		plats = append(plats, p)
 	}
 	sort.Strings(plats)

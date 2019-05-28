@@ -31,9 +31,9 @@
 #define SYS_madvise             219
 #define SYS_mincore             218
 #define SYS_gettid              236
-#define SYS_tkill               237
 #define SYS_futex               238
 #define SYS_sched_getaffinity   240
+#define SYS_tgkill              241
 #define SYS_exit_group          248
 #define SYS_epoll_create        249
 #define SYS_epoll_ctl           250
@@ -129,11 +129,15 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT|NOFRAME,$0
+	MOVW	$SYS_getpid, R1
+	SYSCALL
+	MOVW	R2, R10
 	MOVW	$SYS_gettid, R1
 	SYSCALL
-	MOVW	R2, R2	// arg 1 tid
-	MOVW	sig+0(FP), R3	// arg 2
-	MOVW	$SYS_tkill, R1
+	MOVW	R2, R3	// arg 2 tid
+	MOVW	R10, R2	// arg 1 pid
+	MOVW	sig+0(FP), R4	// arg 2
+	MOVW	$SYS_tgkill, R1
 	SYSCALL
 	RET
 
@@ -218,6 +222,9 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	BL	R5
 	RET
 
+TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
+	RET
+
 TEXT runtime·sigtramp(SB),NOSPLIT,$64
 	// initialize essential registers (just in case)
 	XOR	R0, R0
@@ -286,7 +293,7 @@ TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
 	MOVW	flags+16(FP), R4
 	MOVW	$SYS_madvise, R1
 	SYSCALL
-	// ignore failure - maybe pages are locked
+	MOVW	R2, ret+24(FP)
 	RET
 
 // int64 futex(int32 *uaddr, int32 op, int32 val,
@@ -441,4 +448,19 @@ TEXT runtime·sbrk0(SB),NOSPLIT|NOFRAME,$0-8
 	MOVW	$SYS_brk, R1
 	SYSCALL
 	MOVD	R2, ret+0(FP)
+	RET
+
+TEXT runtime·access(SB),$0-20
+	MOVD	$0, 2(R0) // unimplemented, only needed for android; declared in stubs_linux.go
+	MOVW	R0, ret+16(FP)
+	RET
+
+TEXT runtime·connect(SB),$0-28
+	MOVD	$0, 2(R0) // unimplemented, only needed for android; declared in stubs_linux.go
+	MOVW	R0, ret+24(FP)
+	RET
+
+TEXT runtime·socket(SB),$0-20
+	MOVD	$0, 2(R0) // unimplemented, only needed for android; declared in stubs_linux.go
+	MOVW	R0, ret+16(FP)
 	RET

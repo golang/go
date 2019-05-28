@@ -37,7 +37,7 @@ package modfetch
 import (
 	"cmd/go/internal/semver"
 	"fmt"
-	"regexp"
+	"internal/lazyregexp"
 	"strings"
 	"time"
 )
@@ -49,6 +49,7 @@ func PseudoVersion(major, older string, t time.Time, rev string) string {
 	if major == "" {
 		major = "v0"
 	}
+	major = strings.TrimSuffix(major, "-unstable") // make gopkg.in/macaroon-bakery.v2-unstable use "v2"
 	segment := fmt.Sprintf("%s-%s", t.UTC().Format("20060102150405"), rev)
 	build := semver.Build(older)
 	older = semver.Canonical(older)
@@ -61,9 +62,8 @@ func PseudoVersion(major, older string, t time.Time, rev string) string {
 
 	// Form (2), (3).
 	// Extract patch from vMAJOR.MINOR.PATCH
-	v := older[:len(older)]
-	i := strings.LastIndex(v, ".") + 1
-	v, patch := v[:i], v[i:]
+	i := strings.LastIndex(older, ".") + 1
+	v, patch := older[:i], older[i:]
 
 	// Increment PATCH by adding 1 to decimal:
 	// scan right to left turning 9s to 0s until you find a digit to increment.
@@ -85,7 +85,7 @@ func PseudoVersion(major, older string, t time.Time, rev string) string {
 	return v + patch + "-0." + segment + build
 }
 
-var pseudoVersionRE = regexp.MustCompile(`^v[0-9]+\.(0\.0-|\d+\.\d+-([^+]*\.)?0\.)\d{14}-[A-Za-z0-9]+(\+incompatible)?$`)
+var pseudoVersionRE = lazyregexp.New(`^v[0-9]+\.(0\.0-|\d+\.\d+-([^+]*\.)?0\.)\d{14}-[A-Za-z0-9]+(\+incompatible)?$`)
 
 // IsPseudoVersion reports whether v is a pseudo-version.
 func IsPseudoVersion(v string) bool {
@@ -97,6 +97,9 @@ func IsPseudoVersion(v string) bool {
 // embedded in the pseudo-version is not a valid time.
 func PseudoVersionTime(v string) (time.Time, error) {
 	timestamp, _, err := parsePseudoVersion(v)
+	if err != nil {
+		return time.Time{}, err
+	}
 	t, err := time.Parse("20060102150405", timestamp)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("pseudo-version with malformed time %s: %q", timestamp, v)

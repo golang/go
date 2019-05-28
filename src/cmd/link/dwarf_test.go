@@ -5,10 +5,11 @@
 package main
 
 import (
+	"bytes"
+	cmddwarf "cmd/internal/dwarf"
 	"cmd/internal/objfile"
 	"debug/dwarf"
 	"internal/testenv"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -38,14 +39,30 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 		t.Fatalf("cmd/link is stale - run go install cmd/link")
 	}
 
-	tmpDir, err := ioutil.TempDir("", "go-link-TestDWARF")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
 	for _, prog := range []string{"testprog", "testprogcgo"} {
+		prog := prog
+		expectDWARF := expectDWARF
+		if runtime.GOOS == "aix" && prog == "testprogcgo" {
+			extld := os.Getenv("CC")
+			if extld == "" {
+				extld = "gcc"
+			}
+			expectDWARF, err = cmddwarf.IsDWARFEnabledOnAIXLd(extld)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+		}
+
 		t.Run(prog, func(t *testing.T) {
+			t.Parallel()
+
+			tmpDir, err := ioutil.TempDir("", "go-link-TestDWARF")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(tmpDir)
+
 			exe := filepath.Join(tmpDir, prog+".exe")
 			dir := "../../runtime/testdata/" + prog
 			cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe)
@@ -70,6 +87,22 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 				}
 				exe = filepath.Join(tmpDir, "go.o")
 			}
+
+			if runtime.GOOS == "darwin" {
+				if _, err = exec.LookPath("symbols"); err == nil {
+					// Ensure Apple's tooling can parse our object for symbols.
+					out, err = exec.Command("symbols", exe).CombinedOutput()
+					if err != nil {
+						t.Fatal(err)
+					} else {
+						if bytes.HasPrefix(out, []byte("Unable to find file")) {
+							// This failure will cause the App Store to reject our binaries.
+							t.Fatalf("/usr/bin/symbols %v: failed to parse file", filepath.Base(exe))
+						}
+					}
+				}
+			}
+
 			f, err := objfile.Open(exe)
 			if err != nil {
 				t.Fatal(err)
@@ -109,46 +142,34 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 			wantFile := path.Join(prog, "main.go")
 			wantLine := 24
 			r := d.Reader()
-			var line dwarf.LineEntry
-			for {
-				cu, err := r.Next()
-				if err != nil {
-					t.Fatal(err)
-				}
-				if cu == nil {
-					break
-				}
-				if cu.Tag != dwarf.TagCompileUnit {
-					r.SkipChildren()
-					continue
-				}
-				lr, err := d.LineReader(cu)
-				if err != nil {
-					t.Fatal(err)
-				}
-				for {
-					err := lr.Next(&line)
-					if err == io.EOF {
-						break
-					}
-					if err != nil {
-						t.Fatal(err)
-					}
-					if line.Address == addr {
-						if !strings.HasSuffix(line.File.Name, wantFile) || line.Line != wantLine {
-							t.Errorf("%#x is %s:%d, want %s:%d", addr, line.File.Name, line.Line, filepath.Join("...", wantFile), wantLine)
-						}
-						return
-					}
-				}
+			entry, err := r.SeekPC(addr)
+			if err != nil {
+				t.Fatal(err)
 			}
-			t.Fatalf("did not find file:line for %#x (main.main)", addr)
+			lr, err := d.LineReader(entry)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var line dwarf.LineEntry
+			if err := lr.SeekPC(addr, &line); err == dwarf.ErrUnknownPC {
+				t.Fatalf("did not find file:line for %#x (main.main)", addr)
+			} else if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.HasSuffix(line.File.Name, wantFile) || line.Line != wantLine {
+				t.Errorf("%#x is %s:%d, want %s:%d", addr, line.File.Name, line.Line, filepath.Join("...", wantFile), wantLine)
+			}
 		})
 	}
 }
 
 func TestDWARF(t *testing.T) {
 	testDWARF(t, "", true)
+	if runtime.GOOS == "darwin" && !testing.Short() {
+		t.Run("c-archive", func(t *testing.T) {
+			testDWARF(t, "c-archive", true)
+		})
+	}
 }
 
 func TestDWARFiOS(t *testing.T) {

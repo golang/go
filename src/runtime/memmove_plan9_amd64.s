@@ -73,7 +73,7 @@ back:
 	ADDQ	BX, CX
 	CMPQ	CX, DI
 	JLS	forward
-	
+
 /*
  * whole thing backwards has
  * adjusted addresses

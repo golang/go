@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package net
 
@@ -17,10 +17,11 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
-	"golang_org/x/net/dns/dnsmessage"
+	"golang.org/x/net/dns/dnsmessage"
 )
 
 var goResolver = Resolver{PreferGo: true}
@@ -80,7 +81,7 @@ func TestDNSTransportFallback(t *testing.T) {
 	for _, tt := range dnsTransportFallbackTests {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		_, h, err := r.exchange(ctx, tt.server, tt.question, time.Second)
+		_, h, err := r.exchange(ctx, tt.server, tt.question, time.Second, useUDPOrTCP)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -136,7 +137,7 @@ func TestSpecialDomainName(t *testing.T) {
 	for _, tt := range specialDomainNameTests {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		_, h, err := r.exchange(ctx, server, tt.question, 3*time.Second)
+		_, h, err := r.exchange(ctx, server, tt.question, 3*time.Second, useUDPOrTCP)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -665,7 +666,7 @@ func TestErrorForOriginalNameWhenSearching(t *testing.T) {
 		wantErr      *DNSError
 	}{
 		{true, &DNSError{Name: fqdn, Err: "server misbehaving", IsTemporary: true}},
-		{false, &DNSError{Name: fqdn, Err: errNoSuchHost.Error()}},
+		{false, &DNSError{Name: fqdn, Err: errNoSuchHost.Error(), IsNotFound: true}},
 	}
 	for _, tt := range cases {
 		r := Resolver{PreferGo: true, StrictErrors: tt.strictErrors, Dial: fake.DialContext}
@@ -1137,9 +1138,10 @@ func TestStrictErrorsLookupIP(t *testing.T) {
 	}
 	makeNxDomain := func() error {
 		return &DNSError{
-			Err:    errNoSuchHost.Error(),
-			Name:   name,
-			Server: server,
+			Err:        errNoSuchHost.Error(),
+			Name:       name,
+			Server:     server,
+			IsNotFound: true,
 		}
 	}
 
@@ -1427,28 +1429,35 @@ func TestDNSGoroutineRace(t *testing.T) {
 	}
 }
 
+func lookupWithFake(fake fakeDNSServer, name string, typ dnsmessage.Type) error {
+	r := Resolver{PreferGo: true, Dial: fake.DialContext}
+
+	resolvConf.mu.RLock()
+	conf := resolvConf.dnsConfig
+	resolvConf.mu.RUnlock()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	_, _, err := r.tryOneName(ctx, conf, name, typ)
+	return err
+}
+
 // Issue 8434: verify that Temporary returns true on an error when rcode
 // is SERVFAIL
 func TestIssue8434(t *testing.T) {
-	msg := dnsmessage.Message{
-		Header: dnsmessage.Header{
-			RCode: dnsmessage.RCodeServerFailure,
+	err := lookupWithFake(fakeDNSServer{
+		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+			return dnsmessage.Message{
+				Header: dnsmessage.Header{
+					ID:       q.ID,
+					Response: true,
+					RCode:    dnsmessage.RCodeServerFailure,
+				},
+				Questions: q.Questions,
+			}, nil
 		},
-	}
-	b, err := msg.Pack()
-	if err != nil {
-		t.Fatal("Pack failed:", err)
-	}
-	var p dnsmessage.Parser
-	h, err := p.Start(b)
-	if err != nil {
-		t.Fatal("Start failed:", err)
-	}
-	if err := p.SkipAllQuestions(); err != nil {
-		t.Fatal("SkipAllQuestions failed:", err)
-	}
-
-	err = checkHeader(&p, h, "golang.org", "foo:53")
+	}, "golang.org.", dnsmessage.TypeALL)
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -1464,50 +1473,105 @@ func TestIssue8434(t *testing.T) {
 	}
 }
 
-// Issue 12778: verify that NXDOMAIN without RA bit errors as
-// "no such host" and not "server misbehaving"
-//
-// Issue 25336: verify that NXDOMAIN errors fail fast.
-func TestIssue12778(t *testing.T) {
-	lookups := 0
-	fake := fakeDNSServer{
+func TestIssueNoSuchHostExists(t *testing.T) {
+	err := lookupWithFake(fakeDNSServer{
 		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
-			lookups++
 			return dnsmessage.Message{
 				Header: dnsmessage.Header{
-					ID:                 q.ID,
-					Response:           true,
-					RCode:              dnsmessage.RCodeNameError,
-					RecursionAvailable: false,
+					ID:       q.ID,
+					Response: true,
+					RCode:    dnsmessage.RCodeNameError,
 				},
 				Questions: q.Questions,
 			}, nil
 		},
-	}
-	r := Resolver{PreferGo: true, Dial: fake.DialContext}
-
-	resolvConf.mu.RLock()
-	conf := resolvConf.dnsConfig
-	resolvConf.mu.RUnlock()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	_, _, err := r.tryOneName(ctx, conf, ".", dnsmessage.TypeALL)
-
-	if lookups != 1 {
-		t.Errorf("got %d lookups, wanted 1", lookups)
-	}
-
+	}, "golang.org.", dnsmessage.TypeALL)
 	if err == nil {
 		t.Fatal("expected an error")
 	}
-	de, ok := err.(*DNSError)
-	if !ok {
-		t.Fatalf("err = %#v; wanted a *net.DNSError", err)
+	if _, ok := err.(Error); !ok {
+		t.Fatalf("err = %#v; wanted something supporting net.Error", err)
 	}
-	if de.Err != errNoSuchHost.Error() {
-		t.Fatalf("Err = %#v; wanted %q", de.Err, errNoSuchHost.Error())
+	if de, ok := err.(*DNSError); !ok {
+		t.Fatalf("err = %#v; wanted a *net.DNSError", err)
+	} else if !de.IsNotFound {
+		t.Fatalf("IsNotFound = false for err = %#v; want IsNotFound == true", err)
+	}
+}
+
+// TestNoSuchHost verifies that tryOneName works correctly when the domain does
+// not exist.
+//
+// Issue 12778: verify that NXDOMAIN without RA bit errors as "no such host"
+// and not "server misbehaving"
+//
+// Issue 25336: verify that NXDOMAIN errors fail fast.
+//
+// Issue 27525: verify that empty answers fail fast.
+func TestNoSuchHost(t *testing.T) {
+	tests := []struct {
+		name string
+		f    func(string, string, dnsmessage.Message, time.Time) (dnsmessage.Message, error)
+	}{
+		{
+			"NXDOMAIN",
+			func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+				return dnsmessage.Message{
+					Header: dnsmessage.Header{
+						ID:                 q.ID,
+						Response:           true,
+						RCode:              dnsmessage.RCodeNameError,
+						RecursionAvailable: false,
+					},
+					Questions: q.Questions,
+				}, nil
+			},
+		},
+		{
+			"no answers",
+			func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+				return dnsmessage.Message{
+					Header: dnsmessage.Header{
+						ID:                 q.ID,
+						Response:           true,
+						RCode:              dnsmessage.RCodeSuccess,
+						RecursionAvailable: false,
+						Authoritative:      true,
+					},
+					Questions: q.Questions,
+				}, nil
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			lookups := 0
+			err := lookupWithFake(fakeDNSServer{
+				rh: func(n, s string, q dnsmessage.Message, d time.Time) (dnsmessage.Message, error) {
+					lookups++
+					return test.f(n, s, q, d)
+				},
+			}, ".", dnsmessage.TypeALL)
+
+			if lookups != 1 {
+				t.Errorf("got %d lookups, wanted 1", lookups)
+			}
+
+			if err == nil {
+				t.Fatal("expected an error")
+			}
+			de, ok := err.(*DNSError)
+			if !ok {
+				t.Fatalf("err = %#v; wanted a *net.DNSError", err)
+			}
+			if de.Err != errNoSuchHost.Error() {
+				t.Fatalf("Err = %#v; wanted %q", de.Err, errNoSuchHost.Error())
+			}
+			if !de.IsNotFound {
+				t.Fatalf("IsNotFound = %v wanted true", de.IsNotFound)
+			}
+		})
 	}
 }
 
@@ -1530,8 +1594,161 @@ func TestDNSDialTCP(t *testing.T) {
 	}
 	r := Resolver{PreferGo: true, Dial: fake.DialContext}
 	ctx := context.Background()
-	_, _, err := r.exchange(ctx, "0.0.0.0", mustQuestion("com.", dnsmessage.TypeALL, dnsmessage.ClassINET), time.Second)
+	_, _, err := r.exchange(ctx, "0.0.0.0", mustQuestion("com.", dnsmessage.TypeALL, dnsmessage.ClassINET), time.Second, useUDPOrTCP)
 	if err != nil {
 		t.Fatal("exhange failed:", err)
+	}
+}
+
+// Issue 27763: verify that two strings in one TXT record are concatenated.
+func TestTXTRecordTwoStrings(t *testing.T) {
+	fake := fakeDNSServer{
+		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+			r := dnsmessage.Message{
+				Header: dnsmessage.Header{
+					ID:       q.Header.ID,
+					Response: true,
+					RCode:    dnsmessage.RCodeSuccess,
+				},
+				Questions: q.Questions,
+				Answers: []dnsmessage.Resource{
+					{
+						Header: dnsmessage.ResourceHeader{
+							Name:  q.Questions[0].Name,
+							Type:  dnsmessage.TypeA,
+							Class: dnsmessage.ClassINET,
+						},
+						Body: &dnsmessage.TXTResource{
+							TXT: []string{"string1 ", "string2"},
+						},
+					},
+					{
+						Header: dnsmessage.ResourceHeader{
+							Name:  q.Questions[0].Name,
+							Type:  dnsmessage.TypeA,
+							Class: dnsmessage.ClassINET,
+						},
+						Body: &dnsmessage.TXTResource{
+							TXT: []string{"onestring"},
+						},
+					},
+				},
+			}
+			return r, nil
+		},
+	}
+	r := Resolver{PreferGo: true, Dial: fake.DialContext}
+	txt, err := r.lookupTXT(context.Background(), "golang.org")
+	if err != nil {
+		t.Fatal("LookupTXT failed:", err)
+	}
+	if want := 2; len(txt) != want {
+		t.Fatalf("len(txt), got %d, want %d", len(txt), want)
+	}
+	if want := "string1 string2"; txt[0] != want {
+		t.Errorf("txt[0], got %q, want %q", txt[0], want)
+	}
+	if want := "onestring"; txt[1] != want {
+		t.Errorf("txt[1], got %q, want %q", txt[1], want)
+	}
+}
+
+// Issue 29644: support single-request resolv.conf option in pure Go resolver.
+// The A and AAAA queries will be sent sequentially, not in parallel.
+func TestSingleRequestLookup(t *testing.T) {
+	defer dnsWaitGroup.Wait()
+	var (
+		firstcalled int32
+		ipv4        int32 = 1
+		ipv6        int32 = 2
+	)
+	fake := fakeDNSServer{rh: func(n, s string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+		r := dnsmessage.Message{
+			Header: dnsmessage.Header{
+				ID:       q.ID,
+				Response: true,
+			},
+			Questions: q.Questions,
+		}
+		for _, question := range q.Questions {
+			switch question.Type {
+			case dnsmessage.TypeA:
+				if question.Name.String() == "slowipv4.example.net." {
+					time.Sleep(10 * time.Millisecond)
+				}
+				if !atomic.CompareAndSwapInt32(&firstcalled, 0, ipv4) {
+					t.Errorf("the A query was received after the AAAA query !")
+				}
+				r.Answers = append(r.Answers, dnsmessage.Resource{
+					Header: dnsmessage.ResourceHeader{
+						Name:   q.Questions[0].Name,
+						Type:   dnsmessage.TypeA,
+						Class:  dnsmessage.ClassINET,
+						Length: 4,
+					},
+					Body: &dnsmessage.AResource{
+						A: TestAddr,
+					},
+				})
+			case dnsmessage.TypeAAAA:
+				atomic.CompareAndSwapInt32(&firstcalled, 0, ipv6)
+				r.Answers = append(r.Answers, dnsmessage.Resource{
+					Header: dnsmessage.ResourceHeader{
+						Name:   q.Questions[0].Name,
+						Type:   dnsmessage.TypeAAAA,
+						Class:  dnsmessage.ClassINET,
+						Length: 16,
+					},
+					Body: &dnsmessage.AAAAResource{
+						AAAA: TestAddr6,
+					},
+				})
+			}
+		}
+		return r, nil
+	}}
+	r := Resolver{PreferGo: true, Dial: fake.DialContext}
+
+	conf, err := newResolvConfTest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conf.teardown()
+	if err := conf.writeAndUpdate([]string{"options single-request"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"hostname.example.net", "slowipv4.example.net"} {
+		firstcalled = 0
+		_, err := r.LookupIPAddr(context.Background(), name)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+// Issue 29358. Add configuration knob to force TCP-only DNS requests in the pure Go resolver.
+func TestDNSUseTCP(t *testing.T) {
+	fake := fakeDNSServer{
+		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+			r := dnsmessage.Message{
+				Header: dnsmessage.Header{
+					ID:       q.Header.ID,
+					Response: true,
+					RCode:    dnsmessage.RCodeSuccess,
+				},
+				Questions: q.Questions,
+			}
+			if n == "udp" {
+				t.Fatal("udp protocol was used instead of tcp")
+			}
+			return r, nil
+		},
+	}
+	r := Resolver{PreferGo: true, Dial: fake.DialContext}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, _, err := r.exchange(ctx, "0.0.0.0", mustQuestion("com.", dnsmessage.TypeALL, dnsmessage.ClassINET), time.Second, useTCPOnly)
+	if err != nil {
+		t.Fatal("exchange failed:", err)
 	}
 }

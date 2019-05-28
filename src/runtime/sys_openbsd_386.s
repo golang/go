@@ -136,7 +136,8 @@ TEXT runtime·madvise(SB),NOSPLIT,$-4
 	MOVL	$75, AX			// sys_madvise
 	INT	$0x80
 	JAE	2(PC)
-	MOVL	$0xf1, 0xf1		// crash
+	MOVL	$-1, AX
+	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·setitimer(SB),NOSPLIT,$-4
@@ -217,7 +218,9 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
 	MOVL	AX, SP
 	RET
 
+// Called by OS using C ABI.
 TEXT runtime·sigtramp(SB),NOSPLIT,$28
+	NOP	SP	// tell vet SP changed - stop checking offsets
 	// Save callee-saved C registers, since the caller may be a C signal handler.
 	MOVL	BX, bx-4(SP)
 	MOVL	BP, bp-8(SP)
@@ -226,11 +229,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$28
 	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
 	// modify them.
 
-	MOVL	signo+0(FP), BX
+	MOVL	32(SP), BX // signo
 	MOVL	BX, 0(SP)
-	MOVL	info+4(FP), BX
+	MOVL	36(SP), BX // info
 	MOVL	BX, 4(SP)
-	MOVL	context+8(FP), BX
+	MOVL	40(SP), BX // context
 	MOVL	BX, 8(SP)
 	CALL	runtime·sigtrampgo(SB)
 
@@ -291,10 +294,10 @@ TEXT runtime·tfork(SB),NOSPLIT,$12
 	LEAL	m_tls(BX), BP
 	PUSHAL				// save registers
 	PUSHL	BP
-	CALL	runtime·settls(SB)
+	CALL	set_tcb<>(SB)
 	POPL	AX
 	POPAL
-	
+
 	// Now segment is established. Initialize m, g.
 	get_tls(AX)
 	MOVL	DX, g(AX)
@@ -328,12 +331,12 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 
 TEXT runtime·setldt(SB),NOSPLIT,$4
 	// Under OpenBSD we set the GS base instead of messing with the LDT.
-	MOVL	tls0+4(FP), AX
+	MOVL	base+4(FP), AX
 	MOVL	AX, 0(SP)
-	CALL	runtime·settls(SB)
+	CALL	set_tcb<>(SB)
 	RET
 
-TEXT runtime·settls(SB),NOSPLIT,$8
+TEXT set_tcb<>(SB),NOSPLIT,$8
 	// adjust for ELF: wants to use -4(GS) for g
 	MOVL	tlsbase+0(FP), CX
 	ADDL	$4, CX

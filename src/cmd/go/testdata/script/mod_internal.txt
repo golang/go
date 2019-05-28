@@ -1,22 +1,23 @@
 env GO111MODULE=on
+[short] skip
 
 # golang.org/x/internal should be importable from other golang.org/x modules.
 rm go.mod
 go mod init golang.org/x/anything
 go build .
 
+# ...and their tests...
+go test
+stdout PASS
+
 # ...but that should not leak into other modules.
 ! go build ./baddep
-stderr 'use of internal package golang.org/x/.* not allowed in golang.org/notx/useinternal$'
+stderr golang.org[/\\]notx[/\\]useinternal
+stderr 'use of internal package golang.org/x/.* not allowed'
 
 # Internal packages in the standard library should not leak into modules.
 ! go build ./fromstd
-stderr 'use of internal package internal/testenv not allowed$'
-
-# Packages found via standard-library vendoring should not leak.
-! go build ./fromstdvendor
-stderr 'use of vendored package golang_org/x/net/http/httpguts not allowed$'
-
+stderr 'use of internal package internal/testenv not allowed'
 
 # Dependencies should be able to use their own internal modules...
 rm go.mod
@@ -25,12 +26,12 @@ go build ./throughdep
 
 # ... but other modules should not, even if they have transitive dependencies.
 ! go build .
-stderr 'use of internal package golang.org/x/.* not allowed in golang.org/notx$'
+stderr 'use of internal package golang.org/x/.* not allowed'
 
 # And transitive dependencies still should not leak.
 ! go build ./baddep
-stderr 'use of internal package golang.org/x/.* not allowed in golang.org/notx/useinternal$'
-
+stderr golang.org[/\\]notx[/\\]useinternal
+stderr 'use of internal package golang.org/x/.* not allowed'
 
 # Replacing an internal module should keep it internal to the same paths.
 rm go.mod
@@ -39,17 +40,28 @@ go mod edit -replace golang.org/x/internal=./replace/golang.org/notx/internal
 go build ./throughdep
 
 ! go build ./baddep
-stderr 'use of internal package golang.org/x/.* not allowed in golang.org/notx/useinternal$'
+stderr golang.org[/\\]notx[/\\]useinternal
+stderr 'use of internal package golang.org/x/.* not allowed'
 
 go mod edit -replace golang.org/x/internal=./vendor/golang.org/x/internal
 go build ./throughdep
 
 ! go build ./baddep
-stderr 'use of internal package golang.org/x/.* not allowed in golang.org/notx/useinternal$'
+stderr golang.org[/\\]notx[/\\]useinternal
+stderr 'use of internal package golang.org/x/.* not allowed'
 
 -- useinternal.go --
 package useinternal
 import _ "golang.org/x/internal/subtle"
+
+-- useinternal_test.go --
+package useinternal_test
+import (
+	"testing"
+	_ "golang.org/x/internal/subtle"
+)
+
+func Test(*testing.T) {}
 
 -- throughdep/useinternal.go --
 package throughdep
@@ -62,10 +74,6 @@ import _ "golang.org/notx/useinternal"
 -- fromstd/useinternal.go --
 package fromstd
 import _ "internal/testenv"
-
--- fromstdvendor/useinternal.go --
-package fromstdvendor
-import _ "golang_org/x/net/http/httpguts"
 
 -- replace/golang.org/notx/internal/go.mod --
 module golang.org/x/internal

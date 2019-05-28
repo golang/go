@@ -305,7 +305,9 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVL	flags+16(FP), DX	// arg 3 - behav
 	MOVQ	$75, AX			// sys_madvise
 	SYSCALL
-	// ignore failure - maybe pages are locked
+	JCC	2(PC)
+	MOVL	$-1, AX
+	MOVL	AX, ret+24(FP)
 	RET
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
@@ -346,9 +348,6 @@ TEXT runtime·sysctl(SB),NOSPLIT,$0
 
 // int32 runtime·kqueue(void);
 TEXT runtime·kqueue(SB),NOSPLIT,$0
-	MOVQ	$0, DI
-	MOVQ	$0, SI
-	MOVQ	$0, DX
 	MOVL	$269, AX
 	SYSCALL
 	JCC	2(PC)

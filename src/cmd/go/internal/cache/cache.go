@@ -18,6 +18,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"cmd/go/internal/renameio"
 )
 
 // An ActionID is a cache action key, the hash of a complete description of a
@@ -31,7 +33,6 @@ type OutputID [HashSize]byte
 // A Cache is a package cache, backed by a file system directory tree.
 type Cache struct {
 	dir string
-	log *os.File
 	now func() time.Time
 }
 
@@ -61,13 +62,8 @@ func Open(dir string) (*Cache, error) {
 			return nil, err
 		}
 	}
-	f, err := os.OpenFile(filepath.Join(dir, "log.txt"), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
-	if err != nil {
-		return nil, err
-	}
 	c := &Cache{
 		dir: dir,
-		log: f,
 		now: time.Now,
 	}
 	return c, nil
@@ -139,7 +135,6 @@ type Entry struct {
 // get is Get but does not respect verify mode, so that Put can use it.
 func (c *Cache) get(id ActionID) (Entry, error) {
 	missing := func() (Entry, error) {
-		fmt.Fprintf(c.log, "%d miss %x\n", c.now().Unix(), id)
 		return Entry{}, errMissing
 	}
 	f, err := os.Open(c.fileName(id, "a"))
@@ -181,8 +176,6 @@ func (c *Cache) get(id ActionID) (Entry, error) {
 	if err != nil || size < 0 {
 		return missing()
 	}
-
-	fmt.Fprintf(c.log, "%d get %x\n", c.now().Unix(), id)
 
 	c.used(c.fileName(id, "a"))
 
@@ -283,7 +276,9 @@ func (c *Cache) Trim() {
 		c.trimSubdir(subdir, cutoff)
 	}
 
-	ioutil.WriteFile(filepath.Join(c.dir, "trim.txt"), []byte(fmt.Sprintf("%d", now.Unix())), 0666)
+	// Ignore errors from here: if we don't write the complete timestamp, the
+	// cache will appear older than it is, and we'll trim it again next time.
+	renameio.WriteFile(filepath.Join(c.dir, "trim.txt"), []byte(fmt.Sprintf("%d", now.Unix())), 0666)
 }
 
 // trimSubdir trims a single cache subdirectory.
@@ -338,12 +333,13 @@ func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64, allowVerify
 	}
 	file := c.fileName(id, "a")
 	if err := ioutil.WriteFile(file, entry, 0666); err != nil {
+		// TODO(bcmills): This Remove potentially races with another go command writing to file.
+		// Can we eliminate it?
 		os.Remove(file)
 		return err
 	}
 	os.Chtimes(file, c.now(), c.now()) // mainly for tests
 
-	fmt.Fprintf(c.log, "%d put %x %x %d\n", c.now().Unix(), id, out, size)
 	return nil
 }
 

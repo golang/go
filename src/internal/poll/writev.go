@@ -9,7 +9,6 @@ package poll
 import (
 	"io"
 	"syscall"
-	"unsafe"
 )
 
 // Writev wraps the writev system call.
@@ -52,26 +51,28 @@ func (fd *FD) Writev(v *[][]byte) (int64, error) {
 		if len(iovecs) == 0 {
 			break
 		}
-		fd.iovecs = &iovecs // cache
+		if fd.iovecs == nil {
+			fd.iovecs = new([]syscall.Iovec)
+		}
+		*fd.iovecs = iovecs // cache
 
-		wrote, _, e0 := syscall.Syscall(syscall.SYS_WRITEV,
-			uintptr(fd.Sysfd),
-			uintptr(unsafe.Pointer(&iovecs[0])),
-			uintptr(len(iovecs)))
+		var wrote uintptr
+		wrote, err = writev(fd.Sysfd, iovecs)
 		if wrote == ^uintptr(0) {
 			wrote = 0
 		}
 		TestHookDidWritev(int(wrote))
 		n += int64(wrote)
 		consume(v, int64(wrote))
-		if e0 == syscall.EAGAIN {
-			if err = fd.pd.waitWrite(fd.isFile); err == nil {
-				continue
-			}
-		} else if e0 != 0 {
-			err = syscall.Errno(e0)
+		for i := range iovecs {
+			iovecs[i] = syscall.Iovec{}
 		}
 		if err != nil {
+			if err.(syscall.Errno) == syscall.EAGAIN {
+				if err = fd.pd.waitWrite(fd.isFile); err == nil {
+					continue
+				}
+			}
 			break
 		}
 		if n == 0 {

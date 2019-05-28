@@ -60,8 +60,8 @@ func deadcode(ctxt *Link) {
 	d.init()
 	d.flood()
 
-	callSym := ctxt.Syms.ROLookup("reflect.Value.Call", 0)
-	methSym := ctxt.Syms.ROLookup("reflect.Value.Method", 0)
+	callSym := ctxt.Syms.ROLookup("reflect.Value.Call", sym.SymVerABIInternal)
+	methSym := ctxt.Syms.ROLookup("reflect.Value.Method", sym.SymVerABIInternal)
 	reflectSeen := false
 
 	if ctxt.DynlinkingGo() {
@@ -209,11 +209,6 @@ func (d *deadcodepass) markMethod(m methodref) {
 func (d *deadcodepass) init() {
 	var names []string
 
-	if d.ctxt.Arch.Family == sys.ARM {
-		// mark some functions that are only referenced after linker code editing
-		names = append(names, "runtime.read_tls_fallback")
-	}
-
 	if d.ctxt.BuildMode == BuildModeShared {
 		// Mark all symbols defined in this library as reachable when
 		// building a shared library.
@@ -227,7 +222,7 @@ func (d *deadcodepass) init() {
 		// functions and mark what is reachable from there.
 
 		if d.ctxt.linkShared && (d.ctxt.BuildMode == BuildModeExe || d.ctxt.BuildMode == BuildModePIE) {
-			names = append(names, "main.main", "main.init")
+			names = append(names, "main.main", "main..inittask")
 		} else {
 			// The external linker refers main symbol directly.
 			if d.ctxt.LinkMode == LinkExternal && (d.ctxt.BuildMode == BuildModeExe || d.ctxt.BuildMode == BuildModePIE) {
@@ -239,14 +234,14 @@ func (d *deadcodepass) init() {
 			}
 			names = append(names, *flagEntrySymbol)
 			if d.ctxt.BuildMode == BuildModePlugin {
-				names = append(names, objabi.PathToPrefix(*flagPluginPath)+".init", objabi.PathToPrefix(*flagPluginPath)+".main", "go.plugin.tabs")
+				names = append(names, objabi.PathToPrefix(*flagPluginPath)+"..inittask", objabi.PathToPrefix(*flagPluginPath)+".main", "go.plugin.tabs")
 
 				// We don't keep the go.plugin.exports symbol,
 				// but we do keep the symbols it refers to.
 				exports := d.ctxt.Syms.ROLookup("go.plugin.exports", 0)
 				if exports != nil {
-					for _, r := range exports.R {
-						d.mark(r.Sym, nil)
+					for i := range exports.R {
+						d.mark(exports.R[i].Sym, nil)
 					}
 				}
 			}
@@ -257,7 +252,10 @@ func (d *deadcodepass) init() {
 	}
 
 	for _, name := range names {
+		// Mark symbol as an data/ABI0 symbol.
 		d.mark(d.ctxt.Syms.ROLookup(name, 0), nil)
+		// Also mark any Go functions (internal ABI).
+		d.mark(d.ctxt.Syms.ROLookup(name, sym.SymVerABIInternal), nil)
 	}
 }
 
@@ -307,6 +305,11 @@ func (d *deadcodepass) flood() {
 				// enough to mark the pointed-to symbol as
 				// reachable.
 				continue
+			}
+			if r.Sym.Type == sym.SABIALIAS {
+				// Patch this relocation through the
+				// ABI alias before marking.
+				r.Sym = resolveABIAlias(r.Sym)
 			}
 			if r.Type != objabi.R_METHODOFF {
 				d.mark(r.Sym, s)

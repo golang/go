@@ -20,6 +20,8 @@ var jsProcess = js.Global().Get("process")
 var jsFS = js.Global().Get("fs")
 var constants = jsFS.Get("constants")
 
+var uint8Array = js.Global().Get("Uint8Array")
+
 var (
 	nodeWRONLY = constants.Get("O_WRONLY").Int()
 	nodeRDWR   = constants.Get("O_RDWR").Int()
@@ -38,9 +40,9 @@ type jsFile struct {
 
 var filesMu sync.Mutex
 var files = map[int]*jsFile{
-	0: &jsFile{},
-	1: &jsFile{},
-	2: &jsFile{},
+	0: {},
+	1: {},
+	2: {},
 }
 
 func fdToFile(fd int) (*jsFile, error) {
@@ -81,15 +83,15 @@ func Open(path string, openmode int, perm uint32) (int, error) {
 		return 0, errors.New("syscall.Open: O_SYNC is not supported by js/wasm")
 	}
 
-	jsFD, err := fsCall("openSync", path, flags, perm)
+	jsFD, err := fsCall("open", path, flags, perm)
 	if err != nil {
 		return 0, err
 	}
 	fd := jsFD.Int()
 
 	var entries []string
-	if stat, err := fsCall("fstatSync", fd); err == nil && stat.Call("isDirectory").Bool() {
-		dir, err := fsCall("readdirSync", path)
+	if stat, err := fsCall("fstat", fd); err == nil && stat.Call("isDirectory").Bool() {
+		dir, err := fsCall("readdir", path)
 		if err != nil {
 			return 0, err
 		}
@@ -113,7 +115,7 @@ func Close(fd int) error {
 	filesMu.Lock()
 	delete(files, fd)
 	filesMu.Unlock()
-	_, err := fsCall("closeSync", fd)
+	_, err := fsCall("close", fd)
 	return err
 }
 
@@ -125,7 +127,7 @@ func Mkdir(path string, perm uint32) error {
 	if err := checkPath(path); err != nil {
 		return err
 	}
-	_, err := fsCall("mkdirSync", path, perm)
+	_, err := fsCall("mkdir", path, perm)
 	return err
 }
 
@@ -182,7 +184,7 @@ func Stat(path string, st *Stat_t) error {
 	if err := checkPath(path); err != nil {
 		return err
 	}
-	jsSt, err := fsCall("statSync", path)
+	jsSt, err := fsCall("stat", path)
 	if err != nil {
 		return err
 	}
@@ -194,7 +196,7 @@ func Lstat(path string, st *Stat_t) error {
 	if err := checkPath(path); err != nil {
 		return err
 	}
-	jsSt, err := fsCall("lstatSync", path)
+	jsSt, err := fsCall("lstat", path)
 	if err != nil {
 		return err
 	}
@@ -203,7 +205,7 @@ func Lstat(path string, st *Stat_t) error {
 }
 
 func Fstat(fd int, st *Stat_t) error {
-	jsSt, err := fsCall("fstatSync", fd)
+	jsSt, err := fsCall("fstat", fd)
 	if err != nil {
 		return err
 	}
@@ -215,7 +217,7 @@ func Unlink(path string) error {
 	if err := checkPath(path); err != nil {
 		return err
 	}
-	_, err := fsCall("unlinkSync", path)
+	_, err := fsCall("unlink", path)
 	return err
 }
 
@@ -223,7 +225,7 @@ func Rmdir(path string) error {
 	if err := checkPath(path); err != nil {
 		return err
 	}
-	_, err := fsCall("rmdirSync", path)
+	_, err := fsCall("rmdir", path)
 	return err
 }
 
@@ -231,12 +233,12 @@ func Chmod(path string, mode uint32) error {
 	if err := checkPath(path); err != nil {
 		return err
 	}
-	_, err := fsCall("chmodSync", path, mode)
+	_, err := fsCall("chmod", path, mode)
 	return err
 }
 
 func Fchmod(fd int, mode uint32) error {
-	_, err := fsCall("fchmodSync", fd, mode)
+	_, err := fsCall("fchmod", fd, mode)
 	return err
 }
 
@@ -244,18 +246,26 @@ func Chown(path string, uid, gid int) error {
 	if err := checkPath(path); err != nil {
 		return err
 	}
-	return ENOSYS
+	_, err := fsCall("chown", path, uint32(uid), uint32(gid))
+	return err
 }
 
 func Fchown(fd int, uid, gid int) error {
-	return ENOSYS
+	_, err := fsCall("fchown", fd, uint32(uid), uint32(gid))
+	return err
 }
 
 func Lchown(path string, uid, gid int) error {
 	if err := checkPath(path); err != nil {
 		return err
 	}
-	return ENOSYS
+	if jsFS.Get("lchown") == js.Undefined() {
+		// fs.lchown is unavailable on Linux until Node.js 10.6.0
+		// TODO(neelance): remove when we require at least this Node.js version
+		return ENOSYS
+	}
+	_, err := fsCall("lchown", path, uint32(uid), uint32(gid))
+	return err
 }
 
 func UtimesNano(path string, ts []Timespec) error {
@@ -267,7 +277,7 @@ func UtimesNano(path string, ts []Timespec) error {
 	}
 	atime := ts[0].Sec
 	mtime := ts[1].Sec
-	_, err := fsCall("utimesSync", path, atime, mtime)
+	_, err := fsCall("utimes", path, atime, mtime)
 	return err
 }
 
@@ -278,7 +288,7 @@ func Rename(from, to string) error {
 	if err := checkPath(to); err != nil {
 		return err
 	}
-	_, err := fsCall("renameSync", from, to)
+	_, err := fsCall("rename", from, to)
 	return err
 }
 
@@ -286,12 +296,12 @@ func Truncate(path string, length int64) error {
 	if err := checkPath(path); err != nil {
 		return err
 	}
-	_, err := fsCall("truncateSync", path, length)
+	_, err := fsCall("truncate", path, length)
 	return err
 }
 
 func Ftruncate(fd int, length int64) error {
-	_, err := fsCall("ftruncateSync", fd, length)
+	_, err := fsCall("ftruncate", fd, length)
 	return err
 }
 
@@ -299,7 +309,7 @@ func Getcwd(buf []byte) (n int, err error) {
 	defer recoverErr(&err)
 	cwd := jsProcess.Call("cwd").String()
 	n = copy(buf, cwd)
-	return n, nil
+	return
 }
 
 func Chdir(path string) (err error) {
@@ -323,7 +333,7 @@ func Readlink(path string, buf []byte) (n int, err error) {
 	if err := checkPath(path); err != nil {
 		return 0, err
 	}
-	dst, err := fsCall("readlinkSync", path)
+	dst, err := fsCall("readlink", path)
 	if err != nil {
 		return 0, err
 	}
@@ -338,7 +348,7 @@ func Link(path, link string) error {
 	if err := checkPath(link); err != nil {
 		return err
 	}
-	_, err := fsCall("linkSync", path, link)
+	_, err := fsCall("link", path, link)
 	return err
 }
 
@@ -349,12 +359,12 @@ func Symlink(path, link string) error {
 	if err := checkPath(link); err != nil {
 		return err
 	}
-	_, err := fsCall("symlinkSync", path, link)
+	_, err := fsCall("symlink", path, link)
 	return err
 }
 
 func Fsync(fd int) error {
-	_, err := fsCall("fsyncSync", fd)
+	_, err := fsCall("fsync", fd)
 	return err
 }
 
@@ -370,12 +380,13 @@ func Read(fd int, b []byte) (int, error) {
 		return n, err
 	}
 
-	a := js.TypedArrayOf(b)
-	n, err := fsCall("readSync", fd, a, 0, len(b))
-	a.Release()
+	buf := uint8Array.New(len(b))
+	n, err := fsCall("read", fd, buf, 0, len(b), nil)
 	if err != nil {
 		return 0, err
 	}
+	js.CopyBytesToGo(b, buf)
+
 	n2 := n.Int()
 	f.pos += int64(n2)
 	return n2, err
@@ -393,9 +404,9 @@ func Write(fd int, b []byte) (int, error) {
 		return n, err
 	}
 
-	a := js.TypedArrayOf(b)
-	n, err := fsCall("writeSync", fd, a, 0, len(b))
-	a.Release()
+	buf := uint8Array.New(len(b))
+	js.CopyBytesToJS(buf, b)
+	n, err := fsCall("write", fd, buf, 0, len(b), nil)
 	if err != nil {
 		return 0, err
 	}
@@ -405,19 +416,19 @@ func Write(fd int, b []byte) (int, error) {
 }
 
 func Pread(fd int, b []byte, offset int64) (int, error) {
-	a := js.TypedArrayOf(b)
-	n, err := fsCall("readSync", fd, a, 0, len(b), offset)
-	a.Release()
+	buf := uint8Array.New(len(b))
+	n, err := fsCall("read", fd, buf, 0, len(b), offset)
 	if err != nil {
 		return 0, err
 	}
+	js.CopyBytesToGo(b, buf)
 	return n.Int(), nil
 }
 
 func Pwrite(fd int, b []byte, offset int64) (int, error) {
-	a := js.TypedArrayOf(b)
-	n, err := fsCall("writeSync", fd, a, 0, len(b), offset)
-	a.Release()
+	buf := uint8Array.New(len(b))
+	js.CopyBytesToJS(buf, b)
+	n, err := fsCall("write", fd, buf, 0, len(b), offset)
 	if err != nil {
 		return 0, err
 	}
@@ -467,10 +478,32 @@ func Pipe(fd []int) error {
 	return ENOSYS
 }
 
-func fsCall(name string, args ...interface{}) (res js.Value, err error) {
-	defer recoverErr(&err)
-	res = jsFS.Call(name, args...)
-	return
+func fsCall(name string, args ...interface{}) (js.Value, error) {
+	type callResult struct {
+		val js.Value
+		err error
+	}
+
+	c := make(chan callResult, 1)
+	jsFS.Call(name, append(args, js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		var res callResult
+
+		if len(args) >= 1 { // on Node.js 8, fs.utimes calls the callback without any arguments
+			if jsErr := args[0]; jsErr != js.Null() {
+				res.err = mapJSError(jsErr)
+			}
+		}
+
+		res.val = js.Undefined()
+		if len(args) >= 2 {
+			res.val = args[1]
+		}
+
+		c <- res
+		return nil
+	}))...)
+	res := <-c
+	return res.val, res.err
 }
 
 // checkPath checks that the path is not empty and that it contains no null characters.
@@ -492,10 +525,15 @@ func recoverErr(errPtr *error) {
 		if !ok {
 			panic(err)
 		}
-		errno, ok := errnoByCode[jsErr.Get("code").String()]
-		if !ok {
-			panic(err)
-		}
-		*errPtr = errnoErr(Errno(errno))
+		*errPtr = mapJSError(jsErr.Value)
 	}
+}
+
+// mapJSError maps an error given by Node.js to the appropriate Go error
+func mapJSError(jsErr js.Value) error {
+	errno, ok := errnoByCode[jsErr.Get("code").String()]
+	if !ok {
+		panic(jsErr)
+	}
+	return errnoErr(Errno(errno))
 }

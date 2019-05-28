@@ -8,6 +8,7 @@ package httputil
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -16,11 +17,9 @@ import (
 	"strings"
 	"sync"
 	"time"
-)
 
-// onExitFlushLoop is a callback set by tests to detect the state of the
-// flushLoop() goroutine.
-var onExitFlushLoop func()
+	"golang.org/x/net/http/httpguts"
+)
 
 // ReverseProxy is an HTTP Handler that takes an incoming request and
 // sends it to another server, proxying the response back to the
@@ -42,12 +41,17 @@ type ReverseProxy struct {
 	// to flush to the client while copying the
 	// response body.
 	// If zero, no periodic flushing is done.
+	// A negative value means to flush immediately
+	// after each write to the client.
+	// The FlushInterval is ignored when ReverseProxy
+	// recognizes a response as a streaming response;
+	// for such responses, writes are flushed to the client
+	// immediately.
 	FlushInterval time.Duration
 
 	// ErrorLog specifies an optional logger for errors
 	// that occur when attempting to proxy the request.
-	// If nil, logging goes to os.Stderr via the log package's
-	// standard logger.
+	// If nil, logging is done via the log package's standard logger.
 	ErrorLog *log.Logger
 
 	// BufferPool optionally specifies a buffer pool to
@@ -127,16 +131,6 @@ func copyHeader(dst, src http.Header) {
 	}
 }
 
-func cloneHeader(h http.Header) http.Header {
-	h2 := make(http.Header, len(h))
-	for k, vv := range h {
-		vv2 := make([]string, len(vv))
-		copy(vv2, vv)
-		h2[k] = vv2
-	}
-	return h2
-}
-
 // Hop-by-hop headers. These are removed when sent to the backend.
 // As of RFC 7230, hop-by-hop headers are required to appear in the
 // Connection header field. These are the headers defined by the
@@ -166,6 +160,20 @@ func (p *ReverseProxy) getErrorHandler() func(http.ResponseWriter, *http.Request
 	return p.defaultErrorHandler
 }
 
+// modifyResponse conditionally runs the optional ModifyResponse hook
+// and reports whether the request should proceed.
+func (p *ReverseProxy) modifyResponse(rw http.ResponseWriter, res *http.Response, req *http.Request) bool {
+	if p.ModifyResponse == nil {
+		return true
+	}
+	if err := p.ModifyResponse(res); err != nil {
+		res.Body.Close()
+		p.getErrorHandler()(rw, req, err)
+		return false
+	}
+	return true
+}
+
 func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	transport := p.Transport
 	if transport == nil {
@@ -187,16 +195,15 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		}()
 	}
 
-	outreq := req.WithContext(ctx) // includes shallow copies of maps, but okay
+	outreq := req.Clone(ctx)
 	if req.ContentLength == 0 {
 		outreq.Body = nil // Issue 16036: nil Body for http.Transport retries
 	}
 
-	outreq.Header = cloneHeader(req.Header)
-
 	p.Director(outreq)
 	outreq.Close = false
 
+	reqUpType := upgradeType(outreq.Header)
 	removeConnectionHeaders(outreq.Header)
 
 	// Remove hop-by-hop headers to the backend. Especially
@@ -219,6 +226,13 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		outreq.Header.Del(h)
 	}
 
+	// After stripping all the hop-by-hop connection headers above, add back any
+	// necessary for protocol upgrades, such as for websockets.
+	if reqUpType != "" {
+		outreq.Header.Set("Connection", "Upgrade")
+		outreq.Header.Set("Upgrade", reqUpType)
+	}
+
 	if clientIP, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
 		// If we aren't the first proxy retain prior
 		// X-Forwarded-For information as a comma+space
@@ -235,18 +249,23 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Deal with 101 Switching Protocols responses: (WebSocket, h2c, etc)
+	if res.StatusCode == http.StatusSwitchingProtocols {
+		if !p.modifyResponse(rw, res, outreq) {
+			return
+		}
+		p.handleUpgradeResponse(rw, outreq, res)
+		return
+	}
+
 	removeConnectionHeaders(res.Header)
 
 	for _, h := range hopHeaders {
 		res.Header.Del(h)
 	}
 
-	if p.ModifyResponse != nil {
-		if err := p.ModifyResponse(res); err != nil {
-			res.Body.Close()
-			p.getErrorHandler()(rw, outreq, err)
-			return
-		}
+	if !p.modifyResponse(rw, res, outreq) {
+		return
 	}
 
 	copyHeader(rw.Header(), res.Header)
@@ -263,15 +282,8 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	rw.WriteHeader(res.StatusCode)
-	if len(res.Trailer) > 0 {
-		// Force chunking if we saw a response trailer.
-		// This prevents net/http from calculating the length for short
-		// bodies and adding a Content-Length.
-		if fl, ok := rw.(http.Flusher); ok {
-			fl.Flush()
-		}
-	}
-	err = p.copyResponse(rw, res.Body)
+
+	err = p.copyResponse(rw, res.Body, p.flushInterval(req, res))
 	if err != nil {
 		defer res.Body.Close()
 		// Since we're streaming the response, if we run into an error all we can do
@@ -284,6 +296,15 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		panic(http.ErrAbortHandler)
 	}
 	res.Body.Close() // close now, instead of defer, to populate res.Trailer
+
+	if len(res.Trailer) > 0 {
+		// Force chunking if we saw a response trailer.
+		// This prevents net/http from calculating the length for short
+		// bodies and adding a Content-Length.
+		if fl, ok := rw.(http.Flusher); ok {
+			fl.Flush()
+		}
+	}
 
 	if len(res.Trailer) == announcedTrailers {
 		copyHeader(rw.Header(), res.Trailer)
@@ -323,25 +344,43 @@ func shouldPanicOnCopyError(req *http.Request) bool {
 // removeConnectionHeaders removes hop-by-hop headers listed in the "Connection" header of h.
 // See RFC 7230, section 6.1
 func removeConnectionHeaders(h http.Header) {
-	if c := h.Get("Connection"); c != "" {
-		for _, f := range strings.Split(c, ",") {
-			if f = strings.TrimSpace(f); f != "" {
-				h.Del(f)
+	for _, f := range h["Connection"] {
+		for _, sf := range strings.Split(f, ",") {
+			if sf = strings.TrimSpace(sf); sf != "" {
+				h.Del(sf)
 			}
 		}
 	}
 }
 
-func (p *ReverseProxy) copyResponse(dst io.Writer, src io.Reader) error {
-	if p.FlushInterval != 0 {
+// flushInterval returns the p.FlushInterval value, conditionally
+// overriding its value for a specific request/response.
+func (p *ReverseProxy) flushInterval(req *http.Request, res *http.Response) time.Duration {
+	resCT := res.Header.Get("Content-Type")
+
+	// For Server-Sent Events responses, flush immediately.
+	// The MIME type is defined in https://www.w3.org/TR/eventsource/#text-event-stream
+	if resCT == "text/event-stream" {
+		return -1 // negative means immediately
+	}
+
+	// TODO: more specific cases? e.g. res.ContentLength == -1?
+	return p.FlushInterval
+}
+
+func (p *ReverseProxy) copyResponse(dst io.Writer, src io.Reader, flushInterval time.Duration) error {
+	if flushInterval != 0 {
 		if wf, ok := dst.(writeFlusher); ok {
 			mlw := &maxLatencyWriter{
 				dst:     wf,
-				latency: p.FlushInterval,
-				done:    make(chan bool),
+				latency: flushInterval,
 			}
-			go mlw.flushLoop()
 			defer mlw.stop()
+
+			// set up initial timer so headers get flushed even if body writes are delayed
+			mlw.flushPending = true
+			mlw.t = time.AfterFunc(flushInterval, mlw.delayedFlush)
+
 			dst = mlw
 		}
 	}
@@ -403,34 +442,115 @@ type writeFlusher interface {
 
 type maxLatencyWriter struct {
 	dst     writeFlusher
-	latency time.Duration
+	latency time.Duration // non-zero; negative means to flush immediately
 
-	mu   sync.Mutex // protects Write + Flush
-	done chan bool
+	mu           sync.Mutex // protects t, flushPending, and dst.Flush
+	t            *time.Timer
+	flushPending bool
 }
 
-func (m *maxLatencyWriter) Write(p []byte) (int, error) {
+func (m *maxLatencyWriter) Write(p []byte) (n int, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.dst.Write(p)
+	n, err = m.dst.Write(p)
+	if m.latency < 0 {
+		m.dst.Flush()
+		return
+	}
+	if m.flushPending {
+		return
+	}
+	if m.t == nil {
+		m.t = time.AfterFunc(m.latency, m.delayedFlush)
+	} else {
+		m.t.Reset(m.latency)
+	}
+	m.flushPending = true
+	return
 }
 
-func (m *maxLatencyWriter) flushLoop() {
-	t := time.NewTicker(m.latency)
-	defer t.Stop()
-	for {
-		select {
-		case <-m.done:
-			if onExitFlushLoop != nil {
-				onExitFlushLoop()
-			}
-			return
-		case <-t.C:
-			m.mu.Lock()
-			m.dst.Flush()
-			m.mu.Unlock()
-		}
+func (m *maxLatencyWriter) delayedFlush() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if !m.flushPending { // if stop was called but AfterFunc already started this goroutine
+		return
+	}
+	m.dst.Flush()
+	m.flushPending = false
+}
+
+func (m *maxLatencyWriter) stop() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.flushPending = false
+	if m.t != nil {
+		m.t.Stop()
 	}
 }
 
-func (m *maxLatencyWriter) stop() { m.done <- true }
+func upgradeType(h http.Header) string {
+	if !httpguts.HeaderValuesContainsToken(h["Connection"], "Upgrade") {
+		return ""
+	}
+	return strings.ToLower(h.Get("Upgrade"))
+}
+
+func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.Request, res *http.Response) {
+	reqUpType := upgradeType(req.Header)
+	resUpType := upgradeType(res.Header)
+	if reqUpType != resUpType {
+		p.getErrorHandler()(rw, req, fmt.Errorf("backend tried to switch protocol %q when %q was requested", resUpType, reqUpType))
+		return
+	}
+
+	copyHeader(res.Header, rw.Header())
+
+	hj, ok := rw.(http.Hijacker)
+	if !ok {
+		p.getErrorHandler()(rw, req, fmt.Errorf("can't switch protocols using non-Hijacker ResponseWriter type %T", rw))
+		return
+	}
+	backConn, ok := res.Body.(io.ReadWriteCloser)
+	if !ok {
+		p.getErrorHandler()(rw, req, fmt.Errorf("internal error: 101 switching protocols response with non-writable body"))
+		return
+	}
+	defer backConn.Close()
+	conn, brw, err := hj.Hijack()
+	if err != nil {
+		p.getErrorHandler()(rw, req, fmt.Errorf("Hijack failed on protocol switch: %v", err))
+		return
+	}
+	defer conn.Close()
+	res.Body = nil // so res.Write only writes the headers; we have res.Body in backConn above
+	if err := res.Write(brw); err != nil {
+		p.getErrorHandler()(rw, req, fmt.Errorf("response write: %v", err))
+		return
+	}
+	if err := brw.Flush(); err != nil {
+		p.getErrorHandler()(rw, req, fmt.Errorf("response flush: %v", err))
+		return
+	}
+	errc := make(chan error, 1)
+	spc := switchProtocolCopier{user: conn, backend: backConn}
+	go spc.copyToBackend(errc)
+	go spc.copyFromBackend(errc)
+	<-errc
+	return
+}
+
+// switchProtocolCopier exists so goroutines proxying data back and
+// forth have nice names in stacks.
+type switchProtocolCopier struct {
+	user, backend io.ReadWriter
+}
+
+func (c switchProtocolCopier) copyFromBackend(errc chan<- error) {
+	_, err := io.Copy(c.user, c.backend)
+	errc <- err
+}
+
+func (c switchProtocolCopier) copyToBackend(errc chan<- error) {
+	_, err := io.Copy(c.backend, c.user)
+	errc <- err
+}

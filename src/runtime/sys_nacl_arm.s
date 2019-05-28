@@ -217,13 +217,6 @@ TEXT runtime·walltime(SB),NOSPLIT,$16
 TEXT syscall·now(SB),NOSPLIT,$0
 	B runtime·walltime(SB)
 
-TEXT runtime·nacl_clock_gettime(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
-	MOVW	arg2+4(FP), R1
-	NACL_SYSCALL(SYS_clock_gettime)
-	MOVW	R0, ret+8(FP)
-	RET
-
 // int64 nanotime(void) so really
 // void nanotime(int64 *nsec)
 TEXT runtime·nanotime(SB),NOSPLIT,$16
@@ -302,9 +295,6 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$80
 
 nog:
 	MOVW	$0, R0
-	RET
-
-TEXT runtime·nacl_sysinfo(SB),NOSPLIT,$16
 	RET
 
 // func getRandomData([]byte)

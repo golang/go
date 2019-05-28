@@ -72,6 +72,7 @@ func Synopsis(s string) string {
 			return ""
 		}
 	}
+	s = convertQuotes(s)
 	return s
 }
 

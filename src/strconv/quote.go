@@ -6,9 +6,15 @@
 
 package strconv
 
-import "unicode/utf8"
+import (
+	"internal/bytealg"
+	"unicode/utf8"
+)
 
-const lowerhex = "0123456789abcdef"
+const (
+	lowerhex = "0123456789abcdef"
+	upperhex = "0123456789ABCDEF"
+)
 
 func quoteWith(s string, quote byte, ASCIIonly, graphicOnly bool) string {
 	return string(appendQuotedWith(make([]byte, 0, 3*len(s)/2), s, quote, ASCIIonly, graphicOnly))
@@ -19,6 +25,13 @@ func quoteRuneWith(r rune, quote byte, ASCIIonly, graphicOnly bool) string {
 }
 
 func appendQuotedWith(buf []byte, s string, quote byte, ASCIIonly, graphicOnly bool) []byte {
+	// Often called with big strings, so preallocate. If there's quoting,
+	// this is conservative but still helps a lot.
+	if cap(buf)-len(buf) < len(s) {
+		nBuf := make([]byte, len(buf), len(buf)+1+len(s)+1)
+		copy(nBuf, buf)
+		buf = nBuf
+	}
 	buf = append(buf, quote)
 	for width := 0; len(s) > 0; s = s[width:] {
 		r := rune(s[0])
@@ -424,12 +437,7 @@ func Unquote(s string) (string, error) {
 
 // contains reports whether the string contains the byte c.
 func contains(s string, c byte) bool {
-	for i := 0; i < len(s); i++ {
-		if s[i] == c {
-			return true
-		}
-	}
-	return false
+	return bytealg.IndexByteString(s, c) != -1
 }
 
 // bsearch16 returns the smallest i such that a[i] >= x.

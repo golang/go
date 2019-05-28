@@ -7,7 +7,7 @@
 #include "funcdata.h"
 #include "textflag.h"
 
-TEXT runtime·rt0_go(SB), NOSPLIT, $0
+TEXT runtime·rt0_go(SB), NOSPLIT|NOFRAME, $0
 	// save m->g0 = g0
 	MOVD $runtime·g0(SB), runtime·m0+m_g0(SB)
 	// save m0 to g0->m
@@ -37,17 +37,12 @@ TEXT runtime·gogo(SB), NOSPLIT, $0-8
 	MOVD gobuf_g(R0), g
 	MOVD gobuf_sp(R0), SP
 
+	// Put target PC at -8(SP), wasm_pc_f_loop will pick it up
+	Get SP
+	I32Const $8
+	I32Sub
 	I64Load gobuf_pc(R0)
-	I32WrapI64
-	I32Const $16
-	I32ShrU
-	Set PC_F
-
-	I64Load gobuf_pc(R0)
-	I64Const $0xFFFF
-	I64And
-	I32WrapI64
-	Set PC_B
+	I64Store $0
 
 	MOVD gobuf_ret(R0), RET0
 	MOVD gobuf_ctxt(R0), CTXT
@@ -258,6 +253,7 @@ TEXT runtime·morestack(SB), NOSPLIT, $0-0
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
+	NOP	SP	// tell vet SP changed - stop checking offsets
 	MOVD 8(SP), m_morebuf+gobuf_pc(R1)
 	MOVD $16(SP), m_morebuf+gobuf_sp(R1) // f's caller's SP
 	MOVD g, m_morebuf+gobuf_g(R1)
@@ -292,9 +288,6 @@ TEXT ·cgocallback_gofunc(SB), NOSPLIT, $16-32
 	If; \
 		JMP NAME(SB); \
 	End
-
-TEXT reflect·call(SB), NOSPLIT, $0-0
-	JMP ·reflectcall(SB)
 
 TEXT ·reflectcall(SB), NOSPLIT, $0-32
 	I64Load fn+8(FP)
@@ -369,7 +362,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-32; \
 	Set RET1; \
 	\
 	Get SP; \
-	I64ExtendUI32; \
+	I64ExtendI32U; \
 	Get R0; \
 	I64Add; \
 	Set RET2; \
@@ -446,7 +439,7 @@ TEXT runtime·gcWriteBarrier(SB), NOSPLIT, $16
 	// Record value
 	MOVD R1, 0(R5)
 	// Record *slot
-	MOVD R0, 8(R5)
+	MOVD (R0), 8(R5)
 
 	// Increment wbBuf.next
 	Get R5

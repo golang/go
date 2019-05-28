@@ -4,7 +4,7 @@
 
 package cpu
 
-const CacheLineSize = 256
+const CacheLinePadSize = 256
 
 // bitIsSet reports whether the bit at index is set. The bit index
 // is in big endian order, so bit index 0 is the leftmost bit.
@@ -18,16 +18,36 @@ type function uint8
 const (
 	// KM{,A,C,CTR} function codes
 	aes128 function = 18 // AES-128
-	aes192          = 19 // AES-192
-	aes256          = 20 // AES-256
+	aes192 function = 19 // AES-192
+	aes256 function = 20 // AES-256
 
 	// K{I,L}MD function codes
-	sha1   = 1 // SHA-1
-	sha256 = 2 // SHA-256
-	sha512 = 3 // SHA-512
+	sha1     function = 1  // SHA-1
+	sha256   function = 2  // SHA-256
+	sha512   function = 3  // SHA-512
+	sha3_224 function = 32 // SHA3-224
+	sha3_256 function = 33 // SHA3-256
+	sha3_384 function = 34 // SHA3-384
+	sha3_512 function = 35 // SHA3-512
+	shake128 function = 36 // SHAKE-128
+	shake256 function = 37 // SHAKE-256
 
 	// KLMD function codes
-	ghash = 65 // GHASH
+	ghash function = 65 // GHASH
+)
+
+const (
+	// KDSA function codes
+	ecdsaVerifyP256    function = 1  // NIST P256
+	ecdsaVerifyP384    function = 2  // NIST P384
+	ecdsaVerifyP521    function = 3  // NIST P521
+	ecdsaSignP256      function = 9  // NIST P256
+	ecdsaSignP384      function = 10 // NIST P384
+	ecdsaSignP521      function = 11 // NIST P521
+	eddsaVerifyEd25519 function = 32 // Curve25519
+	eddsaVerifyEd448   function = 36 // Curve448
+	eddsaSignEd25519   function = 40 // Curve25519
+	eddsaSignEd448     function = 44 // Curve448
 )
 
 // queryResult contains the result of a Query function
@@ -56,20 +76,24 @@ type facility uint8
 const (
 	// mandatory facilities
 	zarch  facility = 1  // z architecture mode is active
-	stflef          = 7  // store-facility-list-extended
-	ldisp           = 18 // long-displacement
-	eimm            = 21 // extended-immediate
+	stflef facility = 7  // store-facility-list-extended
+	ldisp  facility = 18 // long-displacement
+	eimm   facility = 21 // extended-immediate
 
 	// miscellaneous facilities
-	dfp    = 42 // decimal-floating-point
-	etf3eh = 30 // extended-translation 3 enhancement
+	dfp    facility = 42 // decimal-floating-point
+	etf3eh facility = 30 // extended-translation 3 enhancement
 
 	// cryptography facilities
-	msa  = 17  // message-security-assist
-	msa3 = 76  // message-security-assist extension 3
-	msa4 = 77  // message-security-assist extension 4
-	msa5 = 57  // message-security-assist extension 5
-	msa8 = 146 // message-security-assist extension 8
+	msa  facility = 17  // message-security-assist
+	msa3 facility = 76  // message-security-assist extension 3
+	msa4 facility = 77  // message-security-assist extension 4
+	msa5 facility = 57  // message-security-assist extension 5
+	msa8 facility = 146 // message-security-assist extension 8
+	msa9 facility = 155 // message-security-assist extension 9
+
+	// vector facilities
+	vxe facility = 135 // vector-enhancements 1
 
 	// Note: vx and highgprs are excluded because they require
 	// kernel support and so must be fetched from HWCAP.
@@ -104,28 +128,31 @@ func kmctrQuery() queryResult
 func kmaQuery() queryResult
 func kimdQuery() queryResult
 func klmdQuery() queryResult
+func kdsaQuery() queryResult
 
 func doinit() {
 	options = []option{
-		{"zarch", &S390X.HasZArch},
-		{"stfle", &S390X.HasSTFLE},
-		{"ldisp", &S390X.HasLDisp},
-		{"msa", &S390X.HasMSA},
-		{"eimm", &S390X.HasEImm},
-		{"dfp", &S390X.HasDFP},
-		{"etf3eh", &S390X.HasETF3Enhanced},
-		{"vx", &S390X.HasVX},
+		{Name: "zarch", Feature: &S390X.HasZARCH},
+		{Name: "stfle", Feature: &S390X.HasSTFLE},
+		{Name: "ldisp", Feature: &S390X.HasLDISP},
+		{Name: "msa", Feature: &S390X.HasMSA},
+		{Name: "eimm", Feature: &S390X.HasEIMM},
+		{Name: "dfp", Feature: &S390X.HasDFP},
+		{Name: "etf3eh", Feature: &S390X.HasETF3EH},
+		{Name: "vx", Feature: &S390X.HasVX},
+		{Name: "vxe", Feature: &S390X.HasVXE},
+		{Name: "kdsa", Feature: &S390X.HasKDSA},
 	}
 
 	aes := []function{aes128, aes192, aes256}
 	facilities := stfle()
 
-	S390X.HasZArch = facilities.Has(zarch)
+	S390X.HasZARCH = facilities.Has(zarch)
 	S390X.HasSTFLE = facilities.Has(stflef)
-	S390X.HasLDisp = facilities.Has(ldisp)
-	S390X.HasEImm = facilities.Has(eimm)
+	S390X.HasLDISP = facilities.Has(ldisp)
+	S390X.HasEIMM = facilities.Has(eimm)
 	S390X.HasDFP = facilities.Has(dfp)
-	S390X.HasETF3Enhanced = facilities.Has(etf3eh)
+	S390X.HasETF3EH = facilities.Has(etf3eh)
 	S390X.HasMSA = facilities.Has(msa)
 
 	if S390X.HasMSA {
@@ -149,5 +176,19 @@ func doinit() {
 		S390X.HasSHA256 = kimd.Has(sha256) && klmd.Has(sha256)
 		S390X.HasSHA512 = kimd.Has(sha512) && klmd.Has(sha512)
 		S390X.HasGHASH = kimd.Has(ghash) // KLMD-GHASH does not exist
+		sha3 := []function{
+			sha3_224, sha3_256, sha3_384, sha3_512,
+			shake128, shake256,
+		}
+		S390X.HasSHA3 = kimd.Has(sha3...) && klmd.Has(sha3...)
+		S390X.HasKDSA = facilities.Has(msa9) // elliptic curves
+		if S390X.HasKDSA {
+			kdsa := kdsaQuery()
+			S390X.HasECDSA = kdsa.Has(ecdsaVerifyP256, ecdsaSignP256, ecdsaVerifyP384, ecdsaSignP384, ecdsaVerifyP521, ecdsaSignP521)
+			S390X.HasEDDSA = kdsa.Has(eddsaVerifyEd25519, eddsaSignEd25519, eddsaVerifyEd448, eddsaSignEd448)
+		}
+	}
+	if S390X.HasVX {
+		S390X.HasVXE = facilities.Has(vxe)
 	}
 }

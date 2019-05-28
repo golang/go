@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build linux
-// +build amd64 arm64
+// +build amd64 arm64 ppc64 ppc64le
 
 package runtime
 

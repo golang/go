@@ -36,7 +36,7 @@ func main() {
 
 	ctxt := obj.Linknew(architecture.LinkArch)
 	if *flags.PrintOut {
-		ctxt.Debugasm = true
+		ctxt.Debugasm = 1
 	}
 	ctxt.Flag_dynlink = *flags.Dynlink
 	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
@@ -53,8 +53,10 @@ func main() {
 	defer bio.MustClose(out)
 	buf := bufio.NewWriter(bio.MustWriter(out))
 
-	fmt.Fprintf(buf, "go object %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version)
-	fmt.Fprintf(buf, "!\n")
+	if !*flags.SymABIs {
+		fmt.Fprintf(buf, "go object %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version)
+		fmt.Fprintf(buf, "!\n")
+	}
 
 	var ok, diag bool
 	var failedFile string
@@ -65,17 +67,23 @@ func main() {
 			diag = true
 			log.Printf(format, args...)
 		}
-		pList := new(obj.Plist)
-		pList.Firstpc, ok = parser.Parse()
+		if *flags.SymABIs {
+			ok = parser.ParseSymABIs(buf)
+		} else {
+			pList := new(obj.Plist)
+			pList.Firstpc, ok = parser.Parse()
+			// reports errors to parser.Errorf
+			if ok {
+				obj.Flushplist(ctxt, pList, nil, "")
+			}
+		}
 		if !ok {
 			failedFile = f
 			break
 		}
-		// reports errors to parser.Errorf
-		obj.Flushplist(ctxt, pList, nil, "")
 	}
-	if ok {
-		obj.WriteObjFile(ctxt, buf)
+	if ok && !*flags.SymABIs {
+		obj.WriteObjFile(ctxt, buf, "")
 	}
 	if !ok || diag {
 		if failedFile != "" {

@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 9, 2018",
+	"Subtitle": "Version of May 14, 2019",
 	"Path": "/ref/spec"
 }-->
 
@@ -118,6 +118,7 @@ The underscore character <code>_</code> (U+005F) is considered a letter.
 <pre class="ebnf">
 letter        = unicode_letter | "_" .
 decimal_digit = "0" … "9" .
+binary_digit  = "0" | "1" .
 octal_digit   = "0" … "7" .
 hex_digit     = "0" … "9" | "A" … "F" | "a" … "f" .
 </pre>
@@ -273,71 +274,156 @@ The following character sequences represent <a href="#Operators">operators</a>
 <p>
 An integer literal is a sequence of digits representing an
 <a href="#Constants">integer constant</a>.
-An optional prefix sets a non-decimal base: <code>0</code> for octal, <code>0x</code> or
-<code>0X</code> for hexadecimal.  In hexadecimal literals, letters
-<code>a-f</code> and <code>A-F</code> represent values 10 through 15.
+An optional prefix sets a non-decimal base: <code>0b</code> or <code>0B</code>
+for binary, <code>0</code>, <code>0o</code>, or <code>0O</code> for octal,
+and <code>0x</code> or <code>0X</code> for hexadecimal.
+A single <code>0</code> is considered a decimal zero.
+In hexadecimal literals, letters <code>a</code> through <code>f</code>
+and <code>A</code> through <code>F</code> represent values 10 through 15.
+</p>
+
+<p>
+For readability, an underscore character <code>_</code> may appear after
+a base prefix or between successive digits; such underscores do not change
+the literal's value.
 </p>
 <pre class="ebnf">
-int_lit     = decimal_lit | octal_lit | hex_lit .
-decimal_lit = ( "1" … "9" ) { decimal_digit } .
-octal_lit   = "0" { octal_digit } .
-hex_lit     = "0" ( "x" | "X" ) hex_digit { hex_digit } .
+int_lit        = decimal_lit | binary_lit | octal_lit | hex_lit .
+decimal_lit    = "0" | ( "1" … "9" ) [ [ "_" ] decimal_digits ] .
+binary_lit     = "0" ( "b" | "B" ) [ "_" ] binary_digits .
+octal_lit      = "0" [ "o" | "O" ] [ "_" ] octal_digits .
+hex_lit        = "0" ( "x" | "X" ) [ "_" ] hex_digits .
+
+decimal_digits = decimal_digit { [ "_" ] decimal_digit } .
+binary_digits  = binary_digit { [ "_" ] binary_digit } .
+octal_digits   = octal_digit { [ "_" ] octal_digit } .
+hex_digits     = hex_digit { [ "_" ] hex_digit } .
 </pre>
 
 <pre>
 42
+4_2
 0600
+0_600
+0o600
+0O600       // second character is capital letter 'O'
 0xBadFace
+0xBad_Face
+0x_67_7a_2f_cc_40_c6
 170141183460469231731687303715884105727
+170_141183_460469_231731_687303_715884_105727
+
+_42         // an identifier, not an integer literal
+42_         // invalid: _ must separate successive digits
+4__2        // invalid: only one _ at a time
+0_xBadFace  // invalid: _ must separate successive digits
 </pre>
 
+
 <h3 id="Floating-point_literals">Floating-point literals</h3>
+
 <p>
-A floating-point literal is a decimal representation of a
+A floating-point literal is a decimal or hexadecimal representation of a
 <a href="#Constants">floating-point constant</a>.
-It has an integer part, a decimal point, a fractional part,
-and an exponent part.  The integer and fractional part comprise
-decimal digits; the exponent part is an <code>e</code> or <code>E</code>
-followed by an optionally signed decimal exponent.  One of the
-integer part or the fractional part may be elided; one of the decimal
-point or the exponent may be elided.
 </p>
+
+<p>
+A decimal floating-point literal consists of an integer part (decimal digits),
+a decimal point, a fractional part (decimal digits), and an exponent part
+(<code>e</code> or <code>E</code> followed by an optional sign and decimal digits).
+One of the integer part or the fractional part may be elided; one of the decimal point
+or the exponent part may be elided.
+An exponent value exp scales the mantissa (integer and fractional part) by 10<sup>exp</sup>.
+</p>
+
+<p>
+A hexadecimal floating-point literal consists of a <code>0x</code> or <code>0X</code>
+prefix, an integer part (hexadecimal digits), a radix point, a fractional part (hexadecimal digits),
+and an exponent part (<code>p</code> or <code>P</code> followed by an optional sign and decimal digits).
+One of the integer part or the fractional part may be elided; the radix point may be elided as well,
+but the exponent part is required. (This syntax matches the one given in IEEE 754-2008 §5.12.3.)
+An exponent value exp scales the mantissa (integer and fractional part) by 2<sup>exp</sup>.
+</p>
+
+<p>
+For readability, an underscore character <code>_</code> may appear after
+a base prefix or between successive digits; such underscores do not change
+the literal value.
+</p>
+
 <pre class="ebnf">
-float_lit = decimals "." [ decimals ] [ exponent ] |
-            decimals exponent |
-            "." decimals [ exponent ] .
-decimals  = decimal_digit { decimal_digit } .
-exponent  = ( "e" | "E" ) [ "+" | "-" ] decimals .
+float_lit         = decimal_float_lit | hex_float_lit .
+
+decimal_float_lit = decimal_digits "." [ decimal_digits ] [ decimal_exponent ] |
+                    decimal_digits decimal_exponent |
+                    "." decimal_digits [ decimal_exponent ] .
+decimal_exponent  = ( "e" | "E" ) [ "+" | "-" ] decimal_digits .
+
+hex_float_lit     = "0" ( "x" | "X" ) hex_mantissa hex_exponent .
+hex_mantissa      = [ "_" ] hex_digits "." [ hex_digits ] |
+                    [ "_" ] hex_digits |
+                    "." hex_digits .
+hex_exponent      = ( "p" | "P" ) [ "+" | "-" ] decimal_digits .
 </pre>
 
 <pre>
 0.
 72.40
-072.40  // == 72.40
+072.40       // == 72.40
 2.71828
 1.e+0
 6.67428e-11
 1E6
 .25
 .12345E+5
+1_5.         // == 15.0
+0.15e+0_2    // == 15.0
+
+0x1p-2       // == 0.25
+0x2.p10      // == 2048.0
+0x1.Fp+0     // == 1.9375
+0X.8p-0      // == 0.5
+0X_1FFFP-16  // == 0.1249847412109375
+0x15e-2      // == 0x15e - 2 (integer subtraction)
+
+0x.p1        // invalid: mantissa has no digits
+1p-2         // invalid: p exponent requires hexadecimal mantissa
+0x1.5e-2     // invalid: hexadecimal mantissa requires p exponent
+1_.5         // invalid: _ must separate successive digits
+1._5         // invalid: _ must separate successive digits
+1.5_e1       // invalid: _ must separate successive digits
+1.5e_1       // invalid: _ must separate successive digits
+1.5e1_       // invalid: _ must separate successive digits
 </pre>
 
+
 <h3 id="Imaginary_literals">Imaginary literals</h3>
+
 <p>
-An imaginary literal is a decimal representation of the imaginary part of a
+An imaginary literal represents the imaginary part of a
 <a href="#Constants">complex constant</a>.
-It consists of a
-<a href="#Floating-point_literals">floating-point literal</a>
-or decimal integer followed
-by the lower-case letter <code>i</code>.
+It consists of an <a href="#Integer_literals">integer</a> or
+<a href="#Floating-point_literals">floating-point</a> literal
+followed by the lower-case letter <code>i</code>.
+The value of an imaginary literal is the value of the respective
+integer or floating-point literal multiplied by the imaginary unit <i>i</i>.
 </p>
+
 <pre class="ebnf">
-imaginary_lit = (decimals | float_lit) "i" .
+imaginary_lit = (decimal_digits | int_lit | float_lit) "i" .
 </pre>
+
+<p>
+For backward compatibility, an imaginary literal's integer part consisting
+entirely of decimal digits (and possibly underscores) is considered a decimal
+integer, even if it starts with a leading <code>0</code>.
+</p>
 
 <pre>
 0i
-011i  // == 11i
+0123i         // == 123i for backward-compatibility
+0o123i        // == 0o123 * 1i == 83i
+0xabci        // == 0xabc * 1i == 2748i
 0.i
 2.71828i
 1.e+0i
@@ -345,6 +431,7 @@ imaginary_lit = (decimals | float_lit) "i" .
 1E6i
 .25i
 .12345E+5i
+0x1p-2i       // == 0x1p-2 * 1i == 0.25i
 </pre>
 
 
@@ -361,6 +448,7 @@ of the character itself,
 while multi-character sequences beginning with a backslash encode
 values in various formats.
 </p>
+
 <p>
 The simplest form represents the single character within the quotes;
 since Go source text is Unicode characters encoded in UTF-8, multiple
@@ -370,6 +458,7 @@ a literal <code>a</code>, Unicode U+0061, value <code>0x61</code>, while
 <code>'ä'</code> holds two bytes (<code>0xc3</code> <code>0xa4</code>) representing
 a literal <code>a</code>-dieresis, U+00E4, value <code>0xe4</code>.
 </p>
+
 <p>
 Several backslash escapes allow arbitrary values to be encoded as
 ASCII text.  There are four ways to represent the integer value
@@ -380,6 +469,7 @@ plain backslash <code>\</code> followed by exactly three octal digits.
 In each case the value of the literal is the value represented by
 the digits in the corresponding base.
 </p>
+
 <p>
 Although these representations all result in an integer, they have
 different valid ranges.  Octal escapes must represent a value between
@@ -388,9 +478,11 @@ by construction. The escapes <code>\u</code> and <code>\U</code>
 represent Unicode code points so within them some values are illegal,
 in particular those above <code>0x10FFFF</code> and surrogate halves.
 </p>
+
 <p>
 After a backslash, certain single-character escapes represent special values:
 </p>
+
 <pre class="grammar">
 \a   U+0007 alert or bell
 \b   U+0008 backspace
@@ -403,6 +495,7 @@ After a backslash, certain single-character escapes represent special values:
 \'   U+0027 single quote  (valid escape only within rune literals)
 \"   U+0022 double quote  (valid escape only within string literals)
 </pre>
+
 <p>
 All other sequences starting with a backslash are illegal inside rune literals.
 </p>
@@ -446,6 +539,7 @@ A string literal represents a <a href="#Constants">string constant</a>
 obtained from concatenating a sequence of characters. There are two forms:
 raw string literals and interpreted string literals.
 </p>
+
 <p>
 Raw string literals are character sequences between back quotes, as in
 <code>`foo`</code>.  Within the quotes, any character may appear except
@@ -457,6 +551,7 @@ contain newlines.
 Carriage return characters ('\r') inside raw string literals
 are discarded from the raw string value.
 </p>
+
 <p>
 Interpreted string literals are character sequences between double
 quotes, as in <code>&quot;bar&quot;</code>.
@@ -596,6 +691,7 @@ precision in the language, a compiler may implement them using an
 internal representation with limited precision.  That said, every
 implementation must:
 </p>
+
 <ul>
 	<li>Represent integer constants with at least 256 bits.</li>
 
@@ -613,11 +709,13 @@ implementation must:
 	    represent a floating-point or complex constant due to limits
 	    on precision.</li>
 </ul>
+
 <p>
 These requirements apply both to literal constants and to the result
 of evaluating <a href="#Constant_expressions">constant
 expressions</a>.
 </p>
+
 
 <h2 id="Variables">Variables</h2>
 
@@ -811,7 +909,7 @@ To avoid portability issues all numeric types are <a href="#Type_definitions">de
 types</a> and thus distinct except
 <code>byte</code>, which is an <a href="#Alias_declarations">alias</a> for <code>uint8</code>, and
 <code>rune</code>, which is an alias for <code>int32</code>.
-Conversions
+Explicit conversions
 are required when different numeric types are mixed in an expression
 or assignment. For instance, <code>int32</code> and <code>int</code>
 are not the same type even though they may have the same size on a
@@ -823,6 +921,7 @@ particular architecture.
 <p>
 A <i>string type</i> represents the set of string values.
 A string value is a (possibly empty) sequence of bytes.
+The number of bytes is called the length of the string and is never negative.
 Strings are immutable: once created,
 it is impossible to change the contents of a string.
 The predeclared string type is <code>string</code>;
@@ -830,7 +929,7 @@ it is a <a href="#Type_definitions">defined type</a>.
 </p>
 
 <p>
-The length of a string <code>s</code> (its size in bytes) can be discovered using
+The length of a string <code>s</code> can be discovered using
 the built-in function <a href="#Length_and_capacity"><code>len</code></a>.
 The length is a compile-time constant if the string is a constant.
 A string's bytes can be accessed by integer <a href="#Index_expressions">indices</a>
@@ -846,8 +945,7 @@ string, <code>&amp;s[i]</code> is invalid.
 <p>
 An array is a numbered sequence of elements of a single
 type, called the element type.
-The number of elements is called the length and is never
-negative.
+The number of elements is called the length of the array and is never negative.
 </p>
 
 <pre class="ebnf">
@@ -883,6 +981,7 @@ multi-dimensional types.
 A slice is a descriptor for a contiguous segment of an <i>underlying array</i> and
 provides access to a numbered sequence of elements from that array.
 A slice type denotes the set of all slices of arrays of its element type.
+The number of elements is called the length of the slice and is never negative.
 The value of an uninitialized slice is <code>nil</code>.
 </p>
 
@@ -891,8 +990,7 @@ SliceType = "[" "]" ElementType .
 </pre>
 
 <p>
-Like arrays, slices are indexable and have a length.  The length of a
-slice <code>s</code> can be discovered by the built-in function
+The length of a slice <code>s</code> can be discovered by the built-in function
 <a href="#Length_and_capacity"><code>len</code></a>; unlike with arrays it may change during
 execution.  The elements can be addressed by integer <a href="#Index_expressions">indices</a>
 0 through <code>len(s)-1</code>.  The slice index of a
@@ -1349,7 +1447,8 @@ The optional <code>&lt;-</code> operator specifies the channel <i>direction</i>,
 <i>send</i> or <i>receive</i>. If no direction is given, the channel is
 <i>bidirectional</i>.
 A channel may be constrained only to send or only to receive by
-<a href="#Conversions">conversion</a> or <a href="#Assignments">assignment</a>.
+<a href="#Assignments">assignment</a> or
+explicit <a href="#Conversions">conversion</a>.
 </p>
 
 <pre>
@@ -2069,9 +2168,9 @@ Otherwise, each variable is initialized to its <a href="#The_zero_value">zero va
 If a type is present, each variable is given that type.
 Otherwise, each variable is given the type of the corresponding
 initialization value in the assignment.
-If that value is an untyped constant, it is first
+If that value is an untyped constant, it is first implicitly
 <a href="#Conversions">converted</a> to its <a href="#Constants">default type</a>;
-if it is an untyped boolean value, it is first converted to type <code>bool</code>.
+if it is an untyped boolean value, it is first implicitly converted to type <code>bool</code>.
 The predeclared value <code>nil</code> cannot be used to initialize a variable
 with no explicit type.
 </p>
@@ -2112,8 +2211,8 @@ with initializer expressions but no types:
 i, j := 0, 10
 f := func() int { return 7 }
 ch := make(chan int)
-r, w := os.Pipe(fd)  // os.Pipe() returns two values
-_, y, _ := coord(p)  // coord() returns three values; only interested in y coordinate
+r, w, _ := os.Pipe()  // os.Pipe() returns a connected pair of Files and an error, if any
+_, y, _ := coord(p)   // coord() returns three values; only interested in y coordinate
 </pre>
 
 <p>
@@ -2202,11 +2301,11 @@ Receiver   = Parameters .
 <p>
 The receiver is specified via an extra parameter section preceding the method
 name. That parameter section must declare a single non-variadic parameter, the receiver.
-Its type must be of the form <code>T</code> or <code>*T</code> (possibly using
-parentheses) where <code>T</code> is a type name. The type denoted by <code>T</code> is called
-the receiver <i>base type</i>; it must not be a pointer or interface type and
-it must be <a href="#Type_definitions">defined</a> in the same package as the method.
-The method is said to be <i>bound</i> to the base type and the method name
+Its type must be a <a href="#Type_definitions">defined</a> type <code>T</code> or a
+pointer to a defined type <code>T</code>. <code>T</code> is called the receiver
+<i>base type</i>. A receiver base type cannot be a pointer or interface type and
+it must be defined in the same package as the method.
+The method is said to be <i>bound</i> to its receiver base type and the method name
 is visible only within <a href="#Selectors">selectors</a> for type <code>T</code>
 or <code>*T</code>.
 </p>
@@ -2226,7 +2325,7 @@ the non-blank method and field names must be distinct.
 </p>
 
 <p>
-Given type <code>Point</code>, the declarations
+Given defined type <code>Point</code>, the declarations
 </p>
 
 <pre>
@@ -2414,8 +2513,22 @@ For array and slice literals the following rules apply:
 generates a pointer to a unique <a href="#Variables">variable</a> initialized
 with the literal's value.
 </p>
+
 <pre>
 var pointer *Point3D = &amp;Point3D{y: 1000}
+</pre>
+
+<p>
+Note that the <a href="#The_zero_value">zero value</a> for a slice or map
+type is not the same as an initialized but empty value of the same type.
+Consequently, taking the address of an empty slice or map composite literal
+does not have the same effect as allocating a new slice or map value with
+<a href="#Allocation">new</a>.
+</p>
+
+<pre>
+p1 := &[]int{}    // p1 points to an initialized, empty slice with value []int{} and length 0
+p2 := new([]int)  // p2 points to an uninitialized slice with value nil and length 0
 </pre>
 
 <p>
@@ -3149,6 +3262,14 @@ is a <code>nil</code> slice. Otherwise, if the result is a slice, it shares its 
 array with the operand.
 </p>
 
+<pre>
+var a [10]int
+s1 := a[3:7]   // underlying array of s1 is array a; &s1[2] == &a[5]
+s2 := s1[1:4]  // underlying array of s2 is underlying array of s1 which is array a; &s2[1] == &a[5]
+s2[1] = 42     // s2[1] == s1[2] == a[5] == 42; they all refer to the same underlying array element
+</pre>
+
+
 <h4>Full slice expressions</h4>
 
 <p>
@@ -3260,7 +3381,7 @@ var v, ok T1 = x.(T)
 yields an additional untyped boolean value. The value of <code>ok</code> is <code>true</code>
 if the assertion holds. Otherwise it is <code>false</code> and the value of <code>v</code> is
 the <a href="#The_zero_value">zero value</a> for type <code>T</code>.
-No run-time panic occurs in this case.
+No <a href="#Run_time_panics">run-time panic</a> occurs in this case.
 </p>
 
 
@@ -3385,7 +3506,7 @@ within <code>Greeting</code>, <code>who</code> will have the value
 </p>
 
 <p>
-If the final argument is assignable to a slice type <code>[]T</code>, it may be
+If the final argument is assignable to a slice type <code>[]T</code>, it is
 passed unchanged as the value for a <code>...T</code> parameter if the argument
 is followed by <code>...</code>. In this case no new slice is created.
 </p>
@@ -3433,16 +3554,16 @@ For operations involving constants only, see the section on
 
 <p>
 Except for shift operations, if one operand is an untyped <a href="#Constants">constant</a>
-and the other operand is not, the constant is <a href="#Conversions">converted</a>
+and the other operand is not, the constant is implicitly <a href="#Conversions">converted</a>
 to the type of the other operand.
 </p>
 
 <p>
-The right operand in a shift expression must have unsigned integer type
+The right operand in a shift expression must have integer type
 or be an untyped constant <a href="#Representability">representable</a> by a
 value of type <code>uint</code>.
 If the left operand of a non-constant shift expression is an untyped constant,
-it is first converted to the type it would assume if the shift expression were
+it is first implicitly converted to the type it would assume if the shift expression were
 replaced by its left operand alone.
 </p>
 
@@ -3585,7 +3706,9 @@ be replaced by a bitwise AND operation:
 
 <p>
 The shift operators shift the left operand by the shift count specified by the
-right operand. They implement arithmetic shifts if the left operand is a signed
+right operand, which must be positive. If the shift count is negative at run time,
+a <a href="#Run_time_panics">run-time panic</a> occurs.
+The shift operators implement arithmetic shifts if the left operand is a signed
 integer and logical shifts if it is an unsigned integer.
 There is no upper limit on the shift count. Shifts behave
 as if the left operand is shifted <code>n</code> times by 1 for a shift
@@ -3624,7 +3747,7 @@ For signed integers, the operations <code>+</code>,
 <code>-</code>, <code>*</code>, <code>/</code>, and <code>&lt;&lt;</code> may legally
 overflow and the resulting value exists and is deterministically defined
 by the signed integer representation, the operation, and its operands.
-No exception is raised as a result of overflow.
+Overflow does not cause a <a href="#Run_time_panics">run-time panic</a>.
 A compiler may not optimize code under the assumption that overflow does
 not occur. For instance, it may not assume that <code>x &lt; x + 1</code> is always true.
 </p>
@@ -3645,7 +3768,7 @@ occurs is implementation-specific.
 An implementation may combine multiple floating-point operations into a single
 fused operation, possibly across statements, and produce a result that differs
 from the value obtained by executing and rounding the instructions individually.
-A floating-point type <a href="#Conversions">conversion</a> explicitly rounds to
+An explicit floating-point type <a href="#Conversions">conversion</a> rounds to
 the precision of the target type, preventing fusion that would discard that rounding.
 </p>
 
@@ -3907,7 +4030,14 @@ channel is closed and empty.
 <h3 id="Conversions">Conversions</h3>
 
 <p>
-Conversions are expressions of the form <code>T(x)</code>
+A conversion changes the <a href="#Types">type</a> of an expression
+to the type specified by the conversion.
+A conversion may appear literally in the source, or it may be <i>implied</i>
+by the context in which an expression appears.
+</p>
+
+<p>
+An <i>explicit</i> conversion is an expression of the form <code>T(x)</code>
 where <code>T</code> is a type and <code>x</code> is an expression
 that can be converted to type <code>T</code>.
 </p>
@@ -3938,7 +4068,7 @@ func() int(x)    // x is converted to func() int (unambiguous)
 A <a href="#Constants">constant</a> value <code>x</code> can be converted to
 type <code>T</code> if <code>x</code> is <a href="#Representability">representable</a>
 by a value of <code>T</code>.
-As a special case, an integer constant <code>x</code> can be converted to a
+As a special case, an integer constant <code>x</code> can be explicitly converted to a
 <a href="#String_types">string type</a> using the
 <a href="#Conversions_to_and_from_a_string_type">same rule</a>
 as for non-constant <code>x</code>.
@@ -4672,13 +4802,13 @@ to the type of the operand to which it is assigned, with the following special c
 <li>
 	If an untyped constant
 	is assigned to a variable of interface type or the blank identifier,
-	the constant is first <a href="#Conversions">converted</a> to its
+	the constant is first implicitly <a href="#Conversions">converted</a> to its
 	 <a href="#Constants">default type</a>.
 </li>
 
 <li>
 	If an untyped boolean value is assigned to a variable of interface type or
-	the blank identifier, it is first converted to type <code>bool</code>.
+	the blank identifier, it is first implicitly converted to type <code>bool</code>.
 </li>
 </ol>
 
@@ -4764,14 +4894,14 @@ ExprSwitchCase = "case" ExpressionList | "default" .
 </pre>
 
 <p>
-If the switch expression evaluates to an untyped constant, it is first
+If the switch expression evaluates to an untyped constant, it is first implicitly
 <a href="#Conversions">converted</a> to its <a href="#Constants">default type</a>;
-if it is an untyped boolean value, it is first converted to type <code>bool</code>.
+if it is an untyped boolean value, it is first implicitly converted to type <code>bool</code>.
 The predeclared untyped value <code>nil</code> cannot be used as a switch expression.
 </p>
 
 <p>
-If a case expression is untyped, it is first <a href="#Conversions">converted</a>
+If a case expression is untyped, it is first implicitly <a href="#Conversions">converted</a>
 to the type of the switch expression.
 For each (possibly converted) case expression <code>x</code> and the value <code>t</code>
 of the switch expression, <code>x == t</code> must be a valid <a href="#Comparison_operators">comparison</a>.
@@ -5546,7 +5676,10 @@ executes, the function value and parameters to the call are
 and saved anew but the actual function is not invoked.
 Instead, deferred functions are invoked immediately before
 the surrounding function returns, in the reverse order
-they were deferred.
+they were deferred. That is, if the surrounding function
+returns through an explicit <a href="#Return_statements">return statement</a>,
+deferred functions are executed <i>after</i> any result parameters are set
+by that return statement but <i>before</i> the function returns to its caller.
 If a deferred function value evaluates
 to <code>nil</code>, execution <a href="#Handling_panics">panics</a>
 when the function is invoked, not when the "defer" statement is executed.
@@ -5572,12 +5705,13 @@ for i := 0; i &lt;= 3; i++ {
 	defer fmt.Print(i)
 }
 
-// f returns 1
+// f returns 42
 func f() (result int) {
 	defer func() {
-		result++
+		// result is accessed after it was set to 6 by the return statement
+		result *= 7
 	}()
-	return 0
+	return 6
 }
 </pre>
 
@@ -5877,7 +6011,7 @@ floating-point type and the return type is the complex type
 with the corresponding floating-point constituents:
 <code>complex64</code> for <code>float32</code> arguments, and
 <code>complex128</code> for <code>float64</code> arguments.
-If one of the arguments evaluates to an untyped constant, it is first
+If one of the arguments evaluates to an untyped constant, it is first implicitly
 <a href="#Conversions">converted</a> to the type of the other argument.
 If both arguments evaluate to untyped constants, they must be non-complex
 numbers or their imaginary parts must be zero, and the return value of
@@ -5909,7 +6043,7 @@ var a = complex(2, -2)             // complex128
 const b = complex(1.0, -1.4)       // untyped complex constant 1 - 1.4i
 x := float32(math.Cos(math.Pi/2))  // float32
 var c64 = complex(5, -x)           // complex64
-var s uint = complex(1, 0)         // untyped complex constant 1 + 0i can be converted to uint
+var s int = complex(1, 0)          // untyped complex constant 1 + 0i can be converted to int
 _ = complex(1, 2&lt;&lt;s)               // illegal: 2 assumes floating-point type, cannot shift
 var rl = real(c64)                 // float32
 var im = imag(a)                   // float64
@@ -6250,16 +6384,16 @@ var t T
 <h3 id="Package_initialization">Package initialization</h3>
 
 <p>
-Within a package, package-level variables are initialized in
-<i>declaration order</i> but after any of the variables
-they <i>depend</i> on.
+Within a package, package-level variable initialization proceeds stepwise,
+with each step selecting the variable earliest in <i>declaration order</i>
+which has no dependencies on uninitialized variables.
 </p>
 
 <p>
 More precisely, a package-level variable is considered <i>ready for
 initialization</i> if it is not yet initialized and either has
 no <a href="#Variable_declarations">initialization expression</a> or
-its initialization expression has no dependencies on uninitialized variables.
+its initialization expression has no <i>dependencies</i> on uninitialized variables.
 Initialization proceeds by repeatedly initializing the next package-level
 variable that is earliest in declaration order and ready for initialization,
 until there are no variables ready for initialization.
@@ -6269,6 +6403,23 @@ until there are no variables ready for initialization.
 If any variables are still uninitialized when this
 process ends, those variables are part of one or more initialization cycles,
 and the program is not valid.
+</p>
+
+<p>
+Multiple variables on the left-hand side of a variable declaration initialized
+by single (multi-valued) expression on the right-hand side are initialized
+together: If any of the variables on the left-hand side is initialized, all
+those variables are initialized in the same step.
+</p>
+
+<pre>
+var x = a
+var a, b = f() // a and b are initialized together, before x is initialized
+</pre>
+
+<p>
+For the purpose of package initialization, <a href="#Blank_identifier">blank</a>
+variables are treated like any other variables in declarations.
 </p>
 
 <p>
@@ -6313,21 +6464,15 @@ or to a function or method that depends on <code>y</code>.
 </ul>
 
 <p>
-Dependency analysis is performed per package; only references referring
-to variables, functions, and methods declared in the current package
-are considered.
-</p>
-
-<p>
 For example, given the declarations
 </p>
 
 <pre>
 var (
-	a = c + b
-	b = f()
-	c = f()
-	d = 3
+	a = c + b  // == 9
+	b = f()    // == 4
+	c = f()    // == 5
+	d = 3      // == 5 after initialization has finished
 )
 
 func f() int {
@@ -6338,6 +6483,39 @@ func f() int {
 
 <p>
 the initialization order is <code>d</code>, <code>b</code>, <code>c</code>, <code>a</code>.
+Note that the order of subexpressions in initialization expressions is irrelevant:
+<code>a = c + b</code> and <code>a = b + c</code> result in the same initialization
+order in this example.
+</p>
+
+<p>
+Dependency analysis is performed per package; only references referring
+to variables, functions, and (non-interface) methods declared in the current
+package are considered. If other, hidden, data dependencies exists between
+variables, the initialization order between those variables is unspecified.
+</p>
+
+<p>
+For instance, given the declarations
+</p>
+
+<pre>
+var x = I(T{}).ab()   // x has an undetected, hidden dependency on a and b
+var _ = sideEffect()  // unrelated to x, a, or b
+var a = b
+var b = 42
+
+type I interface      { ab() []int }
+type T struct{}
+func (T) ab() []int   { return []int{a, b} }
+</pre>
+
+<p>
+the variable <code>a</code> will be initialized after <code>b</code> but
+whether <code>x</code> is initialized before <code>b</code>, between
+<code>b</code> and <code>a</code>, or after <code>a</code>, and
+thus also the moment at which <code>sideEffect()</code> is called (before
+or after <code>x</code> is initialized) is not specified.
 </p>
 
 <p>

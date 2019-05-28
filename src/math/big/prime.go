@@ -51,7 +51,7 @@ func (x *Int) ProbablyPrime(n int) bool {
 	}
 
 	if w&1 == 0 {
-		return false // n is even
+		return false // x is even
 	}
 
 	const primesA = 3 * 5 * 7 * 11 * 13 * 17 * 19 * 23 * 37

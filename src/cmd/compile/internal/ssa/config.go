@@ -21,6 +21,7 @@ type Config struct {
 	Types          Types
 	lowerBlock     blockRewriter // lowering function
 	lowerValue     valueRewriter // lowering function
+	splitLoad      valueRewriter // function for splitting merged load ops; only used on some architectures
 	registers      []Register    // machine registers
 	gpRegMask      regMask       // general purpose integer register mask
 	fpRegMask      regMask       // floating point register mask
@@ -38,6 +39,7 @@ type Config struct {
 	nacl           bool          // GOOS=nacl
 	use387         bool          // GO386=387
 	SoftFloat      bool          //
+	Race           bool          // race detector enabled
 	NeedsFpScratch bool          // No direct move between GP and FP register sets
 	BigEndian      bool          //
 }
@@ -111,7 +113,7 @@ type Logger interface {
 	// Logf logs a message from the compiler.
 	Logf(string, ...interface{})
 
-	// Log returns true if logging is not a no-op
+	// Log reports whether logging is not a no-op
 	// some logging calls account for more than a few heap allocations.
 	Log() bool
 
@@ -163,7 +165,7 @@ type Frontend interface {
 	// given name.
 	Syslook(string) *obj.LSym
 
-	// UseWriteBarrier returns whether write barrier is enabled
+	// UseWriteBarrier reports whether write barrier is enabled
 	UseWriteBarrier() bool
 
 	// SetWBPos indicates that a write barrier has been inserted
@@ -177,6 +179,7 @@ type GCNode interface {
 	Typ() *types.Type
 	String() string
 	IsSynthetic() bool
+	IsAutoTmp() bool
 	StorageClass() StorageClass
 }
 
@@ -199,6 +202,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.RegSize = 8
 		c.lowerBlock = rewriteBlockAMD64
 		c.lowerValue = rewriteValueAMD64
+		c.splitLoad = rewriteValueAMD64splitload
 		c.registers = registersAMD64[:]
 		c.gpRegMask = gpRegMaskAMD64
 		c.fpRegMask = fpRegMaskAMD64
@@ -210,6 +214,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.RegSize = 8
 		c.lowerBlock = rewriteBlockAMD64
 		c.lowerValue = rewriteValueAMD64
+		c.splitLoad = rewriteValueAMD64splitload
 		c.registers = registersAMD64[:]
 		c.gpRegMask = gpRegMaskAMD64
 		c.fpRegMask = fpRegMaskAMD64
@@ -222,6 +227,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.RegSize = 4
 		c.lowerBlock = rewriteBlock386
 		c.lowerValue = rewriteValue386
+		c.splitLoad = rewriteValue386splitload
 		c.registers = registers386[:]
 		c.gpRegMask = gpRegMask386
 		c.fpRegMask = fpRegMask386

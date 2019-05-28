@@ -201,8 +201,12 @@ func (i *Inst) MatchRune(r rune) bool {
 func (i *Inst) MatchRunePos(r rune) int {
 	rune := i.Rune
 
-	// Special case: single-rune slice is from literal string, not char class.
-	if len(rune) == 1 {
+	switch len(rune) {
+	case 0:
+		return noMatch
+
+	case 1:
+		// Special case: single-rune slice is from literal string, not char class.
 		r0 := rune[0]
 		if r == r0 {
 			return 0
@@ -215,17 +219,25 @@ func (i *Inst) MatchRunePos(r rune) int {
 			}
 		}
 		return noMatch
-	}
 
-	// Peek at the first few pairs.
-	// Should handle ASCII well.
-	for j := 0; j < len(rune) && j <= 8; j += 2 {
-		if r < rune[j] {
-			return noMatch
+	case 2:
+		if r >= rune[0] && r <= rune[1] {
+			return 0
 		}
-		if r <= rune[j+1] {
-			return j / 2
+		return noMatch
+
+	case 4, 6, 8:
+		// Linear search for a few pairs.
+		// Should handle ASCII well.
+		for j := 0; j < len(rune); j += 2 {
+			if r < rune[j] {
+				return noMatch
+			}
+			if r <= rune[j+1] {
+				return j / 2
+			}
 		}
+		return noMatch
 	}
 
 	// Otherwise binary search.

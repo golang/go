@@ -13,15 +13,14 @@ func tighten(f *Func) {
 	canMove := make([]bool, f.NumValues())
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
+			if v.Op.isLoweredGetClosurePtr() {
+				// Must stay in the entry block.
+				continue
+			}
 			switch v.Op {
-			case OpPhi, OpArg, OpSelect0, OpSelect1,
-				OpAMD64LoweredGetClosurePtr, Op386LoweredGetClosurePtr,
-				OpARMLoweredGetClosurePtr, OpARM64LoweredGetClosurePtr,
-				OpMIPSLoweredGetClosurePtr, OpMIPS64LoweredGetClosurePtr,
-				OpS390XLoweredGetClosurePtr, OpPPC64LoweredGetClosurePtr,
-				OpWasmLoweredGetClosurePtr:
+			case OpPhi, OpArg, OpSelect0, OpSelect1:
 				// Phis need to stay in their block.
-				// GetClosurePtr & Arg must stay in the entry block.
+				// Arg must stay in the entry block.
 				// Tuple selectors must stay with the tuple generator.
 				continue
 			}

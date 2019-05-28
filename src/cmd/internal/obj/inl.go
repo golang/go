@@ -47,9 +47,10 @@ type InlTree struct {
 
 // InlinedCall is a node in an InlTree.
 type InlinedCall struct {
-	Parent int      // index of the parent in the InlTree or < 0 if outermost call
-	Pos    src.XPos // position of the inlined call
-	Func   *LSym    // function that was inlined
+	Parent   int      // index of the parent in the InlTree or < 0 if outermost call
+	Pos      src.XPos // position of the inlined call
+	Func     *LSym    // function that was inlined
+	ParentPC int32    // PC of instruction just before inlined body. Only valid in local trees.
 }
 
 // Add adds a new call to the tree, returning its index.
@@ -74,6 +75,10 @@ func (tree *InlTree) InlinedFunction(inlIndex int) *LSym {
 
 func (tree *InlTree) CallPos(inlIndex int) src.XPos {
 	return tree.nodes[inlIndex].Pos
+}
+
+func (tree *InlTree) setParentPC(inlIndex int, pc int32) {
+	tree.nodes[inlIndex].ParentPC = pc
 }
 
 // OutermostPos returns the outermost position corresponding to xpos,
@@ -106,6 +111,6 @@ func (ctxt *Link) InnermostPos(xpos src.XPos) src.Pos {
 func dumpInlTree(ctxt *Link, tree InlTree) {
 	for i, call := range tree.nodes {
 		pos := ctxt.PosTable.Pos(call.Pos)
-		ctxt.Logf("%0d | %0d | %s (%s)\n", i, call.Parent, call.Func, pos)
+		ctxt.Logf("%0d | %0d | %s (%s) pc=%d\n", i, call.Parent, call.Func, pos, call.ParentPC)
 	}
 }

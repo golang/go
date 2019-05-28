@@ -1,0 +1,11 @@
+example.com/version v1.0.1
+written by hand
+
+-- .mod --
+module example.com/version
+-- .info --
+{"Version":"v1.0.1"}
+-- version.go --
+package version
+
+const V = "v1.0.1"

@@ -49,7 +49,9 @@ TEXT _rt0_arm64_darwin_lib(SB),NOSPLIT,$168
 	MOVD  _cgo_sys_thread_create(SB), R4
 	MOVD  $_rt0_arm64_darwin_lib_go(SB), R0
 	MOVD  $0, R1
+	SUB   $16, RSP		// reserve 16 bytes for sp-8 where fp may be saved.
 	BL    (R4)
+	ADD   $16, RSP
 
 	// Restore callee-save registers.
 	MOVD 24(RSP), R19

@@ -10,7 +10,6 @@ import (
 	"go/build"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -28,8 +27,8 @@ var CmdBuild = &base.Command{
 Build compiles the packages named by the import paths,
 along with their dependencies, but it does not install the results.
 
-If the arguments to build are a list of .go files, build treats
-them as a list of source files specifying a single package.
+If the arguments to build are a list of .go files from a single directory,
+build treats them as a list of source files specifying a single package.
 
 When compiling a single main package, build writes
 the resulting executable to an output file named after
@@ -43,10 +42,10 @@ serving only as a check that the packages can be built.
 
 When compiling packages, build ignores files that end in '_test.go'.
 
-The -o flag, only allowed when compiling a single package,
-forces build to write the resulting executable or object
-to the named output file, instead of the default behavior described
-in the last two paragraphs.
+The -o flag forces build to write the resulting executable or object
+to the named output file or directory, instead of the default behavior described
+in the last two paragraphs. If the named output is a directory that exists,
+then any resulting executables will be written to that directory.
 
 The -i flag installs the packages that are dependencies of the target.
 
@@ -99,16 +98,24 @@ and test commands:
 		link against shared libraries previously created with
 		-buildmode=shared.
 	-mod mode
-		module download mode to use: readonly, release, or vendor.
+		module download mode to use: readonly or vendor.
 		See 'go help modules' for more.
 	-pkgdir dir
 		install and load all packages from dir instead of the usual locations.
 		For example, when building with a non-standard configuration,
 		use -pkgdir to keep generated packages in a separate location.
-	-tags 'tag list'
-		a space-separated list of build tags to consider satisfied during the
+	-tags tag,list
+		a comma-separated list of build tags to consider satisfied during the
 		build. For more information about build tags, see the description of
 		build constraints in the documentation for the go/build package.
+		(Earlier versions of Go used a space-separated list, and that form
+		is deprecated but still recognized.)
+	-trimpath
+		remove all file system paths from the resulting executable.
+		Instead of absolute file system paths, the recorded file names
+		will begin with either "go" (for the standard library),
+		or a module path@version (when using modules),
+		or a plain import path (when using GOPATH).
 	-toolexec 'cmd args'
 		a program to use to invoke toolchain programs like vet and asm.
 		For example, instead of running asm, the go command will run
@@ -154,7 +161,7 @@ func init() {
 	CmdInstall.Run = runInstall
 
 	CmdBuild.Flag.BoolVar(&cfg.BuildI, "i", false, "")
-	CmdBuild.Flag.StringVar(&cfg.BuildO, "o", "", "output file")
+	CmdBuild.Flag.StringVar(&cfg.BuildO, "o", "", "output file or directory")
 
 	CmdInstall.Flag.BoolVar(&cfg.BuildI, "i", false, "")
 
@@ -228,12 +235,36 @@ func AddBuildFlags(cmd *base.Command) {
 	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "")
 	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildMSan, "msan", false, "")
-	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildContext.BuildTags), "tags", "")
+	cmd.Flag.Var((*tagsFlag)(&cfg.BuildContext.BuildTags), "tags", "")
 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "")
+	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildWork, "work", false, "")
 
 	// Undocumented, unstable debugging flags.
 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
+}
+
+// tagsFlag is the implementation of the -tags flag.
+type tagsFlag []string
+
+func (v *tagsFlag) Set(s string) error {
+	// For compatibility with Go 1.12 and earlier, allow "-tags='a b c'" or even just "-tags='a'".
+	if strings.Contains(s, " ") || strings.Contains(s, "'") {
+		return (*base.StringsFlag)(v).Set(s)
+	}
+
+	// Split on commas, ignore empty strings.
+	*v = []string{}
+	for _, s := range strings.Split(s, ",") {
+		if s != "" {
+			*v = append(*v, s)
+		}
+	}
+	return nil
+}
+
+func (v *tagsFlag) String() string {
+	return "<TagsFlag>"
 }
 
 // fileExtSplit expects a filename and returns the name
@@ -284,8 +315,10 @@ func runBuild(cmd *base.Command, args []string) {
 
 	pkgs := load.PackagesForBuild(args)
 
+	explicitO := len(cfg.BuildO) > 0
+
 	if len(pkgs) == 1 && pkgs[0].Name == "main" && cfg.BuildO == "" {
-		_, cfg.BuildO = path.Split(pkgs[0].ImportPath)
+		cfg.BuildO = load.DefaultExecName(pkgs[0].ImportPath)
 		cfg.BuildO += cfg.ExeSuffix
 	}
 
@@ -317,8 +350,32 @@ func runBuild(cmd *base.Command, args []string) {
 	}
 
 	if cfg.BuildO != "" {
+		// If the -o name exists and is a directory, then
+		// write all main packages to that directory.
+		// Otherwise require only a single package be built.
+		if fi, err := os.Stat(cfg.BuildO); err == nil && fi.IsDir() {
+			if !explicitO {
+				base.Fatalf("go build: build output %q already exists and is a directory", cfg.BuildO)
+			}
+			a := &Action{Mode: "go build"}
+			for _, p := range pkgs {
+				if p.Name != "main" {
+					continue
+				}
+				p.Target = filepath.Join(cfg.BuildO, load.DefaultExecName(p.ImportPath))
+				p.Target += cfg.ExeSuffix
+				p.Stale = true
+				p.StaleReason = "build -o flag in use"
+				a.Deps = append(a.Deps, b.AutoAction(ModeInstall, depMode, p))
+			}
+			if len(a.Deps) == 0 {
+				base.Fatalf("go build: no main packages to build")
+			}
+			b.Do(a)
+			return
+		}
 		if len(pkgs) > 1 {
-			base.Fatalf("go build: cannot use -o with multiple packages")
+			base.Fatalf("go build: cannot write multiple packages to non-directory %s", cfg.BuildO)
 		} else if len(pkgs) == 0 {
 			base.Fatalf("no packages to build")
 		}
@@ -398,10 +455,10 @@ func libname(args []string, pkgs []*load.Package) (string, error) {
 					arg = bp.ImportPath
 				}
 			}
-			appendName(strings.Replace(arg, "/", "-", -1))
+			appendName(strings.ReplaceAll(arg, "/", "-"))
 		} else {
 			for _, pkg := range pkgs {
-				appendName(strings.Replace(pkg.ImportPath, "/", "-", -1))
+				appendName(strings.ReplaceAll(pkg.ImportPath, "/", "-"))
 			}
 		}
 	} else if haveNonMeta { // have both meta package and a non-meta one
@@ -414,7 +471,7 @@ func libname(args []string, pkgs []*load.Package) (string, error) {
 
 func runInstall(cmd *base.Command, args []string) {
 	BuildInit()
-	InstallPackages(args)
+	InstallPackages(args, load.PackagesForBuild(args))
 }
 
 // omitTestOnly returns pkgs with test-only packages removed.
@@ -434,12 +491,12 @@ func omitTestOnly(pkgs []*load.Package) []*load.Package {
 	return list
 }
 
-func InstallPackages(args []string) {
+func InstallPackages(patterns []string, pkgs []*load.Package) {
 	if cfg.GOBIN != "" && !filepath.IsAbs(cfg.GOBIN) {
 		base.Fatalf("cannot install, GOBIN must be an absolute path")
 	}
 
-	pkgs := omitTestOnly(pkgsFilter(load.PackagesForBuild(args)))
+	pkgs = omitTestOnly(pkgsFilter(pkgs))
 	for _, p := range pkgs {
 		if p.Target == "" {
 			switch {
@@ -500,7 +557,7 @@ func InstallPackages(args []string) {
 		// tools above did not apply, and a is just a simple Action
 		// with a list of Deps, one per package named in pkgs,
 		// the same as in runBuild.
-		a = b.buildmodeShared(ModeInstall, ModeInstall, args, pkgs, a)
+		a = b.buildmodeShared(ModeInstall, ModeInstall, patterns, pkgs, a)
 	}
 
 	b.Do(a)
@@ -515,10 +572,10 @@ func InstallPackages(args []string) {
 	// One way to view this behavior is that it is as if 'go install' first
 	// runs 'go build' and the moves the generated file to the install dir.
 	// See issue 9645.
-	if len(args) == 0 && len(pkgs) == 1 && pkgs[0].Name == "main" {
+	if len(patterns) == 0 && len(pkgs) == 1 && pkgs[0].Name == "main" {
 		// Compute file 'go build' would have created.
 		// If it exists and is an executable file, remove it.
-		_, targ := filepath.Split(pkgs[0].ImportPath)
+		targ := load.DefaultExecName(pkgs[0].ImportPath)
 		targ += cfg.ExeSuffix
 		if filepath.Join(pkgs[0].Dir, targ) != pkgs[0].Target { // maybe $GOBIN is the current directory
 			fi, err := os.Stat(targ)

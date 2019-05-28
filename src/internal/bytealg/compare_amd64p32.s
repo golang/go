@@ -14,16 +14,6 @@ TEXT ·Compare(SB),NOSPLIT,$0-28
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT bytes·Compare(SB),NOSPLIT,$0-28
-	FUNCDATA $0, ·Compare·args_stackmap(SB)
-	MOVL	a_base+0(FP), SI
-	MOVL	a_len+4(FP), BX
-	MOVL	b_base+12(FP), DI
-	MOVL	b_len+16(FP), DX
-	CALL	cmpbody<>(SB)
-	MOVL	AX, ret+24(FP)
-	RET
-
 TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
 	MOVL	a_base+0(FP), SI
 	MOVL	a_len+4(FP), BX
@@ -62,7 +52,7 @@ loop:
 	ADDQ	$16, DI
 	SUBQ	$16, R8
 	JMP	loop
-	
+
 	// AX = bit mask of differences
 diff16:
 	BSFQ	AX, BX	// index of first byte that differs

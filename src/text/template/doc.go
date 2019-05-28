@@ -142,7 +142,9 @@ An argument is a simple value, denoted by one of the following.
 
 	- A boolean, string, character, integer, floating-point, imaginary
 	  or complex constant in Go syntax. These behave like Go's untyped
-	  constants.
+	  constants. Note that, as in Go, whether a large integer constant
+	  overflows when assigned or passed to a function can depend on whether
+	  the host machine's ints are 32 or 64 bits.
 	- The keyword nil, representing an untyped Go nil.
 	- The character '.' (period):
 		.
@@ -326,6 +328,11 @@ Predefined global functions are named as follows.
 		Returns the result of indexing its first argument by the
 		following arguments. Thus "index x 1 2 3" is, in Go syntax,
 		x[1][2][3]. Each indexed item must be a map, slice, or array.
+	slice
+		slice returns the result of slicing its first argument by the
+		remaining arguments. Thus "slice x 1 2" is, in Go syntax, x[1:2],
+		while "slice x" is x[:], "slice x 1" is x[1:], and "slice x 1 2 3"
+		is x[1:2:3]. The first argument must be a string, slice, or array.
 	js
 		Returns the escaped JavaScript equivalent of the textual
 		representation of its arguments.

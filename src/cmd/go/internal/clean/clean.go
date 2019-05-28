@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
@@ -31,7 +33,8 @@ The go command builds most objects in a temporary directory,
 so go clean is mainly concerned with object files left by other
 tools or by manual invocations of go build.
 
-Specifically, clean removes the following files from each of the
+If a package argument is given or the -i or -r flag is set,
+clean removes the following files from each of the
 source directories corresponding to the import paths:
 
 	_obj/            old object directory, left from Makefiles
@@ -103,18 +106,25 @@ func init() {
 }
 
 func runClean(cmd *base.Command, args []string) {
-	if len(args) == 0 && modload.Failed() {
-		// Don't try to clean current directory,
-		// which will cause modload to base.Fatalf.
-	} else {
+	// golang.org/issue/29925: only load packages before cleaning if
+	// either the flags and arguments explicitly imply a package,
+	// or no other target (such as a cache) was requested to be cleaned.
+	cleanPkg := len(args) > 0 || cleanI || cleanR
+	if (!modload.Enabled() || modload.HasModRoot()) &&
+		!cleanCache && !cleanModcache && !cleanTestcache {
+		cleanPkg = true
+	}
+
+	if cleanPkg {
 		for _, pkg := range load.PackagesAndErrors(args) {
 			clean(pkg)
 		}
 	}
 
+	var b work.Builder
+	b.Print = fmt.Print
+
 	if cleanCache {
-		var b work.Builder
-		b.Print = fmt.Print
 		dir := cache.DefaultDir()
 		if dir != "off" {
 			// Remove the cache subdirectories but not the top cache directory.
@@ -122,11 +132,11 @@ func runClean(cmd *base.Command, args []string) {
 			// and not something that we want to remove. Also, we'd like to preserve
 			// the access log for future analysis, even if the cache is cleared.
 			subdirs, _ := filepath.Glob(filepath.Join(dir, "[0-9a-f][0-9a-f]"))
+			printedErrors := false
 			if len(subdirs) > 0 {
 				if cfg.BuildN || cfg.BuildX {
 					b.Showcmd("", "rm -r %s", strings.Join(subdirs, " "))
 				}
-				printedErrors := false
 				for _, d := range subdirs {
 					// Only print the first error - there may be many.
 					// This also mimics what os.RemoveAll(dir) would do.
@@ -135,6 +145,12 @@ func runClean(cmd *base.Command, args []string) {
 						base.Errorf("go clean -cache: %v", err)
 					}
 				}
+			}
+
+			logFile := filepath.Join(dir, "log.txt")
+			if err := os.RemoveAll(logFile); err != nil && !printedErrors {
+				printedErrors = true
+				base.Errorf("go clean -cache: %v", err)
 			}
 		}
 	}
@@ -145,7 +161,22 @@ func runClean(cmd *base.Command, args []string) {
 		// right now are to be ignored.
 		dir := cache.DefaultDir()
 		if dir != "off" {
-			err := ioutil.WriteFile(filepath.Join(dir, "testexpire.txt"), []byte(fmt.Sprintf("%d\n", time.Now().UnixNano())), 0666)
+			f, err := lockedfile.Edit(filepath.Join(dir, "testexpire.txt"))
+			if err == nil {
+				now := time.Now().UnixNano()
+				buf, _ := ioutil.ReadAll(f)
+				prev, _ := strconv.ParseInt(strings.TrimSpace(string(buf)), 10, 64)
+				if now > prev {
+					if err = f.Truncate(0); err == nil {
+						if _, err = f.Seek(0, 0); err == nil {
+							_, err = fmt.Fprintf(f, "%d\n", now)
+						}
+					}
+				}
+				if closeErr := f.Close(); err == nil {
+					err = closeErr
+				}
+			}
 			if err != nil {
 				base.Errorf("go clean -testcache: %v", err)
 			}
@@ -156,24 +187,15 @@ func runClean(cmd *base.Command, args []string) {
 		if modfetch.PkgMod == "" {
 			base.Fatalf("go clean -modcache: no module cache")
 		}
-		if err := removeAll(modfetch.PkgMod); err != nil {
-			base.Errorf("go clean -modcache: %v", err)
+		if cfg.BuildN || cfg.BuildX {
+			b.Showcmd("", "rm -rf %s", modfetch.PkgMod)
+		}
+		if !cfg.BuildN {
+			if err := modfetch.RemoveAll(modfetch.PkgMod); err != nil {
+				base.Errorf("go clean -modcache: %v", err)
+			}
 		}
 	}
-}
-
-func removeAll(dir string) error {
-	// Module cache has 0555 directories; make them writable in order to remove content.
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil // ignore errors walking in file system
-		}
-		if info.IsDir() {
-			os.Chmod(path, 0777)
-		}
-		return nil
-	})
-	return os.RemoveAll(dir)
 }
 
 var cleaned = map[*load.Package]bool{}

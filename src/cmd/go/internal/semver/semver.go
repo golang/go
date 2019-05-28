@@ -263,7 +263,7 @@ func parseBuild(v string) (t, rest string, ok bool) {
 	i := 1
 	start := 1
 	for i < len(v) {
-		if !isIdentChar(v[i]) {
+		if !isIdentChar(v[i]) && v[i] != '.' {
 			return
 		}
 		if v[i] == '.' {

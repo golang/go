@@ -1,0 +1,945 @@
+<!--{
+        "Title": "Go 1.12 Release Notes",
+        "Path":  "/doc/go1.12",
+        "Template": true
+}-->
+
+<!--
+NOTE: In this document and others in this directory, the convention is to
+set fixed-width phrases with non-fixed-width spaces, as in
+<code>hello</code> <code>world</code>.
+Do not send CLs removing the interior tags from such phrases.
+-->
+
+<style>
+  ul li { margin: 0.5em 0; }
+</style>
+
+<h2 id="introduction">Introduction to Go 1.12</h2>
+
+<p>
+  The latest Go release, version 1.12, arrives six months after <a href="go1.11">Go 1.11</a>.
+  Most of its changes are in the implementation of the toolchain, runtime, and libraries.
+  As always, the release maintains the Go 1 <a href="/doc/go1compat">promise of compatibility</a>.
+  We expect almost all Go programs to continue to compile and run as before.
+</p>
+
+<h2 id="language">Changes to the language</h2>
+
+<p>
+  There are no changes to the language specification.
+</p>
+
+<h2 id="ports">Ports</h2>
+
+<p><!-- CL 138675 -->
+  The race detector is now supported on <code>linux/arm64</code>.
+</p>
+
+<p id="freebsd">
+  Go 1.12 is the last release that is supported on FreeBSD 10.x, which has
+  already reached end-of-life. Go 1.13 will require FreeBSD 11.2+ or FreeBSD
+  12.0+.
+  FreeBSD 12.0+ requires a kernel with the COMPAT_FREEBSD11 option set (this is the default).
+</p>
+
+<p><!-- CL 146898 -->
+  cgo is now supported on <code>linux/ppc64</code>.
+</p>
+
+<p id="hurd"><!-- CL 146023 -->
+  <code>hurd</code> is now a recognized value for <code>GOOS</code>, reserved
+  for the GNU/Hurd system for use with <code>gccgo</code>.
+</p>
+
+<h3 id="windows">Windows</h3>
+
+<p>
+  Go's new <code>windows/arm</code> port supports running Go on Windows 10
+  IoT Core on 32-bit ARM chips such as the Raspberry Pi 3.
+</p>
+
+<h3 id="aix">AIX</h3>
+
+<p>
+  Go now supports AIX 7.2 and later on POWER8 architectures (<code>aix/ppc64</code>). External linking, cgo, pprof and the race detector aren't yet supported.
+</p>
+
+<h3 id="darwin">Darwin</h3>
+
+<p>
+  Go 1.12 is the last release that will run on macOS 10.10 Yosemite.
+  Go 1.13 will require macOS 10.11 El Capitan or later.
+</p>
+
+<p><!-- CL 141639 -->
+  <code>libSystem</code> is now used when making syscalls on Darwin,
+  ensuring forward-compatibility with future versions of macOS and iOS.
+  <!-- CL 153338 -->
+  The switch to <code>libSystem</code> triggered additional App Store
+  checks for private API usage. Since it is considered private,
+  <code>syscall.Getdirentries</code> now always fails with
+  <code>ENOSYS</code> on iOS.
+</p>
+
+<h2 id="tools">Tools</h2>
+
+<h3 id="vet"><code>go tool vet</code> no longer supported</h3>
+
+<p>
+  The <code>go vet</code> command has been rewritten to serve as the
+  base for a range of different source code analysis tools. See
+  the <a href="https://godoc.org/golang.org/x/tools/go/analysis">golang.org/x/tools/go/analysis</a>
+  package for details. A side-effect is that <code>go tool vet</code>
+  is no longer supported. External tools that use <code>go tool
+  vet</code> must be changed to use <code>go
+  vet</code>. Using <code>go vet</code> instead of <code>go tool
+  vet</code> should work with all supported versions of Go.
+</p>
+
+<p>
+  As part of this change, the experimental <code>-shadow</code> option
+  is no longer available with <code>go vet</code>. Checking for
+  variable shadowing may now be done using
+<pre>
+go get -u golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
+go vet -vettool=$(which shadow)
+</pre>
+</p>
+
+<h3 id="tour">Tour</h3>
+
+<p> <!-- CL 152657 -->
+The Go tour is no longer included in the main binary distribution. To
+run the tour locally, instead of running <code>go</code> <code>tool</code> <code>tour</code>,
+manually install it:
+<pre>
+go get -u golang.org/x/tour
+tour
+</pre>
+</p>
+
+<h3 id="gocache">Build cache requirement</h3>
+
+<p>
+  The <a href="/cmd/go/#hdr-Build_and_test_caching">build cache</a> is now
+  required as a step toward eliminating
+  <code>$GOPATH/pkg</code>. Setting the environment variable
+  <code>GOCACHE=off</code> will cause <code>go</code> commands that write to the
+  cache to fail.
+</p>
+
+<h3 id="binary-only">Binary-only packages</h3>
+
+<p>
+  Go 1.12 is the last release that will support binary-only packages.
+</p>
+
+<h3 id="cgo">Cgo</h3>
+
+<p>
+	Go 1.12 will translate the C type <code>EGLDisplay</code> to the Go type <code>uintptr</code>.
+	This change is similar to how Go 1.10 and newer treats Darwin's CoreFoundation
+	and Java's JNI types. See the
+	<a href="/cmd/cgo/#hdr-Special_cases">cgo documentation</a>
+	for more information.
+</p>
+
+<p><!-- CL 152657 -->
+  Mangled C names are no longer accepted in packages that use Cgo. Use the Cgo
+  names instead. For example, use the documented cgo name <code>C.char</code>
+  rather than the mangled name <code>_Ctype_char</code> that cgo generates.
+</p>
+
+<h3 id="modules">Modules</h3>
+
+<p><!-- CL 148517 -->
+  When <code>GO111MODULE</code> is set to <code>on</code>, the <code>go</code>
+  command now supports module-aware operations outside of a module directory,
+  provided that those operations do not need to resolve import paths relative to
+  the current directory or explicitly edit the <code>go.mod</code> file.
+  Commands such as <code>go</code> <code>get</code>,
+  <code>go</code> <code>list</code>, and
+  <code>go</code> <code>mod</code> <code>download</code> behave as if in a
+  module with initially-empty requirements.
+  In this mode, <code>go</code> <code>env</code> <code>GOMOD</code> reports
+  the system's null device (<code>/dev/null</code> or <code>NUL</code>).
+</p>
+
+<p><!-- CL 146382 -->
+  <code>go</code> commands that download and extract modules are now safe to
+  invoke concurrently.
+  The module cache (<code>GOPATH/pkg/mod</code>) must reside in a filesystem that
+  supports file locking.
+</p>
+
+<p><!-- CL 147282, 147281 -->
+  The <code>go</code> directive in a <code>go.mod</code> file now indicates the
+  version of the language used by the files within that module.
+  It will be set to the current release
+  (<code>go</code> <code>1.12</code>) if no existing version is
+  present.
+  If the <code>go</code> directive for a module specifies a
+  version <em>newer</em> than the toolchain in use, the <code>go</code> command
+  will attempt to build the packages regardless, and will note the mismatch only if
+  that build fails.
+</p>
+
+<p><!-- CL 147282, 147281 -->
+  This changed use of the <code>go</code> directive means that if you
+  use Go 1.12 to build a module, thus recording <code>go 1.12</code>
+  in the <code>go.mod</code> file, you will get an error when
+  attempting to build the same module with Go 1.11 through Go 1.11.3.
+  Go 1.11.4 or later will work fine, as will releases older than Go 1.11.
+  If you must use Go 1.11 through 1.11.3, you can avoid the problem by
+  setting the language version to 1.11, using the Go 1.12 go tool,
+  via <code>go mod edit -go=1.11</code>.
+</p>
+
+<p><!-- CL 152739 -->
+  When an import cannot be resolved using the active modules,
+  the <code>go</code> command will now try to use the modules mentioned in the
+  main module's <code>replace</code> directives before consulting the module
+  cache and the usual network sources.
+  If a matching replacement is found but the <code>replace</code> directive does
+  not specify a version, the <code>go</code> command uses a pseudo-version
+  derived from the zero <code>time.Time</code> (such
+  as <code>v0.0.0-00010101000000-000000000000</code>).
+</p>
+
+<h3 id="compiler">Compiler toolchain</h3>
+
+<p><!-- CL 134155, 134156 -->
+  The compiler's live variable analysis has improved. This may mean that
+  finalizers will be executed sooner in this release than in previous
+  releases. If that is a problem, consider the appropriate addition of a
+  <a href="/pkg/runtime/#KeepAlive"><code>runtime.KeepAlive</code></a> call.
+</p>
+
+<p><!-- CL 147361 -->
+  More functions are now eligible for inlining by default, including
+  functions that do nothing but call another function.
+  This extra inlining makes it additionally important to use
+  <a href="/pkg/runtime/#CallersFrames"><code>runtime.CallersFrames</code></a>
+  instead of iterating over the result of
+  <a href="/pkg/runtime/#Callers"><code>runtime.Callers</code></a> directly.
+<pre>
+// Old code which no longer works correctly (it will miss inlined call frames).
+var pcs [10]uintptr
+n := runtime.Callers(1, pcs[:])
+for _, pc := range pcs[:n] {
+	f := runtime.FuncForPC(pc)
+	if f != nil {
+		fmt.Println(f.Name())
+	}
+}
+</pre>
+<pre>
+// New code which will work correctly.
+var pcs [10]uintptr
+n := runtime.Callers(1, pcs[:])
+frames := runtime.CallersFrames(pcs[:n])
+for {
+	frame, more := frames.Next()
+	fmt.Println(frame.Function)
+	if !more {
+		break
+	}
+}
+</pre>
+</p>
+
+<p><!-- CL 153477 -->
+  Wrappers generated by the compiler to implement method expressions
+  are no longer reported
+  by <a href="/pkg/runtime/#CallersFrames"><code>runtime.CallersFrames</code></a>
+  and <a href="/pkg/runtime/#Stack"><code>runtime.Stack</code></a>. They
+  are also not printed in panic stack traces.
+
+  This change aligns the <code>gc</code> toolchain to match
+  the <code>gccgo</code> toolchain, which already elided such wrappers
+  from stack traces.
+
+  Clients of these APIs might need to adjust for the missing
+  frames. For code that must interoperate between 1.11 and 1.12
+  releases, you can replace the method expression <code>x.M</code>
+  with the function literal <code>func (...) { x.M(...) } </code>.
+</p>
+
+<p><!-- CL 144340 -->
+  The compiler now accepts a <code>-lang</code> flag to set the Go language
+  version to use. For example, <code>-lang=go1.8</code> causes the compiler to
+  emit an error if the program uses type aliases, which were added in Go 1.9.
+  Language changes made before Go 1.12 are not consistently enforced.
+</p>
+
+<p><!-- CL 147160 -->
+  The compiler toolchain now uses different conventions to call Go
+  functions and assembly functions. This should be invisible to users,
+  except for calls that simultaneously cross between Go and
+  assembly <em>and</em> cross a package boundary. If linking results
+  in an error like "relocation target not defined for ABIInternal (but
+  is defined for ABI0)", please refer to the
+  <a href="https://github.com/golang/proposal/blob/master/design/27539-internal-abi.md#compatibility">compatibility section</a>
+  of the ABI design document.
+</p>
+
+<p><!-- CL 145179 -->
+  There have been many improvements to the DWARF debug information
+  produced by the compiler, including improvements to argument
+  printing and variable location information.
+</p>
+
+<p><!-- CL 61511 -->
+  Go programs now also maintain stack frame pointers on <code>linux/arm64</code>
+  for the benefit of profiling tools like <code>perf</code>. The frame pointer
+  maintenance has a small run-time overhead that varies but averages around 3%.
+  To build a toolchain that does not use frame pointers, set
+  <code>GOEXPERIMENT=noframepointer</code> when running <code>make.bash</code>.
+</p>
+
+<p><!-- CL 142717 -->
+  The obsolete "safe" compiler mode (enabled by the <code>-u</code> gcflag) has been removed.
+</p>
+
+<h3 id="godoc"><code>godoc</code> and <code>go</code> <code>doc</code></h3>
+
+<p>
+  In Go 1.12, <code>godoc</code> no longer has a command-line interface and
+  is only a web server. Users should use <code>go</code> <code>doc</code>
+  for command-line help output instead. Go 1.12 is the last release that will
+  include the <code>godoc</code> webserver; in Go 1.13 it will be available
+  via <code>go</code> <code>get</code>.
+</p>
+
+<p><!-- CL 141977 -->
+  <code>go</code> <code>doc</code> now supports the <code>-all</code> flag,
+  which will cause it to print all exported APIs and their documentation,
+  as the <code>godoc</code> command line used to do.
+</p>
+
+<p><!-- CL 140959 -->
+  <code>go</code> <code>doc</code> also now includes the <code>-src</code> flag,
+  which will show the target's source code.
+</p>
+
+<h3 id="trace">Trace</h3>
+
+<p><!-- CL 60790 -->
+  The trace tool now supports plotting mutator utilization curves,
+  including cross-references to the execution trace. These are useful
+  for analyzing the impact of the garbage collector on application
+  latency and throughput.
+</p>
+
+<h3 id="assembler">Assembler</h3>
+
+<p><!-- CL 147218 -->
+  On <code>arm64</code>, the platform register was renamed from
+  <code>R18</code> to <code>R18_PLATFORM</code> to prevent accidental
+  use, as the OS could choose to reserve this register.
+</p>
+
+<h2 id="runtime">Runtime</h2>
+
+<p><!-- CL 138959 -->
+  Go 1.12 significantly improves the performance of sweeping when a
+  large fraction of the heap remains live. This reduces allocation
+  latency immediately following a garbage collection.
+</p>
+
+<p><!-- CL 139719 -->
+  The Go runtime now releases memory back to the operating system more
+  aggressively, particularly in response to large allocations that
+  can't reuse existing heap space.
+</p>
+
+<p><!-- CL 146342, CL 146340, CL 146345, CL 146339, CL 146343, CL 146337, CL 146341, CL 146338 -->
+  The Go runtime's timer and deadline code is faster and scales better
+  with higher numbers of CPUs. In particular, this improves the
+  performance of manipulating network connection deadlines.
+</p>
+
+<p><!-- CL 135395 -->
+  On Linux, the runtime now uses <code>MADV_FREE</code> to release unused
+  memory. This is more efficient but may result in higher reported
+  RSS. The kernel will reclaim the unused data when it is needed.
+  To revert to the Go 1.11 behavior (<code>MADV_DONTNEED</code>), set the
+  environment variable <code>GODEBUG=madvdontneed=1</code>.
+</p>
+
+<p><!-- CL 149578 -->
+  Adding cpu.<em>extension</em>=off to the
+  <a href="/doc/diagnostics.html#godebug">GODEBUG</a> environment
+  variable now disables the use of optional CPU instruction
+  set extensions in the standard library and runtime. This is not
+  yet supported on Windows.
+</p>
+
+<p><!-- CL 158337 -->
+  Go 1.12 improves the accuracy of memory profiles by fixing
+  overcounting of large heap allocations.
+</p>
+
+<p><!-- CL 159717 -->
+  Tracebacks, <code>runtime.Caller</code>,
+  and <code>runtime.Callers</code> no longer include
+  compiler-generated initialization functions.  Doing a traceback
+  during the initialization of a global variable will now show a
+  function named <code>PKG.init.ializers</code>.
+</p>
+
+<h2 id="library">Core library</h2>
+
+<h3 id="tls_1_3">TLS 1.3</h3>
+
+<p>
+  Go 1.12 adds opt-in support for TLS 1.3 in the <code>crypto/tls</code> package as
+  specified by <a href="https://www.rfc-editor.org/info/rfc8446">RFC 8446</a>. It can
+  be enabled by adding the value <code>tls13=1</code> to the <code>GODEBUG</code>
+  environment variable. It will be enabled by default in Go 1.13.
+</p>
+
+<p>
+  To negotiate TLS 1.3, make sure you do not set an explicit <code>MaxVersion</code> in
+  <a href="/pkg/crypto/tls/#Config"><code>Config</code></a> and run your program with
+  the environment variable <code>GODEBUG=tls13=1</code> set.
+</p>
+
+<p>
+  All TLS 1.2 features except <code>TLSUnique</code> in
+  <a href="/pkg/crypto/tls/#ConnectionState"><code>ConnectionState</code></a>
+  and renegotiation are available in TLS 1.3 and provide equivalent or
+  better security and performance. Note that even though TLS 1.3 is backwards
+  compatible with previous versions, certain legacy systems might not work
+  correctly when attempting to negotiate it. RSA certificate keys too small
+  to be secure (including 512-bit keys) will not work with TLS 1.3.
+</p>
+
+<p>
+  TLS 1.3 cipher suites are not configurable. All supported cipher suites are
+  safe, and if <code>PreferServerCipherSuites</code> is set in
+  <a href="/pkg/crypto/tls/#Config"><code>Config</code></a> the preference order
+  is based on the available hardware.
+</p>
+
+<p>
+  Early data (also called "0-RTT mode") is not currently supported as a
+  client or server. Additionally, a Go 1.12 server does not support skipping
+  unexpected early data if a client sends it. Since TLS 1.3 0-RTT mode
+  involves clients keeping state regarding which servers support 0-RTT,
+  a Go 1.12 server cannot be part of a load-balancing pool where some other
+  servers do support 0-RTT. If switching a domain from a server that supported
+  0-RTT to a Go 1.12 server, 0-RTT would have to be disabled for at least the
+  lifetime of the issued session tickets before the switch to ensure
+  uninterrupted operation.
+</p>
+
+<p>
+  In TLS 1.3 the client is the last one to speak in the handshake, so if it causes
+  an error to occur on the server, it will be returned on the client by the first
+  <a href="/pkg/crypto/tls/#Conn.Read"><code>Read</code></a>, not by
+  <a href="/pkg/crypto/tls/#Conn.Handshake"><code>Handshake</code></a>. For
+  example, that will be the case if the server rejects the client certificate.
+  Similarly, session tickets are now post-handshake messages, so are only
+  received by the client upon its first
+  <a href="/pkg/crypto/tls/#Conn.Read"><code>Read</code></a>.
+</p>
+
+<h3 id="minor_library_changes">Minor changes to the library</h3>
+
+<p>
+  As always, there are various minor changes and updates to the library,
+  made with the Go 1 <a href="/doc/go1compat">promise of compatibility</a>
+  in mind.
+</p>
+
+<!-- TODO: CL 115677: https://golang.org/cl/115677: cmd/vet: check embedded field tags too -->
+
+<dl id="bufio"><dt><a href="/pkg/bufio/">bufio</a></dt>
+  <dd>
+    <p><!-- CL 149297 -->
+      <code>Reader</code>'s <a href="/pkg/bufio/#Reader.UnreadRune"><code>UnreadRune</code></a> and
+      <a href="/pkg/bufio/#Reader.UnreadByte"><code>UnreadByte</code></a> methods will now return an error
+      if they are called after <a href="/pkg/bufio/#Reader.Peek"><code>Peek</code></a>.
+    </p>
+
+</dl><!-- bufio -->
+
+<dl id="bytes"><dt><a href="/pkg/bytes/">bytes</a></dt>
+  <dd>
+    <p><!-- CL 137855 -->
+      The new function <a href="/pkg/bytes/#ReplaceAll"><code>ReplaceAll</code></a> returns a copy of
+      a byte slice with all non-overlapping instances of a value replaced by another.
+    </p>
+
+    <p><!-- CL 145098 -->
+      A pointer to a zero-value <a href="/pkg/bytes/#Reader"><code>Reader</code></a> is now
+      functionally equivalent to <a href="/pkg/bytes/#NewReader"><code>NewReader</code></a><code>(nil)</code>.
+      Prior to Go 1.12, the former could not be used as a substitute for the latter in all cases.
+    </p>
+
+</dl><!-- bytes -->
+
+<dl id="crypto/rand"><dt><a href="/pkg/crypto/rand/">crypto/rand</a></dt>
+  <dd>
+    <p><!-- CL 139419 -->
+      A warning will now be printed to standard error the first time
+      <code>Reader.Read</code> is blocked for more than 60 seconds waiting
+      to read entropy from the kernel.
+    </p>
+
+    <p><!-- CL 120055 -->
+      On FreeBSD, <code>Reader</code> now uses the <code>getrandom</code>
+      system call if available, <code>/dev/urandom</code> otherwise.
+    </p>
+
+</dl><!-- crypto/rand -->
+
+<dl id="crypto/rc4"><dt><a href="/pkg/crypto/rc4/">crypto/rc4</a></dt>
+  <dd>
+    <p><!-- CL 130397 -->
+      This release removes the assembly implementations, leaving only
+      the pure Go version. The Go compiler generates code that is
+      either slightly better or slightly worse, depending on the exact
+      CPU. RC4 is insecure and should only be used for compatibility
+      with legacy systems.
+    </p>
+
+</dl><!-- crypto/rc4 -->
+
+<dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+  <dd>
+    <p><!-- CL 143177 -->
+      If a client sends an initial message that does not look like TLS, the server
+      will no longer reply with an alert, and it will expose the underlying
+      <code>net.Conn</code> in the new field <code>Conn</code> of
+      <a href="/pkg/crypto/tls/#RecordHeaderError"><code>RecordHeaderError</code></a>.
+    </p>
+
+</dl><!-- crypto/tls -->
+
+<dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
+  <dd>
+    <p><!-- CL 145738 -->
+      A query cursor can now be obtained by passing a
+      <a href="/pkg/database/sql/#Rows"><code>*Rows</code></a>
+      value to the <a href="/pkg/database/sql/#Row.Scan"><code>Row.Scan</code></a> method.
+    </p>
+
+</dl><!-- database/sql -->
+
+<dl id="expvar"><dt><a href="/pkg/expvar/">expvar</a></dt>
+  <dd>
+    <p><!-- CL 139537 -->
+      The new <a href="/pkg/expvar/#Map.Delete"><code>Delete</code></a> method allows
+      for deletion of key/value pairs from a <a href="/pkg/expvar/#Map"><code>Map</code></a>.
+    </p>
+
+</dl><!-- expvar -->
+
+<dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
+  <dd>
+    <p><!-- CL 142737 -->
+      Maps are now printed in key-sorted order to ease testing. The ordering rules are:
+      <ul>
+        <li>When applicable, nil compares low
+        <li>ints, floats, and strings order by <
+        <li>NaN compares less than non-NaN floats
+        <li>bool compares false before true
+        <li>Complex compares real, then imaginary
+        <li>Pointers compare by machine address
+        <li>Channel values compare by machine address
+        <li>Structs compare each field in turn
+        <li>Arrays compare each element in turn
+        <li>Interface values compare first by <code>reflect.Type</code> describing the concrete type
+            and then by concrete value as described in the previous rules.
+      </ul>
+    </p>
+
+    <p><!-- CL 129777 -->
+      When printing maps, non-reflexive key values like <code>NaN</code> were previously
+      displayed as <code>&lt;nil&gt;</code>. As of this release, the correct values are printed.
+    </p>
+
+</dl><!-- fmt -->
+
+<dl id="go/doc"><dt><a href="/pkg/go/doc/">go/doc</a></dt>
+  <dd>
+    <p><!-- CL 140958 -->
+      To address some outstanding issues in <a href="/cmd/doc/"><code>cmd/doc</code></a>,
+      this package has a new <a href="/pkg/go/doc/#Mode"><code>Mode</code></a> bit,
+      <code>PreserveAST</code>, which controls whether AST data is cleared.
+    </p>
+
+</dl><!-- go/doc -->
+
+<dl id="go/token"><dt><a href="/pkg/go/token/">go/token</a></dt>
+  <dd>
+    <p><!-- CL 134075 -->
+      The <a href="/pkg/go/token#File"><code>File</code></a> type has a new
+      <a href="/pkg/go/token#File.LineStart"><code>LineStart</code></a> field,
+      which returns the position of the start of a given line. This is especially useful
+      in programs that occasionally handle non-Go files, such as assembly, but wish to use
+      the <code>token.Pos</code> mechanism to identify file positions.
+    </p>
+
+</dl><!-- go/token -->
+
+<dl id="image"><dt><a href="/pkg/image/">image</a></dt>
+  <dd>
+    <p><!-- CL 118755 -->
+      The <a href="/pkg/image/#RegisterFormat"><code>RegisterFormat</code></a> function is now safe for concurrent use.
+    </p>
+
+</dl><!-- image -->
+
+<dl id="image/png"><dt><a href="/pkg/image/png/">image/png</a></dt>
+  <dd>
+    <p><!-- CL 134235 -->
+      Paletted images with fewer than 16 colors now encode to smaller outputs.
+    </p>
+
+</dl><!-- image/png -->
+
+<dl id="io"><dt><a href="/pkg/io/">io</a></dt>
+  <dd>
+    <p><!-- CL 139457 -->
+      The new <a href="/pkg/io#StringWriter"><code>StringWriter</code></a> interface wraps the
+      <a href="/pkg/io/#WriteString"><code>WriteString</code></a> function.
+    </p>
+
+</dl><!-- io -->
+
+<dl id="math"><dt><a href="/pkg/math/">math</a></dt>
+  <dd>
+    <p><!-- CL 153059 -->
+      The functions
+      <a href="/pkg/math/#Sin"><code>Sin</code></a>,
+      <a href="/pkg/math/#Cos"><code>Cos</code></a>,
+      <a href="/pkg/math/#Tan"><code>Tan</code></a>,
+      and <a href="/pkg/math/#Sincos"><code>Sincos</code></a> now
+      apply Payne-Hanek range reduction to huge arguments. This
+      produces more accurate answers, but they will not be bit-for-bit
+      identical with the results in earlier releases.
+    </p>
+</dl><!-- math -->
+
+<dl id="math/bits"><dt><a href="/pkg/math/bits/">math/bits</a></dt>
+  <dd>
+    <p><!-- CL 123157 -->
+    New extended precision operations <a href="/pkg/math/bits/#Add"><code>Add</code></a>, <a href="/pkg/math/bits/#Sub"><code>Sub</code></a>, <a href="/pkg/math/bits/#Mul"><code>Mul</code></a>, and <a href="/pkg/math/bits/#Div"><code>Div</code></a> are available in <code>uint</code>, <code>uint32</code>, and <code>uint64</code> versions.
+    </p>
+
+</dl><!-- math/bits -->
+
+<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+  <dd>
+    <p><!-- CL 146659 -->
+      The
+      <a href="/pkg/net/#Dialer.DualStack"><code>Dialer.DualStack</code></a> setting is now ignored and deprecated;
+      RFC 6555 Fast Fallback ("Happy Eyeballs") is now enabled by default. To disable, set
+      <a href="/pkg/net/#Dialer.FallbackDelay"><code>Dialer.FallbackDelay</code></a> to a negative value.
+    </p>
+
+    <p><!-- CL 107196 -->
+      Similarly, TCP keep-alives are now enabled by default if
+      <a href="/pkg/net/#Dialer.KeepAlive"><code>Dialer.KeepAlive</code></a> is zero.
+      To disable, set it to a negative value.
+    </p>
+
+    <p><!-- CL 113997 -->
+      On Linux, the <a href="http://man7.org/linux/man-pages/man2/splice.2.html"><code>splice</code> system call</a> is now used when copying from a
+      <a href="/pkg/net/#UnixConn"><code>UnixConn</code></a> to a
+      <a href="/pkg/net/#TCPConn"><code>TCPConn</code></a>.
+    </p>
+</dl><!-- net -->
+
+<dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+  <dd>
+    <p><!-- CL 143177 -->
+      The HTTP server now rejects misdirected HTTP requests to HTTPS servers with a plaintext "400 Bad Request" response.
+    </p>
+
+    <p><!-- CL 130115 -->
+      The new <a href="/pkg/net/http/#Client.CloseIdleConnections"><code>Client.CloseIdleConnections</code></a>
+      method calls the <code>Client</code>'s underlying <code>Transport</code>'s <code>CloseIdleConnections</code>
+      if it has one.
+    </p>
+
+    <p><!-- CL 145398 -->
+      The <a href="/pkg/net/http/#Transport"><code>Transport</code></a> no longer rejects HTTP responses which declare
+      HTTP Trailers but don't use chunked encoding. Instead, the declared trailers are now just ignored.
+    </p>
+
+    <p><!-- CL 152080 --> <!-- CL 151857 -->
+      The <a href="/pkg/net/http/#Transport"><code>Transport</code></a> no longer handles <code>MAX_CONCURRENT_STREAMS</code> values
+      advertised from HTTP/2 servers as strictly as it did during Go 1.10 and Go 1.11. The default behavior is now back
+      to how it was in Go 1.9: each connection to a server can have up to <code>MAX_CONCURRENT_STREAMS</code> requests
+      active and then new TCP connections are created as needed. In Go 1.10 and Go 1.11 the <code>http2</code> package
+      would block and wait for requests to finish instead of creating new connections.
+      To get the stricter behavior back, import the
+      <a href="https://godoc.org/golang.org/x/net/http2"><code>golang.org/x/net/http2</code></a> package
+      directly and set
+      <a href="https://godoc.org/golang.org/x/net/http2#Transport.StrictMaxConcurrentStreams"><code>Transport.StrictMaxConcurrentStreams</code></a> to
+      <code>true</code>.
+    </p>
+
+</dl><!-- net/http -->
+
+<dl id="net/url"><dt><a href="/pkg/net/url/">net/url</a></dt>
+  <dd>
+    <p><!-- CL 159157, CL 160178 -->
+      <a href="/pkg/net/url/#Parse"><code>Parse</code></a>,
+      <a href="/pkg/net/url/#ParseRequestURI"><code>ParseRequestURI</code></a>,
+      and
+      <a href="/pkg/net/url/#URL.Parse"><code>URL.Parse</code></a>
+      now return an
+      error for URLs containing ASCII control characters, which includes NULL,
+      tab, and newlines.
+    </p>
+
+</dl><!-- net/url -->
+
+<dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
+  <dd>
+    <p><!-- CL 146437 -->
+      The <a href="/pkg/net/http/httputil/#ReverseProxy"><code>ReverseProxy</code></a> now automatically
+      proxies WebSocket requests.
+    </p>
+
+</dl><!-- net/http/httputil -->
+
+<dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+  <dd>
+    <p><!-- CL 125443 -->
+      The new <a href="/pkg/os/#ProcessState.ExitCode"><code>ProcessState.ExitCode</code></a> method
+      returns the process's exit code.
+    </p>
+
+    <p><!-- CL 135075 -->
+      <code>ModeCharDevice</code> has been added to the <code>ModeType</code> bitmask, allowing for
+      <code>ModeDevice | ModeCharDevice</code> to be recovered when masking a
+      <a href="/pkg/os/#FileMode"><code>FileMode</code></a> with <code>ModeType</code>.
+    </p>
+
+    <p><!-- CL 139418 -->
+      The new function <a href="/pkg/os/#UserHomeDir"><code>UserHomeDir</code></a> returns the
+      current user's home directory.
+    </p>
+
+    <p><!-- CL 146020 -->
+      <a href="/pkg/os/#RemoveAll"><code>RemoveAll</code></a> now supports paths longer than 4096 characters
+      on most Unix systems.
+    </p>
+
+    <p><!-- CL 130676 -->
+      <a href="/pkg/os/#File.Sync"><code>File.Sync</code></a> now uses <code>F_FULLFSYNC</code> on macOS
+      to correctly flush the file contents to permanent storage.
+      This may cause the method to run more slowly than in previous releases.
+    </p>
+
+    <p><!--CL 155517 -->
+      <a href="/pkg/os/#File"><code>File</code></a> now supports
+      a <a href="/pkg/os/#File.SyscallConn"><code>SyscallConn</code></a>
+      method returning
+      a <a href="/pkg/syscall/#RawConn"><code>syscall.RawConn</code></a>
+      interface value. This may be used to invoke system-specific
+      operations on the underlying file descriptor.
+    </p>
+
+</dl><!-- os -->
+
+<dl id="path/filepath"><dt><a href="/pkg/path/filepath/">path/filepath</a></dt>
+  <dd>
+    <p><!-- CL 145220 -->
+      The <a href="/pkg/path/filepath/#IsAbs"><code>IsAbs</code></a> function now returns true when passed
+      a reserved filename on Windows such as <code>NUL</code>.
+      <a href="https://docs.microsoft.com/en-us/windows/desktop/fileio/naming-a-file#naming-conventions">List of reserved names.</a>
+    </p>
+
+</dl><!-- path/filepath -->
+
+<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+  <dd>
+    <p><!-- CL 33572 -->
+      A new <a href="/pkg/reflect#MapIter"><code>MapIter</code></a> type is
+      an iterator for ranging over a map. This type is exposed through the
+      <a href="/pkg/reflect#Value"><code>Value</code></a> type's new
+      <a href="/pkg/reflect#Value.MapRange"><code>MapRange</code></a> method.
+      This follows the same iteration semantics as a range statement, with <code>Next</code>
+      to advance the iterator, and <code>Key</code>/<code>Value</code> to access each entry.
+    </p>
+
+</dl><!-- reflect -->
+
+<dl id="regexp"><dt><a href="/pkg/regexp/">regexp</a></dt>
+  <dd>
+    <p><!-- CL 139784 -->
+      <a href="/pkg/regexp/#Regexp.Copy"><code>Copy</code></a> is no longer necessary
+      to avoid lock contention, so it has been given a partial deprecation comment.
+      <a href="/pkg/regexp/#Regexp.Copy"><code>Copy</code></a>
+      may still be appropriate if the reason for its use is to make two copies with
+      different <a href="/pkg/regexp/#Regexp.Longest"><code>Longest</code></a> settings.
+    </p>
+
+</dl><!-- regexp -->
+
+<dl id="runtime/debug"><dt><a href="/pkg/runtime/debug/">runtime/debug</a></dt>
+  <dd>
+    <p><!-- CL 144220 -->
+      A new <a href="/pkg/runtime/debug/#BuildInfo"><code>BuildInfo</code></a> type
+      exposes the build information read from the running binary, available only in
+      binaries built with module support. This includes the main package path, main
+      module information, and the module dependencies. This type is given through the
+      <a href="/pkg/runtime/debug/#ReadBuildInfo"><code>ReadBuildInfo</code></a> function
+      on <a href="/pkg/runtime/debug/#BuildInfo"><code>BuildInfo</code></a>.
+    </p>
+
+</dl><!-- runtime/debug -->
+
+<dl id="strings"><dt><a href="/pkg/strings/">strings</a></dt>
+  <dd>
+    <p><!-- CL 137855 -->
+      The new function <a href="/pkg/strings/#ReplaceAll"><code>ReplaceAll</code></a> returns a copy of
+      a string with all non-overlapping instances of a value replaced by another.
+    </p>
+
+    <p><!-- CL 145098 -->
+      A pointer to a zero-value <a href="/pkg/strings/#Reader"><code>Reader</code></a> is now
+      functionally equivalent to <a href="/pkg/strings/#NewReader"><code>NewReader</code></a><code>(nil)</code>.
+      Prior to Go 1.12, the former could not be used as a substitute for the latter in all cases.
+    </p>
+
+    <p><!-- CL 122835 -->
+      The new <a href="/pkg/strings/#Builder.Cap"><code>Builder.Cap</code></a> method returns the capacity of the builder's underlying byte slice.
+    </p>
+
+    <p><!-- CL 131495 -->
+      The character mapping functions <a href="/pkg/strings/#Map"><code>Map</code></a>,
+      <a href="/pkg/strings/#Title"><code>Title</code></a>,
+      <a href="/pkg/strings/#ToLower"><code>ToLower</code></a>,
+      <a href="/pkg/strings/#ToLowerSpecial"><code>ToLowerSpecial</code></a>,
+      <a href="/pkg/strings/#ToTitle"><code>ToTitle</code></a>,
+      <a href="/pkg/strings/#ToTitleSpecial"><code>ToTitleSpecial</code></a>,
+      <a href="/pkg/strings/#ToUpper"><code>ToUpper</code></a>, and
+      <a href="/pkg/strings/#ToUpperSpecial"><code>ToUpperSpecial</code></a>
+      now always guarantee to return valid UTF-8. In earlier releases, if the input was invalid UTF-8 but no character replacements
+      needed to be applied, these routines incorrectly returned the invalid UTF-8 unmodified.
+    </p>
+
+</dl><!-- strings -->
+
+<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
+  <dd>
+    <p><!-- CL 138595 -->
+      64-bit inodes are now supported on FreeBSD 12. Some types have been adjusted accordingly.
+    </p>
+
+    <p><!-- CL 125456 -->
+      The Unix socket
+      (<a href="https://blogs.msdn.microsoft.com/commandline/2017/12/19/af_unix-comes-to-windows/"><code>AF_UNIX</code></a>)
+      address family is now supported for compatible versions of Windows.
+    </p>
+
+    <p><!-- CL 147117 -->
+      The new function  <a href="/pkg/syscall/?GOOS=windows&GOARCH=amd64#Syscall18"><code>Syscall18</code></a>
+      has been introduced for Windows, allowing for calls with up to 18 arguments.
+    </p>
+
+</dl><!-- syscall -->
+
+<dl id="syscall/js"><dt><a href="/pkg/syscall/js/">syscall/js</a></dt>
+  <dd>
+    <p><!-- CL 153559 -->
+    <p>
+      The <code>Callback</code> type and <code>NewCallback</code> function have been renamed;
+      they are now called
+      <a href="/pkg/syscall/js/?GOOS=js&GOARCH=wasm#Func"><code>Func</code></a> and
+      <a href="/pkg/syscall/js/?GOOS=js&GOARCH=wasm#FuncOf"><code>FuncOf</code></a>, respectively.
+      This is a breaking change, but WebAssembly support is still experimental
+      and not yet subject to the
+      <a href="/doc/go1compat">Go 1 compatibility promise</a>. Any code using the
+      old names will need to be updated.
+    </p>
+
+    <p><!-- CL 141644 -->
+      If a type implements the new
+      <a href="/pkg/syscall/js/?GOOS=js&GOARCH=wasm#Wrapper"><code>Wrapper</code></a>
+      interface,
+      <a href="/pkg/syscall/js/?GOOS=js&GOARCH=wasm#ValueOf"><code>ValueOf</code></a>
+      will use it to return the JavaScript value for that type.
+    </p>
+
+    <p><!-- CL 143137 -->
+      The meaning of the zero
+      <a href="/pkg/syscall/js/?GOOS=js&GOARCH=wasm#Value"><code>Value</code></a>
+      has changed. It now represents the JavaScript <code>undefined</code> value
+      instead of the number zero.
+      This is a breaking change, but WebAssembly support is still experimental
+      and not yet subject to the
+      <a href="/doc/go1compat">Go 1 compatibility promise</a>. Any code relying on
+      the zero <a href="/pkg/syscall/js/?GOOS=js&GOARCH=wasm#Value"><code>Value</code></a>
+      to mean the number zero will need to be updated.
+    </p>
+
+    <p><!-- CL 144384 -->
+      The new
+      <a href="/pkg/syscall/js/?GOOS=js&GOARCH=wasm#Value.Truthy"><code>Value.Truthy</code></a>
+      method reports the
+      <a href="https://developer.mozilla.org/en-US/docs/Glossary/Truthy">JavaScript "truthiness"</a>
+      of a given value.
+    </p>
+
+</dl><!-- syscall/js -->
+
+<dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
+  <dd>
+    <p><!-- CL 139258 -->
+    The <a href="/cmd/go/#hdr-Testing_flags"><code>-benchtime</code></a> flag now supports setting an explicit iteration count instead of a time when the value ends with an "<code>x</code>". For example, <code>-benchtime=100x</code> runs the benchmark 100 times.
+    </p>
+
+</dl><!-- testing -->
+
+<dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
+  <dd>
+    <p><!-- CL 142217 -->
+      When executing a template, long context values are no longer truncated in errors.
+    </p>
+    <p>
+      <code>executing "tmpl" at <.very.deep.context.v...>: map has no entry for key "notpresent"</code>
+    </p>
+    <p>
+      is now
+    </p>
+    <p>
+      <code>executing "tmpl" at <.very.deep.context.value.notpresent>: map has no entry for key "notpresent"</code>
+    </p>
+
+  <dd>
+    <p><!-- CL 143097 -->
+      If a user-defined function called by a template panics, the
+      panic is now caught and returned as an error by
+      the <code>Execute</code> or <code>ExecuteTemplate</code> method.
+    </p>
+</dl><!-- text/template -->
+
+<dl id="time"><dt><a href="/pkg/time/">time</a></dt>
+  <dd>
+    <p><!-- CL 151299 -->
+      The time zone database in <code>$GOROOT/lib/time/zoneinfo.zip</code>
+      has been updated to version 2018i. Note that this ZIP file is
+      only used if a time zone database is not provided by the operating
+      system.
+    </p>
+
+</dl><!-- time -->
+
+<dl id="unsafe"><dt><a href="/pkg/unsafe/">unsafe</a></dt>
+  <dd>
+    <p><!-- CL 146058 -->
+      It is invalid to convert a nil <code>unsafe.Pointer</code> to <code>uintptr</code> and back with arithmetic.
+      (This was already invalid, but will now cause the compiler to misbehave.)
+    </p>
+
+</dl><!-- unsafe -->

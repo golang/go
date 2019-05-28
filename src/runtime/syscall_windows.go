@@ -25,18 +25,32 @@ func (c *wincallbackcontext) setCleanstack(cleanstack bool) {
 var (
 	cbs     callbacks
 	cbctxts **wincallbackcontext = &cbs.ctxt[0] // to simplify access to cbs.ctxt in sys_windows_*.s
-
-	callbackasm byte // type isn't really byte, it's code in runtime
 )
+
+func callbackasm()
 
 // callbackasmAddr returns address of runtime.callbackasm
 // function adjusted by i.
-// runtime.callbackasm is just a series of CALL instructions
-// (each is 5 bytes long), and we want callback to arrive at
+// On x86 and amd64, runtime.callbackasm is a series of CALL instructions,
+// and we want callback to arrive at
 // correspondent call instruction instead of start of
 // runtime.callbackasm.
+// On ARM, runtime.callbackasm is a series of mov and branch instructions.
+// R12 is loaded with the callback index. Each entry is two instructions,
+// hence 8 bytes.
 func callbackasmAddr(i int) uintptr {
-	return uintptr(add(unsafe.Pointer(&callbackasm), uintptr(i*5)))
+	var entrySize int
+	switch GOARCH {
+	default:
+		panic("unsupported architecture")
+	case "386", "amd64":
+		entrySize = 5
+	case "arm":
+		// On ARM, each entry is a MOV instruction
+		// followed by a branch instruction
+		entrySize = 8
+	}
+	return funcPC(callbackasm) + uintptr(i*entrySize)
 }
 
 //go:linkname compileCallback syscall.compileCallback
@@ -90,9 +104,13 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 
 const _LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
 
+// When available, this function will use LoadLibraryEx with the filename
+// parameter and the important SEARCH_SYSTEM32 argument. But on systems that
+// do not have that option, absoluteFilepath should contain a fallback
+// to the full path inside of system32 for use with vanilla LoadLibrary.
 //go:linkname syscall_loadsystemlibrary syscall.loadsystemlibrary
 //go:nosplit
-func syscall_loadsystemlibrary(filename *uint16) (handle, err uintptr) {
+func syscall_loadsystemlibrary(filename *uint16, absoluteFilepath *uint16) (handle, err uintptr) {
 	lockOSThread()
 	defer unlockOSThread()
 	c := &getg().m.syscall
@@ -107,15 +125,9 @@ func syscall_loadsystemlibrary(filename *uint16) (handle, err uintptr) {
 		}{filename, 0, _LOAD_LIBRARY_SEARCH_SYSTEM32}
 		c.args = uintptr(noescape(unsafe.Pointer(&args)))
 	} else {
-		// User doesn't have KB2533623 installed. The caller
-		// wanted to only load the filename DLL from the
-		// System32 directory but that facility doesn't exist,
-		// so just load it the normal way. This is a potential
-		// security risk, but so is not installing security
-		// updates.
 		c.fn = getLoadLibrary()
 		c.n = 1
-		c.args = uintptr(noescape(unsafe.Pointer(&filename)))
+		c.args = uintptr(noescape(unsafe.Pointer(&absoluteFilepath)))
 	}
 
 	cgocall(asmstdcallAddr, unsafe.Pointer(c))
@@ -215,6 +227,19 @@ func syscall_Syscall12(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, 
 //go:linkname syscall_Syscall15 syscall.Syscall15
 //go:nosplit
 func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2, err uintptr) {
+	lockOSThread()
+	defer unlockOSThread()
+	c := &getg().m.syscall
+	c.fn = fn
+	c.n = nargs
+	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
+	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+	return c.r1, c.r2, c.err
+}
+
+//go:linkname syscall_Syscall18 syscall.Syscall18
+//go:nosplit
+func syscall_Syscall18(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18 uintptr) (r1, r2, err uintptr) {
 	lockOSThread()
 	defer unlockOSThread()
 	c := &getg().m.syscall

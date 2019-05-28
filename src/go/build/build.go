@@ -12,6 +12,8 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/token"
+	"internal/goroot"
+	"internal/goversion"
 	"io"
 	"io/ioutil"
 	"log"
@@ -33,7 +35,7 @@ type Context struct {
 	GOOS        string // target operating system
 	GOROOT      string // Go root
 	GOPATH      string // Go path
-	CgoEnabled  bool   // whether cgo can be used
+	CgoEnabled  bool   // whether cgo files are included
 	UseAllFiles bool   // use files regardless of +build lines, file names
 	Compiler    string // compiler to assume when computing target paths
 
@@ -42,8 +44,10 @@ type Context struct {
 	// Clients creating a new context may customize BuildTags, which
 	// defaults to empty, but it is usually an error to customize ReleaseTags,
 	// which defaults to the list of Go releases the current release is compatible with.
+	// BuildTags is not set for the Default build Context.
 	// In addition to the BuildTags and ReleaseTags, build constraints
 	// consider the values of GOARCH and GOOS as satisfied tags.
+	// The last element in ReleaseTags is assumed to be the current release.
 	BuildTags   []string
 	ReleaseTags []string
 
@@ -289,14 +293,14 @@ func defaultContext() Context {
 	c.GOPATH = envOr("GOPATH", defaultGOPATH())
 	c.Compiler = runtime.Compiler
 
-	// Each major Go release in the Go 1.x series should add a tag here.
-	// Old tags should not be removed. That is, the go1.x tag is present
-	// in all releases >= Go 1.x. Code that requires Go 1.x or later should
-	// say "+build go1.x", and code that should only be built before Go 1.x
-	// (perhaps it is the stub to use in that case) should say "+build !go1.x".
-	// NOTE: If you add to this list, also update the doc comment in doc.go.
-	const version = 11 // go1.11
-	for i := 1; i <= version; i++ {
+	// Each major Go release in the Go 1.x series adds a new
+	// "go1.x" release tag. That is, the go1.x tag is present in
+	// all releases >= Go 1.x. Code that requires Go 1.x or later
+	// should say "+build go1.x", and code that should only be
+	// built before Go 1.x (perhaps it is the stub to use in that
+	// case) should say "+build !go1.x".
+	// The last element in ReleaseTags is the current release.
+	for i := 1; i <= goversion.Version; i++ {
 		c.ReleaseTags = append(c.ReleaseTags, "go1."+strconv.Itoa(i))
 	}
 
@@ -543,7 +547,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 		inTestdata := func(sub string) bool {
 			return strings.Contains(sub, "/testdata/") || strings.HasSuffix(sub, "/testdata") || strings.HasPrefix(sub, "testdata/") || sub == "testdata"
 		}
-		if ctxt.GOROOT != "" && ctxt.Compiler != "gccgo" {
+		if ctxt.GOROOT != "" {
 			root := ctxt.joinPath(ctxt.GOROOT, "src")
 			if sub, ok := ctxt.hasSubdir(root, p.Dir); ok && !inTestdata(sub) {
 				p.Goroot = true
@@ -643,20 +647,30 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 
 		// Determine directory from import path.
 		if ctxt.GOROOT != "" {
-			dir := ctxt.joinPath(ctxt.GOROOT, "src", path)
-			if ctxt.Compiler != "gccgo" {
-				isDir := ctxt.isDir(dir)
-				binaryOnly = !isDir && mode&AllowBinary != 0 && pkga != "" && ctxt.isFile(ctxt.joinPath(ctxt.GOROOT, pkga))
-				if isDir || binaryOnly {
-					p.Dir = dir
-					p.Goroot = true
-					p.Root = ctxt.GOROOT
-					goto Found
-				}
+			// If the package path starts with "vendor/", only search GOROOT before
+			// GOPATH if the importer is also within GOROOT. That way, if the user has
+			// vendored in a package that is subsequently included in the standard
+			// distribution, they'll continue to pick up their own vendored copy.
+			gorootFirst := srcDir == "" || !strings.HasPrefix(path, "vendor/")
+			if !gorootFirst {
+				_, gorootFirst = ctxt.hasSubdir(ctxt.GOROOT, srcDir)
 			}
-			tried.goroot = dir
+			if gorootFirst {
+				dir := ctxt.joinPath(ctxt.GOROOT, "src", path)
+				if ctxt.Compiler != "gccgo" {
+					isDir := ctxt.isDir(dir)
+					binaryOnly = !isDir && mode&AllowBinary != 0 && pkga != "" && ctxt.isFile(ctxt.joinPath(ctxt.GOROOT, pkga))
+					if isDir || binaryOnly {
+						p.Dir = dir
+						p.Goroot = true
+						p.Root = ctxt.GOROOT
+						goto Found
+					}
+				}
+				tried.goroot = dir
+			}
 		}
-		if ctxt.Compiler == "gccgo" && isStandardPackage(path) {
+		if ctxt.Compiler == "gccgo" && goroot.IsStandardPackage(ctxt.GOROOT, ctxt.Compiler, path) {
 			p.Dir = ctxt.joinPath(ctxt.GOROOT, "src", path)
 			p.Goroot = true
 			p.Root = ctxt.GOROOT
@@ -672,6 +686,24 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 				goto Found
 			}
 			tried.gopath = append(tried.gopath, dir)
+		}
+
+		// If we tried GOPATH first due to a "vendor/" prefix, fall back to GOPATH.
+		// That way, the user can still get useful results from 'go list' for
+		// standard-vendored paths passed on the command line.
+		if ctxt.GOROOT != "" && tried.goroot == "" {
+			dir := ctxt.joinPath(ctxt.GOROOT, "src", path)
+			if ctxt.Compiler != "gccgo" {
+				isDir := ctxt.isDir(dir)
+				binaryOnly = !isDir && mode&AllowBinary != 0 && pkga != "" && ctxt.isFile(ctxt.joinPath(ctxt.GOROOT, pkga))
+				if isDir || binaryOnly {
+					p.Dir = dir
+					p.Goroot = true
+					p.Root = ctxt.GOROOT
+					goto Found
+				}
+			}
+			tried.goroot = dir
 		}
 
 		// package was not found
@@ -714,6 +746,11 @@ Found:
 	// non-nil *Package returned when an error occurs.
 	// We need to do this before we return early on FindOnly flag.
 	if IsLocalImport(path) && !ctxt.isDir(p.Dir) {
+		if ctxt.Compiler == "gccgo" && p.Goroot {
+			// gccgo has no sources for GOROOT packages.
+			return p, nil
+		}
+
 		// package was not found
 		return p, fmt.Errorf("cannot find package %q in:\n\t%s", path, p.Dir)
 	}
@@ -965,6 +1002,7 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode, 
 	}
 
 	// If modules are not enabled, then the in-process code works fine and we should keep using it.
+	// TODO(bcmills): This assumes that the default is "auto" instead of "on".
 	switch os.Getenv("GO111MODULE") {
 	case "off":
 		return errNoModules
@@ -978,6 +1016,13 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode, 
 				return errNoModules
 			}
 		}
+	}
+
+	// If the source directory is in GOROOT, then the in-process code works fine
+	// and we should keep using it. Moreover, the 'go list' approach below doesn't
+	// take standard-library vendoring into account and will fail.
+	if _, ok := ctxt.hasSubdir(filepath.Join(ctxt.GOROOT, "src"), srcDir); ok {
+		return errNoModules
 	}
 
 	// For efficiency, if path is a standard library package, let the usual lookup code handle it.
@@ -1006,7 +1051,12 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode, 
 	}
 
 	cmd := exec.Command("go", "list", "-compiler="+ctxt.Compiler, "-tags="+strings.Join(ctxt.BuildTags, ","), "-installsuffix="+ctxt.InstallSuffix, "-f={{.Dir}}\n{{.ImportPath}}\n{{.Root}}\n{{.Goroot}}\n", path)
+
+	// TODO(bcmills): This is wrong if srcDir is in a vendor directory, or if
+	// srcDir is in some module dependency of the main module. The main module
+	// chooses what the import paths mean: individual packages don't.
 	cmd.Dir = srcDir
+
 	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -1633,6 +1683,9 @@ func (ctxt *Context) match(name string, allTags map[string]bool) bool {
 		return true
 	}
 	if ctxt.GOOS == "android" && name == "linux" {
+		return true
+	}
+	if ctxt.GOOS == "illumos" && name == "solaris" {
 		return true
 	}
 

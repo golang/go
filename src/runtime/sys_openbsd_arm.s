@@ -86,8 +86,8 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT,$12
-	MOVW	$0x12B, R12
-	SWI	$0			// sys_getthrid
+	MOVW	$299, R12		// sys_getthrid
+	SWI	$0
 					// arg 1 - tid, already in R0
 	MOVW	sig+0(FP), R1		// arg 2 - signum
 	MOVW	$0, R2			// arg 3 - tcb
@@ -143,8 +143,8 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVW	flags+8(FP), R2		// arg 2 - flags
 	MOVW	$75, R12		// sys_madvise
 	SWI	$0
-	MOVW.CS	$0, R8			// crash on syscall failure
-	MOVW.CS	R8, (R8)
+	MOVW.CS	$-1, R0
+	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·setitimer(SB),NOSPLIT,$0
@@ -371,8 +371,9 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
 	B	runtime·armPublicationBarrier(SB)
 
-// TODO(jsing): Implement.
 TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
-	MOVW	$5, R0
-	MOVW	R0, (R0)
+	MOVM.WP	[R1, R2, R3, R12], (R13)
+	MOVW	$330, R12		// sys___get_tcb
+	SWI	$0
+	MOVM.IAW (R13), [R1, R2, R3, R12]
 	RET

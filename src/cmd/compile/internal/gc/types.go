@@ -32,9 +32,7 @@ const (
 
 	TBOOL = types.TBOOL
 
-	TPTR32 = types.TPTR32
-	TPTR64 = types.TPTR64
-
+	TPTR       = types.TPTR
 	TFUNC      = types.TFUNC
 	TSLICE     = types.TSLICE
 	TARRAY     = types.TARRAY

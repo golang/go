@@ -38,9 +38,10 @@ import (
 const (
 	inlineMaxBudget       = 80
 	inlineExtraAppendCost = 0
-	inlineExtraCallCost   = inlineMaxBudget // default is do not inline, -l=4 enables by using 1 instead.
-	inlineExtraPanicCost  = 1               // do not penalize inlining panics.
-	inlineExtraThrowCost  = inlineMaxBudget // with current (2018-05/1.11) code, inlining runtime.throw does not help.
+	// default is to inline if there's at most one call. -l=4 overrides this by using 1 instead.
+	inlineExtraCallCost  = 57              // 57 was benchmarked to provided most benefit with no bad surprises; see https://github.com/golang/go/issues/19348#issuecomment-439370742
+	inlineExtraPanicCost = 1               // do not penalize inlining panics.
+	inlineExtraThrowCost = inlineMaxBudget // with current (2018-05/1.11) code, inlining runtime.throw does not help.
 
 	inlineBigFunctionNodes   = 5000 // Functions with this many nodes are considered "big".
 	inlineBigFunctionMaxCost = 20   // Max cost of inlinee when inlining into a "big" function.
@@ -71,9 +72,7 @@ func fnpkg(fn *Node) *types.Pkg {
 func typecheckinl(fn *Node) {
 	lno := setlineno(fn)
 
-	if flagiexport {
-		expandInline(fn)
-	}
+	expandInline(fn)
 
 	// typecheckinl is only for imported functions;
 	// their bodies may refer to unsafe as long as the package
@@ -89,12 +88,9 @@ func typecheckinl(fn *Node) {
 		fmt.Printf("typecheck import [%v] %L { %#v }\n", fn.Sym, fn, asNodes(fn.Func.Inl.Body))
 	}
 
-	save_safemode := safemode
-	safemode = false
-
 	savefn := Curfn
 	Curfn = fn
-	typecheckslice(fn.Func.Inl.Body, Etop)
+	typecheckslice(fn.Func.Inl.Body, ctxStmt)
 	Curfn = savefn
 
 	// During typechecking, declarations are added to
@@ -103,8 +99,6 @@ func typecheckinl(fn *Node) {
 	// may be called multiple times.)
 	fn.Func.Inl.Dcl = append(fn.Func.Inl.Dcl, fn.Func.Dcl...)
 	fn.Func.Dcl = nil
-
-	safemode = save_safemode
 
 	lineno = lno
 }
@@ -145,6 +139,13 @@ func caninl(fn *Node) {
 	// function makes assumptions about its argument frame layout.
 	if fn.Func.Pragma&CgoUnsafeArgs != 0 {
 		reason = "marked go:cgo_unsafe_args"
+		return
+	}
+
+	// If marked as "go:uintptrescapes", don't inline, since the
+	// escape information is lost during inlining.
+	if fn.Func.Pragma&UintptrEscapes != 0 {
+		reason = "marked as having an escaping uintptr argument"
 		return
 	}
 
@@ -288,10 +289,6 @@ func (v *hairyVisitor) visit(n *Node) bool {
 	switch n.Op {
 	// Call is okay if inlinable and we have the budget for the body.
 	case OCALLFUNC:
-		if isIntrinsicCall(n) {
-			v.budget--
-			break
-		}
 		// Functions that call runtime.getcaller{pc,sp} can not be inlined
 		// because getcaller{pc,sp} expect a pointer to the caller's first argument.
 		//
@@ -306,6 +303,11 @@ func (v *hairyVisitor) visit(n *Node) bool {
 				v.budget -= inlineExtraThrowCost
 				break
 			}
+		}
+
+		if isIntrinsicCall(n) {
+			v.budget--
+			break
 		}
 
 		if fn := n.Left.Func; fn != nil && fn.Inl != nil {
@@ -341,10 +343,6 @@ func (v *hairyVisitor) visit(n *Node) bool {
 				// runtime.heapBits.next even though
 				// it calls slow-path
 				// runtime.heapBits.nextArena.
-				//
-				// TODO(austin): Once mid-stack
-				// inlining is the default, remove
-				// this special case.
 				break
 			}
 		}
@@ -376,7 +374,7 @@ func (v *hairyVisitor) visit(n *Node) bool {
 		OFORUNTIL,
 		OSELECT,
 		OTYPESW,
-		OPROC,
+		OGO,
 		ODEFER,
 		ODCLTYPE, // can't print yet
 		OBREAK,
@@ -406,16 +404,6 @@ func (v *hairyVisitor) visit(n *Node) bool {
 	}
 
 	v.budget--
-	// TODO(mdempsky/josharian): Hacks to appease toolstash; remove.
-	// See issue 17566 and CL 31674 for discussion.
-	switch n.Op {
-	case OSTRUCTKEY:
-		v.budget--
-	case OSLICE, OSLICEARR, OSLICESTR:
-		v.budget--
-	case OSLICE3, OSLICE3ARR:
-		v.budget -= 2
-	}
 
 	// When debugging, don't stop early, to get full cost of inlining this function
 	if v.budget < 0 && Debug['m'] < 2 {
@@ -561,7 +549,7 @@ func inlnode(n *Node, maxCost int32) *Node {
 
 	switch n.Op {
 	// inhibit inlining of their argument
-	case ODEFER, OPROC:
+	case ODEFER, OGO:
 		switch n.Left.Op {
 		case OCALLFUNC, OCALLMETH:
 			n.Left.SetNoInline(true)
@@ -598,24 +586,13 @@ func inlnode(n *Node, maxCost int32) *Node {
 	}
 
 	inlnodelist(n.List, maxCost)
-	switch n.Op {
-	case OBLOCK:
+	if n.Op == OBLOCK {
 		for _, n2 := range n.List.Slice() {
 			if n2.Op == OINLCALL {
 				inlconv2stmt(n2)
 			}
 		}
-
-	case ORETURN, OCALLFUNC, OCALLMETH, OCALLINTER, OAPPEND, OCOMPLEX:
-		// if we just replaced arg in f(arg()) or return arg with an inlined call
-		// and arg returns multiple values, glue as list
-		if n.List.Len() == 1 && n.List.First().Op == OINLCALL && n.List.First().Rlist.Len() > 1 {
-			n.List.Set(inlconv2list(n.List.First()))
-			break
-		}
-		fallthrough
-
-	default:
+	} else {
 		s := n.List.Slice()
 		for i1, n1 := range s {
 			if n1 != nil && n1.Op == OINLCALL {
@@ -629,7 +606,7 @@ func inlnode(n *Node, maxCost int32) *Node {
 		n.Rlist.Set(inlconv2list(n.Rlist.First()))
 		n.Op = OAS2
 		n.SetTypecheck(0)
-		n = typecheck(n, Etop)
+		n = typecheck(n, ctxStmt)
 	} else {
 		s := n.Rlist.Slice()
 		for i1, n1 := range s {
@@ -815,23 +792,6 @@ func (v *reassignVisitor) visitList(l Nodes) *Node {
 	return nil
 }
 
-// The result of mkinlcall MUST be assigned back to n, e.g.
-// 	n.Left = mkinlcall(n.Left, fn, isddd)
-func mkinlcall(n *Node, fn *Node, maxCost int32) *Node {
-	save_safemode := safemode
-
-	// imported functions may refer to unsafe as long as the
-	// package was marked safe during import (already checked).
-	pkg := fnpkg(fn)
-
-	if pkg != localpkg && pkg != nil {
-		safemode = false
-	}
-	n = mkinlcall1(n, fn, maxCost)
-	safemode = save_safemode
-	return n
-}
-
 func tinlvar(t *types.Field, inlvars map[*Node]*Node) *Node {
 	if n := asNode(t.Nname); n != nil && !n.isBlank() {
 		inlvar := inlvars[n]
@@ -841,7 +801,7 @@ func tinlvar(t *types.Field, inlvars map[*Node]*Node) *Node {
 		return inlvar
 	}
 
-	return typecheck(nblank, Erv|Easgn)
+	return typecheck(nblank, ctxExpr|ctxAssign)
 }
 
 var inlgen int
@@ -851,9 +811,9 @@ var inlgen int
 // On return ninit has the parameter assignments, the nbody is the
 // inlined function body and list, rlist contain the input, output
 // parameters.
-// The result of mkinlcall1 MUST be assigned back to n, e.g.
-// 	n.Left = mkinlcall1(n.Left, fn, isddd)
-func mkinlcall1(n, fn *Node, maxCost int32) *Node {
+// The result of mkinlcall MUST be assigned back to n, e.g.
+// 	n.Left = mkinlcall(n.Left, fn, isddd)
+func mkinlcall(n, fn *Node, maxCost int32) *Node {
 	if fn.Func.Inl == nil {
 		// No inlinable body.
 		return n
@@ -893,6 +853,10 @@ func mkinlcall1(n, fn *Node, maxCost int32) *Node {
 		fmt.Printf("%v: Before inlining: %+v\n", n.Line(), n)
 	}
 
+	if ssaDump != "" && ssaDump == Curfn.funcname() {
+		ssaDumpInlined = append(ssaDumpInlined, fn)
+	}
+
 	ninit := n.Ninit
 
 	// Make temp names to use instead of the originals.
@@ -919,21 +883,21 @@ func mkinlcall1(n, fn *Node, maxCost int32) *Node {
 				}
 
 				if v.Name.Byval() {
-					iv := typecheck(inlvar(v), Erv)
+					iv := typecheck(inlvar(v), ctxExpr)
 					ninit.Append(nod(ODCL, iv, nil))
-					ninit.Append(typecheck(nod(OAS, iv, o), Etop))
+					ninit.Append(typecheck(nod(OAS, iv, o), ctxStmt))
 					inlvars[v] = iv
 				} else {
 					addr := newname(lookup("&" + v.Sym.Name))
 					addr.Type = types.NewPtr(v.Type)
-					ia := typecheck(inlvar(addr), Erv)
+					ia := typecheck(inlvar(addr), ctxExpr)
 					ninit.Append(nod(ODCL, ia, nil))
-					ninit.Append(typecheck(nod(OAS, ia, nod(OADDR, o, nil)), Etop))
+					ninit.Append(typecheck(nod(OAS, ia, nod(OADDR, o, nil)), ctxStmt))
 					inlvars[addr] = ia
 
 					// When capturing by reference, all occurrence of the captured var
 					// must be substituted with dereference of the temporary address
-					inlvars[v] = typecheck(nod(OIND, ia, nil), Erv)
+					inlvars[v] = typecheck(nod(ODEREF, ia, nil), ctxExpr)
 				}
 			}
 		}
@@ -949,7 +913,7 @@ func mkinlcall1(n, fn *Node, maxCost int32) *Node {
 		if ln.isParamStackCopy() { // ignore the on-stack copy of a parameter that moved to the heap
 			continue
 		}
-		inlvars[ln] = typecheck(inlvar(ln), Erv)
+		inlvars[ln] = typecheck(inlvar(ln), ctxExpr)
 		if ln.Class() == PPARAM || ln.Name.Param.Stackcopy != nil && ln.Name.Param.Stackcopy.Class() == PPARAM {
 			ninit.Append(nod(ODCL, inlvars[ln], nil))
 		}
@@ -972,7 +936,7 @@ func mkinlcall1(n, fn *Node, maxCost int32) *Node {
 		mpos := t.Pos
 		if n := asNode(t.Nname); n != nil && !n.isBlank() {
 			m = inlvar(n)
-			m = typecheck(m, Erv)
+			m = typecheck(m, ctxExpr)
 			inlvars[n] = m
 		} else {
 			// anonymous return values, synthesize names for use in assignment that replaces return
@@ -1012,7 +976,7 @@ func mkinlcall1(n, fn *Node, maxCost int32) *Node {
 				Fatalf("method call without receiver: %+v", n)
 			}
 			ras := nod(OAS, tinlvar(rcv, inlvars), n.Left.Left)
-			ras = typecheck(ras, Etop)
+			ras = typecheck(ras, ctxStmt)
 			ninit.Append(ras)
 		} else {
 			// For T.M(...), add the receiver parameter to
@@ -1029,7 +993,7 @@ func mkinlcall1(n, fn *Node, maxCost int32) *Node {
 		// For ordinary parameters or variadic parameters in
 		// dotted calls, just add the variable to the
 		// assignment list, and we're done.
-		if !param.Isddd() || n.Isddd() {
+		if !param.IsDDD() || n.IsDDD() {
 			as.List.Append(tinlvar(param, inlvars))
 			continue
 		}
@@ -1038,9 +1002,6 @@ func mkinlcall1(n, fn *Node, maxCost int32) *Node {
 		// to pass as a slice.
 
 		numvals := n.List.Len()
-		if numvals == 1 && n.List.First().Type.IsFuncArgStruct() {
-			numvals = n.List.First().Type.NumFields()
-		}
 
 		x := as.List.Len()
 		for as.List.Len() < numvals {
@@ -1059,19 +1020,19 @@ func mkinlcall1(n, fn *Node, maxCost int32) *Node {
 	}
 
 	if as.Rlist.Len() != 0 {
-		as = typecheck(as, Etop)
+		as = typecheck(as, ctxStmt)
 		ninit.Append(as)
 	}
 
 	if vas != nil {
-		vas = typecheck(vas, Etop)
+		vas = typecheck(vas, ctxStmt)
 		ninit.Append(vas)
 	}
 
 	// Zero the return parameters.
 	for _, n := range retvars {
 		ras := nod(OAS, n, nil)
-		ras = typecheck(ras, Etop)
+		ras = typecheck(ras, ctxStmt)
 		ninit.Append(ras)
 	}
 
@@ -1084,6 +1045,16 @@ func mkinlcall1(n, fn *Node, maxCost int32) *Node {
 		parent = b.InliningIndex()
 	}
 	newIndex := Ctxt.InlTree.Add(parent, n.Pos, fn.Sym.Linksym())
+
+	// Add an inline mark just before the inlined body.
+	// This mark is inline in the code so that it's a reasonable spot
+	// to put a breakpoint. Not sure if that's really necessary or not
+	// (in which case it could go at the end of the function instead).
+	// Note issue 28603.
+	inlMark := nod(OINLMARK, nil, nil)
+	inlMark.Pos = n.Pos.WithIsStmt()
+	inlMark.Xoffset = int64(newIndex)
+	ninit.Append(inlMark)
 
 	if genDwarfInline > 0 {
 		if !fn.Sym.Linksym().WasInlined() {
@@ -1102,10 +1073,10 @@ func mkinlcall1(n, fn *Node, maxCost int32) *Node {
 
 	body := subst.list(asNodes(fn.Func.Inl.Body))
 
-	lab := nod(OLABEL, retlabel, nil)
+	lab := nodSym(OLABEL, nil, retlabel)
 	body = append(body, lab)
 
-	typecheckslice(body, Etop)
+	typecheckslice(body, ctxStmt)
 
 	if genDwarfInline > 0 {
 		for _, v := range inlfvars {
@@ -1188,7 +1159,7 @@ func argvar(t *types.Type, i int) *Node {
 // function call.
 type inlsubst struct {
 	// Target of the goto substituted in place of a return.
-	retlabel *Node
+	retlabel *types.Sym
 
 	// Temporary result variables.
 	retvars []*Node
@@ -1248,7 +1219,7 @@ func (subst *inlsubst) node(n *Node) *Node {
 
 	//		dump("Return before substitution", n);
 	case ORETURN:
-		m := nod(OGOTO, subst.retlabel, nil)
+		m := nodSym(OGOTO, nil, subst.retlabel)
 		m.Ninit.Set(subst.list(n.Ninit))
 
 		if len(subst.retvars) != 0 && n.List.Len() != 0 {
@@ -1261,12 +1232,12 @@ func (subst *inlsubst) node(n *Node) *Node {
 				as.List.Append(n)
 			}
 			as.Rlist.Set(subst.list(n.List))
-			as = typecheck(as, Etop)
+			as = typecheck(as, ctxStmt)
 			m.Ninit.Append(as)
 		}
 
-		typecheckslice(m.Ninit.Slice(), Etop)
-		m = typecheck(m, Etop)
+		typecheckslice(m.Ninit.Slice(), ctxStmt)
+		m = typecheck(m, ctxStmt)
 
 		//		dump("Return after substitution", m);
 		return m
@@ -1275,8 +1246,8 @@ func (subst *inlsubst) node(n *Node) *Node {
 		m := n.copy()
 		m.Pos = subst.updatedPos(m.Pos)
 		m.Ninit.Set(nil)
-		p := fmt.Sprintf("%s·%d", n.Left.Sym.Name, inlgen)
-		m.Left = newname(lookup(p))
+		p := fmt.Sprintf("%s·%d", n.Sym.Name, inlgen)
+		m.Sym = lookup(p)
 
 		return m
 	}

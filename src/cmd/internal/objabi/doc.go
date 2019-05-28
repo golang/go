@@ -22,7 +22,7 @@
 //
 // The file format is:
 //
-//	- magic header: "\x00\x00go19ld"
+//	- magic header: "\x00go112ld"
 //	- byte 1 - version number
 //	- sequence of strings giving dependencies (imported packages)
 //	- empty string (marks end of sequence)
@@ -38,7 +38,7 @@
 //	- data, the content of the defined symbols
 //	- sequence of defined symbols
 //	- byte 0xff (marks end of sequence)
-//	- magic footer: "\xff\xffgo19ld"
+//	- magic footer: "\xffgo112ld"
 //
 // All integers are stored in a zigzag varint format.
 // See golang.org/s/go12symtab for a definition.
@@ -46,7 +46,7 @@
 // Data blocks and strings are both stored as an integer
 // followed by that many bytes.
 //
-// A symbol reference is a string name followed by a version.
+// A symbol reference is a string name followed by an ABI or -1 for static.
 //
 // A symbol points to other symbols using an index into the symbol
 // reference sequence. Index 0 corresponds to a nil symbol pointer.
@@ -57,7 +57,7 @@
 //
 //	- byte 0xfe (sanity check for synchronization)
 //	- type [byte]
-//	- name & version [symref index]
+//	- name & ABI [symref index]
 //	- flags [int]
 //		1<<0 dupok
 //		1<<1 local

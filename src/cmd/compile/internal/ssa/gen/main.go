@@ -56,6 +56,7 @@ type opData struct {
 	hasSideEffects    bool   // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
 	zeroWidth         bool   // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
 	symEffect         string // effect this op has on symbol in aux
+	scale             uint8  // amd64/386 indexed load scale
 }
 
 type blockData struct {
@@ -63,9 +64,14 @@ type blockData struct {
 }
 
 type regInfo struct {
-	inputs   []regMask
+	// inputs[i] encodes the set of registers allowed for the i'th input.
+	// Inputs that don't use registers (flags, memory, etc.) should be 0.
+	inputs []regMask
+	// clobbers encodes the set of registers that are overwritten by
+	// the instruction (other than the output registers).
 	clobbers regMask
-	outputs  []regMask
+	// outpus[i] encodes the set of registers allowed for the i'th output.
+	outputs []regMask
 }
 
 type regMask uint64
@@ -240,6 +246,9 @@ func genOp() {
 			if v.asm != "" {
 				fmt.Fprintf(w, "asm: %s.A%s,\n", pkg, v.asm)
 			}
+			if v.scale != 0 {
+				fmt.Fprintf(w, "scale: %d,\n", v.scale)
+			}
 			fmt.Fprintln(w, "reg:regInfo{")
 
 			// Compute input allocation order. We allocate from the
@@ -286,6 +295,7 @@ func genOp() {
 	fmt.Fprintln(w, "}")
 
 	fmt.Fprintln(w, "func (o Op) Asm() obj.As {return opcodeTable[o].asm}")
+	fmt.Fprintln(w, "func (o Op) Scale() int16 {return int16(opcodeTable[o].scale)}")
 
 	// generate op string method
 	fmt.Fprintln(w, "func (o Op) String() string {return opcodeTable[o].name }")
@@ -388,6 +398,7 @@ func (a arch) Name() string {
 func genLower() {
 	for _, a := range archs {
 		genRules(a)
+		genSplitLoadRules(a)
 	}
 }
 

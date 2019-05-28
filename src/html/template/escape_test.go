@@ -1869,8 +1869,7 @@ func TestErrorOnUndefined(t *testing.T) {
 	err := tmpl.Execute(nil, nil)
 	if err == nil {
 		t.Error("expected error")
-	}
-	if !strings.Contains(err.Error(), "incomplete") {
+	} else if !strings.Contains(err.Error(), "incomplete") {
 		t.Errorf("expected error about incomplete template; got %s", err)
 	}
 }

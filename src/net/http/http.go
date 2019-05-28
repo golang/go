@@ -11,7 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"golang_org/x/net/http/httpguts"
+	"golang.org/x/net/http/httpguts"
 )
 
 // maxInt64 is the effective "infinite" value for the Server and
@@ -19,7 +19,7 @@ import (
 const maxInt64 = 1<<63 - 1
 
 // aLongTimeAgo is a non-zero time, far in the past, used for
-// immediate cancelation of network operations.
+// immediate cancellation of network operations.
 var aLongTimeAgo = time.Unix(1, 0)
 
 // TODO(bradfitz): move common stuff here. The other files have accumulated
@@ -57,6 +57,17 @@ func isASCII(s string) bool {
 		}
 	}
 	return true
+}
+
+// stringContainsCTLByte reports whether s contains any ASCII control character.
+func stringContainsCTLByte(s string) bool {
+	for i := 0; i < len(s); i++ {
+		b := s[i]
+		if b < ' ' || b == 0x7f {
+			return true
+		}
+	}
+	return false
 }
 
 func hexEscapeNonASCII(s string) string {
@@ -134,6 +145,10 @@ type Pusher interface {
 	// Handlers that wish to push URL X should call Push before sending any
 	// data that may trigger a request for URL X. This avoids a race where the
 	// client issues requests for X before receiving the PUSH_PROMISE for X.
+	//
+	// Push will run in a separate goroutine making the order of arrival
+	// non-deterministic. Any required synchronization needs to be implemented
+	// by the caller.
 	//
 	// Push returns ErrNotSupported if the client has disabled push or if push
 	// is not supported on the underlying connection.

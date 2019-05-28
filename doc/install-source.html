@@ -349,15 +349,7 @@ provides <b>essential setup instructions</b> for using the Go tools.
 <p>
 The source code for several Go tools (including <a href="/cmd/godoc/">godoc</a>)
 is kept in <a href="https://golang.org/x/tools">the go.tools repository</a>.
-To install all of them, run the <code>go</code> <code>get</code> command:
-</p>
-
-<pre>
-$ go get golang.org/x/tools/cmd/...
-</pre>
-
-<p>
-Or if you just want to install a specific command (<code>godoc</code> in this case):
+To install one of the tools (<code>godoc</code> in this case):
 </p>
 
 <pre>
@@ -372,16 +364,6 @@ that <a href="#git">Git</a> be installed locally.
 <p>
 You must also have a workspace (<code>GOPATH</code>) set up;
 see <a href="/doc/code.html">How to Write Go Code</a> for the details.
-</p>
-
-<p>
-<b>Note</b>: The <code>go</code> command will install the <code>godoc</code>
-binary to <code>$GOROOT/bin</code> (or <code>$GOBIN</code>) and the
-<code>cover</code> and <code>vet</code> binaries to
-<code>$GOROOT/pkg/tool/$GOOS_$GOARCH</code>.
-You can access the latter commands with
-"<code>go</code> <code>tool</code> <code>cover</code>" and
-"<code>go</code> <code>tool</code> <code>vet</code>".
 </p>
 
 <h2 id="community">Community resources</h2>
@@ -639,14 +621,33 @@ contains further details regarding Go's ARM support.
 </p>
 </li>
 
-<li><code>$GOMIPS</code> (for <code>mips</code> and <code>mipsle</code> only)
+<li><code>$GOMIPS</code> (for <code>mips</code> and <code>mipsle</code> only) <br> <code>$GOMIPS64</code> (for <code>mips64</code> and <code>mips64le</code> only)
 <p>
-This sets whether to use floating point instructions.
+	These variables set whether to use floating point instructions. Set to "<code>hardfloat</code>" to use floating point instructions; this is the default.  Set to "<code>softfloat</code>" to use soft floating point.
+</p>
+</li>
+
+<li><code>$GOPPC64</code> (for <code>ppc64</code> and <code>ppc64le</code> only)
+<p>
+This variable sets the processor level (i.e. Instruction Set Architecture version)
+for which the compiler will target. The default is <code>power8</code>.
 </p>
 <ul>
-	<li><code>GOMIPS=hardfloat</code>: use floating point instructions (the default)</li>
-	<li><code>GOMIPS=softfloat</code>: use soft floating point</li>
+	<li><code>GOPPC64=power8</code>: generate ISA v2.07 instructions</li>
+	<li><code>GOPPC64=power9</code>: generate ISA v3.00 instructions</li>
 </ul>
+</li>
+
+
+<li><code>$GOWASM</code> (for <code>wasm</code> only)
+	<p>
+	This variable is a comma separated list of <a href="https://github.com/WebAssembly/proposals">experimental WebAssembly features</a> that the compiled WebAssembly binary is allowed to use.
+	The default is to use no experimental features.
+	</p>
+	<ul>
+		<li><code>GOWASM=satconv</code>: generate <a href="https://github.com/WebAssembly/nontrapping-float-to-int-conversions/blob/master/proposals/nontrapping-float-to-int-conversion/Overview.md">saturating (non-trapping) float-to-int conversions</a></li>
+		<li><code>GOWASM=signext</code>: generate <a href="https://github.com/WebAssembly/sign-extension-ops/blob/master/proposals/sign-extension-ops/Overview.md">sign-extension operators</a></li>
+	</ul>
 </li>
 
 </ul>
@@ -670,7 +671,6 @@ something like this:
 </p>
 
 <pre>
-export GOROOT=$HOME/go1.X
 export GOARCH=amd64
 export GOOS=linux
 </pre>

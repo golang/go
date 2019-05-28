@@ -497,7 +497,7 @@ func _calls() {
 	f1(x ... /* ERROR "cannot use ..." */ )
 	f1(g0 /* ERROR "used as value" */ ())
 	f1(g1())
-	// f1(g2()) // TODO(gri) missing position in error message
+	f1(g2 /* ERROR "cannot use g2" */ /* ERROR "too many arguments" */ ())
 
 	f2() /* ERROR "too few arguments" */
 	f2(3.14) /* ERROR "too few arguments" */

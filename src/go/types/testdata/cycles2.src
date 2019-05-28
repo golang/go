@@ -88,22 +88,10 @@ type T3 /* ERROR cycle */ interface {
 var x3 T3
 
 type T4 /* ERROR cycle */ interface {
-	m() [unsafe.Sizeof(cast4(x4.m))]int
+	m() [unsafe.Sizeof(cast4(x4.m))]int // cast is invalid but we have a cycle, so all bets are off
 }
 
 var x4 T4
 var _ = cast4(x4.m)
 
 type cast4 func()
-
-// This test is symmetric to the T4 case: Here the cast is
-// "correct", but it doesn't work inside the T5 interface.
-
-type T5 /* ERROR cycle */ interface {
-	m() [unsafe.Sizeof(cast5(x5.m))]int
-}
-
-var x5 T5
-var _ = cast5(x5.m)
-
-type cast5 func() [0]int

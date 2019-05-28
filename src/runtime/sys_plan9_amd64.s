@@ -6,10 +6,6 @@
 #include "go_tls.h"
 #include "textflag.h"
 
-// setldt(int entry, int address, int limit)
-TEXT runtime·setldt(SB),NOSPLIT,$0
-	RET
-
 TEXT runtime·open(SB),NOSPLIT,$0
 	MOVQ	$14, BP
 	SYSCALL
@@ -123,7 +119,7 @@ TEXT runtime·noted(SB),NOSPLIT,$0
 	SYSCALL
 	MOVL	AX, ret+8(FP)
 	RET
-	
+
 TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
 	MOVQ	$38, BP
 	SYSCALL

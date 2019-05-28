@@ -11,6 +11,7 @@ package foo
 
 import (
 	"errors"
+	"runtime"
 	"unsafe"
 )
 
@@ -73,7 +74,7 @@ func m() int {
 // address taking prevents closure inlining
 func n() int {
 	foo := func() int { return 1 } // ERROR "can inline n.func1" "func literal does not escape"
-	bar := &foo                    // ERROR "&foo does not escape"
+	bar := &foo
 	x := (*bar)() + foo()
 	return x
 }
@@ -114,7 +115,7 @@ func s0(x int) int {
 	foo := func() { // ERROR "can inline s0.func1" "s0 func literal does not escape"
 		x = x + 1
 	}
-	foo() // ERROR "inlining call to s0.func1" "&x does not escape"
+	foo() // ERROR "inlining call to s0.func1"
 	return x
 }
 
@@ -123,7 +124,7 @@ func s1(x int) int {
 		return x
 	}
 	x = x + 1
-	return foo() // ERROR "inlining call to s1.func1" "&x does not escape"
+	return foo() // ERROR "inlining call to s1.func1"
 }
 
 // can't currently inline functions with a break statement
@@ -161,4 +162,21 @@ func k() (T, int, int) { return T{}, 0, 0 } // ERROR "can inline k"
 
 func _() { // ERROR "can inline _"
 	T.meth(k()) // ERROR "inlining call to k" "inlining call to T.meth"
+}
+
+func small1() { // ERROR "can inline small1"
+	runtime.GC()
+}
+func small2() int { // ERROR "can inline small2"
+	return runtime.GOMAXPROCS(0)
+}
+func small3(t T) { // ERROR "can inline small3"
+	t.meth2(3, 5)
+}
+func small4(t T) { // not inlineable - has 2 calls.
+	t.meth2(runtime.GOMAXPROCS(0), 5)
+}
+func (T) meth2(int, int) { // not inlineable - has 2 calls.
+	runtime.GC()
+	runtime.GC()
 }

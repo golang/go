@@ -78,6 +78,10 @@ func TestStackMem(t *testing.T) {
 
 // Test stack growing in different contexts.
 func TestStackGrowth(t *testing.T) {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
+
 	if GOARCH == "wasm" {
 		t.Skip("fails on wasm (too slow?)")
 	}
@@ -595,6 +599,9 @@ func (s structWithMethod) callers() []uintptr {
 	return pc[:Callers(0, pc)]
 }
 
+// The noinline prevents this function from being inlined
+// into a wrapper. TODO: remove this when issue 28640 is fixed.
+//go:noinline
 func (s structWithMethod) stack() string {
 	buf := make([]byte, 4<<10)
 	return string(buf[:Stack(buf, false)])
@@ -782,5 +789,13 @@ func TestTracebackAncestors(t *testing.T) {
 		if want, count := "main.recurseThenCallGo(0x", 1; strings.Count(output, want) != count {
 			t.Errorf("output does not contain %d instances of %q:\n%s", count, want, output)
 		}
+	}
+}
+
+// Test that defer closure is correctly scanned when the stack is scanned.
+func TestDeferLiveness(t *testing.T) {
+	output := runTestProg(t, "testprog", "DeferLiveness", "GODEBUG=clobberfree=1")
+	if output != "" {
+		t.Errorf("output:\n%s\n\nwant no output", output)
 	}
 }

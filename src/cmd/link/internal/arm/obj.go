@@ -34,7 +34,6 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
-	"fmt"
 )
 
 func Init() (*sys.Arch, ld.Arch) {
@@ -53,10 +52,12 @@ func Init() (*sys.Arch, ld.Arch) {
 		Archrelocvariant: archrelocvariant,
 		Trampoline:       trampoline,
 		Asmb:             asmb,
+		Asmb2:            asmb2,
 		Elfreloc1:        elfreloc1,
 		Elfsetupplt:      elfsetupplt,
 		Gentext:          gentext,
 		Machoreloc1:      machoreloc1,
+		PEreloc1:         pereloc1,
 
 		Linuxdynld:     "/lib/ld-linux.so.3", // 2 for OABI, 3 for EABI
 		Freebsddynld:   "/usr/libexec/ld-elf.so.1",
@@ -80,9 +81,6 @@ func archinit(ctxt *ld.Link) {
 		if *ld.FlagTextAddr == -1 {
 			*ld.FlagTextAddr = 4128
 		}
-		if *ld.FlagDataAddr == -1 {
-			*ld.FlagDataAddr = 0
-		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 4096
 		}
@@ -98,9 +96,6 @@ func archinit(ctxt *ld.Link) {
 		if *ld.FlagTextAddr == -1 {
 			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
 		}
-		if *ld.FlagDataAddr == -1 {
-			*ld.FlagDataAddr = 0
-		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 0x10000
 		}
@@ -112,9 +107,6 @@ func archinit(ctxt *ld.Link) {
 		if *ld.FlagTextAddr == -1 {
 			*ld.FlagTextAddr = 0x20000
 		}
-		if *ld.FlagDataAddr == -1 {
-			*ld.FlagDataAddr = 0
-		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 0x10000
 		}
@@ -124,15 +116,12 @@ func archinit(ctxt *ld.Link) {
 		if *ld.FlagTextAddr == -1 {
 			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
 		}
-		if *ld.FlagDataAddr == -1 {
-			*ld.FlagDataAddr = 0
-		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 4096
 		}
-	}
 
-	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*ld.FlagDataAddr), uint32(*ld.FlagRound))
+	case objabi.Hwindows: /* PE executable */
+		// ld.HEADR, ld.FlagTextAddr, ld.FlagRound are set in ld.Peinit
+		return
 	}
 }

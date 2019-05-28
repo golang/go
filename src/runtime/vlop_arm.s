@@ -30,7 +30,7 @@
 
 // func runtime·udiv(n, d uint32) (q, r uint32)
 // compiler knowns the register usage of this function
-// Reference: 
+// Reference:
 // Sloss, Andrew et. al; ARM System Developer's Guide: Designing and Optimizing System Software
 // Morgan Kaufmann; 1 edition (April 8, 2004), ISBN 978-1558608740
 #define Rq	R0 // input d, output q
@@ -44,7 +44,7 @@
 // the RET instruction will clobber R12 on nacl, and the compiler's register
 // allocator needs to know.
 TEXT runtime·udiv(SB),NOSPLIT|NOFRAME,$0
-	MOVBU	runtime·hardDiv(SB), Ra
+	MOVBU	internal∕cpu·ARM+const_offsetARMHasIDIVA(SB), Ra
 	CMP	$0, Ra
 	BNE	udiv_hardware
 

@@ -73,7 +73,11 @@ do
 		export GOARCH=386
 		export GO386=387
 	fi
-	if ! "$GOROOT/bin/go" build -a std cmd; then
+
+	# Build and vet everything.
+	# cmd/go/internal/work/exec.go enables the same vet flags during go test of std cmd
+	# and should be kept in sync with any vet flag changes here.
+	if ! "$GOROOT/bin/go" build std cmd || ! "$GOROOT/bin/go" vet -unsafeptr=false std cmd; then
 		failed=true
 		if $sete; then
 			exit 1

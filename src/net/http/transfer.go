@@ -21,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"golang_org/x/net/http/httpguts"
+	"golang.org/x/net/http/httpguts"
 )
 
 // ErrLineTooLong is returned when reading request or response bodies
@@ -51,19 +51,6 @@ func (br *byteReader) Read(p []byte) (n int, err error) {
 	br.done = true
 	p[0] = br.b
 	return 1, io.EOF
-}
-
-// transferBodyReader is an io.Reader that reads from tw.Body
-// and records any non-EOF error in tw.bodyReadError.
-// It is exactly 1 pointer wide to avoid allocations into interfaces.
-type transferBodyReader struct{ tw *transferWriter }
-
-func (br transferBodyReader) Read(p []byte) (n int, err error) {
-	n, err = br.tw.Body.Read(p)
-	if err != nil && err != io.EOF {
-		br.tw.bodyReadError = err
-	}
-	return
 }
 
 // transferWriter inspects the fields of a user-supplied Request or Response,
@@ -182,6 +169,9 @@ func (t *transferWriter) shouldSendChunkedRequestBody() bool {
 	// Note that t.ContentLength is the corrected content length
 	// from rr.outgoingLength, so 0 actually means zero, not unknown.
 	if t.ContentLength >= 0 || t.Body == nil { // redundant checks; caller did them
+		return false
+	}
+	if t.Method == "CONNECT" {
 		return false
 	}
 	if requestMethodUsuallyLacksBody(t.Method) {
@@ -344,27 +334,34 @@ func (t *transferWriter) writeBody(w io.Writer) error {
 	var err error
 	var ncopy int64
 
-	// Write body
+	// Write body. We "unwrap" the body first if it was wrapped in a
+	// nopCloser. This is to ensure that we can take advantage of
+	// OS-level optimizations in the event that the body is an
+	// *os.File.
 	if t.Body != nil {
-		var body = transferBodyReader{t}
+		var body = t.unwrapBody()
 		if chunked(t.TransferEncoding) {
 			if bw, ok := w.(*bufio.Writer); ok && !t.IsResponse {
 				w = &internal.FlushAfterChunkWriter{Writer: bw}
 			}
 			cw := internal.NewChunkedWriter(w)
-			_, err = io.Copy(cw, body)
+			_, err = t.doBodyCopy(cw, body)
 			if err == nil {
 				err = cw.Close()
 			}
 		} else if t.ContentLength == -1 {
-			ncopy, err = io.Copy(w, body)
+			dst := w
+			if t.Method == "CONNECT" {
+				dst = bufioFlushWriter{dst}
+			}
+			ncopy, err = t.doBodyCopy(dst, body)
 		} else {
-			ncopy, err = io.Copy(w, io.LimitReader(body, t.ContentLength))
+			ncopy, err = t.doBodyCopy(w, io.LimitReader(body, t.ContentLength))
 			if err != nil {
 				return err
 			}
 			var nextra int64
-			nextra, err = io.Copy(ioutil.Discard, body)
+			nextra, err = t.doBodyCopy(ioutil.Discard, body)
 			ncopy += nextra
 		}
 		if err != nil {
@@ -393,6 +390,31 @@ func (t *transferWriter) writeBody(w io.Writer) error {
 		_, err = io.WriteString(w, "\r\n")
 	}
 	return err
+}
+
+// doBodyCopy wraps a copy operation, with any resulting error also
+// being saved in bodyReadError.
+//
+// This function is only intended for use in writeBody.
+func (t *transferWriter) doBodyCopy(dst io.Writer, src io.Reader) (n int64, err error) {
+	n, err = io.Copy(dst, src)
+	if err != nil && err != io.EOF {
+		t.bodyReadError = err
+	}
+	return
+}
+
+// unwrapBodyReader unwraps the body's inner reader if it's a
+// nopCloser. This is to ensure that body writes sourced from local
+// files (*os.File types) are properly optimized.
+//
+// This function is only intended for use in writeBody.
+func (t *transferWriter) unwrapBody() io.Reader {
+	if reflect.TypeOf(t.Body) == nopCloserType {
+		return reflect.ValueOf(t.Body).Field(0).Interface().(io.Reader)
+	}
+
+	return t.Body
 }
 
 type transferReader struct {
@@ -567,6 +589,22 @@ func chunked(te []string) bool { return len(te) > 0 && te[0] == "chunked" }
 // Checks whether the encoding is explicitly "identity".
 func isIdentity(te []string) bool { return len(te) == 1 && te[0] == "identity" }
 
+// unsupportedTEError reports unsupported transfer-encodings.
+type unsupportedTEError struct {
+	err string
+}
+
+func (uste *unsupportedTEError) Error() string {
+	return uste.err
+}
+
+// isUnsupportedTEError checks if the error is of type
+// unsupportedTEError. It is usually invoked with a non-nil err.
+func isUnsupportedTEError(err error) bool {
+	_, ok := err.(*unsupportedTEError)
+	return ok
+}
+
 // fixTransferEncoding sanitizes t.TransferEncoding, if needed.
 func (t *transferReader) fixTransferEncoding() error {
 	raw, present := t.Header["Transfer-Encoding"]
@@ -593,7 +631,7 @@ func (t *transferReader) fixTransferEncoding() error {
 			break
 		}
 		if encoding != "chunked" {
-			return &badStringError{"unsupported transfer encoding", encoding}
+			return &unsupportedTEError{fmt.Sprintf("unsupported transfer encoding: %q", encoding)}
 		}
 		te = te[0 : len(te)+1]
 		te[len(te)-1] = encoding
@@ -733,6 +771,16 @@ func fixTrailer(header Header, te []string) (Header, error) {
 	if !ok {
 		return nil, nil
 	}
+	if !chunked(te) {
+		// Trailer and no chunking:
+		// this is an invalid use case for trailer header.
+		// Nevertheless, no error will be returned and we
+		// let users decide if this is a valid HTTP message.
+		// The Trailer header will be kept in Response.Header
+		// but not populate Response.Trailer.
+		// See issue #27197.
+		return nil, nil
+	}
 	header.Del("Trailer")
 
 	trailer := make(Header)
@@ -755,10 +803,6 @@ func fixTrailer(header Header, te []string) (Header, error) {
 	}
 	if len(trailer) == 0 {
 		return nil, nil
-	}
-	if !chunked(te) {
-		// Trailer and no chunking
-		return nil, ErrUnexpectedTrailer
 	}
 	return trailer, nil
 }
@@ -942,7 +986,7 @@ func (b *body) Close() error {
 		// no trailer and closing the connection next.
 		// no point in reading to EOF.
 	case b.doEarlyClose:
-		// Read up to maxPostHandlerReadBytes bytes of the body, looking for
+		// Read up to maxPostHandlerReadBytes bytes of the body, looking
 		// for EOF (and trailers), so we can re-use this connection.
 		if lr, ok := b.src.(*io.LimitedReader); ok && lr.N > maxPostHandlerReadBytes {
 			// There was a declared Content-Length, and we have more bytes remaining
@@ -1049,4 +1093,19 @@ func isKnownInMemoryReader(r io.Reader) bool {
 		return isKnownInMemoryReader(reflect.ValueOf(r).Field(0).Interface().(io.Reader))
 	}
 	return false
+}
+
+// bufioFlushWriter is an io.Writer wrapper that flushes all writes
+// on its wrapped writer if it's a *bufio.Writer.
+type bufioFlushWriter struct{ w io.Writer }
+
+func (fw bufioFlushWriter) Write(p []byte) (n int, err error) {
+	n, err = fw.w.Write(p)
+	if bw, ok := fw.w.(*bufio.Writer); n > 0 && ok {
+		ferr := bw.Flush()
+		if ferr != nil && err == nil {
+			err = ferr
+		}
+	}
+	return
 }

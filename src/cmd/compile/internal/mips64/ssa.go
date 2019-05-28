@@ -14,12 +14,12 @@ import (
 	"cmd/internal/obj/mips"
 )
 
-// isFPreg returns whether r is an FP register
+// isFPreg reports whether r is an FP register
 func isFPreg(r int16) bool {
 	return mips.REG_F0 <= r && r <= mips.REG_F31
 }
 
-// isHILO returns whether r is HI or LO register
+// isHILO reports whether r is HI or LO register
 func isHILO(r int16) bool {
 	return r == mips.REG_HI || r == mips.REG_LO
 }
@@ -489,9 +489,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = v.Aux.(*obj.LSym)
-	case ssa.OpMIPS64LoweredAtomicLoad32, ssa.OpMIPS64LoweredAtomicLoad64:
+	case ssa.OpMIPS64LoweredPanicBoundsA, ssa.OpMIPS64LoweredPanicBoundsB, ssa.OpMIPS64LoweredPanicBoundsC:
+		p := s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.BoundsCheckFunc[v.AuxInt]
+		s.UseArgs(16) // space used in callee args area by assembly stubs
+	case ssa.OpMIPS64LoweredAtomicLoad8, ssa.OpMIPS64LoweredAtomicLoad32, ssa.OpMIPS64LoweredAtomicLoad64:
 		as := mips.AMOVV
-		if v.Op == ssa.OpMIPS64LoweredAtomicLoad32 {
+		switch v.Op {
+		case ssa.OpMIPS64LoweredAtomicLoad8:
+			as = mips.AMOVB
+		case ssa.OpMIPS64LoweredAtomicLoad32:
 			as = mips.AMOVW
 		}
 		s.Prog(mips.ASYNC)
@@ -787,7 +796,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
 		}
 	case ssa.BlockExit:
-		s.Prog(obj.AUNDEF) // tell plive.go that we never reach here
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
 	case ssa.BlockRetJmp:

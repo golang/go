@@ -60,6 +60,13 @@ func TestPseudoVersionTime(t *testing.T) {
 	}
 }
 
+func TestInvalidPseudoVersionTime(t *testing.T) {
+	const v = "---"
+	if _, err := PseudoVersionTime(v); err == nil {
+		t.Error("expected error, got nil instead")
+	}
+}
+
 func TestPseudoVersionRev(t *testing.T) {
 	for _, tt := range pseudoTests {
 		rev, err := PseudoVersionRev(tt.version)

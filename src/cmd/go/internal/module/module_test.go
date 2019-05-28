@@ -214,6 +214,7 @@ var splitPathVersionTests = []struct {
 	{"x.y/z", ""},
 	{"x.y/z", "/v2"},
 	{"x.y/z", "/v3"},
+	{"x.y/v", ""},
 	{"gopkg.in/yaml", ".v0"},
 	{"gopkg.in/yaml", ".v1"},
 	{"gopkg.in/yaml", ".v2"},

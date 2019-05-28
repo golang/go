@@ -100,9 +100,18 @@ func (versionFlag) Set(s string) error {
 	// for releases, but during development we include the full
 	// build ID of the binary, so that if the compiler is changed and
 	// rebuilt, we notice and rebuild all packages.
-	if s == "full" && strings.HasPrefix(Version, "devel") {
-		p += " buildID=" + buildID
+	if s == "full" {
+		// If there's an active experiment, include that,
+		// to distinguish go1.10.2 with an experiment
+		// from go1.10.2 without an experiment.
+		if x := Expstring(); x != "" {
+			p += " " + x
+		}
+		if strings.HasPrefix(Version, "devel") {
+			p += " buildID=" + buildID
+		}
 	}
+
 	fmt.Printf("%s version %s%s%s\n", name, Version, sep, p)
 	os.Exit(0)
 	return nil

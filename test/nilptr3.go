@@ -1,6 +1,7 @@
 // errorcheck -0 -d=nil
 
 // +build !wasm
+// +build !aix
 
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -192,21 +193,6 @@ func f4(x *[10]int) {
 	_ = &x[9] // ERROR "removed[a-z ]* nil check"
 }
 
-func f5(p *float32, q *float64, r *float32, s *float64) float64 {
-	x := float64(*p) // ERROR "removed nil check"
-	y := *q          // ERROR "removed nil check"
-	*r = 7           // ERROR "removed nil check"
-	*s = 9           // ERROR "removed nil check"
-	return x + y
-}
-
-type T [29]byte
-
-func f6(p, q *T) {
-	x := *p // ERROR "removed nil check"
-	*q = x  // ERROR "removed nil check"
-}
-
 func m1(m map[int][80]byte) byte {
 	v := m[3] // ERROR "removed nil check"
 	return v[5]
@@ -246,8 +232,8 @@ type TT struct {
 
 func f(t *TT) *byte {
 	// See issue 17242.
-	s := &t.SS  // ERROR "removed nil check"
-	return &s.x // ERROR "generated nil check"
+	s := &t.SS  // ERROR "generated nil check"
+	return &s.x // ERROR "removed nil check"
 }
 
 // make sure not to do nil check for newobject
@@ -255,11 +241,6 @@ func f7() (*Struct, float64) {
 	t := new(Struct)
 	p := &t.Y    // ERROR "removed nil check"
 	return t, *p // ERROR "removed nil check"
-}
-
-// make sure to remove nil check for memory move (issue #18003)
-func f8(t *[8]int) [8]int {
-	return *t // ERROR "removed nil check"
 }
 
 func f9() []int {

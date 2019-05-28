@@ -39,6 +39,14 @@ func ExampleBuffer_Grow() {
 	// Output: "64 bytes or fewer"
 }
 
+func ExampleBuffer_Len() {
+	var b bytes.Buffer
+	b.Grow(64)
+	b.Write([]byte("abcde"))
+	fmt.Printf("%d", b.Len())
+	// Output: 5
+}
+
 func ExampleCompare() {
 	// Interpret Compare's result by comparing it to zero.
 	var a, b []byte
@@ -290,6 +298,12 @@ func ExampleReplace() {
 	// moo moo moo
 }
 
+func ExampleReplaceAll() {
+	fmt.Printf("%s\n", bytes.ReplaceAll([]byte("oink oink oink"), []byte("oink"), []byte("moo")))
+	// Output:
+	// moo moo moo
+}
+
 func ExampleRunes() {
 	rs := bytes.Runes([]byte("go gopher"))
 	for _, r := range rs {
@@ -349,6 +363,16 @@ func ExampleToTitle() {
 	// Output:
 	// LOUD NOISES
 	// ХЛЕБ
+}
+
+func ExampleToTitleSpecial() {
+	str := []byte("ahoj vývojári golang")
+	totitle := bytes.ToTitleSpecial(unicode.AzeriCase, str)
+	fmt.Println("Original : " + string(str))
+	fmt.Println("ToTitle : " + string(totitle))
+	// Output:
+	// Original : ahoj vývojári golang
+	// ToTitle : AHOJ VÝVOJÁRİ GOLANG
 }
 
 func ExampleTrim() {
@@ -424,9 +448,29 @@ func ExampleToUpper() {
 	// Output: GOPHER
 }
 
+func ExampleToUpperSpecial() {
+	str := []byte("ahoj vývojári golang")
+	totitle := bytes.ToUpperSpecial(unicode.AzeriCase, str)
+	fmt.Println("Original : " + string(str))
+	fmt.Println("ToUpper : " + string(totitle))
+	// Output:
+	// Original : ahoj vývojári golang
+	// ToUpper : AHOJ VÝVOJÁRİ GOLANG
+}
+
 func ExampleToLower() {
 	fmt.Printf("%s", bytes.ToLower([]byte("Gopher")))
 	// Output: gopher
+}
+
+func ExampleToLowerSpecial() {
+	str := []byte("AHOJ VÝVOJÁRİ GOLANG")
+	totitle := bytes.ToLowerSpecial(unicode.AzeriCase, str)
+	fmt.Println("Original : " + string(str))
+	fmt.Println("ToLower : " + string(totitle))
+	// Output:
+	// Original : AHOJ VÝVOJÁRİ GOLANG
+	// ToLower : ahoj vývojári golang
 }
 
 func ExampleReader_Len() {

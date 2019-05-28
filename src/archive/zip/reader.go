@@ -69,6 +69,9 @@ func OpenReader(name string) (*ReadCloser, error) {
 // NewReader returns a new Reader reading from r, which is assumed to
 // have the given size in bytes.
 func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
+	if size < 0 {
+		return nil, errors.New("zip: size cannot be negative")
+	}
 	zr := new(Reader)
 	if err := zr.init(r, size); err != nil {
 		return nil, err

@@ -15,8 +15,8 @@ import (
 // deadlines. If the user-provided callback returns false, the Write
 // method will fail immediately.
 
-// BUG(mikio): On NaCl and Plan 9, the Control, Read and Write methods
-// of syscall.RawConn are not implemented.
+// BUG(mikio): On JS, NaCl and Plan 9, the Control, Read and Write
+// methods of syscall.RawConn are not implemented.
 
 type rawConn struct {
 	fd *netFD

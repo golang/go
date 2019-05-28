@@ -19,6 +19,7 @@ import (
 	"syscall"
 	"testing"
 	"time"
+	"unsafe"
 )
 
 // chtmpdir changes the working directory to a new temporary directory and
@@ -294,12 +295,16 @@ func TestSyscallNoError(t *testing.T) {
 	// On Linux there are currently no syscalls which don't fail and return
 	// a value larger than 0xfffffffffffff001 so we could test RawSyscall
 	// vs. RawSyscallNoError on 64bit architectures.
-	if runtime.GOARCH != "386" && runtime.GOARCH != "arm" {
+	if unsafe.Sizeof(uintptr(0)) != 4 {
 		t.Skip("skipping on non-32bit architecture")
 	}
 
 	if os.Getuid() != 0 {
 		t.Skip("skipping root only test")
+	}
+
+	if runtime.GOOS == "android" {
+		t.Skip("skipping on rooted android, see issue 27364")
 	}
 
 	// Copy the test binary to a location that a non-root user can read/execute
@@ -355,8 +360,21 @@ func TestSyscallNoError(t *testing.T) {
 		strconv.FormatUint(uint64(-uid), 10) + " / " +
 		strconv.FormatUint(uint64(uid), 10)
 	if got != want {
+		if filesystemIsNoSUID(tmpBinary) {
+			t.Skip("skipping test when temp dir is mounted nosuid")
+		}
 		t.Errorf("expected %s, got %s", want, got)
 	}
+}
+
+// filesystemIsNoSUID reports whether the filesystem for the given
+// path is mounted nosuid.
+func filesystemIsNoSUID(path string) bool {
+	var st syscall.Statfs_t
+	if syscall.Statfs(path, &st) != nil {
+		return false
+	}
+	return st.Flags&syscall.MS_NOSUID != 0
 }
 
 func syscallNoError() {

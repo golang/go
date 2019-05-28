@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+// +build aix darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
 
 package net
 
@@ -140,7 +140,16 @@ func (ln *TCPListener) accept() (*TCPConn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newTCPConn(fd), nil
+	tc := newTCPConn(fd)
+	if ln.lc.KeepAlive >= 0 {
+		setKeepAlive(fd, true)
+		ka := ln.lc.KeepAlive
+		if ln.lc.KeepAlive == 0 {
+			ka = defaultTCPKeepAlive
+		}
+		setKeepAlivePeriod(fd, ka)
+	}
+	return tc, nil
 }
 
 func (ln *TCPListener) close() error {
@@ -160,5 +169,5 @@ func (sl *sysListener) listenTCP(ctx context.Context, laddr *TCPAddr) (*TCPListe
 	if err != nil {
 		return nil, err
 	}
-	return &TCPListener{fd}, nil
+	return &TCPListener{fd: fd, lc: sl.ListenConfig}, nil
 }

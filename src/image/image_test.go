@@ -22,22 +22,29 @@ func cmp(cm color.Model, c0, c1 color.Color) bool {
 	return r0 == r1 && g0 == g1 && b0 == b1 && a0 == a1
 }
 
-func TestImage(t *testing.T) {
-	testImage := []image{
-		NewRGBA(Rect(0, 0, 10, 10)),
-		NewRGBA64(Rect(0, 0, 10, 10)),
-		NewNRGBA(Rect(0, 0, 10, 10)),
-		NewNRGBA64(Rect(0, 0, 10, 10)),
-		NewAlpha(Rect(0, 0, 10, 10)),
-		NewAlpha16(Rect(0, 0, 10, 10)),
-		NewGray(Rect(0, 0, 10, 10)),
-		NewGray16(Rect(0, 0, 10, 10)),
-		NewPaletted(Rect(0, 0, 10, 10), color.Palette{
+var testImages = []struct {
+	name  string
+	image func() image
+}{
+	{"rgba", func() image { return NewRGBA(Rect(0, 0, 10, 10)) }},
+	{"rgba64", func() image { return NewRGBA64(Rect(0, 0, 10, 10)) }},
+	{"nrgba", func() image { return NewNRGBA(Rect(0, 0, 10, 10)) }},
+	{"nrgba64", func() image { return NewNRGBA64(Rect(0, 0, 10, 10)) }},
+	{"alpha", func() image { return NewAlpha(Rect(0, 0, 10, 10)) }},
+	{"alpha16", func() image { return NewAlpha16(Rect(0, 0, 10, 10)) }},
+	{"gray", func() image { return NewGray(Rect(0, 0, 10, 10)) }},
+	{"gray16", func() image { return NewGray16(Rect(0, 0, 10, 10)) }},
+	{"paletted", func() image {
+		return NewPaletted(Rect(0, 0, 10, 10), color.Palette{
 			Transparent,
 			Opaque,
-		}),
-	}
-	for _, m := range testImage {
+		})
+	}},
+}
+
+func TestImage(t *testing.T) {
+	for _, tc := range testImages {
+		m := tc.image()
 		if !Rect(0, 0, 10, 10).Eq(m.Bounds()) {
 			t.Errorf("%T: want bounds %v, got %v", m, Rect(0, 0, 10, 10), m.Bounds())
 			continue
@@ -109,5 +116,184 @@ func Test16BitsPerColorChannel(t *testing.T) {
 			t.Errorf("%T: want red value 0x%04x got 0x%04x", m, 0x1357, r)
 			continue
 		}
+	}
+}
+
+func BenchmarkAt(b *testing.B) {
+	for _, tc := range testImages {
+		b.Run(tc.name, func(b *testing.B) {
+			m := tc.image()
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				m.At(4, 5)
+			}
+		})
+	}
+}
+
+func BenchmarkSet(b *testing.B) {
+	c := color.Gray{0xff}
+	for _, tc := range testImages {
+		b.Run(tc.name, func(b *testing.B) {
+			m := tc.image()
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				m.Set(4, 5, c)
+			}
+		})
+	}
+}
+
+func BenchmarkRGBAAt(b *testing.B) {
+	m := NewRGBA(Rect(0, 0, 10, 10))
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m.RGBAAt(4, 5)
+	}
+}
+
+func BenchmarkRGBASetRGBA(b *testing.B) {
+	m := NewRGBA(Rect(0, 0, 10, 10))
+	c := color.RGBA{0xff, 0xff, 0xff, 0x13}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m.SetRGBA(4, 5, c)
+	}
+}
+
+func BenchmarkRGBA64At(b *testing.B) {
+	m := NewRGBA64(Rect(0, 0, 10, 10))
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m.RGBA64At(4, 5)
+	}
+}
+
+func BenchmarkRGBA64SetRGBA64(b *testing.B) {
+	m := NewRGBA64(Rect(0, 0, 10, 10))
+	c := color.RGBA64{0xffff, 0xffff, 0xffff, 0x1357}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m.SetRGBA64(4, 5, c)
+	}
+}
+
+func BenchmarkNRGBAAt(b *testing.B) {
+	m := NewNRGBA(Rect(0, 0, 10, 10))
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m.NRGBAAt(4, 5)
+	}
+}
+
+func BenchmarkNRGBASetNRGBA(b *testing.B) {
+	m := NewNRGBA(Rect(0, 0, 10, 10))
+	c := color.NRGBA{0xff, 0xff, 0xff, 0x13}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m.SetNRGBA(4, 5, c)
+	}
+}
+
+func BenchmarkNRGBA64At(b *testing.B) {
+	m := NewNRGBA64(Rect(0, 0, 10, 10))
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m.NRGBA64At(4, 5)
+	}
+}
+
+func BenchmarkNRGBA64SetNRGBA64(b *testing.B) {
+	m := NewNRGBA64(Rect(0, 0, 10, 10))
+	c := color.NRGBA64{0xffff, 0xffff, 0xffff, 0x1357}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m.SetNRGBA64(4, 5, c)
+	}
+}
+
+func BenchmarkAlphaAt(b *testing.B) {
+	m := NewAlpha(Rect(0, 0, 10, 10))
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m.AlphaAt(4, 5)
+	}
+}
+
+func BenchmarkAlphaSetAlpha(b *testing.B) {
+	m := NewAlpha(Rect(0, 0, 10, 10))
+	c := color.Alpha{0x13}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m.SetAlpha(4, 5, c)
+	}
+}
+
+func BenchmarkAlpha16At(b *testing.B) {
+	m := NewAlpha16(Rect(0, 0, 10, 10))
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m.Alpha16At(4, 5)
+	}
+}
+
+func BenchmarkAlphaSetAlpha16(b *testing.B) {
+	m := NewAlpha16(Rect(0, 0, 10, 10))
+	c := color.Alpha16{0x13}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m.SetAlpha16(4, 5, c)
+	}
+}
+
+func BenchmarkGrayAt(b *testing.B) {
+	m := NewGray(Rect(0, 0, 10, 10))
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m.GrayAt(4, 5)
+	}
+}
+
+func BenchmarkGraySetGray(b *testing.B) {
+	m := NewGray(Rect(0, 0, 10, 10))
+	c := color.Gray{0x13}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m.SetGray(4, 5, c)
+	}
+}
+
+func BenchmarkGray16At(b *testing.B) {
+	m := NewGray16(Rect(0, 0, 10, 10))
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m.Gray16At(4, 5)
+	}
+}
+
+func BenchmarkGraySetGray16(b *testing.B) {
+	m := NewGray16(Rect(0, 0, 10, 10))
+	c := color.Gray16{0x13}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m.SetGray16(4, 5, c)
 	}
 }

@@ -13,8 +13,18 @@ import (
 )
 
 const (
-	BADWIDTH        = types.BADWIDTH
+	BADWIDTH = types.BADWIDTH
+
+	// maximum size variable which we will allocate on the stack.
+	// This limit is for explicit variable declarations like "var x T" or "x := ...".
 	maxStackVarSize = 10 * 1024 * 1024
+
+	// maximum size of implicit variables that we will allocate on the stack.
+	//   p := new(T)          allocating T on the stack
+	//   p := &T{}            allocating T on the stack
+	//   s := make([]T, n)    allocating [n]T on the stack
+	//   s := []byte("...")   allocating [n]byte on the stack
+	maxImplicitStackVarSize = 64 * 1024
 )
 
 // isRuntimePkg reports whether p is package runtime.
@@ -82,7 +92,6 @@ var pragcgobuf [][]string
 
 var outfile string
 var linkobj string
-var dolinkobj bool
 
 // nerrors is the number of compiler errors reported
 // since the last call to saveerrors.
@@ -95,8 +104,6 @@ var nsavederrors int
 var nsyntaxerrors int
 
 var decldepth int32
-
-var safemode bool
 
 var nolocalimports bool
 
@@ -140,7 +147,6 @@ var asmhdr string
 var simtype [NTYPE]types.EType
 
 var (
-	isforw    [NTYPE]bool
 	isInt     [NTYPE]bool
 	isFloat   [NTYPE]bool
 	isComplex [NTYPE]bool
@@ -201,8 +207,6 @@ var compiling_runtime bool
 // Compiling the standard library
 var compiling_std bool
 
-var compiling_wrappers bool
-
 var use_writebarrier bool
 
 var pure_go bool
@@ -251,9 +255,10 @@ type Arch struct {
 	Use387    bool // should 386 backend use 387 FP instructions instead of sse2.
 	SoftFloat bool
 
-	PadFrame  func(int64) int64
-	ZeroRange func(*Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
-	Ginsnop   func(*Progs)
+	PadFrame     func(int64) int64
+	ZeroRange    func(*Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
+	Ginsnop      func(*Progs) *obj.Prog
+	Ginsnopdefer func(*Progs) *obj.Prog // special ginsnop for deferreturn
 
 	// SSAMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
 	SSAMarkMoves func(*SSAGenState, *ssa.Block)
@@ -281,7 +286,7 @@ var (
 	assertE2I2,
 	assertI2I,
 	assertI2I2,
-	Deferproc,
+	deferproc,
 	Deferreturn,
 	Duffcopy,
 	Duffzero,
@@ -290,24 +295,29 @@ var (
 	growslice,
 	msanread,
 	msanwrite,
-	Newproc,
+	newobject,
+	newproc,
 	panicdivide,
+	panicshift,
 	panicdottypeE,
 	panicdottypeI,
-	panicindex,
 	panicnildottype,
-	panicslice,
+	panicoverflow,
 	raceread,
 	racereadrange,
 	racewrite,
 	racewriterange,
-	supportPopcnt,
-	supportSSE41,
-	arm64SupportAtomics,
+	x86HasPOPCNT,
+	x86HasSSE41,
+	arm64HasATOMICS,
 	typedmemclr,
 	typedmemmove,
 	Udiv,
-	writeBarrier *obj.LSym
+	writeBarrier,
+	zerobaseSym *obj.LSym
+
+	BoundsCheckFunc [ssa.BoundsKindCount]*obj.LSym
+	ExtendCheckFunc [ssa.BoundsKindCount]*obj.LSym
 
 	// GO386=387
 	ControlWord64trunc,

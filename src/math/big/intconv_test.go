@@ -17,19 +17,34 @@ var stringTests = []struct {
 	val  int64
 	ok   bool
 }{
+	// invalid inputs
 	{in: ""},
 	{in: "a"},
 	{in: "z"},
 	{in: "+"},
 	{in: "-"},
 	{in: "0b"},
+	{in: "0o"},
 	{in: "0x"},
+	{in: "0y"},
 	{in: "2", base: 2},
 	{in: "0b2", base: 0},
 	{in: "08"},
 	{in: "8", base: 8},
 	{in: "0xg", base: 0},
 	{in: "g", base: 16},
+
+	// invalid inputs with separators
+	// (smoke tests only - a comprehensive set of tests is in natconv_test.go)
+	{in: "_"},
+	{in: "0_"},
+	{in: "_0"},
+	{in: "-1__0"},
+	{in: "0x10_"},
+	{in: "1_000", base: 10}, // separators are not permitted for bases != 0
+	{in: "d_e_a_d", base: 16},
+
+	// valid inputs
 	{"0", "0", 0, 0, true},
 	{"0", "0", 10, 0, true},
 	{"0", "0", 16, 0, true},
@@ -40,6 +55,8 @@ var stringTests = []struct {
 	{"10", "10", 16, 16, true},
 	{"-10", "-10", 16, -16, true},
 	{"+10", "10", 16, 16, true},
+	{"0b10", "2", 0, 2, true},
+	{"0o10", "8", 0, 8, true},
 	{"0x10", "16", 0, 16, true},
 	{in: "0x10", base: 16},
 	{"-0x10", "-16", 0, -16, true},
@@ -60,6 +77,13 @@ var stringTests = []struct {
 	{"A", "A", 37, 36, true},
 	{"ABCXYZ", "abcxyz", 36, 623741435, true},
 	{"ABCXYZ", "ABCXYZ", 62, 33536793425, true},
+
+	// valid input with separators
+	// (smoke tests only - a comprehensive set of tests is in natconv_test.go)
+	{"1_000", "1000", 0, 1000, true},
+	{"0b_1010", "10", 0, 10, true},
+	{"+0o_660", "432", 0, 0660, true},
+	{"-0xF00D_1E", "-15731998", 0, -0xf00d1e, true},
 }
 
 func TestIntText(t *testing.T) {
@@ -214,8 +238,12 @@ var formatTests = []struct {
 	{"10", "%y", "%!y(big.Int=10)"},
 	{"-10", "%y", "%!y(big.Int=-10)"},
 
-	{"10", "%#b", "1010"},
+	{"10", "%#b", "0b1010"},
 	{"10", "%#o", "012"},
+	{"10", "%O", "0o12"},
+	{"-10", "%#b", "-0b1010"},
+	{"-10", "%#o", "-012"},
+	{"-10", "%O", "-0o12"},
 	{"10", "%#d", "10"},
 	{"10", "%#v", "10"},
 	{"10", "%#x", "0xa"},

@@ -219,5 +219,5 @@ func toJSON(m interface{}) string {
 	if err != nil {
 		log.Fatal(err)
 	}
-	return strings.Replace(string(js), ",", ", ", -1)
+	return strings.ReplaceAll(string(js), ",", ", ")
 }

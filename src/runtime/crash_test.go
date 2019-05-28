@@ -686,7 +686,7 @@ func init() {
 
 func TestRuntimePanic(t *testing.T) {
 	testenv.MustHaveExec(t)
-	cmd := exec.Command(os.Args[0], "-test.run=TestRuntimePanic")
+	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestRuntimePanic"))
 	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_PANIC=1")
 	out, err := cmd.CombinedOutput()
 	t.Logf("%s", out)
@@ -724,4 +724,16 @@ func TestG0StackOverflow(t *testing.T) {
 	}
 
 	runtime.G0StackOverflow()
+}
+
+// Test that panic message is not clobbered.
+// See issue 30150.
+func TestDoublePanic(t *testing.T) {
+	output := runTestProg(t, "testprog", "DoublePanic", "GODEBUG=clobberfree=1")
+	wants := []string{"panic: XXX", "panic: YYY"}
+	for _, want := range wants {
+		if !strings.Contains(output, want) {
+			t.Errorf("output:\n%s\n\nwant output containing: %s", output, want)
+		}
+	}
 }

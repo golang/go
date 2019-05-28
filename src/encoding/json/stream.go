@@ -92,28 +92,30 @@ func (dec *Decoder) readValue() (int, error) {
 	scanp := dec.scanp
 	var err error
 Input:
-	for {
+	// help the compiler see that scanp is never negative, so it can remove
+	// some bounds checks below.
+	for scanp >= 0 {
+
 		// Look in the buffer for a new value.
-		for i, c := range dec.buf[scanp:] {
+		for ; scanp < len(dec.buf); scanp++ {
+			c := dec.buf[scanp]
 			dec.scan.bytes++
-			v := dec.scan.step(&dec.scan, c)
-			if v == scanEnd {
-				scanp += i
+			switch dec.scan.step(&dec.scan, c) {
+			case scanEnd:
 				break Input
-			}
-			// scanEnd is delayed one byte.
-			// We might block trying to get that byte from src,
-			// so instead invent a space byte.
-			if (v == scanEndObject || v == scanEndArray) && dec.scan.step(&dec.scan, ' ') == scanEnd {
-				scanp += i + 1
-				break Input
-			}
-			if v == scanError {
+			case scanEndObject, scanEndArray:
+				// scanEnd is delayed one byte.
+				// We might block trying to get that byte from src,
+				// so instead invent a space byte.
+				if stateEndValue(&dec.scan, ' ') == scanEnd {
+					scanp++
+					break Input
+				}
+			case scanError:
 				dec.err = dec.scan.err
 				return 0, dec.scan.err
 			}
 		}
-		scanp = len(dec.buf)
 
 		// Did the last read have an error?
 		// Delayed until now to allow buffer scan.
@@ -471,7 +473,7 @@ func (dec *Decoder) tokenError(c byte) (Token, error) {
 	case tokenObjectComma:
 		context = " after object key:value pair"
 	}
-	return nil, &SyntaxError{"invalid character " + quoteChar(c) + " " + context, dec.offset()}
+	return nil, &SyntaxError{"invalid character " + quoteChar(c) + context, dec.offset()}
 }
 
 // More reports whether there is another element in the

@@ -61,16 +61,16 @@ package math
 
 // tan coefficients
 var _tanP = [...]float64{
-	-1.30936939181383777646E4, // 0xc0c992d8d24f3f38
-	1.15351664838587416140E6,  // 0x413199eca5fc9ddd
-	-1.79565251976484877988E7, // 0xc1711fead3299176
+	-1.30936939181383777646e4, // 0xc0c992d8d24f3f38
+	1.15351664838587416140e6,  // 0x413199eca5fc9ddd
+	-1.79565251976484877988e7, // 0xc1711fead3299176
 }
 var _tanQ = [...]float64{
-	1.00000000000000000000E0,
-	1.36812963470692954678E4,  //0x40cab8a5eeb36572
-	-1.32089234440210967447E6, //0xc13427bc582abc96
-	2.50083801823357915839E7,  //0x4177d98fc2ead8ef
-	-5.38695755929454629881E7, //0xc189afe03cbe5a31
+	1.00000000000000000000e0,
+	1.36812963470692954678e4,  //0x40cab8a5eeb36572
+	-1.32089234440210967447e6, //0xc13427bc582abc96
+	2.50083801823357915839e7,  //0x4177d98fc2ead8ef
+	-5.38695755929454629881e7, //0xc189afe03cbe5a31
 }
 
 // Tan returns the tangent of the radian argument x.
@@ -83,10 +83,9 @@ func Tan(x float64) float64
 
 func tan(x float64) float64 {
 	const (
-		PI4A = 7.85398125648498535156E-1                             // 0x3fe921fb40000000, Pi/4 split into three parts
-		PI4B = 3.77489470793079817668E-8                             // 0x3e64442d00000000,
-		PI4C = 2.69515142907905952645E-15                            // 0x3ce8469898cc5170,
-		M4PI = 1.273239544735162542821171882678754627704620361328125 // 4/pi
+		PI4A = 7.85398125648498535156e-1  // 0x3fe921fb40000000, Pi/4 split into three parts
+		PI4B = 3.77489470793079817668e-8  // 0x3e64442d00000000,
+		PI4C = 2.69515142907905952645e-15 // 0x3ce8469898cc5170,
 	)
 	// special cases
 	switch {
@@ -102,17 +101,22 @@ func tan(x float64) float64 {
 		x = -x
 		sign = true
 	}
+	var j uint64
+	var y, z float64
+	if x >= reduceThreshold {
+		j, z = trigReduce(x)
+	} else {
+		j = uint64(x * (4 / Pi)) // integer part of x/(Pi/4), as integer for tests on the phase angle
+		y = float64(j)           // integer part of x/(Pi/4), as float
 
-	j := int64(x * M4PI) // integer part of x/(Pi/4), as integer for tests on the phase angle
-	y := float64(j)      // integer part of x/(Pi/4), as float
+		/* map zeros and singularities to origin */
+		if j&1 == 1 {
+			j++
+			y++
+		}
 
-	/* map zeros and singularities to origin */
-	if j&1 == 1 {
-		j++
-		y++
+		z = ((x - y*PI4A) - y*PI4B) - y*PI4C
 	}
-
-	z := ((x - y*PI4A) - y*PI4B) - y*PI4C
 	zz := z * z
 
 	if zz > 1e-14 {

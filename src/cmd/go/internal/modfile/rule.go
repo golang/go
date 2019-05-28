@@ -8,8 +8,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"internal/lazyregexp"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -154,7 +154,7 @@ func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (*File
 	return f, nil
 }
 
-var goVersionRE = regexp.MustCompile(`([1-9][0-9]*)\.(0|[1-9][0-9]*)`)
+var GoVersionRE = lazyregexp.New(`([1-9][0-9]*)\.(0|[1-9][0-9]*)`)
 
 func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, fix VersionFixer, strict bool) {
 	// If strict is false, this module is a dependency.
@@ -181,7 +181,7 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
 			fmt.Fprintf(errs, "%s:%d: repeated go statement\n", f.Syntax.Name, line.Start.Line)
 			return
 		}
-		if len(args) != 1 || !goVersionRE.MatchString(args[0]) {
+		if len(args) != 1 || !GoVersionRE.MatchString(args[0]) {
 			fmt.Fprintf(errs, "%s:%d: usage: go 1.23\n", f.Syntax.Name, line.Start.Line)
 			return
 		}
@@ -195,7 +195,7 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
 		f.Module = &Module{Syntax: line}
 		if len(args) != 1 {
 
-			fmt.Fprintf(errs, "%s:%d: usage: module module/path [version]\n", f.Syntax.Name, line.Start.Line)
+			fmt.Fprintf(errs, "%s:%d: usage: module module/path\n", f.Syntax.Name, line.Start.Line)
 			return
 		}
 		s, err := parseString(&args[0])
@@ -250,7 +250,7 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
 			arrow = 1
 		}
 		if len(args) < arrow+2 || len(args) > arrow+3 || args[arrow] != "=>" {
-			fmt.Fprintf(errs, "%s:%d: usage: %s module/path [v1.2.3] => other/module v1.4\n\t or %s module/path [v1.2.3] => ../local/directory", f.Syntax.Name, line.Start.Line, verb, verb)
+			fmt.Fprintf(errs, "%s:%d: usage: %s module/path [v1.2.3] => other/module v1.4\n\t or %s module/path [v1.2.3] => ../local/directory\n", f.Syntax.Name, line.Start.Line, verb, verb)
 			return
 		}
 		s, err := parseString(&args[0])
@@ -287,11 +287,11 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
 		nv := ""
 		if len(args) == arrow+2 {
 			if !IsDirectoryPath(ns) {
-				fmt.Fprintf(errs, "%s:%d: replacement module without version must be directory path (rooted or starting with ./ or ../)", f.Syntax.Name, line.Start.Line)
+				fmt.Fprintf(errs, "%s:%d: replacement module without version must be directory path (rooted or starting with ./ or ../)\n", f.Syntax.Name, line.Start.Line)
 				return
 			}
 			if filepath.Separator == '/' && strings.Contains(ns, `\`) {
-				fmt.Fprintf(errs, "%s:%d: replacement directory appears to be Windows path (on a non-windows system)", f.Syntax.Name, line.Start.Line)
+				fmt.Fprintf(errs, "%s:%d: replacement directory appears to be Windows path (on a non-windows system)\n", f.Syntax.Name, line.Start.Line)
 				return
 			}
 		}
@@ -303,7 +303,7 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
 				return
 			}
 			if IsDirectoryPath(ns) {
-				fmt.Fprintf(errs, "%s:%d: replacement module directory path %q cannot have version", f.Syntax.Name, line.Start.Line, ns)
+				fmt.Fprintf(errs, "%s:%d: replacement module directory path %q cannot have version\n", f.Syntax.Name, line.Start.Line, ns)
 				return
 			}
 		}
@@ -475,6 +475,22 @@ func (f *File) Cleanup() {
 	f.Replace = f.Replace[:w]
 
 	f.Syntax.Cleanup()
+}
+
+func (f *File) AddGoStmt(version string) error {
+	if !GoVersionRE.MatchString(version) {
+		return fmt.Errorf("invalid language version string %q", version)
+	}
+	if f.Go == nil {
+		f.Go = &Go{
+			Version: version,
+			Syntax:  f.Syntax.addLine(nil, "go", version),
+		}
+	} else {
+		f.Go.Version = version
+		f.Syntax.updateLine(f.Go.Syntax, "go", version)
+	}
+	return nil
 }
 
 func (f *File) AddRequire(path, vers string) error {

@@ -97,6 +97,7 @@ type Func struct {
 	Frame    int64      // size in bytes of local variable frame
 	Leaf     bool       // function omits save of link register (ARM)
 	NoSplit  bool       // function omits stack split prologue
+	TopFrame bool       // function is the top of the call stack
 	Var      []Var      // detail about local variables
 	PCSP     Data       // PC → SP offset map
 	PCFile   Data       // PC → file number map (index into File)
@@ -119,10 +120,11 @@ type FuncData struct {
 // An InlinedCall is a node in an InlTree.
 // See cmd/internal/obj.InlTree for details.
 type InlinedCall struct {
-	Parent int64
-	File   string
-	Line   int64
-	Func   SymID
+	Parent   int64
+	File     string
+	Line     int64
+	Func     SymID
+	ParentPC int64
 }
 
 // A Package is a parsed Go object file or archive defining a Go package.
@@ -288,18 +290,31 @@ func (r *objReader) readSymID() SymID {
 }
 
 func (r *objReader) readRef() {
-	name, vers := r.readString(), r.readInt()
+	name, abiOrStatic := r.readString(), r.readInt()
 
 	// In a symbol name in an object file, "". denotes the
 	// prefix for the package in which the object file has been found.
 	// Expand it.
-	name = strings.Replace(name, `"".`, r.pkgprefix, -1)
+	name = strings.ReplaceAll(name, `"".`, r.pkgprefix)
 
-	// An individual object file only records version 0 (extern) or 1 (static).
-	// To make static symbols unique across all files being read, we
-	// replace version 1 with the version corresponding to the current
-	// file number. The number is incremented on each call to parseObject.
-	if vers != 0 {
+	// The ABI field records either the ABI or -1 for static symbols.
+	//
+	// To distinguish different static symbols with the same name,
+	// we use the symbol "version". Version 0 corresponds to
+	// global symbols, and each file has a unique version > 0 for
+	// all of its static symbols. The version is incremented on
+	// each call to parseObject.
+	//
+	// For global symbols, we currently ignore the ABI.
+	//
+	// TODO(austin): Record the ABI in SymID. Since this is a
+	// public API, we'll have to keep Version as 0 and record the
+	// ABI in a new field (which differs from how the linker does
+	// this, but that's okay). Show the ABI in things like
+	// objdump.
+	var vers int64
+	if abiOrStatic == -1 {
+		// Static symbol
 		vers = r.p.MaxVersion
 	}
 	r.p.SymRefs = append(r.p.SymRefs, SymID{name, vers})
@@ -487,7 +502,7 @@ func (r *objReader) parseObject(prefix []byte) error {
 	// TODO: extract OS + build ID if/when we need it
 
 	r.readFull(r.tmp[:8])
-	if !bytes.Equal(r.tmp[:8], []byte("\x00\x00go19ld")) {
+	if !bytes.Equal(r.tmp[:8], []byte("\x00go112ld")) {
 		return r.error(errCorruptObject)
 	}
 
@@ -562,6 +577,7 @@ func (r *objReader) parseObject(prefix []byte) error {
 			f.Frame = r.readInt()
 			flags := r.readInt()
 			f.Leaf = flags&(1<<0) != 0
+			f.TopFrame = flags&(1<<4) != 0
 			f.NoSplit = r.readInt() != 0
 			f.Var = make([]Var, r.readInt())
 			for i := range f.Var {
@@ -597,12 +613,13 @@ func (r *objReader) parseObject(prefix []byte) error {
 				f.InlTree[i].File = r.readSymID().Name
 				f.InlTree[i].Line = r.readInt()
 				f.InlTree[i].Func = r.readSymID()
+				f.InlTree[i].ParentPC = r.readInt()
 			}
 		}
 	}
 
 	r.readFull(r.tmp[:7])
-	if !bytes.Equal(r.tmp[:7], []byte("\xffgo19ld")) {
+	if !bytes.Equal(r.tmp[:7], []byte("go112ld")) {
 		return r.error(errCorruptObject)
 	}
 

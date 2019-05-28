@@ -1,0 +1,22 @@
+[short] skip
+env GO111MODULE=off
+cd a
+
+# No timeout is passed via 'go test' command.
+go test -v
+stdout '10m0s'
+
+# Timeout is passed via 'go test' command.
+go test -v -timeout 30m
+stdout '30m0s'
+
+-- a/timeout_test.go --
+package t
+import (
+	"flag"
+	"fmt"
+	"testing"
+)
+func TestTimeout(t *testing.T) {
+	fmt.Println(flag.Lookup("test.timeout").Value.String())
+}

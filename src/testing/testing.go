@@ -17,13 +17,13 @@
 // package builds but will be included when the ``go test'' command is run.
 // For more detail, run ``go help test'' and ``go help testflag''.
 //
-// Tests and benchmarks may be skipped if not applicable with a call to
-// the Skip method of *T and *B:
-//     func TestTimeConsuming(t *testing.T) {
-//         if testing.Short() {
-//             t.Skip("skipping test in short mode.")
+// A simple test function looks like this:
+//
+//     func TestAbs(t *testing.T) {
+//         got := Abs(-1)
+//         if got != 1 {
+//             t.Errorf("Abs(-1) = %d; want 1", got)
 //         }
-//         ...
 //     }
 //
 // Benchmarks
@@ -132,6 +132,18 @@
 // example function, at least one other function, type, variable, or constant
 // declaration, and no test or benchmark functions.
 //
+// Skipping
+//
+// Tests or benchmarks may be skipped at run time with a call to
+// the Skip method of *T or *B:
+//
+//     func TestTimeConsuming(t *testing.T) {
+//         if testing.Short() {
+//             t.Skip("skipping test in short mode.")
+//         }
+//         ...
+//     }
+//
 // Subtests and Sub-benchmarks
 //
 // The Run methods of T and B allow defining subtests and sub-benchmarks,
@@ -237,7 +249,18 @@ import (
 	"time"
 )
 
-var (
+var initRan bool
+
+// Init registers testing flags. These flags are automatically registered by
+// the "go test" command before running test functions, so Init is only needed
+// when calling functions such as Benchmark without using "go test".
+//
+// Init has no effect if it was already called.
+func Init() {
+	if initRan {
+		return
+	}
+	initRan = true
 	// The short flag requests that tests run more quickly, but its functionality
 	// is provided by test writers themselves. The testing package is just its
 	// home. The all.bash installation script sets it to make installation more
@@ -253,25 +276,50 @@ var (
 	// this flag lets "go test" tell the binary to write the files in the directory where
 	// the "go test" command is run.
 	outputDir = flag.String("test.outputdir", "", "write profiles to `dir`")
-
 	// Report as tests are run; default is silent for success.
-	chatty               = flag.Bool("test.v", false, "verbose: print additional output")
-	count                = flag.Uint("test.count", 1, "run tests and benchmarks `n` times")
-	coverProfile         = flag.String("test.coverprofile", "", "write a coverage profile to `file`")
-	matchList            = flag.String("test.list", "", "list tests, examples, and benchmarks matching `regexp` then exit")
-	match                = flag.String("test.run", "", "run only tests and examples matching `regexp`")
-	memProfile           = flag.String("test.memprofile", "", "write an allocation profile to `file`")
-	memProfileRate       = flag.Int("test.memprofilerate", 0, "set memory allocation profiling `rate` (see runtime.MemProfileRate)")
-	cpuProfile           = flag.String("test.cpuprofile", "", "write a cpu profile to `file`")
-	blockProfile         = flag.String("test.blockprofile", "", "write a goroutine blocking profile to `file`")
-	blockProfileRate     = flag.Int("test.blockprofilerate", 1, "set blocking profile `rate` (see runtime.SetBlockProfileRate)")
-	mutexProfile         = flag.String("test.mutexprofile", "", "write a mutex contention profile to the named file after execution")
+	chatty = flag.Bool("test.v", false, "verbose: print additional output")
+	count = flag.Uint("test.count", 1, "run tests and benchmarks `n` times")
+	coverProfile = flag.String("test.coverprofile", "", "write a coverage profile to `file`")
+	matchList = flag.String("test.list", "", "list tests, examples, and benchmarks matching `regexp` then exit")
+	match = flag.String("test.run", "", "run only tests and examples matching `regexp`")
+	memProfile = flag.String("test.memprofile", "", "write an allocation profile to `file`")
+	memProfileRate = flag.Int("test.memprofilerate", 0, "set memory allocation profiling `rate` (see runtime.MemProfileRate)")
+	cpuProfile = flag.String("test.cpuprofile", "", "write a cpu profile to `file`")
+	blockProfile = flag.String("test.blockprofile", "", "write a goroutine blocking profile to `file`")
+	blockProfileRate = flag.Int("test.blockprofilerate", 1, "set blocking profile `rate` (see runtime.SetBlockProfileRate)")
+	mutexProfile = flag.String("test.mutexprofile", "", "write a mutex contention profile to the named file after execution")
 	mutexProfileFraction = flag.Int("test.mutexprofilefraction", 1, "if >= 0, calls runtime.SetMutexProfileFraction()")
-	traceFile            = flag.String("test.trace", "", "write an execution trace to `file`")
-	timeout              = flag.Duration("test.timeout", 0, "panic test binary after duration `d` (default 0, timeout disabled)")
-	cpuListStr           = flag.String("test.cpu", "", "comma-separated `list` of cpu counts to run each test with")
-	parallel             = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "run at most `n` tests in parallel")
-	testlog              = flag.String("test.testlogfile", "", "write test action log to `file` (for use only by cmd/go)")
+	traceFile = flag.String("test.trace", "", "write an execution trace to `file`")
+	timeout = flag.Duration("test.timeout", 0, "panic test binary after duration `d` (default 0, timeout disabled)")
+	cpuListStr = flag.String("test.cpu", "", "comma-separated `list` of cpu counts to run each test with")
+	parallel = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "run at most `n` tests in parallel")
+	testlog = flag.String("test.testlogfile", "", "write test action log to `file` (for use only by cmd/go)")
+
+	initBenchmarkFlags()
+}
+
+var (
+	// Flags, registered during Init.
+	short                *bool
+	failFast             *bool
+	outputDir            *string
+	chatty               *bool
+	count                *uint
+	coverProfile         *string
+	matchList            *string
+	match                *string
+	memProfile           *string
+	memProfileRate       *int
+	cpuProfile           *string
+	blockProfile         *string
+	blockProfileRate     *int
+	mutexProfile         *string
+	mutexProfileFraction *int
+	traceFile            *string
+	timeout              *time.Duration
+	cpuListStr           *string
+	parallel             *int
+	testlog              *string
 
 	haveExamples bool // are there examples?
 
@@ -316,6 +364,14 @@ type common struct {
 
 // Short reports whether the -test.short flag is set.
 func Short() bool {
+	if short == nil {
+		panic("testing: Short called before Init")
+	}
+	// Catch code that calls this from TestMain without first calling flag.Parse.
+	if !flag.Parsed() {
+		panic("testing: Short called before Parse")
+	}
+
 	return *short
 }
 
@@ -328,6 +384,13 @@ func CoverMode() string {
 
 // Verbose reports whether the -test.v flag is set.
 func Verbose() bool {
+	// Same as in Short.
+	if chatty == nil {
+		panic("testing: Verbose called before Init")
+	}
+	if !flag.Parsed() {
+		panic("testing: Verbose called before Parse")
+	}
 	return *chatty
 }
 
@@ -396,8 +459,8 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 // decorate prefixes the string with the file and line of the call site
 // and inserts the final newline if needed and indentation spaces for formatting.
 // This function must be called with c.mu held.
-func (c *common) decorate(s string) string {
-	frame := c.frameSkip(3) // decorate + log + public function.
+func (c *common) decorate(s string, skip int) string {
+	frame := c.frameSkip(skip)
 	file := frame.File
 	line := frame.Line
 	if file != "" {
@@ -592,9 +655,28 @@ func (c *common) FailNow() {
 
 // log generates the output. It's always at the same stack depth.
 func (c *common) log(s string) {
+	c.logDepth(s, 3) // logDepth + log + public function
+}
+
+// logDepth generates the output at an arbitrary stack depth.
+func (c *common) logDepth(s string, depth int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.output = append(c.output, c.decorate(s)...)
+	if !c.done {
+		c.output = append(c.output, c.decorate(s, depth+1)...)
+	} else {
+		// This test has already finished. Try and log this message
+		// with our parent. If we don't have a parent, panic.
+		for parent := c.parent; parent != nil; parent = parent.parent {
+			parent.mu.Lock()
+			defer parent.mu.Unlock()
+			if !parent.done {
+				parent.output = append(parent.output, parent.decorate(s, depth+1)...)
+				return
+			}
+		}
+		panic("Log in goroutine after " + c.name + " has completed")
+	}
 }
 
 // Log formats its arguments using default formatting, analogous to Println,
@@ -689,7 +771,7 @@ func (c *common) Helper() {
 // for the caller after skip frames (where 0 means the current function).
 func callerName(skip int) string {
 	// Make room for the skip PC.
-	var pc [2]uintptr
+	var pc [1]uintptr
 	n := runtime.Callers(skip+2, pc[:]) // skip + runtime.Callers + callerName
 	if n == 0 {
 		panic("testing: zero callers found")
@@ -993,6 +1075,12 @@ type testDeps interface {
 // It is not meant to be called directly and is not subject to the Go 1 compatibility document.
 // It may change signature from release to release.
 func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) *M {
+	// In most cases, Init has already been called by the testinginit code
+	// that 'go test' injects into test packages.
+	// Call it again here to handle cases such as:
+	// - test packages that don't import "testing" (such as example-only packages)
+	// - direct use of MainStart (though that isn't well-supported)
+	Init()
 	return &M{
 		deps:       deps,
 		tests:      tests,
@@ -1249,7 +1337,7 @@ func (m *M) writeProfiles() {
 			os.Exit(2)
 		}
 		if err = m.deps.WriteProfileTo("mutex", f, 0); err != nil {
-			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *blockProfile, err)
+			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *mutexProfile, err)
 			os.Exit(2)
 		}
 		f.Close()
@@ -1265,20 +1353,18 @@ func toOutputDir(path string) string {
 	if *outputDir == "" || path == "" {
 		return path
 	}
-	if runtime.GOOS == "windows" {
-		// On Windows, it's clumsy, but we can be almost always correct
-		// by just looking for a drive letter and a colon.
-		// Absolute paths always have a drive letter (ignoring UNC).
-		// Problem: if path == "C:A" and outputdir == "C:\Go" it's unclear
-		// what to do, but even then path/filepath doesn't help.
-		// TODO: Worth doing better? Probably not, because we're here only
-		// under the management of go test.
-		if len(path) >= 2 {
-			letter, colon := path[0], path[1]
-			if ('a' <= letter && letter <= 'z' || 'A' <= letter && letter <= 'Z') && colon == ':' {
-				// If path starts with a drive letter we're stuck with it regardless.
-				return path
-			}
+	// On Windows, it's clumsy, but we can be almost always correct
+	// by just looking for a drive letter and a colon.
+	// Absolute paths always have a drive letter (ignoring UNC).
+	// Problem: if path == "C:A" and outputdir == "C:\Go" it's unclear
+	// what to do, but even then path/filepath doesn't help.
+	// TODO: Worth doing better? Probably not, because we're here only
+	// under the management of go test.
+	if runtime.GOOS == "windows" && len(path) >= 2 {
+		letter, colon := path[0], path[1]
+		if ('a' <= letter && letter <= 'z' || 'A' <= letter && letter <= 'Z') && colon == ':' {
+			// If path starts with a drive letter we're stuck with it regardless.
+			return path
 		}
 	}
 	if os.IsPathSeparator(path[0]) {

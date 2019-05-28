@@ -118,67 +118,10 @@ func flagalloc(f *Func) {
 
 			// If v will be spilled, and v uses memory, then we must split it
 			// into a load + a flag generator.
-			// TODO: figure out how to do this without arch-dependent code.
 			if spill[v.ID] && v.MemoryArg() != nil {
-				switch v.Op {
-				case OpAMD64CMPQload:
-					load := b.NewValue2IA(v.Pos, OpAMD64MOVQload, f.Config.Types.UInt64, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
-					v.Op = OpAMD64CMPQ
-					v.AuxInt = 0
-					v.Aux = nil
-					v.SetArgs2(load, v.Args[1])
-				case OpAMD64CMPLload:
-					load := b.NewValue2IA(v.Pos, OpAMD64MOVLload, f.Config.Types.UInt32, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
-					v.Op = OpAMD64CMPL
-					v.AuxInt = 0
-					v.Aux = nil
-					v.SetArgs2(load, v.Args[1])
-				case OpAMD64CMPWload:
-					load := b.NewValue2IA(v.Pos, OpAMD64MOVWload, f.Config.Types.UInt16, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
-					v.Op = OpAMD64CMPW
-					v.AuxInt = 0
-					v.Aux = nil
-					v.SetArgs2(load, v.Args[1])
-				case OpAMD64CMPBload:
-					load := b.NewValue2IA(v.Pos, OpAMD64MOVBload, f.Config.Types.UInt8, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
-					v.Op = OpAMD64CMPB
-					v.AuxInt = 0
-					v.Aux = nil
-					v.SetArgs2(load, v.Args[1])
-
-				case OpAMD64CMPQconstload:
-					vo := v.AuxValAndOff()
-					load := b.NewValue2IA(v.Pos, OpAMD64MOVQload, f.Config.Types.UInt64, vo.Off(), v.Aux, v.Args[0], v.Args[1])
-					v.Op = OpAMD64CMPQconst
-					v.AuxInt = vo.Val()
-					v.Aux = nil
-					v.SetArgs1(load)
-				case OpAMD64CMPLconstload:
-					vo := v.AuxValAndOff()
-					load := b.NewValue2IA(v.Pos, OpAMD64MOVLload, f.Config.Types.UInt32, vo.Off(), v.Aux, v.Args[0], v.Args[1])
-					v.Op = OpAMD64CMPLconst
-					v.AuxInt = vo.Val()
-					v.Aux = nil
-					v.SetArgs1(load)
-				case OpAMD64CMPWconstload:
-					vo := v.AuxValAndOff()
-					load := b.NewValue2IA(v.Pos, OpAMD64MOVWload, f.Config.Types.UInt16, vo.Off(), v.Aux, v.Args[0], v.Args[1])
-					v.Op = OpAMD64CMPWconst
-					v.AuxInt = vo.Val()
-					v.Aux = nil
-					v.SetArgs1(load)
-				case OpAMD64CMPBconstload:
-					vo := v.AuxValAndOff()
-					load := b.NewValue2IA(v.Pos, OpAMD64MOVBload, f.Config.Types.UInt8, vo.Off(), v.Aux, v.Args[0], v.Args[1])
-					v.Op = OpAMD64CMPBconst
-					v.AuxInt = vo.Val()
-					v.Aux = nil
-					v.SetArgs1(load)
-
-				default:
+				if !f.Config.splitLoad(v) {
 					f.Fatalf("can't split flag generator: %s", v.LongString())
 				}
-
 			}
 
 			// Make sure any flag arg of v is in the flags register.

@@ -2424,6 +2424,7 @@ const (
 	R_RISCV_SET8          R_RISCV = 54 /* Local label subtraction */
 	R_RISCV_SET16         R_RISCV = 55 /* Local label subtraction */
 	R_RISCV_SET32         R_RISCV = 56 /* Local label subtraction */
+	R_RISCV_32_PCREL      R_RISCV = 57 /* 32-bit PC relative */
 )
 
 var rriscvStrings = []intName{
@@ -2480,6 +2481,7 @@ var rriscvStrings = []intName{
 	{54, "R_RISCV_SET8"},
 	{55, "R_RISCV_SET16"},
 	{56, "R_RISCV_SET32"},
+	{57, "R_RISCV_32_PCREL"},
 }
 
 func (i R_RISCV) String() string   { return stringName(uint32(i), rriscvStrings, false) }

@@ -34,7 +34,7 @@ See also: go fmt, go vet.
 func runFix(cmd *base.Command, args []string) {
 	printed := false
 	for _, pkg := range load.Packages(args) {
-		if modload.Enabled() && !pkg.Module.Main {
+		if modload.Enabled() && pkg.Module != nil && !pkg.Module.Main {
 			if !printed {
 				fmt.Fprintf(os.Stderr, "go: not fixing packages in dependency modules\n")
 				printed = true

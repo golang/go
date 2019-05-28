@@ -577,18 +577,32 @@ func TestRaceChanItselfCap(t *testing.T) {
 	<-compl
 }
 
-func TestRaceChanCloseLen(t *testing.T) {
-	v := 0
-	_ = v
+func TestNoRaceChanCloseLen(t *testing.T) {
 	c := make(chan int, 10)
-	c <- 0
+	r := make(chan int, 10)
 	go func() {
-		v = 1
-		close(c)
+		r <- len(c)
 	}()
-	time.Sleep(1e7)
-	_ = len(c)
-	v = 2
+	go func() {
+		close(c)
+		r <- 0
+	}()
+	<-r
+	<-r
+}
+
+func TestNoRaceChanCloseCap(t *testing.T) {
+	c := make(chan int, 10)
+	r := make(chan int, 10)
+	go func() {
+		r <- cap(c)
+	}()
+	go func() {
+		close(c)
+		r <- 0
+	}()
+	<-r
+	<-r
 }
 
 func TestRaceChanCloseSend(t *testing.T) {

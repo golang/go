@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package arch defines architecture-specific information and support functions.
 package arch
 
 import (
@@ -257,6 +258,9 @@ func archArm64() *Arch {
 	for i := arm64.REG_R0; i <= arm64.REG_R31; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}
+	// Rename R18 to R18_PLATFORM to avoid accidental use.
+	register["R18_PLATFORM"] = register["R18"]
+	delete(register, "R18")
 	for i := arm64.REG_F0; i <= arm64.REG_F31; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}

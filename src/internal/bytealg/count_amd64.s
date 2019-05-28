@@ -6,7 +6,7 @@
 #include "textflag.h"
 
 TEXT ·Count(SB),NOSPLIT,$0-40
-	CMPB	internal∕cpu·X86+const_x86_HasPOPCNT(SB), $1
+	CMPB	internal∕cpu·X86+const_offsetX86HasPOPCNT(SB), $1
 	JEQ	2(PC)
 	JMP	·countGeneric(SB)
 	MOVQ	b_base+0(FP), SI
@@ -16,7 +16,7 @@ TEXT ·Count(SB),NOSPLIT,$0-40
 	JMP	countbody<>(SB)
 
 TEXT ·CountString(SB),NOSPLIT,$0-32
-	CMPB	internal∕cpu·X86+const_x86_HasPOPCNT(SB), $1
+	CMPB	internal∕cpu·X86+const_offsetX86HasPOPCNT(SB), $1
 	JEQ	2(PC)
 	JMP	·countGenericString(SB)
 	MOVQ	s_base+0(FP), SI
@@ -151,7 +151,7 @@ endofpage:
 	RET
 
 avx2:
-	CMPB   internal∕cpu·X86+const_x86_HasAVX2(SB), $1
+	CMPB   internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
 	JNE sse
 	MOVD AX, X0
 	LEAQ -32(SI)(BX*1), R11

@@ -167,17 +167,13 @@ func (m *Map) Store(key, value interface{}) {
 // If the entry is expunged, tryStore returns false and leaves the entry
 // unchanged.
 func (e *entry) tryStore(i *interface{}) bool {
-	p := atomic.LoadPointer(&e.p)
-	if p == expunged {
-		return false
-	}
 	for {
-		if atomic.CompareAndSwapPointer(&e.p, p, unsafe.Pointer(i)) {
-			return true
-		}
-		p = atomic.LoadPointer(&e.p)
+		p := atomic.LoadPointer(&e.p)
 		if p == expunged {
 			return false
+		}
+		if atomic.CompareAndSwapPointer(&e.p, p, unsafe.Pointer(i)) {
+			return true
 		}
 	}
 }

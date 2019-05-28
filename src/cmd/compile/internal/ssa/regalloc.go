@@ -119,6 +119,7 @@ import (
 	"cmd/internal/src"
 	"cmd/internal/sys"
 	"fmt"
+	"math/bits"
 	"unsafe"
 )
 
@@ -149,6 +150,8 @@ type register uint8
 
 const noRegister register = 255
 
+// A regMask encodes a set of machine registers.
+// TODO: regMask -> regSet?
 type regMask uint64
 
 func (m regMask) String() string {
@@ -183,26 +186,16 @@ func (s *regAllocState) RegMaskString(m regMask) string {
 
 // countRegs returns the number of set bits in the register mask.
 func countRegs(r regMask) int {
-	n := 0
-	for r != 0 {
-		n += int(r & 1)
-		r >>= 1
-	}
-	return n
+	return bits.OnesCount64(uint64(r))
 }
 
 // pickReg picks an arbitrary register from the register mask.
 func pickReg(r regMask) register {
-	// pick the lowest one
 	if r == 0 {
 		panic("can't pick a register from an empty set")
 	}
-	for i := register(0); ; i++ {
-		if r&1 != 0 {
-			return i
-		}
-		r >>= 1
-	}
+	// pick the lowest one
+	return register(bits.TrailingZeros64(uint64(r)))
 }
 
 type use struct {
@@ -658,8 +651,14 @@ func (s *regAllocState) init(f *Func) {
 	}
 
 	s.regs = make([]regState, s.numRegs)
-	s.values = make([]valState, f.NumValues())
-	s.orig = make([]*Value, f.NumValues())
+	nv := f.NumValues()
+	if cap(s.f.Cache.regallocValues) >= nv {
+		s.f.Cache.regallocValues = s.f.Cache.regallocValues[:nv]
+	} else {
+		s.f.Cache.regallocValues = make([]valState, nv)
+	}
+	s.values = s.f.Cache.regallocValues
+	s.orig = make([]*Value, nv)
 	s.copies = make(map[*Value]bool)
 	for _, b := range s.visitOrder {
 		for _, v := range b.Values {
@@ -1227,6 +1226,13 @@ func (s *regAllocState) regalloc(f *Func) {
 					// This forces later liveness analysis to make the
 					// value live at this point.
 					v.SetArg(0, s.makeSpill(a, b))
+				} else if _, ok := a.Aux.(GCNode); ok && vi.rematerializeable {
+					// Rematerializeable value with a gc.Node. This is the address of
+					// a stack object (e.g. an LEAQ). Keep the object live.
+					// Change it to VarLive, which is what plive expects for locals.
+					v.Op = OpVarLive
+					v.SetArgs1(v.Args[1])
+					v.Aux = a.Aux
 				} else {
 					// In-register and rematerializeable values are already live.
 					// These are typically rematerializeable constants like nil,

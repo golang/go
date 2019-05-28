@@ -27,6 +27,10 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	allocfreetrace: setting allocfreetrace=1 causes every allocation to be
 	profiled and a stack trace printed on each object's allocation and free.
 
+	clobberfree: setting clobberfree=1 causes the garbage collector to
+	clobber the memory content of an object with bad content when it frees
+	the object.
+
 	cgocheck: setting cgocheck=0 disables all checks for packages
 	using cgo to incorrectly pass Go pointers to non-Go code.
 	Setting cgocheck=1 (the default) enables relatively cheap
@@ -50,19 +54,13 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	gcshrinkstackoff: setting gcshrinkstackoff=1 disables moving goroutines
 	onto smaller stacks. In this mode, a goroutine's stack can only grow.
 
-	gcrescanstacks: setting gcrescanstacks=1 enables stack
-	re-scanning during the STW mark termination phase. This is
-	helpful for debugging if objects are being prematurely
-	garbage collected.
-
 	gcstoptheworld: setting gcstoptheworld=1 disables concurrent garbage collection,
 	making every garbage collection a stop-the-world event. Setting gcstoptheworld=2
 	also disables concurrent sweeping after the garbage collection finishes.
 
 	gctrace: setting gctrace=1 causes the garbage collector to emit a single line to standard
 	error at each collection, summarizing the amount of memory collected and the
-	length of the pause. Setting gctrace=2 emits the same summary but also
-	repeats each collection. The format of this line is subject to change.
+	length of the pause. The format of this line is subject to change.
 	Currently, it is:
 		gc # @#s #%: #+#+# ms clock, #+#/#/#+# ms cpu, #->#-># MB, # MB goal, # P
 	where the fields are as follows:
@@ -95,6 +93,11 @@ It is a comma-separated list of name=val pairs setting these named variables:
 		released: #  MB released to the system
 		consumed: #  MB allocated from the system
 
+	madvdontneed: setting madvdontneed=1 will use MADV_DONTNEED
+	instead of MADV_FREE on Linux when returning memory to the
+	kernel. This is less efficient, but causes RSS numbers to drop
+	more quickly.
+
 	memprofilerate: setting memprofilerate=X will update the value of runtime.MemProfileRate.
 	When set to 0 memory profiling is disabled.  Refer to the description of
 	MemProfileRate for the default value.
@@ -124,7 +127,7 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	IDs will refer to the ID of the goroutine at the time of creation; it's possible for this
 	ID to be reused for another goroutine. Setting N to 0 will report no ancestry information.
 
-The net and net/http packages also refer to debugging variables in GODEBUG.
+The net, net/http, and crypto/tls packages also refer to debugging variables in GODEBUG.
 See the documentation for those packages for details.
 
 The GOMAXPROCS variable limits the number of operating system threads that
@@ -132,6 +135,9 @@ can execute user-level Go code simultaneously. There is no limit to the number o
 that can be blocked in system calls on behalf of Go code; those do not count against
 the GOMAXPROCS limit. This package's GOMAXPROCS function queries and changes
 the limit.
+
+The GORACE variable configures the race detector, for programs built using -race.
+See https://golang.org/doc/articles/race_detector.html for details.
 
 The GOTRACEBACK variable controls the amount of output generated when a Go
 program fails due to an unrecovered panic or an unexpected runtime condition.
@@ -172,27 +178,13 @@ import "runtime/internal/sys"
 // program counter, file name, and line number within the file of the corresponding
 // call. The boolean ok is false if it was not possible to recover the information.
 func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
-	// Make room for three PCs: the one we were asked for,
-	// what it called, so that CallersFrames can see if it "called"
-	// sigpanic, and possibly a PC for skipPleaseUseCallersFrames.
-	var rpc [3]uintptr
-	if callers(1+skip-1, rpc[:]) < 2 {
+	rpc := make([]uintptr, 1)
+	n := callers(skip+1, rpc[:])
+	if n < 1 {
 		return
 	}
-	var stackExpander stackExpander
-	callers := stackExpander.init(rpc[:])
-	// We asked for one extra, so skip that one. If this is sigpanic,
-	// stepping over this frame will set up state in Frames so the
-	// next frame is correct.
-	callers, _, ok = stackExpander.next(callers, true)
-	if !ok {
-		return
-	}
-	_, frame, _ := stackExpander.next(callers, true)
-	pc = frame.PC
-	file = frame.File
-	line = frame.Line
-	return
+	frame, _ := CallersFrames(rpc).Next()
+	return frame.PC, frame.File, frame.Line, frame.PC != 0
 }
 
 // Callers fills the slice pc with the return program counters of function invocations
@@ -208,6 +200,7 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 // directly is discouraged, as is using FuncForPC on any of the
 // returned PCs, since these cannot account for inlining or return
 // program counter adjustment.
+//go:noinline
 func Callers(skip int, pc []uintptr) int {
 	// runtime.callers uses pc.array==nil as a signal
 	// to print a stack trace. Pick off 0-length pc here
@@ -238,6 +231,7 @@ func Version() string {
 
 // GOOS is the running program's operating system target:
 // one of darwin, freebsd, linux, and so on.
+// To view possible combinations of GOOS and GOARCH, run "go tool dist list".
 const GOOS string = sys.GOOS
 
 // GOARCH is the running program's architecture target:

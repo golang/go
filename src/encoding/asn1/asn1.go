@@ -633,7 +633,7 @@ var (
 	bigIntType           = reflect.TypeOf(new(big.Int))
 )
 
-// invalidLength returns true iff offset + length > sliceLength, or if the
+// invalidLength reports whether offset + length > sliceLength, or if the
 // addition would overflow.
 func invalidLength(offset, length, sliceLength int) bool {
 	return offset+length < offset || offset+length > sliceLength

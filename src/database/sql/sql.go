@@ -8,7 +8,7 @@
 // The sql package must be used in conjunction with a database driver.
 // See https://golang.org/s/sqldrivers for a list of drivers.
 //
-// Drivers that do not support context cancelation will not return until
+// Drivers that do not support context cancellation will not return until
 // after the query is completed.
 //
 // For usage examples, see the wiki page at
@@ -133,6 +133,7 @@ const (
 	LevelLinearizable
 )
 
+// String returns the name of the transaction isolation level.
 func (i IsolationLevel) String() string {
 	switch i {
 	case LevelDefault:
@@ -233,6 +234,32 @@ func (n NullInt64) Value() (driver.Value, error) {
 	return n.Int64, nil
 }
 
+// NullInt32 represents an int32 that may be null.
+// NullInt32 implements the Scanner interface so
+// it can be used as a scan destination, similar to NullString.
+type NullInt32 struct {
+	Int32 int32
+	Valid bool // Valid is true if Int32 is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (n *NullInt32) Scan(value interface{}) error {
+	if value == nil {
+		n.Int32, n.Valid = 0, false
+		return nil
+	}
+	n.Valid = true
+	return convertAssign(&n.Int32, value)
+}
+
+// Value implements the driver Valuer interface.
+func (n NullInt32) Value() (driver.Value, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+	return int64(n.Int32), nil
+}
+
 // NullFloat64 represents a float64 that may be null.
 // NullFloat64 implements the Scanner interface so
 // it can be used as a scan destination, similar to NullString.
@@ -283,6 +310,32 @@ func (n NullBool) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return n.Bool, nil
+}
+
+// NullTime represents a time.Time that may be null.
+// NullTime implements the Scanner interface so
+// it can be used as a scan destination, similar to NullString.
+type NullTime struct {
+	Time  time.Time
+	Valid bool // Valid is true if Time is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (n *NullTime) Scan(value interface{}) error {
+	if value == nil {
+		n.Time, n.Valid = time.Time{}, false
+		return nil
+	}
+	n.Valid = true
+	return convertAssign(&n.Time, value)
+}
+
+// Value implements the driver Valuer interface.
+func (n NullTime) Value() (driver.Value, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+	return n.Time, nil
 }
 
 // Scanner is an interface used by Scan.
@@ -567,7 +620,6 @@ type finalCloser interface {
 // addDep notes that x now depends on dep, and x's finalClose won't be
 // called until all of x's dependencies are removed with removeDep.
 func (db *DB) addDep(x finalCloser, dep interface{}) {
-	//println(fmt.Sprintf("addDep(%T %p, %T %p)", x, x, dep, dep))
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	db.addDepLocked(x, dep)
@@ -597,7 +649,6 @@ func (db *DB) removeDep(x finalCloser, dep interface{}) error {
 }
 
 func (db *DB) removeDepLocked(x finalCloser, dep interface{}) func() error {
-	//println(fmt.Sprintf("removeDep(%T %p, %T %p)", x, x, dep, dep))
 
 	xdep, ok := db.dep[x]
 	if !ok {
@@ -1322,11 +1373,13 @@ func (db *DB) putConnDBLocked(dc *driverConn, err error) bool {
 			err:  err,
 		}
 		return true
-	} else if err == nil && !db.closed && db.maxIdleConnsLocked() > len(db.freeConn) {
-		db.freeConn = append(db.freeConn, dc)
+	} else if err == nil && !db.closed {
+		if db.maxIdleConnsLocked() > len(db.freeConn) {
+			db.freeConn = append(db.freeConn, dc)
+			db.startCleanerLocked()
+			return true
+		}
 		db.maxIdleClosed++
-		db.startCleanerLocked()
-		return true
 	}
 	return false
 }
@@ -1697,7 +1750,7 @@ func (db *DB) Conn(ctx context.Context) (*Conn, error) {
 		}
 	}
 	if err == driver.ErrBadConn {
-		dc, err = db.conn(ctx, cachedOrNewConn)
+		dc, err = db.conn(ctx, alwaysNewConn)
 	}
 	if err != nil {
 		return nil, err
@@ -2255,6 +2308,13 @@ var (
 
 // Stmt is a prepared statement.
 // A Stmt is safe for concurrent use by multiple goroutines.
+//
+// If a Stmt is prepared on a Tx or Conn, it will be bound to a single
+// underlying connection forever. If the Tx or Conn closes, the Stmt will
+// become unusable and all operations will return an error.
+// If a Stmt is prepared on a DB, it will remain usable for the lifetime of the
+// DB. When the Stmt needs to execute on a new underlying connection, it will
+// prepare itself on the new connection automatically.
 type Stmt struct {
 	// Immutable:
 	db        *DB    // where we came from
@@ -2605,6 +2665,15 @@ type Rows struct {
 	lastcols []driver.Value
 }
 
+// lasterrOrErrLocked returns either lasterr or the provided err.
+// rs.closemu must be read-locked.
+func (rs *Rows) lasterrOrErrLocked(err error) error {
+	if rs.lasterr != nil && rs.lasterr != io.EOF {
+		return rs.lasterr
+	}
+	return err
+}
+
 func (rs *Rows) initContextClose(ctx, txctx context.Context) {
 	if ctx.Done() == nil && (txctx == nil || txctx.Done() == nil) {
 		return
@@ -2681,7 +2750,7 @@ func (rs *Rows) nextLocked() (doClose, ok bool) {
 	return false, true
 }
 
-// NextResultSet prepares the next result set for reading. It returns true if
+// NextResultSet prepares the next result set for reading. It reports whether
 // there is further result sets, or false if there is no further result set
 // or if there is an error advancing to it. The Err method should be consulted
 // to distinguish between the two cases.
@@ -2728,23 +2797,22 @@ func (rs *Rows) NextResultSet() bool {
 func (rs *Rows) Err() error {
 	rs.closemu.RLock()
 	defer rs.closemu.RUnlock()
-	if rs.lasterr == io.EOF {
-		return nil
-	}
-	return rs.lasterr
+	return rs.lasterrOrErrLocked(nil)
 }
 
+var errRowsClosed = errors.New("sql: Rows are closed")
+var errNoRows = errors.New("sql: no Rows available")
+
 // Columns returns the column names.
-// Columns returns an error if the rows are closed, or if the rows
-// are from QueryRow and there was a deferred error.
+// Columns returns an error if the rows are closed.
 func (rs *Rows) Columns() ([]string, error) {
 	rs.closemu.RLock()
 	defer rs.closemu.RUnlock()
 	if rs.closed {
-		return nil, errors.New("sql: Rows are closed")
+		return nil, rs.lasterrOrErrLocked(errRowsClosed)
 	}
 	if rs.rowsi == nil {
-		return nil, errors.New("sql: no Rows available")
+		return nil, rs.lasterrOrErrLocked(errNoRows)
 	}
 	rs.dc.Lock()
 	defer rs.dc.Unlock()
@@ -2758,10 +2826,10 @@ func (rs *Rows) ColumnTypes() ([]*ColumnType, error) {
 	rs.closemu.RLock()
 	defer rs.closemu.RUnlock()
 	if rs.closed {
-		return nil, errors.New("sql: Rows are closed")
+		return nil, rs.lasterrOrErrLocked(errRowsClosed)
 	}
 	if rs.rowsi == nil {
-		return nil, errors.New("sql: no Rows available")
+		return nil, rs.lasterrOrErrLocked(errNoRows)
 	}
 	rs.dc.Lock()
 	defer rs.dc.Unlock()
@@ -2812,7 +2880,7 @@ func (ci *ColumnType) ScanType() reflect.Type {
 	return ci.scanType
 }
 
-// Nullable returns whether the column may be null.
+// Nullable reports whether the column may be null.
 // If a driver does not support this property ok will be false.
 func (ci *ColumnType) Nullable() (nullable, ok bool) {
 	return ci.nullable, ci.hasNullable
@@ -2873,6 +2941,7 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
 //    *float32, *float64
 //    *interface{}
 //    *RawBytes
+//    *Rows (cursor value)
 //    any type implementing Scanner (see Scanner docs)
 //
 // In the most simple case, if the type of the value from the source
@@ -2909,6 +2978,11 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
 //
 // For scanning into *bool, the source may be true, false, 1, 0, or
 // string inputs parseable by strconv.ParseBool.
+//
+// Scan can also convert a cursor returned from a query, such as
+// "select cursor(select * from my_table) from dual", into a
+// *Rows value that can itself be scanned from. The parent
+// select query will close any cursor *Rows if the parent *Rows is closed.
 func (rs *Rows) Scan(dest ...interface{}) error {
 	rs.closemu.RLock()
 
@@ -2917,8 +2991,9 @@ func (rs *Rows) Scan(dest ...interface{}) error {
 		return rs.lasterr
 	}
 	if rs.closed {
+		err := rs.lasterrOrErrLocked(errRowsClosed)
 		rs.closemu.RUnlock()
-		return errors.New("sql: Rows are closed")
+		return err
 	}
 	rs.closemu.RUnlock()
 
@@ -2929,7 +3004,7 @@ func (rs *Rows) Scan(dest ...interface{}) error {
 		return fmt.Errorf("sql: expected %d destination arguments in Scan, not %d", len(rs.lastcols), len(dest))
 	}
 	for i, sv := range rs.lastcols {
-		err := convertAssign(dest[i], sv)
+		err := convertAssignRows(dest[i], sv, rs)
 		if err != nil {
 			return fmt.Errorf(`sql: Scan error on column index %d, name %q: %v`, i, rs.rowsi.Columns()[i], err)
 		}

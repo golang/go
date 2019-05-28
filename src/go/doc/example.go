@@ -9,8 +9,8 @@ package doc
 import (
 	"go/ast"
 	"go/token"
+	"internal/lazyregexp"
 	"path"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -68,6 +68,9 @@ func Examples(files ...*ast.File) []*Example {
 			if !isTest(name, "Example") {
 				continue
 			}
+			if f.Body == nil { // ast.File.Body nil dereference (see issue 28044)
+				continue
+			}
 			var doc string
 			if f.Doc != nil {
 				doc = f.Doc.Text()
@@ -101,7 +104,7 @@ func Examples(files ...*ast.File) []*Example {
 	return list
 }
 
-var outputPrefix = regexp.MustCompile(`(?i)^[[:space:]]*(unordered )?output:`)
+var outputPrefix = lazyregexp.New(`(?i)^[[:space:]]*(unordered )?output:`)
 
 // Extracts the expected output and whether there was a valid output comment
 func exampleOutput(b *ast.BlockStmt, comments []*ast.CommentGroup) (output string, unordered, ok bool) {
@@ -188,7 +191,7 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 	inspectFunc = func(n ast.Node) bool {
 		switch e := n.(type) {
 		case *ast.Ident:
-			if e.Obj == nil {
+			if e.Obj == nil && e.Name != "_" {
 				unresolved[e.Name] = true
 			} else if d := topDecls[e.Obj]; d != nil {
 				if !hasDepDecls[d] {
@@ -216,6 +219,18 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 	for i := 0; i < len(depDecls); i++ {
 		switch d := depDecls[i].(type) {
 		case *ast.FuncDecl:
+			// Inspect types of parameters and results. See #28492.
+			if d.Type.Params != nil {
+				for _, p := range d.Type.Params.List {
+					ast.Inspect(p.Type, inspectFunc)
+				}
+			}
+			if d.Type.Results != nil {
+				for _, r := range d.Type.Results.List {
+					ast.Inspect(r.Type, inspectFunc)
+				}
+			}
+
 			ast.Inspect(d.Body, inspectFunc)
 		case *ast.GenDecl:
 			for _, spec := range d.Specs {
@@ -252,6 +267,11 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 		p, err := strconv.Unquote(s.Path.Value)
 		if err != nil {
 			continue
+		}
+		if p == "syscall/js" {
+			// We don't support examples that import syscall/js,
+			// because the package syscall/js is not available in the playground.
+			return nil
 		}
 		n := path.Base(p)
 		if s.Name != nil {
@@ -406,6 +426,9 @@ func stripOutputComment(body *ast.BlockStmt, comments []*ast.CommentGroup) (*ast
 
 // lastComment returns the last comment inside the provided block.
 func lastComment(b *ast.BlockStmt, c []*ast.CommentGroup) (i int, last *ast.CommentGroup) {
+	if b == nil {
+		return
+	}
 	pos, end := b.Pos(), b.End()
 	for j, cg := range c {
 		if cg.Pos() < pos {

@@ -82,6 +82,7 @@ func codeInit() {
 }
 
 func BenchmarkCodeEncoder(b *testing.B) {
+	b.ReportAllocs()
 	if codeJSON == nil {
 		b.StopTimer()
 		codeInit()
@@ -99,6 +100,7 @@ func BenchmarkCodeEncoder(b *testing.B) {
 }
 
 func BenchmarkCodeMarshal(b *testing.B) {
+	b.ReportAllocs()
 	if codeJSON == nil {
 		b.StopTimer()
 		codeInit()
@@ -114,7 +116,37 @@ func BenchmarkCodeMarshal(b *testing.B) {
 	b.SetBytes(int64(len(codeJSON)))
 }
 
+func benchMarshalBytes(n int) func(*testing.B) {
+	sample := []byte("hello world")
+	// Use a struct pointer, to avoid an allocation when passing it as an
+	// interface parameter to Marshal.
+	v := &struct {
+		Bytes []byte
+	}{
+		bytes.Repeat(sample, (n/len(sample))+1)[:n],
+	}
+	return func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			if _, err := Marshal(v); err != nil {
+				b.Fatal("Marshal:", err)
+			}
+		}
+	}
+}
+
+func BenchmarkMarshalBytes(b *testing.B) {
+	b.ReportAllocs()
+	// 32 fits within encodeState.scratch.
+	b.Run("32", benchMarshalBytes(32))
+	// 256 doesn't fit in encodeState.scratch, but is small enough to
+	// allocate and avoid the slower base64.NewEncoder.
+	b.Run("256", benchMarshalBytes(256))
+	// 4096 is large enough that we want to avoid allocating for it.
+	b.Run("4096", benchMarshalBytes(4096))
+}
+
 func BenchmarkCodeDecoder(b *testing.B) {
+	b.ReportAllocs()
 	if codeJSON == nil {
 		b.StopTimer()
 		codeInit()
@@ -139,6 +171,7 @@ func BenchmarkCodeDecoder(b *testing.B) {
 }
 
 func BenchmarkUnicodeDecoder(b *testing.B) {
+	b.ReportAllocs()
 	j := []byte(`"\uD83D\uDE01"`)
 	b.SetBytes(int64(len(j)))
 	r := bytes.NewReader(j)
@@ -154,6 +187,7 @@ func BenchmarkUnicodeDecoder(b *testing.B) {
 }
 
 func BenchmarkDecoderStream(b *testing.B) {
+	b.ReportAllocs()
 	b.StopTimer()
 	var buf bytes.Buffer
 	dec := NewDecoder(&buf)
@@ -176,6 +210,7 @@ func BenchmarkDecoderStream(b *testing.B) {
 }
 
 func BenchmarkCodeUnmarshal(b *testing.B) {
+	b.ReportAllocs()
 	if codeJSON == nil {
 		b.StopTimer()
 		codeInit()
@@ -193,6 +228,7 @@ func BenchmarkCodeUnmarshal(b *testing.B) {
 }
 
 func BenchmarkCodeUnmarshalReuse(b *testing.B) {
+	b.ReportAllocs()
 	if codeJSON == nil {
 		b.StopTimer()
 		codeInit()
@@ -206,10 +242,11 @@ func BenchmarkCodeUnmarshalReuse(b *testing.B) {
 			}
 		}
 	})
-	// TODO(bcmills): Is there a missing b.SetBytes here?
+	b.SetBytes(int64(len(codeJSON)))
 }
 
 func BenchmarkUnmarshalString(b *testing.B) {
+	b.ReportAllocs()
 	data := []byte(`"hello, world"`)
 	b.RunParallel(func(pb *testing.PB) {
 		var s string
@@ -222,6 +259,7 @@ func BenchmarkUnmarshalString(b *testing.B) {
 }
 
 func BenchmarkUnmarshalFloat64(b *testing.B) {
+	b.ReportAllocs()
 	data := []byte(`3.14`)
 	b.RunParallel(func(pb *testing.PB) {
 		var f float64
@@ -234,6 +272,7 @@ func BenchmarkUnmarshalFloat64(b *testing.B) {
 }
 
 func BenchmarkUnmarshalInt64(b *testing.B) {
+	b.ReportAllocs()
 	data := []byte(`3`)
 	b.RunParallel(func(pb *testing.PB) {
 		var x int64
@@ -272,6 +311,7 @@ func BenchmarkUnmapped(b *testing.B) {
 }
 
 func BenchmarkTypeFieldsCache(b *testing.B) {
+	b.ReportAllocs()
 	var maxTypes int = 1e6
 	if testenv.Builder() != "" {
 		maxTypes = 1e3 // restrict cache sizes on builders

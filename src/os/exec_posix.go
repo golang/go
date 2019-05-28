@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+// +build aix darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
 
 package os
 
@@ -10,10 +10,11 @@ import (
 	"syscall"
 )
 
-// The only signal values guaranteed to be present in the os package
-// on all systems are Interrupt (send the process an interrupt) and
-// Kill (force the process to exit). Interrupt is not implemented on
-// Windows; using it with os.Process.Signal will return an error.
+// The only signal values guaranteed to be present in the os package on all
+// systems are os.Interrupt (send the process an interrupt) and os.Kill (force
+// the process to exit). On Windows, sending os.Interrupt to a process with
+// os.Process.Signal is not implemented; it will return an error instead of
+// sending a signal.
 var (
 	Interrupt Signal = syscall.SIGINT
 	Kill      Signal = syscall.SIGKILL
@@ -37,8 +38,12 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 		Sys: attr.Sys,
 	}
 	if sysattr.Env == nil {
-		sysattr.Env = Environ()
+		sysattr.Env, err = environForSysProcAttr(sysattr.Sys)
+		if err != nil {
+			return nil, err
+		}
 	}
+	sysattr.Files = make([]uintptr, 0, len(attr.Files))
 	for _, f := range attr.Files {
 		sysattr.Files = append(sysattr.Files, f.Fd())
 	}
@@ -105,4 +110,14 @@ func (p *ProcessState) String() string {
 		res += " (core dumped)"
 	}
 	return res
+}
+
+// ExitCode returns the exit code of the exited process, or -1
+// if the process hasn't exited or was terminated by a signal.
+func (p *ProcessState) ExitCode() int {
+	// return -1 if the process hasn't started.
+	if p == nil {
+		return -1
+	}
+	return p.status.ExitStatus()
 }

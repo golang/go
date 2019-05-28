@@ -40,6 +40,14 @@ TEXT ·Load(SB),NOSPLIT,$0-8
 	MOVW	R1, ret+4(FP)
 	RET
 
+TEXT ·Load8(SB),NOSPLIT,$0-5
+	MOVW	ptr+0(FP), R1
+	SYNC
+	MOVB	0(R1), R1
+	SYNC
+	MOVB	R1, ret+4(FP)
+	RET
+
 TEXT ·Xadd(SB),NOSPLIT,$0-12
 	MOVW	ptr+0(FP), R2
 	MOVW	delta+4(FP), R3
@@ -70,6 +78,9 @@ try_xchg:
 TEXT ·Casuintptr(SB),NOSPLIT,$0-13
 	JMP	·Cas(SB)
 
+TEXT ·CasRel(SB),NOSPLIT,$0-13
+	JMP	·Cas(SB)
+
 TEXT ·Loaduintptr(SB),NOSPLIT,$0-8
 	JMP	·Load(SB)
 
@@ -98,6 +109,9 @@ TEXT ·Xchguintptr(SB),NOSPLIT,$0-12
 	JMP	·Xchg(SB)
 
 TEXT ·StorepNoWB(SB),NOSPLIT,$0-8
+	JMP	·Store(SB)
+
+TEXT ·StoreRel(SB),NOSPLIT,$0-8
 	JMP	·Store(SB)
 
 // void	Or8(byte volatile*, byte);

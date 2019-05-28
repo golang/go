@@ -5,6 +5,7 @@
 // +build !darwin
 // +build !windows
 // +build !freebsd
+// +build !aix
 
 package runtime
 

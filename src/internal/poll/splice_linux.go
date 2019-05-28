@@ -32,8 +32,6 @@ func Splice(dst, src *FD, remain int64) (written int64, handled bool, sc string,
 		return 0, false, sc, err
 	}
 	defer destroyTempPipe(prfd, pwfd)
-	// From here on, the operation should be considered handled,
-	// even if Splice doesn't transfer any data.
 	var inPipe, n int
 	for err == nil && remain > 0 {
 		max := maxSpliceSize
@@ -41,9 +39,18 @@ func Splice(dst, src *FD, remain int64) (written int64, handled bool, sc string,
 			max = int(remain)
 		}
 		inPipe, err = spliceDrain(pwfd, src, max)
+		// The operation is considered handled if splice returns no
+		// error, or an error other than EINVAL. An EINVAL means the
+		// kernel does not support splice for the socket type of src.
+		// The failed syscall does not consume any data so it is safe
+		// to fall back to a generic copy.
+		//
 		// spliceDrain should never return EAGAIN, so if err != nil,
-		// Splice cannot continue. If inPipe == 0 && err == nil,
-		// src is at EOF, and the transfer is complete.
+		// Splice cannot continue.
+		//
+		// If inPipe == 0 && err == nil, src is at EOF, and the
+		// transfer is complete.
+		handled = handled || (err != syscall.EINVAL)
 		if err != nil || (inPipe == 0 && err == nil) {
 			break
 		}
@@ -54,7 +61,7 @@ func Splice(dst, src *FD, remain int64) (written int64, handled bool, sc string,
 		}
 	}
 	if err != nil {
-		return written, true, "splice", err
+		return written, handled, "splice", err
 	}
 	return written, true, "", nil
 }

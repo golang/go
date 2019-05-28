@@ -43,6 +43,11 @@ nocgo:
 	RET
 
 #ifdef TLSG_IS_VARIABLE
+#ifdef GOOS_android
+// Use the free TLS_SLOT_APP slot #2 on Android Q.
+// Earlier androids are set up in gcc_android.c.
+DATA runtime·tls_g+0(SB)/8, $16
+#endif
 GLOBL runtime·tls_g+0(SB), NOPTR, $8
 #else
 GLOBL runtime·tls_g+0(SB), TLSBSS, $8

@@ -7,6 +7,7 @@ package tls
 import (
 	"bytes"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"internal/testenv"
@@ -17,6 +18,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -35,7 +37,7 @@ r5QuVbpQhH6u+0UgcW0jp9QwpxoPTLTWGXEWBBBurxFwiCBhkQ+V
 -----END CERTIFICATE-----
 `
 
-var rsaKeyPEM = `-----BEGIN RSA PRIVATE KEY-----
+var rsaKeyPEM = testingKey(`-----BEGIN RSA TESTING KEY-----
 MIIBOwIBAAJBANLJhPHhITqQbPklG3ibCVxwGMRfp/v4XqhfdQHdcVfHap6NQ5Wo
 k/4xIA+ui35/MmNartNuC+BdZ1tMuVCPFZcCAwEAAQJAEJ2N+zsR0Xn8/Q6twa4G
 6OB1M1WO+k+ztnX/1SvNeWu8D6GImtupLTYgjZcHufykj09jiHmjHx8u8ZZB/o1N
@@ -43,12 +45,12 @@ MQIhAPW+eyZo7ay3lMz1V01WVjNKK9QSn1MJlb06h/LuYv9FAiEA25WPedKgVyCW
 SmUwbPw8fnTcpqDWE3yTO3vKcebqMSsCIBF3UmVue8YU3jybC3NxuXq3wNm34R8T
 xVLHwDXh/6NJAiEAl2oHGGLz64BuAfjKrqwz7qMYr9HCLIe/YsoWq/olzScCIQDi
 D2lWusoe2/nEqfDVVWGWlyJ7yOmqaVm/iNUN9B2N2g==
------END RSA PRIVATE KEY-----
-`
+-----END RSA TESTING KEY-----
+`)
 
 // keyPEM is the same as rsaKeyPEM, but declares itself as just
 // "PRIVATE KEY", not "RSA PRIVATE KEY".  https://golang.org/issue/4477
-var keyPEM = `-----BEGIN PRIVATE KEY-----
+var keyPEM = testingKey(`-----BEGIN TESTING KEY-----
 MIIBOwIBAAJBANLJhPHhITqQbPklG3ibCVxwGMRfp/v4XqhfdQHdcVfHap6NQ5Wo
 k/4xIA+ui35/MmNartNuC+BdZ1tMuVCPFZcCAwEAAQJAEJ2N+zsR0Xn8/Q6twa4G
 6OB1M1WO+k+ztnX/1SvNeWu8D6GImtupLTYgjZcHufykj09jiHmjHx8u8ZZB/o1N
@@ -56,8 +58,8 @@ MQIhAPW+eyZo7ay3lMz1V01WVjNKK9QSn1MJlb06h/LuYv9FAiEA25WPedKgVyCW
 SmUwbPw8fnTcpqDWE3yTO3vKcebqMSsCIBF3UmVue8YU3jybC3NxuXq3wNm34R8T
 xVLHwDXh/6NJAiEAl2oHGGLz64BuAfjKrqwz7qMYr9HCLIe/YsoWq/olzScCIQDi
 D2lWusoe2/nEqfDVVWGWlyJ7yOmqaVm/iNUN9B2N2g==
------END PRIVATE KEY-----
-`
+-----END TESTING KEY-----
+`)
 
 var ecdsaCertPEM = `-----BEGIN CERTIFICATE-----
 MIIB/jCCAWICCQDscdUxw16XFDAJBgcqhkjOPQQBMEUxCzAJBgNVBAYTAkFVMRMw
@@ -74,17 +76,17 @@ H5jBImIxPL4WxQNiBTexAkF8D1EtpYuWdlVQ80/h/f4pBcGiXPqX5h2PQSQY7hP1
 -----END CERTIFICATE-----
 `
 
-var ecdsaKeyPEM = `-----BEGIN EC PARAMETERS-----
+var ecdsaKeyPEM = testingKey(`-----BEGIN EC PARAMETERS-----
 BgUrgQQAIw==
 -----END EC PARAMETERS-----
------BEGIN EC PRIVATE KEY-----
+-----BEGIN EC TESTING KEY-----
 MIHcAgEBBEIBrsoKp0oqcv6/JovJJDoDVSGWdirrkgCWxrprGlzB9o0X8fV675X0
 NwuBenXFfeZvVcwluO7/Q9wkYoPd/t3jGImgBwYFK4EEACOhgYkDgYYABAFj36bL
 06h5JRGUNB1X/Hwuw64uKW2GGJLVPPhoYMcg/ALWaW+d/t+DmV5xikwKssuFq4Bz
 VQldyCXTXGgu7OC0AQCC/Y/+ODK3NFKlRi+AsG3VQDSV4tgHLqZBBus0S6pPcg1q
 kohxS/xfFg/TEwRSSws+roJr4JFKpO2t3/be5OdqmQ==
------END EC PRIVATE KEY-----
-`
+-----END EC TESTING KEY-----
+`)
 
 var keyPairTests = []struct {
 	algo string
@@ -252,6 +254,9 @@ func testConnReadNonzeroAndEOF(t *testing.T, delay time.Duration) error {
 	}()
 
 	clientConfig := testConfig.Clone()
+	// In TLS 1.3, alerts are encrypted and disguised as application data, so
+	// the opportunistic peek won't work.
+	clientConfig.MaxVersion = VersionTLS12
 	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
 	if err != nil {
 		t.Fatal(err)
@@ -297,6 +302,7 @@ func TestTLSUniqueMatches(t *testing.T) {
 				return
 			}
 			serverConfig := testConfig.Clone()
+			serverConfig.MaxVersion = VersionTLS12 // TLSUnique is not defined in TLS 1.3
 			srv := Server(sconn, serverConfig)
 			if err := srv.Handshake(); err != nil {
 				t.Error(err)
@@ -351,19 +357,24 @@ func TestVerifyHostname(t *testing.T) {
 	if err := c.VerifyHostname("www.google.com"); err == nil {
 		t.Fatalf("verify www.google.com succeeded with InsecureSkipVerify=true")
 	}
-	if err := c.VerifyHostname("www.yahoo.com"); err == nil {
-		t.Fatalf("verify www.google.com succeeded with InsecureSkipVerify=true")
-	}
 }
 
 func TestVerifyHostnameResumed(t *testing.T) {
+	t.Run("TLSv12", func(t *testing.T) { testVerifyHostnameResumed(t, VersionTLS12) })
+	t.Run("TLSv13", func(t *testing.T) { testVerifyHostnameResumed(t, VersionTLS13) })
+}
+
+func testVerifyHostnameResumed(t *testing.T, version uint16) {
 	testenv.MustHaveExternalNetwork(t)
 
 	config := &Config{
+		MaxVersion:         version,
 		ClientSessionCache: NewLRUClientSessionCache(32),
 	}
 	for i := 0; i < 2; i++ {
-		c, err := Dial("tcp", "www.google.com:https", config)
+		c, err := DialWithDialer(&net.Dialer{
+			Timeout: 10 * time.Second,
+		}, "tcp", "mail.google.com:https", config)
 		if err != nil {
 			t.Fatalf("Dial #%d: %v", i, err)
 		}
@@ -371,11 +382,22 @@ func TestVerifyHostnameResumed(t *testing.T) {
 		if i > 0 && !cs.DidResume {
 			t.Fatalf("Subsequent connection unexpectedly didn't resume")
 		}
+		if cs.Version != version {
+			t.Fatalf("Unexpectedly negotiated version %x", cs.Version)
+		}
 		if cs.VerifiedChains == nil {
 			t.Fatalf("Dial #%d: cs.VerifiedChains == nil", i)
 		}
-		if err := c.VerifyHostname("www.google.com"); err != nil {
-			t.Fatalf("verify www.google.com #%d: %v", i, err)
+		if err := c.VerifyHostname("mail.google.com"); err != nil {
+			t.Fatalf("verify mail.google.com #%d: %v", i, err)
+		}
+		// Have the server send some data so session tickets are delivered.
+		c.SetDeadline(time.Now().Add(5 * time.Second))
+		if _, err := io.WriteString(c, "HEAD / HTTP/1.0\n\n"); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := c.Read(make([]byte, 1)); err != nil {
+			t.Fatal(err)
 		}
 		c.Close()
 	}
@@ -588,7 +610,7 @@ func TestWarningAlertFlood(t *testing.T) {
 		if err == nil {
 			return errors.New("unexpected lack of error from server")
 		}
-		const expected = "too many warn"
+		const expected = "too many ignored"
 		if str := err.Error(); !strings.Contains(str, expected) {
 			return fmt.Errorf("expected error containing %q, but saw: %s", expected, str)
 		}
@@ -600,6 +622,7 @@ func TestWarningAlertFlood(t *testing.T) {
 	go func() { errChan <- server() }()
 
 	clientConfig := testConfig.Clone()
+	clientConfig.MaxVersion = VersionTLS12 // there are no warning alerts in TLS 1.3
 	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
 	if err != nil {
 		t.Fatal(err)
@@ -609,7 +632,7 @@ func TestWarningAlertFlood(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i := 0; i < maxWarnAlertCount+1; i++ {
+	for i := 0; i < maxUselessRecords+1; i++ {
 		conn.sendAlert(alertNoRenegotiation)
 	}
 
@@ -748,7 +771,7 @@ func (w *changeImplConn) Close() error {
 	return w.Conn.Close()
 }
 
-func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool) {
+func throughput(b *testing.B, version uint16, totalBytes int64, dynamicRecordSizingDisabled bool) {
 	ln := newLocalListener(b)
 	defer ln.Close()
 
@@ -784,6 +807,7 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
 	clientConfig := testConfig.Clone()
 	clientConfig.CipherSuites = nil // the defaults may prefer faster ciphers
 	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
+	clientConfig.MaxVersion = version
 
 	buf := make([]byte, bufsize)
 	chunks := int(math.Ceil(float64(totalBytes) / float64(len(buf))))
@@ -811,7 +835,12 @@ func BenchmarkThroughput(b *testing.B) {
 		for size := 1; size <= 64; size <<= 1 {
 			name := fmt.Sprintf("%sPacket/%dMB", mode, size)
 			b.Run(name, func(b *testing.B) {
-				throughput(b, int64(size<<20), mode == "Max")
+				b.Run("TLSv12", func(b *testing.B) {
+					throughput(b, VersionTLS12, int64(size<<20), mode == "Max")
+				})
+				b.Run("TLSv13", func(b *testing.B) {
+					throughput(b, VersionTLS13, int64(size<<20), mode == "Max")
+				})
 			})
 		}
 	}
@@ -845,7 +874,7 @@ func (c *slowConn) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func latency(b *testing.B, bps int, dynamicRecordSizingDisabled bool) {
+func latency(b *testing.B, version uint16, bps int, dynamicRecordSizingDisabled bool) {
 	ln := newLocalListener(b)
 	defer ln.Close()
 
@@ -871,6 +900,7 @@ func latency(b *testing.B, bps int, dynamicRecordSizingDisabled bool) {
 
 	clientConfig := testConfig.Clone()
 	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
+	clientConfig.MaxVersion = version
 
 	buf := make([]byte, 16384)
 	peek := make([]byte, 1)
@@ -902,8 +932,215 @@ func BenchmarkLatency(b *testing.B) {
 		for _, kbps := range []int{200, 500, 1000, 2000, 5000} {
 			name := fmt.Sprintf("%sPacket/%dkbps", mode, kbps)
 			b.Run(name, func(b *testing.B) {
-				latency(b, kbps*1000, mode == "Max")
+				b.Run("TLSv12", func(b *testing.B) {
+					latency(b, VersionTLS12, kbps*1000, mode == "Max")
+				})
+				b.Run("TLSv13", func(b *testing.B) {
+					latency(b, VersionTLS13, kbps*1000, mode == "Max")
+				})
 			})
 		}
 	}
 }
+
+func TestConnectionStateMarshal(t *testing.T) {
+	cs := &ConnectionState{}
+	_, err := json.Marshal(cs)
+	if err != nil {
+		t.Errorf("json.Marshal failed on ConnectionState: %v", err)
+	}
+}
+
+func TestConnectionState(t *testing.T) {
+	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
+	if err != nil {
+		panic(err)
+	}
+	rootCAs := x509.NewCertPool()
+	rootCAs.AddCert(issuer)
+
+	now := func() time.Time { return time.Unix(1476984729, 0) }
+
+	const alpnProtocol = "golang"
+	const serverName = "example.golang"
+	var scts = [][]byte{[]byte("dummy sct 1"), []byte("dummy sct 2")}
+	var ocsp = []byte("dummy ocsp")
+
+	for _, v := range []uint16{VersionTLS12, VersionTLS13} {
+		var name string
+		switch v {
+		case VersionTLS12:
+			name = "TLSv12"
+		case VersionTLS13:
+			name = "TLSv13"
+		}
+		t.Run(name, func(t *testing.T) {
+			config := &Config{
+				Time:         now,
+				Rand:         zeroSource{},
+				Certificates: make([]Certificate, 1),
+				MaxVersion:   v,
+				RootCAs:      rootCAs,
+				ClientCAs:    rootCAs,
+				ClientAuth:   RequireAndVerifyClientCert,
+				NextProtos:   []string{alpnProtocol},
+				ServerName:   serverName,
+			}
+			config.Certificates[0].Certificate = [][]byte{testRSACertificate}
+			config.Certificates[0].PrivateKey = testRSAPrivateKey
+			config.Certificates[0].SignedCertificateTimestamps = scts
+			config.Certificates[0].OCSPStaple = ocsp
+
+			ss, cs, err := testHandshake(t, config, config)
+			if err != nil {
+				t.Fatalf("Handshake failed: %v", err)
+			}
+
+			if ss.Version != v || cs.Version != v {
+				t.Errorf("Got versions %x (server) and %x (client), expected %x", ss.Version, cs.Version, v)
+			}
+
+			if !ss.HandshakeComplete || !cs.HandshakeComplete {
+				t.Errorf("Got HandshakeComplete %v (server) and %v (client), expected true", ss.HandshakeComplete, cs.HandshakeComplete)
+			}
+
+			if ss.DidResume || cs.DidResume {
+				t.Errorf("Got DidResume %v (server) and %v (client), expected false", ss.DidResume, cs.DidResume)
+			}
+
+			if ss.CipherSuite == 0 || cs.CipherSuite == 0 {
+				t.Errorf("Got invalid cipher suite: %v (server) and %v (client)", ss.CipherSuite, cs.CipherSuite)
+			}
+
+			if ss.NegotiatedProtocol != alpnProtocol || cs.NegotiatedProtocol != alpnProtocol {
+				t.Errorf("Got negotiated protocol %q (server) and %q (client), expected %q", ss.NegotiatedProtocol, cs.NegotiatedProtocol, alpnProtocol)
+			}
+
+			if !cs.NegotiatedProtocolIsMutual {
+				t.Errorf("Got false NegotiatedProtocolIsMutual on the client side")
+			}
+			// NegotiatedProtocolIsMutual on the server side is unspecified.
+
+			if ss.ServerName != serverName {
+				t.Errorf("Got server name %q, expected %q", ss.ServerName, serverName)
+			}
+			if cs.ServerName != "" {
+				t.Errorf("Got unexpected server name on the client side")
+			}
+
+			if len(ss.PeerCertificates) != 1 || len(cs.PeerCertificates) != 1 {
+				t.Errorf("Got %d (server) and %d (client) peer certificates, expected %d", len(ss.PeerCertificates), len(cs.PeerCertificates), 1)
+			}
+
+			if len(ss.VerifiedChains) != 1 || len(cs.VerifiedChains) != 1 {
+				t.Errorf("Got %d (server) and %d (client) verified chains, expected %d", len(ss.VerifiedChains), len(cs.VerifiedChains), 1)
+			} else if len(ss.VerifiedChains[0]) != 2 || len(cs.VerifiedChains[0]) != 2 {
+				t.Errorf("Got %d (server) and %d (client) long verified chain, expected %d", len(ss.VerifiedChains[0]), len(cs.VerifiedChains[0]), 2)
+			}
+
+			if len(cs.SignedCertificateTimestamps) != 2 {
+				t.Errorf("Got %d SCTs, expected %d", len(cs.SignedCertificateTimestamps), 2)
+			}
+			if !bytes.Equal(cs.OCSPResponse, ocsp) {
+				t.Errorf("Got OCSPs %x, expected %x", cs.OCSPResponse, ocsp)
+			}
+			// Only TLS 1.3 supports OCSP and SCTs on client certs.
+			if v == VersionTLS13 {
+				if len(ss.SignedCertificateTimestamps) != 2 {
+					t.Errorf("Got %d client SCTs, expected %d", len(ss.SignedCertificateTimestamps), 2)
+				}
+				if !bytes.Equal(ss.OCSPResponse, ocsp) {
+					t.Errorf("Got client OCSPs %x, expected %x", ss.OCSPResponse, ocsp)
+				}
+			}
+
+			if v == VersionTLS13 {
+				if ss.TLSUnique != nil || cs.TLSUnique != nil {
+					t.Errorf("Got TLSUnique %x (server) and %x (client), expected nil in TLS 1.3", ss.TLSUnique, cs.TLSUnique)
+				}
+			} else {
+				if ss.TLSUnique == nil || cs.TLSUnique == nil {
+					t.Errorf("Got TLSUnique %x (server) and %x (client), expected non-nil", ss.TLSUnique, cs.TLSUnique)
+				}
+			}
+		})
+	}
+}
+
+// TestEscapeRoute tests that the library will still work if support for TLS 1.3
+// is dropped later in the Go 1.12 cycle.
+func TestEscapeRoute(t *testing.T) {
+	defer func(savedSupportedVersions []uint16) {
+		supportedVersions = savedSupportedVersions
+	}(supportedVersions)
+	supportedVersions = []uint16{
+		VersionTLS12,
+		VersionTLS11,
+		VersionTLS10,
+		VersionSSL30,
+	}
+
+	expectVersion(t, testConfig, testConfig, VersionTLS12)
+}
+
+func expectVersion(t *testing.T, clientConfig, serverConfig *Config, v uint16) {
+	ss, cs, err := testHandshake(t, clientConfig, serverConfig)
+	if err != nil {
+		t.Fatalf("Handshake failed: %v", err)
+	}
+	if ss.Version != v {
+		t.Errorf("Server negotiated version %x, expected %x", cs.Version, v)
+	}
+	if cs.Version != v {
+		t.Errorf("Client negotiated version %x, expected %x", cs.Version, v)
+	}
+}
+
+// TestTLS13Switch checks the behavior of GODEBUG=tls13=[0|1]. See Issue 30055.
+func TestTLS13Switch(t *testing.T) {
+	defer func(savedGODEBUG string) {
+		os.Setenv("GODEBUG", savedGODEBUG)
+	}(os.Getenv("GODEBUG"))
+
+	os.Setenv("GODEBUG", "tls13=0")
+	tls13Support.Once = sync.Once{} // reset the cache
+
+	tls12Config := testConfig.Clone()
+	tls12Config.MaxVersion = VersionTLS12
+	expectVersion(t, testConfig, testConfig, VersionTLS12)
+	expectVersion(t, tls12Config, testConfig, VersionTLS12)
+	expectVersion(t, testConfig, tls12Config, VersionTLS12)
+	expectVersion(t, tls12Config, tls12Config, VersionTLS12)
+
+	os.Setenv("GODEBUG", "tls13=1")
+	tls13Support.Once = sync.Once{} // reset the cache
+
+	expectVersion(t, testConfig, testConfig, VersionTLS13)
+	expectVersion(t, tls12Config, testConfig, VersionTLS12)
+	expectVersion(t, testConfig, tls12Config, VersionTLS12)
+	expectVersion(t, tls12Config, tls12Config, VersionTLS12)
+}
+
+// Issue 28744: Ensure that we don't modify memory
+// that Config doesn't own such as Certificates.
+func TestBuildNameToCertificate_doesntModifyCertificates(t *testing.T) {
+	c0 := Certificate{
+		Certificate: [][]byte{testRSACertificate},
+		PrivateKey:  testRSAPrivateKey,
+	}
+	c1 := Certificate{
+		Certificate: [][]byte{testSNICertificate},
+		PrivateKey:  testRSAPrivateKey,
+	}
+	config := testConfig.Clone()
+	config.Certificates = []Certificate{c0, c1}
+
+	config.BuildNameToCertificate()
+	got := config.Certificates
+	want := []Certificate{c0, c1}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Certificates were mutated by BuildNameToCertificate\nGot: %#v\nWant: %#v\n", got, want)
+	}
+}
+
+func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }

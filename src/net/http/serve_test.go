@@ -130,7 +130,7 @@ func (c *testConn) Close() error {
 // reqBytes treats req as a request (with \n delimiters) and returns it with \r\n delimiters,
 // ending in \r\n\r\n
 func reqBytes(req string) []byte {
-	return []byte(strings.Replace(strings.TrimSpace(req), "\n", "\r\n", -1) + "\r\n\r\n")
+	return []byte(strings.ReplaceAll(strings.TrimSpace(req), "\n", "\r\n") + "\r\n\r\n")
 }
 
 type handlerTest struct {
@@ -1556,6 +1556,32 @@ func TestServeTLS(t *testing.T) {
 	}
 }
 
+// Test that the HTTPS server nicely rejects plaintext HTTP/1.x requests.
+func TestTLSServerRejectHTTPRequests(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		t.Error("unexpected HTTPS request")
+	}))
+	var errBuf bytes.Buffer
+	ts.Config.ErrorLog = log.New(&errBuf, "", 0)
+	defer ts.Close()
+	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	io.WriteString(conn, "GET / HTTP/1.1\r\nHost: foo\r\n\r\n")
+	slurp, err := ioutil.ReadAll(conn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const wantPrefix = "HTTP/1.0 400 Bad Request\r\n"
+	if !strings.HasPrefix(string(slurp), wantPrefix) {
+		t.Errorf("response = %q; wanted prefix %q", slurp, wantPrefix)
+	}
+}
+
 // Issue 15908
 func TestAutomaticHTTP2_Serve_NoTLSConfig(t *testing.T) {
 	testAutomaticHTTP2_Serve(t, nil, true)
@@ -2874,6 +2900,15 @@ func TestStripPrefix(t *testing.T) {
 		t.Errorf("test 2: got status %v, want %v", g, e)
 	}
 	res.Body.Close()
+
+	res, err = c.Get(ts.URL + "/foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g, e := res.Header.Get("X-Path"), "/"; g != e {
+		t.Errorf("test 3: got %s, want %s", g, e)
+	}
+	res.Body.Close()
 }
 
 // https://golang.org/issue/18952.
@@ -2988,7 +3023,7 @@ func testRequestBodyLimit(t *testing.T, h2 bool) {
 // side of their TCP connection, the server doesn't send a 400 Bad Request.
 func TestClientWriteShutdown(t *testing.T) {
 	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see https://golang.org/issue/7237")
+		t.Skip("skipping test; see https://golang.org/issue/17906")
 	}
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
@@ -4028,21 +4063,18 @@ func TestRequestBodyCloseDoesntBlock(t *testing.T) {
 	}
 }
 
-// test that ResponseWriter implements io.stringWriter.
+// test that ResponseWriter implements io.StringWriter.
 func TestResponseWriterWriteString(t *testing.T) {
 	okc := make(chan bool, 1)
 	ht := newHandlerTest(HandlerFunc(func(w ResponseWriter, r *Request) {
-		type stringWriter interface {
-			WriteString(s string) (n int, err error)
-		}
-		_, ok := w.(stringWriter)
+		_, ok := w.(io.StringWriter)
 		okc <- ok
 	}))
 	ht.rawResponse("GET / HTTP/1.0")
 	select {
 	case ok := <-okc:
 		if !ok {
-			t.Error("ResponseWriter did not implement io.stringWriter")
+			t.Error("ResponseWriter did not implement io.StringWriter")
 		}
 	default:
 		t.Error("handler was never called")
@@ -4674,6 +4706,10 @@ func TestServerHandlersCanHandleH2PRI(t *testing.T) {
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		conn, br, err := w.(Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
 		defer conn.Close()
 		if r.Method != "PRI" || r.RequestURI != "*" {
 			t.Errorf("Got method/target %q %q; want PRI *", r.Method, r.RequestURI)
@@ -5722,8 +5758,12 @@ func TestServerDuplicateBackgroundRead(t *testing.T) {
 	setParallel(t)
 	defer afterTest(t)
 
-	const goroutines = 5
-	const requests = 2000
+	goroutines := 5
+	requests := 2000
+	if testing.Short() {
+		goroutines = 3
+		requests = 100
+	}
 
 	hts := httptest.NewServer(HandlerFunc(NotFound))
 	defer hts.Close()
@@ -5996,6 +6036,99 @@ func TestStripPortFromHost(t *testing.T) {
 	if response != "OK" {
 		t.Errorf("Response gotten was %q", response)
 	}
+}
+
+func TestServerContexts(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	type baseKey struct{}
+	type connKey struct{}
+	ch := make(chan context.Context, 1)
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(rw ResponseWriter, r *Request) {
+		ch <- r.Context()
+	}))
+	ts.Config.BaseContext = func(ln net.Listener) context.Context {
+		if strings.Contains(reflect.TypeOf(ln).String(), "onceClose") {
+			t.Errorf("unexpected onceClose listener type %T", ln)
+		}
+		return context.WithValue(context.Background(), baseKey{}, "base")
+	}
+	ts.Config.ConnContext = func(ctx context.Context, c net.Conn) context.Context {
+		if got, want := ctx.Value(baseKey{}), "base"; got != want {
+			t.Errorf("in ConnContext, base context key = %#v; want %q", got, want)
+		}
+		return context.WithValue(ctx, connKey{}, "conn")
+	}
+	ts.Start()
+	defer ts.Close()
+	res, err := ts.Client().Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	ctx := <-ch
+	if got, want := ctx.Value(baseKey{}), "base"; got != want {
+		t.Errorf("base context key = %#v; want %q", got, want)
+	}
+	if got, want := ctx.Value(connKey{}), "conn"; got != want {
+		t.Errorf("conn context key = %#v; want %q", got, want)
+	}
+}
+
+// Issue 30710: ensure that as per the spec, a server responds
+// with 501 Not Implemented for unsupported transfer-encodings.
+func TestUnsupportedTransferEncodingsReturn501(t *testing.T) {
+	cst := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Write([]byte("Hello, World!"))
+	}))
+	defer cst.Close()
+
+	serverURL, err := url.Parse(cst.URL)
+	if err != nil {
+		t.Fatalf("Failed to parse server URL: %v", err)
+	}
+
+	unsupportedTEs := []string{
+		"fugazi",
+		"foo-bar",
+		"unknown",
+	}
+
+	for _, badTE := range unsupportedTEs {
+		http1ReqBody := fmt.Sprintf(""+
+			"POST / HTTP/1.1\r\nConnection: close\r\n"+
+			"Host: localhost\r\nTransfer-Encoding: %s\r\n\r\n", badTE)
+
+		gotBody, err := fetchWireResponse(serverURL.Host, []byte(http1ReqBody))
+		if err != nil {
+			t.Errorf("%q. unexpected error: %v", badTE, err)
+			continue
+		}
+
+		wantBody := fmt.Sprintf("" +
+			"HTTP/1.1 501 Not Implemented\r\nContent-Type: text/plain; charset=utf-8\r\n" +
+			"Connection: close\r\n\r\nUnsupported transfer encoding")
+
+		if string(gotBody) != wantBody {
+			t.Errorf("%q. body\ngot\n%q\nwant\n%q", badTE, gotBody, wantBody)
+		}
+	}
+}
+
+// fetchWireResponse is a helper for dialing to host,
+// sending http1ReqBody as the payload and retrieving
+// the response as it was sent on the wire.
+func fetchWireResponse(host string, http1ReqBody []byte) ([]byte, error) {
+	conn, err := net.Dial("tcp", host)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	if _, err := conn.Write(http1ReqBody); err != nil {
+		return nil, err
+	}
+	return ioutil.ReadAll(conn)
 }
 
 func BenchmarkResponseStatusLine(b *testing.B) {

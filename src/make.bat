@@ -46,12 +46,14 @@ if x%4==x--no-local goto nolocal
 setlocal
 :nolocal
 
+set GOENV=off
 set GOBUILDFAIL=0
 set GOFLAGS=
+set GO111MODULE=
 
 if exist make.bat goto ok
 echo Must run make.bat from Go src directory.
-goto fail 
+goto fail
 :ok
 
 :: Clean old generated file that will cause problems in the build.
@@ -77,10 +79,11 @@ set GOROOT=%GOROOT_BOOTSTRAP%
 set GOOS=
 set GOARCH=
 set GOBIN=
-"%GOROOT_BOOTSTRAP%\bin\go" build -o cmd\dist\dist.exe .\cmd\dist
+set GO111MODULE=off
+"%GOROOT_BOOTSTRAP%\bin\go.exe" build -o cmd\dist\dist.exe .\cmd\dist
 endlocal
 if errorlevel 1 goto fail
-.\cmd\dist\dist env -w -p >env.bat
+.\cmd\dist\dist.exe env -w -p >env.bat
 if errorlevel 1 goto fail
 call env.bat
 del env.bat
@@ -104,7 +107,7 @@ if x%4==x--no-banner set buildall=%buildall% --no-banner
 :: Run dist bootstrap to complete make.bash.
 :: Bootstrap installs a proper cmd/dist, built with the new toolchain.
 :: Throw ours, built with Go 1.4, away after bootstrap.
-.\cmd\dist\dist bootstrap %vflag% %buildall% 
+.\cmd\dist\dist.exe bootstrap %vflag% %buildall%
 if errorlevel 1 goto fail
 del .\cmd\dist\dist.exe
 goto end

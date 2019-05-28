@@ -65,7 +65,7 @@ func (e *WriteError) Error() string {
 	return "flate: write error at offset " + strconv.FormatInt(e.Offset, 10) + ": " + e.Err.Error()
 }
 
-// Resetter resets a ReadCloser returned by NewReader or NewReaderDict to
+// Resetter resets a ReadCloser returned by NewReader or NewReaderDict
 // to switch to a new underlying Reader. This permits reusing a ReadCloser
 // instead of allocating a new one.
 type Resetter interface {
@@ -89,7 +89,7 @@ type Resetter interface {
 // number of bits.
 //
 // See the following:
-//	http://www.gzip.org/algorithm.txt
+//	https://github.com/madler/zlib/raw/master/doc/algorithm.txt
 
 // chunk & 15 is number of bits
 // chunk >> 4 is value, including table link

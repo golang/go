@@ -57,7 +57,7 @@ func TestGobError(t *testing.T) {
 		if err == nil {
 			t.Fatal("no error")
 		}
-		if !strings.Contains("reading body EOF", err.(error).Error()) {
+		if !strings.Contains(err.(error).Error(), "reading body EOF") {
 			t.Fatal("expected `reading body EOF', got", err)
 		}
 	}()

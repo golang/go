@@ -30,8 +30,15 @@ var numberTests = []numberTest{
 	{"0", true, true, true, false, 0, 0, 0, 0},
 	{"-0", true, true, true, false, 0, 0, 0, 0}, // check that -0 is a uint.
 	{"73", true, true, true, false, 73, 73, 73, 0},
+	{"7_3", true, true, true, false, 73, 73, 73, 0},
+	{"0b10_010_01", true, true, true, false, 73, 73, 73, 0},
+	{"0B10_010_01", true, true, true, false, 73, 73, 73, 0},
 	{"073", true, true, true, false, 073, 073, 073, 0},
+	{"0o73", true, true, true, false, 073, 073, 073, 0},
+	{"0O73", true, true, true, false, 073, 073, 073, 0},
 	{"0x73", true, true, true, false, 0x73, 0x73, 0x73, 0},
+	{"0X73", true, true, true, false, 0x73, 0x73, 0x73, 0},
+	{"0x7_3", true, true, true, false, 0x73, 0x73, 0x73, 0},
 	{"-73", true, false, true, false, -73, 0, -73, 0},
 	{"+73", true, false, true, false, 73, 0, 73, 0},
 	{"100", true, true, true, false, 100, 100, 100, 0},
@@ -39,7 +46,12 @@ var numberTests = []numberTest{
 	{"-1e9", true, false, true, false, -1e9, 0, -1e9, 0},
 	{"-1.2", false, false, true, false, 0, 0, -1.2, 0},
 	{"1e19", false, true, true, false, 0, 1e19, 1e19, 0},
+	{"1e1_9", false, true, true, false, 0, 1e19, 1e19, 0},
+	{"1E19", false, true, true, false, 0, 1e19, 1e19, 0},
 	{"-1e19", false, false, true, false, 0, 0, -1e19, 0},
+	{"0x_1p4", true, true, true, false, 16, 16, 16, 0},
+	{"0X_1P4", true, true, true, false, 16, 16, 16, 0},
+	{"0x_1p-4", false, false, true, false, 0, 0, 1 / 16., 0},
 	{"4i", false, false, false, true, 0, 0, 0, 4i},
 	{"-1.2+4.2i", false, false, false, true, 0, 0, 0, -1.2 + 4.2i},
 	{"073i", false, false, false, true, 0, 0, 0, 73i}, // not octal!
@@ -232,6 +244,7 @@ var parseTests = []parseTest{
 	{"trim left", "x \r\n\t{{- 3}}", noError, `"x"{{3}}`},
 	{"trim right", "{{3 -}}\n\n\ty", noError, `{{3}}"y"`},
 	{"trim left and right", "x \r\n\t{{- 3 -}}\n\n\ty", noError, `"x"{{3}}"y"`},
+	{"trim with extra spaces", "x\n{{-  3   -}}\ny", noError, `"x"{{3}}"y"`},
 	{"comment trim left", "x \r\n\t{{- /* hi */}}", noError, `"x"`},
 	{"comment trim right", "{{/* hi */ -}}\n\n\ty", noError, `"y"`},
 	{"comment trim left and right", "x \r\n\t{{- /* */ -}}\n\n\ty", noError, `"x""y"`},
@@ -447,18 +460,40 @@ var errorTests = []parseTest{
 	{"emptypipeline",
 		`{{ ( ) }}`,
 		hasError, `missing value for parenthesized pipeline`},
+	{"multilinerawstring",
+		"{{ $v := `\n` }} {{",
+		hasError, `multilinerawstring:2: unexpected unclosed action`},
+	{"rangeundefvar",
+		"{{range $k}}{{end}}",
+		hasError, `undefined variable`},
+	{"rangeundefvars",
+		"{{range $k, $v}}{{end}}",
+		hasError, `undefined variable`},
+	{"rangemissingvalue1",
+		"{{range $k,}}{{end}}",
+		hasError, `missing value for range`},
+	{"rangemissingvalue2",
+		"{{range $k, $v := }}{{end}}",
+		hasError, `missing value for range`},
+	{"rangenotvariable1",
+		"{{range $k, .}}{{end}}",
+		hasError, `range can only initialize variables`},
+	{"rangenotvariable2",
+		"{{range $k, 123 := .}}{{end}}",
+		hasError, `range can only initialize variables`},
 }
 
 func TestErrors(t *testing.T) {
 	for _, test := range errorTests {
-		_, err := New(test.name).Parse(test.input, "", "", make(map[string]*Tree))
-		if err == nil {
-			t.Errorf("%q: expected error", test.name)
-			continue
-		}
-		if !strings.Contains(err.Error(), test.result) {
-			t.Errorf("%q: error %q does not contain %q", test.name, err, test.result)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			_, err := New(test.name).Parse(test.input, "", "", make(map[string]*Tree))
+			if err == nil {
+				t.Fatalf("expected error %q, got nil", test.result)
+			}
+			if !strings.Contains(err.Error(), test.result) {
+				t.Fatalf("error %q does not contain %q", err, test.result)
+			}
+		})
 	}
 }
 

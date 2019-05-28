@@ -92,6 +92,9 @@ func contains(tokset uint64, tok token) bool {
 
 type LitKind uint
 
+// TODO(gri) With the 'i' (imaginary) suffix now permitted on integer
+//           and floating-point numbers, having a single ImagLit does
+//           not represent the literal kind well anymore. Remove it?
 const (
 	IntLit LitKind = iota
 	FloatLit

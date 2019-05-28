@@ -27,6 +27,8 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/lockedfile"
+	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
 	"cmd/go/internal/work"
 	"cmd/internal/test2json"
@@ -100,7 +102,10 @@ package test passes, go test prints only the final 'ok' summary
 line. If a package test fails, go test prints the full test output.
 If invoked with the -bench or -v flag, go test prints the full
 output even for passing package tests, in order to display the
-requested benchmark results or verbose logging.
+requested benchmark results or verbose logging. After the package
+tests for all of the listed packages finish, and their output is
+printed, go test prints a final 'FAIL' status if any package test
+has failed.
 
 In package list mode only, go test caches successful package test
 results to avoid unnecessary repeated running of tests. When the
@@ -123,16 +128,6 @@ A cached test result is treated as executing in no time at all,
 so a successful package test result will be cached and reused
 regardless of -timeout setting.
 
-` + strings.TrimSpace(testFlag1) + ` See 'go help testflag' for details.
-
-For more about build flags, see 'go help build'.
-For more about specifying packages, see 'go help packages'.
-
-See also: go build, go vet.
-`,
-}
-
-const testFlag1 = `
 In addition to the build flags, the flags handled by 'go test' itself are:
 
 	-args
@@ -163,15 +158,13 @@ In addition to the build flags, the flags handled by 'go test' itself are:
 	    The test still runs (unless -c or -i is specified).
 
 The test binary also accepts flags that control execution of the test; these
-flags are also accessible by 'go test'.
-`
+flags are also accessible by 'go test'. See 'go help testflag' for details.
 
-// Usage prints the usage message for 'go test -h' and exits.
-func Usage() {
-	os.Stderr.WriteString("usage: " + testUsage + "\n\n" +
-		strings.TrimSpace(testFlag1) + "\n\n\t" +
-		strings.TrimSpace(testFlag2) + "\n")
-	os.Exit(2)
+For more about build flags, see 'go help build'.
+For more about specifying packages, see 'go help packages'.
+
+See also: go build, go vet.
+`,
 }
 
 var HelpTestflag = &base.Command{
@@ -189,11 +182,6 @@ options of pprof control how the information is presented.
 The following flags are recognized by the 'go test' command and
 control the execution of any test:
 
-	` + strings.TrimSpace(testFlag2) + `
-`,
-}
-
-const testFlag2 = `
 	-bench regexp
 	    Run only those benchmarks matching a regular expression.
 	    By default, no benchmarks are run.
@@ -211,6 +199,8 @@ const testFlag2 = `
 	    Run enough iterations of each benchmark to take t, specified
 	    as a time.Duration (for example, -benchtime 1h30s).
 	    The default is 1 second (1s).
+	    The special syntax Nx means to run the benchmark N times
+	    (for example, -benchtime 100x).
 
 	-count n
 	    Run each test and benchmark n times (default 1).
@@ -411,7 +401,8 @@ In the first example, the -x and the second -v are passed through to the
 test binary unchanged and with no effect on the go command itself.
 In the second example, the argument math is passed through to the test
 binary, instead of being interpreted as the package list.
-`
+`,
+}
 
 var HelpTestfunc = &base.Command{
 	UsageLine: "testfunc",
@@ -496,9 +487,13 @@ var (
 	pkgArgs          []string
 	pkgs             []*load.Package
 
-	testKillTimeout = 10 * time.Minute
-	testCacheExpire time.Time // ignore cached test results before this time
+	testActualTimeout = 10 * time.Minute                  // actual timeout which is passed to tests
+	testKillTimeout   = testActualTimeout + 1*time.Minute // backup alarm
+	testCacheExpire   time.Time                           // ignore cached test results before this time
 )
+
+// testVetExplicit records whether testVetFlags were set by an explicit -vet.
+var testVetExplicit = false
 
 // testVetFlags is the list of flags to pass to vet when invoked automatically during go test.
 var testVetFlags = []string{
@@ -526,13 +521,22 @@ var testVetFlags = []string{
 	// "-unusedresult",
 }
 
+func testCmdUsage() {
+	fmt.Fprintf(os.Stderr, "usage: %s\n", CmdTest.UsageLine)
+	fmt.Fprintf(os.Stderr, "Run 'go help %s' and 'go help %s' for details.\n", CmdTest.LongName(), HelpTestflag.LongName())
+	os.Exit(2)
+}
+
 func runTest(cmd *base.Command, args []string) {
-	pkgArgs, testArgs = testFlags(args)
+	modload.LoadTests = true
+
+	pkgArgs, testArgs = testFlags(testCmdUsage, args)
 
 	work.FindExecCmd() // initialize cached result
 
 	work.BuildInit()
 	work.VetFlags = testVetFlags
+	work.VetExplicit = testVetExplicit
 
 	pkgs = load.PackagesForBuild(pkgArgs)
 	if len(pkgs) == 0 {
@@ -556,11 +560,19 @@ func runTest(cmd *base.Command, args []string) {
 	// the test wedges with a goroutine spinning and its background
 	// timer does not get a chance to fire.
 	if dt, err := time.ParseDuration(testTimeout); err == nil && dt > 0 {
-		testKillTimeout = dt + 1*time.Minute
+		testActualTimeout = dt
+		testKillTimeout = testActualTimeout + 1*time.Minute
 	} else if err == nil && dt == 0 {
 		// An explicit zero disables the test timeout.
+		// No timeout is passed to tests.
 		// Let it have one century (almost) before we kill it.
+		testActualTimeout = -1
 		testKillTimeout = 100 * 365 * 24 * time.Hour
+	}
+
+	// Pass timeout to tests if it exists.
+	if testActualTimeout > 0 {
+		testArgs = append(testArgs, "-test.timeout="+testActualTimeout.String())
 	}
 
 	// show passing test output (after buffering) with -v flag.
@@ -577,7 +589,7 @@ func runTest(cmd *base.Command, args []string) {
 	// (We implement go clean -testcache by writing an expiration date
 	// instead of searching out and deleting test result cache entries.)
 	if dir := cache.DefaultDir(); dir != "off" {
-		if data, _ := ioutil.ReadFile(filepath.Join(dir, "testexpire.txt")); len(data) > 0 && data[len(data)-1] == '\n' {
+		if data, _ := lockedfile.Read(filepath.Join(dir, "testexpire.txt")); len(data) > 0 && data[len(data)-1] == '\n' {
 			if t, err := strconv.ParseInt(string(data[:len(data)-1]), 10, 64); err == nil {
 				testCacheExpire = time.Unix(0, t)
 			}
@@ -730,7 +742,7 @@ func runTest(cmd *base.Command, args []string) {
 	}
 
 	// Ultimately the goal is to print the output.
-	root := &work.Action{Mode: "go test", Deps: prints}
+	root := &work.Action{Mode: "go test", Func: printExitStatus, Deps: prints}
 
 	// Force the printing of results to happen in order,
 	// one at a time.
@@ -764,7 +776,7 @@ func ensureImport(p *load.Package, pkg string) {
 		}
 	}
 
-	p1 := load.LoadPackage(pkg, &load.ImportStack{})
+	p1 := load.LoadImportWithFlags(pkg, p.Dir, p, &load.ImportStack{}, nil, 0)
 	if p1.Error != nil {
 		base.Fatalf("load %s: %v", pkg, p1.Error)
 	}
@@ -815,7 +827,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 	if p.ImportPath == "command-line-arguments" {
 		elem = p.Name
 	} else {
-		_, elem = path.Split(p.ImportPath)
+		elem = load.DefaultExecName(p.ImportPath)
 	}
 	testBinary := elem + ".test"
 
@@ -830,7 +842,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 	if !cfg.BuildN {
 		// writeTestmain writes _testmain.go,
 		// using the test description gathered in t.
-		if err := ioutil.WriteFile(testDir+"_testmain.go", *pmain.Internal.TestmainGo, 0666); err != nil {
+		if err := ioutil.WriteFile(testDir+"_testmain.go", pmain.Internal.TestmainGo, 0666); err != nil {
 			return nil, nil, nil, err
 		}
 	}
@@ -882,15 +894,19 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 				target = filepath.Join(base.Cwd, target)
 			}
 		}
-		pmain.Target = target
-		installAction = &work.Action{
-			Mode:    "test build",
-			Func:    work.BuildInstallFunc,
-			Deps:    []*work.Action{buildAction},
-			Package: pmain,
-			Target:  target,
+		if target == os.DevNull {
+			runAction = buildAction
+		} else {
+			pmain.Target = target
+			installAction = &work.Action{
+				Mode:    "test build",
+				Func:    work.BuildInstallFunc,
+				Deps:    []*work.Action{buildAction},
+				Package: pmain,
+				Target:  target,
+			}
+			runAction = installAction // make sure runAction != nil even if not running test
 		}
-		runAction = installAction // make sure runAction != nil even if not running test
 	}
 	var vetRunAction *work.Action
 	if testC {
@@ -1621,5 +1637,16 @@ func builderNoTest(b *work.Builder, a *work.Action) error {
 		stdout = json
 	}
 	fmt.Fprintf(stdout, "?   \t%s\t[no test files]\n", a.Package.ImportPath)
+	return nil
+}
+
+// printExitStatus is the action for printing the exit status
+func printExitStatus(b *work.Builder, a *work.Action) error {
+	if !testJSON && len(pkgArgs) != 0 {
+		if base.GetExitStatus() != 0 {
+			fmt.Println("FAIL")
+			return nil
+		}
+	}
 	return nil
 }

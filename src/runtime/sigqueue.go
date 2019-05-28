@@ -237,8 +237,10 @@ func signal_ignore(s uint32) {
 	atomic.Store(&sig.ignored[s/32], i)
 }
 
-// sigInitIgnored marks the signal as already ignored.  This is called at
-// program start by siginit.
+// sigInitIgnored marks the signal as already ignored. This is called at
+// program start by initsig. In a shared library initsig is called by
+// libpreinit, so the runtime may not be initialized yet.
+//go:nosplit
 func sigInitIgnored(s uint32) {
 	i := sig.ignored[s/32]
 	i |= 1 << (s & 31)

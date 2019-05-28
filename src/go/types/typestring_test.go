@@ -89,7 +89,7 @@ var independentTestTypes = []testEntry{
 	dup("func(...int) string"),
 	dup("func(x ...int) string"),
 	dup("func(x ...int) (u string)"),
-	{"func(x, y ...int) (u string)", "func(x int, y ...int) (u string)"},
+	{"func(x int, y ...int) (u string)", "func(x int, y ...int) (u string)"},
 
 	// interfaces
 	dup("interface{}"),

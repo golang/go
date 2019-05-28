@@ -32,8 +32,6 @@ func TestNoteReading(t *testing.T) {
 	switch {
 	case !build.Default.CgoEnabled:
 		t.Skipf("skipping - no cgo, so assuming external linking not available")
-	case runtime.GOOS == "openbsd" && runtime.GOARCH == "arm":
-		t.Skipf("skipping - external linking not supported, golang.org/issue/10619")
 	case runtime.GOOS == "plan9":
 		t.Skipf("skipping - external linking not supported")
 	}

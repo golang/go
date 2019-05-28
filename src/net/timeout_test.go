@@ -7,7 +7,9 @@
 package net
 
 import (
+	"errors"
 	"fmt"
+	"internal/oserror"
 	"internal/poll"
 	"internal/testenv"
 	"io"
@@ -87,6 +89,9 @@ func TestDialTimeout(t *testing.T) {
 			}
 			if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
 				t.Fatalf("#%d: %v", i, err)
+			}
+			if !errors.Is(err, oserror.ErrTimeout) {
+				t.Fatalf("#%d: Dial error is not os.ErrTimeout: %v", i, err)
 			}
 		}
 	}
@@ -812,6 +817,9 @@ func (b neverEnding) Read(p []byte) (int, error) {
 }
 
 func testVariousDeadlines(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping test on plan9; see golang.org/issue/26945")
+	}
 	type result struct {
 		n   int64
 		err error

@@ -9,16 +9,16 @@
 
 TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// copy arguments forward on an even stack
-	MOVL	argc+0(FP), AX
-	MOVL	argv+4(FP), BX
 	MOVL	SP, CX
+	MOVL	8(CX), AX	// argc
+	MOVL	12(CX), BX	// argv
 	SUBL	$128, CX		// plenty of scratch
 	ANDL	$~15, CX
 	MOVL	CX, SP
 
 	MOVL	AX, 16(SP)
 	MOVL	BX, 24(SP)
-	
+
 	// create istack out of the given (operating system) stack.
 	MOVL	$runtime·g0(SB), DI
 	LEAL	(-64*1024+104)(SP), BX
@@ -150,7 +150,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $8-4
 // to keep running g.
 TEXT runtime·mcall(SB), NOSPLIT, $0-4
 	MOVL	fn+0(FP), DI
-	
+
 	get_tls(CX)
 	MOVL	g(CX), AX	// save state in g->sched
 	MOVL	0(SP), BX	// caller's PC
@@ -276,6 +276,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
+	NOP	SP	// tell vet SP changed - stop checking offsets
 	MOVL	8(SP), AX	// f's caller's PC
 	MOVL	AX, (m_morebuf+gobuf_pc)(BX)
 	LEAL	16(SP), AX	// f's caller's SP
@@ -317,9 +318,6 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
 	MOVL	$NAME(SB), AX;		\
 	JMP	AX
 // Note: can't just "JMP NAME(SB)" - bad inlining results.
-
-TEXT reflect·call(SB), NOSPLIT, $0-0
-	JMP	·reflectcall(SB)
 
 TEXT ·reflectcall(SB), NOSPLIT, $0-20
 	MOVLQZX argsize+12(FP), CX
@@ -446,7 +444,8 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-8
 // func asmcgocall(fn, arg unsafe.Pointer) int32
 // Not implemented.
 TEXT runtime·asmcgocall(SB),NOSPLIT,$0-12
-	MOVL	0, AX
+	MOVL	0, AX // crash
+	MOVL	$0, ret+8(FP) // for vet
 	RET
 
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
@@ -610,3 +609,155 @@ flush:
 	MOVQ	56(SP), R11
 	MOVQ	64(SP), R12
 	JMP	ret
+
+// Note: these functions use a special calling convention to save generated code space.
+// Arguments are passed in registers, but the space for those arguments are allocated
+// in the caller's stack frame. These stubs write the args into that stack space and
+// then tail call to the corresponding runtime handler.
+// The tail call makes these stubs disappear in backtraces.
+TEXT runtime·panicIndex(SB),NOSPLIT,$0-8
+	MOVL	AX, x+0(FP)
+	MOVL	CX, y+4(FP)
+	JMP	runtime·goPanicIndex(SB)
+TEXT runtime·panicIndexU(SB),NOSPLIT,$0-8
+	MOVL	AX, x+0(FP)
+	MOVL	CX, y+4(FP)
+	JMP	runtime·goPanicIndexU(SB)
+TEXT runtime·panicSliceAlen(SB),NOSPLIT,$0-8
+	MOVL	CX, x+0(FP)
+	MOVL	DX, y+4(FP)
+	JMP	runtime·goPanicSliceAlen(SB)
+TEXT runtime·panicSliceAlenU(SB),NOSPLIT,$0-8
+	MOVL	CX, x+0(FP)
+	MOVL	DX, y+4(FP)
+	JMP	runtime·goPanicSliceAlenU(SB)
+TEXT runtime·panicSliceAcap(SB),NOSPLIT,$0-8
+	MOVL	CX, x+0(FP)
+	MOVL	DX, y+4(FP)
+	JMP	runtime·goPanicSliceAcap(SB)
+TEXT runtime·panicSliceAcapU(SB),NOSPLIT,$0-8
+	MOVL	CX, x+0(FP)
+	MOVL	DX, y+4(FP)
+	JMP	runtime·goPanicSliceAcapU(SB)
+TEXT runtime·panicSliceB(SB),NOSPLIT,$0-8
+	MOVL	AX, x+0(FP)
+	MOVL	CX, y+4(FP)
+	JMP	runtime·goPanicSliceB(SB)
+TEXT runtime·panicSliceBU(SB),NOSPLIT,$0-8
+	MOVL	AX, x+0(FP)
+	MOVL	CX, y+4(FP)
+	JMP	runtime·goPanicSliceBU(SB)
+TEXT runtime·panicSlice3Alen(SB),NOSPLIT,$0-8
+	MOVL	DX, x+0(FP)
+	MOVL	BX, y+4(FP)
+	JMP	runtime·goPanicSlice3Alen(SB)
+TEXT runtime·panicSlice3AlenU(SB),NOSPLIT,$0-8
+	MOVL	DX, x+0(FP)
+	MOVL	BX, y+4(FP)
+	JMP	runtime·goPanicSlice3AlenU(SB)
+TEXT runtime·panicSlice3Acap(SB),NOSPLIT,$0-8
+	MOVL	DX, x+0(FP)
+	MOVL	BX, y+4(FP)
+	JMP	runtime·goPanicSlice3Acap(SB)
+TEXT runtime·panicSlice3AcapU(SB),NOSPLIT,$0-8
+	MOVL	DX, x+0(FP)
+	MOVL	BX, y+4(FP)
+	JMP	runtime·goPanicSlice3AcapU(SB)
+TEXT runtime·panicSlice3B(SB),NOSPLIT,$0-8
+	MOVL	CX, x+0(FP)
+	MOVL	DX, y+4(FP)
+	JMP	runtime·goPanicSlice3B(SB)
+TEXT runtime·panicSlice3BU(SB),NOSPLIT,$0-8
+	MOVL	CX, x+0(FP)
+	MOVL	DX, y+4(FP)
+	JMP	runtime·goPanicSlice3BU(SB)
+TEXT runtime·panicSlice3C(SB),NOSPLIT,$0-8
+	MOVL	AX, x+0(FP)
+	MOVL	CX, y+4(FP)
+	JMP	runtime·goPanicSlice3C(SB)
+TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-8
+	MOVL	AX, x+0(FP)
+	MOVL	CX, y+4(FP)
+	JMP	runtime·goPanicSlice3CU(SB)
+
+// Extended versions for 64-bit indexes.
+TEXT runtime·panicExtendIndex(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	AX, lo+4(FP)
+	MOVL	CX, y+8(FP)
+	JMP	runtime·goPanicExtendIndex(SB)
+TEXT runtime·panicExtendIndexU(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	AX, lo+4(FP)
+	MOVL	CX, y+8(FP)
+	JMP	runtime·goPanicExtendIndexU(SB)
+TEXT runtime·panicExtendSliceAlen(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	CX, lo+4(FP)
+	MOVL	DX, y+8(FP)
+	JMP	runtime·goPanicExtendSliceAlen(SB)
+TEXT runtime·panicExtendSliceAlenU(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	CX, lo+4(FP)
+	MOVL	DX, y+8(FP)
+	JMP	runtime·goPanicExtendSliceAlenU(SB)
+TEXT runtime·panicExtendSliceAcap(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	CX, lo+4(FP)
+	MOVL	DX, y+8(FP)
+	JMP	runtime·goPanicExtendSliceAcap(SB)
+TEXT runtime·panicExtendSliceAcapU(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	CX, lo+4(FP)
+	MOVL	DX, y+8(FP)
+	JMP	runtime·goPanicExtendSliceAcapU(SB)
+TEXT runtime·panicExtendSliceB(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	AX, lo+4(FP)
+	MOVL	CX, y+8(FP)
+	JMP	runtime·goPanicExtendSliceB(SB)
+TEXT runtime·panicExtendSliceBU(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	AX, lo+4(FP)
+	MOVL	CX, y+8(FP)
+	JMP	runtime·goPanicExtendSliceBU(SB)
+TEXT runtime·panicExtendSlice3Alen(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	DX, lo+4(FP)
+	MOVL	BX, y+8(FP)
+	JMP	runtime·goPanicExtendSlice3Alen(SB)
+TEXT runtime·panicExtendSlice3AlenU(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	DX, lo+4(FP)
+	MOVL	BX, y+8(FP)
+	JMP	runtime·goPanicExtendSlice3AlenU(SB)
+TEXT runtime·panicExtendSlice3Acap(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	DX, lo+4(FP)
+	MOVL	BX, y+8(FP)
+	JMP	runtime·goPanicExtendSlice3Acap(SB)
+TEXT runtime·panicExtendSlice3AcapU(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	DX, lo+4(FP)
+	MOVL	BX, y+8(FP)
+	JMP	runtime·goPanicExtendSlice3AcapU(SB)
+TEXT runtime·panicExtendSlice3B(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	CX, lo+4(FP)
+	MOVL	DX, y+8(FP)
+	JMP	runtime·goPanicExtendSlice3B(SB)
+TEXT runtime·panicExtendSlice3BU(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	CX, lo+4(FP)
+	MOVL	DX, y+8(FP)
+	JMP	runtime·goPanicExtendSlice3BU(SB)
+TEXT runtime·panicExtendSlice3C(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	AX, lo+4(FP)
+	MOVL	CX, y+8(FP)
+	JMP	runtime·goPanicExtendSlice3C(SB)
+TEXT runtime·panicExtendSlice3CU(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	AX, lo+4(FP)
+	MOVL	CX, y+8(FP)
+	JMP	runtime·goPanicExtendSlice3CU(SB)

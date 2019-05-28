@@ -7,6 +7,7 @@ package arm
 import (
 	"fmt"
 	"math"
+	"math/bits"
 
 	"cmd/compile/internal/gc"
 	"cmd/compile/internal/ssa"
@@ -119,6 +120,28 @@ func genregshift(s *gc.SSAGenState, as obj.As, r0, r1, r2, r int16, typ int64) *
 	return p
 }
 
+// find a (lsb, width) pair for BFC
+// lsb must be in [0, 31], width must be in [1, 32 - lsb]
+// return (0xffffffff, 0) if v is not a binary like 0...01...10...0
+func getBFC(v uint32) (uint32, uint32) {
+	var m, l uint32
+	// BFC is not applicable with zero
+	if v == 0 {
+		return 0xffffffff, 0
+	}
+	// find the lowest set bit, for example l=2 for 0x3ffffffc
+	l = uint32(bits.TrailingZeros32(v))
+	// m-1 represents the highest set bit index, for example m=30 for 0x3ffffffc
+	m = 32 - uint32(bits.LeadingZeros32(v))
+	// check if v is a binary like 0...01...10...0
+	if (1<<m)-(1<<l) == v {
+		// it must be m > l for non-zero v
+		return l, m - l
+	}
+	// invalid
+	return 0xffffffff, 0
+}
+
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	switch v.Op {
 	case ssa.OpCopy, ssa.OpARMMOVWreg:
@@ -183,6 +206,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARMADDD,
 		ssa.OpARMSUBF,
 		ssa.OpARMSUBD,
+		ssa.OpARMSLL,
+		ssa.OpARMSRL,
+		ssa.OpARMSRA,
 		ssa.OpARMMULF,
 		ssa.OpARMMULD,
 		ssa.OpARMNMULF,
@@ -224,18 +250,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpARMSLL,
-		ssa.OpARMSRL,
-		ssa.OpARMSRA:
-		r := v.Reg()
-		r1 := v.Args[0].Reg()
-		r2 := v.Args[1].Reg()
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = r2
-		p.Reg = r1
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
 	case ssa.OpARMSRAcond:
 		// ARM shift instructions uses only the low-order byte of the shift amount
 		// generate conditional instructions to deal with large shifts
@@ -267,16 +281,38 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+	case ssa.OpARMANDconst, ssa.OpARMBICconst:
+		// try to optimize ANDconst and BICconst to BFC, which saves bytes and ticks
+		// BFC is only available on ARMv7, and its result and source are in the same register
+		if objabi.GOARM == 7 && v.Reg() == v.Args[0].Reg() {
+			var val uint32
+			if v.Op == ssa.OpARMANDconst {
+				val = ^uint32(v.AuxInt)
+			} else { // BICconst
+				val = uint32(v.AuxInt)
+			}
+			lsb, width := getBFC(val)
+			// omit BFC for ARM's imm12
+			if 8 < width && width < 24 {
+				p := s.Prog(arm.ABFC)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = int64(width)
+				p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(lsb)})
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = v.Reg()
+				break
+			}
+		}
+		// fall back to ordinary form
+		fallthrough
 	case ssa.OpARMADDconst,
 		ssa.OpARMADCconst,
 		ssa.OpARMSUBconst,
 		ssa.OpARMSBCconst,
 		ssa.OpARMRSBconst,
 		ssa.OpARMRSCconst,
-		ssa.OpARMANDconst,
 		ssa.OpARMORconst,
 		ssa.OpARMXORconst,
-		ssa.OpARMBICconst,
 		ssa.OpARMSLLconst,
 		ssa.OpARMSRLconst,
 		ssa.OpARMSRAconst:
@@ -614,6 +650,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpARMMVN,
 		ssa.OpARMCLZ,
 		ssa.OpARMREV,
+		ssa.OpARMREV16,
 		ssa.OpARMRBIT,
 		ssa.OpARMSQRTD,
 		ssa.OpARMNEGF,
@@ -665,6 +702,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = v.Aux.(*obj.LSym)
+	case ssa.OpARMLoweredPanicBoundsA, ssa.OpARMLoweredPanicBoundsB, ssa.OpARMLoweredPanicBoundsC:
+		p := s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.BoundsCheckFunc[v.AuxInt]
+		s.UseArgs(8) // space used in callee args area by assembly stubs
+	case ssa.OpARMLoweredPanicExtendA, ssa.OpARMLoweredPanicExtendB, ssa.OpARMLoweredPanicExtendC:
+		p := s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.ExtendCheckFunc[v.AuxInt]
+		s.UseArgs(12) // space used in callee args area by assembly stubs
 	case ssa.OpARMDUFFZERO:
 		p := s.Prog(obj.ADUFFZERO)
 		p.To.Type = obj.TYPE_MEM
@@ -871,7 +920,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		}
 
 	case ssa.BlockExit:
-		s.Prog(obj.AUNDEF) // tell plive.go that we never reach here
 
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)

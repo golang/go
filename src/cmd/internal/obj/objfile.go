@@ -15,6 +15,7 @@ import (
 	"log"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 )
 
@@ -25,12 +26,6 @@ type objWriter struct {
 	// Temporary buffer for zigzag int writing.
 	varintbuf [10]uint8
 
-	// Provide the index of a symbol reference by symbol name.
-	// One map for versioned symbols and one for unversioned symbols.
-	// Used for deduplicating the symbol reference list.
-	refIdx  map[string]int
-	vrefIdx map[string]int
-
 	// Number of objects written of each type.
 	nRefs     int
 	nData     int
@@ -39,6 +34,8 @@ type objWriter struct {
 	nAutom    int
 	nFuncdata int
 	nFile     int
+
+	pkgpath string // the package import path (escaped), "" if unknown
 }
 
 func (w *objWriter) addLengths(s *LSym) {
@@ -77,20 +74,19 @@ func (w *objWriter) writeLengths() {
 	w.writeInt(int64(w.nFile))
 }
 
-func newObjWriter(ctxt *Link, b *bufio.Writer) *objWriter {
+func newObjWriter(ctxt *Link, b *bufio.Writer, pkgpath string) *objWriter {
 	return &objWriter{
 		ctxt:    ctxt,
 		wr:      b,
-		vrefIdx: make(map[string]int),
-		refIdx:  make(map[string]int),
+		pkgpath: objabi.PathToPrefix(pkgpath),
 	}
 }
 
-func WriteObjFile(ctxt *Link, b *bufio.Writer) {
-	w := newObjWriter(ctxt, b)
+func WriteObjFile(ctxt *Link, b *bufio.Writer, pkgpath string) {
+	w := newObjWriter(ctxt, b, pkgpath)
 
 	// Magic header
-	w.wr.WriteString("\x00\x00go19ld")
+	w.wr.WriteString("\x00go112ld")
 
 	// Version
 	w.wr.WriteByte(1)
@@ -106,7 +102,22 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
 		w.writeRefs(s)
 		w.addLengths(s)
 	}
+
+	if ctxt.Headtype == objabi.Haix {
+		// Data must be sorted to keep a constant order in TOC symbols.
+		// As they are created during Progedit, two symbols can be switched between
+		// two different compilations. Therefore, BuildID will be different.
+		// TODO: find a better place and optimize to only sort TOC symbols
+		sort.Slice(ctxt.Data, func(i, j int) bool {
+			return ctxt.Data[i].Name < ctxt.Data[j].Name
+		})
+	}
+
 	for _, s := range ctxt.Data {
+		w.writeRefs(s)
+		w.addLengths(s)
+	}
+	for _, s := range ctxt.ABIAliases {
 		w.writeRefs(s)
 		w.addLengths(s)
 	}
@@ -145,9 +156,12 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
 	for _, s := range ctxt.Data {
 		w.writeSym(s)
 	}
+	for _, s := range ctxt.ABIAliases {
+		w.writeSym(s)
+	}
 
 	// Magic footer
-	w.wr.WriteString("\xff\xffgo19ld")
+	w.wr.WriteString("\xffgo112ld")
 }
 
 // Symbols are prefixed so their content doesn't get confused with the magic footer.
@@ -157,28 +171,24 @@ func (w *objWriter) writeRef(s *LSym, isPath bool) {
 	if s == nil || s.RefIdx != 0 {
 		return
 	}
-	var m map[string]int
-	if !s.Static() {
-		m = w.refIdx
-	} else {
-		m = w.vrefIdx
-	}
-
-	if idx := m[s.Name]; idx != 0 {
-		s.RefIdx = idx
-		return
-	}
 	w.wr.WriteByte(symPrefix)
 	if isPath {
 		w.writeString(filepath.ToSlash(s.Name))
+	} else if w.pkgpath != "" {
+		// w.pkgpath is already escaped.
+		n := strings.Replace(s.Name, "\"\".", w.pkgpath+".", -1)
+		w.writeString(n)
 	} else {
 		w.writeString(s.Name)
 	}
-	// Write "version".
-	w.writeBool(s.Static())
+	// Write ABI/static information.
+	abi := int64(s.ABI())
+	if s.Static() {
+		abi = -1
+	}
+	w.writeInt(abi)
 	w.nRefs++
 	s.RefIdx = w.nRefs
-	m[s.Name] = w.nRefs
 }
 
 func (w *objWriter) writeRefs(s *LSym) {
@@ -228,6 +238,9 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 	if s.NoSplit() {
 		fmt.Fprintf(ctxt.Bso, "nosplit ")
 	}
+	if s.TopFrame() {
+		fmt.Fprintf(ctxt.Bso, "topframe ")
+	}
 	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
 	if s.Type == objabi.STEXT {
 		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x", uint64(s.Func.Args), uint64(s.Func.Locals))
@@ -238,13 +251,19 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 	fmt.Fprintf(ctxt.Bso, "\n")
 	if s.Type == objabi.STEXT {
 		for p := s.Func.Text; p != nil; p = p.Link {
-			fmt.Fprintf(ctxt.Bso, "\t%#04x %v\n", uint(int(p.Pc)), p)
+			var s string
+			if ctxt.Debugasm > 1 {
+				s = p.String()
+			} else {
+				s = p.InnermostString()
+			}
+			fmt.Fprintf(ctxt.Bso, "\t%#04x %s\n", uint(int(p.Pc)), s)
 		}
 	}
 	for i := 0; i < len(s.P); i += 16 {
 		fmt.Fprintf(ctxt.Bso, "\t%#04x", uint(i))
 		j := i
-		for j = i; j < i+16 && j < len(s.P); j++ {
+		for ; j < i+16 && j < len(s.P); j++ {
 			fmt.Fprintf(ctxt.Bso, " %02x", s.P[j])
 		}
 		for ; j < i+16; j++ {
@@ -281,7 +300,7 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 
 func (w *objWriter) writeSym(s *LSym) {
 	ctxt := w.ctxt
-	if ctxt.Debugasm {
+	if ctxt.Debugasm > 0 {
 		w.writeSymDebug(s)
 	}
 
@@ -334,6 +353,9 @@ func (w *objWriter) writeSym(s *LSym) {
 	if ctxt.Flag_shared {
 		flags |= 1 << 3
 	}
+	if s.TopFrame() {
+		flags |= 1 << 4
+	}
 	w.writeInt(flags)
 	w.writeInt(int64(len(s.Func.Autom)))
 	for _, a := range s.Func.Autom {
@@ -380,6 +402,7 @@ func (w *objWriter) writeSym(s *LSym) {
 		w.writeRefIndex(fsym)
 		w.writeInt(int64(l))
 		w.writeRefIndex(call.Func)
+		w.writeInt(int64(call.ParentPC))
 	}
 }
 
@@ -456,10 +479,20 @@ func (c dwCtxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
 		ls.WriteInt(c.Link, ls.Size, size, value)
 	}
 }
+func (c dwCtxt) AddCURelativeAddress(s dwarf.Sym, data interface{}, value int64) {
+	ls := s.(*LSym)
+	rsym := data.(*LSym)
+	ls.WriteCURelativeAddr(c.Link, ls.Size, rsym, value)
+}
 func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
 	panic("should be used only in the linker")
 }
-func (c dwCtxt) AddDWARFSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
+func (c dwCtxt) AddDWARFAddrSectionOffset(s dwarf.Sym, t interface{}, ofs int64) {
+	size := 4
+	if isDwarf64(c.Link) {
+		size = 8
+	}
+
 	ls := s.(*LSym)
 	rsym := t.(*LSym)
 	ls.WriteAddr(c.Link, ls.Size, size, rsym, ofs)
@@ -498,6 +531,10 @@ func (c dwCtxt) RecordChildDieOffsets(s dwarf.Sym, vars []*dwarf.Var, offsets []
 
 func (c dwCtxt) Logf(format string, args ...interface{}) {
 	c.Link.Logf(format, args...)
+}
+
+func isDwarf64(ctxt *Link) bool {
+	return ctxt.Headtype == objabi.Haix
 }
 
 func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, dwarfAbsFnSym, dwarfIsStmtSym *LSym) {
@@ -554,18 +591,19 @@ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string)
 	dwctxt := dwCtxt{ctxt}
 	filesym := ctxt.fileSymbol(s)
 	fnstate := &dwarf.FnState{
-		Name:       s.Name,
-		Importpath: myimportpath,
-		Info:       info,
-		Filesym:    filesym,
-		Loc:        loc,
-		Ranges:     ranges,
-		Absfn:      absfunc,
-		StartPC:    s,
-		Size:       s.Size,
-		External:   !s.Static(),
-		Scopes:     scopes,
-		InlCalls:   inlcalls,
+		Name:          s.Name,
+		Importpath:    myimportpath,
+		Info:          info,
+		Filesym:       filesym,
+		Loc:           loc,
+		Ranges:        ranges,
+		Absfn:         absfunc,
+		StartPC:       s,
+		Size:          s.Size,
+		External:      !s.Static(),
+		Scopes:        scopes,
+		InlCalls:      inlcalls,
+		UseBASEntries: ctxt.UseBASEntries,
 	}
 	if absfunc != nil {
 		err = dwarf.PutAbstractFunc(dwctxt, fnstate)
@@ -606,13 +644,14 @@ func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath str
 	dwctxt := dwCtxt{ctxt}
 	filesym := ctxt.fileSymbol(s)
 	fnstate := dwarf.FnState{
-		Name:       s.Name,
-		Importpath: myimportpath,
-		Info:       absfn,
-		Filesym:    filesym,
-		Absfn:      absfn,
-		External:   !s.Static(),
-		Scopes:     scopes,
+		Name:          s.Name,
+		Importpath:    myimportpath,
+		Info:          absfn,
+		Filesym:       filesym,
+		Absfn:         absfn,
+		External:      !s.Static(),
+		Scopes:        scopes,
+		UseBASEntries: ctxt.UseBASEntries,
 	}
 	if err := dwarf.PutAbstractFunc(dwctxt, &fnstate); err != nil {
 		ctxt.Diag("emitting DWARF for %s failed: %v", s.Name, err)

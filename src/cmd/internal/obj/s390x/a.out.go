@@ -271,6 +271,9 @@ const (
 	// find leftmost one
 	AFLOGR
 
+	// population count
+	APOPCNT
+
 	// integer bitwise
 	AAND
 	AANDW
@@ -286,6 +289,20 @@ const (
 	ASRAD
 	ARLL
 	ARLLG
+	ARNSBG
+	ARXSBG
+	AROSBG
+	ARNSBGT
+	ARXSBGT
+	AROSBGT
+	ARISBG
+	ARISBGN
+	ARISBGZ
+	ARISBGNZ
+	ARISBHG
+	ARISBLG
+	ARISBHGZ
+	ARISBLGZ
 
 	// floating point
 	AFABS
@@ -362,6 +379,9 @@ const (
 	ATMHL
 	ATMLH
 	ATMLL
+
+	// insert program mask
+	AIPM
 
 	// compare and swap
 	ACS
@@ -942,6 +962,9 @@ const (
 	AVUPLHW
 	AVUPLF
 	AVMSLG
+	AVMSLEG
+	AVMSLOG
+	AVMSLEOG
 
 	// binary
 	ABYTE

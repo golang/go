@@ -133,7 +133,7 @@ func dse(f *Func) {
 	}
 }
 
-// elimDeadAutosGeneric deletes autos that are never accessed. To acheive this
+// elimDeadAutosGeneric deletes autos that are never accessed. To achieve this
 // we track the operations that the address of each auto reaches and if it only
 // reaches stores then we delete all the stores. The other operations will then
 // be eliminated by the dead code elimination pass.
@@ -197,7 +197,8 @@ func elimDeadAutosGeneric(f *Func) {
 			panic("unhandled op with sym effect")
 		}
 
-		if v.Uses == 0 || len(args) == 0 {
+		if v.Uses == 0 && v.Op != OpNilCheck || len(args) == 0 {
+			// Nil check has no use, but we need to keep it.
 			return
 		}
 

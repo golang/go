@@ -162,7 +162,7 @@ func findCodeRoots() []Dir {
 		// Check for use of modules by 'go env GOMOD',
 		// which reports a go.mod file path if modules are enabled.
 		stdout, _ := exec.Command("go", "env", "GOMOD").Output()
-		usingModules = bytes.Contains(stdout, []byte("go.mod"))
+		usingModules = len(bytes.TrimSpace(stdout)) > 0
 	}
 
 	if !usingModules {

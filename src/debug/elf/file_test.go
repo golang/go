@@ -784,7 +784,7 @@ func TestCompressedSection(t *testing.T) {
 func TestNoSectionOverlaps(t *testing.T) {
 	// Ensure cmd/link outputs sections without overlaps.
 	switch runtime.GOOS {
-	case "android", "darwin", "js", "nacl", "plan9", "windows":
+	case "aix", "android", "darwin", "js", "nacl", "plan9", "windows":
 		t.Skipf("cmd/link doesn't produce ELF binaries on %s", runtime.GOOS)
 	}
 	_ = net.ResolveIPAddr // force dynamic linkage
@@ -808,5 +808,16 @@ func TestNoSectionOverlaps(t *testing.T) {
 					sih.Name, sjh.Name, sjh.Offset, sih.Offset, sih.Offset+sih.Size, sjh.Offset+sjh.Size)
 			}
 		}
+	}
+}
+
+func TestIssue10996(t *testing.T) {
+	data := []byte("\u007fELF\x02\x01\x010000000000000" +
+		"\x010000000000000000000" +
+		"\x00\x00\x00\x00\x00\x00\x00\x0000000000\x00\x00\x00\x00" +
+		"0000")
+	_, err := NewFile(bytes.NewReader(data))
+	if err == nil {
+		t.Fatalf("opening invalid ELF file unexpectedly suceeded")
 	}
 }

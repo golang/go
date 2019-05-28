@@ -77,7 +77,7 @@ func (ls *labelScope) declare(b *block, s *LabeledStmt) *label {
 		labels = make(map[string]*label)
 		ls.labels = labels
 	} else if alt := labels[name]; alt != nil {
-		ls.err(s.Pos(), "label %s already defined at %s", name, alt.lstmt.Label.Pos().String())
+		ls.err(s.Label.Pos(), "label %s already defined at %s", name, alt.lstmt.Label.Pos().String())
 		return alt
 	}
 	l := &label{b, s, false}

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
+// +build aix darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
 
 // Export guts for testing on posix.
 // Since testing imports os and os imports internal/poll,

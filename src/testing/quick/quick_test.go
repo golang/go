@@ -319,7 +319,7 @@ func TestInt64(t *testing.T) {
 		}
 		return true
 	}
-	cfg := &Config{MaxCount: 100000}
+	cfg := &Config{MaxCount: 10000}
 	Check(f, cfg)
 	if uint64(lo)>>62 == 0 || uint64(hi)>>62 == 0 {
 		t.Errorf("int64 returned range %#016x,%#016x; does not look like full range", lo, hi)

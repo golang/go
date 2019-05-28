@@ -1,6 +1,8 @@
 env GO111MODULE=on
+[short] skip
 
 # downgrade sampler should downgrade quote
+cp go.mod.orig go.mod
 go get rsc.io/sampler@v1.0.0
 go list -m all
 stdout 'rsc.io/quote v1.4.0'
@@ -30,9 +32,21 @@ stdout 'rsc.io/quote v1.4.0'
 stdout 'rsc.io/sampler v1.0.0'
 ! stdout golang.org/x/text
 
--- go.mod --
+# downgrading away quote should also downgrade away latemigrate/v2,
+# since there are no older versions. v2.0.0 is incompatible.
+cp go.mod.orig go.mod
+go list -m -versions example.com/latemigrate/v2
+stdout v2.0.0 # proxy may serve incompatible versions
+go get rsc.io/quote@none
+go list -m all
+! stdout 'example.com/latemigrate/v2'
+
+-- go.mod.orig --
 module x
-require rsc.io/quote v1.5.1
+require (
+	rsc.io/quote v1.5.1
+	example.com/latemigrate/v2 v2.0.1
+)
 -- go.mod.empty --
 module x
 -- x.go --

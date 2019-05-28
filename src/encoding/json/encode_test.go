@@ -405,6 +405,19 @@ func TestAnonymousFields(t *testing.T) {
 			return S{s1{1, 2, s2{3, 4}}, 6}
 		},
 		want: `{"MyInt1":1,"MyInt2":3}`,
+	}, {
+		// If an anonymous struct pointer field is nil, we should ignore
+		// the embedded fields behind it. Not properly doing so may
+		// result in the wrong output or reflect panics.
+		label: "EmbeddedFieldBehindNilPointer",
+		makeInput: func() interface{} {
+			type (
+				S2 struct{ Field string }
+				S  struct{ *S2 }
+			)
+			return S{}
+		},
+		want: `{}`,
 	}}
 
 	for _, tt := range tests {
@@ -567,6 +580,9 @@ func TestStringBytes(t *testing.T) {
 	// Test that encodeState.stringBytes and encodeState.string use the same encoding.
 	var r []rune
 	for i := '\u0000'; i <= unicode.MaxRune; i++ {
+		if testing.Short() && i > 1000 {
+			i = unicode.MaxRune
+		}
 		r = append(r, i)
 	}
 	s := string(r) + "\xff\xff\xffhello" // some invalid UTF-8 too
@@ -851,6 +867,9 @@ func TestMarshalFloat(t *testing.T) {
 
 	var digits = "1.2345678901234567890123"
 	for i := len(digits); i >= 2; i-- {
+		if testing.Short() && i < len(digits)-4 {
+			break
+		}
 		for exp := -30; exp <= 30; exp++ {
 			for _, sign := range "+-" {
 				for bits := 32; bits <= 64; bits += 32 {
@@ -994,4 +1013,19 @@ func TestMarshalPanic(t *testing.T) {
 	}()
 	Marshal(&marshalPanic{})
 	t.Error("Marshal should have panicked")
+}
+
+func TestMarshalUncommonFieldNames(t *testing.T) {
+	v := struct {
+		A0, À, Aβ int
+	}{}
+	b, err := Marshal(v)
+	if err != nil {
+		t.Fatal("Marshal:", err)
+	}
+	want := `{"A0":0,"À":0,"Aβ":0}`
+	got := string(b)
+	if got != want {
+		t.Fatalf("Marshal: got %s want %s", got, want)
+	}
 }

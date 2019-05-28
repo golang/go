@@ -16,8 +16,10 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"os/signal"
 	"runtime"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -512,7 +514,7 @@ func TestReadWriteDeadlineRace(t *testing.T) {
 }
 
 // TestRacyRead tests that it is safe to mutate the input Read buffer
-// immediately after cancelation has occurred.
+// immediately after cancellation has occurred.
 func TestRacyRead(t *testing.T) {
 	t.Parallel()
 
@@ -551,7 +553,7 @@ func TestRacyRead(t *testing.T) {
 }
 
 // TestRacyWrite tests that it is safe to mutate the input Write buffer
-// immediately after cancelation has occurred.
+// immediately after cancellation has occurred.
 func TestRacyWrite(t *testing.T) {
 	t.Parallel()
 
@@ -591,6 +593,10 @@ func TestRacyWrite(t *testing.T) {
 
 // Closing a TTY while reading from it should not hang.  Issue 23943.
 func TestTTYClose(t *testing.T) {
+	// Ignore SIGTTIN in case we are running in the background.
+	signal.Ignore(syscall.SIGTTIN)
+	defer signal.Reset(syscall.SIGTTIN)
+
 	f, err := os.Open("/dev/tty")
 	if err != nil {
 		t.Skipf("skipping because opening /dev/tty failed: %v", err)

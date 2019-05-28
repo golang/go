@@ -17,7 +17,7 @@ import (
 )
 
 func ListModules(args []string, listU, listVersions bool) []*modinfo.ModulePublic {
-	mods := listModules(args)
+	mods := listModules(args, listVersions)
 	if listU || listVersions {
 		var work par.Work
 		for _, m := range mods {
@@ -39,7 +39,7 @@ func ListModules(args []string, listU, listVersions bool) []*modinfo.ModulePubli
 	return mods
 }
 
-func listModules(args []string) []*modinfo.ModulePublic {
+func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
 	LoadBuildList()
 	if len(args) == 0 {
 		return []*modinfo.ModulePublic{moduleInfo(buildList[0], true)}
@@ -83,6 +83,10 @@ func listModules(args []string) []*modinfo.ModulePublic {
 		}
 		matched := false
 		for i, m := range buildList {
+			if i == 0 && !HasModRoot() {
+				// The root module doesn't actually exist: omit it.
+				continue
+			}
 			if match(m.Path) {
 				matched = true
 				if !matchedBuildList[i] {
@@ -93,6 +97,16 @@ func listModules(args []string) []*modinfo.ModulePublic {
 		}
 		if !matched {
 			if literal {
+				if listVersions {
+					// Don't make the user provide an explicit '@latest' when they're
+					// explicitly asking what the available versions are.
+					// Instead, resolve the module, even if it isn't an existing dependency.
+					info, err := Query(arg, "latest", nil)
+					if err == nil {
+						mods = append(mods, moduleInfo(module.Version{Path: arg, Version: info.Version}, false))
+						continue
+					}
+				}
 				mods = append(mods, &modinfo.ModulePublic{
 					Path: arg,
 					Error: &modinfo.ModuleError{

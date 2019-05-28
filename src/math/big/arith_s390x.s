@@ -54,7 +54,7 @@ TEXT ·divWW(SB),NOSPLIT,$0
 TEXT ·addVV(SB),NOSPLIT,$0
 	MOVD	addvectorfacility+0x00(SB),R1
 	BR	(R1)
-	
+
 TEXT ·addVV_check(SB),NOSPLIT, $0
 	MOVB	·hasVX(SB), R1
 	CMPBEQ	R1, $1, vectorimpl      // vectorfacility = 1, vector supported
@@ -89,7 +89,7 @@ TEXT ·addVV_vec(SB),NOSPLIT,$0
 	BLT	v1
 	SUB     $12, R3                 // n -= 16
         BLT     A1                      // if n < 0 goto A1
-       
+
 	MOVD	R8, R5
 	MOVD	R9, R6
 	MOVD	R2, R7
@@ -291,7 +291,7 @@ E1n:	NEG	R4, R4
 TEXT ·subVV(SB),NOSPLIT,$0
 	MOVD	subvectorfacility+0x00(SB),R1
 	BR	(R1)
-	
+
 TEXT ·subVV_check(SB),NOSPLIT,$0
 	MOVB	·hasVX(SB), R1
 	CMPBEQ	R1, $1, vectorimpl      // vectorfacility = 1, vector supported
@@ -321,7 +321,7 @@ TEXT ·subVV_vec(SB),NOSPLIT,$0
 	MOVD	$0, R4		// c = 0
 	MOVD	$0, R0		// make sure it's zero
 	MOVD	$0, R10		// i = 0
-	
+
 	// s/JL/JMP/ below to disable the unrolled loop
 	SUB	$4, R3		// n -= 4
 	BLT	v1		// if n < 0 goto v1
@@ -413,7 +413,7 @@ UU1:	VLM	0(R5), V1, V4		// 64-bytes into V1..V8
 
 A1:	ADD	$12, R3		// n += 16
 	BLT	v1		// if n < 0 goto v1
-	
+
 U1:	// n >= 0
 	// regular loop body unrolled 4x
 	MOVD	0(R8)(R10*1), R5
@@ -532,7 +532,7 @@ E1:	NEG  R4, R4
 TEXT ·addVW(SB),NOSPLIT,$0
 	MOVD	addwvectorfacility+0x00(SB),R1
 	BR	(R1)
-	
+
 TEXT ·addVW_check(SB),NOSPLIT,$0
 	MOVB	·hasVX(SB), R1
 	CMPBEQ	R1, $1, vectorimpl      // vectorfacility = 1, vector supported
@@ -742,7 +742,7 @@ E4:	MOVD R4, c+56(FP)	// return c
 TEXT ·subVW(SB),NOSPLIT,$0
 	MOVD	subwvectorfacility+0x00(SB),R1
 	BR	(R1)
-	
+
 TEXT ·subVW_check(SB),NOSPLIT,$0
 	MOVB	·hasVX(SB), R1
 	CMPBEQ	R1, $1, vectorimpl      // vectorfacility = 1, vector supported

@@ -6,7 +6,7 @@ package net
 
 import "os"
 
-// BUG(mikio): On NaCl and Windows, the FileConn, FileListener and
+// BUG(mikio): On JS, NaCl and Windows, the FileConn, FileListener and
 // FilePacketConn functions are not implemented.
 
 type fileAddr string

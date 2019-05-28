@@ -12,7 +12,7 @@
 
 package net
 
-import _ "unsafe" // for go:linkname
+import "internal/bytealg"
 
 // IP address lengths (bytes).
 const (
@@ -222,7 +222,7 @@ func (ip IP) DefaultMask() IPMask {
 	if ip = ip.To4(); ip == nil {
 		return nil
 	}
-	switch true {
+	switch {
 	case ip[0] < 0x80:
 		return classAMask
 	case ip[0] < 0xC0:
@@ -246,7 +246,7 @@ func (ip IP) Mask(mask IPMask) IP {
 	if len(mask) == IPv6len && len(ip) == IPv4len && allFF(mask[:12]) {
 		mask = mask[12:]
 	}
-	if len(mask) == IPv4len && len(ip) == IPv6len && bytesEqual(ip[:12], v4InV6Prefix) {
+	if len(mask) == IPv4len && len(ip) == IPv6len && bytealg.Equal(ip[:12], v4InV6Prefix) {
 		ip = ip[12:]
 	}
 	n := len(ip)
@@ -406,20 +406,16 @@ func (ip *IP) UnmarshalText(text []byte) error {
 // considered to be equal.
 func (ip IP) Equal(x IP) bool {
 	if len(ip) == len(x) {
-		return bytesEqual(ip, x)
+		return bytealg.Equal(ip, x)
 	}
 	if len(ip) == IPv4len && len(x) == IPv6len {
-		return bytesEqual(x[0:12], v4InV6Prefix) && bytesEqual(ip, x[12:])
+		return bytealg.Equal(x[0:12], v4InV6Prefix) && bytealg.Equal(ip, x[12:])
 	}
 	if len(ip) == IPv6len && len(x) == IPv4len {
-		return bytesEqual(ip[0:12], v4InV6Prefix) && bytesEqual(ip[12:], x)
+		return bytealg.Equal(ip[0:12], v4InV6Prefix) && bytealg.Equal(ip[12:], x)
 	}
 	return false
 }
-
-// bytes.Equal is implemented in runtime/asm_$goarch.s
-//go:linkname bytesEqual bytes.Equal
-func bytesEqual(x, y []byte) bool
 
 func (ip IP) matchAddrFamily(x IP) bool {
 	return ip.To4() != nil && x.To4() != nil || ip.To16() != nil && ip.To4() == nil && x.To16() != nil && x.To4() == nil
@@ -711,7 +707,7 @@ func parseIPZone(s string) (IP, string) {
 // For example, ParseCIDR("192.0.2.1/24") returns the IP address
 // 192.0.2.1 and the network 192.0.2.0/24.
 func ParseCIDR(s string) (IP, *IPNet, error) {
-	i := byteIndex(s, '/')
+	i := bytealg.IndexByteString(s, '/')
 	if i < 0 {
 		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
 	}

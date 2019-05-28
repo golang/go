@@ -5,9 +5,9 @@
 package sanitizers_test
 
 import (
+	"runtime"
 	"strings"
 	"testing"
-	"runtime"
 )
 
 func TestTSAN(t *testing.T) {

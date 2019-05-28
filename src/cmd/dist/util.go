@@ -397,11 +397,6 @@ func xgetgoarm() string {
 		// Conservative default for cross-compilation.
 		return "5"
 	}
-	if goos == "freebsd" || goos == "openbsd" {
-		// FreeBSD has broken VFP support.
-		// OpenBSD currently only supports softfloat.
-		return "5"
-	}
 
 	// Try to exec ourselves in a mode to detect VFP support.
 	// Seeing how far it gets determines which instructions failed.

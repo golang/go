@@ -47,11 +47,15 @@ func ExampleContains() {
 
 func ExampleContainsAny() {
 	fmt.Println(strings.ContainsAny("team", "i"))
-	fmt.Println(strings.ContainsAny("failure", "u & i"))
+	fmt.Println(strings.ContainsAny("fail", "ui"))
+	fmt.Println(strings.ContainsAny("ure", "ui"))
+	fmt.Println(strings.ContainsAny("failure", "ui"))
 	fmt.Println(strings.ContainsAny("foo", ""))
 	fmt.Println(strings.ContainsAny("", ""))
 	// Output:
 	// false
+	// true
+	// true
 	// true
 	// false
 	// false
@@ -202,6 +206,12 @@ func ExampleReplace() {
 	fmt.Println(strings.Replace("oink oink oink", "oink", "moo", -1))
 	// Output:
 	// oinky oinky oink
+	// moo moo moo
+}
+
+func ExampleReplaceAll() {
+	fmt.Println(strings.ReplaceAll("oink oink oink", "oink", "moo"))
+	// Output:
 	// moo moo moo
 }
 

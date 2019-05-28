@@ -14,6 +14,12 @@ type timespec struct {
 	tv_nsec int32
 }
 
+//go:nosplit
+func (ts *timespec) setNsec(ns int64) {
+	ts.tv_sec = ns / 1e9
+	ts.tv_nsec = int32(ns % 1e9)
+}
+
 type excregs386 struct {
 	eax    uint32
 	ecx    uint32

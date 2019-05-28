@@ -21,9 +21,11 @@ func main() {
 	shouldPanic("cap out of range", func() { _ = make(T, 0, int64(n)) })
 	var t *byte
 	if unsafe.Sizeof(t) == 8 {
-		var n2 int64 = 1 << 50
+		// Test mem > maxAlloc
+		var n2 int64 = 1 << 59
 		shouldPanic("len out of range", func() { _ = make(T, int(n2)) })
 		shouldPanic("cap out of range", func() { _ = make(T, 0, int(n2)) })
+		// Test elem.size*cap overflow
 		n2 = 1<<63 - 1
 		shouldPanic("len out of range", func() { _ = make(T, int(n2)) })
 		shouldPanic("cap out of range", func() { _ = make(T, 0, int(n2)) })

@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
 	"strconv"
 )
 
@@ -43,10 +44,6 @@ const (
 )
 
 func dumpobj() {
-	if !dolinkobj {
-		dumpobj1(outfile, modeCompilerObj)
-		return
-	}
 	if linkobj == "" {
 		dumpobj1(outfile, modeCompilerObj|modeLinkerObj)
 		return
@@ -85,11 +82,6 @@ func printObjHeader(bout *bio.Writer) {
 	if localpkg.Name == "main" {
 		fmt.Fprintf(bout, "main\n")
 	}
-	if safemode {
-		fmt.Fprintf(bout, "safe\n")
-	} else {
-		fmt.Fprintf(bout, "----\n") // room for some other tool to write "safe"
-	}
 	fmt.Fprintf(bout, "\n") // header ends with blank line
 }
 
@@ -105,13 +97,13 @@ func finishArchiveEntry(bout *bio.Writer, start int64, name string) {
 	if size&1 != 0 {
 		bout.WriteByte(0)
 	}
-	bout.Seek(start-ArhdrSize, 0)
+	bout.MustSeek(start-ArhdrSize, 0)
 
 	var arhdr [ArhdrSize]byte
 	formathdr(arhdr[:], name, size)
 	bout.Write(arhdr[:])
 	bout.Flush()
-	bout.Seek(start+size+(size&1), 0)
+	bout.MustSeek(start+size+(size&1), 0)
 }
 
 func dumpCompilerObj(bout *bio.Writer) {
@@ -172,7 +164,7 @@ func dumpLinkerObj(bout *bio.Writer) {
 
 	addGCLocals()
 
-	obj.WriteObjFile(Ctxt, bout.Writer)
+	obj.WriteObjFile(Ctxt, bout.Writer, myimportpath)
 }
 
 func addptabs() {
@@ -268,7 +260,7 @@ func dumpglobls() {
 		}
 	}
 
-	obj.SortSlice(funcsyms, func(i, j int) bool {
+	sort.Slice(funcsyms, func(i, j int) bool {
 		return funcsyms[i].LinksymName() < funcsyms[j].LinksymName()
 	})
 	for _, s := range funcsyms {
@@ -281,23 +273,22 @@ func dumpglobls() {
 	funcsyms = nil
 }
 
-// addGCLocals adds gcargs and gclocals symbols to Ctxt.Data.
-// It takes care not to add any duplicates.
-// Though the object file format handles duplicates efficiently,
-// storing only a single copy of the data,
-// failure to remove these duplicates adds a few percent to object file size.
+// addGCLocals adds gcargs, gclocals, gcregs, and stack object symbols to Ctxt.Data.
+//
+// This is done during the sequential phase after compilation, since
+// global symbols can't be declared during parallel compilation.
 func addGCLocals() {
-	seen := make(map[string]bool)
 	for _, s := range Ctxt.Text {
 		if s.Func == nil {
 			continue
 		}
-		for _, gcsym := range []*obj.LSym{&s.Func.GCArgs, &s.Func.GCLocals, &s.Func.GCRegs} {
-			if seen[gcsym.Name] {
-				continue
+		for _, gcsym := range []*obj.LSym{s.Func.GCArgs, s.Func.GCLocals, s.Func.GCRegs} {
+			if gcsym != nil && !gcsym.OnList() {
+				ggloblsym(gcsym, int32(len(gcsym.P)), obj.RODATA|obj.DUPOK)
 			}
-			Ctxt.Data = append(Ctxt.Data, gcsym)
-			seen[gcsym.Name] = true
+		}
+		if x := s.Func.StackObjects; x != nil {
+			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
 		}
 	}
 }

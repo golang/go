@@ -9,6 +9,7 @@ package net
 import (
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"net/internal/socktest"
 	"os"
@@ -521,11 +522,14 @@ func TestCloseUnblocksRead(t *testing.T) {
 
 // Issue 24808: verify that ECONNRESET is not temporary for read.
 func TestNotTemporaryRead(t *testing.T) {
+	if runtime.GOOS == "freebsd" {
+		testenv.SkipFlaky(t, 25289)
+	}
 	t.Parallel()
 	server := func(cs *TCPConn) error {
 		cs.SetLinger(0)
 		// Give the client time to get stuck in a Read.
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 		cs.Close()
 		return nil
 	}

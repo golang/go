@@ -29,6 +29,9 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 func sysUsed(v unsafe.Pointer, n uintptr) {
 }
 
+func sysHugePage(v unsafe.Pointer, n uintptr) {
+}
+
 // Don't split the stack as this function may be invoked without a valid G,
 // which prevents us from allocating more stack.
 //go:nosplit
@@ -56,7 +59,7 @@ func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
 	mSysStatInc(sysStat, n)
 
 	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
-	if err == _ENOMEM || (GOOS == "solaris" && err == _sunosEAGAIN) {
+	if err == _ENOMEM || ((GOOS == "solaris" || GOOS == "illumos") && err == _sunosEAGAIN) {
 		throw("runtime: out of memory")
 	}
 	if p != v || err != 0 {

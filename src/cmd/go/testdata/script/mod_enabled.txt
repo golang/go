@@ -1,15 +1,15 @@
-# GO111MODULE=auto should only trigger outside GOPATH/src
+# GO111MODULE=auto should trigger any time a go.mod exists in a parent directory.
 env GO111MODULE=auto
 
 cd $GOPATH/src/x/y/z
 go env GOMOD
-! stdout . # no non-empty lines
-! go list -m -f {{.GoMod}}
-stderr 'not using modules'
+stdout $GOPATH[/\\]src[/\\]x[/\\]y[/\\]z[/\\]go.mod
+go list -m -f {{.GoMod}}
+stdout $GOPATH[/\\]src[/\\]x[/\\]y[/\\]z[/\\]go.mod
 
 cd $GOPATH/src/x/y/z/w
 go env GOMOD
-! stdout .
+stdout $GOPATH[/\\]src[/\\]x[/\\]y[/\\]z[/\\]go.mod
 
 cd $GOPATH/src/x/y
 go env GOMOD
@@ -25,6 +25,17 @@ cd $GOPATH/foo/bar/baz
 go env GOMOD
 stdout foo[/\\]go.mod
 
+# GO111MODULE unset should be equivalent to auto.
+env GO111MODULE=
+
+cd $GOPATH/src/x/y/z
+go env GOMOD
+stdout $GOPATH[/\\]src[/\\]x[/\\]y[/\\]z[/\\]go.mod
+
+cd $GOPATH/src/x/y
+go env GOMOD
+! stdout .
+
 # GO111MODULE=on should trigger everywhere
 env GO111MODULE=on
 
@@ -38,9 +49,9 @@ stdout z[/\\]go.mod
 
 cd $GOPATH/src/x/y
 go env GOMOD
-! stdout .
-! go list -m
-stderr 'cannot find main module'
+stdout 'NUL|/dev/null'
+go list -m
+stdout '^command-line-arguments$'
 
 cd $GOPATH/foo
 go env GOMOD
@@ -64,6 +75,15 @@ go env GOMOD
 cd $GOPATH/foo/bar/baz
 go env GOMOD
 ! stdout .+
+
+# GO111MODULE=auto should ignore and warn about /tmp/go.mod
+env GO111MODULE=auto
+cp $GOPATH/src/x/y/z/go.mod $WORK/tmp/go.mod
+mkdir $WORK/tmp/mydir
+cd $WORK/tmp/mydir
+go env GOMOD
+! stdout .+
+stderr '^go: warning: ignoring go.mod in system temp root '
 
 -- $GOPATH/src/x/y/z/go.mod --
 module x/y/z

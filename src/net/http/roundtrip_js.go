@@ -17,16 +17,36 @@ import (
 	"syscall/js"
 )
 
+var uint8Array = js.Global().Get("Uint8Array")
+
+// jsFetchMode is a Request.Header map key that, if present,
+// signals that the map entry is actually an option to the Fetch API mode setting.
+// Valid values are: "cors", "no-cors", "same-origin", "navigate"
+// The default is "same-origin".
+//
+// Reference: https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch#Parameters
+const jsFetchMode = "js.fetch:mode"
+
+// jsFetchCreds is a Request.Header map key that, if present,
+// signals that the map entry is actually an option to the Fetch API credentials setting.
+// Valid values are: "omit", "same-origin", "include"
+// The default is "same-origin".
+//
+// Reference: https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch#Parameters
+const jsFetchCreds = "js.fetch:credentials"
+
+// jsFetchRedirect is a Request.Header map key that, if present,
+// signals that the map entry is actually an option to the Fetch API redirect setting.
+// Valid values are: "follow", "error", "manual"
+// The default is "follow".
+//
+// Reference: https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch#Parameters
+const jsFetchRedirect = "js.fetch:redirect"
+
 // RoundTrip implements the RoundTripper interface using the WHATWG Fetch API.
 func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	if useFakeNetwork() {
 		return t.roundTrip(req)
-	}
-	headers := js.Global().Get("Headers").New()
-	for key, values := range req.Header {
-		for _, value := range values {
-			headers.Call("append", key, value)
-		}
 	}
 
 	ac := js.Global().Get("AbortController")
@@ -40,12 +60,30 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	opt := js.Global().Get("Object").New()
 	// See https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch
 	// for options available.
-	opt.Set("headers", headers)
 	opt.Set("method", req.Method)
 	opt.Set("credentials", "same-origin")
+	if h := req.Header.Get(jsFetchCreds); h != "" {
+		opt.Set("credentials", h)
+		req.Header.Del(jsFetchCreds)
+	}
+	if h := req.Header.Get(jsFetchMode); h != "" {
+		opt.Set("mode", h)
+		req.Header.Del(jsFetchMode)
+	}
+	if h := req.Header.Get(jsFetchRedirect); h != "" {
+		opt.Set("redirect", h)
+		req.Header.Del(jsFetchRedirect)
+	}
 	if ac != js.Undefined() {
 		opt.Set("signal", ac.Get("signal"))
 	}
+	headers := js.Global().Get("Headers").New()
+	for key, values := range req.Header {
+		for _, value := range values {
+			headers.Call("append", key, value)
+		}
+	}
+	opt.Set("headers", headers)
 
 	if req.Body != nil {
 		// TODO(johanbrandhorst): Stream request body when possible.
@@ -60,16 +98,16 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 			return nil, err
 		}
 		req.Body.Close()
-		a := js.TypedArrayOf(body)
-		defer a.Release()
-		opt.Set("body", a)
+		buf := uint8Array.New(len(body))
+		js.CopyBytesToJS(buf, body)
+		opt.Set("body", buf)
 	}
 	respPromise := js.Global().Call("fetch", req.URL.String(), opt)
 	var (
 		respCh = make(chan *Response, 1)
 		errCh  = make(chan error, 1)
 	)
-	success := js.NewCallback(func(args []js.Value) {
+	success := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		result := args[0]
 		header := Header{}
 		// https://developer.mozilla.org/en-US/docs/Web/API/Headers/entries
@@ -92,7 +130,9 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 
 		b := result.Get("body")
 		var body io.ReadCloser
-		if b != js.Undefined() {
+		// The body is undefined when the browser does not support streaming response bodies (Firefox),
+		// and null in certain error cases, i.e. when the request is blocked because of CORS settings.
+		if b != js.Undefined() && b != js.Null() {
 			body = &streamReader{stream: b.Call("getReader")}
 		} else {
 			// Fall back to using ArrayBuffer
@@ -100,10 +140,11 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 			body = &arrayReader{arrayPromise: result.Call("arrayBuffer")}
 		}
 
+		code := result.Get("status").Int()
 		select {
 		case respCh <- &Response{
-			Status:        result.Get("status").String() + " " + StatusText(result.Get("status").Int()),
-			StatusCode:    result.Get("status").Int(),
+			Status:        fmt.Sprintf("%d %s", code, StatusText(code)),
+			StatusCode:    code,
 			Header:        header,
 			ContentLength: contentLength,
 			Body:          body,
@@ -111,14 +152,17 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		}:
 		case <-req.Context().Done():
 		}
+
+		return nil
 	})
 	defer success.Release()
-	failure := js.NewCallback(func(args []js.Value) {
+	failure := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		err := fmt.Errorf("net/http: fetch() failed: %s", args[0].String())
 		select {
 		case errCh <- err:
 		case <-req.Context().Done():
 		}
+		return nil
 	})
 	defer failure.Release()
 	respPromise.Call("then", success, failure)
@@ -161,26 +205,26 @@ func (r *streamReader) Read(p []byte) (n int, err error) {
 			bCh   = make(chan []byte, 1)
 			errCh = make(chan error, 1)
 		)
-		success := js.NewCallback(func(args []js.Value) {
+		success := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 			result := args[0]
 			if result.Get("done").Bool() {
 				errCh <- io.EOF
-				return
+				return nil
 			}
 			value := make([]byte, result.Get("value").Get("byteLength").Int())
-			a := js.TypedArrayOf(value)
-			a.Call("set", result.Get("value"))
-			a.Release()
+			js.CopyBytesToGo(value, result.Get("value"))
 			bCh <- value
+			return nil
 		})
 		defer success.Release()
-		failure := js.NewCallback(func(args []js.Value) {
+		failure := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 			// Assumes it's a TypeError. See
 			// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypeError
 			// for more information on this type. See
 			// https://streams.spec.whatwg.org/#byob-reader-read for the spec on
 			// the read method.
 			errCh <- errors.New(args[0].Get("message").String())
+			return nil
 		})
 		defer failure.Release()
 		r.stream.Call("read").Call("then", success, failure)
@@ -227,22 +271,22 @@ func (r *arrayReader) Read(p []byte) (n int, err error) {
 			bCh   = make(chan []byte, 1)
 			errCh = make(chan error, 1)
 		)
-		success := js.NewCallback(func(args []js.Value) {
+		success := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 			// Wrap the input ArrayBuffer with a Uint8Array
-			uint8arrayWrapper := js.Global().Get("Uint8Array").New(args[0])
+			uint8arrayWrapper := uint8Array.New(args[0])
 			value := make([]byte, uint8arrayWrapper.Get("byteLength").Int())
-			a := js.TypedArrayOf(value)
-			a.Call("set", uint8arrayWrapper)
-			a.Release()
+			js.CopyBytesToGo(value, uint8arrayWrapper)
 			bCh <- value
+			return nil
 		})
 		defer success.Release()
-		failure := js.NewCallback(func(args []js.Value) {
+		failure := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 			// Assumes it's a TypeError. See
 			// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypeError
 			// for more information on this type.
 			// See https://fetch.spec.whatwg.org/#concept-body-consume-body for reasons this might error.
 			errCh <- errors.New(args[0].Get("message").String())
+			return nil
 		})
 		defer failure.Release()
 		r.arrayPromise.Call("then", success, failure)

@@ -1,4 +1,4 @@
-// errorcheck -0 -m -l
+// errorcheck -0 -m -l -newescape=true
 
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -19,7 +19,7 @@ func g(*byte) string
 
 func h(e int) {
 	var x [32]byte // ERROR "moved to heap: x$"
-	g(&f(x[:])[0]) // ERROR "&f\(x\[:\]\)\[0\] escapes to heap$" "x escapes to heap$"
+	g(&f(x[:])[0])
 }
 
 type Node struct {
@@ -33,10 +33,10 @@ func walk(np **Node) int { // ERROR "leaking param content: np"
 	if n == nil {
 		return 0
 	}
-	wl := walk(&n.left)  // ERROR "walk &n.left does not escape"
-	wr := walk(&n.right) // ERROR "walk &n.right does not escape"
+	wl := walk(&n.left)
+	wr := walk(&n.right)
 	if wl < wr {
-		n.left, n.right = n.right, n.left
+		n.left, n.right = n.right, n.left // ERROR "ignoring self-assignment"
 		wl, wr = wr, wl
 	}
 	*np = n

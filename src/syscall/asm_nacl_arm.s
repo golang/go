@@ -41,4 +41,4 @@ ok:
 	MOVW	$0, R2
 	MOVW	R2, err+24(FP)
 	BL	runtime·exitsyscall(SB)
-	RET	
+	RET

@@ -5,7 +5,7 @@
 // This file implements sysSocket and accept for platforms that do not
 // provide a fast path for setting SetNonblock and CloseOnExec.
 
-// +build darwin js,wasm nacl solaris
+// +build aix darwin js,wasm nacl solaris
 
 package poll
 

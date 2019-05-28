@@ -47,41 +47,34 @@ go	src=..
 					google
 						pprof
 							internal
-								driver
-									testdata
-										+
-								graph
-									testdata
-										+
-								report
-									testdata
-										+
-							profile
-								testdata
+								binutils
 									+
+								driver
+									+
+								graph
+									+
+								report
+									+
+							profile
+								+
 					ianlancetaylor
 						demangle
-							testdata
-								+
+							+
 				golang.org
 					x
 						arch
 							arm
 								armasm
-									testdata
-										+
+									+
 							arm64
 								arm64asm
-									testdata
-										+
+									+
 							x86
 								x86asm
-									testdata
-										+
+									+
 							ppc64
 								ppc64asm
-									testdata
-										+
+									+
 		archive
 			tar
 				testdata
@@ -104,6 +97,9 @@ go	src=..
 				+
 			zlib
 		crypto
+			ed25519
+				testdata
+					+
 			rsa
 				testdata
 					+
@@ -151,6 +147,9 @@ go	src=..
 			trace
 				testdata
 					+
+			xcoff
+				testdata
+					+
 		io
 			+
 		mime
@@ -177,6 +176,8 @@ go	src=..
 		strconv
 			testdata
 				+
+		testdata
+			+
 		text
 			template
 				testdata

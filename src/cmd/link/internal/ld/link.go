@@ -32,6 +32,7 @@ package ld
 
 import (
 	"bufio"
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
@@ -89,6 +90,11 @@ type Link struct {
 
 	// Used to implement field tracking.
 	Reachparent map[*sym.Symbol]*sym.Symbol
+
+	compUnits         []*compilationUnit // DWARF compilation units
+	compUnitByPackage map[*sym.Library]*compilationUnit
+
+	relocbuf []byte // temporary buffer for applying relocations
 }
 
 type unresolvedSymKey struct {
@@ -105,9 +111,28 @@ func (ctxt *Link) ErrorUnresolved(s *sym.Symbol, r *sym.Reloc) {
 	k := unresolvedSymKey{from: s, to: r.Sym}
 	if !ctxt.unresolvedSymSet[k] {
 		ctxt.unresolvedSymSet[k] = true
+
+		// Try to find symbol under another ABI.
+		var reqABI, haveABI obj.ABI
+		haveABI = ^obj.ABI(0)
+		reqABI, ok := sym.VersionToABI(int(r.Sym.Version))
+		if ok {
+			for abi := obj.ABI(0); abi < obj.ABICount; abi++ {
+				v := sym.ABIToVersion(abi)
+				if v == -1 {
+					continue
+				}
+				if rs := ctxt.Syms.ROLookup(r.Sym.Name, v); rs != nil && rs.Type != sym.Sxxx {
+					haveABI = abi
+				}
+			}
+		}
+
 		// Give a special error message for main symbol (see #24809).
 		if r.Sym.Name == "main.main" {
 			Errorf(s, "function main is undeclared in the main package")
+		} else if haveABI != ^obj.ABI(0) {
+			Errorf(s, "relocation target %s not defined for %s (but is defined for %s)", r.Sym.Name, reqABI, haveABI)
 		} else {
 			Errorf(s, "relocation target %s not defined", r.Sym.Name)
 		}
@@ -145,15 +170,4 @@ func addImports(ctxt *Link, l *sym.Library, pn string) {
 		}
 	}
 	l.ImportStrings = nil
-}
-
-type Pciter struct {
-	d       sym.Pcdata
-	p       []byte
-	pc      uint32
-	nextpc  uint32
-	pcscale uint32
-	value   int32
-	start   int
-	done    int
 }

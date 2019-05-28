@@ -26,7 +26,7 @@ import (
 	"strings"
 	"sync"
 
-	"golang_org/x/net/idna"
+	"golang.org/x/net/idna"
 )
 
 const (
@@ -53,8 +53,9 @@ var (
 	// available.
 	ErrNotSupported = &ProtocolError{"feature not supported"}
 
-	// ErrUnexpectedTrailer is returned by the Transport when a server
-	// replies with a Trailer header, but without a chunked reply.
+	// Deprecated: ErrUnexpectedTrailer is no longer returned by
+	// anything in the net/http package. Callers should not
+	// compare errors against this variable.
 	ErrUnexpectedTrailer = &ProtocolError{"trailer header without chunked transfer encoding"}
 
 	// ErrMissingBoundary is returned by Request.MultipartReader when the
@@ -105,7 +106,7 @@ var reqWriteExcludeHeader = map[string]bool{
 // documentation for Request.Write and RoundTripper.
 type Request struct {
 	// Method specifies the HTTP method (GET, POST, PUT, etc.).
-	// For client requests an empty string means GET.
+	// For client requests, an empty string means GET.
 	//
 	// Go's HTTP client does not support sending a request with
 	// the CONNECT method. See the documentation on Transport for
@@ -115,7 +116,7 @@ type Request struct {
 	// URL specifies either the URI being requested (for server
 	// requests) or the URL to access (for client requests).
 	//
-	// For server requests the URL is parsed from the URI
+	// For server requests, the URL is parsed from the URI
 	// supplied on the Request-Line as stored in RequestURI.  For
 	// most requests, fields other than Path and RawQuery will be
 	// empty. (See RFC 7230, Section 5.3)
@@ -128,7 +129,7 @@ type Request struct {
 
 	// The protocol version for incoming server requests.
 	//
-	// For client requests these fields are ignored. The HTTP
+	// For client requests, these fields are ignored. The HTTP
 	// client code always uses either HTTP/1.1 or HTTP/2.
 	// See the docs on Transport for details.
 	Proto      string // "HTTP/1.0"
@@ -170,11 +171,11 @@ type Request struct {
 
 	// Body is the request's body.
 	//
-	// For client requests a nil body means the request has no
+	// For client requests, a nil body means the request has no
 	// body, such as a GET request. The HTTP Client's Transport
 	// is responsible for calling the Close method.
 	//
-	// For server requests the Request Body is always non-nil
+	// For server requests, the Request Body is always non-nil
 	// but will return EOF immediately when no body is present.
 	// The Server will close the request body. The ServeHTTP
 	// Handler does not need to.
@@ -185,13 +186,14 @@ type Request struct {
 	// reading the body more than once. Use of GetBody still
 	// requires setting Body.
 	//
-	// For server requests it is unused.
+	// For server requests, it is unused.
 	GetBody func() (io.ReadCloser, error)
 
 	// ContentLength records the length of the associated content.
 	// The value -1 indicates that the length is unknown.
 	// Values >= 0 indicate that the given number of bytes may
 	// be read from Body.
+	//
 	// For client requests, a value of 0 with a non-nil Body is
 	// also treated as unknown.
 	ContentLength int64
@@ -215,7 +217,7 @@ type Request struct {
 	// Transport.DisableKeepAlives were set.
 	Close bool
 
-	// For server requests Host specifies the host on which the URL
+	// For server requests, Host specifies the host on which the URL
 	// is sought. Per RFC 7230, section 5.4, this is either the value
 	// of the "Host" header or the host name given in the URL itself.
 	// It may be of the form "host:port". For international domain
@@ -228,7 +230,7 @@ type Request struct {
 	// ServeMux supports patterns registered to particular host
 	// names and thus protects its registered Handlers.
 	//
-	// For client requests Host optionally overrides the Host
+	// For client requests, Host optionally overrides the Host
 	// header to send. If empty, the Request.Write method uses
 	// the value of URL.Host. Host may contain an international
 	// domain name.
@@ -255,14 +257,14 @@ type Request struct {
 	// Trailer specifies additional headers that are sent after the request
 	// body.
 	//
-	// For server requests the Trailer map initially contains only the
+	// For server requests, the Trailer map initially contains only the
 	// trailer keys, with nil values. (The client declares which trailers it
 	// will later send.)  While the handler is reading from Body, it must
 	// not reference Trailer. After reading from Body returns EOF, Trailer
 	// can be read again and will contain non-nil values, if they were sent
 	// by the client.
 	//
-	// For client requests Trailer must be initialized to a map containing
+	// For client requests, Trailer must be initialized to a map containing
 	// the trailer keys to later send. The values may be nil or their final
 	// values. The ContentLength must be 0 or -1, to send a chunked request.
 	// After the HTTP request is sent the map values can be updated while
@@ -302,7 +304,7 @@ type Request struct {
 	//
 	// For server requests, this field is not applicable.
 	//
-	// Deprecated: Use the Context and WithContext methods
+	// Deprecated: Set the Request's context with NewRequestWithContext
 	// instead. If a Request's Cancel field and context are both
 	// set, it is undefined whether Cancel is respected.
 	Cancel <-chan struct{}
@@ -325,7 +327,7 @@ type Request struct {
 // The returned context is always non-nil; it defaults to the
 // background context.
 //
-// For outgoing client requests, the context controls cancelation.
+// For outgoing client requests, the context controls cancellation.
 //
 // For incoming server requests, the context is canceled when the
 // client's connection closes, the request is canceled (with HTTP/2),
@@ -339,6 +341,15 @@ func (r *Request) Context() context.Context {
 
 // WithContext returns a shallow copy of r with its context changed
 // to ctx. The provided ctx must be non-nil.
+//
+// For outgoing client request, the context controls the entire
+// lifetime of a request and its response: obtaining a connection,
+// sending the request, and reading the response headers and body.
+//
+// To create a new request with a context, use NewRequestWithContext.
+// To change the context of a request (such as an incoming) you then
+// also want to modify to send back out, use Request.Clone. Between
+// those two uses, it's rare to need WithContext.
 func (r *Request) WithContext(ctx context.Context) *Request {
 	if ctx == nil {
 		panic("nil context")
@@ -346,16 +357,38 @@ func (r *Request) WithContext(ctx context.Context) *Request {
 	r2 := new(Request)
 	*r2 = *r
 	r2.ctx = ctx
+	r2.URL = cloneURL(r.URL) // legacy behavior; TODO: try to remove. Issue 23544
+	return r2
+}
 
-	// Deep copy the URL because it isn't
-	// a map and the URL is mutable by users
-	// of WithContext.
-	if r.URL != nil {
-		r2URL := new(url.URL)
-		*r2URL = *r.URL
-		r2.URL = r2URL
+// Clone returns a deep copy of r with its context changed to ctx.
+// The provided ctx must be non-nil.
+//
+// For an outgoing client request, the context controls the entire
+// lifetime of a request and its response: obtaining a connection,
+// sending the request, and reading the response headers and body.
+func (r *Request) Clone(ctx context.Context) *Request {
+	if ctx == nil {
+		panic("nil context")
 	}
-
+	r2 := new(Request)
+	*r2 = *r
+	r2.ctx = ctx
+	r2.URL = cloneURL(r.URL)
+	if r.Header != nil {
+		r2.Header = r.Header.Clone()
+	}
+	if r.Trailer != nil {
+		r2.Trailer = r.Trailer.Clone()
+	}
+	if s := r.TransferEncoding; s != nil {
+		s2 := make([]string, len(s))
+		copy(s2, s)
+		r2.TransferEncoding = s
+	}
+	r2.Form = cloneURLValues(r.Form)
+	r2.PostForm = cloneURLValues(r.PostForm)
+	r2.MultipartForm = cloneMultipartForm(r.MultipartForm)
 	return r2
 }
 
@@ -540,8 +573,16 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 	} else if r.Method == "CONNECT" && r.URL.Path == "" {
 		// CONNECT requests normally give just the host and port, not a full URL.
 		ruri = host
+		if r.URL.Opaque != "" {
+			ruri = r.URL.Opaque
+		}
 	}
-	// TODO(bradfitz): escape at least newlines in ruri?
+	if stringContainsCTLByte(ruri) {
+		return errors.New("net/http: can't write control character in Request.URL")
+	}
+	// TODO: validate r.Method too? At least it's less likely to
+	// come from an attacker (more likely to be a constant in
+	// code).
 
 	// Wrap the writer in a bufio Writer if it's not already buffered.
 	// Don't always call NewWriter, as that forces a bytes.Buffer
@@ -570,7 +611,7 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 	// Use the defaultUserAgent unless the Header contains one, which
 	// may be blank to not send the header.
 	userAgent := defaultUserAgent
-	if _, ok := r.Header["User-Agent"]; ok {
+	if r.Header.has("User-Agent") {
 		userAgent = r.Header.Get("User-Agent")
 	}
 	if userAgent != "" {
@@ -767,25 +808,34 @@ func validMethod(method string) bool {
 	return len(method) > 0 && strings.IndexFunc(method, isNotToken) == -1
 }
 
-// NewRequest returns a new Request given a method, URL, and optional body.
+// NewRequest wraps NewRequestWithContext using the background context.
+func NewRequest(method, url string, body io.Reader) (*Request, error) {
+	return NewRequestWithContext(context.Background(), method, url, body)
+}
+
+// NewRequestWithContext returns a new Request given a method, URL, and
+// optional body.
 //
 // If the provided body is also an io.Closer, the returned
 // Request.Body is set to body and will be closed by the Client
 // methods Do, Post, and PostForm, and Transport.RoundTrip.
 //
-// NewRequest returns a Request suitable for use with Client.Do or
-// Transport.RoundTrip. To create a request for use with testing a
-// Server Handler, either use the NewRequest function in the
+// NewRequestWithContext returns a Request suitable for use with
+// Client.Do or Transport.RoundTrip. To create a request for use with
+// testing a Server Handler, either use the NewRequest function in the
 // net/http/httptest package, use ReadRequest, or manually update the
-// Request fields. See the Request type's documentation for the
-// difference between inbound and outbound request fields.
+// Request fields. For an outgoing client request, the context
+// controls the entire lifetime of a request and its response:
+// obtaining a connection, sending the request, and reading the
+// response headers and body. See the Request type's documentation for
+// the difference between inbound and outbound request fields.
 //
 // If body is of type *bytes.Buffer, *bytes.Reader, or
 // *strings.Reader, the returned request's ContentLength is set to its
 // exact value (instead of -1), GetBody is populated (so 307 and 308
 // redirects can replay the body), and Body is set to NoBody if the
 // ContentLength is 0.
-func NewRequest(method, url string, body io.Reader) (*Request, error) {
+func NewRequestWithContext(ctx context.Context, method, url string, body io.Reader) (*Request, error) {
 	if method == "" {
 		// We document that "" means "GET" for Request.Method, and people have
 		// relied on that from NewRequest, so keep that working.
@@ -794,6 +844,9 @@ func NewRequest(method, url string, body io.Reader) (*Request, error) {
 	}
 	if !validMethod(method) {
 		return nil, fmt.Errorf("net/http: invalid method %q", method)
+	}
+	if ctx == nil {
+		return nil, errors.New("net/http: nil Context")
 	}
 	u, err := parseURL(url) // Just url.Parse (url is shadowed for godoc).
 	if err != nil {
@@ -806,6 +859,7 @@ func NewRequest(method, url string, body io.Reader) (*Request, error) {
 	// The host's colon:port should be normalized. See Issue 14836.
 	u.Host = removeEmptyPort(u.Host)
 	req := &Request{
+		ctx:        ctx,
 		Method:     method,
 		URL:        u,
 		Proto:      "HTTP/1.1",
@@ -898,6 +952,10 @@ func parseBasicAuth(auth string) (username, password string, ok bool) {
 //
 // With HTTP Basic Authentication the provided username and password
 // are not encrypted.
+//
+// Some protocols may impose additional requirements on pre-escaping the
+// username and password. For instance, when used with OAuth2, both arguments
+// must be URL encoded first with url.QueryEscape.
 func (r *Request) SetBasicAuth(username, password string) {
 	r.Header.Set("Authorization", "Basic "+basicAuth(username, password))
 }
@@ -1321,6 +1379,9 @@ func (r *Request) wantsHttp10KeepAlive() bool {
 }
 
 func (r *Request) wantsClose() bool {
+	if r.Close {
+		return true
+	}
 	return hasToken(r.Header.get("Connection"), "close")
 }
 
@@ -1334,6 +1395,12 @@ func (r *Request) isReplayable() bool {
 	if r.Body == nil || r.Body == NoBody || r.GetBody != nil {
 		switch valueOrDefault(r.Method, "GET") {
 		case "GET", "HEAD", "OPTIONS", "TRACE":
+			return true
+		}
+		// The Idempotency-Key, while non-standard, is widely used to
+		// mean a POST or other request is idempotent. See
+		// https://golang.org/issue/19943#issuecomment-421092421
+		if r.Header.has("Idempotency-Key") || r.Header.has("X-Idempotency-Key") {
 			return true
 		}
 	}
@@ -1365,4 +1432,11 @@ func requestMethodUsuallyLacksBody(method string) bool {
 		return true
 	}
 	return false
+}
+
+// requiresHTTP1 reports whether this request requires being sent on
+// an HTTP/1 connection.
+func (r *Request) requiresHTTP1() bool {
+	return hasToken(r.Header.Get("Connection"), "upgrade") &&
+		strings.EqualFold(r.Header.Get("Upgrade"), "websocket")
 }

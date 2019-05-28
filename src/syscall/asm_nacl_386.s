@@ -42,4 +42,4 @@ ok:
 	MOVL	DX, r2+20(FP)
 	MOVL	$0, err+24(FP)
 	CALL	runtime·exitsyscall(SB)
-	RET	
+	RET

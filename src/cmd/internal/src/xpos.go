@@ -60,12 +60,23 @@ func (p XPos) WithIsStmt() XPos {
 	return p
 }
 
+// WithBogusLine returns a bogus line that won't match any recorded for the source code.
+// Its use is to disrupt the statements within an infinite loop so that the debugger
+// will not itself loop infinitely waiting for the line number to change.
+// gdb chooses not to display the bogus line; delve shows it with a complaint, but the
+// alternative behavior is to hang.
+func (p XPos) WithBogusLine() XPos {
+	p.lico = makeBogusLico()
+	return p
+}
+
 // WithXlogue returns the same location but marked with DWARF function prologue/epilogue
 func (p XPos) WithXlogue(x PosXlogue) XPos {
 	p.lico = p.lico.withXlogue(x)
 	return p
 }
 
+// LineNumber returns a string for the line number, "?" if it is not known.
 func (p XPos) LineNumber() string {
 	if !p.IsKnown() {
 		return "?"
@@ -73,11 +84,24 @@ func (p XPos) LineNumber() string {
 	return p.lico.lineNumber()
 }
 
+// FileIndex returns a smallish non-negative integer corresponding to the
+// file for this source position.  Smallish is relative; it can be thousands
+// large, but not millions.
+func (p XPos) FileIndex() int32 {
+	return p.index
+}
+
 func (p XPos) LineNumberHTML() string {
 	if !p.IsKnown() {
 		return "?"
 	}
 	return p.lico.lineNumberHTML()
+}
+
+// AtColumn1 returns the same location but shifted to column 1.
+func (p XPos) AtColumn1() XPos {
+	p.lico = p.lico.atColumn1()
+	return p
 }
 
 // A PosTable tracks Pos -> XPos conversions and vice versa.

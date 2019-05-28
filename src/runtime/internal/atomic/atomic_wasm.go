@@ -23,6 +23,18 @@ func Loadp(ptr unsafe.Pointer) unsafe.Pointer {
 
 //go:nosplit
 //go:noinline
+func LoadAcq(ptr *uint32) uint32 {
+	return *ptr
+}
+
+//go:nosplit
+//go:noinline
+func Load8(ptr *uint8) uint8 {
+	return *ptr
+}
+
+//go:nosplit
+//go:noinline
 func Load64(ptr *uint64) uint64 {
 	return *ptr
 }
@@ -107,14 +119,23 @@ func Store(ptr *uint32, val uint32) {
 
 //go:nosplit
 //go:noinline
+func StoreRel(ptr *uint32, val uint32) {
+	*ptr = val
+}
+
+//go:nosplit
+//go:noinline
 func Store64(ptr *uint64, val uint64) {
 	*ptr = val
 }
 
+//go:notinheap
+type noWB struct{}
+
 //go:noinline
 //go:nosplit
 func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer) {
-	*(*uintptr)(ptr) = uintptr(val)
+	*(**noWB)(ptr) = (*noWB)(val)
 }
 
 //go:nosplit
@@ -140,6 +161,16 @@ func Casp1(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool {
 //go:nosplit
 //go:noinline
 func Casuintptr(ptr *uintptr, old, new uintptr) bool {
+	if *ptr == old {
+		*ptr = new
+		return true
+	}
+	return false
+}
+
+//go:nosplit
+//go:noinline
+func CasRel(ptr *uint32, old, new uint32) bool {
 	if *ptr == old {
 		*ptr = new
 		return true

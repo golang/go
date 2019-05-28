@@ -35,7 +35,6 @@
 #define SYS_madvise		4218
 #define SYS_mincore		4217
 #define SYS_gettid		4222
-#define SYS_tkill		4236
 #define SYS_futex		4238
 #define SYS_sched_getaffinity	4240
 #define SYS_exit_group		4246
@@ -43,6 +42,7 @@
 #define SYS_epoll_ctl		4249
 #define SYS_epoll_wait		4250
 #define SYS_clock_gettime	4263
+#define SYS_tgkill		4266
 #define SYS_epoll_create1	4326
 
 TEXT runtime·exit(SB),NOSPLIT,$0-4
@@ -135,11 +135,15 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT,$0-4
+	MOVW	$SYS_getpid, R2
+	SYSCALL
+	MOVW	R2, R16
 	MOVW	$SYS_gettid, R2
 	SYSCALL
-	MOVW	R2, R4	// arg 1 tid
-	MOVW	sig+0(FP), R5	// arg 2
-	MOVW	$SYS_tkill, R2
+	MOVW	R2, R5	// arg 2 tid
+	MOVW	R16, R4	// arg 1 pid
+	MOVW	sig+0(FP), R6	// arg 3
+	MOVW	$SYS_tgkill, R2
 	SYSCALL
 	RET
 
@@ -178,12 +182,13 @@ TEXT runtime·walltime(SB),NOSPLIT,$8-12
 	SYSCALL
 	MOVW	4(R29), R3	// sec
 	MOVW	8(R29), R5	// nsec
+	MOVW	$sec+0(FP), R6
 #ifdef GOARCH_mips
-	MOVW	R3, sec_lo+4(FP)
-	MOVW	R0, sec_hi+0(FP)
+	MOVW	R3, 4(R6)
+	MOVW	R0, 0(R6)
 #else
-	MOVW	R3, sec_lo+0(FP)
-	MOVW	R0, sec_hi+4(FP)
+	MOVW	R3, 0(R6)
+	MOVW	R0, 4(R6)
 #endif
 	MOVW	R5, nsec+8(FP)
 	RET
@@ -202,17 +207,18 @@ TEXT runtime·nanotime(SB),NOSPLIT,$8-8
 	MOVW	LO, R3
 	ADDU	R5, R3
 	SGTU	R5, R3, R4
+	MOVW	$ret+0(FP), R6
 #ifdef GOARCH_mips
-	MOVW	R3, ret_lo+4(FP)
+	MOVW	R3, 4(R6)
 #else
-	MOVW	R3, ret_lo+0(FP)
+	MOVW	R3, 0(R6)
 #endif
 	MOVW	HI, R3
 	ADDU	R4, R3
 #ifdef GOARCH_mips
-	MOVW	R3, ret_hi+0(FP)
+	MOVW	R3, 0(R6)
 #else
-	MOVW	R3, ret_hi+4(FP)
+	MOVW	R3, 4(R6)
 #endif
 	RET
 
@@ -298,13 +304,13 @@ TEXT runtime·munmap(SB),NOSPLIT,$0-8
 	UNDEF	// crash
 	RET
 
-TEXT runtime·madvise(SB),NOSPLIT,$0-12
+TEXT runtime·madvise(SB),NOSPLIT,$0-16
 	MOVW	addr+0(FP), R4
 	MOVW	n+4(FP), R5
 	MOVW	flags+8(FP), R6
 	MOVW	$SYS_madvise, R2
 	SYSCALL
-	// ignore failure - maybe pages are locked
+	MOVW	R2, ret+12(FP)
 	RET
 
 // int32 futex(int32 *uaddr, int32 op, int32 val, struct timespec *timeout, int32 *uaddr2, int32 val2);
@@ -365,6 +371,7 @@ TEXT runtime·clone(SB),NOSPLIT|NOFRAME,$0-24
 
 	// In child, on new stack.
 	// Check that SP is as we expect
+	NOP	R29	// tell vet R29/SP changed - stop checking offsets
 	MOVW	12(R29), R16
 	MOVW	$1234, R1
 	BEQ	R16, R1, 2(PC)
@@ -487,4 +494,19 @@ TEXT runtime·sbrk0(SB),NOSPLIT,$0-4
 	MOVW	$SYS_brk, R2
 	SYSCALL
 	MOVW	R2, ret+0(FP)
+	RET
+
+TEXT runtime·access(SB),$0-12
+	BREAK // unimplemented, only needed for android; declared in stubs_linux.go
+	MOVW	R0, ret+8(FP)	// for vet
+	RET
+
+TEXT runtime·connect(SB),$0-16
+	BREAK // unimplemented, only needed for android; declared in stubs_linux.go
+	MOVW	R0, ret+12(FP)	// for vet
+	RET
+
+TEXT runtime·socket(SB),$0-16
+	BREAK // unimplemented, only needed for android; declared in stubs_linux.go
+	MOVW	R0, ret+12(FP)	// for vet
 	RET

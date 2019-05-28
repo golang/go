@@ -180,7 +180,7 @@ type Info struct {
 	//
 	//     *ast.ImportSpec    *PkgName for imports without renames
 	//     *ast.CaseClause    type-specific *Var for each type switch case clause (incl. default)
-	//     *ast.Field         anonymous parameter *Var
+	//     *ast.Field         anonymous parameter *Var (incl. unnamed results)
 	//
 	Implicits map[ast.Node]Object
 
@@ -240,7 +240,7 @@ func (info *Info) TypeOf(e ast.Expr) Type {
 // or nil if not found.
 //
 // If id is an embedded struct field, ObjectOf returns the field (*Var)
-// it uses, not the type (*TypeName) it defines.
+// it defines, not the type (*TypeName) it uses.
 //
 // Precondition: the Uses and Defs maps are populated.
 //
@@ -353,20 +353,20 @@ func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, i
 
 // AssertableTo reports whether a value of type V can be asserted to have type T.
 func AssertableTo(V *Interface, T Type) bool {
-	m, _ := assertableTo(V, T)
+	m, _ := (*Checker)(nil).assertableTo(V, T)
 	return m == nil
 }
 
 // AssignableTo reports whether a value of type V is assignable to a variable of type T.
 func AssignableTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
-	return x.assignableTo(nil, T, nil) // config not needed for non-constant x
+	return x.assignableTo(nil, T, nil) // check not needed for non-constant x
 }
 
 // ConvertibleTo reports whether a value of type V is convertible to a value of type T.
 func ConvertibleTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
-	return x.convertibleTo(nil, T) // config not needed for non-constant x
+	return x.convertibleTo(nil, T) // check not needed for non-constant x
 }
 
 // Implements reports whether type V implements interface T.

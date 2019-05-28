@@ -102,7 +102,7 @@ func algtype1(t *types.Type) (AlgKind, *types.Type) {
 	case TINT8, TUINT8, TINT16, TUINT16,
 		TINT32, TUINT32, TINT64, TUINT64,
 		TINT, TUINT, TUINTPTR,
-		TBOOL, TPTR32, TPTR64,
+		TBOOL, TPTR,
 		TCHAN, TUNSAFEPTR:
 		return AMEM, nil
 
@@ -217,7 +217,7 @@ func genhash(sym *types.Sym, t *types.Type) {
 		// pure memory.
 		hashel := hashfor(t.Elem())
 
-		n := nod(ORANGE, nil, nod(OIND, np, nil))
+		n := nod(ORANGE, nil, nod(ODEREF, np, nil))
 		ni := newname(lookup("i"))
 		ni.Type = types.Types[TINT]
 		n.List.Set1(ni)
@@ -290,28 +290,18 @@ func genhash(sym *types.Sym, t *types.Type) {
 	funcbody()
 
 	fn.Func.SetDupok(true)
-	fn = typecheck(fn, Etop)
+	fn = typecheck(fn, ctxStmt)
 
 	Curfn = fn
-	typecheckslice(fn.Nbody.Slice(), Etop)
+	typecheckslice(fn.Nbody.Slice(), ctxStmt)
 	Curfn = nil
 
 	if debug_dclstack != 0 {
 		testdclstack()
 	}
 
-	// Disable safemode while compiling this code: the code we
-	// generate internally can refer to unsafe.Pointer.
-	// In this case it can happen if we need to generate an ==
-	// for a struct containing a reflect.Value, which itself has
-	// an unexported field of type unsafe.Pointer.
-	old_safemode := safemode
-	safemode = false
-
 	fn.Func.SetNilCheckDisabled(true)
 	funccompile(fn)
-
-	safemode = old_safemode
 }
 
 func hashfor(t *types.Type) *Node {
@@ -340,6 +330,7 @@ func hashfor(t *types.Type) *Node {
 
 	n := newname(sym)
 	n.SetClass(PFUNC)
+	n.Sym.SetFunc(true)
 	n.Type = functype(nil, []*Node{
 		anonfield(types.NewPtr(t)),
 		anonfield(types.Types[TUINTPTR]),
@@ -384,7 +375,7 @@ func geneq(sym *types.Sym, t *types.Type) {
 		// pure memory. Even if we unrolled the range loop,
 		// each iteration would be a function call, so don't bother
 		// unrolling.
-		nrange := nod(ORANGE, nil, nod(OIND, np, nil))
+		nrange := nod(ORANGE, nil, nod(ODEREF, np, nil))
 
 		ni := newname(lookup("i"))
 		ni.Type = types.Types[TINT]
@@ -474,23 +465,15 @@ func geneq(sym *types.Sym, t *types.Type) {
 	funcbody()
 
 	fn.Func.SetDupok(true)
-	fn = typecheck(fn, Etop)
+	fn = typecheck(fn, ctxStmt)
 
 	Curfn = fn
-	typecheckslice(fn.Nbody.Slice(), Etop)
+	typecheckslice(fn.Nbody.Slice(), ctxStmt)
 	Curfn = nil
 
 	if debug_dclstack != 0 {
 		testdclstack()
 	}
-
-	// Disable safemode while compiling this code: the code we
-	// generate internally can refer to unsafe.Pointer.
-	// In this case it can happen if we need to generate an ==
-	// for a struct containing a reflect.Value, which itself has
-	// an unexported field of type unsafe.Pointer.
-	old_safemode := safemode
-	safemode = false
 
 	// Disable checknils while compiling this code.
 	// We are comparing a struct or an array,
@@ -498,8 +481,6 @@ func geneq(sym *types.Sym, t *types.Type) {
 	// are shallow.
 	fn.Func.SetNilCheckDisabled(true)
 	funccompile(fn)
-
-	safemode = old_safemode
 }
 
 // eqfield returns the node
@@ -516,8 +497,8 @@ func eqfield(p *Node, q *Node, field *types.Sym) *Node {
 func eqmem(p *Node, q *Node, field *types.Sym, size int64) *Node {
 	nx := nod(OADDR, nodSym(OXDOT, p, field), nil)
 	ny := nod(OADDR, nodSym(OXDOT, q, field), nil)
-	nx = typecheck(nx, Erv)
-	ny = typecheck(ny, Erv)
+	nx = typecheck(nx, ctxExpr)
+	ny = typecheck(ny, ctxExpr)
 
 	fn, needsize := eqmemfunc(size, nx.Type.Elem())
 	call := nod(OCALL, fn, nil)

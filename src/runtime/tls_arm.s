@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !windows
+
 #include "go_asm.h"
 #include "go_tls.h"
 #include "funcdata.h"
@@ -101,6 +103,11 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0
 	B		runtime·save_g(SB)
 
 #ifdef TLSG_IS_VARIABLE
+#ifdef GOOS_android
+// Use the free TLS_SLOT_APP slot #2 on Android Q.
+// Earlier androids are set up in gcc_android.c.
+DATA runtime·tls_g+0(SB)/4, $8
+#endif
 GLOBL runtime·tls_g+0(SB), NOPTR, $4
 #else
 GLOBL runtime·tls_g+0(SB), TLSBSS, $4

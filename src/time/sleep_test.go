@@ -425,10 +425,6 @@ func TestOverflowSleep(t *testing.T) {
 // Test that a panic while deleting a timer does not leave
 // the timers mutex held, deadlocking a ticker.Stop in a defer.
 func TestIssue5745(t *testing.T) {
-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
-		t.Skipf("skipping on %s/%s, see issue 10043", runtime.GOOS, runtime.GOARCH)
-	}
-
 	ticker := NewTicker(Hour)
 	defer func() {
 		// would deadlock here before the fix due to

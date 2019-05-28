@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
 
@@ -47,7 +48,10 @@ func nilcheckelim(f *Func) {
 			// a value resulting from taking the address of a
 			// value, or a value constructed from an offset of a
 			// non-nil ptr (OpAddPtr) implies it is non-nil
-			if v.Op == OpAddr || v.Op == OpLocalAddr || v.Op == OpAddPtr {
+			// We also assume unsafe pointer arithmetic generates non-nil pointers. See #27180.
+			// We assume that SlicePtr is non-nil because we do a bounds check
+			// before the slice access (and all cap>0 slices have a non-nil ptr). See #30366.
+			if v.Op == OpAddr || v.Op == OpLocalAddr || v.Op == OpAddPtr || v.Op == OpOffPtr || v.Op == OpAdd32 || v.Op == OpAdd64 || v.Op == OpSub32 || v.Op == OpSub64 || v.Op == OpSlicePtr {
 				nonNilValues[v.ID] = true
 			}
 		}
@@ -120,7 +124,7 @@ func nilcheckelim(f *Func) {
 					ptr := v.Args[0]
 					if nonNilValues[ptr.ID] {
 						if v.Pos.IsStmt() == src.PosIsStmt { // Boolean true is a terrible statement boundary.
-							pendingLines.add(v.Pos.Line())
+							pendingLines.add(v.Pos)
 							v.Pos = v.Pos.WithNotStmt()
 						}
 						// This is a redundant explicit nil check.
@@ -137,7 +141,7 @@ func nilcheckelim(f *Func) {
 							f.Warnl(v.Pos, "removed nil check")
 						}
 						if v.Pos.IsStmt() == src.PosIsStmt { // About to lose a statement boundary
-							pendingLines.add(v.Pos.Line())
+							pendingLines.add(v.Pos)
 						}
 						v.reset(OpUnknown)
 						f.freeValue(v)
@@ -150,15 +154,15 @@ func nilcheckelim(f *Func) {
 					work = append(work, bp{op: ClearPtr, ptr: ptr})
 					fallthrough // a non-eliminated nil check might be a good place for a statement boundary.
 				default:
-					if pendingLines.contains(v.Pos.Line()) && v.Pos.IsStmt() != src.PosNotStmt {
+					if pendingLines.contains(v.Pos) && v.Pos.IsStmt() != src.PosNotStmt {
 						v.Pos = v.Pos.WithIsStmt()
-						pendingLines.remove(v.Pos.Line())
+						pendingLines.remove(v.Pos)
 					}
 				}
 			}
-			if pendingLines.contains(b.Pos.Line()) {
+			if pendingLines.contains(b.Pos) {
 				b.Pos = b.Pos.WithIsStmt()
-				pendingLines.remove(b.Pos.Line())
+				pendingLines.remove(b.Pos)
 			}
 			for j := i; j < len(b.Values); j++ {
 				b.Values[j] = nil
@@ -181,6 +185,9 @@ func nilcheckelim(f *Func) {
 //
 // This should agree with minLegalPointer in the runtime.
 const minZeroPage = 4096
+
+// faultOnLoad is true if a load to an address below minZeroPage will trigger a SIGSEGV.
+var faultOnLoad = objabi.GOOS != "aix"
 
 // nilcheckelim2 eliminates unnecessary nil checks.
 // Runs after lowering and scheduling.
@@ -205,7 +212,7 @@ func nilcheckelim2(f *Func) {
 					f.Warnl(v.Pos, "removed nil check")
 				}
 				if v.Pos.IsStmt() == src.PosIsStmt {
-					pendingLines.add(v.Pos.Line())
+					pendingLines.add(v.Pos)
 				}
 				v.reset(OpUnknown)
 				firstToRemove = i
@@ -224,12 +231,16 @@ func nilcheckelim2(f *Func) {
 			// Find any pointers that this op is guaranteed to fault on if nil.
 			var ptrstore [2]*Value
 			ptrs := ptrstore[:0]
-			if opcodeTable[v.Op].faultOnNilArg0 {
+			if opcodeTable[v.Op].faultOnNilArg0 && (faultOnLoad || v.Type.IsMemory()) {
+				// On AIX, only writing will fault.
 				ptrs = append(ptrs, v.Args[0])
 			}
-			if opcodeTable[v.Op].faultOnNilArg1 {
+			if opcodeTable[v.Op].faultOnNilArg1 && (faultOnLoad || (v.Type.IsMemory() && v.Op != OpPPC64LoweredMove)) {
+				// On AIX, only writing will fault.
+				// LoweredMove is a special case because it's considered as a "mem" as it stores on arg0 but arg1 is accessed as a load and should be checked.
 				ptrs = append(ptrs, v.Args[1])
 			}
+
 			for _, ptr := range ptrs {
 				// Check to make sure the offset is small.
 				switch opcodeTable[v.Op].auxType {
@@ -262,16 +273,16 @@ func nilcheckelim2(f *Func) {
 		for j := i; j < len(b.Values); j++ {
 			v := b.Values[j]
 			if v.Op != OpUnknown {
-				if v.Pos.IsStmt() != src.PosNotStmt && pendingLines.contains(v.Pos.Line()) {
+				if v.Pos.IsStmt() != src.PosNotStmt && pendingLines.contains(v.Pos) {
 					v.Pos = v.Pos.WithIsStmt()
-					pendingLines.remove(v.Pos.Line())
+					pendingLines.remove(v.Pos)
 				}
 				b.Values[i] = v
 				i++
 			}
 		}
 
-		if pendingLines.contains(b.Pos.Line()) {
+		if pendingLines.contains(b.Pos) {
 			b.Pos = b.Pos.WithIsStmt()
 		}
 
@@ -281,6 +292,6 @@ func nilcheckelim2(f *Func) {
 		b.Values = b.Values[:i]
 
 		// TODO: if b.Kind == BlockPlain, start the analysis in the subsequent block to find
-		// more unnecessary nil checks.  Would fix test/nilptr3_ssa.go:157.
+		// more unnecessary nil checks.  Would fix test/nilptr3.go:159.
 	}
 }

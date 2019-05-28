@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"go/token"
 	"io"
 	"math"
 	"math/rand"
@@ -22,8 +23,6 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-	"unicode"
-	"unicode/utf8"
 	"unsafe"
 )
 
@@ -1009,6 +1008,7 @@ func TestIsNil(t *testing.T) {
 		struct{ x func() bool }{},
 		struct{ x chan int }{},
 		struct{ x []string }{},
+		struct{ x unsafe.Pointer }{},
 	}
 	for _, ts := range doNil {
 		ty := TypeOf(ts).Field(0).Type
@@ -1058,6 +1058,113 @@ func TestIsNil(t *testing.T) {
 	Nil(fi, t)
 	fi.x = TestIsNil
 	NotNil(fi, t)
+}
+
+func TestIsZero(t *testing.T) {
+	for i, tt := range []struct {
+		x    interface{}
+		want bool
+	}{
+		// Booleans
+		{true, false},
+		{false, true},
+		// Numeric types
+		{int(0), true},
+		{int(1), false},
+		{int8(0), true},
+		{int8(1), false},
+		{int16(0), true},
+		{int16(1), false},
+		{int32(0), true},
+		{int32(1), false},
+		{int64(0), true},
+		{int64(1), false},
+		{uint(0), true},
+		{uint(1), false},
+		{uint8(0), true},
+		{uint8(1), false},
+		{uint16(0), true},
+		{uint16(1), false},
+		{uint32(0), true},
+		{uint32(1), false},
+		{uint64(0), true},
+		{uint64(1), false},
+		{float32(0), true},
+		{float32(1.2), false},
+		{float64(0), true},
+		{float64(1.2), false},
+		{math.Copysign(0, -1), false},
+		{complex64(0), true},
+		{complex64(1.2), false},
+		{complex128(0), true},
+		{complex128(1.2), false},
+		{complex(math.Copysign(0, -1), 0), false},
+		{complex(0, math.Copysign(0, -1)), false},
+		{complex(math.Copysign(0, -1), math.Copysign(0, -1)), false},
+		{uintptr(0), true},
+		{uintptr(128), false},
+		// Array
+		{Zero(TypeOf([5]string{})).Interface(), true},
+		{[5]string{"", "", "", "", ""}, true},
+		{[5]string{}, true},
+		{[5]string{"", "", "", "a", ""}, false},
+		// Chan
+		{(chan string)(nil), true},
+		{make(chan string), false},
+		{time.After(1), false},
+		// Func
+		{(func())(nil), true},
+		{New, false},
+		// Interface
+		{New(TypeOf(new(error)).Elem()).Elem(), true},
+		{(io.Reader)(strings.NewReader("")), false},
+		// Map
+		{(map[string]string)(nil), true},
+		{map[string]string{}, false},
+		{make(map[string]string), false},
+		// Ptr
+		{(*func())(nil), true},
+		{(*int)(nil), true},
+		{new(int), false},
+		// Slice
+		{[]string{}, false},
+		{([]string)(nil), true},
+		{make([]string, 0), false},
+		// Strings
+		{"", true},
+		{"not-zero", false},
+		// Structs
+		{T{}, true},
+		{T{123, 456.75, "hello", &_i}, false},
+		// UnsafePointer
+		{(unsafe.Pointer)(nil), true},
+		{(unsafe.Pointer)(new(int)), false},
+	} {
+		var x Value
+		if v, ok := tt.x.(Value); ok {
+			x = v
+		} else {
+			x = ValueOf(tt.x)
+		}
+
+		b := x.IsZero()
+		if b != tt.want {
+			t.Errorf("%d: IsZero((%s)(%+v)) = %t, want %t", i, x.Kind(), tt.x, b, tt.want)
+		}
+
+		if !Zero(TypeOf(tt.x)).IsZero() {
+			t.Errorf("%d: IsZero(Zero(TypeOf((%s)(%+v)))) is false", i, x.Kind(), tt.x)
+		}
+	}
+
+	func() {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("should panic for invalid value")
+			}
+		}()
+		(Value{}).IsZero()
+	}()
 }
 
 func TestInterfaceExtraction(t *testing.T) {
@@ -1693,9 +1800,9 @@ func TestCallReturnsEmpty(t *testing.T) {
 	// nonzero-sized frame and zero-sized return value.
 	runtime.GC()
 	var finalized uint32
-	f := func() (emptyStruct, *int) {
-		i := new(int)
-		runtime.SetFinalizer(i, func(*int) { atomic.StoreUint32(&finalized, 1) })
+	f := func() (emptyStruct, *[2]int64) {
+		i := new([2]int64) // big enough to not be tinyalloc'd, so finalizer always runs when i dies
+		runtime.SetFinalizer(i, func(*[2]int64) { atomic.StoreUint32(&finalized, 1) })
 		return emptyStruct{}, i
 	}
 	v := ValueOf(f).Call(nil)[0] // out[0] should not alias out[1]'s memory, so the finalizer should run.
@@ -1825,6 +1932,91 @@ func TestMakeFuncVariadic(t *testing.T) {
 	if r[0] != 2 || r[1] != 3 {
 		t.Errorf("Call returned [%v, %v]; want 2, 3", r[0], r[1])
 	}
+}
+
+// Dummy type that implements io.WriteCloser
+type WC struct {
+}
+
+func (w *WC) Write(p []byte) (n int, err error) {
+	return 0, nil
+}
+func (w *WC) Close() error {
+	return nil
+}
+
+func TestMakeFuncValidReturnAssignments(t *testing.T) {
+	// reflect.Values returned from the wrapped function should be assignment-converted
+	// to the types returned by the result of MakeFunc.
+
+	// Concrete types should be promotable to interfaces they implement.
+	var f func() error
+	f = MakeFunc(TypeOf(f), func([]Value) []Value {
+		return []Value{ValueOf(io.EOF)}
+	}).Interface().(func() error)
+	f()
+
+	// Super-interfaces should be promotable to simpler interfaces.
+	var g func() io.Writer
+	g = MakeFunc(TypeOf(g), func([]Value) []Value {
+		var w io.WriteCloser = &WC{}
+		return []Value{ValueOf(&w).Elem()}
+	}).Interface().(func() io.Writer)
+	g()
+
+	// Channels should be promotable to directional channels.
+	var h func() <-chan int
+	h = MakeFunc(TypeOf(h), func([]Value) []Value {
+		return []Value{ValueOf(make(chan int))}
+	}).Interface().(func() <-chan int)
+	h()
+
+	// Unnamed types should be promotable to named types.
+	type T struct{ a, b, c int }
+	var i func() T
+	i = MakeFunc(TypeOf(i), func([]Value) []Value {
+		return []Value{ValueOf(struct{ a, b, c int }{a: 1, b: 2, c: 3})}
+	}).Interface().(func() T)
+	i()
+}
+
+func TestMakeFuncInvalidReturnAssignments(t *testing.T) {
+	// Type doesn't implement the required interface.
+	shouldPanic(func() {
+		var f func() error
+		f = MakeFunc(TypeOf(f), func([]Value) []Value {
+			return []Value{ValueOf(int(7))}
+		}).Interface().(func() error)
+		f()
+	})
+	// Assigning to an interface with additional methods.
+	shouldPanic(func() {
+		var f func() io.ReadWriteCloser
+		f = MakeFunc(TypeOf(f), func([]Value) []Value {
+			var w io.WriteCloser = &WC{}
+			return []Value{ValueOf(&w).Elem()}
+		}).Interface().(func() io.ReadWriteCloser)
+		f()
+	})
+	// Directional channels can't be assigned to bidirectional ones.
+	shouldPanic(func() {
+		var f func() chan int
+		f = MakeFunc(TypeOf(f), func([]Value) []Value {
+			var c <-chan int = make(chan int)
+			return []Value{ValueOf(c)}
+		}).Interface().(func() chan int)
+		f()
+	})
+	// Two named types which are otherwise identical.
+	shouldPanic(func() {
+		type T struct{ a, b, c int }
+		type U struct{ a, b, c int }
+		var f func() T
+		f = MakeFunc(TypeOf(f), func([]Value) []Value {
+			return []Value{ValueOf(U{a: 1, b: 2, c: 3})}
+		}).Interface().(func() T)
+		f()
+	})
 }
 
 type Point struct {
@@ -2103,6 +2295,39 @@ func TestVariadicMethodValue(t *testing.T) {
 	i = int64(f(points...))
 	if i != want {
 		t.Errorf("Variadic Method Interface Slice returned %d; want %d", i, want)
+	}
+}
+
+type DirectIfaceT struct {
+	p *int
+}
+
+func (d DirectIfaceT) M() int { return *d.p }
+
+func TestDirectIfaceMethod(t *testing.T) {
+	x := 42
+	v := DirectIfaceT{&x}
+	typ := TypeOf(v)
+	m, ok := typ.MethodByName("M")
+	if !ok {
+		t.Fatalf("cannot find method M")
+	}
+	in := []Value{ValueOf(v)}
+	out := m.Func.Call(in)
+	if got := out[0].Int(); got != 42 {
+		t.Errorf("Call with value receiver got %d, want 42", got)
+	}
+
+	pv := &v
+	typ = TypeOf(pv)
+	m, ok = typ.MethodByName("M")
+	if !ok {
+		t.Fatalf("cannot find method M")
+	}
+	in = []Value{ValueOf(pv)}
+	out = m.Func.Call(in)
+	if got := out[0].Int(); got != 42 {
+		t.Errorf("Call with pointer receiver got %d, want 42", got)
 	}
 }
 
@@ -4238,37 +4463,37 @@ func TestStructOfFieldName(t *testing.T) {
 	// invalid field name "1nvalid"
 	shouldPanic(func() {
 		StructOf([]StructField{
-			StructField{Name: "valid", Type: TypeOf("")},
-			StructField{Name: "1nvalid", Type: TypeOf("")},
+			{Name: "valid", Type: TypeOf("")},
+			{Name: "1nvalid", Type: TypeOf("")},
 		})
 	})
 
 	// invalid field name "+"
 	shouldPanic(func() {
 		StructOf([]StructField{
-			StructField{Name: "val1d", Type: TypeOf("")},
-			StructField{Name: "+", Type: TypeOf("")},
+			{Name: "val1d", Type: TypeOf("")},
+			{Name: "+", Type: TypeOf("")},
 		})
 	})
 
 	// no field name
 	shouldPanic(func() {
 		StructOf([]StructField{
-			StructField{Name: "", Type: TypeOf("")},
+			{Name: "", Type: TypeOf("")},
 		})
 	})
 
 	// verify creation of a struct with valid struct fields
 	validFields := []StructField{
-		StructField{
+		{
 			Name: "φ",
 			Type: TypeOf(""),
 		},
-		StructField{
+		{
 			Name: "ValidName",
 			Type: TypeOf(""),
 		},
-		StructField{
+		{
 			Name: "Val1dNam5",
 			Type: TypeOf(""),
 		},
@@ -4285,21 +4510,21 @@ func TestStructOfFieldName(t *testing.T) {
 func TestStructOf(t *testing.T) {
 	// check construction and use of type not in binary
 	fields := []StructField{
-		StructField{
+		{
 			Name: "S",
 			Tag:  "s",
 			Type: TypeOf(""),
 		},
-		StructField{
+		{
 			Name: "X",
 			Tag:  "x",
 			Type: TypeOf(byte(0)),
 		},
-		StructField{
+		{
 			Name: "Y",
 			Type: TypeOf(uint64(0)),
 		},
-		StructField{
+		{
 			Name: "Z",
 			Type: TypeOf([3]uint16{}),
 		},
@@ -4381,20 +4606,20 @@ func TestStructOf(t *testing.T) {
 	// check duplicate names
 	shouldPanic(func() {
 		StructOf([]StructField{
-			StructField{Name: "string", Type: TypeOf("")},
-			StructField{Name: "string", Type: TypeOf("")},
+			{Name: "string", Type: TypeOf("")},
+			{Name: "string", Type: TypeOf("")},
 		})
 	})
 	shouldPanic(func() {
 		StructOf([]StructField{
-			StructField{Type: TypeOf("")},
-			StructField{Name: "string", Type: TypeOf("")},
+			{Type: TypeOf("")},
+			{Name: "string", Type: TypeOf("")},
 		})
 	})
 	shouldPanic(func() {
 		StructOf([]StructField{
-			StructField{Type: TypeOf("")},
-			StructField{Type: TypeOf("")},
+			{Type: TypeOf("")},
+			{Type: TypeOf("")},
 		})
 	})
 	// check that type already in binary is found
@@ -4404,7 +4629,7 @@ func TestStructOf(t *testing.T) {
 	type structFieldType interface{}
 	checkSameType(t,
 		StructOf([]StructField{
-			StructField{
+			{
 				Name: "F",
 				Type: TypeOf((*structFieldType)(nil)).Elem(),
 			},
@@ -4563,20 +4788,12 @@ func TestStructOfExportRules(t *testing.T) {
 			if n == "" {
 				panic("field.Name must not be empty")
 			}
-			exported := isExported(n)
+			exported := token.IsExported(n)
 			if exported != test.exported {
 				t.Errorf("test-%d: got exported=%v want exported=%v", i, exported, test.exported)
 			}
 		})
 	}
-}
-
-// isExported reports whether name is an exported Go symbol
-// (that is, whether it begins with an upper-case letter).
-//
-func isExported(name string) bool {
-	ch, _ := utf8.DecodeRuneInString(name)
-	return unicode.IsUpper(ch)
 }
 
 func TestStructOfGC(t *testing.T) {
@@ -5017,6 +5234,17 @@ func TestStructOfWithInterface(t *testing.T) {
 	shouldPanic(func() {
 		StructOf(fields)
 	})
+}
+
+func TestStructOfTooManyFields(t *testing.T) {
+	// Bug Fix: #25402 - this should not panic
+	tt := StructOf([]StructField{
+		{Name: "Time", Type: TypeOf(time.Time{}), Anonymous: true},
+	})
+
+	if _, present := tt.MethodByName("After"); !present {
+		t.Errorf("Expected method `After` to be found")
+	}
 }
 
 func TestChanOf(t *testing.T) {
@@ -5844,7 +6072,7 @@ func clobber() {
 type funcLayoutTest struct {
 	rcvr, t                  Type
 	size, argsize, retOffset uintptr
-	stack                    []byte // pointer bitmap: 1 is pointer, 0 is scalar (or uninitialized)
+	stack                    []byte // pointer bitmap: 1 is pointer, 0 is scalar
 	gc                       []byte
 }
 
@@ -5866,7 +6094,7 @@ func init() {
 			6 * PtrSize,
 			4 * PtrSize,
 			4 * PtrSize,
-			[]byte{1, 0, 1},
+			[]byte{1, 0, 1, 0, 1},
 			[]byte{1, 0, 1, 0, 1},
 		})
 
@@ -5988,7 +6216,8 @@ func TestFuncLayout(t *testing.T) {
 func verifyGCBits(t *testing.T, typ Type, bits []byte) {
 	heapBits := GCBits(New(typ).Interface())
 	if !bytes.Equal(heapBits, bits) {
-		t.Errorf("heapBits incorrect for %v\nhave %v\nwant %v", typ, heapBits, bits)
+		_, _, line, _ := runtime.Caller(1)
+		t.Errorf("line %d: heapBits incorrect for %v\nhave %v\nwant %v", line, typ, heapBits, bits)
 	}
 }
 
@@ -6575,4 +6804,125 @@ func TestIssue22073(t *testing.T) {
 
 	// Shouldn't panic.
 	m.Call(nil)
+}
+
+func TestMapIterNonEmptyMap(t *testing.T) {
+	m := map[string]int{"one": 1, "two": 2, "three": 3}
+	iter := ValueOf(m).MapRange()
+	if got, want := iterateToString(iter), `[one: 1, three: 3, two: 2]`; got != want {
+		t.Errorf("iterator returned %s (after sorting), want %s", got, want)
+	}
+}
+
+func TestMapIterNilMap(t *testing.T) {
+	var m map[string]int
+	iter := ValueOf(m).MapRange()
+	if got, want := iterateToString(iter), `[]`; got != want {
+		t.Errorf("non-empty result iteratoring nil map: %s", got)
+	}
+}
+
+func TestMapIterSafety(t *testing.T) {
+	// Using a zero MapIter causes a panic, but not a crash.
+	func() {
+		defer func() { recover() }()
+		new(MapIter).Key()
+		t.Fatal("Key did not panic")
+	}()
+	func() {
+		defer func() { recover() }()
+		new(MapIter).Value()
+		t.Fatal("Value did not panic")
+	}()
+	func() {
+		defer func() { recover() }()
+		new(MapIter).Next()
+		t.Fatal("Next did not panic")
+	}()
+
+	// Calling Key/Value on a MapIter before Next
+	// causes a panic, but not a crash.
+	var m map[string]int
+	iter := ValueOf(m).MapRange()
+
+	func() {
+		defer func() { recover() }()
+		iter.Key()
+		t.Fatal("Key did not panic")
+	}()
+	func() {
+		defer func() { recover() }()
+		iter.Value()
+		t.Fatal("Value did not panic")
+	}()
+
+	// Calling Next, Key, or Value on an exhausted iterator
+	// causes a panic, but not a crash.
+	iter.Next() // -> false
+	func() {
+		defer func() { recover() }()
+		iter.Key()
+		t.Fatal("Key did not panic")
+	}()
+	func() {
+		defer func() { recover() }()
+		iter.Value()
+		t.Fatal("Value did not panic")
+	}()
+	func() {
+		defer func() { recover() }()
+		iter.Next()
+		t.Fatal("Next did not panic")
+	}()
+}
+
+func TestMapIterNext(t *testing.T) {
+	// The first call to Next should reflect any
+	// insertions to the map since the iterator was created.
+	m := map[string]int{}
+	iter := ValueOf(m).MapRange()
+	m["one"] = 1
+	if got, want := iterateToString(iter), `[one: 1]`; got != want {
+		t.Errorf("iterator returned deleted elements: got %s, want %s", got, want)
+	}
+}
+
+func TestMapIterDelete0(t *testing.T) {
+	// Delete all elements before first iteration.
+	m := map[string]int{"one": 1, "two": 2, "three": 3}
+	iter := ValueOf(m).MapRange()
+	delete(m, "one")
+	delete(m, "two")
+	delete(m, "three")
+	if got, want := iterateToString(iter), `[]`; got != want {
+		t.Errorf("iterator returned deleted elements: got %s, want %s", got, want)
+	}
+}
+
+func TestMapIterDelete1(t *testing.T) {
+	// Delete all elements after first iteration.
+	m := map[string]int{"one": 1, "two": 2, "three": 3}
+	iter := ValueOf(m).MapRange()
+	var got []string
+	for iter.Next() {
+		got = append(got, fmt.Sprint(iter.Key(), iter.Value()))
+		delete(m, "one")
+		delete(m, "two")
+		delete(m, "three")
+	}
+	if len(got) != 1 {
+		t.Errorf("iterator returned wrong number of elements: got %d, want 1", len(got))
+	}
+}
+
+// iterateToString returns the set of elements
+// returned by an iterator in readable form.
+func iterateToString(it *MapIter) string {
+	var got []string
+	for it.Next() {
+		line := fmt.Sprintf("%v: %v", it.Key(), it.Value())
+		got = append(got, line)
+	}
+	sort.Strings(got)
+	return "[" + strings.Join(got, ", ") + "]"
 }

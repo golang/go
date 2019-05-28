@@ -155,7 +155,7 @@ func (t *Transport) IdleConnStrsForTesting_h2() []string {
 func (t *Transport) IdleConnCountForTesting(scheme, addr string) int {
 	t.idleMu.Lock()
 	defer t.idleMu.Unlock()
-	key := connectMethodKey{"", scheme, addr}
+	key := connectMethodKey{"", scheme, addr, false}
 	cacheKey := key.String()
 	for k, conns := range t.idleConn {
 		if k.String() == cacheKey {
@@ -178,12 +178,12 @@ func (t *Transport) IsIdleForTesting() bool {
 }
 
 func (t *Transport) RequestIdleConnChForTesting() {
-	t.getIdleConnCh(connectMethod{nil, "http", "example.com"})
+	t.getIdleConnCh(connectMethod{nil, "http", "example.com", false})
 }
 
 func (t *Transport) PutIdleTestConn(scheme, addr string) bool {
 	c, _ := net.Pipe()
-	key := connectMethodKey{"", scheme, addr}
+	key := connectMethodKey{"", scheme, addr, false}
 	select {
 	case <-t.incHostConnCount(key):
 	default:
@@ -241,4 +241,21 @@ func ExportSetH2GoawayTimeout(d time.Duration) (restore func()) {
 	old := http2goAwayTimeout
 	http2goAwayTimeout = d
 	return func() { http2goAwayTimeout = old }
+}
+
+func (r *Request) ExportIsReplayable() bool { return r.isReplayable() }
+
+// ExportCloseTransportConnsAbruptly closes all idle connections from
+// tr in an abrupt way, just reaching into the underlying Conns and
+// closing them, without telling the Transport or its persistConns
+// that it's doing so. This is to simulate the server closing connections
+// on the Transport.
+func ExportCloseTransportConnsAbruptly(tr *Transport) {
+	tr.idleMu.Lock()
+	for _, pcs := range tr.idleConn {
+		for _, pc := range pcs {
+			pc.conn.Close()
+		}
+	}
+	tr.idleMu.Unlock()
 }

@@ -27,6 +27,6 @@ func netpollclose(fd uintptr) int32 {
 func netpollarm(pd *pollDesc, mode int) {
 }
 
-func netpoll(block bool) *g {
-	return nil
+func netpoll(block bool) gList {
+	return gList{}
 }

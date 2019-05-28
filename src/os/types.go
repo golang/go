@@ -57,7 +57,7 @@ const (
 	ModeIrregular                                  // ?: non-regular file; nothing else is known about this file
 
 	// Mask for the type bits. For regular files, none will be set.
-	ModeType = ModeDir | ModeSymlink | ModeNamedPipe | ModeSocket | ModeDevice | ModeIrregular
+	ModeType = ModeDir | ModeSymlink | ModeNamedPipe | ModeSocket | ModeDevice | ModeCharDevice | ModeIrregular
 
 	ModePerm FileMode = 0777 // Unix permission bits
 )

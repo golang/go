@@ -69,12 +69,12 @@ func (t *multiWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-var _ stringWriter = (*multiWriter)(nil)
+var _ StringWriter = (*multiWriter)(nil)
 
 func (t *multiWriter) WriteString(s string) (n int, err error) {
 	var p []byte // lazily initialized if/when needed
 	for _, w := range t.writers {
-		if sw, ok := w.(stringWriter); ok {
+		if sw, ok := w.(StringWriter); ok {
 			n, err = sw.WriteString(s)
 		} else {
 			if p == nil {

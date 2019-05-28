@@ -208,6 +208,19 @@ func interfaces() {
 
 	_ = i /* ERROR mismatched types */ == s2
 	_ = i /* ERROR mismatched types */ == &s2
+
+	// issue #28164
+	// testcase from issue
+	_ = interface /* ERROR cannot compare */ {}(nil) == []int(nil)
+
+	// related cases
+	var e interface{}
+	var s []int
+	var x int
+	_ = e /* ERROR cannot compare */ == s
+	_ = s /* ERROR cannot compare */ == e
+	_ = e /* ERROR cannot compare */ < x
+	_ = x /* ERROR cannot compare */ < e
 }
 
 func slices() {

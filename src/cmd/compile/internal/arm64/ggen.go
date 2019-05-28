@@ -14,10 +14,10 @@ import (
 var darwin = objabi.GOOS == "darwin"
 
 func padframe(frame int64) int64 {
-	// arm64 requires that the frame size (not counting saved LR)
-	// be empty or be 8 mod 16. If not, pad it.
-	if frame != 0 && frame%16 != 8 {
-		frame += 8
+	// arm64 requires that the frame size (not counting saved FP&LR)
+	// be 16 bytes aligned. If not, pad it.
+	if frame%16 != 0 {
+		frame += 16 - (frame % 16)
 	}
 	return frame
 }
@@ -79,7 +79,8 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
 	}
 }
 
-func ginsnop(pp *gc.Progs) {
+func ginsnop(pp *gc.Progs) *obj.Prog {
 	p := pp.Prog(arm64.AHINT)
 	p.From.Type = obj.TYPE_CONST
+	return p
 }

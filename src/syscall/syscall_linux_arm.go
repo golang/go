@@ -19,12 +19,18 @@ func setTimeval(sec, usec int64) Timeval {
 	return Timeval{Sec: int32(sec), Usec: int32(usec)}
 }
 
+//sysnb pipe(p *[2]_C_int) (err error)
+
 func Pipe(p []int) (err error) {
 	if len(p) != 2 {
 		return EINVAL
 	}
 	var pp [2]_C_int
+	// Try pipe2 first for Android O, then try pipe for kernel 2.6.23.
 	err = pipe2(&pp, 0)
+	if err == ENOSYS {
+		err = pipe(&pp)
+	}
 	p[0] = int(pp[0])
 	p[1] = int(pp[1])
 	return
@@ -83,9 +89,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 //sysnb	Getgid() (gid int) = SYS_GETGID32
 //sysnb	Getuid() (uid int) = SYS_GETUID32
 //sysnb	InotifyInit() (fd int, err error)
-//sys	Lchown(path string, uid int, gid int) (err error) = SYS_LCHOWN32
 //sys	Listen(s int, n int) (err error)
-//sys	Lstat(path string, stat *Stat_t) (err error) = SYS_LSTAT64
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
 //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS__NEWSELECT
 //sys	Setfsgid(gid int) (err error) = SYS_SETFSGID32
@@ -96,7 +100,6 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 //sysnb	Setreuid(ruid int, euid int) (err error) = SYS_SETREUID32
 //sys	Shutdown(fd int, how int) (err error)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, err error)
-//sys	Stat(path string, stat *Stat_t) (err error) = SYS_STAT64
 
 // Vsyscalls on amd64.
 //sysnb	Gettimeofday(tv *Timeval) (err error)
@@ -109,6 +112,18 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 
 //sys	mmap2(addr uintptr, length uintptr, prot int, flags int, fd int, pageOffset uintptr) (xaddr uintptr, err error)
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
+
+func Stat(path string, stat *Stat_t) (err error) {
+	return fstatat(_AT_FDCWD, path, stat, 0)
+}
+
+func Lchown(path string, uid int, gid int) (err error) {
+	return Fchownat(_AT_FDCWD, path, uid, gid, _AT_SYMLINK_NOFOLLOW)
+}
+
+func Lstat(path string, stat *Stat_t) (err error) {
+	return fstatat(_AT_FDCWD, path, stat, _AT_SYMLINK_NOFOLLOW)
+}
 
 func Fstatfs(fd int, buf *Statfs_t) (err error) {
 	_, _, e := Syscall(SYS_FSTATFS64, uintptr(fd), unsafe.Sizeof(*buf), uintptr(unsafe.Pointer(buf)))

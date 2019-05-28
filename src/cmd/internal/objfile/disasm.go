@@ -357,7 +357,7 @@ func disasm_ppc64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.By
 	inst, err := ppc64asm.Decode(code, byteOrder)
 	var text string
 	size := inst.Len
-	if err != nil || size == 0 || inst.Op == 0 {
+	if err != nil || size == 0 {
 		size = 4
 		text = "?"
 	} else {

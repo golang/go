@@ -80,7 +80,8 @@ func (p *RGBA) RGBAAt(x, y int) color.RGBA {
 		return color.RGBA{}
 	}
 	i := p.PixOffset(x, y)
-	return color.RGBA{p.Pix[i+0], p.Pix[i+1], p.Pix[i+2], p.Pix[i+3]}
+	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+	return color.RGBA{s[0], s[1], s[2], s[3]}
 }
 
 // PixOffset returns the index of the first element of Pix that corresponds to
@@ -95,10 +96,11 @@ func (p *RGBA) Set(x, y int, c color.Color) {
 	}
 	i := p.PixOffset(x, y)
 	c1 := color.RGBAModel.Convert(c).(color.RGBA)
-	p.Pix[i+0] = c1.R
-	p.Pix[i+1] = c1.G
-	p.Pix[i+2] = c1.B
-	p.Pix[i+3] = c1.A
+	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+	s[0] = c1.R
+	s[1] = c1.G
+	s[2] = c1.B
+	s[3] = c1.A
 }
 
 func (p *RGBA) SetRGBA(x, y int, c color.RGBA) {
@@ -106,10 +108,11 @@ func (p *RGBA) SetRGBA(x, y int, c color.RGBA) {
 		return
 	}
 	i := p.PixOffset(x, y)
-	p.Pix[i+0] = c.R
-	p.Pix[i+1] = c.G
-	p.Pix[i+2] = c.B
-	p.Pix[i+3] = c.A
+	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+	s[0] = c.R
+	s[1] = c.G
+	s[2] = c.B
+	s[3] = c.A
 }
 
 // SubImage returns an image representing the portion of the image p visible
@@ -179,11 +182,12 @@ func (p *RGBA64) RGBA64At(x, y int) color.RGBA64 {
 		return color.RGBA64{}
 	}
 	i := p.PixOffset(x, y)
+	s := p.Pix[i : i+8 : i+8] // Small cap improves performance, see https://golang.org/issue/27857
 	return color.RGBA64{
-		uint16(p.Pix[i+0])<<8 | uint16(p.Pix[i+1]),
-		uint16(p.Pix[i+2])<<8 | uint16(p.Pix[i+3]),
-		uint16(p.Pix[i+4])<<8 | uint16(p.Pix[i+5]),
-		uint16(p.Pix[i+6])<<8 | uint16(p.Pix[i+7]),
+		uint16(s[0])<<8 | uint16(s[1]),
+		uint16(s[2])<<8 | uint16(s[3]),
+		uint16(s[4])<<8 | uint16(s[5]),
+		uint16(s[6])<<8 | uint16(s[7]),
 	}
 }
 
@@ -199,14 +203,15 @@ func (p *RGBA64) Set(x, y int, c color.Color) {
 	}
 	i := p.PixOffset(x, y)
 	c1 := color.RGBA64Model.Convert(c).(color.RGBA64)
-	p.Pix[i+0] = uint8(c1.R >> 8)
-	p.Pix[i+1] = uint8(c1.R)
-	p.Pix[i+2] = uint8(c1.G >> 8)
-	p.Pix[i+3] = uint8(c1.G)
-	p.Pix[i+4] = uint8(c1.B >> 8)
-	p.Pix[i+5] = uint8(c1.B)
-	p.Pix[i+6] = uint8(c1.A >> 8)
-	p.Pix[i+7] = uint8(c1.A)
+	s := p.Pix[i : i+8 : i+8] // Small cap improves performance, see https://golang.org/issue/27857
+	s[0] = uint8(c1.R >> 8)
+	s[1] = uint8(c1.R)
+	s[2] = uint8(c1.G >> 8)
+	s[3] = uint8(c1.G)
+	s[4] = uint8(c1.B >> 8)
+	s[5] = uint8(c1.B)
+	s[6] = uint8(c1.A >> 8)
+	s[7] = uint8(c1.A)
 }
 
 func (p *RGBA64) SetRGBA64(x, y int, c color.RGBA64) {
@@ -214,14 +219,15 @@ func (p *RGBA64) SetRGBA64(x, y int, c color.RGBA64) {
 		return
 	}
 	i := p.PixOffset(x, y)
-	p.Pix[i+0] = uint8(c.R >> 8)
-	p.Pix[i+1] = uint8(c.R)
-	p.Pix[i+2] = uint8(c.G >> 8)
-	p.Pix[i+3] = uint8(c.G)
-	p.Pix[i+4] = uint8(c.B >> 8)
-	p.Pix[i+5] = uint8(c.B)
-	p.Pix[i+6] = uint8(c.A >> 8)
-	p.Pix[i+7] = uint8(c.A)
+	s := p.Pix[i : i+8 : i+8] // Small cap improves performance, see https://golang.org/issue/27857
+	s[0] = uint8(c.R >> 8)
+	s[1] = uint8(c.R)
+	s[2] = uint8(c.G >> 8)
+	s[3] = uint8(c.G)
+	s[4] = uint8(c.B >> 8)
+	s[5] = uint8(c.B)
+	s[6] = uint8(c.A >> 8)
+	s[7] = uint8(c.A)
 }
 
 // SubImage returns an image representing the portion of the image p visible
@@ -291,7 +297,8 @@ func (p *NRGBA) NRGBAAt(x, y int) color.NRGBA {
 		return color.NRGBA{}
 	}
 	i := p.PixOffset(x, y)
-	return color.NRGBA{p.Pix[i+0], p.Pix[i+1], p.Pix[i+2], p.Pix[i+3]}
+	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+	return color.NRGBA{s[0], s[1], s[2], s[3]}
 }
 
 // PixOffset returns the index of the first element of Pix that corresponds to
@@ -306,10 +313,11 @@ func (p *NRGBA) Set(x, y int, c color.Color) {
 	}
 	i := p.PixOffset(x, y)
 	c1 := color.NRGBAModel.Convert(c).(color.NRGBA)
-	p.Pix[i+0] = c1.R
-	p.Pix[i+1] = c1.G
-	p.Pix[i+2] = c1.B
-	p.Pix[i+3] = c1.A
+	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+	s[0] = c1.R
+	s[1] = c1.G
+	s[2] = c1.B
+	s[3] = c1.A
 }
 
 func (p *NRGBA) SetNRGBA(x, y int, c color.NRGBA) {
@@ -317,10 +325,11 @@ func (p *NRGBA) SetNRGBA(x, y int, c color.NRGBA) {
 		return
 	}
 	i := p.PixOffset(x, y)
-	p.Pix[i+0] = c.R
-	p.Pix[i+1] = c.G
-	p.Pix[i+2] = c.B
-	p.Pix[i+3] = c.A
+	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+	s[0] = c.R
+	s[1] = c.G
+	s[2] = c.B
+	s[3] = c.A
 }
 
 // SubImage returns an image representing the portion of the image p visible
@@ -390,11 +399,12 @@ func (p *NRGBA64) NRGBA64At(x, y int) color.NRGBA64 {
 		return color.NRGBA64{}
 	}
 	i := p.PixOffset(x, y)
+	s := p.Pix[i : i+8 : i+8] // Small cap improves performance, see https://golang.org/issue/27857
 	return color.NRGBA64{
-		uint16(p.Pix[i+0])<<8 | uint16(p.Pix[i+1]),
-		uint16(p.Pix[i+2])<<8 | uint16(p.Pix[i+3]),
-		uint16(p.Pix[i+4])<<8 | uint16(p.Pix[i+5]),
-		uint16(p.Pix[i+6])<<8 | uint16(p.Pix[i+7]),
+		uint16(s[0])<<8 | uint16(s[1]),
+		uint16(s[2])<<8 | uint16(s[3]),
+		uint16(s[4])<<8 | uint16(s[5]),
+		uint16(s[6])<<8 | uint16(s[7]),
 	}
 }
 
@@ -410,14 +420,15 @@ func (p *NRGBA64) Set(x, y int, c color.Color) {
 	}
 	i := p.PixOffset(x, y)
 	c1 := color.NRGBA64Model.Convert(c).(color.NRGBA64)
-	p.Pix[i+0] = uint8(c1.R >> 8)
-	p.Pix[i+1] = uint8(c1.R)
-	p.Pix[i+2] = uint8(c1.G >> 8)
-	p.Pix[i+3] = uint8(c1.G)
-	p.Pix[i+4] = uint8(c1.B >> 8)
-	p.Pix[i+5] = uint8(c1.B)
-	p.Pix[i+6] = uint8(c1.A >> 8)
-	p.Pix[i+7] = uint8(c1.A)
+	s := p.Pix[i : i+8 : i+8] // Small cap improves performance, see https://golang.org/issue/27857
+	s[0] = uint8(c1.R >> 8)
+	s[1] = uint8(c1.R)
+	s[2] = uint8(c1.G >> 8)
+	s[3] = uint8(c1.G)
+	s[4] = uint8(c1.B >> 8)
+	s[5] = uint8(c1.B)
+	s[6] = uint8(c1.A >> 8)
+	s[7] = uint8(c1.A)
 }
 
 func (p *NRGBA64) SetNRGBA64(x, y int, c color.NRGBA64) {
@@ -425,14 +436,15 @@ func (p *NRGBA64) SetNRGBA64(x, y int, c color.NRGBA64) {
 		return
 	}
 	i := p.PixOffset(x, y)
-	p.Pix[i+0] = uint8(c.R >> 8)
-	p.Pix[i+1] = uint8(c.R)
-	p.Pix[i+2] = uint8(c.G >> 8)
-	p.Pix[i+3] = uint8(c.G)
-	p.Pix[i+4] = uint8(c.B >> 8)
-	p.Pix[i+5] = uint8(c.B)
-	p.Pix[i+6] = uint8(c.A >> 8)
-	p.Pix[i+7] = uint8(c.A)
+	s := p.Pix[i : i+8 : i+8] // Small cap improves performance, see https://golang.org/issue/27857
+	s[0] = uint8(c.R >> 8)
+	s[1] = uint8(c.R)
+	s[2] = uint8(c.G >> 8)
+	s[3] = uint8(c.G)
+	s[4] = uint8(c.B >> 8)
+	s[5] = uint8(c.B)
+	s[6] = uint8(c.A >> 8)
+	s[7] = uint8(c.A)
 }
 
 // SubImage returns an image representing the portion of the image p visible
@@ -850,7 +862,8 @@ func (p *CMYK) CMYKAt(x, y int) color.CMYK {
 		return color.CMYK{}
 	}
 	i := p.PixOffset(x, y)
-	return color.CMYK{p.Pix[i+0], p.Pix[i+1], p.Pix[i+2], p.Pix[i+3]}
+	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+	return color.CMYK{s[0], s[1], s[2], s[3]}
 }
 
 // PixOffset returns the index of the first element of Pix that corresponds to
@@ -865,10 +878,11 @@ func (p *CMYK) Set(x, y int, c color.Color) {
 	}
 	i := p.PixOffset(x, y)
 	c1 := color.CMYKModel.Convert(c).(color.CMYK)
-	p.Pix[i+0] = c1.C
-	p.Pix[i+1] = c1.M
-	p.Pix[i+2] = c1.Y
-	p.Pix[i+3] = c1.K
+	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+	s[0] = c1.C
+	s[1] = c1.M
+	s[2] = c1.Y
+	s[3] = c1.K
 }
 
 func (p *CMYK) SetCMYK(x, y int, c color.CMYK) {
@@ -876,10 +890,11 @@ func (p *CMYK) SetCMYK(x, y int, c color.CMYK) {
 		return
 	}
 	i := p.PixOffset(x, y)
-	p.Pix[i+0] = c.C
-	p.Pix[i+1] = c.M
-	p.Pix[i+2] = c.Y
-	p.Pix[i+3] = c.K
+	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+	s[0] = c.C
+	s[1] = c.M
+	s[2] = c.Y
+	s[3] = c.K
 }
 
 // SubImage returns an image representing the portion of the image p visible

@@ -45,8 +45,10 @@ func NewCipher(key []byte) (*Cipher, error) {
 	return &c, nil
 }
 
-// Reset zeros the key data so that it will no longer appear in the
-// process's memory.
+// Reset zeros the key data and makes the Cipher unusable.
+//
+// Deprecated: Reset can't guarantee that the key will be entirely removed from
+// the process's memory.
 func (c *Cipher) Reset() {
 	for i := range c.s {
 		c.s[i] = 0
@@ -54,12 +56,9 @@ func (c *Cipher) Reset() {
 	c.i, c.j = 0, 0
 }
 
-// xorKeyStreamGeneric sets dst to the result of XORing src with the
-// key stream. Dst and src must overlap entirely or not at all.
-//
-// This is the pure Go version. rc4_{amd64,386,arm}* contain assembly
-// implementations. This is here for tests and to prevent bitrot.
-func (c *Cipher) xorKeyStreamGeneric(dst, src []byte) {
+// XORKeyStream sets dst to the result of XORing src with the key stream.
+// Dst and src must overlap entirely or not at all.
+func (c *Cipher) XORKeyStream(dst, src []byte) {
 	if len(src) == 0 {
 		return
 	}

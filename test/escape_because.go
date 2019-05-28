@@ -1,4 +1,4 @@
-// errorcheck -0 -m -m -l
+// errorcheck -0 -m -m -l -newescape=false
 
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -40,10 +40,10 @@ func f2(q *int) { // ERROR "from &u \(address-of\) at escape_because.go:43$" "fr
 	s := q
 	t := pair{s, nil}
 	u := t    // ERROR "moved to heap: u$"
-	sink = &u // ERROR "&u escapes to heap$" "from &u \(interface-converted\) at escape_because.go:43$" "from sink \(assigned to top level variable\) at escape_because.go:43$"
+	sink = &u // ERROR "&u escapes to heap$" "from sink \(assigned to top level variable\) at escape_because.go:43$"
 }
 
-func f3(r *int) interface{} { // ERROR "from \[\]\*int literal \(slice-literal-element\) at escape_because.go:47$" "from c \(assigned\) at escape_because.go:47$" "from c \(interface-converted\) at escape_because.go:48$" "from ~r1 \(return\) at escape_because.go:48$" "leaking param: r to result ~r1 level=-1$"
+func f3(r *int) interface{} { // ERROR "from \[\]\*int literal \(slice-literal-element\) at escape_because.go:47$" "from c \(assigned\) at escape_because.go:47$" "from c \(interface-converted\) at escape_because.go:48$" "from ~r1 \(return\) at escape_because.go:48$" "leaking param: r"
 	c := []*int{r} // ERROR "\[\]\*int literal escapes to heap$" "from c \(assigned\) at escape_because.go:47$" "from c \(interface-converted\) at escape_because.go:48$" "from ~r1 \(return\) at escape_because.go:48$"
 	return c       // "return" // ERROR "c escapes to heap$" "from ~r1 \(return\) at escape_because.go:48$"
 }
@@ -78,7 +78,7 @@ func f8(x int, y *int) *int { // ERROR "from ~r2 \(return\) at escape_because.go
 		return y
 	}
 	x--
-	return f8(*y, &x) // ERROR "&x escapes to heap$" "from y \(arg to recursive call\) at escape_because.go:81$" "from ~r2 \(return\) at escape_because.go:78$" "from ~r2 \(returned from recursive function\) at escape_because.go:76$"
+	return f8(*y, &x)
 }
 
 func f9(x int, y ...*int) *int { // ERROR "from y\[0\] \(dot of pointer\) at escape_because.go:86$" "from ~r2 \(return\) at escape_because.go:86$" "from ~r2 \(returned from recursive function\) at escape_because.go:84$" "leaking param content: y$" "leaking param: y to result ~r2 level=1$" "moved to heap: x$"
@@ -86,7 +86,7 @@ func f9(x int, y ...*int) *int { // ERROR "from y\[0\] \(dot of pointer\) at esc
 		return y[0]
 	}
 	x--
-	return f9(*y[0], &x) // ERROR "&x escapes to heap$" "f9 ... argument does not escape$" "from ... argument \(... arg to recursive call\) at escape_because.go:89$"
+	return f9(*y[0], &x) // ERROR "f9 ... argument does not escape$"
 }
 
 func f10(x map[*int]*int, y, z *int) *int { // ERROR "f10 x does not escape$" "from x\[y\] \(key of map put\) at escape_because.go:93$" "from x\[y\] \(value of map put\) at escape_because.go:93$" "leaking param: y$" "leaking param: z$"
@@ -113,8 +113,7 @@ func f13() {
 	escape(c)
 }
 
-//go:noinline
-func transmit(b []byte) []byte { // ERROR "from ~r1 \(return\) at escape_because.go:118$" "leaking param: b to result ~r1 level=0$"
+func transmit(b []byte) []byte { // ERROR "from ~r1 \(return\) at escape_because.go:117$" "leaking param: b to result ~r1 level=0$"
 	return b
 }
 
@@ -123,6 +122,24 @@ func f14() {
 	s1 := make([]int, n)    // ERROR "make\(\[\]int, n\) escapes to heap" "from make\(\[\]int, n\) \(non-constant size\)"
 	s2 := make([]int, 0, n) // ERROR "make\(\[\]int, 0, n\) escapes to heap" "from make\(\[\]int, 0, n\) \(non-constant size\)"
 	_, _ = s1, s2
+}
+
+func leakParams(p1, p2 *int) (*int, *int) { // ERROR "leaking param: p1 to result ~r2 level=0$" "from ~r2 \(return\) at escape_because.go:128$" "leaking param: p2 to result ~r3 level=0$" "from ~r3 \(return\) at escape_because.go:128$"
+	return p1, p2
+}
+
+func leakThroughOAS2() {
+	// See #26987.
+	i := 0              // ERROR "moved to heap: i$"
+	j := 0              // ERROR "moved to heap: j$"
+	sink, sink = &i, &j // ERROR "&i escapes to heap$" "from sink \(assign-pair\) at escape_because.go:135$" "&j escapes to heap$"
+}
+
+func leakThroughOAS2FUNC() {
+	// See #26987.
+	i := 0 // ERROR "moved to heap: i$"
+	j := 0
+	sink, _ = leakParams(&i, &j)
 }
 
 // The list below is all of the why-escapes messages seen building the escape analysis tests.

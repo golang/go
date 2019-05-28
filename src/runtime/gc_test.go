@@ -21,6 +21,12 @@ func TestGcSys(t *testing.T) {
 	if os.Getenv("GOGC") == "off" {
 		t.Skip("skipping test; GOGC=off in environment")
 	}
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping test; GOOS=windows http://golang.org/issue/27156")
+	}
+	if runtime.GOOS == "linux" && runtime.GOARCH == "arm64" {
+		t.Skip("skipping test; GOOS=linux GOARCH=arm64 https://github.com/golang/go/issues/27636")
+	}
 	got := runTestProg(t, "testprog", "GCSys")
 	want := "OK\n"
 	if got != want {
@@ -464,6 +470,25 @@ func TestReadMemStats(t *testing.T) {
 	}
 }
 
+func TestUnscavHugePages(t *testing.T) {
+	// Allocate 20 MiB and immediately free it a few times to increase
+	// the chance that unscavHugePages isn't zero and that some kind of
+	// accounting had to happen in the runtime.
+	for j := 0; j < 3; j++ {
+		var large [][]byte
+		for i := 0; i < 5; i++ {
+			large = append(large, make([]byte, runtime.PhysHugePageSize))
+		}
+		runtime.KeepAlive(large)
+		runtime.GC()
+	}
+	base, slow := runtime.UnscavHugePagesSlow()
+	if base != slow {
+		logDiff(t, "unscavHugePages", reflect.ValueOf(base), reflect.ValueOf(slow))
+		t.Fatal("unscavHugePages mismatch")
+	}
+}
+
 func logDiff(t *testing.T, prefix string, got, want reflect.Value) {
 	typ := got.Type()
 	switch typ.Kind() {
@@ -568,8 +593,8 @@ func BenchmarkWriteBarrier(b *testing.B) {
 		n := &node{mkTree(level - 1), mkTree(level - 1)}
 		if level == 10 {
 			// Seed GC with enough early pointers so it
-			// doesn't accidentally switch to mark 2 when
-			// it only has the top of the tree.
+			// doesn't start termination barriers when it
+			// only has the top of the tree.
 			wbRoots = append(wbRoots, n)
 		}
 		return n

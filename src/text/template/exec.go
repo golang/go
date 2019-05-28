@@ -7,10 +7,10 @@ package template
 import (
 	"bytes"
 	"fmt"
+	"internal/fmtsort"
 	"io"
 	"reflect"
 	"runtime"
-	"sort"
 	"strings"
 	"text/template/parse"
 )
@@ -102,7 +102,7 @@ func (s *state) at(node parse.Node) {
 // doublePercent returns the string with %'s replaced by %%, if necessary,
 // so it can be used safely inside a Printf format string.
 func doublePercent(str string) string {
-	return strings.Replace(str, "%", "%%", -1)
+	return strings.ReplaceAll(str, "%", "%%")
 }
 
 // TODO: It would be nice if ExecError was more broken down, but
@@ -119,6 +119,10 @@ type ExecError struct {
 
 func (e ExecError) Error() string {
 	return e.Err.Error()
+}
+
+func (e ExecError) Unwrap() error {
+	return e.Err
 }
 
 // errorf records an ExecError and terminates processing.
@@ -281,7 +285,7 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
 func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.PipeNode, list, elseList *parse.ListNode) {
 	defer s.pop(s.mark())
 	val := s.evalPipeline(dot, pipe)
-	truth, ok := isTrue(val)
+	truth, ok := isTrue(indirectInterface(val))
 	if !ok {
 		s.errorf("if/with can't use %v", val)
 	}
@@ -362,8 +366,9 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		if val.Len() == 0 {
 			break
 		}
-		for _, key := range sortKeys(val.MapKeys()) {
-			oneIteration(key, val.MapIndex(key))
+		om := fmtsort.Sort(val)
+		for i, key := range om.Key {
+			oneIteration(key, om.Value[i])
 		}
 		return
 	case reflect.Chan:
@@ -494,7 +499,7 @@ func (s *state) idealConstant(constant *parse.NumberNode) reflect.Value {
 	switch {
 	case constant.IsComplex:
 		return reflect.ValueOf(constant.Complex128) // incontrovertible.
-	case constant.IsFloat && !isHexConstant(constant.Text) && strings.ContainsAny(constant.Text, ".eE"):
+	case constant.IsFloat && !isHexInt(constant.Text) && strings.ContainsAny(constant.Text, ".eEpP"):
 		return reflect.ValueOf(constant.Float64)
 	case constant.IsInt:
 		n := int(constant.Int64)
@@ -508,8 +513,8 @@ func (s *state) idealConstant(constant *parse.NumberNode) reflect.Value {
 	return zero
 }
 
-func isHexConstant(s string) bool {
-	return len(s) > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X')
+func isHexInt(s string) bool {
+	return len(s) > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X') && !strings.ContainsAny(s, "pP")
 }
 
 func (s *state) evalFieldNode(dot reflect.Value, field *parse.FieldNode, args []parse.Node, final reflect.Value) reflect.Value {
@@ -575,6 +580,13 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 	}
 	typ := receiver.Type()
 	receiver, isNil := indirect(receiver)
+	if receiver.Kind() == reflect.Interface && isNil {
+		// Calling a method on a nil interface can't work. The
+		// MethodByName method call below would panic.
+		s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
+		return zero
+	}
+
 	// Unless it's an interface, need to get to a value of type *T to guarantee
 	// we see all methods of T and *T.
 	ptr := receiver
@@ -590,9 +602,6 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 	case reflect.Struct:
 		tField, ok := receiver.Type().FieldByName(fieldName)
 		if ok {
-			if isNil {
-				s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
-			}
 			field := receiver.FieldByIndex(tField.Index)
 			if tField.PkgPath != "" { // field is unexported
 				s.errorf("%s is an unexported field of struct type %s", fieldName, typ)
@@ -604,9 +613,6 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 			return field
 		}
 	case reflect.Map:
-		if isNil {
-			s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
-		}
 		// If it's a map, attempt to use the field name as a key.
 		nameVal := reflect.ValueOf(fieldName)
 		if nameVal.Type().AssignableTo(receiver.Type().Key()) {
@@ -625,6 +631,18 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 				}
 			}
 			return result
+		}
+	case reflect.Ptr:
+		etyp := receiver.Type().Elem()
+		if etyp.Kind() == reflect.Struct {
+			if _, ok := etyp.FieldByName(fieldName); !ok {
+				// If there's no such field, say "can't evaluate"
+				// instead of "nil pointer evaluating".
+				break
+			}
+		}
+		if isNil {
+			s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
 		}
 	}
 	s.errorf("can't evaluate field %s in type %s", fieldName, typ)
@@ -692,13 +710,13 @@ func (s *state) evalCall(dot, fun reflect.Value, node parse.Node, name string, a
 		}
 		argv[i] = s.validateType(final, t)
 	}
-	result := fun.Call(argv)
-	// If we have an error that is not nil, stop execution and return that error to the caller.
-	if len(result) == 2 && !result[1].IsNil() {
+	v, err := safeCall(fun, argv)
+	// If we have an error that is not nil, stop execution and return that
+	// error to the caller.
+	if err != nil {
 		s.at(node)
-		s.errorf("error calling %s: %s", name, result[1].Interface().(error))
+		s.errorf("error calling %s: %v", name, err)
 	}
-	v := result[0]
 	if v.Type() == reflectValueType {
 		v = v.Interface().(reflect.Value)
 	}
@@ -898,7 +916,9 @@ func (s *state) evalEmptyInterface(dot reflect.Value, n parse.Node) reflect.Valu
 	panic("not reached")
 }
 
-// indirect returns the item at the end of indirection, and a bool to indicate if it's nil.
+// indirect returns the item at the end of indirection, and a bool to indicate
+// if it's nil. If the returned bool is true, the returned value's kind will be
+// either a pointer or interface.
 func indirect(v reflect.Value) (rv reflect.Value, isNil bool) {
 	for ; v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface; v = v.Elem() {
 		if v.IsNil() {
@@ -957,30 +977,4 @@ func printableValue(v reflect.Value) (interface{}, bool) {
 		}
 	}
 	return v.Interface(), true
-}
-
-// sortKeys sorts (if it can) the slice of reflect.Values, which is a slice of map keys.
-func sortKeys(v []reflect.Value) []reflect.Value {
-	if len(v) <= 1 {
-		return v
-	}
-	switch v[0].Kind() {
-	case reflect.Float32, reflect.Float64:
-		sort.Slice(v, func(i, j int) bool {
-			return v[i].Float() < v[j].Float()
-		})
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		sort.Slice(v, func(i, j int) bool {
-			return v[i].Int() < v[j].Int()
-		})
-	case reflect.String:
-		sort.Slice(v, func(i, j int) bool {
-			return v[i].String() < v[j].String()
-		})
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		sort.Slice(v, func(i, j int) bool {
-			return v[i].Uint() < v[j].Uint()
-		})
-	}
-	return v
 }

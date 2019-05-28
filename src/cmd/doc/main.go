@@ -28,6 +28,12 @@
 // For commands, unless the -cmd flag is present "go doc command"
 // shows only the package-level docs for the package.
 //
+// The -src flag causes doc to print the full source code for the symbol, such
+// as the body of a struct, function or method.
+//
+// The -all flag causes doc to print all documentation for the package and
+// all its visible symbols. The argument must identify a package.
+//
 // For complete documentation, run "go help doc".
 package main
 
@@ -36,20 +42,21 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
+	"go/token"
 	"io"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 )
 
 var (
 	unexported bool // -u flag
 	matchCase  bool // -c flag
+	showAll    bool // -all flag
 	showCmd    bool // -cmd flag
+	showSrc    bool // -src flag
 )
 
 // usage is a replacement usage function for the flags package.
@@ -84,7 +91,9 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 	matchCase = false
 	flagSet.BoolVar(&unexported, "u", false, "show unexported symbols as well as exported")
 	flagSet.BoolVar(&matchCase, "c", false, "symbol matching honors case (paths not affected)")
+	flagSet.BoolVar(&showAll, "all", false, "show all documentation for package")
 	flagSet.BoolVar(&showCmd, "cmd", false, "show symbols with package docs even if package is a command")
+	flagSet.BoolVar(&showSrc, "src", false, "show source code for symbol")
 	flagSet.Parse(args)
 	var paths []string
 	var symbol, method string
@@ -120,6 +129,12 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 		// case but we want to see them, always.
 		if pkg.build.ImportPath == "builtin" {
 			unexported = true
+		}
+
+		// We have a package.
+		if showAll && symbol == "" {
+			pkg.allDoc()
+			return
 		}
 
 		switch {
@@ -218,7 +233,7 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
 	// case letter, it can only be a symbol in the current directory.
 	// Kills the problem caused by case-insensitive file systems
 	// matching an upper case name as a package name.
-	if isUpper(arg) {
+	if token.IsExported(arg) {
 		pkg, err := build.ImportDir(".", build.ImportComment)
 		if err == nil {
 			return pkg, "", arg, false
@@ -317,47 +332,31 @@ func parseSymbol(str string) (symbol, method string) {
 	case 1:
 	case 2:
 		method = elem[1]
-		isIdentifier(method)
+		if !token.IsIdentifier(method) {
+			log.Fatalf("invalid identifier %q", method)
+		}
 	default:
 		log.Printf("too many periods in symbol specification")
 		usage()
 	}
 	symbol = elem[0]
-	isIdentifier(symbol)
+	if !token.IsIdentifier(symbol) {
+		log.Fatalf("invalid identifier %q", symbol)
+	}
 	return
-}
-
-// isIdentifier checks that the name is valid Go identifier, and
-// logs and exits if it is not.
-func isIdentifier(name string) {
-	if len(name) == 0 {
-		log.Fatal("empty symbol")
-	}
-	for i, ch := range name {
-		if unicode.IsLetter(ch) || ch == '_' || i > 0 && unicode.IsDigit(ch) {
-			continue
-		}
-		log.Fatalf("invalid identifier %q", name)
-	}
 }
 
 // isExported reports whether the name is an exported identifier.
 // If the unexported flag (-u) is true, isExported returns true because
 // it means that we treat the name as if it is exported.
 func isExported(name string) bool {
-	return unexported || isUpper(name)
-}
-
-// isUpper reports whether the name starts with an upper case letter.
-func isUpper(name string) bool {
-	ch, _ := utf8.DecodeRuneInString(name)
-	return unicode.IsUpper(ch)
+	return unexported || token.IsExported(name)
 }
 
 // findNextPackage returns the next full file name path that matches the
 // (perhaps partial) package path pkg. The boolean reports if any match was found.
 func findNextPackage(pkg string) (string, bool) {
-	if pkg == "" || isUpper(pkg) { // Upper case symbol cannot be a package name.
+	if pkg == "" || token.IsExported(pkg) { // Upper case symbol cannot be a package name.
 		return "", false
 	}
 	if filepath.IsAbs(pkg) {

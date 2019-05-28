@@ -15,14 +15,7 @@ Do not send CLs removing the interior tags from such phrases.
   ul li { margin: 0.5em 0; }
 </style>
 
-<h2 id="introduction">DRAFT RELEASE NOTES - Introduction to Go 1.11</h2>
-
-<p>
-  <strong>
-    Go 1.11 is not yet released. These are work-in-progress
-    release notes. Go 1.11 is expected to be released in August 2018.
-  </strong>
-</p>
+<h2 id="introduction">Introduction to Go 1.11</h2>
 
 <p>
   The latest Go release, version 1.11, arrives six months after <a href="go1.10">Go 1.10</a>.
@@ -95,7 +88,8 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="wasm">WebAssembly</h3>
 <p>
-  Go 1.11 adds an experimental port to WebAssembly (<code>js/wasm</code>).
+  Go 1.11 adds an experimental port to <a href="https://webassembly.org">WebAssembly</a>
+  (<code>js/wasm</code>).
 </p>
 <p>
   Go programs currently compile to one WebAssembly module that
@@ -115,6 +109,10 @@ Do not send CLs removing the interior tags from such phrases.
   now be <a href="/pkg/go/build/#hdr-Build_Constraints">ignored by Go
   tools</a> except when those GOOS/GOARCH values are being used.
   If you have existing filenames matching those patterns, you will need to rename them.
+</p>
+<p>
+  More information can be found on the
+  <a href="https://golang.org/wiki/WebAssembly">WebAssembly wiki page</a>.
 </p>
 
 <h3 id="riscv">RISC-V GOARCH values reserved</h3>
@@ -167,7 +165,18 @@ Do not send CLs removing the interior tags from such phrases.
 <h3 id="gopackages">Package loading</h3>
 
 <p>
-  TODO: Note about go/build versus golang.org/x/tools/go/packages.
+  The new package
+  <a href="https://godoc.org/golang.org/x/tools/go/packages"><code>golang.org/x/tools/go/packages</code></a>
+  provides a simple API for locating and loading packages of Go source code.
+  Although not yet part of the standard library, for many tasks it
+  effectively replaces the <a href="/pkg/go/build"><code>go/build</code></a>
+  package, whose API is unable to fully support modules.
+  Because it runs an external query command such as
+  <a href="/cmd/go/#hdr-List_packages"><code>go list</code></a>
+  to obtain information about Go packages, it enables the construction of
+  analysis tools that work equally well with alternative build systems
+  such as <a href="https://bazel.build">Bazel</a>
+  and <a href="https://buckbuild.com">Buck</a>.
 </p>
 
 <h3 id="gocache">Build cache requirement</h3>
@@ -262,9 +271,8 @@ func f(v interface{}) {
 
   This is useful, for example, to call <code>String</code> methods
   when paused at a breakpoint.
-  <!-- TODO(austin): Make sure methods calls are actually supported by Delve -->
 
-  This is currently only supported by Delve.
+  This is currently only supported by Delve (version 1.1.0 and up).
 </p>
 
 <h3 id="test">Test</h3>
@@ -299,6 +307,22 @@ func f(v interface{}) {
   a warning to be printed, and <code>vet</code> to exit with status 1.
 </p>
 
+<p><!-- CL 108559 -->
+  Additionally, <a href="/cmd/vet"><code>go</code>&nbsp;<code>vet</code></a>
+  has become more robust when format-checking <code>printf</code> wrappers.
+  Vet now detects the mistake in this example:
+</p>
+
+<pre>
+func wrapper(s string, args ...interface{}) {
+	fmt.Printf(s, args...)
+}
+
+func main() {
+	wrapper("%s", 42)
+}
+</pre>
+
 <h3 id="trace">Trace</h3>
 
 <p><!-- CL 63274 -->
@@ -309,6 +333,33 @@ func f(v interface{}) {
   The <code>go</code>&nbsp;<code>tool</code>&nbsp;<code>trace</code>
   command visualizes this information in the trace view and the new
   user task/region analysis page.
+</p>
+
+<h3 id="cgo">Cgo</h3>
+
+<p>
+Since Go 1.10, cgo has translated some C pointer types to the Go
+type <code>uintptr</code>. These types include
+the <code>CFTypeRef</code> hierarchy in Darwin's CoreFoundation
+framework and the <code>jobject</code> hierarchy in Java's JNI
+interface. In Go 1.11, several improvements have been made to the code
+that detects these types. Code that uses these types may need some
+updating. See the <a href="go1.10.html#cgo">Go 1.10 release notes</a> for
+details. <!-- CL 126275, CL 127156, CL 122217, CL 122575, CL 123177 -->
+</p>
+
+<h3 id="go_command">Go command</h3>
+
+<p><!-- CL 126656 -->
+  The environment variable <code>GOFLAGS</code> may now be used
+  to set default flags for the <code>go</code> command.
+  This is useful in certain situations.
+  Linking can be noticeably slower on underpowered systems due to DWARF,
+  and users may want to set <code>-ldflags=-w</code> by default.
+  For modules, some users and CI systems will want vendoring always,
+  so they should set <code>-mod=vendor</code> by default.
+  For more information, see the <a href="/cmd/go/#hdr-Environment_variables"><code>go</code>
+  command documentation</a>.
 </p>
 
 <h3 id="godoc">Godoc</h3>
@@ -345,8 +396,18 @@ func f(v interface{}) {
   time.
   In general, systems that need consistent formatting of Go source code should
   use a specific version of the <code>gofmt</code> binary.
-  See the <a href="/pkg/go/format/">go/format</a> package godoc for more
+  See the <a href="/pkg/go/format/">go/format</a> package documentation for more
   information.
+</p>
+
+<h3 id="run">Run</h3>
+
+<p>
+  <!-- CL 109341 -->
+  The <a href="/cmd/go/"><code>go</code>&nbsp;<code>run</code></a>
+  command now allows a single import path, a directory name or a
+  pattern matching a single package.
+  This allows <code>go</code>&nbsp;<code>run</code>&nbsp;<code>pkg</code> or <code>go</code>&nbsp;<code>run</code>&nbsp;<code>dir</code>, most importantly <code>go</code>&nbsp;<code>run</code>&nbsp;<code>.</code>
 </p>
 
 <h2 id="runtime">Runtime</h2>
@@ -359,7 +420,7 @@ func f(v interface{}) {
 </p>
 
 <p><!-- CL 108679, CL 106156 -->
-  On macOS and iOS, the runtime now uses <code>libSystem.so</code> instead of
+  On macOS and iOS, the runtime now uses <code>libSystem.dylib</code> instead of
   calling the kernel directly. This should make Go binaries more
   compatible with future versions of macOS and iOS.
   The <a href="/pkg/syscall">syscall</a> package still makes direct
@@ -461,7 +522,8 @@ for k := range m {
   <dd>
     <p><!-- CL 85115 -->
       <a href="/pkg/crypto/tls/#ConnectionState"><code>ConnectionState</code></a>'s new
-      <code>ExportKeyingMaterial</code> field allows exporting keying material bound to the
+      <a href="/pkg/crypto/tls/#ConnectionState.ExportKeyingMaterial"><code>ExportKeyingMaterial</code></a>
+      method allows exporting keying material bound to the
       connection according to RFC 5705.
     </p>
 
@@ -764,7 +826,7 @@ for k := range m {
 
 <!-- CL 101715 was reverted -->
 
-<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+<dl id="runtime-again"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
 
     <p><!-- CL 70993 -->

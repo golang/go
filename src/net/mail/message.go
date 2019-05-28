@@ -26,6 +26,7 @@ import (
 	"mime"
 	"net/textproto"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 )
@@ -65,9 +66,12 @@ func ReadMessage(r io.Reader) (msg *Message, err error) {
 
 // Layouts suitable for passing to time.Parse.
 // These are tried in order.
-var dateLayouts []string
+var (
+	dateLayoutsBuildOnce sync.Once
+	dateLayouts          []string
+)
 
-func init() {
+func buildDateLayouts() {
 	// Generate layouts based on RFC 5322, section 3.3.
 
 	dows := [...]string{"", "Mon, "}   // day-of-week
@@ -93,6 +97,7 @@ func init() {
 
 // ParseDate parses an RFC 5322 date string.
 func ParseDate(date string) (time.Time, error) {
+	dateLayoutsBuildOnce.Do(buildDateLayouts)
 	for _, layout := range dateLayouts {
 		t, err := time.Parse(layout, date)
 		if err == nil {
@@ -337,6 +342,21 @@ func (p *addrParser) parseAddress(handleGroup bool) ([]*Address, error) {
 	}
 	// angle-addr = "<" addr-spec ">"
 	if !p.consume('<') {
+		atext := true
+		for _, r := range displayName {
+			if !isAtext(r, true, false) {
+				atext = false
+				break
+			}
+		}
+		if atext {
+			// The input is like "foo.bar"; it's possible the input
+			// meant to be "foo.bar@domain", or "foo.bar <...>".
+			return nil, errors.New("mail: missing '@' or angle-addr")
+		}
+		// The input is like "Full Name", which couldn't possibly be a
+		// valid email address if followed by "@domain"; the input
+		// likely meant to be "Full Name <...>".
 		return nil, errors.New("mail: no angle-addr")
 	}
 	spec, err = p.consumeAddrSpec()

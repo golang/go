@@ -75,6 +75,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer f.Close()
 
 	dis, err := f.Disasm()
 	if err != nil {
@@ -87,7 +88,6 @@ func main() {
 	case 1:
 		// disassembly of entire object
 		dis.Print(os.Stdout, symRE, 0, ^uint64(0), *printCode)
-		os.Exit(0)
 
 	case 3:
 		// disassembly of PC range
@@ -100,6 +100,5 @@ func main() {
 			log.Fatalf("invalid end PC: %v", err)
 		}
 		dis.Print(os.Stdout, symRE, start, end, *printCode)
-		os.Exit(0)
 	}
 }

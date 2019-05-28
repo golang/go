@@ -46,9 +46,10 @@
 // If 'Index' is present, matches and submatches are identified by byte index
 // pairs within the input string: result[2*n:2*n+1] identifies the indexes of
 // the nth submatch. The pair for n==0 identifies the match of the entire
-// expression. If 'Index' is not present, the match is identified by the
-// text of the match/submatch. If an index is negative, it means that
-// subexpression did not match any string in the input.
+// expression. If 'Index' is not present, the match is identified by the text
+// of the match/submatch. If an index is negative or text is nil, it means that
+// subexpression did not match any string in the input. For 'String' versions
+// an empty string means either no match or an empty match.
 //
 // There is also a subset of the methods that can be applied to text read
 // from a RuneReader:
@@ -79,27 +80,25 @@ import (
 // A Regexp is safe for concurrent use by multiple goroutines,
 // except for configuration methods, such as Longest.
 type Regexp struct {
-	// read-only after Compile
-	regexpRO
-
-	// cache of machines for running regexp
-	mu      sync.Mutex
-	machine []*machine
-}
-
-type regexpRO struct {
-	expr           string         // as passed to Compile
-	prog           *syntax.Prog   // compiled program
-	onepass        *onePassProg   // onepass program or nil
+	expr           string       // as passed to Compile
+	prog           *syntax.Prog // compiled program
+	onepass        *onePassProg // onepass program or nil
+	numSubexp      int
+	maxBitStateLen int
+	subexpNames    []string
 	prefix         string         // required prefix in unanchored matches
 	prefixBytes    []byte         // prefix, as a []byte
-	prefixComplete bool           // prefix is the entire regexp
 	prefixRune     rune           // first rune in prefix
 	prefixEnd      uint32         // pc for last rune in prefix
+	mpool          int            // pool for machines
+	matchcap       int            // size of recorded match lengths
+	prefixComplete bool           // prefix is the entire regexp
 	cond           syntax.EmptyOp // empty-width conditions required at start of match
-	numSubexp      int
-	subexpNames    []string
-	longest        bool
+	minInputLen    int            // minimum length of the input in bytes
+
+	// This field can be modified by the Longest method,
+	// but it is otherwise read-only.
+	longest bool // whether regexp prefers leftmost-longest match
 }
 
 // String returns the source text used to compile the regular expression.
@@ -108,15 +107,16 @@ func (re *Regexp) String() string {
 }
 
 // Copy returns a new Regexp object copied from re.
+// Calling Longest on one copy does not affect another.
 //
-// When using a Regexp in multiple goroutines, giving each goroutine
-// its own copy helps to avoid lock contention.
+// Deprecated: In earlier releases, when using a Regexp in multiple goroutines,
+// giving each goroutine its own copy helped to avoid lock contention.
+// As of Go 1.12, using Copy is no longer necessary to avoid lock contention.
+// Copy may still be appropriate if the reason for its use is to make
+// two copies with different Longest settings.
 func (re *Regexp) Copy() *Regexp {
-	// It is not safe to copy Regexp by value
-	// since it contains a sync.Mutex.
-	return &Regexp{
-		regexpRO: re.regexpRO,
-	}
+	re2 := *re
+	return &re2
 }
 
 // Compile parses a regular expression and returns, if successful,
@@ -179,19 +179,24 @@ func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, error) {
 	if err != nil {
 		return nil, err
 	}
-	regexp := &Regexp{
-		regexpRO: regexpRO{
-			expr:        expr,
-			prog:        prog,
-			onepass:     compileOnePass(prog),
-			numSubexp:   maxCap,
-			subexpNames: capNames,
-			cond:        prog.StartCond(),
-			longest:     longest,
-		},
+	matchcap := prog.NumCap
+	if matchcap < 2 {
+		matchcap = 2
 	}
-	if regexp.onepass == notOnePass {
+	regexp := &Regexp{
+		expr:        expr,
+		prog:        prog,
+		onepass:     compileOnePass(prog),
+		numSubexp:   maxCap,
+		subexpNames: capNames,
+		cond:        prog.StartCond(),
+		longest:     longest,
+		matchcap:    matchcap,
+		minInputLen: minInputLen(re),
+	}
+	if regexp.onepass == nil {
 		regexp.prefix, regexp.prefixComplete = prog.Prefix()
+		regexp.maxBitStateLen = maxBitStateLen(prog)
 	} else {
 		regexp.prefix, regexp.prefixComplete, regexp.prefixEnd = onePassPrefix(prog)
 	}
@@ -201,39 +206,100 @@ func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, error) {
 		regexp.prefixBytes = []byte(regexp.prefix)
 		regexp.prefixRune, _ = utf8.DecodeRuneInString(regexp.prefix)
 	}
+
+	n := len(prog.Inst)
+	i := 0
+	for matchSize[i] != 0 && matchSize[i] < n {
+		i++
+	}
+	regexp.mpool = i
+
 	return regexp, nil
 }
+
+// Pools of *machine for use during (*Regexp).doExecute,
+// split up by the size of the execution queues.
+// matchPool[i] machines have queue size matchSize[i].
+// On a 64-bit system each queue entry is 16 bytes,
+// so matchPool[0] has 16*2*128 = 4kB queues, etc.
+// The final matchPool is a catch-all for very large queues.
+var (
+	matchSize = [...]int{128, 512, 2048, 16384, 0}
+	matchPool [len(matchSize)]sync.Pool
+)
 
 // get returns a machine to use for matching re.
 // It uses the re's machine cache if possible, to avoid
 // unnecessary allocation.
 func (re *Regexp) get() *machine {
-	re.mu.Lock()
-	if n := len(re.machine); n > 0 {
-		z := re.machine[n-1]
-		re.machine = re.machine[:n-1]
-		re.mu.Unlock()
-		return z
+	m, ok := matchPool[re.mpool].Get().(*machine)
+	if !ok {
+		m = new(machine)
 	}
-	re.mu.Unlock()
-	z := progMachine(re.prog, re.onepass)
-	z.re = re
-	return z
+	m.re = re
+	m.p = re.prog
+	if cap(m.matchcap) < re.matchcap {
+		m.matchcap = make([]int, re.matchcap)
+		for _, t := range m.pool {
+			t.cap = make([]int, re.matchcap)
+		}
+	}
+
+	// Allocate queues if needed.
+	// Or reallocate, for "large" match pool.
+	n := matchSize[re.mpool]
+	if n == 0 { // large pool
+		n = len(re.prog.Inst)
+	}
+	if len(m.q0.sparse) < n {
+		m.q0 = queue{make([]uint32, n), make([]entry, 0, n)}
+		m.q1 = queue{make([]uint32, n), make([]entry, 0, n)}
+	}
+	return m
 }
 
-// put returns a machine to the re's machine cache.
-// There is no attempt to limit the size of the cache, so it will
-// grow to the maximum number of simultaneous matches
-// run using re.  (The cache empties when re gets garbage collected.)
-func (re *Regexp) put(z *machine) {
-	// Remove references to input data that we no longer need.
-	z.inputBytes.str = nil
-	z.inputString.str = ""
-	z.inputReader.r = nil
+// put returns a machine to the correct machine pool.
+func (re *Regexp) put(m *machine) {
+	m.re = nil
+	m.p = nil
+	m.inputs.clear()
+	matchPool[re.mpool].Put(m)
+}
 
-	re.mu.Lock()
-	re.machine = append(re.machine, z)
-	re.mu.Unlock()
+// minInputLen walks the regexp to find the minimum length of any matchable input
+func minInputLen(re *syntax.Regexp) int {
+	switch re.Op {
+	default:
+		return 0
+	case syntax.OpAnyChar, syntax.OpAnyCharNotNL, syntax.OpCharClass:
+		return 1
+	case syntax.OpLiteral:
+		l := 0
+		for _, r := range re.Rune {
+			l += utf8.RuneLen(r)
+		}
+		return l
+	case syntax.OpCapture, syntax.OpPlus:
+		return minInputLen(re.Sub[0])
+	case syntax.OpRepeat:
+		return re.Min * minInputLen(re.Sub[0])
+	case syntax.OpConcat:
+		l := 0
+		for _, sub := range re.Sub {
+			l += minInputLen(sub)
+		}
+		return l
+	case syntax.OpAlternate:
+		l := minInputLen(re.Sub[0])
+		var lnext int
+		for _, sub := range re.Sub[1:] {
+			lnext = minInputLen(sub)
+			if lnext < l {
+				l = lnext
+			}
+		}
+		return l
+	}
 }
 
 // MustCompile is like Compile but panics if the expression cannot be parsed.
@@ -288,7 +354,7 @@ type input interface {
 	canCheckPrefix() bool             // can we look ahead without losing info?
 	hasPrefix(re *Regexp) bool
 	index(re *Regexp, pos int) int
-	context(pos int) syntax.EmptyOp
+	context(pos int) lazyFlag
 }
 
 // inputString scans a string.
@@ -319,7 +385,7 @@ func (i *inputString) index(re *Regexp, pos int) int {
 	return strings.Index(i.str[pos:], re.prefix)
 }
 
-func (i *inputString) context(pos int) syntax.EmptyOp {
+func (i *inputString) context(pos int) lazyFlag {
 	r1, r2 := endOfText, endOfText
 	// 0 < pos && pos <= len(i.str)
 	if uint(pos-1) < uint(len(i.str)) {
@@ -335,7 +401,7 @@ func (i *inputString) context(pos int) syntax.EmptyOp {
 			r2, _ = utf8.DecodeRuneInString(i.str[pos:])
 		}
 	}
-	return syntax.EmptyOpContext(r1, r2)
+	return newLazyFlag(r1, r2)
 }
 
 // inputBytes scans a byte slice.
@@ -366,7 +432,7 @@ func (i *inputBytes) index(re *Regexp, pos int) int {
 	return bytes.Index(i.str[pos:], re.prefixBytes)
 }
 
-func (i *inputBytes) context(pos int) syntax.EmptyOp {
+func (i *inputBytes) context(pos int) lazyFlag {
 	r1, r2 := endOfText, endOfText
 	// 0 < pos && pos <= len(i.str)
 	if uint(pos-1) < uint(len(i.str)) {
@@ -382,7 +448,7 @@ func (i *inputBytes) context(pos int) syntax.EmptyOp {
 			r2, _ = utf8.DecodeRune(i.str[pos:])
 		}
 	}
-	return syntax.EmptyOpContext(r1, r2)
+	return newLazyFlag(r1, r2)
 }
 
 // inputReader scans a RuneReader.
@@ -418,8 +484,8 @@ func (i *inputReader) index(re *Regexp, pos int) int {
 	return -1
 }
 
-func (i *inputReader) context(pos int) syntax.EmptyOp {
-	return 0
+func (i *inputReader) context(pos int) lazyFlag {
+	return 0 // not used
 }
 
 // LiteralPrefix returns a literal string that must begin any match
@@ -469,7 +535,7 @@ func MatchString(pattern string, s string) (matched bool, err error) {
 	return re.MatchString(s), nil
 }
 
-// MatchString reports whether the byte slice b
+// Match reports whether the byte slice b
 // contains any match of the regular expression pattern.
 // More complicated queries need to use Compile and the full Regexp interface.
 func Match(pattern string, b []byte) (matched bool, err error) {
@@ -734,7 +800,7 @@ func (re *Regexp) Find(b []byte) []byte {
 	if a == nil {
 		return nil
 	}
-	return b[a[0]:a[1]]
+	return b[a[0]:a[1]:a[1]]
 }
 
 // FindIndex returns a two-element slice of integers defining the location of
@@ -802,7 +868,7 @@ func (re *Regexp) FindSubmatch(b []byte) [][]byte {
 	ret := make([][]byte, 1+re.numSubexp)
 	for i := range ret {
 		if 2*i < len(a) && a[2*i] >= 0 {
-			ret[i] = b[a[2*i]:a[2*i+1]]
+			ret[i] = b[a[2*i]:a[2*i+1]:a[2*i+1]]
 		}
 	}
 	return ret
@@ -998,7 +1064,7 @@ func (re *Regexp) FindAll(b []byte, n int) [][]byte {
 		if result == nil {
 			result = make([][]byte, 0, startSize)
 		}
-		result = append(result, b[match[0]:match[1]])
+		result = append(result, b[match[0]:match[1]:match[1]])
 	})
 	return result
 }
@@ -1073,7 +1139,7 @@ func (re *Regexp) FindAllSubmatch(b []byte, n int) [][][]byte {
 		slice := make([][]byte, len(match)/2)
 		for j := range slice {
 			if match[2*j] >= 0 {
-				slice[j] = b[match[2*j]:match[2*j+1]]
+				slice[j] = b[match[2*j]:match[2*j+1]:match[2*j+1]]
 			}
 		}
 		result = append(result, slice)

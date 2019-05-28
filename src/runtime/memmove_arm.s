@@ -138,7 +138,7 @@ _f32loop:
 	CMP	TMP, TS
 	BHS	_f4tail
 
-	MOVM.IA.W (FROM), [R1-R8] 
+	MOVM.IA.W (FROM), [R1-R8]
 	MOVM.IA.W [R1-R8], (TS)
 	B	_f32loop
 

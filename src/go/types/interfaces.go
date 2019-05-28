@@ -144,7 +144,7 @@ func (check *Checker) infoFromTypeLit(scope *Scope, iface *ast.InterfaceType, tn
 	}
 
 	if trace {
-		check.trace(iface.Pos(), "-- collect methods for %v (path = %s, objPath = %s)", iface, pathString(path), check.pathString())
+		check.trace(iface.Pos(), "-- collect methods for %v (path = %s, objPath = %s)", iface, pathString(path), objPathString(check.objPath))
 		check.indent++
 		defer func() {
 			check.indent--
@@ -336,6 +336,14 @@ typenameLoop:
 			return check.infoFromQualifiedTypeName(decl.file, typ)
 		case *ast.InterfaceType:
 			// type tname interface{...}
+			// If tname is fully type-checked at this point (tname.color() == black)
+			// we could use infoFromType here. But in this case, the interface must
+			// be in the check.interfaces cache as well, which will be hit when we
+			// call infoFromTypeLit below, and which will be faster. It is important
+			// that we use that previously computed interface because its methods
+			// have the correct receiver type (for go/types clients). Thus, the
+			// check.interfaces cache must be up-to-date across even across multiple
+			// check.Files calls (was bug - see issue #29029).
 			return check.infoFromTypeLit(decl.file, typ, tname, path)
 		}
 		// type tname X // and X is not an interface type

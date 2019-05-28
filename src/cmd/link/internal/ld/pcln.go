@@ -7,108 +7,86 @@ package ld
 import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
+	"cmd/internal/sys"
 	"cmd/link/internal/sym"
+	"encoding/binary"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
-// iteration over encoded pcdata tables.
-
-func getvarint(pp *[]byte) uint32 {
-	v := uint32(0)
-	p := *pp
-	for shift := 0; ; shift += 7 {
-		v |= uint32(p[0]&0x7F) << uint(shift)
-		tmp4 := p
-		p = p[1:]
-		if tmp4[0]&0x80 == 0 {
-			break
-		}
-	}
-
-	*pp = p
-	return v
+// PCIter iterates over encoded pcdata tables.
+type PCIter struct {
+	p       []byte
+	pc      uint32
+	nextpc  uint32
+	pcscale uint32
+	value   int32
+	start   bool
+	done    bool
 }
 
-func pciternext(it *Pciter) {
+// newPCIter creates a PCIter and configures it for ctxt's architecture.
+func newPCIter(ctxt *Link) *PCIter {
+	it := new(PCIter)
+	it.pcscale = uint32(ctxt.Arch.MinLC)
+	return it
+}
+
+// next advances it to the next pc.
+func (it *PCIter) next() {
 	it.pc = it.nextpc
-	if it.done != 0 {
+	if it.done {
 		return
 	}
-	if -cap(it.p) >= -cap(it.d.P[len(it.d.P):]) {
-		it.done = 1
+	if len(it.p) == 0 {
+		it.done = true
 		return
 	}
 
 	// value delta
-	v := getvarint(&it.p)
+	val, n := binary.Varint(it.p)
+	if n <= 0 {
+		log.Fatalf("bad value varint in pciternext: read %v", n)
+	}
+	it.p = it.p[n:]
 
-	if v == 0 && it.start == 0 {
-		it.done = 1
+	if val == 0 && !it.start {
+		it.done = true
 		return
 	}
 
-	it.start = 0
-	dv := int32(v>>1) ^ (int32(v<<31) >> 31)
-	it.value += dv
+	it.start = false
+	it.value += int32(val)
 
 	// pc delta
-	v = getvarint(&it.p)
+	pc, n := binary.Uvarint(it.p)
+	if n <= 0 {
+		log.Fatalf("bad pc varint in pciternext: read %v", n)
+	}
+	it.p = it.p[n:]
 
-	it.nextpc = it.pc + v*it.pcscale
+	it.nextpc = it.pc + uint32(pc)*it.pcscale
 }
 
-func pciterinit(ctxt *Link, it *Pciter, d *sym.Pcdata) {
-	it.d = *d
-	it.p = it.d.P
+// init prepares it to iterate over p,
+// and advances it to the first pc.
+func (it *PCIter) init(p []byte) {
+	it.p = p
 	it.pc = 0
 	it.nextpc = 0
 	it.value = -1
-	it.start = 1
-	it.done = 0
-	it.pcscale = uint32(ctxt.Arch.MinLC)
-	pciternext(it)
+	it.start = true
+	it.done = false
+	it.next()
 }
 
-func addvarint(d *sym.Pcdata, val uint32) {
-	n := int32(0)
-	for v := val; v >= 0x80; v >>= 7 {
-		n++
-	}
-	n++
-
-	old := len(d.P)
-	for cap(d.P) < len(d.P)+int(n) {
-		d.P = append(d.P[:cap(d.P)], 0)
-	}
-	d.P = d.P[:old+int(n)]
-
-	p := d.P[old:]
-	var v uint32
-	for v = val; v >= 0x80; v >>= 7 {
-		p[0] = byte(v | 0x80)
-		p = p[1:]
-	}
-	p[0] = byte(v)
-}
-
-func addpctab(ctxt *Link, ftab *sym.Symbol, off int32, d *sym.Pcdata) int32 {
-	var start int32
-	if len(d.P) > 0 {
-		start = int32(len(ftab.P))
-		ftab.AddBytes(d.P)
-	}
-	return int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(start)))
-}
-
-func ftabaddstring(ctxt *Link, ftab *sym.Symbol, s string) int32 {
-	n := int32(len(s)) + 1
-	start := int32(len(ftab.P))
-	ftab.Grow(int64(start) + int64(n) + 1)
+func ftabaddstring(ftab *sym.Symbol, s string) int32 {
+	start := len(ftab.P)
+	ftab.Grow(int64(start + len(s) + 1)) // make room for s plus trailing NUL
 	copy(ftab.P[start:], s)
-	return start
+	return int32(start)
 }
 
 // numberfile assigns a file number to the file if it hasn't been assigned already.
@@ -128,10 +106,11 @@ func renumberfiles(ctxt *Link, files []*sym.Symbol, d *sym.Pcdata) {
 		numberfile(ctxt, f)
 	}
 
+	buf := make([]byte, binary.MaxVarintLen32)
 	newval := int32(-1)
 	var out sym.Pcdata
-	var it Pciter
-	for pciterinit(ctxt, &it, d); it.done == 0; pciternext(&it) {
+	it := newPCIter(ctxt)
+	for it.init(d.P); !it.done; it.next() {
 		// value delta
 		oldval := it.value
 
@@ -147,15 +126,20 @@ func renumberfiles(ctxt *Link, files []*sym.Symbol, d *sym.Pcdata) {
 
 		dv := val - newval
 		newval = val
-		v := (uint32(dv) << 1) ^ uint32(dv>>31)
-		addvarint(&out, v)
+
+		// value
+		n := binary.PutVarint(buf, int64(dv))
+		out.P = append(out.P, buf[:n]...)
 
 		// pc delta
-		addvarint(&out, (it.nextpc-it.pc)/it.pcscale)
+		pc := (it.nextpc - it.pc) / it.pcscale
+		n = binary.PutUvarint(buf, uint64(pc))
+		out.P = append(out.P, buf[:n]...)
 	}
 
 	// terminating value delta
-	addvarint(&out, 0)
+	// we want to write varint-encoded 0, which is just 0
+	out.P = append(out.P, 0)
 
 	*d = out
 }
@@ -163,7 +147,7 @@ func renumberfiles(ctxt *Link, files []*sym.Symbol, d *sym.Pcdata) {
 // onlycsymbol reports whether this is a symbol that is referenced by C code.
 func onlycsymbol(s *sym.Symbol) bool {
 	switch s.Name {
-	case "_cgo_topofstack", "_cgo_panic", "crosscall2":
+	case "_cgo_topofstack", "__cgo_topofstack", "_cgo_panic", "crosscall2":
 		return true
 	}
 	if strings.HasPrefix(s.Name, "_cgoexp_") {
@@ -181,10 +165,7 @@ func emitPcln(ctxt *Link, s *sym.Symbol) bool {
 	}
 	// We want to generate func table entries only for the "lowest level" symbols,
 	// not containers of subsymbols.
-	if s.Attr.Container() {
-		return true
-	}
-	return true
+	return !s.Attr.Container()
 }
 
 // pclntab initializes the pclntab symbol with
@@ -211,7 +192,6 @@ func (ctxt *Link) pclntab() {
 	//	function table, alternating PC and offset to func struct [each entry thearch.ptrsize bytes]
 	//	end PC [thearch.ptrsize bytes]
 	//	offset to file table [4 bytes]
-	nfunc := int32(0)
 
 	// Find container symbols and mark them as such.
 	for _, s := range ctxt.Textp {
@@ -220,9 +200,15 @@ func (ctxt *Link) pclntab() {
 		}
 	}
 
+	// Gather some basic stats and info.
+	var nfunc int32
 	for _, s := range ctxt.Textp {
-		if emitPcln(ctxt, s) {
-			nfunc++
+		if !emitPcln(ctxt, s) {
+			continue
+		}
+		nfunc++
+		if pclntabFirstFunc == nil {
+			pclntabFirstFunc = s
 		}
 	}
 
@@ -238,26 +224,34 @@ func (ctxt *Link) pclntab() {
 	nameToOffset := func(name string) int32 {
 		nameoff, ok := funcnameoff[name]
 		if !ok {
-			nameoff = ftabaddstring(ctxt, ftab, name)
+			nameoff = ftabaddstring(ftab, name)
 			funcnameoff[name] = nameoff
 		}
 		return nameoff
 	}
 
-	nfunc = 0
-	var last *sym.Symbol
+	pctaboff := make(map[string]uint32)
+	writepctab := func(off int32, p []byte) int32 {
+		start, ok := pctaboff[string(p)]
+		if !ok {
+			if len(p) > 0 {
+				start = uint32(len(ftab.P))
+				ftab.AddBytes(p)
+			}
+			pctaboff[string(p)] = start
+		}
+		newoff := int32(ftab.SetUint32(ctxt.Arch, int64(off), start))
+		return newoff
+	}
+
+	nfunc = 0 // repurpose nfunc as a running index
 	for _, s := range ctxt.Textp {
-		last = s
 		if !emitPcln(ctxt, s) {
 			continue
 		}
 		pcln := s.FuncInfo
 		if pcln == nil {
 			pcln = &pclntabZpcln
-		}
-
-		if pclntabFirstFunc == nil {
-			pclntabFirstFunc = s
 		}
 
 		if len(pcln.InlTree) > 0 {
@@ -280,7 +274,7 @@ func (ctxt *Link) pclntab() {
 		}
 
 		funcstart := int32(len(ftab.P))
-		funcstart += int32(-len(ftab.P)) & (int32(ctxt.Arch.PtrSize) - 1)
+		funcstart += int32(-len(ftab.P)) & (int32(ctxt.Arch.PtrSize) - 1) // align to ptrsize
 
 		ftab.SetAddr(ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize), s)
 		ftab.SetUint(ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), uint64(funcstart))
@@ -312,52 +306,39 @@ func (ctxt *Link) pclntab() {
 		}
 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), args))
 
-		// funcID uint32
-		funcID := objabi.FuncID_normal
-		switch s.Name {
-		case "runtime.main":
-			funcID = objabi.FuncID_runtime_main
-		case "runtime.goexit":
-			funcID = objabi.FuncID_goexit
-		case "runtime.jmpdefer":
-			funcID = objabi.FuncID_jmpdefer
-		case "runtime.mcall":
-			funcID = objabi.FuncID_mcall
-		case "runtime.morestack":
-			funcID = objabi.FuncID_morestack
-		case "runtime.mstart":
-			funcID = objabi.FuncID_mstart
-		case "runtime.rt0_go":
-			funcID = objabi.FuncID_rt0_go
-		case "runtime.asmcgocall":
-			funcID = objabi.FuncID_asmcgocall
-		case "runtime.sigpanic":
-			funcID = objabi.FuncID_sigpanic
-		case "runtime.runfinq":
-			funcID = objabi.FuncID_runfinq
-		case "runtime.gcBgMarkWorker":
-			funcID = objabi.FuncID_gcBgMarkWorker
-		case "runtime.systemstack_switch":
-			funcID = objabi.FuncID_systemstack_switch
-		case "runtime.systemstack":
-			funcID = objabi.FuncID_systemstack
-		case "runtime.cgocallback_gofunc":
-			funcID = objabi.FuncID_cgocallback_gofunc
-		case "runtime.gogo":
-			funcID = objabi.FuncID_gogo
-		case "runtime.externalthreadhandler":
-			funcID = objabi.FuncID_externalthreadhandler
-		case "runtime.debugCallV1":
-			funcID = objabi.FuncID_debugCallV1
+		// deferreturn
+		deferreturn := uint32(0)
+		lastWasmAddr := uint32(0)
+		for _, r := range s.R {
+			if ctxt.Arch.Family == sys.Wasm && r.Type == objabi.R_ADDR {
+				// Wasm does not have a live variable set at the deferreturn
+				// call itself. Instead it has one identified by the
+				// resumption point immediately preceding the deferreturn.
+				// The wasm code has a R_ADDR relocation which is used to
+				// set the resumption point to PC_B.
+				lastWasmAddr = uint32(r.Add)
+			}
+			if r.Sym != nil && r.Sym.Name == "runtime.deferreturn" && r.Add == 0 {
+				if ctxt.Arch.Family == sys.Wasm {
+					deferreturn = lastWasmAddr
+				} else {
+					// Note: the relocation target is in the call instruction, but
+					// is not necessarily the whole instruction (for instance, on
+					// x86 the relocation applies to bytes [1:5] of the 5 byte call
+					// instruction).
+					deferreturn = uint32(r.Off)
+				}
+				break // only need one
+			}
 		}
-		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(funcID)))
+		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), deferreturn))
 
 		if pcln != &pclntabZpcln {
 			renumberfiles(ctxt, pcln.File, &pcln.Pcfile)
 			if false {
 				// Sanity check the new numbering
-				var it Pciter
-				for pciterinit(ctxt, &it, &pcln.Pcfile); it.done == 0; pciternext(&it) {
+				it := newPCIter(ctxt)
+				for it.init(pcln.Pcfile.P); !it.done; it.next() {
 					if it.value < 1 || it.value > int32(len(ctxt.Filesyms)) {
 						Errorf(s, "bad file number in pcfile: %d not in range [1, %d]\n", it.value, len(ctxt.Filesyms))
 						errorexit()
@@ -380,10 +361,13 @@ func (ctxt *Link) pclntab() {
 				numberfile(ctxt, call.File)
 				nameoff := nameToOffset(call.Func.Name)
 
-				inlTreeSym.SetUint32(ctxt.Arch, int64(i*16+0), uint32(call.Parent))
-				inlTreeSym.SetUint32(ctxt.Arch, int64(i*16+4), uint32(call.File.Value))
-				inlTreeSym.SetUint32(ctxt.Arch, int64(i*16+8), uint32(call.Line))
-				inlTreeSym.SetUint32(ctxt.Arch, int64(i*16+12), uint32(nameoff))
+				inlTreeSym.SetUint16(ctxt.Arch, int64(i*20+0), uint16(call.Parent))
+				inlTreeSym.SetUint8(ctxt.Arch, int64(i*20+2), uint8(objabi.GetFuncID(call.Func.Name, call.Func.File)))
+				// byte 3 is unused
+				inlTreeSym.SetUint32(ctxt.Arch, int64(i*20+4), uint32(call.File.Value))
+				inlTreeSym.SetUint32(ctxt.Arch, int64(i*20+8), uint32(call.Line))
+				inlTreeSym.SetUint32(ctxt.Arch, int64(i*20+12), uint32(nameoff))
+				inlTreeSym.SetUint32(ctxt.Arch, int64(i*20+16), uint32(call.ParentPC))
 			}
 
 			pcln.Funcdata[objabi.FUNCDATA_InlTree] = inlTreeSym
@@ -391,14 +375,27 @@ func (ctxt *Link) pclntab() {
 		}
 
 		// pcdata
-		off = addpctab(ctxt, ftab, off, &pcln.Pcsp)
-
-		off = addpctab(ctxt, ftab, off, &pcln.Pcfile)
-		off = addpctab(ctxt, ftab, off, &pcln.Pcline)
+		off = writepctab(off, pcln.Pcsp.P)
+		off = writepctab(off, pcln.Pcfile.P)
+		off = writepctab(off, pcln.Pcline.P)
 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(len(pcln.Pcdata))))
-		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(len(pcln.Funcdata))))
+
+		// funcID uint8
+		var file string
+		if s.FuncInfo != nil && len(s.FuncInfo.File) > 0 {
+			file = s.FuncInfo.File[0].Name
+		}
+		funcID := objabi.GetFuncID(s.Name, file)
+
+		off = int32(ftab.SetUint8(ctxt.Arch, int64(off), uint8(funcID)))
+
+		// unused
+		off += 2
+
+		// nfuncdata must be the final entry.
+		off = int32(ftab.SetUint8(ctxt.Arch, int64(off), uint8(len(pcln.Funcdata))))
 		for i := range pcln.Pcdata {
-			off = addpctab(ctxt, ftab, off, &pcln.Pcdata[i])
+			off = writepctab(off, pcln.Pcdata[i].P)
 		}
 
 		// funcdata, must be pointer-aligned and we're only int32-aligned.
@@ -408,16 +405,15 @@ func (ctxt *Link) pclntab() {
 				off += 4
 			}
 			for i := range pcln.Funcdata {
+				dataoff := int64(off) + int64(ctxt.Arch.PtrSize)*int64(i)
 				if pcln.Funcdata[i] == nil {
-					ftab.SetUint(ctxt.Arch, int64(off)+int64(ctxt.Arch.PtrSize)*int64(i), uint64(pcln.Funcdataoff[i]))
-				} else {
-					// TODO: Dedup.
-					funcdataBytes += pcln.Funcdata[i].Size
-
-					ftab.SetAddrPlus(ctxt.Arch, int64(off)+int64(ctxt.Arch.PtrSize)*int64(i), pcln.Funcdata[i], pcln.Funcdataoff[i])
+					ftab.SetUint(ctxt.Arch, dataoff, uint64(pcln.Funcdataoff[i]))
+					continue
 				}
+				// TODO: Dedup.
+				funcdataBytes += pcln.Funcdata[i].Size
+				ftab.SetAddrPlus(ctxt.Arch, dataoff, pcln.Funcdata[i], pcln.Funcdataoff[i])
 			}
-
 			off += int32(len(pcln.Funcdata)) * int32(ctxt.Arch.PtrSize)
 		}
 
@@ -429,6 +425,7 @@ func (ctxt *Link) pclntab() {
 		nfunc++
 	}
 
+	last := ctxt.Textp[len(ctxt.Textp)-1]
 	pclntabLastFunc = last
 	// Final entry of table is just end pc.
 	ftab.SetAddrPlus(ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize), last, last.Size)
@@ -444,7 +441,7 @@ func (ctxt *Link) pclntab() {
 	ftab.SetUint32(ctxt.Arch, int64(start), uint32(len(ctxt.Filesyms)+1))
 	for i := len(ctxt.Filesyms) - 1; i >= 0; i-- {
 		s := ctxt.Filesyms[i]
-		ftab.SetUint32(ctxt.Arch, int64(start)+s.Value*4, uint32(ftabaddstring(ctxt, ftab, s.Name)))
+		ftab.SetUint32(ctxt.Arch, int64(start)+s.Value*4, uint32(ftabaddstring(ftab, s.Name)))
 	}
 
 	ftab.Size = int64(len(ftab.P))
@@ -487,10 +484,8 @@ func (ctxt *Link) findfunctab() {
 
 	// find min and max address
 	min := ctxt.Textp[0].Value
-	max := int64(0)
-	for _, s := range ctxt.Textp {
-		max = s.Value + s.Size
-	}
+	lastp := ctxt.Textp[len(ctxt.Textp)-1]
+	max := lastp.Value + lastp.Size
 
 	// for each subbucket, compute the minimum of all symbol indexes
 	// that map to that subbucket.

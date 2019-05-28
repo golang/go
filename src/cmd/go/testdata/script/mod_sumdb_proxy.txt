@@ -1,0 +1,47 @@
+env GO111MODULE=on
+env sumdb=$GOSUMDB
+env proxy=$GOPROXY
+env GOPROXY GONOPROXY GOSUMDB GONOSUMDB
+
+# basic fetch (through proxy) works
+cp go.mod.orig go.mod
+go get -m rsc.io/fortune@v1.0.0 # note: must use test proxy, does not exist in real world
+rm $GOPATH/pkg/mod/download/cache/sumdb # rm sumdb cache but NOT package download cache
+rm go.sum
+
+# can fetch by explicit URL
+cp go.mod.orig go.mod
+env GOSUMDB=$sumdb' '$proxy/sumdb-direct
+go get -m rsc.io/fortune@v1.0.0
+rm $GOPATH/pkg/mod/download/cache/sumdb
+rm go.sum
+
+# direct access fails (because localhost.localdev does not exist)
+cp go.mod.orig go.mod
+env GOSUMDB=$sumdb
+env GOPROXY=direct
+! go get -m rsc.io/fortune@v1.0.0
+stderr 'verifying.*lookup.*localhost.localdev'
+rm $GOPATH/pkg/mod/download/cache/sumdb
+rm go.sum
+
+# proxy 404 falls back to direct access (which fails)
+cp go.mod.orig go.mod
+env GOSUMDB=$sumdb
+env GOPROXY=$proxy/sumdb-404
+! go get -m rsc.io/fortune@v1.0.0
+stderr 'verifying.*lookup.*localhost.localdev'
+rm $GOPATH/pkg/mod/download/cache/sumdb
+rm go.sum
+
+# proxy non-200/404/410 stops direct access
+cp go.mod.orig go.mod
+env GOSUMDB=$sumdb
+env GOPROXY=$proxy/sumdb-503
+! go get -m rsc.io/fortune@v1.0.0
+stderr '503 Service Unavailable'
+rm $GOPATH/pkg/mod/download/cache/sumdb
+rm go.sum
+
+-- go.mod.orig --
+module m

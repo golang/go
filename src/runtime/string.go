@@ -135,7 +135,8 @@ func rawstringtmp(buf *tmpBuf, l int) (s string, b []byte) {
 // and otherwise intrinsified by the compiler.
 //
 // Some internal compiler optimizations use this function.
-// - Used for m[string(k)] lookup where m is a string-keyed map and k is a []byte.
+// - Used for m[T1{... Tn{..., string(k), ...} ...}] and m[string(k)]
+//   where k is []byte, T1 to Tn is a nesting of struct and array literals.
 // - Used for "<"+string(b)+">" concatenation where b is []byte.
 // - Used for string(b)=="foo" comparison where b is []byte.
 func slicebytetostringtmp(b []byte) string {
@@ -333,7 +334,7 @@ func index(s, t string) int {
 		return 0
 	}
 	for i := 0; i < len(s); i++ {
-		if s[i] == t[0] && hasprefix(s[i:], t) {
+		if s[i] == t[0] && hasPrefix(s[i:], t) {
 			return i
 		}
 	}
@@ -344,8 +345,8 @@ func contains(s, t string) bool {
 	return index(s, t) >= 0
 }
 
-func hasprefix(s, t string) bool {
-	return len(s) >= len(t) && s[:len(t)] == t
+func hasPrefix(s, prefix string) bool {
+	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }
 
 const (

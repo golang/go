@@ -5,13 +5,17 @@
 package ssa
 
 import (
+	"bytes"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"fmt"
+	"hash/crc32"
 	"log"
+	"math/rand"
 	"os"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 )
@@ -29,6 +33,11 @@ func Compile(f *Func) {
 		f.Logf("compiling %s\n", f.Name)
 	}
 
+	var rnd *rand.Rand
+	if checkEnabled {
+		rnd = rand.New(rand.NewSource(int64(crc32.ChecksumIEEE(([]byte)(f.Name)))))
+	}
+
 	// hook to print function & phase if panic happens
 	phaseName := "init"
 	defer func() {
@@ -42,7 +51,9 @@ func Compile(f *Func) {
 	}()
 
 	// Run all the passes
-	printFunc(f)
+	if f.Log() {
+		printFunc(f)
+	}
 	f.HTMLWriter.WriteFunc("start", "start", f)
 	if BuildDump != "" && BuildDump == f.Name {
 		f.dumpFile("build")
@@ -66,6 +77,17 @@ func Compile(f *Func) {
 			runtime.ReadMemStats(&mStart)
 		}
 
+		if checkEnabled && !f.scheduled {
+			// Test that we don't depend on the value order, by randomizing
+			// the order of values in each block. See issue 18169.
+			for _, b := range f.Blocks {
+				for i := 0; i < len(b.Values)-1; i++ {
+					j := i + rnd.Intn(len(b.Values)-i)
+					b.Values[i], b.Values[j] = b.Values[j], b.Values[i]
+				}
+			}
+		}
+
 		tStart := time.Now()
 		p.fn(f)
 		tEnd := time.Now()
@@ -84,8 +106,10 @@ func Compile(f *Func) {
 				stats = fmt.Sprintf("[%d ns]", time)
 			}
 
-			f.Logf("  pass %s end %s\n", p.name, stats)
-			printFunc(f)
+			if f.Log() {
+				f.Logf("  pass %s end %s\n", p.name, stats)
+				printFunc(f)
+			}
 			f.HTMLWriter.WriteFunc(phaseName, fmt.Sprintf("%s <span class=\"stats\">%s</span>", phaseName, stats), f)
 		}
 		if p.time || p.mem {
@@ -109,6 +133,21 @@ func Compile(f *Func) {
 		if checkEnabled {
 			checkFunc(f)
 		}
+	}
+
+	if f.ruleMatches != nil {
+		var keys []string
+		for key := range f.ruleMatches {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		buf := new(bytes.Buffer)
+		fmt.Fprintf(buf, "%s: ", f.Name)
+		for _, key := range keys {
+			fmt.Fprintf(buf, "%s=%d ", key, f.ruleMatches[key])
+		}
+		fmt.Fprint(buf, "\n")
+		fmt.Print(buf.String())
 	}
 
 	// Squash error printing defer
@@ -190,7 +229,8 @@ var BuildDump string // name of function to dump after initial build of ssa
 // BOOT_GO_GCFLAGS=-d='ssa/~^.*scc$/off' GO_GCFLAGS='-d=ssa/~^.*scc$/off' ./make.bash
 //
 func PhaseOption(phase, flag string, val int, valString string) string {
-	if phase == "help" {
+	switch phase {
+	case "", "help":
 		lastcr := 0
 		phasenames := "    check, all, build, intrinsics"
 		for _, p := range passes {
@@ -361,14 +401,16 @@ var passes = [...]pass{
 	{name: "early copyelim", fn: copyelim},
 	{name: "early deadcode", fn: deadcode}, // remove generated dead code to avoid doing pointless work during opt
 	{name: "short circuit", fn: shortcircuit},
+	{name: "decompose args", fn: decomposeArgs, required: true},
 	{name: "decompose user", fn: decomposeUser, required: true},
-	{name: "opt", fn: opt, required: true},               // TODO: split required rules and optimizing rules
+	{name: "opt", fn: opt, required: true},               // NB: some generic rules know the name of the opt pass. TODO: split required rules and optimizing rules
 	{name: "zero arg cse", fn: zcse, required: true},     // required to merge OpSB values
 	{name: "opt deadcode", fn: deadcode, required: true}, // remove any blocks orphaned during opt
 	{name: "generic cse", fn: cse},
 	{name: "phiopt", fn: phiopt},
 	{name: "nilcheckelim", fn: nilcheckelim},
 	{name: "prove", fn: prove},
+	{name: "fuse plain", fn: fusePlain},
 	{name: "decompose builtin", fn: decomposeBuiltIn, required: true},
 	{name: "softfloat", fn: softfloat, required: true},
 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
@@ -376,7 +418,7 @@ var passes = [...]pass{
 	{name: "generic deadcode", fn: deadcode, required: true}, // remove dead stores, which otherwise mess up store chain
 	{name: "check bce", fn: checkbce},
 	{name: "branchelim", fn: branchelim},
-	{name: "fuse", fn: fuse},
+	{name: "fuse", fn: fuseAll},
 	{name: "dse", fn: dse},
 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
 	{name: "insert resched checks", fn: insertLoopReschedChecks,
@@ -389,9 +431,9 @@ var passes = [...]pass{
 	{name: "late phielim", fn: phielim},
 	{name: "late copyelim", fn: copyelim},
 	{name: "tighten", fn: tighten}, // move values closer to their uses
-	{name: "phi tighten", fn: phiTighten},
 	{name: "late deadcode", fn: deadcode},
 	{name: "critical", fn: critical, required: true}, // remove critical edges
+	{name: "phi tighten", fn: phiTighten},            // place rematerializable phi args near uses to reduce value lifetimes
 	{name: "likelyadjust", fn: likelyadjust},
 	{name: "layout", fn: layout, required: true},     // schedule blocks
 	{name: "schedule", fn: schedule, required: true}, // schedule values
@@ -442,6 +484,8 @@ var passOrder = [...]constraint{
 	{"decompose builtin", "late opt"},
 	// decompose builtin is the last pass that may introduce new float ops, so run softfloat after it
 	{"decompose builtin", "softfloat"},
+	// remove critical edges before phi tighten, so that phi args get better placement
+	{"critical", "phi tighten"},
 	// don't layout blocks until critical edges have been removed
 	{"critical", "layout"},
 	// regalloc requires the removal of all critical edges

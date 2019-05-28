@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+// +build aix darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
 
 package os
 
@@ -12,21 +12,6 @@ import (
 )
 
 func sigpipe() // implemented in package runtime
-
-// Readlink returns the destination of the named symbolic link.
-// If there is an error, it will be of type *PathError.
-func Readlink(name string) (string, error) {
-	for len := 128; ; len *= 2 {
-		b := make([]byte, len)
-		n, e := fixCount(syscall.Readlink(fixLongPath(name), b))
-		if e != nil {
-			return "", &PathError{"readlink", name, e}
-		}
-		if n < len {
-			return string(b[0:n]), nil
-		}
-	}
-}
 
 // syscallMode returns the syscall-specific mode bits from Go's portable mode bits.
 func syscallMode(i FileMode) (o uint32) {

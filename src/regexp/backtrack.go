@@ -14,7 +14,10 @@
 
 package regexp
 
-import "regexp/syntax"
+import (
+	"regexp/syntax"
+	"sync"
+)
 
 // A job is an entry on the backtracker's job stack. It holds
 // the instruction pc and the position in the input.
@@ -32,15 +35,29 @@ const (
 
 // bitState holds state for the backtracker.
 type bitState struct {
-	prog *syntax.Prog
+	end      int
+	cap      []int
+	matchcap []int
+	jobs     []job
+	visited  []uint32
 
-	end     int
-	cap     []int
-	jobs    []job
-	visited []uint32
+	inputs inputs
 }
 
-var notBacktrack *bitState = nil
+var bitStatePool sync.Pool
+
+func newBitState() *bitState {
+	b, ok := bitStatePool.Get().(*bitState)
+	if !ok {
+		b = new(bitState)
+	}
+	return b
+}
+
+func freeBitState(b *bitState) {
+	b.inputs.clear()
+	bitStatePool.Put(b)
+}
 
 // maxBitStateLen returns the maximum length of a string to search with
 // the backtracker using prog.
@@ -49,18 +66,6 @@ func maxBitStateLen(prog *syntax.Prog) int {
 		return 0
 	}
 	return maxBacktrackVector / len(prog.Inst)
-}
-
-// newBitState returns a new bitState for the given prog,
-// or notBacktrack if the size of the prog exceeds the maximum size that
-// the backtracker will be run for.
-func newBitState(prog *syntax.Prog) *bitState {
-	if !shouldBacktrack(prog) {
-		return notBacktrack
-	}
-	return &bitState{
-		prog: prog,
-	}
 }
 
 // shouldBacktrack reports whether the program is too
@@ -72,7 +77,7 @@ func shouldBacktrack(prog *syntax.Prog) bool {
 // reset resets the state of the backtracker.
 // end is the end position in the input.
 // ncap is the number of captures.
-func (b *bitState) reset(end int, ncap int) {
+func (b *bitState) reset(prog *syntax.Prog, end int, ncap int) {
 	b.end = end
 
 	if cap(b.jobs) == 0 {
@@ -81,7 +86,7 @@ func (b *bitState) reset(end int, ncap int) {
 		b.jobs = b.jobs[:0]
 	}
 
-	visitedSize := (len(b.prog.Inst)*(end+1) + visitedBits - 1) / visitedBits
+	visitedSize := (len(prog.Inst)*(end+1) + visitedBits - 1) / visitedBits
 	if cap(b.visited) < visitedSize {
 		b.visited = make([]uint32, visitedSize, maxBacktrackVector/visitedBits)
 	} else {
@@ -99,6 +104,15 @@ func (b *bitState) reset(end int, ncap int) {
 	for i := range b.cap {
 		b.cap[i] = -1
 	}
+
+	if cap(b.matchcap) < ncap {
+		b.matchcap = make([]int, ncap)
+	} else {
+		b.matchcap = b.matchcap[:ncap]
+	}
+	for i := range b.matchcap {
+		b.matchcap[i] = -1
+	}
 }
 
 // shouldVisit reports whether the combination of (pc, pos) has not
@@ -114,20 +128,19 @@ func (b *bitState) shouldVisit(pc uint32, pos int) bool {
 
 // push pushes (pc, pos, arg) onto the job stack if it should be
 // visited.
-func (b *bitState) push(pc uint32, pos int, arg bool) {
+func (b *bitState) push(re *Regexp, pc uint32, pos int, arg bool) {
 	// Only check shouldVisit when arg is false.
 	// When arg is true, we are continuing a previous visit.
-	if b.prog.Inst[pc].Op != syntax.InstFail && (arg || b.shouldVisit(pc, pos)) {
+	if re.prog.Inst[pc].Op != syntax.InstFail && (arg || b.shouldVisit(pc, pos)) {
 		b.jobs = append(b.jobs, job{pc: pc, arg: arg, pos: pos})
 	}
 }
 
 // tryBacktrack runs a backtracking search starting at pos.
-func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
-	longest := m.re.longest
-	m.matched = false
+func (re *Regexp) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
+	longest := re.longest
 
-	b.push(pc, pos, false)
+	b.push(re, pc, pos, false)
 	for len(b.jobs) > 0 {
 		l := len(b.jobs) - 1
 		// Pop job off the stack.
@@ -150,7 +163,7 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 		}
 	Skip:
 
-		inst := b.prog.Inst[pc]
+		inst := re.prog.Inst[pc]
 
 		switch inst.Op {
 		default:
@@ -172,23 +185,23 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 				pc = inst.Arg
 				goto CheckAndLoop
 			} else {
-				b.push(pc, pos, true)
+				b.push(re, pc, pos, true)
 				pc = inst.Out
 				goto CheckAndLoop
 			}
 
 		case syntax.InstAltMatch:
 			// One opcode consumes runes; the other leads to match.
-			switch b.prog.Inst[inst.Out].Op {
+			switch re.prog.Inst[inst.Out].Op {
 			case syntax.InstRune, syntax.InstRune1, syntax.InstRuneAny, syntax.InstRuneAnyNotNL:
 				// inst.Arg is the match.
-				b.push(inst.Arg, pos, false)
+				b.push(re, inst.Arg, pos, false)
 				pc = inst.Arg
 				pos = b.end
 				goto CheckAndLoop
 			}
 			// inst.Out is the match - non-greedy
-			b.push(inst.Out, b.end, false)
+			b.push(re, inst.Out, b.end, false)
 			pc = inst.Out
 			goto CheckAndLoop
 
@@ -236,7 +249,7 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 			} else {
 				if 0 <= inst.Arg && inst.Arg < uint32(len(b.cap)) {
 					// Capture pos to register, but save old value.
-					b.push(pc, b.cap[inst.Arg], true) // come back when we're done.
+					b.push(re, pc, b.cap[inst.Arg], true) // come back when we're done.
 					b.cap[inst.Arg] = pos
 				}
 				pc = inst.Out
@@ -244,7 +257,8 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 			}
 
 		case syntax.InstEmptyWidth:
-			if syntax.EmptyOp(inst.Arg)&^i.context(pos) != 0 {
+			flag := i.context(pos)
+			if !flag.match(syntax.EmptyOp(inst.Arg)) {
 				continue
 			}
 			pc = inst.Out
@@ -258,8 +272,7 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 			// We found a match. If the caller doesn't care
 			// where the match is, no point going further.
 			if len(b.cap) == 0 {
-				m.matched = true
-				return m.matched
+				return true
 			}
 
 			// Record best match so far.
@@ -268,19 +281,18 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 			if len(b.cap) > 1 {
 				b.cap[1] = pos
 			}
-			if !m.matched || (longest && pos > 0 && pos > m.matchcap[1]) {
-				copy(m.matchcap, b.cap)
+			if old := b.matchcap[1]; old == -1 || (longest && pos > 0 && pos > old) {
+				copy(b.matchcap, b.cap)
 			}
-			m.matched = true
 
 			// If going for first match, we're done.
 			if !longest {
-				return m.matched
+				return true
 			}
 
 			// If we used the entire text, no longer match is possible.
 			if pos == b.end {
-				return m.matched
+				return true
 			}
 
 			// Otherwise, continue on in hope of a longer match.
@@ -288,65 +300,68 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 		}
 	}
 
-	return m.matched
+	return longest && len(b.matchcap) > 1 && b.matchcap[1] >= 0
 }
 
 // backtrack runs a backtracking search of prog on the input starting at pos.
-func (m *machine) backtrack(i input, pos int, end int, ncap int) bool {
-	if !i.canCheckPrefix() {
-		panic("backtrack called for a RuneReader")
-	}
-
-	startCond := m.re.cond
+func (re *Regexp) backtrack(ib []byte, is string, pos int, ncap int, dstCap []int) []int {
+	startCond := re.cond
 	if startCond == ^syntax.EmptyOp(0) { // impossible
-		return false
+		return nil
 	}
 	if startCond&syntax.EmptyBeginText != 0 && pos != 0 {
 		// Anchored match, past beginning of text.
-		return false
+		return nil
 	}
 
-	b := m.b
-	b.reset(end, ncap)
-
-	m.matchcap = m.matchcap[:ncap]
-	for i := range m.matchcap {
-		m.matchcap[i] = -1
-	}
+	b := newBitState()
+	i, end := b.inputs.init(nil, ib, is)
+	b.reset(re.prog, end, ncap)
 
 	// Anchored search must start at the beginning of the input
 	if startCond&syntax.EmptyBeginText != 0 {
 		if len(b.cap) > 0 {
 			b.cap[0] = pos
 		}
-		return m.tryBacktrack(b, i, uint32(m.p.Start), pos)
-	}
+		if !re.tryBacktrack(b, i, uint32(re.prog.Start), pos) {
+			freeBitState(b)
+			return nil
+		}
+	} else {
 
-	// Unanchored search, starting from each possible text position.
-	// Notice that we have to try the empty string at the end of
-	// the text, so the loop condition is pos <= end, not pos < end.
-	// This looks like it's quadratic in the size of the text,
-	// but we are not clearing visited between calls to TrySearch,
-	// so no work is duplicated and it ends up still being linear.
-	width := -1
-	for ; pos <= end && width != 0; pos += width {
-		if len(m.re.prefix) > 0 {
-			// Match requires literal prefix; fast search for it.
-			advance := i.index(m.re, pos)
-			if advance < 0 {
-				return false
+		// Unanchored search, starting from each possible text position.
+		// Notice that we have to try the empty string at the end of
+		// the text, so the loop condition is pos <= end, not pos < end.
+		// This looks like it's quadratic in the size of the text,
+		// but we are not clearing visited between calls to TrySearch,
+		// so no work is duplicated and it ends up still being linear.
+		width := -1
+		for ; pos <= end && width != 0; pos += width {
+			if len(re.prefix) > 0 {
+				// Match requires literal prefix; fast search for it.
+				advance := i.index(re, pos)
+				if advance < 0 {
+					freeBitState(b)
+					return nil
+				}
+				pos += advance
 			}
-			pos += advance
-		}
 
-		if len(b.cap) > 0 {
-			b.cap[0] = pos
+			if len(b.cap) > 0 {
+				b.cap[0] = pos
+			}
+			if re.tryBacktrack(b, i, uint32(re.prog.Start), pos) {
+				// Match must be leftmost; done.
+				goto Match
+			}
+			_, width = i.step(pos)
 		}
-		if m.tryBacktrack(b, i, uint32(m.p.Start), pos) {
-			// Match must be leftmost; done.
-			return true
-		}
-		_, width = i.step(pos)
+		freeBitState(b)
+		return nil
 	}
-	return false
+
+Match:
+	dstCap = append(dstCap, b.matchcap...)
+	freeBitState(b)
+	return dstCap
 }

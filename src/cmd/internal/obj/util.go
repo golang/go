@@ -17,6 +17,9 @@ const REG_NONE = 0
 func (p *Prog) Line() string {
 	return p.Ctxt.OutermostPos(p.Pos).Format(false, true)
 }
+func (p *Prog) InnermostLine() string {
+	return p.Ctxt.InnermostPos(p.Pos).Format(false, true)
+}
 
 // InnermostLineNumber returns a string containing the line number for the
 // innermost inlined function (if any inlining) at p's position
@@ -118,6 +121,16 @@ func (p *Prog) String() string {
 	return fmt.Sprintf("%.5d (%v)\t%s", p.Pc, p.Line(), p.InstructionString())
 }
 
+func (p *Prog) InnermostString() string {
+	if p == nil {
+		return "<nil Prog>"
+	}
+	if p.Ctxt == nil {
+		return "<Prog without ctxt>"
+	}
+	return fmt.Sprintf("%.5d (%v)\t%s", p.Pc, p.InnermostLine(), p.InstructionString())
+}
+
 // InstructionString returns a string representation of the instruction without preceding
 // program counter or file and line number.
 func (p *Prog) InstructionString() string {
@@ -177,7 +190,7 @@ func (ctxt *Link) NewProg() *Prog {
 }
 
 func (ctxt *Link) CanReuseProgs() bool {
-	return !ctxt.Debugasm
+	return ctxt.Debugasm == 0
 }
 
 func Dconv(p *Prog, a *Addr) string {
@@ -372,6 +385,17 @@ func Mconv(a *Addr) string {
 		} else {
 			str = fmt.Sprintf("%s(%s)", offConv(a.Offset), reg)
 		}
+	case NAME_TOCREF:
+		reg := "SB"
+		if a.Reg != REG_NONE {
+			reg = Rconv(int(a.Reg))
+		}
+		if a.Sym != nil {
+			str = fmt.Sprintf("%s%s(%s)", a.Sym.Name, offConv(a.Offset), reg)
+		} else {
+			str = fmt.Sprintf("%s(%s)", offConv(a.Offset), reg)
+		}
+
 	}
 	return str
 }
@@ -386,7 +410,7 @@ func offConv(off int64) string {
 // opSuffixSet is like regListSet, but for opcode suffixes.
 //
 // Unlike some other similar structures, uint8 space is not
-// divided by it's own values set (because the're only 256 of them).
+// divided by its own values set (because there are only 256 of them).
 // Instead, every arch may interpret/format all 8 bits as they like,
 // as long as they register proper cconv function for it.
 type opSuffixSet struct {
@@ -535,6 +559,7 @@ var Anames = []string{
 	"FUNCDATA",
 	"JMP",
 	"NOP",
+	"PCALIGN",
 	"PCDATA",
 	"RET",
 	"GETCALLERPC",

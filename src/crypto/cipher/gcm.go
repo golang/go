@@ -7,6 +7,7 @@ package cipher
 import (
 	subtleoverlap "crypto/internal/subtle"
 	"crypto/subtle"
+	"encoding/binary"
 	"errors"
 )
 
@@ -53,8 +54,8 @@ type gcmAble interface {
 }
 
 // gcmFieldElement represents a value in GF(2¹²⁸). In order to reflect the GCM
-// standard and make getUint64 suitable for marshaling these values, the bits
-// are stored backwards. For example:
+// standard and make binary.BigEndian suitable for marshaling these values, the
+// bits are stored in big endian order. For example:
 //   the coefficient of x⁰ can be obtained by v.low >> 63.
 //   the coefficient of x⁶³ can be obtained by v.low & 1.
 //   the coefficient of x⁶⁴ can be obtained by v.high >> 63.
@@ -130,8 +131,8 @@ func newGCMWithNonceAndTagSize(cipher Block, nonceSize, tagSize int) (AEAD, erro
 	// would expect, say, 4*key to be in index 4 of the table but due to
 	// this bit ordering it will actually be in index 0010 (base 2) = 2.
 	x := gcmFieldElement{
-		getUint64(key[:8]),
-		getUint64(key[8:]),
+		binary.BigEndian.Uint64(key[:8]),
+		binary.BigEndian.Uint64(key[8:]),
 	}
 	g.productTable[reverseBits(1)] = x
 
@@ -316,8 +317,8 @@ func (g *gcm) mul(y *gcmFieldElement) {
 // Horner's rule. There must be a multiple of gcmBlockSize bytes in blocks.
 func (g *gcm) updateBlocks(y *gcmFieldElement, blocks []byte) {
 	for len(blocks) > 0 {
-		y.low ^= getUint64(blocks)
-		y.high ^= getUint64(blocks[8:])
+		y.low ^= binary.BigEndian.Uint64(blocks)
+		y.high ^= binary.BigEndian.Uint64(blocks[8:])
 		g.mul(y)
 		blocks = blocks[gcmBlockSize:]
 	}
@@ -339,12 +340,8 @@ func (g *gcm) update(y *gcmFieldElement, data []byte) {
 // gcmInc32 treats the final four bytes of counterBlock as a big-endian value
 // and increments it.
 func gcmInc32(counterBlock *[16]byte) {
-	for i := gcmBlockSize - 1; i >= gcmBlockSize-4; i-- {
-		counterBlock[i]++
-		if counterBlock[i] != 0 {
-			break
-		}
-	}
+	ctr := counterBlock[len(counterBlock)-4:]
+	binary.BigEndian.PutUint32(ctr, binary.BigEndian.Uint32(ctr)+1)
 }
 
 // sliceForAppend takes a slice and a requested number of bytes. It returns a
@@ -400,8 +397,8 @@ func (g *gcm) deriveCounter(counter *[gcmBlockSize]byte, nonce []byte) {
 		g.update(&y, nonce)
 		y.high ^= uint64(len(nonce)) * 8
 		g.mul(&y)
-		putUint64(counter[:8], y.low)
-		putUint64(counter[8:], y.high)
+		binary.BigEndian.PutUint64(counter[:8], y.low)
+		binary.BigEndian.PutUint64(counter[8:], y.high)
 	}
 }
 
@@ -417,33 +414,8 @@ func (g *gcm) auth(out, ciphertext, additionalData []byte, tagMask *[gcmTagSize]
 
 	g.mul(&y)
 
-	putUint64(out, y.low)
-	putUint64(out[8:], y.high)
+	binary.BigEndian.PutUint64(out, y.low)
+	binary.BigEndian.PutUint64(out[8:], y.high)
 
 	xorWords(out, out, tagMask[:])
-}
-
-func getUint64(data []byte) uint64 {
-	_ = data[7] // bounds check hint to compiler; see golang.org/issue/14808
-	r := uint64(data[0])<<56 |
-		uint64(data[1])<<48 |
-		uint64(data[2])<<40 |
-		uint64(data[3])<<32 |
-		uint64(data[4])<<24 |
-		uint64(data[5])<<16 |
-		uint64(data[6])<<8 |
-		uint64(data[7])
-	return r
-}
-
-func putUint64(out []byte, v uint64) {
-	_ = out[7] // bounds check hint to compiler; see golang.org/issue/14808
-	out[0] = byte(v >> 56)
-	out[1] = byte(v >> 48)
-	out[2] = byte(v >> 40)
-	out[3] = byte(v >> 32)
-	out[4] = byte(v >> 24)
-	out[5] = byte(v >> 16)
-	out[6] = byte(v >> 8)
-	out[7] = byte(v)
 }

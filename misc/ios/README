@@ -31,9 +31,10 @@ which will output something similar to
 If you have multiple devices connected, specify the device UDID with the GOIOS_DEVICE_ID
 variable. Use `idevice_id -l` to list all available UDIDs.
 
-Finally, to run the standard library tests, run iostest.bash with GOARCH set. For example,
+Finally, to run the standard library tests, run all.bash as usual, but with the compiler
+set to the clang wrapper that invokes clang for iOS. For example,
 
-	GOARCH=arm64 ./iostest.bash
+	GOARCH=arm64 CGO_ENABLED=1 CC_FOR_TARGET=$(pwd)/../misc/ios/clangwrap.sh ./all.bash
 
 To use the go tool directly to run programs and tests, put $GOROOT/bin into PATH to ensure
 the go_darwin_$GOARCH_exec wrapper is found. For example, to run the archive/tar tests

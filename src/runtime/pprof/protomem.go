@@ -56,8 +56,8 @@ func writeHeapProto(w io.Writer, p []runtime.MemProfileRecord, rate int64, defau
 		values[0], values[1] = scaleHeapSample(r.AllocObjects, r.AllocBytes, rate)
 		values[2], values[3] = scaleHeapSample(r.InUseObjects(), r.InUseBytes(), rate)
 		var blockSize int64
-		if values[0] > 0 {
-			blockSize = values[1] / values[0]
+		if r.AllocObjects > 0 {
+			blockSize = r.AllocBytes / r.AllocObjects
 		}
 		b.pbSample(values, locs, func() {
 			if blockSize != 0 {

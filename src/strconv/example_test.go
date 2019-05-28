@@ -167,6 +167,22 @@ func ExampleFormatUint() {
 	// string, 2a
 }
 
+func ExampleIsGraphic() {
+	shamrock := strconv.IsGraphic('☘')
+	fmt.Println(shamrock)
+
+	a := strconv.IsGraphic('a')
+	fmt.Println(a)
+
+	bel := strconv.IsGraphic('\007')
+	fmt.Println(bel)
+
+	// Output:
+	// true
+	// true
+	// false
+}
+
 func ExampleIsPrint() {
 	c := strconv.IsPrint('\u263a')
 	fmt.Println(c)
@@ -206,10 +222,39 @@ func ExampleParseFloat() {
 	if s, err := strconv.ParseFloat(v, 64); err == nil {
 		fmt.Printf("%T, %v\n", s, s)
 	}
+	if s, err := strconv.ParseFloat("NaN", 32); err == nil {
+		fmt.Printf("%T, %v\n", s, s)
+	}
+	// ParseFloat is case insensitive
+	if s, err := strconv.ParseFloat("nan", 32); err == nil {
+		fmt.Printf("%T, %v\n", s, s)
+	}
+	if s, err := strconv.ParseFloat("inf", 32); err == nil {
+		fmt.Printf("%T, %v\n", s, s)
+	}
+	if s, err := strconv.ParseFloat("Inf", 32); err == nil {
+		fmt.Printf("%T, %v\n", s, s)
+	}
+	if s, err := strconv.ParseFloat("-Inf", 32); err == nil {
+		fmt.Printf("%T, %v\n", s, s)
+	}
+	if s, err := strconv.ParseFloat("-0", 32); err == nil {
+		fmt.Printf("%T, %v\n", s, s)
+	}
+	if s, err := strconv.ParseFloat("+0", 32); err == nil {
+		fmt.Printf("%T, %v\n", s, s)
+	}
 
 	// Output:
 	// float64, 3.1415927410125732
 	// float64, 3.1415926535
+	// float64, NaN
+	// float64, NaN
+	// float64, +Inf
+	// float64, +Inf
+	// float64, -Inf
+	// float64, -0
+	// float64, 0
 }
 
 func ExampleParseInt() {
@@ -249,7 +294,7 @@ func ExampleParseUint() {
 }
 
 func ExampleQuote() {
-	s := strconv.Quote(`"Fran & Freddie's Diner	☺"`)
+	s := strconv.Quote(`"Fran & Freddie's Diner	☺"`) // there is a tab character inside the string literal
 	fmt.Println(s)
 
 	// Output:
@@ -272,12 +317,48 @@ func ExampleQuoteRuneToASCII() {
 	// '\u263a'
 }
 
+func ExampleQuoteRuneToGraphic() {
+	s := strconv.QuoteRuneToGraphic('☺')
+	fmt.Println(s)
+
+	s = strconv.QuoteRuneToGraphic('\u263a')
+	fmt.Println(s)
+
+	s = strconv.QuoteRuneToGraphic('\u000a')
+	fmt.Println(s)
+
+	s = strconv.QuoteRuneToGraphic('	') // tab character
+	fmt.Println(s)
+
+	// Output:
+	// '☺'
+	// '☺'
+	// '\n'
+	// '\t'
+}
+
 func ExampleQuoteToASCII() {
-	s := strconv.QuoteToASCII(`"Fran & Freddie's Diner	☺"`)
+	s := strconv.QuoteToASCII(`"Fran & Freddie's Diner	☺"`) // there is a tab character inside the string literal
 	fmt.Println(s)
 
 	// Output:
 	// "\"Fran & Freddie's Diner\t\u263a\""
+}
+
+func ExampleQuoteToGraphic() {
+	s := strconv.QuoteToGraphic("☺")
+	fmt.Println(s)
+
+	s = strconv.QuoteToGraphic("This is a \u263a	\u000a") // there is a tab character inside the string literal
+	fmt.Println(s)
+
+	s = strconv.QuoteToGraphic(`" This is a ☺ \n "`)
+	fmt.Println(s)
+
+	// Output:
+	// "☺"
+	// "This is a ☺\t\n"
+	// "\" This is a ☺ \\n \""
 }
 
 func ExampleUnquote() {

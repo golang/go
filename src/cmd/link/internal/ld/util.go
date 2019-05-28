@@ -89,3 +89,13 @@ var start = time.Now()
 func elapsed() float64 {
 	return time.Since(start).Seconds()
 }
+
+// contains reports whether v is in s.
+func contains(s []string, v string) bool {
+	for _, x := range s {
+		if x == v {
+			return true
+		}
+	}
+	return false
+}

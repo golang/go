@@ -50,7 +50,7 @@ If your OS or architecture is not on the list, you may be able to
 <tr><td>FreeBSD 10.3 or later</td> <td>amd64, 386</td> <td>Debian GNU/kFreeBSD not supported</td></tr>
 <tr valign='top'><td>Linux 2.6.23 or later with glibc</td> <td>amd64, 386, arm, arm64,<br>s390x, ppc64le</td> <td>CentOS/RHEL 5.x not supported.<br>Install from source for other libc.</td></tr>
 <tr><td>macOS 10.10 or later</td> <td>amd64</td> <td>use the clang or gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup> for <code>cgo</code> support</td></tr>
-<tr><td>Windows 7, Server 2008R2 or later</td> <td>amd64, 386</td> <td>use MinGW gcc<sup>&#8224;</sup>. No need for cygwin or msys.</td></tr>
+<tr valign='top'><td>Windows 7, Server 2008R2 or later</td> <td>amd64, 386</td> <td>use MinGW (<code>386</code>) or MinGW-W64 (<code>amd64</code>) gcc<sup>&#8224;</sup>.<br>No need for cygwin or msys.</td></tr>
 </table>
 
 <p>
@@ -172,11 +172,6 @@ command prompts for the change to take effect.
 </p>
 
 <p>
-If you chose a directory other than <code>c:\Go</code>,
-you must set the <code>GOROOT</code> environment variable to your chosen path.
-</p>
-
-<p>
 Add the <code>bin</code> subdirectory of your Go root (for example, <code>c:\Go\bin</code>) to your <code>PATH</code> environment variable.
 </p>
 
@@ -209,7 +204,7 @@ you will need to <a href="https://golang.org/wiki/SettingGOPATH">set the <code>G
 </p>
 
 <p>
-Next, make the directory <code>src/hello</code> inside your workspace,
+Next, make the directory <code class="testUnix">src/hello</code><code class="testWindows">src\hello</code> inside your workspace,
 and in that directory create a file named <code>hello.go</code> that looks like:
 </p>
 
@@ -268,6 +263,39 @@ or <code>go</code> <code>clean</code> <code>-i</code> to remove it.
 Before rushing off to write Go code please read the
 <a href="/doc/code.html">How to Write Go Code</a> document,
 which describes some essential concepts about using the Go tools.
+</p>
+
+
+<h2 id="extra_versions">Installing extra Go versions</h2>
+
+<p>
+It may be useful to have multiple Go versions installed on the same machine, for
+example, to ensure that a package's tests pass on multiple Go versions.
+Once you have one Go version installed, you can install another (such as 1.10.7)
+as follows:
+</p>
+
+<pre>
+$ go get golang.org/dl/go1.10.7
+$ go1.10.7 download
+</pre>
+
+<p>
+The newly downloaded version can be used like <code>go</code>:
+</p>
+
+<pre>
+$ go1.10.7 version
+go version go1.10.7 linux/amd64
+</pre>
+
+<p>
+All Go versions available via this method are listed on
+<a href="https://godoc.org/golang.org/dl#pkg-subdirectories">the download page</a>.
+You can find where each of these extra Go versions is installed by looking
+at its <code>GOROOT</code>; for example, <code>go1.10.7 env GOROOT</code>.
+To uninstall a downloaded version, just remove its <code>GOROOT</code> directory
+and the <code>goX.Y.Z</code> binary.
 </p>
 
 
