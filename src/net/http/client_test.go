@@ -1292,7 +1292,7 @@ func testClientTimeout_Headers(t *testing.T, h2 bool) {
 	donec := make(chan bool, 1)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		<-donec
-	}))
+	}), optQuietLog)
 	defer cst.close()
 	// Note that we use a channel send here and not a close.
 	// The race detector doesn't know that we're waiting for a timeout
