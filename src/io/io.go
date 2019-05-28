@@ -368,6 +368,12 @@ func Copy(dst Writer, src Reader) (written int64, err error) {
 // provided buffer (if one is required) rather than allocating a
 // temporary one. If buf is nil, one is allocated; otherwise if it has
 // zero length, CopyBuffer panics.
+//
+// If src implements the WriterTo interface,
+// the copy is implemented by calling src.WriteTo(dst).
+// Otherwise, if dst implements the ReaderFrom interface,
+// the copy is implemented by calling dst.ReadFrom(src). In both cases,
+// buf will be ignored and will not be use.
 func CopyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 	if buf != nil && len(buf) == 0 {
 		panic("empty buffer in io.CopyBuffer")
