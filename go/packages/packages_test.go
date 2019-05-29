@@ -979,6 +979,10 @@ func testNewPackagesInOverlay(t *testing.T, exporter packagestest.Exporter) {
 			filepath.Join(dir, "h", "h.go"):      []byte(`package h; const H = "h"`),
 		},
 			`"efgh_"`},
+		// Overlay with package main.
+		{map[string][]byte{
+			filepath.Join(dir, "e", "main.go"): []byte(`package main; import "golang.org/fake/a"; const E = "e" + a.A; func main(){}`)},
+			`"eabc"`},
 	} {
 		exported.Config.Overlay = test.overlay
 		exported.Config.Mode = packages.LoadAllSyntax
