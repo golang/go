@@ -742,6 +742,10 @@ func (cr *connReader) hitReadLimit() bool        { return cr.remain <= 0 }
 //
 // It may be called from multiple goroutines.
 func (cr *connReader) handleReadError(_ error) {
+	if cr.conn.hijacked() {
+		// https://github.com/golang/go/issues/32314
+		return
+	}
 	cr.conn.cancelCtx()
 	cr.closeNotify()
 }

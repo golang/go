@@ -6166,6 +6166,46 @@ func fetchWireResponse(host string, http1ReqBody []byte) ([]byte, error) {
 	return ioutil.ReadAll(conn)
 }
 
+func TestServerContextAfterHijack(t *testing.T) {
+	done := make(chan struct{})
+	s := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		defer close(done)
+
+		w.WriteHeader(StatusOK)
+
+		hj, ok := w.(Hijacker)
+		if !ok {
+			t.Errorf("w not a hijacker? %T", w)
+			return
+		}
+
+		c, brw, err := hj.Hijack()
+		if err != nil {
+			t.Errorf("failed to hijack: %v", err)
+			return
+		}
+
+		c.Close()
+		brw.Read(nil)
+
+		if r.Context().Err() != nil {
+			t.Errorf("context cancelled after call to Hijack")
+			return
+		}
+	}))
+	defer s.Close()
+
+	cl := s.Client()
+	cl.Timeout = time.Second*30
+
+	resp, err := cl.Get(s.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	<-done
+}
+
 func BenchmarkResponseStatusLine(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
