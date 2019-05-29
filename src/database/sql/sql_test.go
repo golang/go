@@ -1486,6 +1486,59 @@ func TestIssue2542Deadlock(t *testing.T) {
 	}
 }
 
+// Test to make sure execute and prepare are run on the same connection
+func TestIssue32298SameConnection(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+	db.SetMaxIdleConns(10)
+	db.SetMaxOpenConns(10)
+
+	// make sure there are at least 2 open and free connections
+	wg := &sync.WaitGroup{}
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			stmt, err := db.Prepare("SELECT|people|age|name=?")
+			if err != nil {
+				t.Fatalf("Prepare: %v", err)
+			}
+			defer stmt.Close()
+			var age int
+			err = stmt.QueryRow("Alice").Scan(&age)
+			if err != nil {
+				t.Fatalf("QueryRow: %v", err)
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	if len(db.freeConn) < 2 {
+		t.Fatalf("Too few free connections: %d", len(db.freeConn))
+	}
+
+	stmt, err := db.Prepare("SELECT|people|age|name=?")
+	if err != nil {
+		t.Fatalf("Prepare: %v", err)
+	}
+	defer stmt.Close()
+
+	if len(stmt.css) > 1 {
+		t.Fatalf("too many connections for statement: %d", len(stmt.css))
+	}
+
+	var age int
+	err = stmt.QueryRow("Alice").Scan(&age)
+	if err != nil {
+		t.Fatalf("QueryRow: %v", err)
+	} else if age != 1 {
+		t.Fatalf("unexpected age %d", age)
+	}
+	if len(stmt.css) > 1 {
+		t.Fatalf("too many connections for statement: %d", len(stmt.css))
+	}
+}
+
 // From golang.org/issue/3865
 func TestCloseStmtBeforeRows(t *testing.T) {
 	db := newTestDB(t, "people")
