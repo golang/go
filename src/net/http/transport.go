@@ -1911,7 +1911,12 @@ func (pc *persistConn) readLoopPeekFailLocked(peekErr error) {
 	}
 	if n := pc.br.Buffered(); n > 0 {
 		buf, _ := pc.br.Peek(n)
-		log.Printf("Unsolicited response received on idle HTTP channel starting with %q; err=%v", buf, peekErr)
+		if is408Message(buf) {
+			pc.closeLocked(errServerClosedIdle)
+			return
+		} else {
+			log.Printf("Unsolicited response received on idle HTTP channel starting with %q; err=%v", buf, peekErr)
+		}
 	}
 	if peekErr == io.EOF {
 		// common case.
@@ -1919,6 +1924,19 @@ func (pc *persistConn) readLoopPeekFailLocked(peekErr error) {
 	} else {
 		pc.closeLocked(fmt.Errorf("readLoopPeekFailLocked: %v", peekErr))
 	}
+}
+
+// is408Message reports whether buf has the prefix of an
+// HTTP 408 Request Timeout response.
+// See golang.org/issue/32310.
+func is408Message(buf []byte) bool {
+	if len(buf) < len("HTTP/1.x 408") {
+		return false
+	}
+	if string(buf[:7]) != "HTTP/1." {
+		return false
+	}
+	return string(buf[8:12]) == " 408"
 }
 
 // readResponse reads an HTTP response (or two, in the case of "Expect:
