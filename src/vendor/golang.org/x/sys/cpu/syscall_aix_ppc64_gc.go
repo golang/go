@@ -18,6 +18,8 @@ import (
 
 //go:cgo_import_dynamic libc_getsystemcfg getsystemcfg "libc.a/shr_64.o"
 
+//go:linkname libc_getsystemcfg libc_getsystemcfg
+
 type syscallFunc uintptr
 
 var libc_getsystemcfg syscallFunc
