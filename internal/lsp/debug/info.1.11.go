@@ -4,13 +4,13 @@
 
 // +build !go1.12
 
-package lsp
+package debug
 
 import (
 	"fmt"
 	"io"
 )
 
-func printBuildInfo(w io.Writer, verbose bool) {
+func printBuildInfo(w io.Writer, verbose bool, mode PrintMode) {
 	fmt.Fprintf(w, "no module information, gopls not built with go 1.11 or earlier\n")
 }

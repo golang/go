@@ -12,6 +12,7 @@ import (
 	"path"
 
 	"golang.org/x/tools/internal/jsonrpc2"
+	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -140,7 +141,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 		}
 	}
 	buf := &bytes.Buffer{}
-	PrintVersionInfo(buf, true, false)
+	debug.PrintVersionInfo(buf, true, debug.PlainText)
 	s.session.Logger().Infof(ctx, "%s", buf)
 	return nil
 }

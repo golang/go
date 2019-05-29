@@ -13,8 +13,8 @@ import (
 	"os"
 	"strings"
 
-	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/browser"
+	"golang.org/x/tools/internal/lsp/debug"
 )
 
 // version implements the version command.
@@ -36,7 +36,7 @@ func (v *version) DetailedHelp(f *flag.FlagSet) {
 // Run collects some basic information and then prepares an issue ready to
 // be reported.
 func (v *version) Run(ctx context.Context, args ...string) error {
-	lsp.PrintVersionInfo(os.Stdout, v.app.Verbose, false)
+	debug.PrintVersionInfo(os.Stdout, v.app.Verbose, debug.PlainText)
 	return nil
 }
 
@@ -70,7 +70,7 @@ A failing unit test is the best.
 func (b *bug) Run(ctx context.Context, args ...string) error {
 	buf := &bytes.Buffer{}
 	fmt.Fprint(buf, goplsBugHeader)
-	lsp.PrintVersionInfo(buf, true, true)
+	debug.PrintVersionInfo(buf, true, debug.Markdown)
 	body := buf.String()
 	title := strings.Join(args, " ")
 	if !strings.HasPrefix(title, goplsBugPrefix) {

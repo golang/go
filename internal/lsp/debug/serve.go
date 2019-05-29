@@ -5,6 +5,7 @@
 package debug
 
 import (
+	"bytes"
 	"context"
 	"html/template"
 	"log"
@@ -16,6 +17,13 @@ import (
 func init() {
 	http.HandleFunc("/", Render(mainTmpl, nil))
 	http.HandleFunc("/debug/", Render(debugTmpl, nil))
+	http.HandleFunc("/info", Render(infoTmpl, getInfo))
+}
+
+func getInfo(r *http.Request) interface{} {
+	buf := &bytes.Buffer{}
+	PrintVersionInfo(buf, true, HTML)
+	return template.HTML(buf.String())
 }
 
 // Serve starts and runs a debug server in the background.
@@ -64,9 +72,12 @@ var BaseTemplate = template.Must(template.New("").Parse(`
 </style>
 </head>
 <body>
-{{template "title"}}
-<br>
-{{block "body" .Data}}
+<a href="/">Main</a>
+<a href="/info">Info</a>
+<a href="/debug/">Debug</a>
+<hr>
+<h1>{{template "title" .}}</h1>
+{{block "body" .}}
 Unknown page
 {{end}}
 </body>
@@ -76,7 +87,13 @@ Unknown page
 var mainTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "title"}}GoPls server information{{end}}
 {{define "body"}}
-<A href="/debug/">Debug</A>
+{{end}}
+`))
+
+var infoTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
+{{define "title"}}GoPls version information{{end}}
+{{define "body"}}
+{{.}}
 {{end}}
 `))
 

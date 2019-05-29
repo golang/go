@@ -4,7 +4,7 @@
 
 // +build go1.12
 
-package lsp
+package debug
 
 import (
 	"fmt"
@@ -12,13 +12,13 @@ import (
 	"runtime/debug"
 )
 
-func printBuildInfo(w io.Writer, verbose bool) {
+func printBuildInfo(w io.Writer, verbose bool, mode PrintMode) {
 	if info, ok := debug.ReadBuildInfo(); ok {
 		fmt.Fprintf(w, "%v\n", info.Path)
-		printModuleInfo(w, &info.Main)
+		printModuleInfo(w, &info.Main, mode)
 		if verbose {
 			for _, dep := range info.Deps {
-				printModuleInfo(w, dep)
+				printModuleInfo(w, dep, mode)
 			}
 		}
 	} else {
@@ -26,7 +26,7 @@ func printBuildInfo(w io.Writer, verbose bool) {
 	}
 }
 
-func printModuleInfo(w io.Writer, m *debug.Module) {
+func printModuleInfo(w io.Writer, m *debug.Module, mode PrintMode) {
 	fmt.Fprintf(w, "    %s@%s", m.Path, m.Version)
 	if m.Sum != "" {
 		fmt.Fprintf(w, " %s", m.Sum)
