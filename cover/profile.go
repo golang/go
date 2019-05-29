@@ -8,10 +8,10 @@ package cover // import "golang.org/x/tools/cover"
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"math"
 	"os"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -64,11 +64,10 @@ func ParseProfiles(fileName string) ([]*Profile, error) {
 			mode = line[len(p):]
 			continue
 		}
-		m := lineRe.FindStringSubmatch(line)
-		if m == nil {
-			return nil, fmt.Errorf("line %q doesn't match expected format: %v", line, lineRe)
+		fn, b, err := parseLine(line)
+		if err != nil {
+			return nil, fmt.Errorf("line %q doesn't match expected format: %v", line, err)
 		}
-		fn := m[1]
 		p := files[fn]
 		if p == nil {
 			p = &Profile{
@@ -77,14 +76,7 @@ func ParseProfiles(fileName string) ([]*Profile, error) {
 			}
 			files[fn] = p
 		}
-		p.Blocks = append(p.Blocks, ProfileBlock{
-			StartLine: toInt(m[2]),
-			StartCol:  toInt(m[3]),
-			EndLine:   toInt(m[4]),
-			EndCol:    toInt(m[5]),
-			NumStmt:   toInt(m[6]),
-			Count:     toInt(m[7]),
-		})
+		p.Blocks = append(p.Blocks, b)
 	}
 	if err := s.Err(); err != nil {
 		return nil, err
@@ -124,6 +116,64 @@ func ParseProfiles(fileName string) ([]*Profile, error) {
 	return profiles, nil
 }
 
+// parseLine parses a line from a coverage file.
+// It is equivalent to the regex
+// ^(.+):([0-9]+)\.([0-9]+),([0-9]+)\.([0-9]+) ([0-9]+) ([0-9]+)$
+//
+// However, it is much faster: https://golang.org/cl/179377
+func parseLine(l string) (fileName string, block ProfileBlock, err error) {
+	end := len(l)
+
+	b := ProfileBlock{}
+	b.Count, end, err = seekBack(l, ' ', end, "Count")
+	if err != nil {
+		return "", b, err
+	}
+	b.NumStmt, end, err = seekBack(l, ' ', end, "NumStmt")
+	if err != nil {
+		return "", b, err
+	}
+	b.EndCol, end, err = seekBack(l, '.', end, "EndCol")
+	if err != nil {
+		return "", b, err
+	}
+	b.EndLine, end, err = seekBack(l, ',', end, "EndLine")
+	if err != nil {
+		return "", b, err
+	}
+	b.StartCol, end, err = seekBack(l, '.', end, "StartCol")
+	if err != nil {
+		return "", b, err
+	}
+	b.StartLine, end, err = seekBack(l, ':', end, "StartLine")
+	if err != nil {
+		return "", b, err
+	}
+	fn := l[0:end]
+	if fn == "" {
+		return "", b, errors.New("a FileName cannot be blank")
+	}
+	return fn, b, nil
+}
+
+// seekBack searches backwards from end to find sep in l, then returns the
+// value between sep and end as an integer.
+// If seekBack fails, the returned error will reference what.
+func seekBack(l string, sep byte, end int, what string) (value int, nextSep int, err error) {
+	// Since we're seeking backwards and we know only ASCII is legal for these values,
+	// we can ignore the possibility of non-ASCII characters.
+	for start := end - 1; start >= 0; start-- {
+		if l[start] == sep {
+			i, err := strconv.Atoi(l[start+1 : end])
+			if err != nil {
+				return 0, 0, fmt.Errorf("couldn't parse %q: %v", what, err)
+			}
+			return i, start, nil
+		}
+	}
+	return 0, 0, fmt.Errorf("couldn't find a %s before %s", string(sep), what)
+}
+
 type blocksByStart []ProfileBlock
 
 func (b blocksByStart) Len() int      { return len(b) }
@@ -131,16 +181,6 @@ func (b blocksByStart) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
 func (b blocksByStart) Less(i, j int) bool {
 	bi, bj := b[i], b[j]
 	return bi.StartLine < bj.StartLine || bi.StartLine == bj.StartLine && bi.StartCol < bj.StartCol
-}
-
-var lineRe = regexp.MustCompile(`^(.+):([0-9]+).([0-9]+),([0-9]+).([0-9]+) ([0-9]+) ([0-9]+)$`)
-
-func toInt(s string) int {
-	i, err := strconv.Atoi(s)
-	if err != nil {
-		panic(err)
-	}
-	return i
 }
 
 // Boundary represents the position in a source file of the beginning or end of a
