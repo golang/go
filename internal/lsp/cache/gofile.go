@@ -22,8 +22,8 @@ type goFile struct {
 func (f *goFile) GetToken(ctx context.Context) *token.File {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
-	if f.token == nil || len(f.view.contentChanges) > 0 {
-		if _, err := f.view.parse(ctx, f); err != nil {
+	if f.isDirty() {
+		if _, err := f.view.loadParseTypecheck(ctx, f); err != nil {
 			f.View().Session().Logger().Errorf(ctx, "unable to check package for %s: %v", f.URI(), err)
 			return nil
 		}
@@ -35,8 +35,8 @@ func (f *goFile) GetAST(ctx context.Context) *ast.File {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
 
-	if f.ast == nil || len(f.view.contentChanges) > 0 {
-		if _, err := f.view.parse(ctx, f); err != nil {
+	if f.isDirty() {
+		if _, err := f.view.loadParseTypecheck(ctx, f); err != nil {
 			f.View().Session().Logger().Errorf(ctx, "unable to check package for %s: %v", f.URI(), err)
 			return nil
 		}
@@ -48,8 +48,8 @@ func (f *goFile) GetPackage(ctx context.Context) source.Package {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
 
-	if f.pkg == nil || len(f.view.contentChanges) > 0 {
-		if errs, err := f.view.parse(ctx, f); err != nil {
+	if f.isDirty() {
+		if errs, err := f.view.loadParseTypecheck(ctx, f); err != nil {
 			f.View().Session().Logger().Errorf(ctx, "unable to check package for %s: %v", f.URI(), err)
 
 			// Create diagnostics for errors if we are able to.
@@ -60,6 +60,12 @@ func (f *goFile) GetPackage(ctx context.Context) source.Package {
 		}
 	}
 	return f.pkg
+}
+
+// isDirty is true if the file needs to be type-checked.
+// It assumes that the file's view's mutex is held by the caller.
+func (f *goFile) isDirty() bool {
+	return f.meta == nil || f.imports == nil || f.token == nil || f.ast == nil || f.pkg == nil || len(f.view.contentChanges) > 0
 }
 
 func (f *goFile) GetActiveReverseDeps(ctx context.Context) []source.GoFile {

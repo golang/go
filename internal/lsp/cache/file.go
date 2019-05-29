@@ -87,8 +87,3 @@ func (f *fileBase) read(ctx context.Context) {
 	// We don't know the content yet, so read it.
 	f.fc = f.view.Session().ReadFile(f.URI())
 }
-
-// isPopulated returns true if all of the computed fields of the file are set.
-func (f *goFile) isPopulated() bool {
-	return f.ast != nil && f.token != nil && f.pkg != nil && f.meta != nil && f.imports != nil
-}
