@@ -36,7 +36,6 @@ type runner struct {
 const viewName = "lsp_test"
 
 func testLSP(t *testing.T, exporter packagestest.Exporter) {
-	ctx := context.Background()
 	data := tests.Load(t, exporter, "testdata")
 	defer data.Exported.Cleanup()
 
@@ -46,7 +45,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	view := session.NewView(viewName, span.FileURI(data.Config.Dir))
 	view.SetEnv(data.Config.Env)
 	for filename, content := range data.Config.Overlay {
-		view.SetContent(ctx, span.FileURI(filename), content)
+		session.SetOverlay(span.FileURI(filename), content)
 	}
 	r := &runner{
 		server: &Server{

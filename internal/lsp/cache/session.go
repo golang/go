@@ -94,12 +94,11 @@ func (s *session) ViewOf(uri span.URI) source.View {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 
-	// check if we already know this file
+	// Check if we already know this file.
 	if v, found := s.viewMap[uri]; found {
 		return v
 	}
-
-	// pick the best view for this file and memoize the result
+	// Pick the best view for this file and memoize the result.
 	v := s.bestView(uri)
 	s.viewMap[uri] = v
 	return v
@@ -131,7 +130,7 @@ func (s *session) bestView(uri span.URI) source.View {
 	if longest != nil {
 		return longest
 	}
-	//TODO: are there any more heuristics we can use?
+	// TODO: are there any more heuristics we can use?
 	return s.views[0]
 }
 
@@ -175,13 +174,10 @@ func (s *session) IsOpen(uri span.URI) bool {
 }
 
 func (s *session) ReadFile(uri span.URI) *source.FileContent {
-	s.overlayMu.Lock()
-	defer s.overlayMu.Unlock()
-	// We might have the content saved in an overlay.
-	if overlay, ok := s.overlays[uri]; ok {
+	if overlay := s.readOverlay(uri); overlay != nil {
 		return overlay
 	}
-	// fall back to the cache level file system
+	// Fall back to the cache-level file system.
 	return s.Cache().ReadFile(uri)
 }
 
@@ -191,6 +187,7 @@ func (s *session) SetOverlay(uri span.URI, data []byte) {
 		s.overlayMu.Unlock()
 		s.filesWatchMap.Notify(uri)
 	}()
+
 	if data == nil {
 		delete(s.overlays, uri)
 		return
@@ -202,9 +199,21 @@ func (s *session) SetOverlay(uri span.URI, data []byte) {
 	}
 }
 
+func (s *session) readOverlay(uri span.URI) *source.FileContent {
+	s.overlayMu.Lock()
+	defer s.overlayMu.Unlock()
+
+	// We might have the content saved in an overlay.
+	if overlay, ok := s.overlays[uri]; ok {
+		return overlay
+	}
+	return nil
+}
+
 func (s *session) buildOverlay() map[string][]byte {
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
+
 	overlays := make(map[string][]byte)
 	for uri, overlay := range s.overlays {
 		if overlay.Error != nil {

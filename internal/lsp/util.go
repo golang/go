@@ -71,7 +71,7 @@ func getGoFile(ctx context.Context, v source.View, uri span.URI) (source.GoFile,
 	}
 	gof, ok := f.(source.GoFile)
 	if !ok {
-		return nil, nil, fmt.Errorf("not a go file %v", f.URI())
+		return nil, nil, fmt.Errorf("not a Go file %v", f.URI())
 	}
 	return gof, m, nil
 }

@@ -54,6 +54,7 @@ func (f *fileBase) View() source.View {
 func (f *fileBase) Content(ctx context.Context) *source.FileContent {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
+
 	f.read(ctx)
 	return f.fc
 }

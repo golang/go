@@ -141,7 +141,7 @@ func (v *view) link(ctx context.Context, pkgPath string, pkg *packages.Package, 
 		if f, _ := v.getFile(span.FileURI(filename)); f != nil {
 			gof, ok := f.(*goFile)
 			if !ok {
-				v.Session().Logger().Errorf(ctx, "not a go file: %v", f.URI())
+				v.Session().Logger().Errorf(ctx, "not a Go file: %v", f.URI())
 				continue
 			}
 			gof.meta = m
