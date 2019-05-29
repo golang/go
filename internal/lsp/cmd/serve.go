@@ -19,6 +19,7 @@ import (
 
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp"
+	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/tool"
 )
 
@@ -30,6 +31,7 @@ type Serve struct {
 	Port    int    `flag:"port" help:"port on which to run gopls for debugging purposes"`
 	Address string `flag:"listen" help:"address on which to listen for remote connections"`
 	Trace   bool   `flag:"rpc.trace" help:"Print the full rpc trace in lsp inspector format"`
+	Debug   string `flag:"debug" help:"Serve debug information on the supplied address"`
 
 	app *Application
 }
@@ -69,6 +71,9 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 		log.SetOutput(io.MultiWriter(os.Stderr, f))
 		out = f
 	}
+
+	debug.Serve(ctx, s.Debug)
+
 	if s.app.Remote != "" {
 		return s.forward()
 	}
