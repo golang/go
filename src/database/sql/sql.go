@@ -1127,6 +1127,67 @@ func (db *DB) nextRequestKeyLocked() uint64 {
 	return next
 }
 
+var errMatchingConnNotFound = errors.New("sql: no matching connection found")
+
+// stmtConn returns a matching cached *driverConn for the Stmt []connStmt
+func (db *DB) stmtConn(ctx context.Context, connStmts []connStmt) (*driverConn, *driverStmt, error) {
+	db.mu.Lock()
+	if db.closed {
+		db.mu.Unlock()
+		return nil, nil, errDBClosed
+	}
+	// Check if the context is expired.
+	select {
+	default:
+	case <-ctx.Done():
+		db.mu.Unlock()
+		return nil, nil, ctx.Err()
+	}
+	lifetime := db.maxLifetime
+
+	numFree := len(db.freeConn)
+	// matching connection is most likely to be at the end of the slice
+	for i := numFree - 1; i >= 0; i-- {
+		poolConn := db.freeConn[i]
+		for j := len(connStmts) - 1; j >= 0; j-- {
+			myStmt := connStmts[j]
+			if poolConn == myStmt.dc {
+				switch i {
+				case numFree:
+					// optimizing for common case
+					db.freeConn = db.freeConn[:numFree-1]
+				case 0:
+					copy(db.freeConn, db.freeConn[1:])
+					db.freeConn = db.freeConn[:numFree-1]
+				default:
+					db.freeConn = append(db.freeConn[:i], db.freeConn[i+1:numFree]...)
+				}
+				numFree--
+				poolConn.inUse = true
+				if poolConn.expired(lifetime) {
+					poolConn.Close()
+					connStmts = append(connStmts[:j], connStmts[j+1:len(connStmts)]...)
+					break
+				}
+				// Lock around reading lastErr to ensure the session resetter finished.
+				poolConn.Lock()
+				err := poolConn.lastErr
+				poolConn.Unlock()
+				if err == driver.ErrBadConn {
+					poolConn.Close()
+					connStmts = append(connStmts[:j], connStmts[j+1:len(connStmts)]...)
+					break
+				}
+				db.mu.Unlock()
+				return myStmt.dc, myStmt.ds, nil
+			}
+		}
+	}
+
+	db.mu.Unlock()
+	return nil, nil, errMatchingConnNotFound
+}
+
 // conn returns a newly-opened or cached *driverConn.
 func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn, error) {
 	db.mu.Lock()
@@ -2456,21 +2517,19 @@ func (s *Stmt) connStmt(ctx context.Context, strategy connReuseStrategy) (dc *dr
 	}
 
 	s.removeClosedStmtLocked()
-	s.mu.Unlock()
 
+	// find the connection first
+	dc, ds, err = s.db.stmtConn(ctx, s.css)
+	s.mu.Unlock()
+	if err == nil {
+		return dc, dc.releaseConn, ds, nil
+	}
+
+	// get a new connection if no matching connection is found
 	dc, err = s.db.conn(ctx, strategy)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-
-	s.mu.Lock()
-	for _, v := range s.css {
-		if v.dc == dc {
-			s.mu.Unlock()
-			return dc, dc.releaseConn, v.ds, nil
-		}
-	}
-	s.mu.Unlock()
 
 	// No luck; we need to prepare the statement on this connection
 	withLock(dc, func() {
