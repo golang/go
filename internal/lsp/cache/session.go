@@ -8,9 +8,13 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 
+	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
@@ -18,6 +22,7 @@ import (
 
 type session struct {
 	cache *cache
+	id    string
 	// the logger to use to communicate back with the client
 	log xlog.Logger
 
@@ -40,6 +45,7 @@ func (s *session) Shutdown(ctx context.Context) {
 	}
 	s.views = nil
 	s.viewMap = nil
+	debug.DropSession(debugSession{s})
 }
 
 func (s *session) Cache() source.Cache {
@@ -47,12 +53,14 @@ func (s *session) Cache() source.Cache {
 }
 
 func (s *session) NewView(name string, folder span.URI) source.View {
+	index := atomic.AddInt64(&viewIndex, 1)
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 	ctx := context.Background()
 	backgroundCtx, cancel := context.WithCancel(ctx)
 	v := &view{
 		session:        s,
+		id:             strconv.FormatInt(index, 10),
 		baseCtx:        ctx,
 		backgroundCtx:  backgroundCtx,
 		cancel:         cancel,
@@ -73,6 +81,7 @@ func (s *session) NewView(name string, folder span.URI) source.View {
 	s.views = append(s.views, v)
 	// we always need to drop the view map
 	s.viewMap = make(map[span.URI]source.View)
+	debug.AddView(debugView{v})
 	return v
 }
 
@@ -224,4 +233,59 @@ func (s *session) buildOverlay() map[string][]byte {
 		}
 	}
 	return overlays
+}
+
+type debugSession struct{ *session }
+
+func (s debugSession) ID() string         { return s.id }
+func (s debugSession) Cache() debug.Cache { return debugCache{s.cache} }
+func (s debugSession) Files() []*debug.File {
+	var files []*debug.File
+	seen := make(map[span.URI]*debug.File)
+	s.openFiles.Range(func(key interface{}, value interface{}) bool {
+		uri, ok := key.(span.URI)
+		if ok {
+			f := &debug.File{Session: s, URI: uri}
+			seen[uri] = f
+			files = append(files, f)
+		}
+		return true
+	})
+	s.overlayMu.Lock()
+	defer s.overlayMu.Unlock()
+	for _, overlay := range s.overlays {
+		f, ok := seen[overlay.URI]
+		if !ok {
+			f = &debug.File{Session: s, URI: overlay.URI}
+			seen[overlay.URI] = f
+			files = append(files, f)
+		}
+		f.Data = string(overlay.Data)
+		f.Error = overlay.Error
+		f.Hash = overlay.Hash
+	}
+	sort.Slice(files, func(i int, j int) bool {
+		return files[i].URI < files[j].URI
+	})
+	return files
+}
+
+func (s debugSession) File(hash string) *debug.File {
+	s.overlayMu.Lock()
+	defer s.overlayMu.Unlock()
+	for _, overlay := range s.overlays {
+		if overlay.Hash == hash {
+			return &debug.File{
+				Session: s,
+				URI:     overlay.URI,
+				Data:    string(overlay.Data),
+				Error:   overlay.Error,
+				Hash:    overlay.Hash,
+			}
+		}
+	}
+	return &debug.File{
+		Session: s,
+		Hash:    hash,
+	}
 }

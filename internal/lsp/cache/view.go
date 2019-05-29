@@ -15,12 +15,14 @@ import (
 	"sync"
 
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 )
 
 type view struct {
 	session *session
+	id      string
 
 	// mu protects all mutable state of the view.
 	mu sync.Mutex
@@ -157,6 +159,7 @@ func (v *view) shutdown(context.Context) {
 		v.cancel()
 		v.cancel = nil
 	}
+	debug.DropView(debugView{v})
 }
 
 // Ignore checks if the given URI is a URI we ignore.
@@ -395,3 +398,8 @@ func (v *view) mapFile(uri span.URI, f viewFile) {
 		v.filesByBase[basename] = append(v.filesByBase[basename], f)
 	}
 }
+
+type debugView struct{ *view }
+
+func (v debugView) ID() string             { return v.id }
+func (v debugView) Session() debug.Session { return debugSession{v.session} }
