@@ -14,6 +14,8 @@ import (
 	"net/http"
 	_ "net/http/pprof" // pull in the standard pprof handlers
 	"path"
+	"runtime"
+	"strconv"
 	"sync"
 
 	"golang.org/x/tools/internal/span"
@@ -63,6 +65,7 @@ func init() {
 	http.HandleFunc("/view/", Render(viewTmpl, getView))
 	http.HandleFunc("/file/", Render(fileTmpl, getFile))
 	http.HandleFunc("/info", Render(infoTmpl, getInfo))
+	http.HandleFunc("/memory", Render(memoryTmpl, getMemory))
 }
 
 // AddCache adds a cache to the set being served
@@ -171,6 +174,12 @@ func getInfo(r *http.Request) interface{} {
 	return template.HTML(buf.String())
 }
 
+func getMemory(r *http.Request) interface{} {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	return m
+}
+
 // AddSession adds a session to the set being served
 func AddSession(session Session) {
 	mu.Lock()
@@ -235,6 +244,22 @@ func Render(tmpl *template.Template, fun func(*http.Request) interface{}) func(h
 	}
 }
 
+func commas(s string) string {
+	for i := len(s); i > 3; {
+		i -= 3
+		s = s[:i] + "," + s[i:]
+	}
+	return s
+}
+
+func fuint64(v uint64) string {
+	return commas(strconv.FormatUint(v, 10))
+}
+
+func fuint32(v uint32) string {
+	return commas(strconv.FormatUint(uint64(v), 10))
+}
+
 var BaseTemplate = template.Must(template.New("").Parse(`
 <html>
 <head>
@@ -244,11 +269,16 @@ var BaseTemplate = template.Must(template.New("").Parse(`
 	display:inline-block;
 	width:6rem;
 }
+td.value {
+  text-align: right;
+}
 </style>
+{{block "head" .}}{{end}}
 </head>
 <body>
 <a href="/">Main</a>
 <a href="/info">Info</a>
+<a href="/memory">Memory</a>
 <a href="/debug/">Debug</a>
 <hr>
 <h1>{{template "title" .}}</h1>
@@ -262,7 +292,10 @@ Unknown page
 {{define "sessionlink"}}<a href="/session/{{.}}">Session {{.}}</a>{{end}}
 {{define "viewlink"}}<a href="/view/{{.}}">View {{.}}</a>{{end}}
 {{define "filelink"}}<a href="/file/{{.Session.ID}}/{{.Hash}}">{{.URI}}</a>{{end}}
-`))
+`)).Funcs(template.FuncMap{
+	"fuint64": fuint64,
+	"fuint32": fuint32,
+})
 
 var mainTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "title"}}GoPls server information{{end}}
@@ -280,6 +313,36 @@ var infoTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "title"}}GoPls version information{{end}}
 {{define "body"}}
 {{.}}
+{{end}}
+`))
+
+var memoryTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
+{{define "title"}}GoPls memory usage{{end}}
+{{define "head"}}<meta http-equiv="refresh" content="5">{{end}}
+{{define "body"}}
+<h2>Stats</h2>
+<table>
+<tr><td class="label">Allocated bytes</td><td class="value">{{fuint64 .HeapAlloc}}</td></tr>
+<tr><td class="label">Total allocated bytes</td><td class="value">{{fuint64 .TotalAlloc}}</td></tr>
+<tr><td class="label">System bytes</td><td class="value">{{fuint64 .Sys}}</td></tr>
+<tr><td class="label">Heap system bytes</td><td class="value">{{fuint64 .HeapSys}}</td></tr>
+<tr><td class="label">Malloc calls</td><td class="value">{{fuint64 .Mallocs}}</td></tr>
+<tr><td class="label">Frees</td><td class="value">{{fuint64 .Frees}}</td></tr>
+<tr><td class="label">Idle heap bytes</td><td class="value">{{fuint64 .HeapIdle}}</td></tr>
+<tr><td class="label">In use bytes</td><td class="value">{{fuint64 .HeapInuse}}</td></tr>
+<tr><td class="label">Released to system bytes</td><td class="value">{{fuint64 .HeapReleased}}</td></tr>
+<tr><td class="label">Heap object count</td><td class="value">{{fuint64 .HeapObjects}}</td></tr>
+<tr><td class="label">Stack in use bytes</td><td class="value">{{fuint64 .StackInuse}}</td></tr>
+<tr><td class="label">Stack from system bytes</td><td class="value">{{fuint64 .StackSys}}</td></tr>
+<tr><td class="label">Bucket hash bytes</td><td class="value">{{fuint64 .BuckHashSys}}</td></tr>
+<tr><td class="label">GC metaata bytes</td><td class="value">{{fuint64 .GCSys}}</td></tr>
+<tr><td class="label">Off heap bytes</td><td class="value">{{fuint64 .OtherSys}}</td></tr>
+</table>
+<h2>By size</h2>
+<table>
+<tr><th>Size</th><th>Mallocs</th><th>Frees</th></tr>
+{{range .BySize}}<tr><td class="value">{{fuint32 .Size}}</td><td class="value">{{fuint64 .Mallocs}}</td><td class="value">{{fuint64 .Frees}}</td></tr>{{end}}
+</table>
 {{end}}
 `))
 
