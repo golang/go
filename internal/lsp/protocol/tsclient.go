@@ -94,7 +94,8 @@ func clientHandler(log xlog.Logger, client Client) jsonrpc2.Handler {
 				sendParseError(ctx, log, conn, r, err)
 				return
 			}
-			if err := client.RegisterCapability(ctx, &params); err != nil {
+			err := client.RegisterCapability(ctx, &params)
+			if err := conn.Reply(ctx, r, nil, err); err != nil {
 				log.Errorf(ctx, "%v", err)
 			}
 		case "client/unregisterCapability": // req
@@ -103,7 +104,8 @@ func clientHandler(log xlog.Logger, client Client) jsonrpc2.Handler {
 				sendParseError(ctx, log, conn, r, err)
 				return
 			}
-			if err := client.UnregisterCapability(ctx, &params); err != nil {
+			err := client.UnregisterCapability(ctx, &params)
+			if err := conn.Reply(ctx, r, nil, err); err != nil {
 				log.Errorf(ctx, "%v", err)
 			}
 		case "window/showMessageRequest": // req
