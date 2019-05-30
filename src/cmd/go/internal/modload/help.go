@@ -331,7 +331,9 @@ Module downloading and verification
 The go command can fetch modules from a proxy or connect to source control
 servers directly, according to the setting of the GOPROXY environment
 variable (see 'go help env'). The default setting for GOPROXY is
-"https://proxy.golang.org", the Go module mirror run by Google.
+"https://proxy.golang.org,direct", which means to try the
+Go module mirror run by Google and fall back to a direct connection
+if the proxy reports that it does not have the module (HTTP error 404 or 410).
 See https://proxy.golang.org/privacy for the service's privacy policy.
 If GOPROXY is set to the string "direct", downloads use a direct connection
 to source control servers. Setting GOPROXY to "off" disallows downloading

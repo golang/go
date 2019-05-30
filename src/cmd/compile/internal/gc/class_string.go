@@ -4,6 +4,20 @@ package gc
 
 import "strconv"
 
+func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[Pxxx-0]
+	_ = x[PEXTERN-1]
+	_ = x[PAUTO-2]
+	_ = x[PAUTOHEAP-3]
+	_ = x[PPARAM-4]
+	_ = x[PPARAMOUT-5]
+	_ = x[PFUNC-6]
+	_ = x[PDISCARD-7]
+}
+
 const _Class_name = "PxxxPEXTERNPAUTOPAUTOHEAPPPARAMPPARAMOUTPFUNCPDISCARD"
 
 var _Class_index = [...]uint8{0, 4, 11, 16, 25, 31, 40, 45, 53}

@@ -46,6 +46,7 @@ func TestLoopConditionS390X(t *testing.T) {
 	//   done:
 	//
 	c := testConfigS390X(t)
+	a := c.Frontend().Auto(src.NoXPos, c.config.Types.Int8)
 	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
@@ -67,7 +68,7 @@ func TestLoopConditionS390X(t *testing.T) {
 			Valu("sum", OpAdd64, c.config.Types.Int64, 0, nil, "phisum", "c3"),
 			Goto("b1")),
 		Bloc("b3",
-			Valu("retdef", OpVarDef, types.TypeMem, 0, nil, "mem"),
+			Valu("retdef", OpVarDef, types.TypeMem, 0, a, "mem"),
 			Valu("store", OpStore, types.TypeMem, 0, c.config.Types.Int64, "ret", "phisum", "retdef"),
 			Exit("store")))
 	CheckFunc(fun.f)
