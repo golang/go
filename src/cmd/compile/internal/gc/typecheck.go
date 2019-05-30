@@ -3496,7 +3496,6 @@ func typecheckdeftype(n *Node) {
 		defer tracePrint("typecheckdeftype", n)(nil)
 	}
 
-	n.Type.Sym = n.Sym
 	n.SetTypecheck(1)
 	n.Name.Param.Ntype = typecheck(n.Name.Param.Ntype, Etype)
 	t := n.Name.Param.Ntype.Type
@@ -3673,7 +3672,7 @@ func typecheckdef(n *Node) {
 		}
 		n.SetWalkdef(1)
 		setTypeNode(n, types.New(TFORW))
-		n.Type.Sym = n.Sym // TODO(gri) this also happens in typecheckdeftype(n) - where should it happen?
+		n.Type.Sym = n.Sym
 		nerrors0 := nerrors
 		typecheckdeftype(n)
 		if n.Type.Etype == TFORW && nerrors > nerrors0 {
