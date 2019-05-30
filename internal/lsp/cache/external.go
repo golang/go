@@ -42,6 +42,7 @@ func (h *nativeFileHandle) Identity() source.FileIdentity {
 }
 
 func (h *nativeFileHandle) Read(ctx context.Context) ([]byte, string, error) {
+	//TODO: this should fail if the version is not the same as the handle
 	data, err := ioutil.ReadFile(h.identity.URI.Filename())
 	if err != nil {
 		return nil, "", err

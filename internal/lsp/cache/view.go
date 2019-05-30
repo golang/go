@@ -225,7 +225,11 @@ func (v *view) SetContent(ctx context.Context, uri span.URI, content []byte) err
 // including any position and type information that depends on it.
 func (f *goFile) invalidateContent() {
 	f.view.pcache.mu.Lock()
-	defer f.view.pcache.mu.Unlock()
+	f.handleMu.Lock()
+	defer func() {
+		f.handleMu.Unlock()
+		f.view.pcache.mu.Unlock()
+	}()
 
 	f.ast = nil
 	f.token = nil
