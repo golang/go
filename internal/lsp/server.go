@@ -53,10 +53,7 @@ func RunServerOnAddress(ctx context.Context, cache source.Cache, addr string, h 
 		if err != nil {
 			return err
 		}
-		stream := jsonrpc2.NewHeaderStream(conn, conn)
-		s := NewServer(cache, stream)
-		h(s)
-		go s.Run(ctx)
+		h(NewServer(cache, jsonrpc2.NewHeaderStream(conn, conn)))
 	}
 }
 
