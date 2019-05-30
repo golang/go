@@ -263,6 +263,10 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 			check.errorf(x.pos(), "%s is not a type", &x)
 		}
 
+	// case *ast.CallExpr:
+	// 	check.typ(e.Fun)
+	// 	panic("type instantiation not yet implemented")
+
 	case *ast.ParenExpr:
 		return check.definedType(e.X, def)
 

@@ -37,7 +37,7 @@ contract _(A, B) {
 // type constraints
 // Types may be declared multiple times.
 // TODO(gri) The "correct" way of doing this is perhaps to allow multiple declarations
-// only they appear though embedding (where they are harder to avoid), but not in general.
+// only when they appear though embedding (where they are harder to avoid), but not in general.
 contract _(A) { A A }
 contract _(A) { A B /* ERROR undeclared name: B */ }
 contract _(A) { A int }
@@ -50,5 +50,5 @@ contract _(A, B) { A B }
 // embedded contracts
 contract E() {}
 contract _() {
-        E /* ERROR embedding not yet implemented */ ()
+        //E /* ERROR embedding not yet implemented */ ()
 }

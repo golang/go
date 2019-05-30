@@ -95,8 +95,8 @@ func (check *Checker) contractType(contr *Contract, e *ast.ContractType) {
 			if econtr == nil {
 				check.invalidAST(c.Type.Pos(), "invalid embedded contract %s", econtr)
 			}
-			// etyp := check.typ(c.Type)
-			// _ = etyp
+			etyp := check.typ(c.Type)
+			_ = etyp
 			// TODO(gri) complete this
 			check.errorf(c.Type.Pos(), "%s: contract embedding not yet implemented", c.Type)
 		}
@@ -129,6 +129,8 @@ func (check *Checker) contractType(contr *Contract, e *ast.ContractType) {
 	}
 }
 
+// TODO(gri) does this simply check for the absence of defined types?
+//           (if so, should choose a better name)
 func (check *Checker) typeConstraint(typ Type, why *string) bool {
 	switch t := typ.(type) {
 	case *Basic:
@@ -146,11 +148,27 @@ func (check *Checker) typeConstraint(typ Type, why *string) bool {
 	case *Pointer:
 		return check.typeConstraint(t.base, why)
 	case *Tuple:
-		panic("tuple type checking unimplemented")
+		if t == nil {
+			return true
+		}
+		for _, v := range t.vars {
+			if !check.typeConstraint(v.typ, why) {
+				return false
+			}
+		}
 	case *Signature:
-		panic("signature type checking unimplemented")
+		if len(t.tparams) != 0 {
+			panic("type parameter in function type")
+		}
+		return (t.recv == nil || check.typeConstraint(t.recv.typ, why)) &&
+			check.typeConstraint(t.params, why) &&
+			check.typeConstraint(t.results, why)
 	case *Interface:
-		panic("interface type checking unimplemented")
+		for _, m := range t.allMethods {
+			if !check.typeConstraint(m.typ, why) {
+				return false
+			}
+		}
 	case *Map:
 		return check.typeConstraint(t.key, why) && check.typeConstraint(t.elem, why)
 	case *Chan:
@@ -159,6 +177,7 @@ func (check *Checker) typeConstraint(typ Type, why *string) bool {
 		*why = check.sprintf("%s is not a type literal", t)
 		return false
 	case *Contract:
+		// TODO(gri) we shouldn't reach here
 		*why = check.sprintf("%s is not a type", t)
 		return false
 	case *TypeParam:
