@@ -440,7 +440,6 @@ func TestPointerChecks(t *testing.T) {
 			atomic.AddInt32(&pending, +1)
 			defer func() {
 				if atomic.AddInt32(&pending, -1) == 0 {
-					println("removing", dir)
 					os.RemoveAll(dir)
 				}
 			}()
