@@ -75,29 +75,27 @@ type DuplicateJSONFields struct {
 	}
 	AnonymousJSON `json:"a"` // want "struct field AnonymousJSON repeats json tag .a. also at a.go:64"
 
-	AnonymousJSONField // want "struct field DuplicateAnonJSON repeats json tag .a. also at a.go:64"
-
 	XML              int `xml:"a"`
-	DuplicateXML     int `xml:"a"` // want "struct field DuplicateXML repeats xml tag .a. also at a.go:80"
+	DuplicateXML     int `xml:"a"` // want "struct field DuplicateXML repeats xml tag .a. also at a.go:78"
 	IgnoredXML       int `xml:"-"`
 	OtherIgnoredXML  int `xml:"-"`
 	OmitXML          int `xml:",omitempty"`
 	OtherOmitXML     int `xml:",omitempty"`
-	DuplicateOmitXML int `xml:"a,omitempty"` // want "struct field DuplicateOmitXML repeats xml tag .a. also at a.go:80"
+	DuplicateOmitXML int `xml:"a,omitempty"` // want "struct field DuplicateOmitXML repeats xml tag .a. also at a.go:78"
 	NonXML           int `foo:"a"`
 	DuplicateNonXML  int `foo:"a"`
 	Embedded2        struct {
 		DuplicateXML int `xml:"a"` // OK because it's not in the same struct type
 	}
-	AnonymousXML `xml:"a"` // want "struct field AnonymousXML repeats xml tag .a. also at a.go:80"
+	AnonymousXML `xml:"a"` // want "struct field AnonymousXML repeats xml tag .a. also at a.go:78"
 	Attribute    struct {
 		XMLName     xml.Name `xml:"b"`
 		NoDup       int      `xml:"b"`                // OK because XMLName above affects enclosing struct.
 		Attr        int      `xml:"b,attr"`           // OK because <b b="0"><b>0</b></b> is valid.
-		DupAttr     int      `xml:"b,attr"`           // want "struct field DupAttr repeats xml attribute tag .b. also at a.go:96"
-		DupOmitAttr int      `xml:"b,omitempty,attr"` // want "struct field DupOmitAttr repeats xml attribute tag .b. also at a.go:96"
+		DupAttr     int      `xml:"b,attr"`           // want "struct field DupAttr repeats xml attribute tag .b. also at a.go:94"
+		DupOmitAttr int      `xml:"b,omitempty,attr"` // want "struct field DupOmitAttr repeats xml attribute tag .b. also at a.go:94"
 
-		AnonymousXML `xml:"b,attr"` // want "struct field AnonymousXML repeats xml attribute tag .b. also at a.go:96"
+		AnonymousXML `xml:"b,attr"` // want "struct field AnonymousXML repeats xml attribute tag .b. also at a.go:94"
 	}
 
 	AnonymousJSONField2 `json:"not_anon"` // ok; fields aren't embedded in JSON
@@ -124,10 +122,17 @@ type UnexpectedSpacetest struct {
 	Q int `foo:" doesn't care "`
 }
 
+// Nested fiels can be shadowed by fields further up. For example,
+// ShadowingAnonJSON replaces the json:"a" field in AnonymousJSONField.
+// However, if the two conflicting fields appear at the same level like in
+// DuplicateWithAnotherPackage, we should error.
+
+type ShadowingJsonFieldName struct {
+	AnonymousJSONField
+	ShadowingAnonJSON int `json:"a"`
+}
+
 type DuplicateWithAnotherPackage struct {
 	b.AnonymousJSONField
-
-	// The "also at" position is in a different package and directory. Use
-	// "b.b" instead of "b/b" to match the relative path on Windows easily.
-	DuplicateJSON int `json:"a"` // want "struct field DuplicateJSON repeats json tag .a. also at b.b.go:8"
+	AnonymousJSONField2 // want "struct field DuplicateAnonJSON repeats json tag .a. also at b.b.go:8"
 }
