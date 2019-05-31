@@ -1682,25 +1682,6 @@ func (b *Builder) writeFile(file string, text []byte) error {
 	return ioutil.WriteFile(file, text, 0666)
 }
 
-// appendFile appends the text to file.
-func (b *Builder) appendFile(file string, text []byte) error {
-	if cfg.BuildN || cfg.BuildX {
-		b.Showcmd("", "cat >>%s << 'EOF' # internal\n%sEOF", file, text)
-	}
-	if cfg.BuildN {
-		return nil
-	}
-	f, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	if _, err = f.Write(text); err != nil {
-		return err
-	}
-	return f.Close()
-}
-
 // Install the cgo export header file, if there is one.
 func (b *Builder) installHeader(a *Action) error {
 	src := a.Objdir + "_cgo_install.h"
