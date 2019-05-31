@@ -244,10 +244,21 @@ func (p *noder) node() {
 	xtop = append(xtop, p.decls(p.file.DeclList)...)
 
 	for _, n := range p.linknames {
-		if imported_unsafe {
-			lookup(n.local).Linkname = n.remote
-		} else {
+		if !imported_unsafe {
 			p.yyerrorpos(n.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
+			continue
+		}
+		s := lookup(n.local)
+		if n.remote != "" {
+			s.Linkname = n.remote
+		} else {
+			// Use the default object symbol name if the
+			// user didn't provide one.
+			if myimportpath == "" {
+				p.yyerrorpos(n.pos, "//go:linkname requires linkname argument or -p compiler flag")
+			} else {
+				s.Linkname = objabi.PathToPrefix(myimportpath) + "." + n.local
+			}
 		}
 	}
 
@@ -1476,11 +1487,20 @@ func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
 
 	case strings.HasPrefix(text, "go:linkname "):
 		f := strings.Fields(text)
-		if len(f) != 3 {
-			p.error(syntax.Error{Pos: pos, Msg: "usage: //go:linkname localname linkname"})
+		if !(2 <= len(f) && len(f) <= 3) {
+			p.error(syntax.Error{Pos: pos, Msg: "usage: //go:linkname localname [linkname]"})
 			break
 		}
-		p.linknames = append(p.linknames, linkname{pos, f[1], f[2]})
+		// The second argument is optional. If omitted, we use
+		// the default object symbol name for this and
+		// linkname only serves to mark this symbol as
+		// something that may be referenced via the object
+		// symbol name from another package.
+		var target string
+		if len(f) == 3 {
+			target = f[2]
+		}
+		p.linknames = append(p.linknames, linkname{pos, f[1], target})
 
 	case strings.HasPrefix(text, "go:cgo_import_dynamic "):
 		// This is permitted for general use because Solaris
