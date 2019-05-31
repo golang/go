@@ -14,7 +14,7 @@ const debugSelect = false
 
 // scase.kind values.
 // Known to compiler.
-// Changes here must also be made in src/cmd/compile/internal/gc/select.go's walkselect.
+// Changes here must also be made in src/cmd/compile/internal/gc/select.go's walkselectcases.
 const (
 	caseNil = iota
 	caseRecv
