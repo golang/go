@@ -20,6 +20,7 @@ import (
 func New() source.Cache {
 	index := atomic.AddInt64(&cacheIndex, 1)
 	c := &cache{
+		fs:   &nativeFileSystem{},
 		id:   strconv.FormatInt(index, 10),
 		fset: token.NewFileSet(),
 	}
@@ -28,10 +29,13 @@ func New() source.Cache {
 }
 
 type cache struct {
-	nativeFileSystem
-
+	fs   source.FileSystem
 	id   string
 	fset *token.FileSet
+}
+
+func (c *cache) GetFile(uri span.URI) source.FileHandle {
+	return c.fs.GetFile(uri)
 }
 
 func (c *cache) NewSession(log xlog.Logger) source.Session {
@@ -40,7 +44,7 @@ func (c *cache) NewSession(log xlog.Logger) source.Session {
 		cache:         c,
 		id:            strconv.FormatInt(index, 10),
 		log:           log,
-		overlays:      make(map[span.URI]*source.FileContent),
+		overlays:      make(map[span.URI]*overlay),
 		filesWatchMap: NewWatchMap(),
 	}
 	debug.AddSession(debugSession{s})

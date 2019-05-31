@@ -85,5 +85,5 @@ func (f *fileBase) read(ctx context.Context) {
 		}
 	}
 	// We don't know the content yet, so read it.
-	f.fc = f.view.Session().ReadFile(f.URI())
+	f.fc = f.view.Session().GetFile(f.URI()).Read(ctx)
 }

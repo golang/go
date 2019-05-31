@@ -31,10 +31,16 @@ type session struct {
 	viewMap map[span.URI]source.View
 
 	overlayMu sync.Mutex
-	overlays  map[span.URI]*source.FileContent
+	overlays  map[span.URI]*overlay
 
 	openFiles     sync.Map
 	filesWatchMap *WatchMap
+}
+
+type overlay struct {
+	session *session
+	uri     span.URI
+	content source.FileContent
 }
 
 func (s *session) Shutdown(ctx context.Context) {
@@ -186,12 +192,12 @@ func (s *session) IsOpen(uri span.URI) bool {
 	return open
 }
 
-func (s *session) ReadFile(uri span.URI) *source.FileContent {
+func (s *session) GetFile(uri span.URI) source.FileHandle {
 	if overlay := s.readOverlay(uri); overlay != nil {
 		return overlay
 	}
 	// Fall back to the cache-level file system.
-	return s.Cache().ReadFile(uri)
+	return s.Cache().GetFile(uri)
 }
 
 func (s *session) SetOverlay(uri span.URI, data []byte) {
@@ -205,14 +211,17 @@ func (s *session) SetOverlay(uri span.URI, data []byte) {
 		delete(s.overlays, uri)
 		return
 	}
-	s.overlays[uri] = &source.FileContent{
-		URI:  uri,
-		Data: data,
-		Hash: hashContents(data),
+	s.overlays[uri] = &overlay{
+		session: s,
+		uri:     uri,
+		content: source.FileContent{
+			Data: data,
+			Hash: hashContents(data),
+		},
 	}
 }
 
-func (s *session) readOverlay(uri span.URI) *source.FileContent {
+func (s *session) readOverlay(uri span.URI) *overlay {
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
 
@@ -229,14 +238,29 @@ func (s *session) buildOverlay() map[string][]byte {
 
 	overlays := make(map[string][]byte)
 	for uri, overlay := range s.overlays {
-		if overlay.Error != nil {
+		if overlay.content.Error != nil {
 			continue
 		}
 		if filename, err := uri.Filename(); err == nil {
-			overlays[filename] = overlay.Data
+			overlays[filename] = overlay.content.Data
 		}
 	}
 	return overlays
+}
+
+func (o *overlay) FileSystem() source.FileSystem {
+	return o.session
+}
+
+func (o *overlay) Identity() source.FileIdentity {
+	return source.FileIdentity{
+		URI:     o.uri,
+		Version: o.content.Hash,
+	}
+}
+
+func (o *overlay) Read(ctx context.Context) *source.FileContent {
+	return &o.content
 }
 
 type debugSession struct{ *session }
@@ -258,15 +282,15 @@ func (s debugSession) Files() []*debug.File {
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
 	for _, overlay := range s.overlays {
-		f, ok := seen[overlay.URI]
+		f, ok := seen[overlay.uri]
 		if !ok {
-			f = &debug.File{Session: s, URI: overlay.URI}
-			seen[overlay.URI] = f
+			f = &debug.File{Session: s, URI: overlay.uri}
+			seen[overlay.uri] = f
 			files = append(files, f)
 		}
-		f.Data = string(overlay.Data)
-		f.Error = overlay.Error
-		f.Hash = overlay.Hash
+		f.Data = string(overlay.content.Data)
+		f.Error = overlay.content.Error
+		f.Hash = overlay.content.Hash
 	}
 	sort.Slice(files, func(i int, j int) bool {
 		return files[i].URI < files[j].URI
@@ -278,13 +302,13 @@ func (s debugSession) File(hash string) *debug.File {
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
 	for _, overlay := range s.overlays {
-		if overlay.Hash == hash {
+		if overlay.content.Hash == hash {
 			return &debug.File{
 				Session: s,
-				URI:     overlay.URI,
-				Data:    string(overlay.Data),
-				Error:   overlay.Error,
-				Hash:    overlay.Hash,
+				URI:     overlay.uri,
+				Data:    string(overlay.content.Data),
+				Error:   overlay.content.Error,
+				Hash:    overlay.content.Hash,
 			}
 		}
 	}

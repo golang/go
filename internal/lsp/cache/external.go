@@ -5,6 +5,7 @@
 package cache
 
 import (
+	"context"
 	"io/ioutil"
 
 	"golang.org/x/tools/internal/lsp/source"
@@ -14,9 +15,35 @@ import (
 // nativeFileSystem implements FileSystem reading from the normal os file system.
 type nativeFileSystem struct{}
 
-func (nativeFileSystem) ReadFile(uri span.URI) *source.FileContent {
-	r := &source.FileContent{URI: uri}
-	filename, err := uri.Filename()
+// nativeFileHandle implements FileHandle for nativeFileSystem
+type nativeFileHandle struct {
+	fs       *nativeFileSystem
+	identity source.FileIdentity
+}
+
+func (fs *nativeFileSystem) GetFile(uri span.URI) source.FileHandle {
+	return &nativeFileHandle{
+		fs: fs,
+		identity: source.FileIdentity{
+			URI: uri,
+			// TODO: decide what the version string is for a native file system
+			// could be the mtime?
+			Version: "",
+		},
+	}
+}
+
+func (h *nativeFileHandle) FileSystem() source.FileSystem {
+	return h.fs
+}
+
+func (h *nativeFileHandle) Identity() source.FileIdentity {
+	return h.identity
+}
+
+func (h *nativeFileHandle) Read(ctx context.Context) *source.FileContent {
+	r := &source.FileContent{}
+	filename, err := h.identity.URI.Filename()
 	if err != nil {
 		r.Error = err
 		return r

@@ -18,19 +18,37 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-// FileContents is returned from FileSystem implementation to represent the
+// FileContent is returned from FileSystem implementation to represent the
 // contents of a file.
 type FileContent struct {
-	URI   span.URI
 	Data  []byte
 	Error error
 	Hash  string
 }
 
+// FileIdentity uniquely identifies a file at a version from a FileSystem.
+type FileIdentity struct {
+	URI     span.URI
+	Version string
+}
+
+// FileHandle represents a handle to a specific version of a single file from
+// a specific file system.
+type FileHandle interface {
+	// FileSystem returns the file system this handle was aquired from.
+	FileSystem() FileSystem
+	// Return the Identity for the file.
+	Identity() FileIdentity
+	// Read reads the contents of a file and returns it.
+	// If the file is not available, the returned FileContent will have no
+	// data and an error.
+	Read(ctx context.Context) *FileContent
+}
+
 // FileSystem is the interface to something that provides file contents.
 type FileSystem interface {
-	// ReadFile reads the contents of a file and returns it.
-	ReadFile(uri span.URI) *FileContent
+	// GetFile returns a handle for the specified file.
+	GetFile(uri span.URI) FileHandle
 }
 
 // Cache abstracts the core logic of dealing with the environment from the
