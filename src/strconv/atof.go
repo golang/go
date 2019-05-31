@@ -654,6 +654,9 @@ func atof64(s string) (f float64, err error) {
 // If s is syntactically well-formed but is more than 1/2 ULP
 // away from the largest floating point number of the given size,
 // ParseFloat returns f = ±Inf, err.Err = ErrRange.
+//
+// ParseFloat recognizes the strings "NaN", "+Inf", and "-Inf" as their
+// respective special floating point values. It ignores case when matching.
 func ParseFloat(s string, bitSize int) (float64, error) {
 	if !underscoreOK(s) {
 		return 0, syntaxError(fnParseFloat, s)

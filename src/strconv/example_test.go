@@ -232,7 +232,7 @@ func ExampleParseFloat() {
 	if s, err := strconv.ParseFloat("inf", 32); err == nil {
 		fmt.Printf("%T, %v\n", s, s)
 	}
-	if s, err := strconv.ParseFloat("Inf", 32); err == nil {
+	if s, err := strconv.ParseFloat("+Inf", 32); err == nil {
 		fmt.Printf("%T, %v\n", s, s)
 	}
 	if s, err := strconv.ParseFloat("-Inf", 32); err == nil {
