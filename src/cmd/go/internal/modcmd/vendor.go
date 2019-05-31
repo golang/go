@@ -166,8 +166,6 @@ func matchMetadata(dir string, info os.FileInfo) bool {
 	return false
 }
 
-var anyTagsExceptIgnore = map[string]bool{"*": true}
-
 // matchPotentialSourceFile reports whether info may be relevant to a build operation.
 func matchPotentialSourceFile(dir string, info os.FileInfo) bool {
 	if strings.HasSuffix(info.Name(), "_test.go") {
@@ -181,7 +179,7 @@ func matchPotentialSourceFile(dir string, info os.FileInfo) bool {
 		defer f.Close()
 
 		content, err := imports.ReadImports(f, false, nil)
-		if err == nil && !imports.ShouldBuild(content, anyTagsExceptIgnore) {
+		if err == nil && !imports.ShouldBuild(content, imports.AnyTags()) {
 			// The file is explicitly tagged "ignore", so it can't affect the build.
 			// Leave it out.
 			return false
