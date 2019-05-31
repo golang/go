@@ -24,31 +24,45 @@ import (
 // The module must be a complete module path.
 // The version must take one of the following forms:
 //
-//	- the literal string "latest", denoting the latest available, allowed tagged version,
-//	  with non-prereleases preferred over prereleases.
-//	  If there are no tagged versions in the repo, latest returns the most recent commit.
-//	- v1, denoting the latest available tagged version v1.x.x.
-//	- v1.2, denoting the latest available tagged version v1.2.x.
-//	- v1.2.3, a semantic version string denoting that tagged version.
-//	- <v1.2.3, <=v1.2.3, >v1.2.3, >=v1.2.3,
-//	   denoting the version closest to the target and satisfying the given operator,
-//	   with non-prereleases preferred over prereleases.
-//	- a repository commit identifier or tag, denoting that commit.
+// - the literal string "latest", denoting the latest available, allowed
+//   tagged version, with non-prereleases preferred over prereleases.
+//   If there are no tagged versions in the repo, latest returns the most
+//   recent commit.
+// - the literal string "patch", denoting the latest available tagged version
+//   with the same major and minor number as current. If current is "",
+//   "patch" is equivalent to "latest".
+// - v1, denoting the latest available tagged version v1.x.x.
+// - v1.2, denoting the latest available tagged version v1.2.x.
+// - v1.2.3, a semantic version string denoting that tagged version.
+// - <v1.2.3, <=v1.2.3, >v1.2.3, >=v1.2.3,
+//   denoting the version closest to the target and satisfying the given operator,
+//   with non-prereleases preferred over prereleases.
+// - a repository commit identifier or tag, denoting that commit.
 //
-// If the allowed function is non-nil, Query excludes any versions for which allowed returns false.
+// current is optional, denoting the current version of the module.
+// If query is "latest" or "patch", current will be returned if it is a newer
+// semantic version or if it is a chronologically later pseudoversion. This
+// prevents accidental downgrades from newer prerelease or development
+// versions.
+//
+// If the allowed function is non-nil, Query excludes any versions for which
+// allowed returns false.
 //
 // If path is the path of the main module and the query is "latest",
 // Query returns Target.Version as the version.
-func Query(path, query string, allowed func(module.Version) bool) (*modfetch.RevInfo, error) {
+func Query(path, query, current string, allowed func(module.Version) bool) (*modfetch.RevInfo, error) {
 	var info *modfetch.RevInfo
 	err := modfetch.TryProxies(func(proxy string) (err error) {
-		info, err = queryProxy(proxy, path, query, allowed)
+		info, err = queryProxy(proxy, path, query, current, allowed)
 		return err
 	})
 	return info, err
 }
 
-func queryProxy(proxy, path, query string, allowed func(module.Version) bool) (*modfetch.RevInfo, error) {
+func queryProxy(proxy, path, query, current string, allowed func(module.Version) bool) (*modfetch.RevInfo, error) {
+	if current != "" && !semver.IsValid(current) {
+		return nil, fmt.Errorf("invalid previous version %q", current)
+	}
 	if allowed == nil {
 		allowed = func(module.Version) bool { return true }
 	}
@@ -61,9 +75,22 @@ func queryProxy(proxy, path, query string, allowed func(module.Version) bool) (*
 	var ok func(module.Version) bool
 	var prefix string
 	var preferOlder bool
+	var mayUseLatest bool
 	switch {
 	case query == "latest":
 		ok = allowed
+		mayUseLatest = true
+
+	case query == "patch":
+		if current == "" {
+			ok = allowed
+			mayUseLatest = true
+		} else {
+			prefix = semver.MajorMinor(current)
+			ok = func(m module.Version) bool {
+				return matchSemverPrefix(prefix, m.Version) && allowed(m)
+			}
+		}
 
 	case strings.HasPrefix(query, "<="):
 		v := query[len("<="):]
@@ -166,41 +193,59 @@ func queryProxy(proxy, path, query string, allowed func(module.Version) bool) (*
 		return nil, err
 	}
 
+	lookup := func(v string) (*modfetch.RevInfo, error) {
+		rev, err := repo.Stat(v)
+		if err != nil {
+			return nil, err
+		}
+
+		// For "latest" and "patch", make sure we don't accidentally downgrade
+		// from a newer prerelease or from a chronologically newer pseudoversion.
+		if current != "" && (query == "latest" || query == "patch") {
+			currentTime, err := modfetch.PseudoVersionTime(current)
+			if semver.Compare(rev.Version, current) < 0 || (err == nil && rev.Time.Before(currentTime)) {
+				return repo.Stat(current)
+			}
+		}
+
+		return rev, nil
+	}
+
 	if preferOlder {
 		for _, v := range versions {
 			if semver.Prerelease(v) == "" && ok(module.Version{Path: path, Version: v}) {
-				return repo.Stat(v)
+				return lookup(v)
 			}
 		}
 		for _, v := range versions {
 			if semver.Prerelease(v) != "" && ok(module.Version{Path: path, Version: v}) {
-				return repo.Stat(v)
+				return lookup(v)
 			}
 		}
 	} else {
 		for i := len(versions) - 1; i >= 0; i-- {
 			v := versions[i]
 			if semver.Prerelease(v) == "" && ok(module.Version{Path: path, Version: v}) {
-				return repo.Stat(v)
+				return lookup(v)
 			}
 		}
 		for i := len(versions) - 1; i >= 0; i-- {
 			v := versions[i]
 			if semver.Prerelease(v) != "" && ok(module.Version{Path: path, Version: v}) {
-				return repo.Stat(v)
+				return lookup(v)
 			}
 		}
 	}
 
-	if query == "latest" {
+	if mayUseLatest {
 		// Special case for "latest": if no tags match, use latest commit in repo,
 		// provided it is not excluded.
-		if info, err := repo.Latest(); err == nil && allowed(module.Version{Path: path, Version: info.Version}) {
-			return info, nil
+		if latest, err := repo.Latest(); err == nil && allowed(module.Version{Path: path, Version: latest.Version}) {
+			return lookup(latest.Name)
 		}
 	}
 
-	return nil, &NoMatchingVersionError{query: query}
+	return nil, &NoMatchingVersionError{query: query, current: current}
 }
 
 // isSemverPrefix reports whether v is a semantic version prefix: v1 or v1.2 (not v1.2.3).
@@ -310,7 +355,7 @@ func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]Q
 	err := modfetch.TryProxies(func(proxy string) error {
 		queryModule := func(path string) (r QueryResult, err error) {
 			r.Mod.Path = path
-			r.Rev, err = queryProxy(proxy, path, query, allowed)
+			r.Rev, err = queryProxy(proxy, path, query, "", allowed)
 			if err != nil {
 				return r, err
 			}
@@ -445,11 +490,15 @@ func queryPrefixModules(candidateModules []string, queryModule func(path string)
 // code for the versions it knows about, and thus did not have the opportunity
 // to return a non-400 status code to suppress fallback.
 type NoMatchingVersionError struct {
-	query string
+	query, current string
 }
 
 func (e *NoMatchingVersionError) Error() string {
-	return fmt.Sprintf("no matching versions for query %q", e.query)
+	currentSuffix := ""
+	if (e.query == "latest" || e.query == "patch") && e.current != "" {
+		currentSuffix = fmt.Sprintf(" (current version is %s)", e.current)
+	}
+	return fmt.Sprintf("no matching versions for query %q", e.query) + currentSuffix
 }
 
 // A packageNotInModuleError indicates that QueryPattern found a candidate

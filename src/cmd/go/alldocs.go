@@ -586,11 +586,12 @@
 // depending on it as needed.
 //
 // The version suffix @latest explicitly requests the latest minor release of the
-// given path.
-//
-// The suffix @patch requests the latest patch release: if the path is already in
-// the build list, the selected version will have the same minor version.
-// If the path is not already in the build list, @patch is equivalent to @latest.
+// given path. The suffix @patch requests the latest patch release: if the path
+// is already in the build list, the selected version will have the same minor
+// version. If the path is not already in the build list, @patch is equivalent
+// to @latest. Neither @latest nor @patch will cause 'go get' to downgrade a module
+// in the build list if it is required at a newer pre-release version that is
+// newer than the latest released version.
 //
 // Although get defaults to using the latest version of the module containing
 // a named package, it does not use the latest version of that module's

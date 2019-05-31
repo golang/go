@@ -50,11 +50,12 @@ var (
 )
 
 var queryTests = []struct {
-	path  string
-	query string
-	allow string
-	vers  string
-	err   string
+	path    string
+	query   string
+	current string
+	allow   string
+	vers    string
+	err     string
 }{
 	/*
 		git init
@@ -108,7 +109,18 @@ var queryTests = []struct {
 	{path: queryRepo, query: "v1.9.10-pre2+wrongmetadata", err: `unknown revision v1.9.10-pre2+wrongmetadata`},
 	{path: queryRepo, query: "v1.9.10-pre2", err: `unknown revision v1.9.10-pre2`},
 	{path: queryRepo, query: "latest", vers: "v1.9.9"},
+	{path: queryRepo, query: "latest", current: "v1.9.10-pre1", vers: "v1.9.10-pre1"},
+	{path: queryRepo, query: "latest", current: "v1.9.10-pre2+metadata", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
+	{path: queryRepo, query: "latest", current: "v0.0.0-20990101120000-5ba9a4ea6213", vers: "v0.0.0-20990101120000-5ba9a4ea6213"},
 	{path: queryRepo, query: "latest", allow: "NOMATCH", err: `no matching versions for query "latest"`},
+	{path: queryRepo, query: "latest", current: "v1.9.9", allow: "NOMATCH", err: `no matching versions for query "latest" (current version is v1.9.9)`},
+	{path: queryRepo, query: "latest", current: "v1.99.99", err: `unknown revision v1.99.99`},
+	{path: queryRepo, query: "patch", current: "", vers: "v1.9.9"},
+	{path: queryRepo, query: "patch", current: "v0.1.0", vers: "v0.1.2"},
+	{path: queryRepo, query: "patch", current: "v1.9.0", vers: "v1.9.9"},
+	{path: queryRepo, query: "patch", current: "v1.9.10-pre1", vers: "v1.9.10-pre1"},
+	{path: queryRepo, query: "patch", current: "v1.9.10-pre2+metadata", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
+	{path: queryRepo, query: "patch", current: "v1.99.99", err: `no matching versions for query "patch" (current version is v1.99.99)`},
 	{path: queryRepo, query: ">v1.9.9", vers: "v1.9.10-pre1"},
 	{path: queryRepo, query: ">v1.10.0", err: `no matching versions for query ">v1.10.0"`},
 	{path: queryRepo, query: ">=v1.10.0", err: `no matching versions for query ">=v1.10.0"`},
@@ -147,8 +159,8 @@ func TestQuery(t *testing.T) {
 			ok, _ := path.Match(allow, m.Version)
 			return ok
 		}
-		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.query+"/"+allow, func(t *testing.T) {
-			info, err := Query(tt.path, tt.query, allowed)
+		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.query+"/"+tt.current+"/"+allow, func(t *testing.T) {
+			info, err := Query(tt.path, tt.query, tt.current, allowed)
 			if tt.err != "" {
 				if err != nil && err.Error() == tt.err {
 					return

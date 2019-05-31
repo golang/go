@@ -14,6 +14,7 @@ go list -m all
 stdout '^github.com/rsc/legacytest v2\.0\.1-0\.\d{14}-7303f7796364\+incompatible$'
 
 # get should include incompatible tags in "latest" calculation.
+go mod edit -droprequire github.com/rsc/legacytest
 go get -d github.com/rsc/legacytest@latest
 go list
 go list -m all
