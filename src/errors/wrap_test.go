@@ -218,3 +218,17 @@ func (errorUncomparable) Is(target error) bool {
 	_, ok := target.(errorUncomparable)
 	return ok
 }
+
+func ExampleAs() {
+	if _, err := os.Open("non-existing"); err != nil {
+		var pathError *os.PathError
+		if errors.As(err, &pathError) {
+			fmt.Println("Failed at path:", pathError.Path)
+		} else {
+			fmt.Println(err)
+		}
+	}
+
+	// Output:
+	// Failed at path: non-existing
+}
