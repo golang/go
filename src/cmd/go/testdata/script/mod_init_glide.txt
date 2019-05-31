@@ -1,9 +1,11 @@
-env GO111MODULE=on
-
 [!net] skip
 [!exec:git] skip
 
-# test glide replacement
+env GO111MODULE=on
+env GOPROXY=direct
+
+# Regression test for golang.org/issue/32161:
+# 'go mod init' did not locate tags when resolving a commit to a pseudo-version.
 go mod init x
 cmpenv go.mod go.mod.out
 

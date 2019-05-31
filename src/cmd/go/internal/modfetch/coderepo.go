@@ -208,6 +208,11 @@ func (r *codeRepo) Latest() (*RevInfo, error) {
 	return r.convert(info, "")
 }
 
+// convert converts a version as reported by the code host to a version as
+// interpreted by the module system.
+//
+// If statVers is a valid module version, it is used for the Version field.
+// Otherwise, the Version is derived from the passed-in info and recent tags.
 func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, error) {
 	info2 := &RevInfo{
 		Name:  info.Name,
@@ -268,7 +273,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 			}
 			// Otherwise make a pseudo-version.
 			if info2.Version == "" {
-				tag, _ := r.code.RecentTag(statVers, p)
+				tag, _ := r.code.RecentTag(info.Name, p)
 				v = tagToVersion(tag)
 				// TODO: Check that v is OK for r.pseudoMajor or else is OK for incompatible.
 				info2.Version = PseudoVersion(r.pseudoMajor, v, info.Time, info.Short)
