@@ -61,32 +61,36 @@ func (imp *importer) parseFiles(filenames []string) ([]*ast.File, []error) {
 		wg.Add(1)
 		go func(i int, filename string) {
 			ioLimit <- true // wait
+			defer func() {
+				<-ioLimit // signal done
+				wg.Done()
+			}()
 
-			if gof.ast != nil {
+			if gof.ast != nil { // already have an ast
 				parsed[i], errors[i] = gof.ast, nil
-			} else {
-				// We don't have a cached AST for this file.
-				gof.read(imp.ctx)
-				if gof.fc.Error != nil {
-					return
-				}
-				src := gof.fc.Data
-				if src == nil {
-					parsed[i], errors[i] = nil, fmt.Errorf("No source for %v", filename)
-				} else {
-					// ParseFile may return both an AST and an error.
-					parsed[i], errors[i] = parseFile(imp.fset, filename, src)
-
-					// Fix any badly parsed parts of the AST.
-					if file := parsed[i]; file != nil {
-						tok := imp.fset.File(file.Pos())
-						imp.view.fix(imp.ctx, parsed[i], tok, src)
-					}
-				}
+				return
 			}
 
-			<-ioLimit // signal
-			wg.Done()
+			// No cached AST for this file, so try parsing it.
+			gof.read(imp.ctx)
+			if gof.fc.Error != nil { // file content error, so abort
+				return
+			}
+
+			src := gof.fc.Data
+			if src == nil { // no source
+				parsed[i], errors[i] = nil, fmt.Errorf("No source for %v", filename)
+				return
+			}
+
+			// ParseFile may return a partial AST AND an error.
+			parsed[i], errors[i] = parseFile(imp.fset, filename, src)
+
+			// Fix any badly parsed parts of the AST.
+			if file := parsed[i]; file != nil {
+				tok := imp.fset.File(file.Pos())
+				imp.view.fix(imp.ctx, parsed[i], tok, src)
+			}
 		}(i, filename)
 	}
 	wg.Wait()
