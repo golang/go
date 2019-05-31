@@ -5,8 +5,8 @@
 package lib
 
 /*
-#cgo darwin CFLAGS: -mmacosx-version-min=10.10 -D__MAC_OS_X_VERSION_MAX_ALLOWED=101450 -Wunguarded-availability-new
-#cgo darwin LDFLAGS: -framework Foundation -framework UserNotifications
+#cgo darwin CFLAGS: -D__MAC_OS_X_VERSION_MAX_ALLOWED=101450
+#cgo darwin LDFLAGS: -framework Foundation -framework AppKit
 #include "stdlib.h"
 int function(void);
 */

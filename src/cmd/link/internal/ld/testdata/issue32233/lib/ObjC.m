@@ -3,12 +3,14 @@
 // license that can be found in the LICENSE file.
 
 #import <Foundation/Foundation.h>
-#import <UserNotifications/UserNotifications.h>
+#import <AppKit/NSAppearance.h>
 
 BOOL function(void) {
+#if defined(MAC_OS_X_VERSION_MIN_REQUIRED) && (MAC_OS_X_VERSION_MIN_REQUIRED > 101300)
+  NSAppearance *darkAppearance;
   if (@available(macOS 10.14, *)) {
-    UNUserNotificationCenter *center =
-        [UNUserNotificationCenter currentNotificationCenter];
+    darkAppearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
   }
+#endif
   return NO;
 }
