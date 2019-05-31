@@ -76,6 +76,13 @@ stderr 'cannot use pattern .* with explicit version'
 # However, standard-library packages without explicit versions are fine.
 go get -d -u=patch -d cmd/go
 
+# We can upgrade to a new version of a module with no root package.
+go get -d example.com/noroot@v1.0.0
+go list -m all
+stdout '^example.com/noroot v1.0.0$'
+go get -d example.com/noroot@patch
+go list -m all
+stdout '^example.com/noroot v1.0.1$'
 
 -- go.mod --
 module x

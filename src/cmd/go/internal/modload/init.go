@@ -739,7 +739,7 @@ func fixVersion(path, vers string) (string, error) {
 		return vers, nil
 	}
 
-	info, err := Query(path, vers, nil)
+	info, err := Query(path, vers, "", nil)
 	if err != nil {
 		return "", err
 	}

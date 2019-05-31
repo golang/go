@@ -10,7 +10,7 @@ go mod download example.com/badchain/b@v1.1.0
 go mod download example.com/badchain/c@v1.1.0
 
 # Try to update example.com/badchain/a (and its dependencies).
-! go get -d -u example.com/badchain/a
+! go get -d example.com/badchain/a
 cmp stderr update-a-expected
 cmp go.mod go.mod.orig
 
