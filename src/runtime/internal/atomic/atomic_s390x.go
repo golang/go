@@ -6,6 +6,13 @@ package atomic
 
 import "unsafe"
 
+// Export some functions via linkname to assembly in sync/atomic.
+//go:linkname Load
+//go:linkname Loadp
+//go:linkname Load64
+//go:linkname Store
+//go:linkname Store64
+
 //go:nosplit
 //go:noinline
 func Load(ptr *uint32) uint32 {

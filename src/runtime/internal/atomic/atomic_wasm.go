@@ -5,6 +5,24 @@
 // TODO(neelance): implement with actual atomic operations as soon as threads are available
 // See https://github.com/WebAssembly/design/issues/1073
 
+// Export some functions via linkname to assembly in sync/atomic.
+//go:linkname Load
+//go:linkname Loadp
+//go:linkname Load64
+//go:linkname Loaduintptr
+//go:linkname Xadd
+//go:linkname Xadd64
+//go:linkname Xadduintptr
+//go:linkname Xchg
+//go:linkname Xchg64
+//go:linkname Xchguintptr
+//go:linkname Cas
+//go:linkname Cas64
+//go:linkname Casuintptr
+//go:linkname Store
+//go:linkname Store64
+//go:linkname Storeuintptr
+
 package atomic
 
 import "unsafe"
