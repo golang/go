@@ -66,7 +66,9 @@ const (
 
 	// NeedTypesSizes adds TypesSizes.
 	NeedTypesSizes
+)
 
+const (
 	// Deprecated: LoadFiles exists for historical compatibility
 	// and should not be used. Please directly specify the needed fields using the Need values.
 	LoadFiles = NeedName | NeedFiles | NeedCompiledGoFiles
@@ -259,9 +261,9 @@ type Package struct {
 	Imports map[string]*Package
 
 	// Types provides type information for the package.
-	// Modes LoadTypes and above set this field for packages matching the
-	// patterns; type information for dependencies may be missing or incomplete.
-	// Mode LoadAllSyntax sets this field for all packages, including dependencies.
+	// The NeedTypes LoadMode bit sets this field for packages matching the
+	// patterns; type information for dependencies may be missing or incomplete,
+	// unless NeedDeps and NeedImports are also set.
 	Types *types.Package
 
 	// Fset provides position information for Types, TypesInfo, and Syntax.
@@ -274,8 +276,9 @@ type Package struct {
 
 	// Syntax is the package's syntax trees, for the files listed in CompiledGoFiles.
 	//
-	// Mode LoadSyntax sets this field for packages matching the patterns.
-	// Mode LoadAllSyntax sets this field for all packages, including dependencies.
+	// The NeedSyntax LoadMode bit populates this field for packages matching the patterns.
+	// If NeedDeps and NeedImports are also set, this field will also be populated
+	// for dependencies.
 	Syntax []*ast.File
 
 	// TypesInfo provides type information about the package's syntax trees.
@@ -428,7 +431,7 @@ func newLoader(cfg *Config) *loader {
 		ld.Config = *cfg
 	}
 	if ld.Config.Mode == 0 {
-		ld.Config.Mode = LoadFiles // Preserve zero behavior of Mode for backwards compatibility.
+		ld.Config.Mode = NeedName | NeedFiles | NeedCompiledGoFiles // Preserve zero behavior of Mode for backwards compatibility.
 	}
 	if ld.Config.Env == nil {
 		ld.Config.Env = os.Environ()
@@ -671,7 +674,7 @@ func (ld *loader) loadRecursive(lpkg *loaderPackage) {
 // loadPackage loads the specified package.
 // It must be called only once per Package,
 // after immediate dependencies are loaded.
-// Precondition: ld.Mode >= LoadTypes.
+// Precondition: ld.Mode & NeedTypes.
 func (ld *loader) loadPackage(lpkg *loaderPackage) {
 	if lpkg.PkgPath == "unsafe" {
 		// Fill in the blanks to avoid surprises.
