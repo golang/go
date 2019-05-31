@@ -1295,7 +1295,10 @@ type stackObjectRecord struct {
 	typ *_type
 }
 
+// This is exported as ABI0 via linkname so obj can call it.
+//
 //go:nosplit
+//go:linkname morestackc
 func morestackc() {
 	throw("attempt to execute system stack code on user stack")
 }

@@ -206,6 +206,9 @@ func close_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
+//
+// This is exported via linkname to assembly in runtime/cgo.
+//go:linkname exit
 func exit(code int32) {
 	libcCall(unsafe.Pointer(funcPC(exit_trampoline)), unsafe.Pointer(&code))
 }

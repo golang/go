@@ -369,6 +369,9 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 //
 // The signal handler must not inject a call to sigpanic if
 // getg().throwsplit, since sigpanic may need to grow the stack.
+//
+// This is exported via linkname to assembly in runtime/cgo.
+//go:linkname sigpanic
 func sigpanic() {
 	g := getg()
 	if !canpanic(g) {
@@ -843,7 +846,11 @@ func signalstack(s *stack) {
 }
 
 // setsigsegv is used on darwin/arm{,64} to fake a segmentation fault.
+//
+// This is exported via linkname to assembly in runtime/cgo.
+//
 //go:nosplit
+//go:linkname setsigsegv
 func setsigsegv(pc uintptr) {
 	g := getg()
 	g.sig = _SIGSEGV

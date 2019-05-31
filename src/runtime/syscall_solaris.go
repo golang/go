@@ -31,7 +31,11 @@ var pipe1x libcFunc // name to take addr of pipe1
 
 func pipe1() // declared for vet; do NOT call
 
+// Many of these are exported via linkname to assembly in the syscall
+// package.
+
 //go:nosplit
+//go:linkname syscall_sysvicall6
 func syscall_sysvicall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
 	call := libcall{
 		fn:   fn,
@@ -45,6 +49,7 @@ func syscall_sysvicall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err 
 }
 
 //go:nosplit
+//go:linkname syscall_rawsysvicall6
 func syscall_rawsysvicall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
 	call := libcall{
 		fn:   fn,
@@ -60,6 +65,7 @@ func syscall_rawsysvicall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, e
 // with calls to sysvicallN.
 
 //go:nosplit
+//go:linkname syscall_chdir
 func syscall_chdir(path uintptr) (err uintptr) {
 	call := libcall{
 		fn:   uintptr(unsafe.Pointer(&libc_chdir)),
@@ -71,6 +77,7 @@ func syscall_chdir(path uintptr) (err uintptr) {
 }
 
 //go:nosplit
+//go:linkname syscall_chroot
 func syscall_chroot(path uintptr) (err uintptr) {
 	call := libcall{
 		fn:   uintptr(unsafe.Pointer(&libc_chroot)),
@@ -83,6 +90,7 @@ func syscall_chroot(path uintptr) (err uintptr) {
 
 // like close, but must not split stack, for forkx.
 //go:nosplit
+//go:linkname syscall_close
 func syscall_close(fd int32) int32 {
 	return int32(sysvicall1(&libc_close, uintptr(fd)))
 }
@@ -90,11 +98,13 @@ func syscall_close(fd int32) int32 {
 const _F_DUP2FD = 0x9
 
 //go:nosplit
+//go:linkname syscall_dup2
 func syscall_dup2(oldfd, newfd uintptr) (val, err uintptr) {
 	return syscall_fcntl(oldfd, _F_DUP2FD, newfd)
 }
 
 //go:nosplit
+//go:linkname syscall_execve
 func syscall_execve(path, argv, envp uintptr) (err uintptr) {
 	call := libcall{
 		fn:   uintptr(unsafe.Pointer(&libc_execve)),
@@ -107,11 +117,13 @@ func syscall_execve(path, argv, envp uintptr) (err uintptr) {
 
 // like exit, but must not split stack, for forkx.
 //go:nosplit
+//go:linkname syscall_exit
 func syscall_exit(code uintptr) {
 	sysvicall1(&libc_exit, code)
 }
 
 //go:nosplit
+//go:linkname syscall_fcntl
 func syscall_fcntl(fd, cmd, arg uintptr) (val, err uintptr) {
 	call := libcall{
 		fn:   uintptr(unsafe.Pointer(&libc_fcntl)),
@@ -123,6 +135,7 @@ func syscall_fcntl(fd, cmd, arg uintptr) (val, err uintptr) {
 }
 
 //go:nosplit
+//go:linkname syscall_forkx
 func syscall_forkx(flags uintptr) (pid uintptr, err uintptr) {
 	call := libcall{
 		fn:   uintptr(unsafe.Pointer(&libc_forkx)),
@@ -133,6 +146,7 @@ func syscall_forkx(flags uintptr) (pid uintptr, err uintptr) {
 	return call.r1, call.err
 }
 
+//go:linkname syscall_gethostname
 func syscall_gethostname() (name string, err uintptr) {
 	cname := new([_MAXHOSTNAMELEN]byte)
 	var args = [2]uintptr{uintptr(unsafe.Pointer(&cname[0])), _MAXHOSTNAMELEN}
@@ -152,6 +166,7 @@ func syscall_gethostname() (name string, err uintptr) {
 }
 
 //go:nosplit
+//go:linkname syscall_getpid
 func syscall_getpid() (pid, err uintptr) {
 	call := libcall{
 		fn:   uintptr(unsafe.Pointer(&libc_getpid)),
@@ -163,6 +178,7 @@ func syscall_getpid() (pid, err uintptr) {
 }
 
 //go:nosplit
+//go:linkname syscall_ioctl
 func syscall_ioctl(fd, req, arg uintptr) (err uintptr) {
 	call := libcall{
 		fn:   uintptr(unsafe.Pointer(&libc_ioctl)),
@@ -173,6 +189,7 @@ func syscall_ioctl(fd, req, arg uintptr) (err uintptr) {
 	return call.err
 }
 
+//go:linkname syscall_pipe
 func syscall_pipe() (r, w, err uintptr) {
 	call := libcall{
 		fn:   uintptr(unsafe.Pointer(&pipe1x)),
@@ -187,17 +204,22 @@ func syscall_pipe() (r, w, err uintptr) {
 
 // This is syscall.RawSyscall, it exists to satisfy some build dependency,
 // but it doesn't work.
+//
+//go:linkname syscall_rawsyscall
 func syscall_rawsyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 	panic("RawSyscall not available on Solaris")
 }
 
 // This is syscall.RawSyscall6, it exists to avoid a linker error because
 // syscall.RawSyscall6 is already declared. See golang.org/issue/24357
+//
+//go:linkname syscall_rawsyscall6
 func syscall_rawsyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
 	panic("RawSyscall6 not available on Solaris")
 }
 
 //go:nosplit
+//go:linkname syscall_setgid
 func syscall_setgid(gid uintptr) (err uintptr) {
 	call := libcall{
 		fn:   uintptr(unsafe.Pointer(&libc_setgid)),
@@ -209,6 +231,7 @@ func syscall_setgid(gid uintptr) (err uintptr) {
 }
 
 //go:nosplit
+//go:linkname syscall_setgroups
 func syscall_setgroups(ngid, gid uintptr) (err uintptr) {
 	call := libcall{
 		fn:   uintptr(unsafe.Pointer(&libc_setgroups)),
@@ -220,6 +243,7 @@ func syscall_setgroups(ngid, gid uintptr) (err uintptr) {
 }
 
 //go:nosplit
+//go:linkname syscall_setsid
 func syscall_setsid() (pid, err uintptr) {
 	call := libcall{
 		fn:   uintptr(unsafe.Pointer(&libc_setsid)),
@@ -231,6 +255,7 @@ func syscall_setsid() (pid, err uintptr) {
 }
 
 //go:nosplit
+//go:linkname syscall_setuid
 func syscall_setuid(uid uintptr) (err uintptr) {
 	call := libcall{
 		fn:   uintptr(unsafe.Pointer(&libc_setuid)),
@@ -242,6 +267,7 @@ func syscall_setuid(uid uintptr) (err uintptr) {
 }
 
 //go:nosplit
+//go:linkname syscall_setpgid
 func syscall_setpgid(pid, pgid uintptr) (err uintptr) {
 	call := libcall{
 		fn:   uintptr(unsafe.Pointer(&libc_setpgid)),
@@ -252,6 +278,7 @@ func syscall_setpgid(pid, pgid uintptr) (err uintptr) {
 	return call.err
 }
 
+//go:linkname syscall_syscall
 func syscall_syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 	call := libcall{
 		fn:   uintptr(unsafe.Pointer(&libc_syscall)),
@@ -264,6 +291,7 @@ func syscall_syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 	return call.r1, call.r2, call.err
 }
 
+//go:linkname syscall_wait4
 func syscall_wait4(pid uintptr, wstatus *uint32, options uintptr, rusage unsafe.Pointer) (wpid int, err uintptr) {
 	call := libcall{
 		fn:   uintptr(unsafe.Pointer(&libc_wait4)),
@@ -277,6 +305,7 @@ func syscall_wait4(pid uintptr, wstatus *uint32, options uintptr, rusage unsafe.
 }
 
 //go:nosplit
+//go:linkname syscall_write
 func syscall_write(fd, buf, nbyte uintptr) (n, err uintptr) {
 	call := libcall{
 		fn:   uintptr(unsafe.Pointer(&libc_write)),
