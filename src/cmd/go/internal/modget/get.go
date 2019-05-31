@@ -258,7 +258,7 @@ func runGet(cmd *base.Command, args []string) {
 		fmt.Fprintf(os.Stderr, "go get: -fix flag is a no-op when using modules\n")
 	}
 	if *getM {
-		base.Fatalf("go get: -m flag is no longer supported")
+		base.Fatalf("go get: -m flag is no longer supported; consider -d to skip building packages")
 	}
 	modload.LoadTests = *getT
 
