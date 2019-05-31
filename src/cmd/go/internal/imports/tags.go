@@ -8,6 +8,9 @@ import "cmd/go/internal/cfg"
 
 var tags map[string]bool
 
+// Tags returns a set of build tags that are true for the target platform.
+// It includes GOOS, GOARCH, the compiler, possibly "cgo",
+// release tags like "go1.13", and user-specified build tags.
 func Tags() map[string]bool {
 	if tags == nil {
 		tags = loadTags()
@@ -31,4 +34,16 @@ func loadTags() map[string]bool {
 		tags[tag] = true
 	}
 	return tags
+}
+
+var anyTags map[string]bool
+
+// AnyTags returns a special set of build tags that satisfy nearly all
+// build tag expressions. Only "ignore" and malformed build tag requirements
+// are considered false.
+func AnyTags() map[string]bool {
+	if anyTags == nil {
+		anyTags = map[string]bool{"*": true}
+	}
+	return anyTags
 }

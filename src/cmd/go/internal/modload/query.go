@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 
+	"cmd/go/internal/imports"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/module"
 	"cmd/go/internal/search"
@@ -265,7 +266,7 @@ func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]Q
 	if i := strings.Index(pattern, "..."); i >= 0 {
 		base = pathpkg.Dir(pattern[:i+3])
 		match = func(m module.Version, root string, isLocal bool) []string {
-			return matchPackages(pattern, anyTags, false, []module.Version{m})
+			return matchPackages(pattern, imports.AnyTags(), false, []module.Version{m})
 		}
 	} else {
 		match = func(m module.Version, root string, isLocal bool) []string {

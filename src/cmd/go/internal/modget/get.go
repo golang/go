@@ -9,6 +9,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/get"
+	"cmd/go/internal/imports"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
@@ -446,9 +447,8 @@ func runGet(cmd *base.Command, args []string) {
 			// Don't load packages if pkgPatterns is empty. Both
 			// modload.ImportPathsQuiet and ModulePackages convert an empty list
 			// of patterns to []string{"."}, which is not what we want.
-			matches = modload.ImportPathsQuiet(pkgPatterns)
+			matches = modload.ImportPathsQuiet(pkgPatterns, imports.AnyTags())
 			seenPkgs = make(map[string]bool)
-			install = make([]string, 0, len(pkgPatterns))
 			for i, match := range matches {
 				arg := pkgGets[i]
 
@@ -462,7 +462,6 @@ func runGet(cmd *base.Command, args []string) {
 					continue
 				}
 
-				install = append(install, arg.path)
 				allStd := true
 				for _, pkg := range match.Pkgs {
 					if !seenPkgs[pkg] {
@@ -513,7 +512,11 @@ func runGet(cmd *base.Command, args []string) {
 		}
 		prevBuildList = buildList
 	}
-	search.WarnUnmatched(matches) // don't warn on every iteration
+	if !*getD {
+		// Only print warnings after the last iteration,
+		// and only if we aren't going to build.
+		search.WarnUnmatched(matches)
+	}
 
 	// Handle downgrades.
 	var down []module.Version
@@ -606,16 +609,17 @@ func runGet(cmd *base.Command, args []string) {
 
 	// If -d was specified, we're done after the module work.
 	// We've already downloaded modules by loading packages above.
-	// Otherwise, we need to build and install the packages matched
-	// by command line arguments.
-	// Note that 'go get -u' without any arguments results in
-	// len(install) == 1 if there's a package in the current directory.
-	// search.CleanPatterns returns "." for empty args.
-	if *getD || len(install) == 0 {
+	// Otherwise, we need to build and install the packages matched by
+	// command line arguments. This may be a different set of packages,
+	// since we only build packages for the target platform.
+	// Note that 'go get -u' without arguments is equivalent to
+	// 'go get -u .', so we'll typically build the package in the current
+	// directory.
+	if *getD || len(pkgPatterns) == 0 {
 		return
 	}
 	work.BuildInit()
-	pkgs := load.PackagesForBuild(install)
+	pkgs := load.PackagesForBuild(pkgPatterns)
 	work.InstallPackages(install, pkgs)
 }
 
