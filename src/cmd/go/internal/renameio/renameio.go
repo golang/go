@@ -12,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"time"
 )
 
 const patternSuffix = ".tmp"
@@ -62,23 +61,20 @@ func WriteToFile(filename string, data io.Reader, perm os.FileMode) (err error) 
 		return err
 	}
 
-	var start time.Time
-	for {
-		err := os.Rename(f.Name(), filename)
-		if err == nil || !isAccessDeniedError(err) {
-			return err
-		}
+	return rename(f.Name(), filename)
+}
 
-		// Windows seems to occasionally trigger spurious "Access is denied" errors
-		// here (see golang.org/issue/31247). We're not sure why. It's probably
-		// worth a little extra latency to avoid propagating the spurious errors.
-		if start.IsZero() {
-			start = time.Now()
-		} else if time.Since(start) >= 500*time.Millisecond {
-			return err
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
+// ReadFile is like ioutil.ReadFile, but on Windows retries spurious errors that
+// may occur if the file is concurrently replaced.
+//
+// Errors are classified heuristically and retries are bounded, so even this
+// function may occasionally return a spurious error on Windows.
+// If so, the error will likely wrap one of:
+// 	- syscall.ERROR_ACCESS_DENIED
+// 	- syscall.ERROR_FILE_NOT_FOUND
+// 	- internal/syscall/windows.ERROR_SHARING_VIOLATION
+func ReadFile(filename string) ([]byte, error) {
+	return readFile(filename)
 }
 
 // tempFile creates a new temporary file with given permission bits.
