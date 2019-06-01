@@ -507,6 +507,7 @@ var testVetFlags = []string{
 	// "-cgocall",
 	// "-composites",
 	// "-copylocks",
+	"-errorsas",
 	// "-httpresponse",
 	// "-lostcancel",
 	// "-methods",
