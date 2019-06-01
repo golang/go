@@ -9,6 +9,8 @@ stderr 'go mod init: modules disabled by GO111MODULE=off; see ''go help modules'
 stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
 ! go mod verify
 stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
+! go mod download
+stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
 
 # Same result in an empty directory
 mkdir z
@@ -18,6 +20,8 @@ stderr 'go mod init: modules disabled by GO111MODULE=off; see ''go help modules'
 ! go mod graph
 stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
 ! go mod verify
+stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
+! go mod download
 stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
 
 -- sample.go --
