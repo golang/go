@@ -13,11 +13,6 @@ func (v *view) loadParseTypecheck(ctx context.Context, f *goFile) ([]packages.Er
 	v.mcache.mu.Lock()
 	defer v.mcache.mu.Unlock()
 
-	// Apply any queued-up content changes.
-	if err := v.applyContentChanges(ctx); err != nil {
-		return nil, err
-	}
-
 	// If the package for the file has not been invalidated by the application
 	// of the pending changes, there is no need to continue.
 	if !f.isDirty() {

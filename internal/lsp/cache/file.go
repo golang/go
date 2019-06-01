@@ -29,6 +29,7 @@ type fileBase struct {
 	fname string
 
 	view  *view
+	fh    source.FileHandle
 	fc    *source.FileContent
 	token *token.File
 }
@@ -70,20 +71,12 @@ func (f *fileBase) read(ctx context.Context) {
 		f.fc = &source.FileContent{Error: err}
 		return
 	}
-	if f.fc != nil {
-		if len(f.view.contentChanges) == 0 {
-			return
-		}
-
-		f.view.mcache.mu.Lock()
-		err := f.view.applyContentChanges(ctx)
-		f.view.mcache.mu.Unlock()
-
-		if err != nil {
-			f.fc = &source.FileContent{Error: err}
-			return
-		}
+	oldFH := f.fh
+	f.fh = f.view.Session().GetFile(f.URI())
+	// do we already have the right contents?
+	if f.fc != nil && f.fh.Identity() == oldFH.Identity() {
+		return
 	}
-	// We don't know the content yet, so read it.
-	f.fc = f.view.Session().GetFile(f.URI()).Read(ctx)
+	// update the contents
+	f.fc = f.fh.Read(ctx)
 }

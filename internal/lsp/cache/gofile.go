@@ -85,7 +85,7 @@ func (f *goFile) GetPackage(ctx context.Context) source.Package {
 // isDirty is true if the file needs to be type-checked.
 // It assumes that the file's view's mutex is held by the caller.
 func (f *goFile) isDirty() bool {
-	return f.meta == nil || f.imports == nil || f.token == nil || f.ast == nil || f.pkg == nil || len(f.view.contentChanges) > 0
+	return f.meta == nil || f.imports == nil || f.token == nil || f.ast == nil || f.pkg == nil
 }
 
 func (f *goFile) astIsTrimmed() bool {

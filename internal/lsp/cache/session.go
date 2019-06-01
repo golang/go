@@ -65,17 +65,16 @@ func (s *session) NewView(name string, folder span.URI) source.View {
 	ctx := context.Background()
 	backgroundCtx, cancel := context.WithCancel(ctx)
 	v := &view{
-		session:        s,
-		id:             strconv.FormatInt(index, 10),
-		baseCtx:        ctx,
-		backgroundCtx:  backgroundCtx,
-		cancel:         cancel,
-		name:           name,
-		env:            os.Environ(),
-		folder:         folder,
-		filesByURI:     make(map[span.URI]viewFile),
-		filesByBase:    make(map[string][]viewFile),
-		contentChanges: make(map[span.URI]func()),
+		session:       s,
+		id:            strconv.FormatInt(index, 10),
+		baseCtx:       ctx,
+		backgroundCtx: backgroundCtx,
+		cancel:        cancel,
+		name:          name,
+		env:           os.Environ(),
+		folder:        folder,
+		filesByURI:    make(map[span.URI]viewFile),
+		filesByBase:   make(map[string][]viewFile),
 		mcache: &metadataCache{
 			packages: make(map[string]*metadata),
 		},
