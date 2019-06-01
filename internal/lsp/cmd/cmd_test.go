@@ -61,6 +61,10 @@ func (r *runner) Link(t *testing.T, data tests.Links) {
 	//TODO: add command line link tests when it works
 }
 
+func (r *runner) Import(t *testing.T, data tests.Imports) {
+	//TODO: add command line imports tests when it works
+}
+
 func captureStdOut(t testing.TB, f func()) string {
 	r, out, err := os.Pipe()
 	if err != nil {

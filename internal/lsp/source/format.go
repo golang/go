@@ -64,7 +64,7 @@ func Imports(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) 
 	if tok == nil {
 		return nil, fmt.Errorf("no token file for %s", f.URI())
 	}
-	formatted, err := imports.Process(f.GetToken(ctx).Name(), fc.Data, nil)
+	formatted, err := imports.Process(tok.Name(), fc.Data, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -11,9 +11,7 @@ import (
 	"go/parser"
 	"go/token"
 	"io/ioutil"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -32,6 +30,7 @@ const (
 	ExpectedCompletionSnippetCount = 14
 	ExpectedDiagnosticsCount       = 17
 	ExpectedFormatCount            = 5
+	ExpectedImportCount            = 2
 	ExpectedDefinitionsCount       = 35
 	ExpectedTypeDefinitionsCount   = 2
 	ExpectedHighlightsCount        = 2
@@ -54,6 +53,7 @@ type CompletionItems map[token.Pos]*source.CompletionItem
 type Completions map[span.Span][]token.Pos
 type CompletionSnippets map[span.Span]CompletionSnippet
 type Formats []span.Span
+type Imports []span.Span
 type Definitions map[span.Span]Definition
 type Highlights map[string][]span.Span
 type Symbols map[span.URI][]source.Symbol
@@ -69,6 +69,7 @@ type Data struct {
 	Completions        Completions
 	CompletionSnippets CompletionSnippets
 	Formats            Formats
+	Imports            Imports
 	Definitions        Definitions
 	Highlights         Highlights
 	Symbols            Symbols
@@ -86,6 +87,7 @@ type Tests interface {
 	Diagnostics(*testing.T, Diagnostics)
 	Completion(*testing.T, Completions, CompletionSnippets, CompletionItems)
 	Format(*testing.T, Formats)
+	Import(*testing.T, Imports)
 	Definition(*testing.T, Definitions)
 	Highlight(*testing.T, Highlights)
 	Symbol(*testing.T, Symbols)
@@ -202,6 +204,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		"item":      data.collectCompletionItems,
 		"complete":  data.collectCompletions,
 		"format":    data.collectFormats,
+		"import":    data.collectImports,
 		"godef":     data.collectDefinitions,
 		"typdef":    data.collectTypeDefinitions,
 		"hover":     data.collectHoverDefinitions,
@@ -256,18 +259,18 @@ func Run(t *testing.T, tests Tests, data *Data) {
 
 	t.Run("Format", func(t *testing.T) {
 		t.Helper()
-		if _, err := exec.LookPath("gofmt"); err != nil {
-			switch runtime.GOOS {
-			case "android":
-				t.Skip("gofmt is not installed")
-			default:
-				t.Fatal(err)
-			}
-		}
 		if len(data.Formats) != ExpectedFormatCount {
 			t.Errorf("got %v formats expected %v", len(data.Formats), ExpectedFormatCount)
 		}
 		tests.Format(t, data.Formats)
+	})
+
+	t.Run("Import", func(t *testing.T) {
+		t.Helper()
+		if len(data.Imports) != ExpectedImportCount {
+			t.Errorf("got %v imports expected %v", len(data.Imports), ExpectedImportCount)
+		}
+		tests.Import(t, data.Imports)
 	})
 
 	t.Run("Definition", func(t *testing.T) {
@@ -414,6 +417,10 @@ func (data *Data) collectCompletionItems(pos token.Pos, label, detail, kind stri
 
 func (data *Data) collectFormats(spn span.Span) {
 	data.Formats = append(data.Formats, spn)
+}
+
+func (data *Data) collectImports(spn span.Span) {
+	data.Imports = append(data.Imports, spn)
 }
 
 func (data *Data) collectDefinitions(src, target span.Span) {

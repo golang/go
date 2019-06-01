@@ -1,0 +1,27 @@
+-- goimports --
+package imports //@import("package")
+
+import (
+	"fmt"
+	"log"
+)
+
+func goodbye() {
+	fmt.Printf("HI")
+	log.Printf("byeeeee")
+}
+
+-- goimports-d --
+--- imports/needs_imports.go.orig
++++ imports/needs_imports.go
+@@ -1,5 +1,10 @@
+ package imports //@import("package")
+ 
++import (
++	"fmt"
++	"log"
++)
++
+ func goodbye() {
+ 	fmt.Printf("HI")
+ 	log.Printf("byeeeee")

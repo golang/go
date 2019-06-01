@@ -322,6 +322,53 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 	}
 }
 
+func (r *runner) Import(t *testing.T, data tests.Imports) {
+	ctx := context.Background()
+	for _, spn := range data {
+		uri := spn.URI()
+		filename, err := uri.Filename()
+		if err != nil {
+			t.Fatal(err)
+		}
+		goimported := string(r.data.Golden("goimports", filename, func() ([]byte, error) {
+			cmd := exec.Command("goimports", filename)
+			out, _ := cmd.Output() // ignore error, sometimes we have intentionally ungofmt-able files
+			return out, nil
+		}))
+
+		actions, err := r.server.CodeAction(context.Background(), &protocol.CodeActionParams{
+			TextDocument: protocol.TextDocumentIdentifier{
+				URI: protocol.NewURI(uri),
+			},
+		})
+		if err != nil {
+			if goimported != "" {
+				t.Error(err)
+			}
+			continue
+		}
+		_, m, err := getSourceFile(ctx, r.server.session.ViewOf(uri), uri)
+		if err != nil {
+			t.Error(err)
+		}
+		var edits []protocol.TextEdit
+		for _, a := range actions {
+			if a.Title == "Organize Imports" {
+				edits = (*a.Edit.Changes)[string(uri)]
+			}
+		}
+		sedits, err := FromProtocolEdits(m, edits)
+		if err != nil {
+			t.Error(err)
+		}
+		ops := source.EditsToDiff(sedits)
+		got := strings.Join(diff.ApplyEdits(diff.SplitLines(string(m.Content)), ops), "")
+		if goimported != got {
+			t.Errorf("import failed for %s, expected:\n%v\ngot:\n%v", filename, goimported, got)
+		}
+	}
+}
+
 func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 	for _, d := range data {
 		sm, err := r.mapper(d.Src.URI())
