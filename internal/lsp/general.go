@@ -188,6 +188,15 @@ func (s *Server) processConfig(view source.View, config interface{}) error {
 	if noDocsOnHover, ok := c["noDocsOnHover"].(bool); ok {
 		s.noDocsOnHover = noDocsOnHover
 	}
+	// Check if the user has explicitly disabled any analyses.
+	if disabledAnalyses, ok := c["experimentalDisabledAnalyses"].([]interface{}); ok {
+		s.disabledAnalyses = make(map[string]struct{})
+		for _, a := range disabledAnalyses {
+			if a, ok := a.(string); ok {
+				s.disabledAnalyses[a] = struct{}{}
+			}
+		}
+	}
 	return nil
 }
 

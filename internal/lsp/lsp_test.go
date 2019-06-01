@@ -68,7 +68,7 @@ func (r *runner) Diagnostics(t *testing.T, data tests.Diagnostics) {
 		if !ok {
 			t.Fatalf("%s is not a Go file: %v", uri, err)
 		}
-		results, err := source.Diagnostics(context.Background(), v, gof)
+		results, err := source.Diagnostics(context.Background(), v, gof, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

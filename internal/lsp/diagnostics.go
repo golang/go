@@ -28,7 +28,7 @@ func (s *Server) Diagnostics(ctx context.Context, v source.View, uri span.URI) {
 	if !ok {
 		return
 	}
-	reports, err := source.Diagnostics(ctx, v, gof)
+	reports, err := source.Diagnostics(ctx, v, gof, s.disabledAnalyses)
 	if err != nil {
 		s.session.Logger().Errorf(ctx, "failed to compute diagnostics for %s: %v", gof.URI(), err)
 		return

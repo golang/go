@@ -51,7 +51,7 @@ const (
 	SeverityError
 )
 
-func Diagnostics(ctx context.Context, v View, f GoFile) (map[span.URI][]Diagnostic, error) {
+func Diagnostics(ctx context.Context, v View, f GoFile, disabledAnalyses map[string]struct{}) (map[span.URI][]Diagnostic, error) {
 	pkg := f.GetPackage(ctx)
 	if pkg == nil {
 		return singleDiagnostic(f.URI(), "%s is not part of a package", f.URI()), nil
@@ -70,7 +70,7 @@ func Diagnostics(ctx context.Context, v View, f GoFile) (map[span.URI][]Diagnost
 	// Run diagnostics for the package that this URI belongs to.
 	if !diagnostics(ctx, v, pkg, reports) {
 		// If we don't have any list, parse, or type errors, run analyses.
-		if err := analyses(ctx, v, pkg, reports); err != nil {
+		if err := analyses(ctx, v, pkg, disabledAnalyses, reports); err != nil {
 			v.Session().Logger().Errorf(ctx, "failed to run analyses for %s: %v", f.URI(), err)
 		}
 	}
@@ -126,9 +126,9 @@ func diagnostics(ctx context.Context, v View, pkg Package, reports map[span.URI]
 	return len(diags) != 0
 }
 
-func analyses(ctx context.Context, v View, pkg Package, reports map[span.URI][]Diagnostic) error {
+func analyses(ctx context.Context, v View, pkg Package, disabledAnalyses map[string]struct{}, reports map[span.URI][]Diagnostic) error {
 	// Type checking and parsing succeeded. Run analyses.
-	if err := runAnalyses(ctx, v, pkg, func(a *analysis.Analyzer, diag analysis.Diagnostic) error {
+	if err := runAnalyses(ctx, v, pkg, disabledAnalyses, func(a *analysis.Analyzer, diag analysis.Diagnostic) error {
 		r := span.NewRange(v.Session().Cache().FileSet(), diag.Pos, diag.End)
 		s, err := r.Span()
 		if err != nil {
@@ -234,9 +234,10 @@ func singleDiagnostic(uri span.URI, format string, a ...interface{}) map[span.UR
 	}
 }
 
-func runAnalyses(ctx context.Context, v View, pkg Package, report func(a *analysis.Analyzer, diag analysis.Diagnostic) error) error {
+func runAnalyses(ctx context.Context, v View, pkg Package, disabledAnalyses map[string]struct{}, report func(a *analysis.Analyzer, diag analysis.Diagnostic) error) error {
 	// The traditional vet suite:
-	analyzers := []*analysis.Analyzer{
+	var analyzers []*analysis.Analyzer
+	for _, a := range []*analysis.Analyzer{
 		asmdecl.Analyzer,
 		assign.Analyzer,
 		atomic.Analyzer,
@@ -259,6 +260,11 @@ func runAnalyses(ctx context.Context, v View, pkg Package, report func(a *analys
 		unreachable.Analyzer,
 		unsafeptr.Analyzer,
 		unusedresult.Analyzer,
+	} {
+		if _, ok := disabledAnalyses[a.Name]; ok {
+			continue
+		}
+		analyzers = append(analyzers, a)
 	}
 
 	roots, err := analyze(ctx, v, []Package{pkg}, analyzers)
