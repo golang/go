@@ -177,15 +177,13 @@ func (v *view) BackgroundContext() context.Context {
 }
 
 func (v *view) BuiltinPackage() *ast.Package {
-	if v.builtinPkg == nil {
-		v.buildBuiltinPkg()
-	}
 	return v.builtinPkg
 }
 
+// buildBuiltinPkg builds the view's builtin package.
+// It assumes that the view is not active yet,
+// i.e. it has not been added to the session's list of views.
 func (v *view) buildBuiltinPkg() {
-	v.mu.Lock()
-	defer v.mu.Unlock()
 	cfg := *v.buildConfig()
 	pkgs, _ := packages.Load(&cfg, "builtin")
 	if len(pkgs) != 1 {
