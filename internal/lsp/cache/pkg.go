@@ -161,5 +161,9 @@ func (pkg *pkg) IsIllTyped() bool {
 }
 
 func (pkg *pkg) GetImport(pkgPath string) source.Package {
-	return pkg.imports[pkgPath]
+	if imp := pkg.imports[pkgPath]; imp != nil {
+		return imp
+	}
+	// Don't return a nil pointer because that still satisfies the interface.
+	return nil
 }
