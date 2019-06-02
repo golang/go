@@ -105,7 +105,6 @@ func Global() Value {
 //  | Go                     | JavaScript             |
 //  | ---------------------- | ---------------------- |
 //  | js.Value               | [its value]            |
-//  | js.TypedArray          | typed array            |
 //  | js.Func                | function               |
 //  | nil                    | null                   |
 //  | bool                   | boolean                |
