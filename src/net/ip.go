@@ -565,7 +565,7 @@ func parseIPv6Zone(s string) (IP, string) {
 	return parseIPv6(s), zone
 }
 
-// parseIPv6Zone parses s as a literal IPv6 address described in RFC 4291
+// parseIPv6 parses s as a literal IPv6 address described in RFC 4291
 // and RFC 5952.
 func parseIPv6(s string) (ip IP) {
 	ip = make(IP, IPv6len)
