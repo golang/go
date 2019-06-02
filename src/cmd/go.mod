@@ -8,5 +8,5 @@ require (
 	golang.org/x/arch v0.0.0-20181203225421-5a4828bb7045
 	golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c
 	golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 // indirect
-	golang.org/x/tools v0.0.0-20190514135123-4789ca9922f0
+	golang.org/x/tools v0.0.0-20190602112858-2de7f9bf822c
 )

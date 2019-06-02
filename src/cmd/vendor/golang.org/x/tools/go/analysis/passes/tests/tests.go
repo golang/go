@@ -20,7 +20,10 @@ const Doc = `check for common mistaken usages of tests and examples
 
 The tests checker walks Test, Benchmark and Example functions checking
 malformed names, wrong signatures and examples documenting non-existent
-identifiers.`
+identifiers.
+
+Please see the documentation for package testing in golang.org/pkg/testing
+for the conventions that are enforced for Tests, Benchmarks, and Examples.`
 
 var Analyzer = &analysis.Analyzer{
 	Name: "tests",
