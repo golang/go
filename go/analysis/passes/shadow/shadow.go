@@ -160,7 +160,7 @@ func checkShadowAssignment(pass *analysis.Pass, spans map[types.Object]span, a *
 	for _, expr := range a.Lhs {
 		ident, ok := expr.(*ast.Ident)
 		if !ok {
-			pass.Reportf(expr.Pos(), "invalid AST: short variable declaration of non-identifier")
+			pass.ReportRangef(expr, "invalid AST: short variable declaration of non-identifier")
 			return
 		}
 		checkShadowing(pass, spans, ident)
@@ -182,7 +182,7 @@ func idiomaticShortRedecl(pass *analysis.Pass, a *ast.AssignStmt) bool {
 	for i, expr := range a.Lhs {
 		lhs, ok := expr.(*ast.Ident)
 		if !ok {
-			pass.Reportf(expr.Pos(), "invalid AST: short variable declaration of non-identifier")
+			pass.ReportRangef(expr, "invalid AST: short variable declaration of non-identifier")
 			return true // Don't do any more processing.
 		}
 		switch rhs := a.Rhs[i].(type) {
@@ -230,7 +230,7 @@ func checkShadowDecl(pass *analysis.Pass, spans map[types.Object]span, d *ast.Ge
 	for _, spec := range d.Specs {
 		valueSpec, ok := spec.(*ast.ValueSpec)
 		if !ok {
-			pass.Reportf(spec.Pos(), "invalid AST: var GenDecl not ValueSpec")
+			pass.ReportRangef(spec, "invalid AST: var GenDecl not ValueSpec")
 			return
 		}
 		// Don't complain about deliberate redeclarations of the form
@@ -274,7 +274,7 @@ func checkShadowing(pass *analysis.Pass, spans map[types.Object]span, ident *ast
 		// the shadowing identifier.
 		span, ok := spans[shadowed]
 		if !ok {
-			pass.Reportf(ident.Pos(), "internal error: no range for %q", ident.Name)
+			pass.ReportRangef(ident, "internal error: no range for %q", ident.Name)
 			return
 		}
 		if !span.contains(ident.Pos()) {
@@ -284,6 +284,6 @@ func checkShadowing(pass *analysis.Pass, spans map[types.Object]span, ident *ast
 	// Don't complain if the types differ: that implies the programmer really wants two different things.
 	if types.Identical(obj.Type(), shadowed.Type()) {
 		line := pass.Fset.Position(shadowed.Pos()).Line
-		pass.Reportf(ident.Pos(), "declaration of %q shadows declaration at line %d", obj.Name(), line)
+		pass.ReportRangef(ident, "declaration of %q shadows declaration at line %d", obj.Name(), line)
 	}
 }

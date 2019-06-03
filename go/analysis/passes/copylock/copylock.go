@@ -74,7 +74,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 func checkCopyLocksAssign(pass *analysis.Pass, as *ast.AssignStmt) {
 	for i, x := range as.Rhs {
 		if path := lockPathRhs(pass, x); path != nil {
-			pass.Reportf(x.Pos(), "assignment copies lock value to %v: %v", analysisutil.Format(pass.Fset, as.Lhs[i]), path)
+			pass.ReportRangef(x, "assignment copies lock value to %v: %v", analysisutil.Format(pass.Fset, as.Lhs[i]), path)
 		}
 	}
 }
@@ -89,7 +89,7 @@ func checkCopyLocksGenDecl(pass *analysis.Pass, gd *ast.GenDecl) {
 		valueSpec := spec.(*ast.ValueSpec)
 		for i, x := range valueSpec.Values {
 			if path := lockPathRhs(pass, x); path != nil {
-				pass.Reportf(x.Pos(), "variable declaration copies lock value to %v: %v", valueSpec.Names[i].Name, path)
+				pass.ReportRangef(x, "variable declaration copies lock value to %v: %v", valueSpec.Names[i].Name, path)
 			}
 		}
 	}
@@ -102,7 +102,7 @@ func checkCopyLocksCompositeLit(pass *analysis.Pass, cl *ast.CompositeLit) {
 			x = node.Value
 		}
 		if path := lockPathRhs(pass, x); path != nil {
-			pass.Reportf(x.Pos(), "literal copies lock value from %v: %v", analysisutil.Format(pass.Fset, x), path)
+			pass.ReportRangef(x, "literal copies lock value from %v: %v", analysisutil.Format(pass.Fset, x), path)
 		}
 	}
 }
@@ -111,7 +111,7 @@ func checkCopyLocksCompositeLit(pass *analysis.Pass, cl *ast.CompositeLit) {
 func checkCopyLocksReturnStmt(pass *analysis.Pass, rs *ast.ReturnStmt) {
 	for _, x := range rs.Results {
 		if path := lockPathRhs(pass, x); path != nil {
-			pass.Reportf(x.Pos(), "return copies lock value: %v", path)
+			pass.ReportRangef(x, "return copies lock value: %v", path)
 		}
 	}
 }
@@ -133,7 +133,7 @@ func checkCopyLocksCallExpr(pass *analysis.Pass, ce *ast.CallExpr) {
 	}
 	for _, x := range ce.Args {
 		if path := lockPathRhs(pass, x); path != nil {
-			pass.Reportf(x.Pos(), "call of %s copies lock value: %v", analysisutil.Format(pass.Fset, ce.Fun), path)
+			pass.ReportRangef(x, "call of %s copies lock value: %v", analysisutil.Format(pass.Fset, ce.Fun), path)
 		}
 	}
 }
@@ -146,7 +146,7 @@ func checkCopyLocksFunc(pass *analysis.Pass, name string, recv *ast.FieldList, t
 	if recv != nil && len(recv.List) > 0 {
 		expr := recv.List[0].Type
 		if path := lockPath(pass.Pkg, pass.TypesInfo.Types[expr].Type); path != nil {
-			pass.Reportf(expr.Pos(), "%s passes lock by value: %v", name, path)
+			pass.ReportRangef(expr, "%s passes lock by value: %v", name, path)
 		}
 	}
 
@@ -154,7 +154,7 @@ func checkCopyLocksFunc(pass *analysis.Pass, name string, recv *ast.FieldList, t
 		for _, field := range typ.Params.List {
 			expr := field.Type
 			if path := lockPath(pass.Pkg, pass.TypesInfo.Types[expr].Type); path != nil {
-				pass.Reportf(expr.Pos(), "%s passes lock by value: %v", name, path)
+				pass.ReportRangef(expr, "%s passes lock by value: %v", name, path)
 			}
 		}
 	}

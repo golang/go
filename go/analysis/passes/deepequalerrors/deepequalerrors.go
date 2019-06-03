@@ -45,7 +45,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			return
 		}
 		if fn.FullName() == "reflect.DeepEqual" && hasError(pass, call.Args[0]) && hasError(pass, call.Args[1]) {
-			pass.Reportf(call.Pos(), "avoid using reflect.DeepEqual with errors")
+			pass.ReportRangef(call, "avoid using reflect.DeepEqual with errors")
 		}
 	})
 	return nil, nil

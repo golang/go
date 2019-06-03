@@ -66,7 +66,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				eq := strings.IndexByte(pair, '=')
 				result[pair[:eq]] = pair[1+eq:]
 			}
-			pass.Reportf(spec.Pos(), "%s", strings.Join(fact, " "))
+			pass.ReportRangef(spec, "%s", strings.Join(fact, " "))
 		}
 	}
 

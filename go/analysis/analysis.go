@@ -163,13 +163,19 @@ func (pass *Pass) Reportf(pos token.Pos, format string, args ...interface{}) {
 	pass.Report(Diagnostic{Pos: pos, Message: msg})
 }
 
-// reportNodef is a helper function that reports a Diagnostic using the
-// range denoted by the AST node.
-//
-// WARNING: This is an experimental API and may change in the future.
-func (pass *Pass) reportNodef(node ast.Node, format string, args ...interface{}) {
+// The Range interface provides a range. It's equivalent to and satisfied by
+// ast.Node.
+type Range interface {
+	Pos() token.Pos // position of first character belonging to the node
+	End() token.Pos // position of first character immediately after the node
+}
+
+// ReportRangef is a helper function that reports a Diagnostic using the
+// range provided. ast.Node values can be passed in as the range because
+// they satisfy the Range interface.
+func (pass *Pass) ReportRangef(rng Range, format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	pass.Report(Diagnostic{Pos: node.Pos(), End: node.End(), Message: msg})
+	pass.Report(Diagnostic{Pos: rng.Pos(), End: rng.End(), Message: msg})
 }
 
 func (pass *Pass) String() string {

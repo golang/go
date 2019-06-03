@@ -110,7 +110,7 @@ func check64BitAlignment(pass *analysis.Pass, funcName string, arg ast.Expr) {
 		return // 64-bit aligned
 	}
 
-	pass.Reportf(arg.Pos(), "address of non 64-bit aligned field .%s passed to atomic.%s", tvar.Name(), funcName)
+	pass.ReportRangef(arg, "address of non 64-bit aligned field .%s passed to atomic.%s", tvar.Name(), funcName)
 }
 
 // imports reports whether pkg has path among its direct imports.
