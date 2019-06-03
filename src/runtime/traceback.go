@@ -119,6 +119,8 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	}
 	level, _, _ := gotraceback()
 
+	var ctxt *funcval // Context pointer for unstarted goroutines. See issue #25897.
+
 	if pc0 == ^uintptr(0) && sp0 == ^uintptr(0) { // Signal to fetch saved values from gp.
 		if gp.syscallsp != 0 {
 			pc0 = gp.syscallpc
@@ -132,6 +134,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			if usesLR {
 				lr0 = gp.sched.lr
 			}
+			ctxt = (*funcval)(gp.sched.ctxt)
 		}
 	}
 
@@ -300,9 +303,10 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			var ok bool
 			frame.arglen, frame.argmap, ok = getArgInfoFast(f, callback != nil)
 			if !ok {
-				frame.arglen, frame.argmap = getArgInfo(&frame, f, callback != nil, nil)
+				frame.arglen, frame.argmap = getArgInfo(&frame, f, callback != nil, ctxt)
 			}
 		}
+		ctxt = nil // ctxt is only needed to get arg maps for the topmost frame
 
 		// Determine frame's 'continuation PC', where it can continue.
 		// Normally this is the return address on the stack, but if sigpanic
@@ -593,10 +597,10 @@ func getArgInfoFast(f funcInfo, needArgMap bool) (arglen uintptr, argmap *bitvec
 // with call frame frame.
 //
 // This is used for both actual calls with active stack frames and for
-// deferred calls that are not yet executing. If this is an actual
+// deferred calls or goroutines that are not yet executing. If this is an actual
 // call, ctxt must be nil (getArgInfo will retrieve what it needs from
-// the active stack frame). If this is a deferred call, ctxt must be
-// the function object that was deferred.
+// the active stack frame). If this is a deferred call or unstarted goroutine,
+// ctxt must be the function object that was deferred or go'd.
 func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool, ctxt *funcval) (arglen uintptr, argmap *bitvector) {
 	arglen = uintptr(f.args)
 	if needArgMap && f.args == _ArgsSizeUnknown {
@@ -609,8 +613,8 @@ func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool, ctxt *funcval) (ar
 			var retValid bool
 			if ctxt != nil {
 				// This is not an actual call, but a
-				// deferred call. The function value
-				// is itself the *reflect.methodValue.
+				// deferred call or an unstarted goroutine.
+				// The function value is itself the *reflect.methodValue.
 				mv = (*reflectMethodValue)(unsafe.Pointer(ctxt))
 			} else {
 				// This is a real call that took the
