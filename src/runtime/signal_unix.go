@@ -268,7 +268,7 @@ func setThreadCPUProfiler(hz int32) {
 }
 
 func sigpipe() {
-	if sigsend(_SIGPIPE) {
+	if signal_ignored(_SIGPIPE) || sigsend(_SIGPIPE) {
 		return
 	}
 	dieFromSignal(_SIGPIPE)
