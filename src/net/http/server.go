@@ -2042,7 +2042,7 @@ func StripPrefix(prefix string, h Handler) Handler {
 			*r2 = *r
 			r2.URL = new(url.URL)
 			*r2.URL = *r.URL
-			r2.URL.Path = cleanPath(p)
+			r2.URL.Path = p
 			h.ServeHTTP(w, r2)
 		} else {
 			NotFound(w, r)
