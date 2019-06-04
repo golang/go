@@ -849,10 +849,6 @@ static int f29748(S29748 *p) { return 0; }
 static void issue29781F(char **p, int n) {}
 #define ISSUE29781C 0
 
-// issue 29878
-uint64_t issue29878exported(int8_t);  // prototype must match
-int16_t issue29878function(uint32_t arg) { return issue29878exported(arg); }
-
 */
 import "C"
 
@@ -2052,14 +2048,6 @@ func issue29781G() {
 		0))
 	C.issue29781F(&p, (C.int)(issue29781X.
 		X))
-}
-
-func test29878(t *testing.T) {
-	const arg uint32 = 123                    // fits into all integer types
-	var ret int16 = C.issue29878function(arg) // no conversions needed
-	if int64(ret) != int64(arg) {
-		t.Errorf("return value unexpected: got %d, want %d", ret, arg)
-	}
 }
 
 // issue 30065

@@ -535,8 +535,3 @@ func test20910(t *testing.T) {
 // issue 28772 part 2
 
 const issue28772Constant2 = C.issue28772Constant2
-
-//export issue29878exported
-func issue29878exported(arg int8) uint64 {
-	return uint64(arg)
-}
