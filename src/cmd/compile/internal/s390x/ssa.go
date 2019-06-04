@@ -800,6 +800,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		bne := s.Prog(s390x.ABNE)
 		bne.To.Type = obj.TYPE_BRANCH
 		gc.Patch(bne, cs)
+	case ssa.OpS390XSYNC:
+		s.Prog(s390x.ASYNC)
 	case ssa.OpClobber:
 		// TODO: implement for clobberdead experiment. Nop is ok for now.
 	default:

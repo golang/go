@@ -187,6 +187,8 @@ func init() {
 		fpstore    = regInfo{inputs: []regMask{ptrspsb, fp, 0}}
 		fpstoreidx = regInfo{inputs: []regMask{ptrsp, ptrsp, fp, 0}}
 
+		sync = regInfo{inputs: []regMask{0}}
+
 		// LoweredAtomicCas may overwrite arg1, so force it to R0 for now.
 		cas = regInfo{inputs: []regMask{ptrsp, r0, gpsp, 0}, outputs: []regMask{gp, 0}, clobbers: r0}
 
@@ -492,6 +494,9 @@ func init() {
 		{name: "FlagLT"}, // CC=1 (less than)
 		{name: "FlagGT"}, // CC=2 (greater than)
 		{name: "FlagOV"}, // CC=3 (overflow)
+
+		// Fast-BCR-serialization to ensure store-load ordering.
+		{name: "SYNC", argLength: 1, reg: sync, asm: "SYNC", typ: "Mem"},
 
 		// Atomic loads. These are just normal loads but return <value,memory> tuples
 		// so they can be properly ordered with other loads.
