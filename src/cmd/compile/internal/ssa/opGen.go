@@ -2054,6 +2054,7 @@ const (
 	OpS390XFlagLT
 	OpS390XFlagGT
 	OpS390XFlagOV
+	OpS390XSYNC
 	OpS390XMOVBZatomicload
 	OpS390XMOVWZatomicload
 	OpS390XMOVDatomicload
@@ -27612,6 +27613,12 @@ var opcodeTable = [...]opInfo{
 	{
 		name:   "FlagOV",
 		argLen: 0,
+		reg:    regInfo{},
+	},
+	{
+		name:   "SYNC",
+		argLen: 1,
+		asm:    s390x.ASYNC,
 		reg:    regInfo{},
 	},
 	{
