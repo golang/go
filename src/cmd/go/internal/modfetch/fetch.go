@@ -293,7 +293,7 @@ func initGoSum() bool {
 
 	goSum.m = make(map[module.Version][]string)
 	goSum.checked = make(map[modSum]bool)
-	data, err := ioutil.ReadFile(GoSumFile)
+	data, err := renameio.ReadFile(GoSumFile)
 	if err != nil && !os.IsNotExist(err) {
 		base.Fatalf("go: %v", err)
 	}
@@ -303,7 +303,7 @@ func initGoSum() bool {
 	// Add old go.modverify file.
 	// We'll delete go.modverify in WriteGoSum.
 	alt := strings.TrimSuffix(GoSumFile, ".sum") + ".modverify"
-	if data, err := ioutil.ReadFile(alt); err == nil {
+	if data, err := renameio.ReadFile(alt); err == nil {
 		migrate := make(map[module.Version][]string)
 		readGoSum(migrate, alt, data)
 		for mod, sums := range migrate {
@@ -363,7 +363,7 @@ func checkMod(mod module.Version) {
 	if err != nil {
 		base.Fatalf("verifying %s@%s: %v", mod.Path, mod.Version, err)
 	}
-	data, err := ioutil.ReadFile(ziphash)
+	data, err := renameio.ReadFile(ziphash)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// This can happen if someone does rm -rf GOPATH/src/cache/download. So it goes.
@@ -490,7 +490,7 @@ func Sum(mod module.Version) string {
 	if err != nil {
 		return ""
 	}
-	data, err := ioutil.ReadFile(ziphash)
+	data, err := renameio.ReadFile(ziphash)
 	if err != nil {
 		return ""
 	}
@@ -538,7 +538,7 @@ func WriteGoSum() {
 	if !goSum.overwrite {
 		// Re-read the go.sum file to incorporate any sums added by other processes
 		// in the meantime.
-		data, err := ioutil.ReadFile(GoSumFile)
+		data, err := renameio.ReadFile(GoSumFile)
 		if err != nil && !os.IsNotExist(err) {
 			base.Fatalf("go: re-reading go.sum: %v", err)
 		}

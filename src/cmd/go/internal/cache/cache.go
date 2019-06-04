@@ -261,7 +261,7 @@ func (c *Cache) Trim() {
 	// We maintain in dir/trim.txt the time of the last completed cache trim.
 	// If the cache has been trimmed recently enough, do nothing.
 	// This is the common case.
-	data, _ := ioutil.ReadFile(filepath.Join(c.dir, "trim.txt"))
+	data, _ := renameio.ReadFile(filepath.Join(c.dir, "trim.txt"))
 	t, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
 	if err == nil && now.Sub(time.Unix(t, 0)) < trimInterval {
 		return
