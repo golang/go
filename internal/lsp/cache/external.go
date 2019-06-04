@@ -41,16 +41,14 @@ func (h *nativeFileHandle) Identity() source.FileIdentity {
 	return h.identity
 }
 
-func (h *nativeFileHandle) Read(ctx context.Context) *source.FileContent {
-	r := &source.FileContent{}
+func (h *nativeFileHandle) Read(ctx context.Context) ([]byte, string, error) {
 	filename, err := h.identity.URI.Filename()
 	if err != nil {
-		r.Error = err
-		return r
+		return nil, "", err
 	}
-	r.Data, r.Error = ioutil.ReadFile(filename)
-	if r.Error != nil {
-		r.Hash = hashContents(r.Data)
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, "", err
 	}
-	return r
+	return data, hashContents(data), nil
 }

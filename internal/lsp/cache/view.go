@@ -233,7 +233,7 @@ func (f *goFile) invalidate() {
 	if f.pkg != nil {
 		f.view.remove(f.pkg.pkgPath, map[string]struct{}{})
 	}
-	f.fc = nil
+	f.handle = nil
 }
 
 // remove invalidates a package and its reverse dependencies in the view's

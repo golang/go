@@ -74,11 +74,11 @@ func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) ([]*a
 			}
 
 			// We don't have a cached AST for this file, so we read its content and parse it.
-			gof.read(imp.ctx)
-			if gof.fc.Error != nil {
+			data, _, err := gof.Handle(imp.ctx).Read(imp.ctx)
+			if err != nil {
 				return
 			}
-			src := gof.fc.Data
+			src := data
 			if src == nil {
 				parsed[i], errors[i] = nil, fmt.Errorf("no source for %v", filename)
 				return

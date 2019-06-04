@@ -18,14 +18,6 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-// FileContent is returned from FileSystem implementation to represent the
-// contents of a file.
-type FileContent struct {
-	Data  []byte
-	Error error
-	Hash  string
-}
-
 // FileIdentity uniquely identifies a file at a version from a FileSystem.
 type FileIdentity struct {
 	URI     span.URI
@@ -35,14 +27,14 @@ type FileIdentity struct {
 // FileHandle represents a handle to a specific version of a single file from
 // a specific file system.
 type FileHandle interface {
-	// FileSystem returns the file system this handle was aquired from.
+	// FileSystem returns the file system this handle was acquired from.
 	FileSystem() FileSystem
 	// Return the Identity for the file.
 	Identity() FileIdentity
-	// Read reads the contents of a file and returns it.
-	// If the file is not available, the returned FileContent will have no
-	// data and an error.
-	Read(ctx context.Context) *FileContent
+	// Read reads the contents of a file and returns it along with its hash
+	// value.
+	// If the file is not available, retruns a nil slice and an error.
+	Read(ctx context.Context) ([]byte, string, error)
 }
 
 // FileSystem is the interface to something that provides file contents.
@@ -161,7 +153,7 @@ type View interface {
 type File interface {
 	URI() span.URI
 	View() View
-	Content(ctx context.Context) *FileContent
+	Handle(ctx context.Context) FileHandle
 	FileSet() *token.FileSet
 	GetToken(ctx context.Context) *token.File
 }

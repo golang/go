@@ -90,11 +90,11 @@ func (v *view) reparseImports(ctx context.Context, f *goFile) bool {
 		return true
 	}
 	// Get file content in case we don't already have it.
-	f.read(ctx)
-	if f.fc.Error != nil {
+	data, _, err := f.Handle(ctx).Read(ctx)
+	if err != nil {
 		return true
 	}
-	parsed, _ := parser.ParseFile(f.FileSet(), f.filename(), f.fc.Data, parser.ImportsOnly)
+	parsed, _ := parser.ParseFile(f.FileSet(), f.filename(), data, parser.ImportsOnly)
 	if parsed == nil {
 		return true
 	}

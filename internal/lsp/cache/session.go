@@ -40,7 +40,8 @@ type session struct {
 type overlay struct {
 	session *session
 	uri     span.URI
-	content source.FileContent
+	data    []byte
+	hash    string
 }
 
 func (s *session) Shutdown(ctx context.Context) {
@@ -213,10 +214,8 @@ func (s *session) SetOverlay(uri span.URI, data []byte) {
 	s.overlays[uri] = &overlay{
 		session: s,
 		uri:     uri,
-		content: source.FileContent{
-			Data: data,
-			Hash: hashContents(data),
-		},
+		data:    data,
+		hash:    hashContents(data),
 	}
 }
 
@@ -237,11 +236,8 @@ func (s *session) buildOverlay() map[string][]byte {
 
 	overlays := make(map[string][]byte)
 	for uri, overlay := range s.overlays {
-		if overlay.content.Error != nil {
-			continue
-		}
 		if filename, err := uri.Filename(); err == nil {
-			overlays[filename] = overlay.content.Data
+			overlays[filename] = overlay.data
 		}
 	}
 	return overlays
@@ -254,12 +250,12 @@ func (o *overlay) FileSystem() source.FileSystem {
 func (o *overlay) Identity() source.FileIdentity {
 	return source.FileIdentity{
 		URI:     o.uri,
-		Version: o.content.Hash,
+		Version: o.hash,
 	}
 }
 
-func (o *overlay) Read(ctx context.Context) *source.FileContent {
-	return &o.content
+func (o *overlay) Read(ctx context.Context) ([]byte, string, error) {
+	return o.data, o.hash, nil
 }
 
 type debugSession struct{ *session }
@@ -287,9 +283,9 @@ func (s debugSession) Files() []*debug.File {
 			seen[overlay.uri] = f
 			files = append(files, f)
 		}
-		f.Data = string(overlay.content.Data)
-		f.Error = overlay.content.Error
-		f.Hash = overlay.content.Hash
+		f.Data = string(overlay.data)
+		f.Error = nil
+		f.Hash = overlay.hash
 	}
 	sort.Slice(files, func(i int, j int) bool {
 		return files[i].URI < files[j].URI
@@ -301,13 +297,13 @@ func (s debugSession) File(hash string) *debug.File {
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
 	for _, overlay := range s.overlays {
-		if overlay.content.Hash == hash {
+		if overlay.hash == hash {
 			return &debug.File{
 				Session: s,
 				URI:     overlay.uri,
-				Data:    string(overlay.content.Data),
-				Error:   overlay.content.Error,
-				Hash:    overlay.content.Hash,
+				Data:    string(overlay.data),
+				Error:   nil,
+				Hash:    overlay.hash,
 			}
 		}
 	}
