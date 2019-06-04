@@ -849,6 +849,9 @@ static int f29748(S29748 *p) { return 0; }
 static void issue29781F(char **p, int n) {}
 #define ISSUE29781C 0
 
+// issue 31093
+static uint16_t issue31093F(uint16_t v) { return v; }
+
 */
 import "C"
 
@@ -2072,4 +2075,11 @@ func test30065(t *testing.T) {
 	if d[0] != 'c' {
 		t.Errorf("&d[0] failed: got %c, want %c", d[0], 'c')
 	}
+}
+
+// issue 31093
+// No runtime test; just make sure it compiles.
+
+func Issue31093() {
+	C.issue31093F(C.ushort(0))
 }
