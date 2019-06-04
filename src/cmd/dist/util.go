@@ -326,7 +326,11 @@ func xreaddirfiles(dir string) []string {
 // xworkdir creates a new temporary directory to hold object files
 // and returns the name of that directory.
 func xworkdir() string {
-	name, err := ioutil.TempDir(os.Getenv("GOTMPDIR"), "go-tool-dist-")
+	goTmpDir := os.Getenv("GOTMPDIR")
+	if err := os.MkdirAll(goTmpDir, 0777); err != nil {
+		fatalf("failed to create GOTMPDIR at %s: %s\n", dir, err)
+	}
+	name, err := ioutil.TempDir(goTmpDir, "go-tool-dist-")
 	if err != nil {
 		fatalf("%v", err)
 	}

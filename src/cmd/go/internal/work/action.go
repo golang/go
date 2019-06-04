@@ -249,7 +249,11 @@ func (b *Builder) Init() {
 	if cfg.BuildN {
 		b.WorkDir = "$WORK"
 	} else {
-		tmp, err := ioutil.TempDir(cfg.Getenv("GOTMPDIR"), "go-build")
+		goTmpDir := cfg.Getenv("GOTMPDIR")
+		if err := os.MkdirAll(goTmpDir, 0777); err != nil {
+			fatalf("failed to create GOTMPDIR at %s: %s\n", dir, err)
+		}
+		tmp, err := ioutil.TempDir(goTmpDir, "go-build")
 		if err != nil {
 			base.Fatalf("go: creating work dir: %v", err)
 		}
