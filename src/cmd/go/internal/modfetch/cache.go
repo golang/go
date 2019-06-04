@@ -482,7 +482,7 @@ func readDiskCache(path, rev, suffix string) (file string, data []byte, err erro
 	if err != nil {
 		return "", nil, errNotCached
 	}
-	data, err = ioutil.ReadFile(file)
+	data, err = renameio.ReadFile(file)
 	if err != nil {
 		return file, nil, errNotCached
 	}
@@ -576,7 +576,7 @@ func rewriteVersionList(dir string) {
 		buf.WriteString(v)
 		buf.WriteString("\n")
 	}
-	old, _ := ioutil.ReadFile(listFile)
+	old, _ := renameio.ReadFile(listFile)
 	if bytes.Equal(buf.Bytes(), old) {
 		return
 	}

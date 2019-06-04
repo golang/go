@@ -316,7 +316,7 @@ func InitMod() {
 	}
 
 	gomod := filepath.Join(modRoot, "go.mod")
-	data, err := ioutil.ReadFile(gomod)
+	data, err := renameio.ReadFile(gomod)
 	if err != nil {
 		base.Fatalf("go: %v", err)
 	}
@@ -696,7 +696,7 @@ func WriteGoMod() {
 	defer unlock()
 
 	file := filepath.Join(modRoot, "go.mod")
-	old, err := ioutil.ReadFile(file)
+	old, err := renameio.ReadFile(file)
 	if !bytes.Equal(old, modFileData) {
 		if bytes.Equal(old, new) {
 			// Some other process wrote the same go.mod file that we were about to write.
