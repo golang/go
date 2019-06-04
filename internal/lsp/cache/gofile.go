@@ -112,7 +112,7 @@ func unexpectedAST(ctx context.Context, f *goFile) bool {
 // isDirty is true if the file needs to be type-checked.
 // It assumes that the file's view's mutex is held by the caller.
 func (f *goFile) isDirty() bool {
-	return f.meta == nil || f.token == nil || f.ast == nil || f.pkg == nil
+	return f.meta == nil || len(f.meta.missingImports) > 0 || f.token == nil || f.ast == nil || f.pkg == nil
 }
 
 func (f *goFile) astIsTrimmed() bool {

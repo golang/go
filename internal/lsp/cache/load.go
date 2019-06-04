@@ -19,12 +19,23 @@ func (v *view) loadParseTypecheck(ctx context.Context, f *goFile) ([]packages.Er
 		f.invalidateAST()
 	}
 
+	// Save the metadata's current missing imports, if any.
+	var originalMissingImports map[string]struct{}
+	if f.meta != nil {
+		originalMissingImports = f.meta.missingImports
+	}
 	// Check if we need to run go/packages.Load for this file's package.
 	if errs, err := v.checkMetadata(ctx, f); err != nil {
 		return errs, err
 	}
+	// If `go list` failed to get data for the file in question (this should never happen).
 	if f.meta == nil {
 		return nil, fmt.Errorf("loadParseTypecheck: no metadata found for %v", f.filename())
+	}
+	// If we have already seen these missing imports before, and we still have type information,
+	// there is no need to continue.
+	if sameSet(originalMissingImports, f.meta.missingImports) && f.pkg != nil {
+		return nil, nil
 	}
 
 	imp := &importer{
@@ -51,10 +62,22 @@ func (v *view) loadParseTypecheck(ctx context.Context, f *goFile) ([]packages.Er
 	return nil, nil
 }
 
+func sameSet(x, y map[string]struct{}) bool {
+	if len(x) != len(y) {
+		return false
+	}
+	for k := range x {
+		if _, ok := y[k]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
 // checkMetadata determines if we should run go/packages.Load for this file.
 // If yes, update the metadata for the file and its package.
 func (v *view) checkMetadata(ctx context.Context, f *goFile) ([]packages.Error, error) {
-	if !v.reparseImports(ctx, f) {
+	if !v.parseImports(ctx, f) {
 		return nil, nil
 	}
 	pkgs, err := packages.Load(v.buildConfig(), fmt.Sprintf("file=%s", f.filename()))
@@ -84,8 +107,8 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile) ([]packages.Error, 
 
 // reparseImports reparses a file's package and import declarations to
 // determine if they have changed.
-func (v *view) reparseImports(ctx context.Context, f *goFile) bool {
-	if f.meta == nil {
+func (v *view) parseImports(ctx context.Context, f *goFile) bool {
+	if f.meta == nil || len(f.meta.missingImports) > 0 {
 		return true
 	}
 	// Get file content in case we don't already have it.
@@ -97,6 +120,7 @@ func (v *view) reparseImports(ctx context.Context, f *goFile) bool {
 	if parsed == nil {
 		return true
 	}
+
 	// If the package name has changed, re-run `go list`.
 	if f.meta.name != parsed.Name.Name {
 		return true
@@ -117,11 +141,12 @@ func (v *view) link(ctx context.Context, pkgPath string, pkg *packages.Package, 
 	m, ok := v.mcache.packages[pkgPath]
 	if !ok {
 		m = &metadata{
-			pkgPath:    pkgPath,
-			id:         pkg.ID,
-			typesSizes: pkg.TypesSizes,
-			parents:    make(map[string]bool),
-			children:   make(map[string]bool),
+			pkgPath:        pkgPath,
+			id:             pkg.ID,
+			typesSizes:     pkg.TypesSizes,
+			parents:        make(map[string]bool),
+			children:       make(map[string]bool),
+			missingImports: make(map[string]struct{}),
 		}
 		v.mcache.packages[pkgPath] = m
 	}
@@ -143,6 +168,9 @@ func (v *view) link(ctx context.Context, pkgPath string, pkg *packages.Package, 
 		parent.children[pkgPath] = true
 	}
 	for importPath, importPkg := range pkg.Imports {
+		if len(importPkg.Errors) > 0 {
+			m.missingImports[pkg.PkgPath] = struct{}{}
+		}
 		if _, ok := m.children[importPath]; !ok {
 			v.link(ctx, importPath, importPkg, m)
 		}

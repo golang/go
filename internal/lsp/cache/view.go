@@ -79,6 +79,10 @@ type metadata struct {
 	files             []string
 	typesSizes        types.Sizes
 	parents, children map[string]bool
+
+	// missingImports is the set of unresolved imports for this package.
+	// It contains any packages with `go list` errors.
+	missingImports map[string]struct{}
 }
 
 type packageCache struct {
