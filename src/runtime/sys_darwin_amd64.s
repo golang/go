@@ -369,7 +369,7 @@ TEXT runtime·kevent_trampoline(SB),NOSPLIT,$0
 	MOVQ	40(DI), R9		// arg 6 ts
 	MOVL	0(DI), DI		// arg 1 kq
 	CALL	libc_kevent(SB)
-	CMPQ	AX, $-1
+	CMPL	AX, $-1
 	JNE	ok
 	CALL	libc_error(SB)
 	MOVLQSX	(AX), AX		// errno
@@ -556,6 +556,9 @@ TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
 // }
 // syscall must be called on the g0 stack with the
 // C calling convention (use libcCall).
+//
+// syscall expects a 32-bit result and tests for 32-bit -1
+// to decide there was an error.
 TEXT runtime·syscall(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
@@ -603,6 +606,9 @@ ok:
 // }
 // syscallX must be called on the g0 stack with the
 // C calling convention (use libcCall).
+//
+// syscallX is like syscall but expects a 64-bit result
+// and tests for 64-bit -1 to decide there was an error.
 TEXT runtime·syscallX(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
@@ -689,6 +695,9 @@ ok:
 // }
 // syscall6 must be called on the g0 stack with the
 // C calling convention (use libcCall).
+//
+// syscall6 expects a 32-bit result and tests for 32-bit -1
+// to decide there was an error.
 TEXT runtime·syscall6(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
@@ -739,6 +748,9 @@ ok:
 // }
 // syscall6X must be called on the g0 stack with the
 // C calling convention (use libcCall).
+//
+// syscall6X is like syscall6 but expects a 64-bit result
+// and tests for 64-bit -1 to decide there was an error.
 TEXT runtime·syscall6X(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
