@@ -8,7 +8,6 @@ import (
 	"context"
 	"flag"
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"io/ioutil"
 	"path/filepath"
@@ -191,7 +190,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 	data.Config.Fset = token.NewFileSet()
 	data.Config.Context = context.Background()
 	data.Config.ParseFile = func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
-		return parser.ParseFile(fset, filename, src, parser.AllErrors|parser.ParseComments)
+		panic("ParseFile should not be called")
 	}
 
 	// Do a first pass to collect special markers for completion.

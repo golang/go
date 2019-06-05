@@ -43,6 +43,35 @@ type FileSystem interface {
 	GetFile(uri span.URI) FileHandle
 }
 
+// ParseGoHandle represents a handle to the ast for a file.
+type ParseGoHandle interface {
+	// File returns a file handle to get the ast for.
+	File() FileHandle
+	// Mode returns the parse mode of this handle.
+	Mode() ParseMode
+	// Parse returns the parsed AST for the file.
+	// If the file is not available, returns nil and an error.
+	Parse(ctx context.Context) (*ast.File, error)
+}
+
+// ParseMode controls the content of the AST produced when parsing a source file.
+type ParseMode int
+
+const (
+	// ParseHeader specifies that the main package declaration and imports are needed.
+	// This is the mode used when attempting to examine the package graph structure.
+	ParseHeader = ParseMode(iota)
+	// ParseExported specifies that the public symbols are needed, but things like
+	// private symbols and function bodies are not.
+	// This mode is used for things where a package is being consumed only as a
+	// dependency.
+	ParseExported
+	// ParseFull specifies the full AST is needed.
+	// This is used for files of direct interest where the entire contents must
+	// be considered.
+	ParseFull
+)
+
 // Cache abstracts the core logic of dealing with the environment from the
 // higher level logic that processes the information to produce results.
 // The cache provides access to files and their contents, so the source
@@ -59,6 +88,9 @@ type Cache interface {
 
 	// FileSet returns the shared fileset used by all files in the system.
 	FileSet() *token.FileSet
+
+	// Parse returns a ParseHandle for the given file handle.
+	ParseGo(FileHandle, ParseMode) ParseGoHandle
 }
 
 // Session represents a single connection from a client.

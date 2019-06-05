@@ -8,6 +8,7 @@ import (
 	"context"
 	"go/ast"
 	"go/parser"
+	"go/token"
 	"go/types"
 	"os"
 	"path/filepath"
@@ -124,10 +125,12 @@ func (v *view) buildConfig() *packages.Config {
 			packages.NeedImports |
 			packages.NeedDeps |
 			packages.NeedTypesSizes,
-		Fset:      v.session.cache.fset,
-		Overlay:   v.session.buildOverlay(),
-		ParseFile: parseFile,
-		Tests:     true,
+		Fset:    v.session.cache.fset,
+		Overlay: v.session.buildOverlay(),
+		ParseFile: func(*token.FileSet, string, []byte) (*ast.File, error) {
+			panic("go/packages must not be used to parse files")
+		},
+		Tests: true,
 	}
 }
 

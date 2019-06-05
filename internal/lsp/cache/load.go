@@ -3,9 +3,9 @@ package cache
 import (
 	"context"
 	"fmt"
-	"go/parser"
 
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -115,11 +115,7 @@ func (v *view) parseImports(ctx context.Context, f *goFile) bool {
 		return true
 	}
 	// Get file content in case we don't already have it.
-	data, _, err := f.Handle(ctx).Read(ctx)
-	if err != nil {
-		return true
-	}
-	parsed, _ := parser.ParseFile(f.FileSet(), f.filename(), data, parser.ImportsOnly)
+	parsed, _ := v.session.cache.ParseGo(f.Handle(ctx), source.ParseHeader).Parse(ctx)
 	if parsed == nil {
 		return true
 	}

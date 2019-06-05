@@ -16,16 +16,83 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
 )
 
-func parseFile(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
-	return parser.ParseFile(fset, filename, src, parser.AllErrors|parser.ParseComments)
+type parseKey struct {
+	file source.FileIdentity
+	mode source.ParseMode
+}
+
+type parseGoHandle struct {
+	handle *memoize.Handle
+	file   source.FileHandle
+	mode   source.ParseMode
+}
+
+type parseGoData struct {
+	memoize.NoCopy
+	ast *ast.File
+	err error
 }
 
 // We use a counting semaphore to limit
 // the number of parallel I/O calls per process.
 var ioLimit = make(chan bool, 20)
+
+func (c *cache) ParseGo(fh source.FileHandle, mode source.ParseMode) source.ParseGoHandle {
+	key := parseKey{
+		file: fh.Identity(),
+		mode: mode,
+	}
+	h := c.store.Bind(key, func(ctx context.Context) interface{} {
+		data := &parseGoData{}
+		data.ast, data.err = parseGo(ctx, c, fh, mode)
+		return data
+	})
+	return &parseGoHandle{
+		handle: h,
+	}
+}
+
+func (h *parseGoHandle) File() source.FileHandle {
+	return h.file
+}
+
+func (h *parseGoHandle) Mode() source.ParseMode {
+	return h.mode
+}
+
+func (h *parseGoHandle) Parse(ctx context.Context) (*ast.File, error) {
+	v := h.handle.Get(ctx)
+	if v == nil {
+		return nil, ctx.Err()
+	}
+	data := v.(*parseGoData)
+	return data.ast, data.err
+}
+
+func parseGo(ctx context.Context, c *cache, fh source.FileHandle, mode source.ParseMode) (*ast.File, error) {
+	buf, _, err := fh.Read(ctx)
+	if err != nil {
+		return nil, err
+	}
+	parserMode := parser.AllErrors | parser.ParseComments
+	if mode == source.ParseHeader {
+		parserMode = parser.ImportsOnly
+	}
+	ast, err := parser.ParseFile(c.fset, fh.Identity().URI.Filename(), buf, parserMode)
+	if err != nil {
+		return ast, err
+	}
+	if mode == source.ParseExported {
+		trimAST(ast)
+	}
+	//TODO: move the ast fixup code into here
+	return ast, nil
+}
 
 // parseFiles reads and parses the Go source files and returns the ASTs
 // of the ones that could be at least partially parsed, along with a list
@@ -36,41 +103,26 @@ var ioLimit = make(chan bool, 20)
 //
 func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) ([]*astFile, []error, error) {
 	var (
-		wg       sync.WaitGroup
-		mu       sync.Mutex
-		n        = len(filenames)
-		parsed   = make([]*astFile, n)
-		errors   = make([]error, n)
-		fatalErr error
+		wg     sync.WaitGroup
+		n      = len(filenames)
+		parsed = make([]*astFile, n)
+		errors = make([]error, n)
 	)
-
-	setFatalErr := func(err error) {
-		mu.Lock()
-		fatalErr = err
-		mu.Unlock()
-	}
-
+	// TODO: change this function to return the handles
+	// TODO: eliminate the wait group at this layer, it should be done in the parser
 	for i, filename := range filenames {
 		if err := imp.ctx.Err(); err != nil {
-			setFatalErr(err)
-			break
+			return nil, nil, err
 		}
-		// First, check if we have already cached an AST for this file.
-		f, err := imp.view.findFile(span.FileURI(filename))
-		if err != nil {
-			setFatalErr(err)
-			break
+		// get a file handle
+		fh := imp.view.session.GetFile(span.FileURI(filename))
+		// now get a parser
+		mode := source.ParseFull
+		if ignoreFuncBodies {
+			mode = source.ParseExported
 		}
-		if f == nil {
-			setFatalErr(fmt.Errorf("could not find file %s", filename))
-			break
-		}
-
-		gof, ok := f.(*goFile)
-		if !ok {
-			setFatalErr(fmt.Errorf("non-Go file in parse call: %s", filename))
-			break
-		}
+		ph := imp.view.session.cache.ParseGo(fh, mode)
+		// now read and parse in parallel
 		wg.Add(1)
 		go func(i int, filename string) {
 			ioLimit <- true // wait
@@ -78,48 +130,25 @@ func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) ([]*a
 				<-ioLimit // signal done
 				wg.Done()
 			}()
-
-			// If we already have a cached AST, reuse it.
-			// If the AST is trimmed, only use it if we are ignoring function bodies.
-			if gof.ast != nil && gof.ast.isTrimmed == ignoreFuncBodies {
-				parsed[i], errors[i] = gof.ast, gof.ast.err
-				return
-			}
-
-			// We don't have a cached AST for this file, so we read its content and parse it.
-			src, _, err := gof.Handle(imp.ctx).Read(imp.ctx)
-			if err != nil {
-				setFatalErr(err)
-				return
-			}
-			if src == nil {
-				setFatalErr(fmt.Errorf("no source for %v", filename))
-				return
-			}
-
 			// ParseFile may return a partial AST and an error.
-			f, err := parseFile(imp.fset, filename, src)
+			f, err := ph.Parse(imp.ctx)
 			parsed[i], errors[i] = &astFile{
 				file:      f,
 				err:       err,
 				isTrimmed: ignoreFuncBodies,
 			}, err
-
-			if ignoreFuncBodies {
-				trimAST(f)
-			}
+			// TODO: move fixup into the parse function
 			// Fix any badly parsed parts of the AST.
 			if f != nil {
 				tok := imp.fset.File(f.Pos())
-				imp.view.fix(imp.ctx, f, tok, src)
+				src, _, err := fh.Read(imp.ctx)
+				if err == nil {
+					imp.view.fix(imp.ctx, f, tok, src)
+				}
 			}
 		}(i, filename)
 	}
 	wg.Wait()
-
-	if fatalErr != nil {
-		return nil, nil, fatalErr
-	}
 
 	// Eliminate nils, preserving order.
 	var o int
