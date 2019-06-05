@@ -25,10 +25,10 @@ check:
 	// Copying forward proceeds by copying R7/8 words then copying R6 bytes.
 	// R3 and R4 are advanced as we copy.
 
-        // (There may be implementations of armv8 where copying by bytes until
-        // at least one of source or dest is word aligned is a worthwhile
-        // optimization, but the on the one tested so far (xgene) it did not
-        // make a significance difference.)
+	// (There may be implementations of armv8 where copying by bytes until
+	// at least one of source or dest is word aligned is a worthwhile
+	// optimization, but the on the one tested so far (xgene) it did not
+	// make a significance difference.)
 
 	CBZ	R7, noforwardlarge	// Do we need to do any doubleword-by-doubleword copying?
 
@@ -111,7 +111,7 @@ nobackwardtail:
 	RET
 
 backwardlarge:
-        SUB	R7, R3, R9      // R9 points at the lowest destination byte
+	SUB	R7, R3, R9	// R9 points at the lowest destination byte
 
 backwardlargeloop:
 	LDP	-16(R4), (R8, R10)

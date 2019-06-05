@@ -59,7 +59,7 @@ TEXT asmsyscall6<>(SB),NOSPLIT,$256
 	CMP	R6, R3
 	BNE	skiperrno
 
-    // Save errno in libcall
+	// Save errno in libcall
 	BL	runtime·load_g(SB)
 	MOVD	g_m(g), R4
 	MOVD	(m_mOS + mOS_perrno)(R4), R9
