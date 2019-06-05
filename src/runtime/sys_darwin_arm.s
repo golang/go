@@ -323,7 +323,7 @@ TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
 	BL	libc_exit(SB)
 	RET
 
-TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0
+TEXT runtime·pthread_attr_getstacksize_trampoline(SB),NOSPLIT,$0
 	MOVW	$46, R0
 	BL	libc_exit(SB)
 	RET

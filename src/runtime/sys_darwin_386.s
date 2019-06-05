@@ -474,7 +474,7 @@ TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
 	POPL	BP
 	RET
 
-TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0
+TEXT runtime·pthread_attr_getstacksize_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
 	SUBL	$8, SP
@@ -483,7 +483,7 @@ TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0
 	MOVL	AX, 0(SP)
 	MOVL	4(CX), AX	// arg 2 size
 	MOVL	AX, 4(SP)
-	CALL	libc_pthread_attr_setstacksize(SB)
+	CALL	libc_pthread_attr_getstacksize(SB)
 	MOVL	BP, SP
 	POPL	BP
 	RET

@@ -145,14 +145,14 @@ func newosproc(mp *m) {
 		exit(1)
 	}
 
-	// Set the stack size we want to use.  64KB for now.
-	// TODO: just use OS default size?
-	const stackSize = 1 << 16
-	if pthread_attr_setstacksize(&attr, stackSize) != 0 {
+	// Find out OS stack size for our own stack guard.
+	var stacksize uintptr
+	if pthread_attr_getstacksize(&attr, &stacksize) != 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
 		exit(1)
 	}
-	//mSysStatInc(&memstats.stacks_sys, stackSize) //TODO: do this?
+	mp.g0.stack.hi = stacksize // for mstart
+	//mSysStatInc(&memstats.stacks_sys, stacksize) //TODO: do this?
 
 	// Tell the pthread library we won't join with this thread.
 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
@@ -191,11 +191,16 @@ func newosproc0(stacksize uintptr, fn uintptr) {
 		exit(1)
 	}
 
-	// Set the stack we want to use.
-	if pthread_attr_setstacksize(&attr, stacksize) != 0 {
+	// The caller passes in a suggested stack size,
+	// from when we allocated the stack and thread ourselves,
+	// without libpthread. Now that we're using libpthread,
+	// we use the OS default stack size instead of the suggestion.
+	// Find out that stack size for our own stack guard.
+	if pthread_attr_getstacksize(&attr, &stacksize) != 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
 		exit(1)
 	}
+	g0.stack.hi = stacksize // for mstart
 	mSysStatInc(&memstats.stacks_sys, stacksize)
 
 	// Tell the pthread library we won't join with this thread.
