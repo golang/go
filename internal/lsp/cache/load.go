@@ -13,27 +13,26 @@ func (v *view) loadParseTypecheck(ctx context.Context, f *goFile) ([]packages.Er
 	v.mcache.mu.Lock()
 	defer v.mcache.mu.Unlock()
 
-	// If the package for the file has not been invalidated by the application
-	// of the pending changes, there is no need to continue.
-	if !f.isDirty() {
-		return nil, nil
+	// If the AST for this file is trimmed, and we are explicitly type-checking it,
+	// don't ignore function bodies.
+	if f.astIsTrimmed() {
+		f.invalidateAST()
 	}
 
 	// Check if we need to run go/packages.Load for this file's package.
 	if errs, err := v.checkMetadata(ctx, f); err != nil {
 		return errs, err
 	}
-
 	if f.meta == nil {
 		return nil, fmt.Errorf("loadParseTypecheck: no metadata found for %v", f.filename())
 	}
 
 	imp := &importer{
-		view:            v,
-		seen:            make(map[string]struct{}),
-		ctx:             ctx,
-		fset:            f.FileSet(),
-		topLevelPkgPath: f.meta.pkgPath,
+		view:          v,
+		seen:          make(map[string]struct{}),
+		ctx:           ctx,
+		fset:          f.FileSet(),
+		topLevelPkgID: f.meta.id,
 	}
 
 	// Start prefetching direct imports.
@@ -47,7 +46,7 @@ func (v *view) loadParseTypecheck(ctx context.Context, f *goFile) ([]packages.Er
 	}
 	// If we still have not found the package for the file, something is wrong.
 	if f.pkg == nil {
-		return nil, fmt.Errorf("parse: no package found for %v", f.filename())
+		return nil, fmt.Errorf("loadParseTypeCheck: no package found for %v", f.filename())
 	}
 	return nil, nil
 }
@@ -61,7 +60,7 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile) ([]packages.Error, 
 	pkgs, err := packages.Load(v.buildConfig(), fmt.Sprintf("file=%s", f.filename()))
 	if len(pkgs) == 0 {
 		if err == nil {
-			err = fmt.Errorf("%s: no packages found", f.filename())
+			err = fmt.Errorf("no packages found for %s", f.filename())
 		}
 		// Return this error as a diagnostic to the user.
 		return []packages.Error{

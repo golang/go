@@ -34,10 +34,10 @@ var ioLimit = make(chan bool, 20)
 // Because files are scanned in parallel, the token.Pos
 // positions of the resulting ast.Files are not ordered.
 //
-func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) ([]*ast.File, []error) {
+func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) ([]*astFile, []error) {
 	var wg sync.WaitGroup
 	n := len(filenames)
-	parsed := make([]*ast.File, n)
+	parsed := make([]*astFile, n)
 	errors := make([]error, n)
 	for i, filename := range filenames {
 		if imp.ctx.Err() != nil {
@@ -68,8 +68,11 @@ func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) ([]*a
 
 			// If we already have a cached AST, reuse it.
 			// If the AST is trimmed, only use it if we are ignoring function bodies.
-			if gof.ast != nil && (!gof.ast.isTrimmed || ignoreFuncBodies) {
-				parsed[i], errors[i] = gof.ast.file, nil
+			if gof.astIsTrimmed() && ignoreFuncBodies {
+				parsed[i], errors[i] = gof.ast, nil
+				return
+			} else if gof.ast != nil && !gof.ast.isTrimmed && !ignoreFuncBodies {
+				parsed[i], errors[i] = gof.ast, nil
 				return
 			}
 
@@ -85,13 +88,21 @@ func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) ([]*a
 			}
 
 			// ParseFile may return a partial AST and an error.
-			parsed[i], errors[i] = parseFile(imp.fset, filename, src)
+			f, err := parseFile(imp.fset, filename, src)
+
+			if ignoreFuncBodies {
+				trimAST(f)
+			}
 
 			// Fix any badly parsed parts of the AST.
-			if file := parsed[i]; file != nil {
-				tok := imp.fset.File(file.Pos())
-				imp.view.fix(imp.ctx, parsed[i], tok, src)
+			if f != nil {
+				tok := imp.fset.File(f.Pos())
+				imp.view.fix(imp.ctx, f, tok, src)
 			}
+
+			parsed[i] = &astFile{f, ignoreFuncBodies}
+			errors[i] = err
+
 		}(i, filename)
 	}
 	wg.Wait()

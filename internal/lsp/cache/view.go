@@ -222,10 +222,12 @@ func (v *view) SetContent(ctx context.Context, uri span.URI, content []byte) err
 	return nil
 }
 
-func (f *goFile) invalidate() {
+// invalidateContent invalidates the content of a Go file,
+// including any position and type information that depends on it.
+func (f *goFile) invalidateContent() {
 	f.view.pcache.mu.Lock()
 	defer f.view.pcache.mu.Unlock()
-	// TODO(rstambler): Should we recompute these here?
+
 	f.ast = nil
 	f.token = nil
 
@@ -234,6 +236,21 @@ func (f *goFile) invalidate() {
 		f.view.remove(f.pkg.pkgPath, map[string]struct{}{})
 	}
 	f.handle = nil
+}
+
+// invalidateAST invalidates the AST of a Go file,
+// including any position and type information that depends on it.
+func (f *goFile) invalidateAST() {
+	f.view.pcache.mu.Lock()
+	defer f.view.pcache.mu.Unlock()
+
+	f.ast = nil
+	f.token = nil
+
+	// Remove the package and all of its reverse dependencies from the cache.
+	if f.pkg != nil {
+		f.view.remove(f.pkg.pkgPath, map[string]struct{}{})
+	}
 }
 
 // remove invalidates a package and its reverse dependencies in the view's
@@ -308,7 +325,7 @@ func (v *view) getFile(uri span.URI) (viewFile, error) {
 			},
 		}
 		v.session.filesWatchMap.Watch(uri, func() {
-			f.(*goFile).invalidate()
+			f.(*goFile).invalidateContent()
 		})
 	case ".mod":
 		f = &modFile{

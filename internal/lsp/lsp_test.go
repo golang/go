@@ -134,11 +134,11 @@ func summarizeDiagnostics(i int, want []source.Diagnostic, got []source.Diagnost
 	fmt.Fprintf(msg, reason, args...)
 	fmt.Fprint(msg, ":\nexpected:\n")
 	for _, d := range want {
-		fmt.Fprintf(msg, "  %v\n", d)
+		fmt.Fprintf(msg, "  %v: %s\n", d.Span, d.Message)
 	}
 	fmt.Fprintf(msg, "got:\n")
 	for _, d := range got {
-		fmt.Fprintf(msg, "  %v\n", d)
+		fmt.Fprintf(msg, "  %v: %s\n", d.Span, d.Message)
 	}
 	return msg.String()
 }

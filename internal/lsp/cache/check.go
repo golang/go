@@ -24,8 +24,8 @@ type importer struct {
 	// If we have seen a package that is already in this map, we have a circular import.
 	seen map[string]struct{}
 
-	// topLevelPkgPath is the path of the package from which type-checking began.
-	topLevelPkgPath string
+	// topLevelPkgID is the ID of the package from which type-checking began.
+	topLevelPkgID string
 
 	ctx  context.Context
 	fset *token.FileSet
@@ -100,8 +100,12 @@ func (imp *importer) typeCheck(pkgPath string) (*pkg, error) {
 		imp.view.appendPkgError(pkg, err)
 	}
 
+	// Ignore function bodies for any dependency packages.
+	// TODO: Enable this.
+	ignoreFuncBodies := false
+
 	// Don't type-check function bodies if we are not in the top-level package.
-	files, errs := imp.parseFiles(meta.files, imp.ignoreFuncBodies(pkg.pkgPath))
+	files, errs := imp.parseFiles(meta.files, ignoreFuncBodies)
 	for _, err := range errs {
 		appendError(err)
 	}
@@ -115,17 +119,18 @@ func (imp *importer) typeCheck(pkgPath string) (*pkg, error) {
 	seen[pkgPath] = struct{}{}
 
 	cfg := &types.Config{
-		Error: appendError,
+		Error:            appendError,
+		IgnoreFuncBodies: ignoreFuncBodies,
 		Importer: &importer{
-			view:            imp.view,
-			ctx:             imp.ctx,
-			fset:            imp.fset,
-			topLevelPkgPath: imp.topLevelPkgPath,
-			seen:            seen,
+			view:          imp.view,
+			ctx:           imp.ctx,
+			fset:          imp.fset,
+			topLevelPkgID: imp.topLevelPkgID,
+			seen:          seen,
 		},
 	}
 	check := types.NewChecker(cfg, imp.fset, pkg.types, pkg.typesInfo)
-	check.Files(pkg.syntax)
+	check.Files(pkg.GetSyntax())
 
 	// Add every file in this package to our cache.
 	imp.cachePackage(imp.ctx, pkg, meta)
@@ -134,15 +139,15 @@ func (imp *importer) typeCheck(pkgPath string) (*pkg, error) {
 }
 
 func (imp *importer) cachePackage(ctx context.Context, pkg *pkg, meta *metadata) {
-	for _, file := range pkg.GetSyntax() {
+	for _, fAST := range pkg.syntax {
 		// TODO: If a file is in multiple packages, which package do we store?
-		if !file.Pos().IsValid() {
-			imp.view.Session().Logger().Errorf(ctx, "invalid position for file %v", file.Name)
+		if !fAST.file.Pos().IsValid() {
+			imp.view.Session().Logger().Errorf(ctx, "invalid position for file %v", fAST.file.Name)
 			continue
 		}
-		tok := imp.view.Session().Cache().FileSet().File(file.Pos())
+		tok := imp.view.Session().Cache().FileSet().File(fAST.file.Pos())
 		if tok == nil {
-			imp.view.Session().Logger().Errorf(ctx, "no token.File for %v", file.Name)
+			imp.view.Session().Logger().Errorf(ctx, "no token.File for %v", fAST.file.Name)
 			continue
 		}
 		fURI := span.FileURI(tok.Name())
@@ -153,15 +158,12 @@ func (imp *importer) cachePackage(ctx context.Context, pkg *pkg, meta *metadata)
 		}
 		gof, ok := f.(*goFile)
 		if !ok {
-			imp.view.Session().Logger().Errorf(ctx, "not a go file: %v", f.URI())
+			imp.view.Session().Logger().Errorf(ctx, "%v is not a Go file", f.URI())
 			continue
 		}
 		gof.token = tok
-		gof.ast = &astFile{
-			file:      file,
-			isTrimmed: imp.ignoreFuncBodies(pkg.pkgPath),
-		}
-		gof.imports = file.Imports
+		gof.ast = fAST
+		gof.imports = fAST.file.Imports
 		gof.pkg = pkg
 	}
 
@@ -206,8 +208,4 @@ func (v *view) appendPkgError(pkg *pkg, err error) {
 		})
 	}
 	pkg.errors = append(pkg.errors, errs...)
-}
-
-func (imp *importer) ignoreFuncBodies(pkgPath string) bool {
-	return imp.topLevelPkgPath != pkgPath
 }

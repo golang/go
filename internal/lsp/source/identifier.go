@@ -134,7 +134,7 @@ func identifier(ctx context.Context, v View, f GoFile, pos token.Pos) (*Identifi
 	if result.decl.rng, err = objToRange(ctx, f.FileSet(), result.decl.obj); err != nil {
 		return nil, err
 	}
-	if result.decl.node, err = objToNode(ctx, v, result.decl.obj, result.decl.rng); err != nil {
+	if result.decl.node, err = objToNode(ctx, v, pkg.GetTypes(), result.decl.obj, result.decl.rng); err != nil {
 		return nil, err
 	}
 	typ := pkg.GetTypesInfo().TypeOf(result.ident)
@@ -180,7 +180,7 @@ func posToRange(ctx context.Context, fset *token.FileSet, name string, pos token
 	return span.NewRange(fset, pos, pos+token.Pos(len(name))), nil
 }
 
-func objToNode(ctx context.Context, v View, obj types.Object, rng span.Range) (ast.Decl, error) {
+func objToNode(ctx context.Context, v View, originPkg *types.Package, obj types.Object, rng span.Range) (ast.Decl, error) {
 	s, err := rng.Span()
 	if err != nil {
 		return nil, err
@@ -191,12 +191,13 @@ func objToNode(ctx context.Context, v View, obj types.Object, rng span.Range) (a
 	}
 	declFile, ok := f.(GoFile)
 	if !ok {
-		return nil, fmt.Errorf("not a Go file %v", s.URI())
+		return nil, fmt.Errorf("%s is not a Go file", s.URI())
 	}
-	// If the object is exported, we don't need the full AST to find its definition.
+	// If the object is exported from a different package,
+	// we don't need its full AST to find the definition.
 	var declAST *ast.File
-	if obj.Exported() {
-		declAST = declFile.GetTrimmedAST(ctx)
+	if obj.Exported() && obj.Pkg() != originPkg {
+		declAST = declFile.GetAnyAST(ctx)
 	} else {
 		declAST = declFile.GetAST(ctx)
 	}

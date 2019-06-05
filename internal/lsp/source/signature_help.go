@@ -91,7 +91,7 @@ func SignatureHelp(ctx context.Context, f GoFile, pos token.Pos) (*SignatureInfo
 		if err != nil {
 			return nil, err
 		}
-		node, err := objToNode(ctx, f.View(), obj, rng)
+		node, err := objToNode(ctx, f.View(), pkg.GetTypes(), obj, rng)
 		if err != nil {
 			return nil, err
 		}

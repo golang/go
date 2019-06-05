@@ -29,16 +29,19 @@ func (f *goFile) GetToken(ctx context.Context) *token.File {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
 
-	if f.isDirty() {
+	if f.isDirty() || f.astIsTrimmed() {
 		if _, err := f.view.loadParseTypecheck(ctx, f); err != nil {
 			f.View().Session().Logger().Errorf(ctx, "unable to check package for %s: %v", f.URI(), err)
 			return nil
 		}
 	}
+	if unexpectedAST(ctx, f) {
+		return nil
+	}
 	return f.token
 }
 
-func (f *goFile) GetTrimmedAST(ctx context.Context) *ast.File {
+func (f *goFile) GetAnyAST(ctx context.Context) *ast.File {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
 
@@ -47,6 +50,9 @@ func (f *goFile) GetTrimmedAST(ctx context.Context) *ast.File {
 			f.View().Session().Logger().Errorf(ctx, "unable to check package for %s: %v", f.URI(), err)
 			return nil
 		}
+	}
+	if f.ast == nil {
+		return nil
 	}
 	return f.ast.file
 }
@@ -60,6 +66,9 @@ func (f *goFile) GetAST(ctx context.Context) *ast.File {
 			f.View().Session().Logger().Errorf(ctx, "unable to check package for %s: %v", f.URI(), err)
 			return nil
 		}
+	}
+	if unexpectedAST(ctx, f) {
+		return nil
 	}
 	return f.ast.file
 }
@@ -79,13 +88,30 @@ func (f *goFile) GetPackage(ctx context.Context) source.Package {
 			return nil
 		}
 	}
+	if unexpectedAST(ctx, f) {
+		return nil
+	}
 	return f.pkg
+}
+
+func unexpectedAST(ctx context.Context, f *goFile) bool {
+	// If the AST comes back nil, something has gone wrong.
+	if f.ast == nil {
+		f.View().Session().Logger().Errorf(ctx, "expected full AST for %s, returned nil", f.URI())
+		return true
+	}
+	// If the AST comes back trimmed, something has gone wrong.
+	if f.astIsTrimmed() {
+		f.View().Session().Logger().Errorf(ctx, "expected full AST for %s, returned trimmed", f.URI())
+		return true
+	}
+	return false
 }
 
 // isDirty is true if the file needs to be type-checked.
 // It assumes that the file's view's mutex is held by the caller.
 func (f *goFile) isDirty() bool {
-	return f.meta == nil || f.imports == nil || f.token == nil || f.ast == nil || f.pkg == nil
+	return f.meta == nil || f.token == nil || f.ast == nil || f.pkg == nil
 }
 
 func (f *goFile) astIsTrimmed() bool {
