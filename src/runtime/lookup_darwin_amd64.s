@@ -10,7 +10,7 @@ TEXT runtime·res_init_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
 	CALL	libc_res_init(SB)
-	CMPQ	AX, $-1
+	CMPL	AX, $-1
 	JNE ok
 	CALL	libc_error(SB)
 ok:
@@ -28,7 +28,7 @@ TEXT runtime·res_search_trampoline(SB),NOSPLIT,$0
 	MOVQ	0(BX), DI	// arg 1 name
 	CALL	libc_res_search(SB)
 	XORL	DX, DX
-	CMPQ	AX, $-1
+	CMPL	AX, $-1
 	JNE ok
 	CALL	libc_error(SB)
 	MOVLQSX	(AX), DX	// move return from libc_error into DX
