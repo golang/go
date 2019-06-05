@@ -432,7 +432,7 @@ TEXT	runtime·racecallbackthunk(SB), NOSPLIT|NOFRAME, $0
 	MOVD	R13, g
 	JMP	(LR)
 rest:
-        // Save callee-saved registers (Go code won't respect that).
+	// Save callee-saved registers (Go code won't respect that).
 	// 8(RSP) and 16(RSP) are for args passed through racecallback
 	SUB	$96, RSP
 	MOVD	LR, 0(RSP)
