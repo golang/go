@@ -125,6 +125,11 @@ var goodLinkerFlags = [][]string{
 	{"-pthread"},
 	{"-Wl,-rpath,foo"},
 	{"-Wl,-rpath,$ORIGIN/foo"},
+	{"-Wl,-R", "/foo"},
+	{"-Wl,-R", "foo"},
+	{"-Wl,-R,foo"},
+	{"-Wl,--just-symbols=foo"},
+	{"-Wl,--just-symbols,foo"},
 	{"-Wl,--warn-error"},
 	{"-Wl,--no-warn-error"},
 	{"foo.so"},
@@ -197,6 +202,9 @@ var badLinkerFlags = [][]string{
 	{"-x", "--c"},
 	{"-x", "@obj"},
 	{"-Wl,-rpath,@foo"},
+	{"-Wl,-R,foo,bar"},
+	{"-Wl,-R,@foo"},
+	{"-Wl,--just-symbols,@foo"},
 	{"../x.o"},
 }
 
