@@ -443,12 +443,12 @@ TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
 	POPQ	BP
 	RET
 
-TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0
+TEXT runtime·pthread_attr_getstacksize_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
 	MOVQ	8(DI), SI	// arg 2 size
 	MOVQ	0(DI), DI	// arg 1 attr
-	CALL	libc_pthread_attr_setstacksize(SB)
+	CALL	libc_pthread_attr_getstacksize(SB)
 	POPQ	BP
 	RET
 

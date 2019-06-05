@@ -128,10 +128,10 @@ func pthread_attr_init_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func pthread_attr_setstacksize(attr *pthreadattr, size uintptr) int32 {
-	return libcCall(unsafe.Pointer(funcPC(pthread_attr_setstacksize_trampoline)), unsafe.Pointer(&attr))
+func pthread_attr_getstacksize(attr *pthreadattr, size *uintptr) int32 {
+	return libcCall(unsafe.Pointer(funcPC(pthread_attr_getstacksize_trampoline)), unsafe.Pointer(&attr))
 }
-func pthread_attr_setstacksize_trampoline()
+func pthread_attr_getstacksize_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
@@ -396,7 +396,7 @@ func closeonexec(fd int32) {
 // in a system library, with the libc_ prefix missing.
 
 //go:cgo_import_dynamic libc_pthread_attr_init pthread_attr_init "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_pthread_attr_setstacksize pthread_attr_setstacksize "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_attr_getstacksize pthread_attr_getstacksize "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_attr_setdetachstate pthread_attr_setdetachstate "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_create pthread_create "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_exit exit "/usr/lib/libSystem.B.dylib"

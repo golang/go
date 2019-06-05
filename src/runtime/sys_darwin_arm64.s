@@ -382,10 +382,10 @@ TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
 	BL	libc_pthread_attr_init(SB)
 	RET
 
-TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0
+TEXT runtime·pthread_attr_getstacksize_trampoline(SB),NOSPLIT,$0
 	MOVD	8(R0), R1	// arg 2 size
 	MOVD	0(R0), R0	// arg 1 attr
-	BL	libc_pthread_attr_setstacksize(SB)
+	BL	libc_pthread_attr_getstacksize(SB)
 	RET
 
 TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0
