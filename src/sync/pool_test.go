@@ -105,6 +105,9 @@ func testPool(t *testing.T, drain bool) {
 	const N = 100
 loop:
 	for try := 0; try < 3; try++ {
+		if try == 1 && testing.Short() {
+			break
+		}
 		var fin, fin1 uint32
 		for i := 0; i < N; i++ {
 			v := new(string)

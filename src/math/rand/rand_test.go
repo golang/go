@@ -486,7 +486,7 @@ func TestUniformFactorial(t *testing.T) {
 	r := New(NewSource(testSeeds[0]))
 	top := 6
 	if testing.Short() {
-		top = 4
+		top = 3
 	}
 	for n := 3; n <= top; n++ {
 		t.Run(fmt.Sprintf("n=%d", n), func(t *testing.T) {

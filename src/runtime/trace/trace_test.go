@@ -186,6 +186,10 @@ func TestTraceStress(t *testing.T) {
 	if IsEnabled() {
 		t.Skip("skipping because -test.trace is set")
 	}
+	if testing.Short() {
+		t.Skip("skipping in -short mode")
+	}
+
 	var wg sync.WaitGroup
 	done := make(chan bool)
 

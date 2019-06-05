@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -277,8 +278,17 @@ func (t *tester) tags() string {
 	return "-tags="
 }
 
+// timeoutDuration converts the provided number of seconds into a
+// time.Duration, scaled by the t.timeoutScale factor.
+func (t *tester) timeoutDuration(sec int) time.Duration {
+	return time.Duration(sec) * time.Second * time.Duration(t.timeoutScale)
+}
+
+// timeout returns the "-timeout=" string argument to "go test" given
+// the number of seconds of timeout. It scales it by the
+// t.timeoutScale factor.
 func (t *tester) timeout(sec int) string {
-	return "-timeout=" + fmt.Sprint(time.Duration(sec)*time.Second*time.Duration(t.timeoutScale))
+	return "-timeout=" + t.timeoutDuration(sec).String()
 }
 
 // ranGoTest and stdMatches are state closed over by the stdlib
@@ -318,6 +328,11 @@ func (t *tester) registerStdTest(pkg string) {
 					timeoutSec *= 3
 					break
 				}
+			}
+			// Special case for our slow cross-compiled
+			// qemu builders:
+			if t.shouldUsePrecompiledStdTest() {
+				return t.runPrecompiledStdTest(t.timeoutDuration(timeoutSec))
 			}
 			args := []string{
 				"test",
@@ -551,7 +566,9 @@ func (t *tester) registerTests() {
 			name:    "nolibgcc:" + pkg,
 			heading: "Testing without libgcc.",
 			fn: func(dt *distTest) error {
-				t.addCmd(dt, "src", t.goTest(), "-ldflags=-linkmode=internal -libgcc=none", pkg, t.runFlag(run))
+				// What matters is that the tests build and start up.
+				// Skip expensive tests, especially x509 TestSystemRoots.
+				t.addCmd(dt, "src", t.goTest(), "-ldflags=-linkmode=internal -libgcc=none", "-run=^Test[^CS]", pkg, t.runFlag(run))
 				return nil
 			},
 		})
@@ -693,7 +710,10 @@ func (t *tester) registerTests() {
 	}
 
 	if goos != "android" && !t.iOS() {
-		t.registerTest("bench_go1", "../test/bench/go1", t.goTest(), t.timeout(600))
+		// There are no tests in this directory, only benchmarks.
+		// Check that the test binary builds but don't bother running it.
+		// (It has init-time work to set up for the benchmarks that is not worth doing unnecessarily.)
+		t.registerTest("bench_go1", "../test/bench/go1", t.goTest(), "-c", "-o="+os.DevNull)
 	}
 	if goos != "android" && !t.iOS() {
 		// Only start multiple test dir shards on builders,
@@ -1292,8 +1312,12 @@ func (t *tester) raceTest(dt *distTest) error {
 	// TODO(iant): Figure out how to catch this.
 	// t.addCmd(dt, "src", t.goTest(),  "-race", "-run=TestParallelTest", "cmd/go")
 	if t.cgoEnabled {
-		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-race")
-		cmd.Env = append(os.Environ(), "GOTRACEBACK=2")
+		// Building misc/cgo/test takes a long time.
+		// There are already cgo-enabled packages being tested with the race detector.
+		// We shouldn't need to redo all of misc/cgo/test too.
+		// The race buildler will take care of this.
+		// cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-race")
+		// cmd.Env = append(os.Environ(), "GOTRACEBACK=2")
 	}
 	if t.extLink() {
 		// Test with external linking; see issue 9133.
@@ -1405,6 +1429,60 @@ func (t *tester) makeGOROOTUnwritable() {
 	if err != nil {
 		log.Fatalf("making builder's files read-only: %v", err)
 	}
+}
+
+// shouldUsePrecompiledStdTest reports whether "dist test" should use
+// a pre-compiled go test binary on disk rather than running "go test"
+// and compiling it again. This is used by our slow qemu-based builder
+// that do full processor emulation where we cross-compile the
+// make.bash step as well as pre-compile each std test binary.
+//
+// This only reports true if dist is run with an single go_test:foo
+// argument (as the build coordinator does with our slow qemu-based
+// builders), we're in a builder environment ("GO_BUILDER_NAME" is set),
+// and the pre-built test binary exists.
+func (t *tester) shouldUsePrecompiledStdTest() bool {
+	bin := t.prebuiltGoPackageTestBinary()
+	if bin == "" {
+		return false
+	}
+	_, err := os.Stat(bin)
+	return err == nil
+}
+
+// prebuiltGoPackageTestBinary returns the path where we'd expect
+// the pre-built go test binary to be on disk when dist test is run with
+// a single argument.
+// It returns an empty string if a pre-built binary should not be used.
+func (t *tester) prebuiltGoPackageTestBinary() string {
+	if len(stdMatches) != 1 || t.race || t.compileOnly || os.Getenv("GO_BUILDER_NAME") == "" {
+		return ""
+	}
+	pkg := stdMatches[0]
+	return filepath.Join(os.Getenv("GOROOT"), "src", pkg, path.Base(pkg)+".test")
+}
+
+// runPrecompiledStdTest runs the pre-compiled standard library package test binary.
+// See shouldUsePrecompiledStdTest above; it must return true for this to be called.
+func (t *tester) runPrecompiledStdTest(timeout time.Duration) error {
+	bin := t.prebuiltGoPackageTestBinary()
+	fmt.Fprintf(os.Stderr, "# %s: using pre-built %s...\n", stdMatches[0], bin)
+	cmd := exec.Command(bin, "-test.short", "-test.timeout="+timeout.String())
+	cmd.Dir = filepath.Dir(bin)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	// And start a timer to kill the process if it doesn't kill
+	// itself in the prescribed timeout.
+	const backupKillFactor = 1.05 // add 5%
+	timer := time.AfterFunc(time.Duration(float64(timeout)*backupKillFactor), func() {
+		fmt.Fprintf(os.Stderr, "# %s: timeout running %s; killing...\n", stdMatches[0], bin)
+		cmd.Process.Kill()
+	})
+	defer timer.Stop()
+	return cmd.Wait()
 }
 
 // raceDetectorSupported is a copy of the function

@@ -31,7 +31,7 @@ import (
 var CmdGet = &base.Command{
 	// Note: -d -m -u are listed explicitly because they are the most common get flags.
 	// Do not send CLs removing them because they're covered by [get flags].
-	UsageLine: "go get [-d] [-m] [-u] [-v] [-insecure] [build flags] [packages]",
+	UsageLine: "go get [-d] [-m] [-t] [-u] [-v] [-insecure] [build flags] [packages]",
 	Short:     "add dependencies to current module and install them",
 	Long: `
 Get resolves and adds dependencies to the current development module
@@ -75,6 +75,9 @@ will use the latest A but then use B v1.2.3, as requested by A. (If there
 are competing requirements for a particular module, then 'go get' resolves
 those requirements by taking the maximum requested version.)
 
+The -t flag instructs get to consider modules needed to build tests of
+packages specified on the command line.
+
 The -u flag instructs get to update dependencies to use newer minor or
 patch releases when available. Continuing the previous example,
 'go get -u A' will use the latest A with B v1.3.1 (not B v1.2.3).
@@ -84,6 +87,9 @@ but changes the default to select patch releases.
 Continuing the previous example,
 'go get -u=patch A@latest' will use the latest A with B v1.2.4 (not B v1.2.3),
 while 'go get -u=patch A' will use a patch release of A instead.
+
+When the -t and -u flags are used together, get will update
+test dependencies as well.
 
 In general, adding a new dependency may require upgrading
 existing dependencies to keep a working build, and 'go get' does
@@ -261,9 +267,7 @@ func runGet(cmd *base.Command, args []string) {
 	if *getFix {
 		fmt.Fprintf(os.Stderr, "go get: -fix flag is a no-op when using modules\n")
 	}
-	if *getT {
-		fmt.Fprintf(os.Stderr, "go get: -t flag is a no-op when using modules\n")
-	}
+	modload.LoadTests = *getT
 
 	if cfg.BuildMod == "vendor" {
 		base.Fatalf("go get: disabled by -mod=%s", cfg.BuildMod)
@@ -781,25 +785,26 @@ func newUpgrader(cmdline map[string]*query, pkgs map[string]bool) *upgrader {
 		// Initialize work queue with root packages.
 		seen := make(map[string]bool)
 		var work []string
-		for pkg := range pkgs {
-			seen[pkg] = true
-			for _, imp := range modload.PackageImports(pkg) {
-				if !pkgs[imp] && !seen[imp] {
-					seen[imp] = true
-					work = append(work, imp)
-				}
+		add := func(path string) {
+			if !seen[path] {
+				seen[path] = true
+				work = append(work, path)
 			}
+		}
+		for pkg := range pkgs {
+			add(pkg)
 		}
 		for len(work) > 0 {
 			pkg := work[0]
 			work = work[1:]
 			m := modload.PackageModule(pkg)
 			u.upgrade[m.Path] = true
-			for _, imp := range modload.PackageImports(pkg) {
-				if !seen[imp] {
-					seen[imp] = true
-					work = append(work, imp)
-				}
+			imports, testImports := modload.PackageImports(pkg)
+			for _, imp := range imports {
+				add(imp)
+			}
+			for _, imp := range testImports {
+				add(imp)
 			}
 		}
 	}

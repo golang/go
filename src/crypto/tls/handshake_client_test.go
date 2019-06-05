@@ -880,6 +880,9 @@ func TestResumption(t *testing.T) {
 }
 
 func testResumption(t *testing.T, version uint16) {
+	if testing.Short() {
+		t.Skip("skipping in -short mode")
+	}
 	serverConfig := &Config{
 		MaxVersion:   version,
 		CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},
@@ -1727,6 +1730,9 @@ func TestAlertFlushing(t *testing.T) {
 }
 
 func TestHandshakeRace(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in -short mode")
+	}
 	t.Parallel()
 	// This test races a Read and Write to try and complete a handshake in
 	// order to provide some evidence that there are no races or deadlocks

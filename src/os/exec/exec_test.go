@@ -691,6 +691,9 @@ func TestExtraFilesRace(t *testing.T) {
 	}
 
 	for i := 0; i < 10; i++ {
+		if testing.Short() && i >= 3 {
+			break
+		}
 		la := listen()
 		ca := helperCommand(t, "describefiles")
 		ca.ExtraFiles = []*os.File{listenerFile(la)}

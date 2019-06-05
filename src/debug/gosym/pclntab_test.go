@@ -196,6 +196,9 @@ func TestLineAline(t *testing.T) {
 }
 
 func TestPCLine(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in -short mode")
+	}
 	dotest(t)
 	defer endtest()
 

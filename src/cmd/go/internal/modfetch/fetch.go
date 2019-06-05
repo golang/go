@@ -702,18 +702,17 @@ The go command knows the public key of sum.golang.org; use of any other
 database requires giving the public key explicitly. The URL defaults to
 "https://" followed by the database name.
 
-GOSUMDB defaults to "sum.golang.org" when GOPROXY="https://proxy.golang.org"
-and otherwise defaults to "off". NOTE: The GOSUMDB will later default to
-"sum.golang.org" unconditionally.
+GOSUMDB defaults to "sum.golang.org", the Go checksum database run by Google.
+See https://sum.golang.org/privacy for the service's privacy policy.
 
 If GOSUMDB is set to "off", or if "go get" is invoked with the -insecure flag,
-the checksum database is never consulted, but at the cost of giving up the
-security guarantee of verified repeatable downloads for all modules.
-A better way to bypass the checksum database for specific modules is
-to use the GONOSUMDB environment variable.
+the checksum database is not consulted, and all unrecognized modules are
+accepted, at the cost of giving up the security guarantee of verified repeatable
+downloads for all modules. A better way to bypass the checksum database
+for specific modules is to use the GONOSUMDB environment variable.
 
 The GONOSUMDB environment variable is a comma-separated list of
-patterns (in the syntax of Go's path.Match) of module path prefixes
+glob patterns (in the syntax of Go's path.Match) of module path prefixes
 that should not be compared against the checksum database.
 For example,
 
@@ -722,5 +721,8 @@ For example,
 disables checksum database lookups for modules with path prefixes matching
 either pattern, including "git.corp.example.com/xyzzy", "rsc.io/private",
 and "rsc.io/private/quux".
+
+The 'go env -w' command (see 'go help env') can be used to set these variables
+for future go command invocations.
 `,
 }

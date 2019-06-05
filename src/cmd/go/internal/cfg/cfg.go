@@ -303,13 +303,6 @@ func goproxy() string {
 		return v
 	}
 
-	// Proxy is off by default for now.
-	// TODO(rsc): Remove this condition, turning it on always.
-	// (But do NOT do this without approval from rsc.)
-	if true {
-		return "direct"
-	}
-
 	return "https://proxy.golang.org"
 }
 
@@ -317,13 +310,6 @@ func gosumdb() string {
 	v := Getenv("GOSUMDB")
 	if v != "" {
 		return v
-	}
-
-	// Checksum database is off by default except when GOPROXY is proxy.golang.org.
-	// TODO(rsc): Remove this condition, turning it on always.
-	// (But do NOT do this without approval from rsc.)
-	if !strings.HasPrefix(GOPROXY, "https://proxy.golang.org") {
-		return "off"
 	}
 
 	return "sum.golang.org"

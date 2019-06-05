@@ -914,8 +914,8 @@ func trimUnexportedFields(fields *ast.FieldList, isInterface bool) *ast.FieldLis
 }
 
 // printMethodDoc prints the docs for matches of symbol.method.
-// If symbol is empty, it prints all methods that match the name.
-// It reports whether it found any methods.
+// If symbol is empty, it prints all methods for any concrete type
+// that match the name. It reports whether it found any methods.
 func (pkg *Package) printMethodDoc(symbol, method string) bool {
 	defer pkg.flush()
 	types := pkg.findTypes(symbol)
@@ -935,6 +935,9 @@ func (pkg *Package) printMethodDoc(symbol, method string) bool {
 					found = true
 				}
 			}
+			continue
+		}
+		if symbol == "" {
 			continue
 		}
 		// Type may be an interface. The go/doc package does not attach

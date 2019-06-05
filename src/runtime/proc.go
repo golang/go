@@ -5211,15 +5211,6 @@ func doInit(t *initTask) {
 		throw("recursive call during initialization - linker skew")
 	default: // not initialized yet
 		t.state = 1 // initialization in progress
-		if raceenabled {
-			// Randomize initialization order of packages t depends on.
-			// TODO: enable always instead of just for race?
-			s := *(*[]uintptr)(unsafe.Pointer(&slice{array: add(unsafe.Pointer(t), 3*sys.PtrSize), len: int(t.ndeps), cap: int(t.ndeps)}))
-			for i := len(s) - 1; i > 0; i-- {
-				j := int(fastrandn(uint32(i + 1)))
-				s[i], s[j] = s[j], s[i]
-			}
-		}
 		for i := uintptr(0); i < t.ndeps; i++ {
 			p := add(unsafe.Pointer(t), (3+i)*sys.PtrSize)
 			t2 := *(**initTask)(p)

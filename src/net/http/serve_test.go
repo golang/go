@@ -5758,8 +5758,12 @@ func TestServerDuplicateBackgroundRead(t *testing.T) {
 	setParallel(t)
 	defer afterTest(t)
 
-	const goroutines = 5
-	const requests = 2000
+	goroutines := 5
+	requests := 2000
+	if testing.Short() {
+		goroutines = 3
+		requests = 100
+	}
 
 	hts := httptest.NewServer(HandlerFunc(NotFound))
 	defer hts.Close()

@@ -1,16 +1,16 @@
-[!net] skip
-
+# Test default GOPROXY and GOSUMDB
 env GOPROXY=
 env GOSUMDB=
 go env GOPROXY
-stdout '^direct$'
+stdout '^https://proxy.golang.org$'
 go env GOSUMDB
-stdout '^off$'
+stdout '^sum.golang.org$'
 env GOPROXY=https://proxy.golang.org
 go env GOSUMDB
 stdout '^sum.golang.org$'
 
 # download direct from github
+[!net] skip
 env GOSUMDB=sum.golang.org
 env GOPROXY=direct
 go get -m rsc.io/quote

@@ -602,6 +602,19 @@ var tests = []test{
 			`Comment about exported interface`,
 		},
 	},
+	// Interface method at package level.
+	{
+		"interface method at package level",
+		[]string{p, `ExportedMethod`},
+		[]string{
+			`func \(ExportedType\) ExportedMethod\(a int\) bool`,
+			`Comment about exported method`,
+		},
+		[]string{
+			`Comment before exported method.*\n.*ExportedMethod\(\)` +
+				`.*Comment on line with exported method`,
+		},
+	},
 
 	// Method.
 	{

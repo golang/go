@@ -165,6 +165,8 @@ func OnesCount64(x uint64) int {
 
 // RotateLeft returns the value of x rotated left by (k mod UintSize) bits.
 // To rotate x right by k bits, call RotateLeft(x, -k).
+//
+// This function's execution time does not depend on the inputs.
 func RotateLeft(x uint, k int) uint {
 	if UintSize == 32 {
 		return uint(RotateLeft32(uint32(x), k))
@@ -174,6 +176,8 @@ func RotateLeft(x uint, k int) uint {
 
 // RotateLeft8 returns the value of x rotated left by (k mod 8) bits.
 // To rotate x right by k bits, call RotateLeft8(x, -k).
+//
+// This function's execution time does not depend on the inputs.
 func RotateLeft8(x uint8, k int) uint8 {
 	const n = 8
 	s := uint(k) & (n - 1)
@@ -182,6 +186,8 @@ func RotateLeft8(x uint8, k int) uint8 {
 
 // RotateLeft16 returns the value of x rotated left by (k mod 16) bits.
 // To rotate x right by k bits, call RotateLeft16(x, -k).
+//
+// This function's execution time does not depend on the inputs.
 func RotateLeft16(x uint16, k int) uint16 {
 	const n = 16
 	s := uint(k) & (n - 1)
@@ -190,6 +196,8 @@ func RotateLeft16(x uint16, k int) uint16 {
 
 // RotateLeft32 returns the value of x rotated left by (k mod 32) bits.
 // To rotate x right by k bits, call RotateLeft32(x, -k).
+//
+// This function's execution time does not depend on the inputs.
 func RotateLeft32(x uint32, k int) uint32 {
 	const n = 32
 	s := uint(k) & (n - 1)
@@ -198,6 +206,8 @@ func RotateLeft32(x uint32, k int) uint32 {
 
 // RotateLeft64 returns the value of x rotated left by (k mod 64) bits.
 // To rotate x right by k bits, call RotateLeft64(x, -k).
+//
+// This function's execution time does not depend on the inputs.
 func RotateLeft64(x uint64, k int) uint64 {
 	const n = 64
 	s := uint(k) & (n - 1)
@@ -245,6 +255,8 @@ func Reverse64(x uint64) uint64 {
 // --- ReverseBytes ---
 
 // ReverseBytes returns the value of x with its bytes in reversed order.
+//
+// This function's execution time does not depend on the inputs.
 func ReverseBytes(x uint) uint {
 	if UintSize == 32 {
 		return uint(ReverseBytes32(uint32(x)))
@@ -253,11 +265,15 @@ func ReverseBytes(x uint) uint {
 }
 
 // ReverseBytes16 returns the value of x with its bytes in reversed order.
+//
+// This function's execution time does not depend on the inputs.
 func ReverseBytes16(x uint16) uint16 {
 	return x>>8 | x<<8
 }
 
 // ReverseBytes32 returns the value of x with its bytes in reversed order.
+//
+// This function's execution time does not depend on the inputs.
 func ReverseBytes32(x uint32) uint32 {
 	const m = 1<<32 - 1
 	x = x>>8&(m3&m) | x&(m3&m)<<8
@@ -265,6 +281,8 @@ func ReverseBytes32(x uint32) uint32 {
 }
 
 // ReverseBytes64 returns the value of x with its bytes in reversed order.
+//
+// This function's execution time does not depend on the inputs.
 func ReverseBytes64(x uint64) uint64 {
 	const m = 1<<64 - 1
 	x = x>>8&(m3&m) | x&(m3&m)<<8
@@ -331,36 +349,40 @@ func Len64(x uint64) (n int) {
 // Add returns the sum with carry of x, y and carry: sum = x + y + carry.
 // The carry input must be 0 or 1; otherwise the behavior is undefined.
 // The carryOut output is guaranteed to be 0 or 1.
+//
+// This function's execution time does not depend on the inputs.
 func Add(x, y, carry uint) (sum, carryOut uint) {
-	yc := y + carry
-	sum = x + yc
-	if sum < x || yc < y {
-		carryOut = 1
+	if UintSize == 32 {
+		s32, c32 := Add32(uint32(x), uint32(y), uint32(carry))
+		return uint(s32), uint(c32)
 	}
-	return
+	s64, c64 := Add64(uint64(x), uint64(y), uint64(carry))
+	return uint(s64), uint(c64)
 }
 
 // Add32 returns the sum with carry of x, y and carry: sum = x + y + carry.
 // The carry input must be 0 or 1; otherwise the behavior is undefined.
 // The carryOut output is guaranteed to be 0 or 1.
+//
+// This function's execution time does not depend on the inputs.
 func Add32(x, y, carry uint32) (sum, carryOut uint32) {
-	yc := y + carry
-	sum = x + yc
-	if sum < x || yc < y {
-		carryOut = 1
-	}
+	sum64 := uint64(x) + uint64(y) + uint64(carry)
+	sum = uint32(sum64)
+	carryOut = uint32(sum64 >> 32)
 	return
 }
 
 // Add64 returns the sum with carry of x, y and carry: sum = x + y + carry.
 // The carry input must be 0 or 1; otherwise the behavior is undefined.
 // The carryOut output is guaranteed to be 0 or 1.
+//
+// This function's execution time does not depend on the inputs.
 func Add64(x, y, carry uint64) (sum, carryOut uint64) {
-	yc := y + carry
-	sum = x + yc
-	if sum < x || yc < y {
-		carryOut = 1
-	}
+	sum = x + y + carry
+	// The sum will overflow if both top bits are set (x & y) or if one of them
+	// is (x | y), and a carry from the lower place happened. If such a carry
+	// happens, the top bit will be 1 + 0 + 1 = 0 (&^ sum).
+	carryOut = ((x & y) | ((x | y) &^ sum)) >> 63
 	return
 }
 
@@ -369,36 +391,41 @@ func Add64(x, y, carry uint64) (sum, carryOut uint64) {
 // Sub returns the difference of x, y and borrow: diff = x - y - borrow.
 // The borrow input must be 0 or 1; otherwise the behavior is undefined.
 // The borrowOut output is guaranteed to be 0 or 1.
+//
+// This function's execution time does not depend on the inputs.
 func Sub(x, y, borrow uint) (diff, borrowOut uint) {
-	yb := y + borrow
-	diff = x - yb
-	if diff > x || yb < y {
-		borrowOut = 1
+	if UintSize == 32 {
+		d32, b32 := Sub32(uint32(x), uint32(y), uint32(borrow))
+		return uint(d32), uint(b32)
 	}
-	return
+	d64, b64 := Sub64(uint64(x), uint64(y), uint64(borrow))
+	return uint(d64), uint(b64)
 }
 
 // Sub32 returns the difference of x, y and borrow, diff = x - y - borrow.
 // The borrow input must be 0 or 1; otherwise the behavior is undefined.
 // The borrowOut output is guaranteed to be 0 or 1.
+//
+// This function's execution time does not depend on the inputs.
 func Sub32(x, y, borrow uint32) (diff, borrowOut uint32) {
-	yb := y + borrow
-	diff = x - yb
-	if diff > x || yb < y {
-		borrowOut = 1
-	}
+	diff = x - y - borrow
+	// The difference will underflow if the top bit of x is not set and the top
+	// bit of y is set (^x & y) or if they are the same (^(x ^ y)) and a borrow
+	// from the lower place happens. If that borrow happens, the result will be
+	// 1 - 1 - 1 = 0 - 0 - 1 = 1 (& diff).
+	borrowOut = ((^x & y) | (^(x ^ y) & diff)) >> 31
 	return
 }
 
 // Sub64 returns the difference of x, y and borrow: diff = x - y - borrow.
 // The borrow input must be 0 or 1; otherwise the behavior is undefined.
 // The borrowOut output is guaranteed to be 0 or 1.
+//
+// This function's execution time does not depend on the inputs.
 func Sub64(x, y, borrow uint64) (diff, borrowOut uint64) {
-	yb := y + borrow
-	diff = x - yb
-	if diff > x || yb < y {
-		borrowOut = 1
-	}
+	diff = x - y - borrow
+	// See Sub32 for the bit logic.
+	borrowOut = ((^x & y) | (^(x ^ y) & diff)) >> 63
 	return
 }
 
@@ -407,6 +434,8 @@ func Sub64(x, y, borrow uint64) (diff, borrowOut uint64) {
 // Mul returns the full-width product of x and y: (hi, lo) = x * y
 // with the product bits' upper half returned in hi and the lower
 // half returned in lo.
+//
+// This function's execution time does not depend on the inputs.
 func Mul(x, y uint) (hi, lo uint) {
 	if UintSize == 32 {
 		h, l := Mul32(uint32(x), uint32(y))
@@ -419,6 +448,8 @@ func Mul(x, y uint) (hi, lo uint) {
 // Mul32 returns the 64-bit product of x and y: (hi, lo) = x * y
 // with the product bits' upper half returned in hi and the lower
 // half returned in lo.
+//
+// This function's execution time does not depend on the inputs.
 func Mul32(x, y uint32) (hi, lo uint32) {
 	tmp := uint64(x) * uint64(y)
 	hi, lo = uint32(tmp>>32), uint32(tmp)
@@ -428,6 +459,8 @@ func Mul32(x, y uint32) (hi, lo uint32) {
 // Mul64 returns the 128-bit product of x and y: (hi, lo) = x * y
 // with the product bits' upper half returned in hi and the lower
 // half returned in lo.
+//
+// This function's execution time does not depend on the inputs.
 func Mul64(x, y uint64) (hi, lo uint64) {
 	const mask32 = 1<<32 - 1
 	x0 := x & mask32

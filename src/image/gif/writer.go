@@ -433,8 +433,18 @@ func Encode(w io.Writer, m image.Image, o *Options) error {
 		opts.Drawer = draw.FloydSteinberg
 	}
 
-	pm, ok := m.(*image.Paletted)
-	if !ok || len(pm.Palette) > opts.NumColors {
+	pm, _ := m.(*image.Paletted)
+	if pm == nil {
+		if cp, ok := m.ColorModel().(color.Palette); ok {
+			pm = image.NewPaletted(b, cp)
+			for y := b.Min.Y; y < b.Max.Y; y++ {
+				for x := b.Min.X; x < b.Max.X; x++ {
+					pm.Set(x, y, cp.Convert(m.At(x, y)))
+				}
+			}
+		}
+	}
+	if pm == nil || len(pm.Palette) > opts.NumColors {
 		// Set pm to be a palettedized copy of m, including its bounds, which
 		// might not start at (0, 0).
 		//

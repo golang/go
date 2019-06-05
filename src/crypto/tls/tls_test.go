@@ -37,7 +37,7 @@ r5QuVbpQhH6u+0UgcW0jp9QwpxoPTLTWGXEWBBBurxFwiCBhkQ+V
 -----END CERTIFICATE-----
 `
 
-var rsaKeyPEM = `-----BEGIN RSA PRIVATE KEY-----
+var rsaKeyPEM = testingKey(`-----BEGIN RSA TESTING KEY-----
 MIIBOwIBAAJBANLJhPHhITqQbPklG3ibCVxwGMRfp/v4XqhfdQHdcVfHap6NQ5Wo
 k/4xIA+ui35/MmNartNuC+BdZ1tMuVCPFZcCAwEAAQJAEJ2N+zsR0Xn8/Q6twa4G
 6OB1M1WO+k+ztnX/1SvNeWu8D6GImtupLTYgjZcHufykj09jiHmjHx8u8ZZB/o1N
@@ -45,12 +45,12 @@ MQIhAPW+eyZo7ay3lMz1V01WVjNKK9QSn1MJlb06h/LuYv9FAiEA25WPedKgVyCW
 SmUwbPw8fnTcpqDWE3yTO3vKcebqMSsCIBF3UmVue8YU3jybC3NxuXq3wNm34R8T
 xVLHwDXh/6NJAiEAl2oHGGLz64BuAfjKrqwz7qMYr9HCLIe/YsoWq/olzScCIQDi
 D2lWusoe2/nEqfDVVWGWlyJ7yOmqaVm/iNUN9B2N2g==
------END RSA PRIVATE KEY-----
-`
+-----END RSA TESTING KEY-----
+`)
 
 // keyPEM is the same as rsaKeyPEM, but declares itself as just
 // "PRIVATE KEY", not "RSA PRIVATE KEY".  https://golang.org/issue/4477
-var keyPEM = `-----BEGIN PRIVATE KEY-----
+var keyPEM = testingKey(`-----BEGIN TESTING KEY-----
 MIIBOwIBAAJBANLJhPHhITqQbPklG3ibCVxwGMRfp/v4XqhfdQHdcVfHap6NQ5Wo
 k/4xIA+ui35/MmNartNuC+BdZ1tMuVCPFZcCAwEAAQJAEJ2N+zsR0Xn8/Q6twa4G
 6OB1M1WO+k+ztnX/1SvNeWu8D6GImtupLTYgjZcHufykj09jiHmjHx8u8ZZB/o1N
@@ -58,8 +58,8 @@ MQIhAPW+eyZo7ay3lMz1V01WVjNKK9QSn1MJlb06h/LuYv9FAiEA25WPedKgVyCW
 SmUwbPw8fnTcpqDWE3yTO3vKcebqMSsCIBF3UmVue8YU3jybC3NxuXq3wNm34R8T
 xVLHwDXh/6NJAiEAl2oHGGLz64BuAfjKrqwz7qMYr9HCLIe/YsoWq/olzScCIQDi
 D2lWusoe2/nEqfDVVWGWlyJ7yOmqaVm/iNUN9B2N2g==
------END PRIVATE KEY-----
-`
+-----END TESTING KEY-----
+`)
 
 var ecdsaCertPEM = `-----BEGIN CERTIFICATE-----
 MIIB/jCCAWICCQDscdUxw16XFDAJBgcqhkjOPQQBMEUxCzAJBgNVBAYTAkFVMRMw
@@ -76,17 +76,17 @@ H5jBImIxPL4WxQNiBTexAkF8D1EtpYuWdlVQ80/h/f4pBcGiXPqX5h2PQSQY7hP1
 -----END CERTIFICATE-----
 `
 
-var ecdsaKeyPEM = `-----BEGIN EC PARAMETERS-----
+var ecdsaKeyPEM = testingKey(`-----BEGIN EC PARAMETERS-----
 BgUrgQQAIw==
 -----END EC PARAMETERS-----
------BEGIN EC PRIVATE KEY-----
+-----BEGIN EC TESTING KEY-----
 MIHcAgEBBEIBrsoKp0oqcv6/JovJJDoDVSGWdirrkgCWxrprGlzB9o0X8fV675X0
 NwuBenXFfeZvVcwluO7/Q9wkYoPd/t3jGImgBwYFK4EEACOhgYkDgYYABAFj36bL
 06h5JRGUNB1X/Hwuw64uKW2GGJLVPPhoYMcg/ALWaW+d/t+DmV5xikwKssuFq4Bz
 VQldyCXTXGgu7OC0AQCC/Y/+ODK3NFKlRi+AsG3VQDSV4tgHLqZBBus0S6pPcg1q
 kohxS/xfFg/TEwRSSws+roJr4JFKpO2t3/be5OdqmQ==
------END EC PRIVATE KEY-----
-`
+-----END EC TESTING KEY-----
+`)
 
 var keyPairTests = []struct {
 	algo string
@@ -372,7 +372,9 @@ func testVerifyHostnameResumed(t *testing.T, version uint16) {
 		ClientSessionCache: NewLRUClientSessionCache(32),
 	}
 	for i := 0; i < 2; i++ {
-		c, err := Dial("tcp", "mail.google.com:https", config)
+		c, err := DialWithDialer(&net.Dialer{
+			Timeout: 10 * time.Second,
+		}, "tcp", "mail.google.com:https", config)
 		if err != nil {
 			t.Fatalf("Dial #%d: %v", i, err)
 		}
@@ -389,12 +391,13 @@ func testVerifyHostnameResumed(t *testing.T, version uint16) {
 		if err := c.VerifyHostname("mail.google.com"); err != nil {
 			t.Fatalf("verify mail.google.com #%d: %v", i, err)
 		}
-		// Give the client a chance to read the server session tickets.
-		c.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+		// Have the server send some data so session tickets are delivered.
+		c.SetDeadline(time.Now().Add(5 * time.Second))
+		if _, err := io.WriteString(c, "HEAD / HTTP/1.0\n\n"); err != nil {
+			t.Fatal(err)
+		}
 		if _, err := c.Read(make([]byte, 1)); err != nil {
-			if err, ok := err.(net.Error); !ok || !err.Timeout() {
-				t.Fatal(err)
-			}
+			t.Fatal(err)
 		}
 		c.Close()
 	}
@@ -1139,3 +1142,5 @@ func TestBuildNameToCertificate_doesntModifyCertificates(t *testing.T) {
 		t.Fatalf("Certificates were mutated by BuildNameToCertificate\nGot: %#v\nWant: %#v\n", got, want)
 	}
 }
+
+func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }

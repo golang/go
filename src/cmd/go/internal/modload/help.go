@@ -328,16 +328,43 @@ module file trees.
 
 Module downloading and verification
 
-The go command checks downloads against known checksums,
-to detect unexpected changes in the content of any specific module
-version from one day to the next. See 'go help module-auth' for details.
+The go command can fetch modules from a proxy or connect to source control
+servers directly, according to the setting of the GOPROXY environment
+variable (see 'go help env'). The default setting for GOPROXY is
+"https://proxy.golang.org", the Go module mirror run by Google.
+See https://proxy.golang.org/privacy for the service's privacy policy.
+If GOPROXY is set to the string "direct", downloads use a direct connection
+to source control servers. Setting GOPROXY to "off" disallows downloading
+modules from any source. Otherwise, GOPROXY is expected to be a comma-separated
+list of the URLs of module proxies, in which case the go command will fetch
+modules from those proxies. For each request, the go command tries each proxy
+in sequence, only moving to the next if the current proxy returns a 404 or 410
+HTTP response. The string "direct" may appear in the proxy list,
+to cause a direct connection to be attempted at that point in the search.
+Any proxies listed after "direct" are never consulted.
 
-The go command can fetch modules from a proxy instead of connecting
-to source control systems directly, according to the setting of the GOPROXY
-environment variable.
+The GONOPROXY environment variable is a comma-separated list of
+glob patterns (in the syntax of Go's path.Match) of module path prefixes
+that should always be fetched directly, ignoring the GOPROXY setting.
+For example,
 
-See 'go help goproxy' for details about the proxy and also the format of
-the cached downloaded packages.
+	GONOPROXY=*.corp.example.com,rsc.io/private
+
+forces a direct connection to download modules with path prefixes matching
+either pattern, including "git.corp.example.com/xyzzy", "rsc.io/private",
+and "rsc.io/private/quux".
+
+The 'go env -w' command (see 'go help env') can be used to set these variables
+for future go command invocations.
+
+No matter the source of the modules, the go command checks downloads against
+known checksums, to detect unexpected changes in the content of any specific
+module version from one day to the next. This check first consults the current
+module's go.sum file but falls back to the Go checksum database.
+See 'go help module-auth' for details.
+
+See 'go help goproxy' for details about the proxy protocol and also
+the format of the cached downloaded packages.
 
 Modules and vendoring
 

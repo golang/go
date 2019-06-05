@@ -20,6 +20,9 @@ func TestXOR(t *testing.T) {
 		testenv.SkipFlaky(t, 31812)
 	}
 	for j := 1; j <= 1024; j++ {
+		if testing.Short() && j > 16 {
+			break
+		}
 		for alignP := 0; alignP < 2; alignP++ {
 			for alignQ := 0; alignQ < 2; alignQ++ {
 				for alignD := 0; alignD < 2; alignD++ {

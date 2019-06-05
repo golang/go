@@ -13,6 +13,7 @@ import (
 	"cmd/internal/src"
 	"cmd/internal/sys"
 	"fmt"
+	"internal/race"
 	"math/rand"
 	"sort"
 	"sync"
@@ -325,7 +326,7 @@ func compileSSA(fn *Node, worker int) {
 }
 
 func init() {
-	if raceEnabled {
+	if race.Enabled {
 		rand.Seed(time.Now().UnixNano())
 	}
 }
@@ -336,7 +337,7 @@ func init() {
 func compileFunctions() {
 	if len(compilequeue) != 0 {
 		sizeCalculationDisabled = true // not safe to calculate sizes concurrently
-		if raceEnabled {
+		if race.Enabled {
 			// Randomize compilation order to try to shake out races.
 			tmp := make([]*Node, len(compilequeue))
 			perm := rand.Perm(len(compilequeue))

@@ -557,7 +557,7 @@
 //
 // Usage:
 //
-// 	go get [-d] [-m] [-u] [-v] [-insecure] [build flags] [packages]
+// 	go get [-d] [-m] [-t] [-u] [-v] [-insecure] [build flags] [packages]
 //
 // Get resolves and adds dependencies to the current development module
 // and then builds and installs them.
@@ -600,6 +600,9 @@
 // are competing requirements for a particular module, then 'go get' resolves
 // those requirements by taking the maximum requested version.)
 //
+// The -t flag instructs get to consider modules needed to build tests of
+// packages specified on the command line.
+//
 // The -u flag instructs get to update dependencies to use newer minor or
 // patch releases when available. Continuing the previous example,
 // 'go get -u A' will use the latest A with B v1.3.1 (not B v1.2.3).
@@ -609,6 +612,9 @@
 // Continuing the previous example,
 // 'go get -u=patch A@latest' will use the latest A with B v1.2.4 (not B v1.2.3),
 // while 'go get -u=patch A' will use a patch release of A instead.
+//
+// When the -t and -u flags are used together, get will update
+// test dependencies as well.
 //
 // In general, adding a new dependency may require upgrading
 // existing dependencies to keep a working build, and 'go get' does
@@ -2014,21 +2020,6 @@
 //
 // Module proxy protocol
 //
-// The go command by default downloads modules from version control systems
-// directly, just as 'go get' always has. The GOPROXY environment variable allows
-// further control over the download source. If GOPROXY is unset, is the empty string,
-// or is the string "direct", downloads use the default direct connection to version
-// control systems. Setting GOPROXY to "off" disallows downloading modules from
-// any source. Otherwise, GOPROXY is expected to be a comma-separated list of
-// the URLs of module proxies, in which case the go command will fetch modules
-// from those proxies. For each request, the go command tries each proxy in sequence,
-// only moving to the next if the current proxy returns a 404 or 410 HTTP response.
-// The string "direct" may appear in the proxy list, to cause a direct connection to
-// be attempted at that point in the search.
-//
-// No matter the source of the modules, downloaded modules must match existing
-// entries in go.sum (see 'go help modules' for discussion of verification).
-//
 // A Go module proxy is any web server that can respond to GET requests for
 // URLs of a specified form. The requests have no query parameters, so even
 // a site serving from a fixed file system (including a file:/// URL)
@@ -2585,16 +2576,43 @@
 //
 // Module downloading and verification
 //
-// The go command checks downloads against known checksums,
-// to detect unexpected changes in the content of any specific module
-// version from one day to the next. See 'go help module-auth' for details.
+// The go command can fetch modules from a proxy or connect to source control
+// servers directly, according to the setting of the GOPROXY environment
+// variable (see 'go help env'). The default setting for GOPROXY is
+// "https://proxy.golang.org", the Go module mirror run by Google.
+// See https://proxy.golang.org/privacy for the service's privacy policy.
+// If GOPROXY is set to the string "direct", downloads use a direct connection
+// to source control servers. Setting GOPROXY to "off" disallows downloading
+// modules from any source. Otherwise, GOPROXY is expected to be a comma-separated
+// list of the URLs of module proxies, in which case the go command will fetch
+// modules from those proxies. For each request, the go command tries each proxy
+// in sequence, only moving to the next if the current proxy returns a 404 or 410
+// HTTP response. The string "direct" may appear in the proxy list,
+// to cause a direct connection to be attempted at that point in the search.
+// Any proxies listed after "direct" are never consulted.
 //
-// The go command can fetch modules from a proxy instead of connecting
-// to source control systems directly, according to the setting of the GOPROXY
-// environment variable.
+// The GONOPROXY environment variable is a comma-separated list of
+// glob patterns (in the syntax of Go's path.Match) of module path prefixes
+// that should always be fetched directly, ignoring the GOPROXY setting.
+// For example,
 //
-// See 'go help goproxy' for details about the proxy and also the format of
-// the cached downloaded packages.
+// 	GONOPROXY=*.corp.example.com,rsc.io/private
+//
+// forces a direct connection to download modules with path prefixes matching
+// either pattern, including "git.corp.example.com/xyzzy", "rsc.io/private",
+// and "rsc.io/private/quux".
+//
+// The 'go env -w' command (see 'go help env') can be used to set these variables
+// for future go command invocations.
+//
+// No matter the source of the modules, the go command checks downloads against
+// known checksums, to detect unexpected changes in the content of any specific
+// module version from one day to the next. This check first consults the current
+// module's go.sum file but falls back to the Go checksum database.
+// See 'go help module-auth' for details.
+//
+// See 'go help goproxy' for details about the proxy protocol and also
+// the format of the cached downloaded packages.
 //
 // Modules and vendoring
 //
@@ -2772,18 +2790,17 @@
 // database requires giving the public key explicitly. The URL defaults to
 // "https://" followed by the database name.
 //
-// GOSUMDB defaults to "sum.golang.org" when GOPROXY="https://proxy.golang.org"
-// and otherwise defaults to "off". NOTE: The GOSUMDB will later default to
-// "sum.golang.org" unconditionally.
+// GOSUMDB defaults to "sum.golang.org", the Go checksum database run by Google.
+// See https://sum.golang.org/privacy for the service's privacy policy.
 //
 // If GOSUMDB is set to "off", or if "go get" is invoked with the -insecure flag,
-// the checksum database is never consulted, but at the cost of giving up the
-// security guarantee of verified repeatable downloads for all modules.
-// A better way to bypass the checksum database for specific modules is
-// to use the GONOSUMDB environment variable.
+// the checksum database is not consulted, and all unrecognized modules are
+// accepted, at the cost of giving up the security guarantee of verified repeatable
+// downloads for all modules. A better way to bypass the checksum database
+// for specific modules is to use the GONOSUMDB environment variable.
 //
 // The GONOSUMDB environment variable is a comma-separated list of
-// patterns (in the syntax of Go's path.Match) of module path prefixes
+// glob patterns (in the syntax of Go's path.Match) of module path prefixes
 // that should not be compared against the checksum database.
 // For example,
 //
@@ -2792,6 +2809,9 @@
 // disables checksum database lookups for modules with path prefixes matching
 // either pattern, including "git.corp.example.com/xyzzy", "rsc.io/private",
 // and "rsc.io/private/quux".
+//
+// The 'go env -w' command (see 'go help env') can be used to set these variables
+// for future go command invocations.
 //
 //
 // Testing flags
