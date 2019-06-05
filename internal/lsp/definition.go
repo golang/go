@@ -31,7 +31,7 @@ func (s *Server) definition(ctx context.Context, params *protocol.TextDocumentPo
 	if err != nil {
 		return nil, err
 	}
-	decSpan, err := ident.Declaration.Range.Span()
+	decSpan, err := ident.DeclarationRange().Span()
 	if err != nil {
 		return nil, err
 	}

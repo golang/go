@@ -32,7 +32,7 @@ func (s *Server) hover(ctx context.Context, params *protocol.TextDocumentPositio
 	if err != nil {
 		return nil, err
 	}
-	hover, err := ident.Hover(ctx, nil, s.preferredContentFormat == protocol.Markdown, !s.noDocsOnHover)
+	hover, err := ident.Hover(ctx, s.preferredContentFormat == protocol.Markdown, !s.noDocsOnHover)
 	if err != nil {
 		return nil, err
 	}

@@ -15,9 +15,9 @@ import (
 )
 
 type SignatureInformation struct {
-	Label           string
-	Parameters      []ParameterInformation
-	ActiveParameter int
+	Label, Documentation string
+	Parameters           []ParameterInformation
+	ActiveParameter      int
 }
 
 type ParameterInformation struct {
@@ -82,13 +82,34 @@ func SignatureHelp(ctx context.Context, f GoFile, pos token.Pos) (*SignatureInfo
 	results, writeResultParens := formatResults(sig.Results(), qf)
 	activeParam := activeParameter(callExpr, sig.Params().Len(), sig.Variadic(), pos)
 
-	var name string
+	var (
+		name    string
+		comment *ast.CommentGroup
+	)
 	if obj != nil {
+		rng, err := objToRange(ctx, f.FileSet(), obj)
+		if err != nil {
+			return nil, err
+		}
+		node, err := objToNode(ctx, f.View(), obj, rng)
+		if err != nil {
+			return nil, err
+		}
+		decl := &declaration{
+			obj:  obj,
+			rng:  rng,
+			node: node,
+		}
+		d, err := decl.hover(ctx)
+		if err != nil {
+			return nil, err
+		}
 		name = obj.Name()
+		comment = d.comment
 	} else {
 		name = "func"
 	}
-	return signatureInformation(name, params, results, writeResultParens, activeParam), nil
+	return signatureInformation(name, comment, params, results, writeResultParens, activeParam), nil
 }
 
 func builtinSignature(ctx context.Context, v View, callExpr *ast.CallExpr, name string, pos token.Pos) (*SignatureInformation, error) {
@@ -111,10 +132,10 @@ func builtinSignature(ctx context.Context, v View, callExpr *ast.CallExpr, name 
 		}
 	}
 	activeParam := activeParameter(callExpr, numParams, variadic, pos)
-	return signatureInformation(name, params, results, writeResultParens, activeParam), nil
+	return signatureInformation(name, nil, params, results, writeResultParens, activeParam), nil
 }
 
-func signatureInformation(name string, params, results []string, writeResultParens bool, activeParam int) *SignatureInformation {
+func signatureInformation(name string, comment *ast.CommentGroup, params, results []string, writeResultParens bool, activeParam int) *SignatureInformation {
 	paramInfo := make([]ParameterInformation, 0, len(params))
 	for _, p := range params {
 		paramInfo = append(paramInfo, ParameterInformation{Label: p})
@@ -126,6 +147,7 @@ func signatureInformation(name string, params, results []string, writeResultPare
 	}
 	return &SignatureInformation{
 		Label:           label,
+		Documentation:   formatDocumentation(comment),
 		Parameters:      paramInfo,
 		ActiveParameter: activeParam,
 	}

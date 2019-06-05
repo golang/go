@@ -43,8 +43,9 @@ func toProtocolSignatureHelp(info *source.SignatureInformation) *protocol.Signat
 		ActiveSignature: 0, // there is only ever one possible signature
 		Signatures: []protocol.SignatureInformation{
 			{
-				Label:      info.Label,
-				Parameters: toProtocolParameterInformation(info.Parameters),
+				Label:         info.Label,
+				Documentation: info.Documentation,
+				Parameters:    toProtocolParameterInformation(info.Parameters),
 			},
 		},
 	}
