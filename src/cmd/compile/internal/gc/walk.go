@@ -1393,7 +1393,7 @@ opswitch:
 			// Allocate a [n]byte of the right size.
 			t := types.NewArray(types.Types[TUINT8], int64(len(sc)))
 			var a *Node
-			if n.Esc == EscNone && len(sc) <= maxImplicitStackVarSize {
+			if n.Esc == EscNone && len(sc) <= int(maxImplicitStackVarSize) {
 				a = nod(OADDR, temp(t), nil)
 			} else {
 				a = callnew(t)
