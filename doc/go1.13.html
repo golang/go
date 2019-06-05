@@ -95,3 +95,290 @@ TODO; link to <a href="/doc/go1.12#tls_1_3">Go 1.12 notes</a>.
 TODO
 </p>
 
+<!-- CL 159258: https://golang.org/cl/159258: cmd/cgo: use C exact-width integer types to represent Go types -->
+<!-- CL 161904: https://golang.org/cl/161904: cmd/compile: do not export float or complex constants with -asmhdr -->
+<!-- CL 167780: https://golang.org/cl/167780: cmd/compile: rename init function from init.ializers back to init -->
+<!-- CL 170448: https://golang.org/cl/170448: cmd/compile: enable -newescape by default -->
+<!-- CL 174125: https://golang.org/cl/174125: cmd/dist: add support for openbsd/arm64 -->
+<!-- CL 177797: https://golang.org/cl/177797: cmd/doc: always print package clause except for commands -->
+<!-- CL 173345: https://golang.org/cl/173345: cmd/go: add -trimpath build flag -->
+<!-- CL 173438: https://golang.org/cl/173438: cmd/go: change -tags to a comma-separated list -->
+<!-- CL 175983: https://golang.org/cl/175983: cmd/go: set the "generate" build tag in go generate, per design doc -->
+<!-- CL 167747: https://golang.org/cl/167747: 'go get' in module mode now supports the version suffix '@patch'.: cmd/go/internal/modget: support the suffix '@patch' in 'go get' -->
+
+<dl id="all"><dt><a href="/pkg/all/">all</a></dt>
+  <dd>
+    <p><!-- CL 174457 -->
+      TODO: <a href="https://golang.org/cl/174457">https://golang.org/cl/174457</a>: add new GOOS=illumos, split out of GOOS=solaris
+    </p>
+
+</dl><!-- all -->
+
+<dl id="bytes"><dt><a href="/pkg/bytes/">bytes</a></dt>
+  <dd>
+    <p><!-- CL 161760 -->
+      TODO: <a href="https://golang.org/cl/161760">https://golang.org/cl/161760</a>: hoist error creation out of function
+    </p>
+
+</dl><!-- bytes -->
+
+<dl id="context"><dt><a href="/pkg/context/">context</a></dt>
+  <dd>
+    <p><!-- CL 169080 -->
+      TODO: <a href="https://golang.org/cl/169080">https://golang.org/cl/169080</a>: don&#39;t depend on fmt
+    </p>
+
+</dl><!-- context -->
+
+<dl id="crypto/ed25519"><dt><a href="/pkg/crypto/ed25519/">crypto/ed25519</a></dt>
+  <dd>
+    <p><!-- CL 174945 -->
+      TODO: <a href="https://golang.org/cl/174945">https://golang.org/cl/174945</a>: promote from golang.org/x/crypto/ed25519
+    </p>
+
+</dl><!-- crypto/ed25519 -->
+
+<dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+  <dd>
+    <p><!-- CL 177698 -->
+      TODO: <a href="https://golang.org/cl/177698">https://golang.org/cl/177698</a>: add support for Ed25519 certificates in TLS 1.2 and 1.3
+    </p>
+
+</dl><!-- crypto/tls -->
+
+<dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
+  <dd>
+    <p><!-- CL 170699 -->
+      TODO: <a href="https://golang.org/cl/170699">https://golang.org/cl/170699</a>: add NullTime
+    </p>
+
+    <p><!-- CL 174178 -->
+      TODO: <a href="https://golang.org/cl/174178">https://golang.org/cl/174178</a>: add NullInt32
+    </p>
+
+</dl><!-- database/sql -->
+
+<dl id="debug/dwarf"><dt><a href="/pkg/debug/dwarf/">debug/dwarf</a></dt>
+  <dd>
+    <p><!-- CL 158797 -->
+      TODO: <a href="https://golang.org/cl/158797">https://golang.org/cl/158797</a>: more graceful handling of unsupported types
+    </p>
+
+</dl><!-- debug/dwarf -->
+
+<dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+  <dd>
+    <p><!-- CL 175218 -->
+      TODO: <a href="https://golang.org/cl/175218">https://golang.org/cl/175218</a>: add support for JavaScript modules
+    </p>
+
+</dl><!-- html/template -->
+
+<dl id="log"><dt><a href="/pkg/log/">log</a></dt>
+  <dd>
+    <p><!-- CL 168920 -->
+      TODO: <a href="https://golang.org/cl/168920">https://golang.org/cl/168920</a>: expose Writer() method of the standard logger
+    </p>
+
+</dl><!-- log -->
+
+<dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
+  <dd>
+    <p><!-- CL 160682 -->
+      TODO: <a href="https://golang.org/cl/160682">https://golang.org/cl/160682</a>: implement Rat.SetUint64
+    </p>
+
+    <p><!-- CL 168237 -->
+      TODO: <a href="https://golang.org/cl/168237">https://golang.org/cl/168237</a>: accept non-decimal floats with Rat.SetString
+    </p>
+
+</dl><!-- math/big -->
+
+<dl id="math/bits"><dt><a href="/pkg/math/bits/">math/bits</a></dt>
+  <dd>
+    <p><!-- CL 178177 -->
+      TODO: <a href="https://golang.org/cl/178177">https://golang.org/cl/178177</a>: document that Add, Sub, Mul, RotateLeft, ReverseBytes are constant time
+    </p>
+
+</dl><!-- math/bits -->
+
+<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+  <dd>
+    <p><!-- CL 156366 -->
+      TODO: <a href="https://golang.org/cl/156366">https://golang.org/cl/156366</a>: use DNS over TCP when use-vc is set in resolv.conf
+    </p>
+
+    <p><!-- CL 166297 -->
+      TODO: <a href="https://golang.org/cl/166297">https://golang.org/cl/166297</a>: use libSystem bindings for DNS resolution on macos if cgo is unavailable
+    </p>
+
+    <p><!-- CL 170678 -->
+      TODO: <a href="https://golang.org/cl/170678">https://golang.org/cl/170678</a>: add KeepAlive field to ListenConfig
+    </p>
+
+</dl><!-- net -->
+
+<dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+  <dd>
+    <p><!-- CL 130256 -->
+      TODO: <a href="https://golang.org/cl/130256">https://golang.org/cl/130256</a>: introduce DialerAndTLSConfigSupportsHTTP2 in Transport
+    </p>
+
+    <p><!-- CL 140357 -->
+      TODO: <a href="https://golang.org/cl/140357">https://golang.org/cl/140357</a>: make Transport.MaxConnsPerHost work for HTTP/2
+    </p>
+
+    <p><!-- CL 154383 -->
+      TODO: <a href="https://golang.org/cl/154383">https://golang.org/cl/154383</a>: make TimeoutHandler&#39;s ResponseWriter implement Pusher
+    </p>
+
+    <p><!-- CL 167681 -->
+      TODO: <a href="https://golang.org/cl/167681">https://golang.org/cl/167681</a>: add Server BaseContext &amp; ConnContext fields to control early context
+    </p>
+
+    <p><!-- CL 173658 -->
+      TODO: <a href="https://golang.org/cl/173658">https://golang.org/cl/173658</a>: export Header.Clone, reduce its allocations, use it everywhere
+    </p>
+
+</dl><!-- net/http -->
+
+<dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+  <dd>
+    <p><!-- CL 166578 -->
+      TODO: <a href="https://golang.org/cl/166578">https://golang.org/cl/166578</a>: reject WriteAt if file opened in append mode
+    </p>
+
+</dl><!-- os -->
+
+<dl id="os/exec"><dt><a href="/pkg/os/exec/">os/exec</a></dt>
+  <dd>
+    <p><!-- CL 174318 -->
+      TODO: <a href="https://golang.org/cl/174318">https://golang.org/cl/174318</a>: always set SYSTEMROOT on Windows if not listed in Cmd.Env
+    </p>
+
+</dl><!-- os/exec -->
+
+<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+  <dd>
+    <p><!-- CL 171337 -->
+      TODO: <a href="https://golang.org/cl/171337">https://golang.org/cl/171337</a>: add Value.IsZero
+    </p>
+
+    <p><!-- CL 174531 -->
+      TODO: <a href="https://golang.org/cl/174531">https://golang.org/cl/174531</a>: MakeFunc: allow assignment conversions on values returned from the wrapped function
+    </p>
+
+</dl><!-- reflect -->
+
+<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+  <dd>
+    <p><!-- CL 170318 -->
+      TODO: <a href="https://golang.org/cl/170318">https://golang.org/cl/170318</a>: randomize package initialization order in race mode
+    </p>
+
+</dl><!-- runtime -->
+
+<dl id="runtime, internal/poll, net"><dt><a href="/pkg/runtime, internal/poll, net/">runtime, internal/poll, net</a></dt>
+  <dd>
+    <p><!-- CL 166497 -->
+      TODO: <a href="https://golang.org/cl/166497">https://golang.org/cl/166497</a>: report event scanning error on read event
+    </p>
+
+</dl><!-- runtime, internal/poll, net -->
+
+<dl id="runtime/cgo"><dt><a href="/pkg/runtime/cgo/">runtime/cgo</a></dt>
+  <dd>
+    <p><!-- CL 170127 -->
+      TODO: <a href="https://golang.org/cl/170127">https://golang.org/cl/170127</a>: look for android_get_device_api_level in libc.so
+    </p>
+
+</dl><!-- runtime/cgo -->
+
+<dl id="strings, bytes"><dt><a href="/pkg/strings, bytes/">strings, bytes</a></dt>
+  <dd>
+    <p><!-- CL 142003 -->
+      TODO: <a href="https://golang.org/cl/142003">https://golang.org/cl/142003</a>: add ToValidUTF8
+    </p>
+
+</dl><!-- strings, bytes -->
+
+<dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
+  <dd>
+    <p><!-- CL 166960 -->
+      TODO: <a href="https://golang.org/cl/166960">https://golang.org/cl/166960</a>: use lock-free structure for Pool stealing
+    </p>
+
+    <p><!-- CL 166961 -->
+      TODO: <a href="https://golang.org/cl/166961">https://golang.org/cl/166961</a>: smooth out Pool behavior over GC with a victim cache
+    </p>
+
+</dl><!-- sync -->
+
+<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
+  <dd>
+    <p><!-- CL 168479 -->
+      TODO: <a href="https://golang.org/cl/168479">https://golang.org/cl/168479</a>: avoid _getdirentries64 on darwin
+    </p>
+
+    <p><!-- CL 174197 -->
+      TODO: <a href="https://golang.org/cl/174197">https://golang.org/cl/174197</a>: allow setting security attributes on processes
+    </p>
+
+    <p><!-- CL 174320 -->
+      TODO: <a href="https://golang.org/cl/174320">https://golang.org/cl/174320</a>: don&#39;t return EINVAL on zero Chmod mode on Windows
+    </p>
+
+</dl><!-- syscall -->
+
+<dl id="syscall/js"><dt><a href="/pkg/syscall/js/">syscall/js</a></dt>
+  <dd>
+    <p><!-- CL 177537 -->
+      TODO: <a href="https://golang.org/cl/177537">https://golang.org/cl/177537</a>: replace TypedArrayOf with CopyBytesToGo/CopyBytesToJS
+    </p>
+
+</dl><!-- syscall/js -->
+
+<dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
+  <dd>
+    <p><!-- CL 112155 -->
+      TODO: <a href="https://golang.org/cl/112155">https://golang.org/cl/112155</a>: stop rounding b.N
+    </p>
+
+    <p><!-- CL 166717 -->
+      TODO: <a href="https://golang.org/cl/166717">https://golang.org/cl/166717</a>: add B.ReportMetric for custom benchmark metrics
+    </p>
+
+    <p><!-- CL 173722 -->
+      TODO: <a href="https://golang.org/cl/173722">https://golang.org/cl/173722</a>: delay flag registration; move to an Init function
+    </p>
+
+</dl><!-- testing -->
+
+<dl id="text/scanner"><dt><a href="/pkg/text/scanner/">text/scanner</a></dt>
+  <dd>
+    <p><!-- CL 163079 -->
+      TODO: <a href="https://golang.org/cl/163079">https://golang.org/cl/163079</a>: don&#39;t liberally consume (invalid) floats or underbars
+    </p>
+
+</dl><!-- text/scanner -->
+
+<dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
+  <dd>
+    <p><!-- CL 161762 -->
+      TODO: <a href="https://golang.org/cl/161762">https://golang.org/cl/161762</a>: add a slice function to the predefined global functions
+    </p>
+
+</dl><!-- text/template -->
+
+<dl id="time"><dt><a href="/pkg/time/">time</a></dt>
+  <dd>
+    <p><!-- CL 122876 -->
+      TODO: <a href="https://golang.org/cl/122876">https://golang.org/cl/122876</a>: add support for day-of-year in Format and Parse
+    </p>
+
+    <p><!-- CL 167387 -->
+      TODO: <a href="https://golang.org/cl/167387">https://golang.org/cl/167387</a>: add methods to convert duration to microseconds and milliseconds
+    </p>
+
+</dl><!-- time -->
+
