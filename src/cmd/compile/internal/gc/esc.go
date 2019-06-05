@@ -802,7 +802,6 @@ opSwitch:
 
 	case ODEFER:
 		if e.loopdepth == 1 { // top level
-			n.Esc = EscNever // force stack allocation of defer record (see ssa.go)
 			break
 		}
 		// arguments leak out of scope
