@@ -771,7 +771,7 @@ func (c *common) Helper() {
 // for the caller after skip frames (where 0 means the current function).
 func callerName(skip int) string {
 	// Make room for the skip PC.
-	var pc [2]uintptr
+	var pc [1]uintptr
 	n := runtime.Callers(skip+2, pc[:]) // skip + runtime.Callers + callerName
 	if n == 0 {
 		panic("testing: zero callers found")

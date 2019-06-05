@@ -122,7 +122,7 @@ type pp struct {
 	panicking bool
 	// erroring is set when printing an error string to guard against calling handleMethods.
 	erroring bool
-	// wrapErrors is set when the format string may contain a %w verb.
+	// wrapErrs is set when the format string may contain a %w verb.
 	wrapErrs bool
 	// wrappedErr records the target of the %w verb.
 	wrappedErr error
@@ -137,6 +137,7 @@ func newPrinter() *pp {
 	p := ppFree.Get().(*pp)
 	p.panicking = false
 	p.erroring = false
+	p.wrapErrs = false
 	p.fmt.init(&p.buf)
 	return p
 }

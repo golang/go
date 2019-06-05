@@ -127,59 +127,58 @@ func GCFairness2() {
 	fmt.Println("OK")
 }
 
-var maybeSaved []byte
-
 func GCPhys() {
-	// In this test, we construct a very specific scenario. We first
-	// allocate N objects and drop half of their pointers on the floor,
-	// effectively creating N/2 'holes' in our allocated arenas. We then
-	// try to allocate objects twice as big. At the end, we measure the
-	// physical memory overhead of large objects.
+	// This test ensures that heap-growth scavenging is working as intended.
 	//
-	// The purpose of this test is to ensure that the GC scavenges free
-	// spans eagerly to ensure high physical memory utilization even
-	// during fragmentation.
+	// It sets up a specific scenario: it allocates two pairs of objects whose
+	// sizes sum to size. One object in each pair is "small" (though must be
+	// large enough to be considered a large object by the runtime) and one is
+	// large. The small objects are kept while the large objects are freed,
+	// creating two large unscavenged holes in the heap. The heap goal should
+	// also be small as a result (so size must be at least as large as the
+	// minimum heap size). We then allocate one large object, bigger than both
+	// pairs of objects combined. This allocation, because it will tip
+	// HeapSys-HeapReleased well above the heap goal, should trigger heap-growth
+	// scavenging and scavenge most, if not all, of the large holes we created
+	// earlier.
 	const (
-		// Unfortunately, measuring actual used physical pages is
-		// difficult because HeapReleased doesn't include the parts
-		// of an arena that haven't yet been touched. So, we just
-		// make objects and size sufficiently large such that even
-		// 64 MB overhead is relatively small in the final
-		// calculation.
-		//
-		// Currently, we target 480MiB worth of memory for our test,
-		// computed as size * objects + (size*2) * (objects/2)
-		// = 2 * size * objects
-		//
 		// Size must be also large enough to be considered a large
 		// object (not in any size-segregated span).
-		size    = 1 << 20
-		objects = 240
+		size    = 4 << 20
+		split   = 64 << 10
+		objects = 2
 	)
+	// Set GOGC so that this test operates under consistent assumptions.
+	debug.SetGCPercent(100)
 	// Save objects which we want to survive, and condemn objects which we don't.
 	// Note that we condemn objects in this way and release them all at once in
 	// order to avoid having the GC start freeing up these objects while the loop
 	// is still running and filling in the holes we intend to make.
-	saved := make([][]byte, 0, objects)
-	condemned := make([][]byte, 0, objects/2+1)
-	for i := 0; i < objects; i++ {
-		// Write into a global, to prevent this from being optimized away by
-		// the compiler in the future.
-		maybeSaved = make([]byte, size)
+	saved := make([][]byte, 0, objects+1)
+	condemned := make([][]byte, 0, objects)
+	for i := 0; i < 2*objects; i++ {
 		if i%2 == 0 {
-			saved = append(saved, maybeSaved)
+			saved = append(saved, make([]byte, split))
 		} else {
-			condemned = append(condemned, maybeSaved)
+			condemned = append(condemned, make([]byte, size-split))
 		}
 	}
 	condemned = nil
 	// Clean up the heap. This will free up every other object created above
 	// (i.e. everything in condemned) creating holes in the heap.
+	// Also, if the condemned objects are still being swept, its possible that
+	// the scavenging that happens as a result of the next allocation won't see
+	// the holes at all. We call runtime.GC() twice here so that when we allocate
+	// our large object there's no race with sweeping.
 	runtime.GC()
-	// Allocate many new objects of 2x size.
-	for i := 0; i < objects/2; i++ {
-		saved = append(saved, make([]byte, size*2))
-	}
+	runtime.GC()
+	// Perform one big allocation which should also scavenge any holes.
+	//
+	// The heap goal will rise after this object is allocated, so it's very
+	// important that we try to do all the scavenging in a single allocation
+	// that exceeds the heap goal. Otherwise the rising heap goal could foil our
+	// test.
+	saved = append(saved, make([]byte, objects*size))
 	// Clean up the heap again just to put it in a known state.
 	runtime.GC()
 	// heapBacked is an estimate of the amount of physical memory used by
@@ -191,21 +190,29 @@ func GCPhys() {
 	var stats runtime.MemStats
 	runtime.ReadMemStats(&stats)
 	heapBacked := stats.HeapSys - stats.HeapReleased
-	// If heapBacked exceeds the amount of memory actually used for heap
-	// allocated objects by 10% (post-GC HeapAlloc should be quite close to
-	// the size of the working set), then fail.
+	// If heapBacked does not exceed the heap goal by more than retainExtraPercent
+	// then the scavenger is working as expected; the newly-created holes have been
+	// scavenged immediately as part of the allocations which cannot fit in the holes.
 	//
-	// In the context of this test, that indicates a large amount of
-	// fragmentation with physical pages that are otherwise unused but not
-	// returned to the OS.
+	// Since the runtime should scavenge the entirety of the remaining holes,
+	// theoretically there should be no more free and unscavenged memory. However due
+	// to other allocations that happen during this test we may still see some physical
+	// memory over-use. 10% here is an arbitrary but very conservative threshold which
+	// should easily account for any other allocations this test may have done.
 	overuse := (float64(heapBacked) - float64(stats.HeapAlloc)) / float64(stats.HeapAlloc)
-	if overuse > 0.1 {
-		fmt.Printf("exceeded physical memory overuse threshold of 10%%: %3.2f%%\n"+
-			"(alloc: %d, sys: %d, rel: %d, objs: %d)\n", overuse*100, stats.HeapAlloc,
-			stats.HeapSys, stats.HeapReleased, len(saved))
+	if overuse <= 0.10 {
+		fmt.Println("OK")
 		return
 	}
-	fmt.Println("OK")
+	// Physical memory utilization exceeds the threshold, so heap-growth scavenging
+	// did not operate as expected.
+	//
+	// In the context of this test, this indicates a large amount of
+	// fragmentation with physical pages that are otherwise unused but not
+	// returned to the OS.
+	fmt.Printf("exceeded physical memory overuse threshold of 10%%: %3.2f%%\n"+
+		"(alloc: %d, goal: %d, sys: %d, rel: %d, objs: %d)\n", overuse*100,
+		stats.HeapAlloc, stats.NextGC, stats.HeapSys, stats.HeapReleased, len(saved))
 	runtime.KeepAlive(saved)
 }
 

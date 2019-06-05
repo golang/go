@@ -11,14 +11,20 @@ import (
 	"unicode/utf8"
 )
 
-// Sym represents an object name. Most commonly, this is a Go identifier naming
-// an object declared within a package, but Syms are also used to name internal
-// synthesized objects.
+// Sym represents an object name in a segmented (pkg, name) namespace.
+// Most commonly, this is a Go identifier naming an object declared within a package,
+// but Syms are also used to name internal synthesized objects.
 //
 // As an exception, field and method names that are exported use the Sym
 // associated with localpkg instead of the package that declared them. This
 // allows using Sym pointer equality to test for Go identifier uniqueness when
 // handling selector expressions.
+//
+// Ideally, Sym should be used for representing Go language constructs,
+// while cmd/internal/obj.LSym is used for representing emitted artifacts.
+//
+// NOTE: In practice, things can be messier than the description above
+// for various reasons (historical, convenience).
 type Sym struct {
 	Importdef *Pkg   // where imported definition was found
 	Linkname  string // link name

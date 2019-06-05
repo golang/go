@@ -496,17 +496,26 @@ func PackageModule(path string) module.Version {
 }
 
 // PackageImports returns the imports for the package named by the import path.
-// It does not include test imports. It returns nil for unknown packages.
-func PackageImports(path string) []string {
+// Test imports will be returned as well if tests were loaded for the package
+// (i.e., if "all" was loaded or if LoadTests was set and the path was matched
+// by a command line argument). PackageImports will return nil for
+// unknown package paths.
+func PackageImports(path string) (imports, testImports []string) {
 	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
 	if !ok {
-		return nil
+		return nil, nil
 	}
-	imports := make([]string, len(pkg.imports))
+	imports = make([]string, len(pkg.imports))
 	for i, p := range pkg.imports {
 		imports[i] = p.path
 	}
-	return imports
+	if pkg.test != nil {
+		testImports = make([]string, len(pkg.test.imports))
+		for i, p := range pkg.test.imports {
+			testImports[i] = p.path
+		}
+	}
+	return imports, testImports
 }
 
 // ModuleUsedDirectly reports whether the main module directly imports

@@ -63,7 +63,7 @@ func expect(t *testing.T, file string, errors []*regexp.Regexp) {
 	defer os.RemoveAll(dir)
 
 	dst := filepath.Join(dir, strings.TrimSuffix(file, ".go"))
-	cmd := exec.Command("go", "build", "-gcflags=-L", "-o="+dst, path(file)) // TODO(gri) no need for -gcflags=-L if go tool is adjusted
+	cmd := exec.Command("go", "build", "-gcflags=-L -e", "-o="+dst, path(file)) // TODO(gri) no need for -gcflags=-L if go tool is adjusted
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Errorf("expected cgo to fail but it succeeded")
@@ -107,21 +107,10 @@ func TestReportsTypeErrors(t *testing.T) {
 	for _, file := range []string{
 		"err1.go",
 		"err2.go",
-		"err3.go",
-		"issue7757.go",
-		"issue8442.go",
 		"issue11097a.go",
 		"issue11097b.go",
-		"issue13129.go",
-		"issue13423.go",
-		"issue13467.go",
-		"issue13635.go",
-		"issue13830.go",
-		"issue16116.go",
-		"issue16591.go",
 		"issue18452.go",
 		"issue18889.go",
-		"issue26745.go",
 		"issue28721.go",
 	} {
 		check(t, file)

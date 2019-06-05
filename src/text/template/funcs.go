@@ -34,6 +34,7 @@ var builtins = FuncMap{
 	"call":     call,
 	"html":     HTMLEscaper,
 	"index":    index,
+	"slice":    slice,
 	"js":       JSEscaper,
 	"len":      length,
 	"not":      not,
@@ -159,17 +160,36 @@ func intLike(typ reflect.Kind) bool {
 	return false
 }
 
+// indexArg checks if a reflect.Value can be used as an index, and converts it to int if possible.
+func indexArg(index reflect.Value, cap int) (int, error) {
+	var x int64
+	switch index.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		x = index.Int()
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		x = int64(index.Uint())
+	case reflect.Invalid:
+		return 0, fmt.Errorf("cannot index slice/array with nil")
+	default:
+		return 0, fmt.Errorf("cannot index slice/array with type %s", index.Type())
+	}
+	if x < 0 || int(x) < 0 || int(x) > cap {
+		return 0, fmt.Errorf("index out of range: %d", x)
+	}
+	return int(x), nil
+}
+
 // Indexing.
 
 // index returns the result of indexing its first argument by the following
 // arguments. Thus "index x 1 2 3" is, in Go syntax, x[1][2][3]. Each
 // indexed item must be a map, slice, or array.
-func index(item reflect.Value, indices ...reflect.Value) (reflect.Value, error) {
+func index(item reflect.Value, indexes ...reflect.Value) (reflect.Value, error) {
 	v := indirectInterface(item)
 	if !v.IsValid() {
 		return reflect.Value{}, fmt.Errorf("index of untyped nil")
 	}
-	for _, i := range indices {
+	for _, i := range indexes {
 		index := indirectInterface(i)
 		var isNil bool
 		if v, isNil = indirect(v); isNil {
@@ -177,21 +197,11 @@ func index(item reflect.Value, indices ...reflect.Value) (reflect.Value, error) 
 		}
 		switch v.Kind() {
 		case reflect.Array, reflect.Slice, reflect.String:
-			var x int64
-			switch index.Kind() {
-			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				x = index.Int()
-			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-				x = int64(index.Uint())
-			case reflect.Invalid:
-				return reflect.Value{}, fmt.Errorf("cannot index slice/array with nil")
-			default:
-				return reflect.Value{}, fmt.Errorf("cannot index slice/array with type %s", index.Type())
+			x, err := indexArg(index, v.Len())
+			if err != nil {
+				return reflect.Value{}, err
 			}
-			if x < 0 || x >= int64(v.Len()) {
-				return reflect.Value{}, fmt.Errorf("index out of range: %d", x)
-			}
-			v = v.Index(int(x))
+			v = v.Index(x)
 		case reflect.Map:
 			index, err := prepareArg(index, v.Type().Key())
 			if err != nil {
@@ -210,6 +220,57 @@ func index(item reflect.Value, indices ...reflect.Value) (reflect.Value, error) 
 		}
 	}
 	return v, nil
+}
+
+// Slicing.
+
+// slice returns the result of slicing its first argument by the remaining
+// arguments. Thus "slice x 1 2" is, in Go syntax, x[1:2], while "slice x"
+// is x[:], "slice x 1" is x[1:], and "slice x 1 2 3" is x[1:2:3]. The first
+// argument must be a string, slice, or array.
+func slice(item reflect.Value, indexes ...reflect.Value) (reflect.Value, error) {
+	var (
+		cap int
+		v   = indirectInterface(item)
+	)
+	if !v.IsValid() {
+		return reflect.Value{}, fmt.Errorf("slice of untyped nil")
+	}
+	if len(indexes) > 3 {
+		return reflect.Value{}, fmt.Errorf("too many slice indexes: %d", len(indexes))
+	}
+	switch v.Kind() {
+	case reflect.String:
+		if len(indexes) == 3 {
+			return reflect.Value{}, fmt.Errorf("cannot 3-index slice a string")
+		}
+		cap = v.Len()
+	case reflect.Array, reflect.Slice:
+		cap = v.Cap()
+	default:
+		return reflect.Value{}, fmt.Errorf("can't slice item of type %s", v.Type())
+	}
+	// set default values for cases item[:], item[i:].
+	idx := [3]int{0, v.Len()}
+	for i, index := range indexes {
+		x, err := indexArg(index, cap)
+		if err != nil {
+			return reflect.Value{}, err
+		}
+		idx[i] = x
+	}
+	// given item[i:j], make sure i <= j.
+	if idx[0] > idx[1] {
+		return reflect.Value{}, fmt.Errorf("invalid slice index: %d > %d", idx[0], idx[1])
+	}
+	if len(indexes) < 3 {
+		return item.Slice(idx[0], idx[1]), nil
+	}
+	// given item[i:j:k], make sure i <= j <= k.
+	if idx[1] > idx[2] {
+		return reflect.Value{}, fmt.Errorf("invalid slice index: %d > %d", idx[1], idx[2])
+	}
+	return item.Slice3(idx[0], idx[1], idx[2]), nil
 }
 
 // Length

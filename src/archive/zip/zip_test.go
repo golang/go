@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"internal/race"
 	"internal/testenv"
 	"io"
 	"io/ioutil"
@@ -309,7 +308,7 @@ func TestZip64EdgeCase(t *testing.T) {
 // Tests that we generate a zip64 file if the directory at offset
 // 0xFFFFFFFF, but not before.
 func TestZip64DirectoryOffset(t *testing.T) {
-	if testing.Short() && race.Enabled {
+	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
 	t.Parallel()
@@ -354,7 +353,7 @@ func TestZip64DirectoryOffset(t *testing.T) {
 
 // At 16k records, we need to generate a zip64 file.
 func TestZip64ManyRecords(t *testing.T) {
-	if testing.Short() && race.Enabled {
+	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
 	t.Parallel()

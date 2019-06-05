@@ -78,7 +78,7 @@ func TestGrowth(t *testing.T) {
 
 	n := 10000
 	if testing.Short() {
-		n = 1000
+		n = 10
 	}
 
 	for i := 0; i < n; i++ {

@@ -8,8 +8,9 @@ import (
 	"internal/reflectlite"
 )
 
-// Unwrap returns the result of calling the Unwrap method on err, if err
-// implements Wrapper. Otherwise, Unwrap returns nil.
+// Unwrap returns the result of calling the Unwrap method on err, if err's
+// type contains an Unwrap method returning error.
+// Otherwise, Unwrap returns nil.
 func Unwrap(err error) error {
 	u, ok := err.(interface {
 		Unwrap() error

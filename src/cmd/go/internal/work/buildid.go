@@ -159,7 +159,7 @@ func hashToString(h [cache.HashSize]byte) string {
 // which influences the action ID half of the build ID, is based on the content ID,
 // then the Linux compiler binary and Mac compiler binary will have different tool IDs
 // and therefore produce executables with different action IDs.
-// To avoids this problem, for releases we use the release version string instead
+// To avoid this problem, for releases we use the release version string instead
 // of the compiler binary's content hash. This assumes that all compilers built
 // on all different systems are semantically equivalent, which is of course only true
 // modulo bugs. (Producing the exact same executables also requires that the different
@@ -215,7 +215,7 @@ func (b *Builder) toolID(name string) string {
 }
 
 // gccToolID returns the unique ID to use for a tool that is invoked
-// by the GCC driver. This is in particular gccgo, but this can also
+// by the GCC driver. This is used particularly for gccgo, but this can also
 // be used for gcc, g++, gfortran, etc.; those tools all use the GCC
 // driver under different names. The approach used here should also
 // work for sufficiently new versions of clang. Unlike toolID, the
