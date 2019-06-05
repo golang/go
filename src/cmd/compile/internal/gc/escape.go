@@ -882,7 +882,6 @@ func (e *Escape) augmentParamHole(k EscHole, where *Node) EscHole {
 	// non-transient location to avoid arguments from being
 	// transiently allocated.
 	if where.Op == ODEFER && e.loopDepth == 1 {
-		where.Esc = EscNever // force stack allocation of defer record (see ssa.go)
 		// TODO(mdempsky): Eliminate redundant EscLocation allocs.
 		return e.teeHole(k, e.newLoc(nil, false).asHole())
 	}

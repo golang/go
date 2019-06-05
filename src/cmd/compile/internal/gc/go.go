@@ -287,7 +287,6 @@ var (
 	assertI2I,
 	assertI2I2,
 	deferproc,
-	deferprocStack,
 	Deferreturn,
 	Duffcopy,
 	Duffzero,

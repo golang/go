@@ -248,6 +248,9 @@ func getclosureptr() uintptr
 //go:noescape
 func asmcgocall(fn, arg unsafe.Pointer) int32
 
+// argp used in Defer structs when there is no argp.
+const _NoArgs = ^uintptr(0)
+
 func morestack()
 func morestack_noctxt()
 func rt0_go()
