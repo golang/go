@@ -26,10 +26,7 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 		for _, mode := range formatModes {
 			tag := "gofmt" + strings.Join(mode, "")
 			uri := spn.URI()
-			filename, err := uri.Filename()
-			if err != nil {
-				t.Fatal(err)
-			}
+			filename := uri.Filename()
 			args := append(mode, filename)
 			expect := string(r.data.Golden(tag, filename, func() ([]byte, error) {
 				cmd := exec.Command("gofmt", args...)

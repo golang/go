@@ -20,10 +20,7 @@ func (r *runner) Diagnostics(t *testing.T, data tests.Diagnostics) {
 		if len(want) == 1 && want[0].Message == "" {
 			continue
 		}
-		fname, err := uri.Filename()
-		if err != nil {
-			t.Fatal(err)
-		}
+		fname := uri.Filename()
 		args := []string{"-remote=internal", "check", fname}
 		out := captureStdOut(t, func() {
 			tool.Main(context.Background(), r.app, args)

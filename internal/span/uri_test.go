@@ -39,10 +39,7 @@ func TestURI(t *testing.T) {
 		if expectURI != string(uri) {
 			t.Errorf("ToURI: expected %s, got %s", expectURI, uri)
 		}
-		filename, err := uri.Filename()
-		if err != nil {
-			t.Fatal(err)
-		}
+		filename := uri.Filename()
 		if expectPath != filename {
 			t.Errorf("Filename: expected %s, got %s", expectPath, filename)
 		}

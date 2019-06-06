@@ -29,10 +29,7 @@ func TestParseErrorMessage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			spn := parseDiagnosticMessage(tt.in)
-			fn, err := spn.URI().Filename()
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
+			fn := spn.URI().Filename()
 
 			if !strings.HasSuffix(fn, tt.expectedFileName) {
 				t.Errorf("expected filename with suffix %v but got %v", tt.expectedFileName, fn)

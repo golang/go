@@ -114,13 +114,9 @@ func (v *view) Folder() span.URI {
 // go/packages API. It is shared across all views.
 func (v *view) buildConfig() *packages.Config {
 	//TODO:should we cache the config and/or overlay somewhere?
-	folderPath, err := v.folder.Filename()
-	if err != nil {
-		folderPath = ""
-	}
 	return &packages.Config{
 		Context:    v.backgroundCtx,
-		Dir:        folderPath,
+		Dir:        v.folder.Filename(),
 		Env:        v.env,
 		BuildFlags: v.buildFlags,
 		Mode: packages.NeedName |
@@ -315,10 +311,7 @@ func (v *view) getFile(uri span.URI) (viewFile, error) {
 	} else if f != nil {
 		return f, nil
 	}
-	filename, err := uri.Filename()
-	if err != nil {
-		return nil, err
-	}
+	filename := uri.Filename()
 	var f viewFile
 	switch ext := filepath.Ext(filename); ext {
 	case ".go":
@@ -363,10 +356,7 @@ func (v *view) findFile(uri span.URI) (viewFile, error) {
 	}
 	// no exact match stored, time to do some real work
 	// check for any files with the same basename
-	fname, err := uri.Filename()
-	if err != nil {
-		return nil, err
-	}
+	fname := uri.Filename()
 	basename := basename(fname)
 	if candidates := v.filesByBase[basename]; candidates != nil {
 		pathStat, err := os.Stat(fname)

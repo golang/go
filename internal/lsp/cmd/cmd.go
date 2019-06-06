@@ -318,11 +318,7 @@ func (c *cmdClient) getFile(ctx context.Context, uri span.URI) *cmdFile {
 		c.files[uri] = file
 	}
 	if file.mapper == nil {
-		fname, err := uri.Filename()
-		if err != nil {
-			file.err = fmt.Errorf("%v: %v", uri, err)
-			return file
-		}
+		fname := uri.Filename()
 		content, err := ioutil.ReadFile(fname)
 		if err != nil {
 			file.err = fmt.Errorf("%v: %v", uri, err)

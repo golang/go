@@ -42,11 +42,7 @@ func (h *nativeFileHandle) Identity() source.FileIdentity {
 }
 
 func (h *nativeFileHandle) Read(ctx context.Context) ([]byte, string, error) {
-	filename, err := h.identity.URI.Filename()
-	if err != nil {
-		return nil, "", err
-	}
-	data, err := ioutil.ReadFile(filename)
+	data, err := ioutil.ReadFile(h.identity.URI.Filename())
 	if err != nil {
 		return nil, "", err
 	}

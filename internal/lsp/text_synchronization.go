@@ -71,13 +71,9 @@ func (s *Server) applyChanges(ctx context.Context, params *protocol.DidChangeTex
 		return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "file not found")
 	}
 	fset := s.session.Cache().FileSet()
-	filename, err := uri.Filename()
-	if err != nil {
-		return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "no filename for %s", uri)
-	}
 	for _, change := range params.ContentChanges {
 		// Update column mapper along with the content.
-		m := protocol.NewColumnMapper(uri, filename, fset, nil, content)
+		m := protocol.NewColumnMapper(uri, uri.Filename(), fset, nil, content)
 
 		spn, err := m.RangeSpan(*change.Range)
 		if err != nil {

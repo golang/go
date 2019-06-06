@@ -18,15 +18,11 @@ func getSourceFile(ctx context.Context, v source.View, uri span.URI) (source.Fil
 	if err != nil {
 		return nil, nil, err
 	}
-	filename, err := f.URI().Filename()
-	if err != nil {
-		return nil, nil, err
-	}
 	data, _, err := f.Handle(ctx).Read(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
-	m := protocol.NewColumnMapper(f.URI(), filename, f.FileSet(), f.GetToken(ctx), data)
+	m := protocol.NewColumnMapper(f.URI(), f.URI().Filename(), f.FileSet(), f.GetToken(ctx), data)
 
 	return f, m, nil
 }

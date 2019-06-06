@@ -19,14 +19,14 @@ const fileScheme = "file"
 // URI represents the full URI for a file.
 type URI string
 
-// Filename returns the file path for the given URI. It will return an error if
-// the URI is invalid, or if the URI does not have the file scheme.
-func (uri URI) Filename() (string, error) {
+// Filename returns the file path for the given URI.
+// It is an error to call this on a URI that is not a valid filename.
+func (uri URI) Filename() string {
 	filename, err := filename(uri)
 	if err != nil {
-		return "", err
+		panic(err)
 	}
-	return filepath.FromSlash(filename), nil
+	return filepath.FromSlash(filename)
 }
 
 func filename(uri URI) (string, error) {
@@ -60,22 +60,19 @@ func CompareURI(a, b URI) int {
 		return 0
 	}
 	// If we have the same URI basename, we may still have the same file URIs.
-	if fa, err := a.Filename(); err == nil {
-		if fb, err := b.Filename(); err == nil {
-			if strings.EqualFold(filepath.Base(fa), filepath.Base(fb)) {
-				// Stat the files to check if they are equal.
-				if infoa, err := os.Stat(fa); err == nil {
-					if infob, err := os.Stat(fb); err == nil {
-						if os.SameFile(infoa, infob) {
-							return 0
-						}
-					}
+	fa := a.Filename()
+	fb := b.Filename()
+	if strings.EqualFold(filepath.Base(fa), filepath.Base(fb)) {
+		// Stat the files to check if they are equal.
+		if infoa, err := os.Stat(fa); err == nil {
+			if infob, err := os.Stat(fb); err == nil {
+				if os.SameFile(infoa, infob) {
+					return 0
 				}
 			}
-			return strings.Compare(fa, fb)
 		}
 	}
-	return strings.Compare(string(a), string(b))
+	return strings.Compare(fa, fb)
 }
 
 // FileURI returns a span URI for the supplied file path.

@@ -62,7 +62,7 @@ func (f *format) Run(ctx context.Context, args ...string) error {
 		if file.err != nil {
 			return file.err
 		}
-		filename, _ := spn.URI().Filename() // this cannot fail, already checked in AddFile above
+		filename := spn.URI().Filename()
 		loc, err := file.mapper.Location(spn)
 		if err != nil {
 			return err

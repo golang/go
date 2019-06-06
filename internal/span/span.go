@@ -171,9 +171,7 @@ func (s Span) Format(f fmt.State, c rune) {
 	if c == 'f' {
 		uri = path.Base(uri)
 	} else if !fullForm {
-		if filename, err := s.v.URI.Filename(); err == nil {
-			uri = filename
-		}
+		uri = s.v.URI.Filename()
 	}
 	fmt.Fprint(f, uri)
 	if !s.IsValid() || (!fullForm && s.v.Start.isZero() && s.v.End.isZero()) {

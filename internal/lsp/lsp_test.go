@@ -285,10 +285,7 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 	ctx := context.Background()
 	for _, spn := range data {
 		uri := spn.URI()
-		filename, err := uri.Filename()
-		if err != nil {
-			t.Fatal(err)
-		}
+		filename := uri.Filename()
 		gofmted := string(r.data.Golden("gofmt", filename, func() ([]byte, error) {
 			cmd := exec.Command("gofmt", filename)
 			out, _ := cmd.Output() // ignore error, sometimes we have intentionally ungofmt-able files
@@ -326,10 +323,7 @@ func (r *runner) Import(t *testing.T, data tests.Imports) {
 	ctx := context.Background()
 	for _, spn := range data {
 		uri := spn.URI()
-		filename, err := uri.Filename()
-		if err != nil {
-			t.Fatal(err)
-		}
+		filename := uri.Filename()
 		goimported := string(r.data.Golden("goimports", filename, func() ([]byte, error) {
 			cmd := exec.Command("goimports", filename)
 			out, _ := cmd.Output() // ignore error, sometimes we have intentionally ungofmt-able files
@@ -402,11 +396,7 @@ func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 		}
 		if hover != nil {
 			tag := fmt.Sprintf("%s-hover", d.Name)
-			filename, err := d.Src.URI().Filename()
-			if err != nil {
-				t.Fatalf("failed for %v: %v", d.Def, err)
-			}
-			expectHover := string(r.data.Golden(tag, filename, func() ([]byte, error) {
+			expectHover := string(r.data.Golden(tag, d.Src.URI().Filename(), func() ([]byte, error) {
 				return []byte(hover.Contents.Value), nil
 			}))
 			if hover.Contents.Value != expectHover {
@@ -675,10 +665,7 @@ func (r *runner) Link(t *testing.T, data tests.Links) {
 }
 
 func (r *runner) mapper(uri span.URI) (*protocol.ColumnMapper, error) {
-	filename, err := uri.Filename()
-	if err != nil {
-		return nil, err
-	}
+	filename := uri.Filename()
 	fset := r.data.Exported.ExpectFileSet
 	var f *token.File
 	fset.Iterate(func(check *token.File) bool {

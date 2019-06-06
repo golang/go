@@ -249,9 +249,7 @@ func (s *session) buildOverlay() map[string][]byte {
 		if overlay.onDisk {
 			continue
 		}
-		if filename, err := uri.Filename(); err == nil {
-			overlays[filename] = overlay.data
-		}
+		overlays[uri.Filename()] = overlay.data
 	}
 	return overlays
 }
