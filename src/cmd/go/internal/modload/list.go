@@ -104,8 +104,15 @@ func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
 					info, err := Query(arg, "latest", nil)
 					if err == nil {
 						mods = append(mods, moduleInfo(module.Version{Path: arg, Version: info.Version}, false))
-						continue
+					} else {
+						mods = append(mods, &modinfo.ModulePublic{
+							Path: arg,
+							Error: &modinfo.ModuleError{
+								Err: err.Error(),
+							},
+						})
 					}
+					continue
 				}
 				mods = append(mods, &modinfo.ModulePublic{
 					Path: arg,
