@@ -1916,8 +1916,6 @@
 
 (EqPtr  (LocalAddr _ _) (Addr _)) -> (ConstBool [0])
 (NeqPtr (LocalAddr _ _) (Addr _)) -> (ConstBool [1])
-(EqPtr  (Addr _) (LocalAddr _ _)) -> (ConstBool [0])
-(NeqPtr (Addr _) (LocalAddr _ _)) -> (ConstBool [1])
 
 // Simplify address comparisons.
 (EqPtr  (AddPtr p1 o1) p2) && isSamePtr(p1, p2) -> (Not (IsNonNil o1))
