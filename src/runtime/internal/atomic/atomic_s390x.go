@@ -10,8 +10,6 @@ import "unsafe"
 //go:linkname Load
 //go:linkname Loadp
 //go:linkname Load64
-//go:linkname Store
-//go:linkname Store64
 
 //go:nosplit
 //go:noinline
