@@ -53,6 +53,11 @@ var securityPreservingHTTPClient = &http.Client{
 
 func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 	start := time.Now()
+
+	if url.Scheme == "file" {
+		return getFile(url)
+	}
+
 	if os.Getenv("TESTGOPROXY404") == "1" && url.Host == "proxy.golang.org" {
 		res := &Response{
 			URL:        Redacted(url),
@@ -170,6 +175,43 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		Body:       res.Body,
 	}
 	return r, nil
+}
+
+func getFile(u *urlpkg.URL) (*Response, error) {
+	path, err := urlToFilePath(u)
+	if err != nil {
+		return nil, err
+	}
+	f, err := os.Open(path)
+
+	if os.IsNotExist(err) {
+		return &Response{
+			URL:        Redacted(u),
+			Status:     http.StatusText(http.StatusNotFound),
+			StatusCode: http.StatusNotFound,
+			Body:       http.NoBody,
+		}, nil
+	}
+
+	if os.IsPermission(err) {
+		return &Response{
+			URL:        Redacted(u),
+			Status:     http.StatusText(http.StatusForbidden),
+			StatusCode: http.StatusForbidden,
+			Body:       http.NoBody,
+		}, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &Response{
+		URL:        Redacted(u),
+		Status:     http.StatusText(http.StatusOK),
+		StatusCode: http.StatusOK,
+		Body:       f,
+	}, nil
 }
 
 func openBrowser(url string) bool { return browser.Open(url) }

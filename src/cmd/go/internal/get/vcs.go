@@ -856,6 +856,9 @@ func validateRepoRoot(repoRoot string) error {
 	if url.Scheme == "" {
 		return errors.New("no scheme")
 	}
+	if url.Scheme == "file" {
+		return errors.New("file scheme disallowed")
+	}
 	return nil
 }
 

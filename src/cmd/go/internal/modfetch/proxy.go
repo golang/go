@@ -13,12 +13,9 @@ import (
 	"net/url"
 	"os"
 	pathpkg "path"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
-	"unicode"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
@@ -201,18 +198,6 @@ func (p *proxyRepo) getBytes(path string) ([]byte, error) {
 
 func (p *proxyRepo) getBody(path string) (io.ReadCloser, error) {
 	fullPath := pathpkg.Join(p.url.Path, path)
-	if p.url.Scheme == "file" {
-		rawPath, err := url.PathUnescape(fullPath)
-		if err != nil {
-			return nil, err
-		}
-		if runtime.GOOS == "windows" && len(rawPath) >= 4 && rawPath[0] == '/' && unicode.IsLetter(rune(rawPath[1])) && rawPath[2] == ':' {
-			// On Windows, file URLs look like "file:///C:/foo/bar". url.Path will
-			// start with a slash which must be removed. See golang.org/issue/6027.
-			rawPath = rawPath[1:]
-		}
-		return os.Open(filepath.FromSlash(rawPath))
-	}
 
 	target := *p.url
 	target.Path = fullPath
