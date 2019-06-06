@@ -866,13 +866,6 @@ func runInstall(dir string, ch chan struct{}) {
 	if symabis != "" {
 		compile = append(compile, "-symabis", symabis)
 	}
-	if dir == "runtime" || dir == "runtime/internal/atomic" {
-		// These packages define symbols referenced by
-		// assembly in other packages. In cmd/go, we work out
-		// the exact details. For bootstrapping, just tell the
-		// compiler to generate ABI wrappers for everything.
-		compile = append(compile, "-allabis")
-	}
 	if goos == "android" {
 		compile = append(compile, "-shared")
 	}

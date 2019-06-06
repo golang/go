@@ -259,7 +259,6 @@ func Main(archInit func(*Arch)) {
 	flag.StringVar(&goversion, "goversion", "", "required version of the runtime")
 	var symabisPath string
 	flag.StringVar(&symabisPath, "symabis", "", "read symbol ABIs from `file`")
-	flag.BoolVar(&allABIs, "allabis", false, "generate ABI wrappers for all symbols (for bootstrap)")
 	flag.StringVar(&traceprofile, "traceprofile", "", "write an execution trace to `file`")
 	flag.StringVar(&blockprofile, "blockprofile", "", "write block profile to `file`")
 	flag.StringVar(&mutexprofile, "mutexprofile", "", "write mutex profile to `file`")
@@ -848,11 +847,6 @@ func readImportCfg(file string) {
 // symbols required by non-Go code. These are keyed by link symbol
 // name, where the local package prefix is always `"".`
 var symabiDefs, symabiRefs map[string]obj.ABI
-
-// allABIs indicates that all symbol definitions should have ABI
-// wrappers. This is used during toolchain bootstrapping to avoid
-// having to find cross-package references.
-var allABIs bool
 
 // readSymABIs reads a symabis file that specifies definitions and
 // references of text symbols by ABI.
