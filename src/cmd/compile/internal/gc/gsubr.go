@@ -234,17 +234,6 @@ func (f *Func) initLSym(hasBody bool) {
 			}
 		}
 
-		if !needABIAlias && allABIs {
-			// The compiler was asked to produce ABI
-			// wrappers for everything.
-			switch f.lsym.ABI() {
-			case obj.ABI0:
-				needABIAlias, aliasABI = true, obj.ABIInternal
-			case obj.ABIInternal:
-				needABIAlias, aliasABI = true, obj.ABI0
-			}
-		}
-
 		if needABIAlias {
 			// These LSyms have the same name as the
 			// native function, so we create them directly
