@@ -145,7 +145,7 @@ func (c *dbClient) initBase() {
 		if proxyURL == "noproxy" {
 			continue
 		}
-		if proxyURL == "direct" {
+		if proxyURL == "direct" || proxyURL == "off" {
 			break
 		}
 		proxy, err := url.Parse(proxyURL)

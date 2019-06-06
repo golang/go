@@ -12,7 +12,9 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
+	"path"
 	pathpkg "path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -108,6 +110,13 @@ func proxyURLs() ([]string, error) {
 				// sort of fallback behavior for them in the future, so ignore
 				// subsequent entries for forward-compatibility.
 				break
+			}
+
+			// Single-word tokens are reserved for built-in behaviors, and anything
+			// containing the string ":/" or matching an absolute file path must be a
+			// complete URL. For all other paths, implicitly add "https://".
+			if strings.ContainsAny(proxyURL, ".:/") && !strings.Contains(proxyURL, ":/") && !filepath.IsAbs(proxyURL) && !path.IsAbs(proxyURL) {
+				proxyURL = "https://" + proxyURL
 			}
 
 			// Check that newProxyRepo accepts the URL.
