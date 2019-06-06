@@ -27319,42 +27319,6 @@ func rewriteValuegeneric_OpEqPtr_10(v *Value) bool {
 		v.AuxInt = 0
 		return true
 	}
-	// match: (EqPtr (Addr _) (LocalAddr _ _))
-	// cond:
-	// result: (ConstBool [0])
-	for {
-		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpAddr {
-			break
-		}
-		v_1 := v.Args[1]
-		if v_1.Op != OpLocalAddr {
-			break
-		}
-		_ = v_1.Args[1]
-		v.reset(OpConstBool)
-		v.AuxInt = 0
-		return true
-	}
-	// match: (EqPtr (LocalAddr _ _) (Addr _))
-	// cond:
-	// result: (ConstBool [0])
-	for {
-		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpLocalAddr {
-			break
-		}
-		_ = v_0.Args[1]
-		v_1 := v.Args[1]
-		if v_1.Op != OpAddr {
-			break
-		}
-		v.reset(OpConstBool)
-		v.AuxInt = 0
-		return true
-	}
 	// match: (EqPtr (AddPtr p1 o1) p2)
 	// cond: isSamePtr(p1, p2)
 	// result: (Not (IsNonNil o1))
@@ -27414,11 +27378,6 @@ func rewriteValuegeneric_OpEqPtr_10(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpEqPtr_20(v *Value) bool {
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (EqPtr p (Const32 [0]))
 	// cond:
 	// result: (Not (IsNonNil p))
@@ -27456,6 +27415,11 @@ func rewriteValuegeneric_OpEqPtr_20(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpEqPtr_20(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
 	// match: (EqPtr p (Const64 [0]))
 	// cond:
 	// result: (Not (IsNonNil p))
@@ -38662,42 +38626,6 @@ func rewriteValuegeneric_OpNeqPtr_10(v *Value) bool {
 		v.AuxInt = 1
 		return true
 	}
-	// match: (NeqPtr (Addr _) (LocalAddr _ _))
-	// cond:
-	// result: (ConstBool [1])
-	for {
-		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpAddr {
-			break
-		}
-		v_1 := v.Args[1]
-		if v_1.Op != OpLocalAddr {
-			break
-		}
-		_ = v_1.Args[1]
-		v.reset(OpConstBool)
-		v.AuxInt = 1
-		return true
-	}
-	// match: (NeqPtr (LocalAddr _ _) (Addr _))
-	// cond:
-	// result: (ConstBool [1])
-	for {
-		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpLocalAddr {
-			break
-		}
-		_ = v_0.Args[1]
-		v_1 := v.Args[1]
-		if v_1.Op != OpAddr {
-			break
-		}
-		v.reset(OpConstBool)
-		v.AuxInt = 1
-		return true
-	}
 	// match: (NeqPtr (AddPtr p1 o1) p2)
 	// cond: isSamePtr(p1, p2)
 	// result: (IsNonNil o1)
@@ -38751,9 +38679,6 @@ func rewriteValuegeneric_OpNeqPtr_10(v *Value) bool {
 		v.AddArg(p)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpNeqPtr_20(v *Value) bool {
 	// match: (NeqPtr p (Const32 [0]))
 	// cond:
 	// result: (IsNonNil p)
@@ -38787,6 +38712,9 @@ func rewriteValuegeneric_OpNeqPtr_20(v *Value) bool {
 		v.AddArg(p)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpNeqPtr_20(v *Value) bool {
 	// match: (NeqPtr p (Const64 [0]))
 	// cond:
 	// result: (IsNonNil p)
