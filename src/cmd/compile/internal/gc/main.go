@@ -272,7 +272,7 @@ func Main(archInit func(*Arch)) {
 	// Record flags that affect the build result. (And don't
 	// record flags that don't, since that would cause spurious
 	// changes in the binary.)
-	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "newescape", "dwarfbasentries", "smallFrames")
+	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "newescape", "dwarfbasentries", "smallframes")
 
 	if smallFrames {
 		maxStackVarSize = 128 * 1024
