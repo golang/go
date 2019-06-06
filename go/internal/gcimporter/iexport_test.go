@@ -35,6 +35,9 @@ func TestIExportData_stdlib(t *testing.T) {
 	if runtime.GOOS == "android" {
 		t.Skipf("incomplete std lib on %s", runtime.GOOS)
 	}
+	if isRace {
+		t.Skipf("stdlib tests take too long in race mode and flake on builders")
+	}
 
 	// Load, parse and type-check the program.
 	ctxt := build.Default // copy
