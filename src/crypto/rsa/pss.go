@@ -11,12 +11,13 @@ package rsa
 import (
 	"bytes"
 	"crypto"
-	"crypto/internal/boring"
 	"errors"
 	"hash"
 	"io"
 	"math/big"
 )
+
+import "crypto/internal/boring"
 
 func emsaPSSEncode(mHash []byte, emBits int, salt []byte, hash hash.Hash) ([]byte, error) {
 	// See [1], section 9.1.1

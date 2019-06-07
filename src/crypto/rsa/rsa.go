@@ -24,7 +24,6 @@ package rsa
 
 import (
 	"crypto"
-	"crypto/internal/boring"
 	"crypto/rand"
 	"crypto/subtle"
 	"errors"
@@ -32,9 +31,13 @@ import (
 	"io"
 	"math"
 	"math/big"
-	"unsafe"
 
 	"crypto/internal/randutil"
+)
+
+import (
+	"crypto/internal/boring"
+	"unsafe"
 )
 
 var bigZero = big.NewInt(0)

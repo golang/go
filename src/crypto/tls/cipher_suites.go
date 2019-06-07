@@ -10,7 +10,6 @@ import (
 	"crypto/cipher"
 	"crypto/des"
 	"crypto/hmac"
-	"crypto/internal/boring"
 	"crypto/rc4"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -18,6 +17,8 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 	"hash"
 )
+
+import "crypto/internal/boring"
 
 // a keyAgreement implements the client and server side of a TLS key agreement
 // protocol by generating and processing key exchange messages.

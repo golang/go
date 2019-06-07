@@ -8,7 +8,6 @@ package sha512
 
 import (
 	"bytes"
-	"crypto/internal/boring"
 	"crypto/rand"
 	"encoding"
 	"encoding/hex"
@@ -17,6 +16,8 @@ import (
 	"io"
 	"testing"
 )
+
+import "crypto/internal/boring"
 
 type sha512Test struct {
 	out       string

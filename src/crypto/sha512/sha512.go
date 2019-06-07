@@ -12,11 +12,12 @@ package sha512
 
 import (
 	"crypto"
-	"crypto/internal/boring"
 	"encoding/binary"
 	"errors"
 	"hash"
 )
+
+import "crypto/internal/boring"
 
 func init() {
 	crypto.RegisterHash(crypto.SHA384, New384)

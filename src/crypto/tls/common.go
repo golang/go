@@ -7,7 +7,6 @@ package tls
 import (
 	"container/list"
 	"crypto"
-	"crypto/internal/boring"
 	"crypto/rand"
 	"crypto/sha512"
 	"crypto/x509"
@@ -22,6 +21,8 @@ import (
 	"sync"
 	"time"
 )
+
+import "crypto/internal/boring"
 
 const (
 	VersionSSL30 = 0x0300

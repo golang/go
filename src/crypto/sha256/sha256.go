@@ -8,11 +8,12 @@ package sha256
 
 import (
 	"crypto"
-	"crypto/internal/boring"
 	"encoding/binary"
 	"errors"
 	"hash"
 )
+
+import "crypto/internal/boring"
 
 func init() {
 	crypto.RegisterHash(crypto.SHA224, New224)
