@@ -13,7 +13,6 @@ import (
 	"bufio"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/internal/boring"
 	"encoding/binary"
 	"io"
 	"os"
@@ -22,6 +21,8 @@ import (
 	"sync/atomic"
 	"time"
 )
+
+import "crypto/internal/boring"
 
 const urandomDevice = "/dev/urandom"
 

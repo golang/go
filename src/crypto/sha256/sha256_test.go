@@ -8,7 +8,6 @@ package sha256
 
 import (
 	"bytes"
-	"crypto/internal/boring"
 	"crypto/rand"
 	"encoding"
 	"fmt"
@@ -16,6 +15,8 @@ import (
 	"io"
 	"testing"
 )
+
+import "crypto/internal/boring"
 
 type sha256Test struct {
 	out       string

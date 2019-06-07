@@ -6,7 +6,6 @@ package rsa
 
 import (
 	"crypto"
-	"crypto/internal/boring"
 	"crypto/subtle"
 	"errors"
 	"io"
@@ -14,6 +13,8 @@ import (
 
 	"crypto/internal/randutil"
 )
+
+import "crypto/internal/boring"
 
 // This file implements encryption and decryption using PKCS#1 v1.5 padding.
 

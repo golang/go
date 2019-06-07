@@ -6,10 +6,11 @@ package aes
 
 import (
 	"crypto/cipher"
-	"crypto/internal/boring"
 	"crypto/internal/subtle"
 	"strconv"
 )
+
+import "crypto/internal/boring"
 
 // The AES block size in bytes.
 const BlockSize = 16

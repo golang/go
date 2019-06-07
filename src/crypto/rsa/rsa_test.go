@@ -7,7 +7,6 @@ package rsa
 import (
 	"bytes"
 	"crypto"
-	"crypto/internal/boring"
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -15,6 +14,8 @@ import (
 	"math/big"
 	"testing"
 )
+
+import "crypto/internal/boring"
 
 func TestKeyGeneration(t *testing.T) {
 	for _, size := range []int{128, 1024, 2048, 3072} {
