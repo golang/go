@@ -524,10 +524,15 @@ func setup(t *testing.T, main, wd string) *modTest {
 		WorkingDir:  filepath.Join(mainDir, wd),
 	}
 
-	// go mod tidy instead of download because tidy will notice dependencies
-	// in code, not just in go.mod files.
-	if _, err := env.invokeGo("mod", "download"); err != nil {
-		t.Fatal(err)
+	// go mod download gets mad if we don't have a go.mod, so make sure we do.
+	_, err = os.Stat(filepath.Join(mainDir, "go.mod"))
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatalf("checking if go.mod exists: %v", err)
+	}
+	if err == nil {
+		if _, err := env.invokeGo("mod", "download"); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	return &modTest{
