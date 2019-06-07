@@ -2116,6 +2116,32 @@ const _ = pkg.X
 	}.processTest(t, "foo.com", "pkg/b.go", nil, nil, want)
 }
 
+func TestExternalTestImportsPackageUnderTest(t *testing.T) {
+	const provide = `package pkg
+func DoIt(){}
+`
+	const input = `package pkg_test
+
+var _ = pkg.DoIt`
+
+	const want = `package pkg_test
+
+import "foo.com/pkg"
+
+var _ = pkg.DoIt
+`
+
+	testConfig{
+		module: packagestest.Module{
+			Name: "foo.com",
+			Files: fm{
+				"pkg/provide.go": provide,
+				"pkg/x_test.go":  input,
+			},
+		},
+	}.processTest(t, "foo.com", "pkg/x_test.go", nil, nil, want)
+}
+
 func TestPkgIsCandidate(t *testing.T) {
 	tests := []struct {
 		name     string
