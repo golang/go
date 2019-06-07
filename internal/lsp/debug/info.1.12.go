@@ -14,7 +14,7 @@ import (
 
 func printBuildInfo(w io.Writer, verbose bool, mode PrintMode) {
 	if info, ok := debug.ReadBuildInfo(); ok {
-		fmt.Fprintf(w, "%v\n", info.Path)
+		fmt.Fprintf(w, "%v %v\n", info.Path, Version)
 		printModuleInfo(w, &info.Main, mode)
 		if verbose {
 			for _, dep := range info.Deps {
@@ -22,7 +22,7 @@ func printBuildInfo(w io.Writer, verbose bool, mode PrintMode) {
 			}
 		}
 	} else {
-		fmt.Fprintf(w, "no module information, gopls not built in module mode\n")
+		fmt.Fprintf(w, "version %s, built in $GOPATH mode", Version)
 	}
 }
 
