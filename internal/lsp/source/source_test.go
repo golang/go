@@ -417,6 +417,46 @@ func (r *runner) Highlight(t *testing.T, data tests.Highlights) {
 	}
 }
 
+func (r *runner) Reference(t *testing.T, data tests.References) {
+	ctx := context.Background()
+	for src, itemList := range data {
+		f, err := r.view.GetFile(ctx, src.URI())
+		if err != nil {
+			t.Fatalf("failed for %v: %v", src, err)
+		}
+
+		tok := f.GetToken(ctx)
+		pos := tok.Pos(src.Start().Offset())
+		ident, err := source.Identifier(ctx, r.view, f.(source.GoFile), pos)
+		if err != nil {
+			t.Fatalf("failed for %v: %v", src, err)
+		}
+
+		want := make(map[span.Span]bool)
+		for _, pos := range itemList {
+			want[pos] = true
+		}
+
+		got, err := ident.References(ctx)
+		if err != nil {
+			t.Fatalf("failed for %v: %v", src, err)
+		}
+
+		if len(got) != len(itemList) {
+			t.Errorf("references failed: different lengths got %v want %v", len(got), len(itemList))
+		}
+		for _, refInfo := range got {
+			refSpan, err := refInfo.Range.Span()
+			if err != nil {
+				t.Errorf("failed for %v item %v: %v", src, refInfo.Name, err)
+			}
+			if !want[refSpan] {
+				t.Errorf("references failed: incorrect references got %v want locations %v", got, want)
+			}
+		}
+	}
+}
+
 func (r *runner) Symbol(t *testing.T, data tests.Symbols) {
 	ctx := context.Background()
 	for uri, expectedSymbols := range data {

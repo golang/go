@@ -186,8 +186,8 @@ func (s *Server) Implementation(context.Context, *protocol.TextDocumentPositionP
 	return nil, notImplemented("Implementation")
 }
 
-func (s *Server) References(context.Context, *protocol.ReferenceParams) ([]protocol.Location, error) {
-	return nil, notImplemented("References")
+func (s *Server) References(ctx context.Context, params *protocol.ReferenceParams) ([]protocol.Location, error) {
+	return s.references(ctx, params)
 }
 
 func (s *Server) DocumentHighlight(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.DocumentHighlight, error) {

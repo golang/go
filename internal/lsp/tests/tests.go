@@ -34,6 +34,7 @@ const (
 	ExpectedDefinitionsCount       = 35
 	ExpectedTypeDefinitionsCount   = 2
 	ExpectedHighlightsCount        = 2
+	ExpectedReferencesCount        = 2
 	ExpectedSymbolsCount           = 1
 	ExpectedSignaturesCount        = 20
 	ExpectedLinksCount             = 2
@@ -56,6 +57,7 @@ type Formats []span.Span
 type Imports []span.Span
 type Definitions map[span.Span]Definition
 type Highlights map[string][]span.Span
+type References map[span.Span][]span.Span
 type Symbols map[span.URI][]source.Symbol
 type SymbolsChildren map[string][]source.Symbol
 type Signatures map[span.Span]source.SignatureInformation
@@ -72,6 +74,7 @@ type Data struct {
 	Imports            Imports
 	Definitions        Definitions
 	Highlights         Highlights
+	References         References
 	Symbols            Symbols
 	symbolsChildren    SymbolsChildren
 	Signatures         Signatures
@@ -90,6 +93,7 @@ type Tests interface {
 	Import(*testing.T, Imports)
 	Definition(*testing.T, Definitions)
 	Highlight(*testing.T, Highlights)
+	Reference(*testing.T, References)
 	Symbol(*testing.T, Symbols)
 	SignatureHelp(*testing.T, Signatures)
 	Link(*testing.T, Links)
@@ -130,6 +134,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		CompletionSnippets: make(CompletionSnippets),
 		Definitions:        make(Definitions),
 		Highlights:         make(Highlights),
+		References:         make(References),
 		Symbols:            make(Symbols),
 		symbolsChildren:    make(SymbolsChildren),
 		Signatures:         make(Signatures),
@@ -209,6 +214,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		"typdef":    data.collectTypeDefinitions,
 		"hover":     data.collectHoverDefinitions,
 		"highlight": data.collectHighlights,
+		"refs":      data.collectReferences,
 		"symbol":    data.collectSymbols,
 		"signature": data.collectSignatures,
 		"snippet":   data.collectCompletionSnippets,
@@ -287,6 +293,14 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			t.Errorf("got %v highlights expected %v", len(data.Highlights), ExpectedHighlightsCount)
 		}
 		tests.Highlight(t, data.Highlights)
+	})
+
+	t.Run("References", func(t *testing.T) {
+		t.Helper()
+		if len(data.References) != ExpectedReferencesCount {
+			t.Errorf("got %v references expected %v", len(data.References), ExpectedReferencesCount)
+		}
+		tests.Reference(t, data.References)
 	})
 
 	t.Run("Symbols", func(t *testing.T) {
@@ -454,6 +468,10 @@ func (data *Data) collectDefinitionNames(src span.Span, name string) {
 
 func (data *Data) collectHighlights(name string, rng span.Span) {
 	data.Highlights[name] = append(data.Highlights[name], rng)
+}
+
+func (data *Data) collectReferences(src span.Span, expected []span.Span) {
+	data.References[src] = expected
 }
 
 func (data *Data) collectSymbols(name string, spn span.Span, kind string, parentName string) {

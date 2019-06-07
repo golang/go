@@ -460,6 +460,48 @@ func (r *runner) Highlight(t *testing.T, data tests.Highlights) {
 	}
 }
 
+func (r *runner) Reference(t *testing.T, data tests.References) {
+	for src, itemList := range data {
+		sm, err := r.mapper(src.URI())
+		if err != nil {
+			t.Fatal(err)
+		}
+		loc, err := sm.Location(src)
+		if err != nil {
+			t.Fatalf("failed for %v: %v", src, err)
+		}
+
+		want := make(map[protocol.Location]bool)
+		for _, pos := range itemList {
+			loc, err := sm.Location(pos)
+			if err != nil {
+				t.Fatalf("failed for %v: %v", src, err)
+			}
+			want[loc] = true
+		}
+
+		params := &protocol.ReferenceParams{
+			TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+				TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
+				Position:     loc.Range.Start,
+			},
+		}
+		got, err := r.server.References(context.Background(), params)
+		if err != nil {
+			t.Fatalf("failed for %v: %v", src, err)
+		}
+
+		if len(got) != len(itemList) {
+			t.Errorf("references failed: different lengths got %v want %v", len(got), len(itemList))
+		}
+		for _, loc := range got {
+			if !want[loc] {
+				t.Errorf("references failed: incorrect references got %v want %v", got, want)
+			}
+		}
+	}
+}
+
 func (r *runner) Symbol(t *testing.T, data tests.Symbols) {
 	for uri, expectedSymbols := range data {
 		params := &protocol.DocumentSymbolParams{
