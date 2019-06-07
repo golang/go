@@ -42,6 +42,10 @@ type overlay struct {
 	uri     span.URI
 	data    []byte
 	hash    string
+
+	// onDisk is true if a file has been saved on disk,
+	// and therefore does not need to be part of the overlay sent to go/packages.
+	onDisk bool
 }
 
 func (s *session) Shutdown(ctx context.Context) {
@@ -181,6 +185,12 @@ func (s *session) DidOpen(uri span.URI) {
 }
 
 func (s *session) DidSave(uri span.URI) {
+	s.overlayMu.Lock()
+	defer s.overlayMu.Unlock()
+
+	if overlay, ok := s.overlays[uri]; ok {
+		overlay.onDisk = true
+	}
 }
 
 func (s *session) DidClose(uri span.URI) {
@@ -236,6 +246,9 @@ func (s *session) buildOverlay() map[string][]byte {
 
 	overlays := make(map[string][]byte)
 	for uri, overlay := range s.overlays {
+		if overlay.onDisk {
+			continue
+		}
 		if filename, err := uri.Filename(); err == nil {
 			overlays[filename] = overlay.data
 		}

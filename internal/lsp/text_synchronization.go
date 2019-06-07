@@ -100,9 +100,8 @@ func (s *Server) applyChanges(ctx context.Context, params *protocol.DidChangeTex
 }
 
 func (s *Server) didSave(ctx context.Context, params *protocol.DidSaveTextDocumentParams) error {
-	uri := span.NewURI(params.TextDocument.URI)
-	s.session.DidSave(uri)
-	return nil // ignore
+	s.session.DidSave(span.NewURI(params.TextDocument.URI))
+	return nil
 }
 
 func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocumentParams) error {
