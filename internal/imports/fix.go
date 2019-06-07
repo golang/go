@@ -539,14 +539,17 @@ func (e *ProcessEnv) getResolver() resolver {
 		return e.resolver
 	}
 	if e.ForceGoPackages {
-		return &goPackagesResolver{env: e}
+		e.resolver = &goPackagesResolver{env: e}
+		return e.resolver
 	}
 
 	out, err := e.invokeGo("env", "GOMOD")
 	if err != nil || len(bytes.TrimSpace(out.Bytes())) == 0 {
-		return &gopathResolver{env: e}
+		e.resolver = &gopathResolver{env: e}
+		return e.resolver
 	}
-	return &moduleResolver{env: e}
+	e.resolver = &moduleResolver{env: e}
+	return e.resolver
 }
 
 func (e *ProcessEnv) newPackagesConfig(mode packages.LoadMode) *packages.Config {
