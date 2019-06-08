@@ -47,15 +47,16 @@ func Is(err, target error) bool {
 	}
 }
 
-// As finds the first error in err's chain that matches the type to which target
-// points, and if so, sets the target to its value and returns true. An error
-// matches a type if it is assignable to the target type, or if it has a method
-// As(interface{}) bool such that As(target) returns true. As will panic if
-// target is not a non-nil pointer to a type which implements error or is of
-// interface type. As returns false if error is nil.
+// As finds the first error in err's chain that matches target, and if so, sets
+// target to that error value and returns true.
 //
-// The As method should set the target to its value and return true if err
-// matches the type to which target points.
+// An error matches target if the error's concrete value is assignable to the value
+// pointed to by target, or if the error has a method As(interface{}) bool such that
+// As(target) returns true. In the latter case, the As method is responsible for
+// setting target.
+//
+// As will panic if target is not a non-nil pointer to either a type that implements
+// error, or to any interface type. As returns false if err is nil.
 func As(err error, target interface{}) bool {
 	if target == nil {
 		panic("errors: target cannot be nil")
