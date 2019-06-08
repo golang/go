@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -60,6 +61,8 @@ type poser struct {
 	f   func(error) bool
 }
 
+var poserPathErr = &os.PathError{Op: "poser"}
+
 func (p *poser) Error() string     { return p.msg }
 func (p *poser) Is(err error) bool { return p.f(err) }
 func (p *poser) As(err interface{}) bool {
@@ -67,9 +70,9 @@ func (p *poser) As(err interface{}) bool {
 	case **poser:
 		*x = p
 	case *errorT:
-		*x = errorT{}
+		*x = errorT{"poser"}
 	case **os.PathError:
-		*x = &os.PathError{}
+		*x = poserPathErr
 	default:
 		return false
 	}
@@ -82,58 +85,74 @@ func TestAs(t *testing.T) {
 	var timeout interface{ Timeout() bool }
 	var p *poser
 	_, errF := os.Open("non-existing")
+	poserErr := &poser{"oh no", nil}
 
 	testCases := []struct {
 		err    error
 		target interface{}
 		match  bool
+		want   interface{} // value of target on match
 	}{{
 		nil,
 		&errP,
 		false,
+		nil,
 	}, {
-		wrapped{"pittied the fool", errorT{}},
+		wrapped{"pitied the fool", errorT{"T"}},
 		&errT,
 		true,
+		errorT{"T"},
 	}, {
 		errF,
 		&errP,
 		true,
+		errF,
 	}, {
 		errorT{},
 		&errP,
 		false,
+		nil,
 	}, {
 		wrapped{"wrapped", nil},
 		&errT,
 		false,
+		nil,
 	}, {
 		&poser{"error", nil},
 		&errT,
 		true,
+		errorT{"poser"},
 	}, {
 		&poser{"path", nil},
 		&errP,
 		true,
+		poserPathErr,
 	}, {
-		&poser{"oh no", nil},
+		poserErr,
 		&p,
 		true,
+		poserErr,
 	}, {
 		errors.New("err"),
 		&timeout,
 		false,
+		nil,
 	}, {
 		errF,
 		&timeout,
 		true,
+		errF,
 	}, {
 		wrapped{"path error", errF},
 		&timeout,
 		true,
+		errF,
 	}}
 	for i, tc := range testCases {
 		name := fmt.Sprintf("%d:As(Errorf(..., %v), %v)", i, tc.err, tc.target)
+		// Clear the target pointer, in case it was set in a previous test.
+		rtarget := reflect.ValueOf(tc.target)
+		rtarget.Elem().Set(reflect.Zero(reflect.TypeOf(tc.target).Elem()))
 		t.Run(name, func(t *testing.T) {
 			match := errors.As(tc.err, tc.target)
 			if match != tc.match {
@@ -142,8 +161,8 @@ func TestAs(t *testing.T) {
 			if !match {
 				return
 			}
-			if tc.target == nil {
-				t.Fatalf("non-nil result after match")
+			if got := rtarget.Elem().Interface(); got != tc.want {
+				t.Fatalf("got %#v, want %#v", got, tc.want)
 			}
 		})
 	}
@@ -193,9 +212,9 @@ func TestUnwrap(t *testing.T) {
 	}
 }
 
-type errorT struct{}
+type errorT struct{ s string }
 
-func (errorT) Error() string { return "errorT" }
+func (e errorT) Error() string { return fmt.Sprintf("errorT(%s)", e.s) }
 
 type wrapped struct {
 	msg string
