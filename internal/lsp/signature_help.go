@@ -30,14 +30,12 @@ func (s *Server) signatureHelp(ctx context.Context, params *protocol.TextDocumen
 	info, err := source.SignatureHelp(ctx, f, rng.Start)
 	if err != nil {
 		s.session.Logger().Infof(ctx, "no signature help for %s:%v:%v : %s", uri, int(params.Position.Line), int(params.Position.Character), err)
+		return nil, nil
 	}
 	return toProtocolSignatureHelp(info), nil
 }
 
 func toProtocolSignatureHelp(info *source.SignatureInformation) *protocol.SignatureHelp {
-	if info == nil {
-		return &protocol.SignatureHelp{}
-	}
 	return &protocol.SignatureHelp{
 		ActiveParameter: float64(info.ActiveParameter),
 		ActiveSignature: 0, // there is only ever one possible signature
