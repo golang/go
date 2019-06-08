@@ -22,6 +22,7 @@ type goFile struct {
 
 type astFile struct {
 	file      *ast.File
+	err       error // parse errors
 	isTrimmed bool
 }
 

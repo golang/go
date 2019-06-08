@@ -41,11 +41,9 @@ func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) ([]*a
 	errors := make([]error, n)
 	for i, filename := range filenames {
 		if imp.ctx.Err() != nil {
-			parsed[i] = nil
-			errors[i] = imp.ctx.Err()
+			parsed[i], errors[i] = nil, imp.ctx.Err()
 			continue
 		}
-
 		// First, check if we have already cached an AST for this file.
 		f, err := imp.view.findFile(span.FileURI(filename))
 		if err != nil || f == nil {
@@ -57,7 +55,6 @@ func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) ([]*a
 			parsed[i], errors[i] = nil, fmt.Errorf("non-Go file in parse call: %v", filename)
 			continue
 		}
-
 		wg.Add(1)
 		go func(i int, filename string) {
 			ioLimit <- true // wait
@@ -68,17 +65,15 @@ func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) ([]*a
 
 			// If we already have a cached AST, reuse it.
 			// If the AST is trimmed, only use it if we are ignoring function bodies.
-			if gof.astIsTrimmed() && ignoreFuncBodies {
-				parsed[i], errors[i] = gof.ast, nil
-				return
-			} else if gof.ast != nil && !gof.ast.isTrimmed && !ignoreFuncBodies {
-				parsed[i], errors[i] = gof.ast, nil
+			if gof.ast != nil && gof.ast.isTrimmed == ignoreFuncBodies {
+				parsed[i], errors[i] = gof.ast, gof.ast.err
 				return
 			}
 
 			// We don't have a cached AST for this file, so we read its content and parse it.
 			data, _, err := gof.Handle(imp.ctx).Read(imp.ctx)
 			if err != nil {
+				parsed[i], errors[i] = nil, err
 				return
 			}
 			src := data
@@ -89,20 +84,20 @@ func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) ([]*a
 
 			// ParseFile may return a partial AST and an error.
 			f, err := parseFile(imp.fset, filename, src)
+			parsed[i], errors[i] = &astFile{
+				file:      f,
+				err:       err,
+				isTrimmed: ignoreFuncBodies,
+			}, err
 
 			if ignoreFuncBodies {
 				trimAST(f)
 			}
-
 			// Fix any badly parsed parts of the AST.
 			if f != nil {
 				tok := imp.fset.File(f.Pos())
 				imp.view.fix(imp.ctx, f, tok, src)
 			}
-
-			parsed[i] = &astFile{f, ignoreFuncBodies}
-			errors[i] = err
-
 		}(i, filename)
 	}
 	wg.Wait()

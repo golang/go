@@ -101,8 +101,7 @@ func (imp *importer) typeCheck(pkgPath string) (*pkg, error) {
 	}
 
 	// Ignore function bodies for any dependency packages.
-	// TODO: Enable this.
-	ignoreFuncBodies := false
+	ignoreFuncBodies := imp.topLevelPkgID != pkg.id
 
 	// Don't type-check function bodies if we are not in the top-level package.
 	files, errs := imp.parseFiles(meta.files, ignoreFuncBodies)
