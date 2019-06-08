@@ -228,6 +228,46 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
 	// been set and must not be clobbered.
 }
 
+// deferprocStack queues a new deferred function with a defer record on the stack.
+// The defer record must have its siz and fn fields initialized.
+// All other fields can contain junk.
+// The defer record must be immediately followed in memory by
+// the arguments of the defer.
+// Nosplit because the arguments on the stack won't be scanned
+// until the defer record is spliced into the gp._defer list.
+//go:nosplit
+func deferprocStack(d *_defer) {
+	gp := getg()
+	if gp.m.curg != gp {
+		// go code on the system stack can't defer
+		throw("defer on system stack")
+	}
+	// siz and fn are already set.
+	// The other fields are junk on entry to deferprocStack and
+	// are initialized here.
+	d.started = false
+	d.heap = false
+	d.sp = getcallersp()
+	d.pc = getcallerpc()
+	// The lines below implement:
+	//   d.panic = nil
+	//   d.link = gp._defer
+	//   gp._defer = d
+	// But without write barriers. The first two are writes to
+	// the stack so they don't need a write barrier, and furthermore
+	// are to uninitialized memory, so they must not use a write barrier.
+	// The third write does not require a write barrier because we
+	// explicitly mark all the defer structures, so we don't need to
+	// keep track of pointers to them with a write barrier.
+	*(*uintptr)(unsafe.Pointer(&d._panic)) = 0
+	*(*uintptr)(unsafe.Pointer(&d.link)) = uintptr(unsafe.Pointer(gp._defer))
+	*(*uintptr)(unsafe.Pointer(&gp._defer)) = uintptr(unsafe.Pointer(d))
+
+	return0()
+	// No code can go here - the C return register has
+	// been set and must not be clobbered.
+}
+
 // Small malloc size classes >= 16 are the multiples of 16: 16, 32, 48, 64, 80, 96, 112, 128, 144, ...
 // Each P holds a pool for defers with small arg sizes.
 // Assign defer allocations to pools by rounding to 16, to match malloc size classes.
@@ -349,6 +389,7 @@ func newdefer(siz int32) *_defer {
 		}
 	}
 	d.siz = siz
+	d.heap = true
 	d.link = gp._defer
 	gp._defer = d
 	return d
@@ -367,6 +408,9 @@ func freedefer(d *_defer) {
 	}
 	if d.fn != nil {
 		freedeferfn()
+	}
+	if !d.heap {
+		return
 	}
 	sc := deferclass(uintptr(d.siz))
 	if sc >= uintptr(len(p{}.deferpool)) {

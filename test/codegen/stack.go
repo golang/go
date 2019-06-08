@@ -109,3 +109,8 @@ func MightPanic(a []int, i, j, k, s int) {
 	_ = i << s   // panicShift
 	_ = i / j    // panicDivide
 }
+
+func Defer() {
+	// amd64:`CALL\truntime\.deferprocStack`
+	defer func() {}()
+}
