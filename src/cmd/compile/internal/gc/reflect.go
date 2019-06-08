@@ -317,6 +317,48 @@ func hiter(t *types.Type) *types.Type {
 	return hiter
 }
 
+// deferstruct makes a runtime._defer structure, with additional space for
+// stksize bytes of args.
+func deferstruct(stksize int64) *types.Type {
+	makefield := func(name string, typ *types.Type) *types.Field {
+		f := types.NewField()
+		f.Type = typ
+		// Unlike the global makefield function, this one needs to set Pkg
+		// because these types might be compared (in SSA CSE sorting).
+		// TODO: unify this makefield and the global one above.
+		f.Sym = &types.Sym{Name: name, Pkg: localpkg}
+		return f
+	}
+	argtype := types.NewArray(types.Types[TUINT8], stksize)
+	argtype.SetNoalg(true)
+	argtype.Width = stksize
+	argtype.Align = 1
+	// These fields must match the ones in runtime/runtime2.go:_defer and
+	// cmd/compile/internal/gc/ssa.go:(*state).call.
+	fields := []*types.Field{
+		makefield("siz", types.Types[TUINT32]),
+		makefield("started", types.Types[TBOOL]),
+		makefield("heap", types.Types[TBOOL]),
+		makefield("sp", types.Types[TUINTPTR]),
+		makefield("pc", types.Types[TUINTPTR]),
+		// Note: the types here don't really matter. Defer structures
+		// are always scanned explicitly during stack copying and GC,
+		// so we make them uintptr type even though they are real pointers.
+		makefield("fn", types.Types[TUINTPTR]),
+		makefield("_panic", types.Types[TUINTPTR]),
+		makefield("link", types.Types[TUINTPTR]),
+		makefield("args", argtype),
+	}
+
+	// build struct holding the above fields
+	s := types.New(TSTRUCT)
+	s.SetNoalg(true)
+	s.SetFields(fields)
+	s.Width = widstruct(s, s, 0, 1)
+	s.Align = uint8(Widthptr)
+	return s
+}
+
 // f is method type, with receiver.
 // return function type, receiver as first argument (or not).
 func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
