@@ -185,6 +185,7 @@ var sniffSignatures = []sniffSig{
 	// Archive types
 	&exactSig{[]byte("\x1F\x8B\x08"), "application/x-gzip"},
 	&exactSig{[]byte("PK\x03\x04"), "application/zip"},
+	&exactSig{[]byte("\x42\x5A\x68"), "application/x-bzip2"},
 	// RAR's signatures are incorrectly defined by the MIME spec as per
 	//    https://github.com/whatwg/mimesniff/issues/63
 	// However, RAR Labs correctly defines it at:
