@@ -251,7 +251,7 @@ func (b *Builder) Init() {
 	} else {
 		goTmpDir := cfg.Getenv("GOTMPDIR")
 		if err := os.MkdirAll(goTmpDir, 0777); err != nil {
-			fatalf("failed to create GOTMPDIR at %s: %s\n", dir, err)
+			fatalf("failed to create GOTMPDIR at %s: %s\n", goTmpDir, err)
 		}
 		tmp, err := ioutil.TempDir(goTmpDir, "go-build")
 		if err != nil {

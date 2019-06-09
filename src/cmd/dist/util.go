@@ -328,7 +328,7 @@ func xreaddirfiles(dir string) []string {
 func xworkdir() string {
 	goTmpDir := os.Getenv("GOTMPDIR")
 	if err := os.MkdirAll(goTmpDir, 0777); err != nil {
-		fatalf("failed to create GOTMPDIR at %s: %s\n", dir, err)
+		fatalf("failed to create GOTMPDIR at %s: %s\n", goTmpDir, err)
 	}
 	name, err := ioutil.TempDir(goTmpDir, "go-tool-dist-")
 	if err != nil {
