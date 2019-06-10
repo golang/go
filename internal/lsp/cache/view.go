@@ -6,7 +6,6 @@ package cache
 
 import (
 	"context"
-	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/types"
@@ -314,16 +313,6 @@ func (v *view) getFile(uri span.URI) (viewFile, error) {
 	filename := uri.Filename()
 	var f viewFile
 	switch ext := filepath.Ext(filename); ext {
-	case ".go":
-		f = &goFile{
-			fileBase: fileBase{
-				view:  v,
-				fname: filename,
-			},
-		}
-		v.session.filesWatchMap.Watch(uri, func() {
-			f.(*goFile).invalidateContent()
-		})
 	case ".mod":
 		f = &modFile{
 			fileBase: fileBase{
@@ -339,7 +328,16 @@ func (v *view) getFile(uri span.URI) (viewFile, error) {
 			},
 		}
 	default:
-		return nil, fmt.Errorf("unsupported file extension: %s", ext)
+		// Assume that all other files are Go files, regardless of extension.
+		f = &goFile{
+			fileBase: fileBase{
+				view:  v,
+				fname: filename,
+			},
+		}
+		v.session.filesWatchMap.Watch(uri, func() {
+			f.(*goFile).invalidateContent()
+		})
 	}
 	v.mapFile(uri, f)
 	return f, nil
