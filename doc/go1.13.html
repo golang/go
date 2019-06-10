@@ -252,7 +252,8 @@ TODO
 <dl id="os"><dt><a href="/pkg/os/">os</a></dt>
   <dd>
     <p><!-- CL 166578 -->
-      TODO: <a href="https://golang.org/cl/166578">https://golang.org/cl/166578</a>: reject WriteAt if file opened in append mode
+      If a <a href="/pkg/os/#File"><code>File</code></a> is opened using the O_APPEND flag, its
+      <a href="/pkg/os/#File.WriteAt"><code>WriteAt</code></a> method will always return an error.
     </p>
 
 </dl><!-- os -->
@@ -260,7 +261,9 @@ TODO
 <dl id="os/exec"><dt><a href="/pkg/os/exec/">os/exec</a></dt>
   <dd>
     <p><!-- CL 174318 -->
-      TODO: <a href="https://golang.org/cl/174318">https://golang.org/cl/174318</a>: always set SYSTEMROOT on Windows if not listed in Cmd.Env
+      On Windows, the environment for a <a href="/pkg/os/exec#Cmd"><code>Cmd</code></a> always inherits the
+      <code>%SYSTEMROOT%</code> value of the parent process unless the
+      <a href="/pkg/os/exec#Cmd.Env"><code>Cmd.Env</code></a> field includes an explicit value for it.
     </p>
 
 </dl><!-- os/exec -->
