@@ -2565,7 +2565,7 @@ type Server struct {
 	BaseContext func(net.Listener) context.Context
 
 	// ConnContext optionally specifies a function that modifies
-	// the context used for a newly connection c. The provided ctx
+	// the context used for a new connection c. The provided ctx
 	// is derived from the base context and has a ServerContextKey
 	// value.
 	ConnContext func(ctx context.Context, c net.Conn) context.Context
