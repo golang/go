@@ -271,8 +271,9 @@ type Transport struct {
 	tlsNextProtoWasNil bool        // whether TLSNextProto was nil when the Once fired
 
 	// ForceAttemptHTTP2 controls whether HTTP/2 is enabled when a non-zero
-	// TLSClientConfig or Dial, DialTLS or DialContext func is provided. By default, use of any those fields conservatively
-	// disables HTTP/2. To use a customer dialer or TLS config and still attempt HTTP/2
+	// Dial, DialTLS, or DialContext func or TLSClientConfig is provided.
+	// By default, use of any those fields conservatively disables HTTP/2.
+	// To use a custom dialer or TLS config and still attempt HTTP/2
 	// upgrades, set this to true.
 	ForceAttemptHTTP2 bool
 }
