@@ -119,3 +119,9 @@ var badNamedPointerSliceLiteral = []*unicode.CaseRange{
 	{1, 2, delta},                   // want "unkeyed fields"
 	&unicode.CaseRange{1, 2, delta}, // want "unkeyed fields"
 }
+
+// unicode.Range16 is whitelisted, so there'll be no vet error
+var range16 = unicode.Range16{0xfdd0, 0xfdef, 1}
+
+// unicode.Range32 is whitelisted, so there'll be no vet error
+var range32 = unicode.Range32{0x1fffe, 0x1ffff, 1}
