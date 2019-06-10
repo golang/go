@@ -738,18 +738,18 @@ Loop:
 // It returns nil if it finds an end element matching the start
 // element; otherwise it returns an error describing the problem.
 func (d *Decoder) Skip() error {
-	for {
-		tok, err := d.Token()
+	depth := 1
+	for depth > 0 {
+		t, err := d.Token()
 		if err != nil {
 			return err
 		}
-		switch tok.(type) {
+		switch t := t.(type) {
 		case StartElement:
-			if err := d.Skip(); err != nil {
-				return err
-			}
+			depth++
 		case EndElement:
-			return nil
+			depth--
 		}
 	}
+	return nil
 }
