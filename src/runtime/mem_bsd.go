@@ -7,6 +7,7 @@
 package runtime
 
 import (
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -22,8 +23,17 @@ func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
 	return v
 }
 
+var adviseUnused = uint32(_MADV_FREE)
+
 func sysUnused(v unsafe.Pointer, n uintptr) {
-	madvise(v, n, _MADV_FREE)
+	var advise uint32
+	if debug.madvdontneed != 0 {
+		advise = _MADV_DONTNEED
+	} else {
+		advise = atomic.Load(&adviseUnused)
+	}
+
+	madvise(v, n, int32(advise))
 }
 
 func sysUsed(v unsafe.Pointer, n uintptr) {
