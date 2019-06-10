@@ -16,6 +16,7 @@ go get rsc.io/quote
 
 # and GONOPROXY bypasses proxy
 [!net] skip
+[!exec:git] skip
 env GONOPROXY='*/fortune'
 ! go get rsc.io/fortune # does not exist in real world, only on test proxy
 stderr 'git ls-remote'

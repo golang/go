@@ -136,6 +136,7 @@ var queryTests = []struct {
 
 func TestQuery(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
+	testenv.MustHaveExecPath(t, "git")
 
 	for _, tt := range queryTests {
 		allow := tt.allow

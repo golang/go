@@ -181,6 +181,7 @@ func TestVendorGet(t *testing.T) {
 
 func TestVendorGetUpdate(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
+	testenv.MustHaveExecPath(t, "git")
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -192,6 +193,7 @@ func TestVendorGetUpdate(t *testing.T) {
 
 func TestVendorGetU(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
+	testenv.MustHaveExecPath(t, "git")
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -202,6 +204,7 @@ func TestVendorGetU(t *testing.T) {
 
 func TestVendorGetTU(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
+	testenv.MustHaveExecPath(t, "git")
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -212,6 +215,7 @@ func TestVendorGetTU(t *testing.T) {
 
 func TestVendorGetBadVendor(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
+	testenv.MustHaveExecPath(t, "git")
 
 	for _, suffix := range []string{"bad/imp", "bad/imp2", "bad/imp3", "..."} {
 		t.Run(suffix, func(t *testing.T) {
@@ -228,6 +232,7 @@ func TestVendorGetBadVendor(t *testing.T) {
 
 func TestGetSubmodules(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
+	testenv.MustHaveExecPath(t, "git")
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -248,6 +253,7 @@ func TestVendorCache(t *testing.T) {
 
 func TestVendorTest2(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
+	testenv.MustHaveExecPath(t, "git")
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -273,6 +279,7 @@ func TestVendorTest2(t *testing.T) {
 
 func TestVendorTest3(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
+	testenv.MustHaveExecPath(t, "git")
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -299,6 +306,7 @@ func TestVendorTest3(t *testing.T) {
 
 func TestVendorList(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
+	testenv.MustHaveExecPath(t, "git")
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -349,6 +357,7 @@ func TestLegacyMod(t *testing.T) {
 
 func TestLegacyModGet(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
+	testenv.MustHaveExecPath(t, "git")
 
 	tg := testgo(t)
 	defer tg.cleanup()
