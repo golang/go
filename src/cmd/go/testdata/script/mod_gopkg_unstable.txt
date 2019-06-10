@@ -8,6 +8,7 @@ cp go.mod.empty go.mod
 go list
 
 [!net] skip
+[!exec:git] skip
 
 env GOPROXY=direct
 env GOSUMDB=off
