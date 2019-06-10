@@ -106,7 +106,7 @@ TODO
 </p>
 
 <!-- CL 161904: https://golang.org/cl/161904: cmd/compile: do not export float or complex constants with -asmhdr -->
-<!-- CL 167780: https://golang.org/cl/167780: cmd/compile: rename init function from init.ializers back to init -->
+
 <!-- CL 170448: https://golang.org/cl/170448: cmd/compile: enable -newescape by default -->
 <!-- CL 174125: https://golang.org/cl/174125: cmd/dist: add support for openbsd/arm64 -->
 <!-- CL 177797: https://golang.org/cl/177797: cmd/doc: always print package clause except for commands -->
@@ -303,8 +303,11 @@ TODO
 
 <dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
-    <p><!-- CL 170318 -->
-      TODO: <a href="https://golang.org/cl/170318">https://golang.org/cl/170318</a>: randomize package initialization order in race mode
+    <p> <!-- CL 167780 -->
+      Tracebacks, <code>runtime.Caller</code>,
+      and <code>runtime.Callers</code> now refer to the function that
+      initializes the global variables of <code>PKG</code>
+      as <code>PKG.init</code> instead of <code>PKG.init.ializers</code>
     </p>
 
 </dl><!-- runtime -->
