@@ -27,6 +27,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/par"
+	"cmd/go/internal/robustio"
 	"cmd/go/internal/txtar"
 	"cmd/go/internal/work"
 )
@@ -388,7 +389,7 @@ func (ts *testScript) cmdCc(neg bool, args []string) {
 	var b work.Builder
 	b.Init()
 	ts.cmdExec(neg, append(b.GccCmd(".", ""), args...))
-	os.RemoveAll(b.WorkDir)
+	robustio.RemoveAll(b.WorkDir)
 }
 
 // cd changes to a different directory.
@@ -669,8 +670,8 @@ func (ts *testScript) cmdRm(neg bool, args []string) {
 	}
 	for _, arg := range args {
 		file := ts.mkabs(arg)
-		removeAll(file)              // does chmod and then attempts rm
-		ts.check(os.RemoveAll(file)) // report error
+		removeAll(file)                    // does chmod and then attempts rm
+		ts.check(robustio.RemoveAll(file)) // report error
 	}
 }
 

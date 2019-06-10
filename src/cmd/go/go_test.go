@@ -29,6 +29,7 @@ import (
 
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/robustio"
 	"cmd/internal/sys"
 )
 
@@ -685,7 +686,7 @@ func (tg *testgoData) creatingTemp(path string) {
 	if tg.wd != "" && !filepath.IsAbs(path) {
 		path = filepath.Join(tg.pwd(), path)
 	}
-	tg.must(os.RemoveAll(path))
+	tg.must(robustio.RemoveAll(path))
 	tg.temps = append(tg.temps, path)
 }
 
@@ -887,7 +888,7 @@ func removeAll(dir string) error {
 		}
 		return nil
 	})
-	return os.RemoveAll(dir)
+	return robustio.RemoveAll(dir)
 }
 
 // failSSH puts an ssh executable in the PATH that always fails.
@@ -1181,7 +1182,7 @@ func testMove(t *testing.T, vcs, url, base, config string) {
 	case "svn":
 		// SVN doesn't believe in text files so we can't just edit the config.
 		// Check out a different repo into the wrong place.
-		tg.must(os.RemoveAll(tg.path("src/code.google.com/p/rsc-svn")))
+		tg.must(robustio.RemoveAll(tg.path("src/code.google.com/p/rsc-svn")))
 		tg.run("get", "-d", "-u", "code.google.com/p/rsc-svn2/trunk")
 		tg.must(os.Rename(tg.path("src/code.google.com/p/rsc-svn2"), tg.path("src/code.google.com/p/rsc-svn")))
 	default:
@@ -1693,7 +1694,7 @@ func TestInstalls(t *testing.T) {
 	goarch := strings.TrimSpace(tg.getStdout())
 	tg.setenv("GOARCH", goarch)
 	fixbin := filepath.Join(goroot, "pkg", "tool", goos+"_"+goarch, "fix") + exeSuffix
-	tg.must(os.RemoveAll(fixbin))
+	tg.must(robustio.RemoveAll(fixbin))
 	tg.run("install", "cmd/fix")
 	tg.wantExecutable(fixbin, "did not install cmd/fix to $GOROOT/pkg/tool")
 	tg.must(os.Remove(fixbin))
@@ -2065,13 +2066,13 @@ func TestDefaultGOPATHGet(t *testing.T) {
 	tg.grepStderr("created GOPATH="+regexp.QuoteMeta(tg.path("home/go"))+"; see 'go help gopath'", "did not create GOPATH")
 
 	// no warning if directory already exists
-	tg.must(os.RemoveAll(tg.path("home/go")))
+	tg.must(robustio.RemoveAll(tg.path("home/go")))
 	tg.tempDir("home/go")
 	tg.run("get", "github.com/golang/example/hello")
 	tg.grepStderrNot(".", "expected no output on standard error")
 
 	// error if $HOME/go is a file
-	tg.must(os.RemoveAll(tg.path("home/go")))
+	tg.must(robustio.RemoveAll(tg.path("home/go")))
 	tg.tempFile("home/go", "")
 	tg.runFail("get", "github.com/golang/example/hello")
 	tg.grepStderr(`mkdir .*[/\\]go: .*(not a directory|cannot find the path)`, "expected error because $HOME/go is a file")
@@ -2872,7 +2873,7 @@ func TestCgoDependsOnSyscall(t *testing.T) {
 	files, err := filepath.Glob(filepath.Join(runtime.GOROOT(), "pkg", "*_race"))
 	tg.must(err)
 	for _, file := range files {
-		tg.check(os.RemoveAll(file))
+		tg.check(robustio.RemoveAll(file))
 	}
 	tg.tempFile("src/foo/foo.go", `
 		package foo
@@ -3925,10 +3926,10 @@ func TestGoGetDomainRoot(t *testing.T) {
 	tg.run("get", "go-get-issue-9357.appspot.com")
 	tg.run("get", "-u", "go-get-issue-9357.appspot.com")
 
-	tg.must(os.RemoveAll(tg.path("src/go-get-issue-9357.appspot.com")))
+	tg.must(robustio.RemoveAll(tg.path("src/go-get-issue-9357.appspot.com")))
 	tg.run("get", "go-get-issue-9357.appspot.com")
 
-	tg.must(os.RemoveAll(tg.path("src/go-get-issue-9357.appspot.com")))
+	tg.must(robustio.RemoveAll(tg.path("src/go-get-issue-9357.appspot.com")))
 	tg.run("get", "-u", "go-get-issue-9357.appspot.com")
 }
 
@@ -4513,8 +4514,9 @@ func TestLinkXImportPathEscape(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
+	tg.makeTempdir()
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	exe := "./linkx" + exeSuffix
+	exe := tg.path("linkx" + exeSuffix)
 	tg.creatingTemp(exe)
 	tg.run("build", "-o", exe, "-ldflags", "-X=my.pkg.Text=linkXworked", "my.pkg/main")
 	out, err := exec.Command(exe).CombinedOutput()
@@ -4750,7 +4752,7 @@ func TestExecutableGOROOT(t *testing.T) {
 		check(t, symGoTool, newRoot)
 	})
 
-	tg.must(os.RemoveAll(tg.path("new/pkg")))
+	tg.must(robustio.RemoveAll(tg.path("new/pkg")))
 
 	// Binaries built in the new tree should report the
 	// new tree when they call runtime.GOROOT.
@@ -5101,7 +5103,7 @@ func TestExecBuildX(t *testing.T) {
 	if len(matches) == 0 {
 		t.Fatal("no WORK directory")
 	}
-	tg.must(os.RemoveAll(matches[1]))
+	tg.must(robustio.RemoveAll(matches[1]))
 }
 
 func TestParallelNumber(t *testing.T) {
