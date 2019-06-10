@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/par"
 	"cmd/go/internal/txtar"
@@ -106,6 +107,7 @@ func (ts *testScript) setup() {
 		"CCACHE_DISABLE=1", // ccache breaks with non-existent HOME
 		"GOARCH=" + runtime.GOARCH,
 		"GOCACHE=" + testGOCACHE,
+		"GOEXE=" + cfg.ExeSuffix,
 		"GOOS=" + runtime.GOOS,
 		"GOPATH=" + filepath.Join(ts.workdir, "gopath"),
 		"GOPROXY=" + proxyURL,
@@ -123,11 +125,6 @@ func (ts *testScript) setup() {
 		ts.env = append(ts.env, "path="+testBin+string(filepath.ListSeparator)+os.Getenv("path"))
 	}
 
-	if runtime.GOOS == "windows" {
-		ts.env = append(ts.env, "exe=.exe")
-	} else {
-		ts.env = append(ts.env, "exe=")
-	}
 	for _, key := range extraEnvKeys {
 		if val := os.Getenv(key); val != "" {
 			ts.env = append(ts.env, key+"="+val)
