@@ -4,7 +4,7 @@
 
 //+build !windows
 
-package renameio
+package robustio
 
 import (
 	"io/ioutil"
@@ -17,6 +17,10 @@ func rename(oldpath, newpath string) error {
 
 func readFile(filename string) ([]byte, error) {
 	return ioutil.ReadFile(filename)
+}
+
+func removeAll(path string) error {
+	return os.RemoveAll(path)
 }
 
 func isEphemeralError(err error) bool {
