@@ -28,32 +28,48 @@ func parseFile(fset *token.FileSet, filename string, src []byte) (*ast.File, err
 var ioLimit = make(chan bool, 20)
 
 // parseFiles reads and parses the Go source files and returns the ASTs
-// of the ones that could be at least partially parsed, along with a
-// list of I/O and parse errors encountered.
+// of the ones that could be at least partially parsed, along with a list
+// parse errors encountered, and a fatal error that prevented parsing.
 //
 // Because files are scanned in parallel, the token.Pos
 // positions of the resulting ast.Files are not ordered.
 //
-func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) ([]*astFile, []error) {
-	var wg sync.WaitGroup
-	n := len(filenames)
-	parsed := make([]*astFile, n)
-	errors := make([]error, n)
+func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) ([]*astFile, []error, error) {
+	var (
+		wg       sync.WaitGroup
+		mu       sync.Mutex
+		n        = len(filenames)
+		parsed   = make([]*astFile, n)
+		errors   = make([]error, n)
+		fatalErr error
+	)
+
+	setFatalErr := func(err error) {
+		mu.Lock()
+		fatalErr = err
+		mu.Unlock()
+	}
+
 	for i, filename := range filenames {
-		if imp.ctx.Err() != nil {
-			parsed[i], errors[i] = nil, imp.ctx.Err()
-			continue
+		if err := imp.ctx.Err(); err != nil {
+			setFatalErr(err)
+			break
 		}
 		// First, check if we have already cached an AST for this file.
 		f, err := imp.view.findFile(span.FileURI(filename))
-		if err != nil || f == nil {
-			parsed[i], errors[i] = nil, err
-			continue
+		if err != nil {
+			setFatalErr(err)
+			break
 		}
+		if f == nil {
+			setFatalErr(fmt.Errorf("could not find file %s", filename))
+			break
+		}
+
 		gof, ok := f.(*goFile)
 		if !ok {
-			parsed[i], errors[i] = nil, fmt.Errorf("non-Go file in parse call: %v", filename)
-			continue
+			setFatalErr(fmt.Errorf("non-Go file in parse call: %s", filename))
+			break
 		}
 		wg.Add(1)
 		go func(i int, filename string) {
@@ -71,14 +87,13 @@ func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) ([]*a
 			}
 
 			// We don't have a cached AST for this file, so we read its content and parse it.
-			data, _, err := gof.Handle(imp.ctx).Read(imp.ctx)
+			src, _, err := gof.Handle(imp.ctx).Read(imp.ctx)
 			if err != nil {
-				parsed[i], errors[i] = nil, err
+				setFatalErr(err)
 				return
 			}
-			src := data
 			if src == nil {
-				parsed[i], errors[i] = nil, fmt.Errorf("no source for %v", filename)
+				setFatalErr(fmt.Errorf("no source for %v", filename))
 				return
 			}
 
@@ -102,6 +117,10 @@ func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) ([]*a
 	}
 	wg.Wait()
 
+	if fatalErr != nil {
+		return nil, nil, fatalErr
+	}
+
 	// Eliminate nils, preserving order.
 	var o int
 	for _, f := range parsed {
@@ -121,7 +140,7 @@ func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) ([]*a
 	}
 	errors = errors[:o]
 
-	return parsed, errors
+	return parsed, errors, nil
 }
 
 // sameFile returns true if x and y have the same basename and denote

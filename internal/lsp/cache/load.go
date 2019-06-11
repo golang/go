@@ -52,8 +52,11 @@ func (v *view) loadParseTypecheck(ctx context.Context, f *goFile) ([]packages.Er
 	}
 	// Type-check package.
 	pkg, err := imp.getPkg(f.meta.pkgPath)
-	if pkg == nil || pkg.IsIllTyped() {
+	if err != nil {
 		return nil, err
+	}
+	if pkg == nil || pkg.IsIllTyped() {
+		return nil, fmt.Errorf("loadParseTypecheck: %s is ill typed", f.meta.pkgPath)
 	}
 	// If we still have not found the package for the file, something is wrong.
 	if f.pkg == nil {

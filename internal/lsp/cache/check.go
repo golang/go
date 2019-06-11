@@ -45,6 +45,7 @@ func (imp *importer) getPkg(pkgPath string) (*pkg, error) {
 	}
 	imp.view.pcache.mu.Lock()
 	e, ok := imp.view.pcache.packages[pkgPath]
+
 	if ok {
 		// cache hit
 		imp.view.pcache.mu.Unlock()
@@ -61,9 +62,21 @@ func (imp *importer) getPkg(pkgPath string) (*pkg, error) {
 		e.pkg, e.err = imp.typeCheck(pkgPath)
 		close(e.ready)
 	}
+
 	if e.err != nil {
+		// If the import had been previously canceled, and that error cached, try again.
+		if e.err == context.Canceled && imp.ctx.Err() == nil {
+			imp.view.pcache.mu.Lock()
+			// Clear out canceled cache entry if it is still there.
+			if imp.view.pcache.packages[pkgPath] == e {
+				delete(imp.view.pcache.packages, pkgPath)
+			}
+			imp.view.pcache.mu.Unlock()
+			return imp.getPkg(pkgPath)
+		}
 		return nil, e.err
 	}
+
 	return e.pkg, nil
 }
 
@@ -104,10 +117,19 @@ func (imp *importer) typeCheck(pkgPath string) (*pkg, error) {
 	ignoreFuncBodies := imp.topLevelPkgID != pkg.id
 
 	// Don't type-check function bodies if we are not in the top-level package.
-	files, errs := imp.parseFiles(meta.files, ignoreFuncBodies)
-	for _, err := range errs {
+	files, parseErrs, err := imp.parseFiles(meta.files, ignoreFuncBodies)
+	if err != nil {
+		return nil, err
+	}
+	for _, err := range parseErrs {
 		appendError(err)
 	}
+
+	// If something unexpected happens, don't cache a package with 0 parsed files.
+	if len(files) == 0 {
+		return nil, fmt.Errorf("no parsed files for package %s", pkg.pkgPath)
+	}
+
 	pkg.syntax = files
 
 	// Handle circular imports by copying previously seen imports.
