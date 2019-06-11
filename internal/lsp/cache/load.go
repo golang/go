@@ -130,7 +130,7 @@ func (v *view) parseImports(ctx context.Context, f *goFile) bool {
 		return true
 	}
 	for i, importSpec := range f.imports {
-		if importSpec.Path.Value != f.imports[i].Path.Value {
+		if importSpec.Path.Value != parsed.Imports[i].Path.Value {
 			return true
 		}
 	}
