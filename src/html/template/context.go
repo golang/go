@@ -26,7 +26,11 @@ type context struct {
 }
 
 func (c context) String() string {
-	return fmt.Sprintf("{%v %v %v %v %v %v %v}", c.state, c.delim, c.urlPart, c.jsCtx, c.attr, c.element, c.err)
+	var err error
+	if c.err != nil {
+		err = c.err
+	}
+	return fmt.Sprintf("{%v %v %v %v %v %v %v}", c.state, c.delim, c.urlPart, c.jsCtx, c.attr, c.element, err)
 }
 
 // eq reports whether two contexts are equal.
