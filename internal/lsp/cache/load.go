@@ -20,7 +20,7 @@ func (v *view) loadParseTypecheck(ctx context.Context, f *goFile) ([]packages.Er
 	}
 
 	// Save the metadata's current missing imports, if any.
-	var originalMissingImports map[string]struct{}
+	var originalMissingImports map[packagePath]struct{}
 	if f.meta != nil {
 		originalMissingImports = f.meta.missingImports
 	}
@@ -40,7 +40,7 @@ func (v *view) loadParseTypecheck(ctx context.Context, f *goFile) ([]packages.Er
 
 	imp := &importer{
 		view:          v,
-		seen:          make(map[string]struct{}),
+		seen:          make(map[packagePath]struct{}),
 		ctx:           ctx,
 		fset:          f.FileSet(),
 		topLevelPkgID: f.meta.id,
@@ -48,7 +48,7 @@ func (v *view) loadParseTypecheck(ctx context.Context, f *goFile) ([]packages.Er
 
 	// Start prefetching direct imports.
 	for importPath := range f.meta.children {
-		go imp.Import(importPath)
+		go imp.Import(string(importPath))
 	}
 	// Type-check package.
 	pkg, err := imp.getPkg(f.meta.pkgPath)
@@ -65,7 +65,7 @@ func (v *view) loadParseTypecheck(ctx context.Context, f *goFile) ([]packages.Er
 	return nil, nil
 }
 
-func sameSet(x, y map[string]struct{}) bool {
+func sameSet(x, y map[packagePath]struct{}) bool {
 	if len(x) != len(y) {
 		return false
 	}
@@ -103,7 +103,7 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile) ([]packages.Error, 
 			return pkg.Errors, fmt.Errorf("package %s has errors, skipping type-checking", pkg.PkgPath)
 		}
 		// Build the import graph for this package.
-		v.link(ctx, pkg.PkgPath, pkg, nil)
+		v.link(ctx, packagePath(pkg.PkgPath), pkg, nil)
 	}
 	return nil, nil
 }
@@ -136,16 +136,16 @@ func (v *view) parseImports(ctx context.Context, f *goFile) bool {
 	return false
 }
 
-func (v *view) link(ctx context.Context, pkgPath string, pkg *packages.Package, parent *metadata) *metadata {
+func (v *view) link(ctx context.Context, pkgPath packagePath, pkg *packages.Package, parent *metadata) *metadata {
 	m, ok := v.mcache.packages[pkgPath]
 	if !ok {
 		m = &metadata{
 			pkgPath:        pkgPath,
-			id:             pkg.ID,
+			id:             packageID(pkg.ID),
 			typesSizes:     pkg.TypesSizes,
-			parents:        make(map[string]bool),
-			children:       make(map[string]bool),
-			missingImports: make(map[string]struct{}),
+			parents:        make(map[packagePath]bool),
+			children:       make(map[packagePath]bool),
+			missingImports: make(map[packagePath]struct{}),
 		}
 		v.mcache.packages[pkgPath] = m
 	}
@@ -168,15 +168,16 @@ func (v *view) link(ctx context.Context, pkgPath string, pkg *packages.Package, 
 	}
 	for importPath, importPkg := range pkg.Imports {
 		if len(importPkg.Errors) > 0 {
-			m.missingImports[pkg.PkgPath] = struct{}{}
+			m.missingImports[pkgPath] = struct{}{}
 		}
-		if _, ok := m.children[importPath]; !ok {
-			v.link(ctx, importPath, importPkg, m)
+		importPkgPath := packagePath(importPath)
+		if _, ok := m.children[importPkgPath]; !ok {
+			v.link(ctx, importPkgPath, importPkg, m)
 		}
 	}
 	// Clear out any imports that have been removed.
 	for importPath := range m.children {
-		if _, ok := pkg.Imports[importPath]; !ok {
+		if _, ok := pkg.Imports[string(importPath)]; !ok {
 			delete(m.children, importPath)
 			if child, ok := v.mcache.packages[importPath]; ok {
 				delete(child.parents, pkgPath)

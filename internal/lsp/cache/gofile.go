@@ -131,9 +131,9 @@ func (f *goFile) GetActiveReverseDeps(ctx context.Context) []source.GoFile {
 	f.view.mcache.mu.Lock()
 	defer f.view.mcache.mu.Unlock()
 
-	seen := make(map[string]struct{}) // visited packages
+	seen := make(map[packagePath]struct{}) // visited packages
 	results := make(map[*goFile]struct{})
-	f.view.reverseDeps(ctx, seen, results, pkg.PkgPath())
+	f.view.reverseDeps(ctx, seen, results, packagePath(pkg.PkgPath()))
 
 	var files []source.GoFile
 	for rd := range results {
@@ -149,7 +149,7 @@ func (f *goFile) GetActiveReverseDeps(ctx context.Context) []source.GoFile {
 	return files
 }
 
-func (v *view) reverseDeps(ctx context.Context, seen map[string]struct{}, results map[*goFile]struct{}, pkgPath string) {
+func (v *view) reverseDeps(ctx context.Context, seen map[packagePath]struct{}, results map[*goFile]struct{}, pkgPath packagePath) {
 	if _, ok := seen[pkgPath]; ok {
 		return
 	}

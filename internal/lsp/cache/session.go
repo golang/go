@@ -81,10 +81,10 @@ func (s *session) NewView(name string, folder span.URI) source.View {
 		filesByURI:    make(map[span.URI]viewFile),
 		filesByBase:   make(map[string][]viewFile),
 		mcache: &metadataCache{
-			packages: make(map[string]*metadata),
+			packages: make(map[packagePath]*metadata),
 		},
 		pcache: &packageCache{
-			packages: make(map[string]*entry),
+			packages: make(map[packagePath]*entry),
 		},
 		ignoredURIs: make(map[span.URI]struct{}),
 	}

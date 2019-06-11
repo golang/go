@@ -71,23 +71,25 @@ type view struct {
 
 type metadataCache struct {
 	mu       sync.Mutex
-	packages map[string]*metadata
+	packages map[packagePath]*metadata
 }
 
 type metadata struct {
-	id, pkgPath, name string
+	id                packageID
+	pkgPath           packagePath
+	name              string
 	files             []string
 	typesSizes        types.Sizes
-	parents, children map[string]bool
+	parents, children map[packagePath]bool
 
 	// missingImports is the set of unresolved imports for this package.
 	// It contains any packages with `go list` errors.
-	missingImports map[string]struct{}
+	missingImports map[packagePath]struct{}
 }
 
 type packageCache struct {
 	mu       sync.Mutex
-	packages map[string]*entry
+	packages map[packagePath]*entry
 }
 
 type entry struct {
@@ -227,20 +229,10 @@ func (v *view) SetContent(ctx context.Context, uri span.URI, content []byte) err
 // invalidateContent invalidates the content of a Go file,
 // including any position and type information that depends on it.
 func (f *goFile) invalidateContent() {
-	f.view.pcache.mu.Lock()
 	f.handleMu.Lock()
-	defer func() {
-		f.handleMu.Unlock()
-		f.view.pcache.mu.Unlock()
-	}()
+	defer f.handleMu.Unlock()
 
-	f.ast = nil
-	f.token = nil
-
-	// Remove the package and all of its reverse dependencies from the cache.
-	if f.pkg != nil {
-		f.view.remove(f.pkg.pkgPath, map[string]struct{}{})
-	}
+	f.invalidateAST()
 	f.handle = nil
 }
 
@@ -255,14 +247,14 @@ func (f *goFile) invalidateAST() {
 
 	// Remove the package and all of its reverse dependencies from the cache.
 	if f.pkg != nil {
-		f.view.remove(f.pkg.pkgPath, map[string]struct{}{})
+		f.view.remove(f.pkg.pkgPath, map[packagePath]struct{}{})
 	}
 }
 
 // remove invalidates a package and its reverse dependencies in the view's
 // package cache. It is assumed that the caller has locked both the mutexes
 // of both the mcache and the pcache.
-func (v *view) remove(pkgPath string, seen map[string]struct{}) {
+func (v *view) remove(pkgPath packagePath, seen map[packagePath]struct{}) {
 	if _, ok := seen[pkgPath]; ok {
 		return
 	}

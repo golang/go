@@ -22,24 +22,24 @@ type importer struct {
 
 	// seen maintains the set of previously imported packages.
 	// If we have seen a package that is already in this map, we have a circular import.
-	seen map[string]struct{}
+	seen map[packagePath]struct{}
 
 	// topLevelPkgID is the ID of the package from which type-checking began.
-	topLevelPkgID string
+	topLevelPkgID packageID
 
 	ctx  context.Context
 	fset *token.FileSet
 }
 
 func (imp *importer) Import(pkgPath string) (*types.Package, error) {
-	pkg, err := imp.getPkg(pkgPath)
+	pkg, err := imp.getPkg(packagePath(pkgPath))
 	if err != nil {
 		return nil, err
 	}
 	return pkg.types, nil
 }
 
-func (imp *importer) getPkg(pkgPath string) (*pkg, error) {
+func (imp *importer) getPkg(pkgPath packagePath) (*pkg, error) {
 	if _, ok := imp.seen[pkgPath]; ok {
 		return nil, fmt.Errorf("circular import detected")
 	}
@@ -80,7 +80,7 @@ func (imp *importer) getPkg(pkgPath string) (*pkg, error) {
 	return e.pkg, nil
 }
 
-func (imp *importer) typeCheck(pkgPath string) (*pkg, error) {
+func (imp *importer) typeCheck(pkgPath packagePath) (*pkg, error) {
 	meta, ok := imp.view.mcache.packages[pkgPath]
 	if !ok {
 		return nil, fmt.Errorf("no metadata for %v", pkgPath)
@@ -89,7 +89,7 @@ func (imp *importer) typeCheck(pkgPath string) (*pkg, error) {
 		id:         meta.id,
 		pkgPath:    meta.pkgPath,
 		files:      meta.files,
-		imports:    make(map[string]*pkg),
+		imports:    make(map[packagePath]*pkg),
 		typesSizes: meta.typesSizes,
 		typesInfo: &types.Info{
 			Types:      make(map[ast.Expr]types.TypeAndValue),
@@ -117,13 +117,13 @@ func (imp *importer) typeCheck(pkgPath string) (*pkg, error) {
 	} else if len(files) == 0 { // not the unsafe package, no parsed files
 		return nil, fmt.Errorf("no parsed files for package %s", pkg.pkgPath)
 	} else {
-		pkg.types = types.NewPackage(meta.pkgPath, meta.name)
+		pkg.types = types.NewPackage(string(meta.pkgPath), meta.name)
 	}
 
 	pkg.syntax = files
 
 	// Handle circular imports by copying previously seen imports.
-	seen := make(map[string]struct{})
+	seen := make(map[packagePath]struct{})
 	for k, v := range imp.seen {
 		seen[k] = v
 	}
