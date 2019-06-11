@@ -85,19 +85,11 @@ func (imp *importer) typeCheck(pkgPath string) (*pkg, error) {
 	if !ok {
 		return nil, fmt.Errorf("no metadata for %v", pkgPath)
 	}
-	// Use the default type information for the unsafe package.
-	var typ *types.Package
-	if meta.pkgPath == "unsafe" {
-		typ = types.Unsafe
-	} else {
-		typ = types.NewPackage(meta.pkgPath, meta.name)
-	}
 	pkg := &pkg{
 		id:         meta.id,
 		pkgPath:    meta.pkgPath,
 		files:      meta.files,
 		imports:    make(map[string]*pkg),
-		types:      typ,
 		typesSizes: meta.typesSizes,
 		typesInfo: &types.Info{
 			Types:      make(map[ast.Expr]types.TypeAndValue),
@@ -109,25 +101,23 @@ func (imp *importer) typeCheck(pkgPath string) (*pkg, error) {
 		},
 		analyses: make(map[*analysis.Analyzer]*analysisEntry),
 	}
-	appendError := func(err error) {
-		imp.view.appendPkgError(pkg, err)
-	}
-
 	// Ignore function bodies for any dependency packages.
 	ignoreFuncBodies := imp.topLevelPkgID != pkg.id
-
-	// Don't type-check function bodies if we are not in the top-level package.
 	files, parseErrs, err := imp.parseFiles(meta.files, ignoreFuncBodies)
 	if err != nil {
 		return nil, err
 	}
 	for _, err := range parseErrs {
-		appendError(err)
+		imp.view.appendPkgError(pkg, err)
 	}
 
-	// If something unexpected happens, don't cache a package with 0 parsed files.
-	if len(files) == 0 {
+	// Use the default type information for the unsafe package.
+	if meta.pkgPath == "unsafe" {
+		pkg.types = types.Unsafe
+	} else if len(files) == 0 { // not the unsafe package, no parsed files
 		return nil, fmt.Errorf("no parsed files for package %s", pkg.pkgPath)
+	} else {
+		pkg.types = types.NewPackage(meta.pkgPath, meta.name)
 	}
 
 	pkg.syntax = files
@@ -140,7 +130,9 @@ func (imp *importer) typeCheck(pkgPath string) (*pkg, error) {
 	seen[pkgPath] = struct{}{}
 
 	cfg := &types.Config{
-		Error:            appendError,
+		Error: func(err error) {
+			imp.view.appendPkgError(pkg, err)
+		},
 		IgnoreFuncBodies: ignoreFuncBodies,
 		Importer: &importer{
 			view:          imp.view,
