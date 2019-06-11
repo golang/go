@@ -281,6 +281,12 @@ func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
 	if err := json.Unmarshal(data, info); err != nil {
 		return nil, err
 	}
+	if info.Version != rev && rev == module.CanonicalVersion(rev) && module.Check(p.path, rev) == nil {
+		// If we request a correct, appropriate version for the module path, the
+		// proxy must return either exactly that version or an error — not some
+		// arbitrary other version.
+		return nil, fmt.Errorf("requested canonical version %s, but proxy returned info for version %s", rev, info.Version)
+	}
 	return info, nil
 }
 
@@ -298,6 +304,10 @@ func (p *proxyRepo) Latest() (*RevInfo, error) {
 }
 
 func (p *proxyRepo) GoMod(version string) ([]byte, error) {
+	if version != module.CanonicalVersion(version) {
+		return nil, fmt.Errorf("version %s is not canonical", version)
+	}
+
 	encVer, err := module.EncodeVersion(version)
 	if err != nil {
 		return nil, err
@@ -310,6 +320,10 @@ func (p *proxyRepo) GoMod(version string) ([]byte, error) {
 }
 
 func (p *proxyRepo) Zip(dst io.Writer, version string) error {
+	if version != module.CanonicalVersion(version) {
+		return fmt.Errorf("version %s is not canonical", version)
+	}
+
 	encVer, err := module.EncodeVersion(version)
 	if err != nil {
 		return err

@@ -87,7 +87,6 @@ func (e *BuildListError) Module() module.Version {
 
 func (e *BuildListError) Error() string {
 	b := &strings.Builder{}
-	errMsg := e.Err.Error()
 	stack := e.stack
 
 	// Don't print modules at the beginning of the chain without a
@@ -97,16 +96,19 @@ func (e *BuildListError) Error() string {
 		stack = stack[:len(stack)-1]
 	}
 
-	// Don't print the last module if the error message already
-	// starts with module path and version.
-	errMentionsLast := len(stack) > 0 && strings.HasPrefix(errMsg, fmt.Sprintf("%s@%s: ", stack[0].m.Path, stack[0].m.Version))
 	for i := len(stack) - 1; i >= 1; i-- {
 		fmt.Fprintf(b, "%s@%s %s\n\t", stack[i].m.Path, stack[i].m.Version, stack[i].nextReason)
 	}
-	if errMentionsLast || len(stack) == 0 {
-		b.WriteString(errMsg)
+	if len(stack) == 0 {
+		b.WriteString(e.Err.Error())
 	} else {
-		fmt.Fprintf(b, "%s@%s: %s", stack[0].m.Path, stack[0].m.Version, errMsg)
+		// Ensure that the final module path and version are included as part of the
+		// error message.
+		if _, ok := e.Err.(*module.ModuleError); ok {
+			fmt.Fprintf(b, "%v", e.Err)
+		} else {
+			fmt.Fprintf(b, "%v", module.VersionError(stack[0].m, e.Err))
+		}
 	}
 	return b.String()
 }

@@ -1093,18 +1093,18 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 
 	data, err := modfetch.GoMod(mod.Path, mod.Version)
 	if err != nil {
-		return nil, fmt.Errorf("%s@%s: %v", mod.Path, mod.Version, err)
+		return nil, err
 	}
 	f, err := modfile.ParseLax("go.mod", data, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%s@%s: parsing go.mod: %v", mod.Path, mod.Version, err)
+		return nil, module.VersionError(mod, fmt.Errorf("parsing go.mod: %v", err))
 	}
 
 	if f.Module == nil {
-		return nil, fmt.Errorf("%s@%s: parsing go.mod: missing module line", mod.Path, mod.Version)
+		return nil, module.VersionError(mod, errors.New("parsing go.mod: missing module line"))
 	}
 	if mpath := f.Module.Mod.Path; mpath != origPath && mpath != mod.Path {
-		return nil, fmt.Errorf("%s@%s: parsing go.mod: unexpected module path %q", mod.Path, mod.Version, mpath)
+		return nil, module.VersionError(mod, fmt.Errorf("parsing go.mod: unexpected module path %q", mpath))
 	}
 	if f.Go != nil {
 		r.versions.LoadOrStore(mod, f.Go.Version)
