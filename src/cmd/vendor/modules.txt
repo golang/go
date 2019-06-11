@@ -26,7 +26,7 @@ golang.org/x/crypto/ssh/terminal
 # golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/tools v0.0.0-20190602112858-2de7f9bf822c
+# golang.org/x/tools v0.0.0-20190611154301-25a4f137592f
 golang.org/x/tools/go/analysis
 golang.org/x/tools/go/analysis/internal/analysisflags
 golang.org/x/tools/go/analysis/internal/facts
@@ -39,6 +39,7 @@ golang.org/x/tools/go/analysis/passes/cgocall
 golang.org/x/tools/go/analysis/passes/composite
 golang.org/x/tools/go/analysis/passes/copylock
 golang.org/x/tools/go/analysis/passes/ctrlflow
+golang.org/x/tools/go/analysis/passes/errorsas
 golang.org/x/tools/go/analysis/passes/httpresponse
 golang.org/x/tools/go/analysis/passes/inspect
 golang.org/x/tools/go/analysis/passes/internal/analysisutil
