@@ -47,8 +47,9 @@
 // 	importpath  import path syntax
 // 	modules     modules, module versions, and more
 // 	module-get  module-aware go get
-// 	packages    package lists and patterns
 // 	module-auth module authentication using go.sum
+// 	module-private module configuration for non-public modules
+// 	packages    package lists and patterns
 // 	testflag    testing flags
 // 	testfunc    testing functions
 //
@@ -1568,19 +1569,16 @@
 // 		For more details see: 'go help gopath'.
 // 	GOPROXY
 // 		URL of Go module proxy. See 'go help modules'.
-// 	GONOPROXY
+// 	GOPRIVATE, GONOPROXY, GONOSUMDB
 // 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
-// 		of module path prefixes that should always be fetched directly, ignoring
-// 		the GOPROXY setting. See 'go help modules'.
+// 		of module path prefixes that should always be fetched directly
+// 		or that should not be compared against the checksum database.
+// 		See 'go help module-private'.
+// 	GOROOT
+// 		The root of the go tree.
 // 	GOSUMDB
 // 		The name of checksum database to use and optionally its public key and
 // 		URL. See 'go help module-auth'.
-// 	GONOSUMDB
-// 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
-// 		of module path prefixes that should not be compared against the checksum
-// 		database. See 'go help module-auth'.
-// 	GOROOT
-// 		The root of the go tree.
 // 	GOTMPDIR
 // 		The directory where the go command will write
 // 		temporary source files, packages, and binaries.
@@ -2598,19 +2596,8 @@
 // to cause a direct connection to be attempted at that point in the search.
 // Any proxies listed after "direct" are never consulted.
 //
-// The GONOPROXY environment variable is a comma-separated list of
-// glob patterns (in the syntax of Go's path.Match) of module path prefixes
-// that should always be fetched directly, ignoring the GOPROXY setting.
-// For example,
-//
-// 	GONOPROXY=*.corp.example.com,rsc.io/private
-//
-// forces a direct connection to download modules with path prefixes matching
-// either pattern, including "git.corp.example.com/xyzzy", "rsc.io/private",
-// and "rsc.io/private/quux".
-//
-// The 'go env -w' command (see 'go help env') can be used to set these variables
-// for future go command invocations.
+// The GOPRIVATE and GONOPROXY environment variables allow bypassing
+// the proxy for selected modules. See 'go help module-private' for details.
 //
 // No matter the source of the modules, the go command checks downloads against
 // known checksums, to detect unexpected changes in the content of any specific
@@ -2640,6 +2627,137 @@
 // caches), use 'go build -mod=vendor'. Note that only the main module's
 // top-level vendor directory is used; vendor directories in other locations
 // are still ignored.
+//
+//
+// Module authentication using go.sum
+//
+// The go command tries to authenticate every downloaded module,
+// checking that the bits downloaded for a specific module version today
+// match bits downloaded yesterday. This ensures repeatable builds
+// and detects introduction of unexpected changes, malicious or not.
+//
+// In each module's root, alongside go.mod, the go command maintains
+// a file named go.sum containing the cryptographic checksums of the
+// module's dependencies.
+//
+// The form of each line in go.sum is three fields:
+//
+// 	<module> <version>[/go.mod] <hash>
+//
+// Each known module version results in two lines in the go.sum file.
+// The first line gives the hash of the module version's file tree.
+// The second line appends "/go.mod" to the version and gives the hash
+// of only the module version's (possibly synthesized) go.mod file.
+// The go.mod-only hash allows downloading and authenticating a
+// module version's go.mod file, which is needed to compute the
+// dependency graph, without also downloading all the module's source code.
+//
+// The hash begins with an algorithm prefix of the form "h<N>:".
+// The only defined algorithm prefix is "h1:", which uses SHA-256.
+//
+// Module authentication failures
+//
+// The go command maintains a cache of downloaded packages and computes
+// and records the cryptographic checksum of each package at download time.
+// In normal operation, the go command checks the main module's go.sum file
+// against these precomputed checksums instead of recomputing them on
+// each command invocation. The 'go mod verify' command checks that
+// the cached copies of module downloads still match both their recorded
+// checksums and the entries in go.sum.
+//
+// In day-to-day development, the checksum of a given module version
+// should never change. Each time a dependency is used by a given main
+// module, the go command checks its local cached copy, freshly
+// downloaded or not, against the main module's go.sum. If the checksums
+// don't match, the go command reports the mismatch as a security error
+// and refuses to run the build. When this happens, proceed with caution:
+// code changing unexpectedly means today's build will not match
+// yesterday's, and the unexpected change may not be beneficial.
+//
+// If the go command reports a mismatch in go.sum, the downloaded code
+// for the reported module version does not match the one used in a
+// previous build of the main module. It is important at that point
+// to find out what the right checksum should be, to decide whether
+// go.sum is wrong or the downloaded code is wrong. Usually go.sum is right:
+// you want to use the same code you used yesterday.
+//
+// If a downloaded module is not yet included in go.sum and it is a publicly
+// available module, the go command consults the Go checksum database to fetch
+// the expected go.sum lines. If the downloaded code does not match those
+// lines, the go command reports the mismatch and exits. Note that the
+// database is not consulted for module versions already listed in go.sum.
+//
+// If a go.sum mismatch is reported, it is always worth investigating why
+// the code downloaded today differs from what was downloaded yesterday.
+//
+// The GOSUMDB environment variable identifies the name of checksum database
+// to use and optionally its public key and URL, as in:
+//
+// 	GOSUMDB="sum.golang.org"
+// 	GOSUMDB="sum.golang.org+<publickey>"
+// 	GOSUMDB="sum.golang.org+<publickey> https://sum.golang.org"
+//
+// The go command knows the public key of sum.golang.org; use of any other
+// database requires giving the public key explicitly. The URL defaults to
+// "https://" followed by the database name.
+//
+// GOSUMDB defaults to "sum.golang.org", the Go checksum database run by Google.
+// See https://sum.golang.org/privacy for the service's privacy policy.
+//
+// If GOSUMDB is set to "off", or if "go get" is invoked with the -insecure flag,
+// the checksum database is not consulted, and all unrecognized modules are
+// accepted, at the cost of giving up the security guarantee of verified repeatable
+// downloads for all modules. A better way to bypass the checksum database
+// for specific modules is to use the GOPRIVATE or GONOSUMDB environment
+// variables. See 'go help module-private' for details.
+//
+// The 'go env -w' command (see 'go help env') can be used to set these variables
+// for future go command invocations.
+//
+//
+// Module configuration for non-public modules
+//
+// The go command defaults to downloading modules from the public Go module
+// mirror at proxy.golang.org. It also defaults to validating downloaded modules,
+// regardless of source, against the public Go checksum database at sum.golang.org.
+// These defaults work well for publicly available source code.
+//
+// The GOPRIVATE environment variable controls which modules the go command
+// considers to be private (not available publicly) and should therefore not use the
+// proxy or checksum database. The variable is a comma-separated list of
+// glob patterns (in the syntax of Go's path.Match) of module path prefixes.
+// For example,
+//
+// 	GOPRIVATE=*.corp.example.com,rsc.io/private
+//
+// causes the go command to treat as private any module with a path prefix
+// matching either pattern, including git.corp.example.com/xyzzy, rsc.io/private,
+// and rsc.io/private/quux.
+//
+// The GOPRIVATE environment variable may be used by other tools as well to
+// identify non-public modules. For example, an editor could use GOPRIVATE
+// to decide whether to hyperlink a package import to a godoc.org page.
+//
+// For fine-grained control over module download and validation, the GONOPROXY
+// and GONOSUMDB environment variables accept the same kind of glob list
+// and override GOPRIVATE for the specific decision of whether to use the proxy
+// and checksum database, respectively.
+//
+// For example, if a company ran a module proxy serving private modules,
+// users would configure go using:
+//
+// 	GOPRIVATE=*.corp.example.com
+// 	GOPROXY=proxy.example.com
+// 	GONOPROXY=none
+//
+// This would tell the go comamnd and other tools that modules beginning with
+// a corp.example.com subdomain are private but that the company proxy should
+// be used for downloading both public and private modules, because
+// GONOPROXY has been set to a pattern that won't match any modules,
+// overriding GOPRIVATE.
+//
+// The 'go env -w' command (see 'go help env') can be used to set these variables
+// for future go command invocations.
 //
 //
 // Package lists and patterns
@@ -2724,102 +2842,6 @@
 //
 // Directory and file names that begin with "." or "_" are ignored
 // by the go tool, as are directories named "testdata".
-//
-//
-// Module authentication using go.sum
-//
-// The go command tries to authenticate every downloaded module,
-// checking that the bits downloaded for a specific module version today
-// match bits downloaded yesterday. This ensures repeatable builds
-// and detects introduction of unexpected changes, malicious or not.
-//
-// In each module's root, alongside go.mod, the go command maintains
-// a file named go.sum containing the cryptographic checksums of the
-// module's dependencies.
-//
-// The form of each line in go.sum is three fields:
-//
-// 	<module> <version>[/go.mod] <hash>
-//
-// Each known module version results in two lines in the go.sum file.
-// The first line gives the hash of the module version's file tree.
-// The second line appends "/go.mod" to the version and gives the hash
-// of only the module version's (possibly synthesized) go.mod file.
-// The go.mod-only hash allows downloading and authenticating a
-// module version's go.mod file, which is needed to compute the
-// dependency graph, without also downloading all the module's source code.
-//
-// The hash begins with an algorithm prefix of the form "h<N>:".
-// The only defined algorithm prefix is "h1:", which uses SHA-256.
-//
-// Module authentication failures
-//
-// The go command maintains a cache of downloaded packages and computes
-// and records the cryptographic checksum of each package at download time.
-// In normal operation, the go command checks the main module's go.sum file
-// against these precomputed checksums instead of recomputing them on
-// each command invocation. The 'go mod verify' command checks that
-// the cached copies of module downloads still match both their recorded
-// checksums and the entries in go.sum.
-//
-// In day-to-day development, the checksum of a given module version
-// should never change. Each time a dependency is used by a given main
-// module, the go command checks its local cached copy, freshly
-// downloaded or not, against the main module's go.sum. If the checksums
-// don't match, the go command reports the mismatch as a security error
-// and refuses to run the build. When this happens, proceed with caution:
-// code changing unexpectedly means today's build will not match
-// yesterday's, and the unexpected change may not be beneficial.
-//
-// If the go command reports a mismatch in go.sum, the downloaded code
-// for the reported module version does not match the one used in a
-// previous build of the main module. It is important at that point
-// to find out what the right checksum should be, to decide whether
-// go.sum is wrong or the downloaded code is wrong. Usually go.sum is right:
-// you want to use the same code you used yesterday.
-//
-// If a downloaded module is not yet included in go.sum and it is a publicly
-// available module, the go command consults the Go checksum database to fetch
-// the expected go.sum lines. If the downloaded code does not match those
-// lines, the go command reports the mismatch and exits. Note that the
-// database is not consulted for module versions already listed in go.sum.
-//
-// If a go.sum mismatch is reported, it is always worth investigating why
-// the code downloaded today differs from what was downloaded yesterday.
-//
-// The GOSUMDB environment variable identifies the name of checksum database
-// to use and optionally its public key and URL, as in:
-//
-// 	GOSUMDB="sum.golang.org"
-// 	GOSUMDB="sum.golang.org+<publickey>"
-// 	GOSUMDB="sum.golang.org+<publickey> https://sum.golang.org"
-//
-// The go command knows the public key of sum.golang.org; use of any other
-// database requires giving the public key explicitly. The URL defaults to
-// "https://" followed by the database name.
-//
-// GOSUMDB defaults to "sum.golang.org", the Go checksum database run by Google.
-// See https://sum.golang.org/privacy for the service's privacy policy.
-//
-// If GOSUMDB is set to "off", or if "go get" is invoked with the -insecure flag,
-// the checksum database is not consulted, and all unrecognized modules are
-// accepted, at the cost of giving up the security guarantee of verified repeatable
-// downloads for all modules. A better way to bypass the checksum database
-// for specific modules is to use the GONOSUMDB environment variable.
-//
-// The GONOSUMDB environment variable is a comma-separated list of
-// glob patterns (in the syntax of Go's path.Match) of module path prefixes
-// that should not be compared against the checksum database.
-// For example,
-//
-// 	GONOSUMDB=*.corp.example.com,rsc.io/private
-//
-// disables checksum database lookups for modules with path prefixes matching
-// either pattern, including "git.corp.example.com/xyzzy", "rsc.io/private",
-// and "rsc.io/private/quux".
-//
-// The 'go env -w' command (see 'go help env') can be used to set these variables
-// for future go command invocations.
 //
 //
 // Testing flags

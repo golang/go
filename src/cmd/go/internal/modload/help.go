@@ -348,19 +348,8 @@ HTTP response. The string "direct" may appear in the proxy list,
 to cause a direct connection to be attempted at that point in the search.
 Any proxies listed after "direct" are never consulted.
 
-The GONOPROXY environment variable is a comma-separated list of
-glob patterns (in the syntax of Go's path.Match) of module path prefixes
-that should always be fetched directly, ignoring the GOPROXY setting.
-For example,
-
-	GONOPROXY=*.corp.example.com,rsc.io/private
-
-forces a direct connection to download modules with path prefixes matching
-either pattern, including "git.corp.example.com/xyzzy", "rsc.io/private",
-and "rsc.io/private/quux".
-
-The 'go env -w' command (see 'go help env') can be used to set these variables
-for future go command invocations.
+The GOPRIVATE and GONOPROXY environment variables allow bypassing
+the proxy for selected modules. See 'go help module-private' for details.
 
 No matter the source of the modules, the go command checks downloads against
 known checksums, to detect unexpected changes in the content of any specific
