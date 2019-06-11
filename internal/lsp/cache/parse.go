@@ -143,7 +143,7 @@ func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) ([]*a
 	// Eliminate nils, preserving order.
 	var o int
 	for _, f := range parsed {
-		if f != nil {
+		if f.file != nil {
 			parsed[o] = f
 			o++
 		}
