@@ -106,12 +106,18 @@ var queryTests = []struct {
 	{path: queryRepo, query: "v0.2", err: `no matching versions for query "v0.2"`},
 	{path: queryRepo, query: "v0.0", vers: "v0.0.3"},
 	{path: queryRepo, query: "v1.9.10-pre2+metadata", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
+
+	// golang.org/issue/29262: The major version for for a module without a suffix
+	// should be based on the most recent tag (v1 as appropriate, not v0
+	// unconditionally).
+	{path: queryRepo, query: "42abcb6df8ee", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
+
 	{path: queryRepo, query: "v1.9.10-pre2+wrongmetadata", err: `unknown revision v1.9.10-pre2+wrongmetadata`},
 	{path: queryRepo, query: "v1.9.10-pre2", err: `unknown revision v1.9.10-pre2`},
 	{path: queryRepo, query: "latest", vers: "v1.9.9"},
 	{path: queryRepo, query: "latest", current: "v1.9.10-pre1", vers: "v1.9.10-pre1"},
 	{path: queryRepo, query: "latest", current: "v1.9.10-pre2+metadata", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
-	{path: queryRepo, query: "latest", current: "v0.0.0-20990101120000-5ba9a4ea6213", vers: "v0.0.0-20990101120000-5ba9a4ea6213"},
+	{path: queryRepo, query: "latest", current: "v0.0.0-20190513201126-42abcb6df8ee", vers: "v0.0.0-20190513201126-42abcb6df8ee"},
 	{path: queryRepo, query: "latest", allow: "NOMATCH", err: `no matching versions for query "latest"`},
 	{path: queryRepo, query: "latest", current: "v1.9.9", allow: "NOMATCH", err: `no matching versions for query "latest" (current version is v1.9.9)`},
 	{path: queryRepo, query: "latest", current: "v1.99.99", err: `unknown revision v1.99.99`},
@@ -125,20 +131,35 @@ var queryTests = []struct {
 	{path: queryRepo, query: ">v1.10.0", err: `no matching versions for query ">v1.10.0"`},
 	{path: queryRepo, query: ">=v1.10.0", err: `no matching versions for query ">=v1.10.0"`},
 	{path: queryRepo, query: "6cf84eb", vers: "v0.0.2-0.20180704023347-6cf84ebaea54"},
+
+	// golang.org/issue/27173: A pseudo-version may be based on the highest tag on
+	// any parent commit, or any existing semantically-lower tag: a given commit
+	// could have been a pre-release for a backport tag at any point.
+	{path: queryRepo, query: "3ef0cec634e0", vers: "v0.1.2-0.20180704023347-3ef0cec634e0"},
+	{path: queryRepo, query: "v0.1.2-0.20180704023347-3ef0cec634e0", vers: "v0.1.2-0.20180704023347-3ef0cec634e0"},
+	{path: queryRepo, query: "v0.1.1-0.20180704023347-3ef0cec634e0", vers: "v0.1.1-0.20180704023347-3ef0cec634e0"},
+	{path: queryRepo, query: "v0.0.4-0.20180704023347-3ef0cec634e0", vers: "v0.0.4-0.20180704023347-3ef0cec634e0"},
+
+	// Invalid tags are tested in cmd/go/testdata/script/mod_pseudo_invalid.txt.
+
 	{path: queryRepo, query: "start", vers: "v0.0.0-20180704023101-5e9e31667ddf"},
+	{path: queryRepo, query: "5e9e31667ddf", vers: "v0.0.0-20180704023101-5e9e31667ddf"},
+	{path: queryRepo, query: "v0.0.0-20180704023101-5e9e31667ddf", vers: "v0.0.0-20180704023101-5e9e31667ddf"},
+
 	{path: queryRepo, query: "7a1b6bf", vers: "v0.1.0"},
 
 	{path: queryRepoV2, query: "<v0.0.0", err: `no matching versions for query "<v0.0.0"`},
 	{path: queryRepoV2, query: "<=v0.0.0", err: `no matching versions for query "<=v0.0.0"`},
 	{path: queryRepoV2, query: ">v0.0.0", vers: "v2.0.0"},
 	{path: queryRepoV2, query: ">=v0.0.0", vers: "v2.0.0"},
-	{path: queryRepoV2, query: "v0.0.1+foo", vers: "v2.0.0-20180704023347-179bc86b1be3"},
+
 	{path: queryRepoV2, query: "v2", vers: "v2.5.5"},
 	{path: queryRepoV2, query: "v2.5", vers: "v2.5.5"},
 	{path: queryRepoV2, query: "v2.6", err: `no matching versions for query "v2.6"`},
 	{path: queryRepoV2, query: "v2.6.0-pre1", vers: "v2.6.0-pre1"},
 	{path: queryRepoV2, query: "latest", vers: "v2.5.5"},
 
+	{path: queryRepoV3, query: "e0cf3de987e6", vers: "v3.0.0-20180704024501-e0cf3de987e6"},
 	{path: queryRepoV3, query: "latest", vers: "v3.0.0-20180704024501-e0cf3de987e6"},
 
 	{path: emptyRepo, query: "latest", vers: "v0.0.0-20180704023549-7bb914627242"},
@@ -162,10 +183,12 @@ func TestQuery(t *testing.T) {
 		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.query+"/"+tt.current+"/"+allow, func(t *testing.T) {
 			info, err := Query(tt.path, tt.query, tt.current, allowed)
 			if tt.err != "" {
-				if err != nil && err.Error() == tt.err {
-					return
+				if err == nil {
+					t.Errorf("Query(%q, %q, %v) = %v, want error %q", tt.path, tt.query, allow, info.Version, tt.err)
+				} else if err.Error() != tt.err {
+					t.Errorf("Query(%q, %q, %v): %v, want error %q", tt.path, tt.query, allow, err, tt.err)
 				}
-				t.Fatalf("Query(%q, %q, %v): %v, want error %q", tt.path, tt.query, allow, err, tt.err)
+				return
 			}
 			if err != nil {
 				t.Fatalf("Query(%q, %q, %v): %v", tt.path, tt.query, allow, err)

@@ -161,6 +161,64 @@ TODO
 TODO
 </p>
 
+<h3 id="modules">Modules</h3>
+
+<h4 id="version-validation">Version validation</h4><!-- CL 181881 -->
+
+<p>
+  When extracting a module from a version control system, the <code>go</code>
+  command now performs additional validation on the requested version string.
+</p>
+
+<p>
+  The <code>+incompatible</code> version annotation bypasses the requirement
+  of <a href="/cmd/go/#hdr-Module_compatibility_and_semantic_versioning">semantic
+  import versioning</a> for repositories that predate the introduction of
+  modules. The <code>go</code> command now verifies that such a version does not
+  include an explicit <code>go.mod</code> file.
+</p>
+
+<p>
+  The <code>go</code> command now verifies the mapping
+  between <a href="/cmd/go#hdr-Pseudo_versions">pseudo-versions</a> and
+  version-control metadata. Specifically:
+  <ul>
+    <li>The version prefix must be derived from a tag on the named revision or
+    one of its ancestors, or be of the form <code>vX.0.0</code>.</li>
+
+    <li>The date string must match the UTC timestamp of the revision.</li>
+
+    <li>The short name of the revision must use the same number of characters as
+    what the <code>go</code> command would generate. (For SHA-1 hashes as used
+    by <code>git</code>, a 12-digit prefix.)</li>
+  </ul>
+</p>
+
+<p>
+  If the main module directly requires a version that fails the above
+  validation, a corrected version can be obtained by redacting the version to
+  just the commit hash and re-running a <code>go</code> command such as <code>go
+  list -m all</code> or <code>go mod tidy</code>. For example,
+  <pre>require github.com/docker/docker v1.14.0-0.20190319215453-e7b5f7dbe98c</pre>
+      can be redacted to
+  <pre>require github.com/docker/docker e7b5f7dbe98c</pre>
+  which resolves to
+  <pre>require github.com/docker/docker v0.7.3-0.20190319215453-e7b5f7dbe98c</pre>
+</p>
+
+<p>
+  If the main module has a transitive requirement on a version that fails
+  validation, the invalid version can still be replaced with a valid one through
+  the use of a <a href="/cmd/go/#hdr-The_go_mod_file"><code>replace</code>
+  directive</a> in the <code>go.mod</code> file of
+  the <a href="/cmd/go/#hdr-The_main_module_and_the_build_list">main module</a>.
+  If the replacement is a commit hash, it will be resolved to the appropriate
+  pseudo-version. For example,
+  <pre>replace github.com/docker/docker v1.14.0-0.20190319215453-e7b5f7dbe98c => github.com/docker/docker e7b5f7dbe98c</pre>
+  resolves to
+  <pre>replace github.com/docker/docker v1.14.0-0.20190319215453-e7b5f7dbe98c => github.com/docker/docker v0.7.3-0.20190319215453-e7b5f7dbe98c</pre>
+</p>
+
 <h3 id="compiler">Compiler toolchain</h3>
 
 <p><!-- CL 170448 -->

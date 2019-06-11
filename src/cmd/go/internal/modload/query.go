@@ -158,6 +158,9 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 			// semantic versioning defines them to be equivalent.
 			if vers := module.CanonicalVersion(query); vers != "" && vers != query {
 				info, err = modfetch.Stat(proxy, path, vers)
+				if !errors.Is(err, os.ErrNotExist) {
+					return info, err
+				}
 			}
 			if err != nil {
 				return nil, queryErr
