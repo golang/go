@@ -23,7 +23,7 @@ type pkg struct {
 	pkgPath packagePath
 
 	files      []string
-	syntax     []*astFile
+	syntax     map[string]*astFile
 	errors     []packages.Error
 	imports    map[packagePath]*pkg
 	types      *types.Package
@@ -146,9 +146,9 @@ func (pkg *pkg) GetFilenames() []string {
 }
 
 func (pkg *pkg) GetSyntax() []*ast.File {
-	syntax := make([]*ast.File, len(pkg.syntax))
-	for i := range pkg.syntax {
-		syntax[i] = pkg.syntax[i].file
+	syntax := make([]*ast.File, 0, len(pkg.syntax))
+	for _, astFile := range pkg.syntax {
+		syntax = append(syntax, astFile.file)
 	}
 	return syntax
 }

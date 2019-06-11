@@ -251,6 +251,14 @@ func (f *goFile) invalidateAST() {
 	}
 }
 
+// invalidatePackage removes the specified package and dependents from the
+// package cache.
+func (v *view) invalidatePackage(pkgPath packagePath) {
+	v.pcache.mu.Lock()
+	defer v.pcache.mu.Unlock()
+	v.remove(pkgPath, make(map[packagePath]struct{}))
+}
+
 // remove invalidates a package and its reverse dependencies in the view's
 // package cache. It is assumed that the caller has locked both the mutexes
 // of both the mcache and the pcache.

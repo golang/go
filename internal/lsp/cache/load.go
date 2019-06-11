@@ -138,6 +138,13 @@ func (v *view) parseImports(ctx context.Context, f *goFile) bool {
 
 func (v *view) link(ctx context.Context, pkgPath packagePath, pkg *packages.Package, parent *metadata) *metadata {
 	m, ok := v.mcache.packages[pkgPath]
+
+	// If a file was added or deleted we need to invalidate the package cache
+	// so relevant packages get parsed and type checked again.
+	if ok && !filenamesIdentical(m.files, pkg.CompiledGoFiles) {
+		v.invalidatePackage(pkgPath)
+	}
+
 	if !ok {
 		m = &metadata{
 			pkgPath:        pkgPath,
@@ -185,4 +192,25 @@ func (v *view) link(ctx context.Context, pkgPath packagePath, pkg *packages.Pack
 		}
 	}
 	return m
+}
+
+// filenamesIdentical reports whether two sets of file names are identical.
+func filenamesIdentical(oldFiles, newFiles []string) bool {
+	if len(oldFiles) != len(newFiles) {
+		return false
+	}
+
+	oldByName := make(map[string]struct{}, len(oldFiles))
+	for _, filename := range oldFiles {
+		oldByName[filename] = struct{}{}
+	}
+
+	for _, newFilename := range newFiles {
+		if _, found := oldByName[newFilename]; !found {
+			return false
+		}
+		delete(oldByName, newFilename)
+	}
+
+	return len(oldByName) == 0
 }

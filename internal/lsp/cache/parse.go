@@ -105,7 +105,7 @@ func parseGo(ctx context.Context, c *cache, fh source.FileHandle, mode source.Pa
 // Because files are scanned in parallel, the token.Pos
 // positions of the resulting ast.Files are not ordered.
 //
-func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) ([]*astFile, []error, error) {
+func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) (map[string]*astFile, []error, error) {
 	var (
 		wg     sync.WaitGroup
 		n      = len(filenames)
@@ -140,17 +140,15 @@ func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) ([]*a
 	}
 	wg.Wait()
 
-	// Eliminate nils, preserving order.
-	var o int
-	for _, f := range parsed {
+	parsedByFilename := make(map[string]*astFile)
+
+	for i, f := range parsed {
 		if f.file != nil {
-			parsed[o] = f
-			o++
+			parsedByFilename[filenames[i]] = f
 		}
 	}
-	parsed = parsed[:o]
 
-	o = 0
+	var o int
 	for _, err := range errors {
 		if err != nil {
 			errors[o] = err
@@ -159,7 +157,7 @@ func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) ([]*a
 	}
 	errors = errors[:o]
 
-	return parsed, errors, nil
+	return parsedByFilename, errors, nil
 }
 
 // sameFile returns true if x and y have the same basename and denote

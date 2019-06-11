@@ -152,18 +152,10 @@ func (imp *importer) typeCheck(pkgPath packagePath) (*pkg, error) {
 }
 
 func (imp *importer) cachePackage(ctx context.Context, pkg *pkg, meta *metadata) {
-	for _, fAST := range pkg.syntax {
+	for _, filename := range pkg.files {
 		// TODO: If a file is in multiple packages, which package do we store?
-		if !fAST.file.Pos().IsValid() {
-			imp.view.Session().Logger().Errorf(ctx, "invalid position for file %v", fAST.file.Name)
-			continue
-		}
-		tok := imp.view.Session().Cache().FileSet().File(fAST.file.Pos())
-		if tok == nil {
-			imp.view.Session().Logger().Errorf(ctx, "no token.File for %v", fAST.file.Name)
-			continue
-		}
-		fURI := span.FileURI(tok.Name())
+
+		fURI := span.FileURI(filename)
 		f, err := imp.view.getFile(fURI)
 		if err != nil {
 			imp.view.Session().Logger().Errorf(ctx, "no file: %v", err)
@@ -174,10 +166,28 @@ func (imp *importer) cachePackage(ctx context.Context, pkg *pkg, meta *metadata)
 			imp.view.Session().Logger().Errorf(ctx, "%v is not a Go file", f.URI())
 			continue
 		}
+
+		// Set the package even if we failed to parse the file otherwise
+		// future updates to this file won't refresh the package.
+		gof.pkg = pkg
+
+		fAST := pkg.syntax[filename]
+		if fAST == nil {
+			continue
+		}
+
+		if !fAST.file.Pos().IsValid() {
+			imp.view.Session().Logger().Errorf(ctx, "invalid position for file %v", fAST.file.Name)
+			continue
+		}
+		tok := imp.view.Session().Cache().FileSet().File(fAST.file.Pos())
+		if tok == nil {
+			imp.view.Session().Logger().Errorf(ctx, "no token.File for %v", fAST.file.Name)
+			continue
+		}
 		gof.token = tok
 		gof.ast = fAST
 		gof.imports = fAST.file.Imports
-		gof.pkg = pkg
 	}
 
 	// Set imports of package to correspond to cached packages.
