@@ -1,9 +1,14 @@
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package source
 
 import (
 	"context"
 	"fmt"
 	"go/ast"
+	"go/types"
 
 	"golang.org/x/tools/internal/span"
 )
@@ -13,6 +18,7 @@ type ReferenceInfo struct {
 	Name  string
 	Range span.Range
 	ident *ast.Ident
+	obj   types.Object
 }
 
 // References returns a list of references for a given identifier within a package.
@@ -40,6 +46,7 @@ func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, erro
 		references = append(references, &ReferenceInfo{
 			Name:  i.decl.obj.Name(),
 			Range: i.decl.rng,
+			obj:   i.decl.obj,
 		})
 	}
 
@@ -51,6 +58,7 @@ func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, erro
 			Name:  ident.Name,
 			Range: span.NewRange(i.File.FileSet(), ident.Pos(), ident.End()),
 			ident: ident,
+			obj:   obj,
 		})
 	}
 
@@ -62,6 +70,7 @@ func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, erro
 			Name:  ident.Name,
 			Range: span.NewRange(i.File.FileSet(), ident.Pos(), ident.End()),
 			ident: ident,
+			obj:   obj,
 		})
 	}
 
