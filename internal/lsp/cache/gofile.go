@@ -131,9 +131,9 @@ func (f *goFile) GetActiveReverseDeps(ctx context.Context) []source.GoFile {
 	f.view.mcache.mu.Lock()
 	defer f.view.mcache.mu.Unlock()
 
-	seen := make(map[packagePath]struct{}) // visited packages
+	seen := make(map[packageID]struct{}) // visited packages
 	results := make(map[*goFile]struct{})
-	f.view.reverseDeps(ctx, seen, results, packagePath(pkg.PkgPath()))
+	f.view.reverseDeps(ctx, seen, results, packageID(pkg.ID()))
 
 	var files []source.GoFile
 	for rd := range results {
@@ -149,12 +149,12 @@ func (f *goFile) GetActiveReverseDeps(ctx context.Context) []source.GoFile {
 	return files
 }
 
-func (v *view) reverseDeps(ctx context.Context, seen map[packagePath]struct{}, results map[*goFile]struct{}, pkgPath packagePath) {
-	if _, ok := seen[pkgPath]; ok {
+func (v *view) reverseDeps(ctx context.Context, seen map[packageID]struct{}, results map[*goFile]struct{}, id packageID) {
+	if _, ok := seen[id]; ok {
 		return
 	}
-	seen[pkgPath] = struct{}{}
-	m, ok := v.mcache.packages[pkgPath]
+	seen[id] = struct{}{}
+	m, ok := v.mcache.packages[id]
 	if !ok {
 		return
 	}
@@ -164,7 +164,7 @@ func (v *view) reverseDeps(ctx context.Context, seen map[packagePath]struct{}, r
 			results[f.(*goFile)] = struct{}{}
 		}
 	}
-	for parentPkgPath := range m.parents {
-		v.reverseDeps(ctx, seen, results, parentPkgPath)
+	for parentID := range m.parents {
+		v.reverseDeps(ctx, seen, results, parentID)
 	}
 }

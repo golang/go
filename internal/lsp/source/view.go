@@ -220,6 +220,7 @@ type SumFile interface {
 // Package represents a Go package that has been type-checked. It maintains
 // only the relevant fields of a *go/packages.Package.
 type Package interface {
+	ID() string
 	PkgPath() string
 	GetFilenames() []string
 	GetSyntax() []*ast.File

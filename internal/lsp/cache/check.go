@@ -22,7 +22,7 @@ type importer struct {
 
 	// seen maintains the set of previously imported packages.
 	// If we have seen a package that is already in this map, we have a circular import.
-	seen map[packagePath]struct{}
+	seen map[packageID]struct{}
 
 	// topLevelPkgID is the ID of the package from which type-checking began.
 	topLevelPkgID packageID
@@ -32,19 +32,23 @@ type importer struct {
 }
 
 func (imp *importer) Import(pkgPath string) (*types.Package, error) {
-	pkg, err := imp.getPkg(packagePath(pkgPath))
+	id, ok := imp.view.mcache.ids[packagePath(pkgPath)]
+	if !ok {
+		return nil, fmt.Errorf("no known ID for %s", pkgPath)
+	}
+	pkg, err := imp.getPkg(id)
 	if err != nil {
 		return nil, err
 	}
 	return pkg.types, nil
 }
 
-func (imp *importer) getPkg(pkgPath packagePath) (*pkg, error) {
-	if _, ok := imp.seen[pkgPath]; ok {
+func (imp *importer) getPkg(id packageID) (*pkg, error) {
+	if _, ok := imp.seen[id]; ok {
 		return nil, fmt.Errorf("circular import detected")
 	}
 	imp.view.pcache.mu.Lock()
-	e, ok := imp.view.pcache.packages[pkgPath]
+	e, ok := imp.view.pcache.packages[id]
 
 	if ok {
 		// cache hit
@@ -54,12 +58,12 @@ func (imp *importer) getPkg(pkgPath packagePath) (*pkg, error) {
 	} else {
 		// cache miss
 		e = &entry{ready: make(chan struct{})}
-		imp.view.pcache.packages[pkgPath] = e
+		imp.view.pcache.packages[id] = e
 		imp.view.pcache.mu.Unlock()
 
 		// This goroutine becomes responsible for populating
 		// the entry and broadcasting its readiness.
-		e.pkg, e.err = imp.typeCheck(pkgPath)
+		e.pkg, e.err = imp.typeCheck(id)
 		close(e.ready)
 	}
 
@@ -68,11 +72,11 @@ func (imp *importer) getPkg(pkgPath packagePath) (*pkg, error) {
 		if e.err == context.Canceled && imp.ctx.Err() == nil {
 			imp.view.pcache.mu.Lock()
 			// Clear out canceled cache entry if it is still there.
-			if imp.view.pcache.packages[pkgPath] == e {
-				delete(imp.view.pcache.packages, pkgPath)
+			if imp.view.pcache.packages[id] == e {
+				delete(imp.view.pcache.packages, id)
 			}
 			imp.view.pcache.mu.Unlock()
-			return imp.getPkg(pkgPath)
+			return imp.getPkg(id)
 		}
 		return nil, e.err
 	}
@@ -80,10 +84,10 @@ func (imp *importer) getPkg(pkgPath packagePath) (*pkg, error) {
 	return e.pkg, nil
 }
 
-func (imp *importer) typeCheck(pkgPath packagePath) (*pkg, error) {
-	meta, ok := imp.view.mcache.packages[pkgPath]
+func (imp *importer) typeCheck(id packageID) (*pkg, error) {
+	meta, ok := imp.view.mcache.packages[id]
 	if !ok {
-		return nil, fmt.Errorf("no metadata for %v", pkgPath)
+		return nil, fmt.Errorf("no metadata for %v", id)
 	}
 	pkg := &pkg{
 		id:         meta.id,
@@ -123,11 +127,11 @@ func (imp *importer) typeCheck(pkgPath packagePath) (*pkg, error) {
 	pkg.syntax = files
 
 	// Handle circular imports by copying previously seen imports.
-	seen := make(map[packagePath]struct{})
+	seen := make(map[packageID]struct{})
 	for k, v := range imp.seen {
 		seen[k] = v
 	}
-	seen[pkgPath] = struct{}{}
+	seen[id] = struct{}{}
 
 	cfg := &types.Config{
 		Error: func(err error) {
@@ -198,7 +202,7 @@ func (imp *importer) cachePackage(ctx context.Context, pkg *pkg, meta *metadata)
 		if err != nil {
 			continue
 		}
-		pkg.imports[importPath] = importPkg
+		pkg.imports[importPkg.pkgPath] = importPkg
 	}
 }
 

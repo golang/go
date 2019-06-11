@@ -70,8 +70,9 @@ type view struct {
 }
 
 type metadataCache struct {
-	mu       sync.Mutex
-	packages map[packagePath]*metadata
+	mu       sync.Mutex // guards both maps
+	packages map[packageID]*metadata
+	ids      map[packagePath]packageID
 }
 
 type metadata struct {
@@ -80,7 +81,7 @@ type metadata struct {
 	name              string
 	files             []string
 	typesSizes        types.Sizes
-	parents, children map[packagePath]bool
+	parents, children map[packageID]bool
 
 	// missingImports is the set of unresolved imports for this package.
 	// It contains any packages with `go list` errors.
@@ -89,7 +90,7 @@ type metadata struct {
 
 type packageCache struct {
 	mu       sync.Mutex
-	packages map[packagePath]*entry
+	packages map[packageID]*entry
 }
 
 type entry struct {
@@ -247,32 +248,33 @@ func (f *goFile) invalidateAST() {
 
 	// Remove the package and all of its reverse dependencies from the cache.
 	if f.pkg != nil {
-		f.view.remove(f.pkg.pkgPath, map[packagePath]struct{}{})
+		f.view.remove(f.pkg.id, map[packageID]struct{}{})
 	}
 }
 
 // invalidatePackage removes the specified package and dependents from the
 // package cache.
-func (v *view) invalidatePackage(pkgPath packagePath) {
+func (v *view) invalidatePackage(id packageID) {
 	v.pcache.mu.Lock()
 	defer v.pcache.mu.Unlock()
-	v.remove(pkgPath, make(map[packagePath]struct{}))
+
+	v.remove(id, make(map[packageID]struct{}))
 }
 
 // remove invalidates a package and its reverse dependencies in the view's
 // package cache. It is assumed that the caller has locked both the mutexes
 // of both the mcache and the pcache.
-func (v *view) remove(pkgPath packagePath, seen map[packagePath]struct{}) {
-	if _, ok := seen[pkgPath]; ok {
+func (v *view) remove(id packageID, seen map[packageID]struct{}) {
+	if _, ok := seen[id]; ok {
 		return
 	}
-	m, ok := v.mcache.packages[pkgPath]
+	m, ok := v.mcache.packages[id]
 	if !ok {
 		return
 	}
-	seen[pkgPath] = struct{}{}
-	for parentPkgPath := range m.parents {
-		v.remove(parentPkgPath, seen)
+	seen[id] = struct{}{}
+	for parentID := range m.parents {
+		v.remove(parentID, seen)
 	}
 	// All of the files in the package may also be holding a pointer to the
 	// invalidated package.
@@ -283,7 +285,7 @@ func (v *view) remove(pkgPath packagePath, seen map[packagePath]struct{}) {
 			}
 		}
 	}
-	delete(v.pcache.packages, pkgPath)
+	delete(v.pcache.packages, id)
 }
 
 // FindFile returns the file if the given URI is already a part of the view.

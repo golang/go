@@ -18,7 +18,6 @@ func (v *view) loadParseTypecheck(ctx context.Context, f *goFile) ([]packages.Er
 	if f.astIsTrimmed() {
 		f.invalidateAST()
 	}
-
 	// Save the metadata's current missing imports, if any.
 	var originalMissingImports map[packagePath]struct{}
 	if f.meta != nil {
@@ -37,21 +36,19 @@ func (v *view) loadParseTypecheck(ctx context.Context, f *goFile) ([]packages.Er
 	if sameSet(originalMissingImports, f.meta.missingImports) && f.pkg != nil {
 		return nil, nil
 	}
-
 	imp := &importer{
 		view:          v,
-		seen:          make(map[packagePath]struct{}),
+		seen:          make(map[packageID]struct{}),
 		ctx:           ctx,
 		fset:          f.FileSet(),
 		topLevelPkgID: f.meta.id,
 	}
-
 	// Start prefetching direct imports.
-	for importPath := range f.meta.children {
-		go imp.Import(string(importPath))
+	for importID := range f.meta.children {
+		go imp.getPkg(importID)
 	}
 	// Type-check package.
-	pkg, err := imp.getPkg(f.meta.pkgPath)
+	pkg, err := imp.getPkg(f.meta.id)
 	if err != nil {
 		return nil, err
 	}
@@ -137,24 +134,26 @@ func (v *view) parseImports(ctx context.Context, f *goFile) bool {
 }
 
 func (v *view) link(ctx context.Context, pkgPath packagePath, pkg *packages.Package, parent *metadata) *metadata {
-	m, ok := v.mcache.packages[pkgPath]
+	id := packageID(pkg.ID)
+	m, ok := v.mcache.packages[id]
 
 	// If a file was added or deleted we need to invalidate the package cache
 	// so relevant packages get parsed and type checked again.
 	if ok && !filenamesIdentical(m.files, pkg.CompiledGoFiles) {
-		v.invalidatePackage(pkgPath)
+		v.invalidatePackage(id)
 	}
-
+	// If we haven't seen this package before.
 	if !ok {
 		m = &metadata{
 			pkgPath:        pkgPath,
-			id:             packageID(pkg.ID),
+			id:             id,
 			typesSizes:     pkg.TypesSizes,
-			parents:        make(map[packagePath]bool),
-			children:       make(map[packagePath]bool),
+			parents:        make(map[packageID]bool),
+			children:       make(map[packageID]bool),
 			missingImports: make(map[packagePath]struct{}),
 		}
-		v.mcache.packages[pkgPath] = m
+		v.mcache.packages[id] = m
+		v.mcache.ids[pkgPath] = id
 	}
 	// Reset any field that could have changed across calls to packages.Load.
 	m.name = pkg.Name
@@ -170,26 +169,29 @@ func (v *view) link(ctx context.Context, pkgPath packagePath, pkg *packages.Pack
 	}
 	// Connect the import graph.
 	if parent != nil {
-		m.parents[parent.pkgPath] = true
-		parent.children[pkgPath] = true
+		m.parents[parent.id] = true
+		parent.children[id] = true
 	}
 	for importPath, importPkg := range pkg.Imports {
 		if len(importPkg.Errors) > 0 {
 			m.missingImports[pkgPath] = struct{}{}
 		}
-		importPkgPath := packagePath(importPath)
-		if _, ok := m.children[importPkgPath]; !ok {
-			v.link(ctx, importPkgPath, importPkg, m)
+		if _, ok := m.children[packageID(importPkg.ID)]; !ok {
+			v.link(ctx, packagePath(importPath), importPkg, m)
 		}
 	}
 	// Clear out any imports that have been removed.
-	for importPath := range m.children {
-		if _, ok := pkg.Imports[string(importPath)]; !ok {
-			delete(m.children, importPath)
-			if child, ok := v.mcache.packages[importPath]; ok {
-				delete(child.parents, pkgPath)
-			}
+	for importID := range m.children {
+		child, ok := v.mcache.packages[importID]
+		if !ok {
+			continue
 		}
+		importPath := string(child.pkgPath)
+		if _, ok := pkg.Imports[importPath]; ok {
+			continue
+		}
+		delete(m.children, importID)
+		delete(child.parents, id)
 	}
 	return m
 }

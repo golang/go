@@ -137,6 +137,10 @@ func (pkg *pkg) GetActionGraph(ctx context.Context, a *analysis.Analyzer) (*sour
 	return e.Action, nil
 }
 
+func (pkg *pkg) ID() string {
+	return string(pkg.id)
+}
+
 func (pkg *pkg) PkgPath() string {
 	return string(pkg.pkgPath)
 }
