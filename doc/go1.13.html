@@ -128,6 +128,11 @@ TODO
       TODO: <a href="https://golang.org/cl/161760">https://golang.org/cl/161760</a>: hoist error creation out of function
     </p>
 
+    <p>
+      The new <a href="/pkg/bytes/#ToValidUTF8"><code>ToValidUTF8</code></a> function returns a
+      copy of a given byte slice with each run of invalid UTF-8 byte sequences replaced by a given slice.
+    </p>
+
 </dl><!-- bytes -->
 
 <dl id="context"><dt><a href="/pkg/context/">context</a></dt>
@@ -313,13 +318,14 @@ TODO
 
 </dl><!-- runtime/cgo -->
 
-<dl id="strings, bytes"><dt><a href="/pkg/strings, bytes/">strings, bytes</a></dt>
+<dl id="strings"><dt><a href="/pkg/strings">strings</a></dt>
   <dd>
     <p><!-- CL 142003 -->
-      TODO: <a href="https://golang.org/cl/142003">https://golang.org/cl/142003</a>: add ToValidUTF8
+      The new <a href="/pkg/strings/#ToValidUTF8"><code>ToValidUTF8</code></a> function returns a
+      copy of a given string with each run of invalid UTF-8 byte sequences replaced by a given string.
     </p>
 
-</dl><!-- strings, bytes -->
+</dl><!-- strings -->
 
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
@@ -392,11 +398,15 @@ TODO
 <dl id="time"><dt><a href="/pkg/time/">time</a></dt>
   <dd>
     <p><!-- CL 122876 -->
-      TODO: <a href="https://golang.org/cl/122876">https://golang.org/cl/122876</a>: add support for day-of-year in Format and Parse
+      Day-of-year is now supported by <a href="/pkg/time/#time.Format"><code>Format</code></a>
+      and <a href="/pkg/time/#Parse"><code>Parse</code></a>.
     </p>
 
     <p><!-- CL 167387 -->
-      TODO: <a href="https://golang.org/cl/167387">https://golang.org/cl/167387</a>: add methods to convert duration to microseconds and milliseconds
+      The new <a href="/pkg/time/#Duration"><code>Duration</code></a> methods
+      <a href="/pkg/time/#Duration.Microseconds"><code>Microseconds</code></a> and
+      <a href="/pkg/time/#Duration.Milliseconds"><code>Milliseconds</code></a> return
+      the duration as an integer count of their respectively named units.
     </p>
 
 </dl><!-- time -->
