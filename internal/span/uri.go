@@ -39,7 +39,7 @@ func filename(uri URI) (string, error) {
 		return "", err
 	}
 	if u.Scheme != fileScheme {
-		return "", fmt.Errorf("only file URIs are supported, got %v", u.Scheme)
+		return "", fmt.Errorf("only file URIs are supported, got %q from %q", u.Scheme, uri)
 	}
 	if isWindowsDriveURI(u.Path) {
 		u.Path = u.Path[1:]
