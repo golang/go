@@ -1806,6 +1806,13 @@
 // including go build, go get, go install, go list, go test, go mod graph,
 // go mod tidy, and go mod why.
 //
+// The expected language version, set by the go directive, determines
+// which language features are available when compiling the module.
+// Language features available in that version will be available for use.
+// Language features removed in earlier versions, or added in later versions,
+// will not be available. Note that the language version does not affect
+// build tags, which are determined by the Go release being used.
+//
 //
 // GOPATH environment variable
 //
