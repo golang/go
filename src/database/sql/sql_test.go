@@ -2312,6 +2312,74 @@ func TestConnMaxLifetime(t *testing.T) {
 	}
 }
 
+func TestPutConnExpiredOrBadReset(t *testing.T) {
+	execCases := []struct {
+		expired  bool
+		badReset bool
+	}{
+		{false, false},
+		{true, false},
+		{false, true},
+	}
+
+	t0 := time.Unix(1000000, 0)
+	offset := time.Duration(0)
+
+	nowFunc = func() time.Time { return t0.Add(offset) }
+	defer func() { nowFunc = time.Now }()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	db := newTestDB(t, "magicquery")
+	defer closeDB(t, db)
+
+	db.SetMaxOpenConns(1)
+
+	for _, ec := range execCases {
+		ec := ec
+		name := fmt.Sprintf("expired=%t,badReset=%t", ec.expired, ec.badReset)
+		t.Run(name, func(t *testing.T) {
+			db.clearAllConns(t)
+
+			db.SetMaxIdleConns(1)
+			db.SetConnMaxLifetime(10 * time.Second)
+
+			conn, err := db.conn(ctx, alwaysNewConn)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			var wg sync.WaitGroup
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				conn, err := db.conn(ctx, alwaysNewConn)
+				if err != nil {
+					t.Fatal(err)
+				}
+				db.putConn(conn, err, false)
+			}()
+
+			// Wait for pending request
+			for len(db.connRequests) < 1 {
+			}
+
+			if ec.expired {
+				offset = 11 * time.Second
+			} else {
+				offset = time.Duration(0)
+			}
+
+			conn.ci.(*fakeConn).stickyBad = ec.badReset
+
+			db.putConn(conn, err, true)
+
+			wg.Wait()
+		})
+	}
+}
+
 // golang.org/issue/5323
 func TestStmtCloseDeps(t *testing.T) {
 	if testing.Short() {
