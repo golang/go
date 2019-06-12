@@ -139,7 +139,7 @@ TODO
 <dl id="context"><dt><a href="/pkg/context/">context</a></dt>
   <dd>
     <p><!-- CL 169080 -->
-      TODO: <a href="https://golang.org/cl/169080">https://golang.org/cl/169080</a>: don&#39;t depend on fmt
+    The formatting of contexts returned by <a href="/pkg/context/#WithValue"><code>WithValue</code></a> no longer depends on <code>fmt</code> and will not stringify in the same way. Code that depends on the exact previous stringification might be affected.
     </p>
 
 </dl><!-- context -->
