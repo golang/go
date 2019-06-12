@@ -337,7 +337,7 @@ TODO
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
     <p><!-- CL 166960 -->
-      Large <a href="/pkg/sync/#Pool"><code>sync.Pool</code></a> no longer increase stop-the-world pause times.
+      Large <a href="/pkg/sync/#Pool"><code>Pool</code></a> no longer increase stop-the-world pause times.
     </p>
 
     <p><!-- CL 166961 -->
@@ -350,15 +350,19 @@ TODO
 <dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
   <dd>
     <p><!-- CL 168479 -->
-      TODO: <a href="https://golang.org/cl/168479">https://golang.org/cl/168479</a>: avoid _getdirentries64 on darwin
+      Uses of <code>_getdirentries64</code> have been removed from Darwin builds, to allow binaries
+      built with 1.12 to be uploaded to the macOS App Store.
     </p>
 
     <p><!-- CL 174197 -->
-      TODO: <a href="https://golang.org/cl/174197">https://golang.org/cl/174197</a>: allow setting security attributes on processes
+      The new <code>ProcessAttributes</code> and <code>ThreadAttributes</code> fields in
+      <a href="/pkg/syscall/?GOOS=windows#SysProcAttr"><code>SysProcAttr</code></a> have been introduced for Windows,
+      exposing security settings when creating new processes.
     </p>
 
     <p><!-- CL 174320 -->
-      TODO: <a href="https://golang.org/cl/174320">https://golang.org/cl/174320</a>: don&#39;t return EINVAL on zero Chmod mode on Windows
+      <code>EINVAL</code> is no longer returned in zero
+      <a href="/pkg/syscall/?GOOS=windows#Chmod"><code>Chmod</code></a> mode on Windows.
     </p>
 
 </dl><!-- syscall -->
@@ -366,7 +370,9 @@ TODO
 <dl id="syscall/js"><dt><a href="/pkg/syscall/js/">syscall/js</a></dt>
   <dd>
     <p><!-- CL 177537 -->
-      TODO: <a href="https://golang.org/cl/177537">https://golang.org/cl/177537</a>: replace TypedArrayOf with CopyBytesToGo/CopyBytesToJS
+      <a href="/pkg/syscall/js/#TypedArray"><code>TypedArrayOf</code></a> has been replaced by
+      <a href="/pkg/syscall/js/#CopyBytesToGo"><code>CopyBytesToGo</code></a> and
+      <a href="/pkg/syscall/js/#CopyBytesToJS"><code>CopyBytesToJS</code></a> for copying bytes between a byte slice and a Uint8Array.
     </p>
 
 </dl><!-- syscall/js -->
