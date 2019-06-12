@@ -22,7 +22,7 @@ func printBuildInfo(w io.Writer, verbose bool, mode PrintMode) {
 			}
 		}
 	} else {
-		fmt.Fprintf(w, "version %s, built in $GOPATH mode", Version)
+		fmt.Fprintf(w, "version %s, built in $GOPATH mode\n", Version)
 	}
 }
 
