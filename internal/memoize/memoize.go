@@ -2,13 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package memoize supports functions with idempotent results that are expensive
-// to compute having their return value memorized and returned again the next
-// time they are invoked.
-// The return values are only remembered for as long as there is still a user
-// to prevent excessive memory use.
+// Package memoize supports memoizing the return values of functions with
+// idempotent results that are expensive to compute.
+//
+// The memoizied result is returned again the next time the function is invoked.
+// To prevent excessive memory use, the return values are only remembered
+// for as long as they still have a user.
+//
 // To use this package, build a store and use it to aquire handles with the
 // Bind method.
+//
 package memoize
 
 import (
@@ -69,17 +72,17 @@ func (s *Store) Delete(key interface{}) {
 }
 
 // Bind returns a handle for the given key and function.
-// Each call to bind will generate a new handle, but all the handles for a
-// single key will refer to the same value, and only the first handle to try to
-// get the value will cause the function to be invoked.
-// The results of the function are held for as long as there are handles through
-// which the result has been accessed.
+//
+// Each call to bind will generate a new handle.
+// All of of the handles for a single key will refer to the same value.
+// Only the first handle to get the value will cause the function to be invoked.
+// The value will be held for as long as there are handles through which it has been accessed.
 // Bind does not cause the value to be generated.
 func (s *Store) Bind(key interface{}, function Function) *Handle {
 	// panic early if the function is nil
 	// it would panic later anyway, but in a way that was much harder to debug
 	if function == nil {
-		panic("Function passed to bind must not be nil")
+		panic("the function passed to bind must not be nil")
 	}
 	// check if we already have the key
 	s.mu.Lock()
@@ -100,8 +103,9 @@ func (s *Store) Bind(key interface{}, function Function) *Handle {
 }
 
 // Cached returns the value associated with a key.
-// It cannot cause the value to be generated, but will return the cached
-// value if present.
+//
+// It cannot cause the value to be generated.
+// It will return the cached value, if present.
 func (s *Store) Cached(key interface{}) interface{} {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -115,8 +119,9 @@ func (s *Store) Cached(key interface{}) interface{} {
 }
 
 // Cached returns the value associated with a handle.
-// It will never cause the value to be generated, it will return the cached
-// value if present.
+//
+// It will never cause the value to be generated.
+// It will return the cached value, if present.
 func (h *Handle) Cached() interface{} {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -129,10 +134,10 @@ func (h *Handle) Cached() interface{} {
 }
 
 // Get returns the value associated with a handle.
+//
 // If the value is not yet ready, the underlying function will be invoked.
-// This makes this handle active, it will remember the value for as long as
-// it exists, and cause any other handles for the same key to also return the
-// same value.
+// This activates the handle, and it will remember the value for as long as it exists.
+// This will cause any other handles for the same key to also return the same value.
 func (h *Handle) Get(ctx context.Context) interface{} {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -149,51 +154,71 @@ func (h *Handle) Get(ctx context.Context) interface{} {
 // get is the implementation of Get.
 func (e *entry) get(ctx context.Context, f Function) (interface{}, bool) {
 	e.mu.Lock()
+	// Note: This defer is not paired with the above lock.
 	defer e.mu.Unlock()
-	// fast path if we already have a value
+
+	// Fast path: If the entry is ready, it already has a value.
 	if e.ready {
 		return unref(e), true
 	}
-	// value is not ready, and we hold the lock
-	// see if the value is already being calculated
+	// Only begin evaluating the function if no other goroutine is doing so.
 	var value interface{}
 	if e.wait == nil {
 		e.wait = make(chan struct{})
 		go func() {
+			// Note: We do not hold the lock on the entry in this goroutine.
+			//
+			// We immediately defer signaling that the entry is ready,
+			// since we cannot guarantee that the function, f, will not panic.
 			defer func() {
+				// Note: We have to hold the entry's lock before returning.
 				close(e.wait)
 				e.wait = nil
 			}()
-			// e is not locked here
+
+			// Use the background context to avoid canceling the function.
+			// The function cannot be canceled even if the context is canceled
+			// because multiple goroutines may depend on it.
 			ctx := context.Background()
 			value = f(ctx)
-			// function is done, return to locked state so we can update the entry
+
+			// The function has completed. Update the value in the entry.
 			e.mu.Lock()
+
+			// Note: Because this defer will execute before the first defer,
+			// we will hold the lock while we update the entry's wait channel.
 			defer e.mu.Unlock()
 			setref(e, value)
 		}()
 	}
-	// get a local copy of wait while we still hold the lock
+
+	// Get a local copy of wait while we still hold the lock.
 	wait := e.wait
+
+	// Release the lock while we wait for the value.
 	e.mu.Unlock()
-	// release the lock while we wait
+
 	select {
 	case <-wait:
-		// we should now have a value
+		// We should now have a value. Lock the entry, and don't defer an unlock,
+		// since we already have done so at the beginning of this function.
 		e.mu.Lock()
 		result := unref(e)
-		// the keep alive makes sure value is not garbage collected before unref
+
+		// This keep alive makes sure that value is not garbage collected before
+		// we call unref and acquire a strong reference to it.
 		runtime.KeepAlive(value)
 		return result, true
 	case <-ctx.Done():
-		// our context was cancelled
+		// The context was canceled, but we have to lock the entry again,
+		// since we already deferred an unlock at the beginning of this function.
 		e.mu.Lock()
 		return nil, false
 	}
 }
 
-// setref is called to store a value into an entry
-// it must only be called when the lock is held
+// setref is called to store a weak reference to a value into an entry.
+// It assumes that the caller is holding the entry's lock.
 func setref(e *entry, value interface{}) interface{} {
 	// this is only called when the entry lock is already held
 	data := (*[2]uintptr)(unsafe.Pointer(&value))
@@ -201,22 +226,32 @@ func setref(e *entry, value interface{}) interface{} {
 	e.typ, e.ptr = data[0], data[1]
 	e.ready = true
 	if e.ptr != 0 {
-		// and arrange to clear the weak reference if the object is collected
+		// Arrange to clear the weak reference when the object is garbage collected.
 		runtime.SetFinalizer(value, func(_ interface{}) {
-			// clear the now invalid non pointer
 			e.mu.Lock()
 			defer e.mu.Unlock()
+
+			// Clear the now-invalid non-pointer.
 			e.typ, e.ptr = 0, 0
+			// The value is no longer available.
 			e.ready = false
 		})
 	}
 	return value
 }
 
+// unref returns a strong reference to value stored in the given entry.
+// It assumes that the caller is holding the entry's lock.
 func unref(e *entry) interface{} {
 	// this is only called when the entry lock is already held
 	var v interface{}
 	data := (*[2]uintptr)(unsafe.Pointer(&v))
+
+	// Note: This approach for computing weak references and converting between
+	// weak and strong references would be rendered invalid if Go's runtime
+	// changed to allow moving objects on the heap.
+	// If such a change were to occur, some modifications would need to be made
+	// to this library.
 	data[0], data[1] = e.typ, e.ptr
 	return v
 }

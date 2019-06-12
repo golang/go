@@ -18,54 +18,89 @@ import (
 )
 
 func TestStore(t *testing.T) {
-	pinned := []string{"b", "_1", "_3"}
-	unpinned := []string{"a", "c", "d", "_2", "_4"}
 	ctx := context.Background()
 	s := &memoize.Store{}
 	logBuffer := &bytes.Buffer{}
+
 	s.Bind("logger", func(context.Context) interface{} { return logBuffer }).Get(ctx)
-	verifyBuffer := func(name, expect string) {
-		got := logBuffer.String()
-		if got != expect {
-			t.Errorf("at %q expected:\n%v\ngot:\n%s", name, expect, got)
-		}
-		logBuffer.Reset()
-	}
-	verifyBuffer("nothing", ``)
-	s.Bind("_1", generate(s, "_1")).Get(ctx)
-	verifyBuffer("get 1", `
+
+	// These tests check the behavior of the Bind and Get functions.
+	// They confirm that the functions only ever run once for a given value.
+	for _, test := range []struct {
+		name, key, want string
+	}{
+		{
+			name: "nothing",
+		},
+		{
+			name: "get 1",
+			key:  "_1",
+			want: `
 start @1
 simple a = A
 simple b = B
 simple c = C
 end @1 =  A B C
-`[1:])
-	s.Bind("_1", generate(s, "_1")).Get(ctx)
-	verifyBuffer("redo 1", ``)
-	s.Bind("_2", generate(s, "_2")).Get(ctx)
-	verifyBuffer("get 2", `
+`[1:],
+		},
+		{
+			name: "redo 1",
+			key:  "_1",
+			want: ``,
+		},
+		{
+			name: "get 2",
+			key:  "_2",
+			want: `
 start @2
 simple d = D
 simple e = E
 simple f = F
 end @2 =  D E F
-`[1:])
-	s.Bind("_2", generate(s, "_2")).Get(ctx)
-	verifyBuffer("redo 2", ``)
-	s.Bind("_3", generate(s, "_3")).Get(ctx)
-	verifyBuffer("get 3", `
+`[1:],
+		},
+		{
+			name: "redo 2",
+			key:  "_2",
+			want: ``,
+		},
+		{
+			name: "get 3",
+			key:  "_3",
+			want: `
 start @3
 end @3 =  @1[ A B C] @2[ D E F]
-`[1:])
-	s.Bind("_4", generate(s, "_4")).Get(ctx)
-	verifyBuffer("get 4", `
+`[1:],
+		},
+		{
+			name: "get 4",
+			key:  "_4",
+			want: `
 start @3
 simple g = G
 error ERR = fail
 simple h = H
 end @3 =  G !fail H
-`[1:])
+`[1:],
+		},
+	} {
+		s.Bind(test.key, generate(s, test.key)).Get(ctx)
+		got := logBuffer.String()
+		if got != test.want {
+			t.Errorf("at %q expected:\n%v\ngot:\n%s", test.name, test.want, got)
+		}
+		logBuffer.Reset()
+	}
 
+	// This test checks that values are garbage collected and removed from the
+	// store when they are no longer used.
+
+	pinned := []string{"b", "_1", "_3"}             // keys to pin in memory
+	unpinned := []string{"a", "c", "d", "_2", "_4"} // keys to garbage collect
+
+	// Handles maintain a strong reference to their values.
+	// By generating handles for the pinned keys and keeping the pins alive in memory,
+	// we ensure these keys stay cached.
 	var pins []*memoize.Handle
 	for _, key := range pinned {
 		h := s.Bind(key, generate(s, key))
@@ -73,42 +108,57 @@ end @3 =  G !fail H
 		pins = append(pins, h)
 	}
 
+	// Force the garbage collector to run.
 	runAllFinalizers(t)
 
+	// Confirm our expectation that pinned values should remain cached,
+	// and unpinned values should be garbage collected.
 	for _, k := range pinned {
 		if v := s.Cached(k); v == nil {
-			t.Errorf("Pinned value %q was nil", k)
+			t.Errorf("pinned value %q was nil", k)
 		}
 	}
 	for _, k := range unpinned {
 		if v := s.Cached(k); v != nil {
-			t.Errorf("Unpinned value %q was %q", k, v)
+			t.Errorf("unpinned value %q should be nil, was %q", k, v)
 		}
 	}
+
+	// This forces the pins to stay alive until this point in the function.
 	runtime.KeepAlive(pins)
 }
 
 func runAllFinalizers(t *testing.T) {
-	// the following is very tricky, be very careful changing it
-	// it relies on behavior of finalizers that is not guaranteed
-	// first run the GC to queue the finalizers
+	// The following is very tricky, so be very when careful changing it.
+	// It relies on behavior of finalizers that is not guaranteed.
+
+	// First, run the GC to queue the finalizers.
 	runtime.GC()
-	// wait is used to signal that the finalizers are all done
+
+	// wait is used to signal that the finalizers are all done.
 	wait := make(chan struct{})
-	// register a finalizer against an immediately collectible object
+
+	// Register a finalizer against an immediately collectible object.
+	//
+	// The finalizer will signal on the wait channel once it executes,
+	// and it was the most recently registered finalizer,
+	// so the wait channel will be closed when all of the finalizers have run.
 	runtime.SetFinalizer(&struct{ s string }{"obj"}, func(_ interface{}) { close(wait) })
-	// now run the GC again to pick up the tracker
+
+	// Now, run the GC again to pick up the tracker object above.
 	runtime.GC()
-	// now wait for the finalizers to run
+
+	// Wait for the finalizers to run or a timeout.
 	select {
 	case <-wait:
 	case <-time.Tick(time.Second):
-		t.Fatalf("Finalizers had not run after a second")
+		t.Fatalf("finalizers had not run after 1 second")
 	}
 }
 
 type stringOrError struct {
 	memoize.NoCopy
+
 	value string
 	err   error
 }
@@ -131,6 +181,8 @@ func generate(s *memoize.Store, key interface{}) memoize.Function {
 	return func(ctx context.Context) interface{} {
 		name := key.(string)
 		switch name {
+		case "":
+			return nil
 		case "err":
 			return logGenerator(ctx, s, "ERR", "", fmt.Errorf("fail"))
 		case "_1":
@@ -147,8 +199,11 @@ func generate(s *memoize.Store, key interface{}) memoize.Function {
 	}
 }
 
+// logGenerator generates a *stringOrError value, while logging to the store's logger.
 func logGenerator(ctx context.Context, s *memoize.Store, name string, v string, err error) *stringOrError {
+	// Get the logger from the store.
 	w := s.Cached("logger").(io.Writer)
+
 	if err != nil {
 		fmt.Fprintf(w, "error %v = %v\n", name, err)
 	} else {
@@ -157,8 +212,11 @@ func logGenerator(ctx context.Context, s *memoize.Store, name string, v string, 
 	return &stringOrError{value: v, err: err}
 }
 
+// joinValues binds a list of keys to their values, while logging to the store's logger.
 func joinValues(ctx context.Context, s *memoize.Store, name string, keys ...string) *stringOrError {
+	// Get the logger from the store.
 	w := s.Cached("logger").(io.Writer)
+
 	fmt.Fprintf(w, "start %v\n", name)
 	value := ""
 	for _, key := range keys {
