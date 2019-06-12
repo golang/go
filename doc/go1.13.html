@@ -291,11 +291,11 @@ TODO
 <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
   <dd>
     <p><!-- CL 171337 -->
-      TODO: <a href="https://golang.org/cl/171337">https://golang.org/cl/171337</a>: add Value.IsZero
+      The new <a href="/pkg/reflect/#Value.IsZero"><code>Value.IsZero</code></a> method reports whether a <code>Value</code> is a zero value for its type.
     </p>
 
     <p><!-- CL 174531 -->
-      TODO: <a href="https://golang.org/cl/174531">https://golang.org/cl/174531</a>: MakeFunc: allow assignment conversions on values returned from the wrapped function
+      The <a href="/pkg/reflect/#MakeFunc"><code>MakeFunc</code></a> function now allows assignment conversions on returned values, instead of requiring exact type match. This is particularly useful when the type being returned is an interface type, but the value actually returned  is a concrete value implementing that type.
     </p>
 
 </dl><!-- reflect -->
