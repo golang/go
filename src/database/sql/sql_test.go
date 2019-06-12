@@ -2253,6 +2253,50 @@ func TestConnMaxLifetime(t *testing.T) {
 	}
 }
 
+func TestConnMaxLifetimeExpireDuringRequest(t *testing.T) {
+	t0 := time.Unix(1000000, 0)
+	offset := time.Duration(0)
+
+	nowFunc = func() time.Time { return t0.Add(offset) }
+	defer func() { nowFunc = time.Now}()
+
+	db := newTestDB(t, "magicquery")
+	defer closeDB(t, db)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	db.clearAllConns(t)
+
+	db.SetMaxIdleConns(1)
+	db.SetMaxOpenConns(1)
+	db.SetConnMaxLifetime(10 * time.Second)
+
+	conn, err := db.conn(ctx, alwaysNewConn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		conn, err := db.conn(ctx, alwaysNewConn)
+		if err != nil {
+			t.Fatal(err)
+		}
+		db.putConn(conn, err, false)
+	}()
+
+	// Wait for pending request
+	for len(db.connRequests) < 1 {}
+	// Expire and release for reuse
+	offset += 11 * time.Second
+	db.putConn(conn, err, false)
+
+	wg.Wait()
+}
+
 // golang.org/issue/5323
 func TestStmtCloseDeps(t *testing.T) {
 	if testing.Short() {
