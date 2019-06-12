@@ -20,7 +20,7 @@ const (
 )
 
 // Version is a manually-updated mechanism for tracking versions.
-const Version = "v0.0.1-20190607+alpha"
+var Version = "v0.1.0"
 
 // This writes the version and environment information to a writer.
 func PrintVersionInfo(w io.Writer, verbose bool, mode PrintMode) {

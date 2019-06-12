@@ -13,9 +13,11 @@ import (
 	"os"
 
 	"golang.org/x/tools/internal/lsp/cmd"
+	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/tool"
 )
 
 func main() {
+	debug.Version += "-cmd.gopls"
 	tool.Main(context.Background(), cmd.New("", nil), os.Args[1:])
 }
