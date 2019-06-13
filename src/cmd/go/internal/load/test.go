@@ -321,9 +321,10 @@ Search:
 // preal, packages that import the package under test should get ptest instead
 // of preal. This is particularly important if pxtest depends on functionality
 // exposed in test sources in ptest. Second, if there is a main package
-// (other than pmain) anywhere, we need to clear p.Internal.BuildInfo in
-// the test copy to prevent link conflicts. This may happen if both -coverpkg
-// and the command line patterns include multiple main packages.
+// (other than pmain) anywhere, we need to set p.Internal.ForceLibrary and
+// clear p.Internal.BuildInfo in the test copy to prevent link conflicts.
+// This may happen if both -coverpkg and the command line patterns include
+// multiple main packages.
 func recompileForTest(pmain, preal, ptest, pxtest *Package) {
 	// The "test copy" of preal is ptest.
 	// For each package that depends on preal, make a "test copy"
@@ -354,6 +355,7 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) {
 			p = p1
 			p.Target = ""
 			p.Internal.BuildInfo = ""
+			p.Internal.ForceLibrary = true
 		}
 
 		// Update p.Internal.Imports to use test copies.

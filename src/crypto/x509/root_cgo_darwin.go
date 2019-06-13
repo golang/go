@@ -16,7 +16,7 @@ package x509
 #include <CoreFoundation/CoreFoundation.h>
 #include <Security/Security.h>
 
-static bool isSSLPolicy(SecPolicyRef policyRef) {
+static Boolean isSSLPolicy(SecPolicyRef policyRef) {
 	if (!policyRef) {
 		return false;
 	}
@@ -24,13 +24,13 @@ static bool isSSLPolicy(SecPolicyRef policyRef) {
 	if (properties == NULL) {
 		return false;
 	}
+	Boolean isSSL = false;
 	CFTypeRef value = NULL;
 	if (CFDictionaryGetValueIfPresent(properties, kSecPolicyOid, (const void **)&value)) {
-		CFRelease(properties);
-		return CFEqual(value, kSecPolicyAppleSSL);
+		isSSL = CFEqual(value, kSecPolicyAppleSSL);
 	}
 	CFRelease(properties);
-	return false;
+	return isSSL;
 }
 
 // sslTrustSettingsResult obtains the final kSecTrustSettingsResult value
