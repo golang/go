@@ -450,12 +450,20 @@ func (test *clientTest) run(t *testing.T, write bool) {
 		}
 		for i, b := range flows {
 			if i%2 == 1 {
-				serverConn.SetWriteDeadline(time.Now().Add(1 * time.Minute))
+				if *fast {
+					serverConn.SetWriteDeadline(time.Now().Add(1 * time.Second))
+				} else {
+					serverConn.SetWriteDeadline(time.Now().Add(1 * time.Minute))
+				}
 				serverConn.Write(b)
 				continue
 			}
 			bb := make([]byte, len(b))
-			serverConn.SetReadDeadline(time.Now().Add(1 * time.Minute))
+			if *fast {
+				serverConn.SetReadDeadline(time.Now().Add(1 * time.Second))
+			} else {
+				serverConn.SetReadDeadline(time.Now().Add(1 * time.Minute))
+			}
 			_, err := io.ReadFull(serverConn, bb)
 			if err != nil {
 				t.Fatalf("%s, flow %d: %s", test.name, i+1, err)
@@ -819,22 +827,26 @@ func TestHandshakeClientCertECDSA(t *testing.T) {
 	runClientTestTLS12(t, test)
 }
 
-// TestHandshakeClientCertRSAPSS tests a few separate things:
-//  * that our client can serve a PSS-signed certificate
-//  * that our client can validate a PSS-signed certificate
-//  * that our client can use rsa_pss_rsae_sha256 in its CertificateVerify
-//  * that our client can accpet rsa_pss_rsae_sha256 in the server CertificateVerify
+// TestHandshakeClientCertRSAPSS tests rsa_pss_rsae_sha256 signatures from both
+// client and server certificates. It also serves from both sides a certificate
+// signed itself with RSA-PSS, mostly to check that crypto/x509 chain validation
+// works.
 func TestHandshakeClientCertRSAPSS(t *testing.T) {
-	issuer, err := x509.ParseCertificate(testRSAPSSCertificate)
+	cert, err := x509.ParseCertificate(testRSAPSSCertificate)
 	if err != nil {
 		panic(err)
 	}
 	rootCAs := x509.NewCertPool()
-	rootCAs.AddCert(issuer)
+	rootCAs.AddCert(cert)
 
 	config := testConfig.Clone()
-	cert, _ := X509KeyPair([]byte(clientCertificatePEM), []byte(clientKeyPEM))
-	config.Certificates = []Certificate{cert}
+	// Use GetClientCertificate to bypass the client certificate selection logic.
+	config.GetClientCertificate = func(*CertificateRequestInfo) (*Certificate, error) {
+		return &Certificate{
+			Certificate: [][]byte{testRSAPSSCertificate},
+			PrivateKey:  testRSAPrivateKey,
+		}, nil
+	}
 	config.RootCAs = rootCAs
 
 	test := &clientTest{
@@ -845,9 +857,19 @@ func TestHandshakeClientCertRSAPSS(t *testing.T) {
 		cert:   testRSAPSSCertificate,
 		key:    testRSAPrivateKey,
 	}
-
-	runClientTestTLS12(t, test)
 	runClientTestTLS13(t, test)
+
+	// In our TLS 1.2 client, RSA-PSS is only supported for server certificates.
+	// See Issue 32425.
+	test = &clientTest{
+		name: "ClientCert-RSA-RSAPSS",
+		args: []string{"-cipher", "AES128", "-Verify", "1", "-client_sigalgs",
+			"rsa_pkcs1_sha256", "-sigalgs", "rsa_pss_rsae_sha256"},
+		config: config,
+		cert:   testRSAPSSCertificate,
+		key:    testRSAPrivateKey,
+	}
+	runClientTestTLS12(t, test)
 }
 
 func TestHandshakeClientCertRSAPKCS1v15(t *testing.T) {
