@@ -5,6 +5,7 @@
 package strings
 
 import (
+	"sync/atomic"
 	"unicode/utf8"
 	"unsafe"
 )
@@ -44,7 +45,11 @@ func (b *Builder) copyCheck() {
 
 // String returns the accumulated string.
 func (b *Builder) String() string {
-	return *(*string)(unsafe.Pointer(&b.buf))
+	return bytes2String(b.buf)
+}
+
+func bytes2String(bytes []byte) string {
+	return *(*string)(unsafe.Pointer(&bytes))
 }
 
 // Len returns the number of accumulated bytes; b.Len() == len(b.String()).
@@ -121,4 +126,91 @@ func (b *Builder) WriteString(s string) (int, error) {
 	b.copyCheck()
 	b.buf = append(b.buf, s...)
 	return len(s), nil
+}
+
+const (
+	// DefaultFactoryPoolSize is the default pool size for the Factory.
+	DefaultFactoryPoolSize = 4096
+)
+
+// Factory represents the factory object for generating immutable strings.
+type Factory struct {
+	b Builder
+}
+
+// NewFactory generate a string factory.
+func NewFactory() *Factory {
+	return NewFactoryWithPoolSize(DefaultFactoryPoolSize)
+}
+
+// NewFactoryWithPoolSize specify a pool size for the factory to generate
+// strings, the pool size is only for the memory fragmentation preventation.
+func NewFactoryWithPoolSize(size int) *Factory {
+	f := &Factory{}
+	f.b.Grow(size)
+	return f
+}
+
+// NewString generate a string from bytes content.
+func (f *Factory) New(content []byte) string {
+
+	bCap := f.b.Cap()
+	bLen := f.b.Len()
+
+	if len(content)*2 > bCap {
+		return string(content)
+	}
+
+	if len(content) > bCap-bLen {
+		f.b.Reset()
+		f.b.Grow(bCap)
+	}
+
+	preLen := f.b.Len()
+	f.b.Write(content)
+	return f.b.String()[preLen:]
+}
+
+// for internal using, see globalFactory usage
+type syncTape struct {
+	tape [DefaultFactoryPoolSize]byte
+	tPtr int64
+}
+
+func (st *syncTape) alloc(size int) ([]byte, bool) {
+
+	end := atomic.AddInt64(&st.tPtr, int64(size))
+	if end > int64(len(st.tape)) {
+		// to prevent overflow
+		atomic.StoreInt64(&st.tPtr, int64(len(st.tape)))
+		return nil, false
+	}
+
+	return st.tape[end-int64(size) : end], true
+}
+
+var globalFactory atomic.Value
+
+// New generate an immutable string from mutable bytes
+func New(content []byte) string {
+
+	if len(content)*2 > DefaultFactoryPoolSize {
+		return string(content)
+	}
+
+	gf := globalFactory.Load()
+	if gf != nil {
+		tape := gf.(*syncTape)
+		frag, ok := tape.alloc(len(content))
+		if ok {
+			copy(frag, content)
+			return bytes2String(frag)
+		}
+	}
+
+	tape := &syncTape{}
+	frag, _ := tape.alloc(len(content))
+	globalFactory.Store(tape)
+	copy(frag, content)
+	return bytes2String(frag)
 }

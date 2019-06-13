@@ -6,6 +6,8 @@ package strings_test
 
 import (
 	"bytes"
+	"math/rand"
+	"strconv"
 	. "strings"
 	"testing"
 )
@@ -362,5 +364,129 @@ func BenchmarkBuildString_ByteBuffer(b *testing.B) {
 			}
 			sinkS = buf.String()
 		}
+	})
+}
+
+func randomString(l int) string {
+	material := "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890"
+	buff := []byte(nil)
+	for i := 0; i < l; i++ {
+		buff = append(buff, material[rand.Intn(len(material))])
+	}
+	return string(buff)
+}
+
+func TestFactoryNewString(t *testing.T) {
+
+	factory := NewFactoryWithPoolSize(1024)
+
+	largeStr := randomString(4096)
+	largeStr0 := factory.New([]byte(largeStr))
+	if largeStr != largeStr0 {
+		t.Error("equality assuming hasn't been satisfied")
+	}
+
+	for count := 0; count < 1024; count++ {
+		str := randomString(64)
+		str0 := factory.New([]byte(str))
+		if str != str0 {
+			t.Error("equality assuming hasn't been satisfied")
+		}
+	}
+}
+
+func TestNewString(t *testing.T) {
+
+	largeStr := randomString(4096)
+	largeStr0 := New([]byte(largeStr))
+	if largeStr != largeStr0 {
+		t.Error("equality assuming hasn't been satisfied")
+	}
+
+	for testCount := 0; testCount < 512; testCount++ {
+		t.Run(strconv.Itoa(testCount), func(t *testing.T) {
+			t.Parallel()
+
+			for count := 0; count < 1024; count++ {
+				str := randomString(8)
+				str0 := New([]byte(str))
+				if str != str0 {
+					t.Error("equality assuming hasn't been satisfied")
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkFactoryNewString(b *testing.B) {
+
+	content := []byte("hello world!")
+	consumer := func(str string) {}
+
+	b.Run("oldway", func(b *testing.B) {
+		for benchCount := 0; benchCount < b.N; benchCount++ {
+			for i := 0; i < 100; i++ {
+				str := string(content)
+				consumer(str)
+			}
+		}
+	})
+
+	b.Run("factory", func(b *testing.B) {
+		factory := NewFactory()
+		for benchCount := 0; benchCount < b.N; benchCount++ {
+			for i := 0; i < 100; i++ {
+				str := factory.New(content)
+				consumer(str)
+			}
+		}
+	})
+}
+
+func BenchmarkNewString(b *testing.B) {
+
+	content := []byte("hello world!")
+	consumer := func(str string) {}
+
+	b.Run("oldway-sync", func(b *testing.B) {
+		for benchCount := 0; benchCount < b.N; benchCount++ {
+			for i := 0; i < 100; i++ {
+				str := string(content)
+				consumer(str)
+			}
+		}
+	})
+
+	b.Run("factory-sync", func(b *testing.B) {
+		for benchCount := 0; benchCount < b.N; benchCount++ {
+			for i := 0; i < 100; i++ {
+				str := New(content)
+				consumer(str)
+			}
+		}
+	})
+
+	b.Run("oldway-async", func(b *testing.B) {
+		b.SetParallelism(2)
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				for i := 0; i < 100; i++ {
+					str := string(content)
+					consumer(str)
+				}
+			}
+		})
+	})
+
+	b.Run("factory-async", func(b *testing.B) {
+		b.SetParallelism(2)
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				for i := 0; i < 100; i++ {
+					str := New(content)
+					consumer(str)
+				}
+			}
+		})
 	})
 }
