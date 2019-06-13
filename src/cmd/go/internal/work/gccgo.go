@@ -207,9 +207,16 @@ func (tools gccgoToolchain) pack(b *Builder, a *Action, afile string, ofiles []s
 	}
 	absAfile := mkAbs(objdir, afile)
 	// Try with D modifier first, then without if that fails.
-	if b.run(a, p.Dir, p.ImportPath, nil, tools.ar(), arArgs, "rcD", absAfile, absOfiles) != nil {
+	output, err := b.runOut(a, p.Dir, nil, tools.ar(), arArgs, "rcD", absAfile, absOfiles)
+	if err != nil {
 		return b.run(a, p.Dir, p.ImportPath, nil, tools.ar(), arArgs, "rc", absAfile, absOfiles)
 	}
+
+	if len(output) > 0 {
+		// Show the output if there is any even without errors.
+		b.showOutput(a, p.Dir, p.ImportPath, b.processOutput(output))
+	}
+
 	return nil
 }
 
