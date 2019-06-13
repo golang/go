@@ -102,6 +102,10 @@ Input:
 			dec.scan.bytes++
 			switch dec.scan.step(&dec.scan, c) {
 			case scanEnd:
+				// scanEnd is delayed one byte so we decrement
+				// the scanner bytes count by 1 to ensure that
+				// this value is correct in the next call of Decode.
+				dec.scan.bytes--
 				break Input
 			case scanEndObject, scanEndArray:
 				// scanEnd is delayed one byte.
