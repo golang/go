@@ -80,8 +80,8 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 
 	// Enable tracing if requested.
 	if sys.Ptrace {
-		_, _, err1 = rawSyscall(funcPC(libc_ptrace_trampoline), uintptr(PTRACE_TRACEME), 0, 0)
-		if err1 != 0 {
+		if err := ptrace(PTRACE_TRACEME, 0, 0, 0); err != nil {
+			err1 = err.(Errno)
 			goto childerror
 		}
 	}
