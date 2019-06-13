@@ -532,96 +532,63 @@ TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
 	POPL    BP
 	RET
 
-TEXT runtime·pthread_mutex_init_trampoline(SB),NOSPLIT,$0
+TEXT runtime·dispatch_semaphore_create_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
 	SUBL	$8, SP
-	MOVL	16(SP), CX
-	MOVL	0(CX), AX	// arg 1 mutex
+	MOVL	16(SP), BX
+	MOVL	0(BX), AX	// arg 1 value
 	MOVL	AX, 0(SP)
-	MOVL	4(CX), AX	// arg 2 attr
-	MOVL	AX, 4(SP)
-	CALL	libc_pthread_mutex_init(SB)
+	CALL	libc_dispatch_semaphore_create(SB)
+	MOVL	AX, 4(BX)	// result sema
 	MOVL	BP, SP
 	POPL	BP
 	RET
 
-TEXT runtime·pthread_mutex_lock_trampoline(SB),NOSPLIT,$0
-	PUSHL	BP
-	MOVL	SP, BP
-	SUBL	$8, SP
-	MOVL	16(SP), CX
-	MOVL	0(CX), AX	// arg 1 mutex
-	MOVL	AX, 0(SP)
-	CALL	libc_pthread_mutex_lock(SB)
-	MOVL	BP, SP
-	POPL	BP
-	RET
-
-TEXT runtime·pthread_mutex_unlock_trampoline(SB),NOSPLIT,$0
-	PUSHL	BP
-	MOVL	SP, BP
-	SUBL	$8, SP
-	MOVL	16(SP), CX
-	MOVL	0(CX), AX	// arg 1 mutex
-	MOVL	AX, 0(SP)
-	CALL	libc_pthread_mutex_unlock(SB)
-	MOVL	BP, SP
-	POPL	BP
-	RET
-
-TEXT runtime·pthread_cond_init_trampoline(SB),NOSPLIT,$0
-	PUSHL	BP
-	MOVL	SP, BP
-	SUBL	$8, SP
-	MOVL	16(SP), CX
-	MOVL	0(CX), AX	// arg 1 cond
-	MOVL	AX, 0(SP)
-	MOVL	4(CX), AX	// arg 2 attr
-	MOVL	AX, 4(SP)
-	CALL	libc_pthread_cond_init(SB)
-	MOVL	BP, SP
-	POPL	BP
-	RET
-
-TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
-	PUSHL	BP
-	MOVL	SP, BP
-	SUBL	$8, SP
-	MOVL	16(SP), CX
-	MOVL	0(CX), AX	// arg 1 cond
-	MOVL	AX, 0(SP)
-	MOVL	4(CX), AX	// arg 2 mutex
-	MOVL	AX, 4(SP)
-	CALL	libc_pthread_cond_wait(SB)
-	MOVL	BP, SP
-	POPL	BP
-	RET
-
-TEXT runtime·pthread_cond_timedwait_relative_np_trampoline(SB),NOSPLIT,$0
+TEXT runtime·dispatch_semaphore_wait_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
 	SUBL	$24, SP
 	MOVL	32(SP), CX
-	MOVL	0(CX), AX	// arg 1 cond
+	MOVL	0(CX), AX	// arg 1 sema
 	MOVL	AX, 0(SP)
-	MOVL	4(CX), AX	// arg 2 mutex
+	MOVL	4(CX), AX	// arg 2 timeout/0
 	MOVL	AX, 4(SP)
-	MOVL	8(CX), AX	// arg 3 timeout
+	MOVL	8(CX), AX	// arg 2 timeout/1
 	MOVL	AX, 8(SP)
-	CALL	libc_pthread_cond_timedwait_relative_np(SB)
+	CALL	libc_dispatch_semaphore_wait(SB)
 	MOVL	BP, SP
 	POPL	BP
 	RET
 
-TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
+TEXT runtime·dispatch_semaphore_signal_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
 	SUBL	$8, SP
 	MOVL	16(SP), CX
-	MOVL	0(CX), AX	// arg 1 cond
+	MOVL	0(CX), AX	// arg 1 sema
 	MOVL	AX, 0(SP)
-	CALL	libc_pthread_cond_signal(SB)
+	CALL	libc_dispatch_semaphore_signal(SB)
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+TEXT runtime·dispatch_time_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$24, SP
+	MOVL	32(SP), BX
+	MOVL	0(BX), AX	// arg 1 base/0
+	MOVL	AX, 0(SP)
+	MOVL	4(BX), AX	// arg 1 base/1
+	MOVL	AX, 4(SP)
+	MOVL	8(BX), AX	// arg 2 delta/0
+	MOVL	AX, 8(SP)
+	MOVL	12(BX), AX	// arg 2 delta/1
+	MOVL	AX, 12(SP)
+	CALL	libc_dispatch_time(SB)
+	MOVL	AX, 16(BX)	// result/0
+	MOVL	DX, 20(BX)	// result/1
 	MOVL	BP, SP
 	POPL	BP
 	RET
