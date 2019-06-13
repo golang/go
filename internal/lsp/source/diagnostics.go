@@ -234,33 +234,35 @@ func singleDiagnostic(uri span.URI, format string, a ...interface{}) map[span.UR
 	}
 }
 
-func runAnalyses(ctx context.Context, v View, pkg Package, disabledAnalyses map[string]struct{}, report func(a *analysis.Analyzer, diag analysis.Diagnostic) error) error {
+var Analyzers = []*analysis.Analyzer{
 	// The traditional vet suite:
+	asmdecl.Analyzer,
+	assign.Analyzer,
+	atomic.Analyzer,
+	atomicalign.Analyzer,
+	bools.Analyzer,
+	buildtag.Analyzer,
+	cgocall.Analyzer,
+	composite.Analyzer,
+	copylock.Analyzer,
+	httpresponse.Analyzer,
+	loopclosure.Analyzer,
+	lostcancel.Analyzer,
+	nilfunc.Analyzer,
+	printf.Analyzer,
+	shift.Analyzer,
+	stdmethods.Analyzer,
+	structtag.Analyzer,
+	tests.Analyzer,
+	unmarshal.Analyzer,
+	unreachable.Analyzer,
+	unsafeptr.Analyzer,
+	unusedresult.Analyzer,
+}
+
+func runAnalyses(ctx context.Context, v View, pkg Package, disabledAnalyses map[string]struct{}, report func(a *analysis.Analyzer, diag analysis.Diagnostic) error) error {
 	var analyzers []*analysis.Analyzer
-	for _, a := range []*analysis.Analyzer{
-		asmdecl.Analyzer,
-		assign.Analyzer,
-		atomic.Analyzer,
-		atomicalign.Analyzer,
-		bools.Analyzer,
-		buildtag.Analyzer,
-		cgocall.Analyzer,
-		composite.Analyzer,
-		copylock.Analyzer,
-		httpresponse.Analyzer,
-		loopclosure.Analyzer,
-		lostcancel.Analyzer,
-		nilfunc.Analyzer,
-		printf.Analyzer,
-		shift.Analyzer,
-		stdmethods.Analyzer,
-		structtag.Analyzer,
-		tests.Analyzer,
-		unmarshal.Analyzer,
-		unreachable.Analyzer,
-		unsafeptr.Analyzer,
-		unusedresult.Analyzer,
-	} {
+	for _, a := range Analyzers {
 		if _, ok := disabledAnalyses[a.Name]; ok {
 			continue
 		}

@@ -155,6 +155,8 @@ func (act *Action) execOnce(ctx context.Context, fset *token.FileSet) error {
 		ExportObjectFact:  act.exportObjectFact,
 		ImportPackageFact: act.importPackageFact,
 		ExportPackageFact: act.exportPackageFact,
+		AllObjectFacts:    act.allObjectFacts,
+		AllPackageFacts:   act.allPackageFacts,
 	}
 	act.pass = pass
 
@@ -252,6 +254,15 @@ func (act *Action) exportObjectFact(obj types.Object, fact analysis.Fact) {
 	act.objectFacts[key] = fact // clobber any existing entry
 }
 
+// allObjectFacts implements Pass.AllObjectFacts.
+func (act *Action) allObjectFacts() []analysis.ObjectFact {
+	facts := make([]analysis.ObjectFact, 0, len(act.objectFacts))
+	for k := range act.objectFacts {
+		facts = append(facts, analysis.ObjectFact{Object: k.obj, Fact: act.objectFacts[k]})
+	}
+	return facts
+}
+
 // importPackageFact implements Pass.ImportPackageFact.
 // Given a non-nil pointer ptr of type *T, where *T satisfies Fact,
 // fact copies the fact value to *ptr.
@@ -283,4 +294,13 @@ func factType(fact analysis.Fact) reflect.Type {
 		log.Fatalf("invalid Fact type: got %T, want pointer", t)
 	}
 	return t
+}
+
+// allObjectFacts implements Pass.AllObjectFacts.
+func (act *Action) allPackageFacts() []analysis.PackageFact {
+	facts := make([]analysis.PackageFact, 0, len(act.packageFacts))
+	for k := range act.packageFacts {
+		facts = append(facts, analysis.PackageFact{Package: k.pkg, Fact: act.packageFacts[k]})
+	}
+	return facts
 }
