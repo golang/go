@@ -29,11 +29,12 @@ type FileIdentity struct {
 type FileHandle interface {
 	// FileSystem returns the file system this handle was acquired from.
 	FileSystem() FileSystem
+
 	// Return the Identity for the file.
 	Identity() FileIdentity
-	// Read reads the contents of a file and returns it along with its hash
-	// value.
-	// If the file is not available, retruns a nil slice and an error.
+
+	// Read reads the contents of a file and returns it along with its hash value.
+	// If the file is not available, returns a nil slice and an error.
 	Read(ctx context.Context) ([]byte, string, error)
 }
 
@@ -43,12 +44,23 @@ type FileSystem interface {
 	GetFile(uri span.URI) FileHandle
 }
 
-// ParseGoHandle represents a handle to the ast for a file.
-type ParseGoHandle interface {
-	// File returns a file handle to get the ast for.
+// TokenHandle represents a handle to the *token.File for a file.
+type TokenHandle interface {
+	// File returns a file handle for which to get the *token.File.
 	File() FileHandle
+
+	// Token returns the *token.File for the file.
+	Token(ctx context.Context) (*token.File, error)
+}
+
+// ParseGoHandle represents a handle to the AST for a file.
+type ParseGoHandle interface {
+	// File returns a file handle for which to get the AST.
+	File() FileHandle
+
 	// Mode returns the parse mode of this handle.
 	Mode() ParseMode
+
 	// Parse returns the parsed AST for the file.
 	// If the file is not available, returns nil and an error.
 	Parse(ctx context.Context) (*ast.File, error)
@@ -61,11 +73,13 @@ const (
 	// ParseHeader specifies that the main package declaration and imports are needed.
 	// This is the mode used when attempting to examine the package graph structure.
 	ParseHeader = ParseMode(iota)
+
 	// ParseExported specifies that the public symbols are needed, but things like
 	// private symbols and function bodies are not.
 	// This mode is used for things where a package is being consumed only as a
 	// dependency.
 	ParseExported
+
 	// ParseFull specifies the full AST is needed.
 	// This is used for files of direct interest where the entire contents must
 	// be considered.
@@ -89,8 +103,11 @@ type Cache interface {
 	// FileSet returns the shared fileset used by all files in the system.
 	FileSet() *token.FileSet
 
-	// Parse returns a ParseHandle for the given file handle.
-	ParseGo(FileHandle, ParseMode) ParseGoHandle
+	// Token returns a TokenHandle for the given file handle.
+	TokenHandle(FileHandle) TokenHandle
+
+	// ParseGo returns a ParseGoHandle for the given file handle.
+	ParseGoHandle(FileHandle, ParseMode) ParseGoHandle
 }
 
 // Session represents a single connection from a client.

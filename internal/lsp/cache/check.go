@@ -157,41 +157,40 @@ func (imp *importer) typeCheck(id packageID) (*pkg, error) {
 
 func (imp *importer) cachePackage(ctx context.Context, pkg *pkg, meta *metadata) {
 	for _, filename := range pkg.files {
-		// TODO: If a file is in multiple packages, which package do we store?
-
-		fURI := span.FileURI(filename)
-		f, err := imp.view.getFile(fURI)
+		f, err := imp.view.getFile(span.FileURI(filename))
 		if err != nil {
-			imp.view.Session().Logger().Errorf(ctx, "no file: %v", err)
+			imp.view.session.log.Errorf(ctx, "no file: %v", err)
 			continue
 		}
 		gof, ok := f.(*goFile)
 		if !ok {
-			imp.view.Session().Logger().Errorf(ctx, "%v is not a Go file", f.URI())
+			imp.view.session.log.Errorf(ctx, "%v is not a Go file", f.URI())
 			continue
 		}
-
-		// Set the package even if we failed to parse the file otherwise
-		// future updates to this file won't refresh the package.
+		// Set the package even if we failed to parse the file.
 		gof.pkg = pkg
 
-		fAST := pkg.syntax[filename]
-		if fAST == nil {
+		// Get the *token.File directly from the AST.
+		gof.ast = pkg.syntax[filename]
+		if gof.ast == nil {
+			imp.view.session.log.Errorf(ctx, "no AST information for %s", filename)
 			continue
 		}
-
-		if !fAST.file.Pos().IsValid() {
-			imp.view.Session().Logger().Errorf(ctx, "invalid position for file %v", fAST.file.Name)
+		if gof.ast.file == nil {
+			imp.view.session.log.Errorf(ctx, "no AST for %s", filename)
+		}
+		pos := gof.ast.file.Pos()
+		if !pos.IsValid() {
+			imp.view.session.log.Errorf(ctx, "AST for %s has an invalid position", filename)
 			continue
 		}
-		tok := imp.view.Session().Cache().FileSet().File(fAST.file.Pos())
+		tok := imp.view.session.cache.FileSet().File(pos)
 		if tok == nil {
-			imp.view.Session().Logger().Errorf(ctx, "no token.File for %v", fAST.file.Name)
+			imp.view.session.log.Errorf(ctx, "no *token.File for %s", filename)
 			continue
 		}
 		gof.token = tok
-		gof.ast = fAST
-		gof.imports = fAST.file.Imports
+		gof.imports = gof.ast.file.Imports
 	}
 
 	// Set imports of package to correspond to cached packages.

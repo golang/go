@@ -24,6 +24,7 @@ import (
 // Limits the number of parallel parser calls per process.
 var parseLimit = make(chan bool, 20)
 
+// parseKey uniquely identifies a parsed Go file.
 type parseKey struct {
 	file source.FileIdentity
 	mode source.ParseMode
@@ -37,11 +38,12 @@ type parseGoHandle struct {
 
 type parseGoData struct {
 	memoize.NoCopy
+
 	ast *ast.File
 	err error
 }
 
-func (c *cache) ParseGo(fh source.FileHandle, mode source.ParseMode) source.ParseGoHandle {
+func (c *cache) ParseGoHandle(fh source.FileHandle, mode source.ParseMode) source.ParseGoHandle {
 	key := parseKey{
 		file: fh.Identity(),
 		mode: mode,
@@ -104,7 +106,6 @@ func parseGo(ctx context.Context, c *cache, fh source.FileHandle, mode source.Pa
 //
 // Because files are scanned in parallel, the token.Pos
 // positions of the resulting ast.Files are not ordered.
-//
 func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) (map[string]*astFile, []error, error) {
 	var (
 		wg     sync.WaitGroup
@@ -124,7 +125,7 @@ func (imp *importer) parseFiles(filenames []string, ignoreFuncBodies bool) (map[
 		if ignoreFuncBodies {
 			mode = source.ParseExported
 		}
-		ph := imp.view.session.cache.ParseGo(fh, mode)
+		ph := imp.view.session.cache.ParseGoHandle(fh, mode)
 		// now read and parse in parallel
 		wg.Add(1)
 		go func(i int, filename string) {

@@ -112,7 +112,7 @@ func (v *view) parseImports(ctx context.Context, f *goFile) bool {
 		return true
 	}
 	// Get file content in case we don't already have it.
-	parsed, _ := v.session.cache.ParseGo(f.Handle(ctx), source.ParseHeader).Parse(ctx)
+	parsed, _ := v.session.cache.ParseGoHandle(f.Handle(ctx), source.ParseHeader).Parse(ctx)
 	if parsed == nil {
 		return true
 	}
