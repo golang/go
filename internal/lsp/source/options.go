@@ -53,6 +53,8 @@ type Options struct {
 	HoverKind        HoverKind
 	DisabledAnalyses map[string]struct{}
 
+	StaticCheck bool
+
 	WatchFileChanges              bool
 	InsertTextFormat              protocol.InsertTextFormat
 	ConfigurationSupported        bool
@@ -231,6 +233,9 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 		for _, a := range disabledAnalyses {
 			o.DisabledAnalyses[fmt.Sprint(a)] = struct{}{}
 		}
+
+	case "staticcheck":
+		result.setBool(&o.StaticCheck)
 
 	// Deprecated settings.
 	case "wantSuggestedFixes":

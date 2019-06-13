@@ -9,8 +9,11 @@ package hooks // import "golang.org/x/tools/gopls/internal/hooks"
 
 import (
 	"context"
+
+	"golang.org/x/tools/internal/lsp/cache"
 )
 
 func Install(ctx context.Context) context.Context {
+	cache.UpdateAnalyzers = updateAnalyzers
 	return ctx
 }

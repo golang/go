@@ -54,6 +54,10 @@ The below settings are considered experimental. They may be deprecated or change
 
 A list of the names of analysis passes that should be disabled. You can use this to turn off analyses that you feel are not useful in the editor.
 
+### **staticcheck** *boolean*
+
+If true, it enables the use of the staticcheck.io analyzers.
+
 ### **completionDocumentation** *boolean*
 
 If false, indicates that the user does not want documentation with completion results.
