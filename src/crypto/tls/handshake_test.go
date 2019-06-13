@@ -40,6 +40,7 @@ import (
 
 var (
 	update = flag.Bool("update", false, "update golden files on disk")
+	fast   = flag.Bool("fast", false, "impose a quick, possibly flaky timeout on recorded tests")
 
 	opensslVersionTestOnce sync.Once
 	opensslVersionTestErr  error

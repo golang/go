@@ -166,9 +166,11 @@ func signedMessage(sigHash crypto.Hash, context string, transcript hash.Hash) []
 }
 
 // signatureSchemesForCertificate returns the list of supported SignatureSchemes
-// for a given certificate, based on the public key and the protocol version. It
-// does not support the crypto.Decrypter interface, so shouldn't be used on the
-// server side in TLS 1.2 and earlier.
+// for a given certificate, based on the public key and the protocol version.
+//
+// It does not support the crypto.Decrypter interface, so shouldn't be used for
+// server certificates in TLS 1.2 and earlier, and it must be kept in sync with
+// supportedSignatureAlgorithms.
 func signatureSchemesForCertificate(version uint16, cert *Certificate) []SignatureScheme {
 	priv, ok := cert.PrivateKey.(crypto.Signer)
 	if !ok {
@@ -200,16 +202,12 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 	case *rsa.PublicKey:
 		if version != VersionTLS13 {
 			return []SignatureScheme{
-				PSSWithSHA256,
-				PSSWithSHA384,
-				PSSWithSHA512,
 				PKCS1WithSHA256,
 				PKCS1WithSHA384,
 				PKCS1WithSHA512,
 				PKCS1WithSHA1,
 			}
 		}
-		// RSA keys with RSA-PSS OID are not supported by crypto/x509.
 		return []SignatureScheme{
 			PSSWithSHA256,
 			PSSWithSHA384,
