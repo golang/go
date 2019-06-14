@@ -12,6 +12,7 @@ import (
 )
 
 const defaultMessageBufferSize = 20
+const defaultRejectIfOverloaded = false
 
 func canceller(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) {
 	conn.Notify(context.Background(), "$/cancelRequest", &CancelParams{ID: *req.ID})
@@ -21,7 +22,7 @@ func NewClient(stream jsonrpc2.Stream, client Client) (*jsonrpc2.Conn, Server, x
 	log := xlog.New(NewLogger(client))
 	conn := jsonrpc2.NewConn(stream)
 	conn.Capacity = defaultMessageBufferSize
-	conn.RejectIfOverloaded = true
+	conn.RejectIfOverloaded = defaultRejectIfOverloaded
 	conn.Handler = clientHandler(log, client)
 	conn.Canceler = jsonrpc2.Canceler(canceller)
 	return conn, &serverDispatcher{Conn: conn}, log
@@ -32,7 +33,7 @@ func NewServer(stream jsonrpc2.Stream, server Server) (*jsonrpc2.Conn, Client, x
 	client := &clientDispatcher{Conn: conn}
 	log := xlog.New(NewLogger(client))
 	conn.Capacity = defaultMessageBufferSize
-	conn.RejectIfOverloaded = true
+	conn.RejectIfOverloaded = defaultRejectIfOverloaded
 	conn.Handler = serverHandler(log, server)
 	conn.Canceler = jsonrpc2.Canceler(canceller)
 	return conn, client, log
