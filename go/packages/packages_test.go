@@ -1854,6 +1854,48 @@ func testMissingDependency(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
+func TestAdHocContains(t *testing.T) { packagestest.TestAll(t, testAdHocContains) }
+func testAdHocContains(t *testing.T, exporter packagestest.Exporter) {
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/fake",
+		Files: map[string]interface{}{
+			"a/a.go": `package a;`,
+		}}})
+	defer exported.Cleanup()
+
+	tmpfile, err := ioutil.TempFile("", "adhoc*.go")
+	filename := tmpfile.Name()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Fprint(tmpfile, `package main; import "fmt"; func main() { fmt.Println("time for coffee") }`)
+	if err := tmpfile.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() {
+		if err := os.Remove(filename); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	exported.Config.Mode = packages.NeedImports | packages.NeedFiles
+	pkgs, err := packages.Load(exported.Config, filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pkgs) != 1 && pkgs[0].PkgPath != "command-line-arguments" {
+		t.Fatalf("packages.Load: want [command-line-arguments], got %v", pkgs)
+	}
+	pkg := pkgs[0]
+	if _, ok := pkg.Imports["fmt"]; !ok || len(pkg.Imports) != 1 {
+		t.Fatalf("Imports of loaded package: want [fmt], got %v", pkg.Imports)
+	}
+	if len(pkg.GoFiles) != 1 || pkg.GoFiles[0] != filename {
+		t.Fatalf("GoFiles of loaded packge: want [%s], got %v", filename, pkg.GoFiles)
+	}
+}
+
 func errorMessages(errors []packages.Error) []string {
 	var msgs []string
 	for _, err := range errors {

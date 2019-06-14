@@ -231,6 +231,13 @@ func runContainsQueries(cfg *Config, driver driver, response *responseDeduper, q
 		if err != nil {
 			return err
 		}
+		if len(dirResponse.Roots) == 0 {
+			// Couldn't find a package for the directory. Try to load the file as an ad-hoc package.
+			dirResponse, err = driver(cfg, query)
+			if err != nil {
+				return err
+			}
+		}
 		isRoot := make(map[string]bool, len(dirResponse.Roots))
 		for _, root := range dirResponse.Roots {
 			isRoot[root] = true
