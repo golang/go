@@ -27,29 +27,42 @@ func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, erro
 	}
 
 	// If the object declaration is nil, assume it is an import spec and do not look for references.
-	declObj := i.decl.obj
-	if declObj == nil {
+	if i.decl.obj == nil {
 		return []*ReferenceInfo{}, nil
 	}
 
 	var references []*ReferenceInfo
-	for ident, obj := range pkgInfo.Defs {
-		if obj == declObj {
-			references = append(references, &ReferenceInfo{
-				Name:  ident.Name,
-				Range: span.NewRange(i.File.FileSet(), ident.Pos(), ident.End()),
-				ident: ident,
-			})
-		}
+
+	if i.decl.wasImplicit {
+		// The definition is implicit, so we must add it separately.
+		// This occurs when the variable is declared in a type switch statement
+		// or is an implicit package name.
+		references = append(references, &ReferenceInfo{
+			Name:  i.decl.obj.Name(),
+			Range: i.decl.rng,
+		})
 	}
-	for ident, obj := range pkgInfo.Uses {
-		if obj == declObj {
-			references = append(references, &ReferenceInfo{
-				Name:  ident.Name,
-				Range: span.NewRange(i.File.FileSet(), ident.Pos(), ident.End()),
-				ident: ident,
-			})
+
+	for ident, obj := range pkgInfo.Defs {
+		if obj == nil || obj.Pos() != i.decl.obj.Pos() {
+			continue
 		}
+		references = append(references, &ReferenceInfo{
+			Name:  ident.Name,
+			Range: span.NewRange(i.File.FileSet(), ident.Pos(), ident.End()),
+			ident: ident,
+		})
+	}
+
+	for ident, obj := range pkgInfo.Uses {
+		if obj == nil || obj.Pos() != i.decl.obj.Pos() {
+			continue
+		}
+		references = append(references, &ReferenceInfo{
+			Name:  ident.Name,
+			Range: span.NewRange(i.File.FileSet(), ident.Pos(), ident.End()),
+			ident: ident,
+		})
 	}
 
 	return references, nil

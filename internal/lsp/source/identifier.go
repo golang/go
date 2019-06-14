@@ -33,9 +33,10 @@ type IdentifierInfo struct {
 }
 
 type declaration struct {
-	rng  span.Range
-	node ast.Node
-	obj  types.Object
+	rng         span.Range
+	node        ast.Node
+	obj         types.Object
+	wasImplicit bool
 }
 
 func (i *IdentifierInfo) DeclarationRange() span.Range {
@@ -103,7 +104,19 @@ func identifier(ctx context.Context, v View, f GoFile, pos token.Pos) (*Identifi
 	result.Range = span.NewRange(f.FileSet(), result.ident.Pos(), result.ident.End())
 	result.decl.obj = pkg.GetTypesInfo().ObjectOf(result.ident)
 	if result.decl.obj == nil {
-		return nil, fmt.Errorf("no object for ident %v", result.Name)
+		// If there was no types.Object for the declaration, there might be an implicit local variable
+		// declaration in a type switch.
+		if objs := typeSwitchVar(pkg.GetTypesInfo(), path); len(objs) > 0 {
+			// There is no types.Object for the declaration of an implicit local variable,
+			// but all of the types.Objects associated with the usages of this variable can be
+			// used to connect it back to the declaration.
+			// Preserve the first of these objects and treat it as if it were the declaring object.
+			result.decl.obj = objs[0]
+			result.decl.wasImplicit = true
+		} else {
+			// Probably a type error.
+			return nil, fmt.Errorf("no object for ident %v", result.Name)
+		}
 	}
 
 	var err error
@@ -131,6 +144,15 @@ func identifier(ctx context.Context, v View, f GoFile, pos token.Pos) (*Identifi
 		}
 	}
 
+	for _, obj := range pkg.GetTypesInfo().Implicits {
+		if obj.Pos() == result.decl.obj.Pos() {
+			// Mark this declaration as implicit, since it will not
+			// appear in a (*types.Info).Defs map.
+			result.decl.wasImplicit = true
+			break
+		}
+	}
+
 	if result.decl.rng, err = objToRange(ctx, f.FileSet(), result.decl.obj); err != nil {
 		return nil, err
 	}
@@ -139,8 +161,9 @@ func identifier(ctx context.Context, v View, f GoFile, pos token.Pos) (*Identifi
 	}
 	typ := pkg.GetTypesInfo().TypeOf(result.ident)
 	if typ == nil {
-		return nil, fmt.Errorf("no type for %s", result.Name)
+		return result, nil
 	}
+
 	result.Type.Object = typeToObject(typ)
 	if result.Type.Object != nil {
 		// Identifiers with the type "error" are a special case with no position.
@@ -170,6 +193,21 @@ func hasErrorType(obj types.Object) bool {
 }
 
 func objToRange(ctx context.Context, fset *token.FileSet, obj types.Object) (span.Range, error) {
+	if pkgName, ok := obj.(*types.PkgName); ok {
+		// An imported Go package has a package-local, unqualified name.
+		// When the name matches the imported package name, there is no
+		// identifier in the import spec with the local package name.
+		//
+		// For example:
+		// 		import "go/ast" 	// name "ast" matches package name
+		// 		import a "go/ast"  	// name "a" does not match package name
+		//
+		// When the identifier does not appear in the source, have the range
+		// of the object be the point at the beginning of the declaration.
+		if pkgName.Imported().Name() == pkgName.Name() {
+			return posToRange(ctx, fset, "", obj.Pos())
+		}
+	}
 	return posToRange(ctx, fset, obj.Name(), obj.Pos())
 }
 
@@ -260,4 +298,33 @@ func importSpec(f GoFile, fAST *ast.File, pkg Package, pos token.Pos) (*Identifi
 		return result, nil
 	}
 	return nil, nil
+}
+
+// typeSwitchVar handles the special case of a local variable implicitly defined in a type switch.
+// In such cases, the definition of the implicit variable will not be recorded in the *types.Info.Defs  map,
+// but rather in the *types.Info.Implicits map.
+func typeSwitchVar(info *types.Info, path []ast.Node) []types.Object {
+	if len(path) < 3 {
+		return nil
+	}
+	// Check for [Ident AssignStmt TypeSwitchStmt...]
+	if _, ok := path[0].(*ast.Ident); !ok {
+		return nil
+	}
+	if _, ok := path[1].(*ast.AssignStmt); !ok {
+		return nil
+	}
+	sw, ok := path[2].(*ast.TypeSwitchStmt)
+	if !ok {
+		return nil
+	}
+
+	var res []types.Object
+	for _, stmt := range sw.Body.List {
+		obj := info.Implicits[stmt.(*ast.CaseClause)]
+		if obj != nil {
+			res = append(res, obj)
+		}
+	}
+	return res
 }
