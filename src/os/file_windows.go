@@ -99,7 +99,7 @@ const DevNull = "NUL"
 func (f *file) isdir() bool { return f != nil && f.dirinfo != nil }
 
 func openFile(name string, flag int, perm FileMode) (file *File, err error) {
-	r, e := syscall.Open(fixLongPath(name), flag|syscall.O_CLOEXEC, syscallMode(perm))
+	r, e := syscall.Open(fixLongPath(name), flag|syscall.O_CLOEXEC|syscall.O_NONBLOCK, syscallMode(perm))
 	if e != nil {
 		return nil, e
 	}

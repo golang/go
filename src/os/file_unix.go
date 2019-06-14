@@ -193,7 +193,7 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	var r int
 	for {
 		var e error
-		r, e = syscall.Open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
+		r, e = syscall.Open(name, flag|syscall.O_CLOEXEC|syscall.O_NONBLOCK, syscallMode(perm))
 		if e == nil {
 			break
 		}

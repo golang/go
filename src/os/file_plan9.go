@@ -107,6 +107,8 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 		append = true
 	}
 
+	flag |= syscall.O_NONBLOCK
+
 	if (create && trunc) || excl {
 		fd, e = syscall.Create(name, flag, syscallMode(perm))
 	} else {
