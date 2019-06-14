@@ -42,6 +42,7 @@ func (s *Server) Diagnostics(ctx context.Context, v source.View, uri span.URI) {
 			if s.undelivered == nil {
 				s.undelivered = make(map[span.URI][]source.Diagnostic)
 			}
+			s.session.Logger().Errorf(ctx, "failed to deliver diagnostic for %s (will retry): %v", uri, err)
 			s.undelivered[uri] = diagnostics
 			continue
 		}
@@ -51,9 +52,8 @@ func (s *Server) Diagnostics(ctx context.Context, v source.View, uri span.URI) {
 	// Anytime we compute diagnostics, make sure to also send along any
 	// undelivered ones (only for remaining URIs).
 	for uri, diagnostics := range s.undelivered {
-		err := s.publishDiagnostics(ctx, v, uri, diagnostics)
-		if err != nil {
-			s.session.Logger().Errorf(ctx, "failed to deliver diagnostic for %s: %v", uri, err)
+		if err := s.publishDiagnostics(ctx, v, uri, diagnostics); err != nil {
+			s.session.Logger().Errorf(ctx, "failed to deliver diagnostic for %s (will not retry): %v", uri, err)
 		}
 		// If we fail to deliver the same diagnostics twice, just give up.
 		delete(s.undelivered, uri)

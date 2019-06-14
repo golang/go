@@ -63,8 +63,11 @@ func Diagnostics(ctx context.Context, v View, f GoFile, disabledAnalyses map[str
 	}
 
 	// Prepare any additional reports for the errors in this package.
-	for _, pkgErr := range pkg.GetErrors() {
-		addReport(v, reports, packageErrorSpan(pkgErr).URI(), nil)
+	for _, err := range pkg.GetErrors() {
+		if err.Kind != packages.ListError {
+			continue
+		}
+		addReport(v, reports, listErrorSpan(err).URI(), nil)
 	}
 
 	// Run diagnostics for the package that this URI belongs to.
@@ -108,7 +111,7 @@ func diagnostics(ctx context.Context, v View, pkg Package, reports map[span.URI]
 		diags = listErrors
 	}
 	for _, diag := range diags {
-		spn := packageErrorSpan(diag)
+		spn := listErrorSpan(diag)
 		if spn.IsPoint() && diag.Kind == packages.TypeError {
 			spn = pointToSpan(ctx, v, spn)
 		}
@@ -178,7 +181,7 @@ func parseDiagnosticMessage(input string) span.Span {
 	return span.Parse(input[:msgIndex])
 }
 
-func packageErrorSpan(pkgErr packages.Error) span.Span {
+func listErrorSpan(pkgErr packages.Error) span.Span {
 	if pkgErr.Pos == "" {
 		return parseDiagnosticMessage(pkgErr.Msg)
 	}

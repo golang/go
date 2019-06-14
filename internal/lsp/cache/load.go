@@ -83,13 +83,13 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile) ([]packages.Error, 
 	pkgs, err := packages.Load(v.buildConfig(), fmt.Sprintf("file=%s", f.filename()))
 	if len(pkgs) == 0 {
 		if err == nil {
-			err = fmt.Errorf("no packages found for %s", f.filename())
+			err = fmt.Errorf("go/packages.Load: no packages found for %s", f.filename())
 		}
 		// Return this error as a diagnostic to the user.
 		return []packages.Error{
 			{
 				Msg:  err.Error(),
-				Kind: packages.ListError,
+				Kind: packages.UnknownError,
 			},
 		}, err
 	}
