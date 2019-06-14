@@ -145,12 +145,11 @@ func (v *view) link(ctx context.Context, pkgPath packagePath, pkg *packages.Pack
 	// If we haven't seen this package before.
 	if !ok {
 		m = &metadata{
-			pkgPath:        pkgPath,
-			id:             id,
-			typesSizes:     pkg.TypesSizes,
-			parents:        make(map[packageID]bool),
-			children:       make(map[packageID]bool),
-			missingImports: make(map[packagePath]struct{}),
+			pkgPath:    pkgPath,
+			id:         id,
+			typesSizes: pkg.TypesSizes,
+			parents:    make(map[packageID]bool),
+			children:   make(map[packageID]bool),
 		}
 		v.mcache.packages[id] = m
 		v.mcache.ids[pkgPath] = id
@@ -172,6 +171,7 @@ func (v *view) link(ctx context.Context, pkgPath packagePath, pkg *packages.Pack
 		m.parents[parent.id] = true
 		parent.children[id] = true
 	}
+	m.missingImports = make(map[packagePath]struct{})
 	for importPath, importPkg := range pkg.Imports {
 		if len(importPkg.Errors) > 0 {
 			m.missingImports[pkgPath] = struct{}{}
