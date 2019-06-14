@@ -178,6 +178,7 @@ func (imp *importer) cachePackage(ctx context.Context, pkg *pkg, meta *metadata)
 		}
 		if gof.ast.file == nil {
 			imp.view.session.log.Errorf(ctx, "no AST for %s", filename)
+			continue
 		}
 		pos := gof.ast.file.Pos()
 		if !pos.IsValid() {
