@@ -44,10 +44,24 @@ TODO
 TODO
 </p>
 
+<p><!-- CL 158719 -->
+  TODO: <a href="https://golang.org/cl/158797">https://golang.org/cl/158797</a>: implement shifts by signed amounts
+</p>
+
 <h2 id="ports">Ports</h2>
 
 <p>
 TODO
+</p>
+
+<p><!-- CL 174457 -->
+  TODO: <a href="https://golang.org/cl/174457">https://golang.org/cl/174457</a>: add new GOOS=illumos, split out of GOOS=solaris
+</p>
+
+<h3 id="android">Android</h3>
+
+<p><!-- CL 170127 -->
+  Go programs are now compatible with Android Q.
 </p>
 
 <h3 id="darwin">Darwin</h3>
@@ -67,18 +81,64 @@ TODO
   FreeBSD 12.0 or later requires a kernel with the COMPAT_FREEBSD11 option set (this is the default).
 </p>
 
+<h3 id="aix-ppc64">AIX on PPC64</h3>
+
+<p><!-- CL 164003 -->
+  AIX on PPC64 now supports cgo and external linking.
+</p>
+
 <h2 id="tools">Tools</h2>
 
 <p>
 TODO
 </p>
 
-<h2 id="runtime">Runtime</h2>
+<h3 id="compiler">Compiler toolchain</h3>
 
-<p>
-TODO
+<p><!-- CL 170448 -->
+  The compiler has a new implementation of escape analysis that is
+  more precise. For most Go code should be an improvement (in other
+  words, more Go variables and expressions allocated on the stack
+  instead of heap). However, this increased precision may also break
+  invalid code that happened to work before (for example, code that
+  violates
+  the <a href="/pkg/unsafe/#Pointer"><code>unsafe.Pointer</code>
+  safety rules</a>). If you notice any regressions that appear
+  related, the old escape analysis pass can be re-enabled
+  with <code>go</code> <code>build</code> <code>-gcflags=all=-newescape=false</code>.
+  The option to use the old escape analysis will be removed in a
+  future release.
 </p>
 
+<p><!-- CL 161904 -->
+  The compiler no longer emits floating point or complex constants
+  to <code>go_asm.h</code> files. These have always been emitted in a
+  form that could not be used as numeric constant in assembly code.
+</p>
+
+<h2 id="runtime">Runtime</h2>
+
+<p><!-- CL 161477 -->
+  Out of range panic messages now include the index that was out of
+  bounds and the length (or capacity) of the slice. For
+  example, <code>s[3]</code> on a slice of length 1 will panic with
+  "runtime error: index out of range [3] with length 1".
+</p>
+
+<p><!-- CL 171758 -->
+  This release improves performance of most uses of <code>defer</code>
+  by 30%.
+</p>
+
+<p><!-- CL 142960 -->
+  The runtime is now more aggressive at returning memory to the
+  operating system to make it available to co-tenant applications.
+  Previously, the runtime could retain memory for five or more minutes
+  following a spike in the heap size. It will now begin returning it
+  promptly after the heap shrinks. However, on many OSes, including
+  Linux, the OS itself reclaims memory lazily, so process RSS will not
+  decrease until the system is under memory pressure.
+</p>
 
 <h2 id="library">Core library</h2>
 
@@ -105,23 +165,12 @@ TODO; link to <a href="/doc/go1.12#tls_1_3">Go 1.12 notes</a>.
 TODO
 </p>
 
-<!-- CL 161904: https://golang.org/cl/161904: cmd/compile: do not export float or complex constants with -asmhdr -->
-
-<!-- CL 170448: https://golang.org/cl/170448: cmd/compile: enable -newescape by default -->
 <!-- CL 174125: https://golang.org/cl/174125: cmd/dist: add support for openbsd/arm64 -->
 <!-- CL 177797: https://golang.org/cl/177797: cmd/doc: always print package clause except for commands -->
 <!-- CL 173345: https://golang.org/cl/173345: cmd/go: add -trimpath build flag -->
 <!-- CL 173438: https://golang.org/cl/173438: cmd/go: change -tags to a comma-separated list -->
 <!-- CL 175983: https://golang.org/cl/175983: cmd/go: set the "generate" build tag in go generate, per design doc -->
 <!-- CL 167747: https://golang.org/cl/167747: 'go get' in module mode now supports the version suffix '@patch'.: cmd/go/internal/modget: support the suffix '@patch' in 'go get' -->
-
-<dl id="all"><dt><a href="/pkg/all/">all</a></dt>
-  <dd>
-    <p><!-- CL 174457 -->
-      TODO: <a href="https://golang.org/cl/174457">https://golang.org/cl/174457</a>: add new GOOS=illumos, split out of GOOS=solaris
-    </p>
-
-</dl><!-- all -->
 
 <dl id="bytes"><dt><a href="/pkg/bytes/">bytes</a></dt>
   <dd>
@@ -175,7 +224,12 @@ TODO
 <dl id="debug/dwarf"><dt><a href="/pkg/debug/dwarf/">debug/dwarf</a></dt>
   <dd>
     <p><!-- CL 158797 -->
-      TODO: <a href="https://golang.org/cl/158797">https://golang.org/cl/158797</a>: more graceful handling of unsupported types
+      The <a href="/pkg/debug/dwarf/#Data.Type"><code>Data.Type</code></a>
+      method no longer panics if it encounters an unknown DWARF tag in
+      the type graph. Instead, it represents that component of the
+      type with
+      an <a href="/pkg/debug/dwarf/#UnsupportedType"><code>UnsupportedType</code></a>
+      object.
     </p>
 
 </dl><!-- debug/dwarf -->
@@ -311,22 +365,6 @@ TODO
     </p>
 
 </dl><!-- runtime -->
-
-<dl id="runtime, internal/poll, net"><dt><a href="/pkg/runtime, internal/poll, net/">runtime, internal/poll, net</a></dt>
-  <dd>
-    <p><!-- CL 166497 -->
-      TODO: <a href="https://golang.org/cl/166497">https://golang.org/cl/166497</a>: report event scanning error on read event
-    </p>
-
-</dl><!-- runtime, internal/poll, net -->
-
-<dl id="runtime/cgo"><dt><a href="/pkg/runtime/cgo/">runtime/cgo</a></dt>
-  <dd>
-    <p><!-- CL 170127 -->
-      TODO: <a href="https://golang.org/cl/170127">https://golang.org/cl/170127</a>: look for android_get_device_api_level in libc.so
-    </p>
-
-</dl><!-- runtime/cgo -->
 
 <dl id="strings"><dt><a href="/pkg/strings">strings</a></dt>
   <dd>
