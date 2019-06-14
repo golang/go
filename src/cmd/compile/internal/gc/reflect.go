@@ -330,7 +330,6 @@ func deferstruct(stksize int64) *types.Type {
 		return f
 	}
 	argtype := types.NewArray(types.Types[TUINT8], stksize)
-	argtype.SetNoalg(true)
 	argtype.Width = stksize
 	argtype.Align = 1
 	// These fields must match the ones in runtime/runtime2.go:_defer and
