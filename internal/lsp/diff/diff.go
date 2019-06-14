@@ -174,6 +174,7 @@ func shortestEditSequence(a, b []string) ([][]int, int) {
 
 	// Iterate through the maximum possible length of the SES (N+M).
 	for d := 0; d <= N+M; d++ {
+		copyV := make([]int, len(V))
 		// k lines are represented by the equation y = x - k. We move in
 		// increments of 2 because end points for even d are on even k lines.
 		for k := -d; k <= d; k += 2 {
@@ -197,16 +198,19 @@ func shortestEditSequence(a, b []string) ([][]int, int) {
 
 			V[k+offset] = x
 
-			// Save the state of the array.
-			copyV := make([]int, len(V))
-			copy(copyV, V)
-			trace[d] = copyV
-
 			// Return if we've exceeded the maximum values.
 			if x == M && y == N {
+				// Save the state of the array, and exit function
+				copy(copyV, V)
+				trace[d] = copyV
+
 				return trace, offset
 			}
 		}
+
+		// Save the state of the array, and continue loop
+		copy(copyV, V)
+		trace[d] = copyV
 	}
 	return nil, 0
 }
