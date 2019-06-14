@@ -232,7 +232,8 @@ func fix(ctx context.Context, file *ast.File, tok *token.File, src []byte) error
 		}
 		switch n := n.(type) {
 		case *ast.BadStmt:
-			if err := parseDeferOrGoStmt(n, parent, tok, src); err != nil {
+			err = parseDeferOrGoStmt(n, parent, tok, src) // don't shadow err
+			if err != nil {
 				err = fmt.Errorf("unable to parse defer or go from *ast.BadStmt: %v", err)
 			}
 			return false
