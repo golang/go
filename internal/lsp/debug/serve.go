@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"sync"
 
+	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -216,6 +217,7 @@ func Serve(ctx context.Context, addr string) error {
 		mux := http.NewServeMux()
 		mux.HandleFunc("/", Render(mainTmpl, func(*http.Request) interface{} { return data }))
 		mux.HandleFunc("/debug/", Render(debugTmpl, nil))
+		telemetry.Handle(mux)
 		mux.HandleFunc("/debug/pprof/", pprof.Index)
 		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
@@ -354,6 +356,8 @@ var debugTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "title"}}GoPls Debug pages{{end}}
 {{define "body"}}
 <a href="/debug/pprof">Profiling</a>
+<a href="/debug/rpcz">RPCz</a>
+<a href="/debug/tracez">Tracez</a>
 {{end}}
 `))
 
