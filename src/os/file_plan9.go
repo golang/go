@@ -126,6 +126,8 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 		return nil, &PathError{"open", name, e}
 	}
 
+	syscall.SetNonblock(r, false)
+
 	if append {
 		if _, e = syscall.Seek(fd, 0, io.SeekEnd); e != nil {
 			return nil, &PathError{"seek", name, e}

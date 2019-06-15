@@ -208,6 +208,8 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 		return nil, &PathError{"open", name, e}
 	}
 
+	syscall.SetNonblock(r, false)
+
 	// open(2) itself won't handle the sticky bit on *BSD and Solaris
 	if setSticky {
 		setStickyBit(name)

@@ -103,6 +103,7 @@ func openFile(name string, flag int, perm FileMode) (file *File, err error) {
 	if e != nil {
 		return nil, e
 	}
+	syscall.SetNonblock(r, false)
 	return newFile(r, name, "file"), nil
 }
 
