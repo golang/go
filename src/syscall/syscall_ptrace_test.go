@@ -28,8 +28,10 @@ func TestExecPtrace(t *testing.T) {
 		},
 	}
 	proc, err := os.StartProcess(bin, []string{bin}, attr)
-	if err != nil {
+	if err == nil {
+		proc.Kill()
+	}
+	if err != nil && !os.IsPermission(err) {
 		t.Fatalf("StartProcess with ptrace enabled failed: %v", err)
 	}
-	proc.Kill()
 }
