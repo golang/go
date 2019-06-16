@@ -2700,15 +2700,14 @@ func isAppendOfMake(n *Node) bool {
 		return false
 	}
 
-	// y must be either an integer constant or a variable of type int.
-	// typecheck checks that constant arguments to make are not negative and
-	// fit into an int.
-	// runtime.growslice uses int as type for the newcap argument.
-	// Constraining variables to be type int avoids the need for runtime checks
-	// that e.g. check if an int64 value fits into an int.
-	// TODO(moehrmann): support other integer types that always fit in an int
+	// y must be either an integer constant or the largest possible positive value
+	// of variable y needs to fit into an uint.
+
+	// typecheck made sure that constant arguments to make are not negative and fit into an int.
+
+	// The care of overflow of the len argument to make will be handled by an explicit check of int(len) < 0 during runtime.
 	y := second.Left
-	if !Isconst(y, CTINT) && y.Type.Etype != TINT {
+	if !Isconst(y, CTINT) && maxintval[y.Type.Etype].Cmp(maxintval[TUINT]) > 0 {
 		return false
 	}
 
@@ -2742,7 +2741,9 @@ func isAppendOfMake(n *Node) bool {
 //   }
 //   s
 func extendslice(n *Node, init *Nodes) *Node {
-	// isAppendOfMake made sure l2 fits in an int.
+	// isAppendOfMake made sure all possible positive values of l2 fit into an uint.
+	// The case of l2 overflow when converting from e.g. uint to int is handled by an explicit
+	// check of l2 < 0 at runtime which is generated below.
 	l2 := conv(n.List.Second().Left, types.Types[TINT])
 	l2 = typecheck(l2, ctxExpr)
 	n.List.SetSecond(l2) // walkAppendArgs expects l2 in n.List.Second().

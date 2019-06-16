@@ -19,29 +19,36 @@ func main() {
 	shouldPanic("cap out of range", func() { _ = make(T, 0, n) })
 	shouldPanic("len out of range", func() { _ = make(T, int64(n)) })
 	shouldPanic("cap out of range", func() { _ = make(T, 0, int64(n)) })
+	testMakeInAppend(n)
+
 	var t *byte
 	if unsafe.Sizeof(t) == 8 {
 		// Test mem > maxAlloc
 		var n2 int64 = 1 << 59
 		shouldPanic("len out of range", func() { _ = make(T, int(n2)) })
 		shouldPanic("cap out of range", func() { _ = make(T, 0, int(n2)) })
+		testMakeInAppend(int(n2))
 		// Test elem.size*cap overflow
 		n2 = 1<<63 - 1
 		shouldPanic("len out of range", func() { _ = make(T, int(n2)) })
 		shouldPanic("cap out of range", func() { _ = make(T, 0, int(n2)) })
+		testMakeInAppend(int(n2))
+		var x uint64 = 1<<64 - 1
+		shouldPanic("len out of range", func() { _ = make([]byte, x) })
+		shouldPanic("cap out of range", func() { _ = make(T, 0, x) })
+		testMakeInAppend(int(x))
 	} else {
 		n = 1<<31 - 1
 		shouldPanic("len out of range", func() { _ = make(T, n) })
 		shouldPanic("cap out of range", func() { _ = make(T, 0, n) })
 		shouldPanic("len out of range", func() { _ = make(T, int64(n)) })
 		shouldPanic("cap out of range", func() { _ = make(T, 0, int64(n)) })
+		testMakeInAppend(n)
+		var x uint64 = 1<<32 - 1
+		shouldPanic("len out of range", func() { _ = make([]byte, x) })
+		shouldPanic("cap out of range", func() { _ = make(T, 0, x) })
+		testMakeInAppend(int(x))
 	}
-
-	// Test make in append panics since the gc compiler optimizes makes in appends.
-	shouldPanic("len out of range", func() { _ = append(T{}, make(T, n)...) })
-	shouldPanic("cap out of range", func() { _ = append(T{}, make(T, 0, n)...) })
-	shouldPanic("len out of range", func() { _ = append(T{}, make(T, int64(n))...) })
-	shouldPanic("cap out of range", func() { _ = append(T{}, make(T, 0, int64(n))...) })
 }
 
 func shouldPanic(str string, f func()) {
@@ -57,4 +64,22 @@ func shouldPanic(str string, f func()) {
 	}()
 
 	f()
+}
+
+// Test make in append panics since the gc compiler optimizes makes in appends.
+func testMakeInAppend(n int) {
+	lengths := []int{0, 1}
+	for _, length := range lengths {
+		t := make(T, length)
+		shouldPanic("len out of range", func() { _ = append(t, make(T, n)...) })
+		shouldPanic("cap out of range", func() { _ = append(t, make(T, 0, n)...) })
+		shouldPanic("len out of range", func() { _ = append(t, make(T, int64(n))...) })
+		shouldPanic("cap out of range", func() { _ = append(t, make(T, 0, int64(n))...) })
+		shouldPanic("len out of range", func() { _ = append(t, make(T, uint64(n))...) })
+		shouldPanic("cap out of range", func() { _ = append(t, make(T, 0, uint64(n))...) })
+		shouldPanic("len out of range", func() { _ = append(t, make(T, int(n))...) })
+		shouldPanic("cap out of range", func() { _ = append(t, make(T, 0, int(n))...) })
+		shouldPanic("len out of range", func() { _ = append(t, make(T, uint(n))...) })
+		shouldPanic("cap out of range", func() { _ = append(t, make(T, 0, uint(n))...) })
+	}
 }
