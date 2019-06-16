@@ -102,6 +102,7 @@
 // Lowering shifts
 // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
 
+(Lsh64x64 x y) && shiftIsBounded(v) -> (I64Shl x y)
 (Lsh64x64 x y) -> (Select (I64Shl x y) (I64Const [0]) (I64LtU y (I64Const [64])))
 (Lsh64x(32|16|8) x y) -> (Lsh64x64 x (ZeroExt(32|16|8)to64 y))
 
@@ -114,6 +115,7 @@
 (Lsh8x64  x y) -> (Lsh64x64 x y)
 (Lsh8x(32|16|8)  x y) -> (Lsh64x64 x (ZeroExt(32|16|8)to64 y))
 
+(Rsh64Ux64 x y) && shiftIsBounded(v) -> (I64ShrU x y)
 (Rsh64Ux64 x y) -> (Select (I64ShrU x y) (I64Const [0]) (I64LtU y (I64Const [64])))
 (Rsh64Ux(32|16|8) x y) -> (Rsh64Ux64 x (ZeroExt(32|16|8)to64 y))
 
@@ -129,6 +131,7 @@
 // Signed right shift needs to return 0/-1 if shift amount is >= width of shifted value.
 // We implement this by setting the shift value to (width - 1) if the shift value is >= width.
 
+(Rsh64x64 x y) && shiftIsBounded(v) -> (I64ShrS x y)
 (Rsh64x64 x y) -> (I64ShrS x (Select <typ.Int64> y (I64Const [63]) (I64LtU y (I64Const [64]))))
 (Rsh64x(32|16|8) x y) -> (Rsh64x64 x (ZeroExt(32|16|8)to64 y))
 
