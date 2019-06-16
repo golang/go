@@ -2729,6 +2729,20 @@ func rewriteValueWasm_OpLsh64x64_0(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Lsh64x64 x y)
+	// cond: shiftIsBounded(v)
+	// result: (I64Shl x y)
+	for {
+		y := v.Args[1]
+		x := v.Args[0]
+		if !(shiftIsBounded(v)) {
+			break
+		}
+		v.reset(OpWasmI64Shl)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (Lsh64x64 x y)
 	// cond:
 	// result: (Select (I64Shl x y) (I64Const [0]) (I64LtU y (I64Const [64])))
 	for {
@@ -4256,6 +4270,20 @@ func rewriteValueWasm_OpRsh64Ux64_0(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Rsh64Ux64 x y)
+	// cond: shiftIsBounded(v)
+	// result: (I64ShrU x y)
+	for {
+		y := v.Args[1]
+		x := v.Args[0]
+		if !(shiftIsBounded(v)) {
+			break
+		}
+		v.reset(OpWasmI64ShrU)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (Rsh64Ux64 x y)
 	// cond:
 	// result: (Select (I64ShrU x y) (I64Const [0]) (I64LtU y (I64Const [64])))
 	for {
@@ -4332,6 +4360,20 @@ func rewriteValueWasm_OpRsh64x32_0(v *Value) bool {
 func rewriteValueWasm_OpRsh64x64_0(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh64x64 x y)
+	// cond: shiftIsBounded(v)
+	// result: (I64ShrS x y)
+	for {
+		y := v.Args[1]
+		x := v.Args[0]
+		if !(shiftIsBounded(v)) {
+			break
+		}
+		v.reset(OpWasmI64ShrS)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
 	// match: (Rsh64x64 x y)
 	// cond:
 	// result: (I64ShrS x (Select <typ.Int64> y (I64Const [63]) (I64LtU y (I64Const [64]))))
