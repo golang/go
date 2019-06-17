@@ -1,0 +1,6 @@
+package unresolved
+
+func foo(interface{}) { //@item(unresolvedFoo, "foo(interface{})", "", "func")
+	// don't crash on fake "resolved" type
+	foo(func(i, j f //@complete(" //", unresolvedFoo)
+}

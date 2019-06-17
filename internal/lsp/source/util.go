@@ -74,7 +74,7 @@ func resolveInvalid(obj types.Object, node ast.Node, info *types.Info) types.Obj
 		default:
 			return nil
 		}
-		typ := types.NewNamed(types.NewTypeName(token.NoPos, obj.Pkg(), typename, nil), nil, nil)
+		typ := types.NewNamed(types.NewTypeName(token.NoPos, obj.Pkg(), typename, nil), types.Typ[types.Invalid], nil)
 		return types.NewVar(obj.Pos(), obj.Pkg(), obj.Name(), typ)
 	}
 	var resultExpr ast.Expr
@@ -125,6 +125,11 @@ func deref(typ types.Type) types.Type {
 		return p.Elem()
 	}
 	return typ
+}
+
+func isTypeName(obj types.Object) bool {
+	_, ok := obj.(*types.TypeName)
+	return ok
 }
 
 func formatParams(tup *types.Tuple, variadic bool, qf types.Qualifier) []string {
