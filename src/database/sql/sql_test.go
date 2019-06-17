@@ -38,7 +38,9 @@ func init() {
 	}
 	putConnHook = func(db *DB, c *driverConn) {
 		idx := -1
-		for i, v := range db.freeConn {
+		for i := 0; i < len(db.freeConnCh); i++ {
+			v := <-db.freeConnCh
+			db.freeConnCh <- v
 			if v == c {
 				idx = i
 				break
@@ -150,14 +152,16 @@ func closeDB(t testing.TB, db *DB) {
 		}
 	})
 	db.mu.Lock()
-	for i, dc := range db.freeConn {
+	for i := 1; i < len(db.freeConnCh); i++ {
+		dc := <-db.freeConnCh
+		db.freeConnCh <- dc
 		if n := len(dc.openStmt); n > 0 {
 			// Just a sanity check. This is legal in
 			// general, but if we make the tests clean up
 			// their statements first, then we can safely
 			// verify this is always zero here, and any
 			// other value is a leak.
-			t.Errorf("while closing db, freeConn %d/%d had %d open stmts; want 0", i, len(db.freeConn), n)
+			t.Errorf("while closing db, freeConn %d/%d had %d open stmts; want 0", i, len(db.freeConnCh), n)
 		}
 	}
 	db.mu.Unlock()
@@ -176,13 +180,23 @@ func closeDB(t testing.TB, db *DB) {
 	}
 }
 
+// freeFakeConn assumes that db has exactly 1 idle conn and returns
+// its fakeConn while also leaving it in the db.freeConnCh
+func freeFakeConn(t *testing.T, db *DB) *fakeConn {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	if n := len(db.freeConnCh); n != 1 {
+		t.Fatalf("free conns = %d; want 1", n)
+	}
+	conn := <-db.freeConnCh
+	db.freeConnCh <- conn
+	return conn.ci.(*fakeConn)
+}
+
 // numPrepares assumes that db has exactly 1 idle conn and returns
 // its count of calls to Prepare
 func numPrepares(t *testing.T, db *DB) int {
-	if n := len(db.freeConn); n != 1 {
-		t.Fatalf("free conns = %d; want 1", n)
-	}
-	return db.freeConn[0].ci.(*fakeConn).numPrepare
+	return freeFakeConn(t, db).numPrepare
 }
 
 func (db *DB) numDeps() int {
@@ -207,7 +221,7 @@ func (db *DB) numDepsPollUntil(want int, d time.Duration) int {
 func (db *DB) numFreeConns() int {
 	db.mu.Lock()
 	defer db.mu.Unlock()
-	return len(db.freeConn)
+	return len(db.freeConnCh)
 }
 
 func (db *DB) numOpenConns() int {
@@ -1627,10 +1641,7 @@ func TestQueryRowClosingStmt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(db.freeConn) != 1 {
-		t.Fatalf("expected 1 free conn")
-	}
-	fakeConn := db.freeConn[0].ci.(*fakeConn)
+	fakeConn := freeFakeConn(t, db)
 	if made, closed := fakeConn.stmtsMade, fakeConn.stmtsClosed; made != closed {
 		t.Errorf("statement close mismatch: made %d, closed %d", made, closed)
 	}
@@ -1901,13 +1912,13 @@ func TestMaxIdleConns(t *testing.T) {
 		t.Fatal(err)
 	}
 	tx.Commit()
-	if got := len(db.freeConn); got != 1 {
+	if got := db.numFreeConns(); got != 1 {
 		t.Errorf("freeConns = %d; want 1", got)
 	}
 
 	db.SetMaxIdleConns(0)
 
-	if got := len(db.freeConn); got != 0 {
+	if got := db.numFreeConns(); got != 0 {
 		t.Errorf("freeConns after set to zero = %d; want 0", got)
 	}
 
@@ -1916,7 +1927,7 @@ func TestMaxIdleConns(t *testing.T) {
 		t.Fatal(err)
 	}
 	tx.Commit()
-	if got := len(db.freeConn); got != 0 {
+	if got := db.numFreeConns(); got != 0 {
 		t.Errorf("freeConns = %d; want 0", got)
 	}
 }
@@ -2418,10 +2429,11 @@ func TestCloseConnBeforeStmts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(db.freeConn) != 1 {
-		t.Fatalf("expected 1 freeConn; got %d", len(db.freeConn))
+	if got := db.numFreeConns(); got != 1 {
+		t.Fatalf("expected 1 freeConn; got %d", got)
 	}
-	dc := db.freeConn[0]
+	dc := <-db.freeConnCh
+	db.freeConnCh <- dc
 	if dc.closed {
 		t.Errorf("conn shouldn't be closed")
 	}
@@ -2543,11 +2555,13 @@ func TestManyErrBadConn(t *testing.T) {
 		defer db.mu.Unlock()
 		if db.numOpen != nconn {
 			t.Fatalf("unexpected numOpen %d (was expecting %d)", db.numOpen, nconn)
-		} else if len(db.freeConn) != nconn {
-			t.Fatalf("unexpected len(db.freeConn) %d (was expecting %d)", len(db.freeConn), nconn)
+		} else if len(db.freeConnCh) != nconn {
+			t.Fatalf("unexpected len(db.freeConn) %d (was expecting %d)", len(db.freeConnCh), nconn)
 		}
-		for _, conn := range db.freeConn {
+		for i := 0; i < len(db.freeConnCh); i++ {
+			conn := <-db.freeConnCh
 			conn.Lock()
+			db.freeConnCh <- conn
 			conn.ci.(*fakeConn).stickyBad = true
 			conn.Unlock()
 		}
