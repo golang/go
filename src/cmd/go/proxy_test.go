@@ -182,6 +182,57 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Module proxy request: /mod/path/@latest
+	// Rewrite to /mod/path/@v/<latest>.info where <latest> is the semantically
+	// latest version, including pseudo-versions.
+	if i := strings.LastIndex(path, "/@latest"); i >= 0 {
+		enc := path[:i]
+		modPath, err := module.DecodePath(enc)
+		if err != nil {
+			if !quiet {
+				fmt.Fprintf(os.Stderr, "go proxy_test: %v\n", err)
+			}
+			http.NotFound(w, r)
+			return
+		}
+
+		// Imitate what "latest" does in direct mode and what proxy.golang.org does.
+		// Use the latest released version.
+		// If there is no released version, use the latest prereleased version.
+		// Otherwise, use the latest pseudoversion.
+		var latestRelease, latestPrerelease, latestPseudo string
+		for _, m := range modList {
+			if m.Path != modPath {
+				continue
+			}
+			if modfetch.IsPseudoVersion(m.Version) && (latestPseudo == "" || semver.Compare(latestPseudo, m.Version) > 0) {
+				latestPseudo = m.Version
+			} else if semver.Prerelease(m.Version) != "" && (latestPrerelease == "" || semver.Compare(latestPrerelease, m.Version) > 0) {
+				latestPrerelease = m.Version
+			} else if latestRelease == "" || semver.Compare(latestRelease, m.Version) > 0 {
+				latestRelease = m.Version
+			}
+		}
+		var latest string
+		if latestRelease != "" {
+			latest = latestRelease
+		} else if latestPrerelease != "" {
+			latest = latestPrerelease
+		} else if latestPseudo != "" {
+			latest = latestPseudo
+		} else {
+			http.NotFound(w, r)
+			return
+		}
+
+		encVers, err := module.EncodeVersion(latest)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		path = fmt.Sprintf("%s/@v/%s.info", enc, encVers)
+	}
+
 	// Module proxy request: /mod/path/@v/version[.suffix]
 	i := strings.Index(path, "/@v/")
 	if i < 0 {
@@ -198,16 +249,22 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if file == "list" {
-		n := 0
+		// list returns a list of versions, not including pseudo-versions.
+		// If the module has no tagged versions, we should serve an empty 200.
+		// If the module doesn't exist, we should serve 404 or 410.
+		found := false
 		for _, m := range modList {
-			if m.Path == path && !modfetch.IsPseudoVersion(m.Version) {
+			if m.Path != path {
+				continue
+			}
+			found = true
+			if !modfetch.IsPseudoVersion(m.Version) {
 				if err := module.Check(m.Path, m.Version); err == nil {
 					fmt.Fprintf(w, "%s\n", m.Version)
-					n++
 				}
 			}
 		}
-		if n == 0 {
+		if !found {
 			http.NotFound(w, r)
 		}
 		return
