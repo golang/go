@@ -26,12 +26,12 @@ func GOMAXPROCS(n int) int {
 		return ret
 	}
 
-	stopTheWorld("GOMAXPROCS")
+	stopTheWorldGC("GOMAXPROCS")
 
 	// newprocs will be processed by startTheWorld
 	newprocs = int32(n)
 
-	startTheWorld()
+	startTheWorldGC()
 	return ret
 }
 
