@@ -229,12 +229,11 @@ func runContainsQueries(cfg *Config, driver driver, response *responseDeduper, q
 		}
 		dirResponse, err := driver(cfg, pattern)
 		if err != nil {
-			return err
-		}
-		if len(dirResponse.Roots) == 0 {
 			// Couldn't find a package for the directory. Try to load the file as an ad-hoc package.
+			var queryErr error
 			dirResponse, err = driver(cfg, query)
-			if err != nil {
+			if queryErr != nil {
+				// Return the original error if the attempt to fall back failed.
 				return err
 			}
 		}
