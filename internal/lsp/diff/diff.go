@@ -200,15 +200,14 @@ func shortestEditSequence(a, b []string) ([][]int, int) {
 
 			// Return if we've exceeded the maximum values.
 			if x == M && y == N {
-				// Save the state of the array, and exit function
+				// Makes sure to save the state of the array before returning.
 				copy(copyV, V)
 				trace[d] = copyV
-
 				return trace, offset
 			}
 		}
 
-		// Save the state of the array, and continue loop
+		// Save the state of the array.
 		copy(copyV, V)
 		trace[d] = copyV
 	}

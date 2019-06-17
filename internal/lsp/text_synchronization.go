@@ -7,6 +7,7 @@ package lsp
 import (
 	"bytes"
 	"context"
+	"fmt"
 
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -25,23 +26,29 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 		return jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "no content changes provided")
 	}
 
-	var text string
-	switch s.textDocumentSyncKind {
-	case protocol.Incremental:
-		var err error
-		text, err = s.applyChanges(ctx, params)
-		if err != nil {
-			return err
+	uri := span.NewURI(params.TextDocument.URI)
+
+	// Check if the client sent the full content of the file.
+	// We accept a full content change even if the server expected incremental changes.
+	text, isFullChange := fullChange(params.ContentChanges)
+
+	// We only accept an incremental change if the server expected it.
+	if !isFullChange {
+		switch s.textDocumentSyncKind {
+		case protocol.Full:
+			return fmt.Errorf("expected a full content change, received incremental changes for %s", uri)
+		case protocol.Incremental:
+			// Determine the new file content.
+			var err error
+			text, err = s.applyChanges(ctx, uri, params.ContentChanges)
+			if err != nil {
+				return err
+			}
 		}
-	case protocol.Full:
-		// We expect the full content of file, i.e. a single change with no range.
-		change := params.ContentChanges[0]
-		if change.RangeLength != 0 {
-			return jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "unexpected change range provided")
-		}
-		text = change.Text
 	}
-	return s.cacheAndDiagnose(ctx, span.NewURI(params.TextDocument.URI), []byte(text))
+
+	// Cache the new file content and send fresh diagnostics.
+	return s.cacheAndDiagnose(ctx, uri, []byte(text))
 }
 
 func (s *Server) cacheAndDiagnose(ctx context.Context, uri span.URI, content []byte) error {
@@ -56,23 +63,24 @@ func (s *Server) cacheAndDiagnose(ctx context.Context, uri span.URI, content []b
 	return nil
 }
 
-func (s *Server) applyChanges(ctx context.Context, params *protocol.DidChangeTextDocumentParams) (string, error) {
-	if len(params.ContentChanges) == 1 && params.ContentChanges[0].Range == nil {
-		// If range is empty, we expect the full content of file, i.e. a single change with no range.
-		change := params.ContentChanges[0]
-		if change.RangeLength != 0 {
-			return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "unexpected change range provided")
-		}
-		return change.Text, nil
+func fullChange(changes []protocol.TextDocumentContentChangeEvent) (string, bool) {
+	if len(changes) > 1 {
+		return "", false
 	}
+	// The length of the changes must be 1 at this point.
+	if changes[0].Range == nil && changes[0].RangeLength == 0 {
+		return changes[0].Text, true
+	}
+	return "", false
+}
 
-	uri := span.NewURI(params.TextDocument.URI)
+func (s *Server) applyChanges(ctx context.Context, uri span.URI, changes []protocol.TextDocumentContentChangeEvent) (string, error) {
 	content, _, err := s.session.GetFile(uri).Read(ctx)
 	if err != nil {
 		return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "file not found")
 	}
 	fset := s.session.Cache().FileSet()
-	for _, change := range params.ContentChanges {
+	for _, change := range changes {
 		// Update column mapper along with the content.
 		m := protocol.NewColumnMapper(uri, uri.Filename(), fset, nil, content)
 
