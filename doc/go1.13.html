@@ -274,15 +274,12 @@ TODO
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
     <p><!-- CL 156366 -->
-      TODO: <a href="https://golang.org/cl/156366">https://golang.org/cl/156366</a>: use DNS over TCP when use-vc is set in resolv.conf
-    </p>
-
-    <p><!-- CL 166297 -->
-      TODO: <a href="https://golang.org/cl/166297">https://golang.org/cl/166297</a>: use libSystem bindings for DNS resolution on macos if cgo is unavailable
+      On Unix systems where <code>use-vc</code> is set in <code>resolve.conf</code>, TCP is used for DNS resolution.
     </p>
 
     <p><!-- CL 170678 -->
-      TODO: <a href="https://golang.org/cl/170678">https://golang.org/cl/170678</a>: add KeepAlive field to ListenConfig
+      The new field <a href="/pkg/net/#ListenConfig.KeepAlive"><code>ListenConfig.KeepAlive</code></a>
+      specifies the keep-alive period for network connections accepted by the listener.
     </p>
 
 </dl><!-- net -->
