@@ -3,6 +3,7 @@ package packages
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"go/parser"
 	"go/token"
 	"path"
@@ -16,16 +17,13 @@ import (
 // files that don't exist on disk to an overlay. The results can be
 // sometimes incorrect.
 // TODO(matloob): Handle unsupported cases, including the following:
-// - test files
-// - adding test and non-test files to test variants of packages
 // - determining the correct package to add given a new import path
-// - creating packages that don't exist
-func processGolistOverlay(cfg *Config, response *driverResponse) (modifiedPkgs, needPkgs []string, err error) {
+func processGolistOverlay(cfg *Config, response *responseDeduper) (modifiedPkgs, needPkgs []string, err error) {
 	havePkgs := make(map[string]string) // importPath -> non-test package ID
 	needPkgsSet := make(map[string]bool)
 	modifiedPkgsSet := make(map[string]bool)
 
-	for _, pkg := range response.Packages {
+	for _, pkg := range response.dr.Packages {
 		// This is an approximation of import path to id. This can be
 		// wrong for tests, vendored packages, and a number of other cases.
 		havePkgs[pkg.PkgPath] = pkg.ID
@@ -36,18 +34,32 @@ func processGolistOverlay(cfg *Config, response *driverResponse) (modifiedPkgs, 
 
 	for opath, contents := range cfg.Overlay {
 		base := filepath.Base(opath)
-		if strings.HasSuffix(opath, "_test.go") {
-			// Overlays don't support adding new test files yet.
-			// TODO(matloob): support adding new test files.
-			continue
-		}
 		dir := filepath.Dir(opath)
 		var pkg *Package
+		var testVariantOf *Package // if opath is a test file, this is the package it is testing
 		var fileExists bool
-		for _, p := range response.Packages {
+		isTest := strings.HasSuffix(opath, "_test.go")
+		pkgName, ok := extractPackageName(opath, contents)
+		if !ok {
+			// Don't bother adding a file that doesn't even have a parsable package statement
+			// to the overlay.
+			continue
+		}
+	nextPackage:
+		for _, p := range response.dr.Packages {
+			if pkgName != p.Name {
+				continue
+			}
 			for _, f := range p.GoFiles {
 				if !sameFile(filepath.Dir(f), dir) {
 					continue
+				}
+				if isTest && !hasTestFiles(p) {
+					// TODO(matloob): Are there packages other than the 'production' variant
+					// of a package that this can match? This shouldn't match the test main package
+					// because the file is generated in another directory.
+					testVariantOf = p
+					continue nextPackage
 				}
 				pkg = p
 				if filepath.Base(f) == base {
@@ -82,13 +94,16 @@ func processGolistOverlay(cfg *Config, response *driverResponse) (modifiedPkgs, 
 			if pkgPath == "" {
 				continue
 			}
-			pkgName, ok := extractPackageName(opath, contents)
-			if !ok {
-				continue
+			isXTest := strings.HasSuffix(pkgName, "_test")
+			if isXTest {
+				pkgPath += "_test"
 			}
 			id := pkgPath
+			if isTest && !isXTest {
+				id = fmt.Sprintf("%s [%s.test]", pkgPath, pkgPath)
+			}
 			// Try to reclaim a package with the same id if it exists in the response.
-			for _, p := range response.Packages {
+			for _, p := range response.dr.Packages {
 				if reclaimPackage(p, id, opath, contents) {
 					pkg = p
 					break
@@ -97,9 +112,13 @@ func processGolistOverlay(cfg *Config, response *driverResponse) (modifiedPkgs, 
 			// Otherwise, create a new package
 			if pkg == nil {
 				pkg = &Package{PkgPath: pkgPath, ID: id, Name: pkgName, Imports: make(map[string]*Package)}
-				// TODO(matloob): Is it okay to amend response.Packages this way?
-				response.Packages = append(response.Packages, pkg)
+				response.addPackage(pkg)
 				havePkgs[pkg.PkgPath] = id
+				// Add the production package's sources for a test variant.
+				if isTest && !isXTest && testVariantOf != nil {
+					pkg.GoFiles = append(pkg.GoFiles, testVariantOf.GoFiles...)
+					pkg.CompiledGoFiles = append(pkg.CompiledGoFiles, testVariantOf.CompiledGoFiles...)
+				}
 			}
 		}
 		if !fileExists {
@@ -143,7 +162,7 @@ func processGolistOverlay(cfg *Config, response *driverResponse) (modifiedPkgs, 
 
 	// Do another pass now that new packages have been created to determine the
 	// set of missing packages.
-	for _, pkg := range response.Packages {
+	for _, pkg := range response.dr.Packages {
 		for _, imp := range pkg.Imports {
 			pkgPath := toPkgPath(imp.ID)
 			if _, ok := havePkgs[pkgPath]; !ok {
@@ -161,6 +180,15 @@ func processGolistOverlay(cfg *Config, response *driverResponse) (modifiedPkgs, 
 		modifiedPkgs = append(modifiedPkgs, pkg)
 	}
 	return modifiedPkgs, needPkgs, err
+}
+
+func hasTestFiles(p *Package) bool {
+	for _, f := range p.GoFiles {
+		if strings.HasSuffix(f, "_test.go") {
+			return true
+		}
+	}
+	return false
 }
 
 // determineRootDirs returns a mapping from directories code can be contained in to the

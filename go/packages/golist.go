@@ -158,7 +158,7 @@ extractQueries:
 		}
 	}
 
-	modifiedPkgs, needPkgs, err := processGolistOverlay(cfg, response.dr)
+	modifiedPkgs, needPkgs, err := processGolistOverlay(cfg, response)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +209,7 @@ func addNeededOverlayPackages(cfg *Config, driver driver, response *responseDedu
 	for _, pkg := range dr.Packages {
 		response.addPackage(pkg)
 	}
-	_, needPkgs, err := processGolistOverlay(cfg, response.dr)
+	_, needPkgs, err := processGolistOverlay(cfg, response)
 	if err != nil {
 		return err
 	}
