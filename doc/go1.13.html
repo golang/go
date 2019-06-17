@@ -149,9 +149,27 @@ TODO generally
 <h3 id="tls_1_3">TLS 1.3</h3>
 
 <p>
-TODO; link to <a href="/doc/go1.12#tls_1_3">Go 1.12 notes</a>.
+  As announced in Go 1.12, Go 1.13 enables support for TLS 1.3 in the
+  <code>crypto/tls</code> package by default. It can be disabled by adding the
+  value <code>tls13=0</code> to the <code>GODEBUG</code>
+  environment variable. The opt-out will be removed in Go 1.14.
 </p>
 
+<p>
+  See <a href="/doc/go1.12#tls_1_3">the Go 1.12 release notes</a> for important
+  compatibility information.
+</p>
+
+<h3 id="crypto/ed25519"><a href="/pkg/crypto/ed25519/">crypto/ed25519</a></h3>
+
+<p><!-- CL 174945, 182698 -->
+  The new <a href="/pkg/crypto/ed25519/"><code>crypto/ed25519</code></a>
+  package implements the Ed25519 signature
+  scheme. This functionality was previously provided by the
+  <a href="https://godoc.org/golang.org/x/crypto/ed25519"><code>golang.org/x/crypto/ed25519</code></a>
+  package, which becomes a wrapper for
+  <code>crypto/ed25519</code> when used with Go 1.13+.
+</p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
@@ -193,21 +211,25 @@ TODO
 
 </dl><!-- context -->
 
-<dl id="crypto/ed25519"><dt><a href="/pkg/crypto/ed25519/">crypto/ed25519</a></dt>
-  <dd>
-    <p><!-- CL 174945 -->
-      TODO: <a href="https://golang.org/cl/174945">https://golang.org/cl/174945</a>: promote from golang.org/x/crypto/ed25519
-    </p>
-
-</dl><!-- crypto/ed25519 -->
-
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
     <p><!-- CL 177698 -->
-      TODO: <a href="https://golang.org/cl/177698">https://golang.org/cl/177698</a>: add support for Ed25519 certificates in TLS 1.2 and 1.3
+      Ed25519 certificates are now supported in TLS versions 1.2 and 1.3.
     </p>
 
 </dl><!-- crypto/tls -->
+
+<dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
+  <dd>
+    <p><!-- CL 175478 -->
+      Ed25519 keys are now supported in certificates and certificate requests
+      according to <a href="https://www.rfc-editor.org/info/rfc8410">RFC 8410</a>, as well as by the
+      <a href="/pkg/crypto/x509/#ParsePKCS8PrivateKey"><code>ParsePKCS8PrivateKey</code></a>,
+      <a href="/pkg/crypto/x509/#MarshalPKCS8PrivateKey"><code>MarshalPKCS8PrivateKey</code></a>,
+      and <a href="/pkg/crypto/x509/#ParsePKIXPublicKey"><code>ParsePKIXPublicKey</code></a> functions.
+    </p>
+
+</dl><!-- crypto/x509 -->
 
 <dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
   <dd>
@@ -266,7 +288,12 @@ TODO
 <dl id="math/bits"><dt><a href="/pkg/math/bits/">math/bits</a></dt>
   <dd>
     <p><!-- CL 178177 -->
-      TODO: <a href="https://golang.org/cl/178177">https://golang.org/cl/178177</a>: document that Add, Sub, Mul, RotateLeft, ReverseBytes are constant time
+      The execution time of <a href="/pkg/math/bits/#Add"><code>Add</code></a>,
+      <a href="/pkg/math/bits/#Sub"><code>Sub</code></a>,
+      <a href="/pkg/math/bits/#Mul"><code>Mul</code></a>,
+      <a href="/pkg/math/bits/#RotateLeft"><code>RotateLeft</code></a>, and
+      <a href="/pkg/math/bits/#ReverseBytes"><code>ReverseBytes</code></a> is now
+      guaranteed to be independent of the inputs.
     </p>
 
 </dl><!-- math/bits -->
