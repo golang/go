@@ -265,6 +265,25 @@ TODO
   <code>0o660</code>, <code>1.2e3</code>, and <code>1i</code> after applying <code>gofmt</code>.
 </p>
 
+<h3 id="godoc"><code>godoc</code> and <code>go</code> <code>doc</code></h3>
+
+<p><!-- CL 174322 -->
+  The <code>godoc</code> webserver is no longer included in the main binary distribution.
+  To run the <code>godoc</code> webserver locally, manually install it first:
+<pre>
+go get golang.org/x/tools/cmd/godoc
+godoc
+</pre>
+</p>
+
+<p><!-- CL 177797 -->
+  The
+  <a href="/cmd/go/#hdr-Show_documentation_for_package_or_symbol"><code>go</code> <code>doc</code></a>
+  command now always includes the package clause in its output, except for
+  commands. This replaces the previous behavior where a heuristic was used,
+  causing the package clause to be omitted under certain conditions.
+</p>
+
 <h2 id="runtime">Runtime</h2>
 
 <p><!-- CL 161477 -->
@@ -333,7 +352,6 @@ TODO
 </p>
 
 <!-- CL 174125: https://golang.org/cl/174125: cmd/dist: add support for openbsd/arm64 -->
-<!-- CL 177797: https://golang.org/cl/177797: cmd/doc: always print package clause except for commands -->
 <!-- CL 173345: https://golang.org/cl/173345: cmd/go: add -trimpath build flag -->
 <!-- CL 173438: https://golang.org/cl/173438: cmd/go: change -tags to a comma-separated list -->
 <!-- CL 175983: https://golang.org/cl/175983: cmd/go: set the "generate" build tag in go generate, per design doc -->
