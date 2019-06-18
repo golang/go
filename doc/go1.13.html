@@ -520,15 +520,17 @@ TODO
 <dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
   <dd>
     <p><!-- CL 112155 -->
-      TODO: <a href="https://golang.org/cl/112155">https://golang.org/cl/112155</a>: stop rounding b.N
+      When running benchmarks, <a href="/pkg/testing/#B.N"><code>B.N</code></a> is no longer rounded.
     </p>
 
     <p><!-- CL 166717 -->
-      TODO: <a href="https://golang.org/cl/166717">https://golang.org/cl/166717</a>: add B.ReportMetric for custom benchmark metrics
+      The new method <a href="/pkg/testing/#B.ReportMetric"><code>B.ReportMetric</code></a> lets users report
+      custom benchmark metrics and override built-in metrics.
     </p>
 
     <p><!-- CL 173722 -->
-      TODO: <a href="https://golang.org/cl/173722">https://golang.org/cl/173722</a>: delay flag registration; move to an Init function
+      Testing flags are now registered in the new <a href="/pkg/testing/#Init"><code>Init</code></a> function.
+      As a result, testing flags are now only registered when running a test binary.
     </p>
 
 </dl><!-- testing -->
