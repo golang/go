@@ -76,6 +76,9 @@ func (s *Server) initialize(ctx context.Context, params *protocol.InitializePara
 			TextDocumentSync: &protocol.TextDocumentSyncOptions{
 				Change:    s.textDocumentSyncKind,
 				OpenClose: true,
+				Save: &protocol.SaveOptions{
+					IncludeText: false,
+				},
 			},
 			TypeDefinitionProvider: true,
 			Workspace: &struct {
