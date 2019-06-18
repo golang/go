@@ -303,6 +303,7 @@ func runAnalyses(ctx context.Context, v View, pkg Package, disabledAnalyses map[
 				return err
 			}
 		}
+		pkg.SetDiagnostics(r.diagnostics)
 	}
 	return nil
 }

@@ -36,6 +36,9 @@ type pkg struct {
 	// and analysis-to-analysis (horizontal) dependencies.
 	mu       sync.Mutex
 	analyses map[*analysis.Analyzer]*analysisEntry
+
+	diagMu      sync.Mutex
+	diagnostics []analysis.Diagnostic
 }
 
 // packageID is a type that abstracts a package ID.
@@ -183,4 +186,16 @@ func (pkg *pkg) GetImport(pkgPath string) source.Package {
 	}
 	// Don't return a nil pointer because that still satisfies the interface.
 	return nil
+}
+
+func (pkg *pkg) SetDiagnostics(diags []analysis.Diagnostic) {
+	pkg.diagMu.Lock()
+	defer pkg.diagMu.Unlock()
+	pkg.diagnostics = diags
+}
+
+func (pkg *pkg) GetDiagnostics() []analysis.Diagnostic {
+	pkg.diagMu.Lock()
+	defer pkg.diagMu.Unlock()
+	return pkg.diagnostics
 }
