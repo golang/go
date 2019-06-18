@@ -58,7 +58,7 @@ var updateGolden = flag.Bool("golden", false, "Update golden files")
 
 type Diagnostics map[span.URI][]source.Diagnostic
 type CompletionItems map[token.Pos]*source.CompletionItem
-type Completions map[span.Span][]token.Pos
+type Completions map[span.Span]Completion
 type CompletionSnippets map[span.Span]CompletionSnippet
 type FoldingRanges []span.Span
 type Formats []span.Span
@@ -123,6 +123,21 @@ type Definition struct {
 	IsType    bool
 	OnlyHover bool
 	Src, Def  span.Span
+}
+
+type CompletionTestType int
+
+const (
+	// Full means candidates in test must match full list of candidates.
+	CompletionFull CompletionTestType = iota
+
+	// Partial means candidates in test must be valid and in the right relative order.
+	CompletionPartial
+)
+
+type Completion struct {
+	CompletionItems []token.Pos
+	Type            CompletionTestType
 }
 
 type CompletionSnippet struct {
@@ -232,24 +247,25 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 
 	// Collect any data that needs to be used by subsequent tests.
 	if err := data.Exported.Expect(map[string]interface{}{
-		"diag":         data.collectDiagnostics,
-		"item":         data.collectCompletionItems,
-		"complete":     data.collectCompletions,
-		"fold":         data.collectFoldingRanges,
-		"format":       data.collectFormats,
-		"import":       data.collectImports,
-		"godef":        data.collectDefinitions,
-		"typdef":       data.collectTypeDefinitions,
-		"hover":        data.collectHoverDefinitions,
-		"highlight":    data.collectHighlights,
-		"refs":         data.collectReferences,
-		"rename":       data.collectRenames,
-		"prepare":      data.collectPrepareRenames,
-		"symbol":       data.collectSymbols,
-		"signature":    data.collectSignatures,
-		"snippet":      data.collectCompletionSnippets,
-		"link":         data.collectLinks,
-		"suggestedfix": data.collectSuggestedFixes,
+		"diag":            data.collectDiagnostics,
+		"item":            data.collectCompletionItems,
+		"complete":        data.collectCompletions(CompletionFull),
+		"completePartial": data.collectCompletions(CompletionPartial),
+		"fold":            data.collectFoldingRanges,
+		"format":          data.collectFormats,
+		"import":          data.collectImports,
+		"godef":           data.collectDefinitions,
+		"typdef":          data.collectTypeDefinitions,
+		"hover":           data.collectHoverDefinitions,
+		"highlight":       data.collectHighlights,
+		"refs":            data.collectReferences,
+		"rename":          data.collectRenames,
+		"prepare":         data.collectPrepareRenames,
+		"symbol":          data.collectSymbols,
+		"signature":       data.collectSignatures,
+		"snippet":         data.collectCompletionSnippets,
+		"link":            data.collectLinks,
+		"suggestedfix":    data.collectSuggestedFixes,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -567,8 +583,13 @@ func summarizeDiagnostics(i int, want []source.Diagnostic, got []source.Diagnost
 	return msg.String()
 }
 
-func (data *Data) collectCompletions(src span.Span, expected []token.Pos) {
-	data.Completions[src] = expected
+func (data *Data) collectCompletions(typ CompletionTestType) func(span.Span, []token.Pos) {
+	return func(src span.Span, expected []token.Pos) {
+		data.Completions[src] = Completion{
+			CompletionItems: expected,
+			Type:            typ,
+		}
+	}
 }
 
 func (data *Data) collectCompletionItems(pos token.Pos, args []string) {

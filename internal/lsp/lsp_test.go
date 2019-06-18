@@ -117,9 +117,9 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 	// Set this as a default.
 	modified.Completion.Documentation = true
 
-	for src, itemList := range data {
+	for src, test := range data {
 		var want []source.CompletionItem
-		for _, pos := range itemList {
+		for _, pos := range test.CompletionItems {
 			want = append(want, *items[pos])
 		}
 
@@ -138,8 +138,16 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			}
 			got = append(got, item)
 		}
-		if diff := diffCompletionItems(t, src, want, got); diff != "" {
-			t.Errorf("%s: %s", src, diff)
+
+		switch test.Type {
+		case tests.CompletionFull:
+			if diff := diffCompletionItems(want, got); diff != "" {
+				t.Errorf("%s: %s", src, diff)
+			}
+		case tests.CompletionPartial:
+			if msg := checkCompletionOrder(want, got); msg != "" {
+				t.Errorf("%s: %s", src, msg)
+			}
 		}
 	}
 
@@ -219,7 +227,7 @@ func isBuiltin(item protocol.CompletionItem) bool {
 
 // diffCompletionItems prints the diff between expected and actual completion
 // test results.
-func diffCompletionItems(t *testing.T, spn span.Span, want []source.CompletionItem, got []protocol.CompletionItem) string {
+func diffCompletionItems(want []source.CompletionItem, got []protocol.CompletionItem) string {
 	if len(got) != len(want) {
 		return summarizeCompletionItems(-1, want, got, "different lengths got %v want %v", len(got), len(want))
 	}
@@ -240,6 +248,43 @@ func diffCompletionItems(t *testing.T, spn span.Span, want []source.CompletionIt
 			return summarizeCompletionItems(i, want, got, "incorrect Kind got %v want %v", g.Kind, wkind)
 		}
 	}
+	return ""
+}
+
+func checkCompletionOrder(want []source.CompletionItem, got []protocol.CompletionItem) string {
+	var (
+		matchedIdxs []int
+		lastGotIdx  int
+		inOrder     = true
+	)
+	for _, w := range want {
+		var found bool
+		for i, g := range got {
+			if w.Label == g.Label && w.Detail == g.Detail && toProtocolCompletionItemKind(w.Kind) == g.Kind {
+				matchedIdxs = append(matchedIdxs, i)
+				found = true
+				if i < lastGotIdx {
+					inOrder = false
+				}
+				lastGotIdx = i
+				break
+			}
+		}
+		if !found {
+			return summarizeCompletionItems(-1, []source.CompletionItem{w}, got, "didn't find expected completion")
+		}
+	}
+
+	sort.Ints(matchedIdxs)
+	matched := make([]protocol.CompletionItem, 0, len(matchedIdxs))
+	for _, idx := range matchedIdxs {
+		matched = append(matched, got[idx])
+	}
+
+	if !inOrder {
+		return summarizeCompletionItems(-1, want, matched, "completions out of order")
+	}
+
 	return ""
 }
 

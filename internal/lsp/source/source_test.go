@@ -86,9 +86,9 @@ func (r *runner) Diagnostics(t *testing.T, data tests.Diagnostics) {
 
 func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests.CompletionSnippets, items tests.CompletionItems) {
 	ctx := r.ctx
-	for src, itemList := range data {
+	for src, test := range data {
 		var want []source.CompletionItem
-		for _, pos := range itemList {
+		for _, pos := range test.CompletionItems {
 			want = append(want, *items[pos])
 		}
 		f, err := r.view.GetFile(ctx, src.URI())
@@ -142,8 +142,15 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			}
 			got = append(got, item)
 		}
-		if diff := diffCompletionItems(t, src, want, got); diff != "" {
-			t.Errorf("%s: %s", src, diff)
+		switch test.Type {
+		case tests.CompletionFull:
+			if diff := diffCompletionItems(want, got); diff != "" {
+				t.Errorf("%s: %s", src, diff)
+			}
+		case tests.CompletionPartial:
+			if msg := checkCompletionOrder(want, got); msg != "" {
+				t.Errorf("%s: %s", src, msg)
+			}
 		}
 	}
 	for _, usePlaceholders := range []bool{true, false} {
@@ -207,7 +214,7 @@ func isBuiltin(item source.CompletionItem) bool {
 
 // diffCompletionItems prints the diff between expected and actual completion
 // test results.
-func diffCompletionItems(t *testing.T, spn span.Span, want []source.CompletionItem, got []source.CompletionItem) string {
+func diffCompletionItems(want []source.CompletionItem, got []source.CompletionItem) string {
 	sort.SliceStable(got, func(i, j int) bool {
 		return got[i].Score > got[j].Score
 	})
@@ -247,6 +254,43 @@ func diffCompletionItems(t *testing.T, spn span.Span, want []source.CompletionIt
 			return summarizeCompletionItems(i, want, got, "incorrect Kind got %v want %v", g.Kind, w.Kind)
 		}
 	}
+	return ""
+}
+
+func checkCompletionOrder(want []source.CompletionItem, got []source.CompletionItem) string {
+	var (
+		matchedIdxs []int
+		lastGotIdx  int
+		inOrder     = true
+	)
+	for _, w := range want {
+		var found bool
+		for i, g := range got {
+			if w.Label == g.Label && w.Detail == g.Detail && w.Kind == g.Kind {
+				matchedIdxs = append(matchedIdxs, i)
+				found = true
+				if i < lastGotIdx {
+					inOrder = false
+				}
+				lastGotIdx = i
+				break
+			}
+		}
+		if !found {
+			return summarizeCompletionItems(-1, []source.CompletionItem{w}, got, "didn't find expected completion")
+		}
+	}
+
+	sort.Ints(matchedIdxs)
+	matched := make([]source.CompletionItem, 0, len(matchedIdxs))
+	for _, idx := range matchedIdxs {
+		matched = append(matched, got[idx])
+	}
+
+	if !inOrder {
+		return summarizeCompletionItems(-1, want, matched, "completions out of order")
+	}
+
 	return ""
 }
 

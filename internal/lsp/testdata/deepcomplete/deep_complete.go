@@ -4,7 +4,7 @@
 
 package deepcomplete
 
-import "context" //@item(ctxPackage, "context", "\"context\"", "package")
+import "context"
 
 type deepA struct {
 	b deepB //@item(deepBField, "b", "deepB", "field")
@@ -26,15 +26,14 @@ func _() {
 func wantsContext(context.Context) {}
 
 func _() {
-	context.Background()             //@item(ctxBackground, "context.Background", "func() context.Context", "func", "Background returns a non-nil, empty Context.")
-	context.TODO()                   //@item(ctxTODO, "context.TODO", "func() context.Context", "func", "TODO returns a non-nil, empty Context.")
-	context.WithValue(nil, nil, nil) //@item(ctxWithValue, "context.WithValue", "func(parent context.Context, key interface{}, val interface{}) context.Context", "func", "WithValue returns a copy of parent in which the value associated with key is val.")
+	context.Background() //@item(ctxBackground, "context.Background", "func() context.Context", "func", "Background returns a non-nil, empty Context.")
+	context.TODO()       //@item(ctxTODO, "context.TODO", "func() context.Context", "func", "TODO returns a non-nil, empty Context.")
 
-	wantsContext(c) //@complete(")", ctxBackground, ctxTODO, ctxWithValue, ctxPackage)
+	wantsContext(c) //@completePartial(")", ctxBackground, ctxTODO)
 }
 
 func _() {
-	type deepCircle struct { //@item(deepCircleStruct, "deepCircle", "struct{...}", "struct")
+	type deepCircle struct {
 		*deepCircle
 	}
 	var circle deepCircle   //@item(deepCircle, "circle", "deepCircle", "var")
