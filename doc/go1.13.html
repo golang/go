@@ -103,16 +103,7 @@ TODO
   <code>go mod edit -go=1.13</code>.
 </p>
 
-
 <h2 id="ports">Ports</h2>
-
-<p>
-TODO
-</p>
-
-<p><!-- CL 174457 -->
-  TODO: <a href="https://golang.org/cl/174457">https://golang.org/cl/174457</a>: add new GOOS=illumos, split out of GOOS=solaris
-</p>
 
 <h3 id="android">Android</h3>
 
@@ -137,10 +128,31 @@ TODO
   FreeBSD 12.0 or later requires a kernel with the COMPAT_FREEBSD11 option set (this is the default).
 </p>
 
-<h3 id="aix-ppc64">AIX on PPC64</h3>
+<h3 id="illumos">Illumos</h3>
 
-<p><!-- CL 164003 -->
-  AIX on PPC64 now supports cgo and external linking.
+<p><!-- CL 174457 -->
+  Go now supports Illumos with <code>GOOS=illumos</code>.
+  The <code>illumos</code> build tag implies the <code>solaris</code>
+  build tag.
+</p>
+
+<h3 id="aix">AIX</h3>
+
+<p><!-- CL 164003, CL 169120 -->
+  AIX on PPC64 (<code>aix/ppc64</code>) now supports cgo, external
+  linking, and the <code>c-archive</code> and <code>pie</code> build
+  modes.
+</p>
+
+<h3 id="windows">Windows</h3>
+
+<p><!-- CL 178977 -->
+  The Windows version specified by internally-linked Windows binaries
+  is now Windows 7 rather than NT 4.0. This was already the minimum
+  required version for Go, but can affect the behavior of system calls
+  that have a backwards-compatibility mode. These will now behave as
+  documented. Externally-linked binaries (any program using cgo) have
+  always specified a more recent Windows version.
 </p>
 
 <h2 id="tools">Tools</h2>
@@ -170,6 +182,13 @@ TODO
   The compiler no longer emits floating point or complex constants
   to <code>go_asm.h</code> files. These have always been emitted in a
   form that could not be used as numeric constant in assembly code.
+</p>
+
+<h3 id="assembler">Assembler</h3>
+
+<p><!-- CL 157001 -->
+  The assembler now supports many of the atomic instructions
+  introduced in ARM v8.1.
 </p>
 
 <h2 id="runtime">Runtime</h2>
