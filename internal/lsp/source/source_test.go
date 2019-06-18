@@ -447,6 +447,79 @@ func (r *runner) Reference(t *testing.T, data tests.References) {
 	}
 }
 
+func (r *runner) Rename(t *testing.T, data tests.Renames) {
+	ctx := context.Background()
+	for spn, newText := range data {
+		uri := spn.URI()
+		filename := uri.Filename()
+
+		f, err := r.view.GetFile(ctx, spn.URI())
+		if err != nil {
+			t.Fatalf("failed for %v: %v", spn, err)
+		}
+
+		tok := f.GetToken(ctx)
+		pos := tok.Pos(spn.Start().Offset())
+
+		changes, err := source.Rename(context.Background(), r.view, f.(source.GoFile), pos, newText)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+
+		if len(changes) != 1 { // Renames must only affect a single file in these tests.
+			t.Errorf("rename failed for %s, edited %d files, wanted 1 file", newText, len(changes))
+			continue
+		}
+
+		edits := changes[uri]
+		if edits == nil {
+			t.Errorf("rename failed for %s, did not edit %s", newText, filename)
+			continue
+		}
+		data, _, err := f.Handle(ctx).Read(ctx)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+
+		got := applyEdits(string(data), edits)
+		tag := fmt.Sprintf("%s-rename", newText)
+		gorenamed := string(r.data.Golden(tag, filename, func() ([]byte, error) {
+			return []byte(got), nil
+		}))
+
+		if gorenamed != got {
+			t.Errorf("rename failed for %s, expected:\n%v\ngot:\n%v", newText, gorenamed, got)
+		}
+	}
+}
+
+func applyEdits(contents string, edits []source.TextEdit) string {
+	res := contents
+	sortSourceTextEdits(edits)
+
+	// Apply the edits from the end of the file forward
+	// to preserve the offsets
+	for i := len(edits) - 1; i >= 0; i-- {
+		edit := edits[i]
+		start := edit.Span.Start().Offset()
+		end := edit.Span.End().Offset()
+		tmp := res[0:start] + edit.NewText
+		res = tmp + res[end:]
+	}
+	return res
+}
+
+func sortSourceTextEdits(d []source.TextEdit) {
+	sort.Slice(d, func(i int, j int) bool {
+		if r := span.Compare(d[i].Span, d[j].Span); r != 0 {
+			return r < 0
+		}
+		return d[i].NewText < d[j].NewText
+	})
+}
+
 func (r *runner) Symbol(t *testing.T, data tests.Symbols) {
 	ctx := context.Background()
 	for uri, expectedSymbols := range data {

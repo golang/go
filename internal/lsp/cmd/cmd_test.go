@@ -54,6 +54,10 @@ func (r *runner) Reference(t *testing.T, data tests.References) {
 	//TODO: add command line references tests when it works
 }
 
+func (r *runner) Rename(t *testing.T, data tests.Renames) {
+	//TODO: add command line rename tests when it works
+}
+
 func (r *runner) Symbol(t *testing.T, data tests.Symbols) {
 	//TODO: add command line symbol tests when it works
 }

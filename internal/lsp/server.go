@@ -236,8 +236,8 @@ func (s *Server) OnTypeFormatting(context.Context, *protocol.DocumentOnTypeForma
 	return nil, notImplemented("OnTypeFormatting")
 }
 
-func (s *Server) Rename(context.Context, *protocol.RenameParams) (*protocol.WorkspaceEdit, error) {
-	return nil, notImplemented("Rename")
+func (s *Server) Rename(ctx context.Context, params *protocol.RenameParams) (*protocol.WorkspaceEdit, error) {
+	return s.rename(ctx, params)
 }
 
 func (s *Server) Declaration(context.Context, *protocol.TextDocumentPositionParams) ([]protocol.DeclarationLink, error) {

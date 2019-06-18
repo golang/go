@@ -34,6 +34,7 @@ const (
 	ExpectedTypeDefinitionsCount   = 2
 	ExpectedHighlightsCount        = 2
 	ExpectedReferencesCount        = 2
+	ExpectedRenamesCount           = 4
 	ExpectedSymbolsCount           = 1
 	ExpectedSignaturesCount        = 20
 	ExpectedLinksCount             = 2
@@ -57,6 +58,7 @@ type Imports []span.Span
 type Definitions map[span.Span]Definition
 type Highlights map[string][]span.Span
 type References map[span.Span][]span.Span
+type Renames map[span.Span]string
 type Symbols map[span.URI][]source.Symbol
 type SymbolsChildren map[string][]source.Symbol
 type Signatures map[span.Span]source.SignatureInformation
@@ -74,6 +76,7 @@ type Data struct {
 	Definitions        Definitions
 	Highlights         Highlights
 	References         References
+	Renames            Renames
 	Symbols            Symbols
 	symbolsChildren    SymbolsChildren
 	Signatures         Signatures
@@ -93,6 +96,7 @@ type Tests interface {
 	Definition(*testing.T, Definitions)
 	Highlight(*testing.T, Highlights)
 	Reference(*testing.T, References)
+	Rename(*testing.T, Renames)
 	Symbol(*testing.T, Symbols)
 	SignatureHelp(*testing.T, Signatures)
 	Link(*testing.T, Links)
@@ -134,6 +138,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		Definitions:        make(Definitions),
 		Highlights:         make(Highlights),
 		References:         make(References),
+		Renames:            make(Renames),
 		Symbols:            make(Symbols),
 		symbolsChildren:    make(SymbolsChildren),
 		Signatures:         make(Signatures),
@@ -214,6 +219,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		"hover":     data.collectHoverDefinitions,
 		"highlight": data.collectHighlights,
 		"refs":      data.collectReferences,
+		"rename":    data.collectRenames,
 		"symbol":    data.collectSymbols,
 		"signature": data.collectSignatures,
 		"snippet":   data.collectCompletionSnippets,
@@ -300,6 +306,14 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			t.Errorf("got %v references expected %v", len(data.References), ExpectedReferencesCount)
 		}
 		tests.Reference(t, data.References)
+	})
+
+	t.Run("Renames", func(t *testing.T) {
+		t.Helper()
+		if len(data.Renames) != ExpectedRenamesCount {
+			t.Errorf("got %v renames expected %v", len(data.Renames), ExpectedRenamesCount)
+		}
+		tests.Rename(t, data.Renames)
 	})
 
 	t.Run("Symbols", func(t *testing.T) {
@@ -471,6 +485,10 @@ func (data *Data) collectHighlights(name string, rng span.Span) {
 
 func (data *Data) collectReferences(src span.Span, expected []span.Span) {
 	data.References[src] = expected
+}
+
+func (data *Data) collectRenames(src span.Span, newText string) {
+	data.Renames[src] = newText
 }
 
 func (data *Data) collectSymbols(name string, spn span.Span, kind string, parentName string) {

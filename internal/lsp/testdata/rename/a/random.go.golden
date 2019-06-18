@@ -1,0 +1,100 @@
+-- GetSum-rename --
+package a
+
+func Random() int {
+	y := 6 + 7
+	return y
+}
+
+func Random2(y int) int { //@rename("y", "z")
+	return y
+}
+
+type Pos struct {
+	x, y int
+}
+
+func (p *Pos) GetSum() int {
+	return p.x + p.y //@rename("x", "myX")
+}
+
+func _() {
+	var p Pos   //@rename("p", "pos")
+	_ = p.GetSum() //@rename("Sum", "GetSum")
+}
+
+-- myX-rename --
+package a
+
+func Random() int {
+	y := 6 + 7
+	return y
+}
+
+func Random2(y int) int { //@rename("y", "z")
+	return y
+}
+
+type Pos struct {
+	myX, y int
+}
+
+func (p *Pos) Sum() int {
+	return p.myX + p.y //@rename("x", "myX")
+}
+
+func _() {
+	var p Pos   //@rename("p", "pos")
+	_ = p.Sum() //@rename("Sum", "GetSum")
+}
+
+-- pos-rename --
+package a
+
+func Random() int {
+	y := 6 + 7
+	return y
+}
+
+func Random2(y int) int { //@rename("y", "z")
+	return y
+}
+
+type Pos struct {
+	x, y int
+}
+
+func (p *Pos) Sum() int {
+	return p.x + p.y //@rename("x", "myX")
+}
+
+func _() {
+	var pos Pos   //@rename("p", "pos")
+	_ = pos.Sum() //@rename("Sum", "GetSum")
+}
+
+-- z-rename --
+package a
+
+func Random() int {
+	y := 6 + 7
+	return y
+}
+
+func Random2(z int) int { //@rename("y", "z")
+	return z
+}
+
+type Pos struct {
+	x, y int
+}
+
+func (p *Pos) Sum() int {
+	return p.x + p.y //@rename("x", "myX")
+}
+
+func _() {
+	var p Pos   //@rename("p", "pos")
+	_ = p.Sum() //@rename("Sum", "GetSum")
+}
+
