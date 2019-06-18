@@ -110,12 +110,13 @@ func (t *Template) Clone() (*Template, error) {
 
 // copy returns a shallow copy of t, with common set to the argument.
 func (t *Template) copy(c *common) *Template {
-	nt := New(t.name)
-	nt.Tree = t.Tree
-	nt.common = c
-	nt.leftDelim = t.leftDelim
-	nt.rightDelim = t.rightDelim
-	return nt
+	return &Template{
+		name:       t.name,
+		Tree:       t.Tree,
+		common:     c,
+		leftDelim:  t.leftDelim,
+		rightDelim: t.rightDelim,
+	}
 }
 
 // AddParseTree adds parse tree for template with given name and associates it with t.
