@@ -3,7 +3,12 @@
 // license that can be found in the LICENSE file.
 
 // Mach-O header data structures
-// http://developer.apple.com/mac/library/documentation/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html
+// Originally at:
+// http://developer.apple.com/mac/library/documentation/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html (since deleted by Apply)
+// Archived copy at:
+// https://web.archive.org/web/20090819232456/http://developer.apple.com/documentation/DeveloperTools/Conceptual/MachORuntime/index.html
+// For cloned PDF see:
+// https://github.com/aidansteele/osx-abi-macho-file-format-reference
 
 package macho
 
