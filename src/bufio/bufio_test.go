@@ -1481,6 +1481,60 @@ func newScriptedReader(steps ...func(p []byte) (n int, err error)) io.Reader {
 	return &sr
 }
 
+// eofReader returns the number of bytes read and io.EOF for the read that consumes the last of the content.
+type eofReader struct {
+	buf []byte
+}
+
+func (r *eofReader) Read(p []byte) (int, error) {
+	read := copy(p, r.buf)
+	r.buf = r.buf[read:]
+
+	switch read {
+	case 0, len(r.buf):
+		// As allowed in the documentation, this will return io.EOF
+		// in the same call that consumes the last of the data.
+		// https://godoc.org/io#Reader
+		return read, io.EOF
+	}
+
+	return read, nil
+}
+
+func TestPartialReadEOF(t *testing.T) {
+	src := make([]byte, 10)
+	eofR := &eofReader{buf: src}
+	r := NewReader(eofR)
+
+	// Start by reading 5 of the 10 available bytes.
+	dest := make([]byte, 5)
+	read, err := r.Read(dest)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n := len(dest); read != n {
+		t.Fatalf("read %d bytes; wanted %d bytes", read, n)
+	}
+
+	// The Reader should have buffered all the content from the io.Reader.
+	if n := len(eofR.buf); n != 0 {
+		t.Fatalf("got %d bytes left in bufio.Reader source; want 0 bytes", n)
+	}
+	// To prove the point, check that there are still 5 bytes available to read.
+	if n := r.Buffered(); n != 5 {
+		t.Fatalf("got %d bytes buffered in bufio.Reader; want 5 bytes", n)
+	}
+
+	// This is the second read of 0 bytes.
+	read, err = r.Read([]byte{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if read != 0 {
+		t.Fatalf("read %d bytes; want 0 bytes", read)
+	}
+}
+
 func BenchmarkReaderCopyOptimal(b *testing.B) {
 	// Optimal case is where the underlying reader implements io.WriterTo
 	srcBuf := bytes.NewBuffer(make([]byte, 8192))
