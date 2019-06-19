@@ -429,6 +429,7 @@ func machoUpdateDwarfHeader(r *loadCmdReader, buildmode BuildMode, compressedSec
 	segv := reflect.ValueOf(seg).Elem()
 	segv.FieldByName("Offset").SetUint(uint64(dwarfstart))
 	segv.FieldByName("Addr").SetUint(uint64(dwarfaddr))
+	segv.FieldByName("Prot").SetUint(0)
 
 	if compressedSects != nil {
 		var segSize uint64
