@@ -17,4 +17,7 @@ func _() {
 	)
 
 	wantsFoo(a) //@complete(")", irAB, irAA)
+
+	var ac fooImpl //@item(irAC, "ac", "fooImpl", "var")
+	wantsFoo(&a)   //@complete(")", irAC, irAA, irAB)
 }

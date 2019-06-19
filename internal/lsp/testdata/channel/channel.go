@@ -20,6 +20,6 @@ func _() {
 	{
 		var foo chan int //@item(channelFoo, "foo", "chan int", "var")
 		wantsInt := func(int) {} //@item(channelWantsInt, "wantsInt", "func(int)", "var")
-		wantsInt(<-) //@complete(")", channelFoo, channelWantsInt, channelAA, channelAB)
+		wantsInt(<-) //@complete(")", channelFoo, channelAB, channelWantsInt, channelAA)
 	}
 }

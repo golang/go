@@ -664,6 +664,10 @@ type typeInference struct {
 
 	// wantTypeName is true if we expect the name of a type.
 	wantTypeName bool
+
+	// modifiers are prefixes such as "*", "&" or "<-" that influence how
+	// a candidate type relates to the expected type.
+	modifiers []typeModifier
 }
 
 // expectedType returns information about the expected type for an expression at
@@ -796,25 +800,30 @@ Nodes:
 		}
 	}
 
-	if typ != nil {
-		for _, mod := range modifiers {
-			switch mod {
-			case dereference:
-				// For every "*" deref operator, add another pointer layer to expected type.
-				typ = types.NewPointer(typ)
-			case reference:
-				// For every "&" ref operator, remove a pointer layer from expected type.
-				typ = deref(typ)
-			case chanRead:
-				// For every "<-" operator, add another layer of channelness.
-				typ = types.NewChan(types.SendRecv, typ)
+	return typeInference{
+		objType:   typ,
+		modifiers: modifiers,
+	}
+}
+
+// applyTypeModifiers applies the list of type modifiers to a type.
+func (ti typeInference) applyTypeModifiers(typ types.Type) types.Type {
+	for _, mod := range ti.modifiers {
+		switch mod {
+		case dereference:
+			// For every "*" deref operator, remove a pointer layer from candidate type.
+			typ = deref(typ)
+		case reference:
+			// For every "&" ref operator, add another pointer layer to candidate type.
+			typ = types.NewPointer(typ)
+		case chanRead:
+			// For every "<-" operator, remove a layer of channelness.
+			if ch, ok := typ.(*types.Chan); ok {
+				typ = ch.Elem()
 			}
 		}
 	}
-
-	return typeInference{
-		objType: typ,
-	}
+	return typ
 }
 
 // findSwitchStmt returns an *ast.CaseClause's corresponding *ast.SwitchStmt or
@@ -915,6 +924,9 @@ func (c *completer) matchingType(obj types.Object) bool {
 			actual = sig.Results().At(0).Type()
 		}
 	}
+
+	// Take into account any type modifiers on the expected type.
+	actual = c.expectedType.applyTypeModifiers(actual)
 
 	if c.expectedType.objType != nil {
 		// AssignableTo covers the case where the types are equal, but also handles
