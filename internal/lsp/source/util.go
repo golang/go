@@ -132,6 +132,11 @@ func isTypeName(obj types.Object) bool {
 	return ok
 }
 
+func isFunc(obj types.Object) bool {
+	_, ok := obj.(*types.Func)
+	return ok
+}
+
 func formatParams(tup *types.Tuple, variadic bool, qf types.Qualifier) []string {
 	params := make([]string, 0, tup.Len())
 	for i := 0; i < tup.Len(); i++ {
