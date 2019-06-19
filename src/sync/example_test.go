@@ -76,8 +76,9 @@ func ExampleMap() {
 	gophers.Range(func(key interface{}, value interface{}) bool {
 		if key.(string) == "chicken" {
 			gophers.Delete(key.(string))
+			return false // stop iteration
 		}
-		return true
+		return true // continue to the next iteration in the range
 	})
 
 	// Output:
