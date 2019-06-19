@@ -662,11 +662,17 @@ func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd
 			data.p, data.err = cfg.BuildContext.Import(r.path, parentDir, buildMode)
 		}
 		data.p.ImportPath = r.path
-		if cfg.GOBIN != "" {
-			data.p.BinDir = cfg.GOBIN
-		} else if cfg.ModulesEnabled && !data.p.Goroot {
-			data.p.BinDir = ModBinDir()
+
+		// Set data.p.BinDir in cases where go/build.Context.Import
+		// may give us a path we don't want.
+		if !data.p.Goroot {
+			if cfg.GOBIN != "" {
+				data.p.BinDir = cfg.GOBIN
+			} else if cfg.ModulesEnabled {
+				data.p.BinDir = ModBinDir()
+			}
 		}
+
 		if !cfg.ModulesEnabled && data.err == nil &&
 			data.p.ImportComment != "" && data.p.ImportComment != path &&
 			!strings.Contains(path, "/vendor/") && !strings.HasPrefix(path, "vendor/") {
