@@ -7,7 +7,10 @@ package runtime
 import "unsafe"
 
 type mOS struct {
-	sema uintptr
+	initialized bool
+	mutex       pthreadmutex
+	cond        pthreadcond
+	count       int
 }
 
 func unimplemented(name string) {
@@ -17,32 +20,59 @@ func unimplemented(name string) {
 
 //go:nosplit
 func semacreate(mp *m) {
-	if mp.sema == 0 {
-		mp.sema = dispatch_semaphore_create(0)
+	if mp.initialized {
+		return
+	}
+	mp.initialized = true
+	if err := pthread_mutex_init(&mp.mutex, nil); err != 0 {
+		throw("pthread_mutex_init")
+	}
+	if err := pthread_cond_init(&mp.cond, nil); err != 0 {
+		throw("pthread_cond_init")
 	}
 }
 
-const (
-	_DISPATCH_TIME_NOW     = uint64(0)
-	_DISPATCH_TIME_FOREVER = ^uint64(0)
-)
-
 //go:nosplit
 func semasleep(ns int64) int32 {
-	mp := getg().m
-	t := _DISPATCH_TIME_FOREVER
+	var start int64
 	if ns >= 0 {
-		t = dispatch_time(_DISPATCH_TIME_NOW, ns)
+		start = nanotime()
 	}
-	if dispatch_semaphore_wait(mp.sema, t) != 0 {
-		return -1
+	mp := getg().m
+	pthread_mutex_lock(&mp.mutex)
+	for {
+		if mp.count > 0 {
+			mp.count--
+			pthread_mutex_unlock(&mp.mutex)
+			return 0
+		}
+		if ns >= 0 {
+			spent := nanotime() - start
+			if spent >= ns {
+				pthread_mutex_unlock(&mp.mutex)
+				return -1
+			}
+			var t timespec
+			t.setNsec(ns - spent)
+			err := pthread_cond_timedwait_relative_np(&mp.cond, &mp.mutex, &t)
+			if err == _ETIMEDOUT {
+				pthread_mutex_unlock(&mp.mutex)
+				return -1
+			}
+		} else {
+			pthread_cond_wait(&mp.cond, &mp.mutex)
+		}
 	}
-	return 0
 }
 
 //go:nosplit
 func semawakeup(mp *m) {
-	dispatch_semaphore_signal(mp.sema)
+	pthread_mutex_lock(&mp.mutex)
+	mp.count++
+	if mp.count > 0 {
+		pthread_cond_signal(&mp.cond)
+	}
+	pthread_mutex_unlock(&mp.mutex)
 }
 
 // BSD interface for threading.
