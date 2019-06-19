@@ -944,6 +944,11 @@ func calcCompUnitRanges(ctxt *Link) {
 		if s.FuncInfo == nil {
 			continue
 		}
+		// Skip linker-created functions (ex: runtime.addmoduledata), since they
+		// don't have DWARF to begin with.
+		if s.Unit == nil {
+			continue
+		}
 		unit := s.Unit
 		// Update PC ranges.
 		//
