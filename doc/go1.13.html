@@ -41,12 +41,68 @@ TODO
 <h2 id="language">Changes to the language</h2>
 
 <p>
-TODO
+  Per the <a href="https://github.com/golang/proposal/blob/master/design/19308-number-literals.md">number literal proposal</a>,
+  Go 1.13 supports a more uniform and modernized set of number literal prefixes.
+  <ul>
+    <li>
+      <a href="https://golang.org/ref/spec#Integer_literals">Binary integer literals</a>:
+      The prefix <code>0b</code> or <code>0B</code> indicates a binary integer literal
+      such as <code>0b1011</code>.
+    </li>
+
+    <li>
+      <a href="https://golang.org/ref/spec#Integer_literals">Octal integer literals</a>:
+      The prefix <code>0o</code> or <code>0O</code> indicates an octal integer literal
+      such as <code>0o660</code>.
+      The existing octal notation indicated by a leading <code>0</code> followed by
+      octal digits remains valid.
+    </li>
+
+    <li>
+      <a href="https://golang.org/ref/spec#Floating-point_literals">Hexadecimal floating point literals</a>:
+      The prefix <code>0x</code> or <code>0X</code> may now be used to express the mantissa of a
+      floating-point number in hexadecimal format such as <code>0x1.0p-1021</code>.
+      A hexadecimal floating-point number must always have an exponent, written as the letter
+      <code>p</code> or <code>P</code> followed by an exponent in decimal. The exponent scales
+      the mantissa by 2 to the power of the exponent.
+    </li>
+
+    <li>
+      <a href="https://golang.org/ref/spec#Imaginary_literals">Imaginary literals</a>:
+      The imaginary suffix <code>i</code> may now be used with any (binary, decimal, hexadecimal)
+      integer or floating-point literal.
+    </li>
+
+    <li>
+      Digit separators:
+      The digits of any number literal may now be separated (grouped) using underscores, such as
+      in <code>1_000_000</code>, <code>0b_1010_0110</code>, or <code>3.1415_9265</code>.
+      An underscore may appear between any two digits or the literal prefix and the first digit.
+    </li>
+  </ul>
 </p>
 
-<p><!-- CL 158719 -->
-  TODO: <a href="https://golang.org/cl/158797">https://golang.org/cl/158797</a>: implement shifts by signed amounts
+<p>
+  Per the <a href="https://github.com/golang/proposal/blob/master/design/19113-signed-shift-counts.md">signed shift counts proposal</a>
+  Go 1.13 removes the restriction that a <a href="https://golang.org/ref/spec#Operators">shift count</a>
+  must be unsigned. This change eliminates the need for many artificial <code>uint</code> conversions,
+  solely introduced to satisfy this (now removed) restriction of the <code>&lt;&lt;</code> and <code>&gt;&gt;</code> operators.
 </p>
+
+<p>
+  These language changes were implemented by changes to the compiler, and corresponding internal changes to the library
+  packages <code><a href="https://golang.org/pkg/go/scanner">go/scanner</a></code> and
+  <code><a href="https://golang.org/pkg/text/scanner">text/scanner</a></code> (number literals),
+  and <code><a href="https://golang.org/pkg/go/types">go/types</a></code> (signed shift counts).
+</p>
+
+<p>
+  If your code uses modules and your <code>go.mod</code> files specifies a language version, be sure
+  it is set to at least <code>1.13</code> to get access to these language changes.
+  You can do this by editing the <code>go.mod</code> file directly, or you can run
+  <code>go mod edit -go=1.13</code>.
+</p>
+
 
 <h2 id="ports">Ports</h2>
 
