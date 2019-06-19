@@ -5,6 +5,7 @@ package runtime_test
 import (
 	"internal/testenv"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -27,6 +28,7 @@ func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
 	}
+	defer os.Remove(dir)
 
 	// build go dll
 	dll := filepath.Join(dir, "testwinlib.dll")
@@ -38,7 +40,7 @@ func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
 
 	// build c program
 	exe := filepath.Join(dir, "test.exe")
-	cmd = exec.Command("gcc", "-L"+dir, "-ltestwinlib", "-o", exe, "testdata/testwinlib/main.c")
+	cmd = exec.Command("gcc", "-L"+dir, "-I"+dir, "-ltestwinlib", "-o", exe, "testdata/testwinlib/main.c")
 	out, err = testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {
 		t.Fatalf("failed to build c exe: %s\n%s", err, out)
