@@ -699,7 +699,7 @@ func golistDriver(cfg *Config, words ...string) (*driverResponse, error) {
 		if p.Error != nil {
 			pkg.Errors = append(pkg.Errors, Error{
 				Pos: p.Error.Pos,
-				Msg: p.Error.Err,
+				Msg: strings.TrimSpace(p.Error.Err), // Trim to work around golang.org/issue/32363.
 			})
 		}
 
