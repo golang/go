@@ -38,67 +38,77 @@ func (check *Checker) contractType(contr *Contract, e *ast.ContractType) {
 		}
 		iface.methods = append(iface.methods, m)
 	}
+	_ = addMethod
 
 	addType := func(tpar *TypeName, typ Type) {
 		cs := contr.insert(tpar)
 		// TODO(gri) should we complain about duplicate types?
 		cs.Types = append(cs.Types, typ)
 	}
+	_ = addType
 
 	// collect constraints
 	for _, c := range e.Constraints {
 		if c.Param != nil {
-			// If a type name is present, it must be one of the contract's type parameters.
-			pos := c.Param.Pos()
-			obj := scope.Lookup(c.Param.Name)
-			if obj == nil {
-				check.errorf(pos, "%s not declared by contract", c.Param.Name)
-				continue
-			}
-			if c.Type == nil {
-				check.invalidAST(pos, "missing method or type constraint")
-				continue
-			}
-			tpar := obj.(*TypeName) // scope holds only *TypeNames
-			typ := check.typ(c.Type)
-			if c.MName != nil {
-				// If a method name is present, it must be unique for the respective
-				// type parameter, and c.Type is a method signature (guaranteed by AST).
-				sig, _ := typ.(*Signature)
-				if sig == nil {
-					check.invalidAST(c.Type.Pos(), "invalid method type %s", typ)
-				}
-				// add receiver to signture (TODO(gri) do we need this? what's the "correct" receiver?)
-				assert(sig.recv == nil)
-				recvTyp := tpar.typ
-				sig.recv = NewVar(pos, check.pkg, "", recvTyp)
-				// make a method
-				m := NewFunc(c.MName.Pos(), check.pkg, c.MName.Name, sig)
-				addMethod(tpar, m)
-			} else {
-				// no method name => we have a type constraint
-				var why string
-				if !check.typeConstraint(typ, &why) {
-					check.errorf(c.Type.Pos(), "invalid type constraint %s (%s)", typ, why)
+			// TODO(gri) update this code
+			/*
+				// If a type name is present, it must be one of the contract's type parameters.
+				pos := c.Param.Pos()
+				obj := scope.Lookup(c.Param.Name)
+				if obj == nil {
+					check.errorf(pos, "%s not declared by contract", c.Param.Name)
 					continue
 				}
-				addType(tpar, typ)
-			}
-		} else {
+				if c.Type == nil {
+					check.invalidAST(pos, "missing method or type constraint")
+					continue
+				}
+				tpar := obj.(*TypeName) // scope holds only *TypeNames
+				typ := check.typ(c.Type)
+				if c.MName != nil {
+					// If a method name is present, it must be unique for the respective
+					// type parameter, and c.Type is a method signature (guaranteed by AST).
+					sig, _ := typ.(*Signature)
+					if sig == nil {
+						check.invalidAST(c.Type.Pos(), "invalid method type %s", typ)
+					}
+					// add receiver to signture (TODO(gri) do we need this? what's the "correct" receiver?)
+					assert(sig.recv == nil)
+					recvTyp := tpar.typ
+					sig.recv = NewVar(pos, check.pkg, "", recvTyp)
+					// make a method
+					m := NewFunc(c.MName.Pos(), check.pkg, c.MName.Name, sig)
+					addMethod(tpar, m)
+				} else {
+					// no method name => we have a type constraint
+					var why string
+					if !check.typeConstraint(typ, &why) {
+						check.errorf(c.Type.Pos(), "invalid type constraint %s (%s)", typ, why)
+						continue
+					}
+					addType(tpar, typ)
+				}
+			*/
+		} else { // c.Param == nil
 			// no type name => we have an embedded contract
-			// A correct AST will have no method name and a type that is an *ast.CallExpr in this case.
-			if c.MName != nil {
-				check.invalidAST(c.MName.Pos(), "no method (%s) expected with embedded contract declaration", c.MName.Name)
+			// A correct AST will have no method name and a single type that is an *ast.CallExpr in this case.
+			if len(c.MNames) != 0 {
+				check.invalidAST(c.MNames[0].Pos(), "no method (%s) expected with embedded contract declaration", c.MNames[0].Name)
+				// ignore and continue
+			}
+			if len(c.Types) != 1 {
+				check.invalidAST(e.Pos(), "contract contains incorrect (possibly embedded contract) entry")
+				continue
 			}
 			// TODO(gri) we can probably get away w/o checking this (even if the AST is broken)
-			econtr, _ := c.Type.(*ast.CallExpr)
+			econtr, _ := c.Types[0].(*ast.CallExpr)
 			if econtr == nil {
-				check.invalidAST(c.Type.Pos(), "invalid embedded contract %s", econtr)
+				check.invalidAST(c.Types[0].Pos(), "invalid embedded contract %s", econtr)
 			}
-			etyp := check.typ(c.Type)
+			etyp := check.typ(c.Types[0])
 			_ = etyp
 			// TODO(gri) complete this
-			check.errorf(c.Type.Pos(), "%s: contract embedding not yet implemented", c.Type)
+			check.errorf(c.Types[0].Pos(), "%s: contract embedding not yet implemented", c.Types[0])
 		}
 	}
 

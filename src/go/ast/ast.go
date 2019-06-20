@@ -455,7 +455,7 @@ type (
 	// A ContractType node represents a contract.
 	ContractType struct {
 		Contract    token.Pos     // position of "contract" pseudo keyword
-		TParams     []*Ident      // list of type parameters; or nil
+		TParams     []*Ident      // list of (incoming) type parameters; or nil
 		Lbrace      token.Pos     // position of "{"
 		Constraints []*Constraint // list of constraints
 		Rbrace      token.Pos     // position of "}"
@@ -463,9 +463,9 @@ type (
 )
 
 type Constraint struct {
-	Param *Ident // constrained type parameter; or nil (for embedded constraints)
-	MName *Ident // method name; or nil (for embedded contracts or type constraints)
-	Type  Expr   // embedded constraint (CallExpr), constraint type, or method type (*FuncType)
+	Param  *Ident   // constrained type parameter; or nil (for embedded constraints)
+	MNames []*Ident // list of method names; or nil (for embedded contracts or type constraints)
+	Types  []Expr   // embedded constraint (single *CallExpr), list of types, or list of method types (*FuncType)
 }
 
 // Pos and End implementations for expression/type nodes.

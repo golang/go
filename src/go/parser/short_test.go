@@ -83,10 +83,18 @@ var valids = []string{
 	`package p; contract C(T, S, R,){}`,
 	`package p; contract C(T){ T (m(x, int)); }`,
 	`package p; contract (C1(){}; C2(){})`,
+	`package p; contract C(T){ T int, float64, string }`,
+	`package p; contract C(T){ T int,
+		float64,
+		string
+	}`,
+	`package p; contract C(T){ T m(int), n() float64, o(x string) rune }`,
+	`package p; contract C(T){ T int, m(int), float64, n() float64, o(x string) rune }`,
 	`package p; type C contract(){}`,
 	`package p; type C contract(T, S, R,){}`,
 	`package p; type C contract(T){ T (m(x, int)); }`,
 	`package p; type C contract(T){ T int; T imported.T; T chan<-int; T m(x int) float64; C0(); imported.C1(int, T,) }`,
+	`package p; type C contract(T){ T int, imported.T, chan<-int; T m(x int) float64; C0(); imported.C1(int, T,) }`,
 }
 
 func TestValid(t *testing.T) {

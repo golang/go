@@ -1308,8 +1308,9 @@ func (p *parser) parseContractType() *ast.ContractType {
 	return &ast.ContractType{TParams: params, Lbrace: lbrace, Constraints: constraints, Rbrace: rbrace}
 }
 
-// Constraint       = TypeParam Type | TypeParam MethodName Signature | ContractTypeName "(" [ TypeList [ "," ] ] ")" .
+// Constraint       = TypeParam TypeOrMethod { "," TypeOrMethod } | ContractTypeName "(" [ TypeList [ "," ] ] ")" .
 // TypeParam        = Ident .
+// TypeOrMethod     = Type | MethodName Signature .
 // ContractTypeName = TypeName.
 func (p *parser) parseConstraint() *ast.Constraint {
 	if p.trace {
@@ -1319,7 +1320,7 @@ func (p *parser) parseConstraint() *ast.Constraint {
 	tname := p.parseTypeName(nil)
 	if useBrackets && p.tok == token.LBRACK || p.tok == token.LPAREN {
 		// ContractTypeName "(" [ TypeList [ "," ] ] ")"
-		return &ast.Constraint{Type: p.parseTypeInstance(tname)}
+		return &ast.Constraint{Types: []ast.Expr{p.parseTypeInstance(tname)}}
 	}
 
 	param, isIdent := tname.(*ast.Ident)
@@ -1328,20 +1329,31 @@ func (p *parser) parseConstraint() *ast.Constraint {
 		param = &ast.Ident{NamePos: tname.Pos(), Name: "_"}
 	}
 
-	// type constraint or method
-	var mname *ast.Ident
-	typ := p.parseType(false)
-	if ident, isIdent := typ.(*ast.Ident); isIdent && p.tok == token.LPAREN {
-		// method
-		mname = ident
-		scope := ast.NewScope(nil) // method scope
-		_, params := p.parseParameters(scope, false, true)
-		results := p.parseResult(scope, true)
-		typ = &ast.FuncType{Func: token.NoPos, Params: params, Results: results}
+	// list of type constraints or methods
+	var mnames []*ast.Ident
+	var types []ast.Expr
+	for {
+		var mname *ast.Ident
+		typ := p.parseType(false)
+		if ident, isIdent := typ.(*ast.Ident); isIdent && p.tok == token.LPAREN {
+			// method
+			mname = ident
+			scope := ast.NewScope(nil) // method scope
+			_, params := p.parseParameters(scope, false, true)
+			results := p.parseResult(scope, true)
+			typ = &ast.FuncType{Func: token.NoPos, Params: params, Results: results}
+		}
+		mnames = append(mnames, mname)
+		types = append(types, typ)
+
+		if p.tok != token.COMMA {
+			break
+		}
+		p.next()
 	}
 
 	// param != nil
-	return &ast.Constraint{Param: param, MName: mname, Type: typ}
+	return &ast.Constraint{Param: param, MNames: mnames, Types: types}
 }
 
 func (p *parser) parseTypeInstance(typ ast.Expr) *ast.CallExpr {
