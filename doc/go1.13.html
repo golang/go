@@ -91,9 +91,9 @@ TODO
 
 <p>
   These language changes were implemented by changes to the compiler, and corresponding internal changes to the library
-  packages <code><a href="https://golang.org/pkg/go/scanner">go/scanner</a></code> and
-  <code><a href="https://golang.org/pkg/text/scanner">text/scanner</a></code> (number literals),
-  and <code><a href="https://golang.org/pkg/go/types">go/types</a></code> (signed shift counts).
+  packages <code><a href="#go/scanner">go/scanner</a></code> and
+  <code><a href="#text/scanner">text/scanner</a></code> (number literals),
+  and <code><a href="#go/types">go/types</a></code> (signed shift counts).
 </p>
 
 <p>
@@ -189,6 +189,22 @@ TODO
 <p><!-- CL 157001 -->
   The assembler now supports many of the atomic instructions
   introduced in ARM v8.1.
+</p>
+
+<h3 id="gofmt">gofmt</h3>
+
+<p>
+  <code>gofmt</code> (and with that <code>go fmt</code>) now canonicalizes
+  number literal prefixes and exponents to use lower-case letters, but
+  leaves hexadecimal digits alone. This improves readability when using the new octal prefix
+  (<code>0O</code> becomes <code>0o</code>), and the rewrite is applied consistently.
+  <code>gofmt</code> now also removes unnecessary leading zeroes from a decimal integer
+  imaginary literal. (For backwards-compatibility, an integer imaginary literal
+  starting with <code>0</code> is considered a decimal, not an octal number.
+  Removing superfluous leading zeroes avoids potential confusion.)
+  For instance, <code>0B1010</code>, <code>0XabcDEF</code>, <code>0O660</code>,
+  <code>1.2E3</code>, and <code>01i</code> become <code>0b1010</code>, <code>0xabcDEF</code>,
+  <code>0o660</code>, <code>1.2e3</code>, and <code>1i</code> after applying <code>gofmt</code>.
 </p>
 
 <h2 id="runtime">Runtime</h2>
@@ -338,7 +354,28 @@ TODO
       type attribute, code will now be interperted as <a href="https://html.spec.whatwg.org/multipage/scripting.html#the-script-element:module-script-2">JavaScript module script</a>.
     </p>
 
-</dl><!-- html/template -->
+  </dl><!-- html/template -->
+
+<dl id="go/scanner"><dt><a href="/pkg/go/scanner/">go/scanner</a></dt>
+  <dd>
+    <p><!-- CL 175218 -->
+      The scanner has been updated to recognize the new Go number literals, specifically
+      binary literals with <code>0b</code>/<code>0B</code> prefix, octal literals with <code>0o</code>/<code>0O</code> prefix,
+      and floating-point numbers with hexadecimal mantissa. The imaginary suffix <code>i</code> may now be used with any number
+      literal, and underscores may used as digit separators for grouping.
+      See the <a href="#language">Changes to the language</a> for details.
+  </p>
+
+  </dl><!-- go/scanner -->
+
+<dl id="go/types"><dt><a href="/pkg/go/types/">go/types</a></dt>
+  <dd>
+    <p>
+      The type-checker has been updated to follow the new rules for integer shifts.
+      See the <a href="#language">Changes to the language</a> for details.
+    </p>
+
+</dl><!-- go/types -->
 
 <dl id="log"><dt><a href="/pkg/log/">log</a></dt>
   <dd>
@@ -537,9 +574,13 @@ TODO
 
 <dl id="text/scanner"><dt><a href="/pkg/text/scanner/">text/scanner</a></dt>
   <dd>
-    <p><!-- CL 163079 -->
-      The new <a href="/pkg/text/scanner/#AllowNumberbars"><code>AllowNumberbars</code></a>
-      mode allows number literals to contain underbars as digit separators.
+    <p><!-- CL 183077 -->
+      The scanner has been updated to recognize the new Go number literals, specifically
+      binary literals with <code>0b</code>/<code>0B</code> prefix, octal literals with <code>0o</code>/<code>0O</code> prefix,
+      and floating-point numbers with hexadecimal mantissa.
+      Also, the new <a href="/pkg/text/scanner/#AllowDigitSeparators"><code>AllowDigitSeparators</code></a>
+      mode allows number literals to contain underscores as digit separators (off by default for backwards-compatibility).
+      See the <a href="#language">Changes to the language</a> for details.
     </p>
 
 </dl><!-- text/scanner -->
