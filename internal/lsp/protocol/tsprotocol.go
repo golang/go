@@ -1533,7 +1533,7 @@ type ServerCapabilities struct {
 	 * specified if the client states that it supports
 	 * `prepareSupport` in its initial `initialize` request.
 	 */
-	RenameProvider *RenameOptions `json:"renameProvider,omitempty"` // boolean | RenameOptions
+	RenameProvider interface{} `json:"renameProvider,omitempty"` // boolean | RenameOptions
 
 	/*DocumentLinkProvider defined:
 	 * The server provides document link support.
