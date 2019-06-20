@@ -7,8 +7,10 @@ package source
 import (
 	"context"
 	"fmt"
+	"go/ast"
 	"go/token"
 	"go/types"
+	"regexp"
 
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/internal/span"
@@ -89,6 +91,7 @@ func Rename(ctx context.Context, view View, f GoFile, pos token.Pos, newName str
 func (r *renamer) update(ctx context.Context, view View) (map[span.URI][]TextEdit, error) {
 	result := make(map[span.URI][]TextEdit)
 
+	docRegexp := regexp.MustCompile(`\b` + r.from + `\b`)
 	for _, ref := range r.refs {
 		refSpan, err := ref.Range.Span()
 		if err != nil {
@@ -100,7 +103,57 @@ func (r *renamer) update(ctx context.Context, view View) (map[span.URI][]TextEdi
 			NewText: r.to,
 		}
 		result[refSpan.URI()] = append(result[refSpan.URI()], edit)
+
+		if ref.isDeclaration {
+			// Perform the rename in doc comments too (declared in the original package)
+			if doc := r.docComment(r.pkg, ref.ident); doc != nil {
+				for _, comment := range doc.List {
+					for _, locs := range docRegexp.FindAllStringIndex(comment.Text, -1) {
+						rng := span.NewRange(r.fset, comment.Pos()+token.Pos(locs[0]), comment.Pos()+token.Pos(locs[1]))
+						spn, err := rng.Span()
+						if err != nil {
+							return nil, err
+						}
+						result[refSpan.URI()] = append(result[refSpan.URI()], TextEdit{
+							Span:    spn,
+							NewText: r.to,
+						})
+					}
+					comment.Text = docRegexp.ReplaceAllString(comment.Text, r.to)
+				}
+			}
+		}
+
 	}
 
 	return result, nil
+}
+
+// docComment returns the doc for an identifier.
+func (r *renamer) docComment(pkg Package, id *ast.Ident) *ast.CommentGroup {
+	_, nodes, _ := pathEnclosingInterval(r.fset, pkg, id.Pos(), id.End())
+	for _, node := range nodes {
+		switch decl := node.(type) {
+		case *ast.FuncDecl:
+			return decl.Doc
+		case *ast.Field:
+			return decl.Doc
+		case *ast.GenDecl:
+			return decl.Doc
+		// For {Type,Value}Spec, if the doc on the spec is absent,
+		// search for the enclosing GenDecl
+		case *ast.TypeSpec:
+			if decl.Doc != nil {
+				return decl.Doc
+			}
+		case *ast.ValueSpec:
+			if decl.Doc != nil {
+				return decl.Doc
+			}
+		case *ast.Ident:
+		default:
+			return nil
+		}
+	}
+	return nil
 }

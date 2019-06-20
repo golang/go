@@ -15,10 +15,11 @@ import (
 
 // ReferenceInfo holds information about reference to an identifier in Go source.
 type ReferenceInfo struct {
-	Name  string
-	Range span.Range
-	ident *ast.Ident
-	obj   types.Object
+	Name          string
+	Range         span.Range
+	ident         *ast.Ident
+	obj           types.Object
+	isDeclaration bool
 }
 
 // References returns a list of references for a given identifier within a package.
@@ -44,9 +45,10 @@ func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, erro
 		// This occurs when the variable is declared in a type switch statement
 		// or is an implicit package name.
 		references = append(references, &ReferenceInfo{
-			Name:  i.decl.obj.Name(),
-			Range: i.decl.rng,
-			obj:   i.decl.obj,
+			Name:          i.decl.obj.Name(),
+			Range:         i.decl.rng,
+			obj:           i.decl.obj,
+			isDeclaration: true,
 		})
 	}
 
@@ -55,10 +57,11 @@ func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, erro
 			continue
 		}
 		references = append(references, &ReferenceInfo{
-			Name:  ident.Name,
-			Range: span.NewRange(i.File.FileSet(), ident.Pos(), ident.End()),
-			ident: ident,
-			obj:   obj,
+			Name:          ident.Name,
+			Range:         span.NewRange(i.File.FileSet(), ident.Pos(), ident.End()),
+			ident:         ident,
+			obj:           obj,
+			isDeclaration: true,
 		})
 	}
 
