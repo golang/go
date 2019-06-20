@@ -264,8 +264,8 @@ type Package interface {
 	IsIllTyped() bool
 	GetActionGraph(ctx context.Context, a *analysis.Analyzer) (*Action, error)
 	GetImport(pkgPath string) Package
-	GetDiagnostics() []analysis.Diagnostic
-	SetDiagnostics(diags []analysis.Diagnostic)
+	GetDiagnostics() []Diagnostic
+	SetDiagnostics(diags []Diagnostic)
 }
 
 // TextEdit represents a change to a section of a document.

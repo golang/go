@@ -16,7 +16,7 @@ import (
 func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionParams) ([]protocol.CodeAction, error) {
 	uri := span.NewURI(params.TextDocument.URI)
 	view := s.session.ViewOf(uri)
-	_, m, err := getSourceFile(ctx, view, uri)
+	gof, m, err := getGoFile(ctx, view, uri)
 	if err != nil {
 		return nil, err
 	}
@@ -56,6 +56,25 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 					},
 				},
 			})
+		}
+		diags := gof.GetPackage(ctx).GetDiagnostics()
+		for _, diag := range diags {
+			pdiag, err := toProtocolDiagnostic(ctx, view, diag)
+			if err != nil {
+				return nil, err
+			}
+			for _, ca := range diag.SuggestedFixes {
+				codeActions = append(codeActions, protocol.CodeAction{
+					Title: ca.Title,
+					Kind:  protocol.QuickFix, // TODO(matloob): Be more accurate about these?
+					Edit: &protocol.WorkspaceEdit{
+						Changes: &map[string][]protocol.TextEdit{
+							string(spn.URI()): edits,
+						},
+					},
+					Diagnostics: []protocol.Diagnostic{pdiag},
+				})
+			}
 		}
 	}
 	return codeActions, nil

@@ -37,7 +37,7 @@ type pkg struct {
 	analyses map[*analysis.Analyzer]*analysisEntry
 
 	diagMu      sync.Mutex
-	diagnostics []analysis.Diagnostic
+	diagnostics []source.Diagnostic
 }
 
 // packageID is a type that abstracts a package ID.
@@ -193,13 +193,13 @@ func (pkg *pkg) GetImport(pkgPath string) source.Package {
 	return nil
 }
 
-func (pkg *pkg) SetDiagnostics(diags []analysis.Diagnostic) {
+func (pkg *pkg) SetDiagnostics(diags []source.Diagnostic) {
 	pkg.diagMu.Lock()
 	defer pkg.diagMu.Unlock()
 	pkg.diagnostics = diags
 }
 
-func (pkg *pkg) GetDiagnostics() []analysis.Diagnostic {
+func (pkg *pkg) GetDiagnostics() []source.Diagnostic {
 	pkg.diagMu.Lock()
 	defer pkg.diagMu.Unlock()
 	return pkg.diagnostics
