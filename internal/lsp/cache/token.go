@@ -84,5 +84,6 @@ func tokenFile(ctx context.Context, c *cache, fh source.FileHandle) (*token.File
 	if tok == nil {
 		return nil, fmt.Errorf("no token.File for %s", fh.Identity().URI)
 	}
+	tok.SetLinesForContent(buf)
 	return tok, nil
 }
