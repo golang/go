@@ -878,7 +878,7 @@ func (t *rtype) Name() string {
 
 func (t *rtype) ChanDir() ChanDir {
 	if t.Kind() != Chan {
-		panic("reflect: ChanDir of non-chan type")
+		panic("reflect: ChanDir of non-chan type " + t.String())
 	}
 	tt := (*chanType)(unsafe.Pointer(t))
 	return ChanDir(tt.dir)
@@ -886,7 +886,7 @@ func (t *rtype) ChanDir() ChanDir {
 
 func (t *rtype) IsVariadic() bool {
 	if t.Kind() != Func {
-		panic("reflect: IsVariadic of non-func type")
+		panic("reflect: IsVariadic of non-func type " + t.String())
 	}
 	tt := (*funcType)(unsafe.Pointer(t))
 	return tt.outCount&(1<<15) != 0
@@ -910,12 +910,12 @@ func (t *rtype) Elem() Type {
 		tt := (*sliceType)(unsafe.Pointer(t))
 		return toType(tt.elem)
 	}
-	panic("reflect: Elem of invalid type")
+	panic("reflect: Elem of invalid type " + t.String())
 }
 
 func (t *rtype) Field(i int) StructField {
 	if t.Kind() != Struct {
-		panic("reflect: Field of non-struct type")
+		panic("reflect: Field of non-struct type " + t.String())
 	}
 	tt := (*structType)(unsafe.Pointer(t))
 	return tt.Field(i)
@@ -923,7 +923,7 @@ func (t *rtype) Field(i int) StructField {
 
 func (t *rtype) FieldByIndex(index []int) StructField {
 	if t.Kind() != Struct {
-		panic("reflect: FieldByIndex of non-struct type")
+		panic("reflect: FieldByIndex of non-struct type " + t.String())
 	}
 	tt := (*structType)(unsafe.Pointer(t))
 	return tt.FieldByIndex(index)
@@ -931,7 +931,7 @@ func (t *rtype) FieldByIndex(index []int) StructField {
 
 func (t *rtype) FieldByName(name string) (StructField, bool) {
 	if t.Kind() != Struct {
-		panic("reflect: FieldByName of non-struct type")
+		panic("reflect: FieldByName of non-struct type " + t.String())
 	}
 	tt := (*structType)(unsafe.Pointer(t))
 	return tt.FieldByName(name)
@@ -939,7 +939,7 @@ func (t *rtype) FieldByName(name string) (StructField, bool) {
 
 func (t *rtype) FieldByNameFunc(match func(string) bool) (StructField, bool) {
 	if t.Kind() != Struct {
-		panic("reflect: FieldByNameFunc of non-struct type")
+		panic("reflect: FieldByNameFunc of non-struct type " + t.String())
 	}
 	tt := (*structType)(unsafe.Pointer(t))
 	return tt.FieldByNameFunc(match)
@@ -947,7 +947,7 @@ func (t *rtype) FieldByNameFunc(match func(string) bool) (StructField, bool) {
 
 func (t *rtype) In(i int) Type {
 	if t.Kind() != Func {
-		panic("reflect: In of non-func type")
+		panic("reflect: In of non-func type " + t.String())
 	}
 	tt := (*funcType)(unsafe.Pointer(t))
 	return toType(tt.in()[i])
@@ -955,7 +955,7 @@ func (t *rtype) In(i int) Type {
 
 func (t *rtype) Key() Type {
 	if t.Kind() != Map {
-		panic("reflect: Key of non-map type")
+		panic("reflect: Key of non-map type " + t.String())
 	}
 	tt := (*mapType)(unsafe.Pointer(t))
 	return toType(tt.key)
@@ -963,7 +963,7 @@ func (t *rtype) Key() Type {
 
 func (t *rtype) Len() int {
 	if t.Kind() != Array {
-		panic("reflect: Len of non-array type")
+		panic("reflect: Len of non-array type " + t.String())
 	}
 	tt := (*arrayType)(unsafe.Pointer(t))
 	return int(tt.len)
@@ -971,7 +971,7 @@ func (t *rtype) Len() int {
 
 func (t *rtype) NumField() int {
 	if t.Kind() != Struct {
-		panic("reflect: NumField of non-struct type")
+		panic("reflect: NumField of non-struct type " + t.String())
 	}
 	tt := (*structType)(unsafe.Pointer(t))
 	return len(tt.fields)
@@ -979,7 +979,7 @@ func (t *rtype) NumField() int {
 
 func (t *rtype) NumIn() int {
 	if t.Kind() != Func {
-		panic("reflect: NumIn of non-func type")
+		panic("reflect: NumIn of non-func type " + t.String())
 	}
 	tt := (*funcType)(unsafe.Pointer(t))
 	return int(tt.inCount)
@@ -987,7 +987,7 @@ func (t *rtype) NumIn() int {
 
 func (t *rtype) NumOut() int {
 	if t.Kind() != Func {
-		panic("reflect: NumOut of non-func type")
+		panic("reflect: NumOut of non-func type " + t.String())
 	}
 	tt := (*funcType)(unsafe.Pointer(t))
 	return len(tt.out())
@@ -995,7 +995,7 @@ func (t *rtype) NumOut() int {
 
 func (t *rtype) Out(i int) Type {
 	if t.Kind() != Func {
-		panic("reflect: Out of non-func type")
+		panic("reflect: Out of non-func type " + t.String())
 	}
 	tt := (*funcType)(unsafe.Pointer(t))
 	return toType(tt.out()[i])
@@ -2986,7 +2986,7 @@ var layoutCache sync.Map // map[layoutKey]layoutType
 // the name for possible debugging use.
 func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, argSize, retOffset uintptr, stk *bitVector, framePool *sync.Pool) {
 	if t.Kind() != Func {
-		panic("reflect: funcLayout of non-func type")
+		panic("reflect: funcLayout of non-func type " + t.String())
 	}
 	if rcvr != nil && rcvr.Kind() == Interface {
 		panic("reflect: funcLayout with interface receiver " + rcvr.String())
