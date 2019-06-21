@@ -45,14 +45,14 @@ func (i *IdentifierInfo) DeclarationRange() span.Range {
 
 // Identifier returns identifier information for a position
 // in a file, accounting for a potentially incomplete selector.
-func Identifier(ctx context.Context, v View, f GoFile, pos token.Pos) (*IdentifierInfo, error) {
-	if result, err := identifier(ctx, v, f, pos); err != nil || result != nil {
+func Identifier(ctx context.Context, view View, f GoFile, pos token.Pos) (*IdentifierInfo, error) {
+	if result, err := identifier(ctx, view, f, pos); err != nil || result != nil {
 		return result, err
 	}
 	// If the position is not an identifier but immediately follows
 	// an identifier or selector period (as is common when
 	// requesting a completion), use the path to the preceding node.
-	result, err := identifier(ctx, v, f, pos-1)
+	result, err := identifier(ctx, view, f, pos-1)
 	if result == nil && err == nil {
 		err = fmt.Errorf("no identifier found")
 	}
@@ -60,7 +60,7 @@ func Identifier(ctx context.Context, v View, f GoFile, pos token.Pos) (*Identifi
 }
 
 // identifier checks a single position for a potential identifier.
-func identifier(ctx context.Context, v View, f GoFile, pos token.Pos) (*IdentifierInfo, error) {
+func identifier(ctx context.Context, view View, f GoFile, pos token.Pos) (*IdentifierInfo, error) {
 	file := f.GetAST(ctx)
 	if file == nil {
 		return nil, fmt.Errorf("no AST for %s", f.URI())
@@ -76,7 +76,7 @@ func identifier(ctx context.Context, v View, f GoFile, pos token.Pos) (*Identifi
 	}
 
 	// Handle import specs separately, as there is no formal position for a package declaration.
-	if result, err := importSpec(f, file, pkg, pos); result != nil || err != nil {
+	if result, err := importSpec(ctx, f, file, pkg, pos); result != nil || err != nil {
 		return result, err
 	}
 
@@ -156,7 +156,7 @@ func identifier(ctx context.Context, v View, f GoFile, pos token.Pos) (*Identifi
 	if result.decl.rng, err = objToRange(ctx, f.FileSet(), result.decl.obj); err != nil {
 		return nil, err
 	}
-	if result.decl.node, err = objToNode(ctx, v, pkg.GetTypes(), result.decl.obj, result.decl.rng); err != nil {
+	if result.decl.node, err = objToNode(ctx, view, pkg.GetTypes(), result.decl.obj, result.decl.rng); err != nil {
 		return nil, err
 	}
 	typ := pkg.GetTypesInfo().TypeOf(result.ident)
@@ -218,12 +218,12 @@ func posToRange(ctx context.Context, fset *token.FileSet, name string, pos token
 	return span.NewRange(fset, pos, pos+token.Pos(len(name))), nil
 }
 
-func objToNode(ctx context.Context, v View, originPkg *types.Package, obj types.Object, rng span.Range) (ast.Decl, error) {
+func objToNode(ctx context.Context, view View, originPkg *types.Package, obj types.Object, rng span.Range) (ast.Decl, error) {
 	s, err := rng.Span()
 	if err != nil {
 		return nil, err
 	}
-	f, err := v.GetFile(ctx, s.URI())
+	f, err := view.GetFile(ctx, s.URI())
 	if err != nil {
 		return nil, err
 	}
@@ -262,7 +262,7 @@ func objToNode(ctx context.Context, v View, originPkg *types.Package, obj types.
 }
 
 // importSpec handles positions inside of an *ast.ImportSpec.
-func importSpec(f GoFile, fAST *ast.File, pkg Package, pos token.Pos) (*IdentifierInfo, error) {
+func importSpec(ctx context.Context, f GoFile, fAST *ast.File, pkg Package, pos token.Pos) (*IdentifierInfo, error) {
 	for _, imp := range fAST.Imports {
 		if !(imp.Pos() <= pos && pos < imp.End()) {
 			continue

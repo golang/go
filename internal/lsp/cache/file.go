@@ -28,6 +28,7 @@ type viewFile interface {
 type fileBase struct {
 	uris  []span.URI
 	fname string
+	kind  source.FileKind
 
 	view *view
 

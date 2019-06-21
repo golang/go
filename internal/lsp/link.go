@@ -27,7 +27,7 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 	// Add a Godoc link for each imported package.
 	var result []protocol.DocumentLink
 	for _, imp := range file.Imports {
-		spn, err := span.NewRange(f.FileSet(), imp.Pos(), imp.End()).Span()
+		spn, err := span.NewRange(view.Session().Cache().FileSet(), imp.Pos(), imp.End()).Span()
 		if err != nil {
 			return nil, err
 		}

@@ -13,12 +13,12 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-func (s *Server) Diagnostics(ctx context.Context, v source.View, uri span.URI) {
+func (s *Server) Diagnostics(ctx context.Context, view source.View, uri span.URI) {
 	if ctx.Err() != nil {
 		s.session.Logger().Errorf(ctx, "canceling diagnostics for %s: %v", uri, ctx.Err())
 		return
 	}
-	f, err := v.GetFile(ctx, uri)
+	f, err := view.GetFile(ctx, uri)
 	if err != nil {
 		s.session.Logger().Errorf(ctx, "no file for %s: %v", uri, err)
 		return
@@ -28,7 +28,7 @@ func (s *Server) Diagnostics(ctx context.Context, v source.View, uri span.URI) {
 	if !ok {
 		return
 	}
-	reports, err := source.Diagnostics(ctx, v, gof, s.disabledAnalyses)
+	reports, err := source.Diagnostics(ctx, view, gof, s.disabledAnalyses)
 	if err != nil {
 		s.session.Logger().Errorf(ctx, "failed to compute diagnostics for %s: %v", gof.URI(), err)
 		return
@@ -38,7 +38,7 @@ func (s *Server) Diagnostics(ctx context.Context, v source.View, uri span.URI) {
 	defer s.undeliveredMu.Unlock()
 
 	for uri, diagnostics := range reports {
-		if err := s.publishDiagnostics(ctx, v, uri, diagnostics); err != nil {
+		if err := s.publishDiagnostics(ctx, view, uri, diagnostics); err != nil {
 			if s.undelivered == nil {
 				s.undelivered = make(map[span.URI][]source.Diagnostic)
 			}
@@ -52,7 +52,7 @@ func (s *Server) Diagnostics(ctx context.Context, v source.View, uri span.URI) {
 	// Anytime we compute diagnostics, make sure to also send along any
 	// undelivered ones (only for remaining URIs).
 	for uri, diagnostics := range s.undelivered {
-		if err := s.publishDiagnostics(ctx, v, uri, diagnostics); err != nil {
+		if err := s.publishDiagnostics(ctx, view, uri, diagnostics); err != nil {
 			s.session.Logger().Errorf(ctx, "failed to deliver diagnostic for %s (will not retry): %v", uri, err)
 		}
 		// If we fail to deliver the same diagnostics twice, just give up.

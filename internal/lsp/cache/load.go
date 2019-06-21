@@ -1,3 +1,7 @@
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package cache
 
 import (
@@ -157,7 +161,7 @@ func (v *view) link(ctx context.Context, pkgPath packagePath, pkg *packages.Pack
 	// Reset any field that could have changed across calls to packages.Load.
 	m.name = pkg.Name
 	m.files = pkg.CompiledGoFiles
-	for _, filename := range m.files {
+	for _, filename := range pkg.CompiledGoFiles {
 		if f, _ := v.getFile(span.FileURI(filename)); f != nil {
 			if gof, ok := f.(*goFile); ok {
 				gof.meta = m

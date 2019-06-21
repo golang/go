@@ -27,7 +27,10 @@ func (s *Server) documentHighlight(ctx context.Context, params *protocol.TextDoc
 	if err != nil {
 		return nil, err
 	}
-	spans := source.Highlight(ctx, f, rng.Start)
+	spans, err := source.Highlight(ctx, f, rng.Start)
+	if err != nil {
+		view.Session().Logger().Errorf(ctx, "no highlight for %s: %v", spn, err)
+	}
 	return toProtocolHighlight(m, spans), nil
 }
 

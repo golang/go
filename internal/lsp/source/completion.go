@@ -237,7 +237,7 @@ type candidate struct {
 // The selection is computed based on the preceding identifier and can be used by
 // the client to score the quality of the completion. For instance, some clients
 // may tolerate imperfect matches as valid completion results, since users may make typos.
-func Completion(ctx context.Context, f GoFile, pos token.Pos) ([]CompletionItem, *Selection, error) {
+func Completion(ctx context.Context, view View, f GoFile, pos token.Pos) ([]CompletionItem, *Selection, error) {
 	file := f.GetAST(ctx)
 	if file == nil {
 		return nil, nil, fmt.Errorf("no AST for %s", f.URI())
@@ -269,7 +269,7 @@ func Completion(ctx context.Context, f GoFile, pos token.Pos) ([]CompletionItem,
 		types:                     pkg.GetTypes(),
 		info:                      pkg.GetTypesInfo(),
 		qf:                        qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo()),
-		view:                      f.View(),
+		view:                      view,
 		ctx:                       ctx,
 		path:                      path,
 		pos:                       pos,

@@ -146,7 +146,7 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			t.Fatalf("failed to get token for %v", src)
 		}
 		pos := tok.Pos(src.Start().Offset())
-		list, surrounding, err := source.Completion(ctx, f.(source.GoFile), pos)
+		list, surrounding, err := source.Completion(ctx, r.view, f.(source.GoFile), pos)
 		if err != nil {
 			t.Fatalf("failed for %v: %v", src, err)
 		}
@@ -179,7 +179,7 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			}
 			tok := f.GetToken(ctx)
 			pos := tok.Pos(src.Start().Offset())
-			list, _, err := source.Completion(ctx, f.(source.GoFile), pos)
+			list, _, err := source.Completion(ctx, r.view, f.(source.GoFile), pos)
 			if err != nil {
 				t.Fatalf("failed for %v: %v", src, err)
 			}
@@ -395,9 +395,12 @@ func (r *runner) Highlight(t *testing.T, data tests.Highlights) {
 		}
 		tok := f.GetToken(ctx)
 		pos := tok.Pos(src.Start().Offset())
-		highlights := source.Highlight(ctx, f.(source.GoFile), pos)
+		highlights, err := source.Highlight(ctx, f.(source.GoFile), pos)
+		if err != nil {
+			t.Errorf("highlight failed for %s: %v", src.URI(), err)
+		}
 		if len(highlights) != len(locations) {
-			t.Fatalf("got %d highlights for %s, expected %d", len(highlights), name, len(locations))
+			t.Errorf("got %d highlights for %s, expected %d", len(highlights), name, len(locations))
 		}
 		for i, h := range highlights {
 			if h != locations[i] {
@@ -450,18 +453,18 @@ func (r *runner) Reference(t *testing.T, data tests.References) {
 func (r *runner) Rename(t *testing.T, data tests.Renames) {
 	ctx := context.Background()
 	for spn, newText := range data {
-		uri := spn.URI()
-		filename := uri.Filename()
-
 		f, err := r.view.GetFile(ctx, spn.URI())
 		if err != nil {
 			t.Fatalf("failed for %v: %v", spn, err)
 		}
-
 		tok := f.GetToken(ctx)
 		pos := tok.Pos(spn.Start().Offset())
 
-		changes, err := source.Rename(context.Background(), r.view, f.(source.GoFile), pos, newText)
+		ident, err := source.Identifier(context.Background(), r.view, f.(source.GoFile), pos)
+		if err != nil {
+			t.Error(err)
+		}
+		changes, err := ident.Rename(context.Background(), newText)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -472,9 +475,9 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 			continue
 		}
 
-		edits := changes[uri]
+		edits := changes[spn.URI()]
 		if edits == nil {
-			t.Errorf("rename failed for %s, did not edit %s", newText, filename)
+			t.Errorf("rename failed for %s, did not edit %s", newText, spn.URI())
 			continue
 		}
 		data, _, err := f.Handle(ctx).Read(ctx)
@@ -485,7 +488,7 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 
 		got := applyEdits(string(data), edits)
 		tag := fmt.Sprintf("%s-rename", newText)
-		gorenamed := string(r.data.Golden(tag, filename, func() ([]byte, error) {
+		gorenamed := string(r.data.Golden(tag, spn.URI().Filename(), func() ([]byte, error) {
 			return []byte(got), nil
 		}))
 
@@ -527,8 +530,10 @@ func (r *runner) Symbol(t *testing.T, data tests.Symbols) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", uri, err)
 		}
-		symbols := source.DocumentSymbols(ctx, f.(source.GoFile))
-
+		symbols, err := source.DocumentSymbols(ctx, f.(source.GoFile))
+		if err != nil {
+			t.Errorf("symbols failed for %s: %v", uri, err)
+		}
 		if len(symbols) != len(expectedSymbols) {
 			t.Errorf("want %d top-level symbols in %v, got %d", len(expectedSymbols), uri, len(symbols))
 			continue

@@ -327,6 +327,7 @@ func (v *view) getFile(uri span.URI) (viewFile, error) {
 			fileBase: fileBase{
 				view:  v,
 				fname: filename,
+				kind:  source.Mod,
 			},
 		}
 	case ".sum":
@@ -334,6 +335,7 @@ func (v *view) getFile(uri span.URI) (viewFile, error) {
 			fileBase: fileBase{
 				view:  v,
 				fname: filename,
+				kind:  source.Sum,
 			},
 		}
 	default:
@@ -342,6 +344,7 @@ func (v *view) getFile(uri span.URI) (viewFile, error) {
 			fileBase: fileBase{
 				view:  v,
 				fname: filename,
+				kind:  source.Go,
 			},
 		}
 		v.session.filesWatchMap.Watch(uri, func() {

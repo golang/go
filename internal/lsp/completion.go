@@ -30,7 +30,7 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	if err != nil {
 		return nil, err
 	}
-	items, surrounding, err := source.Completion(ctx, f, rng.Start)
+	items, surrounding, err := source.Completion(ctx, view, f, rng.Start)
 	if err != nil {
 		s.session.Logger().Infof(ctx, "no completions found for %s:%v:%v: %v", uri, int(params.Position.Line), int(params.Position.Character), err)
 	}

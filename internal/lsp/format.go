@@ -21,28 +21,33 @@ func (s *Server) formatting(ctx context.Context, params *protocol.DocumentFormat
 }
 
 // formatRange formats a document with a given range.
-func formatRange(ctx context.Context, v source.View, s span.Span) ([]protocol.TextEdit, error) {
-	f, m, err := getGoFile(ctx, v, s.URI())
-	if err != nil {
-		return nil, err
-	}
-	rng, err := s.Range(m.Converter)
-	if err != nil {
-		return nil, err
-	}
-	if rng.Start == rng.End {
-		// If we have a single point, assume we want the whole file.
-		tok := f.GetToken(ctx)
-		if tok == nil {
-			return nil, fmt.Errorf("no file information for %s", f.URI())
-		}
-		rng.End = tok.Pos(tok.Size())
-	}
+func formatRange(ctx context.Context, view source.View, s span.Span) ([]protocol.TextEdit, error) {
+	f, m, rng, err := spanToRange(ctx, view, s)
 	edits, err := source.Format(ctx, f, rng)
 	if err != nil {
 		return nil, err
 	}
 	return ToProtocolEdits(m, edits)
+}
+
+func spanToRange(ctx context.Context, view source.View, s span.Span) (source.GoFile, *protocol.ColumnMapper, span.Range, error) {
+	f, m, err := getGoFile(ctx, view, s.URI())
+	if err != nil {
+		return nil, nil, span.Range{}, err
+	}
+	rng, err := s.Range(m.Converter)
+	if err != nil {
+		return nil, nil, span.Range{}, err
+	}
+	if rng.Start == rng.End {
+		// If we have a single point, assume we want the whole file.
+		tok := f.GetToken(ctx)
+		if tok == nil {
+			return nil, nil, span.Range{}, fmt.Errorf("no file information for %s", f.URI())
+		}
+		rng.End = tok.Pos(tok.Size())
+	}
+	return f, m, rng, nil
 }
 
 func ToProtocolEdits(m *protocol.ColumnMapper, edits []source.TextEdit) ([]protocol.TextEdit, error) {

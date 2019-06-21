@@ -97,6 +97,10 @@ func (h *fileHandle) Identity() source.FileIdentity {
 	return h.underlying.Identity()
 }
 
+func (h *fileHandle) Kind() source.FileKind {
+	return h.underlying.Kind()
+}
+
 func (h *fileHandle) Read(ctx context.Context) ([]byte, string, error) {
 	v := h.handle.Get(ctx)
 	if v == nil {

@@ -27,12 +27,14 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 	if err != nil {
 		return nil, err
 	}
-
-	edits, err := source.Rename(ctx, view, f, rng.Start, params.NewName)
+	ident, err := source.Identifier(ctx, view, f, rng.Start)
 	if err != nil {
 		return nil, err
 	}
-
+	edits, err := ident.Rename(ctx, params.NewName)
+	if err != nil {
+		return nil, err
+	}
 	changes := make(map[string][]protocol.TextEdit)
 	for uri, textEdits := range edits {
 		_, m, err := getGoFile(ctx, view, uri)

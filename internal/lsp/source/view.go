@@ -30,8 +30,11 @@ type FileHandle interface {
 	// FileSystem returns the file system this handle was acquired from.
 	FileSystem() FileSystem
 
-	// Return the Identity for the file.
+	// Identity returns the FileIdentity for the file.
 	Identity() FileIdentity
+
+	// Kind returns the FileKind for the file.
+	Kind() FileKind
 
 	// Read reads the contents of a file and returns it along with its hash value.
 	// If the file is not available, returns a nil slice and an error.
@@ -43,6 +46,16 @@ type FileSystem interface {
 	// GetFile returns a handle for the specified file.
 	GetFile(uri span.URI) FileHandle
 }
+
+// FileKind describes the kind of the file in question.
+// It can be one of Go, mod, or sum.
+type FileKind int
+
+const (
+	Go = FileKind(iota)
+	Mod
+	Sum
+)
 
 // TokenHandle represents a handle to the *token.File for a file.
 type TokenHandle interface {
