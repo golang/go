@@ -11,10 +11,13 @@ import (
 	"go/token"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/span"
 )
 
 func Highlight(ctx context.Context, f GoFile, pos token.Pos) ([]span.Span, error) {
+	ctx, ts := trace.StartSpan(ctx, "source.Highlight")
+	defer ts.End()
 	file := f.GetAST(ctx)
 	if file == nil {
 		return nil, fmt.Errorf("no AST for %s", f.URI())

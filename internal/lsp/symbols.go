@@ -9,10 +9,13 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/span"
 )
 
 func (s *Server) documentSymbol(ctx context.Context, params *protocol.DocumentSymbolParams) ([]protocol.DocumentSymbol, error) {
+	ctx, ts := trace.StartSpan(ctx, "lsp.Server.documentSymbol")
+	defer ts.End()
 	uri := span.NewURI(params.TextDocument.URI)
 	view := s.session.ViewOf(uri)
 	f, m, err := getGoFile(ctx, view, uri)

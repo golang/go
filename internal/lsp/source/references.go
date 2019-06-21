@@ -10,6 +10,7 @@ import (
 	"go/ast"
 	"go/types"
 
+	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -25,6 +26,8 @@ type ReferenceInfo struct {
 // References returns a list of references for a given identifier within the packages
 // containing i.File. Declarations appear first in the result.
 func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, error) {
+	ctx, ts := trace.StartSpan(ctx, "source.References")
+	defer ts.End()
 	var references []*ReferenceInfo
 
 	// If the object declaration is nil, assume it is an import spec and do not look for references.

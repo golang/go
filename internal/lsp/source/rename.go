@@ -15,6 +15,7 @@ import (
 	"regexp"
 
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/refactor/satisfy"
 )
@@ -36,6 +37,8 @@ type renamer struct {
 
 // Rename returns a map of TextEdits for each file modified when renaming a given identifier within a package.
 func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.URI][]TextEdit, error) {
+	ctx, ts := trace.StartSpan(ctx, "source.Rename")
+	defer ts.End()
 	if i.Name == newName {
 		return nil, fmt.Errorf("old and new names are the same: %s", newName)
 	}

@@ -12,6 +12,8 @@ import (
 	"go/format"
 	"go/types"
 	"strings"
+
+	"golang.org/x/tools/internal/lsp/telemetry/trace"
 )
 
 type documentation struct {
@@ -31,6 +33,8 @@ const (
 )
 
 func (i *IdentifierInfo) Hover(ctx context.Context, markdownSupported bool, hoverKind HoverKind) (string, error) {
+	ctx, ts := trace.StartSpan(ctx, "source.Hover")
+	defer ts.End()
 	h, err := i.decl.hover(ctx)
 	if err != nil {
 		return "", err
@@ -68,6 +72,8 @@ func formatDocumentation(hoverKind HoverKind, c *ast.CommentGroup) string {
 }
 
 func (d declaration) hover(ctx context.Context) (*documentation, error) {
+	ctx, ts := trace.StartSpan(ctx, "source.hover")
+	defer ts.End()
 	obj := d.obj
 	switch node := d.node.(type) {
 	case *ast.GenDecl:

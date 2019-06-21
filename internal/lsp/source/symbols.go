@@ -12,6 +12,7 @@ import (
 	"go/token"
 	"go/types"
 
+	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -41,6 +42,8 @@ type Symbol struct {
 }
 
 func DocumentSymbols(ctx context.Context, f GoFile) ([]Symbol, error) {
+	ctx, ts := trace.StartSpan(ctx, "source.DocumentSymbols")
+	defer ts.End()
 	fset := f.FileSet()
 	file := f.GetAST(ctx)
 	if file == nil {

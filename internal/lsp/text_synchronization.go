@@ -12,6 +12,7 @@ import (
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -64,6 +65,9 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 	// Run diagnostics on the newly-changed file.
 	go func() {
 		ctx := view.BackgroundContext()
+		//TODO: connect the remote span?
+		ctx, ts := trace.StartSpan(ctx, "lsp:background-worker")
+		defer ts.End()
 		s.Diagnostics(ctx, view, uri)
 	}()
 	return nil

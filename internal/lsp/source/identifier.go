@@ -13,6 +13,7 @@ import (
 	"strconv"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -62,6 +63,8 @@ func Identifier(ctx context.Context, view View, f GoFile, pos token.Pos) (*Ident
 
 // identifier checks a single position for a potential identifier.
 func identifier(ctx context.Context, view View, f GoFile, pos token.Pos) (*IdentifierInfo, error) {
+	ctx, ts := trace.StartSpan(ctx, "source.identifier")
+	defer ts.End()
 	file := f.GetAST(ctx)
 	if file == nil {
 		return nil, fmt.Errorf("no AST for %s", f.URI())

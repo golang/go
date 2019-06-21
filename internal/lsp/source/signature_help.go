@@ -12,6 +12,7 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/internal/lsp/telemetry/trace"
 )
 
 type SignatureInformation struct {
@@ -25,6 +26,8 @@ type ParameterInformation struct {
 }
 
 func SignatureHelp(ctx context.Context, f GoFile, pos token.Pos) (*SignatureInformation, error) {
+	ctx, ts := trace.StartSpan(ctx, "source.SignatureHelp")
+	defer ts.End()
 	file := f.GetAST(ctx)
 	if file == nil {
 		return nil, fmt.Errorf("no AST for %s", f.URI())
