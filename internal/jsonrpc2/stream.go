@@ -22,10 +22,10 @@ import (
 type Stream interface {
 	// Read gets the next message from the stream.
 	// It is never called concurrently.
-	Read(context.Context) ([]byte, error)
+	Read(context.Context) ([]byte, int64, error)
 	// Write sends a message to the stream.
 	// It must be safe for concurrent use.
-	Write(context.Context, []byte) error
+	Write(context.Context, []byte) (int64, error)
 }
 
 // NewStream returns a Stream built on top of an io.Reader and io.Writer
@@ -44,29 +44,29 @@ type plainStream struct {
 	out   io.Writer
 }
 
-func (s *plainStream) Read(ctx context.Context) ([]byte, error) {
+func (s *plainStream) Read(ctx context.Context) ([]byte, int64, error) {
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return nil, 0, ctx.Err()
 	default:
 	}
 	var raw json.RawMessage
 	if err := s.in.Decode(&raw); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return raw, nil
+	return raw, int64(len(raw)), nil
 }
 
-func (s *plainStream) Write(ctx context.Context, data []byte) error {
+func (s *plainStream) Write(ctx context.Context, data []byte) (int64, error) {
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return 0, ctx.Err()
 	default:
 	}
 	s.outMu.Lock()
-	_, err := s.out.Write(data)
+	n, err := s.out.Write(data)
 	s.outMu.Unlock()
-	return err
+	return int64(n), err
 }
 
 // NewHeaderStream returns a Stream built on top of an io.Reader and io.Writer
@@ -85,18 +85,19 @@ type headerStream struct {
 	out   io.Writer
 }
 
-func (s *headerStream) Read(ctx context.Context) ([]byte, error) {
+func (s *headerStream) Read(ctx context.Context) ([]byte, int64, error) {
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return nil, 0, ctx.Err()
 	default:
 	}
-	var length int64
+	var total, length int64
 	// read the header, stop on the first empty line
 	for {
 		line, err := s.in.ReadString('\n')
+		total += int64(len(line))
 		if err != nil {
-			return nil, fmt.Errorf("failed reading header line %q", err)
+			return nil, total, fmt.Errorf("failed reading header line %q", err)
 		}
 		line = strings.TrimSpace(line)
 		// check we have a header line
@@ -105,42 +106,45 @@ func (s *headerStream) Read(ctx context.Context) ([]byte, error) {
 		}
 		colon := strings.IndexRune(line, ':')
 		if colon < 0 {
-			return nil, fmt.Errorf("invalid header line %q", line)
+			return nil, total, fmt.Errorf("invalid header line %q", line)
 		}
 		name, value := line[:colon], strings.TrimSpace(line[colon+1:])
 		switch name {
 		case "Content-Length":
 			if length, err = strconv.ParseInt(value, 10, 32); err != nil {
-				return nil, fmt.Errorf("failed parsing Content-Length: %v", value)
+				return nil, total, fmt.Errorf("failed parsing Content-Length: %v", value)
 			}
 			if length <= 0 {
-				return nil, fmt.Errorf("invalid Content-Length: %v", length)
+				return nil, total, fmt.Errorf("invalid Content-Length: %v", length)
 			}
 		default:
 			// ignoring unknown headers
 		}
 	}
 	if length == 0 {
-		return nil, fmt.Errorf("missing Content-Length header")
+		return nil, total, fmt.Errorf("missing Content-Length header")
 	}
 	data := make([]byte, length)
 	if _, err := io.ReadFull(s.in, data); err != nil {
-		return nil, err
+		return nil, total, err
 	}
-	return data, nil
+	total += length
+	return data, total, nil
 }
 
-func (s *headerStream) Write(ctx context.Context, data []byte) error {
+func (s *headerStream) Write(ctx context.Context, data []byte) (int64, error) {
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return 0, ctx.Err()
 	default:
 	}
 	s.outMu.Lock()
-	_, err := fmt.Fprintf(s.out, "Content-Length: %v\r\n\r\n", len(data))
+	defer s.outMu.Unlock()
+	n, err := fmt.Fprintf(s.out, "Content-Length: %v\r\n\r\n", len(data))
+	total := int64(n)
 	if err == nil {
-		_, err = s.out.Write(data)
+		n, err = s.out.Write(data)
+		total += int64(n)
 	}
-	s.outMu.Unlock()
-	return err
+	return total, err
 }
