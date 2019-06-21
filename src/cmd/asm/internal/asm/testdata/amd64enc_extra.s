@@ -1049,5 +1049,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VADDPD Z2, Z9, Z21 // 62e1b54858ea
 	VADDPD Z21, Z2, Z9 // 6231ed4858cd
 	VADDPD Z9, Z21, Z2 // 62d1d54058d1
+
+	CLWB (BX) // 660fae33
+	CLDEMOTE (BX) // 0f1c03
+	TPAUSE BX // 660faef3
+	UMONITOR BX // f30faef3
+	UMWAIT BX // f20faef3
 	// End of tests.
 	RET
