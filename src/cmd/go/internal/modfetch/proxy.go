@@ -251,7 +251,7 @@ func (p *proxyRepo) Versions(prefix string) ([]string, error) {
 	var list []string
 	for _, line := range strings.Split(string(data), "\n") {
 		f := strings.Fields(line)
-		if len(f) >= 1 && semver.IsValid(f[0]) && strings.HasPrefix(f[0], prefix) {
+		if len(f) >= 1 && semver.IsValid(f[0]) && strings.HasPrefix(f[0], prefix) && !IsPseudoVersion(f[0]) {
 			list = append(list, f[0])
 		}
 	}
@@ -264,14 +264,36 @@ func (p *proxyRepo) latest() (*RevInfo, error) {
 	if err != nil {
 		return nil, p.versionError("", err)
 	}
-	var best time.Time
-	var bestVersion string
+
+	var (
+		bestTime             time.Time
+		bestTimeIsFromPseudo bool
+		bestVersion          string
+	)
+
 	for _, line := range strings.Split(string(data), "\n") {
 		f := strings.Fields(line)
-		if len(f) >= 2 && semver.IsValid(f[0]) {
-			ft, err := time.Parse(time.RFC3339, f[1])
-			if err == nil && best.Before(ft) {
-				best = ft
+		if len(f) >= 1 && semver.IsValid(f[0]) {
+			// If the proxy includes timestamps, prefer the timestamp it reports.
+			// Otherwise, derive the timestamp from the pseudo-version.
+			var (
+				ft             time.Time
+				ftIsFromPseudo = false
+			)
+			if len(f) >= 2 {
+				ft, _ = time.Parse(time.RFC3339, f[1])
+			} else if IsPseudoVersion(f[0]) {
+				ft, _ = PseudoVersionTime(f[0])
+				ftIsFromPseudo = true
+			} else {
+				// Repo.Latest promises that this method is only called where there are
+				// no tagged versions. Ignore any tagged versions that were added in the
+				// meantime.
+				continue
+			}
+			if bestTime.Before(ft) {
+				bestTime = ft
+				bestTimeIsFromPseudo = ftIsFromPseudo
 				bestVersion = f[0]
 			}
 		}
@@ -279,13 +301,23 @@ func (p *proxyRepo) latest() (*RevInfo, error) {
 	if bestVersion == "" {
 		return nil, p.versionError("", codehost.ErrNoCommits)
 	}
-	info := &RevInfo{
+
+	if bestTimeIsFromPseudo {
+		// We parsed bestTime from the pseudo-version, but that's in UTC and we're
+		// supposed to report the timestamp as reported by the VCS.
+		// Stat the selected version to canonicalize the timestamp.
+		//
+		// TODO(bcmills): Should we also stat other versions to ensure that we
+		// report the correct Name and Short for the revision?
+		return p.Stat(bestVersion)
+	}
+
+	return &RevInfo{
 		Version: bestVersion,
 		Name:    bestVersion,
 		Short:   bestVersion,
-		Time:    best,
-	}
-	return info, nil
+		Time:    bestTime,
+	}, nil
 }
 
 func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
