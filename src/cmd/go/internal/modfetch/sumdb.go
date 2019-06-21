@@ -232,10 +232,10 @@ func (*dbClient) WriteConfig(file string, old, new []byte) error {
 }
 
 // ReadCache reads cached lookups or tiles from
-// GOPATH/pkg/mod/download/cache/sumdb,
+// GOPATH/pkg/mod/cache/download/sumdb,
 // which will be deleted by "go clean -modcache".
 func (*dbClient) ReadCache(file string) ([]byte, error) {
-	targ := filepath.Join(PkgMod, "download/cache/sumdb", file)
+	targ := filepath.Join(PkgMod, "cache/download/sumdb", file)
 	data, err := lockedfile.Read(targ)
 	// lockedfile.Write does not atomically create the file with contents.
 	// There is a moment between file creation and locking the file for writing,
@@ -249,7 +249,7 @@ func (*dbClient) ReadCache(file string) ([]byte, error) {
 
 // WriteCache updates cached lookups or tiles.
 func (*dbClient) WriteCache(file string, data []byte) {
-	targ := filepath.Join(PkgMod, "download/cache/sumdb", file)
+	targ := filepath.Join(PkgMod, "cache/download/sumdb", file)
 	os.MkdirAll(filepath.Dir(targ), 0777)
 	lockedfile.Write(targ, bytes.NewReader(data), 0666)
 }
