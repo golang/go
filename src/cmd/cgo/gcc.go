@@ -1256,6 +1256,8 @@ func (p *Package) isVariable(x ast.Expr) bool {
 		return true
 	case *ast.SelectorExpr:
 		return p.isVariable(x.X)
+	case *ast.IndexExpr:
+		return true
 	}
 	return false
 }
