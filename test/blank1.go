@@ -7,7 +7,7 @@
 // Test that incorrect uses of the blank identifer are caught.
 // Does not compile.
 
-package _	// ERROR "invalid package name _"
+package _	// ERROR "invalid package name"
 
 var t struct {
 	_ int
@@ -22,8 +22,8 @@ type T struct {
 }
 
 func main() {
-	_()	// ERROR "cannot use _ as value"
-	x := _+1	// ERROR "cannot use _ as value"
+	_()	// ERROR "cannot use .* as value"
+	x := _+1	// ERROR "cannot use .* as value"
 	_ = x
 	_ = t._ // ERROR "cannot refer to blank field|invalid use of"
 
