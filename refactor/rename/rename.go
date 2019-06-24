@@ -90,7 +90,7 @@ affected.  For a local renaming, this is just the package specified by
 the workspace ($GOROOT and $GOPATH).
 
 gorename rejects renamings of concrete methods that would change the
-assignability relation between types and interfaces.  If the interface
+assignability relation between types and interfaces. If the interface
 change was intentional, initiate the renaming at the interface method.
 
 gorename rejects any renaming that would create a conflict at the point
