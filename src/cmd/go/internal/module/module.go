@@ -536,7 +536,10 @@ func EncodePath(path string) (encoding string, err error) {
 // and not contain exclamation marks.
 func EncodeVersion(v string) (encoding string, err error) {
 	if err := checkElem(v, true); err != nil || strings.Contains(v, "!") {
-		return "", fmt.Errorf("disallowed version string %q", v)
+		return "", &InvalidVersionError{
+			Version: v,
+			Err:     fmt.Errorf("disallowed version string"),
+		}
 	}
 	return encodeString(v)
 }

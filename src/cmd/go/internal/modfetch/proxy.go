@@ -196,6 +196,26 @@ func (p *proxyRepo) ModulePath() string {
 	return p.path
 }
 
+// versionError returns err wrapped in a ModuleError for p.path.
+func (p *proxyRepo) versionError(version string, err error) error {
+	if version != "" && version != module.CanonicalVersion(version) {
+		return &module.ModuleError{
+			Path: p.path,
+			Err: &module.InvalidVersionError{
+				Version: version,
+				Pseudo:  IsPseudoVersion(version),
+				Err:     err,
+			},
+		}
+	}
+
+	return &module.ModuleError{
+		Path:    p.path,
+		Version: version,
+		Err:     err,
+	}
+}
+
 func (p *proxyRepo) getBytes(path string) ([]byte, error) {
 	body, err := p.getBody(path)
 	if err != nil {
@@ -226,7 +246,7 @@ func (p *proxyRepo) getBody(path string) (io.ReadCloser, error) {
 func (p *proxyRepo) Versions(prefix string) ([]string, error) {
 	data, err := p.getBytes("@v/list")
 	if err != nil {
-		return nil, err
+		return nil, p.versionError("", err)
 	}
 	var list []string
 	for _, line := range strings.Split(string(data), "\n") {
@@ -242,7 +262,7 @@ func (p *proxyRepo) Versions(prefix string) ([]string, error) {
 func (p *proxyRepo) latest() (*RevInfo, error) {
 	data, err := p.getBytes("@v/list")
 	if err != nil {
-		return nil, err
+		return nil, p.versionError("", err)
 	}
 	var best time.Time
 	var bestVersion string
@@ -257,7 +277,7 @@ func (p *proxyRepo) latest() (*RevInfo, error) {
 		}
 	}
 	if bestVersion == "" {
-		return nil, fmt.Errorf("no commits")
+		return nil, p.versionError("", codehost.ErrNoCommits)
 	}
 	info := &RevInfo{
 		Version: bestVersion,
@@ -271,21 +291,21 @@ func (p *proxyRepo) latest() (*RevInfo, error) {
 func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
 	encRev, err := module.EncodeVersion(rev)
 	if err != nil {
-		return nil, err
+		return nil, p.versionError(rev, err)
 	}
 	data, err := p.getBytes("@v/" + encRev + ".info")
 	if err != nil {
-		return nil, err
+		return nil, p.versionError(rev, err)
 	}
 	info := new(RevInfo)
 	if err := json.Unmarshal(data, info); err != nil {
-		return nil, err
+		return nil, p.versionError(rev, err)
 	}
 	if info.Version != rev && rev == module.CanonicalVersion(rev) && module.Check(p.path, rev) == nil {
 		// If we request a correct, appropriate version for the module path, the
 		// proxy must return either exactly that version or an error — not some
 		// arbitrary other version.
-		return nil, fmt.Errorf("requested canonical version %s, but proxy returned info for version %s", rev, info.Version)
+		return nil, p.versionError(rev, fmt.Errorf("proxy returned info for version %s instead of requested version", info.Version))
 	}
 	return info, nil
 }
@@ -298,48 +318,48 @@ func (p *proxyRepo) Latest() (*RevInfo, error) {
 	}
 	info := new(RevInfo)
 	if err := json.Unmarshal(data, info); err != nil {
-		return nil, err
+		return nil, p.versionError("", err)
 	}
 	return info, nil
 }
 
 func (p *proxyRepo) GoMod(version string) ([]byte, error) {
 	if version != module.CanonicalVersion(version) {
-		return nil, fmt.Errorf("version %s is not canonical", version)
+		return nil, p.versionError(version, fmt.Errorf("internal error: version passed to GoMod is not canonical"))
 	}
 
 	encVer, err := module.EncodeVersion(version)
 	if err != nil {
-		return nil, err
+		return nil, p.versionError(version, err)
 	}
 	data, err := p.getBytes("@v/" + encVer + ".mod")
 	if err != nil {
-		return nil, err
+		return nil, p.versionError(version, err)
 	}
 	return data, nil
 }
 
 func (p *proxyRepo) Zip(dst io.Writer, version string) error {
 	if version != module.CanonicalVersion(version) {
-		return fmt.Errorf("version %s is not canonical", version)
+		return p.versionError(version, fmt.Errorf("internal error: version passed to Zip is not canonical"))
 	}
 
 	encVer, err := module.EncodeVersion(version)
 	if err != nil {
-		return err
+		return p.versionError(version, err)
 	}
 	body, err := p.getBody("@v/" + encVer + ".zip")
 	if err != nil {
-		return err
+		return p.versionError(version, err)
 	}
 	defer body.Close()
 
 	lr := &io.LimitedReader{R: body, N: codehost.MaxZipFile + 1}
 	if _, err := io.Copy(dst, lr); err != nil {
-		return err
+		return p.versionError(version, err)
 	}
 	if lr.N <= 0 {
-		return fmt.Errorf("downloaded zip file too large")
+		return p.versionError(version, fmt.Errorf("downloaded zip file too large"))
 	}
 	return nil
 }

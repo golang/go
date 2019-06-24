@@ -243,8 +243,13 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 	if mayUseLatest {
 		// Special case for "latest": if no tags match, use latest commit in repo,
 		// provided it is not excluded.
-		if latest, err := repo.Latest(); err == nil && allowed(module.Version{Path: path, Version: latest.Version}) {
-			return lookup(latest.Version)
+		latest, err := repo.Latest()
+		if err == nil {
+			if allowed(module.Version{Path: path, Version: latest.Version}) {
+				return lookup(latest.Version)
+			}
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return nil, err
 		}
 	}
 

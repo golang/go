@@ -116,8 +116,20 @@ type UnknownRevisionError struct {
 func (e *UnknownRevisionError) Error() string {
 	return "unknown revision " + e.Rev
 }
+func (UnknownRevisionError) Is(err error) bool {
+	return err == os.ErrNotExist
+}
 
-func (e *UnknownRevisionError) Is(err error) bool {
+// ErrNoCommits is an error equivalent to os.ErrNotExist indicating that a given
+// repository or module contains no commits.
+var ErrNoCommits error = noCommitsError{}
+
+type noCommitsError struct{}
+
+func (noCommitsError) Error() string {
+	return "no commits"
+}
+func (noCommitsError) Is(err error) bool {
 	return err == os.ErrNotExist
 }
 
