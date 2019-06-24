@@ -123,14 +123,12 @@ func (imp *importer) typeCheck(id packageID) (*pkg, error) {
 		if err != nil {
 			continue
 		}
-		fh := f.Handle(imp.ctx)
-		if fh.Kind() != source.Go {
-			continue
-		}
-		phs = append(phs, imp.view.session.cache.ParseGoHandle(fh, mode))
+		ph := imp.view.session.cache.ParseGoHandle(f.Handle(imp.ctx), mode)
+		phs = append(phs, ph)
 		files = append(files, &astFile{
-			uri:       fh.Identity().URI,
+			uri:       ph.File().Identity().URI,
 			isTrimmed: mode == source.ParseExported,
+			ph:        ph,
 		})
 	}
 	for i, ph := range phs {
@@ -192,8 +190,8 @@ func (imp *importer) typeCheck(id packageID) (*pkg, error) {
 	return pkg, nil
 }
 
-func (imp *importer) cachePackage(ctx context.Context, pkg *pkg, meta *metadata, mode source.ParseMode) {
-	for _, file := range pkg.files {
+func (imp *importer) cachePackage(ctx context.Context, p *pkg, meta *metadata, mode source.ParseMode) {
+	for _, file := range p.files {
 		f, err := imp.view.getFile(file.uri)
 		if err != nil {
 			imp.view.session.log.Errorf(ctx, "no file: %v", err)
@@ -204,9 +202,11 @@ func (imp *importer) cachePackage(ctx context.Context, pkg *pkg, meta *metadata,
 			imp.view.session.log.Errorf(ctx, "%v is not a Go file", file.uri)
 			continue
 		}
-
 		// Set the package even if we failed to parse the file.
-		gof.pkg = pkg
+		if gof.pkgs == nil {
+			gof.pkgs = make(map[packageID]*pkg)
+		}
+		gof.pkgs[p.id] = p
 
 		// Get the AST for the file.
 		gof.ast = file
@@ -215,7 +215,7 @@ func (imp *importer) cachePackage(ctx context.Context, pkg *pkg, meta *metadata,
 			continue
 		}
 		if gof.ast.file == nil {
-			imp.view.session.log.Errorf(ctx, "no AST for %s", file.uri)
+			imp.view.session.log.Errorf(ctx, "no AST for %s: %v", file.uri, err)
 			continue
 		}
 		// Get the *token.File directly from the AST.
@@ -241,7 +241,7 @@ func (imp *importer) cachePackage(ctx context.Context, pkg *pkg, meta *metadata,
 		if err != nil {
 			continue
 		}
-		pkg.imports[importPkg.pkgPath] = importPkg
+		p.imports[importPkg.pkgPath] = importPkg
 	}
 }
 

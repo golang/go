@@ -42,11 +42,10 @@ func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.U
 	}
 
 	// Do not rename identifiers declared in another package.
-	pkg := i.File.GetPackage(ctx)
-	if pkg == nil || pkg.IsIllTyped() {
+	if i.pkg == nil || i.pkg.IsIllTyped() {
 		return nil, fmt.Errorf("package for %s is ill typed", i.File.URI())
 	}
-	if pkg.GetTypes() != i.decl.obj.Pkg() {
+	if i.pkg.GetTypes() != i.decl.obj.Pkg() {
 		return nil, fmt.Errorf("failed to rename because %q is declared in package %q", i.Name, i.decl.obj.Pkg().Name())
 	}
 
@@ -62,14 +61,14 @@ func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.U
 
 	r := renamer{
 		fset:         i.File.FileSet(),
-		pkg:          pkg,
+		pkg:          i.pkg,
 		refs:         refs,
 		objsToUpdate: make(map[types.Object]bool),
 		from:         i.Name,
 		to:           newName,
 		packages:     make(map[*types.Package]Package),
 	}
-	r.packages[pkg.GetTypes()] = pkg
+	r.packages[i.pkg.GetTypes()] = i.pkg
 
 	// Check that the renaming of the identifier is ok.
 	for _, from := range refs {

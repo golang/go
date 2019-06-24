@@ -1,3 +1,5 @@
 package testy
 
-func a() {}
+func a() { //@item(funcA, "a()", "", "func")
+	//@complete("", funcA)
+}

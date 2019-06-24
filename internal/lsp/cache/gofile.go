@@ -19,8 +19,17 @@ type goFile struct {
 
 	ast *astFile
 
-	pkg     *pkg
-	meta    *metadata
+	// missingImports is the set of unresolved imports for this package.
+	// It contains any packages with `go list` errors.
+	missingImports map[packagePath]struct{}
+
+	// justOpened indicates that the file has just been opened.
+	// We re-run go/packages.Load on just opened files to make sure
+	// that we know about all of their packages.
+	justOpened bool
+
+	pkgs    map[packageID]*pkg
+	meta    map[packageID]*metadata
 	imports []*ast.ImportSpec
 }
 
@@ -28,6 +37,7 @@ type astFile struct {
 	uri       span.URI
 	file      *ast.File
 	err       error // parse errors
+	ph        source.ParseGoHandle
 	isTrimmed bool
 }
 
@@ -79,7 +89,7 @@ func (f *goFile) GetAST(ctx context.Context) *ast.File {
 	return f.ast.file
 }
 
-func (f *goFile) GetPackage(ctx context.Context) source.Package {
+func (f *goFile) GetPackages(ctx context.Context) []source.Package {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
 
@@ -89,7 +99,7 @@ func (f *goFile) GetPackage(ctx context.Context) source.Package {
 
 			// Create diagnostics for errors if we are able to.
 			if len(errs) > 0 {
-				return &pkg{errors: errs}
+				return []source.Package{&pkg{errors: errs}}
 			}
 			return nil
 		}
@@ -97,7 +107,26 @@ func (f *goFile) GetPackage(ctx context.Context) source.Package {
 	if unexpectedAST(ctx, f) {
 		return nil
 	}
-	return f.pkg
+	var pkgs []source.Package
+	for _, pkg := range f.pkgs {
+		pkgs = append(pkgs, pkg)
+	}
+	return pkgs
+}
+
+func (f *goFile) GetPackage(ctx context.Context) source.Package {
+	pkgs := f.GetPackages(ctx)
+	var result source.Package
+
+	// Pick the "narrowest" package, i.e. the package with the fewest number of files.
+	// This solves the problem of test variants,
+	// as the test will have more files than the non-test package.
+	for _, pkg := range pkgs {
+		if result == nil || len(pkg.GetFilenames()) < len(result.GetFilenames()) {
+			result = pkg
+		}
+	}
+	return result
 }
 
 func unexpectedAST(ctx context.Context, f *goFile) bool {
@@ -117,7 +146,23 @@ func unexpectedAST(ctx context.Context, f *goFile) bool {
 // isDirty is true if the file needs to be type-checked.
 // It assumes that the file's view's mutex is held by the caller.
 func (f *goFile) isDirty() bool {
-	return f.meta == nil || len(f.meta.missingImports) > 0 || f.token == nil || f.ast == nil || f.pkg == nil
+	// If the the file has just been opened,
+	// it may be part of more packages than we are aware of.
+	//
+	// Note: This must be the first case, otherwise we may not reset the value of f.justOpened.
+	if f.justOpened {
+		f.meta = make(map[packageID]*metadata)
+		f.pkgs = make(map[packageID]*pkg)
+		f.justOpened = false
+		return true
+	}
+	if len(f.meta) == 0 || len(f.pkgs) == 0 {
+		return true
+	}
+	if len(f.missingImports) > 0 {
+		return true
+	}
+	return f.token == nil || f.ast == nil
 }
 
 func (f *goFile) astIsTrimmed() bool {
@@ -136,9 +181,11 @@ func (f *goFile) GetActiveReverseDeps(ctx context.Context) []source.GoFile {
 	f.view.mcache.mu.Lock()
 	defer f.view.mcache.mu.Unlock()
 
+	id := packageID(pkg.ID())
+
 	seen := make(map[packageID]struct{}) // visited packages
 	results := make(map[*goFile]struct{})
-	f.view.reverseDeps(ctx, seen, results, packageID(pkg.ID()))
+	f.view.reverseDeps(ctx, seen, results, id)
 
 	var files []source.GoFile
 	for rd := range results {
@@ -146,7 +193,7 @@ func (f *goFile) GetActiveReverseDeps(ctx context.Context) []source.GoFile {
 			continue
 		}
 		// Don't return any of the active files in this package.
-		if rd.pkg != nil && rd.pkg == pkg {
+		if _, ok := rd.pkgs[id]; ok {
 			continue
 		}
 		files = append(files, rd)

@@ -11,9 +11,6 @@ import (
 	"go/parser"
 	"go/scanner"
 	"go/token"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
@@ -97,30 +94,10 @@ func parseGo(ctx context.Context, c *cache, fh source.FileHandle, mode source.Pa
 			// TODO: Do something with the error (need access to a logger in here).
 		}
 	}
+	if ast == nil {
+		return nil, err
+	}
 	return ast, err
-}
-
-// sameFile returns true if x and y have the same basename and denote
-// the same file.
-//
-func sameFile(x, y string) bool {
-	if x == y {
-		// It could be the case that y doesn't exist.
-		// For instance, it may be an overlay file that
-		// hasn't been written to disk. To handle that case
-		// let x == y through. (We added the exact absolute path
-		// string to the CompiledGoFiles list, so the unwritten
-		// overlay case implies x==y.)
-		return true
-	}
-	if strings.EqualFold(filepath.Base(x), filepath.Base(y)) { // (optimisation)
-		if xi, err := os.Stat(x); err == nil {
-			if yi, err := os.Stat(y); err == nil {
-				return os.SameFile(xi, yi)
-			}
-		}
-	}
-	return false
 }
 
 // trimAST clears any part of the AST not relevant to type checking

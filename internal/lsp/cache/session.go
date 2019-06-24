@@ -182,8 +182,30 @@ func (s *session) Logger() xlog.Logger {
 	return s.log
 }
 
-func (s *session) DidOpen(uri span.URI) {
+func (s *session) DidOpen(ctx context.Context, uri span.URI) {
 	s.openFiles.Store(uri, true)
+
+	// Mark the file as just opened so that we know to re-run packages.Load on it.
+	// We do this because we may not be aware of all of the packages the file belongs to.
+
+	// A file may be in multiple views.
+	// For each view, get the file and mark it as just opened.
+	for _, view := range s.views {
+		if strings.HasPrefix(string(uri), string(view.Folder())) {
+			f, err := view.GetFile(ctx, uri)
+			if err != nil {
+				s.log.Errorf(ctx, "error getting file for %s", uri)
+				return
+			}
+			gof, ok := f.(*goFile)
+			if !ok {
+				s.log.Errorf(ctx, "%s is not a Go file", uri)
+				return
+			}
+			// Mark file as open.
+			gof.justOpened = true
+		}
+	}
 }
 
 func (s *session) DidSave(uri span.URI) {

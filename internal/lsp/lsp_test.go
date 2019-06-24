@@ -470,7 +470,6 @@ func (r *runner) Reference(t *testing.T, data tests.References) {
 			}
 			want[loc] = true
 		}
-
 		params := &protocol.ReferenceParams{
 			TextDocumentPositionParams: protocol.TextDocumentPositionParams{
 				TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},

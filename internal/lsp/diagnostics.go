@@ -14,10 +14,6 @@ import (
 )
 
 func (s *Server) Diagnostics(ctx context.Context, view source.View, uri span.URI) {
-	if ctx.Err() != nil {
-		s.session.Logger().Errorf(ctx, "canceling diagnostics for %s: %v", uri, ctx.Err())
-		return
-	}
 	f, err := view.GetFile(ctx, uri)
 	if err != nil {
 		s.session.Logger().Errorf(ctx, "no file for %s: %v", uri, err)

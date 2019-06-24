@@ -27,6 +27,7 @@ type IdentifierInfo struct {
 	}
 	decl declaration
 
+	pkg              Package
 	ident            *ast.Ident
 	wasEmbeddedField bool
 	qf               types.Qualifier
@@ -67,22 +68,20 @@ func identifier(ctx context.Context, view View, f GoFile, pos token.Pos) (*Ident
 	}
 	pkg := f.GetPackage(ctx)
 	if pkg == nil || pkg.IsIllTyped() {
-		return nil, fmt.Errorf("package for %s is ill typed", f.URI())
+		return nil, fmt.Errorf("pkg for %s is ill-typed", f.URI())
 	}
-
-	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
-	if path == nil {
-		return nil, fmt.Errorf("can't find node enclosing position")
-	}
-
 	// Handle import specs separately, as there is no formal position for a package declaration.
 	if result, err := importSpec(ctx, f, file, pkg, pos); result != nil || err != nil {
 		return result, err
 	}
-
+	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
+	if path == nil {
+		return nil, fmt.Errorf("can't find node enclosing position")
+	}
 	result := &IdentifierInfo{
 		File: f,
 		qf:   qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo()),
+		pkg:  pkg,
 	}
 
 	switch node := path[0].(type) {
@@ -239,6 +238,9 @@ func objToNode(ctx context.Context, view View, originPkg *types.Package, obj typ
 	} else {
 		declAST = declFile.GetAST(ctx)
 	}
+	if declAST == nil {
+		return nil, fmt.Errorf("no AST for %s", f.URI())
+	}
 	path, _ := astutil.PathEnclosingInterval(declAST, rng.Start, rng.End)
 	if path == nil {
 		return nil, fmt.Errorf("no path for range %v", rng)
@@ -263,41 +265,45 @@ func objToNode(ctx context.Context, view View, originPkg *types.Package, obj typ
 
 // importSpec handles positions inside of an *ast.ImportSpec.
 func importSpec(ctx context.Context, f GoFile, fAST *ast.File, pkg Package, pos token.Pos) (*IdentifierInfo, error) {
-	for _, imp := range fAST.Imports {
-		if !(imp.Pos() <= pos && pos < imp.End()) {
-			continue
+	var imp *ast.ImportSpec
+	for _, spec := range fAST.Imports {
+		if spec.Pos() <= pos && pos < spec.End() {
+			imp = spec
 		}
-		importPath, err := strconv.Unquote(imp.Path.Value)
-		if err != nil {
-			return nil, fmt.Errorf("import path not quoted: %s (%v)", imp.Path.Value, err)
-		}
-		result := &IdentifierInfo{
-			File:  f,
-			Name:  importPath,
-			Range: span.NewRange(f.FileSet(), imp.Pos(), imp.End()),
-		}
-		// Consider the "declaration" of an import spec to be the imported package.
-		importedPkg := pkg.GetImport(importPath)
-		if importedPkg == nil {
-			return nil, fmt.Errorf("no import for %q", importPath)
-		}
-		if importedPkg.GetSyntax() == nil {
-			return nil, fmt.Errorf("no syntax for for %q", importPath)
-		}
-		// Heuristic: Jump to the longest (most "interesting") file of the package.
-		var dest *ast.File
-		for _, f := range importedPkg.GetSyntax() {
-			if dest == nil || f.End()-f.Pos() > dest.End()-dest.Pos() {
-				dest = f
-			}
-		}
-		if dest == nil {
-			return nil, fmt.Errorf("package %q has no files", importPath)
-		}
-		result.decl.rng = span.NewRange(f.FileSet(), dest.Name.Pos(), dest.Name.End())
-		return result, nil
 	}
-	return nil, nil
+	if imp == nil {
+		return nil, nil
+	}
+	importPath, err := strconv.Unquote(imp.Path.Value)
+	if err != nil {
+		return nil, fmt.Errorf("import path not quoted: %s (%v)", imp.Path.Value, err)
+	}
+	result := &IdentifierInfo{
+		File:  f,
+		Name:  importPath,
+		Range: span.NewRange(f.FileSet(), imp.Pos(), imp.End()),
+		pkg:   pkg,
+	}
+	// Consider the "declaration" of an import spec to be the imported package.
+	importedPkg := pkg.GetImport(importPath)
+	if importedPkg == nil {
+		return nil, fmt.Errorf("no import for %q", importPath)
+	}
+	if importedPkg.GetSyntax() == nil {
+		return nil, fmt.Errorf("no syntax for for %q", importPath)
+	}
+	// Heuristic: Jump to the longest (most "interesting") file of the package.
+	var dest *ast.File
+	for _, f := range importedPkg.GetSyntax() {
+		if dest == nil || f.End()-f.Pos() > dest.End()-dest.Pos() {
+			dest = f
+		}
+	}
+	if dest == nil {
+		return nil, fmt.Errorf("package %q has no files", importPath)
+	}
+	result.decl.rng = span.NewRange(f.FileSet(), dest.Name.Pos(), dest.Name.End())
+	return result, nil
 }
 
 // typeSwitchVar handles the special case of a local variable implicitly defined in a type switch.

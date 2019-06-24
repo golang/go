@@ -154,7 +154,7 @@ type Session interface {
 	FileSystem
 
 	// DidOpen is invoked each time a file is opened in the editor.
-	DidOpen(uri span.URI)
+	DidOpen(ctx context.Context, uri span.URI)
 
 	// DidSave is invoked each time an open file is saved in the editor.
 	DidSave(uri span.URI)
@@ -233,6 +233,9 @@ type GoFile interface {
 
 	// GetPackage returns the package that this file belongs to.
 	GetPackage(ctx context.Context) Package
+
+	// GetPackages returns all of the packages that this file belongs to.
+	GetPackages(ctx context.Context) []Package
 
 	// GetActiveReverseDeps returns the active files belonging to the reverse
 	// dependencies of this file's package.

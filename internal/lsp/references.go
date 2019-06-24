@@ -27,7 +27,6 @@ func (s *Server) references(ctx context.Context, params *protocol.ReferenceParam
 	if err != nil {
 		return nil, err
 	}
-
 	// Find all references to the identifier at the position.
 	ident, err := source.Identifier(ctx, view, f, rng.Start)
 	if err != nil {
@@ -35,9 +34,8 @@ func (s *Server) references(ctx context.Context, params *protocol.ReferenceParam
 	}
 	references, err := ident.References(ctx)
 	if err != nil {
-		return nil, err
+		view.Session().Logger().Errorf(ctx, "no references for %s: %v", ident.Name, err)
 	}
-
 	// Get the location of each reference to return as the result.
 	locations := make([]protocol.Location, 0, len(references))
 	for _, ref := range references {
@@ -53,7 +51,6 @@ func (s *Server) references(ctx context.Context, params *protocol.ReferenceParam
 		if err != nil {
 			return nil, err
 		}
-
 		locations = append(locations, loc)
 	}
 	return locations, nil

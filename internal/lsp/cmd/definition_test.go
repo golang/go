@@ -38,6 +38,8 @@ var godefModes = []godefMode{
 }
 
 func TestDefinitionHelpExample(t *testing.T) {
+	// TODO: https://golang.org/issue/32794.
+	t.Skip()
 	if runtime.GOOS == "android" {
 		t.Skip("not all source files are available on android")
 	}
@@ -63,6 +65,8 @@ func TestDefinitionHelpExample(t *testing.T) {
 }
 
 func (r *runner) Definition(t *testing.T, data tests.Definitions) {
+	// TODO: https://golang.org/issue/32794.
+	t.Skip()
 	for _, d := range data {
 		if d.IsType || d.OnlyHover {
 			// TODO: support type definition, hover queries

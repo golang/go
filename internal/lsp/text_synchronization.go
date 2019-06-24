@@ -16,7 +16,7 @@ import (
 
 func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) error {
 	uri := span.NewURI(params.TextDocument.URI)
-	s.session.DidOpen(uri)
+	s.session.DidOpen(ctx, uri)
 	return s.cacheAndDiagnose(ctx, uri, []byte(params.TextDocument.Text))
 }
 
