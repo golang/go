@@ -638,7 +638,7 @@ var latestTests = []struct {
 	{
 		vcs:  "git",
 		path: "github.com/rsc/vgotest1/subdir",
-		err:  "missing github.com/rsc/vgotest1/subdir/go.mod at revision a08abb797a67",
+		err:  "github.com/rsc/vgotest1/subdir@v0.0.0-20180219223237-a08abb797a67: invalid version: missing github.com/rsc/vgotest1/subdir/go.mod at revision a08abb797a67",
 	},
 	{
 		vcs:     "mod",

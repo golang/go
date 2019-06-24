@@ -255,7 +255,13 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 			if err != nil {
 				// TODO: It would be nice to return an error like "not a module".
 				// Right now we return "missing go.mod", which is a little confusing.
-				return nil, err
+				return nil, &module.ModuleError{
+					Path: r.modPath,
+					Err: &module.InvalidVersionError{
+						Version: info2.Version,
+						Err:     notExistError(err.Error()),
+					},
+				}
 			}
 		}
 
