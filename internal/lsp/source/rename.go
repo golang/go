@@ -85,7 +85,10 @@ func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.U
 func (r *renamer) update(ctx context.Context) (map[span.URI][]TextEdit, error) {
 	result := make(map[span.URI][]TextEdit)
 
-	docRegexp := regexp.MustCompile(`\b` + r.from + `\b`)
+	docRegexp, err := regexp.Compile(`\b` + r.from + `\b`)
+	if err != nil {
+		return nil, err
+	}
 	for _, ref := range r.refs {
 		refSpan, err := ref.Range.Span()
 		if err != nil {
