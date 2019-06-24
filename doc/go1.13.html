@@ -34,10 +34,6 @@ Do not send CLs removing the interior tags from such phrases.
   different ones.
 </p>
 
-<p>
-TODO
-</p>
-
 <h2 id="language">Changes to the language</h2>
 
 <p>
@@ -346,10 +342,6 @@ godoc
 
 <h2 id="library">Core library</h2>
 
-<p>
-TODO generally
-</p>
-
 <h3 id="tls_1_3">TLS 1.3</h3>
 
 <p>
@@ -381,10 +373,6 @@ TODO generally
   As always, there are various minor changes and updates to the library,
   made with the Go 1 <a href="/doc/go1compat">promise of compatibility</a>
   in mind.
-</p>
-
-<p>
-TODO
 </p>
 
 <dl id="bytes"><dt><a href="/pkg/bytes/">bytes</a></dt>
@@ -453,6 +441,24 @@ TODO
     </p>
 
 </dl><!-- debug/dwarf -->
+
+<dl id="errors"><dt><a href="/pkg/errors/">errors</a></dt>
+  <dd>
+    <!-- CL 163558 -->
+    <p>
+      The new function <a href="/pkg/errors/#As"><code>As</code></a> finds the first error in a given error’s chain
+      that matches a given target’s type, and if so, sets the target to that error value.
+    </p>
+    <p>
+      The new function <a href="/pkg/errors/#Is"><code>Is</code></a> reports whether a given error value matches an
+      error in another’s chain.
+    </p>
+    <p>
+      The new function <a href="/pkg/errors/#Unwrap"><code>Unwrap</code></a> returns the result of calling
+      <code>Unwrap</code> on a given error, if one exists.
+    </p>
+
+</dl><!-- errors -->
 
 <dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
   <dd>
