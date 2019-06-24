@@ -167,6 +167,63 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="modules">Modules</h3>
 
+<h4 id="proxy-vars">Environment variables</h4>
+
+<p><!-- CL 181719 -->
+  The new
+  <a href="/cmd/go/#hdr-Module_configuration_for_non_public_modules"><code>GOPRIVATE</code></a>
+  environment variable indicates module paths that are not publicly available.
+  It contains a comma-separated list of glob patterns (in the syntax of
+  <a href="/pkg/path#Match"><code>path.Match</code></a>) to be matched against a
+  prefix of the module path. It serves as the default value for the
+  lower-level <code>GONOPROXY</code> and <code>GONOSUMDB</code> variables, which
+  provide finer-grained control over which modules are fetched via proxy and
+  verified using the checksum database.
+</p>
+
+<p><!-- CL 173441, CL 177958 -->
+  The <a href="/cmd/go/#hdr-Module_downloading_and_verification"><code>GOPROXY</code>
+  environment variable</a> may now be set to a comma-separated list of proxy
+  URLs or the special token <code>direct</code>, and
+  its <a href="#introduction">default value</a> is
+  now <code>https://proxy.golang.org,direct</code>. When resolving a package
+  path to its containing module, the <code>go</code> command will try each
+  possible module path on the first proxy in the list before falling back to the
+  next. If an HTTPS proxy is unreachable or returns a status code other than 404
+  or 410 for a given module path, no subsequent proxy is consulted for that
+  path. The <code>direct</code> token indicates that the <code>go</code> command
+  should attempt to fetch the module directly from its origin;
+  <code>GOPROXY</code> entries after <code>direct</code> are ignored.
+</p>
+
+<p>
+  The new
+  <a href="/cmd/go/#hdr-Module_authentication_failures"><code>GOSUMDB</code></a>
+  environment variable identifies the name, and optionally the public key and
+  server URL, of the database to consult for checksums of modules that are not
+  yet listed in the main module's <code>go.sum</code> file.
+  If <code>GOSUMDB</code> does not include an explicit URL, the URL is chosen by
+  probing the <code>GOPROXY</code> URLs for an endpoint indicating support for
+  the checksum database, falling back to a direct connection to the named
+  database if it is not supported by any proxy. If <code>GOSUMDB</code> is set
+  to <code>off</code>, the checksum database is not consulted and only the
+  existing checksums in the <code>go.sum</code> file are verified.
+</p>
+
+<p>
+  Users who cannot reach the default proxy and checksum database (for example,
+  due to a firewalled or sandboxed configuration) may disable their use by
+  setting <code>GOPROXY</code> to <code>direct</code>, and/or
+  <code>GOSUMDB</code> to <code>off</code>.
+  <a href="#go-env-w"><code>go</code> <code>env</code> <code>-w</code></a>
+  can be used to set the default values for these variables independent of
+  platform:
+</p>
+<pre>
+go env -w GOPROXY=direct
+go env -w GOSUMDB=off
+</pre>
+
 <h4 id="go-get"><code>go</code> <code>get</code></h3>
 
 <p><!-- CL 174099 -->
