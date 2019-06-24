@@ -29,10 +29,17 @@ cp go.mod.orig go.mod
 go mod edit -require golang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c
 cd outside
 ! go list -m golang.org/x/text
-stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c: missing golang.org/x/text/unicode/go.mod at revision 14c0d48ead0c'
+stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c: invalid version: missing golang.org/x/text/unicode/go.mod at revision 14c0d48ead0c'
 cd ..
 ! go list -m golang.org/x/text
-stderr 'golang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c: missing golang.org/x/text/unicode/go.mod at revision 14c0d48ead0c'
+stderr 'golang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c: invalid version: missing golang.org/x/text/unicode/go.mod at revision 14c0d48ead0c'
+
+# However, arguments to 'go get' can name packages above the root.
+cp go.mod.orig go.mod
+go get -d golang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c
+go list -m golang.org/x/text/...
+stdout 'golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c'
+! stdout 'golang.org/x/text/unicode'
 
 # A major version that does not match the module path is invalid.
 cp go.mod.orig go.mod
