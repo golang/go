@@ -279,6 +279,17 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="go-command">Go command</h3>
 
+<p id="go-env-w"><!-- CL 171137 -->
+  The <a href="/cmd/go/#hdr-Environment_variables"><code>go</code> <code>env</code></a>
+  command now accepts a <code>-w</code> flag to set the per-user default value
+  of an enviroment variable recognized by the
+  <code>go</code> command, and a corresponding <code>-u</code> flag to unset a
+  previously-set default. Defaults set via
+  <code>go</code> <code>env</code> <code>-w</code> are stored in the
+  <code>go/env</code> file within
+  <a href="/pkg/os/#UserConfigDir"><code>os.UserConfigDir()</code></a>.
+</p>
+
 <p id="trimpath"><!-- CL 173345 -->
   The new <a href="/cmd/go/#hdr-Compile_packages_and_dependencies"><code>go</code>
   <code>build</code> flag</a> <code>-trimpath</code> removes all file system paths
@@ -296,10 +307,6 @@ Do not send CLs removing the interior tags from such phrases.
   <a href="/cmd/go/#hdr-Generate_Go_files_by_processing_source"><code>go</code>
   <code>generate</code></a> now sets the <code>generate</code> build tag so that
   files may be searched for directives but ignored during build.
-</p>
-
-<p><!-- CL 171137 -->
-  TODO
 </p>
 
 <h3 id="compiler">Compiler toolchain</h3>
