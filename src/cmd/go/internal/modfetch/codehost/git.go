@@ -222,7 +222,7 @@ func (r *gitRepo) Latest() (*RevInfo, error) {
 		return nil, r.refsErr
 	}
 	if r.refs["HEAD"] == "" {
-		return nil, fmt.Errorf("no commits")
+		return nil, ErrNoCommits
 	}
 	return r.Stat(r.refs["HEAD"])
 }
