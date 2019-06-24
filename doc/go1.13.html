@@ -169,11 +169,14 @@ TODO
 
 <h2 id="tools">Tools</h2>
 
-<p>
-TODO
-</p>
-
 <h3 id="modules">Modules</h3>
+
+<p id="patch-suffix"><!-- CL 167747 -->
+  <a href="/cmd/go/#hdr-Add_dependencies_to_current_module_and_install_them"><code>go</code>
+  <code>get</code></a> in module mode now supports the version suffix
+  <code>@patch</code> to request the latest patch release.
+  TODO(bcmills): expand.
+</p>
 
 <h4 id="version-validation">Version validation</h4><!-- CL 181881 -->
 
@@ -229,6 +232,27 @@ TODO
   <pre>replace github.com/docker/docker v1.14.0-0.20190319215453-e7b5f7dbe98c => github.com/docker/docker e7b5f7dbe98c</pre>
   resolves to
   <pre>replace github.com/docker/docker v1.14.0-0.20190319215453-e7b5f7dbe98c => github.com/docker/docker v0.7.3-0.20190319215453-e7b5f7dbe98c</pre>
+</p>
+
+<h3 id="go-command">Go command</h3>
+
+<p id="trimpath"><!-- CL 173345 -->
+  The new <a href="/cmd/go/#hdr-Compile_packages_and_dependencies"><code>go</code>
+  <code>build</code> flag</a> <code>-trimpath</code> removes all file system paths
+  from the compiled executable, to improve build reproducibility.
+</p>
+
+<p id="comma-separated-tags"><!-- CL 173438 -->
+  The <code>go</code> <code>build</code> flag <code>-tags</code> now takes a
+  comma-separated list of build tags, to allow for multiple tags in
+  <a href="/cmd/go/#hdr-Environment_variables"><code>GOFLAGS</code></a>. The
+  space-separated form is deprecated but still recognized and will be maintained.
+</p>
+
+<p id="go-generate-tag"><!-- CL 175983 -->
+  <a href="/cmd/go/#hdr-Generate_Go_files_by_processing_source"><code>go</code>
+  <code>generate</code></a> now sets the <code>generate</code> build tag so that
+  files may be searched for directives but ignored during build.
 </p>
 
 <h3 id="compiler">Compiler toolchain</h3>
@@ -363,11 +387,6 @@ TODO generally
 TODO
 </p>
 
-<!-- CL 173345: https://golang.org/cl/173345: cmd/go: add -trimpath build flag -->
-<!-- CL 173438: https://golang.org/cl/173438: cmd/go: change -tags to a comma-separated list -->
-<!-- CL 175983: https://golang.org/cl/175983: cmd/go: set the "generate" build tag in go generate, per design doc -->
-<!-- CL 167747: https://golang.org/cl/167747: 'go get' in module mode now supports the version suffix '@patch'.: cmd/go/internal/modget: support the suffix '@patch' in 'go get' -->
-
 <dl id="bytes"><dt><a href="/pkg/bytes/">bytes</a></dt>
   <dd>
     <p>
@@ -401,6 +420,11 @@ TODO
       <a href="/pkg/crypto/x509/#ParsePKCS8PrivateKey"><code>ParsePKCS8PrivateKey</code></a>,
       <a href="/pkg/crypto/x509/#MarshalPKCS8PrivateKey"><code>MarshalPKCS8PrivateKey</code></a>,
       and <a href="/pkg/crypto/x509/#ParsePKIXPublicKey"><code>ParsePKIXPublicKey</code></a> functions.
+    </p>
+
+    <p><!-- CL 169238 -->
+      The paths searched for system roots now include <code>/etc/ssl/cert.pem</code>
+      to support the default location in Alpine Linux 3.7+.
     </p>
 
 </dl><!-- crypto/x509 -->
@@ -471,11 +495,11 @@ TODO
 <dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
   <dd>
     <p><!-- CL 160682 -->
-      TODO: <a href="https://golang.org/cl/160682">https://golang.org/cl/160682</a>: implement Rat.SetUint64
+      The new <a href="/pkg/math/big/#Rat.SetUint64"><code>Rat.SetUint64</code></a> method sets the <code>Rat</code> to a <code>uint64</code> value.
     </p>
 
     <p><!-- CL 168237 -->
-      TODO: <a href="https://golang.org/cl/168237">https://golang.org/cl/168237</a>: accept non-decimal floats with Rat.SetString
+      <a href="/pkg/math/big/#Rat.SetString"><code>Rat.SetString</code></a> now accepts non-decimal floating point representations.
     </p>
 
 </dl><!-- math/big -->
