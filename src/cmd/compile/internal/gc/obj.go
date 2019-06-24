@@ -294,6 +294,9 @@ func addGCLocals() {
 			}
 			ggloblsym(x, int32(len(x.P)), attr)
 		}
+		if x := s.Func.OpenCodedDeferInfo; x != nil {
+			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
+		}
 	}
 }
 

@@ -309,17 +309,17 @@ TestCases:
 				name := m[1]
 				size, _ := strconv.Atoi(m[2])
 
-				// The limit was originally 128 but is now 752 (880-128).
+				// The limit was originally 128 but is now 768 (896-128).
 				// Instead of rewriting the test cases above, adjust
 				// the first stack frame to use up the extra bytes.
 				if i == 0 {
-					size += (880 - 128) - 128
+					size += (896 - 128) - 128
 					// Noopt builds have a larger stackguard.
 					// See ../src/cmd/dist/buildruntime.go:stackGuardMultiplier
 					// This increase is included in objabi.StackGuard
 					for _, s := range strings.Split(os.Getenv("GO_GCFLAGS"), " ") {
 						if s == "-N" {
-							size += 880
+							size += 896
 						}
 					}
 				}
