@@ -17,6 +17,7 @@
 #define FUNCDATA_RegPointerMaps 2
 #define FUNCDATA_StackObjects 3
 #define FUNCDATA_InlTree 4
+#define FUNCDATA_OpenCodedDeferInfo 5 /* info for func with open-coded defers */
 
 // Pseudo-assembly statements.
 
