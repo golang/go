@@ -2767,7 +2767,7 @@
 // 	GOPROXY=proxy.example.com
 // 	GONOPROXY=none
 //
-// This would tell the go comamnd and other tools that modules beginning with
+// This would tell the go command and other tools that modules beginning with
 // a corp.example.com subdomain are private but that the company proxy should
 // be used for downloading both public and private modules, because
 // GONOPROXY has been set to a pattern that won't match any modules,
