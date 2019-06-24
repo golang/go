@@ -160,14 +160,14 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
 
 TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	// Reserve space for callee-save registers and arguments.
-	SUB	$36, R13
+	SUB	$40, R13
 
-	MOVW	R4, 12(R13)
-	MOVW	R5, 16(R13)
-	MOVW	R6, 20(R13)
-	MOVW	R7, 24(R13)
-	MOVW	R8, 28(R13)
-	MOVW	R11, 32(R13)
+	MOVW	R4, 16(R13)
+	MOVW	R5, 20(R13)
+	MOVW	R6, 24(R13)
+	MOVW	R7, 28(R13)
+	MOVW	R8, 32(R13)
+	MOVW	R11, 36(R13)
 
 	// Save arguments.
 	MOVW	R0, 4(R13)	// sig
@@ -216,14 +216,14 @@ nog:
 	MOVW	R5, R13
 
 	// Restore callee-save registers.
-	MOVW	12(R13), R4
-	MOVW	16(R13), R5
-	MOVW	20(R13), R6
-	MOVW	24(R13), R7
-	MOVW	28(R13), R8
-	MOVW	32(R13), R11
+	MOVW	16(R13), R4
+	MOVW	20(R13), R5
+	MOVW	24(R13), R6
+	MOVW	28(R13), R7
+	MOVW	32(R13), R8
+	MOVW	36(R13), R11
 
-	ADD $36, R13
+	ADD	$40, R13
 
 	RET
 
