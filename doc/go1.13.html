@@ -105,6 +105,14 @@ TODO
 
 <h2 id="ports">Ports</h2>
 
+<h3 id="aix">AIX</h3>
+
+<p><!-- CL 164003, CL 169120 -->
+  AIX on PPC64 (<code>aix/ppc64</code>) now supports cgo, external
+  linking, and the <code>c-archive</code> and <code>pie</code> build
+  modes.
+</p>
+
 <h3 id="android">Android</h3>
 
 <p><!-- CL 170127 -->
@@ -136,12 +144,16 @@ TODO
   build tag.
 </p>
 
-<h3 id="aix">AIX</h3>
+<h3 id="netbsd">NetBSD</h3>
 
-<p><!-- CL 164003, CL 169120 -->
-  AIX on PPC64 (<code>aix/ppc64</code>) now supports cgo, external
-  linking, and the <code>c-archive</code> and <code>pie</code> build
-  modes.
+<p><!--CL 155739 -->
+  Go now supports NetBSD on arm64.
+</p>
+
+<h3 id="openbsd">OpenBSD</h3>
+
+<p><!--CL 174125 -->
+  Go now supports OpenBSD on arm64.
 </p>
 
 <h3 id="windows">Windows</h3>
@@ -351,7 +363,6 @@ TODO generally
 TODO
 </p>
 
-<!-- CL 174125: https://golang.org/cl/174125: cmd/dist: add support for openbsd/arm64 -->
 <!-- CL 173345: https://golang.org/cl/173345: cmd/go: add -trimpath build flag -->
 <!-- CL 173438: https://golang.org/cl/173438: cmd/go: change -tags to a comma-separated list -->
 <!-- CL 175983: https://golang.org/cl/175983: cmd/go: set the "generate" build tag in go generate, per design doc -->
