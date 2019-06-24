@@ -880,7 +880,9 @@ func (e *Escape) augmentParamHole(k EscHole, where *Node) EscHole {
 	// non-transient location to avoid arguments from being
 	// transiently allocated.
 	if where.Op == ODEFER && e.loopDepth == 1 {
-		where.Esc = EscNever // force stack allocation of defer record (see ssa.go)
+		// force stack allocation of defer record, unless open-coded
+		// defers are used (see ssa.go)
+		where.Esc = EscNever
 		return e.later(k)
 	}
 

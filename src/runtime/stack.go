@@ -91,7 +91,7 @@ const (
 
 	// The stack guard is a pointer this many bytes above the
 	// bottom of the stack.
-	_StackGuard = 880*sys.StackGuardMultiplier + _StackSystem
+	_StackGuard = 896*sys.StackGuardMultiplier + _StackSystem
 
 	// After a stack split check the SP is allowed to be this
 	// many bytes below the stack guard. This saves an instruction
@@ -736,6 +736,8 @@ func adjustdefers(gp *g, adjinfo *adjustinfo) {
 		adjustpointer(adjinfo, unsafe.Pointer(&d.sp))
 		adjustpointer(adjinfo, unsafe.Pointer(&d._panic))
 		adjustpointer(adjinfo, unsafe.Pointer(&d.link))
+		adjustpointer(adjinfo, unsafe.Pointer(&d.varp))
+		adjustpointer(adjinfo, unsafe.Pointer(&d.fd))
 	}
 
 	// Adjust defer argument blocks the same way we adjust active stack frames.

@@ -317,6 +317,7 @@ func deferstruct(stksize int64) *types.Type {
 		makefield("siz", types.Types[TUINT32]),
 		makefield("started", types.Types[TBOOL]),
 		makefield("heap", types.Types[TBOOL]),
+		makefield("openDefer", types.Types[TBOOL]),
 		makefield("sp", types.Types[TUINTPTR]),
 		makefield("pc", types.Types[TUINTPTR]),
 		// Note: the types here don't really matter. Defer structures
@@ -325,6 +326,9 @@ func deferstruct(stksize int64) *types.Type {
 		makefield("fn", types.Types[TUINTPTR]),
 		makefield("_panic", types.Types[TUINTPTR]),
 		makefield("link", types.Types[TUINTPTR]),
+		makefield("framepc", types.Types[TUINTPTR]),
+		makefield("varp", types.Types[TUINTPTR]),
+		makefield("fd", types.Types[TUINTPTR]),
 		makefield("args", argtype),
 	}
 

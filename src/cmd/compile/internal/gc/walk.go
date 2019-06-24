@@ -214,6 +214,18 @@ func walkstmt(n *Node) *Node {
 
 	case ODEFER:
 		Curfn.Func.SetHasDefer(true)
+		Curfn.Func.numDefers++
+		if Curfn.Func.numDefers > maxOpenDefers {
+			// Don't allow open-coded defers if there are more than
+			// 8 defers in the function, since we use a single
+			// byte to record active defers.
+			Curfn.Func.SetOpenCodedDeferDisallowed(true)
+		}
+		if n.Esc != EscNever {
+			// If n.Esc is not EscNever, then this defer occurs in a loop,
+			// so open-coded defers cannot be used in this function.
+			Curfn.Func.SetOpenCodedDeferDisallowed(true)
+		}
 		fallthrough
 	case OGO:
 		switch n.Left.Op {
@@ -255,6 +267,7 @@ func walkstmt(n *Node) *Node {
 		walkstmtlist(n.Rlist.Slice())
 
 	case ORETURN:
+		Curfn.Func.numReturns++
 		if n.List.Len() == 0 {
 			break
 		}
