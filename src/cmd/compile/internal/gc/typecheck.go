@@ -763,6 +763,13 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 		t = l.Type
 		if iscmp[n.Op] {
+			// TIDEAL includes complex constant, but only OEQ and ONE are defined for complex,
+			// so check that the n.op is available for complex  here before doing evconst.
+			if !okfor[n.Op][TCOMPLEX128] && (Isconst(l, CTCPLX) || Isconst(r, CTCPLX)) {
+				yyerror("invalid operation: %v (operator %v not defined on untyped complex)", n, n.Op)
+				n.Type = nil
+				return n
+			}
 			evconst(n)
 			t = types.Idealbool
 			if n.Op != OLITERAL {
