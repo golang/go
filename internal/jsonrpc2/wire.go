@@ -34,8 +34,8 @@ const (
 	CodeServerOverloaded = -32000
 )
 
-// Request is sent to a server to represent a Call or Notify operaton.
-type Request struct {
+// wireRequest is sent to a server to represent a Call or Notify operaton.
+type wireRequest struct {
 	// VersionTag is always encoded as the string "2.0"
 	VersionTag VersionTag `json:"jsonrpc"`
 	// Method is a string containing the method name to invoke.
@@ -48,11 +48,11 @@ type Request struct {
 	ID *ID `json:"id,omitempty"`
 }
 
-// Response is a reply to a Request.
+// wireResponse is a reply to a Request.
 // It will always have the ID field set to tie it back to a request, and will
 // have either the Result or Error fields set depending on whether it is a
 // success or failure response.
-type Response struct {
+type wireResponse struct {
 	// VersionTag is always encoded as the string "2.0"
 	VersionTag VersionTag `json:"jsonrpc"`
 	// Result is the response value, and is required on success.
@@ -85,11 +85,6 @@ type VersionTag struct{}
 type ID struct {
 	Name   string
 	Number int64
-}
-
-// IsNotify returns true if this request is a notification.
-func (r *Request) IsNotify() bool {
-	return r.ID == nil
 }
 
 func (err *Error) Error() string {

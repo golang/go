@@ -33,14 +33,27 @@ type Conn struct {
 	stream             Stream
 	err                error
 	pendingMu          sync.Mutex // protects the pending map
-	pending            map[ID]chan *Response
+	pending            map[ID]chan *wireResponse
 	handlingMu         sync.Mutex // protects the handling map
 	handling           map[ID]handling
 }
 
+// Request is sent to a server to represent a Call or Notify operaton.
+type Request struct {
+	conn *Conn
+
+	// Method is a string containing the method name to invoke.
+	Method string
+	// Params is either a struct or an array with the parameters of the method.
+	Params *json.RawMessage
+	// The id of this request, used to tie the response back to the request.
+	// Will be either a string or a number. If not set, the request is a notify,
+	// and no response is possible.
+	ID *ID
+}
+
 type queueEntry struct {
 	ctx  context.Context
-	c    *Conn
 	r    *Request
 	size int64
 }
@@ -50,16 +63,14 @@ type queueEntry struct {
 // call Reply on the Conn with the supplied request.
 // Handlers are called synchronously, they should pass the work off to a go
 // routine if they are going to take a long time.
-type Handler func(context.Context, *Conn, *Request)
+type Handler func(context.Context, *Request)
 
 // Canceler is an option you can pass to NewConn which is invoked for
 // cancelled outgoing requests.
-// The request will have the ID filled in, which can be used to propagate the
-// cancel to the other process if needed.
 // It is okay to use the connection to send notifications, but the context will
 // be in the cancelled state, so you must do it with the background context
 // instead.
-type Canceler func(context.Context, *Conn, *Request)
+type Canceler func(context.Context, *Conn, ID)
 
 type rpcStats struct {
 	server   bool
@@ -133,17 +144,17 @@ func NewErrorf(code int64, format string, args ...interface{}) *Error {
 func NewConn(s Stream) *Conn {
 	conn := &Conn{
 		stream:   s,
-		pending:  make(map[ID]chan *Response),
+		pending:  make(map[ID]chan *wireResponse),
 		handling: make(map[ID]handling),
 	}
 	// the default handler reports a method error
-	conn.Handler = func(ctx context.Context, c *Conn, r *Request) {
+	conn.Handler = func(ctx context.Context, r *Request) {
 		if r.IsNotify() {
-			c.Reply(ctx, r, nil, NewErrorf(CodeMethodNotFound, "method %q not found", r.Method))
+			r.Reply(ctx, nil, NewErrorf(CodeMethodNotFound, "method %q not found", r.Method))
 		}
 	}
-	// the default canceller does nothing
-	conn.Canceler = func(context.Context, *Conn, *Request) {}
+	// the default canceler does nothing
+	conn.Canceler = func(context.Context, *Conn, ID) {}
 	// the default logger does nothing
 	conn.Logger = func(Direction, *ID, time.Duration, string, *json.RawMessage, *Error) {}
 	return conn
@@ -174,7 +185,7 @@ func (c *Conn) Notify(ctx context.Context, method string, params interface{}) (e
 	if err != nil {
 		return fmt.Errorf("marshalling notify parameters: %v", err)
 	}
-	request := &Request{
+	request := &wireRequest{
 		Method: method,
 		Params: jsonParams,
 	}
@@ -200,7 +211,7 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	if err != nil {
 		return fmt.Errorf("marshalling call parameters: %v", err)
 	}
-	request := &Request{
+	request := &wireRequest{
 		ID:     &id,
 		Method: method,
 		Params: jsonParams,
@@ -212,7 +223,7 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	}
 	// we have to add ourselves to the pending map before we send, otherwise we
 	// are racing the response
-	rchan := make(chan *Response)
+	rchan := make(chan *wireResponse)
 	c.pendingMu.Lock()
 	c.pending[id] = rchan
 	c.pendingMu.Unlock()
@@ -249,30 +260,38 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 		return nil
 	case <-ctx.Done():
 		// allow the handler to propagate the cancel
-		c.Canceler(ctx, c, request)
+		c.Canceler(ctx, c, id)
 		return ctx.Err()
 	}
+}
+
+// Conn returns the connection that created this request.
+func (r *Request) Conn() *Conn { return r.conn }
+
+// IsNotify returns true if this request is a notification.
+func (r *Request) IsNotify() bool {
+	return r.ID == nil
 }
 
 // Reply sends a reply to the given request.
 // It is an error to call this if request was not a call.
 // You must call this exactly once for any given request.
 // If err is set then result will be ignored.
-func (c *Conn) Reply(ctx context.Context, req *Request, result interface{}, err error) error {
-	ctx, st := trace.StartSpan(ctx, req.Method+":reply", trace.WithSpanKind(trace.SpanKindClient))
+func (r *Request) Reply(ctx context.Context, result interface{}, err error) error {
+	ctx, st := trace.StartSpan(ctx, r.Method+":reply", trace.WithSpanKind(trace.SpanKindClient))
 	defer st.End()
 
-	if req.IsNotify() {
+	if r.IsNotify() {
 		return fmt.Errorf("reply not invoked with a valid call")
 	}
-	c.handlingMu.Lock()
-	handling, found := c.handling[*req.ID]
+	r.conn.handlingMu.Lock()
+	handling, found := r.conn.handling[*r.ID]
 	if found {
-		delete(c.handling, *req.ID)
+		delete(r.conn.handling, *r.ID)
 	}
-	c.handlingMu.Unlock()
+	r.conn.handlingMu.Unlock()
 	if !found {
-		return fmt.Errorf("not a call in progress: %v", req.ID)
+		return fmt.Errorf("not a call in progress: %v", r.ID)
 	}
 
 	elapsed := time.Since(handling.start)
@@ -280,9 +299,9 @@ func (c *Conn) Reply(ctx context.Context, req *Request, result interface{}, err 
 	if err == nil {
 		raw, err = marshalToRaw(result)
 	}
-	response := &Response{
+	response := &wireResponse{
 		Result: raw,
-		ID:     req.ID,
+		ID:     r.ID,
 	}
 	if err != nil {
 		if callErr, ok := err.(*Error); ok {
@@ -295,8 +314,8 @@ func (c *Conn) Reply(ctx context.Context, req *Request, result interface{}, err 
 	if err != nil {
 		return err
 	}
-	c.Logger(Send, response.ID, elapsed, req.Method, response.Result, response.Error)
-	n, err := c.stream.Write(ctx, data)
+	r.conn.Logger(Send, response.ID, elapsed, r.Method, response.Result, response.Error)
+	n, err := r.conn.stream.Write(ctx, data)
 
 	v := ctx.Value(rpcStatsKey)
 	if v != nil {
@@ -332,7 +351,7 @@ type combined struct {
 }
 
 func (c *Conn) deliver(ctx context.Context, q chan queueEntry, request *Request, size int64) bool {
-	e := queueEntry{ctx: ctx, c: c, r: request, size: size}
+	e := queueEntry{ctx: ctx, r: request, size: size}
 	if !c.RejectIfOverloaded {
 		q <- e
 		return true
@@ -361,7 +380,7 @@ func (c *Conn) Run(ctx context.Context) error {
 			}
 			ctx, rpcStats := start(ctx, true, e.r.Method, e.r.ID)
 			rpcStats.received += e.size
-			c.Handler(ctx, e.c, e.r)
+			c.Handler(ctx, e.r)
 			rpcStats.end(ctx, nil)
 		}
 	}()
@@ -385,6 +404,7 @@ func (c *Conn) Run(ctx context.Context) error {
 		case msg.Method != "":
 			// if method is set it must be a request
 			request := &Request{
+				conn:   c,
 				Method: msg.Method,
 				Params: msg.Params,
 				ID:     msg.ID,
@@ -407,7 +427,7 @@ func (c *Conn) Run(ctx context.Context) error {
 				c.Logger(Receive, request.ID, -1, request.Method, request.Params, nil)
 				if !c.deliver(reqCtx, q, request, n) {
 					// queue is full, reject the message by directly replying
-					c.Reply(ctx, request, nil, NewErrorf(CodeServerOverloaded, "no room in queue"))
+					request.Reply(ctx, nil, NewErrorf(CodeServerOverloaded, "no room in queue"))
 				}
 			}
 		case msg.ID != nil:
@@ -419,7 +439,7 @@ func (c *Conn) Run(ctx context.Context) error {
 			}
 			c.pendingMu.Unlock()
 			// and send the reply to the channel
-			response := &Response{
+			response := &wireResponse{
 				Result: msg.Result,
 				Error:  msg.Error,
 				ID:     msg.ID,

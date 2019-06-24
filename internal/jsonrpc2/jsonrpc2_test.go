@@ -122,36 +122,36 @@ func run(ctx context.Context, t *testing.T, withHeaders bool, r io.ReadCloser, w
 	return conn
 }
 
-func handle(ctx context.Context, c *jsonrpc2.Conn, r *jsonrpc2.Request) {
+func handle(ctx context.Context, r *jsonrpc2.Request) {
 	switch r.Method {
 	case "no_args":
 		if r.Params != nil {
-			c.Reply(ctx, r, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidParams, "Expected no params"))
+			r.Reply(ctx, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidParams, "Expected no params"))
 			return
 		}
-		c.Reply(ctx, r, true, nil)
+		r.Reply(ctx, true, nil)
 	case "one_string":
 		var v string
 		if err := json.Unmarshal(*r.Params, &v); err != nil {
-			c.Reply(ctx, r, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err.Error()))
+			r.Reply(ctx, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err.Error()))
 			return
 		}
-		c.Reply(ctx, r, "got:"+v, nil)
+		r.Reply(ctx, "got:"+v, nil)
 	case "one_number":
 		var v int
 		if err := json.Unmarshal(*r.Params, &v); err != nil {
-			c.Reply(ctx, r, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err.Error()))
+			r.Reply(ctx, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err.Error()))
 			return
 		}
-		c.Reply(ctx, r, fmt.Sprintf("got:%d", v), nil)
+		r.Reply(ctx, fmt.Sprintf("got:%d", v), nil)
 	case "join":
 		var v []string
 		if err := json.Unmarshal(*r.Params, &v); err != nil {
-			c.Reply(ctx, r, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err.Error()))
+			r.Reply(ctx, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err.Error()))
 			return
 		}
-		c.Reply(ctx, r, path.Join(v...), nil)
+		r.Reply(ctx, path.Join(v...), nil)
 	default:
-		c.Reply(ctx, r, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeMethodNotFound, "method %q not found", r.Method))
+		r.Reply(ctx, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeMethodNotFound, "method %q not found", r.Method))
 	}
 }
