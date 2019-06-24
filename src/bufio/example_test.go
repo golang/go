@@ -31,11 +31,14 @@ func ExampleScanner_lines() {
 	}
 }
 
-// Use return the most recent call to Scan as a []byte
+// Return the most recent call to Scan as a []byte.
 func ExampleScanner_Bytes() {
 	scanner := bufio.NewScanner(strings.NewReader("gopher"))
 	for scanner.Scan() {
 		fmt.Println(len(scanner.Bytes()) == 6)
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, "shouldn't see an error scanning a string")
 	}
 	// Output:
 	// true
