@@ -170,6 +170,11 @@ func elimDeadAutosGeneric(f *Func) {
 			return
 		case OpVarLive:
 			// Don't delete the auto if it needs to be kept alive.
+
+			// We depend on this check to keep the autotmp stack slots
+			// for open-coded defers from being removed (since they
+			// may not be used by the inline code, but will be used by
+			// panic processing).
 			n, ok := v.Aux.(GCNode)
 			if !ok || n.StorageClass() != ClassAuto {
 				return

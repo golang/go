@@ -29,6 +29,10 @@ var ssaDumpStdout bool // whether to dump to stdout
 var ssaDumpCFG string  // generate CFGs for these phases
 const ssaDumpFile = "ssa.html"
 
+// The max number of defers in a function using open-coded defers. We enforce this
+// limit because the deferBits bitmask is currently a single byte (to minimize code size)
+const maxOpenDefers = 8
+
 // ssaDumpInlined holds all inlined functions when ssaDump contains a function name.
 var ssaDumpInlined []*Node
 
@@ -165,6 +169,107 @@ func initssaconfig() {
 	SigPanic = sysfunc("sigpanic")
 }
 
+// getParam returns the Field of ith param of node n (which is a
+// function/method/interface call), where the receiver of a method call is
+// considered as the 0th parameter. This does not include the receiver of an
+// interface call.
+func getParam(n *Node, i int) *types.Field {
+	t := n.Left.Type
+	if n.Op == OCALLMETH {
+		if i == 0 {
+			return t.Recv()
+		}
+		return t.Params().Field(i - 1)
+	}
+	return t.Params().Field(i)
+}
+
+// dvarint writes a varint v to the funcdata in symbol x and returns the new offset
+func dvarint(x *obj.LSym, off int, v int64) int {
+	if v < 0 || v > 1e9 {
+		panic(fmt.Sprintf("dvarint: bad offset for funcdata - %v", v))
+	}
+	if v < 1<<7 {
+		return duint8(x, off, uint8(v))
+	}
+	off = duint8(x, off, uint8((v&127)|128))
+	if v < 1<<14 {
+		return duint8(x, off, uint8(v>>7))
+	}
+	off = duint8(x, off, uint8(((v>>7)&127)|128))
+	if v < 1<<21 {
+		return duint8(x, off, uint8(v>>14))
+	}
+	off = duint8(x, off, uint8(((v>>14)&127)|128))
+	if v < 1<<28 {
+		return duint8(x, off, uint8(v>>21))
+	}
+	off = duint8(x, off, uint8(((v>>21)&127)|128))
+	return duint8(x, off, uint8(v>>28))
+}
+
+// emitOpenDeferInfo emits FUNCDATA information about the defers in a function
+// that is using open-coded defers.  This funcdata is used to determine the active
+// defers in a function and execute those defers during panic processing.
+//
+// The funcdata is all encoded in varints (since values will almost always be less
+// than 128, but stack offsets could potentially be up to 2Gbyte). All "locations"
+// for stack variables are specified as the number of bytes below varp for their
+// starting address. The format is:
+//
+//  - Max total argument size among all the defers
+//  - Location of the deferBits variable
+//  - Number of defers in the function
+//  - Information about each defer call, in reverse order of appearance in the function:
+//    - Total argument size of the call
+//    - Location of the closure value to call
+//    - 1 or 0 to indicate if there is a receiver for the call
+//      - If yes, then the location of the receiver value
+//    - Number of arguments
+//    - Information about each argument
+//      - Location of the stored defer argument in this function's frame
+//      - Size of the argument
+//      - Offset of where argument should be placed in the args frame when making call
+func emitOpenDeferInfo(s state) {
+	x := Ctxt.Lookup(s.curfn.Func.lsym.Name + ".opendefer")
+	s.curfn.Func.lsym.Func.OpenCodedDeferInfo = x
+	off := 0
+
+	// Compute maxargsize (max size of arguments for all defers)
+	// first, so we can output it first to the funcdata
+	var maxargsize int64
+	for i := len(s.opendefers) - 1; i >= 0; i-- {
+		r := s.opendefers[i]
+		argsize := r.n.Left.Type.ArgWidth()
+		if argsize > maxargsize {
+			maxargsize = argsize
+		}
+	}
+	off = dvarint(x, off, maxargsize)
+	off = dvarint(x, off, -s.deferBitsTemp.Xoffset)
+	off = dvarint(x, off, int64(len(s.opendefers)))
+
+	// Write in reverse-order, for ease of running in that order at runtime
+	for i := len(s.opendefers) - 1; i >= 0; i-- {
+		r := s.opendefers[i]
+		off = dvarint(x, off, r.n.Left.Type.ArgWidth())
+		off = dvarint(x, off, -r.closureNode.Xoffset)
+		if r.rcvrNode != nil {
+			off = dvarint(x, off, 1)
+			off = dvarint(x, off, -r.rcvrNode.Xoffset)
+		} else {
+			off = dvarint(x, off, 0)
+		}
+		off = dvarint(x, off, int64(len(r.argNodes)))
+		for j, arg := range r.argNodes {
+			f := getParam(r.n, j)
+			off = dvarint(x, off, -arg.Xoffset)
+			off = dvarint(x, off, f.Type.Size())
+			off = dvarint(x, off, f.Offset)
+		}
+	}
+}
+
 // buildssa builds an SSA function for fn.
 // worker indicates which of the backend workers is doing the processing.
 func buildssa(fn *Node, worker int) *ssa.Func {
@@ -227,11 +332,48 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	s.labeledNodes = map[*Node]*ssaLabel{}
 	s.fwdVars = map[*Node]*ssa.Value{}
 	s.startmem = s.entryNewValue0(ssa.OpInitMem, types.TypeMem)
+
+	s.hasOpenDefers = Debug['N'] == 0 && s.hasdefer && !s.curfn.Func.OpenCodedDeferDisallowed()
+	if s.hasOpenDefers && s.curfn.Func.Exit.Len() > 0 {
+		// Skip doing open defers if there is any extra exit code (likely
+		// copying heap-allocated return values or race detection), since
+		// we will not generate that code in the case of the extra
+		// deferreturn/ret segment.
+		s.hasOpenDefers = false
+	}
+	if s.hasOpenDefers &&
+		s.curfn.Func.numReturns*s.curfn.Func.numDefers > 15 {
+		// Since we are generating defer calls at every exit for
+		// open-coded defers, skip doing open-coded defers if there are
+		// too many returns (especially if there are multiple defers).
+		// Open-coded defers are most important for improving performance
+		// for smaller functions (which don't have many returns).
+		s.hasOpenDefers = false
+	}
+
 	s.sp = s.entryNewValue0(ssa.OpSP, types.Types[TUINTPTR]) // TODO: use generic pointer type (unsafe.Pointer?) instead
 	s.sb = s.entryNewValue0(ssa.OpSB, types.Types[TUINTPTR])
 
 	s.startBlock(s.f.Entry)
 	s.vars[&memVar] = s.startmem
+	if s.hasOpenDefers {
+		// Create the deferBits variable and stack slot.  deferBits is a
+		// bitmask showing which of the open-coded defers in this function
+		// have been activated.
+		deferBitsTemp := tempAt(src.NoXPos, s.curfn, types.Types[TUINT8])
+		s.deferBitsTemp = deferBitsTemp
+		// For this value, AuxInt is initialized to zero by default
+		startDeferBits := s.entryNewValue0(ssa.OpConst8, types.Types[TUINT8])
+		s.vars[&deferBitsVar] = startDeferBits
+		s.deferBitsAddr = s.addr(deferBitsTemp, false)
+		s.store(types.Types[TUINT8], s.deferBitsAddr, startDeferBits)
+		// Make sure that the deferBits stack slot is kept alive (for use
+		// by panics) and stores to deferBits are not eliminated, even if
+		// all checking code on deferBits in the function exit can be
+		// eliminated, because the defer statements were all
+		// unconditional.
+		s.vars[&memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, deferBitsTemp, s.mem(), false)
+	}
 
 	// Generate addresses of local declarations
 	s.decladdrs = map[*Node]*ssa.Value{}
@@ -287,6 +429,11 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 
 	// Main call to ssa package to compile function
 	ssa.Compile(s.f)
+
+	if s.hasOpenDefers {
+		emitOpenDeferInfo(s)
+	}
+
 	return s.f
 }
 
@@ -375,6 +522,29 @@ func (s *state) updateUnsetPredPos(b *ssa.Block) {
 	}
 }
 
+// Information about each open-coded defer.
+type openDeferInfo struct {
+	// The ODEFER node representing the function call of the defer
+	n *Node
+	// If defer call is closure call, the address of the argtmp where the
+	// closure is stored.
+	closure *ssa.Value
+	// The node representing the argtmp where the closure is stored - used for
+	// function, method, or interface call, to store a closure that panic
+	// processing can use for this defer.
+	closureNode *Node
+	// If defer call is interface call, the address of the argtmp where the
+	// receiver is stored
+	rcvr *ssa.Value
+	// The node representing the argtmp where the receiver is stored
+	rcvrNode *Node
+	// The addresses of the argtmps where the evaluated arguments of the defer
+	// function call are stored.
+	argVals []*ssa.Value
+	// The nodes representing the argtmps where the args of the defer are stored
+	argNodes []*Node
+}
+
 type state struct {
 	// configuration (arch) information
 	config *ssa.Config
@@ -416,6 +586,9 @@ type state struct {
 	startmem *ssa.Value
 	sp       *ssa.Value
 	sb       *ssa.Value
+	// value representing address of where deferBits autotmp is stored
+	deferBitsAddr *ssa.Value
+	deferBitsTemp *Node
 
 	// line number stack. The current line number is top of stack
 	line []src.XPos
@@ -432,6 +605,19 @@ type state struct {
 	cgoUnsafeArgs bool
 	hasdefer      bool // whether the function contains a defer statement
 	softFloat     bool
+	hasOpenDefers bool // whether we are doing open-coded defers
+
+	// If doing open-coded defers, list of info about the defer calls in
+	// scanning order. Hence, at exit we should run these defers in reverse
+	// order of this list
+	opendefers []*openDeferInfo
+	// For open-coded defers, this is the beginning and end blocks of the last
+	// defer exit code that we have generated so far. We use these to share
+	// code between exits if the shareDeferExits option (disabled by default)
+	// is on.
+	lastDeferExit       *ssa.Block // Entry block of last defer exit code we generated
+	lastDeferFinalBlock *ssa.Block // Final block of last defer exit code we generated
+	lastDeferCount      int        // Number of defers encountered at that point
 }
 
 type funcLine struct {
@@ -469,12 +655,13 @@ var (
 	memVar = Node{Op: ONAME, Sym: &types.Sym{Name: "mem"}}
 
 	// dummy nodes for temporary variables
-	ptrVar    = Node{Op: ONAME, Sym: &types.Sym{Name: "ptr"}}
-	lenVar    = Node{Op: ONAME, Sym: &types.Sym{Name: "len"}}
-	newlenVar = Node{Op: ONAME, Sym: &types.Sym{Name: "newlen"}}
-	capVar    = Node{Op: ONAME, Sym: &types.Sym{Name: "cap"}}
-	typVar    = Node{Op: ONAME, Sym: &types.Sym{Name: "typ"}}
-	okVar     = Node{Op: ONAME, Sym: &types.Sym{Name: "ok"}}
+	ptrVar       = Node{Op: ONAME, Sym: &types.Sym{Name: "ptr"}}
+	lenVar       = Node{Op: ONAME, Sym: &types.Sym{Name: "len"}}
+	newlenVar    = Node{Op: ONAME, Sym: &types.Sym{Name: "newlen"}}
+	capVar       = Node{Op: ONAME, Sym: &types.Sym{Name: "cap"}}
+	typVar       = Node{Op: ONAME, Sym: &types.Sym{Name: "typ"}}
+	okVar        = Node{Op: ONAME, Sym: &types.Sym{Name: "ok"}}
+	deferBitsVar = Node{Op: ONAME, Sym: &types.Sym{Name: "deferBits"}}
 )
 
 // startBlock sets the current block we're generating code in to b.
@@ -865,11 +1052,27 @@ func (s *state) stmt(n *Node) {
 			}
 		}
 	case ODEFER:
-		d := callDefer
-		if n.Esc == EscNever {
-			d = callDeferStack
+		if Debug_defer > 0 {
+			var defertype string
+			if s.hasOpenDefers {
+				defertype = "open-coded"
+			} else if n.Esc == EscNever {
+				defertype = "stack-allocated"
+			} else {
+				defertype = "heap-allocated"
+			}
+			Warnl(n.Pos, "defer: %s defer in function %s",
+				defertype, s.curfn.funcname())
 		}
-		s.call(n.Left, d)
+		if s.hasOpenDefers {
+			s.openDeferRecord(n.Left)
+		} else {
+			d := callDefer
+			if n.Esc == EscNever {
+				d = callDeferStack
+			}
+			s.call(n.Left, d)
+		}
 	case OGO:
 		s.call(n.Left, callGo)
 
@@ -1286,12 +1489,28 @@ func (s *state) stmt(n *Node) {
 	}
 }
 
+// If true, share as many open-coded defer exits as possible (with the downside of
+// worse line-number information)
+const shareDeferExits = false
+
 // exit processes any code that needs to be generated just before returning.
 // It returns a BlockRet block that ends the control flow. Its control value
 // will be set to the final memory state.
 func (s *state) exit() *ssa.Block {
 	if s.hasdefer {
-		s.rtcall(Deferreturn, true, nil)
+		if s.hasOpenDefers {
+			if shareDeferExits && s.lastDeferExit != nil && len(s.opendefers) == s.lastDeferCount {
+				if s.curBlock.Kind != ssa.BlockPlain {
+					panic("Block for an exit should be BlockPlain")
+				}
+				s.curBlock.AddEdgeTo(s.lastDeferExit)
+				s.endBlock()
+				return s.lastDeferFinalBlock
+			}
+			s.openDeferExit()
+		} else {
+			s.rtcall(Deferreturn, true, nil)
+		}
 	}
 
 	// Run exit code. Typically, this code copies heap-allocated PPARAMOUT
@@ -1314,6 +1533,9 @@ func (s *state) exit() *ssa.Block {
 	b := s.endBlock()
 	b.Kind = ssa.BlockRet
 	b.SetControl(m)
+	if s.hasdefer && s.hasOpenDefers {
+		s.lastDeferFinalBlock = b
+	}
 	return b
 }
 
@@ -3764,6 +3986,230 @@ func (s *state) intrinsicArgs(n *Node) []*ssa.Value {
 	return args
 }
 
+// openDeferRecord adds code to evaluate and store the args for an open-code defer
+// call, and records info about the defer, so we can generate proper code on the
+// exit paths. n is the sub-node of the defer node that is the actual function
+// call. We will also record funcdata information on where the args are stored
+// (as well as the deferBits variable), and this will enable us to run the proper
+// defer calls during panics.
+func (s *state) openDeferRecord(n *Node) {
+	index := len(s.opendefers)
+
+	// Do any needed expression evaluation for the args (including the
+	// receiver, if any). This may be evaluating something like 'autotmp_3 =
+	// once.mutex'. Such a statement will create a mapping in s.vars[] from
+	// the autotmp name to the evaluated SSA arg value, but won't do any
+	// stores to the stack.
+	s.stmtList(n.List)
+
+	args := []*ssa.Value{}
+	argNodes := []*Node{}
+
+	opendefer := &openDeferInfo{
+		n: n,
+	}
+	fn := n.Left
+	if n.Op == OCALLFUNC {
+		// We must always store the function value in a stack slot for the
+		// runtime panic code to use. But in the defer exit code, we will
+		// call the function directly if it is a static function.
+		closureVal := s.expr(fn)
+		closure := s.openDeferSave(fn, fn.Type, closureVal)
+		opendefer.closureNode = closure.Aux.(*Node)
+		if !(fn.Op == ONAME && fn.Class() == PFUNC) {
+			opendefer.closure = closure
+		}
+	} else if n.Op == OCALLMETH {
+		if fn.Op != ODOTMETH {
+			Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", fn)
+		}
+		closureVal := s.getMethodClosure(fn)
+		// We must always store the function value in a stack slot for the
+		// runtime panic code to use. But in the defer exit code, we will
+		// call the method directly.
+		closure := s.openDeferSave(fn, fn.Type, closureVal)
+		opendefer.closureNode = closure.Aux.(*Node)
+	} else {
+		if fn.Op != ODOTINTER {
+			Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op)
+		}
+		closure, rcvr := s.getClosureAndRcvr(fn)
+		opendefer.closure = s.openDeferSave(fn, closure.Type, closure)
+		// Important to get the receiver type correct, so it is recognized
+		// as a pointer for GC purposes.
+		opendefer.rcvr = s.openDeferSave(nil, fn.Type.Recv().Type, rcvr)
+		opendefer.closureNode = opendefer.closure.Aux.(*Node)
+		opendefer.rcvrNode = opendefer.rcvr.Aux.(*Node)
+	}
+	for _, argn := range n.Rlist.Slice() {
+		v := s.openDeferSave(argn, argn.Type, s.expr(argn))
+		args = append(args, v)
+		argNodes = append(argNodes, v.Aux.(*Node))
+	}
+	opendefer.argVals = args
+	opendefer.argNodes = argNodes
+	s.opendefers = append(s.opendefers, opendefer)
+
+	// Update deferBits only after evaluation and storage to stack of
+	// args/receiver/interface is successful.
+	bitvalue := s.constInt8(types.Types[TUINT8], 1<<uint(index))
+	newDeferBits := s.newValue2(ssa.OpOr8, types.Types[TUINT8], s.variable(&deferBitsVar, types.Types[TUINT8]), bitvalue)
+	s.vars[&deferBitsVar] = newDeferBits
+	s.store(types.Types[TUINT8], s.deferBitsAddr, newDeferBits)
+}
+
+// openDeferSave generates SSA nodes to store a value val (with type t) for an
+// open-coded defer on the stack at an explicit autotmp location, so it can be
+// reloaded and used for the appropriate call on exit. n is the associated node,
+// which is only needed if the associated type is non-SSAable. It returns an SSA
+// value representing a pointer to the stack location.
+func (s *state) openDeferSave(n *Node, t *types.Type, val *ssa.Value) *ssa.Value {
+	argTemp := tempAt(val.Pos.WithNotStmt(), s.curfn, t)
+	var addrArgTemp *ssa.Value
+	// Use OpVarLive to make sure stack slots for the args, etc. are not
+	// removed by dead-store elimination
+	if s.curBlock.ID != s.f.Entry.ID {
+		// Force the argtmp storing this defer function/receiver/arg to be
+		// declared in the entry block, so that it will be live for the
+		// defer exit code (which will actually access it only if the
+		// associated defer call has been activated).
+		s.defvars[s.f.Entry.ID][&memVar] = s.entryNewValue1A(ssa.OpVarDef, types.TypeMem, argTemp, s.defvars[s.f.Entry.ID][&memVar])
+		s.defvars[s.f.Entry.ID][&memVar] = s.entryNewValue1A(ssa.OpVarLive, types.TypeMem, argTemp, s.defvars[s.f.Entry.ID][&memVar])
+		addrArgTemp = s.entryNewValue2A(ssa.OpLocalAddr, types.NewPtr(argTemp.Type), argTemp, s.sp, s.defvars[s.f.Entry.ID][&memVar])
+	} else {
+		// Special case if we're still in the entry block. We can't use
+		// the above code, since s.defvars[s.f.Entry.ID] isn't defined
+		// until we end the entry block with s.endBlock().
+		s.vars[&memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, argTemp, s.mem(), false)
+		s.vars[&memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, argTemp, s.mem(), false)
+		addrArgTemp = s.newValue2Apos(ssa.OpLocalAddr, types.NewPtr(argTemp.Type), argTemp, s.sp, s.mem(), false)
+	}
+	if types.Haspointers(t) {
+		// Since we may use this argTemp during exit depending on the
+		// deferBits, we must define it unconditionally on entry.
+		// Therefore, we must make sure it is zeroed out in the entry
+		// block if it contains pointers, else GC may wrongly follow an
+		// uninitialized pointer value.
+		argTemp.Name.SetNeedzero(true)
+	}
+	if !canSSAType(t) {
+		if n.Op != ONAME {
+			panic(fmt.Sprintf("Non-SSAable value should be a named location: %v", n))
+		}
+		a := s.addr(n, false)
+		s.move(t, addrArgTemp, a)
+		return addrArgTemp
+	}
+	// We are storing to the stack, hence we can avoid the full checks in
+	// storeType() (no write barrier) and do a simple store().
+	s.store(t, addrArgTemp, val)
+	return addrArgTemp
+}
+
+// openDeferExit generates SSA for processing all the open coded defers at exit.
+// The code involves loading deferBits, and checking each of the bits to see if
+// the corresponding defer statement was executed. For each bit that is turned
+// on, the associated defer call is made.
+func (s *state) openDeferExit() {
+	deferExit := s.f.NewBlock(ssa.BlockPlain)
+	s.endBlock().AddEdgeTo(deferExit)
+	s.startBlock(deferExit)
+	s.lastDeferExit = deferExit
+	s.lastDeferCount = len(s.opendefers)
+	zeroval := s.constInt8(types.Types[TUINT8], 0)
+	// Test for and run defers in reverse order
+	for i := len(s.opendefers) - 1; i >= 0; i-- {
+		r := s.opendefers[i]
+		bCond := s.f.NewBlock(ssa.BlockPlain)
+		bEnd := s.f.NewBlock(ssa.BlockPlain)
+
+		deferBits := s.variable(&deferBitsVar, types.Types[TUINT8])
+		// Generate code to check if the bit associated with the current
+		// defer is set.
+		bitval := s.constInt8(types.Types[TUINT8], 1<<uint(i))
+		andval := s.newValue2(ssa.OpAnd8, types.Types[TUINT8], deferBits, bitval)
+		eqVal := s.newValue2(ssa.OpEq8, types.Types[TBOOL], andval, zeroval)
+		b := s.endBlock()
+		b.Kind = ssa.BlockIf
+		b.SetControl(eqVal)
+		b.AddEdgeTo(bEnd)
+		b.AddEdgeTo(bCond)
+		bCond.AddEdgeTo(bEnd)
+		s.startBlock(bCond)
+
+		// Clear this bit in deferBits and force store back to stack, so
+		// we will not try to re-run this defer call if this defer call panics.
+		nbitval := s.newValue1(ssa.OpCom8, types.Types[TUINT8], bitval)
+		maskedval := s.newValue2(ssa.OpAnd8, types.Types[TUINT8], deferBits, nbitval)
+		s.store(types.Types[TUINT8], s.deferBitsAddr, maskedval)
+		// Use this value for following tests, so we keep previous
+		// bits cleared.
+		s.vars[&deferBitsVar] = maskedval
+
+		// Generate code to call the function call of the defer, using the
+		// closure/receiver/args that were stored in argtmps at the point
+		// of the defer statement.
+		argStart := Ctxt.FixedFrameSize()
+		fn := r.n.Left
+		stksize := fn.Type.ArgWidth()
+		if r.rcvr != nil {
+			// rcvr in case of OCALLINTER
+			v := s.load(r.rcvr.Type.Elem(), r.rcvr)
+			addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart)
+			s.store(types.Types[TUINTPTR], addr, v)
+		}
+		for j, argAddrVal := range r.argVals {
+			f := getParam(r.n, j)
+			pt := types.NewPtr(f.Type)
+			addr := s.constOffPtrSP(pt, argStart+f.Offset)
+			if !canSSAType(f.Type) {
+				s.move(f.Type, addr, argAddrVal)
+			} else {
+				argVal := s.load(f.Type, argAddrVal)
+				s.storeType(f.Type, addr, argVal, 0, false)
+			}
+		}
+		var call *ssa.Value
+		if r.closure != nil {
+			v := s.load(r.closure.Type.Elem(), r.closure)
+			s.maybeNilCheckClosure(v, callDefer)
+			codeptr := s.rawLoad(types.Types[TUINTPTR], v)
+			call = s.newValue3(ssa.OpClosureCall, types.TypeMem, codeptr, v, s.mem())
+		} else {
+			// Do a static call if the original call was a static function or method
+			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, fn.Sym.Linksym(), s.mem())
+		}
+		call.AuxInt = stksize
+		s.vars[&memVar] = call
+		// Make sure that the stack slots with pointers are kept live
+		// through the call (which is a pre-emption point). Also, we will
+		// use the first call of the last defer exit to compute liveness
+		// for the deferreturn, so we want all stack slots to be live.
+		if r.closureNode != nil {
+			s.vars[&memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, r.closureNode, s.mem(), false)
+		}
+		if r.rcvrNode != nil {
+			if types.Haspointers(r.rcvrNode.Type) {
+				s.vars[&memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, r.rcvrNode, s.mem(), false)
+			}
+		}
+		for _, argNode := range r.argNodes {
+			if types.Haspointers(argNode.Type) {
+				s.vars[&memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, argNode, s.mem(), false)
+			}
+		}
+
+		if i == len(s.opendefers)-1 {
+			// Record the call of the first defer. This will be used
+			// to set liveness info for the deferreturn (which is also
+			// used for any location that causes a runtime panic)
+			s.f.LastDeferExit = call
+		}
+		s.endBlock()
+		s.startBlock(bEnd)
+	}
+}
+
 // Calls the function n using the specified call type.
 // Returns the address of the return value (or nil if none).
 func (s *state) call(n *Node, k callKind) *ssa.Value {
@@ -3779,11 +4225,10 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 			break
 		}
 		closure = s.expr(fn)
-		if k != callDefer && k != callDeferStack && (thearch.LinkArch.Family == sys.Wasm || objabi.GOOS == "aix" && k != callGo) {
-			// Deferred nil function needs to panic when the function is invoked, not the point of defer statement.
-			// On AIX, the closure needs to be verified as fn can be nil, except if it's a call go. This needs to be handled by the runtime to have the "go of nil func value" error.
-			// TODO(neelance): On other architectures this should be eliminated by the optimization steps
-			s.nilCheck(closure)
+		if k != callDefer && k != callDeferStack {
+			// Deferred nil function needs to panic when the function is invoked,
+			// not the point of defer statement.
+			s.maybeNilCheckClosure(closure, k)
 		}
 	case OCALLMETH:
 		if fn.Op != ODOTMETH {
@@ -3793,35 +4238,20 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 			sym = fn.Sym
 			break
 		}
-		// Make a name n2 for the function.
-		// fn.Sym might be sync.(*Mutex).Unlock.
-		// Make a PFUNC node out of that, then evaluate it.
-		// We get back an SSA value representing &sync.(*Mutex).Unlock·f.
-		// We can then pass that to defer or go.
-		n2 := newnamel(fn.Pos, fn.Sym)
-		n2.Name.Curfn = s.curfn
-		n2.SetClass(PFUNC)
-		// n2.Sym already existed, so it's already marked as a function.
-		n2.Pos = fn.Pos
-		n2.Type = types.Types[TUINT8] // dummy type for a static closure. Could use runtime.funcval if we had it.
-		closure = s.expr(n2)
+		closure = s.getMethodClosure(fn)
 		// Note: receiver is already present in n.Rlist, so we don't
 		// want to set it here.
 	case OCALLINTER:
 		if fn.Op != ODOTINTER {
 			s.Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op)
 		}
-		i := s.expr(fn.Left)
-		itab := s.newValue1(ssa.OpITab, types.Types[TUINTPTR], i)
-		s.nilCheck(itab)
-		itabidx := fn.Xoffset + 2*int64(Widthptr) + 8 // offset of fun field in runtime.itab
-		itab = s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.UintptrPtr, itabidx, itab)
+		var iclosure *ssa.Value
+		iclosure, rcvr = s.getClosureAndRcvr(fn)
 		if k == callNormal {
-			codeptr = s.load(types.Types[TUINTPTR], itab)
+			codeptr = s.load(types.Types[TUINTPTR], iclosure)
 		} else {
-			closure = itab
+			closure = iclosure
 		}
-		rcvr = s.newValue1(ssa.OpIData, types.Types[TUINTPTR], i)
 	}
 	dowidth(fn.Type)
 	stksize := fn.Type.ArgWidth() // includes receiver, args, and results
@@ -3847,18 +4277,22 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 			s.constInt32(types.Types[TUINT32], int32(stksize)))
 		// 1: started, set in deferprocStack
 		// 2: heap, set in deferprocStack
-		// 3: sp, set in deferprocStack
-		// 4: pc, set in deferprocStack
-		// 5: fn
+		// 3: openDefer
+		// 4: sp, set in deferprocStack
+		// 5: pc, set in deferprocStack
+		// 6: fn
 		s.store(closure.Type,
-			s.newValue1I(ssa.OpOffPtr, closure.Type.PtrTo(), t.FieldOff(5), addr),
+			s.newValue1I(ssa.OpOffPtr, closure.Type.PtrTo(), t.FieldOff(6), addr),
 			closure)
-		// 6: panic, set in deferprocStack
-		// 7: link, set in deferprocStack
+		// 7: panic, set in deferprocStack
+		// 8: link, set in deferprocStack
+		// 9: framepc
+		// 10: varp
+		// 11: fd
 
 		// Then, store all the arguments of the defer call.
 		ft := fn.Type
-		off := t.FieldOff(8)
+		off := t.FieldOff(12)
 		args := n.Rlist.Slice()
 
 		// Set receiver (for interface calls). Always a pointer.
@@ -3971,6 +4405,44 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 	}
 	fp := res.Field(0)
 	return s.constOffPtrSP(types.NewPtr(fp.Type), fp.Offset+Ctxt.FixedFrameSize())
+}
+
+// maybeNilCheckClosure checks if a nil check of a closure is needed in some
+// architecture-dependent situations and, if so, emits the nil check.
+func (s *state) maybeNilCheckClosure(closure *ssa.Value, k callKind) {
+	if thearch.LinkArch.Family == sys.Wasm || objabi.GOOS == "aix" && k != callGo {
+		// On AIX, the closure needs to be verified as fn can be nil, except if it's a call go. This needs to be handled by the runtime to have the "go of nil func value" error.
+		// TODO(neelance): On other architectures this should be eliminated by the optimization steps
+		s.nilCheck(closure)
+	}
+}
+
+// getMethodClosure returns a value representing the closure for a method call
+func (s *state) getMethodClosure(fn *Node) *ssa.Value {
+	// Make a name n2 for the function.
+	// fn.Sym might be sync.(*Mutex).Unlock.
+	// Make a PFUNC node out of that, then evaluate it.
+	// We get back an SSA value representing &sync.(*Mutex).Unlock·f.
+	// We can then pass that to defer or go.
+	n2 := newnamel(fn.Pos, fn.Sym)
+	n2.Name.Curfn = s.curfn
+	n2.SetClass(PFUNC)
+	// n2.Sym already existed, so it's already marked as a function.
+	n2.Pos = fn.Pos
+	n2.Type = types.Types[TUINT8] // dummy type for a static closure. Could use runtime.funcval if we had it.
+	return s.expr(n2)
+}
+
+// getClosureAndRcvr returns values for the appropriate closure and receiver of an
+// interface call
+func (s *state) getClosureAndRcvr(fn *Node) (*ssa.Value, *ssa.Value) {
+	i := s.expr(fn.Left)
+	itab := s.newValue1(ssa.OpITab, types.Types[TUINTPTR], i)
+	s.nilCheck(itab)
+	itabidx := fn.Xoffset + 2*int64(Widthptr) + 8 // offset of fun field in runtime.itab
+	closure := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.UintptrPtr, itabidx, itab)
+	rcvr := s.newValue1(ssa.OpIData, types.Types[TUINTPTR], i)
+	return closure, rcvr
 }
 
 // etypesign returns the signed-ness of e, for integer/pointer etypes.
@@ -5146,6 +5618,16 @@ func (s *state) addNamedValue(n *Node, v *ssa.Value) {
 	s.f.NamedValues[loc] = append(values, v)
 }
 
+// Generate a disconnected call to a runtime routine and a return.
+func gencallret(pp *Progs, sym *obj.LSym) *obj.Prog {
+	p := pp.Prog(obj.ACALL)
+	p.To.Type = obj.TYPE_MEM
+	p.To.Name = obj.NAME_EXTERN
+	p.To.Sym = sym
+	p = pp.Prog(obj.ARET)
+	return p
+}
+
 // Branch is an unresolved branch.
 type Branch struct {
 	P *obj.Prog  // branch instruction
@@ -5181,6 +5663,11 @@ type SSAGenState struct {
 
 	// wasm: The number of values on the WebAssembly stack. This is only used as a safeguard.
 	OnWasmStackSkipped int
+
+	// Liveness index for the first function call in the final defer exit code
+	// path that we generated. All defer functions and args should be live at
+	// this point. This will be used to set the liveness for the deferreturn.
+	lastDeferLiveness LivenessIndex
 }
 
 // Prog appends a new Prog.
@@ -5308,6 +5795,17 @@ func genssa(f *ssa.Func, pp *Progs) {
 	s.livenessMap = liveness(e, f, pp)
 	emitStackObjects(e, pp)
 
+	openDeferInfo := e.curfn.Func.lsym.Func.OpenCodedDeferInfo
+	if openDeferInfo != nil {
+		// This function uses open-coded defers -- write out the funcdata
+		// info that we computed at the end of genssa.
+		p := pp.Prog(obj.AFUNCDATA)
+		Addrconst(&p.From, objabi.FUNCDATA_OpenCodedDeferInfo)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = openDeferInfo
+	}
+
 	// Remember where each block starts.
 	s.bstart = make([]*obj.Prog, f.NumBlocks())
 	s.pp = pp
@@ -5372,6 +5870,12 @@ func genssa(f *ssa.Func, pp *Progs) {
 			// Attach this safe point to the next
 			// instruction.
 			s.pp.nextLive = s.livenessMap.Get(v)
+
+			// Remember the liveness index of the first defer call of
+			// the last defer exit
+			if v.Block.Func.LastDeferExit != nil && v == v.Block.Func.LastDeferExit {
+				s.lastDeferLiveness = s.pp.nextLive
+			}
 			switch v.Op {
 			case ssa.OpInitMem:
 				// memory arg needs no code
@@ -5454,6 +5958,13 @@ func genssa(f *ssa.Func, pp *Progs) {
 		// it ends in a call which doesn't return, add a
 		// nop (which will never execute) after the call.
 		thearch.Ginsnop(pp)
+	}
+	if openDeferInfo != nil {
+		// When doing open-coded defers, generate a disconnected call to
+		// deferreturn and a return. This will be used to during panic
+		// recovery to unwind the stack and return back to the runtime.
+		s.pp.nextLive = s.lastDeferLiveness
+		gencallret(pp, Deferreturn)
 	}
 
 	if inlMarks != nil {
