@@ -472,7 +472,6 @@ func runGet(cmd *base.Command, args []string) {
 	// and the load and upgrade operations may only add and upgrade modules
 	// in the build list.
 	var matches []*search.Match
-	var install []string
 	for {
 		var seenPkgs map[string]bool
 		seenQuery := make(map[querySpec]bool)
@@ -664,7 +663,7 @@ func runGet(cmd *base.Command, args []string) {
 	}
 	work.BuildInit()
 	pkgs := load.PackagesForBuild(pkgPatterns)
-	work.InstallPackages(install, pkgs)
+	work.InstallPackages(pkgPatterns, pkgs)
 }
 
 // runQueries looks up modules at target versions in parallel. Results will be
