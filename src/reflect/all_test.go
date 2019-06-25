@@ -350,6 +350,7 @@ func TestCanSetField(t *testing.T) {
 	}
 
 	type testCase struct {
+		// -1 means Addr().Elem() of current value
 		index  []int
 		canSet bool
 	}
@@ -360,17 +361,33 @@ func TestCanSetField(t *testing.T) {
 		val: ValueOf(&S1{}),
 		cases: []testCase{
 			{[]int{0}, false},
+			{[]int{0, -1}, false},
 			{[]int{0, 0}, false},
+			{[]int{0, 0, -1}, false},
+			{[]int{0, -1, 0}, false},
+			{[]int{0, -1, 0, -1}, false},
 			{[]int{0, 1}, true},
+			{[]int{0, 1, -1}, true},
+			{[]int{0, -1, 1}, true},
+			{[]int{0, -1, 1, -1}, true},
 			{[]int{1}, false},
+			{[]int{1, -1}, false},
 			{[]int{2}, true},
+			{[]int{2, -1}, true},
 		},
 	}, {
 		val: ValueOf(&S2{embed: &embed{}}),
 		cases: []testCase{
 			{[]int{0}, false},
+			{[]int{0, -1}, false},
 			{[]int{0, 0}, false},
+			{[]int{0, 0, -1}, false},
+			{[]int{0, -1, 0}, false},
+			{[]int{0, -1, 0, -1}, false},
 			{[]int{0, 1}, true},
+			{[]int{0, 1, -1}, true},
+			{[]int{0, -1, 1}, true},
+			{[]int{0, -1, 1, -1}, true},
 			{[]int{1}, false},
 			{[]int{2}, true},
 		},
@@ -378,8 +395,15 @@ func TestCanSetField(t *testing.T) {
 		val: ValueOf(&S3{}),
 		cases: []testCase{
 			{[]int{0}, true},
+			{[]int{0, -1}, true},
 			{[]int{0, 0}, false},
+			{[]int{0, 0, -1}, false},
+			{[]int{0, -1, 0}, false},
+			{[]int{0, -1, 0, -1}, false},
 			{[]int{0, 1}, true},
+			{[]int{0, 1, -1}, true},
+			{[]int{0, -1, 1}, true},
+			{[]int{0, -1, 1, -1}, true},
 			{[]int{1}, false},
 			{[]int{2}, true},
 		},
@@ -387,8 +411,15 @@ func TestCanSetField(t *testing.T) {
 		val: ValueOf(&S4{Embed: &Embed{}}),
 		cases: []testCase{
 			{[]int{0}, true},
+			{[]int{0, -1}, true},
 			{[]int{0, 0}, false},
+			{[]int{0, 0, -1}, false},
+			{[]int{0, -1, 0}, false},
+			{[]int{0, -1, 0, -1}, false},
 			{[]int{0, 1}, true},
+			{[]int{0, 1, -1}, true},
+			{[]int{0, -1, 1}, true},
+			{[]int{0, -1, 1, -1}, true},
 			{[]int{1}, false},
 			{[]int{2}, true},
 		},
@@ -402,7 +433,11 @@ func TestCanSetField(t *testing.T) {
 					if f.Kind() == Ptr {
 						f = f.Elem()
 					}
-					f = f.Field(i)
+					if i == -1 {
+						f = f.Addr().Elem()
+					} else {
+						f = f.Field(i)
+					}
 				}
 				if got := f.CanSet(); got != tc.canSet {
 					t.Errorf("CanSet() = %v, want %v", got, tc.canSet)
