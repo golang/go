@@ -832,26 +832,15 @@ The other extensions include <code>SXTH</code> (16-bit), <code>SXTW</code> (32-b
 Reference: <a href="/pkg/cmd/internal/obj/arm64">Go ARM64 Assembly Instructions Reference Manual</a>
 </p>
 
-<h3 id="ppc64">64-bit PowerPC, a.k.a. ppc64</h3>
+<h3 id="ppc64">PPC64</h3>
 
 <p>
-The 64-bit PowerPC port is in an experimental state.
+This assembler is used by GOARCH values ppc64 and ppc64le.
 </p>
 
 <p>
-Addressing modes:
+Reference: <a href="/pkg/cmd/internal/obj/ppc64">Go PPC64 Assembly Instructions Reference Manual</a>
 </p>
-
-<ul>
-
-<li>
-<code>(R5)(R6*1)</code>: The location at <code>R5</code> plus <code>R6</code>. It is a scaled
-mode as on the x86, but the only scale allowed is <code>1</code>.
-</li>
-
-<li>
-<code>(R5+R6)</code>: Alias for (R5)(R6*1)
-</li>
 
 </ul>
 
