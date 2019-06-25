@@ -493,7 +493,11 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
 	MOVW	R4, R13
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$12
+TEXT runtime·sigtramp(SB),NOSPLIT,$0
+	// Reserve space for callee-save registers and arguments.
+	MOVM.DB.W [R4-R11], (R13)
+	SUB	$16, R13
+
 	// this might be called in external code context,
 	// where g is not set.
 	// first save R0, because runtime·load_g will clobber it
@@ -506,6 +510,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$12
 	MOVW	R2, 12(R13)
 	MOVW  	$runtime·sigtrampgo(SB), R11
 	BL	(R11)
+
+	// Restore callee-save registers.
+	ADD	$16, R13
+	MOVM.IA.W (R13), [R4-R11]
+
 	RET
 
 TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
