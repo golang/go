@@ -630,6 +630,9 @@ func writeHeapInternal(w io.Writer, debug int, defaultSampleType string) error {
 	fmt.Fprintf(w, "# GCCPUFraction = %v\n", s.GCCPUFraction)
 	fmt.Fprintf(w, "# DebugGC = %v\n", s.DebugGC)
 
+	// Also flush out MaxRSS on supported platforms.
+	addMaxRSS(w)
+
 	tw.Flush()
 	return b.Flush()
 }
