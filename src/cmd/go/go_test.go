@@ -5061,6 +5061,11 @@ func TestExecBuildX(t *testing.T) {
 	tg.tempDir("cache")
 	tg.setenv("GOCACHE", tg.path("cache"))
 
+	// Before building our test main.go, ensure that an up-to-date copy of
+	// runtime/cgo is present in the cache. If it isn't, the 'go build' step below
+	// will fail with "can't open import". See golang.org/issue/29004.
+	tg.run("build", "runtime/cgo")
+
 	tg.tempFile("main.go", `package main; import "C"; func main() { print("hello") }`)
 	src := tg.path("main.go")
 	obj := tg.path("main")
