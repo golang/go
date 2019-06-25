@@ -345,7 +345,9 @@ func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
 func (p *proxyRepo) Latest() (*RevInfo, error) {
 	data, err := p.getBytes("@latest")
 	if err != nil {
-		// TODO return err if not 404
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, p.versionError("", err)
+		}
 		return p.latest()
 	}
 	info := new(RevInfo)
