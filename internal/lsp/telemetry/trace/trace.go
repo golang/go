@@ -5,11 +5,12 @@
 // Package tag adds support for telemetry tracins.
 package trace
 
-import "context"
+import (
+	"context"
+)
 
 type Span interface {
 	AddAttributes(attributes ...Attribute)
-
 	AddMessageReceiveEvent(messageID, uncompressedByteSize, compressedByteSize int64)
 	AddMessageSendEvent(messageID, uncompressedByteSize, compressedByteSize int64)
 	Annotate(attributes []Attribute, str string)
@@ -41,6 +42,7 @@ func (nullSpan) SetStatus(status Status)                                        
 
 var (
 	FromContext = func(ctx context.Context) Span { return nullSpan{} }
+	NewContext  = func(ctx context.Context, span Span) context.Context { return ctx }
 	StartSpan   = func(ctx context.Context, name string, options ...interface{}) (context.Context, Span) {
 		return ctx, nullSpan{}
 	}

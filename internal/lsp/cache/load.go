@@ -43,10 +43,10 @@ func (v *view) loadParseTypecheck(ctx context.Context, f *goFile) ([]packages.Er
 		}
 		// Start prefetching direct imports.
 		for importID := range m.children {
-			go imp.getPkg(importID)
+			go imp.getPkg(ctx, importID)
 		}
 		// Type-check package.
-		pkg, err := imp.getPkg(imp.topLevelPkgID)
+		pkg, err := imp.getPkg(ctx, imp.topLevelPkgID)
 		if err != nil {
 			return nil, err
 		}

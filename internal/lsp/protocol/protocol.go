@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"golang.org/x/tools/internal/jsonrpc2"
+	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/lsp/xlog"
 )
 
@@ -15,7 +16,10 @@ const defaultMessageBufferSize = 20
 const defaultRejectIfOverloaded = false
 
 func canceller(ctx context.Context, conn *jsonrpc2.Conn, id jsonrpc2.ID) {
-	conn.Notify(context.Background(), "$/cancelRequest", &CancelParams{ID: id})
+	ctx = detatchContext(ctx)
+	ctx, span := trace.StartSpan(ctx, "protocol.canceller")
+	defer span.End()
+	conn.Notify(ctx, "$/cancelRequest", &CancelParams{ID: id})
 }
 
 func NewClient(stream jsonrpc2.Stream, client Client) (*jsonrpc2.Conn, Server, xlog.Logger) {

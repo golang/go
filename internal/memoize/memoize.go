@@ -46,6 +46,7 @@ type Handle struct {
 // there is only one instance of the result live at any given time.
 type entry struct {
 	noCopy
+	key interface{}
 	// mu contols access to the typ and ptr fields
 	mu sync.Mutex
 	// the calculated value, as stored in an interface{}
@@ -93,7 +94,7 @@ func (s *Store) Bind(key interface{}, function Function) *Handle {
 		if s.entries == nil {
 			s.entries = make(map[interface{}]*entry)
 		}
-		e = &entry{}
+		e = &entry{key: key}
 		s.entries[key] = e
 	}
 	return &Handle{
@@ -179,8 +180,7 @@ func (e *entry) get(ctx context.Context, f Function) (interface{}, bool) {
 			// Use the background context to avoid canceling the function.
 			// The function cannot be canceled even if the context is canceled
 			// because multiple goroutines may depend on it.
-			ctx := context.Background()
-			value = f(ctx)
+			value = f(detatchContext(ctx))
 
 			// The function has completed. Update the value in the entry.
 			e.mu.Lock()

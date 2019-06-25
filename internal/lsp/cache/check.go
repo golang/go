@@ -16,6 +16,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -34,18 +35,19 @@ type importer struct {
 }
 
 func (imp *importer) Import(pkgPath string) (*types.Package, error) {
+	ctx := imp.ctx
 	id, ok := imp.view.mcache.ids[packagePath(pkgPath)]
 	if !ok {
 		return nil, fmt.Errorf("no known ID for %s", pkgPath)
 	}
-	pkg, err := imp.getPkg(id)
+	pkg, err := imp.getPkg(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 	return pkg.types, nil
 }
 
-func (imp *importer) getPkg(id packageID) (*pkg, error) {
+func (imp *importer) getPkg(ctx context.Context, id packageID) (*pkg, error) {
 	if _, ok := imp.seen[id]; ok {
 		return nil, fmt.Errorf("circular import detected")
 	}
@@ -65,20 +67,20 @@ func (imp *importer) getPkg(id packageID) (*pkg, error) {
 
 		// This goroutine becomes responsible for populating
 		// the entry and broadcasting its readiness.
-		e.pkg, e.err = imp.typeCheck(id)
+		e.pkg, e.err = imp.typeCheck(ctx, id)
 		close(e.ready)
 	}
 
 	if e.err != nil {
 		// If the import had been previously canceled, and that error cached, try again.
-		if e.err == context.Canceled && imp.ctx.Err() == nil {
+		if e.err == context.Canceled && ctx.Err() == nil {
 			imp.view.pcache.mu.Lock()
 			// Clear out canceled cache entry if it is still there.
 			if imp.view.pcache.packages[id] == e {
 				delete(imp.view.pcache.packages, id)
 			}
 			imp.view.pcache.mu.Unlock()
-			return imp.getPkg(id)
+			return imp.getPkg(ctx, id)
 		}
 		return nil, e.err
 	}
@@ -86,7 +88,9 @@ func (imp *importer) getPkg(id packageID) (*pkg, error) {
 	return e.pkg, nil
 }
 
-func (imp *importer) typeCheck(id packageID) (*pkg, error) {
+func (imp *importer) typeCheck(ctx context.Context, id packageID) (*pkg, error) {
+	ctx, ts := trace.StartSpan(ctx, "cache.importer.typeCheck")
+	defer ts.End()
 	meta, ok := imp.view.mcache.packages[id]
 	if !ok {
 		return nil, fmt.Errorf("no metadata for %v", id)
@@ -119,11 +123,11 @@ func (imp *importer) typeCheck(id packageID) (*pkg, error) {
 	)
 	for _, filename := range meta.files {
 		uri := span.FileURI(filename)
-		f, err := imp.view.getFile(imp.ctx, uri)
+		f, err := imp.view.getFile(ctx, uri)
 		if err != nil {
 			continue
 		}
-		ph := imp.view.session.cache.ParseGoHandle(f.Handle(imp.ctx), mode)
+		ph := imp.view.session.cache.ParseGoHandle(f.Handle(ctx), mode)
 		phs = append(phs, ph)
 		files = append(files, &astFile{
 			uri:       ph.File().Identity().URI,
@@ -136,7 +140,7 @@ func (imp *importer) typeCheck(id packageID) (*pkg, error) {
 		go func(i int, ph source.ParseGoHandle) {
 			defer wg.Done()
 
-			files[i].file, files[i].err = ph.Parse(imp.ctx)
+			files[i].file, files[i].err = ph.Parse(ctx)
 		}(i, ph)
 	}
 	wg.Wait()
@@ -175,7 +179,7 @@ func (imp *importer) typeCheck(id packageID) (*pkg, error) {
 		IgnoreFuncBodies: mode == source.ParseExported,
 		Importer: &importer{
 			view:          imp.view,
-			ctx:           imp.ctx,
+			ctx:           ctx,
 			fset:          imp.fset,
 			topLevelPkgID: imp.topLevelPkgID,
 			seen:          seen,
@@ -187,7 +191,7 @@ func (imp *importer) typeCheck(id packageID) (*pkg, error) {
 	check.Files(pkg.GetSyntax())
 
 	// Add every file in this package to our cache.
-	if err := imp.cachePackage(imp.ctx, pkg, meta, mode); err != nil {
+	if err := imp.cachePackage(ctx, pkg, meta, mode); err != nil {
 		return nil, err
 	}
 
@@ -213,7 +217,7 @@ func (imp *importer) cachePackage(ctx context.Context, pkg *pkg, meta *metadata,
 	// We lock the package cache, but we shouldn't get any inconsistencies
 	// because we are still holding the lock on the view.
 	for importPath := range meta.children {
-		importPkg, err := imp.getPkg(importPath)
+		importPkg, err := imp.getPkg(ctx, importPath)
 		if err != nil {
 			continue
 		}
