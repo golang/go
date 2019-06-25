@@ -853,7 +853,7 @@ static void issue29781F(char **p, int n) {}
 static uint16_t issue31093F(uint16_t v) { return v; }
 
 // issue 32579
-typedef struct S32579 { int data[1]; } S32579;
+typedef struct S32579 { unsigned char data[1]; } S32579;
 */
 import "C"
 
