@@ -173,9 +173,7 @@ func TestPoolChain(t *testing.T) {
 
 func testPoolDequeue(t *testing.T, d PoolDequeue) {
 	const P = 10
-	// In long mode, do enough pushes to wrap around the 21-bit
-	// indexes.
-	N := 1<<21 + 1000
+	var N int = 2e6
 	if testing.Short() {
 		N = 1e3
 	}
