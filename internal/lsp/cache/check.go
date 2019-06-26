@@ -142,10 +142,12 @@ func (imp *importer) typeCheck(id packageID) (*pkg, error) {
 	wg.Wait()
 
 	for _, f := range files {
-		if f != nil {
-			pkg.files = append(pkg.files, f)
-		}
+		pkg.files = append(pkg.files, f)
+
 		if f.err != nil {
+			if f.err == context.Canceled {
+				return nil, f.err
+			}
 			imp.view.session.cache.appendPkgError(pkg, f.err)
 		}
 	}
