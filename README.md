@@ -17,6 +17,15 @@ Static Single Assignment form (SSA) representation for Go programs.
 The easiest way to install is to run `go get -u golang.org/x/tools/...`. You can
 also manually git clone the repository to `$GOPATH/src/golang.org/x/tools`.
 
+## JS/CSS Formatting
+
+This repository uses [prettier](https://prettier.io/) to format JS and CSS files.
+
+The version of `prettier` used is 1.18.2.
+
+It is encouraged that all JS and CSS code be run through this before submitting
+a change. However, it is not a strict requirement enforced by CI.
+
 ## Report Issues / Send Patches
 
 This repository uses Gerrit for code changes. To learn how to submit changes to
