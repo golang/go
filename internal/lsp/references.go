@@ -38,11 +38,17 @@ func (s *Server) references(ctx context.Context, params *protocol.ReferenceParam
 	}
 	// Get the location of each reference to return as the result.
 	locations := make([]protocol.Location, 0, len(references))
+	seen := make(map[span.Span]bool)
 	for _, ref := range references {
 		refSpan, err := ref.Range.Span()
 		if err != nil {
 			return nil, err
 		}
+		if seen[refSpan] {
+			continue // already added this location
+		}
+		seen[refSpan] = true
+
 		_, refM, err := getSourceFile(ctx, view, refSpan.URI())
 		if err != nil {
 			return nil, err

@@ -450,20 +450,26 @@ func (r *runner) Reference(t *testing.T, data tests.References) {
 			want[pos] = true
 		}
 
-		got, err := ident.References(ctx)
+		refs, err := ident.References(ctx)
 		if err != nil {
 			t.Fatalf("failed for %v: %v", src, err)
 		}
 
-		if len(got) != len(itemList) {
-			t.Errorf("references failed: different lengths got %v want %v", len(got), len(itemList))
-		}
-		for _, refInfo := range got {
+		got := make(map[span.Span]bool)
+		for _, refInfo := range refs {
 			refSpan, err := refInfo.Range.Span()
 			if err != nil {
 				t.Errorf("failed for %v item %v: %v", src, refInfo.Name, err)
 			}
-			if !want[refSpan] {
+			got[refSpan] = true
+		}
+
+		if len(got) != len(want) {
+			t.Errorf("references failed: different lengths got %v want %v", len(got), len(want))
+		}
+
+		for spn, _ := range got {
+			if !want[spn] {
 				t.Errorf("references failed: incorrect references got %v want locations %v", got, want)
 			}
 		}

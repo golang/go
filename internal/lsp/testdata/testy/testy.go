@@ -1,5 +1,5 @@
 package testy
 
-func a() { //@item(funcA, "a()", "", "func")
+func a() { //@mark(identA, "a"),item(funcA, "a()", "", "func"),refs("a", identA, testyA)
 	//@complete("", funcA)
 }
