@@ -267,6 +267,17 @@ go env -w GOSUMDB=off
   the source code needed to build dependencies of the named packages.
 </p>
 
+<p><!-- CL 177677 -->
+  By default, <code>go</code> <code>get</code> <code>-u</code> in module mode
+  upgrades only non-test dependencies, as in GOPATH mode. It now also accepts
+  the <code>-t</code> flag, which (as in GOPATH mode)
+  causes <code>go</code> <code>get</code> to include the packages imported
+  by <em>tests of</em> the packages named on the command line. If
+  the <code>-t</code> flag is set, the packages imported by tests will be
+  updated (if the <code>-u</code> flag is set), downloaded, and built (unless
+  the <code>-d</code> flag is set) along with the usual non-test packages.
+</p>
+
 <p><!-- CL 167747 -->
   In module-aware mode, the <code>go</code> <code>get</code> subcommand now
   supports the version suffix <code>@patch</code>. The <code>@patch</code>
@@ -275,16 +286,6 @@ go env -w GOSUMDB=off
   major and minor versions as the version found in the build list.
   If no such version is present in the build list, <code>@patch</code> is
   equivalent to the existing <code>@latest</code> suffix.
-</p>
-
-<p><!-- CL 177677 -->
-  Additionally, the <code>go</code> <code>get</code> subcommand now supports
-  the <code>-t</code> flag in module-aware mode. As in GOPATH mode,
-  the <code>-t</code> flag instructs <code>go</code> <code>get</code> to include
-  the packages imported by <em>tests of</em> the packages named on the command
-  line. If the <code>-t</code> flag is set, the packages imported by tests will
-  be updated (if the <code>-u</code> flag is set), downloaded, and built (unless
-  the <code>-d</code> flag is set) along with the usual non-test packages.
 </p>
 
 <h4 id="version-validation">Version validation</h4><!-- CL 181881 -->
