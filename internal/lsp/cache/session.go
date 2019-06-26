@@ -203,7 +203,9 @@ func (s *session) DidOpen(ctx context.Context, uri span.URI) {
 				return
 			}
 			// Mark file as open.
+			gof.mu.Lock()
 			gof.justOpened = true
+			gof.mu.Unlock()
 		}
 	}
 }

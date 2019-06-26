@@ -20,59 +20,43 @@ func (v *view) loadParseTypecheck(ctx context.Context, f *goFile) ([]packages.Er
 	// If the AST for this file is trimmed, and we are explicitly type-checking it,
 	// don't ignore function bodies.
 	if f.astIsTrimmed() {
+		v.pcache.mu.Lock()
 		f.invalidateAST()
+		v.pcache.mu.Unlock()
 	}
-	// Save the metadata's current missing imports, if any.
-	originalMissingImports := f.missingImports
 
-	// Check if we need to run go/packages.Load for this file's package.
-	if errs, err := v.checkMetadata(ctx, f); err != nil {
+	// Get the metadata for the file.
+	meta, errs, err := v.checkMetadata(ctx, f)
+	if err != nil {
 		return errs, err
 	}
-
-	// If `go list` failed to get data for the file in question (this should never happen).
-	if len(f.meta) == 0 {
-		return nil, fmt.Errorf("loadParseTypecheck: no metadata found for %v", f.filename())
-	}
-
-	// If we have already seen these missing imports before, and we still have type information,
-	// there is no need to continue.
-	if sameSet(originalMissingImports, f.missingImports) && len(f.pkgs) > 0 {
+	if meta == nil {
 		return nil, nil
 	}
-
-	for id, meta := range f.meta {
-		if _, ok := f.pkgs[id]; ok {
-			continue
-		}
+	for id, m := range meta {
 		imp := &importer{
 			view:          v,
 			seen:          make(map[packageID]struct{}),
 			ctx:           ctx,
-			fset:          f.FileSet(),
-			topLevelPkgID: meta.id,
+			fset:          v.session.cache.FileSet(),
+			topLevelPkgID: id,
 		}
 		// Start prefetching direct imports.
-		for importID := range meta.children {
+		for importID := range m.children {
 			go imp.getPkg(importID)
 		}
 		// Type-check package.
-		pkg, err := imp.getPkg(meta.id)
+		pkg, err := imp.getPkg(imp.topLevelPkgID)
 		if err != nil {
 			return nil, err
 		}
 		if pkg == nil || pkg.IsIllTyped() {
-			return nil, fmt.Errorf("loadParseTypecheck: %s is ill typed", meta.pkgPath)
-		}
-		// If we still have not found the package for the file, something is wrong.
-		if f.pkgs[id] == nil {
-			v.Session().Logger().Errorf(ctx, "failed to type-check package %s", meta.pkgPath)
+			return nil, fmt.Errorf("loadParseTypecheck: %s is ill typed", m.pkgPath)
 		}
 	}
 	if len(f.pkgs) == 0 {
-		return nil, fmt.Errorf("loadParseTypeCheck: no packages found for %v", f.filename())
+		return nil, fmt.Errorf("no packages found for %s", f.URI())
 	}
-
 	return nil, nil
 }
 
@@ -90,9 +74,15 @@ func sameSet(x, y map[packagePath]struct{}) bool {
 
 // checkMetadata determines if we should run go/packages.Load for this file.
 // If yes, update the metadata for the file and its package.
-func (v *view) checkMetadata(ctx context.Context, f *goFile) ([]packages.Error, error) {
+func (v *view) checkMetadata(ctx context.Context, f *goFile) (map[packageID]*metadata, []packages.Error, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	// Save the metadata's current missing imports, if any.
+	originalMissingImports := f.missingImports
+
 	if !v.parseImports(ctx, f) {
-		return nil, nil
+		return f.meta, nil, nil
 	}
 
 	// Reset the file's metadata and type information if we are re-running `go list`.
@@ -109,7 +99,7 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile) ([]packages.Error, 
 			err = fmt.Errorf("go/packages.Load: no packages found for %s", f.filename())
 		}
 		// Return this error as a diagnostic to the user.
-		return []packages.Error{
+		return nil, []packages.Error{
 			{
 				Msg:  err.Error(),
 				Kind: packages.UnknownError,
@@ -125,7 +115,7 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile) ([]packages.Error, 
 		// If the package comes back with errors from `go list`,
 		// don't bother type-checking it.
 		if len(pkg.Errors) > 0 {
-			return pkg.Errors, fmt.Errorf("package %s has errors, skipping type-checking", pkg.PkgPath)
+			return nil, pkg.Errors, fmt.Errorf("package %s has errors, skipping type-checking", pkg.PkgPath)
 		}
 		for importPath, importPkg := range pkg.Imports {
 			if len(importPkg.Errors) > 0 {
@@ -138,7 +128,19 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile) ([]packages.Error, 
 		// Build the import graph for this package.
 		v.link(ctx, packagePath(pkg.PkgPath), pkg, nil)
 	}
-	return nil, nil
+
+	// If `go list` failed to get data for the file in question (this should never happen).
+	if len(f.meta) == 0 {
+		return nil, nil, fmt.Errorf("loadParseTypecheck: no metadata found for %v", f.filename())
+	}
+
+	// If we have already seen these missing imports before, and we still have type information,
+	// there is no need to continue.
+	if sameSet(originalMissingImports, f.missingImports) && len(f.pkgs) != 0 {
+		return nil, nil, nil
+	}
+
+	return f.meta, nil, nil
 }
 
 // reparseImports reparses a file's package and import declarations to
@@ -158,6 +160,7 @@ func (v *view) parseImports(ctx context.Context, f *goFile) bool {
 	if len(f.imports) != len(parsed.Imports) {
 		return true
 	}
+
 	for i, importSpec := range f.imports {
 		if importSpec.Path.Value != parsed.Imports[i].Path.Value {
 			return true
@@ -173,7 +176,9 @@ func (v *view) link(ctx context.Context, pkgPath packagePath, pkg *packages.Pack
 	// If a file was added or deleted we need to invalidate the package cache
 	// so relevant packages get parsed and type-checked again.
 	if ok && !filenamesIdentical(m.files, pkg.CompiledGoFiles) {
-		v.invalidatePackage(id)
+		v.pcache.mu.Lock()
+		v.remove(id, make(map[packageID]struct{}))
+		v.pcache.mu.Unlock()
 	}
 
 	// If we haven't seen this package before.
@@ -234,18 +239,15 @@ func filenamesIdentical(oldFiles, newFiles []string) bool {
 	if len(oldFiles) != len(newFiles) {
 		return false
 	}
-
 	oldByName := make(map[string]struct{}, len(oldFiles))
 	for _, filename := range oldFiles {
 		oldByName[filename] = struct{}{}
 	}
-
 	for _, newFilename := range newFiles {
 		if _, found := oldByName[newFilename]; !found {
 			return false
 		}
 		delete(oldByName, newFilename)
 	}
-
 	return len(oldByName) == 0
 }

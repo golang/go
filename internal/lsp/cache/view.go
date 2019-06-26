@@ -228,6 +228,12 @@ func (f *goFile) invalidateContent() {
 	f.handleMu.Lock()
 	defer f.handleMu.Unlock()
 
+	f.view.mcache.mu.Lock()
+	defer f.view.mcache.mu.Unlock()
+
+	f.view.pcache.mu.Lock()
+	defer f.view.pcache.mu.Unlock()
+
 	f.invalidateAST()
 	f.handle = nil
 }
@@ -235,27 +241,18 @@ func (f *goFile) invalidateContent() {
 // invalidateAST invalidates the AST of a Go file,
 // including any position and type information that depends on it.
 func (f *goFile) invalidateAST() {
-	f.view.pcache.mu.Lock()
-	defer f.view.pcache.mu.Unlock()
-
+	f.mu.Lock()
 	f.ast = nil
 	f.token = nil
+	pkgs := f.pkgs
+	f.mu.Unlock()
 
 	// Remove the package and all of its reverse dependencies from the cache.
-	for id, pkg := range f.pkgs {
+	for id, pkg := range pkgs {
 		if pkg != nil {
 			f.view.remove(id, map[packageID]struct{}{})
 		}
 	}
-}
-
-// invalidatePackage removes the specified package and dependents from the
-// package cache.
-func (v *view) invalidatePackage(id packageID) {
-	v.pcache.mu.Lock()
-	defer v.pcache.mu.Unlock()
-
-	v.remove(id, make(map[packageID]struct{}))
 }
 
 // remove invalidates a package and its reverse dependencies in the view's
@@ -278,7 +275,9 @@ func (v *view) remove(id packageID, seen map[packageID]struct{}) {
 	for _, filename := range m.files {
 		if f, _ := v.findFile(span.FileURI(filename)); f != nil {
 			if gof, ok := f.(*goFile); ok {
+				gof.mu.Lock()
 				delete(gof.pkgs, id)
+				gof.mu.Unlock()
 			}
 		}
 	}
@@ -341,7 +340,11 @@ func (v *view) getFile(uri span.URI) (viewFile, error) {
 			},
 		}
 		v.session.filesWatchMap.Watch(uri, func() {
-			f.(*goFile).invalidateContent()
+			gof, ok := f.(*goFile)
+			if !ok {
+				return
+			}
+			gof.invalidateContent()
 		})
 	}
 	v.mapFile(uri, f)
