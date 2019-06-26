@@ -213,7 +213,9 @@ func addNeededOverlayPackages(cfg *Config, driver driver, response *responseDedu
 	if err != nil {
 		return err
 	}
-	addNeededOverlayPackages(cfg, driver, response, needPkgs)
+	if err := addNeededOverlayPackages(cfg, driver, response, needPkgs); err != nil {
+		return err
+	}
 	return nil
 }
 
