@@ -341,7 +341,9 @@ func (r *vcsRepo) Stat(rev string) (*RevInfo, error) {
 }
 
 func (r *vcsRepo) fetch() {
-	_, r.fetchErr = Run(r.dir, r.cmd.fetch)
+	if len(r.cmd.fetch) > 0 {
+		_, r.fetchErr = Run(r.dir, r.cmd.fetch)
+	}
 }
 
 func (r *vcsRepo) statLocal(rev string) (*RevInfo, error) {
