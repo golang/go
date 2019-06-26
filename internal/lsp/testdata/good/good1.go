@@ -12,7 +12,7 @@ func random() int { //@item(good_random, "random()", "int", "func")
 func random2(y int) int { //@item(good_random2, "random2(y int)", "int", "func"),item(good_y_param, "y", "int", "parameter")
 	//@complete("", good_y_param, types_import, good_random, good_random2, good_stuff)
 	var b types.Bob = &types.X{}
-	if _, ok := b.(*types.X); ok { //@complete("X", Bob_interface, X_struct, Y_struct)
+	if _, ok := b.(*types.X); ok { //@complete("X", X_struct, Y_struct, Bob_interface)
 	}
 
 	return y
