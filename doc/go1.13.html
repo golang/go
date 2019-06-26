@@ -184,12 +184,9 @@ Do not send CLs removing the interior tags from such phrases.
   The new
   <a href="/cmd/go/#hdr-Module_configuration_for_non_public_modules"><code>GOPRIVATE</code></a>
   environment variable indicates module paths that are not publicly available.
-  It contains a comma-separated list of glob patterns (in the syntax of
-  <a href="/pkg/path#Match"><code>path.Match</code></a>) to be matched against a
-  prefix of the module path. It serves as the default value for the
-  lower-level <code>GONOPROXY</code> and <code>GONOSUMDB</code> variables, which
-  provide finer-grained control over which modules are fetched via proxy and
-  verified using the checksum database.
+  It serves as the default value for the lower-level <code>GONOPROXY</code>
+  and <code>GONOSUMDB</code> variables, which provide finer-grained control over
+  which modules are fetched via proxy and verified using the checksum database.
 </p>
 
 <p><!-- CL 173441, CL 177958 -->
@@ -198,13 +195,10 @@ Do not send CLs removing the interior tags from such phrases.
   URLs or the special token <code>direct</code>, and
   its <a href="#introduction">default value</a> is
   now <code>https://proxy.golang.org,direct</code>. When resolving a package
-  path to its containing module, the <code>go</code> command will try each
-  possible module path on the first proxy in the list before falling back to the
-  next. If an HTTPS proxy is unreachable or returns a status code other than 404
-  or 410 for a given module path, no subsequent proxy is consulted for that
-  path. The <code>direct</code> token indicates that the <code>go</code> command
-  should attempt to fetch the module directly from its origin;
-  <code>GOPROXY</code> entries after <code>direct</code> are ignored.
+  path to its containing module, the <code>go</code> command will try all
+  candidate module paths on each proxy in the list in succession. An unreachable
+  proxy or HTTP status code other than 404 or 410 terminates the search without
+  consulting the remaining proxies.
 </p>
 
 <p>
@@ -238,9 +232,10 @@ go env -w GOSUMDB=off
 <h4 id="go-get"><code>go</code> <code>get</code></h3>
 
 <p><!-- CL 174099 -->
-  In module-aware mode, the set of modules updated by
-  <a href="/cmd/go/#hdr-Add_dependencies_to_current_module_and_install_them"><code>go</code> <code>get</code> <code>-u</code></a>
-  is now smaller, and is more consistent with the set of packages updated by
+  In module-aware mode,
+  <a href="/cmd/go/#hdr-Add_dependencies_to_current_module_and_install_them"><code>go</code> <code>get</code></a>
+  with the <code>-u</code> flag now updates a smaller set of modules that is
+  more consistent with the set of packages updated by
   <code>go</code> <code>get</code> <code>-u</code> in GOPATH mode.
   <code>go</code> <code>get</code> <code>-u</code> continues to update the
   modules and packages named on the command line, but additionally updates only
@@ -272,10 +267,7 @@ go env -w GOSUMDB=off
   upgrades only non-test dependencies, as in GOPATH mode. It now also accepts
   the <code>-t</code> flag, which (as in GOPATH mode)
   causes <code>go</code> <code>get</code> to include the packages imported
-  by <em>tests of</em> the packages named on the command line. If
-  the <code>-t</code> flag is set, the packages imported by tests will be
-  updated (if the <code>-u</code> flag is set), downloaded, and built (unless
-  the <code>-d</code> flag is set) along with the usual non-test packages.
+  by <em>tests of</em> the packages named on the command line.
 </p>
 
 <p><!-- CL 167747 -->
@@ -284,8 +276,6 @@ go env -w GOSUMDB=off
   suffix indicates that the named module, or module containing the named
   package, should be updated to the highest patch release with the same
   major and minor versions as the version found in the build list.
-  If no such version is present in the build list, <code>@patch</code> is
-  equivalent to the existing <code>@latest</code> suffix.
 </p>
 
 <h4 id="version-validation">Version validation</h4><!-- CL 181881 -->
