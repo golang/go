@@ -18,6 +18,7 @@ func TestReproducibleBuilds(t *testing.T) {
 	tests := []string{
 		"issue20272.go",
 		"issue27013.go",
+		"issue30202.go",
 	}
 
 	testenv.MustHaveGoBuild(t)
@@ -38,7 +39,9 @@ func TestReproducibleBuilds(t *testing.T) {
 			defer os.Remove(tmp.Name())
 			defer tmp.Close()
 			for i := 0; i < iters; i++ {
-				out, err := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", tmp.Name(), filepath.Join("testdata", "reproducible", test)).CombinedOutput()
+				// Note: use -c 2 to expose any nondeterminism which is the result
+				// of the runtime scheduler.
+				out, err := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-c", "2", "-o", tmp.Name(), filepath.Join("testdata", "reproducible", test)).CombinedOutput()
 				if err != nil {
 					t.Fatalf("failed to compile: %v\n%s", err, out)
 				}
