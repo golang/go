@@ -101,17 +101,6 @@ func TestTerminalSignal(t *testing.T) {
 		Ctty:    int(slave.Fd()),
 	}
 
-	// Test ctty management by sending enough child fd to overlap the
-	// parent's fd intended for child's ctty.
-	for 2+len(cmd.ExtraFiles) < cmd.SysProcAttr.Ctty {
-		dummy, err := os.Open(os.DevNull)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer dummy.Close()
-		cmd.ExtraFiles = append(cmd.ExtraFiles, dummy)
-	}
-
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
