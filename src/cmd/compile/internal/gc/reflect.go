@@ -1659,7 +1659,17 @@ func (a typesByString) Less(i, j int) bool {
 	// they refer to byte or uint8, such as **byte vs **uint8,
 	// the types' ShortStrings can be identical.
 	// To preserve deterministic sort ordering, sort these by String().
-	return a[i].regular < a[j].regular
+	if a[i].regular != a[j].regular {
+		return a[i].regular < a[j].regular
+	}
+	// Identical anonymous interfaces defined in different locations
+	// will be equal for the above checks, but different in DWARF output.
+	// Sort by source position to ensure deterministic order.
+	// See issues 27013 and 30202.
+	if a[i].t.Etype == types.TINTER && a[i].t.Methods().Len() > 0 {
+		return a[i].t.Methods().Index(0).Pos.Before(a[j].t.Methods().Index(0).Pos)
+	}
+	return false
 }
 func (a typesByString) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 
