@@ -236,10 +236,12 @@ func testPoolDequeue(t *testing.T, d PoolDequeue) {
 			t.Errorf("expected have[%d] = 1, got %d", i, count)
 		}
 	}
-	if nPopHead == 0 {
-		// In theory it's possible in a valid schedule for
-		// popHead to never succeed, but in practice it almost
-		// always succeeds, so this is unlikely to flake.
+	// Check that at least some PopHeads succeeded. We skip this
+	// check in short mode because it's common enough that the
+	// queue will stay nearly empty all the time and a PopTail
+	// will happen during the window between every PushHead and
+	// PopHead.
+	if !testing.Short() && nPopHead == 0 {
 		t.Errorf("popHead never succeeded")
 	}
 }
