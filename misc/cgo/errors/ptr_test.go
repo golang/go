@@ -466,6 +466,9 @@ func buildPtrTests(t *testing.T) (dir, exe string) {
 	if err := os.MkdirAll(src, 0777); err != nil {
 		t.Fatal(err)
 	}
+	if err := ioutil.WriteFile(filepath.Join(src, "go.mod"), []byte("module ptrtest"), 0666); err != nil {
+		t.Fatal(err)
+	}
 
 	// Prepare two cgo inputs: one for standard cgo and one for //export cgo.
 	// (The latter cannot have C definitions, only declarations.)
