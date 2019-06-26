@@ -11,22 +11,21 @@
 	// - Node.js
 	// - Electron
 	// - Parcel
+	// - Webpack
 
 	if (typeof global !== "undefined") {
 		// global already exists
 	} else if (typeof window !== "undefined") {
 		window.global = window;
+		// eslint-disable-next-line no-restricted-globals
 	} else if (typeof self !== "undefined") {
+		// eslint-disable-next-line no-restricted-globals
 		self.global = self;
 	} else {
 		throw new Error("cannot export Go (neither global, window nor self is defined)");
 	}
 
-	if (!global.require && typeof require !== "undefined") {
-		global.require = require;
-	}
-
-	if (!global.fs && global.require) {
+	if (!global.fs && typeof require !== "undefined") {
 		global.fs = require("fs");
 	}
 
@@ -37,7 +36,7 @@
 			writeSync(fd, buf) {
 				outputBuf += decoder.decode(buf);
 				const nl = outputBuf.lastIndexOf("\n");
-				if (nl != -1) {
+				if (nl !== -1) {
 					console.log(outputBuf.substr(0, nl));
 					outputBuf = outputBuf.substr(nl + 1);
 				}
@@ -176,6 +175,8 @@
 						mem().setUint32(addr + 4, nanHead, true);
 						mem().setUint32(addr, 4, true);
 						return;
+					default:
+						break;
 				}
 
 				let ref = this._refs.get(v);
@@ -194,6 +195,8 @@
 						break;
 					case "function":
 						typeFlag = 3;
+						break;
+					default:
 						break;
 				}
 				mem().setUint32(addr + 4, nanHead | typeFlag, true);
@@ -245,7 +248,7 @@
 						const fd = getInt64(sp + 8);
 						const p = getInt64(sp + 16);
 						const n = mem().getInt32(sp + 24, true);
-						fs.writeSync(fd, new Uint8Array(this._inst.exports.mem.buffer, p, n));
+						global.fs.writeSync(fd, new Uint8Array(this._inst.exports.mem.buffer, p, n));
 					},
 
 					// func nanotime() int64
@@ -255,7 +258,7 @@
 
 					// func walltime() (sec int64, nsec int32)
 					"runtime.walltime": (sp) => {
-						const msec = (new Date).getTime();
+						const msec = new Date().getTime();
 						setInt64(sp + 8, msec / 1000);
 						mem().setInt32(sp + 16, (msec % 1000) * 1000000, true);
 					},
@@ -512,11 +515,11 @@
 			process.exit(1);
 		}
 
-		const go = new Go();
+		const go = new global.Go();
 		go.argv = process.argv.slice(2);
 		go.env = Object.assign({ TMPDIR: require("os").tmpdir() }, process.env);
 		go.exit = process.exit;
-		WebAssembly.instantiate(fs.readFileSync(process.argv[2]), go.importObject).then((result) => {
+		WebAssembly.instantiate(global.fs.readFileSync(process.argv[2]), go.importObject).then((result) => {
 			process.on("exit", (code) => { // Node.js exits if no event handler is pending
 				if (code === 0 && !go.exited) {
 					// deadlock, make Go print error and stack traces
