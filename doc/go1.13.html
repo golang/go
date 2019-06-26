@@ -359,6 +359,18 @@ go env -w GOSUMDB=off
   <a href="/pkg/os/#UserConfigDir"><code>os.UserConfigDir()</code></a>.
 </p>
 
+<p id="go-version-exe"><!-- CL 173343 -->
+  The <a href="/cmd/go/#hdr-Print_Go_version">
+  <code>go</code> <code>version</code></a> command now accepts arguments naming
+  executables and directories. When invoked on an executable,
+  <code>go</code> <code>version</code> prints the version of Go used to build
+  the executable. If the <code>-m</code> flag is used,
+  <code>go</code> <code>version</code> prints the executable's embedded module
+  version information, if available. When invoked on a directory,
+  <code>go</code> <code>version</code> prints information about executables
+  contained in the directory and its subdirectories.
+</p>
+
 <p id="trimpath"><!-- CL 173345 -->
   The new <a href="/cmd/go/#hdr-Compile_packages_and_dependencies"><code>go</code>
   <code>build</code> flag</a> <code>-trimpath</code> removes all file system paths
