@@ -5,10 +5,10 @@
 // copied from $GOROOT/doc/godocs.js
 
 function bindEvent(el, e, fn) {
-  if (el.addEventListener){
+  if (el.addEventListener) {
     el.addEventListener(e, fn, false);
-  } else if (el.attachEvent){
-    el.attachEvent('on'+e, fn);
+  } else if (el.attachEvent) {
+    el.attachEvent('on' + e, fn);
   }
 }
 
@@ -19,19 +19,19 @@ function godocs_bindSearchEvents() {
     return;
   }
   function clearInactive() {
-    if (search.className == "inactive") {
-      search.value = "";
-      search.className = "";
+    if (search.className == 'inactive') {
+      search.value = '';
+      search.className = '';
     }
   }
   function restoreInactive() {
-    if (search.value !== "") {
+    if (search.value !== '') {
       return;
     }
-    if (search.type != "search") {
-      search.value = search.getAttribute("placeholder");
+    if (search.type != 'search') {
+      search.value = search.getAttribute('placeholder');
     }
-    search.className = "inactive";
+    search.className = 'inactive';
   }
   restoreInactive();
   bindEvent(search, 'focus', clearInactive);

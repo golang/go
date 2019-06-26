@@ -19,7 +19,15 @@
     background: -o-radial-gradient(rgb(240, 240, 240), rgb(190, 190, 190));
     background: -moz-radial-gradient(rgb(240, 240, 240), rgb(190, 190, 190));
     background: -webkit-radial-gradient(rgb(240, 240, 240), rgb(190, 190, 190));
-    background: -webkit-gradient(radial, 50% 50%, 0, 50% 50%, 500, from(rgb(240, 240, 240)), to(rgb(190, 190, 190)));
+    background: -webkit-gradient(
+      radial,
+      50% 50%,
+      0,
+      50% 50%,
+      500,
+      from(rgb(240, 240, 240)),
+      to(rgb(190, 190, 190))
+    );
 
     -webkit-font-smoothing: antialiased;
   }
@@ -64,12 +72,12 @@
 
     background-color: white;
 
-    border: 1px solid rgba(0, 0, 0, .3);
+    border: 1px solid rgba(0, 0, 0, 0.3);
 
-    transition: transform .3s ease-out;
-    -o-transition: -o-transform .3s ease-out;
-    -moz-transition: -moz-transform .3s ease-out;
-    -webkit-transition: -webkit-transform .3s ease-out;
+    transition: transform 0.3s ease-out;
+    -o-transition: -o-transform 0.3s ease-out;
+    -moz-transition: -moz-transform 0.3s ease-out;
+    -webkit-transition: -webkit-transform 0.3s ease-out;
   }
   .slides.layout-widescreen > article {
     margin-left: -550px;
@@ -239,9 +247,10 @@
   }
 
   /* Add explicit links */
-  a:link:after, a:visited:after {
-   content: " (" attr(href) ") ";
-   font-size: 50%;
+  a:link:after,
+  a:visited:after {
+    content: ' (' attr(href) ') ';
+    font-size: 50%;
   }
 
   #help {
@@ -256,7 +265,7 @@
   font-family: 'Open Sans', Arial, sans-serif;
 
   color: black;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, .1);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
 
   font-size: 26px;
   line-height: 36px;
@@ -273,7 +282,7 @@ a {
   text-decoration: none;
 }
 a:visited {
-  color: rgba(0, 102, 204, .75);
+  color: rgba(0, 102, 204, 0.75);
 }
 a:hover {
   color: black;
@@ -347,7 +356,7 @@ ul {
 }
 li {
   padding: 0;
-  margin: 0 0 .5em 0;
+  margin: 0 0 0.5em 0;
 }
 
 div.code {
@@ -444,7 +453,6 @@ div.output {
   -o-border-radius: 10px;
   -moz-border-radius: 10px;
   -webkit-border-radius: 10px;
-
 }
 div.output pre {
   margin: 0;
@@ -455,14 +463,17 @@ div.output pre {
   height: 100%;
   overflow: auto;
 }
-div.output .stdout, div.output pre {
+div.output .stdout,
+div.output pre {
   color: #e6e6e6;
 }
-div.output .stderr, div.output .error {
+div.output .stderr,
+div.output .error {
   color: rgb(255, 200, 200);
 }
-div.output .system, div.output .exit {
-  color: rgb(255, 230, 120)
+div.output .system,
+div.output .exit {
+  color: rgb(255, 230, 120);
 }
 .buttons {
   position: relative;

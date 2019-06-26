@@ -1,161 +1,179 @@
 body {
-	margin: 0;
-	font-family: Helvetica, Arial, sans-serif;
-	font-size: 16px;
+  margin: 0;
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 16px;
 }
 pre,
 code {
-	font-family: Menlo, monospace;
-	font-size: 14px;
+  font-family: Menlo, monospace;
+  font-size: 14px;
 }
 pre {
-	line-height: 18px;
-	margin: 0;
-	padding: 0;
+  line-height: 18px;
+  margin: 0;
+  padding: 0;
 }
 a {
-	color: #375EAB;
-	text-decoration: none;
+  color: #375eab;
+  text-decoration: none;
 }
 a:hover {
-	text-decoration: underline;
+  text-decoration: underline;
 }
-p, ul, ol {
-	margin: 20px;
+p,
+ul,
+ol {
+  margin: 20px;
 }
 
-h1, h2, h3, h4 {
-	margin: 20px 0;
-	padding: 0;
-	color: #375EAB;
-	font-weight: bold;
+h1,
+h2,
+h3,
+h4 {
+  margin: 20px 0;
+  padding: 0;
+  color: #375eab;
+  font-weight: bold;
 }
 h1 {
-	font-size: 18px;
-	padding: 2px 5px;
+  font-size: 18px;
+  padding: 2px 5px;
 }
 h2 {
-	font-size: 16px;
+  font-size: 16px;
 }
 h3 {
-	font-size: 16px;
+  font-size: 16px;
 }
-h3, h4 {
-	margin: 20px 5px;
+h3,
+h4 {
+  margin: 20px 5px;
 }
 h4 {
-	font-size: 16px;
+  font-size: 16px;
 }
 
 div#heading {
-	margin: 0 0 10px 0;
-	padding: 21px 0;
-	font-size: 20px;
-	font-weight: bold;
+  margin: 0 0 10px 0;
+  padding: 21px 0;
+  font-size: 20px;
+  font-weight: bold;
 }
 
 div#heading .author {
-	padding-top: 10px;
-	font-size: 14px;
-	font-weight: normal;
+  padding-top: 10px;
+  font-size: 14px;
+  font-weight: normal;
 }
 
 div#topbar {
 }
 
 body {
-	text-align: center;
+  text-align: center;
 }
 div#page {
-	width: 100%;
+  width: 100%;
 }
 div#page > .container,
 div#topbar > .container {
-	text-align: left;
-	margin-left: auto;
-	margin-right: auto;
-	padding: 0 20px;
-	width: 900px;
+  text-align: left;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 20px;
+  width: 900px;
 }
 div#page.wide > .container,
 div#topbar.wide > .container {
-	width: auto;
+  width: auto;
 }
 
 div#footer {
-	text-align: center;
-	color: #666;
-	font-size: 14px;
-	margin: 40px 0;
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+  margin: 40px 0;
 }
 
 .author p {
-	margin: 0;
-	padding: 0 20px;
+  margin: 0;
+  padding: 0 20px;
 }
 
 div.code,
 div.output {
-	margin: 20px 20px 20px 40px;
-	-webkit-border-radius: 5px;
-	-moz-border-radius: 5px;
-	border-radius: 5px;
+  margin: 20px 20px 20px 40px;
+  -webkit-border-radius: 5px;
+  -moz-border-radius: 5px;
+  border-radius: 5px;
 }
 
 div.output {
-	padding: 10px;
+  padding: 10px;
 }
 
-div.code { background: white; }
-div.output { background: black; }
-div.output .stdout { color: #e6e6e6; }
-div.output .stderr { color: rgb(244, 74, 63); }
-div.output .system { color: rgb(255, 209, 77) }
+div.code {
+  background: white;
+}
+div.output {
+  background: black;
+}
+div.output .stdout {
+  color: #e6e6e6;
+}
+div.output .stderr {
+  color: rgb(244, 74, 63);
+}
+div.output .system {
+  color: rgb(255, 209, 77);
+}
 
 .buttons {
-	margin-left: 20px;
+  margin-left: 20px;
 }
 div.output .buttons {
-	margin-left: 0;
-	margin-bottom: 10px;
+  margin-left: 0;
+  margin-bottom: 10px;
 }
 
 #toc {
-	float: right;
-	margin: 0px 10px;
-	padding: 10px;
-	border: 1px solid #e5ecf9; 
-	background-color: #eee;
-	box-shadow: 3px 3px 2px #888888;
+  float: right;
+  margin: 0px 10px;
+  padding: 10px;
+  border: 1px solid #e5ecf9;
+  background-color: #eee;
+  box-shadow: 3px 3px 2px #888888;
 
-	max-width: 33%;
+  max-width: 33%;
 
-	-webkit-border-radius: 5px;
-	-moz-border-radius: 5px;
-	border-radius: 5px;
+  -webkit-border-radius: 5px;
+  -moz-border-radius: 5px;
+  border-radius: 5px;
 }
 
 #tochead {
-	font-weight: bold;
-	font-variant: small-caps;
-	font-size: 100%;
-	text-align: center;
-	padding-bottom: 5px;
+  font-weight: bold;
+  font-variant: small-caps;
+  font-size: 100%;
+  text-align: center;
+  padding-bottom: 5px;
 }
 
-#toc ul, #toc a {
-	list-style-type: none;
-	padding-left: 0px;
-	color: black;
-	margin: 0px;
+#toc ul,
+#toc a {
+  list-style-type: none;
+  padding-left: 0px;
+  color: black;
+  margin: 0px;
 }
 
 ul.toc-inner a {
-	padding-left: 10px !important;
+  padding-left: 10px !important;
 }
 
 @media print {
-	.no-print, .no-print * {
-		display: none !important;
-	}
+  .no-print,
+  .no-print * {
+    display: none !important;
+  }
 }

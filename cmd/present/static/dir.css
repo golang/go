@@ -1,59 +1,59 @@
 /* copied from $GOROOT/doc/style.css */
 
 body {
-	margin: 0;
-	font-family: Helvetica, Arial, sans-serif;
-	font-size: 16px;
+  margin: 0;
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 16px;
 }
 pre,
 code {
-	font-family: Menlo, monospace;
-	font-size: 14px;
+  font-family: Menlo, monospace;
+  font-size: 14px;
 }
 pre {
-	line-height: 18px;
+  line-height: 18px;
 }
 pre .comment {
-	color: #375EAB;
+  color: #375eab;
 }
 pre .highlight,
 pre .highlight-comment,
 pre .selection-highlight,
 pre .selection-highlight-comment {
-	background: #FFFF00;
+  background: #ffff00;
 }
 pre .selection,
 pre .selection-comment {
-	background: #FF9632;
+  background: #ff9632;
 }
 pre .ln {
-	color: #999;
+  color: #999;
 }
 body {
-	color: #222;
+  color: #222;
 }
 a,
 .exampleHeading .text {
-	color: #375EAB;
-	text-decoration: none;
+  color: #375eab;
+  text-decoration: none;
 }
 a:hover,
 .exampleHeading .text:hover {
-	text-decoration: underline;
+  text-decoration: underline;
 }
 p,
 pre,
 ul,
 ol {
-	margin: 20px;
+  margin: 20px;
 }
 pre {
-	background: #e9e9e9;
-	padding: 10px;
+  background: #e9e9e9;
+  padding: 10px;
 
-	-webkit-border-radius: 5px;
-	-moz-border-radius: 5px;
-	border-radius: 5px;
+  -webkit-border-radius: 5px;
+  -moz-border-radius: 5px;
+  border-radius: 5px;
 }
 
 h1,
@@ -61,126 +61,126 @@ h2,
 h3,
 h4,
 .rootHeading {
-	margin: 20px 0;
-	padding: 0;
-	color: #375EAB;
-	font-weight: bold;
+  margin: 20px 0;
+  padding: 0;
+  color: #375eab;
+  font-weight: bold;
 }
 h1 {
-	font-size: 24px;
+  font-size: 24px;
 }
 h2 {
-	font-size: 20px;
-	background: #E0EBF5;
-	padding: 2px 5px;
+  font-size: 20px;
+  background: #e0ebf5;
+  padding: 2px 5px;
 }
 h3 {
-	font-size: 20px;
+  font-size: 20px;
 }
 h3,
 h4 {
-	margin: 20px 5px;
+  margin: 20px 5px;
 }
 h4 {
-	font-size: 16px;
+  font-size: 16px;
 }
 
 dl {
-	margin: 20px;
+  margin: 20px;
 }
 dd {
-	margin: 2px 20px;
+  margin: 2px 20px;
 }
 dl,
 dd {
-	font-size: 14px;
+  font-size: 14px;
 }
 div#nav table td {
-	vertical-align: top;
+  vertical-align: top;
 }
 
 div#heading {
-	float: left;
-	margin: 0 0 10px 0;
-	padding: 21px 0;
-	font-size: 20px;
-	font-weight: normal;
+  float: left;
+  margin: 0 0 10px 0;
+  padding: 21px 0;
+  font-size: 20px;
+  font-weight: normal;
 }
 div#heading a {
-	color: #222;
-	text-decoration: none;
+  color: #222;
+  text-decoration: none;
 }
 
 div#topbar {
-	background: #E0EBF5;
-	height: 64px;
+  background: #e0ebf5;
+  height: 64px;
 }
 
 body {
-	text-align: center;
+  text-align: center;
 }
 div#page,
 div#topbar > .container {
-	clear: both;
-	text-align: left;
-	margin-left: auto;
-	margin-right: auto;
-	padding: 0 20px;
-	width: 900px;
+  clear: both;
+  text-align: left;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 20px;
+  width: 900px;
 }
 div#page.wide,
 div#topbar > .wide {
-	width: auto;
+  width: auto;
 }
 div#plusone {
-	float: right;
+  float: right;
 }
 
 div#footer {
-	color: #666;
-	font-size: 14px;
-	margin: 40px 0;
+  color: #666;
+  font-size: 14px;
+  margin: 40px 0;
 }
 
 div#menu > a,
 div#menu > input {
-	padding: 10px;
+  padding: 10px;
 
-	text-decoration: none;
-	font-size: 16px;
+  text-decoration: none;
+  font-size: 16px;
 
-	-webkit-border-radius: 5px;
-	-moz-border-radius: 5px;
-	border-radius: 5px;
+  -webkit-border-radius: 5px;
+  -moz-border-radius: 5px;
+  border-radius: 5px;
 }
 div#menu > a,
 div#menu > input {
-	border: 1px solid #375EAB;
+  border: 1px solid #375eab;
 }
 div#menu > a {
-	color: white;
-	background: #375EAB;
+  color: white;
+  background: #375eab;
 }
 
 div#menu {
-	float: right;
-	min-width: 590px;
-	padding: 10px 0;
-	text-align: right;
+  float: right;
+  min-width: 590px;
+  padding: 10px 0;
+  text-align: right;
 }
 div#menu > a {
-	margin-right: 5px;
-	margin-bottom: 10px;
+  margin-right: 5px;
+  margin-bottom: 10px;
 
-	padding: 10px;
+  padding: 10px;
 }
 div#menu > input {
-	position: relative;
-	top: 1px;
-	width: 60px;
-	background: white;
-	color: #222;
+  position: relative;
+  top: 1px;
+  width: 60px;
+  background: white;
+  color: #222;
 }
 div#menu > input.inactive {
-	color: #999;
+  color: #999;
 }
