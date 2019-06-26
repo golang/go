@@ -180,6 +180,12 @@ func testPoolDequeue(t *testing.T, d PoolDequeue) {
 	have := make([]int32, N)
 	var stop int32
 	var wg WaitGroup
+	record := func(val int) {
+		atomic.AddInt32(&have[val], 1)
+		if val == N-1 {
+			atomic.StoreInt32(&stop, 1)
+		}
+	}
 
 	// Start P-1 consumers.
 	for i := 1; i < P; i++ {
@@ -190,10 +196,7 @@ func testPoolDequeue(t *testing.T, d PoolDequeue) {
 				val, ok := d.PopTail()
 				if ok {
 					fail = 0
-					atomic.AddInt32(&have[val.(int)], 1)
-					if val.(int) == N-1 {
-						atomic.StoreInt32(&stop, 1)
-					}
+					record(val.(int))
 				} else {
 					// Speed up the test by
 					// allowing the pusher to run.
@@ -219,7 +222,7 @@ func testPoolDequeue(t *testing.T, d PoolDequeue) {
 				val, ok := d.PopHead()
 				if ok {
 					nPopHead++
-					atomic.AddInt32(&have[val.(int)], 1)
+					record(val.(int))
 				}
 			}
 		}
