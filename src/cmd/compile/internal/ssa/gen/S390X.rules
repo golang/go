@@ -139,16 +139,15 @@
 (RoundToEven x) -> (FIDBR [4] x)
 (Round       x) -> (FIDBR [1] x)
 
-// Atomic loads.
-(AtomicLoad8  ptr mem) -> (MOVBZatomicload ptr mem)
-(AtomicLoad32 ptr mem) -> (MOVWZatomicload ptr mem)
-(AtomicLoad64 ptr mem) -> (MOVDatomicload ptr mem)
-(AtomicLoadPtr ptr mem) -> (MOVDatomicload ptr mem)
+// Atomic loads and stores.
+// The SYNC instruction (fast-BCR-serialization) prevents store-load
+// reordering. Other sequences of memory operations (load-load,
+// store-store and load-store) are already guaranteed not to be reordered.
+(AtomicLoad(8|32|Acq32|64|Ptr) ptr mem) -> (MOV(BZ|WZ|WZ|D|D)atomicload ptr mem)
+(AtomicStore(32|64|PtrNoWB) ptr val mem) -> (SYNC (MOV(W|D|D)atomicstore ptr val mem))
 
-// Atomic stores.
-(AtomicStore32 ptr val mem) -> (MOVWatomicstore ptr val mem)
-(AtomicStore64 ptr val mem) -> (MOVDatomicstore ptr val mem)
-(AtomicStorePtrNoWB ptr val mem) -> (MOVDatomicstore ptr val mem)
+// Store-release doesn't require store-load ordering.
+(AtomicStoreRel32 ptr val mem) -> (MOVWatomicstore ptr val mem)
 
 // Atomic adds.
 (AtomicAdd32 ptr val mem) -> (AddTupleFirst32 val (LAA ptr val mem))

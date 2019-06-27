@@ -71,8 +71,9 @@ func init() {
 		help.HelpImportPath,
 		modload.HelpModules,
 		modget.HelpModuleGet,
+		modfetch.HelpModuleAuth,
+		modfetch.HelpModulePrivate,
 		help.HelpPackages,
-		modfetch.HelpSum,
 		test.HelpTestflag,
 		test.HelpTestfunc,
 	}

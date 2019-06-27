@@ -79,7 +79,7 @@ var checkPathTests = []struct {
 	{"/x.y/z", false, false, false},
 	{"x./z", false, false, false},
 	{".x/z", false, false, true},
-	{"-x/z", false, true, true},
+	{"-x/z", false, false, false},
 	{"x..y/z", false, false, false},
 	{"x.y/z/../../w", false, false, false},
 	{"x.y//z", false, false, false},

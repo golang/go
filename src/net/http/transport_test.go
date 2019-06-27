@@ -737,6 +737,8 @@ func TestTransportRemovesDeadIdleConnections(t *testing.T) {
 	}
 }
 
+// Test that the Transport notices when a server hangs up on its
+// unexpectedly (a keep-alive connection is closed).
 func TestTransportServerClosingUnexpectedly(t *testing.T) {
 	setParallel(t)
 	defer afterTest(t)
@@ -773,13 +775,14 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
 	body1 := fetch(1, 0)
 	body2 := fetch(2, 0)
 
-	ts.CloseClientConnections() // surprise!
-
-	// This test has an expected race. Sleeping for 25 ms prevents
-	// it on most fast machines, causing the next fetch() call to
-	// succeed quickly. But if we do get errors, fetch() will retry 5
-	// times with some delays between.
-	time.Sleep(25 * time.Millisecond)
+	// Close all the idle connections in a way that's similar to
+	// the server hanging up on us. We don't use
+	// httptest.Server.CloseClientConnections because it's
+	// best-effort and stops blocking after 5 seconds. On a loaded
+	// machine running many tests concurrently it's possible for
+	// that method to be async and cause the body3 fetch below to
+	// run on an old connection. This function is synchronous.
+	ExportCloseTransportConnsAbruptly(c.Transport.(*Transport))
 
 	body3 := fetch(3, 5)
 
@@ -5370,4 +5373,78 @@ func TestTransportClone(t *testing.T) {
 	if tr2.TLSNextProto != nil {
 		t.Errorf("Transport.TLSNextProto unexpected non-nil")
 	}
+}
+
+func TestIs408(t *testing.T) {
+	tests := []struct {
+		in   string
+		want bool
+	}{
+		{"HTTP/1.0 408", true},
+		{"HTTP/1.1 408", true},
+		{"HTTP/1.8 408", true},
+		{"HTTP/2.0 408", false}, // maybe h2c would do this? but false for now.
+		{"HTTP/1.1 408 ", true},
+		{"HTTP/1.1 40", false},
+		{"http/1.0 408", false},
+		{"HTTP/1-1 408", false},
+	}
+	for _, tt := range tests {
+		if got := Export_is408Message([]byte(tt.in)); got != tt.want {
+			t.Errorf("is408Message(%q) = %v; want %v", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestTransportIgnores408(t *testing.T) {
+	// Not parallel. Relies on mutating the log package's global Output.
+	defer log.SetOutput(log.Writer())
+
+	var logout bytes.Buffer
+	log.SetOutput(&logout)
+
+	defer afterTest(t)
+	const target = "backend:443"
+
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		nc, _, err := w.(Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer nc.Close()
+		nc.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok"))
+		nc.Write([]byte("HTTP/1.1 408 bye\r\n")) // changing 408 to 409 makes test fail
+	}))
+	defer cst.close()
+	req, err := NewRequest("GET", cst.ts.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	slurp, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(slurp) != "ok" {
+		t.Fatalf("got %q; want ok", slurp)
+	}
+
+	t0 := time.Now()
+	for i := 0; i < 50; i++ {
+		time.Sleep(time.Duration(i) * 5 * time.Millisecond)
+		if cst.tr.IdleConnKeyCountForTesting() == 0 {
+			if got := logout.String(); got != "" {
+				t.Fatalf("expected no log output; got: %s", got)
+			}
+			return
+		}
+	}
+	t.Fatalf("timeout after %v waiting for Transport connections to die off", time.Since(t0))
 }

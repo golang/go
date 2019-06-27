@@ -102,10 +102,11 @@ func asmb2(ctxt *ld.Link) {
 	}
 
 	types := []*wasmFuncType{
-		// For normal Go functions the return value is
+		// For normal Go functions, the single parameter is PC_B,
+		// the return value is
 		// 0 if the function returned normally or
 		// 1 if the stack needs to be unwound.
-		{Results: []byte{I32}},
+		{Params: []byte{I32}, Results: []byte{I32}},
 	}
 
 	// collect host imports (functions that get imported from the WebAssembly host, usually JavaScript)
@@ -320,16 +321,14 @@ func writeGlobalSec(ctxt *ld.Link) {
 	sizeOffset := writeSecHeader(ctxt, sectionGlobal)
 
 	globalRegs := []byte{
-		I32, // 0: PC_F
-		I32, // 1: PC_B
-		I32, // 2: SP
-		I64, // 3: CTXT
-		I64, // 4: g
-		I64, // 5: RET0
-		I64, // 6: RET1
-		I64, // 7: RET2
-		I64, // 8: RET3
-		I32, // 9: PAUSE
+		I32, // 0: SP
+		I64, // 1: CTXT
+		I64, // 2: g
+		I64, // 3: RET0
+		I64, // 4: RET1
+		I64, // 5: RET2
+		I64, // 6: RET3
+		I32, // 7: PAUSE
 	}
 
 	writeUleb128(ctxt.Out, uint64(len(globalRegs))) // number of globals

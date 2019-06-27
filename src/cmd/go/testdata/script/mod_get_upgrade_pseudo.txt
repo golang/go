@@ -3,16 +3,37 @@ env GO111MODULE=on
 # For this test module there are three versions:
 #   * v0.1.1-0.20190429073117-b5426c86b553
 #   * v0.1.0
-#   * v0.0.0-20190429073000-30950c05d534
+#   * v0.0.0-20190430073000-30950c05d534
 # Only v0.1.0 is tagged.
 #
-# The latest pseudo-version is semantically higher than the latest tag.
-# 'get -u' should not downgrade to the (lower) tagged version.
+# The v0.1.1 pseudo-version is semantically higher than the latest tag.
+# The v0.0.0 pseudo-version is chronologically newer.
 
-go get -m example.com/pseudoupgrade@b5426c8
-go get -u
+# 'get -u' should not downgrade to the (lower) tagged version.
+go get -d example.com/pseudoupgrade@b5426c8
+go get -d -u
 go list -m -u all
 stdout '^example.com/pseudoupgrade v0.1.1-0.20190429073117-b5426c86b553$'
+
+# 'get example.com/pseudoupgrade@latest' should not downgrade to
+# the (lower) tagged version.
+go get -d example.com/pseudoupgrade@latest
+go list -m all
+stdout '^example.com/pseudoupgrade v0.1.1-0.20190429073117-b5426c86b553$'
+
+# We should observe the same behavior with the newer pseudo-version.
+go get -d example.com/pseudoupgrade@v0.0.0-20190430073000-30950c05d534
+
+# 'get -u' should not downgrade to the chronologically older tagged version.
+go get -d -u
+go list -m -u all
+stdout '^example.com/pseudoupgrade v0.0.0-20190430073000-30950c05d534$'
+
+# 'get example.com/pseudoupgrade@latest' should not downgrade to the
+# chronologically older tagged version.
+go get -d example.com/pseudoupgrade@latest
+go list -m -u all
+stdout '^example.com/pseudoupgrade v0.0.0-20190430073000-30950c05d534$'
 
 -- go.mod --
 module x

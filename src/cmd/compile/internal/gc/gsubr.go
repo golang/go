@@ -201,7 +201,8 @@ func (f *Func) initLSym(hasBody bool) {
 
 		var aliasABI obj.ABI
 		needABIAlias := false
-		if abi, ok := symabiDefs[f.lsym.Name]; ok && abi == obj.ABI0 {
+		defABI, hasDefABI := symabiDefs[f.lsym.Name]
+		if hasDefABI && defABI == obj.ABI0 {
 			// Symbol is defined as ABI0. Create an
 			// Internal -> ABI0 wrapper.
 			f.lsym.SetABI(obj.ABI0)
@@ -215,21 +216,20 @@ func (f *Func) initLSym(hasBody bool) {
 			}
 		}
 
-		if abi, ok := symabiRefs[f.lsym.Name]; ok && abi == obj.ABI0 {
-			// Symbol is referenced as ABI0. Create an
-			// ABI0 -> Internal wrapper if necessary.
+		isLinknameExported := nam.Sym.Linkname != "" && (hasBody || hasDefABI)
+		if abi, ok := symabiRefs[f.lsym.Name]; (ok && abi == obj.ABI0) || isLinknameExported {
+			// Either 1) this symbol is definitely
+			// referenced as ABI0 from this package; or 2)
+			// this symbol is defined in this package but
+			// given a linkname, indicating that it may be
+			// referenced from another package. Create an
+			// ABI0 -> Internal wrapper so it can be
+			// called as ABI0. In case 2, it's important
+			// that we know it's defined in this package
+			// since other packages may "pull" symbols
+			// using linkname and we don't want to create
+			// duplicate ABI wrappers.
 			if f.lsym.ABI() != obj.ABI0 {
-				needABIAlias, aliasABI = true, obj.ABI0
-			}
-		}
-
-		if !needABIAlias && allABIs {
-			// The compiler was asked to produce ABI
-			// wrappers for everything.
-			switch f.lsym.ABI() {
-			case obj.ABI0:
-				needABIAlias, aliasABI = true, obj.ABIInternal
-			case obj.ABIInternal:
 				needABIAlias, aliasABI = true, obj.ABI0
 			}
 		}

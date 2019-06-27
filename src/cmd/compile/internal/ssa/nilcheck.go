@@ -219,9 +219,31 @@ func nilcheckelim2(f *Func) {
 				continue
 			}
 			if v.Type.IsMemory() || v.Type.IsTuple() && v.Type.FieldType(1).IsMemory() {
-				if v.Op == OpVarDef || v.Op == OpVarKill || v.Op == OpVarLive {
+				if v.Op == OpVarKill || v.Op == OpVarLive || (v.Op == OpVarDef && !v.Aux.(GCNode).Typ().HasHeapPointer()) {
 					// These ops don't really change memory.
 					continue
+					// Note: OpVarDef requires that the defined variable not have pointers.
+					// We need to make sure that there's no possible faulting
+					// instruction between a VarDef and that variable being
+					// fully initialized. If there was, then anything scanning
+					// the stack during the handling of that fault will see
+					// a live but uninitialized pointer variable on the stack.
+					//
+					// If we have:
+					//
+					//   NilCheck p
+					//   VarDef x
+					//   x = *p
+					//
+					// We can't rewrite that to
+					//
+					//   VarDef x
+					//   NilCheck p
+					//   x = *p
+					//
+					// Particularly, even though *p faults on p==nil, we still
+					// have to do the explicit nil check before the VarDef.
+					// See issue #32288.
 				}
 				// This op changes memory.  Any faulting instruction after v that
 				// we've recorded in the unnecessary map is now obsolete.

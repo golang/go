@@ -3,7 +3,7 @@ env GO111MODULE=on
 # Testing stderr for git ls-remote; turn off proxy.
 [!net] skip
 [!exec:git] skip
-env GOPROXY=
+env GOPROXY=direct
 
 ! go get github.com/golang/nonexist
 stderr 'Confirm the import path was entered correctly.'

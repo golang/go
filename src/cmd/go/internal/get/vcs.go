@@ -112,7 +112,7 @@ var vcsHg = &vcsCmd{
 	name: "Mercurial",
 	cmd:  "hg",
 
-	createCmd:   []string{"clone -U {repo} {dir}"},
+	createCmd:   []string{"clone -U -- {repo} {dir}"},
 	downloadCmd: []string{"pull"},
 
 	// We allow both tag and branch names as 'tags'
@@ -128,7 +128,7 @@ var vcsHg = &vcsCmd{
 	tagSyncDefault: []string{"update default"},
 
 	scheme:     []string{"https", "http", "ssh"},
-	pingCmd:    "identify {scheme}://{repo}",
+	pingCmd:    "identify -- {scheme}://{repo}",
 	remoteRepo: hgRemoteRepo,
 }
 
@@ -145,7 +145,7 @@ var vcsGit = &vcsCmd{
 	name: "Git",
 	cmd:  "git",
 
-	createCmd:   []string{"clone {repo} {dir}", "-go-internal-cd {dir} submodule update --init --recursive"},
+	createCmd:   []string{"clone -- {repo} {dir}", "-go-internal-cd {dir} submodule update --init --recursive"},
 	downloadCmd: []string{"pull --ff-only", "submodule update --init --recursive"},
 
 	tagCmd: []tagCmd{
@@ -165,7 +165,7 @@ var vcsGit = &vcsCmd{
 	tagSyncDefault: []string{"submodule update --init --recursive"},
 
 	scheme:     []string{"git", "https", "http", "git+ssh", "ssh"},
-	pingCmd:    "ls-remote {scheme}://{repo}",
+	pingCmd:    "ls-remote -- {scheme}://{repo}",
 	remoteRepo: gitRemoteRepo,
 }
 
@@ -222,7 +222,7 @@ var vcsBzr = &vcsCmd{
 	name: "Bazaar",
 	cmd:  "bzr",
 
-	createCmd: []string{"branch {repo} {dir}"},
+	createCmd: []string{"branch -- {repo} {dir}"},
 
 	// Without --overwrite bzr will not pull tags that changed.
 	// Replace by --overwrite-tags after http://pad.lv/681792 goes in.
@@ -233,7 +233,7 @@ var vcsBzr = &vcsCmd{
 	tagSyncDefault: []string{"update -r revno:-1"},
 
 	scheme:      []string{"https", "http", "bzr", "bzr+ssh"},
-	pingCmd:     "info {scheme}://{repo}",
+	pingCmd:     "info -- {scheme}://{repo}",
 	remoteRepo:  bzrRemoteRepo,
 	resolveRepo: bzrResolveRepo,
 }
@@ -284,14 +284,14 @@ var vcsSvn = &vcsCmd{
 	name: "Subversion",
 	cmd:  "svn",
 
-	createCmd:   []string{"checkout {repo} {dir}"},
+	createCmd:   []string{"checkout -- {repo} {dir}"},
 	downloadCmd: []string{"update"},
 
 	// There is no tag command in subversion.
 	// The branch information is all in the path names.
 
 	scheme:     []string{"https", "http", "svn", "svn+ssh"},
-	pingCmd:    "info {scheme}://{repo}",
+	pingCmd:    "info -- {scheme}://{repo}",
 	remoteRepo: svnRemoteRepo,
 }
 
@@ -334,7 +334,7 @@ var vcsFossil = &vcsCmd{
 	name: "Fossil",
 	cmd:  "fossil",
 
-	createCmd:   []string{"-go-internal-mkdir {dir} clone {repo} " + filepath.Join("{dir}", fossilRepoName), "-go-internal-cd {dir} open .fossil"},
+	createCmd:   []string{"-go-internal-mkdir {dir} clone -- {repo} " + filepath.Join("{dir}", fossilRepoName), "-go-internal-cd {dir} open .fossil"},
 	downloadCmd: []string{"up"},
 
 	tagCmd:         []tagCmd{{"tag ls", `(.*)`}},
@@ -855,6 +855,9 @@ func validateRepoRoot(repoRoot string) error {
 	}
 	if url.Scheme == "" {
 		return errors.New("no scheme")
+	}
+	if url.Scheme == "file" {
+		return errors.New("file scheme disallowed")
 	}
 	return nil
 }

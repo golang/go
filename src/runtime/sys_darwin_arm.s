@@ -323,7 +323,7 @@ TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
 	BL	libc_exit(SB)
 	RET
 
-TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0
+TEXT runtime·pthread_attr_getstacksize_trampoline(SB),NOSPLIT,$0
 	MOVW	$46, R0
 	BL	libc_exit(SB)
 	RET
@@ -343,44 +343,34 @@ TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
 	BL	libc_raise(SB)
 	RET
 
-TEXT runtime·pthread_mutex_init_trampoline(SB),NOSPLIT,$0
-	MOVW	4(R0), R1	// arg 2 attr
-	MOVW	0(R0), R0	// arg 1 mutex
-	BL	libc_pthread_mutex_init(SB)
+TEXT runtime·dispatch_semaphore_create_trampoline(SB),NOSPLIT,$0
+	MOVW	R0, R8
+	MOVW	0(R8), R0	// arg 1 value
+	BL	libc_dispatch_semaphore_create(SB)
+	MOVW	R0, 4(R8)	// result sema
 	RET
 
-TEXT runtime·pthread_mutex_lock_trampoline(SB),NOSPLIT,$0
-	MOVW	0(R0), R0	// arg 1 mutex
-	BL	libc_pthread_mutex_lock(SB)
+TEXT runtime·dispatch_semaphore_wait_trampoline(SB),NOSPLIT,$0
+	MOVW	4(R0), R1	// arg 2 timeout/0
+	MOVW	8(R0), R2	// arg 2 timeout/1
+	MOVW	0(R0), R0	// arg 1 sema
+	BL	libc_dispatch_semaphore_wait(SB)
 	RET
 
-TEXT runtime·pthread_mutex_unlock_trampoline(SB),NOSPLIT,$0
-	MOVW	0(R0), R0	// arg 1 mutex
-	BL	libc_pthread_mutex_unlock(SB)
+TEXT runtime·dispatch_semaphore_signal_trampoline(SB),NOSPLIT,$0
+	MOVW	0(R0), R0	// arg 1 sema
+	BL	libc_dispatch_semaphore_signal(SB)
 	RET
 
-TEXT runtime·pthread_cond_init_trampoline(SB),NOSPLIT,$0
-	MOVW	4(R0), R1	// arg 2 attr
-	MOVW	0(R0), R0	// arg 1 cond
-	BL	libc_pthread_cond_init(SB)
-	RET
-
-TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
-	MOVW	4(R0), R1	// arg 2 mutex
-	MOVW	0(R0), R0	// arg 1 cond
-	BL	libc_pthread_cond_wait(SB)
-	RET
-
-TEXT runtime·pthread_cond_timedwait_relative_np_trampoline(SB),NOSPLIT,$0
-	MOVW	4(R0), R1	// arg 2 mutex
-	MOVW	8(R0), R2	// arg 3 timeout
-	MOVW	0(R0), R0	// arg 1 cond
-	BL	libc_pthread_cond_timedwait_relative_np(SB)
-	RET
-
-TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
-	MOVW	0(R0), R0	// arg 1 cond
-	BL	libc_pthread_cond_signal(SB)
+TEXT runtime·dispatch_time_trampoline(SB),NOSPLIT,$0
+	MOVW	R0, R8
+	MOVW	0(R8), R0	// arg 1 base/0
+	MOVW	4(R8), R1	// arg 1 base/1
+	MOVW	8(R8), R2	// arg 2 delta/0
+	MOVW	12(R8), R3	// arg 2 delta/1
+	BL	libc_dispatch_time(SB)
+	MOVW	R0, 16(R8)	// result/0
+	MOVW	R1, 20(R8)	// result/1
 	RET
 
 // syscall calls a function in libc on behalf of the syscall package.

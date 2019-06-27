@@ -1339,6 +1339,54 @@ func TestConnQuery(t *testing.T) {
 	}
 }
 
+func TestConnRaw(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn.dc.ci.(*fakeConn).skipDirtySession = true
+	defer conn.Close()
+
+	sawFunc := false
+	err = conn.Raw(func(dc interface{}) error {
+		sawFunc = true
+		if _, ok := dc.(*fakeConn); !ok {
+			return fmt.Errorf("got %T want *fakeConn", dc)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sawFunc {
+		t.Fatal("Raw func not called")
+	}
+
+	func() {
+		defer func() {
+			x := recover()
+			if x == nil {
+				t.Fatal("expected panic")
+			}
+			conn.closemu.Lock()
+			closed := conn.dc == nil
+			conn.closemu.Unlock()
+			if !closed {
+				t.Fatal("expected connection to be closed after panic")
+			}
+		}()
+		err = conn.Raw(func(dc interface{}) error {
+			panic("Conn.Raw panic should return an error")
+		})
+		t.Fatal("expected panic from Raw func")
+	}()
+}
+
 func TestCursorFake(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
@@ -3558,7 +3606,7 @@ type nvcConn struct {
 	skipNamedValueCheck bool
 }
 
-type decimal struct {
+type decimalInt struct {
 	value int
 }
 
@@ -3582,7 +3630,7 @@ func (c *nvcConn) CheckNamedValue(nv *driver.NamedValue) error {
 			nv.Value = "OUT:*string"
 		}
 		return nil
-	case decimal, []int64:
+	case decimalInt, []int64:
 		return nil
 	case doNotInclude:
 		return driver.ErrRemoveArgument
@@ -3611,13 +3659,13 @@ func TestNamedValueChecker(t *testing.T) {
 	}
 
 	o1 := ""
-	_, err = db.ExecContext(ctx, "INSERT|keys|dec1=?A,str1=?,out1=?O1,array1=?", Named("A", decimal{123}), "hello", Named("O1", Out{Dest: &o1}), []int64{42, 128, 707}, doNotInclude{})
+	_, err = db.ExecContext(ctx, "INSERT|keys|dec1=?A,str1=?,out1=?O1,array1=?", Named("A", decimalInt{123}), "hello", Named("O1", Out{Dest: &o1}), []int64{42, 128, 707}, doNotInclude{})
 	if err != nil {
 		t.Fatal("exec insert", err)
 	}
 	var (
 		str1 string
-		dec1 decimal
+		dec1 decimalInt
 		arr1 []int64
 	)
 	err = db.QueryRowContext(ctx, "SELECT|keys|dec1,str1,array1|").Scan(&dec1, &str1, &arr1)
@@ -3627,7 +3675,7 @@ func TestNamedValueChecker(t *testing.T) {
 
 	list := []struct{ got, want interface{} }{
 		{o1, "from-server"},
-		{dec1, decimal{123}},
+		{dec1, decimalInt{123}},
 		{str1, "hello"},
 		{arr1, []int64{42, 128, 707}},
 	}
@@ -3660,7 +3708,7 @@ func TestNamedValueCheckerSkip(t *testing.T) {
 		t.Fatal("exec create", err)
 	}
 
-	_, err = db.ExecContext(ctx, "INSERT|keys|dec1=?A", Named("A", decimal{123}))
+	_, err = db.ExecContext(ctx, "INSERT|keys|dec1=?A", Named("A", decimalInt{123}))
 	if err == nil {
 		t.Fatalf("expected error with bad argument, got %v", err)
 	}

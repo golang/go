@@ -28,6 +28,7 @@ Scripts also have access to these other environment variables:
 
 	GOARCH=<target GOARCH>
 	GOCACHE=<actual GOCACHE being used outside the test>
+	GOEXE=<executable file suffix: .exe on Windows, empty on other systems>
 	GOOS=<target GOOS>
 	GOPATH=$WORK/gopath
 	GOPROXY=<local module proxy serving from cmd/go/testdata/mod>
@@ -37,8 +38,6 @@ Scripts also have access to these other environment variables:
 	TMPDIR=$WORK/tmp
 	devnull=<value of os.DevNull>
 	goversion=<current Go version; for example, 1.12>
-
-The environment variable $exe (lowercase) is an empty string on most systems, ".exe" on Windows.
 
 The scripts supporting files are unpacked relative to $GOPATH/src (aka $WORK/gopath/src)
 and then the script begins execution in that directory as well. Thus the example above runs

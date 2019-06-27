@@ -79,7 +79,7 @@ func addUpdate(m *modinfo.ModulePublic) {
 		return
 	}
 
-	if info, err := Query(m.Path, "latest", Allowed); err == nil && semver.Compare(info.Version, m.Version) > 0 {
+	if info, err := Query(m.Path, "latest", m.Version, Allowed); err == nil && semver.Compare(info.Version, m.Version) > 0 {
 		m.Update = &modinfo.ModulePublic{
 			Path:    m.Path,
 			Version: info.Version,
@@ -127,7 +127,7 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 	// complete fills in the extra fields in m.
 	complete := func(m *modinfo.ModulePublic) {
 		if m.Version != "" {
-			if q, err := Query(m.Path, m.Version, nil); err != nil {
+			if q, err := Query(m.Path, m.Version, "", nil); err != nil {
 				m.Error = &modinfo.ModuleError{Err: err.Error()}
 			} else {
 				m.Version = q.Version

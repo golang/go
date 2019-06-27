@@ -29,6 +29,8 @@ const minPhysPageSize = 4096
 //
 //go:notinheap
 type mheap struct {
+	// lock must only be acquired on the system stack, otherwise a g
+	// could self-deadlock if its stack grows with the lock held.
 	lock      mutex
 	free      mTreap // free spans
 	sweepgen  uint32 // sweep generation, see comment in mspan
@@ -1095,9 +1097,8 @@ func (h *mheap) alloc(npage uintptr, spanclass spanClass, large bool, needzero b
 // The memory backing the returned span may not be zeroed if
 // span.needzero is set.
 //
-// allocManual must be called on the system stack to prevent stack
-// growth. Since this is used by the stack allocator, stack growth
-// during allocManual would self-deadlock.
+// allocManual must be called on the system stack because it acquires
+// the heap lock. See mheap for details.
 //
 //go:systemstack
 func (h *mheap) allocManual(npage uintptr, stat *uint64) *mspan {
@@ -1303,8 +1304,8 @@ func (h *mheap) freeSpan(s *mspan, large bool) {
 // This must only be called when gcphase == _GCoff. See mSpanState for
 // an explanation.
 //
-// freeManual must be called on the system stack to prevent stack
-// growth, just like allocManual.
+// freeManual must be called on the system stack because it acquires
+// the heap lock. See mheap for details.
 //
 //go:systemstack
 func (h *mheap) freeManual(s *mspan, stat *uint64) {

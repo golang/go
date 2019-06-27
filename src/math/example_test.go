@@ -135,3 +135,41 @@ func ExampleRoundToEven() {
 	// 12.0
 	// 12.0
 }
+
+func ExampleLog() {
+	x := math.Log(1)
+	fmt.Printf("%.1f\n", x)
+
+	y := math.Log(2.7183)
+	fmt.Printf("%.1f\n", y)
+	// Output:
+	// 0.0
+	// 1.0
+}
+
+func ExampleLog2() {
+	fmt.Printf("%.1f", math.Log2(256))
+	// Output: 8.0
+}
+
+func ExampleLog10() {
+	fmt.Printf("%.1f", math.Log10(100))
+	// Output: 2.0
+}
+
+func ExampleMod() {
+	c := math.Mod(7, 4)
+	fmt.Printf("%.1f", c)
+	// Output: 3.0
+}
+
+func ExampleAbs() {
+	x := math.Abs(-2)
+	fmt.Printf("%.1f\n", x)
+
+	y := math.Abs(2)
+	fmt.Printf("%.1f\n", y)
+	// Output:
+	// 2.0
+	// 2.0
+}

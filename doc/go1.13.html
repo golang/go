@@ -25,19 +25,90 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <p>
+  As of Go 1.13, the go command by default downloads and authenticates
+  modules using the Go module mirror and Go checksum database run by Google. See
+  <a href="https://proxy.golang.org/privacy">https://proxy.golang.org/privacy</a>
+  for privacy information about these services and the
+  <a href="/cmd/go/#hdr-Module_downloading_and_verification">go command documentation</a>
+  for configuration details including how to disable the use of these servers or use
+  different ones.
+</p>
+
+<p>
 TODO
 </p>
 
 <h2 id="language">Changes to the language</h2>
 
 <p>
-TODO
+  Per the <a href="https://github.com/golang/proposal/blob/master/design/19308-number-literals.md">number literal proposal</a>,
+  Go 1.13 supports a more uniform and modernized set of number literal prefixes.
+  <ul>
+    <li>
+      <a href="https://golang.org/ref/spec#Integer_literals">Binary integer literals</a>:
+      The prefix <code>0b</code> or <code>0B</code> indicates a binary integer literal
+      such as <code>0b1011</code>.
+    </li>
+
+    <li>
+      <a href="https://golang.org/ref/spec#Integer_literals">Octal integer literals</a>:
+      The prefix <code>0o</code> or <code>0O</code> indicates an octal integer literal
+      such as <code>0o660</code>.
+      The existing octal notation indicated by a leading <code>0</code> followed by
+      octal digits remains valid.
+    </li>
+
+    <li>
+      <a href="https://golang.org/ref/spec#Floating-point_literals">Hexadecimal floating point literals</a>:
+      The prefix <code>0x</code> or <code>0X</code> may now be used to express the mantissa of a
+      floating-point number in hexadecimal format such as <code>0x1.0p-1021</code>.
+      A hexadecimal floating-point number must always have an exponent, written as the letter
+      <code>p</code> or <code>P</code> followed by an exponent in decimal. The exponent scales
+      the mantissa by 2 to the power of the exponent.
+    </li>
+
+    <li>
+      <a href="https://golang.org/ref/spec#Imaginary_literals">Imaginary literals</a>:
+      The imaginary suffix <code>i</code> may now be used with any (binary, decimal, hexadecimal)
+      integer or floating-point literal.
+    </li>
+
+    <li>
+      Digit separators:
+      The digits of any number literal may now be separated (grouped) using underscores, such as
+      in <code>1_000_000</code>, <code>0b_1010_0110</code>, or <code>3.1415_9265</code>.
+      An underscore may appear between any two digits or the literal prefix and the first digit.
+    </li>
+  </ul>
+</p>
+
+<p>
+  Per the <a href="https://github.com/golang/proposal/blob/master/design/19113-signed-shift-counts.md">signed shift counts proposal</a>
+  Go 1.13 removes the restriction that a <a href="https://golang.org/ref/spec#Operators">shift count</a>
+  must be unsigned. This change eliminates the need for many artificial <code>uint</code> conversions,
+  solely introduced to satisfy this (now removed) restriction of the <code>&lt;&lt;</code> and <code>&gt;&gt;</code> operators.
+</p>
+
+<p>
+  These language changes were implemented by changes to the compiler, and corresponding internal changes to the library
+  packages <code><a href="https://golang.org/pkg/go/scanner">go/scanner</a></code> and
+  <code><a href="https://golang.org/pkg/text/scanner">text/scanner</a></code> (number literals),
+  and <code><a href="https://golang.org/pkg/go/types">go/types</a></code> (signed shift counts).
+</p>
+
+<p>
+  If your code uses modules and your <code>go.mod</code> files specifies a language version, be sure
+  it is set to at least <code>1.13</code> to get access to these language changes.
+  You can do this by editing the <code>go.mod</code> file directly, or you can run
+  <code>go mod edit -go=1.13</code>.
 </p>
 
 <h2 id="ports">Ports</h2>
 
-<p>
-TODO
+<h3 id="android">Android</h3>
+
+<p><!-- CL 170127 -->
+  Go programs are now compatible with Android Q.
 </p>
 
 <h3 id="darwin">Darwin</h3>
@@ -57,18 +128,92 @@ TODO
   FreeBSD 12.0 or later requires a kernel with the COMPAT_FREEBSD11 option set (this is the default).
 </p>
 
+<h3 id="illumos">Illumos</h3>
+
+<p><!-- CL 174457 -->
+  Go now supports Illumos with <code>GOOS=illumos</code>.
+  The <code>illumos</code> build tag implies the <code>solaris</code>
+  build tag.
+</p>
+
+<h3 id="aix">AIX</h3>
+
+<p><!-- CL 164003, CL 169120 -->
+  AIX on PPC64 (<code>aix/ppc64</code>) now supports cgo, external
+  linking, and the <code>c-archive</code> and <code>pie</code> build
+  modes.
+</p>
+
+<h3 id="windows">Windows</h3>
+
+<p><!-- CL 178977 -->
+  The Windows version specified by internally-linked Windows binaries
+  is now Windows 7 rather than NT 4.0. This was already the minimum
+  required version for Go, but can affect the behavior of system calls
+  that have a backwards-compatibility mode. These will now behave as
+  documented. Externally-linked binaries (any program using cgo) have
+  always specified a more recent Windows version.
+</p>
+
 <h2 id="tools">Tools</h2>
 
 <p>
 TODO
 </p>
 
-<h2 id="runtime">Runtime</h2>
+<h3 id="compiler">Compiler toolchain</h3>
 
-<p>
-TODO
+<p><!-- CL 170448 -->
+  The compiler has a new implementation of escape analysis that is
+  more precise. For most Go code should be an improvement (in other
+  words, more Go variables and expressions allocated on the stack
+  instead of heap). However, this increased precision may also break
+  invalid code that happened to work before (for example, code that
+  violates
+  the <a href="/pkg/unsafe/#Pointer"><code>unsafe.Pointer</code>
+  safety rules</a>). If you notice any regressions that appear
+  related, the old escape analysis pass can be re-enabled
+  with <code>go</code> <code>build</code> <code>-gcflags=all=-newescape=false</code>.
+  The option to use the old escape analysis will be removed in a
+  future release.
 </p>
 
+<p><!-- CL 161904 -->
+  The compiler no longer emits floating point or complex constants
+  to <code>go_asm.h</code> files. These have always been emitted in a
+  form that could not be used as numeric constant in assembly code.
+</p>
+
+<h3 id="assembler">Assembler</h3>
+
+<p><!-- CL 157001 -->
+  The assembler now supports many of the atomic instructions
+  introduced in ARM v8.1.
+</p>
+
+<h2 id="runtime">Runtime</h2>
+
+<p><!-- CL 161477 -->
+  Out of range panic messages now include the index that was out of
+  bounds and the length (or capacity) of the slice. For
+  example, <code>s[3]</code> on a slice of length 1 will panic with
+  "runtime error: index out of range [3] with length 1".
+</p>
+
+<p><!-- CL 171758 -->
+  This release improves performance of most uses of <code>defer</code>
+  by 30%.
+</p>
+
+<p><!-- CL 142960 -->
+  The runtime is now more aggressive at returning memory to the
+  operating system to make it available to co-tenant applications.
+  Previously, the runtime could retain memory for five or more minutes
+  following a spike in the heap size. It will now begin returning it
+  promptly after the heap shrinks. However, on many OSes, including
+  Linux, the OS itself reclaims memory lazily, so process RSS will not
+  decrease until the system is under memory pressure.
+</p>
 
 <h2 id="library">Core library</h2>
 
@@ -79,9 +224,27 @@ TODO generally
 <h3 id="tls_1_3">TLS 1.3</h3>
 
 <p>
-TODO; link to <a href="/doc/go1.12#tls_1_3">Go 1.12 notes</a>.
+  As announced in Go 1.12, Go 1.13 enables support for TLS 1.3 in the
+  <code>crypto/tls</code> package by default. It can be disabled by adding the
+  value <code>tls13=0</code> to the <code>GODEBUG</code>
+  environment variable. The opt-out will be removed in Go 1.14.
 </p>
 
+<p>
+  See <a href="/doc/go1.12#tls_1_3">the Go 1.12 release notes</a> for important
+  compatibility information.
+</p>
+
+<h3 id="crypto/ed25519"><a href="/pkg/crypto/ed25519/">crypto/ed25519</a></h3>
+
+<p><!-- CL 174945, 182698 -->
+  The new <a href="/pkg/crypto/ed25519/"><code>crypto/ed25519</code></a>
+  package implements the Ed25519 signature
+  scheme. This functionality was previously provided by the
+  <a href="https://godoc.org/golang.org/x/crypto/ed25519"><code>golang.org/x/crypto/ed25519</code></a>
+  package, which becomes a wrapper for
+  <code>crypto/ed25519</code> when used with Go 1.13+.
+</p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
@@ -94,4 +257,313 @@ TODO; link to <a href="/doc/go1.12#tls_1_3">Go 1.12 notes</a>.
 <p>
 TODO
 </p>
+
+<!-- CL 174125: https://golang.org/cl/174125: cmd/dist: add support for openbsd/arm64 -->
+<!-- CL 177797: https://golang.org/cl/177797: cmd/doc: always print package clause except for commands -->
+<!-- CL 173345: https://golang.org/cl/173345: cmd/go: add -trimpath build flag -->
+<!-- CL 173438: https://golang.org/cl/173438: cmd/go: change -tags to a comma-separated list -->
+<!-- CL 175983: https://golang.org/cl/175983: cmd/go: set the "generate" build tag in go generate, per design doc -->
+<!-- CL 167747: https://golang.org/cl/167747: 'go get' in module mode now supports the version suffix '@patch'.: cmd/go/internal/modget: support the suffix '@patch' in 'go get' -->
+
+<dl id="bytes"><dt><a href="/pkg/bytes/">bytes</a></dt>
+  <dd>
+    <p><!-- CL 161760 -->
+      TODO: <a href="https://golang.org/cl/161760">https://golang.org/cl/161760</a>: hoist error creation out of function
+    </p>
+
+    <p>
+      The new <a href="/pkg/bytes/#ToValidUTF8"><code>ToValidUTF8</code></a> function returns a
+      copy of a given byte slice with each run of invalid UTF-8 byte sequences replaced by a given slice.
+    </p>
+
+</dl><!-- bytes -->
+
+<dl id="context"><dt><a href="/pkg/context/">context</a></dt>
+  <dd>
+    <p><!-- CL 169080 -->
+    The formatting of contexts returned by <a href="/pkg/context/#WithValue"><code>WithValue</code></a> no longer depends on <code>fmt</code> and will not stringify in the same way. Code that depends on the exact previous stringification might be affected.
+    </p>
+
+</dl><!-- context -->
+
+<dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+  <dd>
+    <p><!-- CL 177698 -->
+      Ed25519 certificates are now supported in TLS versions 1.2 and 1.3.
+    </p>
+
+</dl><!-- crypto/tls -->
+
+<dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
+  <dd>
+    <p><!-- CL 175478 -->
+      Ed25519 keys are now supported in certificates and certificate requests
+      according to <a href="https://www.rfc-editor.org/info/rfc8410">RFC 8410</a>, as well as by the
+      <a href="/pkg/crypto/x509/#ParsePKCS8PrivateKey"><code>ParsePKCS8PrivateKey</code></a>,
+      <a href="/pkg/crypto/x509/#MarshalPKCS8PrivateKey"><code>MarshalPKCS8PrivateKey</code></a>,
+      and <a href="/pkg/crypto/x509/#ParsePKIXPublicKey"><code>ParsePKIXPublicKey</code></a> functions.
+    </p>
+
+</dl><!-- crypto/x509 -->
+
+<dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
+  <dd>
+    <p><!-- CL 170699 -->
+      The new <a href="/pkg/database/sql/#NullTime"><code>NullTime</code></a> type represents a <code>time.Time</code> that may be null.
+    </p>
+
+    <p><!-- CL 174178 -->
+      The new  <a href="/pkg/database/sql/#NullInt32"><code>NullInt32</code></a> type represents an <code>int32</code> that may be null.
+    </p>
+
+</dl><!-- database/sql -->
+
+<dl id="debug/dwarf"><dt><a href="/pkg/debug/dwarf/">debug/dwarf</a></dt>
+  <dd>
+    <p><!-- CL 158797 -->
+      The <a href="/pkg/debug/dwarf/#Data.Type"><code>Data.Type</code></a>
+      method no longer panics if it encounters an unknown DWARF tag in
+      the type graph. Instead, it represents that component of the
+      type with
+      an <a href="/pkg/debug/dwarf/#UnsupportedType"><code>UnsupportedType</code></a>
+      object.
+    </p>
+
+</dl><!-- debug/dwarf -->
+
+<dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+  <dd>
+    <p><!-- CL 175218 -->
+      When using a <code>&lt;script&gt;</code> tag with "module" set as the
+      type attribute, code will now be interperted as <a href="https://html.spec.whatwg.org/multipage/scripting.html#the-script-element:module-script-2">JavaScript module script</a>.
+    </p>
+
+</dl><!-- html/template -->
+
+<dl id="log"><dt><a href="/pkg/log/">log</a></dt>
+  <dd>
+    <p><!-- CL 168920 -->
+      The new <a href="/pkg/log/#Writer"><code>Writer</code></a> function returns the output destination for the standard logger.
+    </p>
+
+</dl><!-- log -->
+
+<dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
+  <dd>
+    <p><!-- CL 160682 -->
+      TODO: <a href="https://golang.org/cl/160682">https://golang.org/cl/160682</a>: implement Rat.SetUint64
+    </p>
+
+    <p><!-- CL 168237 -->
+      TODO: <a href="https://golang.org/cl/168237">https://golang.org/cl/168237</a>: accept non-decimal floats with Rat.SetString
+    </p>
+
+</dl><!-- math/big -->
+
+<dl id="math/bits"><dt><a href="/pkg/math/bits/">math/bits</a></dt>
+  <dd>
+    <p><!-- CL 178177 -->
+      The execution time of <a href="/pkg/math/bits/#Add"><code>Add</code></a>,
+      <a href="/pkg/math/bits/#Sub"><code>Sub</code></a>,
+      <a href="/pkg/math/bits/#Mul"><code>Mul</code></a>,
+      <a href="/pkg/math/bits/#RotateLeft"><code>RotateLeft</code></a>, and
+      <a href="/pkg/math/bits/#ReverseBytes"><code>ReverseBytes</code></a> is now
+      guaranteed to be independent of the inputs.
+    </p>
+
+</dl><!-- math/bits -->
+
+<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+  <dd>
+    <p><!-- CL 156366 -->
+      On Unix systems where <code>use-vc</code> is set in <code>resolve.conf</code>, TCP is used for DNS resolution.
+    </p>
+
+    <p><!-- CL 170678 -->
+      The new field <a href="/pkg/net/#ListenConfig.KeepAlive"><code>ListenConfig.KeepAlive</code></a>
+      specifies the keep-alive period for network connections accepted by the listener.
+    </p>
+
+</dl><!-- net -->
+
+<dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+  <dd>
+    <p><!-- CL 130256 -->
+      The new field <a href="/pkg/net/http/#Transport.ForceAttemptHTTP2"><code>Transport.ForceAttemptHTTP2</code></a>
+      controls whether HTTP/2 is enabled when a non-zero <code>Dial</code>, <code>DialTLS</code>, or <code>DialContext</code>
+      func or <code>TLSClientConfig</code> is provided.
+    </p>
+
+    <p><!-- CL 140357 -->
+      When reusing HTTP/2, the <a href="/pkg/net/http#Transport"><code>Transport</code></a> no longer performs unnecessary TLS handshakes.
+    </p>
+
+    <p><!-- CL 154383 -->
+      <a href="/pkg/net/http/#TimeoutHandler"><code>TimeoutHandler</code></a>'s
+      <a href="/pkg/net/http/#ResponseWriter"><code>ResponseWriter</code></a> now implements the
+      <a href="/pkg/net/http/#Pusher"><code>Pusher</code></a> and <a href="/pkg/net/http/#Flusher"><code>Flusher</code></a> interfaces.
+    </p>
+
+    <p><!-- CL 167681 -->
+      The new <a href="/pkg/net/http#Server"><code>Server</code></a> fields
+      <a href="/pkg/net/http/#Server.BaseContext"><code>BaseContext</code></a> and
+      <a href="/pkg/net/http/#Server.ConnContext"><code>ConnContext</code></a>
+      allow finer control over the <a href="/pkg/context#Context"><code>Context</code></a> values provided to requests and connections.
+    </p>
+
+    <p><!-- CL 173658 -->
+      The new <a href="/pkg/net/http/#Header"><code>Header</code></a> method
+      <a href="/pkg/net/http/#Header.Clone"><code>Clone</code></a> returns a copy of the receiver.
+    </p>
+
+</dl><!-- net/http -->
+
+<dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+  <dd>
+    <p><!-- CL 160877 -->
+      The new <a href="/pkg/os/#UserConfigDir"><code>UserConfigDir</code></a> function
+      returns the default directory to use for user-specific configuration data.
+    </p>
+
+    <p><!-- CL 166578 -->
+      If a <a href="/pkg/os/#File"><code>File</code></a> is opened using the O_APPEND flag, its
+      <a href="/pkg/os/#File.WriteAt"><code>WriteAt</code></a> method will always return an error.
+    </p>
+
+</dl><!-- os -->
+
+<dl id="os/exec"><dt><a href="/pkg/os/exec/">os/exec</a></dt>
+  <dd>
+    <p><!-- CL 174318 -->
+      On Windows, the environment for a <a href="/pkg/os/exec#Cmd"><code>Cmd</code></a> always inherits the
+      <code>%SYSTEMROOT%</code> value of the parent process unless the
+      <a href="/pkg/os/exec#Cmd.Env"><code>Cmd.Env</code></a> field includes an explicit value for it.
+    </p>
+
+</dl><!-- os/exec -->
+
+<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+  <dd>
+    <p><!-- CL 171337 -->
+      The new <a href="/pkg/reflect/#Value.IsZero"><code>Value.IsZero</code></a> method reports whether a <code>Value</code> is the zero value for its type.
+    </p>
+
+    <p><!-- CL 174531 -->
+      The <a href="/pkg/reflect/#MakeFunc"><code>MakeFunc</code></a> function now allows assignment conversions on returned values, instead of requiring exact type match. This is particularly useful when the type being returned is an interface type, but the value actually returned is a concrete value implementing that type.
+    </p>
+
+</dl><!-- reflect -->
+
+<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+  <dd>
+    <p> <!-- CL 167780 -->
+      Tracebacks, <code>runtime.Caller</code>,
+      and <code>runtime.Callers</code> now refer to the function that
+      initializes the global variables of <code>PKG</code>
+      as <code>PKG.init</code> instead of <code>PKG.init.ializers</code>
+    </p>
+
+</dl><!-- runtime -->
+
+<dl id="strings"><dt><a href="/pkg/strings">strings</a></dt>
+  <dd>
+    <p><!-- CL 142003 -->
+      The new <a href="/pkg/strings/#ToValidUTF8"><code>ToValidUTF8</code></a> function returns a
+      copy of a given string with each run of invalid UTF-8 byte sequences replaced by a given string.
+    </p>
+
+</dl><!-- strings -->
+
+<dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
+  <dd>
+    <p><!-- CL 166960 -->
+      Large <a href="/pkg/sync/#Pool"><code>Pool</code></a> no longer increase stop-the-world pause times.
+    </p>
+
+    <p><!-- CL 166961 -->
+      <code>Pool</code> no longer needs to be completely repopulated after every GC. It now retains some objects across GCs,
+      as opposed to releasing all objects, reducing load spikes for heavy users of <code>Pool</code>.
+    </p>
+
+</dl><!-- sync -->
+
+<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
+  <dd>
+    <p><!-- CL 168479 -->
+      Uses of <code>_getdirentries64</code> have been removed from Darwin builds, to allow binaries
+      built with 1.12 to be uploaded to the macOS App Store.
+    </p>
+
+    <p><!-- CL 174197 -->
+      The new <code>ProcessAttributes</code> and <code>ThreadAttributes</code> fields in
+      <a href="/pkg/syscall/?GOOS=windows#SysProcAttr"><code>SysProcAttr</code></a> have been introduced for Windows,
+      exposing security settings when creating new processes.
+    </p>
+
+    <p><!-- CL 174320 -->
+      <code>EINVAL</code> is no longer returned in zero
+      <a href="/pkg/syscall/?GOOS=windows#Chmod"><code>Chmod</code></a> mode on Windows.
+    </p>
+
+</dl><!-- syscall -->
+
+<dl id="syscall/js"><dt><a href="/pkg/syscall/js/">syscall/js</a></dt>
+  <dd>
+    <p><!-- CL 177537 -->
+      <a href="/pkg/syscall/js/#TypedArray"><code>TypedArrayOf</code></a> has been replaced by
+      <a href="/pkg/syscall/js/#CopyBytesToGo"><code>CopyBytesToGo</code></a> and
+      <a href="/pkg/syscall/js/#CopyBytesToJS"><code>CopyBytesToJS</code></a> for copying bytes between a byte slice and a Uint8Array.
+    </p>
+
+</dl><!-- syscall/js -->
+
+<dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
+  <dd>
+    <p><!-- CL 112155 -->
+      TODO: <a href="https://golang.org/cl/112155">https://golang.org/cl/112155</a>: stop rounding b.N
+    </p>
+
+    <p><!-- CL 166717 -->
+      TODO: <a href="https://golang.org/cl/166717">https://golang.org/cl/166717</a>: add B.ReportMetric for custom benchmark metrics
+    </p>
+
+    <p><!-- CL 173722 -->
+      TODO: <a href="https://golang.org/cl/173722">https://golang.org/cl/173722</a>: delay flag registration; move to an Init function
+    </p>
+
+</dl><!-- testing -->
+
+<dl id="text/scanner"><dt><a href="/pkg/text/scanner/">text/scanner</a></dt>
+  <dd>
+    <p><!-- CL 163079 -->
+      The new <a href="/pkg/text/scanner/#AllowNumberbars"><code>AllowNumberbars</code></a>
+      mode allows number literals to contain underbars as digit separators.
+    </p>
+
+</dl><!-- text/scanner -->
+
+<dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
+  <dd>
+    <p><!-- CL 161762 -->
+      The new <a href="/pkg/text/template/#hdr-Functions">slice function</a>
+      returns the result of slicing its first argument by the following arguments.
+    </p>
+
+</dl><!-- text/template -->
+
+<dl id="time"><dt><a href="/pkg/time/">time</a></dt>
+  <dd>
+    <p><!-- CL 122876 -->
+      Day-of-year is now supported by <a href="/pkg/time/#time.Format"><code>Format</code></a>
+      and <a href="/pkg/time/#Parse"><code>Parse</code></a>.
+    </p>
+
+    <p><!-- CL 167387 -->
+      The new <a href="/pkg/time/#Duration"><code>Duration</code></a> methods
+      <a href="/pkg/time/#Duration.Microseconds"><code>Microseconds</code></a> and
+      <a href="/pkg/time/#Duration.Milliseconds"><code>Milliseconds</code></a> return
+      the duration as an integer count of their respectively named units.
+    </p>
+
+</dl><!-- time -->
 

@@ -9,16 +9,11 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"fmt"
-	"internal/testenv"
 	"io"
-	"runtime"
 	"testing"
 )
 
 func TestXOR(t *testing.T) {
-	if runtime.GOOS == "js" {
-		testenv.SkipFlaky(t, 31812)
-	}
 	for j := 1; j <= 1024; j++ {
 		if testing.Short() && j > 16 {
 			break

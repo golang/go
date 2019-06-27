@@ -68,6 +68,7 @@ func initssaconfig() {
 	assertI2I = sysfunc("assertI2I")
 	assertI2I2 = sysfunc("assertI2I2")
 	deferproc = sysfunc("deferproc")
+	deferprocStack = sysfunc("deferprocStack")
 	Deferreturn = sysfunc("deferreturn")
 	Duffcopy = sysvar("duffcopy")             // asm func with special ABI
 	Duffzero = sysvar("duffzero")             // asm func with special ABI
@@ -864,7 +865,11 @@ func (s *state) stmt(n *Node) {
 			}
 		}
 	case ODEFER:
-		s.call(n.Left, callDefer)
+		d := callDefer
+		if n.Esc == EscNever {
+			d = callDeferStack
+		}
+		s.call(n.Left, d)
 	case OGO:
 		s.call(n.Left, callGo)
 
@@ -2859,6 +2864,7 @@ type callKind int8
 const (
 	callNormal callKind = iota
 	callDefer
+	callDeferStack
 	callGo
 )
 
@@ -3093,7 +3099,7 @@ func init() {
 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT32], v)
 		},
-		sys.PPC64)
+		sys.PPC64, sys.S390X)
 	addF("runtime/internal/atomic", "Loadp",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			v := s.newValue2(ssa.OpAtomicLoadPtr, types.NewTuple(s.f.Config.Types.BytePtr, types.TypeMem), args[0], s.mem())
@@ -3125,7 +3131,7 @@ func init() {
 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStoreRel32, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
-		sys.PPC64)
+		sys.PPC64, sys.S390X)
 
 	addF("runtime/internal/atomic", "Xchg",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
@@ -3658,9 +3664,6 @@ func init() {
 // findIntrinsic returns a function which builds the SSA equivalent of the
 // function identified by the symbol sym.  If sym is not an intrinsic call, returns nil.
 func findIntrinsic(sym *types.Sym) intrinsicBuilder {
-	if ssa.IntrinsicsDisable {
-		return nil
-	}
 	if sym == nil || sym.Pkg == nil {
 		return nil
 	}
@@ -3680,6 +3683,13 @@ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
 	}
 
 	fn := sym.Name
+	if ssa.IntrinsicsDisable {
+		if pkg == "runtime" && (fn == "getcallerpc" || fn == "getcallersp" || fn == "getclosureptr") {
+			// These runtime functions don't have definitions, must be intrinsics.
+		} else {
+			return nil
+		}
+	}
 	return intrinsics[intrinsicKey{thearch.LinkArch.Arch, pkg, fn}]
 }
 
@@ -3795,74 +3805,132 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		rcvr = s.newValue1(ssa.OpIData, types.Types[TUINTPTR], i)
 	}
 	dowidth(fn.Type)
-	stksize := fn.Type.ArgWidth() // includes receiver
+	stksize := fn.Type.ArgWidth() // includes receiver, args, and results
 
 	// Run all assignments of temps.
 	// The temps are introduced to avoid overwriting argument
 	// slots when arguments themselves require function calls.
 	s.stmtList(n.List)
 
-	// Store arguments to stack, including defer/go arguments and receiver for method calls.
-	// These are written in SP-offset order.
-	argStart := Ctxt.FixedFrameSize()
-	// Defer/go args.
-	if k != callNormal {
-		// Write argsize and closure (args to newproc/deferproc).
-		argsize := s.constInt32(types.Types[TUINT32], int32(stksize))
-		addr := s.constOffPtrSP(s.f.Config.Types.UInt32Ptr, argStart)
-		s.store(types.Types[TUINT32], addr, argsize)
-		addr = s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart+int64(Widthptr))
-		s.store(types.Types[TUINTPTR], addr, closure)
-		stksize += 2 * int64(Widthptr)
-		argStart += 2 * int64(Widthptr)
-	}
-
-	// Set receiver (for interface calls).
-	if rcvr != nil {
-		addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart)
-		s.store(types.Types[TUINTPTR], addr, rcvr)
-	}
-
-	// Write args.
-	t := n.Left.Type
-	args := n.Rlist.Slice()
-	if n.Op == OCALLMETH {
-		f := t.Recv()
-		s.storeArg(args[0], f.Type, argStart+f.Offset)
-		args = args[1:]
-	}
-	for i, n := range args {
-		f := t.Params().Field(i)
-		s.storeArg(n, f.Type, argStart+f.Offset)
-	}
-
-	// call target
 	var call *ssa.Value
-	switch {
-	case k == callDefer:
-		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, deferproc, s.mem())
-	case k == callGo:
-		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, newproc, s.mem())
-	case closure != nil:
-		// rawLoad because loading the code pointer from a
-		// closure is always safe, but IsSanitizerSafeAddr
-		// can't always figure that out currently, and it's
-		// critical that we not clobber any arguments already
-		// stored onto the stack.
-		codeptr = s.rawLoad(types.Types[TUINTPTR], closure)
-		call = s.newValue3(ssa.OpClosureCall, types.TypeMem, codeptr, closure, s.mem())
-	case codeptr != nil:
-		call = s.newValue2(ssa.OpInterCall, types.TypeMem, codeptr, s.mem())
-	case sym != nil:
-		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, sym.Linksym(), s.mem())
-	default:
-		Fatalf("bad call type %v %v", n.Op, n)
+	if k == callDeferStack {
+		// Make a defer struct d on the stack.
+		t := deferstruct(stksize)
+		d := tempAt(n.Pos, s.curfn, t)
+
+		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, d, s.mem())
+		addr := s.addr(d, false)
+
+		// Must match reflect.go:deferstruct and src/runtime/runtime2.go:_defer.
+		// 0: siz
+		s.store(types.Types[TUINT32],
+			s.newValue1I(ssa.OpOffPtr, types.Types[TUINT32].PtrTo(), t.FieldOff(0), addr),
+			s.constInt32(types.Types[TUINT32], int32(stksize)))
+		// 1: started, set in deferprocStack
+		// 2: heap, set in deferprocStack
+		// 3: sp, set in deferprocStack
+		// 4: pc, set in deferprocStack
+		// 5: fn
+		s.store(closure.Type,
+			s.newValue1I(ssa.OpOffPtr, closure.Type.PtrTo(), t.FieldOff(5), addr),
+			closure)
+		// 6: panic, set in deferprocStack
+		// 7: link, set in deferprocStack
+
+		// Then, store all the arguments of the defer call.
+		ft := fn.Type
+		off := t.FieldOff(8)
+		args := n.Rlist.Slice()
+
+		// Set receiver (for interface calls). Always a pointer.
+		if rcvr != nil {
+			p := s.newValue1I(ssa.OpOffPtr, ft.Recv().Type.PtrTo(), off, addr)
+			s.store(types.Types[TUINTPTR], p, rcvr)
+		}
+		// Set receiver (for method calls).
+		if n.Op == OCALLMETH {
+			f := ft.Recv()
+			s.storeArgWithBase(args[0], f.Type, addr, off+f.Offset)
+			args = args[1:]
+		}
+		// Set other args.
+		for _, f := range ft.Params().Fields().Slice() {
+			s.storeArgWithBase(args[0], f.Type, addr, off+f.Offset)
+			args = args[1:]
+		}
+
+		// Call runtime.deferprocStack with pointer to _defer record.
+		arg0 := s.constOffPtrSP(types.Types[TUINTPTR], Ctxt.FixedFrameSize())
+		s.store(types.Types[TUINTPTR], arg0, addr)
+		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, deferprocStack, s.mem())
+		if stksize < int64(Widthptr) {
+			// We need room for both the call to deferprocStack and the call to
+			// the deferred function.
+			stksize = int64(Widthptr)
+		}
+		call.AuxInt = stksize
+	} else {
+		// Store arguments to stack, including defer/go arguments and receiver for method calls.
+		// These are written in SP-offset order.
+		argStart := Ctxt.FixedFrameSize()
+		// Defer/go args.
+		if k != callNormal {
+			// Write argsize and closure (args to newproc/deferproc).
+			argsize := s.constInt32(types.Types[TUINT32], int32(stksize))
+			addr := s.constOffPtrSP(s.f.Config.Types.UInt32Ptr, argStart)
+			s.store(types.Types[TUINT32], addr, argsize)
+			addr = s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart+int64(Widthptr))
+			s.store(types.Types[TUINTPTR], addr, closure)
+			stksize += 2 * int64(Widthptr)
+			argStart += 2 * int64(Widthptr)
+		}
+
+		// Set receiver (for interface calls).
+		if rcvr != nil {
+			addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart)
+			s.store(types.Types[TUINTPTR], addr, rcvr)
+		}
+
+		// Write args.
+		t := n.Left.Type
+		args := n.Rlist.Slice()
+		if n.Op == OCALLMETH {
+			f := t.Recv()
+			s.storeArg(args[0], f.Type, argStart+f.Offset)
+			args = args[1:]
+		}
+		for i, n := range args {
+			f := t.Params().Field(i)
+			s.storeArg(n, f.Type, argStart+f.Offset)
+		}
+
+		// call target
+		switch {
+		case k == callDefer:
+			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, deferproc, s.mem())
+		case k == callGo:
+			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, newproc, s.mem())
+		case closure != nil:
+			// rawLoad because loading the code pointer from a
+			// closure is always safe, but IsSanitizerSafeAddr
+			// can't always figure that out currently, and it's
+			// critical that we not clobber any arguments already
+			// stored onto the stack.
+			codeptr = s.rawLoad(types.Types[TUINTPTR], closure)
+			call = s.newValue3(ssa.OpClosureCall, types.TypeMem, codeptr, closure, s.mem())
+		case codeptr != nil:
+			call = s.newValue2(ssa.OpInterCall, types.TypeMem, codeptr, s.mem())
+		case sym != nil:
+			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, sym.Linksym(), s.mem())
+		default:
+			Fatalf("bad call type %v %v", n.Op, n)
+		}
+		call.AuxInt = stksize // Call operations carry the argsize of the callee along with them
 	}
-	call.AuxInt = stksize // Call operations carry the argsize of the callee along with them
 	s.vars[&memVar] = call
 
 	// Finish block for defers
-	if k == callDefer {
+	if k == callDefer || k == callDeferStack {
 		b := s.endBlock()
 		b.Kind = ssa.BlockDefer
 		b.SetControl(call)
@@ -4357,17 +4425,27 @@ func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
 }
 
 func (s *state) storeArg(n *Node, t *types.Type, off int64) {
+	s.storeArgWithBase(n, t, s.sp, off)
+}
+
+func (s *state) storeArgWithBase(n *Node, t *types.Type, base *ssa.Value, off int64) {
 	pt := types.NewPtr(t)
-	sp := s.constOffPtrSP(pt, off)
+	var addr *ssa.Value
+	if base == s.sp {
+		// Use special routine that avoids allocation on duplicate offsets.
+		addr = s.constOffPtrSP(pt, off)
+	} else {
+		addr = s.newValue1I(ssa.OpOffPtr, pt, off, base)
+	}
 
 	if !canSSAType(t) {
 		a := s.addr(n, false)
-		s.move(t, sp, a)
+		s.move(t, addr, a)
 		return
 	}
 
 	a := s.expr(n)
-	s.storeType(t, sp, a, 0, false)
+	s.storeType(t, addr, a, 0, false)
 }
 
 // slice computes the slice v[i:j:k] and returns ptr, len, and cap of result.

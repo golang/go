@@ -25,7 +25,7 @@ func TestMain(m *testing.M) {
 }
 
 func testMain(m *testing.M) int {
-	SetProxy("direct")
+	cfg.GOPROXY = "direct"
 
 	// The sum database is populated using a released version of the go command,
 	// but this test may include fixes for additional modules that previously
@@ -48,11 +48,12 @@ const (
 	vgotest1hg  = "vcs-test.golang.org/hg/vgotest1.hg"
 )
 
-var altVgotests = []string{
-	vgotest1hg,
+var altVgotests = map[string]string{
+	"hg": vgotest1hg,
 }
 
 type codeRepoTest struct {
+	vcs      string
 	path     string
 	lookerr  string
 	mpath    string
@@ -70,6 +71,7 @@ type codeRepoTest struct {
 
 var codeRepoTests = []codeRepoTest{
 	{
+		vcs:     "git",
 		path:    "github.com/rsc/vgotest1",
 		rev:     "v0.0.0",
 		version: "v0.0.0",
@@ -83,6 +85,7 @@ var codeRepoTests = []codeRepoTest{
 		},
 	},
 	{
+		vcs:     "git",
 		path:    "github.com/rsc/vgotest1",
 		rev:     "v1.0.0",
 		version: "v1.0.0",
@@ -96,6 +99,7 @@ var codeRepoTests = []codeRepoTest{
 		},
 	},
 	{
+		vcs:     "git",
 		path:    "github.com/rsc/vgotest1/v2",
 		rev:     "v2.0.0",
 		version: "v2.0.0",
@@ -105,6 +109,7 @@ var codeRepoTests = []codeRepoTest{
 		ziperr:  "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
 	},
 	{
+		vcs:     "git",
 		path:    "github.com/rsc/vgotest1",
 		rev:     "80d85c5",
 		version: "v1.0.0",
@@ -118,6 +123,7 @@ var codeRepoTests = []codeRepoTest{
 		},
 	},
 	{
+		vcs:     "git",
 		path:    "github.com/rsc/vgotest1",
 		rev:     "mytag",
 		version: "v1.0.0",
@@ -131,6 +137,7 @@ var codeRepoTests = []codeRepoTest{
 		},
 	},
 	{
+		vcs:      "git",
 		path:     "github.com/rsc/vgotest1/v2",
 		rev:      "45f53230a",
 		version:  "v2.0.0",
@@ -141,6 +148,7 @@ var codeRepoTests = []codeRepoTest{
 		ziperr:   "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
 	},
 	{
+		vcs:     "git",
 		path:    "github.com/rsc/vgotest1/v54321",
 		rev:     "80d85c5",
 		version: "v54321.0.0-20180219231006-80d85c5d4d17",
@@ -150,16 +158,19 @@ var codeRepoTests = []codeRepoTest{
 		ziperr:  "missing github.com/rsc/vgotest1/go.mod and .../v54321/go.mod at revision 80d85c5d4d17",
 	},
 	{
+		vcs:  "git",
 		path: "github.com/rsc/vgotest1/submod",
 		rev:  "v1.0.0",
 		err:  "unknown revision submod/v1.0.0",
 	},
 	{
+		vcs:  "git",
 		path: "github.com/rsc/vgotest1/submod",
 		rev:  "v1.0.3",
 		err:  "unknown revision submod/v1.0.3",
 	},
 	{
+		vcs:     "git",
 		path:    "github.com/rsc/vgotest1/submod",
 		rev:     "v1.0.4",
 		version: "v1.0.4",
@@ -174,6 +185,7 @@ var codeRepoTests = []codeRepoTest{
 		},
 	},
 	{
+		vcs:     "git",
 		path:    "github.com/rsc/vgotest1",
 		rev:     "v1.1.0",
 		version: "v1.1.0",
@@ -189,6 +201,7 @@ var codeRepoTests = []codeRepoTest{
 		},
 	},
 	{
+		vcs:     "git",
 		path:    "github.com/rsc/vgotest1/v2",
 		rev:     "v2.0.1",
 		version: "v2.0.1",
@@ -198,6 +211,7 @@ var codeRepoTests = []codeRepoTest{
 		gomod:   "module \"github.com/rsc/vgotest1/v2\" // root go.mod\n",
 	},
 	{
+		vcs:      "git",
 		path:     "github.com/rsc/vgotest1/v2",
 		rev:      "v2.0.3",
 		version:  "v2.0.3",
@@ -207,6 +221,7 @@ var codeRepoTests = []codeRepoTest{
 		gomoderr: "github.com/rsc/vgotest1/v2/go.mod has non-.../v2 module path \"github.com/rsc/vgotest\" at revision v2.0.3",
 	},
 	{
+		vcs:      "git",
 		path:     "github.com/rsc/vgotest1/v2",
 		rev:      "v2.0.4",
 		version:  "v2.0.4",
@@ -216,6 +231,7 @@ var codeRepoTests = []codeRepoTest{
 		gomoderr: "github.com/rsc/vgotest1/go.mod and .../v2/go.mod both have .../v2 module paths at revision v2.0.4",
 	},
 	{
+		vcs:     "git",
 		path:    "github.com/rsc/vgotest1/v2",
 		rev:     "v2.0.5",
 		version: "v2.0.5",
@@ -226,6 +242,7 @@ var codeRepoTests = []codeRepoTest{
 	},
 	{
 		// redirect to github
+		vcs:     "git",
 		path:    "rsc.io/quote",
 		rev:     "v1.0.0",
 		version: "v1.0.0",
@@ -236,6 +253,7 @@ var codeRepoTests = []codeRepoTest{
 	},
 	{
 		// redirect to static hosting proxy
+		vcs:     "mod",
 		path:    "swtch.com/testmod",
 		rev:     "v1.0.0",
 		version: "v1.0.0",
@@ -245,6 +263,7 @@ var codeRepoTests = []codeRepoTest{
 	},
 	{
 		// redirect to googlesource
+		vcs:     "git",
 		path:    "golang.org/x/text",
 		rev:     "4e4a3210bb",
 		version: "v0.3.1-0.20180208041248-4e4a3210bb54",
@@ -253,6 +272,7 @@ var codeRepoTests = []codeRepoTest{
 		time:    time.Date(2018, 2, 8, 4, 12, 48, 0, time.UTC),
 	},
 	{
+		vcs:     "git",
 		path:    "github.com/pkg/errors",
 		rev:     "v0.8.0",
 		version: "v0.8.0",
@@ -264,17 +284,20 @@ var codeRepoTests = []codeRepoTest{
 		// package in subdirectory - custom domain
 		// In general we can't reject these definitively in Lookup,
 		// but gopkg.in is special.
+		vcs:     "git",
 		path:    "gopkg.in/yaml.v2/abc",
 		lookerr: "invalid module path \"gopkg.in/yaml.v2/abc\"",
 	},
 	{
 		// package in subdirectory - github
 		// Because it's a package, Stat should fail entirely.
+		vcs:  "git",
 		path: "github.com/rsc/quote/buggy",
 		rev:  "c4d4236f",
 		err:  "missing github.com/rsc/quote/buggy/go.mod at revision c4d4236f9242",
 	},
 	{
+		vcs:     "git",
 		path:    "gopkg.in/yaml.v2",
 		rev:     "d670f940",
 		version: "v2.0.0",
@@ -284,6 +307,7 @@ var codeRepoTests = []codeRepoTest{
 		gomod:   "module gopkg.in/yaml.v2\n",
 	},
 	{
+		vcs:     "git",
 		path:    "gopkg.in/check.v1",
 		rev:     "20d25e280405",
 		version: "v1.0.0-20161208181325-20d25e280405",
@@ -293,6 +317,7 @@ var codeRepoTests = []codeRepoTest{
 		gomod:   "module gopkg.in/check.v1\n",
 	},
 	{
+		vcs:     "git",
 		path:    "gopkg.in/yaml.v2",
 		rev:     "v2",
 		version: "v2.2.3-0.20190319135612-7b8349ac747c",
@@ -302,6 +327,7 @@ var codeRepoTests = []codeRepoTest{
 		gomod:   "module \"gopkg.in/yaml.v2\"\n\nrequire (\n\t\"gopkg.in/check.v1\" v0.0.0-20161208181325-20d25e280405\n)\n",
 	},
 	{
+		vcs:     "git",
 		path:    "vcs-test.golang.org/go/mod/gitrepo1",
 		rev:     "master",
 		version: "v1.2.4-annotated",
@@ -311,6 +337,7 @@ var codeRepoTests = []codeRepoTest{
 		gomod:   "module vcs-test.golang.org/go/mod/gitrepo1\n",
 	},
 	{
+		vcs:     "git",
 		path:    "gopkg.in/natefinch/lumberjack.v2",
 		rev:     "latest",
 		version: "v2.0.0-20170531160350-a96e63847dc3",
@@ -320,6 +347,7 @@ var codeRepoTests = []codeRepoTest{
 		gomod:   "module gopkg.in/natefinch/lumberjack.v2\n",
 	},
 	{
+		vcs:  "git",
 		path: "gopkg.in/natefinch/lumberjack.v2",
 		// This repo has a v2.1 tag.
 		// We only allow semver references to tags that are fully qualified, as in v2.1.0.
@@ -335,6 +363,7 @@ var codeRepoTests = []codeRepoTest{
 		gomod:   "module gopkg.in/natefinch/lumberjack.v2\n",
 	},
 	{
+		vcs:     "git",
 		path:    "vcs-test.golang.org/go/v2module/v2",
 		rev:     "v2.0.0",
 		version: "v2.0.0",
@@ -359,8 +388,11 @@ func TestCodeRepo(t *testing.T) {
 			f := func(tt codeRepoTest) func(t *testing.T) {
 				return func(t *testing.T) {
 					t.Parallel()
+					if tt.vcs != "mod" {
+						testenv.MustHaveExecPath(t, tt.vcs)
+					}
 
-					repo, err := Lookup(tt.path)
+					repo, err := Lookup("direct", tt.path)
 					if tt.lookerr != "" {
 						if err != nil && err.Error() == tt.lookerr {
 							return
@@ -457,9 +489,10 @@ func TestCodeRepo(t *testing.T) {
 			}
 			t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.rev, f(tt))
 			if strings.HasPrefix(tt.path, vgotest1git) {
-				for _, alt := range altVgotests {
+				for vcs, alt := range altVgotests {
 					// Note: Communicating with f through tt; should be cleaned up.
 					old := tt
+					tt.vcs = vcs
 					tt.path = alt + strings.TrimPrefix(tt.path, vgotest1git)
 					if strings.HasPrefix(tt.mpath, vgotest1git) {
 						tt.mpath = alt + strings.TrimPrefix(tt.mpath, vgotest1git)
@@ -515,32 +548,39 @@ func remap(name string, m map[string]string) string {
 }
 
 var codeRepoVersionsTests = []struct {
+	vcs      string
 	path     string
 	prefix   string
 	versions []string
 }{
 	{
+		vcs:      "git",
 		path:     "github.com/rsc/vgotest1",
 		versions: []string{"v0.0.0", "v0.0.1", "v1.0.0", "v1.0.1", "v1.0.2", "v1.0.3", "v1.1.0", "v2.0.0+incompatible"},
 	},
 	{
+		vcs:      "git",
 		path:     "github.com/rsc/vgotest1",
 		prefix:   "v1.0",
 		versions: []string{"v1.0.0", "v1.0.1", "v1.0.2", "v1.0.3"},
 	},
 	{
+		vcs:      "git",
 		path:     "github.com/rsc/vgotest1/v2",
 		versions: []string{"v2.0.0", "v2.0.1", "v2.0.2", "v2.0.3", "v2.0.4", "v2.0.5", "v2.0.6"},
 	},
 	{
+		vcs:      "mod",
 		path:     "swtch.com/testmod",
 		versions: []string{"v1.0.0", "v1.1.1"},
 	},
 	{
+		vcs:      "git",
 		path:     "gopkg.in/russross/blackfriday.v2",
 		versions: []string{"v2.0.0", "v2.0.1"},
 	},
 	{
+		vcs:      "git",
 		path:     "gopkg.in/natefinch/lumberjack.v2",
 		versions: []string{"v2.0.0"},
 	},
@@ -560,8 +600,11 @@ func TestCodeRepoVersions(t *testing.T) {
 			t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
 				tt := tt
 				t.Parallel()
+				if tt.vcs != "mod" {
+					testenv.MustHaveExecPath(t, tt.vcs)
+				}
 
-				repo, err := Lookup(tt.path)
+				repo, err := Lookup("direct", tt.path)
 				if err != nil {
 					t.Fatalf("Lookup(%q): %v", tt.path, err)
 				}
@@ -578,23 +621,28 @@ func TestCodeRepoVersions(t *testing.T) {
 }
 
 var latestTests = []struct {
+	vcs     string
 	path    string
 	version string
 	err     string
 }{
 	{
+		vcs:  "git",
 		path: "github.com/rsc/empty",
 		err:  "no commits",
 	},
 	{
+		vcs:     "git",
 		path:    "github.com/rsc/vgotest1",
 		version: "v0.0.0-20180219223237-a08abb797a67",
 	},
 	{
+		vcs:  "git",
 		path: "github.com/rsc/vgotest1/subdir",
 		err:  "missing github.com/rsc/vgotest1/subdir/go.mod at revision a08abb797a67",
 	},
 	{
+		vcs:     "mod",
 		path:    "swtch.com/testmod",
 		version: "v1.1.1",
 	},
@@ -615,8 +663,11 @@ func TestLatest(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				tt := tt
 				t.Parallel()
+				if tt.vcs != "mod" {
+					testenv.MustHaveExecPath(t, tt.vcs)
+				}
 
-				repo, err := Lookup(tt.path)
+				repo, err := Lookup("direct", tt.path)
 				if err != nil {
 					t.Fatalf("Lookup(%q): %v", tt.path, err)
 				}

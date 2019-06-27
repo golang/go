@@ -323,9 +323,14 @@ func PrintPlain(fset *token.FileSet, diag analysis.Diagnostic) {
 
 	// -c=N: show offending line plus N lines of context.
 	if Context >= 0 {
+		posn := fset.Position(diag.Pos)
+		end := fset.Position(diag.End)
+		if !end.IsValid() {
+			end = posn
+		}
 		data, _ := ioutil.ReadFile(posn.Filename)
 		lines := strings.Split(string(data), "\n")
-		for i := posn.Line - Context; i <= posn.Line+Context; i++ {
+		for i := posn.Line - Context; i <= end.Line+Context; i++ {
 			if 1 <= i && i <= len(lines) {
 				fmt.Fprintf(os.Stderr, "%d\t%s\n", i, lines[i-1])
 			}
@@ -353,6 +358,8 @@ func (tree JSONTree) Add(fset *token.FileSet, id, name string, diags []analysis.
 			Message  string `json:"message"`
 		}
 		var diagnostics []jsonDiagnostic
+		// TODO(matloob): Should the JSON diagnostics contain ranges?
+		// If so, how should they be formatted?
 		for _, f := range diags {
 			diagnostics = append(diagnostics, jsonDiagnostic{
 				Category: f.Category,

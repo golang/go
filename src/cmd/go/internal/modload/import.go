@@ -18,7 +18,6 @@ import (
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch"
-	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/module"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
@@ -188,10 +187,13 @@ func Import(path string) (m module.Version, dir string, err error) {
 
 	candidates, err := QueryPackage(path, "latest", Allowed)
 	if err != nil {
-		if _, ok := err.(*codehost.VCSError); ok {
+		if errors.Is(err, os.ErrNotExist) {
+			// Return "cannot find module providing package […]" instead of whatever
+			// low-level error QueryPackage produced.
+			return module.Version{}, "", &ImportMissingError{ImportPath: path}
+		} else {
 			return module.Version{}, "", err
 		}
-		return module.Version{}, "", &ImportMissingError{ImportPath: path}
 	}
 	m = candidates[0].Mod
 	newMissingVersion := ""

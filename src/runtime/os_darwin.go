@@ -7,10 +7,7 @@ package runtime
 import "unsafe"
 
 type mOS struct {
-	initialized bool
-	mutex       pthreadmutex
-	cond        pthreadcond
-	count       int
+	sema uintptr
 }
 
 func unimplemented(name string) {
@@ -20,59 +17,32 @@ func unimplemented(name string) {
 
 //go:nosplit
 func semacreate(mp *m) {
-	if mp.initialized {
-		return
-	}
-	mp.initialized = true
-	if err := pthread_mutex_init(&mp.mutex, nil); err != 0 {
-		throw("pthread_mutex_init")
-	}
-	if err := pthread_cond_init(&mp.cond, nil); err != 0 {
-		throw("pthread_cond_init")
+	if mp.sema == 0 {
+		mp.sema = dispatch_semaphore_create(0)
 	}
 }
 
+const (
+	_DISPATCH_TIME_NOW     = uint64(0)
+	_DISPATCH_TIME_FOREVER = ^uint64(0)
+)
+
 //go:nosplit
 func semasleep(ns int64) int32 {
-	var start int64
-	if ns >= 0 {
-		start = nanotime()
-	}
 	mp := getg().m
-	pthread_mutex_lock(&mp.mutex)
-	for {
-		if mp.count > 0 {
-			mp.count--
-			pthread_mutex_unlock(&mp.mutex)
-			return 0
-		}
-		if ns >= 0 {
-			spent := nanotime() - start
-			if spent >= ns {
-				pthread_mutex_unlock(&mp.mutex)
-				return -1
-			}
-			var t timespec
-			t.setNsec(ns - spent)
-			err := pthread_cond_timedwait_relative_np(&mp.cond, &mp.mutex, &t)
-			if err == _ETIMEDOUT {
-				pthread_mutex_unlock(&mp.mutex)
-				return -1
-			}
-		} else {
-			pthread_cond_wait(&mp.cond, &mp.mutex)
-		}
+	t := _DISPATCH_TIME_FOREVER
+	if ns >= 0 {
+		t = dispatch_time(_DISPATCH_TIME_NOW, ns)
 	}
+	if dispatch_semaphore_wait(mp.sema, t) != 0 {
+		return -1
+	}
+	return 0
 }
 
 //go:nosplit
 func semawakeup(mp *m) {
-	pthread_mutex_lock(&mp.mutex)
-	mp.count++
-	if mp.count > 0 {
-		pthread_cond_signal(&mp.cond)
-	}
-	pthread_mutex_unlock(&mp.mutex)
+	dispatch_semaphore_signal(mp.sema)
 }
 
 // BSD interface for threading.
@@ -145,14 +115,14 @@ func newosproc(mp *m) {
 		exit(1)
 	}
 
-	// Set the stack size we want to use.  64KB for now.
-	// TODO: just use OS default size?
-	const stackSize = 1 << 16
-	if pthread_attr_setstacksize(&attr, stackSize) != 0 {
+	// Find out OS stack size for our own stack guard.
+	var stacksize uintptr
+	if pthread_attr_getstacksize(&attr, &stacksize) != 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
 		exit(1)
 	}
-	//mSysStatInc(&memstats.stacks_sys, stackSize) //TODO: do this?
+	mp.g0.stack.hi = stacksize // for mstart
+	//mSysStatInc(&memstats.stacks_sys, stacksize) //TODO: do this?
 
 	// Tell the pthread library we won't join with this thread.
 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
@@ -191,11 +161,16 @@ func newosproc0(stacksize uintptr, fn uintptr) {
 		exit(1)
 	}
 
-	// Set the stack we want to use.
-	if pthread_attr_setstacksize(&attr, stacksize) != 0 {
+	// The caller passes in a suggested stack size,
+	// from when we allocated the stack and thread ourselves,
+	// without libpthread. Now that we're using libpthread,
+	// we use the OS default stack size instead of the suggestion.
+	// Find out that stack size for our own stack guard.
+	if pthread_attr_getstacksize(&attr, &stacksize) != 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
 		exit(1)
 	}
+	g0.stack.hi = stacksize // for mstart
 	mSysStatInc(&memstats.stacks_sys, stacksize)
 
 	// Tell the pthread library we won't join with this thread.

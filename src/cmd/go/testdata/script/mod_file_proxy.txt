@@ -11,11 +11,12 @@ go list
 grep v1.5.1 $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/list
 
 # Use download cache as file:/// proxy.
-[windows] stop # TODO: file://$WORK puts backslashes in the URL
 env GOPATH=$WORK/gopath2
-env GOPROXY=file:///nonexist
+[windows] env GOPROXY=file:///C:/nonexist
+[!windows] env GOPROXY=file:///nonexist
 ! go list
-env GOPROXY=file://$WORK/gopath1/pkg/mod/cache/download
+[windows] env GOPROXY=file:///$WORK/gopath1/pkg/mod/cache/download
+[!windows] env GOPROXY=file://$WORK/gopath1/pkg/mod/cache/download
 go list
 grep v1.5.1 $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/list
 

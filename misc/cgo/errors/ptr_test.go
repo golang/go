@@ -440,7 +440,6 @@ func TestPointerChecks(t *testing.T) {
 			atomic.AddInt32(&pending, +1)
 			defer func() {
 				if atomic.AddInt32(&pending, -1) == 0 {
-					println("removing", dir)
 					os.RemoveAll(dir)
 				}
 			}()
@@ -554,18 +553,23 @@ func main() {
 }
 `
 
+var csem = make(chan bool, 16)
+
 func testOne(t *testing.T, pt ptrTest, exe string) {
 	t.Parallel()
 
-	newcmd := func(cgocheck string) *exec.Cmd {
+	// Run the tests in parallel, but don't run too many
+	// executions in parallel, to avoid overloading the system.
+	runcmd := func(cgocheck string) ([]byte, error) {
+		csem <- true
+		defer func() { <-csem }()
 		cmd := exec.Command(exe, pt.name)
 		cmd.Env = append(os.Environ(), "GODEBUG=cgocheck="+cgocheck)
-		return cmd
+		return cmd.CombinedOutput()
 	}
 
 	if pt.expensive {
-		cmd := newcmd("1")
-		buf, err := cmd.CombinedOutput()
+		buf, err := runcmd("1")
 		if err != nil {
 			t.Logf("%s", buf)
 			if pt.fail {
@@ -577,12 +581,12 @@ func testOne(t *testing.T, pt ptrTest, exe string) {
 
 	}
 
-	cmd := newcmd("")
+	cgocheck := ""
 	if pt.expensive {
-		cmd = newcmd("2")
+		cgocheck = "2"
 	}
 
-	buf, err := cmd.CombinedOutput()
+	buf, err := runcmd(cgocheck)
 	if pt.fail {
 		if err == nil {
 			t.Logf("%s", buf)
@@ -599,8 +603,7 @@ func testOne(t *testing.T, pt ptrTest, exe string) {
 
 		if !pt.expensive {
 			// Make sure it passes with the expensive checks.
-			cmd := newcmd("2")
-			buf, err := cmd.CombinedOutput()
+			buf, err := runcmd("2")
 			if err != nil {
 				t.Logf("%s", buf)
 				t.Fatalf("failed unexpectedly with expensive checks: %v", err)
@@ -609,8 +612,7 @@ func testOne(t *testing.T, pt ptrTest, exe string) {
 	}
 
 	if pt.fail {
-		cmd := newcmd("0")
-		buf, err := cmd.CombinedOutput()
+		buf, err := runcmd("0")
 		if err != nil {
 			t.Logf("%s", buf)
 			t.Fatalf("failed unexpectedly with GODEBUG=cgocheck=0: %v", err)

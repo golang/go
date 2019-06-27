@@ -33,8 +33,7 @@ import (
 
 // buildList is the list of modules to use for building packages.
 // It is initialized by calling ImportPaths, ImportFromFiles,
-// ModulePackages, LoadALL, or LoadBuildList, each of which uses
-// loaded.load.
+// LoadALL, or LoadBuildList, each of which uses loaded.load.
 //
 // Ideally, exactly ONE of those functions would be called,
 // and exactly once. Most of the time, that's true.
@@ -52,15 +51,19 @@ var buildList []module.Version
 var loaded *loader
 
 // ImportPaths returns the set of packages matching the args (patterns),
-// adding modules to the build list as needed to satisfy new imports.
+// on the target platform. Modules may be added to the build list
+// to satisfy new imports.
 func ImportPaths(patterns []string) []*search.Match {
-	matches := ImportPathsQuiet(patterns)
+	matches := ImportPathsQuiet(patterns, imports.Tags())
 	search.WarnUnmatched(matches)
 	return matches
 }
 
-// ImportPathsQuiet is like ImportPaths but does not warn about patterns with no matches.
-func ImportPathsQuiet(patterns []string) []*search.Match {
+// ImportPathsQuiet is like ImportPaths but does not warn about patterns with
+// no matches. It also lets the caller specify a set of build tags to match
+// packages. The build tags should typically be imports.Tags() or
+// imports.AnyTags(); a nil map has no special meaning.
+func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 	var fsDirs [][]string
 	updateMatches := func(matches []*search.Match, iterating bool) {
 		for i, m := range matches {
@@ -170,81 +173,6 @@ func ImportPathsQuiet(patterns []string) []*search.Match {
 		}
 	}
 
-	return loadPatterns(patterns, true, updateMatches)
-}
-
-// ModulePackages returns packages provided by each module in patterns.
-// patterns may contain module paths, patterns matching module paths,
-// "all" (interpreted as package pattern "all"), and "." (interpreted
-// as the main module). Additional modules (including modules providing
-// dependencies) may be added to the build list or upgraded.
-func ModulePackages(patterns []string) []*search.Match {
-	updateMatches := func(matches []*search.Match, iterating bool) {
-		for _, m := range matches {
-			switch {
-			case search.IsRelativePath(m.Pattern) || filepath.IsAbs(m.Pattern):
-				if m.Pattern != "." {
-					base.Errorf("go: path %s is not a module", m.Pattern)
-					continue
-				}
-				m.Pkgs = matchPackages("...", loaded.tags, false, []module.Version{Target})
-
-			case strings.Contains(m.Pattern, "..."):
-				match := search.MatchPattern(m.Pattern)
-				var matched []module.Version
-				for _, mod := range buildList {
-					if match(mod.Path) || str.HasPathPrefix(m.Pattern, mod.Path) {
-						matched = append(matched, mod)
-					}
-				}
-				m.Pkgs = matchPackages(m.Pattern, loaded.tags, false, matched)
-
-			case m.Pattern == "all":
-				loaded.testAll = true
-				if iterating {
-					// Enumerate the packages in the main module.
-					// We'll load the dependencies as we find them.
-					m.Pkgs = matchPackages("...", loaded.tags, false, []module.Version{Target})
-				} else {
-					// Starting with the packages in the main module,
-					// enumerate the full list of "all".
-					m.Pkgs = loaded.computePatternAll(m.Pkgs)
-				}
-
-			default:
-				found := false
-				for _, mod := range buildList {
-					if mod.Path == m.Pattern {
-						found = true
-						m.Pkgs = matchPackages("...", loaded.tags, false, []module.Version{mod})
-						break
-					}
-				}
-				if !found {
-					base.Errorf("go %s: module not in build list", m.Pattern)
-				}
-			}
-		}
-	}
-	return loadPatterns(patterns, false, updateMatches)
-}
-
-// loadPatterns returns a set of packages matching the args (patterns),
-// adding modules to the build list as needed to satisfy new imports.
-//
-// useTags indicates whether to use the default build constraints to
-// filter source files. If useTags is false, only "ignore" and malformed
-// build tag requirements are considered false.
-//
-// The interpretation of patterns is determined by updateMatches, which will be
-// called repeatedly until the build list is finalized. updateMatches should
-// should store a list of matching packages in each search.Match when it is
-// called. The iterating parameter is true if the build list has not been
-// finalized yet.
-//
-// If errors are encountered, loadPatterns will print them and exit.
-// On success, loadPatterns will update the build list and write go.mod.
-func loadPatterns(patterns []string, useTags bool, updateMatches func(matches []*search.Match, iterating bool)) []*search.Match {
 	InitMod()
 
 	var matches []*search.Match
@@ -255,10 +183,7 @@ func loadPatterns(patterns []string, useTags bool, updateMatches func(matches []
 		})
 	}
 
-	loaded = newLoader()
-	if !useTags {
-		loaded.tags = anyTags
-	}
+	loaded = newLoader(tags)
 	loaded.load(func() []string {
 		var roots []string
 		updateMatches(matches, true)
@@ -337,12 +262,13 @@ func warnPattern(pattern string, list []string) []string {
 func ImportFromFiles(gofiles []string) {
 	InitMod()
 
-	imports, testImports, err := imports.ScanFiles(gofiles, imports.Tags())
+	tags := imports.Tags()
+	imports, testImports, err := imports.ScanFiles(gofiles, tags)
 	if err != nil {
 		base.Fatalf("go: %v", err)
 	}
 
-	loaded = newLoader()
+	loaded = newLoader(tags)
 	loaded.load(func() []string {
 		var roots []string
 		roots = append(roots, imports...)
@@ -391,7 +317,7 @@ func LoadBuildList() []module.Version {
 }
 
 func ReloadBuildList() []module.Version {
-	loaded = newLoader()
+	loaded = newLoader(imports.Tags())
 	loaded.load(func() []string { return nil })
 	return buildList
 }
@@ -417,9 +343,8 @@ func LoadVendor() []string {
 func loadAll(testAll bool) []string {
 	InitMod()
 
-	loaded = newLoader()
+	loaded = newLoader(imports.AnyTags())
 	loaded.isALL = true
-	loaded.tags = anyTags
 	loaded.testAll = testAll
 	if !testAll {
 		loaded.testRoots = true
@@ -438,15 +363,11 @@ func loadAll(testAll bool) []string {
 	return paths
 }
 
-// anyTags is a special tags map that satisfies nearly all build tag expressions.
-// Only "ignore" and malformed build tag requirements are considered false.
-var anyTags = map[string]bool{"*": true}
-
 // TargetPackages returns the list of packages in the target (top-level) module
 // matching pattern, which may be relative to the working directory, under all
 // build tag settings.
 func TargetPackages(pattern string) []string {
-	return matchPackages(pattern, anyTags, false, []module.Version{Target})
+	return matchPackages(pattern, imports.AnyTags(), false, []module.Version{Target})
 }
 
 // BuildList returns the module build list,
@@ -589,9 +510,9 @@ type loader struct {
 // LoadTests controls whether the loaders load tests of the root packages.
 var LoadTests bool
 
-func newLoader() *loader {
+func newLoader(tags map[string]bool) *loader {
 	ld := new(loader)
-	ld.tags = imports.Tags()
+	ld.tags = tags
 	ld.testRoots = LoadTests
 
 	// Inside the "std" and "cmd" modules, we prefer to use the vendor directory
@@ -1208,11 +1129,15 @@ func (*mvsReqs) Upgrade(m module.Version) (module.Version, error) {
 func versions(path string) ([]string, error) {
 	// Note: modfetch.Lookup and repo.Versions are cached,
 	// so there's no need for us to add extra caching here.
-	repo, err := modfetch.Lookup(path)
-	if err != nil {
-		return nil, err
-	}
-	return repo.Versions("")
+	var versions []string
+	err := modfetch.TryProxies(func(proxy string) error {
+		repo, err := modfetch.Lookup(proxy, path)
+		if err == nil {
+			versions, err = repo.Versions("")
+		}
+		return err
+	})
+	return versions, err
 }
 
 // Previous returns the tagged version of m.Path immediately prior to
