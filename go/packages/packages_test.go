@@ -1912,7 +1912,7 @@ func testAdHocContains(t *testing.T, exporter packagestest.Exporter) {
 	}()
 
 	exported.Config.Mode = packages.NeedImports | packages.NeedFiles
-	pkgs, err := packages.Load(exported.Config, filename)
+	pkgs, err := packages.Load(exported.Config, "file="+filename)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -527,28 +527,32 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 		lpkg.color = grey
 		stack = append(stack, lpkg) // push
 		stubs := lpkg.Imports       // the structure form has only stubs with the ID in the Imports
-		lpkg.Imports = make(map[string]*Package, len(stubs))
-		for importPath, ipkg := range stubs {
-			var importErr error
-			imp := ld.pkgs[ipkg.ID]
-			if imp == nil {
-				// (includes package "C" when DisableCgo)
-				importErr = fmt.Errorf("missing package: %q", ipkg.ID)
-			} else if imp.color == grey {
-				importErr = fmt.Errorf("import cycle: %s", stack)
-			}
-			if importErr != nil {
-				if lpkg.importErrors == nil {
-					lpkg.importErrors = make(map[string]error)
+		// If NeedImports isn't set, the imports fields will all be zeroed out.
+		// If NeedDeps isn't also set we want to keep the stubs.
+		if ld.Mode&NeedImports != 0 && ld.Mode&NeedDeps != 0 {
+			lpkg.Imports = make(map[string]*Package, len(stubs))
+			for importPath, ipkg := range stubs {
+				var importErr error
+				imp := ld.pkgs[ipkg.ID]
+				if imp == nil {
+					// (includes package "C" when DisableCgo)
+					importErr = fmt.Errorf("missing package: %q", ipkg.ID)
+				} else if imp.color == grey {
+					importErr = fmt.Errorf("import cycle: %s", stack)
 				}
-				lpkg.importErrors[importPath] = importErr
-				continue
-			}
+				if importErr != nil {
+					if lpkg.importErrors == nil {
+						lpkg.importErrors = make(map[string]error)
+					}
+					lpkg.importErrors[importPath] = importErr
+					continue
+				}
 
-			if visit(imp) {
-				lpkg.needsrc = true
+				if visit(imp) {
+					lpkg.needsrc = true
+				}
+				lpkg.Imports[importPath] = imp.Package
 			}
-			lpkg.Imports[importPath] = imp.Package
 		}
 		if lpkg.needsrc {
 			srcPkgs = append(srcPkgs, lpkg)
