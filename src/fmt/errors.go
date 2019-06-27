@@ -12,7 +12,7 @@ import "errors"
 // If the format specifier includes a %w verb with an error operand,
 // the returned error will implement an Unwrap method returning the operand. It is
 // invalid to include more than one %w verb or to supply it with an operand
-// that does not implement the error innterface. The %w verb is otherwise
+// that does not implement the error interface. The %w verb is otherwise
 // a synonym for %v.
 func Errorf(format string, a ...interface{}) error {
 	p := newPrinter()
