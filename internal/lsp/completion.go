@@ -67,16 +67,21 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 const maxDeepCompletions = 3
 
 func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string, rng protocol.Range, insertTextFormat protocol.InsertTextFormat, usePlaceholders bool, useDeepCompletions bool) []protocol.CompletionItem {
+	// Sort the candidates by score, since that is not supported by LSP yet.
 	sort.SliceStable(candidates, func(i, j int) bool {
 		return candidates[i].Score > candidates[j].Score
 	})
+
+	// Matching against the prefix should be case insensitive.
+	prefix = strings.ToLower(prefix)
+
 	var (
 		items                  = make([]protocol.CompletionItem, 0, len(candidates))
 		numDeepCompletionsSeen int
 	)
 	for i, candidate := range candidates {
-		// Match against the label.
-		if !strings.HasPrefix(candidate.Label, prefix) {
+		// Match against the label (case-insensitive).
+		if !strings.HasPrefix(strings.ToLower(candidate.Label), prefix) {
 			continue
 		}
 

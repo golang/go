@@ -152,19 +152,19 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 		if err != nil {
 			t.Fatalf("failed for %v: %v", src, err)
 		}
+		var prefix string
+		if surrounding != nil {
+			prefix = strings.ToLower(surrounding.Prefix())
+		}
 		wantBuiltins := strings.Contains(string(src.URI()), "builtins")
 		var got []source.CompletionItem
 		for _, item := range list {
 			if !wantBuiltins && isBuiltin(item) {
 				continue
 			}
-			var prefix string
-			if surrounding != nil {
-				prefix = surrounding.Prefix()
-			}
 			// We let the client do fuzzy matching, so we return all possible candidates.
 			// To simplify testing, filter results with prefixes that don't match exactly.
-			if !strings.HasPrefix(item.Label, prefix) {
+			if !strings.HasPrefix(strings.ToLower(item.Label), prefix) {
 				continue
 			}
 			got = append(got, item)
