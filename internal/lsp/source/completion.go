@@ -278,8 +278,8 @@ type CompletionOptions struct {
 // the client to score the quality of the completion. For instance, some clients
 // may tolerate imperfect matches as valid completion results, since users may make typos.
 func Completion(ctx context.Context, view View, f GoFile, pos token.Pos, opts CompletionOptions) ([]CompletionItem, *Selection, error) {
-	ctx, ts := trace.StartSpan(ctx, "source.Completion")
-	defer ts.End()
+	ctx, done := trace.StartSpan(ctx, "source.Completion")
+	defer done()
 	file := f.GetAST(ctx)
 	if file == nil {
 		return nil, nil, fmt.Errorf("no AST for %s", f.URI())

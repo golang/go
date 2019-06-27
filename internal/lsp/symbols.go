@@ -14,8 +14,8 @@ import (
 )
 
 func (s *Server) documentSymbol(ctx context.Context, params *protocol.DocumentSymbolParams) ([]protocol.DocumentSymbol, error) {
-	ctx, ts := trace.StartSpan(ctx, "lsp.Server.documentSymbol")
-	defer ts.End()
+	ctx, done := trace.StartSpan(ctx, "lsp.Server.documentSymbol")
+	defer done()
 	uri := span.NewURI(params.TextDocument.URI)
 	view := s.session.ViewOf(uri)
 	f, m, err := getGoFile(ctx, view, uri)

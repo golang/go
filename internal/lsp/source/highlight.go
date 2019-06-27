@@ -16,8 +16,8 @@ import (
 )
 
 func Highlight(ctx context.Context, f GoFile, pos token.Pos) ([]span.Span, error) {
-	ctx, ts := trace.StartSpan(ctx, "source.Highlight")
-	defer ts.End()
+	ctx, done := trace.StartSpan(ctx, "source.Highlight")
+	defer done()
 	file := f.GetAST(ctx)
 	if file == nil {
 		return nil, fmt.Errorf("no AST for %s", f.URI())

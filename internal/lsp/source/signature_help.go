@@ -26,8 +26,8 @@ type ParameterInformation struct {
 }
 
 func SignatureHelp(ctx context.Context, f GoFile, pos token.Pos) (*SignatureInformation, error) {
-	ctx, ts := trace.StartSpan(ctx, "source.SignatureHelp")
-	defer ts.End()
+	ctx, done := trace.StartSpan(ctx, "source.SignatureHelp")
+	defer done()
 	file := f.GetAST(ctx)
 	if file == nil {
 		return nil, fmt.Errorf("no AST for %s", f.URI())

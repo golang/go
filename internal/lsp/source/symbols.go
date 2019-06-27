@@ -42,8 +42,8 @@ type Symbol struct {
 }
 
 func DocumentSymbols(ctx context.Context, f GoFile) ([]Symbol, error) {
-	ctx, ts := trace.StartSpan(ctx, "source.DocumentSymbols")
-	defer ts.End()
+	ctx, done := trace.StartSpan(ctx, "source.DocumentSymbols")
+	defer done()
 	fset := f.FileSet()
 	file := f.GetAST(ctx)
 	if file == nil {

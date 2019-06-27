@@ -33,8 +33,8 @@ const (
 )
 
 func (i *IdentifierInfo) Hover(ctx context.Context, markdownSupported bool, hoverKind HoverKind) (string, error) {
-	ctx, ts := trace.StartSpan(ctx, "source.Hover")
-	defer ts.End()
+	ctx, done := trace.StartSpan(ctx, "source.Hover")
+	defer done()
 	h, err := i.decl.hover(ctx)
 	if err != nil {
 		return "", err
@@ -80,8 +80,8 @@ func (i *IdentifierInfo) Documentation(ctx context.Context, hoverKind HoverKind)
 }
 
 func (d declaration) hover(ctx context.Context) (*documentation, error) {
-	ctx, ts := trace.StartSpan(ctx, "source.hover")
-	defer ts.End()
+	ctx, done := trace.StartSpan(ctx, "source.hover")
+	defer done()
 	obj := d.obj
 	switch node := d.node.(type) {
 	case *ast.ImportSpec:

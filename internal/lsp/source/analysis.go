@@ -24,8 +24,8 @@ import (
 )
 
 func analyze(ctx context.Context, v View, pkgs []Package, analyzers []*analysis.Analyzer) ([]*Action, error) {
-	ctx, ts := trace.StartSpan(ctx, "source.analyze")
-	defer ts.End()
+	ctx, done := trace.StartSpan(ctx, "source.analyze")
+	defer done()
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}

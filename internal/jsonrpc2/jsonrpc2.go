@@ -82,7 +82,7 @@ type Canceler func(context.Context, *Conn, ID)
 type rpcStats struct {
 	server bool
 	method string
-	span   trace.Span
+	close  func()
 	start  time.Time
 }
 
@@ -99,7 +99,7 @@ func start(ctx context.Context, server bool, method string, id *ID) (context.Con
 	if server {
 		mode = telemetry.Inbound
 	}
-	ctx, s.span = trace.StartSpan(ctx, method,
+	ctx, s.close = trace.StartSpan(ctx, method,
 		tag.Tag{Key: telemetry.Method, Value: method},
 		tag.Tag{Key: telemetry.RPCDirection, Value: mode},
 		tag.Tag{Key: telemetry.RPCID, Value: id},
@@ -117,7 +117,7 @@ func (s *rpcStats) end(ctx context.Context, err *error) {
 	elapsedTime := time.Since(s.start)
 	latencyMillis := float64(elapsedTime) / float64(time.Millisecond)
 	telemetry.Latency.Record(ctx, latencyMillis)
-	s.span.End()
+	s.close()
 }
 
 // NewErrorf builds a Error struct for the suppied message and code.
@@ -290,8 +290,8 @@ func (r *Request) Reply(ctx context.Context, result interface{}, err error) erro
 	if r.IsNotify() {
 		return fmt.Errorf("reply not invoked with a valid call")
 	}
-	ctx, st := trace.StartSpan(ctx, r.Method+":reply")
-	defer st.End()
+	ctx, close := trace.StartSpan(ctx, r.Method+":reply")
+	defer close()
 
 	// reply ends the handling phase of a call, so if we are not yet
 	// parallel we should be now. The go routine is allowed to continue

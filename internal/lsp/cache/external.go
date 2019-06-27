@@ -51,8 +51,8 @@ func (h *nativeFileHandle) Kind() source.FileKind {
 }
 
 func (h *nativeFileHandle) Read(ctx context.Context) ([]byte, string, error) {
-	ctx, ts := trace.StartSpan(ctx, "cache.nativeFileHandle.Read")
-	defer ts.End()
+	ctx, done := trace.StartSpan(ctx, "cache.nativeFileHandle.Read")
+	defer done()
 	//TODO: this should fail if the version is not the same as the handle
 	data, err := ioutil.ReadFile(h.identity.URI.Filename())
 	if err != nil {

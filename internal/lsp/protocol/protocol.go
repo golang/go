@@ -18,8 +18,8 @@ const defaultRejectIfOverloaded = false
 
 func canceller(ctx context.Context, conn *jsonrpc2.Conn, id jsonrpc2.ID) {
 	ctx = xcontext.Detach(ctx)
-	ctx, span := trace.StartSpan(ctx, "protocol.canceller")
-	defer span.End()
+	ctx, done := trace.StartSpan(ctx, "protocol.canceller")
+	defer done()
 	conn.Notify(ctx, "$/cancelRequest", &CancelParams{ID: id})
 }
 

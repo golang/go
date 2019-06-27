@@ -74,8 +74,8 @@ func (h *parseGoHandle) Parse(ctx context.Context) (*ast.File, error) {
 }
 
 func parseGo(ctx context.Context, c *cache, fh source.FileHandle, mode source.ParseMode) (*ast.File, error) {
-	ctx, ts := trace.StartSpan(ctx, "cache.parseGo")
-	defer ts.End()
+	ctx, done := trace.StartSpan(ctx, "cache.parseGo")
+	defer done()
 	buf, _, err := fh.Read(ctx)
 	if err != nil {
 		return nil, err

@@ -37,8 +37,8 @@ type renamer struct {
 
 // Rename returns a map of TextEdits for each file modified when renaming a given identifier within a package.
 func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.URI][]TextEdit, error) {
-	ctx, ts := trace.StartSpan(ctx, "source.Rename")
-	defer ts.End()
+	ctx, done := trace.StartSpan(ctx, "source.Rename")
+	defer done()
 	if i.Name == newName {
 		return nil, fmt.Errorf("old and new names are the same: %s", newName)
 	}

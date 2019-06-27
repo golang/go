@@ -89,8 +89,8 @@ func (imp *importer) getPkg(ctx context.Context, id packageID) (*pkg, error) {
 }
 
 func (imp *importer) typeCheck(ctx context.Context, id packageID) (*pkg, error) {
-	ctx, ts := trace.StartSpan(ctx, "cache.importer.typeCheck")
-	defer ts.End()
+	ctx, done := trace.StartSpan(ctx, "cache.importer.typeCheck")
+	defer done()
 	meta, ok := imp.view.mcache.packages[id]
 	if !ok {
 		return nil, fmt.Errorf("no metadata for %v", id)

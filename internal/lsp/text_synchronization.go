@@ -66,8 +66,8 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 	go func() {
 		ctx := view.BackgroundContext()
 		//TODO: connect the remote span?
-		ctx, ts := trace.StartSpan(ctx, "lsp:background-worker")
-		defer ts.End()
+		ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
+		defer done()
 		s.Diagnostics(ctx, view, uri)
 	}()
 	return nil
