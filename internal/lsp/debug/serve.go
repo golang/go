@@ -21,6 +21,7 @@ import (
 	"golang.org/x/tools/internal/lsp/telemetry/log"
 	"golang.org/x/tools/internal/lsp/telemetry/metric"
 	"golang.org/x/tools/internal/lsp/telemetry/tag"
+	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/lsp/telemetry/worker"
 	"golang.org/x/tools/internal/span"
 )
@@ -219,6 +220,8 @@ func Serve(ctx context.Context, addr string) error {
 	metric.RegisterObservers(prometheus.observeMetric)
 	rpcs := rpcs{}
 	metric.RegisterObservers(rpcs.observeMetric)
+	traces := traces{}
+	trace.RegisterObservers(traces.export)
 	go func() {
 		mux := http.NewServeMux()
 		mux.HandleFunc("/", Render(mainTmpl, func(*http.Request) interface{} { return data }))
@@ -230,6 +233,7 @@ func Serve(ctx context.Context, addr string) error {
 		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 		mux.HandleFunc("/metrics/", prometheus.serve)
 		mux.HandleFunc("/rpc/", Render(rpcTmpl, rpcs.getData))
+		mux.HandleFunc("/trace/", Render(traceTmpl, traces.getData))
 		mux.HandleFunc("/cache/", Render(cacheTmpl, getCache))
 		mux.HandleFunc("/session/", Render(sessionTmpl, getSession))
 		mux.HandleFunc("/view/", Render(viewTmpl, getView))
@@ -290,6 +294,10 @@ var BaseTemplate = template.Must(template.New("").Parse(`
 td.value {
   text-align: right;
 }
+ul.events {
+	list-style-type: none;
+}
+
 </style>
 {{block "head" .}}{{end}}
 </head>
@@ -299,6 +307,7 @@ td.value {
 <a href="/memory">Memory</a>
 <a href="/metrics">Metrics</a>
 <a href="/rpc">RPC</a>
+<a href="/trace">Trace</a>
 <hr>
 <h1>{{template "title" .}}</h1>
 {{block "body" .}}
