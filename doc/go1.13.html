@@ -534,6 +534,14 @@ godoc
 
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
+    <p>
+      Support for SSL version 3.0 (SSLv3) <a href="https://golang.org/issue/32716">
+      is now deprecated and will be removed in Go 1.14</a>. Note that SSLv3
+      <a href="https://tools.ietf.org/html/rfc7568">is cryptographically
+      broken</a>, is already disabled by default in <code>crypto/tls</code>,
+      and was never supported by Go clients.
+    </p>
+
     <p><!-- CL 177698 -->
       Ed25519 certificates are now supported in TLS versions 1.2 and 1.3.
     </p>
