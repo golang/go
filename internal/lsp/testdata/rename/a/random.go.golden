@@ -1,6 +1,8 @@
 -- GetSum-rename --
 package a
 
+import "fmt"
+
 func Random() int {
 	y := 6 + 7
 	return y
@@ -23,8 +25,23 @@ func _() {
 	_ = p.GetSum() //@rename("Sum", "GetSum")
 }
 
+func sw() {
+	var x interface{}
+
+	switch y := x.(type) { //@rename("y", "y0")
+	case int:
+		fmt.Printf("%d", y) //@rename("y", "y1")
+	case string:
+		fmt.Printf("%s", y) //@rename("y", "y2")
+	default:
+		fmt.Printf("%v", y) //@rename("y", "y3")
+	}
+}
+
 -- myX-rename --
 package a
+
+import "fmt"
 
 func Random() int {
 	y := 6 + 7
@@ -48,8 +65,23 @@ func _() {
 	_ = p.Sum() //@rename("Sum", "GetSum")
 }
 
+func sw() {
+	var x interface{}
+
+	switch y := x.(type) { //@rename("y", "y0")
+	case int:
+		fmt.Printf("%d", y) //@rename("y", "y1")
+	case string:
+		fmt.Printf("%s", y) //@rename("y", "y2")
+	default:
+		fmt.Printf("%v", y) //@rename("y", "y3")
+	}
+}
+
 -- pos-rename --
 package a
+
+import "fmt"
 
 func Random() int {
 	y := 6 + 7
@@ -73,8 +105,23 @@ func _() {
 	_ = pos.Sum() //@rename("Sum", "GetSum")
 }
 
+func sw() {
+	var x interface{}
+
+	switch y := x.(type) { //@rename("y", "y0")
+	case int:
+		fmt.Printf("%d", y) //@rename("y", "y1")
+	case string:
+		fmt.Printf("%s", y) //@rename("y", "y2")
+	default:
+		fmt.Printf("%v", y) //@rename("y", "y3")
+	}
+}
+
 -- z-rename --
 package a
+
+import "fmt"
 
 func Random() int {
 	y := 6 + 7
@@ -96,5 +143,218 @@ func (p *Pos) Sum() int {
 func _() {
 	var p Pos   //@rename("p", "pos")
 	_ = p.Sum() //@rename("Sum", "GetSum")
+}
+
+func sw() {
+	var x interface{}
+
+	switch y := x.(type) { //@rename("y", "y0")
+	case int:
+		fmt.Printf("%d", y) //@rename("y", "y1")
+	case string:
+		fmt.Printf("%s", y) //@rename("y", "y2")
+	default:
+		fmt.Printf("%v", y) //@rename("y", "y3")
+	}
+}
+
+-- y0-rename --
+package a
+
+import "fmt"
+
+func Random() int {
+	y := 6 + 7
+	return y
+}
+
+func Random2(y int) int { //@rename("y", "z")
+	return y
+}
+
+type Pos struct {
+	x, y int
+}
+
+func (p *Pos) Sum() int {
+	return p.x + p.y //@rename("x", "myX")
+}
+
+func _() {
+	var p Pos   //@rename("p", "pos")
+	_ = p.Sum() //@rename("Sum", "GetSum")
+}
+
+func sw() {
+	var x interface{}
+
+	switch y0 := x.(type) { //@rename("y", "y0")
+	case int:
+		fmt.Printf("%d", y0) //@rename("y", "y1")
+	case string:
+		fmt.Printf("%s", y0) //@rename("y", "y2")
+	default:
+		fmt.Printf("%v", y0) //@rename("y", "y3")
+	}
+}
+
+-- y1-rename --
+package a
+
+import "fmt"
+
+func Random() int {
+	y := 6 + 7
+	return y
+}
+
+func Random2(y int) int { //@rename("y", "z")
+	return y
+}
+
+type Pos struct {
+	x, y int
+}
+
+func (p *Pos) Sum() int {
+	return p.x + p.y //@rename("x", "myX")
+}
+
+func _() {
+	var p Pos   //@rename("p", "pos")
+	_ = p.Sum() //@rename("Sum", "GetSum")
+}
+
+func sw() {
+	var x interface{}
+
+	switch y1 := x.(type) { //@rename("y", "y0")
+	case int:
+		fmt.Printf("%d", y1) //@rename("y", "y1")
+	case string:
+		fmt.Printf("%s", y1) //@rename("y", "y2")
+	default:
+		fmt.Printf("%v", y1) //@rename("y", "y3")
+	}
+}
+
+-- y2-rename --
+package a
+
+import "fmt"
+
+func Random() int {
+	y := 6 + 7
+	return y
+}
+
+func Random2(y int) int { //@rename("y", "z")
+	return y
+}
+
+type Pos struct {
+	x, y int
+}
+
+func (p *Pos) Sum() int {
+	return p.x + p.y //@rename("x", "myX")
+}
+
+func _() {
+	var p Pos   //@rename("p", "pos")
+	_ = p.Sum() //@rename("Sum", "GetSum")
+}
+
+func sw() {
+	var x interface{}
+
+	switch y2 := x.(type) { //@rename("y", "y0")
+	case int:
+		fmt.Printf("%d", y2) //@rename("y", "y1")
+	case string:
+		fmt.Printf("%s", y2) //@rename("y", "y2")
+	default:
+		fmt.Printf("%v", y2) //@rename("y", "y3")
+	}
+}
+
+-- y3-rename --
+package a
+
+import "fmt"
+
+func Random() int {
+	y := 6 + 7
+	return y
+}
+
+func Random2(y int) int { //@rename("y", "z")
+	return y
+}
+
+type Pos struct {
+	x, y int
+}
+
+func (p *Pos) Sum() int {
+	return p.x + p.y //@rename("x", "myX")
+}
+
+func _() {
+	var p Pos   //@rename("p", "pos")
+	_ = p.Sum() //@rename("Sum", "GetSum")
+}
+
+func sw() {
+	var x interface{}
+
+	switch y3 := x.(type) { //@rename("y", "y0")
+	case int:
+		fmt.Printf("%d", y3) //@rename("y", "y1")
+	case string:
+		fmt.Printf("%s", y3) //@rename("y", "y2")
+	default:
+		fmt.Printf("%v", y3) //@rename("y", "y3")
+	}
+}
+
+-- format-rename --
+package a
+
+import format "fmt"
+
+func Random() int {
+	y := 6 + 7
+	return y
+}
+
+func Random2(y int) int { //@rename("y", "z")
+	return y
+}
+
+type Pos struct {
+	x, y int
+}
+
+func (p *Pos) Sum() int {
+	return p.x + p.y //@rename("x", "myX")
+}
+
+func _() {
+	var p Pos   //@rename("p", "pos")
+	_ = p.Sum() //@rename("Sum", "GetSum")
+}
+
+func sw() {
+	var x interface{}
+
+	switch y := x.(type) { //@rename("y", "y0")
+	case int:
+		format.Printf("%d", y) //@rename("y", "y1")
+	case string:
+		format.Printf("%s", y) //@rename("y", "y2")
+	default:
+		format.Printf("%v", y) //@rename("y", "y3")
+	}
 }
 

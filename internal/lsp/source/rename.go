@@ -60,6 +60,7 @@ func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.U
 	}
 
 	r := renamer{
+		ctx:          ctx,
 		fset:         i.File.FileSet(),
 		pkg:          i.pkg,
 		refs:         refs,
@@ -78,11 +79,11 @@ func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.U
 		return nil, fmt.Errorf(r.errors)
 	}
 
-	return r.update(ctx)
+	return r.update()
 }
 
 // Rename all references to the identifier.
-func (r *renamer) update(ctx context.Context) (map[span.URI][]TextEdit, error) {
+func (r *renamer) update() (map[span.URI][]TextEdit, error) {
 	result := make(map[span.URI][]TextEdit)
 
 	docRegexp, err := regexp.Compile(`\b` + r.from + `\b`)
@@ -99,9 +100,10 @@ func (r *renamer) update(ctx context.Context) (map[span.URI][]TextEdit, error) {
 			Span:    refSpan,
 			NewText: r.to,
 		}
+
 		result[refSpan.URI()] = append(result[refSpan.URI()], edit)
 
-		if !ref.isDeclaration { // not a declaration
+		if !ref.isDeclaration || ref.ident == nil { // done if it it is a use or does not have an identifier
 			continue
 		}
 

@@ -1,5 +1,7 @@
 package a
 
+import "fmt"
+
 func Random() int {
 	y := 6 + 7
 	return y
@@ -20,4 +22,17 @@ func (p *Pos) Sum() int {
 func _() {
 	var p Pos   //@rename("p", "pos")
 	_ = p.Sum() //@rename("Sum", "GetSum")
+}
+
+func sw() {
+	var x interface{}
+
+	switch y := x.(type) { //@rename("y", "y0")
+	case int:
+		fmt.Printf("%d", y) //@rename("y", "y1")
+	case string:
+		fmt.Printf("%s", y) //@rename("y", "y2")
+	default:
+		fmt.Printf("%v", y) //@rename("y", "y3")
+	}
 }
