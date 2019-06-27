@@ -118,8 +118,7 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile) (map[packageID]*met
 			return nil, pkg.Errors, fmt.Errorf("package %s has errors, skipping type-checking", pkg.PkgPath)
 		}
 		for importPath, importPkg := range pkg.Imports {
-			// If we encounter a package we cannot import, mark it as missing.
-			if len(importPkg.CompiledGoFiles) == 0 {
+			if len(importPkg.Errors) > 0 {
 				if f.missingImports == nil {
 					f.missingImports = make(map[packagePath]struct{})
 				}
