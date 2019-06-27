@@ -8021,9 +8021,6 @@ pkg syscall (windows-amd64), type SysProcAttr struct, ThreadAttributes *Security
 pkg testing, func Init()
 pkg testing, method (*B) ReportMetric(float64, string)
 pkg testing, type BenchmarkResult struct, Extra map[string]float64
-pkg text/scanner, const AllowDigitSeparators = 1024
-pkg text/scanner, const AllowDigitSeparators ideal-int
-pkg text/scanner, const GoTokens = 2036
 pkg text/template, method (ExecError) Unwrap() error
 pkg time, method (Duration) Microseconds() int64
 pkg time, method (Duration) Milliseconds() int64
