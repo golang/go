@@ -17,12 +17,10 @@ func (s *Server) formatting(ctx context.Context, params *protocol.DocumentFormat
 	uri := span.NewURI(params.TextDocument.URI)
 	view := s.session.ViewOf(uri)
 	spn := span.New(uri, span.Point{}, span.Point{})
-	return formatRange(ctx, view, spn)
-}
-
-// formatRange formats a document with a given range.
-func formatRange(ctx context.Context, view source.View, s span.Span) ([]protocol.TextEdit, error) {
-	f, m, rng, err := spanToRange(ctx, view, s)
+	f, m, rng, err := spanToRange(ctx, view, spn)
+	if err != nil {
+		return nil, err
+	}
 	edits, err := source.Format(ctx, f, rng)
 	if err != nil {
 		return nil, err
