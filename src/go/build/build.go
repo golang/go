@@ -1001,27 +1001,25 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode, 
 		return errNoModules
 	}
 
+	// Find the absolute source directory. hasSubdir does not handle
+	// relative paths (and can't because the callbacks don't support this).
+	absSrcDir, err := filepath.Abs(srcDir)
+	if err != nil {
+		return errNoModules
+	}
+
 	// If modules are not enabled, then the in-process code works fine and we should keep using it.
-	// TODO(bcmills): This assumes that the default is "auto" instead of "on".
 	switch os.Getenv("GO111MODULE") {
 	case "off":
 		return errNoModules
-	case "on":
-		// ok
-	default: // "", "auto", anything else
-		// Automatic mode: no module use in $GOPATH/src.
-		for _, root := range gopath {
-			sub, ok := ctxt.hasSubdir(root, srcDir)
-			if ok && strings.HasPrefix(sub, "src/") {
-				return errNoModules
-			}
-		}
+	default: // "", "on", "auto", anything else
+		// Maybe use modules.
 	}
 
 	// If the source directory is in GOROOT, then the in-process code works fine
 	// and we should keep using it. Moreover, the 'go list' approach below doesn't
 	// take standard-library vendoring into account and will fail.
-	if _, ok := ctxt.hasSubdir(filepath.Join(ctxt.GOROOT, "src"), srcDir); ok {
+	if _, ok := ctxt.hasSubdir(filepath.Join(ctxt.GOROOT, "src"), absSrcDir); ok {
 		return errNoModules
 	}
 
@@ -1034,20 +1032,18 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode, 
 	}
 
 	// Look to see if there is a go.mod.
-	abs, err := filepath.Abs(srcDir)
-	if err != nil {
-		return errNoModules
-	}
+	// Since go1.13, it doesn't matter if we're inside GOPATH.
+	parent := absSrcDir
 	for {
-		info, err := os.Stat(filepath.Join(abs, "go.mod"))
+		info, err := os.Stat(filepath.Join(parent, "go.mod"))
 		if err == nil && !info.IsDir() {
 			break
 		}
-		d := filepath.Dir(abs)
-		if len(d) >= len(abs) {
+		d := filepath.Dir(parent)
+		if len(d) >= len(parent) {
 			return errNoModules // reached top of file system, no go.mod
 		}
-		abs = d
+		parent = d
 	}
 
 	cmd := exec.Command("go", "list", "-compiler="+ctxt.Compiler, "-tags="+strings.Join(ctxt.BuildTags, ","), "-installsuffix="+ctxt.InstallSuffix, "-f={{.Dir}}\n{{.ImportPath}}\n{{.Root}}\n{{.Goroot}}\n", path)
