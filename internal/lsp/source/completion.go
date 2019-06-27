@@ -727,6 +727,9 @@ type typeInference struct {
 
 	// assertableFrom is a type that must be assertable to our candidate type.
 	assertableFrom types.Type
+
+	// convertibleTo is a type our candidate type must be convertible to.
+	convertibleTo types.Type
 }
 
 // expectedType returns information about the expected type for an expression at
@@ -741,8 +744,9 @@ func expectedType(c *completer) typeInference {
 	}
 
 	var (
-		modifiers []typeModifier
-		typ       types.Type
+		modifiers     []typeModifier
+		typ           types.Type
+		convertibleTo types.Type
 	)
 
 Nodes:
@@ -774,6 +778,13 @@ Nodes:
 		case *ast.CallExpr:
 			// Only consider CallExpr args if position falls between parens.
 			if node.Lparen <= c.pos && c.pos <= node.Rparen {
+				// For type conversions like "int64(foo)" we can only infer our
+				// desired type is convertible to int64.
+				if typ := typeConversion(node, c.info); typ != nil {
+					convertibleTo = typ
+					break Nodes
+				}
+
 				if tv, ok := c.info.Types[node.Fun]; ok {
 					if sig, ok := tv.Type.(*types.Signature); ok {
 						if sig.Params().Len() == 0 {
@@ -860,8 +871,9 @@ Nodes:
 	}
 
 	return typeInference{
-		objType:   typ,
-		modifiers: modifiers,
+		objType:       typ,
+		modifiers:     modifiers,
+		convertibleTo: convertibleTo,
 	}
 }
 
@@ -1043,6 +1055,10 @@ func (c *completer) matchingType(cand *candidate) bool {
 			cand.expandFuncCall = true
 			return true
 		}
+	}
+
+	if c.expectedType.convertibleTo != nil {
+		return types.ConvertibleTo(objType, c.expectedType.convertibleTo)
 	}
 
 	return false

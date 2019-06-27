@@ -1,0 +1,12 @@
+package rank
+
+func _() {
+	type strList []string
+	wantsStrList := func(strList) {}
+
+	var (
+		convA string   //@item(convertA, "convA", "string", "var")
+		convB []string //@item(convertB, "convB", "[]string", "var")
+	)
+	wantsStrList(strList(conv)) //@complete("))", convertB, convertA)
+}
