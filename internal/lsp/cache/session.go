@@ -183,7 +183,8 @@ func (s *session) Logger() xlog.Logger {
 	return s.log
 }
 
-func (s *session) DidOpen(ctx context.Context, uri span.URI, text []byte) {
+// TODO: Propagate the language ID through to the view.
+func (s *session) DidOpen(ctx context.Context, uri span.URI, _ source.FileKind, text []byte) {
 	// Mark the file as open.
 	s.openFiles.Store(uri, true)
 

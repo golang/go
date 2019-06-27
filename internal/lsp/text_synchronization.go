@@ -20,8 +20,11 @@ func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocume
 	uri := span.NewURI(params.TextDocument.URI)
 	text := []byte(params.TextDocument.Text)
 
+	// Confirm that the file's language ID is related to Go.
+	fileKind := source.DetectLanguage(params.TextDocument.LanguageID, uri.Filename())
+
 	// Open the file.
-	s.session.DidOpen(ctx, uri, text)
+	s.session.DidOpen(ctx, uri, fileKind, text)
 
 	// Run diagnostics on the newly-changed file.
 	view := s.session.ViewOf(uri)

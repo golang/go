@@ -154,7 +154,7 @@ type Session interface {
 	FileSystem
 
 	// DidOpen is invoked each time a file is opened in the editor.
-	DidOpen(ctx context.Context, uri span.URI, text []byte)
+	DidOpen(ctx context.Context, uri span.URI, kind FileKind, text []byte)
 
 	// DidSave is invoked each time an open file is saved in the editor.
 	DidSave(uri span.URI)

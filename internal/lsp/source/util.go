@@ -9,8 +9,40 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"path/filepath"
 	"strings"
 )
+
+func DetectLanguage(langID, filename string) FileKind {
+	switch langID {
+	case "go":
+		return Go
+	case "go.mod":
+		return Mod
+	case "go.sum":
+		return Sum
+	}
+	// Fallback to detecting the language based on the file extension.
+	switch filepath.Ext(filename) {
+	case ".mod":
+		return Mod
+	case ".sum":
+		return Sum
+	default: // fallback to Go
+		return Go
+	}
+}
+
+func (k FileKind) String() string {
+	switch k {
+	case Mod:
+		return "go.mod"
+	case Sum:
+		return "go.sum"
+	default:
+		return "go"
+	}
+}
 
 // indexExprAtPos returns the index of the expression containing pos.
 func indexExprAtPos(pos token.Pos, args []ast.Expr) int {
