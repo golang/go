@@ -1,6 +1,10 @@
 package a
 
-import "fmt"
+import (
+	lg "log"
+	"fmt"
+	f2 "fmt"
+)
 
 func Random() int {
 	y := 6 + 7
@@ -29,10 +33,10 @@ func sw() {
 
 	switch y := x.(type) { //@rename("y", "y0")
 	case int:
-		fmt.Printf("%d", y) //@rename("y", "y1")
+		fmt.Printf("%d", y) //@rename("y", "y1"),rename("fmt", "format")
 	case string:
-		fmt.Printf("%s", y) //@rename("y", "y2")
+		lg.Printf("%s", y) //@rename("y", "y2"),rename("lg","log")
 	default:
-		fmt.Printf("%v", y) //@rename("y", "y3")
+		f2.Printf("%v", y) //@rename("y", "y3"),rename("f2","fmt2")
 	}
 }
