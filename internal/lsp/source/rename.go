@@ -101,26 +101,29 @@ func (r *renamer) update(ctx context.Context) (map[span.URI][]TextEdit, error) {
 		}
 		result[refSpan.URI()] = append(result[refSpan.URI()], edit)
 
-		if ref.isDeclaration {
-			// Perform the rename in doc comments too (declared in the original package)
-			if doc := r.docComment(r.pkg, ref.ident); doc != nil {
-				for _, comment := range doc.List {
-					for _, locs := range docRegexp.FindAllStringIndex(comment.Text, -1) {
-						rng := span.NewRange(r.fset, comment.Pos()+token.Pos(locs[0]), comment.Pos()+token.Pos(locs[1]))
-						spn, err := rng.Span()
-						if err != nil {
-							return nil, err
-						}
-						result[refSpan.URI()] = append(result[refSpan.URI()], TextEdit{
-							Span:    spn,
-							NewText: r.to,
-						})
-					}
-					comment.Text = docRegexp.ReplaceAllString(comment.Text, r.to)
-				}
-			}
+		if !ref.isDeclaration { // not a declaration
+			continue
 		}
 
+		doc := r.docComment(r.pkg, ref.ident)
+		if doc == nil { // no doc comment
+			continue
+		}
+
+		// Perform the rename in doc comments declared in the original package
+		for _, comment := range doc.List {
+			for _, locs := range docRegexp.FindAllStringIndex(comment.Text, -1) {
+				rng := span.NewRange(r.fset, comment.Pos()+token.Pos(locs[0]), comment.Pos()+token.Pos(locs[1]))
+				spn, err := rng.Span()
+				if err != nil {
+					return nil, err
+				}
+				result[refSpan.URI()] = append(result[refSpan.URI()], TextEdit{
+					Span:    spn,
+					NewText: r.to,
+				})
+			}
+		}
 	}
 
 	return result, nil
