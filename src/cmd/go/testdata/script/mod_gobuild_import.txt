@@ -62,15 +62,31 @@ import (
 	"go/build"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
 func main() {
-	p, err := build.Import(os.Args[1], os.Args[2], 0)
+	// build.Import should support relative and absolute source dir paths.
+	path := os.Args[1]
+	srcDir := os.Args[2]
+	p1, err := build.Import(path, srcDir, 0)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("%s\n%s\n", p.Dir, strings.Join(p.GoFiles, " "))
+	absSrcDir, err := filepath.Abs(srcDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+	p2, err := build.Import(path, absSrcDir, 0)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if p1.Dir != p2.Dir {
+		log.Fatalf("different packages loaded with relative and absolute paths:\n\t%s\n\t%s", p1.Dir, p2.Dir)
+	}
+
+	fmt.Printf("%s\n%s\n", p1.Dir, strings.Join(p1.GoFiles, " "))
 }
 
 -- $GOPATH/other/go.mod --
