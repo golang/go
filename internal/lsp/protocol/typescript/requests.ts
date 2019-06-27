@@ -62,11 +62,15 @@ function generate(files: string[], options: ts.CompilerOptions): void {
   // 2. serverHandler(...) { return func(...) { switch r.method}}
   // 3. func (x *xDispatcher) Method(ctx, parm)
   not.forEach(
-      (v, k) => {receives.get(k) == 'client' ? goNot(client, k) :
-                                               goNot(server, k)});
+    (v, k) => {
+      receives.get(k) == 'client' ? goNot(client, k) :
+        goNot(server, k)
+    });
   req.forEach(
-      (v, k) => {receives.get(k) == 'client' ? goReq(client, k) :
-                                               goReq(server, k)});
+    (v, k) => {
+      receives.get(k) == 'client' ? goReq(client, k) :
+        goReq(server, k)
+    });
   // and print the Go code
   output(client);
   output(server);
@@ -94,7 +98,7 @@ function sig(nm: string, a: string, b: string, names?: boolean): string {
 }
 
 const notNil = `if r.Params != nil {
-				conn.Reply(ctx, r, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidParams, "Expected no params"))
+				r.Reply(ctx, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidParams, "Expected no params"))
 				return
 			}`;
 // Go code for notifications. Side is client or server, m is the request method
@@ -109,7 +113,7 @@ function goNot(side: side, m: string) {
   if (a != '') {
     case1 = `var params ${a}
     if err := json.Unmarshal(*r.Params, &params); err != nil {
-      sendParseError(ctx, log, conn, r, err)
+      sendParseError(ctx, log, r, err)
       return
     }
     if err := ${side.name}.${nm}(ctx, &params); err != nil {
@@ -148,7 +152,7 @@ function goReq(side: side, m: string) {
   if (a != '') {
     case1 = `var params ${a}
     if err := json.Unmarshal(*r.Params, &params); err != nil {
-      sendParseError(ctx, log, conn, r, err)
+      sendParseError(ctx, log, r, err)
       return
     }`;
   }
@@ -158,12 +162,12 @@ function goReq(side: side, m: string) {
   }`;
   if (b != '') {
     case2 = `resp, err := ${side.name}.${nm}(ctx${arg2})
-    if err := conn.Reply(ctx, r, resp, err); err != nil {
+    if err := r.Reply(ctx, resp, err); err != nil {
       log.Errorf(ctx, "%v", err)
     }`;
   } else {  // response is nil
     case2 = `err := ${side.name}.${nm}(ctx${arg2})
-    if err := conn.Reply(ctx, r, nil, err); err != nil {
+    if err := r.Reply(ctx, nil, err); err != nil {
       log.Errorf(ctx, "%v", err)
     }`
   }
@@ -178,7 +182,7 @@ function goReq(side: side, m: string) {
     !b.startsWith('[]') && !b.startsWith('interface') && (theRet = '&result');
     callBody = `var result ${b}
 			if err := s.Conn.Call(ctx, "${m}", ${
-        p2}, &result); err != nil {
+      p2}, &result); err != nil {
 				return nil, err
       }
       return ${theRet}, nil
@@ -206,7 +210,7 @@ function methodName(m: string): string {
 function output(side: side) {
   if (side.outputFile === undefined) side.outputFile = `ts${side.name}.go`;
   side.fd = fs.openSync(side.outputFile, 'w');
-  const f = function(s: string) {
+  const f = function (s: string) {
     fs.writeSync(side.fd, s);
     fs.writeSync(side.fd, '\n');
   };
@@ -223,24 +227,24 @@ function output(side: side) {
   `);
   const a = side.name[0].toUpperCase() + side.name.substring(1)
   f(`type ${a} interface {`);
-  side.methods.forEach((v) => {f(v)});
+  side.methods.forEach((v) => { f(v) });
   f('}\n');
   f(`func ${side.name}Handler(log xlog.Logger, ${side.name} ${
-      side.goName}) jsonrpc2.Handler {
-    return func(ctx context.Context, conn *jsonrpc2.Conn, r *jsonrpc2.Request) {
+    side.goName}) jsonrpc2.Handler {
+    return func(ctx context.Context, r *jsonrpc2.Request) {
       switch r.Method {
       case "$/cancelRequest":
         var params CancelParams
         if err := json.Unmarshal(*r.Params, &params); err != nil {
-          sendParseError(ctx, log, conn, r, err)
+          sendParseError(ctx, log, r, err)
           return
         }
-        conn.Cancel(params.ID)`);
-  side.cases.forEach((v) => {f(v)});
+        r.Conn().Cancel(params.ID)`);
+  side.cases.forEach((v) => { f(v) });
   f(`
   default:
     if r.IsNotify() {
-      conn.Reply(ctx, r, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeMethodNotFound, "method %q not found", r.Method))
+      r.Reply(ctx, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeMethodNotFound, "method %q not found", r.Method))
     }
   }
 }
@@ -250,7 +254,7 @@ function output(side: side) {
     *jsonrpc2.Conn
   }
   `);
-  side.calls.forEach((v) => {f(v)});
+  side.calls.forEach((v) => { f(v) });
   if (side.name == 'server')
     f(`
   type CancelParams struct {
@@ -271,19 +275,19 @@ interface side {
   fd?: number
 }
 let client: side =
-    {methods: [], cases: [], calls: [], name: 'client', goName: 'Client'};
+  { methods: [], cases: [], calls: [], name: 'client', goName: 'Client' };
 let server: side =
-    {methods: [], cases: [], calls: [], name: 'server', goName: 'Server'};
+  { methods: [], cases: [], calls: [], name: 'server', goName: 'Server' };
 
 let req = new Map<string, ts.NewExpression>();        // requests
 let not = new Map<string, ts.NewExpression>();        // notifications
-let receives = new Map<string, 'server'|'client'>();  // who receives it
+let receives = new Map<string, 'server' | 'client'>();  // who receives it
 
 function setReceives() {
   // mark them all as server, then adjust the client ones.
   // it would be nice to have some independent check
-  req.forEach((_, k) => {receives.set(k, 'server')});
-  not.forEach((_, k) => {receives.set(k, 'server')});
+  req.forEach((_, k) => { receives.set(k, 'server') });
+  not.forEach((_, k) => { receives.set(k, 'server') });
   receives.set('window/logMessage', 'client');
   receives.set('telemetry/event', 'client');
   receives.set('client/registerCapability', 'client');
@@ -321,7 +325,7 @@ function goType(m: string, n: ts.Node): string {
   if (ts.isUnionTypeNode(n)) {
     let x: string[] = [];
     n.types.forEach(
-        (v) => {v.kind != ts.SyntaxKind.NullKeyword && x.push(goType(m, v))});
+      (v) => { v.kind != ts.SyntaxKind.NullKeyword && x.push(goType(m, v)) });
     if (x.length == 1) return x[0];
 
     prb(`===========${m} ${x}`)
@@ -343,10 +347,10 @@ function genStuff(node: ts.Node) {
   // process the right kind of new expression
   const wh = node.expression.getText();
   if (wh != 'RequestType' && wh != 'RequestType0' && wh != 'NotificationType' &&
-      wh != 'NotificationType0')
+    wh != 'NotificationType0')
     return;
   if (node.arguments === undefined || node.arguments.length != 1 ||
-      !ts.isStringLiteral(node.arguments[0])) {
+    !ts.isStringLiteral(node.arguments[0])) {
     throw new Error(`missing n.arguments ${loc(node)}`)
   }
   // RequestType<useful>=new RequestTYpe('foo')
@@ -446,7 +450,7 @@ function loc(node: ts.Node): string {
   const n = fn.search(/-node./)
   fn = fn.substring(n + 6)
   return `${fn} ${x.line + 1}: ${x.character + 1} (${y.line + 1}: ${
-      y.character + 1})`
+    y.character + 1})`
 }
 
 // ad hoc argument parsing: [-d dir] [-o outputfile], and order matters
@@ -466,7 +470,7 @@ function main() {
   }
   createOutputFiles()
   generate(
-      files, {target: ts.ScriptTarget.ES5, module: ts.ModuleKind.CommonJS});
+    files, { target: ts.ScriptTarget.ES5, module: ts.ModuleKind.CommonJS });
 }
 
 main()
