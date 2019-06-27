@@ -22,6 +22,13 @@ func setTimeval(sec, usec int64) Timeval {
 //sys	Statfs(path string, stat *Statfs_t) (err error)
 //sys   fstatat(fd int, path string, stat *Stat_t, flags int) (err error)
 
+// Marked nosplit because it is called from forkAndExecInChild where
+// stack growth is forbidden.
+//go:nosplit
+func ptrace(request int, pid int, addr uintptr, data uintptr) error {
+	return ENOTSUP
+}
+
 func SetKevent(k *Kevent_t, fd, mode, flags int) {
 	k.Ident = uint32(fd)
 	k.Filter = int16(mode)

@@ -265,6 +265,7 @@ var knownEnv = `
 	GOOS
 	GOPATH
 	GOPPC64
+	GOPRIVATE
 	GOPROXY
 	GOROOT
 	GOSUMDB
@@ -291,29 +292,12 @@ var (
 	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", objabi.GOPPC64))
 	GOWASM   = envOr("GOWASM", fmt.Sprint(objabi.GOWASM))
 
-	GOPROXY   = goproxy()
-	GOSUMDB   = gosumdb()
-	GONOPROXY = Getenv("GONOPROXY")
-	GONOSUMDB = Getenv("GONOSUMDB")
+	GOPROXY   = envOr("GOPROXY", "https://proxy.golang.org,direct")
+	GOSUMDB   = envOr("GOSUMDB", "sum.golang.org")
+	GOPRIVATE = Getenv("GOPRIVATE")
+	GONOPROXY = envOr("GONOPROXY", GOPRIVATE)
+	GONOSUMDB = envOr("GONOSUMDB", GOPRIVATE)
 )
-
-func goproxy() string {
-	v := Getenv("GOPROXY")
-	if v != "" {
-		return v
-	}
-
-	return "https://proxy.golang.org"
-}
-
-func gosumdb() string {
-	v := Getenv("GOSUMDB")
-	if v != "" {
-		return v
-	}
-
-	return "sum.golang.org"
-}
 
 // GetArchEnv returns the name and setting of the
 // GOARCH-specific architecture environment variable.

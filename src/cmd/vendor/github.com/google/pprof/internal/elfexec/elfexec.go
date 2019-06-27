@@ -241,10 +241,10 @@ func GetBase(fh *elf.FileHeader, loadSegment *elf.ProgHeader, stextOffset *uint6
 			return start - *stextOffset, nil
 		}
 
-		return 0, fmt.Errorf("Don't know how to handle EXEC segment: %v start=0x%x limit=0x%x offset=0x%x", *loadSegment, start, limit, offset)
+		return 0, fmt.Errorf("don't know how to handle EXEC segment: %v start=0x%x limit=0x%x offset=0x%x", *loadSegment, start, limit, offset)
 	case elf.ET_REL:
 		if offset != 0 {
-			return 0, fmt.Errorf("Don't know how to handle mapping.Offset")
+			return 0, fmt.Errorf("don't know how to handle mapping.Offset")
 		}
 		return start, nil
 	case elf.ET_DYN:
@@ -265,7 +265,7 @@ func GetBase(fh *elf.FileHeader, loadSegment *elf.ProgHeader, stextOffset *uint6
 		// sx = x - start + offset - loadSegment.Off + loadSegment.Vaddr.
 		return start - offset + loadSegment.Off - loadSegment.Vaddr, nil
 	}
-	return 0, fmt.Errorf("Don't know how to handle FileHeader.Type %v", fh.Type)
+	return 0, fmt.Errorf("don't know how to handle FileHeader.Type %v", fh.Type)
 }
 
 // FindTextProgHeader finds the program segment header containing the .text

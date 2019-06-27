@@ -53,8 +53,6 @@ TEXT ·libc_futimes_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_futimes(SB)
 TEXT ·libc_fcntl_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_fcntl(SB)
-TEXT ·libc_ptrace_trampoline(SB),NOSPLIT,$0-0
-	JMP	libc_ptrace(SB)
 TEXT ·libc_pipe_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_pipe(SB)
 TEXT ·libc_kill_trampoline(SB),NOSPLIT,$0-0
@@ -251,3 +249,5 @@ TEXT ·libc_statfs64_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_statfs64(SB)
 TEXT ·libc_fstatat64_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_fstatat64(SB)
+TEXT ·libc_ptrace_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_ptrace(SB)

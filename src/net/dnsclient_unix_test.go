@@ -589,6 +589,8 @@ func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer conf.teardown()
+
 	if err := conf.writeAndUpdate([]string{}); err != nil {
 		t.Fatal(err)
 	}
@@ -620,7 +622,6 @@ func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
 			t.Errorf("%s: address doesn't match expectation. got %v, want %v", name, got, want)
 		}
 	}
-	defer conf.teardown()
 }
 
 // Issue 12712.

@@ -35,7 +35,7 @@ type Reqs interface {
 	// Max returns the maximum of v1 and v2 (it returns either v1 or v2).
 	//
 	// For all versions v, Max(v, "none") must be v,
-	// and for the tanget passed as the first argument to MVS functions,
+	// and for the target passed as the first argument to MVS functions,
 	// Max(target, v) must be target.
 	//
 	// Note that v1 < v2 can be written Max(v1, v2) != v1

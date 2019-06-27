@@ -1,0 +1,35 @@
+env GO111MODULE=off
+
+# This script tests that running go mod with
+# GO111MODULE=off when outside of GOPATH will fatal
+# with an error message, even with some source code in the directory and a go.mod.
+! go mod init
+stderr 'go mod init: modules disabled by GO111MODULE=off; see ''go help modules'''
+! go mod graph
+stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
+! go mod verify
+stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
+! go mod download
+stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
+
+# Same result in an empty directory
+mkdir z
+cd z
+! go mod init
+stderr 'go mod init: modules disabled by GO111MODULE=off; see ''go help modules'''
+! go mod graph
+stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
+! go mod verify
+stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
+! go mod download
+stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
+
+-- sample.go --
+package sample
+
+func main() {}
+
+-- go.mod --
+module sample
+
+go 1.12

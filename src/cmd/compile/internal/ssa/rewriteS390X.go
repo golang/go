@@ -61,6 +61,8 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpAtomicLoad64_0(v)
 	case OpAtomicLoad8:
 		return rewriteValueS390X_OpAtomicLoad8_0(v)
+	case OpAtomicLoadAcq32:
+		return rewriteValueS390X_OpAtomicLoadAcq32_0(v)
 	case OpAtomicLoadPtr:
 		return rewriteValueS390X_OpAtomicLoadPtr_0(v)
 	case OpAtomicStore32:
@@ -69,6 +71,8 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpAtomicStore64_0(v)
 	case OpAtomicStorePtrNoWB:
 		return rewriteValueS390X_OpAtomicStorePtrNoWB_0(v)
+	case OpAtomicStoreRel32:
+		return rewriteValueS390X_OpAtomicStoreRel32_0(v)
 	case OpAvg64u:
 		return rewriteValueS390X_OpAvg64u_0(v)
 	case OpBitLen64:
@@ -1132,6 +1136,19 @@ func rewriteValueS390X_OpAtomicLoad8_0(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueS390X_OpAtomicLoadAcq32_0(v *Value) bool {
+	// match: (AtomicLoadAcq32 ptr mem)
+	// cond:
+	// result: (MOVWZatomicload ptr mem)
+	for {
+		mem := v.Args[1]
+		ptr := v.Args[0]
+		v.reset(OpS390XMOVWZatomicload)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+}
 func rewriteValueS390X_OpAtomicLoadPtr_0(v *Value) bool {
 	// match: (AtomicLoadPtr ptr mem)
 	// cond:
@@ -1146,7 +1163,61 @@ func rewriteValueS390X_OpAtomicLoadPtr_0(v *Value) bool {
 	}
 }
 func rewriteValueS390X_OpAtomicStore32_0(v *Value) bool {
+	b := v.Block
 	// match: (AtomicStore32 ptr val mem)
+	// cond:
+	// result: (SYNC (MOVWatomicstore ptr val mem))
+	for {
+		mem := v.Args[2]
+		ptr := v.Args[0]
+		val := v.Args[1]
+		v.reset(OpS390XSYNC)
+		v0 := b.NewValue0(v.Pos, OpS390XMOVWatomicstore, types.TypeMem)
+		v0.AddArg(ptr)
+		v0.AddArg(val)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueS390X_OpAtomicStore64_0(v *Value) bool {
+	b := v.Block
+	// match: (AtomicStore64 ptr val mem)
+	// cond:
+	// result: (SYNC (MOVDatomicstore ptr val mem))
+	for {
+		mem := v.Args[2]
+		ptr := v.Args[0]
+		val := v.Args[1]
+		v.reset(OpS390XSYNC)
+		v0 := b.NewValue0(v.Pos, OpS390XMOVDatomicstore, types.TypeMem)
+		v0.AddArg(ptr)
+		v0.AddArg(val)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueS390X_OpAtomicStorePtrNoWB_0(v *Value) bool {
+	b := v.Block
+	// match: (AtomicStorePtrNoWB ptr val mem)
+	// cond:
+	// result: (SYNC (MOVDatomicstore ptr val mem))
+	for {
+		mem := v.Args[2]
+		ptr := v.Args[0]
+		val := v.Args[1]
+		v.reset(OpS390XSYNC)
+		v0 := b.NewValue0(v.Pos, OpS390XMOVDatomicstore, types.TypeMem)
+		v0.AddArg(ptr)
+		v0.AddArg(val)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueS390X_OpAtomicStoreRel32_0(v *Value) bool {
+	// match: (AtomicStoreRel32 ptr val mem)
 	// cond:
 	// result: (MOVWatomicstore ptr val mem)
 	for {
@@ -1154,36 +1225,6 @@ func rewriteValueS390X_OpAtomicStore32_0(v *Value) bool {
 		ptr := v.Args[0]
 		val := v.Args[1]
 		v.reset(OpS390XMOVWatomicstore)
-		v.AddArg(ptr)
-		v.AddArg(val)
-		v.AddArg(mem)
-		return true
-	}
-}
-func rewriteValueS390X_OpAtomicStore64_0(v *Value) bool {
-	// match: (AtomicStore64 ptr val mem)
-	// cond:
-	// result: (MOVDatomicstore ptr val mem)
-	for {
-		mem := v.Args[2]
-		ptr := v.Args[0]
-		val := v.Args[1]
-		v.reset(OpS390XMOVDatomicstore)
-		v.AddArg(ptr)
-		v.AddArg(val)
-		v.AddArg(mem)
-		return true
-	}
-}
-func rewriteValueS390X_OpAtomicStorePtrNoWB_0(v *Value) bool {
-	// match: (AtomicStorePtrNoWB ptr val mem)
-	// cond:
-	// result: (MOVDatomicstore ptr val mem)
-	for {
-		mem := v.Args[2]
-		ptr := v.Args[0]
-		val := v.Args[1]
-		v.reset(OpS390XMOVDatomicstore)
 		v.AddArg(ptr)
 		v.AddArg(val)
 		v.AddArg(mem)

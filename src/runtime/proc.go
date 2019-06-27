@@ -2850,7 +2850,11 @@ func reentersyscall(pc, sp uintptr) {
 }
 
 // Standard syscall entry used by the go syscall library and normal cgo calls.
+//
+// This is exported via linkname to assembly in the syscall package.
+//
 //go:nosplit
+//go:linkname entersyscall
 func entersyscall() {
 	reentersyscall(getcallerpc(), getcallersp())
 }
@@ -2940,8 +2944,11 @@ func entersyscallblock_handoff() {
 //
 // Write barriers are not allowed because our P may have been stolen.
 //
+// This is exported via linkname to assembly in the syscall package.
+//
 //go:nosplit
 //go:nowritebarrierrec
+//go:linkname exitsyscall
 func exitsyscall() {
 	_g_ := getg()
 

@@ -12,13 +12,12 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
+	"path"
 	pathpkg "path"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
-	"unicode"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
@@ -84,16 +83,6 @@ cached module versions with GOPROXY=https://example.com/proxy.
 `,
 }
 
-var proxyURL = cfg.Getenv("GOPROXY")
-
-// SetProxy sets the proxy to use when fetching modules.
-// It accepts the same syntax as the GOPROXY environment variable,
-// which also provides its default configuration.
-// SetProxy must not be called after the first module fetch has begun.
-func SetProxy(url string) {
-	proxyURL = url
-}
-
 var proxyOnce struct {
 	sync.Once
 	list []string
@@ -102,13 +91,32 @@ var proxyOnce struct {
 
 func proxyURLs() ([]string, error) {
 	proxyOnce.Do(func() {
-		for _, proxyURL := range strings.Split(proxyURL, ",") {
+		if cfg.GONOPROXY != "" && cfg.GOPROXY != "direct" {
+			proxyOnce.list = append(proxyOnce.list, "noproxy")
+		}
+		for _, proxyURL := range strings.Split(cfg.GOPROXY, ",") {
+			proxyURL = strings.TrimSpace(proxyURL)
 			if proxyURL == "" {
 				continue
 			}
+			if proxyURL == "off" {
+				// "off" always fails hard, so can stop walking list.
+				proxyOnce.list = append(proxyOnce.list, "off")
+				break
+			}
 			if proxyURL == "direct" {
 				proxyOnce.list = append(proxyOnce.list, "direct")
-				continue
+				// For now, "direct" is the end of the line. We may decide to add some
+				// sort of fallback behavior for them in the future, so ignore
+				// subsequent entries for forward-compatibility.
+				break
+			}
+
+			// Single-word tokens are reserved for built-in behaviors, and anything
+			// containing the string ":/" or matching an absolute file path must be a
+			// complete URL. For all other paths, implicitly add "https://".
+			if strings.ContainsAny(proxyURL, ".:/") && !strings.Contains(proxyURL, ":/") && !filepath.IsAbs(proxyURL) && !path.IsAbs(proxyURL) {
+				proxyURL = "https://" + proxyURL
 			}
 
 			// Check that newProxyRepo accepts the URL.
@@ -125,32 +133,30 @@ func proxyURLs() ([]string, error) {
 	return proxyOnce.list, proxyOnce.err
 }
 
-func lookupProxy(path string) (Repo, error) {
-	list, err := proxyURLs()
+// TryProxies iterates f over each configured proxy (including "noproxy" and
+// "direct" if applicable) until f returns an error that is not
+// equivalent to os.ErrNotExist.
+//
+// TryProxies then returns that final error.
+//
+// If GOPROXY is set to "off", TryProxies invokes f once with the argument
+// "off".
+func TryProxies(f func(proxy string) error) error {
+	proxies, err := proxyURLs()
 	if err != nil {
-		return nil, err
+		return err
+	}
+	if len(proxies) == 0 {
+		return f("off")
 	}
 
-	var repos listRepo
-	for _, u := range list {
-		var r Repo
-		if u == "direct" {
-			// lookupDirect does actual network traffic.
-			// Especially if GOPROXY="http://mainproxy,direct",
-			// avoid the network until we need it by using a lazyRepo wrapper.
-			r = &lazyRepo{setup: lookupDirect, path: path}
-		} else {
-			// The URL itself was checked in proxyURLs.
-			// The only possible error here is a bad path,
-			// so we can return it unconditionally.
-			r, err = newProxyRepo(u, path)
-			if err != nil {
-				return nil, err
-			}
+	for _, proxy := range proxies {
+		err = f(proxy)
+		if !errors.Is(err, os.ErrNotExist) {
+			break
 		}
-		repos = append(repos, r)
 	}
-	return repos, nil
+	return err
 }
 
 type proxyRepo struct {
@@ -201,18 +207,6 @@ func (p *proxyRepo) getBytes(path string) ([]byte, error) {
 
 func (p *proxyRepo) getBody(path string) (io.ReadCloser, error) {
 	fullPath := pathpkg.Join(p.url.Path, path)
-	if p.url.Scheme == "file" {
-		rawPath, err := url.PathUnescape(fullPath)
-		if err != nil {
-			return nil, err
-		}
-		if runtime.GOOS == "windows" && len(rawPath) >= 4 && rawPath[0] == '/' && unicode.IsLetter(rune(rawPath[1])) && rawPath[2] == ':' {
-			// On Windows, file URLs look like "file:///C:/foo/bar". url.Path will
-			// start with a slash which must be removed. See golang.org/issue/6027.
-			rawPath = rawPath[1:]
-		}
-		return os.Open(filepath.FromSlash(rawPath))
-	}
 
 	target := *p.url
 	target.Path = fullPath
@@ -341,118 +335,4 @@ func (p *proxyRepo) Zip(dst io.Writer, version string) error {
 // It does not escape / to %2F: our REST API is designed so that / can be left as is.
 func pathEscape(s string) string {
 	return strings.ReplaceAll(url.PathEscape(s), "%2F", "/")
-}
-
-// A lazyRepo is a lazily-initialized Repo,
-// constructed on demand by calling setup.
-type lazyRepo struct {
-	path  string
-	setup func(string) (Repo, error)
-	once  sync.Once
-	repo  Repo
-	err   error
-}
-
-func (r *lazyRepo) init() {
-	r.repo, r.err = r.setup(r.path)
-}
-
-func (r *lazyRepo) ModulePath() string {
-	return r.path
-}
-
-func (r *lazyRepo) Versions(prefix string) ([]string, error) {
-	if r.once.Do(r.init); r.err != nil {
-		return nil, r.err
-	}
-	return r.repo.Versions(prefix)
-}
-
-func (r *lazyRepo) Stat(rev string) (*RevInfo, error) {
-	if r.once.Do(r.init); r.err != nil {
-		return nil, r.err
-	}
-	return r.repo.Stat(rev)
-}
-
-func (r *lazyRepo) Latest() (*RevInfo, error) {
-	if r.once.Do(r.init); r.err != nil {
-		return nil, r.err
-	}
-	return r.repo.Latest()
-}
-
-func (r *lazyRepo) GoMod(version string) ([]byte, error) {
-	if r.once.Do(r.init); r.err != nil {
-		return nil, r.err
-	}
-	return r.repo.GoMod(version)
-}
-
-func (r *lazyRepo) Zip(dst io.Writer, version string) error {
-	if r.once.Do(r.init); r.err != nil {
-		return r.err
-	}
-	return r.repo.Zip(dst, version)
-}
-
-// A listRepo is a preference list of Repos.
-// The list must be non-empty and all Repos
-// must return the same result from ModulePath.
-// For each method, the repos are tried in order
-// until one succeeds or returns a non-ErrNotExist (non-404) error.
-type listRepo []Repo
-
-func (l listRepo) ModulePath() string {
-	return l[0].ModulePath()
-}
-
-func (l listRepo) Versions(prefix string) ([]string, error) {
-	for i, r := range l {
-		v, err := r.Versions(prefix)
-		if i == len(l)-1 || !errors.Is(err, os.ErrNotExist) {
-			return v, err
-		}
-	}
-	panic("no repos")
-}
-
-func (l listRepo) Stat(rev string) (*RevInfo, error) {
-	for i, r := range l {
-		info, err := r.Stat(rev)
-		if i == len(l)-1 || !errors.Is(err, os.ErrNotExist) {
-			return info, err
-		}
-	}
-	panic("no repos")
-}
-
-func (l listRepo) Latest() (*RevInfo, error) {
-	for i, r := range l {
-		info, err := r.Latest()
-		if i == len(l)-1 || !errors.Is(err, os.ErrNotExist) {
-			return info, err
-		}
-	}
-	panic("no repos")
-}
-
-func (l listRepo) GoMod(version string) ([]byte, error) {
-	for i, r := range l {
-		data, err := r.GoMod(version)
-		if i == len(l)-1 || !errors.Is(err, os.ErrNotExist) {
-			return data, err
-		}
-	}
-	panic("no repos")
-}
-
-func (l listRepo) Zip(dst io.Writer, version string) error {
-	for i, r := range l {
-		err := r.Zip(dst, version)
-		if i == len(l)-1 || !errors.Is(err, os.ErrNotExist) {
-			return err
-		}
-	}
-	panic("no repos")
 }

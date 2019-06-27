@@ -27,12 +27,12 @@ const (
 
 type Val struct {
 	// U contains one of:
-	// bool     bool when n.ValCtype() == CTBOOL
-	// *Mpint   int when n.ValCtype() == CTINT, rune when n.ValCtype() == CTRUNE
-	// *Mpflt   float when n.ValCtype() == CTFLT
-	// *Mpcplx  pair of floats when n.ValCtype() == CTCPLX
-	// string   string when n.ValCtype() == CTSTR
-	// *Nilval  when n.ValCtype() == CTNIL
+	// bool     bool when Ctype() == CTBOOL
+	// *Mpint   int when Ctype() == CTINT, rune when Ctype() == CTRUNE
+	// *Mpflt   float when Ctype() == CTFLT
+	// *Mpcplx  pair of floats when Ctype() == CTCPLX
+	// string   string when Ctype() == CTSTR
+	// *Nilval  when Ctype() == CTNIL
 	U interface{}
 }
 

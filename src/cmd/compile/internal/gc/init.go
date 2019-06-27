@@ -31,7 +31,7 @@ func renameinit() *types.Sym {
 //   2) Initialize all the variables that have initializers.
 //   3) Run any init functions.
 func fninit(n []*Node) {
-	nf := initfix(n)
+	nf := initOrder(n)
 
 	var deps []*obj.LSym // initTask records for packages the current package depends on
 	var fns []*obj.LSym  // functions to call for package initialization

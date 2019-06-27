@@ -11,11 +11,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"strconv"
-	"strings"
 	"syscall/js"
 )
+
+var uint8Array = js.Global().Get("Uint8Array")
 
 // jsFetchMode is a Request.Header map key that, if present,
 // signals that the map entry is actually an option to the Fetch API mode setting.
@@ -41,9 +41,11 @@ const jsFetchCreds = "js.fetch:credentials"
 // Reference: https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch#Parameters
 const jsFetchRedirect = "js.fetch:redirect"
 
+var useFakeNetwork = js.Global().Get("fetch") == js.Undefined()
+
 // RoundTrip implements the RoundTripper interface using the WHATWG Fetch API.
 func (t *Transport) RoundTrip(req *Request) (*Response, error) {
-	if useFakeNetwork() {
+	if useFakeNetwork {
 		return t.roundTrip(req)
 	}
 
@@ -96,9 +98,9 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 			return nil, err
 		}
 		req.Body.Close()
-		a := js.TypedArrayOf(body)
-		defer a.Release()
-		opt.Set("body", a)
+		buf := uint8Array.New(len(body))
+		js.CopyBytesToJS(buf, body)
+		opt.Set("body", buf)
 	}
 	respPromise := js.Global().Call("fetch", req.URL.String(), opt)
 	var (
@@ -180,12 +182,6 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 
 var errClosed = errors.New("net/http: reader is closed")
 
-// useFakeNetwork is used to determine whether the request is made
-// by a test and should be made to use the fake in-memory network.
-func useFakeNetwork() bool {
-	return len(os.Args) > 0 && strings.HasSuffix(os.Args[0], ".test")
-}
-
 // streamReader implements an io.ReadCloser wrapper for ReadableStream.
 // See https://fetch.spec.whatwg.org/#readablestream for more information.
 type streamReader struct {
@@ -210,9 +206,7 @@ func (r *streamReader) Read(p []byte) (n int, err error) {
 				return nil
 			}
 			value := make([]byte, result.Get("value").Get("byteLength").Int())
-			a := js.TypedArrayOf(value)
-			a.Call("set", result.Get("value"))
-			a.Release()
+			js.CopyBytesToGo(value, result.Get("value"))
 			bCh <- value
 			return nil
 		})
@@ -273,11 +267,9 @@ func (r *arrayReader) Read(p []byte) (n int, err error) {
 		)
 		success := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 			// Wrap the input ArrayBuffer with a Uint8Array
-			uint8arrayWrapper := js.Global().Get("Uint8Array").New(args[0])
+			uint8arrayWrapper := uint8Array.New(args[0])
 			value := make([]byte, uint8arrayWrapper.Get("byteLength").Int())
-			a := js.TypedArrayOf(value)
-			a.Call("set", uint8arrayWrapper)
-			a.Release()
+			js.CopyBytesToGo(value, uint8arrayWrapper)
 			bCh <- value
 			return nil
 		})

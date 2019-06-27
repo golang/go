@@ -40,7 +40,7 @@ To use the go tool directly to run programs and tests, put $GOROOT/bin into PATH
 the go_darwin_$GOARCH_exec wrapper is found. For example, to run the archive/tar tests
 
 	export PATH=$GOROOT/bin:$PATH
-	GOARCH=arm64 go test archive/tar
+	GOARCH=arm64 CGO_ENABLED=1 go test archive/tar
 
 Note that the go_darwin_$GOARCH_exec wrapper uninstalls any existing app identified by
 the bundle id before installing a new app. If the uninstalled app is the last app by

@@ -33,6 +33,7 @@ var (
 	ExportHttp2ConfigureServer        = http2ConfigureServer
 	Export_shouldCopyHeaderOnRedirect = shouldCopyHeaderOnRedirect
 	Export_writeStatusLine            = writeStatusLine
+	Export_is408Message               = is408Message
 )
 
 const MaxWriteWaitBeforeConnReuse = maxWriteWaitBeforeConnReuse
@@ -244,3 +245,18 @@ func ExportSetH2GoawayTimeout(d time.Duration) (restore func()) {
 }
 
 func (r *Request) ExportIsReplayable() bool { return r.isReplayable() }
+
+// ExportCloseTransportConnsAbruptly closes all idle connections from
+// tr in an abrupt way, just reaching into the underlying Conns and
+// closing them, without telling the Transport or its persistConns
+// that it's doing so. This is to simulate the server closing connections
+// on the Transport.
+func ExportCloseTransportConnsAbruptly(tr *Transport) {
+	tr.idleMu.Lock()
+	for _, pcs := range tr.idleConn {
+		for _, pc := range pcs {
+			pc.conn.Close()
+		}
+	}
+	tr.idleMu.Unlock()
+}

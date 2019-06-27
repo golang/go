@@ -318,7 +318,7 @@ func (ctxt *Link) pclntab() {
 				// set the resumption point to PC_B.
 				lastWasmAddr = uint32(r.Add)
 			}
-			if r.Sym != nil && r.Sym.Name == "runtime.deferreturn" && r.Add == 0 {
+			if r.Type.IsDirectJump() && r.Sym != nil && r.Sym.Name == "runtime.deferreturn" {
 				if ctxt.Arch.Family == sys.Wasm {
 					deferreturn = lastWasmAddr
 				} else {

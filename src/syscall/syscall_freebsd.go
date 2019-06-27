@@ -267,7 +267,21 @@ func Fstatfs(fd int, st *Statfs_t) (err error) {
 
 func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 	if supportsABI(_ino64First) {
-		return getdirentries_freebsd12(fd, buf, basep)
+		if unsafe.Sizeof(*basep) == 8 {
+			return getdirentries_freebsd12(fd, buf, (*uint64)(unsafe.Pointer(basep)))
+		}
+		// The freebsd12 syscall needs a 64-bit base. On 32-bit machines
+		// we can't just use the basep passed in. See #32498.
+		var base uint64 = uint64(*basep)
+		n, err = getdirentries_freebsd12(fd, buf, &base)
+		*basep = uintptr(base)
+		if base>>32 != 0 {
+			// We can't stuff the base back into a uintptr, so any
+			// future calls would be suspect. Generate an error.
+			// EIO is allowed by getdirentries.
+			err = EIO
+		}
+		return
 	}
 
 	// The old syscall entries are smaller than the new. Use 1/4 of the original
@@ -424,7 +438,7 @@ func convertFromDirents11(buf []byte, old []byte) int {
 //sys	Fsync(fd int) (err error)
 //sys	Ftruncate(fd int, length int64) (err error)
 //sys	getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error)
-//sys	getdirentries_freebsd12(fd int, buf []byte, basep *uintptr) (n int, err error) = _SYS_GETDIRENTRIES_FREEBSD12
+//sys	getdirentries_freebsd12(fd int, buf []byte, basep *uint64) (n int, err error) = _SYS_GETDIRENTRIES_FREEBSD12
 //sys	Getdtablesize() (size int)
 //sysnb	Getegid() (egid int)
 //sysnb	Geteuid() (uid int)

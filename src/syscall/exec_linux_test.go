@@ -42,6 +42,15 @@ func skipInContainer(t *testing.T) {
 	}
 }
 
+func skipUnprivilegedUserClone(t *testing.T) {
+	// Skip the test if the sysctl that prevents unprivileged user
+	// from creating user namespaces is enabled.
+	data, errRead := ioutil.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
+	if errRead != nil || len(data) < 1 || data[0] == '0' {
+		t.Skip("kernel prohibits user namespace in unprivileged process")
+	}
+}
+
 // Check if we are in a chroot by checking if the inode of / is
 // different from 2 (there is no better test available to non-root on
 // linux).
@@ -72,10 +81,7 @@ func checkUserNS(t *testing.T) {
 	}
 	// On some systems, there is a sysctl setting.
 	if os.Getuid() != 0 {
-		data, errRead := ioutil.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
-		if errRead == nil && data[0] == '0' {
-			t.Skip("kernel prohibits user namespace in unprivileged process")
-		}
+		skipUnprivilegedUserClone(t)
 	}
 	// On Centos 7 make sure they set the kernel parameter user_namespace=1
 	// See issue 16283 and 20796.
@@ -582,12 +588,7 @@ func testAmbientCaps(t *testing.T, userns bool) {
 		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
 	}
 
-	// Skip the test if the sysctl that prevents unprivileged user
-	// from creating user namespaces is enabled.
-	data, errRead := ioutil.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
-	if errRead == nil && data[0] == '0' {
-		t.Skip("kernel prohibits user namespace in unprivileged process")
-	}
+	skipUnprivilegedUserClone(t)
 
 	// skip on android, due to lack of lookup support
 	if runtime.GOOS == "android" {

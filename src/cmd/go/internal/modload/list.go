@@ -55,18 +55,28 @@ func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
 			base.Fatalf("go: cannot use relative path %s to specify module", arg)
 		}
 		if i := strings.Index(arg, "@"); i >= 0 {
-			info, err := Query(arg[:i], arg[i+1:], nil)
+			path := arg[:i]
+			vers := arg[i+1:]
+			var current string
+			for _, m := range buildList {
+				if m.Path == path {
+					current = m.Version
+					break
+				}
+			}
+
+			info, err := Query(path, vers, current, nil)
 			if err != nil {
 				mods = append(mods, &modinfo.ModulePublic{
-					Path:    arg[:i],
-					Version: arg[i+1:],
+					Path:    path,
+					Version: vers,
 					Error: &modinfo.ModuleError{
 						Err: err.Error(),
 					},
 				})
 				continue
 			}
-			mods = append(mods, moduleInfo(module.Version{Path: arg[:i], Version: info.Version}, false))
+			mods = append(mods, moduleInfo(module.Version{Path: path, Version: info.Version}, false))
 			continue
 		}
 
@@ -101,11 +111,18 @@ func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
 					// Don't make the user provide an explicit '@latest' when they're
 					// explicitly asking what the available versions are.
 					// Instead, resolve the module, even if it isn't an existing dependency.
-					info, err := Query(arg, "latest", nil)
+					info, err := Query(arg, "latest", "", nil)
 					if err == nil {
 						mods = append(mods, moduleInfo(module.Version{Path: arg, Version: info.Version}, false))
-						continue
+					} else {
+						mods = append(mods, &modinfo.ModulePublic{
+							Path: arg,
+							Error: &modinfo.ModuleError{
+								Err: err.Error(),
+							},
+						})
 					}
+					continue
 				}
 				mods = append(mods, &modinfo.ModulePublic{
 					Path: arg,

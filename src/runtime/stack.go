@@ -719,16 +719,21 @@ func adjustctxt(gp *g, adjinfo *adjustinfo) {
 }
 
 func adjustdefers(gp *g, adjinfo *adjustinfo) {
-	// Adjust defer argument blocks the same way we adjust active stack frames.
-	tracebackdefers(gp, adjustframe, noescape(unsafe.Pointer(adjinfo)))
-
 	// Adjust pointers in the Defer structs.
-	// Defer structs themselves are never on the stack.
+	// We need to do this first because we need to adjust the
+	// defer.link fields so we always work on the new stack.
+	adjustpointer(adjinfo, unsafe.Pointer(&gp._defer))
 	for d := gp._defer; d != nil; d = d.link {
 		adjustpointer(adjinfo, unsafe.Pointer(&d.fn))
 		adjustpointer(adjinfo, unsafe.Pointer(&d.sp))
 		adjustpointer(adjinfo, unsafe.Pointer(&d._panic))
+		adjustpointer(adjinfo, unsafe.Pointer(&d.link))
 	}
+
+	// Adjust defer argument blocks the same way we adjust active stack frames.
+	// Note: this code is after the loop above, so that if a defer record is
+	// stack allocated, we work on the copy in the new stack.
+	tracebackdefers(gp, adjustframe, noescape(unsafe.Pointer(adjinfo)))
 }
 
 func adjustpanics(gp *g, adjinfo *adjustinfo) {
@@ -1295,7 +1300,10 @@ type stackObjectRecord struct {
 	typ *_type
 }
 
+// This is exported as ABI0 via linkname so obj can call it.
+//
 //go:nosplit
+//go:linkname morestackc
 func morestackc() {
 	throw("attempt to execute system stack code on user stack")
 }

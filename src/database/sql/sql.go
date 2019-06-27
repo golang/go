@@ -1792,6 +1792,8 @@ type Conn struct {
 	done int32
 }
 
+// grabConn takes a context to implement stmtConnGrabber
+// but the context is not used.
 func (c *Conn) grabConn(context.Context) (*driverConn, releaseConn, error) {
 	if atomic.LoadInt32(&c.done) != 0 {
 		return nil, nil, ErrConnDone
@@ -1854,6 +1856,39 @@ func (c *Conn) PrepareContext(ctx context.Context, query string) (*Stmt, error) 
 		return nil, err
 	}
 	return c.db.prepareDC(ctx, dc, release, c, query)
+}
+
+// Raw executes f exposing the underlying driver connection for the
+// duration of f. The driverConn must not be used outside of f.
+//
+// Once f returns and err is nil, the Conn will continue to be usable
+// until Conn.Close is called.
+func (c *Conn) Raw(f func(driverConn interface{}) error) (err error) {
+	var dc *driverConn
+	var release releaseConn
+
+	// grabConn takes a context to implement stmtConnGrabber, but the context is not used.
+	dc, release, err = c.grabConn(nil)
+	if err != nil {
+		return
+	}
+	fPanic := true
+	dc.Mutex.Lock()
+	defer func() {
+		dc.Mutex.Unlock()
+
+		// If f panics fPanic will remain true.
+		// Ensure an error is passed to release so the connection
+		// may be discarded.
+		if fPanic {
+			err = driver.ErrBadConn
+		}
+		release(err)
+	}()
+	err = f(dc.ci)
+	fPanic = false
+
+	return
 }
 
 // BeginTx starts a transaction.

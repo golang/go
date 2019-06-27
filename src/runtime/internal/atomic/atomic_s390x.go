@@ -6,6 +6,11 @@ package atomic
 
 import "unsafe"
 
+// Export some functions via linkname to assembly in sync/atomic.
+//go:linkname Load
+//go:linkname Loadp
+//go:linkname Load64
+
 //go:nosplit
 //go:noinline
 func Load(ptr *uint32) uint32 {
@@ -36,30 +41,17 @@ func LoadAcq(ptr *uint32) uint32 {
 	return *ptr
 }
 
-//go:noinline
-//go:nosplit
-func Store(ptr *uint32, val uint32) {
-	*ptr = val
-}
+//go:noescape
+func Store(ptr *uint32, val uint32)
 
-//go:noinline
-//go:nosplit
-func Store64(ptr *uint64, val uint64) {
-	*ptr = val
-}
-
-//go:notinheap
-type noWB struct{}
+//go:noescape
+func Store64(ptr *uint64, val uint64)
 
 // NO go:noescape annotation; see atomic_pointer.go.
-//go:noinline
-//go:nosplit
-func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer) {
-	*(**noWB)(ptr) = (*noWB)(val)
-}
+func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
 
-//go:noinline
 //go:nosplit
+//go:noinline
 func StoreRel(ptr *uint32, val uint32) {
 	*ptr = val
 }

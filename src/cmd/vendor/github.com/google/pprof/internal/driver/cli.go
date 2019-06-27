@@ -32,14 +32,15 @@ type source struct {
 	DiffBase  bool
 	Normalize bool
 
-	Seconds      int
-	Timeout      int
-	Symbolize    string
-	HTTPHostport string
-	Comment      string
+	Seconds            int
+	Timeout            int
+	Symbolize          string
+	HTTPHostport       string
+	HTTPDisableBrowser bool
+	Comment            string
 }
 
-// Parse parses the command lines through the specified flags package
+// parseFlags parses the command lines through the specified flags package
 // and returns the source of the profile and optionally the command
 // for the kind of report to generate (nil for interactive use).
 func parseFlags(o *plugin.Options) (*source, []string, error) {
@@ -65,7 +66,8 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
 	flagMeanDelay := flag.Bool("mean_delay", false, "Display mean delay at each region")
 	flagTools := flag.String("tools", os.Getenv("PPROF_TOOLS"), "Path for object tool pathnames")
 
-	flagHTTP := flag.String("http", "", "Present interactive web based UI at the specified http host:port")
+	flagHTTP := flag.String("http", "", "Present interactive web UI at the specified http host:port")
+	flagNoBrowser := flag.Bool("no_browser", false, "Skip opening a browswer for the interactive web UI")
 
 	// Flags used during command processing
 	installedFlags := installFlags(flag)
@@ -118,6 +120,10 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
 		return nil, nil, errors.New("-http is not compatible with an output format on the command line")
 	}
 
+	if *flagNoBrowser && *flagHTTP == "" {
+		return nil, nil, errors.New("-no_browser only makes sense with -http")
+	}
+
 	si := pprofVariables["sample_index"].value
 	si = sampleIndex(flagTotalDelay, si, "delay", "-total_delay", o.UI)
 	si = sampleIndex(flagMeanDelay, si, "delay", "-mean_delay", o.UI)
@@ -133,14 +139,15 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
 	}
 
 	source := &source{
-		Sources:      args,
-		ExecName:     execName,
-		BuildID:      *flagBuildID,
-		Seconds:      *flagSeconds,
-		Timeout:      *flagTimeout,
-		Symbolize:    *flagSymbolize,
-		HTTPHostport: *flagHTTP,
-		Comment:      *flagAddComment,
+		Sources:            args,
+		ExecName:           execName,
+		BuildID:            *flagBuildID,
+		Seconds:            *flagSeconds,
+		Timeout:            *flagTimeout,
+		Symbolize:          *flagSymbolize,
+		HTTPHostport:       *flagHTTP,
+		HTTPDisableBrowser: *flagNoBrowser,
+		Comment:            *flagAddComment,
 	}
 
 	if err := source.addBaseProfiles(*flagBase, *flagDiffBase); err != nil {
@@ -327,9 +334,10 @@ var usageMsgSrc = "\n\n" +
 
 var usageMsgVars = "\n\n" +
 	"  Misc options:\n" +
-	"   -http              Provide web based interface at host:port.\n" +
+	"   -http              Provide web interface at host:port.\n" +
 	"                      Host is optional and 'localhost' by default.\n" +
 	"                      Port is optional and a randomly available port by default.\n" +
+	"   -no_browser        Skip opening a browser for the interactive web UI.\n" +
 	"   -tools             Search path for object tools\n" +
 	"\n" +
 	"  Legacy convenience options:\n" +

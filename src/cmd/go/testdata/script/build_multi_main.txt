@@ -29,5 +29,5 @@ package pkg1
 -- pkg2/pkg2.go --
 package pkg2
 
--- c1$exe/keep.txt --
+-- c1$GOEXE/keep.txt --
 Create c1 directory.

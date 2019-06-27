@@ -14,9 +14,11 @@ package web
 import (
 	"crypto/tls"
 	"fmt"
-	"log"
+	"io/ioutil"
 	"net/http"
 	urlpkg "net/url"
+	"os"
+	"strings"
 	"time"
 
 	"cmd/go/internal/auth"
@@ -50,9 +52,33 @@ var securityPreservingHTTPClient = &http.Client{
 }
 
 func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+	start := time.Now()
+
+	if url.Scheme == "file" {
+		return getFile(url)
+	}
+
+	if os.Getenv("TESTGOPROXY404") == "1" && url.Host == "proxy.golang.org" {
+		res := &Response{
+			URL:        Redacted(url),
+			Status:     "404 testing",
+			StatusCode: 404,
+			Header:     make(map[string][]string),
+			Body:       ioutil.NopCloser(strings.NewReader("")),
+		}
+		if cfg.BuildX {
+			fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", Redacted(url), res.Status, time.Since(start).Seconds())
+		}
+		return res, nil
+	}
+
 	fetch := func(url *urlpkg.URL) (*urlpkg.URL, *http.Response, error) {
-		if cfg.BuildV {
-			log.Printf("Fetching %s", url)
+		// Note: The -v build flag does not mean "print logging information",
+		// despite its historical misuse for this in GOPATH-based go get.
+		// We print extra logging in -x mode instead, which traces what
+		// commands are executed.
+		if cfg.BuildX {
+			fmt.Fprintf(os.Stderr, "# get %s\n", Redacted(url))
 		}
 
 		req, err := http.NewRequest("GET", url.String(), nil)
@@ -84,8 +110,8 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 
 		fetched, res, err = fetch(secure)
 		if err != nil {
-			if cfg.BuildV {
-				log.Printf("https fetch failed: %v", err)
+			if cfg.BuildX {
+				fmt.Fprintf(os.Stderr, "# get %s: %v\n", Redacted(url), err)
 			}
 			if security != Insecure || url.Scheme == "https" {
 				// HTTPS failed, and we can't fall back to plain HTTP.
@@ -99,6 +125,9 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		switch url.Scheme {
 		case "http":
 			if security == SecureOnly {
+				if cfg.BuildX {
+					fmt.Fprintf(os.Stderr, "# get %s: insecure\n", Redacted(url))
+				}
 				return nil, fmt.Errorf("insecure URL: %s", Redacted(url))
 			}
 		case "":
@@ -106,6 +135,9 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 				panic("should have returned after HTTPS failure")
 			}
 		default:
+			if cfg.BuildX {
+				fmt.Fprintf(os.Stderr, "# get %s: unsupported\n", Redacted(url))
+			}
 			return nil, fmt.Errorf("unsupported scheme: %s", Redacted(url))
 		}
 
@@ -113,11 +145,17 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		*insecure = *url
 		insecure.Scheme = "http"
 		if insecure.User != nil && security != Insecure {
+			if cfg.BuildX {
+				fmt.Fprintf(os.Stderr, "# get %s: insecure credentials\n", Redacted(url))
+			}
 			return nil, fmt.Errorf("refusing to pass credentials to insecure URL: %s", Redacted(insecure))
 		}
 
 		fetched, res, err = fetch(insecure)
 		if err != nil {
+			if cfg.BuildX {
+				fmt.Fprintf(os.Stderr, "# get %s: %v\n", Redacted(url), err)
+			}
 			// HTTP failed, and we already tried HTTPS if applicable.
 			// Report the error from the HTTP attempt.
 			return nil, err
@@ -126,8 +164,8 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 
 	// Note: accepting a non-200 OK here, so people can serve a
 	// meta import in their http 404 page.
-	if cfg.BuildV {
-		log.Printf("reading from %s: status code %d", Redacted(fetched), res.StatusCode)
+	if cfg.BuildX {
+		fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", Redacted(url), res.Status, time.Since(start).Seconds())
 	}
 	r := &Response{
 		URL:        Redacted(fetched),
@@ -137,6 +175,43 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		Body:       res.Body,
 	}
 	return r, nil
+}
+
+func getFile(u *urlpkg.URL) (*Response, error) {
+	path, err := urlToFilePath(u)
+	if err != nil {
+		return nil, err
+	}
+	f, err := os.Open(path)
+
+	if os.IsNotExist(err) {
+		return &Response{
+			URL:        Redacted(u),
+			Status:     http.StatusText(http.StatusNotFound),
+			StatusCode: http.StatusNotFound,
+			Body:       http.NoBody,
+		}, nil
+	}
+
+	if os.IsPermission(err) {
+		return &Response{
+			URL:        Redacted(u),
+			Status:     http.StatusText(http.StatusForbidden),
+			StatusCode: http.StatusForbidden,
+			Body:       http.NoBody,
+		}, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &Response{
+		URL:        Redacted(u),
+		Status:     http.StatusText(http.StatusOK),
+		StatusCode: http.StatusOK,
+		Body:       f,
+	}, nil
 }
 
 func openBrowser(url string) bool { return browser.Open(url) }

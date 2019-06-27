@@ -141,7 +141,7 @@ const (
 	LC_SUB_LIBRARY              = 0x15
 	LC_TWOLEVEL_HINTS           = 0x16
 	LC_PREBIND_CKSUM            = 0x17
-	LC_LOAD_WEAK_DYLIB          = 0x18
+	LC_LOAD_WEAK_DYLIB          = 0x80000018
 	LC_SEGMENT_64               = 0x19
 	LC_ROUTINES_64              = 0x1a
 	LC_UUID                     = 0x1b

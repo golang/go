@@ -5,7 +5,7 @@ env AppData=$HOME/windowsappdata
 env home=$HOME/plan9home
 go env GOENV
 [aix] stdout $HOME/.config/go/env
-[darwin] stdout $HOME/Library/Preferences/go/env
+[darwin] stdout $HOME'/Library/Application Support/go/env'
 [freebsd] stdout $HOME/.config/go/env
 [linux] stdout $HOME/.config/go/env
 [netbsd] stdout $HOME/.config/go/env

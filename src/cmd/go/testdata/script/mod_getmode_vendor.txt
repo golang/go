@@ -1,6 +1,6 @@
 env GO111MODULE=on
 
-go get -m rsc.io/quote@v1.5.1
+go get -d rsc.io/quote@v1.5.1
 go mod vendor
 env GOPATH=$WORK/empty
 env GOPROXY=file:///nonexist

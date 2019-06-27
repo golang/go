@@ -1076,7 +1076,7 @@ func (v Value) IsValid() bool {
 	return v.flag != 0
 }
 
-// IsZero reports whether v is a zero value for its type.
+// IsZero reports whether v is the zero value for its type.
 // It panics if the argument is invalid.
 func (v Value) IsZero() bool {
 	switch v.kind() {

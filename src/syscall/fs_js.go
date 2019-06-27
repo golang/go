@@ -19,6 +19,7 @@ func now() (sec int64, nsec int32)
 var jsProcess = js.Global().Get("process")
 var jsFS = js.Global().Get("fs")
 var constants = jsFS.Get("constants")
+
 var uint8Array = js.Global().Get("Uint8Array")
 
 var (
@@ -384,10 +385,7 @@ func Read(fd int, b []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-
-	a := js.TypedArrayOf(b)
-	a.Call("set", buf)
-	a.Release()
+	js.CopyBytesToGo(b, buf)
 
 	n2 := n.Int()
 	f.pos += int64(n2)
@@ -406,11 +404,8 @@ func Write(fd int, b []byte) (int, error) {
 		return n, err
 	}
 
-	a := js.TypedArrayOf(b)
 	buf := uint8Array.New(len(b))
-	buf.Call("set", a)
-	a.Release()
-
+	js.CopyBytesToJS(buf, b)
 	n, err := fsCall("write", fd, buf, 0, len(b), nil)
 	if err != nil {
 		return 0, err
@@ -426,20 +421,13 @@ func Pread(fd int, b []byte, offset int64) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-
-	a := js.TypedArrayOf(b)
-	a.Call("set", buf)
-	a.Release()
-
+	js.CopyBytesToGo(b, buf)
 	return n.Int(), nil
 }
 
 func Pwrite(fd int, b []byte, offset int64) (int, error) {
-	a := js.TypedArrayOf(b)
 	buf := uint8Array.New(len(b))
-	buf.Call("set", a)
-	a.Release()
-
+	js.CopyBytesToJS(buf, b)
 	n, err := fsCall("write", fd, buf, 0, len(b), offset)
 	if err != nil {
 		return 0, err

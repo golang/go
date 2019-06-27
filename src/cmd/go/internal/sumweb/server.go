@@ -7,9 +7,9 @@ package sumweb
 
 import (
 	"context"
+	"internal/lazyregexp"
 	"net/http"
 	"os"
-	"regexp"
 	"strings"
 
 	"cmd/go/internal/tlog"
@@ -59,7 +59,7 @@ var Paths = []string{
 	"/tile/",
 }
 
-var modVerRE = regexp.MustCompile(`^[^@]+@v[0-9]+\.[0-9]+\.[0-9]+(-[^@]*)?(\+incompatible)?$`)
+var modVerRE = lazyregexp.New(`^[^@]+@v[0-9]+\.[0-9]+\.[0-9]+(-[^@]*)?(\+incompatible)?$`)
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx, err := h.Server.NewContext(r)

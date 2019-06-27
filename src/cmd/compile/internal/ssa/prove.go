@@ -553,15 +553,29 @@ func (ft *factsTable) isNonNegative(v *Value) bool {
 		return true
 	}
 
+	var max int64
+	switch v.Type.Size() {
+	case 1:
+		max = math.MaxInt8
+	case 2:
+		max = math.MaxInt16
+	case 4:
+		max = math.MaxInt32
+	case 8:
+		max = math.MaxInt64
+	default:
+		panic("unexpected integer size")
+	}
+
 	// Check if the recorded limits can prove that the value is positive
-	if l, has := ft.limits[v.ID]; has && (l.min >= 0 || l.umax <= math.MaxInt64) {
+	if l, has := ft.limits[v.ID]; has && (l.min >= 0 || l.umax <= uint64(max)) {
 		return true
 	}
 
 	// Check if v = x+delta, and we can use x's limits to prove that it's positive
 	if x, delta := isConstDelta(v); x != nil {
 		if l, has := ft.limits[x.ID]; has {
-			if delta > 0 && l.min >= -delta && l.max <= math.MaxInt64-delta {
+			if delta > 0 && l.min >= -delta && l.max <= max-delta {
 				return true
 			}
 			if delta < 0 && l.min >= -delta {

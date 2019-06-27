@@ -386,6 +386,9 @@ func (f *File) addCounters(pos, insertPos, blockEnd token.Pos, list []ast.Stmt, 
 		f.edit.Insert(f.offset(insertPos), f.newCounter(insertPos, blockEnd, 0)+";")
 		return
 	}
+	// Make a copy of the list, as we may mutate it and should leave the
+	// existing list intact.
+	list = append([]ast.Stmt(nil), list...)
 	// We have a block (statement list), but it may have several basic blocks due to the
 	// appearance of statements that affect the flow of control.
 	for {

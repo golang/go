@@ -259,12 +259,19 @@ func newFileTest(t *testing.T, blocking bool) {
 	}
 	defer file.Close()
 
+	timeToWrite := 100 * time.Millisecond
+	timeToDeadline := 1 * time.Millisecond
+	if !blocking {
+		// Use a longer time to avoid flakes.
+		// We won't be waiting this long anyhow.
+		timeToWrite = 1 * time.Second
+	}
+
 	// Try to read with deadline (but don't block forever).
 	b := make([]byte, 1)
-	// Send something after 100ms.
-	timer := time.AfterFunc(100*time.Millisecond, func() { syscall.Write(p[1], []byte("a")) })
+	timer := time.AfterFunc(timeToWrite, func() { syscall.Write(p[1], []byte("a")) })
 	defer timer.Stop()
-	file.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
+	file.SetReadDeadline(time.Now().Add(timeToDeadline))
 	_, err := file.Read(b)
 	if !blocking {
 		// We want it to fail with a timeout.

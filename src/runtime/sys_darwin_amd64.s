@@ -369,7 +369,7 @@ TEXT runtime·kevent_trampoline(SB),NOSPLIT,$0
 	MOVQ	40(DI), R9		// arg 6 ts
 	MOVL	0(DI), DI		// arg 1 kq
 	CALL	libc_kevent(SB)
-	CMPQ	AX, $-1
+	CMPL	AX, $-1
 	JNE	ok
 	CALL	libc_error(SB)
 	MOVLQSX	(AX), AX		// errno
@@ -443,12 +443,12 @@ TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
 	POPQ	BP
 	RET
 
-TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0
+TEXT runtime·pthread_attr_getstacksize_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
 	MOVQ	8(DI), SI	// arg 2 size
 	MOVQ	0(DI), DI	// arg 1 attr
-	CALL	libc_pthread_attr_setstacksize(SB)
+	CALL	libc_pthread_attr_getstacksize(SB)
 	POPQ	BP
 	RET
 
@@ -482,64 +482,44 @@ TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
 	POPQ	BP
 	RET
 
-TEXT runtime·pthread_mutex_init_trampoline(SB),NOSPLIT,$0
+TEXT runtime·dispatch_semaphore_create_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	MOVQ	8(DI), SI	// arg 2 attr
-	MOVQ	0(DI), DI	// arg 1 mutex
-	CALL	libc_pthread_mutex_init(SB)
+	MOVQ	DI, BX
+	MOVQ	0(BX), DI	// arg 1 value
+	CALL	libc_dispatch_semaphore_create(SB)
+	MOVQ	AX, 8(BX)	// result sema
 	POPQ	BP
 	RET
 
-TEXT runtime·pthread_mutex_lock_trampoline(SB),NOSPLIT,$0
+TEXT runtime·dispatch_semaphore_wait_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	MOVQ	0(DI), DI	// arg 1 mutex
-	CALL	libc_pthread_mutex_lock(SB)
+	MOVQ	8(DI), SI	// arg 2 timeout
+	MOVQ	0(DI), DI	// arg 1 sema
+	CALL	libc_dispatch_semaphore_wait(SB)
+	TESTQ	AX, AX	// For safety convert 64-bit result to int32 0 or 1.
+	JEQ	2(PC)
+	MOVL	$1, AX
 	POPQ	BP
 	RET
 
-TEXT runtime·pthread_mutex_unlock_trampoline(SB),NOSPLIT,$0
+TEXT runtime·dispatch_semaphore_signal_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	MOVQ	0(DI), DI	// arg 1 mutex
-	CALL	libc_pthread_mutex_unlock(SB)
+	MOVQ	0(DI), DI	// arg 1 sema
+	CALL	libc_dispatch_semaphore_signal(SB)
 	POPQ	BP
 	RET
 
-TEXT runtime·pthread_cond_init_trampoline(SB),NOSPLIT,$0
+TEXT runtime·dispatch_time_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	MOVQ	8(DI), SI	// arg 2 attr
-	MOVQ	0(DI), DI	// arg 1 cond
-	CALL	libc_pthread_cond_init(SB)
-	POPQ	BP
-	RET
-
-TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
-	PUSHQ	BP
-	MOVQ	SP, BP
-	MOVQ	8(DI), SI	// arg 2 mutex
-	MOVQ	0(DI), DI	// arg 1 cond
-	CALL	libc_pthread_cond_wait(SB)
-	POPQ	BP
-	RET
-
-TEXT runtime·pthread_cond_timedwait_relative_np_trampoline(SB),NOSPLIT,$0
-	PUSHQ	BP
-	MOVQ	SP, BP
-	MOVQ	8(DI), SI	// arg 2 mutex
-	MOVQ	16(DI), DX	// arg 3 timeout
-	MOVQ	0(DI), DI	// arg 1 cond
-	CALL	libc_pthread_cond_timedwait_relative_np(SB)
-	POPQ	BP
-	RET
-
-TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
-	PUSHQ	BP
-	MOVQ	SP, BP
-	MOVQ	0(DI), DI	// arg 1 cond
-	CALL	libc_pthread_cond_signal(SB)
+	MOVQ	DI, BX
+	MOVQ	0(BX), DI	// arg 1 base
+	MOVQ	8(BX), SI	// arg 2 delta
+	CALL	libc_dispatch_time(SB)
+	MOVQ	AX, 16(BX)
 	POPQ	BP
 	RET
 
@@ -556,6 +536,9 @@ TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
 // }
 // syscall must be called on the g0 stack with the
 // C calling convention (use libcCall).
+//
+// syscall expects a 32-bit result and tests for 32-bit -1
+// to decide there was an error.
 TEXT runtime·syscall(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
@@ -603,6 +586,9 @@ ok:
 // }
 // syscallX must be called on the g0 stack with the
 // C calling convention (use libcCall).
+//
+// syscallX is like syscall but expects a 64-bit result
+// and tests for 64-bit -1 to decide there was an error.
 TEXT runtime·syscallX(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
@@ -689,6 +675,9 @@ ok:
 // }
 // syscall6 must be called on the g0 stack with the
 // C calling convention (use libcCall).
+//
+// syscall6 expects a 32-bit result and tests for 32-bit -1
+// to decide there was an error.
 TEXT runtime·syscall6(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
@@ -739,6 +728,9 @@ ok:
 // }
 // syscall6X must be called on the g0 stack with the
 // C calling convention (use libcCall).
+//
+// syscall6X is like syscall6 but expects a 64-bit result
+// and tests for 64-bit -1 to decide there was an error.
 TEXT runtime·syscall6X(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP

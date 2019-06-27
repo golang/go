@@ -685,12 +685,20 @@ func (test *serverTest) run(t *testing.T, write bool) {
 		}
 		for i, b := range flows {
 			if i%2 == 0 {
-				clientConn.SetWriteDeadline(time.Now().Add(1 * time.Minute))
+				if *fast {
+					clientConn.SetWriteDeadline(time.Now().Add(1 * time.Second))
+				} else {
+					clientConn.SetWriteDeadline(time.Now().Add(1 * time.Minute))
+				}
 				clientConn.Write(b)
 				continue
 			}
 			bb := make([]byte, len(b))
-			clientConn.SetReadDeadline(time.Now().Add(1 * time.Minute))
+			if *fast {
+				clientConn.SetReadDeadline(time.Now().Add(1 * time.Second))
+			} else {
+				clientConn.SetReadDeadline(time.Now().Add(1 * time.Minute))
+			}
 			n, err := io.ReadFull(clientConn, bb)
 			if err != nil {
 				t.Fatalf("%s #%d: %s\nRead %d, wanted %d, got %x, wanted %x\n", test.name, i+1, err, n, len(bb), bb[:n], b)
@@ -1205,10 +1213,16 @@ func TestHandshakeServerRSAPKCS1v15(t *testing.T) {
 
 func TestHandshakeServerRSAPSS(t *testing.T) {
 	test := &serverTest{
+		name:                          "RSA-RSAPSS",
+		command:                       []string{"openssl", "s_client", "-no_ticket", "-sigalgs", "rsa_pss_rsae_sha256"},
+		expectHandshakeErrorIncluding: "peer doesn't support any common signature algorithms", // See Issue 32425.
+	}
+	runServerTestTLS12(t, test)
+
+	test = &serverTest{
 		name:    "RSA-RSAPSS",
 		command: []string{"openssl", "s_client", "-no_ticket", "-sigalgs", "rsa_pss_rsae_sha256"},
 	}
-	runServerTestTLS12(t, test)
 	runServerTestTLS13(t, test)
 }
 
@@ -1445,11 +1459,18 @@ func TestClientAuth(t *testing.T) {
 	test = &serverTest{
 		name: "ClientAuthRequestedAndGiven",
 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
-			"-cert", certPath, "-key", keyPath, "-sigalgs", "rsa_pss_rsae_sha256"},
+			"-cert", certPath, "-key", keyPath, "-client_sigalgs", "rsa_pss_rsae_sha256"},
+		config:            config,
+		expectedPeerCerts: []string{}, // See Issue 32425.
+	}
+	runServerTestTLS12(t, test)
+	test = &serverTest{
+		name: "ClientAuthRequestedAndGiven",
+		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
+			"-cert", certPath, "-key", keyPath, "-client_sigalgs", "rsa_pss_rsae_sha256"},
 		config:            config,
 		expectedPeerCerts: []string{clientCertificatePEM},
 	}
-	runServerTestTLS12(t, test)
 	runServerTestTLS13(t, test)
 
 	test = &serverTest{
@@ -1475,7 +1496,7 @@ func TestClientAuth(t *testing.T) {
 	test = &serverTest{
 		name: "ClientAuthRequestedAndPKCS1v15Given",
 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
-			"-cert", certPath, "-key", keyPath, "-sigalgs", "rsa_pkcs1_sha256"},
+			"-cert", certPath, "-key", keyPath, "-client_sigalgs", "rsa_pkcs1_sha256"},
 		config:            config,
 		expectedPeerCerts: []string{clientCertificatePEM},
 	}
@@ -1682,7 +1703,7 @@ var testRSACertificate = fromHex("3082024b308201b4a003020102020900e8f09d3fe25bea
 
 var testRSACertificateIssuer = fromHex("3082021930820182a003020102020900ca5e4e811a965964300d06092a864886f70d01010b0500301f310b3009060355040a1302476f3110300e06035504031307476f20526f6f74301e170d3136303130313030303030305a170d3235303130313030303030305a301f310b3009060355040a1302476f3110300e06035504031307476f20526f6f7430819f300d06092a864886f70d010101050003818d0030818902818100d667b378bb22f34143b6cd2008236abefaf2852adf3ab05e01329e2c14834f5105df3f3073f99dab5442d45ee5f8f57b0111c8cb682fbb719a86944eebfffef3406206d898b8c1b1887797c9c5006547bb8f00e694b7a063f10839f269f2c34fff7a1f4b21fbcd6bfdfb13ac792d1d11f277b5c5b48600992203059f2a8f8cc50203010001a35d305b300e0603551d0f0101ff040403020204301d0603551d250416301406082b0601050507030106082b06010505070302300f0603551d130101ff040530030101ff30190603551d0e041204104813494d137e1631bba301d5acab6e7b300d06092a864886f70d01010b050003818100c1154b4bab5266221f293766ae4138899bd4c5e36b13cee670ceeaa4cbdf4f6679017e2fe649765af545749fe4249418a56bd38a04b81e261f5ce86b8d5c65413156a50d12449554748c59a30c515bc36a59d38bddf51173e899820b282e40aa78c806526fd184fb6b4cf186ec728edffa585440d2b3225325f7ab580e87dd76")
 
-// testRSAPSSCertificate has signatureAlgorithm rsassaPss, and subjectPublicKeyInfo
+// testRSAPSSCertificate has signatureAlgorithm rsassaPss, but subjectPublicKeyInfo
 // algorithm rsaEncryption, for use with the rsa_pss_rsae_* SignatureSchemes.
 // See also TestRSAPSSKeyError. testRSAPSSCertificate is self-signed.
 var testRSAPSSCertificate = fromHex("308202583082018da003020102021100f29926eb87ea8a0db9fcc247347c11b0304106092a864886f70d01010a3034a00f300d06096086480165030402010500a11c301a06092a864886f70d010108300d06096086480165030402010500a20302012030123110300e060355040a130741636d6520436f301e170d3137313132333136313631305a170d3138313132333136313631305a30123110300e060355040a130741636d6520436f30819f300d06092a864886f70d010101050003818d0030818902818100db467d932e12270648bc062821ab7ec4b6a25dfe1e5245887a3647a5080d92425bc281c0be97799840fb4f6d14fd2b138bc2a52e67d8d4099ed62238b74a0b74732bc234f1d193e596d9747bf3589f6c613cc0b041d4d92b2b2423775b1c3bbd755dce2054cfa163871d1e24c4f31d1a508baab61443ed97a77562f414c852d70203010001a3463044300e0603551d0f0101ff0404030205a030130603551d25040c300a06082b06010505070301300c0603551d130101ff04023000300f0603551d110408300687047f000001304106092a864886f70d01010a3034a00f300d06096086480165030402010500a11c301a06092a864886f70d010108300d06096086480165030402010500a20302012003818100cdac4ef2ce5f8d79881042707f7cbf1b5a8a00ef19154b40151771006cd41626e5496d56da0c1a139fd84695593cb67f87765e18aa03ea067522dd78d2a589b8c92364e12838ce346c6e067b51f1a7e6f4b37ffab13f1411896679d18e880e0ba09e302ac067efca460288e9538122692297ad8093d4f7dd701424d7700a46a1")
@@ -1749,9 +1770,15 @@ func TestCloneHash(t *testing.T) {
 	}
 }
 
+func expectError(t *testing.T, err error, sub string) {
+	if err == nil {
+		t.Errorf(`expected error %q, got nil`, sub)
+	} else if !strings.Contains(err.Error(), sub) {
+		t.Errorf(`expected error %q, got %q`, sub, err)
+	}
+}
+
 func TestKeyTooSmallForRSAPSS(t *testing.T) {
-	clientConn, serverConn := localPipe(t)
-	client := Client(clientConn, testConfig)
 	cert, err := X509KeyPair([]byte(`-----BEGIN CERTIFICATE-----
 MIIBcTCCARugAwIBAgIQGjQnkCFlUqaFlt6ixyz/tDANBgkqhkiG9w0BAQsFADAS
 MRAwDgYDVQQKEwdBY21lIENvMB4XDTE5MDExODIzMjMyOFoXDTIwMDExODIzMjMy
@@ -1773,6 +1800,9 @@ T+E0J8wlH24pgwQHzy7Ko2qLwn1b5PW8ecrlvP1g
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	clientConn, serverConn := localPipe(t)
+	client := Client(clientConn, testConfig)
 	done := make(chan struct{})
 	go func() {
 		config := testConfig.Clone()
@@ -1780,14 +1810,16 @@ T+E0J8wlH24pgwQHzy7Ko2qLwn1b5PW8ecrlvP1g
 		config.MinVersion = VersionTLS13
 		server := Server(serverConn, config)
 		err := server.Handshake()
-		if !strings.Contains(err.Error(), "key size too small for PSS signature") {
-			t.Errorf(`expected "key size too small for PSS signature", got %q`, err)
-		}
+		expectError(t, err, "key size too small for PSS signature")
 		close(done)
 	}()
 	err = client.Handshake()
-	if !strings.Contains(err.Error(), "handshake failure") {
-		t.Errorf(`expected "handshake failure", got %q`, err)
-	}
+	expectError(t, err, "handshake failure")
 	<-done
+
+	// In TLS 1.2 RSA-PSS is not used, so this should succeed. See Issue 32425.
+	serverConfig := testConfig.Clone()
+	serverConfig.Certificates = []Certificate{cert}
+	serverConfig.MaxVersion = VersionTLS12
+	testHandshake(t, testConfig, serverConfig)
 }
