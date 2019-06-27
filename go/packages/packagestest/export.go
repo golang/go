@@ -141,7 +141,7 @@ func Export(t testing.TB, exporter Exporter, modules []Module) *Exported {
 	exported := &Exported{
 		Config: &packages.Config{
 			Dir:     temp,
-			Env:     append(os.Environ(), "GOPACKAGESDRIVER=off"),
+			Env:     append(os.Environ(), "GOPACKAGESDRIVER=off", "GOROOT="), // Clear GOROOT to work around #32849.
 			Overlay: make(map[string][]byte),
 			Tests:   true,
 			Mode:    packages.LoadImports,

@@ -2119,8 +2119,8 @@ func testAdHocContains(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
-func TestNoCcompiler(t *testing.T) { packagestest.TestAll(t, testNoCcompiler) }
-func testNoCcompiler(t *testing.T, exporter packagestest.Exporter) {
+func TestCgoNoCcompiler(t *testing.T) { packagestest.TestAll(t, testCgoNoCcompiler) }
+func testCgoNoCcompiler(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
 		Files: map[string]interface{}{
@@ -2135,6 +2135,7 @@ const A = http.MethodGet
 	exported.Config.Env = append(exported.Config.Env, "CGO_ENABLED=1", "CC=doesnotexist")
 	exported.Config.Mode = packages.LoadAllSyntax
 	initial, err := packages.Load(exported.Config, "golang.org/fake/a")
+
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2149,7 +2150,32 @@ const A = http.MethodGet
 	if got != "\"GET\"" {
 		t.Errorf("a.A: got %s, want %s", got, "\"GET\"")
 	}
+}
 
+func TestIssue32814(t *testing.T) { packagestest.TestAll(t, testIssue32814) }
+func testIssue32814(t *testing.T, exporter packagestest.Exporter) {
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name:  "golang.org/fake",
+		Files: map[string]interface{}{}}})
+	defer exported.Cleanup()
+
+	exported.Config.Mode = packages.NeedName | packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedTypesSizes
+	pkgs, err := packages.Load(exported.Config, "fmt")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(pkgs) != 1 && pkgs[0].PkgPath != "fmt" {
+		t.Fatalf("packages.Load: want [fmt], got %v", pkgs)
+	}
+	pkg := pkgs[0]
+	if len(pkg.Errors) != 0 {
+		t.Fatalf("Errors for fmt pkg: got %v, want none", pkg.Errors)
+	}
+	if !pkg.Types.Complete() {
+		t.Fatalf("Types.Complete() for fmt pkg: got %v, want true", pkgs[0].Types.Complete())
+	}
 }
 
 func errorMessages(errors []packages.Error) []string {

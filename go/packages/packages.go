@@ -497,7 +497,7 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 		lpkg := &loaderPackage{
 			Package:   pkg,
 			needtypes: (ld.Mode&(NeedTypes|NeedTypesInfo) != 0 && rootIndex < 0) || rootIndex >= 0,
-			needsrc: (ld.Mode&(NeedSyntax|NeedTypesInfo) != 0 && rootIndex < 0) || rootIndex >= 0 ||
+			needsrc: (ld.Mode&(NeedSyntax|NeedTypesInfo) != 0 && ld.Mode&NeedDeps != 0 && rootIndex < 0) || rootIndex >= 0 ||
 				len(ld.Overlay) > 0 || // Overlays can invalidate export data. TODO(matloob): make this check fine-grained based on dependencies on overlaid files
 				pkg.ExportFile == "" && pkg.PkgPath != "unsafe",
 		}
@@ -544,9 +544,10 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 		lpkg.color = grey
 		stack = append(stack, lpkg) // push
 		stubs := lpkg.Imports       // the structure form has only stubs with the ID in the Imports
+		// If NeedTypesInfo we need dependencies (at least for the roots) to typecheck the package.
 		// If NeedImports isn't set, the imports fields will all be zeroed out.
 		// If NeedDeps isn't also set we want to keep the stubs.
-		if ld.Mode&NeedImports != 0 && ld.Mode&NeedDeps != 0 {
+		if ld.Mode&NeedTypesInfo != 0 || (ld.Mode&NeedImports != 0 && ld.Mode&NeedDeps != 0) {
 			lpkg.Imports = make(map[string]*Package, len(stubs))
 			for importPath, ipkg := range stubs {
 				var importErr error
@@ -565,8 +566,11 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 					continue
 				}
 
-				if visit(imp) {
-					lpkg.needsrc = true
+				// If !NeedDeps, just fill Imports for the root. No need to recurse further.
+				if ld.Mode&NeedDeps != 0 {
+					if visit(imp) {
+						lpkg.needsrc = true
+					}
 				}
 				lpkg.Imports[importPath] = imp.Package
 			}
@@ -583,7 +587,7 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 		return lpkg.needsrc
 	}
 
-	if ld.Mode&(NeedImports|NeedDeps) == 0 {
+	if ld.Mode&(NeedImports|NeedDeps|NeedTypesInfo) == 0 {
 		// We do this to drop the stub import packages that we are not even going to try to resolve.
 		for _, lpkg := range initial {
 			lpkg.Imports = nil
@@ -1088,5 +1092,9 @@ func (ld *loader) loadFromExportData(lpkg *loaderPackage) (*types.Package, error
 }
 
 func usesExportData(cfg *Config) bool {
-	return cfg.Mode&NeedExportsFile != 0 || cfg.Mode&NeedTypes != 0 && cfg.Mode&NeedTypesInfo == 0
+	return cfg.Mode&NeedExportsFile != 0 ||
+		// If NeedTypes but not NeedTypesInfo we won't typecheck using sources, so we need export data.
+		(cfg.Mode&NeedTypes != 0 && cfg.Mode&NeedTypesInfo == 0) ||
+		// If NeedTypesInfo but not NeedDeps, we're typechecking a package using its sources plus its dependencies' export data
+		(cfg.Mode&NeedTypesInfo != 0 && cfg.Mode&NeedDeps == 0)
 }
