@@ -41,13 +41,13 @@ Do not send CLs removing the interior tags from such phrases.
   Go 1.13 supports a more uniform and modernized set of number literal prefixes.
   <ul>
     <li>
-      <a href="https://golang.org/ref/spec#Integer_literals">Binary integer literals</a>:
+      <a href="/ref/spec#Integer_literals">Binary integer literals</a>:
       The prefix <code>0b</code> or <code>0B</code> indicates a binary integer literal
       such as <code>0b1011</code>.
     </li>
 
     <li>
-      <a href="https://golang.org/ref/spec#Integer_literals">Octal integer literals</a>:
+      <a href="/ref/spec#Integer_literals">Octal integer literals</a>:
       The prefix <code>0o</code> or <code>0O</code> indicates an octal integer literal
       such as <code>0o660</code>.
       The existing octal notation indicated by a leading <code>0</code> followed by
@@ -55,7 +55,7 @@ Do not send CLs removing the interior tags from such phrases.
     </li>
 
     <li>
-      <a href="https://golang.org/ref/spec#Floating-point_literals">Hexadecimal floating point literals</a>:
+      <a href="/ref/spec#Floating-point_literals">Hexadecimal floating point literals</a>:
       The prefix <code>0x</code> or <code>0X</code> may now be used to express the mantissa of a
       floating-point number in hexadecimal format such as <code>0x1.0p-1021</code>.
       A hexadecimal floating-point number must always have an exponent, written as the letter
@@ -64,7 +64,7 @@ Do not send CLs removing the interior tags from such phrases.
     </li>
 
     <li>
-      <a href="https://golang.org/ref/spec#Imaginary_literals">Imaginary literals</a>:
+      <a href="/ref/spec#Imaginary_literals">Imaginary literals</a>:
       The imaginary suffix <code>i</code> may now be used with any (binary, decimal, hexadecimal)
       integer or floating-point literal.
     </li>
@@ -80,7 +80,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <p>
   Per the <a href="https://github.com/golang/proposal/blob/master/design/19113-signed-shift-counts.md">signed shift counts proposal</a>
-  Go 1.13 removes the restriction that a <a href="https://golang.org/ref/spec#Operators">shift count</a>
+  Go 1.13 removes the restriction that a <a href="/ref/spec#Operators">shift count</a>
   must be unsigned. This change eliminates the need for many artificial <code>uint</code> conversions,
   solely introduced to satisfy this (now removed) restriction of the <code>&lt;&lt;</code> and <code>&gt;&gt;</code> operators.
 </p>
