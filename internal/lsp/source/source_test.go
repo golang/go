@@ -146,7 +146,9 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			t.Fatalf("failed to get token for %v", src)
 		}
 		pos := tok.Pos(src.Start().Offset())
-		list, surrounding, err := source.Completion(ctx, r.view, f.(source.GoFile), pos)
+		list, surrounding, err := source.Completion(ctx, r.view, f.(source.GoFile), pos, source.CompletionOptions{
+			DeepComplete: strings.Contains(string(src.URI()), "deepcomplete"),
+		})
 		if err != nil {
 			t.Fatalf("failed for %v: %v", src, err)
 		}
@@ -179,7 +181,9 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			}
 			tok := f.GetToken(ctx)
 			pos := tok.Pos(src.Start().Offset())
-			list, _, err := source.Completion(ctx, r.view, f.(source.GoFile), pos)
+			list, _, err := source.Completion(ctx, r.view, f.(source.GoFile), pos, source.CompletionOptions{
+				DeepComplete: strings.Contains(string(src.URI()), "deepcomplete"),
+			})
 			if err != nil {
 				t.Fatalf("failed for %v: %v", src, err)
 			}
@@ -227,12 +231,28 @@ func isBuiltin(item source.CompletionItem) bool {
 // diffCompletionItems prints the diff between expected and actual completion
 // test results.
 func diffCompletionItems(t *testing.T, spn span.Span, want []source.CompletionItem, got []source.CompletionItem) string {
-	if len(got) != len(want) {
-		return summarizeCompletionItems(-1, want, got, "different lengths got %v want %v", len(got), len(want))
-	}
 	sort.SliceStable(got, func(i, j int) bool {
 		return got[i].Score > got[j].Score
 	})
+
+	// duplicate the lsp/completion logic to limit deep candidates to keep expected
+	// list short
+	var idx, seenDeepCompletions int
+	for _, item := range got {
+		if item.Depth > 0 {
+			if seenDeepCompletions >= 3 {
+				continue
+			}
+			seenDeepCompletions++
+		}
+		got[idx] = item
+		idx++
+	}
+	got = got[:idx]
+
+	if len(got) != len(want) {
+		return summarizeCompletionItems(-1, want, got, "different lengths got %v want %v", len(got), len(want))
+	}
 	for i, w := range want {
 		g := got[i]
 		if w.Label != g.Label {

@@ -38,18 +38,20 @@ func fieldSelections(T types.Type) (fields []*types.Var) {
 	// selections that match more than one field/method.
 	// types.NewSelectionSet should do that for us.
 
-	seen := make(map[types.Type]bool) // for termination on recursive types
+	seen := make(map[*types.Var]bool) // for termination on recursive types
+
 	var visit func(T types.Type)
 	visit = func(T types.Type) {
-		if !seen[T] {
-			seen[T] = true
-			if T, ok := deref(T).Underlying().(*types.Struct); ok {
-				for i := 0; i < T.NumFields(); i++ {
-					f := T.Field(i)
-					fields = append(fields, f)
-					if f.Anonymous() {
-						visit(f.Type())
-					}
+		if T, ok := deref(T).Underlying().(*types.Struct); ok {
+			for i := 0; i < T.NumFields(); i++ {
+				f := T.Field(i)
+				if seen[f] {
+					continue
+				}
+				seen[f] = true
+				fields = append(fields, f)
+				if f.Anonymous() {
+					visit(f.Type())
 				}
 			}
 		}

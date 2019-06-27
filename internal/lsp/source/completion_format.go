@@ -26,7 +26,7 @@ func (c *completer) item(cand candidate) CompletionItem {
 	}
 
 	var (
-		label              = obj.Name()
+		label              = c.deepState.chainString(obj.Name())
 		detail             = types.TypeString(obj.Type(), c.qf)
 		insert             = label
 		kind               CompletionItemKind
@@ -38,9 +38,9 @@ func (c *completer) item(cand candidate) CompletionItem {
 	// to that of an invocation of sig.
 	expandFuncCall := func(sig *types.Signature) {
 		params := formatParams(sig.Params(), sig.Variadic(), c.qf)
+		plainSnippet, placeholderSnippet = c.functionCallSnippets(label, params)
 		results, writeParens := formatResults(sig.Results(), c.qf)
-		label, detail = formatFunction(obj.Name(), params, results, writeParens)
-		plainSnippet, placeholderSnippet = c.functionCallSnippets(obj.Name(), params)
+		label, detail = formatFunction(label, params, results, writeParens)
 	}
 
 	switch obj := obj.(type) {
@@ -69,7 +69,6 @@ func (c *completer) item(cand candidate) CompletionItem {
 		if !ok {
 			break
 		}
-
 		kind = FunctionCompletionItem
 		if sig != nil && sig.Recv() != nil {
 			kind = MethodCompletionItem
@@ -91,6 +90,7 @@ func (c *completer) item(cand candidate) CompletionItem {
 		Detail:             detail,
 		Kind:               kind,
 		Score:              cand.score,
+		Depth:              len(c.deepState.chain),
 		plainSnippet:       plainSnippet,
 		placeholderSnippet: placeholderSnippet,
 	}

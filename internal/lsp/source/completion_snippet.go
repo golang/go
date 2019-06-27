@@ -13,21 +13,21 @@ import (
 
 // structFieldSnippets calculates the plain and placeholder snippets for struct literal field names.
 func (c *completer) structFieldSnippets(label, detail string) (*snippet.Builder, *snippet.Builder) {
-	clInfo := c.enclosingCompositeLiteral
-
-	if clInfo == nil || !clInfo.isStruct() {
+	if !c.wantStructFieldCompletions() {
 		return nil, nil
 	}
+
+	// If we are in a deep completion then we can't be completing a field
+	// name (e.g. "Foo{f<>}" completing to "Foo{f.Bar}" should not generate
+	// a snippet).
+	if c.inDeepCompletion() {
+		return nil, nil
+	}
+
+	clInfo := c.enclosingCompositeLiteral
 
 	// If we are already in a key-value expression, we don't want a snippet.
 	if clInfo.kv != nil {
-		return nil, nil
-	}
-
-	// We don't want snippet unless we are completing a field name. maybeInFieldName
-	// means we _might_ not be a struct field name, but this method is only called for
-	// struct fields, so we can ignore that possibility.
-	if !clInfo.inKey && !clInfo.maybeInFieldName {
 		return nil, nil
 	}
 

@@ -30,7 +30,9 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	if err != nil {
 		return nil, err
 	}
-	items, surrounding, err := source.Completion(ctx, view, f, rng.Start)
+	items, surrounding, err := source.Completion(ctx, view, f, rng.Start, source.CompletionOptions{
+		DeepComplete: s.useDeepCompletions,
+	})
 	if err != nil {
 		s.session.Logger().Infof(ctx, "no completions found for %s:%v:%v: %v", uri, int(params.Position.Line), int(params.Position.Character), err)
 	}
@@ -56,20 +58,41 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	}
 	return &protocol.CompletionList{
 		IsIncomplete: false,
-		Items:        toProtocolCompletionItems(items, prefix, insertionRng, s.insertTextFormat, s.usePlaceholders),
+		Items:        toProtocolCompletionItems(items, prefix, insertionRng, s.insertTextFormat, s.usePlaceholders, s.useDeepCompletions),
 	}, nil
 }
 
-func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string, rng protocol.Range, insertTextFormat protocol.InsertTextFormat, usePlaceholders bool) []protocol.CompletionItem {
+// Limit deep completion results because in some cases there are too many
+// to be useful.
+const maxDeepCompletions = 3
+
+func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string, rng protocol.Range, insertTextFormat protocol.InsertTextFormat, usePlaceholders bool, useDeepCompletions bool) []protocol.CompletionItem {
 	sort.SliceStable(candidates, func(i, j int) bool {
 		return candidates[i].Score > candidates[j].Score
 	})
-	items := make([]protocol.CompletionItem, 0, len(candidates))
+	var (
+		items                  = make([]protocol.CompletionItem, 0, len(candidates))
+		numDeepCompletionsSeen int
+	)
 	for i, candidate := range candidates {
 		// Match against the label.
 		if !strings.HasPrefix(candidate.Label, prefix) {
 			continue
 		}
+
+		// Limit the number of deep completions to not overwhelm the user in cases
+		// with dozens of deep completion matches.
+		if candidate.Depth > 0 {
+			if !useDeepCompletions {
+				continue
+			}
+
+			if numDeepCompletionsSeen >= maxDeepCompletions {
+				continue
+			}
+			numDeepCompletionsSeen++
+		}
+
 		insertText := candidate.InsertText
 		if insertTextFormat == protocol.SnippetTextFormat {
 			insertText = candidate.Snippet(usePlaceholders)
