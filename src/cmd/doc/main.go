@@ -187,16 +187,20 @@ func failMessage(paths []string, symbol, method string) error {
 // is rand.Float64, we must scan both crypto/rand and math/rand
 // to find the symbol, and the first call will return crypto/rand, true.
 func parseArgs(args []string) (pkg *build.Package, path, symbol string, more bool) {
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
 	if len(args) == 0 {
 		// Easy: current directory.
-		return importDir(pwd()), "", "", false
+		return importDir(wd), "", "", false
 	}
 	arg := args[0]
 	// We have an argument. If it is a directory name beginning with . or ..,
 	// use the absolute path name. This discriminates "./errors" from "errors"
 	// if the current directory contains a non-standard errors package.
 	if isDotSlash(arg) {
-		arg = filepath.Join(pwd(), arg)
+		arg = filepath.Join(wd, arg)
 	}
 	switch len(args) {
 	default:
@@ -205,7 +209,7 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
 		// Done below.
 	case 2:
 		// Package must be findable and importable.
-		pkg, err := build.Import(args[0], "", build.ImportComment)
+		pkg, err := build.Import(args[0], wd, build.ImportComment)
 		if err == nil {
 			return pkg, args[0], args[1], false
 		}
@@ -225,7 +229,7 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
 	// First, is it a complete package path as it is? If so, we are done.
 	// This avoids confusion over package paths that have other
 	// package paths as their prefix.
-	pkg, err := build.Import(arg, "", build.ImportComment)
+	pkg, err = build.Import(arg, wd, build.ImportComment)
 	if err == nil {
 		return pkg, arg, "", false
 	}
@@ -260,7 +264,7 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
 			symbol = arg[period+1:]
 		}
 		// Have we identified a package already?
-		pkg, err := build.Import(arg[0:period], "", build.ImportComment)
+		pkg, err := build.Import(arg[0:period], wd, build.ImportComment)
 		if err == nil {
 			return pkg, arg[0:period], symbol, false
 		}
@@ -283,7 +287,7 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
 		log.Fatalf("no such package %s", arg[0:period])
 	}
 	// Guess it's a symbol in the current directory.
-	return importDir(pwd()), "", arg, false
+	return importDir(wd), "", arg, false
 }
 
 // dotPaths lists all the dotted paths legal on Unix-like and
@@ -384,13 +388,4 @@ var buildCtx = build.Default
 // splitGopath splits $GOPATH into a list of roots.
 func splitGopath() []string {
 	return filepath.SplitList(buildCtx.GOPATH)
-}
-
-// pwd returns the current directory.
-func pwd() string {
-	wd, err := os.Getwd()
-	if err != nil {
-		log.Fatal(err)
-	}
-	return wd
 }
