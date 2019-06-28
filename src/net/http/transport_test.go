@@ -655,13 +655,17 @@ func TestTransportMaxConnsPerHost(t *testing.T) {
 
 		expected := int32(tr.MaxConnsPerHost)
 		if dialCnt != expected {
-			t.Errorf("Too many dials (%s): %d", scheme, dialCnt)
+			t.Errorf("round 1: too many dials (%s): %d != %d", scheme, dialCnt, expected)
 		}
 		if gotConnCnt != expected {
-			t.Errorf("Too many get connections (%s): %d", scheme, gotConnCnt)
+			t.Errorf("round 1: too many get connections (%s): %d != %d", scheme, gotConnCnt, expected)
 		}
 		if ts.TLS != nil && tlsHandshakeCnt != expected {
-			t.Errorf("Too many tls handshakes (%s): %d", scheme, tlsHandshakeCnt)
+			t.Errorf("round 1: too many tls handshakes (%s): %d != %d", scheme, tlsHandshakeCnt, expected)
+		}
+
+		if t.Failed() {
+			t.FailNow()
 		}
 
 		(<-connCh).Close()
@@ -670,13 +674,13 @@ func TestTransportMaxConnsPerHost(t *testing.T) {
 		doReq()
 		expected++
 		if dialCnt != expected {
-			t.Errorf("Too many dials (%s): %d", scheme, dialCnt)
+			t.Errorf("round 2: too many dials (%s): %d", scheme, dialCnt)
 		}
 		if gotConnCnt != expected {
-			t.Errorf("Too many get connections (%s): %d", scheme, gotConnCnt)
+			t.Errorf("round 2: too many get connections (%s): %d != %d", scheme, gotConnCnt, expected)
 		}
 		if ts.TLS != nil && tlsHandshakeCnt != expected {
-			t.Errorf("Too many tls handshakes (%s): %d", scheme, tlsHandshakeCnt)
+			t.Errorf("round 2: too many tls handshakes (%s): %d != %d", scheme, tlsHandshakeCnt, expected)
 		}
 	}
 
@@ -2795,8 +2799,8 @@ func TestIdleConnChannelLeak(t *testing.T) {
 			<-didRead
 		}
 
-		if got := tr.IdleConnChMapSizeForTesting(); got != 0 {
-			t.Fatalf("ForDisableKeepAlives = %v, map size = %d; want 0", disableKeep, got)
+		if got := tr.IdleConnWaitMapSizeForTesting(); got != 0 {
+			t.Fatalf("for DisableKeepAlives = %v, map size = %d; want 0", disableKeep, got)
 		}
 	}
 }
@@ -3378,9 +3382,9 @@ func TestTransportCloseIdleConnsThenReturn(t *testing.T) {
 	}
 	wantIdle("after second put", 0)
 
-	tr.RequestIdleConnChForTesting() // should toggle the transport out of idle mode
+	tr.QueueForIdleConnForTesting() // should toggle the transport out of idle mode
 	if tr.IsIdleForTesting() {
-		t.Error("shouldn't be idle after RequestIdleConnChForTesting")
+		t.Error("shouldn't be idle after QueueForIdleConnForTesting")
 	}
 	if !tr.PutIdleTestConn("http", "example.com") {
 		t.Fatal("after re-activation")
@@ -3802,8 +3806,8 @@ func TestNoCrashReturningTransportAltConn(t *testing.T) {
 	ln := newLocalListener(t)
 	defer ln.Close()
 
-	handledPendingDial := make(chan bool, 1)
-	SetPendingDialHooks(nil, func() { handledPendingDial <- true })
+	var wg sync.WaitGroup
+	SetPendingDialHooks(func() { wg.Add(1) }, wg.Done)
 	defer SetPendingDialHooks(nil, nil)
 
 	testDone := make(chan struct{})
@@ -3873,7 +3877,7 @@ func TestNoCrashReturningTransportAltConn(t *testing.T) {
 
 	doReturned <- true
 	<-madeRoundTripper
-	<-handledPendingDial
+	wg.Wait()
 }
 
 func TestTransportReuseConnection_Gzip_Chunked(t *testing.T) {
