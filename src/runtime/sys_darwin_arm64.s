@@ -44,6 +44,14 @@ TEXT runtime·read_trampoline(SB),NOSPLIT,$0
 	BL	libc_read(SB)
 	RET
 
+TEXT runtime·pipe_trampoline(SB),NOSPLIT,$0
+	BL	libc_pipe(SB)	// pointer already in R0
+	CMP	$0, R0
+	BEQ	3(PC)
+	BL	libc_error(SB)	// return negative errno value
+	NEG	R0, R0
+	RET
+
 TEXT runtime·exit_trampoline(SB),NOSPLIT|NOFRAME,$0
 	MOVW	0(R0), R0
 	BL	libc_exit(SB)

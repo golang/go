@@ -84,6 +84,21 @@ TEXT runtime·write_trampoline(SB),NOSPLIT,$0
 	POPL	BP
 	RET
 
+TEXT runtime·pipe_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$8, SP
+	MOVL	16(SP), CX		// arg 1 pipefd
+	MOVL	AX, 0(SP)
+	CALL	libc_pipe(SB)
+	TESTL	AX, AX
+	JEQ	3(PC)
+	CALL	libc_error(SB)		// return negative errno value
+	NEGL	AX
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
 TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
