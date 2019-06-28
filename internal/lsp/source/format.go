@@ -52,6 +52,9 @@ func Imports(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) 
 		return nil, err
 	}
 	pkg := f.GetPackage(ctx)
+	if pkg == nil || pkg.IsIllTyped() {
+		return nil, fmt.Errorf("no package for file %s", f.URI())
+	}
 	if hasListErrors(pkg.GetErrors()) {
 		return nil, fmt.Errorf("%s has list errors, not running goimports", f.URI())
 	}

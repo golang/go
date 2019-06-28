@@ -75,8 +75,7 @@ func sameSet(x, y map[packagePath]struct{}) bool {
 // checkMetadata determines if we should run go/packages.Load for this file.
 // If yes, update the metadata for the file and its package.
 func (v *view) checkMetadata(ctx context.Context, f *goFile) (map[packageID]*metadata, []packages.Error, error) {
-	filename, ok := v.runGopackages(ctx, f)
-	if !ok {
+	if !v.runGopackages(ctx, f) {
 		return f.meta, nil, nil
 	}
 
@@ -85,10 +84,10 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile) (map[packageID]*met
 		return nil, nil, ctx.Err()
 	}
 
-	pkgs, err := packages.Load(v.buildConfig(), fmt.Sprintf("file=%s", filename))
+	pkgs, err := packages.Load(v.buildConfig(), fmt.Sprintf("file=%s", f.filename()))
 	if len(pkgs) == 0 {
 		if err == nil {
-			err = fmt.Errorf("go/packages.Load: no packages found for %s", filename)
+			err = fmt.Errorf("go/packages.Load: no packages found for %s", f.filename())
 		}
 		// Return this error as a diagnostic to the user.
 		return nil, []packages.Error{
@@ -106,14 +105,8 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile) (map[packageID]*met
 		if len(pkg.Errors) > 0 {
 			return nil, pkg.Errors, fmt.Errorf("package %s has errors, skipping type-checking", pkg.PkgPath)
 		}
-		for importPath, importPkg := range pkg.Imports {
-			// If we encounter a package we cannot import, mark it as missing.
-			if importPkg.PkgPath != "unsafe" && len(importPkg.CompiledGoFiles) == 0 {
-				missingImports[packagePath(importPath)] = struct{}{}
-			}
-		}
 		// Build the import graph for this package.
-		if err := v.link(ctx, packagePath(pkg.PkgPath), pkg, nil); err != nil {
+		if err := v.link(ctx, packagePath(pkg.PkgPath), pkg, nil, missingImports); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -145,7 +138,7 @@ func validateMetadata(ctx context.Context, missingImports map[packagePath]struct
 
 // reparseImports reparses a file's package and import declarations to
 // determine if they have changed.
-func (v *view) runGopackages(ctx context.Context, f *goFile) (filename string, result bool) {
+func (v *view) runGopackages(ctx context.Context, f *goFile) (result bool) {
 	f.mu.Lock()
 	defer func() {
 		// Clear metadata if we are intending to re-run go/packages.
@@ -163,12 +156,12 @@ func (v *view) runGopackages(ctx context.Context, f *goFile) (filename string, r
 	}()
 
 	if len(f.meta) == 0 || len(f.missingImports) > 0 {
-		return f.filename(), true
+		return true
 	}
 	// Get file content in case we don't already have it.
 	parsed, _ := v.session.cache.ParseGoHandle(f.Handle(ctx), source.ParseHeader).Parse(ctx)
 	if parsed == nil {
-		return f.filename(), true
+		return true
 	}
 	// Check if the package's name has changed, by checking if this is a filename
 	// we already know about, and if so, check if its package name has changed.
@@ -176,24 +169,24 @@ func (v *view) runGopackages(ctx context.Context, f *goFile) (filename string, r
 		for _, filename := range m.files {
 			if filename == f.URI().Filename() {
 				if m.name != parsed.Name.Name {
-					return f.filename(), true
+					return true
 				}
 			}
 		}
 	}
 	// If the package's imports have changed, re-run `go list`.
 	if len(f.imports) != len(parsed.Imports) {
-		return f.filename(), true
+		return true
 	}
 	for i, importSpec := range f.imports {
 		if importSpec.Path.Value != parsed.Imports[i].Path.Value {
-			return f.filename(), true
+			return true
 		}
 	}
-	return f.filename(), false
+	return false
 }
 
-func (v *view) link(ctx context.Context, pkgPath packagePath, pkg *packages.Package, parent *metadata) error {
+func (v *view) link(ctx context.Context, pkgPath packagePath, pkg *packages.Package, parent *metadata, missingImports map[packagePath]struct{}) error {
 	id := packageID(pkg.ID)
 	m, ok := v.mcache.packages[id]
 
@@ -223,11 +216,11 @@ func (v *view) link(ctx context.Context, pkgPath packagePath, pkg *packages.Pack
 	for _, filename := range m.files {
 		f, err := v.getFile(ctx, span.FileURI(filename))
 		if err != nil {
-			return err
+			v.session.log.Errorf(ctx, "no file %s: %v", filename, err)
 		}
 		gof, ok := f.(*goFile)
 		if !ok {
-			return fmt.Errorf("not a Go file: %s", f.URI())
+			v.session.log.Errorf(ctx, "not a Go file: %s", f.URI())
 		}
 		if gof.meta == nil {
 			gof.meta = make(map[packageID]*metadata)
@@ -242,12 +235,16 @@ func (v *view) link(ctx context.Context, pkgPath packagePath, pkg *packages.Pack
 	for importPath, importPkg := range pkg.Imports {
 		importPkgPath := packagePath(importPath)
 		if importPkgPath == pkgPath {
-			v.session.log.Errorf(ctx, "cycle detected in %s", importPath)
-			return nil
+			return fmt.Errorf("cycle detected in %s", importPath)
+		}
+		// Don't remember any imports with significant errors.
+		if importPkgPath != "unsafe" && len(pkg.CompiledGoFiles) == 0 {
+			missingImports[importPkgPath] = struct{}{}
+			continue
 		}
 		if _, ok := m.children[packageID(importPkg.ID)]; !ok {
-			if err := v.link(ctx, importPkgPath, importPkg, m); err != nil {
-				return err
+			if err := v.link(ctx, importPkgPath, importPkg, m, missingImports); err != nil {
+				v.session.log.Errorf(ctx, "error in dependency %s: %v", importPkgPath, err)
 			}
 		}
 	}

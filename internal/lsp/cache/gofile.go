@@ -56,6 +56,9 @@ func (f *goFile) GetToken(ctx context.Context) *token.File {
 			return nil
 		}
 	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	if unexpectedAST(ctx, f) {
 		return nil
 	}
@@ -72,6 +75,10 @@ func (f *goFile) GetAnyAST(ctx context.Context) *ast.File {
 			return nil
 		}
 	}
+
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	if f.ast == nil {
 		return nil
 	}
@@ -88,6 +95,9 @@ func (f *goFile) GetAST(ctx context.Context) *ast.File {
 			return nil
 		}
 	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	if unexpectedAST(ctx, f) {
 		return nil
 	}
@@ -109,6 +119,10 @@ func (f *goFile) GetPackages(ctx context.Context) []source.Package {
 			return nil
 		}
 	}
+
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	if unexpectedAST(ctx, f) {
 		return nil
 	}
@@ -135,9 +149,6 @@ func (f *goFile) GetPackage(ctx context.Context) source.Package {
 }
 
 func unexpectedAST(ctx context.Context, f *goFile) bool {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
 	// If the AST comes back nil, something has gone wrong.
 	if f.ast == nil {
 		f.View().Session().Logger().Errorf(ctx, "expected full AST for %s, returned nil", f.URI())
