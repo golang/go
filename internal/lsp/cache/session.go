@@ -44,9 +44,9 @@ type overlay struct {
 	hash    string
 	kind    source.FileKind
 
-	// onDisk is true if a file has been saved on disk,
+	// sameContentOnDisk is true if a file has been saved on disk,
 	// and therefore does not need to be part of the overlay sent to go/packages.
-	onDisk bool
+	sameContentOnDisk bool
 }
 
 func (s *session) Shutdown(ctx context.Context) {
@@ -182,14 +182,17 @@ func (s *session) Logger() xlog.Logger {
 	return s.log
 }
 
-func (s *session) DidOpen(ctx context.Context, uri span.URI) {
+func (s *session) DidOpen(ctx context.Context, uri span.URI, text []byte) {
+	// Mark the file as open.
 	s.openFiles.Store(uri, true)
+
+	// Read the file on disk and compare it to the text provided.
+	// If it is the same as on disk, we can avoid sending it as an overlay to go/packages.
+	s.openOverlay(ctx, uri, text)
 
 	// Mark the file as just opened so that we know to re-run packages.Load on it.
 	// We do this because we may not be aware of all of the packages the file belongs to.
-
 	// A file may be in multiple views.
-	// For each view, get the file and mark it as just opened.
 	for _, view := range s.views {
 		if strings.HasPrefix(string(uri), string(view.Folder())) {
 			f, err := view.GetFile(ctx, uri)
@@ -215,7 +218,7 @@ func (s *session) DidSave(uri span.URI) {
 	defer s.overlayMu.Unlock()
 
 	if overlay, ok := s.overlays[uri]; ok {
-		overlay.onDisk = true
+		overlay.sameContentOnDisk = true
 	}
 }
 
@@ -255,6 +258,30 @@ func (s *session) SetOverlay(uri span.URI, data []byte) {
 	}
 }
 
+// openOverlay adds the file content to the overlay.
+// It also checks if the provided content is equivalent to the file's content on disk.
+func (s *session) openOverlay(ctx context.Context, uri span.URI, data []byte) {
+	s.overlayMu.Lock()
+	defer func() {
+		s.overlayMu.Unlock()
+		s.filesWatchMap.Notify(uri)
+	}()
+	s.overlays[uri] = &overlay{
+		session: s,
+		uri:     uri,
+		data:    data,
+		hash:    hashContents(data),
+	}
+	_, hash, err := s.cache.GetFile(uri).Read(ctx)
+	if err != nil {
+		s.log.Errorf(ctx, "failed to read %s: %v", uri, err)
+		return
+	}
+	if hash == s.overlays[uri].hash {
+		s.overlays[uri].sameContentOnDisk = true
+	}
+}
+
 func (s *session) readOverlay(uri span.URI) *overlay {
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
@@ -272,7 +299,7 @@ func (s *session) buildOverlay() map[string][]byte {
 
 	overlays := make(map[string][]byte)
 	for uri, overlay := range s.overlays {
-		if overlay.onDisk {
+		if overlay.sameContentOnDisk {
 			continue
 		}
 		overlays[uri.Filename()] = overlay.data

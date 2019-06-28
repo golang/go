@@ -17,8 +17,18 @@ import (
 
 func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) error {
 	uri := span.NewURI(params.TextDocument.URI)
-	s.session.DidOpen(ctx, uri)
-	return s.cacheAndDiagnose(ctx, uri, []byte(params.TextDocument.Text))
+	text := []byte(params.TextDocument.Text)
+
+	// Open the file.
+	s.session.DidOpen(ctx, uri, text)
+
+	// Run diagnostics on the newly-changed file.
+	view := s.session.ViewOf(uri)
+	go func() {
+		ctx := view.BackgroundContext()
+		s.Diagnostics(ctx, view, uri)
+	}()
+	return nil
 }
 
 func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDocumentParams) error {
@@ -46,16 +56,12 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 			}
 		}
 	}
-
 	// Cache the new file content and send fresh diagnostics.
-	return s.cacheAndDiagnose(ctx, uri, []byte(text))
-}
-
-func (s *Server) cacheAndDiagnose(ctx context.Context, uri span.URI, content []byte) error {
 	view := s.session.ViewOf(uri)
-	if err := view.SetContent(ctx, uri, content); err != nil {
+	if err := view.SetContent(ctx, uri, []byte(text)); err != nil {
 		return err
 	}
+	// Run diagnostics on the newly-changed file.
 	go func() {
 		ctx := view.BackgroundContext()
 		s.Diagnostics(ctx, view, uri)
