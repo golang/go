@@ -116,6 +116,14 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 	if err := view.SetContent(ctx, uri, nil); err != nil {
 		return err
 	}
+	clear := []span.URI{uri} // by default, clear the closed URI
+	defer func() {
+		for _, uri := range clear {
+			if err := s.publishDiagnostics(ctx, view, uri, []source.Diagnostic{}); err != nil {
+				s.session.Logger().Errorf(ctx, "failed to clear diagnostics for %s: %v", uri, err)
+			}
+		}
+	}()
 	// If the current file was the only open file for its package,
 	// clear out all diagnostics for the package.
 	f, err := view.GetFile(ctx, uri)
@@ -126,6 +134,7 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 	// For non-Go files, don't return any diagnostics.
 	gof, ok := f.(source.GoFile)
 	if !ok {
+		s.session.Logger().Errorf(ctx, "closing a non-Go file, no diagnostics to clear")
 		return nil
 	}
 	pkg := gof.GetPackage(ctx)
@@ -133,27 +142,13 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 		s.session.Logger().Errorf(ctx, "no package available for %s", uri)
 		return nil
 	}
-	reports := make(map[span.URI][]source.Diagnostic)
-	clearDiagnostics := true
 	for _, filename := range pkg.GetFilenames() {
-		uri := span.NewURI(filename)
-		reports[uri] = []source.Diagnostic{}
-		if span.CompareURI(uri, gof.URI()) == 0 {
-			continue
+		// If other files from this package are open, don't clear.
+		if s.session.IsOpen(span.NewURI(filename)) {
+			clear = nil
+			return nil
 		}
-		// If other files from this package are open.
-		if s.session.IsOpen(uri) {
-			clearDiagnostics = false
-		}
-	}
-	// We still have open files for this package, so don't clear diagnostics.
-	if !clearDiagnostics {
-		return nil
-	}
-	for uri, diagnostics := range reports {
-		if err := s.publishDiagnostics(ctx, view, uri, diagnostics); err != nil {
-			s.session.Logger().Errorf(ctx, "failed to clear diagnostics for %s: %v", uri, err)
-		}
+		clear = append(clear, span.FileURI(filename))
 	}
 	return nil
 }
