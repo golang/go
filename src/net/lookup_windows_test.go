@@ -281,15 +281,12 @@ func nslookupTXT(name string) (txt []string, err error) {
 }
 
 func ping(name string) (string, error) {
-	var out bytes.Buffer
-	var err bytes.Buffer
 	cmd := exec.Command("ping", "-n", "1", "-a", name)
-	cmd.Stdout = &out
-	cmd.Stderr = &err
-	if err := cmd.Run(); err != nil {
-		return "", err
+	stdoutStderr, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", errors.New(string(stdoutStderr))
 	}
-	r := strings.ReplaceAll(out.String(), "\r\n", "\n")
+	r := strings.ReplaceAll(string(stdoutStderr), "\r\n", "\n")
 	return r, nil
 }
 
