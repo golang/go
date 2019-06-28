@@ -385,7 +385,7 @@ func raceinit() (gctx, pctx uintptr) {
 	if end < firstmoduledata.ebss {
 		end = firstmoduledata.ebss
 	}
-	size := round(end-start, _PageSize)
+	size := alignUp(end-start, _PageSize)
 	racecall(&__tsan_map_shadow, start, size, 0, 0)
 	racedatastart = start
 	racedataend = start + size

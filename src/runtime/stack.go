@@ -337,7 +337,7 @@ func stackalloc(n uint32) stack {
 	}
 
 	if debug.efence != 0 || stackFromSystem != 0 {
-		n = uint32(round(uintptr(n), physPageSize))
+		n = uint32(alignUp(uintptr(n), physPageSize))
 		v := sysAlloc(uintptr(n), &memstats.stacks_sys)
 		if v == nil {
 			throw("out of memory (stackalloc)")

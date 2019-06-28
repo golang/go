@@ -568,7 +568,7 @@ func mallocinit() {
 		if mheap_.heapArenaAlloc.next <= p && p < mheap_.heapArenaAlloc.end {
 			p = mheap_.heapArenaAlloc.end
 		}
-		p = round(p+(256<<10), heapArenaBytes)
+		p = alignUp(p+(256<<10), heapArenaBytes)
 		// Because we're worried about fragmentation on
 		// 32-bit, we try to make a large initial reservation.
 		arenaSizes := []uintptr{
@@ -601,7 +601,7 @@ func mallocinit() {
 //
 // h must be locked.
 func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
-	n = round(n, heapArenaBytes)
+	n = alignUp(n, heapArenaBytes)
 
 	// First, try the arena pre-reservation.
 	v = h.arena.alloc(n, heapArenaBytes, &memstats.heap_sys)
@@ -784,7 +784,7 @@ retry:
 		// re-reserve the aligned sub-region. This may race,
 		// so we may have to try again.
 		sysFree(unsafe.Pointer(p), size+align, nil)
-		p = round(p, align)
+		p = alignUp(p, align)
 		p2 := sysReserve(unsafe.Pointer(p), size)
 		if p != uintptr(p2) {
 			// Must have raced. Try again.
@@ -798,7 +798,7 @@ retry:
 		return p2, size
 	default:
 		// Trim off the unaligned parts.
-		pAligned := round(p, align)
+		pAligned := alignUp(p, align)
 		sysFree(unsafe.Pointer(p), pAligned-p, nil)
 		end := pAligned + size
 		endLen := (p + size + align) - end
@@ -976,11 +976,11 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			off := c.tinyoffset
 			// Align tiny pointer for required (conservative) alignment.
 			if size&7 == 0 {
-				off = round(off, 8)
+				off = alignUp(off, 8)
 			} else if size&3 == 0 {
-				off = round(off, 4)
+				off = alignUp(off, 4)
 			} else if size&1 == 0 {
-				off = round(off, 2)
+				off = alignUp(off, 2)
 			}
 			if off+size <= maxTinySize && c.tiny != 0 {
 				// The object fits into existing tiny block.
@@ -1313,7 +1313,7 @@ func persistentalloc1(size, align uintptr, sysStat *uint64) *notInHeap {
 		lock(&globalAlloc.mutex)
 		persistent = &globalAlloc.persistentAlloc
 	}
-	persistent.off = round(persistent.off, align)
+	persistent.off = alignUp(persistent.off, align)
 	if persistent.off+size > persistentChunkSize || persistent.base == nil {
 		persistent.base = (*notInHeap)(sysAlloc(persistentChunkSize, &memstats.other_sys))
 		if persistent.base == nil {
@@ -1331,7 +1331,7 @@ func persistentalloc1(size, align uintptr, sysStat *uint64) *notInHeap {
 				break
 			}
 		}
-		persistent.off = round(sys.PtrSize, align)
+		persistent.off = alignUp(sys.PtrSize, align)
 	}
 	p := persistent.base.add(persistent.off)
 	persistent.off += size
@@ -1377,12 +1377,12 @@ func (l *linearAlloc) init(base, size uintptr) {
 }
 
 func (l *linearAlloc) alloc(size, align uintptr, sysStat *uint64) unsafe.Pointer {
-	p := round(l.next, align)
+	p := alignUp(l.next, align)
 	if p+size > l.end {
 		return nil
 	}
 	l.next = p + size
-	if pEnd := round(l.next-1, physPageSize); pEnd > l.mapped {
+	if pEnd := alignUp(l.next-1, physPageSize); pEnd > l.mapped {
 		// Transition from Reserved to Prepared to Ready.
 		sysMap(unsafe.Pointer(l.mapped), pEnd-l.mapped, sysStat)
 		sysUsed(unsafe.Pointer(l.mapped), pEnd-l.mapped)
