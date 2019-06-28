@@ -34,6 +34,11 @@ func (s *Server) initialize(ctx context.Context, params *protocol.InitializePara
 		}
 	}
 
+	s.supportedCodeActions = map[protocol.CodeActionKind]bool{
+		protocol.SourceOrganizeImports: true,
+		protocol.QuickFix:              true,
+	}
+
 	s.setClientCapabilities(params.Capabilities)
 
 	folders := params.WorkspaceFolders
@@ -188,9 +193,13 @@ func (s *Server) processConfig(view source.View, config interface{}) error {
 	if usePlaceholders, ok := c["usePlaceholders"].(bool); ok {
 		s.usePlaceholders = usePlaceholders
 	}
-	// Check if user has disabled documentation on hover.
+	// Check if the user has disabled documentation on hover.
 	if noDocsOnHover, ok := c["noDocsOnHover"].(bool); ok {
 		s.noDocsOnHover = noDocsOnHover
+	}
+	// Check if the user wants to see suggested fixes from go/analysis.
+	if wantSuggestedFixes, ok := c["wantSuggestedFixes"].(bool); ok {
+		s.wantSuggestedFixes = wantSuggestedFixes
 	}
 	// Check if the user has explicitly disabled any analyses.
 	if disabledAnalyses, ok := c["experimentalDisabledAnalyses"].([]interface{}); ok {

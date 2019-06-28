@@ -78,6 +78,9 @@ type Server struct {
 	dynamicConfigurationSupported bool
 	preferredContentFormat        protocol.MarkupKind
 	disabledAnalyses              map[string]struct{}
+	wantSuggestedFixes            bool
+
+	supportedCodeActions map[protocol.CodeActionKind]bool
 
 	textDocumentSyncKind protocol.TextDocumentSyncKind
 
