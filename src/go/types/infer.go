@@ -62,7 +62,8 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 	for i, t := range targs {
 		if t == nil {
 			tpar := tparams[i]
-			check.errorf(pos, "cannot infer %s (%s)", tpar.name, tpar.pos)
+			ppos := check.fset.Position(tpar.pos).String()
+			check.errorf(pos, "cannot infer %s (%s)", tpar.name, ppos)
 			return nil
 		}
 	}

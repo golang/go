@@ -19,10 +19,10 @@ import (
 type declInfo struct {
 	file  *Scope        // scope of file containing this declaration
 	lhs   []*Var        // lhs of n:1 variable declarations, or nil
-	typ   ast.Expr      // type, or nil
-	init  ast.Expr      // init/orig expression, or nil
+	vtyp  ast.Expr      // type, or nil (for const and var declarations only)
+	init  ast.Expr      // init/orig expression, or nil (for const and var declarations only)
+	tdecl *ast.TypeSpec // type declaration, or nil
 	fdecl *ast.FuncDecl // func declaration, or nil
-	alias bool          // type alias declaration
 
 	// The deps field tracks initialization expression dependencies.
 	deps map[Object]bool // lazily initialized
@@ -340,7 +340,7 @@ func (check *Checker) collectObjects() {
 									init = last.Values[i]
 								}
 
-								d := &declInfo{file: fileScope, typ: last.Type, init: init}
+								d := &declInfo{file: fileScope, vtyp: last.Type, init: init}
 								check.declarePkgObj(name, obj, d)
 							}
 
@@ -357,7 +357,7 @@ func (check *Checker) collectObjects() {
 								// The lhs elements are only set up after the for loop below,
 								// but that's ok because declareVar only collects the declInfo
 								// for a later phase.
-								d1 = &declInfo{file: fileScope, lhs: lhs, typ: s.Type, init: s.Values[0]}
+								d1 = &declInfo{file: fileScope, lhs: lhs, vtyp: s.Type, init: s.Values[0]}
 							}
 
 							// declare all variables
@@ -372,7 +372,7 @@ func (check *Checker) collectObjects() {
 									if i < len(s.Values) {
 										init = s.Values[i]
 									}
-									d = &declInfo{file: fileScope, typ: s.Type, init: init}
+									d = &declInfo{file: fileScope, vtyp: s.Type, init: init}
 								}
 
 								check.declarePkgObj(name, obj, d)
@@ -386,7 +386,7 @@ func (check *Checker) collectObjects() {
 
 					case *ast.TypeSpec:
 						obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
-						check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, typ: s.Type, alias: s.Assign.IsValid()})
+						check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, tdecl: s})
 
 					default:
 						check.invalidAST(s.Pos(), "unknown ast.Spec node %T", s)
@@ -521,13 +521,13 @@ func (check *Checker) resolveBaseTypeName(typ ast.Expr) (ptr bool, base *TypeNam
 
 		// we're done if tdecl defined tname as a new type
 		// (rather than an alias)
-		tdecl := check.objMap[tname] // must exist for objects in package scope
-		if !tdecl.alias {
+		tdecl := check.objMap[tname].tdecl // must exist for objects in package scope
+		if !tdecl.Assign.IsValid() {
 			return ptr, tname
 		}
 
 		// otherwise, continue resolving
-		typ = tdecl.typ
+		typ = tdecl.Type
 		if seen == nil {
 			seen = make(map[*TypeName]bool)
 		}
@@ -563,7 +563,7 @@ func (check *Checker) packageObjects() {
 	// phase 1
 	for _, obj := range objList {
 		// If we have a type alias, collect it for the 2nd phase.
-		if tname, _ := obj.(*TypeName); tname != nil && check.objMap[tname].alias {
+		if tname, _ := obj.(*TypeName); tname != nil && check.objMap[tname].tdecl.Assign.IsValid() {
 			aliasList = append(aliasList, tname)
 			continue
 		}

@@ -183,13 +183,13 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 	switch obj := obj.(type) {
 	case *Const:
 		check.decl = d // new package-level const decl
-		check.constDecl(obj, d.typ, d.init)
+		check.constDecl(obj, d.vtyp, d.init)
 	case *Var:
 		check.decl = d // new package-level var decl
-		check.varDecl(obj, d.lhs, d.typ, d.init)
+		check.varDecl(obj, d.lhs, d.vtyp, d.init)
 	case *TypeName:
 		// invalid recursive types are detected via path
-		check.typeDecl(obj, d.typ, def, d.alias)
+		check.typeDecl(obj, d.tdecl, def)
 	case *Func:
 		// functions may be recursive - no need to track dependencies
 		check.funcDecl(obj, d)
@@ -234,7 +234,7 @@ func (check *Checker) cycle(obj Object) (isCycle bool) {
 			// this information explicitly in the object.
 			var alias bool
 			if d := check.objMap[obj]; d != nil {
-				alias = d.alias // package-level object
+				alias = d.tdecl.Assign.IsValid() // package-level object
 			} else {
 				alias = obj.IsAlias() // function local object
 			}
@@ -539,26 +539,28 @@ func (n *Named) setUnderlying(typ Type) {
 	}
 }
 
-func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, alias bool) {
+func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 	assert(obj.typ == nil)
 
 	check.later(func() {
 		check.validType(obj.typ, nil)
 	})
 
-	if alias {
+	if tdecl.Assign.IsValid() {
+		// type alias declaration
 
 		obj.typ = Typ[Invalid]
-		obj.typ = check.typ(typ)
+		obj.typ = check.typ(tdecl.Type)
 
 	} else {
+		// defined type declaration
 
 		named := &Named{obj: obj}
 		def.setUnderlying(named)
 		obj.typ = named // make sure recursive type declarations terminate
 
 		// determine underlying type of named
-		named.orig = check.definedType(typ, named)
+		named.orig = check.definedType(tdecl.Type, named)
 
 		// The underlying type of named may be itself a named type that is
 		// incomplete:
@@ -590,7 +592,7 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
 		return
 	}
 	delete(check.methods, obj)
-	assert(!check.objMap[obj].alias) // don't use TypeName.IsAlias (requires fully set up object)
+	assert(!check.objMap[obj].tdecl.Assign.IsValid()) // don't use TypeName.IsAlias (requires fully set up object)
 
 	// use an objset to check for name conflicts
 	var mset objset
@@ -783,7 +785,7 @@ func (check *Checker) declStmt(decl ast.Decl) {
 				check.declare(check.scope, s.Name, obj, scopePos)
 				// mark and unmark type before calling typeDecl; its type is still nil (see Checker.objDecl)
 				obj.setColor(grey + color(check.push(obj)))
-				check.typeDecl(obj, s.Type, nil, s.Assign.IsValid())
+				check.typeDecl(obj, s, nil)
 				check.pop().setColor(black)
 			default:
 				check.invalidAST(s.Pos(), "const, type, or var declaration expected")
