@@ -78,9 +78,6 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile) (map[packageID]*met
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	// Save the metadata's current missing imports, if any.
-	originalMissingImports := f.missingImports
-
 	if !v.parseImports(ctx, f) {
 		return f.meta, nil, nil
 	}
@@ -107,10 +104,8 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile) (map[packageID]*met
 		}, err
 	}
 
-	// Clear missing imports.
-	for k := range f.missingImports {
-		delete(f.missingImports, k)
-	}
+	// Track missing imports as we look at the package's errors.
+	missingImports := make(map[packagePath]struct{})
 	for _, pkg := range pkgs {
 		// If the package comes back with errors from `go list`,
 		// don't bother type-checking it.
@@ -120,10 +115,7 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile) (map[packageID]*met
 		for importPath, importPkg := range pkg.Imports {
 			// If we encounter a package we cannot import, mark it as missing.
 			if importPkg.PkgPath != "unsafe" && len(importPkg.CompiledGoFiles) == 0 {
-				if f.missingImports == nil {
-					f.missingImports = make(map[packagePath]struct{})
-				}
-				f.missingImports[packagePath(importPath)] = struct{}{}
+				missingImports[packagePath(importPath)] = struct{}{}
 			}
 		}
 		// Build the import graph for this package.
@@ -135,11 +127,13 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile) (map[packageID]*met
 		return nil, nil, fmt.Errorf("loadParseTypecheck: no metadata found for %v", f.filename())
 	}
 
-	// If we have already seen these missing imports before, and we still have type information,
+	// If we have already seen these missing imports before, and we have type information,
 	// there is no need to continue.
-	if sameSet(originalMissingImports, f.missingImports) && len(f.pkgs) != 0 {
+	if sameSet(missingImports, f.missingImports) && len(f.pkgs) != 0 {
 		return nil, nil, nil
 	}
+	// Otherwise, update the missing imports map.
+	f.missingImports = missingImports
 
 	return f.meta, nil, nil
 }
