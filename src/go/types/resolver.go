@@ -386,6 +386,7 @@ func (check *Checker) collectObjects() {
 
 					case *ast.TypeSpec:
 						obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
+						obj.scope, obj.tparams = check.collectTypeParams(pkg.scope, s, s.TParams)
 						check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, tdecl: s})
 
 					default:
@@ -469,6 +470,28 @@ func (check *Checker) collectObjects() {
 			}
 		}
 	}
+}
+
+func (check *Checker) collectTypeParams(parent *Scope, node ast.Node, list *ast.FieldList) (scope *Scope, tparams []*TypeName) {
+	if list.NumFields() == 0 {
+		return
+	}
+
+	scope = NewScope(parent, node.Pos(), node.End(), "type parameters")
+	check.recordScope(node, scope)
+
+	index := 0
+	for _, f := range list.List {
+		for _, name := range f.Names {
+			tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
+			NewTypeParam(tpar, index) // assigns type to tpar as a side-effect
+			check.declare(scope, name, tpar, scope.pos)
+			tparams = append(tparams, tpar)
+			index++
+		}
+	}
+
+	return
 }
 
 // resolveBaseTypeName returns the non-alias base type name for typ, and whether

@@ -546,6 +546,11 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 		check.validType(obj.typ, nil)
 	})
 
+	if obj.IsParametrized() {
+		assert(obj.scope != nil)
+		check.scope = obj.scope // push type parameter scope
+	}
+
 	if tdecl.Assign.IsValid() {
 		// type alias declaration
 
@@ -577,6 +582,10 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 		// any forward chain.
 		named.underlying = check.underlying(named)
 
+	}
+
+	if obj.IsParametrized() {
+		check.closeScope()
 	}
 
 	check.addMethodDecls(obj)
@@ -778,6 +787,7 @@ func (check *Checker) declStmt(decl ast.Decl) {
 
 			case *ast.TypeSpec:
 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
+				obj.scope, obj.tparams = check.collectTypeParams(check.scope, s, s.TParams)
 				// spec: "The scope of a type identifier declared inside a function
 				// begins at the identifier in the TypeSpec and ends at the end of
 				// the innermost containing block."

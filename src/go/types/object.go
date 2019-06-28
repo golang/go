@@ -213,6 +213,9 @@ func (*Const) isDependency() {} // a constant may be a dependency of an initiali
 // A TypeName represents a name for a (defined or alias) type.
 type TypeName struct {
 	object
+	// TODO(gri) For Funcs, we have the type parameters on the signature. Revisit that decision.
+	scope   *Scope      // type parameter scope; or nil
+	tparams []*TypeName // type parameters from left to right; or nil
 }
 
 // NewTypeName returns a new type name denoting the given typ.
@@ -223,7 +226,12 @@ type TypeName struct {
 // argument for NewNamed, which will set the TypeName's type as a side-
 // effect.
 func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
-	return &TypeName{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}}
+	return &TypeName{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, nil, nil}
+}
+
+// IsParametrized reports whether obj is a parametrized type.
+func (obj *TypeName) IsParametrized() bool {
+	return len(obj.tparams) > 0
 }
 
 // IsAlias reports whether obj is an alias name for a type.

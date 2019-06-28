@@ -145,19 +145,20 @@ func (check *Checker) definedType(e ast.Expr, def *Named) (T Type) {
 // funcType type-checks a function or method type.
 func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, tpar *ast.FieldList, ftyp *ast.FuncType) {
 	// type parameters are in a scope enclosing the function scope
-	// TODO(gri) should we always have this extra scope?
-	if tpar.NumFields() != 0 {
-		check.scope = NewScope(check.scope, token.NoPos, token.NoPos, "function type parameters") // TODO(gri) replace with check.openScope call
-		defer check.closeScope()
-		// TODO(gri) record this scope
+	// TODO(gri) get rid of fake ast.Ident - only here to satisfy collectTypeParams
+	scope, tparams := check.collectTypeParams(check.scope, new(ast.Ident), tpar)
+	if scope != nil {
+		// TODO(gri) push/pop both (type parameter and function) scopes
+		check.scope = scope
+		// defer check.closeScope()
 	}
-	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function")
+
+	scope = NewScope(check.scope, token.NoPos, token.NoPos, "function")
 	// TODO(gri) should we close this scope?
 	scope.isFunc = true
 	check.recordScope(ftyp, scope)
 
 	recvList, _ := check.collectParams(scope, recvPar, false)
-	tparams := check.collectTypeParams(check.scope, tpar)
 	params, variadic := check.collectParams(scope, ftyp.Params, true)
 	results, _ := check.collectParams(scope, ftyp.Results, false)
 
@@ -416,25 +417,6 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 	}
 	check.errorf(x.pos(), "array length %s must be integer", &x)
 	return -1
-}
-
-func (check *Checker) collectTypeParams(scope *Scope, list *ast.FieldList) (tparams []*TypeName) {
-	if list == nil {
-		return
-	}
-
-	index := 0
-	for _, f := range list.List {
-		for _, name := range f.Names {
-			tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
-			NewTypeParam(tpar, index) // assigns type to tpar as a side-effect
-			check.declare(scope, name, tpar, scope.pos)
-			tparams = append(tparams, tpar)
-			index++
-		}
-	}
-
-	return
 }
 
 func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool) (params []*Var, variadic bool) {
