@@ -1,18 +1,83 @@
-// The digraph command performs queries over unlabelled directed graphs
-// represented in text form.  It is intended to integrate nicely with
-// typical UNIX command pipelines.
-//
-// Since directed graphs (import graphs, reference graphs, call graphs,
-// etc) often arise during software tool development and debugging, this
-// command is included in the go.tools repository.
-//
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+/*
+The digraph command performs queries over unlabelled directed graphs
+represented in text form.  It is intended to integrate nicely with
+typical UNIX command pipelines.
+
+Usage:
+
+	your-application | digraph [command]
+
+The support commands are:
+
+	nodes
+		the set of all nodes
+	degree
+		the in-degree and out-degree of each node
+	preds <node> ...
+		the set of immediate predecessors of the specified nodes
+	succs <node> ...
+		the set of immediate successors of the specified nodes
+	forward <node> ...
+		the set of nodes transitively reachable from the specified nodes
+	reverse <node> ...
+		the set of nodes that transitively reach the specified nodes
+	somepath <node> <node>
+		the list of nodes on some arbitrary path from the first node to the second
+	allpaths <node> <node>
+		the set of nodes on all paths from the first node to the second
+	sccs
+		all strongly connected components (one per line)
+	scc <node>
+		the set of nodes nodes strongly connected to the specified one
+
+Input format:
+
+Each line contains zero or more words. Words are separated by unquoted
+whitespace; words may contain Go-style double-quoted portions, allowing spaces
+and other characters to be expressed.
+
+Each word declares a node, and if there are more than one, an edge from the
+first to each subsequent one. The graph is provided on the standard input.
+
+For instance, the following (acyclic) graph specifies a partial order among the
+subtasks of getting dressed:
+
+	$ cat clothes.txt
+	socks shoes
+	"boxer shorts" pants
+	pants belt shoes
+	shirt tie sweater
+	sweater jacket
+	hat
+
+The line "shirt tie sweater" indicates the two edges shirt -> tie and
+shirt -> sweater, not shirt -> tie -> sweater.
+
+Example usage:
+
+Using digraph with existing Go tools:
+
+	$ go mod graph | digraph nodes # Operate on the Go module graph.
+	$ go list -m all | digraph nodes # Operate on the Go package graph.
+
+Show the transitive closure of imports of the digraph tool itself:
+	$ go list -f '{{.ImportPath}} {{join .Imports " "}}' ... | digraph forward golang.org/x/tools/cmd/digraph
+
+Show which clothes (see above) must be donned before a jacket:
+	$ digraph reverse jacket
+
+*/
+package main // import "golang.org/x/tools/cmd/digraph"
+
 // TODO(adonovan):
 // - support input files other than stdin
 // - support alternative formats (AT&T GraphViz, CSV, etc),
 //   a comment syntax, etc.
 // - allow queries to nest, like Blaze query language.
-//
-package main // import "golang.org/x/tools/cmd/digraph"
 
 import (
 	"bufio"
@@ -28,74 +93,41 @@ import (
 	"unicode/utf8"
 )
 
-const Usage = `digraph: queries over directed graphs in text form.
+func usage() {
+	fmt.Fprintf(os.Stderr, `Usage: your-application | digraph [command]
 
-Graph format:
-
-  Each line contains zero or more words.  Words are separated by
-  unquoted whitespace; words may contain Go-style double-quoted portions,
-  allowing spaces and other characters to be expressed.
-
-  Each field declares a node, and if there are more than one,
-  an edge from the first to each subsequent one.
-  The graph is provided on the standard input.
-
-  For instance, the following (acyclic) graph specifies a partial order
-  among the subtasks of getting dressed:
-
-	% cat clothes.txt
-	socks shoes
-	"boxer shorts" pants
-	pants belt shoes
-	shirt tie sweater
-	sweater jacket
-	hat
-
-  The line "shirt tie sweater" indicates the two edges shirt -> tie and
-  shirt -> sweater, not shirt -> tie -> sweater.
-
-Supported queries:
-
-  nodes
-	the set of all nodes
-  degree
-	the in-degree and out-degree of each node.
-  preds <label> ...
-	the set of immediate predecessors of the specified nodes
-  succs <label> ...
-	the set of immediate successors of the specified nodes
-  forward <label> ...
-	the set of nodes transitively reachable from the specified nodes
-  reverse <label> ...
-	the set of nodes that transitively reach the specified nodes
-  somepath <label> <label>
-	the list of nodes on some arbitrary path from the first node to the second
-  allpaths <label> <label>
-	the set of nodes on all paths from the first node to the second
-  sccs
-	all strongly connected components (one per line)
-  scc <label>
-	the set of nodes nodes strongly connected to the specified one
-
-Example usage:
-
-   Show the transitive closure of imports of the digraph tool itself:
-   % go list -f '{{.ImportPath}}{{.Imports}}' ... | tr '[]' '  ' |
-         digraph forward golang.org/x/tools/cmd/digraph
-
-   Show which clothes (see above) must be donned before a jacket:
-   %  digraph reverse jacket <clothes.txt
-
-`
+The support commands are:
+	nodes
+		the set of all nodes
+	degree
+		the in-degree and out-degree of each node
+	preds <node> ...
+		the set of immediate predecessors of the specified nodes
+	succs <node> ...
+		the set of immediate successors of the specified nodes
+	forward <node> ...
+		the set of nodes transitively reachable from the specified nodes
+	reverse <node> ...
+		the set of nodes that transitively reach the specified nodes
+	somepath <node> <node>
+		the list of nodes on some arbitrary path from the first node to the second
+	allpaths <node> <node>
+		the set of nodes on all paths from the first node to the second
+	sccs
+		all strongly connected components (one per line)
+	scc <node>
+		the set of nodes nodes strongly connected to the specified one
+`)
+	os.Exit(2)
+}
 
 func main() {
-	flag.Usage = func() { fmt.Fprintln(os.Stderr, Usage) }
+	flag.Usage = usage
 	flag.Parse()
 
 	args := flag.Args()
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, Usage)
-		return
+		usage()
 	}
 
 	if err := digraph(args[0], args[1:]); err != nil {
