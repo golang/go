@@ -197,6 +197,13 @@ func read(fd int32, p unsafe.Pointer, n int32) int32 {
 }
 func read_trampoline()
 
+func pipe() (r, w int32, errno int32) {
+	var p [2]int32
+	errno = libcCall(unsafe.Pointer(funcPC(pipe_trampoline)), noescape(unsafe.Pointer(&p)))
+	return p[0], p[1], errno
+}
+func pipe_trampoline()
+
 //go:nosplit
 //go:cgo_unsafe_args
 func closefd(fd int32) int32 {
@@ -395,6 +402,12 @@ func closeonexec(fd int32) {
 	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
 }
 
+//go:nosplit
+func setNonblock(fd int32) {
+	flags := fcntl(fd, _F_GETFL, 0)
+	fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
+}
+
 // Tell the linker that the libc_* functions are to be found
 // in a system library, with the libc_ prefix missing.
 
@@ -409,6 +422,7 @@ func closeonexec(fd int32) {
 //go:cgo_import_dynamic libc_close close "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_read read "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_write write "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pipe pipe "/usr/lib/libSystem.B.dylib"
 
 //go:cgo_import_dynamic libc_mmap mmap "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_munmap munmap "/usr/lib/libSystem.B.dylib"

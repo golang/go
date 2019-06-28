@@ -59,6 +59,17 @@ TEXT runtime·write_trampoline(SB),NOSPLIT,$0
 	POPQ	BP
 	RET
 
+TEXT runtime·pipe_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	CALL	libc_pipe(SB)		// pointer already in DI
+	TESTL	AX, AX
+	JEQ	3(PC)
+	CALL	libc_error(SB)		// return negative errno value
+	NEGL	AX
+	POPQ	BP
+	RET
+
 TEXT runtime·setitimer_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
