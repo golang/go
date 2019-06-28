@@ -462,8 +462,8 @@ func (s *mspan) physPageBounds() (uintptr, uintptr) {
 	end := start + s.npages<<_PageShift
 	if physPageSize > _PageSize {
 		// Round start and end in.
-		start = (start + physPageSize - 1) &^ (physPageSize - 1)
-		end &^= physPageSize - 1
+		start = alignUp(start, physPageSize)
+		end = alignDown(end, physPageSize)
 	}
 	return start, end
 }
@@ -529,9 +529,9 @@ func (h *mheap) coalesce(s *mspan) {
 		// scavenged span.
 		boundary := b.startAddr
 		if a.scavenged {
-			boundary &^= (physPageSize - 1)
+			boundary = alignDown(boundary, physPageSize)
 		} else {
-			boundary = (boundary + physPageSize - 1) &^ (physPageSize - 1)
+			boundary = alignUp(boundary, physPageSize)
 		}
 		a.npages = (boundary - a.startAddr) / pageSize
 		b.npages = (b.startAddr + b.npages*pageSize - boundary) / pageSize
@@ -595,8 +595,8 @@ func (s *mspan) hugePages() uintptr {
 	end := start + s.npages*pageSize
 	if physHugePageSize > pageSize {
 		// Round start and end in.
-		start = (start + physHugePageSize - 1) &^ (physHugePageSize - 1)
-		end &^= physHugePageSize - 1
+		start = alignUp(start, physHugePageSize)
+		end = alignDown(end, physHugePageSize)
 	}
 	if start < end {
 		return (end - start) >> physHugePageShift
@@ -1307,7 +1307,7 @@ HaveSpan:
 func (h *mheap) grow(npage uintptr) bool {
 	ask := npage << _PageShift
 
-	nBase := round(h.curArena.base+ask, physPageSize)
+	nBase := alignUp(h.curArena.base+ask, physPageSize)
 	if nBase > h.curArena.end {
 		// Not enough room in the current arena. Allocate more
 		// arena space. This may not be contiguous with the
@@ -1347,7 +1347,7 @@ func (h *mheap) grow(npage uintptr) bool {
 		memstats.heap_idle += uint64(asize)
 
 		// Recalculate nBase
-		nBase = round(h.curArena.base+ask, physPageSize)
+		nBase = alignUp(h.curArena.base+ask, physPageSize)
 	}
 
 	// Grow into the current arena.
@@ -1492,11 +1492,11 @@ func (h *mheap) scavengeSplit(t treapIter, size uintptr) *mspan {
 	if base <= start {
 		return nil
 	}
-	if physHugePageSize > pageSize && base&^(physHugePageSize-1) >= start {
+	if physHugePageSize > pageSize && alignDown(base, physHugePageSize) >= start {
 		// We're in danger of breaking apart a huge page, so include the entire
 		// huge page in the bound by rounding down to the huge page size.
 		// base should still be aligned to pageSize.
-		base &^= physHugePageSize - 1
+		base = alignDown(base, physHugePageSize)
 	}
 	if base == start {
 		// After all that we rounded base down to s.base(), so no need to split.

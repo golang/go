@@ -21,5 +21,5 @@ func roundupsize(size uintptr) uintptr {
 	if size+_PageSize < size {
 		return size
 	}
-	return round(size, _PageSize)
+	return alignUp(size, _PageSize)
 }
