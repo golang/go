@@ -222,28 +222,65 @@ func tempFile(contents string) string {
 // localListener is set up by TestMain and used by localPipe to create Conn
 // pairs like net.Pipe, but connected by an actual buffered TCP connection.
 var localListener struct {
-	sync.Mutex
-	net.Listener
+	mu   sync.Mutex
+	addr net.Addr
+	ch   chan net.Conn
+}
+
+const localFlakes = 0 // change to 1 or 2 to exercise localServer/localPipe handling of mismatches
+
+func localServer(l net.Listener) {
+	for n := 0; ; n++ {
+		c, err := l.Accept()
+		if err != nil {
+			return
+		}
+		if localFlakes == 1 && n%2 == 0 {
+			c.Close()
+			continue
+		}
+		localListener.ch <- c
+	}
 }
 
 func localPipe(t testing.TB) (net.Conn, net.Conn) {
-	localListener.Lock()
-	defer localListener.Unlock()
-	c := make(chan net.Conn)
-	go func() {
-		conn, err := localListener.Accept()
+	localListener.mu.Lock()
+	defer localListener.mu.Unlock()
+
+	addr := localListener.addr
+
+Dialing:
+	// We expect a rare mismatch, but probably not 5 in a row.
+	for i := 0; i < 5; i++ {
+		tooSlow := time.NewTimer(1 * time.Second)
+		defer tooSlow.Stop()
+		c1, err := net.Dial(addr.Network(), addr.String())
 		if err != nil {
-			t.Errorf("Failed to accept local connection: %v", err)
+			t.Fatalf("localPipe: %v", err)
 		}
-		c <- conn
-	}()
-	addr := localListener.Addr()
-	c1, err := net.Dial(addr.Network(), addr.String())
-	if err != nil {
-		t.Fatalf("Failed to dial local connection: %v", err)
+		if localFlakes == 2 && i == 0 {
+			c1.Close()
+			continue
+		}
+		for {
+			select {
+			case <-tooSlow.C:
+				t.Logf("localPipe: timeout waiting for %v", c1.LocalAddr())
+				c1.Close()
+				continue Dialing
+
+			case c2 := <-localListener.ch:
+				if c2.RemoteAddr().String() == c1.LocalAddr().String() {
+					return c1, c2
+				}
+				t.Logf("localPipe: unexpected connection: %v != %v", c2.RemoteAddr(), c1.LocalAddr())
+				c2.Close()
+			}
+		}
 	}
-	c2 := <-c
-	return c1, c2
+
+	t.Fatalf("localPipe: failed to connect")
+	panic("unreachable")
 }
 
 // zeroSource is an io.Reader that returns an unlimited number of zero bytes.
@@ -293,8 +330,10 @@ func runMain(m *testing.M) int {
 		fmt.Fprintf(os.Stderr, "Failed to open local listener: %v", err)
 		os.Exit(1)
 	}
-	localListener.Listener = l
-	defer localListener.Close()
+	localListener.ch = make(chan net.Conn)
+	localListener.addr = l.Addr()
+	defer l.Close()
+	go localServer(l)
 
 	if err := checkOpenSSLVersion(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v", err)
