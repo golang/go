@@ -100,7 +100,7 @@ func organizeImports(ctx context.Context, view source.View, s span.Span) ([]prot
 	if err != nil {
 		return nil, err
 	}
-	edits, err := source.Imports(ctx, f, rng)
+	edits, err := source.Imports(ctx, view, f, rng)
 	if err != nil {
 		return nil, err
 	}

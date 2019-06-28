@@ -111,7 +111,7 @@ func (v *view) Folder() span.URI {
 
 // Config returns the configuration used for the view's interaction with the
 // go/packages API. It is shared across all views.
-func (v *view) buildConfig() *packages.Config {
+func (v *view) Config() *packages.Config {
 	// TODO: Should we cache the config and/or overlay somewhere?
 	return &packages.Config{
 		Dir:        v.folder.Filename(),
@@ -187,7 +187,7 @@ func (v *view) BuiltinPackage() *ast.Package {
 // It assumes that the view is not active yet,
 // i.e. it has not been added to the session's list of views.
 func (v *view) buildBuiltinPkg() {
-	cfg := *v.buildConfig()
+	cfg := *v.Config()
 	pkgs, _ := packages.Load(&cfg, "builtin")
 	if len(pkgs) != 1 {
 		v.builtinPkg, _ = ast.NewPackage(cfg.Fset, nil, nil, nil)

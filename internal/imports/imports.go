@@ -19,6 +19,7 @@ import (
 	"go/token"
 	"io"
 	"io/ioutil"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -48,6 +49,11 @@ func Process(filename string, src []byte, opt *Options) ([]byte, error) {
 			return nil, err
 		}
 		src = b
+	}
+
+	// Set the logger if the user has not provided it.
+	if opt.Env.Logf == nil {
+		opt.Env.Logf = log.Printf
 	}
 
 	fileSet := token.NewFileSet()

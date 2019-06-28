@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -63,7 +62,7 @@ func (r *moduleResolver) init() error {
 		}
 		if mod.Dir == "" {
 			if r.env.Debug {
-				log.Printf("module %v has not been downloaded and will be ignored", mod.Path)
+				r.env.Logf("module %v has not been downloaded and will be ignored", mod.Path)
 			}
 			// Can't do anything with a module that's not downloaded.
 			continue
@@ -254,7 +253,7 @@ func (r *moduleResolver) scan(_ references) ([]*pkg, error) {
 			modPath, err := module.DecodePath(filepath.ToSlash(matches[1]))
 			if err != nil {
 				if r.env.Debug {
-					log.Printf("decoding module cache path %q: %v", subdir, err)
+					r.env.Logf("decoding module cache path %q: %v", subdir, err)
 				}
 				return
 			}

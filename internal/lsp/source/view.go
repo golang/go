@@ -209,6 +209,8 @@ type View interface {
 
 	// Ignore returns true if this file should be ignored by this view.
 	Ignore(span.URI) bool
+
+	Config() *packages.Config
 }
 
 // File represents a source file of any type.

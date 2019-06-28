@@ -343,7 +343,7 @@ func (r *runner) Import(t *testing.T, data tests.Imports) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", spn, err)
 		}
-		edits, err := source.Imports(ctx, f.(source.GoFile), rng)
+		edits, err := source.Imports(ctx, r.view, f.(source.GoFile), rng)
 		if err != nil {
 			if goimported != "" {
 				t.Error(err)

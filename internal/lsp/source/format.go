@@ -10,10 +10,11 @@ import (
 	"context"
 	"fmt"
 	"go/format"
+	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/imports"
+	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/span"
 )
@@ -33,12 +34,14 @@ func Format(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) {
 		return nil, fmt.Errorf("no exact AST node matching the specified range")
 	}
 	node := path[0]
+
+	fset := f.FileSet()
+	buf := &bytes.Buffer{}
+
 	// format.Node changes slightly from one release to another, so the version
 	// of Go used to build the LSP server will determine how it formats code.
 	// This should be acceptable for all users, who likely be prompted to rebuild
 	// the LSP server on each Go release.
-	fset := f.FileSet()
-	buf := &bytes.Buffer{}
 	if err := format.Node(buf, fset, node); err != nil {
 		return nil, err
 	}
@@ -46,7 +49,7 @@ func Format(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) {
 }
 
 // Imports formats a file using the goimports tool.
-func Imports(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) {
+func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]TextEdit, error) {
 	data, _, err := f.Handle(ctx).Read(ctx)
 	if err != nil {
 		return nil, err
@@ -58,7 +61,17 @@ func Imports(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) 
 	if hasListErrors(pkg.GetErrors()) {
 		return nil, fmt.Errorf("%s has list errors, not running goimports", f.URI())
 	}
-	formatted, err := imports.Process(f.URI().Filename(), data, nil)
+	options := &imports.Options{
+		Env: buildProcessEnv(ctx, view),
+		// Defaults.
+		AllErrors:  true,
+		Comments:   true,
+		Fragment:   true,
+		FormatOnly: false,
+		TabIndent:  true,
+		TabWidth:   8,
+	}
+	formatted, err := imports.Process(f.URI().Filename(), data, options)
 	if err != nil {
 		return nil, err
 	}
@@ -81,6 +94,37 @@ func hasListErrors(errors []packages.Error) bool {
 		}
 	}
 	return false
+}
+
+func buildProcessEnv(ctx context.Context, view View) *imports.ProcessEnv {
+	cfg := view.Config()
+	env := &imports.ProcessEnv{
+		WorkingDir: cfg.Dir,
+		Logf: func(format string, v ...interface{}) {
+			view.Session().Logger().Infof(ctx, format, v...)
+		},
+	}
+	for _, kv := range cfg.Env {
+		split := strings.Split(kv, "=")
+		if len(split) < 2 {
+			continue
+		}
+		switch split[0] {
+		case "GOPATH":
+			env.GOPATH = split[1]
+		case "GOROOT":
+			env.GOROOT = split[1]
+		case "GO111MODULE":
+			env.GO111MODULE = split[1]
+		case "GOPROXY":
+			env.GOROOT = split[1]
+		case "GOFLAGS":
+			env.GOFLAGS = split[1]
+		case "GOSUMDB":
+			env.GOSUMDB = split[1]
+		}
+	}
+	return env
 }
 
 func computeTextEdits(ctx context.Context, file File, formatted string) (edits []TextEdit) {
