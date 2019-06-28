@@ -226,7 +226,7 @@ func (v *view) reverseDeps(ctx context.Context, seen map[packageID]struct{}, res
 	}
 	for _, filename := range m.files {
 		uri := span.FileURI(filename)
-		if f, err := v.getFile(uri); err == nil && v.session.IsOpen(uri) {
+		if f, err := v.getFile(ctx, uri); err == nil && v.session.IsOpen(uri) {
 			results[f.(*goFile)] = struct{}{}
 		}
 	}

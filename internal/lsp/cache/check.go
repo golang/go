@@ -119,7 +119,7 @@ func (imp *importer) typeCheck(id packageID) (*pkg, error) {
 	)
 	for _, filename := range meta.files {
 		uri := span.FileURI(filename)
-		f, err := imp.view.getFile(uri)
+		f, err := imp.view.getFile(imp.ctx, uri)
 		if err != nil {
 			continue
 		}
@@ -187,25 +187,25 @@ func (imp *importer) typeCheck(id packageID) (*pkg, error) {
 	check.Files(pkg.GetSyntax())
 
 	// Add every file in this package to our cache.
-	imp.cachePackage(imp.ctx, pkg, meta, mode)
+	if err := imp.cachePackage(imp.ctx, pkg, meta, mode); err != nil {
+		return nil, err
+	}
 
 	return pkg, nil
 }
 
-func (imp *importer) cachePackage(ctx context.Context, pkg *pkg, meta *metadata, mode source.ParseMode) {
+func (imp *importer) cachePackage(ctx context.Context, pkg *pkg, meta *metadata, mode source.ParseMode) error {
 	for _, file := range pkg.files {
-		f, err := imp.view.getFile(file.uri)
+		f, err := imp.view.getFile(ctx, file.uri)
 		if err != nil {
-			imp.view.session.log.Errorf(ctx, "no file: %v", err)
-			continue
+			return fmt.Errorf("no such file %s: %v", file.uri, err)
 		}
 		gof, ok := f.(*goFile)
 		if !ok {
-			imp.view.session.log.Errorf(ctx, "%v is not a Go file", file.uri)
-			continue
+			return fmt.Errorf("non Go file %s", file.uri)
 		}
 		if err := imp.cachePerFile(gof, file, pkg); err != nil {
-			imp.view.session.log.Errorf(ctx, "failed to cache file %s: %v", gof.URI(), err)
+			return fmt.Errorf("failed to cache file %s: %v", gof.URI(), err)
 		}
 	}
 
@@ -219,6 +219,8 @@ func (imp *importer) cachePackage(ctx context.Context, pkg *pkg, meta *metadata,
 		}
 		pkg.imports[importPkg.pkgPath] = importPkg
 	}
+
+	return nil
 }
 
 func (imp *importer) cachePerFile(gof *goFile, file *astFile, p *pkg) error {

@@ -224,7 +224,7 @@ func (v *view) SetContent(ctx context.Context, uri span.URI, content []byte) err
 
 // invalidateContent invalidates the content of a Go file,
 // including any position and type information that depends on it.
-func (f *goFile) invalidateContent() {
+func (f *goFile) invalidateContent(ctx context.Context) {
 	f.handleMu.Lock()
 	defer f.handleMu.Unlock()
 
@@ -234,13 +234,13 @@ func (f *goFile) invalidateContent() {
 	f.view.pcache.mu.Lock()
 	defer f.view.pcache.mu.Unlock()
 
-	f.invalidateAST()
+	f.invalidateAST(ctx)
 	f.handle = nil
 }
 
 // invalidateAST invalidates the AST of a Go file,
 // including any position and type information that depends on it.
-func (f *goFile) invalidateAST() {
+func (f *goFile) invalidateAST(ctx context.Context) {
 	f.mu.Lock()
 	f.ast = nil
 	f.token = nil
@@ -250,7 +250,7 @@ func (f *goFile) invalidateAST() {
 	// Remove the package and all of its reverse dependencies from the cache.
 	for id, pkg := range pkgs {
 		if pkg != nil {
-			f.view.remove(id, map[packageID]struct{}{})
+			f.view.remove(ctx, id, map[packageID]struct{}{})
 		}
 	}
 }
@@ -258,7 +258,7 @@ func (f *goFile) invalidateAST() {
 // remove invalidates a package and its reverse dependencies in the view's
 // package cache. It is assumed that the caller has locked both the mutexes
 // of both the mcache and the pcache.
-func (v *view) remove(id packageID, seen map[packageID]struct{}) {
+func (v *view) remove(ctx context.Context, id packageID, seen map[packageID]struct{}) {
 	if _, ok := seen[id]; ok {
 		return
 	}
@@ -268,20 +268,27 @@ func (v *view) remove(id packageID, seen map[packageID]struct{}) {
 	}
 	seen[id] = struct{}{}
 	for parentID := range m.parents {
-		v.remove(parentID, seen)
+		v.remove(ctx, parentID, seen)
 	}
 	// All of the files in the package may also be holding a pointer to the
 	// invalidated package.
 	for _, filename := range m.files {
-		if f, _ := v.findFile(span.FileURI(filename)); f != nil {
-			if gof, ok := f.(*goFile); ok {
-				gof.mu.Lock()
-				delete(gof.pkgs, id)
-				gof.mu.Unlock()
-			}
+		f, err := v.findFile(span.FileURI(filename))
+		if err != nil {
+			v.session.log.Errorf(ctx, "cannot find file %s: %v", f.URI(), err)
+			continue
 		}
+		gof, ok := f.(*goFile)
+		if !ok {
+			v.session.log.Errorf(ctx, "non-Go file %v", f.URI())
+			continue
+		}
+		gof.mu.Lock()
+		delete(gof.pkgs, id)
+		gof.mu.Unlock()
 	}
 	delete(v.pcache.packages, id)
+	return
 }
 
 // FindFile returns the file if the given URI is already a part of the view.
@@ -301,11 +308,11 @@ func (v *view) GetFile(ctx context.Context, uri span.URI) (source.File, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	return v.getFile(uri)
+	return v.getFile(ctx, uri)
 }
 
 // getFile is the unlocked internal implementation of GetFile.
-func (v *view) getFile(uri span.URI) (viewFile, error) {
+func (v *view) getFile(ctx context.Context, uri span.URI) (viewFile, error) {
 	if f, err := v.findFile(uri); err != nil {
 		return nil, err
 	} else if f != nil {
@@ -344,7 +351,7 @@ func (v *view) getFile(uri span.URI) (viewFile, error) {
 			if !ok {
 				return
 			}
-			gof.invalidateContent()
+			gof.invalidateContent(ctx)
 		})
 	}
 	v.mapFile(uri, f)

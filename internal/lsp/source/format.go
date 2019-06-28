@@ -25,7 +25,7 @@ func Format(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) {
 		return nil, fmt.Errorf("no AST for %s", f.URI())
 	}
 	pkg := f.GetPackage(ctx)
-	if hasParseErrors(pkg.GetErrors()) {
+	if hasListErrors(pkg.GetErrors()) || hasParseErrors(pkg.GetErrors()) {
 		return nil, fmt.Errorf("%s has parse errors, not formatting", f.URI())
 	}
 	path, exact := astutil.PathEnclosingInterval(file, rng.Start, rng.End)
@@ -45,6 +45,23 @@ func Format(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) {
 	return computeTextEdits(ctx, f, buf.String()), nil
 }
 
+// Imports formats a file using the goimports tool.
+func Imports(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) {
+	data, _, err := f.Handle(ctx).Read(ctx)
+	if err != nil {
+		return nil, err
+	}
+	pkg := f.GetPackage(ctx)
+	if hasListErrors(pkg.GetErrors()) {
+		return nil, fmt.Errorf("%s has list errors, not running goimports", f.URI())
+	}
+	formatted, err := imports.Process(f.URI().Filename(), data, nil)
+	if err != nil {
+		return nil, err
+	}
+	return computeTextEdits(ctx, f, string(formatted)), nil
+}
+
 func hasParseErrors(errors []packages.Error) bool {
 	for _, err := range errors {
 		if err.Kind == packages.ParseError {
@@ -54,21 +71,13 @@ func hasParseErrors(errors []packages.Error) bool {
 	return false
 }
 
-// Imports formats a file using the goimports tool.
-func Imports(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) {
-	data, _, err := f.Handle(ctx).Read(ctx)
-	if err != nil {
-		return nil, err
+func hasListErrors(errors []packages.Error) bool {
+	for _, err := range errors {
+		if err.Kind == packages.ListError {
+			return true
+		}
 	}
-	tok := f.GetToken(ctx)
-	if tok == nil {
-		return nil, fmt.Errorf("no token file for %s", f.URI())
-	}
-	formatted, err := imports.Process(tok.Name(), data, nil)
-	if err != nil {
-		return nil, err
-	}
-	return computeTextEdits(ctx, f, string(formatted)), nil
+	return false
 }
 
 func computeTextEdits(ctx context.Context, file File, formatted string) (edits []TextEdit) {
