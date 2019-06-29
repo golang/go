@@ -143,13 +143,11 @@ func (check *Checker) definedType(e ast.Expr, def *Named) (T Type) {
 }
 
 // funcType type-checks a function or method type.
-func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, tpar *ast.FieldList, ftyp *ast.FuncType) {
+func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, scope *Scope, tparams []*TypeName, ftyp *ast.FuncType) {
 	// type parameters are in a scope enclosing the function scope
-	// TODO(gri) get rid of fake ast.Ident - only here to satisfy collectTypeParams
-	scope, tparams := check.collectTypeParams(check.scope, new(ast.Ident), tpar)
-	if scope != nil {
-		// TODO(gri) push/pop both (type parameter and function) scopes
+	if tparams != nil {
 		check.scope = scope
+		// TODO(gri) push/pop both (type parameter and function) scopes
 		// defer check.closeScope()
 	}
 
@@ -209,10 +207,6 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, tpar *ast
 			}
 		}
 		sig.recv = recv
-		// A method cannot have type parameters - this should be checked by the parser.
-		if len(tparams) > 0 {
-			check.invalidAST(tpar.Pos(), "method cannot have type parameters")
-		}
 	}
 
 	sig.scope = scope
@@ -301,7 +295,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 	case *ast.FuncType:
 		typ := new(Signature)
 		def.setUnderlying(typ)
-		check.funcType(typ, nil, nil, e)
+		check.funcType(typ, nil, nil, nil, e)
 		return typ
 
 	case *ast.InterfaceType:

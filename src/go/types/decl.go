@@ -660,11 +660,7 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	sig := new(Signature)
 	obj.typ = sig // guard against cycles
 	fdecl := decl.fdecl
-	check.funcType(sig, fdecl.Recv, fdecl.TParams, fdecl.Type)
-	if sig.recv == nil && obj.name == "init" && (sig.params.Len() > 0 || sig.results.Len() > 0) {
-		check.errorf(fdecl.Pos(), "func init must have no arguments and no return values")
-		// ok to continue
-	}
+	check.funcType(sig, fdecl.Recv, obj.scope, obj.tparams, fdecl.Type)
 
 	// function body must be type-checked after global declarations
 	// (functions implemented elsewhere have no body)
@@ -787,7 +783,9 @@ func (check *Checker) declStmt(decl ast.Decl) {
 
 			case *ast.TypeSpec:
 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
-				obj.scope, obj.tparams = check.collectTypeParams(check.scope, s, s.TParams)
+				if s.TParams != nil {
+					obj.scope, obj.tparams = check.collectTypeParams(check.scope, s, s.TParams)
+				}
 				// spec: "The scope of a type identifier declared inside a function
 				// begins at the identifier in the TypeSpec and ends at the end of
 				// the innermost containing block."

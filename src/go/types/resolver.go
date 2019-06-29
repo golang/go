@@ -215,6 +215,7 @@ func (check *Checker) collectObjects() {
 	}
 
 	var methods []*Func // list of methods with non-blank _ names
+	var fileScopes []*Scope
 	for fileNo, file := range check.files {
 		// The package identifier denotes the current package,
 		// but there is no corresponding package object.
@@ -228,6 +229,7 @@ func (check *Checker) collectObjects() {
 			pos, end = token.Pos(f.Base()), token.Pos(f.Base()+f.Size())
 		}
 		fileScope := NewScope(check.pkg.scope, pos, end, check.filename(fileNo))
+		fileScopes = append(fileScopes, fileScope)
 		check.recordScope(file, fileScope)
 
 		// determine file directory, necessary to resolve imports
@@ -386,7 +388,9 @@ func (check *Checker) collectObjects() {
 
 					case *ast.TypeSpec:
 						obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
-						obj.scope, obj.tparams = check.collectTypeParams(pkg.scope, s, s.TParams)
+						if s.TParams != nil {
+							obj.scope, obj.tparams = check.collectTypeParams(pkg.scope, s, s.TParams)
+						}
 						check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, tdecl: s})
 
 					default:
@@ -400,18 +404,32 @@ func (check *Checker) collectObjects() {
 				if d.Recv == nil {
 					// regular function
 					if name == "init" {
+						if d.TParams != nil {
+							check.softErrorf(d.TParams.Pos(), "func init must have no type parameters")
+						}
+						if t := d.Type; t.Params.NumFields() != 0 || t.Results != nil {
+							check.softErrorf(d.Pos(), "func init must have no arguments and no return values")
+						}
 						// don't declare init functions in the package scope - they are invisible
 						obj.parent = pkg.scope
 						check.recordDef(d.Name, obj)
 						// init functions must have a body
 						if d.Body == nil {
+							// TODO(gri) make this error message consistent with the others above
 							check.softErrorf(obj.pos, "missing function body")
 						}
 					} else {
+						if d.TParams != nil {
+							obj.scope, obj.tparams = check.collectTypeParams(pkg.scope, d, d.TParams)
+						}
 						check.declare(pkg.scope, d.Name, obj, token.NoPos)
 					}
 				} else {
 					// method
+					if d.TParams != nil {
+						// TODO(gri) should this be done in the parser (and this an invalidAST error)?
+						check.softErrorf(d.TParams.Pos(), "method must have no type parameters")
+					}
 					// (Methods with blank _ names are never found; no need to collect
 					// them for later type association. They will still be type-checked
 					// with all the other functions.)
@@ -435,7 +453,7 @@ func (check *Checker) collectObjects() {
 	}
 
 	// verify that objects in package and file scopes have different names
-	for _, scope := range check.pkg.scope.children /* file scopes */ {
+	for _, scope := range fileScopes {
 		for _, obj := range scope.elems {
 			if alt := pkg.scope.Lookup(obj.Name()); alt != nil {
 				if pkg, ok := obj.(*PkgName); ok {
@@ -473,10 +491,6 @@ func (check *Checker) collectObjects() {
 }
 
 func (check *Checker) collectTypeParams(parent *Scope, node ast.Node, list *ast.FieldList) (scope *Scope, tparams []*TypeName) {
-	if list.NumFields() == 0 {
-		return
-	}
-
 	scope = NewScope(parent, node.Pos(), node.End(), "type parameters")
 	check.recordScope(node, scope)
 
