@@ -40,10 +40,19 @@ func SignatureHelp(ctx context.Context, f GoFile, pos token.Pos) (*SignatureInfo
 	if path == nil {
 		return nil, fmt.Errorf("cannot find node enclosing position")
 	}
+FindCall:
 	for _, node := range path {
-		if c, ok := node.(*ast.CallExpr); ok && pos >= c.Lparen && pos <= c.Rparen {
-			callExpr = c
-			break
+		switch node := node.(type) {
+		case *ast.CallExpr:
+			if pos >= node.Lparen && pos <= node.Rparen {
+				callExpr = node
+				break FindCall
+			}
+		case *ast.FuncLit, *ast.FuncType:
+			// The user is within an anonymous function,
+			// which may be the parameter to the *ast.CallExpr.
+			// Don't show signature help in this case.
+			return nil, fmt.Errorf("no signature help within a function declaration")
 		}
 	}
 	if callExpr == nil || callExpr.Fun == nil {

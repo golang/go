@@ -60,4 +60,11 @@ func Qux() {
 
 	panic("oops!")            //@signature("oops", "panic(v interface{})", 0)
 	println("hello", "world") //@signature("world", "println(args ...Type)", 0)
+
+	Hello(func() {
+		//@signature("//", "", 0)
+	})
+
 }
+
+func Hello(func()) {}

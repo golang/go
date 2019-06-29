@@ -36,7 +36,7 @@ const (
 	ExpectedReferencesCount        = 4
 	ExpectedRenamesCount           = 11
 	ExpectedSymbolsCount           = 1
-	ExpectedSignaturesCount        = 20
+	ExpectedSignaturesCount        = 21
 	ExpectedLinksCount             = 2
 )
 
@@ -61,7 +61,7 @@ type References map[span.Span][]span.Span
 type Renames map[span.Span]string
 type Symbols map[span.URI][]source.Symbol
 type SymbolsChildren map[string][]source.Symbol
-type Signatures map[span.Span]source.SignatureInformation
+type Signatures map[span.Span]*source.SignatureInformation
 type Links map[span.URI][]Link
 
 type Data struct {
@@ -505,9 +505,13 @@ func (data *Data) collectSymbols(name string, spn span.Span, kind string, parent
 }
 
 func (data *Data) collectSignatures(spn span.Span, signature string, activeParam int64) {
-	data.Signatures[spn] = source.SignatureInformation{
+	data.Signatures[spn] = &source.SignatureInformation{
 		Label:           signature,
 		ActiveParameter: int(activeParam),
+	}
+	// Hardcode special case to test the lack of a signature.
+	if signature == "" && activeParam == 0 {
+		data.Signatures[spn] = nil
 	}
 }
 

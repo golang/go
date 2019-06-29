@@ -615,7 +615,7 @@ func summarizeSymbols(i int, want []source.Symbol, got []source.Symbol, reason s
 
 func (r *runner) SignatureHelp(t *testing.T, data tests.Signatures) {
 	ctx := context.Background()
-	for spn, expectedSignatures := range data {
+	for spn, expectedSignature := range data {
 		f, err := r.view.GetFile(ctx, spn.URI())
 		if err != nil {
 			t.Fatalf("failed for %v: %v", spn, err)
@@ -624,27 +624,33 @@ func (r *runner) SignatureHelp(t *testing.T, data tests.Signatures) {
 		pos := tok.Pos(spn.Start().Offset())
 		gotSignature, err := source.SignatureHelp(ctx, f.(source.GoFile), pos)
 		if err != nil {
-			t.Fatalf("failed for %v: %v", spn, err)
+			// Only fail if we got an error we did not expect.
+			if expectedSignature != nil {
+				t.Fatalf("failed for %v: %v", spn, err)
+			}
 		}
-		if diff := diffSignatures(spn, expectedSignatures, *gotSignature); diff != "" {
+		if expectedSignature == nil {
+			if gotSignature != nil {
+				t.Errorf("expected no signature, got %v", gotSignature)
+			}
+			continue
+		}
+		if diff := diffSignatures(spn, expectedSignature, gotSignature); diff != "" {
 			t.Error(diff)
 		}
 	}
 }
 
-func diffSignatures(spn span.Span, want source.SignatureInformation, got source.SignatureInformation) string {
+func diffSignatures(spn span.Span, want *source.SignatureInformation, got *source.SignatureInformation) string {
 	decorate := func(f string, args ...interface{}) string {
 		return fmt.Sprintf("Invalid signature at %s: %s", spn, fmt.Sprintf(f, args...))
 	}
-
 	if want.ActiveParameter != got.ActiveParameter {
 		return decorate("wanted active parameter of %d, got %f", want.ActiveParameter, got.ActiveParameter)
 	}
-
 	if want.Label != got.Label {
 		return decorate("wanted label %q, got %q", want.Label, got.Label)
 	}
-
 	var paramParts []string
 	for _, p := range got.Parameters {
 		paramParts = append(paramParts, p.Label)
@@ -653,10 +659,9 @@ func diffSignatures(spn span.Span, want source.SignatureInformation, got source.
 	if !strings.Contains(got.Label, paramsStr) {
 		return decorate("expected signature %q to contain params %q", got.Label, paramsStr)
 	}
-
 	return ""
 }
 
 func (r *runner) Link(t *testing.T, data tests.Links) {
-	//This is a pure LSP feature, no source level functionality to be tested
+	// This is a pure LSP feature, no source level functionality to be tested.
 }
