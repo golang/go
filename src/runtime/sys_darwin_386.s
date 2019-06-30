@@ -88,7 +88,7 @@ TEXT runtime·pipe_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
 	SUBL	$8, SP
-	MOVL	16(SP), CX		// arg 1 pipefd
+	MOVL	16(SP), AX		// arg 1 pipefd
 	MOVL	AX, 0(SP)
 	CALL	libc_pipe(SB)
 	TESTL	AX, AX
