@@ -30,7 +30,7 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	if err != nil {
 		return nil, err
 	}
-	items, surrounding, err := source.Completion(ctx, view, f, rng.Start, source.CompletionOptions{
+	candidates, surrounding, err := source.Completion(ctx, view, f, rng.Start, source.CompletionOptions{
 		DeepComplete: s.useDeepCompletions,
 	})
 	if err != nil {
@@ -58,7 +58,7 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	}
 	return &protocol.CompletionList{
 		IsIncomplete: false,
-		Items:        toProtocolCompletionItems(items, prefix, insertionRng, s.insertTextFormat, s.usePlaceholders, s.useDeepCompletions),
+		Items:        toProtocolCompletionItems(candidates, prefix, insertionRng, s.insertTextFormat, s.usePlaceholders, s.useDeepCompletions),
 	}, nil
 }
 
