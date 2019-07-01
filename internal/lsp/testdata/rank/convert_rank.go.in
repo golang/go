@@ -10,3 +10,30 @@ func _() {
 	)
 	wantsStrList(strList(conv)) //@complete("))", convertB, convertA)
 }
+
+func _() {
+	const (
+		convC        = "hi"    //@item(convertC, "convC", "string", "const")
+		convD        = 123     //@item(convertD, "convD", "int", "const")
+		convE int    = 123     //@item(convertE, "convE", "int", "const")
+		convF string = "there" //@item(convertF, "convF", "string", "const")
+	)
+
+	var foo int
+	foo = conv //@complete(" //", convertD, convertE, convertC, convertF)
+
+	type myInt int
+	var mi myInt
+	mi = conv //@complete(" //", convertD, convertC, convertE, convertF)
+	mi + conv //@complete(" //", convertD, convertC, convertE, convertF)
+
+	1 + conv //@complete(" //", convertD, convertE, convertC, convertF)
+
+	type myString string
+	var ms myString
+	ms = conv //@complete(" //", convertC, convertD, convertE, convertF)
+
+	type myUint uint32
+	var mu myUint
+	mu = conv //@complete(" //", convertD, convertC, convertE, convertF)
+}

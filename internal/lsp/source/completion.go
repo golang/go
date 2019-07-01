@@ -1028,14 +1028,28 @@ func (c *completer) matchingType(cand *candidate) bool {
 	// are invoked by default.
 	cand.expandFuncCall = isFunc(cand.obj)
 
-	typeMatches := func(actual types.Type) bool {
+	typeMatches := func(candType types.Type) bool {
 		// Take into account any type modifiers on the expected type.
-		actual = c.expectedType.applyTypeModifiers(actual)
+		candType = c.expectedType.applyTypeModifiers(candType)
 
 		if c.expectedType.objType != nil {
+			wantType := types.Default(c.expectedType.objType)
+
+			// Handle untyped values specially since AssignableTo gives false negatives
+			// for them (see https://golang.org/issue/32146).
+			if candBasic, ok := candType.(*types.Basic); ok && candBasic.Info()&types.IsUntyped > 0 {
+				if wantBasic, ok := wantType.Underlying().(*types.Basic); ok {
+					// Check that their constant kind (bool|int|float|complex|string) matches.
+					// This doesn't take into account the constant value, so there will be some
+					// false positives due to integer sign and overflow.
+					return candBasic.Info()&types.IsConstType == wantBasic.Info()&types.IsConstType
+				}
+				return false
+			}
+
 			// AssignableTo covers the case where the types are equal, but also handles
 			// cases like assigning a concrete type to an interface type.
-			return types.AssignableTo(types.Default(actual), types.Default(c.expectedType.objType))
+			return types.AssignableTo(candType, wantType)
 		}
 
 		return false
