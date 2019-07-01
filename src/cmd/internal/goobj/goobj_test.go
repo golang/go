@@ -29,9 +29,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	if !testenv.HasGoBuild() {
-		return
-	}
+	testenv.MainMust(testenv.HasGoBuild)
 
 	if err := buildGoobj(); err != nil {
 		fmt.Println(err)

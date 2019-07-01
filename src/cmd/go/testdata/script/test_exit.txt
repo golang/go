@@ -1,0 +1,152 @@
+env GO111MODULE=on
+
+# If a test exits with a zero status code, 'go test' prints its own error
+# message and fails.
+! go test ./zero
+! stdout ^ok
+! stdout 'exit status'
+stdout 'did not print anything'
+stdout ^FAIL
+
+# If a test exits with a non-zero status code, 'go test' fails normally.
+! go test ./one
+! stdout ^ok
+stdout 'exit status'
+! stdout 'did not print anything'
+stdout ^FAIL
+
+# Ensure that other flags still do the right thing.
+go test -list=. ./zero
+stdout ExitZero
+
+! go test -bench=. ./zero
+stdout 'did not print anything'
+
+# 'go test' with no args streams output without buffering. Ensure that it still
+# catches a zero exit with missing output.
+cd zero
+! go test
+stdout 'did not print anything'
+cd ../normal
+go test
+stdout ^ok
+cd ..
+
+# If a TestMain prints something and exits with a zero status code, 'go test'
+# shouldn't complain about that. It's a common way to skip testing a package
+# entirely.
+go test ./main_zero_warning
+! stdout 'skipping all tests'
+stdout ^ok
+
+# With -v, we'll see the warning from TestMain.
+go test -v ./main_zero_warning
+stdout 'skipping all tests'
+stdout ^ok
+
+# Listing all tests won't actually give a result if TestMain exits. That's okay,
+# because this is how TestMain works. If we decide to support -list even when
+# TestMain is used to skip entire packages, we can change this test case.
+go test -list=. ./main_zero_warning
+stdout 'skipping all tests'
+! stdout TestNotListed
+
+# If a TestMain prints nothing and exits with a zero status code, 'go test'
+# should fail.
+! go test ./main_zero_nowarning
+stdout 'did not print anything'
+
+# A test that simply prints "PASS" and exits with a zero status code shouldn't
+# be OK, but we don't catch that at the moment. It's hard to tell if any test
+# started but didn't finish without using -test.v.
+go test ./fake_pass
+stdout ^ok
+
+-- go.mod --
+module m
+
+-- ./normal/normal.go --
+package normal
+-- ./normal/normal_test.go --
+package normal
+
+import "testing"
+
+func TestExitZero(t *testing.T) {
+}
+
+-- ./zero/zero.go --
+package zero
+-- ./zero/zero_test.go --
+package zero
+
+import (
+	"os"
+	"testing"
+)
+
+func TestExitZero(t *testing.T) {
+	os.Exit(0)
+}
+
+-- ./one/one.go --
+package one
+-- ./one/one_test.go --
+package one
+
+import (
+	"os"
+	"testing"
+)
+
+func TestExitOne(t *testing.T) {
+	os.Exit(1)
+}
+
+-- ./main_zero_warning/zero.go --
+package zero
+-- ./main_zero_warning/zero_test.go --
+package zero
+
+import (
+	"fmt"
+	"os"
+	"testing"
+)
+
+func TestMain(m *testing.M) {
+	fmt.Println("skipping all tests")
+	os.Exit(0)
+}
+
+func TestNotListed(t *testing.T) {}
+
+-- ./main_zero_nowarning/zero.go --
+package zero
+-- ./main_zero_nowarning/zero_test.go --
+package zero
+
+import (
+	"os"
+	"testing"
+)
+
+func TestMain(m *testing.M) {
+	os.Exit(0)
+}
+
+-- ./fake_pass/fake.go --
+package fake
+-- ./fake_pass/fake_test.go --
+package fake
+
+import (
+	"fmt"
+	"os"
+	"testing"
+)
+
+func TestFakePass(t *testing.T) {
+	fmt.Println("PASS")
+	os.Exit(0)
+}
