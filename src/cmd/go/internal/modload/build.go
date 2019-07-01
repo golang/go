@@ -79,7 +79,7 @@ func addUpdate(m *modinfo.ModulePublic) {
 		return
 	}
 
-	if info, err := Query(m.Path, "latest", m.Version, Allowed); err == nil && semver.Compare(info.Version, m.Version) > 0 {
+	if info, err := Query(m.Path, "upgrade", m.Version, Allowed); err == nil && semver.Compare(info.Version, m.Version) > 0 {
 		m.Update = &modinfo.ModulePublic{
 			Path:    m.Path,
 			Version: info.Version,

@@ -17,7 +17,7 @@ stderr 'ReadZip not implemented for svn'
 # reasonable message instead of a panic.
 ! go get -d vcs-test.golang.org/svn/nonexistent.svn
 ! stderr panic
-stderr 'go get vcs-test.golang.org/svn/nonexistent.svn: no matching versions for query "latest"'
+stderr 'go get vcs-test.golang.org/svn/nonexistent.svn: no matching versions for query "upgrade"'
 
 -- go.mod --
 module golang/go/issues/28943/main
