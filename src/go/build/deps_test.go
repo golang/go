@@ -202,7 +202,7 @@ var pkgDeps = map[string][]string{
 	"testing":               {"L2", "flag", "fmt", "internal/race", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
 	"testing/iotest":        {"L2", "log"},
 	"testing/quick":         {"L2", "flag", "fmt", "reflect", "time"},
-	"internal/testenv":      {"L2", "OS", "flag", "testing", "syscall", "internal/cfg"},
+	"internal/testenv":      {"L2", "OS", "flag", "fmt", "testing", "syscall", "internal/cfg"},
 	"internal/lazyregexp":   {"L2", "OS", "regexp"},
 	"internal/lazytemplate": {"L2", "OS", "text/template"},
 

@@ -1048,6 +1048,18 @@ func (lockedStdout) Write(b []byte) (int, error) {
 	return os.Stdout.Write(b)
 }
 
+type outputChecker struct {
+	w         io.Writer
+	anyOutput bool
+}
+
+func (o *outputChecker) Write(p []byte) (int, error) {
+	if !o.anyOutput && len(bytes.TrimSpace(p)) > 0 {
+		o.anyOutput = true
+	}
+	return o.w.Write(p)
+}
+
 // builderRunTest is the action for running a test binary.
 func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 	if a.Failed {
@@ -1067,6 +1079,7 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 	}
 
 	var buf bytes.Buffer
+	buffered := false
 	if len(pkgArgs) == 0 || testBench {
 		// Stream test output (no buffering) when no package has
 		// been given on the command line (implicit current directory)
@@ -1093,8 +1106,15 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 			stdout = io.MultiWriter(stdout, &buf)
 		} else {
 			stdout = &buf
+			buffered = true
 		}
 	}
+
+	// Keep track of whether we've seen any output at all. This is useful
+	// later, to avoid succeeding if the test binary did nothing or didn't
+	// reach the end of testing.M.Run.
+	outCheck := outputChecker{w: stdout}
+	stdout = &outCheck
 
 	if c.buf == nil {
 		// We did not find a cached result using the link step action ID,
@@ -1109,7 +1129,7 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 		c.tryCacheWithID(b, a, a.Deps[0].BuildContentID())
 	}
 	if c.buf != nil {
-		if stdout != &buf {
+		if !buffered {
 			stdout.Write(c.buf.Bytes())
 			c.buf.Reset()
 		}
@@ -1207,6 +1227,19 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 
 	mergeCoverProfile(cmd.Stdout, a.Objdir+"_cover_.out")
 
+	if err == nil && !testList && !outCheck.anyOutput {
+		// If a test does os.Exit(0) by accident, 'go test' may succeed
+		// and it can take a while for a human to notice the package's
+		// tests didn't actually pass.
+		//
+		// If a test binary ran without error, it should have at least
+		// printed something, such as a PASS line.
+		//
+		// The only exceptions are when no tests have run, and the
+		// -test.list flag, which just prints the names of tests
+		// matching a pattern.
+		err = fmt.Errorf("test binary succeeded but did not print anything")
+	}
 	if err == nil {
 		norun := ""
 		if !testShowPass && !testJSON {
@@ -1227,7 +1260,7 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 		fmt.Fprintf(cmd.Stdout, "FAIL\t%s\t%s\n", a.Package.ImportPath, t)
 	}
 
-	if cmd.Stdout != &buf {
+	if !buffered {
 		buf.Reset() // cmd.Stdout was going to os.Stdout already
 	}
 	return nil
