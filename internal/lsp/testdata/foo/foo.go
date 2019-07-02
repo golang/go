@@ -5,9 +5,9 @@ type StructFoo struct { //@item(StructFoo, "StructFoo", "struct{...}", "struct")
 }
 
 // Pre-set this marker, as we don't have a "source" for it in this package.
-/* Error() */ //@item(Error, "Error()", "string", "method")
+/* Error() */ //@item(Error, "Error", "func() string", "method")
 
-func Foo() { //@item(Foo, "Foo()", "", "func")
+func Foo() { //@item(Foo, "Foo", "func()", "func")
 	var err error
 	err.Error() //@complete("E", Error)
 }

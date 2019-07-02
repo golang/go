@@ -1,14 +1,14 @@
 package snippets
 
-func foo(i int, b bool) {} //@item(snipFoo, "foo(i int, b bool)", "", "func")
-func bar(fn func()) func()    {} //@item(snipBar, "bar(fn func())", "", "func")
+func foo(i int, b bool) {} //@item(snipFoo, "foo", "func(i int, b bool)", "func")
+func bar(fn func()) func()    {} //@item(snipBar, "bar", "func(fn func())", "func")
 
 type Foo struct {
 	Bar int //@item(snipFieldBar, "Bar", "int", "field")
 }
 
-func (Foo) Baz() func() {} //@item(snipMethodBaz, "Baz()", "func()", "method")
-func (Foo) BazBar() func() {} //@item(snipMethodBazBar, "BazBar()", "func()", "method")
+func (Foo) Baz() func() {} //@item(snipMethodBaz, "Baz", "func() func()", "method")
+func (Foo) BazBar() func() {} //@item(snipMethodBazBar, "BazBar", "func() func()", "method")
 
 func _() {
 	f //@snippet(" //", snipFoo, "foo(${1})", "foo(${1:i int}, ${2:b bool})")

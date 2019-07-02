@@ -1,7 +1,7 @@
 package func_rank
 
 var stringAVar = "var"    //@item(stringAVar, "stringAVar", "string", "var")
-func stringBFunc() string { return "str" } //@item(stringBFunc, "stringBFunc()", "string", "func")
+func stringBFunc() string { return "str" } //@item(stringBFunc, "stringBFunc", "func() string", "func")
 type stringer struct{}    //@item(stringer, "stringer", "struct{...}", "struct")
 
 func _() stringer //@complete("tr", stringer, stringAVar, stringBFunc)

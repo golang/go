@@ -219,17 +219,22 @@ func formatType(typ types.Type, qf types.Qualifier) (detail string, kind Complet
 	return detail, kind
 }
 
-func formatFunction(name string, params []string, results []string, writeResultParens bool) (string, string) {
-	var label, detail strings.Builder
-	label.WriteString(name)
-	label.WriteByte('(')
+func formatFunction(params []string, results []string, writeResultParens bool) string {
+	var detail strings.Builder
+
+	detail.WriteByte('(')
 	for i, p := range params {
 		if i > 0 {
-			label.WriteString(", ")
+			detail.WriteString(", ")
 		}
-		label.WriteString(p)
+		detail.WriteString(p)
 	}
-	label.WriteByte(')')
+	detail.WriteByte(')')
+
+	// Add space between parameters and results.
+	if len(results) > 0 {
+		detail.WriteByte(' ')
+	}
 
 	if writeResultParens {
 		detail.WriteByte('(')
@@ -244,5 +249,5 @@ func formatFunction(name string, params []string, results []string, writeResultP
 		detail.WriteByte(')')
 	}
 
-	return label.String(), detail.String()
+	return detail.String()
 }

@@ -6,14 +6,14 @@ import (
 	"golang.org/x/tools/internal/lsp/foo" //@item(foo, "foo", "\"golang.org/x/tools/internal/lsp/foo\"", "package")
 )
 
-func helper(i foo.IntFoo) {} //@item(helper, "helper(i foo.IntFoo)", "", "func")
+func helper(i foo.IntFoo) {} //@item(helper, "helper", "func(i foo.IntFoo)", "func")
 
 func _() {
 	help //@complete("l", helper)
 	_ = foo.StructFoo{} //@complete("S", Foo, IntFoo, StructFoo)
 }
 
-func Bar() { //@item(Bar, "Bar()", "", "func")
+func Bar() { //@item(Bar, "Bar", "func()", "func")
 	foo.Foo()        //@complete("F", Foo, IntFoo, StructFoo)
 	var _ foo.IntFoo //@complete("I", Foo, IntFoo, StructFoo)
 	foo.()           //@complete("(", Foo, IntFoo, StructFoo)

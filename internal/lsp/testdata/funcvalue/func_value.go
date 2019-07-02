@@ -4,19 +4,19 @@ func fooFunc() int { //@item(fvFooFunc, "fooFunc", "func() int", "func")
 	return 0
 }
 
-var _ = fooFunc() //@item(fvFooFuncCall, "fooFunc()", "int", "func")
+var _ = fooFunc() //@item(fvFooFuncCall, "fooFunc", "func() int", "func")
 
 var fooVar = func() int { //@item(fvFooVar, "fooVar", "func() int", "var")
 	return 0
 }
 
-var _ = fooVar() //@item(fvFooVarCall, "fooVar()", "int", "var")
+var _ = fooVar() //@item(fvFooVarCall, "fooVar", "func() int", "var")
 
 type myFunc func() int
 
 var fooType myFunc = fooVar //@item(fvFooType, "fooType", "myFunc", "var")
 
-var _ = fooType() //@item(fvFooTypeCall, "fooType()", "int", "var")
+var _ = fooType() //@item(fvFooTypeCall, "fooType", "func() int", "var")
 
 func _() {
 	var f func() int

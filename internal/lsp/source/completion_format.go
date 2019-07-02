@@ -40,7 +40,7 @@ func (c *completer) item(cand candidate) CompletionItem {
 		params := formatParams(sig.Params(), sig.Variadic(), c.qf)
 		plainSnippet, placeholderSnippet = c.functionCallSnippets(label, params)
 		results, writeParens := formatResults(sig.Results(), c.qf)
-		label, detail = formatFunction(label, params, results, writeParens)
+		detail = "func" + formatFunction(params, results, writeParens)
 	}
 
 	switch obj := obj.(type) {
@@ -112,7 +112,6 @@ func (c *completer) isParameter(v *types.Var) bool {
 
 func (c *completer) formatBuiltin(cand candidate) CompletionItem {
 	obj := cand.obj
-
 	item := CompletionItem{
 		Label:      obj.Name(),
 		InsertText: obj.Name(),
@@ -129,7 +128,8 @@ func (c *completer) formatBuiltin(cand candidate) CompletionItem {
 		}
 		params, _ := formatFieldList(c.ctx, c.view, decl.Type.Params)
 		results, writeResultParens := formatFieldList(c.ctx, c.view, decl.Type.Results)
-		item.Label, item.Detail = formatFunction(obj.Name(), params, results, writeResultParens)
+		item.Label = obj.Name()
+		item.Detail = "func" + formatFunction(params, results, writeResultParens)
 		item.plainSnippet, item.placeholderSnippet = c.functionCallSnippets(obj.Name(), params)
 	case *types.TypeName:
 		if types.IsInterface(obj.Type()) {

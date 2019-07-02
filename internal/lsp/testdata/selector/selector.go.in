@@ -19,9 +19,9 @@ type george struct { b int }
 type jack struct { c int } //@item(c, "c", "int", "field")
 type jill struct { d int }
 
-func (b *bob) george() *george {} //@item(george, "george()", "*george", "method")
+func (b *bob) george() *george {} //@item(george, "george", "func() *george", "method")
 func (g *george) jack() *jack {}
-func (j *jack) jill() *jill {} //@item(jill, "jill()", "*jill", "method")
+func (j *jack) jill() *jill {} //@item(jill, "jill", "func() *jill", "method")
 
 func _() {
 	b := &bob{}

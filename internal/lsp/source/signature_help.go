@@ -152,11 +152,7 @@ func signatureInformation(name string, comment *ast.CommentGroup, params, result
 	for _, p := range params {
 		paramInfo = append(paramInfo, ParameterInformation{Label: p})
 	}
-	label, detail := formatFunction(name, params, results, writeResultParens)
-	// Show return values of the function in the label.
-	if detail != "" {
-		label += " " + detail
-	}
+	label := name + formatFunction(params, results, writeResultParens)
 	return &SignatureInformation{
 		Label: label,
 		// TODO: Should we have the HoverKind apply to signature information as well?
