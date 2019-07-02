@@ -479,6 +479,8 @@ func (r *runner) Reference(t *testing.T, data tests.References) {
 func (r *runner) Rename(t *testing.T, data tests.Renames) {
 	ctx := context.Background()
 	for spn, newText := range data {
+		tag := fmt.Sprintf("%s-rename", newText)
+
 		f, err := r.view.GetFile(ctx, spn.URI())
 		if err != nil {
 			t.Fatalf("failed for %v: %v", spn, err)
@@ -492,7 +494,12 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 		}
 		changes, err := ident.Rename(context.Background(), newText)
 		if err != nil {
-			t.Error(err)
+			renamed := string(r.data.Golden(tag, spn.URI().Filename(), func() ([]byte, error) {
+				return []byte(err.Error()), nil
+			}))
+			if err.Error() != renamed {
+				t.Errorf("rename failed for %s, expected:\n%v\ngot:\n%v\n", newText, renamed, err)
+			}
 			continue
 		}
 
@@ -513,7 +520,6 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 		}
 
 		got := applyEdits(string(data), edits)
-		tag := fmt.Sprintf("%s-rename", newText)
 		gorenamed := string(r.data.Golden(tag, spn.URI().Filename(), func() ([]byte, error) {
 			return []byte(got), nil
 		}))

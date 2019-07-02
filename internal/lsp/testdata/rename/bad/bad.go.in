@@ -1,0 +1,8 @@
+package bad
+
+type myStruct struct {
+}
+
+func (s *myStruct) sFunc() bool { //@rename("sFunc", "rFunc")
+	return s.Bad
+}

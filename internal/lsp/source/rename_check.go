@@ -789,6 +789,19 @@ func (r *renamer) satisfy() map[satisfy.Constraint]bool {
 		// Compute on demand: it's expensive.
 		var f satisfy.Finder
 		for _, pkg := range r.packages {
+			// From satisfy.Finder documentation:
+			//
+			// The package must be free of type errors, and
+			// info.{Defs,Uses,Selections,Types} must have been populated by the
+			// type-checker.
+			//
+			// Only proceed if all packages have no errors.
+			if errs := pkg.GetErrors(); len(errs) > 0 {
+				r.errorf(token.NoPos, // we don't have a position for this error.
+					"renaming %q to %q not possible because %q has errors",
+					r.from, r.to, pkg.PkgPath())
+				return nil
+			}
 			f.Find(pkg.GetTypesInfo(), pkg.GetSyntax())
 		}
 		r.satisfyConstraints = f.Result
