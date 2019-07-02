@@ -181,8 +181,8 @@ func collectReferences(f *ast.File) references {
 	return refs
 }
 
-// collectImports returns all the imports in f, keyed by their package name as
-// determined by pathToName. Unnamed imports (., _) and "C" are ignored.
+// collectImports returns all the imports in f.
+// Unnamed imports (., _) and "C" are ignored.
 func collectImports(f *ast.File) []*importInfo {
 	var imports []*importInfo
 	for _, imp := range f.Imports {
@@ -514,7 +514,7 @@ func fixImportsDefault(fset *token.FileSet, f *ast.File, filename string, env *P
 	return err
 }
 
-// getFixes gets the getFixes that need to be made to f in order to fix the imports.
+// getFixes gets the import fixes that need to be made to f in order to fix the imports.
 // It does not modify the ast.
 func getFixes(fset *token.FileSet, f *ast.File, filename string, env *ProcessEnv) ([]*importFix, error) {
 	abs, err := filepath.Abs(filename)
@@ -870,7 +870,7 @@ func (r *gopathResolver) loadPackageNames(importPaths []string, srcDir string) (
 	return names, nil
 }
 
-// importPathToNameGoPath finds out the actual package name, as declared in its .go files.
+// importPathToName finds out the actual package name, as declared in its .go files.
 // If there's a problem, it returns "".
 func importPathToName(env *ProcessEnv, importPath, srcDir string) (packageName string) {
 	// Fast path for standard library without going to disk.
@@ -890,8 +890,8 @@ func importPathToName(env *ProcessEnv, importPath, srcDir string) (packageName s
 }
 
 // packageDirToName is a faster version of build.Import if
-// the only thing desired is the package name. It uses build.FindOnly
-// to find the directory and then only parses one file in the package,
+// the only thing desired is the package name. Given a directory,
+// packageDirToName then only parses one file in the package,
 // trusting that the files in the directory are consistent.
 func packageDirToName(dir string) (packageName string, err error) {
 	d, err := os.Open(dir)
