@@ -23,7 +23,7 @@ type ReferenceInfo struct {
 }
 
 // References returns a list of references for a given identifier within the packages
-// containing i.File.
+// containing i.File. Declarations appear first in the result.
 func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, error) {
 	var references []*ReferenceInfo
 
@@ -57,13 +57,14 @@ func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, erro
 			if obj == nil || obj.Pos() != i.decl.obj.Pos() {
 				continue
 			}
-			references = append(references, &ReferenceInfo{
+			// Add the declarations at the beginning of the references list.
+			references = append([]*ReferenceInfo{&ReferenceInfo{
 				Name:          ident.Name,
 				Range:         span.NewRange(i.File.FileSet(), ident.Pos(), ident.End()),
 				ident:         ident,
 				obj:           obj,
 				isDeclaration: true,
-			})
+			}}, references...)
 		}
 		for ident, obj := range info.Uses {
 			if obj == nil || obj.Pos() != i.decl.obj.Pos() {
