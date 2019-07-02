@@ -479,6 +479,11 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
 		return fmt.Errorf("does not match version-control timestamp (%s)", info.Time.UTC().Format(time.RFC3339))
 	}
 
+	tagPrefix := ""
+	if r.codeDir != "" {
+		tagPrefix = r.codeDir + "/"
+	}
+
 	// A pseudo-version should have a precedence just above its parent revisions,
 	// and no higher. Otherwise, it would be possible for library authors to "pin"
 	// dependency versions (and bypass the usual minimum version selection) by
@@ -504,11 +509,26 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
 			return fmt.Errorf("major version without preceding tag must be v0, not v1")
 		}
 		return nil
-	}
-
-	tagPrefix := ""
-	if r.codeDir != "" {
-		tagPrefix = r.codeDir + "/"
+	} else {
+		for _, tag := range info.Tags {
+			versionOnly := strings.TrimPrefix(tag, tagPrefix)
+			if versionOnly == base {
+				// The base version is canonical, so if the version from the tag is
+				// literally equal (not just equivalent), then the tag is canonical too.
+				//
+				// We allow pseudo-versions to be derived from non-canonical tags on the
+				// same commit, so that tags like "v1.1.0+some-metadata" resolve as
+				// close as possible to the canonical version ("v1.1.0") while still
+				// enforcing a total ordering ("v1.1.1-0.[…]" with a unique suffix).
+				//
+				// However, canonical tags already have a total ordering, so there is no
+				// reason not to use the canonical tag directly, and we know that the
+				// canonical tag must already exist because the pseudo-version is
+				// derived from it. In that case, referring to the revision by a
+				// pseudo-version derived from its own canonical tag is just confusing.
+				return fmt.Errorf("tag (%s) found on revision %s is already canonical, so should not be replaced with a pseudo-version derived from that tag", tag, rev)
+			}
+		}
 	}
 
 	tags, err := r.code.Tags(tagPrefix + base)

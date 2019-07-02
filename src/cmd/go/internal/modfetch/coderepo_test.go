@@ -86,6 +86,26 @@ var codeRepoTests = []codeRepoTest{
 	{
 		vcs:     "git",
 		path:    "github.com/rsc/vgotest1",
+		rev:     "v0.0.0-20180219231006-80d85c5d4d17",
+		version: "v0.0.0-20180219231006-80d85c5d4d17",
+		name:    "80d85c5d4d17598a0e9055e7c175a32b415d6128",
+		short:   "80d85c5d4d17",
+		time:    time.Date(2018, 2, 19, 23, 10, 6, 0, time.UTC),
+		zip: []string{
+			"LICENSE",
+			"README.md",
+			"pkg/p.go",
+		},
+	},
+	{
+		vcs:  "git",
+		path: "github.com/rsc/vgotest1",
+		rev:  "v0.0.1-0.20180219231006-80d85c5d4d17",
+		err:  `github.com/rsc/vgotest1@v0.0.1-0.20180219231006-80d85c5d4d17: invalid pseudo-version: tag (v0.0.0) found on revision 80d85c5d4d17 is already canonical, so should not be replaced with a pseudo-version derived from that tag`,
+	},
+	{
+		vcs:     "git",
+		path:    "github.com/rsc/vgotest1",
 		rev:     "v1.0.0",
 		version: "v1.0.0",
 		name:    "80d85c5d4d17598a0e9055e7c175a32b415d6128",
@@ -515,7 +535,7 @@ func TestCodeRepo(t *testing.T) {
 }
 
 var hgmap = map[string]string{
-	"github.com/rsc/vgotest1/":                 "vcs-test.golang.org/hg/vgotest1.hg/",
+	"github.com/rsc/vgotest1":                  "vcs-test.golang.org/hg/vgotest1.hg",
 	"f18795870fb14388a21ef3ebc1d75911c8694f31": "a9ad6d1d14eb544f459f446210c7eb3b009807c6",
 	"ea65f87c8f52c15ea68f3bdd9925ef17e20d91e9": "f1fc0f22021b638d073d31c752847e7bf385def7",
 	"b769f2de407a4db81af9c5de0a06016d60d2ea09": "92c7eb888b4fac17f1c6bd2e1060a1b881a3b832",
