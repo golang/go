@@ -64,7 +64,6 @@ func (s *Server) initialize(ctx context.Context, params *protocol.InitializePara
 			return nil, err
 		}
 	}
-
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
 			CodeActionProvider: true,
@@ -191,6 +190,10 @@ func (s *Server) processConfig(ctx context.Context, view source.View, config int
 			flags = append(flags, fmt.Sprintf("%s", flag))
 		}
 		view.SetBuildFlags(flags)
+	}
+	// Check if the user wants documentation in completion items.
+	if wantCompletionDocumentation, ok := c["wantCompletionDocumentation"].(bool); ok {
+		s.wantCompletionDocumentation = wantCompletionDocumentation
 	}
 	// Check if placeholders are enabled.
 	if usePlaceholders, ok := c["usePlaceholders"].(bool); ok {

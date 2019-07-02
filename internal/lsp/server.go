@@ -73,6 +73,7 @@ type Server struct {
 	usePlaceholders               bool
 	hoverKind                     source.HoverKind
 	useDeepCompletions            bool
+	wantCompletionDocumentation   bool
 	insertTextFormat              protocol.InsertTextFormat
 	configurationSupported        bool
 	dynamicConfigurationSupported bool
@@ -164,8 +165,8 @@ func (s *Server) Completion(ctx context.Context, params *protocol.CompletionPara
 	return s.completion(ctx, params)
 }
 
-func (s *Server) CompletionResolve(context.Context, *protocol.CompletionItem) (*protocol.CompletionItem, error) {
-	return nil, notImplemented("CompletionResolve")
+func (s *Server) Resolve(ctx context.Context, item *protocol.CompletionItem) (*protocol.CompletionItem, error) {
+	return nil, notImplemented("completionItem/resolve")
 }
 
 func (s *Server) Hover(ctx context.Context, params *protocol.TextDocumentPositionParams) (*protocol.Hover, error) {
@@ -258,10 +259,6 @@ func (s *Server) LogTraceNotification(context.Context, *protocol.LogTraceParams)
 
 func (s *Server) PrepareRename(context.Context, *protocol.TextDocumentPositionParams) (*protocol.Range, error) {
 	return nil, notImplemented("PrepareRename")
-}
-
-func (s *Server) Resolve(context.Context, *protocol.CompletionItem) (*protocol.CompletionItem, error) {
-	return nil, notImplemented("Resolve")
 }
 
 func (s *Server) SetTraceNotification(context.Context, *protocol.SetTraceParams) error {

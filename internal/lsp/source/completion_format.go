@@ -14,10 +14,11 @@ import (
 	"strings"
 
 	"golang.org/x/tools/internal/lsp/snippet"
+	"golang.org/x/tools/internal/span"
 )
 
 // formatCompletion creates a completion item for a given candidate.
-func (c *completer) item(cand candidate) CompletionItem {
+func (c *completer) item(cand candidate) (CompletionItem, error) {
 	obj := cand.obj
 
 	// Handle builtin types separately.
@@ -83,8 +84,7 @@ func (c *completer) item(cand candidate) CompletionItem {
 	}
 
 	detail = strings.TrimPrefix(detail, "untyped ")
-
-	return CompletionItem{
+	item := CompletionItem{
 		Label:              label,
 		InsertText:         insert,
 		Detail:             detail,
@@ -94,6 +94,35 @@ func (c *completer) item(cand candidate) CompletionItem {
 		plainSnippet:       plainSnippet,
 		placeholderSnippet: placeholderSnippet,
 	}
+	if c.opts.WantDocumentaton {
+		declRange, err := objToRange(c.ctx, c.view.Session().Cache().FileSet(), obj)
+		if err != nil {
+			return CompletionItem{}, err
+		}
+		pos := declRange.FileSet.Position(declRange.Start)
+		if !pos.IsValid() {
+			return CompletionItem{}, fmt.Errorf("invalid declaration position for %v", item.Label)
+		}
+		uri := span.FileURI(pos.Filename)
+		f, err := c.view.GetFile(c.ctx, uri)
+		if err != nil {
+			return CompletionItem{}, err
+		}
+		gof, ok := f.(GoFile)
+		if !ok {
+			return CompletionItem{}, fmt.Errorf("declaration for %s not in a Go file: %s", item.Label, uri)
+		}
+		ident, err := Identifier(c.ctx, c.view, gof, declRange.Start)
+		if err != nil {
+			return CompletionItem{}, err
+		}
+		documentation, err := ident.Documentation(c.ctx, SynopsisDocumentation)
+		if err != nil {
+			return CompletionItem{}, err
+		}
+		item.Documentation = documentation
+	}
+	return item, nil
 }
 
 // isParameter returns true if the given *types.Var is a parameter
@@ -110,7 +139,7 @@ func (c *completer) isParameter(v *types.Var) bool {
 	return false
 }
 
-func (c *completer) formatBuiltin(cand candidate) CompletionItem {
+func (c *completer) formatBuiltin(cand candidate) (CompletionItem, error) {
 	obj := cand.obj
 	item := CompletionItem{
 		Label:      obj.Name(),
@@ -140,7 +169,7 @@ func (c *completer) formatBuiltin(cand candidate) CompletionItem {
 	case *types.Nil:
 		item.Kind = VariableCompletionItem
 	}
-	return item
+	return item, nil
 }
 
 var replacer = strings.NewReplacer(
