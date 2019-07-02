@@ -155,8 +155,9 @@ func signatureInformation(name string, comment *ast.CommentGroup, params, result
 		label += " " + detail
 	}
 	return &SignatureInformation{
-		Label:           label,
-		Documentation:   formatDocumentation(comment),
+		Label: label,
+		// TODO: Should we have the HoverKind apply to signature information as well?
+		Documentation:   formatDocumentation(SynopsisDocumentation, comment),
 		Parameters:      paramInfo,
 		ActiveParameter: activeParam,
 	}

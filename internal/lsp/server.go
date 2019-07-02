@@ -71,7 +71,7 @@ type Server struct {
 	// Configurations.
 	// TODO(rstambler): Separate these into their own struct?
 	usePlaceholders               bool
-	noDocsOnHover                 bool
+	hoverKind                     source.HoverKind
 	useDeepCompletions            bool
 	insertTextFormat              protocol.InsertTextFormat
 	configurationSupported        bool

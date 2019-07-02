@@ -55,6 +55,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 				protocol.SourceOrganizeImports: true,
 				protocol.QuickFix:              true,
 			},
+			hoverKind: source.SynopsisDocumentation,
 		},
 		data: data,
 	}

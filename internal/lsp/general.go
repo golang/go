@@ -34,6 +34,9 @@ func (s *Server) initialize(ctx context.Context, params *protocol.InitializePara
 		}
 	}
 
+	// Default to using synopsis as a default for hover information.
+	s.hoverKind = source.SynopsisDocumentation
+
 	s.supportedCodeActions = map[protocol.CodeActionKind]bool{
 		protocol.SourceOrganizeImports: true,
 		protocol.QuickFix:              true,
@@ -145,7 +148,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 			if err != nil {
 				return err
 			}
-			if err := s.processConfig(view, config[0]); err != nil {
+			if err := s.processConfig(ctx, view, config[0]); err != nil {
 				return err
 			}
 		}
@@ -156,7 +159,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	return nil
 }
 
-func (s *Server) processConfig(view source.View, config interface{}) error {
+func (s *Server) processConfig(ctx context.Context, view source.View, config interface{}) error {
 	// TODO: We should probably store and process more of the config.
 	if config == nil {
 		return nil // ignore error if you don't have a config
@@ -193,9 +196,19 @@ func (s *Server) processConfig(view source.View, config interface{}) error {
 	if usePlaceholders, ok := c["usePlaceholders"].(bool); ok {
 		s.usePlaceholders = usePlaceholders
 	}
-	// Check if the user has disabled documentation on hover.
-	if noDocsOnHover, ok := c["noDocsOnHover"].(bool); ok {
-		s.noDocsOnHover = noDocsOnHover
+	// Set the hover kind.
+	if hoverKind, ok := c["hoverKind"].(string); ok {
+		switch hoverKind {
+		case "NoDocumentation":
+			s.hoverKind = source.NoDocumentation
+		case "SynopsisDocumentation":
+			s.hoverKind = source.SynopsisDocumentation
+		case "FullDocumentation":
+			s.hoverKind = source.FullDocumentation
+		default:
+			view.Session().Logger().Errorf(ctx, "unsupported hover kind %s", hoverKind)
+			// The default value is already be set to synopsis.
+		}
 	}
 	// Check if the user wants to see suggested fixes from go/analysis.
 	if wantSuggestedFixes, ok := c["wantSuggestedFixes"].(bool); ok {
