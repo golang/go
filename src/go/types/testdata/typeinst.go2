@@ -1,0 +1,36 @@
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type myInt int
+
+// Parametrized type declarations
+
+type T1(type P) P
+
+type T2(type P) struct {
+        f P
+        g int // int should still be in scope chain
+}
+
+type List(type P) []P
+
+type A1(type P) P
+
+type A2(type P) struct {
+        f P
+        g myInt // myInt should still be in scope chain
+}
+
+// Parametrized type instantiations
+
+type _ T1 /* ERROR not a type */ (int) // TODO fix this
+
+
+
+// TODO
+// think about instantiated types (they are defined types unless alias)
+// need type map
+// type map maps to unique name found in scopes?
