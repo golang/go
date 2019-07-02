@@ -90,6 +90,18 @@ func TestEncoderIndent(t *testing.T) {
 	}
 }
 
+type strMarshaler string
+
+func (s strMarshaler) MarshalJSON() ([]byte, error) {
+	return []byte(s), nil
+}
+
+type strPtrMarshaler string
+
+func (s *strPtrMarshaler) MarshalJSON() ([]byte, error) {
+	return []byte(*s), nil
+}
+
 func TestEncoderSetEscapeHTML(t *testing.T) {
 	var c C
 	var ct CText
@@ -97,6 +109,15 @@ func TestEncoderSetEscapeHTML(t *testing.T) {
 		Valid   int `json:"<>&#! "`
 		Invalid int `json:"\\"`
 	}
+
+	// This case is particularly interesting, as we force the encoder to
+	// take the address of the Ptr field to use its MarshalJSON method. This
+	// is why the '&' is important.
+	marshalerStruct := &struct {
+		NonPtr strMarshaler
+		Ptr    strPtrMarshaler
+	}{`"<str>"`, `"<str>"`}
+
 	for _, tt := range []struct {
 		name       string
 		v          interface{}
@@ -110,6 +131,11 @@ func TestEncoderSetEscapeHTML(t *testing.T) {
 			"tagStruct", tagStruct,
 			`{"\u003c\u003e\u0026#! ":0,"Invalid":0}`,
 			`{"<>&#! ":0,"Invalid":0}`,
+		},
+		{
+			`"<str>"`, marshalerStruct,
+			`{"NonPtr":"\u003cstr\u003e","Ptr":"\u003cstr\u003e"}`,
+			`{"NonPtr":"<str>","Ptr":"<str>"}`,
 		},
 	} {
 		var buf bytes.Buffer
