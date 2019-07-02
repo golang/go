@@ -144,6 +144,16 @@ cd ..
 ! go list -m golang.org/x/text
 stderr 'golang.org/x/text@v0.2.1-0.20170915032832-14c0d48ead0c: invalid pseudo-version: revision 14c0d48ead0c is not a descendent of preceding tag \(v0.2.0\)'
 
+# A pseudo-version derived from a canonical tag on the same revision is invalid.
+cp go.mod.orig go.mod
+go mod edit -require golang.org/x/text@v0.2.1-0.20171213102548-c4d099d611ac
+cd outside
+! go list -m golang.org/x/text
+stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.2.1-0.20171213102548-c4d099d611ac: invalid pseudo-version: tag \(v0.2.0\) found on revision c4d099d611ac is already canonical, so should not be replaced with a pseudo-version derived from that tag'
+cd ..
+! go list -m golang.org/x/text
+stderr 'golang.org/x/text@v0.2.1-0.20171213102548-c4d099d611ac: invalid pseudo-version: tag \(v0.2.0\) found on revision c4d099d611ac is already canonical, so should not be replaced with a pseudo-version derived from that tag'
+
 # A +incompatible suffix is not allowed on a version that is actually compatible.
 cp go.mod.orig go.mod
 go mod edit -require golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0c+incompatible
@@ -165,15 +175,15 @@ go list -m github.com/pierrec/lz4
 stdout 'github.com/pierrec/lz4 v1.0.2-0.20190131084431-473cd7ce01a1'
 cd ..
 
-# A +incompatible version for a module that has an explicit go.mod file is invalid.
+# A +incompatible pseudo-version for a module that has an explicit go.mod file is invalid.
 cp go.mod.orig go.mod
-go mod edit -require github.com/pierrec/lz4@v2.0.9-0.20190131084431-473cd7ce01a1+incompatible
+go mod edit -require github.com/pierrec/lz4@v2.0.9-0.20190209155647-9a39efadad3d+incompatible
 cd outside
 ! go list -m github.com/pierrec/lz4
-stderr 'go: example.com@v0.0.0 requires\n\tgithub.com/pierrec/lz4@v2.0.9-0.20190131084431-473cd7ce01a1\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
+stderr 'go: example.com@v0.0.0 requires\n\tgithub.com/pierrec/lz4@v2.0.9-0.20190209155647-9a39efadad3d\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
 cd ..
 ! go list -m github.com/pierrec/lz4
-stderr 'github.com/pierrec/lz4@v2.0.9-0.20190131084431-473cd7ce01a1\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
+stderr 'github.com/pierrec/lz4@v2.0.9-0.20190209155647-9a39efadad3d\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
 
 # A +incompatible pseudo-version is valid for a revision of the module
 # that lacks a go.mod file.

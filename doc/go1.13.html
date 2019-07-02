@@ -302,8 +302,10 @@ go env -w GOSUMDB=off
   between <a href="/cmd/go#hdr-Pseudo_versions">pseudo-versions</a> and
   version-control metadata. Specifically:
   <ul>
-    <li>The version prefix must be derived from a tag on the named revision or
-    one of its ancestors, or be of the form <code>vX.0.0</code>.</li>
+    <li>The version prefix must be of the form <code>vX.0.0</code>, or derived
+    from a tag on an ancestor of the named revision, or derived from a tag that
+    includes <a href="https://semver.org/#spec-item-10">build metadata</a> on
+    the named revision itself.</li>
 
     <li>The date string must match the UTC timestamp of the revision.</li>
 
