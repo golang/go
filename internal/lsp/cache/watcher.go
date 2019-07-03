@@ -48,9 +48,15 @@ func (w *WatchMap) Watch(key interface{}, callback func()) func() {
 }
 
 func (w *WatchMap) Notify(key interface{}) {
+	// Make a copy of the watcher callbacks so we don't need to hold
+	// the mutex during the callbacks (to avoid deadlocks).
 	w.mu.Lock()
-	defer w.mu.Unlock()
-	for _, entry := range w.watchers[key] {
+	entries := w.watchers[key]
+	entriesCopy := make([]watcher, len(entries))
+	copy(entriesCopy, entries)
+	w.mu.Unlock()
+
+	for _, entry := range entriesCopy {
 		entry.callback()
 	}
 }
