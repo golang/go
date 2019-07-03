@@ -509,7 +509,7 @@ type NoMatchingVersionError struct {
 
 func (e *NoMatchingVersionError) Error() string {
 	currentSuffix := ""
-	if (e.query == "latest" || e.query == "patch") && e.current != "" {
+	if (e.query == "upgrade" || e.query == "patch") && e.current != "" {
 		currentSuffix = fmt.Sprintf(" (current version is %s)", e.current)
 	}
 	return fmt.Sprintf("no matching versions for query %q", e.query) + currentSuffix
