@@ -59,7 +59,7 @@ func (c *check) Run(ctx context.Context, args ...string) error {
 	for _, file := range checking {
 		select {
 		case <-file.hasDiagnostics:
-		case <-time.Tick(30 * time.Second):
+		case <-time.After(30 * time.Second):
 			return fmt.Errorf("timed out waiting for results from %v", file.uri)
 		}
 		file.diagnosticsMu.Lock()
