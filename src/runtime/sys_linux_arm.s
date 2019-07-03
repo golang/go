@@ -345,7 +345,6 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVW	$0, R5
 
 	// Copy mp, gp, fn off parent stack for use by child.
-	// TODO(kaib): figure out which registers are clobbered by clone and avoid stack copying
 	MOVW	$-16(R1), R1
 	MOVW	mp+8(FP), R6
 	MOVW	R6, 0(R1)
@@ -366,6 +365,7 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	RET
 
 	// Paranoia: check that SP is as we expect. Use R13 to avoid linker 'fixup'
+	NOP	R13	// tell vet SP/R13 changed - stop checking offsets
 	MOVW	12(R13), R0
 	MOVW	$1234, R1
 	CMP	R0, R1
@@ -605,4 +605,7 @@ TEXT runtime·sbrk0(SB),NOSPLIT,$0-4
 	MOVW	$SYS_brk, R7
 	SWI	$0
 	MOVW	R0, ret+0(FP)
+	RET
+
+TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
 	RET

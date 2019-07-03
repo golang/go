@@ -28,6 +28,7 @@ Scripts also have access to these other environment variables:
 
 	GOARCH=<target GOARCH>
 	GOCACHE=<actual GOCACHE being used outside the test>
+	GOEXE=<executable file suffix: .exe on Windows, empty on other systems>
 	GOOS=<target GOOS>
 	GOPATH=$WORK/gopath
 	GOPROXY=<local module proxy serving from cmd/go/testdata/mod>
@@ -37,8 +38,6 @@ Scripts also have access to these other environment variables:
 	TMPDIR=$WORK/tmp
 	devnull=<value of os.DevNull>
 	goversion=<current Go version; for example, 1.12>
-
-The environment variable $exe (lowercase) is an empty string on most systems, ".exe" on Windows.
 
 The scripts supporting files are unpacked relative to $GOPATH/src (aka $WORK/gopath/src)
 and then the script begins execution in that directory as well. Thus the example above runs
@@ -108,10 +107,14 @@ The commands are:
 
 - cp src... dst
   Copy the listed files to the target file or existing directory.
+  src can include "stdout" or "stderr" to use the standard output or standard error
+  from the most recent exec or go command.
 
-- env [key=value...]
+- env [-r] [key=value...]
   With no arguments, print the environment (useful for debugging).
   Otherwise add the listed key=value pairs to the environment.
+  The -r flag causes the values to be escaped using regexp.QuoteMeta
+  before being recorded.
 
 - [!] exec program [args...] [&]
   Run the given executable program with the arguments.
@@ -133,9 +136,10 @@ The commands are:
   Run the (test copy of the) go command with the given arguments.
   It must (or must not) succeed.
 
-- [!] grep [-count=N] pattern file
+- [!] grep [-count=N] [-q] pattern file
   The file's content must (or must not) match the regular expression pattern.
   For positive matches, -count=N specifies an exact number of matches to require.
+  The -q flag disables printing the file content on a mismatch.
 
 - mkdir path...
   Create the listed directories, if they do not already exists.

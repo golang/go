@@ -73,6 +73,16 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
 
 func typecheckclosure(clo *Node, top int) {
 	xfunc := clo.Func.Closure
+	clo.Func.Ntype = typecheck(clo.Func.Ntype, Etype)
+	clo.Type = clo.Func.Ntype.Type
+	clo.Func.Top = top
+
+	// Do not typecheck xfunc twice, otherwise, we will end up pushing
+	// xfunc to xtop multiple times, causing initLSym called twice.
+	// See #30709
+	if xfunc.Typecheck() == 1 {
+		return
+	}
 
 	for _, ln := range xfunc.Func.Cvars.Slice() {
 		n := ln.Name.Defn
@@ -94,10 +104,6 @@ func typecheckclosure(clo *Node, top int) {
 	disableExport(xfunc.Func.Nname.Sym)
 	declare(xfunc.Func.Nname, PFUNC)
 	xfunc = typecheck(xfunc, ctxStmt)
-
-	clo.Func.Ntype = typecheck(clo.Func.Ntype, Etype)
-	clo.Type = clo.Func.Ntype.Type
-	clo.Func.Top = top
 
 	// Type check the body now, but only if we're inside a function.
 	// At top level (in a variable initialization: curfn==nil) we're not
@@ -180,7 +186,7 @@ func capturevars(xfunc *Node) {
 		outermost := v.Name.Defn
 
 		// out parameters will be assigned to implicitly upon return.
-		if outer.Class() != PPARAMOUT && !outermost.Addrtaken() && !outermost.Assigned() && v.Type.Width <= 128 {
+		if outermost.Class() != PPARAMOUT && !outermost.Addrtaken() && !outermost.Assigned() && v.Type.Width <= 128 {
 			v.Name.SetByval(true)
 		} else {
 			outermost.SetAddrtaken(true)
@@ -523,8 +529,14 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 		// Trigger panic for method on nil interface now.
 		// Otherwise it happens in the wrapper and is confusing.
 		n.Left = cheapexpr(n.Left, init)
+		n.Left = walkexpr(n.Left, nil)
 
-		checknil(n.Left, init)
+		tab := nod(OITAB, n.Left, nil)
+		tab = typecheck(tab, ctxExpr)
+
+		c := nod(OCHECKNIL, tab, nil)
+		c.SetTypecheck(1)
+		init.Append(c)
 	}
 
 	typ := partialCallType(n)

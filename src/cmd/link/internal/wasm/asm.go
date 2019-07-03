@@ -54,21 +54,21 @@ type wasmFuncType struct {
 }
 
 var wasmFuncTypes = map[string]*wasmFuncType{
-	"_rt0_wasm_js":           &wasmFuncType{Params: []byte{}},                                         //
-	"wasm_export_run":        &wasmFuncType{Params: []byte{I32, I32}},                                 // argc, argv
-	"wasm_export_resume":     &wasmFuncType{Params: []byte{}},                                         //
-	"wasm_export_getsp":      &wasmFuncType{Results: []byte{I32}},                                     // sp
-	"wasm_pc_f_loop":         &wasmFuncType{Params: []byte{}},                                         //
-	"runtime.wasmMove":       &wasmFuncType{Params: []byte{I32, I32, I32}},                            // dst, src, len
-	"runtime.wasmZero":       &wasmFuncType{Params: []byte{I32, I32}},                                 // ptr, len
-	"runtime.wasmDiv":        &wasmFuncType{Params: []byte{I64, I64}, Results: []byte{I64}},           // x, y -> x/y
-	"runtime.wasmTruncS":     &wasmFuncType{Params: []byte{F64}, Results: []byte{I64}},                // x -> int(x)
-	"runtime.wasmTruncU":     &wasmFuncType{Params: []byte{F64}, Results: []byte{I64}},                // x -> uint(x)
-	"runtime.gcWriteBarrier": &wasmFuncType{Params: []byte{I64, I64}},                                 // ptr, val
-	"cmpbody":                &wasmFuncType{Params: []byte{I64, I64, I64, I64}, Results: []byte{I64}}, // a, alen, b, blen -> -1/0/1
-	"memeqbody":              &wasmFuncType{Params: []byte{I64, I64, I64}, Results: []byte{I64}},      // a, b, len -> 0/1
-	"memcmp":                 &wasmFuncType{Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // a, b, len -> <0/0/>0
-	"memchr":                 &wasmFuncType{Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // s, c, len -> index
+	"_rt0_wasm_js":           {Params: []byte{}},                                         //
+	"wasm_export_run":        {Params: []byte{I32, I32}},                                 // argc, argv
+	"wasm_export_resume":     {Params: []byte{}},                                         //
+	"wasm_export_getsp":      {Results: []byte{I32}},                                     // sp
+	"wasm_pc_f_loop":         {Params: []byte{}},                                         //
+	"runtime.wasmMove":       {Params: []byte{I32, I32, I32}},                            // dst, src, len
+	"runtime.wasmZero":       {Params: []byte{I32, I32}},                                 // ptr, len
+	"runtime.wasmDiv":        {Params: []byte{I64, I64}, Results: []byte{I64}},           // x, y -> x/y
+	"runtime.wasmTruncS":     {Params: []byte{F64}, Results: []byte{I64}},                // x -> int(x)
+	"runtime.wasmTruncU":     {Params: []byte{F64}, Results: []byte{I64}},                // x -> uint(x)
+	"runtime.gcWriteBarrier": {Params: []byte{I64, I64}},                                 // ptr, val
+	"cmpbody":                {Params: []byte{I64, I64, I64, I64}, Results: []byte{I64}}, // a, alen, b, blen -> -1/0/1
+	"memeqbody":              {Params: []byte{I64, I64, I64}, Results: []byte{I64}},      // a, b, len -> 0/1
+	"memcmp":                 {Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // a, b, len -> <0/0/>0
+	"memchr":                 {Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // s, c, len -> index
 }
 
 func assignAddress(ctxt *ld.Link, sect *sym.Section, n int, s *sym.Symbol, va uint64, isTramp bool) (*sym.Section, int, uint64) {
@@ -92,23 +92,26 @@ func assignAddress(ctxt *ld.Link, sect *sym.Section, n int, s *sym.Symbol, va ui
 	return sect, n, va
 }
 
+func asmb(ctxt *ld.Link) {} // dummy
+
 // asmb writes the final WebAssembly module binary.
 // Spec: https://webassembly.github.io/spec/core/binary/modules.html
-func asmb(ctxt *ld.Link) {
+func asmb2(ctxt *ld.Link) {
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("%5.2f asmb\n", ld.Cputime())
 	}
 
 	types := []*wasmFuncType{
-		// For normal Go functions the return value is
+		// For normal Go functions, the single parameter is PC_B,
+		// the return value is
 		// 0 if the function returned normally or
 		// 1 if the stack needs to be unwound.
-		&wasmFuncType{Results: []byte{I32}},
+		{Params: []byte{I32}, Results: []byte{I32}},
 	}
 
 	// collect host imports (functions that get imported from the WebAssembly host, usually JavaScript)
 	hostImports := []*wasmFunc{
-		&wasmFunc{
+		{
 			Name: "debug",
 			Type: lookupType(&wasmFuncType{Params: []byte{I32}}, &types),
 		},
@@ -297,18 +300,18 @@ func writeTableSec(ctxt *ld.Link, fns []*wasmFunc) {
 }
 
 // writeMemorySec writes the section that declares linear memories. Currently one linear memory is being used.
+// Linear memory always starts at address zero. More memory can be requested with the GrowMemory instruction.
 func writeMemorySec(ctxt *ld.Link) {
 	sizeOffset := writeSecHeader(ctxt, sectionMemory)
 
-	// Linear memory always starts at address zero.
-	// The unit of the sizes is "WebAssembly page size", which is 64Ki.
-	// The minimum is currently set to 1GB, which is a lot.
-	// More memory can be requested with the grow_memory instruction,
-	// but this operation currently is rather slow, so we avoid it for now.
-	// TODO(neelance): Use lower initial memory size.
-	writeUleb128(ctxt.Out, 1)       // number of memories
-	ctxt.Out.WriteByte(0x00)        // no maximum memory size
-	writeUleb128(ctxt.Out, 1024*16) // minimum (initial) memory size
+	const (
+		initialSize  = 16 << 20 // 16MB, enough for runtime init without growing
+		wasmPageSize = 64 << 10 // 64KB
+	)
+
+	writeUleb128(ctxt.Out, 1)                        // number of memories
+	ctxt.Out.WriteByte(0x00)                         // no maximum memory size
+	writeUleb128(ctxt.Out, initialSize/wasmPageSize) // minimum (initial) memory size
 
 	writeSecSize(ctxt, sizeOffset)
 }
@@ -318,16 +321,14 @@ func writeGlobalSec(ctxt *ld.Link) {
 	sizeOffset := writeSecHeader(ctxt, sectionGlobal)
 
 	globalRegs := []byte{
-		I32, // 0: PC_F
-		I32, // 1: PC_B
-		I32, // 2: SP
-		I64, // 3: CTXT
-		I64, // 4: g
-		I64, // 5: RET0
-		I64, // 6: RET1
-		I64, // 7: RET2
-		I64, // 8: RET3
-		I32, // 9: PAUSE
+		I32, // 0: SP
+		I64, // 1: CTXT
+		I64, // 2: g
+		I64, // 3: RET0
+		I64, // 4: RET1
+		I64, // 5: RET2
+		I64, // 6: RET3
+		I32, // 7: PAUSE
 	}
 
 	writeUleb128(ctxt.Out, uint64(len(globalRegs))) // number of globals
@@ -417,14 +418,71 @@ func writeDataSec(ctxt *ld.Link) {
 		ctxt.Syms.Lookup("runtime.data", 0).Sect,
 	}
 
-	writeUleb128(ctxt.Out, uint64(len(sections))) // number of data entries
+	type dataSegment struct {
+		offset int32
+		data   []byte
+	}
 
-	for _, sec := range sections {
+	// Omit blocks of zeroes and instead emit data segments with offsets skipping the zeroes.
+	// This reduces the size of the WebAssembly binary. We use 8 bytes as an estimate for the
+	// overhead of adding a new segment (same as wasm-opt's memory-packing optimization uses).
+	const segmentOverhead = 8
+
+	// Generate at most this many segments. A higher number of segments gets rejected by some WebAssembly runtimes.
+	const maxNumSegments = 100000
+
+	var segments []*dataSegment
+	for secIndex, sec := range sections {
+		data := ld.DatblkBytes(ctxt, int64(sec.Vaddr), int64(sec.Length))
+		offset := int32(sec.Vaddr)
+
+		// skip leading zeroes
+		for len(data) > 0 && data[0] == 0 {
+			data = data[1:]
+			offset++
+		}
+
+		for len(data) > 0 {
+			dataLen := int32(len(data))
+			var segmentEnd, zeroEnd int32
+			if len(segments)+(len(sections)-secIndex) == maxNumSegments {
+				segmentEnd = dataLen
+				zeroEnd = dataLen
+			} else {
+				for {
+					// look for beginning of zeroes
+					for segmentEnd < dataLen && data[segmentEnd] != 0 {
+						segmentEnd++
+					}
+					// look for end of zeroes
+					zeroEnd = segmentEnd
+					for zeroEnd < dataLen && data[zeroEnd] == 0 {
+						zeroEnd++
+					}
+					// emit segment if omitting zeroes reduces the output size
+					if zeroEnd-segmentEnd >= segmentOverhead || zeroEnd == dataLen {
+						break
+					}
+					segmentEnd = zeroEnd
+				}
+			}
+
+			segments = append(segments, &dataSegment{
+				offset: offset,
+				data:   data[:segmentEnd],
+			})
+			data = data[zeroEnd:]
+			offset += zeroEnd
+		}
+	}
+
+	writeUleb128(ctxt.Out, uint64(len(segments))) // number of data entries
+	for _, seg := range segments {
 		writeUleb128(ctxt.Out, 0) // memidx
-		writeI32Const(ctxt.Out, int32(sec.Vaddr))
+		writeI32Const(ctxt.Out, seg.offset)
 		ctxt.Out.WriteByte(0x0b) // end
-		writeUleb128(ctxt.Out, uint64(sec.Length))
-		ld.Datblk(ctxt, int64(sec.Vaddr), int64(sec.Length))
+		writeUleb128(ctxt.Out, uint64(len(seg.data)))
+		ctxt.Out.Write(seg.data)
 	}
 
 	writeSecSize(ctxt, sizeOffset)

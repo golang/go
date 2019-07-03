@@ -1,4 +1,4 @@
-// compile
+// errorcheck
 
 // Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -6,14 +6,10 @@
 
 package p
 
-// The compiler cannot handle this. Disabled for now.
-// See issue #25838.
-/*
 type I1 = interface {
 	I2
 }
 
-type I2 interface {
+type I2 interface { // ERROR "invalid recursive type"
 	I1
 }
-*/

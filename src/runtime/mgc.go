@@ -141,7 +141,7 @@ const (
 
 	// sweepMinHeapDistance is a lower bound on the heap distance
 	// (in bytes) reserved for concurrent sweeping between GC
-	// cycles. This will be scaled by gcpercent/100.
+	// cycles.
 	sweepMinHeapDistance = 1024 * 1024
 )
 
@@ -202,26 +202,33 @@ func readgogc() int32 {
 
 // gcenable is called after the bulk of the runtime initialization,
 // just before we're about to start letting user code run.
-// It kicks off the background sweeper goroutine and enables GC.
+// It kicks off the background sweeper goroutine, the background
+// scavenger goroutine, and enables GC.
 func gcenable() {
-	c := make(chan int, 1)
+	// Kick off sweeping and scavenging.
+	c := make(chan int, 2)
 	go bgsweep(c)
+	go bgscavenge(c)
+	<-c
 	<-c
 	memstats.enablegc = true // now that runtime is initialized, GC is okay
 }
 
 //go:linkname setGCPercent runtime/debug.setGCPercent
 func setGCPercent(in int32) (out int32) {
-	lock(&mheap_.lock)
-	out = gcpercent
-	if in < 0 {
-		in = -1
-	}
-	gcpercent = in
-	heapminimum = defaultHeapMinimum * uint64(gcpercent) / 100
-	// Update pacing in response to gcpercent change.
-	gcSetTriggerRatio(memstats.triggerRatio)
-	unlock(&mheap_.lock)
+	// Run on the system stack since we grab the heap lock.
+	systemstack(func() {
+		lock(&mheap_.lock)
+		out = gcpercent
+		if in < 0 {
+			in = -1
+		}
+		gcpercent = in
+		heapminimum = defaultHeapMinimum * uint64(gcpercent) / 100
+		// Update pacing in response to gcpercent change.
+		gcSetTriggerRatio(memstats.triggerRatio)
+		unlock(&mheap_.lock)
+	})
 
 	// If we just disabled GC, wait for any concurrent GC mark to
 	// finish so we always return with no GC running.
@@ -404,23 +411,6 @@ func (c *gcControllerState) startCycle() {
 	c.fractionalMarkTime = 0
 	c.idleMarkTime = 0
 
-	// If this is the first GC cycle or we're operating on a very
-	// small heap, fake heap_marked so it looks like gc_trigger is
-	// the appropriate growth from heap_marked, even though the
-	// real heap_marked may not have a meaningful value (on the
-	// first cycle) or may be much smaller (resulting in a large
-	// error response).
-	if memstats.gc_trigger <= heapminimum {
-		memstats.heap_marked = uint64(float64(memstats.gc_trigger) / (1 + memstats.triggerRatio))
-	}
-
-	// Re-compute the heap goal for this cycle in case something
-	// changed. This is the same calculation we use elsewhere.
-	memstats.next_gc = memstats.heap_marked + memstats.heap_marked*uint64(gcpercent)/100
-	if gcpercent < 0 {
-		memstats.next_gc = ^uint64(0)
-	}
-
 	// Ensure that the heap goal is at least a little larger than
 	// the current live heap size. This may not be the case if GC
 	// start is delayed or if the allocation that pushed heap_live
@@ -585,7 +575,7 @@ func (c *gcControllerState) endCycle() float64 {
 	// growth if we had the desired CPU utilization). The
 	// difference between this estimate and the GOGC-based goal
 	// heap growth is the error.
-	goalGrowthRatio := float64(gcpercent) / 100
+	goalGrowthRatio := gcEffectiveGrowthRatio()
 	actualGrowthRatio := float64(memstats.heap_live)/float64(memstats.heap_marked) - 1
 	assistDuration := nanotime() - c.markStartTime
 
@@ -765,6 +755,14 @@ func pollFractionalWorkerExit() bool {
 //
 // mheap_.lock must be held or the world must be stopped.
 func gcSetTriggerRatio(triggerRatio float64) {
+	// Compute the next GC goal, which is when the allocated heap
+	// has grown by GOGC/100 over the heap marked by the last
+	// cycle.
+	goal := ^uint64(0)
+	if gcpercent >= 0 {
+		goal = memstats.heap_marked + memstats.heap_marked*uint64(gcpercent)/100
+	}
+
 	// Set the trigger ratio, capped to reasonable bounds.
 	if triggerRatio < 0 {
 		// This can happen if the mutator is allocating very
@@ -795,7 +793,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
 			// that concurrent sweep has some heap growth
 			// in which to perform sweeping before we
 			// start the next GC cycle.
-			sweepMin := atomic.Load64(&memstats.heap_live) + sweepMinHeapDistance*uint64(gcpercent)/100
+			sweepMin := atomic.Load64(&memstats.heap_live) + sweepMinHeapDistance
 			if sweepMin > minTrigger {
 				minTrigger = sweepMin
 			}
@@ -807,22 +805,16 @@ func gcSetTriggerRatio(triggerRatio float64) {
 			print("runtime: next_gc=", memstats.next_gc, " heap_marked=", memstats.heap_marked, " heap_live=", memstats.heap_live, " initialHeapLive=", work.initialHeapLive, "triggerRatio=", triggerRatio, " minTrigger=", minTrigger, "\n")
 			throw("gc_trigger underflow")
 		}
-	}
-	memstats.gc_trigger = trigger
-
-	// Compute the next GC goal, which is when the allocated heap
-	// has grown by GOGC/100 over the heap marked by the last
-	// cycle.
-	goal := ^uint64(0)
-	if gcpercent >= 0 {
-		goal = memstats.heap_marked + memstats.heap_marked*uint64(gcpercent)/100
-		if goal < trigger {
+		if trigger > goal {
 			// The trigger ratio is always less than GOGC/100, but
 			// other bounds on the trigger may have raised it.
 			// Push up the goal, too.
 			goal = trigger
 		}
 	}
+
+	// Commit to the trigger and goal.
+	memstats.gc_trigger = trigger
 	memstats.next_gc = goal
 	if trace.enabled {
 		traceNextGC()
@@ -865,6 +857,26 @@ func gcSetTriggerRatio(triggerRatio float64) {
 			atomic.Store64(&mheap_.pagesSweptBasis, pagesSwept)
 		}
 	}
+
+	gcPaceScavenger()
+}
+
+// gcEffectiveGrowthRatio returns the current effective heap growth
+// ratio (GOGC/100) based on heap_marked from the previous GC and
+// next_gc for the current GC.
+//
+// This may differ from gcpercent/100 because of various upper and
+// lower bounds on gcpercent. For example, if the heap is smaller than
+// heapminimum, this can be higher than gcpercent/100.
+//
+// mheap_.lock must be held or the world must be stopped.
+func gcEffectiveGrowthRatio() float64 {
+	egogc := float64(memstats.next_gc-memstats.heap_marked) / float64(memstats.heap_marked)
+	if egogc < 0 {
+		// Shouldn't happen, but just in case.
+		egogc = 0
+	}
+	return egogc
 }
 
 // gcGoalUtilization is the goal CPU utilization for
@@ -1136,15 +1148,10 @@ type gcTrigger struct {
 type gcTriggerKind int
 
 const (
-	// gcTriggerAlways indicates that a cycle should be started
-	// unconditionally, even if GOGC is off or we're in a cycle
-	// right now. This cannot be consolidated with other cycles.
-	gcTriggerAlways gcTriggerKind = iota
-
 	// gcTriggerHeap indicates that a cycle should be started when
 	// the heap size reaches the trigger heap size computed by the
 	// controller.
-	gcTriggerHeap
+	gcTriggerHeap gcTriggerKind = iota
 
 	// gcTriggerTime indicates that a cycle should be started when
 	// it's been more than forcegcperiod nanoseconds since the
@@ -1161,13 +1168,7 @@ const (
 // that the exit condition for the _GCoff phase has been met. The exit
 // condition should be tested when allocating.
 func (t gcTrigger) test() bool {
-	if !memstats.enablegc || panicking != 0 {
-		return false
-	}
-	if t.kind == gcTriggerAlways {
-		return true
-	}
-	if gcphase != _GCoff {
+	if !memstats.enablegc || panicking != 0 || gcphase != _GCoff {
 		return false
 	}
 	switch t.kind {
@@ -1233,7 +1234,7 @@ func gcStart(trigger gcTrigger) {
 	}
 
 	// For stats, check if this GC was forced by the user.
-	work.userForced = trigger.kind == gcTriggerAlways || trigger.kind == gcTriggerCycle
+	work.userForced = trigger.kind == gcTriggerCycle
 
 	// In gcstoptheworld debug mode, upgrade the mode accordingly.
 	// We do this after re-checking the transition condition so
@@ -1263,7 +1264,7 @@ func gcStart(trigger gcTrigger) {
 
 	gcBgMarkStartWorkers()
 
-	gcResetMarkState()
+	systemstack(gcResetMarkState)
 
 	work.stwprocs, work.maxprocs = gomaxprocs, gomaxprocs
 	if work.stwprocs > ncpu {
@@ -1993,7 +1994,6 @@ func gcMarkWorkAvailable(p *p) bool {
 // gcMark runs the mark (or, for concurrent GC, mark termination)
 // All gcWork caches must be empty.
 // STW is in effect at this point.
-//TODO go:nowritebarrier
 func gcMark(start_time int64) {
 	if debug.allocfreetrace > 0 {
 		tracegc()
@@ -2081,6 +2081,9 @@ func gcMark(start_time int64) {
 	}
 }
 
+// gcSweep must be called on the system stack because it acquires the heap
+// lock. See mheap for details.
+//go:systemstack
 func gcSweep(mode gcMode) {
 	if gcphase != _GCoff {
 		throw("gcSweep being done but phase is not GCoff")
@@ -2137,6 +2140,11 @@ func gcSweep(mode gcMode) {
 //
 // This is safe to do without the world stopped because any Gs created
 // during or after this will start out in the reset state.
+//
+// gcResetMarkState must be called on the system stack because it acquires
+// the heap lock. See mheap for details.
+//
+//go:systemstack
 func gcResetMarkState() {
 	// This may be called during a concurrent phase, so make sure
 	// allgs doesn't change.

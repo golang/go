@@ -5,6 +5,7 @@
 package syscall
 
 import (
+	"internal/oserror"
 	"sync"
 	"unsafe"
 )
@@ -60,6 +61,22 @@ func (e Errno) Error() string {
 		}
 	}
 	return "errno " + itoa(int(e))
+}
+
+func (e Errno) Is(target error) bool {
+	switch target {
+	case oserror.ErrTemporary:
+		return e.Temporary()
+	case oserror.ErrTimeout:
+		return e.Timeout()
+	case oserror.ErrPermission:
+		return e == EACCES || e == EPERM
+	case oserror.ErrExist:
+		return e == EEXIST || e == ENOTEMPTY
+	case oserror.ErrNotExist:
+		return e == ENOENT
+	}
+	return false
 }
 
 func (e Errno) Temporary() bool {

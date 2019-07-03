@@ -28,17 +28,15 @@ type Lookup func(path string) (io.ReadCloser, error)
 // (if the package API depends on cgo-defined entities, the type
 // checker won't have access to those).
 //
-// If lookup is nil, the default package lookup mechanism for the
-// given compiler is used, and the resulting importer attempts
-// to resolve relative and absolute import paths to canonical
-// import path IDs before finding the imported file.
+// The lookup function is called each time the resulting importer needs
+// to resolve an import path. In this mode the importer can only be
+// invoked with canonical import paths (not relative or absolute ones);
+// it is assumed that the translation to canonical import paths is being
+// done by the client of the importer.
 //
-// If lookup is non-nil, then the returned importer calls lookup
-// each time it needs to resolve an import path. In this mode
-// the importer can only be invoked with canonical import paths
-// (not relative or absolute ones); it is assumed that the translation
-// to canonical import paths is being done by the client of the
-// importer.
+// A lookup function must be provided for correct module-aware operation.
+// Deprecated: If lookup is nil, for backwards-compatibility, the importer
+// will attempt to resolve imports in the $GOPATH workspace.
 func ForCompiler(fset *token.FileSet, compiler string, lookup Lookup) types.Importer {
 	switch compiler {
 	case "gc":
@@ -73,7 +71,7 @@ func ForCompiler(fset *token.FileSet, compiler string, lookup Lookup) types.Impo
 
 // For calls ForCompiler with a new FileSet.
 //
-// Deprecated: use ForCompiler, which populates a FileSet
+// Deprecated: Use ForCompiler, which populates a FileSet
 // with the positions of objects created by the importer.
 func For(compiler string, lookup Lookup) types.Importer {
 	return ForCompiler(token.NewFileSet(), compiler, lookup)

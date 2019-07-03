@@ -89,17 +89,17 @@ func (f *fmt) writePadding(n int) {
 // pad appends b to f.buf, padded on left (!f.minus) or right (f.minus).
 func (f *fmt) pad(b []byte) {
 	if !f.widPresent || f.wid == 0 {
-		f.buf.Write(b)
+		f.buf.write(b)
 		return
 	}
 	width := f.wid - utf8.RuneCount(b)
 	if !f.minus {
 		// left padding
 		f.writePadding(width)
-		f.buf.Write(b)
+		f.buf.write(b)
 	} else {
 		// right padding
-		f.buf.Write(b)
+		f.buf.write(b)
 		f.writePadding(width)
 	}
 }
@@ -107,17 +107,17 @@ func (f *fmt) pad(b []byte) {
 // padString appends s to f.buf, padded on left (!f.minus) or right (f.minus).
 func (f *fmt) padString(s string) {
 	if !f.widPresent || f.wid == 0 {
-		f.buf.WriteString(s)
+		f.buf.writeString(s)
 		return
 	}
 	width := f.wid - utf8.RuneCountInString(s)
 	if !f.minus {
 		// left padding
 		f.writePadding(width)
-		f.buf.WriteString(s)
+		f.buf.writeString(s)
 	} else {
 		// right padding
-		f.buf.WriteString(s)
+		f.buf.writeString(s)
 		f.writePadding(width)
 	}
 }
@@ -191,7 +191,7 @@ func (f *fmt) fmtUnicode(u uint64) {
 }
 
 // fmtInteger formats signed and unsigned integers.
-func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, digits string) {
+func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, verb rune, digits string) {
 	negative := isSigned && int64(u) < 0
 	if negative {
 		u = -u
@@ -275,6 +275,12 @@ func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, digits string) {
 	// Various prefixes: 0x, -, etc.
 	if f.sharp {
 		switch base {
+		case 2:
+			// Add a leading 0b.
+			i--
+			buf[i] = 'b'
+			i--
+			buf[i] = '0'
 		case 8:
 			if buf[i] != '0' {
 				i--
@@ -287,6 +293,12 @@ func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, digits string) {
 			i--
 			buf[i] = '0'
 		}
+	}
+	if verb == 'O' {
+		i--
+		buf[i] = 'o'
+		i--
+		buf[i] = '0'
 	}
 
 	if negative {
@@ -510,7 +522,7 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 	if f.sharp && verb != 'b' {
 		digits := 0
 		switch verb {
-		case 'v', 'g', 'G':
+		case 'v', 'g', 'G', 'x':
 			digits = prec
 			// If no precision is set explicitly use a precision of 6.
 			if digits == -1 {
@@ -519,8 +531,8 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 		}
 
 		// Buffer pre-allocated with enough room for
-		// exponent notations of the form "e+123".
-		var tailBuf [5]byte
+		// exponent notations of the form "e+123" or "p-1023".
+		var tailBuf [6]byte
 		tail := tailBuf[:0]
 
 		hasDecimalPoint := false
@@ -529,9 +541,16 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 			switch num[i] {
 			case '.':
 				hasDecimalPoint = true
-			case 'e', 'E':
+			case 'p', 'P':
 				tail = append(tail, num[i:]...)
 				num = num[:i]
+			case 'e', 'E':
+				if verb != 'x' && verb != 'X' {
+					tail = append(tail, num[i:]...)
+					num = num[:i]
+					break
+				}
+				fallthrough
 			default:
 				digits--
 			}
@@ -550,9 +569,9 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 		// If we're zero padding to the left we want the sign before the leading zeros.
 		// Achieve this by writing the sign out and then padding the unsigned number.
 		if f.zero && f.widPresent && f.wid > len(num) {
-			f.buf.WriteByte(num[0])
+			f.buf.writeByte(num[0])
 			f.writePadding(f.wid - len(num))
-			f.buf.Write(num[1:])
+			f.buf.write(num[1:])
 			return
 		}
 		f.pad(num)

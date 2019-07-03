@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package context defines the Context type, which carries deadlines,
-// cancelation signals, and other request-scoped values across API boundaries
+// cancellation signals, and other request-scoped values across API boundaries
 // and between processes.
 //
 // Incoming requests to a server should create a Context, and outgoing
@@ -49,13 +49,13 @@ package context
 
 import (
 	"errors"
-	"fmt"
-	"reflect"
+	"internal/oserror"
+	"internal/reflectlite"
 	"sync"
 	"time"
 )
 
-// A Context carries a deadline, a cancelation signal, and other values across
+// A Context carries a deadline, a cancellation signal, and other values across
 // API boundaries.
 //
 // Context's methods may be called by multiple goroutines simultaneously.
@@ -93,7 +93,7 @@ type Context interface {
 	//  }
 	//
 	// See https://blog.golang.org/pipelines for more examples of how to use
-	// a Done channel for cancelation.
+	// a Done channel for cancellation.
 	Done() <-chan struct{}
 
 	// If Done is not yet closed, Err returns nil.
@@ -163,6 +163,9 @@ type deadlineExceededError struct{}
 func (deadlineExceededError) Error() string   { return "context deadline exceeded" }
 func (deadlineExceededError) Timeout() bool   { return true }
 func (deadlineExceededError) Temporary() bool { return true }
+func (deadlineExceededError) Is(target error) bool {
+	return target == oserror.ErrTimeout || target == oserror.ErrTemporary
+}
 
 // An emptyCtx is never canceled, has no values, and has no deadline. It is not
 // struct{}, since vars of this type must have distinct addresses.
@@ -217,6 +220,7 @@ func TODO() Context {
 
 // A CancelFunc tells an operation to abandon its work.
 // A CancelFunc does not wait for the work to stop.
+// A CancelFunc may be called by multiple goroutines simultaneously.
 // After the first call, subsequent calls to a CancelFunc do nothing.
 type CancelFunc func()
 
@@ -338,8 +342,19 @@ func (c *cancelCtx) Err() error {
 	return err
 }
 
+type stringer interface {
+	String() string
+}
+
+func contextName(c Context) string {
+	if s, ok := c.(stringer); ok {
+		return s.String()
+	}
+	return reflectlite.TypeOf(c).String()
+}
+
 func (c *cancelCtx) String() string {
-	return fmt.Sprintf("%v.WithCancel", c.Context)
+	return contextName(c.Context) + ".WithCancel"
 }
 
 // cancel closes c.done, cancels each of c's children, and, if
@@ -420,7 +435,9 @@ func (c *timerCtx) Deadline() (deadline time.Time, ok bool) {
 }
 
 func (c *timerCtx) String() string {
-	return fmt.Sprintf("%v.WithDeadline(%s [%s])", c.cancelCtx.Context, c.deadline, time.Until(c.deadline))
+	return contextName(c.cancelCtx.Context) + ".WithDeadline(" +
+		c.deadline.String() + " [" +
+		time.Until(c.deadline).String() + "])"
 }
 
 func (c *timerCtx) cancel(removeFromParent bool, err error) {
@@ -468,7 +485,7 @@ func WithValue(parent Context, key, val interface{}) Context {
 	if key == nil {
 		panic("nil key")
 	}
-	if !reflect.TypeOf(key).Comparable() {
+	if !reflectlite.TypeOf(key).Comparable() {
 		panic("key is not comparable")
 	}
 	return &valueCtx{parent, key, val}
@@ -481,8 +498,23 @@ type valueCtx struct {
 	key, val interface{}
 }
 
+// stringify tries a bit to stringify v, without using fmt, since we don't
+// want context depending on the unicode tables. This is only used by
+// *valueCtx.String().
+func stringify(v interface{}) string {
+	switch s := v.(type) {
+	case stringer:
+		return s.String()
+	case string:
+		return s
+	}
+	return "<not Stringer>"
+}
+
 func (c *valueCtx) String() string {
-	return fmt.Sprintf("%v.WithValue(%#v, %#v)", c.Context, c.key, c.val)
+	return contextName(c.Context) + ".WithValue(type " +
+		reflectlite.TypeOf(c.key).String() +
+		", val " + stringify(c.val) + ")"
 }
 
 func (c *valueCtx) Value(key interface{}) interface{} {

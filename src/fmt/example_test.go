@@ -321,13 +321,13 @@ func Example_formats() {
 	// Result: &{Kim 22} 0x010203 // See comment above.
 
 	// Arrays and slices are formatted by applying the format to each element.
-	greats := [5]string{"Katano", "Kobayashi", "Kurosawa", "Miyazaki", "Ozu"}
+	greats := [5]string{"Kitano", "Kobayashi", "Kurosawa", "Miyazaki", "Ozu"}
 	fmt.Printf("%v %q\n", greats, greats)
-	// Result: [Katano Kobayashi Kurosawa Miyazaki Ozu] ["Katano" "Kobayashi" "Kurosawa" "Miyazaki" "Ozu"]
+	// Result: [Kitano Kobayashi Kurosawa Miyazaki Ozu] ["Kitano" "Kobayashi" "Kurosawa" "Miyazaki" "Ozu"]
 
 	kGreats := greats[:3]
 	fmt.Printf("%v %q %#v\n", kGreats, kGreats, kGreats)
-	// Result: [Katano Kobayashi Kurosawa] ["Katano" "Kobayashi" "Kurosawa"] []string{"Katano", "Kobayashi", "Kurosawa"}
+	// Result: [Kitano Kobayashi Kurosawa] ["Kitano" "Kobayashi" "Kurosawa"] []string{"Kitano", "Kobayashi", "Kurosawa"}
 
 	// Byte slices are special. Integer verbs like %d print the elements in
 	// that format. The %s and %q forms treat the slice like a string. The %x
@@ -358,8 +358,8 @@ func Example_formats() {
 	// map[dachshund:false peanut:true] map[string]bool{"dachshund":false, "peanut":true}
 	// {Kim 22} {Name:Kim Age:22} struct { Name string; Age int }{Name:"Kim", Age:22}
 	// &{Kim 22} 0x0
-	// [Katano Kobayashi Kurosawa Miyazaki Ozu] ["Katano" "Kobayashi" "Kurosawa" "Miyazaki" "Ozu"]
-	// [Katano Kobayashi Kurosawa] ["Katano" "Kobayashi" "Kurosawa"] []string{"Katano", "Kobayashi", "Kurosawa"}
+	// [Kitano Kobayashi Kurosawa Miyazaki Ozu] ["Kitano" "Kobayashi" "Kurosawa" "Miyazaki" "Ozu"]
+	// [Kitano Kobayashi Kurosawa] ["Kitano" "Kobayashi" "Kurosawa"] []string{"Kitano", "Kobayashi", "Kurosawa"}
 	// [97 226 140 152] [97 226 140 152] a⌘ "a⌘" 61e28c98 61 e2 8c 98
 	// 1973-11-29 21:33:09 +0000 UTC "1973-11-29 21:33:09 +0000 UTC"
 }

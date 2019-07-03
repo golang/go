@@ -57,23 +57,36 @@ var (
 // Syscall is needed because some packages (like net) need it too.
 // The best way is to return EINVAL and let Golang handles its failure
 // If the syscall can't fail, this function can redirect it to a real syscall.
+//
+// This is exported via linkname to assembly in the syscall package.
+//
 //go:nosplit
+//go:linkname syscall_Syscall
 func syscall_Syscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 	return 0, 0, _EINVAL
 }
 
 // This is syscall.RawSyscall, it exists to satisfy some build dependency,
 // but it doesn't work.
+//
+// This is exported via linkname to assembly in the syscall package.
+//
+//go:linkname syscall_RawSyscall
 func syscall_RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 	panic("RawSyscall not available on AIX")
 }
 
+// This is exported via linkname to assembly in the syscall package.
+//
 //go:nosplit
+//go:cgo_unsafe_args
+//go:linkname syscall_syscall6
 func syscall_syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
-	c := getg().m.libcall
-	c.fn = uintptr(unsafe.Pointer(fn))
-	c.n = nargs
-	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
+	c := libcall{
+		fn:   fn,
+		n:    nargs,
+		args: uintptr(unsafe.Pointer(&a1)),
+	}
 
 	entersyscallblock()
 	asmcgocall(unsafe.Pointer(&asmsyscall6), unsafe.Pointer(&c))
@@ -81,12 +94,17 @@ func syscall_syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err ui
 	return c.r1, 0, c.err
 }
 
+// This is exported via linkname to assembly in the syscall package.
+//
 //go:nosplit
+//go:cgo_unsafe_args
+//go:linkname syscall_rawSyscall6
 func syscall_rawSyscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
-	c := getg().m.libcall
-	c.fn = uintptr(unsafe.Pointer(fn))
-	c.n = nargs
-	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
+	c := libcall{
+		fn:   fn,
+		n:    nargs,
+		args: uintptr(unsafe.Pointer(&a1)),
+	}
 
 	asmcgocall(unsafe.Pointer(&asmsyscall6), unsafe.Pointer(&c))
 

@@ -167,7 +167,6 @@ func TestStdFixed(t *testing.T) {
 	}
 
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
-		"bug073.go",                           // checks for unsigned integer shift - disabled for now
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
 		"issue6889.go",   // gc-specific test
 		"issue7746.go",   // large constants - consumes too much memory
@@ -181,6 +180,7 @@ func TestStdFixed(t *testing.T) {
 		"issue22200b.go", // go/types does not have constraints on stack size
 		"issue25507.go",  // go/types does not have constraints on stack size
 		"issue20780.go",  // go/types does not have constraints on stack size
+		"issue31747.go",  // go/types does not have constraints on language level (-lang=go1.12) (see #31793)
 	)
 }
 

@@ -105,6 +105,9 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 		linkpatch(ctxt, s, newprog)
 		ctxt.Arch.Preprocess(ctxt, s, newprog)
 		ctxt.Arch.Assemble(ctxt, s, newprog)
+		if ctxt.Errors > 0 {
+			continue
+		}
 		linkpcln(ctxt, s)
 		ctxt.populateDWARF(plist.Curfn, s, myimportpath)
 	}
@@ -129,6 +132,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	s.Set(AttrWrapper, flag&WRAPPER != 0)
 	s.Set(AttrNeedCtxt, flag&NEEDCTXT != 0)
 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
+	s.Set(AttrTopFrame, flag&TOPFRAME != 0)
 	s.Type = objabi.STEXT
 	ctxt.Text = append(ctxt.Text, s)
 

@@ -21,6 +21,7 @@ import (
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
 	"cmd/internal/objabi"
+	"cmd/internal/sys"
 	"crypto/sha1"
 )
 
@@ -116,7 +117,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, s
 		}
 	}
 
-	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", trimDir(a.Objdir), gcflags, gcargs, "-D", p.Internal.LocalPrefix}
+	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), gcflags, gcargs, "-D", p.Internal.LocalPrefix}
 	if importcfg != nil {
 		if err := b.writeFile(objdir+"importcfg", importcfg); err != nil {
 			return "", nil, err
@@ -139,7 +140,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, s
 		args = append(args, mkAbs(p.Dir, f))
 	}
 
-	output, err = b.runOut(p.Dir, nil, args...)
+	output, err = b.runOut(a, p.Dir, nil, args...)
 	return ofile, output, err
 }
 
@@ -214,17 +215,33 @@ CheckFlags:
 	return c
 }
 
-func trimDir(dir string) string {
-	if len(dir) > 1 && dir[len(dir)-1] == filepath.Separator {
-		dir = dir[:len(dir)-1]
+// trimpath returns the -trimpath argument to use
+// when compiling the action.
+func (a *Action) trimpath() string {
+	// Strip the object directory entirely.
+	objdir := a.Objdir
+	if len(objdir) > 1 && objdir[len(objdir)-1] == filepath.Separator {
+		objdir = objdir[:len(objdir)-1]
 	}
-	return dir
+	rewrite := objdir + "=>"
+
+	// For "go build -trimpath", rewrite package source directory
+	// to a file system-independent path (just the import path).
+	if cfg.BuildTrimpath {
+		if m := a.Package.Module; m != nil {
+			rewrite += ";" + m.Dir + "=>" + m.Path + "@" + m.Version
+		} else {
+			rewrite += ";" + a.Package.Dir + "=>" + a.Package.ImportPath
+		}
+	}
+
+	return rewrite
 }
 
 func asmArgs(a *Action, p *load.Package) []interface{} {
 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
 	inc := filepath.Join(cfg.GOROOT, "pkg", "include")
-	args := []interface{}{cfg.BuildToolexec, base.Tool("asm"), "-trimpath", trimDir(a.Objdir), "-I", a.Objdir, "-I", inc, "-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch, forcedAsmflags, p.Internal.Asmflags}
+	args := []interface{}{cfg.BuildToolexec, base.Tool("asm"), "-trimpath", a.trimpath(), "-I", a.Objdir, "-I", inc, "-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch, forcedAsmflags, p.Internal.Asmflags}
 	if p.ImportPath == "runtime" && cfg.Goarch == "386" {
 		for _, arg := range forcedAsmflags {
 			if arg == "-dynlink" {
@@ -289,55 +306,6 @@ func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, erro
 		symabis = a.Objdir + "symabis"
 		if err := mkSymabis(p, sfiles, symabis); err != nil {
 			return "", err
-		}
-	}
-
-	// Gather known cross-package references from assembly code.
-	var otherPkgs []string
-	if p.ImportPath == "runtime" {
-		// Assembly in the following packages references
-		// symbols in runtime.
-		otherPkgs = []string{"syscall", "internal/syscall/unix", "runtime/cgo"}
-	} else if p.ImportPath == "runtime/internal/atomic" {
-		// sync/atomic is an assembly wrapper around
-		// runtime/internal/atomic.
-		otherPkgs = []string{"sync/atomic"}
-	}
-	for _, p2name := range otherPkgs {
-		p2 := load.LoadPackage(p2name, &load.ImportStack{})
-		if len(p2.SFiles) == 0 {
-			continue
-		}
-
-		symabis2 := a.Objdir + "symabis2"
-		if err := mkSymabis(p2, p2.SFiles, symabis2); err != nil {
-			return "", err
-		}
-
-		// Filter out just the symbol refs and append them to
-		// the symabis file.
-		if cfg.BuildN {
-			// -x will print the lines from symabis2 that are actually appended
-			// to symabis. With -n, we don't know what those lines will be.
-			b.Showcmd("", `grep '^ref' <%s | grep -v '^ref\s*""\.' >>%s`, symabis2, a.Objdir+"symabis")
-			continue
-		}
-		abis2, err := ioutil.ReadFile(symabis2)
-		if err != nil {
-			return "", err
-		}
-		var refs bytes.Buffer
-		for _, line := range strings.Split(string(abis2), "\n") {
-			fs := strings.Fields(line)
-			if len(fs) >= 2 && fs[0] == "ref" && !strings.HasPrefix(fs[1], `"".`) {
-				fmt.Fprintf(&refs, "%s\n", line)
-			}
-		}
-		if refs.Len() != 0 {
-			symabis = a.Objdir + "symabis"
-			if err := b.appendFile(symabis, refs.Bytes()); err != nil {
-				return "", err
-			}
 		}
 	}
 
@@ -493,7 +461,21 @@ func pluginPath(a *Action) string {
 		return p.ImportPath
 	}
 	h := sha1.New()
-	fmt.Fprintf(h, "build ID: %s\n", a.buildID)
+	buildID := a.buildID
+	if a.Mode == "link" {
+		// For linking, use the main package's build ID instead of
+		// the binary's build ID, so it is the same hash used in
+		// compiling and linking.
+		// When compiling, we use actionID/actionID (instead of
+		// actionID/contentID) as a temporary build ID to compute
+		// the hash. Do the same here. (See buildid.go:useCache)
+		// The build ID matters because it affects the overall hash
+		// in the plugin's pseudo-import path returned below.
+		// We need to use the same import path when compiling and linking.
+		id := strings.Split(buildID, buildIDSeparator)
+		buildID = id[1] + buildIDSeparator + id[1]
+	}
+	fmt.Fprintf(h, "build ID: %s\n", buildID)
 	for _, file := range str.StringList(p.GoFiles, p.CgoFiles, p.SFiles) {
 		data, err := ioutil.ReadFile(filepath.Join(p.Dir, file))
 		if err != nil {
@@ -525,7 +507,13 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 	// Store BuildID inside toolchain binaries as a unique identifier of the
 	// tool being run, for use by content-based staleness determination.
 	if root.Package.Goroot && strings.HasPrefix(root.Package.ImportPath, "cmd/") {
-		ldflags = append(ldflags, "-X=cmd/internal/objabi.buildID="+root.buildID)
+		// External linking will include our build id in the external
+		// linker's build id, which will cause our build id to not
+		// match the next time the tool is built.
+		// Rely on the external build id instead.
+		if !sys.MustLinkExternal(cfg.Goos, cfg.Goarch) {
+			ldflags = append(ldflags, "-X=cmd/internal/objabi.buildID="+root.buildID)
+		}
 	}
 
 	// If the user has not specified the -extld option, then specify the
@@ -560,7 +548,11 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 		dir, out = filepath.Split(out)
 	}
 
-	return b.run(root, dir, root.Package.ImportPath, nil, cfg.BuildToolexec, base.Tool("link"), "-o", out, "-importcfg", importcfg, ldflags, mainpkg)
+	env := []string{}
+	if cfg.BuildTrimpath {
+		env = append(env, "GOROOT_FINAL=go")
+	}
+	return b.run(root, dir, root.Package.ImportPath, env, cfg.BuildToolexec, base.Tool("link"), "-o", out, "-importcfg", importcfg, ldflags, mainpkg)
 }
 
 func (gcToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {

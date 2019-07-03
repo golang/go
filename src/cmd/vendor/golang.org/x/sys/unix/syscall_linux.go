@@ -14,6 +14,7 @@ package unix
 import (
 	"encoding/binary"
 	"net"
+	"runtime"
 	"syscall"
 	"unsafe"
 )
@@ -36,6 +37,20 @@ func Chown(path string, uid int, gid int) (err error) {
 
 func Creat(path string, mode uint32) (fd int, err error) {
 	return Open(path, O_CREAT|O_WRONLY|O_TRUNC, mode)
+}
+
+//sys	FanotifyInit(flags uint, event_f_flags uint) (fd int, err error)
+//sys	fanotifyMark(fd int, flags uint, mask uint64, dirFd int, pathname *byte) (err error)
+
+func FanotifyMark(fd int, flags uint, mask uint64, dirFd int, pathname string) (err error) {
+	if pathname == "" {
+		return fanotifyMark(fd, flags, mask, dirFd, nil)
+	}
+	p, err := BytePtrFromString(pathname)
+	if err != nil {
+		return err
+	}
+	return fanotifyMark(fd, flags, mask, dirFd, p)
 }
 
 //sys	fchmodat(dirfd int, path string, mode uint32) (err error)
@@ -80,6 +95,12 @@ func ioctlSetTermios(fd int, req uint, value *Termios) error {
 	return ioctl(fd, req, uintptr(unsafe.Pointer(value)))
 }
 
+func IoctlSetRTCTime(fd int, value *RTCTime) error {
+	err := ioctl(fd, RTC_SET_TIME, uintptr(unsafe.Pointer(value)))
+	runtime.KeepAlive(value)
+	return err
+}
+
 // IoctlGetInt performs an ioctl operation which gets an integer value
 // from fd, using the specified request number.
 func IoctlGetInt(fd int, req uint) (int, error) {
@@ -97,6 +118,12 @@ func IoctlGetWinsize(fd int, req uint) (*Winsize, error) {
 func IoctlGetTermios(fd int, req uint) (*Termios, error) {
 	var value Termios
 	err := ioctl(fd, req, uintptr(unsafe.Pointer(&value)))
+	return &value, err
+}
+
+func IoctlGetRTCTime(fd int) (*RTCTime, error) {
+	var value RTCTime
+	err := ioctl(fd, RTC_RD_TIME, uintptr(unsafe.Pointer(&value)))
 	return &value, err
 }
 
@@ -977,8 +1004,48 @@ func GetsockoptString(fd, level, opt int) (string, error) {
 	return string(buf[:vallen-1]), nil
 }
 
+func GetsockoptTpacketStats(fd, level, opt int) (*TpacketStats, error) {
+	var value TpacketStats
+	vallen := _Socklen(SizeofTpacketStats)
+	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
+	return &value, err
+}
+
+func GetsockoptTpacketStatsV3(fd, level, opt int) (*TpacketStatsV3, error) {
+	var value TpacketStatsV3
+	vallen := _Socklen(SizeofTpacketStatsV3)
+	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
+	return &value, err
+}
+
 func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
 	return setsockopt(fd, level, opt, unsafe.Pointer(mreq), unsafe.Sizeof(*mreq))
+}
+
+func SetsockoptPacketMreq(fd, level, opt int, mreq *PacketMreq) error {
+	return setsockopt(fd, level, opt, unsafe.Pointer(mreq), unsafe.Sizeof(*mreq))
+}
+
+// SetsockoptSockFprog attaches a classic BPF or an extended BPF program to a
+// socket to filter incoming packets.  See 'man 7 socket' for usage information.
+func SetsockoptSockFprog(fd, level, opt int, fprog *SockFprog) error {
+	return setsockopt(fd, level, opt, unsafe.Pointer(fprog), unsafe.Sizeof(*fprog))
+}
+
+func SetsockoptCanRawFilter(fd, level, opt int, filter []CanFilter) error {
+	var p unsafe.Pointer
+	if len(filter) > 0 {
+		p = unsafe.Pointer(&filter[0])
+	}
+	return setsockopt(fd, level, opt, p, uintptr(len(filter)*SizeofCanFilter))
+}
+
+func SetsockoptTpacketReq(fd, level, opt int, tp *TpacketReq) error {
+	return setsockopt(fd, level, opt, unsafe.Pointer(tp), unsafe.Sizeof(*tp))
+}
+
+func SetsockoptTpacketReq3(fd, level, opt int, tp *TpacketReq3) error {
+	return setsockopt(fd, level, opt, unsafe.Pointer(tp), unsafe.Sizeof(*tp))
 }
 
 // Keyctl Commands (http://man7.org/linux/man-pages/man2/keyctl.2.html)
@@ -1381,6 +1448,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	Chroot(path string) (err error)
 //sys	ClockGetres(clockid int32, res *Timespec) (err error)
 //sys	ClockGettime(clockid int32, time *Timespec) (err error)
+//sys	ClockNanosleep(clockid int32, flags int, request *Timespec, remain *Timespec) (err error)
 //sys	Close(fd int) (err error)
 //sys	CopyFileRange(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, err error)
 //sys	DeleteModule(name string, flags int) (err error)
@@ -1441,7 +1509,6 @@ func Getpgrp() (pid int) {
 //sys	Pselect(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *Sigset_t) (n int, err error) = SYS_PSELECT6
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	Removexattr(path string, attr string) (err error)
-//sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
 //sys	Renameat2(olddirfd int, oldpath string, newdirfd int, newpath string, flags uint) (err error)
 //sys	RequestKey(keyType string, description string, callback string, destRingid int) (id int, err error)
 //sys	Setdomainname(p []byte) (err error)
@@ -1466,6 +1533,7 @@ func Setgid(uid int) (err error) {
 
 //sys	Setpriority(which int, who int, prio int) (err error)
 //sys	Setxattr(path string, attr string, data []byte, flags int) (err error)
+//sys	Signalfd(fd int, mask *Sigset_t, flags int) = SYS_SIGNALFD4
 //sys	Statx(dirfd int, path string, flags int, mask int, stat *Statx_t) (err error)
 //sys	Sync()
 //sys	Syncfs(fd int) (err error)
@@ -1594,6 +1662,82 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
 	return EACCES
 }
 
+//sys nameToHandleAt(dirFD int, pathname string, fh *fileHandle, mountID *_C_int, flags int) (err error) = SYS_NAME_TO_HANDLE_AT
+//sys openByHandleAt(mountFD int, fh *fileHandle, flags int) (fd int, err error) = SYS_OPEN_BY_HANDLE_AT
+
+// fileHandle is the argument to nameToHandleAt and openByHandleAt. We
+// originally tried to generate it via unix/linux/types.go with "type
+// fileHandle C.struct_file_handle" but that generated empty structs
+// for mips64 and mips64le. Instead, hard code it for now (it's the
+// same everywhere else) until the mips64 generator issue is fixed.
+type fileHandle struct {
+	Bytes uint32
+	Type  int32
+}
+
+// FileHandle represents the C struct file_handle used by
+// name_to_handle_at (see NameToHandleAt) and open_by_handle_at (see
+// OpenByHandleAt).
+type FileHandle struct {
+	*fileHandle
+}
+
+// NewFileHandle constructs a FileHandle.
+func NewFileHandle(handleType int32, handle []byte) FileHandle {
+	const hdrSize = unsafe.Sizeof(fileHandle{})
+	buf := make([]byte, hdrSize+uintptr(len(handle)))
+	copy(buf[hdrSize:], handle)
+	fh := (*fileHandle)(unsafe.Pointer(&buf[0]))
+	fh.Type = handleType
+	fh.Bytes = uint32(len(handle))
+	return FileHandle{fh}
+}
+
+func (fh *FileHandle) Size() int   { return int(fh.fileHandle.Bytes) }
+func (fh *FileHandle) Type() int32 { return fh.fileHandle.Type }
+func (fh *FileHandle) Bytes() []byte {
+	n := fh.Size()
+	if n == 0 {
+		return nil
+	}
+	return (*[1 << 30]byte)(unsafe.Pointer(uintptr(unsafe.Pointer(&fh.fileHandle.Type)) + 4))[:n:n]
+}
+
+// NameToHandleAt wraps the name_to_handle_at system call; it obtains
+// a handle for a path name.
+func NameToHandleAt(dirfd int, path string, flags int) (handle FileHandle, mountID int, err error) {
+	var mid _C_int
+	// Try first with a small buffer, assuming the handle will
+	// only be 32 bytes.
+	size := uint32(32 + unsafe.Sizeof(fileHandle{}))
+	didResize := false
+	for {
+		buf := make([]byte, size)
+		fh := (*fileHandle)(unsafe.Pointer(&buf[0]))
+		fh.Bytes = size - uint32(unsafe.Sizeof(fileHandle{}))
+		err = nameToHandleAt(dirfd, path, fh, &mid, flags)
+		if err == EOVERFLOW {
+			if didResize {
+				// We shouldn't need to resize more than once
+				return
+			}
+			didResize = true
+			size = fh.Bytes + uint32(unsafe.Sizeof(fileHandle{}))
+			continue
+		}
+		if err != nil {
+			return
+		}
+		return FileHandle{fh}, int(mid), nil
+	}
+}
+
+// OpenByHandleAt wraps the open_by_handle_at system call; it opens a
+// file via a handle as previously returned by NameToHandleAt.
+func OpenByHandleAt(mountFD int, handle FileHandle, flags int) (fd int, err error) {
+	return openByHandleAt(mountFD, handle.fileHandle, flags)
+}
+
 /*
  * Unimplemented
  */
@@ -1682,7 +1826,6 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
 // Shmdt
 // Shmget
 // Sigaltstack
-// Signalfd
 // Swapoff
 // Swapon
 // Sysfs

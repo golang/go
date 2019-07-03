@@ -184,23 +184,23 @@ func typecheckswitch(n *Node) {
 			}
 		}
 
-		if n.Type == nil || n.Type.IsUntyped() {
-			// if the value we're switching on has no type or is untyped,
-			// we've already printed an error and don't need to continue
-			// typechecking the body
-			return
-		}
-
 		if top == Etype {
 			ll := ncase.List
 			if ncase.Rlist.Len() != 0 {
 				nvar := ncase.Rlist.First()
-				if ll.Len() == 1 && ll.First().Type != nil && !ll.First().Type.IsKind(TNIL) {
+				if ll.Len() == 1 && (ll.First().Type == nil || !ll.First().Type.IsKind(TNIL)) {
 					// single entry type switch
 					nvar.Type = ll.First().Type
 				} else {
 					// multiple entry type switch or default
 					nvar.Type = n.Type
+				}
+
+				if nvar.Type == nil || nvar.Type.IsUntyped() {
+					// if the value we're switching on has no type or is untyped,
+					// we've already printed an error and don't need to continue
+					// typechecking the body
+					continue
 				}
 
 				nvar = typecheck(nvar, ctxExpr|ctxAssign)
@@ -627,78 +627,24 @@ func checkDupExprCases(exprname *Node, clauses []*Node) {
 	if exprname == nil {
 		return
 	}
-	// The common case is that s's expression is not an interface.
-	// In that case, all constant clauses have the same type,
-	// so checking for duplicates can be done solely by value.
-	if !exprname.Type.IsInterface() {
-		seen := make(map[interface{}]*Node)
-		for _, ncase := range clauses {
-			for _, n := range ncase.List.Slice() {
-				// Can't check for duplicates that aren't constants, per the spec. Issue 15896.
-				// Don't check for duplicate bools. Although the spec allows it,
-				// (1) the compiler hasn't checked it in the past, so compatibility mandates it, and
-				// (2) it would disallow useful things like
-				//       case GOARCH == "arm" && GOARM == "5":
-				//       case GOARCH == "arm":
-				//     which would both evaluate to false for non-ARM compiles.
-				if ct := consttype(n); ct == 0 || ct == CTBOOL {
-					continue
-				}
 
-				val := n.Val().Interface()
-				prev, dup := seen[val]
-				if !dup {
-					seen[val] = n
-					continue
-				}
+	var cs constSet
+	for _, ncase := range clauses {
+		for _, n := range ncase.List.Slice() {
+			// Don't check for duplicate bools. Although the spec allows it,
+			// (1) the compiler hasn't checked it in the past, so compatibility mandates it, and
+			// (2) it would disallow useful things like
+			//       case GOARCH == "arm" && GOARM == "5":
+			//       case GOARCH == "arm":
+			//     which would both evaluate to false for non-ARM compiles.
+			if n.Type.IsBoolean() {
+				continue
+			}
+
+			if prev := cs.add(n); prev != nil {
 				yyerrorl(ncase.Pos, "duplicate case %s in switch\n\tprevious case at %v",
 					nodeAndVal(n), prev.Line())
 			}
-		}
-		return
-	}
-
-	// s's expression is an interface. This is fairly rare, so
-	// keep this simple. Case expressions are only duplicates if
-	// they have the same value and identical types.
-	//
-	// In general, we have to use eqtype to test type identity,
-	// because == gives false negatives for anonymous types and
-	// the byte/uint8 and rune/int32 builtin type aliases.
-	// However, this is not a problem here, because constant
-	// expressions are always untyped or have a named type, and we
-	// explicitly handle the builtin type aliases below.
-	//
-	// This approach may need to be revisited though if we fix
-	// #21866 by treating all type aliases like byte/uint8 and
-	// rune/int32.
-	type typeVal struct {
-		typ *types.Type
-		val interface{}
-	}
-	seen := make(map[typeVal]*Node)
-	for _, ncase := range clauses {
-		for _, n := range ncase.List.Slice() {
-			if ct := consttype(n); ct == 0 || ct == CTBOOL || ct == CTNIL {
-				continue
-			}
-			tv := typeVal{
-				typ: n.Type,
-				val: n.Val().Interface(),
-			}
-			switch tv.typ {
-			case types.Bytetype:
-				tv.typ = types.Types[TUINT8]
-			case types.Runetype:
-				tv.typ = types.Types[TINT32]
-			}
-			prev, dup := seen[tv]
-			if !dup {
-				seen[tv] = n
-				continue
-			}
-			yyerrorl(ncase.Pos, "duplicate case %s in switch\n\tprevious case at %v",
-				nodeAndVal(n), prev.Line())
 		}
 	}
 }

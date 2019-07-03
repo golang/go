@@ -56,9 +56,9 @@ type Sig struct {
 // program for it.
 // Make sure this stays in sync with runtime/map.go.
 const (
-	BUCKETSIZE = 8
-	MAXKEYSIZE = 128
-	MAXVALSIZE = 128
+	BUCKETSIZE  = 8
+	MAXKEYSIZE  = 128
+	MAXELEMSIZE = 128
 )
 
 func structfieldSize() int { return 3 * Widthptr } // Sizeof(runtime.structfield{})
@@ -86,14 +86,14 @@ func bmap(t *types.Type) *types.Type {
 
 	bucket := types.New(TSTRUCT)
 	keytype := t.Key()
-	valtype := t.Elem()
+	elemtype := t.Elem()
 	dowidth(keytype)
-	dowidth(valtype)
+	dowidth(elemtype)
 	if keytype.Width > MAXKEYSIZE {
 		keytype = types.NewPtr(keytype)
 	}
-	if valtype.Width > MAXVALSIZE {
-		valtype = types.NewPtr(valtype)
+	if elemtype.Width > MAXELEMSIZE {
+		elemtype = types.NewPtr(elemtype)
 	}
 
 	field := make([]*types.Field, 0, 5)
@@ -107,10 +107,10 @@ func bmap(t *types.Type) *types.Type {
 	keys := makefield("keys", arr)
 	field = append(field, keys)
 
-	arr = types.NewArray(valtype, BUCKETSIZE)
+	arr = types.NewArray(elemtype, BUCKETSIZE)
 	arr.SetNoalg(true)
-	values := makefield("values", arr)
-	field = append(field, values)
+	elems := makefield("elems", arr)
+	field = append(field, elems)
 
 	// Make sure the overflow pointer is the last memory in the struct,
 	// because the runtime assumes it can use size-ptrSize as the
@@ -126,21 +126,21 @@ func bmap(t *types.Type) *types.Type {
 	// will end with no padding.
 	// On nacl/amd64p32, however, the max alignment is 64-bit,
 	// but the overflow pointer will add only a 32-bit field,
-	// so if the struct needs 64-bit padding (because a key or value does)
+	// so if the struct needs 64-bit padding (because a key or elem does)
 	// then it would end with an extra 32-bit padding field.
 	// Preempt that by emitting the padding here.
-	if int(valtype.Align) > Widthptr || int(keytype.Align) > Widthptr {
+	if int(elemtype.Align) > Widthptr || int(keytype.Align) > Widthptr {
 		field = append(field, makefield("pad", types.Types[TUINTPTR]))
 	}
 
-	// If keys and values have no pointers, the map implementation
+	// If keys and elems have no pointers, the map implementation
 	// can keep a list of overflow pointers on the side so that
 	// buckets can be marked as having no pointers.
 	// Arrange for the bucket to have no pointers by changing
 	// the type of the overflow field to uintptr in this case.
 	// See comment on hmap.overflow in runtime/map.go.
 	otyp := types.NewPtr(bucket)
-	if !types.Haspointers(valtype) && !types.Haspointers(keytype) {
+	if !types.Haspointers(elemtype) && !types.Haspointers(keytype) {
 		otyp = types.Types[TUINTPTR]
 	}
 	overflow := makefield("overflow", otyp)
@@ -161,38 +161,38 @@ func bmap(t *types.Type) *types.Type {
 	if keytype.Align > BUCKETSIZE {
 		Fatalf("key align too big for %v", t)
 	}
-	if valtype.Align > BUCKETSIZE {
-		Fatalf("value align too big for %v", t)
+	if elemtype.Align > BUCKETSIZE {
+		Fatalf("elem align too big for %v", t)
 	}
 	if keytype.Width > MAXKEYSIZE {
 		Fatalf("key size to large for %v", t)
 	}
-	if valtype.Width > MAXVALSIZE {
-		Fatalf("value size to large for %v", t)
+	if elemtype.Width > MAXELEMSIZE {
+		Fatalf("elem size to large for %v", t)
 	}
 	if t.Key().Width > MAXKEYSIZE && !keytype.IsPtr() {
 		Fatalf("key indirect incorrect for %v", t)
 	}
-	if t.Elem().Width > MAXVALSIZE && !valtype.IsPtr() {
-		Fatalf("value indirect incorrect for %v", t)
+	if t.Elem().Width > MAXELEMSIZE && !elemtype.IsPtr() {
+		Fatalf("elem indirect incorrect for %v", t)
 	}
 	if keytype.Width%int64(keytype.Align) != 0 {
 		Fatalf("key size not a multiple of key align for %v", t)
 	}
-	if valtype.Width%int64(valtype.Align) != 0 {
-		Fatalf("value size not a multiple of value align for %v", t)
+	if elemtype.Width%int64(elemtype.Align) != 0 {
+		Fatalf("elem size not a multiple of elem align for %v", t)
 	}
 	if bucket.Align%keytype.Align != 0 {
 		Fatalf("bucket align not multiple of key align %v", t)
 	}
-	if bucket.Align%valtype.Align != 0 {
-		Fatalf("bucket align not multiple of value align %v", t)
+	if bucket.Align%elemtype.Align != 0 {
+		Fatalf("bucket align not multiple of elem align %v", t)
 	}
 	if keys.Offset%int64(keytype.Align) != 0 {
 		Fatalf("bad alignment of keys in bmap for %v", t)
 	}
-	if values.Offset%int64(valtype.Align) != 0 {
-		Fatalf("bad alignment of values in bmap for %v", t)
+	if elems.Offset%int64(elemtype.Align) != 0 {
+		Fatalf("bad alignment of elems in bmap for %v", t)
 	}
 
 	// Double-check that overflow field is final memory in struct,
@@ -270,7 +270,7 @@ func hiter(t *types.Type) *types.Type {
 	// build a struct:
 	// type hiter struct {
 	//    key         *Key
-	//    val         *Value
+	//    elem        *Elem
 	//    t           unsafe.Pointer // *MapType
 	//    h           *hmap
 	//    buckets     *bmap
@@ -287,8 +287,8 @@ func hiter(t *types.Type) *types.Type {
 	// }
 	// must match runtime/map.go:hiter.
 	fields := []*types.Field{
-		makefield("key", types.NewPtr(t.Key())),  // Used in range.go for TMAP.
-		makefield("val", types.NewPtr(t.Elem())), // Used in range.go for TMAP.
+		makefield("key", types.NewPtr(t.Key())),   // Used in range.go for TMAP.
+		makefield("elem", types.NewPtr(t.Elem())), // Used in range.go for TMAP.
 		makefield("t", types.Types[TUNSAFEPTR]),
 		makefield("h", types.NewPtr(hmap)),
 		makefield("buckets", types.NewPtr(bmap)),
@@ -315,6 +315,47 @@ func hiter(t *types.Type) *types.Type {
 	t.MapType().Hiter = hiter
 	hiter.StructType().Map = t
 	return hiter
+}
+
+// deferstruct makes a runtime._defer structure, with additional space for
+// stksize bytes of args.
+func deferstruct(stksize int64) *types.Type {
+	makefield := func(name string, typ *types.Type) *types.Field {
+		f := types.NewField()
+		f.Type = typ
+		// Unlike the global makefield function, this one needs to set Pkg
+		// because these types might be compared (in SSA CSE sorting).
+		// TODO: unify this makefield and the global one above.
+		f.Sym = &types.Sym{Name: name, Pkg: localpkg}
+		return f
+	}
+	argtype := types.NewArray(types.Types[TUINT8], stksize)
+	argtype.Width = stksize
+	argtype.Align = 1
+	// These fields must match the ones in runtime/runtime2.go:_defer and
+	// cmd/compile/internal/gc/ssa.go:(*state).call.
+	fields := []*types.Field{
+		makefield("siz", types.Types[TUINT32]),
+		makefield("started", types.Types[TBOOL]),
+		makefield("heap", types.Types[TBOOL]),
+		makefield("sp", types.Types[TUINTPTR]),
+		makefield("pc", types.Types[TUINTPTR]),
+		// Note: the types here don't really matter. Defer structures
+		// are always scanned explicitly during stack copying and GC,
+		// so we make them uintptr type even though they are real pointers.
+		makefield("fn", types.Types[TUINTPTR]),
+		makefield("_panic", types.Types[TUINTPTR]),
+		makefield("link", types.Types[TUINTPTR]),
+		makefield("args", argtype),
+	}
+
+	// build struct holding the above fields
+	s := types.New(TSTRUCT)
+	s.SetNoalg(true)
+	s.SetFields(fields)
+	s.Width = widstruct(s, s, 0, 1)
+	s.Align = uint8(Widthptr)
+	return s
 }
 
 // f is method type, with receiver.
@@ -375,7 +416,7 @@ func methods(t *types.Type) []*Sig {
 	// generating code if necessary.
 	var ms []*Sig
 	for _, f := range mt.AllMethods().Slice() {
-		if f.Type.Etype != TFUNC || f.Type.Recv() == nil {
+		if !f.IsMethod() {
 			Fatalf("non-method on %v method %v %v\n", mt, f.Sym, f)
 		}
 		if f.Type.Recv() == nil {
@@ -477,12 +518,10 @@ func dimportpath(p *types.Pkg) {
 		return
 	}
 
-	var str string
+	str := p.Path
 	if p == localpkg {
 		// Note: myimportpath != "", or else dgopkgpath won't call dimportpath.
 		str = myimportpath
-	} else {
-		str = p.Path
 	}
 
 	s := Ctxt.Lookup("type..importpath." + p.Prefix + ".")
@@ -884,9 +923,6 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	ot = duint8(lsym, ot, t.Align) // fieldAlign
 
 	i = kinds[t.Etype]
-	if !types.Haspointers(t) {
-		i |= objabi.KindNoPointers
-	}
 	if isdirectiface(t) {
 		i |= objabi.KindDirectIface
 	}
@@ -1289,7 +1325,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 			ot = duint8(lsym, ot, uint8(t.Key().Width))
 		}
 
-		if t.Elem().Width > MAXVALSIZE {
+		if t.Elem().Width > MAXELEMSIZE {
 			ot = duint8(lsym, ot, uint8(Widthptr))
 			flags |= 2 // indirect value
 		} else {
@@ -1623,7 +1659,17 @@ func (a typesByString) Less(i, j int) bool {
 	// they refer to byte or uint8, such as **byte vs **uint8,
 	// the types' ShortStrings can be identical.
 	// To preserve deterministic sort ordering, sort these by String().
-	return a[i].regular < a[j].regular
+	if a[i].regular != a[j].regular {
+		return a[i].regular < a[j].regular
+	}
+	// Identical anonymous interfaces defined in different locations
+	// will be equal for the above checks, but different in DWARF output.
+	// Sort by source position to ensure deterministic order.
+	// See issues 27013 and 30202.
+	if a[i].t.Etype == types.TINTER && a[i].t.Methods().Len() > 0 {
+		return a[i].t.Methods().Index(0).Pos.Before(a[j].t.Methods().Index(0).Pos)
+	}
+	return false
 }
 func (a typesByString) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 
@@ -1899,7 +1945,7 @@ func (p *GCProg) emit(t *types.Type, offset int64) {
 // size bytes of zeros.
 func zeroaddr(size int64) *Node {
 	if size >= 1<<31 {
-		Fatalf("map value too big %d", size)
+		Fatalf("map elem too big %d", size)
 	}
 	if zerosize < size {
 		zerosize = size

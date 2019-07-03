@@ -136,6 +136,11 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 		"runtime.noptrdata": "D",
 	}
 
+	if runtime.GOOS == "aix" && iscgo {
+		// pclntab is moved to .data section on AIX.
+		runtimeSyms["runtime.epclntab"] = "D"
+	}
+
 	out, err = exec.Command(testnmpath, exe).CombinedOutput()
 	if err != nil {
 		t.Fatalf("go tool nm: %v\n%s", err, string(out))
@@ -146,7 +151,10 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 			// On AIX, .data and .bss addresses are changed by the loader.
 			// Therefore, the values returned by the exec aren't the same
 			// than the ones inside the symbol table.
+			// In case of cgo, .text symbols are also changed.
 			switch code {
+			case "T", "t", "R", "r":
+				return iscgo
 			case "D", "d", "B", "b":
 				return true
 			}
@@ -222,12 +230,16 @@ func testGoLib(t *testing.T, iscgo bool) {
 	if e := file.Close(); err == nil {
 		err = e
 	}
+	if err == nil {
+		err = ioutil.WriteFile(filepath.Join(libpath, "go.mod"), []byte("module mylib\n"), 0666)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	args := []string{"install", "mylib"}
 	cmd := exec.Command(testenv.GoToolPath(t), args...)
+	cmd.Dir = libpath
 	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -254,15 +266,18 @@ func testGoLib(t *testing.T, iscgo bool) {
 		Found bool
 	}
 	var syms = []symType{
-		{"B", "%22%22.Testdata", false, false},
-		{"T", "%22%22.Testfunc", false, false},
+		{"B", "mylib.Testdata", false, false},
+		{"T", "mylib.Testfunc", false, false},
 	}
 	if iscgo {
-		syms = append(syms, symType{"B", "%22%22.TestCgodata", false, false})
-		syms = append(syms, symType{"T", "%22%22.TestCgofunc", false, false})
+		syms = append(syms, symType{"B", "mylib.TestCgodata", false, false})
+		syms = append(syms, symType{"T", "mylib.TestCgofunc", false, false})
 		if runtime.GOOS == "darwin" || (runtime.GOOS == "windows" && runtime.GOARCH == "386") {
 			syms = append(syms, symType{"D", "_cgodata", true, false})
 			syms = append(syms, symType{"T", "_cgofunc", true, false})
+		} else if runtime.GOOS == "aix" {
+			syms = append(syms, symType{"D", "cgodata", true, false})
+			syms = append(syms, symType{"T", ".cgofunc", true, false})
 		} else {
 			syms = append(syms, symType{"D", "cgodata", true, false})
 			syms = append(syms, symType{"T", "cgofunc", true, false})

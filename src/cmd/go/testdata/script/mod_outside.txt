@@ -1,4 +1,5 @@
 env GO111MODULE=on
+[short] skip
 
 # This script tests commands in module mode outside of any module.
 #
@@ -112,9 +113,9 @@ go get -u all
 ! stdout .
 stderr 'warning: "all" matched no packages'
 
-# 'go get -m' should check the proposed module graph for consistency,
-# even though it will not be saved anywhere.
-! go get -m example.com/printversion@v1.0.0 example.com/version@none
+# 'go get' should check the proposed module graph for consistency,
+# even though we won't write it anywhere.
+! go get -d example.com/printversion@v1.0.0 example.com/version@none
 stderr 'inconsistent versions'
 
 # 'go get -d' should download and extract the source code needed to build the requested version.

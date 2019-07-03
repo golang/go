@@ -255,8 +255,6 @@ func markrootBlock(b0, n0 uintptr, ptrmask0 *uint8, gcw *gcWork, shard int) {
 //
 // This does not free stacks of dead Gs cached on Ps, but having a few
 // cached stacks around isn't a problem.
-//
-//TODO go:nowritebarrier
 func markrootFreeGStacks() {
 	// Take list of dead Gs with stacks.
 	lock(&sched.gFree.lock)
@@ -270,7 +268,9 @@ func markrootFreeGStacks() {
 	// Free stacks.
 	q := gQueue{list.head, list.head}
 	for gp := list.head.ptr(); gp != nil; gp = gp.schedlink.ptr() {
-		shrinkstack(gp)
+		stackfree(gp.stack)
+		gp.stack.lo = 0
+		gp.stack.hi = 0
 		// Manipulate the queue directly since the Gs are
 		// already all linked the right way.
 		q.tail.set(gp)
@@ -712,8 +712,31 @@ func scanstack(gp *g, gcw *gcWork) {
 
 	// Find additional pointers that point into the stack from the heap.
 	// Currently this includes defers and panics. See also function copystack.
+
+	// Find and trace all defer arguments.
 	tracebackdefers(gp, scanframe, nil)
+
+	// Find and trace other pointers in defer records.
+	for d := gp._defer; d != nil; d = d.link {
+		if d.fn != nil {
+			// tracebackdefers above does not scan the func value, which could
+			// be a stack allocated closure. See issue 30453.
+			scanblock(uintptr(unsafe.Pointer(&d.fn)), sys.PtrSize, &oneptrmask[0], gcw, &state)
+		}
+		if d.link != nil {
+			// The link field of a stack-allocated defer record might point
+			// to a heap-allocated defer record. Keep that heap record live.
+			scanblock(uintptr(unsafe.Pointer(&d.link)), sys.PtrSize, &oneptrmask[0], gcw, &state)
+		}
+		// Retain defers records themselves.
+		// Defer records might not be reachable from the G through regular heap
+		// tracing because the defer linked list might weave between the stack and the heap.
+		if d.heap {
+			scanblock(uintptr(unsafe.Pointer(&d)), sys.PtrSize, &oneptrmask[0], gcw, &state)
+		}
+	}
 	if gp._panic != nil {
+		// Panics are always stack allocated.
 		state.putPtr(uintptr(unsafe.Pointer(gp._panic)))
 	}
 

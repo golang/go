@@ -289,6 +289,20 @@ const (
 	ASRAD
 	ARLL
 	ARLLG
+	ARNSBG
+	ARXSBG
+	AROSBG
+	ARNSBGT
+	ARXSBGT
+	AROSBGT
+	ARISBG
+	ARISBGN
+	ARISBGZ
+	ARISBGNZ
+	ARISBHG
+	ARISBLG
+	ARISBHGZ
+	ARISBLGZ
 
 	// floating point
 	AFABS
@@ -365,6 +379,9 @@ const (
 	ATMHL
 	ATMLH
 	ATMLL
+
+	// insert program mask
+	AIPM
 
 	// compare and swap
 	ACS

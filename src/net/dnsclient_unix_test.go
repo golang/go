@@ -17,10 +17,11 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
-	"internal/x/net/dns/dnsmessage"
+	"golang.org/x/net/dns/dnsmessage"
 )
 
 var goResolver = Resolver{PreferGo: true}
@@ -80,7 +81,7 @@ func TestDNSTransportFallback(t *testing.T) {
 	for _, tt := range dnsTransportFallbackTests {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		_, h, err := r.exchange(ctx, tt.server, tt.question, time.Second)
+		_, h, err := r.exchange(ctx, tt.server, tt.question, time.Second, useUDPOrTCP)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -136,7 +137,7 @@ func TestSpecialDomainName(t *testing.T) {
 	for _, tt := range specialDomainNameTests {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		_, h, err := r.exchange(ctx, server, tt.question, 3*time.Second)
+		_, h, err := r.exchange(ctx, server, tt.question, 3*time.Second, useUDPOrTCP)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -588,6 +589,8 @@ func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer conf.teardown()
+
 	if err := conf.writeAndUpdate([]string{}); err != nil {
 		t.Fatal(err)
 	}
@@ -619,7 +622,6 @@ func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
 			t.Errorf("%s: address doesn't match expectation. got %v, want %v", name, got, want)
 		}
 	}
-	defer conf.teardown()
 }
 
 // Issue 12712.
@@ -665,7 +667,7 @@ func TestErrorForOriginalNameWhenSearching(t *testing.T) {
 		wantErr      *DNSError
 	}{
 		{true, &DNSError{Name: fqdn, Err: "server misbehaving", IsTemporary: true}},
-		{false, &DNSError{Name: fqdn, Err: errNoSuchHost.Error()}},
+		{false, &DNSError{Name: fqdn, Err: errNoSuchHost.Error(), IsNotFound: true}},
 	}
 	for _, tt := range cases {
 		r := Resolver{PreferGo: true, StrictErrors: tt.strictErrors, Dial: fake.DialContext}
@@ -1137,9 +1139,10 @@ func TestStrictErrorsLookupIP(t *testing.T) {
 	}
 	makeNxDomain := func() error {
 		return &DNSError{
-			Err:    errNoSuchHost.Error(),
-			Name:   name,
-			Server: server,
+			Err:        errNoSuchHost.Error(),
+			Name:       name,
+			Server:     server,
+			IsNotFound: true,
 		}
 	}
 
@@ -1471,6 +1474,32 @@ func TestIssue8434(t *testing.T) {
 	}
 }
 
+func TestIssueNoSuchHostExists(t *testing.T) {
+	err := lookupWithFake(fakeDNSServer{
+		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+			return dnsmessage.Message{
+				Header: dnsmessage.Header{
+					ID:       q.ID,
+					Response: true,
+					RCode:    dnsmessage.RCodeNameError,
+				},
+				Questions: q.Questions,
+			}, nil
+		},
+	}, "golang.org.", dnsmessage.TypeALL)
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if _, ok := err.(Error); !ok {
+		t.Fatalf("err = %#v; wanted something supporting net.Error", err)
+	}
+	if de, ok := err.(*DNSError); !ok {
+		t.Fatalf("err = %#v; wanted a *net.DNSError", err)
+	} else if !de.IsNotFound {
+		t.Fatalf("IsNotFound = false for err = %#v; want IsNotFound == true", err)
+	}
+}
+
 // TestNoSuchHost verifies that tryOneName works correctly when the domain does
 // not exist.
 //
@@ -1540,6 +1569,9 @@ func TestNoSuchHost(t *testing.T) {
 			if de.Err != errNoSuchHost.Error() {
 				t.Fatalf("Err = %#v; wanted %q", de.Err, errNoSuchHost.Error())
 			}
+			if !de.IsNotFound {
+				t.Fatalf("IsNotFound = %v wanted true", de.IsNotFound)
+			}
 		})
 	}
 }
@@ -1563,7 +1595,7 @@ func TestDNSDialTCP(t *testing.T) {
 	}
 	r := Resolver{PreferGo: true, Dial: fake.DialContext}
 	ctx := context.Background()
-	_, _, err := r.exchange(ctx, "0.0.0.0", mustQuestion("com.", dnsmessage.TypeALL, dnsmessage.ClassINET), time.Second)
+	_, _, err := r.exchange(ctx, "0.0.0.0", mustQuestion("com.", dnsmessage.TypeALL, dnsmessage.ClassINET), time.Second, useUDPOrTCP)
 	if err != nil {
 		t.Fatal("exhange failed:", err)
 	}
@@ -1619,5 +1651,105 @@ func TestTXTRecordTwoStrings(t *testing.T) {
 	}
 	if want := "onestring"; txt[1] != want {
 		t.Errorf("txt[1], got %q, want %q", txt[1], want)
+	}
+}
+
+// Issue 29644: support single-request resolv.conf option in pure Go resolver.
+// The A and AAAA queries will be sent sequentially, not in parallel.
+func TestSingleRequestLookup(t *testing.T) {
+	defer dnsWaitGroup.Wait()
+	var (
+		firstcalled int32
+		ipv4        int32 = 1
+		ipv6        int32 = 2
+	)
+	fake := fakeDNSServer{rh: func(n, s string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+		r := dnsmessage.Message{
+			Header: dnsmessage.Header{
+				ID:       q.ID,
+				Response: true,
+			},
+			Questions: q.Questions,
+		}
+		for _, question := range q.Questions {
+			switch question.Type {
+			case dnsmessage.TypeA:
+				if question.Name.String() == "slowipv4.example.net." {
+					time.Sleep(10 * time.Millisecond)
+				}
+				if !atomic.CompareAndSwapInt32(&firstcalled, 0, ipv4) {
+					t.Errorf("the A query was received after the AAAA query !")
+				}
+				r.Answers = append(r.Answers, dnsmessage.Resource{
+					Header: dnsmessage.ResourceHeader{
+						Name:   q.Questions[0].Name,
+						Type:   dnsmessage.TypeA,
+						Class:  dnsmessage.ClassINET,
+						Length: 4,
+					},
+					Body: &dnsmessage.AResource{
+						A: TestAddr,
+					},
+				})
+			case dnsmessage.TypeAAAA:
+				atomic.CompareAndSwapInt32(&firstcalled, 0, ipv6)
+				r.Answers = append(r.Answers, dnsmessage.Resource{
+					Header: dnsmessage.ResourceHeader{
+						Name:   q.Questions[0].Name,
+						Type:   dnsmessage.TypeAAAA,
+						Class:  dnsmessage.ClassINET,
+						Length: 16,
+					},
+					Body: &dnsmessage.AAAAResource{
+						AAAA: TestAddr6,
+					},
+				})
+			}
+		}
+		return r, nil
+	}}
+	r := Resolver{PreferGo: true, Dial: fake.DialContext}
+
+	conf, err := newResolvConfTest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conf.teardown()
+	if err := conf.writeAndUpdate([]string{"options single-request"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"hostname.example.net", "slowipv4.example.net"} {
+		firstcalled = 0
+		_, err := r.LookupIPAddr(context.Background(), name)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+// Issue 29358. Add configuration knob to force TCP-only DNS requests in the pure Go resolver.
+func TestDNSUseTCP(t *testing.T) {
+	fake := fakeDNSServer{
+		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+			r := dnsmessage.Message{
+				Header: dnsmessage.Header{
+					ID:       q.Header.ID,
+					Response: true,
+					RCode:    dnsmessage.RCodeSuccess,
+				},
+				Questions: q.Questions,
+			}
+			if n == "udp" {
+				t.Fatal("udp protocol was used instead of tcp")
+			}
+			return r, nil
+		},
+	}
+	r := Resolver{PreferGo: true, Dial: fake.DialContext}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, _, err := r.exchange(ctx, "0.0.0.0", mustQuestion("com.", dnsmessage.TypeALL, dnsmessage.ClassINET), time.Second, useTCPOnly)
+	if err != nil {
+		t.Fatal("exchange failed:", err)
 	}
 }

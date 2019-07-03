@@ -7,8 +7,12 @@ package http
 import (
 	"bufio"
 	"bytes"
+	"crypto/rand"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -87,6 +91,222 @@ func TestDetectInMemoryReaders(t *testing.T) {
 		got := isKnownInMemoryReader(tt.r)
 		if got != tt.want {
 			t.Errorf("%d: got = %v; want %v", i, got, tt.want)
+		}
+	}
+}
+
+type mockTransferWriter struct {
+	CalledReader io.Reader
+	WriteCalled  bool
+}
+
+var _ io.ReaderFrom = (*mockTransferWriter)(nil)
+
+func (w *mockTransferWriter) ReadFrom(r io.Reader) (int64, error) {
+	w.CalledReader = r
+	return io.Copy(ioutil.Discard, r)
+}
+
+func (w *mockTransferWriter) Write(p []byte) (int, error) {
+	w.WriteCalled = true
+	return ioutil.Discard.Write(p)
+}
+
+func TestTransferWriterWriteBodyReaderTypes(t *testing.T) {
+	fileType := reflect.TypeOf(&os.File{})
+	bufferType := reflect.TypeOf(&bytes.Buffer{})
+
+	nBytes := int64(1 << 10)
+	newFileFunc := func() (r io.Reader, done func(), err error) {
+		f, err := ioutil.TempFile("", "net-http-newfilefunc")
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Write some bytes to the file to enable reading.
+		if _, err := io.CopyN(f, rand.Reader, nBytes); err != nil {
+			return nil, nil, fmt.Errorf("failed to write data to file: %v", err)
+		}
+		if _, err := f.Seek(0, 0); err != nil {
+			return nil, nil, fmt.Errorf("failed to seek to front: %v", err)
+		}
+
+		done = func() {
+			f.Close()
+			os.Remove(f.Name())
+		}
+
+		return f, done, nil
+	}
+
+	newBufferFunc := func() (io.Reader, func(), error) {
+		return bytes.NewBuffer(make([]byte, nBytes)), func() {}, nil
+	}
+
+	cases := []struct {
+		name             string
+		bodyFunc         func() (io.Reader, func(), error)
+		method           string
+		contentLength    int64
+		transferEncoding []string
+		limitedReader    bool
+		expectedReader   reflect.Type
+		expectedWrite    bool
+	}{
+		{
+			name:           "file, non-chunked, size set",
+			bodyFunc:       newFileFunc,
+			method:         "PUT",
+			contentLength:  nBytes,
+			limitedReader:  true,
+			expectedReader: fileType,
+		},
+		{
+			name:   "file, non-chunked, size set, nopCloser wrapped",
+			method: "PUT",
+			bodyFunc: func() (io.Reader, func(), error) {
+				r, cleanup, err := newFileFunc()
+				return ioutil.NopCloser(r), cleanup, err
+			},
+			contentLength:  nBytes,
+			limitedReader:  true,
+			expectedReader: fileType,
+		},
+		{
+			name:           "file, non-chunked, negative size",
+			method:         "PUT",
+			bodyFunc:       newFileFunc,
+			contentLength:  -1,
+			expectedReader: fileType,
+		},
+		{
+			name:           "file, non-chunked, CONNECT, negative size",
+			method:         "CONNECT",
+			bodyFunc:       newFileFunc,
+			contentLength:  -1,
+			expectedReader: fileType,
+		},
+		{
+			name:             "file, chunked",
+			method:           "PUT",
+			bodyFunc:         newFileFunc,
+			transferEncoding: []string{"chunked"},
+			expectedWrite:    true,
+		},
+		{
+			name:           "buffer, non-chunked, size set",
+			bodyFunc:       newBufferFunc,
+			method:         "PUT",
+			contentLength:  nBytes,
+			limitedReader:  true,
+			expectedReader: bufferType,
+		},
+		{
+			name:   "buffer, non-chunked, size set, nopCloser wrapped",
+			method: "PUT",
+			bodyFunc: func() (io.Reader, func(), error) {
+				r, cleanup, err := newBufferFunc()
+				return ioutil.NopCloser(r), cleanup, err
+			},
+			contentLength:  nBytes,
+			limitedReader:  true,
+			expectedReader: bufferType,
+		},
+		{
+			name:          "buffer, non-chunked, negative size",
+			method:        "PUT",
+			bodyFunc:      newBufferFunc,
+			contentLength: -1,
+			expectedWrite: true,
+		},
+		{
+			name:          "buffer, non-chunked, CONNECT, negative size",
+			method:        "CONNECT",
+			bodyFunc:      newBufferFunc,
+			contentLength: -1,
+			expectedWrite: true,
+		},
+		{
+			name:             "buffer, chunked",
+			method:           "PUT",
+			bodyFunc:         newBufferFunc,
+			transferEncoding: []string{"chunked"},
+			expectedWrite:    true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			body, cleanup, err := tc.bodyFunc()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer cleanup()
+
+			mw := &mockTransferWriter{}
+			tw := &transferWriter{
+				Body:             body,
+				ContentLength:    tc.contentLength,
+				TransferEncoding: tc.transferEncoding,
+			}
+
+			if err := tw.writeBody(mw); err != nil {
+				t.Fatal(err)
+			}
+
+			if tc.expectedReader != nil {
+				if mw.CalledReader == nil {
+					t.Fatal("did not call ReadFrom")
+				}
+
+				var actualReader reflect.Type
+				lr, ok := mw.CalledReader.(*io.LimitedReader)
+				if ok && tc.limitedReader {
+					actualReader = reflect.TypeOf(lr.R)
+				} else {
+					actualReader = reflect.TypeOf(mw.CalledReader)
+				}
+
+				if tc.expectedReader != actualReader {
+					t.Fatalf("got reader %T want %T", actualReader, tc.expectedReader)
+				}
+			}
+
+			if tc.expectedWrite && !mw.WriteCalled {
+				t.Fatal("did not invoke Write")
+			}
+		})
+	}
+}
+
+func TestFixTransferEncoding(t *testing.T) {
+	tests := []struct {
+		hdr     Header
+		wantErr error
+	}{
+		{
+			hdr:     Header{"Transfer-Encoding": {"fugazi"}},
+			wantErr: &unsupportedTEError{`unsupported transfer encoding: "fugazi"`},
+		},
+		{
+			hdr:     Header{"Transfer-Encoding": {"chunked, chunked", "identity", "chunked"}},
+			wantErr: &badStringError{"too many transfer encodings", "chunked,chunked"},
+		},
+		{
+			hdr:     Header{"Transfer-Encoding": {"chunked"}},
+			wantErr: nil,
+		},
+	}
+
+	for i, tt := range tests {
+		tr := &transferReader{
+			Header:     tt.hdr,
+			ProtoMajor: 1,
+			ProtoMinor: 1,
+		}
+		gotErr := tr.fixTransferEncoding()
+		if !reflect.DeepEqual(gotErr, tt.wantErr) {
+			t.Errorf("%d.\ngot error:\n%v\nwant error:\n%v\n\n", i, gotErr, tt.wantErr)
 		}
 	}
 }

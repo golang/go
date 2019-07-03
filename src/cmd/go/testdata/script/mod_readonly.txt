@@ -1,4 +1,5 @@
 env GO111MODULE=on
+[short] skip
 
 # -mod=readonly must not resolve missing modules nor update go.mod
 #

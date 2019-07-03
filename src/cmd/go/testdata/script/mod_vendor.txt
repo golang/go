@@ -18,6 +18,7 @@ stderr '^y'
 stderr '^# z v1.0.0 => ./z'
 stderr '^z'
 ! stderr '^w'
+grep 'a/foo/bar/b\na/foo/bar/c' vendor/modules.txt # must be sorted
 
 go list -f {{.Dir}} x
 stdout 'src[\\/]x'
@@ -38,6 +39,7 @@ stdout 'src[\\/]w'
 stderr 'src[\\/]vendor[\\/]w'
 
 ! exists vendor/x/testdata
+! exists vendor/a/foo/bar/b/ignored.go
 ! exists vendor/a/foo/bar/b/main_test.go
 
 exists vendor/a/foo/AUTHORS.txt
@@ -102,6 +104,14 @@ replace (
 
 -- a/foo/bar/b/main.go --
 package b
+-- a/foo/bar/b/ignored.go --
+// This file is intended for use with "go run"; it isn't really part of the package.
+
+// +build ignore
+
+package main
+
+func main() {}
 -- a/foo/bar/b/main_test.go --
 package b
 
@@ -117,6 +127,7 @@ func TestDir(t *testing.T) {
 }
 -- a/foo/bar/c/main.go --
 package c
+import _ "a/foo/bar/b"
 -- a/foo/bar/c/main_test.go --
 package c
 
@@ -181,7 +192,6 @@ import _ "a"
 -- testdata2.go --
 package m
 
-import _ "a/foo/bar/b"
 import _ "a/foo/bar/c"
 -- v1.go --
 package m

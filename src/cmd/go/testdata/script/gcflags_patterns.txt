@@ -1,4 +1,7 @@
+env GO111MODULE=off
+
 [!gc] skip 'using -gcflags and -ldflags'
+[short] skip
 
 # -gcflags=-e applies to named packages, not dependencies
 go build -n -v -gcflags=-e z1 z2
@@ -24,6 +27,10 @@ stderr 'compile.* -e.* -p z1'
 # -gcflags='all=-e' should apply to all packages, even with go test
 go test -c -n -gcflags='all=-e' z1
 stderr 'compile.* -e.* -p z3 '
+
+# this particular -gcflags argument made the compiler crash
+! go build -gcflags=-d=ssa/ z1
+stderr 'PhaseOptions usage'
 
 # -ldflags for implicit test package applies to test binary
 go test -c -n -gcflags=-N -ldflags=-X=x.y=z z1

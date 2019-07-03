@@ -67,6 +67,8 @@ func (p Point) Eq(q Point) bool {
 }
 
 // ZP is the zero Point.
+//
+// Deprecated: Use a literal image.Point{} instead.
 var ZP Point
 
 // Pt is shorthand for Point{X, Y}.
@@ -254,6 +256,8 @@ func (r Rectangle) ColorModel() color.Model {
 }
 
 // ZR is the zero Rectangle.
+//
+// Deprecated: Use a literal image.Rectangle{} instead.
 var ZR Rectangle
 
 // Rect is shorthand for Rectangle{Pt(x0, y0), Pt(x1, y1)}. The returned

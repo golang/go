@@ -14,17 +14,21 @@ import (
 
 const (
 	BADWIDTH = types.BADWIDTH
+)
 
+var (
 	// maximum size variable which we will allocate on the stack.
 	// This limit is for explicit variable declarations like "var x T" or "x := ...".
-	maxStackVarSize = 10 * 1024 * 1024
+	// Note: the flag smallframes can update this value.
+	maxStackVarSize = int64(10 * 1024 * 1024)
 
 	// maximum size of implicit variables that we will allocate on the stack.
 	//   p := new(T)          allocating T on the stack
 	//   p := &T{}            allocating T on the stack
 	//   s := make([]T, n)    allocating [n]T on the stack
 	//   s := []byte("...")   allocating [n]byte on the stack
-	maxImplicitStackVarSize = 64 * 1024
+	// Note: the flag smallframes can update this value.
+	maxImplicitStackVarSize = int64(64 * 1024)
 )
 
 // isRuntimePkg reports whether p is package runtime.
@@ -255,9 +259,10 @@ type Arch struct {
 	Use387    bool // should 386 backend use 387 FP instructions instead of sse2.
 	SoftFloat bool
 
-	PadFrame  func(int64) int64
-	ZeroRange func(*Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
-	Ginsnop   func(*Progs) *obj.Prog
+	PadFrame     func(int64) int64
+	ZeroRange    func(*Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
+	Ginsnop      func(*Progs) *obj.Prog
+	Ginsnopdefer func(*Progs) *obj.Prog // special ginsnop for deferreturn
 
 	// SSAMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
 	SSAMarkMoves func(*SSAGenState, *ssa.Block)
@@ -286,6 +291,7 @@ var (
 	assertI2I,
 	assertI2I2,
 	deferproc,
+	deferprocStack,
 	Deferreturn,
 	Duffcopy,
 	Duffzero,
@@ -294,14 +300,14 @@ var (
 	growslice,
 	msanread,
 	msanwrite,
+	newobject,
 	newproc,
 	panicdivide,
+	panicshift,
 	panicdottypeE,
 	panicdottypeI,
-	panicindex,
 	panicnildottype,
 	panicoverflow,
-	panicslice,
 	raceread,
 	racereadrange,
 	racewrite,
@@ -312,7 +318,11 @@ var (
 	typedmemclr,
 	typedmemmove,
 	Udiv,
-	writeBarrier *obj.LSym
+	writeBarrier,
+	zerobaseSym *obj.LSym
+
+	BoundsCheckFunc [ssa.BoundsKindCount]*obj.LSym
+	ExtendCheckFunc [ssa.BoundsKindCount]*obj.LSym
 
 	// GO386=387
 	ControlWord64trunc,

@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 	"testing"
 )
 
@@ -19,6 +20,7 @@ func TestCSEAuxPartitionBug(t *testing.T) {
 	arg1Aux := &tstAux{"arg1-aux"}
 	arg2Aux := &tstAux{"arg2-aux"}
 	arg3Aux := &tstAux{"arg3-aux"}
+	a := c.Frontend().Auto(src.NoXPos, c.config.Types.Int8)
 
 	// construct lots of values with args that have aux values and place
 	// them in an order that triggers the bug
@@ -36,7 +38,7 @@ func TestCSEAuxPartitionBug(t *testing.T) {
 			Valu("r8", OpAdd64, c.config.Types.Int64, 0, nil, "arg3", "arg2"),
 			Valu("r2", OpAdd64, c.config.Types.Int64, 0, nil, "arg1", "arg2"),
 			Valu("raddr", OpLocalAddr, c.config.Types.Int64.PtrTo(), 0, nil, "sp", "start"),
-			Valu("raddrdef", OpVarDef, types.TypeMem, 0, nil, "start"),
+			Valu("raddrdef", OpVarDef, types.TypeMem, 0, a, "start"),
 			Valu("r6", OpAdd64, c.config.Types.Int64, 0, nil, "r4", "r5"),
 			Valu("r3", OpAdd64, c.config.Types.Int64, 0, nil, "arg1", "arg2"),
 			Valu("r5", OpAdd64, c.config.Types.Int64, 0, nil, "r2", "r3"),
@@ -89,6 +91,7 @@ func TestCSEAuxPartitionBug(t *testing.T) {
 // TestZCSE tests the zero arg cse.
 func TestZCSE(t *testing.T) {
 	c := testConfig(t)
+	a := c.Frontend().Auto(src.NoXPos, c.config.Types.Int8)
 
 	fun := c.Fun("entry",
 		Bloc("entry",
@@ -106,7 +109,7 @@ func TestZCSE(t *testing.T) {
 			Valu("r2", OpAdd64, c.config.Types.Int64, 0, nil, "a2ld", "c2"),
 			Valu("r3", OpAdd64, c.config.Types.Int64, 0, nil, "r1", "r2"),
 			Valu("raddr", OpLocalAddr, c.config.Types.Int64.PtrTo(), 0, nil, "sp", "start"),
-			Valu("raddrdef", OpVarDef, types.TypeMem, 0, nil, "start"),
+			Valu("raddrdef", OpVarDef, types.TypeMem, 0, a, "start"),
 			Valu("rstore", OpStore, types.TypeMem, 0, c.config.Types.Int64, "raddr", "r3", "raddrdef"),
 			Goto("exit")),
 		Bloc("exit",

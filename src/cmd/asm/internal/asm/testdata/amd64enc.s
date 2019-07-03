@@ -588,8 +588,6 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	BSRQ (R11), R11                         // 4d0fbd1b
 	BSRQ DX, R11                            // 4c0fbdda
 	BSRQ R11, R11                           // 4d0fbddb
-	BSWAPW DX                               // 660fca
-	BSWAPW R11                              // 66410fcb
 	BSWAPL DX                               // 0fca
 	BSWAPL R11                              // 410fcb
 	BSWAPQ DX                               // 480fca

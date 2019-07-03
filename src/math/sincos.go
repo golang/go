@@ -14,9 +14,9 @@ package math
 //	Sincos(NaN) = NaN, NaN
 func Sincos(x float64) (sin, cos float64) {
 	const (
-		PI4A = 7.85398125648498535156E-1  // 0x3fe921fb40000000, Pi/4 split into three parts
-		PI4B = 3.77489470793079817668E-8  // 0x3e64442d00000000,
-		PI4C = 2.69515142907905952645E-15 // 0x3ce8469898cc5170,
+		PI4A = 7.85398125648498535156e-1  // 0x3fe921fb40000000, Pi/4 split into three parts
+		PI4B = 3.77489470793079817668e-8  // 0x3e64442d00000000,
+		PI4C = 2.69515142907905952645e-15 // 0x3ce8469898cc5170,
 	)
 	// special cases
 	switch {

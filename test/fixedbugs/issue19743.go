@@ -22,8 +22,8 @@ func toString(b immutableBytes) string { // ERROR "leaking param: b$"
 		return s
 	}
 
-	strHeader := (*reflect.StringHeader)(unsafe.Pointer(&s))         // ERROR "toString &s does not escape$"
-	strHeader.Data = (*reflect.SliceHeader)(unsafe.Pointer(&b)).Data // ERROR "toString &b does not escape$"
+	strHeader := (*reflect.StringHeader)(unsafe.Pointer(&s))
+	strHeader.Data = (*reflect.SliceHeader)(unsafe.Pointer(&b)).Data
 
 	l := len(b)
 	strHeader.Len = l

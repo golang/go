@@ -28,13 +28,33 @@ func Syscall12(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 ui
 func Syscall15(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2 uintptr, err Errno)
 func Syscall18(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18 uintptr) (r1, r2 uintptr, err Errno)
 func loadlibrary(filename *uint16) (handle uintptr, err Errno)
-func loadsystemlibrary(filename *uint16) (handle uintptr, err Errno)
+func loadsystemlibrary(filename *uint16, absoluteFilepath *uint16) (handle uintptr, err Errno)
 func getprocaddress(handle uintptr, procname *uint8) (proc uintptr, err Errno)
 
 // A DLL implements access to a single DLL.
 type DLL struct {
 	Name   string
 	Handle Handle
+}
+
+// We use this for computing the absolute path for system DLLs on systems
+// where SEARCH_SYSTEM32 is not available.
+var systemDirectoryPrefix string
+
+func init() {
+	n := uint32(MAX_PATH)
+	for {
+		b := make([]uint16, n)
+		l, e := getSystemDirectory(&b[0], n)
+		if e != nil {
+			panic("Unable to determine system directory: " + e.Error())
+		}
+		if l <= n {
+			systemDirectoryPrefix = UTF16ToString(b[:l]) + "\\"
+			break
+		}
+		n = l
+	}
 }
 
 // LoadDLL loads the named DLL file into memory.
@@ -53,7 +73,11 @@ func LoadDLL(name string) (*DLL, error) {
 	var h uintptr
 	var e Errno
 	if sysdll.IsSystemDLL[name] {
-		h, e = loadsystemlibrary(namep)
+		absoluteFilepathp, err := UTF16PtrFromString(systemDirectoryPrefix + name)
+		if err != nil {
+			return nil, err
+		}
+		h, e = loadsystemlibrary(namep, absoluteFilepathp)
 	} else {
 		h, e = loadlibrary(namep)
 	}
@@ -246,7 +270,7 @@ func NewLazyDLL(name string) *LazyDLL {
 }
 
 // A LazyProc implements access to a procedure inside a LazyDLL.
-// It delays the lookup until the Addr method is called.
+// It delays the lookup until the Addr, Call, or Find method is called.
 type LazyProc struct {
 	mu   sync.Mutex
 	Name string
@@ -297,13 +321,8 @@ func (p *LazyProc) Addr() uintptr {
 
 //go:uintptrescapes
 
-// Call executes procedure p with arguments a. It will panic, if more than 15 arguments
-// are supplied.
-//
-// The returned error is always non-nil, constructed from the result of GetLastError.
-// Callers must inspect the primary return value to decide whether an error occurred
-// (according to the semantics of the specific function being called) before consulting
-// the error. The error will be guaranteed to contain syscall.Errno.
+// Call executes procedure p with arguments a. See the documentation of
+// Proc.Call for more information.
 func (p *LazyProc) Call(a ...uintptr) (r1, r2 uintptr, lastErr error) {
 	p.mustFind()
 	return p.proc.Call(a...)

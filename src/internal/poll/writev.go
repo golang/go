@@ -51,7 +51,10 @@ func (fd *FD) Writev(v *[][]byte) (int64, error) {
 		if len(iovecs) == 0 {
 			break
 		}
-		fd.iovecs = &iovecs // cache
+		if fd.iovecs == nil {
+			fd.iovecs = new([]syscall.Iovec)
+		}
+		*fd.iovecs = iovecs // cache
 
 		var wrote uintptr
 		wrote, err = writev(fd.Sysfd, iovecs)
@@ -61,6 +64,9 @@ func (fd *FD) Writev(v *[][]byte) (int64, error) {
 		TestHookDidWritev(int(wrote))
 		n += int64(wrote)
 		consume(v, int64(wrote))
+		for i := range iovecs {
+			iovecs[i] = syscall.Iovec{}
+		}
 		if err != nil {
 			if err.(syscall.Errno) == syscall.EAGAIN {
 				if err = fd.pd.waitWrite(fd.isFile); err == nil {

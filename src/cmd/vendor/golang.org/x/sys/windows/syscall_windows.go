@@ -137,6 +137,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) [failretval==InvalidHandle] = CreateFileW
 //sys	ReadFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error)
 //sys	WriteFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error)
+//sys	GetOverlappedResult(handle Handle, overlapped *Overlapped, done *uint32, wait bool) (err error)
 //sys	SetFilePointer(handle Handle, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, err error) [failretval==0xffffffff]
 //sys	CloseHandle(handle Handle) (err error)
 //sys	GetStdHandle(stdhandle uint32) (handle Handle, err error) [failretval==InvalidHandle]
@@ -145,6 +146,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	findNextFile1(handle Handle, data *win32finddata1) (err error) = FindNextFileW
 //sys	FindClose(handle Handle) (err error)
 //sys	GetFileInformationByHandle(handle Handle, data *ByHandleFileInformation) (err error)
+//sys	GetFileInformationByHandleEx(handle Handle, class uint32, outBuffer *byte, outBufferLen uint32) (err error)
 //sys	GetCurrentDirectory(buflen uint32, buf *uint16) (n uint32, err error) = GetCurrentDirectoryW
 //sys	SetCurrentDirectory(path *uint16) (err error) = SetCurrentDirectoryW
 //sys	CreateDirectory(path *uint16, sa *SecurityAttributes) (err error) = CreateDirectoryW
@@ -172,6 +174,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	GetProcessTimes(handle Handle, creationTime *Filetime, exitTime *Filetime, kernelTime *Filetime, userTime *Filetime) (err error)
 //sys	DuplicateHandle(hSourceProcessHandle Handle, hSourceHandle Handle, hTargetProcessHandle Handle, lpTargetHandle *Handle, dwDesiredAccess uint32, bInheritHandle bool, dwOptions uint32) (err error)
 //sys	WaitForSingleObject(handle Handle, waitMilliseconds uint32) (event uint32, err error) [failretval==0xffffffff]
+//sys	waitForMultipleObjects(count uint32, handles uintptr, waitAll bool, waitMilliseconds uint32) (event uint32, err error) [failretval==0xffffffff] = WaitForMultipleObjects
 //sys	GetTempPath(buflen uint32, buf *uint16) (n uint32, err error) = GetTempPathW
 //sys	CreatePipe(readhandle *Handle, writehandle *Handle, sa *SecurityAttributes, size uint32) (err error)
 //sys	GetFileType(filehandle Handle) (n uint32, err error)
@@ -558,9 +561,6 @@ func Fsync(fd Handle) (err error) {
 }
 
 func Chmod(path string, mode uint32) (err error) {
-	if mode == 0 {
-		return syscall.EINVAL
-	}
 	p, e := UTF16PtrFromString(path)
 	if e != nil {
 		return e
@@ -587,6 +587,18 @@ func LoadCancelIoEx() error {
 
 func LoadSetFileCompletionNotificationModes() error {
 	return procSetFileCompletionNotificationModes.Find()
+}
+
+func WaitForMultipleObjects(handles []Handle, waitAll bool, waitMilliseconds uint32) (event uint32, err error) {
+	// Every other win32 array API takes arguments as "pointer, count", except for this function. So we
+	// can't declare it as a usual [] type, because mksyscall will use the opposite order. We therefore
+	// trivially stub this ourselves.
+
+	var handlePtr *Handle
+	if len(handles) > 0 {
+		handlePtr = &handles[0]
+	}
+	return waitForMultipleObjects(uint32(len(handles)), uintptr(unsafe.Pointer(handlePtr)), waitAll, waitMilliseconds)
 }
 
 // net api calls

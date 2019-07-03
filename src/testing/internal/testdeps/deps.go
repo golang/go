@@ -98,7 +98,6 @@ func (l *testLog) add(op, name string) {
 }
 
 var log testLog
-var didSetLogger bool
 
 func (TestDeps) StartTestLog(w io.Writer) {
 	log.mu.Lock()

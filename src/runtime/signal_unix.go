@@ -268,7 +268,7 @@ func setThreadCPUProfiler(hz int32) {
 }
 
 func sigpipe() {
-	if sigsend(_SIGPIPE) {
+	if signal_ignored(_SIGPIPE) || sigsend(_SIGPIPE) {
 		return
 	}
 	dieFromSignal(_SIGPIPE)
@@ -296,6 +296,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 			sigprofNonGoPC(c.sigpc())
 			return
 		}
+		c.fixsigcode(sig)
 		badsignal(uintptr(sig), c)
 		return
 	}
@@ -368,6 +369,9 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 //
 // The signal handler must not inject a call to sigpanic if
 // getg().throwsplit, since sigpanic may need to grow the stack.
+//
+// This is exported via linkname to assembly in runtime/cgo.
+//go:linkname sigpanic
 func sigpanic() {
 	g := getg()
 	if !canpanic(g) {
@@ -503,16 +507,14 @@ func raisebadsignal(sig uint32, c *sigctxt) {
 
 //go:nosplit
 func crash() {
-	if GOOS == "darwin" {
-		// OS X core dumps are linear dumps of the mapped memory,
-		// from the first virtual byte to the last, with zeros in the gaps.
-		// Because of the way we arrange the address space on 64-bit systems,
-		// this means the OS X core file will be >128 GB and even on a zippy
-		// workstation can take OS X well over an hour to write (uninterruptible).
-		// Save users from making that mistake.
-		if GOARCH == "amd64" {
-			return
-		}
+	// OS X core dumps are linear dumps of the mapped memory,
+	// from the first virtual byte to the last, with zeros in the gaps.
+	// Because of the way we arrange the address space on 64-bit systems,
+	// this means the OS X core file will be >128 GB and even on a zippy
+	// workstation can take OS X well over an hour to write (uninterruptible).
+	// Save users from making that mistake.
+	if GOOS == "darwin" && GOARCH == "amd64" {
+		return
 	}
 
 	dieFromSignal(_SIGABRT)
@@ -844,7 +846,11 @@ func signalstack(s *stack) {
 }
 
 // setsigsegv is used on darwin/arm{,64} to fake a segmentation fault.
+//
+// This is exported via linkname to assembly in runtime/cgo.
+//
 //go:nosplit
+//go:linkname setsigsegv
 func setsigsegv(pc uintptr) {
 	g := getg()
 	g.sig = _SIGSEGV

@@ -63,6 +63,8 @@ func mapDirOpenError(originalErr error, name string) error {
 	return originalErr
 }
 
+// Open implements FileSystem using os.Open, opening files for reading rooted
+// and relative to the directory d.
 func (d Dir) Open(name string) (File, error) {
 	if filepath.Separator != '/' && strings.ContainsRune(name, filepath.Separator) {
 		return nil, errors.New("http: invalid character in file path")

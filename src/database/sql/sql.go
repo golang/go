@@ -8,7 +8,7 @@
 // The sql package must be used in conjunction with a database driver.
 // See https://golang.org/s/sqldrivers for a list of drivers.
 //
-// Drivers that do not support context cancelation will not return until
+// Drivers that do not support context cancellation will not return until
 // after the query is completed.
 //
 // For usage examples, see the wiki page at
@@ -234,6 +234,32 @@ func (n NullInt64) Value() (driver.Value, error) {
 	return n.Int64, nil
 }
 
+// NullInt32 represents an int32 that may be null.
+// NullInt32 implements the Scanner interface so
+// it can be used as a scan destination, similar to NullString.
+type NullInt32 struct {
+	Int32 int32
+	Valid bool // Valid is true if Int32 is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (n *NullInt32) Scan(value interface{}) error {
+	if value == nil {
+		n.Int32, n.Valid = 0, false
+		return nil
+	}
+	n.Valid = true
+	return convertAssign(&n.Int32, value)
+}
+
+// Value implements the driver Valuer interface.
+func (n NullInt32) Value() (driver.Value, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+	return int64(n.Int32), nil
+}
+
 // NullFloat64 represents a float64 that may be null.
 // NullFloat64 implements the Scanner interface so
 // it can be used as a scan destination, similar to NullString.
@@ -284,6 +310,32 @@ func (n NullBool) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return n.Bool, nil
+}
+
+// NullTime represents a time.Time that may be null.
+// NullTime implements the Scanner interface so
+// it can be used as a scan destination, similar to NullString.
+type NullTime struct {
+	Time  time.Time
+	Valid bool // Valid is true if Time is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (n *NullTime) Scan(value interface{}) error {
+	if value == nil {
+		n.Time, n.Valid = time.Time{}, false
+		return nil
+	}
+	n.Valid = true
+	return convertAssign(&n.Time, value)
+}
+
+// Value implements the driver Valuer interface.
+func (n NullTime) Value() (driver.Value, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+	return n.Time, nil
 }
 
 // Scanner is an interface used by Scan.
@@ -1740,6 +1792,8 @@ type Conn struct {
 	done int32
 }
 
+// grabConn takes a context to implement stmtConnGrabber
+// but the context is not used.
 func (c *Conn) grabConn(context.Context) (*driverConn, releaseConn, error) {
 	if atomic.LoadInt32(&c.done) != 0 {
 		return nil, nil, ErrConnDone
@@ -1802,6 +1856,39 @@ func (c *Conn) PrepareContext(ctx context.Context, query string) (*Stmt, error) 
 		return nil, err
 	}
 	return c.db.prepareDC(ctx, dc, release, c, query)
+}
+
+// Raw executes f exposing the underlying driver connection for the
+// duration of f. The driverConn must not be used outside of f.
+//
+// Once f returns and err is nil, the Conn will continue to be usable
+// until Conn.Close is called.
+func (c *Conn) Raw(f func(driverConn interface{}) error) (err error) {
+	var dc *driverConn
+	var release releaseConn
+
+	// grabConn takes a context to implement stmtConnGrabber, but the context is not used.
+	dc, release, err = c.grabConn(nil)
+	if err != nil {
+		return
+	}
+	fPanic := true
+	dc.Mutex.Lock()
+	defer func() {
+		dc.Mutex.Unlock()
+
+		// If f panics fPanic will remain true.
+		// Ensure an error is passed to release so the connection
+		// may be discarded.
+		if fPanic {
+			err = driver.ErrBadConn
+		}
+		release(err)
+	}()
+	err = f(dc.ci)
+	fPanic = false
+
+	return
 }
 
 // BeginTx starts a transaction.

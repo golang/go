@@ -35,12 +35,14 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
 	}
 	var pkgs []string
 
-	walkPkgs := func(root, importPathRoot string) {
+	type pruning int8
+	const (
+		pruneVendor = pruning(1 << iota)
+		pruneGoMod
+	)
+
+	walkPkgs := func(root, importPathRoot string, prune pruning) {
 		root = filepath.Clean(root)
-		var cmd string
-		if root == cfg.GOROOTsrc {
-			cmd = filepath.Join(root, "cmd")
-		}
 		filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
 			if err != nil {
 				return nil
@@ -49,14 +51,6 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
 			// Don't use GOROOT/src but do walk down into it.
 			if path == root && importPathRoot == "" {
 				return nil
-			}
-
-			// GOROOT/src/cmd makes use of GOROOT/src/cmd/vendor,
-			// which module mode can't deal with. Eventually we'll stop using
-			// that vendor directory, and then we can remove this exclusion.
-			// golang.org/issue/26924.
-			if path == cmd {
-				return filepath.SkipDir
 			}
 
 			want := true
@@ -86,8 +80,9 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
 			if !want {
 				return filepath.SkipDir
 			}
-			if path != root {
-				if _, err := os.Stat(filepath.Join(path, "go.mod")); err == nil {
+			// Stop at module boundaries.
+			if (prune&pruneGoMod != 0) && path != root {
+				if fi, err := os.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
 					return filepath.SkipDir
 				}
 			}
@@ -101,7 +96,7 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
 				}
 			}
 
-			if elem == "vendor" {
+			if elem == "vendor" && (prune&pruneVendor != 0) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -109,28 +104,51 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
 	}
 
 	if useStd {
-		walkPkgs(cfg.GOROOTsrc, "")
+		walkPkgs(cfg.GOROOTsrc, "", pruneGoMod)
+		if treeCanMatch("cmd") {
+			walkPkgs(filepath.Join(cfg.GOROOTsrc, "cmd"), "cmd", pruneGoMod)
+		}
+	}
+
+	if cfg.BuildMod == "vendor" {
+		if HasModRoot() {
+			walkPkgs(ModRoot(), targetPrefix, pruneGoMod|pruneVendor)
+			walkPkgs(filepath.Join(ModRoot(), "vendor"), "", pruneVendor)
+		}
+		return pkgs
 	}
 
 	for _, mod := range modules {
 		if !treeCanMatch(mod.Path) {
 			continue
 		}
-		var root string
-		if mod.Version == "" {
+
+		var (
+			root, modPrefix string
+			isLocal         bool
+		)
+		if mod == Target {
 			if !HasModRoot() {
 				continue // If there is no main module, we can't search in it.
 			}
 			root = ModRoot()
+			modPrefix = targetPrefix
+			isLocal = true
 		} else {
 			var err error
-			root, _, err = fetch(mod)
+			root, isLocal, err = fetch(mod)
 			if err != nil {
 				base.Errorf("go: %v", err)
 				continue
 			}
+			modPrefix = mod.Path
 		}
-		walkPkgs(root, mod.Path)
+
+		prune := pruneVendor
+		if isLocal {
+			prune |= pruneGoMod
+		}
+		walkPkgs(root, modPrefix, prune)
 	}
 
 	return pkgs

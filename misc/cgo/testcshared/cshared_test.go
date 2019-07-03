@@ -5,14 +5,16 @@
 package cshared_test
 
 import (
+	"bytes"
 	"debug/elf"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -22,9 +24,6 @@ import (
 // C compiler with args (from $(go env CC) $(go env GOGCCFLAGS)).
 var cc []string
 
-// An environment with GOPATH=$(pwd).
-var gopathEnv []string
-
 // ".exe" on Windows.
 var exeSuffix string
 
@@ -33,6 +32,17 @@ var installdir, androiddir string
 var libSuffix, libgoname string
 
 func TestMain(m *testing.M) {
+	os.Exit(testMain(m))
+}
+
+func testMain(m *testing.M) int {
+	log.SetFlags(log.Lshortfile)
+	flag.Parse()
+	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+		fmt.Printf("SKIP - short mode and $GO_BUILDER_NAME not set\n")
+		os.Exit(0)
+	}
+
 	GOOS = goEnv("GOOS")
 	GOARCH = goEnv("GOARCH")
 	GOROOT = goEnv("GOROOT")
@@ -41,30 +51,16 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Unable able to find GOROOT at '%s'", GOROOT)
 	}
 
-	// Directory where cgo headers and outputs will be installed.
-	// The installation directory format varies depending on the platform.
-	installdir = path.Join("pkg", fmt.Sprintf("%s_%s_testcshared", GOOS, GOARCH))
-	switch GOOS {
-	case "darwin":
-		libSuffix = "dylib"
-	case "windows":
-		libSuffix = "dll"
-	default:
-		libSuffix = "so"
-		installdir = path.Join("pkg", fmt.Sprintf("%s_%s_testcshared_shared", GOOS, GOARCH))
-	}
-
 	androiddir = fmt.Sprintf("/data/local/tmp/testcshared-%d", os.Getpid())
-	if GOOS == "android" {
-		args := append(adbCmd(), "shell", "mkdir", "-p", androiddir)
+	if runtime.GOOS != GOOS && GOOS == "android" {
+		args := append(adbCmd(), "exec-out", "mkdir", "-p", androiddir)
 		cmd := exec.Command(args[0], args[1:]...)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			log.Fatalf("setupAndroid failed: %v\n%s\n", err, out)
 		}
+		defer cleanupAndroid()
 	}
-
-	libgoname = "libgo." + libSuffix
 
 	cc = []string{goEnv("CC")}
 
@@ -115,39 +111,62 @@ func TestMain(m *testing.M) {
 		if GOARCH == "arm" || GOARCH == "arm64" {
 			libgodir += "_shared"
 		}
-	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris", "illumos":
 		libgodir += "_shared"
 	}
 	cc = append(cc, "-I", filepath.Join("pkg", libgodir))
-
-	// Build an environment with GOPATH=$(pwd)
-	dir, err := os.Getwd()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-	gopathEnv = append(os.Environ(), "GOPATH="+dir)
 
 	if GOOS == "windows" {
 		exeSuffix = ".exe"
 	}
 
-	st := m.Run()
+	// Copy testdata into GOPATH/src/testcshared, along with a go.mod file
+	// declaring the same path.
 
-	os.Remove(libgoname)
-	os.RemoveAll("pkg")
-	cleanupHeaders()
-	cleanupAndroid()
+	GOPATH, err := ioutil.TempDir("", "cshared_test")
+	if err != nil {
+		log.Panic(err)
+	}
+	defer os.RemoveAll(GOPATH)
+	os.Setenv("GOPATH", GOPATH)
 
-	os.Exit(st)
+	// Copy testdata into GOPATH/src/testarchive, along with a go.mod file
+	// declaring the same path.
+	modRoot := filepath.Join(GOPATH, "src", "testcshared")
+	if err := overlayDir(modRoot, "testdata"); err != nil {
+		log.Panic(err)
+	}
+	if err := os.Chdir(modRoot); err != nil {
+		log.Panic(err)
+	}
+	os.Setenv("PWD", modRoot)
+	if err := ioutil.WriteFile("go.mod", []byte("module testcshared\n"), 0666); err != nil {
+		log.Panic(err)
+	}
+
+	// Directory where cgo headers and outputs will be installed.
+	// The installation directory format varies depending on the platform.
+	output, err := exec.Command("go", "list",
+		"-buildmode=c-shared",
+		"-installsuffix", "testcshared",
+		"-f", "{{.Target}}",
+		"./libgo").CombinedOutput()
+	if err != nil {
+		log.Panicf("go list failed: %v\n%s", err, output)
+	}
+	target := string(bytes.TrimSpace(output))
+	libgoname = filepath.Base(target)
+	installdir = filepath.Dir(target)
+	libSuffix = strings.TrimPrefix(filepath.Ext(target), ".")
+
+	return m.Run()
 }
 
 func goEnv(key string) string {
 	out, err := exec.Command("go", "env", key).Output()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "go env %s failed:\n%s", key, err)
-		fmt.Fprintf(os.Stderr, "%s", err.(*exec.ExitError).Stderr)
-		os.Exit(2)
+		log.Printf("go env %s failed:\n%s", key, err)
+		log.Panicf("%s", err.(*exec.ExitError).Stderr)
 	}
 	return strings.TrimSpace(string(out))
 }
@@ -165,7 +184,7 @@ func adbCmd() []string {
 }
 
 func adbPush(t *testing.T, filename string) {
-	if GOOS != "android" {
+	if runtime.GOOS == GOOS || GOOS != "android" {
 		return
 	}
 	args := append(adbCmd(), "push", filename, fmt.Sprintf("%s/%s", androiddir, filename))
@@ -179,7 +198,7 @@ func adbRun(t *testing.T, env []string, adbargs ...string) string {
 	if GOOS != "android" {
 		t.Fatalf("trying to run adb command when operating system is not android.")
 	}
-	args := append(adbCmd(), "shell")
+	args := append(adbCmd(), "exec-out")
 	// Propagate LD_LIBRARY_PATH to the adb shell invocation.
 	for _, e := range env {
 		if strings.Index(e, "LD_LIBRARY_PATH=") != -1 {
@@ -197,10 +216,12 @@ func adbRun(t *testing.T, env []string, adbargs ...string) string {
 	return strings.Replace(string(out), "\r", "", -1)
 }
 
-func run(t *testing.T, env []string, args ...string) string {
+func run(t *testing.T, extraEnv []string, args ...string) string {
 	t.Helper()
 	cmd := exec.Command(args[0], args[1:]...)
-	cmd.Env = env
+	if len(extraEnv) > 0 {
+		cmd.Env = append(os.Environ(), extraEnv...)
+	}
 
 	if GOOS != "windows" {
 		// TestUnexportedSymbols relies on file descriptor 30
@@ -220,12 +241,12 @@ func run(t *testing.T, env []string, args ...string) string {
 	return string(out)
 }
 
-func runExe(t *testing.T, env []string, args ...string) string {
+func runExe(t *testing.T, extraEnv []string, args ...string) string {
 	t.Helper()
-	if GOOS == "android" {
-		return adbRun(t, env, args...)
+	if runtime.GOOS != GOOS && GOOS == "android" {
+		return adbRun(t, append(os.Environ(), extraEnv...), args...)
 	}
-	return run(t, env, args...)
+	return run(t, extraEnv, args...)
 }
 
 func runCC(t *testing.T, args ...string) string {
@@ -237,9 +258,8 @@ func runCC(t *testing.T, args ...string) string {
 
 func createHeaders() error {
 	args := []string{"go", "install", "-i", "-buildmode=c-shared",
-		"-installsuffix", "testcshared", "libgo"}
+		"-installsuffix", "testcshared", "./libgo"}
 	cmd := exec.Command(args[0], args[1:]...)
-	cmd.Env = gopathEnv
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("command failed: %v\n%v\n%s\n", args, err, out)
@@ -248,15 +268,14 @@ func createHeaders() error {
 	args = []string{"go", "build", "-buildmode=c-shared",
 		"-installsuffix", "testcshared",
 		"-o", libgoname,
-		filepath.Join("src", "libgo", "libgo.go")}
+		filepath.Join(".", "libgo", "libgo.go")}
 	cmd = exec.Command(args[0], args[1:]...)
-	cmd.Env = gopathEnv
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("command failed: %v\n%v\n%s\n", args, err, out)
 	}
 
-	if GOOS == "android" {
+	if runtime.GOOS != GOOS && GOOS == "android" {
 		args = append(adbCmd(), "push", libgoname, fmt.Sprintf("%s/%s", androiddir, libgoname))
 		cmd = exec.Command(args[0], args[1:]...)
 		out, err = cmd.CombinedOutput()
@@ -282,19 +301,15 @@ func createHeadersOnce(t *testing.T) {
 	}
 }
 
-func cleanupHeaders() {
-	os.Remove("libgo.h")
-}
-
 func cleanupAndroid() {
 	if GOOS != "android" {
 		return
 	}
-	args := append(adbCmd(), "shell", "rm", "-rf", androiddir)
+	args := append(adbCmd(), "exec-out", "rm", "-rf", androiddir)
 	cmd := exec.Command(args[0], args[1:]...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Fatalf("cleanupAndroid failed: %v\n%s\n", err, out)
+		log.Panicf("cleanupAndroid failed: %v\n%s\n", err, out)
 	}
 }
 
@@ -312,7 +327,7 @@ func TestExportedSymbols(t *testing.T) {
 
 	defer os.Remove(bin)
 
-	out := runExe(t, append(gopathEnv, "LD_LIBRARY_PATH=."), bin)
+	out := runExe(t, []string{"LD_LIBRARY_PATH=."}, bin)
 	if strings.TrimSpace(out) != "PASS" {
 		t.Error(out)
 	}
@@ -361,11 +376,11 @@ func TestUnexportedSymbols(t *testing.T) {
 	libname := "libgo2." + libSuffix
 
 	run(t,
-		gopathEnv,
+		nil,
 		"go", "build",
 		"-buildmode=c-shared",
 		"-installsuffix", "testcshared",
-		"-o", libname, "libgo2",
+		"-o", libname, "./libgo2",
 	)
 	adbPush(t, libname)
 
@@ -380,7 +395,7 @@ func TestUnexportedSymbols(t *testing.T) {
 	defer os.Remove(libname)
 	defer os.Remove(bin)
 
-	out := runExe(t, append(gopathEnv, "LD_LIBRARY_PATH=."), bin)
+	out := runExe(t, []string{"LD_LIBRARY_PATH=."}, bin)
 
 	if strings.TrimSpace(out) != "PASS" {
 		t.Error(out)
@@ -418,7 +433,7 @@ func TestMainExportedOnAndroid(t *testing.T) {
 func testSignalHandlers(t *testing.T, pkgname, cfile, cmd string) {
 	libname := pkgname + "." + libSuffix
 	run(t,
-		gopathEnv,
+		nil,
 		"go", "build",
 		"-buildmode=c-shared",
 		"-installsuffix", "testcshared",
@@ -451,7 +466,7 @@ func TestSignalHandlers(t *testing.T) {
 		t.Logf("Skipping on %s", GOOS)
 		return
 	}
-	testSignalHandlers(t, "libgo4", "main4.c", "testp4")
+	testSignalHandlers(t, "./libgo4", "main4.c", "testp4")
 }
 
 // test5: test signal handlers with os/signal.Notify
@@ -461,7 +476,7 @@ func TestSignalHandlersWithNotify(t *testing.T) {
 		t.Logf("Skipping on %s", GOOS)
 		return
 	}
-	testSignalHandlers(t, "libgo5", "main5.c", "testp5")
+	testSignalHandlers(t, "./libgo5", "main5.c", "testp5")
 }
 
 func TestPIE(t *testing.T) {
@@ -513,16 +528,18 @@ func TestCachedInstall(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// defer os.RemoveAll(tmpdir)
+	defer os.RemoveAll(tmpdir)
 
-	copyFile(t, filepath.Join(tmpdir, "src", "libgo", "libgo.go"), filepath.Join("src", "libgo", "libgo.go"))
-	copyFile(t, filepath.Join(tmpdir, "src", "p", "p.go"), filepath.Join("src", "p", "p.go"))
+	copyFile(t, filepath.Join(tmpdir, "src", "testcshared", "go.mod"), "go.mod")
+	copyFile(t, filepath.Join(tmpdir, "src", "testcshared", "libgo", "libgo.go"), filepath.Join("libgo", "libgo.go"))
+	copyFile(t, filepath.Join(tmpdir, "src", "testcshared", "p", "p.go"), filepath.Join("p", "p.go"))
 
-	env := append(os.Environ(), "GOPATH="+tmpdir)
+	env := append(os.Environ(), "GOPATH="+tmpdir, "GOBIN="+filepath.Join(tmpdir, "bin"))
 
-	buildcmd := []string{"go", "install", "-x", "-i", "-buildmode=c-shared", "-installsuffix", "testcshared", "libgo"}
+	buildcmd := []string{"go", "install", "-x", "-i", "-buildmode=c-shared", "-installsuffix", "testcshared", "./libgo"}
 
 	cmd := exec.Command(buildcmd[0], buildcmd[1:]...)
+	cmd.Dir = filepath.Join(tmpdir, "src", "testcshared")
 	cmd.Env = env
 	t.Log(buildcmd)
 	out, err := cmd.CombinedOutput()
@@ -572,6 +589,7 @@ func TestCachedInstall(t *testing.T) {
 	}
 
 	cmd = exec.Command(buildcmd[0], buildcmd[1:]...)
+	cmd.Dir = filepath.Join(tmpdir, "src", "testcshared")
 	cmd.Env = env
 	t.Log(buildcmd)
 	out, err = cmd.CombinedOutput()
@@ -621,8 +639,8 @@ func TestGo2C2Go(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 
-	shlib := filepath.Join(tmpdir, "libtestgo2c2go."+libSuffix)
-	run(t, gopathEnv, "go", "build", "-buildmode=c-shared", "-o", shlib, "go2c2go/go")
+	lib := filepath.Join(tmpdir, "libtestgo2c2go."+libSuffix)
+	run(t, nil, "go", "build", "-buildmode=c-shared", "-o", lib, "./go2c2go/go")
 
 	cgoCflags := os.Getenv("CGO_CFLAGS")
 	if cgoCflags != "" {
@@ -636,7 +654,7 @@ func TestGo2C2Go(t *testing.T) {
 	}
 	cgoLdflags += "-L" + tmpdir + " -ltestgo2c2go"
 
-	goenv := append(gopathEnv[:len(gopathEnv):len(gopathEnv)], "CGO_CFLAGS="+cgoCflags, "CGO_LDFLAGS="+cgoLdflags)
+	goenv := []string{"CGO_CFLAGS=" + cgoCflags, "CGO_LDFLAGS=" + cgoLdflags}
 
 	ldLibPath := os.Getenv("LD_LIBRARY_PATH")
 	if ldLibPath != "" {
@@ -644,13 +662,13 @@ func TestGo2C2Go(t *testing.T) {
 	}
 	ldLibPath += tmpdir
 
-	runenv := append(gopathEnv[:len(gopathEnv):len(gopathEnv)], "LD_LIBRARY_PATH="+ldLibPath)
+	runenv := []string{"LD_LIBRARY_PATH=" + ldLibPath}
 
 	bin := filepath.Join(tmpdir, "m1") + exeSuffix
-	run(t, goenv, "go", "build", "-o", bin, "go2c2go/m1")
+	run(t, goenv, "go", "build", "-o", bin, "./go2c2go/m1")
 	runExe(t, runenv, bin)
 
 	bin = filepath.Join(tmpdir, "m2") + exeSuffix
-	run(t, goenv, "go", "build", "-o", bin, "go2c2go/m2")
+	run(t, goenv, "go", "build", "-o", bin, "./go2c2go/m2")
 	runExe(t, runenv, bin)
 }

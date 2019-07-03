@@ -208,9 +208,9 @@ func (o *Order) addrTemp(n *Node) *Node {
 		dowidth(n.Type)
 		vstat := staticname(n.Type)
 		vstat.Name.SetReadonly(true)
-		var out []*Node
-		staticassign(vstat, n, &out)
-		if out != nil {
+		var s InitSchedule
+		s.staticassign(vstat, n)
+		if s.out != nil {
 			Fatalf("staticassign of const generated code: %+v", n)
 		}
 		vstat = typecheck(vstat, ctxExpr)
@@ -380,66 +380,16 @@ func (o *Order) init(n *Node) {
 	n.Ninit.Set(nil)
 }
 
-// Ismulticall reports whether the list l is f() for a multi-value function.
-// Such an f() could appear as the lone argument to a multi-arg function.
-func ismulticall(l Nodes) bool {
-	// one arg only
-	if l.Len() != 1 {
-		return false
-	}
-	n := l.First()
-
-	// must be call
-	switch n.Op {
-	default:
-		return false
-	case OCALLFUNC, OCALLMETH, OCALLINTER:
-		// call must return multiple values
-		return n.Left.Type.NumResults() > 1
-	}
-}
-
-// copyRet emits t1, t2, ... = n, where n is a function call,
-// and then returns the list t1, t2, ....
-func (o *Order) copyRet(n *Node) []*Node {
-	if !n.Type.IsFuncArgStruct() {
-		Fatalf("copyret %v %d", n.Type, n.Left.Type.NumResults())
-	}
-
-	slice := n.Type.Fields().Slice()
-	l1 := make([]*Node, len(slice))
-	l2 := make([]*Node, len(slice))
-	for i, t := range slice {
-		tmp := temp(t.Type)
-		l1[i] = tmp
-		l2[i] = tmp
-	}
-
-	as := nod(OAS2, nil, nil)
-	as.List.Set(l1)
-	as.Rlist.Set1(n)
-	as = typecheck(as, ctxStmt)
-	o.stmt(as)
-
-	return l2
-}
-
-// callArgs orders the list of call arguments *l.
-func (o *Order) callArgs(l *Nodes) {
-	if ismulticall(*l) {
-		// return f() where f() is multiple values.
-		l.Set(o.copyRet(l.First()))
-	} else {
-		o.exprList(*l)
-	}
-}
-
 // call orders the call expression n.
 // n.Op is OCALLMETH/OCALLFUNC/OCALLINTER or a builtin like OCOPY.
 func (o *Order) call(n *Node) {
+	if n.Ninit.Len() > 0 {
+		// Caller should have already called o.init(n).
+		Fatalf("%v with unexpected ninit", n.Op)
+	}
 	n.Left = o.expr(n.Left, nil)
 	n.Right = o.expr(n.Right, nil) // ODDDARG temp
-	o.callArgs(&n.List)
+	o.exprList(n.List)
 
 	if n.Op != OCALLFUNC {
 		return
@@ -632,6 +582,7 @@ func (o *Order) stmt(n *Node) {
 	case OAS2FUNC:
 		t := o.markTemp()
 		o.exprList(n.List)
+		o.init(n.Rlist.First())
 		o.call(n.Rlist.First())
 		o.as2(n)
 		o.cleanTemp(t)
@@ -691,6 +642,7 @@ func (o *Order) stmt(n *Node) {
 	// Special: order arguments to inner call but not call itself.
 	case ODEFER, OGO:
 		t := o.markTemp()
+		o.init(n.Left)
 		o.call(n.Left)
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
@@ -811,7 +763,7 @@ func (o *Order) stmt(n *Node) {
 		o.cleanTemp(t)
 
 	case ORETURN:
-		o.callArgs(&n.List)
+		o.exprList(n.List)
 		o.out = append(o.out, n)
 
 	// Special: clean case temporaries in each block entry.
@@ -1108,10 +1060,10 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		if n.Left.Type.IsInterface() {
 			break
 		}
-		if _, needsaddr := convFuncName(n.Left.Type, n.Type); needsaddr || consttype(n.Left) > 0 {
+		if _, needsaddr := convFuncName(n.Left.Type, n.Type); needsaddr || isStaticCompositeLiteral(n.Left) {
 			// Need a temp if we need to pass the address to the conversion function.
-			// We also process constants here, making a named static global whose
-			// address we can put directly in an interface (see OCONVIFACE case in walk).
+			// We also process static composite literal node here, making a named static global
+			// whose address we can put directly in an interface (see OCONVIFACE case in walk).
 			n.Left = o.addrTemp(n.Left)
 		}
 
@@ -1130,14 +1082,40 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		}
 
 	case OANDAND, OOROR:
-		mark := o.markTemp()
-		n.Left = o.expr(n.Left, nil)
+		// ... = LHS && RHS
+		//
+		// var r bool
+		// r = LHS
+		// if r {       // or !r, for OROR
+		//     r = RHS
+		// }
+		// ... = r
 
-		// Clean temporaries from first branch at beginning of second.
-		// Leave them on the stack so that they can be killed in the outer
-		// context in case the short circuit is taken.
-		n.Right = addinit(n.Right, o.cleanTempNoPop(mark))
-		n.Right = o.exprInPlace(n.Right)
+		r := o.newTemp(n.Type, false)
+
+		// Evaluate left-hand side.
+		lhs := o.expr(n.Left, nil)
+		o.out = append(o.out, typecheck(nod(OAS, r, lhs), ctxStmt))
+
+		// Evaluate right-hand side, save generated code.
+		saveout := o.out
+		o.out = nil
+		t := o.markTemp()
+		rhs := o.expr(n.Right, nil)
+		o.out = append(o.out, typecheck(nod(OAS, r, rhs), ctxStmt))
+		o.cleanTemp(t)
+		gen := o.out
+		o.out = saveout
+
+		// If left-hand side doesn't cause a short-circuit, issue right-hand side.
+		nif := nod(OIF, r, nil)
+		if n.Op == OANDAND {
+			nif.Nbody.Set(gen)
+		} else {
+			nif.Rlist.Set(gen)
+		}
+		o.out = append(o.out, nif)
+		n = r
 
 	case OCALLFUNC,
 		OCALLINTER,
@@ -1174,7 +1152,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 			n.List.SetFirst(o.expr(n.List.First(), nil))             // order x
 			n.List.Second().Left = o.expr(n.List.Second().Left, nil) // order y
 		} else {
-			o.callArgs(&n.List)
+			o.exprList(n.List)
 		}
 
 		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, n.List.First()) {
@@ -1260,6 +1238,64 @@ func (o *Order) expr(n, lhs *Node) *Node {
 			// addressable so we can pass them to the runtime.
 			n.Left = o.addrTemp(n.Left)
 			n.Right = o.addrTemp(n.Right)
+		}
+	case OMAPLIT:
+		// Order map by converting:
+		//   map[int]int{
+		//     a(): b(),
+		//     c(): d(),
+		//     e(): f(),
+		//   }
+		// to
+		//   m := map[int]int{}
+		//   m[a()] = b()
+		//   m[c()] = d()
+		//   m[e()] = f()
+		// Then order the result.
+		// Without this special case, order would otherwise compute all
+		// the keys and values before storing any of them to the map.
+		// See issue 26552.
+		entries := n.List.Slice()
+		statics := entries[:0]
+		var dynamics []*Node
+		for _, r := range entries {
+			if r.Op != OKEY {
+				Fatalf("OMAPLIT entry not OKEY: %v\n", r)
+			}
+
+			if !isStaticCompositeLiteral(r.Left) || !isStaticCompositeLiteral(r.Right) {
+				dynamics = append(dynamics, r)
+				continue
+			}
+
+			// Recursively ordering some static entries can change them to dynamic;
+			// e.g., OCONVIFACE nodes. See #31777.
+			r = o.expr(r, nil)
+			if !isStaticCompositeLiteral(r.Left) || !isStaticCompositeLiteral(r.Right) {
+				dynamics = append(dynamics, r)
+				continue
+			}
+
+			statics = append(statics, r)
+		}
+		n.List.Set(statics)
+
+		if len(dynamics) == 0 {
+			break
+		}
+
+		// Emit the creation of the map (with all its static entries).
+		m := o.newTemp(n.Type, false)
+		as := nod(OAS, m, n)
+		typecheck(as, ctxStmt)
+		o.stmt(as)
+		n = m
+
+		// Emit eval+insert of dynamic entries, one at a time.
+		for _, r := range dynamics {
+			as := nod(OAS, nod(OINDEX, n, r.Left), r.Right)
+			typecheck(as, ctxStmt) // Note: this converts the OINDEX to an OINDEXMAP
+			o.stmt(as)
 		}
 	}
 

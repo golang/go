@@ -81,12 +81,12 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (rsa sysc
 		runtime.KeepAlive(fd)
 		return nil, nil
 	case syscall.EINVAL:
-		// On Solaris we can see EINVAL if the socket has
-		// already been accepted and closed by the server.
-		// Treat this as a successful connection--writes to
-		// the socket will see EOF.  For details and a test
-		// case in C see https://golang.org/issue/6828.
-		if runtime.GOOS == "solaris" {
+		// On Solaris and illumos we can see EINVAL if the socket has
+		// already been accepted and closed by the server.  Treat this
+		// as a successful connection--writes to the socket will see
+		// EOF.  For details and a test case in C see
+		// https://golang.org/issue/6828.
+		if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" {
 			return nil, nil
 		}
 		fallthrough

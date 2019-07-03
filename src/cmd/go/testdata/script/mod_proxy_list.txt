@@ -1,0 +1,29 @@
+env GO111MODULE=on
+env proxy=$GOPROXY
+
+# Proxy that can't serve should fail.
+env GOPROXY=$proxy/404
+! go get rsc.io/quote@v1.0.0
+stderr '404 Not Found'
+
+# get should walk down the proxy list past 404 and 410 responses.
+env GOPROXY=$proxy/404,$proxy/410,$proxy
+go get rsc.io/quote@v1.1.0
+
+# get should not walk past other 4xx errors.
+env GOPROXY=$proxy/403,$proxy
+! go get rsc.io/quote@v1.2.0
+stderr 'reading.*/403/rsc.io/.*: 403 Forbidden'
+
+# get should not walk past non-4xx errors.
+env GOPROXY=$proxy/500,$proxy
+! go get rsc.io/quote@v1.3.0
+stderr 'reading.*/500/rsc.io/.*: 500 Internal Server Error'
+
+# get should return the final 404/410 if that's all we have.
+env GOPROXY=$proxy/404,$proxy/410
+! go get rsc.io/quote@v1.4.0
+stderr 'reading.*/410/rsc.io/.*: 410 Gone'
+
+-- go.mod --
+module x

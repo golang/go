@@ -114,26 +114,14 @@ func gobuild(t *testing.T, dir string, testfile string, gcflags string) *builtFi
 	return &builtFile{f, dst}
 }
 
-func envWithGoPathSet(gp string) []string {
-	env := os.Environ()
-	for i := 0; i < len(env); i++ {
-		if strings.HasPrefix(env[i], "GOPATH=") {
-			env[i] = "GOPATH=" + gp
-			return env
-		}
-	}
-	env = append(env, "GOPATH="+gp)
-	return env
-}
+// Similar to gobuild() above, but uses a main package instead of a test.go file.
 
-// Similar to gobuild() above, but runs off a separate GOPATH environment
-
-func gobuildTestdata(t *testing.T, tdir string, gopathdir string, packtobuild string, gcflags string) *builtFile {
+func gobuildTestdata(t *testing.T, tdir string, pkgDir string, gcflags string) *builtFile {
 	dst := filepath.Join(tdir, "out.exe")
 
 	// Run a build with an updated GOPATH
-	cmd := exec.Command(testenv.GoToolPath(t), "build", gcflags, "-o", dst, packtobuild)
-	cmd.Env = envWithGoPathSet(gopathdir)
+	cmd := exec.Command(testenv.GoToolPath(t), "build", gcflags, "-o", dst)
+	cmd.Dir = pkgDir
 	if b, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("build: %s\n", b)
 		t.Fatalf("build error: %v", err)
@@ -176,9 +164,9 @@ func main() {
 }`
 
 	want := map[string]map[string]bool{
-		"main.Foo": map[string]bool{"v": false},
-		"main.Bar": map[string]bool{"Foo": true, "name": false},
-		"main.Baz": map[string]bool{"Foo": true, "name": false},
+		"main.Foo": {"v": false},
+		"main.Bar": {"Foo": true, "name": false},
+		"main.Baz": {"Foo": true, "name": false},
 	}
 
 	dir, err := ioutil.TempDir("", "TestEmbeddedStructMarker")
@@ -586,8 +574,8 @@ func TestInlinedRoutineRecords(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
-	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
-		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
+	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" || runtime.GOOS == "darwin" {
+		t.Skip("skipping on solaris, illumos, and darwin, pending resolution of issue #23168")
 	}
 
 	t.Parallel()
@@ -727,7 +715,7 @@ func main() {
 	}
 }
 
-func abstractOriginSanity(t *testing.T, gopathdir string, flags string) {
+func abstractOriginSanity(t *testing.T, pkgDir string, flags string) {
 	t.Parallel()
 
 	dir, err := ioutil.TempDir("", "TestAbstractOriginSanity")
@@ -737,7 +725,7 @@ func abstractOriginSanity(t *testing.T, gopathdir string, flags string) {
 	defer os.RemoveAll(dir)
 
 	// Build with inlining, to exercise DWARF inlining support.
-	f := gobuildTestdata(t, dir, gopathdir, "main", flags)
+	f := gobuildTestdata(t, dir, filepath.Join(pkgDir, "main"), flags)
 
 	d, err := f.DWARF()
 	if err != nil {
@@ -813,8 +801,8 @@ func TestAbstractOriginSanity(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
-	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
-		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
+	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" || runtime.GOOS == "darwin" {
+		t.Skip("skipping on solaris, illumos, and darwin, pending resolution of issue #23168")
 	}
 
 	if wd, err := os.Getwd(); err == nil {
@@ -831,8 +819,8 @@ func TestAbstractOriginSanityIssue25459(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
-	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
-		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
+	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" || runtime.GOOS == "darwin" {
+		t.Skip("skipping on solaris, illumos, and darwin, pending resolution of issue #23168")
 	}
 	if runtime.GOARCH != "amd64" && runtime.GOARCH != "x86" {
 		t.Skip("skipping on not-amd64 not-x86; location lists not supported")
@@ -852,8 +840,8 @@ func TestAbstractOriginSanityIssue26237(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
-	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
-		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
+	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" || runtime.GOOS == "darwin" {
+		t.Skip("skipping on solaris, illumos, and darwin, pending resolution of issue #23168")
 	}
 	if wd, err := os.Getwd(); err == nil {
 		gopathdir := filepath.Join(wd, "testdata", "issue26237")
@@ -1153,4 +1141,80 @@ func main() {
 			t.Errorf("statictmp variable found in symbol table: %s", sym.Name)
 		}
 	}
+}
+
+func TestPackageNameAttr(t *testing.T) {
+	const dwarfAttrGoPackageName = dwarf.Attr(0x2905)
+	const dwarfGoLanguage = 22
+
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
+	t.Parallel()
+
+	dir, err := ioutil.TempDir("", "go-build")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	const prog = "package main\nfunc main() {\nprintln(\"hello world\")\n}\n"
+
+	f := gobuild(t, dir, prog, NoOpt)
+
+	defer f.Close()
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	rdr := d.Reader()
+	for {
+		e, err := rdr.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if e == nil {
+			break
+		}
+		if e.Tag != dwarf.TagCompileUnit {
+			continue
+		}
+		if lang, _ := e.Val(dwarf.AttrLanguage).(int64); lang != dwarfGoLanguage {
+			continue
+		}
+
+		_, ok := e.Val(dwarfAttrGoPackageName).(string)
+		if !ok {
+			name, _ := e.Val(dwarf.AttrName).(string)
+			t.Errorf("found compile unit without package name: %s", name)
+		}
+	}
+}
+
+func TestMachoIssue32233(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+
+	if runtime.GOOS != "darwin" {
+		t.Skip("skipping; test only interesting on darwin")
+	}
+
+	tmpdir, err := ioutil.TempDir("", "TestMachoIssue32233")
+	if err != nil {
+		t.Fatalf("could not create directory: %v", err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	wd, err2 := os.Getwd()
+	if err2 != nil {
+		t.Fatalf("where am I? %v", err)
+	}
+	pdir := filepath.Join(wd, "testdata", "issue32233", "main")
+	f := gobuildTestdata(t, tmpdir, pdir, DefaultOpt)
+	f.Close()
 }

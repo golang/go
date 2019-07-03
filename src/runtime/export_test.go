@@ -34,6 +34,10 @@ var Fastlog2 = fastlog2
 var Atoi = atoi
 var Atoi32 = atoi32
 
+var Nanotime = nanotime
+
+var PhysHugePageSize = physHugePageSize
+
 type LFNode struct {
 	Next    uint64
 	Pushcnt uintptr
@@ -337,7 +341,7 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 			slow.BySize[i].Frees = bySize[i].Frees
 		}
 
-		for i := mheap_.scav.start(); i.valid(); i = i.next() {
+		for i := mheap_.free.start(0, 0); i.valid(); i = i.next() {
 			slow.HeapReleased += uint64(i.span().released())
 		}
 
@@ -512,4 +516,168 @@ func MapTombstoneCheck(m map[int]int) {
 			}
 		}
 	}
+}
+
+// UnscavHugePagesSlow returns the value of mheap_.freeHugePages
+// and the number of unscavenged huge pages calculated by
+// scanning the heap.
+func UnscavHugePagesSlow() (uintptr, uintptr) {
+	var base, slow uintptr
+	// Run on the system stack to avoid deadlock from stack growth
+	// trying to acquire the heap lock.
+	systemstack(func() {
+		lock(&mheap_.lock)
+		base = mheap_.free.unscavHugePages
+		for _, s := range mheap_.allspans {
+			if s.state == mSpanFree && !s.scavenged {
+				slow += s.hugePages()
+			}
+		}
+		unlock(&mheap_.lock)
+	})
+	return base, slow
+}
+
+// Span is a safe wrapper around an mspan, whose memory
+// is managed manually.
+type Span struct {
+	*mspan
+}
+
+func AllocSpan(base, npages uintptr, scavenged bool) Span {
+	var s *mspan
+	systemstack(func() {
+		lock(&mheap_.lock)
+		s = (*mspan)(mheap_.spanalloc.alloc())
+		unlock(&mheap_.lock)
+	})
+	s.init(base, npages)
+	s.scavenged = scavenged
+	return Span{s}
+}
+
+func (s *Span) Free() {
+	systemstack(func() {
+		lock(&mheap_.lock)
+		mheap_.spanalloc.free(unsafe.Pointer(s.mspan))
+		unlock(&mheap_.lock)
+	})
+	s.mspan = nil
+}
+
+func (s Span) Base() uintptr {
+	return s.mspan.base()
+}
+
+func (s Span) Pages() uintptr {
+	return s.mspan.npages
+}
+
+type TreapIterType treapIterType
+
+const (
+	TreapIterScav TreapIterType = TreapIterType(treapIterScav)
+	TreapIterHuge               = TreapIterType(treapIterHuge)
+	TreapIterBits               = treapIterBits
+)
+
+type TreapIterFilter treapIterFilter
+
+func TreapFilter(mask, match TreapIterType) TreapIterFilter {
+	return TreapIterFilter(treapFilter(treapIterType(mask), treapIterType(match)))
+}
+
+func (s Span) MatchesIter(mask, match TreapIterType) bool {
+	return treapFilter(treapIterType(mask), treapIterType(match)).matches(s.treapFilter())
+}
+
+type TreapIter struct {
+	treapIter
+}
+
+func (t TreapIter) Span() Span {
+	return Span{t.span()}
+}
+
+func (t TreapIter) Valid() bool {
+	return t.valid()
+}
+
+func (t TreapIter) Next() TreapIter {
+	return TreapIter{t.next()}
+}
+
+func (t TreapIter) Prev() TreapIter {
+	return TreapIter{t.prev()}
+}
+
+// Treap is a safe wrapper around mTreap for testing.
+//
+// It must never be heap-allocated because mTreap is
+// notinheap.
+//
+//go:notinheap
+type Treap struct {
+	mTreap
+}
+
+func (t *Treap) Start(mask, match TreapIterType) TreapIter {
+	return TreapIter{t.start(treapIterType(mask), treapIterType(match))}
+}
+
+func (t *Treap) End(mask, match TreapIterType) TreapIter {
+	return TreapIter{t.end(treapIterType(mask), treapIterType(match))}
+}
+
+func (t *Treap) Insert(s Span) {
+	// mTreap uses a fixalloc in mheap_ for treapNode
+	// allocation which requires the mheap_ lock to manipulate.
+	// Locking here is safe because the treap itself never allocs
+	// or otherwise ends up grabbing this lock.
+	systemstack(func() {
+		lock(&mheap_.lock)
+		t.insert(s.mspan)
+		unlock(&mheap_.lock)
+	})
+	t.CheckInvariants()
+}
+
+func (t *Treap) Find(npages uintptr) TreapIter {
+	return TreapIter{t.find(npages)}
+}
+
+func (t *Treap) Erase(i TreapIter) {
+	// mTreap uses a fixalloc in mheap_ for treapNode
+	// freeing which requires the mheap_ lock to manipulate.
+	// Locking here is safe because the treap itself never allocs
+	// or otherwise ends up grabbing this lock.
+	systemstack(func() {
+		lock(&mheap_.lock)
+		t.erase(i.treapIter)
+		unlock(&mheap_.lock)
+	})
+	t.CheckInvariants()
+}
+
+func (t *Treap) RemoveSpan(s Span) {
+	// See Erase about locking.
+	systemstack(func() {
+		lock(&mheap_.lock)
+		t.removeSpan(s.mspan)
+		unlock(&mheap_.lock)
+	})
+	t.CheckInvariants()
+}
+
+func (t *Treap) Size() int {
+	i := 0
+	t.mTreap.treap.walkTreap(func(t *treapNode) {
+		i++
+	})
+	return i
+}
+
+func (t *Treap) CheckInvariants() {
+	t.mTreap.treap.walkTreap(checkTreapNode)
+	t.mTreap.treap.validateInvariants()
 }

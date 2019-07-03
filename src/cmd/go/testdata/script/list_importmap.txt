@@ -1,3 +1,5 @@
+env GO111MODULE=off
+
 # gccgo does not have standard packages.
 [gccgo] skip
 

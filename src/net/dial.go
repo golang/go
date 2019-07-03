@@ -12,6 +12,12 @@ import (
 	"time"
 )
 
+// defaultTCPKeepAlive is a default constant value for TCPKeepAlive times
+// See golang.org/issue/31510
+const (
+	defaultTCPKeepAlive = 15 * time.Second
+)
+
 // A Dialer contains options for connecting to an address.
 //
 // The zero value for each field is equivalent to dialing
@@ -63,12 +69,13 @@ type Dialer struct {
 	// A negative value disables Fast Fallback support.
 	FallbackDelay time.Duration
 
-	// KeepAlive specifies the keep-alive period for an active
-	// network connection.
-	// If zero, keep-alives are enabled if supported by the protocol
-	// and operating system. Network protocols or operating systems
-	// that do not support keep-alives ignore this field.
-	// If negative, keep-alives are disabled.
+	// KeepAlive specifies the interval between keep-alive
+	// probes for an active network connection.
+	// If zero, keep-alive probes are sent with a default value
+	// (currently 15 seconds), if supported by the protocol and operating
+	// system. Network protocols or operating systems that do
+	// not support keep-alives ignore this field.
+	// If negative, keep-alive probes are disabled.
 	KeepAlive time.Duration
 
 	// Resolver optionally specifies an alternate resolver to use.
@@ -76,7 +83,7 @@ type Dialer struct {
 
 	// Cancel is an optional channel whose closure indicates that
 	// the dial should be canceled. Not all types of dials support
-	// cancelation.
+	// cancellation.
 	//
 	// Deprecated: Use DialContext instead.
 	Cancel <-chan struct{}
@@ -424,7 +431,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
 		setKeepAlive(tc.fd, true)
 		ka := d.KeepAlive
 		if d.KeepAlive == 0 {
-			ka = 15 * time.Second
+			ka = defaultTCPKeepAlive
 		}
 		setKeepAlivePeriod(tc.fd, ka)
 		testHookSetKeepAlive(ka)
@@ -596,6 +603,14 @@ type ListenConfig struct {
 	// necessarily the ones passed to Listen. For example, passing "tcp" to
 	// Listen will cause the Control function to be called with "tcp4" or "tcp6".
 	Control func(network, address string, c syscall.RawConn) error
+
+	// KeepAlive specifies the keep-alive period for network
+	// connections accepted by this listener.
+	// If zero, keep-alives are enabled if supported by the protocol
+	// and operating system. Network protocols or operating systems
+	// that do not support keep-alives ignore this field.
+	// If negative, keep-alives are disabled.
+	KeepAlive time.Duration
 }
 
 // Listen announces on the local network address.

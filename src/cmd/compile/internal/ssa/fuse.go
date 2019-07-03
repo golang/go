@@ -36,6 +36,9 @@ func fuse(f *Func, typ fuseType) {
 				changed = fuseBlockPlain(b) || changed
 			}
 		}
+		if changed {
+			f.invalidateCFG()
+		}
 	}
 }
 
@@ -63,7 +66,7 @@ func fuseBlockIf(b *Block) bool {
 	var ss0, ss1 *Block
 	s0 := b.Succs[0].b
 	i0 := b.Succs[0].i
-	if s0.Kind != BlockPlain || len(s0.Preds) != 1 || len(s0.Values) != 0 {
+	if s0.Kind != BlockPlain || len(s0.Preds) != 1 || !isEmpty(s0) {
 		s0, ss0 = b, s0
 	} else {
 		ss0 = s0.Succs[0].b
@@ -71,7 +74,7 @@ func fuseBlockIf(b *Block) bool {
 	}
 	s1 := b.Succs[1].b
 	i1 := b.Succs[1].i
-	if s1.Kind != BlockPlain || len(s1.Preds) != 1 || len(s1.Values) != 0 {
+	if s1.Kind != BlockPlain || len(s1.Preds) != 1 || !isEmpty(s1) {
 		s1, ss1 = b, s1
 	} else {
 		ss1 = s1.Succs[0].b
@@ -117,18 +120,34 @@ func fuseBlockIf(b *Block) bool {
 	b.Likely = BranchUnknown
 	b.SetControl(nil)
 
-	// Trash the empty blocks s0 & s1.
-	if s0 != b {
-		s0.Kind = BlockInvalid
-		s0.Values = nil
-		s0.Succs = nil
-		s0.Preds = nil
+	// Trash the empty blocks s0 and s1.
+	blocks := [...]*Block{s0, s1}
+	for _, s := range &blocks {
+		if s == b {
+			continue
+		}
+		// Move any (dead) values in s0 or s1 to b,
+		// where they will be eliminated by the next deadcode pass.
+		for _, v := range s.Values {
+			v.Block = b
+		}
+		b.Values = append(b.Values, s.Values...)
+		// Clear s.
+		s.Kind = BlockInvalid
+		s.Values = nil
+		s.Succs = nil
+		s.Preds = nil
 	}
-	if s1 != b {
-		s1.Kind = BlockInvalid
-		s1.Values = nil
-		s1.Succs = nil
-		s1.Preds = nil
+	return true
+}
+
+// isEmpty reports whether b contains any live values.
+// There may be false positives.
+func isEmpty(b *Block) bool {
+	for _, v := range b.Values {
+		if v.Uses > 0 || v.Type.IsVoid() {
+			return false
+		}
 	}
 	return true
 }
@@ -207,7 +226,6 @@ func fuseBlockPlain(b *Block) bool {
 	if f.Entry == b {
 		f.Entry = c
 	}
-	f.invalidateCFG()
 
 	// trash b, just in case
 	b.Kind = BlockInvalid

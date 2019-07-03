@@ -470,6 +470,25 @@ func TestReadMemStats(t *testing.T) {
 	}
 }
 
+func TestUnscavHugePages(t *testing.T) {
+	// Allocate 20 MiB and immediately free it a few times to increase
+	// the chance that unscavHugePages isn't zero and that some kind of
+	// accounting had to happen in the runtime.
+	for j := 0; j < 3; j++ {
+		var large [][]byte
+		for i := 0; i < 5; i++ {
+			large = append(large, make([]byte, runtime.PhysHugePageSize))
+		}
+		runtime.KeepAlive(large)
+		runtime.GC()
+	}
+	base, slow := runtime.UnscavHugePagesSlow()
+	if base != slow {
+		logDiff(t, "unscavHugePages", reflect.ValueOf(base), reflect.ValueOf(slow))
+		t.Fatal("unscavHugePages mismatch")
+	}
+}
+
 func logDiff(t *testing.T, prefix string, got, want reflect.Value) {
 	typ := got.Type()
 	switch typ.Kind() {

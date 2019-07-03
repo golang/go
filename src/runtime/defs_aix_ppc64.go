@@ -22,7 +22,7 @@ const (
 	_PROT_WRITE = 0x2
 	_PROT_EXEC  = 0x4
 
-	_MAP_ANONYMOUS = 0x10
+	_MAP_ANON      = 0x10
 	_MAP_PRIVATE   = 0x2
 	_MAP_FIXED     = 0x100
 	_MADV_DONTNEED = 0x4
@@ -126,6 +126,13 @@ type timespec struct {
 	tv_sec  int64
 	tv_nsec int64
 }
+
+//go:nosplit
+func (ts *timespec) setNsec(ns int64) {
+	ts.tv_sec = ns / 1e9
+	ts.tv_nsec = ns % 1e9
+}
+
 type timeval struct {
 	tv_sec    int64
 	tv_usec   int32

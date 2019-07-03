@@ -6,11 +6,6 @@ package bytealg
 
 import "unsafe"
 
-// Note: there's no equal_generic.go because every platform must implement at least memequal_varlen in assembly.
-
-//go:noescape
-func Equal(a, b []byte) bool
-
 // The declarations below generate ABI wrappers for functions
 // implemented in assembly in this package but declared in another
 // package.

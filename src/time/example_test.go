@@ -90,14 +90,21 @@ func ExampleDuration_Truncate() {
 func ExampleParseDuration() {
 	hours, _ := time.ParseDuration("10h")
 	complex, _ := time.ParseDuration("1h10m10s")
+	micro, _ := time.ParseDuration("1µs")
+	// The package also accepts the incorrect but common prefix u for micro.
+	micro2, _ := time.ParseDuration("1us")
 
 	fmt.Println(hours)
 	fmt.Println(complex)
-	fmt.Printf("there are %.0f seconds in %v\n", complex.Seconds(), complex)
+	fmt.Printf("There are %.0f seconds in %v.\n", complex.Seconds(), complex)
+	fmt.Printf("There are %d nanoseconds in %v.\n", micro.Nanoseconds(), micro)
+	fmt.Printf("There are %6.2e seconds in %v.\n", micro2.Seconds(), micro)
 	// Output:
 	// 10h0m0s
 	// 1h10m10s
-	// there are 4210 seconds in 1h10m10s
+	// There are 4210 seconds in 1h10m10s.
+	// There are 1000 nanoseconds in 1µs.
+	// There are 1.00e-06 seconds in 1µs.
 }
 
 func ExampleDuration_Hours() {
@@ -113,15 +120,16 @@ func ExampleDuration_Minutes() {
 }
 
 func ExampleDuration_Nanoseconds() {
-	ns, _ := time.ParseDuration("1000ns")
-	fmt.Printf("one microsecond has %d nanoseconds.", ns.Nanoseconds())
-	// Output: one microsecond has 1000 nanoseconds.
+	u, _ := time.ParseDuration("1µs")
+	fmt.Printf("One microsecond is %d nanoseconds.\n", u.Nanoseconds())
+	// Output:
+	// One microsecond is 1000 nanoseconds.
 }
 
 func ExampleDuration_Seconds() {
 	m, _ := time.ParseDuration("1m30s")
-	fmt.Printf("take off in t-%.0f seconds.", m.Seconds())
-	// Output: take off in t-90 seconds.
+	fmt.Printf("Take off in t-%.0f seconds.", m.Seconds())
+	// Output: Take off in t-90 seconds.
 }
 
 var c chan int

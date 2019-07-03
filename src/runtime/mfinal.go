@@ -356,7 +356,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 	if uintptr(e.data) != base {
 		// As an implementation detail we allow to set finalizers for an inner byte
 		// of an object if it could come from tiny alloc (see mallocgc for details).
-		if ot.elem == nil || ot.elem.kind&kindNoPointers == 0 || ot.elem.size >= maxTinySize {
+		if ot.elem == nil || ot.elem.ptrdata != 0 || ot.elem.size >= maxTinySize {
 			throw("runtime.SetFinalizer: pointer not at beginning of allocated block")
 		}
 	}

@@ -1,12 +1,25 @@
-[!gc] skip
+env GO111MODULE=off
 
-# listing GOROOT should only find standard packages
+[!gc] skip
+[short] skip
+
+# Listing GOROOT should only find standard packages.
 cd $GOROOT/src
 go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' ./...
 ! stdout .
-# TODO: ignore _/blah/go/src in output
 
-# our vendored packages should be reported as standard
-go list std cmd
-stdout internal/x/net/http2/hpack
+# Standard packages should include cmd, but not cmd/vendor.
+go list ./...
+stdout cmd/compile
+! stdout vendor/golang.org
+! stdout cmd/vendor
+
+# In GOPATH mode, packages vendored into GOROOT should be reported as standard.
+go list -f '{{if .Standard}}{{.ImportPath}}{{end}}' std cmd
+stdout golang.org/x/net/http2/hpack
 stdout cmd/vendor/golang\.org/x/arch/x86/x86asm
+
+# However, vendored packages should not match wildcard patterns beginning with cmd.
+go list cmd/...
+stdout cmd/compile
+! stdout cmd/vendor

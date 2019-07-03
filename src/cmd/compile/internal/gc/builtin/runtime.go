@@ -15,9 +15,8 @@ package runtime
 import "unsafe"
 
 func newobject(typ *byte) *any
-func panicindex()
-func panicslice()
 func panicdivide()
+func panicshift()
 func panicmakeslicelen()
 func throwinit()
 func panicwrap()
@@ -25,6 +24,25 @@ func panicwrap()
 func gopanic(interface{})
 func gorecover(*int32) interface{}
 func goschedguarded()
+
+// Note: these declarations are just for wasm port.
+// Other ports call assembly stubs instead.
+func goPanicIndex(x int, y int)
+func goPanicIndexU(x uint, y int)
+func goPanicSliceAlen(x int, y int)
+func goPanicSliceAlenU(x uint, y int)
+func goPanicSliceAcap(x int, y int)
+func goPanicSliceAcapU(x uint, y int)
+func goPanicSliceB(x int, y int)
+func goPanicSliceBU(x uint, y int)
+func goPanicSlice3Alen(x int, y int)
+func goPanicSlice3AlenU(x uint, y int)
+func goPanicSlice3Acap(x int, y int)
+func goPanicSlice3AcapU(x uint, y int)
+func goPanicSlice3B(x int, y int)
+func goPanicSlice3BU(x uint, y int)
+func goPanicSlice3C(x int, y int)
+func goPanicSlice3CU(x uint, y int)
 
 func printbool(bool)
 func printfloat(float64)

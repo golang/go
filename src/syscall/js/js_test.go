@@ -72,10 +72,26 @@ func TestString(t *testing.T) {
 		t.Errorf("same value not equal")
 	}
 
-	wantInt := "42"
-	o = dummys.Get("someInt")
-	if got := o.String(); got != wantInt {
-		t.Errorf("got %#v, want %#v", got, wantInt)
+	if got, want := js.Undefined().String(), "<undefined>"; got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if got, want := js.Null().String(), "<null>"; got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if got, want := js.ValueOf(true).String(), "<boolean: true>"; got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if got, want := js.ValueOf(42.5).String(), "<number: 42.5>"; got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if got, want := js.Global().Call("Symbol").String(), "<symbol>"; got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if got, want := js.Global().String(), "<object>"; got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if got, want := js.Global().Get("setTimeout").String(), "<function>"; got != want {
+		t.Errorf("got %#v, want %#v", got, want)
 	}
 }
 
@@ -151,28 +167,6 @@ func TestFrozenObject(t *testing.T) {
 	}
 }
 
-func TestTypedArrayOf(t *testing.T) {
-	testTypedArrayOf(t, "[]int8", []int8{0, -42, 0}, -42)
-	testTypedArrayOf(t, "[]int16", []int16{0, -42, 0}, -42)
-	testTypedArrayOf(t, "[]int32", []int32{0, -42, 0}, -42)
-	testTypedArrayOf(t, "[]uint8", []uint8{0, 42, 0}, 42)
-	testTypedArrayOf(t, "[]uint16", []uint16{0, 42, 0}, 42)
-	testTypedArrayOf(t, "[]uint32", []uint32{0, 42, 0}, 42)
-	testTypedArrayOf(t, "[]float32", []float32{0, -42.5, 0}, -42.5)
-	testTypedArrayOf(t, "[]float64", []float64{0, -42.5, 0}, -42.5)
-}
-
-func testTypedArrayOf(t *testing.T, name string, slice interface{}, want float64) {
-	t.Run(name, func(t *testing.T) {
-		a := js.TypedArrayOf(slice)
-		got := a.Index(1).Float()
-		a.Release()
-		if got != want {
-			t.Errorf("got %#v, want %#v", got, want)
-		}
-	})
-}
-
 func TestNaN(t *testing.T) {
 	want := js.ValueOf(math.NaN())
 	got := dummys.Get("NaN")
@@ -202,10 +196,30 @@ func TestLength(t *testing.T) {
 	}
 }
 
+func TestGet(t *testing.T) {
+	// positive cases get tested per type
+
+	expectValueError(t, func() {
+		dummys.Get("zero").Get("badField")
+	})
+}
+
+func TestSet(t *testing.T) {
+	// positive cases get tested per type
+
+	expectValueError(t, func() {
+		dummys.Get("zero").Set("badField", 42)
+	})
+}
+
 func TestIndex(t *testing.T) {
 	if got := dummys.Get("someArray").Index(1).Int(); got != 42 {
 		t.Errorf("got %#v, want %#v", got, 42)
 	}
+
+	expectValueError(t, func() {
+		dummys.Get("zero").Index(1)
+	})
 }
 
 func TestSetIndex(t *testing.T) {
@@ -213,6 +227,10 @@ func TestSetIndex(t *testing.T) {
 	if got := dummys.Get("someArray").Index(2).Int(); got != 99 {
 		t.Errorf("got %#v, want %#v", got, 99)
 	}
+
+	expectValueError(t, func() {
+		dummys.Get("zero").SetIndex(2, 99)
+	})
 }
 
 func TestCall(t *testing.T) {
@@ -223,6 +241,13 @@ func TestCall(t *testing.T) {
 	if got := dummys.Call("add", js.Global().Call("eval", "40"), 2).Int(); got != 42 {
 		t.Errorf("got %#v, want %#v", got, 42)
 	}
+
+	expectPanic(t, func() {
+		dummys.Call("zero")
+	})
+	expectValueError(t, func() {
+		dummys.Get("zero").Call("badMethod")
+	})
 }
 
 func TestInvoke(t *testing.T) {
@@ -230,12 +255,20 @@ func TestInvoke(t *testing.T) {
 	if got := dummys.Get("add").Invoke(i, 2).Int(); got != 42 {
 		t.Errorf("got %#v, want %#v", got, 42)
 	}
+
+	expectValueError(t, func() {
+		dummys.Get("zero").Invoke()
+	})
 }
 
 func TestNew(t *testing.T) {
 	if got := js.Global().Get("Array").New(42).Length(); got != 42 {
 		t.Errorf("got %#v, want %#v", got, 42)
 	}
+
+	expectValueError(t, func() {
+		dummys.Get("zero").New()
+	})
 }
 
 func TestInstanceOf(t *testing.T) {
@@ -377,5 +410,77 @@ func TestTruthy(t *testing.T) {
 	}
 	if got := js.Undefined().Truthy(); got != want {
 		t.Errorf("got %#v, want %#v", got, want)
+	}
+}
+
+func expectValueError(t *testing.T, fn func()) {
+	defer func() {
+		err := recover()
+		if _, ok := err.(*js.ValueError); !ok {
+			t.Errorf("expected *js.ValueError, got %T", err)
+		}
+	}()
+	fn()
+}
+
+func expectPanic(t *testing.T, fn func()) {
+	defer func() {
+		err := recover()
+		if err == nil {
+			t.Errorf("expected panic")
+		}
+	}()
+	fn()
+}
+
+var copyTests = []struct {
+	srcLen  int
+	dstLen  int
+	copyLen int
+}{
+	{5, 3, 3},
+	{3, 5, 3},
+	{0, 0, 0},
+}
+
+func TestCopyBytesToGo(t *testing.T) {
+	for _, tt := range copyTests {
+		t.Run(fmt.Sprintf("%d-to-%d", tt.srcLen, tt.dstLen), func(t *testing.T) {
+			src := js.Global().Get("Uint8Array").New(tt.srcLen)
+			if tt.srcLen >= 2 {
+				src.SetIndex(1, 42)
+			}
+			dst := make([]byte, tt.dstLen)
+
+			if got, want := js.CopyBytesToGo(dst, src), tt.copyLen; got != want {
+				t.Errorf("copied %d, want %d", got, want)
+			}
+			if tt.dstLen >= 2 {
+				if got, want := int(dst[1]), 42; got != want {
+					t.Errorf("got %d, want %d", got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestCopyBytesToJS(t *testing.T) {
+	for _, tt := range copyTests {
+		t.Run(fmt.Sprintf("%d-to-%d", tt.srcLen, tt.dstLen), func(t *testing.T) {
+			src := make([]byte, tt.srcLen)
+			if tt.srcLen >= 2 {
+				src[1] = 42
+			}
+			dst := js.Global().Get("Uint8Array").New(tt.dstLen)
+
+			if got, want := js.CopyBytesToJS(dst, src), tt.copyLen; got != want {
+				t.Errorf("copied %d, want %d", got, want)
+			}
+			if tt.dstLen >= 2 {
+				if got, want := dst.Index(1).Int(), 42; got != want {
+					t.Errorf("got %d, want %d", got, want)
+				}
+			}
+		})
 	}
 }

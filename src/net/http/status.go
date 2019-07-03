@@ -10,6 +10,7 @@ const (
 	StatusContinue           = 100 // RFC 7231, 6.2.1
 	StatusSwitchingProtocols = 101 // RFC 7231, 6.2.2
 	StatusProcessing         = 102 // RFC 2518, 10.1
+	StatusEarlyHints         = 103 // RFC 8297
 
 	StatusOK                   = 200 // RFC 7231, 6.3.1
 	StatusCreated              = 201 // RFC 7231, 6.3.2
@@ -79,6 +80,7 @@ var statusText = map[int]string{
 	StatusContinue:           "Continue",
 	StatusSwitchingProtocols: "Switching Protocols",
 	StatusProcessing:         "Processing",
+	StatusEarlyHints:         "Early Hints",
 
 	StatusOK:                   "OK",
 	StatusCreated:              "Created",

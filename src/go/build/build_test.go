@@ -350,6 +350,10 @@ func TestImportDirNotExist(t *testing.T) {
 
 func TestImportVendor(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // really must just have source
+
+	defer os.Setenv("GO111MODULE", os.Getenv("GO111MODULE"))
+	os.Setenv("GO111MODULE", "off")
+
 	ctxt := Default
 	wd, err := os.Getwd()
 	if err != nil {
@@ -368,6 +372,10 @@ func TestImportVendor(t *testing.T) {
 
 func TestImportVendorFailure(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // really must just have source
+
+	defer os.Setenv("GO111MODULE", os.Getenv("GO111MODULE"))
+	os.Setenv("GO111MODULE", "off")
+
 	ctxt := Default
 	wd, err := os.Getwd()
 	if err != nil {
@@ -387,6 +395,10 @@ func TestImportVendorFailure(t *testing.T) {
 
 func TestImportVendorParentFailure(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // really must just have source
+
+	defer os.Setenv("GO111MODULE", os.Getenv("GO111MODULE"))
+	os.Setenv("GO111MODULE", "off")
+
 	ctxt := Default
 	wd, err := os.Getwd()
 	if err != nil {

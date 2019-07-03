@@ -208,7 +208,7 @@ func main() {
 		func() { // ERROR "func literal does not escape"
 			func() { // ERROR "can inline main.func24"
 				a = 2
-			}() // ERROR "inlining call to main.func24" "&a does not escape"
+			}() // ERROR "inlining call to main.func24"
 		}()
 		if a != 2 {
 			ppanic("a != 2")
@@ -220,7 +220,7 @@ func main() {
 		func(b int) { // ERROR "func literal does not escape"
 			func() { // ERROR "can inline main.func25.1"
 				b = 3
-			}() // ERROR "inlining call to main.func25.1" "&b does not escape"
+			}() // ERROR "inlining call to main.func25.1"
 			if b != 3 {
 				ppanic("b != 3")
 			}
@@ -272,7 +272,7 @@ func main() {
 					a = a * x
 					b = b * y
 					c = c * z
-				}(10) // ERROR "inlining call to main.func28.1.1" "&a does not escape" "&b does not escape" "&c does not escape"
+				}(10) // ERROR "inlining call to main.func28.1.1"
 				return a + c
 			}(100) + b
 		}(1000); r != 2350 {

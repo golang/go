@@ -218,21 +218,27 @@ To build without <code>cgo</code>, set the environment variable
 
 <h2 id="fetch">Fetch the repository</h2>
 
-<p>Go will install to a directory named <code>go</code>.
-Change to the directory that will be its parent
-and make sure the <code>go</code> directory does not exist.
-Then clone the repository and check out the latest release tag
-(<code class="versionTag">go1.9</code>, for example):</p>
+<p>Change to the directory where you intend to install Go, and make sure
+the <code>goroot</code> directory does not exist. Then clone the repository
+and check out the latest release tag (<code class="versionTag">go1.12</code>,
+for example):</p>
 
 <pre>
-$ git clone https://go.googlesource.com/go
-$ cd go
+$ git clone https://go.googlesource.com/go goroot
+$ cd goroot
 $ git checkout <span class="versionTag"><i>&lt;tag&gt;</i></span>
 </pre>
 
 <p class="whereTag">
 Where <code>&lt;tag&gt;</code> is the version string of the release.
 </p>
+
+<p>Go will be installed in the directory where it is checked out. For example,
+if Go is checked out in <code>$HOME/goroot</code>, executables will be installed
+in <code>$HOME/goroot/bin</code>. The directory may have any name, but note
+that if Go is checked out in <code>$HOME/go</code>, it will conflict with
+the default location of <code>$GOPATH</code>.
+See <a href="#gopath"><code>GOPATH</code></a> below.</p>
 
 <h2 id="head">(Optional) Switch to the master branch</h2>
 
@@ -441,6 +447,43 @@ but move it elsewhere after the build, set
 </p>
 </li>
 
+<li id="gopath"><code>$GOPATH</code>
+<p>
+The directory where Go projects outside the Go distribution are typically
+checked out. For example, <code>golang.org/x/tools</code> might be checked out
+to <code>$GOPATH/src/golang.org/x/tools</code>. Executables outside the
+Go distribution are installed in <code>$GOPATH/bin</code> (or
+<code>$GOBIN</code>, if set). Modules are downloaded and cached in
+<code>$GOPATH/pkg/mod</code>.
+</p>
+
+<p>The default location of <code>$GOPATH</code> is <code>$HOME/go</code>,
+and it's not usually necessary to set <code>GOPATH</code> explicitly. However,
+if you have checked out the Go distribution to <code>$HOME/go</code>,
+you must set <code>GOPATH</code> to another location to avoid conflicts.
+</p>
+</li>
+
+<li><code>$GOBIN</code>
+<p>
+The directory where executables outside the Go distribution are installed
+using the <a href="/cmd/go">go command</a>. For example,
+<code>go get golang.org/x/tools/cmd/godoc</code> downloads, builds, and
+installs <code>$GOBIN/godoc</code>. By default, <code>$GOBIN</code> is
+<code>$GOPATH/bin</code> (or <code>$HOME/go/bin</code> if <code>GOPATH</code>
+is not set). After installing, you will want to add this directory to
+your <code>$PATH</code> so you can use installed tools.
+</p>
+
+<p>
+Note that the Go distribution's executables are installed in
+<code>$GOROOT/bin</code> (for executables invoked by people) or
+<code>$GOTOOLDIR</code> (for executables invoked by the go command;
+defaults to <code>$GOROOT/pkg/$GOOS_GOARCH</code>) instead of
+<code>$GOBIN</code>.
+</p>
+</li>
+
 <li><code>$GOOS</code> and <code>$GOARCH</code>
 <p>
 The name of the target operating system and compilation architecture.
@@ -577,17 +620,6 @@ For example, you should not set <code>$GOHOSTARCH</code> to
 <code>arm</code> on an x86 system.
 </p>
 
-<li><code>$GOBIN</code>
-<p>
-The location where Go binaries will be installed.
-The default is <code>$GOROOT/bin</code>.
-After installing, you will want to arrange to add this
-directory to your <code>$PATH</code>, so you can use the tools.
-If <code>$GOBIN</code> is set, the <a href="/cmd/go">go command</a>
-installs all commands there.
-</p>
-</li>
-
 <li><code>$GO386</code> (for <code>386</code> only, default is auto-detected
 if built on either <code>386</code> or <code>amd64</code>, <code>387</code> otherwise)
 <p>
@@ -625,6 +657,29 @@ contains further details regarding Go's ARM support.
 <p>
 	These variables set whether to use floating point instructions. Set to "<code>hardfloat</code>" to use floating point instructions; this is the default.  Set to "<code>softfloat</code>" to use soft floating point.
 </p>
+</li>
+
+<li><code>$GOPPC64</code> (for <code>ppc64</code> and <code>ppc64le</code> only)
+<p>
+This variable sets the processor level (i.e. Instruction Set Architecture version)
+for which the compiler will target. The default is <code>power8</code>.
+</p>
+<ul>
+	<li><code>GOPPC64=power8</code>: generate ISA v2.07 instructions</li>
+	<li><code>GOPPC64=power9</code>: generate ISA v3.00 instructions</li>
+</ul>
+</li>
+
+
+<li><code>$GOWASM</code> (for <code>wasm</code> only)
+	<p>
+	This variable is a comma separated list of <a href="https://github.com/WebAssembly/proposals">experimental WebAssembly features</a> that the compiled WebAssembly binary is allowed to use.
+	The default is to use no experimental features.
+	</p>
+	<ul>
+		<li><code>GOWASM=satconv</code>: generate <a href="https://github.com/WebAssembly/nontrapping-float-to-int-conversions/blob/master/proposals/nontrapping-float-to-int-conversion/Overview.md">saturating (non-trapping) float-to-int conversions</a></li>
+		<li><code>GOWASM=signext</code>: generate <a href="https://github.com/WebAssembly/sign-extension-ops/blob/master/proposals/sign-extension-ops/Overview.md">sign-extension operators</a></li>
+	</ul>
 </li>
 
 </ul>

@@ -10,6 +10,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/wasm"
+	"cmd/internal/objabi"
 )
 
 func Init(arch *gc.Arch) {
@@ -20,6 +21,7 @@ func Init(arch *gc.Arch) {
 	arch.ZeroRange = zeroRange
 	arch.ZeroAuto = zeroAuto
 	arch.Ginsnop = ginsnop
+	arch.Ginsnopdefer = ginsnop
 
 	arch.SSAMarkMoves = ssaMarkMoves
 	arch.SSAGenValue = ssaGenValue
@@ -95,7 +97,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		p.To.Sym = b.Aux.(*obj.LSym)
 
 	case ssa.BlockExit:
-		s.Prog(obj.AUNDEF)
 
 	case ssa.BlockDefer:
 		p := s.Prog(wasm.AGet)
@@ -282,15 +283,15 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpWasmI64Eqz:
 		getValue64(s, v.Args[0])
 		s.Prog(v.Op.Asm())
-		s.Prog(wasm.AI64ExtendUI32)
+		s.Prog(wasm.AI64ExtendI32U)
 
 	case ssa.OpWasmI64Eq, ssa.OpWasmI64Ne, ssa.OpWasmI64LtS, ssa.OpWasmI64LtU, ssa.OpWasmI64GtS, ssa.OpWasmI64GtU, ssa.OpWasmI64LeS, ssa.OpWasmI64LeU, ssa.OpWasmI64GeS, ssa.OpWasmI64GeU, ssa.OpWasmF64Eq, ssa.OpWasmF64Ne, ssa.OpWasmF64Lt, ssa.OpWasmF64Gt, ssa.OpWasmF64Le, ssa.OpWasmF64Ge:
 		getValue64(s, v.Args[0])
 		getValue64(s, v.Args[1])
 		s.Prog(v.Op.Asm())
-		s.Prog(wasm.AI64ExtendUI32)
+		s.Prog(wasm.AI64ExtendI32U)
 
-	case ssa.OpWasmI64Add, ssa.OpWasmI64Sub, ssa.OpWasmI64Mul, ssa.OpWasmI64DivU, ssa.OpWasmI64RemS, ssa.OpWasmI64RemU, ssa.OpWasmI64And, ssa.OpWasmI64Or, ssa.OpWasmI64Xor, ssa.OpWasmI64Shl, ssa.OpWasmI64ShrS, ssa.OpWasmI64ShrU, ssa.OpWasmF64Add, ssa.OpWasmF64Sub, ssa.OpWasmF64Mul, ssa.OpWasmF64Div:
+	case ssa.OpWasmI64Add, ssa.OpWasmI64Sub, ssa.OpWasmI64Mul, ssa.OpWasmI64DivU, ssa.OpWasmI64RemS, ssa.OpWasmI64RemU, ssa.OpWasmI64And, ssa.OpWasmI64Or, ssa.OpWasmI64Xor, ssa.OpWasmI64Shl, ssa.OpWasmI64ShrS, ssa.OpWasmI64ShrU, ssa.OpWasmF64Add, ssa.OpWasmF64Sub, ssa.OpWasmF64Mul, ssa.OpWasmF64Div, ssa.OpWasmF64Copysign, ssa.OpWasmI64Rotl:
 		getValue64(s, v.Args[0])
 		getValue64(s, v.Args[1])
 		s.Prog(v.Op.Asm())
@@ -306,17 +307,28 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value) {
 		}
 		s.Prog(wasm.AI64DivS)
 
-	case ssa.OpWasmI64TruncSF64:
+	case ssa.OpWasmI64TruncSatF64S:
 		getValue64(s, v.Args[0])
-		p := s.Prog(wasm.ACall)
-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncS}
+		if objabi.GOWASM.SatConv {
+			s.Prog(v.Op.Asm())
+		} else {
+			p := s.Prog(wasm.ACall)
+			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncS}
+		}
 
-	case ssa.OpWasmI64TruncUF64:
+	case ssa.OpWasmI64TruncSatF64U:
 		getValue64(s, v.Args[0])
-		p := s.Prog(wasm.ACall)
-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncU}
+		if objabi.GOWASM.SatConv {
+			s.Prog(v.Op.Asm())
+		} else {
+			p := s.Prog(wasm.ACall)
+			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncU}
+		}
 
-	case ssa.OpWasmF64Neg, ssa.OpWasmF64ConvertSI64, ssa.OpWasmF64ConvertUI64:
+	case
+		ssa.OpWasmF64Neg, ssa.OpWasmF64ConvertI64S, ssa.OpWasmF64ConvertI64U,
+		ssa.OpWasmI64Extend8S, ssa.OpWasmI64Extend16S, ssa.OpWasmI64Extend32S,
+		ssa.OpWasmF64Sqrt, ssa.OpWasmF64Trunc, ssa.OpWasmF64Ceil, ssa.OpWasmF64Floor, ssa.OpWasmF64Nearest, ssa.OpWasmF64Abs, ssa.OpWasmI64Ctz, ssa.OpWasmI64Clz, ssa.OpWasmI64Popcnt:
 		getValue64(s, v.Args[0])
 		s.Prog(v.Op.Asm())
 
@@ -361,7 +373,7 @@ func getValue64(s *gc.SSAGenState, v *ssa.Value) {
 	reg := v.Reg()
 	getReg(s, reg)
 	if reg == wasm.REG_SP {
-		s.Prog(wasm.AI64ExtendUI32)
+		s.Prog(wasm.AI64ExtendI32U)
 	}
 }
 

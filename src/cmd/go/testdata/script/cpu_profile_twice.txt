@@ -1,3 +1,5 @@
+env GO111MODULE=off
+
 # Issue 23150
 
 [short] skip

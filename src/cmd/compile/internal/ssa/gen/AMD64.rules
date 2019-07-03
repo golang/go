@@ -225,7 +225,8 @@
 (NeqPtr x y) && config.PtrSize == 4 -> (SETNE (CMPL x y))
 (Neq(32|64)F x y) -> (SETNEF (UCOMIS(S|D) x y))
 
-(Int64Hi x) -> (SHRQconst [32] x) // needed for amd64p32
+(Int64Hi x) -> (SHRQconst [32] x)         // needed for amd64p32
+(Int64Lo x) -> x
 
 // Lowering loads
 (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t) && config.PtrSize == 8) -> (MOVQload ptr mem)
@@ -526,6 +527,7 @@
 (If cond yes no) -> (NE (TESTB cond cond) yes no)
 
 // Atomic loads.  Other than preserving their ordering with respect to other loads, nothing special here.
+(AtomicLoad8 ptr mem) -> (MOVBatomicload ptr mem)
 (AtomicLoad32 ptr mem) -> (MOVLatomicload ptr mem)
 (AtomicLoad64 ptr mem) -> (MOVQatomicload ptr mem)
 (AtomicLoadPtr ptr mem) && config.PtrSize == 8 -> (MOVQatomicload ptr mem)
@@ -560,6 +562,15 @@
 
 // Write barrier.
 (WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
+
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 0 -> (LoweredPanicBoundsA [kind] x y mem)
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 1 -> (LoweredPanicBoundsB [kind] x y mem)
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 2 -> (LoweredPanicBoundsC [kind] x y mem)
+
+// For amd64p32
+(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 0 -> (LoweredPanicExtendA [kind] hi lo y mem)
+(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 1 -> (LoweredPanicExtendB [kind] hi lo y mem)
+(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 2 -> (LoweredPanicExtendC [kind] hi lo y mem)
 
 // ***************************
 // Above: lowering rules
@@ -1358,65 +1369,65 @@
 ((SETNE|SETG|SETGE|SETA|SETAE)   (FlagGT_UGT)) -> (MOVLconst [1])
 ((SETEQ|SETL|SETLE|SETB|SETBE)   (FlagGT_UGT)) -> (MOVLconst [0])
 
-(SETEQstore [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETEQstore [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETEQstore [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETEQstore [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETEQstore [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETEQstore [off] {sym} ptr (FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETEQstore [off] {sym} ptr (FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETEQstore [off] {sym} ptr (FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETEQstore [off] {sym} ptr (FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETEQstore [off] {sym} ptr (FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
 
-(SETNEstore [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETNEstore [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETNEstore [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETNEstore [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETNEstore [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETNEstore [off] {sym} ptr (FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETNEstore [off] {sym} ptr (FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETNEstore [off] {sym} ptr (FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETNEstore [off] {sym} ptr (FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETNEstore [off] {sym} ptr (FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
 
-(SETLstore  [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETLstore  [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETLstore  [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETLstore  [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETLstore  [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETLstore  [off] {sym} ptr (FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETLstore  [off] {sym} ptr (FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETLstore  [off] {sym} ptr (FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETLstore  [off] {sym} ptr (FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETLstore  [off] {sym} ptr (FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
 
-(SETLEstore [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETLEstore [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETLEstore [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETLEstore [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETLEstore [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETLEstore [off] {sym} ptr (FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETLEstore [off] {sym} ptr (FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETLEstore [off] {sym} ptr (FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETLEstore [off] {sym} ptr (FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETLEstore [off] {sym} ptr (FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
 
-(SETGstore  [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETGstore  [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETGstore  [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETGstore  [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETGstore  [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETGstore  [off] {sym} ptr (FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETGstore  [off] {sym} ptr (FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETGstore  [off] {sym} ptr (FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETGstore  [off] {sym} ptr (FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETGstore  [off] {sym} ptr (FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
 
-(SETGEstore [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETGEstore [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETGEstore [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETGEstore [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETGEstore [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETGEstore [off] {sym} ptr (FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETGEstore [off] {sym} ptr (FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETGEstore [off] {sym} ptr (FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETGEstore [off] {sym} ptr (FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETGEstore [off] {sym} ptr (FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
 
-(SETBstore  [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETBstore  [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETBstore  [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETBstore  [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETBstore  [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETBstore  [off] {sym} ptr (FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETBstore  [off] {sym} ptr (FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETBstore  [off] {sym} ptr (FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETBstore  [off] {sym} ptr (FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETBstore  [off] {sym} ptr (FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
 
-(SETBEstore [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETBEstore [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETBEstore [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETBEstore [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETBEstore [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETBEstore [off] {sym} ptr (FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETBEstore [off] {sym} ptr (FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETBEstore [off] {sym} ptr (FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETBEstore [off] {sym} ptr (FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETBEstore [off] {sym} ptr (FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
 
-(SETAstore  [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETAstore  [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETAstore  [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETAstore  [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETAstore  [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETAstore  [off] {sym} ptr (FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETAstore  [off] {sym} ptr (FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETAstore  [off] {sym} ptr (FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETAstore  [off] {sym} ptr (FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETAstore  [off] {sym} ptr (FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
 
-(SETAEstore [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETAEstore [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETAEstore [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETAEstore [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETAEstore [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETAEstore [off] {sym} ptr (FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETAEstore [off] {sym} ptr (FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETAEstore [off] {sym} ptr (FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETAEstore [off] {sym} ptr (FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETAEstore [off] {sym} ptr (FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
 
 // Remove redundant *const ops
 (ADDQconst [0] x) -> x
@@ -1597,13 +1608,13 @@
   && s0.Uses == 1
   && s1.Uses == 1
   && or.Uses == 1
-  && mergePoint(b,x0,x1) != nil
+  && mergePoint(b,x0,x1,y) != nil
   && clobber(x0)
   && clobber(x1)
   && clobber(s0)
   && clobber(s1)
   && clobber(or)
-  -> @mergePoint(b,x0,x1) (ORL <v.Type> (SHLLconst <v.Type> [j0] (MOVWload [i0] {s} p mem)) y)
+  -> @mergePoint(b,x0,x1,y) (ORL <v.Type> (SHLLconst <v.Type> [j0] (MOVWload [i0] {s} p mem)) y)
 
 (ORQ
     s1:(SHLQconst [j1] x1:(MOVBload [i1] {s} p mem))
@@ -1618,13 +1629,13 @@
   && s0.Uses == 1
   && s1.Uses == 1
   && or.Uses == 1
-  && mergePoint(b,x0,x1) != nil
+  && mergePoint(b,x0,x1,y) != nil
   && clobber(x0)
   && clobber(x1)
   && clobber(s0)
   && clobber(s1)
   && clobber(or)
-  -> @mergePoint(b,x0,x1) (ORQ <v.Type> (SHLQconst <v.Type> [j0] (MOVWload [i0] {s} p mem)) y)
+  -> @mergePoint(b,x0,x1,y) (ORQ <v.Type> (SHLQconst <v.Type> [j0] (MOVWload [i0] {s} p mem)) y)
 
 (ORQ
     s1:(SHLQconst [j1] x1:(MOVWload [i1] {s} p mem))
@@ -1639,13 +1650,13 @@
   && s0.Uses == 1
   && s1.Uses == 1
   && or.Uses == 1
-  && mergePoint(b,x0,x1) != nil
+  && mergePoint(b,x0,x1,y) != nil
   && clobber(x0)
   && clobber(x1)
   && clobber(s0)
   && clobber(s1)
   && clobber(or)
-  -> @mergePoint(b,x0,x1) (ORQ <v.Type> (SHLQconst <v.Type> [j0] (MOVLload [i0] {s} p mem)) y)
+  -> @mergePoint(b,x0,x1,y) (ORQ <v.Type> (SHLQconst <v.Type> [j0] (MOVLload [i0] {s} p mem)) y)
 
 // Little-endian indexed loads
 
@@ -1722,13 +1733,13 @@
   && s0.Uses == 1
   && s1.Uses == 1
   && or.Uses == 1
-  && mergePoint(b,x0,x1) != nil
+  && mergePoint(b,x0,x1,y) != nil
   && clobber(x0)
   && clobber(x1)
   && clobber(s0)
   && clobber(s1)
   && clobber(or)
-  -> @mergePoint(b,x0,x1) (ORL <v.Type> (SHLLconst <v.Type> [j0] (MOVWloadidx1 [i0] {s} p idx mem)) y)
+  -> @mergePoint(b,x0,x1,y) (ORL <v.Type> (SHLLconst <v.Type> [j0] (MOVWloadidx1 [i0] {s} p idx mem)) y)
 
 (ORQ
     s1:(SHLQconst [j1] x1:(MOVBloadidx1 [i1] {s} p idx mem))
@@ -1743,13 +1754,13 @@
   && s0.Uses == 1
   && s1.Uses == 1
   && or.Uses == 1
-  && mergePoint(b,x0,x1) != nil
+  && mergePoint(b,x0,x1,y) != nil
   && clobber(x0)
   && clobber(x1)
   && clobber(s0)
   && clobber(s1)
   && clobber(or)
-  -> @mergePoint(b,x0,x1) (ORQ <v.Type> (SHLQconst <v.Type> [j0] (MOVWloadidx1 [i0] {s} p idx mem)) y)
+  -> @mergePoint(b,x0,x1,y) (ORQ <v.Type> (SHLQconst <v.Type> [j0] (MOVWloadidx1 [i0] {s} p idx mem)) y)
 
 (ORQ
     s1:(SHLQconst [j1] x1:(MOVWloadidx1 [i1] {s} p idx mem))
@@ -1764,13 +1775,13 @@
   && s0.Uses == 1
   && s1.Uses == 1
   && or.Uses == 1
-  && mergePoint(b,x0,x1) != nil
+  && mergePoint(b,x0,x1,y) != nil
   && clobber(x0)
   && clobber(x1)
   && clobber(s0)
   && clobber(s1)
   && clobber(or)
-  -> @mergePoint(b,x0,x1) (ORQ <v.Type> (SHLQconst <v.Type> [j0] (MOVLloadidx1 [i0] {s} p idx mem)) y)
+  -> @mergePoint(b,x0,x1,y) (ORQ <v.Type> (SHLQconst <v.Type> [j0] (MOVLloadidx1 [i0] {s} p idx mem)) y)
 
 // Big-endian loads
 
@@ -1864,13 +1875,13 @@
   && s0.Uses == 1
   && s1.Uses == 1
   && or.Uses == 1
-  && mergePoint(b,x0,x1) != nil
+  && mergePoint(b,x0,x1,y) != nil
   && clobber(x0)
   && clobber(x1)
   && clobber(s0)
   && clobber(s1)
   && clobber(or)
-  -> @mergePoint(b,x0,x1) (ORL <v.Type> (SHLLconst <v.Type> [j1] (ROLWconst <typ.UInt16> [8] (MOVWload [i0] {s} p mem))) y)
+  -> @mergePoint(b,x0,x1,y) (ORL <v.Type> (SHLLconst <v.Type> [j1] (ROLWconst <typ.UInt16> [8] (MOVWload [i0] {s} p mem))) y)
 
 (ORQ
     s0:(SHLQconst [j0] x0:(MOVBload [i0] {s} p mem))
@@ -1885,13 +1896,13 @@
   && s0.Uses == 1
   && s1.Uses == 1
   && or.Uses == 1
-  && mergePoint(b,x0,x1) != nil
+  && mergePoint(b,x0,x1,y) != nil
   && clobber(x0)
   && clobber(x1)
   && clobber(s0)
   && clobber(s1)
   && clobber(or)
-  -> @mergePoint(b,x0,x1) (ORQ <v.Type> (SHLQconst <v.Type> [j1] (ROLWconst <typ.UInt16> [8] (MOVWload [i0] {s} p mem))) y)
+  -> @mergePoint(b,x0,x1,y) (ORQ <v.Type> (SHLQconst <v.Type> [j1] (ROLWconst <typ.UInt16> [8] (MOVWload [i0] {s} p mem))) y)
 
 (ORQ
     s0:(SHLQconst [j0] r0:(ROLWconst [8] x0:(MOVWload [i0] {s} p mem)))
@@ -1908,7 +1919,7 @@
   && s0.Uses == 1
   && s1.Uses == 1
   && or.Uses == 1
-  && mergePoint(b,x0,x1) != nil
+  && mergePoint(b,x0,x1,y) != nil
   && clobber(x0)
   && clobber(x1)
   && clobber(r0)
@@ -1916,7 +1927,7 @@
   && clobber(s0)
   && clobber(s1)
   && clobber(or)
-  -> @mergePoint(b,x0,x1) (ORQ <v.Type> (SHLQconst <v.Type> [j1] (BSWAPL <typ.UInt32> (MOVLload [i0] {s} p mem))) y)
+  -> @mergePoint(b,x0,x1,y) (ORQ <v.Type> (SHLQconst <v.Type> [j1] (BSWAPL <typ.UInt32> (MOVLload [i0] {s} p mem))) y)
 
 // Big-endian indexed loads
 
@@ -2010,13 +2021,13 @@
   && s0.Uses == 1
   && s1.Uses == 1
   && or.Uses == 1
-  && mergePoint(b,x0,x1) != nil
+  && mergePoint(b,x0,x1,y) != nil
   && clobber(x0)
   && clobber(x1)
   && clobber(s0)
   && clobber(s1)
   && clobber(or)
-  -> @mergePoint(b,x0,x1) (ORL <v.Type> (SHLLconst <v.Type> [j1] (ROLWconst <typ.UInt16> [8] (MOVWloadidx1 [i0] {s} p idx mem))) y)
+  -> @mergePoint(b,x0,x1,y) (ORL <v.Type> (SHLLconst <v.Type> [j1] (ROLWconst <typ.UInt16> [8] (MOVWloadidx1 [i0] {s} p idx mem))) y)
 
 (ORQ
     s0:(SHLQconst [j0] x0:(MOVBloadidx1 [i0] {s} p idx mem))
@@ -2031,13 +2042,13 @@
   && s0.Uses == 1
   && s1.Uses == 1
   && or.Uses == 1
-  && mergePoint(b,x0,x1) != nil
+  && mergePoint(b,x0,x1,y) != nil
   && clobber(x0)
   && clobber(x1)
   && clobber(s0)
   && clobber(s1)
   && clobber(or)
-  -> @mergePoint(b,x0,x1) (ORQ <v.Type> (SHLQconst <v.Type> [j1] (ROLWconst <typ.UInt16> [8] (MOVWloadidx1 [i0] {s} p idx mem))) y)
+  -> @mergePoint(b,x0,x1,y) (ORQ <v.Type> (SHLQconst <v.Type> [j1] (ROLWconst <typ.UInt16> [8] (MOVWloadidx1 [i0] {s} p idx mem))) y)
 
 (ORQ
     s0:(SHLQconst [j0] r0:(ROLWconst [8] x0:(MOVWloadidx1 [i0] {s} p idx mem)))
@@ -2054,7 +2065,7 @@
   && s0.Uses == 1
   && s1.Uses == 1
   && or.Uses == 1
-  && mergePoint(b,x0,x1) != nil
+  && mergePoint(b,x0,x1,y) != nil
   && clobber(x0)
   && clobber(x1)
   && clobber(r0)
@@ -2062,7 +2073,7 @@
   && clobber(s0)
   && clobber(s1)
   && clobber(or)
-  -> @mergePoint(b,x0,x1) (ORQ <v.Type> (SHLQconst <v.Type> [j1] (BSWAPL <typ.UInt32> (MOVLloadidx1 [i0] {s} p idx mem))) y)
+  -> @mergePoint(b,x0,x1,y) (ORQ <v.Type> (SHLQconst <v.Type> [j1] (BSWAPL <typ.UInt32> (MOVLloadidx1 [i0] {s} p idx mem))) y)
 
 // Combine 2 byte stores + shift into rolw 8 + word store
 (MOVBstore [i] {s} p w
@@ -2383,14 +2394,10 @@
 	((ADD|SUB|AND|OR|XOR|BTC|BTR|BTS)Qmodify [off] {sym} ptr x mem)
 
 // Merge ADDQconst and LEAQ into atomic loads.
-(MOVQatomicload [off1] {sym} (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) ->
-	(MOVQatomicload [off1+off2] {sym} ptr mem)
-(MOVLatomicload [off1] {sym} (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) ->
-	(MOVLatomicload [off1+off2] {sym} ptr mem)
-(MOVQatomicload [off1] {sym1} (LEAQ [off2] {sym2} ptr) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(MOVQatomicload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
-(MOVLatomicload [off1] {sym1} (LEAQ [off2] {sym2} ptr) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(MOVLatomicload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOV(Q|L|B)atomicload [off1] {sym} (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) ->
+	(MOV(Q|L|B)atomicload [off1+off2] {sym} ptr mem)
+(MOV(Q|L|B)atomicload [off1] {sym1} (LEAQ [off2] {sym2} ptr) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOV(Q|L|B)atomicload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 
 // Merge ADDQconst and LEAQ into atomic stores.
 (XCHGQ [off1] {sym} val (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) ->

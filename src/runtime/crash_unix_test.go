@@ -34,8 +34,12 @@ func init() {
 }
 
 func TestCrashDumpsAllThreads(t *testing.T) {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
+
 	switch runtime.GOOS {
-	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "illumos", "solaris":
 	default:
 		t.Skipf("skipping; not supported on %v", runtime.GOOS)
 	}
@@ -63,7 +67,7 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 		t.Fatalf("failed to create Go file: %v", err)
 	}
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe", "main.go")
 	cmd.Dir = dir
 	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {

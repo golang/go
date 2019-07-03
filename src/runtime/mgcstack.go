@@ -274,7 +274,7 @@ func (s *stackScanState) addObject(addr uintptr, typ *_type) {
 	obj.off = uint32(addr - s.stack.lo)
 	obj.size = uint32(typ.size)
 	obj.setType(typ)
-	// obj.left and obj.right will be initalized by buildIndex before use.
+	// obj.left and obj.right will be initialized by buildIndex before use.
 	s.nobjs++
 }
 

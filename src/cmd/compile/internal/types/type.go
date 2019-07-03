@@ -392,6 +392,11 @@ func (f *Field) End() int64 {
 	return f.Offset + f.Type.Width
 }
 
+// IsMethod reports whether f represents a method rather than a struct field.
+func (f *Field) IsMethod() bool {
+	return f.Type.Etype == TFUNC && f.Type.Recv() != nil
+}
+
 // Fields is a pointer to a slice of *Field.
 // This saves space in Types that do not have fields or methods
 // compared to a simple slice of *Field.
@@ -1388,6 +1393,28 @@ func (t *Type) NumComponents(countBlank componentsIncludeBlankFields) int64 {
 		return t.NumElem() * t.Elem().NumComponents(countBlank)
 	}
 	return 1
+}
+
+// SoleComponent returns the only primitive component in t,
+// if there is exactly one. Otherwise, it returns nil.
+// Components are counted as in NumComponents, including blank fields.
+func (t *Type) SoleComponent() *Type {
+	switch t.Etype {
+	case TSTRUCT:
+		if t.IsFuncArgStruct() {
+			Fatalf("SoleComponent func arg struct")
+		}
+		if t.NumFields() != 1 {
+			return nil
+		}
+		return t.Field(0).Type.SoleComponent()
+	case TARRAY:
+		if t.NumElem() != 1 {
+			return nil
+		}
+		return t.Elem().SoleComponent()
+	}
+	return t
 }
 
 // ChanDir returns the direction of a channel type t.

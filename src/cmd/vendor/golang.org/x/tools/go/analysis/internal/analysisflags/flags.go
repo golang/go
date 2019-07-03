@@ -8,6 +8,7 @@ package analysisflags
 
 import (
 	"crypto/sha256"
+	"encoding/gob"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -32,6 +33,14 @@ var (
 // including (in multi mode) a flag named after the analyzer,
 // parses the flags, then filters and returns the list of
 // analyzers enabled by flags.
+//
+// The result is intended to be passed to unitchecker.Run or checker.Run.
+// Use in unitchecker.Run will gob.Register all fact types for the returned
+// graph of analyzers but of course not the ones only reachable from
+// dropped analyzers. To avoid inconsistency about which gob types are
+// registered from run to run, Parse itself gob.Registers all the facts
+// only reachable from dropped analyzers.
+// This is not a particularly elegant API, but this is an internal package.
 func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
 	// Connect each analysis flag to the command line as -analysis.flag.
 	enabled := make(map[*analysis.Analyzer]*triState)
@@ -88,6 +97,8 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
 		os.Exit(0)
 	}
 
+	everything := expand(analyzers)
+
 	// If any -NAME flag is true,  run only those analyzers. Otherwise,
 	// if any -NAME flag is false, run all but those analyzers.
 	if multi {
@@ -119,7 +130,33 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
 		}
 	}
 
+	// Register fact types of skipped analyzers
+	// in case we encounter them in imported files.
+	kept := expand(analyzers)
+	for a := range everything {
+		if !kept[a] {
+			for _, f := range a.FactTypes {
+				gob.Register(f)
+			}
+		}
+	}
+
 	return analyzers
+}
+
+func expand(analyzers []*analysis.Analyzer) map[*analysis.Analyzer]bool {
+	seen := make(map[*analysis.Analyzer]bool)
+	var visitAll func([]*analysis.Analyzer)
+	visitAll = func(analyzers []*analysis.Analyzer) {
+		for _, a := range analyzers {
+			if !seen[a] {
+				seen[a] = true
+				visitAll(a.Requires)
+			}
+		}
+	}
+	visitAll(analyzers)
+	return seen
 }
 
 func printFlags() {
@@ -152,12 +189,13 @@ func printFlags() {
 // addVersionFlag registers a -V flag that, if set,
 // prints the executable version and exits 0.
 //
-// It is a variable not a function to permit easy
-// overriding in the copy vendored in $GOROOT/src/cmd/vet:
-//
-// func init() { addVersionFlag = objabi.AddVersionFlag }
-var addVersionFlag = func() {
-	flag.Var(versionFlag{}, "V", "print version and exit")
+// If the -V flag already exists — for example, because it was already
+// registered by a call to cmd/internal/objabi.AddVersionFlag — then
+// addVersionFlag does nothing.
+func addVersionFlag() {
+	if flag.Lookup("V") == nil {
+		flag.Var(versionFlag{}, "V", "print version and exit")
+	}
 }
 
 // versionFlag minimally complies with the -V protocol required by "go vet".
@@ -285,9 +323,14 @@ func PrintPlain(fset *token.FileSet, diag analysis.Diagnostic) {
 
 	// -c=N: show offending line plus N lines of context.
 	if Context >= 0 {
+		posn := fset.Position(diag.Pos)
+		end := fset.Position(diag.End)
+		if !end.IsValid() {
+			end = posn
+		}
 		data, _ := ioutil.ReadFile(posn.Filename)
 		lines := strings.Split(string(data), "\n")
-		for i := posn.Line - Context; i <= posn.Line+Context; i++ {
+		for i := posn.Line - Context; i <= end.Line+Context; i++ {
 			if 1 <= i && i <= len(lines) {
 				fmt.Fprintf(os.Stderr, "%d\t%s\n", i, lines[i-1])
 			}
@@ -315,6 +358,8 @@ func (tree JSONTree) Add(fset *token.FileSet, id, name string, diags []analysis.
 			Message  string `json:"message"`
 		}
 		var diagnostics []jsonDiagnostic
+		// TODO(matloob): Should the JSON diagnostics contain ranges?
+		// If so, how should they be formatted?
 		for _, f := range diags {
 			diagnostics = append(diagnostics, jsonDiagnostic{
 				Category: f.Category,

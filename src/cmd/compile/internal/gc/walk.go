@@ -398,10 +398,14 @@ func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
 			return "convT32", false
 		case from.Size() == 8 && from.Align == types.Types[TUINT64].Align && !types.Haspointers(from):
 			return "convT64", false
-		case from.IsString():
-			return "convTstring", false
-		case from.IsSlice():
-			return "convTslice", false
+		}
+		if sc := from.SoleComponent(); sc != nil {
+			switch {
+			case sc.IsString():
+				return "convTstring", false
+			case sc.IsSlice():
+				return "convTslice", false
+			}
 		}
 
 		switch tkind {
@@ -477,7 +481,7 @@ opswitch:
 		Dump("walk", n)
 		Fatalf("walkexpr: switch 1 unknown op %+S", n)
 
-	case ONONAME, OINDREGSP, OEMPTY, OGETG:
+	case ONONAME, OEMPTY, OGETG, ONEWOBJ:
 
 	case OTYPE, ONAME, OLITERAL:
 		// TODO(mdempsky): Just return n; see discussion on CL 38655.
@@ -493,7 +497,7 @@ opswitch:
 		n.Left = walkexpr(n.Left, init)
 		n.Right = walkexpr(n.Right, init)
 
-	case ODOT:
+	case ODOT, ODOTPTR:
 		usefield(n)
 		n.Left = walkexpr(n.Left, init)
 
@@ -507,17 +511,6 @@ opswitch:
 		if !n.Type.IsInterface() && !n.Left.Type.IsEmptyInterface() {
 			n.List.Set1(itabname(n.Type, n.Left.Type))
 		}
-
-	case ODOTPTR:
-		usefield(n)
-		if n.Op == ODOTPTR && n.Left.Type.Elem().Width == 0 {
-			// No actual copy will be generated, so emit an explicit nil check.
-			n.Left = cheapexpr(n.Left, init)
-
-			checknil(n.Left, init)
-		}
-
-		n.Left = walkexpr(n.Left, init)
 
 	case OLEN, OCAP:
 		if isRuneCount(n) {
@@ -1217,7 +1210,7 @@ opswitch:
 			// Allocate one bucket pointed to by hmap.buckets on stack if hint
 			// is not larger than BUCKETSIZE. In case hint is larger than
 			// BUCKETSIZE runtime.makemap will allocate the buckets on the heap.
-			// Maximum key and value size is 128 bytes, larger objects
+			// Maximum key and elem size is 128 bytes, larger objects
 			// are stored with an indirection. So max bucket size is 2048+eps.
 			if !Isconst(hint, CTINT) ||
 				hint.Val().U.(*Mpint).CmpInt64(BUCKETSIZE) <= 0 {
@@ -1362,49 +1355,35 @@ opswitch:
 		a := nodnil()
 		if n.Esc == EscNone {
 			t := types.NewArray(types.Types[TUINT8], 4)
-			var_ := temp(t)
-			a = nod(OADDR, var_, nil)
+			a = nod(OADDR, temp(t), nil)
 		}
-
 		// intstring(*[4]byte, rune)
 		n = mkcall("intstring", n.Type, init, a, conv(n.Left, types.Types[TINT64]))
 
-	case OBYTES2STR:
+	case OBYTES2STR, ORUNES2STR:
 		a := nodnil()
 		if n.Esc == EscNone {
 			// Create temporary buffer for string on stack.
 			t := types.NewArray(types.Types[TUINT8], tmpstringbufsize)
-
 			a = nod(OADDR, temp(t), nil)
 		}
+		fn := "slicebytetostring"
+		if n.Op == ORUNES2STR {
+			fn = "slicerunetostring"
+		}
+		// slicebytetostring(*[32]byte, []byte) string
+		// slicerunetostring(*[32]byte, []rune) string
+		n = mkcall(fn, n.Type, init, a, n.Left)
 
-		// slicebytetostring(*[32]byte, []byte) string;
-		n = mkcall("slicebytetostring", n.Type, init, a, n.Left)
-
-		// slicebytetostringtmp([]byte) string;
 	case OBYTES2STRTMP:
 		n.Left = walkexpr(n.Left, init)
-
 		if !instrumenting {
 			// Let the backend handle OBYTES2STRTMP directly
 			// to avoid a function call to slicebytetostringtmp.
 			break
 		}
-
+		// slicebytetostringtmp([]byte) string
 		n = mkcall("slicebytetostringtmp", n.Type, init, n.Left)
-
-		// slicerunetostring(*[32]byte, []rune) string;
-	case ORUNES2STR:
-		a := nodnil()
-
-		if n.Esc == EscNone {
-			// Create temporary buffer for string on stack.
-			t := types.NewArray(types.Types[TUINT8], tmpstringbufsize)
-
-			a = nod(OADDR, temp(t), nil)
-		}
-
-		n = mkcall("slicerunetostring", n.Type, init, a, n.Left)
 
 	case OSTR2BYTES:
 		s := n.Left
@@ -1414,7 +1393,7 @@ opswitch:
 			// Allocate a [n]byte of the right size.
 			t := types.NewArray(types.Types[TUINT8], int64(len(sc)))
 			var a *Node
-			if n.Esc == EscNone && len(sc) <= maxImplicitStackVarSize {
+			if n.Esc == EscNone && len(sc) <= int(maxImplicitStackVarSize) {
 				a = nod(OADDR, temp(t), nil)
 			} else {
 				a = callnew(t)
@@ -1438,16 +1417,14 @@ opswitch:
 			n = walkexpr(n, init)
 			break
 		}
-		a := nodnil()
 
+		a := nodnil()
 		if n.Esc == EscNone {
 			// Create temporary buffer for slice on stack.
 			t := types.NewArray(types.Types[TUINT8], tmpstringbufsize)
-
 			a = nod(OADDR, temp(t), nil)
 		}
-
-		// stringtoslicebyte(*32[byte], string) []byte;
+		// stringtoslicebyte(*32[byte], string) []byte
 		n = mkcall("stringtoslicebyte", n.Type, init, a, conv(s, types.Types[TSTRING]))
 
 	case OSTR2BYTESTMP:
@@ -1460,17 +1437,14 @@ opswitch:
 		// for i, c := range []byte(string)
 		n.Left = walkexpr(n.Left, init)
 
-		// stringtoslicerune(*[32]rune, string) []rune
 	case OSTR2RUNES:
 		a := nodnil()
-
 		if n.Esc == EscNone {
 			// Create temporary buffer for slice on stack.
 			t := types.NewArray(types.Types[TINT32], tmpstringbufsize)
-
 			a = nod(OADDR, temp(t), nil)
 		}
-
+		// stringtoslicerune(*[32]rune, string) []rune
 		n = mkcall("stringtoslicerune", n.Type, init, a, conv(n.Left, types.Types[TSTRING]))
 
 	case OARRAYLIT, OSLICELIT, OMAPLIT, OSTRUCTLIT, OPTRLIT:
@@ -1681,7 +1655,12 @@ func ascompatet(nl Nodes, nr *types.Type) []*Node {
 			l = tmp
 		}
 
-		a := nod(OAS, l, nodarg(r))
+		res := nod(ORESULT, nil, nil)
+		res.Xoffset = Ctxt.FixedFrameSize() + r.Offset
+		res.Type = r.Type
+		res.SetTypecheck(1)
+
+		a := nod(OAS, l, res)
 		a = convas(a, &nn)
 		updateHasCall(a)
 		if a.HasCall() {
@@ -1692,32 +1671,6 @@ func ascompatet(nl Nodes, nr *types.Type) []*Node {
 		nn.Append(a)
 	}
 	return append(nn.Slice(), mm.Slice()...)
-}
-
-// nodarg returns a Node for the function argument f.
-// f is a *types.Field within a struct *types.Type.
-//
-// The node is for use by a caller invoking the given
-// function, preparing the arguments before the call
-// or retrieving the results after the call.
-// In this case, the node will correspond to an outgoing argument
-// slot like 8(SP).
-func nodarg(f *types.Field) *Node {
-	// Build fake name for individual variable.
-	n := newname(lookup("__"))
-	n.Type = f.Type
-	if f.Offset == BADWIDTH {
-		Fatalf("nodarg: offset not computed for %v", f)
-	}
-	n.Xoffset = f.Offset
-	n.Orig = asNode(f.Nname)
-
-	// preparing arguments for call
-	n.Op = OINDREGSP
-	n.Xoffset += Ctxt.FixedFrameSize()
-	n.SetTypecheck(1)
-	n.SetAddrtaken(true) // keep optimizers at bay
-	return n
 }
 
 // package all the arguments that match a ... T parameter into a []T.
@@ -1951,11 +1904,11 @@ func callnew(t *types.Type) *Node {
 		yyerror("%v is go:notinheap; heap allocation disallowed", t)
 	}
 	dowidth(t)
-	fn := syslook("newobject")
-	fn = substArgTypes(fn, t)
-	v := mkcall1(fn, types.NewPtr(t), nil, typename(t))
-	v.SetNonNil(true)
-	return v
+	n := nod(ONEWOBJ, typename(t), nil)
+	n.Type = types.NewPtr(t)
+	n.SetTypecheck(1)
+	n.SetNonNil(true)
+	return n
 }
 
 // isReflectHeaderDataField reports whether l is an expression p.Data
@@ -2509,7 +2462,7 @@ var mapassign = mkmapnames("mapassign", "ptr")
 var mapdelete = mkmapnames("mapdelete", "")
 
 func mapfast(t *types.Type) int {
-	// Check runtime/map.go:maxValueSize before changing.
+	// Check runtime/map.go:maxElemSize before changing.
 	if t.Elem().Width > 128 {
 		return mapslow
 	}
@@ -2564,7 +2517,6 @@ func addstr(n *Node, init *Nodes) *Node {
 		if sz < tmpstringbufsize {
 			// Create temporary buffer for result string on stack.
 			t := types.NewArray(types.Types[TUINT8], tmpstringbufsize)
-
 			buf = nod(OADDR, temp(t), nil)
 		}
 	}
@@ -3113,11 +3065,9 @@ func walkcompare(n *Node, init *Nodes) *Node {
 	if l != nil {
 		// Handle both == and !=.
 		eq := n.Op
-		var andor Op
+		andor := OOROR
 		if eq == OEQ {
 			andor = OANDAND
-		} else {
-			andor = OOROR
 		}
 		// Check for types equal.
 		// For empty interface, this is:
@@ -3353,12 +3303,6 @@ func walkcompareInterface(n *Node, init *Nodes) *Node {
 }
 
 func walkcompareString(n *Node, init *Nodes) *Node {
-	// s + "badgerbadgerbadger" == "badgerbadgerbadger"
-	if (n.Op == OEQ || n.Op == ONE) && Isconst(n.Right, CTSTR) && n.Left.Op == OADDSTR && n.Left.List.Len() == 2 && Isconst(n.Left.List.Second(), CTSTR) && strlit(n.Right) == strlit(n.Left.List.Second()) {
-		r := nod(n.Op, nod(OLEN, n.Left.List.First(), nil), nodintconst(0))
-		return finishcompare(n, r, init)
-	}
-
 	// Rewrite comparisons to short constant strings as length+byte-wise comparisons.
 	var cs, ncs *Node // const string, non-const string
 	switch {

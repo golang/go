@@ -93,7 +93,8 @@ func (t *LineTable) slice(pc uint64) *LineTable {
 }
 
 // PCToLine returns the line number for the given program counter.
-// Callers should use Table's PCToLine method instead.
+//
+// Deprecated: Use Table's PCToLine method instead.
 func (t *LineTable) PCToLine(pc uint64) int {
 	if t.isGo12() {
 		return t.go12PCToLine(pc)
@@ -104,7 +105,8 @@ func (t *LineTable) PCToLine(pc uint64) int {
 
 // LineToPC returns the program counter for the given line number,
 // considering only program counters before maxpc.
-// Callers should use Table's LineToPC method instead.
+//
+// Deprecated: Use Table's LineToPC method instead.
 func (t *LineTable) LineToPC(line int, maxpc uint64) uint64 {
 	if t.isGo12() {
 		return 0

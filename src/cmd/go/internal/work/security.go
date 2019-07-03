@@ -30,16 +30,18 @@
 package work
 
 import (
-	"cmd/go/internal/load"
 	"fmt"
-	"os"
+	"internal/lazyregexp"
 	"regexp"
 	"strings"
+
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
 )
 
-var re = regexp.MustCompile
+var re = lazyregexp.New
 
-var validCompilerFlags = []*regexp.Regexp{
+var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-D([A-Za-z_].*)`),
 	re(`-F([^@\-].*)`),
 	re(`-I([^@\-].*)`),
@@ -100,6 +102,10 @@ var validCompilerFlags = []*regexp.Regexp{
 	re(`-mmacosx-(.+)`),
 	re(`-mios-simulator-version-min=(.+)`),
 	re(`-miphoneos-version-min=(.+)`),
+	re(`-mtvos-simulator-version-min=(.+)`),
+	re(`-mtvos-version-min=(.+)`),
+	re(`-mwatchos-simulator-version-min=(.+)`),
+	re(`-mwatchos-version-min=(.+)`),
 	re(`-mnop-fun-dllimport`),
 	re(`-m(no-)?sse[0-9.]*`),
 	re(`-m(no-)?ssse3`),
@@ -130,7 +136,7 @@ var validCompilerFlagsWithNextArg = []string{
 	"-x",
 }
 
-var validLinkerFlags = []*regexp.Regexp{
+var validLinkerFlags = []*lazyregexp.Regexp{
 	re(`-F([^@\-].*)`),
 	re(`-l([^@\-].*)`),
 	re(`-L([^@\-].*)`),
@@ -166,6 +172,7 @@ var validLinkerFlags = []*regexp.Regexp{
 	re(`-Wl,--(no-)?allow-shlib-undefined`),
 	re(`-Wl,--(no-)?as-needed`),
 	re(`-Wl,-Bdynamic`),
+	re(`-Wl,-berok`),
 	re(`-Wl,-Bstatic`),
 	re(`-WL,-O([^@,\-][^,]*)?`),
 	re(`-Wl,-d[ny]`),
@@ -177,6 +184,8 @@ var validLinkerFlags = []*regexp.Regexp{
 	re(`-Wl,-framework,[^,@\-][^,]+`),
 	re(`-Wl,-headerpad_max_install_names`),
 	re(`-Wl,--no-undefined`),
+	re(`-Wl,-R([^@\-][^,@]*$)`),
+	re(`-Wl,--just-symbols[=,]([^,@\-][^,@]+)`),
 	re(`-Wl,-rpath(-link)?[=,]([^,@\-][^,]+)`),
 	re(`-Wl,-s`),
 	re(`-Wl,-search_paths_first`),
@@ -206,6 +215,8 @@ var validLinkerFlagsWithNextArg = []string{
 	"-target",
 	"-Wl,-framework",
 	"-Wl,-rpath",
+	"-Wl,-R",
+	"-Wl,--just-symbols",
 	"-Wl,-undefined",
 }
 
@@ -217,20 +228,20 @@ func checkLinkerFlags(name, source string, list []string) error {
 	return checkFlags(name, source, list, validLinkerFlags, validLinkerFlagsWithNextArg)
 }
 
-func checkFlags(name, source string, list []string, valid []*regexp.Regexp, validNext []string) error {
+func checkFlags(name, source string, list []string, valid []*lazyregexp.Regexp, validNext []string) error {
 	// Let users override rules with $CGO_CFLAGS_ALLOW, $CGO_CFLAGS_DISALLOW, etc.
 	var (
 		allow    *regexp.Regexp
 		disallow *regexp.Regexp
 	)
-	if env := os.Getenv("CGO_" + name + "_ALLOW"); env != "" {
+	if env := cfg.Getenv("CGO_" + name + "_ALLOW"); env != "" {
 		r, err := regexp.Compile(env)
 		if err != nil {
 			return fmt.Errorf("parsing $CGO_%s_ALLOW: %v", name, err)
 		}
 		allow = r
 	}
-	if env := os.Getenv("CGO_" + name + "_DISALLOW"); env != "" {
+	if env := cfg.Getenv("CGO_" + name + "_DISALLOW"); env != "" {
 		r, err := regexp.Compile(env)
 		if err != nil {
 			return fmt.Errorf("parsing $CGO_%s_DISALLOW: %v", name, err)

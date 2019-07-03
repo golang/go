@@ -1,4 +1,5 @@
 env GO111MODULE=on
+[short] skip
 
 # initial conditions: using sampler v1.3.0, not listed in go.mod.
 go list -deps
@@ -18,6 +19,16 @@ cmp go.mod go.mod.good
 # golang.org/issue/26704
 go list -mod=vendor
 cmp go.mod go.mod.good
+
+# With a clean (and empty) module cache, 'go list -mod=vendor' should not download modules.
+go clean -modcache
+env GOPROXY=off
+! go list ...
+go list -mod=vendor ...
+
+# However, it should still list packages in the main module.
+go list -mod=vendor m/...
+stdout m
 
 -- go.mod --
 module m

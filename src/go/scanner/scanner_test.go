@@ -927,13 +927,14 @@ func TestNumbers(t *testing.T) {
 		{token.INT, "0b0190", "0b0190", "invalid digit '9' in binary literal"},
 		{token.INT, "0b01a0", "0b01 a0", ""}, // only accept 0-9
 
-		// binary floats and imaginaries (invalid)
 		{token.FLOAT, "0b.", "0b.", "invalid radix point in binary literal"},
 		{token.FLOAT, "0b.1", "0b.1", "invalid radix point in binary literal"},
 		{token.FLOAT, "0b1.0", "0b1.0", "invalid radix point in binary literal"},
 		{token.FLOAT, "0b1e10", "0b1e10", "'e' exponent requires decimal mantissa"},
 		{token.FLOAT, "0b1P-1", "0b1P-1", "'P' exponent requires hexadecimal mantissa"},
-		{token.IMAG, "0b10i", "0b10i", "invalid suffix 'i' on binary literal"},
+
+		{token.IMAG, "0b10i", "0b10i", ""},
+		{token.IMAG, "0b10.0i", "0b10.0i", "invalid radix point in binary literal"},
 
 		// octals
 		{token.INT, "0o0", "0o0", ""},
@@ -945,13 +946,14 @@ func TestNumbers(t *testing.T) {
 		{token.INT, "0o1293", "0o1293", "invalid digit '9' in octal literal"},
 		{token.INT, "0o12a3", "0o12 a3", ""}, // only accept 0-9
 
-		// octal floats and imaginaries (invalid)
 		{token.FLOAT, "0o.", "0o.", "invalid radix point in octal literal"},
 		{token.FLOAT, "0o.2", "0o.2", "invalid radix point in octal literal"},
 		{token.FLOAT, "0o1.2", "0o1.2", "invalid radix point in octal literal"},
 		{token.FLOAT, "0o1E+2", "0o1E+2", "'E' exponent requires decimal mantissa"},
 		{token.FLOAT, "0o1p10", "0o1p10", "'p' exponent requires hexadecimal mantissa"},
-		{token.IMAG, "0o10i", "0o10i", "invalid suffix 'i' on octal literal"},
+
+		{token.IMAG, "0o10i", "0o10i", ""},
+		{token.IMAG, "0o10e0i", "0o10e0i", "'e' exponent requires decimal mantissa"},
 
 		// 0-octals
 		{token.INT, "0", "0", ""},
@@ -968,6 +970,9 @@ func TestNumbers(t *testing.T) {
 		{token.INT, "1234", "1234", ""},
 
 		{token.INT, "1f", "1 f", ""}, // only accept 0-9
+
+		{token.IMAG, "0i", "0i", ""},
+		{token.IMAG, "0678i", "0678i", ""},
 
 		// decimal floats
 		{token.FLOAT, "0.", "0.", ""},
@@ -1004,7 +1009,6 @@ func TestNumbers(t *testing.T) {
 		{token.FLOAT, "0p0", "0p0", "'p' exponent requires hexadecimal mantissa"},
 		{token.FLOAT, "1.0P-1", "1.0P-1", "'P' exponent requires hexadecimal mantissa"},
 
-		// decimal imaginaries
 		{token.IMAG, "0.i", "0.i", ""},
 		{token.IMAG, ".123i", ".123i", ""},
 		{token.IMAG, "123.123i", "123.123i", ""},
@@ -1020,6 +1024,8 @@ func TestNumbers(t *testing.T) {
 
 		{token.INT, "0x", "0x", "hexadecimal literal has no digits"},
 		{token.INT, "0x1g", "0x1 g", ""},
+
+		{token.IMAG, "0xf00i", "0xf00i", ""},
 
 		// hexadecimal floats
 		{token.FLOAT, "0x0p0", "0x0p0", ""},
@@ -1039,9 +1045,7 @@ func TestNumbers(t *testing.T) {
 		{token.FLOAT, "0x1234PAB", "0x1234P AB", "exponent has no digits"},
 		{token.FLOAT, "0x1.2p1a", "0x1.2p1 a", ""},
 
-		// hexadecimal imaginaries (invalid)
-		{token.IMAG, "0xf00i", "0xf00i", "invalid suffix 'i' on hexadecimal literal"},
-		{token.IMAG, "0xf00.bap+12i", "0xf00.bap+12i", "invalid suffix 'i' on hexadecimal literal"},
+		{token.IMAG, "0xf00.bap+12i", "0xf00.bap+12i", ""},
 
 		// separators
 		{token.INT, "0b_1000_0001", "0b_1000_0001", ""},

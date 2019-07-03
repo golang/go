@@ -4,6 +4,30 @@
 
 #include "textflag.h"
 
+// func Store(ptr *uint32, val uint32)
+TEXT ·Store(SB), NOSPLIT, $0
+	MOVD	ptr+0(FP), R2
+	MOVWZ	val+8(FP), R3
+	MOVW	R3, 0(R2)
+	SYNC
+	RET
+
+// func Store64(ptr *uint64, val uint64)
+TEXT ·Store64(SB), NOSPLIT, $0
+	MOVD	ptr+0(FP), R2
+	MOVD	val+8(FP), R3
+	MOVD	R3, 0(R2)
+	SYNC
+	RET
+
+// func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
+TEXT ·StorepNoWB(SB), NOSPLIT, $0
+	MOVD	ptr+0(FP), R2
+	MOVD	val+8(FP), R3
+	MOVD	R3, 0(R2)
+	SYNC
+	RET
+
 // func Cas(ptr *uint32, old, new uint32) bool
 // Atomically:
 //	if *ptr == old {

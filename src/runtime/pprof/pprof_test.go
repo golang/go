@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !aix,!nacl,!js
+// +build !nacl,!js
 
 package pprof
 
@@ -159,12 +159,27 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
 		t.Skip("skipping on plan9")
 	}
 
-	const maxDuration = 5 * time.Second
+	broken := false
+	switch runtime.GOOS {
+	case "darwin", "dragonfly", "netbsd", "illumos", "solaris":
+		broken = true
+	case "openbsd":
+		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+			broken = true
+		}
+	}
+
+	maxDuration := 5 * time.Second
+	if testing.Short() && broken {
+		// If it's expected to be broken, no point waiting around.
+		maxDuration /= 10
+	}
+
 	// If we're running a long test, start with a long duration
 	// for tests that try to make sure something *doesn't* happen.
 	duration := 5 * time.Second
 	if testing.Short() {
-		duration = 200 * time.Millisecond
+		duration = 100 * time.Millisecond
 	}
 
 	// Profiling tests are inherently flaky, especially on a
@@ -190,14 +205,10 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
 		}
 	}
 
-	switch runtime.GOOS {
-	case "darwin", "dragonfly", "netbsd", "solaris":
-		t.Skipf("ignoring failure on %s; see golang.org/issue/13841", runtime.GOOS)
-	case "openbsd":
-		if runtime.GOARCH == "arm" {
-			t.Skipf("ignoring failure on %s/%s; see golang.org/issue/13841", runtime.GOOS, runtime.GOARCH)
-		}
+	if broken {
+		t.Skipf("ignoring failure on %s/%s; see golang.org/issue/13841", runtime.GOOS, runtime.GOARCH)
 	}
+
 	// Ignore the failure if the tests are running in a QEMU-based emulator,
 	// QEMU is not perfect at emulating everything.
 	// IN_QEMU environmental variable is set by some of the Go builders.

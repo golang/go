@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 )
 
 // Default returns the default cache to use, or nil if no cache should be used.
@@ -37,7 +38,7 @@ See golang.org to learn more about Go.
 // the first time Default is called.
 func initDefaultCache() {
 	dir := DefaultDir()
-	if dir == "off" || dir == "" {
+	if dir == "off" {
 		if defaultDirErr != nil {
 			base.Fatalf("build cache is required, but could not be located: %v", defaultDirErr)
 		}
@@ -73,8 +74,13 @@ func DefaultDir() string {
 	// otherwise distinguish between an explicit "off" and a UserCacheDir error.
 
 	defaultDirOnce.Do(func() {
-		defaultDir = os.Getenv("GOCACHE")
+		defaultDir = cfg.Getenv("GOCACHE")
+		if filepath.IsAbs(defaultDir) || defaultDir == "off" {
+			return
+		}
 		if defaultDir != "" {
+			defaultDir = "off"
+			defaultDirErr = fmt.Errorf("GOCACHE is not an absolute path")
 			return
 		}
 

@@ -77,7 +77,7 @@ func TestMultiWriter_String(t *testing.T) {
 	testMultiWriter(t, new(bytes.Buffer))
 }
 
-// test that a multiWriter.WriteString calls results in at most 1 allocation,
+// Test that a multiWriter.WriteString calls results in at most 1 allocation,
 // even if multiple targets don't support WriteString.
 func TestMultiWriter_WriteStringSingleAlloc(t *testing.T) {
 	var sink1, sink2 bytes.Buffer
@@ -149,7 +149,7 @@ func (f writerFunc) Write(p []byte) (int, error) {
 	return f(p)
 }
 
-// Test that MultiWriter properly flattens chained multiWriters,
+// Test that MultiWriter properly flattens chained multiWriters.
 func TestMultiWriterSingleChainFlatten(t *testing.T) {
 	pc := make([]uintptr, 1000) // 1000 should fit the full stack
 	n := runtime.Callers(0, pc)

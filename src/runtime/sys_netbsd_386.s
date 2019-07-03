@@ -10,9 +10,45 @@
 #include "go_tls.h"
 #include "textflag.h"
 
+#define CLOCK_REALTIME		0
+#define CLOCK_MONOTONIC		3
+#define FD_CLOEXEC		1
+#define F_SETFD			2
+
+#define SYS_exit			1
+#define SYS_read			3
+#define SYS_write			4
+#define SYS_open			5
+#define SYS_close			6
+#define SYS_getpid			20
+#define SYS_kill			37
+#define SYS_munmap			73
+#define SYS_madvise			75
+#define SYS_fcntl			92
+#define SYS_mmap			197
+#define SYS___sysctl			202
+#define SYS___sigaltstack14		281
+#define SYS___sigprocmask14		293
+#define SYS_getcontext			307
+#define SYS_setcontext			308
+#define SYS__lwp_create			309
+#define SYS__lwp_exit			310
+#define SYS__lwp_self			311
+#define SYS__lwp_setprivate		317
+#define SYS__lwp_kill			318
+#define SYS__lwp_unpark			321
+#define SYS___sigaction_sigtramp	340
+#define SYS_kqueue			344
+#define SYS_sched_yield			350
+#define SYS___setitimer50		425
+#define SYS___clock_gettime50		427
+#define SYS___nanosleep50		430
+#define SYS___kevent50			435
+#define SYS____lwp_park60		478
+
 // Exit the entire program (like C exit)
 TEXT runtime·exit(SB),NOSPLIT,$-4
-	MOVL	$1, AX
+	MOVL	$SYS_exit, AX
 	INT	$0x80
 	MOVL	$0xf1, 0xf1		// crash
 	RET
@@ -22,13 +58,13 @@ TEXT runtime·exitThread(SB),NOSPLIT,$0-4
 	MOVL	wait+0(FP), AX
 	// We're done using the stack.
 	MOVL	$0, (AX)
-	MOVL	$310, AX		// sys__lwp_exit
+	MOVL	$SYS__lwp_exit, AX
 	INT	$0x80
 	MOVL	$0xf1, 0xf1		// crash
 	JMP	0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$-4
-	MOVL	$5, AX
+	MOVL	$SYS_open, AX
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$-1, AX
@@ -36,7 +72,7 @@ TEXT runtime·open(SB),NOSPLIT,$-4
 	RET
 
 TEXT runtime·closefd(SB),NOSPLIT,$-4
-	MOVL	$6, AX
+	MOVL	$SYS_close, AX
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$-1, AX
@@ -44,7 +80,7 @@ TEXT runtime·closefd(SB),NOSPLIT,$-4
 	RET
 
 TEXT runtime·read(SB),NOSPLIT,$-4
-	MOVL	$3, AX
+	MOVL	$SYS_read, AX
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$-1, AX
@@ -52,7 +88,7 @@ TEXT runtime·read(SB),NOSPLIT,$-4
 	RET
 
 TEXT runtime·write(SB),NOSPLIT,$-4
-	MOVL	$4, AX			// sys_write
+	MOVL	$SYS_write, AX
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$-1, AX
@@ -74,29 +110,29 @@ TEXT runtime·usleep(SB),NOSPLIT,$24
 	LEAL	12(SP), AX
 	MOVL	AX, 4(SP)		// arg 1 - rqtp
 	MOVL	$0, 8(SP)		// arg 2 - rmtp
-	MOVL	$430, AX		// sys_nanosleep
+	MOVL	$SYS___nanosleep50, AX
 	INT	$0x80
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT,$12
-	MOVL	$311, AX		// sys__lwp_self
+	MOVL	$SYS__lwp_self, AX
 	INT	$0x80
 	MOVL	$0, 0(SP)
 	MOVL	AX, 4(SP)		// arg 1 - target
 	MOVL	sig+0(FP), AX
 	MOVL	AX, 8(SP)		// arg 2 - signo
-	MOVL	$318, AX		// sys__lwp_kill
+	MOVL	$SYS__lwp_kill, AX
 	INT	$0x80
 	RET
 
 TEXT runtime·raiseproc(SB),NOSPLIT,$12
-	MOVL	$20, AX			// sys_getpid
+	MOVL	$SYS_getpid, AX
 	INT	$0x80
 	MOVL	$0, 0(SP)
 	MOVL	AX, 4(SP)		// arg 1 - pid
 	MOVL	sig+0(FP), AX
 	MOVL	AX, 8(SP)		// arg 2 - signo
-	MOVL	$37, AX			// sys_kill
+	MOVL	$SYS_kill, AX
 	INT	$0x80
 	RET
 
@@ -114,7 +150,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$36
 	MOVSL				// arg 7 - offset
 	MOVL	$0, AX			// top 32 bits of file offset
 	STOSL
-	MOVL	$197, AX		// sys_mmap
+	MOVL	$SYS_mmap, AX
 	INT	$0x80
 	JAE	ok
 	MOVL	$0, p+24(FP)
@@ -126,14 +162,14 @@ ok:
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$-4
-	MOVL	$73, AX			// sys_munmap
+	MOVL	$SYS_munmap, AX
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
 TEXT runtime·madvise(SB),NOSPLIT,$-4
-	MOVL	$75, AX			// sys_madvise
+	MOVL	$SYS_madvise, AX
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$-1, AX
@@ -141,16 +177,16 @@ TEXT runtime·madvise(SB),NOSPLIT,$-4
 	RET
 
 TEXT runtime·setitimer(SB),NOSPLIT,$-4
-	MOVL	$425, AX		// sys_setitimer
+	MOVL	$SYS___setitimer50, AX
 	INT	$0x80
 	RET
 
 // func walltime() (sec int64, nsec int32)
 TEXT runtime·walltime(SB), NOSPLIT, $32
 	LEAL	12(SP), BX
-	MOVL	$0, 4(SP)		// arg 1 - clock_id
+	MOVL	$CLOCK_REALTIME, 4(SP)	// arg 1 - clock_id
 	MOVL	BX, 8(SP)		// arg 2 - tp
-	MOVL	$427, AX		// sys_clock_gettime
+	MOVL	$SYS___clock_gettime50, AX
 	INT	$0x80
 
 	MOVL	12(SP), AX		// sec - l32
@@ -166,9 +202,9 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 // void nanotime(int64 *nsec)
 TEXT runtime·nanotime(SB),NOSPLIT,$32
 	LEAL	12(SP), BX
-	MOVL	$3, 4(SP)		// arg 1 - clock_id CLOCK_MONOTONIC
+	MOVL	$CLOCK_MONOTONIC, 4(SP)	// arg 1 - clock_id
 	MOVL	BX, 8(SP)		// arg 2 - tp
-	MOVL	$427, AX		// sys_clock_gettime
+	MOVL	$SYS___clock_gettime50, AX
 	INT	$0x80
 
 	MOVL	16(SP), CX		// sec - h32
@@ -187,26 +223,26 @@ TEXT runtime·nanotime(SB),NOSPLIT,$32
 	RET
 
 TEXT runtime·getcontext(SB),NOSPLIT,$-4
-	MOVL	$307, AX		// sys_getcontext
+	MOVL	$SYS_getcontext, AX
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$-4
-	MOVL	$293, AX		// sys_sigprocmask
+	MOVL	$SYS___sigprocmask14, AX
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·sigreturn_tramp(SB),NOSPLIT,$0
+TEXT sigreturn_tramp<>(SB),NOSPLIT,$0
 	LEAL	140(SP), AX		// Load address of ucontext
 	MOVL	AX, 4(SP)
-	MOVL	$308, AX		// sys_setcontext
+	MOVL	$SYS_setcontext, AX
 	INT	$0x80
 	MOVL	$-1, 4(SP)		// Something failed...
-	MOVL	$1, AX			// sys_exit
+	MOVL	$SYS_exit, AX
 	INT	$0x80
 
 TEXT runtime·sigaction(SB),NOSPLIT,$24
@@ -216,11 +252,11 @@ TEXT runtime·sigaction(SB),NOSPLIT,$24
 	MOVSL				// arg 1 - sig
 	MOVSL				// arg 2 - act
 	MOVSL				// arg 3 - oact
-	LEAL	runtime·sigreturn_tramp(SB), AX
+	LEAL	sigreturn_tramp<>(SB), AX
 	STOSL				// arg 4 - tramp
 	MOVL	$2, AX
 	STOSL				// arg 5 - vers
-	MOVL	$340, AX		// sys___sigaction_sigtramp
+	MOVL	$SYS___sigaction_sigtramp, AX
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$0xf1, 0xf1		// crash
@@ -243,7 +279,9 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
 	MOVL	AX, SP
 	RET
 
+// Called by OS using C ABI.
 TEXT runtime·sigtramp(SB),NOSPLIT,$28
+	NOP	SP	// tell vet SP changed - stop checking offsets
 	// Save callee-saved C registers, since the caller may be a C signal handler.
 	MOVL	BX, bx-4(SP)
 	MOVL	BP, bp-8(SP)
@@ -252,11 +290,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$28
 	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
 	// modify them.
 
-	MOVL	signo+0(FP), BX
+	MOVL	32(SP), BX // signo
 	MOVL	BX, 0(SP)
-	MOVL	info+4(FP), BX
+	MOVL	36(SP), BX // info
 	MOVL	BX, 4(SP)
-	MOVL	context+8(FP), BX
+	MOVL	40(SP), BX // context
 	MOVL	BX, 8(SP)
 	CALL	runtime·sigtrampgo(SB)
 
@@ -275,7 +313,7 @@ TEXT runtime·lwp_create(SB),NOSPLIT,$16
 	MOVL	AX, 8(SP)		// arg 2 - flags
 	MOVL	lwpid+8(FP), AX
 	MOVL	AX, 12(SP)		// arg 3 - lwpid
-	MOVL	$309, AX		// sys__lwp_create
+	MOVL	$SYS__lwp_create, AX
 	INT	$0x80
 	JCC	2(PC)
 	NEGL	AX
@@ -288,7 +326,7 @@ TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
 	LEAL	m_tls(BX), BP
 	PUSHAL				// save registers
 	PUSHL	BP
-	CALL	runtime·settls(SB)
+	CALL	lwp_setprivate<>(SB)
 	POPL	AX
 	POPAL
 
@@ -314,7 +352,7 @@ TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
-	MOVL	$281, AX		// sys___sigaltstack14
+	MOVL	$SYS___sigaltstack14, AX
 	MOVL	new+0(FP), BX
 	MOVL	old+4(FP), CX
 	INT	$0x80
@@ -325,42 +363,42 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 
 TEXT runtime·setldt(SB),NOSPLIT,$8
 	// Under NetBSD we set the GS base instead of messing with the LDT.
-	MOVL	16(SP), AX		// tls0
+	MOVL	base+4(FP), AX
 	MOVL	AX, 0(SP)
-	CALL	runtime·settls(SB)
+	CALL	lwp_setprivate<>(SB)
 	RET
 
-TEXT runtime·settls(SB),NOSPLIT,$16
+TEXT lwp_setprivate<>(SB),NOSPLIT,$16
 	// adjust for ELF: wants to use -4(GS) for g
 	MOVL	base+0(FP), CX
 	ADDL	$4, CX
 	MOVL	$0, 0(SP)		// syscall gap
 	MOVL	CX, 4(SP)		// arg 1 - ptr
-	MOVL	$317, AX		// sys__lwp_setprivate
+	MOVL	$SYS__lwp_setprivate, AX
 	INT	$0x80
 	JCC	2(PC)
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
 TEXT runtime·osyield(SB),NOSPLIT,$-4
-	MOVL	$350, AX		// sys_sched_yield
+	MOVL	$SYS_sched_yield, AX
 	INT	$0x80
 	RET
 
 TEXT runtime·lwp_park(SB),NOSPLIT,$-4
-	MOVL	$478, AX		// sys__lwp_park
+	MOVL	$SYS____lwp_park60, AX
 	INT	$0x80
 	MOVL	AX, ret+24(FP)
 	RET
 
 TEXT runtime·lwp_unpark(SB),NOSPLIT,$-4
-	MOVL	$321, AX		// sys__lwp_unpark
+	MOVL	$SYS__lwp_unpark, AX
 	INT	$0x80
 	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·lwp_self(SB),NOSPLIT,$-4
-	MOVL	$311, AX		// sys__lwp_self
+	MOVL	$SYS__lwp_self, AX
 	INT	$0x80
 	MOVL	AX, ret+0(FP)
 	RET
@@ -375,7 +413,7 @@ TEXT runtime·sysctl(SB),NOSPLIT,$28
 	MOVSL				// arg 4 - oldlenp
 	MOVSL				// arg 5 - newp
 	MOVSL				// arg 6 - newlen
-	MOVL	$202, AX		// sys___sysctl
+	MOVL	$SYS___sysctl, AX
 	INT	$0x80
 	JAE	4(PC)
 	NEGL	AX
@@ -389,7 +427,7 @@ GLOBL runtime·tlsoffset(SB),NOPTR,$4
 
 // int32 runtime·kqueue(void)
 TEXT runtime·kqueue(SB),NOSPLIT,$0
-	MOVL	$344, AX
+	MOVL	$SYS_kqueue, AX
 	INT	$0x80
 	JAE	2(PC)
 	NEGL	AX
@@ -398,7 +436,7 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
 
 // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout)
 TEXT runtime·kevent(SB),NOSPLIT,$0
-	MOVL	$435, AX
+	MOVL	$SYS___kevent50, AX
 	INT	$0x80
 	JAE	2(PC)
 	NEGL	AX
@@ -407,12 +445,12 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
 
 // int32 runtime·closeonexec(int32 fd)
 TEXT runtime·closeonexec(SB),NOSPLIT,$32
-	MOVL	$92, AX		// fcntl
+	MOVL	$SYS_fcntl, AX
 	// 0(SP) is where the caller PC would be; kernel skips it
 	MOVL	fd+0(FP), BX
 	MOVL	BX, 4(SP)	// fd
-	MOVL	$2, 8(SP)	// F_SETFD
-	MOVL	$1, 12(SP)	// FD_CLOEXEC
+	MOVL	$F_SETFD, 8(SP)
+	MOVL	$FD_CLOEXEC, 12(SP)
 	INT	$0x80
 	JAE	2(PC)
 	NEGL	AX

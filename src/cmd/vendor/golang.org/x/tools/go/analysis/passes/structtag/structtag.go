@@ -41,7 +41,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	}
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
 		styp := pass.TypesInfo.Types[n.(*ast.StructType)].Type.(*types.Struct)
-		var seen map[[2]string]token.Pos
+		var seen namesSeen
 		for i := 0; i < styp.NumFields(); i++ {
 			field := styp.Field(i)
 			tag := styp.Tag(i)
@@ -51,13 +51,47 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
+// namesSeen keeps track of encoding tags by their key, name, and nested level
+// from the initial struct. The level is taken into account because equal
+// encoding key names only conflict when at the same level; otherwise, the lower
+// level shadows the higher level.
+type namesSeen map[uniqueName]token.Pos
+
+type uniqueName struct {
+	key   string // "xml" or "json"
+	name  string // the encoding name
+	level int    // anonymous struct nesting level
+}
+
+func (s *namesSeen) Get(key, name string, level int) (token.Pos, bool) {
+	if *s == nil {
+		*s = make(map[uniqueName]token.Pos)
+	}
+	pos, ok := (*s)[uniqueName{key, name, level}]
+	return pos, ok
+}
+
+func (s *namesSeen) Set(key, name string, level int, pos token.Pos) {
+	if *s == nil {
+		*s = make(map[uniqueName]token.Pos)
+	}
+	(*s)[uniqueName{key, name, level}] = pos
+}
+
 var checkTagDups = []string{"json", "xml"}
 var checkTagSpaces = map[string]bool{"json": true, "xml": true, "asn1": true}
 
 // checkCanonicalFieldTag checks a single struct field tag.
-func checkCanonicalFieldTag(pass *analysis.Pass, field *types.Var, tag string, seen *map[[2]string]token.Pos) {
+func checkCanonicalFieldTag(pass *analysis.Pass, field *types.Var, tag string, seen *namesSeen) {
+	switch pass.Pkg.Path() {
+	case "encoding/json", "encoding/xml":
+		// These packages know how to use their own APIs.
+		// Sometimes they are testing what happens to incorrect programs.
+		return
+	}
+
 	for _, key := range checkTagDups {
-		checkTagDuplicates(pass, tag, key, field, field, seen)
+		checkTagDuplicates(pass, tag, key, field, field, seen, 1)
 	}
 
 	if err := validateStructTag(tag); err != nil {
@@ -88,28 +122,29 @@ func checkCanonicalFieldTag(pass *analysis.Pass, field *types.Var, tag string, s
 // checkTagDuplicates checks a single struct field tag to see if any tags are
 // duplicated. nearest is the field that's closest to the field being checked,
 // while still being part of the top-level struct type.
-func checkTagDuplicates(pass *analysis.Pass, tag, key string, nearest, field *types.Var, seen *map[[2]string]token.Pos) {
+func checkTagDuplicates(pass *analysis.Pass, tag, key string, nearest, field *types.Var, seen *namesSeen, level int) {
 	val := reflect.StructTag(tag).Get(key)
 	if val == "-" {
 		// Ignored, even if the field is anonymous.
 		return
 	}
 	if val == "" || val[0] == ',' {
-		if field.Anonymous() {
-			typ, ok := field.Type().Underlying().(*types.Struct)
-			if !ok {
-				return
-			}
-			for i := 0; i < typ.NumFields(); i++ {
-				field := typ.Field(i)
-				if !field.Exported() {
-					continue
-				}
-				tag := typ.Tag(i)
-				checkTagDuplicates(pass, tag, key, nearest, field, seen)
-			}
+		if !field.Anonymous() {
+			// Ignored if the field isn't anonymous.
+			return
 		}
-		// Ignored if the field isn't anonymous.
+		typ, ok := field.Type().Underlying().(*types.Struct)
+		if !ok {
+			return
+		}
+		for i := 0; i < typ.NumFields(); i++ {
+			field := typ.Field(i)
+			if !field.Exported() {
+				continue
+			}
+			tag := typ.Tag(i)
+			checkTagDuplicates(pass, tag, key, nearest, field, seen, level+1)
+		}
 		return
 	}
 	if key == "xml" && field.Name() == "XMLName" {
@@ -132,10 +167,7 @@ func checkTagDuplicates(pass *analysis.Pass, tag, key string, nearest, field *ty
 		}
 		val = val[:i]
 	}
-	if *seen == nil {
-		*seen = map[[2]string]token.Pos{}
-	}
-	if pos, ok := (*seen)[[2]string{key, val}]; ok {
+	if pos, ok := seen.Get(key, val, level); ok {
 		alsoPos := pass.Fset.Position(pos)
 		alsoPos.Column = 0
 
@@ -154,7 +186,7 @@ func checkTagDuplicates(pass *analysis.Pass, tag, key string, nearest, field *ty
 
 		pass.Reportf(nearest.Pos(), "struct field %s repeats %s tag %q also at %s", field.Name(), key, val, alsoPos)
 	} else {
-		(*seen)[[2]string{key, val}] = field.Pos()
+		seen.Set(key, val, level, field.Pos())
 	}
 }
 

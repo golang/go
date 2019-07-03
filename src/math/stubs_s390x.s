@@ -4,509 +4,512 @@
 
 #include "textflag.h"
 
-TEXT ·Exp2(SB),NOSPLIT,$0
+TEXT ·Exp2(SB), NOSPLIT, $0
 	BR ·exp2(SB)
 
-TEXT ·Frexp(SB),NOSPLIT,$0
+TEXT ·Frexp(SB), NOSPLIT, $0
 	BR ·frexp(SB)
 
-TEXT ·Hypot(SB),NOSPLIT,$0
+TEXT ·Hypot(SB), NOSPLIT, $0
 	BR ·hypot(SB)
 
-TEXT ·Ldexp(SB),NOSPLIT,$0
+TEXT ·Ldexp(SB), NOSPLIT, $0
 	BR ·ldexp(SB)
 
-TEXT ·Log2(SB),NOSPLIT,$0
+TEXT ·Log2(SB), NOSPLIT, $0
 	BR ·log2(SB)
 
-TEXT ·Modf(SB),NOSPLIT,$0
+TEXT ·Modf(SB), NOSPLIT, $0
 	BR ·modf(SB)
 
-TEXT ·Mod(SB),NOSPLIT,$0
+TEXT ·Mod(SB), NOSPLIT, $0
 	BR ·mod(SB)
 
-TEXT ·Remainder(SB),NOSPLIT,$0
+TEXT ·Remainder(SB), NOSPLIT, $0
 	BR ·remainder(SB)
 
-//if go assembly use vector instruction
-TEXT ·hasVectorFacility(SB),NOSPLIT,$24-1
-	MOVD    $x-24(SP), R1
-	XC      $24, 0(R1), 0(R1) // clear the storage
-	MOVD    $2, R0            // R0 is the number of double words stored -1
-	WORD    $0xB2B01000       // STFLE 0(R1)
-	XOR     R0, R0            // reset the value of R0
-	MOVBZ   z-8(SP), R1
-	AND     $0x40, R1
-	BEQ     novector
+// if go assembly use vector instruction
+TEXT ·hasVectorFacility(SB), NOSPLIT, $24-1
+	MOVD  $x-24(SP), R1
+	XC    $24, 0(R1), 0(R1) // clear the storage
+	MOVD  $2, R0            // R0 is the number of double words stored -1
+	WORD  $0xB2B01000       // STFLE 0(R1)
+	XOR   R0, R0            // reset the value of R0
+	MOVBZ z-8(SP), R1
+	AND   $0x40, R1
+	BEQ   novector
+
 vectorinstalled:
 	// check if the vector instruction has been enabled
-	VLEIB   $0, $0xF, V16
-	VLGVB   $0, V16, R1
-	CMPBNE  R1, $0xF, novector
-	MOVB    $1, ret+0(FP) // have vx
+	VLEIB  $0, $0xF, V16
+	VLGVB  $0, V16, R1
+	CMPBNE R1, $0xF, novector
+	MOVB   $1, ret+0(FP)      // have vx
 	RET
+
 novector:
-	MOVB    $0, ret+0(FP) // no vx
+	MOVB $0, ret+0(FP) // no vx
 	RET
 
-TEXT ·Log10(SB),NOSPLIT,$0
-	MOVD    ·log10vectorfacility+0x00(SB),R1
-	BR      (R1)
+TEXT ·Log10(SB), NOSPLIT, $0
+	MOVD ·log10vectorfacility+0x00(SB), R1
+	BR   (R1)
 
-TEXT ·log10TrampolineSetup(SB),NOSPLIT, $0
-	MOVB    ·hasVX(SB), R1
-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
-	MOVD    $·log10vectorfacility+0x00(SB), R1
-	MOVD    $·log10(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·log10(SB)
+TEXT ·log10TrampolineSetup(SB), NOSPLIT, $0
+	MOVB   ·hasVX(SB), R1
+	CMPBEQ R1, $1, vectorimpl                 // vectorfacility = 1, vector supported
+	MOVD   $·log10vectorfacility+0x00(SB), R1
+	MOVD   $·log10(SB), R2
+	MOVD   R2, 0(R1)
+	BR     ·log10(SB)
+
 vectorimpl:
-	MOVD    $·log10vectorfacility+0x00(SB), R1
-	MOVD    $·log10Asm(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·log10Asm(SB)
+	MOVD $·log10vectorfacility+0x00(SB), R1
+	MOVD $·log10Asm(SB), R2
+	MOVD R2, 0(R1)
+	BR   ·log10Asm(SB)
 
 GLOBL ·log10vectorfacility+0x00(SB), NOPTR, $8
 DATA ·log10vectorfacility+0x00(SB)/8, $·log10TrampolineSetup(SB)
 
+TEXT ·Cos(SB), NOSPLIT, $0
+	MOVD ·cosvectorfacility+0x00(SB), R1
+	BR   (R1)
 
-TEXT ·Cos(SB),NOSPLIT,$0
-	MOVD    ·cosvectorfacility+0x00(SB),R1
-	BR      (R1)
+TEXT ·cosTrampolineSetup(SB), NOSPLIT, $0
+	MOVB   ·hasVX(SB), R1
+	CMPBEQ R1, $1, vectorimpl               // vectorfacility = 1, vector supported
+	MOVD   $·cosvectorfacility+0x00(SB), R1
+	MOVD   $·cos(SB), R2
+	MOVD   R2, 0(R1)
+	BR     ·cos(SB)
 
-TEXT ·cosTrampolineSetup(SB),NOSPLIT, $0
-	MOVB    ·hasVX(SB), R1
-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
-	MOVD    $·cosvectorfacility+0x00(SB), R1
-	MOVD    $·cos(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·cos(SB)
 vectorimpl:
-	MOVD    $·cosvectorfacility+0x00(SB), R1
-	MOVD    $·cosAsm(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·cosAsm(SB)
+	MOVD $·cosvectorfacility+0x00(SB), R1
+	MOVD $·cosAsm(SB), R2
+	MOVD R2, 0(R1)
+	BR   ·cosAsm(SB)
 
 GLOBL ·cosvectorfacility+0x00(SB), NOPTR, $8
 DATA ·cosvectorfacility+0x00(SB)/8, $·cosTrampolineSetup(SB)
 
+TEXT ·Cosh(SB), NOSPLIT, $0
+	MOVD ·coshvectorfacility+0x00(SB), R1
+	BR   (R1)
 
-TEXT ·Cosh(SB),NOSPLIT,$0
-	MOVD    ·coshvectorfacility+0x00(SB),R1
-	BR      (R1)
+TEXT ·coshTrampolineSetup(SB), NOSPLIT, $0
+	MOVB   ·hasVX(SB), R1
+	CMPBEQ R1, $1, vectorimpl                // vectorfacility = 1, vector supported
+	MOVD   $·coshvectorfacility+0x00(SB), R1
+	MOVD   $·cosh(SB), R2
+	MOVD   R2, 0(R1)
+	BR     ·cosh(SB)
 
-TEXT ·coshTrampolineSetup(SB),NOSPLIT, $0
-	MOVB    ·hasVX(SB), R1
-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
-	MOVD    $·coshvectorfacility+0x00(SB), R1
-	MOVD    $·cosh(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·cosh(SB)
 vectorimpl:
-	MOVD    $·coshvectorfacility+0x00(SB), R1
-	MOVD    $·coshAsm(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·coshAsm(SB)
+	MOVD $·coshvectorfacility+0x00(SB), R1
+	MOVD $·coshAsm(SB), R2
+	MOVD R2, 0(R1)
+	BR   ·coshAsm(SB)
 
 GLOBL ·coshvectorfacility+0x00(SB), NOPTR, $8
 DATA ·coshvectorfacility+0x00(SB)/8, $·coshTrampolineSetup(SB)
 
+TEXT ·Sin(SB), NOSPLIT, $0
+	MOVD ·sinvectorfacility+0x00(SB), R1
+	BR   (R1)
 
-TEXT ·Sin(SB),NOSPLIT,$0
-	MOVD    ·sinvectorfacility+0x00(SB),R1
-	BR      (R1)
+TEXT ·sinTrampolineSetup(SB), NOSPLIT, $0
+	MOVB   ·hasVX(SB), R1
+	CMPBEQ R1, $1, vectorimpl               // vectorfacility = 1, vector supported
+	MOVD   $·sinvectorfacility+0x00(SB), R1
+	MOVD   $·sin(SB), R2
+	MOVD   R2, 0(R1)
+	BR     ·sin(SB)
 
-TEXT ·sinTrampolineSetup(SB),NOSPLIT, $0
-	MOVB    ·hasVX(SB), R1
-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
-	MOVD    $·sinvectorfacility+0x00(SB), R1
-	MOVD    $·sin(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·sin(SB)
 vectorimpl:
-	MOVD    $·sinvectorfacility+0x00(SB), R1
-	MOVD    $·sinAsm(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·sinAsm(SB)
+	MOVD $·sinvectorfacility+0x00(SB), R1
+	MOVD $·sinAsm(SB), R2
+	MOVD R2, 0(R1)
+	BR   ·sinAsm(SB)
 
 GLOBL ·sinvectorfacility+0x00(SB), NOPTR, $8
 DATA ·sinvectorfacility+0x00(SB)/8, $·sinTrampolineSetup(SB)
 
+TEXT ·Sinh(SB), NOSPLIT, $0
+	MOVD ·sinhvectorfacility+0x00(SB), R1
+	BR   (R1)
 
-TEXT ·Sinh(SB),NOSPLIT,$0
-	MOVD    ·sinhvectorfacility+0x00(SB),R1
-	BR      (R1)
+TEXT ·sinhTrampolineSetup(SB), NOSPLIT, $0
+	MOVB   ·hasVX(SB), R1
+	CMPBEQ R1, $1, vectorimpl                // vectorfacility = 1, vector supported
+	MOVD   $·sinhvectorfacility+0x00(SB), R1
+	MOVD   $·sinh(SB), R2
+	MOVD   R2, 0(R1)
+	BR     ·sinh(SB)
 
-TEXT ·sinhTrampolineSetup(SB),NOSPLIT, $0
-	MOVB    ·hasVX(SB), R1
-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
-	MOVD    $·sinhvectorfacility+0x00(SB), R1
-	MOVD    $·sinh(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·sinh(SB)
 vectorimpl:
-	MOVD    $·sinhvectorfacility+0x00(SB), R1
-	MOVD    $·sinhAsm(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·sinhAsm(SB)
+	MOVD $·sinhvectorfacility+0x00(SB), R1
+	MOVD $·sinhAsm(SB), R2
+	MOVD R2, 0(R1)
+	BR   ·sinhAsm(SB)
 
 GLOBL ·sinhvectorfacility+0x00(SB), NOPTR, $8
 DATA ·sinhvectorfacility+0x00(SB)/8, $·sinhTrampolineSetup(SB)
 
+TEXT ·Tanh(SB), NOSPLIT, $0
+	MOVD ·tanhvectorfacility+0x00(SB), R1
+	BR   (R1)
 
-TEXT ·Tanh(SB),NOSPLIT,$0
-	MOVD    ·tanhvectorfacility+0x00(SB),R1
-	BR      (R1)
+TEXT ·tanhTrampolineSetup(SB), NOSPLIT, $0
+	MOVB   ·hasVX(SB), R1
+	CMPBEQ R1, $1, vectorimpl                // vectorfacility = 1, vector supported
+	MOVD   $·tanhvectorfacility+0x00(SB), R1
+	MOVD   $·tanh(SB), R2
+	MOVD   R2, 0(R1)
+	BR     ·tanh(SB)
 
-TEXT ·tanhTrampolineSetup(SB),NOSPLIT, $0
-	MOVB    ·hasVX(SB), R1
-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
-	MOVD    $·tanhvectorfacility+0x00(SB), R1
-	MOVD    $·tanh(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·tanh(SB)
 vectorimpl:
-	MOVD    $·tanhvectorfacility+0x00(SB), R1
-	MOVD    $·tanhAsm(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·tanhAsm(SB)
+	MOVD $·tanhvectorfacility+0x00(SB), R1
+	MOVD $·tanhAsm(SB), R2
+	MOVD R2, 0(R1)
+	BR   ·tanhAsm(SB)
 
 GLOBL ·tanhvectorfacility+0x00(SB), NOPTR, $8
 DATA ·tanhvectorfacility+0x00(SB)/8, $·tanhTrampolineSetup(SB)
 
+TEXT ·Log1p(SB), NOSPLIT, $0
+	MOVD ·log1pvectorfacility+0x00(SB), R1
+	BR   (R1)
 
-TEXT ·Log1p(SB),NOSPLIT,$0
-	MOVD    ·log1pvectorfacility+0x00(SB),R1
-	BR      (R1)
+TEXT ·log1pTrampolineSetup(SB), NOSPLIT, $0
+	MOVB   ·hasVX(SB), R1
+	CMPBEQ R1, $1, vectorimpl                 // vectorfacility = 1, vector supported
+	MOVD   $·log1pvectorfacility+0x00(SB), R1
+	MOVD   $·log1p(SB), R2
+	MOVD   R2, 0(R1)
+	BR     ·log1p(SB)
 
-TEXT ·log1pTrampolineSetup(SB),NOSPLIT, $0
-	MOVB    ·hasVX(SB), R1
-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
-	MOVD    $·log1pvectorfacility+0x00(SB), R1
-	MOVD    $·log1p(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·log1p(SB)
 vectorimpl:
-	MOVD    $·log1pvectorfacility+0x00(SB), R1
-	MOVD    $·log1pAsm(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·log1pAsm(SB)
+	MOVD $·log1pvectorfacility+0x00(SB), R1
+	MOVD $·log1pAsm(SB), R2
+	MOVD R2, 0(R1)
+	BR   ·log1pAsm(SB)
 
 GLOBL ·log1pvectorfacility+0x00(SB), NOPTR, $8
 DATA ·log1pvectorfacility+0x00(SB)/8, $·log1pTrampolineSetup(SB)
 
+TEXT ·Atanh(SB), NOSPLIT, $0
+	MOVD ·atanhvectorfacility+0x00(SB), R1
+	BR   (R1)
 
-TEXT ·Atanh(SB),NOSPLIT,$0
-	MOVD    ·atanhvectorfacility+0x00(SB),R1
-	BR      (R1)
+TEXT ·atanhTrampolineSetup(SB), NOSPLIT, $0
+	MOVB   ·hasVX(SB), R1
+	CMPBEQ R1, $1, vectorimpl                 // vectorfacility = 1, vector supported
+	MOVD   $·atanhvectorfacility+0x00(SB), R1
+	MOVD   $·atanh(SB), R2
+	MOVD   R2, 0(R1)
+	BR     ·atanh(SB)
 
-TEXT ·atanhTrampolineSetup(SB),NOSPLIT, $0
-	MOVB    ·hasVX(SB), R1
-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
-	MOVD    $·atanhvectorfacility+0x00(SB), R1
-	MOVD    $·atanh(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·atanh(SB)
 vectorimpl:
-	MOVD    $·atanhvectorfacility+0x00(SB), R1
-	MOVD    $·atanhAsm(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·atanhAsm(SB)
+	MOVD $·atanhvectorfacility+0x00(SB), R1
+	MOVD $·atanhAsm(SB), R2
+	MOVD R2, 0(R1)
+	BR   ·atanhAsm(SB)
 
 GLOBL ·atanhvectorfacility+0x00(SB), NOPTR, $8
 DATA ·atanhvectorfacility+0x00(SB)/8, $·atanhTrampolineSetup(SB)
 
+TEXT ·Acos(SB), NOSPLIT, $0
+	MOVD ·acosvectorfacility+0x00(SB), R1
+	BR   (R1)
 
-TEXT ·Acos(SB),NOSPLIT,$0
-	MOVD    ·acosvectorfacility+0x00(SB),R1
-	BR      (R1)
+TEXT ·acosTrampolineSetup(SB), NOSPLIT, $0
+	MOVB   ·hasVX(SB), R1
+	CMPBEQ R1, $1, vectorimpl                // vectorfacility = 1, vector supported
+	MOVD   $·acosvectorfacility+0x00(SB), R1
+	MOVD   $·acos(SB), R2
+	MOVD   R2, 0(R1)
+	BR     ·acos(SB)
 
-TEXT ·acosTrampolineSetup(SB),NOSPLIT, $0
-	MOVB    ·hasVX(SB), R1
-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
-	MOVD    $·acosvectorfacility+0x00(SB), R1
-	MOVD    $·acos(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·acos(SB)
 vectorimpl:
-	MOVD    $·acosvectorfacility+0x00(SB), R1
-	MOVD    $·acosAsm(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·acosAsm(SB)
+	MOVD $·acosvectorfacility+0x00(SB), R1
+	MOVD $·acosAsm(SB), R2
+	MOVD R2, 0(R1)
+	BR   ·acosAsm(SB)
 
 GLOBL ·acosvectorfacility+0x00(SB), NOPTR, $8
 DATA ·acosvectorfacility+0x00(SB)/8, $·acosTrampolineSetup(SB)
 
+TEXT ·Asin(SB), NOSPLIT, $0
+	MOVD ·asinvectorfacility+0x00(SB), R1
+	BR   (R1)
 
-TEXT ·Asin(SB),NOSPLIT,$0
-	MOVD    ·asinvectorfacility+0x00(SB),R1
-	BR      (R1)
+TEXT ·asinTrampolineSetup(SB), NOSPLIT, $0
+	MOVB   ·hasVX(SB), R1
+	CMPBEQ R1, $1, vectorimpl                // vectorfacility = 1, vector supported
+	MOVD   $·asinvectorfacility+0x00(SB), R1
+	MOVD   $·asin(SB), R2
+	MOVD   R2, 0(R1)
+	BR     ·asin(SB)
 
-TEXT ·asinTrampolineSetup(SB),NOSPLIT, $0
-	MOVB    ·hasVX(SB), R1
-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
-	MOVD    $·asinvectorfacility+0x00(SB), R1
-	MOVD    $·asin(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·asin(SB)
 vectorimpl:
-	MOVD    $·asinvectorfacility+0x00(SB), R1
-	MOVD    $·asinAsm(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·asinAsm(SB)
+	MOVD $·asinvectorfacility+0x00(SB), R1
+	MOVD $·asinAsm(SB), R2
+	MOVD R2, 0(R1)
+	BR   ·asinAsm(SB)
 
 GLOBL ·asinvectorfacility+0x00(SB), NOPTR, $8
 DATA ·asinvectorfacility+0x00(SB)/8, $·asinTrampolineSetup(SB)
 
+TEXT ·Asinh(SB), NOSPLIT, $0
+	MOVD ·asinhvectorfacility+0x00(SB), R1
+	BR   (R1)
 
-TEXT ·Asinh(SB),NOSPLIT,$0
-	MOVD    ·asinhvectorfacility+0x00(SB),R1
-	BR      (R1)
+TEXT ·asinhTrampolineSetup(SB), NOSPLIT, $0
+	MOVB   ·hasVX(SB), R1
+	CMPBEQ R1, $1, vectorimpl                 // vectorfacility = 1, vector supported
+	MOVD   $·asinhvectorfacility+0x00(SB), R1
+	MOVD   $·asinh(SB), R2
+	MOVD   R2, 0(R1)
+	BR     ·asinh(SB)
 
-TEXT ·asinhTrampolineSetup(SB),NOSPLIT, $0
-	MOVB    ·hasVX(SB), R1
-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
-	MOVD    $·asinhvectorfacility+0x00(SB), R1
-	MOVD    $·asinh(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·asinh(SB)
 vectorimpl:
-	MOVD    $·asinhvectorfacility+0x00(SB), R1
-	MOVD    $·asinhAsm(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·asinhAsm(SB)
+	MOVD $·asinhvectorfacility+0x00(SB), R1
+	MOVD $·asinhAsm(SB), R2
+	MOVD R2, 0(R1)
+	BR   ·asinhAsm(SB)
 
 GLOBL ·asinhvectorfacility+0x00(SB), NOPTR, $8
 DATA ·asinhvectorfacility+0x00(SB)/8, $·asinhTrampolineSetup(SB)
 
+TEXT ·Acosh(SB), NOSPLIT, $0
+	MOVD ·acoshvectorfacility+0x00(SB), R1
+	BR   (R1)
 
-TEXT ·Acosh(SB),NOSPLIT,$0
-	MOVD    ·acoshvectorfacility+0x00(SB),R1
-	BR      (R1)
+TEXT ·acoshTrampolineSetup(SB), NOSPLIT, $0
+	MOVB   ·hasVX(SB), R1
+	CMPBEQ R1, $1, vectorimpl                 // vectorfacility = 1, vector supported
+	MOVD   $·acoshvectorfacility+0x00(SB), R1
+	MOVD   $·acosh(SB), R2
+	MOVD   R2, 0(R1)
+	BR     ·acosh(SB)
 
-TEXT ·acoshTrampolineSetup(SB),NOSPLIT, $0
-	MOVB    ·hasVX(SB), R1
-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
-	MOVD    $·acoshvectorfacility+0x00(SB), R1
-	MOVD    $·acosh(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·acosh(SB)
 vectorimpl:
-	MOVD    $·acoshvectorfacility+0x00(SB), R1
-	MOVD    $·acoshAsm(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·acoshAsm(SB)
+	MOVD $·acoshvectorfacility+0x00(SB), R1
+	MOVD $·acoshAsm(SB), R2
+	MOVD R2, 0(R1)
+	BR   ·acoshAsm(SB)
 
 GLOBL ·acoshvectorfacility+0x00(SB), NOPTR, $8
 DATA ·acoshvectorfacility+0x00(SB)/8, $·acoshTrampolineSetup(SB)
 
+TEXT ·Erf(SB), NOSPLIT, $0
+	MOVD ·erfvectorfacility+0x00(SB), R1
+	BR   (R1)
 
-TEXT ·Erf(SB),NOSPLIT,$0
-	MOVD    ·erfvectorfacility+0x00(SB),R1
-	BR      (R1)
+TEXT ·erfTrampolineSetup(SB), NOSPLIT, $0
+	MOVB   ·hasVX(SB), R1
+	CMPBEQ R1, $1, vectorimpl               // vectorfacility = 1, vector supported
+	MOVD   $·erfvectorfacility+0x00(SB), R1
+	MOVD   $·erf(SB), R2
+	MOVD   R2, 0(R1)
+	BR     ·erf(SB)
 
-TEXT ·erfTrampolineSetup(SB),NOSPLIT, $0
-	MOVB    ·hasVX(SB), R1
-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
-	MOVD    $·erfvectorfacility+0x00(SB), R1
-	MOVD    $·erf(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·erf(SB)
 vectorimpl:
-	MOVD    $·erfvectorfacility+0x00(SB), R1
-	MOVD    $·erfAsm(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·erfAsm(SB)
+	MOVD $·erfvectorfacility+0x00(SB), R1
+	MOVD $·erfAsm(SB), R2
+	MOVD R2, 0(R1)
+	BR   ·erfAsm(SB)
 
 GLOBL ·erfvectorfacility+0x00(SB), NOPTR, $8
 DATA ·erfvectorfacility+0x00(SB)/8, $·erfTrampolineSetup(SB)
 
+TEXT ·Erfc(SB), NOSPLIT, $0
+	MOVD ·erfcvectorfacility+0x00(SB), R1
+	BR   (R1)
 
-TEXT ·Erfc(SB),NOSPLIT,$0
-	MOVD    ·erfcvectorfacility+0x00(SB),R1
-	BR      (R1)
+TEXT ·erfcTrampolineSetup(SB), NOSPLIT, $0
+	MOVB   ·hasVX(SB), R1
+	CMPBEQ R1, $1, vectorimpl                // vectorfacility = 1, vector supported
+	MOVD   $·erfcvectorfacility+0x00(SB), R1
+	MOVD   $·erfc(SB), R2
+	MOVD   R2, 0(R1)
+	BR     ·erfc(SB)
 
-TEXT ·erfcTrampolineSetup(SB),NOSPLIT, $0
-	MOVB    ·hasVX(SB), R1
-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
-	MOVD    $·erfcvectorfacility+0x00(SB), R1
-	MOVD    $·erfc(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·erfc(SB)
 vectorimpl:
-	MOVD    $·erfcvectorfacility+0x00(SB), R1
-	MOVD    $·erfcAsm(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·erfcAsm(SB)
+	MOVD $·erfcvectorfacility+0x00(SB), R1
+	MOVD $·erfcAsm(SB), R2
+	MOVD R2, 0(R1)
+	BR   ·erfcAsm(SB)
 
 GLOBL ·erfcvectorfacility+0x00(SB), NOPTR, $8
 DATA ·erfcvectorfacility+0x00(SB)/8, $·erfcTrampolineSetup(SB)
 
+TEXT ·Atan(SB), NOSPLIT, $0
+	MOVD ·atanvectorfacility+0x00(SB), R1
+	BR   (R1)
 
-TEXT ·Atan(SB),NOSPLIT,$0
-	MOVD    ·atanvectorfacility+0x00(SB),R1
-	BR      (R1)
+TEXT ·atanTrampolineSetup(SB), NOSPLIT, $0
+	MOVB   ·hasVX(SB), R1
+	CMPBEQ R1, $1, vectorimpl                // vectorfacility = 1, vector supported
+	MOVD   $·atanvectorfacility+0x00(SB), R1
+	MOVD   $·atan(SB), R2
+	MOVD   R2, 0(R1)
+	BR     ·atan(SB)
 
-TEXT ·atanTrampolineSetup(SB),NOSPLIT, $0
-	MOVB    ·hasVX(SB), R1
-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
-	MOVD    $·atanvectorfacility+0x00(SB), R1
-	MOVD    $·atan(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·atan(SB)
 vectorimpl:
-	MOVD    $·atanvectorfacility+0x00(SB), R1
-	MOVD    $·atanAsm(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·atanAsm(SB)
+	MOVD $·atanvectorfacility+0x00(SB), R1
+	MOVD $·atanAsm(SB), R2
+	MOVD R2, 0(R1)
+	BR   ·atanAsm(SB)
 
 GLOBL ·atanvectorfacility+0x00(SB), NOPTR, $8
 DATA ·atanvectorfacility+0x00(SB)/8, $·atanTrampolineSetup(SB)
 
+TEXT ·Atan2(SB), NOSPLIT, $0
+	MOVD ·atan2vectorfacility+0x00(SB), R1
+	BR   (R1)
 
-TEXT ·Atan2(SB),NOSPLIT,$0
-	MOVD    ·atan2vectorfacility+0x00(SB),R1
-	BR      (R1)
+TEXT ·atan2TrampolineSetup(SB), NOSPLIT, $0
+	MOVB   ·hasVX(SB), R1
+	CMPBEQ R1, $1, vectorimpl                 // vectorfacility = 1, vector supported
+	MOVD   $·atan2vectorfacility+0x00(SB), R1
+	MOVD   $·atan2(SB), R2
+	MOVD   R2, 0(R1)
+	BR     ·atan2(SB)
 
-TEXT ·atan2TrampolineSetup(SB),NOSPLIT, $0
-	MOVB    ·hasVX(SB), R1
-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
-	MOVD    $·atan2vectorfacility+0x00(SB), R1
-	MOVD    $·atan2(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·atan2(SB)
 vectorimpl:
-	MOVD    $·atan2vectorfacility+0x00(SB), R1
-	MOVD    $·atan2Asm(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·atan2Asm(SB)
+	MOVD $·atan2vectorfacility+0x00(SB), R1
+	MOVD $·atan2Asm(SB), R2
+	MOVD R2, 0(R1)
+	BR   ·atan2Asm(SB)
 
 GLOBL ·atan2vectorfacility+0x00(SB), NOPTR, $8
 DATA ·atan2vectorfacility+0x00(SB)/8, $·atan2TrampolineSetup(SB)
 
+TEXT ·Cbrt(SB), NOSPLIT, $0
+	MOVD ·cbrtvectorfacility+0x00(SB), R1
+	BR   (R1)
 
-TEXT ·Cbrt(SB),NOSPLIT,$0
-	MOVD    ·cbrtvectorfacility+0x00(SB),R1
-	BR      (R1)
+TEXT ·cbrtTrampolineSetup(SB), NOSPLIT, $0
+	MOVB   ·hasVX(SB), R1
+	CMPBEQ R1, $1, vectorimpl                // vectorfacility = 1, vector supported
+	MOVD   $·cbrtvectorfacility+0x00(SB), R1
+	MOVD   $·cbrt(SB), R2
+	MOVD   R2, 0(R1)
+	BR     ·cbrt(SB)
 
-TEXT ·cbrtTrampolineSetup(SB),NOSPLIT, $0
-	MOVB    ·hasVX(SB), R1
-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
-	MOVD    $·cbrtvectorfacility+0x00(SB), R1
-	MOVD    $·cbrt(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·cbrt(SB)
 vectorimpl:
-	MOVD    $·cbrtvectorfacility+0x00(SB), R1
-	MOVD    $·cbrtAsm(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·cbrtAsm(SB)
+	MOVD $·cbrtvectorfacility+0x00(SB), R1
+	MOVD $·cbrtAsm(SB), R2
+	MOVD R2, 0(R1)
+	BR   ·cbrtAsm(SB)
 
 GLOBL ·cbrtvectorfacility+0x00(SB), NOPTR, $8
 DATA ·cbrtvectorfacility+0x00(SB)/8, $·cbrtTrampolineSetup(SB)
 
+TEXT ·Log(SB), NOSPLIT, $0
+	MOVD ·logvectorfacility+0x00(SB), R1
+	BR   (R1)
 
-TEXT ·Log(SB),NOSPLIT,$0
-	MOVD    ·logvectorfacility+0x00(SB),R1
-	BR      (R1)
+TEXT ·logTrampolineSetup(SB), NOSPLIT, $0
+	MOVB   ·hasVX(SB), R1
+	CMPBEQ R1, $1, vectorimpl               // vectorfacility = 1, vector supported
+	MOVD   $·logvectorfacility+0x00(SB), R1
+	MOVD   $·log(SB), R2
+	MOVD   R2, 0(R1)
+	BR     ·log(SB)
 
-TEXT ·logTrampolineSetup(SB),NOSPLIT, $0
-	MOVB    ·hasVX(SB), R1
-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
-	MOVD    $·logvectorfacility+0x00(SB), R1
-	MOVD    $·log(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·log(SB)
 vectorimpl:
-	MOVD    $·logvectorfacility+0x00(SB), R1
-	MOVD    $·logAsm(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·logAsm(SB)
+	MOVD $·logvectorfacility+0x00(SB), R1
+	MOVD $·logAsm(SB), R2
+	MOVD R2, 0(R1)
+	BR   ·logAsm(SB)
 
 GLOBL ·logvectorfacility+0x00(SB), NOPTR, $8
 DATA ·logvectorfacility+0x00(SB)/8, $·logTrampolineSetup(SB)
 
+TEXT ·Tan(SB), NOSPLIT, $0
+	MOVD ·tanvectorfacility+0x00(SB), R1
+	BR   (R1)
 
-TEXT ·Tan(SB),NOSPLIT,$0
-	MOVD    ·tanvectorfacility+0x00(SB),R1
-	BR      (R1)
+TEXT ·tanTrampolineSetup(SB), NOSPLIT, $0
+	MOVB   ·hasVX(SB), R1
+	CMPBEQ R1, $1, vectorimpl               // vectorfacility = 1, vector supported
+	MOVD   $·tanvectorfacility+0x00(SB), R1
+	MOVD   $·tan(SB), R2
+	MOVD   R2, 0(R1)
+	BR     ·tan(SB)
 
-TEXT ·tanTrampolineSetup(SB),NOSPLIT, $0
-	MOVB    ·hasVX(SB), R1
-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
-	MOVD    $·tanvectorfacility+0x00(SB), R1
-	MOVD    $·tan(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·tan(SB)
 vectorimpl:
-	MOVD    $·tanvectorfacility+0x00(SB), R1
-	MOVD    $·tanAsm(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·tanAsm(SB)
+	MOVD $·tanvectorfacility+0x00(SB), R1
+	MOVD $·tanAsm(SB), R2
+	MOVD R2, 0(R1)
+	BR   ·tanAsm(SB)
 
 GLOBL ·tanvectorfacility+0x00(SB), NOPTR, $8
 DATA ·tanvectorfacility+0x00(SB)/8, $·tanTrampolineSetup(SB)
 
-TEXT ·Exp(SB),NOSPLIT,$0
-	MOVD    ·expvectorfacility+0x00(SB),R1
-	BR      (R1)
+TEXT ·Exp(SB), NOSPLIT, $0
+	MOVD ·expvectorfacility+0x00(SB), R1
+	BR   (R1)
 
-TEXT ·expTrampolineSetup(SB),NOSPLIT, $0
-	MOVB    ·hasVX(SB), R1
-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
-	MOVD    $·expvectorfacility+0x00(SB), R1
-	MOVD    $·exp(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·exp(SB)
+TEXT ·expTrampolineSetup(SB), NOSPLIT, $0
+	MOVB   ·hasVX(SB), R1
+	CMPBEQ R1, $1, vectorimpl               // vectorfacility = 1, vector supported
+	MOVD   $·expvectorfacility+0x00(SB), R1
+	MOVD   $·exp(SB), R2
+	MOVD   R2, 0(R1)
+	BR     ·exp(SB)
+
 vectorimpl:
-	MOVD    $·expvectorfacility+0x00(SB), R1
-	MOVD    $·expAsm(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·expAsm(SB)
+	MOVD $·expvectorfacility+0x00(SB), R1
+	MOVD $·expAsm(SB), R2
+	MOVD R2, 0(R1)
+	BR   ·expAsm(SB)
 
 GLOBL ·expvectorfacility+0x00(SB), NOPTR, $8
 DATA ·expvectorfacility+0x00(SB)/8, $·expTrampolineSetup(SB)
 
+TEXT ·Expm1(SB), NOSPLIT, $0
+	MOVD ·expm1vectorfacility+0x00(SB), R1
+	BR   (R1)
 
-TEXT ·Expm1(SB),NOSPLIT,$0
-	MOVD    ·expm1vectorfacility+0x00(SB),R1
-	BR      (R1)
+TEXT ·expm1TrampolineSetup(SB), NOSPLIT, $0
+	MOVB   ·hasVX(SB), R1
+	CMPBEQ R1, $1, vectorimpl                 // vectorfacility = 1, vector supported
+	MOVD   $·expm1vectorfacility+0x00(SB), R1
+	MOVD   $·expm1(SB), R2
+	MOVD   R2, 0(R1)
+	BR     ·expm1(SB)
 
-TEXT ·expm1TrampolineSetup(SB),NOSPLIT, $0
-	MOVB    ·hasVX(SB), R1
-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
-	MOVD    $·expm1vectorfacility+0x00(SB), R1
-	MOVD    $·expm1(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·expm1(SB)
 vectorimpl:
-	MOVD    $·expm1vectorfacility+0x00(SB), R1
-	MOVD    $·expm1Asm(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·expm1Asm(SB)
+	MOVD $·expm1vectorfacility+0x00(SB), R1
+	MOVD $·expm1Asm(SB), R2
+	MOVD R2, 0(R1)
+	BR   ·expm1Asm(SB)
 
 GLOBL ·expm1vectorfacility+0x00(SB), NOPTR, $8
 DATA ·expm1vectorfacility+0x00(SB)/8, $·expm1TrampolineSetup(SB)
 
+TEXT ·Pow(SB), NOSPLIT, $0
+	MOVD ·powvectorfacility+0x00(SB), R1
+	BR   (R1)
 
-TEXT ·Pow(SB),NOSPLIT,$0
-	MOVD    ·powvectorfacility+0x00(SB),R1
-	BR      (R1)
+TEXT ·powTrampolineSetup(SB), NOSPLIT, $0
+	MOVB   ·hasVX(SB), R1
+	CMPBEQ R1, $1, vectorimpl               // vectorfacility = 1, vector supported
+	MOVD   $·powvectorfacility+0x00(SB), R1
+	MOVD   $·pow(SB), R2
+	MOVD   R2, 0(R1)
+	BR     ·pow(SB)
 
-TEXT ·powTrampolineSetup(SB),NOSPLIT, $0
-	MOVB    ·hasVX(SB), R1
-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
-	MOVD    $·powvectorfacility+0x00(SB), R1
-	MOVD    $·pow(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·pow(SB)
 vectorimpl:
-	MOVD    $·powvectorfacility+0x00(SB), R1
-	MOVD    $·powAsm(SB), R2
-	MOVD    R2, 0(R1)
-	BR      ·powAsm(SB)
+	MOVD $·powvectorfacility+0x00(SB), R1
+	MOVD $·powAsm(SB), R2
+	MOVD R2, 0(R1)
+	BR   ·powAsm(SB)
 
 GLOBL ·powvectorfacility+0x00(SB), NOPTR, $8
 DATA ·powvectorfacility+0x00(SB)/8, $·powTrampolineSetup(SB)
-
 

@@ -41,7 +41,15 @@ TEXT runtime·read_trampoline(SB),NOSPLIT,$0
 	MOVD	8(R0), R1	// arg 2 buf
 	MOVW	16(R0), R2	// arg 3 count
 	MOVW	0(R0), R0	// arg 1 fd
-	BL libc_read(SB)
+	BL	libc_read(SB)
+	RET
+
+TEXT runtime·pipe_trampoline(SB),NOSPLIT,$0
+	BL	libc_pipe(SB)	// pointer already in R0
+	CMP	$0, R0
+	BEQ	3(PC)
+	BL	libc_error(SB)	// return negative errno value
+	NEG	R0, R0
 	RET
 
 TEXT runtime·exit_trampoline(SB),NOSPLIT|NOFRAME,$0
@@ -72,7 +80,7 @@ TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
 	MOVD	$-1, R2
 	CMP	R0, R2
 	BNE	ok
-	BL libc_error(SB)
+	BL	libc_error(SB)
 	MOVW	(R0), R1
 	MOVD	$0, R0
 ok:
@@ -84,8 +92,8 @@ TEXT runtime·munmap_trampoline(SB),NOSPLIT,$0
 	MOVD	8(R0), R1	// arg 2 len
 	MOVD	0(R0), R0	// arg 1 addr
 	BL	libc_munmap(SB)
-	CMP $0, R0
-	BEQ 2(PC)
+	CMP	$0, R0
+	BEQ	2(PC)
 	BL	notok<>(SB)
 	RET
 
@@ -145,22 +153,28 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	BL	(R11)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$0
-	// Reserve space for callee-save registers and arguments.
-	SUB	$(8*16), RSP
-
-	// Save callee-save registers.
-	MOVD	R19, (8*4)(RSP)
-	MOVD	R20, (8*5)(RSP)
-	MOVD	R21, (8*6)(RSP)
-	MOVD	R22, (8*7)(RSP)
-	MOVD	R23, (8*8)(RSP)
-	MOVD	R24, (8*9)(RSP)
-	MOVD	R25, (8*10)(RSP)
-	MOVD	R26, (8*11)(RSP)
-	MOVD	R27, (8*12)(RSP)
-	MOVD	g, (8*13)(RSP)
-	MOVD	R29, (8*14)(RSP)
+TEXT runtime·sigtramp(SB),NOSPLIT,$192
+	// Save callee-save registers in the case of signal forwarding.
+	// Please refer to https://golang.org/issue/31827 .
+	MOVD	R19, 8*4(RSP)
+	MOVD	R20, 8*5(RSP)
+	MOVD	R21, 8*6(RSP)
+	MOVD	R22, 8*7(RSP)
+	MOVD	R23, 8*8(RSP)
+	MOVD	R24, 8*9(RSP)
+	MOVD	R25, 8*10(RSP)
+	MOVD	R26, 8*11(RSP)
+	MOVD	R27, 8*12(RSP)
+	MOVD	g, 8*13(RSP)
+	MOVD	R29, 8*14(RSP)
+	FMOVD	F8, 8*15(RSP)
+	FMOVD	F9, 8*16(RSP)
+	FMOVD	F10, 8*17(RSP)
+	FMOVD	F11, 8*18(RSP)
+	FMOVD	F12, 8*19(RSP)
+	FMOVD	F13, 8*20(RSP)
+	FMOVD	F14, 8*21(RSP)
+	FMOVD	F15, 8*22(RSP)
 
 	// Save arguments.
 	MOVW	R0, (8*1)(RSP)	// sig
@@ -174,9 +188,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	BEQ	2(PC)
 	BL	runtime·load_g(SB)
 
-	MOVD RSP, R6
-	CMP	 $0, g
-	BEQ	 nog
+	MOVD	RSP, R6
+	CMP	$0, g
+	BEQ	nog
 	// iOS always use the main stack to run the signal handler.
 	// We need to switch to gsignal ourselves.
 	MOVD	g_m(g), R11
@@ -221,8 +235,14 @@ nog:
 	MOVD	(8*12)(RSP), R27
 	MOVD	(8*13)(RSP), g
 	MOVD	(8*14)(RSP), R29
-
-	ADD $(8*16), RSP
+	FMOVD	(8*15)(RSP), F8
+	FMOVD	(8*16)(RSP), F9
+	FMOVD	(8*17)(RSP), F10
+	FMOVD	(8*18)(RSP), F11
+	FMOVD	(8*19)(RSP), F12
+	FMOVD	(8*20)(RSP), F13
+	FMOVD	(8*21)(RSP), F14
+	FMOVD	(8*22)(RSP), F15
 
 	RET
 
@@ -234,7 +254,7 @@ TEXT runtime·sigprocmask_trampoline(SB),NOSPLIT,$0
 	MOVD	16(R0), R2	// arg 3 old
 	MOVW	0(R0), R0	// arg 1 how
 	BL	libc_pthread_sigmask(SB)
-	CMP $0, R0
+	CMP	$0, R0
 	BEQ	2(PC)
 	BL	notok<>(SB)
 	RET
@@ -279,7 +299,7 @@ TEXT runtime·kevent_trampoline(SB),NOSPLIT,$0
 	MOVD	$-1, R2
 	CMP	R0, R2
 	BNE	ok
-	BL libc_error(SB)
+	BL	libc_error(SB)
 	MOVW	(R0), R0	// errno
 	NEG	R0, R0	// caller wants it as a negative error code
 ok:
@@ -304,33 +324,92 @@ TEXT runtime·sigaltstack_trampoline(SB),NOSPLIT,$0
 	RET
 
 // Thread related functions
-// Note: On darwin/arm64, the runtime always use runtime/cgo to
-// create threads, so all thread related functions will just exit with a
-// unique status.
 
-TEXT runtime·mstart_stub(SB),NOSPLIT,$0
-	MOVW	$44, R0
-	BL	libc_exit(SB)
+// mstart_stub is the first function executed on a new thread started by pthread_create.
+// It just does some low-level setup and then calls mstart.
+// Note: called with the C calling convention.
+TEXT runtime·mstart_stub(SB),NOSPLIT,$160
+	// R0 points to the m.
+	// We are already on m's g0 stack.
+
+	// Save callee-save registers.
+	MOVD	R19, 8(RSP)
+	MOVD	R20, 16(RSP)
+	MOVD	R21, 24(RSP)
+	MOVD	R22, 32(RSP)
+	MOVD	R23, 40(RSP)
+	MOVD	R24, 48(RSP)
+	MOVD	R25, 56(RSP)
+	MOVD	R26, 64(RSP)
+	MOVD	R27, 72(RSP)
+	MOVD	g, 80(RSP)
+	MOVD	R29, 88(RSP)
+	FMOVD	F8, 96(RSP)
+	FMOVD	F9, 104(RSP)
+	FMOVD	F10, 112(RSP)
+	FMOVD	F11, 120(RSP)
+	FMOVD	F12, 128(RSP)
+	FMOVD	F13, 136(RSP)
+	FMOVD	F14, 144(RSP)
+	FMOVD	F15, 152(RSP)
+
+	MOVD    m_g0(R0), g
+
+	BL	runtime·mstart(SB)
+
+	// Restore callee-save registers.
+	MOVD	8(RSP), R19
+	MOVD	16(RSP), R20
+	MOVD	24(RSP), R21
+	MOVD	32(RSP), R22
+	MOVD	40(RSP), R23
+	MOVD	48(RSP), R24
+	MOVD	56(RSP), R25
+	MOVD	64(RSP), R26
+	MOVD	72(RSP), R27
+	MOVD	80(RSP), g
+	MOVD	88(RSP), R29
+	FMOVD	96(RSP), F8
+	FMOVD	104(RSP), F9
+	FMOVD	112(RSP), F10
+	FMOVD	120(RSP), F11
+	FMOVD	128(RSP), F12
+	FMOVD	136(RSP), F13
+	FMOVD	144(RSP), F14
+	FMOVD	152(RSP), F15
+
+	// Go is all done with this OS thread.
+	// Tell pthread everything is ok (we never join with this thread, so
+	// the value here doesn't really matter).
+	MOVD	$0, R0
+
 	RET
 
 TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
-	MOVW	$45, R0
-	BL	libc_exit(SB)
+	MOVD	0(R0), R0	// arg 1 attr
+	BL	libc_pthread_attr_init(SB)
 	RET
 
-TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0
-	MOVW	$46, R0
-	BL	libc_exit(SB)
+TEXT runtime·pthread_attr_getstacksize_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 size
+	MOVD	0(R0), R0	// arg 1 attr
+	BL	libc_pthread_attr_getstacksize(SB)
 	RET
 
 TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0
-	MOVW	$47, R0
-	BL	libc_exit(SB)
+	MOVD	8(R0), R1	// arg 2 state
+	MOVD	0(R0), R0	// arg 1 attr
+	BL	libc_pthread_attr_setdetachstate(SB)
 	RET
 
 TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
-	MOVW	$48, R0
-	BL	libc_exit(SB)
+	SUB	$16, RSP
+	MOVD	0(R0), R1	// arg 2 state
+	MOVD	8(R0), R2	// arg 3 start
+	MOVD	16(R0), R3	// arg 4 arg
+	MOVD	RSP, R0 	// arg 1 &threadid (which we throw away)
+	BL	libc_pthread_create(SB)
+	ADD	$16, RSP
 	RET
 
 TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
@@ -465,9 +544,9 @@ TEXT runtime·syscallX(SB),NOSPLIT,$0
 ok:
 	RET
 
-// syscallXPtr is like syscallX except that the libc function reports an
-// error by returning NULL.
-TEXT runtime·syscallXPtr(SB),NOSPLIT,$0
+// syscallPtr is like syscallX except that the libc function reports an
+// error by returning NULL and setting errno.
+TEXT runtime·syscallPtr(SB),NOSPLIT,$0
 	SUB	$16, RSP	// push structure pointer
 	MOVD	R0, (RSP)
 

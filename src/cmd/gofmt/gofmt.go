@@ -330,46 +330,54 @@ func backupFile(filename string, data []byte, perm os.FileMode) (string, error) 
 }
 
 // normalizeNumbers rewrites base prefixes and exponents to
-// use lower-case letters. It leaves hexadecimal digits alone.
+// use lower-case letters, and removes leading 0's from
+// integer imaginary literals. It leaves hexadecimal digits
+// alone.
 func normalizeNumbers(n ast.Node) bool {
 	lit, _ := n.(*ast.BasicLit)
-	if lit == nil {
+	if lit == nil || (lit.Kind != token.INT && lit.Kind != token.FLOAT && lit.Kind != token.IMAG) {
 		return true
 	}
 	if len(lit.Value) < 2 {
-		return false // only one digit - nothing to do
+		return false // only one digit (common case) - nothing to do
 	}
-	// lit.Value >= 2
+	// len(lit.Value) >= 2
 
-	switch lit.Kind {
-	case token.INT:
-		switch lit.Value[:2] {
-		case "0X":
-			lit.Value = "0x" + lit.Value[2:]
-		case "0O":
-			lit.Value = "0o" + lit.Value[2:]
-		case "0B":
-			lit.Value = "0b" + lit.Value[2:]
+	// We ignore lit.Kind because for lit.Kind == token.IMAG the literal may be an integer
+	// or floating-point value, decimal or not. Instead, just consider the literal pattern.
+	x := lit.Value
+	switch x[:2] {
+	default:
+		// 0-prefix octal, decimal int, or float (possibly with 'i' suffix)
+		if i := strings.LastIndexByte(x, 'E'); i >= 0 {
+			x = x[:i] + "e" + x[i+1:]
+			break
 		}
-
-	case token.FLOAT:
-		switch lit.Value[:2] {
-		default:
-			if i := strings.LastIndexByte(lit.Value, 'E'); i >= 0 {
-				lit.Value = lit.Value[:i] + "e" + lit.Value[i+1:]
-			}
-		case "0x":
-			if i := strings.LastIndexByte(lit.Value, 'P'); i >= 0 {
-				lit.Value = lit.Value[:i] + "p" + lit.Value[i+1:]
-			}
-		case "0X":
-			if i := strings.LastIndexByte(lit.Value, 'P'); i >= 0 {
-				lit.Value = "0x" + lit.Value[2:i] + "p" + lit.Value[i+1:]
-			} else {
-				lit.Value = "0x" + lit.Value[2:]
+		// remove leading 0's from integer (but not floating-point) imaginary literals
+		if x[len(x)-1] == 'i' && strings.IndexByte(x, '.') < 0 && strings.IndexByte(x, 'e') < 0 {
+			x = strings.TrimLeft(x, "0_")
+			if x == "i" {
+				x = "0i"
 			}
 		}
+	case "0X":
+		x = "0x" + x[2:]
+		fallthrough
+	case "0x":
+		// possibly a hexadecimal float
+		if i := strings.LastIndexByte(x, 'P'); i >= 0 {
+			x = x[:i] + "p" + x[i+1:]
+		}
+	case "0O":
+		x = "0o" + x[2:]
+	case "0o":
+		// nothing to do
+	case "0B":
+		x = "0b" + x[2:]
+	case "0b":
+		// nothing to do
 	}
 
+	lit.Value = x
 	return false
 }

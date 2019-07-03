@@ -95,7 +95,7 @@ func makechan(t *chantype, size int) *hchan {
 		c = (*hchan)(mallocgc(hchanSize, nil, true))
 		// Race detector uses this location for synchronization.
 		c.buf = c.raceaddr()
-	case elem.kind&kindNoPointers != 0:
+	case elem.ptrdata == 0:
 		// Elements do not contain pointers.
 		// Allocate hchan and buf in one call.
 		c = (*hchan)(mallocgc(hchanSize+mem, nil, true))
@@ -678,6 +678,14 @@ func reflect_chanlen(c *hchan) int {
 	return int(c.qcount)
 }
 
+//go:linkname reflectlite_chanlen internal/reflectlite.chanlen
+func reflectlite_chanlen(c *hchan) int {
+	if c == nil {
+		return 0
+	}
+	return int(c.qcount)
+}
+
 //go:linkname reflect_chancap reflect.chancap
 func reflect_chancap(c *hchan) int {
 	if c == nil {
@@ -729,10 +737,8 @@ func (q *waitq) dequeue() *sudog {
 		// We use a flag in the G struct to tell us when someone
 		// else has won the race to signal this goroutine but the goroutine
 		// hasn't removed itself from the queue yet.
-		if sgp.isSelect {
-			if !atomic.Cas(&sgp.g.selectDone, 0, 1) {
-				continue
-			}
+		if sgp.isSelect && !atomic.Cas(&sgp.g.selectDone, 0, 1) {
+			continue
 		}
 
 		return sgp

@@ -2795,6 +2795,20 @@ func TestRemainder(t *testing.T) {
 	if f := Remainder(5.9790119248836734e+200, 1.1258465975523544); -0.4810497673014966 != f {
 		t.Errorf("Remainder(5.9790119248836734e+200, 1.1258465975523544) = %g, want -0.4810497673014966", f)
 	}
+	// verify that sign is correct when r == 0.
+	test := func(x, y float64) {
+		if r := Remainder(x, y); r == 0 && Signbit(r) != Signbit(x) {
+			t.Errorf("Remainder(x=%f, y=%f) = %f, sign of (zero) result should agree with sign of x", x, y, r)
+		}
+	}
+	for x := 0.0; x <= 3.0; x += 1 {
+		for y := 1.0; y <= 3.0; y += 1 {
+			test(x, y)
+			test(x, -y)
+			test(-x, y)
+			test(-x, -y)
+		}
+	}
 }
 
 func TestRound(t *testing.T) {

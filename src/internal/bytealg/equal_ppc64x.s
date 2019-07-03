@@ -7,25 +7,6 @@
 #include "go_asm.h"
 #include "textflag.h"
 
-TEXT ·Equal(SB),NOSPLIT|NOFRAME,$0-49
-	MOVD	a_len+8(FP), R4
-	MOVD	b_len+32(FP), R5
-	CMP	R5, R4		// unequal lengths are not equal
-	BNE	noteq
-	MOVD	a_base+0(FP), R3
-	MOVD	b_base+24(FP), R4
-	MOVD	$ret+48(FP), R10
-	BR	memeqbody<>(SB)
-
-noteq:
-	MOVBZ	$0,ret+48(FP)
-	RET
-
-equal:
-	MOVD	$1,R3
-	MOVBZ	R3,ret+48(FP)
-	RET
-
 // memequal(a, b unsafe.Pointer, size uintptr) bool
 TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
 	MOVD    a+0(FP), R3

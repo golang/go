@@ -2300,10 +2300,10 @@ TEXT ·p256PointDoubleAsm(SB),NOSPLIT,$256-48
 	CMOVQEQ t3, acc7
 	ANDQ t0, mul0
 
-	SHRQ $1, acc4:acc5
-	SHRQ $1, acc5:acc6
-	SHRQ $1, acc6:acc7
-	SHRQ $1, acc7:mul0
+	SHRQ $1, acc5, acc4
+	SHRQ $1, acc6, acc5
+	SHRQ $1, acc7, acc6
+	SHRQ $1, mul0, acc7
 	ST (y)
 	/////////////////////////
 	LDacc (x)

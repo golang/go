@@ -152,10 +152,14 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 		}
 		defer statusf.close()
 
+		// Read but ignore first line as it only contains the table header.
+		// See https://9p.io/magic/man2html/3/ip
+		if _, ok := statusf.readLine(); !ok {
+			return nil, errors.New("cannot read header line for interface: " + status)
+		}
 		line, ok := statusf.readLine()
-		line, ok = statusf.readLine()
 		if !ok {
-			return nil, errors.New("cannot parse IP address for interface: " + status)
+			return nil, errors.New("cannot read IP address for interface: " + status)
 		}
 
 		// This assumes only a single address for the interface.

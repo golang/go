@@ -59,14 +59,14 @@ func (p *Package) writeDefs() {
 	fmt.Fprintf(fm, "int main() { return 0; }\n")
 	if *importRuntimeCgo {
 		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int, __SIZE_TYPE__), void *a, int c, __SIZE_TYPE__ ctxt) { }\n")
-		fmt.Fprintf(fm, "__SIZE_TYPE__ _cgo_wait_runtime_init_done() { return 0; }\n")
+		fmt.Fprintf(fm, "__SIZE_TYPE__ _cgo_wait_runtime_init_done(void) { return 0; }\n")
 		fmt.Fprintf(fm, "void _cgo_release_context(__SIZE_TYPE__ ctxt) { }\n")
 		fmt.Fprintf(fm, "char* _cgo_topofstack(void) { return (char*)0; }\n")
 	} else {
 		// If we're not importing runtime/cgo, we *are* runtime/cgo,
 		// which provides these functions. We just need a prototype.
 		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int, __SIZE_TYPE__), void *a, int c, __SIZE_TYPE__ ctxt);\n")
-		fmt.Fprintf(fm, "__SIZE_TYPE__ _cgo_wait_runtime_init_done();\n")
+		fmt.Fprintf(fm, "__SIZE_TYPE__ _cgo_wait_runtime_init_done(void);\n")
 		fmt.Fprintf(fm, "void _cgo_release_context(__SIZE_TYPE__);\n")
 	}
 	fmt.Fprintf(fm, "void _cgo_allocate(void *a, int c) { }\n")
@@ -336,6 +336,12 @@ func dynimport(obj string) {
 			fatalf("cannot load imported symbols from XCOFF file %s: %v", obj, err)
 		}
 		for _, s := range sym {
+			if s.Name == "runtime_rt0_go" || s.Name == "_rt0_ppc64_aix_lib" {
+				// These symbols are imported by runtime/cgo but
+				// must not be added to _cgo_import.go as there are
+				// Go symbols.
+				continue
+			}
 			fmt.Fprintf(stdout, "//go:cgo_import_dynamic %s %s %q\n", s.Name, s.Name, s.Library)
 		}
 		lib, err := f.ImportedLibraries()
@@ -777,14 +783,14 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n\n")
 
 	// We use packed structs, but they are always aligned.
-	// The pragmas and address-of-packed-member are not recognized as warning groups in clang 3.4.1, so ignore unknown pragmas first.
-	// remove as part of #27619 (all: drop support for FreeBSD 10).
+	// The pragmas and address-of-packed-member are only recognized as
+	// warning groups in clang 4.0+, so ignore unknown pragmas first.
 	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Wunknown-pragmas\"\n")
 	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Wpragmas\"\n")
 	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Waddress-of-packed-member\"\n")
 
 	fmt.Fprintf(fgcc, "extern void crosscall2(void (*fn)(void *, int, __SIZE_TYPE__), void *, int, __SIZE_TYPE__);\n")
-	fmt.Fprintf(fgcc, "extern __SIZE_TYPE__ _cgo_wait_runtime_init_done();\n")
+	fmt.Fprintf(fgcc, "extern __SIZE_TYPE__ _cgo_wait_runtime_init_done(void);\n")
 	fmt.Fprintf(fgcc, "extern void _cgo_release_context(__SIZE_TYPE__);\n\n")
 	fmt.Fprintf(fgcc, "extern char* _cgo_topofstack(void);")
 	fmt.Fprintf(fgcc, "%s\n", tsanProlog)
@@ -1480,10 +1486,11 @@ __cgo_size_assert(double, 8)
 
 extern char* _cgo_topofstack(void);
 
-/* We use packed structs, but they are always aligned.  */
-/* The pragmas and address-of-packed-member are not recognized as warning groups in clang 3.4.1, so ignore unknown pragmas first. */
-/* remove as part of #27619 (all: drop support for FreeBSD 10). */
-
+/*
+  We use packed structs, but they are always aligned.
+  The pragmas and address-of-packed-member are only recognized as warning
+  groups in clang 4.0+, so ignore unknown pragmas first.
+*/
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #pragma GCC diagnostic ignored "-Wpragmas"
 #pragma GCC diagnostic ignored "-Waddress-of-packed-member"
@@ -1924,5 +1931,5 @@ static void GoInit(void) {
 		runtime_iscgo = 1;
 }
 
-extern __SIZE_TYPE__ _cgo_wait_runtime_init_done() __attribute__ ((weak));
+extern __SIZE_TYPE__ _cgo_wait_runtime_init_done(void) __attribute__ ((weak));
 `

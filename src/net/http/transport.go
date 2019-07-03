@@ -30,8 +30,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"internal/x/net/http/httpguts"
-	"internal/x/net/http/httpproxy"
+	"golang.org/x/net/http/httpguts"
+	"golang.org/x/net/http/httpproxy"
 )
 
 // DefaultTransport is the default implementation of Transport and is
@@ -46,6 +46,7 @@ var DefaultTransport RoundTripper = &Transport{
 		KeepAlive: 30 * time.Second,
 		DualStack: true,
 	}).DialContext,
+	ForceAttemptHTTP2:     true,
 	MaxIdleConns:          100,
 	IdleConnTimeout:       90 * time.Second,
 	TLSHandshakeTimeout:   10 * time.Second,
@@ -253,10 +254,76 @@ type Transport struct {
 	// Zero means to use a default limit.
 	MaxResponseHeaderBytes int64
 
+	// WriteBufferSize specifies the size of the write buffer used
+	// when writing to the transport.
+	// If zero, a default (currently 4KB) is used.
+	WriteBufferSize int
+
+	// ReadBufferSize specifies the size of the read buffer used
+	// when reading from the transport.
+	// If zero, a default (currently 4KB) is used.
+	ReadBufferSize int
+
 	// nextProtoOnce guards initialization of TLSNextProto and
 	// h2transport (via onceSetNextProtoDefaults)
-	nextProtoOnce sync.Once
-	h2transport   h2Transport // non-nil if http2 wired up
+	nextProtoOnce      sync.Once
+	h2transport        h2Transport // non-nil if http2 wired up
+	tlsNextProtoWasNil bool        // whether TLSNextProto was nil when the Once fired
+
+	// ForceAttemptHTTP2 controls whether HTTP/2 is enabled when a non-zero
+	// Dial, DialTLS, or DialContext func or TLSClientConfig is provided.
+	// By default, use of any those fields conservatively disables HTTP/2.
+	// To use a custom dialer or TLS config and still attempt HTTP/2
+	// upgrades, set this to true.
+	ForceAttemptHTTP2 bool
+}
+
+func (t *Transport) writeBufferSize() int {
+	if t.WriteBufferSize > 0 {
+		return t.WriteBufferSize
+	}
+	return 4 << 10
+}
+
+func (t *Transport) readBufferSize() int {
+	if t.ReadBufferSize > 0 {
+		return t.ReadBufferSize
+	}
+	return 4 << 10
+}
+
+// Clone returns a deep copy of t's exported fields.
+func (t *Transport) Clone() *Transport {
+	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
+	t2 := &Transport{
+		Proxy:                  t.Proxy,
+		DialContext:            t.DialContext,
+		Dial:                   t.Dial,
+		DialTLS:                t.DialTLS,
+		TLSClientConfig:        t.TLSClientConfig.Clone(),
+		TLSHandshakeTimeout:    t.TLSHandshakeTimeout,
+		DisableKeepAlives:      t.DisableKeepAlives,
+		DisableCompression:     t.DisableCompression,
+		MaxIdleConns:           t.MaxIdleConns,
+		MaxIdleConnsPerHost:    t.MaxIdleConnsPerHost,
+		MaxConnsPerHost:        t.MaxConnsPerHost,
+		IdleConnTimeout:        t.IdleConnTimeout,
+		ResponseHeaderTimeout:  t.ResponseHeaderTimeout,
+		ExpectContinueTimeout:  t.ExpectContinueTimeout,
+		ProxyConnectHeader:     t.ProxyConnectHeader.Clone(),
+		MaxResponseHeaderBytes: t.MaxResponseHeaderBytes,
+		ForceAttemptHTTP2:      t.ForceAttemptHTTP2,
+		WriteBufferSize:        t.WriteBufferSize,
+		ReadBufferSize:         t.ReadBufferSize,
+	}
+	if !t.tlsNextProtoWasNil {
+		npm := map[string]func(authority string, c *tls.Conn) RoundTripper{}
+		for k, v := range t.TLSNextProto {
+			npm[k] = v
+		}
+		t2.TLSNextProto = npm
+	}
+	return t2
 }
 
 // h2Transport is the interface we expect to be able to call from
@@ -272,6 +339,7 @@ type h2Transport interface {
 // onceSetNextProtoDefaults initializes TLSNextProto.
 // It must be called via t.nextProtoOnce.Do.
 func (t *Transport) onceSetNextProtoDefaults() {
+	t.tlsNextProtoWasNil = (t.TLSNextProto == nil)
 	if strings.Contains(os.Getenv("GODEBUG"), "http2client=0") {
 		return
 	}
@@ -296,12 +364,13 @@ func (t *Transport) onceSetNextProtoDefaults() {
 		// Transport.
 		return
 	}
-	if t.TLSClientConfig != nil || t.Dial != nil || t.DialTLS != nil {
+	if !t.ForceAttemptHTTP2 && (t.TLSClientConfig != nil || t.Dial != nil || t.DialTLS != nil || t.DialContext != nil) {
 		// Be conservative and don't automatically enable
 		// http2 if they've specified a custom TLS config or
 		// custom dialers. Let them opt-in themselves via
 		// http2.ConfigureTransport so we don't surprise them
 		// by modifying their tls.Config. Issue 14275.
+		// However, if ForceAttemptHTTP2 is true, it overrides the above checks.
 		return
 	}
 	t2, err := http2configureTransport(t)
@@ -474,8 +543,8 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		var resp *Response
 		if pconn.alt != nil {
 			// HTTP/2 path.
-			t.decHostConnCount(cm.key()) // don't count cached http2 conns toward conns per host
-			t.setReqCanceler(req, nil)   // not cancelable with CancelRequest
+			t.putOrCloseIdleConn(pconn)
+			t.setReqCanceler(req, nil) // not cancelable with CancelRequest
 			resp, err = pconn.alt.RoundTrip(req)
 		} else {
 			resp, err = pconn.roundTrip(treq)
@@ -483,7 +552,10 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		if err == nil {
 			return resp, nil
 		}
-		if !pconn.shouldRetryRequest(req, err) {
+		if http2isNoCachedConnError(err) {
+			t.removeIdleConn(pconn)
+			t.decHostConnCount(cm.key()) // clean up the persistent connection
+		} else if !pconn.shouldRetryRequest(req, err) {
 			// Issue 16465: return underlying net.Conn.Read error from peek,
 			// as we've historically done.
 			if e, ok := err.(transportReadFromServerError); ok {
@@ -717,6 +789,8 @@ type transportReadFromServerError struct {
 	err error
 }
 
+func (e transportReadFromServerError) Unwrap() error { return e.err }
+
 func (e transportReadFromServerError) Error() string {
 	return fmt.Sprintf("net/http: Transport failed to read from server: %v", e.err)
 }
@@ -745,9 +819,6 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 	}
 	if pconn.isBroken() {
 		return errConnBroken
-	}
-	if pconn.alt != nil {
-		return errNotCachingH2Conn
 	}
 	pconn.markReused()
 	key := pconn.cacheKey
@@ -797,7 +868,10 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 		if pconn.idleTimer != nil {
 			pconn.idleTimer.Reset(t.IdleConnTimeout)
 		} else {
-			pconn.idleTimer = time.AfterFunc(t.IdleConnTimeout, pconn.closeConnIfStillIdle)
+			// idleTimer does not apply to HTTP/2
+			if pconn.alt == nil {
+				pconn.idleTimer = time.AfterFunc(t.IdleConnTimeout, pconn.closeConnIfStillIdle)
+			}
 		}
 	}
 	pconn.idleAt = time.Now()
@@ -1031,7 +1105,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 		t.decHostConnCount(cmKey)
 		select {
 		case <-req.Cancel:
-			// It was an error due to cancelation, so prioritize that
+			// It was an error due to cancellation, so prioritize that
 			// error value. (Issue 16049)
 			return nil, errRequestCanceledConn
 		case <-req.Context().Done():
@@ -1042,7 +1116,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 			}
 			return nil, err
 		default:
-			// It wasn't an error due to cancelation, so
+			// It wasn't an error due to cancellation, so
 			// return the original error message:
 			return nil, v.err
 		}
@@ -1345,15 +1419,16 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 
 	if s := pconn.tlsState; s != nil && s.NegotiatedProtocolIsMutual && s.NegotiatedProtocol != "" {
 		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; ok {
-			return &persistConn{alt: next(cm.targetAddr, pconn.conn.(*tls.Conn))}, nil
+			return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: next(cm.targetAddr, pconn.conn.(*tls.Conn))}, nil
 		}
 	}
 
 	if t.MaxConnsPerHost > 0 {
 		pconn.conn = &connCloseListener{Conn: pconn.conn, t: t, cmKey: pconn.cacheKey}
 	}
-	pconn.br = bufio.NewReader(pconn)
-	pconn.bw = bufio.NewWriter(persistConnWriter{pconn})
+	pconn.br = bufio.NewReaderSize(pconn, t.readBufferSize())
+	pconn.bw = bufio.NewWriterSize(persistConnWriter{pconn}, t.writeBufferSize())
+
 	go pconn.readLoop()
 	go pconn.writeLoop()
 	return pconn, nil
@@ -1374,6 +1449,17 @@ func (w persistConnWriter) Write(p []byte) (n int, err error) {
 	w.pc.nwrite += int64(n)
 	return
 }
+
+// ReadFrom exposes persistConnWriter's underlying Conn to io.Copy and if
+// the Conn implements io.ReaderFrom, it can take advantage of optimizations
+// such as sendfile.
+func (w persistConnWriter) ReadFrom(r io.Reader) (n int64, err error) {
+	n, err = io.Copy(w.pc.conn, r)
+	w.pc.nwrite += n
+	return
+}
+
+var _ io.ReaderFrom = (*persistConnWriter)(nil)
 
 // connectMethod is the map key (in its String form) for keeping persistent
 // TCP connections alive for subsequent HTTP requests.
@@ -1538,7 +1624,7 @@ func (pc *persistConn) isBroken() bool {
 }
 
 // canceled returns non-nil if the connection was closed due to
-// CancelRequest or due to context cancelation.
+// CancelRequest or due to context cancellation.
 func (pc *persistConn) canceled() error {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
@@ -1794,7 +1880,7 @@ func (pc *persistConn) readLoop() {
 
 		// Before looping back to the top of this function and peeking on
 		// the bufio.Reader, wait for the caller goroutine to finish
-		// reading the response body. (or for cancelation or death)
+		// reading the response body. (or for cancellation or death)
 		select {
 		case bodyEOF := <-waitForBodyRead:
 			pc.t.setReqCanceler(rc.req, nil) // before pc might return to idle pool
@@ -1826,7 +1912,12 @@ func (pc *persistConn) readLoopPeekFailLocked(peekErr error) {
 	}
 	if n := pc.br.Buffered(); n > 0 {
 		buf, _ := pc.br.Peek(n)
-		log.Printf("Unsolicited response received on idle HTTP channel starting with %q; err=%v", buf, peekErr)
+		if is408Message(buf) {
+			pc.closeLocked(errServerClosedIdle)
+			return
+		} else {
+			log.Printf("Unsolicited response received on idle HTTP channel starting with %q; err=%v", buf, peekErr)
+		}
 	}
 	if peekErr == io.EOF {
 		// common case.
@@ -1834,6 +1925,19 @@ func (pc *persistConn) readLoopPeekFailLocked(peekErr error) {
 	} else {
 		pc.closeLocked(fmt.Errorf("readLoopPeekFailLocked: %v", peekErr))
 	}
+}
+
+// is408Message reports whether buf has the prefix of an
+// HTTP 408 Request Timeout response.
+// See golang.org/issue/32310.
+func is408Message(buf []byte) bool {
+	if len(buf) < len("HTTP/1.x 408") {
+		return false
+	}
+	if string(buf[:7]) != "HTTP/1." {
+		return false
+	}
+	return string(buf[8:12]) == " 408"
 }
 
 // readResponse reads an HTTP response (or two, in the case of "Expect:
@@ -2072,8 +2176,21 @@ func (e *httpError) Error() string   { return e.err }
 func (e *httpError) Timeout() bool   { return e.timeout }
 func (e *httpError) Temporary() bool { return true }
 
+func (e *httpError) Is(target error) bool {
+	switch target {
+	case os.ErrTimeout:
+		return e.timeout
+	case os.ErrTemporary:
+		return true
+	}
+	return false
+}
+
 var errTimeout error = &httpError{err: "net/http: timeout awaiting response headers", timeout: true}
-var errRequestCanceled = errors.New("net/http: request canceled")
+
+// errRequestCanceled is set to be identical to the one from h2 to facilitate
+// testing.
+var errRequestCanceled = http2errRequestCanceled
 var errRequestCanceledConn = errors.New("net/http: request canceled while waiting for connection") // TODO: unify?
 
 func nop() {}
@@ -2258,13 +2375,8 @@ func (pc *persistConn) closeLocked(err error) {
 	if pc.closed == nil {
 		pc.closed = err
 		if pc.alt != nil {
-			// Do nothing; can only get here via getConn's
-			// handlePendingDial's putOrCloseIdleConn when
-			// it turns out the abandoned connection in
-			// flight ended up negotiating an alternate
-			// protocol. We don't use the connection
-			// freelist for http2. That's done by the
-			// alternate protocol's RoundTripper.
+			// Clean up any host connection counting.
+			pc.t.decHostConnCount(pc.cacheKey)
 		} else {
 			if err != errCallerOwnsConn {
 				pc.conn.Close()
@@ -2407,6 +2519,10 @@ type tlsHandshakeTimeoutError struct{}
 func (tlsHandshakeTimeoutError) Timeout() bool   { return true }
 func (tlsHandshakeTimeoutError) Temporary() bool { return true }
 func (tlsHandshakeTimeoutError) Error() string   { return "net/http: TLS handshake timeout" }
+
+func (tlsHandshakeTimeoutError) Is(target error) bool {
+	return target == os.ErrTimeout || target == os.ErrTemporary
+}
 
 // fakeLocker is a sync.Locker which does nothing. It's used to guard
 // test-only fields when not under test, to avoid runtime atomic

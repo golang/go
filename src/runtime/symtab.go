@@ -52,6 +52,11 @@ type Frame struct {
 	// if not known. If Func is not nil then Entry ==
 	// Func.Entry().
 	Entry uintptr
+
+	// The runtime's internal view of the function. This field
+	// is set (funcInfo.valid() returns true) only for Go functions,
+	// not for C functions.
+	funcInfo funcInfo
 }
 
 // CallersFrames takes a slice of PC values returned by Callers and
@@ -95,7 +100,6 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 			pc--
 		}
 		name := funcname(funcInfo)
-		file, line := funcline1(funcInfo, pc, false)
 		if inldata := funcdata(funcInfo, _FUNCDATA_InlTree); inldata != nil {
 			inltree := (*[1 << 20]inlinedCall)(inldata)
 			ix := pcdatavalue(funcInfo, _PCDATA_InlTreeIndex, pc, nil)
@@ -111,9 +115,9 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 			PC:       pc,
 			Func:     f,
 			Function: name,
-			File:     file,
-			Line:     int(line),
 			Entry:    entry,
+			funcInfo: funcInfo,
+			// Note: File,Line set below
 		})
 	}
 
@@ -121,6 +125,7 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 	// Avoid allocation in the common case, which is 1 or 2 frames.
 	switch len(ci.frames) {
 	case 0: // In the rare case when there are no frames at all, we return Frame{}.
+		return
 	case 1:
 		frame = ci.frames[0]
 		ci.frames = ci.frameStore[:0]
@@ -133,6 +138,13 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 		ci.frames = ci.frames[1:]
 	}
 	more = len(ci.frames) > 0
+	if frame.funcInfo.valid() {
+		// Compute file/line just before we need to return it,
+		// as it can be expensive. This avoids computing file/line
+		// for the Frame we find but don't return. See issue 32093.
+		file, line := funcline1(frame.funcInfo, frame.PC, false)
+		frame.File, frame.Line = file, int(line)
+	}
 	return
 }
 
@@ -157,6 +169,8 @@ func expandCgoFrames(pc uintptr) []Frame {
 			File:     gostring(arg.file),
 			Line:     int(arg.lineno),
 			Entry:    arg.entry,
+			// funcInfo is zero, which implies !funcInfo.valid().
+			// That ensures that we use the File/Line info given here.
 		})
 		if arg.more == 0 {
 			break
@@ -198,15 +212,17 @@ func (f *Func) funcInfo() funcInfo {
 //
 // See funcdata.h and ../cmd/internal/objabi/funcdata.go.
 const (
-	_PCDATA_StackMapIndex       = 0
-	_PCDATA_InlTreeIndex        = 1
-	_PCDATA_RegMapIndex         = 2
+	_PCDATA_RegMapIndex   = 0
+	_PCDATA_StackMapIndex = 1
+	_PCDATA_InlTreeIndex  = 2
+
 	_FUNCDATA_ArgsPointerMaps   = 0
 	_FUNCDATA_LocalsPointerMaps = 1
-	_FUNCDATA_InlTree           = 2
-	_FUNCDATA_RegPointerMaps    = 3
-	_FUNCDATA_StackObjects      = 4
-	_ArgsSizeUnknown            = -0x80000000
+	_FUNCDATA_RegPointerMaps    = 2
+	_FUNCDATA_StackObjects      = 3
+	_FUNCDATA_InlTree           = 4
+
+	_ArgsSizeUnknown = -0x80000000
 )
 
 // A FuncID identifies particular functions that need to be treated
@@ -445,6 +461,9 @@ func moduledataverify1(datap *moduledata) {
 			for j := 0; j <= i; j++ {
 				print("\t", hex(datap.ftab[j].entry), " ", funcname(funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[j].funcoff])), datap}), "\n")
 			}
+			if GOOS == "aix" && isarchive {
+				println("-Wl,-bnoobjreorder is mandatory on aix/ppc64 with c-archive")
+			}
 			throw("invalid runtime symbol table")
 		}
 	}
@@ -475,7 +494,7 @@ func FuncForPC(pc uintptr) *Func {
 	}
 	if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
 		// Note: strict=false so bad PCs (those between functions) don't crash the runtime.
-		// We just report the preceeding function in that situation. See issue 29735.
+		// We just report the preceding function in that situation. See issue 29735.
 		// TODO: Perhaps we should report no function at all in that case.
 		// The runtime currently doesn't have function end info, alas.
 		if ix := pcdatavalue1(f, _PCDATA_InlTreeIndex, pc, nil, false); ix >= 0 {

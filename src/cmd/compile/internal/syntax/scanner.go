@@ -512,9 +512,6 @@ func (s *scanner) number(c rune) {
 	// suffix 'i'
 	if c == 'i' {
 		s.kind = ImagLit
-		if prefix != 0 && prefix != '0' {
-			s.error("invalid suffix 'i' on " + litname(prefix))
-		}
 		c = s.getr()
 	}
 	s.ungetr()

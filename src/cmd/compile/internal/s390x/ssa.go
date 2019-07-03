@@ -184,6 +184,37 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if r != r1 {
 			p.Reg = r1
 		}
+	case ssa.OpS390XADDC:
+		r1 := v.Reg0()
+		r2 := v.Args[0].Reg()
+		r3 := v.Args[1].Reg()
+		if r1 == r2 {
+			r2, r3 = r3, r2
+		}
+		p := opregreg(s, v.Op.Asm(), r1, r2)
+		if r3 != r1 {
+			p.Reg = r3
+		}
+	case ssa.OpS390XSUBC:
+		r1 := v.Reg0()
+		r2 := v.Args[0].Reg()
+		r3 := v.Args[1].Reg()
+		p := opregreg(s, v.Op.Asm(), r1, r3)
+		if r1 != r2 {
+			p.Reg = r2
+		}
+	case ssa.OpS390XADDE, ssa.OpS390XSUBE:
+		r1 := v.Reg0()
+		if r1 != v.Args[0].Reg() {
+			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+		}
+		r2 := v.Args[1].Reg()
+		opregreg(s, v.Op.Asm(), r1, r2)
+	case ssa.OpS390XADDCconst:
+		r1 := v.Reg0()
+		r3 := v.Args[0].Reg()
+		i2 := int64(int16(v.AuxInt))
+		opregregimm(s, v.Op.Asm(), r1, r3, i2)
 	// 2-address opcode arithmetic
 	case ssa.OpS390XMULLD, ssa.OpS390XMULLW,
 		ssa.OpS390XMULHD, ssa.OpS390XMULHDU,
@@ -514,6 +545,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = v.Aux.(*obj.LSym)
+	case ssa.OpS390XLoweredPanicBoundsA, ssa.OpS390XLoweredPanicBoundsB, ssa.OpS390XLoweredPanicBoundsC:
+		p := s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.BoundsCheckFunc[v.AuxInt]
+		s.UseArgs(16) // space used in callee args area by assembly stubs
 	case ssa.OpS390XFLOGR, ssa.OpS390XPOPCNT,
 		ssa.OpS390XNEG, ssa.OpS390XNEGW,
 		ssa.OpS390XMOVWBR, ssa.OpS390XMOVDBR:
@@ -547,7 +584,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 	case ssa.OpS390XInvertFlags:
 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
-	case ssa.OpS390XFlagEQ, ssa.OpS390XFlagLT, ssa.OpS390XFlagGT:
+	case ssa.OpS390XFlagEQ, ssa.OpS390XFlagLT, ssa.OpS390XFlagGT, ssa.OpS390XFlagOV:
 		v.Fatalf("Flag* ops should never make it to codegen %v", v.LongString())
 	case ssa.OpS390XAddTupleFirst32, ssa.OpS390XAddTupleFirst64:
 		v.Fatalf("AddTupleFirst* should never make it to codegen %v", v.LongString())
@@ -676,7 +713,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			clear.To.Type = obj.TYPE_MEM
 			clear.To.Reg = v.Args[0].Reg()
 		}
-	case ssa.OpS390XMOVWZatomicload, ssa.OpS390XMOVDatomicload:
+	case ssa.OpS390XMOVBZatomicload, ssa.OpS390XMOVWZatomicload, ssa.OpS390XMOVDatomicload:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
@@ -763,6 +800,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		bne := s.Prog(s390x.ABNE)
 		bne.To.Type = obj.TYPE_BRANCH
 		gc.Patch(bne, cs)
+	case ssa.OpS390XSYNC:
+		s.Prog(s390x.ASYNC)
 	case ssa.OpClobber:
 		// TODO: implement for clobberdead experiment. Nop is ok for now.
 	default:
@@ -809,7 +848,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
 		}
 	case ssa.BlockExit:
-		s.Prog(obj.AUNDEF) // tell plive.go that we never reach here
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
 	case ssa.BlockRetJmp:

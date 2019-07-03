@@ -572,7 +572,7 @@ func f36() {
 func f37() {
 	if (m33[byteptr()] == 0 || // ERROR "stack object .autotmp_[0-9]+ interface \{\}"
 		m33[byteptr()] == 0) && // ERROR "stack object .autotmp_[0-9]+ interface \{\}"
-		m33[byteptr()] == 0 { // ERROR "stack object .autotmp_[0-9]+ interface \{\}"
+		m33[byteptr()] == 0 {
 		printnl()
 		return
 	}
@@ -687,7 +687,7 @@ type R struct{ *T } // ERRORAUTO "live at entry to \(\*R\)\.Foo: \.this ptr" "li
 // In particular, at printint r must be live.
 func f41(p, q *int) (r *int) { // ERROR "live at entry to f41: p q$"
 	r = p
-	defer func() { // ERROR "live at call to deferproc: q r$" "live at call to deferreturn: r$"
+	defer func() { // ERROR "live at call to deferprocStack: q r$" "live at call to deferreturn: r$"
 		recover()
 	}()
 	printint(0) // ERROR "live at call to printint: q r$"
@@ -697,9 +697,10 @@ func f41(p, q *int) (r *int) { // ERROR "live at entry to f41: p q$"
 
 func f42() {
 	var p, q, r int
-	f43([]*int{&p,&q,&r}) // ERROR "stack object .autotmp_[0-9]+ \[3\]\*int$"
-	f43([]*int{&p,&r,&q})
-	f43([]*int{&q,&p,&r})
+	f43([]*int{&p, &q, &r}) // ERROR "stack object .autotmp_[0-9]+ \[3\]\*int$"
+	f43([]*int{&p, &r, &q})
+	f43([]*int{&q, &p, &r})
 }
+
 //go:noescape
 func f43(a []*int)

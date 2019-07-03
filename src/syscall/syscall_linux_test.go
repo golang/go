@@ -360,8 +360,21 @@ func TestSyscallNoError(t *testing.T) {
 		strconv.FormatUint(uint64(-uid), 10) + " / " +
 		strconv.FormatUint(uint64(uid), 10)
 	if got != want {
+		if filesystemIsNoSUID(tmpBinary) {
+			t.Skip("skipping test when temp dir is mounted nosuid")
+		}
 		t.Errorf("expected %s, got %s", want, got)
 	}
+}
+
+// filesystemIsNoSUID reports whether the filesystem for the given
+// path is mounted nosuid.
+func filesystemIsNoSUID(path string) bool {
+	var st syscall.Statfs_t
+	if syscall.Statfs(path, &st) != nil {
+		return false
+	}
+	return st.Flags&syscall.MS_NOSUID != 0
 }
 
 func syscallNoError() {

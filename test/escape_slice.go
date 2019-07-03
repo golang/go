@@ -19,28 +19,28 @@ func slice0() {
 	var s []*int
 	// BAD: i should not escape
 	i := 0            // ERROR "moved to heap: i"
-	s = append(s, &i) // ERROR "&i escapes to heap"
+	s = append(s, &i)
 	_ = s
 }
 
 func slice1() *int {
 	var s []*int
 	i := 0            // ERROR "moved to heap: i"
-	s = append(s, &i) // ERROR "&i escapes to heap"
+	s = append(s, &i)
 	return s[0]
 }
 
 func slice2() []*int {
 	var s []*int
 	i := 0            // ERROR "moved to heap: i"
-	s = append(s, &i) // ERROR "&i escapes to heap"
+	s = append(s, &i)
 	return s
 }
 
 func slice3() *int {
 	var s []*int
 	i := 0            // ERROR "moved to heap: i"
-	s = append(s, &i) // ERROR "&i escapes to heap"
+	s = append(s, &i)
 	for _, p := range s {
 		return p
 	}
@@ -49,7 +49,7 @@ func slice3() *int {
 
 func slice4(s []*int) { // ERROR "s does not escape"
 	i := 0    // ERROR "moved to heap: i"
-	s[0] = &i // ERROR "&i escapes to heap"
+	s[0] = &i
 }
 
 func slice5(s []*int) { // ERROR "s does not escape"
@@ -57,39 +57,39 @@ func slice5(s []*int) { // ERROR "s does not escape"
 		s = make([]*int, 10) // ERROR "make\(\[\]\*int, 10\) does not escape"
 	}
 	i := 0    // ERROR "moved to heap: i"
-	s[0] = &i // ERROR "&i escapes to heap"
+	s[0] = &i
 }
 
 func slice6() {
 	s := make([]*int, 10) // ERROR "make\(\[\]\*int, 10\) does not escape"
 	// BAD: i should not escape
 	i := 0    // ERROR "moved to heap: i"
-	s[0] = &i // ERROR "&i escapes to heap"
+	s[0] = &i
 	_ = s
 }
 
 func slice7() *int {
 	s := make([]*int, 10) // ERROR "make\(\[\]\*int, 10\) does not escape"
 	i := 0                // ERROR "moved to heap: i"
-	s[0] = &i             // ERROR "&i escapes to heap"
+	s[0] = &i
 	return s[0]
 }
 
 func slice8() {
 	i := 0
-	s := []*int{&i} // ERROR "&i does not escape" "literal does not escape"
+	s := []*int{&i} // ERROR "literal does not escape"
 	_ = s
 }
 
 func slice9() *int {
 	i := 0          // ERROR "moved to heap: i"
-	s := []*int{&i} // ERROR "&i escapes to heap" "literal does not escape"
+	s := []*int{&i} // ERROR "literal does not escape"
 	return s[0]
 }
 
 func slice10() []*int {
 	i := 0          // ERROR "moved to heap: i"
-	s := []*int{&i} // ERROR "&i escapes to heap" "literal escapes to heap"
+	s := []*int{&i} // ERROR "literal escapes to heap"
 	return s
 }
 

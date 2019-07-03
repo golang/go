@@ -4273,7 +4273,7 @@ func testServerEmptyBodyRace(t *testing.T, h2 bool) {
 	var n int32
 	cst := newClientServerTest(t, h2, HandlerFunc(func(rw ResponseWriter, req *Request) {
 		atomic.AddInt32(&n, 1)
-	}))
+	}), optQuietLog)
 	defer cst.close()
 	var wg sync.WaitGroup
 	const reqs = 20
@@ -4697,6 +4697,10 @@ func TestServerHandlersCanHandleH2PRI(t *testing.T) {
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		conn, br, err := w.(Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
 		defer conn.Close()
 		if r.Method != "PRI" || r.RequestURI != "*" {
 			t.Errorf("Got method/target %q %q; want PRI *", r.Method, r.RequestURI)
@@ -5745,8 +5749,12 @@ func TestServerDuplicateBackgroundRead(t *testing.T) {
 	setParallel(t)
 	defer afterTest(t)
 
-	const goroutines = 5
-	const requests = 2000
+	goroutines := 5
+	requests := 2000
+	if testing.Short() {
+		goroutines = 3
+		requests = 100
+	}
 
 	hts := httptest.NewServer(HandlerFunc(NotFound))
 	defer hts.Close()
@@ -6019,6 +6027,143 @@ func TestStripPortFromHost(t *testing.T) {
 	if response != "OK" {
 		t.Errorf("Response gotten was %q", response)
 	}
+}
+
+func TestServerContexts(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	type baseKey struct{}
+	type connKey struct{}
+	ch := make(chan context.Context, 1)
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(rw ResponseWriter, r *Request) {
+		ch <- r.Context()
+	}))
+	ts.Config.BaseContext = func(ln net.Listener) context.Context {
+		if strings.Contains(reflect.TypeOf(ln).String(), "onceClose") {
+			t.Errorf("unexpected onceClose listener type %T", ln)
+		}
+		return context.WithValue(context.Background(), baseKey{}, "base")
+	}
+	ts.Config.ConnContext = func(ctx context.Context, c net.Conn) context.Context {
+		if got, want := ctx.Value(baseKey{}), "base"; got != want {
+			t.Errorf("in ConnContext, base context key = %#v; want %q", got, want)
+		}
+		return context.WithValue(ctx, connKey{}, "conn")
+	}
+	ts.Start()
+	defer ts.Close()
+	res, err := ts.Client().Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	ctx := <-ch
+	if got, want := ctx.Value(baseKey{}), "base"; got != want {
+		t.Errorf("base context key = %#v; want %q", got, want)
+	}
+	if got, want := ctx.Value(connKey{}), "conn"; got != want {
+		t.Errorf("conn context key = %#v; want %q", got, want)
+	}
+}
+
+func TestServerContextsHTTP2(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	type baseKey struct{}
+	type connKey struct{}
+	ch := make(chan context.Context, 1)
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(rw ResponseWriter, r *Request) {
+		if r.ProtoMajor != 2 {
+			t.Errorf("unexpected HTTP/1.x request")
+		}
+		ch <- r.Context()
+	}))
+	ts.Config.BaseContext = func(ln net.Listener) context.Context {
+		if strings.Contains(reflect.TypeOf(ln).String(), "onceClose") {
+			t.Errorf("unexpected onceClose listener type %T", ln)
+		}
+		return context.WithValue(context.Background(), baseKey{}, "base")
+	}
+	ts.Config.ConnContext = func(ctx context.Context, c net.Conn) context.Context {
+		if got, want := ctx.Value(baseKey{}), "base"; got != want {
+			t.Errorf("in ConnContext, base context key = %#v; want %q", got, want)
+		}
+		return context.WithValue(ctx, connKey{}, "conn")
+	}
+	ts.TLS = &tls.Config{
+		NextProtos: []string{"h2", "http/1.1"},
+	}
+	ts.StartTLS()
+	defer ts.Close()
+	ts.Client().Transport.(*Transport).ForceAttemptHTTP2 = true
+	res, err := ts.Client().Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	ctx := <-ch
+	if got, want := ctx.Value(baseKey{}), "base"; got != want {
+		t.Errorf("base context key = %#v; want %q", got, want)
+	}
+	if got, want := ctx.Value(connKey{}), "conn"; got != want {
+		t.Errorf("conn context key = %#v; want %q", got, want)
+	}
+}
+
+// Issue 30710: ensure that as per the spec, a server responds
+// with 501 Not Implemented for unsupported transfer-encodings.
+func TestUnsupportedTransferEncodingsReturn501(t *testing.T) {
+	cst := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Write([]byte("Hello, World!"))
+	}))
+	defer cst.Close()
+
+	serverURL, err := url.Parse(cst.URL)
+	if err != nil {
+		t.Fatalf("Failed to parse server URL: %v", err)
+	}
+
+	unsupportedTEs := []string{
+		"fugazi",
+		"foo-bar",
+		"unknown",
+	}
+
+	for _, badTE := range unsupportedTEs {
+		http1ReqBody := fmt.Sprintf(""+
+			"POST / HTTP/1.1\r\nConnection: close\r\n"+
+			"Host: localhost\r\nTransfer-Encoding: %s\r\n\r\n", badTE)
+
+		gotBody, err := fetchWireResponse(serverURL.Host, []byte(http1ReqBody))
+		if err != nil {
+			t.Errorf("%q. unexpected error: %v", badTE, err)
+			continue
+		}
+
+		wantBody := fmt.Sprintf("" +
+			"HTTP/1.1 501 Not Implemented\r\nContent-Type: text/plain; charset=utf-8\r\n" +
+			"Connection: close\r\n\r\nUnsupported transfer encoding")
+
+		if string(gotBody) != wantBody {
+			t.Errorf("%q. body\ngot\n%q\nwant\n%q", badTE, gotBody, wantBody)
+		}
+	}
+}
+
+// fetchWireResponse is a helper for dialing to host,
+// sending http1ReqBody as the payload and retrieving
+// the response as it was sent on the wire.
+func fetchWireResponse(host string, http1ReqBody []byte) ([]byte, error) {
+	conn, err := net.Dial("tcp", host)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	if _, err := conn.Write(http1ReqBody); err != nil {
+		return nil, err
+	}
+	return ioutil.ReadAll(conn)
 }
 
 func BenchmarkResponseStatusLine(b *testing.B) {

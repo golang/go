@@ -324,6 +324,10 @@ type ImportDirectory struct {
 // satisfied by other libraries at dynamic load time.
 // It does not return weak symbols.
 func (f *File) ImportedSymbols() ([]string, error) {
+	if f.OptionalHeader == nil {
+		return nil, nil
+	}
+
 	pe64 := f.Machine == IMAGE_FILE_MACHINE_AMD64
 
 	// grab the number of data directory entries
@@ -373,7 +377,7 @@ func (f *File) ImportedSymbols() ([]string, error) {
 
 	// start decoding the import directory
 	var ida []ImportDirectory
-	for len(d) > 0 {
+	for len(d) >= 20 {
 		var dt ImportDirectory
 		dt.OriginalFirstThunk = binary.LittleEndian.Uint32(d[0:4])
 		dt.TimeDateStamp = binary.LittleEndian.Uint32(d[4:8])

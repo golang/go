@@ -203,7 +203,8 @@ type nonEmptyInterface struct {
 // v.flag.mustBe(Bool), which will only bother to copy the
 // single important word for the receiver.
 func (f flag) mustBe(expected Kind) {
-	if f.kind() != expected {
+	// TODO(mvdan): use f.kind() again once mid-stack inlining gets better
+	if Kind(f&flagKindMask) != expected {
 		panic(&ValueError{methodName(), f.kind()})
 	}
 }
@@ -211,8 +212,14 @@ func (f flag) mustBe(expected Kind) {
 // mustBeExported panics if f records that the value was obtained using
 // an unexported field.
 func (f flag) mustBeExported() {
+	if f == 0 || f&flagRO != 0 {
+		f.mustBeExportedSlow()
+	}
+}
+
+func (f flag) mustBeExportedSlow() {
 	if f == 0 {
-		panic(&ValueError{methodName(), 0})
+		panic(&ValueError{methodName(), Invalid})
 	}
 	if f&flagRO != 0 {
 		panic("reflect: " + methodName() + " using value obtained using unexported field")
@@ -223,6 +230,12 @@ func (f flag) mustBeExported() {
 // which is to say that either it was obtained using an unexported field
 // or it is not addressable.
 func (f flag) mustBeAssignable() {
+	if f&flagRO != 0 || f&flagAddr == 0 {
+		f.mustBeAssignableSlow()
+	}
+}
+
+func (f flag) mustBeAssignableSlow() {
 	if f == 0 {
 		panic(&ValueError{methodName(), Invalid})
 	}
@@ -547,10 +560,9 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool) {
 		}
 		for i, typ := range ftyp.out() {
 			v := out[i]
-			if v.typ != typ {
+			if v.typ == nil {
 				panic("reflect: function created by MakeFunc using " + funcName(f) +
-					" returned wrong type: have " +
-					out[i].typ.String() + " for " + typ.String())
+					" returned zero Value")
 			}
 			if v.flag&flagRO != 0 {
 				panic("reflect: function created by MakeFunc using " + funcName(f) +
@@ -561,6 +573,12 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool) {
 				continue
 			}
 			addr := add(ptr, off, "typ.size > 0")
+
+			// Convert v to type typ if v is assignable to a variable
+			// of type t in the language spec.
+			// See issue 28761.
+			v = v.assignTo("reflect.MakeFunc", typ, addr)
+
 			// We are writing to stack. No write barrier.
 			if v.flag&flagIndir != 0 {
 				memmove(addr, v.ptr, typ.size)
@@ -981,7 +999,7 @@ func (v Value) Interface() (i interface{}) {
 
 func valueInterface(v Value, safe bool) interface{} {
 	if v.flag == 0 {
-		panic(&ValueError{"reflect.Value.Interface", 0})
+		panic(&ValueError{"reflect.Value.Interface", Invalid})
 	}
 	if safe && v.flag&flagRO != 0 {
 		// Do not allow access to unexported values via Interface,
@@ -1056,6 +1074,46 @@ func (v Value) IsNil() bool {
 // If one does, its documentation states the conditions explicitly.
 func (v Value) IsValid() bool {
 	return v.flag != 0
+}
+
+// IsZero reports whether v is the zero value for its type.
+// It panics if the argument is invalid.
+func (v Value) IsZero() bool {
+	switch v.kind() {
+	case Bool:
+		return !v.Bool()
+	case Int, Int8, Int16, Int32, Int64:
+		return v.Int() == 0
+	case Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
+		return v.Uint() == 0
+	case Float32, Float64:
+		return math.Float64bits(v.Float()) == 0
+	case Complex64, Complex128:
+		c := v.Complex()
+		return math.Float64bits(real(c)) == 0 && math.Float64bits(imag(c)) == 0
+	case Array:
+		for i := 0; i < v.Len(); i++ {
+			if !v.Index(i).IsZero() {
+				return false
+			}
+		}
+		return true
+	case Chan, Func, Interface, Map, Ptr, Slice, UnsafePointer:
+		return v.IsNil()
+	case String:
+		return v.Len() == 0
+	case Struct:
+		for i := 0; i < v.NumField(); i++ {
+			if !v.Field(i).IsZero() {
+				return false
+			}
+		}
+		return true
+	default:
+		// This should never happens, but will act as a safeguard for
+		// later, as a default value doesn't makes sense here.
+		panic(&ValueError{"reflect.Value.IsZero", v.Kind()})
+	}
 }
 
 // Kind returns v's Kind.
@@ -1184,7 +1242,7 @@ func (it *MapIter) Value() Value {
 
 	t := (*mapType)(unsafe.Pointer(it.m.typ))
 	vtype := t.elem
-	return copyVal(vtype, it.m.flag.ro()|flag(vtype.Kind()), mapitervalue(it.it))
+	return copyVal(vtype, it.m.flag.ro()|flag(vtype.Kind()), mapiterelem(it.it))
 }
 
 // Next advances the map iterator and reports whether there is another
@@ -1582,13 +1640,13 @@ func (v Value) SetCap(n int) {
 	s.Cap = n
 }
 
-// SetMapIndex sets the value associated with key in the map v to val.
+// SetMapIndex sets the element associated with key in the map v to elem.
 // It panics if v's Kind is not Map.
-// If val is the zero Value, SetMapIndex deletes the key from the map.
+// If elem is the zero Value, SetMapIndex deletes the key from the map.
 // Otherwise if v holds a nil map, SetMapIndex will panic.
-// As in Go, key's value must be assignable to the map's key type,
-// and val's value must be assignable to the map's value type.
-func (v Value) SetMapIndex(key, val Value) {
+// As in Go, key's elem must be assignable to the map's key type,
+// and elem's value must be assignable to the map's elem type.
+func (v Value) SetMapIndex(key, elem Value) {
 	v.mustBe(Map)
 	v.mustBeExported()
 	key.mustBeExported()
@@ -1600,17 +1658,17 @@ func (v Value) SetMapIndex(key, val Value) {
 	} else {
 		k = unsafe.Pointer(&key.ptr)
 	}
-	if val.typ == nil {
+	if elem.typ == nil {
 		mapdelete(v.typ, v.pointer(), k)
 		return
 	}
-	val.mustBeExported()
-	val = val.assignTo("reflect.Value.SetMapIndex", tt.elem, nil)
+	elem.mustBeExported()
+	elem = elem.assignTo("reflect.Value.SetMapIndex", tt.elem, nil)
 	var e unsafe.Pointer
-	if val.flag&flagIndir != 0 {
-		e = val.ptr
+	if elem.flag&flagIndir != 0 {
+		e = elem.ptr
 	} else {
-		e = unsafe.Pointer(&val.ptr)
+		e = unsafe.Pointer(&elem.ptr)
 	}
 	mapassign(v.typ, v.pointer(), k, e)
 }
@@ -2655,7 +2713,7 @@ func mapiterinit(t *rtype, m unsafe.Pointer) unsafe.Pointer
 func mapiterkey(it unsafe.Pointer) (key unsafe.Pointer)
 
 //go:noescape
-func mapitervalue(it unsafe.Pointer) (value unsafe.Pointer)
+func mapiterelem(it unsafe.Pointer) (elem unsafe.Pointer)
 
 //go:noescape
 func mapiternext(it unsafe.Pointer)

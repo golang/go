@@ -8,6 +8,10 @@ package atomic
 
 import "unsafe"
 
+// Export some functions via linkname to assembly in sync/atomic.
+//go:linkname Load
+//go:linkname Loadp
+
 //go:nosplit
 //go:noinline
 func Load(ptr *uint32) uint32 {
@@ -46,6 +50,12 @@ func Xchguintptr(ptr *uintptr, new uintptr) uintptr
 
 //go:noescape
 func Load64(ptr *uint64) uint64
+
+//go:nosplit
+//go:noinline
+func Load8(ptr *uint8) uint8 {
+	return *ptr
+}
 
 //go:noescape
 func And8(ptr *uint8, val uint8)

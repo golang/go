@@ -8,15 +8,14 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"internal/lazyregexp"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"unicode"
 
 	"cmd/go/internal/module"
-	"cmd/go/internal/semver"
 )
 
 // A File is the parsed, interpreted form of a go.mod file.
@@ -154,7 +153,7 @@ func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (*File
 	return f, nil
 }
 
-var GoVersionRE = regexp.MustCompile(`([1-9][0-9]*)\.(0|[1-9][0-9]*)`)
+var GoVersionRE = lazyregexp.New(`([1-9][0-9]*)\.(0|[1-9][0-9]*)`)
 
 func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, fix VersionFixer, strict bool) {
 	// If strict is false, this module is a dependency.
@@ -195,7 +194,7 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
 		f.Module = &Module{Syntax: line}
 		if len(args) != 1 {
 
-			fmt.Fprintf(errs, "%s:%d: usage: module module/path [version]\n", f.Syntax.Name, line.Start.Line)
+			fmt.Fprintf(errs, "%s:%d: usage: module module/path\n", f.Syntax.Name, line.Start.Line)
 			return
 		}
 		s, err := parseString(&args[0])
@@ -214,10 +213,9 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
 			fmt.Fprintf(errs, "%s:%d: invalid quoted string: %v\n", f.Syntax.Name, line.Start.Line, err)
 			return
 		}
-		old := args[1]
-		v, err := parseVersion(s, &args[1], fix)
+		v, err := parseVersion(verb, s, &args[1], fix)
 		if err != nil {
-			fmt.Fprintf(errs, "%s:%d: invalid module version %q: %v\n", f.Syntax.Name, line.Start.Line, old, err)
+			fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, err)
 			return
 		}
 		pathMajor, err := modulePathMajor(s)
@@ -225,11 +223,8 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
 			fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, err)
 			return
 		}
-		if !module.MatchPathMajor(v, pathMajor) {
-			if pathMajor == "" {
-				pathMajor = "v0 or v1"
-			}
-			fmt.Fprintf(errs, "%s:%d: invalid module: %s should be %s, not %s (%s)\n", f.Syntax.Name, line.Start.Line, s, pathMajor, semver.Major(v), v)
+		if err := module.MatchPathMajor(v, pathMajor); err != nil {
+			fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, &Error{Verb: verb, ModPath: s, Err: err})
 			return
 		}
 		if verb == "require" {
@@ -265,17 +260,13 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
 		}
 		var v string
 		if arrow == 2 {
-			old := args[1]
-			v, err = parseVersion(s, &args[1], fix)
+			v, err = parseVersion(verb, s, &args[1], fix)
 			if err != nil {
-				fmt.Fprintf(errs, "%s:%d: invalid module version %v: %v\n", f.Syntax.Name, line.Start.Line, old, err)
+				fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, err)
 				return
 			}
-			if !module.MatchPathMajor(v, pathMajor) {
-				if pathMajor == "" {
-					pathMajor = "v0 or v1"
-				}
-				fmt.Fprintf(errs, "%s:%d: invalid module: %s should be %s, not %s (%s)\n", f.Syntax.Name, line.Start.Line, s, pathMajor, semver.Major(v), v)
+			if err := module.MatchPathMajor(v, pathMajor); err != nil {
+				fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, &Error{Verb: verb, ModPath: s, Err: err})
 				return
 			}
 		}
@@ -296,10 +287,9 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
 			}
 		}
 		if len(args) == arrow+3 {
-			old := args[arrow+1]
-			nv, err = parseVersion(ns, &args[arrow+2], fix)
+			nv, err = parseVersion(verb, ns, &args[arrow+2], fix)
 			if err != nil {
-				fmt.Fprintf(errs, "%s:%d: invalid module version %v: %v\n", f.Syntax.Name, line.Start.Line, old, err)
+				fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, err)
 				return
 			}
 			if IsDirectoryPath(ns) {
@@ -411,15 +401,41 @@ func parseString(s *string) (string, error) {
 	return t, nil
 }
 
-func parseVersion(path string, s *string, fix VersionFixer) (string, error) {
+type Error struct {
+	Verb    string
+	ModPath string
+	Err     error
+}
+
+func (e *Error) Error() string {
+	return fmt.Sprintf("%s %s: %v", e.Verb, e.ModPath, e.Err)
+}
+
+func (e *Error) Unwrap() error { return e.Err }
+
+func parseVersion(verb string, path string, s *string, fix VersionFixer) (string, error) {
 	t, err := parseString(s)
 	if err != nil {
-		return "", err
+		return "", &Error{
+			Verb:    verb,
+			ModPath: path,
+			Err: &module.InvalidVersionError{
+				Version: *s,
+				Err:     err,
+			},
+		}
 	}
 	if fix != nil {
 		var err error
 		t, err = fix(path, t)
 		if err != nil {
+			if err, ok := err.(*module.ModuleError); ok {
+				return "", &Error{
+					Verb:    verb,
+					ModPath: path,
+					Err:     err.Err,
+				}
+			}
 			return "", err
 		}
 	}
@@ -427,7 +443,14 @@ func parseVersion(path string, s *string, fix VersionFixer) (string, error) {
 		*s = v
 		return *s, nil
 	}
-	return "", fmt.Errorf("version must be of the form v1.2.3")
+	return "", &Error{
+		Verb:    verb,
+		ModPath: path,
+		Err: &module.InvalidVersionError{
+			Version: t,
+			Err:     errors.New("must be of the form v1.2.3"),
+		},
+	}
 }
 
 func modulePathMajor(path string) (string, error) {

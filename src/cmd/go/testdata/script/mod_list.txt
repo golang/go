@@ -1,4 +1,5 @@
 env GO111MODULE=on
+[short] skip
 
 # list {{.Dir}} shows main module and go.mod but not not-yet-downloaded dependency dir.
 go list -m -f '{{.Path}} {{.Main}} {{.GoMod}} {{.Dir}}' all

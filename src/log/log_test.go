@@ -61,9 +61,9 @@ func testPrint(t *testing.T, flag int, prefix string, pattern string, useFormat 
 	line := buf.String()
 	line = line[0 : len(line)-1]
 	pattern = "^" + pattern + "hello 23 world$"
-	matched, err4 := regexp.MatchString(pattern, line)
-	if err4 != nil {
-		t.Fatal("pattern did not compile:", err4)
+	matched, err := regexp.MatchString(pattern, line)
+	if err != nil {
+		t.Fatal("pattern did not compile:", err)
 	}
 	if !matched {
 		t.Errorf("log output should match %q is %q", pattern, line)

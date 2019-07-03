@@ -195,6 +195,8 @@ func (m *itab) init() string {
 	nt := int(x.mcount)
 	xmhdr := (*[1 << 16]method)(add(unsafe.Pointer(x), uintptr(x.moff)))[:nt:nt]
 	j := 0
+	methods := (*[1 << 16]unsafe.Pointer)(unsafe.Pointer(&m.fun[0]))[:ni:ni]
+	var fun0 unsafe.Pointer
 imethods:
 	for k := 0; k < ni; k++ {
 		i := &inter.mhdr[k]
@@ -216,7 +218,11 @@ imethods:
 				if tname.isExported() || pkgPath == ipkg {
 					if m != nil {
 						ifn := typ.textOff(t.ifn)
-						*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*sys.PtrSize)) = ifn
+						if k == 0 {
+							fun0 = ifn // we'll set m.fun[0] at the end
+						} else {
+							methods[k] = ifn
+						}
 					}
 					continue imethods
 				}
@@ -226,6 +232,7 @@ imethods:
 		m.fun[0] = 0
 		return iname
 	}
+	m.fun[0] = uintptr(fun0)
 	m.hash = typ.hash
 	return ""
 }
@@ -489,6 +496,11 @@ func assertE2I2(inter *interfacetype, e eface) (r iface, b bool) {
 
 //go:linkname reflect_ifaceE2I reflect.ifaceE2I
 func reflect_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
+	*dst = assertE2I(inter, e)
+}
+
+//go:linkname reflectlite_ifaceE2I internal/reflectlite.ifaceE2I
+func reflectlite_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
 	*dst = assertE2I(inter, e)
 }
 

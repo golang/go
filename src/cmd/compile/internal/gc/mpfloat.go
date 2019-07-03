@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"strings"
 )
 
 // implements float arithmetic
@@ -32,12 +31,14 @@ type Mpcplx struct {
 	Imag Mpflt
 }
 
+// Use newMpflt (not new(Mpflt)!) to get the correct default precision.
 func newMpflt() *Mpflt {
 	var a Mpflt
 	a.Val.SetPrec(Mpprec)
 	return &a
 }
 
+// Use newMpcmplx (not new(Mpcplx)!) to get the correct default precision.
 func newMpcmplx() *Mpcplx {
 	var a Mpcplx
 	a.Real = *newMpflt()
@@ -178,9 +179,7 @@ func (a *Mpflt) Neg() {
 }
 
 func (a *Mpflt) SetString(as string) {
-	// TODO(gri) remove this code once math/big.Float.Parse can handle separators
-	as = strings.Replace(as, "_", "", -1) // strip separators
-
+	// TODO(gri) why is this needed?
 	for len(as) > 0 && (as[0] == ' ' || as[0] == '\t') {
 		as = as[1:]
 	}

@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -19,6 +20,7 @@ import (
 
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/par"
+	"cmd/go/internal/semver"
 )
 
 // GitRepo returns the code repository at the given Git remote reference.
@@ -32,7 +34,7 @@ func LocalGitRepo(remote string) (Repo, error) {
 	return newGitRepoCached(remote, true)
 }
 
-const gitWorkDirType = "git2"
+const gitWorkDirType = "git3"
 
 var gitRepoCache par.Cache
 
@@ -79,7 +81,7 @@ func newGitRepo(remote string, localOK bool) (Repo, error) {
 			// but this lets us say git fetch origin instead, which
 			// is a little nicer. More importantly, using a named remote
 			// avoids a problem with Git LFS. See golang.org/issue/25605.
-			if _, err := Run(r.dir, "git", "remote", "add", "origin", r.remote); err != nil {
+			if _, err := Run(r.dir, "git", "remote", "add", "origin", "--", r.remote); err != nil {
 				os.RemoveAll(r.dir)
 				return nil, err
 			}
@@ -122,8 +124,10 @@ type gitRepo struct {
 	statCache par.Cache
 
 	refsOnce sync.Once
-	refs     map[string]string
-	refsErr  error
+	// refs maps branch and tag refs (e.g., "HEAD", "refs/heads/master")
+	// to commits (e.g., "37ffd2e798afde829a34e8955b716ab730b2a6d6")
+	refs    map[string]string
+	refsErr error
 
 	localTagsOnce sync.Once
 	localTags     map[string]bool
@@ -166,7 +170,7 @@ func (r *gitRepo) loadRefs() {
 	if err != nil {
 		if rerr, ok := err.(*RunError); ok {
 			if bytes.Contains(rerr.Stderr, []byte("fatal: could not read Username")) {
-				rerr.HelpText = "If this is a private repository, see https://golang.org/doc/faq#git_https for additional information."
+				rerr.HelpText = "Confirm the import path was entered correctly.\nIf this is a private repository, see https://golang.org/doc/faq#git_https for additional information."
 			}
 		}
 		r.refsErr = err
@@ -218,7 +222,7 @@ func (r *gitRepo) Latest() (*RevInfo, error) {
 		return nil, r.refsErr
 	}
 	if r.refs["HEAD"] == "" {
-		return nil, fmt.Errorf("no commits")
+		return nil, ErrNoCommits
 	}
 	return r.Stat(r.refs["HEAD"])
 }
@@ -315,7 +319,7 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
 			hash = rev
 		}
 	} else {
-		return nil, fmt.Errorf("unknown revision %s", rev)
+		return nil, &UnknownRevisionError{Rev: rev}
 	}
 
 	// Protect r.fetchLevel and the "fetch more and more" sequence.
@@ -339,8 +343,14 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
 		}
 	}
 
-	// If we know a specific commit we need, fetch it.
-	if r.fetchLevel <= fetchSome && hash != "" && !r.local {
+	// If we know a specific commit we need and its ref, fetch it.
+	// We do NOT fetch arbitrary hashes (when we don't know the ref)
+	// because we want to avoid ever importing a commit that isn't
+	// reachable from refs/tags/* or refs/heads/* or HEAD.
+	// Both Gerrit and GitHub expose every CL/PR as a named ref,
+	// and we don't want those commits masquerading as being real
+	// pseudo-versions in the main repo.
+	if r.fetchLevel <= fetchSome && ref != "" && hash != "" && !r.local {
 		r.fetchLevel = fetchSome
 		var refspec string
 		if ref != "" && ref != "HEAD" {
@@ -369,17 +379,30 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
 
 	// Last resort.
 	// Fetch all heads and tags and hope the hash we want is in the history.
-	if r.fetchLevel < fetchAll {
-		// TODO(bcmills): should we wait to upgrade fetchLevel until after we check
-		// err? If there is a temporary server error, we want subsequent fetches to
-		// try again instead of proceeding with an incomplete repo.
-		r.fetchLevel = fetchAll
-		if err := r.fetchUnshallow("refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
-			return nil, err
-		}
+	if err := r.fetchRefsLocked(); err != nil {
+		return nil, err
 	}
 
 	return r.statLocal(rev, rev)
+}
+
+// fetchRefsLocked fetches all heads and tags from the origin, along with the
+// ancestors of those commits.
+//
+// We only fetch heads and tags, not arbitrary other commits: we don't want to
+// pull in off-branch commits (such as rejected GitHub pull requests) that the
+// server may be willing to provide. (See the comments within the stat method
+// for more detail.)
+//
+// fetchRefsLocked requires that r.mu remain locked for the duration of the call.
+func (r *gitRepo) fetchRefsLocked() error {
+	if r.fetchLevel < fetchAll {
+		if err := r.fetchUnshallow("refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
+			return err
+		}
+		r.fetchLevel = fetchAll
+	}
+	return nil
 }
 
 func (r *gitRepo) fetchUnshallow(refSpecs ...string) error {
@@ -400,9 +423,9 @@ func (r *gitRepo) fetchUnshallow(refSpecs ...string) error {
 // statLocal returns a RevInfo describing rev in the local git repository.
 // It uses version as info.Version.
 func (r *gitRepo) statLocal(version, rev string) (*RevInfo, error) {
-	out, err := Run(r.dir, "git", "-c", "log.showsignature=false", "log", "-n1", "--format=format:%H %ct %D", rev)
+	out, err := Run(r.dir, "git", "-c", "log.showsignature=false", "log", "-n1", "--format=format:%H %ct %D", rev, "--")
 	if err != nil {
-		return nil, fmt.Errorf("unknown revision %s", rev)
+		return nil, &UnknownRevisionError{Rev: rev}
 	}
 	f := strings.Fields(string(out))
 	if len(f) < 2 {
@@ -639,23 +662,48 @@ func (r *gitRepo) readFileRevs(tags []string, file string, fileMap map[string]*F
 	return missing, nil
 }
 
-func (r *gitRepo) RecentTag(rev, prefix string) (tag string, err error) {
+func (r *gitRepo) RecentTag(rev, prefix, major string) (tag string, err error) {
 	info, err := r.Stat(rev)
 	if err != nil {
 		return "", err
 	}
 	rev = info.Name // expand hash prefixes
 
-	// describe sets tag and err using 'git describe' and reports whether the
+	// describe sets tag and err using 'git for-each-ref' and reports whether the
 	// result is definitive.
 	describe := func() (definitive bool) {
 		var out []byte
-		out, err = Run(r.dir, "git", "describe", "--first-parent", "--always", "--abbrev=0", "--match", prefix+"v[0-9]*.[0-9]*.[0-9]*", "--tags", rev)
+		out, err = Run(r.dir, "git", "for-each-ref", "--format", "%(refname)", "refs/tags", "--merged", rev)
 		if err != nil {
-			return true // Because we use "--always", describe should never fail.
+			return true
 		}
 
-		tag = string(bytes.TrimSpace(out))
+		// prefixed tags aren't valid semver tags so compare without prefix, but only tags with correct prefix
+		var highest string
+		for _, line := range strings.Split(string(out), "\n") {
+			line = strings.TrimSpace(line)
+			// git do support lstrip in for-each-ref format, but it was added in v2.13.0. Stripping here
+			// instead gives support for git v2.7.0.
+			if !strings.HasPrefix(line, "refs/tags/") {
+				continue
+			}
+			line = line[len("refs/tags/"):]
+
+			if !strings.HasPrefix(line, prefix) {
+				continue
+			}
+
+			semtag := line[len(prefix):]
+			// Consider only tags that are valid and complete (not just major.minor prefixes).
+			if c := semver.Canonical(semtag); c != "" && strings.HasPrefix(semtag, c) && (major == "" || semver.Major(c) == major) {
+				highest = semver.Max(highest, semtag)
+			}
+		}
+
+		if highest != "" {
+			tag = prefix + highest
+		}
+
 		return tag != "" && !AllHex(tag)
 	}
 
@@ -682,12 +730,8 @@ func (r *gitRepo) RecentTag(rev, prefix string) (tag string, err error) {
 	}
 	defer unlock()
 
-	if r.fetchLevel < fetchAll {
-		// Fetch all heads and tags and see if that gives us enough history.
-		if err := r.fetchUnshallow("refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
-			return "", err
-		}
-		r.fetchLevel = fetchAll
+	if err := r.fetchRefsLocked(); err != nil {
+		return "", err
 	}
 
 	// If we've reached this point, we have all of the commits that are reachable
@@ -702,6 +746,67 @@ func (r *gitRepo) RecentTag(rev, prefix string) (tag string, err error) {
 	// waiting on the lock.
 	describe()
 	return tag, err
+}
+
+func (r *gitRepo) DescendsFrom(rev, tag string) (bool, error) {
+	// The "--is-ancestor" flag was added to "git merge-base" in version 1.8.0, so
+	// this won't work with Git 1.7.1. According to golang.org/issue/28550, cmd/go
+	// already doesn't work with Git 1.7.1, so at least it's not a regression.
+	//
+	// git merge-base --is-ancestor exits with status 0 if rev is an ancestor, or
+	// 1 if not.
+	_, err := Run(r.dir, "git", "merge-base", "--is-ancestor", "--", tag, rev)
+
+	// Git reports "is an ancestor" with exit code 0 and "not an ancestor" with
+	// exit code 1.
+	// Unfortunately, if we've already fetched rev with a shallow history, git
+	// merge-base has been observed to report a false-negative, so don't stop yet
+	// even if the exit code is 1!
+	if err == nil {
+		return true, nil
+	}
+
+	// See whether the tag and rev even exist.
+	tags, err := r.Tags(tag)
+	if err != nil {
+		return false, err
+	}
+	if len(tags) == 0 {
+		return false, nil
+	}
+
+	// NOTE: r.stat is very careful not to fetch commits that we shouldn't know
+	// about, like rejected GitHub pull requests, so don't try to short-circuit
+	// that here.
+	if _, err = r.stat(rev); err != nil {
+		return false, err
+	}
+
+	// Now fetch history so that git can search for a path.
+	unlock, err := r.mu.Lock()
+	if err != nil {
+		return false, err
+	}
+	defer unlock()
+
+	if r.fetchLevel < fetchAll {
+		// Fetch the complete history for all refs and heads. It would be more
+		// efficient to only fetch the history from rev to tag, but that's much more
+		// complicated, and any kind of shallow fetch is fairly likely to trigger
+		// bugs in JGit servers and/or the go command anyway.
+		if err := r.fetchRefsLocked(); err != nil {
+			return false, err
+		}
+	}
+
+	_, err = Run(r.dir, "git", "merge-base", "--is-ancestor", "--", tag, rev)
+	if err == nil {
+		return true, nil
+	}
+	if ee, ok := err.(*RunError).Err.(*exec.ExitError); ok && ee.ExitCode() == 1 {
+		return false, nil
+	}
+	return false, err
 }
 
 func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error) {

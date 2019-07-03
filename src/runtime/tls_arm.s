@@ -88,7 +88,7 @@ TEXT runtime·_initcgo(SB),NOSPLIT,$4
 #ifdef TLSG_IS_VARIABLE
 	MOVW 	$runtime·tls_g(SB), R2 	// arg 2: &tls_g
 #else
-        MOVW	$0, R2			// arg 2: not used when using platform tls
+	MOVW	$0, R2			// arg 2: not used when using platform tls
 #endif
 	MOVW	$setg_gcc<>(SB), R1 	// arg 1: setg
 	MOVW	g, R0 			// arg 0: G
@@ -103,6 +103,11 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0
 	B		runtime·save_g(SB)
 
 #ifdef TLSG_IS_VARIABLE
+#ifdef GOOS_android
+// Use the free TLS_SLOT_APP slot #2 on Android Q.
+// Earlier androids are set up in gcc_android.c.
+DATA runtime·tls_g+0(SB)/4, $8
+#endif
 GLOBL runtime·tls_g+0(SB), NOPTR, $4
 #else
 GLOBL runtime·tls_g+0(SB), TLSBSS, $4

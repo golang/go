@@ -1,3 +1,5 @@
+env GO111MODULE=off
+
 [!exec:echo] skip
 [!exec:false] skip
 

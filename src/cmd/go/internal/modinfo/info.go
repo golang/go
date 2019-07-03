@@ -20,8 +20,8 @@ type ModulePublic struct {
 	Indirect  bool          `json:",omitempty"` // module is only indirectly needed by main module
 	Dir       string        `json:",omitempty"` // directory holding local copy of files, if any
 	GoMod     string        `json:",omitempty"` // path to go.mod file describing module, if any
-	Error     *ModuleError  `json:",omitempty"` // error loading module
 	GoVersion string        `json:",omitempty"` // go version used in module
+	Error     *ModuleError  `json:",omitempty"` // error loading module
 }
 
 type ModuleError struct {

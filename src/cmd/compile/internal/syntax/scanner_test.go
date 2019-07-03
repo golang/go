@@ -347,13 +347,14 @@ func TestNumbers(t *testing.T) {
 		{IntLit, "0b0190", "0b0190", "invalid digit '9' in binary literal"},
 		{IntLit, "0b01a0", "0b01 a0", ""}, // only accept 0-9
 
-		// binary floats and imaginaries (invalid)
 		{FloatLit, "0b.", "0b.", "invalid radix point in binary literal"},
 		{FloatLit, "0b.1", "0b.1", "invalid radix point in binary literal"},
 		{FloatLit, "0b1.0", "0b1.0", "invalid radix point in binary literal"},
 		{FloatLit, "0b1e10", "0b1e10", "'e' exponent requires decimal mantissa"},
 		{FloatLit, "0b1P-1", "0b1P-1", "'P' exponent requires hexadecimal mantissa"},
-		{ImagLit, "0b10i", "0b10i", "invalid suffix 'i' on binary literal"},
+
+		{ImagLit, "0b10i", "0b10i", ""},
+		{ImagLit, "0b10.0i", "0b10.0i", "invalid radix point in binary literal"},
 
 		// octals
 		{IntLit, "0o0", "0o0", ""},
@@ -365,13 +366,14 @@ func TestNumbers(t *testing.T) {
 		{IntLit, "0o1293", "0o1293", "invalid digit '9' in octal literal"},
 		{IntLit, "0o12a3", "0o12 a3", ""}, // only accept 0-9
 
-		// octal floats and imaginaries (invalid)
 		{FloatLit, "0o.", "0o.", "invalid radix point in octal literal"},
 		{FloatLit, "0o.2", "0o.2", "invalid radix point in octal literal"},
 		{FloatLit, "0o1.2", "0o1.2", "invalid radix point in octal literal"},
 		{FloatLit, "0o1E+2", "0o1E+2", "'E' exponent requires decimal mantissa"},
 		{FloatLit, "0o1p10", "0o1p10", "'p' exponent requires hexadecimal mantissa"},
-		{ImagLit, "0o10i", "0o10i", "invalid suffix 'i' on octal literal"},
+
+		{ImagLit, "0o10i", "0o10i", ""},
+		{ImagLit, "0o10e0i", "0o10e0i", "'e' exponent requires decimal mantissa"},
 
 		// 0-octals
 		{IntLit, "0", "0", ""},
@@ -388,6 +390,9 @@ func TestNumbers(t *testing.T) {
 		{IntLit, "1234", "1234", ""},
 
 		{IntLit, "1f", "1 f", ""}, // only accept 0-9
+
+		{ImagLit, "0i", "0i", ""},
+		{ImagLit, "0678i", "0678i", ""},
 
 		// decimal floats
 		{FloatLit, "0.", "0.", ""},
@@ -424,7 +429,6 @@ func TestNumbers(t *testing.T) {
 		{FloatLit, "0p0", "0p0", "'p' exponent requires hexadecimal mantissa"},
 		{FloatLit, "1.0P-1", "1.0P-1", "'P' exponent requires hexadecimal mantissa"},
 
-		// decimal imaginaries
 		{ImagLit, "0.i", "0.i", ""},
 		{ImagLit, ".123i", ".123i", ""},
 		{ImagLit, "123.123i", "123.123i", ""},
@@ -440,6 +444,8 @@ func TestNumbers(t *testing.T) {
 
 		{IntLit, "0x", "0x", "hexadecimal literal has no digits"},
 		{IntLit, "0x1g", "0x1 g", ""},
+
+		{ImagLit, "0xf00i", "0xf00i", ""},
 
 		// hexadecimal floats
 		{FloatLit, "0x0p0", "0x0p0", ""},
@@ -459,9 +465,7 @@ func TestNumbers(t *testing.T) {
 		{FloatLit, "0x1234PAB", "0x1234P AB", "exponent has no digits"},
 		{FloatLit, "0x1.2p1a", "0x1.2p1 a", ""},
 
-		// hexadecimal imaginaries (invalid)
-		{ImagLit, "0xf00i", "0xf00i", "invalid suffix 'i' on hexadecimal literal"},
-		{ImagLit, "0xf00.bap+12i", "0xf00.bap+12i", "invalid suffix 'i' on hexadecimal literal"},
+		{ImagLit, "0xf00.bap+12i", "0xf00.bap+12i", ""},
 
 		// separators
 		{IntLit, "0b_1000_0001", "0b_1000_0001", ""},

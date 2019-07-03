@@ -79,8 +79,7 @@ var (
 	valueTrue      = predefValue(3)
 	valueFalse     = predefValue(4)
 	valueGlobal    = predefValue(5)
-	memory         = predefValue(6) // WebAssembly linear memory
-	jsGo           = predefValue(7) // instance of the Go class in JavaScript
+	jsGo           = predefValue(6) // instance of the Go class in JavaScript
 
 	objectConstructor = valueGlobal.Get("Object")
 	arrayConstructor  = valueGlobal.Get("Array")
@@ -106,7 +105,6 @@ func Global() Value {
 //  | Go                     | JavaScript             |
 //  | ---------------------- | ---------------------- |
 //  | js.Value               | [its value]            |
-//  | js.TypedArray          | typed array            |
 //  | js.Func                | function               |
 //  | nil                    | null                   |
 //  | bool                   | boolean                |
@@ -216,6 +214,10 @@ func (t Type) String() string {
 	}
 }
 
+func (t Type) isObject() bool {
+	return t == TypeObject || t == TypeFunction
+}
+
 // Type returns the JavaScript type of the value v. It is similar to JavaScript's typeof operator,
 // except that it returns TypeNull instead of TypeObject for null.
 func (v Value) Type() Type {
@@ -244,28 +246,44 @@ func (v Value) Type() Type {
 }
 
 // Get returns the JavaScript property p of value v.
+// It panics if v is not a JavaScript object.
 func (v Value) Get(p string) Value {
+	if vType := v.Type(); !vType.isObject() {
+		panic(&ValueError{"Value.Get", vType})
+	}
 	return makeValue(valueGet(v.ref, p))
 }
 
 func valueGet(v ref, p string) ref
 
 // Set sets the JavaScript property p of value v to ValueOf(x).
+// It panics if v is not a JavaScript object.
 func (v Value) Set(p string, x interface{}) {
+	if vType := v.Type(); !vType.isObject() {
+		panic(&ValueError{"Value.Set", vType})
+	}
 	valueSet(v.ref, p, ValueOf(x).ref)
 }
 
 func valueSet(v ref, p string, x ref)
 
 // Index returns JavaScript index i of value v.
+// It panics if v is not a JavaScript object.
 func (v Value) Index(i int) Value {
+	if vType := v.Type(); !vType.isObject() {
+		panic(&ValueError{"Value.Index", vType})
+	}
 	return makeValue(valueIndex(v.ref, i))
 }
 
 func valueIndex(v ref, i int) ref
 
 // SetIndex sets the JavaScript index i of value v to ValueOf(x).
+// It panics if v is not a JavaScript object.
 func (v Value) SetIndex(i int, x interface{}) {
+	if vType := v.Type(); !vType.isObject() {
+		panic(&ValueError{"Value.SetIndex", vType})
+	}
 	valueSetIndex(v.ref, i, ValueOf(x).ref)
 }
 
@@ -280,7 +298,11 @@ func makeArgs(args []interface{}) []ref {
 }
 
 // Length returns the JavaScript property "length" of v.
+// It panics if v is not a JavaScript object.
 func (v Value) Length() int {
+	if vType := v.Type(); !vType.isObject() {
+		panic(&ValueError{"Value.SetIndex", vType})
+	}
 	return valueLength(v.ref)
 }
 
@@ -292,7 +314,7 @@ func valueLength(v ref) int
 func (v Value) Call(m string, args ...interface{}) Value {
 	res, ok := valueCall(v.ref, m, makeArgs(args))
 	if !ok {
-		if vType := v.Type(); vType != TypeObject && vType != TypeFunction { // check here to avoid overhead in success case
+		if vType := v.Type(); !vType.isObject() { // check here to avoid overhead in success case
 			panic(&ValueError{"Value.Call", vType})
 		}
 		if propType := v.Get(m).Type(); propType != TypeFunction {
@@ -306,7 +328,7 @@ func (v Value) Call(m string, args ...interface{}) Value {
 func valueCall(v ref, m string, args []ref) (ref, bool)
 
 // Invoke does a JavaScript call of the value v with the given arguments.
-// It panics if v is not a function.
+// It panics if v is not a JavaScript function.
 // The arguments get mapped to JavaScript values according to the ValueOf function.
 func (v Value) Invoke(args ...interface{}) Value {
 	res, ok := valueInvoke(v.ref, makeArgs(args))
@@ -322,11 +344,14 @@ func (v Value) Invoke(args ...interface{}) Value {
 func valueInvoke(v ref, args []ref) (ref, bool)
 
 // New uses JavaScript's "new" operator with value v as constructor and the given arguments.
-// It panics if v is not a function.
+// It panics if v is not a JavaScript function.
 // The arguments get mapped to JavaScript values according to the ValueOf function.
 func (v Value) New(args ...interface{}) Value {
 	res, ok := valueNew(v.ref, makeArgs(args))
 	if !ok {
+		if vType := v.Type(); vType != TypeFunction { // check here to avoid overhead in success case
+			panic(&ValueError{"Value.Invoke", vType})
+		}
 		panic(Error{makeValue(res)})
 	}
 	return makeValue(res)
@@ -350,17 +375,20 @@ func (v Value) float(method string) float64 {
 	return *(*float64)(unsafe.Pointer(&v.ref))
 }
 
-// Float returns the value v as a float64. It panics if v is not a JavaScript number.
+// Float returns the value v as a float64.
+// It panics if v is not a JavaScript number.
 func (v Value) Float() float64 {
 	return v.float("Value.Float")
 }
 
-// Int returns the value v truncated to an int. It panics if v is not a JavaScript number.
+// Int returns the value v truncated to an int.
+// It panics if v is not a JavaScript number.
 func (v Value) Int() int {
 	return int(v.float("Value.Int"))
 }
 
-// Bool returns the value v as a bool. It panics if v is not a JavaScript boolean.
+// Bool returns the value v as a bool.
+// It panics if v is not a JavaScript boolean.
 func (v Value) Bool() bool {
 	switch v.ref {
 	case valueTrue.ref:
@@ -392,9 +420,35 @@ func (v Value) Truthy() bool {
 	}
 }
 
-// String returns the value v converted to string according to JavaScript type conversions.
+// String returns the value v as a string.
+// String is a special case because of Go's String method convention. Unlike the other getters,
+// it does not panic if v's Type is not TypeString. Instead, it returns a string of the form "<T>"
+// or "<T: V>" where T is v's type and V is a string representation of v's value.
 func (v Value) String() string {
-	str, length := valuePrepareString(v.ref)
+	switch v.Type() {
+	case TypeString:
+		return jsString(v.ref)
+	case TypeUndefined:
+		return "<undefined>"
+	case TypeNull:
+		return "<null>"
+	case TypeBoolean:
+		return "<boolean: " + jsString(v.ref) + ">"
+	case TypeNumber:
+		return "<number: " + jsString(v.ref) + ">"
+	case TypeSymbol:
+		return "<symbol>"
+	case TypeObject:
+		return "<object>"
+	case TypeFunction:
+		return "<function>"
+	default:
+		panic("bad type")
+	}
+}
+
+func jsString(v ref) string {
+	str, length := valuePrepareString(v)
 	b := make([]byte, length)
 	valueLoadString(str, b)
 	return string(b)
@@ -422,3 +476,29 @@ type ValueError struct {
 func (e *ValueError) Error() string {
 	return "syscall/js: call of " + e.Method + " on " + e.Type.String()
 }
+
+// CopyBytesToGo copies bytes from the Uint8Array src to dst.
+// It returns the number of bytes copied, which will be the minimum of the lengths of src and dst.
+// CopyBytesToGo panics if src is not an Uint8Array.
+func CopyBytesToGo(dst []byte, src Value) int {
+	n, ok := copyBytesToGo(dst, src.ref)
+	if !ok {
+		panic("syscall/js: CopyBytesToGo: expected src to be an Uint8Array")
+	}
+	return n
+}
+
+func copyBytesToGo(dst []byte, src ref) (int, bool)
+
+// CopyBytesToJS copies bytes from src to the Uint8Array dst.
+// It returns the number of bytes copied, which will be the minimum of the lengths of src and dst.
+// CopyBytesToJS panics if dst is not an Uint8Array.
+func CopyBytesToJS(dst Value, src []byte) int {
+	n, ok := copyBytesToJS(dst.ref, src)
+	if !ok {
+		panic("syscall/js: CopyBytesToJS: expected dst to be an Uint8Array")
+	}
+	return n
+}
+
+func copyBytesToJS(dst ref, src []byte) (int, bool)

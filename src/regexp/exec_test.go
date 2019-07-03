@@ -717,6 +717,7 @@ var benchSizes = []struct {
 	name string
 	n    int
 }{
+	{"16", 16},
 	{"32", 32},
 	{"1K", 1 << 10},
 	{"32K", 32 << 10},

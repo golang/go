@@ -453,15 +453,23 @@ func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func,
 }
 
 // isFormatter reports whether t satisfies fmt.Formatter.
-// Unlike fmt.Stringer, it's impossible to satisfy fmt.Formatter without importing fmt.
-func isFormatter(pass *analysis.Pass, t types.Type) bool {
-	for _, imp := range pass.Pkg.Imports() {
-		if imp.Path() == "fmt" {
-			formatter := imp.Scope().Lookup("Formatter").Type().Underlying().(*types.Interface)
-			return types.Implements(t, formatter)
-		}
+// The only interface method to look for is "Format(State, rune)".
+func isFormatter(typ types.Type) bool {
+	obj, _, _ := types.LookupFieldOrMethod(typ, false, nil, "Format")
+	fn, ok := obj.(*types.Func)
+	if !ok {
+		return false
 	}
-	return false
+	sig := fn.Type().(*types.Signature)
+	return sig.Params().Len() == 2 &&
+		sig.Results().Len() == 0 &&
+		isNamed(sig.Params().At(0).Type(), "fmt", "State") &&
+		types.Identical(sig.Params().At(1).Type(), types.Typ[types.Rune])
+}
+
+func isNamed(T types.Type, pkgpath, name string) bool {
+	named, ok := T.(*types.Named)
+	return ok && named.Obj().Pkg().Path() == pkgpath && named.Obj().Name() == name
 }
 
 // formatState holds the parsed representation of a printf directive such as "%3.*[4]d".
@@ -731,6 +739,7 @@ var printVerbs = []printVerb{
 	{'T', "-", anyType},
 	{'U', "-#", argRune | argInt},
 	{'v', allFlags, anyType},
+	{'w', noFlag, anyType},
 	{'x', sharpNumFlag, argRune | argInt | argString | argPointer},
 	{'X', sharpNumFlag, argRune | argInt | argString | argPointer},
 }
@@ -753,7 +762,7 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
 	formatter := false
 	if state.argNum < len(call.Args) {
 		if tv, ok := pass.TypesInfo.Types[call.Args[state.argNum]]; ok {
-			formatter = isFormatter(pass, tv.Type)
+			formatter = isFormatter(tv.Type)
 		}
 	}
 
@@ -831,7 +840,7 @@ func recursiveStringer(pass *analysis.Pass, e ast.Expr) bool {
 	typ := pass.TypesInfo.Types[e].Type
 
 	// It's unlikely to be a recursive stringer if it has a Format method.
-	if isFormatter(pass, typ) {
+	if isFormatter(typ) {
 		return false
 	}
 
@@ -847,18 +856,26 @@ func recursiveStringer(pass *analysis.Pass, e ast.Expr) bool {
 		return false
 	}
 
-	// Is it the receiver r, or &r?
-	recv := stringMethod.Type().(*types.Signature).Recv()
-	if recv == nil {
+	sig := stringMethod.Type().(*types.Signature)
+	if !isStringer(sig) {
 		return false
 	}
+
+	// Is it the receiver r, or &r?
 	if u, ok := e.(*ast.UnaryExpr); ok && u.Op == token.AND {
 		e = u.X // strip off & from &r
 	}
 	if id, ok := e.(*ast.Ident); ok {
-		return pass.TypesInfo.Uses[id] == recv
+		return pass.TypesInfo.Uses[id] == sig.Recv()
 	}
 	return false
+}
+
+// isStringer reports whether the method signature matches the String() definition in fmt.Stringer.
+func isStringer(sig *types.Signature) bool {
+	return sig.Params().Len() == 0 &&
+		sig.Results().Len() == 1 &&
+		sig.Results().At(0).Type() == types.Typ[types.String]
 }
 
 // isFunctionValue reports whether the expression is a function as opposed to a function call.

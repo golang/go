@@ -29,6 +29,13 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
+	switch pass.Pkg.Path() {
+	case "encoding/gob", "encoding/json", "encoding/xml":
+		// These packages know how to use their own APIs.
+		// Sometimes they are testing what happens to incorrect programs.
+		return nil, nil
+	}
+
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{

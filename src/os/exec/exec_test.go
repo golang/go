@@ -691,6 +691,9 @@ func TestExtraFilesRace(t *testing.T) {
 	}
 
 	for i := 0; i < 10; i++ {
+		if testing.Short() && i >= 3 {
+			break
+		}
 		la := listen()
 		ca := helperCommand(t, "describefiles")
 		ca.ExtraFiles = []*os.File{listenerFile(la)}
@@ -831,7 +834,7 @@ func TestHelperProcess(*testing.T) {
 			// the cloned file descriptors that result from opening
 			// /dev/urandom.
 			// https://golang.org/issue/3955
-		case "solaris":
+		case "illumos", "solaris":
 			// TODO(aram): This fails on Solaris because libc opens
 			// its own files, as it sees fit. Darwin does the same,
 			// see: https://golang.org/issue/2603
@@ -1148,5 +1151,58 @@ func TestDedupEnvEcho(t *testing.T) {
 	}
 	if got, want := strings.TrimSpace(string(out)), "good"; got != want {
 		t.Errorf("output = %q; want %q", got, want)
+	}
+}
+
+func TestString(t *testing.T) {
+	echoPath, err := exec.LookPath("echo")
+	if err != nil {
+		t.Skip(err)
+	}
+	tests := [...]struct {
+		path string
+		args []string
+		want string
+	}{
+		{"echo", nil, echoPath},
+		{"echo", []string{"a"}, echoPath + " a"},
+		{"echo", []string{"a", "b"}, echoPath + " a b"},
+	}
+	for _, test := range tests {
+		cmd := exec.Command(test.path, test.args...)
+		if got := cmd.String(); got != test.want {
+			t.Errorf("String(%q, %q) = %q, want %q", test.path, test.args, got, test.want)
+		}
+	}
+}
+
+func TestStringPathNotResolved(t *testing.T) {
+	_, err := exec.LookPath("makemeasandwich")
+	if err == nil {
+		t.Skip("wow, thanks")
+	}
+	cmd := exec.Command("makemeasandwich", "-lettuce")
+	want := "makemeasandwich -lettuce"
+	if got := cmd.String(); got != want {
+		t.Errorf("String(%q, %q) = %q, want %q", "makemeasandwich", "-lettuce", got, want)
+	}
+}
+
+// start a child process without the user code explicitly starting
+// with a copy of the parent's. (The Windows SYSTEMROOT issue: Issue
+// 25210)
+func TestChildCriticalEnv(t *testing.T) {
+	testenv.MustHaveExec(t)
+	if runtime.GOOS != "windows" {
+		t.Skip("only testing on Windows")
+	}
+	cmd := helperCommand(t, "echoenv", "SYSTEMROOT")
+	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(string(out)) == "" {
+		t.Error("no SYSTEMROOT found")
 	}
 }

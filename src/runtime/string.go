@@ -310,6 +310,8 @@ func gobytes(p *byte, n int) (b []byte) {
 	return
 }
 
+// This is exported via linkname to assembly in syscall (for Plan9).
+//go:linkname gostring
 func gostring(p *byte) string {
 	l := findnull(p)
 	if l == 0 {

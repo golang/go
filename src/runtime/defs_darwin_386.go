@@ -19,8 +19,10 @@ const (
 	_MAP_PRIVATE = 0x2
 	_MAP_FIXED   = 0x10
 
-	_MADV_DONTNEED = 0x4
-	_MADV_FREE     = 0x5
+	_MADV_DONTNEED      = 0x4
+	_MADV_FREE          = 0x5
+	_MADV_FREE_REUSABLE = 0x7
+	_MADV_FREE_REUSE    = 0x8
 
 	_SA_SIGINFO   = 0x40
 	_SA_RESTART   = 0x2
@@ -92,7 +94,11 @@ const (
 	_PTHREAD_CREATE_DETACHED = 0x2
 
 	_F_SETFD    = 0x2
+	_F_GETFL    = 0x3
+	_F_SETFL    = 0x4
 	_FD_CLOEXEC = 0x1
+
+	_O_NONBLOCK = 4
 )
 
 type stackt struct {
@@ -147,9 +153,8 @@ type timespec struct {
 }
 
 //go:nosplit
-func (t *timespec) set_nsec(ns int64) {
-	t.tv_sec = int32(ns / 1000000000)
-	t.tv_nsec = int32(ns % 1000000000)
+func (ts *timespec) setNsec(ns int64) {
+	ts.tv_sec = timediv(ns, 1e9, &ts.tv_nsec)
 }
 
 type fpcontrol struct {

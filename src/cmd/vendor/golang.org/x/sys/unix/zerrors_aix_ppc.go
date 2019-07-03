@@ -926,6 +926,8 @@ const (
 	TCSETSF                       = 0x5404
 	TCSETSW                       = 0x5403
 	TCXONC                        = 0x540b
+	TIMER_ABSTIME                 = 0x3e7
+	TIMER_MAX                     = 0x20
 	TIOC                          = 0x5400
 	TIOCCBRK                      = 0x2000747a
 	TIOCCDTR                      = 0x20007478

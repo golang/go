@@ -1,0 +1,21 @@
+[short] skip
+
+env -r GOROOT_REGEXP=$GOROOT
+env -r WORK_REGEXP=$WORK
+env GOROOT GOROOT_REGEXP WORK WORK_REGEXP
+
+go build -trimpath -o hello.exe hello.go
+! grep -q $GOROOT_REGEXP hello.exe
+! grep -q $WORK_REGEXP hello.exe
+
+env GO111MODULE=on
+go build -trimpath -o fortune.exe rsc.io/fortune
+! grep -q $GOROOT_REGEXP fortune.exe
+! grep -q $WORK_REGEXP fortune.exe
+
+-- hello.go --
+package main
+func main() { println("hello") }
+
+-- go.mod --
+module m

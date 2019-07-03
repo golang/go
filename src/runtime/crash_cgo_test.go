@@ -90,9 +90,9 @@ func TestCgoExternalThreadSIGPROF(t *testing.T) {
 	case "plan9", "windows":
 		t.Skipf("no pthreads on %s", runtime.GOOS)
 	}
-	if runtime.GOARCH == "ppc64" {
+	if runtime.GOARCH == "ppc64" && runtime.GOOS == "linux" {
 		// TODO(austin) External linking not implemented on
-		// ppc64 (issue #8912)
+		// linux/ppc64 (issue #8912)
 		t.Skipf("no external linking on ppc64")
 	}
 
@@ -281,7 +281,7 @@ func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
 			// See Issue 18243 and Issue 19938.
 			t.Skipf("Skipping failing test on Alpine (golang.org/issue/18243). Ignoring error: %v", err)
 		}
-		t.Fatal(err)
+		t.Fatalf("%s\n\n%v", got, err)
 	}
 	fn := strings.TrimSpace(string(got))
 	defer os.Remove(fn)

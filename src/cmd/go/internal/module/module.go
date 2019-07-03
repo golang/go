@@ -18,6 +18,7 @@ package module
 // Changes to the semantics in this file require approval from rsc.
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -40,6 +41,60 @@ type Version struct {
 	Version string `json:",omitempty"`
 }
 
+// A ModuleError indicates an error specific to a module.
+type ModuleError struct {
+	Path    string
+	Version string
+	Err     error
+}
+
+// VersionError returns a ModuleError derived from a Version and error.
+func VersionError(v Version, err error) error {
+	return &ModuleError{
+		Path:    v.Path,
+		Version: v.Version,
+		Err:     err,
+	}
+}
+
+func (e *ModuleError) Error() string {
+	if v, ok := e.Err.(*InvalidVersionError); ok {
+		return fmt.Sprintf("%s@%s: invalid %s: %v", e.Path, v.Version, v.noun(), v.Err)
+	}
+	if e.Version != "" {
+		return fmt.Sprintf("%s@%s: %v", e.Path, e.Version, e.Err)
+	}
+	return fmt.Sprintf("module %s: %v", e.Path, e.Err)
+}
+
+func (e *ModuleError) Unwrap() error { return e.Err }
+
+// An InvalidVersionError indicates an error specific to a version, with the
+// module path unknown or specified externally.
+//
+// A ModuleError may wrap an InvalidVersionError, but an InvalidVersionError
+// must not wrap a ModuleError.
+type InvalidVersionError struct {
+	Version string
+	Pseudo  bool
+	Err     error
+}
+
+// noun returns either "version" or "pseudo-version", depending on whether
+// e.Version is a pseudo-version.
+func (e *InvalidVersionError) noun() string {
+	if e.Pseudo {
+		return "pseudo-version"
+	}
+	return "version"
+}
+
+func (e *InvalidVersionError) Error() string {
+	return fmt.Sprintf("%s %q invalid: %s", e.noun(), e.Version, e.Err)
+}
+
+func (e *InvalidVersionError) Unwrap() error { return e.Err }
+
 // Check checks that a given module path, version pair is valid.
 // In addition to the path being a valid module path
 // and the version being a valid semantic version,
@@ -51,17 +106,14 @@ func Check(path, version string) error {
 		return err
 	}
 	if !semver.IsValid(version) {
-		return fmt.Errorf("malformed semantic version %v", version)
+		return &ModuleError{
+			Path: path,
+			Err:  &InvalidVersionError{Version: version, Err: errors.New("not a semantic version")},
+		}
 	}
 	_, pathMajor, _ := SplitPathVersion(path)
-	if !MatchPathMajor(version, pathMajor) {
-		if pathMajor == "" {
-			pathMajor = "v0 or v1"
-		}
-		if pathMajor[0] == '.' { // .v1
-			pathMajor = pathMajor[1:]
-		}
-		return fmt.Errorf("mismatched module path %v and version %v (want %v)", path, version, pathMajor)
+	if err := MatchPathMajor(version, pathMajor); err != nil {
+		return &ModuleError{Path: path, Err: err}
 	}
 	return nil
 }
@@ -168,6 +220,9 @@ func checkPath(path string, fileName bool) error {
 	}
 	if path == "" {
 		return fmt.Errorf("empty string")
+	}
+	if path[0] == '-' {
+		return fmt.Errorf("leading dash")
 	}
 	if strings.Contains(path, "..") {
 		return fmt.Errorf("double dot")
@@ -317,22 +372,56 @@ func splitGopkgIn(path string) (prefix, pathMajor string, ok bool) {
 	return prefix, pathMajor, true
 }
 
-// MatchPathMajor reports whether the semantic version v
-// matches the path major version pathMajor.
-func MatchPathMajor(v, pathMajor string) bool {
+// MatchPathMajor returns a non-nil error if the semantic version v
+// does not match the path major version pathMajor.
+func MatchPathMajor(v, pathMajor string) error {
 	if strings.HasPrefix(pathMajor, ".v") && strings.HasSuffix(pathMajor, "-unstable") {
 		pathMajor = strings.TrimSuffix(pathMajor, "-unstable")
 	}
 	if strings.HasPrefix(v, "v0.0.0-") && pathMajor == ".v1" {
 		// Allow old bug in pseudo-versions that generated v0.0.0- pseudoversion for gopkg .v1.
 		// For example, gopkg.in/yaml.v2@v2.2.1's go.mod requires gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405.
-		return true
+		return nil
 	}
 	m := semver.Major(v)
 	if pathMajor == "" {
-		return m == "v0" || m == "v1" || semver.Build(v) == "+incompatible"
+		if m == "v0" || m == "v1" || semver.Build(v) == "+incompatible" {
+			return nil
+		}
+		pathMajor = "v0 or v1"
+	} else if pathMajor[0] == '/' || pathMajor[0] == '.' {
+		if m == pathMajor[1:] {
+			return nil
+		}
+		pathMajor = pathMajor[1:]
 	}
-	return (pathMajor[0] == '/' || pathMajor[0] == '.') && m == pathMajor[1:]
+	return &InvalidVersionError{
+		Version: v,
+		Err:     fmt.Errorf("should be %s, not %s", pathMajor, semver.Major(v)),
+	}
+}
+
+// PathMajorPrefix returns the major-version tag prefix implied by pathMajor.
+// An empty PathMajorPrefix allows either v0 or v1.
+//
+// Note that MatchPathMajor may accept some versions that do not actually begin
+// with this prefix: namely, it accepts a 'v0.0.0-' prefix for a '.v1'
+// pathMajor, even though that pathMajor implies 'v1' tagging.
+func PathMajorPrefix(pathMajor string) string {
+	if pathMajor == "" {
+		return ""
+	}
+	if pathMajor[0] != '/' && pathMajor[0] != '.' {
+		panic("pathMajor suffix " + pathMajor + " passed to PathMajorPrefix lacks separator")
+	}
+	if strings.HasPrefix(pathMajor, ".v") && strings.HasSuffix(pathMajor, "-unstable") {
+		pathMajor = strings.TrimSuffix(pathMajor, "-unstable")
+	}
+	m := pathMajor[1:]
+	if m != semver.Major(m) {
+		panic("pathMajor suffix " + pathMajor + "passed to PathMajorPrefix is not a valid major version")
+	}
+	return m
 }
 
 // CanonicalVersion returns the canonical form of the version string v.
@@ -447,7 +536,10 @@ func EncodePath(path string) (encoding string, err error) {
 // and not contain exclamation marks.
 func EncodeVersion(v string) (encoding string, err error) {
 	if err := checkElem(v, true); err != nil || strings.Contains(v, "!") {
-		return "", fmt.Errorf("disallowed version string %q", v)
+		return "", &InvalidVersionError{
+			Version: v,
+			Err:     fmt.Errorf("disallowed version string"),
+		}
 	}
 	return encodeString(v)
 }

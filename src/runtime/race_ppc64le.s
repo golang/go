@@ -97,9 +97,9 @@ TEXT	runtime·racereadrangepc1(SB), NOSPLIT, $0-24
 	MOVD    size+8(FP), R5
 	MOVD    pc+16(FP), R6
 	ADD	$4, R6		// tsan wants return addr
-        // void __tsan_read_range(ThreadState *thr, void *addr, uintptr size, void *pc);
-        MOVD    $__tsan_read_range(SB), R8
-        BR	racecalladdr<>(SB)
+	// void __tsan_read_range(ThreadState *thr, void *addr, uintptr size, void *pc);
+	MOVD    $__tsan_read_range(SB), R8
+	BR	racecalladdr<>(SB)
 
 TEXT    runtime·RaceReadRange(SB), NOSPLIT, $0-24
 	BR	runtime·racereadrange(SB)
@@ -384,8 +384,8 @@ racecallatomic_ignore:
 	MOVD	R17, R6 // restore arg list addr
 	// Call the atomic function.
 	// racecall will call LLVM race code which might clobber r30 (g)
-	MOVD    runtime·tls_g(SB), R10
-        MOVD    0(R13)(R10*1), g
+	MOVD	runtime·tls_g(SB), R10
+	MOVD	0(R13)(R10*1), g
 
 	MOVD	g_racectx(g), R3
 	MOVD	R8, R4		// pc being called same TODO as above
@@ -455,7 +455,7 @@ TEXT	runtime·racecallbackthunk(SB), NOSPLIT, $-8
 	MOVD    0(R13)(R10*1), g
 	MOVD	g_m(g), R3
 	MOVD	m_p(R3), R3
-	MOVD	p_racectx(R3), R3
+	MOVD	p_raceprocctx(R3), R3
 	MOVD	R3, (R4)
 	MOVD	R9, g		// restore R30 ??
 	RET
@@ -516,7 +516,7 @@ rest:
 	BL	runtime·racecallback(SB)
 	// All registers are clobbered after Go code, reload.
 	MOVD    runtime·tls_g(SB), R10
-        MOVD    0(R13)(R10*1), g
+	MOVD    0(R13)(R10*1), g
 
 	MOVD	g_m(g), R7
 	MOVD	m_curg(R7), g // restore g = m->curg

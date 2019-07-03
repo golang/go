@@ -652,7 +652,7 @@ func labelsToString(labels map[string][]string) string {
 	return strings.Join(ls, " ")
 }
 
-// numLablesToString returns a string representation of a map
+// numLabelsToString returns a string representation of a map
 // representing numeric labels.
 func numLabelsToString(numLabels map[string][]int64, numUnits map[string][]string) string {
 	ls := []string{}

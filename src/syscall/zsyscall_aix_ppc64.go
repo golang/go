@@ -8,7 +8,7 @@ package syscall
 import "unsafe"
 
 //go:cgo_import_dynamic libc_fcntl fcntl "libc.a/shr_64.o"
-//go:cgo_import_dynamic libc_dup2 dup2 "libc.a/shr_64.o"
+//go:cgo_import_dynamic libc_Dup2 dup2 "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_pipe pipe "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_readlink readlink "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_utimes utimes "libc.a/shr_64.o"
@@ -32,8 +32,8 @@ import "unsafe"
 //go:cgo_import_dynamic libc_recvfrom recvfrom "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_sendto sendto "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_Shutdown shutdown "libc.a/shr_64.o"
-//go:cgo_import_dynamic libc_recvmsg recvmsg "libc.a/shr_64.o"
-//go:cgo_import_dynamic libc_sendmsg sendmsg "libc.a/shr_64.o"
+//go:cgo_import_dynamic libc_nrecvmsg nrecvmsg "libc.a/shr_64.o"
+//go:cgo_import_dynamic libc_nsendmsg nsendmsg "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_accept accept "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_Openat openat "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_ptrace64 ptrace64 "libc.a/shr_64.o"
@@ -41,6 +41,7 @@ import "unsafe"
 //go:cgo_import_dynamic libc_Chdir chdir "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_Chmod chmod "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_Chown chown "libc.a/shr_64.o"
+//go:cgo_import_dynamic libc_Chroot chroot "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_Close close "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_Dup dup "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_Faccessat faccessat "libc.a/shr_64.o"
@@ -59,6 +60,7 @@ import "unsafe"
 //go:cgo_import_dynamic libc_Geteuid geteuid "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_Getegid getegid "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_Getppid getppid "libc.a/shr_64.o"
+//go:cgo_import_dynamic libc_Getpriority getpriority "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_Getrlimit getrlimit "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_Getuid getuid "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_Kill kill "libc.a/shr_64.o"
@@ -81,8 +83,10 @@ import "unsafe"
 //go:cgo_import_dynamic libc_Seteuid seteuid "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_Setgid setgid "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_Setpgid setpgid "libc.a/shr_64.o"
+//go:cgo_import_dynamic libc_Setpriority setpriority "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_Setregid setregid "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_Setreuid setreuid "libc.a/shr_64.o"
+//go:cgo_import_dynamic libc_Setrlimit setrlimit "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_Stat stat "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_Statfs statfs "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_Symlink symlink "libc.a/shr_64.o"
@@ -96,7 +100,7 @@ import "unsafe"
 //go:cgo_import_dynamic libc_munmap munmap "libc.a/shr_64.o"
 
 //go:linkname libc_fcntl libc_fcntl
-//go:linkname libc_dup2 libc_dup2
+//go:linkname libc_Dup2 libc_Dup2
 //go:linkname libc_pipe libc_pipe
 //go:linkname libc_readlink libc_readlink
 //go:linkname libc_utimes libc_utimes
@@ -120,8 +124,8 @@ import "unsafe"
 //go:linkname libc_recvfrom libc_recvfrom
 //go:linkname libc_sendto libc_sendto
 //go:linkname libc_Shutdown libc_Shutdown
-//go:linkname libc_recvmsg libc_recvmsg
-//go:linkname libc_sendmsg libc_sendmsg
+//go:linkname libc_nrecvmsg libc_nrecvmsg
+//go:linkname libc_nsendmsg libc_nsendmsg
 //go:linkname libc_accept libc_accept
 //go:linkname libc_Openat libc_Openat
 //go:linkname libc_ptrace64 libc_ptrace64
@@ -129,6 +133,7 @@ import "unsafe"
 //go:linkname libc_Chdir libc_Chdir
 //go:linkname libc_Chmod libc_Chmod
 //go:linkname libc_Chown libc_Chown
+//go:linkname libc_Chroot libc_Chroot
 //go:linkname libc_Close libc_Close
 //go:linkname libc_Dup libc_Dup
 //go:linkname libc_Faccessat libc_Faccessat
@@ -147,6 +152,7 @@ import "unsafe"
 //go:linkname libc_Geteuid libc_Geteuid
 //go:linkname libc_Getegid libc_Getegid
 //go:linkname libc_Getppid libc_Getppid
+//go:linkname libc_Getpriority libc_Getpriority
 //go:linkname libc_Getrlimit libc_Getrlimit
 //go:linkname libc_Getuid libc_Getuid
 //go:linkname libc_Kill libc_Kill
@@ -169,8 +175,10 @@ import "unsafe"
 //go:linkname libc_Seteuid libc_Seteuid
 //go:linkname libc_Setgid libc_Setgid
 //go:linkname libc_Setpgid libc_Setpgid
+//go:linkname libc_Setpriority libc_Setpriority
 //go:linkname libc_Setregid libc_Setregid
 //go:linkname libc_Setreuid libc_Setreuid
+//go:linkname libc_Setrlimit libc_Setrlimit
 //go:linkname libc_Stat libc_Stat
 //go:linkname libc_Statfs libc_Statfs
 //go:linkname libc_Symlink libc_Symlink
@@ -187,7 +195,7 @@ type libcFunc uintptr
 
 var (
 	libc_fcntl,
-	libc_dup2,
+	libc_Dup2,
 	libc_pipe,
 	libc_readlink,
 	libc_utimes,
@@ -211,8 +219,8 @@ var (
 	libc_recvfrom,
 	libc_sendto,
 	libc_Shutdown,
-	libc_recvmsg,
-	libc_sendmsg,
+	libc_nrecvmsg,
+	libc_nsendmsg,
 	libc_accept,
 	libc_Openat,
 	libc_ptrace64,
@@ -220,6 +228,7 @@ var (
 	libc_Chdir,
 	libc_Chmod,
 	libc_Chown,
+	libc_Chroot,
 	libc_Close,
 	libc_Dup,
 	libc_Faccessat,
@@ -238,6 +247,7 @@ var (
 	libc_Geteuid,
 	libc_Getegid,
 	libc_Getppid,
+	libc_Getpriority,
 	libc_Getrlimit,
 	libc_Getuid,
 	libc_Kill,
@@ -260,8 +270,10 @@ var (
 	libc_Seteuid,
 	libc_Setgid,
 	libc_Setpgid,
+	libc_Setpriority,
 	libc_Setregid,
 	libc_Setreuid,
+	libc_Setrlimit,
 	libc_Stat,
 	libc_Statfs,
 	libc_Symlink,
@@ -288,9 +300,8 @@ func fcntl(fd int, cmd int, arg int) (val int, err error) {
 
 // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
 
-func dup2(old int, new int) (val int, err error) {
-	r0, _, e1 := syscall6(uintptr(unsafe.Pointer(&libc_dup2)), 2, uintptr(old), uintptr(new), 0, 0, 0, 0)
-	val = int(r0)
+func Dup2(old int, new int) (err error) {
+	_, _, e1 := syscall6(uintptr(unsafe.Pointer(&libc_Dup2)), 2, uintptr(old), uintptr(new), 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -573,7 +584,7 @@ func Shutdown(s int, how int) (err error) {
 // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
 
 func recvmsg(s int, msg *Msghdr, flags int) (n int, err error) {
-	r0, _, e1 := syscall6(uintptr(unsafe.Pointer(&libc_recvmsg)), 3, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags), 0, 0, 0)
+	r0, _, e1 := syscall6(uintptr(unsafe.Pointer(&libc_nrecvmsg)), 3, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags), 0, 0, 0)
 	n = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -584,7 +595,7 @@ func recvmsg(s int, msg *Msghdr, flags int) (n int, err error) {
 // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
 
 func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
-	r0, _, e1 := syscall6(uintptr(unsafe.Pointer(&libc_sendmsg)), 3, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags), 0, 0, 0)
+	r0, _, e1 := syscall6(uintptr(unsafe.Pointer(&libc_nsendmsg)), 3, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags), 0, 0, 0)
 	n = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -683,6 +694,21 @@ func Chown(path string, uid int, gid int) (err error) {
 		return
 	}
 	_, _, e1 := syscall6(uintptr(unsafe.Pointer(&libc_Chown)), 3, uintptr(unsafe.Pointer(_p0)), uintptr(uid), uintptr(gid), 0, 0, 0)
+	if e1 != 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+
+func Chroot(path string) (err error) {
+	var _p0 *byte
+	_p0, err = BytePtrFromString(path)
+	if err != nil {
+		return
+	}
+	_, _, e1 := syscall6(uintptr(unsafe.Pointer(&libc_Chroot)), 1, uintptr(unsafe.Pointer(_p0)), 0, 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -873,6 +899,17 @@ func Getegid() (egid int) {
 func Getppid() (ppid int) {
 	r0, _, _ := syscall6(uintptr(unsafe.Pointer(&libc_Getppid)), 0, 0, 0, 0, 0, 0, 0)
 	ppid = int(r0)
+	return
+}
+
+// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+
+func Getpriority(which int, who int) (n int, err error) {
+	r0, _, e1 := syscall6(uintptr(unsafe.Pointer(&libc_Getpriority)), 2, uintptr(which), uintptr(who), 0, 0, 0, 0)
+	n = int(r0)
+	if e1 != 0 {
+		err = errnoErr(e1)
+	}
 	return
 }
 
@@ -1178,6 +1215,16 @@ func Setpgid(pid int, pgid int) (err error) {
 
 // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
 
+func Setpriority(which int, who int, prio int) (err error) {
+	_, _, e1 := syscall6(uintptr(unsafe.Pointer(&libc_Setpriority)), 3, uintptr(which), uintptr(who), uintptr(prio), 0, 0, 0)
+	if e1 != 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+
 func Setregid(rgid int, egid int) (err error) {
 	_, _, e1 := rawSyscall6(uintptr(unsafe.Pointer(&libc_Setregid)), 2, uintptr(rgid), uintptr(egid), 0, 0, 0, 0)
 	if e1 != 0 {
@@ -1190,6 +1237,16 @@ func Setregid(rgid int, egid int) (err error) {
 
 func Setreuid(ruid int, euid int) (err error) {
 	_, _, e1 := rawSyscall6(uintptr(unsafe.Pointer(&libc_Setreuid)), 2, uintptr(ruid), uintptr(euid), 0, 0, 0, 0)
+	if e1 != 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+
+func Setrlimit(which int, lim *Rlimit) (err error) {
+	_, _, e1 := rawSyscall6(uintptr(unsafe.Pointer(&libc_Setrlimit)), 2, uintptr(which), uintptr(unsafe.Pointer(lim)), 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}

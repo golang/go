@@ -167,7 +167,7 @@ func compare(aVal, bVal reflect.Value) int {
 		if c, ok := nilCompare(aVal, bVal); ok {
 			return c
 		}
-		c := compare(reflect.ValueOf(aType), reflect.ValueOf(bType))
+		c := compare(reflect.ValueOf(aVal.Elem().Type()), reflect.ValueOf(bVal.Elem().Type()))
 		if c != 0 {
 			return c
 		}

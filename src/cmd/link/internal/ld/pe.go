@@ -833,18 +833,18 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 	oh.SectionAlignment = uint32(PESECTALIGN)
 	oh64.FileAlignment = uint32(PEFILEALIGN)
 	oh.FileAlignment = uint32(PEFILEALIGN)
-	oh64.MajorOperatingSystemVersion = 4
-	oh.MajorOperatingSystemVersion = 4
-	oh64.MinorOperatingSystemVersion = 0
-	oh.MinorOperatingSystemVersion = 0
+	oh64.MajorOperatingSystemVersion = 6
+	oh.MajorOperatingSystemVersion = 6
+	oh64.MinorOperatingSystemVersion = 1
+	oh.MinorOperatingSystemVersion = 1
 	oh64.MajorImageVersion = 1
 	oh.MajorImageVersion = 1
 	oh64.MinorImageVersion = 0
 	oh.MinorImageVersion = 0
-	oh64.MajorSubsystemVersion = 4
-	oh.MajorSubsystemVersion = 4
-	oh64.MinorSubsystemVersion = 0
-	oh.MinorSubsystemVersion = 0
+	oh64.MajorSubsystemVersion = 6
+	oh.MajorSubsystemVersion = 6
+	oh64.MinorSubsystemVersion = 1
+	oh.MinorSubsystemVersion = 1
 	oh64.SizeOfImage = f.nextSectOffset
 	oh.SizeOfImage = f.nextSectOffset
 	oh64.SizeOfHeaders = uint32(PEFILEHEADR)
@@ -975,14 +975,8 @@ func Peinit(ctxt *Link) {
 	if *FlagTextAddr == -1 {
 		*FlagTextAddr = PEBASE + int64(PESECTHEADR)
 	}
-	if *FlagDataAddr == -1 {
-		*FlagDataAddr = 0
-	}
 	if *FlagRound == -1 {
 		*FlagRound = int(PESECTALIGN)
-	}
-	if *FlagDataAddr != 0 && *FlagRound != 0 {
-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*FlagDataAddr), uint32(*FlagRound))
 	}
 }
 
@@ -1407,7 +1401,7 @@ func addPEBaseRelocSym(ctxt *Link, s *sym.Symbol, rt *peBaseRelocTable) {
 		if !r.Sym.Attr.Reachable() {
 			continue
 		}
-		if r.Type >= 256 {
+		if r.Type >= objabi.ElfRelocOffset {
 			continue
 		}
 		if r.Siz == 0 { // informational relocation

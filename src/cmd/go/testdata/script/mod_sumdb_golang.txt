@@ -1,0 +1,52 @@
+# Test default GOPROXY and GOSUMDB
+env GOPROXY=
+env GOSUMDB=
+go env GOPROXY
+stdout '^https://proxy.golang.org,direct$'
+go env GOSUMDB
+stdout '^sum.golang.org$'
+env GOPROXY=https://proxy.golang.org
+go env GOSUMDB
+stdout '^sum.golang.org$'
+
+# download direct from github
+[!net] skip
+[!exec:git] skip
+env GOSUMDB=sum.golang.org
+env GOPROXY=direct
+go get -d rsc.io/quote@v1.5.2
+cp go.sum saved.sum
+
+# download from proxy.golang.org with go.sum entry already
+go clean -modcache
+env GOSUMDB=
+env GOPROXY=
+go get -x -d rsc.io/quote@v1.5.2
+! stderr github
+stderr proxy.golang.org/rsc.io/quote
+! stderr sum.golang.org/tile
+! stderr sum.golang.org/lookup/rsc.io/quote
+cmp go.sum saved.sum
+
+# Download again.
+# Should use the checksum database to validate new go.sum lines,
+# but not need to fetch any new data from the proxy.
+rm go.sum
+go get -x -d rsc.io/quote@v1.5.2
+! stderr github
+! stderr proxy.golang.org/rsc.io/quote
+stderr sum.golang.org/tile
+stderr sum.golang.org/lookup/rsc.io/quote
+cmp go.sum saved.sum
+
+# test fallback to direct
+env TESTGOPROXY404=1
+go clean -modcache
+rm go.sum
+go get -x -d rsc.io/quote@v1.5.2
+stderr 'proxy.golang.org.*404 testing'
+stderr github.com/rsc
+cmp go.sum saved.sum
+
+-- go.mod --
+module m

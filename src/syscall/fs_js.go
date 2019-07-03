@@ -20,6 +20,8 @@ var jsProcess = js.Global().Get("process")
 var jsFS = js.Global().Get("fs")
 var constants = jsFS.Get("constants")
 
+var uint8Array = js.Global().Get("Uint8Array")
+
 var (
 	nodeWRONLY = constants.Get("O_WRONLY").Int()
 	nodeRDWR   = constants.Get("O_RDWR").Int()
@@ -38,9 +40,9 @@ type jsFile struct {
 
 var filesMu sync.Mutex
 var files = map[int]*jsFile{
-	0: &jsFile{},
-	1: &jsFile{},
-	2: &jsFile{},
+	0: {},
+	1: {},
+	2: {},
 }
 
 func fdToFile(fd int) (*jsFile, error) {
@@ -244,18 +246,26 @@ func Chown(path string, uid, gid int) error {
 	if err := checkPath(path); err != nil {
 		return err
 	}
-	return ENOSYS
+	_, err := fsCall("chown", path, uint32(uid), uint32(gid))
+	return err
 }
 
 func Fchown(fd int, uid, gid int) error {
-	return ENOSYS
+	_, err := fsCall("fchown", fd, uint32(uid), uint32(gid))
+	return err
 }
 
 func Lchown(path string, uid, gid int) error {
 	if err := checkPath(path); err != nil {
 		return err
 	}
-	return ENOSYS
+	if jsFS.Get("lchown") == js.Undefined() {
+		// fs.lchown is unavailable on Linux until Node.js 10.6.0
+		// TODO(neelance): remove when we require at least this Node.js version
+		return ENOSYS
+	}
+	_, err := fsCall("lchown", path, uint32(uid), uint32(gid))
+	return err
 }
 
 func UtimesNano(path string, ts []Timespec) error {
@@ -370,12 +380,13 @@ func Read(fd int, b []byte) (int, error) {
 		return n, err
 	}
 
-	a := js.TypedArrayOf(b)
-	n, err := fsCall("read", fd, a, 0, len(b), nil)
-	a.Release()
+	buf := uint8Array.New(len(b))
+	n, err := fsCall("read", fd, buf, 0, len(b), nil)
 	if err != nil {
 		return 0, err
 	}
+	js.CopyBytesToGo(b, buf)
+
 	n2 := n.Int()
 	f.pos += int64(n2)
 	return n2, err
@@ -393,9 +404,9 @@ func Write(fd int, b []byte) (int, error) {
 		return n, err
 	}
 
-	a := js.TypedArrayOf(b)
-	n, err := fsCall("write", fd, a, 0, len(b), nil)
-	a.Release()
+	buf := uint8Array.New(len(b))
+	js.CopyBytesToJS(buf, b)
+	n, err := fsCall("write", fd, buf, 0, len(b), nil)
 	if err != nil {
 		return 0, err
 	}
@@ -405,19 +416,19 @@ func Write(fd int, b []byte) (int, error) {
 }
 
 func Pread(fd int, b []byte, offset int64) (int, error) {
-	a := js.TypedArrayOf(b)
-	n, err := fsCall("read", fd, a, 0, len(b), offset)
-	a.Release()
+	buf := uint8Array.New(len(b))
+	n, err := fsCall("read", fd, buf, 0, len(b), offset)
 	if err != nil {
 		return 0, err
 	}
+	js.CopyBytesToGo(b, buf)
 	return n.Int(), nil
 }
 
 func Pwrite(fd int, b []byte, offset int64) (int, error) {
-	a := js.TypedArrayOf(b)
-	n, err := fsCall("write", fd, a, 0, len(b), offset)
-	a.Release()
+	buf := uint8Array.New(len(b))
+	js.CopyBytesToJS(buf, b)
+	n, err := fsCall("write", fd, buf, 0, len(b), offset)
 	if err != nil {
 		return 0, err
 	}
