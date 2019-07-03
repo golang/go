@@ -14,6 +14,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/span"
 )
@@ -208,6 +209,15 @@ type View interface {
 	Ignore(span.URI) bool
 
 	Config() *packages.Config
+
+	// Process returns the process for this view.
+	// Note: this contains cached module and filesystem state, which must
+	// be invalidated after a 'go.mod' change.
+	//
+	// TODO(suzmue): the state cached in the process env is specific to each view,
+	// however, there is state that can be shared between views that is not currently
+	// cached, like the module cache.
+	ProcessEnv() *imports.ProcessEnv
 }
 
 // File represents a source file of any type.

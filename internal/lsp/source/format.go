@@ -10,7 +10,6 @@ import (
 	"context"
 	"fmt"
 	"go/format"
-	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
@@ -68,8 +67,17 @@ func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]TextEd
 	if hasListErrors(pkg.GetErrors()) {
 		return nil, fmt.Errorf("%s has list errors, not running goimports", f.URI())
 	}
+
+	if resolver, ok := view.ProcessEnv().GetResolver().(*imports.ModuleResolver); ok && resolver.Initialized {
+		// TODO(suzmue): only reset this state when necessary (eg when the go.mod files of this
+		// module or modules with replace directive changes).
+		resolver.Initialized = false
+		resolver.Main = nil
+		resolver.ModsByModPath = nil
+		resolver.ModsByDir = nil
+	}
 	options := &imports.Options{
-		Env: buildProcessEnv(ctx, view),
+		Env: view.ProcessEnv(),
 		// Defaults.
 		AllErrors:  true,
 		Comments:   true,
@@ -101,37 +109,6 @@ func hasListErrors(errors []packages.Error) bool {
 		}
 	}
 	return false
-}
-
-func buildProcessEnv(ctx context.Context, view View) *imports.ProcessEnv {
-	cfg := view.Config()
-	env := &imports.ProcessEnv{
-		WorkingDir: cfg.Dir,
-		Logf: func(format string, v ...interface{}) {
-			xlog.Infof(ctx, format, v...)
-		},
-	}
-	for _, kv := range cfg.Env {
-		split := strings.Split(kv, "=")
-		if len(split) < 2 {
-			continue
-		}
-		switch split[0] {
-		case "GOPATH":
-			env.GOPATH = split[1]
-		case "GOROOT":
-			env.GOROOT = split[1]
-		case "GO111MODULE":
-			env.GO111MODULE = split[1]
-		case "GOPROXY":
-			env.GOROOT = split[1]
-		case "GOFLAGS":
-			env.GOFLAGS = split[1]
-		case "GOSUMDB":
-			env.GOSUMDB = split[1]
-		}
-	}
-	return env
 }
 
 func computeTextEdits(ctx context.Context, file File, formatted string) (edits []TextEdit) {

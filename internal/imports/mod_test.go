@@ -140,7 +140,7 @@ import _ "rsc.io/quote"
 
 	mt.env.GOFLAGS = ""
 	// Clear out the resolver's cache, since we've changed the environment.
-	mt.resolver = &moduleResolver{env: mt.env}
+	mt.resolver = &ModuleResolver{env: mt.env}
 	mt.assertModuleFoundInDir("rsc.io/quote", "quote", `pkg.*mod.*/quote@.*$`)
 }
 
@@ -486,7 +486,7 @@ var proxyDir string
 type modTest struct {
 	*testing.T
 	env      *ProcessEnv
-	resolver *moduleResolver
+	resolver *ModuleResolver
 	cleanup  func()
 }
 
@@ -538,7 +538,7 @@ func setup(t *testing.T, main, wd string) *modTest {
 	return &modTest{
 		T:        t,
 		env:      env,
-		resolver: &moduleResolver{env: env},
+		resolver: &ModuleResolver{env: env},
 		cleanup: func() {
 			_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 				if err != nil {

@@ -12,9 +12,11 @@ import (
 	"go/types"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/xlog"
@@ -48,6 +50,10 @@ type view struct {
 
 	// env is the environment to use when invoking underlying tools.
 	env []string
+
+	// process is the process env for this view.
+	// Note: this contains cached module and filesystem state.
+	processEnv *imports.ProcessEnv
 
 	// buildFlags is the build flags to use when invoking underlying tools.
 	buildFlags []string
@@ -133,6 +139,47 @@ func (v *view) Config() *packages.Config {
 	}
 }
 
+func (v *view) ProcessEnv() *imports.ProcessEnv {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	if v.processEnv == nil {
+		v.processEnv = v.buildProcessEnv()
+	}
+	return v.processEnv
+}
+
+func (v *view) buildProcessEnv() *imports.ProcessEnv {
+	cfg := v.Config()
+	env := &imports.ProcessEnv{
+		WorkingDir: cfg.Dir,
+		Logf: func(format string, u ...interface{}) {
+			xlog.Infof(v.backgroundCtx, format, u...)
+		},
+	}
+	for _, kv := range cfg.Env {
+		split := strings.Split(kv, "=")
+		if len(split) < 2 {
+			continue
+		}
+		switch split[0] {
+		case "GOPATH":
+			env.GOPATH = split[1]
+		case "GOROOT":
+			env.GOROOT = split[1]
+		case "GO111MODULE":
+			env.GO111MODULE = split[1]
+		case "GOPROXY":
+			env.GOROOT = split[1]
+		case "GOFLAGS":
+			env.GOFLAGS = split[1]
+		case "GOSUMDB":
+			env.GOSUMDB = split[1]
+		}
+	}
+	return env
+}
+
 func (v *view) Env() []string {
 	v.mu.Lock()
 	defer v.mu.Unlock()
@@ -144,6 +191,7 @@ func (v *view) SetEnv(env []string) {
 	defer v.mu.Unlock()
 	//TODO: this should invalidate the entire view
 	v.env = env
+	v.processEnv = nil // recompute process env
 }
 
 func (v *view) SetBuildFlags(buildFlags []string) {

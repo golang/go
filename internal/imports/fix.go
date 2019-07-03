@@ -272,7 +272,7 @@ func (p *pass) loadPackageNames(imports []*importInfo) error {
 		unknown = append(unknown, imp.importPath)
 	}
 
-	names, err := p.env.getResolver().loadPackageNames(unknown, p.srcDir)
+	names, err := p.env.GetResolver().loadPackageNames(unknown, p.srcDir)
 	if err != nil {
 		return err
 	}
@@ -595,7 +595,7 @@ type ProcessEnv struct {
 	// Logf is the default logger for the ProcessEnv.
 	Logf func(format string, args ...interface{})
 
-	resolver resolver
+	resolver Resolver
 }
 
 func (e *ProcessEnv) env() []string {
@@ -617,7 +617,7 @@ func (e *ProcessEnv) env() []string {
 	return env
 }
 
-func (e *ProcessEnv) getResolver() resolver {
+func (e *ProcessEnv) GetResolver() Resolver {
 	if e.resolver != nil {
 		return e.resolver
 	}
@@ -631,7 +631,7 @@ func (e *ProcessEnv) getResolver() resolver {
 		e.resolver = &gopathResolver{env: e}
 		return e.resolver
 	}
-	e.resolver = &moduleResolver{env: e}
+	e.resolver = &ModuleResolver{env: e}
 	return e.resolver
 }
 
@@ -700,15 +700,15 @@ func addStdlibCandidates(pass *pass, refs references) {
 	}
 }
 
-// A resolver does the build-system-specific parts of goimports.
-type resolver interface {
+// A Resolver does the build-system-specific parts of goimports.
+type Resolver interface {
 	// loadPackageNames loads the package names in importPaths.
 	loadPackageNames(importPaths []string, srcDir string) (map[string]string, error)
 	// scan finds (at least) the packages satisfying refs. The returned slice is unordered.
 	scan(refs references) ([]*pkg, error)
 }
 
-// gopathResolver implements resolver for GOPATH and module workspaces using go/packages.
+// gopackagesResolver implements resolver for GOPATH and module workspaces using go/packages.
 type goPackagesResolver struct {
 	env *ProcessEnv
 }
@@ -758,7 +758,7 @@ func (r *goPackagesResolver) scan(refs references) ([]*pkg, error) {
 }
 
 func addExternalCandidates(pass *pass, refs references, filename string) error {
-	dirScan, err := pass.env.getResolver().scan(refs)
+	dirScan, err := pass.env.GetResolver().scan(refs)
 	if err != nil {
 		return err
 	}
