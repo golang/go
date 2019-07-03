@@ -219,8 +219,12 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
 			for i := range data {
 				data[i] = order.Uint64(bs[8*i:])
 			}
+		default:
+			n = 0 // fast path doesn't apply
 		}
-		return nil
+		if n != 0 {
+			return nil
+		}
 	}
 
 	// Fallback to reflect-based decoding.
