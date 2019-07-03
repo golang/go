@@ -6,6 +6,7 @@ package binary
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
@@ -448,6 +449,35 @@ func TestEarlyBoundsChecks(t *testing.T) {
 	}
 	if testPutUint64SmallSliceLengthPanics() != true {
 		t.Errorf("binary.LittleEndian.PutUint64 expected to panic for small slices, but didn't")
+	}
+}
+
+func TestReadInvalidDestination(t *testing.T) {
+	testReadInvalidDestination(t, BigEndian)
+	testReadInvalidDestination(t, LittleEndian)
+}
+
+func testReadInvalidDestination(t *testing.T, order ByteOrder) {
+	destinations := []interface{}{
+		int8(0),
+		int16(0),
+		int32(0),
+		int64(0),
+
+		uint8(0),
+		uint16(0),
+		uint32(0),
+		uint64(0),
+
+		bool(false),
+	}
+
+	for _, dst := range destinations {
+		err := Read(bytes.NewReader([]byte{1, 2, 3, 4, 5, 6, 7, 8}), order, dst)
+		want := fmt.Sprintf("binary.Read: invalid type %T", dst)
+		if err == nil || err.Error() != want {
+			t.Fatalf("for type %T: got %q; want %q", dst, err, want)
+		}
 	}
 }
 
