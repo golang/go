@@ -445,7 +445,11 @@ func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]Q
 		candidateModules = modulePrefixesExcludingTarget(base)
 	)
 	if len(candidateModules) == 0 {
-		return nil, fmt.Errorf("package %s is not in the main module (%s)", pattern, Target.Path)
+		return nil, &PackageNotInModuleError{
+			Mod:     Target,
+			Query:   query,
+			Pattern: pattern,
+		}
 	}
 
 	err := modfetch.TryProxies(func(proxy string) error {
@@ -541,7 +545,9 @@ func queryPrefixModules(candidateModules []string, queryModule func(path string)
 		case nil:
 			found = append(found, r.QueryResult)
 		case *PackageNotInModuleError:
-			if noPackage == nil {
+			// Given the option, prefer to attribute “package not in module”
+			// to modules other than the main one.
+			if noPackage == nil || noPackage.Mod == Target {
 				noPackage = rErr
 			}
 		case *NoMatchingVersionError:
@@ -626,6 +632,13 @@ type PackageNotInModuleError struct {
 }
 
 func (e *PackageNotInModuleError) Error() string {
+	if e.Mod == Target {
+		if strings.Contains(e.Pattern, "...") {
+			return fmt.Sprintf("main module (%s) does not contain packages matching %s", Target.Path, e.Pattern)
+		}
+		return fmt.Sprintf("main module (%s) does not contain package %s", Target.Path, e.Pattern)
+	}
+
 	found := ""
 	if r := e.Replacement; r.Path != "" {
 		replacement := r.Path
