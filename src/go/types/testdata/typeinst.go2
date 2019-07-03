@@ -17,17 +17,27 @@ type T2(type P) struct {
 
 type List(type P) []P
 
-type A1(type P) P
+type A1(type P) = P
 
-type A2(type P) struct {
+type A2(type P) = struct {
         f P
         g myInt // myInt should still be in scope chain
 }
 
 // Parametrized type instantiations
 
-type _ T1 /* ERROR not a type */ (int) // TODO fix this
+var x int
+type _ x /* ERROR not a type */ (int)
 
+type _ int /* ERROR not a parametrized type */ ()
+type _ myInt /* ERROR not a parametrized type */ ()
+
+// TODO(gri) better error messages
+type _ T1 /* ERROR got 0 arguments but 1 type parameters */ ()
+type _ T1(x /* ERROR not a type */ )
+type _ T1 /* ERROR got 2 arguments but 1 type parameters */ (int, float32)
+
+// var _ A1(int) = x
 
 
 // TODO

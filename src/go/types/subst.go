@@ -66,7 +66,7 @@ func (s *subster) typ(typ Type) (res Type) {
 		results := s.tuple(t.results)
 		if recv != t.recv || params != t.params || results != t.results {
 			copy := *t
-			copy.tparams = nil // TODO(gri) is this correct?
+			copy.tparams = nil // TODO(gri) is this correct? (another indication that perhaps tparams belong to the function decl)
 			copy.recv = recv
 			copy.params = params
 			copy.results = results

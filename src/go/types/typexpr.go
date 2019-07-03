@@ -258,9 +258,65 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 			check.errorf(x.pos(), "%s is not a type", &x)
 		}
 
-	// case *ast.CallExpr:
-	// 	check.typ(e.Fun)
-	// 	panic("type instantiation not yet implemented")
+	case *ast.CallExpr:
+		// Type instantiation requires a type name, handle everything
+		// here so we don't need to introduce type parameters into
+		// operands: parametrized types can only appear in type
+		// instatiation expressions.
+
+		// e.Fun must be a type name
+		var tname *TypeName
+		if ident, ok := e.Fun.(*ast.Ident); ok {
+			obj := check.lookup(ident.Name)
+			if obj == nil {
+				if ident.Name == "_" {
+					check.errorf(ident.Pos(), "cannot use _ as type")
+				} else {
+					check.errorf(ident.Pos(), "undeclared name: %s", ident.Name)
+				}
+				break
+			}
+			check.recordUse(ident, obj)
+
+			tname, _ = obj.(*TypeName)
+			if tname == nil {
+				check.errorf(ident.Pos(), "%s is not a type", ident.Name)
+				break
+			}
+		}
+
+		if !tname.IsParametrized() {
+			check.errorf(e.Pos(), "%s is not a parametrized type", tname.name)
+			break
+		}
+
+		// the number of supplied types must match the number of type parameters
+		// TODO(gri) fold into code below - we want to eval args always
+		if len(e.Args) != len(tname.tparams) {
+			// TODO(gri) provide better error message
+			check.errorf(e.Fun.Pos(), "got %d arguments but %d type parameters", len(e.Args), len(tname.tparams))
+			break
+		}
+
+		// evaluate arguments
+		args, ok := check.exprOrTypeList(e.Args) // reports error if types and expressions are mixed
+		if !ok {
+			break
+		}
+
+		// arguments must be types
+		assert(len(args) > 0)
+		if x := args[0]; x.mode != typexpr {
+			check.errorf(x.pos(), "%s is not a type", x)
+			break
+		}
+
+		// instantiate typ
+		if typ := check.instantiate(tname.typ, tname.tparams, args); typ != nil {
+			// TODO(gri) this is probably not correct
+			def.setUnderlying(typ)
+			return typ
+		}
 
 	case *ast.ParenExpr:
 		return check.definedType(e.X, def)

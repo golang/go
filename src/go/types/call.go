@@ -66,32 +66,17 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 		}
 
 		// evaluate arguments
-		args := check.exprOrTypeList(e.Args)
+		args, _ := check.exprOrTypeList(e.Args)
 
 		// instantiate function if needed
 		if n := len(args); len(sig.tparams) > 0 && n > 0 && args[0].mode == typexpr {
 			// if the first argument is a type, assume we have explicit type arguments
-			if len(sig.tparams) != n {
-				check.errorf(args[n-1].pos(), "got %d type arguments but want %d", n, len(sig.tparams))
-				x.mode = invalid
-				x.expr = e
-				return expression
-			}
-			// collect types
-			targs := make([]Type, n)
-			for i, a := range args {
-				if a.mode != typexpr {
-					// error was reported earlier
-					x.mode = invalid
-					x.expr = e
-					return expression
-				}
-				targs[i] = a.typ
-			}
-			// result is type-instantiated function value
 			x.mode = value
+			x.typ = check.instantiate(sig, sig.tparams, args)
+			if x.typ == nil {
+				x.mode = invalid
+			}
 			x.expr = e
-			x.typ = subst(sig, targs)
 			return expression
 		}
 
@@ -127,7 +112,9 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 
 // exprOrTypeList returns a list of operands and reports an error if the
 // list contains a mix of values and types (ignoring invalid operands).
-func (check *Checker) exprOrTypeList(elist []ast.Expr) (xlist []*operand) {
+func (check *Checker) exprOrTypeList(elist []ast.Expr) (xlist []*operand, ok bool) {
+	ok = true
+
 	switch len(elist) {
 	case 0:
 		// nothing to do
@@ -166,10 +153,30 @@ func (check *Checker) exprOrTypeList(elist []ast.Expr) (xlist []*operand) {
 		}
 		if 0 < ntypes && ntypes < len(xlist) {
 			check.errorf(xlist[0].pos(), "mix of value and type expressions")
+			ok = false
 		}
 	}
 
 	return
+}
+
+func (check *Checker) instantiate(typ Type, tparams []*TypeName, args []*operand) Type {
+	n := len(args)
+	if n != len(tparams) {
+		check.errorf(args[n-1].pos(), "got %d type arguments but want %d", n, len(tparams))
+		return nil
+	}
+	// collect types
+	targs := make([]Type, n)
+	for i, a := range args {
+		if a.mode != typexpr {
+			// error was reported earlier
+			return nil
+		}
+		targs[i] = a.typ
+	}
+	// result is instantiated typ
+	return subst(typ, targs)
 }
 
 func (check *Checker) exprList(elist []ast.Expr, allowCommaOk bool) (xlist []*operand, commaOk bool) {
