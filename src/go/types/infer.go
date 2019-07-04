@@ -39,7 +39,7 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 		}
 		par := params.At(i)
 		if !check.identical0(par.typ, arg.typ, true, nil, targs) {
-			check.errorf(arg.pos(), "type %s for %s does not match %s = %s", arg.typ, arg.expr, par.typ, subst(par.typ, targs))
+			check.errorf(arg.pos(), "type %s for %s does not match %s = %s", arg.typ, arg.expr, par.typ, check.subst(par.typ, targs))
 			return nil
 		}
 	}
@@ -52,7 +52,7 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 		}
 		par := params.At(i)
 		if !check.identical0(par.typ, Default(arg.typ), true, nil, targs) {
-			check.errorf(arg.pos(), "default type %s for %s does not match %s = %s", Default(arg.typ), arg.expr, par.typ, subst(par.typ, targs))
+			check.errorf(arg.pos(), "default type %s for %s does not match %s = %s", Default(arg.typ), arg.expr, par.typ, check.subst(par.typ, targs))
 			return nil
 		}
 	}

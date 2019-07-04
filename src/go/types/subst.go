@@ -8,15 +8,20 @@
 
 package types
 
-func subst(typ Type, targs []Type) Type {
+import (
+	"bytes"
+)
+
+func (check *Checker) subst(typ Type, targs []Type) Type {
 	if len(targs) == 0 {
 		return typ
 	}
-	s := subster{targs, make(map[Type]Type)}
+	s := subster{check, targs, make(map[Type]Type)}
 	return s.typ(typ)
 }
 
 type subster struct {
+	check *Checker
 	targs []Type
 	cache map[Type]Type
 }
@@ -90,8 +95,17 @@ func (s *subster) typ(typ Type) (res Type) {
 		}
 
 	case *Named:
-		// TODO(gri) is this correct?
-		// nothing to do
+		underlying := s.typ(t.underlying)
+		if underlying != t.underlying {
+			// create a new named type - for now use printed type in name
+			// TODO(gri) use type map to map types to indices
+			if len(t.methods) > 0 {
+				panic("cannot handle instantiation of types with methods yet")
+			}
+			// TODO(gri) what is the correct position to use here?
+			obj := NewTypeName(t.obj.pos, s.check.pkg, t.obj.name+typesString(s.targs), nil)
+			return NewNamed(obj, underlying, nil) // TODO(gri) provide correct method list
+		}
 
 	case *TypeParam:
 		if targ := s.targs[t.index]; targ != nil {
@@ -144,4 +158,17 @@ func (s *subster) varList(in []*Var) (out []*Var, copied bool) {
 		}
 	}
 	return
+}
+
+func typesString(targs []Type) string {
+	var buf bytes.Buffer
+	buf.WriteByte('(')
+	for i, arg := range targs {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+		buf.WriteString(TypeString(arg, nil))
+	}
+	buf.WriteByte(')')
+	return buf.String()
 }

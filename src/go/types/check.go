@@ -8,6 +8,7 @@ package types
 
 import (
 	"errors"
+	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/token"
@@ -257,21 +258,34 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 
 	defer check.handleBailout(&err)
 
+	print := func(msg string) {
+		if trace {
+			fmt.Println(msg)
+		}
+	}
+
+	print("== initFiles ==")
 	check.initFiles(files)
 
+	print("== collectObjects ==")
 	check.collectObjects()
 
+	print("== packagetObjects ==")
 	check.packageObjects()
 
+	print("== processDelayed ==")
 	check.processDelayed(0) // incl. all functions
 	check.processFinals()
 
+	print("== initOrder ==")
 	check.initOrder()
 
 	if !check.conf.DisableUnusedImportCheck {
+		print("== unusedImports ==")
 		check.unusedImports()
 	}
 
+	print("== recordUntyped ==")
 	check.recordUntyped()
 
 	check.pkg.complete = true

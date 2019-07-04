@@ -426,6 +426,16 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 		if _, ok := typ.(*Basic); ok {
 			return
 		}
+		if tname.IsParametrized() {
+			fmt.Fprint(buf, "(type ")
+			for i, p := range tname.tparams {
+				if i > 0 {
+					fmt.Fprint(buf, ", ")
+				}
+				fmt.Fprintf(buf, "%s", p.name)
+			}
+			fmt.Fprint(buf, ")")
+		}
 		if tname.IsAlias() {
 			buf.WriteString(" =")
 		} else {

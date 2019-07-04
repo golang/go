@@ -262,7 +262,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 		// Type instantiation requires a type name, handle everything
 		// here so we don't need to introduce type parameters into
 		// operands: parametrized types can only appear in type
-		// instatiation expressions.
+		// instantiation expressions.
 
 		// e.Fun must be a type name
 		var tname *TypeName
@@ -290,6 +290,10 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 			break
 		}
 
+		// typecheck tname (see check.ident for details)
+		check.objDecl(tname, def)
+		assert(tname.typ != nil)
+
 		// the number of supplied types must match the number of type parameters
 		// TODO(gri) fold into code below - we want to eval args always
 		if len(e.Args) != len(tname.tparams) {
@@ -312,11 +316,15 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 		}
 
 		// instantiate typ
-		if typ := check.instantiate(tname.typ, tname.tparams, args); typ != nil {
-			// TODO(gri) this is probably not correct
-			def.setUnderlying(typ)
-			return typ
+		typ := check.instantiate(tname.typ, tname.tparams, args)
+		if typ == nil {
+			break // error was reported by check.instatiate
 		}
+
+		if trace {
+			check.trace(args[0].pos(), "instantiated %s -> %s", tname, typ)
+		}
+		return typ
 
 	case *ast.ParenExpr:
 		return check.definedType(e.X, def)
