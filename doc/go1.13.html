@@ -229,7 +229,7 @@ go env -w GOPROXY=direct
 go env -w GOSUMDB=off
 </pre>
 
-<h4 id="go-get"><code>go</code> <code>get</code></h3>
+<h4 id="go-get"><code>go</code> <code>get</code></h4>
 
 <p><!-- CL 174099 -->
   In module-aware mode,
@@ -743,8 +743,8 @@ godoc
 <dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
     <p> <!-- CL 167780 -->
-      Tracebacks, <code>runtime.Caller</code>,
-      and <code>runtime.Callers</code> now refer to the function that
+      Tracebacks, <a href="/pkg/runtime/#Caller"><code>runtime.Caller</code></a>,
+      and <a href="/pkg/runtime/#Callers"><code>runtime.Callers</code></a> now refer to the function that
       initializes the global variables of <code>PKG</code>
       as <code>PKG.init</code> instead of <code>PKG.init.ializers</code>
     </p>
@@ -796,7 +796,7 @@ godoc
 <dl id="syscall/js"><dt><a href="/pkg/syscall/js/">syscall/js</a></dt>
   <dd>
     <p><!-- CL 177537 -->
-      <a href="/pkg/syscall/js/#TypedArray"><code>TypedArrayOf</code></a> has been replaced by
+      TypedArrayOf has been replaced by
       <a href="/pkg/syscall/js/#CopyBytesToGo"><code>CopyBytesToGo</code></a> and
       <a href="/pkg/syscall/js/#CopyBytesToJS"><code>CopyBytesToJS</code></a> for copying bytes between a byte slice and a Uint8Array.
     </p>
@@ -846,7 +846,7 @@ godoc
 <dl id="time"><dt><a href="/pkg/time/">time</a></dt>
   <dd>
     <p><!-- CL 122876 -->
-      Day-of-year is now supported by <a href="/pkg/time/#time.Format"><code>Format</code></a>
+      Day-of-year is now supported by <a href="/pkg/time/#Time.Format"><code>Format</code></a>
       and <a href="/pkg/time/#Parse"><code>Parse</code></a>.
     </p>
 
