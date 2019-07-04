@@ -69,7 +69,11 @@ func FromUTF16Column(p Point, chr int, content []byte) (Point, error) {
 		}
 		r, w := utf8.DecodeRune(remains)
 		if r == '\n' {
-			return Point{}, fmt.Errorf("FromUTF16Column: chr goes beyond the line")
+			// Per the LSP spec:
+			//
+			// > If the character value is greater than the line length it
+			// > defaults back to the line length.
+			break
 		}
 		remains = remains[w:]
 		if r >= 0x10000 {
