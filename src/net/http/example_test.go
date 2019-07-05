@@ -132,7 +132,7 @@ func ExampleServer_Shutdown() {
 
 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 		// Error starting or closing listener:
-		log.Printf("HTTP server ListenAndServe: %v", err)
+		log.Fatalf("HTTP server ListenAndServe: %v", err)
 	}
 
 	<-idleConnsClosed
