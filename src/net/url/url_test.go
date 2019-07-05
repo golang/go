@@ -669,8 +669,6 @@ var parseRequestURLTests = []struct {
 	{"foo.html", false},
 	{"../dir/", false},
 	{" http://foo.com", false},
-	{"ahttp://foo.com", true},
-	{"1http://foo.com", false},
 	{"http://192.168.0.%31/", false},
 	{"http://192.168.0.%31:8080/", false},
 	{"http://[fe80::%31]/", false},
@@ -1440,6 +1438,11 @@ func TestParseErrors(t *testing.T) {
 		{"http://%41:8080/", true},        // not allowed: % encoding only for non-ASCII
 		{"mysql://x@y(z:123)/foo", false}, // golang.org/issue/12023
 		{"mysql://x@y(1.2.3.4:123)/foo", false},
+
+		{" http://foo.com", true},         // invalid character in schema
+		{"ht tp://foo.com", true},         // invalid character in schema
+		{"ahttp://foo.com", false},        // valid schema characters
+		{"1http://foo.com", true},         // invalid character in schema
 
 		{"http://[]%20%48%54%54%50%2f%31%2e%31%0a%4d%79%48%65%61%64%65%72%3a%20%31%32%33%0a%0a/", true}, // golang.org/issue/11208
 		{"http://a b.com/", true},    // no space in host name please
