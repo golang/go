@@ -39,6 +39,19 @@ func NewTicker(d Duration) *Ticker {
 	return t
 }
 
+// Reset duration to reset a ticker.
+func (t *Ticker) Reset(d Duration) bool {
+	if t.r.f == nil {
+		panic("time: Reset called on uninitialized Ticker")
+	}
+	w := when(d)
+	active := stopTimer(&t.r)
+	t.r.when = w
+	t.r.period = int64(d)
+	startTimer(&t.r)
+	return active
+}
+
 // Stop turns off a ticker. After Stop, no more ticks will be sent.
 // Stop does not close the channel, to prevent a concurrent goroutine
 // reading from the channel from seeing an erroneous "tick".
