@@ -1454,7 +1454,7 @@ func TestParseErrors(t *testing.T) {
 			continue
 		}
 		if err != nil {
-			t.Logf("Parse(%q) = %v; want no error", tt.in, err)
+			t.Errorf("Parse(%q) = %v; want no error", tt.in, err)
 		}
 	}
 }
