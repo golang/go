@@ -668,6 +668,9 @@ var parseRequestURLTests = []struct {
 
 	{"foo.html", false},
 	{"../dir/", false},
+	{" http://foo.com", false},
+	{"ahttp://foo.com", true},
+	{"1http://foo.com", false},
 	{"http://192.168.0.%31/", false},
 	{"http://192.168.0.%31:8080/", false},
 	{"http://[fe80::%31]/", false},
