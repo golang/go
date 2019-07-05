@@ -27,7 +27,7 @@ type Error struct {
 }
 
 func (e *Error) Unwrap() error   { return e.Err }
-func (e *Error) Error() string   { return e.Op + " " + e.URL + ": " + e.Err.Error() }
+func (e *Error) Error() string   { return e.Op + " " + strconv.Quote(e.URL) + ": " + e.Err.Error() }
 func (e *Error) Timeout() bool   { return oserror.IsTimeout(e.Err) }
 func (e *Error) Temporary() bool { return oserror.IsTemporary(e.Err) }
 
@@ -463,13 +463,13 @@ func Parse(rawurl string) (*URL, error) {
 	u, frag := split(rawurl, "#", true)
 	url, err := parse(u, false)
 	if err != nil {
-		return nil, &Error{"parse", strconv.Quote(u), err}
+		return nil, &Error{"parse", u, err}
 	}
 	if frag == "" {
 		return url, nil
 	}
 	if url.Fragment, err = unescape(frag, encodeFragment); err != nil {
-		return nil, &Error{"parse", strconv.Quote(rawurl), err}
+		return nil, &Error{"parse", rawurl, err}
 	}
 	return url, nil
 }
@@ -482,7 +482,7 @@ func Parse(rawurl string) (*URL, error) {
 func ParseRequestURI(rawurl string) (*URL, error) {
 	url, err := parse(rawurl, true)
 	if err != nil {
-		return nil, &Error{"parse", strconv.Quote(rawurl), err}
+		return nil, &Error{"parse", rawurl, err}
 	}
 	return url, nil
 }
