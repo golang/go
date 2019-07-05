@@ -28,9 +28,10 @@ import (
 //   tagged version, with non-prereleases preferred over prereleases.
 //   If there are no tagged versions in the repo, latest returns the most
 //   recent commit.
+// - the literal string "upgrade", equivalent to "latest" except that if
+//   current is a newer version, current will be returned (see below).
 // - the literal string "patch", denoting the latest available tagged version
-//   with the same major and minor number as current. If current is "",
-//   "patch" is equivalent to "latest".
+//   with the same major and minor number as current (see below).
 // - v1, denoting the latest available tagged version v1.x.x.
 // - v1.2, denoting the latest available tagged version v1.2.x.
 // - v1.2.3, a semantic version string denoting that tagged version.
@@ -39,11 +40,12 @@ import (
 //   with non-prereleases preferred over prereleases.
 // - a repository commit identifier or tag, denoting that commit.
 //
-// current is optional, denoting the current version of the module.
-// If query is "latest" or "patch", current will be returned if it is a newer
-// semantic version or if it is a chronologically later pseudoversion. This
-// prevents accidental downgrades from newer prerelease or development
-// versions.
+// current denotes the current version of the module; it may be "" if the
+// current version is unknown or should not be considered. If query is
+// "upgrade" or "patch", current will be returned if it is a newer
+// semantic version or a chronologically later pseudo-version than the
+// version that would otherwise be chosen. This prevents accidental downgrades
+// from newer pre-release or development versions.
 //
 // If the allowed function is non-nil, Query excludes any versions for which
 // allowed returns false.
@@ -78,6 +80,10 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 	var mayUseLatest bool
 	switch {
 	case query == "latest":
+		ok = allowed
+		mayUseLatest = true
+
+	case query == "upgrade":
 		ok = allowed
 		mayUseLatest = true
 
@@ -202,9 +208,9 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 			return nil, err
 		}
 
-		// For "latest" and "patch", make sure we don't accidentally downgrade
+		// For "upgrade" and "patch", make sure we don't accidentally downgrade
 		// from a newer prerelease or from a chronologically newer pseudoversion.
-		if current != "" && (query == "latest" || query == "patch") {
+		if current != "" && (query == "upgrade" || query == "patch") {
 			currentTime, err := modfetch.PseudoVersionTime(current)
 			if semver.Compare(rev.Version, current) < 0 || (err == nil && rev.Time.Before(currentTime)) {
 				return repo.Stat(current)
@@ -503,7 +509,7 @@ type NoMatchingVersionError struct {
 
 func (e *NoMatchingVersionError) Error() string {
 	currentSuffix := ""
-	if (e.query == "latest" || e.query == "patch") && e.current != "" {
+	if (e.query == "upgrade" || e.query == "patch") && e.current != "" {
 		currentSuffix = fmt.Sprintf(" (current version is %s)", e.current)
 	}
 	return fmt.Sprintf("no matching versions for query %q", e.query) + currentSuffix
