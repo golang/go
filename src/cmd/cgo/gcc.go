@@ -1239,6 +1239,8 @@ func (p *Package) isType(t ast.Expr) bool {
 		if strings.HasPrefix(t.Name, "_Ctype_") {
 			return true
 		}
+	case *ast.ParenExpr:
+		return p.isType(t.X)
 	case *ast.StarExpr:
 		return p.isType(t.X)
 	case *ast.ArrayType, *ast.StructType, *ast.FuncType, *ast.InterfaceType,
