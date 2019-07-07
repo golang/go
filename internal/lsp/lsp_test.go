@@ -762,14 +762,29 @@ func (r *runner) Link(t *testing.T, data tests.Links) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		var notePositions []token.Position
 		links := make(map[span.Span]string, len(wantLinks))
 		for _, link := range wantLinks {
 			links[link.Src] = link.Target
+			notePositions = append(notePositions, link.NotePosition)
 		}
+
 		for _, link := range gotLinks {
 			spn, err := m.RangeSpan(link.Range)
 			if err != nil {
 				t.Fatal(err)
+			}
+			linkInNote := false
+			for _, notePosition := range notePositions {
+				// Drop the links found inside expectation notes arguments as this links are not collected by expect package
+				if notePosition.Line == spn.Start().Line() &&
+					notePosition.Column <= spn.Start().Column() {
+					delete(links, spn)
+					linkInNote = true
+				}
+			}
+			if linkInNote {
+				continue
 			}
 			if target, ok := links[spn]; ok {
 				delete(links, spn)

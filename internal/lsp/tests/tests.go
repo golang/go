@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/tools/go/expect"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/source"
@@ -37,7 +38,7 @@ const (
 	ExpectedRenamesCount           = 16
 	ExpectedSymbolsCount           = 1
 	ExpectedSignaturesCount        = 21
-	ExpectedLinksCount             = 2
+	ExpectedLinksCount             = 4
 )
 
 const (
@@ -117,8 +118,9 @@ type CompletionSnippet struct {
 }
 
 type Link struct {
-	Src    span.Span
-	Target string
+	Src          span.Span
+	Target       string
+	NotePosition token.Position
 }
 
 type Golden struct {
@@ -527,10 +529,12 @@ func (data *Data) collectCompletionSnippets(spn span.Span, item token.Pos, plain
 	}
 }
 
-func (data *Data) collectLinks(spn span.Span, link string) {
+func (data *Data) collectLinks(spn span.Span, link string, note *expect.Note, fset *token.FileSet) {
+	position := fset.Position(note.Pos)
 	uri := spn.URI()
 	data.Links[uri] = append(data.Links[uri], Link{
-		Src:    spn,
-		Target: link,
+		Src:          spn,
+		Target:       link,
+		NotePosition: position,
 	})
 }
