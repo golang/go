@@ -614,9 +614,14 @@ func (e *Escape) unsafeValue(k EscHole, n *Node) {
 		}
 	case OPLUS, ONEG, OBITNOT:
 		e.unsafeValue(k, n.Left)
-	case OADD, OSUB, OOR, OXOR, OMUL, ODIV, OMOD, OLSH, ORSH, OAND, OANDNOT:
+	case OADD, OSUB, OOR, OXOR, OMUL, ODIV, OMOD, OAND, OANDNOT:
 		e.unsafeValue(k, n.Left)
 		e.unsafeValue(k, n.Right)
+	case OLSH, ORSH:
+		e.unsafeValue(k, n.Left)
+		// RHS need not be uintptr-typed (#32959) and can't meaningfully
+		// flow pointers anyway.
+		e.discard(n.Right)
 	default:
 		e.exprSkipInit(e.discardHole(), n)
 	}
