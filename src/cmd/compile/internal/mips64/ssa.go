@@ -426,6 +426,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p4.Reg = mips.REG_R1
 		p4.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p4, p2)
+	case ssa.OpMIPS64DUFFCOPY:
+		p := s.Prog(obj.ADUFFCOPY)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.Duffcopy
+		p.To.Offset = v.AuxInt
 	case ssa.OpMIPS64LoweredMove:
 		// SUBV	$8, R1
 		// MOVV	8(R1), Rtmp

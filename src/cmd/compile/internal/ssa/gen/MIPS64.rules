@@ -370,6 +370,18 @@
 		(MOVVstore [8] dst (MOVVload [8] src mem)
 			(MOVVstore dst (MOVVload src mem) mem)))
 
+// medium move uses a duff device
+(Move [s] {t} dst src mem)
+	&& s%8 == 0 && s >= 24 && s <= 8*128 && t.(*types.Type).Alignment()%8 == 0
+	&& !config.noDuffDevice ->
+	(DUFFCOPY [16 * (128 - s/8)] dst src mem)
+// 16 and 128 are magic constants.  16 is the number of bytes to encode:
+//	MOVV	(R1), R23
+//	ADDV	$8, R1
+//	MOVV	R23, (R2)
+//	ADDV	$8, R2
+// and 128 is the number of such blocks. See runtime/duff_mips64.s:duffcopy.
+
 // large or unaligned move uses a loop
 (Move [s] {t} dst src mem)
 	&& s > 24 || t.(*types.Type).Alignment()%8 != 0 ->
