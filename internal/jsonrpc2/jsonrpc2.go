@@ -103,29 +103,24 @@ func start(ctx context.Context, server bool, method string, id *ID) (context.Con
 		start:  time.Now(),
 	}
 	ctx = context.WithValue(ctx, rpcStatsKey, s)
-	tags := make([]tag.Mutator, 0, 4)
-	tags = append(tags, tag.Upsert(telemetry.KeyMethod, method))
 	mode := telemetry.Outbound
-	spanKind := trace.SpanKindClient
 	if server {
-		spanKind = trace.SpanKindServer
 		mode = telemetry.Inbound
 	}
-	tags = append(tags, tag.Upsert(telemetry.KeyRPCDirection, mode))
-	if id != nil {
-		tags = append(tags, tag.Upsert(telemetry.KeyRPCID, id.String()))
-	}
-	ctx, s.span = trace.StartSpan(ctx, method, trace.WithSpanKind(spanKind))
-	ctx, _ = tag.New(ctx, tags...)
+	ctx, s.span = trace.StartSpan(ctx, method,
+		tag.Tag{Key: telemetry.Method, Value: method},
+		tag.Tag{Key: telemetry.RPCDirection, Value: mode},
+		tag.Tag{Key: telemetry.RPCID, Value: id},
+	)
 	stats.Record(ctx, telemetry.Started.M(1))
 	return ctx, s
 }
 
 func (s *rpcStats) end(ctx context.Context, err *error) {
 	if err != nil && *err != nil {
-		ctx, _ = tag.New(ctx, tag.Upsert(telemetry.KeyStatus, "ERROR"))
+		ctx = telemetry.StatusCode.With(ctx, "ERROR")
 	} else {
-		ctx, _ = tag.New(ctx, tag.Upsert(telemetry.KeyStatus, "OK"))
+		ctx = telemetry.StatusCode.With(ctx, "OK")
 	}
 	elapsedTime := time.Since(s.start)
 	latencyMillis := float64(elapsedTime) / float64(time.Millisecond)
@@ -309,7 +304,7 @@ func (r *Request) Reply(ctx context.Context, result interface{}, err error) erro
 	if r.IsNotify() {
 		return fmt.Errorf("reply not invoked with a valid call")
 	}
-	ctx, st := trace.StartSpan(ctx, r.Method+":reply", trace.WithSpanKind(trace.SpanKindClient))
+	ctx, st := trace.StartSpan(ctx, r.Method+":reply")
 	defer st.End()
 
 	// reply ends the handling phase of a call, so if we are not yet

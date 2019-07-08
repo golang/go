@@ -13,6 +13,17 @@ import (
 	"golang.org/x/tools/internal/lsp/telemetry/tag"
 )
 
+const (
+	// create the tag keys we use
+	Method        = tag.Key("method")
+	StatusCode    = tag.Key("status.code")
+	StatusMessage = tag.Key("status.message")
+	RPCID         = tag.Key("id")
+	RPCDirection  = tag.Key("direction")
+	File          = tag.Key("file")
+	Package       = tag.Key("package")
+)
+
 var (
 	Handle = func(mux *http.ServeMux) {}
 
@@ -20,11 +31,6 @@ var (
 	ReceivedBytes = stats.NullInt64Measure()
 	SentBytes     = stats.NullInt64Measure()
 	Latency       = stats.NullFloat64Measure()
-
-	KeyRPCID        tag.Key
-	KeyMethod       tag.Key
-	KeyStatus       tag.Key
-	KeyRPCDirection tag.Key
 )
 
 const (
