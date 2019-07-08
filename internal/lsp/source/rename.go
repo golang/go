@@ -46,10 +46,14 @@ func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.U
 		return nil, fmt.Errorf("invalid identifier to rename: %q", i.Name)
 	}
 
-	// Do not rename identifiers declared in another package.
 	if i.pkg == nil || i.pkg.IsIllTyped() {
 		return nil, fmt.Errorf("package for %s is ill typed", i.File.URI())
 	}
+	// Do not rename builtin identifiers.
+	if i.decl.obj.Parent() == types.Universe {
+		return nil, fmt.Errorf("cannot rename builtin %q", i.Name)
+	}
+	// Do not rename identifiers declared in another package.
 	if i.pkg.GetTypes() != i.decl.obj.Pkg() {
 		return nil, fmt.Errorf("failed to rename because %q is declared in package %q", i.Name, i.decl.obj.Pkg().Name())
 	}
