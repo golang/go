@@ -94,78 +94,20 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 				pkgs := str.StringList(fsDirs[i])
 				m.Pkgs = pkgs[:0]
 				for _, pkg := range pkgs {
-					var dir string
-					if !filepath.IsAbs(pkg) {
-						dir = filepath.Join(base.Cwd, pkg)
-					} else {
-						dir = filepath.Clean(pkg)
-					}
+					pkg, err := resolveLocalPackage(pkg)
+					if err != nil {
+						if !m.IsLiteral() && (err == errPkgIsBuiltin || err == errPkgIsGorootSrc) {
+							continue // Don't include "builtin" or GOROOT/src in wildcard patterns.
+						}
 
-					// golang.org/issue/32917: We should resolve a relative path to a
-					// package path only if the relative path actually contains the code
-					// for that package.
-					if !dirContainsPackage(dir) {
 						// If we're outside of a module, ensure that the failure mode
 						// indicates that.
 						ModRoot()
 
-						// If the directory is local but does not exist, don't return it
-						// while loader is iterating, since this might trigger a fetch.
-						// After loader is done iterating, we still need to return the
-						// path, so that "go list -e" produces valid output.
 						if !iterating {
-							// We don't have a valid path to resolve to, so report the
-							// unresolved path.
-							m.Pkgs = append(m.Pkgs, pkg)
+							m.AddError(err)
 						}
 						continue
-					}
-
-					// Note: The checks for @ here are just to avoid misinterpreting
-					// the module cache directories (formerly GOPATH/src/mod/foo@v1.5.2/bar).
-					// It's not strictly necessary but helpful to keep the checks.
-					if modRoot != "" && dir == modRoot {
-						pkg = targetPrefix
-						if modRoot == cfg.GOROOTsrc {
-							// A package in GOROOT/src would have an empty path.
-							// Keep the path as cfg.GOROOTsrc. We'll report an error in Import.
-							// See golang.org/issue/36587.
-							pkg = modRoot
-						}
-					} else if modRoot != "" && strings.HasPrefix(dir, modRoot+string(filepath.Separator)) && !strings.Contains(dir[len(modRoot):], "@") {
-						suffix := filepath.ToSlash(dir[len(modRoot):])
-						if strings.HasPrefix(suffix, "/vendor/") {
-							// TODO getmode vendor check
-							pkg = strings.TrimPrefix(suffix, "/vendor/")
-						} else if targetInGorootSrc && Target.Path == "std" {
-							// Don't add the prefix "std/" to packages in the "std" module.
-							// It's the one module path that isn't a prefix of its packages.
-							pkg = strings.TrimPrefix(suffix, "/")
-							if pkg == "builtin" {
-								// "builtin" is a pseudo-package with a real source file.
-								// It's not included in "std", so it shouldn't be included in
-								// "./..." within module "std" either.
-								continue
-							}
-						} else {
-							modPkg := targetPrefix + suffix
-							if _, ok := dirInModule(modPkg, targetPrefix, modRoot, true); ok {
-								pkg = modPkg
-							} else if !iterating {
-								ModRoot()
-								base.Errorf("go: directory %s is outside main module", base.ShortPath(dir))
-							}
-						}
-					} else if sub := search.InDir(dir, cfg.GOROOTsrc); sub != "" && sub != "." && !strings.Contains(sub, "@") {
-						pkg = filepath.ToSlash(sub)
-					} else if path := pathInModuleCache(dir); path != "" {
-						pkg = path
-					} else {
-						pkg = ""
-						if !iterating {
-							ModRoot()
-							base.Errorf("go: directory %s outside available modules", base.ShortPath(dir))
-						}
 					}
 					m.Pkgs = append(m.Pkgs, pkg)
 				}
@@ -244,6 +186,105 @@ func checkMultiplePaths() {
 	base.ExitIfErrors()
 }
 
+// resolveLocalPackage resolves a filesystem path to a package path.
+func resolveLocalPackage(dir string) (string, error) {
+	var absDir string
+	if filepath.IsAbs(dir) {
+		absDir = filepath.Clean(dir)
+	} else {
+		absDir = filepath.Join(base.Cwd, dir)
+	}
+
+	bp, err := cfg.BuildContext.ImportDir(absDir, 0)
+	if err != nil && (bp == nil || len(bp.IgnoredGoFiles) == 0) {
+		// golang.org/issue/32917: We should resolve a relative path to a
+		// package path only if the relative path actually contains the code
+		// for that package.
+		//
+		// If the named directory does not exist or contains no Go files,
+		// the package does not exist.
+		// Other errors may affect package loading, but not resolution.
+		if _, err := os.Stat(absDir); err != nil {
+			if os.IsNotExist(err) {
+				// Canonicalize OS-specific errors to errDirectoryNotFound so that error
+				// messages will be easier for users to search for.
+				return "", &os.PathError{Op: "stat", Path: absDir, Err: errDirectoryNotFound}
+			}
+			return "", err
+		}
+		if _, noGo := err.(*build.NoGoError); noGo {
+			// A directory that does not contain any Go source files — even ignored
+			// ones! — is not a Go package, and we can't resolve it to a package
+			// path because that path could plausibly be provided by some other
+			// module.
+			//
+			// Any other error indicates that the package “exists” (at least in the
+			// sense that it cannot exist in any other module), but has some other
+			// problem (such as a syntax error).
+			return "", err
+		}
+	}
+
+	if modRoot != "" && absDir == modRoot {
+		if absDir == cfg.GOROOTsrc {
+			return "", errPkgIsGorootSrc
+		}
+		return targetPrefix, nil
+	}
+
+	// Note: The checks for @ here are just to avoid misinterpreting
+	// the module cache directories (formerly GOPATH/src/mod/foo@v1.5.2/bar).
+	// It's not strictly necessary but helpful to keep the checks.
+	if modRoot != "" && strings.HasPrefix(absDir, modRoot+string(filepath.Separator)) && !strings.Contains(absDir[len(modRoot):], "@") {
+		suffix := filepath.ToSlash(absDir[len(modRoot):])
+		if strings.HasPrefix(suffix, "/vendor/") {
+			if cfg.BuildMod != "vendor" {
+				return "", fmt.Errorf("without -mod=vendor, directory %s has no package path", absDir)
+			}
+
+			readVendorList()
+			pkg := strings.TrimPrefix(suffix, "/vendor/")
+			if _, ok := vendorPkgModule[pkg]; !ok {
+				return "", fmt.Errorf("directory %s is not a package listed in vendor/modules.txt", absDir)
+			}
+			return pkg, nil
+		}
+
+		if targetPrefix == "" {
+			pkg := strings.TrimPrefix(suffix, "/")
+			if pkg == "builtin" {
+				// "builtin" is a pseudo-package with a real source file.
+				// It's not included in "std", so it shouldn't resolve from "."
+				// within module "std" either.
+				return "", errPkgIsBuiltin
+			}
+			return pkg, nil
+		}
+
+		pkg := targetPrefix + suffix
+		if _, ok := dirInModule(pkg, targetPrefix, modRoot, true); !ok {
+			return "", &PackageNotInModuleError{Mod: Target, Pattern: pkg}
+		}
+		return pkg, nil
+	}
+
+	if sub := search.InDir(absDir, cfg.GOROOTsrc); sub != "" && sub != "." && !strings.Contains(sub, "@") {
+		return filepath.ToSlash(sub), nil
+	}
+
+	pkg := pathInModuleCache(absDir)
+	if pkg == "" {
+		return "", fmt.Errorf("directory %s outside available modules", base.ShortPath(absDir))
+	}
+	return pkg, nil
+}
+
+var (
+	errDirectoryNotFound = errors.New("directory not found")
+	errPkgIsGorootSrc    = errors.New("GOROOT/src is not an importable package")
+	errPkgIsBuiltin      = errors.New(`"builtin" is a pseudo-package, not an importable package`)
+)
+
 // pathInModuleCache returns the import path of the directory dir,
 // if dir is in the module cache copy of a module in our build list.
 func pathInModuleCache(dir string) string {
@@ -271,32 +312,6 @@ func pathInModuleCache(dir string) string {
 		}
 	}
 	return ""
-}
-
-var dirContainsPackageCache sync.Map // absolute dir → bool
-
-func dirContainsPackage(dir string) bool {
-	isPkg, ok := dirContainsPackageCache.Load(dir)
-	if !ok {
-		_, err := cfg.BuildContext.ImportDir(dir, 0)
-		if err == nil {
-			isPkg = true
-		} else {
-			if fi, statErr := os.Stat(dir); statErr != nil || !fi.IsDir() {
-				// A non-directory or inaccessible directory is not a Go package.
-				isPkg = false
-			} else if _, noGo := err.(*build.NoGoError); noGo {
-				// A directory containing no Go source files is not a Go package.
-				isPkg = false
-			} else {
-				// An error other than *build.NoGoError indicates that the package exists
-				// but has some other problem (such as a syntax error).
-				isPkg = true
-			}
-		}
-		isPkg, _ = dirContainsPackageCache.LoadOrStore(dir, isPkg)
-	}
-	return isPkg.(bool)
 }
 
 // ImportFromFiles adds modules to the build list as needed
@@ -767,7 +782,7 @@ func (ld *loader) doPkg(item interface{}) {
 			// Leave for error during load.
 			return
 		}
-		if build.IsLocalImport(pkg.path) {
+		if build.IsLocalImport(pkg.path) || filepath.IsAbs(pkg.path) {
 			// Leave for error during load.
 			// (Module mode does not allow local imports.)
 			return

@@ -15,7 +15,7 @@ stdout '\Aok\s+example.com/x\s+[0-9.s]+\n\z'
 # Even though ./x looks like a package path, the real package should be
 # the implicit '.'.
 ! go test --answer=42 ./x
-stderr 'can''t load package: package \.: '
+stderr '^no Go files in .+$'
 ! stderr '/x'
 
 # An explicit '-outputdir=' argument should set test.outputdir
