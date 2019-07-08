@@ -47,11 +47,18 @@ var _ A1(float32) = x // ERROR cannot use x .* as float32
 
 var _ T2(*int) = A2(*int){}
 var _ T2(*int) = A2 /* ERROR cannot use */ (int){}
+var _ T2(int) = T2(int){}
 
-// TODO(gri) cannot handle this yet due because instantiated types are not yet canonicalized
-//var _ T2(int) = T2(int){}
+var _ List(int) = []int{1, 2, 3}
+var _ List([]int) = [][]int{{1, 2, 3}}
+// var _ List(List(int)) // TODO(gri) cannot not do this yet
+
+// Parametrized types containing parametrized types
+
+type T3(type P) = List(P)
+
+// var _ T3(int) = List(int){1, 2, 3} // TODO(gri) cannot do this yet
+
 
 // TODO
-// think about instantiated types (they are defined types unless alias)
-// need type map
 // type map maps to unique name found in scopes?

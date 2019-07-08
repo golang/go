@@ -102,12 +102,19 @@ func (s *subster) typ(typ Type) (res Type) {
 			if len(t.methods) > 0 {
 				panic("cannot handle instantiation of types with methods yet")
 			}
-			// TODO(gri) what is the correct position to use here?
-			obj := NewTypeName(t.obj.pos, s.check.pkg, t.obj.name+typesString(s.targs), nil)
-			return NewNamed(obj, underlying, nil) // TODO(gri) provide correct method list
+			name := t.obj.name + typesString(s.targs)
+			tname, found := s.check.typMap[name]
+			if !found {
+				// TODO(gri) what is the correct position to use here?
+				tname = NewTypeName(t.obj.pos, s.check.pkg, name, nil)
+				NewNamed(tname, underlying, nil) // TODO(gri) provide correct method list
+				s.check.typMap[name] = tname
+			}
+			return tname.typ
 		}
 
 	case *TypeParam:
+		// TODO(gri) do we need to check that we're using the correct targs list/index?
 		if targ := s.targs[t.index]; targ != nil {
 			return targ
 		}

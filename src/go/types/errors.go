@@ -90,6 +90,10 @@ func (check *Checker) err(pos token.Pos, msg string, soft bool) {
 	if trace {
 		check.trace(pos, "ERROR: %s", msg)
 	}
+	
+	if halt {
+		panic(err)
+	}
 
 	f := check.conf.Error
 	if f == nil {
