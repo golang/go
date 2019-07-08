@@ -79,7 +79,9 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 					if m.Literal {
 						dirs = []string{m.Pattern}
 					} else {
-						dirs = search.MatchPackagesInFS(m.Pattern).Pkgs
+						match := search.MatchPackagesInFS(m.Pattern)
+						dirs = match.Pkgs
+						m.Errs = match.Errs
 					}
 					fsDirs[i] = dirs
 				}
@@ -187,7 +189,9 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 
 			case search.IsMetaPackage(m.Pattern): // std, cmd
 				if len(m.Pkgs) == 0 {
-					m.Pkgs = search.MatchPackages(m.Pattern).Pkgs
+					match := search.MatchPackages(m.Pattern)
+					m.Pkgs = match.Pkgs
+					m.Errs = match.Errs
 				}
 
 			default:

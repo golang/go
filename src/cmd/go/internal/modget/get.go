@@ -522,6 +522,10 @@ func runGet(cmd *base.Command, args []string) {
 					// we'll print a warning after the outer loop.
 					if !search.IsRelativePath(arg.path) && !match.Literal && arg.path != "all" {
 						addQuery(&query{querySpec: querySpec{path: arg.path, vers: arg.vers}, arg: arg.raw})
+					} else {
+						for _, err := range match.Errs {
+							base.Errorf("go get: %v", err)
+						}
 					}
 					continue
 				}

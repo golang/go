@@ -2091,6 +2091,9 @@ func PackagesAndErrors(patterns []string) []*Package {
 			seenPkg[p] = true
 			pkgs = append(pkgs, p)
 		}
+
+		// TODO: if len(m.Pkgs) == 0 && len(m.Errs) > 0, should we add a *Package
+		// with a non-nil Error field?
 	}
 
 	// Now that CmdlinePkg is set correctly,

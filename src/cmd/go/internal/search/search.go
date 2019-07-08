@@ -9,7 +9,6 @@ import (
 	"cmd/go/internal/cfg"
 	"fmt"
 	"go/build"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -22,6 +21,35 @@ type Match struct {
 	Pattern string   // the pattern itself
 	Literal bool     // whether it is a literal (no wildcards)
 	Pkgs    []string // matching packages (dirs or import paths)
+	Errs    []error  // errors matching the patterns to packages, NOT errors loading those packages
+
+	// Errs may be non-empty even if len(Pkgs) > 0, indicating that some matching
+	// packages could be located but results may be incomplete.
+	// If len(Pkgs) == 0 && len(Errs) == 0, the pattern is well-formed but did not
+	// match any packages.
+}
+
+// AddError appends a MatchError wrapping err to m.Errs.
+func (m *Match) AddError(err error) {
+	m.Errs = append(m.Errs, &MatchError{Match: m, Err: err})
+}
+
+// A MatchError indicates an error that occurred while attempting to match a
+// pattern.
+type MatchError struct {
+	*Match
+	Err error
+}
+
+func (e *MatchError) Error() string {
+	if e.Literal {
+		return fmt.Sprintf("matching %s: %v", e.Pattern, e.Err)
+	}
+	return fmt.Sprintf("pattern %s: %v", e.Pattern, e.Err)
+}
+
+func (e *MatchError) Unwrap() error {
+	return e.Err
 }
 
 // MatchPackages returns all the packages that can be found
@@ -56,7 +84,7 @@ func MatchPackages(pattern string) *Match {
 		if pattern == "cmd" {
 			root += "cmd" + string(filepath.Separator)
 		}
-		filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
+		err := filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
 			if err != nil || path == src {
 				return nil
 			}
@@ -100,21 +128,29 @@ func MatchPackages(pattern string) *Match {
 			pkg, err := cfg.BuildContext.ImportDir(path, 0)
 			if err != nil {
 				if _, noGo := err.(*build.NoGoError); noGo {
+					// The package does not actually exist, so record neither the package
+					// nor the error.
 					return nil
 				}
+				// There was an error importing path, but not matching it,
+				// which is all that Match promises to do.
+				// Ignore the import error.
 			}
 
 			// If we are expanding "cmd", skip main
 			// packages under cmd/vendor. At least as of
 			// March, 2017, there is one there for the
 			// vendored pprof tool.
-			if pattern == "cmd" && strings.HasPrefix(pkg.ImportPath, "cmd/vendor") && pkg.Name == "main" {
+			if pattern == "cmd" && pkg != nil && strings.HasPrefix(pkg.ImportPath, "cmd/vendor") && pkg.Name == "main" {
 				return nil
 			}
 
 			m.Pkgs = append(m.Pkgs, name)
 			return nil
 		})
+		if err != nil {
+			m.AddError(err)
+		}
 	}
 	return m
 }
@@ -166,15 +202,16 @@ func MatchPackagesInFS(pattern string) *Match {
 	if modRoot != "" {
 		abs, err := filepath.Abs(dir)
 		if err != nil {
-			base.Fatalf("go: %v", err)
+			m.AddError(err)
+			return m
 		}
 		if !hasFilepathPrefix(abs, modRoot) {
-			base.Fatalf("go: pattern %s refers to dir %s, outside module root %s", pattern, abs, modRoot)
-			return nil
+			m.AddError(fmt.Errorf("directory %s is outside module root (%s)", abs, modRoot))
+			return m
 		}
 	}
 
-	filepath.Walk(dir, func(path string, fi os.FileInfo, err error) error {
+	err := filepath.Walk(dir, func(path string, fi os.FileInfo, err error) error {
 		if err != nil || !fi.IsDir() {
 			return nil
 		}
@@ -218,14 +255,21 @@ func MatchPackagesInFS(pattern string) *Match {
 		// behavior means people miss serious mistakes.
 		// See golang.org/issue/11407.
 		if p, err := cfg.BuildContext.ImportDir(path, 0); err != nil && (p == nil || len(p.InvalidGoFiles) == 0) {
-			if _, noGo := err.(*build.NoGoError); !noGo {
-				log.Print(err)
+			if _, noGo := err.(*build.NoGoError); noGo {
+				// The package does not actually exist, so record neither the package
+				// nor the error.
+				return nil
 			}
-			return nil
+			// There was an error importing path, but not matching it,
+			// which is all that Match promises to do.
+			// Ignore the import error.
 		}
 		m.Pkgs = append(m.Pkgs, name)
 		return nil
 	})
+	if err != nil {
+		m.AddError(err)
+	}
 	return m
 }
 
@@ -316,7 +360,7 @@ func replaceVendor(x, repl string) string {
 // WarnUnmatched warns about patterns that didn't match any packages.
 func WarnUnmatched(matches []*Match) {
 	for _, m := range matches {
-		if len(m.Pkgs) == 0 {
+		if len(m.Pkgs) == 0 && len(m.Errs) == 0 {
 			fmt.Fprintf(os.Stderr, "go: warning: %q matched no packages\n", m.Pattern)
 		}
 	}
