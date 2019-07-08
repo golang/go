@@ -15,8 +15,7 @@ mkdir vendor/example.com/m/importy
 cp $WORK/importy/importy.go vendor/example.com/m/importy/importy.go
 go build example.com/m/importy
 ! go build -mod=vendor example.com/m/importy
-stderr '^can.t load package: ambiguous import: found package example.com/m/importy in multiple directories:\n\t'$WORK'[/\\]importy\n\t'$WORK'[/\\]vendor[/\\]example.com[/\\]m[/\\]importy$'
-
+stderr '^ambiguous import: found package example.com/m/importy in multiple directories:\n\t'$WORK'[/\\]importy\n\t'$WORK'[/\\]vendor[/\\]example.com[/\\]m[/\\]importy$'
 
 -- $WORK/go.mod --
 module example.com/m

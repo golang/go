@@ -11,12 +11,12 @@ env GO111MODULE=on
 ! go build -mod=readonly nonexist
 ! stderr 'import lookup disabled'
 ! stderr 'missing dot'
-stderr '^can''t load package: package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
+stderr '^package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
 
 ! go build nonexist
 ! stderr 'import lookup disabled'
 ! stderr 'missing dot'
-stderr '^can''t load package: package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
+stderr '^package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
 
 # Building a nonexistent std package indirectly should also fail usefully.
 

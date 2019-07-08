@@ -451,6 +451,7 @@ func runList(cmd *base.Command, args []string) {
 		pkgs = load.PackagesAndErrors(args)
 	} else {
 		pkgs = load.Packages(args)
+		base.ExitIfErrors()
 	}
 
 	if cache.Default() == nil {

@@ -661,6 +661,13 @@ func (e *PackageNotInModuleError) Error() string {
 	return fmt.Sprintf("module %s@%s found%s, but does not contain package %s", e.Mod.Path, e.Query, found, e.Pattern)
 }
 
+func (e *PackageNotInModuleError) ImportPath() string {
+	if !strings.Contains(e.Pattern, "...") {
+		return e.Pattern
+	}
+	return ""
+}
+
 // ModuleHasRootPackage returns whether module m contains a package m.Path.
 func ModuleHasRootPackage(m module.Version) (bool, error) {
 	root, isLocal, err := fetch(m)
