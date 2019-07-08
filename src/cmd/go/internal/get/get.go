@@ -285,10 +285,15 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 		// We delay this until after reloadPackage so that the old entry
 		// for p has been replaced in the package cache.
 		if wildcardOkay && strings.Contains(arg, "...") {
+			var match *search.Match
 			if build.IsLocalImport(arg) {
-				args = search.MatchPackagesInFS(arg).Pkgs
+				match = search.MatchPackagesInFS(arg)
 			} else {
-				args = search.MatchPackages(arg).Pkgs
+				match = search.MatchPackages(arg)
+			}
+			args = match.Pkgs
+			for _, err := range match.Errs {
+				base.Errorf("%s", err)
 			}
 			isWildcard = true
 		}
