@@ -16,14 +16,29 @@ import (
 	"strings"
 )
 
-// Driver
+// The Driver Protocol
+//
+// The driver, given the inputs to a call to Load, returns metadata about the packages specified.
+// This allows for different build systems to support go/packages by telling go/packages how the
+// packages' source is organized.
+// The driver is a binary, either specified by the GOPACKAGESDRIVER environment variable or in
+// the path as gopackagesdriver. It's given the inputs to load in its argv. See the package
+// documentation in doc.go for the full description of the patterns that need to be supported.
+// A driver receives as a JSON-serialized driverRequest struct in standard input and will
+// produce a JSON-serialized driverResponse (see definition in packages.go) in its standard output.
+
+// driverRequest is used to provide the portion of Load's Config that is needed by a driver.
 type driverRequest struct {
-	Command    string            `json:"command"`
-	Mode       LoadMode          `json:"mode"`
-	Env        []string          `json:"env"`
-	BuildFlags []string          `json:"build_flags"`
-	Tests      bool              `json:"tests"`
-	Overlay    map[string][]byte `json:"overlay"`
+	Mode LoadMode `json:"mode"`
+	// Env specifies the environment the underlying build system should be run in.
+	Env []string `json:"env"`
+	// BuildFlags are flags that should be passed to the underlying build system.
+	BuildFlags []string `json:"build_flags"`
+	// Tests specifies whether the patterns should also return test packages.
+	Tests bool `json:"tests"`
+	// Overlay maps file paths (relative to the driver's working directory) to the byte contents
+	// of overlay files.
+	Overlay map[string][]byte `json:"overlay"`
 }
 
 // findExternalDriver returns the file path of a tool that supplies
