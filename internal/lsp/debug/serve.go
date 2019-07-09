@@ -20,6 +20,7 @@ import (
 	"sync"
 
 	"golang.org/x/tools/internal/lsp/telemetry/metric"
+	"golang.org/x/tools/internal/lsp/telemetry/worker"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -215,6 +216,8 @@ func Serve(ctx context.Context, addr string) error {
 	log.Printf("Debug serving on port: %d", listener.Addr().(*net.TCPAddr).Port)
 	prometheus := prometheus{}
 	metric.RegisterObservers(prometheus.observeMetric)
+	rpcs := rpcs{}
+	metric.RegisterObservers(rpcs.observeMetric)
 	go func() {
 		mux := http.NewServeMux()
 		mux.HandleFunc("/", Render(mainTmpl, func(*http.Request) interface{} { return data }))
@@ -225,6 +228,7 @@ func Serve(ctx context.Context, addr string) error {
 		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 		mux.HandleFunc("/metrics/", prometheus.serve)
+		mux.HandleFunc("/rpc/", Render(rpcTmpl, rpcs.getData))
 		mux.HandleFunc("/cache/", Render(cacheTmpl, getCache))
 		mux.HandleFunc("/session/", Render(sessionTmpl, getSession))
 		mux.HandleFunc("/view/", Render(viewTmpl, getView))
@@ -242,13 +246,18 @@ func Serve(ctx context.Context, addr string) error {
 
 func Render(tmpl *template.Template, fun func(*http.Request) interface{}) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var data interface{}
-		if fun != nil {
-			data = fun(r)
-		}
-		if err := tmpl.Execute(w, data); err != nil {
-			log.Print(err)
-		}
+		done := make(chan struct{})
+		worker.Do(func() {
+			defer close(done)
+			var data interface{}
+			if fun != nil {
+				data = fun(r)
+			}
+			if err := tmpl.Execute(w, data); err != nil {
+				log.Print(err)
+			}
+		})
+		<-done
 	}
 }
 
@@ -288,6 +297,7 @@ td.value {
 <a href="/info">Info</a>
 <a href="/memory">Memory</a>
 <a href="/metrics">Metrics</a>
+<a href="/rpc">RPC</a>
 <hr>
 <h1>{{template "title" .}}</h1>
 {{block "body" .}}
@@ -358,8 +368,6 @@ var debugTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "title"}}GoPls Debug pages{{end}}
 {{define "body"}}
 <a href="/debug/pprof">Profiling</a>
-<a href="/debug/rpcz">RPCz</a>
-<a href="/debug/tracez">Tracez</a>
 {{end}}
 `))
 
