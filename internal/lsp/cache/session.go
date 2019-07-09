@@ -89,9 +89,6 @@ func (s *session) NewView(ctx context.Context, name string, folder span.URI) sou
 			packages: make(map[packageID]*metadata),
 			ids:      make(map[packagePath]packageID),
 		},
-		pcache: &packageCache{
-			packages: make(map[packageID]*entry),
-		},
 		ignoredURIs: make(map[span.URI]struct{}),
 	}
 	// Preemptively build the builtin package,

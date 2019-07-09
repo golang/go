@@ -50,9 +50,9 @@ func DocumentSymbols(ctx context.Context, f GoFile) ([]Symbol, error) {
 	if file == nil {
 		return nil, err
 	}
-	pkg := f.GetPackage(ctx)
-	if pkg == nil || pkg.IsIllTyped() {
-		return nil, errors.Errorf("no package for %s", f.URI())
+	pkg, err := f.GetPackage(ctx)
+	if err != nil {
+		return nil, err
 	}
 	info := pkg.GetTypesInfo()
 	q := qualifier(file, pkg.GetTypes(), info)

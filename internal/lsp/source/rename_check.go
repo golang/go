@@ -13,6 +13,7 @@ import (
 	"go/token"
 	"go/types"
 	"reflect"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -91,6 +92,9 @@ func (r *renamer) checkInPackageBlock(from types.Object) {
 	}
 
 	pkg := r.packages[from.Pkg()]
+	if pkg == nil {
+		return
+	}
 
 	// Check that in the package block, "init" is a function, and never referenced.
 	if r.to == "init" {
@@ -204,7 +208,6 @@ func (r *renamer) checkInLexicalScope(from types.Object, pkg Package) {
 			})
 		}
 	}
-
 	// Check for sub-block conflict.
 	// Is there an intervening definition of r.to between
 	// the block defining 'from' and some reference to it?
@@ -381,6 +384,9 @@ func (r *renamer) checkStructField(from *types.Var) {
 	// method) to its declaring struct (or interface), so we must
 	// ascend the AST.
 	pkg, path, _ := pathEnclosingInterval(r.ctx, r.fset, r.packages[from.Pkg()], from.Pos(), from.Pos())
+	if pkg == nil || path == nil {
+		return
+	}
 	// path matches this pattern:
 	// [Ident SelectorExpr? StarExpr? Field FieldList StructType ParenExpr* ... File]
 
@@ -840,11 +846,15 @@ func pathEnclosingInterval(ctx context.Context, fset *token.FileSet, pkg Package
 			if imp == nil {
 				continue
 			}
-			impPkg := pkg.GetImport(imp.Path.Value)
-			if impPkg == nil {
+			importPath, err := strconv.Unquote(imp.Path.Value)
+			if err != nil {
 				continue
 			}
-			pkgs = append(pkgs, impPkg)
+			importPkg, err := pkg.GetImport(ctx, importPath)
+			if err != nil {
+				return nil, nil, false
+			}
+			pkgs = append(pkgs, importPkg)
 		}
 	}
 	for _, p := range pkgs {

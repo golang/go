@@ -5,6 +5,7 @@
 package cache
 
 import (
+	"bytes"
 	"context"
 	"go/ast"
 	"go/parser"
@@ -81,6 +82,21 @@ func (h *parseGoHandle) Cached(ctx context.Context) (*ast.File, error) {
 	}
 	data := v.(*parseGoData)
 	return data.ast, data.err
+}
+
+func hashParseKey(ph source.ParseGoHandle) string {
+	b := bytes.NewBuffer(nil)
+	b.WriteString(ph.File().Identity().String())
+	b.WriteString(string(ph.Mode()))
+	return hashContents(b.Bytes())
+}
+
+func hashParseKeys(phs []source.ParseGoHandle) string {
+	b := bytes.NewBuffer(nil)
+	for _, ph := range phs {
+		b.WriteString(hashParseKey(ph))
+	}
+	return hashContents(b.Bytes())
 }
 
 func parseGo(ctx context.Context, c *cache, fh source.FileHandle, mode source.ParseMode) (*ast.File, error) {

@@ -29,7 +29,10 @@ func Format(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) {
 	if file == nil {
 		return nil, err
 	}
-	pkg := f.GetPackage(ctx)
+	pkg, err := f.GetPackage(ctx)
+	if err != nil {
+		return nil, err
+	}
 	if hasListErrors(pkg.GetErrors()) || hasParseErrors(pkg, f.URI()) {
 		// Even if this package has list or parse errors, this file may not
 		// have any parse errors and can still be formatted. Using format.Node
@@ -78,9 +81,9 @@ func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]TextEd
 	if err != nil {
 		return nil, err
 	}
-	pkg := f.GetPackage(ctx)
-	if pkg == nil || pkg.IsIllTyped() {
-		return nil, errors.Errorf("no package for file %s", f.URI())
+	pkg, err := f.GetPackage(ctx)
+	if err != nil {
+		return nil, err
 	}
 	if hasListErrors(pkg.GetErrors()) {
 		return nil, errors.Errorf("%s has list errors, not running goimports", f.URI())
@@ -123,14 +126,13 @@ func AllImportsFixes(ctx context.Context, view View, f GoFile, rng span.Range) (
 	if err != nil {
 		return nil, nil, err
 	}
-	pkg := f.GetPackage(ctx)
-	if pkg == nil || pkg.IsIllTyped() {
-		return nil, nil, errors.Errorf("no package for file %s", f.URI())
+	pkg, err := f.GetPackage(ctx)
+	if err != nil {
+		return nil, nil, err
 	}
 	if hasListErrors(pkg.GetErrors()) {
 		return nil, nil, errors.Errorf("%s has list errors, not running goimports", f.URI())
 	}
-
 	options := &imports.Options{
 		// Defaults.
 		AllErrors:  true,

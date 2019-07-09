@@ -77,9 +77,6 @@ type view struct {
 	// mcache caches metadata for the packages of the opened files in a view.
 	mcache *metadataCache
 
-	// pcache caches type information for the packages of the opened files in a view.
-	pcache *packageCache
-
 	// builtinPkg is the AST package used to resolve builtin types.
 	builtinPkg *ast.Package
 
@@ -95,23 +92,15 @@ type metadataCache struct {
 }
 
 type metadata struct {
-	id                packageID
-	pkgPath           packagePath
-	name              string
-	files             []string
-	typesSizes        types.Sizes
-	parents, children map[packageID]bool
-}
-
-type packageCache struct {
-	mu       sync.Mutex
-	packages map[packageID]*entry
-}
-
-type entry struct {
-	pkg   *pkg
-	err   error
-	ready chan struct{} // closed to broadcast ready condition
+	id         packageID
+	pkgPath    packagePath
+	name       string
+	files      []span.URI
+	key        string
+	typesSizes types.Sizes
+	parents    map[packageID]bool
+	children   map[packageID]*metadata
+	errors     []packages.Error
 }
 
 func (v *view) Session() source.Session {
@@ -363,9 +352,6 @@ func (f *goFile) invalidateContent(ctx context.Context) {
 	f.view.mcache.mu.Lock()
 	defer f.view.mcache.mu.Unlock()
 
-	f.view.pcache.mu.Lock()
-	defer f.view.pcache.mu.Unlock()
-
 	f.handleMu.Lock()
 	defer f.handleMu.Unlock()
 
@@ -377,12 +363,12 @@ func (f *goFile) invalidateContent(ctx context.Context) {
 // including any position and type information that depends on it.
 func (f *goFile) invalidateAST(ctx context.Context) {
 	f.mu.Lock()
-	pkgs := f.pkgs
+	cphs := f.pkgs
 	f.mu.Unlock()
 
 	// Remove the package and all of its reverse dependencies from the cache.
-	for id, pkg := range pkgs {
-		if pkg != nil {
+	for id, cph := range cphs {
+		if cph != nil {
 			f.view.remove(ctx, id, map[packageID]struct{}{})
 		}
 	}
@@ -405,8 +391,8 @@ func (v *view) remove(ctx context.Context, id packageID, seen map[packageID]stru
 	}
 	// All of the files in the package may also be holding a pointer to the
 	// invalidated package.
-	for _, filename := range m.files {
-		f, err := v.findFile(span.FileURI(filename))
+	for _, uri := range m.files {
+		f, err := v.findFile(uri)
 		if err != nil {
 			log.Error(ctx, "cannot find file", err, telemetry.File.Of(f.URI()))
 			continue
@@ -417,10 +403,15 @@ func (v *view) remove(ctx context.Context, id packageID, seen map[packageID]stru
 			continue
 		}
 		gof.mu.Lock()
-		if pkg, ok := gof.pkgs[id]; ok {
-			// TODO: Ultimately, we shouldn't need this.
-			// Preemptively delete all of the cached keys if we are invalidating a package.
-			for _, ph := range pkg.files {
+		// TODO: Ultimately, we shouldn't need this.
+		if cph, ok := gof.pkgs[id]; ok {
+			// Delete the package handle from the store.
+			v.session.cache.store.Delete(checkPackageKey{
+				files:  hashParseKeys(cph.Files()),
+				config: hashConfig(cph.Config()),
+			})
+			// Also, delete all of the cached ParseGoHandles.
+			for _, ph := range cph.Files() {
 				v.session.cache.store.Delete(parseKey{
 					file: ph.File().Identity(),
 					mode: ph.Mode(),
@@ -430,7 +421,6 @@ func (v *view) remove(ctx context.Context, id packageID, seen map[packageID]stru
 		delete(gof.pkgs, id)
 		gof.mu.Unlock()
 	}
-	delete(v.pcache.packages, id)
 	return
 }
 

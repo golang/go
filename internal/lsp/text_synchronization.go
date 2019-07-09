@@ -164,10 +164,9 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 		log.Error(ctx, "closing a non-Go file, no diagnostics to clear", nil, telemetry.File)
 		return nil
 	}
-	pkg := gof.GetPackage(ctx)
-	if pkg == nil {
-		log.Error(ctx, "no package available", nil, telemetry.File)
-		return nil
+	pkg, err := gof.GetPackage(ctx)
+	if err != nil {
+		return err
 	}
 	for _, ph := range pkg.GetHandles() {
 		// If other files from this package are open, don't clear.

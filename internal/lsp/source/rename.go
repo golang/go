@@ -46,13 +46,12 @@ func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.U
 	if !isValidIdentifier(i.Name) {
 		return nil, errors.Errorf("invalid identifier to rename: %q", i.Name)
 	}
-
-	if i.pkg == nil || i.pkg.IsIllTyped() {
-		return nil, errors.Errorf("package for %s is ill typed", i.File.URI())
-	}
 	// Do not rename builtin identifiers.
 	if i.decl.obj.Parent() == types.Universe {
 		return nil, errors.Errorf("cannot rename builtin %q", i.Name)
+	}
+	if i.pkg == nil || i.pkg.IsIllTyped() {
+		return nil, errors.Errorf("package for %s is ill typed", i.File.URI())
 	}
 	// Do not rename identifiers declared in another package.
 	if i.pkg.GetTypes() != i.decl.obj.Pkg() {
@@ -75,7 +74,7 @@ func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.U
 		packages:     make(map[*types.Package]Package),
 	}
 	for _, from := range refs {
-		r.packages[from.pkg.GetTypes()] = from.pkg
+		r.packages[i.pkg.GetTypes()] = from.pkg
 	}
 
 	// Check that the renaming of the identifier is ok.
@@ -198,9 +197,8 @@ func (r *renamer) updatePkgName(pkgName *types.PkgName) (*TextEdit, error) {
 	// Modify ImportSpec syntax to add or remove the Name as needed.
 	pkg := r.packages[pkgName.Pkg()]
 	_, path, _ := pathEnclosingInterval(r.ctx, r.fset, pkg, pkgName.Pos(), pkgName.Pos())
-
 	if len(path) < 2 {
-		return nil, errors.Errorf("failed to update PkgName for %s", pkgName.Name())
+		return nil, errors.Errorf("no path enclosing interval for %s", pkgName.Name())
 	}
 	spec, ok := path[1].(*ast.ImportSpec)
 	if !ok {

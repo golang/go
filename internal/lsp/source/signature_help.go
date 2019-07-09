@@ -34,11 +34,10 @@ func SignatureHelp(ctx context.Context, f GoFile, pos token.Pos) (*SignatureInfo
 	if file == nil {
 		return nil, err
 	}
-	pkg := f.GetPackage(ctx)
-	if pkg == nil || pkg.IsIllTyped() {
-		return nil, errors.Errorf("package for %s is ill typed", f.URI())
+	pkg, err := f.GetPackage(ctx)
+	if err != nil {
+		return nil, err
 	}
-
 	// Find a call expression surrounding the query position.
 	var callExpr *ast.CallExpr
 	path, _ := astutil.PathEnclosingInterval(file, pos, pos)

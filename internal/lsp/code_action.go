@@ -219,8 +219,11 @@ func quickFixes(ctx context.Context, view source.View, gof source.GoFile) ([]pro
 	// TODO: This is technically racy because the diagnostics provided by the code action
 	// may not be the same as the ones that gopls is aware of.
 	// We need to figure out some way to solve this problem.
-	diags := gof.GetPackage(ctx).GetDiagnostics()
-	for _, diag := range diags {
+	pkg, err := gof.GetPackage(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, diag := range pkg.GetDiagnostics() {
 		pdiag, err := toProtocolDiagnostic(ctx, view, diag)
 		if err != nil {
 			return nil, err

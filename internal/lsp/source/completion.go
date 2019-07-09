@@ -285,11 +285,10 @@ func Completion(ctx context.Context, view View, f GoFile, pos token.Pos, opts Co
 	if file == nil {
 		return nil, nil, err
 	}
-	pkg := f.GetPackage(ctx)
-	if pkg == nil || pkg.IsIllTyped() {
-		return nil, nil, errors.Errorf("package for %s is ill typed", f.URI())
+	pkg, err := f.GetPackage(ctx)
+	if err != nil {
+		return nil, nil, err
 	}
-
 	// Completion is based on what precedes the cursor.
 	// Find the path to the position before pos.
 	path, _ := astutil.PathEnclosingInterval(file, pos-1, pos-1)

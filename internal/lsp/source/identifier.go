@@ -48,14 +48,11 @@ func (i *IdentifierInfo) DeclarationRange() span.Range {
 // Identifier returns identifier information for a position
 // in a file, accounting for a potentially incomplete selector.
 func Identifier(ctx context.Context, f GoFile, pos token.Pos) (*IdentifierInfo, error) {
-	pkg := f.GetPackage(ctx)
-	if pkg == nil || pkg.IsIllTyped() {
-		return nil, errors.Errorf("pkg for %s is ill-typed", f.URI())
+	pkg, err := f.GetPackage(ctx)
+	if err != nil {
+		return nil, err
 	}
-	var (
-		file *ast.File
-		err  error
-	)
+	var file *ast.File
 	for _, ph := range pkg.GetHandles() {
 		if ph.File().Identity().URI == f.URI() {
 			file, err = ph.Cached(ctx)
@@ -303,9 +300,9 @@ func importSpec(ctx context.Context, f GoFile, fAST *ast.File, pkg Package, pos 
 		pkg:   pkg,
 	}
 	// Consider the "declaration" of an import spec to be the imported package.
-	importedPkg := pkg.GetImport(importPath)
-	if importedPkg == nil {
-		return nil, errors.Errorf("no import for %q", importPath)
+	importedPkg, err := pkg.GetImport(ctx, importPath)
+	if err != nil {
+		return nil, err
 	}
 	if importedPkg.GetSyntax(ctx) == nil {
 		return nil, errors.Errorf("no syntax for for %q", importPath)

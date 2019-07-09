@@ -6,6 +6,7 @@ package source
 
 import (
 	"context"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -23,6 +24,10 @@ import (
 type FileIdentity struct {
 	URI     span.URI
 	Version string
+}
+
+func (identity FileIdentity) String() string {
+	return fmt.Sprintf("%s%s", identity.URI, identity.Version)
 }
 
 // FileHandle represents a handle to a specific version of a single file from
@@ -103,6 +108,22 @@ const (
 	ParseFull
 )
 
+// CheckPackageHandle represents a handle to a specific version of a package.
+// It is uniquely defined by the file handles that make up the package.
+type CheckPackageHandle interface {
+	// ParseGoHandle returns a ParseGoHandle for which to get the package.
+	Files() []ParseGoHandle
+
+	// Config is the *packages.Config that the package metadata was loaded with.
+	Config() *packages.Config
+
+	// Check returns the type-checked Package for the CheckPackageHandle.
+	Check(ctx context.Context) (Package, error)
+
+	// Cached returns the Package for the CheckPackageHandle if it has already been stored.
+	Cached(ctx context.Context) (Package, error)
+}
+
 // Cache abstracts the core logic of dealing with the environment from the
 // higher level logic that processes the information to produce results.
 // The cache provides access to files and their contents, so the source
@@ -120,10 +141,10 @@ type Cache interface {
 	// FileSet returns the shared fileset used by all files in the system.
 	FileSet() *token.FileSet
 
-	// Token returns a TokenHandle for the given file handle.
+	// TokenHandle returns a TokenHandle for the given file handle.
 	TokenHandle(fh FileHandle) TokenHandle
 
-	// ParseGo returns a ParseGoHandle for the given file handle.
+	// ParseGoHandle returns a ParseGoHandle for the given file handle.
 	ParseGoHandle(fh FileHandle, mode ParseMode) ParseGoHandle
 }
 
@@ -237,11 +258,17 @@ type GoFile interface {
 	// GetCachedPackage returns the cached package for the file, if any.
 	GetCachedPackage(ctx context.Context) (Package, error)
 
-	// GetPackage returns the package that this file belongs to.
-	GetPackage(ctx context.Context) Package
+	// GetPackage returns the CheckPackageHandle for the package that this file belongs to.
+	GetCheckPackageHandle(ctx context.Context) (CheckPackageHandle, error)
 
-	// GetPackages returns all of the packages that this file belongs to.
-	GetPackages(ctx context.Context) []Package
+	// GetPackages returns the CheckPackageHandles of the packages that this file belongs to.
+	GetCheckPackageHandles(ctx context.Context) ([]CheckPackageHandle, error)
+
+	// GetPackage returns the CheckPackageHandle for the package that this file belongs to.
+	GetPackage(ctx context.Context) (Package, error)
+
+	// GetPackages returns the CheckPackageHandles of the packages that this file belongs to.
+	GetPackages(ctx context.Context) ([]Package, error)
 
 	// GetActiveReverseDeps returns the active files belonging to the reverse
 	// dependencies of this file's package.
@@ -268,10 +295,14 @@ type Package interface {
 	GetTypesInfo() *types.Info
 	GetTypesSizes() types.Sizes
 	IsIllTyped() bool
-	GetActionGraph(ctx context.Context, a *analysis.Analyzer) (*Action, error)
-	GetImport(pkgPath string) Package
 	GetDiagnostics() []Diagnostic
 	SetDiagnostics(diags []Diagnostic)
+
+	// GetImport returns the CheckPackageHandle for a package imported by this package.
+	GetImport(ctx context.Context, pkgPath string) (Package, error)
+
+	// GetActionGraph returns the action graph for the given package.
+	GetActionGraph(ctx context.Context, a *analysis.Analyzer) (*Action, error)
 }
 
 // TextEdit represents a change to a section of a document.

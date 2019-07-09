@@ -125,9 +125,9 @@ func (pkg *pkg) GetActionGraph(ctx context.Context, a *analysis.Analyzer) (*sour
 			}
 			sort.Strings(importPaths) // for determinism
 			for _, importPath := range importPaths {
-				dep := pkg.GetImport(importPath)
-				if dep == nil {
-					continue
+				dep, err := pkg.GetImport(ctx, importPath)
+				if err != nil {
+					return nil, err
 				}
 				act, err := dep.GetActionGraph(ctx, a)
 				if err != nil {
@@ -182,14 +182,6 @@ func (pkg *pkg) GetTypesSizes() types.Sizes {
 
 func (pkg *pkg) IsIllTyped() bool {
 	return pkg.types == nil && pkg.typesInfo == nil
-}
-
-func (pkg *pkg) GetImport(pkgPath string) source.Package {
-	if imp := pkg.imports[packagePath(pkgPath)]; imp != nil {
-		return imp
-	}
-	// Don't return a nil pointer because that still satisfies the interface.
-	return nil
 }
 
 func (pkg *pkg) SetDiagnostics(diags []source.Diagnostic) {

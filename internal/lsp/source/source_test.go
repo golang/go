@@ -532,7 +532,6 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 			t.Fatalf("failed to get token for %s: %v", spn.URI(), err)
 		}
 		pos := tok.Pos(spn.Start().Offset())
-
 		ident, err := source.Identifier(r.ctx, f.(source.GoFile), pos)
 		if err != nil {
 			t.Error(err)

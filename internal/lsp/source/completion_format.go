@@ -240,6 +240,7 @@ func qualifier(f *ast.File, pkg *types.Package, info *types.Info) types.Qualifie
 		if imp.Name != nil {
 			obj = info.Defs[imp.Name]
 		} else {
+
 			obj = info.Implicits[imp]
 		}
 		if pkgname, ok := obj.(*types.PkgName); ok {
