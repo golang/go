@@ -5508,6 +5508,8 @@ func rewriteValueWasm_OpWasmI64Eqz_0(v *Value) bool {
 	return false
 }
 func rewriteValueWasm_OpWasmI64Load_0(v *Value) bool {
+	b := v.Block
+	config := b.Func.Config
 	// match: (I64Load [off] (I64AddConst [off2] ptr) mem)
 	// cond: isU32Bit(off+off2)
 	// result: (I64Load [off+off2] ptr mem)
@@ -5527,6 +5529,29 @@ func rewriteValueWasm_OpWasmI64Load_0(v *Value) bool {
 		v.AuxInt = off + off2
 		v.AddArg(ptr)
 		v.AddArg(mem)
+		return true
+	}
+	// match: (I64Load [off] (LoweredAddr {sym} [off2] (SB)) _)
+	// cond: symIsRO(sym) && isU32Bit(off+off2)
+	// result: (I64Const [int64(read64(sym, off+off2, config.BigEndian))])
+	for {
+		off := v.AuxInt
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpWasmLoweredAddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym := v_0.Aux
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpSB {
+			break
+		}
+		if !(symIsRO(sym) && isU32Bit(off+off2)) {
+			break
+		}
+		v.reset(OpWasmI64Const)
+		v.AuxInt = int64(read64(sym, off+off2, config.BigEndian))
 		return true
 	}
 	return false
@@ -5556,6 +5581,8 @@ func rewriteValueWasm_OpWasmI64Load16S_0(v *Value) bool {
 	return false
 }
 func rewriteValueWasm_OpWasmI64Load16U_0(v *Value) bool {
+	b := v.Block
+	config := b.Func.Config
 	// match: (I64Load16U [off] (I64AddConst [off2] ptr) mem)
 	// cond: isU32Bit(off+off2)
 	// result: (I64Load16U [off+off2] ptr mem)
@@ -5575,6 +5602,29 @@ func rewriteValueWasm_OpWasmI64Load16U_0(v *Value) bool {
 		v.AuxInt = off + off2
 		v.AddArg(ptr)
 		v.AddArg(mem)
+		return true
+	}
+	// match: (I64Load16U [off] (LoweredAddr {sym} [off2] (SB)) _)
+	// cond: symIsRO(sym) && isU32Bit(off+off2)
+	// result: (I64Const [int64(read16(sym, off+off2, config.BigEndian))])
+	for {
+		off := v.AuxInt
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpWasmLoweredAddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym := v_0.Aux
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpSB {
+			break
+		}
+		if !(symIsRO(sym) && isU32Bit(off+off2)) {
+			break
+		}
+		v.reset(OpWasmI64Const)
+		v.AuxInt = int64(read16(sym, off+off2, config.BigEndian))
 		return true
 	}
 	return false
@@ -5604,6 +5654,8 @@ func rewriteValueWasm_OpWasmI64Load32S_0(v *Value) bool {
 	return false
 }
 func rewriteValueWasm_OpWasmI64Load32U_0(v *Value) bool {
+	b := v.Block
+	config := b.Func.Config
 	// match: (I64Load32U [off] (I64AddConst [off2] ptr) mem)
 	// cond: isU32Bit(off+off2)
 	// result: (I64Load32U [off+off2] ptr mem)
@@ -5623,6 +5675,29 @@ func rewriteValueWasm_OpWasmI64Load32U_0(v *Value) bool {
 		v.AuxInt = off + off2
 		v.AddArg(ptr)
 		v.AddArg(mem)
+		return true
+	}
+	// match: (I64Load32U [off] (LoweredAddr {sym} [off2] (SB)) _)
+	// cond: symIsRO(sym) && isU32Bit(off+off2)
+	// result: (I64Const [int64(read32(sym, off+off2, config.BigEndian))])
+	for {
+		off := v.AuxInt
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpWasmLoweredAddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym := v_0.Aux
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpSB {
+			break
+		}
+		if !(symIsRO(sym) && isU32Bit(off+off2)) {
+			break
+		}
+		v.reset(OpWasmI64Const)
+		v.AuxInt = int64(read32(sym, off+off2, config.BigEndian))
 		return true
 	}
 	return false
@@ -5671,6 +5746,29 @@ func rewriteValueWasm_OpWasmI64Load8U_0(v *Value) bool {
 		v.AuxInt = off + off2
 		v.AddArg(ptr)
 		v.AddArg(mem)
+		return true
+	}
+	// match: (I64Load8U [off] (LoweredAddr {sym} [off2] (SB)) _)
+	// cond: symIsRO(sym) && isU32Bit(off+off2)
+	// result: (I64Const [int64(read8(sym, off+off2))])
+	for {
+		off := v.AuxInt
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpWasmLoweredAddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym := v_0.Aux
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpSB {
+			break
+		}
+		if !(symIsRO(sym) && isU32Bit(off+off2)) {
+			break
+		}
+		v.reset(OpWasmI64Const)
+		v.AuxInt = int64(read8(sym, off+off2))
 		return true
 	}
 	return false
