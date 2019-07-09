@@ -6,7 +6,7 @@ env GO111MODULE=on
 go mod download
 
 ! go list $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
-stderr 'outside available modules'
+stderr 'can only use path@version syntax with .go get.'
 
 go list $GOPATH/pkg/mod/rsc.io/quote@v1.5.1
 stdout 'rsc.io/quote'
