@@ -100,11 +100,31 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 						dir = filepath.Clean(dir)
 					}
 
+					// golang.org/issue/32917: We should resolve a relative path to a
+					// package path only if the relative path actually contains the code
+					// for that package.
+					if !dirContainsPackage(dir) {
+						// If we're outside of a module, ensure that the failure mode
+						// indicates that.
+						ModRoot()
+
+						// If the directory is local but does not exist, don't return it
+						// while loader is iterating, since this might trigger a fetch.
+						// After loader is done iterating, we still need to return the
+						// path, so that "go list -e" produces valid output.
+						if !iterating {
+							// We don't have a valid path to resolve to, so report the
+							// unresolved path.
+							m.Pkgs = append(m.Pkgs, pkg)
+						}
+						continue
+					}
+
 					// Note: The checks for @ here are just to avoid misinterpreting
 					// the module cache directories (formerly GOPATH/src/mod/foo@v1.5.2/bar).
 					// It's not strictly necessary but helpful to keep the checks.
 					if modRoot != "" && dir == modRoot {
-						pkg = Target.Path
+						pkg = targetPrefix
 					} else if modRoot != "" && strings.HasPrefix(dir, modRoot+string(filepath.Separator)) && !strings.Contains(dir[len(modRoot):], "@") {
 						suffix := filepath.ToSlash(dir[len(modRoot):])
 						if strings.HasPrefix(suffix, "/vendor/") {
@@ -121,7 +141,13 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 								continue
 							}
 						} else {
-							pkg = Target.Path + suffix
+							modPkg := targetPrefix + suffix
+							if _, ok := dirInModule(modPkg, targetPrefix, modRoot, true); ok {
+								pkg = modPkg
+							} else if !iterating {
+								ModRoot()
+								base.Errorf("go: directory %s is outside main module", base.ShortPath(dir))
+							}
 						}
 					} else if sub := search.InDir(dir, cfg.GOROOTsrc); sub != "" && sub != "." && !strings.Contains(sub, "@") {
 						pkg = filepath.ToSlash(sub)
@@ -132,16 +158,6 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 						if !iterating {
 							ModRoot()
 							base.Errorf("go: directory %s outside available modules", base.ShortPath(dir))
-						}
-					}
-					info, err := os.Stat(dir)
-					if err != nil || !info.IsDir() {
-						// If the directory is local but does not exist, don't return it
-						// while loader is iterating, since this would trigger a fetch.
-						// After loader is done iterating, we still need to return the
-						// path, so that "go list -e" produces valid output.
-						if iterating {
-							continue
 						}
 					}
 					m.Pkgs = append(m.Pkgs, pkg)
@@ -245,6 +261,32 @@ func pathInModuleCache(dir string) string {
 		}
 	}
 	return ""
+}
+
+var dirContainsPackageCache sync.Map // absolute dir → bool
+
+func dirContainsPackage(dir string) bool {
+	isPkg, ok := dirContainsPackageCache.Load(dir)
+	if !ok {
+		_, err := cfg.BuildContext.ImportDir(dir, 0)
+		if err == nil {
+			isPkg = true
+		} else {
+			if fi, statErr := os.Stat(dir); statErr != nil || !fi.IsDir() {
+				// A non-directory or inaccessible directory is not a Go package.
+				isPkg = false
+			} else if _, noGo := err.(*build.NoGoError); noGo {
+				// A directory containing no Go source files is not a Go package.
+				isPkg = false
+			} else {
+				// An error other than *build.NoGoError indicates that the package exists
+				// but has some other problem (such as a syntax error).
+				isPkg = true
+			}
+		}
+		isPkg, _ = dirContainsPackageCache.LoadOrStore(dir, isPkg)
+	}
+	return isPkg.(bool)
 }
 
 // ImportFromFiles adds modules to the build list as needed
