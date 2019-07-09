@@ -56,8 +56,7 @@ func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, erro
 			return nil, fmt.Errorf("package %s has no types info", pkg.PkgPath())
 		}
 		for ident, obj := range info.Defs {
-			// TODO(suzmue): support the case where an identifier may have two different declarations.
-			if obj == nil || obj.Pos() != i.decl.obj.Pos() {
+			if obj == nil || !sameObj(obj, i.decl.obj) {
 				continue
 			}
 			// Add the declarations at the beginning of the references list.
@@ -70,7 +69,7 @@ func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, erro
 			}}, references...)
 		}
 		for ident, obj := range info.Uses {
-			if obj == nil || obj.Pos() != i.decl.obj.Pos() {
+			if obj == nil || !sameObj(obj, i.decl.obj) {
 				continue
 			}
 			references = append(references, &ReferenceInfo{
@@ -84,4 +83,12 @@ func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, erro
 	}
 
 	return references, nil
+}
+
+// sameObj returns true if obj is the same as declObj.
+// Objects are the same if they have the some Pos and Name.
+func sameObj(obj, declObj types.Object) bool {
+	// TODO(suzmue): support the case where an identifier may have two different
+	// declaration positions.
+	return obj.Pos() == declObj.Pos() && obj.Name() == declObj.Name()
 }
