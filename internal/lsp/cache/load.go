@@ -152,17 +152,22 @@ func (v *view) runGopackages(ctx context.Context, f *goFile) (result bool) {
 			}
 		}
 
-		defer f.mu.Unlock()
+		f.mu.Unlock()
 	}()
 
 	if len(f.meta) == 0 || len(f.missingImports) > 0 {
 		return true
 	}
+
 	// Get file content in case we don't already have it.
-	parsed, _ := v.session.cache.ParseGoHandle(f.Handle(ctx), source.ParseHeader).Parse(ctx)
+	parsed, err := v.session.cache.ParseGoHandle(f.Handle(ctx), source.ParseHeader).Parse(ctx)
+	if err == context.Canceled {
+		return false
+	}
 	if parsed == nil {
 		return true
 	}
+
 	// Check if the package's name has changed, by checking if this is a filename
 	// we already know about, and if so, check if its package name has changed.
 	for _, m := range f.meta {
@@ -174,15 +179,18 @@ func (v *view) runGopackages(ctx context.Context, f *goFile) (result bool) {
 			}
 		}
 	}
+
 	// If the package's imports have changed, re-run `go list`.
 	if len(f.imports) != len(parsed.Imports) {
 		return true
 	}
+
 	for i, importSpec := range f.imports {
 		if importSpec.Path.Value != parsed.Imports[i].Path.Value {
 			return true
 		}
 	}
+
 	return false
 }
 
