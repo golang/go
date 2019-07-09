@@ -247,16 +247,6 @@ func pathInModuleCache(dir string) string {
 	return ""
 }
 
-// warnPattern returns list, the result of matching pattern,
-// but if list is empty then first it prints a warning about
-// the pattern not matching any packages.
-func warnPattern(pattern string, list []string) []string {
-	if len(list) == 0 {
-		fmt.Fprintf(os.Stderr, "warning: %q matched no packages\n", pattern)
-	}
-	return list
-}
-
 // ImportFromFiles adds modules to the build list as needed
 // to satisfy the imports in the named Go source files.
 func ImportFromFiles(gofiles []string) {
