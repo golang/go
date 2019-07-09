@@ -73,7 +73,9 @@ func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.U
 		to:           newName,
 		packages:     make(map[*types.Package]Package),
 	}
-	r.packages[i.pkg.GetTypes()] = i.pkg
+	for _, from := range refs {
+		r.packages[from.pkg.GetTypes()] = from.pkg
+	}
 
 	// Check that the renaming of the identifier is ok.
 	for _, from := range refs {
@@ -89,6 +91,7 @@ func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.U
 // Rename all references to the identifier.
 func (r *renamer) update() (map[span.URI][]TextEdit, error) {
 	result := make(map[span.URI][]TextEdit)
+	seen := make(map[span.Span]bool)
 
 	docRegexp, err := regexp.Compile(`\b` + r.from + `\b`)
 	if err != nil {
@@ -99,6 +102,10 @@ func (r *renamer) update() (map[span.URI][]TextEdit, error) {
 		if err != nil {
 			return nil, err
 		}
+		if seen[refSpan] {
+			continue
+		}
+		seen[refSpan] = true
 
 		// Renaming a types.PkgName may result in the addition or removal of an identifier,
 		// so we deal with this separately.

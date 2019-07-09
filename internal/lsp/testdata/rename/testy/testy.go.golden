@@ -1,0 +1,9 @@
+-- testyType-rename --
+testy.go:
+package testy
+
+type testyType int //@rename("tt", "testyType")
+
+func a() {
+}
+

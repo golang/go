@@ -34,7 +34,7 @@ const (
 	ExpectedTypeDefinitionsCount   = 2
 	ExpectedHighlightsCount        = 2
 	ExpectedReferencesCount        = 5
-	ExpectedRenamesCount           = 13
+	ExpectedRenamesCount           = 16
 	ExpectedSymbolsCount           = 1
 	ExpectedSignaturesCount        = 21
 	ExpectedLinksCount             = 2

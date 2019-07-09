@@ -1,0 +1,30 @@
+-- b-rename --
+testy.go:
+package testy
+
+type tt int //@rename("tt", "testyType")
+
+func b() {
+}
+
+testy_test.go:
+package testy
+
+import "testing"
+
+func TestSomething(t *testing.T) {
+	var x int //@rename("x", "testyX")
+	b()       //@rename("a", "b")
+}
+
+-- testyX-rename --
+testy_test.go:
+package testy
+
+import "testing"
+
+func TestSomething(t *testing.T) {
+	var testyX int //@rename("x", "testyX")
+	a()       //@rename("a", "b")
+}
+

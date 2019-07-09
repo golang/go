@@ -20,6 +20,7 @@ type ReferenceInfo struct {
 	Range         span.Range
 	ident         *ast.Ident
 	obj           types.Object
+	pkg           Package
 	isDeclaration bool
 }
 
@@ -34,17 +35,6 @@ func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, erro
 	if i.decl.obj == nil {
 		return nil, fmt.Errorf("no references for an import spec")
 	}
-	if i.decl.wasImplicit {
-		// The definition is implicit, so we must add it separately.
-		// This occurs when the variable is declared in a type switch statement
-		// or is an implicit package name. Both implicits are local to a file.
-		references = append(references, &ReferenceInfo{
-			Name:          i.decl.obj.Name(),
-			Range:         i.decl.rng,
-			obj:           i.decl.obj,
-			isDeclaration: true,
-		})
-	}
 
 	pkgs := i.File.GetPackages(ctx)
 	for _, pkg := range pkgs {
@@ -54,6 +44,19 @@ func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, erro
 		info := pkg.GetTypesInfo()
 		if info == nil {
 			return nil, fmt.Errorf("package %s has no types info", pkg.PkgPath())
+		}
+
+		if i.decl.wasImplicit {
+			// The definition is implicit, so we must add it separately.
+			// This occurs when the variable is declared in a type switch statement
+			// or is an implicit package name. Both implicits are local to a file.
+			references = append(references, &ReferenceInfo{
+				Name:          i.decl.obj.Name(),
+				Range:         i.decl.rng,
+				obj:           i.decl.obj,
+				pkg:           pkg,
+				isDeclaration: true,
+			})
 		}
 		for ident, obj := range info.Defs {
 			if obj == nil || !sameObj(obj, i.decl.obj) {
@@ -65,6 +68,7 @@ func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, erro
 				Range:         span.NewRange(i.File.FileSet(), ident.Pos(), ident.End()),
 				ident:         ident,
 				obj:           obj,
+				pkg:           pkg,
 				isDeclaration: true,
 			}}, references...)
 		}
@@ -76,6 +80,7 @@ func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, erro
 				Name:  ident.Name,
 				Range: span.NewRange(i.File.FileSet(), ident.Pos(), ident.End()),
 				ident: ident,
+				pkg:   pkg,
 				obj:   obj,
 			})
 		}

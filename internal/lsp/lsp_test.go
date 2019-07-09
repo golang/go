@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"go/token"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -540,35 +541,41 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 			continue
 		}
 
-		_, m, err := getSourceFile(ctx, r.server.session.ViewOf(uri), uri)
-		if err != nil {
-			t.Error(err)
+		var res []string
+		for uri, edits := range *workspaceEdits.Changes {
+			spnURI := span.URI(uri)
+			_, m, err := getSourceFile(ctx, r.server.session.ViewOf(span.URI(spnURI)), spnURI)
+			if err != nil {
+				t.Error(err)
+			}
+
+			sedits, err := FromProtocolEdits(m, edits)
+			if err != nil {
+				t.Error(err)
+			}
+
+			filename := filepath.Base(m.URI.Filename())
+			contents := applyEdits(string(m.Content), sedits)
+			res = append(res, fmt.Sprintf("%s:\n%s", filename, contents))
 		}
 
-		changes := *workspaceEdits.Changes
-		if len(changes) != 1 { // Renames must only affect a single file in these tests.
-			t.Errorf("rename failed for %s, edited %d files, wanted 1 file", newText, len(*workspaceEdits.Changes))
-			continue
+		// Sort on filename
+		sort.Strings(res)
+
+		var got string
+		for i, val := range res {
+			if i != 0 {
+				got += "\n"
+			}
+			got += val
 		}
 
-		edits := changes[string(uri)]
-		if edits == nil {
-			t.Errorf("rename failed for %s, did not edit %s", newText, filename)
-			continue
-		}
-		sedits, err := FromProtocolEdits(m, edits)
-		if err != nil {
-			t.Error(err)
-		}
-
-		got := applyEdits(string(m.Content), sedits)
-
-		gorenamed := string(r.data.Golden(tag, filename, func() ([]byte, error) {
+		renamed := string(r.data.Golden(tag, filename, func() ([]byte, error) {
 			return []byte(got), nil
 		}))
 
-		if gorenamed != got {
-			t.Errorf("rename failed for %s, expected:\n%v\ngot:\n%v", newText, gorenamed, got)
+		if renamed != got {
+			t.Errorf("rename failed for %s, expected:\n%v\ngot:\n%v", newText, renamed, got)
 		}
 	}
 }

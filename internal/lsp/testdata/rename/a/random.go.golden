@@ -1,4 +1,5 @@
 -- GetSum-rename --
+random.go:
 package a
 
 import (
@@ -43,6 +44,7 @@ func sw() {
 }
 
 -- fmt2-rename --
+random.go:
 package a
 
 import (
@@ -87,6 +89,7 @@ func sw() {
 }
 
 -- format-rename --
+random.go:
 package a
 
 import (
@@ -131,6 +134,7 @@ func sw() {
 }
 
 -- log-rename --
+random.go:
 package a
 
 import (
@@ -175,6 +179,7 @@ func sw() {
 }
 
 -- myX-rename --
+random.go:
 package a
 
 import (
@@ -219,6 +224,7 @@ func sw() {
 }
 
 -- pos-rename --
+random.go:
 package a
 
 import (
@@ -263,6 +269,7 @@ func sw() {
 }
 
 -- y0-rename --
+random.go:
 package a
 
 import (
@@ -307,6 +314,7 @@ func sw() {
 }
 
 -- y1-rename --
+random.go:
 package a
 
 import (
@@ -351,6 +359,7 @@ func sw() {
 }
 
 -- y2-rename --
+random.go:
 package a
 
 import (
@@ -395,6 +404,7 @@ func sw() {
 }
 
 -- y3-rename --
+random.go:
 package a
 
 import (
@@ -439,6 +449,7 @@ func sw() {
 }
 
 -- z-rename --
+random.go:
 package a
 
 import (
