@@ -1257,7 +1257,7 @@ func (w *exportWriter) expr(n *Node) {
 		w.expr(n.Left)
 		w.typ(n.Type)
 
-	case OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:
+	case OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN, OTRY:
 		w.op(op)
 		w.pos(n.Pos)
 		if n.Left != nil {

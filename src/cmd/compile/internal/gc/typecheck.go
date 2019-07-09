@@ -622,6 +622,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			}
 			op = n.Op
 		}
+
 		if op == OLSH || op == ORSH {
 			r = defaultlit(r, types.Types[TUINT])
 			n.Right = r
@@ -851,9 +852,6 @@ func typecheck1(n *Node, top int) (res *Node) {
 			}
 		}
 
-		if l.Orig != l && l.Op == ONAME {
-			Fatalf("found non-orig name node %v", l)
-		}
 		l.SetAddrtaken(true)
 		if l.IsClosureVar() && !capturevarscomplete {
 			// See comments above about closure variables.
@@ -1400,6 +1398,84 @@ func typecheck1(n *Node, top int) (res *Node) {
 		}
 
 		n.Type = types.Types[TINT]
+
+	case OTRY:
+		if Curfn == nil {
+			yyerror("%v may only be used within a function", n.Op)
+			n.Type = nil
+			return n
+		} else if r := Curfn.Type.FuncType().Results; r.IsFuncArgStruct() {
+			if r.Fields().Len() < 1 || r.Fields().Index(r.Fields().Len()-1).Type != types.Errortype {
+				yyerror("%v may only be used in functions whose last return value is error", n.Op)
+				n.Type = nil
+				return n
+			}
+		} else if r != types.Errortype {
+			yyerror("%v may only be used in functions whose last return value is error", n.Op)
+			n.Type = nil
+			return n
+		}
+
+		orig := n.sepcopy()
+
+		typecheckargs(n)
+
+		if l := n.Orig.List; l.Len() != 1 {
+			yyerror("%v accepts a single argument or function call expression", n.Op)
+			n.Type = nil
+			return n
+		} else if arg := l.First(); arg.Type.IsFuncArgStruct() {
+			if arg.Type.Fields().Index(arg.Type.NumFields()-1).Type != types.Errortype {
+				yyerror("%v requires the last return value of %L to error", n.Op, arg)
+				n.Type = nil
+				return n
+			}
+		} else if arg.Type != types.Errortype {
+			yyerror("argument for %v must be of type error", n.Op)
+			n.Type = nil
+			return n
+		}
+
+		if n.List.Len() == 1 {
+			ok |= ctxStmt
+			tryrlist(n, &n.Ninit)
+			n.Op = OBLOCK
+			n.List.Set(nil)
+		} else if n.List.Len() == 2 {
+			ok |= ctxExpr
+			n.Type = n.List.First().Type
+		} else {
+			if top&(ctxMultiOK|ctxStmt) == 0 {
+				yyerror("multiple-value %v in single-value context", n)
+				n.Type = nil
+				return n
+			}
+
+			ok |= ctxExpr
+			t := n.Orig.List.First().Type
+			nt := types.New(types.TSTRUCT)
+			nt.StructType().Funarg = t.StructType().Funarg
+			fields := t.FieldSlice()
+			nfs := make([]*types.Field, len(fields)-1)
+			for i, f := range fields[:len(fields)-1] {
+				nfs[i] = f.Copy()
+			}
+			nt.SetFields(nfs)
+
+			n.Type = nt
+			checkwidth(n.Type)
+		}
+
+		// Go ahead and replace this node if possible so trys work everywhere single-value
+		// expressions work.
+		if (top&ok&ctxExpr) != 0 && n.Type != nil && !n.Type.IsFuncArgStruct() {
+			expr := nod(OCONVNOP, nil, nil)
+			expr.Type = n.Type
+			expr.Left = tryrlist(n, &expr.Ninit).Index(0)
+			n = expr
+		}
+
+		n.Orig = orig
 
 	case OREAL, OIMAG:
 		ok |= ctxExpr
@@ -1951,6 +2027,9 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 	case ODEFER:
 		ok |= ctxStmt
+		if n.Left.Op == OTRY {
+			yyerror("try is not allowed as the called function for a defer statement")
+		}
 		n.Left = typecheck(n.Left, ctxStmt|ctxExpr)
 		if !n.Left.Diag() {
 			checkdefergo(n)
@@ -1958,6 +2037,9 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 	case OGO:
 		ok |= ctxStmt
+		if n.Left.Op == OTRY {
+			yyerror("try is not allowed as the called function for a go statement")
+		}
 		n.Left = typecheck(n.Left, ctxStmt|ctxExpr)
 		checkdefergo(n)
 
@@ -2145,6 +2227,59 @@ func typecheckargs(n *Node) {
 	n.Ninit.Append(as)
 }
 
+// Builds the try logic and returns the nodes to be used wherever try can be used.
+func tryrlist(n *Node, init *Nodes) Nodes {
+	if init != &n.Ninit {
+		init.AppendNodes(&n.Ninit)
+	}
+
+	args := n.List.Slice()
+
+	nCmp := nod(OIF, nil, nil)
+
+	if len(args) == 1 && args[0].Op != ONAME {
+		t := temp(args[0].Type)
+		as := nod(OAS, t, args[0])
+		t.Name.Defn = as
+		as.Ninit.Append(nod(ODCL, t, nil))
+		as.SetColas(true)
+		as = typecheck(as, ctxStmt)
+		nCmp.Ninit.Append(as)
+		args = []*Node{t}
+	}
+
+	nNil := nodnil()
+	nErr := args[len(args)-1]
+
+	nCmp.Left = nod(ONE, nErr, nNil)
+
+	nRet := nod(ORETURN, nil, nil)
+	if Curfn.Type.FuncType().Outnamed {
+		out := Curfn.Type.Results().FieldSlice()
+		nname := asNode(out[len(out)-1].Nname)
+		nAssignment := nod(OAS, nname, nErr)
+		nCmp.Nbody.Set2(nAssignment, nRet)
+	} else {
+		out := Curfn.Type.Results().FieldSlice()
+		for _, f := range out[:len(out)-1] {
+			t := temp(f.Type)
+			nCmp.Nbody.Append(nod(ODCL, t, nil))
+			as := nod(OAS, t, nil)
+			as = typecheck(as, ctxStmt)
+			nCmp.Nbody.Append(as)
+			nRet.List.Append(t)
+		}
+		nRet.List.Append(nErr)
+		nCmp.Nbody.Append(nRet)
+	}
+
+	nCmp = typecheck(nCmp, ctxStmt)
+
+	init.Append(nCmp)
+
+	return asNodes(args[:len(args)-1])
+}
+
 func checksliceindex(l *Node, r *Node, tp *types.Type) bool {
 	t := r.Type
 	if t == nil {
@@ -2200,7 +2335,8 @@ func checkdefergo(n *Node) {
 		OPANIC,
 		OPRINT,
 		OPRINTN,
-		ORECOVER:
+		ORECOVER,
+		OTRY:
 		return
 
 	case OAPPEND,
@@ -3287,6 +3423,7 @@ func typecheckas2(n *Node) {
 		rs := n.Rlist.Slice()
 		for il, nl := range ls {
 			nr := rs[il]
+
 			if nl.Type != nil && nr.Type != nil {
 				rs[il] = assignconv(nr, nl.Type, "assignment")
 			}
@@ -3308,7 +3445,7 @@ func typecheckas2(n *Node) {
 			goto out
 		}
 		switch r.Op {
-		case OCALLMETH, OCALLINTER, OCALLFUNC:
+		case OCALLMETH, OCALLINTER, OCALLFUNC, OTRY:
 			if !r.Type.IsFuncArgStruct() {
 				break
 			}
@@ -3316,7 +3453,6 @@ func typecheckas2(n *Node) {
 			if cr != cl {
 				goto mismatch
 			}
-			n.Op = OAS2FUNC
 			for i, l := range n.List.Slice() {
 				f := r.Type.Field(i)
 				if f.Type != nil && l.Type != nil {
@@ -3325,6 +3461,12 @@ func typecheckas2(n *Node) {
 				if l.Name != nil && l.Name.Defn == n && l.Name.Param.Ntype == nil {
 					l.Type = f.Type
 				}
+			}
+			if r.Op == OTRY {
+				n.Op = OAS2
+				n.Rlist = tryrlist(r, &n.Ninit)
+			} else {
+				n.Op = OAS2FUNC
 			}
 			goto out
 		}
@@ -3370,7 +3512,7 @@ mismatch:
 	switch r.Op {
 	default:
 		yyerror("assignment mismatch: %d variables but %d values", cl, cr)
-	case OCALLFUNC, OCALLMETH, OCALLINTER:
+	case OCALLFUNC, OCALLMETH, OCALLINTER, OTRY:
 		yyerror("assignment mismatch: %d variables but %v returns %d values", cl, r.Left, cr)
 	}
 

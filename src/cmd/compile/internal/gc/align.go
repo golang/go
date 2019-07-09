@@ -343,9 +343,6 @@ func dowidth(t *types.Type) {
 		t.Align = uint8(Widthptr)
 
 	case TSTRUCT:
-		if t.IsFuncArgStruct() {
-			Fatalf("dowidth fn struct %v", t)
-		}
 		w = widstruct(t, t, 0, 1)
 
 	// make fake type to check later to
@@ -419,12 +416,6 @@ var deferredTypeStack []*types.Type
 func checkwidth(t *types.Type) {
 	if t == nil {
 		return
-	}
-
-	// function arg structs should not be checked
-	// outside of the enclosing function.
-	if t.IsFuncArgStruct() {
-		Fatalf("checkwidth %v", t)
 	}
 
 	if defercalc == 0 {

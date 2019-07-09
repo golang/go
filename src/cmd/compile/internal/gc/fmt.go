@@ -205,6 +205,7 @@ var goopnames = []string{
 	OSIZEOF:   "unsafe.Sizeof",
 	OSUB:      "-",
 	OSWITCH:   "switch",
+	OTRY:      "try",
 	OXOR:      "^",
 }
 
@@ -1115,6 +1116,7 @@ var opprec = []int{
 	OTINTER:      8,
 	OTMAP:        8,
 	OTSTRUCT:     8,
+	OTRY:         8,
 	OINDEXMAP:    8,
 	OINDEX:       8,
 	OSLICE:       8,
@@ -1449,7 +1451,8 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 		OOFFSETOF,
 		OSIZEOF,
 		OPRINT,
-		OPRINTN:
+		OPRINTN,
+		OTRY:
 		if n.Left != nil {
 			mode.Fprintf(s, "%#v(%v)", n.Op, n.Left)
 			return
