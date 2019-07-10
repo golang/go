@@ -842,15 +842,6 @@ var pstatefield = []struct {
 	{REG_DAIFClr, 3<<16 | 4<<12 | 7<<5},
 }
 
-// the System register values, and value to use in instruction
-var systemreg = []struct {
-	reg int16
-	enc uint32
-}{
-	{REG_ELR_EL1, 8<<16 | 4<<12 | 1<<5},
-	{REG_DCZID_EL0, 3<<19 | 3<<16 | 7<<5},
-}
-
 var prfopfield = []struct {
 	reg int16
 	enc uint32
@@ -3513,12 +3504,8 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.oprrr(p, AMRS)
 
 		v := uint32(0)
-		for i := 0; i < len(systemreg); i++ {
-			if systemreg[i].reg == p.From.Reg {
-				v = systemreg[i].enc
-				break
-			}
-		}
+		// SysRegEnc function returns the system register encoding.
+		_, v = SysRegEnc(p.From.Reg)
 		if v == 0 {
 			c.ctxt.Diag("illegal system register:\n%v", p)
 		}
@@ -3533,12 +3520,8 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.oprrr(p, AMSR)
 
 		v := uint32(0)
-		for i := 0; i < len(systemreg); i++ {
-			if systemreg[i].reg == p.To.Reg {
-				v = systemreg[i].enc
-				break
-			}
-		}
+		// SysRegEnc function returns the system register encoding.
+		_, v = SysRegEnc(p.To.Reg)
 		if v == 0 {
 			c.ctxt.Diag("illegal system register:\n%v", p)
 		}
