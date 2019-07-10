@@ -13,6 +13,7 @@ import (
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/lsp/telemetry/log"
 	"golang.org/x/tools/internal/lsp/telemetry/tag"
+	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -87,6 +88,8 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile) (map[packageID]*met
 		return nil, nil, ctx.Err()
 	}
 
+	ctx, done := trace.StartSpan(ctx, "packages.Load", telemetry.File.Of(f.filename()))
+	defer done()
 	pkgs, err := packages.Load(v.Config(ctx), fmt.Sprintf("file=%s", f.filename()))
 	if len(pkgs) == 0 {
 		if err == nil {

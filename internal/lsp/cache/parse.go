@@ -13,6 +13,7 @@ import (
 	"go/token"
 
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/memoize"
 )
@@ -74,7 +75,7 @@ func (h *parseGoHandle) Parse(ctx context.Context) (*ast.File, error) {
 }
 
 func parseGo(ctx context.Context, c *cache, fh source.FileHandle, mode source.ParseMode) (*ast.File, error) {
-	ctx, done := trace.StartSpan(ctx, "cache.parseGo")
+	ctx, done := trace.StartSpan(ctx, "cache.parseGo", telemetry.File.Of(fh.Identity().URI.Filename()))
 	defer done()
 	buf, _, err := fh.Read(ctx)
 	if err != nil {

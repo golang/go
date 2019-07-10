@@ -36,6 +36,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/lsp/telemetry/log"
+	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -61,7 +62,8 @@ const (
 )
 
 func Diagnostics(ctx context.Context, view View, f GoFile, disabledAnalyses map[string]struct{}) (map[span.URI][]Diagnostic, error) {
-	ctx = telemetry.File.With(ctx, f.URI())
+	ctx, done := trace.StartSpan(ctx, "source.Diagnostics", telemetry.File.Of(f.URI()))
+	defer done()
 	pkg := f.GetPackage(ctx)
 	if pkg == nil {
 		return singleDiagnostic(f.URI(), "%s is not part of a package", f.URI()), nil
@@ -107,6 +109,8 @@ type diagnosticSet struct {
 }
 
 func diagnostics(ctx context.Context, v View, pkg Package, reports map[span.URI][]Diagnostic) bool {
+	ctx, done := trace.StartSpan(ctx, "source.diagnostics", telemetry.Package.Of(pkg.ID()))
+	defer done()
 	diagSets := make(map[span.URI]*diagnosticSet)
 	for _, err := range pkg.GetErrors() {
 		diag := Diagnostic{

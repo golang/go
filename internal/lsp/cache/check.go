@@ -95,7 +95,7 @@ func (imp *importer) getPkg(ctx context.Context, id packageID) (*pkg, error) {
 }
 
 func (imp *importer) typeCheck(ctx context.Context, id packageID) (*pkg, error) {
-	ctx, done := trace.StartSpan(ctx, "cache.importer.typeCheck")
+	ctx, done := trace.StartSpan(ctx, "cache.importer.typeCheck", telemetry.Package.Of(id))
 	defer done()
 	meta, ok := imp.view.mcache.packages[id]
 	if !ok {
