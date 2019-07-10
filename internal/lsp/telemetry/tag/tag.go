@@ -25,6 +25,14 @@ type Tag struct {
 	Value interface{}
 }
 
+// Tagger is the interface to somthing that returns a Tag given a context.
+// Both Tag itself and Key support this interface, allowing methods that can
+// take either (and other implementations as well)
+type Tagger interface {
+	// Tag returns a Tag potentially using information from the Context.
+	Tag(context.Context) Tag
+}
+
 // List is a way of passing around a collection of key value pairs.
 // It is an alternative to the less efficient and unordered method of using
 // maps.
@@ -64,6 +72,15 @@ func Get(ctx context.Context, keys ...interface{}) List {
 	return tags
 }
 
+// Tags collects a list of tags for the taggers from the context.
+func Tags(ctx context.Context, taggers ...Tagger) List {
+	tags := make(List, len(taggers))
+	for i, t := range taggers {
+		tags[i] = t.Tag(ctx)
+	}
+	return tags
+}
+
 var observers = []Observer{}
 
 // Observe adds a new tag observer to the registered set.
@@ -78,6 +95,12 @@ func Observe(observer Observer) {
 // Format is used for debug printing of tags.
 func (t Tag) Format(f fmt.State, r rune) {
 	fmt.Fprintf(f, `%v="%v"`, t.Key, t.Value)
+}
+
+// Get returns the tag unmodified.
+// It makes Key conform to the Tagger interface.
+func (t Tag) Tag(ctx context.Context) Tag {
+	return t
 }
 
 // Get will get a single key's value from the list.

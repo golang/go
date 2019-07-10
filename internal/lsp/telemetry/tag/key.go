@@ -17,10 +17,22 @@ import (
 // those values in the context.
 type Key string
 
+// Of returns a Tag for a key and value.
+// This is a trivial helper that makes common logging easier to read.
+func Of(key interface{}, value interface{}) Tag {
+	return Tag{Key: key, Value: value}
+}
+
 // Of creates a new Tag with this key and the supplied value.
 // You can use this when building a tag list.
 func (k Key) Of(v interface{}) Tag {
 	return Tag{Key: k, Value: v}
+}
+
+// Tag can be used to get a tag for the key from a context.
+// It makes Key conform to the Tagger interface.
+func (k Key) Tag(ctx context.Context) Tag {
+	return Tag{Key: k, Value: ctx.Value(k)}
 }
 
 // With applies sets this key to the supplied value on the context and

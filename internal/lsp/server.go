@@ -13,13 +13,12 @@ import (
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
 )
 
 // NewClientServer
 func NewClientServer(ctx context.Context, cache source.Cache, client protocol.Client) (context.Context, *Server) {
-	ctx = xlog.With(ctx, protocol.NewLogger(client))
+	ctx = protocol.WithClient(ctx, client)
 	return ctx, &Server{
 		client:  client,
 		session: cache.NewSession(ctx),

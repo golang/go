@@ -11,13 +11,6 @@ type logSink struct {
 	client Client
 }
 
-// NewLogger returns an xlog.Sink that sends its messages using client.LogMessage.
-// It maps Debug to the Log level, Info and Error to their matching levels, and
-// does not support warnings.
-func NewLogger(client Client) xlog.Sink {
-	return logSink{client: client}
-}
-
 func (s logSink) Log(ctx context.Context, level xlog.Level, message string) {
 	typ := Log
 	switch level {
