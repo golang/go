@@ -66,6 +66,7 @@ foo/foo.go:1:9-12: defined here as
 }
 
 -- PackageFoo-hover --
+myFoo "golang.org/x/tools/internal/lsp/foo" //@godef("foo", PackageFoo),godef("myFoo", PackageFoo)
 
 -- S1-definition --
 godef/b/b.go:8:6-8: defined here as S1 struct {

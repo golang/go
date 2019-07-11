@@ -84,6 +84,8 @@ func (d declaration) hover(ctx context.Context) (*documentation, error) {
 	defer ts.End()
 	obj := d.obj
 	switch node := d.node.(type) {
+	case *ast.ImportSpec:
+		return &documentation{node, nil}, nil
 	case *ast.GenDecl:
 		switch obj := obj.(type) {
 		case *types.TypeName, *types.Var, *types.Const, *types.Func:
