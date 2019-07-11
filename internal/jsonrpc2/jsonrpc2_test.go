@@ -167,9 +167,9 @@ func (h *handle) Cancel(ctx context.Context, conn *jsonrpc2.Conn, id jsonrpc2.ID
 func (h *handle) Request(ctx context.Context, direction jsonrpc2.Direction, r *jsonrpc2.WireRequest) context.Context {
 	if h.log {
 		if r.ID != nil {
-			log.Printf("%v call [%v] %s %s", direction, r.ID, r.Method, r.Params)
+			log.Printf("%v call [%v] %s %v", direction, r.ID, r.Method, r.Params)
 		} else {
-			log.Printf("%v notification %s %s", direction, r.Method, r.Params)
+			log.Printf("%v notification %s %v", direction, r.Method, r.Params)
 		}
 		ctx = context.WithValue(ctx, "method", r.Method)
 		ctx = context.WithValue(ctx, "start", time.Now())
@@ -181,7 +181,7 @@ func (h *handle) Response(ctx context.Context, direction jsonrpc2.Direction, r *
 	if h.log {
 		method := ctx.Value("method")
 		elapsed := time.Since(ctx.Value("start").(time.Time))
-		log.Printf("%v response in %v [%v] %s %s", direction, elapsed, r.ID, method, r.Result)
+		log.Printf("%v response in %v [%v] %s %v", direction, elapsed, r.ID, method, r.Result)
 	}
 	return ctx
 }

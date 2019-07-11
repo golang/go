@@ -40,19 +40,19 @@ func (canceller) Cancel(ctx context.Context, conn *jsonrpc2.Conn, id jsonrpc2.ID
 	return true
 }
 
-func NewClient(stream jsonrpc2.Stream, client Client) (*jsonrpc2.Conn, Server, xlog.Logger) {
-	log := xlog.New(NewLogger(client))
+func NewClient(ctx context.Context, stream jsonrpc2.Stream, client Client) (context.Context, *jsonrpc2.Conn, Server) {
+	ctx = xlog.With(ctx, NewLogger(client))
 	conn := jsonrpc2.NewConn(stream)
-	conn.AddHandler(&clientHandler{log: log, client: client})
-	return conn, &serverDispatcher{Conn: conn}, log
+	conn.AddHandler(&clientHandler{log: xlog.From(ctx), client: client})
+	return ctx, conn, &serverDispatcher{Conn: conn}
 }
 
-func NewServer(stream jsonrpc2.Stream, server Server) (*jsonrpc2.Conn, Client, xlog.Logger) {
+func NewServer(ctx context.Context, stream jsonrpc2.Stream, server Server) (context.Context, *jsonrpc2.Conn, Client) {
 	conn := jsonrpc2.NewConn(stream)
 	client := &clientDispatcher{Conn: conn}
-	log := xlog.New(NewLogger(client))
-	conn.AddHandler(&serverHandler{log: log, server: server})
-	return conn, client, log
+	ctx = xlog.With(ctx, NewLogger(client))
+	conn.AddHandler(&serverHandler{log: xlog.From(ctx), server: server})
+	return ctx, conn, client
 }
 
 func sendParseError(ctx context.Context, log xlog.Logger, req *jsonrpc2.Request, err error) {

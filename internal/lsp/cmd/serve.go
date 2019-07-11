@@ -79,7 +79,7 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 	}
 
 	// For debugging purposes only.
-	run := func(srv *lsp.Server) {
+	run := func(ctx context.Context, srv *lsp.Server) {
 		srv.Conn.AddHandler(&handler{trace: s.Trace, out: out})
 		go srv.Run(ctx)
 	}
@@ -90,7 +90,7 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 		return lsp.RunServerOnPort(ctx, s.app.cache, s.Port, run)
 	}
 	stream := jsonrpc2.NewHeaderStream(os.Stdin, os.Stdout)
-	srv := lsp.NewServer(s.app.cache, stream)
+	ctx, srv := lsp.NewServer(ctx, s.app.cache, stream)
 	srv.Conn.AddHandler(&handler{trace: s.Trace, out: out})
 	return srv.Run(ctx)
 }

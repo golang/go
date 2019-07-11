@@ -72,12 +72,12 @@ func (c *cache) GetFile(uri span.URI) source.FileHandle {
 	}
 }
 
-func (c *cache) NewSession(log xlog.Logger) source.Session {
+func (c *cache) NewSession(ctx context.Context) source.Session {
 	index := atomic.AddInt64(&sessionIndex, 1)
 	s := &session{
 		cache:         c,
 		id:            strconv.FormatInt(index, 10),
-		log:           log,
+		log:           xlog.From(ctx),
 		overlays:      make(map[span.URI]*overlay),
 		filesWatchMap: NewWatchMap(),
 	}

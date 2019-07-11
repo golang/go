@@ -18,32 +18,32 @@ import (
 )
 
 // NewClientServer
-func NewClientServer(cache source.Cache, client protocol.Client) *Server {
-	return &Server{
+func NewClientServer(ctx context.Context, cache source.Cache, client protocol.Client) (context.Context, *Server) {
+	ctx = xlog.With(ctx, protocol.NewLogger(client))
+	return ctx, &Server{
 		client:  client,
-		session: cache.NewSession(xlog.New(protocol.NewLogger(client))),
+		session: cache.NewSession(ctx),
 	}
 }
 
 // NewServer starts an LSP server on the supplied stream, and waits until the
 // stream is closed.
-func NewServer(cache source.Cache, stream jsonrpc2.Stream) *Server {
+func NewServer(ctx context.Context, cache source.Cache, stream jsonrpc2.Stream) (context.Context, *Server) {
 	s := &Server{}
-	var log xlog.Logger
-	s.Conn, s.client, log = protocol.NewServer(stream, s)
-	s.session = cache.NewSession(log)
-	return s
+	ctx, s.Conn, s.client = protocol.NewServer(ctx, stream, s)
+	s.session = cache.NewSession(ctx)
+	return ctx, s
 }
 
 // RunServerOnPort starts an LSP server on the given port and does not exit.
 // This function exists for debugging purposes.
-func RunServerOnPort(ctx context.Context, cache source.Cache, port int, h func(s *Server)) error {
+func RunServerOnPort(ctx context.Context, cache source.Cache, port int, h func(ctx context.Context, s *Server)) error {
 	return RunServerOnAddress(ctx, cache, fmt.Sprintf(":%v", port), h)
 }
 
 // RunServerOnPort starts an LSP server on the given port and does not exit.
 // This function exists for debugging purposes.
-func RunServerOnAddress(ctx context.Context, cache source.Cache, addr string, h func(s *Server)) error {
+func RunServerOnAddress(ctx context.Context, cache source.Cache, addr string, h func(ctx context.Context, s *Server)) error {
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
@@ -53,7 +53,7 @@ func RunServerOnAddress(ctx context.Context, cache source.Cache, addr string, h 
 		if err != nil {
 			return err
 		}
-		h(NewServer(cache, jsonrpc2.NewHeaderStream(conn, conn)))
+		h(NewServer(ctx, cache, jsonrpc2.NewHeaderStream(conn, conn)))
 	}
 }
 

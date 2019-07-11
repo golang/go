@@ -35,11 +35,6 @@ type Sink interface {
 // StdSink is a Sink that writes to the standard log package.
 type StdSink struct{}
 
-// New returns a logger for the provided sink.
-func New(sink Sink) Logger {
-	return Logger{sink: sink}
-}
-
 // Errorf is intended for the logging of errors that we could not easily return
 // to the client but that caused problems internally.
 func (l Logger) Errorf(ctx context.Context, format string, args ...interface{}) {
@@ -68,4 +63,28 @@ func (StdSink) Log(ctx context.Context, level Level, message string) {
 	case DebugLevel:
 		log.Print("Debug: ", message)
 	}
+}
+
+type contextKeyType int
+
+const contextKey = contextKeyType(0)
+
+func With(ctx context.Context, sink Sink) context.Context {
+	return context.WithValue(ctx, contextKey, sink)
+}
+
+func From(ctx context.Context) Logger {
+	return Logger{sink: ctx.Value(contextKey).(Sink)}
+}
+
+func Errorf(ctx context.Context, format string, args ...interface{}) {
+	From(ctx).Errorf(ctx, format, args...)
+}
+
+func Infof(ctx context.Context, format string, args ...interface{}) {
+	From(ctx).Infof(ctx, format, args...)
+}
+
+func Debugf(ctx context.Context, format string, args ...interface{}) {
+	From(ctx).Debugf(ctx, format, args...)
 }
