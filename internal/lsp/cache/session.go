@@ -18,6 +18,7 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/xcontext"
 )
 
 type session struct {
@@ -64,11 +65,11 @@ func (s *session) Cache() source.Cache {
 	return s.cache
 }
 
-func (s *session) NewView(name string, folder span.URI) source.View {
+func (s *session) NewView(ctx context.Context, name string, folder span.URI) source.View {
 	index := atomic.AddInt64(&viewIndex, 1)
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
-	ctx := context.Background()
+	ctx = xcontext.Detach(ctx)
 	backgroundCtx, cancel := context.WithCancel(ctx)
 	v := &view{
 		session:       s,

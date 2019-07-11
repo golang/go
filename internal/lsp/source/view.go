@@ -129,7 +129,7 @@ type Cache interface {
 // A session may have many active views at any given time.
 type Session interface {
 	// NewView creates a new View and returns it.
-	NewView(name string, folder span.URI) View
+	NewView(ctx context.Context, name string, folder span.URI) View
 
 	// Cache returns the cache that created this session.
 	Cache() Cache

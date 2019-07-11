@@ -5,7 +5,6 @@
 package cmd_test
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -56,7 +55,7 @@ func TestDefinitionHelpExample(t *testing.T) {
 		fmt.Sprintf("%v:#%v", thisFile, cmd.ExampleOffset)} {
 		args := append(baseArgs, query)
 		got := captureStdOut(t, func() {
-			tool.Main(context.Background(), cmd.New("", nil), args)
+			tool.Main(tests.Context(t), cmd.New("", nil), args)
 		})
 		if !expect.MatchString(got) {
 			t.Errorf("test with %v\nexpected:\n%s\ngot:\n%s", args, expect, got)
@@ -84,7 +83,7 @@ func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 			uri := d.Src.URI()
 			args = append(args, fmt.Sprint(d.Src))
 			got := captureStdOut(t, func() {
-				tool.Main(context.Background(), r.app, args)
+				tool.Main(r.ctx, r.app, args)
 			})
 			got = normalizePaths(r.data, got)
 			if mode&jsonGoDef != 0 && runtime.GOOS == "windows" {

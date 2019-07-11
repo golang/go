@@ -5,7 +5,6 @@
 package cmd_test
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -23,7 +22,7 @@ func (r *runner) Diagnostics(t *testing.T, data tests.Diagnostics) {
 		fname := uri.Filename()
 		args := []string{"-remote=internal", "check", fname}
 		out := captureStdOut(t, func() {
-			tool.Main(context.Background(), r.app, args)
+			tool.Main(r.ctx, r.app, args)
 		})
 		// parse got into a collection of reports
 		got := map[string]struct{}{}

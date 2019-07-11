@@ -6,6 +6,7 @@ package cmd_test
 
 import (
 	"bytes"
+	"context"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -24,6 +25,7 @@ type runner struct {
 	exporter packagestest.Exporter
 	data     *tests.Data
 	app      *cmd.Application
+	ctx      context.Context
 }
 
 func TestCommandLine(t *testing.T) {
@@ -38,6 +40,7 @@ func testCommandLine(t *testing.T, exporter packagestest.Exporter) {
 		exporter: exporter,
 		data:     data,
 		app:      cmd.New(data.Config.Dir, data.Exported.Config.Env),
+		ctx:      tests.Context(t),
 	}
 	tests.Run(t, r, data)
 }

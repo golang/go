@@ -19,6 +19,8 @@ import (
 	"runtime"
 	"sync"
 	"unsafe"
+
+	"golang.org/x/tools/internal/xcontext"
 )
 
 // Store binds keys to functions, returning handles that can be used to access
@@ -180,7 +182,7 @@ func (e *entry) get(ctx context.Context, f Function) (interface{}, bool) {
 			// Use the background context to avoid canceling the function.
 			// The function cannot be canceled even if the context is canceled
 			// because multiple goroutines may depend on it.
-			value = f(detatchContext(ctx))
+			value = f(xcontext.Detach(ctx))
 
 			// The function has completed. Update the value in the entry.
 			e.mu.Lock()

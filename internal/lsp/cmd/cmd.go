@@ -26,6 +26,7 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/tool"
+	"golang.org/x/tools/internal/xcontext"
 )
 
 // Application is the main application as passed to tool.Main
@@ -148,7 +149,7 @@ func (app *Application) connect(ctx context.Context) (*connection, error) {
 			return c, nil
 		}
 		connection := newConnection(app)
-		ctx := context.Background() //TODO:a way of shutting down the internal server
+		ctx := xcontext.Detach(ctx) //TODO:a way of shutting down the internal server
 		cr, sw, _ := os.Pipe()
 		sr, cw, _ := os.Pipe()
 		var jc *jsonrpc2.Conn

@@ -127,6 +127,10 @@ type Golden struct {
 	Modified bool
 }
 
+func Context(t testing.TB) context.Context {
+	return context.Background()
+}
+
 func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 	t.Helper()
 
@@ -193,7 +197,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 	// Merge the exported.Config with the view.Config.
 	data.Config = *data.Exported.Config
 	data.Config.Fset = token.NewFileSet()
-	data.Config.Context = context.Background()
+	data.Config.Context = Context(nil)
 	data.Config.ParseFile = func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
 		panic("ParseFile should not be called")
 	}
