@@ -145,23 +145,15 @@ func (u8 *u8marshal) UnmarshalText(b []byte) error {
 var _ encoding.TextUnmarshaler = (*u8marshal)(nil)
 
 var (
-	um0, um1 unmarshaler // target2 of unmarshaling
-	ump      = &um1
 	umtrue   = unmarshaler{true}
 	umslice  = []unmarshaler{{true}}
-	umslicep = new([]unmarshaler)
 	umstruct = ustruct{unmarshaler{true}}
 
-	um0T, um1T   unmarshalerText // target2 of unmarshaling
-	umpType      = &um1T
-	umtrueXY     = unmarshalerText{"x", "y"}
-	umsliceXY    = []unmarshalerText{{"x", "y"}}
-	umslicepType = new([]unmarshalerText)
-	umstructType = new(ustructText)
-	umstructXY   = ustructText{unmarshalerText{"x", "y"}}
+	umtrueXY   = unmarshalerText{"x", "y"}
+	umsliceXY  = []unmarshalerText{{"x", "y"}}
+	umstructXY = ustructText{unmarshalerText{"x", "y"}}
 
-	ummapType = map[unmarshalerText]bool{}
-	ummapXY   = map[unmarshalerText]bool{{"x", "y"}: true}
+	ummapXY = map[unmarshalerText]bool{{"x", "y"}: true}
 )
 
 // Test data structures for anonymous fields.
@@ -278,9 +270,6 @@ type XYZ struct {
 type unexportedWithMethods struct{}
 
 func (unexportedWithMethods) F() {}
-
-func sliceAddr(x []int) *[]int                 { return &x }
-func mapAddr(x map[string]int) *map[string]int { return &x }
 
 type byteWithMarshalJSON byte
 
@@ -400,7 +389,7 @@ type mapStringToStringData struct {
 
 type unmarshalTest struct {
 	in                    string
-	ptr                   interface{}
+	ptr                   interface{} // new(type)
 	out                   interface{}
 	err                   error
 	useNumber             bool
@@ -493,18 +482,18 @@ var unmarshalTests = []unmarshalTest{
 	{in: pallValueCompact, ptr: new(*All), out: &pallValue},
 
 	// unmarshal interface test
-	{in: `{"T":false}`, ptr: &um0, out: umtrue}, // use "false" so test will fail if custom unmarshaler is not called
-	{in: `{"T":false}`, ptr: &ump, out: &umtrue},
-	{in: `[{"T":false}]`, ptr: &umslice, out: umslice},
-	{in: `[{"T":false}]`, ptr: &umslicep, out: &umslice},
-	{in: `{"M":{"T":"x:y"}}`, ptr: &umstruct, out: umstruct},
+	{in: `{"T":false}`, ptr: new(unmarshaler), out: umtrue}, // use "false" so test will fail if custom unmarshaler is not called
+	{in: `{"T":false}`, ptr: new(*unmarshaler), out: &umtrue},
+	{in: `[{"T":false}]`, ptr: new([]unmarshaler), out: umslice},
+	{in: `[{"T":false}]`, ptr: new(*[]unmarshaler), out: &umslice},
+	{in: `{"M":{"T":"x:y"}}`, ptr: new(ustruct), out: umstruct},
 
 	// UnmarshalText interface test
-	{in: `"x:y"`, ptr: &um0T, out: umtrueXY},
-	{in: `"x:y"`, ptr: &umpType, out: &umtrueXY},
-	{in: `["x:y"]`, ptr: &umsliceXY, out: umsliceXY},
-	{in: `["x:y"]`, ptr: &umslicepType, out: &umsliceXY},
-	{in: `{"M":"x:y"}`, ptr: umstructType, out: umstructXY},
+	{in: `"x:y"`, ptr: new(unmarshalerText), out: umtrueXY},
+	{in: `"x:y"`, ptr: new(*unmarshalerText), out: &umtrueXY},
+	{in: `["x:y"]`, ptr: new([]unmarshalerText), out: umsliceXY},
+	{in: `["x:y"]`, ptr: new(*[]unmarshalerText), out: &umsliceXY},
+	{in: `{"M":"x:y"}`, ptr: new(ustructText), out: umstructXY},
 
 	// integer-keyed map test
 	{
@@ -579,15 +568,9 @@ var unmarshalTests = []unmarshalTest{
 	},
 
 	// Map keys can be encoding.TextUnmarshalers.
-	{in: `{"x:y":true}`, ptr: &ummapType, out: ummapXY},
+	{in: `{"x:y":true}`, ptr: new(map[unmarshalerText]bool), out: ummapXY},
 	// If multiple values for the same key exists, only the most recent value is used.
-	{in: `{"x:y":false,"x:y":true}`, ptr: &ummapType, out: ummapXY},
-
-	// Overwriting of data.
-	// This is different from package xml, but it's what we've always done.
-	// Now documented and tested.
-	{in: `[2]`, ptr: sliceAddr([]int{1}), out: []int{2}},
-	{in: `{"key": 2}`, ptr: mapAddr(map[string]int{"old": 0, "key": 1}), out: map[string]int{"key": 2}},
+	{in: `{"x:y":false,"x:y":true}`, ptr: new(map[unmarshalerText]bool), out: ummapXY},
 
 	{
 		in: `{
@@ -713,19 +696,19 @@ var unmarshalTests = []unmarshalTest{
 	// Used to be issue 8305, but time.Time implements encoding.TextUnmarshaler so this works now.
 	{
 		in:  `{"2009-11-10T23:00:00Z": "hello world"}`,
-		ptr: &map[time.Time]string{},
+		ptr: new(map[time.Time]string),
 		out: map[time.Time]string{time.Date(2009, 11, 10, 23, 0, 0, 0, time.UTC): "hello world"},
 	},
 
 	// issue 8305
 	{
 		in:  `{"2009-11-10T23:00:00Z": "hello world"}`,
-		ptr: &map[Point]string{},
+		ptr: new(map[Point]string),
 		err: &UnmarshalTypeError{Value: "object", Type: reflect.TypeOf(map[Point]string{}), Offset: 1},
 	},
 	{
 		in:  `{"asdf": "hello world"}`,
-		ptr: &map[unmarshaler]string{},
+		ptr: new(map[unmarshaler]string),
 		err: &UnmarshalTypeError{Value: "object", Type: reflect.TypeOf(map[unmarshaler]string{}), Offset: 1},
 	},
 
@@ -1077,8 +1060,27 @@ func TestUnmarshal(t *testing.T) {
 			continue
 		}
 
+		typ := reflect.TypeOf(tt.ptr)
+		if typ.Kind() != reflect.Ptr {
+			t.Errorf("#%d: unmarshalTest.ptr %T is not a pointer type", i, tt.ptr)
+			continue
+		}
+		typ = typ.Elem()
+
 		// v = new(right-type)
-		v := reflect.New(reflect.TypeOf(tt.ptr).Elem())
+		v := reflect.New(typ)
+
+		if !reflect.DeepEqual(tt.ptr, v.Interface()) {
+			// There's no reason for ptr to point to non-zero data,
+			// as we decode into new(right-type), so the data is
+			// discarded.
+			// This can easily mean tests that silently don't test
+			// what they should. To test decoding into existing
+			// data, see TestPrefilled.
+			t.Errorf("#%d: unmarshalTest.ptr %#v is not a pointer to a zero value", i, tt.ptr)
+			continue
+		}
+
 		dec := NewDecoder(bytes.NewReader(in))
 		if tt.useNumber {
 			dec.UseNumber()
@@ -2086,11 +2088,10 @@ func TestSkipArrayObjects(t *testing.T) {
 	}
 }
 
-// Test semantics of pre-filled struct fields and pre-filled map fields.
-// Issue 4900.
+// Test semantics of pre-filled data, such as struct fields, map elements,
+// slices, and arrays.
+// Issues 4900 and 8837, among others.
 func TestPrefilled(t *testing.T) {
-	ptrToMap := func(m map[string]interface{}) *map[string]interface{} { return &m }
-
 	// Values here change, cannot reuse table across runs.
 	var prefillTests = []struct {
 		in  string
@@ -2104,8 +2105,28 @@ func TestPrefilled(t *testing.T) {
 		},
 		{
 			in:  `{"X": 1, "Y": 2}`,
-			ptr: ptrToMap(map[string]interface{}{"X": float32(3), "Y": int16(4), "Z": 1.5}),
-			out: ptrToMap(map[string]interface{}{"X": float64(1), "Y": float64(2), "Z": 1.5}),
+			ptr: &map[string]interface{}{"X": float32(3), "Y": int16(4), "Z": 1.5},
+			out: &map[string]interface{}{"X": float64(1), "Y": float64(2), "Z": 1.5},
+		},
+		{
+			in:  `[2]`,
+			ptr: &[]int{1},
+			out: &[]int{2},
+		},
+		{
+			in:  `[2, 3]`,
+			ptr: &[]int{1},
+			out: &[]int{2, 3},
+		},
+		{
+			in:  `[2, 3]`,
+			ptr: &[...]int{1},
+			out: &[...]int{2},
+		},
+		{
+			in:  `[3]`,
+			ptr: &[...]int{1, 2},
+			out: &[...]int{3, 0},
 		},
 	}
 
