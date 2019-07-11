@@ -17,6 +17,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -277,12 +278,12 @@ func (v *view) remove(ctx context.Context, id packageID, seen map[packageID]stru
 	for _, filename := range m.files {
 		f, err := v.findFile(span.FileURI(filename))
 		if err != nil {
-			v.session.log.Errorf(ctx, "cannot find file %s: %v", f.URI(), err)
+			xlog.Errorf(ctx, "cannot find file %s: %v", f.URI(), err)
 			continue
 		}
 		gof, ok := f.(*goFile)
 		if !ok {
-			v.session.log.Errorf(ctx, "non-Go file %v", f.URI())
+			xlog.Errorf(ctx, "non-Go file %v", f.URI())
 			continue
 		}
 		gof.mu.Lock()

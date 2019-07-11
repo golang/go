@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -52,7 +53,7 @@ func (f *goFile) GetToken(ctx context.Context) *token.File {
 
 	if f.isDirty() || f.astIsTrimmed() {
 		if _, err := f.view.loadParseTypecheck(ctx, f); err != nil {
-			f.View().Session().Logger().Errorf(ctx, "unable to check package for %s: %v", f.URI(), err)
+			xlog.Errorf(ctx, "unable to check package for %s: %v", f.URI(), err)
 			return nil
 		}
 	}
@@ -71,7 +72,7 @@ func (f *goFile) GetAnyAST(ctx context.Context) *ast.File {
 
 	if f.isDirty() {
 		if _, err := f.view.loadParseTypecheck(ctx, f); err != nil {
-			f.View().Session().Logger().Errorf(ctx, "unable to check package for %s: %v", f.URI(), err)
+			xlog.Errorf(ctx, "unable to check package for %s: %v", f.URI(), err)
 			return nil
 		}
 	}
@@ -91,7 +92,7 @@ func (f *goFile) GetAST(ctx context.Context) *ast.File {
 
 	if f.isDirty() || f.astIsTrimmed() {
 		if _, err := f.view.loadParseTypecheck(ctx, f); err != nil {
-			f.View().Session().Logger().Errorf(ctx, "unable to check package for %s: %v", f.URI(), err)
+			xlog.Errorf(ctx, "unable to check package for %s: %v", f.URI(), err)
 			return nil
 		}
 	}
@@ -110,7 +111,7 @@ func (f *goFile) GetPackages(ctx context.Context) []source.Package {
 
 	if f.isDirty() || f.astIsTrimmed() {
 		if errs, err := f.view.loadParseTypecheck(ctx, f); err != nil {
-			f.View().Session().Logger().Errorf(ctx, "unable to check package for %s: %v", f.URI(), err)
+			xlog.Errorf(ctx, "unable to check package for %s: %v", f.URI(), err)
 
 			// Create diagnostics for errors if we are able to.
 			if len(errs) > 0 {
@@ -151,12 +152,12 @@ func (f *goFile) GetPackage(ctx context.Context) source.Package {
 func unexpectedAST(ctx context.Context, f *goFile) bool {
 	// If the AST comes back nil, something has gone wrong.
 	if f.ast == nil {
-		f.View().Session().Logger().Errorf(ctx, "expected full AST for %s, returned nil", f.URI())
+		xlog.Errorf(ctx, "expected full AST for %s, returned nil", f.URI())
 		return true
 	}
 	// If the AST comes back trimmed, something has gone wrong.
 	if f.ast.isTrimmed {
-		f.View().Session().Logger().Errorf(ctx, "expected full AST for %s, returned trimmed", f.URI())
+		xlog.Errorf(ctx, "expected full AST for %s, returned trimmed", f.URI())
 		return true
 	}
 	return false

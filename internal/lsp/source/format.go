@@ -17,6 +17,7 @@ import (
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/telemetry/trace"
+	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -106,7 +107,7 @@ func buildProcessEnv(ctx context.Context, view View) *imports.ProcessEnv {
 	env := &imports.ProcessEnv{
 		WorkingDir: cfg.Dir,
 		Logf: func(format string, v ...interface{}) {
-			view.Session().Logger().Infof(ctx, format, v...)
+			xlog.Infof(ctx, format, v...)
 		},
 	}
 	for _, kv := range cfg.Env {
@@ -137,7 +138,7 @@ func computeTextEdits(ctx context.Context, file File, formatted string) (edits [
 	defer done()
 	data, _, err := file.Handle(ctx).Read(ctx)
 	if err != nil {
-		file.View().Session().Logger().Errorf(ctx, "Cannot compute text edits: %v", err)
+		xlog.Errorf(ctx, "Cannot compute text edits: %v", err)
 		return nil
 	}
 	u := diff.SplitLines(string(data))

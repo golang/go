@@ -34,6 +34,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -81,7 +82,7 @@ func Diagnostics(ctx context.Context, view View, f GoFile, disabledAnalyses map[
 	if !diagnostics(ctx, view, pkg, reports) {
 		// If we don't have any list, parse, or type errors, run analyses.
 		if err := analyses(ctx, view, pkg, disabledAnalyses, reports); err != nil {
-			view.Session().Logger().Errorf(ctx, "failed to run analyses for %s: %v", f.URI(), err)
+			xlog.Errorf(ctx, "failed to run analyses for %s: %v", f.URI(), err)
 		}
 	}
 	// Updates to the diagnostics for this package may need to be propagated.
@@ -230,29 +231,29 @@ func parseDiagnosticMessage(input string) span.Span {
 func pointToSpan(ctx context.Context, view View, spn span.Span) span.Span {
 	f, err := view.GetFile(ctx, spn.URI())
 	if err != nil {
-		view.Session().Logger().Errorf(ctx, "could not find file for diagnostic: %v", spn.URI())
+		xlog.Errorf(ctx, "could not find file for diagnostic: %v", spn.URI())
 		return spn
 	}
 	diagFile, ok := f.(GoFile)
 	if !ok {
-		view.Session().Logger().Errorf(ctx, "%s is not a Go file", spn.URI())
+		xlog.Errorf(ctx, "%s is not a Go file", spn.URI())
 		return spn
 	}
 	tok := diagFile.GetToken(ctx)
 	if tok == nil {
-		view.Session().Logger().Errorf(ctx, "could not find token.File for diagnostic: %v", spn.URI())
+		xlog.Errorf(ctx, "could not find token.File for diagnostic: %v", spn.URI())
 		return spn
 	}
 	data, _, err := diagFile.Handle(ctx).Read(ctx)
 	if err != nil {
-		view.Session().Logger().Errorf(ctx, "could not find content for diagnostic: %v", spn.URI())
+		xlog.Errorf(ctx, "could not find content for diagnostic: %v", spn.URI())
 		return spn
 	}
 	c := span.NewTokenConverter(diagFile.FileSet(), tok)
 	s, err := spn.WithOffset(c)
 	//we just don't bother producing an error if this failed
 	if err != nil {
-		view.Session().Logger().Errorf(ctx, "invalid span for diagnostic: %v: %v", spn.URI(), err)
+		xlog.Errorf(ctx, "invalid span for diagnostic: %v: %v", spn.URI(), err)
 		return spn
 	}
 	start := s.Start()

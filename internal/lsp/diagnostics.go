@@ -10,13 +10,14 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
 )
 
 func (s *Server) Diagnostics(ctx context.Context, view source.View, uri span.URI) {
 	f, err := view.GetFile(ctx, uri)
 	if err != nil {
-		s.session.Logger().Errorf(ctx, "no file for %s: %v", uri, err)
+		xlog.Errorf(ctx, "no file for %s: %v", uri, err)
 		return
 	}
 	// For non-Go files, don't return any diagnostics.
@@ -26,7 +27,7 @@ func (s *Server) Diagnostics(ctx context.Context, view source.View, uri span.URI
 	}
 	reports, err := source.Diagnostics(ctx, view, gof, s.disabledAnalyses)
 	if err != nil {
-		s.session.Logger().Errorf(ctx, "failed to compute diagnostics for %s: %v", gof.URI(), err)
+		xlog.Errorf(ctx, "failed to compute diagnostics for %s: %v", gof.URI(), err)
 		return
 	}
 
@@ -38,7 +39,7 @@ func (s *Server) Diagnostics(ctx context.Context, view source.View, uri span.URI
 			if s.undelivered == nil {
 				s.undelivered = make(map[span.URI][]source.Diagnostic)
 			}
-			s.session.Logger().Errorf(ctx, "failed to deliver diagnostic for %s (will retry): %v", uri, err)
+			xlog.Errorf(ctx, "failed to deliver diagnostic for %s (will retry): %v", uri, err)
 			s.undelivered[uri] = diagnostics
 			continue
 		}
@@ -49,7 +50,7 @@ func (s *Server) Diagnostics(ctx context.Context, view source.View, uri span.URI
 	// undelivered ones (only for remaining URIs).
 	for uri, diagnostics := range s.undelivered {
 		if err := s.publishDiagnostics(ctx, view, uri, diagnostics); err != nil {
-			s.session.Logger().Errorf(ctx, "failed to deliver diagnostic for %s (will not retry): %v", uri, err)
+			xlog.Errorf(ctx, "failed to deliver diagnostic for %s (will not retry): %v", uri, err)
 		}
 		// If we fail to deliver the same diagnostics twice, just give up.
 		delete(s.undelivered, uri)

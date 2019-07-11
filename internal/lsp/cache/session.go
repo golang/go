@@ -199,12 +199,12 @@ func (s *session) DidOpen(ctx context.Context, uri span.URI, _ source.FileKind, 
 		if strings.HasPrefix(string(uri), string(view.Folder())) {
 			f, err := view.GetFile(ctx, uri)
 			if err != nil {
-				s.log.Errorf(ctx, "error getting file for %s", uri)
+				xlog.Errorf(ctx, "error getting file for %s", uri)
 				return
 			}
 			gof, ok := f.(*goFile)
 			if !ok {
-				s.log.Errorf(ctx, "%s is not a Go file", uri)
+				xlog.Errorf(ctx, "%s is not a Go file", uri)
 				return
 			}
 			// Mark file as open.
@@ -276,7 +276,7 @@ func (s *session) openOverlay(ctx context.Context, uri span.URI, data []byte) {
 	}
 	_, hash, err := s.cache.GetFile(uri).Read(ctx)
 	if err != nil {
-		s.log.Errorf(ctx, "failed to read %s: %v", uri, err)
+		xlog.Errorf(ctx, "failed to read %s: %v", uri, err)
 		return
 	}
 	if hash == s.overlays[uri].hash {

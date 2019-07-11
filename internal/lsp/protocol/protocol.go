@@ -60,6 +60,6 @@ func sendParseError(ctx context.Context, log xlog.Logger, req *jsonrpc2.Request,
 		err = jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err)
 	}
 	if err := req.Reply(ctx, nil, err); err != nil {
-		log.Errorf(ctx, "%v", err)
+		xlog.Errorf(ctx, "%v", err)
 	}
 }

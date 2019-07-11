@@ -13,6 +13,7 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry/trace"
+	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -133,7 +134,7 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 	defer func() {
 		for _, uri := range clear {
 			if err := s.publishDiagnostics(ctx, view, uri, []source.Diagnostic{}); err != nil {
-				s.session.Logger().Errorf(ctx, "failed to clear diagnostics for %s: %v", uri, err)
+				xlog.Errorf(ctx, "failed to clear diagnostics for %s: %v", uri, err)
 			}
 		}
 	}()
@@ -141,18 +142,18 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 	// clear out all diagnostics for the package.
 	f, err := view.GetFile(ctx, uri)
 	if err != nil {
-		s.session.Logger().Errorf(ctx, "no file for %s: %v", uri, err)
+		xlog.Errorf(ctx, "no file for %s: %v", uri, err)
 		return nil
 	}
 	// For non-Go files, don't return any diagnostics.
 	gof, ok := f.(source.GoFile)
 	if !ok {
-		s.session.Logger().Errorf(ctx, "closing a non-Go file, no diagnostics to clear")
+		xlog.Errorf(ctx, "closing a non-Go file, no diagnostics to clear")
 		return nil
 	}
 	pkg := gof.GetPackage(ctx)
 	if pkg == nil {
-		s.session.Logger().Errorf(ctx, "no package available for %s", uri)
+		xlog.Errorf(ctx, "no package available for %s", uri)
 		return nil
 	}
 	for _, filename := range pkg.GetFilenames() {

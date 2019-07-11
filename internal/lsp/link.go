@@ -15,6 +15,7 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -37,13 +38,13 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 		case *ast.ImportSpec:
 			target, err := strconv.Unquote(n.Path.Value)
 			if err != nil {
-				view.Session().Logger().Errorf(ctx, "cannot unquote import path %s: %v", n.Path.Value, err)
+				xlog.Errorf(ctx, "cannot unquote import path %s: %v", n.Path.Value, err)
 				return false
 			}
 			target = "https://godoc.org/" + target
 			l, err := toProtocolLink(view, m, target, n.Pos(), n.End())
 			if err != nil {
-				view.Session().Logger().Errorf(ctx, "cannot initialize DocumentLink %s: %v", n.Path.Value, err)
+				xlog.Errorf(ctx, "cannot initialize DocumentLink %s: %v", n.Path.Value, err)
 				return false
 			}
 			links = append(links, l)
@@ -54,7 +55,7 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 			}
 			l, err := findLinksInString(n.Value, n.Pos(), view, m)
 			if err != nil {
-				view.Session().Logger().Errorf(ctx, "cannot find links in string: %v", err)
+				xlog.Errorf(ctx, "cannot find links in string: %v", err)
 				return false
 			}
 			links = append(links, l...)
@@ -67,7 +68,7 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 		for _, comment := range commentGroup.List {
 			l, err := findLinksInString(comment.Text, comment.Pos(), view, m)
 			if err != nil {
-				view.Session().Logger().Errorf(ctx, "cannot find links in comment: %v", err)
+				xlog.Errorf(ctx, "cannot find links in comment: %v", err)
 				continue
 			}
 			links = append(links, l...)

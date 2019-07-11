@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -224,11 +225,11 @@ func (v *view) link(ctx context.Context, pkgPath packagePath, pkg *packages.Pack
 	for _, filename := range m.files {
 		f, err := v.getFile(ctx, span.FileURI(filename))
 		if err != nil {
-			v.session.log.Errorf(ctx, "no file %s: %v", filename, err)
+			xlog.Errorf(ctx, "no file %s: %v", filename, err)
 		}
 		gof, ok := f.(*goFile)
 		if !ok {
-			v.session.log.Errorf(ctx, "not a Go file: %s", f.URI())
+			xlog.Errorf(ctx, "not a Go file: %s", f.URI())
 		}
 		if gof.meta == nil {
 			gof.meta = make(map[packageID]*metadata)
@@ -252,7 +253,7 @@ func (v *view) link(ctx context.Context, pkgPath packagePath, pkg *packages.Pack
 		}
 		if _, ok := m.children[packageID(importPkg.ID)]; !ok {
 			if err := v.link(ctx, importPkgPath, importPkg, m, missingImports); err != nil {
-				v.session.log.Errorf(ctx, "error in dependency %s: %v", importPkgPath, err)
+				xlog.Errorf(ctx, "error in dependency %s: %v", importPkgPath, err)
 			}
 		}
 	}

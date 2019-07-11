@@ -9,6 +9,7 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -29,7 +30,7 @@ func (s *Server) documentHighlight(ctx context.Context, params *protocol.TextDoc
 	}
 	spans, err := source.Highlight(ctx, f, rng.Start)
 	if err != nil {
-		view.Session().Logger().Errorf(ctx, "no highlight for %s: %v", spn, err)
+		xlog.Errorf(ctx, "no highlight for %s: %v", spn, err)
 	}
 	return toProtocolHighlight(m, spans), nil
 }

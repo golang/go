@@ -11,6 +11,7 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -57,7 +58,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		if s.wantSuggestedFixes {
 			qf, err := quickFixes(ctx, view, gof)
 			if err != nil {
-				view.Session().Logger().Errorf(ctx, "quick fixes failed for %s: %v", uri, err)
+				xlog.Errorf(ctx, "quick fixes failed for %s: %v", uri, err)
 			}
 			codeActions = append(codeActions, qf...)
 		}

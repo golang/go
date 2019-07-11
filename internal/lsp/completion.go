@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -35,7 +36,7 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 		WantDocumentaton: s.wantCompletionDocumentation,
 	})
 	if err != nil {
-		s.session.Logger().Infof(ctx, "no completions found for %s:%v:%v: %v", uri, int(params.Position.Line), int(params.Position.Character), err)
+		xlog.Infof(ctx, "no completions found for %s:%v:%v: %v", uri, int(params.Position.Line), int(params.Position.Character), err)
 	}
 	return &protocol.CompletionList{
 		IsIncomplete: false,
@@ -62,11 +63,11 @@ func (s *Server) toProtocolCompletionItems(ctx context.Context, view source.View
 		prefix = strings.ToLower(surrounding.Prefix())
 		spn, err := surrounding.Range.Span()
 		if err != nil {
-			s.session.Logger().Infof(ctx, "failed to get span for surrounding position: %s:%v:%v: %v", m.URI, int(pos.Line), int(pos.Character), err)
+			xlog.Infof(ctx, "failed to get span for surrounding position: %s:%v:%v: %v", m.URI, int(pos.Line), int(pos.Character), err)
 		} else {
 			rng, err := m.Range(spn)
 			if err != nil {
-				s.session.Logger().Infof(ctx, "failed to convert surrounding position: %s:%v:%v: %v", m.URI, int(pos.Line), int(pos.Character), err)
+				xlog.Infof(ctx, "failed to convert surrounding position: %s:%v:%v: %v", m.URI, int(pos.Line), int(pos.Character), err)
 			} else {
 				insertionRange = rng
 			}
