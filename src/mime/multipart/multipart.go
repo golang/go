@@ -334,6 +334,9 @@ func (r *Reader) NextPart() (*Part, error) {
 		}
 
 		if r.isFinalBoundary(line) {
+			// https://github.com/golang/go/issues/32935
+			// Read once more in case chunkedReader hasn't finished reading yet
+			r.bufReader.ReadSlice('\n')
 			// Expected EOF
 			return nil, io.EOF
 		}

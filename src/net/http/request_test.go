@@ -942,6 +942,55 @@ func testMultipartFile(t *testing.T, req *Request, key, expectFilename, expectCo
 	return f
 }
 
+func TestParseMultipartFormWithTrailer(t *testing.T) {
+	var testTrailer = "TestTrailer"
+	srvParseForm := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		err := r.ParseMultipartForm(1024 * 16)
+		if err != nil {
+			t.Fatal("parsing form: ", err)
+		}
+		if r.Trailer.Get(testTrailer) == "" {
+			t.Error("expected Trailer not found: Trailer is empty.")
+		}
+	}))
+	defer srvParseForm.Close()
+	var sendRequestWithTrailer = func(addr string) {
+		buf := make([]byte, 1024)
+		body := &bytes.Buffer{}
+		writer := multipart.NewWriter(body)
+		part, err := writer.CreateFormFile("file", "testFile")
+		if err != nil {
+			t.Fatal("creating form file: ", err)
+		}
+		_, err = io.Copy(part, bytes.NewReader(buf))
+		if err != nil {
+			t.Fatal("copying contents: ", err)
+		}
+		err = writer.Close()
+		if err != nil {
+			t.Fatal("closing writer: ", err)
+		}
+
+		var req *Request
+		req, err = NewRequest("POST", addr, io.MultiReader(body, eofReaderFunc(func() {
+			req.Trailer.Set(testTrailer, testTrailer)
+		})))
+		if err != nil {
+			t.Fatal("creating request: ", err)
+		}
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		req.Trailer = Header{testTrailer: nil}
+		resp, err := DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal("sending request request: ", err)
+		}
+		defer resp.Body.Close()
+	}
+	for i := 0; i < 10; i++ {
+		sendRequestWithTrailer(srvParseForm.URL)
+	}
+}
+
 const (
 	fileaContents = "This is a test file."
 	filebContents = "Another test file."
