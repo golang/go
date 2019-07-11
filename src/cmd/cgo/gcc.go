@@ -793,10 +793,10 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 	params := name.FuncType.Params
 	args := call.Call.Args
 
-	// Avoid a crash if the number of arguments is
-	// less than the number of parameters.
+	// Avoid a crash if the number of arguments doesn't match
+	// the number of parameters.
 	// This will be caught when the generated file is compiled.
-	if len(args) < len(params) {
+	if len(args) != len(params) {
 		return "", false
 	}
 
