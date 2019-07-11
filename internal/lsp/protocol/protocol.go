@@ -13,6 +13,8 @@ import (
 	"golang.org/x/tools/internal/xcontext"
 )
 
+type DocumentUri = string
+
 const defaultMessageBufferSize = 20
 const defaultRejectIfOverloaded = false
 

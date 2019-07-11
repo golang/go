@@ -1,7 +1,7 @@
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
-// commit: c1e8923f8ea3b1f9c61dadf97448244d9ffbf7ae
-// last fetched Tue May 21 2019 07:36:27 GMT-0400 (Eastern Daylight Time)
+// commit: 8801c20b667945f455d7e023c71d2f741caeda25
+// last fetched Thu Jul 11 2019 13:43:41 GMT-0400 (Eastern Daylight Time)
 package protocol
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
@@ -153,6 +153,26 @@ type FoldingRangeParams struct {
 	 * The text document.
 	 */
 	TextDocument TextDocumentIdentifier `json:"textDocument"`
+}
+
+// SelectionRangeProviderOptions is
+type SelectionRangeProviderOptions struct {
+}
+
+/*SelectionRangeParams defined:
+ * A parameter literal used in selection range requests.
+ */
+type SelectionRangeParams struct {
+
+	/*TextDocument defined:
+	 * The text document.
+	 */
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+
+	/*Positions defined:
+	 * The positions inside the text document.
+	 */
+	Positions []Position `json:"positions"`
 }
 
 /*Registration defined:
@@ -1241,6 +1261,19 @@ type ClientCapabilities struct {
 			 */
 			LinkSupport bool `json:"linkSupport,omitempty"`
 		} `json:"declaration,omitempty"`
+
+		/*SelectionRange defined:
+		 * Capabilities specific to `textDocument/selectionRange` requests
+		 */
+		SelectionRange struct {
+
+			/*DynamicRegistration defined:
+			 * Whether implementation supports dynamic registration for selection range providers. If this is set to `true`
+			 * the client supports the new `(SelectionRangeProviderOptions & TextDocumentRegistrationOptions & StaticRegistrationOptions)`
+			 * return value for the corresponding server capability as well.
+			 */
+			DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
+		} `json:"selectionRange,omitempty"`
 	} `json:"textDocument,omitempty"`
 
 	/*Window defined:
@@ -1600,6 +1633,11 @@ type ServerCapabilities struct {
 	 * The server provides Goto Type Definition support.
 	 */
 	DeclarationProvider bool `json:"declarationProvider,omitempty"` // boolean | (TextDocumentRegistrationOptions & StaticRegistrationOptions)
+
+	/*SelectionRangeProvider defined:
+	 * The server provides selection range support.
+	 */
+	SelectionRangeProvider bool `json:"selectionRangeProvider,omitempty"` // boolean | (TextDocumentRegistrationOptions & StaticRegistrationOptions & SelectionRangeProviderOptions)
 }
 
 // InitializeParams is
@@ -1626,7 +1664,7 @@ type InitializeParams struct {
 	 *
 	 * @deprecated in favour of workspaceFolders.
 	 */
-	RootURI string `json:"rootUri"`
+	RootURI DocumentUri `json:"rootUri"`
 
 	/*Capabilities defined:
 	 * The capabilities provided by the client (editor or tool)
@@ -1861,7 +1899,7 @@ type FileEvent struct {
 	/*URI defined:
 	 * The file's uri.
 	 */
-	URI string `json:"uri"`
+	URI DocumentUri `json:"uri"`
 
 	/*Type defined:
 	 * The change type.
@@ -1910,10 +1948,12 @@ type PublishDiagnosticsParams struct {
 	/*URI defined:
 	 * The URI for which diagnostic information is reported.
 	 */
-	URI string `json:"uri"`
+	URI DocumentUri `json:"uri"`
 
 	/*Version defined:
 	 * Optional the version number of the document the diagnostics are published for.
+	 *
+	 * @since 3.15
 	 */
 	Version float64 `json:"version,omitempty"`
 
@@ -2264,7 +2304,7 @@ type Range struct {
 type Location struct {
 
 	// URI is
-	URI string `json:"uri"`
+	URI DocumentUri `json:"uri"`
 
 	// Range is
 	Range Range `json:"range"`
@@ -2287,7 +2327,7 @@ type LocationLink struct {
 	/*TargetURI defined:
 	 * The target resource identifier of this link.
 	 */
-	TargetURI string `json:"targetUri"`
+	TargetURI DocumentUri `json:"targetUri"`
 
 	/*TargetRange defined:
 	 * The full target range of this link. If the target for example is a symbol then target range is the
@@ -2528,7 +2568,7 @@ type CreateFile struct {
 	/*URI defined:
 	 * The resource to create.
 	 */
-	URI string `json:"uri"`
+	URI DocumentUri `json:"uri"`
 
 	/*Options defined:
 	 * Additional options
@@ -2565,12 +2605,12 @@ type RenameFile struct {
 	/*OldURI defined:
 	 * The old (existing) location.
 	 */
-	OldURI string `json:"oldUri"`
+	OldURI DocumentUri `json:"oldUri"`
 
 	/*NewURI defined:
 	 * The new location.
 	 */
-	NewURI string `json:"newUri"`
+	NewURI DocumentUri `json:"newUri"`
 
 	/*Options defined:
 	 * Rename options.
@@ -2607,7 +2647,7 @@ type DeleteFile struct {
 	/*URI defined:
 	 * The file to delete.
 	 */
-	URI string `json:"uri"`
+	URI DocumentUri `json:"uri"`
 
 	/*Options defined:
 	 * Delete options.
@@ -2656,7 +2696,7 @@ type TextDocumentIdentifier struct {
 	/*URI defined:
 	 * The text document's uri.
 	 */
-	URI string `json:"uri"`
+	URI DocumentUri `json:"uri"`
 }
 
 /*VersionedTextDocumentIdentifier defined:
@@ -2684,7 +2724,7 @@ type TextDocumentItem struct {
 	/*URI defined:
 	 * The text document's uri.
 	 */
-	URI string `json:"uri"`
+	URI DocumentUri `json:"uri"`
 
 	/*LanguageID defined:
 	 * The text document's language identifier
@@ -2809,8 +2849,6 @@ type CompletionItem struct {
 	 * and a completion item with an `insertText` of `console` is provided it
 	 * will only insert `sole`. Therefore it is recommended to use `textEdit` instead
 	 * since it avoids additional client side interpretation.
-	 *
-	 * @deprecated Use textEdit instead.
 	 */
 	InsertText string `json:"insertText,omitempty"`
 
@@ -3262,6 +3300,23 @@ type DocumentLink struct {
 	Data interface{} `json:"data,omitempty"`
 }
 
+/*SelectionRange defined:
+ * A selection range represents a part of a selection hierarchy. A selection range
+ * may have a parent selection range that contains it.
+ */
+type SelectionRange struct {
+
+	/*Range defined:
+	 * The [range](#Range) of this selection range.
+	 */
+	Range Range `json:"range"`
+
+	/*Parent defined:
+	 * The parent selection range containing this range. Therefore `parent.range` must contain `this.range`.
+	 */
+	Parent *SelectionRange `json:"parent,omitempty"`
+}
+
 /*TextDocument defined:
  * A simple text document. Not to be implemented.
  */
@@ -3274,7 +3329,7 @@ type TextDocument struct {
 	 *
 	 * @readonly
 	 */
-	URI string `json:"uri"`
+	URI DocumentUri `json:"uri"`
 
 	/*LanguageID defined:
 	 * The identifier of the language associated with this document.
@@ -3951,6 +4006,12 @@ type DocumentFilter struct {
  * @sample `let sel:DocumentSelector = [{ language: 'typescript' }, { language: 'json', pattern: '**∕tsconfig.json' }]`;
  */
 type DocumentSelector []DocumentFilter
+
+// DocumentURI is a type
+/**
+ * A tagging type for string properties that are actually URIs.
+ */
+type DocumentURI string
 
 // DefinitionLink is a type
 /**

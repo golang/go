@@ -582,7 +582,7 @@ function generate(files: string[], options: ts.CompilerOptions): void {
       }
       if (x[0].goType == 'bool') {  // take it
         if (x[1].goType == 'RenameOptions') {
-          return ({goType: 'RenameOptions', gostuff: getText(node)})
+          return ({goType: 'interface{}', gostuff: getText(node)})
         }
         return ({goType: 'bool', gostuff: getText(node)})
       }

@@ -264,6 +264,11 @@ func (s *Server) PrepareRename(context.Context, *protocol.TextDocumentPositionPa
 func (s *Server) SetTraceNotification(context.Context, *protocol.SetTraceParams) error {
 	return notImplemented("SetTraceNotification")
 }
+
+func (s *Server) SelectionRange(context.Context, *protocol.SelectionRangeParams) ([]protocol.SelectionRange, error) {
+	return nil, notImplemented("SelectionRange")
+}
+
 func notImplemented(method string) *jsonrpc2.Error {
 	return jsonrpc2.NewErrorf(jsonrpc2.CodeMethodNotFound, "method %q not yet implemented", method)
 }
