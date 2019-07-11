@@ -10,9 +10,11 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"path"
 	"reflect"
 	"testing"
+	"time"
 
 	"golang.org/x/tools/internal/jsonrpc2"
 )
@@ -106,10 +108,7 @@ func run(ctx context.Context, t *testing.T, withHeaders bool, r io.ReadCloser, w
 		stream = jsonrpc2.NewStream(r, w)
 	}
 	conn := jsonrpc2.NewConn(stream)
-	conn.Handler = handle
-	if *logRPC {
-		conn.Logger = jsonrpc2.Log
-	}
+	conn.AddHandler(handle{})
 	go func() {
 		defer func() {
 			r.Close()
@@ -122,36 +121,55 @@ func run(ctx context.Context, t *testing.T, withHeaders bool, r io.ReadCloser, w
 	return conn
 }
 
-func handle(ctx context.Context, r *jsonrpc2.Request) {
+type handle struct{ jsonrpc2.EmptyHandler }
+
+func (handle) Deliver(ctx context.Context, r *jsonrpc2.Request, delivered bool) bool {
 	switch r.Method {
 	case "no_args":
 		if r.Params != nil {
 			r.Reply(ctx, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidParams, "Expected no params"))
-			return
+			return true
 		}
 		r.Reply(ctx, true, nil)
 	case "one_string":
 		var v string
 		if err := json.Unmarshal(*r.Params, &v); err != nil {
 			r.Reply(ctx, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err.Error()))
-			return
+			return true
 		}
 		r.Reply(ctx, "got:"+v, nil)
 	case "one_number":
 		var v int
 		if err := json.Unmarshal(*r.Params, &v); err != nil {
 			r.Reply(ctx, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err.Error()))
-			return
+			return true
 		}
 		r.Reply(ctx, fmt.Sprintf("got:%d", v), nil)
 	case "join":
 		var v []string
 		if err := json.Unmarshal(*r.Params, &v); err != nil {
 			r.Reply(ctx, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err.Error()))
-			return
+			return true
 		}
 		r.Reply(ctx, path.Join(v...), nil)
 	default:
 		r.Reply(ctx, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeMethodNotFound, "method %q not found", r.Method))
+	}
+	return true
+}
+
+func (handle) Log(direction jsonrpc2.Direction, id *jsonrpc2.ID, elapsed time.Duration, method string, payload *json.RawMessage, err *jsonrpc2.Error) {
+	if !*logRPC {
+		return
+	}
+	switch {
+	case err != nil:
+		log.Printf("%v failure [%v] %s %v", direction, id, method, err)
+	case id == nil:
+		log.Printf("%v notification %s %s", direction, method, *payload)
+	case elapsed >= 0:
+		log.Printf("%v response in %v [%v] %s %s", direction, elapsed, id, method, *payload)
+	default:
+		log.Printf("%v call [%v] %s %s", direction, id, method, *payload)
 	}
 }

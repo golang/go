@@ -59,7 +59,7 @@ function generate(files: string[], options: ts.CompilerOptions): void {
   setReceives();  // distinguish client and server
   // for each of Client and Server there are 3 parts to the output:
   // 1. type X interface {methods}
-  // 2. serverHandler(...) { return func(...) { switch r.method}}
+  // 2. func (h *serverHandler) Deliver(...) { switch r.method }
   // 3. func (x *xDispatcher) Method(ctx, parm)
   not.forEach(
     (v, k) => {
@@ -99,7 +99,7 @@ function sig(nm: string, a: string, b: string, names?: boolean): string {
 
 const notNil = `if r.Params != nil {
 				r.Reply(ctx, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidParams, "Expected no params"))
-				return
+				return true
 			}`;
 // Go code for notifications. Side is client or server, m is the request method
 function goNot(side: side, m: string) {
@@ -113,16 +113,18 @@ function goNot(side: side, m: string) {
   if (a != '') {
     case1 = `var params ${a}
     if err := json.Unmarshal(*r.Params, &params); err != nil {
-      sendParseError(ctx, log, r, err)
-      return
+      sendParseError(ctx, h.log, r, err)
+      return true
     }
-    if err := ${side.name}.${nm}(ctx, &params); err != nil {
-      log.Errorf(ctx, "%v", err)
-    }`;
+    if err := h.${side.name}.${nm}(ctx, &params); err != nil {
+      h.log.Errorf(ctx, "%v", err)
+    }
+    return true`;
   } else {
-    case1 = `if err := ${side.name}.${nm}(ctx); err != nil {
-      log.Errorf(ctx, "%v", err)
-    }`;
+    case1 = `if err := h.${side.name}.${nm}(ctx); err != nil {
+      h.log.Errorf(ctx, "%v", err)
+    }
+    return true`;
   }
   side.cases.push(`${caseHdr}\n${case1}`);
 
@@ -152,24 +154,26 @@ function goReq(side: side, m: string) {
   if (a != '') {
     case1 = `var params ${a}
     if err := json.Unmarshal(*r.Params, &params); err != nil {
-      sendParseError(ctx, log, r, err)
-      return
+      sendParseError(ctx, h.log, r, err)
+      return true
     }`;
   }
   const arg2 = a == '' ? '' : ', &params';
-  let case2 = `if err := ${side.name}.${nm}(ctx${arg2}); err != nil {
-    log.Errorf(ctx, "%v", err)
+  let case2 = `if err := h.${side.name}.${nm}(ctx${arg2}); err != nil {
+    h.log.Errorf(ctx, "%v", err)
   }`;
   if (b != '') {
-    case2 = `resp, err := ${side.name}.${nm}(ctx${arg2})
+    case2 = `resp, err := h.${side.name}.${nm}(ctx${arg2})
     if err := r.Reply(ctx, resp, err); err != nil {
-      log.Errorf(ctx, "%v", err)
-    }`;
+      h.log.Errorf(ctx, "%v", err)
+    }
+    return true`;
   } else {  // response is nil
-    case2 = `err := ${side.name}.${nm}(ctx${arg2})
+    case2 = `err := h.${side.name}.${nm}(ctx${arg2})
     if err := r.Reply(ctx, nil, err); err != nil {
-      log.Errorf(ctx, "%v", err)
-    }`
+      h.log.Errorf(ctx, "%v", err)
+    }
+    return true`
   }
 
   side.cases.push(`${caseHdr}\n${case1}\n${case2}`);
@@ -222,32 +226,30 @@ function output(side: side) {
     "encoding/json"
 
     "golang.org/x/tools/internal/jsonrpc2"
-    "golang.org/x/tools/internal/lsp/xlog"
   )
   `);
   const a = side.name[0].toUpperCase() + side.name.substring(1)
   f(`type ${a} interface {`);
   side.methods.forEach((v) => { f(v) });
   f('}\n');
-  f(`func ${side.name}Handler(log xlog.Logger, ${side.name} ${
-    side.goName}) jsonrpc2.Handler {
-    return func(ctx context.Context, r *jsonrpc2.Request) {
+  f(`func (h ${side.name}Handler) Deliver(ctx context.Context, r *jsonrpc2.Request, delivered bool) bool {
+      if delivered {
+        return false
+      }
       switch r.Method {
       case "$/cancelRequest":
         var params CancelParams
         if err := json.Unmarshal(*r.Params, &params); err != nil {
-          sendParseError(ctx, log, r, err)
-          return
+          sendParseError(ctx, h.log, r, err)
+          return true
         }
-        r.Conn().Cancel(params.ID)`);
+        r.Conn().Cancel(params.ID)
+        return true`);
   side.cases.forEach((v) => { f(v) });
   f(`
   default:
-    if r.IsNotify() {
-      r.Reply(ctx, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeMethodNotFound, "method %q not found", r.Method))
-    }
+    return false
   }
-}
 }`);
   f(`
   type ${side.name}Dispatcher struct {

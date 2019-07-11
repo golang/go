@@ -80,7 +80,7 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 
 	// For debugging purposes only.
 	run := func(srv *lsp.Server) {
-		srv.Conn.Logger = logger(s.Trace, out)
+		srv.Conn.AddHandler(&handler{trace: s.Trace, out: out})
 		go srv.Run(ctx)
 	}
 	if s.Address != "" {
@@ -91,7 +91,7 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 	}
 	stream := jsonrpc2.NewHeaderStream(os.Stdin, os.Stdout)
 	srv := lsp.NewServer(s.app.cache, stream)
-	srv.Conn.Logger = logger(s.Trace, out)
+	srv.Conn.AddHandler(&handler{trace: s.Trace, out: out})
 	return srv.Run(ctx)
 }
 
@@ -115,55 +115,66 @@ func (s *Serve) forward() error {
 	return <-errc
 }
 
-func logger(trace bool, out io.Writer) jsonrpc2.Logger {
-	return func(direction jsonrpc2.Direction, id *jsonrpc2.ID, elapsed time.Duration, method string, payload *json.RawMessage, err *jsonrpc2.Error) {
-		if !trace {
-			return
-		}
-		const eol = "\r\n\r\n\r\n"
-		if err != nil {
-			fmt.Fprintf(out, "[Error - %v] %s %s%s %v%s", time.Now().Format("3:04:05 PM"),
-				direction, method, id, err, eol)
-			return
-		}
-		outx := new(strings.Builder)
-		fmt.Fprintf(outx, "[Trace - %v] ", time.Now().Format("3:04:05 PM"))
-		switch direction {
-		case jsonrpc2.Send:
-			fmt.Fprint(outx, "Received ")
-		case jsonrpc2.Receive:
-			fmt.Fprint(outx, "Sending ")
-		}
-		switch {
-		case id == nil:
-			fmt.Fprint(outx, "notification ")
-		case elapsed >= 0:
-			fmt.Fprint(outx, "response ")
-		default:
-			fmt.Fprint(outx, "request ")
-		}
-		fmt.Fprintf(outx, "'%s", method)
-		switch {
-		case id == nil:
-			// do nothing
-		case id.Name != "":
-			fmt.Fprintf(outx, " - (%s)", id.Name)
-		default:
-			fmt.Fprintf(outx, " - (%d)", id.Number)
-		}
-		fmt.Fprint(outx, "'")
-		if elapsed >= 0 {
-			msec := int(elapsed.Round(time.Millisecond) / time.Millisecond)
-			fmt.Fprintf(outx, " in %dms", msec)
-		}
-		params := "null"
-		if payload != nil {
-			params = string(*payload)
-		}
-		if params == "null" {
-			params = "{}"
-		}
-		fmt.Fprintf(outx, ".\r\nParams: %s%s", params, eol)
-		fmt.Fprintf(out, "%s", outx.String())
+type handler struct {
+	trace bool
+	out   io.Writer
+}
+
+func (h *handler) Deliver(ctx context.Context, r *jsonrpc2.Request, delivered bool) bool {
+	return false
+}
+
+func (h *handler) Cancel(ctx context.Context, conn *jsonrpc2.Conn, id jsonrpc2.ID, cancelled bool) bool {
+	return false
+}
+
+func (h *handler) Log(direction jsonrpc2.Direction, id *jsonrpc2.ID, elapsed time.Duration, method string, payload *json.RawMessage, err *jsonrpc2.Error) {
+	if !h.trace {
+		return
 	}
+	const eol = "\r\n\r\n\r\n"
+	if err != nil {
+		fmt.Fprintf(h.out, "[Error - %v] %s %s%s %v%s", time.Now().Format("3:04:05 PM"),
+			direction, method, id, err, eol)
+		return
+	}
+	outx := new(strings.Builder)
+	fmt.Fprintf(outx, "[Trace - %v] ", time.Now().Format("3:04:05 PM"))
+	switch direction {
+	case jsonrpc2.Send:
+		fmt.Fprint(outx, "Received ")
+	case jsonrpc2.Receive:
+		fmt.Fprint(outx, "Sending ")
+	}
+	switch {
+	case id == nil:
+		fmt.Fprint(outx, "notification ")
+	case elapsed >= 0:
+		fmt.Fprint(outx, "response ")
+	default:
+		fmt.Fprint(outx, "request ")
+	}
+	fmt.Fprintf(outx, "'%s", method)
+	switch {
+	case id == nil:
+		// do nothing
+	case id.Name != "":
+		fmt.Fprintf(outx, " - (%s)", id.Name)
+	default:
+		fmt.Fprintf(outx, " - (%d)", id.Number)
+	}
+	fmt.Fprint(outx, "'")
+	if elapsed >= 0 {
+		msec := int(elapsed.Round(time.Millisecond) / time.Millisecond)
+		fmt.Fprintf(outx, " in %dms", msec)
+	}
+	params := "null"
+	if payload != nil {
+		params = string(*payload)
+	}
+	if params == "null" {
+		params = "{}"
+	}
+	fmt.Fprintf(outx, ".\r\nParams: %s%s", params, eol)
+	fmt.Fprintf(h.out, "%s", outx.String())
 }

@@ -23,18 +23,14 @@ import (
 // Conn is a JSON RPC 2 client server connection.
 // Conn is bidirectional; it does not have a designated server or client end.
 type Conn struct {
-	seq                int64 // must only be accessed using atomic operations
-	Handler            Handler
-	Canceler           Canceler
-	Logger             Logger
-	Capacity           int
-	RejectIfOverloaded bool
-	stream             Stream
-	err                error
-	pendingMu          sync.Mutex // protects the pending map
-	pending            map[ID]chan *wireResponse
-	handlingMu         sync.Mutex // protects the handling map
-	handling           map[ID]*Request
+	seq        int64 // must only be accessed using atomic operations
+	handlers   []Handler
+	stream     Stream
+	err        error
+	pendingMu  sync.Mutex // protects the pending map
+	pending    map[ID]chan *wireResponse
+	handlingMu sync.Mutex // protects the handling map
+	handling   map[ID]*Request
 }
 
 type requestState int
@@ -64,20 +60,6 @@ type Request struct {
 	// and no response is possible.
 	ID *ID
 }
-
-// Handler is an option you can pass to NewConn to handle incoming requests.
-// If the request returns false from IsNotify then the Handler must eventually
-// call Reply on the Conn with the supplied request.
-// Handlers are called synchronously, they should pass the work off to a go
-// routine if they are going to take a long time.
-type Handler func(context.Context, *Request)
-
-// Canceler is an option you can pass to NewConn which is invoked for
-// cancelled outgoing requests.
-// It is okay to use the connection to send notifications, but the context will
-// be in the cancelled state, so you must do it with the background context
-// instead.
-type Canceler func(context.Context, *Conn, ID)
 
 type rpcStats struct {
 	server bool
@@ -133,21 +115,21 @@ func NewErrorf(code int64, format string, args ...interface{}) *Error {
 // You must call Run for the connection to be active.
 func NewConn(s Stream) *Conn {
 	conn := &Conn{
+		handlers: []Handler{defaultHandler{}},
 		stream:   s,
 		pending:  make(map[ID]chan *wireResponse),
 		handling: make(map[ID]*Request),
 	}
-	// the default handler reports a method error
-	conn.Handler = func(ctx context.Context, r *Request) {
-		if !r.IsNotify() {
-			r.Reply(ctx, nil, NewErrorf(CodeMethodNotFound, "method %q not found", r.Method))
-		}
-	}
-	// the default canceler does nothing
-	conn.Canceler = func(context.Context, *Conn, ID) {}
-	// the default logger does nothing
-	conn.Logger = func(Direction, *ID, time.Duration, string, *json.RawMessage, *Error) {}
 	return conn
+}
+
+// AddHandler adds a new handler to the set the connection will invoke.
+// Handlers are invoked in the reverse order of how they were added, this
+// allows the most recent addition to be the first one to attempt to handle a
+// message.
+func (c *Conn) AddHandler(handler Handler) {
+	// prepend the new handlers so we use them first
+	c.handlers = append([]Handler{handler}, c.handlers...)
 }
 
 // Cancel cancels a pending Call on the server side.
@@ -183,7 +165,9 @@ func (c *Conn) Notify(ctx context.Context, method string, params interface{}) (e
 	if err != nil {
 		return fmt.Errorf("marshalling notify request: %v", err)
 	}
-	c.Logger(Send, nil, -1, request.Method, request.Params, nil)
+	for _, h := range c.handlers {
+		h.Log(Send, nil, -1, request.Method, request.Params, nil)
+	}
 	n, err := c.stream.Write(ctx, data)
 	telemetry.SentBytes.Record(ctx, n)
 	return err
@@ -225,7 +209,9 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	}()
 	// now we are ready to send
 	before := time.Now()
-	c.Logger(Send, request.ID, -1, request.Method, request.Params, nil)
+	for _, h := range c.handlers {
+		h.Log(Send, request.ID, -1, request.Method, request.Params, nil)
+	}
 	n, err := c.stream.Write(ctx, data)
 	telemetry.SentBytes.Record(ctx, n)
 	if err != nil {
@@ -236,7 +222,9 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	select {
 	case response := <-rchan:
 		elapsed := time.Since(before)
-		c.Logger(Receive, response.ID, elapsed, request.Method, response.Result, response.Error)
+		for _, h := range c.handlers {
+			h.Log(Receive, response.ID, elapsed, request.Method, response.Result, response.Error)
+		}
 		// is it an error response?
 		if response.Error != nil {
 			return response.Error
@@ -250,7 +238,12 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 		return nil
 	case <-ctx.Done():
 		// allow the handler to propagate the cancel
-		c.Canceler(ctx, c, id)
+		cancelled := false
+		for _, h := range c.handlers {
+			if h.Cancel(ctx, c, id, cancelled) {
+				cancelled = true
+			}
+		}
 		return ctx.Err()
 	}
 }
@@ -320,7 +313,9 @@ func (r *Request) Reply(ctx context.Context, result interface{}, err error) erro
 	if err != nil {
 		return err
 	}
-	r.conn.Logger(Send, response.ID, elapsed, r.Method, response.Result, response.Error)
+	for _, h := range r.conn.handlers {
+		h.Log(Send, response.ID, elapsed, r.Method, response.Result, response.Error)
+	}
 	n, err := r.conn.stream.Write(ctx, data)
 	telemetry.SentBytes.Record(ctx, n)
 
@@ -378,7 +373,9 @@ func (c *Conn) Run(ctx context.Context) error {
 		if err := json.Unmarshal(data, msg); err != nil {
 			// a badly formed message arrived, log it and continue
 			// we trust the stream to have isolated the error to just this message
-			c.Logger(Receive, nil, -1, "", nil, NewErrorf(0, "unmarshal failed: %v", err))
+			for _, h := range c.handlers {
+				h.Log(Receive, nil, -1, "", nil, NewErrorf(0, "unmarshal failed: %v", err))
+			}
 			continue
 		}
 		// work out which kind of message we have
@@ -412,8 +409,13 @@ func (c *Conn) Run(ctx context.Context) error {
 					rpcStats.end(reqCtx, nil)
 					cancelReq()
 				}()
-				c.Logger(Receive, req.ID, -1, req.Method, req.Params, nil)
-				c.Handler(reqCtx, req)
+				delivered := false
+				for _, h := range c.handlers {
+					h.Log(Receive, req.ID, -1, req.Method, req.Params, nil)
+					if h.Deliver(reqCtx, req, delivered) {
+						delivered = true
+					}
+				}
 			}()
 		case msg.ID != nil:
 			// we have a response, get the pending entry from the map
@@ -432,7 +434,9 @@ func (c *Conn) Run(ctx context.Context) error {
 			rchan <- response
 			close(rchan)
 		default:
-			c.Logger(Receive, nil, -1, "", nil, NewErrorf(0, "message not a call, notify or response, ignoring"))
+			for _, h := range c.handlers {
+				h.Log(Receive, nil, -1, "", nil, NewErrorf(0, "message not a call, notify or response, ignoring"))
+			}
 		}
 	}
 }
