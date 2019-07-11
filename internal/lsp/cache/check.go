@@ -68,18 +68,22 @@ func (imp *importer) getPkg(ctx context.Context, id packageID) (*pkg, error) {
 		// This goroutine becomes responsible for populating
 		// the entry and broadcasting its readiness.
 		e.pkg, e.err = imp.typeCheck(ctx, id)
+		if e.err != nil {
+			// Don't cache failed packages. If we didn't successfully cache the package
+			// in each file, then this pcache entry won't get invalidated as those files
+			// change.
+			imp.view.pcache.mu.Lock()
+			if imp.view.pcache.packages[id] == e {
+				delete(imp.view.pcache.packages, id)
+			}
+			imp.view.pcache.mu.Unlock()
+		}
 		close(e.ready)
 	}
 
 	if e.err != nil {
 		// If the import had been previously canceled, and that error cached, try again.
 		if e.err == context.Canceled && ctx.Err() == nil {
-			imp.view.pcache.mu.Lock()
-			// Clear out canceled cache entry if it is still there.
-			if imp.view.pcache.packages[id] == e {
-				delete(imp.view.pcache.packages, id)
-			}
-			imp.view.pcache.mu.Unlock()
 			return imp.getPkg(ctx, id)
 		}
 		return nil, e.err
