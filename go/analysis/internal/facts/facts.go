@@ -99,6 +99,16 @@ func (s *Set) ExportObjectFact(obj types.Object, fact analysis.Fact) {
 	s.mu.Unlock()
 }
 
+func (s *Set) AllObjectFacts() []analysis.ObjectFact {
+	var facts []analysis.ObjectFact
+	for k, v := range s.m {
+		if k.obj != nil {
+			facts = append(facts, analysis.ObjectFact{k.obj, v})
+		}
+	}
+	return facts
+}
+
 // ImportPackageFact implements analysis.Pass.ImportPackageFact.
 func (s *Set) ImportPackageFact(pkg *types.Package, ptr analysis.Fact) bool {
 	if pkg == nil {
@@ -120,6 +130,16 @@ func (s *Set) ExportPackageFact(fact analysis.Fact) {
 	s.mu.Lock()
 	s.m[key] = fact // clobber any existing entry
 	s.mu.Unlock()
+}
+
+func (s *Set) AllPackageFacts() []analysis.PackageFact {
+	var facts []analysis.PackageFact
+	for k, v := range s.m {
+		if k.obj == nil {
+			facts = append(facts, analysis.PackageFact{k.pkg, v})
+		}
+	}
+	return facts
 }
 
 // gobFact is the Gob declaration of a serialized fact.

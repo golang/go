@@ -334,8 +334,10 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 				Report:            func(d analysis.Diagnostic) { act.diagnostics = append(act.diagnostics, d) },
 				ImportObjectFact:  facts.ImportObjectFact,
 				ExportObjectFact:  facts.ExportObjectFact,
+				AllObjectFacts:    facts.AllObjectFacts,
 				ImportPackageFact: facts.ImportPackageFact,
 				ExportPackageFact: facts.ExportPackageFact,
+				AllPackageFacts:   facts.AllPackageFacts,
 			}
 
 			t0 := time.Now()
