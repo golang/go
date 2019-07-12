@@ -262,6 +262,47 @@ func (g graph) sccs() []nodeset {
 	return sccs
 }
 
+func (g graph) allpaths(from, to string) error {
+	// Mark all nodes to "to".
+	seen := make(nodeset) // value of seen[x] indicates whether x is on some path to "to"
+	var visit func(node string) bool
+	visit = func(node string) bool {
+		reachesTo, ok := seen[node]
+		if !ok {
+			reachesTo = node == to
+			seen[node] = reachesTo
+			for e := range g[node] {
+				if visit(e) {
+					reachesTo = true
+				}
+			}
+			if reachesTo && node != to {
+				seen[node] = true
+			}
+		}
+		return reachesTo
+	}
+	visit(from)
+
+	// For each marked node, collect its marked successors.
+	var edges []string
+	for n := range seen {
+		for succ := range g[n] {
+			if seen[succ] {
+				edges = append(edges, n+" "+succ)
+			}
+		}
+	}
+
+	// Sort (so that this method is deterministic) and print edges.
+	sort.Strings(edges)
+	for _, e := range edges {
+		fmt.Fprintln(stdout, e)
+	}
+
+	return nil
+}
+
 func parse(rd io.Reader) (graph, error) {
 	g := make(graph)
 
@@ -284,6 +325,7 @@ func parse(rd io.Reader) (graph, error) {
 	return g, nil
 }
 
+// Overridable for testing purposes.
 var stdin io.Reader = os.Stdin
 var stdout io.Writer = os.Stdout
 
@@ -398,33 +440,7 @@ func digraph(cmd string, args []string) error {
 		if g[to] == nil {
 			return fmt.Errorf("no such 'to' node %q", to)
 		}
-
-		seen := make(nodeset) // value of seen[x] indicates whether x is on some path to 'to'
-		var visit func(label string) bool
-		visit = func(label string) bool {
-			reachesTo, ok := seen[label]
-			if !ok {
-				reachesTo = label == to
-
-				seen[label] = reachesTo
-				for e := range g[label] {
-					if visit(e) {
-						reachesTo = true
-					}
-				}
-				seen[label] = reachesTo
-			}
-			return reachesTo
-		}
-		if !visit(from) {
-			return fmt.Errorf("no path from %q to %q", from, to)
-		}
-		for label, reachesTo := range seen {
-			if !reachesTo {
-				delete(seen, label)
-			}
-		}
-		seen.sort().println("\n")
+		g.allpaths(from, to)
 
 	case "sccs":
 		if len(args) != 0 {

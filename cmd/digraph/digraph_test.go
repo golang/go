@@ -1,7 +1,6 @@
 // Copyright 2019 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
-
 package main
 
 import (
@@ -30,40 +29,143 @@ d c
 `
 
 	for _, test := range []struct {
+		name  string
 		input string
 		cmd   string
 		args  []string
 		want  string
 	}{
-		{g1, "nodes", nil, "belt\nhat\njacket\npants\nshirt\nshoes\nshorts\nsocks\nsweater\ntie\n"},
-		{g1, "reverse", []string{"jacket"}, "jacket\nshirt\nsweater\n"},
-		{g1, "forward", []string{"socks"}, "shoes\nsocks\n"},
-		{g1, "forward", []string{"socks", "sweater"}, "jacket\nshoes\nsocks\nsweater\n"},
-
-		{g2, "allpaths", []string{"a", "d"}, "a\nb\nc\nd\n"},
-
-		{g2, "sccs", nil, "a\nb\nc d\n"},
-		{g2, "scc", []string{"d"}, "c\nd\n"},
-		{g2, "succs", []string{"a"}, "b\nc\n"},
-		{g2, "preds", []string{"c"}, "a\nd\n"},
-		{g2, "preds", []string{"c", "d"}, "a\nb\nc\nd\n"},
+		{"nodes", g1, "nodes", nil, "belt\nhat\njacket\npants\nshirt\nshoes\nshorts\nsocks\nsweater\ntie\n"},
+		{"reverse", g1, "reverse", []string{"jacket"}, "jacket\nshirt\nsweater\n"},
+		{"forward", g1, "forward", []string{"socks"}, "shoes\nsocks\n"},
+		{"forward multiple args", g1, "forward", []string{"socks", "sweater"}, "jacket\nshoes\nsocks\nsweater\n"},
+		{"scss", g2, "sccs", nil, "a\nb\nc d\n"},
+		{"scc", g2, "scc", []string{"d"}, "c\nd\n"},
+		{"succs", g2, "succs", []string{"a"}, "b\nc\n"},
+		{"preds", g2, "preds", []string{"c"}, "a\nd\n"},
+		{"preds multiple args", g2, "preds", []string{"c", "d"}, "a\nb\nc\nd\n"},
 	} {
-		stdin = strings.NewReader(test.input)
-		stdout = new(bytes.Buffer)
-		if err := digraph(test.cmd, test.args); err != nil {
-			t.Error(err)
-			continue
-		}
+		t.Run(test.name, func(t *testing.T) {
+			stdin = strings.NewReader(test.input)
+			stdout = new(bytes.Buffer)
+			if err := digraph(test.cmd, test.args); err != nil {
+				t.Fatal(err)
+			}
 
-		got := stdout.(fmt.Stringer).String()
-		if got != test.want {
-			t.Errorf("digraph(%s, %s) = %q, want %q", test.cmd, test.args, got, test.want)
-		}
+			got := stdout.(fmt.Stringer).String()
+			if got != test.want {
+				t.Errorf("digraph(%s, %s) = got %q, want %q", test.cmd, test.args, got, test.want)
+			}
+		})
 	}
 
 	// TODO(adonovan):
 	// - test somepath (it's nondeterministic).
 	// - test errors
+}
+
+func TestAllpaths(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		in   string
+		to   string // from is always "A"
+		want string
+	}{
+		{
+			name: "Basic",
+			in:   "A B\nB C",
+			to:   "B",
+			want: "A B\n",
+		},
+		{
+			name: "Long",
+			in:   "A B\nB C\n",
+			to:   "C",
+			want: "A B\nB C\n",
+		},
+		{
+			name: "Cycle Basic",
+			in:   "A B\nB A",
+			to:   "B",
+			want: "A B\nB A\n",
+		},
+		{
+			name: "Cycle Path Out",
+			// A <-> B -> C -> D
+			in:   "A B\nB A\nB C\nC D",
+			to:   "C",
+			want: "A B\nB A\nB C\n",
+		},
+		{
+			name: "Cycle Path Out Further Out",
+			// A -> B <-> C -> D -> E
+			in:   "A B\nB C\nC D\nC B\nD E",
+			to:   "D",
+			want: "A B\nB C\nC B\nC D\n",
+		},
+		{
+			name: "Two Paths Basic",
+			//           /-> C --\
+			// A -> B --          -> E -> F
+			//           \-> D --/
+			in:   "A B\nB C\nC E\nB D\nD E\nE F",
+			to:   "E",
+			want: "A B\nB C\nB D\nC E\nD E\n",
+		},
+		{
+			name: "Two Paths With One Immediately From Start",
+			//      /-> B -+ -> D
+			// A --        |
+			//      \-> C <+
+			in:   "A B\nA C\nB C\nB D",
+			to:   "C",
+			want: "A B\nA C\nB C\n",
+		},
+		{
+			name: "Two Paths Further Up",
+			//      /-> B --\
+			// A --          -> D -> E -> F
+			//      \-> C --/
+			in:   "A B\nA C\nB D\nC D\nD E\nE F",
+			to:   "E",
+			want: "A B\nA C\nB D\nC D\nD E\n",
+		},
+		{
+			// We should include A - C  - D even though it's further up the
+			// second path than D (which would already be in the graph by
+			// the time we get around to integrating the second path).
+			name: "Two Splits",
+			//      /-> B --\         /-> E --\
+			// A --           -> D --          -> G -> H
+			//      \-> C --/         \-> F --/
+			in:   "A B\nA C\nB D\nC D\nD E\nD F\nE G\nF G\nG H",
+			to:   "G",
+			want: "A B\nA C\nB D\nC D\nD E\nD F\nE G\nF G\n",
+		},
+		{
+			// D - E should not be duplicated.
+			name: "Two Paths - Two Splits With Gap",
+			//      /-> B --\              /-> F --\
+			// A --           -> D -> E --          -> H -> I
+			//      \-> C --/              \-> G --/
+			in:   "A B\nA C\nB D\nC D\nD E\nE F\nE G\nF H\nG H\nH I",
+			to:   "H",
+			want: "A B\nA C\nB D\nC D\nD E\nE F\nE G\nF H\nG H\n",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			stdin = strings.NewReader(test.in)
+			stdout = new(bytes.Buffer)
+			if err := digraph("allpaths", []string{"A", test.to}); err != nil {
+				t.Fatal(err)
+			}
+
+			got := stdout.(fmt.Stringer).String()
+			if got != test.want {
+				t.Errorf("digraph(allpaths, A, %s) = got %q, want %q", test.to, got, test.want)
+			}
+		})
+	}
 }
 
 func TestSplit(t *testing.T) {
