@@ -47,9 +47,16 @@ known commit.
 
 This default version selection can be overridden by adding an @version
 suffix to the package argument, as in 'go get golang.org/x/text@v0.3.0'.
+The version may be a prefix: @v1 denotes the latest available version starting
+with v1. See 'go help modules' under the heading 'Module queries' for the
+full query syntax.
+
 For modules stored in source control repositories, the version suffix can
 also be a commit hash, branch identifier, or other syntax known to the
-source control system, as in 'go get golang.org/x/text@master'.
+source control system, as in 'go get golang.org/x/text@master'. Note that
+branches with names that overlap with other module query syntax cannot be
+selected explicitly. For example, the suffix @v2 means the latest version
+starting with v2, not the branch named v2.
 
 If a module under consideration is already a dependency of the current
 development module, then get will update the required version.
