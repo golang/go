@@ -42,7 +42,10 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 			}
 			target = "https://godoc.org/" + target
 			l, err := toProtocolLink(view, m, target, n.Pos(), n.End())
-			view.Session().Logger().Errorf(ctx, "cannot initialize DocumentLink %s: %v", n.Path.Value, err)
+			if err != nil {
+				view.Session().Logger().Errorf(ctx, "cannot initialize DocumentLink %s: %v", n.Path.Value, err)
+				return false
+			}
 			links = append(links, l)
 			return false
 		case *ast.BasicLit:
