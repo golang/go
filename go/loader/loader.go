@@ -811,7 +811,15 @@ func (imp *importer) doImport(from *PackageInfo, to string) (*types.Package, err
 	// Import of incomplete package: this indicates a cycle.
 	fromPath := from.Pkg.Path()
 	if cycle := imp.findPath(path, fromPath); cycle != nil {
-		cycle = append([]string{fromPath}, cycle...)
+		// Normalize cycle: start from alphabetically largest node.
+		pos, start := -1, ""
+		for i, s := range cycle {
+			if pos < 0 || s > start {
+				pos, start = i, s
+			}
+		}
+		cycle = append(cycle, cycle[:pos]...)[pos:] // rotate cycle to start from largest
+		cycle = append(cycle, cycle[0])             // add start node to end to show cycliness
 		return nil, fmt.Errorf("import cycle: %s", strings.Join(cycle, " -> "))
 	}
 
