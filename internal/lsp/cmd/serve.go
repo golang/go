@@ -20,6 +20,9 @@ import (
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/debug"
+	"golang.org/x/tools/internal/lsp/telemetry"
+	"golang.org/x/tools/internal/lsp/telemetry/tag"
+	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/tool"
 )
 
@@ -245,4 +248,91 @@ func (h *handler) log(direction jsonrpc2.Direction, id *jsonrpc2.ID, elapsed tim
 	}
 	fmt.Fprintf(outx, ".\r\nParams: %s%s", params, eol)
 	fmt.Fprintf(h.out, "%s", outx.String())
+}
+
+type rpcStats struct {
+	server bool
+	method string
+	close  func()
+	start  time.Time
+}
+
+func start(ctx context.Context, server bool, method string, id *ID) (context.Context, *rpcStats) {
+	if method == "" {
+		panic("no method in rpc stats")
+	}
+	s := &rpcStats{
+		server: server,
+		method: method,
+		start:  time.Now(),
+	}
+	mode := telemetry.Outbound
+	if server {
+		mode = telemetry.Inbound
+	}
+	ctx, s.close = trace.StartSpan(ctx, method,
+		tag.Tag{Key: telemetry.Method, Value: method},
+		tag.Tag{Key: telemetry.RPCDirection, Value: mode},
+		tag.Tag{Key: telemetry.RPCID, Value: id},
+	)
+	telemetry.Started.Record(ctx, 1)
+	return ctx, s
+}
+
+func (s *rpcStats) end(ctx context.Context, err *error) {
+	if err != nil && *err != nil {
+		ctx = telemetry.StatusCode.With(ctx, "ERROR")
+	} else {
+		ctx = telemetry.StatusCode.With(ctx, "OK")
+	}
+	elapsedTime := time.Since(s.start)
+	latencyMillis := float64(elapsedTime) / float64(time.Millisecond)
+	telemetry.Latency.Record(ctx, latencyMillis)
+	s.close()
+}
+
+type statsKeyType int
+
+const statsKey = statsKeyType(0)
+
+type tracer struct {
+}
+
+func (h *tracer) Deliver(ctx context.Context, r *Request, delivered bool) bool {
+	return false
+}
+
+func (h *tracer) Cancel(ctx context.Context, conn *Conn, id ID, cancelled bool) bool {
+	return false
+}
+
+func (h *tracer) Request(ctx context.Context, direction Direction, r *WireRequest) context.Context {
+	ctx, stats := start(ctx, direction == Receive, r.Method, r.ID)
+	ctx = context.WithValue(ctx, statsKey, stats)
+	return ctx
+}
+
+func (h *tracer) Response(ctx context.Context, direction Direction, r *WireResponse) context.Context {
+	return ctx
+}
+
+func (h *tracer) Done(ctx context.Context, err error) {
+	stats, ok := ctx.Value(statsKey).(*rpcStats)
+	if ok && stats != nil {
+		stats.end(ctx, &err)
+	}
+}
+
+func (h *tracer) Read(ctx context.Context, bytes int64) context.Context {
+	telemetry.SentBytes.Record(ctx, bytes)
+	return ctx
+}
+
+func (h *tracer) Wrote(ctx context.Context, bytes int64) context.Context {
+	telemetry.ReceivedBytes.Record(ctx, bytes)
+	return ctx
+}
+
+func (h *tracer) Error(ctx context.Context, err error) {
+	log.Printf("%v", err)
 }
