@@ -10,9 +10,9 @@ import (
 	"log"
 )
 
-// Logger is a wrapper over a sink to provide a clean API over the core log
+// logger is a wrapper over a sink to provide a clean API over the core log
 // function.
-type Logger struct {
+type logger struct {
 	sink Sink
 }
 
@@ -37,18 +37,18 @@ type StdSink struct{}
 
 // Errorf is intended for the logging of errors that we could not easily return
 // to the client but that caused problems internally.
-func (l Logger) Errorf(ctx context.Context, format string, args ...interface{}) {
+func (l logger) Errorf(ctx context.Context, format string, args ...interface{}) {
 	l.sink.Log(ctx, ErrorLevel, fmt.Sprintf(format, args...))
 }
 
 // Infof is intended for logging of messages that may help the user understand
 // the behavior or be useful in a bug report.
-func (l Logger) Infof(ctx context.Context, format string, args ...interface{}) {
+func (l logger) Infof(ctx context.Context, format string, args ...interface{}) {
 	l.sink.Log(ctx, InfoLevel, fmt.Sprintf(format, args...))
 }
 
 // Debugf is intended to be used only while debugging.
-func (l Logger) Debugf(ctx context.Context, format string, args ...interface{}) {
+func (l logger) Debugf(ctx context.Context, format string, args ...interface{}) {
 	l.sink.Log(ctx, DebugLevel, fmt.Sprintf(format, args...))
 }
 
@@ -73,8 +73,8 @@ func With(ctx context.Context, sink Sink) context.Context {
 	return context.WithValue(ctx, contextKey, sink)
 }
 
-func From(ctx context.Context) Logger {
-	return Logger{sink: ctx.Value(contextKey).(Sink)}
+func From(ctx context.Context) logger {
+	return logger{sink: ctx.Value(contextKey).(Sink)}
 }
 
 func Errorf(ctx context.Context, format string, args ...interface{}) {

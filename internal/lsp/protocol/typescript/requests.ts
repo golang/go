@@ -113,16 +113,16 @@ function goNot(side: side, m: string) {
   if (a != '') {
     case1 = `var params ${a}
     if err := json.Unmarshal(*r.Params, &params); err != nil {
-      sendParseError(ctx, h.log, r, err)
+      sendParseError(ctx, r, err)
       return true
     }
     if err := h.${side.name}.${nm}(ctx, &params); err != nil {
-      h.log.Errorf(ctx, "%v", err)
+      xlog.Errorf(ctx, "%v", err)
     }
     return true`;
   } else {
     case1 = `if err := h.${side.name}.${nm}(ctx); err != nil {
-      h.log.Errorf(ctx, "%v", err)
+      xlog.Errorf(ctx, "%v", err)
     }
     return true`;
   }
@@ -154,24 +154,24 @@ function goReq(side: side, m: string) {
   if (a != '') {
     case1 = `var params ${a}
     if err := json.Unmarshal(*r.Params, &params); err != nil {
-      sendParseError(ctx, h.log, r, err)
+      sendParseError(ctx, r, err)
       return true
     }`;
   }
   const arg2 = a == '' ? '' : ', &params';
   let case2 = `if err := h.${side.name}.${nm}(ctx${arg2}); err != nil {
-    h.log.Errorf(ctx, "%v", err)
+    xlog.Errorf(ctx, "%v", err)
   }`;
   if (b != '') {
     case2 = `resp, err := h.${side.name}.${nm}(ctx${arg2})
     if err := r.Reply(ctx, resp, err); err != nil {
-      h.log.Errorf(ctx, "%v", err)
+      xlog.Errorf(ctx, "%v", err)
     }
     return true`;
   } else {  // response is nil
     case2 = `err := h.${side.name}.${nm}(ctx${arg2})
     if err := r.Reply(ctx, nil, err); err != nil {
-      h.log.Errorf(ctx, "%v", err)
+      xlog.Errorf(ctx, "%v", err)
     }
     return true`
   }
@@ -226,6 +226,7 @@ function output(side: side) {
     "encoding/json"
 
     "golang.org/x/tools/internal/jsonrpc2"
+    "golang.org/x/tools/internal/lsp/xlog"
   )
   `);
   const a = side.name[0].toUpperCase() + side.name.substring(1)
@@ -240,7 +241,7 @@ function output(side: side) {
       case "$/cancelRequest":
         var params CancelParams
         if err := json.Unmarshal(*r.Params, &params); err != nil {
-          sendParseError(ctx, h.log, r, err)
+          sendParseError(ctx, r, err)
           return true
         }
         r.Conn().Cancel(params.ID)

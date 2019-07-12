@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 
 	"golang.org/x/tools/internal/jsonrpc2"
+	"golang.org/x/tools/internal/lsp/xlog"
 )
 
 type Client interface {
@@ -30,7 +31,7 @@ func (h clientHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 	case "$/cancelRequest":
 		var params CancelParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
-			sendParseError(ctx, h.log, r, err)
+			sendParseError(ctx, r, err)
 			return true
 		}
 		r.Conn().Cancel(params.ID)
@@ -38,41 +39,41 @@ func (h clientHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 	case "window/showMessage": // notif
 		var params ShowMessageParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
-			sendParseError(ctx, h.log, r, err)
+			sendParseError(ctx, r, err)
 			return true
 		}
 		if err := h.client.ShowMessage(ctx, &params); err != nil {
-			h.log.Errorf(ctx, "%v", err)
+			xlog.Errorf(ctx, "%v", err)
 		}
 		return true
 	case "window/logMessage": // notif
 		var params LogMessageParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
-			sendParseError(ctx, h.log, r, err)
+			sendParseError(ctx, r, err)
 			return true
 		}
 		if err := h.client.LogMessage(ctx, &params); err != nil {
-			h.log.Errorf(ctx, "%v", err)
+			xlog.Errorf(ctx, "%v", err)
 		}
 		return true
 	case "telemetry/event": // notif
 		var params interface{}
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
-			sendParseError(ctx, h.log, r, err)
+			sendParseError(ctx, r, err)
 			return true
 		}
 		if err := h.client.Event(ctx, &params); err != nil {
-			h.log.Errorf(ctx, "%v", err)
+			xlog.Errorf(ctx, "%v", err)
 		}
 		return true
 	case "textDocument/publishDiagnostics": // notif
 		var params PublishDiagnosticsParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
-			sendParseError(ctx, h.log, r, err)
+			sendParseError(ctx, r, err)
 			return true
 		}
 		if err := h.client.PublishDiagnostics(ctx, &params); err != nil {
-			h.log.Errorf(ctx, "%v", err)
+			xlog.Errorf(ctx, "%v", err)
 		}
 		return true
 	case "workspace/workspaceFolders": // req
@@ -82,62 +83,62 @@ func (h clientHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 		}
 		resp, err := h.client.WorkspaceFolders(ctx)
 		if err := r.Reply(ctx, resp, err); err != nil {
-			h.log.Errorf(ctx, "%v", err)
+			xlog.Errorf(ctx, "%v", err)
 		}
 		return true
 	case "workspace/configuration": // req
 		var params ConfigurationParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
-			sendParseError(ctx, h.log, r, err)
+			sendParseError(ctx, r, err)
 			return true
 		}
 		resp, err := h.client.Configuration(ctx, &params)
 		if err := r.Reply(ctx, resp, err); err != nil {
-			h.log.Errorf(ctx, "%v", err)
+			xlog.Errorf(ctx, "%v", err)
 		}
 		return true
 	case "client/registerCapability": // req
 		var params RegistrationParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
-			sendParseError(ctx, h.log, r, err)
+			sendParseError(ctx, r, err)
 			return true
 		}
 		err := h.client.RegisterCapability(ctx, &params)
 		if err := r.Reply(ctx, nil, err); err != nil {
-			h.log.Errorf(ctx, "%v", err)
+			xlog.Errorf(ctx, "%v", err)
 		}
 		return true
 	case "client/unregisterCapability": // req
 		var params UnregistrationParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
-			sendParseError(ctx, h.log, r, err)
+			sendParseError(ctx, r, err)
 			return true
 		}
 		err := h.client.UnregisterCapability(ctx, &params)
 		if err := r.Reply(ctx, nil, err); err != nil {
-			h.log.Errorf(ctx, "%v", err)
+			xlog.Errorf(ctx, "%v", err)
 		}
 		return true
 	case "window/showMessageRequest": // req
 		var params ShowMessageRequestParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
-			sendParseError(ctx, h.log, r, err)
+			sendParseError(ctx, r, err)
 			return true
 		}
 		resp, err := h.client.ShowMessageRequest(ctx, &params)
 		if err := r.Reply(ctx, resp, err); err != nil {
-			h.log.Errorf(ctx, "%v", err)
+			xlog.Errorf(ctx, "%v", err)
 		}
 		return true
 	case "workspace/applyEdit": // req
 		var params ApplyWorkspaceEditParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
-			sendParseError(ctx, h.log, r, err)
+			sendParseError(ctx, r, err)
 			return true
 		}
 		resp, err := h.client.ApplyEdit(ctx, &params)
 		if err := r.Reply(ctx, resp, err); err != nil {
-			h.log.Errorf(ctx, "%v", err)
+			xlog.Errorf(ctx, "%v", err)
 		}
 		return true
 

@@ -19,13 +19,11 @@ type canceller struct{ jsonrpc2.EmptyHandler }
 
 type clientHandler struct {
 	canceller
-	log    xlog.Logger
 	client Client
 }
 
 type serverHandler struct {
 	canceller
-	log    xlog.Logger
 	server Server
 }
 
@@ -43,7 +41,7 @@ func (canceller) Cancel(ctx context.Context, conn *jsonrpc2.Conn, id jsonrpc2.ID
 func NewClient(ctx context.Context, stream jsonrpc2.Stream, client Client) (context.Context, *jsonrpc2.Conn, Server) {
 	ctx = xlog.With(ctx, NewLogger(client))
 	conn := jsonrpc2.NewConn(stream)
-	conn.AddHandler(&clientHandler{log: xlog.From(ctx), client: client})
+	conn.AddHandler(&clientHandler{client: client})
 	return ctx, conn, &serverDispatcher{Conn: conn}
 }
 
@@ -51,11 +49,11 @@ func NewServer(ctx context.Context, stream jsonrpc2.Stream, server Server) (cont
 	conn := jsonrpc2.NewConn(stream)
 	client := &clientDispatcher{Conn: conn}
 	ctx = xlog.With(ctx, NewLogger(client))
-	conn.AddHandler(&serverHandler{log: xlog.From(ctx), server: server})
+	conn.AddHandler(&serverHandler{server: server})
 	return ctx, conn, client
 }
 
-func sendParseError(ctx context.Context, log xlog.Logger, req *jsonrpc2.Request, err error) {
+func sendParseError(ctx context.Context, req *jsonrpc2.Request, err error) {
 	if _, ok := err.(*jsonrpc2.Error); !ok {
 		err = jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err)
 	}

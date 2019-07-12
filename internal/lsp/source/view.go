@@ -14,7 +14,6 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/diff"
-	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -133,9 +132,6 @@ type Session interface {
 
 	// Cache returns the cache that created this session.
 	Cache() Cache
-
-	// Returns the logger in use for this session.
-	Logger() xlog.Logger
 
 	// View returns a view with a mathing name, if the session has one.
 	View(name string) View

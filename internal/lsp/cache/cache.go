@@ -14,7 +14,6 @@ import (
 
 	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
 )
@@ -77,7 +76,6 @@ func (c *cache) NewSession(ctx context.Context) source.Session {
 	s := &session{
 		cache:         c,
 		id:            strconv.FormatInt(index, 10),
-		log:           xlog.From(ctx),
 		overlays:      make(map[span.URI]*overlay),
 		filesWatchMap: NewWatchMap(),
 	}

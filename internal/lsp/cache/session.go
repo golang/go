@@ -24,8 +24,6 @@ import (
 type session struct {
 	cache *cache
 	id    string
-	// the logger to use to communicate back with the client
-	log xlog.Logger
 
 	viewMu  sync.Mutex
 	views   []*view
@@ -177,10 +175,6 @@ func (s *session) removeView(ctx context.Context, view *view) error {
 		}
 	}
 	return fmt.Errorf("view %s for %v not found", view.Name(), view.Folder())
-}
-
-func (s *session) Logger() xlog.Logger {
-	return s.log
 }
 
 // TODO: Propagate the language ID through to the view.
