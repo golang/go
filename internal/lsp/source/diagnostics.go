@@ -239,9 +239,9 @@ func pointToSpan(ctx context.Context, view View, spn span.Span) span.Span {
 		xlog.Errorf(ctx, "%s is not a Go file", spn.URI())
 		return spn
 	}
-	tok := diagFile.GetToken(ctx)
-	if tok == nil {
-		xlog.Errorf(ctx, "could not find token.File for diagnostic: %v", spn.URI())
+	tok, err := diagFile.GetToken(ctx)
+	if err != nil {
+		xlog.Errorf(ctx, "could not find token.File for %s: %v", spn.URI(), err)
 		return spn
 	}
 	data, _, err := diagFile.Handle(ctx).Read(ctx)

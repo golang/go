@@ -44,10 +44,11 @@ type Symbol struct {
 func DocumentSymbols(ctx context.Context, f GoFile) ([]Symbol, error) {
 	ctx, done := trace.StartSpan(ctx, "source.DocumentSymbols")
 	defer done()
+
 	fset := f.FileSet()
-	file := f.GetAST(ctx)
+	file, err := f.GetAST(ctx, ParseFull)
 	if file == nil {
-		return nil, fmt.Errorf("no AST for %s", f.URI())
+		return nil, err
 	}
 	pkg := f.GetPackage(ctx)
 	if pkg == nil || pkg.IsIllTyped() {

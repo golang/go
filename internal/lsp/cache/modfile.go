@@ -6,6 +6,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"go/token"
 )
 
@@ -14,7 +15,10 @@ type modFile struct {
 	fileBase
 }
 
-func (*modFile) GetToken(context.Context) *token.File { return nil }
-func (*modFile) setContent(content []byte)            {}
-func (*modFile) filename() string                     { return "" }
-func (*modFile) isActive() bool                       { return false }
+func (*modFile) GetToken(context.Context) (*token.File, error) {
+	return nil, fmt.Errorf("GetToken: not implemented")
+}
+
+func (*modFile) setContent(content []byte) {}
+func (*modFile) filename() string          { return "" }
+func (*modFile) isActive() bool            { return false }

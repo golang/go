@@ -280,11 +280,11 @@ type CompletionOptions struct {
 func Completion(ctx context.Context, view View, f GoFile, pos token.Pos, opts CompletionOptions) ([]CompletionItem, *Selection, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Completion")
 	defer done()
-	file := f.GetAST(ctx)
-	if file == nil {
-		return nil, nil, fmt.Errorf("no AST for %s", f.URI())
-	}
 
+	file, err := f.GetAST(ctx, ParseFull)
+	if file == nil {
+		return nil, nil, err
+	}
 	pkg := f.GetPackage(ctx)
 	if pkg == nil || pkg.IsIllTyped() {
 		return nil, nil, fmt.Errorf("package for %s is ill typed", f.URI())
@@ -509,6 +509,7 @@ func (c *completer) lexical() error {
 			if scope == types.Universe {
 				score *= 0.1
 			}
+
 			// If we haven't already added a candidate for an object with this name.
 			if _, ok := seen[obj.Name()]; !ok {
 				seen[obj.Name()] = struct{}{}

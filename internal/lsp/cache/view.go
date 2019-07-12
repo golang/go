@@ -245,8 +245,6 @@ func (f *goFile) invalidateContent(ctx context.Context) {
 // including any position and type information that depends on it.
 func (f *goFile) invalidateAST(ctx context.Context) {
 	f.mu.Lock()
-	f.ast = nil
-	f.token = nil
 	pkgs := f.pkgs
 	f.mu.Unlock()
 
@@ -287,6 +285,16 @@ func (v *view) remove(ctx context.Context, id packageID, seen map[packageID]stru
 			continue
 		}
 		gof.mu.Lock()
+		if pkg, ok := gof.pkgs[id]; ok {
+			// TODO: Ultimately, we shouldn't need this.
+			// Preemptively delete all of the cached keys if we are invalidating a package.
+			for _, ph := range pkg.files {
+				v.session.cache.store.Delete(parseKey{
+					file: ph.File().Identity(),
+					mode: ph.Mode(),
+				})
+			}
+		}
 		delete(gof.pkgs, id)
 		gof.mu.Unlock()
 	}

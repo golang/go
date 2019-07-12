@@ -28,9 +28,10 @@ type ParameterInformation struct {
 func SignatureHelp(ctx context.Context, f GoFile, pos token.Pos) (*SignatureInformation, error) {
 	ctx, done := trace.StartSpan(ctx, "source.SignatureHelp")
 	defer done()
-	file := f.GetAST(ctx)
+
+	file, err := f.GetAST(ctx, ParseFull)
 	if file == nil {
-		return nil, fmt.Errorf("no AST for %s", f.URI())
+		return nil, err
 	}
 	pkg := f.GetPackage(ctx)
 	if pkg == nil || pkg.IsIllTyped() {

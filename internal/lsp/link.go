@@ -26,13 +26,12 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 	if err != nil {
 		return nil, err
 	}
-	file := f.GetAST(ctx)
+	file, err := f.GetAST(ctx, source.ParseFull)
 	if file == nil {
-		return nil, fmt.Errorf("no AST for %v", uri)
+		return nil, err
 	}
 
 	var links []protocol.DocumentLink
-
 	ast.Inspect(file, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.ImportSpec:
@@ -78,6 +77,27 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 	return links, nil
 }
 
+func findLinksInString(src string, pos token.Pos, view source.View, mapper *protocol.ColumnMapper) ([]protocol.DocumentLink, error) {
+	var links []protocol.DocumentLink
+	re, err := getURLRegexp()
+	if err != nil {
+		return nil, fmt.Errorf("cannot create regexp for links: %s", err.Error())
+	}
+	for _, urlIndex := range re.FindAllIndex([]byte(src), -1) {
+		start := urlIndex[0]
+		end := urlIndex[1]
+		startPos := token.Pos(int(pos) + start)
+		endPos := token.Pos(int(pos) + end)
+		target := src[start:end]
+		l, err := toProtocolLink(view, mapper, target, startPos, endPos)
+		if err != nil {
+			return nil, err
+		}
+		links = append(links, l)
+	}
+	return links, nil
+}
+
 const urlRegexpString = "(http|ftp|https)://([\\w_-]+(?:(?:\\.[\\w_-]+)+))([\\w.,@?^=%&:/~+#-]*[\\w@?^=%&/~+#-])?"
 
 var (
@@ -107,25 +127,4 @@ func toProtocolLink(view source.View, mapper *protocol.ColumnMapper, target stri
 		Target: target,
 	}
 	return l, nil
-}
-
-func findLinksInString(src string, pos token.Pos, view source.View, mapper *protocol.ColumnMapper) ([]protocol.DocumentLink, error) {
-	var links []protocol.DocumentLink
-	re, err := getURLRegexp()
-	if err != nil {
-		return nil, fmt.Errorf("cannot create regexp for links: %s", err.Error())
-	}
-	for _, urlIndex := range re.FindAllIndex([]byte(src), -1) {
-		start := urlIndex[0]
-		end := urlIndex[1]
-		startPos := token.Pos(int(pos) + start)
-		endPos := token.Pos(int(pos) + end)
-		target := src[start:end]
-		l, err := toProtocolLink(view, mapper, target, startPos, endPos)
-		if err != nil {
-			return nil, err
-		}
-		links = append(links, l)
-	}
-	return links, nil
 }

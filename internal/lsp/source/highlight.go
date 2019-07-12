@@ -18,9 +18,10 @@ import (
 func Highlight(ctx context.Context, f GoFile, pos token.Pos) ([]span.Span, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Highlight")
 	defer done()
-	file := f.GetAST(ctx)
+
+	file, err := f.GetAST(ctx, ParseFull)
 	if file == nil {
-		return nil, fmt.Errorf("no AST for %s", f.URI())
+		return nil, err
 	}
 	fset := f.FileSet()
 	path, _ := astutil.PathEnclosingInterval(file, pos, pos)

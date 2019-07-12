@@ -6,7 +6,6 @@ package lsp
 
 import (
 	"context"
-	"fmt"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -39,9 +38,9 @@ func spanToRange(ctx context.Context, view source.View, s span.Span) (source.GoF
 	}
 	if rng.Start == rng.End {
 		// If we have a single point, assume we want the whole file.
-		tok := f.GetToken(ctx)
-		if tok == nil {
-			return nil, nil, span.Range{}, fmt.Errorf("no file information for %s", f.URI())
+		tok, err := f.GetToken(ctx)
+		if err != nil {
+			return nil, nil, span.Range{}, err
 		}
 		rng.End = tok.Pos(tok.Size())
 	}

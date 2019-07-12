@@ -39,6 +39,7 @@ type renamer struct {
 func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.URI][]TextEdit, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Rename")
 	defer done()
+
 	if i.Name == newName {
 		return nil, fmt.Errorf("old and new names are the same: %s", newName)
 	}

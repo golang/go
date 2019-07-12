@@ -148,7 +148,7 @@ func (act *Action) execOnce(ctx context.Context, fset *token.FileSet) error {
 	pass := &analysis.Pass{
 		Analyzer:          act.Analyzer,
 		Fset:              fset,
-		Files:             act.Pkg.GetSyntax(),
+		Files:             act.Pkg.GetSyntax(ctx),
 		Pkg:               act.Pkg.GetTypes(),
 		TypesInfo:         act.Pkg.GetTypesInfo(),
 		TypesSizes:        act.Pkg.GetTypesSizes(),

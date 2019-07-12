@@ -65,16 +65,17 @@ func Identifier(ctx context.Context, view View, f GoFile, pos token.Pos) (*Ident
 func identifier(ctx context.Context, view View, f GoFile, pos token.Pos) (*IdentifierInfo, error) {
 	ctx, done := trace.StartSpan(ctx, "source.identifier")
 	defer done()
-	file := f.GetAST(ctx)
+
+	file, err := f.GetAST(ctx, ParseFull)
 	if file == nil {
-		return nil, fmt.Errorf("no AST for %s", f.URI())
+		return nil, err
 	}
 	pkg := f.GetPackage(ctx)
 	if pkg == nil || pkg.IsIllTyped() {
 		return nil, fmt.Errorf("pkg for %s is ill-typed", f.URI())
 	}
 	// Handle import specs separately, as there is no formal position for a package declaration.
-	if result, err := importSpec(f, file, pkg, pos); result != nil || err != nil {
+	if result, err := importSpec(ctx, f, file, pkg, pos); result != nil || err != nil {
 		return result, err
 	}
 	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
@@ -120,8 +121,6 @@ func identifier(ctx context.Context, view View, f GoFile, pos token.Pos) (*Ident
 			return nil, fmt.Errorf("no object for ident %v", result.Name)
 		}
 	}
-
-	var err error
 
 	// Handle builtins separately.
 	if result.decl.obj.Parent() == types.Universe {
@@ -235,14 +234,13 @@ func objToNode(ctx context.Context, view View, originPkg *types.Package, obj typ
 	}
 	// If the object is exported from a different package,
 	// we don't need its full AST to find the definition.
-	var declAST *ast.File
+	mode := ParseFull
 	if obj.Exported() && obj.Pkg() != originPkg {
-		declAST = declFile.GetAnyAST(ctx)
-	} else {
-		declAST = declFile.GetAST(ctx)
+		mode = ParseExported
 	}
+	declAST, err := declFile.GetAST(ctx, mode)
 	if declAST == nil {
-		return nil, fmt.Errorf("no AST for %s", f.URI())
+		return nil, err
 	}
 	path, _ := astutil.PathEnclosingInterval(declAST, rng.Start, rng.End)
 	if path == nil {
@@ -267,7 +265,7 @@ func objToNode(ctx context.Context, view View, originPkg *types.Package, obj typ
 }
 
 // importSpec handles positions inside of an *ast.ImportSpec.
-func importSpec(f GoFile, fAST *ast.File, pkg Package, pos token.Pos) (*IdentifierInfo, error) {
+func importSpec(ctx context.Context, f GoFile, fAST *ast.File, pkg Package, pos token.Pos) (*IdentifierInfo, error) {
 	var imp *ast.ImportSpec
 	for _, spec := range fAST.Imports {
 		if spec.Pos() <= pos && pos < spec.End() {
@@ -292,12 +290,12 @@ func importSpec(f GoFile, fAST *ast.File, pkg Package, pos token.Pos) (*Identifi
 	if importedPkg == nil {
 		return nil, fmt.Errorf("no import for %q", importPath)
 	}
-	if importedPkg.GetSyntax() == nil {
+	if importedPkg.GetSyntax(ctx) == nil {
 		return nil, fmt.Errorf("no syntax for for %q", importPath)
 	}
 	// Heuristic: Jump to the longest (most "interesting") file of the package.
 	var dest *ast.File
-	for _, f := range importedPkg.GetSyntax() {
+	for _, f := range importedPkg.GetSyntax(ctx) {
 		if dest == nil || f.End()-f.Pos() > dest.End()-dest.Pos() {
 			dest = f
 		}

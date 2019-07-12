@@ -20,7 +20,7 @@ func (v *view) loadParseTypecheck(ctx context.Context, f *goFile) ([]packages.Er
 
 	// If the AST for this file is trimmed, and we are explicitly type-checking it,
 	// don't ignore function bodies.
-	if f.astIsTrimmed() {
+	if f.wrongParseMode(ctx, source.ParseFull) {
 		v.pcache.mu.Lock()
 		f.invalidateAST(ctx)
 		v.pcache.mu.Unlock()

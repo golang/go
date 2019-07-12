@@ -34,8 +34,6 @@ type fileBase struct {
 
 	handleMu sync.Mutex
 	handle   source.FileHandle
-
-	token *token.File
 }
 
 func basename(filename string) string {

@@ -98,31 +98,38 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	if c.opts.WantDocumentaton {
 		declRange, err := objToRange(c.ctx, c.view.Session().Cache().FileSet(), obj)
 		if err != nil {
-			return CompletionItem{}, err
+			xlog.Errorf(c.ctx, "failed to get declaration range for object %s: %v", obj.Name(), err)
+			goto Return
 		}
 		pos := declRange.FileSet.Position(declRange.Start)
 		if !pos.IsValid() {
-			return CompletionItem{}, fmt.Errorf("invalid declaration position for %v", item.Label)
+			xlog.Errorf(c.ctx, "invalid declaration position for %v: %v", item.Label, err)
+			goto Return
 		}
 		uri := span.FileURI(pos.Filename)
 		f, err := c.view.GetFile(c.ctx, uri)
 		if err != nil {
-			return CompletionItem{}, err
+			xlog.Errorf(c.ctx, "unable to get file for %s: %v", uri, err)
+			goto Return
 		}
 		gof, ok := f.(GoFile)
 		if !ok {
-			return CompletionItem{}, fmt.Errorf("declaration for %s not in a Go file: %s", item.Label, uri)
+			xlog.Errorf(c.ctx, "declaration for %s not in a Go file: %s", item.Label, uri)
+			goto Return
 		}
 		ident, err := Identifier(c.ctx, c.view, gof, declRange.Start)
 		if err != nil {
-			return CompletionItem{}, err
+			xlog.Errorf(c.ctx, "no identifier for %s: %v", obj.Name(), err)
+			goto Return
 		}
 		documentation, err := ident.Documentation(c.ctx, SynopsisDocumentation)
 		if err != nil {
-			return CompletionItem{}, err
+			xlog.Errorf(c.ctx, "no documentation for %s: %v", obj.Name(), err)
+			goto Return
 		}
 		item.Documentation = documentation
 	}
+Return:
 	return item, nil
 }
 

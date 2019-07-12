@@ -25,9 +25,10 @@ import (
 func Format(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Format")
 	defer done()
-	file := f.GetAST(ctx)
+
+	file, err := f.GetAST(ctx, ParseFull)
 	if file == nil {
-		return nil, fmt.Errorf("no AST for %s", f.URI())
+		return nil, err
 	}
 	pkg := f.GetPackage(ctx)
 	if hasListErrors(pkg.GetErrors()) || hasParseErrors(pkg.GetErrors()) {
