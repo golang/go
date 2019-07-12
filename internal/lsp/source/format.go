@@ -86,17 +86,7 @@ func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]TextEd
 		return nil, fmt.Errorf("%s has list errors, not running goimports", f.URI())
 	}
 
-	if resolver, ok := view.ProcessEnv(ctx).GetResolver().(*imports.ModuleResolver); ok && resolver.Initialized {
-		// TODO(suzmue): only reset this state when necessary (eg when the go.mod files of this
-		// module or modules with replace directive changes).
-		resolver.Initialized = false
-		resolver.Main = nil
-		resolver.ModsByModPath = nil
-		resolver.ModsByDir = nil
-		resolver.ModCachePkgs = nil
-	}
 	options := &imports.Options{
-		Env: view.ProcessEnv(ctx),
 		// Defaults.
 		AllErrors:  true,
 		Comments:   true,
@@ -105,10 +95,16 @@ func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]TextEd
 		TabIndent:  true,
 		TabWidth:   8,
 	}
-	formatted, err := imports.Process(f.URI().Filename(), data, options)
+	var formatted []byte
+	importFn := func(opts *imports.Options) error {
+		formatted, err = imports.Process(f.URI().Filename(), data, opts)
+		return err
+	}
+	err = view.RunProcessEnvFunc(ctx, importFn, options)
 	if err != nil {
 		return nil, err
 	}
+
 	return computeTextEdits(ctx, f, string(formatted)), nil
 }
 

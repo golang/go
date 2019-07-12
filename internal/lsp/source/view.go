@@ -210,14 +210,9 @@ type View interface {
 
 	Config(ctx context.Context) *packages.Config
 
-	// Process returns the process for this view.
-	// Note: this contains cached module and filesystem state, which must
-	// be invalidated after a 'go.mod' change.
-	//
-	// TODO(suzmue): the state cached in the process env is specific to each view,
-	// however, there is state that can be shared between views that is not currently
-	// cached, like the module cache.
-	ProcessEnv(ctx context.Context) *imports.ProcessEnv
+	// RunProcessEnvFunc runs fn with the process env for this view inserted into opts.
+	// Note: the process env contains cached module and filesystem state.
+	RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error, opts *imports.Options) error
 }
 
 // File represents a source file of any type.
