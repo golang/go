@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -28,7 +29,7 @@ type Conn struct {
 	stream     Stream
 	err        error
 	pendingMu  sync.Mutex // protects the pending map
-	pending    map[ID]chan *wireResponse
+	pending    map[ID]chan *WireResponse
 	handlingMu sync.Mutex // protects the handling map
 	handling   map[ID]*Request
 }
@@ -47,18 +48,11 @@ const (
 type Request struct {
 	conn        *Conn
 	cancel      context.CancelFunc
-	start       time.Time
 	state       requestState
 	nextRequest chan struct{}
 
-	// Method is a string containing the method name to invoke.
-	Method string
-	// Params is either a struct or an array with the parameters of the method.
-	Params *json.RawMessage
-	// The id of this request, used to tie the response back to the request.
-	// Will be either a string or a number. If not set, the request is a notify,
-	// and no response is possible.
-	ID *ID
+	// The Wire values of the request.
+	WireRequest
 }
 
 type rpcStats struct {
@@ -115,9 +109,9 @@ func NewErrorf(code int64, format string, args ...interface{}) *Error {
 // You must call Run for the connection to be active.
 func NewConn(s Stream) *Conn {
 	conn := &Conn{
-		handlers: []Handler{defaultHandler{}},
+		handlers: []Handler{defaultHandler{}, &tracer{}},
 		stream:   s,
-		pending:  make(map[ID]chan *wireResponse),
+		pending:  make(map[ID]chan *WireResponse),
 		handling: make(map[ID]*Request),
 	}
 	return conn
@@ -150,14 +144,11 @@ func (c *Conn) Cancel(id ID) {
 // It will return as soon as the notification has been sent, as no response is
 // possible.
 func (c *Conn) Notify(ctx context.Context, method string, params interface{}) (err error) {
-	ctx, rpcStats := start(ctx, false, method, nil)
-	defer rpcStats.end(ctx, &err)
-
 	jsonParams, err := marshalToRaw(params)
 	if err != nil {
 		return fmt.Errorf("marshalling notify parameters: %v", err)
 	}
-	request := &wireRequest{
+	request := &WireRequest{
 		Method: method,
 		Params: jsonParams,
 	}
@@ -166,10 +157,17 @@ func (c *Conn) Notify(ctx context.Context, method string, params interface{}) (e
 		return fmt.Errorf("marshalling notify request: %v", err)
 	}
 	for _, h := range c.handlers {
-		h.Log(Send, nil, -1, request.Method, request.Params, nil)
+		ctx = h.Request(ctx, Send, request)
 	}
+	defer func() {
+		for _, h := range c.handlers {
+			h.Done(ctx, err)
+		}
+	}()
 	n, err := c.stream.Write(ctx, data)
-	telemetry.SentBytes.Record(ctx, n)
+	for _, h := range c.handlers {
+		ctx = h.Wrote(ctx, n)
+	}
 	return err
 }
 
@@ -179,13 +177,11 @@ func (c *Conn) Notify(ctx context.Context, method string, params interface{}) (e
 func (c *Conn) Call(ctx context.Context, method string, params, result interface{}) (err error) {
 	// generate a new request identifier
 	id := ID{Number: atomic.AddInt64(&c.seq, 1)}
-	ctx, rpcStats := start(ctx, false, method, &id)
-	defer rpcStats.end(ctx, &err)
 	jsonParams, err := marshalToRaw(params)
 	if err != nil {
 		return fmt.Errorf("marshalling call parameters: %v", err)
 	}
-	request := &wireRequest{
+	request := &WireRequest{
 		ID:     &id,
 		Method: method,
 		Params: jsonParams,
@@ -195,9 +191,12 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	if err != nil {
 		return fmt.Errorf("marshalling call request: %v", err)
 	}
+	for _, h := range c.handlers {
+		ctx = h.Request(ctx, Send, request)
+	}
 	// we have to add ourselves to the pending map before we send, otherwise we
 	// are racing the response
-	rchan := make(chan *wireResponse)
+	rchan := make(chan *WireResponse)
 	c.pendingMu.Lock()
 	c.pending[id] = rchan
 	c.pendingMu.Unlock()
@@ -206,14 +205,15 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 		c.pendingMu.Lock()
 		delete(c.pending, id)
 		c.pendingMu.Unlock()
+		for _, h := range c.handlers {
+			h.Done(ctx, err)
+		}
 	}()
 	// now we are ready to send
-	before := time.Now()
-	for _, h := range c.handlers {
-		h.Log(Send, request.ID, -1, request.Method, request.Params, nil)
-	}
 	n, err := c.stream.Write(ctx, data)
-	telemetry.SentBytes.Record(ctx, n)
+	for _, h := range c.handlers {
+		ctx = h.Wrote(ctx, n)
+	}
 	if err != nil {
 		// sending failed, we will never get a response, so don't leave it pending
 		return err
@@ -221,9 +221,8 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	// now wait for the response
 	select {
 	case response := <-rchan:
-		elapsed := time.Since(before)
 		for _, h := range c.handlers {
-			h.Log(Receive, response.ID, elapsed, request.Method, response.Result, response.Error)
+			ctx = h.Response(ctx, Receive, response)
 		}
 		// is it an error response?
 		if response.Error != nil {
@@ -283,9 +282,6 @@ func (r *Request) Reply(ctx context.Context, result interface{}, err error) erro
 	if r.IsNotify() {
 		return fmt.Errorf("reply not invoked with a valid call")
 	}
-	ctx, close := trace.StartSpan(ctx, r.Method+":reply")
-	defer close()
-
 	// reply ends the handling phase of a call, so if we are not yet
 	// parallel we should be now. The go routine is allowed to continue
 	// to do work after replying, which is why it is important to unlock
@@ -293,12 +289,11 @@ func (r *Request) Reply(ctx context.Context, result interface{}, err error) erro
 	r.Parallel()
 	r.state = requestReplied
 
-	elapsed := time.Since(r.start)
 	var raw *json.RawMessage
 	if err == nil {
 		raw, err = marshalToRaw(result)
 	}
-	response := &wireResponse{
+	response := &WireResponse{
 		Result: raw,
 		ID:     r.ID,
 	}
@@ -314,10 +309,12 @@ func (r *Request) Reply(ctx context.Context, result interface{}, err error) erro
 		return err
 	}
 	for _, h := range r.conn.handlers {
-		h.Log(Send, response.ID, elapsed, r.Method, response.Result, response.Error)
+		ctx = h.Response(ctx, Send, response)
 	}
 	n, err := r.conn.stream.Write(ctx, data)
-	telemetry.SentBytes.Record(ctx, n)
+	for _, h := range r.conn.handlers {
+		ctx = h.Wrote(ctx, n)
+	}
 
 	if err != nil {
 		// TODO(iancottrell): if a stream write fails, we really need to shut down
@@ -374,7 +371,7 @@ func (c *Conn) Run(ctx context.Context) error {
 			// a badly formed message arrived, log it and continue
 			// we trust the stream to have isolated the error to just this message
 			for _, h := range c.handlers {
-				h.Log(Receive, nil, -1, "", nil, NewErrorf(0, "unmarshal failed: %v", err))
+				h.Error(ctx, fmt.Errorf("unmarshal failed: %v", err))
 			}
 			continue
 		}
@@ -382,19 +379,23 @@ func (c *Conn) Run(ctx context.Context) error {
 		switch {
 		case msg.Method != "":
 			// if method is set it must be a request
-			reqCtx, cancelReq := context.WithCancel(ctx)
-			reqCtx, rpcStats := start(reqCtx, true, msg.Method, msg.ID)
-			telemetry.ReceivedBytes.Record(ctx, n)
+			ctx, cancelReq := context.WithCancel(ctx)
 			thisRequest := nextRequest
 			nextRequest = make(chan struct{})
 			req := &Request{
 				conn:        c,
 				cancel:      cancelReq,
 				nextRequest: nextRequest,
-				start:       time.Now(),
-				Method:      msg.Method,
-				Params:      msg.Params,
-				ID:          msg.ID,
+				WireRequest: WireRequest{
+					VersionTag: msg.VersionTag,
+					Method:     msg.Method,
+					Params:     msg.Params,
+					ID:         msg.ID,
+				},
+			}
+			for _, h := range c.handlers {
+				ctx = h.Request(ctx, Receive, &req.WireRequest)
+				ctx = h.Read(ctx, n)
 			}
 			c.setHandling(req, true)
 			go func() {
@@ -403,16 +404,17 @@ func (c *Conn) Run(ctx context.Context) error {
 				defer func() {
 					c.setHandling(req, false)
 					if !req.IsNotify() && req.state < requestReplied {
-						req.Reply(reqCtx, nil, NewErrorf(CodeInternalError, "method %q did not reply", req.Method))
+						req.Reply(ctx, nil, NewErrorf(CodeInternalError, "method %q did not reply", req.Method))
 					}
 					req.Parallel()
-					rpcStats.end(reqCtx, nil)
+					for _, h := range c.handlers {
+						h.Done(ctx, err)
+					}
 					cancelReq()
 				}()
 				delivered := false
 				for _, h := range c.handlers {
-					h.Log(Receive, req.ID, -1, req.Method, req.Params, nil)
-					if h.Deliver(reqCtx, req, delivered) {
+					if h.Deliver(ctx, req, delivered) {
 						delivered = true
 					}
 				}
@@ -426,7 +428,7 @@ func (c *Conn) Run(ctx context.Context) error {
 			}
 			c.pendingMu.Unlock()
 			// and send the reply to the channel
-			response := &wireResponse{
+			response := &WireResponse{
 				Result: msg.Result,
 				Error:  msg.Error,
 				ID:     msg.ID,
@@ -435,7 +437,7 @@ func (c *Conn) Run(ctx context.Context) error {
 			close(rchan)
 		default:
 			for _, h := range c.handlers {
-				h.Log(Receive, nil, -1, "", nil, NewErrorf(0, "message not a call, notify or response, ignoring"))
+				h.Error(ctx, fmt.Errorf("message not a call, notify or response, ignoring"))
 			}
 		}
 	}
@@ -448,4 +450,50 @@ func marshalToRaw(obj interface{}) (*json.RawMessage, error) {
 	}
 	raw := json.RawMessage(data)
 	return &raw, nil
+}
+
+type statsKeyType int
+
+const statsKey = statsKeyType(0)
+
+type tracer struct {
+}
+
+func (h *tracer) Deliver(ctx context.Context, r *Request, delivered bool) bool {
+	return false
+}
+
+func (h *tracer) Cancel(ctx context.Context, conn *Conn, id ID, cancelled bool) bool {
+	return false
+}
+
+func (h *tracer) Request(ctx context.Context, direction Direction, r *WireRequest) context.Context {
+	ctx, stats := start(ctx, direction == Receive, r.Method, r.ID)
+	ctx = context.WithValue(ctx, statsKey, stats)
+	return ctx
+}
+
+func (h *tracer) Response(ctx context.Context, direction Direction, r *WireResponse) context.Context {
+	return ctx
+}
+
+func (h *tracer) Done(ctx context.Context, err error) {
+	stats, ok := ctx.Value(statsKey).(*rpcStats)
+	if ok && stats != nil {
+		stats.end(ctx, &err)
+	}
+}
+
+func (h *tracer) Read(ctx context.Context, bytes int64) context.Context {
+	telemetry.SentBytes.Record(ctx, bytes)
+	return ctx
+}
+
+func (h *tracer) Wrote(ctx context.Context, bytes int64) context.Context {
+	telemetry.ReceivedBytes.Record(ctx, bytes)
+	return ctx
+}
+
+func (h *tracer) Error(ctx context.Context, err error) {
+	log.Printf("%v", err)
 }

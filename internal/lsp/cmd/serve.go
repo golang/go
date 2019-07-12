@@ -120,6 +120,18 @@ type handler struct {
 	out   io.Writer
 }
 
+type rpcStats struct {
+	method    string
+	direction jsonrpc2.Direction
+	id        *jsonrpc2.ID
+	payload   *json.RawMessage
+	start     time.Time
+}
+
+type statsKeyType int
+
+const statsKey = statsKeyType(0)
+
 func (h *handler) Deliver(ctx context.Context, r *jsonrpc2.Request, delivered bool) bool {
 	return false
 }
@@ -128,7 +140,63 @@ func (h *handler) Cancel(ctx context.Context, conn *jsonrpc2.Conn, id jsonrpc2.I
 	return false
 }
 
-func (h *handler) Log(direction jsonrpc2.Direction, id *jsonrpc2.ID, elapsed time.Duration, method string, payload *json.RawMessage, err *jsonrpc2.Error) {
+func (h *handler) Request(ctx context.Context, direction jsonrpc2.Direction, r *jsonrpc2.WireRequest) context.Context {
+	if !h.trace {
+		return ctx
+	}
+	stats := &rpcStats{
+		method:    r.Method,
+		direction: direction,
+		start:     time.Now(),
+		payload:   r.Params,
+	}
+	ctx = context.WithValue(ctx, statsKey, stats)
+	return ctx
+}
+
+func (h *handler) Response(ctx context.Context, direction jsonrpc2.Direction, r *jsonrpc2.WireResponse) context.Context {
+	stats := h.getStats(ctx)
+	h.log(direction, r.ID, 0, stats.method, r.Result, nil)
+	return ctx
+}
+
+func (h *handler) Done(ctx context.Context, err error) {
+	if !h.trace {
+		return
+	}
+	stats := h.getStats(ctx)
+	h.log(stats.direction, stats.id, time.Since(stats.start), stats.method, stats.payload, err)
+}
+
+func (h *handler) Read(ctx context.Context, bytes int64) context.Context {
+	return ctx
+}
+
+func (h *handler) Wrote(ctx context.Context, bytes int64) context.Context {
+	return ctx
+}
+
+const eol = "\r\n\r\n\r\n"
+
+func (h *handler) Error(ctx context.Context, err error) {
+	if !h.trace {
+		return
+	}
+	stats := h.getStats(ctx)
+	h.log(stats.direction, stats.id, 0, stats.method, nil, err)
+}
+
+func (h *handler) getStats(ctx context.Context) *rpcStats {
+	stats, ok := ctx.Value(statsKey).(*rpcStats)
+	if !ok || stats == nil {
+		stats = &rpcStats{
+			method: "???",
+		}
+	}
+	return stats
+}
+
+func (h *handler) log(direction jsonrpc2.Direction, id *jsonrpc2.ID, elapsed time.Duration, method string, payload *json.RawMessage, err error) {
 	if !h.trace {
 		return
 	}

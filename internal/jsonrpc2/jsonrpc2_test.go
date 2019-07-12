@@ -108,7 +108,7 @@ func run(ctx context.Context, t *testing.T, withHeaders bool, r io.ReadCloser, w
 		stream = jsonrpc2.NewStream(r, w)
 	}
 	conn := jsonrpc2.NewConn(stream)
-	conn.AddHandler(handle{})
+	conn.AddHandler(&handle{log: *logRPC})
 	go func() {
 		defer func() {
 			r.Close()
@@ -121,9 +121,11 @@ func run(ctx context.Context, t *testing.T, withHeaders bool, r io.ReadCloser, w
 	return conn
 }
 
-type handle struct{ jsonrpc2.EmptyHandler }
+type handle struct {
+	log bool
+}
 
-func (handle) Deliver(ctx context.Context, r *jsonrpc2.Request, delivered bool) bool {
+func (h *handle) Deliver(ctx context.Context, r *jsonrpc2.Request, delivered bool) bool {
 	switch r.Method {
 	case "no_args":
 		if r.Params != nil {
@@ -158,18 +160,43 @@ func (handle) Deliver(ctx context.Context, r *jsonrpc2.Request, delivered bool) 
 	return true
 }
 
-func (handle) Log(direction jsonrpc2.Direction, id *jsonrpc2.ID, elapsed time.Duration, method string, payload *json.RawMessage, err *jsonrpc2.Error) {
-	if !*logRPC {
-		return
+func (h *handle) Cancel(ctx context.Context, conn *jsonrpc2.Conn, id jsonrpc2.ID, cancelled bool) bool {
+	return false
+}
+
+func (h *handle) Request(ctx context.Context, direction jsonrpc2.Direction, r *jsonrpc2.WireRequest) context.Context {
+	if h.log {
+		if r.ID != nil {
+			log.Printf("%v call [%v] %s %s", direction, r.ID, r.Method, r.Params)
+		} else {
+			log.Printf("%v notification %s %s", direction, r.Method, r.Params)
+		}
+		ctx = context.WithValue(ctx, "method", r.Method)
+		ctx = context.WithValue(ctx, "start", time.Now())
 	}
-	switch {
-	case err != nil:
-		log.Printf("%v failure [%v] %s %v", direction, id, method, err)
-	case id == nil:
-		log.Printf("%v notification %s %s", direction, method, *payload)
-	case elapsed >= 0:
-		log.Printf("%v response in %v [%v] %s %s", direction, elapsed, id, method, *payload)
-	default:
-		log.Printf("%v call [%v] %s %s", direction, id, method, *payload)
+	return ctx
+}
+
+func (h *handle) Response(ctx context.Context, direction jsonrpc2.Direction, r *jsonrpc2.WireResponse) context.Context {
+	if h.log {
+		method := ctx.Value("method")
+		elapsed := time.Since(ctx.Value("start").(time.Time))
+		log.Printf("%v response in %v [%v] %s %s", direction, elapsed, r.ID, method, r.Result)
 	}
+	return ctx
+}
+
+func (h *handle) Done(ctx context.Context, err error) {
+}
+
+func (h *handle) Read(ctx context.Context, bytes int64) context.Context {
+	return ctx
+}
+
+func (h *handle) Wrote(ctx context.Context, bytes int64) context.Context {
+	return ctx
+}
+
+func (h *handle) Error(ctx context.Context, err error) {
+	log.Printf("%v", err)
 }

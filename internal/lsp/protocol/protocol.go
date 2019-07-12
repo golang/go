@@ -6,8 +6,6 @@ package protocol
 
 import (
 	"context"
-	"encoding/json"
-	"time"
 
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp/telemetry/trace"
@@ -17,7 +15,7 @@ import (
 
 type DocumentUri = string
 
-type canceller struct{}
+type canceller struct{ jsonrpc2.EmptyHandler }
 
 type clientHandler struct {
 	canceller
@@ -40,9 +38,6 @@ func (canceller) Cancel(ctx context.Context, conn *jsonrpc2.Conn, id jsonrpc2.ID
 	defer done()
 	conn.Notify(ctx, "$/cancelRequest", &CancelParams{ID: id})
 	return true
-}
-
-func (canceller) Log(direction jsonrpc2.Direction, id *jsonrpc2.ID, elapsed time.Duration, method string, payload *json.RawMessage, err *jsonrpc2.Error) {
 }
 
 func NewClient(stream jsonrpc2.Stream, client Client) (*jsonrpc2.Conn, Server, xlog.Logger) {
