@@ -288,19 +288,14 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 		}
 
 		named, _ := t.(*Named)
-		if named == nil || named.obj == nil {
-			check.errorf(e.Pos(), "cannot instantiate type without a name")
-			break
-		}
-
-		tname := named.obj
-		if !tname.IsParametrized() {
-			check.errorf(e.Pos(), "%s is not a parametrized type", tname.name)
+		if named == nil || named.obj == nil || !named.obj.IsParametrized() {
+			check.errorf(e.Pos(), "%s is not a parametrized type", t)
 			break
 		}
 
 		// the number of supplied types must match the number of type parameters
 		// TODO(gri) fold into code below - we want to eval args always
+		tname := named.obj
 		if len(e.Args) != len(tname.tparams) {
 			// TODO(gri) provide better error message
 			check.errorf(e.Pos(), "got %d arguments but %d type parameters", len(e.Args), len(tname.tparams))

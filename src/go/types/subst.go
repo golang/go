@@ -96,12 +96,15 @@ func (s *subster) typ(typ Type) (res Type) {
 
 	case *Named:
 		underlying := s.typ(t.underlying)
+		//s.check.dump("  underlying = %s", underlying)
+		//s.check.dump("t.underlying = %s", t.underlying)
 		if underlying != t.underlying {
 			// create a new named type - for now use printed type in name
-			// TODO(gri) use type map to map types to indices
+			// TODO(gri) consider type map to map types to indices (on the other hand, a type string seems just as good)
 			if len(t.methods) > 0 {
 				panic("cannot handle instantiation of types with methods yet")
 			}
+			// TODO(gri) review name creation and factor out
 			name := t.obj.name + typesString(s.targs)
 			tname, found := s.check.typMap[name]
 			if !found {
