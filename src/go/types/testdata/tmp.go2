@@ -4,10 +4,8 @@
 
 package p
 
-type A(type P, Q) = P
+type List(type P) []P
 
-var x A(int, string)
+type T(type P) List(P)
 
-type T(type P) struct {
-	f A(P, string)
-}
+var _ T(int) //= T(int)(List(int){1, 2, 3})

@@ -147,14 +147,10 @@ func (check *Checker) definedType(e ast.Expr, def *Named) (T Type) {
 func (check *Checker) instantiatedType(e ast.Expr) Type {
 	typ := check.typ(e)
 	if ptyp, _ := typ.(*Parameterized); ptyp != nil {
-		tname := ptyp.tname
-		typ = check.subst(tname.typ, ptyp.targs)
+		typ = check.inst(ptyp.tname, ptyp.targs)
+		// TODO(gri) can this ever be nil? comment.
 		if typ == nil {
 			return Typ[Invalid] // error was reported by check.instatiate
-		}
-
-		if trace {
-			check.trace(e.Pos(), "instantiated %s -> %s", tname, typ)
 		}
 	}
 	return typ

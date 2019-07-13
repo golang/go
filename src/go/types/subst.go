@@ -12,24 +12,48 @@ import (
 	"bytes"
 )
 
-func (check *Checker) subst(typ Type, targs []Type) Type {
-	if len(targs) == 0 {
+// inst returns the instantiated type of tname.
+func (check *Checker) inst(tname *TypeName, targs []Type) (res Type) {
+	if trace {
+		check.trace(tname.pos, "-- instantiating %s", tname)
+		check.indent++
+		defer func() {
+			check.indent--
+			check.trace(tname.pos, "=> %s", res)
+		}()
+	}
+
+	return check.subst(tname.typ, tname.tparams, targs)
+}
+
+// subst returns the type typ with its type parameters tparams replaced by
+// the corresponding type arguments targs, recursively.
+//
+// TODO(gri) tparams is only passed so we can verify that the type parameters
+// occuring in typ are the ones from typ's parameter list. We should be able
+// to prove that this is always the case and then we don't need this extra
+// argument anymore.
+func (check *Checker) subst(typ Type, tparams []*TypeName, targs []Type) Type {
+	assert(len(tparams) == len(targs))
+	if len(tparams) == 0 {
 		return typ
 	}
-	s := subster{check, targs, make(map[Type]Type)}
+	s := subster{check, make(map[Type]Type), tparams, targs}
 	return s.typ(typ)
 }
 
 type subster struct {
-	check *Checker
-	targs []Type
-	cache map[Type]Type
+	check   *Checker
+	cache   map[Type]Type
+	tparams []*TypeName
+	targs   []Type
 }
 
 func (s *subster) typ(typ Type) (res Type) {
-	// TODO(gri) this is not correct in the presence of cycles
-	if t, hit := s.cache[typ]; hit {
-		return t
+	// avoid repeating the same substitution for a given type
+	// TODO(gri) is this correct in the presence of cycles?
+	if typ, hit := s.cache[typ]; hit {
+		return typ
 	}
 	defer func() {
 		s.cache[typ] = res
@@ -95,9 +119,7 @@ func (s *subster) typ(typ Type) (res Type) {
 		}
 
 	case *Named:
-		underlying := s.typ(t.underlying)
-		//s.check.dump("  underlying = %s", underlying)
-		//s.check.dump("t.underlying = %s", t.underlying)
+		underlying := s.typ(t.underlying).Underlying()
 		if underlying != t.underlying {
 			// create a new named type - for now use printed type in name
 			// TODO(gri) consider type map to map types to indices (on the other hand, a type string seems just as good)
@@ -105,11 +127,12 @@ func (s *subster) typ(typ Type) (res Type) {
 				panic("cannot handle instantiation of types with methods yet")
 			}
 			// TODO(gri) review name creation and factor out
-			name := t.obj.name + typesString(s.targs)
+			name := t.obj.name + typeArgsString(s.targs)
 			tname, found := s.check.typMap[name]
 			if !found {
 				// TODO(gri) what is the correct position to use here?
 				tname = NewTypeName(t.obj.pos, s.check.pkg, name, nil)
+				//s.check.dump("name = %s", name)
 				NewNamed(tname, underlying, nil) // TODO(gri) provide correct method list
 				s.check.typMap[name] = tname
 			}
@@ -118,15 +141,21 @@ func (s *subster) typ(typ Type) (res Type) {
 
 	case *Parameterized:
 		// first, instantiate any arguments if necessary
+		// TODO(gri) should this be done in check.inst
+		// and thus for any caller of check.inst)?
 		targs := make([]Type, len(t.targs))
 		for i, a := range t.targs {
 			targs[i] = s.typ(a) // TODO(gri) fix this
 		}
 		// then instantiate t
-		return s.check.subst(t.tname.typ, targs)
+		return s.check.inst(t.tname, targs)
 
 	case *TypeParam:
-		// TODO(gri) do we need to check that we're using the correct targs list/index?
+		// verify that the type parameter t is from the correct
+		// parameterized type
+		assert(s.tparams[t.index] == t.obj)
+		// TODO(gri) targ may be nil in error messages from check.infer.
+		// Eliminate that possibility and then we don't need this check.
 		if targ := s.targs[t.index]; targ != nil {
 			return targ
 		}
@@ -179,7 +208,7 @@ func (s *subster) varList(in []*Var) (out []*Var, copied bool) {
 	return
 }
 
-func typesString(targs []Type) string {
+func typeArgsString(targs []Type) string {
 	var buf bytes.Buffer
 	buf.WriteByte('<')
 	for i, arg := range targs {

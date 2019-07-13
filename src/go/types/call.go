@@ -187,7 +187,7 @@ func (check *Checker) instantiate(typ Type, tparams []*TypeName, args []*operand
 		targs[i] = a.typ
 	}
 	// result is instantiated typ
-	return check.subst(typ, targs)
+	return check.subst(typ, tparams, targs)
 }
 
 func (check *Checker) exprList(elist []ast.Expr, allowCommaOk bool) (xlist []*operand, commaOk bool) {
@@ -312,8 +312,8 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 		if targs == nil {
 			return
 		}
-		rsig = check.subst(sig, targs).(*Signature)
-		params = check.subst(params, targs).(*Tuple)
+		rsig = check.subst(sig, sig.tparams, targs).(*Signature)
+		params = check.subst(params, sig.tparams, targs).(*Tuple)
 		// TODO(gri) Optimization: We don't need to check arguments
 		//           from which we inferred parameter types.
 	}

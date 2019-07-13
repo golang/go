@@ -58,7 +58,7 @@ var _ List(List(List(int)))
 
 type T3(type P) List(P)
 
-//var _ T3(int) = (T3(int))(List(int){1, 2, 3}) // TODO(gri) cannot do this yet
+var _ T3(int) = T3(int)(List(int){1, 2, 3})
 
 
 // TODO
