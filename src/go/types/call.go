@@ -23,9 +23,19 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 		return statement
 
 	case typexpr:
-		// conversion
+		// conversion or type instantiation
 		T := x.typ
 		x.mode = invalid
+		if named, _ := T.(*Named); named != nil && named.obj != nil && named.obj.IsParametrized() {
+			// type instantiation
+			x.typ = check.instantiatedType(e)
+			if x.typ != Typ[Invalid] {
+				x.mode = typexpr
+			}
+			return expression
+		}
+
+		// conversion
 		switch n := len(e.Args); n {
 		case 0:
 			check.errorf(e.Rparen, "missing argument in conversion to %s", T)

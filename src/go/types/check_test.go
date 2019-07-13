@@ -102,6 +102,7 @@ var tests = [][]string{
 	// Go 2 tests (type parameters and contracts)
 	{"testdata/typeparams.go2"},
 	{"testdata/typeinst.go2"},
+	{"testdata/typeinst2.go2"},
 	{"testdata/contracts.go2"},
 }
 

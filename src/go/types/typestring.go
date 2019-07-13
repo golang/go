@@ -235,17 +235,30 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		}
 
 	case *Named:
-		s := "<Named w/o object>"
-		if obj := t.obj; obj != nil {
-			if obj.pkg != nil {
-				writePackage(buf, obj.pkg, qf)
+		writeTypeName(buf, t.obj, qf)
+		if t.obj != nil && len(t.obj.tparams) > 0 {
+			buf.WriteByte('(')
+			for i, tpar := range t.obj.tparams {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				writeTypeName(buf, tpar, qf)
 			}
-			// TODO(gri): function-local named types should be displayed
-			// differently from named types at package level to avoid
-			// ambiguity.
-			s = obj.name
+			buf.WriteByte(')')
 		}
-		buf.WriteString(s)
+
+	case *Parameterized:
+		writeTypeName(buf, t.tname, qf)
+		if len(t.targs) > 0 {
+			buf.WriteByte('(')
+			for i, targ := range t.targs {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				writeType(buf, targ, qf, visited)
+			}
+			buf.WriteByte(')')
+		}
 
 	case *Contract:
 		buf.WriteString("contract(")
@@ -271,6 +284,20 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		// For externally defined implementations of Type.
 		buf.WriteString(t.String())
 	}
+}
+
+func writeTypeName(buf *bytes.Buffer, obj *TypeName, qf Qualifier) {
+	s := "<Named w/o object>"
+	if obj != nil {
+		if obj.pkg != nil {
+			writePackage(buf, obj.pkg, qf)
+		}
+		// TODO(gri): function-local named types should be displayed
+		// differently from named types at package level to avoid
+		// ambiguity.
+		s = obj.name
+	}
+	buf.WriteString(s)
 }
 
 func writeTuple(buf *bytes.Buffer, tup *Tuple, variadic bool, qf Qualifier, visited []Type) {

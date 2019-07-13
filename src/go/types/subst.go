@@ -113,6 +113,15 @@ func (s *subster) typ(typ Type) (res Type) {
 			return tname.typ
 		}
 
+	case *Parameterized:
+		// first, instantiate any arguments if necessary
+		targs := make([]Type, len(t.targs))
+		for i, a := range t.targs {
+			targs[i] = s.typ(a) // TODO(gri) fix this
+		}
+		// then instantiate t
+		return s.check.subst(t.tname.typ, targs)
+
 	case *TypeParam:
 		// TODO(gri) do we need to check that we're using the correct targs list/index?
 		if targ := s.targs[t.index]; targ != nil {
@@ -169,13 +178,13 @@ func (s *subster) varList(in []*Var) (out []*Var, copied bool) {
 
 func typesString(targs []Type) string {
 	var buf bytes.Buffer
-	buf.WriteByte('(')
+	buf.WriteByte('<')
 	for i, arg := range targs {
 		if i > 0 {
 			buf.WriteString(", ")
 		}
 		buf.WriteString(TypeString(arg, nil))
 	}
-	buf.WriteByte(')')
+	buf.WriteByte('>')
 	return buf.String()
 }

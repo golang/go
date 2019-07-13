@@ -257,6 +257,17 @@ func (obj *TypeName) IsAlias() bool {
 	}
 }
 
+// TypeParams returns the list if *TypeParam types for the type parameters of obj; or nil.
+func (obj *TypeName) TypeParams() (tparams []*TypeParam) {
+	if n := len(obj.tparams); n > 0 {
+		tparams = make([]*TypeParam, n)
+		for i, tpar := range obj.tparams {
+			tparams[i] = tpar.typ.(*TypeParam)
+		}
+	}
+	return
+}
+
 // A Variable represents a declared variable (including function parameters and results, and struct fields).
 type Var struct {
 	object

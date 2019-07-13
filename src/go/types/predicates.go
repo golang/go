@@ -307,6 +307,9 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair, tparams 
 			return x.obj == y.obj
 		}
 
+	case *Parameterized:
+		panic("internal error: cannot compare uninstantiated parametrized types for identity")
+
 	case *TypeParam:
 		if y, ok := y.(*TypeParam); ok {
 			// TODO(gri) do we need to look at type names here?

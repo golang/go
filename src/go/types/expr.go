@@ -1044,7 +1044,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		}
 
 	case *ast.FuncLit:
-		if sig, ok := check.typ(e.Type).(*Signature); ok {
+		if sig, ok := check.instantiatedType(e.Type).(*Signature); ok {
 			// Anonymous functions are considered part of the
 			// init expression/func declaration which contains
 			// them: use existing package-level declaration info.
@@ -1077,12 +1077,12 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					// We have an "open" [...]T array type.
 					// Create a new ArrayType with unknown length (-1)
 					// and finish setting it up after analyzing the literal.
-					typ = &Array{len: -1, elem: check.typ(atyp.Elt)}
+					typ = &Array{len: -1, elem: check.instantiatedType(atyp.Elt)}
 					base = typ
 					break
 				}
 			}
-			typ = check.typ(e.Type)
+			typ = check.instantiatedType(e.Type)
 			base = typ
 
 		case hint != nil:
@@ -1459,7 +1459,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			check.invalidAST(e.Pos(), "use of .(type) outside type switch")
 			goto Error
 		}
-		T := check.typ(e.Type)
+		T := check.instantiatedType(e.Type)
 		if T == Typ[Invalid] {
 			goto Error
 		}
@@ -1515,7 +1515,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 	case *ast.ArrayType, *ast.StructType, *ast.FuncType,
 		*ast.InterfaceType, *ast.MapType, *ast.ChanType, *ast.ContractType:
 		x.mode = typexpr
-		x.typ = check.typ(e)
+		x.typ = check.typ(e) // TODO(gri) should this be check.instantiatedType?
 		// Note: rawExpr (caller of exprInternal) will call check.recordTypeAndValue
 		// even though check.typ has already called it. This is fine as both
 		// times the same expression and type are recorded. It is also not a
