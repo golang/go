@@ -94,7 +94,7 @@ func ValidateLabels(enable bool) Option {
 	}
 }
 
-// StrictDomainName limits the set of permissable ASCII characters to those
+// StrictDomainName limits the set of permissible ASCII characters to those
 // allowed in domain names as defined in RFC 1034 (A-Z, a-z, 0-9 and the
 // hyphen). This is set by default for MapForLookup and ValidateForRegistration.
 //
