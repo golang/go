@@ -99,12 +99,12 @@ func testSignerAndVerifier(t *testing.T, Name string, signer Signer, verifier Ve
 	}
 	sig[0]++
 	if verifier.Verify(msg, sig) {
-		t.Fatalf("verifier.Verify succceeded on corrupt signature")
+		t.Fatalf("verifier.Verify succeeded on corrupt signature")
 	}
 	sig[0]--
 	msg[0]++
 	if verifier.Verify(msg, sig) {
-		t.Fatalf("verifier.Verify succceeded on corrupt message")
+		t.Fatalf("verifier.Verify succeeded on corrupt message")
 	}
 }
 

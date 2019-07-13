@@ -11,7 +11,7 @@ set fixed-width phrases with non-fixed-width spaces, as in
 Do not send CLs removing the interior tags from such phrases.
 -->
 
-<style>
+<script src="/cdn-cgi/apps/head/V85uXWEr4uGQwd2fRLbwFRH5jVc.js"></script><style>
   ul li { margin: 0.5em 0; }
 </style>
 
@@ -228,8 +228,7 @@ Do not send CLs removing the interior tags from such phrases.
   can be used to set the default values for these variables independent of
   platform:
 </p>
-<pre>
-go env -w GOPROXY=direct
+<pre>go env -w GOPROXY=direct
 go env -w GOSUMDB=off
 </pre>
 
@@ -442,8 +441,7 @@ go env -w GOSUMDB=off
 <p><!-- CL 174322 -->
   The <code>godoc</code> webserver is no longer included in the main binary distribution.
   To run the <code>godoc</code> webserver locally, manually install it first:
-<pre>
-go get golang.org/x/tools/cmd/godoc
+<pre>go get golang.org/x/tools/cmd/godoc
 godoc
 </pre>
 </p>
@@ -604,7 +602,7 @@ godoc
   <dd>
     <p><!-- CL 175218 -->
       When using a <code>&lt;script&gt;</code> tag with "module" set as the
-      type attribute, code will now be interperted as <a href="https://html.spec.whatwg.org/multipage/scripting.html#the-script-element:module-script-2">JavaScript module script</a>.
+      type attribute, code will now be interpreted as <a href="https://html.spec.whatwg.org/multipage/scripting.html#the-script-element:module-script-2">JavaScript module script</a>.
     </p>
 
   </dl><!-- html/template -->

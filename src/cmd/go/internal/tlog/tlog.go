@@ -155,7 +155,7 @@ func SplitStoredHashIndex(index int64) (level int, n int64) {
 		n++
 		indexN = x
 	}
-	// The hash we want was commited with record n,
+	// The hash we want was committed with record n,
 	// meaning it is one of (0, n), (1, n/2), (2, n/4), ...
 	level = int(index - indexN)
 	return level, n >> uint(level)
