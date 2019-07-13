@@ -1829,7 +1829,7 @@ before committing them to your version control system.
 	refer to tour.golang.org instead of go-tour.appspot.com.
 * exp/norm: fixed bug that crept in with moving to the new regexp.
 * exp/ssh: fix length header leaking into channel data (thanks Dave Cheney).
-* fmt: handle os.Error values explicity (as distinct from Stringer).
+* fmt: handle os.Error values explicitly (as distinct from Stringer).
 * gc: clean up printing,
 	fix [568]g -V crash (thanks Mikio Hara),
 	test + fix escape analysis bug.
@@ -3776,7 +3776,7 @@ Code that uses the Addr method will have to call UnsafeAddr instead.
 The path package has been split into two packages: path and path/filepath.
 Package path manipulates slash-separated paths, regardless of operating system.
 Package filepath implements the local operating system's native file paths.
-OS-specific functioanlity in pacakge path, such as Walk, moved to filepath.
+OS-specific functioanlity in package path, such as Walk, moved to filepath.
 
 Other changes:
 * build: fixes and simplifications (thanks Dave Cheney),
@@ -6076,7 +6076,7 @@ syscall: add Nanosleep on FreeBSD (thanks Devon H. O'Dell)
 template: can use map in .repeated section
 
 There is now a public road map, in the repository and online
-at <a href="http://golang.org/doc/devel/roadmap.html">http://golang.org/doc/devel/roadmap.html</a>.
+at <a href="https://golang.org/doc/devel/roadmap.html">http://golang.org/doc/devel/roadmap.html</a>.
 </pre>
 
 <h2 id="2009-12-22">2009-12-22</h2>
