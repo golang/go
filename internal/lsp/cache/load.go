@@ -100,7 +100,10 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile) (map[packageID]*met
 	}
 	// Track missing imports as we look at the package's errors.
 	missingImports := make(map[packagePath]struct{})
+
+	xlog.Debugf(ctx, "packages.Load: found %v packages", len(pkgs))
 	for _, pkg := range pkgs {
+		xlog.Debugf(ctx, "packages.Load: package %s with files %v", pkg.PkgPath, pkg.CompiledGoFiles)
 		// If the package comes back with errors from `go list`,
 		// don't bother type-checking it.
 		if len(pkg.Errors) > 0 {
@@ -226,10 +229,12 @@ func (v *view) link(ctx context.Context, pkgPath packagePath, pkg *packages.Pack
 		f, err := v.getFile(ctx, span.FileURI(filename))
 		if err != nil {
 			xlog.Errorf(ctx, "no file %s: %v", filename, err)
+			continue
 		}
 		gof, ok := f.(*goFile)
 		if !ok {
 			xlog.Errorf(ctx, "not a Go file: %s", f.URI())
+			continue
 		}
 		if gof.meta == nil {
 			gof.meta = make(map[packageID]*metadata)
