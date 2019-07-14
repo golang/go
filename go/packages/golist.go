@@ -316,9 +316,7 @@ func runNamedQueries(cfg *Config, driver driver, response *responseDeduper, quer
 
 	startWalk := time.Now()
 	gopathwalk.Walk(roots, add, gopathwalk.Options{ModulesEnabled: modRoot != "", Debug: debug})
-	if debug {
-		log.Printf("%v for walk", time.Since(startWalk))
-	}
+	cfg.Logf("%v for walk", time.Since(startWalk))
 
 	// Weird special case: the top-level package in a module will be in
 	// whatever directory the user checked the repository out into. It's
@@ -759,11 +757,9 @@ func invokeGo(cfg *Config, args ...string) (*bytes.Buffer, error) {
 	cmd.Dir = cfg.Dir
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
-	if debug {
-		defer func(start time.Time) {
-			log.Printf("%s for %v, stderr: <<%s>>\n", time.Since(start), cmdDebugStr(cmd, args...), stderr)
-		}(time.Now())
-	}
+	defer func(start time.Time) {
+		cfg.Logf("%s for %v, stderr: <<%s>>\n", time.Since(start), cmdDebugStr(cmd, args...), stderr)
+	}(time.Now())
 
 	if err := cmd.Run(); err != nil {
 		// Check for 'go' executable not being found.

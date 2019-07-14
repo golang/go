@@ -118,7 +118,7 @@ func (v *view) Folder() span.URI {
 
 // Config returns the configuration used for the view's interaction with the
 // go/packages API. It is shared across all views.
-func (v *view) Config() *packages.Config {
+func (v *view) Config(ctx context.Context) *packages.Config {
 	// TODO: Should we cache the config and/or overlay somewhere?
 	return &packages.Config{
 		Dir:        v.folder.Filename(),
@@ -135,22 +135,25 @@ func (v *view) Config() *packages.Config {
 		ParseFile: func(*token.FileSet, string, []byte) (*ast.File, error) {
 			panic("go/packages must not be used to parse files")
 		},
+		Logf: func(format string, args ...interface{}) {
+			xlog.Infof(ctx, format, args...)
+		},
 		Tests: true,
 	}
 }
 
-func (v *view) ProcessEnv() *imports.ProcessEnv {
+func (v *view) ProcessEnv(ctx context.Context) *imports.ProcessEnv {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
 	if v.processEnv == nil {
-		v.processEnv = v.buildProcessEnv()
+		v.processEnv = v.buildProcessEnv(ctx)
 	}
 	return v.processEnv
 }
 
-func (v *view) buildProcessEnv() *imports.ProcessEnv {
-	cfg := v.Config()
+func (v *view) buildProcessEnv(ctx context.Context) *imports.ProcessEnv {
+	cfg := v.Config(ctx)
 	env := &imports.ProcessEnv{
 		WorkingDir: cfg.Dir,
 		Logf: func(format string, u ...interface{}) {
@@ -235,9 +238,12 @@ func (v *view) BuiltinPackage() *ast.Package {
 // buildBuiltinPkg builds the view's builtin package.
 // It assumes that the view is not active yet,
 // i.e. it has not been added to the session's list of views.
-func (v *view) buildBuiltinPkg() {
-	cfg := *v.Config()
-	pkgs, _ := packages.Load(&cfg, "builtin")
+func (v *view) buildBuiltinPkg(ctx context.Context) {
+	cfg := *v.Config(ctx)
+	pkgs, err := packages.Load(&cfg, "builtin")
+	if err != nil {
+		xlog.Errorf(ctx, "error getting package metadata for \"builtin\" package: %v", err)
+	}
 	if len(pkgs) != 1 {
 		v.builtinPkg, _ = ast.NewPackage(cfg.Fset, nil, nil, nil)
 		return

@@ -85,7 +85,7 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile) (map[packageID]*met
 		return nil, nil, ctx.Err()
 	}
 
-	pkgs, err := packages.Load(v.Config(), fmt.Sprintf("file=%s", f.filename()))
+	pkgs, err := packages.Load(v.Config(ctx), fmt.Sprintf("file=%s", f.filename()))
 	if len(pkgs) == 0 {
 		if err == nil {
 			err = fmt.Errorf("go/packages.Load: no packages found for %s", f.filename())

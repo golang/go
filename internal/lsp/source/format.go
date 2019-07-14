@@ -68,7 +68,7 @@ func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]TextEd
 		return nil, fmt.Errorf("%s has list errors, not running goimports", f.URI())
 	}
 
-	if resolver, ok := view.ProcessEnv().GetResolver().(*imports.ModuleResolver); ok && resolver.Initialized {
+	if resolver, ok := view.ProcessEnv(ctx).GetResolver().(*imports.ModuleResolver); ok && resolver.Initialized {
 		// TODO(suzmue): only reset this state when necessary (eg when the go.mod files of this
 		// module or modules with replace directive changes).
 		resolver.Initialized = false
@@ -77,7 +77,7 @@ func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]TextEd
 		resolver.ModsByDir = nil
 	}
 	options := &imports.Options{
-		Env: view.ProcessEnv(),
+		Env: view.ProcessEnv(ctx),
 		// Defaults.
 		AllErrors:  true,
 		Comments:   true,

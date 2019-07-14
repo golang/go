@@ -103,6 +103,12 @@ type Config struct {
 	// If Context is nil, the load cannot be cancelled.
 	Context context.Context
 
+	// Logf is the logger for the config.
+	// If the user provides a logger, debug logging is enabled.
+	// If the GOPACKAGESDEBUG environment variable is set to true,
+	// but the logger is nil, default to log.Printf.
+	Logf func(format string, args ...interface{})
+
 	// Dir is the directory in which to run the build system's query tool
 	// that provides information about the packages.
 	// If Dir is empty, the tool is run in the current directory.
@@ -429,6 +435,17 @@ func newLoader(cfg *Config) *loader {
 	}
 	if cfg != nil {
 		ld.Config = *cfg
+		// If the user has provided a logger, use it.
+		ld.Config.Logf = cfg.Logf
+	}
+	if ld.Config.Logf == nil {
+		// If the GOPACKAGESDEBUG environment variable is set to true,
+		// but the user has not provided a logger, default to log.Printf.
+		if debug {
+			ld.Config.Logf = log.Printf
+		} else {
+			ld.Config.Logf = func(format string, args ...interface{}) {}
+		}
 	}
 	if ld.Config.Mode == 0 {
 		ld.Config.Mode = NeedName | NeedFiles | NeedCompiledGoFiles // Preserve zero behavior of Mode for backwards compatibility.

@@ -208,7 +208,7 @@ type View interface {
 	// Ignore returns true if this file should be ignored by this view.
 	Ignore(span.URI) bool
 
-	Config() *packages.Config
+	Config(ctx context.Context) *packages.Config
 
 	// Process returns the process for this view.
 	// Note: this contains cached module and filesystem state, which must
@@ -217,7 +217,7 @@ type View interface {
 	// TODO(suzmue): the state cached in the process env is specific to each view,
 	// however, there is state that can be shared between views that is not currently
 	// cached, like the module cache.
-	ProcessEnv() *imports.ProcessEnv
+	ProcessEnv(ctx context.Context) *imports.ProcessEnv
 }
 
 // File represents a source file of any type.
