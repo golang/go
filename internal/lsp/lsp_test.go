@@ -582,7 +582,6 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 
 func applyEdits(contents string, edits []source.TextEdit) string {
 	res := contents
-	sortSourceTextEdits(edits)
 
 	// Apply the edits from the end of the file forward
 	// to preserve the offsets
@@ -594,15 +593,6 @@ func applyEdits(contents string, edits []source.TextEdit) string {
 		res = tmp + res[end:]
 	}
 	return res
-}
-
-func sortSourceTextEdits(d []source.TextEdit) {
-	sort.Slice(d, func(i int, j int) bool {
-		if r := span.Compare(d[i].Span, d[j].Span); r != 0 {
-			return r < 0
-		}
-		return d[i].NewText < d[j].NewText
-	})
 }
 
 func (r *runner) Symbol(t *testing.T, data tests.Symbols) {

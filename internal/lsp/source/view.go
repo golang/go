@@ -9,6 +9,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"sort"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -317,4 +318,11 @@ func EditsToDiff(edits []TextEdit) []*diff.Op {
 		}
 	}
 	return ops
+}
+
+func sortTextEdits(d []TextEdit) {
+	// Use a stable sort to maintain the order of edits inserted at the same position.
+	sort.SliceStable(d, func(i int, j int) bool {
+		return span.Compare(d[i].Span, d[j].Span) < 0
+	})
 }
