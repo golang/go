@@ -357,31 +357,6 @@ func TestVerifyHostname(t *testing.T) {
 	}
 }
 
-func TestVerifyHostnameResumed(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-
-	config := &Config{
-		ClientSessionCache: NewLRUClientSessionCache(32),
-	}
-	for i := 0; i < 2; i++ {
-		c, err := Dial("tcp", "www.google.com:https", config)
-		if err != nil {
-			t.Fatalf("Dial #%d: %v", i, err)
-		}
-		cs := c.ConnectionState()
-		if i > 0 && !cs.DidResume {
-			t.Fatalf("Subsequent connection unexpectedly didn't resume")
-		}
-		if cs.VerifiedChains == nil {
-			t.Fatalf("Dial #%d: cs.VerifiedChains == nil", i)
-		}
-		if err := c.VerifyHostname("www.google.com"); err != nil {
-			t.Fatalf("verify www.google.com #%d: %v", i, err)
-		}
-		c.Close()
-	}
-}
-
 func TestConnCloseBreakingWrite(t *testing.T) {
 	ln := newLocalListener(t)
 	defer ln.Close()
