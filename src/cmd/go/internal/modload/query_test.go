@@ -161,8 +161,11 @@ var queryTests = []struct {
 	{path: queryRepoV2, query: "v2.6.0-pre1", vers: "v2.6.0-pre1"},
 	{path: queryRepoV2, query: "latest", vers: "v2.5.5"},
 
-	{path: queryRepoV3, query: "e0cf3de987e6", vers: "v3.0.0-20180704024501-e0cf3de987e6"},
-	{path: queryRepoV3, query: "latest", vers: "v3.0.0-20180704024501-e0cf3de987e6"},
+	// e0cf3de987e6 is the latest commit on the master branch, and it's actually
+	// v1.19.10-pre1, not anything resembling v3: attempting to query it as such
+	// should fail.
+	{path: queryRepoV3, query: "e0cf3de987e6", err: `vcs-test.golang.org/git/querytest.git/v3@v3.0.0-20180704024501-e0cf3de987e6: invalid version: go.mod has non-.../v3 module path "vcs-test.golang.org/git/querytest.git" (and .../v3/go.mod does not exist) at revision e0cf3de987e6`},
+	{path: queryRepoV3, query: "latest", err: `no matching versions for query "latest"`},
 
 	{path: emptyRepo, query: "latest", vers: "v0.0.0-20180704023549-7bb914627242"},
 	{path: emptyRepo, query: ">v0.0.0", err: `no matching versions for query ">v0.0.0"`},
@@ -182,7 +185,10 @@ func TestQuery(t *testing.T) {
 			ok, _ := path.Match(allow, m.Version)
 			return ok
 		}
+		tt := tt
 		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.query+"/"+tt.current+"/"+allow, func(t *testing.T) {
+			t.Parallel()
+
 			info, err := Query(tt.path, tt.query, tt.current, allowed)
 			if tt.err != "" {
 				if err == nil {
