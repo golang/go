@@ -31,6 +31,8 @@ func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocume
 	view := s.session.ViewOf(uri)
 	go func() {
 		ctx := view.BackgroundContext()
+		ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
+		defer done()
 		s.Diagnostics(ctx, view, uri)
 	}()
 	return nil
@@ -69,7 +71,6 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 	// Run diagnostics on the newly-changed file.
 	go func() {
 		ctx := view.BackgroundContext()
-		//TODO: connect the remote span?
 		ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
 		defer done()
 		s.Diagnostics(ctx, view, uri)
