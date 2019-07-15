@@ -111,7 +111,7 @@ func (w *Writer) Close() error {
 		}
 
 		// append a zip64 extra block to Extra
-		if h.CompressedSize64 > uint32max || h.UncompressedSize > uint32max || h.offset > uint32max {
+		if h.CompressedSize64 > uint32max || h.UncompressedSize64 > uint32max || h.offset > uint32max {
 
 			zip64ExtraSize := uint16(0)
 			if h.CompressedSize64 > uint32max {
