@@ -7,7 +7,6 @@ import (
 
 	"golang.org/x/tools/internal/lsp/telemetry/log"
 	"golang.org/x/tools/internal/lsp/telemetry/tag"
-	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/xcontext"
 )
 
@@ -22,7 +21,6 @@ const (
 )
 
 func WithClient(ctx context.Context, client Client) context.Context {
-	ctx = xlog.With(ctx, logSink{client: client})
 	return context.WithValue(ctx, clientKey, client)
 }
 

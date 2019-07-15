@@ -21,7 +21,6 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/tests"
-	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -42,7 +41,6 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	data := tests.Load(t, exporter, "testdata")
 	defer data.Exported.Cleanup()
 
-	ctx = xlog.With(ctx, xlog.StdSink{})
 	cache := cache.New()
 	session := cache.NewSession(ctx)
 	view := session.NewView(ctx, viewName, span.FileURI(data.Config.Dir))
