@@ -105,7 +105,7 @@ var codeRepoTests = []codeRepoTest{
 		name:    "45f53230a74ad275c7127e117ac46914c8126160",
 		short:   "45f53230a74a",
 		time:    time.Date(2018, 7, 19, 1, 21, 27, 0, time.UTC),
-		ziperr:  "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
+		err:     "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
 	},
 	{
 		vcs:     "git",
@@ -136,15 +136,14 @@ var codeRepoTests = []codeRepoTest{
 		},
 	},
 	{
-		vcs:      "git",
-		path:     "github.com/rsc/vgotest1/v2",
-		rev:      "45f53230a",
-		version:  "v2.0.0",
-		name:     "45f53230a74ad275c7127e117ac46914c8126160",
-		short:    "45f53230a74a",
-		time:     time.Date(2018, 7, 19, 1, 21, 27, 0, time.UTC),
-		gomoderr: "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
-		ziperr:   "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
+		vcs:     "git",
+		path:    "github.com/rsc/vgotest1/v2",
+		rev:     "45f53230a",
+		version: "v2.0.0",
+		name:    "45f53230a74ad275c7127e117ac46914c8126160",
+		short:   "45f53230a74a",
+		time:    time.Date(2018, 7, 19, 1, 21, 27, 0, time.UTC),
+		err:     "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
 	},
 	{
 		vcs:     "git",
@@ -154,7 +153,7 @@ var codeRepoTests = []codeRepoTest{
 		name:    "80d85c5d4d17598a0e9055e7c175a32b415d6128",
 		short:   "80d85c5d4d17",
 		time:    time.Date(2018, 2, 19, 23, 10, 6, 0, time.UTC),
-		ziperr:  "missing github.com/rsc/vgotest1/go.mod and .../v54321/go.mod at revision 80d85c5d4d17",
+		err:     "missing github.com/rsc/vgotest1/go.mod and .../v54321/go.mod at revision 80d85c5d4d17",
 	},
 	{
 		vcs:  "git",
@@ -210,24 +209,24 @@ var codeRepoTests = []codeRepoTest{
 		gomod:   "module \"github.com/rsc/vgotest1/v2\" // root go.mod\n",
 	},
 	{
-		vcs:      "git",
-		path:     "github.com/rsc/vgotest1/v2",
-		rev:      "v2.0.3",
-		version:  "v2.0.3",
-		name:     "f18795870fb14388a21ef3ebc1d75911c8694f31",
-		short:    "f18795870fb1",
-		time:     time.Date(2018, 2, 19, 23, 16, 4, 0, time.UTC),
-		gomoderr: "github.com/rsc/vgotest1/v2/go.mod has non-.../v2 module path \"github.com/rsc/vgotest\" at revision v2.0.3",
+		vcs:     "git",
+		path:    "github.com/rsc/vgotest1/v2",
+		rev:     "v2.0.3",
+		version: "v2.0.3",
+		name:    "f18795870fb14388a21ef3ebc1d75911c8694f31",
+		short:   "f18795870fb1",
+		time:    time.Date(2018, 2, 19, 23, 16, 4, 0, time.UTC),
+		err:     "github.com/rsc/vgotest1/v2/go.mod has non-.../v2 module path \"github.com/rsc/vgotest\" at revision v2.0.3",
 	},
 	{
-		vcs:      "git",
-		path:     "github.com/rsc/vgotest1/v2",
-		rev:      "v2.0.4",
-		version:  "v2.0.4",
-		name:     "1f863feb76bc7029b78b21c5375644838962f88d",
-		short:    "1f863feb76bc",
-		time:     time.Date(2018, 2, 20, 0, 3, 38, 0, time.UTC),
-		gomoderr: "github.com/rsc/vgotest1/go.mod and .../v2/go.mod both have .../v2 module paths at revision v2.0.4",
+		vcs:     "git",
+		path:    "github.com/rsc/vgotest1/v2",
+		rev:     "v2.0.4",
+		version: "v2.0.4",
+		name:    "1f863feb76bc7029b78b21c5375644838962f88d",
+		short:   "1f863feb76bc",
+		time:    time.Date(2018, 2, 20, 0, 3, 38, 0, time.UTC),
+		err:     "github.com/rsc/vgotest1/go.mod and .../v2/go.mod both have .../v2 module paths at revision v2.0.4",
 	},
 	{
 		vcs:     "git",
@@ -504,6 +503,7 @@ func TestCodeRepo(t *testing.T) {
 					tt.name = remap(tt.name, m)
 					tt.short = remap(tt.short, m)
 					tt.rev = remap(tt.rev, m)
+					tt.err = remap(tt.err, m)
 					tt.gomoderr = remap(tt.gomoderr, m)
 					tt.ziperr = remap(tt.ziperr, m)
 					t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.rev, f(tt))
@@ -631,14 +631,29 @@ var latestTests = []struct {
 		err:  "no commits",
 	},
 	{
-		vcs:     "git",
-		path:    "github.com/rsc/vgotest1",
-		version: "v0.0.0-20180219223237-a08abb797a67",
+		vcs:  "git",
+		path: "github.com/rsc/vgotest1",
+		err:  `github.com/rsc/vgotest1@v0.0.0-20180219223237-a08abb797a67: invalid version: go.mod has post-v0 module path "github.com/vgotest1/v2" at revision a08abb797a67`,
+	},
+	{
+		vcs:  "git",
+		path: "github.com/rsc/vgotest1/v2",
+		err:  `github.com/rsc/vgotest1/v2@v2.0.0-20180219223237-a08abb797a67: invalid version: github.com/rsc/vgotest1/go.mod and .../v2/go.mod both have .../v2 module paths at revision a08abb797a67`,
 	},
 	{
 		vcs:  "git",
 		path: "github.com/rsc/vgotest1/subdir",
 		err:  "github.com/rsc/vgotest1/subdir@v0.0.0-20180219223237-a08abb797a67: invalid version: missing github.com/rsc/vgotest1/subdir/go.mod at revision a08abb797a67",
+	},
+	{
+		vcs:     "git",
+		path:    "vcs-test.golang.org/git/commit-after-tag.git",
+		version: "v1.0.1-0.20190715211727-b325d8217783",
+	},
+	{
+		vcs:     "git",
+		path:    "vcs-test.golang.org/git/no-tags.git",
+		version: "v0.0.0-20190715212047-e706ba1d9f6d",
 	},
 	{
 		vcs:     "mod",

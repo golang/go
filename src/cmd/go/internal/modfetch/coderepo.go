@@ -31,7 +31,7 @@ type codeRepo struct {
 	codeRoot string
 	// codeDir is the directory (relative to root) at which we expect to find the module.
 	// If pathMajor is non-empty and codeRoot is not the full modPath,
-	// then we look in both codeDir and codeDir+modPath
+	// then we look in both codeDir and codeDir/pathMajor[1:].
 	codeDir string
 
 	// pathMajor is the suffix of modPath that indicates its major version,
@@ -248,20 +248,25 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 	// exist as required by info2.Version and the module path represented by r.
 	checkGoMod := func() (*RevInfo, error) {
 		// If r.codeDir is non-empty, then the go.mod file must exist: the module
-		// author, not the module consumer, gets to decide how to carve up the repo
+		// author — not the module consumer, — gets to decide how to carve up the repo
 		// into modules.
-		if r.codeDir != "" {
-			_, _, _, err := r.findDir(info2.Version)
-			if err != nil {
-				// TODO: It would be nice to return an error like "not a module".
-				// Right now we return "missing go.mod", which is a little confusing.
-				return nil, &module.ModuleError{
-					Path: r.modPath,
-					Err: &module.InvalidVersionError{
-						Version: info2.Version,
-						Err:     notExistError(err.Error()),
-					},
-				}
+		//
+		// Conversely, if the go.mod file exists, the module author — not the module
+		// consumer — gets to determine the module's path
+		//
+		// r.findDir verifies both of these conditions. Execute it now so that
+		// r.Stat will correctly return a notExistError if the go.mod location or
+		// declared module path doesn't match.
+		_, _, _, err := r.findDir(info2.Version)
+		if err != nil {
+			// TODO: It would be nice to return an error like "not a module".
+			// Right now we return "missing go.mod", which is a little confusing.
+			return nil, &module.ModuleError{
+				Path: r.modPath,
+				Err: &module.InvalidVersionError{
+					Version: info2.Version,
+					Err:     notExistError(err.Error()),
+				},
 			}
 		}
 
@@ -571,6 +576,10 @@ func (r *codeRepo) versionToRev(version string) (rev string, err error) {
 	return r.revToRev(version), nil
 }
 
+// findDir locates the directory within the repo containing the module.
+//
+// If r.pathMajor is non-empty, this can be either r.codeDir or — if a go.mod
+// file exists — r.codeDir/r.pathMajor[1:].
 func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err error) {
 	rev, err = r.versionToRev(version)
 	if err != nil {
