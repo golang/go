@@ -26,7 +26,7 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 		// conversion or type instantiation
 		T := x.typ
 		x.mode = invalid
-		if named, _ := T.(*Named); named != nil && named.obj != nil && named.obj.IsParametrized() {
+		if named, _ := T.(*Named); named != nil && named.obj != nil && named.obj.IsParameterized() {
 			// type instantiation
 			x.typ = check.instantiatedType(e)
 			if x.typ != Typ[Invalid] {

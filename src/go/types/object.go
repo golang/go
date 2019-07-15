@@ -228,8 +228,8 @@ func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
 	return &TypeName{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, nil, nil}
 }
 
-// IsParametrized reports whether obj is a parametrized type.
-func (obj *TypeName) IsParametrized() bool {
+// IsParameterized reports whether obj is a parametrized type.
+func (obj *TypeName) IsParameterized() bool {
 	return len(obj.tparams) > 0
 }
 
@@ -437,7 +437,7 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 		if _, ok := typ.(*Basic); ok {
 			return
 		}
-		if tname.IsParametrized() {
+		if tname.IsParameterized() {
 			fmt.Fprint(buf, "(type ")
 			for i, p := range tname.tparams {
 				if i > 0 {

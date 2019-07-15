@@ -546,7 +546,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 		check.validType(obj.typ, nil)
 	})
 
-	if obj.IsParametrized() {
+	if obj.IsParameterized() {
 		assert(obj.scope != nil)
 		check.scope = obj.scope // push type parameter scope
 	}
@@ -586,7 +586,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 
 	// this must happen before addMethodDecls - cannot use defer
 	// TODO(gri) consider refactoring this
-	if obj.IsParametrized() {
+	if obj.IsParameterized() {
 		check.closeScope()
 	}
 

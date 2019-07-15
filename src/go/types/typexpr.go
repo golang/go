@@ -275,121 +275,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 	case *ast.CallExpr:
 		typ := new(Parameterized)
 		def.setUnderlying(typ)
-
-		// TODO(gri) This code cannot handle type aliases at the moment.
-		// Probably need to do the name lookup here.
-		t := check.typ(e.Fun)
-		if t == Typ[Invalid] {
-			break // error already reported
-		}
-
-		named, _ := t.(*Named)
-		if named == nil || named.obj == nil || !named.obj.IsParametrized() {
-			check.errorf(e.Pos(), "%s is not a parametrized type", t)
-			break
-		}
-
-		// the number of supplied types must match the number of type parameters
-		// TODO(gri) fold into code below - we want to eval args always
-		tname := named.obj
-		if len(e.Args) != len(tname.tparams) {
-			// TODO(gri) provide better error message
-			check.errorf(e.Pos(), "got %d arguments but %d type parameters", len(e.Args), len(tname.tparams))
-			break
-		}
-
-		// evaluate arguments
-		args, ok := check.exprOrTypeList(e.Args) // reports error if types and expressions are mixed
-		if !ok {
-			break
-		}
-
-		// arguments must be types
-		// (If there was no error before, either all arguments are types
-		// or all are values, thus it suffices to check the first one.)
-		assert(len(args) > 0)
-		if x := args[0]; x.mode != typexpr {
-			check.errorf(x.pos(), "%s is not a type", x)
-			break
-		}
-
-		// complete parameterized type
-		typ.tname = tname
-		typ.targs = make([]Type, len(args))
-		for i, x := range args {
-			typ.targs[i] = x.typ
-		}
-
-		return typ
-
-		/*
-			// Type instantiation requires a type name, handle everything
-			// here so we don't need to introduce type parameters into
-			// operands: parametrized types can only appear in type
-			// instantiation expressions.
-
-			// e.Fun must be a type name
-			var tname *TypeName
-			if ident, ok := e.Fun.(*ast.Ident); ok {
-				obj := check.lookup(ident.Name)
-				if obj == nil {
-					if ident.Name == "_" {
-						check.errorf(ident.Pos(), "cannot use _ as type")
-					} else {
-						check.errorf(ident.Pos(), "undeclared name: %s", ident.Name)
-					}
-					break
-				}
-				check.recordUse(ident, obj)
-
-				tname, _ = obj.(*TypeName)
-				if tname == nil {
-					check.errorf(ident.Pos(), "%s is not a type", ident.Name)
-					break
-				}
-			}
-
-			if !tname.IsParametrized() {
-				check.errorf(e.Pos(), "%s is not a parametrized type", tname.name)
-				break
-			}
-
-			// typecheck tname (see check.ident for details)
-			check.objDecl(tname, def)
-			assert(tname.typ != nil)
-
-			// the number of supplied types must match the number of type parameters
-			// TODO(gri) fold into code below - we want to eval args always
-			if len(e.Args) != len(tname.tparams) {
-				// TODO(gri) provide better error message
-				check.errorf(e.Fun.Pos(), "got %d arguments but %d type parameters", len(e.Args), len(tname.tparams))
-				break
-			}
-
-			// evaluate arguments
-			args, ok := check.exprOrTypeList(e.Args) // reports error if types and expressions are mixed
-			if !ok {
-				break
-			}
-
-			// arguments must be types
-			assert(len(args) > 0)
-			if x := args[0]; x.mode != typexpr {
-				check.errorf(x.pos(), "%s is not a type", x)
-				break
-			}
-
-			// instantiate typ
-			typ := check.instantiate(tname.typ, tname.tparams, args)
-			if typ == nil {
-				break // error was reported by check.instatiate
-			}
-
-			if trace {
-				check.trace(args[0].pos(), "instantiated %s -> %s", tname, typ)
-			}
-			return typ
-		*/
+		check.parameterizedType(typ, e)
 
 	case *ast.ParenExpr:
 		return check.definedType(e.X, def)
@@ -540,6 +426,64 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 	}
 	check.errorf(x.pos(), "array length %s must be integer", &x)
 	return -1
+}
+
+// typeList provides the list of types corresponding to the incoming expression list.
+// If an error occured, the result is nil, but all list elements were type-checked.
+func (check *Checker) typeList(list []ast.Expr) []Type {
+	res := make([]Type, len(list)) // res != nil even if len(list) == 0
+	ok := true
+	for i, x := range list {
+		t := check.typ(x)
+		if t == Typ[Invalid] {
+			ok = false
+		}
+		res[i] = t
+	}
+	if ok {
+		return res
+
+	}
+	return nil
+}
+
+func (check *Checker) parameterizedType(typ *Parameterized, e *ast.CallExpr) {
+	// TODO(gri) This code cannot handle type aliases at the moment.
+	// Probably need to do the name lookup here.
+	t := check.typ(e.Fun)
+	if t == Typ[Invalid] {
+		return // error already reported
+	}
+
+	named, _ := t.(*Named)
+	if named == nil || named.obj == nil || !named.obj.IsParameterized() {
+		check.errorf(e.Pos(), "%s is not a parametrized type", t)
+		return
+	}
+
+	// the number of supplied types must match the number of type parameters
+	// TODO(gri) fold into code below - we want to eval args always
+	tname := named.obj
+	if len(e.Args) != len(tname.tparams) {
+		// TODO(gri) provide better error message
+		check.errorf(e.Pos(), "got %d arguments but %d type parameters", len(e.Args), len(tname.tparams))
+		return
+	}
+
+	// evaluate arguments
+	args := check.typeList(e.Args)
+	if args == nil {
+		return
+	}
+
+	// TODO(gri) If none of the arguments is parameterized than we can instantiate the type.
+	// When instantiating, it will become a different type, at which point the outer type is
+	// not correct anymore (it's not a Parameterized). If it's defined type, it may also have
+	// methods and we don't deal with those either... :-(
+
+	// complete parameterized type
+	typ.tname = tname
+	typ.targs = args
 }
 
 func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool) (params []*Var, variadic bool) {
