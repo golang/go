@@ -16,8 +16,9 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/telemetry"
+	"golang.org/x/tools/internal/lsp/telemetry/log"
 	"golang.org/x/tools/internal/lsp/telemetry/trace"
-	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -130,7 +131,7 @@ func (imp *importer) typeCheck(ctx context.Context, id packageID) (*pkg, error) 
 		uri := span.FileURI(filename)
 		f, err := imp.view.getFile(ctx, uri)
 		if err != nil {
-			xlog.Errorf(ctx, "unable to get file for %s: %v", f.URI(), err)
+			log.Error(ctx, "unable to get file", err, telemetry.File.Of(f.URI()))
 			continue
 		}
 		pkg.files = append(pkg.files, imp.view.session.cache.ParseGoHandle(f.Handle(ctx), mode))

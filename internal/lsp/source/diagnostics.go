@@ -34,7 +34,8 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/internal/lsp/xlog"
+	"golang.org/x/tools/internal/lsp/telemetry"
+	"golang.org/x/tools/internal/lsp/telemetry/log"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -60,6 +61,7 @@ const (
 )
 
 func Diagnostics(ctx context.Context, view View, f GoFile, disabledAnalyses map[string]struct{}) (map[span.URI][]Diagnostic, error) {
+	ctx = telemetry.File.With(ctx, f.URI())
 	pkg := f.GetPackage(ctx)
 	if pkg == nil {
 		return singleDiagnostic(f.URI(), "%s is not part of a package", f.URI()), nil
@@ -82,7 +84,7 @@ func Diagnostics(ctx context.Context, view View, f GoFile, disabledAnalyses map[
 	if !diagnostics(ctx, view, pkg, reports) {
 		// If we don't have any list, parse, or type errors, run analyses.
 		if err := analyses(ctx, view, pkg, disabledAnalyses, reports); err != nil {
-			xlog.Errorf(ctx, "failed to run analyses for %s: %v", f.URI(), err)
+			log.Error(ctx, "failed to run analyses", err, telemetry.File)
 		}
 	}
 	// Updates to the diagnostics for this package may need to be propagated.
@@ -230,30 +232,31 @@ func parseDiagnosticMessage(input string) span.Span {
 
 func pointToSpan(ctx context.Context, view View, spn span.Span) span.Span {
 	f, err := view.GetFile(ctx, spn.URI())
+	ctx = telemetry.File.With(ctx, spn.URI())
 	if err != nil {
-		xlog.Errorf(ctx, "could not find file for diagnostic: %v", spn.URI())
+		log.Error(ctx, "could not find file for diagnostic", nil, telemetry.File)
 		return spn
 	}
 	diagFile, ok := f.(GoFile)
 	if !ok {
-		xlog.Errorf(ctx, "%s is not a Go file", spn.URI())
+		log.Error(ctx, "not a Go file", nil, telemetry.File)
 		return spn
 	}
 	tok, err := diagFile.GetToken(ctx)
 	if err != nil {
-		xlog.Errorf(ctx, "could not find token.File for %s: %v", spn.URI(), err)
+		log.Error(ctx, "could not find token.File for diagnostic", err, telemetry.File)
 		return spn
 	}
 	data, _, err := diagFile.Handle(ctx).Read(ctx)
 	if err != nil {
-		xlog.Errorf(ctx, "could not find content for diagnostic: %v", spn.URI())
+		log.Error(ctx, "could not find content for diagnostic", err, telemetry.File)
 		return spn
 	}
 	c := span.NewTokenConverter(diagFile.FileSet(), tok)
 	s, err := spn.WithOffset(c)
 	//we just don't bother producing an error if this failed
 	if err != nil {
-		xlog.Errorf(ctx, "invalid span for diagnostic: %v: %v", spn.URI(), err)
+		log.Error(ctx, "invalid span for diagnostic", err, telemetry.File)
 		return spn
 	}
 	start := s.Start()

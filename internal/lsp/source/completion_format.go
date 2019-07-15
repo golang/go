@@ -14,7 +14,8 @@ import (
 	"strings"
 
 	"golang.org/x/tools/internal/lsp/snippet"
-	"golang.org/x/tools/internal/lsp/xlog"
+	"golang.org/x/tools/internal/lsp/telemetry/log"
+	"golang.org/x/tools/internal/lsp/telemetry/tag"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -98,33 +99,33 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	if c.opts.WantDocumentaton {
 		declRange, err := objToRange(c.ctx, c.view.Session().Cache().FileSet(), obj)
 		if err != nil {
-			xlog.Errorf(c.ctx, "failed to get declaration range for object %s: %v", obj.Name(), err)
+			log.Error(c.ctx, "failed to get declaration range for object", err, tag.Of("Name", obj.Name()))
 			goto Return
 		}
 		pos := declRange.FileSet.Position(declRange.Start)
 		if !pos.IsValid() {
-			xlog.Errorf(c.ctx, "invalid declaration position for %v: %v", item.Label, err)
+			log.Error(c.ctx, "invalid declaration position", err, tag.Of("Label", item.Label))
 			goto Return
 		}
 		uri := span.FileURI(pos.Filename)
 		f, err := c.view.GetFile(c.ctx, uri)
 		if err != nil {
-			xlog.Errorf(c.ctx, "unable to get file for %s: %v", uri, err)
+			log.Error(c.ctx, "unable to get file", err, tag.Of("URI", uri))
 			goto Return
 		}
 		gof, ok := f.(GoFile)
 		if !ok {
-			xlog.Errorf(c.ctx, "declaration for %s not in a Go file: %s", item.Label, uri)
+			log.Error(c.ctx, "declaration in a Go file", err, tag.Of("Label", item.Label))
 			goto Return
 		}
 		ident, err := Identifier(c.ctx, c.view, gof, declRange.Start)
 		if err != nil {
-			xlog.Errorf(c.ctx, "no identifier for %s: %v", obj.Name(), err)
+			log.Error(c.ctx, "no identifier", err, tag.Of("Name", obj.Name()))
 			goto Return
 		}
 		documentation, err := ident.Documentation(c.ctx, SynopsisDocumentation)
 		if err != nil {
-			xlog.Errorf(c.ctx, "no documentation for %s: %v", obj.Name(), err)
+			log.Error(c.ctx, "no documentation", err, tag.Of("Name", obj.Name()))
 			goto Return
 		}
 		item.Documentation = documentation
@@ -200,7 +201,7 @@ func formatFieldList(ctx context.Context, v View, list *ast.FieldList) ([]string
 		cfg := printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 4}
 		b := &bytes.Buffer{}
 		if err := cfg.Fprint(b, v.Session().Cache().FileSet(), p.Type); err != nil {
-			xlog.Errorf(ctx, "unable to print type %v", p.Type)
+			log.Error(ctx, "unable to print type", nil, tag.Of("Type", p.Type))
 			continue
 		}
 		typ := replacer.Replace(b.String())

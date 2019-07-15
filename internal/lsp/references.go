@@ -9,7 +9,8 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/lsp/xlog"
+	"golang.org/x/tools/internal/lsp/telemetry/log"
+	"golang.org/x/tools/internal/lsp/telemetry/tag"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -35,7 +36,7 @@ func (s *Server) references(ctx context.Context, params *protocol.ReferenceParam
 	}
 	references, err := ident.References(ctx)
 	if err != nil {
-		xlog.Errorf(ctx, "no references for %s: %v", ident.Name, err)
+		log.Error(ctx, "no references", err, tag.Of("Identifier", ident.Name))
 	}
 	if params.Context.IncludeDeclaration {
 		// The declaration of this identifier may not be in the

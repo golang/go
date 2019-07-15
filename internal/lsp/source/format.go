@@ -15,8 +15,8 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/diff"
+	"golang.org/x/tools/internal/lsp/telemetry/log"
 	"golang.org/x/tools/internal/lsp/telemetry/trace"
-	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -116,7 +116,7 @@ func computeTextEdits(ctx context.Context, file File, formatted string) (edits [
 	defer done()
 	data, _, err := file.Handle(ctx).Read(ctx)
 	if err != nil {
-		xlog.Errorf(ctx, "Cannot compute text edits: %v", err)
+		log.Error(ctx, "Cannot compute text edits", err)
 		return nil
 	}
 	u := diff.SplitLines(string(data))

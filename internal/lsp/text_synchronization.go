@@ -12,8 +12,9 @@ import (
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/telemetry"
+	"golang.org/x/tools/internal/lsp/telemetry/log"
 	"golang.org/x/tools/internal/lsp/telemetry/trace"
-	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -126,6 +127,7 @@ func (s *Server) didSave(ctx context.Context, params *protocol.DidSaveTextDocume
 
 func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocumentParams) error {
 	uri := span.NewURI(params.TextDocument.URI)
+	ctx = telemetry.File.With(ctx, uri)
 	s.session.DidClose(uri)
 	view := s.session.ViewOf(uri)
 	if err := view.SetContent(ctx, uri, nil); err != nil {
@@ -135,7 +137,7 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 	defer func() {
 		for _, uri := range clear {
 			if err := s.publishDiagnostics(ctx, view, uri, []source.Diagnostic{}); err != nil {
-				xlog.Errorf(ctx, "failed to clear diagnostics for %s: %v", uri, err)
+				log.Error(ctx, "failed to clear diagnostics", err, telemetry.File)
 			}
 		}
 	}()
@@ -143,18 +145,18 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 	// clear out all diagnostics for the package.
 	f, err := view.GetFile(ctx, uri)
 	if err != nil {
-		xlog.Errorf(ctx, "no file for %s: %v", uri, err)
+		log.Error(ctx, "no file for %s: %v", err, telemetry.File)
 		return nil
 	}
 	// For non-Go files, don't return any diagnostics.
 	gof, ok := f.(source.GoFile)
 	if !ok {
-		xlog.Errorf(ctx, "closing a non-Go file, no diagnostics to clear")
+		log.Error(ctx, "closing a non-Go file, no diagnostics to clear", nil, telemetry.File)
 		return nil
 	}
 	pkg := gof.GetPackage(ctx)
 	if pkg == nil {
-		xlog.Errorf(ctx, "no package available for %s", uri)
+		log.Error(ctx, "no package available", nil, telemetry.File)
 		return nil
 	}
 	for _, filename := range pkg.GetFilenames() {

@@ -9,7 +9,6 @@ import (
 	"context"
 	"go/token"
 	"html/template"
-	"log"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -19,7 +18,9 @@ import (
 	"strconv"
 	"sync"
 
+	"golang.org/x/tools/internal/lsp/telemetry/log"
 	"golang.org/x/tools/internal/lsp/telemetry/metric"
+	"golang.org/x/tools/internal/lsp/telemetry/tag"
 	"golang.org/x/tools/internal/lsp/telemetry/worker"
 	"golang.org/x/tools/internal/span"
 )
@@ -213,7 +214,7 @@ func Serve(ctx context.Context, addr string) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("Debug serving on port: %d", listener.Addr().(*net.TCPAddr).Port)
+	log.Print(ctx, "Debug serving", tag.Of("Port", listener.Addr().(*net.TCPAddr).Port))
 	prometheus := prometheus{}
 	metric.RegisterObservers(prometheus.observeMetric)
 	rpcs := rpcs{}
@@ -236,10 +237,10 @@ func Serve(ctx context.Context, addr string) error {
 		mux.HandleFunc("/info", Render(infoTmpl, getInfo))
 		mux.HandleFunc("/memory", Render(memoryTmpl, getMemory))
 		if err := http.Serve(listener, mux); err != nil {
-			log.Printf("Debug server failed with %v", err)
+			log.Error(ctx, "Debug server failed", err)
 			return
 		}
-		log.Printf("Debug server finished")
+		log.Print(ctx, "Debug server finished")
 	}()
 	return nil
 }
@@ -254,7 +255,7 @@ func Render(tmpl *template.Template, fun func(*http.Request) interface{}) func(h
 				data = fun(r)
 			}
 			if err := tmpl.Execute(w, data); err != nil {
-				log.Print(err)
+				log.Error(context.Background(), "", err)
 			}
 		})
 		<-done

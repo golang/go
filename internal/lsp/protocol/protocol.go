@@ -8,8 +8,8 @@ import (
 	"context"
 
 	"golang.org/x/tools/internal/jsonrpc2"
+	"golang.org/x/tools/internal/lsp/telemetry/log"
 	"golang.org/x/tools/internal/lsp/telemetry/trace"
-	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/xcontext"
 )
 
@@ -58,6 +58,6 @@ func sendParseError(ctx context.Context, req *jsonrpc2.Request, err error) {
 		err = jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err)
 	}
 	if err := req.Reply(ctx, nil, err); err != nil {
-		xlog.Errorf(ctx, "%v", err)
+		log.Error(ctx, "", err)
 	}
 }

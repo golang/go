@@ -6,6 +6,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -19,7 +20,8 @@ import (
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/lsp/xlog"
+	"golang.org/x/tools/internal/lsp/telemetry"
+	"golang.org/x/tools/internal/lsp/telemetry/log"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -136,7 +138,7 @@ func (v *view) Config(ctx context.Context) *packages.Config {
 			panic("go/packages must not be used to parse files")
 		},
 		Logf: func(format string, args ...interface{}) {
-			xlog.Infof(ctx, format, args...)
+			log.Print(ctx, fmt.Sprintf(format, args...))
 		},
 		Tests: true,
 	}
@@ -156,8 +158,8 @@ func (v *view) buildProcessEnv(ctx context.Context) *imports.ProcessEnv {
 	cfg := v.Config(ctx)
 	env := &imports.ProcessEnv{
 		WorkingDir: cfg.Dir,
-		Logf: func(format string, u ...interface{}) {
-			xlog.Infof(v.backgroundCtx, format, u...)
+		Logf: func(format string, args ...interface{}) {
+			log.Print(ctx, fmt.Sprintf(format, args...))
 		},
 	}
 	for _, kv := range cfg.Env {
@@ -242,7 +244,7 @@ func (v *view) buildBuiltinPkg(ctx context.Context) {
 	cfg := *v.Config(ctx)
 	pkgs, err := packages.Load(&cfg, "builtin")
 	if err != nil {
-		xlog.Errorf(ctx, "error getting package metadata for \"builtin\" package: %v", err)
+		log.Error(ctx, "error getting package metadata for \"builtin\" package", err)
 	}
 	if len(pkgs) != 1 {
 		v.builtinPkg, _ = ast.NewPackage(cfg.Fset, nil, nil, nil)
@@ -330,12 +332,12 @@ func (v *view) remove(ctx context.Context, id packageID, seen map[packageID]stru
 	for _, filename := range m.files {
 		f, err := v.findFile(span.FileURI(filename))
 		if err != nil {
-			xlog.Errorf(ctx, "cannot find file %s: %v", f.URI(), err)
+			log.Error(ctx, "cannot find file", err, telemetry.File.Of(f.URI()))
 			continue
 		}
 		gof, ok := f.(*goFile)
 		if !ok {
-			xlog.Errorf(ctx, "non-Go file %v", f.URI())
+			log.Error(ctx, "non-Go file", nil, telemetry.File.Of(f.URI()))
 			continue
 		}
 		gof.mu.Lock()
