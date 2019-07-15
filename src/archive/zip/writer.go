@@ -98,25 +98,47 @@ func (w *Writer) Close() error {
 		b.uint16(h.ModifiedTime)
 		b.uint16(h.ModifiedDate)
 		b.uint32(h.CRC32)
-		if h.isZip64() || h.offset >= uint32max {
-			// the file needs a zip64 header. store maxint in both
-			// 32 bit size fields (and offset later) to signal that the
-			// zip64 extra header should be used.
-			b.uint32(uint32max) // compressed size
-			b.uint32(uint32max) // uncompressed size
 
-			// append a zip64 extra block to Extra
-			var buf [28]byte // 2x uint16 + 3x uint64
+		if h.CompressedSize64 > uint32max {
+			b.uint32(uint32max)
+		} else {
+			b.uint32(uint32(h.CompressedSize))
+		}
+		if h.UncompressedSize64 > uint32max {
+			b.uint32(uint32max)
+		} else {
+			b.uint32(uint32(h.UncompressedSize))
+		}
+
+		// append a zip64 extra block to Extra
+		if h.CompressedSize64 > uint32max || h.UncompressedSize > uint32max || h.offset > uint32max {
+
+			zip64ExtraSize := uint16(0)
+			if h.CompressedSize64 > uint32max {
+				zip64ExtraSize += 8
+			}
+			if h.UncompressedSize64 > uint32max {
+				zip64ExtraSize += 8
+			}
+			if h.offset > uint32max {
+				zip64ExtraSize += 8
+			}
+
+			var buf []byte
+			buf = make([]byte, 4+zip64ExtraSize) // 2x uint16 + zip64ExtraSize
 			eb := writeBuf(buf[:])
 			eb.uint16(zip64ExtraID)
-			eb.uint16(24) // size = 3x uint64
-			eb.uint64(h.UncompressedSize64)
-			eb.uint64(h.CompressedSize64)
-			eb.uint64(h.offset)
+			eb.uint16(zip64ExtraSize)
+			if h.CompressedSize64 > uint32max {
+				eb.uint64(h.UncompressedSize64)
+			}
+			if h.UncompressedSize64 > uint32max {
+				eb.uint64(h.CompressedSize64)
+			}
+			if h.offset > uint32max {
+				eb.uint64(h.offset)
+			}
 			h.Extra = append(h.Extra, buf[:]...)
-		} else {
-			b.uint32(h.CompressedSize)
-			b.uint32(h.UncompressedSize)
 		}
 
 		b.uint16(uint16(len(h.Name)))
