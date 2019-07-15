@@ -10,24 +10,6 @@ import (
 	"unsafe"
 )
 
-// isNulName reports whether name is NUL file name.
-// For example, it returns true for both "NUL" and "nul".
-func isNulName(name string) bool {
-	if len(name) != 3 {
-		return false
-	}
-	if name[0] != 'n' && name[0] != 'N' {
-		return false
-	}
-	if name[1] != 'u' && name[1] != 'U' {
-		return false
-	}
-	if name[2] != 'l' && name[2] != 'L' {
-		return false
-	}
-	return true
-}
-
 // Stat returns the FileInfo structure describing file.
 // If there is an error, it will be of type *PathError.
 func (file *File) Stat() (FileInfo, error) {
@@ -39,7 +21,7 @@ func (file *File) Stat() (FileInfo, error) {
 		// I don't know any better way to do that for directory
 		return Stat(file.dirinfo.path)
 	}
-	if isNulName(file.name) {
+	if isWindowsNulName(file.name) {
 		return &devNullStat, nil
 	}
 
@@ -65,7 +47,7 @@ func stat(funcname, name string, createFileAttrs uint32) (FileInfo, error) {
 	if len(name) == 0 {
 		return nil, &PathError{funcname, name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
 	}
-	if isNulName(name) {
+	if isWindowsNulName(name) {
 		return &devNullStat, nil
 	}
 	namep, err := syscall.UTF16PtrFromString(fixLongPath(name))
