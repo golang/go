@@ -4,10 +4,10 @@
 
 1. Make sure `node` is installed.
   As explained at the [node site](<https://nodejs.org> Node)
-  you may need `node install @types/node` for the node runtime types
-2. Install the typescript compiler, with `node install typescript`.
+  you may need `npm install @types/node` for the node runtime types
+2. Install the typescript compiler, with `npm install typescript`.
 3. Make sure `tsc` and `node` are in your execution path.
-4. Get the typescript code for the jsonrpc protocol with `git clone vscode-lanuageserver-node.git`
+4. Get the typescript code for the jsonrpc protocol with `git clone git@github.com:microsoft/vscode-languageserver-node.git`
 
 ## Usage
 

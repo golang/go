@@ -13,7 +13,7 @@ var (
 	namesInitializeError        [int(UnknownProtocolVersion) + 1]string
 	namesMessageType            [int(Log) + 1]string
 	namesFileChangeType         [int(Deleted) + 1]string
-	namesWatchKind              [int(Change) + 1]string
+	namesWatchKind              [int(WatchDelete) + 1]string
 	namesCompletionTriggerKind  [int(TriggerForIncompleteCompletions) + 1]string
 	namesDiagnosticSeverity     [int(SeverityHint) + 1]string
 	namesDiagnosticTag          [int(Unnecessary) + 1]string
@@ -40,7 +40,9 @@ func init() {
 	namesFileChangeType[int(Changed)] = "Changed"
 	namesFileChangeType[int(Deleted)] = "Deleted"
 
-	namesWatchKind[int(Change)] = "Change"
+	namesWatchKind[int(WatchCreate)] = "WatchCreate"
+	namesWatchKind[int(WatchChange)] = "WatchChange"
+	namesWatchKind[int(WatchDelete)] = "WatchDelete"
 
 	namesCompletionTriggerKind[int(Invoked)] = "Invoked"
 	namesCompletionTriggerKind[int(TriggerCharacter)] = "TriggerCharacter"

@@ -1,7 +1,7 @@
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
 // commit: 8801c20b667945f455d7e023c71d2f741caeda25
-// last fetched Thu Jul 11 2019 13:43:41 GMT-0400 (Eastern Daylight Time)
+// last fetched Sat Jul 13 2019 18:33:10 GMT-0700 (Pacific Daylight Time)
 package protocol
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
@@ -3611,10 +3611,20 @@ const (
 	 */
 	Deleted FileChangeType = 3
 
-	/*Change defined:
+	/*WatchCreate defined:
+	 * Interested in create events.
+	 */
+	WatchCreate WatchKind = 1
+
+	/*WatchChange defined:
 	 * Interested in change events
 	 */
-	Change WatchKind = 2
+	WatchChange WatchKind = 2
+
+	/*WatchDelete defined:
+	 * Interested in delete events
+	 */
+	WatchDelete WatchKind = 4
 
 	/*Invoked defined:
 	 * Completion was triggered by typing an identifier (24x7 code
