@@ -148,17 +148,18 @@ func (h *handler) Request(ctx context.Context, direction jsonrpc2.Direction, r *
 	if r.Method == "" {
 		panic("no method in rpc stats")
 	}
-	s := &rpcStats{
+	stats := &rpcStats{
 		method:    r.Method,
 		start:     time.Now(),
 		direction: direction,
 		payload:   r.Params,
 	}
+	ctx = context.WithValue(ctx, statsKey, stats)
 	mode := telemetry.Outbound
 	if direction == jsonrpc2.Receive {
 		mode = telemetry.Inbound
 	}
-	ctx, s.close = trace.StartSpan(ctx, r.Method,
+	ctx, stats.close = trace.StartSpan(ctx, r.Method,
 		tag.Tag{Key: telemetry.Method, Value: r.Method},
 		tag.Tag{Key: telemetry.RPCDirection, Value: mode},
 		tag.Tag{Key: telemetry.RPCID, Value: r.ID},
@@ -207,8 +208,12 @@ func (h *handler) Error(ctx context.Context, err error) {
 func (h *handler) getStats(ctx context.Context) *rpcStats {
 	stats, ok := ctx.Value(statsKey).(*rpcStats)
 	if !ok || stats == nil {
+		method, ok := ctx.Value(telemetry.Method).(string)
+		if !ok {
+			method = "???"
+		}
 		stats = &rpcStats{
-			method: "???",
+			method: method,
 			close:  func() {},
 		}
 	}
