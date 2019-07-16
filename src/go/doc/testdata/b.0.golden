@@ -1,0 +1,71 @@
+// 
+PACKAGE b
+
+IMPORTPATH
+	testdata/b
+
+IMPORTS
+	a
+
+FILENAMES
+	testdata/b.go
+
+CONSTANTS
+	// 
+	const (
+		C1	notExported	= iota
+		C2
+	
+		C4
+		C5
+	)
+
+	// 
+	const C notExported = 0
+
+	// 
+	const Pi = 3.14	// Pi
+
+
+VARIABLES
+	// 
+	var (
+		U1, U2, U4, U5	notExported
+	
+		U7	notExported	= 7
+	)
+
+	// 
+	var MaxInt int	// MaxInt
+
+	// 
+	var V notExported
+
+	// 
+	var V1, V2, V4, V5 notExported
+
+
+FUNCTIONS
+	// 
+	func F(x int) int
+
+	// 
+	func F1() notExported
+
+	// Always under the package functions list. 
+	func NotAFactory() int
+
+	// Associated with uint type if AllDecls is set. 
+	func UintFactory() uint
+
+
+TYPES
+	// 
+	type T struct{}	// T
+
+	// 
+	var V T	// v
+
+	// 
+	func (x *T) M()
+

@@ -1,0 +1,27 @@
+This program, dist, is the bootstrapping tool for the Go distribution.
+
+As of Go 1.5, dist and other parts of the compiler toolchain are written
+in Go, making bootstrapping a little more involved than in the past.
+The approach is to build the current release of Go with an earlier one.
+
+The process to install Go 1.x, for x ≥ 5, is:
+
+1. Build cmd/dist with Go 1.4.
+2. Using dist, build Go 1.x compiler toolchain with Go 1.4.
+3. Using dist, rebuild Go 1.x compiler toolchain with itself.
+4. Using dist, build Go 1.x cmd/go (as go_bootstrap) with Go 1.x compiler toolchain.
+5. Using go_bootstrap, build the remaining Go 1.x standard library and commands.
+
+NOTE: During the transition from the old C-based toolchain to the Go-based one,
+step 2 also builds the parts of the toolchain written in C, and step 3 does not
+recompile those.
+
+Because of backward compatibility, although the steps above say Go 1.4,
+in practice any release ≥ Go 1.4 but < Go 1.x will work as the bootstrap base.
+
+See golang.org/s/go15bootstrap for more details.
+
+Compared to Go 1.4 and earlier, dist will also take over much of what used to
+be done by make.bash/make.bat/make.rc and all of what used to be done by
+run.bash/run.bat/run.rc, because it is nicer to implement that logic in Go
+than in three different scripting languages simultaneously.

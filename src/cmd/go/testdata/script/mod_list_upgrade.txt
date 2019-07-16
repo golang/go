@@ -1,0 +1,28 @@
+env GO111MODULE=on
+
+# If the current version is not latest, 'go list -u' should include its upgrade.
+go list -m -u all
+stdout 'rsc.io/quote v1.2.0 \[v1\.5\.2\]'
+
+# If the current version is latest, 'go list -u' should omit the upgrade.
+go get -d rsc.io/quote@v1.5.2
+go list -m -u all
+stdout 'rsc.io/quote v1.5.2$'
+
+# If the current version is newer than latest, 'go list -u' should
+# omit the upgrade.
+go get -d rsc.io/quote@v1.5.3-pre1
+go list -m -u all
+stdout 'rsc.io/quote v1.5.3-pre1$'
+
+# If the current build list has a higher version and the user asks about
+# a lower one, -u should report the upgrade for the lower one
+# but leave the build list unchanged.
+go list -m -u rsc.io/quote@v1.5.1
+stdout 'rsc.io/quote v1.5.1 \[v1.5.2\]$'
+go list -m -u rsc.io/quote
+stdout 'rsc.io/quote v1.5.3-pre1$'
+
+-- go.mod --
+module x
+require rsc.io/quote v1.2.0

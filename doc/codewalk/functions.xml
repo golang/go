@@ -1,0 +1,105 @@
+<codewalk title="First-Class Functions in Go">
+
+<step title="Introduction" src="doc/codewalk/pig.go">
+	Go supports first class functions, higher-order functions, user-defined
+	function types, function literals, closures, and multiple return values.
+  <br/><br/>
+
+	This rich feature set supports a functional programming style in a strongly
+	typed language.
+	<br/><br/>
+
+	In this codewalk we will look at a simple program that simulates a dice game
+	called <a href="http://en.wikipedia.org/wiki/Pig_(dice)">Pig</a> and evaluates
+	basic strategies.
+</step>
+
+<step title="Game overview" src="doc/codewalk/pig.go:/\/\/ A score/,/thisTurn int\n}/">
+  Pig is a two-player game played with a 6-sided die.  Each turn, you may roll or stay.
+	<ul>
+		<li> If you roll a 1, you lose all points for your turn and play passes to
+			your opponent.  Any other roll adds its value to your turn score.  </li>
+		<li> If you stay, your turn score is added to your total score, and play passes
+			to your opponent.  </li>
+	</ul>
+	
+	The first person to reach 100 total points wins.
+	<br/><br/>
+
+	The <code>score</code> type stores the scores of the current and opposing
+	players, in addition to the points accumulated during the current turn.
+</step>
+
+<step title="User-defined function types" src="doc/codewalk/pig.go:/\/\/ An action/,/bool\)/">
+	In Go, functions can be passed around just like any other value. A function's
+	type signature describes the types of its arguments and return values.
+	<br/><br/>
+
+	The <code>action</code> type is a function that takes a <code>score</code>
+	and returns the resulting <code>score</code> and whether the current turn is
+	over.
+	<br/><br/>
+
+  If the turn is over, the <code>player</code> and <code>opponent</code> fields
+  in the resulting <code>score</code> should be swapped, as it is now the other player's
+  turn.
+</step>
+
+<step title="Multiple return values" src="doc/codewalk/pig.go:/\/\/ roll returns/,/true\n}/">
+	Go functions can return multiple values.  
+	<br/><br/>
+
+	The functions <code>roll</code> and <code>stay</code> each return a pair of
+	values.  They also match the <code>action</code> type signature.  These
+	<code>action</code> functions define the rules of Pig.
+</step>
+
+<step title="Higher-order functions" src="doc/codewalk/pig.go:/\/\/ A strategy/,/action\n/">
+	A function can use other functions as arguments and return values.
+	<br/><br/>
+
+  A <code>strategy</code> is a function that takes a <code>score</code> as input
+  and returns an <code>action</code> to perform.  <br/>
+  (Remember, an <code>action</code> is itself a function.)
+</step>
+
+<step title="Function literals and closures" src="doc/codewalk/pig.go:/return func/,/return roll\n\t}/">
+	Anonymous functions can be declared in Go, as in this example.  Function
+	literals are closures: they inherit the scope of the function in which they
+	are declared.
+	<br/><br/>
+
+	One basic strategy in Pig is to continue rolling until you have accumulated at
+	least k points in a turn, and then stay.  The argument <code>k</code> is
+	enclosed by this function literal, which matches the <code>strategy</code> type
+	signature.
+</step>
+
+<step title="Simulating games" src="doc/codewalk/pig.go:/\/\/ play/,/currentPlayer\n}/">
+  We simulate a game of Pig by calling an <code>action</code> to update the
+  <code>score</code> until one player reaches 100 points.  Each
+  <code>action</code> is selected by calling the <code>strategy</code> function
+  associated with the current player.
+</step>
+
+<step title="Simulating a tournament" src="doc/codewalk/pig.go:/\/\/ roundRobin/,/gamesPerStrategy\n}/">
+	The <code>roundRobin</code> function simulates a tournament and tallies wins.
+	Each strategy plays each other strategy <code>gamesPerSeries</code> times.
+</step>
+	
+<step title="Variadic function declarations" src="doc/codewalk/pig.go:/\/\/ ratioS/,/string {/">
+	Variadic functions like <code>ratioString</code> take a variable number of
+	arguments.  These arguments are available as a slice inside the function.
+</step>
+
+<step title="Simulation results" src="doc/codewalk/pig.go:/func main/,/\n}/">
+	The <code>main</code> function defines 100 basic strategies, simulates a round
+	robin tournament, and then prints the win/loss record of each strategy.
+	<br/><br/>
+
+	Among these strategies, staying at 25 is best, but the <a
+	href="http://www.google.com/search?q=optimal+play+pig">optimal strategy for
+	Pig</a> is much more complex.
+</step>
+
+</codewalk>

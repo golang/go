@@ -1,0 +1,26 @@
+# Unknown lines should be ignored in dependency go.mod files.
+env GO111MODULE=on
+go list -m all
+
+# ... and in replaced dependency go.mod files.
+cp go.mod go.mod.usesub
+go list -m all
+
+# ... but not in the main module.
+cp go.mod.bad go.mod
+! go list -m all
+stderr 'unknown directive: hello'
+
+-- go.mod --
+module m
+require rsc.io/badmod v1.0.0
+-- go.mod.bad --
+module m
+hello world
+-- go.mod.usesub --
+module m
+require rsc.io/badmod v1.0.0
+replace rsc.io/badmod v1.0.0 => ./sub
+-- sub/go.mod --
+module sub
+hello world

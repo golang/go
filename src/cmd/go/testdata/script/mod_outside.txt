@@ -1,0 +1,250 @@
+env GO111MODULE=on
+[short] skip
+
+# This script tests commands in module mode outside of any module.
+#
+# First, ensure that we really are in module mode, and that we really don't have
+# a go.mod file.
+go env GOMOD
+stdout 'NUL|/dev/null'
+
+
+# 'go list' without arguments implicitly operates on the current directory,
+# which is not in a module.
+! go list
+stderr 'cannot find main module'
+go list -m
+stdout '^command-line-arguments$'
+# 'go list' in the working directory should fail even if there is a a 'package
+# main' present: without a main module, we do not know its package path.
+! go list ./foo
+stderr 'cannot find main module'
+
+# 'go list all' lists the transitive import graph of the main module,
+# which is empty if there is no main module.
+go list all
+! stdout .
+stderr 'warning: "all" matched no packages'
+go list -m all
+stderr 'warning: pattern "all" matched no module dependencies'
+
+# 'go list' on standard-library packages should work, since they do not depend
+# on the contents of any module.
+go list -deps cmd
+stdout '^fmt$'
+stdout '^cmd/go$'
+
+go list $GOROOT/src/fmt
+stdout '^fmt$'
+
+# 'go list' should work with file arguments.
+go list ./foo/foo.go
+stdout 'command-line-arguments'
+
+# 'go list -m' with an explicit version should resolve that version.
+go list -m example.com/version@latest
+stdout 'example.com/version v1.1.0'
+
+# 'go list -m -versions' should succeed even without an explicit version.
+go list -m -versions example.com/version
+stdout 'v1.0.0\s+v1.0.1\s+v1.1.0'
+
+# 'go list -m <mods> all' does not include the dependencies of <mods> in the computation of 'all'.
+go list -m example.com/printversion@v1.0.0 all
+stdout 'example.com/printversion v1.0.0'
+stderr 'warning: pattern "all" matched no module dependencies'
+! stdout 'example.com/version'
+
+
+# 'go clean' should skip the current directory if it isn't in a module.
+go clean -n
+! stdout .
+! stderr .
+
+# 'go mod graph' should not display anything, since there are no active modules.
+go mod graph
+! stdout .
+! stderr .
+
+# 'go mod why' should report that nothing is a dependency.
+go mod why -m example.com/version
+stdout 'does not need'
+
+
+# 'go mod edit', 'go mod tidy', and 'go mod fmt' should fail:
+# there is no go.mod file to edit.
+! go mod tidy
+stderr 'cannot find main module'
+! go mod edit -fmt
+stderr 'cannot find main module'
+! go mod edit -require example.com/version@v1.0.0
+stderr 'cannot find main module'
+
+
+# 'go mod download' should download exactly the requested module without dependencies.
+rm -r $GOPATH/pkg/mod/cache/download/example.com
+go mod download example.com/printversion@v1.0.0
+exists $GOPATH/pkg/mod/cache/download/example.com/printversion/@v/v1.0.0.zip
+! exists $GOPATH/pkg/mod/cache/download/example.com/version/@v/v1.0.0.zip
+
+# 'go mod vendor' should fail: it starts by clearing the existing vendor
+# directory, and we don't know where that is.
+! go mod vendor
+stderr 'cannot find main module'
+
+# 'go mod verify' should succeed: we have no modules to verify.
+go mod verify
+stdout 'all modules verified'
+! stderr .
+
+
+# 'go get' without arguments implicitly operates on the main module, and thus
+# should fail.
+! go get
+stderr 'cannot find main module'
+! go get -u
+stderr 'cannot find main module'
+! go get -u ./foo
+stderr 'cannot find main module'
+
+# 'go get -u all' upgrades the transitive import graph of the main module,
+# which is empty.
+go get -u all
+! stdout .
+stderr 'warning: "all" matched no packages'
+
+# 'go get' should check the proposed module graph for consistency,
+# even though we won't write it anywhere.
+! go get -d example.com/printversion@v1.0.0 example.com/version@none
+stderr 'inconsistent versions'
+
+# 'go get -d' should download and extract the source code needed to build the requested version.
+rm -r $GOPATH/pkg/mod/example.com
+go get -d example.com/printversion@v1.0.0
+exists $GOPATH/pkg/mod/example.com/printversion@v1.0.0
+exists $GOPATH/pkg/mod/example.com/version@v1.0.0
+
+
+# 'go build' without arguments implicitly operates on the current directory, and should fail.
+cd foo
+! go build
+stderr 'cannot find main module'
+cd ..
+
+# 'go build' of a non-module directory should fail too.
+! go build ./foo
+stderr 'cannot find main module'
+
+# However, 'go build' should succeed for standard-library packages.
+go build -n fmt
+
+
+# TODO(golang.org/issue/28992): 'go doc' should document the latest version.
+# For now it does not.
+! go doc example.com/version
+stderr 'no such package'
+
+# 'go install' with a version should fail due to syntax.
+! go install example.com/printversion@v1.0.0
+stderr 'can only use path@version syntax with'
+
+
+# 'go fmt' should be able to format files outside of a module.
+go fmt foo/foo.go
+
+
+# The remainder of the test checks dependencies by linking and running binaries.
+[short] stop
+
+# 'go get' of a binary without a go.mod should install the requested version,
+# resolving outside dependencies to the latest available versions.
+go get example.com/printversion@v0.1.0
+exec ../bin/printversion
+stdout 'path is example.com/printversion'
+stdout 'main is example.com/printversion v0.1.0'
+stdout 'using example.com/version v1.1.0'
+
+# 'go get' of a versioned binary should build and install the latest version
+# using its minimal module requirements, ignoring replacements and exclusions.
+go get example.com/printversion
+exec ../bin/printversion
+stdout 'path is example.com/printversion'
+stdout 'main is example.com/printversion v1.0.0'
+stdout 'using example.com/version v1.0.0'
+
+# 'go get -u=patch' should patch dependencies before installing,
+# again ignoring replacements and exclusions.
+go get -u=patch example.com/printversion@v1.0.0
+exec ../bin/printversion
+stdout 'path is example.com/printversion'
+stdout 'main is example.com/printversion v1.0.0'
+stdout 'using example.com/version v1.0.1'
+
+# 'go install' without a version should install the latest version
+# using its minimal module requirements.
+go install example.com/printversion
+exec ../bin/printversion
+stdout 'path is example.com/printversion'
+stdout 'main is example.com/printversion v1.0.0'
+stdout 'using example.com/version v1.0.0'
+
+# 'go run' should use 'main' as the effective module and import path.
+go run ./foo/foo.go
+stdout 'path is command-line-arguments$'
+stdout 'main is command-line-arguments \(devel\)'
+stdout 'using example.com/version v1.1.0'
+
+# 'go generate' should work with file arguments.
+[exec:touch] go generate ./foo/foo.go
+[exec:touch] exists ./foo/gen.txt
+
+# 'go install' should work with file arguments.
+go install ./foo/foo.go
+
+# 'go test' should work with file arguments.
+go test -v ./foo/foo_test.go
+stdout 'foo was tested'
+
+# 'go vet' should work with file arguments.
+go vet ./foo/foo.go
+
+
+-- README.txt --
+There is no go.mod file in the working directory.
+
+-- foo/foo.go --
+//go:generate touch gen.txt
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"runtime/debug"
+
+	_ "example.com/version"
+)
+
+func main() {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		panic("missing build info")
+	}
+	fmt.Fprintf(os.Stdout, "path is %s\n", info.Path)
+	fmt.Fprintf(os.Stdout, "main is %s %s\n", info.Main.Path, info.Main.Version)
+	for _, m := range info.Deps {
+		fmt.Fprintf(os.Stdout, "using %s %s\n", m.Path, m.Version)
+	}
+}
+
+-- foo/foo_test.go --
+package main
+
+import (
+	"fmt"
+	"testing"
+)
+
+func TestFoo(t *testing.T) {
+	fmt.Println("foo was tested")
+}

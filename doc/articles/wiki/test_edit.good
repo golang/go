@@ -1,0 +1,6 @@
+<h1>Editing Test</h1>
+
+<form action="/save/Test" method="POST">
+<div><textarea name="body" rows="20" cols="80"></textarea></div>
+<div><input type="submit" value="Save"></div>
+</form>

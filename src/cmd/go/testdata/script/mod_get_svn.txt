@@ -1,0 +1,27 @@
+[!net] skip
+[!exec:svn] skip
+
+env GO111MODULE=on
+env GOPROXY=direct
+env GOSUMDB=off
+
+# Attempting to get a module zip using svn should fail with a reasonable
+# message instead of a panic.
+# TODO(golang.org/issue/26092): Really, it shouldn't fail at all.
+! go get -d vcs-test.golang.org/svn/hello.svn
+stderr 'ReadZip not implemented for svn'
+! go install .
+stderr 'ReadZip not implemented for svn'
+
+# Attempting to get a nonexistent module using svn should fail with a
+# reasonable message instead of a panic.
+! go get -d vcs-test.golang.org/svn/nonexistent.svn
+! stderr panic
+stderr 'go get vcs-test.golang.org/svn/nonexistent.svn: no matching versions for query "upgrade"'
+
+-- go.mod --
+module golang/go/issues/28943/main
+-- main.go --
+package main
+import _ "vcs-test.golang.org/svn/hello.svn"
+func main() {}

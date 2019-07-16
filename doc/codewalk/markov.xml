@@ -1,0 +1,307 @@
+<!--
+Copyright 2011 The Go Authors. All rights reserved.
+Use of this source code is governed by a BSD-style
+license that can be found in the LICENSE file.
+-->
+
+<codewalk title="Generating arbitrary text: a Markov chain algorithm">
+
+<step title="Introduction" src="doc/codewalk/markov.go:/Generating/,/line\./">
+	This codewalk describes a program that generates random text using
+	a Markov chain algorithm. The package comment describes the algorithm
+	and the operation of the program. Please read it before continuing.
+</step>
+
+<step title="Modeling Markov chains" src="doc/codewalk/markov.go:/	chain/">
+	A chain consists of a prefix and a suffix. Each prefix is a set
+	number of words, while a suffix is a single word.
+	A prefix can have an arbitrary number of suffixes.
+	To model this data, we use a <code>map[string][]string</code>.
+	Each map key is a prefix (a <code>string</code>) and its values are
+	lists of suffixes (a slice of strings, <code>[]string</code>).
+	<br/><br/>
+	Here is the example table from the package comment
+	as modeled by this data structure:
+	<pre>
+map[string][]string{
+	" ":          {"I"},
+	" I":         {"am"},
+	"I am":       {"a", "not"},
+	"a free":     {"man!"},
+	"am a":       {"free"},
+	"am not":     {"a"},
+	"a number!":  {"I"},
+	"number! I":  {"am"},
+	"not a":      {"number!"},
+}</pre>
+	While each prefix consists of multiple words, we
+	store prefixes in the map as a single <code>string</code>.
+	It would seem more natural to store the prefix as a
+	<code>[]string</code>, but we can't do this with a map because the
+	key type of a map must implement equality (and slices do not).
+	<br/><br/>
+	Therefore, in most of our code we will model prefixes as a
+	<code>[]string</code> and join the strings together with a space
+	to generate the map key:
+	<pre>
+Prefix               Map key
+
+[]string{"", ""}     " "
+[]string{"", "I"}    " I"
+[]string{"I", "am"}  "I am"
+</pre>
+</step>
+
+<step title="The Chain struct" src="doc/codewalk/markov.go:/type Chain/,/}/">
+	The complete state of the chain table consists of the table itself and
+	the word length of the prefixes. The <code>Chain</code> struct stores
+	this data.
+</step>
+
+<step title="The NewChain constructor function" src="doc/codewalk/markov.go:/func New/,/\n}/">
+	The <code>Chain</code> struct has two unexported fields (those that
+	do not begin with an upper case character), and so we write a
+	<code>NewChain</code> constructor function that initializes the
+	<code>chain</code> map with <code>make</code> and sets the
+	<code>prefixLen</code> field.
+	<br/><br/>
+	This is constructor function is not strictly necessary as this entire
+	program is within a single package (<code>main</code>) and therefore
+	there is little practical difference between exported and unexported
+	fields. We could just as easily write out the contents of this function
+	when we want to construct a new Chain.
+	But using these unexported fields is good practice; it clearly denotes
+	that only methods of Chain and its constructor function should access
+	those fields. Also, structuring <code>Chain</code> like this means we
+	could easily move it into its own package at some later date.
+</step>
+
+<step title="The Prefix type" src="doc/codewalk/markov.go:/type Prefix/">
+	Since we'll be working with prefixes often, we define a
+	<code>Prefix</code> type with the concrete type <code>[]string</code>.
+	Defining a named type clearly allows us to be explicit when we are
+	working with a prefix instead of just a <code>[]string</code>.
+	Also, in Go we can define methods on any named type (not just structs),
+	so we can add methods that operate on <code>Prefix</code> if we need to.
+</step>
+
+<step title="The String method" src="doc/codewalk/markov.go:/func[^\n]+String/,/}/">
+	The first method we define on <code>Prefix</code> is
+	<code>String</code>. It returns a <code>string</code> representation
+	of a <code>Prefix</code> by joining the slice elements together with
+	spaces. We will use this method to generate keys when working with
+	the chain map.
+</step>
+
+<step title="Building the chain" src="doc/codewalk/markov.go:/func[^\n]+Build/,/\n}/">
+	The <code>Build</code> method reads text from an <code>io.Reader</code>
+	and parses it into prefixes and suffixes that are stored in the
+	<code>Chain</code>.
+	<br/><br/>
+	The <code><a href="/pkg/io/#Reader">io.Reader</a></code> is an
+	interface type that is widely used by the standard library and
+	other Go code. Our code uses the
+	<code><a href="/pkg/fmt/#Fscan">fmt.Fscan</a></code> function, which
+	reads space-separated values from an <code>io.Reader</code>.
+	<br/><br/>
+	The <code>Build</code> method returns once the <code>Reader</code>'s
+	<code>Read</code> method returns <code>io.EOF</code> (end of file)
+	or some other read error occurs.
+</step>
+
+<step title="Buffering the input" src="doc/codewalk/markov.go:/bufio\.NewReader/">
+	This function does many small reads, which can be inefficient for some
+	<code>Readers</code>. For efficiency we wrap the provided
+	<code>io.Reader</code> with
+	<code><a href="/pkg/bufio/">bufio.NewReader</a></code> to create a
+	new <code>io.Reader</code> that provides buffering.
+</step>
+
+<step title="The Prefix variable" src="doc/codewalk/markov.go:/make\(Prefix/">
+	At the top of the function we make a <code>Prefix</code> slice
+	<code>p</code> using the <code>Chain</code>'s <code>prefixLen</code>
+	field as its length.
+	We'll use this variable to hold the current prefix and mutate it with
+	each new word we encounter.
+</step>
+
+<step title="Scanning words" src="doc/codewalk/markov.go:/var s string/,/\n		}/">
+	In our loop we read words from the <code>Reader</code> into a
+	<code>string</code> variable <code>s</code> using
+	<code>fmt.Fscan</code>. Since <code>Fscan</code> uses space to
+	separate each input value, each call will yield just one word
+	(including punctuation), which is exactly what we need.
+	<br/><br/>
+	<code>Fscan</code> returns an error if it encounters a read error
+	(<code>io.EOF</code>, for example) or if it can't scan the requested
+	value (in our case, a single string). In either case we just want to
+	stop scanning, so we <code>break</code> out of the loop.
+</step>
+
+<step title="Adding a prefix and suffix to the chain" src="doc/codewalk/markov.go:/	key/,/key\], s\)">
+	The word stored in <code>s</code> is a new suffix. We add the new
+	prefix/suffix combination to the <code>chain</code> map by computing
+	the map key with <code>p.String</code> and appending the suffix
+	to the slice stored under that key.
+	<br/><br/>
+	The built-in <code>append</code> function appends elements to a slice
+	and allocates new storage when necessary. When the provided slice is
+	<code>nil</code>, <code>append</code> allocates a new slice.
+	This behavior conveniently ties in with the semantics of our map:
+	retrieving an unset key returns the zero value of the value type and
+	the zero value of <code>[]string</code> is <code>nil</code>.
+	When our program encounters a new prefix (yielding a <code>nil</code>
+	value in the map) <code>append</code> will allocate a new slice.
+	<br/><br/>
+	For more information about the <code>append</code> function and slices
+	in general see the
+	<a href="/doc/articles/slices_usage_and_internals.html">Slices: usage and internals</a> article.
+</step>
+
+<step title="Pushing the suffix onto the prefix" src="doc/codewalk/markov.go:/p\.Shift/">
+	Before reading the next word our algorithm requires us to drop the
+	first word from the prefix and push the current suffix onto the prefix.
+	<br/><br/>
+	When in this state
+	<pre>
+p == Prefix{"I", "am"}
+s == "not" </pre>
+	the new value for <code>p</code> would be
+	<pre>
+p == Prefix{"am", "not"}</pre>
+	This operation is also required during text generation so we put
+	the code to perform this mutation of the slice inside a method on
+	<code>Prefix</code> named <code>Shift</code>.
+</step>
+
+<step title="The Shift method" src="doc/codewalk/markov.go:/func[^\n]+Shift/,/\n}/">
+	The <code>Shift</code> method uses the built-in <code>copy</code>
+	function to copy the last len(p)-1 elements of <code>p</code> to
+	the start of the slice, effectively moving the elements
+	one index to the left (if you consider zero as the leftmost index).
+	<pre>
+p := Prefix{"I", "am"}
+copy(p, p[1:])
+// p == Prefix{"am", "am"}</pre>
+	We then assign the provided <code>word</code> to the last index
+	of the slice:
+	<pre>
+// suffix == "not"
+p[len(p)-1] = suffix
+// p == Prefix{"am", "not"}</pre>
+</step>
+
+<step title="Generating text" src="doc/codewalk/markov.go:/func[^\n]+Generate/,/\n}/">
+	The <code>Generate</code> method is similar to <code>Build</code>
+	except that instead of reading words from a <code>Reader</code>
+	and storing them in a map, it reads words from the map and
+	appends them to a slice (<code>words</code>).
+	<br/><br/>
+	<code>Generate</code> uses a conditional for loop to generate
+	up to <code>n</code> words.
+</step>
+
+<step title="Getting potential suffixes" src="doc/codewalk/markov.go:/choices/,/}\n/">
+	At each iteration of the loop we retrieve a list of potential suffixes
+	for the current prefix. We access the <code>chain</code> map at key
+	<code>p.String()</code> and assign its contents to <code>choices</code>.
+	<br/><br/>
+	If <code>len(choices)</code> is zero we break out of the loop as there
+	are no potential suffixes for that prefix.
+	This test also works if the key isn't present in the map at all:
+	in that case, <code>choices</code> will be <code>nil</code> and the
+	length of a <code>nil</code> slice is zero.
+</step>
+
+<step title="Choosing a suffix at random" src="doc/codewalk/markov.go:/next := choices/,/Shift/">
+	To choose a suffix we use the
+	<code><a href="/pkg/math/rand/#Intn">rand.Intn</a></code> function.
+	It returns a random integer up to (but not including) the provided
+	value. Passing in <code>len(choices)</code> gives us a random index
+	into the full length of the list.
+	<br/><br/>
+	We use that index to pick our new suffix, assign it to
+	<code>next</code> and append it to the <code>words</code> slice.
+	<br/><br/>
+	Next, we <code>Shift</code> the new suffix onto the prefix just as
+	we did in the <code>Build</code> method.
+</step>
+
+<step title="Returning the generated text" src="doc/codewalk/markov.go:/Join\(words/">
+	Before returning the generated text as a string, we use the
+	<code>strings.Join</code> function to join the elements of
+	the <code>words</code> slice together, separated by spaces.
+</step>
+
+<step title="Command-line flags" src="doc/codewalk/markov.go:/Register command-line flags/,/prefixLen/">
+	To make it easy to tweak the prefix and generated text lengths we
+	use the <code><a href="/pkg/flag/">flag</a></code> package to parse
+	command-line flags.
+	<br/><br/>
+	These calls to <code>flag.Int</code> register new flags with the
+	<code>flag</code> package. The arguments to <code>Int</code> are the
+	flag name, its default value, and a description. The <code>Int</code>
+	function returns a pointer to an integer that will contain the
+	user-supplied value (or the default value if the flag was omitted on
+	the command-line).
+</step>
+
+<step title="Program set up" src="doc/codewalk/markov.go:/flag.Parse/,/rand.Seed/">
+	The <code>main</code> function begins by parsing the command-line
+	flags with <code>flag.Parse</code> and seeding the <code>rand</code>
+	package's random number generator with the current time.
+	<br/><br/>
+	If the command-line flags provided by the user are invalid the
+	<code>flag.Parse</code> function will print an informative usage
+	message and terminate the program.
+</step>
+
+<step title="Creating and building a new Chain" src="doc/codewalk/markov.go:/c := NewChain/,/c\.Build/">
+	To create the new <code>Chain</code> we call <code>NewChain</code>
+	with the value of the <code>prefix</code> flag.
+	<br/><br/>
+	To build the chain we call <code>Build</code> with
+	<code>os.Stdin</code> (which implements <code>io.Reader</code>) so
+	that it will read its input from standard input.
+</step>
+
+<step title="Generating and printing text" src="doc/codewalk/markov.go:/c\.Generate/,/fmt.Println/">
+	Finally, to generate text we call <code>Generate</code> with
+	the value of the <code>words</code> flag and assigning the result
+	to the variable <code>text</code>.
+	<br/><br/>
+	Then we call <code>fmt.Println</code> to write the text to standard
+	output, followed by a carriage return.
+</step>
+
+<step title="Using this program" src="doc/codewalk/markov.go">
+	To use this program, first build it with the
+	<a href="/cmd/go/">go</a> command:
+	<pre>
+$ go build markov.go</pre>
+	And then execute it while piping in some input text:
+	<pre>
+$ echo "a man a plan a canal panama" \
+	| ./markov -prefix=1
+a plan a man a plan a canal panama</pre>
+	Here's a transcript of generating some text using the Go distribution's
+	README file as source material:
+	<pre>
+$ ./markov -words=10 &lt; $GOROOT/README
+This is the source code repository for the Go source
+$ ./markov -prefix=1 -words=10 &lt; $GOROOT/README
+This is the go directory (the one containing this README).
+$ ./markov -prefix=1 -words=10 &lt; $GOROOT/README
+This is the variable if you have just untarred a</pre>
+</step>
+
+<step title="An exercise for the reader" src="doc/codewalk/markov.go">
+	The <code>Generate</code> function does a lot of allocations when it
+	builds the <code>words</code> slice. As an exercise, modify it to
+	take an <code>io.Writer</code> to which it incrementally writes the
+	generated text with <code>Fprint</code>.
+	Aside from being more efficient this makes <code>Generate</code>
+	more symmetrical to <code>Build</code>.
+</step>
+
+</codewalk>

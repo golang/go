@@ -1,0 +1,33 @@
+# Verify build -o can output multiple executables to a directory.
+
+mkdir $WORK/bin
+go build -o $WORK/bin ./cmd/c1 ./cmd/c2
+! stderr 'multiple packages'
+
+! go build -o $WORK/bin ./pkg1 ./pkg1
+stderr 'no main packages'
+
+! go build ./cmd/c1
+stderr 'already exists and is a directory'
+
+-- go.mod --
+module exmod
+
+-- cmd/c1/main.go --
+package main
+
+func main() {}
+
+-- cmd/c2/main.go --
+package main
+
+func main() {}
+
+-- pkg1/pkg1.go --
+package pkg1
+
+-- pkg2/pkg2.go --
+package pkg2
+
+-- c1$GOEXE/keep.txt --
+Create c1 directory.

@@ -1,0 +1,64 @@
+env GO111MODULE=off
+[short] skip
+
+[!exec:git] skip
+
+# Set up a benign repository and a repository with a dotfile name.
+cd $WORK/_origin/foo
+exec git init
+exec git config user.name 'Nameless Gopher'
+exec git config user.email 'nobody@golang.org'
+exec git commit --allow-empty -m 'create master branch'
+
+cd $WORK/_origin/.hidden
+exec git init
+exec git config user.name 'Nameless Gopher'
+exec git config user.email 'nobody@golang.org'
+exec git commit --allow-empty -m 'create master branch'
+
+# Clone the empty repositories into GOPATH.
+# This tells the Go command where to find them: it takes the place of a user's meta-tag redirector.
+mkdir $GOPATH/src/example.com
+cd $GOPATH/src/example.com
+exec git clone $WORK/_origin/foo
+exec git clone $WORK/_origin/.hidden
+
+# Add a benign commit.
+cd $WORK/_origin/foo
+cp _ok/main.go main.go
+exec git add main.go
+exec git commit -m 'add ok'
+
+# 'go get' should install the benign commit.
+cd $GOPATH
+go get -u example.com/foo
+
+# Now sneak in an import of a dotfile path.
+cd $WORK/_origin/.hidden
+exec git add hidden.go
+exec git commit -m 'nothing to see here, move along'
+
+cd $WORK/_origin/foo
+cp _sneaky/main.go main.go
+exec git add main.go
+exec git commit -m 'fix typo (heh heh heh)'
+
+# 'go get -u' should refuse to download or update the dotfile-named repo.
+cd $GOPATH/src/example.com/foo
+! go get -u example.com/foo
+stderr 'leading dot'
+! exists example.com/.hidden/hidden.go
+
+-- $WORK/_origin/foo/_ok/main.go --
+package main
+
+func main() {}
+
+-- $WORK/_origin/foo/_sneaky/main.go --
+package main
+import _ "example.com/.hidden"
+
+func main() {}
+
+-- $WORK/_origin/.hidden/hidden.go --
+package hidden

@@ -1,0 +1,17 @@
+vendors:
+- path: github.com/kr/pretty
+  rev: 737b74a46c4bf788349f72cb256fed10aea4d0ac
+- path: github.com/kr/text
+  rev: 7cafcd837844e784b526369c9bce262804aebc60
+- path: github.com/maruel/ut
+  rev: a9c9f15ccfa6f8b90182a53df32f4745586fbae3
+- path: github.com/mattn/go-colorable
+  rev: 9056b7a9f2d1f2d96498d6d146acd1f9d5ed3d59
+- path: github.com/mattn/go-isatty
+  rev: 56b76bdf51f7708750eac80fa38b952bb9f32639
+- path: github.com/mgutz/ansi
+  rev: c286dcecd19ff979eeb73ea444e479b903f2cfcb
+- path: github.com/pmezard/go-difflib
+  rev: 792786c7400a136282c1664665ae0a8db921c6c2
+- path: golang.org/x/sys
+  rev: a646d33e2ee3172a661fc09bca23bb4889a41bc8

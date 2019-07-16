@@ -1,0 +1,164 @@
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This is a package for testing comment placement by go/printer.
+//
+package main
+
+// Test cases for idempotent comment formatting (was issue 1835).
+/*
+c1a
+*/
+/*
+   c1b
+*/
+/* foo
+c1c
+*/
+/* foo
+   c1d
+*/
+/*
+c1e
+foo */
+/*
+   c1f
+   foo */
+
+func f() {
+	/*
+	   c2a
+	*/
+	/*
+	   c2b
+	*/
+	/* foo
+	   c2c
+	*/
+	/* foo
+	   c2d
+	*/
+	/*
+	   c2e
+	   foo */
+	/*
+	   c2f
+	   foo */
+}
+
+func g() {
+	/*
+	   c3a
+	*/
+	/*
+	   c3b
+	*/
+	/* foo
+	   c3c
+	*/
+	/* foo
+	   c3d
+	*/
+	/*
+	   c3e
+	   foo */
+	/*
+	   c3f
+	   foo */
+}
+
+// Test case taken literally from issue 1835.
+func main() {
+	/*
+	   prints test 5 times
+	*/
+	for i := 0; i < 5; i++ {
+		println("test")
+	}
+}
+
+func issue5623() {
+L:
+	_ = yyyyyyyyyyyyyyyy			// comment - should be aligned
+	_ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx	/* comment */
+
+	_ = yyyyyyyyyyyyyyyy			/* comment - should be aligned */
+	_ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx	// comment
+
+LLLLLLL:
+	_ = yyyyyyyyyyyyyyyy			// comment - should be aligned
+	_ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx	// comment
+
+LL:
+LLLLL:
+	_ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx	/* comment */
+	_ = yyyyyyyyyyyyyyyy			/* comment - should be aligned */
+
+	_ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx	// comment
+	_ = yyyyyyyyyyyyyyyy			// comment - should be aligned
+
+	// test case from issue
+label:
+	mask := uint64(1)<<c - 1		// Allocation mask
+	used := atomic.LoadUint64(&h.used)	// Current allocations
+}
+
+// Test cases for issue 18782
+var _ = [][]int{
+	/*       a, b, c, d, e */
+	/* a */ {0, 0, 0, 0, 0},
+	/* b */ {0, 5, 4, 4, 4},
+	/* c */ {0, 4, 5, 4, 4},
+	/* d */ {0, 4, 4, 5, 4},
+	/* e */ {0, 4, 4, 4, 5},
+}
+
+var _ = T{ /* a */ 0}
+
+var _ = T{ /* a */ /* b */ 0}
+
+var _ = T{	/* a */	/* b */
+	/* c */ 0,
+}
+
+var _ = T{	/* a */	/* b */
+	/* c */
+	/* d */ 0,
+}
+
+var _ = T{
+	/* a */
+	/* b */ 0,
+}
+
+var _ = T{ /* a */ {}}
+
+var _ = T{ /* a */ /* b */ {}}
+
+var _ = T{	/* a */	/* b */
+	/* c */ {},
+}
+
+var _ = T{	/* a */	/* b */
+	/* c */
+	/* d */ {},
+}
+
+var _ = T{
+	/* a */
+	/* b */ {},
+}
+
+var _ = []T{
+	func() {
+		var _ = [][]int{
+			/*       a, b, c, d, e */
+			/* a */ {0, 0, 0, 0, 0},
+			/* b */ {0, 5, 4, 4, 4},
+			/* c */ {0, 4, 5, 4, 4},
+			/* d */ {0, 4, 4, 5, 4},
+			/* e */ {0, 4, 4, 4, 5},
+		}
+	},
+}

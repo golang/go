@@ -1,0 +1,570 @@
+<!--{
+	"Title": "The Go Memory Model",
+	"Subtitle": "Version of May 31, 2014",
+	"Path": "/ref/mem"
+}-->
+
+<style>
+p.rule {
+  font-style: italic;
+}
+span.event {
+  font-style: italic;
+}
+</style>
+
+<h2>Introduction</h2>
+
+<p>
+The Go memory model specifies the conditions under which
+reads of a variable in one goroutine can be guaranteed to
+observe values produced by writes to the same variable in a different goroutine.
+</p>
+
+
+<h2>Advice</h2>
+
+<p>
+Programs that modify data being simultaneously accessed by multiple goroutines
+must serialize such access.
+</p>
+
+<p>
+To serialize access, protect the data with channel operations or other synchronization primitives
+such as those in the <a href="/pkg/sync/"><code>sync</code></a>
+and <a href="/pkg/sync/atomic/"><code>sync/atomic</code></a> packages.
+</p>
+
+<p>
+If you must read the rest of this document to understand the behavior of your program,
+you are being too clever.
+</p>
+
+<p>
+Don't be clever.
+</p>
+
+<h2>Happens Before</h2>
+
+<p>
+Within a single goroutine, reads and writes must behave
+as if they executed in the order specified by the program.
+That is, compilers and processors may reorder the reads and writes
+executed within a single goroutine only when the reordering
+does not change the behavior within that goroutine
+as defined by the language specification.
+Because of this reordering, the execution order observed
+by one goroutine may differ from the order perceived
+by another.  For example, if one goroutine
+executes <code>a = 1; b = 2;</code>, another might observe
+the updated value of <code>b</code> before the updated value of <code>a</code>.
+</p>
+
+<p>
+To specify the requirements of reads and writes, we define
+<i>happens before</i>, a partial order on the execution
+of memory operations in a Go program.  If event <span class="event">e<sub>1</sub></span> happens
+before event <span class="event">e<sub>2</sub></span>, then we say that <span class="event">e<sub>2</sub></span> happens after <span class="event">e<sub>1</sub></span>.
+Also, if <span class="event">e<sub>1</sub></span> does not happen before <span class="event">e<sub>2</sub></span> and does not happen
+after <span class="event">e<sub>2</sub></span>, then we say that <span class="event">e<sub>1</sub></span> and <span class="event">e<sub>2</sub></span> happen concurrently.
+</p>
+
+<p class="rule">
+Within a single goroutine, the happens-before order is the
+order expressed by the program.
+</p>
+
+<p>
+A read <span class="event">r</span> of a variable <code>v</code> is <i>allowed</i> to observe a write <span class="event">w</span> to <code>v</code>
+if both of the following hold:
+</p>
+
+<ol>
+<li><span class="event">r</span> does not happen before <span class="event">w</span>.</li>
+<li>There is no other write <span class="event">w'</span> to <code>v</code> that happens
+    after <span class="event">w</span> but before <span class="event">r</span>.</li>
+</ol>
+
+<p>
+To guarantee that a read <span class="event">r</span> of a variable <code>v</code> observes a
+particular write <span class="event">w</span> to <code>v</code>, ensure that <span class="event">w</span> is the only
+write <span class="event">r</span> is allowed to observe.
+That is, <span class="event">r</span> is <i>guaranteed</i> to observe <span class="event">w</span> if both of the following hold:
+</p>
+
+<ol>
+<li><span class="event">w</span> happens before <span class="event">r</span>.</li>
+<li>Any other write to the shared variable <code>v</code>
+either happens before <span class="event">w</span> or after <span class="event">r</span>.</li>
+</ol>
+
+<p>
+This pair of conditions is stronger than the first pair;
+it requires that there are no other writes happening
+concurrently with <span class="event">w</span> or <span class="event">r</span>.
+</p>
+
+<p>
+Within a single goroutine,
+there is no concurrency, so the two definitions are equivalent:
+a read <span class="event">r</span> observes the value written by the most recent write <span class="event">w</span> to <code>v</code>.
+When multiple goroutines access a shared variable <code>v</code>,
+they must use synchronization events to establish
+happens-before conditions that ensure reads observe the
+desired writes.
+</p>
+
+<p>
+The initialization of variable <code>v</code> with the zero value
+for <code>v</code>'s type behaves as a write in the memory model.
+</p>
+
+<p>
+Reads and writes of values larger than a single machine word
+behave as multiple machine-word-sized operations in an
+unspecified order.
+</p>
+
+<h2>Synchronization</h2>
+
+<h3>Initialization</h3>
+
+<p>
+Program initialization runs in a single goroutine,
+but that goroutine may create other goroutines,
+which run concurrently.
+</p>
+
+<p class="rule">
+If a package <code>p</code> imports package <code>q</code>, the completion of
+<code>q</code>'s <code>init</code> functions happens before the start of any of <code>p</code>'s.
+</p>
+
+<p class="rule">
+The start of the function <code>main.main</code> happens after
+all <code>init</code> functions have finished.
+</p>
+
+<h3>Goroutine creation</h3>
+
+<p class="rule">
+The <code>go</code> statement that starts a new goroutine
+happens before the goroutine's execution begins.
+</p>
+
+<p>
+For example, in this program:
+</p>
+
+<pre>
+var a string
+
+func f() {
+	print(a)
+}
+
+func hello() {
+	a = "hello, world"
+	go f()
+}
+</pre>
+
+<p>
+calling <code>hello</code> will print <code>"hello, world"</code>
+at some point in the future (perhaps after <code>hello</code> has returned).
+</p>
+
+<h3>Goroutine destruction</h3>
+
+<p>
+The exit of a goroutine is not guaranteed to happen before
+any event in the program.  For example, in this program:
+</p>
+
+<pre>
+var a string
+
+func hello() {
+	go func() { a = "hello" }()
+	print(a)
+}
+</pre>
+
+<p>
+the assignment to <code>a</code> is not followed by
+any synchronization event, so it is not guaranteed to be
+observed by any other goroutine.
+In fact, an aggressive compiler might delete the entire <code>go</code> statement.
+</p>
+
+<p>
+If the effects of a goroutine must be observed by another goroutine,
+use a synchronization mechanism such as a lock or channel
+communication to establish a relative ordering.
+</p>
+
+<h3>Channel communication</h3>
+
+<p>
+Channel communication is the main method of synchronization
+between goroutines.  Each send on a particular channel
+is matched to a corresponding receive from that channel,
+usually in a different goroutine.
+</p>
+
+<p class="rule">
+A send on a channel happens before the corresponding
+receive from that channel completes.
+</p>
+
+<p>
+This program:
+</p>
+
+<pre>
+var c = make(chan int, 10)
+var a string
+
+func f() {
+	a = "hello, world"
+	c &lt;- 0
+}
+
+func main() {
+	go f()
+	&lt;-c
+	print(a)
+}
+</pre>
+
+<p>
+is guaranteed to print <code>"hello, world"</code>.  The write to <code>a</code>
+happens before the send on <code>c</code>, which happens before
+the corresponding receive on <code>c</code> completes, which happens before
+the <code>print</code>.
+</p>
+
+<p class="rule">
+The closing of a channel happens before a receive that returns a zero value
+because the channel is closed.
+</p>
+
+<p>
+In the previous example, replacing
+<code>c &lt;- 0</code> with <code>close(c)</code>
+yields a program with the same guaranteed behavior.
+</p>
+
+<p class="rule">
+A receive from an unbuffered channel happens before
+the send on that channel completes.
+</p>
+
+<p>
+This program (as above, but with the send and receive statements swapped and
+using an unbuffered channel):
+</p>
+
+<pre>
+var c = make(chan int)
+var a string
+
+func f() {
+	a = "hello, world"
+	&lt;-c
+}
+</pre>
+
+<pre>
+func main() {
+	go f()
+	c &lt;- 0
+	print(a)
+}
+</pre>
+
+<p>
+is also guaranteed to print <code>"hello, world"</code>.  The write to <code>a</code>
+happens before the receive on <code>c</code>, which happens before
+the corresponding send on <code>c</code> completes, which happens
+before the <code>print</code>.
+</p>
+
+<p>
+If the channel were buffered (e.g., <code>c = make(chan int, 1)</code>)
+then the program would not be guaranteed to print
+<code>"hello, world"</code>.  (It might print the empty string,
+crash, or do something else.)
+</p>
+
+<p class="rule">
+The <i>k</i>th receive on a channel with capacity <i>C</i> happens before the <i>k</i>+<i>C</i>th send from that channel completes.
+</p>
+
+<p>
+This rule generalizes the previous rule to buffered channels.
+It allows a counting semaphore to be modeled by a buffered channel:
+the number of items in the channel corresponds to the number of active uses,
+the capacity of the channel corresponds to the maximum number of simultaneous uses,
+sending an item acquires the semaphore, and receiving an item releases
+the semaphore.
+This is a common idiom for limiting concurrency.
+</p>
+
+<p>
+This program starts a goroutine for every entry in the work list, but the
+goroutines coordinate using the <code>limit</code> channel to ensure
+that at most three are running work functions at a time.
+</p>
+
+<pre>
+var limit = make(chan int, 3)
+
+func main() {
+	for _, w := range work {
+		go func(w func()) {
+			limit &lt;- 1
+			w()
+			&lt;-limit
+		}(w)
+	}
+	select{}
+}
+</pre>
+
+<h3>Locks</h3>
+
+<p>
+The <code>sync</code> package implements two lock data types,
+<code>sync.Mutex</code> and <code>sync.RWMutex</code>.
+</p>
+
+<p class="rule">
+For any <code>sync.Mutex</code> or <code>sync.RWMutex</code> variable <code>l</code> and <i>n</i> &lt; <i>m</i>,
+call <i>n</i> of <code>l.Unlock()</code> happens before call <i>m</i> of <code>l.Lock()</code> returns.
+</p>
+
+<p>
+This program:
+</p>
+
+<pre>
+var l sync.Mutex
+var a string
+
+func f() {
+	a = "hello, world"
+	l.Unlock()
+}
+
+func main() {
+	l.Lock()
+	go f()
+	l.Lock()
+	print(a)
+}
+</pre>
+
+<p>
+is guaranteed to print <code>"hello, world"</code>.
+The first call to <code>l.Unlock()</code> (in <code>f</code>) happens
+before the second call to <code>l.Lock()</code> (in <code>main</code>) returns,
+which happens before the <code>print</code>.
+</p>
+
+<p class="rule">
+For any call to <code>l.RLock</code> on a <code>sync.RWMutex</code> variable <code>l</code>,
+there is an <i>n</i> such that the <code>l.RLock</code> happens (returns) after call <i>n</i> to
+<code>l.Unlock</code> and the matching <code>l.RUnlock</code> happens
+before call <i>n</i>+1 to <code>l.Lock</code>.
+</p>
+
+<h3>Once</h3>
+
+<p>
+The <code>sync</code> package provides a safe mechanism for
+initialization in the presence of multiple goroutines
+through the use of the <code>Once</code> type.
+Multiple threads can execute <code>once.Do(f)</code> for a particular <code>f</code>,
+but only one will run <code>f()</code>, and the other calls block
+until <code>f()</code> has returned.
+</p>
+
+<p class="rule">
+A single call of <code>f()</code> from <code>once.Do(f)</code> happens (returns) before any call of <code>once.Do(f)</code> returns.
+</p>
+
+<p>
+In this program:
+</p>
+
+<pre>
+var a string
+var once sync.Once
+
+func setup() {
+	a = "hello, world"
+}
+
+func doprint() {
+	once.Do(setup)
+	print(a)
+}
+
+func twoprint() {
+	go doprint()
+	go doprint()
+}
+</pre>
+
+<p>
+calling <code>twoprint</code> will call <code>setup</code> exactly
+once.
+The <code>setup</code> function will complete before either call
+of <code>print</code>.
+The result will be that <code>"hello, world"</code> will be printed
+twice.
+</p>
+
+<h2>Incorrect synchronization</h2>
+
+<p>
+Note that a read <span class="event">r</span> may observe the value written by a write <span class="event">w</span>
+that happens concurrently with <span class="event">r</span>.
+Even if this occurs, it does not imply that reads happening after <span class="event">r</span>
+will observe writes that happened before <span class="event">w</span>.
+</p>
+
+<p>
+In this program:
+</p>
+
+<pre>
+var a, b int
+
+func f() {
+	a = 1
+	b = 2
+}
+
+func g() {
+	print(b)
+	print(a)
+}
+
+func main() {
+	go f()
+	g()
+}
+</pre>
+
+<p>
+it can happen that <code>g</code> prints <code>2</code> and then <code>0</code>.
+</p>
+
+<p>
+This fact invalidates a few common idioms.
+</p>
+
+<p>
+Double-checked locking is an attempt to avoid the overhead of synchronization.
+For example, the <code>twoprint</code> program might be
+incorrectly written as:
+</p>
+
+<pre>
+var a string
+var done bool
+
+func setup() {
+	a = "hello, world"
+	done = true
+}
+
+func doprint() {
+	if !done {
+		once.Do(setup)
+	}
+	print(a)
+}
+
+func twoprint() {
+	go doprint()
+	go doprint()
+}
+</pre>
+
+<p>
+but there is no guarantee that, in <code>doprint</code>, observing the write to <code>done</code>
+implies observing the write to <code>a</code>.  This
+version can (incorrectly) print an empty string
+instead of <code>"hello, world"</code>.
+</p>
+
+<p>
+Another incorrect idiom is busy waiting for a value, as in:
+</p>
+
+<pre>
+var a string
+var done bool
+
+func setup() {
+	a = "hello, world"
+	done = true
+}
+
+func main() {
+	go setup()
+	for !done {
+	}
+	print(a)
+}
+</pre>
+
+<p>
+As before, there is no guarantee that, in <code>main</code>,
+observing the write to <code>done</code>
+implies observing the write to <code>a</code>, so this program could
+print an empty string too.
+Worse, there is no guarantee that the write to <code>done</code> will ever
+be observed by <code>main</code>, since there are no synchronization
+events between the two threads.  The loop in <code>main</code> is not
+guaranteed to finish.
+</p>
+
+<p>
+There are subtler variants on this theme, such as this program.
+</p>
+
+<pre>
+type T struct {
+	msg string
+}
+
+var g *T
+
+func setup() {
+	t := new(T)
+	t.msg = "hello, world"
+	g = t
+}
+
+func main() {
+	go setup()
+	for g == nil {
+	}
+	print(g.msg)
+}
+</pre>
+
+<p>
+Even if <code>main</code> observes <code>g != nil</code> and exits its loop,
+there is no guarantee that it will observe the initialized
+value for <code>g.msg</code>.
+</p>
+
+<p>
+In all these examples, the solution is the same:
+use explicit synchronization.
+</p>

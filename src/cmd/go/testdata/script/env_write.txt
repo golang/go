@@ -1,0 +1,87 @@
+env GO111MODULE=off
+
+# go env should default to the right places
+env AppData=$HOME/windowsappdata
+env home=$HOME/plan9home
+go env GOENV
+[aix] stdout $HOME/.config/go/env
+[darwin] stdout $HOME'/Library/Application Support/go/env'
+[freebsd] stdout $HOME/.config/go/env
+[linux] stdout $HOME/.config/go/env
+[netbsd] stdout $HOME/.config/go/env
+[openbsd] stdout $HOME/.config/go/env
+[plan9] stdout $HOME/plan9home/lib/go/env
+[windows] stdout $HOME\\windowsappdata\\go\\env
+
+# Now override it to something writable.
+env GOENV=$WORK/envdir/go/env
+go env GOENV
+stdout envdir[\\/]go[\\/]env
+
+# go env shows all variables
+go env
+stdout GOARCH=
+stdout GOOS=
+stdout GOROOT=
+
+# go env -w changes default setting
+env root=
+[windows] env root=c:
+env GOPATH=
+go env -w GOPATH=$root/non-exist/gopath
+! stderr .+
+grep GOPATH=$root/non-exist/gopath $WORK/envdir/go/env
+go env GOPATH
+stdout /non-exist/gopath
+
+# go env -w does not override OS environment, and warns about that
+env GOPATH=$root/other
+go env -w GOPATH=$root/non-exist/gopath2
+stderr 'warning: go env -w GOPATH=... does not override conflicting OS environment variable'
+go env GOPATH
+stdout $root/other
+
+# but go env -w does do the update, and unsetting the env var exposes the change
+env GOPATH=
+go env GOPATH
+stdout $root/non-exist/gopath2
+
+# unsetting with go env -u does not warn about OS environment overrides,
+# nor does it warn about variables that haven't been set by go env -w.
+env GOPATH=$root/other
+go env -u GOPATH
+! stderr .+
+go env -u GOPATH
+! stderr .+
+
+# go env -w rejects unknown or bad variables
+! go env -w GODEBUG=gctrace=1
+stderr 'unknown go command variable GODEBUG'
+! go env -w GOEXE=.bat
+stderr 'GOEXE cannot be modified'
+! go env -w GOENV=/env
+stderr 'GOENV can only be set using the OS environment'
+
+# go env -w can set multiple variables
+env CC=
+go env CC
+! stdout ^xyc$
+go env -w GOOS=$GOOS CC=xyc
+grep CC=xyc $GOENV
+# file is maintained in sorted order
+grep 'CC=xyc\nGOOS=' $GOENV
+go env CC
+stdout ^xyc$
+
+# go env -u unsets effect of go env -w.
+go env -u CC
+go env CC
+! stdout ^xyc$
+
+# go env -w rejects double-set variables
+! go env -w GOOS=$GOOS GOOS=$GOOS
+stderr 'multiple values for key: GOOS'
+
+# go env -w rejects missing variables
+! go env -w GOOS
+stderr 'arguments must be KEY=VALUE: invalid argument: GOOS'

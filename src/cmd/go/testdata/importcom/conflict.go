@@ -1,0 +1,3 @@
+package p
+
+import "conflict"

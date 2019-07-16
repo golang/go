@@ -1,0 +1,37 @@
+// 
+PACKAGE error2
+
+IMPORTPATH
+	testdata/error2
+
+FILENAMES
+	testdata/error2.go
+
+TYPES
+	// 
+	type I0 interface {
+		// When embedded, the locally-declared error interface
+		// is only visible if all declarations are shown.
+		error
+	}
+
+	// 
+	type S0 struct {
+		// In struct types, an embedded error must only be visible
+		// if AllDecls is set.
+		error
+	}
+
+	// 
+	type T0 struct {
+		ExportedField interface {
+			// error should not be visible
+			error
+		}
+	}
+
+	// This error declaration shadows the predeclared error type. 
+	type error interface {
+		Error() string
+	}
+

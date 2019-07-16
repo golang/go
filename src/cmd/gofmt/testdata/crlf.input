@@ -1,0 +1,13 @@
+/*
+	Source containing CR/LF line endings.
+	The gofmt'ed output must only have LF
+	line endings.
+	Test case for issue 3961.
+*/
+package main
+
+func main() {
+	// line comment
+	println("hello, world!") // another line comment
+	println()
+}

@@ -1,0 +1,627 @@
+pkg archive/tar, const FormatGNU = 8
+pkg archive/tar, const FormatGNU Format
+pkg archive/tar, const FormatPAX = 4
+pkg archive/tar, const FormatPAX Format
+pkg archive/tar, const FormatUSTAR = 2
+pkg archive/tar, const FormatUSTAR Format
+pkg archive/tar, const FormatUnknown = 0
+pkg archive/tar, const FormatUnknown Format
+pkg archive/tar, method (Format) String() string
+pkg archive/tar, type Format int
+pkg archive/tar, type Header struct, Format Format
+pkg archive/tar, type Header struct, PAXRecords map[string]string
+pkg archive/zip, method (*Writer) SetComment(string) error
+pkg archive/zip, type FileHeader struct, Modified time.Time
+pkg archive/zip, type FileHeader struct, NonUTF8 bool
+pkg bufio, method (*Reader) Size() int
+pkg bufio, method (*Writer) Size() int
+pkg crypto/tls, const ECDSAWithSHA1 = 515
+pkg crypto/tls, const ECDSAWithSHA1 SignatureScheme
+pkg crypto/x509, const CANotAuthorizedForExtKeyUsage = 9
+pkg crypto/x509, const CANotAuthorizedForExtKeyUsage InvalidReason
+pkg crypto/x509, const ExtKeyUsageMicrosoftCommercialCodeSigning = 12
+pkg crypto/x509, const ExtKeyUsageMicrosoftCommercialCodeSigning ExtKeyUsage
+pkg crypto/x509, const ExtKeyUsageMicrosoftKernelCodeSigning = 13
+pkg crypto/x509, const ExtKeyUsageMicrosoftKernelCodeSigning ExtKeyUsage
+pkg crypto/x509, const NameConstraintsWithoutSANs = 6
+pkg crypto/x509, const NameConstraintsWithoutSANs InvalidReason
+pkg crypto/x509, const TooManyConstraints = 8
+pkg crypto/x509, const TooManyConstraints InvalidReason
+pkg crypto/x509, const UnconstrainedName = 7
+pkg crypto/x509, const UnconstrainedName InvalidReason
+pkg crypto/x509, func MarshalPKCS1PublicKey(*rsa.PublicKey) []uint8
+pkg crypto/x509, func MarshalPKCS8PrivateKey(interface{}) ([]uint8, error)
+pkg crypto/x509, func ParsePKCS1PublicKey([]uint8) (*rsa.PublicKey, error)
+pkg crypto/x509, method (PublicKeyAlgorithm) String() string
+pkg crypto/x509, type Certificate struct, ExcludedEmailAddresses []string
+pkg crypto/x509, type Certificate struct, ExcludedIPRanges []*net.IPNet
+pkg crypto/x509, type Certificate struct, ExcludedURIDomains []string
+pkg crypto/x509, type Certificate struct, PermittedEmailAddresses []string
+pkg crypto/x509, type Certificate struct, PermittedIPRanges []*net.IPNet
+pkg crypto/x509, type Certificate struct, PermittedURIDomains []string
+pkg crypto/x509, type Certificate struct, URIs []*url.URL
+pkg crypto/x509, type CertificateInvalidError struct, Detail string
+pkg crypto/x509, type CertificateRequest struct, URIs []*url.URL
+pkg crypto/x509, type VerifyOptions struct, MaxConstraintComparisions int
+pkg crypto/x509/pkix, method (Name) String() string
+pkg crypto/x509/pkix, method (RDNSequence) String() string
+pkg database/sql, func OpenDB(driver.Connector) *DB
+pkg database/sql/driver, type Connector interface { Connect, Driver }
+pkg database/sql/driver, type Connector interface, Connect(context.Context) (Conn, error)
+pkg database/sql/driver, type Connector interface, Driver() Driver
+pkg database/sql/driver, type DriverContext interface { OpenConnector }
+pkg database/sql/driver, type DriverContext interface, OpenConnector(string) (Connector, error)
+pkg database/sql/driver, type SessionResetter interface { ResetSession }
+pkg database/sql/driver, type SessionResetter interface, ResetSession(context.Context) error
+pkg debug/elf, const R_386_16 = 20
+pkg debug/elf, const R_386_16 R_386
+pkg debug/elf, const R_386_32PLT = 11
+pkg debug/elf, const R_386_32PLT R_386
+pkg debug/elf, const R_386_8 = 22
+pkg debug/elf, const R_386_8 R_386
+pkg debug/elf, const R_386_GOT32X = 43
+pkg debug/elf, const R_386_GOT32X R_386
+pkg debug/elf, const R_386_IRELATIVE = 42
+pkg debug/elf, const R_386_IRELATIVE R_386
+pkg debug/elf, const R_386_PC16 = 21
+pkg debug/elf, const R_386_PC16 R_386
+pkg debug/elf, const R_386_PC8 = 23
+pkg debug/elf, const R_386_PC8 R_386
+pkg debug/elf, const R_386_SIZE32 = 38
+pkg debug/elf, const R_386_SIZE32 R_386
+pkg debug/elf, const R_386_TLS_DESC = 41
+pkg debug/elf, const R_386_TLS_DESC R_386
+pkg debug/elf, const R_386_TLS_DESC_CALL = 40
+pkg debug/elf, const R_386_TLS_DESC_CALL R_386
+pkg debug/elf, const R_386_TLS_GOTDESC = 39
+pkg debug/elf, const R_386_TLS_GOTDESC R_386
+pkg debug/elf, const R_AARCH64_LD64_GOTOFF_LO15 = 310
+pkg debug/elf, const R_AARCH64_LD64_GOTOFF_LO15 R_AARCH64
+pkg debug/elf, const R_AARCH64_LD64_GOTPAGE_LO15 = 313
+pkg debug/elf, const R_AARCH64_LD64_GOTPAGE_LO15 R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSGD_ADR_PREL21 = 512
+pkg debug/elf, const R_AARCH64_TLSGD_ADR_PREL21 R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSGD_MOVW_G0_NC = 516
+pkg debug/elf, const R_AARCH64_TLSGD_MOVW_G0_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSGD_MOVW_G1 = 515
+pkg debug/elf, const R_AARCH64_TLSGD_MOVW_G1 R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSLD_ADR_PAGE21 = 518
+pkg debug/elf, const R_AARCH64_TLSLD_ADR_PAGE21 R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSLD_ADR_PREL21 = 517
+pkg debug/elf, const R_AARCH64_TLSLD_ADR_PREL21 R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSLD_LDST128_DTPREL_LO12 = 572
+pkg debug/elf, const R_AARCH64_TLSLD_LDST128_DTPREL_LO12 R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSLD_LDST128_DTPREL_LO12_NC = 573
+pkg debug/elf, const R_AARCH64_TLSLD_LDST128_DTPREL_LO12_NC R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSLE_LDST128_TPREL_LO12 = 570
+pkg debug/elf, const R_AARCH64_TLSLE_LDST128_TPREL_LO12 R_AARCH64
+pkg debug/elf, const R_AARCH64_TLSLE_LDST128_TPREL_LO12_NC = 571
+pkg debug/elf, const R_AARCH64_TLSLE_LDST128_TPREL_LO12_NC R_AARCH64
+pkg debug/elf, const R_ARM_ABS32_NOI = 55
+pkg debug/elf, const R_ARM_ABS32_NOI R_ARM
+pkg debug/elf, const R_ARM_ALU_PCREL_15_8 = 33
+pkg debug/elf, const R_ARM_ALU_PCREL_15_8 R_ARM
+pkg debug/elf, const R_ARM_ALU_PCREL_23_15 = 34
+pkg debug/elf, const R_ARM_ALU_PCREL_23_15 R_ARM
+pkg debug/elf, const R_ARM_ALU_PCREL_7_0 = 32
+pkg debug/elf, const R_ARM_ALU_PCREL_7_0 R_ARM
+pkg debug/elf, const R_ARM_ALU_PC_G0 = 58
+pkg debug/elf, const R_ARM_ALU_PC_G0 R_ARM
+pkg debug/elf, const R_ARM_ALU_PC_G0_NC = 57
+pkg debug/elf, const R_ARM_ALU_PC_G0_NC R_ARM
+pkg debug/elf, const R_ARM_ALU_PC_G1 = 60
+pkg debug/elf, const R_ARM_ALU_PC_G1 R_ARM
+pkg debug/elf, const R_ARM_ALU_PC_G1_NC = 59
+pkg debug/elf, const R_ARM_ALU_PC_G1_NC R_ARM
+pkg debug/elf, const R_ARM_ALU_PC_G2 = 61
+pkg debug/elf, const R_ARM_ALU_PC_G2 R_ARM
+pkg debug/elf, const R_ARM_ALU_SBREL_19_12_NC = 36
+pkg debug/elf, const R_ARM_ALU_SBREL_19_12_NC R_ARM
+pkg debug/elf, const R_ARM_ALU_SBREL_27_20_CK = 37
+pkg debug/elf, const R_ARM_ALU_SBREL_27_20_CK R_ARM
+pkg debug/elf, const R_ARM_ALU_SB_G0 = 71
+pkg debug/elf, const R_ARM_ALU_SB_G0 R_ARM
+pkg debug/elf, const R_ARM_ALU_SB_G0_NC = 70
+pkg debug/elf, const R_ARM_ALU_SB_G0_NC R_ARM
+pkg debug/elf, const R_ARM_ALU_SB_G1 = 73
+pkg debug/elf, const R_ARM_ALU_SB_G1 R_ARM
+pkg debug/elf, const R_ARM_ALU_SB_G1_NC = 72
+pkg debug/elf, const R_ARM_ALU_SB_G1_NC R_ARM
+pkg debug/elf, const R_ARM_ALU_SB_G2 = 74
+pkg debug/elf, const R_ARM_ALU_SB_G2 R_ARM
+pkg debug/elf, const R_ARM_BASE_ABS = 31
+pkg debug/elf, const R_ARM_BASE_ABS R_ARM
+pkg debug/elf, const R_ARM_CALL = 28
+pkg debug/elf, const R_ARM_CALL R_ARM
+pkg debug/elf, const R_ARM_GOTOFF12 = 98
+pkg debug/elf, const R_ARM_GOTOFF12 R_ARM
+pkg debug/elf, const R_ARM_GOTRELAX = 99
+pkg debug/elf, const R_ARM_GOTRELAX R_ARM
+pkg debug/elf, const R_ARM_GOT_ABS = 95
+pkg debug/elf, const R_ARM_GOT_ABS R_ARM
+pkg debug/elf, const R_ARM_GOT_BREL12 = 97
+pkg debug/elf, const R_ARM_GOT_BREL12 R_ARM
+pkg debug/elf, const R_ARM_GOT_PREL = 96
+pkg debug/elf, const R_ARM_GOT_PREL R_ARM
+pkg debug/elf, const R_ARM_IRELATIVE = 160
+pkg debug/elf, const R_ARM_IRELATIVE R_ARM
+pkg debug/elf, const R_ARM_JUMP24 = 29
+pkg debug/elf, const R_ARM_JUMP24 R_ARM
+pkg debug/elf, const R_ARM_LDC_PC_G0 = 67
+pkg debug/elf, const R_ARM_LDC_PC_G0 R_ARM
+pkg debug/elf, const R_ARM_LDC_PC_G1 = 68
+pkg debug/elf, const R_ARM_LDC_PC_G1 R_ARM
+pkg debug/elf, const R_ARM_LDC_PC_G2 = 69
+pkg debug/elf, const R_ARM_LDC_PC_G2 R_ARM
+pkg debug/elf, const R_ARM_LDC_SB_G0 = 81
+pkg debug/elf, const R_ARM_LDC_SB_G0 R_ARM
+pkg debug/elf, const R_ARM_LDC_SB_G1 = 82
+pkg debug/elf, const R_ARM_LDC_SB_G1 R_ARM
+pkg debug/elf, const R_ARM_LDC_SB_G2 = 83
+pkg debug/elf, const R_ARM_LDC_SB_G2 R_ARM
+pkg debug/elf, const R_ARM_LDRS_PC_G0 = 64
+pkg debug/elf, const R_ARM_LDRS_PC_G0 R_ARM
+pkg debug/elf, const R_ARM_LDRS_PC_G1 = 65
+pkg debug/elf, const R_ARM_LDRS_PC_G1 R_ARM
+pkg debug/elf, const R_ARM_LDRS_PC_G2 = 66
+pkg debug/elf, const R_ARM_LDRS_PC_G2 R_ARM
+pkg debug/elf, const R_ARM_LDRS_SB_G0 = 78
+pkg debug/elf, const R_ARM_LDRS_SB_G0 R_ARM
+pkg debug/elf, const R_ARM_LDRS_SB_G1 = 79
+pkg debug/elf, const R_ARM_LDRS_SB_G1 R_ARM
+pkg debug/elf, const R_ARM_LDRS_SB_G2 = 80
+pkg debug/elf, const R_ARM_LDRS_SB_G2 R_ARM
+pkg debug/elf, const R_ARM_LDR_PC_G1 = 62
+pkg debug/elf, const R_ARM_LDR_PC_G1 R_ARM
+pkg debug/elf, const R_ARM_LDR_PC_G2 = 63
+pkg debug/elf, const R_ARM_LDR_PC_G2 R_ARM
+pkg debug/elf, const R_ARM_LDR_SBREL_11_10_NC = 35
+pkg debug/elf, const R_ARM_LDR_SBREL_11_10_NC R_ARM
+pkg debug/elf, const R_ARM_LDR_SB_G0 = 75
+pkg debug/elf, const R_ARM_LDR_SB_G0 R_ARM
+pkg debug/elf, const R_ARM_LDR_SB_G1 = 76
+pkg debug/elf, const R_ARM_LDR_SB_G1 R_ARM
+pkg debug/elf, const R_ARM_LDR_SB_G2 = 77
+pkg debug/elf, const R_ARM_LDR_SB_G2 R_ARM
+pkg debug/elf, const R_ARM_ME_TOO = 128
+pkg debug/elf, const R_ARM_ME_TOO R_ARM
+pkg debug/elf, const R_ARM_MOVT_ABS = 44
+pkg debug/elf, const R_ARM_MOVT_ABS R_ARM
+pkg debug/elf, const R_ARM_MOVT_BREL = 85
+pkg debug/elf, const R_ARM_MOVT_BREL R_ARM
+pkg debug/elf, const R_ARM_MOVT_PREL = 46
+pkg debug/elf, const R_ARM_MOVT_PREL R_ARM
+pkg debug/elf, const R_ARM_MOVW_ABS_NC = 43
+pkg debug/elf, const R_ARM_MOVW_ABS_NC R_ARM
+pkg debug/elf, const R_ARM_MOVW_BREL = 86
+pkg debug/elf, const R_ARM_MOVW_BREL R_ARM
+pkg debug/elf, const R_ARM_MOVW_BREL_NC = 84
+pkg debug/elf, const R_ARM_MOVW_BREL_NC R_ARM
+pkg debug/elf, const R_ARM_MOVW_PREL_NC = 45
+pkg debug/elf, const R_ARM_MOVW_PREL_NC R_ARM
+pkg debug/elf, const R_ARM_PLT32_ABS = 94
+pkg debug/elf, const R_ARM_PLT32_ABS R_ARM
+pkg debug/elf, const R_ARM_PREL31 = 42
+pkg debug/elf, const R_ARM_PREL31 R_ARM
+pkg debug/elf, const R_ARM_PRIVATE_0 = 112
+pkg debug/elf, const R_ARM_PRIVATE_0 R_ARM
+pkg debug/elf, const R_ARM_PRIVATE_1 = 113
+pkg debug/elf, const R_ARM_PRIVATE_1 R_ARM
+pkg debug/elf, const R_ARM_PRIVATE_10 = 122
+pkg debug/elf, const R_ARM_PRIVATE_10 R_ARM
+pkg debug/elf, const R_ARM_PRIVATE_11 = 123
+pkg debug/elf, const R_ARM_PRIVATE_11 R_ARM
+pkg debug/elf, const R_ARM_PRIVATE_12 = 124
+pkg debug/elf, const R_ARM_PRIVATE_12 R_ARM
+pkg debug/elf, const R_ARM_PRIVATE_13 = 125
+pkg debug/elf, const R_ARM_PRIVATE_13 R_ARM
+pkg debug/elf, const R_ARM_PRIVATE_14 = 126
+pkg debug/elf, const R_ARM_PRIVATE_14 R_ARM
+pkg debug/elf, const R_ARM_PRIVATE_15 = 127
+pkg debug/elf, const R_ARM_PRIVATE_15 R_ARM
+pkg debug/elf, const R_ARM_PRIVATE_2 = 114
+pkg debug/elf, const R_ARM_PRIVATE_2 R_ARM
+pkg debug/elf, const R_ARM_PRIVATE_3 = 115
+pkg debug/elf, const R_ARM_PRIVATE_3 R_ARM
+pkg debug/elf, const R_ARM_PRIVATE_4 = 116
+pkg debug/elf, const R_ARM_PRIVATE_4 R_ARM
+pkg debug/elf, const R_ARM_PRIVATE_5 = 117
+pkg debug/elf, const R_ARM_PRIVATE_5 R_ARM
+pkg debug/elf, const R_ARM_PRIVATE_6 = 118
+pkg debug/elf, const R_ARM_PRIVATE_6 R_ARM
+pkg debug/elf, const R_ARM_PRIVATE_7 = 119
+pkg debug/elf, const R_ARM_PRIVATE_7 R_ARM
+pkg debug/elf, const R_ARM_PRIVATE_8 = 120
+pkg debug/elf, const R_ARM_PRIVATE_8 R_ARM
+pkg debug/elf, const R_ARM_PRIVATE_9 = 121
+pkg debug/elf, const R_ARM_PRIVATE_9 R_ARM
+pkg debug/elf, const R_ARM_REL32_NOI = 56
+pkg debug/elf, const R_ARM_REL32_NOI R_ARM
+pkg debug/elf, const R_ARM_RXPC25 = 249
+pkg debug/elf, const R_ARM_RXPC25 R_ARM
+pkg debug/elf, const R_ARM_SBREL31 = 39
+pkg debug/elf, const R_ARM_SBREL31 R_ARM
+pkg debug/elf, const R_ARM_TARGET1 = 38
+pkg debug/elf, const R_ARM_TARGET1 R_ARM
+pkg debug/elf, const R_ARM_TARGET2 = 41
+pkg debug/elf, const R_ARM_TARGET2 R_ARM
+pkg debug/elf, const R_ARM_THM_ALU_ABS_G0_NC = 132
+pkg debug/elf, const R_ARM_THM_ALU_ABS_G0_NC R_ARM
+pkg debug/elf, const R_ARM_THM_ALU_ABS_G1_NC = 133
+pkg debug/elf, const R_ARM_THM_ALU_ABS_G1_NC R_ARM
+pkg debug/elf, const R_ARM_THM_ALU_ABS_G2_NC = 134
+pkg debug/elf, const R_ARM_THM_ALU_ABS_G2_NC R_ARM
+pkg debug/elf, const R_ARM_THM_ALU_ABS_G3 = 135
+pkg debug/elf, const R_ARM_THM_ALU_ABS_G3 R_ARM
+pkg debug/elf, const R_ARM_THM_ALU_PREL_11_0 = 53
+pkg debug/elf, const R_ARM_THM_ALU_PREL_11_0 R_ARM
+pkg debug/elf, const R_ARM_THM_GOT_BREL12 = 131
+pkg debug/elf, const R_ARM_THM_GOT_BREL12 R_ARM
+pkg debug/elf, const R_ARM_THM_JUMP11 = 102
+pkg debug/elf, const R_ARM_THM_JUMP11 R_ARM
+pkg debug/elf, const R_ARM_THM_JUMP19 = 51
+pkg debug/elf, const R_ARM_THM_JUMP19 R_ARM
+pkg debug/elf, const R_ARM_THM_JUMP24 = 30
+pkg debug/elf, const R_ARM_THM_JUMP24 R_ARM
+pkg debug/elf, const R_ARM_THM_JUMP6 = 52
+pkg debug/elf, const R_ARM_THM_JUMP6 R_ARM
+pkg debug/elf, const R_ARM_THM_JUMP8 = 103
+pkg debug/elf, const R_ARM_THM_JUMP8 R_ARM
+pkg debug/elf, const R_ARM_THM_MOVT_ABS = 48
+pkg debug/elf, const R_ARM_THM_MOVT_ABS R_ARM
+pkg debug/elf, const R_ARM_THM_MOVT_BREL = 88
+pkg debug/elf, const R_ARM_THM_MOVT_BREL R_ARM
+pkg debug/elf, const R_ARM_THM_MOVT_PREL = 50
+pkg debug/elf, const R_ARM_THM_MOVT_PREL R_ARM
+pkg debug/elf, const R_ARM_THM_MOVW_ABS_NC = 47
+pkg debug/elf, const R_ARM_THM_MOVW_ABS_NC R_ARM
+pkg debug/elf, const R_ARM_THM_MOVW_BREL = 89
+pkg debug/elf, const R_ARM_THM_MOVW_BREL R_ARM
+pkg debug/elf, const R_ARM_THM_MOVW_BREL_NC = 87
+pkg debug/elf, const R_ARM_THM_MOVW_BREL_NC R_ARM
+pkg debug/elf, const R_ARM_THM_MOVW_PREL_NC = 49
+pkg debug/elf, const R_ARM_THM_MOVW_PREL_NC R_ARM
+pkg debug/elf, const R_ARM_THM_PC12 = 54
+pkg debug/elf, const R_ARM_THM_PC12 R_ARM
+pkg debug/elf, const R_ARM_THM_TLS_CALL = 93
+pkg debug/elf, const R_ARM_THM_TLS_CALL R_ARM
+pkg debug/elf, const R_ARM_THM_TLS_DESCSEQ16 = 129
+pkg debug/elf, const R_ARM_THM_TLS_DESCSEQ16 R_ARM
+pkg debug/elf, const R_ARM_THM_TLS_DESCSEQ32 = 130
+pkg debug/elf, const R_ARM_THM_TLS_DESCSEQ32 R_ARM
+pkg debug/elf, const R_ARM_TLS_CALL = 91
+pkg debug/elf, const R_ARM_TLS_CALL R_ARM
+pkg debug/elf, const R_ARM_TLS_DESCSEQ = 92
+pkg debug/elf, const R_ARM_TLS_DESCSEQ R_ARM
+pkg debug/elf, const R_ARM_TLS_DTPMOD32 = 17
+pkg debug/elf, const R_ARM_TLS_DTPMOD32 R_ARM
+pkg debug/elf, const R_ARM_TLS_DTPOFF32 = 18
+pkg debug/elf, const R_ARM_TLS_DTPOFF32 R_ARM
+pkg debug/elf, const R_ARM_TLS_GD32 = 104
+pkg debug/elf, const R_ARM_TLS_GD32 R_ARM
+pkg debug/elf, const R_ARM_TLS_GOTDESC = 90
+pkg debug/elf, const R_ARM_TLS_GOTDESC R_ARM
+pkg debug/elf, const R_ARM_TLS_IE12GP = 111
+pkg debug/elf, const R_ARM_TLS_IE12GP R_ARM
+pkg debug/elf, const R_ARM_TLS_IE32 = 107
+pkg debug/elf, const R_ARM_TLS_IE32 R_ARM
+pkg debug/elf, const R_ARM_TLS_LDM32 = 105
+pkg debug/elf, const R_ARM_TLS_LDM32 R_ARM
+pkg debug/elf, const R_ARM_TLS_LDO12 = 109
+pkg debug/elf, const R_ARM_TLS_LDO12 R_ARM
+pkg debug/elf, const R_ARM_TLS_LDO32 = 106
+pkg debug/elf, const R_ARM_TLS_LDO32 R_ARM
+pkg debug/elf, const R_ARM_TLS_LE12 = 110
+pkg debug/elf, const R_ARM_TLS_LE12 R_ARM
+pkg debug/elf, const R_ARM_TLS_LE32 = 108
+pkg debug/elf, const R_ARM_TLS_LE32 R_ARM
+pkg debug/elf, const R_ARM_TLS_TPOFF32 = 19
+pkg debug/elf, const R_ARM_TLS_TPOFF32 R_ARM
+pkg debug/elf, const R_ARM_V4BX = 40
+pkg debug/elf, const R_ARM_V4BX R_ARM
+pkg debug/elf, const R_PPC64_ADDR16_HIGH = 110
+pkg debug/elf, const R_PPC64_ADDR16_HIGH R_PPC64
+pkg debug/elf, const R_PPC64_ADDR16_HIGHA = 111
+pkg debug/elf, const R_PPC64_ADDR16_HIGHA R_PPC64
+pkg debug/elf, const R_PPC64_ADDR64_LOCAL = 117
+pkg debug/elf, const R_PPC64_ADDR64_LOCAL R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL16_HIGH = 114
+pkg debug/elf, const R_PPC64_DTPREL16_HIGH R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL16_HIGHA = 115
+pkg debug/elf, const R_PPC64_DTPREL16_HIGHA R_PPC64
+pkg debug/elf, const R_PPC64_ENTRY = 118
+pkg debug/elf, const R_PPC64_ENTRY R_PPC64
+pkg debug/elf, const R_PPC64_IRELATIVE = 248
+pkg debug/elf, const R_PPC64_IRELATIVE R_PPC64
+pkg debug/elf, const R_PPC64_JMP_IREL = 247
+pkg debug/elf, const R_PPC64_JMP_IREL R_PPC64
+pkg debug/elf, const R_PPC64_PLT16_LO_DS = 60
+pkg debug/elf, const R_PPC64_PLT16_LO_DS R_PPC64
+pkg debug/elf, const R_PPC64_PLTGOT16 = 52
+pkg debug/elf, const R_PPC64_PLTGOT16 R_PPC64
+pkg debug/elf, const R_PPC64_PLTGOT16_DS = 65
+pkg debug/elf, const R_PPC64_PLTGOT16_DS R_PPC64
+pkg debug/elf, const R_PPC64_PLTGOT16_HA = 55
+pkg debug/elf, const R_PPC64_PLTGOT16_HA R_PPC64
+pkg debug/elf, const R_PPC64_PLTGOT16_HI = 54
+pkg debug/elf, const R_PPC64_PLTGOT16_HI R_PPC64
+pkg debug/elf, const R_PPC64_PLTGOT16_LO = 53
+pkg debug/elf, const R_PPC64_PLTGOT16_LO R_PPC64
+pkg debug/elf, const R_PPC64_PLTGOT_LO_DS = 66
+pkg debug/elf, const R_PPC64_PLTGOT_LO_DS R_PPC64
+pkg debug/elf, const R_PPC64_REL16DX_HA = 246
+pkg debug/elf, const R_PPC64_REL16DX_HA R_PPC64
+pkg debug/elf, const R_PPC64_REL24_NOTOC = 116
+pkg debug/elf, const R_PPC64_REL24_NOTOC R_PPC64
+pkg debug/elf, const R_PPC64_SECTOFF_DS = 61
+pkg debug/elf, const R_PPC64_SECTOFF_DS R_PPC64
+pkg debug/elf, const R_PPC64_SECTOFF_LO_DS = 61
+pkg debug/elf, const R_PPC64_SECTOFF_LO_DS R_PPC64
+pkg debug/elf, const R_PPC64_TOCSAVE = 109
+pkg debug/elf, const R_PPC64_TOCSAVE R_PPC64
+pkg debug/elf, const R_PPC64_TPREL16_HIGH = 112
+pkg debug/elf, const R_PPC64_TPREL16_HIGH R_PPC64
+pkg debug/elf, const R_PPC64_TPREL16_HIGHA = 113
+pkg debug/elf, const R_PPC64_TPREL16_HIGHA R_PPC64
+pkg debug/elf, const R_X86_64_GOT64 = 27
+pkg debug/elf, const R_X86_64_GOT64 R_X86_64
+pkg debug/elf, const R_X86_64_GOTOFF64 = 25
+pkg debug/elf, const R_X86_64_GOTOFF64 R_X86_64
+pkg debug/elf, const R_X86_64_GOTPC32 = 26
+pkg debug/elf, const R_X86_64_GOTPC32 R_X86_64
+pkg debug/elf, const R_X86_64_GOTPC32_TLSDESC = 34
+pkg debug/elf, const R_X86_64_GOTPC32_TLSDESC R_X86_64
+pkg debug/elf, const R_X86_64_GOTPC64 = 29
+pkg debug/elf, const R_X86_64_GOTPC64 R_X86_64
+pkg debug/elf, const R_X86_64_GOTPCREL64 = 28
+pkg debug/elf, const R_X86_64_GOTPCREL64 R_X86_64
+pkg debug/elf, const R_X86_64_GOTPCRELX = 41
+pkg debug/elf, const R_X86_64_GOTPCRELX R_X86_64
+pkg debug/elf, const R_X86_64_GOTPLT64 = 30
+pkg debug/elf, const R_X86_64_GOTPLT64 R_X86_64
+pkg debug/elf, const R_X86_64_IRELATIVE = 37
+pkg debug/elf, const R_X86_64_IRELATIVE R_X86_64
+pkg debug/elf, const R_X86_64_PC32_BND = 39
+pkg debug/elf, const R_X86_64_PC32_BND R_X86_64
+pkg debug/elf, const R_X86_64_PC64 = 24
+pkg debug/elf, const R_X86_64_PC64 R_X86_64
+pkg debug/elf, const R_X86_64_PLT32_BND = 40
+pkg debug/elf, const R_X86_64_PLT32_BND R_X86_64
+pkg debug/elf, const R_X86_64_PLTOFF64 = 31
+pkg debug/elf, const R_X86_64_PLTOFF64 R_X86_64
+pkg debug/elf, const R_X86_64_RELATIVE64 = 38
+pkg debug/elf, const R_X86_64_RELATIVE64 R_X86_64
+pkg debug/elf, const R_X86_64_REX_GOTPCRELX = 42
+pkg debug/elf, const R_X86_64_REX_GOTPCRELX R_X86_64
+pkg debug/elf, const R_X86_64_SIZE32 = 32
+pkg debug/elf, const R_X86_64_SIZE32 R_X86_64
+pkg debug/elf, const R_X86_64_SIZE64 = 33
+pkg debug/elf, const R_X86_64_SIZE64 R_X86_64
+pkg debug/elf, const R_X86_64_TLSDESC = 36
+pkg debug/elf, const R_X86_64_TLSDESC R_X86_64
+pkg debug/elf, const R_X86_64_TLSDESC_CALL = 35
+pkg debug/elf, const R_X86_64_TLSDESC_CALL R_X86_64
+pkg debug/macho, const ARM64_RELOC_ADDEND = 10
+pkg debug/macho, const ARM64_RELOC_ADDEND RelocTypeARM64
+pkg debug/macho, const ARM64_RELOC_BRANCH26 = 2
+pkg debug/macho, const ARM64_RELOC_BRANCH26 RelocTypeARM64
+pkg debug/macho, const ARM64_RELOC_GOT_LOAD_PAGE21 = 5
+pkg debug/macho, const ARM64_RELOC_GOT_LOAD_PAGE21 RelocTypeARM64
+pkg debug/macho, const ARM64_RELOC_GOT_LOAD_PAGEOFF12 = 6
+pkg debug/macho, const ARM64_RELOC_GOT_LOAD_PAGEOFF12 RelocTypeARM64
+pkg debug/macho, const ARM64_RELOC_PAGE21 = 3
+pkg debug/macho, const ARM64_RELOC_PAGE21 RelocTypeARM64
+pkg debug/macho, const ARM64_RELOC_PAGEOFF12 = 4
+pkg debug/macho, const ARM64_RELOC_PAGEOFF12 RelocTypeARM64
+pkg debug/macho, const ARM64_RELOC_POINTER_TO_GOT = 7
+pkg debug/macho, const ARM64_RELOC_POINTER_TO_GOT RelocTypeARM64
+pkg debug/macho, const ARM64_RELOC_SUBTRACTOR = 1
+pkg debug/macho, const ARM64_RELOC_SUBTRACTOR RelocTypeARM64
+pkg debug/macho, const ARM64_RELOC_TLVP_LOAD_PAGE21 = 8
+pkg debug/macho, const ARM64_RELOC_TLVP_LOAD_PAGE21 RelocTypeARM64
+pkg debug/macho, const ARM64_RELOC_TLVP_LOAD_PAGEOFF12 = 9
+pkg debug/macho, const ARM64_RELOC_TLVP_LOAD_PAGEOFF12 RelocTypeARM64
+pkg debug/macho, const ARM64_RELOC_UNSIGNED = 0
+pkg debug/macho, const ARM64_RELOC_UNSIGNED RelocTypeARM64
+pkg debug/macho, const ARM_RELOC_BR24 = 5
+pkg debug/macho, const ARM_RELOC_BR24 RelocTypeARM
+pkg debug/macho, const ARM_RELOC_HALF = 8
+pkg debug/macho, const ARM_RELOC_HALF RelocTypeARM
+pkg debug/macho, const ARM_RELOC_HALF_SECTDIFF = 9
+pkg debug/macho, const ARM_RELOC_HALF_SECTDIFF RelocTypeARM
+pkg debug/macho, const ARM_RELOC_LOCAL_SECTDIFF = 3
+pkg debug/macho, const ARM_RELOC_LOCAL_SECTDIFF RelocTypeARM
+pkg debug/macho, const ARM_RELOC_PAIR = 1
+pkg debug/macho, const ARM_RELOC_PAIR RelocTypeARM
+pkg debug/macho, const ARM_RELOC_PB_LA_PTR = 4
+pkg debug/macho, const ARM_RELOC_PB_LA_PTR RelocTypeARM
+pkg debug/macho, const ARM_RELOC_SECTDIFF = 2
+pkg debug/macho, const ARM_RELOC_SECTDIFF RelocTypeARM
+pkg debug/macho, const ARM_RELOC_VANILLA = 0
+pkg debug/macho, const ARM_RELOC_VANILLA RelocTypeARM
+pkg debug/macho, const ARM_THUMB_32BIT_BRANCH = 7
+pkg debug/macho, const ARM_THUMB_32BIT_BRANCH RelocTypeARM
+pkg debug/macho, const ARM_THUMB_RELOC_BR22 = 6
+pkg debug/macho, const ARM_THUMB_RELOC_BR22 RelocTypeARM
+pkg debug/macho, const FlagAllModsBound = 4096
+pkg debug/macho, const FlagAllModsBound uint32
+pkg debug/macho, const FlagAllowStackExecution = 131072
+pkg debug/macho, const FlagAllowStackExecution uint32
+pkg debug/macho, const FlagAppExtensionSafe = 33554432
+pkg debug/macho, const FlagAppExtensionSafe uint32
+pkg debug/macho, const FlagBindAtLoad = 8
+pkg debug/macho, const FlagBindAtLoad uint32
+pkg debug/macho, const FlagBindsToWeak = 65536
+pkg debug/macho, const FlagBindsToWeak uint32
+pkg debug/macho, const FlagCanonical = 16384
+pkg debug/macho, const FlagCanonical uint32
+pkg debug/macho, const FlagDeadStrippableDylib = 4194304
+pkg debug/macho, const FlagDeadStrippableDylib uint32
+pkg debug/macho, const FlagDyldLink = 4
+pkg debug/macho, const FlagDyldLink uint32
+pkg debug/macho, const FlagForceFlat = 256
+pkg debug/macho, const FlagForceFlat uint32
+pkg debug/macho, const FlagHasTLVDescriptors = 8388608
+pkg debug/macho, const FlagHasTLVDescriptors uint32
+pkg debug/macho, const FlagIncrLink = 2
+pkg debug/macho, const FlagIncrLink uint32
+pkg debug/macho, const FlagLazyInit = 64
+pkg debug/macho, const FlagLazyInit uint32
+pkg debug/macho, const FlagNoFixPrebinding = 1024
+pkg debug/macho, const FlagNoFixPrebinding uint32
+pkg debug/macho, const FlagNoHeapExecution = 16777216
+pkg debug/macho, const FlagNoHeapExecution uint32
+pkg debug/macho, const FlagNoMultiDefs = 512
+pkg debug/macho, const FlagNoMultiDefs uint32
+pkg debug/macho, const FlagNoReexportedDylibs = 1048576
+pkg debug/macho, const FlagNoReexportedDylibs uint32
+pkg debug/macho, const FlagNoUndefs = 1
+pkg debug/macho, const FlagNoUndefs uint32
+pkg debug/macho, const FlagPIE = 2097152
+pkg debug/macho, const FlagPIE uint32
+pkg debug/macho, const FlagPrebindable = 2048
+pkg debug/macho, const FlagPrebindable uint32
+pkg debug/macho, const FlagPrebound = 16
+pkg debug/macho, const FlagPrebound uint32
+pkg debug/macho, const FlagRootSafe = 262144
+pkg debug/macho, const FlagRootSafe uint32
+pkg debug/macho, const FlagSetuidSafe = 524288
+pkg debug/macho, const FlagSetuidSafe uint32
+pkg debug/macho, const FlagSplitSegs = 32
+pkg debug/macho, const FlagSplitSegs uint32
+pkg debug/macho, const FlagSubsectionsViaSymbols = 8192
+pkg debug/macho, const FlagSubsectionsViaSymbols uint32
+pkg debug/macho, const FlagTwoLevel = 128
+pkg debug/macho, const FlagTwoLevel uint32
+pkg debug/macho, const FlagWeakDefines = 32768
+pkg debug/macho, const FlagWeakDefines uint32
+pkg debug/macho, const GENERIC_RELOC_LOCAL_SECTDIFF = 4
+pkg debug/macho, const GENERIC_RELOC_LOCAL_SECTDIFF RelocTypeGeneric
+pkg debug/macho, const GENERIC_RELOC_PAIR = 1
+pkg debug/macho, const GENERIC_RELOC_PAIR RelocTypeGeneric
+pkg debug/macho, const GENERIC_RELOC_PB_LA_PTR = 3
+pkg debug/macho, const GENERIC_RELOC_PB_LA_PTR RelocTypeGeneric
+pkg debug/macho, const GENERIC_RELOC_SECTDIFF = 2
+pkg debug/macho, const GENERIC_RELOC_SECTDIFF RelocTypeGeneric
+pkg debug/macho, const GENERIC_RELOC_TLV = 5
+pkg debug/macho, const GENERIC_RELOC_TLV RelocTypeGeneric
+pkg debug/macho, const GENERIC_RELOC_VANILLA = 0
+pkg debug/macho, const GENERIC_RELOC_VANILLA RelocTypeGeneric
+pkg debug/macho, const LoadCmdRpath = 2147483676
+pkg debug/macho, const LoadCmdRpath LoadCmd
+pkg debug/macho, const X86_64_RELOC_BRANCH = 2
+pkg debug/macho, const X86_64_RELOC_BRANCH RelocTypeX86_64
+pkg debug/macho, const X86_64_RELOC_GOT = 4
+pkg debug/macho, const X86_64_RELOC_GOT RelocTypeX86_64
+pkg debug/macho, const X86_64_RELOC_GOT_LOAD = 3
+pkg debug/macho, const X86_64_RELOC_GOT_LOAD RelocTypeX86_64
+pkg debug/macho, const X86_64_RELOC_SIGNED = 1
+pkg debug/macho, const X86_64_RELOC_SIGNED RelocTypeX86_64
+pkg debug/macho, const X86_64_RELOC_SIGNED_1 = 6
+pkg debug/macho, const X86_64_RELOC_SIGNED_1 RelocTypeX86_64
+pkg debug/macho, const X86_64_RELOC_SIGNED_2 = 7
+pkg debug/macho, const X86_64_RELOC_SIGNED_2 RelocTypeX86_64
+pkg debug/macho, const X86_64_RELOC_SIGNED_4 = 8
+pkg debug/macho, const X86_64_RELOC_SIGNED_4 RelocTypeX86_64
+pkg debug/macho, const X86_64_RELOC_SUBTRACTOR = 5
+pkg debug/macho, const X86_64_RELOC_SUBTRACTOR RelocTypeX86_64
+pkg debug/macho, const X86_64_RELOC_TLV = 9
+pkg debug/macho, const X86_64_RELOC_TLV RelocTypeX86_64
+pkg debug/macho, const X86_64_RELOC_UNSIGNED = 0
+pkg debug/macho, const X86_64_RELOC_UNSIGNED RelocTypeX86_64
+pkg debug/macho, method (RelocTypeARM) GoString() string
+pkg debug/macho, method (RelocTypeARM) String() string
+pkg debug/macho, method (RelocTypeARM64) GoString() string
+pkg debug/macho, method (RelocTypeARM64) String() string
+pkg debug/macho, method (RelocTypeGeneric) GoString() string
+pkg debug/macho, method (RelocTypeGeneric) String() string
+pkg debug/macho, method (RelocTypeX86_64) GoString() string
+pkg debug/macho, method (RelocTypeX86_64) String() string
+pkg debug/macho, method (Rpath) Raw() []uint8
+pkg debug/macho, method (Type) GoString() string
+pkg debug/macho, method (Type) String() string
+pkg debug/macho, type Reloc struct
+pkg debug/macho, type Reloc struct, Addr uint32
+pkg debug/macho, type Reloc struct, Extern bool
+pkg debug/macho, type Reloc struct, Len uint8
+pkg debug/macho, type Reloc struct, Pcrel bool
+pkg debug/macho, type Reloc struct, Scattered bool
+pkg debug/macho, type Reloc struct, Type uint8
+pkg debug/macho, type Reloc struct, Value uint32
+pkg debug/macho, type RelocTypeARM int
+pkg debug/macho, type RelocTypeARM64 int
+pkg debug/macho, type RelocTypeGeneric int
+pkg debug/macho, type RelocTypeX86_64 int
+pkg debug/macho, type Rpath struct
+pkg debug/macho, type Rpath struct, Path string
+pkg debug/macho, type Rpath struct, embedded LoadBytes
+pkg debug/macho, type RpathCmd struct
+pkg debug/macho, type RpathCmd struct, Cmd LoadCmd
+pkg debug/macho, type RpathCmd struct, Len uint32
+pkg debug/macho, type RpathCmd struct, Path uint32
+pkg debug/macho, type Section struct, Relocs []Reloc
+pkg encoding/asn1, const TagNumericString = 18
+pkg encoding/asn1, const TagNumericString ideal-int
+pkg encoding/asn1, func MarshalWithParams(interface{}, string) ([]uint8, error)
+pkg encoding/csv, type ParseError struct, StartLine int
+pkg encoding/hex, func NewDecoder(io.Reader) io.Reader
+pkg encoding/hex, func NewEncoder(io.Writer) io.Writer
+pkg encoding/json, method (*Decoder) DisallowUnknownFields()
+pkg encoding/xml, func NewTokenDecoder(TokenReader) *Decoder
+pkg encoding/xml, type TokenReader interface { Token }
+pkg encoding/xml, type TokenReader interface, Token() (Token, error)
+pkg flag, method (*FlagSet) ErrorHandling() ErrorHandling
+pkg flag, method (*FlagSet) Name() string
+pkg flag, method (*FlagSet) Output() io.Writer
+pkg html/template, type Srcset string
+pkg math, func Erfcinv(float64) float64
+pkg math, func Erfinv(float64) float64
+pkg math, func Round(float64) float64
+pkg math, func RoundToEven(float64) float64
+pkg math/big, const MaxBase = 62
+pkg math/big, method (*Float) Sqrt(*Float) *Float
+pkg math/big, method (*Int) CmpAbs(*Int) int
+pkg math/rand, func Shuffle(int, func(int, int))
+pkg math/rand, method (*Rand) Shuffle(int, func(int, int))
+pkg net, method (*TCPListener) SyscallConn() (syscall.RawConn, error)
+pkg net, method (*UnixListener) SyscallConn() (syscall.RawConn, error)
+pkg net/smtp, method (*Client) Noop() error
+pkg os, func IsTimeout(error) bool
+pkg os, method (*File) SetDeadline(time.Time) error
+pkg os, method (*File) SetReadDeadline(time.Time) error
+pkg os, method (*File) SetWriteDeadline(time.Time) error
+pkg os, method (*PathError) Timeout() bool
+pkg os, method (*SyscallError) Timeout() bool
+pkg os, var ErrNoDeadline error
+pkg strings, method (*Builder) Grow(int)
+pkg strings, method (*Builder) Len() int
+pkg strings, method (*Builder) Reset()
+pkg strings, method (*Builder) String() string
+pkg strings, method (*Builder) Write([]uint8) (int, error)
+pkg strings, method (*Builder) WriteByte(uint8) error
+pkg strings, method (*Builder) WriteRune(int32) (int, error)
+pkg strings, method (*Builder) WriteString(string) (int, error)
+pkg strings, type Builder struct
+pkg syscall (freebsd-386), const SYS_UTIMENSAT = 547
+pkg syscall (freebsd-386), const SYS_UTIMENSAT ideal-int
+pkg syscall (freebsd-386-cgo), const SYS_UTIMENSAT = 547
+pkg syscall (freebsd-386-cgo), const SYS_UTIMENSAT ideal-int
+pkg syscall (freebsd-amd64), const SYS_UTIMENSAT = 547
+pkg syscall (freebsd-amd64), const SYS_UTIMENSAT ideal-int
+pkg syscall (freebsd-amd64-cgo), const SYS_UTIMENSAT = 547
+pkg syscall (freebsd-amd64-cgo), const SYS_UTIMENSAT ideal-int
+pkg syscall (freebsd-arm), const SYS_UTIMENSAT = 547
+pkg syscall (freebsd-arm), const SYS_UTIMENSAT ideal-int
+pkg syscall (freebsd-arm-cgo), const SYS_UTIMENSAT = 547
+pkg syscall (freebsd-arm-cgo), const SYS_UTIMENSAT ideal-int
+pkg syscall (windows-386), func CreateProcessAsUser(Token, *uint16, *uint16, *SecurityAttributes, *SecurityAttributes, bool, uint32, *uint16, *uint16, *StartupInfo, *ProcessInformation) error
+pkg syscall (windows-386), type SysProcAttr struct, Token Token
+pkg syscall (windows-amd64), func CreateProcessAsUser(Token, *uint16, *uint16, *SecurityAttributes, *SecurityAttributes, bool, uint32, *uint16, *uint16, *StartupInfo, *ProcessInformation) error
+pkg syscall (windows-amd64), type SysProcAttr struct, Token Token
+pkg time, func LoadLocationFromTZData(string, []uint8) (*Location, error)
+pkg unicode, const Version = "10.0.0"
+pkg unicode, var Masaram_Gondi *RangeTable
+pkg unicode, var Nushu *RangeTable
+pkg unicode, var Regional_Indicator *RangeTable
+pkg unicode, var Soyombo *RangeTable
+pkg unicode, var Zanabazar_Square *RangeTable

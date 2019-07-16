@@ -1,0 +1,8 @@
+// Package predeclared is a go/doc test for handling of exported ...
+PACKAGE predeclared
+
+IMPORTPATH
+	testdata/predeclared
+
+FILENAMES
+	testdata/predeclared.go

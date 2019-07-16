@@ -1,0 +1,16 @@
+#!/bin/rc -e
+# Copyright 2012 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+rfork n
+
+if(! test -f make.rc){
+	echo 'all.rc must be run from $GOROOT/src' >[1=2]
+	exit wrongdir
+}
+
+. ./make.rc --no-banner
+bind -b $GOROOT/bin /bin
+./run.rc --no-rebuild
+$GOTOOLDIR/dist banner  # print build info

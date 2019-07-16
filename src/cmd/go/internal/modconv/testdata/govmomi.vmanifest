@@ -1,0 +1,46 @@
+{
+	"version": 0,
+	"dependencies": [
+		{
+			"importpath": "github.com/davecgh/go-xdr/xdr2",
+			"repository": "https://github.com/rasky/go-xdr",
+			"vcs": "git",
+			"revision": "4930550ba2e22f87187498acfd78348b15f4e7a8",
+			"branch": "improvements",
+			"path": "/xdr2",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/google/uuid",
+			"repository": "https://github.com/google/uuid",
+			"vcs": "git",
+			"revision": "6a5e28554805e78ea6141142aba763936c4761c0",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kr/pretty",
+			"repository": "https://github.com/dougm/pretty",
+			"vcs": "git",
+			"revision": "2ee9d7453c02ef7fa518a83ae23644eb8872186a",
+			"branch": "govmomi",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kr/pty",
+			"repository": "https://github.com/kr/pty",
+			"vcs": "git",
+			"revision": "95d05c1eef33a45bd58676b6ce28d105839b8d0b",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/vmware/vmw-guestinfo",
+			"repository": "https://github.com/vmware/vmw-guestinfo",
+			"vcs": "git",
+			"revision": "25eff159a728be87e103a0b8045e08273f4dbec4",
+			"branch": "master",
+			"notests": true
+		}
+	]
+}

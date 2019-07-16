@@ -1,0 +1,12 @@
+env GO111MODULE=on
+[short] skip
+
+go build -o fortune.exe rsc.io/fortune
+go version fortune.exe
+stdout '^fortune.exe: .+'
+go version -m fortune.exe
+stdout '^\tpath\trsc.io/fortune'
+stdout '^\tmod\trsc.io/fortune\tv1.0.0'
+
+-- go.mod --
+module m

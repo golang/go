@@ -1,0 +1,5 @@
+#!/bin/bash
+
+echo 'misc/benchcmp has moved:' >&2
+echo '	go get -u golang.org/x/tools/cmd/benchcmp' >&2
+exit 2

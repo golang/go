@@ -1,0 +1,13 @@
+written by hand — attempts to use a prohibited internal package
+(https://golang.org/s/go14internal)
+
+-- .mod --
+module golang.org/notx/useinternal
+-- .info --
+{"Version":"v0.1.0","Name":"","Short":"","Time":"2018-07-25T17:24:00Z"}
+-- go.mod --
+module golang.org/notx/useinternal
+-- useinternal.go --
+package useinternal
+
+import _ "golang.org/x/internal/subtle"

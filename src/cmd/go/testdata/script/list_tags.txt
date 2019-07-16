@@ -1,0 +1,10 @@
+env GO111MODULE=off
+
+# go list supports -tags
+go list -tags=thetag ./my...
+stdout mypkg
+
+-- mypkg/x.go --
+// +build thetag
+
+package mypkg

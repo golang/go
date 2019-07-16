@@ -1,0 +1,20 @@
+{
+  "name": "Hacking Gopher",
+  "version": "1.0",
+  "manifest_version": 2,
+  "description": "Go Hacking utility",
+  "background": {
+    "page": "background.html"
+  },
+  "browser_action": {
+    "default_icon": "gopher.png",
+    "default_popup": "popup.html"
+  },
+  "omnibox": { "keyword": "golang" },
+  "icons": {
+    "16": "gopher.png"
+  },
+  "permissions": [
+     "tabs"
+  ]
+}

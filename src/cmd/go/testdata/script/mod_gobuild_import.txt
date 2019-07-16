@@ -1,0 +1,96 @@
+[short] skip
+
+# go/build's Import should find modules by invoking the go command
+
+go build -o $WORK/testimport.exe ./testimport
+
+# GO111MODULE=off
+env GO111MODULE=off
+! exec $WORK/testimport.exe gobuild.example.com/x/y/z/w .
+
+# GO111MODULE=auto in GOPATH/src
+env GO111MODULE=auto
+exec $WORK/testimport.exe gobuild.example.com/x/y/z/w .
+
+# GO111MODULE=auto outside GOPATH/src
+cd $GOPATH/other
+env GO111MODULE=auto
+exec $WORK/testimport.exe other/x/y/z/w .
+stdout w2.go
+
+! exec $WORK/testimport.exe gobuild.example.com/x/y/z/w .
+stderr 'cannot find module providing package gobuild.example.com/x/y/z/w'
+
+cd z
+exec $WORK/testimport.exe other/x/y/z/w .
+stdout w2.go
+
+# GO111MODULE=on outside GOPATH/src
+env GO111MODULE=
+exec $WORK/testimport.exe other/x/y/z/w .
+stdout w2.go
+env GO111MODULE=on
+exec $WORK/testimport.exe other/x/y/z/w .
+stdout w2.go
+
+# GO111MODULE=on in GOPATH/src
+cd $GOPATH/src
+env GO111MODULE=
+exec $WORK/testimport.exe gobuild.example.com/x/y/z/w .
+stdout w1.go
+env GO111MODULE=on
+exec $WORK/testimport.exe gobuild.example.com/x/y/z/w .
+stdout w1.go
+cd w
+exec $WORK/testimport.exe gobuild.example.com/x/y/z/w ..
+stdout w1.go
+
+-- go.mod --
+module gobuild.example.com/x/y/z
+
+-- z.go --
+package z
+
+-- w/w1.go --
+package w
+
+-- testimport/x.go --
+package main
+
+import (
+	"fmt"
+	"go/build"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+func main() {
+	// build.Import should support relative and absolute source dir paths.
+	path := os.Args[1]
+	srcDir := os.Args[2]
+	p1, err := build.Import(path, srcDir, 0)
+	if err != nil {
+		log.Fatal(err)
+	}
+	absSrcDir, err := filepath.Abs(srcDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+	p2, err := build.Import(path, absSrcDir, 0)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if p1.Dir != p2.Dir {
+		log.Fatalf("different packages loaded with relative and absolute paths:\n\t%s\n\t%s", p1.Dir, p2.Dir)
+	}
+
+	fmt.Printf("%s\n%s\n", p1.Dir, strings.Join(p1.GoFiles, " "))
+}
+
+-- $GOPATH/other/go.mod --
+module other/x/y
+
+-- $GOPATH/other/z/w/w2.go --
+package w

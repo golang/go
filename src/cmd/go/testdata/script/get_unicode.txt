@@ -1,0 +1,40 @@
+env GO111MODULE=off
+
+[!exec:git] skip
+[short] skip
+
+# Construct a repository that imports a non-ASCII path.
+cd $WORK/_origin/example.com/unicode
+exec git init
+exec git config user.name 'Nameless Gopher'
+exec git config user.email 'nobody@golang.org'
+exec git add unicode.go
+exec git commit -m 'add unicode.go'
+
+# Clone the repo into GOPATH so that 'go get -u' can find it.
+mkdir $GOPATH/src/example.com/unicode
+cd $GOPATH/src/example.com/unicode
+exec git clone $WORK/_origin/example.com/unicode .
+
+# Construct the imported repository.
+cd $WORK/_origin/example.com/испытание
+exec git init
+exec git config user.name 'Nameless Gopher'
+exec git config user.email 'nobody@golang.org'
+exec git add испытание.go
+exec git commit -m 'add испытание.go'
+
+# Clone that repo into GOPATH too.
+mkdir $GOPATH/src/example.com/испытание
+cd $GOPATH/src/example.com/испытание
+exec git clone $WORK/_origin/example.com/испытание .
+
+# Upgrading the importer should pull from the non-ASCII repo.
+cd $GOPATH
+go get -u example.com/unicode
+
+-- $WORK/_origin/example.com/unicode/unicode.go --
+package unicode
+import _ "example.com/испытание"
+-- $WORK/_origin/example.com/испытание/испытание.go --
+package испытание

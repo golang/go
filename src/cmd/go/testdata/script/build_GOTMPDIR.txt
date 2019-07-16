@@ -1,0 +1,15 @@
+env GO111MODULE=off
+[short] skip
+
+# Set GOCACHE to a clean directory to ensure that 'go build' has work to report.
+env GOCACHE=$WORK/gocache
+
+# Build should use GOTMPDIR if set.
+env GOTMPDIR=$WORK/my-favorite-tmpdir
+mkdir $GOTMPDIR
+go build -work hello.go
+stderr ^WORK=.*my-favorite-tmpdir
+
+-- hello.go --
+package main
+func main() { println("hello") }

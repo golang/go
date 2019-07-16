@@ -1,0 +1,45 @@
+env GO111MODULE=on
+[short] skip
+
+# -mod=readonly must not resolve missing modules nor update go.mod
+#
+# TODO(bcmills): 'go list' should suffice, but today it does not fail due to
+# unresolved imports. When that is fixed, use 'go list' instead of 'go list all'.
+env GOFLAGS=-mod=readonly
+go mod edit -fmt
+cp go.mod go.mod.empty
+! go list all
+stderr 'import lookup disabled by -mod=readonly'
+cmp go.mod go.mod.empty
+
+# update go.mod - go get allowed
+go get rsc.io/quote
+grep rsc.io/quote go.mod
+
+# update go.mod - go mod tidy allowed
+cp go.mod.empty go.mod
+go mod tidy
+
+# -mod=readonly must succeed once go.mod is up-to-date...
+go list
+
+# ... even if it needs downloads
+go clean -modcache
+go list
+
+# -mod=readonly should reject inconsistent go.mod files
+# (ones that would be rewritten).
+go mod edit -require rsc.io/sampler@v1.2.0
+cp go.mod go.mod.inconsistent
+! go list
+stderr 'go: updates to go.mod needed, disabled by -mod=readonly'
+cmp go.mod go.mod.inconsistent
+
+-- go.mod --
+module m
+
+go 1.20
+
+-- x.go --
+package x
+import _ "rsc.io/quote"

@@ -1,0 +1,35 @@
+[short] skip
+
+# go list with path to directory should work
+
+env GO111MODULE=off
+go list -f '{{.ImportPath}}' $GOROOT/src/math
+stdout ^math$
+
+env GO111MODULE=on
+go list -f '{{.ImportPath}}' $GOROOT/src/math
+stdout ^math$
+go list -f '{{.ImportPath}}' .
+stdout ^x$
+! go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+stderr '^can.t load package: package '$WORK'[/\\]gopath/pkg/mod/rsc.io/quote@v1.5.2: can only use path@version syntax with .go get.'
+
+go list -e -f '{{with .Error}}{{.}}{{end}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+stdout '^package '$WORK'[/\\]gopath/pkg/mod/rsc.io/quote@v1.5.2: can only use path@version syntax with .go get.'
+go mod download rsc.io/quote@v1.5.2
+go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+stdout '^rsc.io/quote$'
+go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/sampler@v1.3.0
+stdout '^rsc.io/sampler$'
+go get -d rsc.io/sampler@v1.3.1
+go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/sampler@v1.3.1
+stdout '^rsc.io/sampler$'
+! go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/sampler@v1.3.0
+stderr 'outside available modules'
+
+-- go.mod --
+module x
+require rsc.io/quote v1.5.2
+
+-- x.go --
+package x

@@ -1,0 +1,51 @@
+Go on iOS
+=========
+
+For details on developing Go for iOS on macOS, see the documentation in the mobile
+subrepository:
+
+    https://github.com/golang/mobile
+
+It is necessary to set up the environment before running tests or programs directly on a
+device.
+
+First make sure you have a valid developer certificate and have setup your device properly
+to run apps signed by your developer certificate. Then install the libimobiledevice and
+ideviceinstaller tools from https://www.libimobiledevice.org/. Use the HEAD versions from
+source; the stable versions have bugs that prevents the Go exec wrapper to install and run
+apps.
+
+Second, the Go exec wrapper must be told the developer account signing identity, the team
+id and a provisioned bundle id to use. They're specified with the environment variables
+GOIOS_DEV_ID, GOIOS_TEAM_ID and GOIOS_APP_ID. The detect.go program in this directory will
+attempt to auto-detect suitable values. Run it as
+
+	go run detect.go
+
+which will output something similar to
+
+	export GOIOS_DEV_ID="iPhone Developer: xxx@yyy.zzz (XXXXXXXX)"
+	export GOIOS_APP_ID=YYYYYYYY.some.bundle.id
+	export GOIOS_TEAM_ID=ZZZZZZZZ
+
+If you have multiple devices connected, specify the device UDID with the GOIOS_DEVICE_ID
+variable. Use `idevice_id -l` to list all available UDIDs.
+
+Finally, to run the standard library tests, run all.bash as usual, but with the compiler
+set to the clang wrapper that invokes clang for iOS. For example,
+
+	GOARCH=arm64 CGO_ENABLED=1 CC_FOR_TARGET=$(pwd)/../misc/ios/clangwrap.sh ./all.bash
+
+To use the go tool directly to run programs and tests, put $GOROOT/bin into PATH to ensure
+the go_darwin_$GOARCH_exec wrapper is found. For example, to run the archive/tar tests
+
+	export PATH=$GOROOT/bin:$PATH
+	GOARCH=arm64 CGO_ENABLED=1 go test archive/tar
+
+Note that the go_darwin_$GOARCH_exec wrapper uninstalls any existing app identified by
+the bundle id before installing a new app. If the uninstalled app is the last app by
+the developer identity, the device might also remove the permission to run apps from
+that developer, and the exec wrapper will fail to install the new app. To avoid that,
+install another app with the same developer identity but with a different bundle id.
+That way, the permission to install apps is held on to while the primary app is
+uninstalled.

@@ -1,0 +1,3 @@
+package selfimport
+
+import "selfimport"

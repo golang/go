@@ -1,0 +1,11 @@
+//gofmt -stdin
+
+var x int
+
+
+func f() { y := z
+	/* this is a comment */
+	// this is a comment too
+}
+
+

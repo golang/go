@@ -1,0 +1,2053 @@
+pkg archive/tar, const TypeGNUSparse = 83
+pkg archive/tar, const TypeGNUSparse ideal-char
+pkg archive/tar, type Header struct, Xattrs map[string]string
+pkg compress/gzip, method (*Reader) Reset(io.Reader) error
+pkg crypto/tls, const CurveP256 = 23
+pkg crypto/tls, const CurveP256 CurveID
+pkg crypto/tls, const CurveP384 = 24
+pkg crypto/tls, const CurveP384 CurveID
+pkg crypto/tls, const CurveP521 = 25
+pkg crypto/tls, const CurveP521 CurveID
+pkg crypto/tls, func DialWithDialer(*net.Dialer, string, string, *Config) (*Conn, error)
+pkg crypto/tls, func NewLRUClientSessionCache(int) ClientSessionCache
+pkg crypto/tls, type ClientSessionCache interface { Get, Put }
+pkg crypto/tls, type ClientSessionCache interface, Get(string) (*ClientSessionState, bool)
+pkg crypto/tls, type ClientSessionCache interface, Put(string, *ClientSessionState)
+pkg crypto/tls, type ClientSessionState struct
+pkg crypto/tls, type Config struct, ClientSessionCache ClientSessionCache
+pkg crypto/tls, type Config struct, CurvePreferences []CurveID
+pkg crypto/tls, type ConnectionState struct, Version uint16
+pkg crypto/tls, type CurveID uint16
+pkg crypto/x509, func CreateCertificateRequest(io.Reader, *CertificateRequest, interface{}) ([]uint8, error)
+pkg crypto/x509, func ParseCertificateRequest([]uint8) (*CertificateRequest, error)
+pkg crypto/x509, type CertificateRequest struct
+pkg crypto/x509, type CertificateRequest struct, Attributes []pkix.AttributeTypeAndValueSET
+pkg crypto/x509, type CertificateRequest struct, DNSNames []string
+pkg crypto/x509, type CertificateRequest struct, EmailAddresses []string
+pkg crypto/x509, type CertificateRequest struct, Extensions []pkix.Extension
+pkg crypto/x509, type CertificateRequest struct, ExtraExtensions []pkix.Extension
+pkg crypto/x509, type CertificateRequest struct, IPAddresses []net.IP
+pkg crypto/x509, type CertificateRequest struct, PublicKey interface{}
+pkg crypto/x509, type CertificateRequest struct, PublicKeyAlgorithm PublicKeyAlgorithm
+pkg crypto/x509, type CertificateRequest struct, Raw []uint8
+pkg crypto/x509, type CertificateRequest struct, RawSubject []uint8
+pkg crypto/x509, type CertificateRequest struct, RawSubjectPublicKeyInfo []uint8
+pkg crypto/x509, type CertificateRequest struct, RawTBSCertificateRequest []uint8
+pkg crypto/x509, type CertificateRequest struct, Signature []uint8
+pkg crypto/x509, type CertificateRequest struct, SignatureAlgorithm SignatureAlgorithm
+pkg crypto/x509, type CertificateRequest struct, Subject pkix.Name
+pkg crypto/x509, type CertificateRequest struct, Version int
+pkg crypto/x509/pkix, type AttributeTypeAndValueSET struct
+pkg crypto/x509/pkix, type AttributeTypeAndValueSET struct, Type asn1.ObjectIdentifier
+pkg crypto/x509/pkix, type AttributeTypeAndValueSET struct, Value [][]AttributeTypeAndValue
+pkg debug/dwarf, const TagCondition = 63
+pkg debug/dwarf, const TagCondition Tag
+pkg debug/dwarf, const TagRvalueReferenceType = 66
+pkg debug/dwarf, const TagRvalueReferenceType Tag
+pkg debug/dwarf, const TagSharedType = 64
+pkg debug/dwarf, const TagSharedType Tag
+pkg debug/dwarf, const TagTemplateAlias = 67
+pkg debug/dwarf, const TagTemplateAlias Tag
+pkg debug/dwarf, const TagTypeUnit = 65
+pkg debug/dwarf, const TagTypeUnit Tag
+pkg debug/dwarf, method (*Data) AddTypes(string, []uint8) error
+pkg debug/macho, const CpuArm = 12
+pkg debug/macho, const CpuArm Cpu
+pkg debug/macho, const CpuPpc = 18
+pkg debug/macho, const CpuPpc Cpu
+pkg debug/macho, const CpuPpc64 = 16777234
+pkg debug/macho, const CpuPpc64 Cpu
+pkg debug/macho, const MagicFat = 3405691582
+pkg debug/macho, const MagicFat uint32
+pkg debug/macho, const TypeBundle = 8
+pkg debug/macho, const TypeBundle Type
+pkg debug/macho, const TypeDylib = 6
+pkg debug/macho, const TypeDylib Type
+pkg debug/macho, func NewFatFile(io.ReaderAt) (*FatFile, error)
+pkg debug/macho, func OpenFat(string) (*FatFile, error)
+pkg debug/macho, method (*FatFile) Close() error
+pkg debug/macho, method (FatArch) Close() error
+pkg debug/macho, method (FatArch) DWARF() (*dwarf.Data, error)
+pkg debug/macho, method (FatArch) ImportedLibraries() ([]string, error)
+pkg debug/macho, method (FatArch) ImportedSymbols() ([]string, error)
+pkg debug/macho, method (FatArch) Section(string) *Section
+pkg debug/macho, method (FatArch) Segment(string) *Segment
+pkg debug/macho, type FatArch struct
+pkg debug/macho, type FatArch struct, embedded *File
+pkg debug/macho, type FatArch struct, embedded FatArchHeader
+pkg debug/macho, type FatArchHeader struct
+pkg debug/macho, type FatArchHeader struct, Align uint32
+pkg debug/macho, type FatArchHeader struct, Cpu Cpu
+pkg debug/macho, type FatArchHeader struct, Offset uint32
+pkg debug/macho, type FatArchHeader struct, Size uint32
+pkg debug/macho, type FatArchHeader struct, SubCpu uint32
+pkg debug/macho, type FatFile struct
+pkg debug/macho, type FatFile struct, Arches []FatArch
+pkg debug/macho, type FatFile struct, Magic uint32
+pkg debug/macho, var ErrNotFat *FormatError
+pkg debug/pe, type DataDirectory struct
+pkg debug/pe, type DataDirectory struct, Size uint32
+pkg debug/pe, type DataDirectory struct, VirtualAddress uint32
+pkg debug/pe, type File struct, OptionalHeader interface{}
+pkg debug/pe, type OptionalHeader32 struct
+pkg debug/pe, type OptionalHeader32 struct, AddressOfEntryPoint uint32
+pkg debug/pe, type OptionalHeader32 struct, BaseOfCode uint32
+pkg debug/pe, type OptionalHeader32 struct, BaseOfData uint32
+pkg debug/pe, type OptionalHeader32 struct, CheckSum uint32
+pkg debug/pe, type OptionalHeader32 struct, DataDirectory [16]DataDirectory
+pkg debug/pe, type OptionalHeader32 struct, DllCharacteristics uint16
+pkg debug/pe, type OptionalHeader32 struct, FileAlignment uint32
+pkg debug/pe, type OptionalHeader32 struct, ImageBase uint32
+pkg debug/pe, type OptionalHeader32 struct, LoaderFlags uint32
+pkg debug/pe, type OptionalHeader32 struct, Magic uint16
+pkg debug/pe, type OptionalHeader32 struct, MajorImageVersion uint16
+pkg debug/pe, type OptionalHeader32 struct, MajorLinkerVersion uint8
+pkg debug/pe, type OptionalHeader32 struct, MajorOperatingSystemVersion uint16
+pkg debug/pe, type OptionalHeader32 struct, MajorSubsystemVersion uint16
+pkg debug/pe, type OptionalHeader32 struct, MinorImageVersion uint16
+pkg debug/pe, type OptionalHeader32 struct, MinorLinkerVersion uint8
+pkg debug/pe, type OptionalHeader32 struct, MinorOperatingSystemVersion uint16
+pkg debug/pe, type OptionalHeader32 struct, MinorSubsystemVersion uint16
+pkg debug/pe, type OptionalHeader32 struct, NumberOfRvaAndSizes uint32
+pkg debug/pe, type OptionalHeader32 struct, SectionAlignment uint32
+pkg debug/pe, type OptionalHeader32 struct, SizeOfCode uint32
+pkg debug/pe, type OptionalHeader32 struct, SizeOfHeaders uint32
+pkg debug/pe, type OptionalHeader32 struct, SizeOfHeapCommit uint32
+pkg debug/pe, type OptionalHeader32 struct, SizeOfHeapReserve uint32
+pkg debug/pe, type OptionalHeader32 struct, SizeOfImage uint32
+pkg debug/pe, type OptionalHeader32 struct, SizeOfInitializedData uint32
+pkg debug/pe, type OptionalHeader32 struct, SizeOfStackCommit uint32
+pkg debug/pe, type OptionalHeader32 struct, SizeOfStackReserve uint32
+pkg debug/pe, type OptionalHeader32 struct, SizeOfUninitializedData uint32
+pkg debug/pe, type OptionalHeader32 struct, Subsystem uint16
+pkg debug/pe, type OptionalHeader32 struct, Win32VersionValue uint32
+pkg debug/pe, type OptionalHeader64 struct
+pkg debug/pe, type OptionalHeader64 struct, AddressOfEntryPoint uint32
+pkg debug/pe, type OptionalHeader64 struct, BaseOfCode uint32
+pkg debug/pe, type OptionalHeader64 struct, CheckSum uint32
+pkg debug/pe, type OptionalHeader64 struct, DataDirectory [16]DataDirectory
+pkg debug/pe, type OptionalHeader64 struct, DllCharacteristics uint16
+pkg debug/pe, type OptionalHeader64 struct, FileAlignment uint32
+pkg debug/pe, type OptionalHeader64 struct, ImageBase uint64
+pkg debug/pe, type OptionalHeader64 struct, LoaderFlags uint32
+pkg debug/pe, type OptionalHeader64 struct, Magic uint16
+pkg debug/pe, type OptionalHeader64 struct, MajorImageVersion uint16
+pkg debug/pe, type OptionalHeader64 struct, MajorLinkerVersion uint8
+pkg debug/pe, type OptionalHeader64 struct, MajorOperatingSystemVersion uint16
+pkg debug/pe, type OptionalHeader64 struct, MajorSubsystemVersion uint16
+pkg debug/pe, type OptionalHeader64 struct, MinorImageVersion uint16
+pkg debug/pe, type OptionalHeader64 struct, MinorLinkerVersion uint8
+pkg debug/pe, type OptionalHeader64 struct, MinorOperatingSystemVersion uint16
+pkg debug/pe, type OptionalHeader64 struct, MinorSubsystemVersion uint16
+pkg debug/pe, type OptionalHeader64 struct, NumberOfRvaAndSizes uint32
+pkg debug/pe, type OptionalHeader64 struct, SectionAlignment uint32
+pkg debug/pe, type OptionalHeader64 struct, SizeOfCode uint32
+pkg debug/pe, type OptionalHeader64 struct, SizeOfHeaders uint32
+pkg debug/pe, type OptionalHeader64 struct, SizeOfHeapCommit uint64
+pkg debug/pe, type OptionalHeader64 struct, SizeOfHeapReserve uint64
+pkg debug/pe, type OptionalHeader64 struct, SizeOfImage uint32
+pkg debug/pe, type OptionalHeader64 struct, SizeOfInitializedData uint32
+pkg debug/pe, type OptionalHeader64 struct, SizeOfStackCommit uint64
+pkg debug/pe, type OptionalHeader64 struct, SizeOfStackReserve uint64
+pkg debug/pe, type OptionalHeader64 struct, SizeOfUninitializedData uint32
+pkg debug/pe, type OptionalHeader64 struct, Subsystem uint16
+pkg debug/pe, type OptionalHeader64 struct, Win32VersionValue uint32
+pkg debug/plan9obj, const Magic386 = 491
+pkg debug/plan9obj, const Magic386 ideal-int
+pkg debug/plan9obj, const Magic64 = 32768
+pkg debug/plan9obj, const Magic64 ideal-int
+pkg debug/plan9obj, const MagicAMD64 = 35479
+pkg debug/plan9obj, const MagicAMD64 ideal-int
+pkg debug/plan9obj, const MagicARM = 1607
+pkg debug/plan9obj, const MagicARM ideal-int
+pkg debug/plan9obj, func NewFile(io.ReaderAt) (*File, error)
+pkg debug/plan9obj, func Open(string) (*File, error)
+pkg debug/plan9obj, method (*File) Close() error
+pkg debug/plan9obj, method (*File) Section(string) *Section
+pkg debug/plan9obj, method (*File) Symbols() ([]Sym, error)
+pkg debug/plan9obj, method (*Section) Data() ([]uint8, error)
+pkg debug/plan9obj, method (*Section) Open() io.ReadSeeker
+pkg debug/plan9obj, method (Section) ReadAt([]uint8, int64) (int, error)
+pkg debug/plan9obj, type File struct
+pkg debug/plan9obj, type File struct, Sections []*Section
+pkg debug/plan9obj, type File struct, embedded FileHeader
+pkg debug/plan9obj, type FileHeader struct
+pkg debug/plan9obj, type FileHeader struct, Bss uint32
+pkg debug/plan9obj, type FileHeader struct, Entry uint64
+pkg debug/plan9obj, type FileHeader struct, Magic uint32
+pkg debug/plan9obj, type FileHeader struct, PtrSize int
+pkg debug/plan9obj, type Section struct
+pkg debug/plan9obj, type Section struct, embedded SectionHeader
+pkg debug/plan9obj, type Section struct, embedded io.ReaderAt
+pkg debug/plan9obj, type SectionHeader struct
+pkg debug/plan9obj, type SectionHeader struct, Name string
+pkg debug/plan9obj, type SectionHeader struct, Offset uint32
+pkg debug/plan9obj, type SectionHeader struct, Size uint32
+pkg debug/plan9obj, type Sym struct
+pkg debug/plan9obj, type Sym struct, Name string
+pkg debug/plan9obj, type Sym struct, Type int32
+pkg debug/plan9obj, type Sym struct, Value uint64
+pkg encoding/asn1, method (ObjectIdentifier) String() string
+pkg go/build, type Package struct, MFiles []string
+pkg math/big, method (*Int) MarshalText() ([]uint8, error)
+pkg math/big, method (*Int) UnmarshalText([]uint8) error
+pkg math/big, method (*Rat) MarshalText() ([]uint8, error)
+pkg math/big, method (*Rat) UnmarshalText([]uint8) error
+pkg net, type Dialer struct, KeepAlive time.Duration
+pkg net/http, const StateActive = 1
+pkg net/http, const StateActive ConnState
+pkg net/http, const StateClosed = 4
+pkg net/http, const StateClosed ConnState
+pkg net/http, const StateHijacked = 3
+pkg net/http, const StateHijacked ConnState
+pkg net/http, const StateIdle = 2
+pkg net/http, const StateIdle ConnState
+pkg net/http, const StateNew = 0
+pkg net/http, const StateNew ConnState
+pkg net/http, method (*Server) SetKeepAlivesEnabled(bool)
+pkg net/http, method (ConnState) String() string
+pkg net/http, type Client struct, Timeout time.Duration
+pkg net/http, type ConnState int
+pkg net/http, type Response struct, TLS *tls.ConnectionState
+pkg net/http, type Server struct, ConnState func(net.Conn, ConnState)
+pkg net/http, type Server struct, ErrorLog *log.Logger
+pkg net/http, type Transport struct, TLSHandshakeTimeout time.Duration
+pkg regexp/syntax, method (*Inst) MatchRunePos(int32) int
+pkg regexp/syntax, method (InstOp) String() string
+pkg runtime/debug, func SetPanicOnFault(bool) bool
+pkg runtime/debug, func WriteHeapDump(uintptr)
+pkg sync, method (*Pool) Get() interface{}
+pkg sync, method (*Pool) Put(interface{})
+pkg sync, type Pool struct
+pkg sync, type Pool struct, New func() interface{}
+pkg syscall (darwin-386), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (darwin-386), func Mlock([]uint8) error
+pkg syscall (darwin-386), func Mlockall(int) error
+pkg syscall (darwin-386), func Mprotect([]uint8, int) error
+pkg syscall (darwin-386), func Munlock([]uint8) error
+pkg syscall (darwin-386), func Munlockall() error
+pkg syscall (darwin-386), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (darwin-386-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (darwin-386-cgo), func Mlock([]uint8) error
+pkg syscall (darwin-386-cgo), func Mlockall(int) error
+pkg syscall (darwin-386-cgo), func Mprotect([]uint8, int) error
+pkg syscall (darwin-386-cgo), func Munlock([]uint8) error
+pkg syscall (darwin-386-cgo), func Munlockall() error
+pkg syscall (darwin-386-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (darwin-amd64), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (darwin-amd64), func Mlock([]uint8) error
+pkg syscall (darwin-amd64), func Mlockall(int) error
+pkg syscall (darwin-amd64), func Mprotect([]uint8, int) error
+pkg syscall (darwin-amd64), func Munlock([]uint8) error
+pkg syscall (darwin-amd64), func Munlockall() error
+pkg syscall (darwin-amd64), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (darwin-amd64-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (darwin-amd64-cgo), func Mlock([]uint8) error
+pkg syscall (darwin-amd64-cgo), func Mlockall(int) error
+pkg syscall (darwin-amd64-cgo), func Mprotect([]uint8, int) error
+pkg syscall (darwin-amd64-cgo), func Munlock([]uint8) error
+pkg syscall (darwin-amd64-cgo), func Munlockall() error
+pkg syscall (darwin-amd64-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (freebsd-386), const AF_INET6_SDP = 42
+pkg syscall (freebsd-386), const AF_INET6_SDP ideal-int
+pkg syscall (freebsd-386), const AF_INET_SDP = 40
+pkg syscall (freebsd-386), const AF_INET_SDP ideal-int
+pkg syscall (freebsd-386), const AF_MAX = 42
+pkg syscall (freebsd-386), const DLT_MATCHING_MAX = 246
+pkg syscall (freebsd-386), const DLT_MPEG_2_TS = 243
+pkg syscall (freebsd-386), const DLT_MPEG_2_TS ideal-int
+pkg syscall (freebsd-386), const DLT_NFC_LLCP = 245
+pkg syscall (freebsd-386), const DLT_NFC_LLCP ideal-int
+pkg syscall (freebsd-386), const DLT_NG40 = 244
+pkg syscall (freebsd-386), const DLT_NG40 ideal-int
+pkg syscall (freebsd-386), const ELAST = 96
+pkg syscall (freebsd-386), const ENOTRECOVERABLE = 95
+pkg syscall (freebsd-386), const ENOTRECOVERABLE Errno
+pkg syscall (freebsd-386), const EOWNERDEAD = 96
+pkg syscall (freebsd-386), const EOWNERDEAD Errno
+pkg syscall (freebsd-386), const EV_DROP = 4096
+pkg syscall (freebsd-386), const EV_DROP ideal-int
+pkg syscall (freebsd-386), const IPPROTO_MPLS = 137
+pkg syscall (freebsd-386), const IPPROTO_MPLS ideal-int
+pkg syscall (freebsd-386), const MAP_ALIGNED_SUPER = 16777216
+pkg syscall (freebsd-386), const MAP_ALIGNED_SUPER ideal-int
+pkg syscall (freebsd-386), const MAP_ALIGNMENT_MASK = -16777216
+pkg syscall (freebsd-386), const MAP_ALIGNMENT_MASK ideal-int
+pkg syscall (freebsd-386), const MAP_ALIGNMENT_SHIFT = 24
+pkg syscall (freebsd-386), const MAP_ALIGNMENT_SHIFT ideal-int
+pkg syscall (freebsd-386), const MSG_CMSG_CLOEXEC = 262144
+pkg syscall (freebsd-386), const MSG_CMSG_CLOEXEC ideal-int
+pkg syscall (freebsd-386), const NAME_MAX = 255
+pkg syscall (freebsd-386), const NAME_MAX ideal-int
+pkg syscall (freebsd-386), const O_CLOEXEC = 1048576
+pkg syscall (freebsd-386), const RTF_GWFLAG_COMPAT = 2147483648
+pkg syscall (freebsd-386), const RTF_GWFLAG_COMPAT ideal-int
+pkg syscall (freebsd-386), const RT_NORTREF = 2
+pkg syscall (freebsd-386), const RT_NORTREF ideal-int
+pkg syscall (freebsd-386), const SIGLIBRT = 33
+pkg syscall (freebsd-386), const SIGLIBRT Signal
+pkg syscall (freebsd-386), const SOCK_CLOEXEC = 268435456
+pkg syscall (freebsd-386), const SOCK_CLOEXEC ideal-int
+pkg syscall (freebsd-386), const SOCK_NONBLOCK = 536870912
+pkg syscall (freebsd-386), const SOCK_NONBLOCK ideal-int
+pkg syscall (freebsd-386), const SO_VENDOR = 2147483648
+pkg syscall (freebsd-386), const SO_VENDOR ideal-int
+pkg syscall (freebsd-386), const SYS_ACCEPT4 = 541
+pkg syscall (freebsd-386), const SYS_ACCEPT4 ideal-int
+pkg syscall (freebsd-386), const SYS_BINDAT = 538
+pkg syscall (freebsd-386), const SYS_BINDAT ideal-int
+pkg syscall (freebsd-386), const SYS_CHFLAGSAT = 540
+pkg syscall (freebsd-386), const SYS_CHFLAGSAT ideal-int
+pkg syscall (freebsd-386), const SYS_CONNECTAT = 539
+pkg syscall (freebsd-386), const SYS_CONNECTAT ideal-int
+pkg syscall (freebsd-386), const SYS_PIPE2 = 542
+pkg syscall (freebsd-386), const SYS_PIPE2 ideal-int
+pkg syscall (freebsd-386), const SYS_PROCCTL = 544
+pkg syscall (freebsd-386), const SYS_PROCCTL ideal-int
+pkg syscall (freebsd-386), const TCP_VENDOR = 2147483648
+pkg syscall (freebsd-386), const TCP_VENDOR ideal-int
+pkg syscall (freebsd-386), const WEXITED = 16
+pkg syscall (freebsd-386), const WEXITED ideal-int
+pkg syscall (freebsd-386), const WTRAPPED = 32
+pkg syscall (freebsd-386), const WTRAPPED ideal-int
+pkg syscall (freebsd-386), func Accept4(int, int) (int, Sockaddr, error)
+pkg syscall (freebsd-386), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (freebsd-386), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (freebsd-386), type Termios struct
+pkg syscall (freebsd-386), type Termios struct, Cc [20]uint8
+pkg syscall (freebsd-386), type Termios struct, Cflag uint32
+pkg syscall (freebsd-386), type Termios struct, Iflag uint32
+pkg syscall (freebsd-386), type Termios struct, Ispeed uint32
+pkg syscall (freebsd-386), type Termios struct, Lflag uint32
+pkg syscall (freebsd-386), type Termios struct, Oflag uint32
+pkg syscall (freebsd-386), type Termios struct, Ospeed uint32
+pkg syscall (freebsd-386-cgo), const AF_INET6_SDP = 42
+pkg syscall (freebsd-386-cgo), const AF_INET6_SDP ideal-int
+pkg syscall (freebsd-386-cgo), const AF_INET_SDP = 40
+pkg syscall (freebsd-386-cgo), const AF_INET_SDP ideal-int
+pkg syscall (freebsd-386-cgo), const AF_MAX = 42
+pkg syscall (freebsd-386-cgo), const DLT_MATCHING_MAX = 246
+pkg syscall (freebsd-386-cgo), const DLT_MPEG_2_TS = 243
+pkg syscall (freebsd-386-cgo), const DLT_MPEG_2_TS ideal-int
+pkg syscall (freebsd-386-cgo), const DLT_NFC_LLCP = 245
+pkg syscall (freebsd-386-cgo), const DLT_NFC_LLCP ideal-int
+pkg syscall (freebsd-386-cgo), const DLT_NG40 = 244
+pkg syscall (freebsd-386-cgo), const DLT_NG40 ideal-int
+pkg syscall (freebsd-386-cgo), const ELAST = 96
+pkg syscall (freebsd-386-cgo), const ENOTRECOVERABLE = 95
+pkg syscall (freebsd-386-cgo), const ENOTRECOVERABLE Errno
+pkg syscall (freebsd-386-cgo), const EOWNERDEAD = 96
+pkg syscall (freebsd-386-cgo), const EOWNERDEAD Errno
+pkg syscall (freebsd-386-cgo), const EV_DROP = 4096
+pkg syscall (freebsd-386-cgo), const EV_DROP ideal-int
+pkg syscall (freebsd-386-cgo), const IPPROTO_MPLS = 137
+pkg syscall (freebsd-386-cgo), const IPPROTO_MPLS ideal-int
+pkg syscall (freebsd-386-cgo), const MAP_ALIGNED_SUPER = 16777216
+pkg syscall (freebsd-386-cgo), const MAP_ALIGNED_SUPER ideal-int
+pkg syscall (freebsd-386-cgo), const MAP_ALIGNMENT_MASK = -16777216
+pkg syscall (freebsd-386-cgo), const MAP_ALIGNMENT_MASK ideal-int
+pkg syscall (freebsd-386-cgo), const MAP_ALIGNMENT_SHIFT = 24
+pkg syscall (freebsd-386-cgo), const MAP_ALIGNMENT_SHIFT ideal-int
+pkg syscall (freebsd-386-cgo), const MSG_CMSG_CLOEXEC = 262144
+pkg syscall (freebsd-386-cgo), const MSG_CMSG_CLOEXEC ideal-int
+pkg syscall (freebsd-386-cgo), const NAME_MAX = 255
+pkg syscall (freebsd-386-cgo), const NAME_MAX ideal-int
+pkg syscall (freebsd-386-cgo), const O_CLOEXEC = 1048576
+pkg syscall (freebsd-386-cgo), const RTF_GWFLAG_COMPAT = 2147483648
+pkg syscall (freebsd-386-cgo), const RTF_GWFLAG_COMPAT ideal-int
+pkg syscall (freebsd-386-cgo), const RT_NORTREF = 2
+pkg syscall (freebsd-386-cgo), const RT_NORTREF ideal-int
+pkg syscall (freebsd-386-cgo), const SIGLIBRT = 33
+pkg syscall (freebsd-386-cgo), const SIGLIBRT Signal
+pkg syscall (freebsd-386-cgo), const SOCK_CLOEXEC = 268435456
+pkg syscall (freebsd-386-cgo), const SOCK_CLOEXEC ideal-int
+pkg syscall (freebsd-386-cgo), const SOCK_NONBLOCK = 536870912
+pkg syscall (freebsd-386-cgo), const SOCK_NONBLOCK ideal-int
+pkg syscall (freebsd-386-cgo), const SO_VENDOR = 2147483648
+pkg syscall (freebsd-386-cgo), const SO_VENDOR ideal-int
+pkg syscall (freebsd-386-cgo), const SYS_ACCEPT4 = 541
+pkg syscall (freebsd-386-cgo), const SYS_ACCEPT4 ideal-int
+pkg syscall (freebsd-386-cgo), const SYS_BINDAT = 538
+pkg syscall (freebsd-386-cgo), const SYS_BINDAT ideal-int
+pkg syscall (freebsd-386-cgo), const SYS_CHFLAGSAT = 540
+pkg syscall (freebsd-386-cgo), const SYS_CHFLAGSAT ideal-int
+pkg syscall (freebsd-386-cgo), const SYS_CONNECTAT = 539
+pkg syscall (freebsd-386-cgo), const SYS_CONNECTAT ideal-int
+pkg syscall (freebsd-386-cgo), const SYS_PIPE2 = 542
+pkg syscall (freebsd-386-cgo), const SYS_PIPE2 ideal-int
+pkg syscall (freebsd-386-cgo), const SYS_PROCCTL = 544
+pkg syscall (freebsd-386-cgo), const SYS_PROCCTL ideal-int
+pkg syscall (freebsd-386-cgo), const TCP_VENDOR = 2147483648
+pkg syscall (freebsd-386-cgo), const TCP_VENDOR ideal-int
+pkg syscall (freebsd-386-cgo), const WEXITED = 16
+pkg syscall (freebsd-386-cgo), const WEXITED ideal-int
+pkg syscall (freebsd-386-cgo), const WTRAPPED = 32
+pkg syscall (freebsd-386-cgo), const WTRAPPED ideal-int
+pkg syscall (freebsd-386-cgo), func Accept4(int, int) (int, Sockaddr, error)
+pkg syscall (freebsd-386-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (freebsd-386-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (freebsd-386-cgo), type Termios struct
+pkg syscall (freebsd-386-cgo), type Termios struct, Cc [20]uint8
+pkg syscall (freebsd-386-cgo), type Termios struct, Cflag uint32
+pkg syscall (freebsd-386-cgo), type Termios struct, Iflag uint32
+pkg syscall (freebsd-386-cgo), type Termios struct, Ispeed uint32
+pkg syscall (freebsd-386-cgo), type Termios struct, Lflag uint32
+pkg syscall (freebsd-386-cgo), type Termios struct, Oflag uint32
+pkg syscall (freebsd-386-cgo), type Termios struct, Ospeed uint32
+pkg syscall (freebsd-amd64), const AF_INET6_SDP = 42
+pkg syscall (freebsd-amd64), const AF_INET6_SDP ideal-int
+pkg syscall (freebsd-amd64), const AF_INET_SDP = 40
+pkg syscall (freebsd-amd64), const AF_INET_SDP ideal-int
+pkg syscall (freebsd-amd64), const AF_MAX = 42
+pkg syscall (freebsd-amd64), const DLT_MATCHING_MAX = 246
+pkg syscall (freebsd-amd64), const DLT_MPEG_2_TS = 243
+pkg syscall (freebsd-amd64), const DLT_MPEG_2_TS ideal-int
+pkg syscall (freebsd-amd64), const DLT_NFC_LLCP = 245
+pkg syscall (freebsd-amd64), const DLT_NFC_LLCP ideal-int
+pkg syscall (freebsd-amd64), const DLT_NG40 = 244
+pkg syscall (freebsd-amd64), const DLT_NG40 ideal-int
+pkg syscall (freebsd-amd64), const ELAST = 96
+pkg syscall (freebsd-amd64), const ENOTRECOVERABLE = 95
+pkg syscall (freebsd-amd64), const ENOTRECOVERABLE Errno
+pkg syscall (freebsd-amd64), const EOWNERDEAD = 96
+pkg syscall (freebsd-amd64), const EOWNERDEAD Errno
+pkg syscall (freebsd-amd64), const EV_DROP = 4096
+pkg syscall (freebsd-amd64), const EV_DROP ideal-int
+pkg syscall (freebsd-amd64), const IPPROTO_MPLS = 137
+pkg syscall (freebsd-amd64), const IPPROTO_MPLS ideal-int
+pkg syscall (freebsd-amd64), const MAP_32BIT = 524288
+pkg syscall (freebsd-amd64), const MAP_32BIT ideal-int
+pkg syscall (freebsd-amd64), const MAP_ALIGNED_SUPER = 16777216
+pkg syscall (freebsd-amd64), const MAP_ALIGNED_SUPER ideal-int
+pkg syscall (freebsd-amd64), const MAP_ALIGNMENT_MASK = -16777216
+pkg syscall (freebsd-amd64), const MAP_ALIGNMENT_MASK ideal-int
+pkg syscall (freebsd-amd64), const MAP_ALIGNMENT_SHIFT = 24
+pkg syscall (freebsd-amd64), const MAP_ALIGNMENT_SHIFT ideal-int
+pkg syscall (freebsd-amd64), const MSG_CMSG_CLOEXEC = 262144
+pkg syscall (freebsd-amd64), const MSG_CMSG_CLOEXEC ideal-int
+pkg syscall (freebsd-amd64), const NAME_MAX = 255
+pkg syscall (freebsd-amd64), const NAME_MAX ideal-int
+pkg syscall (freebsd-amd64), const O_CLOEXEC = 1048576
+pkg syscall (freebsd-amd64), const RTF_GWFLAG_COMPAT = 2147483648
+pkg syscall (freebsd-amd64), const RTF_GWFLAG_COMPAT ideal-int
+pkg syscall (freebsd-amd64), const RT_NORTREF = 2
+pkg syscall (freebsd-amd64), const RT_NORTREF ideal-int
+pkg syscall (freebsd-amd64), const SIGLIBRT = 33
+pkg syscall (freebsd-amd64), const SIGLIBRT Signal
+pkg syscall (freebsd-amd64), const SOCK_CLOEXEC = 268435456
+pkg syscall (freebsd-amd64), const SOCK_CLOEXEC ideal-int
+pkg syscall (freebsd-amd64), const SOCK_NONBLOCK = 536870912
+pkg syscall (freebsd-amd64), const SOCK_NONBLOCK ideal-int
+pkg syscall (freebsd-amd64), const SO_VENDOR = 2147483648
+pkg syscall (freebsd-amd64), const SO_VENDOR ideal-int
+pkg syscall (freebsd-amd64), const SYS_ACCEPT4 = 541
+pkg syscall (freebsd-amd64), const SYS_ACCEPT4 ideal-int
+pkg syscall (freebsd-amd64), const SYS_BINDAT = 538
+pkg syscall (freebsd-amd64), const SYS_BINDAT ideal-int
+pkg syscall (freebsd-amd64), const SYS_CHFLAGSAT = 540
+pkg syscall (freebsd-amd64), const SYS_CHFLAGSAT ideal-int
+pkg syscall (freebsd-amd64), const SYS_CONNECTAT = 539
+pkg syscall (freebsd-amd64), const SYS_CONNECTAT ideal-int
+pkg syscall (freebsd-amd64), const SYS_PIPE2 = 542
+pkg syscall (freebsd-amd64), const SYS_PIPE2 ideal-int
+pkg syscall (freebsd-amd64), const SYS_PROCCTL = 544
+pkg syscall (freebsd-amd64), const SYS_PROCCTL ideal-int
+pkg syscall (freebsd-amd64), const TCP_VENDOR = 2147483648
+pkg syscall (freebsd-amd64), const TCP_VENDOR ideal-int
+pkg syscall (freebsd-amd64), const WEXITED = 16
+pkg syscall (freebsd-amd64), const WEXITED ideal-int
+pkg syscall (freebsd-amd64), const WTRAPPED = 32
+pkg syscall (freebsd-amd64), const WTRAPPED ideal-int
+pkg syscall (freebsd-amd64), func Accept4(int, int) (int, Sockaddr, error)
+pkg syscall (freebsd-amd64), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (freebsd-amd64), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (freebsd-amd64), type Termios struct
+pkg syscall (freebsd-amd64), type Termios struct, Cc [20]uint8
+pkg syscall (freebsd-amd64), type Termios struct, Cflag uint32
+pkg syscall (freebsd-amd64), type Termios struct, Iflag uint32
+pkg syscall (freebsd-amd64), type Termios struct, Ispeed uint32
+pkg syscall (freebsd-amd64), type Termios struct, Lflag uint32
+pkg syscall (freebsd-amd64), type Termios struct, Oflag uint32
+pkg syscall (freebsd-amd64), type Termios struct, Ospeed uint32
+pkg syscall (freebsd-amd64-cgo), const AF_INET6_SDP = 42
+pkg syscall (freebsd-amd64-cgo), const AF_INET6_SDP ideal-int
+pkg syscall (freebsd-amd64-cgo), const AF_INET_SDP = 40
+pkg syscall (freebsd-amd64-cgo), const AF_INET_SDP ideal-int
+pkg syscall (freebsd-amd64-cgo), const AF_MAX = 42
+pkg syscall (freebsd-amd64-cgo), const DLT_MATCHING_MAX = 246
+pkg syscall (freebsd-amd64-cgo), const DLT_MPEG_2_TS = 243
+pkg syscall (freebsd-amd64-cgo), const DLT_MPEG_2_TS ideal-int
+pkg syscall (freebsd-amd64-cgo), const DLT_NFC_LLCP = 245
+pkg syscall (freebsd-amd64-cgo), const DLT_NFC_LLCP ideal-int
+pkg syscall (freebsd-amd64-cgo), const DLT_NG40 = 244
+pkg syscall (freebsd-amd64-cgo), const DLT_NG40 ideal-int
+pkg syscall (freebsd-amd64-cgo), const ELAST = 96
+pkg syscall (freebsd-amd64-cgo), const ENOTRECOVERABLE = 95
+pkg syscall (freebsd-amd64-cgo), const ENOTRECOVERABLE Errno
+pkg syscall (freebsd-amd64-cgo), const EOWNERDEAD = 96
+pkg syscall (freebsd-amd64-cgo), const EOWNERDEAD Errno
+pkg syscall (freebsd-amd64-cgo), const EV_DROP = 4096
+pkg syscall (freebsd-amd64-cgo), const EV_DROP ideal-int
+pkg syscall (freebsd-amd64-cgo), const IPPROTO_MPLS = 137
+pkg syscall (freebsd-amd64-cgo), const IPPROTO_MPLS ideal-int
+pkg syscall (freebsd-amd64-cgo), const MAP_32BIT = 524288
+pkg syscall (freebsd-amd64-cgo), const MAP_32BIT ideal-int
+pkg syscall (freebsd-amd64-cgo), const MAP_ALIGNED_SUPER = 16777216
+pkg syscall (freebsd-amd64-cgo), const MAP_ALIGNED_SUPER ideal-int
+pkg syscall (freebsd-amd64-cgo), const MAP_ALIGNMENT_MASK = -16777216
+pkg syscall (freebsd-amd64-cgo), const MAP_ALIGNMENT_MASK ideal-int
+pkg syscall (freebsd-amd64-cgo), const MAP_ALIGNMENT_SHIFT = 24
+pkg syscall (freebsd-amd64-cgo), const MAP_ALIGNMENT_SHIFT ideal-int
+pkg syscall (freebsd-amd64-cgo), const MSG_CMSG_CLOEXEC = 262144
+pkg syscall (freebsd-amd64-cgo), const MSG_CMSG_CLOEXEC ideal-int
+pkg syscall (freebsd-amd64-cgo), const NAME_MAX = 255
+pkg syscall (freebsd-amd64-cgo), const NAME_MAX ideal-int
+pkg syscall (freebsd-amd64-cgo), const O_CLOEXEC = 1048576
+pkg syscall (freebsd-amd64-cgo), const RTF_GWFLAG_COMPAT = 2147483648
+pkg syscall (freebsd-amd64-cgo), const RTF_GWFLAG_COMPAT ideal-int
+pkg syscall (freebsd-amd64-cgo), const RT_NORTREF = 2
+pkg syscall (freebsd-amd64-cgo), const RT_NORTREF ideal-int
+pkg syscall (freebsd-amd64-cgo), const SIGLIBRT = 33
+pkg syscall (freebsd-amd64-cgo), const SIGLIBRT Signal
+pkg syscall (freebsd-amd64-cgo), const SOCK_CLOEXEC = 268435456
+pkg syscall (freebsd-amd64-cgo), const SOCK_CLOEXEC ideal-int
+pkg syscall (freebsd-amd64-cgo), const SOCK_NONBLOCK = 536870912
+pkg syscall (freebsd-amd64-cgo), const SOCK_NONBLOCK ideal-int
+pkg syscall (freebsd-amd64-cgo), const SO_VENDOR = 2147483648
+pkg syscall (freebsd-amd64-cgo), const SO_VENDOR ideal-int
+pkg syscall (freebsd-amd64-cgo), const SYS_ACCEPT4 = 541
+pkg syscall (freebsd-amd64-cgo), const SYS_ACCEPT4 ideal-int
+pkg syscall (freebsd-amd64-cgo), const SYS_BINDAT = 538
+pkg syscall (freebsd-amd64-cgo), const SYS_BINDAT ideal-int
+pkg syscall (freebsd-amd64-cgo), const SYS_CHFLAGSAT = 540
+pkg syscall (freebsd-amd64-cgo), const SYS_CHFLAGSAT ideal-int
+pkg syscall (freebsd-amd64-cgo), const SYS_CONNECTAT = 539
+pkg syscall (freebsd-amd64-cgo), const SYS_CONNECTAT ideal-int
+pkg syscall (freebsd-amd64-cgo), const SYS_PIPE2 = 542
+pkg syscall (freebsd-amd64-cgo), const SYS_PIPE2 ideal-int
+pkg syscall (freebsd-amd64-cgo), const SYS_PROCCTL = 544
+pkg syscall (freebsd-amd64-cgo), const SYS_PROCCTL ideal-int
+pkg syscall (freebsd-amd64-cgo), const TCP_VENDOR = 2147483648
+pkg syscall (freebsd-amd64-cgo), const TCP_VENDOR ideal-int
+pkg syscall (freebsd-amd64-cgo), const WEXITED = 16
+pkg syscall (freebsd-amd64-cgo), const WEXITED ideal-int
+pkg syscall (freebsd-amd64-cgo), const WTRAPPED = 32
+pkg syscall (freebsd-amd64-cgo), const WTRAPPED ideal-int
+pkg syscall (freebsd-amd64-cgo), func Accept4(int, int) (int, Sockaddr, error)
+pkg syscall (freebsd-amd64-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (freebsd-amd64-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (freebsd-amd64-cgo), type Termios struct
+pkg syscall (freebsd-amd64-cgo), type Termios struct, Cc [20]uint8
+pkg syscall (freebsd-amd64-cgo), type Termios struct, Cflag uint32
+pkg syscall (freebsd-amd64-cgo), type Termios struct, Iflag uint32
+pkg syscall (freebsd-amd64-cgo), type Termios struct, Ispeed uint32
+pkg syscall (freebsd-amd64-cgo), type Termios struct, Lflag uint32
+pkg syscall (freebsd-amd64-cgo), type Termios struct, Oflag uint32
+pkg syscall (freebsd-amd64-cgo), type Termios struct, Ospeed uint32
+pkg syscall (freebsd-arm), const AF_INET6_SDP = 42
+pkg syscall (freebsd-arm), const AF_INET6_SDP ideal-int
+pkg syscall (freebsd-arm), const AF_INET_SDP = 40
+pkg syscall (freebsd-arm), const AF_INET_SDP ideal-int
+pkg syscall (freebsd-arm), const AF_MAX = 42
+pkg syscall (freebsd-arm), const BIOCGRTIMEOUT = 1074807406
+pkg syscall (freebsd-arm), const BIOCSRTIMEOUT = 2148549229
+pkg syscall (freebsd-arm), const ELAST = 96
+pkg syscall (freebsd-arm), const ENOTRECOVERABLE = 95
+pkg syscall (freebsd-arm), const ENOTRECOVERABLE Errno
+pkg syscall (freebsd-arm), const EOWNERDEAD = 96
+pkg syscall (freebsd-arm), const EOWNERDEAD Errno
+pkg syscall (freebsd-arm), const EV_DROP = 4096
+pkg syscall (freebsd-arm), const EV_DROP ideal-int
+pkg syscall (freebsd-arm), const IFT_CARP = 248
+pkg syscall (freebsd-arm), const IFT_CARP ideal-int
+pkg syscall (freebsd-arm), const MAP_ALIGNED_SUPER = 16777216
+pkg syscall (freebsd-arm), const MAP_ALIGNED_SUPER ideal-int
+pkg syscall (freebsd-arm), const MAP_ALIGNMENT_MASK = -16777216
+pkg syscall (freebsd-arm), const MAP_ALIGNMENT_MASK ideal-int
+pkg syscall (freebsd-arm), const MAP_ALIGNMENT_SHIFT = 24
+pkg syscall (freebsd-arm), const MAP_ALIGNMENT_SHIFT ideal-int
+pkg syscall (freebsd-arm), const MSG_CMSG_CLOEXEC = 262144
+pkg syscall (freebsd-arm), const MSG_CMSG_CLOEXEC ideal-int
+pkg syscall (freebsd-arm), const NAME_MAX = 255
+pkg syscall (freebsd-arm), const NAME_MAX ideal-int
+pkg syscall (freebsd-arm), const O_CLOEXEC = 1048576
+pkg syscall (freebsd-arm), const RTF_GWFLAG_COMPAT = 2147483648
+pkg syscall (freebsd-arm), const RTF_GWFLAG_COMPAT ideal-int
+pkg syscall (freebsd-arm), const SIOCAIFADDR = 2151704858
+pkg syscall (freebsd-arm), const SIOCGIFSTATUS = 3274795323
+pkg syscall (freebsd-arm), const SIOCSIFPHYADDR = 2151704902
+pkg syscall (freebsd-arm), const SOCK_CLOEXEC = 268435456
+pkg syscall (freebsd-arm), const SOCK_CLOEXEC ideal-int
+pkg syscall (freebsd-arm), const SOCK_NONBLOCK = 536870912
+pkg syscall (freebsd-arm), const SOCK_NONBLOCK ideal-int
+pkg syscall (freebsd-arm), const SO_VENDOR = 2147483648
+pkg syscall (freebsd-arm), const SO_VENDOR ideal-int
+pkg syscall (freebsd-arm), const SYS_ACCEPT4 = 541
+pkg syscall (freebsd-arm), const SYS_ACCEPT4 ideal-int
+pkg syscall (freebsd-arm), const SYS_BINDAT = 538
+pkg syscall (freebsd-arm), const SYS_BINDAT ideal-int
+pkg syscall (freebsd-arm), const SYS_CAP_GETRIGHTS = 515
+pkg syscall (freebsd-arm), const SYS_CAP_GETRIGHTS ideal-int
+pkg syscall (freebsd-arm), const SYS_CHFLAGSAT = 540
+pkg syscall (freebsd-arm), const SYS_CHFLAGSAT ideal-int
+pkg syscall (freebsd-arm), const SYS_CONNECTAT = 539
+pkg syscall (freebsd-arm), const SYS_CONNECTAT ideal-int
+pkg syscall (freebsd-arm), const SYS_PIPE2 = 542
+pkg syscall (freebsd-arm), const SYS_PIPE2 ideal-int
+pkg syscall (freebsd-arm), const SYS_PROCCTL = 544
+pkg syscall (freebsd-arm), const SYS_PROCCTL ideal-int
+pkg syscall (freebsd-arm), const SizeofBpfHdr = 32
+pkg syscall (freebsd-arm), const SizeofIfData = 96
+pkg syscall (freebsd-arm), const SizeofIfMsghdr = 112
+pkg syscall (freebsd-arm), const SizeofSockaddrDatalink = 54
+pkg syscall (freebsd-arm), const SizeofSockaddrUnix = 106
+pkg syscall (freebsd-arm), const TCP_VENDOR = 2147483648
+pkg syscall (freebsd-arm), const TCP_VENDOR ideal-int
+pkg syscall (freebsd-arm), const TIOCTIMESTAMP = 1074820185
+pkg syscall (freebsd-arm), func Accept4(int, int) (int, Sockaddr, error)
+pkg syscall (freebsd-arm), func Fchflags(int, int) error
+pkg syscall (freebsd-arm), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (freebsd-arm), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (freebsd-arm), type BpfHdr struct, Pad_cgo_0 [6]uint8
+pkg syscall (freebsd-arm), type Flock_t struct, Pad_cgo_0 [4]uint8
+pkg syscall (freebsd-arm), type IfData struct, Pad_cgo_0 [4]uint8
+pkg syscall (freebsd-arm), type Termios struct
+pkg syscall (freebsd-arm), type Termios struct, Cc [20]uint8
+pkg syscall (freebsd-arm), type Termios struct, Cflag uint32
+pkg syscall (freebsd-arm), type Termios struct, Iflag uint32
+pkg syscall (freebsd-arm), type Termios struct, Ispeed uint32
+pkg syscall (freebsd-arm), type Termios struct, Lflag uint32
+pkg syscall (freebsd-arm), type Termios struct, Oflag uint32
+pkg syscall (freebsd-arm), type Termios struct, Ospeed uint32
+pkg syscall (freebsd-arm), type Timespec struct, Pad_cgo_0 [4]uint8
+pkg syscall (freebsd-arm), type Timeval struct, Pad_cgo_0 [4]uint8
+pkg syscall (freebsd-arm-cgo), const AF_INET6_SDP = 42
+pkg syscall (freebsd-arm-cgo), const AF_INET6_SDP ideal-int
+pkg syscall (freebsd-arm-cgo), const AF_INET_SDP = 40
+pkg syscall (freebsd-arm-cgo), const AF_INET_SDP ideal-int
+pkg syscall (freebsd-arm-cgo), const AF_MAX = 42
+pkg syscall (freebsd-arm-cgo), const BIOCGRTIMEOUT = 1074807406
+pkg syscall (freebsd-arm-cgo), const BIOCSRTIMEOUT = 2148549229
+pkg syscall (freebsd-arm-cgo), const ELAST = 96
+pkg syscall (freebsd-arm-cgo), const ENOTRECOVERABLE = 95
+pkg syscall (freebsd-arm-cgo), const ENOTRECOVERABLE Errno
+pkg syscall (freebsd-arm-cgo), const EOWNERDEAD = 96
+pkg syscall (freebsd-arm-cgo), const EOWNERDEAD Errno
+pkg syscall (freebsd-arm-cgo), const EV_DROP = 4096
+pkg syscall (freebsd-arm-cgo), const EV_DROP ideal-int
+pkg syscall (freebsd-arm-cgo), const IFT_CARP = 248
+pkg syscall (freebsd-arm-cgo), const IFT_CARP ideal-int
+pkg syscall (freebsd-arm-cgo), const MAP_ALIGNED_SUPER = 16777216
+pkg syscall (freebsd-arm-cgo), const MAP_ALIGNED_SUPER ideal-int
+pkg syscall (freebsd-arm-cgo), const MAP_ALIGNMENT_MASK = -16777216
+pkg syscall (freebsd-arm-cgo), const MAP_ALIGNMENT_MASK ideal-int
+pkg syscall (freebsd-arm-cgo), const MAP_ALIGNMENT_SHIFT = 24
+pkg syscall (freebsd-arm-cgo), const MAP_ALIGNMENT_SHIFT ideal-int
+pkg syscall (freebsd-arm-cgo), const MSG_CMSG_CLOEXEC = 262144
+pkg syscall (freebsd-arm-cgo), const MSG_CMSG_CLOEXEC ideal-int
+pkg syscall (freebsd-arm-cgo), const NAME_MAX = 255
+pkg syscall (freebsd-arm-cgo), const NAME_MAX ideal-int
+pkg syscall (freebsd-arm-cgo), const O_CLOEXEC = 1048576
+pkg syscall (freebsd-arm-cgo), const RTF_GWFLAG_COMPAT = 2147483648
+pkg syscall (freebsd-arm-cgo), const RTF_GWFLAG_COMPAT ideal-int
+pkg syscall (freebsd-arm-cgo), const SIOCAIFADDR = 2151704858
+pkg syscall (freebsd-arm-cgo), const SIOCGIFSTATUS = 3274795323
+pkg syscall (freebsd-arm-cgo), const SIOCSIFPHYADDR = 2151704902
+pkg syscall (freebsd-arm-cgo), const SOCK_CLOEXEC = 268435456
+pkg syscall (freebsd-arm-cgo), const SOCK_CLOEXEC ideal-int
+pkg syscall (freebsd-arm-cgo), const SOCK_NONBLOCK = 536870912
+pkg syscall (freebsd-arm-cgo), const SOCK_NONBLOCK ideal-int
+pkg syscall (freebsd-arm-cgo), const SO_VENDOR = 2147483648
+pkg syscall (freebsd-arm-cgo), const SO_VENDOR ideal-int
+pkg syscall (freebsd-arm-cgo), const SYS_ACCEPT4 = 541
+pkg syscall (freebsd-arm-cgo), const SYS_ACCEPT4 ideal-int
+pkg syscall (freebsd-arm-cgo), const SYS_BINDAT = 538
+pkg syscall (freebsd-arm-cgo), const SYS_BINDAT ideal-int
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_GETRIGHTS = 515
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_GETRIGHTS ideal-int
+pkg syscall (freebsd-arm-cgo), const SYS_CHFLAGSAT = 540
+pkg syscall (freebsd-arm-cgo), const SYS_CHFLAGSAT ideal-int
+pkg syscall (freebsd-arm-cgo), const SYS_CONNECTAT = 539
+pkg syscall (freebsd-arm-cgo), const SYS_CONNECTAT ideal-int
+pkg syscall (freebsd-arm-cgo), const SYS_PIPE2 = 542
+pkg syscall (freebsd-arm-cgo), const SYS_PIPE2 ideal-int
+pkg syscall (freebsd-arm-cgo), const SYS_PROCCTL = 544
+pkg syscall (freebsd-arm-cgo), const SYS_PROCCTL ideal-int
+pkg syscall (freebsd-arm-cgo), const SizeofBpfHdr = 32
+pkg syscall (freebsd-arm-cgo), const SizeofIfData = 96
+pkg syscall (freebsd-arm-cgo), const SizeofIfMsghdr = 112
+pkg syscall (freebsd-arm-cgo), const SizeofSockaddrDatalink = 54
+pkg syscall (freebsd-arm-cgo), const SizeofSockaddrUnix = 106
+pkg syscall (freebsd-arm-cgo), const TCP_VENDOR = 2147483648
+pkg syscall (freebsd-arm-cgo), const TCP_VENDOR ideal-int
+pkg syscall (freebsd-arm-cgo), const TIOCTIMESTAMP = 1074820185
+pkg syscall (freebsd-arm-cgo), func Accept4(int, int) (int, Sockaddr, error)
+pkg syscall (freebsd-arm-cgo), func Fchflags(int, int) error
+pkg syscall (freebsd-arm-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (freebsd-arm-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (freebsd-arm-cgo), type BpfHdr struct, Pad_cgo_0 [6]uint8
+pkg syscall (freebsd-arm-cgo), type Flock_t struct, Pad_cgo_0 [4]uint8
+pkg syscall (freebsd-arm-cgo), type IfData struct, Pad_cgo_0 [4]uint8
+pkg syscall (freebsd-arm-cgo), type Termios struct
+pkg syscall (freebsd-arm-cgo), type Termios struct, Cc [20]uint8
+pkg syscall (freebsd-arm-cgo), type Termios struct, Cflag uint32
+pkg syscall (freebsd-arm-cgo), type Termios struct, Iflag uint32
+pkg syscall (freebsd-arm-cgo), type Termios struct, Ispeed uint32
+pkg syscall (freebsd-arm-cgo), type Termios struct, Lflag uint32
+pkg syscall (freebsd-arm-cgo), type Termios struct, Oflag uint32
+pkg syscall (freebsd-arm-cgo), type Termios struct, Ospeed uint32
+pkg syscall (freebsd-arm-cgo), type Timespec struct, Pad_cgo_0 [4]uint8
+pkg syscall (freebsd-arm-cgo), type Timeval struct, Pad_cgo_0 [4]uint8
+pkg syscall (linux-386), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (linux-386), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (linux-386), type Flock_t struct
+pkg syscall (linux-386), type Flock_t struct, Len int64
+pkg syscall (linux-386), type Flock_t struct, Pid int32
+pkg syscall (linux-386), type Flock_t struct, Start int64
+pkg syscall (linux-386), type Flock_t struct, Type int16
+pkg syscall (linux-386), type Flock_t struct, Whence int16
+pkg syscall (linux-386-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (linux-386-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (linux-386-cgo), type Flock_t struct
+pkg syscall (linux-386-cgo), type Flock_t struct, Len int64
+pkg syscall (linux-386-cgo), type Flock_t struct, Pid int32
+pkg syscall (linux-386-cgo), type Flock_t struct, Start int64
+pkg syscall (linux-386-cgo), type Flock_t struct, Type int16
+pkg syscall (linux-386-cgo), type Flock_t struct, Whence int16
+pkg syscall (linux-amd64), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (linux-amd64), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (linux-amd64), type Flock_t struct
+pkg syscall (linux-amd64), type Flock_t struct, Len int64
+pkg syscall (linux-amd64), type Flock_t struct, Pad_cgo_0 [4]uint8
+pkg syscall (linux-amd64), type Flock_t struct, Pad_cgo_1 [4]uint8
+pkg syscall (linux-amd64), type Flock_t struct, Pid int32
+pkg syscall (linux-amd64), type Flock_t struct, Start int64
+pkg syscall (linux-amd64), type Flock_t struct, Type int16
+pkg syscall (linux-amd64), type Flock_t struct, Whence int16
+pkg syscall (linux-amd64-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (linux-amd64-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (linux-amd64-cgo), type Flock_t struct
+pkg syscall (linux-amd64-cgo), type Flock_t struct, Len int64
+pkg syscall (linux-amd64-cgo), type Flock_t struct, Pad_cgo_0 [4]uint8
+pkg syscall (linux-amd64-cgo), type Flock_t struct, Pad_cgo_1 [4]uint8
+pkg syscall (linux-amd64-cgo), type Flock_t struct, Pid int32
+pkg syscall (linux-amd64-cgo), type Flock_t struct, Start int64
+pkg syscall (linux-amd64-cgo), type Flock_t struct, Type int16
+pkg syscall (linux-amd64-cgo), type Flock_t struct, Whence int16
+pkg syscall (linux-arm), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (linux-arm), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (linux-arm), type Flock_t struct
+pkg syscall (linux-arm), type Flock_t struct, Len int64
+pkg syscall (linux-arm), type Flock_t struct, Pad_cgo_0 [4]uint8
+pkg syscall (linux-arm), type Flock_t struct, Pad_cgo_1 [4]uint8
+pkg syscall (linux-arm), type Flock_t struct, Pid int32
+pkg syscall (linux-arm), type Flock_t struct, Start int64
+pkg syscall (linux-arm), type Flock_t struct, Type int16
+pkg syscall (linux-arm), type Flock_t struct, Whence int16
+pkg syscall (linux-arm-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (linux-arm-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (linux-arm-cgo), type Flock_t struct
+pkg syscall (linux-arm-cgo), type Flock_t struct, Len int64
+pkg syscall (linux-arm-cgo), type Flock_t struct, Pad_cgo_0 [4]uint8
+pkg syscall (linux-arm-cgo), type Flock_t struct, Pad_cgo_1 [4]uint8
+pkg syscall (linux-arm-cgo), type Flock_t struct, Pid int32
+pkg syscall (linux-arm-cgo), type Flock_t struct, Start int64
+pkg syscall (linux-arm-cgo), type Flock_t struct, Type int16
+pkg syscall (linux-arm-cgo), type Flock_t struct, Whence int16
+pkg syscall (netbsd-386), const CLONE_CSIGNAL = 255
+pkg syscall (netbsd-386), const CLONE_CSIGNAL ideal-int
+pkg syscall (netbsd-386), const CLONE_FILES = 1024
+pkg syscall (netbsd-386), const CLONE_FILES ideal-int
+pkg syscall (netbsd-386), const CLONE_FS = 512
+pkg syscall (netbsd-386), const CLONE_FS ideal-int
+pkg syscall (netbsd-386), const CLONE_PID = 4096
+pkg syscall (netbsd-386), const CLONE_PID ideal-int
+pkg syscall (netbsd-386), const CLONE_PTRACE = 8192
+pkg syscall (netbsd-386), const CLONE_PTRACE ideal-int
+pkg syscall (netbsd-386), const CLONE_SIGHAND = 2048
+pkg syscall (netbsd-386), const CLONE_SIGHAND ideal-int
+pkg syscall (netbsd-386), const CLONE_VFORK = 16384
+pkg syscall (netbsd-386), const CLONE_VFORK ideal-int
+pkg syscall (netbsd-386), const CLONE_VM = 256
+pkg syscall (netbsd-386), const CLONE_VM ideal-int
+pkg syscall (netbsd-386), const MADV_DONTNEED = 4
+pkg syscall (netbsd-386), const MADV_DONTNEED ideal-int
+pkg syscall (netbsd-386), const MADV_FREE = 6
+pkg syscall (netbsd-386), const MADV_FREE ideal-int
+pkg syscall (netbsd-386), const MADV_NORMAL = 0
+pkg syscall (netbsd-386), const MADV_NORMAL ideal-int
+pkg syscall (netbsd-386), const MADV_RANDOM = 1
+pkg syscall (netbsd-386), const MADV_RANDOM ideal-int
+pkg syscall (netbsd-386), const MADV_SEQUENTIAL = 2
+pkg syscall (netbsd-386), const MADV_SEQUENTIAL ideal-int
+pkg syscall (netbsd-386), const MADV_SPACEAVAIL = 5
+pkg syscall (netbsd-386), const MADV_SPACEAVAIL ideal-int
+pkg syscall (netbsd-386), const MADV_WILLNEED = 3
+pkg syscall (netbsd-386), const MADV_WILLNEED ideal-int
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_16MB = 402653184
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_16MB ideal-int
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_1TB = 671088640
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_1TB ideal-int
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_256TB = 805306368
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_256TB ideal-int
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_4GB = 536870912
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_4GB ideal-int
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_64KB = 268435456
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_64KB ideal-int
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_64PB = 939524096
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_64PB ideal-int
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_MASK = -16777216
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_MASK ideal-int
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_SHIFT = 24
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_SHIFT ideal-int
+pkg syscall (netbsd-386), const MAP_ANON = 4096
+pkg syscall (netbsd-386), const MAP_ANON ideal-int
+pkg syscall (netbsd-386), const MAP_FILE = 0
+pkg syscall (netbsd-386), const MAP_FILE ideal-int
+pkg syscall (netbsd-386), const MAP_FIXED = 16
+pkg syscall (netbsd-386), const MAP_FIXED ideal-int
+pkg syscall (netbsd-386), const MAP_HASSEMAPHORE = 512
+pkg syscall (netbsd-386), const MAP_HASSEMAPHORE ideal-int
+pkg syscall (netbsd-386), const MAP_INHERIT = 128
+pkg syscall (netbsd-386), const MAP_INHERIT ideal-int
+pkg syscall (netbsd-386), const MAP_INHERIT_COPY = 1
+pkg syscall (netbsd-386), const MAP_INHERIT_COPY ideal-int
+pkg syscall (netbsd-386), const MAP_INHERIT_DEFAULT = 1
+pkg syscall (netbsd-386), const MAP_INHERIT_DEFAULT ideal-int
+pkg syscall (netbsd-386), const MAP_INHERIT_DONATE_COPY = 3
+pkg syscall (netbsd-386), const MAP_INHERIT_DONATE_COPY ideal-int
+pkg syscall (netbsd-386), const MAP_INHERIT_NONE = 2
+pkg syscall (netbsd-386), const MAP_INHERIT_NONE ideal-int
+pkg syscall (netbsd-386), const MAP_INHERIT_SHARE = 0
+pkg syscall (netbsd-386), const MAP_INHERIT_SHARE ideal-int
+pkg syscall (netbsd-386), const MAP_NORESERVE = 64
+pkg syscall (netbsd-386), const MAP_NORESERVE ideal-int
+pkg syscall (netbsd-386), const MAP_PRIVATE = 2
+pkg syscall (netbsd-386), const MAP_PRIVATE ideal-int
+pkg syscall (netbsd-386), const MAP_RENAME = 32
+pkg syscall (netbsd-386), const MAP_RENAME ideal-int
+pkg syscall (netbsd-386), const MAP_SHARED = 1
+pkg syscall (netbsd-386), const MAP_SHARED ideal-int
+pkg syscall (netbsd-386), const MAP_STACK = 8192
+pkg syscall (netbsd-386), const MAP_STACK ideal-int
+pkg syscall (netbsd-386), const MAP_TRYFIXED = 1024
+pkg syscall (netbsd-386), const MAP_TRYFIXED ideal-int
+pkg syscall (netbsd-386), const MAP_WIRED = 2048
+pkg syscall (netbsd-386), const MAP_WIRED ideal-int
+pkg syscall (netbsd-386), const MCL_CURRENT = 1
+pkg syscall (netbsd-386), const MCL_CURRENT ideal-int
+pkg syscall (netbsd-386), const MCL_FUTURE = 2
+pkg syscall (netbsd-386), const MCL_FUTURE ideal-int
+pkg syscall (netbsd-386), const MS_ASYNC = 1
+pkg syscall (netbsd-386), const MS_ASYNC ideal-int
+pkg syscall (netbsd-386), const MS_INVALIDATE = 2
+pkg syscall (netbsd-386), const MS_INVALIDATE ideal-int
+pkg syscall (netbsd-386), const MS_SYNC = 4
+pkg syscall (netbsd-386), const MS_SYNC ideal-int
+pkg syscall (netbsd-386), const PROT_EXEC = 4
+pkg syscall (netbsd-386), const PROT_EXEC ideal-int
+pkg syscall (netbsd-386), const PROT_NONE = 0
+pkg syscall (netbsd-386), const PROT_NONE ideal-int
+pkg syscall (netbsd-386), const PROT_READ = 1
+pkg syscall (netbsd-386), const PROT_READ ideal-int
+pkg syscall (netbsd-386), const PROT_WRITE = 2
+pkg syscall (netbsd-386), const PROT_WRITE ideal-int
+pkg syscall (netbsd-386), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (netbsd-386), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (netbsd-386), type Termios struct
+pkg syscall (netbsd-386), type Termios struct, Cc [20]uint8
+pkg syscall (netbsd-386), type Termios struct, Cflag uint32
+pkg syscall (netbsd-386), type Termios struct, Iflag uint32
+pkg syscall (netbsd-386), type Termios struct, Ispeed int32
+pkg syscall (netbsd-386), type Termios struct, Lflag uint32
+pkg syscall (netbsd-386), type Termios struct, Oflag uint32
+pkg syscall (netbsd-386), type Termios struct, Ospeed int32
+pkg syscall (netbsd-386-cgo), const CLONE_CSIGNAL = 255
+pkg syscall (netbsd-386-cgo), const CLONE_CSIGNAL ideal-int
+pkg syscall (netbsd-386-cgo), const CLONE_FILES = 1024
+pkg syscall (netbsd-386-cgo), const CLONE_FILES ideal-int
+pkg syscall (netbsd-386-cgo), const CLONE_FS = 512
+pkg syscall (netbsd-386-cgo), const CLONE_FS ideal-int
+pkg syscall (netbsd-386-cgo), const CLONE_PID = 4096
+pkg syscall (netbsd-386-cgo), const CLONE_PID ideal-int
+pkg syscall (netbsd-386-cgo), const CLONE_PTRACE = 8192
+pkg syscall (netbsd-386-cgo), const CLONE_PTRACE ideal-int
+pkg syscall (netbsd-386-cgo), const CLONE_SIGHAND = 2048
+pkg syscall (netbsd-386-cgo), const CLONE_SIGHAND ideal-int
+pkg syscall (netbsd-386-cgo), const CLONE_VFORK = 16384
+pkg syscall (netbsd-386-cgo), const CLONE_VFORK ideal-int
+pkg syscall (netbsd-386-cgo), const CLONE_VM = 256
+pkg syscall (netbsd-386-cgo), const CLONE_VM ideal-int
+pkg syscall (netbsd-386-cgo), const MADV_DONTNEED = 4
+pkg syscall (netbsd-386-cgo), const MADV_DONTNEED ideal-int
+pkg syscall (netbsd-386-cgo), const MADV_FREE = 6
+pkg syscall (netbsd-386-cgo), const MADV_FREE ideal-int
+pkg syscall (netbsd-386-cgo), const MADV_NORMAL = 0
+pkg syscall (netbsd-386-cgo), const MADV_NORMAL ideal-int
+pkg syscall (netbsd-386-cgo), const MADV_RANDOM = 1
+pkg syscall (netbsd-386-cgo), const MADV_RANDOM ideal-int
+pkg syscall (netbsd-386-cgo), const MADV_SEQUENTIAL = 2
+pkg syscall (netbsd-386-cgo), const MADV_SEQUENTIAL ideal-int
+pkg syscall (netbsd-386-cgo), const MADV_SPACEAVAIL = 5
+pkg syscall (netbsd-386-cgo), const MADV_SPACEAVAIL ideal-int
+pkg syscall (netbsd-386-cgo), const MADV_WILLNEED = 3
+pkg syscall (netbsd-386-cgo), const MADV_WILLNEED ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_16MB = 402653184
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_16MB ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_1TB = 671088640
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_1TB ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_256TB = 805306368
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_256TB ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_4GB = 536870912
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_4GB ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_64KB = 268435456
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_64KB ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_64PB = 939524096
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_64PB ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_MASK = -16777216
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_MASK ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_SHIFT = 24
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_SHIFT ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_ANON = 4096
+pkg syscall (netbsd-386-cgo), const MAP_ANON ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_FILE = 0
+pkg syscall (netbsd-386-cgo), const MAP_FILE ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_FIXED = 16
+pkg syscall (netbsd-386-cgo), const MAP_FIXED ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_HASSEMAPHORE = 512
+pkg syscall (netbsd-386-cgo), const MAP_HASSEMAPHORE ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT = 128
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT_COPY = 1
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT_COPY ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT_DEFAULT = 1
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT_DEFAULT ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT_DONATE_COPY = 3
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT_DONATE_COPY ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT_NONE = 2
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT_NONE ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT_SHARE = 0
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT_SHARE ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_NORESERVE = 64
+pkg syscall (netbsd-386-cgo), const MAP_NORESERVE ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_PRIVATE = 2
+pkg syscall (netbsd-386-cgo), const MAP_PRIVATE ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_RENAME = 32
+pkg syscall (netbsd-386-cgo), const MAP_RENAME ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_SHARED = 1
+pkg syscall (netbsd-386-cgo), const MAP_SHARED ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_STACK = 8192
+pkg syscall (netbsd-386-cgo), const MAP_STACK ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_TRYFIXED = 1024
+pkg syscall (netbsd-386-cgo), const MAP_TRYFIXED ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_WIRED = 2048
+pkg syscall (netbsd-386-cgo), const MAP_WIRED ideal-int
+pkg syscall (netbsd-386-cgo), const MCL_CURRENT = 1
+pkg syscall (netbsd-386-cgo), const MCL_CURRENT ideal-int
+pkg syscall (netbsd-386-cgo), const MCL_FUTURE = 2
+pkg syscall (netbsd-386-cgo), const MCL_FUTURE ideal-int
+pkg syscall (netbsd-386-cgo), const MS_ASYNC = 1
+pkg syscall (netbsd-386-cgo), const MS_ASYNC ideal-int
+pkg syscall (netbsd-386-cgo), const MS_INVALIDATE = 2
+pkg syscall (netbsd-386-cgo), const MS_INVALIDATE ideal-int
+pkg syscall (netbsd-386-cgo), const MS_SYNC = 4
+pkg syscall (netbsd-386-cgo), const MS_SYNC ideal-int
+pkg syscall (netbsd-386-cgo), const PROT_EXEC = 4
+pkg syscall (netbsd-386-cgo), const PROT_EXEC ideal-int
+pkg syscall (netbsd-386-cgo), const PROT_NONE = 0
+pkg syscall (netbsd-386-cgo), const PROT_NONE ideal-int
+pkg syscall (netbsd-386-cgo), const PROT_READ = 1
+pkg syscall (netbsd-386-cgo), const PROT_READ ideal-int
+pkg syscall (netbsd-386-cgo), const PROT_WRITE = 2
+pkg syscall (netbsd-386-cgo), const PROT_WRITE ideal-int
+pkg syscall (netbsd-386-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (netbsd-386-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (netbsd-386-cgo), type Termios struct
+pkg syscall (netbsd-386-cgo), type Termios struct, Cc [20]uint8
+pkg syscall (netbsd-386-cgo), type Termios struct, Cflag uint32
+pkg syscall (netbsd-386-cgo), type Termios struct, Iflag uint32
+pkg syscall (netbsd-386-cgo), type Termios struct, Ispeed int32
+pkg syscall (netbsd-386-cgo), type Termios struct, Lflag uint32
+pkg syscall (netbsd-386-cgo), type Termios struct, Oflag uint32
+pkg syscall (netbsd-386-cgo), type Termios struct, Ospeed int32
+pkg syscall (netbsd-amd64), const CLONE_CSIGNAL = 255
+pkg syscall (netbsd-amd64), const CLONE_CSIGNAL ideal-int
+pkg syscall (netbsd-amd64), const CLONE_FILES = 1024
+pkg syscall (netbsd-amd64), const CLONE_FILES ideal-int
+pkg syscall (netbsd-amd64), const CLONE_FS = 512
+pkg syscall (netbsd-amd64), const CLONE_FS ideal-int
+pkg syscall (netbsd-amd64), const CLONE_PID = 4096
+pkg syscall (netbsd-amd64), const CLONE_PID ideal-int
+pkg syscall (netbsd-amd64), const CLONE_PTRACE = 8192
+pkg syscall (netbsd-amd64), const CLONE_PTRACE ideal-int
+pkg syscall (netbsd-amd64), const CLONE_SIGHAND = 2048
+pkg syscall (netbsd-amd64), const CLONE_SIGHAND ideal-int
+pkg syscall (netbsd-amd64), const CLONE_VFORK = 16384
+pkg syscall (netbsd-amd64), const CLONE_VFORK ideal-int
+pkg syscall (netbsd-amd64), const CLONE_VM = 256
+pkg syscall (netbsd-amd64), const CLONE_VM ideal-int
+pkg syscall (netbsd-amd64), const MADV_DONTNEED = 4
+pkg syscall (netbsd-amd64), const MADV_DONTNEED ideal-int
+pkg syscall (netbsd-amd64), const MADV_FREE = 6
+pkg syscall (netbsd-amd64), const MADV_FREE ideal-int
+pkg syscall (netbsd-amd64), const MADV_NORMAL = 0
+pkg syscall (netbsd-amd64), const MADV_NORMAL ideal-int
+pkg syscall (netbsd-amd64), const MADV_RANDOM = 1
+pkg syscall (netbsd-amd64), const MADV_RANDOM ideal-int
+pkg syscall (netbsd-amd64), const MADV_SEQUENTIAL = 2
+pkg syscall (netbsd-amd64), const MADV_SEQUENTIAL ideal-int
+pkg syscall (netbsd-amd64), const MADV_SPACEAVAIL = 5
+pkg syscall (netbsd-amd64), const MADV_SPACEAVAIL ideal-int
+pkg syscall (netbsd-amd64), const MADV_WILLNEED = 3
+pkg syscall (netbsd-amd64), const MADV_WILLNEED ideal-int
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_16MB = 402653184
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_16MB ideal-int
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_1TB = 671088640
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_1TB ideal-int
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_256TB = 805306368
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_256TB ideal-int
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_4GB = 536870912
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_4GB ideal-int
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_64KB = 268435456
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_64KB ideal-int
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_64PB = 939524096
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_64PB ideal-int
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_MASK = -16777216
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_MASK ideal-int
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_SHIFT = 24
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_SHIFT ideal-int
+pkg syscall (netbsd-amd64), const MAP_ANON = 4096
+pkg syscall (netbsd-amd64), const MAP_ANON ideal-int
+pkg syscall (netbsd-amd64), const MAP_FILE = 0
+pkg syscall (netbsd-amd64), const MAP_FILE ideal-int
+pkg syscall (netbsd-amd64), const MAP_FIXED = 16
+pkg syscall (netbsd-amd64), const MAP_FIXED ideal-int
+pkg syscall (netbsd-amd64), const MAP_HASSEMAPHORE = 512
+pkg syscall (netbsd-amd64), const MAP_HASSEMAPHORE ideal-int
+pkg syscall (netbsd-amd64), const MAP_INHERIT = 128
+pkg syscall (netbsd-amd64), const MAP_INHERIT ideal-int
+pkg syscall (netbsd-amd64), const MAP_INHERIT_COPY = 1
+pkg syscall (netbsd-amd64), const MAP_INHERIT_COPY ideal-int
+pkg syscall (netbsd-amd64), const MAP_INHERIT_DEFAULT = 1
+pkg syscall (netbsd-amd64), const MAP_INHERIT_DEFAULT ideal-int
+pkg syscall (netbsd-amd64), const MAP_INHERIT_DONATE_COPY = 3
+pkg syscall (netbsd-amd64), const MAP_INHERIT_DONATE_COPY ideal-int
+pkg syscall (netbsd-amd64), const MAP_INHERIT_NONE = 2
+pkg syscall (netbsd-amd64), const MAP_INHERIT_NONE ideal-int
+pkg syscall (netbsd-amd64), const MAP_INHERIT_SHARE = 0
+pkg syscall (netbsd-amd64), const MAP_INHERIT_SHARE ideal-int
+pkg syscall (netbsd-amd64), const MAP_NORESERVE = 64
+pkg syscall (netbsd-amd64), const MAP_NORESERVE ideal-int
+pkg syscall (netbsd-amd64), const MAP_PRIVATE = 2
+pkg syscall (netbsd-amd64), const MAP_PRIVATE ideal-int
+pkg syscall (netbsd-amd64), const MAP_RENAME = 32
+pkg syscall (netbsd-amd64), const MAP_RENAME ideal-int
+pkg syscall (netbsd-amd64), const MAP_SHARED = 1
+pkg syscall (netbsd-amd64), const MAP_SHARED ideal-int
+pkg syscall (netbsd-amd64), const MAP_STACK = 8192
+pkg syscall (netbsd-amd64), const MAP_STACK ideal-int
+pkg syscall (netbsd-amd64), const MAP_TRYFIXED = 1024
+pkg syscall (netbsd-amd64), const MAP_TRYFIXED ideal-int
+pkg syscall (netbsd-amd64), const MAP_WIRED = 2048
+pkg syscall (netbsd-amd64), const MAP_WIRED ideal-int
+pkg syscall (netbsd-amd64), const MCL_CURRENT = 1
+pkg syscall (netbsd-amd64), const MCL_CURRENT ideal-int
+pkg syscall (netbsd-amd64), const MCL_FUTURE = 2
+pkg syscall (netbsd-amd64), const MCL_FUTURE ideal-int
+pkg syscall (netbsd-amd64), const MS_ASYNC = 1
+pkg syscall (netbsd-amd64), const MS_ASYNC ideal-int
+pkg syscall (netbsd-amd64), const MS_INVALIDATE = 2
+pkg syscall (netbsd-amd64), const MS_INVALIDATE ideal-int
+pkg syscall (netbsd-amd64), const MS_SYNC = 4
+pkg syscall (netbsd-amd64), const MS_SYNC ideal-int
+pkg syscall (netbsd-amd64), const PROT_EXEC = 4
+pkg syscall (netbsd-amd64), const PROT_EXEC ideal-int
+pkg syscall (netbsd-amd64), const PROT_NONE = 0
+pkg syscall (netbsd-amd64), const PROT_NONE ideal-int
+pkg syscall (netbsd-amd64), const PROT_READ = 1
+pkg syscall (netbsd-amd64), const PROT_READ ideal-int
+pkg syscall (netbsd-amd64), const PROT_WRITE = 2
+pkg syscall (netbsd-amd64), const PROT_WRITE ideal-int
+pkg syscall (netbsd-amd64), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (netbsd-amd64), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (netbsd-amd64), type Termios struct
+pkg syscall (netbsd-amd64), type Termios struct, Cc [20]uint8
+pkg syscall (netbsd-amd64), type Termios struct, Cflag uint32
+pkg syscall (netbsd-amd64), type Termios struct, Iflag uint32
+pkg syscall (netbsd-amd64), type Termios struct, Ispeed int32
+pkg syscall (netbsd-amd64), type Termios struct, Lflag uint32
+pkg syscall (netbsd-amd64), type Termios struct, Oflag uint32
+pkg syscall (netbsd-amd64), type Termios struct, Ospeed int32
+pkg syscall (netbsd-amd64-cgo), const CLONE_CSIGNAL = 255
+pkg syscall (netbsd-amd64-cgo), const CLONE_CSIGNAL ideal-int
+pkg syscall (netbsd-amd64-cgo), const CLONE_FILES = 1024
+pkg syscall (netbsd-amd64-cgo), const CLONE_FILES ideal-int
+pkg syscall (netbsd-amd64-cgo), const CLONE_FS = 512
+pkg syscall (netbsd-amd64-cgo), const CLONE_FS ideal-int
+pkg syscall (netbsd-amd64-cgo), const CLONE_PID = 4096
+pkg syscall (netbsd-amd64-cgo), const CLONE_PID ideal-int
+pkg syscall (netbsd-amd64-cgo), const CLONE_PTRACE = 8192
+pkg syscall (netbsd-amd64-cgo), const CLONE_PTRACE ideal-int
+pkg syscall (netbsd-amd64-cgo), const CLONE_SIGHAND = 2048
+pkg syscall (netbsd-amd64-cgo), const CLONE_SIGHAND ideal-int
+pkg syscall (netbsd-amd64-cgo), const CLONE_VFORK = 16384
+pkg syscall (netbsd-amd64-cgo), const CLONE_VFORK ideal-int
+pkg syscall (netbsd-amd64-cgo), const CLONE_VM = 256
+pkg syscall (netbsd-amd64-cgo), const CLONE_VM ideal-int
+pkg syscall (netbsd-amd64-cgo), const MADV_DONTNEED = 4
+pkg syscall (netbsd-amd64-cgo), const MADV_DONTNEED ideal-int
+pkg syscall (netbsd-amd64-cgo), const MADV_FREE = 6
+pkg syscall (netbsd-amd64-cgo), const MADV_FREE ideal-int
+pkg syscall (netbsd-amd64-cgo), const MADV_NORMAL = 0
+pkg syscall (netbsd-amd64-cgo), const MADV_NORMAL ideal-int
+pkg syscall (netbsd-amd64-cgo), const MADV_RANDOM = 1
+pkg syscall (netbsd-amd64-cgo), const MADV_RANDOM ideal-int
+pkg syscall (netbsd-amd64-cgo), const MADV_SEQUENTIAL = 2
+pkg syscall (netbsd-amd64-cgo), const MADV_SEQUENTIAL ideal-int
+pkg syscall (netbsd-amd64-cgo), const MADV_SPACEAVAIL = 5
+pkg syscall (netbsd-amd64-cgo), const MADV_SPACEAVAIL ideal-int
+pkg syscall (netbsd-amd64-cgo), const MADV_WILLNEED = 3
+pkg syscall (netbsd-amd64-cgo), const MADV_WILLNEED ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_16MB = 402653184
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_16MB ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_1TB = 671088640
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_1TB ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_256TB = 805306368
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_256TB ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_4GB = 536870912
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_4GB ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_64KB = 268435456
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_64KB ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_64PB = 939524096
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_64PB ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_MASK = -16777216
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_MASK ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_SHIFT = 24
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_SHIFT ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_ANON = 4096
+pkg syscall (netbsd-amd64-cgo), const MAP_ANON ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_FILE = 0
+pkg syscall (netbsd-amd64-cgo), const MAP_FILE ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_FIXED = 16
+pkg syscall (netbsd-amd64-cgo), const MAP_FIXED ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_HASSEMAPHORE = 512
+pkg syscall (netbsd-amd64-cgo), const MAP_HASSEMAPHORE ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT = 128
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT_COPY = 1
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT_COPY ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT_DEFAULT = 1
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT_DEFAULT ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT_DONATE_COPY = 3
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT_DONATE_COPY ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT_NONE = 2
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT_NONE ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT_SHARE = 0
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT_SHARE ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_NORESERVE = 64
+pkg syscall (netbsd-amd64-cgo), const MAP_NORESERVE ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_PRIVATE = 2
+pkg syscall (netbsd-amd64-cgo), const MAP_PRIVATE ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_RENAME = 32
+pkg syscall (netbsd-amd64-cgo), const MAP_RENAME ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_SHARED = 1
+pkg syscall (netbsd-amd64-cgo), const MAP_SHARED ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_STACK = 8192
+pkg syscall (netbsd-amd64-cgo), const MAP_STACK ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_TRYFIXED = 1024
+pkg syscall (netbsd-amd64-cgo), const MAP_TRYFIXED ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_WIRED = 2048
+pkg syscall (netbsd-amd64-cgo), const MAP_WIRED ideal-int
+pkg syscall (netbsd-amd64-cgo), const MCL_CURRENT = 1
+pkg syscall (netbsd-amd64-cgo), const MCL_CURRENT ideal-int
+pkg syscall (netbsd-amd64-cgo), const MCL_FUTURE = 2
+pkg syscall (netbsd-amd64-cgo), const MCL_FUTURE ideal-int
+pkg syscall (netbsd-amd64-cgo), const MS_ASYNC = 1
+pkg syscall (netbsd-amd64-cgo), const MS_ASYNC ideal-int
+pkg syscall (netbsd-amd64-cgo), const MS_INVALIDATE = 2
+pkg syscall (netbsd-amd64-cgo), const MS_INVALIDATE ideal-int
+pkg syscall (netbsd-amd64-cgo), const MS_SYNC = 4
+pkg syscall (netbsd-amd64-cgo), const MS_SYNC ideal-int
+pkg syscall (netbsd-amd64-cgo), const PROT_EXEC = 4
+pkg syscall (netbsd-amd64-cgo), const PROT_EXEC ideal-int
+pkg syscall (netbsd-amd64-cgo), const PROT_NONE = 0
+pkg syscall (netbsd-amd64-cgo), const PROT_NONE ideal-int
+pkg syscall (netbsd-amd64-cgo), const PROT_READ = 1
+pkg syscall (netbsd-amd64-cgo), const PROT_READ ideal-int
+pkg syscall (netbsd-amd64-cgo), const PROT_WRITE = 2
+pkg syscall (netbsd-amd64-cgo), const PROT_WRITE ideal-int
+pkg syscall (netbsd-amd64-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (netbsd-amd64-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (netbsd-amd64-cgo), type Termios struct
+pkg syscall (netbsd-amd64-cgo), type Termios struct, Cc [20]uint8
+pkg syscall (netbsd-amd64-cgo), type Termios struct, Cflag uint32
+pkg syscall (netbsd-amd64-cgo), type Termios struct, Iflag uint32
+pkg syscall (netbsd-amd64-cgo), type Termios struct, Ispeed int32
+pkg syscall (netbsd-amd64-cgo), type Termios struct, Lflag uint32
+pkg syscall (netbsd-amd64-cgo), type Termios struct, Oflag uint32
+pkg syscall (netbsd-amd64-cgo), type Termios struct, Ospeed int32
+pkg syscall (netbsd-arm), const MADV_DONTNEED = 4
+pkg syscall (netbsd-arm), const MADV_DONTNEED ideal-int
+pkg syscall (netbsd-arm), const MADV_FREE = 6
+pkg syscall (netbsd-arm), const MADV_FREE ideal-int
+pkg syscall (netbsd-arm), const MADV_NORMAL = 0
+pkg syscall (netbsd-arm), const MADV_NORMAL ideal-int
+pkg syscall (netbsd-arm), const MADV_RANDOM = 1
+pkg syscall (netbsd-arm), const MADV_RANDOM ideal-int
+pkg syscall (netbsd-arm), const MADV_SEQUENTIAL = 2
+pkg syscall (netbsd-arm), const MADV_SEQUENTIAL ideal-int
+pkg syscall (netbsd-arm), const MADV_SPACEAVAIL = 5
+pkg syscall (netbsd-arm), const MADV_SPACEAVAIL ideal-int
+pkg syscall (netbsd-arm), const MADV_WILLNEED = 3
+pkg syscall (netbsd-arm), const MADV_WILLNEED ideal-int
+pkg syscall (netbsd-arm), const MAP_ALIGNMENT_16MB = 402653184
+pkg syscall (netbsd-arm), const MAP_ALIGNMENT_16MB ideal-int
+pkg syscall (netbsd-arm), const MAP_ALIGNMENT_1TB = 671088640
+pkg syscall (netbsd-arm), const MAP_ALIGNMENT_1TB ideal-int
+pkg syscall (netbsd-arm), const MAP_ALIGNMENT_256TB = 805306368
+pkg syscall (netbsd-arm), const MAP_ALIGNMENT_256TB ideal-int
+pkg syscall (netbsd-arm), const MAP_ALIGNMENT_4GB = 536870912
+pkg syscall (netbsd-arm), const MAP_ALIGNMENT_4GB ideal-int
+pkg syscall (netbsd-arm), const MAP_ALIGNMENT_64KB = 268435456
+pkg syscall (netbsd-arm), const MAP_ALIGNMENT_64KB ideal-int
+pkg syscall (netbsd-arm), const MAP_ALIGNMENT_64PB = 939524096
+pkg syscall (netbsd-arm), const MAP_ALIGNMENT_64PB ideal-int
+pkg syscall (netbsd-arm), const MAP_ALIGNMENT_MASK = -16777216
+pkg syscall (netbsd-arm), const MAP_ALIGNMENT_MASK ideal-int
+pkg syscall (netbsd-arm), const MAP_ALIGNMENT_SHIFT = 24
+pkg syscall (netbsd-arm), const MAP_ALIGNMENT_SHIFT ideal-int
+pkg syscall (netbsd-arm), const MAP_ANON = 4096
+pkg syscall (netbsd-arm), const MAP_ANON ideal-int
+pkg syscall (netbsd-arm), const MAP_FILE = 0
+pkg syscall (netbsd-arm), const MAP_FILE ideal-int
+pkg syscall (netbsd-arm), const MAP_FIXED = 16
+pkg syscall (netbsd-arm), const MAP_FIXED ideal-int
+pkg syscall (netbsd-arm), const MAP_HASSEMAPHORE = 512
+pkg syscall (netbsd-arm), const MAP_HASSEMAPHORE ideal-int
+pkg syscall (netbsd-arm), const MAP_INHERIT = 128
+pkg syscall (netbsd-arm), const MAP_INHERIT ideal-int
+pkg syscall (netbsd-arm), const MAP_INHERIT_COPY = 1
+pkg syscall (netbsd-arm), const MAP_INHERIT_COPY ideal-int
+pkg syscall (netbsd-arm), const MAP_INHERIT_DEFAULT = 1
+pkg syscall (netbsd-arm), const MAP_INHERIT_DEFAULT ideal-int
+pkg syscall (netbsd-arm), const MAP_INHERIT_DONATE_COPY = 3
+pkg syscall (netbsd-arm), const MAP_INHERIT_DONATE_COPY ideal-int
+pkg syscall (netbsd-arm), const MAP_INHERIT_NONE = 2
+pkg syscall (netbsd-arm), const MAP_INHERIT_NONE ideal-int
+pkg syscall (netbsd-arm), const MAP_INHERIT_SHARE = 0
+pkg syscall (netbsd-arm), const MAP_INHERIT_SHARE ideal-int
+pkg syscall (netbsd-arm), const MAP_NORESERVE = 64
+pkg syscall (netbsd-arm), const MAP_NORESERVE ideal-int
+pkg syscall (netbsd-arm), const MAP_PRIVATE = 2
+pkg syscall (netbsd-arm), const MAP_PRIVATE ideal-int
+pkg syscall (netbsd-arm), const MAP_RENAME = 32
+pkg syscall (netbsd-arm), const MAP_RENAME ideal-int
+pkg syscall (netbsd-arm), const MAP_SHARED = 1
+pkg syscall (netbsd-arm), const MAP_SHARED ideal-int
+pkg syscall (netbsd-arm), const MAP_STACK = 8192
+pkg syscall (netbsd-arm), const MAP_STACK ideal-int
+pkg syscall (netbsd-arm), const MAP_TRYFIXED = 1024
+pkg syscall (netbsd-arm), const MAP_TRYFIXED ideal-int
+pkg syscall (netbsd-arm), const MAP_WIRED = 2048
+pkg syscall (netbsd-arm), const MAP_WIRED ideal-int
+pkg syscall (netbsd-arm), const PROT_EXEC = 4
+pkg syscall (netbsd-arm), const PROT_EXEC ideal-int
+pkg syscall (netbsd-arm), const PROT_NONE = 0
+pkg syscall (netbsd-arm), const PROT_NONE ideal-int
+pkg syscall (netbsd-arm), const PROT_READ = 1
+pkg syscall (netbsd-arm), const PROT_READ ideal-int
+pkg syscall (netbsd-arm), const PROT_WRITE = 2
+pkg syscall (netbsd-arm), const PROT_WRITE ideal-int
+pkg syscall (netbsd-arm), const SizeofIfData = 136
+pkg syscall (netbsd-arm), func Fchflags(int, int) error
+pkg syscall (netbsd-arm), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (netbsd-arm), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (netbsd-arm), type Kevent_t struct, Pad_cgo_0 [4]uint8
+pkg syscall (netbsd-arm), type Stat_t struct, Pad_cgo_0 [4]uint8
+pkg syscall (netbsd-arm), type Stat_t struct, Pad_cgo_1 [4]uint8
+pkg syscall (netbsd-arm), type Stat_t struct, Pad_cgo_2 [4]uint8
+pkg syscall (netbsd-arm), type Termios struct
+pkg syscall (netbsd-arm), type Termios struct, Cc [20]uint8
+pkg syscall (netbsd-arm), type Termios struct, Cflag uint32
+pkg syscall (netbsd-arm), type Termios struct, Iflag uint32
+pkg syscall (netbsd-arm), type Termios struct, Ispeed int32
+pkg syscall (netbsd-arm), type Termios struct, Lflag uint32
+pkg syscall (netbsd-arm), type Termios struct, Oflag uint32
+pkg syscall (netbsd-arm), type Termios struct, Ospeed int32
+pkg syscall (netbsd-arm), type Timespec struct, Pad_cgo_0 [4]uint8
+pkg syscall (netbsd-arm), type Timeval struct, Pad_cgo_0 [4]uint8
+pkg syscall (netbsd-arm-cgo), const MADV_DONTNEED = 4
+pkg syscall (netbsd-arm-cgo), const MADV_DONTNEED ideal-int
+pkg syscall (netbsd-arm-cgo), const MADV_FREE = 6
+pkg syscall (netbsd-arm-cgo), const MADV_FREE ideal-int
+pkg syscall (netbsd-arm-cgo), const MADV_NORMAL = 0
+pkg syscall (netbsd-arm-cgo), const MADV_NORMAL ideal-int
+pkg syscall (netbsd-arm-cgo), const MADV_RANDOM = 1
+pkg syscall (netbsd-arm-cgo), const MADV_RANDOM ideal-int
+pkg syscall (netbsd-arm-cgo), const MADV_SEQUENTIAL = 2
+pkg syscall (netbsd-arm-cgo), const MADV_SEQUENTIAL ideal-int
+pkg syscall (netbsd-arm-cgo), const MADV_SPACEAVAIL = 5
+pkg syscall (netbsd-arm-cgo), const MADV_SPACEAVAIL ideal-int
+pkg syscall (netbsd-arm-cgo), const MADV_WILLNEED = 3
+pkg syscall (netbsd-arm-cgo), const MADV_WILLNEED ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_ALIGNMENT_16MB = 402653184
+pkg syscall (netbsd-arm-cgo), const MAP_ALIGNMENT_16MB ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_ALIGNMENT_1TB = 671088640
+pkg syscall (netbsd-arm-cgo), const MAP_ALIGNMENT_1TB ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_ALIGNMENT_256TB = 805306368
+pkg syscall (netbsd-arm-cgo), const MAP_ALIGNMENT_256TB ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_ALIGNMENT_4GB = 536870912
+pkg syscall (netbsd-arm-cgo), const MAP_ALIGNMENT_4GB ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_ALIGNMENT_64KB = 268435456
+pkg syscall (netbsd-arm-cgo), const MAP_ALIGNMENT_64KB ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_ALIGNMENT_64PB = 939524096
+pkg syscall (netbsd-arm-cgo), const MAP_ALIGNMENT_64PB ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_ALIGNMENT_MASK = -16777216
+pkg syscall (netbsd-arm-cgo), const MAP_ALIGNMENT_MASK ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_ALIGNMENT_SHIFT = 24
+pkg syscall (netbsd-arm-cgo), const MAP_ALIGNMENT_SHIFT ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_ANON = 4096
+pkg syscall (netbsd-arm-cgo), const MAP_ANON ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_FILE = 0
+pkg syscall (netbsd-arm-cgo), const MAP_FILE ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_FIXED = 16
+pkg syscall (netbsd-arm-cgo), const MAP_FIXED ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_HASSEMAPHORE = 512
+pkg syscall (netbsd-arm-cgo), const MAP_HASSEMAPHORE ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_INHERIT = 128
+pkg syscall (netbsd-arm-cgo), const MAP_INHERIT ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_INHERIT_COPY = 1
+pkg syscall (netbsd-arm-cgo), const MAP_INHERIT_COPY ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_INHERIT_DEFAULT = 1
+pkg syscall (netbsd-arm-cgo), const MAP_INHERIT_DEFAULT ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_INHERIT_DONATE_COPY = 3
+pkg syscall (netbsd-arm-cgo), const MAP_INHERIT_DONATE_COPY ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_INHERIT_NONE = 2
+pkg syscall (netbsd-arm-cgo), const MAP_INHERIT_NONE ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_INHERIT_SHARE = 0
+pkg syscall (netbsd-arm-cgo), const MAP_INHERIT_SHARE ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_NORESERVE = 64
+pkg syscall (netbsd-arm-cgo), const MAP_NORESERVE ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_PRIVATE = 2
+pkg syscall (netbsd-arm-cgo), const MAP_PRIVATE ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_RENAME = 32
+pkg syscall (netbsd-arm-cgo), const MAP_RENAME ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_SHARED = 1
+pkg syscall (netbsd-arm-cgo), const MAP_SHARED ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_STACK = 8192
+pkg syscall (netbsd-arm-cgo), const MAP_STACK ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_TRYFIXED = 1024
+pkg syscall (netbsd-arm-cgo), const MAP_TRYFIXED ideal-int
+pkg syscall (netbsd-arm-cgo), const MAP_WIRED = 2048
+pkg syscall (netbsd-arm-cgo), const MAP_WIRED ideal-int
+pkg syscall (netbsd-arm-cgo), const PROT_EXEC = 4
+pkg syscall (netbsd-arm-cgo), const PROT_EXEC ideal-int
+pkg syscall (netbsd-arm-cgo), const PROT_NONE = 0
+pkg syscall (netbsd-arm-cgo), const PROT_NONE ideal-int
+pkg syscall (netbsd-arm-cgo), const PROT_READ = 1
+pkg syscall (netbsd-arm-cgo), const PROT_READ ideal-int
+pkg syscall (netbsd-arm-cgo), const PROT_WRITE = 2
+pkg syscall (netbsd-arm-cgo), const PROT_WRITE ideal-int
+pkg syscall (netbsd-arm-cgo), const SizeofIfData = 136
+pkg syscall (netbsd-arm-cgo), func Fchflags(int, int) error
+pkg syscall (netbsd-arm-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (netbsd-arm-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (netbsd-arm-cgo), type Kevent_t struct, Pad_cgo_0 [4]uint8
+pkg syscall (netbsd-arm-cgo), type Stat_t struct, Pad_cgo_0 [4]uint8
+pkg syscall (netbsd-arm-cgo), type Stat_t struct, Pad_cgo_1 [4]uint8
+pkg syscall (netbsd-arm-cgo), type Stat_t struct, Pad_cgo_2 [4]uint8
+pkg syscall (netbsd-arm-cgo), type Termios struct
+pkg syscall (netbsd-arm-cgo), type Termios struct, Cc [20]uint8
+pkg syscall (netbsd-arm-cgo), type Termios struct, Cflag uint32
+pkg syscall (netbsd-arm-cgo), type Termios struct, Iflag uint32
+pkg syscall (netbsd-arm-cgo), type Termios struct, Ispeed int32
+pkg syscall (netbsd-arm-cgo), type Termios struct, Lflag uint32
+pkg syscall (netbsd-arm-cgo), type Termios struct, Oflag uint32
+pkg syscall (netbsd-arm-cgo), type Termios struct, Ospeed int32
+pkg syscall (netbsd-arm-cgo), type Timespec struct, Pad_cgo_0 [4]uint8
+pkg syscall (netbsd-arm-cgo), type Timeval struct, Pad_cgo_0 [4]uint8
+pkg syscall (openbsd-386), const BIOCGRTIMEOUT = 1074545262
+pkg syscall (openbsd-386), const BIOCSRTIMEOUT = 2148287085
+pkg syscall (openbsd-386), const IPPROTO_DIVERT_INIT = 2
+pkg syscall (openbsd-386), const IPPROTO_DIVERT_INIT ideal-int
+pkg syscall (openbsd-386), const IPPROTO_DIVERT_RESP = 1
+pkg syscall (openbsd-386), const IPPROTO_DIVERT_RESP ideal-int
+pkg syscall (openbsd-386), const IPV6_RECVDSTPORT = 64
+pkg syscall (openbsd-386), const IPV6_RECVDSTPORT ideal-int
+pkg syscall (openbsd-386), const IP_DIVERTFL = 4130
+pkg syscall (openbsd-386), const IP_DIVERTFL ideal-int
+pkg syscall (openbsd-386), const MADV_DONTNEED = 4
+pkg syscall (openbsd-386), const MADV_DONTNEED ideal-int
+pkg syscall (openbsd-386), const MADV_FREE = 6
+pkg syscall (openbsd-386), const MADV_FREE ideal-int
+pkg syscall (openbsd-386), const MADV_NORMAL = 0
+pkg syscall (openbsd-386), const MADV_NORMAL ideal-int
+pkg syscall (openbsd-386), const MADV_RANDOM = 1
+pkg syscall (openbsd-386), const MADV_RANDOM ideal-int
+pkg syscall (openbsd-386), const MADV_SEQUENTIAL = 2
+pkg syscall (openbsd-386), const MADV_SEQUENTIAL ideal-int
+pkg syscall (openbsd-386), const MADV_SPACEAVAIL = 5
+pkg syscall (openbsd-386), const MADV_SPACEAVAIL ideal-int
+pkg syscall (openbsd-386), const MADV_WILLNEED = 3
+pkg syscall (openbsd-386), const MADV_WILLNEED ideal-int
+pkg syscall (openbsd-386), const MAP_ANON = 4096
+pkg syscall (openbsd-386), const MAP_ANON ideal-int
+pkg syscall (openbsd-386), const MAP_COPY = 4
+pkg syscall (openbsd-386), const MAP_COPY ideal-int
+pkg syscall (openbsd-386), const MAP_FILE = 0
+pkg syscall (openbsd-386), const MAP_FILE ideal-int
+pkg syscall (openbsd-386), const MAP_FIXED = 16
+pkg syscall (openbsd-386), const MAP_FIXED ideal-int
+pkg syscall (openbsd-386), const MAP_FLAGMASK = 8183
+pkg syscall (openbsd-386), const MAP_FLAGMASK ideal-int
+pkg syscall (openbsd-386), const MAP_HASSEMAPHORE = 512
+pkg syscall (openbsd-386), const MAP_HASSEMAPHORE ideal-int
+pkg syscall (openbsd-386), const MAP_INHERIT = 128
+pkg syscall (openbsd-386), const MAP_INHERIT ideal-int
+pkg syscall (openbsd-386), const MAP_INHERIT_COPY = 1
+pkg syscall (openbsd-386), const MAP_INHERIT_COPY ideal-int
+pkg syscall (openbsd-386), const MAP_INHERIT_DONATE_COPY = 3
+pkg syscall (openbsd-386), const MAP_INHERIT_DONATE_COPY ideal-int
+pkg syscall (openbsd-386), const MAP_INHERIT_NONE = 2
+pkg syscall (openbsd-386), const MAP_INHERIT_NONE ideal-int
+pkg syscall (openbsd-386), const MAP_INHERIT_SHARE = 0
+pkg syscall (openbsd-386), const MAP_INHERIT_SHARE ideal-int
+pkg syscall (openbsd-386), const MAP_NOEXTEND = 256
+pkg syscall (openbsd-386), const MAP_NOEXTEND ideal-int
+pkg syscall (openbsd-386), const MAP_NORESERVE = 64
+pkg syscall (openbsd-386), const MAP_NORESERVE ideal-int
+pkg syscall (openbsd-386), const MAP_PRIVATE = 2
+pkg syscall (openbsd-386), const MAP_PRIVATE ideal-int
+pkg syscall (openbsd-386), const MAP_RENAME = 32
+pkg syscall (openbsd-386), const MAP_RENAME ideal-int
+pkg syscall (openbsd-386), const MAP_SHARED = 1
+pkg syscall (openbsd-386), const MAP_SHARED ideal-int
+pkg syscall (openbsd-386), const MAP_TRYFIXED = 1024
+pkg syscall (openbsd-386), const MAP_TRYFIXED ideal-int
+pkg syscall (openbsd-386), const MCL_CURRENT = 1
+pkg syscall (openbsd-386), const MCL_CURRENT ideal-int
+pkg syscall (openbsd-386), const MCL_FUTURE = 2
+pkg syscall (openbsd-386), const MCL_FUTURE ideal-int
+pkg syscall (openbsd-386), const MS_ASYNC = 1
+pkg syscall (openbsd-386), const MS_ASYNC ideal-int
+pkg syscall (openbsd-386), const MS_INVALIDATE = 4
+pkg syscall (openbsd-386), const MS_INVALIDATE ideal-int
+pkg syscall (openbsd-386), const MS_SYNC = 2
+pkg syscall (openbsd-386), const MS_SYNC ideal-int
+pkg syscall (openbsd-386), const PROT_EXEC = 4
+pkg syscall (openbsd-386), const PROT_EXEC ideal-int
+pkg syscall (openbsd-386), const PROT_NONE = 0
+pkg syscall (openbsd-386), const PROT_NONE ideal-int
+pkg syscall (openbsd-386), const PROT_READ = 1
+pkg syscall (openbsd-386), const PROT_READ ideal-int
+pkg syscall (openbsd-386), const PROT_WRITE = 2
+pkg syscall (openbsd-386), const PROT_WRITE ideal-int
+pkg syscall (openbsd-386), const RTF_FMASK = 1112072
+pkg syscall (openbsd-386), const RTM_VERSION = 5
+pkg syscall (openbsd-386), const SIOCBRDGDADDR = 2166909255
+pkg syscall (openbsd-386), const SIOCBRDGGPARAM = 3225184600
+pkg syscall (openbsd-386), const SIOCBRDGSADDR = 3240651076
+pkg syscall (openbsd-386), const SIOCGETVLAN = 3223349648
+pkg syscall (openbsd-386), const SIOCGETVLAN ideal-int
+pkg syscall (openbsd-386), const SIOCGIFHARDMTU = 3223349669
+pkg syscall (openbsd-386), const SIOCGIFHARDMTU ideal-int
+pkg syscall (openbsd-386), const SIOCGLIFPHYTTL = 3223349673
+pkg syscall (openbsd-386), const SIOCGLIFPHYTTL ideal-int
+pkg syscall (openbsd-386), const SIOCGSPPPPARAMS = 3223349652
+pkg syscall (openbsd-386), const SIOCGSPPPPARAMS ideal-int
+pkg syscall (openbsd-386), const SIOCGVNETID = 3223349671
+pkg syscall (openbsd-386), const SIOCGVNETID ideal-int
+pkg syscall (openbsd-386), const SIOCSETVLAN = 2149607823
+pkg syscall (openbsd-386), const SIOCSETVLAN ideal-int
+pkg syscall (openbsd-386), const SIOCSLIFPHYTTL = 2149607848
+pkg syscall (openbsd-386), const SIOCSLIFPHYTTL ideal-int
+pkg syscall (openbsd-386), const SIOCSSPPPPARAMS = 2149607827
+pkg syscall (openbsd-386), const SIOCSSPPPPARAMS ideal-int
+pkg syscall (openbsd-386), const SIOCSVNETID = 2149607846
+pkg syscall (openbsd-386), const SIOCSVNETID ideal-int
+pkg syscall (openbsd-386), const SYS_CLOCK_GETRES = 89
+pkg syscall (openbsd-386), const SYS_CLOCK_GETTIME = 87
+pkg syscall (openbsd-386), const SYS_CLOCK_SETTIME = 88
+pkg syscall (openbsd-386), const SYS_FHSTATFS = 65
+pkg syscall (openbsd-386), const SYS_FSTAT = 53
+pkg syscall (openbsd-386), const SYS_FSTATAT = 42
+pkg syscall (openbsd-386), const SYS_FSTATFS = 64
+pkg syscall (openbsd-386), const SYS_FUTIMENS = 85
+pkg syscall (openbsd-386), const SYS_FUTIMES = 77
+pkg syscall (openbsd-386), const SYS_GETDENTS = 99
+pkg syscall (openbsd-386), const SYS_GETDENTS ideal-int
+pkg syscall (openbsd-386), const SYS_GETFSSTAT = 62
+pkg syscall (openbsd-386), const SYS_GETITIMER = 70
+pkg syscall (openbsd-386), const SYS_GETRUSAGE = 19
+pkg syscall (openbsd-386), const SYS_GETTIMEOFDAY = 67
+pkg syscall (openbsd-386), const SYS_KEVENT = 72
+pkg syscall (openbsd-386), const SYS_LSTAT = 40
+pkg syscall (openbsd-386), const SYS_NANOSLEEP = 91
+pkg syscall (openbsd-386), const SYS_PPOLL = 109
+pkg syscall (openbsd-386), const SYS_PPOLL ideal-int
+pkg syscall (openbsd-386), const SYS_PSELECT = 110
+pkg syscall (openbsd-386), const SYS_PSELECT ideal-int
+pkg syscall (openbsd-386), const SYS_SELECT = 71
+pkg syscall (openbsd-386), const SYS_SETITIMER = 69
+pkg syscall (openbsd-386), const SYS_SETTIMEOFDAY = 68
+pkg syscall (openbsd-386), const SYS_STAT = 38
+pkg syscall (openbsd-386), const SYS_STATFS = 63
+pkg syscall (openbsd-386), const SYS_UTIMENSAT = 84
+pkg syscall (openbsd-386), const SYS_UTIMES = 76
+pkg syscall (openbsd-386), const SYS_UTRACE = 209
+pkg syscall (openbsd-386), const SYS_UTRACE ideal-int
+pkg syscall (openbsd-386), const SYS_WAIT4 = 11
+pkg syscall (openbsd-386), const SYS___THRSLEEP = 94
+pkg syscall (openbsd-386), const SizeofIfData = 212
+pkg syscall (openbsd-386), const SizeofIfMsghdr = 236
+pkg syscall (openbsd-386), const SizeofRtMetrics = 56
+pkg syscall (openbsd-386), const SizeofRtMsghdr = 96
+pkg syscall (openbsd-386), const TCP_NOPUSH = 16
+pkg syscall (openbsd-386), const TCP_NOPUSH ideal-int
+pkg syscall (openbsd-386), const TIOCGSID = 1074033763
+pkg syscall (openbsd-386), const TIOCGSID ideal-int
+pkg syscall (openbsd-386), const TIOCGTSTAMP = 1074558043
+pkg syscall (openbsd-386), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (openbsd-386), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (openbsd-386), type Dirent struct, Fileno uint64
+pkg syscall (openbsd-386), type Dirent struct, Off int64
+pkg syscall (openbsd-386), type Dirent struct, X__d_padding [4]uint8
+pkg syscall (openbsd-386), type FdSet struct, Bits [32]uint32
+pkg syscall (openbsd-386), type Kevent_t struct, Data int64
+pkg syscall (openbsd-386), type Mclpool struct, Grown int32
+pkg syscall (openbsd-386), type RtMetrics struct, Expire int64
+pkg syscall (openbsd-386), type RtMetrics struct, Pad uint32
+pkg syscall (openbsd-386), type Stat_t struct, Ino uint64
+pkg syscall (openbsd-386), type Statfs_t struct, F_ctime uint64
+pkg syscall (openbsd-386), type Statfs_t struct, F_mntfromspec [90]int8
+pkg syscall (openbsd-386), type Statfs_t struct, Pad_cgo_0 [2]uint8
+pkg syscall (openbsd-386), type Termios struct
+pkg syscall (openbsd-386), type Termios struct, Cc [20]uint8
+pkg syscall (openbsd-386), type Termios struct, Cflag uint32
+pkg syscall (openbsd-386), type Termios struct, Iflag uint32
+pkg syscall (openbsd-386), type Termios struct, Ispeed int32
+pkg syscall (openbsd-386), type Termios struct, Lflag uint32
+pkg syscall (openbsd-386), type Termios struct, Oflag uint32
+pkg syscall (openbsd-386), type Termios struct, Ospeed int32
+pkg syscall (openbsd-386), type Timespec struct, Sec int64
+pkg syscall (openbsd-386), type Timeval struct, Sec int64
+pkg syscall (openbsd-386-cgo), const BIOCGRTIMEOUT = 1074545262
+pkg syscall (openbsd-386-cgo), const BIOCSRTIMEOUT = 2148287085
+pkg syscall (openbsd-386-cgo), const IPPROTO_DIVERT_INIT = 2
+pkg syscall (openbsd-386-cgo), const IPPROTO_DIVERT_INIT ideal-int
+pkg syscall (openbsd-386-cgo), const IPPROTO_DIVERT_RESP = 1
+pkg syscall (openbsd-386-cgo), const IPPROTO_DIVERT_RESP ideal-int
+pkg syscall (openbsd-386-cgo), const IPV6_RECVDSTPORT = 64
+pkg syscall (openbsd-386-cgo), const IPV6_RECVDSTPORT ideal-int
+pkg syscall (openbsd-386-cgo), const IP_DIVERTFL = 4130
+pkg syscall (openbsd-386-cgo), const IP_DIVERTFL ideal-int
+pkg syscall (openbsd-386-cgo), const MADV_DONTNEED = 4
+pkg syscall (openbsd-386-cgo), const MADV_DONTNEED ideal-int
+pkg syscall (openbsd-386-cgo), const MADV_FREE = 6
+pkg syscall (openbsd-386-cgo), const MADV_FREE ideal-int
+pkg syscall (openbsd-386-cgo), const MADV_NORMAL = 0
+pkg syscall (openbsd-386-cgo), const MADV_NORMAL ideal-int
+pkg syscall (openbsd-386-cgo), const MADV_RANDOM = 1
+pkg syscall (openbsd-386-cgo), const MADV_RANDOM ideal-int
+pkg syscall (openbsd-386-cgo), const MADV_SEQUENTIAL = 2
+pkg syscall (openbsd-386-cgo), const MADV_SEQUENTIAL ideal-int
+pkg syscall (openbsd-386-cgo), const MADV_SPACEAVAIL = 5
+pkg syscall (openbsd-386-cgo), const MADV_SPACEAVAIL ideal-int
+pkg syscall (openbsd-386-cgo), const MADV_WILLNEED = 3
+pkg syscall (openbsd-386-cgo), const MADV_WILLNEED ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_ANON = 4096
+pkg syscall (openbsd-386-cgo), const MAP_ANON ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_COPY = 4
+pkg syscall (openbsd-386-cgo), const MAP_COPY ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_FILE = 0
+pkg syscall (openbsd-386-cgo), const MAP_FILE ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_FIXED = 16
+pkg syscall (openbsd-386-cgo), const MAP_FIXED ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_FLAGMASK = 8183
+pkg syscall (openbsd-386-cgo), const MAP_FLAGMASK ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_HASSEMAPHORE = 512
+pkg syscall (openbsd-386-cgo), const MAP_HASSEMAPHORE ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_INHERIT = 128
+pkg syscall (openbsd-386-cgo), const MAP_INHERIT ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_INHERIT_COPY = 1
+pkg syscall (openbsd-386-cgo), const MAP_INHERIT_COPY ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_INHERIT_DONATE_COPY = 3
+pkg syscall (openbsd-386-cgo), const MAP_INHERIT_DONATE_COPY ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_INHERIT_NONE = 2
+pkg syscall (openbsd-386-cgo), const MAP_INHERIT_NONE ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_INHERIT_SHARE = 0
+pkg syscall (openbsd-386-cgo), const MAP_INHERIT_SHARE ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_NOEXTEND = 256
+pkg syscall (openbsd-386-cgo), const MAP_NOEXTEND ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_NORESERVE = 64
+pkg syscall (openbsd-386-cgo), const MAP_NORESERVE ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_PRIVATE = 2
+pkg syscall (openbsd-386-cgo), const MAP_PRIVATE ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_RENAME = 32
+pkg syscall (openbsd-386-cgo), const MAP_RENAME ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_SHARED = 1
+pkg syscall (openbsd-386-cgo), const MAP_SHARED ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_TRYFIXED = 1024
+pkg syscall (openbsd-386-cgo), const MAP_TRYFIXED ideal-int
+pkg syscall (openbsd-386-cgo), const MCL_CURRENT = 1
+pkg syscall (openbsd-386-cgo), const MCL_CURRENT ideal-int
+pkg syscall (openbsd-386-cgo), const MCL_FUTURE = 2
+pkg syscall (openbsd-386-cgo), const MCL_FUTURE ideal-int
+pkg syscall (openbsd-386-cgo), const MS_ASYNC = 1
+pkg syscall (openbsd-386-cgo), const MS_ASYNC ideal-int
+pkg syscall (openbsd-386-cgo), const MS_INVALIDATE = 4
+pkg syscall (openbsd-386-cgo), const MS_INVALIDATE ideal-int
+pkg syscall (openbsd-386-cgo), const MS_SYNC = 2
+pkg syscall (openbsd-386-cgo), const MS_SYNC ideal-int
+pkg syscall (openbsd-386-cgo), const PROT_EXEC = 4
+pkg syscall (openbsd-386-cgo), const PROT_EXEC ideal-int
+pkg syscall (openbsd-386-cgo), const PROT_NONE = 0
+pkg syscall (openbsd-386-cgo), const PROT_NONE ideal-int
+pkg syscall (openbsd-386-cgo), const PROT_READ = 1
+pkg syscall (openbsd-386-cgo), const PROT_READ ideal-int
+pkg syscall (openbsd-386-cgo), const PROT_WRITE = 2
+pkg syscall (openbsd-386-cgo), const PROT_WRITE ideal-int
+pkg syscall (openbsd-386-cgo), const RTF_FMASK = 1112072
+pkg syscall (openbsd-386-cgo), const RTM_VERSION = 5
+pkg syscall (openbsd-386-cgo), const SIOCBRDGDADDR = 2166909255
+pkg syscall (openbsd-386-cgo), const SIOCBRDGGPARAM = 3225184600
+pkg syscall (openbsd-386-cgo), const SIOCBRDGSADDR = 3240651076
+pkg syscall (openbsd-386-cgo), const SIOCGETVLAN = 3223349648
+pkg syscall (openbsd-386-cgo), const SIOCGETVLAN ideal-int
+pkg syscall (openbsd-386-cgo), const SIOCGIFHARDMTU = 3223349669
+pkg syscall (openbsd-386-cgo), const SIOCGIFHARDMTU ideal-int
+pkg syscall (openbsd-386-cgo), const SIOCGLIFPHYTTL = 3223349673
+pkg syscall (openbsd-386-cgo), const SIOCGLIFPHYTTL ideal-int
+pkg syscall (openbsd-386-cgo), const SIOCGSPPPPARAMS = 3223349652
+pkg syscall (openbsd-386-cgo), const SIOCGSPPPPARAMS ideal-int
+pkg syscall (openbsd-386-cgo), const SIOCGVNETID = 3223349671
+pkg syscall (openbsd-386-cgo), const SIOCGVNETID ideal-int
+pkg syscall (openbsd-386-cgo), const SIOCSETVLAN = 2149607823
+pkg syscall (openbsd-386-cgo), const SIOCSETVLAN ideal-int
+pkg syscall (openbsd-386-cgo), const SIOCSLIFPHYTTL = 2149607848
+pkg syscall (openbsd-386-cgo), const SIOCSLIFPHYTTL ideal-int
+pkg syscall (openbsd-386-cgo), const SIOCSSPPPPARAMS = 2149607827
+pkg syscall (openbsd-386-cgo), const SIOCSSPPPPARAMS ideal-int
+pkg syscall (openbsd-386-cgo), const SIOCSVNETID = 2149607846
+pkg syscall (openbsd-386-cgo), const SIOCSVNETID ideal-int
+pkg syscall (openbsd-386-cgo), const SYS_CLOCK_GETRES = 89
+pkg syscall (openbsd-386-cgo), const SYS_CLOCK_GETTIME = 87
+pkg syscall (openbsd-386-cgo), const SYS_CLOCK_SETTIME = 88
+pkg syscall (openbsd-386-cgo), const SYS_FHSTATFS = 65
+pkg syscall (openbsd-386-cgo), const SYS_FSTAT = 53
+pkg syscall (openbsd-386-cgo), const SYS_FSTATAT = 42
+pkg syscall (openbsd-386-cgo), const SYS_FSTATFS = 64
+pkg syscall (openbsd-386-cgo), const SYS_FUTIMENS = 85
+pkg syscall (openbsd-386-cgo), const SYS_FUTIMES = 77
+pkg syscall (openbsd-386-cgo), const SYS_GETDENTS = 99
+pkg syscall (openbsd-386-cgo), const SYS_GETDENTS ideal-int
+pkg syscall (openbsd-386-cgo), const SYS_GETFSSTAT = 62
+pkg syscall (openbsd-386-cgo), const SYS_GETITIMER = 70
+pkg syscall (openbsd-386-cgo), const SYS_GETRUSAGE = 19
+pkg syscall (openbsd-386-cgo), const SYS_GETTIMEOFDAY = 67
+pkg syscall (openbsd-386-cgo), const SYS_KEVENT = 72
+pkg syscall (openbsd-386-cgo), const SYS_LSTAT = 40
+pkg syscall (openbsd-386-cgo), const SYS_NANOSLEEP = 91
+pkg syscall (openbsd-386-cgo), const SYS_PPOLL = 109
+pkg syscall (openbsd-386-cgo), const SYS_PPOLL ideal-int
+pkg syscall (openbsd-386-cgo), const SYS_PSELECT = 110
+pkg syscall (openbsd-386-cgo), const SYS_PSELECT ideal-int
+pkg syscall (openbsd-386-cgo), const SYS_SELECT = 71
+pkg syscall (openbsd-386-cgo), const SYS_SETITIMER = 69
+pkg syscall (openbsd-386-cgo), const SYS_SETTIMEOFDAY = 68
+pkg syscall (openbsd-386-cgo), const SYS_STAT = 38
+pkg syscall (openbsd-386-cgo), const SYS_STATFS = 63
+pkg syscall (openbsd-386-cgo), const SYS_UTIMENSAT = 84
+pkg syscall (openbsd-386-cgo), const SYS_UTIMES = 76
+pkg syscall (openbsd-386-cgo), const SYS_UTRACE = 209
+pkg syscall (openbsd-386-cgo), const SYS_UTRACE ideal-int
+pkg syscall (openbsd-386-cgo), const SYS_WAIT4 = 11
+pkg syscall (openbsd-386-cgo), const SYS___THRSLEEP = 94
+pkg syscall (openbsd-386-cgo), const SizeofIfData = 212
+pkg syscall (openbsd-386-cgo), const SizeofIfMsghdr = 236
+pkg syscall (openbsd-386-cgo), const SizeofRtMetrics = 56
+pkg syscall (openbsd-386-cgo), const SizeofRtMsghdr = 96
+pkg syscall (openbsd-386-cgo), const TCP_NOPUSH = 16
+pkg syscall (openbsd-386-cgo), const TCP_NOPUSH ideal-int
+pkg syscall (openbsd-386-cgo), const TIOCGSID = 1074033763
+pkg syscall (openbsd-386-cgo), const TIOCGSID ideal-int
+pkg syscall (openbsd-386-cgo), const TIOCGTSTAMP = 1074558043
+pkg syscall (openbsd-386-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (openbsd-386-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (openbsd-386-cgo), type Dirent struct, Fileno uint64
+pkg syscall (openbsd-386-cgo), type Dirent struct, Off int64
+pkg syscall (openbsd-386-cgo), type Dirent struct, X__d_padding [4]uint8
+pkg syscall (openbsd-386-cgo), type FdSet struct, Bits [32]uint32
+pkg syscall (openbsd-386-cgo), type Kevent_t struct, Data int64
+pkg syscall (openbsd-386-cgo), type Mclpool struct, Grown int32
+pkg syscall (openbsd-386-cgo), type RtMetrics struct, Expire int64
+pkg syscall (openbsd-386-cgo), type RtMetrics struct, Pad uint32
+pkg syscall (openbsd-386-cgo), type Stat_t struct, Ino uint64
+pkg syscall (openbsd-386-cgo), type Statfs_t struct, F_ctime uint64
+pkg syscall (openbsd-386-cgo), type Statfs_t struct, F_mntfromspec [90]int8
+pkg syscall (openbsd-386-cgo), type Statfs_t struct, Pad_cgo_0 [2]uint8
+pkg syscall (openbsd-386-cgo), type Termios struct
+pkg syscall (openbsd-386-cgo), type Termios struct, Cc [20]uint8
+pkg syscall (openbsd-386-cgo), type Termios struct, Cflag uint32
+pkg syscall (openbsd-386-cgo), type Termios struct, Iflag uint32
+pkg syscall (openbsd-386-cgo), type Termios struct, Ispeed int32
+pkg syscall (openbsd-386-cgo), type Termios struct, Lflag uint32
+pkg syscall (openbsd-386-cgo), type Termios struct, Oflag uint32
+pkg syscall (openbsd-386-cgo), type Termios struct, Ospeed int32
+pkg syscall (openbsd-386-cgo), type Timespec struct, Sec int64
+pkg syscall (openbsd-386-cgo), type Timeval struct, Sec int64
+pkg syscall (openbsd-amd64), const IPPROTO_DIVERT_INIT = 2
+pkg syscall (openbsd-amd64), const IPPROTO_DIVERT_INIT ideal-int
+pkg syscall (openbsd-amd64), const IPPROTO_DIVERT_RESP = 1
+pkg syscall (openbsd-amd64), const IPPROTO_DIVERT_RESP ideal-int
+pkg syscall (openbsd-amd64), const IPV6_RECVDSTPORT = 64
+pkg syscall (openbsd-amd64), const IPV6_RECVDSTPORT ideal-int
+pkg syscall (openbsd-amd64), const IP_DIVERTFL = 4130
+pkg syscall (openbsd-amd64), const IP_DIVERTFL ideal-int
+pkg syscall (openbsd-amd64), const MADV_DONTNEED = 4
+pkg syscall (openbsd-amd64), const MADV_DONTNEED ideal-int
+pkg syscall (openbsd-amd64), const MADV_FREE = 6
+pkg syscall (openbsd-amd64), const MADV_FREE ideal-int
+pkg syscall (openbsd-amd64), const MADV_NORMAL = 0
+pkg syscall (openbsd-amd64), const MADV_NORMAL ideal-int
+pkg syscall (openbsd-amd64), const MADV_RANDOM = 1
+pkg syscall (openbsd-amd64), const MADV_RANDOM ideal-int
+pkg syscall (openbsd-amd64), const MADV_SEQUENTIAL = 2
+pkg syscall (openbsd-amd64), const MADV_SEQUENTIAL ideal-int
+pkg syscall (openbsd-amd64), const MADV_SPACEAVAIL = 5
+pkg syscall (openbsd-amd64), const MADV_SPACEAVAIL ideal-int
+pkg syscall (openbsd-amd64), const MADV_WILLNEED = 3
+pkg syscall (openbsd-amd64), const MADV_WILLNEED ideal-int
+pkg syscall (openbsd-amd64), const MAP_ANON = 4096
+pkg syscall (openbsd-amd64), const MAP_ANON ideal-int
+pkg syscall (openbsd-amd64), const MAP_COPY = 4
+pkg syscall (openbsd-amd64), const MAP_COPY ideal-int
+pkg syscall (openbsd-amd64), const MAP_FILE = 0
+pkg syscall (openbsd-amd64), const MAP_FILE ideal-int
+pkg syscall (openbsd-amd64), const MAP_FIXED = 16
+pkg syscall (openbsd-amd64), const MAP_FIXED ideal-int
+pkg syscall (openbsd-amd64), const MAP_FLAGMASK = 8183
+pkg syscall (openbsd-amd64), const MAP_FLAGMASK ideal-int
+pkg syscall (openbsd-amd64), const MAP_HASSEMAPHORE = 512
+pkg syscall (openbsd-amd64), const MAP_HASSEMAPHORE ideal-int
+pkg syscall (openbsd-amd64), const MAP_INHERIT = 128
+pkg syscall (openbsd-amd64), const MAP_INHERIT ideal-int
+pkg syscall (openbsd-amd64), const MAP_INHERIT_COPY = 1
+pkg syscall (openbsd-amd64), const MAP_INHERIT_COPY ideal-int
+pkg syscall (openbsd-amd64), const MAP_INHERIT_DONATE_COPY = 3
+pkg syscall (openbsd-amd64), const MAP_INHERIT_DONATE_COPY ideal-int
+pkg syscall (openbsd-amd64), const MAP_INHERIT_NONE = 2
+pkg syscall (openbsd-amd64), const MAP_INHERIT_NONE ideal-int
+pkg syscall (openbsd-amd64), const MAP_INHERIT_SHARE = 0
+pkg syscall (openbsd-amd64), const MAP_INHERIT_SHARE ideal-int
+pkg syscall (openbsd-amd64), const MAP_NOEXTEND = 256
+pkg syscall (openbsd-amd64), const MAP_NOEXTEND ideal-int
+pkg syscall (openbsd-amd64), const MAP_NORESERVE = 64
+pkg syscall (openbsd-amd64), const MAP_NORESERVE ideal-int
+pkg syscall (openbsd-amd64), const MAP_PRIVATE = 2
+pkg syscall (openbsd-amd64), const MAP_PRIVATE ideal-int
+pkg syscall (openbsd-amd64), const MAP_RENAME = 32
+pkg syscall (openbsd-amd64), const MAP_RENAME ideal-int
+pkg syscall (openbsd-amd64), const MAP_SHARED = 1
+pkg syscall (openbsd-amd64), const MAP_SHARED ideal-int
+pkg syscall (openbsd-amd64), const MAP_TRYFIXED = 1024
+pkg syscall (openbsd-amd64), const MAP_TRYFIXED ideal-int
+pkg syscall (openbsd-amd64), const MCL_CURRENT = 1
+pkg syscall (openbsd-amd64), const MCL_CURRENT ideal-int
+pkg syscall (openbsd-amd64), const MCL_FUTURE = 2
+pkg syscall (openbsd-amd64), const MCL_FUTURE ideal-int
+pkg syscall (openbsd-amd64), const MS_ASYNC = 1
+pkg syscall (openbsd-amd64), const MS_ASYNC ideal-int
+pkg syscall (openbsd-amd64), const MS_INVALIDATE = 4
+pkg syscall (openbsd-amd64), const MS_INVALIDATE ideal-int
+pkg syscall (openbsd-amd64), const MS_SYNC = 2
+pkg syscall (openbsd-amd64), const MS_SYNC ideal-int
+pkg syscall (openbsd-amd64), const PROT_EXEC = 4
+pkg syscall (openbsd-amd64), const PROT_EXEC ideal-int
+pkg syscall (openbsd-amd64), const PROT_NONE = 0
+pkg syscall (openbsd-amd64), const PROT_NONE ideal-int
+pkg syscall (openbsd-amd64), const PROT_READ = 1
+pkg syscall (openbsd-amd64), const PROT_READ ideal-int
+pkg syscall (openbsd-amd64), const PROT_WRITE = 2
+pkg syscall (openbsd-amd64), const PROT_WRITE ideal-int
+pkg syscall (openbsd-amd64), const RTF_FMASK = 1112072
+pkg syscall (openbsd-amd64), const RTM_VERSION = 5
+pkg syscall (openbsd-amd64), const SIOCBRDGDADDR = 2166909255
+pkg syscall (openbsd-amd64), const SIOCBRDGSADDR = 3240651076
+pkg syscall (openbsd-amd64), const SIOCGETVLAN = 3223349648
+pkg syscall (openbsd-amd64), const SIOCGETVLAN ideal-int
+pkg syscall (openbsd-amd64), const SIOCGIFHARDMTU = 3223349669
+pkg syscall (openbsd-amd64), const SIOCGIFHARDMTU ideal-int
+pkg syscall (openbsd-amd64), const SIOCGLIFPHYTTL = 3223349673
+pkg syscall (openbsd-amd64), const SIOCGLIFPHYTTL ideal-int
+pkg syscall (openbsd-amd64), const SIOCGSPPPPARAMS = 3223349652
+pkg syscall (openbsd-amd64), const SIOCGSPPPPARAMS ideal-int
+pkg syscall (openbsd-amd64), const SIOCGVNETID = 3223349671
+pkg syscall (openbsd-amd64), const SIOCGVNETID ideal-int
+pkg syscall (openbsd-amd64), const SIOCSETVLAN = 2149607823
+pkg syscall (openbsd-amd64), const SIOCSETVLAN ideal-int
+pkg syscall (openbsd-amd64), const SIOCSLIFPHYTTL = 2149607848
+pkg syscall (openbsd-amd64), const SIOCSLIFPHYTTL ideal-int
+pkg syscall (openbsd-amd64), const SIOCSSPPPPARAMS = 2149607827
+pkg syscall (openbsd-amd64), const SIOCSSPPPPARAMS ideal-int
+pkg syscall (openbsd-amd64), const SIOCSVNETID = 2149607846
+pkg syscall (openbsd-amd64), const SIOCSVNETID ideal-int
+pkg syscall (openbsd-amd64), const SYS_CLOCK_GETRES = 89
+pkg syscall (openbsd-amd64), const SYS_CLOCK_GETTIME = 87
+pkg syscall (openbsd-amd64), const SYS_CLOCK_SETTIME = 88
+pkg syscall (openbsd-amd64), const SYS_FHSTATFS = 65
+pkg syscall (openbsd-amd64), const SYS_FSTAT = 53
+pkg syscall (openbsd-amd64), const SYS_FSTATAT = 42
+pkg syscall (openbsd-amd64), const SYS_FSTATFS = 64
+pkg syscall (openbsd-amd64), const SYS_FUTIMENS = 85
+pkg syscall (openbsd-amd64), const SYS_FUTIMES = 77
+pkg syscall (openbsd-amd64), const SYS_GETDENTS = 99
+pkg syscall (openbsd-amd64), const SYS_GETDENTS ideal-int
+pkg syscall (openbsd-amd64), const SYS_GETFSSTAT = 62
+pkg syscall (openbsd-amd64), const SYS_GETITIMER = 70
+pkg syscall (openbsd-amd64), const SYS_GETRUSAGE = 19
+pkg syscall (openbsd-amd64), const SYS_GETTIMEOFDAY = 67
+pkg syscall (openbsd-amd64), const SYS_KEVENT = 72
+pkg syscall (openbsd-amd64), const SYS_LSTAT = 40
+pkg syscall (openbsd-amd64), const SYS_NANOSLEEP = 91
+pkg syscall (openbsd-amd64), const SYS_PPOLL = 109
+pkg syscall (openbsd-amd64), const SYS_PPOLL ideal-int
+pkg syscall (openbsd-amd64), const SYS_PSELECT = 110
+pkg syscall (openbsd-amd64), const SYS_PSELECT ideal-int
+pkg syscall (openbsd-amd64), const SYS_SELECT = 71
+pkg syscall (openbsd-amd64), const SYS_SETITIMER = 69
+pkg syscall (openbsd-amd64), const SYS_SETTIMEOFDAY = 68
+pkg syscall (openbsd-amd64), const SYS_STAT = 38
+pkg syscall (openbsd-amd64), const SYS_STATFS = 63
+pkg syscall (openbsd-amd64), const SYS_UTIMENSAT = 84
+pkg syscall (openbsd-amd64), const SYS_UTIMES = 76
+pkg syscall (openbsd-amd64), const SYS_UTRACE = 209
+pkg syscall (openbsd-amd64), const SYS_UTRACE ideal-int
+pkg syscall (openbsd-amd64), const SYS_WAIT4 = 11
+pkg syscall (openbsd-amd64), const SYS___THRSLEEP = 94
+pkg syscall (openbsd-amd64), const SizeofRtMetrics = 56
+pkg syscall (openbsd-amd64), const SizeofRtMsghdr = 96
+pkg syscall (openbsd-amd64), const TCP_NOPUSH = 16
+pkg syscall (openbsd-amd64), const TCP_NOPUSH ideal-int
+pkg syscall (openbsd-amd64), const TIOCGSID = 1074033763
+pkg syscall (openbsd-amd64), const TIOCGSID ideal-int
+pkg syscall (openbsd-amd64), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (openbsd-amd64), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (openbsd-amd64), type Dirent struct, Fileno uint64
+pkg syscall (openbsd-amd64), type Dirent struct, Off int64
+pkg syscall (openbsd-amd64), type Dirent struct, X__d_padding [4]uint8
+pkg syscall (openbsd-amd64), type FdSet struct, Bits [32]uint32
+pkg syscall (openbsd-amd64), type Kevent_t struct, Data int64
+pkg syscall (openbsd-amd64), type Kevent_t struct, Ident uint64
+pkg syscall (openbsd-amd64), type Mclpool struct, Grown int32
+pkg syscall (openbsd-amd64), type RtMetrics struct, Expire int64
+pkg syscall (openbsd-amd64), type RtMetrics struct, Pad uint32
+pkg syscall (openbsd-amd64), type Stat_t struct, Ino uint64
+pkg syscall (openbsd-amd64), type Stat_t struct, Pad_cgo_0 [4]uint8
+pkg syscall (openbsd-amd64), type Statfs_t struct, F_ctime uint64
+pkg syscall (openbsd-amd64), type Statfs_t struct, F_mntfromspec [90]int8
+pkg syscall (openbsd-amd64), type Statfs_t struct, Pad_cgo_1 [2]uint8
+pkg syscall (openbsd-amd64), type Termios struct
+pkg syscall (openbsd-amd64), type Termios struct, Cc [20]uint8
+pkg syscall (openbsd-amd64), type Termios struct, Cflag uint32
+pkg syscall (openbsd-amd64), type Termios struct, Iflag uint32
+pkg syscall (openbsd-amd64), type Termios struct, Ispeed int32
+pkg syscall (openbsd-amd64), type Termios struct, Lflag uint32
+pkg syscall (openbsd-amd64), type Termios struct, Oflag uint32
+pkg syscall (openbsd-amd64), type Termios struct, Ospeed int32
+pkg syscall (openbsd-amd64), type Timespec struct, Sec int64
+pkg syscall (openbsd-amd64-cgo), const IPPROTO_DIVERT_INIT = 2
+pkg syscall (openbsd-amd64-cgo), const IPPROTO_DIVERT_INIT ideal-int
+pkg syscall (openbsd-amd64-cgo), const IPPROTO_DIVERT_RESP = 1
+pkg syscall (openbsd-amd64-cgo), const IPPROTO_DIVERT_RESP ideal-int
+pkg syscall (openbsd-amd64-cgo), const IPV6_RECVDSTPORT = 64
+pkg syscall (openbsd-amd64-cgo), const IPV6_RECVDSTPORT ideal-int
+pkg syscall (openbsd-amd64-cgo), const IP_DIVERTFL = 4130
+pkg syscall (openbsd-amd64-cgo), const IP_DIVERTFL ideal-int
+pkg syscall (openbsd-amd64-cgo), const MADV_DONTNEED = 4
+pkg syscall (openbsd-amd64-cgo), const MADV_DONTNEED ideal-int
+pkg syscall (openbsd-amd64-cgo), const MADV_FREE = 6
+pkg syscall (openbsd-amd64-cgo), const MADV_FREE ideal-int
+pkg syscall (openbsd-amd64-cgo), const MADV_NORMAL = 0
+pkg syscall (openbsd-amd64-cgo), const MADV_NORMAL ideal-int
+pkg syscall (openbsd-amd64-cgo), const MADV_RANDOM = 1
+pkg syscall (openbsd-amd64-cgo), const MADV_RANDOM ideal-int
+pkg syscall (openbsd-amd64-cgo), const MADV_SEQUENTIAL = 2
+pkg syscall (openbsd-amd64-cgo), const MADV_SEQUENTIAL ideal-int
+pkg syscall (openbsd-amd64-cgo), const MADV_SPACEAVAIL = 5
+pkg syscall (openbsd-amd64-cgo), const MADV_SPACEAVAIL ideal-int
+pkg syscall (openbsd-amd64-cgo), const MADV_WILLNEED = 3
+pkg syscall (openbsd-amd64-cgo), const MADV_WILLNEED ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_ANON = 4096
+pkg syscall (openbsd-amd64-cgo), const MAP_ANON ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_COPY = 4
+pkg syscall (openbsd-amd64-cgo), const MAP_COPY ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_FILE = 0
+pkg syscall (openbsd-amd64-cgo), const MAP_FILE ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_FIXED = 16
+pkg syscall (openbsd-amd64-cgo), const MAP_FIXED ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_FLAGMASK = 8183
+pkg syscall (openbsd-amd64-cgo), const MAP_FLAGMASK ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_HASSEMAPHORE = 512
+pkg syscall (openbsd-amd64-cgo), const MAP_HASSEMAPHORE ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_INHERIT = 128
+pkg syscall (openbsd-amd64-cgo), const MAP_INHERIT ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_INHERIT_COPY = 1
+pkg syscall (openbsd-amd64-cgo), const MAP_INHERIT_COPY ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_INHERIT_DONATE_COPY = 3
+pkg syscall (openbsd-amd64-cgo), const MAP_INHERIT_DONATE_COPY ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_INHERIT_NONE = 2
+pkg syscall (openbsd-amd64-cgo), const MAP_INHERIT_NONE ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_INHERIT_SHARE = 0
+pkg syscall (openbsd-amd64-cgo), const MAP_INHERIT_SHARE ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_NOEXTEND = 256
+pkg syscall (openbsd-amd64-cgo), const MAP_NOEXTEND ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_NORESERVE = 64
+pkg syscall (openbsd-amd64-cgo), const MAP_NORESERVE ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_PRIVATE = 2
+pkg syscall (openbsd-amd64-cgo), const MAP_PRIVATE ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_RENAME = 32
+pkg syscall (openbsd-amd64-cgo), const MAP_RENAME ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_SHARED = 1
+pkg syscall (openbsd-amd64-cgo), const MAP_SHARED ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_TRYFIXED = 1024
+pkg syscall (openbsd-amd64-cgo), const MAP_TRYFIXED ideal-int
+pkg syscall (openbsd-amd64-cgo), const MCL_CURRENT = 1
+pkg syscall (openbsd-amd64-cgo), const MCL_CURRENT ideal-int
+pkg syscall (openbsd-amd64-cgo), const MCL_FUTURE = 2
+pkg syscall (openbsd-amd64-cgo), const MCL_FUTURE ideal-int
+pkg syscall (openbsd-amd64-cgo), const MS_ASYNC = 1
+pkg syscall (openbsd-amd64-cgo), const MS_ASYNC ideal-int
+pkg syscall (openbsd-amd64-cgo), const MS_INVALIDATE = 4
+pkg syscall (openbsd-amd64-cgo), const MS_INVALIDATE ideal-int
+pkg syscall (openbsd-amd64-cgo), const MS_SYNC = 2
+pkg syscall (openbsd-amd64-cgo), const MS_SYNC ideal-int
+pkg syscall (openbsd-amd64-cgo), const PROT_EXEC = 4
+pkg syscall (openbsd-amd64-cgo), const PROT_EXEC ideal-int
+pkg syscall (openbsd-amd64-cgo), const PROT_NONE = 0
+pkg syscall (openbsd-amd64-cgo), const PROT_NONE ideal-int
+pkg syscall (openbsd-amd64-cgo), const PROT_READ = 1
+pkg syscall (openbsd-amd64-cgo), const PROT_READ ideal-int
+pkg syscall (openbsd-amd64-cgo), const PROT_WRITE = 2
+pkg syscall (openbsd-amd64-cgo), const PROT_WRITE ideal-int
+pkg syscall (openbsd-amd64-cgo), const RTF_FMASK = 1112072
+pkg syscall (openbsd-amd64-cgo), const RTM_VERSION = 5
+pkg syscall (openbsd-amd64-cgo), const SIOCBRDGDADDR = 2166909255
+pkg syscall (openbsd-amd64-cgo), const SIOCBRDGSADDR = 3240651076
+pkg syscall (openbsd-amd64-cgo), const SIOCGETVLAN = 3223349648
+pkg syscall (openbsd-amd64-cgo), const SIOCGETVLAN ideal-int
+pkg syscall (openbsd-amd64-cgo), const SIOCGIFHARDMTU = 3223349669
+pkg syscall (openbsd-amd64-cgo), const SIOCGIFHARDMTU ideal-int
+pkg syscall (openbsd-amd64-cgo), const SIOCGLIFPHYTTL = 3223349673
+pkg syscall (openbsd-amd64-cgo), const SIOCGLIFPHYTTL ideal-int
+pkg syscall (openbsd-amd64-cgo), const SIOCGSPPPPARAMS = 3223349652
+pkg syscall (openbsd-amd64-cgo), const SIOCGSPPPPARAMS ideal-int
+pkg syscall (openbsd-amd64-cgo), const SIOCGVNETID = 3223349671
+pkg syscall (openbsd-amd64-cgo), const SIOCGVNETID ideal-int
+pkg syscall (openbsd-amd64-cgo), const SIOCSETVLAN = 2149607823
+pkg syscall (openbsd-amd64-cgo), const SIOCSETVLAN ideal-int
+pkg syscall (openbsd-amd64-cgo), const SIOCSLIFPHYTTL = 2149607848
+pkg syscall (openbsd-amd64-cgo), const SIOCSLIFPHYTTL ideal-int
+pkg syscall (openbsd-amd64-cgo), const SIOCSSPPPPARAMS = 2149607827
+pkg syscall (openbsd-amd64-cgo), const SIOCSSPPPPARAMS ideal-int
+pkg syscall (openbsd-amd64-cgo), const SIOCSVNETID = 2149607846
+pkg syscall (openbsd-amd64-cgo), const SIOCSVNETID ideal-int
+pkg syscall (openbsd-amd64-cgo), const SYS_CLOCK_GETRES = 89
+pkg syscall (openbsd-amd64-cgo), const SYS_CLOCK_GETTIME = 87
+pkg syscall (openbsd-amd64-cgo), const SYS_CLOCK_SETTIME = 88
+pkg syscall (openbsd-amd64-cgo), const SYS_FHSTATFS = 65
+pkg syscall (openbsd-amd64-cgo), const SYS_FSTAT = 53
+pkg syscall (openbsd-amd64-cgo), const SYS_FSTATAT = 42
+pkg syscall (openbsd-amd64-cgo), const SYS_FSTATFS = 64
+pkg syscall (openbsd-amd64-cgo), const SYS_FUTIMENS = 85
+pkg syscall (openbsd-amd64-cgo), const SYS_FUTIMES = 77
+pkg syscall (openbsd-amd64-cgo), const SYS_GETDENTS = 99
+pkg syscall (openbsd-amd64-cgo), const SYS_GETDENTS ideal-int
+pkg syscall (openbsd-amd64-cgo), const SYS_GETFSSTAT = 62
+pkg syscall (openbsd-amd64-cgo), const SYS_GETITIMER = 70
+pkg syscall (openbsd-amd64-cgo), const SYS_GETRUSAGE = 19
+pkg syscall (openbsd-amd64-cgo), const SYS_GETTIMEOFDAY = 67
+pkg syscall (openbsd-amd64-cgo), const SYS_KEVENT = 72
+pkg syscall (openbsd-amd64-cgo), const SYS_LSTAT = 40
+pkg syscall (openbsd-amd64-cgo), const SYS_NANOSLEEP = 91
+pkg syscall (openbsd-amd64-cgo), const SYS_PPOLL = 109
+pkg syscall (openbsd-amd64-cgo), const SYS_PPOLL ideal-int
+pkg syscall (openbsd-amd64-cgo), const SYS_PSELECT = 110
+pkg syscall (openbsd-amd64-cgo), const SYS_PSELECT ideal-int
+pkg syscall (openbsd-amd64-cgo), const SYS_SELECT = 71
+pkg syscall (openbsd-amd64-cgo), const SYS_SETITIMER = 69
+pkg syscall (openbsd-amd64-cgo), const SYS_SETTIMEOFDAY = 68
+pkg syscall (openbsd-amd64-cgo), const SYS_STAT = 38
+pkg syscall (openbsd-amd64-cgo), const SYS_STATFS = 63
+pkg syscall (openbsd-amd64-cgo), const SYS_UTIMENSAT = 84
+pkg syscall (openbsd-amd64-cgo), const SYS_UTIMES = 76
+pkg syscall (openbsd-amd64-cgo), const SYS_UTRACE = 209
+pkg syscall (openbsd-amd64-cgo), const SYS_UTRACE ideal-int
+pkg syscall (openbsd-amd64-cgo), const SYS_WAIT4 = 11
+pkg syscall (openbsd-amd64-cgo), const SYS___THRSLEEP = 94
+pkg syscall (openbsd-amd64-cgo), const SizeofRtMetrics = 56
+pkg syscall (openbsd-amd64-cgo), const SizeofRtMsghdr = 96
+pkg syscall (openbsd-amd64-cgo), const TCP_NOPUSH = 16
+pkg syscall (openbsd-amd64-cgo), const TCP_NOPUSH ideal-int
+pkg syscall (openbsd-amd64-cgo), const TIOCGSID = 1074033763
+pkg syscall (openbsd-amd64-cgo), const TIOCGSID ideal-int
+pkg syscall (openbsd-amd64-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (openbsd-amd64-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
+pkg syscall (openbsd-amd64-cgo), type Dirent struct, Fileno uint64
+pkg syscall (openbsd-amd64-cgo), type Dirent struct, Off int64
+pkg syscall (openbsd-amd64-cgo), type Dirent struct, X__d_padding [4]uint8
+pkg syscall (openbsd-amd64-cgo), type FdSet struct, Bits [32]uint32
+pkg syscall (openbsd-amd64-cgo), type Kevent_t struct, Data int64
+pkg syscall (openbsd-amd64-cgo), type Kevent_t struct, Ident uint64
+pkg syscall (openbsd-amd64-cgo), type Mclpool struct, Grown int32
+pkg syscall (openbsd-amd64-cgo), type RtMetrics struct, Expire int64
+pkg syscall (openbsd-amd64-cgo), type RtMetrics struct, Pad uint32
+pkg syscall (openbsd-amd64-cgo), type Stat_t struct, Ino uint64
+pkg syscall (openbsd-amd64-cgo), type Stat_t struct, Pad_cgo_0 [4]uint8
+pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, F_ctime uint64
+pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, F_mntfromspec [90]int8
+pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, Pad_cgo_1 [2]uint8
+pkg syscall (openbsd-amd64-cgo), type Termios struct
+pkg syscall (openbsd-amd64-cgo), type Termios struct, Cc [20]uint8
+pkg syscall (openbsd-amd64-cgo), type Termios struct, Cflag uint32
+pkg syscall (openbsd-amd64-cgo), type Termios struct, Iflag uint32
+pkg syscall (openbsd-amd64-cgo), type Termios struct, Ispeed int32
+pkg syscall (openbsd-amd64-cgo), type Termios struct, Lflag uint32
+pkg syscall (openbsd-amd64-cgo), type Termios struct, Oflag uint32
+pkg syscall (openbsd-amd64-cgo), type Termios struct, Ospeed int32
+pkg syscall (openbsd-amd64-cgo), type Timespec struct, Sec int64
+pkg syscall (windows-386), const ERROR_MORE_DATA = 234
+pkg syscall (windows-386), const ERROR_MORE_DATA Errno
+pkg syscall (windows-386), const ERROR_NETNAME_DELETED = 64
+pkg syscall (windows-386), const ERROR_NETNAME_DELETED Errno
+pkg syscall (windows-386), const IOC_VENDOR = 402653184
+pkg syscall (windows-386), const IOC_VENDOR ideal-int
+pkg syscall (windows-386), const SIO_KEEPALIVE_VALS = 2550136836
+pkg syscall (windows-386), const SIO_KEEPALIVE_VALS ideal-int
+pkg syscall (windows-386), const WSAECONNRESET = 10054
+pkg syscall (windows-386), const WSAECONNRESET Errno
+pkg syscall (windows-386), func NewCallbackCDecl(interface{}) uintptr
+pkg syscall (windows-386), type TCPKeepalive struct
+pkg syscall (windows-386), type TCPKeepalive struct, Interval uint32
+pkg syscall (windows-386), type TCPKeepalive struct, OnOff uint32
+pkg syscall (windows-386), type TCPKeepalive struct, Time uint32
+pkg syscall (windows-amd64), const ERROR_MORE_DATA = 234
+pkg syscall (windows-amd64), const ERROR_MORE_DATA Errno
+pkg syscall (windows-amd64), const ERROR_NETNAME_DELETED = 64
+pkg syscall (windows-amd64), const ERROR_NETNAME_DELETED Errno
+pkg syscall (windows-amd64), const IOC_VENDOR = 402653184
+pkg syscall (windows-amd64), const IOC_VENDOR ideal-int
+pkg syscall (windows-amd64), const SIO_KEEPALIVE_VALS = 2550136836
+pkg syscall (windows-amd64), const SIO_KEEPALIVE_VALS ideal-int
+pkg syscall (windows-amd64), const WSAECONNRESET = 10054
+pkg syscall (windows-amd64), const WSAECONNRESET Errno
+pkg syscall (windows-amd64), func NewCallbackCDecl(interface{}) uintptr
+pkg syscall (windows-amd64), type TCPKeepalive struct
+pkg syscall (windows-amd64), type TCPKeepalive struct, Interval uint32
+pkg syscall (windows-amd64), type TCPKeepalive struct, OnOff uint32
+pkg syscall (windows-amd64), type TCPKeepalive struct, Time uint32
+pkg testing, method (*B) RunParallel(func(*PB))
+pkg testing, method (*B) SetParallelism(int)
+pkg testing, method (*PB) Next() bool
+pkg testing, type PB struct
+pkg unicode, const Version = "6.3.0"

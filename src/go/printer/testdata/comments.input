@@ -1,0 +1,756 @@
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This is a package for testing comment placement by go/printer.
+//
+package main
+
+import "fmt"  // fmt
+
+const c0 = 0  // zero
+const (
+	c1 = iota  // c1
+	c2  // c2
+)
+
+// Alignment of comments in declarations>
+const (
+	_ T = iota  // comment
+	_  // comment
+	_  // comment
+	_ = iota+10
+	_  // comments
+
+	_ = 10  // comment
+	_ T = 20  // comment
+)
+
+const (
+	_____ = iota // foo
+	_ // bar
+	_  = 0    // bal
+	_ // bat
+)
+
+const (
+	_ T = iota // comment
+	_ // comment
+	_ // comment
+	_ = iota + 10
+	_ // comment
+	_ = 10
+	_ = 20 // comment
+	_ T = 0 // comment
+)
+
+// The SZ struct; it is empty.
+type SZ struct {}
+
+// The S0 struct; no field is exported.
+type S0 struct {
+	int
+	x, y, z int  // 3 unexported fields
+}
+
+// The S1 struct; some fields are not exported.
+type S1 struct {
+	S0
+	A, B, C float  // 3 exported fields
+	D, b, c int  // 2 unexported fields
+}
+
+// The S2 struct; all fields are exported.
+type S2 struct {
+	S1
+	A, B, C float  // 3 exported fields
+}
+
+// The IZ interface; it is empty.
+type SZ interface {}
+
+// The I0 interface; no method is exported.
+type I0 interface {
+	f(x int) int  // unexported method
+}
+
+// The I1 interface; some methods are not exported.
+type I1 interface {
+	I0
+	F(x float) float  // exported methods
+	g(x int) int  // unexported method
+}
+
+// The I2 interface; all methods are exported.
+type I2 interface {
+	I0
+	F(x float) float  // exported method
+	G(x float) float  // exported method
+}
+
+// The S3 struct; all comments except for the last one must appear in the export.
+type S3 struct {
+	// lead comment for F1
+	F1 int // line comment for F1
+	// lead comment for F2
+	F2 int // line comment for F2
+	f3 int // f3 is not exported
+}
+
+// This comment group should be separated
+// with a newline from the next comment
+// group.
+
+// This comment should NOT be associated with the next declaration.
+
+var x int  // x
+var ()
+
+
+// This comment SHOULD be associated with f0.
+func f0() {
+	const pi = 3.14  // pi
+	var s1 struct {}  /* an empty struct */ /* foo */
+	// a struct constructor
+	// --------------------
+	var s2 struct {} = struct {}{}
+	x := pi
+}
+//
+// This comment should be associated with f1, with one blank line before the comment.
+//
+func f1() {
+	f0()
+	/* 1 */
+	// 2
+	/* 3 */
+	/* 4 */
+	f0()
+}
+
+
+func _() {
+// this comment should be properly indented
+}
+
+
+func _(x int) int {
+	if x < 0 {  // the tab printed before this comment's // must not affect the remaining lines
+		return -x  // this statement should be properly indented
+	}
+	if x < 0 {  /* the tab printed before this comment's /* must not affect the remaining lines */
+		return -x  // this statement should be properly indented
+	}
+	return x
+}
+
+
+func typeswitch(x interface{}) {
+	switch v := x.(type) {
+	case bool, int, float:
+	case string:
+	default:
+	}
+
+	switch x.(type) {
+	}
+
+	switch v0, ok := x.(int); v := x.(type) {
+	}
+
+	switch v0, ok := x.(int); x.(type) {
+	case byte:  // this comment should be on the same line as the keyword
+		// this comment should be normally indented
+		_ = 0
+	case bool, int, float:
+		// this comment should be indented
+	case string:
+	default:
+		// this comment should be indented
+	}
+	// this comment should not be indented
+}
+
+//
+// Indentation of comments after possibly indented multi-line constructs
+// (test cases for issue 3147).
+//
+
+func _() {
+	s := 1 +
+		2
+// should be indented like s
+}
+
+func _() {
+	s := 1 +
+		2 // comment
+		// should be indented like s
+}
+
+func _() {
+	s := 1 +
+		2 // comment
+	// should be indented like s
+	_ = 0
+}
+
+func _() {
+	s := 1 +
+		2
+	// should be indented like s
+	_ = 0
+}
+
+func _() {
+	s := 1 +
+		2
+
+// should be indented like s
+}
+
+func _() {
+	s := 1 +
+		2 // comment
+
+		// should be indented like s
+}
+
+func _() {
+	s := 1 +
+		2 // comment
+
+	// should be indented like s
+	_ = 0
+}
+
+func _() {
+	s := 1 +
+		2
+
+	// should be indented like s
+	_ = 0
+}
+
+// Test case from issue 3147.
+func f() {
+	templateText := "a" + // A
+		"b" + // B
+		"c" // C
+
+	// should be aligned with f()
+	f()
+}
+
+// Modified test case from issue 3147.
+func f() {
+	templateText := "a" + // A
+		"b" + // B
+		"c" // C
+
+		// may not be aligned with f() (source is not aligned)
+	f()
+}
+
+//
+// Test cases for alignment of lines in general comments.
+//
+
+func _() {
+	/* freestanding comment
+	   aligned		line
+	   aligned line
+	*/
+}
+
+func _() {
+	/* freestanding comment
+	   aligned		line
+	   aligned line
+	   */
+}
+
+func _() {
+	/* freestanding comment
+	   aligned		line
+	   aligned line */
+}
+
+func _() {
+	/*	freestanding comment
+		aligned		line
+		aligned line
+	*/
+}
+
+func _() {
+	/*	freestanding comment
+		aligned		line
+		aligned line
+		*/
+}
+
+func _() {
+	/*	freestanding comment
+		aligned		line
+		aligned line */
+}
+
+
+func _() {
+	/*
+	   freestanding comment
+	   aligned		line
+	   aligned line
+	*/
+}
+
+func _() {
+	/*
+	   freestanding comment
+	   aligned		line
+	   aligned line
+	   */
+}
+
+func _() {
+	/*
+	   freestanding comment
+	   aligned		line
+	   aligned line */
+}
+
+func _() {
+	/*
+		freestanding comment
+		aligned		line
+		aligned line
+	*/
+}
+
+func _() {
+	/*
+		freestanding comment
+		aligned		line
+		aligned line
+		*/
+}
+
+func _() {
+	/*
+		freestanding comment
+		aligned		line
+		aligned line */
+}
+
+func _() {
+	/* freestanding comment
+	   aligned line
+	*/
+}
+
+func _() {
+	/* freestanding comment
+	   aligned line
+	   */
+}
+
+func _() {
+	/* freestanding comment
+	   aligned line */
+}
+
+func _() {
+	/*	freestanding comment
+		aligned line
+	*/
+}
+
+func _() {
+	/*	freestanding comment
+		aligned line
+		*/
+}
+
+func _() {
+	/*	freestanding comment
+		aligned line */
+}
+
+
+func _() {
+	/*
+	   freestanding comment
+	   aligned line
+	*/
+}
+
+func _() {
+	/*
+	   freestanding comment
+	   aligned line
+	   */
+}
+
+func _() {
+	/*
+	   freestanding comment
+	   aligned line */
+}
+
+func _() {
+	/*
+		freestanding comment
+		aligned line
+	*/
+}
+
+func _() {
+	/*
+		freestanding comment
+		aligned line
+		*/
+}
+
+func _() {
+	/*
+		freestanding comment
+		aligned line */
+}
+
+// Issue 9751.
+func _() {
+	/*a string
+
+	b string*/
+
+	/*A string
+
+
+
+	Z string*/
+
+	/*a string
+
+	b string
+
+	c string*/
+
+	{
+		/*a string
+b string*/
+
+		/*a string
+
+b string*/
+
+		/*a string
+
+b string
+
+c string*/
+	}
+
+	{
+		/*a string
+				b string*/
+
+		/*a string
+
+				b string*/
+
+		/*a string
+
+				b string
+
+				c string*/
+	}
+
+	/*
+	*/
+
+	/*
+
+	*/
+
+	/*
+
+	 * line
+
+	*/
+}
+
+/*
+ * line
+ * of
+ * stars
+ */
+
+/* another line
+ * of
+ * stars */
+
+/*	and another line
+ *	of
+ *	stars */
+
+/* a line of
+ * stars */
+
+/*	and another line of
+ *	stars */
+
+/* a line of stars
+*/
+
+/*	and another line of
+*/
+
+/* a line of stars
+ */
+
+/*	and another line of
+ */
+
+/*
+aligned in middle
+here
+        not here
+*/
+
+/*
+blank line in middle:
+
+with no leading spaces on blank line.
+*/
+
+/*
+   aligned in middle
+   here
+           not here
+*/
+
+/*
+	blank line in middle:
+
+	with no leading spaces on blank line.
+*/
+
+func _() {
+	/*
+	 * line
+	 * of
+	 * stars
+	 */
+
+	/*
+	aligned in middle
+	here
+		not here
+	*/
+
+	/*
+	blank line in middle:
+
+	with no leading spaces on blank line.
+*/
+}
+
+
+// Some interesting interspersed comments.
+// See below for more common cases.
+func _(/* this */x/* is *//* an */ int) {
+}
+
+func _(/* no params - extra blank before and after comment */) {}
+func _(a, b int /* params - no extra blank after comment */) {}
+
+func _() { f(/* no args - extra blank before and after comment */) }
+func _() { f(a, b /* args - no extra blank after comment */) }
+
+func _() {
+	f(/* no args - extra blank before and after comment */)
+	f(a, b /* args - no extra blank after comment */)
+}
+
+func (/* comment1 */ T /* comment2 */) _() {}
+
+func _() { /* "short-ish one-line functions with comments are formatted as multi-line functions */ }
+func _() { x := 0; /* comment */ y = x /* comment */ }
+
+func _() {
+	_ = 0
+	/* closing curly brace should be on new line */ }
+
+func _() {
+	_ = []int{0, 1 /* don't introduce a newline after this comment - was issue 1365 */}
+}
+
+// Test cases from issue 1542:
+// Comments must not be placed before commas and cause invalid programs.
+func _() {
+	var a = []int{1, 2, /*jasldf*/
+	}
+	_ = a
+}
+
+func _() {
+	var a = []int{1, 2, /*jasldf
+						*/
+	}
+	_ = a
+}
+
+func _() {
+	var a = []int{1, 2, // jasldf
+	}
+	_ = a
+}
+
+// Test cases from issues 11274, 15137:
+// Semicolon must not be lost when multiple statements are on the same line with a comment.
+func _() {
+    x := 0 /**/; y := 1
+}
+
+func _() {
+	f(); f()
+	f(); /* comment */ f()
+	f() /* comment */; f()	
+	f(); /* a */ /* b */ f()
+	f() /* a */ /* b */; f()
+	f() /* a */; /* b */ f()
+}
+
+func _() {
+	f() /* a */ /* b */ }
+
+// Comments immediately adjacent to punctuation followed by a newline
+// remain after the punctuation (looks better and permits alignment of
+// comments).
+func _() {
+	_ = T{
+		1,    // comment after comma
+		2,    /* comment after comma */
+		3  ,  // comment after comma
+	}
+	_ = T{
+		1  ,// comment after comma
+		2  ,/* comment after comma */
+		3,// comment after comma
+	}
+	_ = T{
+		/* comment before literal */1,
+		2/* comment before comma - ok to move after comma */,
+		3  /* comment before comma - ok to move after comma */  ,
+	}
+
+	for
+		i=0;// comment after semicolon
+		i<9;/* comment after semicolon */
+		i++{// comment after opening curly brace
+	}
+
+	// TODO(gri) the last comment in this example should be aligned */
+	for
+		i=0;// comment after semicolon
+		i<9/* comment before semicolon - ok to move after semicolon */;
+		i++ /* comment before opening curly brace */ {
+	}
+}
+
+// If there is no newline following punctuation, commas move before the punctuation.
+// This way, commas interspersed in lists stay with the respective expression.
+func f(x/* comment */, y int, z int /* comment */, u, v, w int /* comment */) {
+	f(x /* comment */, y)
+	f(x /* comment */, 
+	y)
+	f(
+		x /* comment */,
+	)
+}
+
+func g(
+	x int /* comment */,
+) {}
+
+type _ struct {
+	a, b /* comment */, c int
+}
+
+type _ struct { a, b /* comment */, c int }
+
+func _() {
+	for a /* comment */, b := range x {
+	}
+}
+
+// Print line directives correctly.
+
+// The following is a legal line directive.
+//line foo:1
+func _() {
+	_ = 0
+// The following is a legal line directive. It must not be indented:
+//line foo:2
+	_ = 1
+
+// The following is not a legal line directive (it doesn't start in column 1):
+	//line foo:2
+	_ = 2
+
+// The following is not a legal line directive (missing colon):
+//line foo -3
+	_ = 3
+}
+
+// Line comments with tabs
+func _() {
+var	finput		*bufio.Reader			// input file
+var	stderr		*bufio.Writer
+var	ftable		*bufio.Writer			// y.go file
+var	foutput		*bufio.Writer			// y.output file
+
+var	oflag		string				// -o [y.go]		- y.go file
+var	vflag		string				// -v [y.output]	- y.output file
+var	lflag		bool				// -l			- disable line directives
+}
+
+// Trailing white space in comments should be trimmed
+func _() {
+// This comment has 4 blanks following that should be trimmed:    
+/* Each line of this comment has blanks or tabs following that should be trimmed:	
+   line 2:    
+   line 3:    			
+*/
+}
+
+var _ = []T{/* lone comment */}
+
+var _ = []T{
+/* lone comment */
+}
+
+var _ = []T{
+// lone comments
+// in composite lit
+}
+
+var _ = [][]T{
+	{
+		// lone comments
+		// in composite lit
+	},
+}
+
+// TODO: gofmt doesn't add these tabs; make it so that these golden
+// tests run the printer in a way that it's exactly like gofmt.
+
+var _ = []T{// lone comment
+}
+
+var _ = []T{// lone comments
+// in composite lit
+}
+
+/* This comment is the last entry in this file. It must be printed and should be followed by a newline */

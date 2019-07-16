@@ -1,0 +1,58 @@
+# go doc should find module documentation
+
+env GO111MODULE=on
+[short] skip
+
+# Check when module x is inside GOPATH/src.
+go doc y
+stdout 'Package y is.*alphabet'
+stdout 'import "x/y"'
+go doc x/y
+stdout 'Package y is.*alphabet'
+! go doc quote.Hello
+stderr 'doc: symbol quote is not a type' # because quote is not in local cache
+go list rsc.io/quote # now it is
+go doc quote.Hello
+stdout 'Hello returns a greeting'
+go doc quote
+stdout 'Package quote collects pithy sayings.'
+
+# Double-check when module x is outside GOPATH/src.
+env GOPATH=$WORK/emptygopath
+go doc x/y
+stdout 'Package y is.*alphabet'
+go doc y
+stdout 'Package y is.*alphabet'
+
+# Triple-check when module x is outside GOPATH/src,
+# but other packages with same import paths are in GOPATH/src.
+# Since go doc is running in module mode here, packages in active module
+# should be preferred over packages in GOPATH. See golang.org/issue/28992.
+env GOPATH=$WORK/gopath2
+go doc x/y
+! stdout 'Package y is.*GOPATH'
+stdout 'Package y is.*alphabet'
+go doc rsc.io/quote
+! stdout 'Package quote is located in a GOPATH workspace.'
+stdout 'Package quote collects pithy sayings.'
+
+-- go.mod --
+module x
+require rsc.io/quote v1.5.2
+
+-- y/y.go --
+// Package y is the next to last package of the alphabet.
+package y
+
+-- x.go --
+package x
+
+-- $WORK/gopath2/src/x/y/y.go --
+// Package y is located in a GOPATH workspace.
+package y
+-- $WORK/gopath2/src/rsc.io/quote/quote.go --
+// Package quote is located in a GOPATH workspace.
+package quote
+
+// Hello is located in a GOPATH workspace.
+func Hello() string { return "" }

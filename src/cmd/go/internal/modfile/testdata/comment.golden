@@ -1,0 +1,10 @@
+// comment
+module "x" // eol
+
+// mid comment
+
+// comment 2
+// comment 2 line 2
+module "y" // eoy
+
+// comment 3

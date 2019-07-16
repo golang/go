@@ -1,0 +1,16 @@
+#!/bin/rc -e
+# Copyright 2012 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+rfork e
+
+eval `{go env}
+
+GOPATH = () # we disallow local import for non-local packages, if $GOROOT happens
+            # to be under $GOPATH, then some tests below will fail
+GOBIN = () # Issue 14340
+GOFLAGS = ()
+GO111MODULE = ()
+
+exec go tool dist test -rebuild $*

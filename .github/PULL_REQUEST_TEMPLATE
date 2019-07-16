@@ -1,0 +1,25 @@
+This PR will be imported into Gerrit with the title and first
+comment (this text) used to generate the subject and body of
+the Gerrit change.
+
+**Please ensure you adhere to every item in this list.**
+
+More info can be found at https://github.com/golang/go/wiki/CommitMessage
+
++ The PR title is formatted as follows: `net/http: frob the quux before blarfing`
+  + The package name goes before the colon
+  + The part after the colon uses the verb tense + phrase that completes the blank in,
+    "This change modifies Go to ___________"
+  + Lowercase verb after the colon
+  + No trailing period
+  + Keep the title as short as possible. ideally under 76 characters or shorter
++ No Markdown
++ The first PR comment (this one) is wrapped at 76 characters, unless it's
+  really needed (ASCII art, table, or long link)
++ If there is a corresponding issue, add either `Fixes #1234` or `Updates #1234`
+  (the latter if this is not a complete fix) to this comment
++ If referring to a repo other than `golang/go` you can use the
+  `owner/repo#issue_number` syntax: `Fixes golang/tools#1234`
++ We do not use Signed-off-by lines in Go. Please don't add them.
+  Our Gerrit server & GitHub bots enforce CLA compliance instead.
++ Delete these instructions once you have read and applied them

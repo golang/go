@@ -1,0 +1,13 @@
+# golang.org/issue/29591: 'go get' was following plain-HTTP redirects even without -insecure.
+
+[!net] skip
+[!exec:git] skip
+
+env GO111MODULE=on
+env GOPROXY=direct
+env GOSUMDB=off
+
+! go get -d vcs-test.golang.org/insecure/go/insecure
+stderr 'redirected .* to insecure URL'
+
+go get -d -insecure vcs-test.golang.org/insecure/go/insecure

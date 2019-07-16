@@ -1,0 +1,32 @@
+[!net] skip
+
+env GO111MODULE=on
+env GOPROXY=direct
+env GOSUMDB=off
+
+# Without credentials, downloading a module from a path that requires HTTPS
+# basic auth should fail.
+env NETRC=$WORK/empty
+! go list all
+
+# With credentials from a netrc file, it should succeed.
+env NETRC=$WORK/netrc
+go mod tidy
+go list all
+stdout vcs-test.golang.org/auth/or401
+stdout vcs-test.golang.org/auth/or404
+
+-- go.mod --
+module private.example.com
+-- main.go --
+package useprivate
+
+import (
+	_ "vcs-test.golang.org/auth/or401"
+	_ "vcs-test.golang.org/auth/or404"
+)
+-- $WORK/empty --
+-- $WORK/netrc --
+machine vcs-test.golang.org
+	login aladdin
+	password opensesame
