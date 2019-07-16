@@ -495,6 +495,7 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 		ident, err := source.Identifier(r.ctx, r.view, f.(source.GoFile), pos)
 		if err != nil {
 			t.Error(err)
+			continue
 		}
 		changes, err := ident.Rename(r.ctx, newText)
 		if err != nil {
