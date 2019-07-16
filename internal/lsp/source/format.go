@@ -75,6 +75,7 @@ func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]TextEd
 		resolver.Main = nil
 		resolver.ModsByModPath = nil
 		resolver.ModsByDir = nil
+		resolver.ModCachePkgs = nil
 	}
 	options := &imports.Options{
 		Env: view.ProcessEnv(ctx),

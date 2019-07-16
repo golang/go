@@ -27,6 +27,8 @@ type ModuleResolver struct {
 	Main          *ModuleJSON
 	ModsByModPath []*ModuleJSON // All modules, ordered by # of path components in module Path...
 	ModsByDir     []*ModuleJSON // ...or Dir.
+
+	ModCachePkgs map[string]*pkg // Packages in the mod cache, keyed by absolute directory.
 }
 
 type ModuleJSON struct {
@@ -86,6 +88,8 @@ func (r *ModuleResolver) init() error {
 		}
 		return count(j) < count(i) // descending order
 	})
+
+	r.ModCachePkgs = make(map[string]*pkg)
 
 	r.Initialized = true
 	return nil
@@ -232,6 +236,15 @@ func (r *ModuleResolver) scan(_ references) ([]*pkg, error) {
 
 		dupCheck[dir] = true
 
+		absDir := dir
+		// Packages in the module cache are immutable. If we have
+		// already seen this package on a previous scan of the module
+		// cache, return that result.
+		if p, ok := r.ModCachePkgs[absDir]; ok {
+			result = append(result, p)
+			return
+		}
+
 		subdir := ""
 		if dir != root.Path {
 			subdir = dir[len(root.Path)+len("/"):]
@@ -298,10 +311,18 @@ func (r *ModuleResolver) scan(_ references) ([]*pkg, error) {
 			dir = canonicalDir
 		}
 
-		result = append(result, &pkg{
+		res := &pkg{
 			importPathShort: VendorlessPath(importPath),
 			dir:             dir,
-		})
+		}
+
+		switch root.Type {
+		case gopathwalk.RootModuleCache:
+			// Save the results of processing this directory.
+			r.ModCachePkgs[absDir] = res
+		}
+
+		result = append(result, res)
 	}, gopathwalk.Options{Debug: r.env.Debug, ModulesEnabled: true})
 	return result, nil
 }

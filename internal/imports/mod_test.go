@@ -118,6 +118,25 @@ import _ "example.com"
 	mt.assertFound("example.com", "x")
 }
 
+// Tests that scanning the module cache > 1 time is able to find the same module.
+func TestModMultipleScans(t *testing.T) {
+	mt := setup(t, `
+-- go.mod --
+module x
+
+require example.com v1.0.0
+
+-- x.go --
+package x
+import _ "example.com"
+`, "")
+	defer mt.cleanup()
+
+	mt.assertScanFinds("example.com", "x")
+	mt.assertScanFinds("example.com", "x")
+
+}
+
 // Tests that -mod=vendor sort of works. Adapted from mod_getmode_vendor.txt.
 func TestModeGetmodeVendor(t *testing.T) {
 	mt := setup(t, `
