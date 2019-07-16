@@ -68,11 +68,11 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 		// flag on the huge pages containing v and v+n-1, and
 		// only if those aren't aligned.
 		var head, tail uintptr
-		if uintptr(v)%physHugePageSize != 0 {
+		if uintptr(v)&(physHugePageSize-1) != 0 {
 			// Compute huge page containing v.
 			head = uintptr(v) &^ (physHugePageSize - 1)
 		}
-		if (uintptr(v)+n)%physHugePageSize != 0 {
+		if (uintptr(v)+n)&(physHugePageSize-1) != 0 {
 			// Compute huge page containing v+n-1.
 			tail = (uintptr(v) + n - 1) &^ (physHugePageSize - 1)
 		}
