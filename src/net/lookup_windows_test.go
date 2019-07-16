@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"internal/testenv"
 	"os/exec"
 	"reflect"
@@ -284,7 +285,7 @@ func ping(name string) (string, error) {
 	cmd := exec.Command("ping", "-n", "1", "-a", name)
 	stdoutStderr, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", errors.New(string(stdoutStderr))
+		return "", fmt.Errorf("%v: %v", err, string(stdoutStderr))
 	}
 	r := strings.ReplaceAll(string(stdoutStderr), "\r\n", "\n")
 	return r, nil
