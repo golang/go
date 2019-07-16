@@ -930,6 +930,12 @@ func testNewPackagesInOverlay(t *testing.T, exporter packagestest.Exporter) {
 			"b/b.go": `package b; import "golang.org/fake/c"; const B = "b" + c.C`,
 			"c/c.go": `package c; const C = "c"`,
 			"d/d.go": `package d; const D = "d"`,
+
+			// TODO: Remove these temporary files when golang.org/issue/33157 is resolved.
+			filepath.Join("e/e_temp.go"): ``,
+			filepath.Join("f/f_temp.go"): ``,
+			filepath.Join("g/g_temp.go"): ``,
+			filepath.Join("h/h_temp.go"): ``,
 		}}})
 	defer exported.Cleanup()
 
@@ -986,7 +992,11 @@ func testNewPackagesInOverlay(t *testing.T, exporter packagestest.Exporter) {
 	} {
 		exported.Config.Overlay = test.overlay
 		exported.Config.Mode = packages.LoadAllSyntax
-		initial, err := packages.Load(exported.Config, "golang.org/fake/e")
+		exported.Config.Logf = t.Logf
+
+		// With an overlay, we don't know the expected import path,
+		// so load with the absolute path of the directory.
+		initial, err := packages.Load(exported.Config, filepath.Join(dir, "e"))
 		if err != nil {
 			t.Error(err)
 			continue
