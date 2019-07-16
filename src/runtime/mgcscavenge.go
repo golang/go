@@ -130,7 +130,7 @@ func gcPaceScavenger() {
 	if physHugePageSize != 0 {
 		// Start by computing the amount of free memory we have in huge pages
 		// in total. Trivially, this is all the huge page work we need to do.
-		hugeWork := uint64(mheap_.free.unscavHugePages * physHugePageSize)
+		hugeWork := uint64(mheap_.free.unscavHugePages) << physHugePageShift
 
 		// ...but it could turn out that there's more huge work to do than
 		// total work, so cap it at total work. This might happen for very large
@@ -138,14 +138,14 @@ func gcPaceScavenger() {
 		// that there are free chunks of memory larger than a huge page that we don't want
 		// to scavenge.
 		if hugeWork >= totalWork {
-			hugePages := totalWork / uint64(physHugePageSize)
-			hugeWork = hugePages * uint64(physHugePageSize)
+			hugePages := totalWork >> physHugePageShift
+			hugeWork = hugePages << physHugePageShift
 		}
 		// Everything that's not huge work is regular work. At this point we
 		// know huge work so we can calculate how much time that will take
 		// based on scavengePageRate (which applies to pages of any size).
 		regularWork = totalWork - hugeWork
-		hugeTime = hugeWork / uint64(physHugePageSize) * scavengeHugePagePeriod
+		hugeTime = (hugeWork >> physHugePageShift) * scavengeHugePagePeriod
 	}
 	// Finally, we can compute how much time it'll take to do the regular work
 	// and the total time to do all the work.

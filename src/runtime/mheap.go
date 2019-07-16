@@ -561,7 +561,7 @@ func (s *mspan) hugePages() uintptr {
 		end &^= physHugePageSize - 1
 	}
 	if start < end {
-		return (end - start) / physHugePageSize
+		return (end - start) >> physHugePageShift
 	}
 	return 0
 }
