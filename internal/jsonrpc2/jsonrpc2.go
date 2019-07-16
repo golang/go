@@ -62,7 +62,7 @@ func NewErrorf(code int64, format string, args ...interface{}) *Error {
 // You must call Run for the connection to be active.
 func NewConn(s Stream) *Conn {
 	conn := &Conn{
-		handlers: []Handler{defaultHandler{}, &tracer{}},
+		handlers: []Handler{defaultHandler{}},
 		stream:   s,
 		pending:  make(map[ID]chan *WireResponse),
 		handling: make(map[ID]*Request),
