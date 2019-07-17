@@ -39,11 +39,14 @@ and then builds and installs them.
 The first step is to resolve which dependencies to add.
 
 For each named package or package pattern, get must decide which version of
-the corresponding module to use. By default, get chooses the latest tagged
+the corresponding module to use. By default, get looks up the latest tagged
 release version, such as v0.4.5 or v1.2.3. If there are no tagged release
-versions, get chooses the latest tagged pre-release version, such as
-v0.0.1-pre1. If there are no tagged versions at all, get chooses the latest
-known commit.
+versions, get looks up the latest tagged pre-release version, such as
+v0.0.1-pre1. If there are no tagged versions at all, get looks up the latest
+known commit. If the module is not already required at a later version
+(for example, a pre-release newer than the latest release), get will use
+the version it looked up. Otherwise, get will use the currently
+required version.
 
 This default version selection can be overridden by adding an @version
 suffix to the package argument, as in 'go get golang.org/x/text@v0.3.0'.

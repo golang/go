@@ -282,6 +282,17 @@ go env -w GOSUMDB=off
   major and minor versions as the version found in the build list.
 </p>
 
+<p><!-- CL 184440 -->
+  If a module passed as an argument to <code>go</code> <code>get</code>
+  without a version suffix is already required at a newer version than the
+  latest released version, it will remain at the newer version. This is
+  consistent with the behavior of the <code>-u</code> flag for module
+  dependencies. This prevents unexpected downgrades from pre-release versions.
+  The new version suffix <code>@upgrade</code> explicitly requests this
+  behavior. <code>@latest</code> explicitly requests the latest version
+  regardless of the current version.
+</p>
+
 <h4 id="version-validation">Version validation</h4><!-- CL 181881 -->
 
 <p>
