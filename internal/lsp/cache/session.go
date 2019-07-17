@@ -16,6 +16,7 @@ import (
 
 	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/xcontext"
@@ -67,12 +68,14 @@ func (s *session) NewView(ctx context.Context, name string, folder span.URI) sou
 	index := atomic.AddInt64(&viewIndex, 1)
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
-	ctx = xcontext.Detach(ctx)
-	backgroundCtx, cancel := context.WithCancel(ctx)
+	// We want a true background context and not a detatched context here
+	// the spans need to be unrelated and no tag values should pollute it.
+	baseCtx := trace.Detach(xcontext.Detach(ctx))
+	backgroundCtx, cancel := context.WithCancel(baseCtx)
 	v := &view{
 		session:       s,
 		id:            strconv.FormatInt(index, 10),
-		baseCtx:       ctx,
+		baseCtx:       baseCtx,
 		backgroundCtx: backgroundCtx,
 		cancel:        cancel,
 		name:          name,

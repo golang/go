@@ -305,7 +305,7 @@ type combined struct {
 // caused the termination.
 // It must be called exactly once for each Conn.
 // It returns only when the reader is closed or there is an error in the stream.
-func (c *Conn) Run(ctx context.Context) error {
+func (c *Conn) Run(runCtx context.Context) error {
 	// we need to make the next request "lock" in an unlocked state to allow
 	// the first incoming request to proceed. All later requests are unlocked
 	// by the preceding request going to parallel mode.
@@ -313,7 +313,7 @@ func (c *Conn) Run(ctx context.Context) error {
 	close(nextRequest)
 	for {
 		// get the data for a message
-		data, n, err := c.stream.Read(ctx)
+		data, n, err := c.stream.Read(runCtx)
 		if err != nil {
 			// the stream failed, we cannot continue
 			return err
@@ -324,7 +324,7 @@ func (c *Conn) Run(ctx context.Context) error {
 			// a badly formed message arrived, log it and continue
 			// we trust the stream to have isolated the error to just this message
 			for _, h := range c.handlers {
-				h.Error(ctx, fmt.Errorf("unmarshal failed: %v", err))
+				h.Error(runCtx, fmt.Errorf("unmarshal failed: %v", err))
 			}
 			continue
 		}
@@ -332,7 +332,7 @@ func (c *Conn) Run(ctx context.Context) error {
 		switch {
 		case msg.Method != "":
 			// if method is set it must be a request
-			ctx, cancelReq := context.WithCancel(ctx)
+			reqCtx, cancelReq := context.WithCancel(runCtx)
 			thisRequest := nextRequest
 			nextRequest = make(chan struct{})
 			req := &Request{
@@ -347,8 +347,8 @@ func (c *Conn) Run(ctx context.Context) error {
 				},
 			}
 			for _, h := range c.handlers {
-				ctx = h.Request(ctx, Receive, &req.WireRequest)
-				ctx = h.Read(ctx, n)
+				reqCtx = h.Request(reqCtx, Receive, &req.WireRequest)
+				reqCtx = h.Read(reqCtx, n)
 			}
 			c.setHandling(req, true)
 			go func() {
@@ -357,17 +357,17 @@ func (c *Conn) Run(ctx context.Context) error {
 				defer func() {
 					c.setHandling(req, false)
 					if !req.IsNotify() && req.state < requestReplied {
-						req.Reply(ctx, nil, NewErrorf(CodeInternalError, "method %q did not reply", req.Method))
+						req.Reply(reqCtx, nil, NewErrorf(CodeInternalError, "method %q did not reply", req.Method))
 					}
 					req.Parallel()
 					for _, h := range c.handlers {
-						h.Done(ctx, err)
+						h.Done(reqCtx, err)
 					}
 					cancelReq()
 				}()
 				delivered := false
 				for _, h := range c.handlers {
-					if h.Deliver(ctx, req, delivered) {
+					if h.Deliver(reqCtx, req, delivered) {
 						delivered = true
 					}
 				}
@@ -390,7 +390,7 @@ func (c *Conn) Run(ctx context.Context) error {
 			close(rchan)
 		default:
 			for _, h := range c.handlers {
-				h.Error(ctx, fmt.Errorf("message not a call, notify or response, ignoring"))
+				h.Error(runCtx, fmt.Errorf("message not a call, notify or response, ignoring"))
 			}
 		}
 	}

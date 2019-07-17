@@ -14,3 +14,7 @@ import (
 func StartSpan(ctx context.Context, name string, tags ...tag.Tag) (context.Context, func()) {
 	return tag.With(ctx, tags...), func() {}
 }
+
+// Detach returns a context without an associated span.
+// This allows the creation of spans that are not children of the current span.
+func Detach(ctx context.Context) context.Context { return ctx }
