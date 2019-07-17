@@ -4,8 +4,14 @@
 
 package p
 
-type List(type P) []P
+type List(type E) []E
 
-type T(type P) List(P)
+func f(type P) (x P) List(P) {
+	return List(P){x}
+}
 
-var _ T(int) //= T(int)(List(int){1, 2, 3})
+var (
+	_ []int = f(0)
+	_ []float32 = f(float32)(10)
+	//_ []List(int) = f(List(int){})
+)

@@ -18,7 +18,6 @@ import (
 const (
 	debug = false // leave on during development
 	trace = false // turn on for detailed type resolution traces
-	halt  = false // panic on error
 )
 
 // If Strict is set, the type-checker enforces additional

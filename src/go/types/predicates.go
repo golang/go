@@ -308,7 +308,22 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair, tparams 
 		}
 
 	case *Parameterized:
-		panic("internal error: cannot compare uninstantiated parametrized types for identity")
+		// Two parameterized types are identical if the type name and the parameters are identical.
+		// TODO(gri) This ignores alias types for now. E.g., type A(type P) = P; A(int) == int does
+		// not work.
+		if y, ok := y.(*Parameterized); ok {
+			if x.tname != y.tname {
+				return false
+			}
+			assert(len(x.targs) == len(y.targs)) // since x, y have identical tname
+			for i, x := range x.targs {
+				y := y.targs[i]
+				if !identical(x, y, cmpTags, p, tparams) {
+					return false
+				}
+			}
+			return true
+		}
 
 	case *TypeParam:
 		if y, ok := y.(*TypeParam); ok {

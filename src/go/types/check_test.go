@@ -100,7 +100,7 @@ var tests = [][]string{
 	{"testdata/issue6977.src"},
 
 	// Go 2 tests (type parameters and contracts)
-	// {"testdata/tmp.go2"}, // used for ad-hoc tests - file contents transient, excluded from tests
+	{"testdata/tmp.go2"}, // used for ad-hoc tests - file contents transient
 	{"testdata/typeparams.go2"},
 	{"testdata/typeinst.go2"},
 	{"testdata/typeinst2.go2"},

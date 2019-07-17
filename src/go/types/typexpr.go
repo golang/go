@@ -275,7 +275,11 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 	case *ast.CallExpr:
 		typ := new(Parameterized)
 		def.setUnderlying(typ)
-		check.parameterizedType(typ, e)
+		if check.parameterizedType(typ, e) {
+			return typ
+		}
+		// TODO(gri) If we have a cycle and we reach here, "leafs" of
+		// the cycle may refer to a not fully set up Parameterized typ.
 
 	case *ast.ParenExpr:
 		return check.definedType(e.X, def)
@@ -447,18 +451,18 @@ func (check *Checker) typeList(list []ast.Expr) []Type {
 	return nil
 }
 
-func (check *Checker) parameterizedType(typ *Parameterized, e *ast.CallExpr) {
+func (check *Checker) parameterizedType(typ *Parameterized, e *ast.CallExpr) bool {
 	// TODO(gri) This code cannot handle type aliases at the moment.
 	// Probably need to do the name lookup here.
 	t := check.typ(e.Fun)
 	if t == Typ[Invalid] {
-		return // error already reported
+		return false // error already reported
 	}
 
 	named, _ := t.(*Named)
 	if named == nil || named.obj == nil || !named.obj.IsParameterized() {
 		check.errorf(e.Pos(), "%s is not a parametrized type", t)
-		return
+		return false
 	}
 
 	// the number of supplied types must match the number of type parameters
@@ -467,13 +471,13 @@ func (check *Checker) parameterizedType(typ *Parameterized, e *ast.CallExpr) {
 	if len(e.Args) != len(tname.tparams) {
 		// TODO(gri) provide better error message
 		check.errorf(e.Pos(), "got %d arguments but %d type parameters", len(e.Args), len(tname.tparams))
-		return
+		return false
 	}
 
 	// evaluate arguments
 	args := check.typeList(e.Args)
 	if args == nil {
-		return
+		return false
 	}
 
 	// TODO(gri) If none of the arguments is parameterized than we can instantiate the type.
@@ -484,6 +488,7 @@ func (check *Checker) parameterizedType(typ *Parameterized, e *ast.CallExpr) {
 	// complete parameterized type
 	typ.tname = tname
 	typ.targs = args
+	return true
 }
 
 func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool) (params []*Var, variadic bool) {

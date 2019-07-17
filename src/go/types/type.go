@@ -556,7 +556,7 @@ func (t *Interface) Underlying() Type     { return t }
 func (m *Map) Underlying() Type           { return m }
 func (c *Chan) Underlying() Type          { return c }
 func (t *Named) Underlying() Type         { return t.underlying }
-func (p *Parameterized) Underlying() Type { return p } // TODO(gri) is this correct?
+func (p *Parameterized) Underlying() Type { return p.tname.typ.Underlying() }
 func (c *Contract) Underlying() Type      { return c }
 func (c *TypeParam) Underlying() Type     { return c }
 

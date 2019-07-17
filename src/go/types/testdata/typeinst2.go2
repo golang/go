@@ -32,5 +32,5 @@ type T3(type P) T1(T2(P, P))
 func _() {
 	var x1 T3(int)
 	var x2 T2(int, int)
-	x1.f1.f2.f2 = x2
+	x1.f1.f2 = x2
 }
