@@ -288,12 +288,12 @@ func Req(target module.Version, list []module.Version, base []string, reqs Reqs)
 	}
 
 	// Walk modules in reverse post-order, only adding those not implied already.
-	have := map[string]string{}
+	have := map[module.Version]bool{}
 	walk = func(m module.Version) error {
-		if v, ok := have[m.Path]; ok && reqs.Max(m.Version, v) == v {
+		if have[m] {
 			return nil
 		}
-		have[m.Path] = m.Version
+		have[m] = true
 		for _, m1 := range reqCache[m] {
 			walk(m1)
 		}
@@ -321,7 +321,7 @@ func Req(target module.Version, list []module.Version, base []string, reqs Reqs)
 			// Older version.
 			continue
 		}
-		if have[m.Path] != m.Version {
+		if !have[m] {
 			min = append(min, m)
 			walk(m)
 		}

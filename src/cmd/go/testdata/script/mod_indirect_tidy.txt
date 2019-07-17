@@ -1,0 +1,60 @@
+env GO111MODULE=on
+
+# golang.org/issue/31248: loading the build list must not add explicit entries
+# for indirect dependencies already implied by older-than-selected versions
+# already in the build list.
+
+cp go.mod.orig go.mod
+go mod tidy
+cmp go.mod go.mod.orig
+
+cp go.mod.orig go.mod
+go list -m all
+cmp go.mod go.mod.orig
+
+-- go.mod.orig --
+module main
+
+go 1.13
+
+require a v0.0.0
+
+replace (
+	a v0.0.0 => ./a
+	b v0.0.0 => ./b
+	i v0.0.0 => ./i
+	x v0.1.0 => ./x1
+	x v0.2.0 => ./x2
+)
+-- main.go --
+package main
+
+import _ "a"
+
+func main() {}
+-- a/go.mod --
+module a
+go 1.13
+require (
+	x v0.2.0
+	b v0.0.0
+)
+-- a/a.go --
+package a
+-- b/go.mod --
+module b
+go 1.13
+require x v0.1.0
+-- x1/go.mod --
+module x
+go 1.13
+require (
+	b v0.0.0
+	i v0.0.0
+)
+-- x2/go.mod --
+module x
+go 1.13
+-- i/go.mod --
+module i
+go 1.13
