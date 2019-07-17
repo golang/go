@@ -295,6 +295,14 @@ H1: G1
 req A: G1
 req A G: G1
 req A H: H1
+
+name: req3
+M: A1 B1
+A1: X1
+B1: X2
+X1: I1
+X2: 
+req M: A1 B1
 `
 
 func Test(t *testing.T) {
