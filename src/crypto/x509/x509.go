@@ -98,7 +98,7 @@ func marshalPublicKey(pub interface{}) (publicKeyBytes []byte, publicKeyAlgorith
 		publicKeyBytes = pub
 		publicKeyAlgorithm.Algorithm = oidPublicKeyEd25519
 	default:
-		return nil, pkix.AlgorithmIdentifier{}, errors.New("x509: only RSA and ECDSA public keys supported")
+		return nil, pkix.AlgorithmIdentifier{}, errors.New("x509: only *rsa.PublicKey, *ecdsa.PublicKey and ed25519.PublicKey supported")
 	}
 
 	return publicKeyBytes, publicKeyAlgorithm, nil
