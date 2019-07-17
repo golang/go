@@ -24,6 +24,7 @@ import (
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/telemetry/ocagent"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/tool"
 	"golang.org/x/tools/internal/xcontext"
@@ -59,6 +60,9 @@ type Application struct {
 
 	// Enable verbose logging
 	Verbose bool `flag:"v" help:"Verbose output"`
+
+	// Control ocagent export of telemetry
+	OCAgent string `flag:"ocagent" help:"The address of the ocagent, or off"`
 }
 
 // Returns a new Application ready to run.
@@ -67,10 +71,11 @@ func New(name, wd string, env []string) *Application {
 		wd, _ = os.Getwd()
 	}
 	app := &Application{
-		cache: cache.New(),
-		name:  name,
-		wd:    wd,
-		env:   env,
+		cache:   cache.New(),
+		name:    name,
+		wd:      wd,
+		env:     env,
+		OCAgent: "off", //TODO: Remove this line to default the exporter to on
 	}
 	return app
 }
@@ -106,6 +111,7 @@ gopls flags are:
 // If no arguments are passed it will invoke the server sub command, as a
 // temporary measure for compatibility.
 func (app *Application) Run(ctx context.Context, args ...string) error {
+	ocagent.Export(app.name, app.OCAgent)
 	app.Serve.app = app
 	if len(args) == 0 {
 		tool.Main(ctx, &app.Serve, args)

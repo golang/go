@@ -6,8 +6,13 @@
 // to work cooperatively and efficiently.
 package worker
 
+import (
+	"fmt"
+	"os"
+)
+
 var (
-	workQueue = make(chan func(), 100)
+	workQueue = make(chan func(), 1000)
 )
 
 func init() {
@@ -26,5 +31,10 @@ func init() {
 // This function may block, but in general it will return very quickly and
 // before the task has been run.
 func Do(task func()) {
-	workQueue <- task
+	select {
+	case workQueue <- task:
+	default:
+		fmt.Fprint(os.Stderr, "work queue is full\n")
+		workQueue <- task
+	}
 }
