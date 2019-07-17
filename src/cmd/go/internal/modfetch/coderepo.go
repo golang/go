@@ -192,7 +192,13 @@ func (r *codeRepo) Stat(rev string) (*RevInfo, error) {
 	codeRev := r.revToRev(rev)
 	info, err := r.code.Stat(codeRev)
 	if err != nil {
-		return nil, err
+		return nil, &module.ModuleError{
+			Path: r.modPath,
+			Err: &module.InvalidVersionError{
+				Version: rev,
+				Err:     err,
+			},
+		}
 	}
 	return r.convert(info, rev)
 }
