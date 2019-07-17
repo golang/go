@@ -134,6 +134,19 @@ cd ..
 go list -m golang.org/x/text
 stdout 'golang.org/x/text v0.0.0-0.20170915032832-14c0d48ead0c => golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c'
 
+# A 'replace' directive can replace an invalid 'latest' version, and
+# should suppress errors for that version in 'go get -u'
+cp go.mod.orig go.mod
+go mod edit -require golang.org/x/text@v1.999999.0
+go mod edit -replace golang.org/x/text@v1.999999.0=golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c
+cd outside
+! go get -d golang.org/x/text@upgrade
+stderr 'go get golang.org/x/text@upgrade: golang.org/x/text@v1.999999.0: invalid version: unknown revision v1.999999.0'
+cd ..
+go get -d golang.org/x/text@upgrade
+go list -m golang.org/x/text
+stdout 'golang.org/x/text v1.999999.0 => golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c'
+
 # A pseudo-version derived from a non-ancestor tag is invalid.
 cp go.mod.orig go.mod
 go mod edit -require golang.org/x/text@v0.2.1-0.20170915032832-14c0d48ead0c

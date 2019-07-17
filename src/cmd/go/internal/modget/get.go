@@ -765,6 +765,16 @@ func getQuery(path, vers string, prevM module.Version, forceModulePath bool) (mo
 
 		// If the query fails, and the path must be a real module, report the query error.
 		if forceModulePath {
+			// If the query was "upgrade" or "patch" and the current version has been
+			// replaced, check to see whether the error was for that same version:
+			// if so, the version was probably replaced because it is invalid,
+			// and we should keep that replacement without complaining.
+			if vers == "upgrade" || vers == "patch" {
+				var vErr *module.InvalidVersionError
+				if errors.As(err, &vErr) && vErr.Version == prevM.Version && modload.Replacement(prevM).Path != "" {
+					return prevM, nil
+				}
+			}
 			return module.Version{}, err
 		}
 	}
@@ -911,6 +921,15 @@ func (u *upgrader) Upgrade(m module.Version) (module.Version, error) {
 	if err != nil {
 		// Report error but return m, to let version selection continue.
 		// (Reporting the error will fail the command at the next base.ExitIfErrors.)
+
+		// Special case: if the error is for m.Version itself and m.Version has a
+		// replacement, then keep it and don't report the error: the fact that the
+		// version is invalid is likely the reason it was replaced to begin with.
+		var vErr *module.InvalidVersionError
+		if errors.As(err, &vErr) && vErr.Version == m.Version && modload.Replacement(m).Path != "" {
+			return m, nil
+		}
+
 		// Special case: if the error is "no matching versions" then don't
 		// even report the error. Because Query does not consider pseudo-versions,
 		// it may happen that we have a pseudo-version but during -u=patch
