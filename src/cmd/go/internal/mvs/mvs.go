@@ -216,8 +216,8 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) (m
 		}
 	}
 
-	// Construct the list by traversing the graph again, replacing older
-	// modules with required minimum versions.
+	// The final list is the minimum version of each module found in the graph.
+
 	if v := min[target.Path]; v != target.Version {
 		// TODO(jayconrod): there is a special case in modload.mvsReqs.Max
 		// that prevents us from selecting a newer version of a module
@@ -228,18 +228,17 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) (m
 	}
 
 	list := []module.Version{target}
-	listed := map[string]bool{target.Path: true}
-	for i := 0; i < len(list); i++ {
-		n := modGraph[list[i]]
+	for path, vers := range min {
+		if path != target.Path {
+			list = append(list, module.Version{Path: path, Version: vers})
+		}
+
+		n := modGraph[module.Version{Path: path, Version: vers}]
 		required := n.required
 		for _, r := range required {
 			v := min[r.Path]
 			if r.Path != target.Path && reqs.Max(v, r.Version) != v {
 				panic(fmt.Sprintf("mistake: version %q does not satisfy requirement %+v", v, r)) // TODO: Don't panic.
-			}
-			if !listed[r.Path] {
-				list = append(list, module.Version{Path: r.Path, Version: v})
-				listed[r.Path] = true
 			}
 		}
 	}
