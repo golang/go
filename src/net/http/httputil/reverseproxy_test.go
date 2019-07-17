@@ -659,6 +659,26 @@ func TestReverseProxy_NilBody(t *testing.T) {
 	}
 }
 
+// Issue 33142: always allocate the request headers
+func TestReverseProxy_AllocatedHeader(t *testing.T) {
+	proxyHandler := new(ReverseProxy)
+	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
+	proxyHandler.Director = func(*http.Request) {}         // noop
+	proxyHandler.Transport = RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Header == nil {
+			t.Error("Header == nil; want a non-nil Header")
+		}
+		return nil, errors.New("done testing the interesting part; so force a 502 Gateway error")
+	})
+
+	proxyHandler.ServeHTTP(httptest.NewRecorder(), &http.Request{
+		Method:     "GET",
+		URL:        &url.URL{Scheme: "http", Host: "fake.tld", Path: "/"},
+		Proto:      "HTTP/1.0",
+		ProtoMajor: 1,
+	})
+}
+
 // Issue 14237. Test ModifyResponse and that an error from it
 // causes the proxy to return StatusBadGateway, or StatusOK otherwise.
 func TestReverseProxyModifyResponse(t *testing.T) {
