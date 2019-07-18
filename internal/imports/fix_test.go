@@ -1306,6 +1306,7 @@ var (
 				"myotherpackage/toformat.go": input,
 			},
 		},
+		goPackagesIncompatible: true, // https://golang.org/issue/33175
 	}.processTest(t, "golang.org/fake", "myotherpackage/toformat.go", nil, nil, want)
 }
 
@@ -1434,6 +1435,7 @@ var _ = race.Acquire
 				"bar/x.go":           input,
 			},
 		},
+		goPackagesIncompatible: true, // https://golang.org/issue/33175
 	}.processTest(t, "foo.com", "bar/x.go", nil, nil, importAdded)
 
 	// Packages outside the same directory should not.
@@ -1646,6 +1648,7 @@ const Y = bar.X
 				"test/t.go":        input,
 			},
 		},
+		goPackagesIncompatible: true, // https://golang.org/issue/33175
 	}.processTest(t, "foo.com", "test/t.go", nil, nil, want)
 }
 
@@ -1833,6 +1836,7 @@ const Y = foo.X
 				"x/x.go":     input,
 			},
 		},
+		goPackagesIncompatible: true, // https://golang.org/issue/33175
 	}.processTest(t, "foo.com", "x/x.go", nil, nil, want)
 }
 
@@ -2139,6 +2143,7 @@ var _ = pkg.DoIt
 				"pkg/x_test.go":  input,
 			},
 		},
+		goPackagesIncompatible: true, // https://golang.org/issue/33175
 	}.processTest(t, "foo.com", "pkg/x_test.go", nil, nil, want)
 }
 
