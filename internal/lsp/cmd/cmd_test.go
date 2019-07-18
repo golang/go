@@ -39,7 +39,7 @@ func testCommandLine(t *testing.T, exporter packagestest.Exporter) {
 	r := &runner{
 		exporter: exporter,
 		data:     data,
-		app:      cmd.New(data.Config.Dir, data.Exported.Config.Env),
+		app:      cmd.New("gopls-test", data.Config.Dir, data.Exported.Config.Env),
 		ctx:      tests.Context(t),
 	}
 	tests.Run(t, r, data)

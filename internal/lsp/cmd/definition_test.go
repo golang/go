@@ -55,7 +55,7 @@ func TestDefinitionHelpExample(t *testing.T) {
 		fmt.Sprintf("%v:#%v", thisFile, cmd.ExampleOffset)} {
 		args := append(baseArgs, query)
 		got := captureStdOut(t, func() {
-			tool.Main(tests.Context(t), cmd.New("", nil), args)
+			tool.Main(tests.Context(t), cmd.New("gopls-test", "", nil), args)
 		})
 		if !expect.MatchString(got) {
 			t.Errorf("test with %v\nexpected:\n%s\ngot:\n%s", args, expect, got)

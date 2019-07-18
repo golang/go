@@ -45,6 +45,9 @@ type Application struct {
 	// The base cache to use for sessions from this application.
 	cache source.Cache
 
+	// The name of the binary, used in help and telemetry.
+	name string
+
 	// The working directory to run commands in.
 	wd string
 
@@ -59,12 +62,13 @@ type Application struct {
 }
 
 // Returns a new Application ready to run.
-func New(wd string, env []string) *Application {
+func New(name, wd string, env []string) *Application {
 	if wd == "" {
 		wd, _ = os.Getwd()
 	}
 	app := &Application{
 		cache: cache.New(),
+		name:  name,
 		wd:    wd,
 		env:   env,
 	}
@@ -72,7 +76,7 @@ func New(wd string, env []string) *Application {
 }
 
 // Name implements tool.Application returning the binary name.
-func (app *Application) Name() string { return "gopls" }
+func (app *Application) Name() string { return app.name }
 
 // Usage implements tool.Application returning empty extra argument usage.
 func (app *Application) Usage() string { return "<command> [command-flags] [command-args]" }
