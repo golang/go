@@ -34,3 +34,16 @@ func _() {
 	var x2 T2(int, int)
 	x1.f1.f2 = x2
 }
+
+func f(type P) (x P) List(P) {
+	return List(P){x}
+}
+
+var (
+	_ []int = f(0)
+	_ []float32 = f(float32)(10)
+	_ List(complex128) = f(1i)
+	_ [](List(int)) = f(List(int){})
+        _ List(List(int)) = [](List(int)){}
+        _ = [](List(int)){}
+)

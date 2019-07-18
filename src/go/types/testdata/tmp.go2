@@ -11,10 +11,9 @@ func f(type P) (x P) List(P) {
 }
 
 var (
-	//_ []int = f(0)
-	//_ []float32 = f(float32)(10)
-        // TODO(gri) fix next line
-	// [](List(int)) = f(List(int){})
-        // _ List(List(int)) = [](List(int)){}
-        // _ = [](List(int)){}
+	_ []int = f(0)
+	_ []float32 = f(float32)(10)
+	_ [](List(int)) = f(List(int){})
+        _ List(List(int)) = [](List(int)){}
+        _ = [](List(int)){}
 )

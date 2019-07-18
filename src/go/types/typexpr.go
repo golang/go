@@ -276,6 +276,11 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 		typ := new(Parameterized)
 		def.setUnderlying(typ)
 		if check.parameterizedType(typ, e) {
+			if isParameterizedList(typ.targs) {
+				return typ
+			}
+			typ := check.inst(typ.tname, typ.targs)
+			def.setUnderlying(typ) // TODO(gri) do we need this?
 			return typ
 		}
 		// TODO(gri) If we have a cycle and we reach here, "leafs" of
@@ -479,11 +484,6 @@ func (check *Checker) parameterizedType(typ *Parameterized, e *ast.CallExpr) boo
 	if args == nil {
 		return false
 	}
-
-	// TODO(gri) If none of the arguments is parameterized than we can instantiate the type.
-	// When instantiating, it will become a different type, at which point the outer type is
-	// not correct anymore (it's not a Parameterized). If it's defined type, it may also have
-	// methods and we don't deal with those either... :-(
 
 	// complete parameterized type
 	typ.tname = tname

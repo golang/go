@@ -16,7 +16,7 @@ import (
 
 // debugging/development support
 const (
-	debug = false // leave on during development
+	debug = true  // leave on during development
 	trace = false // turn on for detailed type resolution traces
 )
 
