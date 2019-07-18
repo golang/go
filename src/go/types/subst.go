@@ -127,7 +127,8 @@ func (s *subster) typ(typ Type) (res Type) {
 				panic("cannot handle instantiation of types with methods yet")
 			}
 			// TODO(gri) review name creation and factor out
-			name := t.obj.name + typeArgsString(s.targs)
+			name := TypeString(t, nil) + "<" + typeListString(s.targs) + ">"
+			//s.check.dump("NAME = %s", name)
 			tname, found := s.check.typMap[name]
 			if !found {
 				// TODO(gri) what is the correct position to use here?
@@ -208,15 +209,13 @@ func (s *subster) varList(in []*Var) (out []*Var, copied bool) {
 	return
 }
 
-func typeArgsString(targs []Type) string {
+func typeListString(targs []Type) string {
 	var buf bytes.Buffer
-	buf.WriteByte('<')
 	for i, arg := range targs {
 		if i > 0 {
 			buf.WriteString(", ")
 		}
-		buf.WriteString(TypeString(arg, nil))
+		WriteType(&buf, arg, nil)
 	}
-	buf.WriteByte('>')
 	return buf.String()
 }

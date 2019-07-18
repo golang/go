@@ -9,6 +9,7 @@ package types
 import (
 	"bytes"
 	"fmt"
+	"strings"
 )
 
 // A Qualifier controls how named package-level objects are printed in
@@ -236,16 +237,16 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 
 	case *Named:
 		writeTypeName(buf, t.obj, qf)
-		if t.obj != nil && len(t.obj.tparams) > 0 {
-			buf.WriteByte('(')
-			for i, tpar := range t.obj.tparams {
-				if i > 0 {
-					buf.WriteString(", ")
-				}
-				writeTypeName(buf, tpar, qf)
-			}
-			buf.WriteByte(')')
-		}
+		// if t.obj != nil && len(t.obj.tparams) > 0 {
+		// 	buf.WriteByte('(')
+		// 	for i, tpar := range t.obj.tparams {
+		// 		if i > 0 {
+		// 			buf.WriteString(", ")
+		// 		}
+		// 		writeTypeName(buf, tpar, qf)
+		// 	}
+		// 	buf.WriteByte(')')
+		// }
 
 	case *Parameterized:
 		writeTypeName(buf, t.tname, qf)
@@ -289,7 +290,12 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 func writeTypeName(buf *bytes.Buffer, obj *TypeName, qf Qualifier) {
 	s := "<Named w/o object>"
 	if obj != nil {
-		if obj.pkg != nil {
+		// Don't prefix an instantiated type (which is marked by a closing '>')
+		// with yet another package name - the instantiated type is already fully
+		// qualified. See code in subst.go.
+		// TODO(gri) Need to factor out '>' or named type string generation;
+		// this dependency is too subtle.
+		if obj.pkg != nil && !strings.HasSuffix(obj.name, ">") {
 			writePackage(buf, obj.pkg, qf)
 		}
 		// TODO(gri): function-local named types should be displayed
