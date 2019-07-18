@@ -1075,11 +1075,6 @@ type testDeps interface {
 // It is not meant to be called directly and is not subject to the Go 1 compatibility document.
 // It may change signature from release to release.
 func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) *M {
-	// In most cases, Init has already been called by the testinginit code
-	// that 'go test' injects into test packages.
-	// Call it again here to handle cases such as:
-	// - test packages that don't import "testing" (such as example-only packages)
-	// - direct use of MainStart (though that isn't well-supported)
 	Init()
 	return &M{
 		deps:       deps,
