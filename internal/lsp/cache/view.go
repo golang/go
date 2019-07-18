@@ -402,15 +402,6 @@ func (v *view) remove(ctx context.Context, id packageID, seen map[packageID]stru
 			continue
 		}
 		gof.mu.Lock()
-		// TODO: Ultimately, we shouldn't need this.
-		if cph, ok := gof.pkgs[id]; ok {
-			// Delete the package handle from the store.
-			v.session.cache.store.Delete(checkPackageKey{
-				id:     cph.ID(),
-				files:  hashParseKeys(cph.Files()),
-				config: hashConfig(cph.Config()),
-			})
-		}
 		delete(gof.pkgs, id)
 		gof.mu.Unlock()
 	}

@@ -21,8 +21,7 @@ func TestStore(t *testing.T) {
 	ctx := context.Background()
 	s := &memoize.Store{}
 	logBuffer := &bytes.Buffer{}
-
-	s.Bind("logger", func(context.Context) interface{} { return logBuffer }).Get(ctx)
+	ctx = context.WithValue(ctx, "logger", logBuffer)
 
 	// These tests check the behavior of the Bind and Get functions.
 	// They confirm that the functions only ever run once for a given value.
@@ -114,13 +113,13 @@ end @3 =  G !fail H
 	// Confirm our expectation that pinned values should remain cached,
 	// and unpinned values should be garbage collected.
 	for _, k := range pinned {
-		if v := s.Cached(k); v == nil {
+		if v := s.Find(k); v == nil {
 			t.Errorf("pinned value %q was nil", k)
 		}
 	}
 	for _, k := range unpinned {
-		if v := s.Cached(k); v != nil {
-			t.Errorf("unpinned value %q should be nil, was %q", k, v)
+		if v := s.Find(k); v != nil {
+			t.Errorf("unpinned value %q should be nil, was %v", k, v)
 		}
 	}
 
@@ -157,8 +156,6 @@ func runAllFinalizers(t *testing.T) {
 }
 
 type stringOrError struct {
-	memoize.NoCopy
-
 	value string
 	err   error
 }
@@ -201,8 +198,8 @@ func generate(s *memoize.Store, key interface{}) memoize.Function {
 
 // logGenerator generates a *stringOrError value, while logging to the store's logger.
 func logGenerator(ctx context.Context, s *memoize.Store, name string, v string, err error) *stringOrError {
-	// Get the logger from the store.
-	w := s.Cached("logger").(io.Writer)
+	// Get the logger from the context.
+	w := ctx.Value("logger").(io.Writer)
 
 	if err != nil {
 		fmt.Fprintf(w, "error %v = %v\n", name, err)
@@ -214,8 +211,8 @@ func logGenerator(ctx context.Context, s *memoize.Store, name string, v string, 
 
 // joinValues binds a list of keys to their values, while logging to the store's logger.
 func joinValues(ctx context.Context, s *memoize.Store, name string, keys ...string) *stringOrError {
-	// Get the logger from the store.
-	w := s.Cached("logger").(io.Writer)
+	// Get the logger from the context.
+	w := ctx.Value("logger").(io.Writer)
 
 	fmt.Fprintf(w, "start %v\n", name)
 	value := ""

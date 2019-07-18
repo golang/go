@@ -28,7 +28,7 @@ import (
 type Store struct {
 	mu sync.Mutex
 	// entries is the set of values stored.
-	entries map[interface{}]*entry
+	entries map[interface{}]uintptr
 }
 
 // Function is the type for functions that can be memoized.
@@ -38,25 +38,20 @@ type Function func(ctx context.Context) interface{}
 // Handle is returned from a store when a key is bound to a function.
 // It is then used to access the results of that function.
 type Handle struct {
-	mu       sync.Mutex
+	mu    sync.Mutex
+	store *Store
+	key   interface{}
+	// the function that will be used to populate the value
 	function Function
-	entry    *entry
-	value    interface{}
-}
-
-// entry holds the machinery to manage a function and its result such that
-// there is only one instance of the result live at any given time.
-type entry struct {
-	noCopy
-	key interface{}
-	// mu controls access to the typ and ptr fields
-	mu sync.Mutex
-	// the calculated value, as stored in an interface{}
-	typ, ptr uintptr
-	ready    bool
+	// the lazily poplulated value
+	value interface{}
 	// wait is used to block until the value is ready
 	// will only be non nil if the generator is already running
-	wait chan struct{}
+	wait chan interface{}
+	// the cancel function for the context being used by the generator
+	// it can be used to abort the generator if the handle is garbage
+	// collected.
+	cancel context.CancelFunc
 }
 
 // Has returns true if they key is currently valid for this store.
@@ -67,19 +62,13 @@ func (s *Store) Has(key interface{}) bool {
 	return found
 }
 
-// Delete removes a key from the store, if present.
-func (s *Store) Delete(key interface{}) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.entries, key)
-}
-
 // Bind returns a handle for the given key and function.
 //
-// Each call to bind will generate a new handle.
-// All of of the handles for a single key will refer to the same value.
-// Only the first handle to get the value will cause the function to be invoked.
-// The value will be held for as long as there are handles through which it has been accessed.
+// Each call to bind will return the same handle if it is already bound.
+// Bind will always return a valid handle, creating one if needed.
+// Each key can only have one handle at any given time.
+// The value will be held for as long as the handle is, once it has been
+// generated.
 // Bind does not cause the value to be generated.
 func (s *Store) Bind(key interface{}, function Function) *Handle {
 	// panic early if the function is nil
@@ -90,19 +79,34 @@ func (s *Store) Bind(key interface{}, function Function) *Handle {
 	// check if we already have the key
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	e, found := s.entries[key]
-	if !found {
-		// we have not seen this key before, add a new entry
-		if s.entries == nil {
-			s.entries = make(map[interface{}]*entry)
-		}
-		e = &entry{key: key}
-		s.entries[key] = e
+	h := s.get(key)
+	if h != nil {
+		// we have a handle already, just return it
+		return h
 	}
-	return &Handle{
-		entry:    e,
+	// we have not seen this key before, add a new entry
+	if s.entries == nil {
+		s.entries = make(map[interface{}]uintptr)
+	}
+	h = &Handle{
+		store:    s,
+		key:      key,
 		function: function,
 	}
+	// now add the weak reference to the handle into the map
+	s.entries[key] = uintptr(unsafe.Pointer(h))
+	// add the deletion the entry when the handle is garbage collected
+	runtime.SetFinalizer(h, release)
+	return h
+}
+
+// Find returns the handle associated with a key, if it is bound.
+//
+// It cannot cause a new handle to be generated, and thus may return nil.
+func (s *Store) Find(key interface{}) *Handle {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.get(key)
 }
 
 // Cached returns the value associated with a key.
@@ -110,15 +114,20 @@ func (s *Store) Bind(key interface{}, function Function) *Handle {
 // It cannot cause the value to be generated.
 // It will return the cached value, if present.
 func (s *Store) Cached(key interface{}) interface{} {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	h := s.Find(key)
+	if h == nil {
+		return nil
+	}
+	return h.Cached()
+}
+
+func (s *Store) get(key interface{}) *Handle {
+	// this must be called with the store mutex already held
 	e, found := s.entries[key]
 	if !found {
 		return nil
 	}
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	return unref(e)
+	return (*Handle)(unsafe.Pointer(e))
 }
 
 // Cached returns the value associated with a handle.
@@ -128,11 +137,6 @@ func (s *Store) Cached(key interface{}) interface{} {
 func (h *Handle) Cached() interface{} {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if h.value == nil {
-		h.entry.mu.Lock()
-		defer h.entry.mu.Unlock()
-		h.value = unref(h.entry)
-	}
 	return h.value
 }
 
@@ -140,120 +144,54 @@ func (h *Handle) Cached() interface{} {
 //
 // If the value is not yet ready, the underlying function will be invoked.
 // This activates the handle, and it will remember the value for as long as it exists.
-// This will cause any other handles for the same key to also return the same value.
 func (h *Handle) Get(ctx context.Context) interface{} {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if h.function != nil {
-		if v, ok := h.entry.get(ctx, h.function); ok {
-			h.value = v
-			h.function = nil
-			h.entry = nil
-		}
+	if h.function == nil {
+		return h.value
 	}
-	return h.value
-}
-
-// get is the implementation of Get.
-func (e *entry) get(ctx context.Context, f Function) (interface{}, bool) {
-	e.mu.Lock()
-	// Note: This defer is not paired with the above lock.
-	defer e.mu.Unlock()
-
-	// Fast path: If the entry is ready, it already has a value.
-	if e.ready {
-		return unref(e), true
-	}
-	// Only begin evaluating the function if no other goroutine is doing so.
-	var value interface{}
-	if e.wait == nil {
-		e.wait = make(chan struct{})
-		go func() {
-			// Note: We do not hold the lock on the entry in this goroutine.
-			//
-			// We immediately defer signaling that the entry is ready,
-			// since we cannot guarantee that the function, f, will not panic.
-			defer func() {
-				// Note: We have to hold the entry's lock before returning.
-				close(e.wait)
-				e.wait = nil
-			}()
-
-			// Use the background context to avoid canceling the function.
-			// The function cannot be canceled even if the context is canceled
-			// because multiple goroutines may depend on it.
-			value = f(xcontext.Detach(ctx))
-
-			// The function has completed. Update the value in the entry.
-			e.mu.Lock()
-
-			// Note: Because this defer will execute before the first defer,
-			// we will hold the lock while we update the entry's wait channel.
-			defer e.mu.Unlock()
-			setref(e, value)
-		}()
-	}
-
-	// Get a local copy of wait while we still hold the lock.
-	wait := e.wait
-
-	// Release the lock while we wait for the value.
-	e.mu.Unlock()
-
+	// value not ready yet
 	select {
-	case <-wait:
-		// We should now have a value. Lock the entry, and don't defer an unlock,
-		// since we already have done so at the beginning of this function.
-		e.mu.Lock()
-		result := unref(e)
-
-		// This keep alive makes sure that value is not garbage collected before
-		// we call unref and acquire a strong reference to it.
-		runtime.KeepAlive(value)
-		return result, true
+	case h.value = <-h.run(ctx):
+		// successfully got the value
+		h.function = nil
+		h.cancel = nil
+		return h.value
 	case <-ctx.Done():
-		// The context was canceled, but we have to lock the entry again,
-		// since we already deferred an unlock at the beginning of this function.
-		e.mu.Lock()
-		return nil, false
+		// cancelled outer context, leave the generator running
+		// for someone else to pick up later
+		return nil
 	}
 }
 
-// setref is called to store a weak reference to a value into an entry.
-// It assumes that the caller is holding the entry's lock.
-func setref(e *entry, value interface{}) interface{} {
-	// this is only called when the entry lock is already held
-	data := (*[2]uintptr)(unsafe.Pointer(&value))
-	// store the value back to the entry as a weak reference
-	e.typ, e.ptr = data[0], data[1]
-	e.ready = true
-	if e.ptr != 0 {
-		// Arrange to clear the weak reference when the object is garbage collected.
-		runtime.SetFinalizer(value, func(_ interface{}) {
-			e.mu.Lock()
-			defer e.mu.Unlock()
-
-			// Clear the now-invalid non-pointer.
-			e.typ, e.ptr = 0, 0
-			// The value is no longer available.
-			e.ready = false
-		})
+// run starts the generator if necessary and returns the value channel.
+func (h *Handle) run(ctx context.Context) chan interface{} {
+	if h.wait != nil {
+		// generator already running
+		return h.wait
 	}
-	return value
+	// we use a length one "postbox" so the go routine can quit even if
+	// nobody wants the result yet
+	h.wait = make(chan interface{}, 1)
+	ctx, cancel := context.WithCancel(xcontext.Detach(ctx))
+	h.cancel = cancel
+	go func() {
+		// in here the handle lock is not held
+		// we post the value back to the first caller that waits for it
+		h.wait <- h.function(ctx)
+		close(h.wait)
+	}()
+	return h.wait
 }
 
-// unref returns a strong reference to value stored in the given entry.
-// It assumes that the caller is holding the entry's lock.
-func unref(e *entry) interface{} {
-	// this is only called when the entry lock is already held
-	var v interface{}
-	data := (*[2]uintptr)(unsafe.Pointer(&v))
-
-	// Note: This approach for computing weak references and converting between
-	// weak and strong references would be rendered invalid if Go's runtime
-	// changed to allow moving objects on the heap.
-	// If such a change were to occur, some modifications would need to be made
-	// to this library.
-	data[0], data[1] = e.typ, e.ptr
-	return v
+func release(p interface{}) {
+	h := p.(*Handle)
+	h.store.mu.Lock()
+	defer h.store.mu.Unlock()
+	// there is a small gap between the garbage collector deciding that the handle
+	// is liable for collection and the finalizer being called
+	// if the handle is recovered during that time, you will end up with a valid
+	// handle that no longer has an entry in the map, and that no longer has a
+	// finalizer associated with it, but that is okay.
+	delete(h.store.entries, h.key)
 }
