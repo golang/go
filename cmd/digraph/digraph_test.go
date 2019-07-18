@@ -38,6 +38,7 @@ d c
 	}{
 		{"nodes", g1, "nodes", nil, "belt\nhat\njacket\npants\nshirt\nshoes\nshorts\nsocks\nsweater\ntie\n"},
 		{"reverse", g1, "reverse", []string{"jacket"}, "jacket\nshirt\nsweater\n"},
+		{"transpose", g1, "transpose", nil, "belt pants\njacket sweater\npants shorts\nshoes pants\nshoes socks\nsweater shirt\ntie shirt\n"},
 		{"forward", g1, "forward", []string{"socks"}, "shoes\nsocks\n"},
 		{"forward multiple args", g1, "forward", []string{"socks", "sweater"}, "jacket\nshoes\nsocks\nsweater\n"},
 		{"scss", g2, "sccs", nil, "a\nb\nc d\n"},

@@ -17,6 +17,8 @@ The support commands are:
 		the set of all nodes
 	degree
 		the in-degree and out-degree of each node
+	transpose
+		the reverse of the input edges
 	preds <node> ...
 		the set of immediate predecessors of the specified nodes
 	succs <node> ...
@@ -101,6 +103,8 @@ The support commands are:
 		the set of all nodes
 	degree
 		the in-degree and out-degree of each node
+	transpose
+		the reverse of the input edges
 	preds <node> ...
 		the set of immediate predecessors of the specified nodes
 	succs <node> ...
@@ -389,6 +393,21 @@ func digraph(cmd string, args []string) error {
 		rev := g.transpose()
 		for _, label := range nodes.sort() {
 			fmt.Fprintf(stdout, "%d\t%d\t%s\n", len(rev[label]), len(g[label]), label)
+		}
+
+	case "transpose":
+		if len(args) != 0 {
+			return fmt.Errorf("usage: digraph tranpose")
+		}
+		var revEdges []string
+		for node, succs := range g.transpose() {
+			for succ := range succs {
+				revEdges = append(revEdges, fmt.Sprintf("%s %s", node, succ))
+			}
+		}
+		sort.Strings(revEdges) // make output deterministic
+		for _, e := range revEdges {
+			fmt.Fprintln(stdout, e)
 		}
 
 	case "succs", "preds":
