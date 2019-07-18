@@ -841,8 +841,10 @@ godoc
     </p>
 
     <p><!-- CL 173722 -->
-      Testing flags are now registered in the new <a href="/pkg/testing/#Init"><code>Init</code></a> function.
-      As a result, testing flags are now only registered when running a test binary.
+      Testing flags are now registered in the new <a href="/pkg/testing/#Init"><code>Init</code></a> function,
+      which is invoked by the generated <code>main</code> function for the test.
+      As a result, testing flags are now only registered when running a test binary,
+      and packages that call <code>flag.Parse</code> during package initialization may cause tests to fail.
     </p>
 
 </dl><!-- testing -->
