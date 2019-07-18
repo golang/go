@@ -149,7 +149,7 @@ func (b *builder) branchStmt(s *ast.BranchStmt) {
 		}
 
 	case token.FALLTHROUGH:
-		for t := b.targets; t != nil; t = t.tail {
+		for t := b.targets; t != nil && block == nil; t = t.tail {
 			block = t._fallthrough
 		}
 
