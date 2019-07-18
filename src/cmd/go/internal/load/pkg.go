@@ -177,8 +177,7 @@ type PackageInternal struct {
 	OmitDebug         bool                 // tell linker not to write debug information
 	GobinSubdir       bool                 // install target would be subdir of GOBIN
 	BuildInfo         string               // add this info to package main
-	TestinginitGo     []byte               // content for _testinginit.go
-	TestmainGo        []byte               // content for _testmain.go
+	TestmainGo        *[]byte              // content for _testmain.go
 
 	Asmflags   []string // -asmflags for this package
 	Gcflags    []string // -gcflags for this package

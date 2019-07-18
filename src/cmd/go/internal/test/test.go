@@ -843,7 +843,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 	if !cfg.BuildN {
 		// writeTestmain writes _testmain.go,
 		// using the test description gathered in t.
-		if err := ioutil.WriteFile(testDir+"_testmain.go", pmain.Internal.TestmainGo, 0666); err != nil {
+		if err := ioutil.WriteFile(testDir+"_testmain.go", *pmain.Internal.TestmainGo, 0666); err != nil {
 			return nil, nil, nil, err
 		}
 	}
