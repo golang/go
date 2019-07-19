@@ -31,10 +31,6 @@ type ModuleResolver struct {
 	ModsByModPath []*ModuleJSON // All modules, ordered by # of path components in module Path...
 	ModsByDir     []*ModuleJSON // ...or Dir.
 
-	// ModCachePkgs contains the canonicalized importPath and directory of packages
-	// in the module cache. Keyed by absolute directory.
-	ModCachePkgs map[string]*pkg
-
 	// moduleCacheInfo stores information about the module cache.
 	moduleCacheInfo *moduleCacheInfo
 }
@@ -97,7 +93,6 @@ func (r *ModuleResolver) init() error {
 		return count(j) < count(i) // descending order
 	})
 
-	r.ModCachePkgs = make(map[string]*pkg)
 	if r.moduleCacheInfo == nil {
 		r.moduleCacheInfo = &moduleCacheInfo{
 			modCacheDirInfo: make(map[string]*directoryPackageInfo),
@@ -268,83 +263,112 @@ func (r *ModuleResolver) scan(_ references) ([]*pkg, error) {
 	dupCheck := make(map[string]bool)
 	var mu sync.Mutex
 
-	gopathwalk.Walk(roots, func(root gopathwalk.Root, dir string) {
+	// Packages in the module cache are immutable. If we have
+	// already seen this package on a previous scan of the module
+	// cache, return that result.
+	skip := func(root gopathwalk.Root, dir string) bool {
 		mu.Lock()
 		defer mu.Unlock()
+		// If we have already processed this directory on this walk, skip it.
+		if _, dup := dupCheck[dir]; dup {
+			return true
+		}
 
+		// If we have saved this directory information, skip it.
+		info, ok := r.moduleCacheInfo.Load(dir)
+		if !ok {
+			return false
+		}
+		// This directory can be skipped as long as we have already scanned it.
+		// Packages with errors will continue to have errors, so there is no need
+		// to rescan them.
+		packageScanned, _ := info.reachedStatus(directoryScanned)
+		return packageScanned
+	}
+
+	add := func(root gopathwalk.Root, dir string) {
+		mu.Lock()
+		defer mu.Unlock()
 		if _, dup := dupCheck[dir]; dup {
 			return
 		}
 
-		dupCheck[dir] = true
-
-		absDir := dir
-		// Packages in the module cache are immutable. If we have
-		// already seen this package on a previous scan of the module
-		// cache, return that result.
-		if p, ok := r.ModCachePkgs[absDir]; ok {
-			result = append(result, p)
+		info, err := r.scanDirForPackage(root, dir)
+		if err != nil {
+			return
+		}
+		if root.Type == gopathwalk.RootModuleCache {
+			// Save this package information in the cache and return.
+			// Packages from the module cache are added after Walk.
+			r.moduleCacheInfo.Store(dir, info)
 			return
 		}
 
-		info, ok := r.moduleCacheInfo.Load(dir)
-		if !ok {
-			var err error
-			info, err = r.scanDirForPackage(root, dir)
-			if err != nil {
-				return
-			}
-			if root.Type == gopathwalk.RootModuleCache {
-				r.moduleCacheInfo.Store(dir, info)
-			}
-		}
-
-		if info.status < directoryScanned ||
-			(info.status == directoryScanned && info.err != nil) {
+		// Skip this package if there was an error loading package info.
+		if info.err != nil {
 			return
 		}
 
 		// The rest of this function canonicalizes the packages using the results
 		// of initializing the resolver from 'go list -m'.
-		importPath := info.nonCanonicalImportPath
-
-		// Check if the directory is underneath a module that's in scope.
-		if mod := r.findModuleByDir(dir); mod != nil {
-			// It is. If dir is the target of a replace directive,
-			// our guessed import path is wrong. Use the real one.
-			if mod.Dir == dir {
-				importPath = mod.Path
-			} else {
-				dirInMod := dir[len(mod.Dir)+len("/"):]
-				importPath = path.Join(mod.Path, filepath.ToSlash(dirInMod))
-			}
-		} else if info.needsReplace {
-			// This package needed a replace target we don't have.
+		res, err := r.canonicalize(info.nonCanonicalImportPath, info.dir, info.needsReplace)
+		if err != nil {
 			return
 		}
 
-		// We may have discovered a package that has a different version
-		// in scope already. Canonicalize to that one if possible.
-		if _, canonicalDir := r.findPackage(importPath); canonicalDir != "" {
-			dir = canonicalDir
-		}
-
-		res := &pkg{
-			importPathShort: VendorlessPath(importPath),
-			dir:             dir,
-		}
-
-		if root.Type == gopathwalk.RootModuleCache {
-			// Save the results of processing this directory.
-			// This needs to be invalidated when the results of
-			// 'go list -m' would change, as the directory and
-			// importPath in this map depend on those results.
-			r.ModCachePkgs[absDir] = res
-		}
-
 		result = append(result, res)
-	}, gopathwalk.Options{Debug: r.env.Debug, ModulesEnabled: true})
+	}
+
+	gopathwalk.WalkSkip(roots, add, skip, gopathwalk.Options{Debug: r.env.Debug, ModulesEnabled: true})
+
+	// Add the packages from the modules in the mod cache that were skipped.
+	for _, dir := range r.moduleCacheInfo.Keys() {
+		info, ok := r.moduleCacheInfo.Load(dir)
+		if !ok {
+			continue
+		}
+
+		// Skip this directory if we were not able to get the package information successfully.
+		if scanned, err := info.reachedStatus(directoryScanned); !scanned || err != nil {
+			continue
+		}
+
+		res, err := r.canonicalize(info.nonCanonicalImportPath, info.dir, info.needsReplace)
+		if err != nil {
+			continue
+		}
+		result = append(result, res)
+	}
+
 	return result, nil
+}
+
+// canonicalize gets the result of canonicalizing the packages using the results
+// of initializing the resolver from 'go list -m'.
+func (r *ModuleResolver) canonicalize(importPath, dir string, needsReplace bool) (res *pkg, err error) {
+	// Check if the directory is underneath a module that's in scope.
+	if mod := r.findModuleByDir(dir); mod != nil {
+		// It is. If dir is the target of a replace directive,
+		// our guessed import path is wrong. Use the real one.
+		if mod.Dir == dir {
+			importPath = mod.Path
+		} else {
+			dirInMod := dir[len(mod.Dir)+len("/"):]
+			importPath = path.Join(mod.Path, filepath.ToSlash(dirInMod))
+		}
+	} else if needsReplace {
+		return nil, fmt.Errorf("needed this package to be in scope: %s", dir)
+	}
+
+	// We may have discovered a package that has a different version
+	// in scope already. Canonicalize to that one if possible.
+	if _, canonicalDir := r.findPackage(importPath); canonicalDir != "" {
+		dir = canonicalDir
+	}
+	return &pkg{
+		importPathShort: VendorlessPath(importPath),
+		dir:             dir,
+	}, nil
 }
 
 func (r *ModuleResolver) loadExports(ctx context.Context, expectPackage string, pkg *pkg) (map[string]bool, error) {

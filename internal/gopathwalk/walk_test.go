@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -107,9 +108,47 @@ func TestSkip(t *testing.T) {
 	}
 
 	var found []string
-	walkDir(Root{filepath.Join(dir, "src"), RootGOPATH}, func(root Root, dir string) {
-		found = append(found, dir[len(root.Path)+1:])
-	}, Options{ModulesEnabled: false, Debug: true})
+	var mu sync.Mutex
+	walkDir(Root{filepath.Join(dir, "src"), RootGOPATH},
+		func(root Root, dir string) {
+			mu.Lock()
+			defer mu.Unlock()
+			found = append(found, dir[len(root.Path)+1:])
+		}, func(root Root, dir string) bool {
+			return false
+		}, Options{ModulesEnabled: false, Debug: true})
+	if want := []string{"shouldfind"}; !reflect.DeepEqual(found, want) {
+		t.Errorf("expected to find only %v, got %v", want, found)
+	}
+}
+
+// TestSkipFunction tests that scan successfully skips directories from user callback.
+func TestSkipFunction(t *testing.T) {
+	dir, err := ioutil.TempDir("", "goimports-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	if err := mapToDir(dir, map[string]string{
+		"ignoreme/f.go":           "package ignoreme",    // ignored by skip
+		"ignoreme/subignore/f.go": "package subignore",   // also ignored by skip
+		"shouldfind/f.go":         "package shouldfind;", // not ignored
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	var found []string
+	var mu sync.Mutex
+	walkDir(Root{filepath.Join(dir, "src"), RootGOPATH},
+		func(root Root, dir string) {
+			mu.Lock()
+			defer mu.Unlock()
+			found = append(found, dir[len(root.Path)+1:])
+		}, func(root Root, dir string) bool {
+			return strings.HasSuffix(dir, "ignoreme")
+		},
+		Options{ModulesEnabled: false})
 	if want := []string{"shouldfind"}; !reflect.DeepEqual(found, want) {
 		t.Errorf("expected to find only %v, got %v", want, found)
 	}

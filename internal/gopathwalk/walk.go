@@ -59,12 +59,24 @@ func SrcDirsRoots(ctx *build.Context) []Root {
 // paths of the containing source directory and the package directory.
 // add will be called concurrently.
 func Walk(roots []Root, add func(root Root, dir string), opts Options) {
+	WalkSkip(roots, add, func(Root, string) bool { return false }, opts)
+}
+
+// WalkSkip walks Go source directories ($GOROOT, $GOPATH, etc) to find packages.
+// For each package found, add will be called (concurrently) with the absolute
+// paths of the containing source directory and the package directory.
+// For each directory that will be scanned, skip will be called (concurrently)
+// with the absolute paths of the containing source directory and the directory.
+// If skip returns false on a directory it will be processed.
+// add will be called concurrently.
+// skip will be called concurrently.
+func WalkSkip(roots []Root, add func(root Root, dir string), skip func(root Root, dir string) bool, opts Options) {
 	for _, root := range roots {
-		walkDir(root, add, opts)
+		walkDir(root, add, skip, opts)
 	}
 }
 
-func walkDir(root Root, add func(Root, string), opts Options) {
+func walkDir(root Root, add func(Root, string), skip func(root Root, dir string) bool, opts Options) {
 	if _, err := os.Stat(root.Path); os.IsNotExist(err) {
 		if opts.Debug {
 			log.Printf("skipping nonexistent directory: %v", root.Path)
@@ -77,6 +89,7 @@ func walkDir(root Root, add func(Root, string), opts Options) {
 	w := &walker{
 		root: root,
 		add:  add,
+		skip: skip,
 		opts: opts,
 	}
 	w.init()
@@ -91,9 +104,10 @@ func walkDir(root Root, add func(Root, string), opts Options) {
 
 // walker is the callback for fastwalk.Walk.
 type walker struct {
-	root Root               // The source directory to scan.
-	add  func(Root, string) // The callback that will be invoked for every possible Go package dir.
-	opts Options            // Options passed to Walk by the user.
+	root Root                    // The source directory to scan.
+	add  func(Root, string)      // The callback that will be invoked for every possible Go package dir.
+	skip func(Root, string) bool // The callback that will be invoked for every dir. dir is skipped if it returns true.
+	opts Options                 // Options passed to Walk by the user.
 
 	ignoredDirs []os.FileInfo // The ignored directories, loaded from .goimportsignore files.
 }
@@ -151,11 +165,15 @@ func (w *walker) getIgnoredDirs(path string) []string {
 	return ignoredDirs
 }
 
-func (w *walker) shouldSkipDir(fi os.FileInfo) bool {
+func (w *walker) shouldSkipDir(fi os.FileInfo, dir string) bool {
 	for _, ignoredDir := range w.ignoredDirs {
 		if os.SameFile(fi, ignoredDir) {
 			return true
 		}
+	}
+	if w.skip != nil {
+		// Check with the user specified callback.
+		return w.skip(w.root, dir)
 	}
 	return false
 }
@@ -184,7 +202,7 @@ func (w *walker) walk(path string, typ os.FileMode) error {
 			return filepath.SkipDir
 		}
 		fi, err := os.Lstat(path)
-		if err == nil && w.shouldSkipDir(fi) {
+		if err == nil && w.shouldSkipDir(fi, path) {
 			return filepath.SkipDir
 		}
 		return nil
@@ -224,7 +242,7 @@ func (w *walker) shouldTraverse(dir string, fi os.FileInfo) bool {
 	if !ts.IsDir() {
 		return false
 	}
-	if w.shouldSkipDir(ts) {
+	if w.shouldSkipDir(ts, dir) {
 		return false
 	}
 	// Check for symlink loops by statting each directory component

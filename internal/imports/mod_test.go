@@ -137,6 +137,25 @@ import _ "example.com"
 
 }
 
+// Tests that scanning the module cache > 1 time is able to find the same module
+// in the module cache.
+func TestModMultipleScansWithSubdirs(t *testing.T) {
+	mt := setup(t, `
+-- go.mod --
+module x
+
+require rsc.io/quote v1.5.2
+
+-- x.go --
+package x
+import _ "rsc.io/quote"
+`, "")
+	defer mt.cleanup()
+
+	mt.assertScanFinds("rsc.io/quote/buggy", "buggy")
+	mt.assertScanFinds("rsc.io/quote/buggy", "buggy")
+}
+
 // Tests that scanning the module cache > 1 after changing a package in module cache to make it unimportable
 // is able to find the same module.
 func TestModCacheEditModFile(t *testing.T) {
@@ -151,6 +170,9 @@ import _ "rsc.io/quote"
 `, "")
 	defer mt.cleanup()
 	found := mt.assertScanFinds("rsc.io/quote", "quote")
+	if found == nil {
+		t.Fatal("rsc.io/quote not found in initial scan.")
+	}
 
 	// Update the go.mod file of example.com so that it changes its module path (not allowed).
 	if err := os.Chmod(filepath.Join(found.dir, "go.mod"), 0644); err != nil {
@@ -176,7 +198,6 @@ import _ "rsc.io/quote"
 	mt.resolver.Main = nil
 	mt.resolver.ModsByModPath = nil
 	mt.resolver.ModsByDir = nil
-	mt.resolver.ModCachePkgs = nil
 	mt.assertScanFinds("rsc.io/quote", "quote")
 
 }
