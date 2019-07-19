@@ -35,6 +35,6 @@ func logger(ctx context.Context, at time.Time, tags tag.List) bool {
 	if entry.Error != nil {
 		msg.Type = Error
 	}
-	client.LogMessage(xcontext.Detach(ctx), msg)
+	go client.LogMessage(xcontext.Detach(ctx), msg)
 	return true
 }
