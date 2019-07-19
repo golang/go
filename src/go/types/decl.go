@@ -659,10 +659,20 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	// func declarations cannot use iota
 	assert(check.iota == nil)
 
+	if obj.IsParameterized() {
+		assert(obj.scope != nil)
+		check.scope = obj.scope // push type parameter scope
+	}
+
 	sig := new(Signature)
 	obj.typ = sig // guard against cycles
 	fdecl := decl.fdecl
-	check.funcType(sig, fdecl.Recv, obj.scope, obj.tparams, fdecl.Type)
+	check.funcType(sig, fdecl.Recv, fdecl.Type)
+	sig.tparams = obj.tparams
+
+	if obj.IsParameterized() {
+		check.closeScope()
+	}
 
 	// function body must be type-checked after global declarations
 	// (functions implemented elsewhere have no body)

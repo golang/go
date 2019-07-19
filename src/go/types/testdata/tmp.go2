@@ -6,14 +6,11 @@ package p
 
 type List(type E) []E
 
-func f(type P) (x P) List(P) {
-	return List(P){x}
+/*
+func (l List(E)) First() E {
+        if len(l) == 0 {
+                panic("no first")
+        }
+        return l[0]
 }
-
-var (
-	_ []int = f(0)
-	_ []float32 = f(float32)(10)
-	_ [](List(int)) = f(List(int){})
-        _ List(List(int)) = [](List(int)){}
-        _ = [](List(int)){}
-)
+*/

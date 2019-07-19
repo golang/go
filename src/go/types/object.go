@@ -338,6 +338,9 @@ func (obj *Func) FullName() string {
 // Scope returns the scope of the function's body block.
 func (obj *Func) Scope() *Scope { return obj.typ.(*Signature).scope }
 
+// IsParameterized reports whether obj is a parameterized function.
+func (obj *Func) IsParameterized() bool { return len(obj.tparams) > 0 }
+
 func (*Func) isDependency() {} // a function may be a dependency of an initialization expression
 
 // A Label represents a declared label.

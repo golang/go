@@ -157,15 +157,8 @@ func (check *Checker) instantiatedType(e ast.Expr) Type {
 }
 
 // funcType type-checks a function or method type.
-func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, scope *Scope, tparams []*TypeName, ftyp *ast.FuncType) {
-	// type parameters are in a scope enclosing the function scope
-	if tparams != nil {
-		check.scope = scope
-		// TODO(gri) push/pop both (type parameter and function) scopes
-		// defer check.closeScope()
-	}
-
-	scope = NewScope(check.scope, token.NoPos, token.NoPos, "function")
+func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast.FuncType) {
+	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function")
 	// TODO(gri) should we close this scope?
 	scope.isFunc = true
 	check.recordScope(ftyp, scope)
@@ -224,7 +217,6 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, scope *Sc
 	}
 
 	sig.scope = scope
-	sig.tparams = tparams
 	sig.params = NewTuple(params...)
 	sig.results = NewTuple(results...)
 	sig.variadic = variadic
@@ -319,7 +311,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 	case *ast.FuncType:
 		typ := new(Signature)
 		def.setUnderlying(typ)
-		check.funcType(typ, nil, nil, nil, e)
+		check.funcType(typ, nil, e)
 		return typ
 
 	case *ast.InterfaceType:
