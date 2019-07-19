@@ -6,6 +6,7 @@ package sync_test
 
 import (
 	"fmt"
+	"strconv"
 	"sync"
 )
 
@@ -68,51 +69,39 @@ func ExampleMap() {
 
 	wg.Add(1)
 
-	// Scramble the barn coroutines:
-	// store and try to not find the pig
+	// search goroutine
+	// try to load the gopher key of the map
+	// exit the coroutine when it's not found
 	go func() {
+		i := 0
 		for {
-			barn.Store("pig", "mud")
 			// Load
-			_, found := barn.Load("pig")
+			_, found := barn.Load("gopher")
 			if !found {
-				fmt.Println("floop the pig")
+				fmt.Println("floop the gopher", strconv.Itoa(i))
 				wg.Done()
 				break
 			}
-		}
-	}()
-
-	// delete and try to find the pig
-	go func() {
-		for {
-			barn.Delete("pig")
-			// Load
-			_, found := barn.Load("pig")
-			if found {
-				fmt.Println("floop the pig")
-				wg.Done()
-				break
-			}
+			i++
 		}
 	}()
 
 	// Range & Delete
 	barn.Range(func(key interface{}, value interface{}) bool {
-		if key.(string) == "chicken" {
-			fmt.Println("found the chicken")
+		if key.(string) == "gopher" {
+			fmt.Println("found the gopher")
 			barn.Delete(key.(string)) // cast the key interface
-			return false // stop iteration
+			return false              // stop iteration
 		}
 		return true // continue to the next iteration in the range
 	})
 
-	// at this point we wait for the pig to be or not be there
+	// at this point we wait for goroutine to exit
 	// using a regular map this application would have a race condition
-	// yet using sync map we are safely replicating indetermination
+	// notice that the number of iterations can greatly differ depending on the platform
 	wg.Wait()
 
 	// Output:
-	// found the chicken
-	// floop the pig
+	// found the gopher
+	// floop the gopher {number of iterations on the search goroutine}
 }
