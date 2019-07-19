@@ -121,6 +121,17 @@ func (r *ModuleResolver) findPackage(importPath string) (*ModuleJSON, string) {
 			continue
 		}
 
+		if info, ok := r.moduleCacheInfo.Load(pkgDir); ok {
+			if packageScanned, err := info.reachedStatus(directoryScanned); packageScanned {
+				if err != nil {
+					// There was some error with scanning this directory.
+					// It does not contain a valid package.
+					continue
+				}
+				return m, pkgDir
+			}
+		}
+
 		pkgFiles, err := ioutil.ReadDir(pkgDir)
 		if err != nil {
 			continue

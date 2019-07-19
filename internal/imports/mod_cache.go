@@ -51,6 +51,18 @@ type directoryPackageInfo struct {
 	needsReplace bool
 }
 
+// reachedStatus returns true when info has a status at least target and any error associated with
+// an attempt to reach target.
+func (info *directoryPackageInfo) reachedStatus(target directoryPackageStatus) (bool, error) {
+	if info.err == nil {
+		return info.status >= target, nil
+	}
+	if info.status == target {
+		return true, info.err
+	}
+	return true, nil
+}
+
 // moduleCacheInfo is a concurrency safe map for storing information about
 // the directories in the module cache.
 //
