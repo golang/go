@@ -9,6 +9,7 @@ package flate
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"math/bits"
 	"strconv"
@@ -72,6 +73,13 @@ type Resetter interface {
 	// Reset discards any buffered data and resets the Resetter as if it was
 	// newly initialized with the given reader.
 	Reset(r io.Reader, dict []byte) error
+}
+
+// Limitter puts limit on number of bytes read from underlying Reader.
+// This prevents reading till EOF and it can be used for partial flush in reading.
+type Limiter interface {
+	// Sets limit on number of bytes read from underlying Reader
+	SetReadLimit(n int) error
 }
 
 // The data structure for decoding Huffman tables is based on that of
@@ -265,6 +273,9 @@ type Reader interface {
 
 // Decompress state.
 type decompressor struct {
+	// Read Limit on unerlying Reader
+	l int
+
 	// Input source.
 	r       Reader
 	roffset int64
@@ -692,8 +703,23 @@ func noEOF(e error) error {
 	return e
 }
 
+func (f *decompressor) SetReadLimit(n int) {
+	f.l = n
+}
+
+func (f *decompressor) readByte() (byte, error) {
+    if f.l == 0 {
+        return 0, errors.New("ReadLimitReached")
+    }
+    b, e := f.r.ReadByte()
+    if e == nil && f.l > 0 {
+        f.l -= 1
+    }
+    return b, e
+}
+
 func (f *decompressor) moreBits() error {
-	c, err := f.r.ReadByte()
+	c, err := f.readByte()
 	if err != nil {
 		return noEOF(err)
 	}
@@ -716,7 +742,7 @@ func (f *decompressor) huffSym(h *huffmanDecoder) (int, error) {
 	nb, b := f.nb, f.b
 	for {
 		for nb < n {
-			c, err := f.r.ReadByte()
+			c, err := f.readByte()
 			if err != nil {
 				f.b = b
 				f.nb = nb
@@ -797,6 +823,7 @@ func NewReader(r io.Reader) io.ReadCloser {
 	fixedHuffmanDecoderInit()
 
 	var f decompressor
+	f.l = -1
 	f.r = makeReader(r)
 	f.bits = new([maxNumLit + maxNumDist]int)
 	f.codebits = new([numCodes]int)
@@ -816,6 +843,7 @@ func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
 	fixedHuffmanDecoderInit()
 
 	var f decompressor
+	f.l = -1
 	f.r = makeReader(r)
 	f.bits = new([maxNumLit + maxNumDist]int)
 	f.codebits = new([numCodes]int)
