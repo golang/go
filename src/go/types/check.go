@@ -15,10 +15,7 @@ import (
 )
 
 // debugging/development support
-const (
-	debug = true  // leave on during development
-	trace = false // turn on for detailed type resolution traces
-)
+const debug = true // leave on during development
 
 // If Strict is set, the type-checker enforces additional
 // rules not specified by the Go 1 spec, but which will
@@ -261,7 +258,7 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 	defer check.handleBailout(&err)
 
 	print := func(msg string) {
-		if trace {
+		if check.conf.Trace {
 			fmt.Println(msg)
 		}
 	}

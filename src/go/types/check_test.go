@@ -269,6 +269,7 @@ func checkFiles(t *testing.T, testfiles []string) {
 	if len(testfiles) == 1 && testfiles[0] == "testdata/importC.src" {
 		conf.FakeImportC = true
 	}
+	conf.Trace = testing.Verbose()
 	conf.Importer = importer.Default()
 	conf.Error = func(err error) {
 		if *haltOnError {

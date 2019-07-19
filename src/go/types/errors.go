@@ -87,7 +87,7 @@ func (check *Checker) err(pos token.Pos, msg string, soft bool) {
 		check.firstErr = err
 	}
 
-	if trace {
+	if check.conf.Trace {
 		check.trace(pos, "ERROR: %s", msg)
 	}
 

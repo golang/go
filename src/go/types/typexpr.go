@@ -126,7 +126,7 @@ func (check *Checker) typ(e ast.Expr) Type {
 // any components of e are type-checked.
 //
 func (check *Checker) definedType(e ast.Expr, def *Named) (T Type) {
-	if trace {
+	if check.conf.Trace {
 		check.trace(e.Pos(), "%s", e)
 		check.indent++
 		defer func() {
@@ -159,7 +159,6 @@ func (check *Checker) instantiatedType(e ast.Expr) Type {
 // funcType type-checks a function or method type.
 func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast.FuncType) {
 	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function")
-	// TODO(gri) should we close this scope?
 	scope.isFunc = true
 	check.recordScope(ftyp, scope)
 
@@ -174,7 +173,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		var recv *Var
 		switch len(recvList) {
 		case 0:
-			check.error(recvPar.Pos(), "method is missing receiver")
+			// error reported by resolver
 			recv = NewParam(0, nil, "", Typ[Invalid]) // ignore recv below
 		default:
 			// more than one receiver
@@ -187,6 +186,11 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		// (ignore invalid types - error was reported before)
 		if t, _ := deref(recv.typ); t != Typ[Invalid] {
 			var err string
+			// TODO(gri) Unpacking a parameterized receiver here is a bit of a party trick
+			// and probably not very robust. Rethink this code.
+			if p, _ := t.(*Parameterized); p != nil {
+				t = p.tname.typ
+			}
 			if T, _ := t.(*Named); T != nil {
 				// spec: "The type denoted by T is called the receiver base type; it must not
 				// be a pointer or interface type and it must be declared in the same package
@@ -626,7 +630,7 @@ func (check *Checker) completeInterface(ityp *Interface) {
 		panic("internal error: incomplete interface")
 	}
 
-	if trace {
+	if check.conf.Trace {
 		check.trace(token.NoPos, "complete %s", ityp)
 		check.indent++
 		defer func() {

@@ -14,7 +14,7 @@ import (
 
 // inst returns the instantiated type of tname.
 func (check *Checker) inst(tname *TypeName, targs []Type) (res Type) {
-	if trace {
+	if check.conf.Trace {
 		check.trace(tname.pos, "-- instantiating %s", tname)
 		check.indent++
 		defer func() {

@@ -14,7 +14,7 @@ import (
 )
 
 func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt, iota constant.Value) {
-	if trace {
+	if check.conf.Trace {
 		check.trace(body.Pos(), "--- %s: %s", name, sig)
 		defer func() {
 			check.trace(body.End(), "--- <end>")

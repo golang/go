@@ -52,7 +52,7 @@ func pathString(path []Object) string {
 // objDecl type-checks the declaration of obj in its respective (file) context.
 // For the meaning of def, see Checker.definedType, in typexpr.go.
 func (check *Checker) objDecl(obj Object, def *Named) {
-	if trace {
+	if check.conf.Trace {
 		check.trace(obj.Pos(), "-- checking %s (%s, objPath = %s)", obj, obj.color(), pathString(check.objPath))
 		check.indent++
 		defer func() {
@@ -248,7 +248,7 @@ func (check *Checker) cycle(obj Object) (isCycle bool) {
 		}
 	}
 
-	if trace {
+	if check.conf.Trace {
 		check.trace(obj.Pos(), "## cycle detected: objPath = %s->%s (len = %d)", pathString(cycle), obj.Name(), len(cycle))
 		check.trace(obj.Pos(), "## cycle contains: %d values, %d type definitions", nval, ndef)
 		defer func() {

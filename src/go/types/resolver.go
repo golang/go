@@ -214,7 +214,12 @@ func (check *Checker) collectObjects() {
 		pkgImports[imp] = true
 	}
 
-	var methods []*Func // list of methods with non-blank _ names
+	type methodInfo struct {
+		obj  *Func      // method
+		ptr  bool       // true if pointer receiver
+		recv *ast.Ident // receiver type name
+	}
+	var methods []methodInfo // collected methods with valid receivers and non-blank _ names
 	var fileScopes []*Scope
 	for fileNo, file := range check.files {
 		// The package identifier denotes the current package,
@@ -401,8 +406,12 @@ func (check *Checker) collectObjects() {
 			case *ast.FuncDecl:
 				name := d.Name.Name
 				obj := NewFunc(d.Name.Pos(), pkg, name, nil)
-				if d.Recv == nil {
+				if d.Recv == nil || len(d.Recv.List) == 0 {
 					// regular function
+					if d.Recv != nil {
+						check.errorf(d.Recv.Pos(), "method is missing receiver")
+						// treat as function
+					}
 					if name == "init" {
 						if d.TParams != nil {
 							check.softErrorf(d.TParams.Pos(), "func init must have no type parameters")
@@ -426,15 +435,29 @@ func (check *Checker) collectObjects() {
 					}
 				} else {
 					// method
+					// d.Recv != nil && len(d.Recv.List) > 0
 					if d.TParams != nil {
 						// TODO(gri) should this be done in the parser (and this an invalidAST error)?
 						check.softErrorf(d.TParams.Pos(), "method must have no type parameters")
 					}
-					// (Methods with blank _ names are never found; no need to collect
-					// them for later type association. They will still be type-checked
-					// with all the other functions.)
-					if name != "_" {
-						methods = append(methods, obj)
+					// collect parameterized receiver type parameters, if any
+					// - a receiver type parameter is like any other type parameter, except that it is passed implicitly (via the receiver)
+					// - the receiver specification is effectively the declaration of that type parameter
+					// - if the receiver type is parameterized but we don't need the parameters, we permit leaving them away
+					// - this is a effectively a declaration, and thus a receiver type parameter may be the blank identifier (_)
+					// - since methods cannot have other type parameters, we store receiver type parameters where function type parameters would be
+					ptr, recv, tparams := check.unpackRecv(d.Recv.List[0].Type)
+					if tparams != nil {
+						obj.scope = NewScope(pkg.scope, d.Pos(), d.End(), "receiver type parameters")
+						check.recordScope(d, obj.scope)
+						obj.tparams = check.declareTypeParams(obj.scope, tparams)
+					}
+
+					// (Methods with invalid receiver cannot be associated to a type, and
+					// methods with blank _ names are never found; no need to collect any
+					// of them. They will still be type-checked with all the other functions.)
+					if recv != nil && name != "_" {
+						methods = append(methods, methodInfo{obj, ptr, recv})
 					}
 					check.recordDef(d.Name, obj)
 				}
@@ -472,19 +495,15 @@ func (check *Checker) collectObjects() {
 	// associate methods with receiver base type name where possible.
 	// Ignore methods that have an invalid receiver. They will be
 	// type-checked later, with regular functions.
-	if methods == nil {
-		return // nothing to do
-	}
-	check.methods = make(map[*TypeName][]*Func)
-	for _, f := range methods {
-		fdecl := check.objMap[f].fdecl
-		if list := fdecl.Recv.List; len(list) > 0 {
-			// f is a method.
-			// Determine the receiver base type and associate f with it.
-			ptr, base := check.resolveBaseTypeName(list[0].Type)
+	if methods != nil {
+		check.methods = make(map[*TypeName][]*Func)
+		for i := range methods {
+			m := &methods[i]
+			// Determine the receiver base type and associate m with it.
+			ptr, base := check.resolveBaseTypeName(m.ptr, m.recv)
 			if base != nil {
-				f.hasPtrRecv = ptr
-				check.methods[base] = append(check.methods[base], f)
+				m.obj.hasPtrRecv = ptr
+				check.methods[base] = append(check.methods[base], m.obj)
 			}
 		}
 	}
@@ -494,15 +513,65 @@ func (check *Checker) collectTypeParams(parent *Scope, node ast.Node, list *ast.
 	scope = NewScope(parent, node.Pos(), node.End(), "type parameters")
 	check.recordScope(node, scope)
 
-	index := 0
+	var names []*ast.Ident
 	for _, f := range list.List {
 		for _, name := range f.Names {
-			tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
-			NewTypeParam(tpar, index) // assigns type to tpar as a side-effect
-			check.declare(scope, name, tpar, scope.pos)
-			tparams = append(tparams, tpar)
-			index++
+			names = append(names, name)
 		}
+	}
+
+	return scope, check.declareTypeParams(scope, names)
+}
+
+func (check *Checker) declareTypeParams(scope *Scope, list []*ast.Ident) []*TypeName {
+	tparams := make([]*TypeName, len(list))
+	for i, name := range list {
+		tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
+		NewTypeParam(tpar, i) // assigns type to tpar as a side-effect
+		check.declare(scope, name, tpar, scope.pos)
+		tparams[i] = tpar
+	}
+	return tparams
+}
+
+// unpackRecv unpacks a receiver type and returns its components: ptr indicates whether
+// rtyp is a pointer receiver, rname is the receiver type name, and tparams are its
+// type parameters, if any. If rname is nil, the receiver is unusable (i.e., the source
+// has a bug which we cannot easily work aound with).
+func (check *Checker) unpackRecv(rtyp ast.Expr) (ptr bool, rname *ast.Ident, tparams []*ast.Ident) {
+	// unparen and dereference
+	rtyp = unparen(rtyp)
+	if ptyp, _ := rtyp.(*ast.StarExpr); ptyp != nil {
+		ptr = true
+		rtyp = unparen(ptyp.X)
+	}
+
+	// extract type parameters, if any
+	if ptyp, _ := rtyp.(*ast.CallExpr); ptyp != nil {
+		rtyp = ptyp.Fun
+		tparams = make([]*ast.Ident, len(ptyp.Args))
+		for i, arg := range ptyp.Args {
+			var par *ast.Ident
+			switch arg := arg.(type) {
+			case *ast.Ident:
+				par = arg
+			case *ast.BadExpr:
+				// ignore - error already reported by parser
+			case nil:
+				check.invalidAST(ptyp.Pos(), "parameterized reveiver contains nil parameters")
+			default:
+				check.errorf(arg.Pos(), "%s is not a valid receiver type parameter declaration", arg)
+			}
+			if par == nil {
+				par = &ast.Ident{NamePos: arg.Pos(), Name: "_"}
+			}
+			tparams[i] = par
+		}
+	}
+
+	// extract receiver name
+	if name, _ := rtyp.(*ast.Ident); name != nil {
+		rname = name
 	}
 
 	return
@@ -512,12 +581,13 @@ func (check *Checker) collectTypeParams(parent *Scope, node ast.Node, list *ast.
 // there was a pointer indirection to get to it. The base type name must be declared
 // in package scope, and there can be at most one pointer indirection. If no such type
 // name exists, the returned base is nil.
-func (check *Checker) resolveBaseTypeName(typ ast.Expr) (ptr bool, base *TypeName) {
+func (check *Checker) resolveBaseTypeName(seenPtr bool, typ ast.Expr) (ptr bool, base *TypeName) {
 	// Algorithm: Starting from a type expression, which may be a name,
 	// we follow that type through alias declarations until we reach a
 	// non-alias type name. If we encounter anything but pointer types or
 	// parentheses we're done. If we encounter more than one pointer type
 	// we're done.
+	ptr = seenPtr
 	var seen map[*TypeName]bool
 	for {
 		typ = unparen(typ)

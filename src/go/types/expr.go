@@ -975,7 +975,7 @@ const (
 // If hint != nil, it is the type of a composite literal element.
 //
 func (check *Checker) rawExpr(x *operand, e ast.Expr, hint Type) exprKind {
-	if trace {
+	if check.conf.Trace {
 		check.trace(e.Pos(), "%s", e)
 		check.indent++
 		defer func() {

@@ -318,7 +318,7 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair, tparams 
 			assert(len(x.targs) == len(y.targs)) // since x, y have identical tname
 			for i, x := range x.targs {
 				y := y.targs[i]
-				if !identical(x, y, cmpTags, p, tparams) {
+				if !check.identical0(x, y, cmpTags, p, tparams) {
 					return false
 				}
 			}
