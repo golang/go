@@ -273,7 +273,7 @@ type Reader interface {
 
 // Decompress state.
 type decompressor struct {
-	// Read Limit on unerlying Reader
+	// Read Limit(Number of bytes to be read) from unerlying Reader
 	l int
 
 	// Input source.
@@ -708,14 +708,16 @@ func (f *decompressor) SetReadLimit(n int) {
 }
 
 func (f *decompressor) readByte() (byte, error) {
-    if f.l == 0 {
-        return 0, errors.New("ReadLimitReached")
-    }
-    b, e := f.r.ReadByte()
-    if e == nil && f.l > 0 {
-        f.l -= 1
-    }
-    return b, e
+	if f.l == 0 {
+		// maximum read limit is reached, return error
+		return 0, errors.New("ReadLimitReached")
+	}
+	b, e := f.r.ReadByte()
+	if e == nil && f.l > 0 {
+		// decreament number of bytes to be read
+		f.l -= 1
+	}
+	return b, e
 }
 
 func (f *decompressor) moreBits() error {
