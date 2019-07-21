@@ -13,6 +13,12 @@ import (
 // ErrBadPattern indicates a pattern was malformed.
 var ErrBadPattern = errors.New("syntax error in pattern")
 
+type patternChunk struct {
+	star    bool
+	chunk   string
+	pending bool // pending pattern text after this chunk
+}
+
 // Match reports whether name matches the shell pattern.
 // The pattern syntax is:
 //
@@ -36,35 +42,39 @@ var ErrBadPattern = errors.New("syntax error in pattern")
 // is malformed.
 //
 func Match(pattern, name string) (matched bool, err error) {
+	pcs, err := collectChunks(pattern)
+	if err != nil {
+		return false, err
+	}
 Pattern:
-	for len(pattern) > 0 {
-		var star bool
-		var chunk string
-		star, chunk, pattern = scanChunk(pattern)
-		if star && chunk == "" {
+	for _, pc := range pcs {
+		if err != nil {
+			return false, err
+		}
+		if pc.star && pc.chunk == "" {
 			// Trailing * matches rest of string unless it has a /.
 			return !strings.Contains(name, "/"), nil
 		}
 		// Look for match at current position.
-		t, ok, err := matchChunk(chunk, name)
+		t, ok, err := matchChunk(pc.chunk, name)
 		// if we're the last chunk, make sure we've exhausted the name
 		// otherwise we'll give a false result even if we could still match
 		// using the star
-		if ok && (len(t) == 0 || len(pattern) > 0) {
+		if ok && (len(t) == 0 || pc.pending) {
 			name = t
 			continue
 		}
 		if err != nil {
 			return false, err
 		}
-		if star {
+		if pc.star {
 			// Look for match skipping i+1 bytes.
 			// Cannot skip /.
 			for i := 0; i < len(name) && name[i] != '/'; i++ {
-				t, ok, err := matchChunk(chunk, name[i+1:])
+				t, ok, err := matchChunk(pc.chunk, name[i+1:])
 				if ok {
 					// if we're the last chunk, make sure we exhausted the name
-					if len(pattern) == 0 && len(t) > 0 {
+					if !pc.pending && len(t) > 0 {
 						continue
 					}
 					name = t
@@ -80,34 +90,91 @@ Pattern:
 	return len(name) == 0, nil
 }
 
-// scanChunk gets the next segment of pattern, which is a non-star string
-// possibly preceded by a star.
-func scanChunk(pattern string) (star bool, chunk, rest string) {
+// collectChunks gets all the segments of the pattern, which are a non-star string
+// possibly preceded by a star. This collector enforces check the whole
+// pattern syntax but saving the segments for future use in the match process
+func collectChunks(pattern string) (pcs []patternChunk, err error) {
+	pcs = []patternChunk{}
+	for len(pattern) > 0 {
+		var star bool
+		var chunk string
+		star, chunk, pattern, err = scanChunk(pattern)
+		if err != nil {
+			return pcs, err
+		}
+		pcs = append(pcs, patternChunk{star, chunk, len(pattern) > 0})
+	}
+	return
+
+}
+
+// scanChunk gets the next segment and validate the syntax
+func scanChunk(pattern string) (star bool, chunk, rest string, err error) {
 	for len(pattern) > 0 && pattern[0] == '*' {
 		pattern = pattern[1:]
 		star = true
 	}
 	inrange := false
+	hasRangeStart := false
+	hasHyphen := false
 	var i int
 Scan:
 	for i = 0; i < len(pattern); i++ {
 		switch pattern[i] {
 		case '\\':
-			// error check handled in matchChunk: bad pattern.
-			if i+1 < len(pattern) {
+			if i+1 == len(pattern) { // nothing after the escape
+				return false, "", "", ErrBadPattern
+			}
+			if inrange {
+				hasRangeStart = true
+			}
+			i++
+		case '[':
+			if inrange || i+1 == len(pattern) { // already in rage or opened at last position
+				return false, "", "", ErrBadPattern
+			}
+			if pattern[i+1] == '^' { // negation
 				i++
 			}
-		case '[':
 			inrange = true
 		case ']':
+			if !inrange || !hasRangeStart { // not started or empty range
+				return false, "", "", ErrBadPattern
+			}
 			inrange = false
+			hasRangeStart = false
+			hasHyphen = false
+		case '^':
+			if !inrange || hasRangeStart { // allowed only in a range start
+				return false, "", "", ErrBadPattern
+			}
+		case '?', '/':
+			if inrange { // not allowed in a range
+				return false, "", "", ErrBadPattern
+			}
+		case '-':
+			if inrange && (!hasRangeStart || hasHyphen) { // allowed only one in a range
+				return false, "", "", ErrBadPattern
+			}
+			if i+1 == len(pattern) || pattern[i+1] == ']' { // no high ch range
+				return false, "", "", ErrBadPattern
+			}
+			hasHyphen = true
 		case '*':
-			if !inrange {
-				break Scan
+			if inrange { // not allowed in a range
+				return false, "", "", ErrBadPattern
+			}
+			break Scan
+		default:
+			if inrange {
+				hasRangeStart = true
 			}
 		}
 	}
-	return star, pattern[0:i], pattern[i:]
+	if inrange {
+		return false, "", "", ErrBadPattern
+	}
+	return star, pattern[0:i], pattern[i:], nil
 }
 
 // matchChunk checks whether chunk matches the beginning of s.
@@ -167,10 +234,6 @@ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
 
 		case '\\':
 			chunk = chunk[1:]
-			if len(chunk) == 0 {
-				err = ErrBadPattern
-				return
-			}
 			fallthrough
 
 		default:
@@ -186,16 +249,8 @@ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
 
 // getEsc gets a possibly-escaped character from chunk, for a character class.
 func getEsc(chunk string) (r rune, nchunk string, err error) {
-	if len(chunk) == 0 || chunk[0] == '-' || chunk[0] == ']' {
-		err = ErrBadPattern
-		return
-	}
 	if chunk[0] == '\\' {
 		chunk = chunk[1:]
-		if len(chunk) == 0 {
-			err = ErrBadPattern
-			return
-		}
 	}
 	r, n := utf8.DecodeRuneInString(chunk)
 	if r == utf8.RuneError && n == 1 {
