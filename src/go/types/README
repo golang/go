@@ -1,0 +1,42 @@
+This version of go/types (and related go/*) libraries contains the changes
+to type-check generic code as outlined in the latest contracts proposal, as
+presented by Ian Taylor at GopherCon 2019.
+
+NOTE: THIS IS A PROTOTYPE. NOT EVERYTHING IS IMPLEMENTED. THERE ARE BUGS.
+
+Specifically, the following pieces are missing from type-checking or lead
+to unexpected behavior:
+
+- Importing of packages with type parameters or contracts.
+- Type-checking of contracts and type parameter lists with contracts.
+- Alias type names with type parameters.
+
+The following is "working" (as in passes simple tests):
+
+- Parsing of parameterized types and functions.
+- Parsing of contract declarations.
+- Declaration and use of parameterized types without contracts.
+- Declaration and use (calls) of parameterized functions without
+  contracts, including type inference from function arguments.
+
+The changes/CLs of this protoype should not be considered exemplary or
+final code. This is a prototype after all. See the disclaimer above.
+
+To play with this prototype:
+
+- Cherry-pick this CL on top of tip:
+
+  git fetch "https://go.googlesource.com/go" ... && git cherry-pick FETCH_HEAD
+
+  (replace the ... with the respective information from Gerrit's CL page)
+
+- Build the gotype command:
+
+  go install go/types/gotype.go
+
+- Run it against a test case (assuming gotype was installed in a location that
+  is in your $PATH):
+
+  gotype example.go2
+
+See also `gotype -h` for more information.
