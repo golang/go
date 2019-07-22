@@ -319,7 +319,7 @@ type Func struct {
 // NewFunc returns a new function with the given signature, representing
 // the function's type.
 func NewFunc(pos token.Pos, pkg *Package, name string, sig *Signature) *Func {
-	// don't store a nil signature
+	// don't store a (typed) nil signature
 	var typ Type
 	if sig != nil {
 		typ = sig

@@ -12,5 +12,3 @@ func (l List(E)) First() E {
         }
         return l[0]
 }
-
-// var _ string = List(string){"foo"}.First()

@@ -47,3 +47,6 @@ var (
         _ List(List(int)) = [](List(int)){}
         _ = [](List(int)){}
 )
+
+// Parameterized types with methods
+

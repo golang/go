@@ -90,7 +90,9 @@ func (s *subster) typ(typ Type) (res Type) {
 		return s.tuple(t)
 
 	case *Signature:
-		recv := s.var_(t.recv) // not strictly needed (receivers cannot be parametrized)
+		// TODO(gri) rethink the recv situation with respect to methods on parameterized types
+		//recv := s.var_(t.recv) // not strictly needed (receivers cannot be parameterized) (?)
+		recv := t.recv
 		params := s.tuple(t.params)
 		results := s.tuple(t.results)
 		if recv != t.recv || params != t.params || results != t.results {
@@ -123,19 +125,26 @@ func (s *subster) typ(typ Type) (res Type) {
 		if underlying != t.underlying {
 			// create a new named type - for now use printed type in name
 			// TODO(gri) consider type map to map types to indices (on the other hand, a type string seems just as good)
-			if len(t.methods) > 0 {
-				panic("cannot handle instantiation of types with methods yet")
-			}
 			// TODO(gri) review name creation and factor out
 			name := TypeString(t, nil) + "<" + typeListString(s.targs) + ">"
 			//s.check.dump("NAME = %s", name)
 			tname, found := s.check.typMap[name]
 			if !found {
+				// instantiate custom methods as necessary
+				var methods []*Func
+				for _, m := range t.methods {
+					//sig := s.typ(m.typ).(*Signature)
+					sig := s.check.subst(m.typ, m.tparams, s.targs).(*Signature)
+					m1 := NewFunc(m.pos, m.pkg, m.name, sig)
+					//s.check.dump("%s: method %s => %s", name, m, m1)
+					methods = append(methods, m1)
+				}
 				// TODO(gri) what is the correct position to use here?
 				tname = NewTypeName(t.obj.pos, s.check.pkg, name, nil)
 				//s.check.dump("name = %s", name)
-				NewNamed(tname, underlying, nil) // TODO(gri) provide correct method list
+				NewNamed(tname, underlying, methods)
 				s.check.typMap[name] = tname
+				// TODO(gri) update the method receivers?
 			}
 			return tname.typ
 		}

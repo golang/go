@@ -201,7 +201,8 @@ type Signature struct {
 	// We then unpack the *Signature and use the scope for the literal body.
 	scope *Scope // function scope, present for package-local signatures
 	recv  *Var   // nil if not a method
-	// TODO(gri) do we need to keep tparams in the signature?
+	// TODO(gri) do we need to keep tparams in the Signature, rather than the Func object?
+	// (how are they different from type parameters which we keep with the TypeName?)
 	tparams  []*TypeName // type parameters from left to right; or nil
 	params   *Tuple      // (incoming) parameters from left to right; or nil
 	results  *Tuple      // (outgoing) results from left to right; or nil
