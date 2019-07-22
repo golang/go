@@ -729,6 +729,14 @@ func (w *Writer) Close() error {
 	return w.d.close()
 }
 
+// Resets underlying writer to new writer or nil
+// This is useful when we are not using underlying writer buffer
+// for long time e.g on TCP connection (Or on websocket connection)
+// We can free memory by resetting it to nil.
+func (w *Writer) ResetWriter(dst io.Writer) {
+	w.d.w.writer = dst
+}
+
 // Reset discards the writer's state and makes it equivalent to
 // the result of NewWriter or NewWriterDict called with dst
 // and w's level and dictionary.

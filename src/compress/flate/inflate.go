@@ -65,6 +65,14 @@ func (e *WriteError) Error() string {
 	return "flate: write error at offset " + strconv.FormatInt(e.Offset, 10) + ": " + e.Err.Error()
 }
 
+// A ReadLimitReachedError reports an error of maximum read
+// limit reached while reading from underlying reader.
+type ReadLimitReachedError int
+
+func (e ReadLimitReachedError) Error() string {
+	return "flate: maximum read limit of " + strconv.FormatInt(int64(e), 10) + " bytes reached "
+}
+
 // Resetter resets a ReadCloser returned by NewReader or NewReaderDict
 // to switch to a new underlying Reader. This permits reusing a ReadCloser
 // instead of allocating a new one.
@@ -72,6 +80,13 @@ type Resetter interface {
 	// Reset discards any buffered data and resets the Resetter as if it was
 	// newly initialized with the given reader.
 	Reset(r io.Reader, dict []byte) error
+}
+
+// Limitter puts limit on number of bytes read from underlying Reader.
+// This prevents reading till EOF and it can be used for partial flush in reading.
+type Limiter interface {
+	// Sets limit on number of bytes read from underlying Reader
+	SetReadLimit(n int)
 }
 
 // The data structure for decoding Huffman tables is based on that of
@@ -265,6 +280,9 @@ type Reader interface {
 
 // Decompress state.
 type decompressor struct {
+	// Read Limit(Number of bytes to be read) from unerlying compressed data Reader
+	l int
+
 	// Input source.
 	r       Reader
 	roffset int64
@@ -692,8 +710,20 @@ func noEOF(e error) error {
 	return e
 }
 
+func (f *decompressor) SetReadLimit(n int) {
+	f.l = n
+}
+
+func (f *decompressor) readByte() (byte, error) {
+	if f.l > 0 && f.l == int(f.roffset) {
+		// maximum read limit is reached, return error
+		return 0, ReadLimitReachedError(f.l)
+	}
+	return f.r.ReadByte()
+}
+
 func (f *decompressor) moreBits() error {
-	c, err := f.r.ReadByte()
+	c, err := f.readByte()
 	if err != nil {
 		return noEOF(err)
 	}
@@ -716,7 +746,7 @@ func (f *decompressor) huffSym(h *huffmanDecoder) (int, error) {
 	nb, b := f.nb, f.b
 	for {
 		for nb < n {
-			c, err := f.r.ReadByte()
+			c, err := f.readByte()
 			if err != nil {
 				f.b = b
 				f.nb = nb
@@ -781,7 +811,9 @@ func (f *decompressor) Reset(r io.Reader, dict []byte) error {
 		dict:     f.dict,
 		step:     (*decompressor).nextBlock,
 	}
-	f.dict.init(maxMatchOffset, dict)
+	if dict != nil {
+		f.dict.init(maxMatchOffset, dict)
+	}
 	return nil
 }
 
@@ -797,6 +829,7 @@ func NewReader(r io.Reader) io.ReadCloser {
 	fixedHuffmanDecoderInit()
 
 	var f decompressor
+	f.l = 0
 	f.r = makeReader(r)
 	f.bits = new([maxNumLit + maxNumDist]int)
 	f.codebits = new([numCodes]int)
@@ -816,6 +849,7 @@ func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
 	fixedHuffmanDecoderInit()
 
 	var f decompressor
+	f.l = 0
 	f.r = makeReader(r)
 	f.bits = new([maxNumLit + maxNumDist]int)
 	f.codebits = new([numCodes]int)
