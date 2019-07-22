@@ -1575,6 +1575,9 @@
 // 	GOCACHE
 // 		The directory where the go command will store cached
 // 		information for reuse in future builds.
+// 	GODEBUG
+// 		Enable various debugging facilities. See 'go doc runtime'
+// 		for details.
 // 	GOENV
 // 		The location of the Go environment configuration file.
 // 		Cannot be set using 'go env -w'.
