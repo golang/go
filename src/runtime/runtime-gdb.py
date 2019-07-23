@@ -98,8 +98,16 @@ class SliceValue:
 #  Pretty Printers
 #
 
+class TypePrinter:
 
-class StringTypePrinter:
+	pattern = None
+
+	@classmethod
+	def match(cls, type_):
+		return cls.pattern.match(str(type_)) if cls.pattern else False
+
+
+class StringTypePrinter(TypePrinter):
 	"Pretty print Go strings."
 
 	pattern = re.compile(r'^struct string( \*)?$')
@@ -115,10 +123,11 @@ class StringTypePrinter:
 		return self.val['str'].string("utf-8", "ignore", l)
 
 
-class SliceTypePrinter:
+class SliceTypePrinter(TypePrinter):
 	"Pretty print slices."
 
-	pattern = re.compile(r'^struct \[\]')
+	pattern = re.compile(r'^(?:struct )?\[\]')
+	strip = re.compile(r'^struct ')
 
 	def __init__(self, val):
 		self.val = val
@@ -127,7 +136,7 @@ class SliceTypePrinter:
 		return 'array'
 
 	def to_string(self):
-		return str(self.val.type)[6:]  # skip 'struct '
+		return self.strip.sub('', str(self.val.type))  # strip any 'struct ' prefix
 
 	def children(self):
 		sval = SliceValue(self.val)
@@ -136,8 +145,12 @@ class SliceTypePrinter:
 		for idx, item in enumerate(sval):
 			yield ('[{0}]'.format(idx), item)
 
+	@classmethod
+	def match(cls, type_):
+		return cls.pattern.match(str(type_)) and type_.has_key('array')
 
-class MapTypePrinter:
+
+class MapTypePrinter(TypePrinter):
 	"""Pretty print map[K]V types.
 
 	Map-typed go variables are really pointers. dereference them in gdb
@@ -188,7 +201,7 @@ class MapTypePrinter:
 				bp = b['overflow']
 
 
-class ChanTypePrinter:
+class ChanTypePrinter(TypePrinter):
 	"""Pretty print chan[T] types.
 
 	Chan-typed go variables are really pointers. dereference them in gdb
@@ -222,7 +235,7 @@ class ChanTypePrinter:
 def makematcher(klass):
 	def matcher(val):
 		try:
-			if klass.pattern.match(str(val.type)):
+			if klass.match(val.type):
 				return klass(val)
 		except Exception:
 			pass
