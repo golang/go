@@ -15,6 +15,7 @@ import (
 
 // The constant is known to runtime.
 const tmpstringbufsize = 32
+const zeroValSize = 1024 // must match value of runtime/map.go:maxZero
 
 func walk(fn *Node) {
 	Curfn = fn
@@ -756,7 +757,7 @@ opswitch:
 		//   a = *var
 		a := n.List.First()
 
-		if w := t.Elem().Width; w <= 1024 { // 1024 must match runtime/map.go:maxZero
+		if w := t.Elem().Width; w <= zeroValSize {
 			fn := mapfn(mapaccess2[fast], t)
 			r = mkcall1(fn, fn.Type.Results(), init, typename(t), r.Left, key)
 		} else {
@@ -1093,7 +1094,7 @@ opswitch:
 				key = nod(OADDR, key, nil)
 			}
 
-			if w := t.Elem().Width; w <= 1024 { // 1024 must match runtime/map.go:maxZero
+			if w := t.Elem().Width; w <= zeroValSize {
 				n = mkcall1(mapfn(mapaccess1[fast], t), types.NewPtr(t.Elem()), init, typename(t), map_, key)
 			} else {
 				z := zeroaddr(w)
