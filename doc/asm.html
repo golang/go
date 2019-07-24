@@ -617,7 +617,8 @@ MOVL	g_m(AX), BX   // Move g.m into BX.
 </pre>
 
 <p>
-Note: the code above only works in the <code>runtime</code> package.
+Note: the code above only works in the <code>runtime</code> package. <code>go_tls.h</code> also
+applies to <a href="#arm">arm</a>, <a href="#amd64">amd64</a> and amd64p32. <code>go_asm.h</code> applies to all architectures.
 </p>
 
 <p>
