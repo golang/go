@@ -544,7 +544,7 @@ func (ctxt *Link) loadlib() {
 
 	// In internal link mode, read the host object files.
 	if ctxt.LinkMode == LinkInternal {
-		hostobjs(ctxt)
+		hostobjs(ctxt, true)
 
 		// If we have any undefined symbols in external
 		// objects, try to read them from the libgcc file.
@@ -918,12 +918,13 @@ func loadobjfile(ctxt *Link, lib *sym.Library) {
 }
 
 type Hostobj struct {
-	ld     func(*Link, *bio.Reader, string, int64, string)
-	pkg    string
-	pn     string
-	file   string
-	off    int64
-	length int64
+	ld       func(*Link, *bio.Reader, string, int64, string) error
+	pkg      string
+	pn       string
+	file     string
+	off      int64
+	length   int64
+	isCgoPkg bool // part of a Cgo package
 }
 
 var hostobj []Hostobj
@@ -939,7 +940,7 @@ var internalpkg = []string{
 	"runtime/msan",
 }
 
-func ldhostobj(ld func(*Link, *bio.Reader, string, int64, string), headType objabi.HeadType, f *bio.Reader, pkg string, length int64, pn string, file string) *Hostobj {
+func ldhostobj(ld func(*Link, *bio.Reader, string, int64, string) error, headType objabi.HeadType, f *bio.Reader, lib *sym.Library, pkg string, length int64, pn string, file string) *Hostobj {
 	isinternal := false
 	for _, intpkg := range internalpkg {
 		if pkg == intpkg {
@@ -972,21 +973,33 @@ func ldhostobj(ld func(*Link, *bio.Reader, string, int64, string), headType obja
 	h.file = file
 	h.off = f.Offset()
 	h.length = length
+	h.isCgoPkg = lib.Cgo
 	return h
 }
 
-func hostobjs(ctxt *Link) {
+func hostobjs(ctxt *Link, reportErrs bool) {
 	var h *Hostobj
 
 	for i := 0; i < len(hostobj); i++ {
 		h = &hostobj[i]
+
+		if h.isCgoPkg && ctxt.LinkMode == LinkExternal {
+			// The Hostobj is part of a cgo package during an external link.
+			// Any host objects within this package are accessed from symbols
+			// already loaded from a Go object file, so we do not need to load
+			// any of the host object symbols in this file.
+			continue
+		}
+
 		f, err := bio.Open(h.file)
 		if err != nil {
 			Exitf("cannot reopen %s: %v", h.pn, err)
 		}
 
 		f.MustSeek(h.off, 0)
-		h.ld(ctxt, f, h.pkg, h.length, h.pn)
+		if err := h.ld(ctxt, f, h.pkg, h.length, h.pn); reportErrs && err != nil {
+			Errorf(nil, "%v", err)
+		}
 		f.Close()
 	}
 }
@@ -994,6 +1007,35 @@ func hostobjs(ctxt *Link) {
 func hostlinksetup(ctxt *Link) {
 	if ctxt.LinkMode != LinkExternal {
 		return
+	}
+
+	if len(hostobj) > 0 {
+		// Load host object symbols into a separate context, so that they don't
+		// pollute the temporary object file created further below.
+		// Any errors while loading host objects are ignored: we don't support
+		// the full gamut of object file format features (e.g. all relocations),
+		// but loading the object symbol table typically comes early on and that's
+		// all we need.
+		hctxt := linknew(ctxt.Arch)
+		hctxt.LinkMode = LinkExternal
+		oldFlags := ehdr.flags // save flags
+		hostobjs(hctxt, false) // load and ignore errors
+		ehdr.flags = oldFlags  // restore flags
+
+		// For each untyped symbol having a relocation that appears in a host
+		// object file, we set the symbol type so that the external linker
+		// relocates it appropriately.
+		const globalNamespace = 0
+		for _, s := range ctxt.Syms.Allsym {
+			for i := range s.R {
+				r := &s.R[i]
+				if r.Sym != nil && r.Sym.Type == sym.Sxxx && hctxt.Syms.ROLookup(r.Sym.Name, globalNamespace) != nil {
+					r.Sym.Type = sym.SHOSTOBJ
+					// The offset of this relocation points directly at the symbol.
+					r.Sym.Attr |= sym.AttrNotRelative
+				}
+			}
+		}
 	}
 
 	// For external link, record that we need to tell the external linker -s,
@@ -1611,55 +1653,55 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 
 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
 	if magic == 0x7f454c46 { // \x7F E L F
-		ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+		ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) error {
 			textp, flags, err := loadelf.Load(ctxt.Arch, ctxt.Syms, f, pkg, length, pn, ehdr.flags)
 			if err != nil {
-				Errorf(nil, "%v", err)
-				return
+				return err
 			}
 			ehdr.flags = flags
 			ctxt.Textp = append(ctxt.Textp, textp...)
+			return nil
 		}
-		return ldhostobj(ldelf, ctxt.HeadType, f, pkg, length, pn, file)
+		return ldhostobj(ldelf, ctxt.HeadType, f, lib, pkg, length, pn, file)
 	}
 
 	if magic&^1 == 0xfeedface || magic&^0x01000000 == 0xcefaedfe {
-		ldmacho := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+		ldmacho := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) error {
 			textp, err := loadmacho.Load(ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
 			if err != nil {
-				Errorf(nil, "%v", err)
-				return
+				return err
 			}
 			ctxt.Textp = append(ctxt.Textp, textp...)
+			return nil
 		}
-		return ldhostobj(ldmacho, ctxt.HeadType, f, pkg, length, pn, file)
+		return ldhostobj(ldmacho, ctxt.HeadType, f, lib, pkg, length, pn, file)
 	}
 
 	if c1 == 0x4c && c2 == 0x01 || c1 == 0x64 && c2 == 0x86 {
-		ldpe := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+		ldpe := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) error {
 			textp, rsrc, err := loadpe.Load(ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
 			if err != nil {
-				Errorf(nil, "%v", err)
-				return
+				return err
 			}
 			if rsrc != nil {
 				setpersrc(ctxt, rsrc)
 			}
 			ctxt.Textp = append(ctxt.Textp, textp...)
+			return nil
 		}
-		return ldhostobj(ldpe, ctxt.HeadType, f, pkg, length, pn, file)
+		return ldhostobj(ldpe, ctxt.HeadType, f, lib, pkg, length, pn, file)
 	}
 
 	if c1 == 0x01 && (c2 == 0xD7 || c2 == 0xF7) {
-		ldxcoff := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+		ldxcoff := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) error {
 			textp, err := loadxcoff.Load(ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
 			if err != nil {
-				Errorf(nil, "%v", err)
-				return
+				return err
 			}
 			ctxt.Textp = append(ctxt.Textp, textp...)
+			return nil
 		}
-		return ldhostobj(ldxcoff, ctxt.HeadType, f, pkg, length, pn, file)
+		return ldhostobj(ldxcoff, ctxt.HeadType, f, lib, pkg, length, pn, file)
 	}
 
 	/* check the header */

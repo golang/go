@@ -1,0 +1,29 @@
+# Test that we can use the external linker with a host syso file that is
+# embedded in a package, that is referenced by a Go assembly stub.
+# See issue 33139.
+[!gc] stop
+cc -c -o syso/objTestImpl.syso syso/src/objTestImpl.c
+go build -ldflags='-linkmode=external' ./cmd/main.go
+
+-- syso/objTest.s --
+#include "textflag.h"
+
+TEXT ·ObjTest(SB), NOSPLIT, $0
+	JMP objTestImpl(SB)
+
+-- syso/pkg.go --
+package syso
+
+func ObjTest()
+
+-- syso/src/objTestImpl.c --
+void objTestImpl() { /* Empty */ }
+
+-- cmd/main.go --
+package main
+
+import "syso"
+
+func main() {
+	syso.ObjTest()
+}

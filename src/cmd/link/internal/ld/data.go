@@ -96,7 +96,7 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
 		if !r.Type.IsDirectJump() {
 			continue
 		}
-		if Symaddr(r.Sym) == 0 && r.Sym.Type != sym.SDYNIMPORT {
+		if Symaddr(r.Sym) == 0 && !(r.Sym.Type == sym.SHOSTOBJ || r.Sym.Type == sym.SDYNIMPORT) {
 			if r.Sym.File != s.File {
 				if !isRuntimeDepPkg(s.File) || !isRuntimeDepPkg(r.Sym.File) {
 					ctxt.ErrorUnresolved(s, r)
@@ -430,7 +430,9 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 					rs = rs.Outer
 				}
 
-				r.Xadd -= int64(r.Siz) // relative to address after the relocated chunk
+				if r.Sym.Attr.Relative() {
+					r.Xadd -= int64(r.Siz) // relative to address after the relocated chunk
+				}
 				if rs.Type != sym.SHOSTOBJ && rs.Type != sym.SDYNIMPORT && rs.Sect == nil {
 					Errorf(s, "missing section for relocation target %s", rs.Name)
 				}
@@ -438,8 +440,15 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 
 				o = r.Xadd
 				if ctxt.IsELF {
-					if ctxt.Arch.Family == sys.AMD64 {
+					if !r.Sym.Attr.Relative() {
+						// ELF is relative to address after the relocated chunk.
+						r.Xadd -= int64(r.Siz)
+					}
+					switch ctxt.Arch.Family {
+					case sys.AMD64:
 						o = 0
+					case sys.I386:
+						o = r.Xadd
 					}
 				} else if ctxt.HeadType == objabi.Hdarwin {
 					if r.Type == objabi.R_CALL {
@@ -457,18 +466,22 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 							if rs.Type != sym.SHOSTOBJ {
 								o += int64(uint64(Symaddr(rs)) - rs.Sect.Vaddr)
 							}
-							o -= int64(r.Off) // relative to section offset, not symbol
+							if r.Sym.Attr.Relative() {
+								o -= int64(r.Off) // relative to section offset, not symbol
+							}
 						}
 					} else if ctxt.Arch.Family == sys.ARM {
 						// see ../arm/asm.go:/machoreloc1
 						o += Symaddr(rs) - s.Value - int64(r.Off)
-					} else {
+					} else if r.Sym.Attr.Relative() {
 						o += int64(r.Siz)
 					}
-				} else if ctxt.HeadType == objabi.Hwindows && ctxt.Arch.Family == sys.AMD64 { // only amd64 needs PCREL
-					// PE/COFF's PC32 relocation uses the address after the relocated
-					// bytes as the base. Compensate by skewing the addend.
-					o += int64(r.Siz)
+				} else if ctxt.HeadType == objabi.Hwindows && (ctxt.Arch.Family == sys.AMD64 || ctxt.Arch.Family == sys.I386) { // only amd64 and 386 needs PCREL
+					if r.Sym.Attr.Relative() {
+						// PE/COFF's PC32 relocation uses the address after the relocated
+						// bytes as the base. Compensate by skewing the addend.
+						o += int64(r.Siz)
+					}
 				} else {
 					Errorf(s, "unhandled pcrel relocation to %s on %v", rs.Name, ctxt.HeadType)
 				}

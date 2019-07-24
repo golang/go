@@ -127,7 +127,9 @@ func hostArchive(ctxt *Link, name string) {
 			libgcc := sym.Library{Pkg: "libgcc"}
 			h := ldobj(ctxt, f, &libgcc, l, pname, name)
 			f.MustSeek(h.off, 0)
-			h.ld(ctxt, f, h.pkg, h.length, h.pn)
+			if err := h.ld(ctxt, f, h.pkg, h.length, h.pn); err != nil {
+				Errorf(nil, "%v", err)
+			}
 		}
 
 		any = len(load) > 0
