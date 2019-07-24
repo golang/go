@@ -28,7 +28,7 @@ func (s *Server) hover(ctx context.Context, params *protocol.TextDocumentPositio
 	}
 	ident, err := source.Identifier(ctx, view, f, identRange.Start)
 	if err != nil {
-		return nil, err
+		return nil, nil
 	}
 	hover, err := ident.Hover(ctx, s.preferredContentFormat == protocol.Markdown, s.hoverKind)
 	if err != nil {
