@@ -257,6 +257,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 
 	// x's type V and T have identical underlying types
 	// and at least one of V or T is not a named type
+	//check.dump("Vu = %s, Tu = %s, identical = %v", Vu, Tu, Identical(Vu, Tu))
 	if check.identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
 		return true
 	}

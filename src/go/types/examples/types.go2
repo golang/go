@@ -1,0 +1,37 @@
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file shows some examples of type-parameterized types.
+
+package p
+
+// List is just what it says - a slice of E elements.
+type List(type E) []E
+
+// A parameterized (generic) type must always be instantiated
+// before it can be used to designate the type of a variable
+// (including a struct field, or function parameter); though
+// for the latter cases, the provided type may be another type
+// parameter. So:
+var _ List(byte) = []byte{}
+
+// A generic binary tree might be declared as follows.
+type Tree(type E) struct {
+	left, right *Tree
+	payload E
+}
+
+// A simple instantiation of Tree:
+var root1 Tree(int)
+
+// The actual type parameter provided may be a parameterized
+// type itself:
+var root2 Tree(List(int))
+
+// A couple of more complex examples.
+// Here, we need extra parentheses around the element type of the slices on the right
+// to resolve the parsing ambiguity between the conversion []List(int) and the slice
+// type with a parameterized elements type [](List(int)).
+var _ List(List(int)) = [](List(int)){}
+var _ List(List(List(Tree(int)))) = [](List(List(Tree(int)))){}

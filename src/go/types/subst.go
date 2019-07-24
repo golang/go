@@ -15,7 +15,7 @@ import (
 // inst returns the instantiated type of tname.
 func (check *Checker) inst(tname *TypeName, targs []Type) (res Type) {
 	if check.conf.Trace {
-		check.trace(tname.pos, "-- instantiating %s", tname)
+		check.trace(tname.pos, "-- instantiating %s with %s", tname, typeListString(targs))
 		check.indent++
 		defer func() {
 			check.indent--
@@ -52,7 +52,7 @@ type subster struct {
 func (s *subster) typ(typ Type) (res Type) {
 	// avoid repeating the same substitution for a given type
 	// TODO(gri) is this correct in the presence of cycles?
-	if typ, hit := s.cache[typ]; hit {
+	if typ, found := s.cache[typ]; found {
 		return typ
 	}
 	defer func() {
@@ -121,33 +121,31 @@ func (s *subster) typ(typ Type) (res Type) {
 		}
 
 	case *Named:
-		underlying := s.typ(t.underlying).Underlying()
-		if underlying != t.underlying {
-			// create a new named type - for now use printed type in name
-			// TODO(gri) consider type map to map types to indices (on the other hand, a type string seems just as good)
-			// TODO(gri) review name creation and factor out
-			name := TypeString(t, nil) + "<" + typeListString(s.targs) + ">"
-			//s.check.dump("NAME = %s", name)
-			tname, found := s.check.typMap[name]
-			if !found {
-				// instantiate custom methods as necessary
-				var methods []*Func
-				for _, m := range t.methods {
-					//sig := s.typ(m.typ).(*Signature)
-					sig := s.check.subst(m.typ, m.tparams, s.targs).(*Signature)
-					m1 := NewFunc(m.pos, m.pkg, m.name, sig)
-					//s.check.dump("%s: method %s => %s", name, m, m1)
-					methods = append(methods, m1)
-				}
-				// TODO(gri) what is the correct position to use here?
-				tname = NewTypeName(t.obj.pos, s.check.pkg, name, nil)
-				//s.check.dump("name = %s", name)
-				NewNamed(tname, underlying, methods)
-				s.check.typMap[name] = tname
-				// TODO(gri) update the method receivers?
-			}
+		// TODO(gri) revisit name creation (function local types, etc.) and factor out
+		name := TypeString(t, nil) + "<" + typeListString(s.targs) + ">"
+		//s.check.dump("- %s => %s", t, name)
+		if tname, found := s.check.typMap[name]; found {
+			//s.check.dump("- found %s", tname)
 			return tname.typ
 		}
+		// create a new named type and populate caches to avoid endless recursion
+		// TODO(gri) should use actual instantiation position
+		tname := NewTypeName(t.obj.pos, s.check.pkg, name, nil)
+		s.check.typMap[name] = tname
+		named := NewNamed(tname, nil, nil)
+		s.cache[t] = named
+		//s.check.dump("- installed %s", tname)
+		named.underlying = s.typ(t.underlying).Underlying()
+		//s.check.dump("- finished %s", tname)
+		// instantiate custom methods as necessary
+		for _, m := range t.methods {
+			sig := s.check.subst(m.typ, m.tparams, s.targs).(*Signature)
+			m1 := NewFunc(m.pos, m.pkg, m.name, sig)
+			//s.check.dump("%s: method %s => %s", name, m, m1)
+			named.methods = append(named.methods, m1)
+		}
+		// TODO(gri) update the method receivers?
+		return named
 
 	case *Parameterized:
 		// first, instantiate any arguments if necessary

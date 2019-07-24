@@ -4,6 +4,9 @@ presented by Ian Taylor at GopherCon 2019.
 
 NOTE: THIS IS A PROTOTYPE. NOT EVERYTHING IS IMPLEMENTED. THERE ARE BUGS.
 
+The code is not very well tested, some parts were hacked up quickly,
+and no code review has happened. Read and use the code at your own risk.
+
 Specifically, the following pieces are missing from type-checking or lead
 to unexpected behavior:
 
@@ -18,9 +21,6 @@ The following is "working" (as in passes simple tests):
 - Declaration and use of parameterized types without contracts.
 - Declaration and use (calls) of parameterized functions without
   contracts, including type inference from function arguments.
-
-The changes/CLs of this protoype should not be considered exemplary or
-final code. This is a prototype after all. See the disclaimer above.
 
 To play with this prototype:
 

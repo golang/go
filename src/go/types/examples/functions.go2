@@ -1,0 +1,64 @@
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file shows some examples of type-parameterized functions.
+
+package p
+
+// Reverse is a function that takes a []T argument and
+// reverses that slice in place.
+func Reverse (type T) (list []T) {
+	i := 0
+	j := len(list)-1
+	for i < j {
+		list[i], list[j] = list[j], list[i]
+	}
+}
+
+func _() {
+	// Reverse can be called with an explicit type argument
+	Reverse(int)(nil)
+	Reverse(string)([]string{"foo", "bar"})
+	Reverse(struct{x, y int})([]struct{x, y int}{{1, 2}, {2, 3}, {3, 4}})
+
+	// Since the type parameter is used for an incoming argument,
+	// it can be inferred from the provided argument's type.
+	Reverse([]string{"foo", "bar"})
+	Reverse([]struct{x, y int}{{1, 2}, {2, 3}, {3, 4}})
+
+	// But the incoming argument must have a type, even if it's a
+	// default type. An untyped nil won't work.
+	// Reverse(nil) // this won't type-check
+
+	// A typed nil will work, though.
+	Reverse([]int(nil))
+}
+
+// Certain functions, such as the built-in `new` could be written using
+// type parameters.
+func new (type T) () *T {
+	var x T
+	return &x
+}
+
+// When calling our own new, we need to pass the type parameter
+// explicitly since there is no (value) argument from which the
+// result type could be inferred. We doen't try to infer the
+// result type from the assignment to keep things simple and
+// easy to understand.
+var _ = new(int)()
+var _ *float64 = new(float64)() // the result type is indeed *float64
+
+// A function may have multiple type parameters, of course.
+func foo (type A, B, C) (a A, b []B, c *C) B {
+	// do something here
+	return b[0]
+}
+
+// As before, we can pass type parameters explicitly.
+var s = foo(int, string, float64)(1, []string{"first"}, new(float64)())
+
+// Or we can use type inference.
+var _ float64 = foo(42, []float64{1.0}, &s)
+
