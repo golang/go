@@ -444,7 +444,7 @@ func apply(fset *token.FileSet, f *ast.File, fixes []*importFix) bool {
 		case setImportName:
 			// Find the matching import path and change the name.
 			for _, spec := range f.Imports {
-				path := strings.Trim(spec.Path.Value, `""`)
+				path := strings.Trim(spec.Path.Value, `"`)
 				if path == fix.info.importPath {
 					spec.Name = &ast.Ident{
 						Name:    fix.info.name,
