@@ -41,19 +41,8 @@ import (
 // not escape, then new(T) can be rewritten into a stack allocation.
 // The same is true of slice literals.
 
-// If newescape is true, then escape.go drives escape analysis instead
-// of esc.go.
-var newescape bool
-
 func escapes(all []*Node) {
-	visitBottomUp(all, escapeImpl())
-}
-
-func escapeImpl() func([]*Node, bool) {
-	if newescape {
-		return escapeFuncs
-	}
-	return escAnalyze
+	visitBottomUp(all, escapeFuncs)
 }
 
 const (
