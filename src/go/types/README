@@ -1,26 +1,30 @@
-This version of go/types (and related go/*) libraries contains the changes
-to type-check generic code as outlined in the latest contracts proposal, as
-presented by Ian Taylor at GopherCon 2019.
+This version of go/types (and related go/*) libraries contains changes
+to type-check generic code as outlined in the latest contracts proposal,
+as presented by Ian Taylor at GopherCon 2019.
 
-NOTE: THIS IS A PROTOTYPE. NOT EVERYTHING IS IMPLEMENTED. THERE ARE BUGS.
+CAUTUION: EARLY PROTOTYPE. A LOT IS STILL MISSING. THERE ARE BUGS.
 
-The code is not very well tested, some parts were hacked up quickly,
-and no code review has happened. Read and use the code at your own risk.
+The code is not tested enough, many parts need a rewrite/cleanup
+and no code review has happened. Read and use at your own risk.
 
-Specifically, the following pieces are missing from type-checking or lead
-to unexpected behavior:
+Specifically, the following pieces (and more) are missing from type-
+checking or lead to unexpected behavior:
 
 - Importing of packages with type parameters or contracts.
 - Type-checking of contracts and type parameter lists with contracts.
 - Alias type names with type parameters.
+- gofmt (and any other tools) don't work for parameterized code.
 
-The following is "working" (as in passes simple tests):
+The following is "working" (as in "passes simple tests"):
 
 - Parsing of parameterized types and functions.
 - Parsing of contract declarations.
 - Declaration and use of parameterized types without contracts.
 - Declaration and use (calls) of parameterized functions without
   contracts, including type inference from function arguments.
+
+Error messages, where present, are in usable condition but expect
+them to be significantly better in a real implementation.
 
 To play with this prototype:
 
@@ -37,6 +41,10 @@ To play with this prototype:
 - Run it against a test case (assuming gotype was installed in a location that
   is in your $PATH):
 
-  gotype example.go2
+  gotype $GOROOT/src/go/types/examples/functions.go2
 
 See also `gotype -h` for more information.
+
+Note: Currently, files containing parameterized code have extension ".go2".
+This is solely to distinguish them from regular Go code and to prevent gofmt
+from touching them. We expect a proper implementation to keep using ".go".

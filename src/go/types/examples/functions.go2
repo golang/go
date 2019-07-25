@@ -62,3 +62,11 @@ var s = foo(int, string, float64)(1, []string{"first"}, new(float64)())
 // Or we can use type inference.
 var _ float64 = foo(42, []float64{1.0}, &s)
 
+// Type inference works in a straight-forward manner even
+// for variadic functions.
+func variadic(type A, B)(A, B, ...B) int { panic("unimplemented") }
+
+// var _ = variadic(1) // ERROR not enough arguments
+var _ = variadic(1, 2.3)
+var _ = variadic(1, 2.3, 3.4, 4.5)
+var _ = variadic(int, float64)(1, 2.3, 3.4, 4)

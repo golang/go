@@ -11,7 +11,7 @@ contract _(A, B, C){}
 contract _(A, B, A /* ERROR A redeclared */ ){}
 
 // For now we also allow this form of contract declaration.
-// TODO(gri) probably not a good idea. Disallow a local level for sure.
+// TODO(gri) probably not a good idea. Disallow at local level for sure.
 type _ contract(){}
 type _ contract(A, B, A /* ERROR A redeclared */ ){}
 
