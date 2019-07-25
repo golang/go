@@ -27,11 +27,32 @@ func Rnd(o int64, r int64) int64 {
 // expandiface computes the method set for interface type t by
 // expanding embedded interfaces.
 func expandiface(t *types.Type) {
-	var fields []*types.Field
+	seen := make(map[*types.Sym]*types.Field)
+	var methods []*types.Field
+
+	addMethod := func(m *types.Field, explicit bool) {
+		switch prev := seen[m.Sym]; {
+		case prev == nil:
+			seen[m.Sym] = m
+		case !explicit && types.Identical(m.Type, prev.Type):
+			return
+		default:
+			yyerrorl(m.Pos, "duplicate method %s", m.Sym.Name)
+		}
+		methods = append(methods, m)
+	}
+
+	for _, m := range t.Methods().Slice() {
+		if m.Sym == nil {
+			continue
+		}
+
+		checkwidth(m.Type)
+		addMethod(m, true)
+	}
+
 	for _, m := range t.Methods().Slice() {
 		if m.Sym != nil {
-			fields = append(fields, m)
-			checkwidth(m.Type)
 			continue
 		}
 
@@ -43,7 +64,7 @@ func expandiface(t *types.Type) {
 			// include the broken embedded type when
 			// printing t.
 			// TODO(mdempsky): Revisit this.
-			fields = append(fields, m)
+			methods = append(methods, m)
 			continue
 		}
 
@@ -56,23 +77,22 @@ func expandiface(t *types.Type) {
 			f.Sym = t1.Sym
 			f.Type = t1.Type
 			f.SetBroke(t1.Broke())
-			fields = append(fields, f)
+			addMethod(f, false)
 		}
 	}
 
-	sort.Sort(methcmp(fields))
-	checkdupfields("method", fields)
+	sort.Sort(methcmp(methods))
 
-	if int64(len(fields)) >= thearch.MAXWIDTH/int64(Widthptr) {
+	if int64(len(methods)) >= thearch.MAXWIDTH/int64(Widthptr) {
 		yyerror("interface too large")
 	}
-	for i, f := range fields {
-		f.Offset = int64(i) * int64(Widthptr)
+	for i, m := range methods {
+		m.Offset = int64(i) * int64(Widthptr)
 	}
 
 	// Access fields directly to avoid recursively calling dowidth
 	// within Type.Fields().
-	t.Extra.(*types.Interface).Fields.Set(fields)
+	t.Extra.(*types.Interface).Fields.Set(methods)
 }
 
 func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
