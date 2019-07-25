@@ -59,23 +59,20 @@ func expandiface(t *types.Type) {
 			fields = append(fields, f)
 		}
 	}
+
 	sort.Sort(methcmp(fields))
+	checkdupfields("method", fields)
+
+	if int64(len(fields)) >= thearch.MAXWIDTH/int64(Widthptr) {
+		yyerror("interface too large")
+	}
+	for i, f := range fields {
+		f.Offset = int64(i) * int64(Widthptr)
+	}
 
 	// Access fields directly to avoid recursively calling dowidth
 	// within Type.Fields().
 	t.Extra.(*types.Interface).Fields.Set(fields)
-}
-
-func offmod(t *types.Type) {
-	o := int32(0)
-	for _, f := range t.Fields().Slice() {
-		f.Offset = int64(o)
-		o += int32(Widthptr)
-		if int64(o) >= thearch.MAXWIDTH {
-			yyerror("interface too large")
-			o = int32(Widthptr)
-		}
-	}
 }
 
 func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
@@ -379,14 +376,6 @@ func dowidth(t *types.Type) {
 			Fatalf("invalid alignment for %v", t)
 		}
 		t.Align = uint8(w)
-	}
-
-	if t.Etype == TINTER {
-		// We defer calling these functions until after
-		// setting t.Width and t.Align so the recursive calls
-		// to dowidth within t.Fields() will succeed.
-		checkdupfields("method", t.FieldSlice())
-		offmod(t)
 	}
 
 	lineno = lno
