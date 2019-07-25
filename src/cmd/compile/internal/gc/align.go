@@ -385,7 +385,7 @@ func dowidth(t *types.Type) {
 		// We defer calling these functions until after
 		// setting t.Width and t.Align so the recursive calls
 		// to dowidth within t.Fields() will succeed.
-		checkdupfields("method", t)
+		checkdupfields("method", t.FieldSlice())
 		offmod(t)
 	}
 
