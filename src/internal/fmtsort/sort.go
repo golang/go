@@ -56,7 +56,7 @@ func Sort(mapValue reflect.Value) *SortedMap {
 	key := make([]reflect.Value, mapValue.Len())
 	value := make([]reflect.Value, len(key))
 	iter := mapValue.MapRange()
-	for i := 0; iter.Next(); i++ {
+	for i := 0; iter.Next() && i < len(key); i++ {
 		key[i] = iter.Key()
 		value[i] = iter.Value()
 	}
