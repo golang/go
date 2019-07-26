@@ -188,10 +188,6 @@ func DeepEqual(x, y interface{}) bool {
 	if x == nil || y == nil {
 		return x == y
 	}
-	v1 := ValueOf(x)
-	v2 := ValueOf(y)
-	if v1.Type() != v2.Type() {
-		return false
-	}
+	v1, v2 := ValueOf(x), ValueOf(y)
 	return deepValueEqual(v1, v2, make(map[visit]bool), 0)
 }
