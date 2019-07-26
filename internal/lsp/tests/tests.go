@@ -29,7 +29,7 @@ const (
 	ExpectedCompletionsCount       = 144
 	ExpectedCompletionSnippetCount = 15
 	ExpectedDiagnosticsCount       = 17
-	ExpectedFormatCount            = 5
+	ExpectedFormatCount            = 6
 	ExpectedImportCount            = 2
 	ExpectedDefinitionsCount       = 38
 	ExpectedTypeDefinitionsCount   = 2

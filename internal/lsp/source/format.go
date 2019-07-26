@@ -31,7 +31,15 @@ func Format(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) {
 	}
 	pkg := f.GetPackage(ctx)
 	if hasListErrors(pkg.GetErrors()) || hasParseErrors(pkg.GetErrors()) {
-		return nil, fmt.Errorf("%s has parse errors, not formatting", f.URI())
+		// Even if this package has list or parse errors, this file may not
+		// have any parse errors and can still be formatted. Using format.Node
+		// on an ast with errors may result in code being added or removed.
+		// Attempt to format the source of this file instead.
+		formatted, err := formatSource(ctx, f)
+		if err != nil {
+			return nil, err
+		}
+		return computeTextEdits(ctx, f, string(formatted)), nil
 	}
 	path, exact := astutil.PathEnclosingInterval(file, rng.Start, rng.End)
 	if !exact || len(path) == 0 {
@@ -50,6 +58,16 @@ func Format(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) {
 		return nil, err
 	}
 	return computeTextEdits(ctx, f, buf.String()), nil
+}
+
+func formatSource(ctx context.Context, file File) ([]byte, error) {
+	ctx, done := trace.StartSpan(ctx, "source.formatSource")
+	defer done()
+	data, _, err := file.Handle(ctx).Read(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return format.Source(data)
 }
 
 // Imports formats a file using the goimports tool.
