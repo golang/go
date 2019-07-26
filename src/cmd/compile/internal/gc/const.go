@@ -1042,9 +1042,15 @@ func setconst(n *Node, v Val) {
 	overflow(v, n.Type)
 	lineno = lno
 
-	// Truncate precision for non-ideal float.
-	if v.Ctype() == CTFLT && n.Type.Etype != TIDEAL {
-		n.SetVal(Val{truncfltlit(v.U.(*Mpflt), n.Type)})
+	if !n.Type.IsUntyped() {
+		switch v.Ctype() {
+		// Truncate precision for non-ideal float.
+		case CTFLT:
+			n.SetVal(Val{truncfltlit(v.U.(*Mpflt), n.Type)})
+		// Truncate precision for non-ideal complex.
+		case CTCPLX:
+			n.SetVal(Val{trunccmplxlit(v.U.(*Mpcplx), n.Type)})
+		}
 	}
 }
 
