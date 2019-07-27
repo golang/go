@@ -219,6 +219,15 @@ func (algo SignatureAlgorithm) String() string {
 	return strconv.Itoa(int(algo))
 }
 
+func (algo SignatureAlgorithm) Hash() crypto.Hash {
+	for _, details := range signatureAlgorithmDetails {
+		if details.algo == algo {
+			return details.hash
+		}
+	}
+	return crypto.Hash(0)
+}
+
 type PublicKeyAlgorithm int
 
 const (
