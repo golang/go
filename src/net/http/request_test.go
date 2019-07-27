@@ -85,35 +85,37 @@ func TestParseFormQueryMethods(t *testing.T) {
 	}
 }
 
-type stringMap map[string][]string
-type parseContentTypeTest struct {
-	shouldError bool
-	contentType stringMap
-}
-
-var parseContentTypeTests = []parseContentTypeTest{
-	{false, stringMap{"Content-Type": {"text/plain"}}},
-	// Empty content type is legal - may be treated as
-	// application/octet-stream (RFC 7231, section 3.1.1.5)
-	{false, stringMap{}},
-	{true, stringMap{"Content-Type": {"text/plain; boundary="}}},
-	{false, stringMap{"Content-Type": {"application/unknown"}}},
-}
-
 func TestParseFormUnknownContentType(t *testing.T) {
-	for i, test := range parseContentTypeTests {
-		req := &Request{
-			Method: "POST",
-			Header: Header(test.contentType),
-			Body:   ioutil.NopCloser(strings.NewReader("body")),
-		}
-		err := req.ParseForm()
-		switch {
-		case err == nil && test.shouldError:
-			t.Errorf("test %d should have returned error", i)
-		case err != nil && !test.shouldError:
-			t.Errorf("test %d should not have returned error, got %v", i, err)
-		}
+	for _, test := range []struct {
+		name        string
+		wantErr     string
+		contentType Header
+	}{
+		{"text", "", Header{"Content-Type": {"text/plain"}}},
+		// Empty content type is legal - may be treated as
+		// application/octet-stream (RFC 7231, section 3.1.1.5)
+		{"empty", "", Header{}},
+		{"boundary", "mime: invalid media parameter", Header{"Content-Type": {"text/plain; boundary="}}},
+		{"unknown", "", Header{"Content-Type": {"application/unknown"}}},
+	} {
+		t.Run(test.name,
+			func(t *testing.T) {
+				req := &Request{
+					Method: "POST",
+					Header: test.contentType,
+					Body:   ioutil.NopCloser(strings.NewReader("body")),
+				}
+				err := req.ParseForm()
+				switch {
+				case err == nil && test.wantErr != "":
+					t.Errorf("unexpected success; want error %q", test.wantErr)
+				case err != nil && test.wantErr == "":
+					t.Errorf("want success, got error: %v", err)
+				case test.wantErr != "" && test.wantErr != fmt.Sprint(err):
+					t.Errorf("got error %q; want %q", err, test.wantErr)
+				}
+			},
+		)
 	}
 }
 
