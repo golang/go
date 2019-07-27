@@ -67,6 +67,8 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg 
 	ofile = objdir + out
 	gcargs := []string{"-g"}
 	gcargs = append(gcargs, b.gccArchArgs()...)
+	gcargs = append(gcargs, "-fdebug-prefix-map="+b.WorkDir+"=/tmp/go-build")
+	gcargs = append(gcargs, "-gno-record-gcc-switches")
 	if pkgpath := gccgoPkgpath(p); pkgpath != "" {
 		gcargs = append(gcargs, "-fgo-pkgpath="+pkgpath)
 	}
@@ -528,12 +530,18 @@ func (tools gccgoToolchain) cc(b *Builder, a *Action, ofile, cfile string) error
 	if pkgpath := gccgoCleanPkgpath(p); pkgpath != "" {
 		defs = append(defs, `-D`, `GOPKGPATH="`+pkgpath+`"`)
 	}
-	switch cfg.Goarch {
-	case "386", "amd64":
+	compiler := envList("CC", cfg.DefaultCC(cfg.Goos, cfg.Goarch))
+	if b.gccSupportsFlag(compiler, "-fsplit-stack") {
 		defs = append(defs, "-fsplit-stack")
 	}
 	defs = tools.maybePIC(defs)
-	return b.run(a, p.Dir, p.ImportPath, nil, envList("CC", cfg.DefaultCC(cfg.Goos, cfg.Goarch)), "-Wall", "-g",
+	if b.gccSupportsFlag(compiler, "-fdebug-prefix-map=a=b") {
+		defs = append(defs, "-fdebug-prefix-map="+b.WorkDir+"=/tmp/go-build")
+	}
+	if b.gccSupportsFlag(compiler, "-gno-record-gcc-switches") {
+		defs = append(defs, "-gno-record-gcc-switches")
+	}
+	return b.run(a, p.Dir, p.ImportPath, nil, compiler, "-Wall", "-g",
 		"-I", a.Objdir, "-I", inc, "-o", ofile, defs, "-c", cfile)
 }
 
