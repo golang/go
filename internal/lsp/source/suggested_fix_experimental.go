@@ -8,10 +8,10 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-func getCodeActions(fset *token.FileSet, diag analysis.Diagnostic) ([]CodeAction, error) {
-	var cas []CodeAction
+func getCodeActions(fset *token.FileSet, diag analysis.Diagnostic) ([]SuggestedFixes, error) {
+	var cas []SuggestedFixes
 	for _, fix := range diag.SuggestedFixes {
-		var ca CodeAction
+		var ca SuggestedFixes
 		ca.Title = fix.Message
 		for _, te := range fix.TextEdits {
 			span, err := span.NewRange(fset, te.Pos, te.End).Span()
