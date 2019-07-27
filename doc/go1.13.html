@@ -621,14 +621,17 @@ godoc
 
 </dl><!-- errors -->
 
-<dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+<dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
   <dd>
-    <p><!-- CL 175218 -->
-      When using a <code>&lt;script&gt;</code> tag with "module" set as the
-      type attribute, code will now be interpreted as <a href="https://html.spec.whatwg.org/multipage/scripting.html#the-script-element:module-script-2">JavaScript module script</a>.
+    <!-- CL 176998 -->
+    <p>The <a href="/pkg/fmt/#Errorf"><code>Errorf</code></a> function
+      has a new verb, <code>%w</code>, whose operand must be an error.
+      The error returned from <code>Errorf</code> will have an
+      <code>Unwrap</code> method which returns the operand of <code>%w</code>.
     </p>
 
-  </dl><!-- html/template -->
+</dl><!-- fmt -->
+
 
 <dl id="go/scanner"><dt><a href="/pkg/go/scanner/">go/scanner</a></dt>
   <dd>
@@ -650,6 +653,17 @@ godoc
     </p>
 
 </dl><!-- go/types -->
+
+
+
+<dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+  <dd>
+    <p><!-- CL 175218 -->
+      When using a <code>&lt;script&gt;</code> tag with "module" set as the
+      type attribute, code will now be interpreted as <a href="https://html.spec.whatwg.org/multipage/scripting.html#the-script-element:module-script-2">JavaScript module script</a>.
+    </p>
+
+</dl><!-- html/template -->
 
 <dl id="log"><dt><a href="/pkg/log/">log</a></dt>
   <dd>
