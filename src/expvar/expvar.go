@@ -205,7 +205,7 @@ func (v *Map) AddFloat(key string, delta float64) {
 	}
 }
 
-// Deletes the given key from the map.
+// Delete deletes the given key from the map.
 func (v *Map) Delete(key string) {
 	v.keysMu.Lock()
 	defer v.keysMu.Unlock()
