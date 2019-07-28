@@ -94,16 +94,9 @@ func slicebytetostring(buf *tmpBuf, b []byte) (str string) {
 		stringStructOf(&str).len = 1
 		return
 	}
-
-	var p unsafe.Pointer
-	if buf != nil && len(b) <= len(buf) {
-		p = unsafe.Pointer(buf)
-	} else {
-		p = mallocgc(uintptr(len(b)), nil, false)
-	}
-	stringStructOf(&str).str = p
-	stringStructOf(&str).len = len(b)
-	memmove(p, (*(*slice)(unsafe.Pointer(&b))).array, uintptr(len(b)))
+	
+	str, b2 := rawstringtmp(buf, l)
+	copy(b2, b)
 	return
 }
 
