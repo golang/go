@@ -145,6 +145,27 @@ func TestConvertLegacyConfig(t *testing.T) {
 				google.golang.org/grpc v1.10.0
 			)`,
 		},
+
+		{
+			// testes replace
+			"github.com/liuchang0812/supreme-octo-memory", "v6.0.10+incompatible",
+			`module github.com/liuchang0812/supreme-octo-memory
+
+			 require (
+        			 github.com/dustin/go-humanize v1.0.0
+        			 github.com/go-ini/ini v1.44.0
+        			 github.com/konsorten/go-windows-terminal-sequences v1.0.2
+        			 github.com/minio/minio-go v6.0.10+incompatible
+        			 github.com/mitchellh/go-homedir v1.1.0
+        			 github.com/sirupsen/logrus v1.4.2
+        			 golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4
+        			 golang.org/x/net v0.0.0-20190724013045-ca1201d0de80
+        			 golang.org/x/sys v0.0.0-20190801041406-cbf593c0f2f3
+        			 golang.org/x/text v0.3.2
+			)
+
+			replace github.com/minio/minio-go v6.0.10+incompatible => github.com/liuchang0812/minio-go v6.0.10+incompatible`,
+		},
 	}
 
 	for _, tt := range tests {

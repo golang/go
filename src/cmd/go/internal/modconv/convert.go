@@ -91,8 +91,10 @@ func ConvertLegacyConfig(f *modfile.File, file string, data []byte) error {
 			if err != nil {
 				return fmt.Errorf("add replace: %v", err)
 			}
+			f.AddNewRequire(re.Old.Path, need[path], false)
+		} else {
+			f.AddNewRequire(path, need[path], false)
 		}
-		f.AddNewRequire(path, need[path], false)
 	}
 
 	f.Cleanup()
