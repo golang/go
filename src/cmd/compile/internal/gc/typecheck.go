@@ -1585,6 +1585,12 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 			args.SetSecond(assignconv(args.Second(), t.Orig, "append"))
 			break
+		} else {
+			if args.Len() == 1 {
+				yyerror("append need two or more arguments")
+				n.Type = nil
+				return n
+			}
 		}
 
 		as := args.Slice()[1:]
