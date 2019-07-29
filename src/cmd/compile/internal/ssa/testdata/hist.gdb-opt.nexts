@@ -24,92 +24,74 @@ scanner = (bufio.Scanner *) <A>
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
 err = {tab = 0x0, data = 0x0}
-hist =  []int = {0, 0, 0, 0, 0, 0, 0}
+hist = {array = 0xc00005ae50, len = 7, cap = 7}
 i = 1
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
-74:		for scanner.Scan() { //gdb-opt=(scanner/A)
-scanner = (bufio.Scanner *) <A>
 75:			s := scanner.Text()
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
 err = {tab = 0x0, data = 0x0}
-hist =  []int = {0, 1, 0, 0, 0, 0, 0}
+hist = {array = 0xc00005ae50, len = 7, cap = 7}
 i = 1
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
-74:		for scanner.Scan() { //gdb-opt=(scanner/A)
-scanner = (bufio.Scanner *) <A>
 75:			s := scanner.Text()
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
 err = {tab = 0x0, data = 0x0}
-hist =  []int = {0, 2, 0, 0, 0, 0, 0}
+hist = {array = 0xc00005ae50, len = 7, cap = 7}
 i = 1
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
-74:		for scanner.Scan() { //gdb-opt=(scanner/A)
-scanner = (bufio.Scanner *) <A>
 75:			s := scanner.Text()
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
 err = {tab = 0x0, data = 0x0}
-hist =  []int = {0, 3, 0, 0, 0, 0, 0}
+hist = {array = 0xc00005ae50, len = 7, cap = 7}
 i = 2
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
-74:		for scanner.Scan() { //gdb-opt=(scanner/A)
-scanner = (bufio.Scanner *) <A>
 75:			s := scanner.Text()
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
 err = {tab = 0x0, data = 0x0}
-hist =  []int = {0, 3, 1, 0, 0, 0, 0}
+hist = {array = 0xc00005ae50, len = 7, cap = 7}
 i = 2
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
-74:		for scanner.Scan() { //gdb-opt=(scanner/A)
-scanner = (bufio.Scanner *) <A>
 75:			s := scanner.Text()
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
 err = {tab = 0x0, data = 0x0}
-hist =  []int = {0, 3, 2, 0, 0, 0, 0}
+hist = {array = 0xc00005ae50, len = 7, cap = 7}
 i = 2
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
-74:		for scanner.Scan() { //gdb-opt=(scanner/A)
-scanner = (bufio.Scanner *) <A>
 75:			s := scanner.Text()
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
 err = {tab = 0x0, data = 0x0}
-hist =  []int = {0, 3, 3, 0, 0, 0, 0}
+hist = {array = 0xc00005ae50, len = 7, cap = 7}
 i = 4
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
-74:		for scanner.Scan() { //gdb-opt=(scanner/A)
-scanner = (bufio.Scanner *) <A>
 75:			s := scanner.Text()
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
 err = {tab = 0x0, data = 0x0}
-hist =  []int = {0, 3, 3, 0, 1, 0, 0}
+hist = {array = 0xc00005ae50, len = 7, cap = 7}
 i = 4
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
-74:		for scanner.Scan() { //gdb-opt=(scanner/A)
-scanner = (bufio.Scanner *) <A>
 75:			s := scanner.Text()
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
 err = {tab = 0x0, data = 0x0}
-hist =  []int = {0, 3, 3, 0, 2, 0, 0}
+hist = {array = 0xc00005ae50, len = 7, cap = 7}
 i = 5
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
-74:		for scanner.Scan() { //gdb-opt=(scanner/A)
-scanner = (bufio.Scanner *) <A>
 86:		for i, a := range hist {
 87:			if a == 0 { //gdb-opt=(a,n,t)
 a = 0
@@ -122,9 +104,7 @@ n = 0
 t = 0
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 91:			n += a
-92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 90:			t += i * a
-92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 86:		for i, a := range hist {
 87:			if a == 0 { //gdb-opt=(a,n,t)
 a = 3
@@ -132,9 +112,7 @@ n = 3
 t = 3
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 91:			n += a
-92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 90:			t += i * a
-92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 86:		for i, a := range hist {
 87:			if a == 0 { //gdb-opt=(a,n,t)
 a = 0
@@ -147,9 +125,7 @@ n = 6
 t = 9
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 91:			n += a
-92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 90:			t += i * a
-92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 86:		for i, a := range hist {
 87:			if a == 0 { //gdb-opt=(a,n,t)
 a = 1
@@ -157,9 +133,7 @@ n = 8
 t = 17
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 91:			n += a
-92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 90:			t += i * a
-92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 86:		for i, a := range hist {
 87:			if a == 0 { //gdb-opt=(a,n,t)
 a = 0
