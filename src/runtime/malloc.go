@@ -1075,8 +1075,8 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	}
 
 	if rate := MemProfileRate; rate > 0 {
-		if rate != 1 && int32(size) < c.next_sample {
-			c.next_sample -= int32(size)
+		if rate != 1 && size < c.next_sample {
+			c.next_sample -= size
 		} else {
 			mp := acquirem()
 			profilealloc(mp, x, size)
@@ -1170,7 +1170,7 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 // processes, the distance between two samples follows the exponential
 // distribution (exp(MemProfileRate)), so the best return value is a random
 // number taken from an exponential distribution whose mean is MemProfileRate.
-func nextSample() int32 {
+func nextSample() uintptr {
 	if GOOS == "plan9" {
 		// Plan 9 doesn't support floating point in note handler.
 		if g := getg(); g == g.m.gsignal {
@@ -1178,7 +1178,7 @@ func nextSample() int32 {
 		}
 	}
 
-	return fastexprand(MemProfileRate)
+	return uintptr(fastexprand(MemProfileRate))
 }
 
 // fastexprand returns a random number from an exponential distribution with
@@ -1213,14 +1213,14 @@ func fastexprand(mean int) int32 {
 
 // nextSampleNoFP is similar to nextSample, but uses older,
 // simpler code to avoid floating point.
-func nextSampleNoFP() int32 {
+func nextSampleNoFP() uintptr {
 	// Set first allocation sample size.
 	rate := MemProfileRate
 	if rate > 0x3fffffff { // make 2*rate not overflow
 		rate = 0x3fffffff
 	}
 	if rate != 0 {
-		return int32(fastrand() % uint32(2*rate))
+		return uintptr(fastrand() % uint32(2*rate))
 	}
 	return 0
 }
