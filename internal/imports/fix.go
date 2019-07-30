@@ -714,6 +714,9 @@ type goPackagesResolver struct {
 }
 
 func (r *goPackagesResolver) loadPackageNames(importPaths []string, srcDir string) (map[string]string, error) {
+	if len(importPaths) == 0 {
+		return nil, nil
+	}
 	cfg := r.env.newPackagesConfig(packages.LoadFiles)
 	pkgs, err := packages.Load(cfg, importPaths...)
 	if err != nil {
