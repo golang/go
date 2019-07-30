@@ -34,6 +34,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/internal/bio"
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loadelf"
@@ -2137,24 +2138,24 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
 
 	endr := len(s.R)
 	var ch1 chain
-	pcsp := newPCIter(ctxt)
+	pcsp := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
 	var r *sym.Reloc
-	for pcsp.init(s.FuncInfo.Pcsp.P); !pcsp.done; pcsp.next() {
+	for pcsp.Init(s.FuncInfo.Pcsp.P); !pcsp.Done; pcsp.Next() {
 		// pcsp.value is in effect for [pcsp.pc, pcsp.nextpc).
 
 		// Check stack size in effect for this span.
-		if int32(limit)-pcsp.value < 0 {
-			stkbroke(ctxt, up, int(int32(limit)-pcsp.value))
+		if int32(limit)-pcsp.Value < 0 {
+			stkbroke(ctxt, up, int(int32(limit)-pcsp.Value))
 			return -1
 		}
 
 		// Process calls in this span.
-		for ; ri < endr && uint32(s.R[ri].Off) < pcsp.nextpc; ri++ {
+		for ; ri < endr && uint32(s.R[ri].Off) < pcsp.NextPC; ri++ {
 			r = &s.R[ri]
 			switch r.Type {
 			// Direct call.
 			case objabi.R_CALL, objabi.R_CALLARM, objabi.R_CALLARM64, objabi.R_CALLPOWER, objabi.R_CALLMIPS:
-				ch.limit = int(int32(limit) - pcsp.value - int32(callsize(ctxt)))
+				ch.limit = int(int32(limit) - pcsp.Value - int32(callsize(ctxt)))
 				ch.sym = r.Sym
 				if stkcheck(ctxt, &ch, depth+1) < 0 {
 					return -1
@@ -2165,7 +2166,7 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
 			// Arrange the data structures to report both calls, so that
 			// if there is an error, stkprint shows all the steps involved.
 			case objabi.R_CALLIND:
-				ch.limit = int(int32(limit) - pcsp.value - int32(callsize(ctxt)))
+				ch.limit = int(int32(limit) - pcsp.Value - int32(callsize(ctxt)))
 
 				ch.sym = nil
 				ch1.limit = ch.limit - callsize(ctxt) // for morestack in called prologue

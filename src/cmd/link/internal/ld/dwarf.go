@@ -1212,42 +1212,42 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 	file := 1
 	ls.AddAddr(ctxt.Arch, s)
 
-	pcfile := newPCIter(ctxt)
-	pcline := newPCIter(ctxt)
-	pcstmt := newPCIter(ctxt)
+	pcfile := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
+	pcline := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
+	pcstmt := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
 	for i, s := range unit.lib.Textp {
 		finddebugruntimepath(s)
 
-		pcfile.init(s.FuncInfo.Pcfile.P)
-		pcline.init(s.FuncInfo.Pcline.P)
+		pcfile.Init(s.FuncInfo.Pcfile.P)
+		pcline.Init(s.FuncInfo.Pcline.P)
 
 		isStmtSym := dwarfFuncSym(ctxt, s, dwarf.IsStmtPrefix, false)
 		if isStmtSym != nil && len(isStmtSym.P) > 0 {
-			pcstmt.init(isStmtSym.P)
+			pcstmt.Init(isStmtSym.P)
 		} else {
 			// Assembly files lack a pcstmt section, we assume that every instruction
 			// is a valid statement.
-			pcstmt.done = true
-			pcstmt.value = 1
+			pcstmt.Done = true
+			pcstmt.Value = 1
 		}
 
 		var thispc uint32
 		// TODO this loop looks like it could exit with work remaining.
-		for !pcfile.done && !pcline.done {
+		for !pcfile.Done && !pcline.Done {
 			// Only changed if it advanced
-			if int32(file) != pcfile.value {
+			if int32(file) != pcfile.Value {
 				ls.AddUint8(dwarf.DW_LNS_set_file)
-				idx, ok := fileNums[int(pcfile.value)]
+				idx, ok := fileNums[int(pcfile.Value)]
 				if !ok {
 					Exitf("pcln table file missing from DWARF line table")
 				}
 				dwarf.Uleb128put(dwarfctxt, ls, int64(idx))
-				file = int(pcfile.value)
+				file = int(pcfile.Value)
 			}
 
 			// Only changed if it advanced
-			if is_stmt != uint8(pcstmt.value) {
-				new_stmt := uint8(pcstmt.value)
+			if is_stmt != uint8(pcstmt.Value) {
+				new_stmt := uint8(pcstmt.Value)
 				switch new_stmt &^ 1 {
 				case obj.PrologueEnd:
 					ls.AddUint8(uint8(dwarf.DW_LNS_set_prologue_end))
@@ -1263,28 +1263,28 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 			}
 
 			// putpcldelta makes a row in the DWARF matrix, always, even if line is unchanged.
-			putpclcdelta(ctxt, dwarfctxt, ls, uint64(s.Value+int64(thispc)-pc), int64(pcline.value)-int64(line))
+			putpclcdelta(ctxt, dwarfctxt, ls, uint64(s.Value+int64(thispc)-pc), int64(pcline.Value)-int64(line))
 
 			pc = s.Value + int64(thispc)
-			line = int(pcline.value)
+			line = int(pcline.Value)
 
 			// Take the minimum step forward for the three iterators
-			thispc = pcfile.nextpc
-			if pcline.nextpc < thispc {
-				thispc = pcline.nextpc
+			thispc = pcfile.NextPC
+			if pcline.NextPC < thispc {
+				thispc = pcline.NextPC
 			}
-			if !pcstmt.done && pcstmt.nextpc < thispc {
-				thispc = pcstmt.nextpc
+			if !pcstmt.Done && pcstmt.NextPC < thispc {
+				thispc = pcstmt.NextPC
 			}
 
-			if pcfile.nextpc == thispc {
-				pcfile.next()
+			if pcfile.NextPC == thispc {
+				pcfile.Next()
 			}
-			if !pcstmt.done && pcstmt.nextpc == thispc {
-				pcstmt.next()
+			if !pcstmt.Done && pcstmt.NextPC == thispc {
+				pcstmt.Next()
 			}
-			if pcline.nextpc == thispc {
-				pcline.next()
+			if pcline.NextPC == thispc {
+				pcline.Next()
 			}
 		}
 		if is_stmt == 0 && i < len(unit.lib.Textp)-1 {
@@ -1451,7 +1451,7 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 	fs.AddBytes(zeros[:pad])
 
 	var deltaBuf []byte
-	pcsp := newPCIter(ctxt)
+	pcsp := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
 	for _, s := range ctxt.Textp {
 		if s.FuncInfo == nil {
 			continue
@@ -1467,19 +1467,19 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 			deltaBuf = append(deltaBuf, dwarf.DW_CFA_undefined)
 			deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(thearch.Dwarfreglr))
 		}
-		for pcsp.init(s.FuncInfo.Pcsp.P); !pcsp.done; pcsp.next() {
-			nextpc := pcsp.nextpc
+		for pcsp.Init(s.FuncInfo.Pcsp.P); !pcsp.Done; pcsp.Next() {
+			nextpc := pcsp.NextPC
 
 			// pciterinit goes up to the end of the function,
 			// but DWARF expects us to stop just before the end.
 			if int64(nextpc) == s.Size {
 				nextpc--
-				if nextpc < pcsp.pc {
+				if nextpc < pcsp.PC {
 					continue
 				}
 			}
 
-			spdelta := int64(pcsp.value)
+			spdelta := int64(pcsp.Value)
 			if !haslinkregister(ctxt) {
 				// Return address has been pushed onto stack.
 				spdelta += int64(ctxt.Arch.PtrSize)
@@ -1489,7 +1489,7 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 				// TODO(bryanpkc): This is imprecise. In general, the instruction
 				// that stores the return address to the stack frame is not the
 				// same one that allocates the frame.
-				if pcsp.value > 0 {
+				if pcsp.Value > 0 {
 					// The return address is preserved at (CFA-frame_size)
 					// after a stack frame has been allocated.
 					deltaBuf = append(deltaBuf, dwarf.DW_CFA_offset_extended_sf)
@@ -1503,7 +1503,7 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 				}
 			}
 
-			deltaBuf = appendPCDeltaCFA(ctxt.Arch, deltaBuf, int64(nextpc)-int64(pcsp.pc), spdelta)
+			deltaBuf = appendPCDeltaCFA(ctxt.Arch, deltaBuf, int64(nextpc)-int64(pcsp.PC), spdelta)
 		}
 		pad := int(Rnd(int64(len(deltaBuf)), int64(ctxt.Arch.PtrSize))) - len(deltaBuf)
 		deltaBuf = append(deltaBuf, zeros[:pad]...)

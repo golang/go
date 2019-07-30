@@ -5,6 +5,7 @@
 package ld
 
 import (
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
@@ -15,72 +16,6 @@ import (
 	"path/filepath"
 	"strings"
 )
-
-// PCIter iterates over encoded pcdata tables.
-type PCIter struct {
-	p       []byte
-	pc      uint32
-	nextpc  uint32
-	pcscale uint32
-	value   int32
-	start   bool
-	done    bool
-}
-
-// newPCIter creates a PCIter and configures it for ctxt's architecture.
-func newPCIter(ctxt *Link) *PCIter {
-	it := new(PCIter)
-	it.pcscale = uint32(ctxt.Arch.MinLC)
-	return it
-}
-
-// next advances it to the next pc.
-func (it *PCIter) next() {
-	it.pc = it.nextpc
-	if it.done {
-		return
-	}
-	if len(it.p) == 0 {
-		it.done = true
-		return
-	}
-
-	// value delta
-	val, n := binary.Varint(it.p)
-	if n <= 0 {
-		log.Fatalf("bad value varint in pciternext: read %v", n)
-	}
-	it.p = it.p[n:]
-
-	if val == 0 && !it.start {
-		it.done = true
-		return
-	}
-
-	it.start = false
-	it.value += int32(val)
-
-	// pc delta
-	pc, n := binary.Uvarint(it.p)
-	if n <= 0 {
-		log.Fatalf("bad pc varint in pciternext: read %v", n)
-	}
-	it.p = it.p[n:]
-
-	it.nextpc = it.pc + uint32(pc)*it.pcscale
-}
-
-// init prepares it to iterate over p,
-// and advances it to the first pc.
-func (it *PCIter) init(p []byte) {
-	it.p = p
-	it.pc = 0
-	it.nextpc = 0
-	it.value = -1
-	it.start = true
-	it.done = false
-	it.next()
-}
 
 func ftabaddstring(ftab *sym.Symbol, s string) int32 {
 	start := len(ftab.P)
@@ -109,10 +44,10 @@ func renumberfiles(ctxt *Link, files []*sym.Symbol, d *sym.Pcdata) {
 	buf := make([]byte, binary.MaxVarintLen32)
 	newval := int32(-1)
 	var out sym.Pcdata
-	it := newPCIter(ctxt)
-	for it.init(d.P); !it.done; it.next() {
+	it := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
+	for it.Init(d.P); !it.Done; it.Next() {
 		// value delta
-		oldval := it.value
+		oldval := it.Value
 
 		var val int32
 		if oldval == -1 {
@@ -132,7 +67,7 @@ func renumberfiles(ctxt *Link, files []*sym.Symbol, d *sym.Pcdata) {
 		out.P = append(out.P, buf[:n]...)
 
 		// pc delta
-		pc := (it.nextpc - it.pc) / it.pcscale
+		pc := (it.NextPC - it.PC) / it.PCScale
 		n = binary.PutUvarint(buf, uint64(pc))
 		out.P = append(out.P, buf[:n]...)
 	}
@@ -337,10 +272,10 @@ func (ctxt *Link) pclntab() {
 			renumberfiles(ctxt, pcln.File, &pcln.Pcfile)
 			if false {
 				// Sanity check the new numbering
-				it := newPCIter(ctxt)
-				for it.init(pcln.Pcfile.P); !it.done; it.next() {
-					if it.value < 1 || it.value > int32(len(ctxt.Filesyms)) {
-						Errorf(s, "bad file number in pcfile: %d not in range [1, %d]\n", it.value, len(ctxt.Filesyms))
+				it := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
+				for it.Init(pcln.Pcfile.P); !it.Done; it.Next() {
+					if it.Value < 1 || it.Value > int32(len(ctxt.Filesyms)) {
+						Errorf(s, "bad file number in pcfile: %d not in range [1, %d]\n", it.Value, len(ctxt.Filesyms))
 						errorexit()
 					}
 				}
