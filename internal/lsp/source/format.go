@@ -108,6 +108,72 @@ func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]TextEd
 	return computeTextEdits(ctx, f, string(formatted)), nil
 }
 
+type ImportFix struct {
+	Fix   *imports.ImportFix
+	Edits []TextEdit
+}
+
+// AllImportsFixes formats f for each possible fix to the imports.
+// In addition to returning the result of applying all edits,
+// it returns a list of fixes that could be applied to the file, with the
+// corresponding TextEdits that would be needed to apply that fix.
+func AllImportsFixes(ctx context.Context, view View, f GoFile, rng span.Range) (edits []TextEdit, editsPerFix []*ImportFix, err error) {
+	ctx, done := trace.StartSpan(ctx, "source.AllImportsFixes")
+	defer done()
+	data, _, err := f.Handle(ctx).Read(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	pkg := f.GetPackage(ctx)
+	if pkg == nil || pkg.IsIllTyped() {
+		return nil, nil, fmt.Errorf("no package for file %s", f.URI())
+	}
+	if hasListErrors(pkg.GetErrors()) {
+		return nil, nil, fmt.Errorf("%s has list errors, not running goimports", f.URI())
+	}
+
+	options := &imports.Options{
+		// Defaults.
+		AllErrors:  true,
+		Comments:   true,
+		Fragment:   true,
+		FormatOnly: false,
+		TabIndent:  true,
+		TabWidth:   8,
+	}
+	importFn := func(opts *imports.Options) error {
+		fixes, err := imports.FixImports(f.URI().Filename(), data, opts)
+		if err != nil {
+			return err
+		}
+		// Apply all of the import fixes to the file.
+		formatted, err := imports.ApplyFixes(fixes, f.URI().Filename(), data, options)
+		if err != nil {
+			return err
+		}
+		edits = computeTextEdits(ctx, f, string(formatted))
+		// Add the edits for each fix to the result.
+		editsPerFix = make([]*ImportFix, len(fixes))
+		for i, fix := range fixes {
+			formatted, err := imports.ApplyFixes([]*imports.ImportFix{fix}, f.URI().Filename(), data, options)
+			if err != nil {
+				return err
+			}
+			editsPerFix[i] = &ImportFix{
+				Fix:   fix,
+				Edits: computeTextEdits(ctx, f, string(formatted)),
+			}
+		}
+		return err
+	}
+	err = view.RunProcessEnvFunc(ctx, importFn, options)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return edits, editsPerFix, nil
+}
+
 func hasParseErrors(errors []packages.Error) bool {
 	for _, err := range errors {
 		if err.Kind == packages.ParseError {

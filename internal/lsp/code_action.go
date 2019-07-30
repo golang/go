@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 
+	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
@@ -47,7 +48,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 
 	var codeActions []protocol.CodeAction
 
-	edits, err := organizeImports(ctx, view, spn)
+	edits, editsPerFix, err := organizeImports(ctx, view, spn)
 	if err != nil {
 		return nil, err
 	}
@@ -66,18 +67,23 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 
 		// If we also have diagnostics for missing imports, we can associate them with quick fixes.
 		if findImportErrors(params.Context.Diagnostics) {
-			// TODO(rstambler): Separate this into a set of codeActions per diagnostic,
-			// where each action is the addition or removal of one import.
-			// This can only be done when https://golang.org/issue/31493 is resolved.
-			codeActions = append(codeActions, protocol.CodeAction{
-				Title: "Organize All Imports", // clarify that all imports will change
-				Kind:  protocol.QuickFix,
-				Edit: &protocol.WorkspaceEdit{
-					Changes: &map[string][]protocol.TextEdit{
-						string(uri): edits,
-					},
-				},
-			})
+			// Separate this into a set of codeActions per diagnostic, where
+			// each action is the addition, removal, or renaming of one import.
+			for _, importFix := range editsPerFix {
+				// Get the diagnostics this fix would affect.
+				if fixDiagnostics := importDiagnostics(importFix.fix, params.Context.Diagnostics); len(fixDiagnostics) > 0 {
+					codeActions = append(codeActions, protocol.CodeAction{
+						Title: importFixTitle(importFix.fix),
+						Kind:  protocol.QuickFix,
+						Edit: &protocol.WorkspaceEdit{
+							Changes: &map[string][]protocol.TextEdit{
+								string(uri): importFix.edits,
+							},
+						},
+						Diagnostics: fixDiagnostics,
+					})
+				}
+			}
 		}
 	}
 
@@ -97,16 +103,38 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	return codeActions, nil
 }
 
-func organizeImports(ctx context.Context, view source.View, s span.Span) ([]protocol.TextEdit, error) {
+type protocolImportFix struct {
+	fix   *imports.ImportFix
+	edits []protocol.TextEdit
+}
+
+func organizeImports(ctx context.Context, view source.View, s span.Span) ([]protocol.TextEdit, []*protocolImportFix, error) {
 	f, m, rng, err := spanToRange(ctx, view, s)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	edits, err := source.Imports(ctx, view, f, rng)
+	edits, editsPerFix, err := source.AllImportsFixes(ctx, view, f, rng)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return ToProtocolEdits(m, edits)
+	// Convert all source edits to protocol edits.
+	pEdits, err := ToProtocolEdits(m, edits)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	pEditsPerFix := make([]*protocolImportFix, len(editsPerFix))
+	for i, fix := range editsPerFix {
+		pEdits, err := ToProtocolEdits(m, fix.Edits)
+		if err != nil {
+			return nil, nil, err
+		}
+		pEditsPerFix[i] = &protocolImportFix{
+			fix:   fix.Fix,
+			edits: pEdits,
+		}
+	}
+	return pEdits, pEditsPerFix, nil
 }
 
 // findImports determines if a given diagnostic represents an error that could
@@ -129,6 +157,49 @@ func findImportErrors(diagnostics []protocol.Diagnostic) bool {
 		}
 	}
 	return false
+}
+
+func importFixTitle(fix *imports.ImportFix) string {
+	var str string
+	switch fix.FixType {
+	case imports.AddImport:
+		str = fmt.Sprintf("Add import: %s %q", fix.StmtInfo.Name, fix.StmtInfo.ImportPath)
+	case imports.DeleteImport:
+		str = fmt.Sprintf("Delete import: %s %q", fix.StmtInfo.Name, fix.StmtInfo.ImportPath)
+	case imports.SetImportName:
+		str = fmt.Sprintf("Rename import: %s %q", fix.StmtInfo.Name, fix.StmtInfo.ImportPath)
+	}
+	return str
+}
+
+func importDiagnostics(fix *imports.ImportFix, diagnostics []protocol.Diagnostic) (results []protocol.Diagnostic) {
+	for _, diagnostic := range diagnostics {
+		switch {
+		// "undeclared name: X" may be an unresolved import.
+		case strings.HasPrefix(diagnostic.Message, "undeclared name: "):
+			ident := strings.TrimPrefix(diagnostic.Message, "undeclared name: ")
+			if ident == fix.IdentName {
+				results = append(results, diagnostic)
+			}
+		// "could not import: X" may be an invalid import.
+		case strings.HasPrefix(diagnostic.Message, "could not import: "):
+			ident := strings.TrimPrefix(diagnostic.Message, "could not import: ")
+			if ident == fix.IdentName {
+				results = append(results, diagnostic)
+			}
+		// "X imported but not used" is an unused import.
+		// "X imported but not used as Y" is an unused import.
+		case strings.Contains(diagnostic.Message, " imported but not used"):
+			idx := strings.Index(diagnostic.Message, " imported but not used")
+			importPath := diagnostic.Message[:idx]
+			if importPath == fmt.Sprintf("%q", fix.StmtInfo.ImportPath) {
+				results = append(results, diagnostic)
+			}
+		}
+
+	}
+
+	return results
 }
 
 func quickFixes(ctx context.Context, view source.View, gof source.GoFile) ([]protocol.CodeAction, error) {
