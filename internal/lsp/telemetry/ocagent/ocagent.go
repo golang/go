@@ -236,7 +236,7 @@ func convertAnnotation(tags tag.List) *wire.Annotation {
 		tags = append(tags, tag.Of("Error", entry.Error))
 	}
 	return &wire.Annotation{
-		Description: toTruncatableString(entry.Message),
+		Description: toTruncatableString(description),
 		Attributes:  convertAttributes(tags),
 	}
 }
