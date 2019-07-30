@@ -123,7 +123,8 @@ func findImportErrors(diagnostics []protocol.Diagnostic) bool {
 			return true
 		}
 		// "X imported but not used" is an unused import.
-		if strings.HasSuffix(diagnostic.Message, " imported but not used") {
+		// "X imported but not used as Y" is an unused import.
+		if strings.Contains(diagnostic.Message, " imported but not used") {
 			return true
 		}
 	}
