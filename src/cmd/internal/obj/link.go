@@ -402,11 +402,12 @@ type FuncInfo struct {
 	Pcln     Pcln
 	InlMarks []InlMark
 
-	dwarfInfoSym   *LSym
-	dwarfLocSym    *LSym
-	dwarfRangesSym *LSym
-	dwarfAbsFnSym  *LSym
-	dwarfIsStmtSym *LSym
+	dwarfInfoSym       *LSym
+	dwarfLocSym        *LSym
+	dwarfRangesSym     *LSym
+	dwarfAbsFnSym      *LSym
+	dwarfIsStmtSym     *LSym
+	dwarfDebugLinesSym *LSym
 
 	GCArgs       *LSym
 	GCLocals     *LSym
