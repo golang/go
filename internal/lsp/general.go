@@ -21,12 +21,15 @@ import (
 )
 
 func (s *Server) initialize(ctx context.Context, params *protocol.InitializeParams) (*protocol.InitializeResult, error) {
-	s.initializedMu.Lock()
-	defer s.initializedMu.Unlock()
-	if s.state >= serverInitializing {
+	s.stateMu.Lock()
+	state := s.state
+	s.stateMu.Unlock()
+	if state >= serverInitializing {
 		return nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidRequest, "server already initialized")
 	}
+	s.stateMu.Lock()
 	s.state = serverInitializing
+	s.stateMu.Unlock()
 
 	// TODO: Remove the option once we are certain there are no issues here.
 	s.textDocumentSyncKind = protocol.Incremental
@@ -127,6 +130,10 @@ func (s *Server) setClientCapabilities(caps protocol.ClientCapabilities) {
 }
 
 func (s *Server) initialized(ctx context.Context, params *protocol.InitializedParams) error {
+	s.stateMu.Lock()
+	s.state = serverInitialized
+	s.stateMu.Unlock()
+
 	if s.configurationSupported {
 		if s.dynamicConfigurationSupported {
 			s.client.RegisterCapability(ctx, &protocol.RegistrationParams{
@@ -249,8 +256,8 @@ func (s *Server) processConfig(ctx context.Context, view source.View, config int
 }
 
 func (s *Server) shutdown(ctx context.Context) error {
-	s.initializedMu.Lock()
-	defer s.initializedMu.Unlock()
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
 	if s.state < serverInitialized {
 		return jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidRequest, "server not initialized")
 	}
@@ -261,6 +268,8 @@ func (s *Server) shutdown(ctx context.Context) error {
 }
 
 func (s *Server) exit(ctx context.Context) error {
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
 	if s.state != serverShutDown {
 		os.Exit(1)
 	}

@@ -32,7 +32,10 @@ func (s *Server) changeFolders(ctx context.Context, event protocol.WorkspaceFold
 
 func (s *Server) addView(ctx context.Context, name string, uri span.URI) error {
 	view := s.session.NewView(ctx, name, uri)
-	if s.state >= serverInitialized {
+	s.stateMu.Lock()
+	state := s.state
+	s.stateMu.Unlock()
+	if state >= serverInitialized {
 		s.fetchConfig(ctx, view)
 	}
 	return nil

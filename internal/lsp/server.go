@@ -73,8 +73,8 @@ type Server struct {
 	Conn   *jsonrpc2.Conn
 	client protocol.Client
 
-	initializedMu sync.Mutex
-	state         serverState
+	stateMu sync.Mutex
+	state   serverState
 
 	// Configurations.
 	// TODO(rstambler): Separate these into their own struct?
