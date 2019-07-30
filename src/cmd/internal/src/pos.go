@@ -381,8 +381,9 @@ func makeLico(line, col uint) lico {
 	return makeLicoRaw(line, col)
 }
 
-func (x lico) Line() uint { return uint(x) >> lineShift }
-func (x lico) Col() uint  { return uint(x) >> colShift & colMax }
+func (x lico) Line() uint           { return uint(x) >> lineShift }
+func (x lico) SameLine(y lico) bool { return 0 == (x^y)&^lico(1 << lineShift-1) }
+func (x lico) Col() uint            { return uint(x) >> colShift & colMax }
 func (x lico) IsStmt() uint {
 	if x == 0 {
 		return PosNotStmt
