@@ -173,7 +173,7 @@ func (c *Cache) get(id ActionID) (Entry, error) {
 		i++
 	}
 	tm, err := strconv.ParseInt(string(etime[i:]), 10, 64)
-	if err != nil || size < 0 {
+	if err != nil || tm < 0 {
 		return missing()
 	}
 
