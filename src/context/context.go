@@ -67,6 +67,8 @@ type Context interface {
 	// Done returns a channel that's closed when work done on behalf of this
 	// context should be canceled. Done may return nil if this context can
 	// never be canceled. Successive calls to Done return the same value.
+	// The close of the Done channel may happen asynchronously,
+	// after the cancel function returns.
 	//
 	// WithCancel arranges for Done to be closed when cancel is called;
 	// WithDeadline arranges for Done to be closed when the deadline
