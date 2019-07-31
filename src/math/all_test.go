@@ -7,6 +7,7 @@ package math_test
 import (
 	"fmt"
 	. "math"
+	"runtime"
 	"testing"
 	"unsafe"
 )
@@ -3106,500 +3107,377 @@ func TestFloatMinMax(t *testing.T) {
 
 // Benchmarks
 
-// Global exported variables are used to store the
-// return values of functions measured in the benchmarks.
-// Storing the results in these variables prevents the compiler
-// from completely optimizing the benchmarked functions away.
-var (
-	GlobalI int
-	GlobalB bool
-	GlobalF float64
-)
-
 func BenchmarkAcos(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Acos(.5)
+		runtime.KeepAlive(Acos(.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkAcosh(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Acosh(1.5)
+		runtime.KeepAlive(Acosh(1.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkAsin(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Asin(.5)
+		runtime.KeepAlive(Asin(.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkAsinh(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Asinh(.5)
+		runtime.KeepAlive(Asinh(.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkAtan(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Atan(.5)
+		runtime.KeepAlive(Atan(.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkAtanh(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Atanh(.5)
+		runtime.KeepAlive(Atanh(.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkAtan2(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Atan2(.5, 1)
+		runtime.KeepAlive(Atan2(.5, 1))
 	}
-	GlobalF = x
 }
 
 func BenchmarkCbrt(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Cbrt(10)
+		runtime.KeepAlive(Cbrt(10))
 	}
-	GlobalF = x
 }
 
 func BenchmarkCeil(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Ceil(.5)
+		runtime.KeepAlive(Ceil(.5))
 	}
-	GlobalF = x
 }
 
 var copysignNeg = -1.0
 
 func BenchmarkCopysign(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Copysign(.5, copysignNeg)
+		runtime.KeepAlive(Copysign(.5, copysignNeg))
 	}
-	GlobalF = x
 }
 
 func BenchmarkCos(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Cos(.5)
+		runtime.KeepAlive(Cos(.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkCosh(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Cosh(2.5)
+		runtime.KeepAlive(Cosh(2.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkErf(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Erf(.5)
+		runtime.KeepAlive(Erf(.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkErfc(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Erfc(.5)
+		runtime.KeepAlive(Erfc(.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkErfinv(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Erfinv(.5)
+		runtime.KeepAlive(Erfinv(.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkErfcinv(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Erfcinv(.5)
+		runtime.KeepAlive(Erfcinv(.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkExp(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Exp(.5)
+		runtime.KeepAlive(Exp(.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkExpGo(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = ExpGo(.5)
+		runtime.KeepAlive(ExpGo(.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkExpm1(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Expm1(.5)
+		runtime.KeepAlive(Expm1(.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkExp2(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Exp2(.5)
+		runtime.KeepAlive(Exp2(.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkExp2Go(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Exp2Go(.5)
+		runtime.KeepAlive(Exp2Go(.5))
 	}
-	GlobalF = x
 }
 
 var absPos = .5
 
 func BenchmarkAbs(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Abs(absPos)
+		runtime.KeepAlive(Abs(absPos))
 	}
-	GlobalF = x
-
 }
 
 func BenchmarkDim(b *testing.B) {
-	x := 0.0
+	x := 0.1
 	for i := 0; i < b.N; i++ {
-		x = Dim(GlobalF, x)
+		x = Dim(1.5, x)
+		runtime.KeepAlive(x)
 	}
-	GlobalF = x
 }
 
 func BenchmarkFloor(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Floor(.5)
+		runtime.KeepAlive(Floor(.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkMax(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Max(10, 3)
+		runtime.KeepAlive(Max(10, 3))
 	}
-	GlobalF = x
 }
 
 func BenchmarkMin(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Min(10, 3)
+		runtime.KeepAlive(Min(10, 3))
 	}
-	GlobalF = x
 }
 
 func BenchmarkMod(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Mod(10, 3)
+		runtime.KeepAlive(Mod(10, 3))
 	}
-	GlobalF = x
 }
 
 func BenchmarkFrexp(b *testing.B) {
-	x := 0.0
-	y := 0
 	for i := 0; i < b.N; i++ {
-		x, y = Frexp(8)
+		x, y := Frexp(8)
+		runtime.KeepAlive(x)
+		runtime.KeepAlive(y)
 	}
-	GlobalF = x
-	GlobalI = y
 }
 
 func BenchmarkGamma(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Gamma(2.5)
+		runtime.KeepAlive(Gamma(2.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkHypot(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Hypot(3, 4)
+		runtime.KeepAlive(Hypot(3, 4))
 	}
-	GlobalF = x
 }
 
 func BenchmarkHypotGo(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = HypotGo(3, 4)
+		runtime.KeepAlive(HypotGo(3, 4))
 	}
-	GlobalF = x
 }
 
 func BenchmarkIlogb(b *testing.B) {
-	x := 0
 	for i := 0; i < b.N; i++ {
-		x = Ilogb(.5)
+		runtime.KeepAlive(Ilogb(.5))
 	}
-	GlobalI = x
 }
 
 func BenchmarkJ0(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = J0(2.5)
+		runtime.KeepAlive(J0(2.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkJ1(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = J1(2.5)
+		runtime.KeepAlive(J1(2.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkJn(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Jn(2, 2.5)
+		runtime.KeepAlive(Jn(2, 2.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkLdexp(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Ldexp(.5, 2)
+		runtime.KeepAlive(Ldexp(.5, 2))
 	}
-	GlobalF = x
 }
 
 func BenchmarkLgamma(b *testing.B) {
-	x := 0.0
-	y := 0
 	for i := 0; i < b.N; i++ {
-		x, y = Lgamma(2.5)
+		x, y := Lgamma(2.5)
+		runtime.KeepAlive(x)
+		runtime.KeepAlive(y)
 	}
-	GlobalF = x
-	GlobalI = y
 }
 
 func BenchmarkLog(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Log(.5)
+		runtime.KeepAlive(Log(.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkLogb(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Logb(.5)
+		runtime.KeepAlive(Logb(.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkLog1p(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Log1p(.5)
+		runtime.KeepAlive(Log1p(.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkLog10(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Log10(.5)
+		runtime.KeepAlive(Log10(.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkLog2(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Log2(.5)
+		runtime.KeepAlive(Log2(.5))
 	}
-	GlobalF += x
 }
 
 func BenchmarkModf(b *testing.B) {
-	x := 0.0
-	y := 0.0
 	for i := 0; i < b.N; i++ {
-		x, y = Modf(1.5)
+		x, y := Modf(1.5)
+		runtime.KeepAlive(x)
+		runtime.KeepAlive(y)
 	}
-	GlobalF += x
-	GlobalF += y
 }
 
 func BenchmarkNextafter32(b *testing.B) {
-	x := float32(0.0)
 	for i := 0; i < b.N; i++ {
-		x = Nextafter32(.5, 1)
+		runtime.KeepAlive(Nextafter32(.5, 1))
 	}
-	GlobalF = float64(x)
 }
 
 func BenchmarkNextafter64(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Nextafter(.5, 1)
+		runtime.KeepAlive(Nextafter(.5, 1))
 	}
-	GlobalF = x
 }
 
 func BenchmarkPowInt(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Pow(2, 2)
+		runtime.KeepAlive(Pow(2, 2))
 	}
-	GlobalF = x
 }
 
 func BenchmarkPowFrac(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Pow(2.5, 1.5)
+		runtime.KeepAlive(Pow(2.5, 1.5))
 	}
-	GlobalF = x
 }
 
 var pow10pos = int(300)
 
 func BenchmarkPow10Pos(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Pow10(pow10pos)
+		runtime.KeepAlive(Pow10(pow10pos))
 	}
-	GlobalF = x
 }
 
 var pow10neg = int(-300)
 
 func BenchmarkPow10Neg(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Pow10(pow10neg)
+		runtime.KeepAlive(Pow10(pow10neg))
 	}
-	GlobalF = x
 }
 
 var roundNeg = float64(-2.5)
 
 func BenchmarkRound(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Round(roundNeg)
+		runtime.KeepAlive(Round(roundNeg))
 	}
-	GlobalF = x
 }
 
 func BenchmarkRoundToEven(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = RoundToEven(roundNeg)
+		runtime.KeepAlive(RoundToEven(roundNeg))
 	}
-	GlobalF = x
 }
 
 func BenchmarkRemainder(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Remainder(10, 3)
+		runtime.KeepAlive(Remainder(10, 3))
 	}
-	GlobalF = x
 }
 
 var signbitPos = 2.5
 
 func BenchmarkSignbit(b *testing.B) {
-	x := false
 	for i := 0; i < b.N; i++ {
-		x = Signbit(signbitPos)
+		runtime.KeepAlive(Signbit(signbitPos))
 	}
-	GlobalB = x
 }
 
 func BenchmarkSin(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Sin(.5)
+		runtime.KeepAlive(Sin(.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkSincos(b *testing.B) {
-	x := 0.0
-	y := 0.0
 	for i := 0; i < b.N; i++ {
-		x, y = Sincos(.5)
+		x, y := Sincos(.5)
+		runtime.KeepAlive(x)
+		runtime.KeepAlive(y)
 	}
-	GlobalF += x
-	GlobalF += y
 }
 
 func BenchmarkSinh(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Sinh(2.5)
+		runtime.KeepAlive(Sinh(2.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkSqrtIndirect(b *testing.B) {
-	x, y := 0.0, 10.0
 	f := Sqrt
 	for i := 0; i < b.N; i++ {
-		x += f(y)
+		runtime.KeepAlive(f(10.0))
 	}
-	GlobalF = x
 }
 
 func BenchmarkSqrtLatency(b *testing.B) {
 	x := 10.0
 	for i := 0; i < b.N; i++ {
 		x = Sqrt(x)
+		runtime.KeepAlive(x)
 	}
-	GlobalF = x
 }
 
 func BenchmarkSqrtIndirectLatency(b *testing.B) {
@@ -3607,16 +3485,16 @@ func BenchmarkSqrtIndirectLatency(b *testing.B) {
 	f := Sqrt
 	for i := 0; i < b.N; i++ {
 		x = f(x)
+		runtime.KeepAlive(x)
 	}
-	GlobalF = x
 }
 
 func BenchmarkSqrtGoLatency(b *testing.B) {
 	x := 10.0
 	for i := 0; i < b.N; i++ {
 		x = SqrtGo(x)
+		runtime.KeepAlive(x)
 	}
-	GlobalF = x
 }
 
 func isPrime(i int) bool {
@@ -3634,94 +3512,72 @@ func isPrime(i int) bool {
 }
 
 func BenchmarkSqrtPrime(b *testing.B) {
-	x := false
 	for i := 0; i < b.N; i++ {
-		x = isPrime(100003)
+		runtime.KeepAlive(isPrime(100003))
 	}
-	GlobalB = x
 }
 
 func BenchmarkTan(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Tan(.5)
+		runtime.KeepAlive(Tan(.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkTanh(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Tanh(2.5)
+		runtime.KeepAlive(Tanh(2.5))
 	}
-	GlobalF = x
 }
 func BenchmarkTrunc(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Trunc(.5)
+		runtime.KeepAlive(Trunc(.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkY0(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Y0(2.5)
+		runtime.KeepAlive(Y0(2.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkY1(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Y1(2.5)
+		runtime.KeepAlive(Y1(2.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkYn(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Yn(2, 2.5)
+		runtime.KeepAlive(Yn(2, 2.5))
 	}
-	GlobalF = x
 }
 
 func BenchmarkFloat64bits(b *testing.B) {
-	y := uint64(0)
 	for i := 0; i < b.N; i++ {
-		y = Float64bits(roundNeg)
+		runtime.KeepAlive(Float64bits(roundNeg))
 	}
-	GlobalI = int(y)
 }
 
 var roundUint64 = uint64(5)
 
 func BenchmarkFloat64frombits(b *testing.B) {
-	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Float64frombits(roundUint64)
+		runtime.KeepAlive(Float64frombits(roundUint64))
 	}
-	GlobalF = x
 }
 
 var roundFloat32 = float32(-2.5)
 
 func BenchmarkFloat32bits(b *testing.B) {
-	y := uint32(0)
 	for i := 0; i < b.N; i++ {
-		y = Float32bits(roundFloat32)
+		runtime.KeepAlive(Float32bits(roundFloat32))
 	}
-	GlobalI = int(y)
 }
 
 var roundUint32 = uint32(5)
 
 func BenchmarkFloat32frombits(b *testing.B) {
-	x := float32(0.0)
 	for i := 0; i < b.N; i++ {
-		x = Float32frombits(roundUint32)
+		runtime.KeepAlive(Float32frombits(roundUint32))
 	}
-	GlobalF = float64(x)
 }
