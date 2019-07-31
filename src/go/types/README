@@ -1,34 +1,48 @@
-This version of go/types (and related go/*) libraries contains changes
-to type-check generic code as outlined in the latest contracts proposal,
-as presented by Ian Taylor at GopherCon 2019.
+This code contains changes to go/types and the go/* support libraries
+to type-check generic code as outlined in the latest contracts proposal
+and presented by Ian Lance Taylor at GopherCon 2019 in San Diego.
 
-CAUTUION: EARLY PROTOTYPE. A LOT IS STILL MISSING. THERE ARE BUGS.
+CAUTION: EARLY PROTOTYPE. A LOT IS STILL MISSING. THERE ARE MANY BUGS.
 
-The code is not tested enough, many parts need a rewrite/cleanup
-and no code review has happened. Read and use at your own risk.
+Read and use the code at your own risk.
+
+That said, the go/parser and go/ast changes are working and pass tests
+including all the larger examples in the latest contracts design doc.
+Look for the *.go2 files in go/parser/testdata.
+
+gofmt does not work with parameterized code yet.
+
+The type-checker is starting to work but has still many problems.
+I will update this CL from time to time as progress happens.
 
 Specifically, the following pieces (and more) are missing from type-
 checking or lead to unexpected behavior:
 
 - Importing of packages with type parameters or contracts.
 - Type-checking of contracts and type parameter lists with contracts.
-- Alias type names with type parameters.
-- gofmt (and any other tools) don't work for parameterized code.
+  For instance, because contracts are not yet type-checked, maps where
+  the key type is a type parameter will lead to an error because the
+  type checker doesn't know whether the key type is comparable or not.
+- Parameterized alias types.
+- Type instantiation is not always working as expected, leading to
+  some odd error messages.
+- Methods with parameterized receiver types have only recently started
+  to work; there are a few issues around them with proper type
+  instantiation.
 
-The following is "working" (as in "passes simple tests"):
+The following is "working" (as in: can be type-checked without errors):
 
-- Parsing of parameterized types and functions.
-- Parsing of contract declarations.
-- Declaration and use of parameterized types without contracts.
-- Declaration and use (calls) of parameterized functions without
+- Declaration and use of simple parameterized types without contracts.
+- Declaration and use (calls) of simple parameterized functions without
   contracts, including type inference from function arguments.
 
 Error messages, where present, are in usable condition but expect
-them to be significantly better in a real implementation.
+them to be significantly better in a more complete implementation.
 
 To play with this prototype:
 
-- Cherry-pick this CL on top of tip:
+- Cherry-pick this CL on top of tip (the cherry-pick was tested with
+  tip at 919594830f17):
 
   git fetch "https://go.googlesource.com/go" ... && git cherry-pick FETCH_HEAD
 

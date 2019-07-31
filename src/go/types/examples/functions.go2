@@ -13,11 +13,13 @@ func Reverse (type T) (list []T) {
 	j := len(list)-1
 	for i < j {
 		list[i], list[j] = list[j], list[i]
+		i++
+		j--
 	}
 }
 
 func _() {
-	// Reverse can be called with an explicit type argument
+	// Reverse can be called with an explicit type argument.
 	Reverse(int)(nil)
 	Reverse(string)([]string{"foo", "bar"})
 	Reverse(struct{x, y int})([]struct{x, y int}{{1, 2}, {2, 3}, {3, 4}})
