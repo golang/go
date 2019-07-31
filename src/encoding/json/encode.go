@@ -137,7 +137,7 @@ import (
 // string, an integer type, or implement encoding.TextMarshaler. The map keys
 // are sorted and used as JSON object keys by applying the following rules,
 // subject to the UTF-8 coercion described for string values above:
-//   - string keys are used directly
+//   - keys of any string type are used directly
 //   - encoding.TextMarshalers are marshaled
 //   - integer keys are converted to strings
 //
