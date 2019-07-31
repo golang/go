@@ -15,7 +15,6 @@ var (
 	ErrExist      = errors.New("file already exists")
 	ErrNotExist   = errors.New("file does not exist")
 	ErrClosed     = errors.New("file already closed")
-	ErrTemporary  = temporaryError{}
 	ErrTimeout    = timeoutError{}
 )
 
@@ -39,23 +38,6 @@ func IsTimeout(err error) bool {
 			return x.Timeout()
 		}
 		if x, ok := err.(interface{ Is(error) bool }); ok && x.Is(ErrTimeout) {
-			return true
-		}
-		err = errors.Unwrap(err)
-	}
-	return false
-}
-
-// IsTemporary reports whether err indicates a temporary condition.
-func IsTemporary(err error) bool {
-	for err != nil {
-		if err == ErrTemporary {
-			return true
-		}
-		if x, ok := err.(interface{ Temporary() bool }); ok {
-			return x.Temporary()
-		}
-		if x, ok := err.(interface{ Is(error) bool }); ok && x.Is(ErrTemporary) {
 			return true
 		}
 		err = errors.Unwrap(err)

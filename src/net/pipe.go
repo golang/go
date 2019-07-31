@@ -86,7 +86,7 @@ func (timeoutError) Timeout() bool   { return true }
 func (timeoutError) Temporary() bool { return true }
 
 func (timeoutError) Is(target error) bool {
-	return target == os.ErrTemporary || target == os.ErrTimeout
+	return target == os.ErrTimeout
 }
 
 type pipeAddr struct{}

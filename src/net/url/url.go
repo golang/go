@@ -26,10 +26,16 @@ type Error struct {
 	Err error
 }
 
-func (e *Error) Unwrap() error   { return e.Err }
-func (e *Error) Error() string   { return e.Op + " " + e.URL + ": " + e.Err.Error() }
-func (e *Error) Timeout() bool   { return oserror.IsTimeout(e.Err) }
-func (e *Error) Temporary() bool { return oserror.IsTemporary(e.Err) }
+func (e *Error) Unwrap() error { return e.Err }
+func (e *Error) Error() string { return e.Op + " " + e.URL + ": " + e.Err.Error() }
+func (e *Error) Timeout() bool { return oserror.IsTimeout(e.Err) }
+
+func (e *Error) Temporary() bool {
+	t, ok := e.Err.(interface {
+		Temporary() bool
+	})
+	return ok && t.Temporary()
+}
 
 func ishex(c byte) bool {
 	switch {

@@ -2288,8 +2288,6 @@ func (e *httpError) Is(target error) bool {
 	switch target {
 	case os.ErrTimeout:
 		return e.timeout
-	case os.ErrTemporary:
-		return true
 	}
 	return false
 }
@@ -2629,7 +2627,7 @@ func (tlsHandshakeTimeoutError) Temporary() bool { return true }
 func (tlsHandshakeTimeoutError) Error() string   { return "net/http: TLS handshake timeout" }
 
 func (tlsHandshakeTimeoutError) Is(target error) bool {
-	return target == os.ErrTimeout || target == os.ErrTemporary
+	return target == os.ErrTimeout
 }
 
 // fakeLocker is a sync.Locker which does nothing. It's used to guard
