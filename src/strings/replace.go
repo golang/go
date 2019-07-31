@@ -347,7 +347,7 @@ func (r *genericReplacer) WriteString(w io.Writer, s string) (n int, err error) 
 			}
 		}
 
-		// Ignore the empty match iff the previous loop found the empty match.
+		// Ignore the empty match if the previous loop found the empty match.
 		val, keylen, match := r.lookup(s[i:], prevMatchEmpty)
 		prevMatchEmpty = match && keylen == 0
 		if match {
