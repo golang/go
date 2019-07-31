@@ -237,7 +237,6 @@ pkg os (netbsd-arm64), const O_SYNC = 128
 pkg os (netbsd-arm64), const O_TRUNC = 1024
 pkg os (netbsd-arm64), const PathListSeparator = 58
 pkg os (netbsd-arm64), const PathSeparator = 47
-pkg os, var ErrTemporary error
 pkg os, var ErrTimeout error
 pkg path/filepath (netbsd-arm64-cgo), const ListSeparator = 58
 pkg path/filepath (netbsd-arm64-cgo), const Separator = 47

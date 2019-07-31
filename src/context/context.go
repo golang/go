@@ -164,7 +164,7 @@ func (deadlineExceededError) Error() string   { return "context deadline exceede
 func (deadlineExceededError) Timeout() bool   { return true }
 func (deadlineExceededError) Temporary() bool { return true }
 func (deadlineExceededError) Is(target error) bool {
-	return target == oserror.ErrTimeout || target == oserror.ErrTemporary
+	return target == oserror.ErrTimeout
 }
 
 // An emptyCtx is never canceled, has no values, and has no deadline. It is not
