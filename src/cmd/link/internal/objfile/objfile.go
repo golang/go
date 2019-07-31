@@ -416,7 +416,8 @@ overwrite:
 			// from the spot where the wrapper is needed.
 			whitelist := (strings.HasPrefix(dup.Name, "go.info.go.interface") ||
 				strings.HasPrefix(dup.Name, "go.info.go.builtin") ||
-				strings.HasPrefix(dup.Name, "go.isstmt.go.builtin"))
+				strings.HasPrefix(dup.Name, "go.isstmt.go.builtin") ||
+				strings.HasPrefix(dup.Name, "go.debuglines"))
 			if !whitelist {
 				r.strictDupMsgs++
 			}

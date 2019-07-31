@@ -59,8 +59,8 @@ const (
 	SDWARFINFO
 	SDWARFRANGE
 	SDWARFLOC
-	SDWARFMISC
 	SDWARFLINES
+	SDWARFMISC
 	// ABI alias. An ABI alias symbol is an empty symbol with a
 	// single relocation with 0 size that references the native
 	// function implementation symbol.

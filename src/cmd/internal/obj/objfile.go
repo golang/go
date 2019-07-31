@@ -460,6 +460,13 @@ func (c dwCtxt) AddInt(s dwarf.Sym, size int, i int64) {
 	ls := s.(*LSym)
 	ls.WriteInt(c.Link, ls.Size, size, i)
 }
+func (c dwCtxt) AddUint16(s dwarf.Sym, i uint16) {
+	c.AddInt(s, 2, int64(i))
+}
+func (c dwCtxt) AddUint8(s dwarf.Sym, i uint8) {
+	b := []byte{byte(i)}
+	c.AddBytes(s, b)
+}
 func (c dwCtxt) AddBytes(s dwarf.Sym, b []byte) {
 	ls := s.(*LSym)
 	ls.WriteBytes(c.Link, ls.Size, b)
@@ -577,7 +584,7 @@ func (ctxt *Link) fileSymbol(fn *LSym) *LSym {
 // TEXT symbol 's'. The various DWARF symbols must already have been
 // initialized in InitTextSym.
 func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string) {
-	info, loc, ranges, absfunc, _, _ := ctxt.dwarfSym(s)
+	info, loc, ranges, absfunc, _, lines := ctxt.dwarfSym(s)
 	if info.Size != 0 {
 		ctxt.Diag("makeFuncDebugEntry double process %v", s)
 	}
@@ -617,6 +624,8 @@ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string)
 	if err != nil {
 		ctxt.Diag("emitting DWARF for %s failed: %v", s.Name, err)
 	}
+	// Fill in the debug lines symbol.
+	ctxt.generateDebugLinesSymbol(s, lines)
 }
 
 // DwarfIntConst creates a link symbol for an integer constant with the
@@ -630,6 +639,23 @@ func (ctxt *Link) DwarfIntConst(myimportpath, name, typename string, val int64) 
 		ctxt.Data = append(ctxt.Data, s)
 	})
 	dwarf.PutIntConst(dwCtxt{ctxt}, s, ctxt.Lookup(dwarf.InfoPrefix+typename), myimportpath+"."+name, val)
+}
+
+// dwarfFileTableSymbol creates (or finds) the symbol for holding the line table for this package.
+//
+// The symbol WILL NOT be unique at the per package/archive level. For example,
+// when writing a package archive, we'll write this symbol for the Go code, and
+// one for each assembly file in the package. As such, we can't treat this
+// symbol the same when we read in the object files in the linker. This symbol
+// won't make it to the symbol table, and compilation units will keep track of
+// it.
+// TODO: Actually save this to the object file, and read it back in the linker.
+func (ctxt *Link) dwarfFileTableSymbol() *LSym {
+	s := ctxt.LookupInit(dwarf.DebugLinesPrefix+".package", func(s *LSym) {
+		s.Type = objabi.SDWARFLINES
+		//ctxt.Data = append(ctxt.Data, s)
+	})
+	return s
 }
 
 func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath string) {
