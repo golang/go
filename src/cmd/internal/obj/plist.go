@@ -137,7 +137,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	ctxt.Text = append(ctxt.Text, s)
 
 	// Set up DWARF entries for s.
-	info, loc, ranges, _, isstmt, _ := ctxt.dwarfSym(s)
+	info, loc, ranges, _, isstmt, lines := ctxt.dwarfSym(s)
 	info.Type = objabi.SDWARFINFO
 	info.Set(AttrDuplicateOK, s.DuplicateOK())
 	if loc != nil {
@@ -151,6 +151,9 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	isstmt.Type = objabi.SDWARFMISC
 	isstmt.Set(AttrDuplicateOK, s.DuplicateOK())
 	ctxt.Data = append(ctxt.Data, isstmt)
+	lines.Type = objabi.SDWARFLINES
+	lines.Set(AttrDuplicateOK, s.DuplicateOK())
+	ctxt.Data = append(ctxt.Data, lines)
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
