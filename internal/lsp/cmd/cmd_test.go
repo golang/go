@@ -19,8 +19,6 @@ import (
 	"golang.org/x/tools/internal/lsp/tests"
 )
 
-var isRace = false
-
 type runner struct {
 	exporter packagestest.Exporter
 	data     *tests.Data
