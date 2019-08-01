@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 14, 2019",
+	"Subtitle": "Version of July 31, 2019",
 	"Path": "/ref/spec"
 }-->
 
@@ -1257,11 +1257,19 @@ non-<a href="#Blank_identifier">blank</a> name.
 </p>
 
 <pre>
-// A simple File interface
+// A simple File interface.
 interface {
-	Read(b Buffer) bool
-	Write(b Buffer) bool
-	Close()
+	Read([]byte) (int, error)
+	Write([]byte) (int, error)
+	Close() error
+}
+</pre>
+
+<pre>
+interface {
+	String() string
+	String() string  // illegal: String not unique
+	_(x int)         // illegal: method must have non-blank name
 }
 </pre>
 
@@ -1272,9 +1280,9 @@ have the method set
 </p>
 
 <pre>
-func (p T) Read(b Buffer) bool { return … }
-func (p T) Write(b Buffer) bool { return … }
-func (p T) Close() { … }
+func (p T) Read(p []byte) (n int, err error)   { return … }
+func (p T) Write(p []byte) (n int, err error)  { return … }
+func (p T) Close() error                       { return … }
 </pre>
 
 <p>

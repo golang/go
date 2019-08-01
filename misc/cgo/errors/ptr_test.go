@@ -423,6 +423,15 @@ var ptrTests = []ptrTest{
 		body:    `t := reflect.StructOf([]reflect.StructField{{Name: "MyInt38", Type: reflect.TypeOf(MyInt38(0)), Anonymous: true}}); v := reflect.New(t).Elem(); v.Interface().(Getter38).Get()`,
 		fail:    false,
 	},
+	{
+		// Test that a converted address of a struct field results
+		// in a check for just that field and not the whole struct.
+		name:    "structfieldcast",
+		c:       `struct S40i { int i; int* p; }; void f40(struct S40i* p) {}`,
+		support: `type S40 struct { p *int; a C.struct_S40i }`,
+		body:    `s := &S40{p: new(int)}; C.f40((*C.struct_S40i)(&s.a))`,
+		fail:    false,
+	},
 }
 
 func TestPointerChecks(t *testing.T) {

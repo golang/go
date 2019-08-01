@@ -518,8 +518,6 @@ func (e *OpError) Temporary() bool {
 
 func (e *OpError) Is(target error) bool {
 	switch target {
-	case os.ErrTemporary:
-		return e.Temporary()
 	case os.ErrTimeout:
 		return e.Timeout()
 	}
@@ -619,8 +617,6 @@ func (e *DNSError) Temporary() bool { return e.IsTimeout || e.IsTemporary }
 
 func (e *DNSError) Is(target error) bool {
 	switch target {
-	case os.ErrTemporary:
-		return e.Temporary()
 	case os.ErrTimeout:
 		return e.Timeout()
 	}

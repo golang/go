@@ -203,8 +203,9 @@ func (b *Builder) toolID(name string) string {
 		// On the development branch, use the content ID part of the build ID.
 		id = contentID(f[len(f)-1])
 	} else {
-		// For a release, the output is like: "compile version go1.9.1". Use the whole line.
-		id = f[2]
+		// For a release, the output is like: "compile version go1.9.1 X:framepointer".
+		// Use the whole line.
+		id = strings.TrimSpace(line)
 	}
 
 	b.id.Lock()

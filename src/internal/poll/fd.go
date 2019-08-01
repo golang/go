@@ -48,7 +48,7 @@ func (e *TimeoutError) Timeout() bool   { return true }
 func (e *TimeoutError) Temporary() bool { return true }
 
 func (e *TimeoutError) Is(target error) bool {
-	return target == oserror.ErrTimeout || target == oserror.ErrTemporary
+	return target == oserror.ErrTimeout
 }
 
 // ErrNotPollable is returned when the file or socket is not suitable

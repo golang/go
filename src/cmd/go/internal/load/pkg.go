@@ -64,7 +64,7 @@ type PackagePublic struct {
 	Doc           string                `json:",omitempty"` // package documentation string
 	Target        string                `json:",omitempty"` // installed target for this package (may be executable)
 	Shlib         string                `json:",omitempty"` // the shared library that contains this package (only set when -linkshared)
-	Root          string                `json:",omitempty"` // Go root or Go path dir containing this package
+	Root          string                `json:",omitempty"` // Go root, Go path dir, or module root dir containing this package
 	ConflictDir   string                `json:",omitempty"` // Dir is hidden by this other directory
 	ForTest       string                `json:",omitempty"` // package is only for use in named test
 	Export        string                `json:",omitempty"` // file containing export data (set by go list -export)
@@ -177,8 +177,7 @@ type PackageInternal struct {
 	OmitDebug         bool                 // tell linker not to write debug information
 	GobinSubdir       bool                 // install target would be subdir of GOBIN
 	BuildInfo         string               // add this info to package main
-	TestinginitGo     []byte               // content for _testinginit.go
-	TestmainGo        []byte               // content for _testmain.go
+	TestmainGo        *[]byte              // content for _testmain.go
 
 	Asmflags   []string // -asmflags for this package
 	Gcflags    []string // -gcflags for this package
@@ -647,6 +646,11 @@ func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd
 				buildMode = build.ImportComment
 			}
 			data.p, data.err = cfg.BuildContext.ImportDir(r.dir, buildMode)
+			if data.p.Root == "" && cfg.ModulesEnabled {
+				if info := ModPackageModuleInfo(path); info != nil {
+					data.p.Root = info.Dir
+				}
+			}
 		} else if r.err != nil {
 			data.p = new(build.Package)
 			data.err = fmt.Errorf("unknown import path %q: %v", r.path, r.err)

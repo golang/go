@@ -681,3 +681,37 @@ func (t *Treap) CheckInvariants() {
 	t.mTreap.treap.walkTreap(checkTreapNode)
 	t.mTreap.treap.validateInvariants()
 }
+
+func RunGetgThreadSwitchTest() {
+	// Test that getg works correctly with thread switch.
+	// With gccgo, if we generate getg inlined, the backend
+	// may cache the address of the TLS variable, which
+	// will become invalid after a thread switch. This test
+	// checks that the bad caching doesn't happen.
+
+	ch := make(chan int)
+	go func(ch chan int) {
+		ch <- 5
+		LockOSThread()
+	}(ch)
+
+	g1 := getg()
+
+	// Block on a receive. This is likely to get us a thread
+	// switch. If we yield to the sender goroutine, it will
+	// lock the thread, forcing us to resume on a different
+	// thread.
+	<-ch
+
+	g2 := getg()
+	if g1 != g2 {
+		panic("g1 != g2")
+	}
+
+	// Also test getg after some control flow, as the
+	// backend is sensitive to control flow.
+	g3 := getg()
+	if g1 != g3 {
+		panic("g1 != g3")
+	}
+}

@@ -166,6 +166,7 @@ var pkgDeps = map[string][]string{
 		"syscall/js",
 	},
 
+	"internal/cfg":     {"L0"},
 	"internal/poll":    {"L0", "internal/oserror", "internal/race", "syscall", "time", "unicode/utf16", "unicode/utf8", "internal/syscall/windows"},
 	"internal/testlog": {"L0"},
 	"os":               {"L1", "os", "syscall", "time", "internal/oserror", "internal/poll", "internal/syscall/windows", "internal/syscall/unix", "internal/testlog"},
@@ -199,7 +200,7 @@ var pkgDeps = map[string][]string{
 	"testing":               {"L2", "flag", "fmt", "internal/race", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
 	"testing/iotest":        {"L2", "log"},
 	"testing/quick":         {"L2", "flag", "fmt", "reflect", "time"},
-	"internal/testenv":      {"L2", "OS", "flag", "testing", "syscall"},
+	"internal/testenv":      {"L2", "OS", "flag", "testing", "syscall", "internal/cfg"},
 	"internal/lazyregexp":   {"L2", "OS", "regexp"},
 	"internal/lazytemplate": {"L2", "OS", "text/template"},
 

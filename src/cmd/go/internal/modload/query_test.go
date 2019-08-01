@@ -100,7 +100,7 @@ var queryTests = []struct {
 	{path: queryRepo, query: ">=v0.0.0", vers: "v0.0.0"},
 	{path: queryRepo, query: "v0.0.1", vers: "v0.0.1"},
 	{path: queryRepo, query: "v0.0.1+foo", vers: "v0.0.1"},
-	{path: queryRepo, query: "v0.0.99", err: `unknown revision v0.0.99`},
+	{path: queryRepo, query: "v0.0.99", err: `vcs-test.golang.org/git/querytest.git@v0.0.99: invalid version: unknown revision v0.0.99`},
 	{path: queryRepo, query: "v0", vers: "v0.3.0"},
 	{path: queryRepo, query: "v0.1", vers: "v0.1.2"},
 	{path: queryRepo, query: "v0.2", err: `no matching versions for query "v0.2"`},
@@ -112,8 +112,8 @@ var queryTests = []struct {
 	// unconditionally).
 	{path: queryRepo, query: "42abcb6df8ee", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
 
-	{path: queryRepo, query: "v1.9.10-pre2+wrongmetadata", err: `unknown revision v1.9.10-pre2+wrongmetadata`},
-	{path: queryRepo, query: "v1.9.10-pre2", err: `unknown revision v1.9.10-pre2`},
+	{path: queryRepo, query: "v1.9.10-pre2+wrongmetadata", err: `vcs-test.golang.org/git/querytest.git@v1.9.10-pre2+wrongmetadata: invalid version: unknown revision v1.9.10-pre2+wrongmetadata`},
+	{path: queryRepo, query: "v1.9.10-pre2", err: `vcs-test.golang.org/git/querytest.git@v1.9.10-pre2: invalid version: unknown revision v1.9.10-pre2`},
 	{path: queryRepo, query: "latest", vers: "v1.9.9"},
 	{path: queryRepo, query: "latest", current: "v1.9.10-pre1", vers: "v1.9.9"},
 	{path: queryRepo, query: "upgrade", vers: "v1.9.9"},
@@ -122,7 +122,7 @@ var queryTests = []struct {
 	{path: queryRepo, query: "upgrade", current: "v0.0.0-20190513201126-42abcb6df8ee", vers: "v0.0.0-20190513201126-42abcb6df8ee"},
 	{path: queryRepo, query: "upgrade", allow: "NOMATCH", err: `no matching versions for query "upgrade"`},
 	{path: queryRepo, query: "upgrade", current: "v1.9.9", allow: "NOMATCH", err: `no matching versions for query "upgrade" (current version is v1.9.9)`},
-	{path: queryRepo, query: "upgrade", current: "v1.99.99", err: `unknown revision v1.99.99`},
+	{path: queryRepo, query: "upgrade", current: "v1.99.99", err: `vcs-test.golang.org/git/querytest.git@v1.99.99: invalid version: unknown revision v1.99.99`},
 	{path: queryRepo, query: "patch", current: "", vers: "v1.9.9"},
 	{path: queryRepo, query: "patch", current: "v0.1.0", vers: "v0.1.2"},
 	{path: queryRepo, query: "patch", current: "v1.9.0", vers: "v1.9.9"},
@@ -161,8 +161,11 @@ var queryTests = []struct {
 	{path: queryRepoV2, query: "v2.6.0-pre1", vers: "v2.6.0-pre1"},
 	{path: queryRepoV2, query: "latest", vers: "v2.5.5"},
 
-	{path: queryRepoV3, query: "e0cf3de987e6", vers: "v3.0.0-20180704024501-e0cf3de987e6"},
-	{path: queryRepoV3, query: "latest", vers: "v3.0.0-20180704024501-e0cf3de987e6"},
+	// e0cf3de987e6 is the latest commit on the master branch, and it's actually
+	// v1.19.10-pre1, not anything resembling v3: attempting to query it as such
+	// should fail.
+	{path: queryRepoV3, query: "e0cf3de987e6", err: `vcs-test.golang.org/git/querytest.git/v3@v3.0.0-20180704024501-e0cf3de987e6: invalid version: go.mod has non-.../v3 module path "vcs-test.golang.org/git/querytest.git" (and .../v3/go.mod does not exist) at revision e0cf3de987e6`},
+	{path: queryRepoV3, query: "latest", err: `no matching versions for query "latest"`},
 
 	{path: emptyRepo, query: "latest", vers: "v0.0.0-20180704023549-7bb914627242"},
 	{path: emptyRepo, query: ">v0.0.0", err: `no matching versions for query ">v0.0.0"`},
@@ -182,7 +185,10 @@ func TestQuery(t *testing.T) {
 			ok, _ := path.Match(allow, m.Version)
 			return ok
 		}
+		tt := tt
 		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.query+"/"+tt.current+"/"+allow, func(t *testing.T) {
+			t.Parallel()
+
 			info, err := Query(tt.path, tt.query, tt.current, allowed)
 			if tt.err != "" {
 				if err == nil {

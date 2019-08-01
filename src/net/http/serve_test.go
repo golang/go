@@ -2407,6 +2407,7 @@ func TestTimeoutHandlerRace(t *testing.T) {
 }
 
 // See issues 8209 and 8414.
+// Both issues involved panics in the implementation of TimeoutHandler.
 func TestTimeoutHandlerRaceHeader(t *testing.T) {
 	setParallel(t)
 	defer afterTest(t)
@@ -2434,7 +2435,9 @@ func TestTimeoutHandlerRaceHeader(t *testing.T) {
 			defer func() { <-gate }()
 			res, err := c.Get(ts.URL)
 			if err != nil {
-				t.Error(err)
+				// We see ECONNRESET from the connection occasionally,
+				// and that's OK: this test is checking that the server does not panic.
+				t.Log(err)
 				return
 			}
 			defer res.Body.Close()
@@ -5507,19 +5510,23 @@ func TestServerSetKeepAlivesEnabledClosesConns(t *testing.T) {
 	if a1 != a2 {
 		t.Fatal("expected first two requests on same connection")
 	}
-	var idle0 int
-	if !waitCondition(2*time.Second, 10*time.Millisecond, func() bool {
-		idle0 = tr.IdleConnKeyCountForTesting()
-		return idle0 == 1
-	}) {
-		t.Fatalf("idle count before SetKeepAlivesEnabled called = %v; want 1", idle0)
+	addr := strings.TrimPrefix(ts.URL, "http://")
+
+	// The two requests should have used the same connection,
+	// and there should not have been a second connection that
+	// was created by racing dial against reuse.
+	// (The first get was completed when the second get started.)
+	n := tr.IdleConnCountForTesting("http", addr)
+	if n != 1 {
+		t.Fatalf("idle count for %q after 2 gets = %d, want 1", addr, n)
 	}
 
+	// SetKeepAlivesEnabled should discard idle conns.
 	ts.Config.SetKeepAlivesEnabled(false)
 
 	var idle1 int
 	if !waitCondition(2*time.Second, 10*time.Millisecond, func() bool {
-		idle1 = tr.IdleConnKeyCountForTesting()
+		idle1 = tr.IdleConnCountForTesting("http", addr)
 		return idle1 == 0
 	}) {
 		t.Fatalf("idle count after SetKeepAlivesEnabled called = %v; want 0", idle1)

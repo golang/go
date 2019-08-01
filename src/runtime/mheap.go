@@ -514,11 +514,13 @@ func (h *mheap) coalesce(s *mspan) {
 		h.free.insert(other)
 	}
 
-	hpBefore := s.hugePages()
+	hpMiddle := s.hugePages()
 
 	// Coalesce with earlier, later spans.
+	var hpBefore uintptr
 	if before := spanOf(s.base() - 1); before != nil && before.state == mSpanFree {
 		if s.scavenged == before.scavenged {
+			hpBefore = before.hugePages()
 			merge(before, s, before)
 		} else {
 			realign(before, s, before)
@@ -526,23 +528,29 @@ func (h *mheap) coalesce(s *mspan) {
 	}
 
 	// Now check to see if next (greater addresses) span is free and can be coalesced.
+	var hpAfter uintptr
 	if after := spanOf(s.base() + s.npages*pageSize); after != nil && after.state == mSpanFree {
 		if s.scavenged == after.scavenged {
+			hpAfter = after.hugePages()
 			merge(s, after, after)
 		} else {
 			realign(s, after, after)
 		}
 	}
-
-	if !s.scavenged && s.hugePages() > hpBefore {
+	if !s.scavenged && s.hugePages() > hpBefore+hpMiddle+hpAfter {
 		// If s has grown such that it now may contain more huge pages than it
-		// did before, then mark the whole region as huge-page-backable.
+		// and its now-coalesced neighbors did before, then mark the whole region
+		// as huge-page-backable.
 		//
 		// Otherwise, on systems where we break up huge pages (like Linux)
 		// s may not be backed by huge pages because it could be made up of
 		// pieces which are broken up in the underlying VMA. The primary issue
 		// with this is that it can lead to a poor estimate of the amount of
 		// free memory backed by huge pages for determining the scavenging rate.
+		//
+		// TODO(mknyszek): Measure the performance characteristics of sysHugePage
+		// and determine whether it makes sense to only sysHugePage on the pages
+		// that matter, or if it's better to just mark the whole region.
 		sysHugePage(unsafe.Pointer(s.base()), s.npages*pageSize)
 	}
 }
@@ -561,7 +569,7 @@ func (s *mspan) hugePages() uintptr {
 		end &^= physHugePageSize - 1
 	}
 	if start < end {
-		return (end - start) / physHugePageSize
+		return (end - start) >> physHugePageShift
 	}
 	return 0
 }
