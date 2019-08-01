@@ -275,9 +275,11 @@ func (o fmtOpTypeId) Format(s fmt.State, verb rune)     { Op(o).format(s, verb, 
 func (o fmtOpTypeIdName) Format(s fmt.State, verb rune) { Op(o).format(s, verb, FTypeIdName) }
 func (o Op) Format(s fmt.State, verb rune)              { o.format(s, verb, FErr) }
 
-func (t *fmtTypeErr) Format(s fmt.State, verb rune)    { typeFormat((*types.Type)(t), s, verb, FErr) }
-func (t *fmtTypeDbg) Format(s fmt.State, verb rune)    { typeFormat((*types.Type)(t), s, verb, FDbg) }
-func (t *fmtTypeTypeId) Format(s fmt.State, verb rune) { typeFormat((*types.Type)(t), s, verb, FTypeId) }
+func (t *fmtTypeErr) Format(s fmt.State, verb rune) { typeFormat((*types.Type)(t), s, verb, FErr) }
+func (t *fmtTypeDbg) Format(s fmt.State, verb rune) { typeFormat((*types.Type)(t), s, verb, FDbg) }
+func (t *fmtTypeTypeId) Format(s fmt.State, verb rune) {
+	typeFormat((*types.Type)(t), s, verb, FTypeId)
+}
 func (t *fmtTypeTypeIdName) Format(s fmt.State, verb rune) {
 	typeFormat((*types.Type)(t), s, verb, FTypeIdName)
 }
