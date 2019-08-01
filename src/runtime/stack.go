@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/cpu"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -137,12 +138,15 @@ const (
 // Stacks are assigned an order according to size.
 //     order = log_2(size/FixedStack)
 // There is a free list for each order.
-var stackpool [_NumStackOrders]stackpoolItem
+var stackpool [_NumStackOrders]struct {
+	item stackpoolItem
+	_    [cpu.CacheLinePadSize - unsafe.Sizeof(stackpoolItem{})%cpu.CacheLinePadSize]byte
+}
 
 //go:notinheap
 type stackpoolItem struct {
-	span mSpanList
 	mu   mutex
+	span mSpanList
 }
 
 // Global pool of large stack spans.
@@ -156,7 +160,7 @@ func stackinit() {
 		throw("cache size must be a multiple of page size")
 	}
 	for i := range stackpool {
-		stackpool[i].span.init()
+		stackpool[i].item.span.init()
 	}
 	for i := range stackLarge.free {
 		stackLarge.free[i].init()
@@ -174,9 +178,9 @@ func stacklog2(n uintptr) int {
 }
 
 // Allocates a stack from the free pool. Must be called with
-// stackpool[order].mu held.
+// stackpool[order].item.mu held.
 func stackpoolalloc(order uint8) gclinkptr {
-	list := &stackpool[order].span
+	list := &stackpool[order].item.span
 	s := list.first
 	if s == nil {
 		// no free stacks. Allocate another span worth.
@@ -212,7 +216,7 @@ func stackpoolalloc(order uint8) gclinkptr {
 	return x
 }
 
-// Adds stack x to the free pool. Must be called with stackpool[order].mu held.
+// Adds stack x to the free pool. Must be called with stackpool[order].item.mu held.
 func stackpoolfree(x gclinkptr, order uint8) {
 	s := spanOfUnchecked(uintptr(x))
 	if s.state != mSpanManual {
@@ -220,7 +224,7 @@ func stackpoolfree(x gclinkptr, order uint8) {
 	}
 	if s.manualFreeList.ptr() == nil {
 		// s will now have a free stack
-		stackpool[order].span.insert(s)
+		stackpool[order].item.span.insert(s)
 	}
 	x.ptr().next = s.manualFreeList
 	s.manualFreeList = x
@@ -241,7 +245,7 @@ func stackpoolfree(x gclinkptr, order uint8) {
 		//    pointer into a free span.
 		//
 		// By not freeing, we prevent step #4 until GC is done.
-		stackpool[order].span.remove(s)
+		stackpool[order].item.span.remove(s)
 		s.manualFreeList = 0
 		osStackFree(s)
 		mheap_.freeManual(s, &memstats.stacks_inuse)
@@ -261,14 +265,14 @@ func stackcacherefill(c *mcache, order uint8) {
 	// Grab half of the allowed capacity (to prevent thrashing).
 	var list gclinkptr
 	var size uintptr
-	lock(&stackpool[order].mu)
+	lock(&stackpool[order].item.mu)
 	for size < _StackCacheSize/2 {
 		x := stackpoolalloc(order)
 		x.ptr().next = list
 		list = x
 		size += _FixedStack << order
 	}
-	unlock(&stackpool[order].mu)
+	unlock(&stackpool[order].item.mu)
 	c.stackcache[order].list = list
 	c.stackcache[order].size = size
 }
@@ -280,14 +284,14 @@ func stackcacherelease(c *mcache, order uint8) {
 	}
 	x := c.stackcache[order].list
 	size := c.stackcache[order].size
-	lock(&stackpool[order].mu)
+	lock(&stackpool[order].item.mu)
 	for size > _StackCacheSize/2 {
 		y := x.ptr().next
 		stackpoolfree(x, order)
 		x = y
 		size -= _FixedStack << order
 	}
-	unlock(&stackpool[order].mu)
+	unlock(&stackpool[order].item.mu)
 	c.stackcache[order].list = x
 	c.stackcache[order].size = size
 }
@@ -298,7 +302,7 @@ func stackcache_clear(c *mcache) {
 		print("stackcache clear\n")
 	}
 	for order := uint8(0); order < _NumStackOrders; order++ {
-		lock(&stackpool[order].mu)
+		lock(&stackpool[order].item.mu)
 		x := c.stackcache[order].list
 		for x.ptr() != nil {
 			y := x.ptr().next
@@ -307,7 +311,7 @@ func stackcache_clear(c *mcache) {
 		}
 		c.stackcache[order].list = 0
 		c.stackcache[order].size = 0
-		unlock(&stackpool[order].mu)
+		unlock(&stackpool[order].item.mu)
 	}
 }
 
@@ -359,9 +363,9 @@ func stackalloc(n uint32) stack {
 			// procresize. Just get a stack from the global pool.
 			// Also don't touch stackcache during gc
 			// as it's flushed concurrently.
-			lock(&stackpool[order].mu)
+			lock(&stackpool[order].item.mu)
 			x = stackpoolalloc(order)
-			unlock(&stackpool[order].mu)
+			unlock(&stackpool[order].item.mu)
 		} else {
 			x = c.stackcache[order].list
 			if x.ptr() == nil {
@@ -450,9 +454,9 @@ func stackfree(stk stack) {
 		x := gclinkptr(v)
 		c := gp.m.mcache
 		if stackNoCache != 0 || c == nil || gp.m.preemptoff != "" {
-			lock(&stackpool[order].mu)
+			lock(&stackpool[order].item.mu)
 			stackpoolfree(x, order)
-			unlock(&stackpool[order].mu)
+			unlock(&stackpool[order].item.mu)
 		} else {
 			if c.stackcache[order].size >= _StackCacheSize {
 				stackcacherelease(c, order)
@@ -1141,8 +1145,8 @@ func freeStackSpans() {
 
 	// Scan stack pools for empty stack spans.
 	for order := range stackpool {
-		lock(&stackpool[order].mu)
-		list := &stackpool[order].span
+		lock(&stackpool[order].item.mu)
+		list := &stackpool[order].item.span
 		for s := list.first; s != nil; {
 			next := s.next
 			if s.allocCount == 0 {
@@ -1153,7 +1157,7 @@ func freeStackSpans() {
 			}
 			s = next
 		}
-		unlock(&stackpool[order].mu)
+		unlock(&stackpool[order].item.mu)
 	}
 
 	// Free large stack spans.
