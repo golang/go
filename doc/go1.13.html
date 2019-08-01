@@ -810,6 +810,13 @@ godoc
       as opposed to releasing all objects, reducing load spikes for heavy users of <code>Pool</code>.
     </p>
 
+    <p><!-- CL 152697, 152698, 148959, 148958 -->
+      The fast paths of <code>Mutex.Lock</code>, <code>Mutex.Unlock</code>, <code>RWMutex.RLock</code>,
+      <code>RWMutex.RUnlock</code> and <code>Once.Do</code> are now inlined in their callers. 
+      On amd64 this makes <code>Once.Do</code> twice as fast, and the others up to ~10% faster in the
+      uncontented case.
+    </p>
+
 </dl><!-- sync -->
 
 <dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
