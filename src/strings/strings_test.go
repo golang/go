@@ -194,10 +194,12 @@ func runIndexTests(t *testing.T, f func(s, sep string) int, funcName string, tes
 	}
 }
 
-func TestIndex(t *testing.T)        { runIndexTests(t, Index, "Index", indexTests) }
-func TestLastIndex(t *testing.T)    { runIndexTests(t, LastIndex, "LastIndex", lastIndexTests) }
-func TestIndexAny(t *testing.T)     { runIndexTests(t, IndexAny, "IndexAny", indexAnyTests) }
-func TestLastIndexAny(t *testing.T) { runIndexTests(t, LastIndexAny, "LastIndexAny", lastIndexAnyTests) }
+func TestIndex(t *testing.T)     { runIndexTests(t, Index, "Index", indexTests) }
+func TestLastIndex(t *testing.T) { runIndexTests(t, LastIndex, "LastIndex", lastIndexTests) }
+func TestIndexAny(t *testing.T)  { runIndexTests(t, IndexAny, "IndexAny", indexAnyTests) }
+func TestLastIndexAny(t *testing.T) {
+	runIndexTests(t, LastIndexAny, "LastIndexAny", lastIndexAnyTests)
+}
 
 func TestIndexByte(t *testing.T) {
 	for _, tt := range indexTests {
