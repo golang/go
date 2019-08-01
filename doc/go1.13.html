@@ -740,6 +740,11 @@ godoc
       The <code>StatusCode</code> <code>103</code> <code>"Early Hints"</code> has been added.
     </p>
 
+    <p><!-- CL 163599 -->
+    <a href="/pkg/net/http/#Transport"><code>Transport</code></a> now uses the <a href="/pkg/net/http/#Request.Body"><code>Request.Body</code></a>'s
+    <a href="/pkg/io/#ReaderFrom"><code>io.ReaderFrom</code></a> implementation if available, to optimize writing the body.
+    </p>
+
     <p><!-- CL 167017 -->
       On encountering unsupported transfer-encodings, <a href="/pkg/net/http/#Server"><code>http.Server</code></a> now
       returns a "501 Unimplemented" status as mandated by the HTTP specification <a href="https://tools.ietf.org/html/rfc7230#section-3.3.1">RFC 7230 Section 3.3.1</a>.
