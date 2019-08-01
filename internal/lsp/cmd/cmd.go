@@ -324,7 +324,7 @@ func (c *cmdClient) PublishDiagnostics(ctx context.Context, p *protocol.PublishD
 
 func (c *cmdClient) getFile(ctx context.Context, uri span.URI) *cmdFile {
 	file, found := c.files[uri]
-	if !found {
+	if !found || file.err != nil {
 		file = &cmdFile{
 			uri:            uri,
 			hasDiagnostics: make(chan struct{}),
@@ -335,7 +335,7 @@ func (c *cmdClient) getFile(ctx context.Context, uri span.URI) *cmdFile {
 		fname := uri.Filename()
 		content, err := ioutil.ReadFile(fname)
 		if err != nil {
-			file.err = fmt.Errorf("%v: %v", uri, err)
+			file.err = fmt.Errorf("getFile %v: %v", uri, err)
 			return file
 		}
 		f := c.fset.AddFile(fname, -1, len(content))
@@ -350,6 +350,13 @@ func (c *connection) AddFile(ctx context.Context, uri span.URI) *cmdFile {
 	defer c.Client.filesMu.Unlock()
 
 	file := c.Client.getFile(ctx, uri)
+	// This should never happen.
+	if file == nil {
+		return &cmdFile{
+			uri: uri,
+			err: fmt.Errorf("no file found for %s", uri),
+		}
+	}
 	if file.err != nil || file.added {
 		return file
 	}
