@@ -67,7 +67,7 @@ func Walk(roots []Root, add func(root Root, dir string), opts Options) {
 func walkDir(root Root, add func(Root, string), opts Options) {
 	if _, err := os.Stat(root.Path); os.IsNotExist(err) {
 		if opts.Debug {
-			log.Printf("skipping nonexistant directory: %v", root.Path)
+			log.Printf("skipping nonexistent directory: %v", root.Path)
 		}
 		return
 	}
