@@ -101,6 +101,10 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="ports">Ports</h2>
 
+<p>
+  Go 1.13 is the last release that will run on Native Client (NaCl).
+</p>
+
 <h3 id="aix">AIX</h3>
 
 <p><!-- CL 164003, CL 169120 -->
@@ -229,7 +233,7 @@ go env -w GOPROXY=direct
 go env -w GOSUMDB=off
 </pre>
 
-<h4 id="go-get"><code>go</code> <code>get</code></h3>
+<h4 id="go-get"><code>go</code> <code>get</code></h4>
 
 <p><!-- CL 174099 -->
   In module-aware mode,
@@ -278,6 +282,17 @@ go env -w GOSUMDB=off
   major and minor versions as the version found in the build list.
 </p>
 
+<p><!-- CL 184440 -->
+  If a module passed as an argument to <code>go</code> <code>get</code>
+  without a version suffix is already required at a newer version than the
+  latest released version, it will remain at the newer version. This is
+  consistent with the behavior of the <code>-u</code> flag for module
+  dependencies. This prevents unexpected downgrades from pre-release versions.
+  The new version suffix <code>@upgrade</code> explicitly requests this
+  behavior. <code>@latest</code> explicitly requests the latest version
+  regardless of the current version.
+</p>
+
 <h4 id="version-validation">Version validation</h4><!-- CL 181881 -->
 
 <p>
@@ -298,8 +313,10 @@ go env -w GOSUMDB=off
   between <a href="/cmd/go#hdr-Pseudo_versions">pseudo-versions</a> and
   version-control metadata. Specifically:
   <ul>
-    <li>The version prefix must be derived from a tag on the named revision or
-    one of its ancestors, or be of the form <code>vX.0.0</code>.</li>
+    <li>The version prefix must be of the form <code>vX.0.0</code>, or derived
+    from a tag on an ancestor of the named revision, or derived from a tag that
+    includes <a href="https://semver.org/#spec-item-10">build metadata</a> on
+    the named revision itself.</li>
 
     <li>The date string must match the UTC timestamp of the revision.</li>
 
@@ -530,6 +547,14 @@ godoc
 
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
+    <p>
+      Support for SSL version 3.0 (SSLv3) <a href="https://golang.org/issue/32716">
+      is now deprecated and will be removed in Go 1.14</a>. Note that SSLv3
+      <a href="https://tools.ietf.org/html/rfc7568">is cryptographically
+      broken</a>, is already disabled by default in <code>crypto/tls</code>,
+      and was never supported by Go clients.
+    </p>
+
     <p><!-- CL 177698 -->
       Ed25519 certificates are now supported in TLS versions 1.2 and 1.3.
     </p>
@@ -596,14 +621,17 @@ godoc
 
 </dl><!-- errors -->
 
-<dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+<dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
   <dd>
-    <p><!-- CL 175218 -->
-      When using a <code>&lt;script&gt;</code> tag with "module" set as the
-      type attribute, code will now be interperted as <a href="https://html.spec.whatwg.org/multipage/scripting.html#the-script-element:module-script-2">JavaScript module script</a>.
+    <!-- CL 176998 -->
+    <p>The <a href="/pkg/fmt/#Errorf"><code>Errorf</code></a> function
+      has a new verb, <code>%w</code>, whose operand must be an error.
+      The error returned from <code>Errorf</code> will have an
+      <code>Unwrap</code> method which returns the operand of <code>%w</code>.
     </p>
 
-  </dl><!-- html/template -->
+</dl><!-- fmt -->
+
 
 <dl id="go/scanner"><dt><a href="/pkg/go/scanner/">go/scanner</a></dt>
   <dd>
@@ -625,6 +653,17 @@ godoc
     </p>
 
 </dl><!-- go/types -->
+
+
+
+<dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+  <dd>
+    <p><!-- CL 175218 -->
+      When using a <code>&lt;script&gt;</code> tag with "module" set as the
+      type attribute, code will now be interpreted as <a href="https://html.spec.whatwg.org/multipage/scripting.html#the-script-element:module-script-2">JavaScript module script</a>.
+    </p>
+
+</dl><!-- html/template -->
 
 <dl id="log"><dt><a href="/pkg/log/">log</a></dt>
   <dd>
@@ -743,8 +782,8 @@ godoc
 <dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
     <p> <!-- CL 167780 -->
-      Tracebacks, <code>runtime.Caller</code>,
-      and <code>runtime.Callers</code> now refer to the function that
+      Tracebacks, <a href="/pkg/runtime/#Caller"><code>runtime.Caller</code></a>,
+      and <a href="/pkg/runtime/#Callers"><code>runtime.Callers</code></a> now refer to the function that
       initializes the global variables of <code>PKG</code>
       as <code>PKG.init</code> instead of <code>PKG.init.ializers</code>
     </p>
@@ -776,8 +815,9 @@ godoc
 <dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
   <dd>
     <p><!-- CL 168479 -->
-      Uses of <code>_getdirentries64</code> have been removed from Darwin builds, to allow binaries
-      built with 1.12 to be uploaded to the macOS App Store.
+      Uses of <code>_getdirentries64</code> have been removed from
+      Darwin builds, to allow Go binaries to be uploaded to the macOS
+      App Store.
     </p>
 
     <p><!-- CL 174197 -->
@@ -796,7 +836,7 @@ godoc
 <dl id="syscall/js"><dt><a href="/pkg/syscall/js/">syscall/js</a></dt>
   <dd>
     <p><!-- CL 177537 -->
-      <a href="/pkg/syscall/js/#TypedArray"><code>TypedArrayOf</code></a> has been replaced by
+      TypedArrayOf has been replaced by
       <a href="/pkg/syscall/js/#CopyBytesToGo"><code>CopyBytesToGo</code></a> and
       <a href="/pkg/syscall/js/#CopyBytesToJS"><code>CopyBytesToJS</code></a> for copying bytes between a byte slice and a Uint8Array.
     </p>
@@ -815,8 +855,10 @@ godoc
     </p>
 
     <p><!-- CL 173722 -->
-      Testing flags are now registered in the new <a href="/pkg/testing/#Init"><code>Init</code></a> function.
-      As a result, testing flags are now only registered when running a test binary.
+      Testing flags are now registered in the new <a href="/pkg/testing/#Init"><code>Init</code></a> function,
+      which is invoked by the generated <code>main</code> function for the test.
+      As a result, testing flags are now only registered when running a test binary,
+      and packages that call <code>flag.Parse</code> during package initialization may cause tests to fail.
     </p>
 
 </dl><!-- testing -->
@@ -846,7 +888,7 @@ godoc
 <dl id="time"><dt><a href="/pkg/time/">time</a></dt>
   <dd>
     <p><!-- CL 122876 -->
-      Day-of-year is now supported by <a href="/pkg/time/#time.Format"><code>Format</code></a>
+      Day-of-year is now supported by <a href="/pkg/time/#Time.Format"><code>Format</code></a>
       and <a href="/pkg/time/#Parse"><code>Parse</code></a>.
     </p>
 

@@ -9,15 +9,13 @@ import (
 )
 
 type ttError struct {
-	timeout   bool
-	temporary bool
+	timeout bool
 }
 
 func (e ttError) Error() string {
-	return fmt.Sprintf("ttError{timeout:%v temporary:%v}", e.timeout, e.temporary)
+	return fmt.Sprintf("ttError{timeout:%v}", e.timeout)
 }
-func (e ttError) Timeout() bool   { return e.timeout }
-func (e ttError) Temporary() bool { return e.temporary }
+func (e ttError) Timeout() bool { return e.timeout }
 
 type isError struct {
 	err error
@@ -40,24 +38,6 @@ func TestIsTimeout(t *testing.T) {
 	} {
 		if got, want := oserror.IsTimeout(test.err), test.want; got != want {
 			t.Errorf("IsTimeout(err) = %v, want %v\n%+v", got, want, test.err)
-		}
-	}
-}
-
-func TestIsTemporary(t *testing.T) {
-	for _, test := range []struct {
-		want bool
-		err  error
-	}{
-		{true, ttError{temporary: true}},
-		{true, isError{os.ErrTemporary}},
-		{true, os.ErrTemporary},
-		{true, fmt.Errorf("wrap: %w", os.ErrTemporary)},
-		{false, ttError{temporary: false}},
-		{false, errors.New("error")},
-	} {
-		if got, want := oserror.IsTemporary(test.err), test.want; got != want {
-			t.Errorf("IsTemporary(err) = %v, want %v\n%+v", got, want, test.err)
 		}
 	}
 }

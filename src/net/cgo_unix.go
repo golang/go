@@ -40,8 +40,6 @@ func (eai addrinfoErrno) Timeout() bool   { return false }
 
 func (eai addrinfoErrno) Is(target error) bool {
 	switch target {
-	case os.ErrTemporary:
-		return eai.Temporary()
 	case os.ErrTimeout:
 		return eai.Timeout()
 	}

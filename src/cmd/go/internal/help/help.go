@@ -63,7 +63,7 @@ Args:
 		// helpSuccess is the help command using as many args as possible that would succeed.
 		helpSuccess := "go help"
 		if i > 0 {
-			helpSuccess = " " + strings.Join(args[:i], " ")
+			helpSuccess += " " + strings.Join(args[:i], " ")
 		}
 		fmt.Fprintf(os.Stderr, "go help %s: unknown help topic. Run '%s'.\n", strings.Join(args, " "), helpSuccess)
 		base.SetExitStatus(2) // failed at 'go help cmd'

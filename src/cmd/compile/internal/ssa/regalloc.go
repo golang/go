@@ -1455,7 +1455,7 @@ func (s *regAllocState) regalloc(f *Func) {
 						}
 					}
 					// Avoid registers we're saving for other values.
-					if mask&^desired.avoid != 0 {
+					if mask&^desired.avoid&^s.nospill != 0 {
 						mask &^= desired.avoid
 					}
 					r := s.allocReg(mask, v)

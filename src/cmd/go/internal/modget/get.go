@@ -39,17 +39,27 @@ and then builds and installs them.
 The first step is to resolve which dependencies to add.
 
 For each named package or package pattern, get must decide which version of
-the corresponding module to use. By default, get chooses the latest tagged
+the corresponding module to use. By default, get looks up the latest tagged
 release version, such as v0.4.5 or v1.2.3. If there are no tagged release
-versions, get chooses the latest tagged pre-release version, such as
-v0.0.1-pre1. If there are no tagged versions at all, get chooses the latest
-known commit.
+versions, get looks up the latest tagged pre-release version, such as
+v0.0.1-pre1. If there are no tagged versions at all, get looks up the latest
+known commit. If the module is not already required at a later version
+(for example, a pre-release newer than the latest release), get will use
+the version it looked up. Otherwise, get will use the currently
+required version.
 
 This default version selection can be overridden by adding an @version
 suffix to the package argument, as in 'go get golang.org/x/text@v0.3.0'.
+The version may be a prefix: @v1 denotes the latest available version starting
+with v1. See 'go help modules' under the heading 'Module queries' for the
+full query syntax.
+
 For modules stored in source control repositories, the version suffix can
 also be a commit hash, branch identifier, or other syntax known to the
-source control system, as in 'go get golang.org/x/text@master'.
+source control system, as in 'go get golang.org/x/text@master'. Note that
+branches with names that overlap with other module query syntax cannot be
+selected explicitly. For example, the suffix @v2 means the latest version
+starting with v2, not the branch named v2.
 
 If a module under consideration is already a dependency of the current
 development module, then get will update the required version.
@@ -758,6 +768,16 @@ func getQuery(path, vers string, prevM module.Version, forceModulePath bool) (mo
 
 		// If the query fails, and the path must be a real module, report the query error.
 		if forceModulePath {
+			// If the query was "upgrade" or "patch" and the current version has been
+			// replaced, check to see whether the error was for that same version:
+			// if so, the version was probably replaced because it is invalid,
+			// and we should keep that replacement without complaining.
+			if vers == "upgrade" || vers == "patch" {
+				var vErr *module.InvalidVersionError
+				if errors.As(err, &vErr) && vErr.Version == prevM.Version && modload.Replacement(prevM).Path != "" {
+					return prevM, nil
+				}
+			}
 			return module.Version{}, err
 		}
 	}
@@ -904,6 +924,15 @@ func (u *upgrader) Upgrade(m module.Version) (module.Version, error) {
 	if err != nil {
 		// Report error but return m, to let version selection continue.
 		// (Reporting the error will fail the command at the next base.ExitIfErrors.)
+
+		// Special case: if the error is for m.Version itself and m.Version has a
+		// replacement, then keep it and don't report the error: the fact that the
+		// version is invalid is likely the reason it was replaced to begin with.
+		var vErr *module.InvalidVersionError
+		if errors.As(err, &vErr) && vErr.Version == m.Version && modload.Replacement(m).Path != "" {
+			return m, nil
+		}
+
 		// Special case: if the error is "no matching versions" then don't
 		// even report the error. Because Query does not consider pseudo-versions,
 		// it may happen that we have a pseudo-version but during -u=patch

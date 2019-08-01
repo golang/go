@@ -31,7 +31,7 @@ type codeRepo struct {
 	codeRoot string
 	// codeDir is the directory (relative to root) at which we expect to find the module.
 	// If pathMajor is non-empty and codeRoot is not the full modPath,
-	// then we look in both codeDir and codeDir+modPath
+	// then we look in both codeDir and codeDir/pathMajor[1:].
 	codeDir string
 
 	// pathMajor is the suffix of modPath that indicates its major version,
@@ -192,7 +192,13 @@ func (r *codeRepo) Stat(rev string) (*RevInfo, error) {
 	codeRev := r.revToRev(rev)
 	info, err := r.code.Stat(codeRev)
 	if err != nil {
-		return nil, err
+		return nil, &module.ModuleError{
+			Path: r.modPath,
+			Err: &module.InvalidVersionError{
+				Version: rev,
+				Err:     err,
+			},
+		}
 	}
 	return r.convert(info, rev)
 }
@@ -248,20 +254,25 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 	// exist as required by info2.Version and the module path represented by r.
 	checkGoMod := func() (*RevInfo, error) {
 		// If r.codeDir is non-empty, then the go.mod file must exist: the module
-		// author, not the module consumer, gets to decide how to carve up the repo
+		// author — not the module consumer, — gets to decide how to carve up the repo
 		// into modules.
-		if r.codeDir != "" {
-			_, _, _, err := r.findDir(info2.Version)
-			if err != nil {
-				// TODO: It would be nice to return an error like "not a module".
-				// Right now we return "missing go.mod", which is a little confusing.
-				return nil, &module.ModuleError{
-					Path: r.modPath,
-					Err: &module.InvalidVersionError{
-						Version: info2.Version,
-						Err:     notExistError(err.Error()),
-					},
-				}
+		//
+		// Conversely, if the go.mod file exists, the module author — not the module
+		// consumer — gets to determine the module's path
+		//
+		// r.findDir verifies both of these conditions. Execute it now so that
+		// r.Stat will correctly return a notExistError if the go.mod location or
+		// declared module path doesn't match.
+		_, _, _, err := r.findDir(info2.Version)
+		if err != nil {
+			// TODO: It would be nice to return an error like "not a module".
+			// Right now we return "missing go.mod", which is a little confusing.
+			return nil, &module.ModuleError{
+				Path: r.modPath,
+				Err: &module.InvalidVersionError{
+					Version: info2.Version,
+					Err:     notExistError(err.Error()),
+				},
 			}
 		}
 
@@ -474,6 +485,11 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
 		return fmt.Errorf("does not match version-control timestamp (%s)", info.Time.UTC().Format(time.RFC3339))
 	}
 
+	tagPrefix := ""
+	if r.codeDir != "" {
+		tagPrefix = r.codeDir + "/"
+	}
+
 	// A pseudo-version should have a precedence just above its parent revisions,
 	// and no higher. Otherwise, it would be possible for library authors to "pin"
 	// dependency versions (and bypass the usual minimum version selection) by
@@ -499,11 +515,26 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
 			return fmt.Errorf("major version without preceding tag must be v0, not v1")
 		}
 		return nil
-	}
-
-	tagPrefix := ""
-	if r.codeDir != "" {
-		tagPrefix = r.codeDir + "/"
+	} else {
+		for _, tag := range info.Tags {
+			versionOnly := strings.TrimPrefix(tag, tagPrefix)
+			if versionOnly == base {
+				// The base version is canonical, so if the version from the tag is
+				// literally equal (not just equivalent), then the tag is canonical too.
+				//
+				// We allow pseudo-versions to be derived from non-canonical tags on the
+				// same commit, so that tags like "v1.1.0+some-metadata" resolve as
+				// close as possible to the canonical version ("v1.1.0") while still
+				// enforcing a total ordering ("v1.1.1-0.[…]" with a unique suffix).
+				//
+				// However, canonical tags already have a total ordering, so there is no
+				// reason not to use the canonical tag directly, and we know that the
+				// canonical tag must already exist because the pseudo-version is
+				// derived from it. In that case, referring to the revision by a
+				// pseudo-version derived from its own canonical tag is just confusing.
+				return fmt.Errorf("tag (%s) found on revision %s is already canonical, so should not be replaced with a pseudo-version derived from that tag", tag, rev)
+			}
+		}
 	}
 
 	tags, err := r.code.Tags(tagPrefix + base)
@@ -571,6 +602,10 @@ func (r *codeRepo) versionToRev(version string) (rev string, err error) {
 	return r.revToRev(version), nil
 }
 
+// findDir locates the directory within the repo containing the module.
+//
+// If r.pathMajor is non-empty, this can be either r.codeDir or — if a go.mod
+// file exists — r.codeDir/r.pathMajor[1:].
 func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err error) {
 	rev, err = r.versionToRev(version)
 	if err != nil {

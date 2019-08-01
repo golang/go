@@ -1,0 +1,20 @@
+env GO111MODULE=on
+
+# If the module is the latest version of itself,
+# the Latest field should be set.
+go mod download -json rsc.io/quote@v1.5.2
+stdout '"Latest":\s*true'
+
+# If the module is older than latest, the field should be unset.
+go mod download -json rsc.io/quote@v1.5.1
+! stdout '"Latest":'
+
+# If the module is newer than "latest", the field should be unset...
+go mod download -json rsc.io/quote@v1.5.3-pre1
+! stdout '"Latest":'
+
+# ...even if that version is also what is required by the main module.
+go mod init example.com
+go mod edit -require rsc.io/quote@v1.5.3-pre1
+go mod download -json rsc.io/quote@v1.5.3-pre1
+! stdout '"Latest":'

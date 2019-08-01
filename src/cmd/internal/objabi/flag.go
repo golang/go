@@ -86,6 +86,10 @@ func (versionFlag) Set(s string) error {
 	name = name[strings.LastIndex(name, `/`)+1:]
 	name = name[strings.LastIndex(name, `\`)+1:]
 	name = strings.TrimSuffix(name, ".exe")
+
+	// If there's an active experiment, include that,
+	// to distinguish go1.10.2 with an experiment
+	// from go1.10.2 without an experiment.
 	p := Expstring()
 	if p == DefaultExpstring() {
 		p = ""
@@ -101,12 +105,6 @@ func (versionFlag) Set(s string) error {
 	// build ID of the binary, so that if the compiler is changed and
 	// rebuilt, we notice and rebuild all packages.
 	if s == "full" {
-		// If there's an active experiment, include that,
-		// to distinguish go1.10.2 with an experiment
-		// from go1.10.2 without an experiment.
-		if x := Expstring(); x != "" {
-			p += " " + x
-		}
 		if strings.HasPrefix(Version, "devel") {
 			p += " buildID=" + buildID
 		}

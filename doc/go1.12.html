@@ -80,6 +80,10 @@ Do not send CLs removing the interior tags from such phrases.
   checks for private API usage. Since it is considered private,
   <code>syscall.Getdirentries</code> now always fails with
   <code>ENOSYS</code> on iOS.
+  Additionally, <a href="/pkg/syscall/#Setrlimit"><code>syscall.Setrlimit</code></a>
+  reports <code>invalid</code> <code>argument</code> in places where it historically
+  succeeded. These consequences are not specific to Go and users should expect
+  behavioral parity with <code>libSystem</code>'s implementation going forward.
 </p>
 
 <h2 id="tools">Tools</h2>
