@@ -814,7 +814,7 @@ godoc
       The fast paths of <code>Mutex.Lock</code>, <code>Mutex.Unlock</code>, <code>RWMutex.RLock</code>,
       <code>RWMutex.RUnlock</code> and <code>Once.Do</code> are now inlined in their callers. 
       On amd64 this makes <code>Once.Do</code> twice as fast, and the others up to ~10% faster in the
-      uncontented case.
+      uncontended case.
     </p>
 
 </dl><!-- sync -->
