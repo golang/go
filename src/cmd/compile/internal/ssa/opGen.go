@@ -926,6 +926,7 @@ const (
 	OpARMNEGF
 	OpARMNEGD
 	OpARMSQRTD
+	OpARMABSD
 	OpARMCLZ
 	OpARMREV
 	OpARMREV16
@@ -12289,6 +12290,19 @@ var opcodeTable = [...]opInfo{
 		name:   "SQRTD",
 		argLen: 1,
 		asm:    arm.ASQRTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		name:   "ABSD",
+		argLen: 1,
+		asm:    arm.AABSD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15

@@ -420,6 +420,8 @@ func rewriteValueARM(v *Value) bool {
 		return rewriteValueARM_OpARMXORshiftRLreg_0(v)
 	case OpARMXORshiftRR:
 		return rewriteValueARM_OpARMXORshiftRR_0(v)
+	case OpAbs:
+		return rewriteValueARM_OpAbs_0(v)
 	case OpAdd16:
 		return rewriteValueARM_OpAdd16_0(v)
 	case OpAdd32:
@@ -17178,6 +17180,17 @@ func rewriteValueARM_OpARMXORshiftRR_0(v *Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValueARM_OpAbs_0(v *Value) bool {
+	// match: (Abs x)
+	// cond:
+	// result: (ABSD x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARMABSD)
+		v.AddArg(x)
+		return true
+	}
 }
 func rewriteValueARM_OpAdd16_0(v *Value) bool {
 	// match: (Add16 x y)
