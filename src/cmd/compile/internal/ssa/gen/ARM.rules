@@ -56,6 +56,7 @@
 (Com(32|16|8) x) -> (MVN x)
 
 (Sqrt x) -> (SQRTD x)
+(Abs x) -> (ABSD x)
 
 // TODO: optimize this for ARMv5 and ARMv6
 (Ctz32NonZero x) -> (Ctz32 x)

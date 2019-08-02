@@ -655,6 +655,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARMSQRTD,
 		ssa.OpARMNEGF,
 		ssa.OpARMNEGD,
+		ssa.OpARMABSD,
 		ssa.OpARMMOVWF,
 		ssa.OpARMMOVWD,
 		ssa.OpARMMOVFW,
