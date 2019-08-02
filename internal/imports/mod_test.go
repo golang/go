@@ -137,6 +137,50 @@ import _ "example.com"
 
 }
 
+// Tests that scanning the module cache > 1 after changing a package in module cache to make it unimportable
+// is able to find the same module.
+func TestModCacheEditModFile(t *testing.T) {
+	mt := setup(t, `
+-- go.mod --
+module x
+
+require rsc.io/quote v1.5.2
+-- x.go --
+package x
+import _ "rsc.io/quote"
+`, "")
+	defer mt.cleanup()
+	found := mt.assertScanFinds("rsc.io/quote", "quote")
+
+	// Update the go.mod file of example.com so that it changes its module path (not allowed).
+	if err := os.Chmod(filepath.Join(found.dir, "go.mod"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(found.dir, "go.mod"), []byte("module bad.com\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test that with its cache of module packages it still finds the package.
+	mt.assertScanFinds("rsc.io/quote", "quote")
+
+	// Rewrite the main package so that rsc.io/quote is not in scope.
+	if err := ioutil.WriteFile(filepath.Join(mt.env.WorkingDir, "go.mod"), []byte("module x\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(mt.env.WorkingDir, "x.go"), []byte("package x\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Uninitialize the go.mod dependent cached information and make sure it still finds the package.
+	mt.resolver.Initialized = false
+	mt.resolver.Main = nil
+	mt.resolver.ModsByModPath = nil
+	mt.resolver.ModsByDir = nil
+	mt.resolver.ModCachePkgs = nil
+	mt.assertScanFinds("rsc.io/quote", "quote")
+
+}
+
 // Tests that -mod=vendor sort of works. Adapted from mod_getmode_vendor.txt.
 func TestModeGetmodeVendor(t *testing.T) {
 	mt := setup(t, `
