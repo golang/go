@@ -707,6 +707,24 @@ godoc
     <p><!-- CL 170678 -->
       The new field <a href="/pkg/net/#ListenConfig.KeepAlive"><code>ListenConfig.KeepAlive</code></a>
       specifies the keep-alive period for network connections accepted by the listener.
+      If this field is 0 (the default) TCP keep-alives will be enabled.
+      To disable them, set it to a negative value.
+    </p>
+    <p>
+      Note that the error returned from I/O on a connection that was
+      closed by a keep-alive timeout will have a
+      <code>Timeout</code> method that returns <code>true</code> if called.
+      This can make a keep-alive error difficult to distinguish from
+      an error returned due to a missed deadline as set by the
+      <a href="/pkg/net#Conn"><code>SetDeadline</code></a>
+      method and similar methods.
+      Code that uses deadlines and checks for them with
+      the <code>Timeout</code> method or
+      with <a href="/pkg/os/#IsTimeout"><code>os.IsTimeout</code></a>
+      may want to disable keep-alives, or
+      use <code>errors.Is(syscall.ETIMEDOUT)</code> (on Unix systems)
+      which will return true for a keep-alive timeout and false for a
+      deadline timeout.
     </p>
 
 </dl><!-- net -->
