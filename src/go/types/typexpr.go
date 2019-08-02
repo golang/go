@@ -143,10 +143,14 @@ func (check *Checker) definedType(e ast.Expr, def *Named) (T Type) {
 }
 
 // instantiatedType is like typ but it ensures that a Parametrized type is
-// fully instantiated.
+// fully instantiated if all type parameters are known.
+// (When we type-check a parameterized function body, parameterized types
+// whose type parameters are incoming parameters cannot be instantiated.)
 func (check *Checker) instantiatedType(e ast.Expr) Type {
 	typ := check.typ(e)
-	if ptyp, _ := typ.(*Parameterized); ptyp != nil {
+	// A parameterized type where all type arguments are known
+	// (i.e., not type parameters themselves) can be instantiated.
+	if ptyp, _ := typ.(*Parameterized); ptyp != nil && !isParameterized(ptyp) {
 		typ = check.inst(ptyp.tname, ptyp.targs)
 		// TODO(gri) can this ever be nil? comment.
 		if typ == nil {

@@ -1,8 +1,18 @@
 package p
 
-func Ranger(type T)() (*Receiver(T)) {
-	//return &Receiver(T){}  // TODO(gri) make this work
-	return nil
+func Reduce(type T1, T2)(s []T1, initializer T2, f func(T2, T1) T2) T2 {
+	r := initializer
+	for _, v := range s {
+		r = f(r, v)
+	}
+	return r
 }
 
-type Receiver(type T) struct {}
+func reducer(float64, int) float64 {
+	return 0
+}
+
+var _ = Reduce([]int{}, 1.0, reducer)
+
+// TODO(gri) investigate - seems like type inference should accept 1 here
+// var _ = Reduce([]int{}, 1, reducer)
