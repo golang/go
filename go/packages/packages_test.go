@@ -930,12 +930,6 @@ func testNewPackagesInOverlay(t *testing.T, exporter packagestest.Exporter) {
 			"b/b.go": `package b; import "golang.org/fake/c"; const B = "b" + c.C`,
 			"c/c.go": `package c; const C = "c"`,
 			"d/d.go": `package d; const D = "d"`,
-
-			// TODO: Remove these temporary files when golang.org/issue/33157 is resolved.
-			filepath.Join("e/e_temp.go"): ``,
-			filepath.Join("f/f_temp.go"): ``,
-			filepath.Join("g/g_temp.go"): ``,
-			filepath.Join("h/h_temp.go"): ``,
 		}}})
 	defer exported.Cleanup()
 
