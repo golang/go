@@ -30,7 +30,7 @@ func Format(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) {
 		return nil, err
 	}
 	pkg := f.GetPackage(ctx)
-	if hasListErrors(pkg.GetErrors()) || hasParseErrors(pkg.GetErrors()) {
+	if hasListErrors(pkg.GetErrors()) || hasParseErrors(pkg, f.URI()) {
 		// Even if this package has list or parse errors, this file may not
 		// have any parse errors and can still be formatted. Using format.Node
 		// on an ast with errors may result in code being added or removed.
@@ -104,7 +104,6 @@ func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]TextEd
 	if err != nil {
 		return nil, err
 	}
-
 	return computeTextEdits(ctx, f, string(formatted)), nil
 }
 
@@ -174,9 +173,11 @@ func AllImportsFixes(ctx context.Context, view View, f GoFile, rng span.Range) (
 	return edits, editsPerFix, nil
 }
 
-func hasParseErrors(errors []packages.Error) bool {
-	for _, err := range errors {
-		if err.Kind == packages.ParseError {
+// hasParseErrors returns true if the given file has parse errors.
+func hasParseErrors(pkg Package, uri span.URI) bool {
+	for _, err := range pkg.GetErrors() {
+		spn := packagesErrorSpan(err)
+		if spn.URI() == uri && err.Kind == packages.ParseError {
 			return true
 		}
 	}
