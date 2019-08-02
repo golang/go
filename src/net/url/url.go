@@ -13,7 +13,6 @@ package url
 import (
 	"errors"
 	"fmt"
-	"internal/oserror"
 	"sort"
 	"strconv"
 	"strings"
@@ -28,7 +27,13 @@ type Error struct {
 
 func (e *Error) Unwrap() error { return e.Err }
 func (e *Error) Error() string { return e.Op + " " + e.URL + ": " + e.Err.Error() }
-func (e *Error) Timeout() bool { return oserror.IsTimeout(e.Err) }
+
+func (e *Error) Timeout() bool {
+	t, ok := e.Err.(interface {
+		Timeout() bool
+	})
+	return ok && t.Timeout()
+}
 
 func (e *Error) Temporary() bool {
 	t, ok := e.Err.(interface {
