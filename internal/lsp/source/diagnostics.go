@@ -108,9 +108,10 @@ type diagnosticSet struct {
 	listErrors, parseErrors, typeErrors []Diagnostic
 }
 
-func diagnostics(ctx context.Context, v View, pkg Package, reports map[span.URI][]Diagnostic) bool {
+func diagnostics(ctx context.Context, view View, pkg Package, reports map[span.URI][]Diagnostic) bool {
 	ctx, done := trace.StartSpan(ctx, "source.diagnostics", telemetry.Package.Of(pkg.ID()))
 	defer done()
+
 	diagSets := make(map[span.URI]*diagnosticSet)
 	for _, err := range pkg.GetErrors() {
 		diag := Diagnostic{
@@ -129,7 +130,7 @@ func diagnostics(ctx context.Context, v View, pkg Package, reports map[span.URI]
 			set.parseErrors = append(set.parseErrors, diag)
 		case packages.TypeError:
 			if diag.Span.IsPoint() {
-				diag.Span = pointToSpan(ctx, v, diag.Span)
+				diag.Span = pointToSpan(ctx, view, diag.Span)
 			}
 			set.typeErrors = append(set.typeErrors, diag)
 		default:

@@ -28,7 +28,7 @@ import (
 const (
 	ExpectedCompletionsCount       = 144
 	ExpectedCompletionSnippetCount = 15
-	ExpectedDiagnosticsCount       = 17
+	ExpectedDiagnosticsCount       = 21
 	ExpectedFormatCount            = 6
 	ExpectedImportCount            = 2
 	ExpectedDefinitionsCount       = 38
@@ -419,11 +419,6 @@ func (data *Data) Golden(tag string, target string, update func() ([]byte, error
 func (data *Data) collectDiagnostics(spn span.Span, msgSource, msg string) {
 	if _, ok := data.Diagnostics[spn.URI()]; !ok {
 		data.Diagnostics[spn.URI()] = []source.Diagnostic{}
-	}
-	// If a file has an empty diagnostic message, return. This allows us to
-	// avoid testing diagnostics in files that may have a lot of them.
-	if msg == "" {
-		return
 	}
 	severity := source.SeverityError
 	if strings.Contains(string(spn.URI()), "analyzer") {

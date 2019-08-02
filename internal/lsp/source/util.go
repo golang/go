@@ -5,13 +5,48 @@
 package source
 
 import (
+	"context"
 	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
 	"path/filepath"
+	"regexp"
 	"strings"
+
+	"golang.org/x/tools/internal/span"
 )
+
+func IsGenerated(ctx context.Context, view View, uri span.URI) bool {
+	f, err := view.GetFile(ctx, uri)
+	if err != nil {
+		return false
+	}
+	ph := view.Session().Cache().ParseGoHandle(f.Handle(ctx), ParseHeader)
+	parsed, err := ph.Parse(ctx)
+	if parsed == nil {
+		return false
+	}
+	tok := view.Session().Cache().FileSet().File(parsed.Pos())
+	if tok == nil {
+		return false
+	}
+	for _, commentGroup := range parsed.Comments {
+		for _, comment := range commentGroup.List {
+			if matched := generatedRx.MatchString(comment.Text); matched {
+				// Check if comment is at the beginning of the line in source.
+				if pos := tok.Position(comment.Slash); pos.Column == 1 {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// Matches cgo generated comment as well as the proposed standard:
+//	https://golang.org/s/generatedcode
+var generatedRx = regexp.MustCompile(`// .*DO NOT EDIT\.?`)
 
 func DetectLanguage(langID, filename string) FileKind {
 	switch langID {

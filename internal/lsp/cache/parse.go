@@ -85,7 +85,7 @@ func parseGo(ctx context.Context, c *cache, fh source.FileHandle, mode source.Pa
 	defer func() { <-parseLimit }()
 	parserMode := parser.AllErrors | parser.ParseComments
 	if mode == source.ParseHeader {
-		parserMode = parser.ImportsOnly
+		parserMode = parser.ImportsOnly | parser.ParseComments
 	}
 	ast, err := parser.ParseFile(c.fset, fh.Identity().URI.Filename(), buf, parserMode)
 	if ast != nil {
