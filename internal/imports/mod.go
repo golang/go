@@ -2,6 +2,7 @@ package imports
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"os"
@@ -325,6 +326,13 @@ func (r *ModuleResolver) scan(_ references) ([]*pkg, error) {
 		result = append(result, res)
 	}, gopathwalk.Options{Debug: r.env.Debug, ModulesEnabled: true})
 	return result, nil
+}
+
+func (r *ModuleResolver) loadExports(ctx context.Context, expectPackage string, pkg *pkg) (map[string]bool, error) {
+	if err := r.init(); err != nil {
+		return nil, err
+	}
+	return loadExportsFromFiles(ctx, r.env, expectPackage, pkg.dir)
 }
 
 // modCacheRegexp splits a path in a module cache into module, module version, and package.
