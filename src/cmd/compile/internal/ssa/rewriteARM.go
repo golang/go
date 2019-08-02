@@ -20242,6 +20242,7 @@ func rewriteValueARM_OpRotateLeft16_0(v *Value) bool {
 	return false
 }
 func rewriteValueARM_OpRotateLeft32_0(v *Value) bool {
+	b := v.Block
 	// match: (RotateLeft32 x (MOVWconst [c]))
 	// cond:
 	// result: (SRRconst [-c&31] x)
@@ -20258,7 +20259,20 @@ func rewriteValueARM_OpRotateLeft32_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
+	// match: (RotateLeft32 x y)
+	// cond:
+	// result: (SRR x (RSBconst [0] <y.Type> y))
+	for {
+		y := v.Args[1]
+		x := v.Args[0]
+		v.reset(OpARMSRR)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpARMRSBconst, y.Type)
+		v0.AuxInt = 0
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
 }
 func rewriteValueARM_OpRotateLeft8_0(v *Value) bool {
 	b := v.Block
