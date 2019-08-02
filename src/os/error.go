@@ -115,7 +115,8 @@ func underlyingErrorIs(err, target error) bool {
 	if err == target {
 		return true
 	}
-	e, ok := err.(interface{ Is(error) bool })
+	// To preserve prior behavior, only examine syscall errors.
+	e, ok := err.(syscallErrorType)
 	return ok && e.Is(target)
 }
 
