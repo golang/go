@@ -908,7 +908,7 @@ func (s *state) stmt(n *Node) {
 
 	case ODCL:
 		if n.Left.Class() == PAUTOHEAP {
-			Fatalf("DCL %v", n)
+			s.Fatalf("DCL %v", n)
 		}
 
 	case OLABEL:
@@ -966,7 +966,7 @@ func (s *state) stmt(n *Node) {
 				// rewritten during walk. Any that remain are just T{}
 				// or equivalents. Use the zero value.
 				if !isZero(rhs) {
-					Fatalf("literal with nonzero value in SSA: %v", rhs)
+					s.Fatalf("literal with nonzero value in SSA: %v", rhs)
 				}
 				rhs = nil
 			case OAPPEND:
@@ -2295,7 +2295,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			// rewritten during walk. Any that remain are just T{}
 			// or equivalents. Use the zero value.
 			if !isZero(n.Left) {
-				Fatalf("literal with nonzero value in SSA: %v", n.Left)
+				s.Fatalf("literal with nonzero value in SSA: %v", n.Left)
 			}
 			return s.zeroVal(n.Type)
 		}
@@ -2457,7 +2457,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		// rewritten during walk. Any that remain are just T{}
 		// or equivalents. Use the zero value.
 		if !isZero(n) {
-			Fatalf("literal with nonzero value in SSA: %v", n)
+			s.Fatalf("literal with nonzero value in SSA: %v", n)
 		}
 		return s.zeroVal(n.Type)
 
@@ -3768,7 +3768,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		}
 	case OCALLMETH:
 		if fn.Op != ODOTMETH {
-			Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", fn)
+			s.Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", fn)
 		}
 		if k == callNormal {
 			sym = fn.Sym
@@ -3790,7 +3790,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		// want to set it here.
 	case OCALLINTER:
 		if fn.Op != ODOTINTER {
-			Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op)
+			s.Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op)
 		}
 		i := s.expr(fn.Left)
 		itab := s.newValue1(ssa.OpITab, types.Types[TUINTPTR], i)
@@ -3923,7 +3923,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		case sym != nil:
 			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, sym.Linksym(), s.mem())
 		default:
-			Fatalf("bad call type %v %v", n.Op, n)
+			s.Fatalf("bad call type %v %v", n.Op, n)
 		}
 		call.AuxInt = stksize // Call operations carry the argsize of the callee along with them
 	}
@@ -4079,7 +4079,7 @@ func (s *state) canSSA(n *Node) bool {
 		return false
 	}
 	if n.Class() == PAUTOHEAP {
-		Fatalf("canSSA of PAUTOHEAP %v", n)
+		s.Fatalf("canSSA of PAUTOHEAP %v", n)
 	}
 	switch n.Class() {
 	case PEXTERN:
@@ -4299,7 +4299,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 		b.SetControl(call)
 		call.AuxInt = off - Ctxt.FixedFrameSize()
 		if len(results) > 0 {
-			Fatalf("panic call can't have results")
+			s.Fatalf("panic call can't have results")
 		}
 		return nil
 	}
@@ -5258,7 +5258,7 @@ func emitStackObjects(e *ssafn, pp *Progs) {
 		// Locals have a negative Xoffset, in which case the offset is relative to varp.
 		off = duintptr(x, off, uint64(v.Xoffset))
 		if !typesym(v.Type).Siggen() {
-			Fatalf("stack object's type symbol not generated for type %s", v.Type)
+			e.Fatalf(v.Pos, "stack object's type symbol not generated for type %s", v.Type)
 		}
 		off = dsymptr(x, off, dtypesym(v.Type), 0)
 	}
@@ -5597,10 +5597,10 @@ func defframe(s *SSAGenState, e *ssafn) {
 			continue
 		}
 		if n.Class() != PAUTO {
-			Fatalf("needzero class %d", n.Class())
+			e.Fatalf(n.Pos, "needzero class %d", n.Class())
 		}
 		if n.Type.Size()%int64(Widthptr) != 0 || n.Xoffset%int64(Widthptr) != 0 || n.Type.Size() == 0 {
-			Fatalf("var %L has size %d offset %d", n, n.Type.Size(), n.Xoffset)
+			e.Fatalf(n.Pos, "var %L has size %d offset %d", n, n.Type.Size(), n.Xoffset)
 		}
 
 		if lo != hi && n.Xoffset+n.Type.Size() >= lo-int64(2*Widthreg) {
@@ -6096,7 +6096,7 @@ func (e *ssafn) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
 	n := name.N.(*Node)
 	at := name.Type
 	if at.NumElem() != 1 {
-		Fatalf("bad array size")
+		e.Fatalf(n.Pos, "bad array size")
 	}
 	et := at.Elem()
 	if n.Class() == PAUTO && !n.Addrtaken() {
@@ -6186,7 +6186,7 @@ func (e *ssafn) Syslook(name string) *obj.LSym {
 	case "typedmemclr":
 		return typedmemclr
 	}
-	Fatalf("unknown Syslook func %v", name)
+	e.Fatalf(src.NoXPos, "unknown Syslook func %v", name)
 	return nil
 }
 
