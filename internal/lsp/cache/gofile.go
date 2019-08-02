@@ -53,7 +53,11 @@ func (f *goFile) GetToken(ctx context.Context) (*token.File, error) {
 	if file == nil {
 		return nil, err
 	}
-	return f.view.session.cache.fset.File(file.Pos()), nil
+	tok := f.view.session.cache.fset.File(file.Pos())
+	if tok == nil {
+		return nil, fmt.Errorf("no token.File for %s", f.URI())
+	}
+	return tok, nil
 }
 
 func (f *goFile) GetAST(ctx context.Context, mode source.ParseMode) (*ast.File, error) {
