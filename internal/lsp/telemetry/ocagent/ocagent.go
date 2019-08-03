@@ -136,6 +136,9 @@ func convertTimestamp(t time.Time) wire.Timestamp {
 }
 
 func toTruncatableString(s string) *wire.TruncatableString {
+	if s == "" {
+		return nil
+	}
 	return &wire.TruncatableString{Value: s}
 }
 
@@ -185,6 +188,8 @@ func convertAttribute(v interface{}) wire.Attribute {
 		return wire.IntAttribute{IntValue: int64(v)}
 	case int64:
 		return wire.IntAttribute{IntValue: v}
+	case int:
+		return wire.IntAttribute{IntValue: int64(v)}
 	case uint8:
 		return wire.IntAttribute{IntValue: int64(v)}
 	case uint16:
@@ -225,6 +230,9 @@ func convertEvent(event trace.Event) wire.TimeEvent {
 }
 
 func convertAnnotation(tags tag.List) *wire.Annotation {
+	if len(tags) == 0 {
+		return nil
+	}
 	entry := log.ToEntry(nil, time.Time{}, tags)
 	description := entry.Message
 	if description == "" && entry.Error != nil {
