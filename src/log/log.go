@@ -51,26 +51,27 @@ type Logger struct {
 	mu     sync.Mutex // ensures atomic writes; protects the following fields
 	prefix string     // prefix to write at beginning of each line
 	flag   int        // properties
-	out    io.Writer  // destination for output
+	//out    io.Writer  // destination for output
+	outs   []io.Writer// destinations for ouput
 	buf    []byte     // for accumulating text to write
 }
 
-// New creates a new Logger. The out variable sets the
-// destination to which log data will be written.
+// New creates a new Logger. The outs variable sets the
+// destinations to which log data will be written.
 // The prefix appears at the beginning of each generated log line.
 // The flag argument defines the logging properties.
-func New(out io.Writer, prefix string, flag int) *Logger {
-	return &Logger{out: out, prefix: prefix, flag: flag}
+func New(outs []io.Writer, prefix string, flag int) *Logger {
+	return &Logger{outs: outs, prefix: prefix, flag: flag}
 }
 
-// SetOutput sets the output destination for the logger.
+// SetOutput sets the output destinations for the logger.
 func (l *Logger) SetOutput(w io.Writer) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.out = w
+	l.outs = append(l.outs, w)
 }
 
-var std = New(os.Stderr, "", LstdFlags)
+var std = New([]io.Writer{os.Stderr}, "", LstdFlags)
 
 // Cheap integer to fixed-width decimal ASCII. Give a negative width to avoid zero-padding.
 func itoa(buf *[]byte, i int, wid int) {
@@ -169,7 +170,14 @@ func (l *Logger) Output(calldepth int, s string) error {
 	if len(s) == 0 || s[len(s)-1] != '\n' {
 		l.buf = append(l.buf, '\n')
 	}
-	_, err := l.out.Write(l.buf)
+	// supports multi output
+	var err error
+	for _, out := range l.outs {
+		_, err = out.Write(l.buf)
+		if nil != err {
+			os.Stderr.WriteString(err.Error())
+		}
+	}
 	return err
 }
 
@@ -254,18 +262,18 @@ func (l *Logger) SetPrefix(prefix string) {
 	l.prefix = prefix
 }
 
-// Writer returns the output destination for the logger.
-func (l *Logger) Writer() io.Writer {
+// Writer returns the output destinations for the logger.
+func (l *Logger) Writer() []io.Writer {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	return l.out
+	return l.outs
 }
 
 // SetOutput sets the output destination for the standard logger.
 func SetOutput(w io.Writer) {
 	std.mu.Lock()
 	defer std.mu.Unlock()
-	std.out = w
+	std.outs = append(std.outs, w)
 }
 
 // Flags returns the output flags for the standard logger.
