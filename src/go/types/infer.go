@@ -10,54 +10,74 @@ package types
 import "go/token"
 
 // infer returns the list of actual type arguments for the given list of type parameters tparams
-// by inferring them from the actual arguments args for the parameters pars. If infer fails to
+// by inferring them from the actual arguments args for the parameters params. If infer fails to
 // determine all type arguments, an error is reported and the result is nil.
 func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, args []*operand) []Type {
 	assert(params.Len() == len(args))
 
+	// targs is the list of inferred type parameter types.
 	targs := make([]Type, len(tparams))
 
-	// determine indices of type-parametrized parameters
+	// Terminology: TPP = type-parameterized function parameter
+
+	// 1st pass: Unify parameter and argument types for TPPs with typed arguments
+	//           and collect the indices of TPPs with untyped arguments.
 	var indices []int
-	for i := 0; i < params.Len(); i++ {
-		par := params.At(i).typ
-		if isParameterized(par) {
-			indices = append(indices, i)
+	for i, arg := range args {
+		par := params.At(i)
+		if isParameterized(par.typ) {
+			if arg.mode == invalid {
+				// TODO(gri) we might still be able to infer all targs by
+				//           simply ignoring (continue) invalid args
+				return nil // error was reported earlier
+			}
+			if isTyped(arg.typ) {
+				if !check.identical0(par.typ, arg.typ, true, nil, targs) {
+					check.errorf(arg.pos(), "type %s for %s does not match %s = %s",
+						arg.typ, arg.expr, par.typ, check.subst(par.typ, tparams, targs),
+					)
+					return nil
+				}
+			} else {
+				indices = append(indices, i)
+			}
 		}
 	}
 
-	// 1st pass: unify parameter and argument types for typed arguments
+	// Some of the TPPs with untyped arguments may have been given a type
+	// indirectly via a TPP with a typed argument; we can ignore those now.
+	j := 0
 	for _, i := range indices {
-		arg := args[i]
-		if arg.mode == invalid {
-			// TODO(gri) we might still be able to infer all targs by
-			//           simply ignoring (continue) invalid args
-			return nil // error was reported earlier
-		}
-		if isUntyped(arg.typ) {
-			continue // handled in 2nd pass
-		}
 		par := params.At(i)
-		if !check.identical0(par.typ, arg.typ, true, nil, targs) {
-			check.errorf(arg.pos(), "type %s for %s does not match %s = %s", arg.typ, arg.expr, par.typ, check.subst(par.typ, tparams, targs))
+		// Since untyped types are all basic (i.e., unstructured) types, an
+		// untyped argument will never match a structured parameter type; the
+		// only parameter type it can possibly match against is a *TypeParam.
+		// Thus, only keep the indices of TPPs that are unstructured and which
+		// don't have a type inferred yet.
+		if tpar, _ := par.typ.(*TypeParam); tpar != nil && targs[tpar.index] == nil {
+			indices[j] = i
+			j++
+		}
+	}
+	indices = indices[:j]
+
+	// 2nd pass: Unify parameter and default argument types for remaining TPPs.
+	for _, i := range indices {
+		par := params.At(i)
+		arg := args[i]
+		targ := Default(arg.typ)
+		// The default type for an untyped nil is untyped nil. We must not
+		// infer an untyped nil type as type parameter type. Ignore untyped
+		// nil by making sure all default argument types are typed.
+		if isTyped(targ) && !check.identical0(par.typ, targ, true, nil, targs) {
+			check.errorf(arg.pos(), "default type %s for %s does not match %s = %s",
+				Default(arg.typ), arg.expr, par.typ, check.subst(par.typ, tparams, targs),
+			)
 			return nil
 		}
 	}
 
-	// 2nd pass: unify parameter and default argument types for remaining parametrized parameter types with untyped arguments
-	for _, i := range indices {
-		arg := args[i]
-		if isTyped(arg.typ) {
-			continue // handled in 1st pass
-		}
-		par := params.At(i)
-		if !check.identical0(par.typ, Default(arg.typ), true, nil, targs) {
-			check.errorf(arg.pos(), "default type %s for %s does not match %s = %s", Default(arg.typ), arg.expr, par.typ, check.subst(par.typ, tparams, targs))
-			return nil
-		}
-	}
-
-	// check if all type parameters have been determined
+	// Check if all type parameters have been determined.
 	// TODO(gri) consider moving this outside this function and then we won't need to pass in pos
 	for i, t := range targs {
 		if t == nil {

@@ -1,18 +1,13 @@
 package p
 
-func Reduce(type T1, T2)(s []T1, initializer T2, f func(T2, T1) T2) T2 {
-	r := initializer
-	for _, v := range s {
-		r = f(r, v)
-	}
-	return r
-}
+func f(type T)([]*T) int
 
-func reducer(float64, int) float64 {
-	return 0
-}
+var _ = f(nil) // ERROR cannot infer
 
-var _ = Reduce([]int{}, 1.0, reducer)
+func g(type T)(T) int
 
-// TODO(gri) investigate - seems like type inference should accept 1 here
-// var _ = Reduce([]int{}, 1, reducer)
+var _ = g(nil) // ERROR cannot infer
+
+func h(type T)(T, T) int
+
+var _ = h(nil /* ERROR cannot convert */, uintptr(1))
