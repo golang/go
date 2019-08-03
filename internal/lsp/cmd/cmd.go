@@ -350,15 +350,16 @@ func (c *connection) AddFile(ctx context.Context, uri span.URI) *cmdFile {
 	defer c.Client.filesMu.Unlock()
 
 	file := c.Client.getFile(ctx, uri)
-	if !file.added {
-		file.added = true
-		p := &protocol.DidOpenTextDocumentParams{}
-		p.TextDocument.URI = string(uri)
-		p.TextDocument.Text = string(file.mapper.Content)
-		p.TextDocument.LanguageID = source.DetectLanguage("", file.uri.Filename()).String()
-		if err := c.Server.DidOpen(ctx, p); err != nil {
-			file.err = fmt.Errorf("%v: %v", uri, err)
-		}
+	if file.err != nil || file.added {
+		return file
+	}
+	file.added = true
+	p := &protocol.DidOpenTextDocumentParams{}
+	p.TextDocument.URI = string(uri)
+	p.TextDocument.Text = string(file.mapper.Content)
+	p.TextDocument.LanguageID = source.DetectLanguage("", file.uri.Filename()).String()
+	if err := c.Server.DidOpen(ctx, p); err != nil {
+		file.err = fmt.Errorf("%v: %v", uri, err)
 	}
 	return file
 }
