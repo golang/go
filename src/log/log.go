@@ -60,8 +60,8 @@ type Logger struct {
 // destinations to which log data will be written.
 // The prefix appears at the beginning of each generated log line.
 // The flag argument defines the logging properties.
-func New(outs []io.Writer, prefix string, flag int) *Logger {
-	return &Logger{outs: outs, prefix: prefix, flag: flag}
+func New(out io.Writer, prefix string, flag int) *Logger {
+	return &Logger{outs: []io.Writer{out}, prefix: prefix, flag: flag}
 }
 
 // SetOutput sets the output destinations for the logger.
@@ -71,7 +71,7 @@ func (l *Logger) SetOutput(w io.Writer) {
 	l.outs = append(l.outs, w)
 }
 
-var std = New([]io.Writer{os.Stderr}, "", LstdFlags)
+var std = New(os.Stderr, "", LstdFlags)
 
 // Cheap integer to fixed-width decimal ASCII. Give a negative width to avoid zero-padding.
 func itoa(buf *[]byte, i int, wid int) {
