@@ -192,7 +192,7 @@ func isDirective(c string) bool {
 type Field struct {
 	Doc     *CommentGroup // associated documentation; or nil
 	Names   []*Ident      // field/method/(type) parameter names; or nil
-	Type    Expr          // field/method/parameter type or contract
+	Type    Expr          // field/method/parameter type or contract; or nil
 	Tag     *BasicLit     // field tag; or nil
 	Comment *CommentGroup // line comments; or nil
 }
@@ -201,14 +201,23 @@ func (f *Field) Pos() token.Pos {
 	if len(f.Names) > 0 {
 		return f.Names[0].Pos()
 	}
-	return f.Type.Pos()
+	if f.Type != nil {
+		return f.Type.Pos()
+	}
+	return token.NoPos
 }
 
 func (f *Field) End() token.Pos {
 	if f.Tag != nil {
 		return f.Tag.End()
 	}
-	return f.Type.End()
+	if f.Type != nil {
+		return f.Type.End()
+	}
+	if len(f.Names) > 0 {
+		return f.Names[len(f.Names)-1].End()
+	}
+	return token.NoPos
 }
 
 // A FieldList represents a list of Fields, enclosed by parentheses or braces.
@@ -463,7 +472,7 @@ type (
 )
 
 type Constraint struct {
-	Param  *Ident   // constrained type parameter; or nil (for embedded constraints)
+	Param  *Ident   // constrained type parameter; or nil (for embedded contracts)
 	MNames []*Ident // list of method names; or nil (for embedded contracts or type constraints)
 	Types  []Expr   // embedded constraint (single *CallExpr), list of types, or list of method types (*FuncType)
 }
