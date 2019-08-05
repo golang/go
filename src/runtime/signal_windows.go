@@ -174,7 +174,7 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
 	if islibrary || isarchive {
 		// Go DLL/archive has been loaded in a non-go program.
 		// If the exception does not originate from go, the go runtime
-		// should not take responsibility of crashing the process
+		// should not take responsibility of crashing the process.
 		return _EXCEPTION_CONTINUE_SEARCH
 	}
 	if testingWER {
