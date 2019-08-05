@@ -6,7 +6,6 @@ package gc
 
 import (
 	"cmd/compile/internal/types"
-	"fmt"
 	"sort"
 )
 
@@ -641,21 +640,9 @@ func checkDupExprCases(exprname *Node, clauses []*Node) {
 				continue
 			}
 
-			if prev := cs.add(n); prev != nil {
-				yyerrorl(ncase.Pos, "duplicate case %s in switch\n\tprevious case at %v",
-					nodeAndVal(n), prev.Line())
-			}
+			cs.add(ncase.Pos, n, "case", "switch")
 		}
 	}
-}
-
-func nodeAndVal(n *Node) string {
-	show := n.String()
-	val := n.Val().Interface()
-	if s := fmt.Sprintf("%#v", val); show != s {
-		show += " (value " + s + ")"
-	}
-	return show
 }
 
 // walk generates an AST that implements sw,
