@@ -140,11 +140,15 @@ For example, <code>$GOROOT_BOOTSTRAP/bin/go</code> should be
 the <code>go</code> command binary for the bootstrap toolchain.
 </p>
 
+<h3 id="bootstrapFromBinaryRelease">Bootstrap toolchain from binary release</h3>
+
 <p>
 To use a binary release as a bootstrap toolchain, see
 <a href="/dl/">the downloads page</a> or use any other
 packaged Go distribution.
 </p>
+
+<h3 id="bootstrapFromSource">Bootstrap toolchain from source</h3>
 
 <p>
 To build a bootstrap toolchain from source, use
@@ -158,6 +162,17 @@ the <code>src</code> subdirectory, set <code>CGO_ENABLED=0</code> in
 the environment, and run <code>make.bash</code> (or,
 on Windows, <code>make.bat</code>).
 </p>
+
+<p>
+Once the Go 1.4 source has been unpacked into your GOROOT_BOOTSTRAP directory,
+you must keep this git clone instance checked out to branch
+<code>release-branch.go1.4</code>.  Specifically, do not attempt to reuse
+this git clone in the later step named "Fetch the repository."  The go1.4
+bootstrap toolchain <b>must be able</b> to properly traverse the go1.4 sources
+that it assumes are present under this repository root.
+</p>
+
+<h3 id="bootstrapFromCrosscompiledSource">Bootstrap toolchain from cross-compiled source</h3>
 
 <p>
 To cross-compile a bootstrap toolchain from source, which is
@@ -180,6 +195,8 @@ combination, leaving the resulting tree in <code>../../go-${GOOS}-${GOARCH}-boot
 That tree can be copied to a machine of the given target type
 and used as <code>GOROOT_BOOTSTRAP</code> to bootstrap a local build.
 </p>
+
+<h3 id="bootstrapFromGccgo">Bootstrap toolchain using gccgo</h3>
 
 <p>
 To use gccgo as the bootstrap toolchain, you need to arrange
@@ -245,6 +262,11 @@ in <code>$HOME/goroot/bin</code>. The directory may have any name, but note
 that if Go is checked out in <code>$HOME/go</code>, it will conflict with
 the default location of <code>$GOPATH</code>.
 See <a href="#gopath"><code>GOPATH</code></a> below.</p>
+
+Reminder: If you opted to also compile the bootstrap binaries from source (in an
+earlier section), you still need to <code>git clone</code> again at this point
+(to checkout the latest <code>&lt;tag&gt;</code>), because you must keep your
+go1.4 repository distinct.
 
 <h2 id="head">(Optional) Switch to the master branch</h2>
 
