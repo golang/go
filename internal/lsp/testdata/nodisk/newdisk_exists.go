@@ -1,1 +1,0 @@
-TODO: Remove this file when golang.org/issue/33157 is resolved.
