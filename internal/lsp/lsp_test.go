@@ -52,10 +52,13 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 		server: &Server{
 			session:     session,
 			undelivered: make(map[span.URI][]source.Diagnostic),
-			supportedCodeActions: map[protocol.CodeActionKind]bool{
-				protocol.SourceOrganizeImports: true,
-				protocol.QuickFix:              true,
-			},
+			supportedCodeActions: map[source.FileKind]map[protocol.CodeActionKind]bool{
+				source.Go: {
+					protocol.SourceOrganizeImports: true,
+					protocol.QuickFix:              true,
+				},
+				source.Mod: {},
+				source.Sum: {}},
 			hoverKind: source.SynopsisDocumentation,
 		},
 		data: data,

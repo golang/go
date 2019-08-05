@@ -89,7 +89,7 @@ type Server struct {
 	disabledAnalyses              map[string]struct{}
 	wantSuggestedFixes            bool
 
-	supportedCodeActions map[protocol.CodeActionKind]bool
+	supportedCodeActions map[source.FileKind]map[protocol.CodeActionKind]bool
 
 	textDocumentSyncKind protocol.TextDocumentSyncKind
 

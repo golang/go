@@ -18,29 +18,35 @@ import (
 )
 
 func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionParams) ([]protocol.CodeAction, error) {
+	uri := span.NewURI(params.TextDocument.URI)
+	view := s.session.ViewOf(uri)
+	f, m, err := getSourceFile(ctx, view, uri)
+	if err != nil {
+		return nil, err
+	}
+
+	// Determine the supported actions for this file kind.
+	fileKind := f.Handle(ctx).Kind()
+	supportedCodeActions, ok := s.supportedCodeActions[fileKind]
+	if !ok {
+		return nil, fmt.Errorf("no supported code actions for %v file kind", fileKind)
+	}
 
 	// The Only field of the context specifies which code actions the client wants.
 	// If Only is empty, assume that the client wants all of the possible code actions.
 	var wanted map[protocol.CodeActionKind]bool
 	if len(params.Context.Only) == 0 {
-		wanted = s.supportedCodeActions
+		wanted = supportedCodeActions
 	} else {
 		wanted = make(map[protocol.CodeActionKind]bool)
 		for _, only := range params.Context.Only {
-			wanted[only] = s.supportedCodeActions[only]
+			wanted[only] = supportedCodeActions[only]
 		}
 	}
-
-	uri := span.NewURI(params.TextDocument.URI)
 	if len(wanted) == 0 {
 		return nil, fmt.Errorf("no supported code action to execute for %s, wanted %v", uri, params.Context.Only)
 	}
 
-	view := s.session.ViewOf(uri)
-	gof, m, err := getGoFile(ctx, view, uri)
-	if err != nil {
-		return nil, err
-	}
 	spn, err := m.RangeSpan(params.Range)
 	if err != nil {
 		return nil, err
@@ -58,6 +64,10 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		// First, add the quick fixes reported by go/analysis.
 		// TODO: Enable this when this actually works. For now, it's needless work.
 		if s.wantSuggestedFixes {
+			gof, ok := f.(source.GoFile)
+			if !ok {
+				return nil, fmt.Errorf("%s is not a Go file", f.URI())
+			}
 			qf, err := quickFixes(ctx, view, gof)
 			if err != nil {
 				log.Error(ctx, "quick fixes failed", err, telemetry.File.Of(uri))

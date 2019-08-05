@@ -42,9 +42,13 @@ func (s *Server) initialize(ctx context.Context, params *protocol.InitializePara
 	// Default to using synopsis as a default for hover information.
 	s.hoverKind = source.SynopsisDocumentation
 
-	s.supportedCodeActions = map[protocol.CodeActionKind]bool{
-		protocol.SourceOrganizeImports: true,
-		protocol.QuickFix:              true,
+	s.supportedCodeActions = map[source.FileKind]map[protocol.CodeActionKind]bool{
+		source.Go: {
+			protocol.SourceOrganizeImports: true,
+			protocol.QuickFix:              true,
+		},
+		source.Mod: {},
+		source.Sum: {},
 	}
 
 	s.setClientCapabilities(params.Capabilities)
