@@ -128,11 +128,13 @@ type Pass struct {
 	// See comments for ExportObjectFact.
 	ExportPackageFact func(fact Fact)
 
-	// AllPackageFacts returns a new slice containing all package facts in unspecified order.
+	// AllPackageFacts returns a new slice containing all package facts of the analysis's FactTypes
+	// in unspecified order.
 	// WARNING: This is an experimental API and may change in the future.
 	AllPackageFacts func() []PackageFact
 
-	// AllObjectFacts returns a new slice containing all object facts in unspecified order.
+	// AllObjectFacts returns a new slice containing all object facts of the analysis's FactTypes
+	// in unspecified order.
 	// WARNING: This is an experimental API and may change in the future.
 	AllObjectFacts func() []ObjectFact
 

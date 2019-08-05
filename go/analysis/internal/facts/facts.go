@@ -99,10 +99,10 @@ func (s *Set) ExportObjectFact(obj types.Object, fact analysis.Fact) {
 	s.mu.Unlock()
 }
 
-func (s *Set) AllObjectFacts() []analysis.ObjectFact {
+func (s *Set) AllObjectFacts(filter map[reflect.Type]bool) []analysis.ObjectFact {
 	var facts []analysis.ObjectFact
 	for k, v := range s.m {
-		if k.obj != nil {
+		if k.obj != nil && filter[k.t] {
 			facts = append(facts, analysis.ObjectFact{k.obj, v})
 		}
 	}
@@ -132,10 +132,10 @@ func (s *Set) ExportPackageFact(fact analysis.Fact) {
 	s.mu.Unlock()
 }
 
-func (s *Set) AllPackageFacts() []analysis.PackageFact {
+func (s *Set) AllPackageFacts(filter map[reflect.Type]bool) []analysis.PackageFact {
 	var facts []analysis.PackageFact
 	for k, v := range s.m {
-		if k.obj == nil {
+		if k.obj == nil && filter[k.t] {
 			facts = append(facts, analysis.PackageFact{k.pkg, v})
 		}
 	}
