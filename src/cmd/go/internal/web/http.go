@@ -14,7 +14,7 @@ package web
 import (
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
+	"mime"
 	"net/http"
 	urlpkg "net/url"
 	"os"
@@ -64,7 +64,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 			Status:     "404 testing",
 			StatusCode: 404,
 			Header:     make(map[string][]string),
-			Body:       ioutil.NopCloser(strings.NewReader("")),
+			Body:       http.NoBody,
 		}
 		if cfg.BuildX {
 			fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", Redacted(url), res.Status, time.Since(start).Seconds())
@@ -167,6 +167,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 	if cfg.BuildX {
 		fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", Redacted(fetched), res.Status, time.Since(start).Seconds())
 	}
+
 	r := &Response{
 		URL:        Redacted(fetched),
 		Status:     res.Status,
@@ -174,6 +175,20 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		Header:     map[string][]string(res.Header),
 		Body:       res.Body,
 	}
+
+	if res.StatusCode != http.StatusOK {
+		contentType := res.Header.Get("Content-Type")
+		if mediaType, params, _ := mime.ParseMediaType(contentType); mediaType == "text/plain" {
+			switch charset := strings.ToLower(params["charset"]); charset {
+			case "us-ascii", "utf-8", "":
+				// Body claims to be plain text in UTF-8 or a subset thereof.
+				// Try to extract a useful error message from it.
+				r.errorDetail.r = res.Body
+				r.Body = &r.errorDetail
+			}
+		}
+	}
+
 	return r, nil
 }
 
@@ -190,6 +205,7 @@ func getFile(u *urlpkg.URL) (*Response, error) {
 			Status:     http.StatusText(http.StatusNotFound),
 			StatusCode: http.StatusNotFound,
 			Body:       http.NoBody,
+			fileErr:    err,
 		}, nil
 	}
 
@@ -199,6 +215,7 @@ func getFile(u *urlpkg.URL) (*Response, error) {
 			Status:     http.StatusText(http.StatusForbidden),
 			StatusCode: http.StatusForbidden,
 			Body:       http.NoBody,
+			fileErr:    err,
 		}, nil
 	}
 
