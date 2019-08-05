@@ -387,11 +387,13 @@ func loadAll(testAll bool) []string {
 
 	var paths []string
 	for _, pkg := range loaded.pkgs {
-		if e, ok := pkg.err.(*ImportMissingError); ok && e.Module.Path == "" {
-			continue // Package doesn't actually exist.
+		if pkg.err != nil {
+			base.Errorf("%s: %v", pkg.stackText(), pkg.err)
+			continue
 		}
 		paths = append(paths, pkg.path)
 	}
+	base.ExitIfErrors()
 	return paths
 }
 

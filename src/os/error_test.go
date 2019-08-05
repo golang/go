@@ -175,3 +175,13 @@ func TestPathErrorUnwrap(t *testing.T) {
 		t.Error("errors.Is failed, wanted success")
 	}
 }
+
+type myErrorIs struct{ error }
+
+func (e myErrorIs) Is(target error) bool { return target == e.error }
+
+func TestErrorIsMethods(t *testing.T) {
+	if os.IsPermission(myErrorIs{os.ErrPermission}) {
+		t.Error("os.IsPermission(err) = true when err.Is(os.ErrPermission), wanted false")
+	}
+}
