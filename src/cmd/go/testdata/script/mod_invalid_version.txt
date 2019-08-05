@@ -141,7 +141,7 @@ go mod edit -require golang.org/x/text@v1.999999.0
 go mod edit -replace golang.org/x/text@v1.999999.0=golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c
 cd outside
 ! go get -d golang.org/x/text@upgrade
-stderr 'go get golang.org/x/text@upgrade: golang.org/x/text@v1.999999.0: invalid version: unknown revision v1.999999.0'
+stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v1.999999.0: reading golang.org/x/text/go.mod at revision v1.999999.0: unknown revision v1.999999.0'
 cd ..
 go get -d golang.org/x/text@upgrade
 go list -m golang.org/x/text
