@@ -226,6 +226,8 @@ func (s *Server) processConfig(ctx context.Context, view source.View, config int
 		switch hoverKind {
 		case "NoDocumentation":
 			s.hoverKind = source.NoDocumentation
+		case "SingleLine":
+			s.hoverKind = source.SingleLine
 		case "SynopsisDocumentation":
 			s.hoverKind = source.SynopsisDocumentation
 		case "FullDocumentation":

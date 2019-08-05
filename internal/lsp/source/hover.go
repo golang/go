@@ -25,16 +25,21 @@ type HoverKind int
 
 const (
 	NoDocumentation = HoverKind(iota)
+	SingleLine
 	SynopsisDocumentation
 	FullDocumentation
-
-	// TODO: Support a single-line hover mode for clients like Vim.
-	singleLine
 )
 
 func (i *IdentifierInfo) Hover(ctx context.Context, markdownSupported bool, hoverKind HoverKind) (string, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Hover")
 	defer done()
+
+	// If the user has explicitly requested a single line of hover information,
+	// fall back to using types.ObjectString.
+	if hoverKind == SingleLine {
+		return types.ObjectString(i.decl.obj, i.qf), nil
+	}
+
 	h, err := i.decl.hover(ctx)
 	if err != nil {
 		return "", err
