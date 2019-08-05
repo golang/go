@@ -28,16 +28,16 @@ func charsetReader(charset string, input io.Reader) (io.Reader, error) {
 
 // parseMetaGoImports returns meta imports from the HTML in r.
 // Parsing ends at the end of the <head> section or the beginning of the <body>.
-func parseMetaGoImports(r io.Reader, mod ModuleMode) (imports []metaImport, err error) {
+func parseMetaGoImports(r io.Reader, mod ModuleMode) ([]metaImport, error) {
 	d := xml.NewDecoder(r)
 	d.CharsetReader = charsetReader
 	d.Strict = false
-	var t xml.Token
+	var imports []metaImport
 	for {
-		t, err = d.RawToken()
+		t, err := d.RawToken()
 		if err != nil {
-			if err == io.EOF || len(imports) > 0 {
-				err = nil
+			if err != io.EOF && len(imports) == 0 {
+				return nil, err
 			}
 			break
 		}
