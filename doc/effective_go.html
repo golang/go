@@ -2282,8 +2282,8 @@ The  <code>crypto/cipher</code> interfaces look like this:
 <pre>
 type Block interface {
     BlockSize() int
-    Encrypt(src, dst []byte)
-    Decrypt(src, dst []byte)
+    Encrypt(dst, src []byte)
+    Decrypt(dst, src []byte)
 }
 
 type Stream interface {
