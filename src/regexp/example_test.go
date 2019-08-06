@@ -128,6 +128,24 @@ func ExampleRegexp_FindStringSubmatch() {
 	// ["abzc" "" "z"]
 }
 
+func ExampleRegexp_FindAllIndex() {
+	re := regexp.MustCompile(`a(x*)b`)
+	// Indices:
+	//    01234567   012345678
+	//    -ab-axb-   -axxb-ab-
+	fmt.Println(re.FindAllIndex([]byte("-ab-"), -1))
+	fmt.Println(re.FindAllIndex([]byte("-axxb-"), -1))
+	fmt.Println(re.FindAllIndex([]byte("-ab-axb-"), -1))
+	fmt.Println(re.FindAllIndex([]byte("-axxb-ab-"), -1))
+	fmt.Println(re.FindAllIndex([]byte("-foo-"), -1))
+	// Output:
+	// [[1 3]]
+	// [[1 5]]
+	// [[1 3] [4 7]]
+	// [[1 5] [6 8]]
+	// []
+}
+
 func ExampleRegexp_FindAllString() {
 	re := regexp.MustCompile(`a.`)
 	fmt.Println(re.FindAllString("paranormal", -1))
@@ -170,6 +188,34 @@ func ExampleRegexp_FindAllStringSubmatchIndex() {
 	// [[1 3 2 2] [4 7 5 6]]
 	// [[1 5 2 4] [6 8 7 7]]
 	// []
+}
+
+func ExampleRegexp_FindSubmatchIndex() {
+	re := regexp.MustCompile(`a(x*)b`)
+	// Indices:
+	//    01234567   012345678
+	//    -ab-axb-   -axxb-ab-
+	fmt.Println(re.FindSubmatchIndex([]byte("-ab-")))
+	fmt.Println(re.FindSubmatchIndex([]byte("-axxb-")))
+	fmt.Println(re.FindSubmatchIndex([]byte("-ab-axb-")))
+	fmt.Println(re.FindSubmatchIndex([]byte("-axxb-ab-")))
+	fmt.Println(re.FindSubmatchIndex([]byte("-foo-")))
+	// Output:
+	// [1 3 2 2]
+	// [1 5 2 4]
+	// [1 3 2 2]
+	// [1 5 2 4]
+	// []
+}
+
+func ExampleRegexp_Longest() {
+	re := regexp.MustCompile(`a(|b)`)
+	fmt.Println(re.FindString("ab"))
+	re.Longest()
+	fmt.Println(re.FindString("ab"))
+	// Output:
+	// a
+	// ab
 }
 
 func ExampleRegexp_MatchString() {
