@@ -181,6 +181,13 @@ func ExampleRegexp_MatchString() {
 	// true
 }
 
+func ExampleRegexp_NumSubexp() {
+	re := regexp.MustCompile(`(.*)((a)b)(.*)a`)
+	fmt.Println(re.NumSubexp())
+	// Output:
+	// 4
+}
+
 func ExampleRegexp_ReplaceAllLiteralString() {
 	re := regexp.MustCompile(`a(x*)b`)
 	fmt.Println(re.ReplaceAllLiteralString("-ab-axxb-", "T"))
