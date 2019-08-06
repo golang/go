@@ -208,7 +208,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 
 	// Do a first pass to collect special markers for completion.
 	if err := data.Exported.Expect(map[string]interface{}{
-		"item": func(name string, r packagestest.Range, _, _ string) {
+		"item": func(name string, r packagestest.Range, _ []string) {
 			data.Exported.Mark(name, r)
 		},
 	}); err != nil {
@@ -437,11 +437,20 @@ func (data *Data) collectCompletions(src span.Span, expected []token.Pos) {
 	data.Completions[src] = expected
 }
 
-func (data *Data) collectCompletionItems(pos token.Pos, label, detail, kind string) {
+func (data *Data) collectCompletionItems(pos token.Pos, args []string) {
+	if len(args) < 3 {
+		return
+	}
+	label, detail, kind := args[0], args[1], args[2]
+	var documentation string
+	if len(args) == 4 {
+		documentation = args[3]
+	}
 	data.CompletionItems[pos] = &source.CompletionItem{
-		Label:  label,
-		Detail: detail,
-		Kind:   source.ParseCompletionItemKind(kind),
+		Label:         label,
+		Detail:        detail,
+		Kind:          source.ParseCompletionItemKind(kind),
+		Documentation: documentation,
 	}
 }
 

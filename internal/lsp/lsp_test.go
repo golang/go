@@ -162,7 +162,12 @@ func summarizeDiagnostics(i int, want []source.Diagnostic, got []source.Diagnost
 }
 
 func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests.CompletionSnippets, items tests.CompletionItems) {
-	defer func() { r.server.useDeepCompletions = false }()
+	defer func() {
+		r.server.useDeepCompletions = false
+		r.server.wantCompletionDocumentation = false
+	}()
+
+	r.server.wantCompletionDocumentation = true
 
 	for src, itemList := range data {
 		var want []source.CompletionItem
@@ -278,6 +283,11 @@ func diffCompletionItems(t *testing.T, spn span.Span, want []source.CompletionIt
 		}
 		if w.Detail != g.Detail {
 			return summarizeCompletionItems(i, want, got, "incorrect Detail got %v want %v", g.Detail, w.Detail)
+		}
+		if w.Documentation != "" && !strings.HasPrefix(w.Documentation, "@") {
+			if w.Documentation != g.Documentation {
+				return summarizeCompletionItems(i, want, got, "incorrect Documentation got %v want %v", g.Documentation, w.Documentation)
+			}
 		}
 		if wkind := toProtocolCompletionItemKind(w.Kind); wkind != g.Kind {
 			return summarizeCompletionItems(i, want, got, "incorrect Kind got %v want %v", g.Kind, wkind)

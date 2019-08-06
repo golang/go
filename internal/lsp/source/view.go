@@ -78,6 +78,9 @@ type ParseGoHandle interface {
 	// Parse returns the parsed AST for the file.
 	// If the file is not available, returns nil and an error.
 	Parse(ctx context.Context) (*ast.File, error)
+
+	// Cached returns the AST for this handle, if it has already been stored.
+	Cached(ctx context.Context) (*ast.File, error)
 }
 
 // ParseMode controls the content of the AST produced when parsing a source file.
@@ -118,10 +121,10 @@ type Cache interface {
 	FileSet() *token.FileSet
 
 	// Token returns a TokenHandle for the given file handle.
-	TokenHandle(FileHandle) TokenHandle
+	TokenHandle(fh FileHandle) TokenHandle
 
 	// ParseGo returns a ParseGoHandle for the given file handle.
-	ParseGoHandle(FileHandle, ParseMode) ParseGoHandle
+	ParseGoHandle(fh FileHandle, mode ParseMode) ParseGoHandle
 }
 
 // Session represents a single connection from a client.
@@ -228,8 +231,11 @@ type File interface {
 type GoFile interface {
 	File
 
-	// GetAST returns the full AST for the file.
+	// GetAST returns the AST for the file, at or above the given mode.
 	GetAST(ctx context.Context, mode ParseMode) (*ast.File, error)
+
+	// GetCachedPackage returns the cached package for the file, if any.
+	GetCachedPackage(ctx context.Context) (Package, error)
 
 	// GetPackage returns the package that this file belongs to.
 	GetPackage(ctx context.Context) Package
@@ -255,7 +261,7 @@ type SumFile interface {
 type Package interface {
 	ID() string
 	PkgPath() string
-	GetFilenames() []string
+	GetHandles() []ParseGoHandle
 	GetSyntax(context.Context) []*ast.File
 	GetErrors() []packages.Error
 	GetTypes() *types.Package

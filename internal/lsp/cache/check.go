@@ -102,6 +102,7 @@ func (imp *importer) typeCheck(ctx context.Context, id packageID) (*pkg, error) 
 		return nil, errors.Errorf("no metadata for %v", id)
 	}
 	pkg := &pkg{
+		view:       imp.view,
 		id:         meta.id,
 		pkgPath:    meta.pkgPath,
 		imports:    make(map[packagePath]*pkg),

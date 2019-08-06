@@ -18,6 +18,8 @@ import (
 
 // pkg contains the type information needed by the source package.
 type pkg struct {
+	view *view
+
 	// ID and package path have their own types to avoid being used interchangeably.
 	id      packageID
 	pkgPath packagePath
@@ -147,18 +149,14 @@ func (pkg *pkg) PkgPath() string {
 	return string(pkg.pkgPath)
 }
 
-func (pkg *pkg) GetFilenames() []string {
-	filenames := make([]string, 0, len(pkg.files))
-	for _, ph := range pkg.files {
-		filenames = append(filenames, ph.File().Identity().URI.Filename())
-	}
-	return filenames
+func (pkg *pkg) GetHandles() []source.ParseGoHandle {
+	return pkg.files
 }
 
 func (pkg *pkg) GetSyntax(ctx context.Context) []*ast.File {
 	var syntax []*ast.File
 	for _, ph := range pkg.files {
-		file, _ := ph.Parse(ctx)
+		file, _ := ph.Cached(ctx)
 		if file != nil {
 			syntax = append(syntax, file)
 		}

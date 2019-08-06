@@ -74,6 +74,15 @@ func (h *parseGoHandle) Parse(ctx context.Context) (*ast.File, error) {
 	return data.ast, data.err
 }
 
+func (h *parseGoHandle) Cached(ctx context.Context) (*ast.File, error) {
+	v := h.handle.Cached()
+	if v == nil {
+		return nil, errors.Errorf("no cached value for %s", h.file.Identity().URI)
+	}
+	data := v.(*parseGoData)
+	return data.ast, data.err
+}
+
 func parseGo(ctx context.Context, c *cache, fh source.FileHandle, mode source.ParseMode) (*ast.File, error) {
 	ctx, done := trace.StartSpan(ctx, "cache.parseGo", telemetry.File.Of(fh.Identity().URI.Filename()))
 	defer done()

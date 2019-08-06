@@ -70,8 +70,8 @@ func Diagnostics(ctx context.Context, view View, f GoFile, disabledAnalyses map[
 	}
 	// Prepare the reports we will send for the files in this package.
 	reports := make(map[span.URI][]Diagnostic)
-	for _, filename := range pkg.GetFilenames() {
-		clearReports(view, reports, span.FileURI(filename))
+	for _, fh := range pkg.GetHandles() {
+		clearReports(view, reports, fh.File().Identity().URI)
 	}
 
 	// Prepare any additional reports for the errors in this package.
@@ -96,8 +96,8 @@ func Diagnostics(ctx context.Context, view View, f GoFile, disabledAnalyses map[
 		if pkg == nil {
 			continue
 		}
-		for _, filename := range pkg.GetFilenames() {
-			clearReports(view, reports, span.FileURI(filename))
+		for _, fh := range pkg.GetHandles() {
+			clearReports(view, reports, fh.File().Identity().URI)
 		}
 		diagnostics(ctx, view, pkg, reports)
 	}

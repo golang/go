@@ -63,6 +63,7 @@ func (f *goFile) GetToken(ctx context.Context) (*token.File, error) {
 func (f *goFile) GetAST(ctx context.Context, mode source.ParseMode) (*ast.File, error) {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
+
 	ctx = telemetry.File.With(ctx, f.URI())
 
 	if f.isDirty(ctx) || f.wrongParseMode(ctx, mode) {
@@ -70,8 +71,17 @@ func (f *goFile) GetAST(ctx context.Context, mode source.ParseMode) (*ast.File, 
 			return nil, errors.Errorf("GetAST: unable to check package for %s: %v", f.URI(), err)
 		}
 	}
-	fh := f.Handle(ctx)
 	// Check for a cached AST first, in case getting a trimmed version would actually cause a re-parse.
+	fh := f.Handle(ctx)
+	cached, err := f.view.session.cache.cachedAST(fh, mode)
+	if cached != nil || err != nil {
+		return cached, err
+	}
+	ph := f.view.session.cache.ParseGoHandle(fh, mode)
+	return ph.Parse(ctx)
+}
+
+func (cache *cache) cachedAST(fh source.FileHandle, mode source.ParseMode) (*ast.File, error) {
 	for _, m := range []source.ParseMode{
 		source.ParseHeader,
 		source.ParseExported,
@@ -80,15 +90,14 @@ func (f *goFile) GetAST(ctx context.Context, mode source.ParseMode) (*ast.File, 
 		if m < mode {
 			continue
 		}
-		if v, ok := f.view.session.cache.store.Cached(parseKey{
+		if v, ok := cache.store.Cached(parseKey{
 			file: fh.Identity(),
 			mode: m,
 		}).(*parseGoData); ok {
 			return v.ast, v.err
 		}
 	}
-	ph := f.view.session.cache.ParseGoHandle(fh, mode)
-	return ph.Parse(ctx)
+	return nil, nil
 }
 
 func (f *goFile) GetPackages(ctx context.Context) []source.Package {
@@ -126,11 +135,33 @@ func (f *goFile) GetPackage(ctx context.Context) source.Package {
 	// This solves the problem of test variants,
 	// as the test will have more files than the non-test package.
 	for _, pkg := range pkgs {
-		if result == nil || len(pkg.GetFilenames()) < len(result.GetFilenames()) {
+		if result == nil || len(pkg.GetHandles()) < len(result.GetHandles()) {
 			result = pkg
 		}
 	}
 	return result
+}
+
+func (f *goFile) GetCachedPackage(ctx context.Context) (source.Package, error) {
+	f.view.mu.Lock()
+	defer f.view.mu.Unlock()
+
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	var result source.Package
+	// Pick the "narrowest" package, i.e. the package with the fewest number of files.
+	// This solves the problem of test variants,
+	// as the test will have more files than the non-test package.
+	for _, pkg := range f.pkgs {
+		if result == nil || len(pkg.GetHandles()) < len(result.GetHandles()) {
+			result = pkg
+		}
+	}
+	if result == nil {
+		return nil, errors.Errorf("no cached package for %s", f.URI())
+	}
+	return result, nil
 }
 
 func (f *goFile) wrongParseMode(ctx context.Context, mode source.ParseMode) bool {

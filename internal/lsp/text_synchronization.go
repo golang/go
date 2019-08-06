@@ -169,13 +169,13 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 		log.Error(ctx, "no package available", nil, telemetry.File)
 		return nil
 	}
-	for _, filename := range pkg.GetFilenames() {
+	for _, ph := range pkg.GetHandles() {
 		// If other files from this package are open, don't clear.
-		if s.session.IsOpen(span.NewURI(filename)) {
+		if s.session.IsOpen(ph.File().Identity().URI) {
 			clear = nil
 			return nil
 		}
-		clear = append(clear, span.FileURI(filename))
+		clear = append(clear, ph.File().Identity().URI)
 	}
 	return nil
 }

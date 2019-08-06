@@ -96,36 +96,44 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		plainSnippet:       plainSnippet,
 		placeholderSnippet: placeholderSnippet,
 	}
+	// TODO(rstambler): Log errors when this feature is enabled.
 	if c.opts.WantDocumentaton {
 		declRange, err := objToRange(c.ctx, c.view.Session().Cache().FileSet(), obj)
 		if err != nil {
-			log.Error(c.ctx, "failed to get declaration range for object", err, tag.Of("Name", obj.Name()))
 			goto Return
 		}
 		pos := declRange.FileSet.Position(declRange.Start)
 		if !pos.IsValid() {
-			log.Error(c.ctx, "invalid declaration position", err, tag.Of("Label", item.Label))
 			goto Return
 		}
 		uri := span.FileURI(pos.Filename)
 		f, err := c.view.GetFile(c.ctx, uri)
 		if err != nil {
-			log.Error(c.ctx, "unable to get file", err, tag.Of("URI", uri))
 			goto Return
 		}
 		gof, ok := f.(GoFile)
 		if !ok {
-			log.Error(c.ctx, "declaration in a Go file", err, tag.Of("Label", item.Label))
 			goto Return
 		}
-		ident, err := Identifier(c.ctx, gof, declRange.Start)
+		pkg, err := gof.GetCachedPackage(c.ctx)
 		if err != nil {
-			log.Error(c.ctx, "no identifier", err, tag.Of("Name", obj.Name()))
+			goto Return
+		}
+		var file *ast.File
+		for _, ph := range pkg.GetHandles() {
+			if ph.File().Identity().URI == gof.URI() {
+				file, _ = ph.Cached(c.ctx)
+			}
+		}
+		if file == nil {
+			goto Return
+		}
+		ident, err := findIdentifier(c.ctx, gof, pkg, file, declRange.Start)
+		if err != nil {
 			goto Return
 		}
 		documentation, err := ident.Documentation(c.ctx, SynopsisDocumentation)
 		if err != nil {
-			log.Error(c.ctx, "no documentation", err, tag.Of("Name", obj.Name()))
 			goto Return
 		}
 		item.Documentation = documentation

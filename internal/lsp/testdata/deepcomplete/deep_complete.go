@@ -26,9 +26,9 @@ func _() {
 func wantsContext(context.Context) {}
 
 func _() {
-	context.Background() //@item(ctxBackground, "context.Background", "func() context.Context", "func")
-	context.TODO()       //@item(ctxTODO, "context.TODO", "func() context.Context", "func")
-	/* context.WithValue(parent context.Context, key interface{}, val interface{}) */ //@item(ctxWithValue, "context.WithValue", "func(parent context.Context, key interface{}, val interface{}) context.Context", "func")
+	context.Background()             //@item(ctxBackground, "context.Background", "func() context.Context", "func", "Background returns a non-nil, empty Context.")
+	context.TODO()                   //@item(ctxTODO, "context.TODO", "func() context.Context", "func", "TODO returns a non-nil, empty Context.")
+	context.WithValue(nil, nil, nil) //@item(ctxWithValue, "context.WithValue", "func(parent context.Context, key interface{}, val interface{}) context.Context", "func", "WithValue returns a copy of parent in which the value associated with key is val.")
 
 	wantsContext(c) //@complete(")", ctxBackground, ctxTODO, ctxWithValue, ctxPackage)
 }

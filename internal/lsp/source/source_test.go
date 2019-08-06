@@ -156,7 +156,8 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 		}
 		pos := tok.Pos(src.Start().Offset())
 		list, surrounding, err := source.Completion(ctx, r.view, f.(source.GoFile), pos, source.CompletionOptions{
-			DeepComplete: strings.Contains(string(src.URI()), "deepcomplete"),
+			DeepComplete:     strings.Contains(string(src.URI()), "deepcomplete"),
+			WantDocumentaton: true,
 		})
 		if err != nil {
 			t.Fatalf("failed for %v: %v", src, err)
@@ -272,6 +273,11 @@ func diffCompletionItems(t *testing.T, spn span.Span, want []source.CompletionIt
 		}
 		if w.Detail != g.Detail {
 			return summarizeCompletionItems(i, want, got, "incorrect Detail got %v want %v", g.Detail, w.Detail)
+		}
+		if w.Documentation != "" && !strings.HasPrefix(w.Documentation, "@") {
+			if w.Documentation != g.Documentation {
+				return summarizeCompletionItems(i, want, got, "incorrect Documentation got %v want %v", g.Documentation, w.Documentation)
+			}
 		}
 		if w.Kind != g.Kind {
 			return summarizeCompletionItems(i, want, got, "incorrect Kind got %v want %v", g.Kind, w.Kind)
