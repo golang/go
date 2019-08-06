@@ -15,9 +15,18 @@ import (
 
 // atomicError is a type-safe atomic value for errors.
 // We use a struct{ error } to ensure consistent use of a concrete type.
-type atomicError struct{ v atomic.Value }
+type atomicError struct {
+	v atomic.Value
+	sync.Mutex
+}
 
 func (a *atomicError) Store(err error) {
+	a.Lock()
+	defer a.Unlock()
+	prvErr := a.Load()
+	if prvErr != nil {
+		return
+	}
 	a.v.Store(struct{ error }{err})
 }
 func (a *atomicError) Load() error {
@@ -135,6 +144,9 @@ func (r *PipeReader) Close() error {
 
 // CloseWithError closes the reader; subsequent writes
 // to the write half of the pipe will return the error err.
+//
+// CloseWithError never overwrites the previous error if exists
+// and always returns nil.
 func (r *PipeReader) CloseWithError(err error) error {
 	return r.p.CloseRead(err)
 }
@@ -163,7 +175,8 @@ func (w *PipeWriter) Close() error {
 // read half of the pipe will return no bytes and the error err,
 // or EOF if err is nil.
 //
-// CloseWithError always returns nil.
+// CloseWithError never overwrites the previous error if exists
+// and always returns nil.
 func (w *PipeWriter) CloseWithError(err error) error {
 	return w.p.CloseWrite(err)
 }
