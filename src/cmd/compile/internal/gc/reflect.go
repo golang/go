@@ -825,29 +825,21 @@ func typeptrdata(t *types.Type) int64 {
 //	reflect/type.go
 //	runtime/type.go
 const (
-	tflagUncommon  = 1 << 0
-	tflagExtraStar = 1 << 1
-	tflagNamed     = 1 << 2
+	tflagUncommon      = 1 << 0
+	tflagExtraStar     = 1 << 1
+	tflagNamed         = 1 << 2
+	tflagRegularMemory = 1 << 3
 )
 
 var (
-	algarray       *obj.LSym
 	memhashvarlen  *obj.LSym
 	memequalvarlen *obj.LSym
 )
 
 // dcommontype dumps the contents of a reflect.rtype (runtime._type).
 func dcommontype(lsym *obj.LSym, t *types.Type) int {
-	sizeofAlg := 2 * Widthptr
-	if algarray == nil {
-		algarray = sysvar("algarray")
-	}
 	dowidth(t)
-	alg := algtype(t)
-	var algsym *obj.LSym
-	if alg == ASPECIAL || alg == AMEM {
-		algsym = dalgsym(t)
-	}
+	eqfunc := geneq(t)
 
 	sptrWeak := true
 	var sptr *obj.LSym
@@ -871,7 +863,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	//		align         uint8
 	//		fieldAlign    uint8
 	//		kind          uint8
-	//		alg           *typeAlg
+	//		equal         func(unsafe.Pointer, unsafe.Pointer) bool
 	//		gcdata        *byte
 	//		str           nameOff
 	//		ptrToThis     typeOff
@@ -887,6 +879,9 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	}
 	if t.Sym != nil && t.Sym.Name != "" {
 		tflag |= tflagNamed
+	}
+	if IsRegularMemory(t) {
+		tflag |= tflagRegularMemory
 	}
 
 	exported := false
@@ -930,10 +925,10 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 		i |= objabi.KindGCProg
 	}
 	ot = duint8(lsym, ot, uint8(i)) // kind
-	if algsym == nil {
-		ot = dsymptr(lsym, ot, algarray, int(alg)*sizeofAlg)
+	if eqfunc != nil {
+		ot = dsymptr(lsym, ot, eqfunc, 0) // equality function
 	} else {
-		ot = dsymptr(lsym, ot, algsym, 0)
+		ot = duintptr(lsym, ot, 0) // type we can't do == with
 	}
 	ot = dsymptr(lsym, ot, gcsym, 0) // gcdata
 
@@ -1311,10 +1306,13 @@ func dtypesym(t *types.Type) *obj.LSym {
 		s1 := dtypesym(t.Key())
 		s2 := dtypesym(t.Elem())
 		s3 := dtypesym(bmap(t))
+		hasher := genhash(t.Key())
+
 		ot = dcommontype(lsym, t)
 		ot = dsymptr(lsym, ot, s1, 0)
 		ot = dsymptr(lsym, ot, s2, 0)
 		ot = dsymptr(lsym, ot, s3, 0)
+		ot = dsymptr(lsym, ot, hasher, 0)
 		var flags uint32
 		// Note: flags must match maptype accessors in ../../../../runtime/type.go
 		// and maptype builder in ../../../../reflect/type.go:MapOf.
@@ -1672,78 +1670,6 @@ func (a typesByString) Less(i, j int) bool {
 	return false
 }
 func (a typesByString) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-
-func dalgsym(t *types.Type) *obj.LSym {
-	var lsym *obj.LSym
-	var hashfunc *obj.LSym
-	var eqfunc *obj.LSym
-
-	// dalgsym is only called for a type that needs an algorithm table,
-	// which implies that the type is comparable (or else it would use ANOEQ).
-
-	if algtype(t) == AMEM {
-		// we use one algorithm table for all AMEM types of a given size
-		p := fmt.Sprintf(".alg%d", t.Width)
-
-		s := typeLookup(p)
-		lsym = s.Linksym()
-		if s.AlgGen() {
-			return lsym
-		}
-		s.SetAlgGen(true)
-
-		if memhashvarlen == nil {
-			memhashvarlen = sysfunc("memhash_varlen")
-			memequalvarlen = sysvar("memequal_varlen") // asm func
-		}
-
-		// make hash closure
-		p = fmt.Sprintf(".hashfunc%d", t.Width)
-
-		hashfunc = typeLookup(p).Linksym()
-
-		ot := 0
-		ot = dsymptr(hashfunc, ot, memhashvarlen, 0)
-		ot = duintptr(hashfunc, ot, uint64(t.Width)) // size encoded in closure
-		ggloblsym(hashfunc, int32(ot), obj.DUPOK|obj.RODATA)
-
-		// make equality closure
-		p = fmt.Sprintf(".eqfunc%d", t.Width)
-
-		eqfunc = typeLookup(p).Linksym()
-
-		ot = 0
-		ot = dsymptr(eqfunc, ot, memequalvarlen, 0)
-		ot = duintptr(eqfunc, ot, uint64(t.Width))
-		ggloblsym(eqfunc, int32(ot), obj.DUPOK|obj.RODATA)
-	} else {
-		// generate an alg table specific to this type
-		s := typesymprefix(".alg", t)
-		lsym = s.Linksym()
-
-		hash := typesymprefix(".hash", t)
-		eq := typesymprefix(".eq", t)
-		hashfunc = typesymprefix(".hashfunc", t).Linksym()
-		eqfunc = typesymprefix(".eqfunc", t).Linksym()
-
-		genhash(hash, t)
-		geneq(eq, t)
-
-		// make Go funcs (closures) for calling hash and equal from Go
-		dsymptr(hashfunc, 0, hash.Linksym(), 0)
-		ggloblsym(hashfunc, int32(Widthptr), obj.DUPOK|obj.RODATA)
-		dsymptr(eqfunc, 0, eq.Linksym(), 0)
-		ggloblsym(eqfunc, int32(Widthptr), obj.DUPOK|obj.RODATA)
-	}
-
-	// ../../../../runtime/alg.go:/typeAlg
-	ot := 0
-
-	ot = dsymptr(lsym, ot, hashfunc, 0)
-	ot = dsymptr(lsym, ot, eqfunc, 0)
-	ggloblsym(lsym, int32(ot), obj.DUPOK|obj.RODATA)
-	return lsym
-}
 
 // maxPtrmaskBytes is the maximum length of a GC ptrmask bitmap,
 // which holds 1-bit entries describing where pointers are in a given type.
