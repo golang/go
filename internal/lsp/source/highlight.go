@@ -6,13 +6,13 @@ package source
 
 import (
 	"context"
-	"fmt"
 	"go/ast"
 	"go/token"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/span"
+	errors "golang.org/x/xerrors"
 )
 
 func Highlight(ctx context.Context, f GoFile, pos token.Pos) ([]span.Span, error) {
@@ -26,11 +26,11 @@ func Highlight(ctx context.Context, f GoFile, pos token.Pos) ([]span.Span, error
 	fset := f.FileSet()
 	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
 	if len(path) == 0 {
-		return nil, fmt.Errorf("no enclosing position found for %s", fset.Position(pos))
+		return nil, errors.Errorf("no enclosing position found for %s", fset.Position(pos))
 	}
 	id, ok := path[0].(*ast.Ident)
 	if !ok {
-		return nil, fmt.Errorf("%s is not an identifier", fset.Position(pos))
+		return nil, errors.Errorf("%s is not an identifier", fset.Position(pos))
 	}
 	var result []span.Span
 	if id.Obj != nil {

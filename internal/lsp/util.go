@@ -6,11 +6,11 @@ package lsp
 
 import (
 	"context"
-	"fmt"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
+	errors "golang.org/x/xerrors"
 )
 
 func getSourceFile(ctx context.Context, v source.View, uri span.URI) (source.File, *protocol.ColumnMapper, error) {
@@ -38,7 +38,7 @@ func getGoFile(ctx context.Context, v source.View, uri span.URI) (source.GoFile,
 	}
 	gof, ok := f.(source.GoFile)
 	if !ok {
-		return nil, nil, fmt.Errorf("not a Go file %v", f.URI())
+		return nil, nil, errors.Errorf("not a Go file %v", f.URI())
 	}
 	return gof, m, nil
 }

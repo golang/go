@@ -6,7 +6,6 @@ package cache
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"sort"
 	"strconv"
@@ -21,6 +20,7 @@ import (
 	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/xcontext"
+	errors "golang.org/x/xerrors"
 )
 
 type session struct {
@@ -178,7 +178,7 @@ func (s *session) removeView(ctx context.Context, view *view) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("view %s for %v not found", view.Name(), view.Folder())
+	return errors.Errorf("view %s for %v not found", view.Name(), view.Folder())
 }
 
 // TODO: Propagate the language ID through to the view.

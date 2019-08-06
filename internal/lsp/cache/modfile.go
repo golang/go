@@ -6,8 +6,9 @@ package cache
 
 import (
 	"context"
-	"fmt"
 	"go/token"
+
+	errors "golang.org/x/xerrors"
 )
 
 // modFile holds all of the information we know about a mod file.
@@ -16,7 +17,7 @@ type modFile struct {
 }
 
 func (*modFile) GetToken(context.Context) (*token.File, error) {
-	return nil, fmt.Errorf("GetToken: not implemented")
+	return nil, errors.Errorf("GetToken: not implemented")
 }
 
 func (*modFile) setContent(content []byte) {}

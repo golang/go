@@ -6,7 +6,6 @@ package cache
 
 import (
 	"context"
-	"fmt"
 	"go/ast"
 	"go/scanner"
 	"go/token"
@@ -20,6 +19,7 @@ import (
 	"golang.org/x/tools/internal/lsp/telemetry/log"
 	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/span"
+	errors "golang.org/x/xerrors"
 )
 
 type importer struct {
@@ -40,7 +40,7 @@ func (imp *importer) Import(pkgPath string) (*types.Package, error) {
 	ctx := imp.ctx
 	id, ok := imp.view.mcache.ids[packagePath(pkgPath)]
 	if !ok {
-		return nil, fmt.Errorf("no known ID for %s", pkgPath)
+		return nil, errors.Errorf("no known ID for %s", pkgPath)
 	}
 	pkg, err := imp.getPkg(ctx, id)
 	if err != nil {
@@ -51,7 +51,7 @@ func (imp *importer) Import(pkgPath string) (*types.Package, error) {
 
 func (imp *importer) getPkg(ctx context.Context, id packageID) (*pkg, error) {
 	if _, ok := imp.seen[id]; ok {
-		return nil, fmt.Errorf("circular import detected")
+		return nil, errors.Errorf("circular import detected")
 	}
 	imp.view.pcache.mu.Lock()
 	e, ok := imp.view.pcache.packages[id]
@@ -99,7 +99,7 @@ func (imp *importer) typeCheck(ctx context.Context, id packageID) (*pkg, error) 
 	defer done()
 	meta, ok := imp.view.mcache.packages[id]
 	if !ok {
-		return nil, fmt.Errorf("no metadata for %v", id)
+		return nil, errors.Errorf("no metadata for %v", id)
 	}
 	pkg := &pkg{
 		id:         meta.id,
@@ -123,9 +123,9 @@ func (imp *importer) typeCheck(ctx context.Context, id packageID) (*pkg, error) 
 		mode = source.ParseExported
 	}
 	var (
-		files  = make([]*ast.File, len(meta.files))
-		errors = make([]error, len(meta.files))
-		wg     sync.WaitGroup
+		files       = make([]*ast.File, len(meta.files))
+		parseErrors = make([]error, len(meta.files))
+		wg          sync.WaitGroup
 	)
 	for _, filename := range meta.files {
 		uri := span.FileURI(filename)
@@ -141,7 +141,7 @@ func (imp *importer) typeCheck(ctx context.Context, id packageID) (*pkg, error) 
 		go func(i int, ph source.ParseGoHandle) {
 			defer wg.Done()
 
-			files[i], errors[i] = ph.Parse(ctx)
+			files[i], parseErrors[i] = ph.Parse(ctx)
 		}(i, ph)
 	}
 	wg.Wait()
@@ -153,7 +153,7 @@ func (imp *importer) typeCheck(ctx context.Context, id packageID) (*pkg, error) 
 			i++
 		}
 	}
-	for _, err := range errors {
+	for _, err := range parseErrors {
 		if err == context.Canceled {
 			return nil, err
 		}
@@ -166,7 +166,7 @@ func (imp *importer) typeCheck(ctx context.Context, id packageID) (*pkg, error) 
 	if meta.pkgPath == "unsafe" {
 		pkg.types = types.Unsafe
 	} else if len(files) == 0 { // not the unsafe package, no parsed files
-		return nil, fmt.Errorf("no parsed files for package %s", pkg.pkgPath)
+		return nil, errors.Errorf("no parsed files for package %s", pkg.pkgPath)
 	} else {
 		pkg.types = types.NewPackage(string(meta.pkgPath), meta.name)
 	}
@@ -209,14 +209,14 @@ func (imp *importer) cachePackage(ctx context.Context, pkg *pkg, meta *metadata,
 		uri := ph.File().Identity().URI
 		f, err := imp.view.getFile(ctx, uri)
 		if err != nil {
-			return fmt.Errorf("no such file %s: %v", uri, err)
+			return errors.Errorf("no such file %s: %v", uri, err)
 		}
 		gof, ok := f.(*goFile)
 		if !ok {
-			return fmt.Errorf("non Go file %s", uri)
+			return errors.Errorf("non Go file %s", uri)
 		}
 		if err := imp.cachePerFile(gof, ph, pkg); err != nil {
-			return fmt.Errorf("failed to cache file %s: %v", gof.URI(), err)
+			return errors.Errorf("failed to cache file %s: %v", gof.URI(), err)
 		}
 	}
 
@@ -246,7 +246,7 @@ func (imp *importer) cachePerFile(gof *goFile, ph source.ParseGoHandle, p *pkg) 
 
 	file, err := ph.Parse(imp.ctx)
 	if file == nil {
-		return fmt.Errorf("no AST for %s: %v", ph.File().Identity().URI, err)
+		return errors.Errorf("no AST for %s: %v", ph.File().Identity().URI, err)
 	}
 	gof.imports = file.Imports
 	return nil

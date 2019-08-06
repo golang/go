@@ -6,7 +6,6 @@ package source
 
 import (
 	"context"
-	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -15,6 +14,7 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/span"
+	errors "golang.org/x/xerrors"
 )
 
 // IdentifierInfo holds information about an identifier in Go source.
@@ -56,7 +56,7 @@ func Identifier(ctx context.Context, view View, f GoFile, pos token.Pos) (*Ident
 	// requesting a completion), use the path to the preceding node.
 	result, err := identifier(ctx, view, f, pos-1)
 	if result == nil && err == nil {
-		err = fmt.Errorf("no identifier found")
+		err = errors.Errorf("no identifier found")
 	}
 	return result, err
 }
@@ -72,7 +72,7 @@ func identifier(ctx context.Context, view View, f GoFile, pos token.Pos) (*Ident
 	}
 	pkg := f.GetPackage(ctx)
 	if pkg == nil || pkg.IsIllTyped() {
-		return nil, fmt.Errorf("pkg for %s is ill-typed", f.URI())
+		return nil, errors.Errorf("pkg for %s is ill-typed", f.URI())
 	}
 	// Handle import specs separately, as there is no formal position for a package declaration.
 	if result, err := importSpec(ctx, f, file, pkg, pos); result != nil || err != nil {
@@ -80,7 +80,7 @@ func identifier(ctx context.Context, view View, f GoFile, pos token.Pos) (*Ident
 	}
 	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
 	if path == nil {
-		return nil, fmt.Errorf("can't find node enclosing position")
+		return nil, errors.Errorf("can't find node enclosing position")
 	}
 	result := &IdentifierInfo{
 		File: f,
@@ -118,7 +118,7 @@ func identifier(ctx context.Context, view View, f GoFile, pos token.Pos) (*Ident
 			result.decl.wasImplicit = true
 		} else {
 			// Probably a type error.
-			return nil, fmt.Errorf("no object for ident %v", result.Name)
+			return nil, errors.Errorf("no object for ident %v", result.Name)
 		}
 	}
 
@@ -126,7 +126,7 @@ func identifier(ctx context.Context, view View, f GoFile, pos token.Pos) (*Ident
 	if result.decl.obj.Parent() == types.Universe {
 		decl, ok := lookupBuiltinDecl(f.View(), result.Name).(ast.Node)
 		if !ok {
-			return nil, fmt.Errorf("no declaration for %s", result.Name)
+			return nil, errors.Errorf("no declaration for %s", result.Name)
 		}
 		result.decl.node = decl
 		if result.decl.rng, err = posToRange(ctx, f.FileSet(), result.Name, decl.Pos()); err != nil {
@@ -214,7 +214,7 @@ func objToRange(ctx context.Context, fset *token.FileSet, obj types.Object) (spa
 
 func posToRange(ctx context.Context, fset *token.FileSet, name string, pos token.Pos) (span.Range, error) {
 	if !pos.IsValid() {
-		return span.Range{}, fmt.Errorf("invalid position for %v", name)
+		return span.Range{}, errors.Errorf("invalid position for %v", name)
 	}
 	return span.NewRange(fset, pos, pos+token.Pos(len(name))), nil
 }
@@ -230,7 +230,7 @@ func objToNode(ctx context.Context, view View, originPkg *types.Package, obj typ
 	}
 	declFile, ok := f.(GoFile)
 	if !ok {
-		return nil, fmt.Errorf("%s is not a Go file", s.URI())
+		return nil, errors.Errorf("%s is not a Go file", s.URI())
 	}
 	// If the object is exported from a different package,
 	// we don't need its full AST to find the definition.
@@ -244,7 +244,7 @@ func objToNode(ctx context.Context, view View, originPkg *types.Package, obj typ
 	}
 	path, _ := astutil.PathEnclosingInterval(declAST, rng.Start, rng.End)
 	if path == nil {
-		return nil, fmt.Errorf("no path for range %v", rng)
+		return nil, errors.Errorf("no path for range %v", rng)
 	}
 	for _, node := range path {
 		switch node := node.(type) {
@@ -277,7 +277,7 @@ func importSpec(ctx context.Context, f GoFile, fAST *ast.File, pkg Package, pos 
 	}
 	importPath, err := strconv.Unquote(imp.Path.Value)
 	if err != nil {
-		return nil, fmt.Errorf("import path not quoted: %s (%v)", imp.Path.Value, err)
+		return nil, errors.Errorf("import path not quoted: %s (%v)", imp.Path.Value, err)
 	}
 	result := &IdentifierInfo{
 		File:  f,
@@ -288,10 +288,10 @@ func importSpec(ctx context.Context, f GoFile, fAST *ast.File, pkg Package, pos 
 	// Consider the "declaration" of an import spec to be the imported package.
 	importedPkg := pkg.GetImport(importPath)
 	if importedPkg == nil {
-		return nil, fmt.Errorf("no import for %q", importPath)
+		return nil, errors.Errorf("no import for %q", importPath)
 	}
 	if importedPkg.GetSyntax(ctx) == nil {
-		return nil, fmt.Errorf("no syntax for for %q", importPath)
+		return nil, errors.Errorf("no syntax for for %q", importPath)
 	}
 	// Heuristic: Jump to the longest (most "interesting") file of the package.
 	var dest *ast.File
@@ -301,7 +301,7 @@ func importSpec(ctx context.Context, f GoFile, fAST *ast.File, pkg Package, pos 
 		}
 	}
 	if dest == nil {
-		return nil, fmt.Errorf("package %q has no files", importPath)
+		return nil, errors.Errorf("package %q has no files", importPath)
 	}
 	result.decl.rng = span.NewRange(f.FileSet(), dest.Name.Pos(), dest.Name.End())
 	result.decl.node = imp

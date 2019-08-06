@@ -15,6 +15,7 @@ import (
 	"golang.org/x/tools/internal/lsp/telemetry/tag"
 	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/span"
+	errors "golang.org/x/xerrors"
 )
 
 func (v *view) loadParseTypecheck(ctx context.Context, f *goFile) ([]packages.Error, error) {
@@ -55,11 +56,11 @@ func (v *view) loadParseTypecheck(ctx context.Context, f *goFile) ([]packages.Er
 			return nil, err
 		}
 		if pkg == nil || pkg.IsIllTyped() {
-			return nil, fmt.Errorf("loadParseTypecheck: %s is ill typed", m.pkgPath)
+			return nil, errors.Errorf("loadParseTypecheck: %s is ill typed", m.pkgPath)
 		}
 	}
 	if len(f.pkgs) == 0 {
-		return nil, fmt.Errorf("no packages found for %s", f.URI())
+		return nil, errors.Errorf("no packages found for %s", f.URI())
 	}
 	return nil, nil
 }
@@ -93,7 +94,7 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile) (map[packageID]*met
 	pkgs, err := packages.Load(v.Config(ctx), fmt.Sprintf("file=%s", f.filename()))
 	if len(pkgs) == 0 {
 		if err == nil {
-			err = fmt.Errorf("go/packages.Load: no packages found for %s", f.filename())
+			err = errors.Errorf("go/packages.Load: no packages found for %s", f.filename())
 		}
 		// Return this error as a diagnostic to the user.
 		return nil, []packages.Error{
@@ -112,7 +113,7 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile) (map[packageID]*met
 		// If the package comes back with errors from `go list`,
 		// don't bother type-checking it.
 		if len(pkg.Errors) > 0 {
-			return nil, pkg.Errors, fmt.Errorf("package %s has errors, skipping type-checking", pkg.PkgPath)
+			return nil, pkg.Errors, errors.Errorf("package %s has errors, skipping type-checking", pkg.PkgPath)
 		}
 		// Build the import graph for this package.
 		if err := v.link(ctx, packagePath(pkg.PkgPath), pkg, nil, missingImports); err != nil {
@@ -132,7 +133,7 @@ func validateMetadata(ctx context.Context, missingImports map[packagePath]struct
 
 	// If `go list` failed to get data for the file in question (this should never happen).
 	if len(f.meta) == 0 {
-		return nil, fmt.Errorf("loadParseTypecheck: no metadata found for %v", f.filename())
+		return nil, errors.Errorf("loadParseTypecheck: no metadata found for %v", f.filename())
 	}
 
 	// If we have already seen these missing imports before, and we have type information,
@@ -254,7 +255,7 @@ func (v *view) link(ctx context.Context, pkgPath packagePath, pkg *packages.Pack
 	for importPath, importPkg := range pkg.Imports {
 		importPkgPath := packagePath(importPath)
 		if importPkgPath == pkgPath {
-			return fmt.Errorf("cycle detected in %s", importPath)
+			return errors.Errorf("cycle detected in %s", importPath)
 		}
 		// Don't remember any imports with significant errors.
 		if importPkgPath != "unsafe" && len(pkg.CompiledGoFiles) == 0 {

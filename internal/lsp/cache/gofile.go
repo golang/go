@@ -6,7 +6,6 @@ package cache
 
 import (
 	"context"
-	"fmt"
 	"go/ast"
 	"go/token"
 	"sync"
@@ -15,6 +14,7 @@ import (
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/lsp/telemetry/log"
 	"golang.org/x/tools/internal/span"
+	errors "golang.org/x/xerrors"
 )
 
 // goFile holds all of the information we know about a Go file.
@@ -55,7 +55,7 @@ func (f *goFile) GetToken(ctx context.Context) (*token.File, error) {
 	}
 	tok := f.view.session.cache.fset.File(file.Pos())
 	if tok == nil {
-		return nil, fmt.Errorf("no token.File for %s", f.URI())
+		return nil, errors.Errorf("no token.File for %s", f.URI())
 	}
 	return tok, nil
 }
@@ -67,7 +67,7 @@ func (f *goFile) GetAST(ctx context.Context, mode source.ParseMode) (*ast.File, 
 
 	if f.isDirty(ctx) || f.wrongParseMode(ctx, mode) {
 		if _, err := f.view.loadParseTypecheck(ctx, f); err != nil {
-			return nil, fmt.Errorf("GetAST: unable to check package for %s: %v", f.URI(), err)
+			return nil, errors.Errorf("GetAST: unable to check package for %s: %v", f.URI(), err)
 		}
 	}
 	fh := f.Handle(ctx)

@@ -6,10 +6,10 @@ package lsp
 
 import (
 	"context"
-	"fmt"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
+	errors "golang.org/x/xerrors"
 )
 
 func (s *Server) changeFolders(ctx context.Context, event protocol.WorkspaceFoldersChangeEvent) error {
@@ -18,7 +18,7 @@ func (s *Server) changeFolders(ctx context.Context, event protocol.WorkspaceFold
 		if view != nil {
 			view.Shutdown(ctx)
 		} else {
-			return fmt.Errorf("view %s for %v not found", folder.Name, folder.URI)
+			return errors.Errorf("view %s for %v not found", folder.Name, folder.URI)
 		}
 	}
 

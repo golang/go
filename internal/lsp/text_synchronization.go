@@ -7,7 +7,6 @@ package lsp
 import (
 	"bytes"
 	"context"
-	"fmt"
 
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -16,6 +15,7 @@ import (
 	"golang.org/x/tools/internal/lsp/telemetry/log"
 	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/span"
+	errors "golang.org/x/xerrors"
 )
 
 func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) error {
@@ -54,7 +54,7 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 	if !isFullChange {
 		switch s.textDocumentSyncKind {
 		case protocol.Full:
-			return fmt.Errorf("expected a full content change, received incremental changes for %s", uri)
+			return errors.Errorf("expected a full content change, received incremental changes for %s", uri)
 		case protocol.Incremental:
 			// Determine the new file content.
 			var err error

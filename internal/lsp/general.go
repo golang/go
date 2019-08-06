@@ -18,6 +18,7 @@ import (
 	"golang.org/x/tools/internal/lsp/telemetry/log"
 	"golang.org/x/tools/internal/lsp/telemetry/tag"
 	"golang.org/x/tools/internal/span"
+	errors "golang.org/x/xerrors"
 )
 
 func (s *Server) initialize(ctx context.Context, params *protocol.InitializeParams) (*protocol.InitializeResult, error) {
@@ -64,7 +65,7 @@ func (s *Server) initialize(ctx context.Context, params *protocol.InitializePara
 			// no folders and no root, single file mode
 			//TODO(iancottrell): not sure how to do single file mode yet
 			//issue: golang.org/issue/31168
-			return nil, fmt.Errorf("single file mode not supported yet")
+			return nil, errors.Errorf("single file mode not supported yet")
 		}
 	}
 
@@ -191,13 +192,13 @@ func (s *Server) processConfig(ctx context.Context, view source.View, config int
 	}
 	c, ok := config.(map[string]interface{})
 	if !ok {
-		return fmt.Errorf("invalid config gopls type %T", config)
+		return errors.Errorf("invalid config gopls type %T", config)
 	}
 	// Get the environment for the go/packages config.
 	if env := c["env"]; env != nil {
 		menv, ok := env.(map[string]interface{})
 		if !ok {
-			return fmt.Errorf("invalid config gopls.env type %T", env)
+			return errors.Errorf("invalid config gopls.env type %T", env)
 		}
 		env := view.Env()
 		for k, v := range menv {
@@ -209,7 +210,7 @@ func (s *Server) processConfig(ctx context.Context, view source.View, config int
 	if buildFlags := c["buildFlags"]; buildFlags != nil {
 		iflags, ok := buildFlags.([]interface{})
 		if !ok {
-			return fmt.Errorf("invalid config gopls.buildFlags type %T", buildFlags)
+			return errors.Errorf("invalid config gopls.buildFlags type %T", buildFlags)
 		}
 		flags := make([]string, 0, len(iflags))
 		for _, flag := range iflags {

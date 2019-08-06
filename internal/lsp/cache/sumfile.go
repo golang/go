@@ -6,8 +6,9 @@ package cache
 
 import (
 	"context"
-	"fmt"
 	"go/token"
+
+	errors "golang.org/x/xerrors"
 )
 
 // sumFile holds all of the information we know about a sum file.
@@ -16,7 +17,7 @@ type sumFile struct {
 }
 
 func (*sumFile) GetToken(context.Context) (*token.File, error) {
-	return nil, fmt.Errorf("GetToken: not implemented")
+	return nil, errors.Errorf("GetToken: not implemented")
 }
 
 func (*sumFile) setContent(content []byte) {}

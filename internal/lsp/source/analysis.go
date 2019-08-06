@@ -20,6 +20,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/lsp/telemetry/trace"
+	errors "golang.org/x/xerrors"
 )
 
 func analyze(ctx context.Context, v View, pkgs []Package, analyzers []*analysis.Analyzer) ([]*Action, error) {
@@ -119,7 +120,7 @@ func (act *Action) execOnce(ctx context.Context, fset *token.FileSet) error {
 	}
 	if failed != nil {
 		sort.Strings(failed)
-		act.err = fmt.Errorf("failed prerequisites: %s", strings.Join(failed, ", "))
+		act.err = errors.Errorf("failed prerequisites: %s", strings.Join(failed, ", "))
 		return act.err
 	}
 
@@ -163,12 +164,12 @@ func (act *Action) execOnce(ctx context.Context, fset *token.FileSet) error {
 	act.pass = pass
 
 	if act.Pkg.IsIllTyped() && !pass.Analyzer.RunDespiteErrors {
-		act.err = fmt.Errorf("analysis skipped due to errors in package: %v", act.Pkg.GetErrors())
+		act.err = errors.Errorf("analysis skipped due to errors in package: %v", act.Pkg.GetErrors())
 	} else {
 		act.result, act.err = pass.Analyzer.Run(pass)
 		if act.err == nil {
 			if got, want := reflect.TypeOf(act.result), pass.Analyzer.ResultType; got != want {
-				act.err = fmt.Errorf(
+				act.err = errors.Errorf(
 					"internal error: on package %s, analyzer %s returned a result of type %v, but declared ResultType %v",
 					pass.Pkg.Path(), pass.Analyzer, got, want)
 			}

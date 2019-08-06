@@ -6,13 +6,13 @@ package source
 
 import (
 	"context"
-	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/lsp/telemetry/trace"
+	errors "golang.org/x/xerrors"
 )
 
 type SignatureInformation struct {
@@ -35,14 +35,14 @@ func SignatureHelp(ctx context.Context, f GoFile, pos token.Pos) (*SignatureInfo
 	}
 	pkg := f.GetPackage(ctx)
 	if pkg == nil || pkg.IsIllTyped() {
-		return nil, fmt.Errorf("package for %s is ill typed", f.URI())
+		return nil, errors.Errorf("package for %s is ill typed", f.URI())
 	}
 
 	// Find a call expression surrounding the query position.
 	var callExpr *ast.CallExpr
 	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
 	if path == nil {
-		return nil, fmt.Errorf("cannot find node enclosing position")
+		return nil, errors.Errorf("cannot find node enclosing position")
 	}
 FindCall:
 	for _, node := range path {
@@ -56,11 +56,11 @@ FindCall:
 			// The user is within an anonymous function,
 			// which may be the parameter to the *ast.CallExpr.
 			// Don't show signature help in this case.
-			return nil, fmt.Errorf("no signature help within a function declaration")
+			return nil, errors.Errorf("no signature help within a function declaration")
 		}
 	}
 	if callExpr == nil || callExpr.Fun == nil {
-		return nil, fmt.Errorf("cannot find an enclosing function")
+		return nil, errors.Errorf("cannot find an enclosing function")
 	}
 
 	// Get the object representing the function, if available.
@@ -82,12 +82,12 @@ FindCall:
 	// Get the type information for the function being called.
 	sigType := pkg.GetTypesInfo().TypeOf(callExpr.Fun)
 	if sigType == nil {
-		return nil, fmt.Errorf("cannot get type for Fun %[1]T (%[1]v)", callExpr.Fun)
+		return nil, errors.Errorf("cannot get type for Fun %[1]T (%[1]v)", callExpr.Fun)
 	}
 
 	sig, _ := sigType.Underlying().(*types.Signature)
 	if sig == nil {
-		return nil, fmt.Errorf("cannot find signature for Fun %[1]T (%[1]v)", callExpr.Fun)
+		return nil, errors.Errorf("cannot find signature for Fun %[1]T (%[1]v)", callExpr.Fun)
 	}
 
 	qf := qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo())
@@ -128,7 +128,7 @@ FindCall:
 func builtinSignature(ctx context.Context, v View, callExpr *ast.CallExpr, name string, pos token.Pos) (*SignatureInformation, error) {
 	decl, ok := lookupBuiltinDecl(v, name).(*ast.FuncDecl)
 	if !ok {
-		return nil, fmt.Errorf("no function declaration for builtin: %s", name)
+		return nil, errors.Errorf("no function declaration for builtin: %s", name)
 	}
 	params, _ := formatFieldList(ctx, v, decl.Type.Params)
 	results, writeResultParens := formatFieldList(ctx, v, decl.Type.Results)

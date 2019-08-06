@@ -6,7 +6,6 @@ package lsp
 
 import (
 	"context"
-	"fmt"
 	"go/ast"
 	"go/token"
 	"regexp"
@@ -18,6 +17,7 @@ import (
 	"golang.org/x/tools/internal/lsp/telemetry/log"
 	"golang.org/x/tools/internal/lsp/telemetry/tag"
 	"golang.org/x/tools/internal/span"
+	errors "golang.org/x/xerrors"
 )
 
 func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLinkParams) ([]protocol.DocumentLink, error) {
@@ -82,7 +82,7 @@ func findLinksInString(src string, pos token.Pos, view source.View, mapper *prot
 	var links []protocol.DocumentLink
 	re, err := getURLRegexp()
 	if err != nil {
-		return nil, fmt.Errorf("cannot create regexp for links: %s", err.Error())
+		return nil, errors.Errorf("cannot create regexp for links: %s", err.Error())
 	}
 	for _, urlIndex := range re.FindAllIndex([]byte(src), -1) {
 		start := urlIndex[0]
