@@ -841,7 +841,20 @@ func invokeGo(cfg *Config, args ...string) (*bytes.Buffer, error) {
 			return bytes.NewBufferString(output), nil
 		}
 
+		// Backwards compatibility for Go 1.11 because 1.12 and 1.13 put the directory in the ImportPath.
+		// If the package doesn't exist, put the absolute path of the directory into the error message,
+		// as Go 1.13 list does.
+		const noSuchDirectory = "no such directory"
+		if len(stderr.String()) > 0 && strings.Contains(stderr.String(), noSuchDirectory) {
+			errstr := stderr.String()
+			abspath := strings.TrimSpace(errstr[strings.Index(errstr, noSuchDirectory)+len(noSuchDirectory):])
+			output := fmt.Sprintf(`{"ImportPath": %q,"Incomplete": true,"Error": {"Pos": "","Err": %q}}`,
+				abspath, strings.Trim(stderr.String(), "\n"))
+			return bytes.NewBufferString(output), nil
+		}
+
 		// Workaround for #29280: go list -e has incorrect behavior when an ad-hoc package doesn't exist.
+		// Note that the error message we look for in this case is different that the one looked for above.
 		if len(stderr.String()) > 0 && strings.Contains(stderr.String(), "no such file or directory") {
 			output := fmt.Sprintf(`{"ImportPath": "command-line-arguments","Incomplete": true,"Error": {"Pos": "","Err": %q}}`,
 				strings.Trim(stderr.String(), "\n"))
