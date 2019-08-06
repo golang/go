@@ -111,7 +111,7 @@ func makechan(t *chantype, size int) *hchan {
 	c.dataqsiz = uint(size)
 
 	if debugChan {
-		print("makechan: chan=", c, "; elemsize=", elem.size, "; elemalg=", elem.alg, "; dataqsiz=", size, "\n")
+		print("makechan: chan=", c, "; elemsize=", elem.size, "; dataqsiz=", size, "\n")
 	}
 	return c
 }
