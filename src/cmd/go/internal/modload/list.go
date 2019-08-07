@@ -5,6 +5,7 @@
 package modload
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -70,9 +71,7 @@ func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
 				mods = append(mods, &modinfo.ModulePublic{
 					Path:    path,
 					Version: vers,
-					Error: &modinfo.ModuleError{
-						Err: err.Error(),
-					},
+					Error:   modinfoError(path, vers, err),
 				})
 				continue
 			}
@@ -116,19 +115,15 @@ func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
 						mods = append(mods, moduleInfo(module.Version{Path: arg, Version: info.Version}, false))
 					} else {
 						mods = append(mods, &modinfo.ModulePublic{
-							Path: arg,
-							Error: &modinfo.ModuleError{
-								Err: err.Error(),
-							},
+							Path:  arg,
+							Error: modinfoError(arg, "", err),
 						})
 					}
 					continue
 				}
 				mods = append(mods, &modinfo.ModulePublic{
-					Path: arg,
-					Error: &modinfo.ModuleError{
-						Err: fmt.Sprintf("module %q is not a known dependency", arg),
-					},
+					Path:  arg,
+					Error: modinfoError(arg, "", errors.New("not a known dependency")),
 				})
 			} else {
 				fmt.Fprintf(os.Stderr, "warning: pattern %q matched no module dependencies\n", arg)
@@ -137,4 +132,22 @@ func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
 	}
 
 	return mods
+}
+
+// modinfoError wraps an error to create an error message in
+// modinfo.ModuleError with minimal redundancy.
+func modinfoError(path, vers string, err error) *modinfo.ModuleError {
+	var nerr *NoMatchingVersionError
+	var merr *module.ModuleError
+	if errors.As(err, &nerr) {
+		// NoMatchingVersionError contains the query, so we don't mention the
+		// query again in ModuleError.
+		err = &module.ModuleError{Path: path, Err: err}
+	} else if !errors.As(err, &merr) {
+		// If the error does not contain path and version, wrap it in a
+		// module.ModuleError.
+		err = &module.ModuleError{Path: path, Version: vers, Err: err}
+	}
+
+	return &modinfo.ModuleError{Err: err.Error()}
 }
