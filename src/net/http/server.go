@@ -2013,11 +2013,11 @@ func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
 // It does not otherwise end the request; the caller should ensure no further
 // writes are done to w.
 // The error message should be plain text.
-func Error(w ResponseWriter, error string, code int) {
+func Error(w ResponseWriter, message string, code int) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(code)
-	fmt.Fprintln(w, error)
+	fmt.Fprintln(w, message)
 }
 
 // NotFound replies to the request with an HTTP 404 not found error.
@@ -2205,9 +2205,7 @@ type muxEntry struct {
 func NewServeMux() *ServeMux { return new(ServeMux) }
 
 // DefaultServeMux is the default ServeMux used by Serve.
-var DefaultServeMux = &defaultServeMux
-
-var defaultServeMux ServeMux
+var DefaultServeMux = NewServeMux()
 
 // cleanPath returns the canonical path for p, eliminating . and .. elements.
 func cleanPath(p string) string {
