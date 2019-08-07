@@ -46,7 +46,7 @@
 // The canonical way to strip a monotonic clock reading is to use t = t.Round(0).
 //
 // If Times t and u both contain monotonic clock readings, the operations
-// t.After(u), t.Before(u), t.Equal(u), and t.Sub(u) are carried out
+// t.After(u), t.AfterOrEqual(u), t.Before(u), t.BeforeOrEqual(u), t.Equal(u), and t.Sub(u) are carried out
 // using the monotonic clock readings alone, ignoring the wall clock
 // readings. If either t or u contains no monotonic clock reading, these
 // operations fall back to using the wall clock readings.
@@ -242,9 +242,18 @@ func (t Time) After(u Time) bool {
 	if t.wall&u.wall&hasMonotonic != 0 {
 		return t.ext > u.ext
 	}
-	ts := t.sec()
-	us := u.sec()
+	ts, us := t.sec(), u.sec()
 	return ts > us || ts == us && t.nsec() > u.nsec()
+}
+
+// After or equal reports whether the time instant t is after or equals u.
+func (t Time) AfterOrEqual(u Time) bool {
+	if t.wall&u.wall&hasMonotonic != 0 {
+		return t.ext >= u.ext
+	}
+	ts, us := t.sec(), u.sec()
+	tn, un := t.nsec(), u.nsec()
+	return (ts > us || ts == us) && (tn > un || tn == un)
 }
 
 // Before reports whether the time instant t is before u.
@@ -252,7 +261,18 @@ func (t Time) Before(u Time) bool {
 	if t.wall&u.wall&hasMonotonic != 0 {
 		return t.ext < u.ext
 	}
-	return t.sec() < u.sec() || t.sec() == u.sec() && t.nsec() < u.nsec()
+	ts, us := t.sec(), u.sec()
+	return ts < us || ts == us && t.nsec() < u.nsec()
+}
+
+// Before or equal reports whether the time instant t is before or equals u.
+func (t Time) BeforeOrEqual(u Time) bool {
+	if t.wall&u.wall&hasMonotonic != 0 {
+		return t.ext <= u.ext
+	}
+	ts, us := t.sec(), u.sec()
+	tn, un := t.nsec(), u.nsec()
+	return (ts < us || ts == us) && (tn < un || tn == un)
 }
 
 // Equal reports whether t and u represent the same time instant.
