@@ -10,28 +10,26 @@ package io
 import (
 	"errors"
 	"sync"
-	"sync/atomic"
 )
 
-// atomicError is a type-safe atomic value for errors.
-// We use a struct{ error } to ensure consistent use of a concrete type.
-type atomicError struct {
-	v atomic.Value
-	sync.Mutex
+// onceError is an object that will only store an error once.
+type onceError struct {
+	sync.Mutex // guards following
+	err        error
 }
 
-func (a *atomicError) Store(err error) {
+func (a *onceError) Store(err error) {
 	a.Lock()
 	defer a.Unlock()
-	prvErr := a.Load()
-	if prvErr != nil {
+	if a.err != nil {
 		return
 	}
-	a.v.Store(struct{ error }{err})
+	a.err = err
 }
-func (a *atomicError) Load() error {
-	err, _ := a.v.Load().(struct{ error })
-	return err.error
+func (a *onceError) Load() error {
+	a.Lock()
+	defer a.Unlock()
+	return a.err
 }
 
 // ErrClosedPipe is the error used for read or write operations on a closed pipe.
@@ -45,8 +43,8 @@ type pipe struct {
 
 	once sync.Once // Protects closing done
 	done chan struct{}
-	rerr atomicError
-	werr atomicError
+	rerr onceError
+	werr onceError
 }
 
 func (p *pipe) Read(b []byte) (n int, err error) {
@@ -145,7 +143,7 @@ func (r *PipeReader) Close() error {
 // CloseWithError closes the reader; subsequent writes
 // to the write half of the pipe will return the error err.
 //
-// CloseWithError never overwrites the previous error if exists
+// CloseWithError never overwrites the previous error if it exists
 // and always returns nil.
 func (r *PipeReader) CloseWithError(err error) error {
 	return r.p.CloseRead(err)
@@ -175,7 +173,7 @@ func (w *PipeWriter) Close() error {
 // read half of the pipe will return no bytes and the error err,
 // or EOF if err is nil.
 //
-// CloseWithError never overwrites the previous error if exists
+// CloseWithError never overwrites the previous error if it exists
 // and always returns nil.
 func (w *PipeWriter) CloseWithError(err error) error {
 	return w.p.CloseWrite(err)
