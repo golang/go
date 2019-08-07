@@ -395,7 +395,7 @@ func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 			t.Fatalf("failed to get token for %s: %v", d.Src.URI(), err)
 		}
 		pos := tok.Pos(d.Src.Start().Offset())
-		ident, err := source.Identifier(ctx, r.view, f.(source.GoFile), pos)
+		ident, err := source.Identifier(ctx, f.(source.GoFile), pos)
 		if err != nil {
 			t.Fatalf("failed for %v: %v", d.Src, err)
 		}
@@ -468,7 +468,7 @@ func (r *runner) Reference(t *testing.T, data tests.References) {
 			t.Fatalf("failed to get token for %s: %v", src.URI(), err)
 		}
 		pos := tok.Pos(src.Start().Offset())
-		ident, err := source.Identifier(ctx, r.view, f.(source.GoFile), pos)
+		ident, err := source.Identifier(ctx, f.(source.GoFile), pos)
 		if err != nil {
 			t.Fatalf("failed for %v: %v", src, err)
 		}
@@ -519,7 +519,7 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 		}
 		pos := tok.Pos(spn.Start().Offset())
 
-		ident, err := source.Identifier(r.ctx, r.view, f.(source.GoFile), pos)
+		ident, err := source.Identifier(r.ctx, f.(source.GoFile), pos)
 		if err != nil {
 			t.Error(err)
 			continue

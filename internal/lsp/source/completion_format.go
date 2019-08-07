@@ -118,7 +118,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 			log.Error(c.ctx, "declaration in a Go file", err, tag.Of("Label", item.Label))
 			goto Return
 		}
-		ident, err := Identifier(c.ctx, c.view, gof, declRange.Start)
+		ident, err := Identifier(c.ctx, gof, declRange.Start)
 		if err != nil {
 			log.Error(c.ctx, "no identifier", err, tag.Of("Name", obj.Name()))
 			goto Return

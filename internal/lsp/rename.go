@@ -27,7 +27,7 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 	if err != nil {
 		return nil, err
 	}
-	ident, err := source.Identifier(ctx, view, f, rng.Start)
+	ident, err := source.Identifier(ctx, f, rng.Start)
 	if err != nil {
 		return nil, err
 	}

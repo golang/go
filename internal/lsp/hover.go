@@ -6,6 +6,7 @@ package lsp
 
 import (
 	"context"
+
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -26,7 +27,7 @@ func (s *Server) hover(ctx context.Context, params *protocol.TextDocumentPositio
 	if err != nil {
 		return nil, err
 	}
-	ident, err := source.Identifier(ctx, view, f, identRange.Start)
+	ident, err := source.Identifier(ctx, f, identRange.Start)
 	if err != nil {
 		return nil, nil
 	}

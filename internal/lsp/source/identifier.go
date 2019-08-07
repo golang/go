@@ -47,25 +47,7 @@ func (i *IdentifierInfo) DeclarationRange() span.Range {
 
 // Identifier returns identifier information for a position
 // in a file, accounting for a potentially incomplete selector.
-func Identifier(ctx context.Context, view View, f GoFile, pos token.Pos) (*IdentifierInfo, error) {
-	if result, err := identifier(ctx, view, f, pos); err != nil || result != nil {
-		return result, err
-	}
-	// If the position is not an identifier but immediately follows
-	// an identifier or selector period (as is common when
-	// requesting a completion), use the path to the preceding node.
-	result, err := identifier(ctx, view, f, pos-1)
-	if result == nil && err == nil {
-		err = errors.Errorf("no identifier found")
-	}
-	return result, err
-}
-
-// identifier checks a single position for a potential identifier.
-func identifier(ctx context.Context, view View, f GoFile, pos token.Pos) (*IdentifierInfo, error) {
-	ctx, done := trace.StartSpan(ctx, "source.identifier")
-	defer done()
-
+func Identifier(ctx context.Context, f GoFile, pos token.Pos) (*IdentifierInfo, error) {
 	file, err := f.GetAST(ctx, ParseFull)
 	if file == nil {
 		return nil, err
@@ -74,6 +56,30 @@ func identifier(ctx context.Context, view View, f GoFile, pos token.Pos) (*Ident
 	if pkg == nil || pkg.IsIllTyped() {
 		return nil, errors.Errorf("pkg for %s is ill-typed", f.URI())
 	}
+	return findIdentifier(ctx, f, pkg, file, pos)
+}
+
+func findIdentifier(ctx context.Context, f GoFile, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
+	if result, err := identifier(ctx, f, pkg, file, pos); err != nil || result != nil {
+		return result, err
+	}
+	// If the position is not an identifier but immediately follows
+	// an identifier or selector period (as is common when
+	// requesting a completion), use the path to the preceding node.
+	result, err := identifier(ctx, f, pkg, file, pos-1)
+	if result == nil && err == nil {
+		err = errors.Errorf("no identifier found")
+	}
+	return result, err
+}
+
+// identifier checks a single position for a potential identifier.
+func identifier(ctx context.Context, f GoFile, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
+	ctx, done := trace.StartSpan(ctx, "source.identifier")
+	defer done()
+
+	var err error
+
 	// Handle import specs separately, as there is no formal position for a package declaration.
 	if result, err := importSpec(ctx, f, file, pkg, pos); result != nil || err != nil {
 		return result, err
@@ -157,7 +163,7 @@ func identifier(ctx context.Context, view View, f GoFile, pos token.Pos) (*Ident
 	if result.decl.rng, err = objToRange(ctx, f.FileSet(), result.decl.obj); err != nil {
 		return nil, err
 	}
-	if result.decl.node, err = objToNode(ctx, view, pkg.GetTypes(), result.decl.obj, result.decl.rng); err != nil {
+	if result.decl.node, err = objToNode(ctx, f.View(), pkg.GetTypes(), result.decl.obj, result.decl.rng); err != nil {
 		return nil, err
 	}
 	typ := pkg.GetTypesInfo().TypeOf(result.ident)

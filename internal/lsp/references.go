@@ -30,7 +30,7 @@ func (s *Server) references(ctx context.Context, params *protocol.ReferenceParam
 		return nil, err
 	}
 	// Find all references to the identifier at the position.
-	ident, err := source.Identifier(ctx, view, f, rng.Start)
+	ident, err := source.Identifier(ctx, f, rng.Start)
 	if err != nil {
 		return nil, err
 	}
