@@ -258,6 +258,21 @@ func runContainsQueries(cfg *Config, driver driver, response *responseDeduper, q
 				// Return the original error if the attempt to fall back failed.
 				return err
 			}
+			// Special case to handle issue #33482:
+			// If this is a file= query for ad-hoc packages where the file only exists on an overlay,
+			// and exists outside of a module, add the file in for the package.
+			if len(dirResponse.Packages) == 1 && len(dirResponse.Packages) == 1 &&
+				dirResponse.Packages[0].ID == "command-line-arguments" && len(dirResponse.Packages[0].GoFiles) == 0 {
+				filename := filepath.Join(pattern, filepath.Base(query)) // avoid recomputing abspath
+				// TODO(matloob): check if the file is outside of a root dir?
+				for path := range cfg.Overlay {
+					if path == filename {
+						dirResponse.Packages[0].Errors = nil
+						dirResponse.Packages[0].GoFiles = []string{path}
+						dirResponse.Packages[0].CompiledGoFiles = []string{path}
+					}
+				}
+			}
 		}
 		isRoot := make(map[string]bool, len(dirResponse.Roots))
 		for _, root := range dirResponse.Roots {

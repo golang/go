@@ -50,7 +50,7 @@ func processGolistOverlay(cfg *Config, response *responseDeduper, rootDirs func(
 		}
 	nextPackage:
 		for _, p := range response.dr.Packages {
-			if pkgName != p.Name {
+			if pkgName != p.Name && p.ID != "command-line-arguments" {
 				continue
 			}
 			for _, f := range p.GoFiles {

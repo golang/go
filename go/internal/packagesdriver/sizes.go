@@ -82,15 +82,28 @@ func GetSizesGolist(ctx context.Context, buildFlags, env []string, dir string, u
 	args = append(args, buildFlags...)
 	args = append(args, "--", "unsafe")
 	stdout, err := InvokeGo(ctx, env, dir, usesExportData, args...)
+	var goarch, compiler string
 	if err != nil {
-		return nil, err
+		if strings.Contains(err.Error(), "cannot find main module") {
+			// User's running outside of a module. All bets are off. Get GOARCH and guess compiler is gc.
+			// TODO(matloob): Is this a problem in practice?
+			envout, enverr := InvokeGo(ctx, env, dir, usesExportData, "env", "GOARCH")
+			if enverr != nil {
+				return nil, err
+			}
+			goarch = strings.TrimSpace(envout.String())
+			compiler = "gc"
+		} else {
+			return nil, err
+		}
+	} else {
+		fields := strings.Fields(stdout.String())
+		if len(fields) < 2 {
+			return nil, fmt.Errorf("could not determine GOARCH and Go compiler")
+		}
+		goarch = fields[0]
+		compiler = fields[1]
 	}
-	fields := strings.Fields(stdout.String())
-	if len(fields) < 2 {
-		return nil, fmt.Errorf("could not determine GOARCH and Go compiler")
-	}
-	goarch := fields[0]
-	compiler := fields[1]
 	return types.SizesFor(compiler, goarch), nil
 }
 

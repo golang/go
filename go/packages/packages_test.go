@@ -1011,9 +1011,6 @@ func testNewPackagesInOverlay(t *testing.T, exporter packagestest.Exporter) {
 }
 
 func TestAdHocOverlays(t *testing.T) {
-	// Enable this test when https://golang.org/issue/33482 is resolved.
-	t.Skip()
-
 	// This test doesn't use packagestest because we are testing ad-hoc packages,
 	// which are outside of $GOPATH and outside of a module.
 	tmp, err := ioutil.TempDir("", "a")
@@ -1039,6 +1036,9 @@ const A = 1
 	}
 	// Check value of a.A.
 	a := initial[0]
+	if a.Errors != nil {
+		t.Fatalf("a: got errors %+v, want no error", err)
+	}
 	aA := constant(a, "A")
 	if aA == nil {
 		t.Errorf("a.A: got nil")
@@ -1048,7 +1048,6 @@ const A = 1
 	if want := "1"; got != want {
 		t.Errorf("a.A: got %s, want %s", got, want)
 	}
-
 }
 
 func TestLoadAllSyntaxImportErrors(t *testing.T) {
