@@ -16,22 +16,25 @@ type _ contract(){}
 type _ contract(A, B, A /* ERROR A redeclared */ ){}
 
 // method constraints
-// Methods may be declaration multiple times as long as they have matching signatures.
-// TODO(gri) The "correct" way of doing this is perhaps to allow multiple declarations
-// only they appear though embedding (where they are harder to avoid), but not in general.
 contract _(A) { A } /* ERROR expected type */
 contract _(A) { A m(); A add(A) int }
-//contract _(A) { B /* ERROR B not declared by contract */ m() }
-contract _(A) { A m(); A m() } // double declaration with same signature is ok
+contract _(A) { B /* ERROR B not declared by contract */ m() }
+contract _(A) { A m(); A m /* ERROR already declared */ () }
 contract _(A) {
         A m()
-//        A m /* ERROR already declared */ () int
+        A m /* ERROR already declared */ () int
 }
 contract _(A, B) {
         A m(x int) B
         B m(x int) A
-        A m(x int) B // double declaration with same signature is ok
-//       B m /* ERROR already declared */ (x int) B // double declaration with different signature is not ok
+        A m /* ERROR already declared */ (x int) B
+        B m /* ERROR already declared */ (x int) B
+}
+
+contract _(A) {
+        A m1(), m2 /* ERROR cannot have more than one method */ ()
+        A m3(), int /* ERROR cannot mix types and methods */
+        A int, float32, m4(), string /* ERROR cannot mix types and methods */
 }
 
 // type constraints
@@ -39,16 +42,35 @@ contract _(A, B) {
 // TODO(gri) The "correct" way of doing this is perhaps to allow multiple declarations
 // only when they appear though embedding (where they are harder to avoid), but not in general.
 contract _(A) { A A }
-//contract _(A) { A B /* ERROR undeclared name: B */ }
+contract _(A) { A B /* ERROR undeclared name: B */ }
 contract _(A) { A int }
 contract _(A) { A []int }
-//contract _(A) { A []B /* ERROR undeclared name: B */ }
-//contract C(A) { A [ /* ERROR invalid type constraint */ ]C }
+contract _(A) { A []B /* ERROR undeclared name: B */ }
+contract C(A) { A [ /* ERROR invalid type constraint */ ]C }
 contract _(A) { A struct { f int } }
 contract _(A, B) { A B }
 
 // embedded contracts
 contract E() {}
 contract _() {
-        //E /* ERROR embedding not yet implemented */ ()
+//        E /* ERROR embedding not yet implemented */
 }
+
+// --------------------------------------------------------------------------------------
+// Contract implementation
+
+contract Stringer(T) {
+        T String() string
+}
+
+type List(type T Stringer) struct{
+        data T
+        link *List(T)
+}
+
+var _ List(MyData)
+var _ List(int) // TODO(gri) should get an error here: int doesn't implement the Stringer contract
+
+type MyData string
+
+func (s MyData) String() string { return string(s) }

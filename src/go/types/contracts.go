@@ -8,7 +8,6 @@ package types
 
 import (
 	"go/ast"
-	"go/token"
 	"sort"
 )
 
@@ -16,80 +15,121 @@ import (
 // won't exclude a contract where we only permit a type. Investigate.
 
 func (check *Checker) contractType(contr *Contract, e *ast.ContractType) {
-	scope := NewScope(check.scope, token.NoPos, token.NoPos, "contract type parameters")
+	pos := e.Lbrace
+	if len(e.TParams) > 0 {
+		pos = e.TParams[0].Pos()
+	}
+	scope := NewScope(check.scope, pos, e.Rbrace, "contract type parameters")
 	check.scope = scope
 	defer check.closeScope()
 	check.recordScope(e, scope)
 
 	// collect type parameters
+	tparams := make([]*TypeName, len(e.TParams))
 	for index, name := range e.TParams {
 		tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
 		NewTypeParam(tpar, index) // assigns type to tpar as a side-effect
 		check.declare(scope, name, tpar, scope.pos)
-		contr.TParams = append(contr.TParams, tpar)
+		tparams[index] = tpar
 	}
 
+	// each type parameter's constraints are represented by an interface
+	ifaces := make(map[*TypeName]*Interface)
+
 	addMethod := func(tpar *TypeName, m *Func) {
-		cs := contr.insert(tpar)
-		iface := cs.Iface
+		iface := ifaces[tpar]
 		if iface == nil {
 			iface = new(Interface)
-			cs.Iface = iface
+			ifaces[tpar] = iface
 		}
 		iface.methods = append(iface.methods, m)
 	}
-	_ = addMethod
-
-	addType := func(tpar *TypeName, typ Type) {
-		cs := contr.insert(tpar)
-		// TODO(gri) should we complain about duplicate types?
-		cs.Types = append(cs.Types, typ)
-	}
-	_ = addType
 
 	// collect constraints
 	for _, c := range e.Constraints {
 		if c.Param != nil {
-			// TODO(gri) update this code
-			/*
-				// If a type name is present, it must be one of the contract's type parameters.
-				pos := c.Param.Pos()
-				obj := scope.Lookup(c.Param.Name)
-				if obj == nil {
-					check.errorf(pos, "%s not declared by contract", c.Param.Name)
-					continue
-				}
-				if c.Type == nil {
-					check.invalidAST(pos, "missing method or type constraint")
-					continue
-				}
-				tpar := obj.(*TypeName) // scope holds only *TypeNames
-				typ := check.typ(c.Type)
-				if c.MName != nil {
-					// If a method name is present, it must be unique for the respective
-					// type parameter, and c.Type is a method signature (guaranteed by AST).
-					sig, _ := typ.(*Signature)
-					if sig == nil {
-						check.invalidAST(c.Type.Pos(), "invalid method type %s", typ)
+			// If a type name is present, it must be one of the contract's type parameters.
+			pos := c.Param.Pos()
+			obj := scope.Lookup(c.Param.Name)
+			if obj == nil {
+				check.errorf(pos, "%s not declared by contract", c.Param.Name)
+				continue
+			}
+			if c.Types == nil {
+				check.invalidAST(pos, "missing method or type constraint")
+				continue
+			}
+
+			// For now we only allow a single method or a list of types,
+			// and not multiple methods or a mix of methods and types.
+			nmethods := 0 // must be 0 or 1 or we have an error
+			for i, mname := range c.MNames {
+				if mname != nil {
+					nmethods++
+					if nmethods > 1 {
+						check.errorf(mname.Pos(), "cannot have more than one method")
+						break
 					}
-					// add receiver to signture (TODO(gri) do we need this? what's the "correct" receiver?)
-					assert(sig.recv == nil)
-					recvTyp := tpar.typ
-					sig.recv = NewVar(pos, check.pkg, "", recvTyp)
-					// make a method
-					m := NewFunc(c.MName.Pos(), check.pkg, c.MName.Name, sig)
-					addMethod(tpar, m)
-				} else {
-					// no method name => we have a type constraint
-					var why string
-					if !check.typeConstraint(typ, &why) {
-						check.errorf(c.Type.Pos(), "invalid type constraint %s (%s)", typ, why)
+				} else if nmethods > 0 {
+					nmethods = 2 // mark as invalid
+					pos := pos   // fallback position in case we don't have a type
+					if i < len(c.Types) && c.Types[i] != nil {
+						pos = c.Types[i].Pos()
+					}
+					check.errorf(pos, "cannot mix types and methods")
+					break
+				}
+			}
+
+			tpar := obj.(*TypeName)
+			switch nmethods {
+			case 0:
+				// type constraints
+				for _, texpr := range c.Types {
+					if texpr == nil {
+						check.invalidAST(pos, "missing type constraint")
 						continue
 					}
-					addType(tpar, typ)
+					typ := check.typ(texpr)
+					// A type constraint may be a predeclared type or a
+					// composite type composed only of predeclared types.
+					// TODO(gri) should we keep this restriction?
+					var why string
+					if !check.typeConstraint(typ, &why) {
+						check.errorf(texpr.Pos(), "invalid type constraint %s (%s)", typ, why)
+						continue
+					}
+					// TODO(gri) add type
 				}
-			*/
-		} else { // c.Param == nil
+
+			case 1:
+				// method constraint
+				if nmethods != len(c.Types) {
+					check.invalidAST(pos, "number of method names and signatures doesn't match")
+				}
+				// If a method is present, it must be unique for the respective type
+				// parameter, and c.Types[0] is a method signature (guaranteed by AST).
+				typ := check.typ(c.Types[0])
+				sig, _ := typ.(*Signature)
+				if sig == nil {
+					check.invalidAST(c.Types[0].Pos(), "invalid method type %s", typ)
+				}
+				// add receiver to signature
+				// (TODO(gri) verify that this matches what we do elsewhere, e.g., in NewInterfaceType)
+				assert(sig.recv == nil)
+				recvTyp := tpar.typ
+				sig.recv = NewVar(pos, check.pkg, "", recvTyp)
+				// add the method
+				mname := c.MNames[0]
+				m := NewFunc(mname.Pos(), check.pkg, mname.Name, sig)
+				addMethod(tpar, m)
+
+			default:
+				// ignore (error was reported earlier)
+			}
+
+		} else {
+
 			// no type name => we have an embedded contract
 			// A correct AST will have no method name and a single type that is an *ast.CallExpr in this case.
 			if len(c.MNames) != 0 {
@@ -113,30 +153,26 @@ func (check *Checker) contractType(contr *Contract, e *ast.ContractType) {
 	}
 
 	// cleanup/complete interfaces
-	// TODO(gri) should check for duplicate entries in first pass (no need for this extra pass)
-	for tpar, cs := range contr.CMap {
-		iface := cs.Iface
+	// TODO(gri) should check for duplicate entries in first pass (=> no need for this extra pass)
+	for tpar, iface := range ifaces {
 		if iface == nil {
-			cs.Iface = &emptyInterface
+			ifaces[tpar] = &emptyInterface
 		} else {
 			var mset objset
 			for _, m := range iface.methods {
 				if m0 := mset.insert(m); m0 != nil {
 					// A method with the same name exists already.
-					// Complain if the signatures are different
-					// but leave it in the method set.
-					// TODO(gri) should we remove it from the set?
-					// TODO(gri) factor out this functionality
-					if !Identical(m0.Type(), m.Type()) {
-						check.errorf(m.Pos(), "method %s already declared with different signature for %s", m.name, tpar.name)
-						check.reportAltDecl(m0)
-					}
+					check.errorf(m.Pos(), "method %s already declared", m.name)
+					check.reportAltDecl(m0)
 				}
 			}
 			sort.Sort(byUniqueMethodName(iface.methods))
 			iface.Complete()
 		}
 	}
+
+	contr.TParams = tparams
+	contr.IFaces = ifaces
 }
 
 // TODO(gri) does this simply check for the absence of defined types?

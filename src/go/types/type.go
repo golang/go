@@ -510,24 +510,7 @@ type Parameterized struct {
 // A Contract represents a contract.
 type Contract struct {
 	TParams []*TypeName
-	CMap    map[*TypeName]*Constraint // lazily allocated (possibly nil)
-}
-
-func (ct *Contract) insert(tpar *TypeName) *Constraint {
-	cs := ct.CMap[tpar]
-	if cs == nil {
-		cs = new(Constraint)
-		if ct.CMap == nil {
-			ct.CMap = make(map[*TypeName]*Constraint)
-		}
-		ct.CMap[tpar] = cs
-	}
-	return cs
-}
-
-type Constraint struct {
-	Iface *Interface // methods associated with the type parameter; or empty interface
-	Types []Type     // types associated with the type parameter; not canonicalized for now
+	IFaces  map[*TypeName]*Interface
 }
 
 // A TypeParam represents a type parameter type.
