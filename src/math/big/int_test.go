@@ -1766,6 +1766,56 @@ func TestIssue22830(t *testing.T) {
 	}
 }
 
+func TestInc(t *testing.T) {
+	var i int64
+	for i = -1; i <= 1; i++ {
+		inc := NewInt(i).Inc()
+		add := new(Int).Add(NewInt(i), intOne)
+		if inc.Cmp(add) != 0 {
+			t.Fatalf("%v != %v", inc, add)
+		}
+	}
+}
+
+func TestDec(t *testing.T) {
+	var i int64
+	for i = -1; i <= 1; i++ {
+		dec := NewInt(i).Dec()
+		sub := new(Int).Sub(NewInt(i), intOne)
+		if dec.Cmp(sub) != 0 {
+			t.Fatalf("(%v != %v", dec, sub)
+		}
+	}
+}
+
+func BenchmarkInc(b *testing.B) {
+	z := new(Int)
+	for i := 0; i < b.N; i++ {
+		z.Inc()
+	}
+}
+
+func BenchmarkIncByAdd(b *testing.B) {
+	z := new(Int)
+	for i := 0; i < b.N; i++ {
+		z.Add(z, intOne)
+	}
+}
+
+func BenchmarkDec(b *testing.B) {
+	z := new(Int)
+	for i := 0; i < b.N; i++ {
+		z.Dec()
+	}
+}
+
+func BenchmarkDecBySub(b *testing.B) {
+	z := new(Int)
+	for i := 0; i < b.N; i++ {
+		z.Sub(z, intOne)
+	}
+}
+
 func BenchmarkSqrt(b *testing.B) {
 	n, _ := new(Int).SetString("1"+strings.Repeat("0", 1001), 10)
 	b.ResetTimer()

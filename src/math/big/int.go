@@ -133,6 +133,17 @@ func (z *Int) Add(x, y *Int) *Int {
 	return z
 }
 
+// Inc sets z to the sum z+1 and returns z.
+func (z *Int) Inc() *Int {
+	if z.neg {
+		z.abs = z.abs.sub(z.abs, intOne.abs)
+		z.neg = len(z.abs) > 0
+	} else {
+		z.abs = z.abs.add(z.abs, intOne.abs)
+	}
+	return z
+}
+
 // Sub sets z to the difference x-y and returns z.
 func (z *Int) Sub(x, y *Int) *Int {
 	neg := x.neg
@@ -151,6 +162,19 @@ func (z *Int) Sub(x, y *Int) *Int {
 		}
 	}
 	z.neg = len(z.abs) > 0 && neg // 0 has no sign
+	return z
+}
+
+// Dec sets z to the difference z-1 and returns z.
+func (z *Int) Dec() *Int {
+	if z.neg {
+		z.abs = z.abs.add(z.abs, intOne.abs)
+	} else if len(z.abs) > 0 {
+		z.abs = z.abs.sub(z.abs, intOne.abs)
+	} else {
+		z.abs = z.abs.add(z.abs, intOne.abs)
+		z.neg = true
+	}
 	return z
 }
 
