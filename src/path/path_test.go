@@ -138,7 +138,7 @@ var jointests = []JoinTest{
 func TestJoin(t *testing.T) {
 	for _, test := range jointests {
 		if p := Join(test.elem...); p != test.path {
-			t.Errorf("join(%q) = %q, want %q", test.elem, p, test.path)
+			t.Errorf("Join(%q) = %q, want %q", test.elem, p, test.path)
 		}
 	}
 }
