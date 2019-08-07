@@ -23,6 +23,9 @@ func Unwrap(err error) error {
 
 // Is reports whether any error in err's chain matches target.
 //
+// The chain consists of err itself followed by the sequence of errors obtained by
+// repeatedly calling Unwrap.
+//
 // An error is considered to match a target if it is equal to that target or if
 // it implements a method Is(error) bool such that Is(target) returns true.
 func Is(err, target error) bool {
@@ -49,6 +52,9 @@ func Is(err, target error) bool {
 
 // As finds the first error in err's chain that matches target, and if so, sets
 // target to that error value and returns true.
+//
+// The chain consists of err itself followed by the sequence of errors obtained by
+// repeatedly calling Unwrap.
 //
 // An error matches target if the error's concrete value is assignable to the value
 // pointed to by target, or if the error has a method As(interface{}) bool such that

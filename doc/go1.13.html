@@ -525,6 +525,37 @@ godoc
   <code>crypto/ed25519</code> when used with Go 1.13+.
 </p>
 
+<h3 id="error_wrapping">Error wrapping</h3>
+
+<p><!-- CL 163558, 176998 -->
+  Go 1.13 contains support for error wrapping, as first proposed in
+  the <a href="https://go.googlesource.com/proposal/+/master/design/29934-error-values.md">
+  Error Values proposal</a> and discussed on <a href="https://golang.org/issue/29934">the
+  associated issue</a>.
+</p>
+<p>
+  An error <code>e</code> can <em>wrap</em> another error <code>w</code> by providing
+  an <code>Unwrap</code> method that returns <code>w</code>. Both <code>e</code>
+  and <code>w</code> are available to programs, allowing <code>e</code> to provide
+  additional context to <code>w</code> or to reinterpret it while still allowing
+  programs to make decisions based on <code>w</code>.
+</p>
+<p>
+  To support wrapping, <a href="#fmt"><code>fmt.Errorf</code></a> now has a <code>%w</code>
+  verb for creating wrapped errors, and three new functions in
+  the <a href="#errors"><code>errors</code></a> package (
+  <a href="/pkg/errors#Unwrap"><code>errors.Unwrap</code></a>,
+  <a href="/pkg/errors#Is"><code>errors.Is</code></a> and
+  <a href="/pkg/errors#As"><code>errors.As</code></a>) simplify unwrapping
+  and inspecting wrapped errors.
+</p>
+<p>
+  For more information, read the <a href="/pkg/errors/"><code>errors</code> package
+  documentation</a>, or see
+  the <a href="https://golang.org/wiki/ErrorValueFAQ">Error Value FAQ</a>.
+  There will soon be a blog post as well.
+</p>
+
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
 <p>
@@ -612,7 +643,8 @@ godoc
   <dd>
     <!-- CL 163558 -->
     <p>
-      The new function <a href="/pkg/errors/#As"><code>As</code></a> finds the first error in a given error’s chain
+      The new function <a href="/pkg/errors/#As"><code>As</code></a> finds the first
+      error in a given error’s chain (sequence of wrapped errors)
       that matches a given target’s type, and if so, sets the target to that error value.
     </p>
     <p>
