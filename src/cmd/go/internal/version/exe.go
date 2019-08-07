@@ -103,6 +103,11 @@ func (x *elfExe) ReadData(addr, size uint64) ([]byte, error) {
 }
 
 func (x *elfExe) DataStart() uint64 {
+	for _, s := range x.f.Sections {
+		if s.Name == ".go.buildinfo" {
+			return s.Addr
+		}
+	}
 	for _, p := range x.f.Progs {
 		if p.Type == elf.PT_LOAD && p.Flags&(elf.PF_X|elf.PF_W) == elf.PF_W {
 			return p.Vaddr
