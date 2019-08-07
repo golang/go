@@ -146,13 +146,6 @@ func (imp *importer) typeCheck(ctx context.Context, id packageID) (*pkg, error) 
 	}
 	wg.Wait()
 
-	var i int
-	for _, f := range files {
-		if f != nil {
-			files[i] = f
-			i++
-		}
-	}
 	for _, err := range parseErrors {
 		if err == context.Canceled {
 			return nil, err
@@ -161,6 +154,15 @@ func (imp *importer) typeCheck(ctx context.Context, id packageID) (*pkg, error) 
 			imp.view.session.cache.appendPkgError(pkg, err)
 		}
 	}
+
+	var i int
+	for _, f := range files {
+		if f != nil {
+			files[i] = f
+			i++
+		}
+	}
+	files = files[:i]
 
 	// Use the default type information for the unsafe package.
 	if meta.pkgPath == "unsafe" {
