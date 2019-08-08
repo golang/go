@@ -1,13 +1,10 @@
 package p
 
-func f(type T)([]*T) int
+// Type instantiation must satisfy the contract.
+type Stringer contract(T) {
+        T String() string
+}
 
-var _ = f(nil) // ERROR cannot infer
+type List(type T Stringer) struct{}
 
-func g(type T)(T) int
-
-var _ = g(nil) // ERROR cannot infer
-
-func h(type T)(T, T) int
-
-var _ = h(nil /* ERROR cannot convert */, uintptr(1))
+var _ List /* ERROR not satisfied */ (int)

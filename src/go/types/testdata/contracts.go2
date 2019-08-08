@@ -59,17 +59,45 @@ contract _() {
 // --------------------------------------------------------------------------------------
 // Contract implementation
 
+// Type parameter type must be a contract.
+type _(type T int /* ERROR not a contract */ ) struct{}
+
+// The number of type parameters must match the number of contract parameters.
+contract C0() {}
+
+type _(type A C0 /* ERROR 1 type parameters */ ) struct{}
+
+contract C2(A, B) {
+        A a()
+}
+
+type _(type A C2 /* ERROR 1 type parameters */ ) struct{}
+type _(type A, B C2) struct{}
+type _(type A, B, C C2 /* ERROR 3 type parameters */ ) struct{}
+
+// Type instantiation must satisfy the contract.
+
+type T1(type _, _ C2) struct{}
+
+type A struct{}
+
+func (A) a() {}
+
+var _ T1 /* ERROR not satisfied */ (int, int)
+var _ T1(A, int)
+
 contract Stringer(T) {
         T String() string
 }
 
 type List(type T Stringer) struct{
         data T
-        link *List(T)
+        // TODO(gri) cannot handle this yet
+        //link *List(T)
 }
 
 var _ List(MyData)
-var _ List(int) // TODO(gri) should get an error here: int doesn't implement the Stringer contract
+var _ List /* ERROR not satisfied */ (int)
 
 type MyData string
 

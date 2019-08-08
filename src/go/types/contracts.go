@@ -15,21 +15,15 @@ import (
 // won't exclude a contract where we only permit a type. Investigate.
 
 func (check *Checker) contractType(contr *Contract, e *ast.ContractType) {
-	pos := e.Lbrace
-	if len(e.TParams) > 0 {
-		pos = e.TParams[0].Pos()
-	}
-	scope := NewScope(check.scope, pos, e.Rbrace, "contract type parameters")
-	check.scope = scope
+	check.openScope(e, "contract")
 	defer check.closeScope()
-	check.recordScope(e, scope)
 
 	// collect type parameters
 	tparams := make([]*TypeName, len(e.TParams))
 	for index, name := range e.TParams {
 		tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
-		NewTypeParam(tpar, index) // assigns type to tpar as a side-effect
-		check.declare(scope, name, tpar, scope.pos)
+		NewTypeParam(tpar, index, nil) // assigns type to tpar as a side-effect
+		check.declare(check.scope, name, tpar, check.scope.pos)
 		tparams[index] = tpar
 	}
 
@@ -50,7 +44,7 @@ func (check *Checker) contractType(contr *Contract, e *ast.ContractType) {
 		if c.Param != nil {
 			// If a type name is present, it must be one of the contract's type parameters.
 			pos := c.Param.Pos()
-			obj := scope.Lookup(c.Param.Name)
+			obj := check.scope.Lookup(c.Param.Name)
 			if obj == nil {
 				check.errorf(pos, "%s not declared by contract", c.Param.Name)
 				continue
@@ -159,13 +153,20 @@ func (check *Checker) contractType(contr *Contract, e *ast.ContractType) {
 			ifaces[tpar] = &emptyInterface
 		} else {
 			var mset objset
+			i := 0
 			for _, m := range iface.methods {
 				if m0 := mset.insert(m); m0 != nil {
 					// A method with the same name exists already.
 					check.errorf(m.Pos(), "method %s already declared", m.name)
 					check.reportAltDecl(m0)
+				} else {
+					// only keep unique methods
+					// TODO(gri) revisit this code - introduced to fix large rebase
+					iface.methods[i] = m
+					i++
 				}
 			}
+			iface.methods = iface.methods[:i]
 			sort.Sort(byUniqueMethodName(iface.methods))
 			iface.Complete()
 		}
@@ -231,5 +232,46 @@ func (check *Checker) typeConstraint(typ Type, why *string) bool {
 	default:
 		unreachable()
 	}
+	return true
+}
+
+// satisfyContract reports whether the given type arguments satisfy a contract.
+// The contract may be nil, in which case it is always satisfied.
+// The number of type arguments must match the number of contract type parameters.
+// TODO(gri) missing: good error reporting
+func (check *Checker) satisfyContract(contr *Contract, targs []Type) bool {
+	if contr == nil {
+		return true
+	}
+
+	assert(len(contr.TParams) == len(targs))
+
+	// A contract is represented by a list of interfaces, one for each
+	// contract type parameter. Each of those interfaces may be parameterized
+	// with any of the other contract type parameters.
+	// We need to verify that each type argument implements its respective
+	// contract interface, but only after substituting any contract type parameters
+	// in that interface with the respective type arguments.
+	//
+	// TODO(gri) This implementation strategy (and implementation) would be
+	// much more direct if we were to replace contracts simply with (parameterized)
+	// interfaces. All the existing machinery would simply fall into place.
+
+	for i, targ := range targs {
+		iface := contr.ifaceAt(i)
+		if iface == nil {
+			continue // no constraints
+		}
+		// If iface is parameterized, we need to replace the type parameters
+		// with the respective type arguments.
+		if isParameterized(iface) {
+			panic("unimplemented")
+		}
+		// targ must implement iface
+		if m, _ := check.missingMethod(targ, iface, true); m != nil {
+			return false
+		}
+	}
+
 	return true
 }

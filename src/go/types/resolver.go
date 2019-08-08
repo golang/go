@@ -393,9 +393,6 @@ func (check *Checker) collectObjects() {
 
 					case *ast.TypeSpec:
 						obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
-						if s.TParams != nil {
-							obj.scope, obj.tparams = check.collectTypeParams(pkg.scope, s, s.TParams)
-						}
 						check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, tdecl: s})
 
 					default:
@@ -428,9 +425,6 @@ func (check *Checker) collectObjects() {
 							check.softErrorf(obj.pos, "missing function body")
 						}
 					} else {
-						if d.TParams != nil {
-							obj.scope, obj.tparams = check.collectTypeParams(pkg.scope, d, d.TParams)
-						}
 						check.declare(pkg.scope, d.Name, obj, token.NoPos)
 					}
 				} else {
@@ -446,11 +440,12 @@ func (check *Checker) collectObjects() {
 					// - if the receiver type is parameterized but we don't need the parameters, we permit leaving them away
 					// - this is a effectively a declaration, and thus a receiver type parameter may be the blank identifier (_)
 					// - since methods cannot have other type parameters, we store receiver type parameters where function type parameters would be
+					// TODO(gri) move this into decl phase? (like we did for type and func type parameters?)
 					ptr, recv, tparams := check.unpackRecv(d.Recv.List[0].Type)
 					if tparams != nil {
-						obj.scope = NewScope(pkg.scope, d.Pos(), d.End(), "receiver type parameters")
-						check.recordScope(d, obj.scope)
-						obj.tparams = check.declareTypeParams(obj.scope, tparams)
+						scope := NewScope(pkg.scope, d.Pos(), d.End(), "receiver type parameters")
+						check.recordScope(d, scope)
+						obj.tparams = check.declareTypeParams(scope, tparams)
 					}
 
 					// (Methods with invalid receiver cannot be associated to a type, and
@@ -509,25 +504,11 @@ func (check *Checker) collectObjects() {
 	}
 }
 
-func (check *Checker) collectTypeParams(parent *Scope, node ast.Node, list *ast.FieldList) (scope *Scope, tparams []*TypeName) {
-	scope = NewScope(parent, node.Pos(), node.End(), "type parameters")
-	check.recordScope(node, scope)
-
-	var names []*ast.Ident
-	for _, f := range list.List {
-		for _, name := range f.Names {
-			names = append(names, name)
-		}
-	}
-
-	return scope, check.declareTypeParams(scope, names)
-}
-
 func (check *Checker) declareTypeParams(scope *Scope, list []*ast.Ident) []*TypeName {
 	tparams := make([]*TypeName, len(list))
 	for i, name := range list {
 		tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
-		NewTypeParam(tpar, i) // assigns type to tpar as a side-effect
+		NewTypeParam(tpar, i, nil) // assigns type to tpar as a side-effect
 		check.declare(scope, name, tpar, scope.pos)
 		tparams[i] = tpar
 	}

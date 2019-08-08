@@ -513,15 +513,26 @@ type Contract struct {
 	IFaces  map[*TypeName]*Interface
 }
 
+// ifaceAt returns the interface matching for the respective
+// contract type parameter with the given index. If c is nil
+// the result is nil.
+func (c *Contract) ifaceAt(index int) *Interface {
+	if c != nil {
+		return c.IFaces[c.TParams[index]]
+	}
+	return nil
+}
+
 // A TypeParam represents a type parameter type.
 type TypeParam struct {
 	obj   *TypeName
 	index int
+	contr *Contract // nil if no contract
 }
 
 // NewTypeParam returns a new TypeParam.
-func NewTypeParam(obj *TypeName, index int) *TypeParam {
-	typ := &TypeParam{obj, index}
+func NewTypeParam(obj *TypeName, index int, contr *Contract) *TypeParam {
+	typ := &TypeParam{obj, index, contr}
 	if obj.typ == nil {
 		obj.typ = typ
 	}

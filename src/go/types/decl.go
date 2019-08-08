@@ -546,13 +546,13 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 		check.validType(obj.typ, nil)
 	})
 
-	if obj.IsParameterized() {
-		assert(obj.scope != nil)
-		check.scope = obj.scope // push type parameter scope
-	}
-
 	if tdecl.Assign.IsValid() {
 		// type alias declaration
+
+		if tdecl.TParams != nil {
+			check.errorf(tdecl.TParams.Pos(), "type alias cannot be parameterized")
+			// continue but ignore type parameters
+		}
 
 		obj.typ = Typ[Invalid]
 		obj.typ = check.typ(tdecl.Type)
@@ -563,6 +563,11 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 		named := &Named{obj: obj}
 		def.setUnderlying(named)
 		obj.typ = named // make sure recursive type declarations terminate
+
+		if tdecl.TParams != nil {
+			check.openScope(tdecl, "type parameters")
+			obj.tparams = check.collectTypeParams(tdecl.TParams)
+		}
 
 		// determine underlying type of named
 		named.orig = check.definedType(tdecl.Type, named)
@@ -582,15 +587,44 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 		// any forward chain.
 		named.underlying = check.underlying(named)
 
-	}
+		// this must happen before addMethodDecls - cannot use defer
+		// TODO(gri) consider refactoring this
+		if tdecl.TParams != nil {
+			check.closeScope()
+		}
 
-	// this must happen before addMethodDecls - cannot use defer
-	// TODO(gri) consider refactoring this
-	if obj.IsParameterized() {
-		check.closeScope()
 	}
 
 	check.addMethodDecls(obj)
+}
+
+func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeName) {
+	for _, f := range list.List {
+		var contr *Contract
+		if f.Type != nil {
+			typ := check.typ(f.Type)
+			if typ != Typ[Invalid] {
+				if contr, _ = typ.Underlying().(*Contract); contr != nil {
+					if len(f.Names) != len(contr.TParams) {
+						// TODO(gri) improve error message
+						check.errorf(f.Type.Pos(), "%d type parameters but contract expects %d", len(f.Names), len(contr.TParams))
+						contr = nil // cannot use this contract
+					}
+				} else {
+					check.errorf(f.Type.Pos(), "%s is not a contract", typ)
+				}
+			}
+		}
+
+		for _, name := range f.Names {
+			tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
+			NewTypeParam(tpar, len(tparams), contr)                 // assigns type to tpar as a side-effect
+			check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) verify scope pos is correct
+			tparams = append(tparams, tpar)
+		}
+	}
+
+	return tparams
 }
 
 func (check *Checker) addMethodDecls(obj *TypeName) {
@@ -659,18 +693,18 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	// func declarations cannot use iota
 	assert(check.iota == nil)
 
-	if obj.IsParameterized() {
-		assert(obj.scope != nil)
-		check.scope = obj.scope // push type parameter scope
+	fdecl := decl.fdecl
+	if fdecl.TParams != nil {
+		check.openScope(fdecl, "type parameters")
+		obj.tparams = check.collectTypeParams(fdecl.TParams)
 	}
 
 	sig := new(Signature)
 	obj.typ = sig // guard against cycles
-	fdecl := decl.fdecl
 	check.funcType(sig, fdecl.Recv, fdecl.Type)
 	sig.tparams = obj.tparams
 
-	if obj.IsParameterized() {
+	if fdecl.TParams != nil {
 		check.closeScope()
 	}
 
@@ -795,9 +829,6 @@ func (check *Checker) declStmt(decl ast.Decl) {
 
 			case *ast.TypeSpec:
 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
-				if s.TParams != nil {
-					obj.scope, obj.tparams = check.collectTypeParams(check.scope, s, s.TParams)
-				}
 				// spec: "The scope of a type identifier declared inside a function
 				// begins at the identifier in the TypeSpec and ends at the end of
 				// the innermost containing block."

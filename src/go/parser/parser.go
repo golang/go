@@ -2763,7 +2763,7 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Token, _ int) ast.
 		lbrack := p.pos
 		p.next()
 		if p.tok == token.TYPE {
-			// parametrized type
+			// parameterized type
 			p.next()
 			p.openScope()
 			tparams := p.parseTypeParams(p.topScope)
@@ -2789,7 +2789,7 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Token, _ int) ast.
 		lparen := p.pos
 		p.next()
 		if p.tok == token.TYPE {
-			// parametrized type
+			// parameterized type
 			p.next()
 			p.openScope()
 			tparams := p.parseTypeParams(p.topScope)

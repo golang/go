@@ -457,8 +457,6 @@ func (check *Checker) typeList(list []ast.Expr) []Type {
 }
 
 func (check *Checker) parameterizedType(typ *Parameterized, e *ast.CallExpr) bool {
-	// TODO(gri) This code cannot handle type aliases at the moment.
-	// Probably need to do the name lookup here.
 	t := check.typ(e.Fun)
 	if t == Typ[Invalid] {
 		return false // error already reported
@@ -483,6 +481,23 @@ func (check *Checker) parameterizedType(typ *Parameterized, e *ast.CallExpr) boo
 	args := check.typeList(e.Args)
 	if args == nil {
 		return false
+	}
+
+	// TODO(gri) quick hack - clean this up
+	// Also, it looks like contract should be part of the parameterized type,
+	// not its individual type parameters, at least as long as we only permit
+	// one contract. If we permit multiple contracts C1, C2 as in
+	//
+	//	type _(type A, B C1, B C2, ...)
+	//
+	// the current approach may be the right one. The current approach also
+	// lends itself more easily to a design where we just use interfaces
+	// rather than contracts.
+	assert(len(tname.tparams) > 0)
+	contr := tname.tparams[0].typ.(*TypeParam).contr
+	if !check.satisfyContract(contr, args) {
+		// TODO(gri) need to put in some work for really good error messages here
+		check.errorf(e.Pos(), "contract for %s is not satisfied", tname)
 	}
 
 	// complete parameterized type

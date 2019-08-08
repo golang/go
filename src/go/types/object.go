@@ -213,7 +213,6 @@ func (*Const) isDependency() {} // a constant may be a dependency of an initiali
 // A TypeName represents a name for a (defined or alias) type.
 type TypeName struct {
 	object
-	scope   *Scope      // type parameter scope; or nil
 	tparams []*TypeName // type parameters from left to right; or nil
 }
 
@@ -225,7 +224,7 @@ type TypeName struct {
 // argument for NewNamed, which will set the TypeName's type as a side-
 // effect.
 func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
-	return &TypeName{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, nil, nil}
+	return &TypeName{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, nil}
 }
 
 // IsParameterized reports whether obj is a parametrized type.
@@ -312,7 +311,6 @@ func (*Var) isDependency() {} // a variable may be a dependency of an initializa
 type Func struct {
 	object
 	hasPtrRecv bool        // only valid for methods that don't have a type yet
-	scope      *Scope      // type parameter scope; or nil
 	tparams    []*TypeName // type parameters from left to right; or nil
 }
 
@@ -324,7 +322,7 @@ func NewFunc(pos token.Pos, pkg *Package, name string, sig *Signature) *Func {
 	if sig != nil {
 		typ = sig
 	}
-	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, false, nil, nil}
+	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, false, nil}
 }
 
 // FullName returns the package- or receiver-type-qualified name of

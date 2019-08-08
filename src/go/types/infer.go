@@ -123,12 +123,22 @@ func isParameterized(typ Type) bool {
 		}
 
 	case *Signature:
-		assert(t.tparams == nil)                              // TODO(gri) is this correct?
-		assert(t.recv == nil || !isParameterized(t.recv.typ)) // interface method receiver may not be nil
+		assert(t.tparams == nil) // TODO(gri) is this correct?
+		// TODO(gri) Rethink check below: contract interfaces
+		// have methods where the receiver is a contract type
+		// parameter, by design.
+		//assert(t.recv == nil || !isParameterized(t.recv.typ))
 		return isParameterized(t.params) || isParameterized(t.results)
 
 	case *Interface:
-		panic("unimplemented")
+		if t.allMethods == nil {
+			panic("incomplete method")
+		}
+		for _, m := range t.allMethods {
+			if isParameterized(m.typ) {
+				return true
+			}
+		}
 
 	case *Map:
 		return isParameterized(t.key) || isParameterized(t.elem)

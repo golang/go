@@ -17,17 +17,8 @@ type T2(type P) struct {
 
 type List(type P) []P
 
-type A1(type P) = P
-
-type A2(type P) = struct {
-        f P
-        g int
-}
-
-type A3(type P) = struct {
-        f P
-        g myInt // myInt should still be in scope chain
-}
+// Alias type declarations cannot have parameters.
+type A1( /* ERROR cannot be parameterized */ type P) = P /* ERROR undeclared */
 
 // Parametrized type instantiations
 
@@ -42,12 +33,6 @@ type _ T1 /* ERROR got 0 arguments but 1 type parameters */ ()
 type _ T1(x /* ERROR not a type */ )
 type _ T1 /* ERROR got 2 arguments but 1 type parameters */ (int, float32)
 
-// TODO(gri) parameterized alias types don't work correctly
-// var _ A1(int) = x
-// var _ A1(float32) = x // ERROR cannot use x .* as float32
-
-// var _ T2(*int) = A2(*int){}
-// var _ T2(*int) = A2 /* ERROR cannot use */ (int){}
 var _ T2(int) = T2(int){}
 
 var _ List(int) = []int{1, 2, 3}
