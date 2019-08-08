@@ -509,7 +509,8 @@ func (v *view) findFile(uri span.URI) (viewFile, error) {
 		pathStat, err := os.Stat(fname)
 		if os.IsNotExist(err) {
 			return nil, err
-		} else if err != nil {
+		}
+		if err != nil {
 			return nil, nil // the file may exist, return without an error
 		}
 		for _, c := range candidates {
