@@ -28,6 +28,7 @@ import (
 type ImportMissingError struct {
 	ImportPath string
 	Module     module.Version
+	QueryErr   error
 
 	// newMissingVersion is set to a newer version of Module if one is present
 	// in the build list. When set, we can't automatically upgrade.
@@ -39,9 +40,12 @@ func (e *ImportMissingError) Error() string {
 		if str.HasPathPrefix(e.ImportPath, "cmd") {
 			return fmt.Sprintf("package %s is not in GOROOT (%s)", e.ImportPath, filepath.Join(cfg.GOROOT, "src", e.ImportPath))
 		}
+		if e.QueryErr != nil {
+			return fmt.Sprintf("cannot find module providing package %s: %v", e.ImportPath, e.QueryErr)
+		}
 		return "cannot find module providing package " + e.ImportPath
 	}
-	return "missing module for import: " + e.Module.Path + "@" + e.Module.Version + " provides " + e.ImportPath
+	return fmt.Sprintf("missing module for import: %s@%s provides %s", e.Module.Path, e.Module.Version, e.ImportPath)
 }
 
 // Import finds the module and directory in the build list
@@ -197,7 +201,7 @@ func Import(path string) (m module.Version, dir string, err error) {
 		if errors.Is(err, os.ErrNotExist) {
 			// Return "cannot find module providing package […]" instead of whatever
 			// low-level error QueryPackage produced.
-			return module.Version{}, "", &ImportMissingError{ImportPath: path}
+			return module.Version{}, "", &ImportMissingError{ImportPath: path, QueryErr: err}
 		} else {
 			return module.Version{}, "", err
 		}
