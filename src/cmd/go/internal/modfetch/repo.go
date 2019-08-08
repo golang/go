@@ -240,7 +240,7 @@ func lookup(proxy, path string) (r Repo, err error) {
 
 var (
 	errModVendor       = errors.New("module lookup disabled by -mod=vendor")
-	errProxyOff        = errors.New("module lookup disabled by GOPROXY=off")
+	errProxyOff        = notExistError("module lookup disabled by GOPROXY=off")
 	errNoproxy   error = notExistError("disabled by GOPRIVATE/GONOPROXY")
 	errUseProxy  error = notExistError("path does not match GOPRIVATE/GONOPROXY")
 )
