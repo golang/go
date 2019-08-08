@@ -60,6 +60,11 @@ func instrumentInit() {
 	mode := "race"
 	if cfg.BuildMSan {
 		mode = "msan"
+		// MSAN does not support non-PIE binaries on ARM64.
+		// See issue #33712 for details.
+		if cfg.Goos == "linux" && cfg.Goarch == "arm64" && cfg.BuildBuildmode == "default" {
+			cfg.BuildBuildmode = "pie"
+		}
 	}
 	modeFlag := "-" + mode
 
