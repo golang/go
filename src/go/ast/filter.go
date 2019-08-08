@@ -474,6 +474,7 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 			}
 		}
 	} else {
+		// Iterate over filenames for deterministic order.
 		for _, filename := range filenames {
 			f := pkg.Files[filename]
 			imports = append(imports, f.Imports...)
