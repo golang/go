@@ -474,7 +474,8 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 			}
 		}
 	} else {
-		for _, f := range pkg.Files {
+		for _, filename := range filenames {
+			f := pkg.Files[filename]
 			imports = append(imports, f.Imports...)
 		}
 	}
