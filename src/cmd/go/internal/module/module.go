@@ -50,8 +50,13 @@ type ModuleError struct {
 	Err     error
 }
 
-// VersionError returns a ModuleError derived from a Version and error.
+// VersionError returns a ModuleError derived from a Version and error,
+// or err itself if it is already such an error.
 func VersionError(v Version, err error) error {
+	var mErr *ModuleError
+	if errors.As(err, &mErr) && mErr.Path == v.Path && mErr.Version == v.Version {
+		return err
+	}
 	return &ModuleError{
 		Path:    v.Path,
 		Version: v.Version,
