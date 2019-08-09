@@ -33,7 +33,7 @@ compiler using the GCC back end, see
 </p>
 
 <p>
-The Go compilers support eight instruction sets.
+The Go compilers support nine instruction sets.
 There are important differences in the quality of the compilers for the different
 architectures.
 </p>
@@ -86,6 +86,12 @@ architectures.
 </dt>
 <dd>
 	Supports Linux binaries. New in 1.7 and not as well exercised as other ports.
+</dd>
+<dt>
+	<code>wasm</code> (WebAssembly)
+</dt>
+<dd>
+	Targets the WebAssembly platform. New in 1.11 and not as well exercised as other ports.
 </dd>
 </dl>
 
@@ -493,23 +499,43 @@ These default to the values of <code>$GOHOSTOS</code> and
 
 <p>
 Choices for <code>$GOOS</code> are
-<code>darwin</code> (macOS 10.10 and above and iOS), <code>dragonfly</code>, <code>freebsd</code>,
+<code>android</code>, <code>darwin</code> (macOS 10.11 and above and iOS),
+<code>dragonfly</code>, <code>freebsd</code>, <code>illumos</code>, <code>js</code>,
 <code>linux</code>, <code>netbsd</code>, <code>openbsd</code>,
 <code>plan9</code>, <code>solaris</code> and <code>windows</code>.
+</p>
+
+<p>
 Choices for <code>$GOARCH</code> are
 <code>amd64</code> (64-bit x86, the most mature port),
 <code>386</code> (32-bit x86), <code>arm</code> (32-bit ARM), <code>arm64</code> (64-bit ARM),
 <code>ppc64le</code> (PowerPC 64-bit, little-endian), <code>ppc64</code> (PowerPC 64-bit, big-endian),
 <code>mips64le</code> (MIPS 64-bit, little-endian), <code>mips64</code> (MIPS 64-bit, big-endian),
-<code>mipsle</code> (MIPS 32-bit, little-endian), <code>mips</code> (MIPS 32-bit, big-endian), and
-<code>s390x</code> (IBM System z 64-bit, big-endian).
+<code>mipsle</code> (MIPS 32-bit, little-endian), <code>mips</code> (MIPS 32-bit, big-endian),
+<code>s390x</code> (IBM System z 64-bit, big-endian), and
+<code>wasm</code> (WebAssembly 32-bit).
+</p>
+
+<p>
 The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 <table cellpadding="0">
 <tr>
 <th width="50"></th><th align="left" width="100"><code>$GOOS</code></th> <th align="left" width="100"><code>$GOARCH</code></th>
 </tr>
 <tr>
+<td></td><td><code>aix</code></td> <td><code>ppc64</code></td>
+</tr>
+<tr>
+<td></td><td><code>android</code></td> <td><code>386</code></td>
+</tr>
+<tr>
+<td></td><td><code>android</code></td> <td><code>amd64</code></td>
+</tr>
+<tr>
 <td></td><td><code>android</code></td> <td><code>arm</code></td>
+</tr>
+<tr>
+<td></td><td><code>android</code></td> <td><code>arm64</code></td>
 </tr>
 <tr>
 <td></td><td><code>darwin</code></td> <td><code>386</code></td>
@@ -534,6 +560,12 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 </tr>
 <tr>
 <td></td><td><code>freebsd</code></td> <td><code>arm</code></td>
+</tr>
+<tr>
+<td></td><td><code>illumos</code></td> <td><code>amd64</code></td>
+</tr>
+<tr>
+<td></td><td><code>js</code></td> <td><code>wasm</code></td>
 </tr>
 <tr>
 <td></td><td><code>linux</code></td> <td><code>386</code></td>
@@ -587,10 +619,16 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 <td></td><td><code>openbsd</code></td> <td><code>arm</code></td>
 </tr>
 <tr>
+<td></td><td><code>openbsd</code></td> <td><code>arm64</code></td>
+</tr>
+<tr>
 <td></td><td><code>plan9</code></td> <td><code>386</code></td>
 </tr>
 <tr>
 <td></td><td><code>plan9</code></td> <td><code>amd64</code></td>
+</tr>
+<tr>
+<td></td><td><code>plan9</code></td> <td><code>arm</code></td>
 </tr>
 <tr>
 <td></td><td><code>solaris</code></td> <td><code>amd64</code></td>
