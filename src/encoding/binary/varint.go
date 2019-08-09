@@ -109,6 +109,9 @@ func ReadUvarint(r io.ByteReader) (uint64, error) {
 	for i := 0; ; i++ {
 		b, err := r.ReadByte()
 		if err != nil {
+			if err == io.EOF && i > 0 {
+				err = io.ErrUnexpectedEOF
+			}
 			return x, err
 		}
 		if b < 0x80 {
