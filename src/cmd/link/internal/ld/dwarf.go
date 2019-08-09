@@ -176,7 +176,7 @@ func newdie(ctxt *Link, parent *dwarf.DWDie, abbrev int, name string, version in
 		if abbrev != dwarf.DW_ABRV_VARIABLE || version == 0 {
 			if abbrev == dwarf.DW_ABRV_COMPUNIT {
 				// Avoid collisions with "real" symbol names.
-				name = ".pkg." + name
+				name = fmt.Sprintf(".pkg.%s.%d", name, len(ctxt.compUnits))
 			}
 			s := ctxt.Syms.Lookup(dwarf.InfoPrefix+name, version)
 			s.Attr |= sym.AttrNotInSymbolTable
@@ -858,11 +858,17 @@ func synthesizechantypes(ctxt *Link, die *dwarf.DWDie) {
 }
 
 func dwarfDefineGlobal(ctxt *Link, s *sym.Symbol, str string, v int64, gotype *sym.Symbol) {
-	lib := s.Lib
-	if lib == nil {
-		lib = ctxt.LibraryByPkg["runtime"]
+	// Find a suitable CU DIE to include the global.
+	// One would think it's as simple as just looking at the unit, but that might
+	// not have any reachable code. So, we go to the runtime's CU if our unit
+	// isn't otherwise reachable.
+	var unit *sym.CompilationUnit
+	if s.Unit != nil {
+		unit = s.Unit
+	} else {
+		unit = ctxt.runtimeCU
 	}
-	dv := newdie(ctxt, ctxt.compUnitByPackage[lib].dwinfo, dwarf.DW_ABRV_VARIABLE, str, int(s.Version))
+	dv := newdie(ctxt, unit.DWInfo, dwarf.DW_ABRV_VARIABLE, str, int(s.Version))
 	newabslocexprattr(dv, v, s)
 	if !s.IsFileLocal() {
 		newattr(dv, dwarf.DW_AT_external, dwarf.DW_CLS_FLAG, 1, 0)
@@ -930,27 +936,14 @@ func addDwarfAddrRef(ctxt *Link, s *sym.Symbol, t *sym.Symbol) {
 	}
 }
 
-// compilationUnit is per-compilation unit (equivalently, per-package)
-// debug-related data.
-type compilationUnit struct {
-	lib       *sym.Library
-	consts    *sym.Symbol   // Package constants DIEs
-	pcs       []dwarf.Range // PC ranges, relative to textp[0]
-	dwinfo    *dwarf.DWDie  // CU root DIE
-	funcDIEs  []*sym.Symbol // Function DIE subtrees
-	absFnDIEs []*sym.Symbol // Abstract function DIE subtrees
-	rangeSyms []*sym.Symbol // symbols for debug_range
-}
-
 // calcCompUnitRanges calculates the PC ranges of the compilation units.
 func calcCompUnitRanges(ctxt *Link) {
-	var prevUnit *compilationUnit
+	var prevUnit *sym.CompilationUnit
 	for _, s := range ctxt.Textp {
 		if s.FuncInfo == nil {
 			continue
 		}
-		unit := ctxt.compUnitByPackage[s.Lib]
-
+		unit := s.Unit
 		// Update PC ranges.
 		//
 		// We don't simply compare the end of the previous
@@ -959,18 +952,17 @@ func calcCompUnitRanges(ctxt *Link) {
 		// only create boundaries between symbols from
 		// different units.
 		if prevUnit != unit {
-			unit.pcs = append(unit.pcs, dwarf.Range{Start: s.Value - unit.lib.Textp[0].Value})
+			unit.PCs = append(unit.PCs, dwarf.Range{Start: s.Value - unit.Textp[0].Value})
 			prevUnit = unit
 		}
-		unit.pcs[len(unit.pcs)-1].End = s.Value - unit.lib.Textp[0].Value + s.Size
+		unit.PCs[len(unit.PCs)-1].End = s.Value - unit.Textp[0].Value + s.Size
 	}
 }
 
 func movetomodule(ctxt *Link, parent *dwarf.DWDie) {
-	runtimelib := ctxt.LibraryByPkg["runtime"]
-	die := ctxt.compUnitByPackage[runtimelib].dwinfo.Child
+	die := ctxt.runtimeCU.DWInfo.Child
 	if die == nil {
-		ctxt.compUnitByPackage[runtimelib].dwinfo.Child = parent.Child
+		ctxt.runtimeCU.DWInfo.Child = parent.Child
 		return
 	}
 	for die.Link != nil {
@@ -1124,7 +1116,7 @@ func importInfoSymbol(ctxt *Link, dsym *sym.Symbol) {
 	}
 }
 
-func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
+func writelines(ctxt *Link, unit *sym.CompilationUnit, ls *sym.Symbol) {
 
 	var dwarfctxt dwarf.Context = dwctxt{ctxt}
 	is_stmt := uint8(1) // initially = recommended default_is_stmt = 1, tracks is_stmt toggles.
@@ -1133,7 +1125,7 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 	headerstart := int64(-1)
 	headerend := int64(-1)
 
-	newattr(unit.dwinfo, dwarf.DW_AT_stmt_list, dwarf.DW_CLS_PTR, ls.Size, ls)
+	newattr(unit.DWInfo, dwarf.DW_AT_stmt_list, dwarf.DW_CLS_PTR, ls.Size, ls)
 
 	// Write .debug_line Line Number Program Header (sec 6.2.4)
 	// Fields marked with (*) must be changed for 64-bit dwarf
@@ -1166,7 +1158,7 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 	// Create the file table. fileNums maps from global file
 	// indexes (created by numberfile) to CU-local indexes.
 	fileNums := make(map[int]int)
-	for _, s := range unit.lib.Textp { // textp has been dead-code-eliminated already.
+	for _, s := range unit.Textp { // textp has been dead-code-eliminated already.
 		dsym := dwarfFuncSym(ctxt, s, dwarf.InfoPrefix, true)
 		for _, f := range s.FuncInfo.File {
 			if _, ok := fileNums[int(f.Value)]; ok {
@@ -1206,7 +1198,7 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 	dwarf.Uleb128put(dwarfctxt, ls, 1+int64(ctxt.Arch.PtrSize))
 	ls.AddUint8(dwarf.DW_LNE_set_address)
 
-	s := unit.lib.Textp[0]
+	s := unit.Textp[0]
 	pc := s.Value
 	line := 1
 	file := 1
@@ -1215,7 +1207,7 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 	pcfile := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
 	pcline := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
 	pcstmt := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
-	for i, s := range unit.lib.Textp {
+	for i, s := range unit.Textp {
 		finddebugruntimepath(s)
 
 		pcfile.Init(s.FuncInfo.Pcfile.P)
@@ -1239,7 +1231,7 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 				ls.AddUint8(dwarf.DW_LNS_set_file)
 				idx, ok := fileNums[int(pcfile.Value)]
 				if !ok {
-					Exitf("pcln table file missing from DWARF line table")
+					Exitf("pcln table file missing from DWARF line table %q", s.Unit.Lib.Pkg)
 				}
 				dwarf.Uleb128put(dwarfctxt, ls, int64(idx))
 				file = int(pcfile.Value)
@@ -1287,7 +1279,7 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 				pcline.Next()
 			}
 		}
-		if is_stmt == 0 && i < len(unit.lib.Textp)-1 {
+		if is_stmt == 0 && i < len(unit.Textp)-1 {
 			// If there is more than one function, ensure default value is established.
 			is_stmt = 1
 			ls.AddUint8(uint8(dwarf.DW_LNS_negate_stmt))
@@ -1299,7 +1291,7 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 	ls.AddUint8(dwarf.DW_LNE_end_sequence)
 
 	if ctxt.HeadType == objabi.Haix {
-		saveDwsectCUSize(".debug_line", unit.lib.String(), uint64(ls.Size-unitLengthOffset))
+		saveDwsectCUSize(".debug_line", unit.Lib.Pkg, uint64(ls.Size-unitLengthOffset))
 	}
 	if isDwarf64(ctxt) {
 		ls.SetUint(ctxt.Arch, unitLengthOffset+4, uint64(ls.Size-unitstart)) // +4 because of 0xFFFFFFFF
@@ -1316,7 +1308,7 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 	// DIE flavors (ex: variables) then those DIEs would need to
 	// be included below.
 	missing := make(map[int]interface{})
-	for _, f := range unit.funcDIEs {
+	for _, f := range unit.FuncDIEs {
 		for ri := range f.R {
 			r := &f.R[ri]
 			if r.Type != objabi.R_DWARFFILEREF {
@@ -1351,18 +1343,18 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 }
 
 // writepcranges generates the DW_AT_ranges table for compilation unit cu.
-func writepcranges(ctxt *Link, unit *compilationUnit, base *sym.Symbol, pcs []dwarf.Range, ranges *sym.Symbol) {
+func writepcranges(ctxt *Link, unit *sym.CompilationUnit, base *sym.Symbol, pcs []dwarf.Range, ranges *sym.Symbol) {
 	var dwarfctxt dwarf.Context = dwctxt{ctxt}
 
 	unitLengthOffset := ranges.Size
 
 	// Create PC ranges for this CU.
-	newattr(unit.dwinfo, dwarf.DW_AT_ranges, dwarf.DW_CLS_PTR, ranges.Size, ranges)
-	newattr(unit.dwinfo, dwarf.DW_AT_low_pc, dwarf.DW_CLS_ADDRESS, base.Value, base)
+	newattr(unit.DWInfo, dwarf.DW_AT_ranges, dwarf.DW_CLS_PTR, ranges.Size, ranges)
+	newattr(unit.DWInfo, dwarf.DW_AT_low_pc, dwarf.DW_CLS_ADDRESS, base.Value, base)
 	dwarf.PutBasedRanges(dwarfctxt, ranges, pcs)
 
 	if ctxt.HeadType == objabi.Haix {
-		addDwsectCUSize(".debug_ranges", unit.lib.String(), uint64(ranges.Size-unitLengthOffset))
+		addDwsectCUSize(".debug_ranges", unit.Lib.Pkg, uint64(ranges.Size-unitLengthOffset))
 	}
 
 }
@@ -1543,7 +1535,7 @@ const (
 	COMPUNITHEADERSIZE = 4 + 2 + 4 + 1
 )
 
-func writeinfo(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit, abbrevsym *sym.Symbol, pubNames, pubTypes *pubWriter) []*sym.Symbol {
+func writeinfo(ctxt *Link, syms []*sym.Symbol, units []*sym.CompilationUnit, abbrevsym *sym.Symbol, pubNames, pubTypes *pubWriter) []*sym.Symbol {
 	infosec := ctxt.Syms.Lookup(".debug_info", 0)
 	infosec.Type = sym.SDWARFINFO
 	infosec.Attr |= sym.AttrReachable
@@ -1552,10 +1544,10 @@ func writeinfo(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit, abbrevs
 	var dwarfctxt dwarf.Context = dwctxt{ctxt}
 
 	for _, u := range units {
-		compunit := u.dwinfo
+		compunit := u.DWInfo
 		s := dtolsym(compunit.Sym)
 
-		if len(u.lib.Textp) == 0 && u.dwinfo.Child == nil {
+		if len(u.Textp) == 0 && u.DWInfo.Child == nil {
 			continue
 		}
 
@@ -1577,10 +1569,10 @@ func writeinfo(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit, abbrevs
 		dwarf.PutAttrs(dwarfctxt, s, compunit.Abbrev, compunit.Attr)
 
 		cu := []*sym.Symbol{s}
-		cu = append(cu, u.absFnDIEs...)
-		cu = append(cu, u.funcDIEs...)
-		if u.consts != nil {
-			cu = append(cu, u.consts)
+		cu = append(cu, u.AbsFnDIEs...)
+		cu = append(cu, u.FuncDIEs...)
+		if u.Consts != nil {
+			cu = append(cu, u.Consts)
 		}
 		var cusize int64
 		for _, child := range cu {
@@ -1772,8 +1764,6 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 		dwsectCUSize = make(map[string]uint64)
 	}
 
-	ctxt.compUnitByPackage = make(map[*sym.Library]*compilationUnit)
-
 	// Forctxt.Diagnostic messages.
 	newattr(&dwtypes, dwarf.DW_AT_name, dwarf.DW_CLS_STRING, int64(len("dwtypes")), "dwtypes")
 
@@ -1821,83 +1811,91 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 	flagVariants := make(map[string]bool)
 
 	for _, lib := range ctxt.Library {
-		unit := &compilationUnit{lib: lib}
-		if s := ctxt.Syms.ROLookup(dwarf.ConstInfoPrefix+lib.Pkg, 0); s != nil {
-			importInfoSymbol(ctxt, s)
-			unit.consts = s
-		}
-		ctxt.compUnits = append(ctxt.compUnits, unit)
-		ctxt.compUnitByPackage[lib] = unit
-
-		unit.dwinfo = newdie(ctxt, &dwroot, dwarf.DW_ABRV_COMPUNIT, unit.lib.Pkg, 0)
-		newattr(unit.dwinfo, dwarf.DW_AT_language, dwarf.DW_CLS_CONSTANT, int64(dwarf.DW_LANG_Go), 0)
-		// OS X linker requires compilation dir or absolute path in comp unit name to output debug info.
-		compDir := getCompilationDir()
-		// TODO: Make this be the actual compilation directory, not
-		// the linker directory. If we move CU construction into the
-		// compiler, this should happen naturally.
-		newattr(unit.dwinfo, dwarf.DW_AT_comp_dir, dwarf.DW_CLS_STRING, int64(len(compDir)), compDir)
-		producerExtra := ctxt.Syms.Lookup(dwarf.CUInfoPrefix+"producer."+unit.lib.Pkg, 0)
-		producer := "Go cmd/compile " + objabi.Version
-		if len(producerExtra.P) > 0 {
-			// We put a semicolon before the flags to clearly
-			// separate them from the version, which can be long
-			// and have lots of weird things in it in development
-			// versions. We promise not to put a semicolon in the
-			// version, so it should be safe for readers to scan
-			// forward to the semicolon.
-			producer += "; " + string(producerExtra.P)
-			flagVariants[string(producerExtra.P)] = true
-		} else {
-			flagVariants[""] = true
-		}
-
-		newattr(unit.dwinfo, dwarf.DW_AT_producer, dwarf.DW_CLS_STRING, int64(len(producer)), producer)
-
-		var pkgname string
-		if s := ctxt.Syms.ROLookup(dwarf.CUInfoPrefix+"packagename."+unit.lib.Pkg, 0); s != nil {
-			pkgname = string(s.P)
-		}
-		newattr(unit.dwinfo, dwarf.DW_AT_go_package_name, dwarf.DW_CLS_STRING, int64(len(pkgname)), pkgname)
-
-		if len(lib.Textp) == 0 {
-			unit.dwinfo.Abbrev = dwarf.DW_ABRV_COMPUNIT_TEXTLESS
-		}
-
-		// Scan all functions in this compilation unit, create DIEs for all
-		// referenced types, create the file table for debug_line, find all
-		// referenced abstract functions.
-		// Collect all debug_range symbols in unit.rangeSyms
-		for _, s := range lib.Textp { // textp has been dead-code-eliminated already.
-			dsym := dwarfFuncSym(ctxt, s, dwarf.InfoPrefix, false)
-			dsym.Attr |= sym.AttrNotInSymbolTable | sym.AttrReachable
-			dsym.Type = sym.SDWARFINFO
-			unit.funcDIEs = append(unit.funcDIEs, dsym)
-
-			rangeSym := dwarfFuncSym(ctxt, s, dwarf.RangePrefix, false)
-			if rangeSym != nil && rangeSym.Size > 0 {
-				rangeSym.Attr |= sym.AttrReachable | sym.AttrNotInSymbolTable
-				rangeSym.Type = sym.SDWARFRANGE
-				if ctxt.HeadType == objabi.Haix {
-					addDwsectCUSize(".debug_ranges", unit.lib.String(), uint64(rangeSym.Size))
-
-				}
-				unit.rangeSyms = append(unit.rangeSyms, rangeSym)
+		consts := ctxt.Syms.ROLookup(dwarf.ConstInfoPrefix+lib.Pkg, 0)
+		for _, unit := range lib.Units {
+			// We drop the constants into the first CU.
+			if consts != nil {
+				importInfoSymbol(ctxt, consts)
+				unit.Consts = consts
+				consts = nil
 			}
 
-			for ri := 0; ri < len(dsym.R); ri++ {
-				r := &dsym.R[ri]
-				if r.Type == objabi.R_DWARFSECREF {
-					rsym := r.Sym
-					if strings.HasPrefix(rsym.Name, dwarf.InfoPrefix) && strings.HasSuffix(rsym.Name, dwarf.AbstractFuncSuffix) && !rsym.Attr.OnList() {
-						// abstract function
-						rsym.Attr |= sym.AttrOnList
-						unit.absFnDIEs = append(unit.absFnDIEs, rsym)
-						importInfoSymbol(ctxt, rsym)
-					} else if rsym.Size == 0 {
-						// a type we do not have a DIE for
-						n := nameFromDIESym(rsym)
-						defgotype(ctxt, ctxt.Syms.Lookup("type."+n, 0))
+			ctxt.compUnits = append(ctxt.compUnits, unit)
+
+			// We need at least one runtime unit.
+			if unit.Lib.Pkg == "runtime" {
+				ctxt.runtimeCU = unit
+			}
+
+			unit.DWInfo = newdie(ctxt, &dwroot, dwarf.DW_ABRV_COMPUNIT, unit.Lib.Pkg, 0)
+			newattr(unit.DWInfo, dwarf.DW_AT_language, dwarf.DW_CLS_CONSTANT, int64(dwarf.DW_LANG_Go), 0)
+			// OS X linker requires compilation dir or absolute path in comp unit name to output debug info.
+			compDir := getCompilationDir()
+			// TODO: Make this be the actual compilation directory, not
+			// the linker directory. If we move CU construction into the
+			// compiler, this should happen naturally.
+			newattr(unit.DWInfo, dwarf.DW_AT_comp_dir, dwarf.DW_CLS_STRING, int64(len(compDir)), compDir)
+			producerExtra := ctxt.Syms.Lookup(dwarf.CUInfoPrefix+"producer."+unit.Lib.Pkg, 0)
+			producer := "Go cmd/compile " + objabi.Version
+			if len(producerExtra.P) > 0 {
+				// We put a semicolon before the flags to clearly
+				// separate them from the version, which can be long
+				// and have lots of weird things in it in development
+				// versions. We promise not to put a semicolon in the
+				// version, so it should be safe for readers to scan
+				// forward to the semicolon.
+				producer += "; " + string(producerExtra.P)
+				flagVariants[string(producerExtra.P)] = true
+			} else {
+				flagVariants[""] = true
+			}
+
+			newattr(unit.DWInfo, dwarf.DW_AT_producer, dwarf.DW_CLS_STRING, int64(len(producer)), producer)
+
+			var pkgname string
+			if s := ctxt.Syms.ROLookup(dwarf.CUInfoPrefix+"packagename."+unit.Lib.Pkg, 0); s != nil {
+				pkgname = string(s.P)
+			}
+			newattr(unit.DWInfo, dwarf.DW_AT_go_package_name, dwarf.DW_CLS_STRING, int64(len(pkgname)), pkgname)
+
+			if len(unit.Textp) == 0 {
+				unit.DWInfo.Abbrev = dwarf.DW_ABRV_COMPUNIT_TEXTLESS
+			}
+
+			// Scan all functions in this compilation unit, create DIEs for all
+			// referenced types, create the file table for debug_line, find all
+			// referenced abstract functions.
+			// Collect all debug_range symbols in unit.rangeSyms
+			for _, s := range unit.Textp { // textp has been dead-code-eliminated already.
+				dsym := dwarfFuncSym(ctxt, s, dwarf.InfoPrefix, false)
+				dsym.Attr |= sym.AttrNotInSymbolTable | sym.AttrReachable
+				dsym.Type = sym.SDWARFINFO
+				unit.FuncDIEs = append(unit.FuncDIEs, dsym)
+
+				rangeSym := dwarfFuncSym(ctxt, s, dwarf.RangePrefix, false)
+				if rangeSym != nil && rangeSym.Size > 0 {
+					rangeSym.Attr |= sym.AttrReachable | sym.AttrNotInSymbolTable
+					rangeSym.Type = sym.SDWARFRANGE
+					if ctxt.HeadType == objabi.Haix {
+						addDwsectCUSize(".debug_ranges", unit.Lib.Pkg, uint64(rangeSym.Size))
+					}
+					unit.RangeSyms = append(unit.RangeSyms, rangeSym)
+				}
+
+				for ri := 0; ri < len(dsym.R); ri++ {
+					r := &dsym.R[ri]
+					if r.Type == objabi.R_DWARFSECREF {
+						rsym := r.Sym
+						if strings.HasPrefix(rsym.Name, dwarf.InfoPrefix) && strings.HasSuffix(rsym.Name, dwarf.AbstractFuncSuffix) && !rsym.Attr.OnList() {
+							// abstract function
+							rsym.Attr |= sym.AttrOnList
+							unit.AbsFnDIEs = append(unit.AbsFnDIEs, rsym)
+							importInfoSymbol(ctxt, rsym)
+						} else if rsym.Size == 0 {
+							// a type we do not have a DIE for
+							n := nameFromDIESym(rsym)
+							defgotype(ctxt, ctxt.Syms.Lookup("type."+n, 0))
+						}
 					}
 				}
 			}
@@ -1946,12 +1944,12 @@ func dwarfGenerateDebugSyms(ctxt *Link) {
 	debugRanges.Attr |= sym.AttrReachable
 	syms = append(syms, debugLine)
 	for _, u := range ctxt.compUnits {
-		reversetree(&u.dwinfo.Child)
-		if u.dwinfo.Abbrev == dwarf.DW_ABRV_COMPUNIT_TEXTLESS {
+		reversetree(&u.DWInfo.Child)
+		if u.DWInfo.Abbrev == dwarf.DW_ABRV_COMPUNIT_TEXTLESS {
 			continue
 		}
 		writelines(ctxt, u, debugLine)
-		writepcranges(ctxt, u, u.lib.Textp[0], u.pcs, debugRanges)
+		writepcranges(ctxt, u, u.Textp[0], u.PCs, debugRanges)
 	}
 
 	// newdie adds DIEs to the *beginning* of the parent's DIE list.
@@ -1975,15 +1973,15 @@ func dwarfGenerateDebugSyms(ctxt *Link) {
 	syms = collectlocs(ctxt, syms, ctxt.compUnits)
 	syms = append(syms, debugRanges)
 	for _, unit := range ctxt.compUnits {
-		syms = append(syms, unit.rangeSyms...)
+		syms = append(syms, unit.RangeSyms...)
 	}
 	dwarfp = syms
 }
 
-func collectlocs(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit) []*sym.Symbol {
+func collectlocs(ctxt *Link, syms []*sym.Symbol, units []*sym.CompilationUnit) []*sym.Symbol {
 	empty := true
 	for _, u := range units {
-		for _, fn := range u.funcDIEs {
+		for _, fn := range u.FuncDIEs {
 			for i := range fn.R {
 				reloc := &fn.R[i] // Copying sym.Reloc has measurable impact on performance
 				if reloc.Type == objabi.R_DWARFSECREF && strings.HasPrefix(reloc.Sym.Name, dwarf.LocPrefix) {
@@ -2126,21 +2124,21 @@ func dwarfcompress(ctxt *Link) {
 	Segdwarf.Length = pos - Segdwarf.Vaddr
 }
 
-type compilationUnitByStartPC []*compilationUnit
+type compilationUnitByStartPC []*sym.CompilationUnit
 
 func (v compilationUnitByStartPC) Len() int      { return len(v) }
 func (v compilationUnitByStartPC) Swap(i, j int) { v[i], v[j] = v[j], v[i] }
 
 func (v compilationUnitByStartPC) Less(i, j int) bool {
 	switch {
-	case len(v[i].lib.Textp) == 0 && len(v[j].lib.Textp) == 0:
-		return v[i].lib.Pkg < v[j].lib.Pkg
-	case len(v[i].lib.Textp) != 0 && len(v[j].lib.Textp) == 0:
+	case len(v[i].Textp) == 0 && len(v[j].Textp) == 0:
+		return v[i].Lib.Pkg < v[j].Lib.Pkg
+	case len(v[i].Textp) != 0 && len(v[j].Textp) == 0:
 		return true
-	case len(v[i].lib.Textp) == 0 && len(v[j].lib.Textp) != 0:
+	case len(v[i].Textp) == 0 && len(v[j].Textp) != 0:
 		return false
 	default:
-		return v[i].lib.Textp[0].Value < v[j].lib.Textp[0].Value
+		return v[i].Textp[0].Value < v[j].Textp[0].Value
 	}
 }
 

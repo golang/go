@@ -402,7 +402,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 		case objabi.R_ADDRCUOFF:
 			// debug_range and debug_loc elements use this relocation type to get an
 			// offset from the start of the compile unit.
-			o = Symaddr(r.Sym) + r.Add - Symaddr(r.Sym.Lib.Textp[0])
+			o = Symaddr(r.Sym) + r.Add - Symaddr(r.Sym.Unit.Lib.Textp[0])
 
 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
 		case objabi.R_GOTPCREL:
@@ -1782,7 +1782,8 @@ func (ctxt *Link) dodata() {
 		case sym.SDWARFLOC:
 			sect = addsection(ctxt.Arch, &Segdwarf, ".debug_loc", 04)
 		default:
-			Errorf(dwarfp[i], "unknown DWARF section %v", curType)
+			// Error is unrecoverable, so panic.
+			panic(fmt.Sprintf("unknown DWARF section %v", curType))
 		}
 
 		sect.Align = 1

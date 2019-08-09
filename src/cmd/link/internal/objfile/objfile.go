@@ -39,6 +39,7 @@ type objReader struct {
 	arch            *sys.Arch
 	syms            *sym.Symbols
 	lib             *sym.Library
+	unit            *sym.CompilationUnit
 	pn              string
 	dupSym          *sym.Symbol
 	localSymVersion int
@@ -81,7 +82,7 @@ const (
 
 // Load loads an object file f into library lib.
 // The symbols loaded are added to syms.
-func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, length int64, pn string, flags int) int {
+func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64, pn string, flags int) int {
 	start := f.Offset()
 	roObject := f.SliceRO(uint64(length))
 	if roObject != nil {
@@ -90,6 +91,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, le
 	r := &objReader{
 		rd:              f,
 		lib:             lib,
+		unit:            unit,
 		arch:            arch,
 		syms:            syms,
 		pn:              pn,
@@ -254,7 +256,7 @@ func (r *objReader) readSym() {
 
 overwrite:
 	s.File = r.pkgpref[:len(r.pkgpref)-1]
-	s.Lib = r.lib
+	s.Unit = r.unit
 	if dupok {
 		s.Attr |= sym.AttrDuplicateOK
 	}
@@ -405,7 +407,7 @@ overwrite:
 				reason = fmt.Sprintf("new length %d != old length %d",
 					len(data), len(dup.P))
 			}
-			fmt.Fprintf(os.Stderr, "cmd/link: while reading object for '%v': duplicate symbol '%s', previous def at '%v', with mismatched payload: %s\n", r.lib, dup, dup.Lib, reason)
+			fmt.Fprintf(os.Stderr, "cmd/link: while reading object for '%v': duplicate symbol '%s', previous def at '%v', with mismatched payload: %s\n", r.lib, dup, dup.Unit.Lib, reason)
 
 			// For the moment, whitelist DWARF subprogram DIEs for
 			// auto-generated wrapper functions. What seems to happen
