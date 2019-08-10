@@ -892,6 +892,14 @@ godoc
 
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
+    <p><!-- CL 148958, CL 148959, CL 152697, CL 152698 -->
+      The fast paths of <a href="/pkg/sync/#Mutex.Lock"><code>Mutex.Lock</code></a>, <a href="/pkg/sync/#Mutex.Unlock"><code>Mutex.Unlock</code></a>,
+      <a href="/pkg/sync/#RWMutex.Lock"><code>RWMutex.Lock</code></a>, <a href="/pkg/sync/#Mutex.RUnlock"><code>RWMutex.RUnlock</code></a>, and
+      <a href="/pkg/sync/#Once.Do"><code>Once.Do</code></a> are now inlined in their callers.
+      For the uncontended cases on amd64, these changes make <a href="/pkg/sync/#Once.Do"><code>Once.Do</code></a> twice as fast, and the
+      <a href="/pkg/sync/#Mutex"><code>Mutex</code></a>/<a href="/pkg/sync/#RWMutex"><code>RWMutex</code></a> methods up to 10% faster.
+    </p>
+
     <p><!-- CL 166960 -->
       Large <a href="/pkg/sync/#Pool"><code>Pool</code></a> no longer increase stop-the-world pause times.
     </p>
