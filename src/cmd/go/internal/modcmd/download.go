@@ -81,6 +81,17 @@ func runDownload(cmd *base.Command, args []string) {
 	}
 	if len(args) == 0 {
 		args = []string{"all"}
+	} else if modload.HasModRoot() {
+		modload.InitMod() // to fill Target
+		targetAtLatest := modload.Target.Path + "@latest"
+		targetAtUpgrade := modload.Target.Path + "@upgrade"
+		targetAtPatch := modload.Target.Path + "@patch"
+		for _, arg := range args {
+			switch arg {
+			case modload.Target.Path, targetAtLatest, targetAtUpgrade, targetAtPatch:
+				os.Stderr.WriteString("go mod download: skipping argument "+ arg + " that resolves to the main module\n")
+			}
+		}
 	}
 
 	var mods []*moduleJSON
@@ -91,8 +102,9 @@ func runDownload(cmd *base.Command, args []string) {
 		if info.Replace != nil {
 			info = info.Replace
 		}
-		if info.Version == "" && info.Error == nil {
-			// main module
+		if (module.Version{Path: info.Path, Version: info.Version} == modload.Target) {
+			// skipping main module.
+			// go mod download without dependencies is silent.
 			continue
 		}
 		m := &moduleJSON{
