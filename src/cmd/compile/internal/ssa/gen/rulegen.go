@@ -21,14 +21,15 @@ import (
 	"go/parser"
 	"go/printer"
 	"go/token"
+	"go/types"
 	"io"
-	"io/ioutil"
 	"log"
-	"math"
 	"os"
 	"regexp"
 	"sort"
 	"strings"
+
+	"golang.org/x/tools/go/ast/astutil"
 )
 
 // rule syntax:
@@ -165,7 +166,7 @@ func genRulesSuffix(arch arch, suff string) {
 	}
 	sort.Strings(ops)
 
-	file := &File{arch: arch, suffix: suff}
+	genFile := &File{arch: arch, suffix: suff}
 	const chunkSize = 10
 	// Main rewrite routine is a switch on v.Op.
 	fn := &Func{kind: "Value"}
@@ -182,7 +183,7 @@ func genRulesSuffix(arch arch, suff string) {
 	}
 	fn.add(sw)
 	fn.add(stmtf("return false"))
-	file.add(fn)
+	genFile.add(fn)
 
 	// Generate a routine per op. Note that we don't make one giant routine
 	// because it is too big for some compilers.
@@ -201,7 +202,10 @@ func genRulesSuffix(arch arch, suff string) {
 				kind:   "Value",
 				suffix: fmt.Sprintf("_%s_%d", op, chunk),
 			}
-			var rewrites bodyBase
+			fn.add(declf("b", "v.Block"))
+			fn.add(declf("config", "b.Func.Config"))
+			fn.add(declf("fe", "b.Func.fe"))
+			fn.add(declf("typ", "&b.Func.Config.Types"))
 			for _, rule := range rules[chunk:endchunk] {
 				if rr != nil && !rr.canFail {
 					log.Fatalf("unconditional rule %s is followed by other rules", rr.match)
@@ -219,38 +223,12 @@ func genRulesSuffix(arch arch, suff string) {
 				if *genLog {
 					rr.add(stmtf("logRule(%q)", rule.loc))
 				}
-				rewrites.add(rr)
+				fn.add(rr)
 			}
-
-			// TODO(mvdan): remove unused vars later instead
-			uses := make(map[string]int)
-			walk(&rewrites, func(node Node) {
-				switch node := node.(type) {
-				case *Declare:
-					// work around var shadowing
-					// TODO(mvdan): forbid it instead.
-					uses[node.name] = math.MinInt32
-				case *ast.Ident:
-					uses[node.Name]++
-				}
-			})
-			if uses["b"]+uses["config"]+uses["fe"]+uses["typ"] > 0 {
-				fn.add(declf("b", "v.Block"))
-			}
-			if uses["config"] > 0 {
-				fn.add(declf("config", "b.Func.Config"))
-			}
-			if uses["fe"] > 0 {
-				fn.add(declf("fe", "b.Func.fe"))
-			}
-			if uses["typ"] > 0 {
-				fn.add(declf("typ", "&b.Func.Config.Types"))
-			}
-			fn.add(rewrites.list...)
 			if rr.canFail {
 				fn.add(stmtf("return false"))
 			}
-			file.add(fn)
+			genFile.add(fn)
 		}
 	}
 
@@ -258,11 +236,8 @@ func genRulesSuffix(arch arch, suff string) {
 	// so we can make this one function with a switch.
 	fn = &Func{kind: "Block"}
 	fn.add(declf("config", "b.Func.Config"))
-	// TODO(mvdan): declare these only if needed
 	fn.add(declf("typ", "&config.Types"))
-	fn.add(stmtf("_ = typ"))
 	fn.add(declf("v", "b.Control"))
-	fn.add(stmtf("_ = v"))
 
 	sw = &Switch{expr: exprf("b.Kind")}
 	ops = ops[:0]
@@ -279,52 +254,69 @@ func genRulesSuffix(arch arch, suff string) {
 	}
 	fn.add(sw)
 	fn.add(stmtf("return false"))
-	file.add(fn)
+	genFile.add(fn)
 
-	// gofmt result
+	// Remove unused imports and variables.
 	buf := new(bytes.Buffer)
-	fprint(buf, file)
-	b := buf.Bytes()
-	src, err := format.Source(b)
+	fprint(buf, genFile)
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "", buf, parser.ParseComments)
 	if err != nil {
-		fmt.Printf("%s\n", b)
-		panic(err)
+		log.Fatal(err)
 	}
-	// Write to file
-	if err := ioutil.WriteFile("../rewrite"+arch.name+suff+".go", src, 0666); err != nil {
-		log.Fatalf("can't write output: %v\n", err)
-	}
-}
+	tfile := fset.File(file.Pos())
 
-func walk(node Node, fn func(Node)) {
-	fn(node)
-	switch node := node.(type) {
-	case *bodyBase:
-	case *File:
-	case *Func:
-	case *Switch:
-		walk(node.expr, fn)
-	case *Case:
-		walk(node.expr, fn)
-	case *RuleRewrite:
-	case *Declare:
-		walk(node.value, fn)
-	case *CondBreak:
-		walk(node.expr, fn)
-	case ast.Node:
-		ast.Inspect(node, func(node ast.Node) bool {
-			fn(node)
-			return true
-		})
-	default:
-		log.Fatalf("cannot walk %T", node)
-	}
-	if wb, ok := node.(interface{ body() []Statement }); ok {
-		for _, node := range wb.body() {
-			walk(node, fn)
+	for n := 0; n < 3; n++ {
+		unused := make(map[token.Pos]bool)
+		conf := types.Config{Error: func(err error) {
+			if terr, ok := err.(types.Error); ok && strings.Contains(terr.Msg, "not used") {
+				unused[terr.Pos] = true
+			}
+		}}
+		_, _ = conf.Check("ssa", fset, []*ast.File{file}, nil)
+		if len(unused) == 0 {
+			break
 		}
+		pre := func(c *astutil.Cursor) bool {
+			if node := c.Node(); node != nil && unused[node.Pos()] {
+				c.Delete()
+				// Unused imports and declarations use exactly
+				// one line. Prevent leaving an empty line.
+				tfile.MergeLine(tfile.Position(node.Pos()).Line)
+				return false
+			}
+			return true
+		}
+		post := func(c *astutil.Cursor) bool {
+			switch node := c.Node().(type) {
+			case *ast.GenDecl:
+				if len(node.Specs) == 0 {
+					c.Delete()
+				}
+			}
+			return true
+		}
+		file = astutil.Apply(file, pre, post).(*ast.File)
 	}
-	fn(nil)
+
+	// Write the well-formatted source to file
+	f, err := os.Create("../rewrite" + arch.name + suff + ".go")
+	if err != nil {
+		log.Fatalf("can't write output: %v", err)
+	}
+	defer f.Close()
+	// gofmt result; use a buffered writer, as otherwise go/format spends
+	// far too much time in syscalls.
+	bw := bufio.NewWriter(f)
+	if err := format.Node(bw, fset, file); err != nil {
+		log.Fatalf("can't format output: %v", err)
+	}
+	if err := bw.Flush(); err != nil {
+		log.Fatalf("can't write output: %v", err)
+	}
+	if err := f.Close(); err != nil {
+		log.Fatalf("can't write output: %v", err)
+	}
 }
 
 func fprint(w io.Writer, n Node) {
@@ -333,18 +325,13 @@ func fprint(w io.Writer, n Node) {
 		fmt.Fprintf(w, "// Code generated from gen/%s%s.rules; DO NOT EDIT.\n", n.arch.name, n.suffix)
 		fmt.Fprintf(w, "// generated with: cd gen; go run *.go\n")
 		fmt.Fprintf(w, "\npackage ssa\n")
-		// TODO(mvdan): keep the needed imports only
-		fmt.Fprintln(w, "import \"fmt\"")
-		fmt.Fprintln(w, "import \"math\"")
-		fmt.Fprintln(w, "import \"cmd/internal/obj\"")
-		fmt.Fprintln(w, "import \"cmd/internal/objabi\"")
-		fmt.Fprintln(w, "import \"cmd/compile/internal/types\"")
-		fmt.Fprintln(w, "var _ = fmt.Println   // in case not otherwise used")
-		fmt.Fprintln(w, "var _ = math.MinInt8  // in case not otherwise used")
-		fmt.Fprintln(w, "var _ = obj.ANOP      // in case not otherwise used")
-		fmt.Fprintln(w, "var _ = objabi.GOROOT // in case not otherwise used")
-		fmt.Fprintln(w, "var _ = types.TypeMem // in case not otherwise used")
-		fmt.Fprintln(w)
+		for _, path := range []string{
+			"fmt", "math",
+			"cmd/internal/obj", "cmd/internal/objabi",
+			"cmd/compile/internal/types",
+		} {
+			fmt.Fprintf(w, "import %q\n", path)
+		}
 		for _, f := range n.list {
 			f := f.(*Func)
 			fmt.Fprintf(w, "func rewrite%s%s%s%s(", f.kind, n.arch.name, n.suffix, f.suffix)
