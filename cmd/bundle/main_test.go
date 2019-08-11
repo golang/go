@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.9
-
 package main
 
 import (
@@ -14,7 +12,7 @@ import (
 	"runtime"
 	"testing"
 
-	"golang.org/x/tools/go/buildutil"
+	"golang.org/x/tools/go/packages/packagestest"
 )
 
 func TestBundle(t *testing.T) {
@@ -26,25 +24,31 @@ func TestBundle(t *testing.T) {
 		return string(data)
 	}
 
-	ctxt = buildutil.FakeContext(map[string]map[string]string{
-		"initial": {
-			"a.go": load("testdata/src/initial/a.go"),
-			"b.go": load("testdata/src/initial/b.go"),
-			"c.go": load("testdata/src/initial/c.go"),
+	e := packagestest.Export(t, packagestest.Modules, []packagestest.Module{
+		{
+			Name: "initial",
+			Files: map[string]interface{}{
+				"a.go": load("testdata/src/initial/a.go"),
+				"b.go": load("testdata/src/initial/b.go"),
+				"c.go": load("testdata/src/initial/c.go"),
+			},
 		},
-		"domain.name/importdecl": {
-			"p.go": load("testdata/src/domain.name/importdecl/p.go"),
-		},
-		"fmt": {
-			"print.go": `package fmt; func Println(...interface{})`,
+		{
+			Name: "domain.name/importdecl",
+			Files: map[string]interface{}{
+				"p.go": load("testdata/src/domain.name/importdecl/p.go"),
+			},
 		},
 	})
+	defer e.Cleanup()
+	testingOnlyPackagesConfig = e.Config
 
 	os.Args = os.Args[:1] // avoid e.g. -test=short in the output
 	out, err := bundle("initial", "github.com/dest", "dest", "prefix", "tag")
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if got, want := string(out), load("testdata/out.golden"); got != want {
 		t.Errorf("-- got --\n%s\n-- want --\n%s\n-- diff --", got, want)
 
