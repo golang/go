@@ -44,7 +44,7 @@ type Options struct {
 
 // Process implements golang.org/x/tools/imports.Process with explicit context in env.
 func Process(filename string, src []byte, opt *Options) (formatted []byte, err error) {
-	src, err = initialize(filename, src, opt)
+	src, opt, err = initialize(filename, src, opt)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func Process(filename string, src []byte, opt *Options) (formatted []byte, err e
 // Note that filename's directory influences which imports can be chosen,
 // so it is important that filename be accurate.
 func FixImports(filename string, src []byte, opt *Options) (fixes []*ImportFix, err error) {
-	src, err = initialize(filename, src, opt)
+	src, opt, err = initialize(filename, src, opt)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func FixImports(filename string, src []byte, opt *Options) (fixes []*ImportFix, 
 
 // ApplyFix will apply all of the fixes to the file and format it.
 func ApplyFixes(fixes []*ImportFix, filename string, src []byte, opt *Options) (formatted []byte, err error) {
-	src, err = initialize(filename, src, opt)
+	src, opt, err = initialize(filename, src, opt)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func ApplyFixes(fixes []*ImportFix, filename string, src []byte, opt *Options) (
 // initialize sets the values for opt and src.
 // If they are provided, they are not changed. Otherwise opt is set to the
 // default values and src is read from the file system.
-func initialize(filename string, src []byte, opt *Options) ([]byte, error) {
+func initialize(filename string, src []byte, opt *Options) ([]byte, *Options, error) {
 	// Use defaults if opt is nil.
 	if opt == nil {
 		opt = &Options{Comments: true, TabIndent: true, TabWidth: 8}
@@ -127,12 +127,12 @@ func initialize(filename string, src []byte, opt *Options) ([]byte, error) {
 	if src == nil {
 		b, err := ioutil.ReadFile(filename)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		src = b
 	}
 
-	return src, nil
+	return src, opt, nil
 }
 
 func formatFile(fileSet *token.FileSet, file *ast.File, src []byte, adjust func(orig []byte, src []byte) []byte, opt *Options) ([]byte, error) {
