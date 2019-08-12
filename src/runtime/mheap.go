@@ -185,6 +185,12 @@ type mheap struct {
 	// simply blocking GC (by disabling preemption).
 	sweepArenas []arenaIdx
 
+	// curArena is the arena that the heap is currently growing
+	// into. This should always be physPageSize-aligned.
+	curArena struct {
+		base, end uintptr
+	}
+
 	_ uint32 // ensure 64-bit alignment of central
 
 	// central free lists for small size classes.
@@ -1249,29 +1255,74 @@ HaveSpan:
 // h must be locked.
 func (h *mheap) grow(npage uintptr) bool {
 	ask := npage << _PageShift
-	v, size := h.sysAlloc(ask)
-	if v == nil {
-		print("runtime: out of memory: cannot allocate ", ask, "-byte block (", memstats.heap_sys, " in use)\n")
-		return false
+
+	nBase := round(h.curArena.base+ask, physPageSize)
+	if nBase > h.curArena.end {
+		// Not enough room in the current arena. Allocate more
+		// arena space. This may not be contiguous with the
+		// current arena, so we have to request the full ask.
+		av, asize := h.sysAlloc(ask)
+		if av == nil {
+			print("runtime: out of memory: cannot allocate ", ask, "-byte block (", memstats.heap_sys, " in use)\n")
+			return false
+		}
+
+		if uintptr(av) == h.curArena.end {
+			// The new space is contiguous with the old
+			// space, so just extend the current space.
+			h.curArena.end = uintptr(av) + asize
+		} else {
+			// The new space is discontiguous. Track what
+			// remains of the current space and switch to
+			// the new space. This should be rare.
+			if size := h.curArena.end - h.curArena.base; size != 0 {
+				h.growAddSpan(unsafe.Pointer(h.curArena.base), size)
+			}
+			// Switch to the new space.
+			h.curArena.base = uintptr(av)
+			h.curArena.end = uintptr(av) + asize
+		}
+
+		// The memory just allocated counts as both released
+		// and idle, even though it's not yet backed by spans.
+		//
+		// The allocation is always aligned to the heap arena
+		// size which is always > physPageSize, so its safe to
+		// just add directly to heap_released. Coalescing, if
+		// possible, will also always be correct in terms of
+		// accounting, because s.base() must be a physical
+		// page boundary.
+		memstats.heap_released += uint64(asize)
+		memstats.heap_idle += uint64(asize)
+
+		// Recalculate nBase
+		nBase = round(h.curArena.base+ask, physPageSize)
 	}
 
-	// Create a fake "in use" span and free it, so that the
-	// right accounting and coalescing happens.
+	// Grow into the current arena.
+	v := h.curArena.base
+	h.curArena.base = nBase
+	h.growAddSpan(unsafe.Pointer(v), nBase-v)
+	return true
+}
+
+// growAddSpan adds a free span when the heap grows into [v, v+size).
+// This memory must be in the Prepared state (not Ready).
+//
+// h must be locked.
+func (h *mheap) growAddSpan(v unsafe.Pointer, size uintptr) {
 	s := (*mspan)(h.spanalloc.alloc())
 	s.init(uintptr(v), size/pageSize)
 	h.setSpans(s.base(), s.npages, s)
 	s.state = mSpanFree
-	memstats.heap_idle += uint64(size)
-	// (*mheap).sysAlloc returns untouched/uncommitted memory.
+	// [v, v+size) is always in the Prepared state. The new span
+	// must be marked scavenged so the allocator transitions it to
+	// Ready when allocating from it.
 	s.scavenged = true
-	// s is always aligned to the heap arena size which is always > physPageSize,
-	// so its totally safe to just add directly to heap_released. Coalescing,
-	// if possible, will also always be correct in terms of accounting, because
-	// s.base() must be a physical page boundary.
-	memstats.heap_released += uint64(size)
+	// This span is both released and idle, but grow already
+	// updated both memstats.
 	h.coalesce(s)
 	h.free.insert(s)
-	return true
 }
 
 // Free the span back into the heap.
