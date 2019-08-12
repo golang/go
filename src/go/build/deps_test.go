@@ -36,7 +36,8 @@ var pkgDeps = map[string][]string{
 	// L0 is the lowest level, core, nearly unavoidable packages.
 	"errors":                  {"runtime", "internal/reflectlite"},
 	"io":                      {"errors", "sync", "sync/atomic"},
-	"runtime":                 {"unsafe", "runtime/internal/atomic", "runtime/internal/sys", "runtime/internal/math", "internal/cpu", "internal/bytealg"},
+	"math/bits":               {"unsafe"},
+	"runtime":                 {"math/bits", "unsafe", "runtime/internal/atomic", "runtime/internal/sys", "runtime/internal/math", "internal/cpu", "internal/bytealg"},
 	"runtime/internal/sys":    {},
 	"runtime/internal/atomic": {"unsafe", "internal/cpu"},
 	"runtime/internal/math":   {"runtime/internal/sys"},
@@ -64,7 +65,6 @@ var pkgDeps = map[string][]string{
 	// L1 adds simple functions and strings processing,
 	// but not Unicode tables.
 	"math":          {"internal/cpu", "unsafe", "math/bits"},
-	"math/bits":     {"unsafe"},
 	"math/cmplx":    {"math"},
 	"math/rand":     {"L0", "math"},
 	"strconv":       {"L0", "unicode/utf8", "math", "math/bits"},
