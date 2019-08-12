@@ -92,8 +92,7 @@ contract Stringer(T) {
 
 type List(type T Stringer) struct{
         data T
-        // TODO(gri) cannot handle this yet
-        //link *List(T)
+        link *List(T)
 }
 
 var _ List(MyData)

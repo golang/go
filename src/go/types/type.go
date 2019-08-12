@@ -371,7 +371,8 @@ func (t *Interface) Complete() *Interface {
 		case other == nil:
 			methods = append(methods, m)
 		case explicit:
-			panic("duplicate method " + m.name)
+			// TODO(gri) enable again once contracts code calls Complete with correct interfaces
+			// panic("duplicate method " + m.name)
 		default:
 			// check method signatures after all locally embedded interfaces are computed
 			todo = append(todo, m, other.(*Func))
@@ -515,12 +516,16 @@ type Contract struct {
 
 // ifaceAt returns the interface matching for the respective
 // contract type parameter with the given index. If c is nil
-// the result is nil.
+// the result is the empty interface.
 func (c *Contract) ifaceAt(index int) *Interface {
+	var iface *Interface
 	if c != nil {
-		return c.IFaces[c.TParams[index]]
+		iface = c.IFaces[c.TParams[index]]
 	}
-	return nil
+	if iface == nil {
+		iface = &emptyInterface
+	}
+	return iface
 }
 
 // A TypeParam represents a type parameter type.
@@ -539,6 +544,13 @@ func NewTypeParam(obj *TypeName, index int, contr *Contract) *TypeParam {
 	return typ
 }
 
+// Interface returns the type parameter's interface as
+// specified via its contract. If there is no contract,
+// the result is the empty interface.
+func (t *TypeParam) Interface() *Interface {
+	return t.contr.ifaceAt(t.index)
+}
+
 // Implementations for Type methods.
 
 func (b *Basic) Underlying() Type         { return b }
@@ -554,7 +566,7 @@ func (c *Chan) Underlying() Type          { return c }
 func (t *Named) Underlying() Type         { return t.underlying }
 func (p *Parameterized) Underlying() Type { return p.tname.typ.Underlying() }
 func (c *Contract) Underlying() Type      { return c }
-func (c *TypeParam) Underlying() Type     { return c }
+func (t *TypeParam) Underlying() Type     { return t }
 
 func (b *Basic) String() string         { return TypeString(b, nil) }
 func (a *Array) String() string         { return TypeString(a, nil) }
@@ -569,4 +581,4 @@ func (c *Chan) String() string          { return TypeString(c, nil) }
 func (t *Named) String() string         { return TypeString(t, nil) }
 func (p *Parameterized) String() string { return TypeString(p, nil) }
 func (c *Contract) String() string      { return TypeString(c, nil) }
-func (c *TypeParam) String() string     { return TypeString(c, nil) }
+func (t *TypeParam) String() string     { return TypeString(t, nil) }

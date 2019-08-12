@@ -1,10 +1,23 @@
 package p
 
-// Type instantiation must satisfy the contract.
-type Stringer contract(T) {
+contract Stringer(T) {
         T String() string
 }
 
-type List(type T Stringer) struct{}
+type List(type T Stringer) struct{
+        data T
+        link *List(T)
+}
 
-var _ List /* ERROR not satisfied */ (int)
+type MyData string
+
+func (s MyData) String() string { return string(s) }
+
+var _ List(MyData)
+
+func _(type T Stringer)(s []T) (r []string) {
+        for _, x := range s {
+                r = append(r, x.String())
+        }
+        return
+}

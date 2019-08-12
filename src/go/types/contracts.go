@@ -259,19 +259,31 @@ func (check *Checker) satisfyContract(contr *Contract, targs []Type) bool {
 
 	for i, targ := range targs {
 		iface := contr.ifaceAt(i)
-		if iface == nil {
-			continue // no constraints
-		}
 		// If iface is parameterized, we need to replace the type parameters
 		// with the respective type arguments.
 		if isParameterized(iface) {
 			panic("unimplemented")
 		}
+		// use interface type of type parameter, if any
+		// TODO(gri) is this the correct place for this? (why not in missinMethod?)
+		targ = unpack(targ)
 		// targ must implement iface
 		if m, _ := check.missingMethod(targ, iface, true); m != nil {
+			// check.dump("missing %s (%s, %s)", m, targ, iface)
 			return false
 		}
 	}
 
 	return true
+}
+
+// unpack returns the interface type of a type parameter,
+// otherwise it just returns the argument type.
+// TODO(gri) This function is currently uses if a few places.
+// Need to determine if there's a better way to handle this.
+func unpack(typ Type) Type {
+	if tpar, _ := typ.(*TypeParam); tpar != nil {
+		return tpar.Interface()
+	}
+	return typ
 }
