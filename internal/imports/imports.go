@@ -108,17 +108,14 @@ func ApplyFixes(fixes []*ImportFix, filename string, src []byte, opt *Options) (
 func initialize(filename string, src []byte, opt *Options) ([]byte, error) {
 	// Use defaults if opt is nil.
 	if opt == nil {
-		opt = &Options{
-			Env: &ProcessEnv{
-				GOPATH: build.Default.GOPATH,
-				GOROOT: build.Default.GOROOT,
-			},
-			AllErrors:  opt.AllErrors,
-			Comments:   opt.Comments,
-			FormatOnly: opt.FormatOnly,
-			Fragment:   opt.Fragment,
-			TabIndent:  opt.TabIndent,
-			TabWidth:   opt.TabWidth,
+		opt = &Options{Comments: true, TabIndent: true, TabWidth: 8}
+	}
+
+	// Set the env if the user has not provided it.
+	if opt.Env == nil {
+		opt.Env = &ProcessEnv{
+			GOPATH: build.Default.GOPATH,
+			GOROOT: build.Default.GOROOT,
 		}
 	}
 
