@@ -63,9 +63,6 @@ export GO111MODULE=on
 export GOBIN="$dir"
 (cd "$dir"; go get golang.org/x/build/cmd/release)
 
-# Workaround issue golang.org/issue/33443.
-wget -q -O releaselet.go "https://raw.githubusercontent.com/golang/build/master/cmd/release/releaselet.go"
-
 # Build the release.
 sha() {
     if hash sha256sum 2>/dev/null; then
