@@ -49,6 +49,9 @@ type overlay struct {
 	// sameContentOnDisk is true if a file has been saved on disk,
 	// and therefore does not need to be part of the overlay sent to go/packages.
 	sameContentOnDisk bool
+
+	// unchanged is true if a file has not yet been edited.
+	unchanged bool
 }
 
 func (s *session) Shutdown(ctx context.Context) {
@@ -249,7 +252,7 @@ func (s *session) GetFile(uri span.URI) source.FileHandle {
 	return s.Cache().GetFile(uri)
 }
 
-func (s *session) SetOverlay(uri span.URI, data []byte) {
+func (s *session) SetOverlay(uri span.URI, data []byte) bool {
 	s.overlayMu.Lock()
 	defer func() {
 		s.overlayMu.Unlock()
@@ -258,14 +261,20 @@ func (s *session) SetOverlay(uri span.URI, data []byte) {
 
 	if data == nil {
 		delete(s.overlays, uri)
-		return
+		return false
 	}
+
+	o := s.overlays[uri]
+	firstChange := o != nil && o.unchanged
+
 	s.overlays[uri] = &overlay{
-		session: s,
-		uri:     uri,
-		data:    data,
-		hash:    hashContents(data),
+		session:   s,
+		uri:       uri,
+		data:      data,
+		hash:      hashContents(data),
+		unchanged: o == nil,
 	}
+	return firstChange
 }
 
 // openOverlay adds the file content to the overlay.
@@ -277,10 +286,11 @@ func (s *session) openOverlay(ctx context.Context, uri span.URI, data []byte) {
 		s.filesWatchMap.Notify(uri)
 	}()
 	s.overlays[uri] = &overlay{
-		session: s,
-		uri:     uri,
-		data:    data,
-		hash:    hashContents(data),
+		session:   s,
+		uri:       uri,
+		data:      data,
+		hash:      hashContents(data),
+		unchanged: true,
 	}
 	_, hash, err := s.cache.GetFile(uri).Read(ctx)
 	if err != nil {

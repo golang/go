@@ -328,7 +328,7 @@ func (v *view) buildBuiltinPkg(ctx context.Context) {
 }
 
 // SetContent sets the overlay contents for a file.
-func (v *view) SetContent(ctx context.Context, uri span.URI, content []byte) error {
+func (v *view) SetContent(ctx context.Context, uri span.URI, content []byte) (bool, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
@@ -338,10 +338,9 @@ func (v *view) SetContent(ctx context.Context, uri span.URI, content []byte) err
 	v.backgroundCtx, v.cancel = context.WithCancel(v.baseCtx)
 
 	if !v.Ignore(uri) {
-		v.session.SetOverlay(uri, content)
+		return v.session.SetOverlay(uri, content), nil
 	}
-
-	return nil
+	return false, nil
 }
 
 // invalidateContent invalidates the content of a Go file,

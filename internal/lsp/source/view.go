@@ -188,7 +188,7 @@ type Session interface {
 	IsOpen(uri span.URI) bool
 
 	// Called to set the effective contents of a file from this session.
-	SetOverlay(uri span.URI, data []byte)
+	SetOverlay(uri span.URI, data []byte) (wasFirstChange bool)
 }
 
 // View represents a single workspace.
@@ -211,7 +211,7 @@ type View interface {
 	GetFile(ctx context.Context, uri span.URI) (File, error)
 
 	// Called to set the effective contents of a file from this view.
-	SetContent(ctx context.Context, uri span.URI, content []byte) error
+	SetContent(ctx context.Context, uri span.URI, content []byte) (wasFirstChange bool, err error)
 
 	// BackgroundContext returns a context used for all background processing
 	// on behalf of this view.
