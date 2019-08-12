@@ -238,7 +238,6 @@ func genRulesSuffix(arch arch, suff string) {
 	fn = &Func{kind: "Block"}
 	fn.add(declf("config", "b.Func.Config"))
 	fn.add(declf("typ", "&b.Func.Config.Types"))
-	fn.add(declf("v", "b.Control"))
 
 	sw = &Switch{expr: exprf("b.Kind")}
 	ops = ops[:0]
@@ -247,9 +246,10 @@ func genRulesSuffix(arch arch, suff string) {
 	}
 	sort.Strings(ops)
 	for _, op := range ops {
-		swc := &Case{expr: exprf("%s", blockName(op, arch))}
+		name, data := getBlockInfo(op, arch)
+		swc := &Case{expr: exprf("%s", name)}
 		for _, rule := range blockrules[op] {
-			swc.add(genBlockRewrite(rule, arch))
+			swc.add(genBlockRewrite(rule, arch, data))
 		}
 		sw.add(swc)
 	}
@@ -593,11 +593,7 @@ func fprint(w io.Writer, n Node) {
 			fmt.Fprintf(w, "// cond: %s\n", n.cond)
 		}
 		fmt.Fprintf(w, "// result: %s\n", n.result)
-		if n.checkOp != "" {
-			fmt.Fprintf(w, "for v.Op == %s {\n", n.checkOp)
-		} else {
-			fmt.Fprintf(w, "for {\n")
-		}
+		fmt.Fprintf(w, "for %s {\n", n.check)
 		for _, n := range n.list {
 			fprint(w, n)
 		}
@@ -700,7 +696,7 @@ type (
 	RuleRewrite struct {
 		bodyBase
 		match, cond, result string // top comments
-		checkOp             string
+		check               string // top-level boolean expression
 
 		alloc int    // for unique var names
 		loc   string // file name & line number of the original rule
@@ -750,18 +746,39 @@ func breakf(format string, a ...interface{}) *CondBreak {
 	return &CondBreak{exprf(format, a...)}
 }
 
-func genBlockRewrite(rule Rule, arch arch) *RuleRewrite {
+func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 	rr := &RuleRewrite{loc: rule.loc}
 	rr.match, rr.cond, rr.result = rule.parse()
 	_, _, _, aux, s := extract(rr.match) // remove parens, then split
 
-	// check match of control value
-	pos := ""
-	if s[0] != "nil" {
-		if strings.Contains(s[0], "(") {
-			pos, rr.checkOp = genMatch0(rr, arch, s[0], "v")
+	// check match of control values
+	if len(s) < data.controls {
+		log.Fatalf("incorrect number of arguments in %s, got %v wanted at least %v", rule, len(s), data.controls)
+	}
+	controls := s[:data.controls]
+	pos := make([]string, data.controls)
+	for i, arg := range controls {
+		if strings.Contains(arg, "(") {
+			// TODO: allow custom names?
+			cname := fmt.Sprintf("b.Controls[%v]", i)
+			vname := fmt.Sprintf("v_%v", i)
+			rr.add(declf(vname, cname))
+			p, op := genMatch0(rr, arch, arg, vname)
+			if op != "" {
+				check := fmt.Sprintf("%s.Op == %s", cname, op)
+				if rr.check == "" {
+					rr.check = check
+				} else {
+					rr.check = rr.check + " && " + check
+				}
+			}
+			if p == "" {
+				p = vname + ".Pos"
+			}
+			pos[i] = p
 		} else {
-			rr.add(declf(s[0], "b.Control"))
+			rr.add(declf(arg, "b.Controls[%v]", i))
+			pos[i] = arg + ".Pos"
 		}
 	}
 	if aux != "" {
@@ -773,10 +790,14 @@ func genBlockRewrite(rule Rule, arch arch) *RuleRewrite {
 
 	// Rule matches. Generate result.
 	outop, _, _, aux, t := extract(rr.result) // remove parens, then split
-	newsuccs := t[1:]
+	_, outdata := getBlockInfo(outop, arch)
+	if len(t) < outdata.controls {
+		log.Fatalf("incorrect number of output arguments in %s, got %v wanted at least %v", rule, len(s), outdata.controls)
+	}
 
 	// Check if newsuccs is the same set as succs.
-	succs := s[1:]
+	succs := s[data.controls:]
+	newsuccs := t[outdata.controls:]
 	m := map[string]bool{}
 	for _, succ := range succs {
 		if m[succ] {
@@ -794,15 +815,23 @@ func genBlockRewrite(rule Rule, arch arch) *RuleRewrite {
 		log.Fatalf("unmatched successors %v in %s", m, rule)
 	}
 
-	rr.add(stmtf("b.Kind = %s", blockName(outop, arch)))
-	if t[0] == "nil" {
-		rr.add(stmtf("b.SetControl(nil)"))
-	} else {
-		if pos == "" {
-			pos = "v.Pos"
+	blockName, _ := getBlockInfo(outop, arch)
+	rr.add(stmtf("b.Kind = %s", blockName))
+	rr.add(stmtf("b.ResetControls()"))
+	for i, control := range t[:outdata.controls] {
+		// Select a source position for any new control values.
+		// TODO: does it always make sense to use the source position
+		// of the original control values or should we be using the
+		// block's source position in some cases?
+		newpos := "b.Pos" // default to block's source position
+		if i < len(pos) && pos[i] != "" {
+			// Use the previous control value's source position.
+			newpos = pos[i]
 		}
-		v := genResult0(rr, arch, t[0], false, false, pos)
-		rr.add(stmtf("b.SetControl(%s)", v))
+
+		// Generate a new control value (or copy an existing value).
+		v := genResult0(rr, arch, control, false, false, newpos)
+		rr.add(stmtf("b.AddControl(%s)", v))
 	}
 	if aux != "" {
 		rr.add(stmtf("b.Aux = %s", aux))
@@ -1164,13 +1193,19 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch, typ, auxi
 	return
 }
 
-func blockName(name string, arch arch) string {
+func getBlockInfo(op string, arch arch) (name string, data blockData) {
 	for _, b := range genericBlocks {
-		if b.name == name {
-			return "Block" + name
+		if b.name == op {
+			return "Block" + op, b
 		}
 	}
-	return "Block" + arch.name + name
+	for _, b := range arch.blocks {
+		if b.name == op {
+			return "Block" + arch.name + op, b
+		}
+	}
+	log.Fatalf("could not find block data for %s", op)
+	panic("unreachable")
 }
 
 // typeName returns the string to use to generate a type.

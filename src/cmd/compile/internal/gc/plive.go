@@ -670,7 +670,7 @@ func (lv *Liveness) markUnsafePoints() {
 		// single op that does the memory load from the flag
 		// address, so we look for that.
 		var load *ssa.Value
-		v := wbBlock.Control
+		v := wbBlock.Controls[0]
 		for {
 			if sym, ok := v.Aux.(*obj.LSym); ok && sym == writeBarrier {
 				load = v

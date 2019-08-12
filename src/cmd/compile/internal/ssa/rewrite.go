@@ -25,9 +25,10 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 	for {
 		change := false
 		for _, b := range f.Blocks {
-			if b.Control != nil && b.Control.Op == OpCopy {
-				for b.Control.Op == OpCopy {
-					b.SetControl(b.Control.Args[0])
+			for i, c := range b.ControlValues() {
+				for c.Op == OpCopy {
+					c = c.Args[0]
+					b.ReplaceControl(i, c)
 				}
 			}
 			if rb(b) {

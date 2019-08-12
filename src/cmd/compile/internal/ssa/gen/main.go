@@ -68,7 +68,8 @@ type opData struct {
 }
 
 type blockData struct {
-	name string
+	name     string // the suffix for this block ("EQ", "LT", etc.)
+	controls int    // the number of control values this type of block requires
 }
 
 type regInfo struct {

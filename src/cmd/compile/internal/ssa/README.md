@@ -82,10 +82,10 @@ control value, which must return a memory state. This is necessary for functions
 to return some values, for example - the caller needs some memory state to
 depend on, to ensure that it receives those return values correctly.
 
-The last important block kind we will mention is the `if` block. Its control
-value must be a boolean value, and it has exactly two successor blocks. The
-control flow is handed to the first successor if the bool is true, and to the
-second otherwise.
+The last important block kind we will mention is the `if` block. It has a single
+control value that must be a boolean value, and it has exactly two successor
+blocks. The control flow is handed to the first successor if the bool is true,
+and to the second otherwise.
 
 Here is a sample if-else control flow represented with basic blocks:
 

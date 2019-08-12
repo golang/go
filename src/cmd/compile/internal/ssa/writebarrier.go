@@ -182,7 +182,7 @@ func writebarrier(f *Func) {
 		b.Pos = pos
 
 		// set up control flow for end block
-		bEnd.SetControl(b.Control)
+		bEnd.CopyControls(b)
 		bEnd.Likely = b.Likely
 		for _, e := range b.Succs {
 			bEnd.Succs = append(bEnd.Succs, e)

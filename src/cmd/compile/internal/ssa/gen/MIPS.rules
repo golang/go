@@ -687,18 +687,18 @@
 (SGTUconst [c] (SRLconst _ [d])) && uint32(d) <= 31 && 0xffffffff>>uint32(d) < uint32(c) -> (MOVWconst [1])
 
 // absorb constants into branches
-(EQ  (MOVWconst [0]) yes no) -> (First nil yes no)
-(EQ  (MOVWconst [c]) yes no) && c != 0 -> (First nil no yes)
-(NE  (MOVWconst [0]) yes no) -> (First nil no yes)
-(NE  (MOVWconst [c]) yes no) && c != 0 -> (First nil yes no)
-(LTZ (MOVWconst [c]) yes no) && int32(c) <  0 -> (First nil yes no)
-(LTZ (MOVWconst [c]) yes no) && int32(c) >= 0 -> (First nil no yes)
-(LEZ (MOVWconst [c]) yes no) && int32(c) <= 0 -> (First nil yes no)
-(LEZ (MOVWconst [c]) yes no) && int32(c) >  0 -> (First nil no yes)
-(GTZ (MOVWconst [c]) yes no) && int32(c) >  0 -> (First nil yes no)
-(GTZ (MOVWconst [c]) yes no) && int32(c) <= 0 -> (First nil no yes)
-(GEZ (MOVWconst [c]) yes no) && int32(c) >= 0 -> (First nil yes no)
-(GEZ (MOVWconst [c]) yes no) && int32(c) <  0 -> (First nil no yes)
+(EQ  (MOVWconst [0]) yes no) -> (First yes no)
+(EQ  (MOVWconst [c]) yes no) && c != 0 -> (First no yes)
+(NE  (MOVWconst [0]) yes no) -> (First no yes)
+(NE  (MOVWconst [c]) yes no) && c != 0 -> (First yes no)
+(LTZ (MOVWconst [c]) yes no) && int32(c) <  0 -> (First yes no)
+(LTZ (MOVWconst [c]) yes no) && int32(c) >= 0 -> (First no yes)
+(LEZ (MOVWconst [c]) yes no) && int32(c) <= 0 -> (First yes no)
+(LEZ (MOVWconst [c]) yes no) && int32(c) >  0 -> (First no yes)
+(GTZ (MOVWconst [c]) yes no) && int32(c) >  0 -> (First yes no)
+(GTZ (MOVWconst [c]) yes no) && int32(c) <= 0 -> (First no yes)
+(GEZ (MOVWconst [c]) yes no) && int32(c) >= 0 -> (First yes no)
+(GEZ (MOVWconst [c]) yes no) && int32(c) <  0 -> (First no yes)
 
 // conditional move
 (CMOVZ _ f (MOVWconst [0])) -> f

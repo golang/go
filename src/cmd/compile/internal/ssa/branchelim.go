@@ -160,13 +160,13 @@ func elimIf(f *Func, loadAddr *sparseSet, dom *Block) bool {
 		if swap {
 			v.Args[0], v.Args[1] = v.Args[1], v.Args[0]
 		}
-		v.AddArg(dom.Control)
+		v.AddArg(dom.Controls[0])
 	}
 
 	// Put all of the instructions into 'dom'
 	// and update the CFG appropriately.
 	dom.Kind = post.Kind
-	dom.SetControl(post.Control)
+	dom.CopyControls(post)
 	dom.Aux = post.Aux
 	dom.Succs = append(dom.Succs[:0], post.Succs...)
 	for i := range dom.Succs {
@@ -201,7 +201,7 @@ func clobberBlock(b *Block) {
 	b.Preds = nil
 	b.Succs = nil
 	b.Aux = nil
-	b.SetControl(nil)
+	b.ResetControls()
 	b.Likely = BranchUnknown
 	b.Kind = BlockInvalid
 }
@@ -259,13 +259,13 @@ func elimIfElse(f *Func, loadAddr *sparseSet, b *Block) bool {
 		if swap {
 			v.Args[0], v.Args[1] = v.Args[1], v.Args[0]
 		}
-		v.AddArg(b.Control)
+		v.AddArg(b.Controls[0])
 	}
 
 	// Move the contents of all of these
 	// blocks into 'b' and update CFG edges accordingly
 	b.Kind = post.Kind
-	b.SetControl(post.Control)
+	b.CopyControls(post)
 	b.Aux = post.Aux
 	b.Succs = append(b.Succs[:0], post.Succs...)
 	for i := range b.Succs {

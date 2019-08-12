@@ -557,24 +557,22 @@ var genericOps = []opData{
 	{name: "Clobber", argLength: 0, typ: "Void", aux: "SymOff", symEffect: "None"}, // write an invalid pointer value to the given pointer slot of a stack variable
 }
 
-//     kind           control    successors       implicit exit
+//     kind          controls        successors   implicit exit
 //   ----------------------------------------------------------
-//     Exit        return mem                []             yes
-//      Ret        return mem                []             yes
-//   RetJmp        return mem                []             yes
-//    Plain               nil            [next]
-//       If   a boolean Value      [then, else]
-//     Call               mem            [next]             yes  (control opcode should be OpCall or OpStaticCall)
-//    Check              void            [next]             yes  (control opcode should be Op{Lowered}NilCheck)
-//    First               nil    [always,never]
+//     Exit      [return mem]                []             yes
+//      Ret      [return mem]                []             yes
+//   RetJmp      [return mem]                []             yes
+//    Plain                []            [next]
+//       If   [boolean Value]      [then, else]
+//    First                []   [always, never]
 
 var genericBlocks = []blockData{
-	{name: "Plain"},  // a single successor
-	{name: "If"},     // 2 successors, if control goto Succs[0] else goto Succs[1]
-	{name: "Defer"},  // 2 successors, Succs[0]=defer queued, Succs[1]=defer recovered. control is call op (of memory type)
-	{name: "Ret"},    // no successors, control value is memory result
-	{name: "RetJmp"}, // no successors, jumps to b.Aux.(*gc.Sym)
-	{name: "Exit"},   // no successors, control value generates a panic
+	{name: "Plain"},               // a single successor
+	{name: "If", controls: 1},     // if Controls[0] goto Succs[0] else goto Succs[1]
+	{name: "Defer", controls: 1},  // Succs[0]=defer queued, Succs[1]=defer recovered. Controls[0] is call op (of memory type)
+	{name: "Ret", controls: 1},    // no successors, Controls[0] value is memory result
+	{name: "RetJmp", controls: 1}, // no successors, Controls[0] value is memory result, jumps to b.Aux.(*gc.Sym)
+	{name: "Exit", controls: 1},   // no successors, Controls[0] value generates a panic
 
 	// transient block state used for dead code removal
 	{name: "First"}, // 2 successors, always takes the first one (second is dead)

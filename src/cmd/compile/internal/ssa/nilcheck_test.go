@@ -59,7 +59,7 @@ func ptrn(n int) string   { return "p" + strconv.Itoa(n) }
 func booln(n int) string  { return "c" + strconv.Itoa(n) }
 
 func isNilCheck(b *Block) bool {
-	return b.Kind == BlockIf && b.Control.Op == OpIsNonNil
+	return b.Kind == BlockIf && b.Controls[0].Op == OpIsNonNil
 }
 
 // TestNilcheckSimple verifies that a second repeated nilcheck is removed.
