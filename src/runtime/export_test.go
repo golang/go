@@ -730,3 +730,66 @@ func RunGetgThreadSwitchTest() {
 		panic("g1 != g3")
 	}
 }
+
+const (
+	PallocChunkPages = pallocChunkPages
+)
+
+// Expose pallocBits for testing.
+type PallocBits pallocBits
+
+func (b *PallocBits) Find(npages uintptr, searchIdx uint) (uint, uint) {
+	return (*pallocBits)(b).find(npages, searchIdx)
+}
+func (b *PallocBits) AllocRange(i, n uint) { (*pallocBits)(b).allocRange(i, n) }
+func (b *PallocBits) Free(i, n uint)       { (*pallocBits)(b).free(i, n) }
+
+// Expose non-trivial helpers for testing.
+func FindBitRange64(c uint64, n uint) uint { return findBitRange64(c, n) }
+
+// Given two PallocBits, returns a set of bit ranges where
+// they differ.
+func DiffPallocBits(a, b *PallocBits) []BitRange {
+	ba := (*pageBits)(a)
+	bb := (*pageBits)(b)
+
+	var d []BitRange
+	base, size := uint(0), uint(0)
+	for i := uint(0); i < uint(len(ba))*64; i++ {
+		if ba.get(i) != bb.get(i) {
+			if size == 0 {
+				base = i
+			}
+			size++
+		} else {
+			if size != 0 {
+				d = append(d, BitRange{base, size})
+			}
+			size = 0
+		}
+	}
+	if size != 0 {
+		d = append(d, BitRange{base, size})
+	}
+	return d
+}
+
+// StringifyPallocBits gets the bits in the bit range r from b,
+// and returns a string containing the bits as ASCII 0 and 1
+// characters.
+func StringifyPallocBits(b *PallocBits, r BitRange) string {
+	str := ""
+	for j := r.I; j < r.I+r.N; j++ {
+		if (*pageBits)(b).get(j) != 0 {
+			str += "1"
+		} else {
+			str += "0"
+		}
+	}
+	return str
+}
+
+// BitRange represents a range over a bitmap.
+type BitRange struct {
+	I, N uint // bit index and length in bits
+}
