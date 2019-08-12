@@ -102,6 +102,16 @@ func ApplyFixes(fixes []*ImportFix, filename string, src []byte, opt *Options) (
 	return formatFile(fileSet, file, src, adjust, opt)
 }
 
+// GetAllCandidates gets all of the standard library candidate packages to import in
+// sorted order on import path.
+func GetAllCandidates(filename string, opt *Options) (pkgs []ImportFix, err error) {
+	_, opt, err = initialize(filename, []byte{}, opt)
+	if err != nil {
+		return nil, err
+	}
+	return getAllCandidates(filename, opt.Env)
+}
+
 // initialize sets the values for opt and src.
 // If they are provided, they are not changed. Otherwise opt is set to the
 // default values and src is read from the file system.

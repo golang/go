@@ -2469,3 +2469,34 @@ var _ = bytes.Buffer{}
 		},
 	}.processTest(t, "foo.com", "foo.go", nil, nil, want)
 }
+
+// TestStdLibGetCandidates tests that get packages finds std library packages
+// with correct priorities.
+func TestStdLibGetCandidates(t *testing.T) {
+	want := []struct {
+		wantName string
+		wantPkg  string
+	}{
+		{"bytes", "bytes"},
+		{"rand", "crypto/rand"},
+		{"rand", "math/rand"},
+		{"http", "net/http"},
+	}
+
+	got, err := GetAllCandidates("", nil)
+	if err != nil {
+		t.Fatalf("Process() = %v", err)
+	}
+	wantIdx := 0
+	for _, fix := range got {
+		if wantIdx >= len(want) {
+			break
+		}
+		if want[wantIdx].wantName == fix.IdentName && want[wantIdx].wantPkg == fix.StmtInfo.ImportPath && "" == fix.StmtInfo.Name {
+			wantIdx++
+		}
+	}
+	if wantIdx < len(want) {
+		t.Errorf("expected to find candidate with path: %q, name: %q next in ordered scan of results`", want[wantIdx].wantPkg, want[wantIdx].wantName)
+	}
+}

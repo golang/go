@@ -584,6 +584,31 @@ func getFixes(fset *token.FileSet, f *ast.File, filename string, env *ProcessEnv
 	return fixes, nil
 }
 
+// getAllCandidates gets all of the candidates to be imported, regardless of if they are needed.
+func getAllCandidates(filename string, env *ProcessEnv) ([]ImportFix, error) {
+	// TODO(suzmue): scan for additional candidates and filter out
+	// current package.
+
+	// Get the stdlib candidates and sort by import path.
+	var paths []string
+	for importPath := range stdlib {
+		paths = append(paths, importPath)
+	}
+	sort.Strings(paths)
+
+	var imports []ImportFix
+	for _, importPath := range paths {
+		imports = append(imports, ImportFix{
+			StmtInfo: ImportInfo{
+				ImportPath: importPath,
+			},
+			IdentName: path.Base(importPath),
+			FixType:   AddImport,
+		})
+	}
+	return imports, nil
+}
+
 // ProcessEnv contains environment variables and settings that affect the use of
 // the go command, the go/build package, etc.
 type ProcessEnv struct {
