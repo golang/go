@@ -84,7 +84,8 @@ type view struct {
 	builtinPkg *ast.Package
 
 	// ignoredURIs is the set of URIs of files that we ignore.
-	ignoredURIs map[span.URI]struct{}
+	ignoredURIsMu sync.Mutex
+	ignoredURIs   map[span.URI]struct{}
 }
 
 type metadataCache struct {
@@ -289,6 +290,9 @@ func (v *view) shutdown(context.Context) {
 // Ignore checks if the given URI is a URI we ignore.
 // As of right now, we only ignore files in the "builtin" package.
 func (v *view) Ignore(uri span.URI) bool {
+	v.ignoredURIsMu.Lock()
+	defer v.ignoredURIsMu.Unlock()
+
 	_, ok := v.ignoredURIs[uri]
 	return ok
 }
@@ -326,7 +330,10 @@ func (v *view) buildBuiltinPkg(ctx context.Context) {
 			return
 		}
 		files[filename] = file
+
+		v.ignoredURIsMu.Lock()
 		v.ignoredURIs[span.NewURI(filename)] = struct{}{}
+		v.ignoredURIsMu.Unlock()
 	}
 	v.builtinPkg, _ = ast.NewPackage(cfg.Fset, files, nil, nil)
 }
@@ -341,7 +348,9 @@ func (v *view) SetContent(ctx context.Context, uri span.URI, content []byte) err
 	v.cancel()
 	v.backgroundCtx, v.cancel = context.WithCancel(v.baseCtx)
 
-	v.session.SetOverlay(uri, content)
+	if !v.Ignore(uri) {
+		v.session.SetOverlay(uri, content)
+	}
 
 	return nil
 }

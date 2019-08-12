@@ -7,6 +7,7 @@ package cache
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -184,6 +185,17 @@ func (s *session) removeView(ctx context.Context, view *view) error {
 // TODO: Propagate the language ID through to the view.
 func (s *session) DidOpen(ctx context.Context, uri span.URI, _ source.FileKind, text []byte) {
 	ctx = telemetry.File.With(ctx, uri)
+
+	// Files with _ prefixes are ignored.
+	if strings.HasPrefix(filepath.Base(uri.Filename()), "_") {
+		for _, view := range s.views {
+			view.ignoredURIsMu.Lock()
+			view.ignoredURIs[uri] = struct{}{}
+			view.ignoredURIsMu.Unlock()
+		}
+		return
+	}
+
 	// Mark the file as open.
 	s.openFiles.Store(uri, true)
 
