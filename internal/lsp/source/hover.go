@@ -45,9 +45,13 @@ func (i *IdentifierInfo) Hover(ctx context.Context, markdownSupported bool, hove
 		return "", err
 	}
 	var b strings.Builder
-	if comment := formatDocumentation(h.comment, hoverKind); comment != "" {
-		b.WriteString(comment)
-		b.WriteRune('\n')
+
+	// Add documentation to the top if the HoverKind is anything other than full documentation.
+	if hoverKind != FullDocumentation {
+		if comment := formatDocumentation(h.comment, hoverKind); comment != "" {
+			b.WriteString(comment)
+			b.WriteRune('\n')
+		}
 	}
 	if markdownSupported {
 		b.WriteString("```go\n")
@@ -62,6 +66,13 @@ func (i *IdentifierInfo) Hover(ctx context.Context, markdownSupported bool, hove
 	}
 	if markdownSupported {
 		b.WriteString("\n```")
+	}
+	// Add documentation to the bottom if the HoverKind is full documentation.
+	if hoverKind == FullDocumentation {
+		if comment := formatDocumentation(h.comment, hoverKind); comment != "" {
+			b.WriteRune('\n')
+			b.WriteString(comment)
+		}
 	}
 	return b.String(), nil
 }
