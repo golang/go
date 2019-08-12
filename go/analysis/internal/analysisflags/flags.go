@@ -168,10 +168,10 @@ func printFlags() {
 	var flags []jsonFlag = nil
 	flag.VisitAll(func(f *flag.Flag) {
 		// Don't report {single,multi}checker debugging
-		// flags as these have no effect on unitchecker
+		// flags or fix as these have no effect on unitchecker
 		// (as invoked by 'go vet').
 		switch f.Name {
-		case "debug", "cpuprofile", "memprofile", "trace":
+		case "debug", "cpuprofile", "memprofile", "trace", "fix":
 			return
 		}
 
