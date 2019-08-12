@@ -9740,162 +9740,183 @@ func rewriteValueMIPS64_OpZeroExt8to64_0(v *Value) bool {
 	}
 }
 func rewriteBlockMIPS64(b *Block) bool {
-	v := b.Control
 	switch b.Kind {
 	case BlockMIPS64EQ:
 		// match: (EQ (FPFlagTrue cmp) yes no)
 		// result: (FPF cmp yes no)
-		for v.Op == OpMIPS64FPFlagTrue {
-			cmp := v.Args[0]
+		for b.Controls[0].Op == OpMIPS64FPFlagTrue {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
 			b.Kind = BlockMIPS64FPF
-			b.SetControl(cmp)
+			b.ResetControls()
+			b.AddControl(cmp)
 			b.Aux = nil
 			return true
 		}
 		// match: (EQ (FPFlagFalse cmp) yes no)
 		// result: (FPT cmp yes no)
-		for v.Op == OpMIPS64FPFlagFalse {
-			cmp := v.Args[0]
+		for b.Controls[0].Op == OpMIPS64FPFlagFalse {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
 			b.Kind = BlockMIPS64FPT
-			b.SetControl(cmp)
+			b.ResetControls()
+			b.AddControl(cmp)
 			b.Aux = nil
 			return true
 		}
 		// match: (EQ (XORconst [1] cmp:(SGT _ _)) yes no)
 		// result: (NE cmp yes no)
-		for v.Op == OpMIPS64XORconst {
-			if v.AuxInt != 1 {
+		for b.Controls[0].Op == OpMIPS64XORconst {
+			v_0 := b.Controls[0]
+			if v_0.AuxInt != 1 {
 				break
 			}
-			cmp := v.Args[0]
+			cmp := v_0.Args[0]
 			if cmp.Op != OpMIPS64SGT {
 				break
 			}
 			_ = cmp.Args[1]
 			b.Kind = BlockMIPS64NE
-			b.SetControl(cmp)
+			b.ResetControls()
+			b.AddControl(cmp)
 			b.Aux = nil
 			return true
 		}
 		// match: (EQ (XORconst [1] cmp:(SGTU _ _)) yes no)
 		// result: (NE cmp yes no)
-		for v.Op == OpMIPS64XORconst {
-			if v.AuxInt != 1 {
+		for b.Controls[0].Op == OpMIPS64XORconst {
+			v_0 := b.Controls[0]
+			if v_0.AuxInt != 1 {
 				break
 			}
-			cmp := v.Args[0]
+			cmp := v_0.Args[0]
 			if cmp.Op != OpMIPS64SGTU {
 				break
 			}
 			_ = cmp.Args[1]
 			b.Kind = BlockMIPS64NE
-			b.SetControl(cmp)
+			b.ResetControls()
+			b.AddControl(cmp)
 			b.Aux = nil
 			return true
 		}
 		// match: (EQ (XORconst [1] cmp:(SGTconst _)) yes no)
 		// result: (NE cmp yes no)
-		for v.Op == OpMIPS64XORconst {
-			if v.AuxInt != 1 {
+		for b.Controls[0].Op == OpMIPS64XORconst {
+			v_0 := b.Controls[0]
+			if v_0.AuxInt != 1 {
 				break
 			}
-			cmp := v.Args[0]
+			cmp := v_0.Args[0]
 			if cmp.Op != OpMIPS64SGTconst {
 				break
 			}
 			b.Kind = BlockMIPS64NE
-			b.SetControl(cmp)
+			b.ResetControls()
+			b.AddControl(cmp)
 			b.Aux = nil
 			return true
 		}
 		// match: (EQ (XORconst [1] cmp:(SGTUconst _)) yes no)
 		// result: (NE cmp yes no)
-		for v.Op == OpMIPS64XORconst {
-			if v.AuxInt != 1 {
+		for b.Controls[0].Op == OpMIPS64XORconst {
+			v_0 := b.Controls[0]
+			if v_0.AuxInt != 1 {
 				break
 			}
-			cmp := v.Args[0]
+			cmp := v_0.Args[0]
 			if cmp.Op != OpMIPS64SGTUconst {
 				break
 			}
 			b.Kind = BlockMIPS64NE
-			b.SetControl(cmp)
+			b.ResetControls()
+			b.AddControl(cmp)
 			b.Aux = nil
 			return true
 		}
 		// match: (EQ (SGTUconst [1] x) yes no)
 		// result: (NE x yes no)
-		for v.Op == OpMIPS64SGTUconst {
-			if v.AuxInt != 1 {
+		for b.Controls[0].Op == OpMIPS64SGTUconst {
+			v_0 := b.Controls[0]
+			if v_0.AuxInt != 1 {
 				break
 			}
-			x := v.Args[0]
+			x := v_0.Args[0]
 			b.Kind = BlockMIPS64NE
-			b.SetControl(x)
+			b.ResetControls()
+			b.AddControl(x)
 			b.Aux = nil
 			return true
 		}
 		// match: (EQ (SGTU x (MOVVconst [0])) yes no)
 		// result: (EQ x yes no)
-		for v.Op == OpMIPS64SGTU {
-			_ = v.Args[1]
-			x := v.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpMIPS64MOVVconst || v_1.AuxInt != 0 {
+		for b.Controls[0].Op == OpMIPS64SGTU {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpMIPS64MOVVconst || v_0_1.AuxInt != 0 {
 				break
 			}
 			b.Kind = BlockMIPS64EQ
-			b.SetControl(x)
+			b.ResetControls()
+			b.AddControl(x)
 			b.Aux = nil
 			return true
 		}
 		// match: (EQ (SGTconst [0] x) yes no)
 		// result: (GEZ x yes no)
-		for v.Op == OpMIPS64SGTconst {
-			if v.AuxInt != 0 {
+		for b.Controls[0].Op == OpMIPS64SGTconst {
+			v_0 := b.Controls[0]
+			if v_0.AuxInt != 0 {
 				break
 			}
-			x := v.Args[0]
+			x := v_0.Args[0]
 			b.Kind = BlockMIPS64GEZ
-			b.SetControl(x)
+			b.ResetControls()
+			b.AddControl(x)
 			b.Aux = nil
 			return true
 		}
 		// match: (EQ (SGT x (MOVVconst [0])) yes no)
 		// result: (LEZ x yes no)
-		for v.Op == OpMIPS64SGT {
-			_ = v.Args[1]
-			x := v.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpMIPS64MOVVconst || v_1.AuxInt != 0 {
+		for b.Controls[0].Op == OpMIPS64SGT {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpMIPS64MOVVconst || v_0_1.AuxInt != 0 {
 				break
 			}
 			b.Kind = BlockMIPS64LEZ
-			b.SetControl(x)
+			b.ResetControls()
+			b.AddControl(x)
 			b.Aux = nil
 			return true
 		}
 		// match: (EQ (MOVVconst [0]) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpMIPS64MOVVconst {
-			if v.AuxInt != 0 {
+		// result: (First yes no)
+		for b.Controls[0].Op == OpMIPS64MOVVconst {
+			v_0 := b.Controls[0]
+			if v_0.AuxInt != 0 {
 				break
 			}
 			b.Kind = BlockFirst
-			b.SetControl(nil)
+			b.ResetControls()
 			b.Aux = nil
 			return true
 		}
 		// match: (EQ (MOVVconst [c]) yes no)
 		// cond: c != 0
-		// result: (First nil no yes)
-		for v.Op == OpMIPS64MOVVconst {
-			c := v.AuxInt
+		// result: (First no yes)
+		for b.Controls[0].Op == OpMIPS64MOVVconst {
+			v_0 := b.Controls[0]
+			c := v_0.AuxInt
 			if !(c != 0) {
 				break
 			}
 			b.Kind = BlockFirst
-			b.SetControl(nil)
+			b.ResetControls()
 			b.Aux = nil
 			b.swapSuccessors()
 			return true
@@ -9903,27 +9924,29 @@ func rewriteBlockMIPS64(b *Block) bool {
 	case BlockMIPS64GEZ:
 		// match: (GEZ (MOVVconst [c]) yes no)
 		// cond: c >= 0
-		// result: (First nil yes no)
-		for v.Op == OpMIPS64MOVVconst {
-			c := v.AuxInt
+		// result: (First yes no)
+		for b.Controls[0].Op == OpMIPS64MOVVconst {
+			v_0 := b.Controls[0]
+			c := v_0.AuxInt
 			if !(c >= 0) {
 				break
 			}
 			b.Kind = BlockFirst
-			b.SetControl(nil)
+			b.ResetControls()
 			b.Aux = nil
 			return true
 		}
 		// match: (GEZ (MOVVconst [c]) yes no)
 		// cond: c < 0
-		// result: (First nil no yes)
-		for v.Op == OpMIPS64MOVVconst {
-			c := v.AuxInt
+		// result: (First no yes)
+		for b.Controls[0].Op == OpMIPS64MOVVconst {
+			v_0 := b.Controls[0]
+			c := v_0.AuxInt
 			if !(c < 0) {
 				break
 			}
 			b.Kind = BlockFirst
-			b.SetControl(nil)
+			b.ResetControls()
 			b.Aux = nil
 			b.swapSuccessors()
 			return true
@@ -9931,27 +9954,29 @@ func rewriteBlockMIPS64(b *Block) bool {
 	case BlockMIPS64GTZ:
 		// match: (GTZ (MOVVconst [c]) yes no)
 		// cond: c > 0
-		// result: (First nil yes no)
-		for v.Op == OpMIPS64MOVVconst {
-			c := v.AuxInt
+		// result: (First yes no)
+		for b.Controls[0].Op == OpMIPS64MOVVconst {
+			v_0 := b.Controls[0]
+			c := v_0.AuxInt
 			if !(c > 0) {
 				break
 			}
 			b.Kind = BlockFirst
-			b.SetControl(nil)
+			b.ResetControls()
 			b.Aux = nil
 			return true
 		}
 		// match: (GTZ (MOVVconst [c]) yes no)
 		// cond: c <= 0
-		// result: (First nil no yes)
-		for v.Op == OpMIPS64MOVVconst {
-			c := v.AuxInt
+		// result: (First no yes)
+		for b.Controls[0].Op == OpMIPS64MOVVconst {
+			v_0 := b.Controls[0]
+			c := v_0.AuxInt
 			if !(c <= 0) {
 				break
 			}
 			b.Kind = BlockFirst
-			b.SetControl(nil)
+			b.ResetControls()
 			b.Aux = nil
 			b.swapSuccessors()
 			return true
@@ -9960,36 +9985,39 @@ func rewriteBlockMIPS64(b *Block) bool {
 		// match: (If cond yes no)
 		// result: (NE cond yes no)
 		for {
-			cond := b.Control
+			cond := b.Controls[0]
 			b.Kind = BlockMIPS64NE
-			b.SetControl(cond)
+			b.ResetControls()
+			b.AddControl(cond)
 			b.Aux = nil
 			return true
 		}
 	case BlockMIPS64LEZ:
 		// match: (LEZ (MOVVconst [c]) yes no)
 		// cond: c <= 0
-		// result: (First nil yes no)
-		for v.Op == OpMIPS64MOVVconst {
-			c := v.AuxInt
+		// result: (First yes no)
+		for b.Controls[0].Op == OpMIPS64MOVVconst {
+			v_0 := b.Controls[0]
+			c := v_0.AuxInt
 			if !(c <= 0) {
 				break
 			}
 			b.Kind = BlockFirst
-			b.SetControl(nil)
+			b.ResetControls()
 			b.Aux = nil
 			return true
 		}
 		// match: (LEZ (MOVVconst [c]) yes no)
 		// cond: c > 0
-		// result: (First nil no yes)
-		for v.Op == OpMIPS64MOVVconst {
-			c := v.AuxInt
+		// result: (First no yes)
+		for b.Controls[0].Op == OpMIPS64MOVVconst {
+			v_0 := b.Controls[0]
+			c := v_0.AuxInt
 			if !(c > 0) {
 				break
 			}
 			b.Kind = BlockFirst
-			b.SetControl(nil)
+			b.ResetControls()
 			b.Aux = nil
 			b.swapSuccessors()
 			return true
@@ -9997,27 +10025,29 @@ func rewriteBlockMIPS64(b *Block) bool {
 	case BlockMIPS64LTZ:
 		// match: (LTZ (MOVVconst [c]) yes no)
 		// cond: c < 0
-		// result: (First nil yes no)
-		for v.Op == OpMIPS64MOVVconst {
-			c := v.AuxInt
+		// result: (First yes no)
+		for b.Controls[0].Op == OpMIPS64MOVVconst {
+			v_0 := b.Controls[0]
+			c := v_0.AuxInt
 			if !(c < 0) {
 				break
 			}
 			b.Kind = BlockFirst
-			b.SetControl(nil)
+			b.ResetControls()
 			b.Aux = nil
 			return true
 		}
 		// match: (LTZ (MOVVconst [c]) yes no)
 		// cond: c >= 0
-		// result: (First nil no yes)
-		for v.Op == OpMIPS64MOVVconst {
-			c := v.AuxInt
+		// result: (First no yes)
+		for b.Controls[0].Op == OpMIPS64MOVVconst {
+			v_0 := b.Controls[0]
+			c := v_0.AuxInt
 			if !(c >= 0) {
 				break
 			}
 			b.Kind = BlockFirst
-			b.SetControl(nil)
+			b.ResetControls()
 			b.Aux = nil
 			b.swapSuccessors()
 			return true
@@ -10025,158 +10055,180 @@ func rewriteBlockMIPS64(b *Block) bool {
 	case BlockMIPS64NE:
 		// match: (NE (FPFlagTrue cmp) yes no)
 		// result: (FPT cmp yes no)
-		for v.Op == OpMIPS64FPFlagTrue {
-			cmp := v.Args[0]
+		for b.Controls[0].Op == OpMIPS64FPFlagTrue {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
 			b.Kind = BlockMIPS64FPT
-			b.SetControl(cmp)
+			b.ResetControls()
+			b.AddControl(cmp)
 			b.Aux = nil
 			return true
 		}
 		// match: (NE (FPFlagFalse cmp) yes no)
 		// result: (FPF cmp yes no)
-		for v.Op == OpMIPS64FPFlagFalse {
-			cmp := v.Args[0]
+		for b.Controls[0].Op == OpMIPS64FPFlagFalse {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
 			b.Kind = BlockMIPS64FPF
-			b.SetControl(cmp)
+			b.ResetControls()
+			b.AddControl(cmp)
 			b.Aux = nil
 			return true
 		}
 		// match: (NE (XORconst [1] cmp:(SGT _ _)) yes no)
 		// result: (EQ cmp yes no)
-		for v.Op == OpMIPS64XORconst {
-			if v.AuxInt != 1 {
+		for b.Controls[0].Op == OpMIPS64XORconst {
+			v_0 := b.Controls[0]
+			if v_0.AuxInt != 1 {
 				break
 			}
-			cmp := v.Args[0]
+			cmp := v_0.Args[0]
 			if cmp.Op != OpMIPS64SGT {
 				break
 			}
 			_ = cmp.Args[1]
 			b.Kind = BlockMIPS64EQ
-			b.SetControl(cmp)
+			b.ResetControls()
+			b.AddControl(cmp)
 			b.Aux = nil
 			return true
 		}
 		// match: (NE (XORconst [1] cmp:(SGTU _ _)) yes no)
 		// result: (EQ cmp yes no)
-		for v.Op == OpMIPS64XORconst {
-			if v.AuxInt != 1 {
+		for b.Controls[0].Op == OpMIPS64XORconst {
+			v_0 := b.Controls[0]
+			if v_0.AuxInt != 1 {
 				break
 			}
-			cmp := v.Args[0]
+			cmp := v_0.Args[0]
 			if cmp.Op != OpMIPS64SGTU {
 				break
 			}
 			_ = cmp.Args[1]
 			b.Kind = BlockMIPS64EQ
-			b.SetControl(cmp)
+			b.ResetControls()
+			b.AddControl(cmp)
 			b.Aux = nil
 			return true
 		}
 		// match: (NE (XORconst [1] cmp:(SGTconst _)) yes no)
 		// result: (EQ cmp yes no)
-		for v.Op == OpMIPS64XORconst {
-			if v.AuxInt != 1 {
+		for b.Controls[0].Op == OpMIPS64XORconst {
+			v_0 := b.Controls[0]
+			if v_0.AuxInt != 1 {
 				break
 			}
-			cmp := v.Args[0]
+			cmp := v_0.Args[0]
 			if cmp.Op != OpMIPS64SGTconst {
 				break
 			}
 			b.Kind = BlockMIPS64EQ
-			b.SetControl(cmp)
+			b.ResetControls()
+			b.AddControl(cmp)
 			b.Aux = nil
 			return true
 		}
 		// match: (NE (XORconst [1] cmp:(SGTUconst _)) yes no)
 		// result: (EQ cmp yes no)
-		for v.Op == OpMIPS64XORconst {
-			if v.AuxInt != 1 {
+		for b.Controls[0].Op == OpMIPS64XORconst {
+			v_0 := b.Controls[0]
+			if v_0.AuxInt != 1 {
 				break
 			}
-			cmp := v.Args[0]
+			cmp := v_0.Args[0]
 			if cmp.Op != OpMIPS64SGTUconst {
 				break
 			}
 			b.Kind = BlockMIPS64EQ
-			b.SetControl(cmp)
+			b.ResetControls()
+			b.AddControl(cmp)
 			b.Aux = nil
 			return true
 		}
 		// match: (NE (SGTUconst [1] x) yes no)
 		// result: (EQ x yes no)
-		for v.Op == OpMIPS64SGTUconst {
-			if v.AuxInt != 1 {
+		for b.Controls[0].Op == OpMIPS64SGTUconst {
+			v_0 := b.Controls[0]
+			if v_0.AuxInt != 1 {
 				break
 			}
-			x := v.Args[0]
+			x := v_0.Args[0]
 			b.Kind = BlockMIPS64EQ
-			b.SetControl(x)
+			b.ResetControls()
+			b.AddControl(x)
 			b.Aux = nil
 			return true
 		}
 		// match: (NE (SGTU x (MOVVconst [0])) yes no)
 		// result: (NE x yes no)
-		for v.Op == OpMIPS64SGTU {
-			_ = v.Args[1]
-			x := v.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpMIPS64MOVVconst || v_1.AuxInt != 0 {
+		for b.Controls[0].Op == OpMIPS64SGTU {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpMIPS64MOVVconst || v_0_1.AuxInt != 0 {
 				break
 			}
 			b.Kind = BlockMIPS64NE
-			b.SetControl(x)
+			b.ResetControls()
+			b.AddControl(x)
 			b.Aux = nil
 			return true
 		}
 		// match: (NE (SGTconst [0] x) yes no)
 		// result: (LTZ x yes no)
-		for v.Op == OpMIPS64SGTconst {
-			if v.AuxInt != 0 {
+		for b.Controls[0].Op == OpMIPS64SGTconst {
+			v_0 := b.Controls[0]
+			if v_0.AuxInt != 0 {
 				break
 			}
-			x := v.Args[0]
+			x := v_0.Args[0]
 			b.Kind = BlockMIPS64LTZ
-			b.SetControl(x)
+			b.ResetControls()
+			b.AddControl(x)
 			b.Aux = nil
 			return true
 		}
 		// match: (NE (SGT x (MOVVconst [0])) yes no)
 		// result: (GTZ x yes no)
-		for v.Op == OpMIPS64SGT {
-			_ = v.Args[1]
-			x := v.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpMIPS64MOVVconst || v_1.AuxInt != 0 {
+		for b.Controls[0].Op == OpMIPS64SGT {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpMIPS64MOVVconst || v_0_1.AuxInt != 0 {
 				break
 			}
 			b.Kind = BlockMIPS64GTZ
-			b.SetControl(x)
+			b.ResetControls()
+			b.AddControl(x)
 			b.Aux = nil
 			return true
 		}
 		// match: (NE (MOVVconst [0]) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpMIPS64MOVVconst {
-			if v.AuxInt != 0 {
+		// result: (First no yes)
+		for b.Controls[0].Op == OpMIPS64MOVVconst {
+			v_0 := b.Controls[0]
+			if v_0.AuxInt != 0 {
 				break
 			}
 			b.Kind = BlockFirst
-			b.SetControl(nil)
+			b.ResetControls()
 			b.Aux = nil
 			b.swapSuccessors()
 			return true
 		}
 		// match: (NE (MOVVconst [c]) yes no)
 		// cond: c != 0
-		// result: (First nil yes no)
-		for v.Op == OpMIPS64MOVVconst {
-			c := v.AuxInt
+		// result: (First yes no)
+		for b.Controls[0].Op == OpMIPS64MOVVconst {
+			v_0 := b.Controls[0]
+			c := v_0.AuxInt
 			if !(c != 0) {
 				break
 			}
 			b.Kind = BlockFirst
-			b.SetControl(nil)
+			b.ResetControls()
 			b.Aux = nil
 			return true
 		}

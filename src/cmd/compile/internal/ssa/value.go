@@ -47,7 +47,7 @@ type Value struct {
 	// Source position
 	Pos src.XPos
 
-	// Use count. Each appearance in Value.Args and Block.Control counts once.
+	// Use count. Each appearance in Value.Args and Block.Controls counts once.
 	Uses int32
 
 	// wasm: Value stays on the WebAssembly stack. This value will not get a "register" (WebAssembly variable)

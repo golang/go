@@ -96,17 +96,18 @@ func findIndVar(f *Func) []indVar {
 		// Check thet the control if it either ind </<= max or max >/>= ind.
 		// TODO: Handle 32-bit comparisons.
 		// TODO: Handle unsigned comparisons?
-		switch b.Control.Op {
+		c := b.Controls[0]
+		switch c.Op {
 		case OpLeq64:
 			flags |= indVarMaxInc
 			fallthrough
 		case OpLess64:
-			ind, max = b.Control.Args[0], b.Control.Args[1]
+			ind, max = c.Args[0], c.Args[1]
 		case OpGeq64:
 			flags |= indVarMaxInc
 			fallthrough
 		case OpGreater64:
-			ind, max = b.Control.Args[1], b.Control.Args[0]
+			ind, max = c.Args[1], c.Args[0]
 		default:
 			continue
 		}
@@ -207,7 +208,7 @@ func findIndVar(f *Func) []indVar {
 			}
 			// Handle induction variables of these forms.
 			// KNN is known-not-negative.
-			// SIGNED ARITHMETIC ONLY. (see switch on b.Control.Op above)
+			// SIGNED ARITHMETIC ONLY. (see switch on c above)
 			// Possibilities for KNN are len and cap; perhaps we can infer others.
 			// for i := 0; i <= KNN-k    ; i += k
 			// for i := 0; i <  KNN-(k-1); i += k

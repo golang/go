@@ -36449,37 +36449,38 @@ func rewriteValueS390X_OpZeroExt8to64_0(v *Value) bool {
 }
 func rewriteBlockS390X(b *Block) bool {
 	typ := &b.Func.Config.Types
-	v := b.Control
 	switch b.Kind {
 	case BlockS390XBRC:
 		// match: (BRC {c} (CMPWconst [0] (LOCGR {d} (MOVDconst [0]) (MOVDconst [x]) cmp)) yes no)
 		// cond: x != 0 && c.(s390x.CCMask) == s390x.Equal
 		// result: (BRC {d} cmp no yes)
-		for v.Op == OpS390XCMPWconst {
-			if v.AuxInt != 0 {
+		for b.Controls[0].Op == OpS390XCMPWconst {
+			v_0 := b.Controls[0]
+			if v_0.AuxInt != 0 {
 				break
 			}
-			v_0 := v.Args[0]
-			if v_0.Op != OpS390XLOCGR {
-				break
-			}
-			d := v_0.Aux
-			cmp := v_0.Args[2]
 			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpS390XMOVDconst || v_0_0.AuxInt != 0 {
+			if v_0_0.Op != OpS390XLOCGR {
 				break
 			}
-			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != OpS390XMOVDconst {
+			d := v_0_0.Aux
+			cmp := v_0_0.Args[2]
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpS390XMOVDconst || v_0_0_0.AuxInt != 0 {
 				break
 			}
-			x := v_0_1.AuxInt
+			v_0_0_1 := v_0_0.Args[1]
+			if v_0_0_1.Op != OpS390XMOVDconst {
+				break
+			}
+			x := v_0_0_1.AuxInt
 			c := b.Aux
 			if !(x != 0 && c.(s390x.CCMask) == s390x.Equal) {
 				break
 			}
 			b.Kind = BlockS390XBRC
-			b.SetControl(cmp)
+			b.ResetControls()
+			b.AddControl(cmp)
 			b.Aux = d
 			b.swapSuccessors()
 			return true
@@ -36487,148 +36488,152 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (BRC {c} (CMPWconst [0] (LOCGR {d} (MOVDconst [0]) (MOVDconst [x]) cmp)) yes no)
 		// cond: x != 0 && c.(s390x.CCMask) == s390x.NotEqual
 		// result: (BRC {d} cmp yes no)
-		for v.Op == OpS390XCMPWconst {
-			if v.AuxInt != 0 {
+		for b.Controls[0].Op == OpS390XCMPWconst {
+			v_0 := b.Controls[0]
+			if v_0.AuxInt != 0 {
 				break
 			}
-			v_0 := v.Args[0]
-			if v_0.Op != OpS390XLOCGR {
-				break
-			}
-			d := v_0.Aux
-			cmp := v_0.Args[2]
 			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpS390XMOVDconst || v_0_0.AuxInt != 0 {
+			if v_0_0.Op != OpS390XLOCGR {
 				break
 			}
-			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != OpS390XMOVDconst {
+			d := v_0_0.Aux
+			cmp := v_0_0.Args[2]
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpS390XMOVDconst || v_0_0_0.AuxInt != 0 {
 				break
 			}
-			x := v_0_1.AuxInt
+			v_0_0_1 := v_0_0.Args[1]
+			if v_0_0_1.Op != OpS390XMOVDconst {
+				break
+			}
+			x := v_0_0_1.AuxInt
 			c := b.Aux
 			if !(x != 0 && c.(s390x.CCMask) == s390x.NotEqual) {
 				break
 			}
 			b.Kind = BlockS390XBRC
-			b.SetControl(cmp)
+			b.ResetControls()
+			b.AddControl(cmp)
 			b.Aux = d
 			return true
 		}
 		// match: (BRC {c} (InvertFlags cmp) yes no)
 		// result: (BRC {c.(s390x.CCMask).ReverseComparison()} cmp yes no)
-		for v.Op == OpS390XInvertFlags {
-			cmp := v.Args[0]
+		for b.Controls[0].Op == OpS390XInvertFlags {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
 			c := b.Aux
 			b.Kind = BlockS390XBRC
-			b.SetControl(cmp)
+			b.ResetControls()
+			b.AddControl(cmp)
 			b.Aux = c.(s390x.CCMask).ReverseComparison()
 			return true
 		}
 		// match: (BRC {c} (FlagEQ) yes no)
 		// cond: c.(s390x.CCMask) & s390x.Equal != 0
-		// result: (First nil yes no)
-		for v.Op == OpS390XFlagEQ {
+		// result: (First yes no)
+		for b.Controls[0].Op == OpS390XFlagEQ {
 			c := b.Aux
 			if !(c.(s390x.CCMask)&s390x.Equal != 0) {
 				break
 			}
 			b.Kind = BlockFirst
-			b.SetControl(nil)
+			b.ResetControls()
 			b.Aux = nil
 			return true
 		}
 		// match: (BRC {c} (FlagLT) yes no)
 		// cond: c.(s390x.CCMask) & s390x.Less != 0
-		// result: (First nil yes no)
-		for v.Op == OpS390XFlagLT {
+		// result: (First yes no)
+		for b.Controls[0].Op == OpS390XFlagLT {
 			c := b.Aux
 			if !(c.(s390x.CCMask)&s390x.Less != 0) {
 				break
 			}
 			b.Kind = BlockFirst
-			b.SetControl(nil)
+			b.ResetControls()
 			b.Aux = nil
 			return true
 		}
 		// match: (BRC {c} (FlagGT) yes no)
 		// cond: c.(s390x.CCMask) & s390x.Greater != 0
-		// result: (First nil yes no)
-		for v.Op == OpS390XFlagGT {
+		// result: (First yes no)
+		for b.Controls[0].Op == OpS390XFlagGT {
 			c := b.Aux
 			if !(c.(s390x.CCMask)&s390x.Greater != 0) {
 				break
 			}
 			b.Kind = BlockFirst
-			b.SetControl(nil)
+			b.ResetControls()
 			b.Aux = nil
 			return true
 		}
 		// match: (BRC {c} (FlagOV) yes no)
 		// cond: c.(s390x.CCMask) & s390x.Unordered != 0
-		// result: (First nil yes no)
-		for v.Op == OpS390XFlagOV {
+		// result: (First yes no)
+		for b.Controls[0].Op == OpS390XFlagOV {
 			c := b.Aux
 			if !(c.(s390x.CCMask)&s390x.Unordered != 0) {
 				break
 			}
 			b.Kind = BlockFirst
-			b.SetControl(nil)
+			b.ResetControls()
 			b.Aux = nil
 			return true
 		}
 		// match: (BRC {c} (FlagEQ) yes no)
 		// cond: c.(s390x.CCMask) & s390x.Equal == 0
-		// result: (First nil no yes)
-		for v.Op == OpS390XFlagEQ {
+		// result: (First no yes)
+		for b.Controls[0].Op == OpS390XFlagEQ {
 			c := b.Aux
 			if !(c.(s390x.CCMask)&s390x.Equal == 0) {
 				break
 			}
 			b.Kind = BlockFirst
-			b.SetControl(nil)
+			b.ResetControls()
 			b.Aux = nil
 			b.swapSuccessors()
 			return true
 		}
 		// match: (BRC {c} (FlagLT) yes no)
 		// cond: c.(s390x.CCMask) & s390x.Less == 0
-		// result: (First nil no yes)
-		for v.Op == OpS390XFlagLT {
+		// result: (First no yes)
+		for b.Controls[0].Op == OpS390XFlagLT {
 			c := b.Aux
 			if !(c.(s390x.CCMask)&s390x.Less == 0) {
 				break
 			}
 			b.Kind = BlockFirst
-			b.SetControl(nil)
+			b.ResetControls()
 			b.Aux = nil
 			b.swapSuccessors()
 			return true
 		}
 		// match: (BRC {c} (FlagGT) yes no)
 		// cond: c.(s390x.CCMask) & s390x.Greater == 0
-		// result: (First nil no yes)
-		for v.Op == OpS390XFlagGT {
+		// result: (First no yes)
+		for b.Controls[0].Op == OpS390XFlagGT {
 			c := b.Aux
 			if !(c.(s390x.CCMask)&s390x.Greater == 0) {
 				break
 			}
 			b.Kind = BlockFirst
-			b.SetControl(nil)
+			b.ResetControls()
 			b.Aux = nil
 			b.swapSuccessors()
 			return true
 		}
 		// match: (BRC {c} (FlagOV) yes no)
 		// cond: c.(s390x.CCMask) & s390x.Unordered == 0
-		// result: (First nil no yes)
-		for v.Op == OpS390XFlagOV {
+		// result: (First no yes)
+		for b.Controls[0].Op == OpS390XFlagOV {
 			c := b.Aux
 			if !(c.(s390x.CCMask)&s390x.Unordered == 0) {
 				break
 			}
 			b.Kind = BlockFirst
-			b.SetControl(nil)
+			b.ResetControls()
 			b.Aux = nil
 			b.swapSuccessors()
 			return true
@@ -36637,14 +36642,15 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (If cond yes no)
 		// result: (BRC {s390x.NotEqual} (CMPWconst [0] (MOVBZreg <typ.Bool> cond)) yes no)
 		for {
-			cond := b.Control
+			cond := b.Controls[0]
 			b.Kind = BlockS390XBRC
-			v0 := b.NewValue0(v.Pos, OpS390XCMPWconst, types.TypeFlags)
+			b.ResetControls()
+			v0 := b.NewValue0(cond.Pos, OpS390XCMPWconst, types.TypeFlags)
 			v0.AuxInt = 0
-			v1 := b.NewValue0(v.Pos, OpS390XMOVBZreg, typ.Bool)
+			v1 := b.NewValue0(cond.Pos, OpS390XMOVBZreg, typ.Bool)
 			v1.AddArg(cond)
 			v0.AddArg(v1)
-			b.SetControl(v0)
+			b.AddControl(v0)
 			b.Aux = s390x.NotEqual
 			return true
 		}

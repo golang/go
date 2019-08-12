@@ -1057,9 +1057,9 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 				s.Br(obj.AJMP, b.Succs[0].Block())
 			}
 		}
-		if !b.Control.Type.IsFlags() {
+		if !b.Controls[0].Type.IsFlags() {
 			p.From.Type = obj.TYPE_REG
-			p.From.Reg = b.Control.Reg()
+			p.From.Reg = b.Controls[0].Reg()
 		}
 	case ssa.BlockARM64TBZ, ssa.BlockARM64TBNZ:
 		jmp := blockJump[b.Kind]
@@ -1080,9 +1080,9 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		}
 		p.From.Offset = b.Aux.(int64)
 		p.From.Type = obj.TYPE_CONST
-		p.Reg = b.Control.Reg()
+		p.Reg = b.Controls[0].Reg()
 
 	default:
-		b.Fatalf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
+		b.Fatalf("branch not implemented: %s", b.LongString())
 	}
 }
