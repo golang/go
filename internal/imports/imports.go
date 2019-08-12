@@ -136,6 +136,7 @@ func initialize(filename string, src []byte, opt *Options) ([]byte, *Options, er
 }
 
 func formatFile(fileSet *token.FileSet, file *ast.File, src []byte, adjust func(orig []byte, src []byte) []byte, opt *Options) ([]byte, error) {
+	mergeImports(opt.Env, fileSet, file)
 	sortImports(opt.Env, fileSet, file)
 	imps := astutil.Imports(fileSet, file)
 	var spacesBefore []string // import paths we need spaces before

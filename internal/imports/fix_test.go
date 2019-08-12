@@ -372,7 +372,37 @@ func foo() {
 }
 `,
 	},
+	// Merge import blocks, even when no additions are required.
+	{
+		name: "merge_import_blocks_no_fix",
+		in: `package foo
 
+import (
+	"fmt"
+)
+import "os"
+
+import (
+	"rsc.io/p"
+)
+
+var _, _ = os.Args, fmt.Println
+var _, _ = snappy.ErrCorrupt, p.P
+`,
+		out: `package foo
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/golang/snappy"
+	"rsc.io/p"
+)
+
+var _, _ = os.Args, fmt.Println
+var _, _ = snappy.ErrCorrupt, p.P
+`,
+	},
 	// Delete existing empty import block
 	{
 		name: "delete_empty_import_block",
