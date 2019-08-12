@@ -1050,6 +1050,77 @@ const A = 1
 	}
 }
 
+// TestOverlayModFileChanges tests the behavior resulting from having files from
+// multiple modules in overlays.
+func TestOverlayModFileChanges(t *testing.T) {
+	// TODO: Enable this test when golang/go#32499 is resolved.
+	t.Skip()
+
+	// Create two unrelated modules in a temporary directory.
+	tmp, err := ioutil.TempDir("", "tmp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmp)
+
+	// mod1 has a dependency on golang.org/x/xerrors.
+	mod1, err := ioutil.TempDir(tmp, "mod1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(mod1)
+	if err := ioutil.WriteFile(filepath.Join(mod1, "go.mod"), []byte(`module mod1
+
+	require (
+		golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7
+	)
+	`), 0775); err != nil {
+		t.Fatal(err)
+	}
+
+	// mod2 does not have any dependencies.
+	mod2, err := ioutil.TempDir(tmp, "mod2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(mod2)
+
+	want := `module mod2
+`
+	if err := ioutil.WriteFile(filepath.Join(mod2, "go.mod"), []byte(want), 0775); err != nil {
+		t.Fatal(err)
+	}
+
+	// Run packages.Load on mod2, while passing the contents over mod1/main.go in the overlay.
+	config := &packages.Config{
+		Dir:  mod2,
+		Mode: packages.LoadImports,
+		Overlay: map[string][]byte{
+			filepath.Join(mod1, "main.go"): []byte(`package main
+import "golang.org/x/xerrors"
+func main() {
+	_ = errors.New("")
+}
+`),
+			filepath.Join(mod2, "main.go"): []byte(`package main
+func main() {}
+`),
+		},
+	}
+	if _, err := packages.Load(config, fmt.Sprintf("file=%s", filepath.Join(mod2, "main.go"))); err != nil {
+		t.Fatal(err)
+	}
+
+	// Check that mod2/go.mod has not been modified.
+	got, err := ioutil.ReadFile(filepath.Join(mod2, "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != want {
+		t.Errorf("expected %s, got %s", want, string(got))
+	}
+}
+
 func TestLoadAllSyntaxImportErrors(t *testing.T) {
 	packagestest.TestAll(t, testLoadAllSyntaxImportErrors)
 }
