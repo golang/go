@@ -59,7 +59,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 				},
 				source.Mod: {},
 				source.Sum: {}},
-			hoverKind: source.SynopsisDocumentation,
+			hoverKind: synopsisDocumentation,
 		},
 		data: data,
 		ctx:  ctx,

@@ -405,10 +405,15 @@ func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", d.Src, err)
 		}
-		hover, err := ident.Hover(ctx, false, source.SynopsisDocumentation)
+		h, err := ident.Hover(ctx)
 		if err != nil {
 			t.Fatalf("failed for %v: %v", d.Src, err)
 		}
+		var hover string
+		if h.Synopsis != "" {
+			hover += h.Synopsis + "\n"
+		}
+		hover += h.Signature
 		rng := ident.DeclarationRange()
 		if d.IsType {
 			rng = ident.Type.Range

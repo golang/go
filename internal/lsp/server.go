@@ -79,7 +79,7 @@ type Server struct {
 	// Configurations.
 	// TODO(rstambler): Separate these into their own struct?
 	usePlaceholders               bool
-	hoverKind                     source.HoverKind
+	hoverKind                     hoverKind
 	useDeepCompletions            bool
 	wantCompletionDocumentation   bool
 	insertTextFormat              protocol.InsertTextFormat

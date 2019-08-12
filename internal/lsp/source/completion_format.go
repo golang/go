@@ -132,11 +132,11 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		if err != nil {
 			goto Return
 		}
-		documentation, err := ident.Documentation(c.ctx, SynopsisDocumentation)
+		hover, err := ident.Hover(c.ctx)
 		if err != nil {
 			goto Return
 		}
-		item.Documentation = documentation
+		item.Documentation = hover.Synopsis
 	}
 Return:
 	return item, nil

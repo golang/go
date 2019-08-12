@@ -7,6 +7,7 @@ package source
 import (
 	"context"
 	"go/ast"
+	"go/doc"
 	"go/token"
 	"go/types"
 
@@ -154,10 +155,13 @@ func signatureInformation(name string, comment *ast.CommentGroup, params, result
 		paramInfo = append(paramInfo, ParameterInformation{Label: p})
 	}
 	label := name + formatFunction(params, results, writeResultParens)
+	var c string
+	if comment != nil {
+		c = doc.Synopsis(comment.Text())
+	}
 	return &SignatureInformation{
-		Label: label,
-		// TODO: Should we have the HoverKind apply to signature information as well?
-		Documentation:   formatDocumentation(comment, SynopsisDocumentation),
+		Label:           label,
+		Documentation:   c,
 		Parameters:      paramInfo,
 		ActiveParameter: activeParam,
 	}

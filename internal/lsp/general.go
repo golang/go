@@ -41,7 +41,7 @@ func (s *Server) initialize(ctx context.Context, params *protocol.InitializePara
 	}
 
 	// Default to using synopsis as a default for hover information.
-	s.hoverKind = source.SynopsisDocumentation
+	s.hoverKind = synopsisDocumentation
 
 	s.supportedCodeActions = map[source.FileKind]map[protocol.CodeActionKind]bool{
 		source.Go: {
@@ -230,13 +230,15 @@ func (s *Server) processConfig(ctx context.Context, view source.View, config int
 	if hoverKind, ok := c["hoverKind"].(string); ok {
 		switch hoverKind {
 		case "NoDocumentation":
-			s.hoverKind = source.NoDocumentation
+			s.hoverKind = noDocumentation
 		case "SingleLine":
-			s.hoverKind = source.SingleLine
+			s.hoverKind = singleLine
 		case "SynopsisDocumentation":
-			s.hoverKind = source.SynopsisDocumentation
+			s.hoverKind = synopsisDocumentation
 		case "FullDocumentation":
-			s.hoverKind = source.FullDocumentation
+			s.hoverKind = fullDocumentation
+		case "Structured":
+			s.hoverKind = structured
 		default:
 			log.Error(ctx, "unsupported hover kind", nil, tag.Of("HoverKind", hoverKind))
 			// The default value is already be set to synopsis.
