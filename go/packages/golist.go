@@ -847,10 +847,22 @@ func invokeGo(cfg *Config, args ...string) (*bytes.Buffer, error) {
 			return nil, goTooOldError{fmt.Errorf("unsupported version of go: %s: %s", exitErr, stderr)}
 		}
 
+		// Related to #24854
+		if len(stderr.String()) > 0 && strings.Contains(stderr.String(), "unexpected directory layout") {
+			return nil, fmt.Errorf("%s", stderr.String())
+		}
+
 		// This error only appears in stderr. See golang.org/cl/166398 for a fix in go list to show
 		// the error in the Err section of stdout in case -e option is provided.
 		// This fix is provided for backwards compatibility.
 		if len(stderr.String()) > 0 && strings.Contains(stderr.String(), "named files must be .go files") {
+			output := fmt.Sprintf(`{"ImportPath": "command-line-arguments","Incomplete": true,"Error": {"Pos": "","Err": %q}}`,
+				strings.Trim(stderr.String(), "\n"))
+			return bytes.NewBufferString(output), nil
+		}
+
+		// Similar to the previous error, but currently lacks a fix in Go.
+		if len(stderr.String()) > 0 && strings.Contains(stderr.String(), "named files must all be in one directory") {
 			output := fmt.Sprintf(`{"ImportPath": "command-line-arguments","Incomplete": true,"Error": {"Pos": "","Err": %q}}`,
 				strings.Trim(stderr.String(), "\n"))
 			return bytes.NewBufferString(output), nil

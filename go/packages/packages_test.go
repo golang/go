@@ -1979,6 +1979,69 @@ func testReturnErrorWhenUsingNonGoFiles(t *testing.T, exporter packagestest.Expo
 	}
 }
 
+func TestReturnErrorWhenUsingGoFilesInMultipleDirectories(t *testing.T) {
+	packagestest.TestAll(t, testReturnErrorWhenUsingGoFilesInMultipleDirectories)
+}
+func testReturnErrorWhenUsingGoFilesInMultipleDirectories(t *testing.T, exporter packagestest.Exporter) {
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/gopatha",
+		Files: map[string]interface{}{
+			"a/a.go": `package a`,
+			"b/b.go": `package b`,
+		}}})
+	defer exported.Cleanup()
+	want := "named files must all be in one directory"
+	pkgs, err := packages.Load(exported.Config, exported.File("golang.org/gopatha", "a/a.go"), exported.File("golang.org/gopatha", "b/b.go"))
+	if err != nil {
+		// Check if the error returned is the one we expected.
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("want error message: %s, got: %s", want, err.Error())
+		}
+		return
+	}
+	if len(pkgs) != 1 || pkgs[0].PkgPath != "command-line-arguments" {
+		t.Fatalf("packages.Load: want [command-line-arguments], got %v", pkgs)
+	}
+	if len(pkgs[0].Errors) != 1 {
+		t.Fatalf("result of Load: want package with one error, got: %+v", pkgs[0])
+	}
+	got := pkgs[0].Errors[0].Error()
+	if !strings.Contains(got, want) {
+		t.Fatalf("want error message: %s, got: %s", want, got)
+	}
+}
+
+func TestReturnErrorForUnexpectedDirectoryLayout(t *testing.T) {
+	packagestest.TestAll(t, testReturnErrorForUnexpectedDirectoryLayout)
+}
+func testReturnErrorForUnexpectedDirectoryLayout(t *testing.T, exporter packagestest.Exporter) {
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/gopatha",
+		Files: map[string]interface{}{
+			"a/testdata/a.go": `package a; import _ "b"`,
+			"a/vendor/b/b.go": `package b; import _ "fmt"`,
+		}}})
+	defer exported.Cleanup()
+	want := "unexpected directory layout"
+	// triggering this error requires a relative package path
+	exported.Config.Dir = filepath.Dir(exported.File("golang.org/gopatha", "a/testdata/a.go"))
+	pkgs, err := packages.Load(exported.Config, ".")
+
+	// This error doesn't seem to occur in module mode; so only
+	// complain if we get zero packages while also getting no error.
+	if err == nil {
+		if len(pkgs) == 0 {
+			// TODO(dh): we'll need to expand on the error check if/when Go stops emitting this error
+			t.Fatalf("want error, got nil")
+		}
+		return
+	}
+	// Check if the error returned is the one we expected.
+	if !strings.Contains(err.Error(), want) {
+		t.Fatalf("want error message: %s, got: %s", want, err.Error())
+	}
+}
+
 func TestMissingDependency(t *testing.T) { packagestest.TestAll(t, testMissingDependency) }
 func testMissingDependency(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
