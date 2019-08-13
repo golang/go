@@ -2105,6 +2105,42 @@ func testAdHocContains(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
+func TestNoCcompiler(t *testing.T) { packagestest.TestAll(t, testNoCcompiler) }
+func testNoCcompiler(t *testing.T, exporter packagestest.Exporter) {
+	// Enable this test after golang/go#33462 is resolved.
+	t.Skip()
+
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/fake",
+		Files: map[string]interface{}{
+			"a/a.go": `package a
+import "net/http"
+const A = http.MethodGet
+`,
+		}}})
+	defer exported.Cleanup()
+
+	// Explicitly enable cgo but configure a nonexistent C compiler.
+	exported.Config.Env = append(exported.Config.Env, "CGO_ENABLED=1", "CC=doesnotexist")
+	exported.Config.Mode = packages.LoadAllSyntax
+	initial, err := packages.Load(exported.Config, "golang.org/fake/a")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check value of a.A.
+	a := initial[0]
+	aA := constant(a, "A")
+	if aA == nil {
+		t.Fatalf("a.A: got nil")
+	}
+	got := aA.Val().String()
+	if got != "\"GET\"" {
+		t.Errorf("a.A: got %s, want %s", got, "\"GET\"")
+	}
+
+}
+
 func errorMessages(errors []packages.Error) []string {
 	var msgs []string
 	for _, err := range errors {
