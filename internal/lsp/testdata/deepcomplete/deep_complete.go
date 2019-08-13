@@ -34,12 +34,12 @@ func _() {
 }
 
 func _() {
-	type deepCircle struct {
+	type deepCircle struct { //@item(deepCircleStruct, "deepCircle", "struct{...}", "struct")
 		*deepCircle
 	}
-	var circle deepCircle //@item(deepCircle, "circle", "deepCircle", "var")
-	circle.deepCircle     //@item(deepCircleField, "circle.deepCircle", "*deepCircle", "field")
-	var _ deepCircle = ci //@complete(" //", deepCircle, deepCircleField)
+	var circle deepCircle   //@item(deepCircle, "circle", "deepCircle", "var")
+	circle.deepCircle       //@item(deepCircleField, "circle.deepCircle", "*deepCircle", "field")
+	var _ deepCircle = circ //@complete(" //", deepCircle, deepCircleStruct, deepCircleField)
 }
 
 func _() {

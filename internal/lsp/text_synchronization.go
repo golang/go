@@ -106,7 +106,7 @@ func fullChange(changes []protocol.TextDocumentContentChangeEvent) (string, bool
 func (s *Server) applyChanges(ctx context.Context, uri span.URI, changes []protocol.TextDocumentContentChangeEvent) (string, error) {
 	content, _, err := s.session.GetFile(uri).Read(ctx)
 	if err != nil {
-		return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "file not found")
+		return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "file not found (%v)", err)
 	}
 	fset := s.session.Cache().FileSet()
 	for _, change := range changes {

@@ -203,17 +203,7 @@ func (m *Matcher) match(candidate string, candidateLower []byte) bool {
 	// The input passes the simple test against pattern, so it is time to classify its characters.
 	// Character roles are used below to find the last segment.
 	m.roles = RuneRoles(candidate, m.input, m.rolesBuf[:])
-	if m.input != Text {
-		sep := len(candidateLower) - 1
-		for sep >= i && m.roles[sep] != RSep {
-			sep--
-		}
-		if sep >= i {
-			// We are not in the last segment, check that we have at least one character match in the last
-			// segment of the candidate.
-			return bytes.IndexByte(candidateLower[sep:], m.patternLower[len(m.pattern)-1]) != -1
-		}
-	}
+
 	return true
 }
 
@@ -266,12 +256,6 @@ func (m *Matcher) computeScore(candidate string, candidateLower []byte) int {
 		for j := 0; j <= pattLen; j++ {
 			// By default, we don't have a match. Fill in the skip data.
 			m.scores[i][j][1] = minScore << 1
-
-			if segmentsLeft > 1 && j == pattLen {
-				// The very last pattern character can only be matched in the last segment.
-				m.scores[i][j][0] = minScore << 1
-				continue
-			}
 
 			// Compute the skip score.
 			k := 0

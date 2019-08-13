@@ -111,7 +111,7 @@ var matcherTests = []struct {
 		input:   fuzzy.Filename,
 		tests: []scoreTest{
 			{"sub/seq", ge, 0},
-			{"sub/seq/end", eq, -1},
+			{"sub/seq/end", ge, 0},
 			{"sub/seq/base", ge, 0},
 		},
 	},
@@ -120,7 +120,7 @@ var matcherTests = []struct {
 		input:   fuzzy.Filename,
 		tests: []scoreTest{
 			{"//sub/seq", ge, 0},
-			{"//sub/seq/end", eq, -1},
+			{"//sub/seq/end", ge, 0},
 			{"//sub/seq/base", ge, 0},
 		},
 	},
@@ -242,10 +242,10 @@ var fuzzyMatcherTestCases = []struct {
 	{p: "edt", str: "foo.Textedit", want: "", input: fuzzy.Symbol}, // short middle of the word match
 	{p: "edit", str: "foo.Textedit", want: "foo.Text[edit]", input: fuzzy.Symbol},
 	{p: "edin", str: "foo.TexteditNum", want: "foo.Text[edi]t[N]um", input: fuzzy.Symbol},
-	{p: "n", str: "node.GoNodeMax", want: "node.Go[N]odeMax", input: fuzzy.Symbol},
-	{p: "N", str: "node.GoNodeMax", want: "node.Go[N]odeMax", input: fuzzy.Symbol},
+	{p: "n", str: "node.GoNodeMax", want: "[n]ode.GoNodeMax", input: fuzzy.Symbol},
+	{p: "N", str: "node.GoNodeMax", want: "[n]ode.GoNodeMax", input: fuzzy.Symbol},
 	{p: "completio", str: "completion", want: "[completio]n", input: fuzzy.Symbol},
-	{p: "completio", str: "completion.None", want: "[completi]on.N[o]ne", input: fuzzy.Symbol},
+	{p: "completio", str: "completion.None", want: "[completio]n.None", input: fuzzy.Symbol},
 }
 
 func TestFuzzyMatcherRanges(t *testing.T) {

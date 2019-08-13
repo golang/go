@@ -9,6 +9,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/lsp/fuzzy"
@@ -112,6 +113,25 @@ const (
 	lowScore float64 = 0.01
 )
 
+// matcher matches a candidate's label against the user input.
+// The returned score reflects the quality of the match. A score
+// less than or equal to zero indicates no match, and a score of
+// one means a perfect match.
+type matcher interface {
+	Score(candidateLabel string) (score float32)
+}
+
+// prefixMatcher implements the original case insensitive prefix matching.
+// This matcher should go away once fuzzy matching is released.
+type prefixMatcher string
+
+func (pm prefixMatcher) Score(candidateLabel string) float32 {
+	if strings.HasPrefix(strings.ToLower(candidateLabel), string(pm)) {
+		return 1
+	}
+	return 0
+}
+
 // completer contains the necessary information for a single completion request.
 type completer struct {
 	// Package-specific fields.
@@ -155,8 +175,8 @@ type completer struct {
 	// deepState contains the current state of our deep completion search.
 	deepState deepCompletionState
 
-	// matcher does fuzzy matching of the candidates for the surrounding prefix.
-	matcher *fuzzy.Matcher
+	// matcher matches the candidates against the surrounding prefix.
+	matcher matcher
 }
 
 type compLitInfo struct {
@@ -203,8 +223,15 @@ func (c *completer) setSurrounding(ident *ast.Ident) {
 		Range:   span.NewRange(c.view.Session().Cache().FileSet(), ident.Pos(), ident.End()),
 		Cursor:  c.pos,
 	}
-	if c.surrounding.Prefix() != "" {
-		c.matcher = fuzzy.NewMatcher(c.surrounding.Prefix(), fuzzy.Symbol)
+
+	// Fuzzy matching shares the "useDeepCompletions" config flag, so if deep completions
+	// are enabled then also enable fuzzy matching.
+	if c.deepState.enabled {
+		if c.surrounding.Prefix() != "" {
+			c.matcher = fuzzy.NewMatcher(c.surrounding.Prefix(), fuzzy.Symbol)
+		}
+	} else {
+		c.matcher = prefixMatcher(strings.ToLower(c.surrounding.Prefix()))
 	}
 }
 
@@ -243,13 +270,23 @@ func (c *completer) found(obj types.Object, score float64) error {
 
 	// Favor shallow matches by lowering weight according to depth.
 	cand.score -= stdScore * float64(len(c.deepState.chain))
+
 	item, err := c.item(cand)
 	if err != nil {
 		return err
 	}
-	c.items = append(c.items, item)
+	if c.matcher == nil {
+		c.items = append(c.items, item)
+	} else {
+		score := c.matcher.Score(item.Label)
+		if score > 0 {
+			item.Score *= float64(score)
+			c.items = append(c.items, item)
+		}
+	}
 
 	c.deepSearch(obj)
+
 	return nil
 }
 

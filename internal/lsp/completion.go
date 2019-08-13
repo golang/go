@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -40,7 +39,9 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 		log.Print(ctx, "no completions found", tag.Of("At", rng), tag.Of("Failure", err))
 	}
 	return &protocol.CompletionList{
-		IsIncomplete: false,
+		// When using deep completions/fuzzy matching, report results as incomplete so
+		// client fetches updated completions after every key stroke.
+		IsIncomplete: s.useDeepCompletions,
 		Items:        s.toProtocolCompletionItems(ctx, view, m, candidates, params.Position, surrounding),
 	}, nil
 }
@@ -59,9 +60,7 @@ func (s *Server) toProtocolCompletionItems(ctx context.Context, view source.View
 		Start: pos,
 		End:   pos,
 	}
-	var prefix string
 	if surrounding != nil {
-		prefix = strings.ToLower(surrounding.Prefix())
 		spn, err := surrounding.Range.Span()
 		if err != nil {
 			log.Print(ctx, "failed to get span for surrounding position: %s:%v:%v: %v", tag.Of("Position", pos), tag.Of("Failure", err))
@@ -75,14 +74,12 @@ func (s *Server) toProtocolCompletionItems(ctx context.Context, view source.View
 		}
 	}
 
-	var numDeepCompletionsSeen int
+	var (
+		items                  = make([]protocol.CompletionItem, 0, len(candidates))
+		numDeepCompletionsSeen int
+	)
 
-	items := make([]protocol.CompletionItem, 0, len(candidates))
 	for i, candidate := range candidates {
-		// Match against the label (case-insensitive).
-		if !strings.HasPrefix(strings.ToLower(candidate.Label), prefix) {
-			continue
-		}
 		// Limit the number of deep completions to not overwhelm the user in cases
 		// with dozens of deep completion matches.
 		if candidate.Depth > 0 {
@@ -98,6 +95,7 @@ func (s *Server) toProtocolCompletionItems(ctx context.Context, view source.View
 		if s.insertTextFormat == protocol.SnippetTextFormat {
 			insertText = candidate.Snippet(s.usePlaceholders)
 		}
+
 		item := protocol.CompletionItem{
 			Label:  candidate.Label,
 			Detail: candidate.Detail,
