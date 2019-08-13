@@ -83,7 +83,8 @@ func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 			uri := d.Src.URI()
 			args = append(args, fmt.Sprint(d.Src))
 			got := captureStdOut(t, func() {
-				tool.Main(r.ctx, r.app, args)
+				app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Exported.Config.Env)
+				tool.Main(r.ctx, app, args)
 			})
 			got = normalizePaths(r.data, got)
 			if mode&jsonGoDef != 0 && runtime.GOOS == "windows" {

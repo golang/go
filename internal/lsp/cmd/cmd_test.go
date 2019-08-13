@@ -15,14 +15,12 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/packages/packagestest"
-	"golang.org/x/tools/internal/lsp/cmd"
 	"golang.org/x/tools/internal/lsp/tests"
 )
 
 type runner struct {
 	exporter packagestest.Exporter
 	data     *tests.Data
-	app      *cmd.Application
 	ctx      context.Context
 }
 
@@ -37,7 +35,6 @@ func testCommandLine(t *testing.T, exporter packagestest.Exporter) {
 	r := &runner{
 		exporter: exporter,
 		data:     data,
-		app:      cmd.New("gopls-test", data.Config.Dir, data.Exported.Config.Env),
 		ctx:      tests.Context(t),
 	}
 	tests.Run(t, r, data)

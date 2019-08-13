@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/tools/internal/lsp/cmd"
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/tool"
@@ -21,8 +22,9 @@ func (r *runner) Diagnostics(t *testing.T, data tests.Diagnostics) {
 		}
 		fname := uri.Filename()
 		args := []string{"-remote=internal", "check", fname}
+		app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Exported.Config.Env)
 		out := captureStdOut(t, func() {
-			tool.Main(r.ctx, r.app, args)
+			tool.Main(r.ctx, app, args)
 		})
 		// parse got into a collection of reports
 		got := map[string]struct{}{}
