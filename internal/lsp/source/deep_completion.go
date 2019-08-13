@@ -56,6 +56,12 @@ func (c *completer) deepSearch(obj types.Object) {
 		return
 	}
 
+	// If we are definitely completing a struct field name, deep completions
+	// don't make sense.
+	if c.wantStructFieldCompletions() && c.enclosingCompositeLiteral.inKey {
+		return
+	}
+
 	// Don't search into type names.
 	if isTypeName(obj) {
 		return

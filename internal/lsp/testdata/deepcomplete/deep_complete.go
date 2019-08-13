@@ -59,3 +59,14 @@ func _() {
 	a.deepEmbedC     //@item(deepEmbedC, "a.deepEmbedC", "deepEmbedC", "field")
 	wantsC(a)        //@complete(")", deepEmbedC, deepEmbedA, deepEmbedB)
 }
+
+func _() {
+	type nested struct {
+		a int
+		n *nested //@item(deepNestedField, "n", "*nested", "field")
+	}
+
+	nested{
+		a: 123, //@complete(" //", deepNestedField)
+	}
+}

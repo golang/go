@@ -90,3 +90,9 @@ func Stderr(ctx context.Context, at time.Time, tags tag.List) bool {
 	fmt.Fprintf(os.Stderr, "%v\n", ToEntry(ctx, at, tags))
 	return true
 }
+
+// NullLogger is a logger that throws away log messages and reports
+// success so that the fallback stderr logging does not happen.
+var NullLogger = func(context.Context, time.Time, tag.List) bool {
+	return true
+}

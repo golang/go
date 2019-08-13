@@ -26,7 +26,7 @@ import (
 // We hardcode the expected number of test cases to ensure that all tests
 // are being executed. If a test is added, this number must be changed.
 const (
-	ExpectedCompletionsCount       = 144
+	ExpectedCompletionsCount       = 145
 	ExpectedCompletionSnippetCount = 15
 	ExpectedDiagnosticsCount       = 21
 	ExpectedFormatCount            = 6
@@ -195,12 +195,12 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		filename := data.Exported.File(testModule, fragment)
 		data.fragments[filename] = fragment
 	}
-	data.Exported.Config.Logf = t.Logf
+	data.Exported.Config.Logf = nil
 
 	// Merge the exported.Config with the view.Config.
 	data.Config = *data.Exported.Config
 	data.Config.Fset = token.NewFileSet()
-	data.Config.Logf = t.Logf
+	data.Config.Logf = nil
 	data.Config.Context = Context(nil)
 	data.Config.ParseFile = func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
 		panic("ParseFile should not be called")
