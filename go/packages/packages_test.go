@@ -1053,9 +1053,6 @@ const A = 1
 // TestOverlayModFileChanges tests the behavior resulting from having files from
 // multiple modules in overlays.
 func TestOverlayModFileChanges(t *testing.T) {
-	// TODO: Enable this test when golang/go#32499 is resolved.
-	t.Skip()
-
 	// Create two unrelated modules in a temporary directory.
 	tmp, err := ioutil.TempDir("", "tmp")
 	if err != nil {
@@ -1086,6 +1083,8 @@ func TestOverlayModFileChanges(t *testing.T) {
 	defer os.Remove(mod2)
 
 	want := `module mod2
+
+go 1.11
 `
 	if err := ioutil.WriteFile(filepath.Join(mod2, "go.mod"), []byte(want), 0775); err != nil {
 		t.Fatal(err)

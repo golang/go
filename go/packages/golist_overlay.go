@@ -17,7 +17,7 @@ import (
 // sometimes incorrect.
 // TODO(matloob): Handle unsupported cases, including the following:
 // - determining the correct package to add given a new import path
-func processGolistOverlay(cfg *Config, response *responseDeduper, rootDirs func() map[string]string) (modifiedPkgs, needPkgs []string, err error) {
+func processGolistOverlay(cfg *Config, response *responseDeduper, rootDirs func() *goInfo) (modifiedPkgs, needPkgs []string, err error) {
 	havePkgs := make(map[string]string) // importPath -> non-test package ID
 	needPkgsSet := make(map[string]bool)
 	modifiedPkgsSet := make(map[string]bool)
@@ -75,7 +75,7 @@ func processGolistOverlay(cfg *Config, response *responseDeduper, rootDirs func(
 			// Try to find the module or gopath dir the file is contained in.
 			// Then for modules, add the module opath to the beginning.
 			var pkgPath string
-			for rdir, rpath := range rootDirs() {
+			for rdir, rpath := range rootDirs().rootDirs {
 				// TODO(matloob): This doesn't properly handle symlinks.
 				r, err := filepath.Rel(rdir, dir)
 				if err != nil {

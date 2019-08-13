@@ -72,6 +72,28 @@ func (r *responseDeduper) addRoot(id string) {
 	r.dr.Roots = append(r.dr.Roots, id)
 }
 
+// goInfo contains global information from the go tool.
+type goInfo struct {
+	rootDirs map[string]string
+	env      goEnv
+}
+
+type goEnv struct {
+	modulesOn bool
+}
+
+func determineEnv(cfg *Config) goEnv {
+	buf, err := invokeGo(cfg, "env", "GOMOD")
+	if err != nil {
+		return goEnv{}
+	}
+	gomod := bytes.TrimSpace(buf.Bytes())
+
+	env := goEnv{}
+	env.modulesOn = len(gomod) > 0
+	return env
+}
+
 // goListDriver uses the go list command to interpret the patterns and produce
 // the build system package structure.
 // See driver for more details.
@@ -88,20 +110,25 @@ func goListDriver(cfg *Config, patterns ...string) (*driverResponse, error) {
 	}
 
 	// start fetching rootDirs
-	var rootDirs map[string]string
-	var rootDirsReady = make(chan struct{})
+	var info goInfo
+	var rootDirsReady, envReady = make(chan struct{}), make(chan struct{})
 	go func() {
-		rootDirs = determineRootDirs(cfg)
+		info.rootDirs = determineRootDirs(cfg)
 		close(rootDirsReady)
 	}()
-	getRootDirs := func() map[string]string {
+	go func() {
+		info.env = determineEnv(cfg)
+		close(envReady)
+	}()
+	getGoInfo := func() *goInfo {
 		<-rootDirsReady
-		return rootDirs
+		<-envReady
+		return &info
 	}
 
-	// always pass getRootDirs to golistDriver
+	// always pass getGoInfo to golistDriver
 	golistDriver := func(cfg *Config, patterns ...string) (*driverResponse, error) {
-		return golistDriver(cfg, getRootDirs, patterns...)
+		return golistDriver(cfg, getGoInfo, patterns...)
 	}
 
 	// Determine files requested in contains patterns
@@ -165,7 +192,7 @@ extractQueries:
 	var containsCandidates []string
 
 	if len(containFiles) != 0 {
-		if err := runContainsQueries(cfg, golistDriver, response, containFiles, getRootDirs); err != nil {
+		if err := runContainsQueries(cfg, golistDriver, response, containFiles, getGoInfo); err != nil {
 			return nil, err
 		}
 	}
@@ -176,7 +203,7 @@ extractQueries:
 		}
 	}
 
-	modifiedPkgs, needPkgs, err := processGolistOverlay(cfg, response, getRootDirs)
+	modifiedPkgs, needPkgs, err := processGolistOverlay(cfg, response, getGoInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +211,7 @@ extractQueries:
 		containsCandidates = append(containsCandidates, modifiedPkgs...)
 		containsCandidates = append(containsCandidates, needPkgs...)
 	}
-	if err := addNeededOverlayPackages(cfg, golistDriver, response, needPkgs, getRootDirs); err != nil {
+	if err := addNeededOverlayPackages(cfg, golistDriver, response, needPkgs, getGoInfo); err != nil {
 		return nil, err
 	}
 	// Check candidate packages for containFiles.
@@ -216,28 +243,33 @@ extractQueries:
 	return response.dr, nil
 }
 
-func addNeededOverlayPackages(cfg *Config, driver driver, response *responseDeduper, pkgs []string, getRootDirs func() map[string]string) error {
+func addNeededOverlayPackages(cfg *Config, driver driver, response *responseDeduper, pkgs []string, getGoInfo func() *goInfo) error {
 	if len(pkgs) == 0 {
 		return nil
 	}
-	dr, err := driver(cfg, pkgs...)
+	drivercfg := *cfg
+	if getGoInfo().env.modulesOn {
+		drivercfg.BuildFlags = append(drivercfg.BuildFlags, "-mod=readonly")
+	}
+	dr, err := driver(&drivercfg, pkgs...)
+
 	if err != nil {
 		return err
 	}
 	for _, pkg := range dr.Packages {
 		response.addPackage(pkg)
 	}
-	_, needPkgs, err := processGolistOverlay(cfg, response, getRootDirs)
+	_, needPkgs, err := processGolistOverlay(cfg, response, getGoInfo)
 	if err != nil {
 		return err
 	}
-	if err := addNeededOverlayPackages(cfg, driver, response, needPkgs, getRootDirs); err != nil {
+	if err := addNeededOverlayPackages(cfg, driver, response, needPkgs, getGoInfo); err != nil {
 		return err
 	}
 	return nil
 }
 
-func runContainsQueries(cfg *Config, driver driver, response *responseDeduper, queries []string, rootDirs func() map[string]string) error {
+func runContainsQueries(cfg *Config, driver driver, response *responseDeduper, queries []string, goInfo func() *goInfo) error {
 	for _, query := range queries {
 		// TODO(matloob): Do only one query per directory.
 		fdir := filepath.Dir(query)
@@ -600,7 +632,7 @@ func otherFiles(p *jsonPackage) [][]string {
 // golistDriver uses the "go list" command to expand the pattern
 // words and return metadata for the specified packages. dir may be
 // "" and env may be nil, as per os/exec.Command.
-func golistDriver(cfg *Config, rootsDirs func() map[string]string, words ...string) (*driverResponse, error) {
+func golistDriver(cfg *Config, rootsDirs func() *goInfo, words ...string) (*driverResponse, error) {
 	// go list uses the following identifiers in ImportPath and Imports:
 	//
 	// 	"p"			-- importable package or main (command)
@@ -759,8 +791,8 @@ func golistDriver(cfg *Config, rootsDirs func() map[string]string, words ...stri
 }
 
 // getPkgPath finds the package path of a directory if it's relative to a root directory.
-func getPkgPath(dir string, rootDirs func() map[string]string) (string, bool) {
-	for rdir, rpath := range rootDirs() {
+func getPkgPath(dir string, goInfo func() *goInfo) (string, bool) {
+	for rdir, rpath := range goInfo().rootDirs {
 		// TODO(matloob): This doesn't properly handle symlinks.
 		r, err := filepath.Rel(rdir, dir)
 		if err != nil {
