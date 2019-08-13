@@ -710,20 +710,10 @@ func resetProxyConfig() {
 }
 
 func (t *Transport) connectMethodForRequest(treq *transportRequest) (cm connectMethod, err error) {
-	// TODO: the validPort check is redundant after CL 189258, as url.URL.Port
-	// only returns valid ports now. golang.org/issue/33600
-	if port := treq.URL.Port(); !validPort(port) {
-		return cm, fmt.Errorf("invalid URL port %q", port)
-	}
 	cm.targetScheme = treq.URL.Scheme
 	cm.targetAddr = canonicalAddr(treq.URL)
 	if t.Proxy != nil {
 		cm.proxyURL, err = t.Proxy(treq.Request)
-		if err == nil && cm.proxyURL != nil {
-			if port := cm.proxyURL.Port(); !validPort(port) {
-				return cm, fmt.Errorf("invalid proxy URL port %q", port)
-			}
-		}
 	}
 	cm.onlyH1 = treq.requiresHTTP1()
 	return cm, err
@@ -2701,16 +2691,4 @@ func (cl *connLRU) remove(pc *persistConn) {
 // len returns the number of items in the cache.
 func (cl *connLRU) len() int {
 	return len(cl.m)
-}
-
-// validPort reports whether p (without the colon) is a valid port in
-// a URL, per RFC 3986 Section 3.2.3, which says the port may be
-// empty, or only contain digits.
-func validPort(p string) bool {
-	for _, r := range []byte(p) {
-		if r < '0' || r > '9' {
-			return false
-		}
-	}
-	return true
 }
