@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	"golang.org/x/tools/internal/lsp/telemetry/tag"
+	"golang.org/x/tools/internal/telemetry/tag"
 )
 
 type Entry struct {

@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"time"
 
-	"golang.org/x/tools/internal/lsp/telemetry/worker"
+	"golang.org/x/tools/internal/telemetry/worker"
 )
 
 //TODO: Do we need to do something more efficient than just store tags

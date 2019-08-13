@@ -226,7 +226,7 @@ function output(side: side) {
     "encoding/json"
 
     "golang.org/x/tools/internal/jsonrpc2"
-    "golang.org/x/tools/internal/lsp/telemetry/log"
+    "golang.org/x/tools/internal/telemetry/log"
   )
   `);
   const a = side.name[0].toUpperCase() + side.name.substring(1)

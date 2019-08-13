@@ -9,9 +9,9 @@ import (
 	"context"
 	"sort"
 
-	"golang.org/x/tools/internal/lsp/telemetry/stats"
-	"golang.org/x/tools/internal/lsp/telemetry/tag"
-	"golang.org/x/tools/internal/lsp/telemetry/worker"
+	"golang.org/x/tools/internal/telemetry/stats"
+	"golang.org/x/tools/internal/telemetry/tag"
+	"golang.org/x/tools/internal/telemetry/worker"
 )
 
 // Handle uniquely identifies a constructed metric.

@@ -12,7 +12,7 @@ import (
 	"sort"
 
 	"golang.org/x/tools/internal/lsp/telemetry"
-	"golang.org/x/tools/internal/lsp/telemetry/metric"
+	"golang.org/x/tools/internal/telemetry/metric"
 )
 
 var rpcTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`

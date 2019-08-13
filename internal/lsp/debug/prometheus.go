@@ -10,9 +10,9 @@ import (
 	"net/http"
 	"sort"
 
-	"golang.org/x/tools/internal/lsp/telemetry/metric"
-	"golang.org/x/tools/internal/lsp/telemetry/tag"
-	"golang.org/x/tools/internal/lsp/telemetry/worker"
+	"golang.org/x/tools/internal/telemetry/metric"
+	"golang.org/x/tools/internal/telemetry/tag"
+	"golang.org/x/tools/internal/telemetry/worker"
 )
 
 type prometheus struct {

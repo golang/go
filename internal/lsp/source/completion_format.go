@@ -14,9 +14,9 @@ import (
 	"strings"
 
 	"golang.org/x/tools/internal/lsp/snippet"
-	"golang.org/x/tools/internal/lsp/telemetry/log"
-	"golang.org/x/tools/internal/lsp/telemetry/tag"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/telemetry/log"
+	"golang.org/x/tools/internal/telemetry/tag"
 )
 
 // formatCompletion creates a completion item for a given candidate.

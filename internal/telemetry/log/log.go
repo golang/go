@@ -12,8 +12,8 @@ import (
 	"os"
 	"time"
 
-	"golang.org/x/tools/internal/lsp/telemetry/tag"
-	"golang.org/x/tools/internal/lsp/telemetry/worker"
+	"golang.org/x/tools/internal/telemetry/tag"
+	"golang.org/x/tools/internal/telemetry/worker"
 )
 
 const (

@@ -14,8 +14,8 @@ import (
 	"regexp"
 
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/telemetry/trace"
 	"golang.org/x/tools/refactor/satisfy"
 	errors "golang.org/x/xerrors"
 )

@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/tools/internal/lsp/telemetry/tag"
-	"golang.org/x/tools/internal/lsp/telemetry/trace"
+	"golang.org/x/tools/internal/telemetry/tag"
+	"golang.org/x/tools/internal/telemetry/trace"
 )
 
 var traceTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`

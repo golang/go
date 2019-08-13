@@ -6,7 +6,7 @@ package debug
 
 import (
 	"golang.org/x/tools/internal/lsp/telemetry"
-	"golang.org/x/tools/internal/lsp/telemetry/metric"
+	"golang.org/x/tools/internal/telemetry/metric"
 )
 
 var (

@@ -10,9 +10,9 @@ import (
 	"reflect"
 	"testing"
 
-	"golang.org/x/tools/internal/lsp/telemetry/log"
-	"golang.org/x/tools/internal/lsp/telemetry/ocagent/wire"
-	"golang.org/x/tools/internal/lsp/telemetry/tag"
+	"golang.org/x/tools/internal/telemetry/log"
+	"golang.org/x/tools/internal/telemetry/ocagent/wire"
+	"golang.org/x/tools/internal/telemetry/tag"
 )
 
 func TestConvert_annotation(t *testing.T) {
