@@ -160,6 +160,9 @@ func formToClass(form format, attr Attr, vers int, b *buf) Class {
 		b.error("cannot determine class of unknown attribute form")
 		return 0
 
+	case formIndirect:
+		return ClassUnknown
+
 	case formAddr, formAddrx, formAddrx1, formAddrx2, formAddrx3, formAddrx4:
 		return ClassAddress
 
@@ -402,7 +405,7 @@ type Offset uint32
 
 // Entry reads a single entry from buf, decoding
 // according to the given abbreviation table.
-func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset) *Entry {
+func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry {
 	off := b.off
 	id := uint32(b.uint())
 	if id == 0 {
@@ -425,6 +428,7 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset) *Entry {
 		fmt := a.field[i].fmt
 		if fmt == formIndirect {
 			fmt = format(b.uint())
+			e.Field[i].Class = formToClass(fmt, a.field[i].attr, vers, b)
 		}
 		var val interface{}
 		switch fmt {
@@ -784,7 +788,7 @@ func (r *Reader) Next() (*Entry, error) {
 		return nil, nil
 	}
 	u := &r.d.unit[r.unit]
-	e := r.b.entry(r.cu, u.atable, u.base)
+	e := r.b.entry(r.cu, u.atable, u.base, u.vers)
 	if r.b.err != nil {
 		r.err = r.b.err
 		return nil, r.err
@@ -929,7 +933,7 @@ func (d *Data) Ranges(e *Entry) ([][2]uint64, error) {
 			}
 			u := &d.unit[i]
 			b := makeBuf(d, u, "info", u.off, u.data)
-			cu = b.entry(nil, u.atable, u.base)
+			cu = b.entry(nil, u.atable, u.base, u.vers)
 			if b.err != nil {
 				return nil, b.err
 			}
