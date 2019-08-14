@@ -13,7 +13,7 @@ import (
 
 // Ensures that got and want are the same, and if not, reports
 // detailed diff information.
-func checkPallocBits(t *testing.T, got, want *PallocBits) {
+func checkPallocBits(t *testing.T, got, want *PallocBits) bool {
 	d := DiffPallocBits(got, want)
 	if len(d) != 0 {
 		t.Errorf("%d range(s) different", len(d))
@@ -22,7 +22,9 @@ func checkPallocBits(t *testing.T, got, want *PallocBits) {
 			t.Logf("\t|  got: %s", StringifyPallocBits(got, bits))
 			t.Logf("\t| want: %s", StringifyPallocBits(want, bits))
 		}
+		return false
 	}
+	return true
 }
 
 // makePallocBits produces an initialized PallocBits by setting
