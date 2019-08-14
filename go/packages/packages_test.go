@@ -2107,9 +2107,6 @@ func testAdHocContains(t *testing.T, exporter packagestest.Exporter) {
 
 func TestNoCcompiler(t *testing.T) { packagestest.TestAll(t, testNoCcompiler) }
 func testNoCcompiler(t *testing.T, exporter packagestest.Exporter) {
-	// Enable this test after golang/go#33462 is resolved.
-	t.Skip()
-
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
 		Files: map[string]interface{}{

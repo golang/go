@@ -884,6 +884,12 @@ func invokeGo(cfg *Config, args ...string) (*bytes.Buffer, error) {
 			return nil, fmt.Errorf("%s", stderr.String())
 		}
 
+		// Is there an error running the C compiler in cgo? This will be reported in the "Error" field
+		// and should be suppressed by go list -e.
+		if len(stderr.String()) > 0 && strings.HasPrefix(stderr.String(), "# runtime/cgo\n") && strings.Count(stderr.String(), "\n") == 2 {
+			return stdout, nil
+		}
+
 		// This error only appears in stderr. See golang.org/cl/166398 for a fix in go list to show
 		// the error in the Err section of stdout in case -e option is provided.
 		// This fix is provided for backwards compatibility.
