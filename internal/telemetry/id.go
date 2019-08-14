@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package tag adds support for telemetry tracins.
-package trace
+package telemetry
 
 import (
 	crand "crypto/rand"
@@ -49,7 +48,7 @@ func initGenerator() {
 	spanIDInc |= 1
 }
 
-func newTraceID() TraceID {
+func NewTraceID() TraceID {
 	generationMu.Lock()
 	defer generationMu.Unlock()
 	if traceIDRand == nil {
@@ -61,7 +60,7 @@ func newTraceID() TraceID {
 	return tid
 }
 
-func newSpanID() SpanID {
+func NewSpanID() SpanID {
 	var id uint64
 	for id == 0 {
 		id = atomic.AddUint64(&nextSpanID, spanIDInc)

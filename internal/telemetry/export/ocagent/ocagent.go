@@ -9,18 +9,17 @@ package ocagent
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"time"
 
-	"golang.org/x/tools/internal/telemetry/log"
-	"golang.org/x/tools/internal/telemetry/metric"
-	"golang.org/x/tools/internal/telemetry/ocagent/wire"
+	"golang.org/x/tools/internal/telemetry"
+	"golang.org/x/tools/internal/telemetry/export"
+	"golang.org/x/tools/internal/telemetry/export/ocagent/wire"
 	"golang.org/x/tools/internal/telemetry/tag"
-	"golang.org/x/tools/internal/telemetry/trace"
-	"golang.org/x/tools/internal/telemetry/worker"
 )
 
 const DefaultAddress = "http://localhost:55678"
@@ -33,9 +32,12 @@ type exporter struct {
 	metrics []*wire.Metric
 }
 
-func Export(service, address string) {
+// Connect creates a process specific exporter with the specified
+// serviceName and the address of the ocagent to which it will upload
+// its telemetry.
+func Connect(service, address string) export.Exporter {
 	if address == "off" {
-		return
+		return nil
 	}
 	hostname, _ := os.Hostname()
 	exporter := &exporter{
@@ -59,26 +61,25 @@ func Export(service, address string) {
 	if exporter.address == "" {
 		exporter.address = DefaultAddress
 	}
-	//TODO: add metrics once the ocagent json metric interface works
-	trace.RegisterObservers(exporter.observeTrace)
 	go func() {
 		for _ = range time.Tick(exportRate) {
-			worker.Do(func() {
+			export.Do(func() {
 				exporter.flush()
 			})
 		}
 	}()
+	return exporter
 }
 
-func (e *exporter) observeTrace(span *trace.Span) {
-	// is this a completed span?
-	if span.Finish.IsZero() {
-		return
-	}
+func (e *exporter) StartSpan(ctx context.Context, span *telemetry.Span) {}
+
+func (e *exporter) FinishSpan(ctx context.Context, span *telemetry.Span) {
 	e.spans = append(e.spans, convertSpan(span))
 }
 
-func (e *exporter) observeMetric(data metric.Data) {
+func (e *exporter) Log(context.Context, telemetry.Event) {}
+
+func (e *exporter) Metric(ctx context.Context, data telemetry.MetricData) {
 	e.metrics = append(e.metrics, convertMetric(data))
 }
 
@@ -142,10 +143,10 @@ func toTruncatableString(s string) *wire.TruncatableString {
 	return &wire.TruncatableString{Value: s}
 }
 
-func convertSpan(span *trace.Span) *wire.Span {
+func convertSpan(span *telemetry.Span) *wire.Span {
 	result := &wire.Span{
-		TraceId:                 span.TraceID[:],
-		SpanId:                  span.SpanID[:],
+		TraceId:                 span.ID.TraceID[:],
+		SpanId:                  span.ID.SpanID[:],
 		TraceState:              nil, //TODO?
 		ParentSpanId:            span.ParentID[:],
 		Name:                    toTruncatableString(span.Name),
@@ -163,11 +164,11 @@ func convertSpan(span *trace.Span) *wire.Span {
 	return result
 }
 
-func convertMetric(data metric.Data) *wire.Metric {
+func convertMetric(data telemetry.MetricData) *wire.Metric {
 	return nil //TODO:
 }
 
-func convertAttributes(tags tag.List) *wire.Attributes {
+func convertAttributes(tags telemetry.TagList) *wire.Attributes {
 	if len(tags) == 0 {
 		return nil
 	}
@@ -213,7 +214,7 @@ func convertAttribute(v interface{}) wire.Attribute {
 	}
 }
 
-func convertEvents(events []trace.Event) *wire.TimeEvents {
+func convertEvents(events []telemetry.Event) *wire.TimeEvents {
 	//TODO: MessageEvents?
 	result := make([]wire.TimeEvent, len(events))
 	for i, event := range events {
@@ -222,26 +223,25 @@ func convertEvents(events []trace.Event) *wire.TimeEvents {
 	return &wire.TimeEvents{TimeEvent: result}
 }
 
-func convertEvent(event trace.Event) wire.TimeEvent {
+func convertEvent(event telemetry.Event) wire.TimeEvent {
 	return wire.TimeEvent{
-		Time:       convertTimestamp(event.Time),
-		Annotation: convertAnnotation(event.Tags),
+		Time:       convertTimestamp(event.At),
+		Annotation: convertAnnotation(event),
 	}
 }
 
-func convertAnnotation(tags tag.List) *wire.Annotation {
-	if len(tags) == 0 {
+func convertAnnotation(event telemetry.Event) *wire.Annotation {
+	description := event.Message
+	if description == "" && event.Error != nil {
+		description = event.Error.Error()
+		event.Error = nil
+	}
+	tags := event.Tags
+	if event.Error != nil {
+		tags = append(tags, tag.Of("Error", event.Error))
+	}
+	if description == "" && len(tags) == 0 {
 		return nil
-	}
-	entry := log.ToEntry(nil, time.Time{}, tags)
-	description := entry.Message
-	if description == "" && entry.Error != nil {
-		description = entry.Error.Error()
-		entry.Error = nil
-	}
-	tags = entry.Tags
-	if entry.Error != nil {
-		tags = append(tags, tag.Of("Error", entry.Error))
 	}
 	return &wire.Annotation{
 		Description: toTruncatableString(description),

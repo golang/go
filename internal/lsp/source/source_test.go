@@ -21,7 +21,6 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/telemetry/log"
 )
 
 func TestSource(t *testing.T) {
@@ -38,8 +37,6 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 	ctx := tests.Context(t)
 	data := tests.Load(t, exporter, "../testdata")
 	defer data.Exported.Cleanup()
-
-	log.AddLogger(log.NullLogger)
 
 	cache := cache.New()
 	session := cache.NewSession(ctx)

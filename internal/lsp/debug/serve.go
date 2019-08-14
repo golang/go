@@ -19,11 +19,10 @@ import (
 	"sync"
 
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/telemetry/export"
+	"golang.org/x/tools/internal/telemetry/export/prometheus"
 	"golang.org/x/tools/internal/telemetry/log"
-	"golang.org/x/tools/internal/telemetry/metric"
 	"golang.org/x/tools/internal/telemetry/tag"
-	"golang.org/x/tools/internal/telemetry/trace"
-	"golang.org/x/tools/internal/telemetry/worker"
 )
 
 type Cache interface {
@@ -216,12 +215,10 @@ func Serve(ctx context.Context, addr string) error {
 		return err
 	}
 	log.Print(ctx, "Debug serving", tag.Of("Port", listener.Addr().(*net.TCPAddr).Port))
-	prometheus := prometheus{}
-	metric.RegisterObservers(prometheus.observeMetric)
-	rpcs := rpcs{}
-	metric.RegisterObservers(rpcs.observeMetric)
-	traces := traces{}
-	trace.RegisterObservers(traces.export)
+	prometheus := prometheus.New()
+	rpcs := &rpcs{}
+	traces := &traces{}
+	export.AddExporters(prometheus, rpcs, traces)
 	go func() {
 		mux := http.NewServeMux()
 		mux.HandleFunc("/", Render(mainTmpl, func(*http.Request) interface{} { return data }))
@@ -231,7 +228,7 @@ func Serve(ctx context.Context, addr string) error {
 		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
 		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
-		mux.HandleFunc("/metrics/", prometheus.serve)
+		mux.HandleFunc("/metrics/", prometheus.Serve)
 		mux.HandleFunc("/rpc/", Render(rpcTmpl, rpcs.getData))
 		mux.HandleFunc("/trace/", Render(traceTmpl, traces.getData))
 		mux.HandleFunc("/cache/", Render(cacheTmpl, getCache))
@@ -252,7 +249,7 @@ func Serve(ctx context.Context, addr string) error {
 func Render(tmpl *template.Template, fun func(*http.Request) interface{}) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		done := make(chan struct{})
-		worker.Do(func() {
+		export.Do(func() {
 			defer close(done)
 			var data interface{}
 			if fun != nil {

@@ -9,29 +9,11 @@ import (
 	"context"
 	"sort"
 
+	"golang.org/x/tools/internal/telemetry"
+	"golang.org/x/tools/internal/telemetry/export"
 	"golang.org/x/tools/internal/telemetry/stats"
 	"golang.org/x/tools/internal/telemetry/tag"
-	"golang.org/x/tools/internal/telemetry/worker"
 )
-
-// Handle uniquely identifies a constructed metric.
-// It can be used to detect which observed data objects belong
-// to that metric.
-type Handle struct {
-	name string
-}
-
-// Data represents a single point in the time series of a metric.
-// This provides the common interface to all metrics no matter their data
-// format.
-// To get the actual values for the metric you must type assert to a concrete
-// metric type.
-type Data interface {
-	// Handle returns the metric handle this data is for.
-	Handle() Handle
-	// Groups reports the rows that currently exist for this metric.
-	Groups() []tag.List
-}
 
 // Scalar represents the construction information for a scalar metric.
 type Scalar struct {
@@ -67,83 +49,77 @@ type HistogramFloat64 struct {
 	Buckets []float64
 }
 
-// Observer is the type for functions that want to observe metric values
-// as they arrive.
-// Each data point delivered to an observer is immutable and can be stored if
-// needed.
-type Observer func(Data)
-
 // CountInt64 creates a new metric based on the Scalar information that counts
 // the number of times the supplied int64 measure is set.
 // Metrics of this type will use Int64Data.
-func (info Scalar) CountInt64(measure *stats.Int64Measure) Handle {
+func (info Scalar) CountInt64(measure *stats.Int64Measure) string {
 	data := &Int64Data{Info: &info}
 	measure.Subscribe(data.countInt64)
-	return Handle{info.Name}
+	return info.Name
 }
 
 // SumInt64 creates a new metric based on the Scalar information that sums all
 // the values recorded on the int64 measure.
 // Metrics of this type will use Int64Data.
-func (info Scalar) SumInt64(measure *stats.Int64Measure) Handle {
+func (info Scalar) SumInt64(measure *stats.Int64Measure) string {
 	data := &Int64Data{Info: &info}
 	measure.Subscribe(data.sum)
 	_ = data
-	return Handle{info.Name}
+	return info.Name
 }
 
 // LatestInt64 creates a new metric based on the Scalar information that tracks
 // the most recent value recorded on the int64 measure.
 // Metrics of this type will use Int64Data.
-func (info Scalar) LatestInt64(measure *stats.Int64Measure) Handle {
+func (info Scalar) LatestInt64(measure *stats.Int64Measure) string {
 	data := &Int64Data{Info: &info, IsGauge: true}
 	measure.Subscribe(data.latest)
-	return Handle{info.Name}
+	return info.Name
 }
 
 // CountFloat64 creates a new metric based on the Scalar information that counts
 // the number of times the supplied float64 measure is set.
 // Metrics of this type will use Int64Data.
-func (info Scalar) CountFloat64(measure *stats.Float64Measure) Handle {
+func (info Scalar) CountFloat64(measure *stats.Float64Measure) string {
 	data := &Int64Data{Info: &info}
 	measure.Subscribe(data.countFloat64)
-	return Handle{info.Name}
+	return info.Name
 }
 
 // SumFloat64 creates a new metric based on the Scalar information that sums all
 // the values recorded on the float64 measure.
 // Metrics of this type will use Float64Data.
-func (info Scalar) SumFloat64(measure *stats.Float64Measure) Handle {
+func (info Scalar) SumFloat64(measure *stats.Float64Measure) string {
 	data := &Float64Data{Info: &info}
 	measure.Subscribe(data.sum)
-	return Handle{info.Name}
+	return info.Name
 }
 
 // LatestFloat64 creates a new metric based on the Scalar information that tracks
 // the most recent value recorded on the float64 measure.
 // Metrics of this type will use Float64Data.
-func (info Scalar) LatestFloat64(measure *stats.Float64Measure) Handle {
+func (info Scalar) LatestFloat64(measure *stats.Float64Measure) string {
 	data := &Float64Data{Info: &info, IsGauge: true}
 	measure.Subscribe(data.latest)
-	return Handle{info.Name}
+	return info.Name
 }
 
 // Record creates a new metric based on the HistogramInt64 information that
 // tracks the bucketized counts of values recorded on the int64 measure.
 // Metrics of this type will use HistogramInt64Data.
-func (info HistogramInt64) Record(measure *stats.Int64Measure) Handle {
+func (info HistogramInt64) Record(measure *stats.Int64Measure) string {
 	data := &HistogramInt64Data{Info: &info}
 	measure.Subscribe(data.record)
-	return Handle{info.Name}
+	return info.Name
 }
 
 // Record creates a new metric based on the HistogramFloat64 information that
 // tracks the bucketized counts of values recorded on the float64 measure.
 // Metrics of this type will use HistogramFloat64Data.
-func (info HistogramFloat64) Record(measure *stats.Float64Measure) Handle {
+func (info HistogramFloat64) Record(measure *stats.Float64Measure) string {
 	data := &HistogramFloat64Data{Info: &info}
 	measure.Subscribe(data.record)
-	return Handle{info.Name}
+	return info.Name
 }
 
 // Int64Data is a concrete implementation of Data for int64 scalar metrics.
@@ -155,7 +131,7 @@ type Int64Data struct {
 	// Rows holds the per group values for the metric.
 	Rows []int64
 
-	groups []tag.List
+	groups []telemetry.TagList
 }
 
 // Float64Data is a concrete implementation of Data for float64 scalar metrics.
@@ -167,7 +143,7 @@ type Float64Data struct {
 	// Rows holds the per group values for the metric.
 	Rows []float64
 
-	groups []tag.List
+	groups []telemetry.TagList
 }
 
 // HistogramInt64Data is a concrete implementation of Data for int64 histogram metrics.
@@ -177,7 +153,7 @@ type HistogramInt64Data struct {
 	// Rows holds the per group values for the metric.
 	Rows []*HistogramInt64Row
 
-	groups []tag.List
+	groups []telemetry.TagList
 }
 
 // HistogramInt64Row holds the values for a single row of a HistogramInt64Data.
@@ -201,7 +177,7 @@ type HistogramFloat64Data struct {
 	// Rows holds the per group values for the metric.
 	Rows []*HistogramFloat64Row
 
-	groups []tag.List
+	groups []telemetry.TagList
 }
 
 // HistogramFloat64Row holds the values for a single row of a HistogramFloat64Data.
@@ -218,27 +194,7 @@ type HistogramFloat64Row struct {
 	Max float64
 }
 
-// Name returns the name of the metric this is a handle for.
-func (h Handle) Name() string { return h.name }
-
-var observers []Observer
-
-// RegisterObservers adds a new metric observer to the system.
-// There is no way to unregister an observer.
-func RegisterObservers(e ...Observer) {
-	worker.Do(func() {
-		observers = append(e, observers...)
-	})
-}
-
-// export must only be called from inside a worker
-func export(m Data) {
-	for _, e := range observers {
-		e(m)
-	}
-}
-
-func getGroup(ctx context.Context, g *[]tag.List, keys []interface{}) (int, bool) {
+func getGroup(ctx context.Context, g *[]telemetry.TagList, keys []interface{}) (int, bool) {
 	group := tag.Get(ctx, keys...)
 	old := *g
 	index := sort.Search(len(old), func(i int) bool {
@@ -248,18 +204,18 @@ func getGroup(ctx context.Context, g *[]tag.List, keys []interface{}) (int, bool
 		// not a new group
 		return index, false
 	}
-	*g = make([]tag.List, len(old)+1)
+	*g = make([]telemetry.TagList, len(old)+1)
 	copy(*g, old[:index])
 	copy((*g)[index+1:], old[index:])
 	(*g)[index] = group
 	return index, true
 }
 
-func (data *Int64Data) Handle() Handle     { return Handle{data.Info.Name} }
-func (data *Int64Data) Groups() []tag.List { return data.groups }
+func (data *Int64Data) Handle() string              { return data.Info.Name }
+func (data *Int64Data) Groups() []telemetry.TagList { return data.groups }
 
 func (data *Int64Data) modify(ctx context.Context, f func(v int64) int64) {
-	worker.Do(func() {
+	export.Do(func() {
 		index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
 		old := data.Rows
 		if insert {
@@ -272,7 +228,7 @@ func (data *Int64Data) modify(ctx context.Context, f func(v int64) int64) {
 		}
 		data.Rows[index] = f(data.Rows[index])
 		frozen := *data
-		export(&frozen)
+		export.Metric(ctx, &frozen)
 	})
 }
 
@@ -292,11 +248,11 @@ func (data *Int64Data) latest(ctx context.Context, measure *stats.Int64Measure, 
 	data.modify(ctx, func(v int64) int64 { return value })
 }
 
-func (data *Float64Data) Handle() Handle     { return Handle{data.Info.Name} }
-func (data *Float64Data) Groups() []tag.List { return data.groups }
+func (data *Float64Data) Handle() string              { return data.Info.Name }
+func (data *Float64Data) Groups() []telemetry.TagList { return data.groups }
 
 func (data *Float64Data) modify(ctx context.Context, f func(v float64) float64) {
-	worker.Do(func() {
+	export.Do(func() {
 		index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
 		old := data.Rows
 		if insert {
@@ -309,7 +265,7 @@ func (data *Float64Data) modify(ctx context.Context, f func(v float64) float64) 
 		}
 		data.Rows[index] = f(data.Rows[index])
 		frozen := *data
-		export(&frozen)
+		export.Metric(ctx, &frozen)
 	})
 }
 
@@ -321,11 +277,11 @@ func (data *Float64Data) latest(ctx context.Context, measure *stats.Float64Measu
 	data.modify(ctx, func(v float64) float64 { return value })
 }
 
-func (data *HistogramInt64Data) Handle() Handle     { return Handle{data.Info.Name} }
-func (data *HistogramInt64Data) Groups() []tag.List { return data.groups }
+func (data *HistogramInt64Data) Handle() string              { return data.Info.Name }
+func (data *HistogramInt64Data) Groups() []telemetry.TagList { return data.groups }
 
 func (data *HistogramInt64Data) modify(ctx context.Context, f func(v *HistogramInt64Row)) {
-	worker.Do(func() {
+	export.Do(func() {
 		index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
 		old := data.Rows
 		var v HistogramInt64Row
@@ -344,7 +300,7 @@ func (data *HistogramInt64Data) modify(ctx context.Context, f func(v *HistogramI
 		f(&v)
 		data.Rows[index] = &v
 		frozen := *data
-		export(&frozen)
+		export.Metric(ctx, &frozen)
 	})
 }
 
@@ -366,11 +322,11 @@ func (data *HistogramInt64Data) record(ctx context.Context, measure *stats.Int64
 	})
 }
 
-func (data *HistogramFloat64Data) Handle() Handle     { return Handle{data.Info.Name} }
-func (data *HistogramFloat64Data) Groups() []tag.List { return data.groups }
+func (data *HistogramFloat64Data) Handle() string              { return data.Info.Name }
+func (data *HistogramFloat64Data) Groups() []telemetry.TagList { return data.groups }
 
 func (data *HistogramFloat64Data) modify(ctx context.Context, f func(v *HistogramFloat64Row)) {
-	worker.Do(func() {
+	export.Do(func() {
 		index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
 		old := data.Rows
 		var v HistogramFloat64Row
@@ -389,7 +345,7 @@ func (data *HistogramFloat64Data) modify(ctx context.Context, f func(v *Histogra
 		f(&v)
 		data.Rows[index] = &v
 		frozen := *data
-		export(&frozen)
+		export.Metric(ctx, &frozen)
 	})
 }
 

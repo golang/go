@@ -7,6 +7,8 @@ package tag
 
 import (
 	"context"
+
+	"golang.org/x/tools/internal/telemetry"
 )
 
 // Key represents the key for a context tag.
@@ -19,25 +21,25 @@ type Key string
 
 // Of returns a Tag for a key and value.
 // This is a trivial helper that makes common logging easier to read.
-func Of(key interface{}, value interface{}) Tag {
-	return Tag{Key: key, Value: value}
+func Of(key interface{}, value interface{}) telemetry.Tag {
+	return telemetry.Tag{Key: key, Value: value}
 }
 
 // Of creates a new Tag with this key and the supplied value.
 // You can use this when building a tag list.
-func (k Key) Of(v interface{}) Tag {
-	return Tag{Key: k, Value: v}
+func (k Key) Of(v interface{}) telemetry.Tag {
+	return telemetry.Tag{Key: k, Value: v}
 }
 
 // Tag can be used to get a tag for the key from a context.
 // It makes Key conform to the Tagger interface.
-func (k Key) Tag(ctx context.Context) Tag {
-	return Tag{Key: k, Value: ctx.Value(k)}
+func (k Key) Tag(ctx context.Context) telemetry.Tag {
+	return telemetry.Tag{Key: k, Value: ctx.Value(k)}
 }
 
 // With applies sets this key to the supplied value on the context and
 // returns the new context generated.
 // It uses the With package level function so that observers are also notified.
 func (k Key) With(ctx context.Context, v interface{}) context.Context {
-	return With(ctx, Tag{Key: k, Value: v})
+	return With(ctx, telemetry.Tag{Key: k, Value: v})
 }

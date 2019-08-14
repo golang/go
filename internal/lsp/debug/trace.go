@@ -6,6 +6,7 @@ package debug
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -13,8 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/tools/internal/telemetry/tag"
-	"golang.org/x/tools/internal/telemetry/trace"
+	"golang.org/x/tools/internal/telemetry"
 )
 
 var traceTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
@@ -36,7 +36,7 @@ var traceTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 
 type traces struct {
 	sets       map[string]*traceSet
-	unfinished map[trace.SpanID]*traceData
+	unfinished map[telemetry.SpanContext]*traceData
 }
 
 type traceResults struct {
@@ -51,8 +51,9 @@ type traceSet struct {
 }
 
 type traceData struct {
-	ID       trace.SpanID
-	ParentID trace.SpanID
+	TraceID  telemetry.TraceID
+	SpanID   telemetry.SpanID
+	ParentID telemetry.SpanID
 	Name     string
 	Start    time.Time
 	Finish   time.Time
@@ -69,56 +70,48 @@ type traceEvent struct {
 	Tags   string
 }
 
-func (t *traces) export(span *trace.Span) {
+func (t *traces) StartSpan(ctx context.Context, span *telemetry.Span) {
 	if t.sets == nil {
 		t.sets = make(map[string]*traceSet)
-		t.unfinished = make(map[trace.SpanID]*traceData)
+		t.unfinished = make(map[telemetry.SpanContext]*traceData)
 	}
-	// is this a completed span?
-	if span.Finish.IsZero() {
-		t.start(span)
-	} else {
-		t.finish(span)
-	}
-}
-
-func (t *traces) start(span *trace.Span) {
 	// just starting, add it to the unfinished map
 	td := &traceData{
-		ID:       span.SpanID,
+		TraceID:  span.ID.TraceID,
+		SpanID:   span.ID.SpanID,
 		ParentID: span.ParentID,
 		Name:     span.Name,
 		Start:    span.Start,
 		Tags:     renderTags(span.Tags),
 	}
-	t.unfinished[span.SpanID] = td
+	t.unfinished[span.ID] = td
 	// and wire up parents if we have them
 	if !span.ParentID.IsValid() {
 		return
 	}
-	parent, found := t.unfinished[span.ParentID]
+	parentID := telemetry.SpanContext{TraceID: span.ID.TraceID, SpanID: span.ParentID}
+	parent, found := t.unfinished[parentID]
 	if !found {
 		// trace had an invalid parent, so it cannot itself be valid
 		return
 	}
 	parent.Children = append(parent.Children, td)
-
 }
 
-func (t *traces) finish(span *trace.Span) {
+func (t *traces) FinishSpan(ctx context.Context, span *telemetry.Span) {
 	// finishing, must be already in the map
-	td, found := t.unfinished[span.SpanID]
+	td, found := t.unfinished[span.ID]
 	if !found {
 		return // if this happens we are in a bad place
 	}
-	delete(t.unfinished, span.SpanID)
+	delete(t.unfinished, span.ID)
 
 	td.Finish = span.Finish
 	td.Duration = span.Finish.Sub(span.Start)
 	td.Events = make([]traceEvent, len(span.Events))
 	for i, event := range span.Events {
 		td.Events[i] = traceEvent{
-			Time: event.Time,
+			Time: event.At,
 			Tags: renderTags(event.Tags),
 		}
 	}
@@ -136,6 +129,10 @@ func (t *traces) finish(span *trace.Span) {
 		fillOffsets(td, td.Start)
 	}
 }
+
+func (t *traces) Log(ctx context.Context, event telemetry.Event) {}
+
+func (t *traces) Metric(ctx context.Context, data telemetry.MetricData) {}
 
 func (t *traces) getData(req *http.Request) interface{} {
 	if len(t.sets) == 0 {
@@ -163,7 +160,7 @@ func fillOffsets(td *traceData, start time.Time) {
 	}
 }
 
-func renderTags(tags tag.List) string {
+func renderTags(tags telemetry.TagList) string {
 	buf := &bytes.Buffer{}
 	for _, tag := range tags {
 		fmt.Fprintf(buf, "%v=%q ", tag.Key, tag.Value)

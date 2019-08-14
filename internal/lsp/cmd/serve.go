@@ -21,7 +21,6 @@ import (
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/telemetry"
-	"golang.org/x/tools/internal/telemetry/tag"
 	"golang.org/x/tools/internal/telemetry/trace"
 	"golang.org/x/tools/internal/tool"
 	errors "golang.org/x/xerrors"
@@ -166,9 +165,9 @@ func (h *handler) Request(ctx context.Context, direction jsonrpc2.Direction, r *
 		mode = telemetry.Inbound
 	}
 	ctx, stats.close = trace.StartSpan(ctx, r.Method,
-		tag.Tag{Key: telemetry.Method, Value: r.Method},
-		tag.Tag{Key: telemetry.RPCDirection, Value: mode},
-		tag.Tag{Key: telemetry.RPCID, Value: r.ID},
+		telemetry.Method.Of(r.Method),
+		telemetry.RPCDirection.Of(mode),
+		telemetry.RPCID.Of(r.ID),
 	)
 	telemetry.Started.Record(ctx, 1)
 	_, stats.delivering = trace.StartSpan(ctx, "queued")

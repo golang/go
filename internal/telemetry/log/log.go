@@ -8,40 +8,45 @@ package log
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"time"
 
+	"golang.org/x/tools/internal/telemetry"
+	"golang.org/x/tools/internal/telemetry/export"
 	"golang.org/x/tools/internal/telemetry/tag"
-	"golang.org/x/tools/internal/telemetry/worker"
 )
 
-const (
-	// The well known tag keys for the logging system.
-	MessageTag = tag.Key("message")
-	ErrorTag   = tag.Key("error")
-)
-
-// Logger is a function that handles logging messages.
-// Loggers are registered at start up, and may use information in the context
-// to decide what to do with a given log message.
-type Logger func(ctx context.Context, at time.Time, tags tag.List) bool
+type Event telemetry.Event
 
 // With sends a tag list to the installed loggers.
-func With(ctx context.Context, tags ...tag.Tag) {
-	at := time.Now()
-	worker.Do(func() {
-		deliver(ctx, at, tags)
+func With(ctx context.Context, tags ...telemetry.Tag) {
+	export.Log(ctx, telemetry.Event{
+		At:   time.Now(),
+		Tags: tags,
 	})
 }
 
 // Print takes a message and a tag list and combines them into a single tag
 // list before delivering them to the loggers.
 func Print(ctx context.Context, message string, tags ...tag.Tagger) {
-	at := time.Now()
-	worker.Do(func() {
-		tags := append(tag.Tags(ctx, tags...), MessageTag.Of(message))
-		deliver(ctx, at, tags)
+	export.Log(ctx, telemetry.Event{
+		At:      time.Now(),
+		Message: message,
+		Tags:    tag.Tags(ctx, tags...),
+	})
+}
+
+// Print takes a message and a tag list and combines them into a single tag
+// list before delivering them to the loggers.
+func Error(ctx context.Context, message string, err error, tags ...tag.Tagger) {
+	if err == nil {
+		err = errorString(message)
+		message = ""
+	}
+	export.Log(ctx, telemetry.Event{
+		At:      time.Now(),
+		Message: message,
+		Error:   err,
+		Tags:    tag.Tags(ctx, tags...),
 	})
 }
 
@@ -49,50 +54,3 @@ type errorString string
 
 // Error allows errorString to conform to the error interface.
 func (err errorString) Error() string { return string(err) }
-
-// Print takes a message and a tag list and combines them into a single tag
-// list before delivering them to the loggers.
-func Error(ctx context.Context, message string, err error, tags ...tag.Tagger) {
-	at := time.Now()
-	worker.Do(func() {
-		if err == nil {
-			err = errorString(message)
-			message = ""
-		}
-		tags := append(tag.Tags(ctx, tags...), MessageTag.Of(message), ErrorTag.Of(err))
-		deliver(ctx, at, tags)
-	})
-}
-
-func deliver(ctx context.Context, at time.Time, tags tag.List) {
-	delivered := false
-	for _, logger := range loggers {
-		if logger(ctx, at, tags) {
-			delivered = true
-		}
-	}
-	if !delivered {
-		// no logger processed the message, so we log to stderr just in case
-		Stderr(ctx, at, tags)
-	}
-}
-
-var loggers = []Logger{}
-
-func AddLogger(logger Logger) {
-	worker.Do(func() {
-		loggers = append(loggers, logger)
-	})
-}
-
-// Stderr is a logger that logs to stderr in the standard format.
-func Stderr(ctx context.Context, at time.Time, tags tag.List) bool {
-	fmt.Fprintf(os.Stderr, "%v\n", ToEntry(ctx, at, tags))
-	return true
-}
-
-// NullLogger is a logger that throws away log messages and reports
-// success so that the fallback stderr logging does not happen.
-var NullLogger = func(context.Context, time.Time, tag.List) bool {
-	return true
-}

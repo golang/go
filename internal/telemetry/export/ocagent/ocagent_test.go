@@ -10,27 +10,28 @@ import (
 	"reflect"
 	"testing"
 
-	"golang.org/x/tools/internal/telemetry/log"
-	"golang.org/x/tools/internal/telemetry/ocagent/wire"
+	"golang.org/x/tools/internal/telemetry"
+	"golang.org/x/tools/internal/telemetry/export/ocagent/wire"
 	"golang.org/x/tools/internal/telemetry/tag"
 )
 
 func TestConvert_annotation(t *testing.T) {
 	tests := []struct {
-		name    string
-		tagList tag.List
-		want    *wire.Annotation
+		name  string
+		event telemetry.Event
+		want  *wire.Annotation
 	}{
 		{
-			name:    "no tags",
-			tagList: nil,
-			want:    nil,
+			name: "no tags",
+			want: nil,
 		},
 		{
 			name: "description no error",
-			tagList: tag.List{
-				tag.Of(log.MessageTag, "cache miss"),
-				tag.Of("db", "godb"),
+			event: telemetry.Event{
+				Message: "cache miss",
+				Tags: telemetry.TagList{
+					tag.Of("db", "godb"),
+				},
 			},
 			want: &wire.Annotation{
 				Description: &wire.TruncatableString{Value: "cache miss"},
@@ -44,10 +45,12 @@ func TestConvert_annotation(t *testing.T) {
 
 		{
 			name: "description and error",
-			tagList: tag.List{
-				tag.Of(log.MessageTag, "cache miss"),
-				tag.Of("db", "godb"),
-				tag.Of(log.ErrorTag, errors.New("no network connectivity")),
+			event: telemetry.Event{
+				Message: "cache miss",
+				Error:   errors.New("no network connectivity"),
+				Tags: telemetry.TagList{
+					tag.Of("db", "godb"),
+				},
 			},
 			want: &wire.Annotation{
 				Description: &wire.TruncatableString{Value: "cache miss"},
@@ -61,9 +64,11 @@ func TestConvert_annotation(t *testing.T) {
 		},
 		{
 			name: "no description, but error",
-			tagList: tag.List{
-				tag.Of("db", "godb"),
-				tag.Of(log.ErrorTag, errors.New("no network connectivity")),
+			event: telemetry.Event{
+				Error: errors.New("no network connectivity"),
+				Tags: telemetry.TagList{
+					tag.Of("db", "godb"),
+				},
 			},
 			want: &wire.Annotation{
 				Description: &wire.TruncatableString{Value: "no network connectivity"},
@@ -76,28 +81,30 @@ func TestConvert_annotation(t *testing.T) {
 		},
 		{
 			name: "enumerate all attribute types",
-			tagList: tag.List{
-				tag.Of(log.MessageTag, "cache miss"),
-				tag.Of("db", "godb"),
+			event: telemetry.Event{
+				Message: "cache miss",
+				Tags: telemetry.TagList{
+					tag.Of("db", "godb"),
 
-				tag.Of("age", 0.456), // Constant converted into "float64"
-				tag.Of("ttl", float32(5000)),
-				tag.Of("expiry_ms", float64(1e3)),
+					tag.Of("age", 0.456), // Constant converted into "float64"
+					tag.Of("ttl", float32(5000)),
+					tag.Of("expiry_ms", float64(1e3)),
 
-				tag.Of("retry", false),
-				tag.Of("stale", true),
+					tag.Of("retry", false),
+					tag.Of("stale", true),
 
-				tag.Of("max", 0x7fff), // Constant converted into "int"
-				tag.Of("opcode", int8(0x7e)),
-				tag.Of("base", int16(1<<9)),
-				tag.Of("checksum", int32(0x11f7e294)),
-				tag.Of("mode", int64(0644)),
+					tag.Of("max", 0x7fff), // Constant converted into "int"
+					tag.Of("opcode", int8(0x7e)),
+					tag.Of("base", int16(1<<9)),
+					tag.Of("checksum", int32(0x11f7e294)),
+					tag.Of("mode", int64(0644)),
 
-				tag.Of("min", uint(1)),
-				tag.Of("mix", uint8(44)),
-				tag.Of("port", uint16(55678)),
-				tag.Of("min_hops", uint32(1<<9)),
-				tag.Of("max_hops", uint64(0xffffff)),
+					tag.Of("min", uint(1)),
+					tag.Of("mix", uint8(44)),
+					tag.Of("port", uint16(55678)),
+					tag.Of("min_hops", uint32(1<<9)),
+					tag.Of("max_hops", uint64(0xffffff)),
+				},
 			},
 			want: &wire.Annotation{
 				Description: &wire.TruncatableString{Value: "cache miss"},
@@ -131,7 +138,7 @@ func TestConvert_annotation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := convertAnnotation(tt.tagList)
+			got := convertAnnotation(tt.event)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Fatalf("Got:\n%s\nWant:\n%s", marshaled(got), marshaled(tt.want))
 			}

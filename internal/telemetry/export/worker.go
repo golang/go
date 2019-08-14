@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package worker provides a very simple mechanism to allow telemetry packages
-// to work cooperatively and efficiently.
-package worker
+package export
 
 import (
 	"fmt"
@@ -12,6 +10,8 @@ import (
 )
 
 var (
+	// TODO: Think about whether this is the right concurrency model, and what
+	// TODO: the queue length should be
 	workQueue = make(chan func(), 1000)
 )
 
