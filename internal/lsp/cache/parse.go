@@ -14,6 +14,7 @@ import (
 
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
+	"golang.org/x/tools/internal/lsp/telemetry/log"
 	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/memoize"
 	errors "golang.org/x/xerrors"
@@ -105,7 +106,7 @@ func parseGo(ctx context.Context, c *cache, fh source.FileHandle, mode source.Pa
 
 	ioLimit <- struct{}{}
 	buf, _, err := fh.Read(ctx)
-	<-ioLimit // Make sure to release the token, even when an error is returned.
+	<-ioLimit
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +123,7 @@ func parseGo(ctx context.Context, c *cache, fh source.FileHandle, mode source.Pa
 		// Fix any badly parsed parts of the AST.
 		tok := c.fset.File(ast.Pos())
 		if err := fix(ctx, ast, tok, buf); err != nil {
-			// TODO: Do something with the error (need access to a logger in here).
+			log.Error(ctx, "failed to fix AST", err)
 		}
 	}
 	if ast == nil {

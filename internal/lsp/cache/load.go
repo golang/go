@@ -229,10 +229,13 @@ func (v *view) link(ctx context.Context, g *importGraph) error {
 			log.Error(ctx, "not a Go file", nil, telemetry.File.Of(filename))
 			continue
 		}
+		// Cache the metadata for this file.
+		gof.mu.Lock()
 		if gof.meta == nil {
 			gof.meta = make(map[packageID]*metadata)
 		}
 		gof.meta[m.id] = m
+		gof.mu.Unlock()
 	}
 
 	// Preserve the import graph.
