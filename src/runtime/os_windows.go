@@ -894,6 +894,8 @@ func ctrlhandler1(_type uint32) uint32 {
 	switch _type {
 	case _CTRL_C_EVENT, _CTRL_BREAK_EVENT:
 		s = _SIGINT
+	case _CTRL_CLOSE_EVENT, _CTRL_LOGOFF_EVENT, _CTRL_SHUTDOWN_EVENT:
+		s = _SIGTERM
 	default:
 		return 0
 	}
