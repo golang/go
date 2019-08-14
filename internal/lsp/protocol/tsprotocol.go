@@ -1528,7 +1528,7 @@ type ServerCapabilities struct {
 	 * specified if the client states that it supports
 	 * `codeActionLiteralSupport` in its initial `initialize` request.
 	 */
-	CodeActionProvider bool `json:"codeActionProvider,omitempty"` // boolean | CodeActionOptions
+	CodeActionProvider interface{} `json:"codeActionProvider,omitempty"` // boolean | CodeActionOptions
 
 	/*CodeLensProvider defined:
 	 * The server provides code lens.

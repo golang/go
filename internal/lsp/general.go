@@ -77,9 +77,22 @@ func (s *Server) initialize(ctx context.Context, params *protocol.InitializePara
 			return nil, err
 		}
 	}
+
+	var codeActionProvider interface{}
+	if len(params.Capabilities.TextDocument.CodeAction.CodeActionLiteralSupport.CodeActionKind.ValueSet) > 0 {
+		// If the client has specified CodeActionLiteralSupport,
+		// send the code actions we support.
+		//
+		// Using CodeActionOptions is only valid if codeActionLiteralSupport is set.
+		codeActionProvider = &protocol.CodeActionOptions{
+			CodeActionKinds: s.getSupportedCodeActions(),
+		}
+	} else {
+		codeActionProvider = true
+	}
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
-			CodeActionProvider: true,
+			CodeActionProvider: codeActionProvider,
 			CompletionProvider: &protocol.CompletionOptions{
 				TriggerCharacters: []string{"."},
 			},

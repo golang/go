@@ -7,6 +7,7 @@ package lsp
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"golang.org/x/tools/internal/imports"
@@ -17,6 +18,24 @@ import (
 	"golang.org/x/tools/internal/telemetry/log"
 	errors "golang.org/x/xerrors"
 )
+
+func (s *Server) getSupportedCodeActions() []protocol.CodeActionKind {
+	allCodeActionKinds := make(map[protocol.CodeActionKind]struct{})
+	for _, kinds := range s.supportedCodeActions {
+		for kind := range kinds {
+			allCodeActionKinds[kind] = struct{}{}
+		}
+	}
+
+	var result []protocol.CodeActionKind
+	for kind := range allCodeActionKinds {
+		result = append(result, kind)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i] < result[j]
+	})
+	return result
+}
 
 func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionParams) ([]protocol.CodeAction, error) {
 	uri := span.NewURI(params.TextDocument.URI)
