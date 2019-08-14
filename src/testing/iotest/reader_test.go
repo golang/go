@@ -90,7 +90,7 @@ func TestTimeoutReader(t *testing.T) {
 
 	n, err = r.Read(p)
 	if err != nil {
-		t.Errorf("Subsequent calls to read succeed. Got %v", err)
+		t.Errorf("Subsequent call to read succeed. Got %v", err)
 	}
 	if n != 2 {
 		t.Errorf("expected to have read %d bytes, but read %d", 2, n)
@@ -119,7 +119,7 @@ func TestDataErrReader(t *testing.T) {
 			}
 		}
 		if n != tt.n {
-			t.Errorf("Last call to Read should read %d bytes instead of %d", n, tt.n)
+			t.Errorf("Last call to Read should have read %d bytes instead of %d", n, tt.n)
 		}
 		if reflect.DeepEqual(p[:n], tt.p) != true {
 			t.Errorf("Wanted %v got %v", tt.p, p[:n])
