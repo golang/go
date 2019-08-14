@@ -93,9 +93,11 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 		}
 		pos := tok.Pos(src.Start().Offset())
 		deepComplete := strings.Contains(string(src.URI()), "deepcomplete")
+		unimported := strings.Contains(string(src.URI()), "unimported")
 		list, surrounding, err := source.Completion(ctx, r.view, f.(source.GoFile), pos, source.CompletionOptions{
 			DeepComplete:     deepComplete,
 			WantDocumentaton: true,
+			WantUnimported:   unimported,
 		})
 		if err != nil {
 			t.Fatalf("failed for %v: %v", src, err)

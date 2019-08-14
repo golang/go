@@ -82,6 +82,7 @@ type Server struct {
 	hoverKind                     hoverKind
 	useDeepCompletions            bool
 	wantCompletionDocumentation   bool
+	wantUnimportedCompletions     bool
 	insertTextFormat              protocol.InsertTextFormat
 	configurationSupported        bool
 	dynamicConfigurationSupported bool

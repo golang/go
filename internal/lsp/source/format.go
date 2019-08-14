@@ -175,6 +175,35 @@ func AllImportsFixes(ctx context.Context, view View, f GoFile, rng span.Range) (
 	return edits, editsPerFix, nil
 }
 
+// AllImportsFixes formats f for each possible fix to the imports.
+// In addition to returning the result of applying all edits,
+// it returns a list of fixes that could be applied to the file, with the
+// corresponding TextEdits that would be needed to apply that fix.
+func CandidateImports(ctx context.Context, view View, filename string) (pkgs []imports.ImportFix, err error) {
+	ctx, done := trace.StartSpan(ctx, "source.CandidateImports")
+	defer done()
+
+	options := &imports.Options{
+		// Defaults.
+		AllErrors:  true,
+		Comments:   true,
+		Fragment:   true,
+		FormatOnly: false,
+		TabIndent:  true,
+		TabWidth:   8,
+	}
+	importFn := func(opts *imports.Options) error {
+		pkgs, err = imports.GetAllCandidates(filename, opts)
+		return err
+	}
+	err = view.RunProcessEnvFunc(ctx, importFn, options)
+	if err != nil {
+		return nil, err
+	}
+
+	return pkgs, nil
+}
+
 // hasParseErrors returns true if the given file has parse errors.
 func hasParseErrors(pkg Package, uri span.URI) bool {
 	for _, err := range pkg.GetErrors() {

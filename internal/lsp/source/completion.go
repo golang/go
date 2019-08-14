@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/fuzzy"
 	"golang.org/x/tools/internal/lsp/snippet"
 	"golang.org/x/tools/internal/span"
@@ -33,6 +34,14 @@ type CompletionItem struct {
 	InsertText string
 
 	Kind CompletionItemKind
+
+	// An optional array of additional TextEdits that are applied when
+	// selecting this completion.
+	//
+	// Additional text edits should be used to change text unrelated to the current cursor position
+	// (for example adding an import statement at the top of the file if the completion item will
+	// insert an unqualified type).
+	AdditionalTextEdits []TextEdit
 
 	// Depth is how many levels were searched to find this completion.
 	// For example when completing "foo<>", "fooBar" is depth 0, and
@@ -146,6 +155,12 @@ type completer struct {
 	// ctx is the context associated with this completion request.
 	ctx context.Context
 
+	// filename is the name of the file associated with this completion request.
+	filename string
+
+	// file is the AST of the file associated with this completion request.
+	file *ast.File
+
 	// pos is the position at which the request was triggered.
 	pos token.Pos
 
@@ -237,7 +252,7 @@ func (c *completer) setSurrounding(ident *ast.Ident) {
 
 // found adds a candidate completion. We will also search through the object's
 // members for more candidates.
-func (c *completer) found(obj types.Object, score float64) error {
+func (c *completer) found(obj types.Object, score float64, imp *imports.ImportInfo) error {
 	if obj.Pkg() != nil && obj.Pkg() != c.types && !obj.Exported() {
 		return errors.Errorf("%s is inaccessible from %s", obj.Name(), c.types.Path())
 	}
@@ -262,6 +277,7 @@ func (c *completer) found(obj types.Object, score float64) error {
 	cand := candidate{
 		obj:   obj,
 		score: score,
+		imp:   imp,
 	}
 
 	if c.matchingType(&cand) {
@@ -301,12 +317,17 @@ type candidate struct {
 	// expandFuncCall is true if obj should be invoked in the completion.
 	// For example, expandFuncCall=true yields "foo()", expandFuncCall=false yields "foo".
 	expandFuncCall bool
+
+	// imp is the import that needs to be added to this package in order
+	// for this candidate to be valid. nil if no import needed.
+	imp *imports.ImportInfo
 }
 
 type CompletionOptions struct {
 	DeepComplete          bool
 	WantDocumentaton      bool
 	WantFullDocumentation bool
+	WantUnimported        bool
 }
 
 // Completion returns a list of possible candidates for completion, given a
@@ -351,6 +372,8 @@ func Completion(ctx context.Context, view View, f GoFile, pos token.Pos, opts Co
 		qf:                        qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo()),
 		view:                      view,
 		ctx:                       ctx,
+		filename:                  f.URI().Filename(),
+		file:                      file,
 		path:                      path,
 		pos:                       pos,
 		seen:                      make(map[types.Object]bool),
@@ -469,7 +492,7 @@ func (c *completer) selector(sel *ast.SelectorExpr) error {
 func (c *completer) packageMembers(pkg *types.PkgName) {
 	scope := pkg.Imported().Scope()
 	for _, name := range scope.Names() {
-		c.found(scope.Lookup(name), stdScore)
+		c.found(scope.Lookup(name), stdScore, nil)
 	}
 }
 
@@ -485,12 +508,12 @@ func (c *completer) methodsAndFields(typ types.Type, addressable bool) error {
 	}
 
 	for i := 0; i < mset.Len(); i++ {
-		c.found(mset.At(i).Obj(), stdScore)
+		c.found(mset.At(i).Obj(), stdScore, nil)
 	}
 
 	// Add fields of T.
 	for _, f := range fieldSelections(typ) {
-		c.found(f, stdScore)
+		c.found(f, stdScore, nil)
 	}
 	return nil
 }
@@ -550,7 +573,27 @@ func (c *completer) lexical() error {
 			// If we haven't already added a candidate for an object with this name.
 			if _, ok := seen[obj.Name()]; !ok {
 				seen[obj.Name()] = struct{}{}
-				c.found(obj, score)
+				c.found(obj, score, nil)
+			}
+		}
+	}
+
+	if c.opts.WantUnimported {
+		// Suggest packages that have not been imported yet.
+		pkgs, err := CandidateImports(c.ctx, c.view, c.filename)
+		if err != nil {
+			return err
+		}
+		score := stdScore
+		// Rank unimported packages significantly lower than other results.
+		score *= 0.07
+		for _, pkg := range pkgs {
+			if _, ok := seen[pkg.IdentName]; !ok {
+				// Do not add the unimported packages to seen, since we can have
+				// multiple packages of the same name as completion suggestions, since
+				// only one will be chosen.
+				obj := types.NewPkgName(0, nil, pkg.IdentName, types.NewPackage(pkg.StmtInfo.ImportPath, pkg.IdentName))
+				c.found(obj, score, &pkg.StmtInfo)
 			}
 		}
 	}
@@ -585,7 +628,7 @@ func (c *completer) structLiteralFieldName() error {
 		for i := 0; i < t.NumFields(); i++ {
 			field := t.Field(i)
 			if !addedFields[field] {
-				c.found(field, highScore)
+				c.found(field, highScore, nil)
 			}
 		}
 

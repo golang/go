@@ -261,6 +261,10 @@ func (s *Server) processConfig(ctx context.Context, view source.View, config int
 	if useDeepCompletions, ok := c["useDeepCompletions"].(bool); ok {
 		s.useDeepCompletions = useDeepCompletions
 	}
+	// Check if want unimported package completions.
+	if wantUnimportedCompletions, ok := c["wantUnimportedCompletions"].(bool); ok {
+		s.wantUnimportedCompletions = wantUnimportedCompletions
+	}
 	return nil
 }
 

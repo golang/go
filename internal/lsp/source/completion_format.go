@@ -35,6 +35,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		kind               CompletionItemKind
 		plainSnippet       *snippet.Builder
 		placeholderSnippet *snippet.Builder
+		addlEdits          []TextEdit
 	)
 
 	// expandFuncCall mutates the completion label, detail, and snippets
@@ -85,16 +86,27 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		detail = fmt.Sprintf("%q", obj.Imported().Path())
 	}
 
+	// If this candidate needs an additional import statement,
+	// add the additional text edits needed.
+	if cand.imp != nil {
+		edit, err := AddNamedImport(c.view.Session().Cache().FileSet(), c.file, cand.imp.Name, cand.imp.ImportPath)
+		if err != nil {
+			return CompletionItem{}, err
+		}
+		addlEdits = append(addlEdits, edit...)
+	}
+
 	detail = strings.TrimPrefix(detail, "untyped ")
 	item := CompletionItem{
-		Label:              label,
-		InsertText:         insert,
-		Detail:             detail,
-		Kind:               kind,
-		Score:              cand.score,
-		Depth:              len(c.deepState.chain),
-		plainSnippet:       plainSnippet,
-		placeholderSnippet: placeholderSnippet,
+		Label:               label,
+		InsertText:          insert,
+		AdditionalTextEdits: addlEdits,
+		Detail:              detail,
+		Kind:                kind,
+		Score:               cand.score,
+		Depth:               len(c.deepState.chain),
+		plainSnippet:        plainSnippet,
+		placeholderSnippet:  placeholderSnippet,
 	}
 	// TODO(rstambler): Log errors when this feature is enabled.
 	if c.opts.WantDocumentaton {

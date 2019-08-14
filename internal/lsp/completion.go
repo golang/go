@@ -35,6 +35,7 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 		DeepComplete:          s.useDeepCompletions,
 		WantDocumentaton:      s.wantCompletionDocumentation,
 		WantFullDocumentation: s.hoverKind == fullDocumentation,
+		WantUnimported:        s.wantUnimportedCompletions,
 	})
 	if err != nil {
 		log.Print(ctx, "no completions found", tag.Of("At", rng), tag.Of("Failure", err))
@@ -96,7 +97,11 @@ func (s *Server) toProtocolCompletionItems(ctx context.Context, view source.View
 		if s.insertTextFormat == protocol.SnippetTextFormat {
 			insertText = candidate.Snippet(s.usePlaceholders)
 		}
-
+		addlEdits, err := ToProtocolEdits(m, candidate.AdditionalTextEdits)
+		if err != nil {
+			log.Error(ctx, "failed to convert to protocol edits", err)
+			continue
+		}
 		item := protocol.CompletionItem{
 			Label:  candidate.Label,
 			Detail: candidate.Detail,
@@ -105,7 +110,8 @@ func (s *Server) toProtocolCompletionItems(ctx context.Context, view source.View
 				NewText: insertText,
 				Range:   insertionRange,
 			},
-			InsertTextFormat: s.insertTextFormat,
+			InsertTextFormat:    s.insertTextFormat,
+			AdditionalTextEdits: addlEdits,
 			// This is a hack so that the client sorts completion results in the order
 			// according to their score. This can be removed upon the resolution of
 			// https://github.com/Microsoft/language-server-protocol/issues/348.
