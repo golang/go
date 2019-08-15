@@ -80,7 +80,7 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile) (map[packageID]*met
 
 	// Check if the context has been canceled before calling packages.Load.
 	if ctx.Err() != nil {
-		return nil, ctx.Err()
+		return nil, errors.Errorf("checkMetadata: %v", ctx.Err())
 	}
 
 	ctx, done := trace.StartSpan(ctx, "packages.Load", telemetry.File.Of(f.filename()))

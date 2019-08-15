@@ -14,6 +14,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/source"
+	errors "golang.org/x/xerrors"
 )
 
 // pkg contains the type information needed by the source package.
@@ -55,10 +56,6 @@ type analysisEntry struct {
 }
 
 func (pkg *pkg) GetActionGraph(ctx context.Context, a *analysis.Analyzer) (*source.Action, error) {
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
-
 	pkg.mu.Lock()
 	e, ok := pkg.analyses[a]
 	if ok {
@@ -75,7 +72,7 @@ func (pkg *pkg) GetActionGraph(ctx context.Context, a *analysis.Analyzer) (*sour
 				return pkg.GetActionGraph(ctx, a)
 			}
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return nil, errors.Errorf("GetActionGraph: %v", ctx.Err())
 		}
 	} else {
 		// cache miss

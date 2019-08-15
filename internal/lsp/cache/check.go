@@ -128,7 +128,7 @@ func (cph *checkPackageHandle) Check(ctx context.Context) (source.Package, error
 func (cph *checkPackageHandle) check(ctx context.Context) (*pkg, error) {
 	v := cph.handle.Get(ctx)
 	if v == nil {
-		return nil, ctx.Err()
+		return nil, errors.Errorf("check: %v", ctx.Err())
 	}
 	data := v.(*checkPackageData)
 	return data.pkg, data.err

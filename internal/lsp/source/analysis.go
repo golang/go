@@ -26,8 +26,9 @@ import (
 func analyze(ctx context.Context, v View, cphs []CheckPackageHandle, analyzers []*analysis.Analyzer) ([]*Action, error) {
 	ctx, done := trace.StartSpan(ctx, "source.analyze")
 	defer done()
+
 	if ctx.Err() != nil {
-		return nil, ctx.Err()
+		return nil, errors.Errorf("analyze: %v", ctx.Err())
 	}
 
 	// Build nodes for initial packages.
