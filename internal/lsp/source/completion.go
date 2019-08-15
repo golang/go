@@ -304,8 +304,9 @@ type candidate struct {
 }
 
 type CompletionOptions struct {
-	DeepComplete     bool
-	WantDocumentaton bool
+	DeepComplete          bool
+	WantDocumentaton      bool
+	WantFullDocumentation bool
 }
 
 // Completion returns a list of possible candidates for completion, given a

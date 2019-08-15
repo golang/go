@@ -32,8 +32,9 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 		return nil, err
 	}
 	candidates, surrounding, err := source.Completion(ctx, view, f, rng.Start, source.CompletionOptions{
-		DeepComplete:     s.useDeepCompletions,
-		WantDocumentaton: s.wantCompletionDocumentation,
+		DeepComplete:          s.useDeepCompletions,
+		WantDocumentaton:      s.wantCompletionDocumentation,
+		WantFullDocumentation: s.hoverKind == fullDocumentation,
 	})
 	if err != nil {
 		log.Print(ctx, "no completions found", tag.Of("At", rng), tag.Of("Failure", err))

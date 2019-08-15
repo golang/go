@@ -137,6 +137,9 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 			goto Return
 		}
 		item.Documentation = hover.Synopsis
+		if c.opts.WantFullDocumentation {
+			item.Documentation = hover.FullDocumentation
+		}
 	}
 Return:
 	return item, nil
