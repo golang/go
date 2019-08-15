@@ -1,23 +1,13 @@
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package p
 
-contract Stringer(T) {
-        T String() string
+type S(type T) struct {
+        f T
 }
 
-type List(type T Stringer) struct{
-        data T
-        link *List(T)
-}
-
-type MyData string
-
-func (s MyData) String() string { return string(s) }
-
-var _ List(MyData)
-
-func _(type T Stringer)(s []T) (r []string) {
-        for _, x := range s {
-                r = append(r, x.String())
-        }
-        return
+func (r S(T)) m() T {
+        return r.f
 }

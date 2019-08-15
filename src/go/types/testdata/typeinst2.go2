@@ -50,3 +50,9 @@ var (
 
 // Parameterized types with methods
 
+func (l List(E)) Head() (_ E, _ bool) {
+	if len(l) > 0 {
+		return l[0], true
+	}
+	return
+}

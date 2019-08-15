@@ -34,6 +34,7 @@ func (check *Checker) inst(tname *TypeName, targs []Type) (res Type) {
 // to prove that this is always the case and then we don't need this extra
 // argument anymore.
 func (check *Checker) subst(typ Type, tparams []*TypeName, targs []Type) Type {
+	// check.dump("%s: tparams %d, targs %d", typ, len(tparams), len(targs))
 	assert(len(tparams) == len(targs))
 	if len(tparams) == 0 {
 		return typ
@@ -139,9 +140,11 @@ func (s *subster) typ(typ Type) (res Type) {
 		//s.check.dump("- finished %s", tname)
 		// instantiate custom methods as necessary
 		for _, m := range t.methods {
+			// methods may not have a fully set up signature yet
+			s.check.objDecl(m, nil)
 			sig := s.check.subst(m.typ, m.tparams, s.targs).(*Signature)
 			m1 := NewFunc(m.pos, m.pkg, m.name, sig)
-			//s.check.dump("%s: method %s => %s", name, m, m1)
+			// s.check.dump("%s: method %s => %s", name, m, m1)
 			named.methods = append(named.methods, m1)
 		}
 		// TODO(gri) update the method receivers?

@@ -311,7 +311,7 @@ func (*Var) isDependency() {} // a variable may be a dependency of an initializa
 type Func struct {
 	object
 	hasPtrRecv bool        // only valid for methods that don't have a type yet
-	tparams    []*TypeName // type parameters from left to right; or nil
+	tparams    []*TypeName // type parameters from left to right (rcvr parameters for methods); or nil
 }
 
 // NewFunc returns a new function with the given signature, representing
@@ -335,9 +335,6 @@ func (obj *Func) FullName() string {
 
 // Scope returns the scope of the function's body block.
 func (obj *Func) Scope() *Scope { return obj.typ.(*Signature).scope }
-
-// IsParameterized reports whether obj is a parameterized function.
-func (obj *Func) IsParameterized() bool { return len(obj.tparams) > 0 }
 
 func (*Func) isDependency() {} // a function may be a dependency of an initialization expression
 
@@ -398,6 +395,20 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 	case *Func:
 		buf.WriteString("func ")
 		writeFuncName(buf, obj, qf)
+		// Func.tparams is used for functions and methods; but for methods
+		// these are the receiver parameters. Don't print them twice.
+		// TODO(gri) receiver and type parameters should be in the Func
+		// object, not the signature. That should simplify things throughout.
+		if len(obj.tparams) > 0 && (typ == nil || typ.(*Signature).recv == nil) {
+			buf.WriteString("(type ")
+			for i, tname := range obj.tparams {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				buf.WriteString(tname.name)
+			}
+			buf.WriteByte(')')
+		}
 		if typ != nil {
 			WriteSignature(buf, typ.(*Signature), qf)
 		}

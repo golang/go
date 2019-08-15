@@ -118,7 +118,7 @@ var _ = f8(int, float64)(1, 2.3, 3.4, 4)
 
 var _ = f8(int, float64)(0, 0, nil...) // test case for #18268
 
-// init function and methods cannot have type parameters
+// init functions and methods cannot have type parameters
 
 func init() {}
 func init(/* ERROR func init must have no type parameters */ type)() {}

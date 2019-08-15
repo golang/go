@@ -6,7 +6,7 @@ package p
 
 type myInt int
 
-// Parametrized type declarations
+// Parameterized type declarations
 
 type T1(type P) P
 
@@ -17,10 +17,10 @@ type T2(type P) struct {
 
 type List(type P) []P
 
-// Alias type declarations cannot have parameters.
+// Alias type declarations cannot have type parameters.
 type A1( /* ERROR cannot be parameterized */ type P) = P /* ERROR undeclared */
 
-// Parametrized type instantiations
+// Parameterized type instantiations
 
 var x int
 type _ x /* ERROR not a type */ (int)
@@ -39,7 +39,7 @@ var _ List(int) = []int{1, 2, 3}
 var _ List([]int) = [][]int{{1, 2, 3}}
 var _ List(List(List(int)))
 
-// Parametrized types containing parametrized types
+// Parameterized types containing parameterized types
 
 type T3(type P) List(P)
 

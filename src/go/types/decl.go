@@ -617,14 +617,18 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 		}
 
 		for _, name := range f.Names {
-			tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
-			NewTypeParam(tpar, len(tparams), contr)                 // assigns type to tpar as a side-effect
-			check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) verify scope pos is correct
-			tparams = append(tparams, tpar)
+			tparams = append(tparams, check.declareTypeParam(name, len(tparams), contr))
 		}
 	}
 
 	return tparams
+}
+
+func (check *Checker) declareTypeParam(name *ast.Ident, index int, contr *Contract) *TypeName {
+	tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
+	NewTypeParam(tpar, index, contr)                        // assigns type to tpar as a side-effect
+	check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
+	return tpar
 }
 
 func (check *Checker) addMethodDecls(obj *TypeName) {
@@ -694,18 +698,31 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	assert(check.iota == nil)
 
 	fdecl := decl.fdecl
-	if fdecl.TParams != nil {
-		check.openScope(fdecl, "type parameters")
+	if fdecl.IsMethod() {
+		_, _, tparams := check.unpackRecv(fdecl.Recv.List[0].Type, true)
+		if len(tparams) > 0 {
+			// TODO(gri) need to provide contract
+			// (check that number of parameters match is done when type-checking the receiver expression)
+			check.openScope(fdecl, "receiver type parameters")
+			defer check.closeScope()
+			for i, name := range tparams {
+				obj.tparams = append(obj.tparams, check.declareTypeParam(name, i, nil))
+			}
+		}
+	} else if fdecl.TParams != nil {
+		check.openScope(fdecl, "function type parameters")
+		defer check.closeScope()
 		obj.tparams = check.collectTypeParams(fdecl.TParams)
 	}
 
 	sig := new(Signature)
 	obj.typ = sig // guard against cycles
 	check.funcType(sig, fdecl.Recv, fdecl.Type)
-	sig.tparams = obj.tparams
-
-	if fdecl.TParams != nil {
-		check.closeScope()
+	if !fdecl.IsMethod() {
+		// only functions can have type parameters that need to be passed
+		// (the obj.tparams for methods are the receiver parameters)
+		// TODO(gri) remove the need for storing tparams in signatures
+		sig.tparams = obj.tparams
 	}
 
 	// function body must be type-checked after global declarations

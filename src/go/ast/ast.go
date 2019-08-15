@@ -999,6 +999,10 @@ type (
 	}
 )
 
+func (f *FuncDecl) IsMethod() bool {
+	return f.Recv.NumFields() != 0
+}
+
 // Pos and End implementations for declaration nodes.
 
 func (d *BadDecl) Pos() token.Pos  { return d.From }

@@ -348,17 +348,6 @@ func WriteSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier) {
 }
 
 func writeSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier, visited []Type) {
-	if len(sig.tparams) > 0 {
-		buf.WriteString("(type ")
-		for i, tname := range sig.tparams {
-			if i > 0 {
-				buf.WriteString(", ")
-			}
-			buf.WriteString(tname.name)
-		}
-		buf.WriteByte(')')
-	}
-
 	writeTuple(buf, sig.params, sig.variadic, qf, visited)
 
 	n := sig.results.Len()

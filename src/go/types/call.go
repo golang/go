@@ -522,7 +522,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 				// _before_ calling NewMethodSet: LookupFieldOrMethod completes
 				// any incomplete interfaces so they are available to NewMethodSet
 				// (which assumes that interfaces have been completed already).
-				typ := unpack(x.typ)
+				typ := x.typ
 				if x.mode == variable {
 					// If typ is not an (unnamed) pointer or an interface,
 					// use *typ instead, because the method set of *typ

@@ -105,6 +105,11 @@ var tests = [][]string{
 	{"testdata/typeinst.go2"},
 	{"testdata/typeinst2.go2"},
 	{"testdata/contracts.go2"},
+
+	// Go 2 examples from design doc
+	{"testdata/slices.go2"},
+	{"testdata/chans.go2"},
+	{"testdata/map.go2"},
 }
 
 var fset = token.NewFileSet()

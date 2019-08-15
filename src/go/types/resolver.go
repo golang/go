@@ -403,7 +403,7 @@ func (check *Checker) collectObjects() {
 			case *ast.FuncDecl:
 				name := d.Name.Name
 				obj := NewFunc(d.Name.Pos(), pkg, name, nil)
-				if d.Recv == nil || len(d.Recv.List) == 0 {
+				if !d.IsMethod() {
 					// regular function
 					if d.Recv != nil {
 						check.errorf(d.Recv.Pos(), "method is missing receiver")
@@ -440,14 +440,7 @@ func (check *Checker) collectObjects() {
 					// - if the receiver type is parameterized but we don't need the parameters, we permit leaving them away
 					// - this is a effectively a declaration, and thus a receiver type parameter may be the blank identifier (_)
 					// - since methods cannot have other type parameters, we store receiver type parameters where function type parameters would be
-					// TODO(gri) move this into decl phase? (like we did for type and func type parameters?)
-					ptr, recv, tparams := check.unpackRecv(d.Recv.List[0].Type)
-					if tparams != nil {
-						scope := NewScope(pkg.scope, d.Pos(), d.End(), "receiver type parameters")
-						check.recordScope(d, scope)
-						obj.tparams = check.declareTypeParams(scope, tparams)
-					}
-
+					ptr, recv, _ := check.unpackRecv(d.Recv.List[0].Type, false)
 					// (Methods with invalid receiver cannot be associated to a type, and
 					// methods with blank _ names are never found; no need to collect any
 					// of them. They will still be type-checked with all the other functions.)
@@ -504,53 +497,49 @@ func (check *Checker) collectObjects() {
 	}
 }
 
-func (check *Checker) declareTypeParams(scope *Scope, list []*ast.Ident) []*TypeName {
-	tparams := make([]*TypeName, len(list))
-	for i, name := range list {
-		tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
-		NewTypeParam(tpar, i, nil) // assigns type to tpar as a side-effect
-		check.declare(scope, name, tpar, scope.pos)
-		tparams[i] = tpar
-	}
-	return tparams
-}
-
 // unpackRecv unpacks a receiver type and returns its components: ptr indicates whether
 // rtyp is a pointer receiver, rname is the receiver type name, and tparams are its
-// type parameters, if any. If rname is nil, the receiver is unusable (i.e., the source
-// has a bug which we cannot easily work aound with).
-func (check *Checker) unpackRecv(rtyp ast.Expr) (ptr bool, rname *ast.Ident, tparams []*ast.Ident) {
-	// unparen and dereference
-	rtyp = unparen(rtyp)
-	if ptyp, _ := rtyp.(*ast.StarExpr); ptyp != nil {
-		ptr = true
-		rtyp = unparen(ptyp.X)
-	}
-
-	// extract type parameters, if any
-	if ptyp, _ := rtyp.(*ast.CallExpr); ptyp != nil {
-		rtyp = ptyp.Fun
-		tparams = make([]*ast.Ident, len(ptyp.Args))
-		for i, arg := range ptyp.Args {
-			var par *ast.Ident
-			switch arg := arg.(type) {
-			case *ast.Ident:
-				par = arg
-			case *ast.BadExpr:
-				// ignore - error already reported by parser
-			case nil:
-				check.invalidAST(ptyp.Pos(), "parameterized reveiver contains nil parameters")
-			default:
-				check.errorf(arg.Pos(), "%s is not a valid receiver type parameter declaration", arg)
-			}
-			if par == nil {
-				par = &ast.Ident{NamePos: arg.Pos(), Name: "_"}
-			}
-			tparams[i] = par
+// type parameters, if any. The type parameters are only unpacked if unpackParams is
+// set. If rname is nil, the receiver is unusable (i.e., the source has a bug which we
+// cannot easily work aound with).
+func (check *Checker) unpackRecv(rtyp ast.Expr, unpackParams bool) (ptr bool, rname *ast.Ident, tparams []*ast.Ident) {
+L: // unpack receiver type
+	for {
+		switch t := rtyp.(type) {
+		case *ast.ParenExpr:
+			rtyp = t.X
+		case *ast.StarExpr:
+			rtyp = t.X
+		default:
+			break L
 		}
 	}
 
-	// extract receiver name
+	// unpack type parameters, if any
+	if ptyp, _ := rtyp.(*ast.CallExpr); ptyp != nil {
+		rtyp = ptyp.Fun
+		if unpackParams {
+			for _, arg := range ptyp.Args {
+				var par *ast.Ident
+				switch arg := arg.(type) {
+				case *ast.Ident:
+					par = arg
+				case *ast.BadExpr:
+					// ignore - error already reported by parser
+				case nil:
+					check.invalidAST(ptyp.Pos(), "parameterized receiver contains nil parameters")
+				default:
+					check.errorf(arg.Pos(), "receiver type parameter %s must be an identifier", arg)
+				}
+				if par == nil {
+					par = &ast.Ident{NamePos: arg.Pos(), Name: "_"}
+				}
+				tparams = append(tparams, par)
+			}
+		}
+	}
+
+	// unpack receiver name
 	if name, _ := rtyp.(*ast.Ident); name != nil {
 		rname = name
 	}
