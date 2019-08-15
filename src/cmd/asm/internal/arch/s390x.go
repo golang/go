@@ -30,6 +30,8 @@ func jumpS390x(word string) bool {
 		"BR",
 		"BVC",
 		"BVS",
+		"BRCT",
+		"BRCTG",
 		"CMPBEQ",
 		"CMPBGE",
 		"CMPBGT",

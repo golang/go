@@ -155,6 +155,8 @@ var Anames = []string{
 	"BVC",
 	"BVS",
 	"SYSCALL",
+	"BRCT",
+	"BRCTG",
 	"CRJ",
 	"CGRJ",
 	"CLRJ",
