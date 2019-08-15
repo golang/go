@@ -266,6 +266,9 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	BLTU	0(PC)                  // a7540000
 	BLEU	0(PC)                  // a7d40000
 
+	BRCT	R1, 0(PC)              // a7160000
+	BRCTG	R2, 0(PC)              // a7270000
+
 	CMPBNE	R1, R2, 0(PC)          // ec1200007064
 	CMPBEQ	R3, R4, 0(PC)          // ec3400008064
 	CMPBLT	R5, R6, 0(PC)          // ec5600004064
