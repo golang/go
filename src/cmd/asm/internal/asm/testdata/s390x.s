@@ -22,6 +22,9 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	MOVDLT	R8, R9                // b9e24098
 	MOVDNE	R10, R11              // b9e270ba
 
+	LOCR	$3, R2, R1            // b9f23012
+	LOCGR	$7, R5, R6            // b9e27065
+
 	MOVD	(R15), R1             // e310f0000004
 	MOVW	(R15), R2             // e320f0000014
 	MOVH	(R15), R3             // e330f0000015
@@ -253,6 +256,7 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	IPM	R3                     // b2220030
 	IPM	R12                    // b22200c0
 
+	BRC	$7, 0(PC)              // a7740000
 	BNE	0(PC)                  // a7740000
 	BEQ	0(PC)                  // a7840000
 	BLT	0(PC)                  // a7440000
@@ -289,6 +293,16 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	CMPUBLE	R7, $0, 0(PC)          // ec7c0000007d
 	CMPUBGT	R9, $256, 0(PC)        // ec920000007d
 	CMPUBGE	R2, $0, 0(PC)          // ec2a0000007d
+
+	CRJ	$15, R1, R2, 0(PC)     // ec120000f076
+	CGRJ	$12, R3, R4, 0(PC)     // ec340000c064
+	CLRJ	$3, R5, R6, 0(PC)      // ec5600003077
+	CLGRJ	$0, R7, R8, 0(PC)      // ec7800000065
+
+	CIJ	$4, R9, $127, 0(PC)    // ec9400007f7e
+	CGIJ	$8, R11, $-128, 0(PC)  // ecb80000807c
+	CLIJ	$1, R1, $255, 0(PC)    // ec110000ff7f
+	CLGIJ	$2, R3, $0, 0(PC)      // ec320000007d
 
 	LGDR	F1, R12                // b3cd00c1
 	LDGR	R2, F15                // b3c100f2

@@ -15,7 +15,8 @@ import (
 
 func jumpS390x(word string) bool {
 	switch word {
-	case "BC",
+	case "BRC",
+		"BC",
 		"BCL",
 		"BEQ",
 		"BGE",
@@ -41,6 +42,14 @@ func jumpS390x(word string) bool {
 		"CMPUBLE",
 		"CMPUBLT",
 		"CMPUBNE",
+		"CRJ",
+		"CGRJ",
+		"CLRJ",
+		"CLGRJ",
+		"CIJ",
+		"CGIJ",
+		"CLIJ",
+		"CLGIJ",
 		"CALL",
 		"JMP":
 		return true
