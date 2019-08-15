@@ -5,6 +5,7 @@ package testy
 type tt int //@rename("tt", "testyType")
 
 func b() {
+	foo := 42 //@rename("foo", "bar")
 }
 
 testy_test.go:

@@ -23,7 +23,6 @@ import (
 type renamer struct {
 	ctx                context.Context
 	fset               *token.FileSet
-	pkg                Package // the package containing the declaration of the ident
 	refs               []*ReferenceInfo
 	objsToUpdate       map[types.Object]bool
 	hadConflicts       bool
@@ -66,7 +65,6 @@ func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.U
 	r := renamer{
 		ctx:          ctx,
 		fset:         i.File.FileSet(),
-		pkg:          i.pkg,
 		refs:         refs,
 		objsToUpdate: make(map[types.Object]bool),
 		from:         i.Name,
@@ -74,12 +72,12 @@ func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.U
 		packages:     make(map[*types.Package]Package),
 	}
 	for _, from := range refs {
-		r.packages[i.pkg.GetTypes()] = from.pkg
+		r.packages[from.pkg.GetTypes()] = from.pkg
 	}
 
 	// Check that the renaming of the identifier is ok.
-	for _, from := range refs {
-		r.check(from.obj)
+	for _, ref := range refs {
+		r.check(ref.obj)
 	}
 	if r.hadConflicts {
 		return nil, errors.Errorf(r.errors)
@@ -139,7 +137,7 @@ func (r *renamer) update() (map[span.URI][]TextEdit, error) {
 			continue
 		}
 
-		doc := r.docComment(r.pkg, ref.ident)
+		doc := r.docComment(ref.pkg, ref.ident)
 		if doc == nil {
 			continue
 		}
