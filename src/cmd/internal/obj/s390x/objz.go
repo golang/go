@@ -249,6 +249,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			fallthrough
 
 		case ABC,
+			ABRC,
 			ABEQ,
 			ABGE,
 			ABGT,
@@ -260,6 +261,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			ABR,
 			ABVC,
 			ABVS,
+			ACRJ,
+			ACGRJ,
+			ACLRJ,
+			ACLGRJ,
+			ACIJ,
+			ACGIJ,
+			ACLIJ,
+			ACLGIJ,
 			ACMPBEQ,
 			ACMPBGE,
 			ACMPBGT,
