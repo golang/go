@@ -60,7 +60,7 @@ func (s *Server) Diagnostics(ctx context.Context, view source.View, uri span.URI
 }
 
 func (s *Server) publishDiagnostics(ctx context.Context, view source.View, uri span.URI, diagnostics []source.Diagnostic) error {
-	protocolDiagnostics, err := toProtocolDiagnostics(ctx, view, diagnostics)
+	protocolDiagnostics, err := toProtocolDiagnostics(ctx, diagnostics)
 	if err != nil {
 		return err
 	}
@@ -71,10 +71,10 @@ func (s *Server) publishDiagnostics(ctx context.Context, view source.View, uri s
 	return nil
 }
 
-func toProtocolDiagnostics(ctx context.Context, v source.View, diagnostics []source.Diagnostic) ([]protocol.Diagnostic, error) {
+func toProtocolDiagnostics(ctx context.Context, diagnostics []source.Diagnostic) ([]protocol.Diagnostic, error) {
 	reports := []protocol.Diagnostic{}
 	for _, diag := range diagnostics {
-		diagnostic, err := toProtocolDiagnostic(ctx, v, diag)
+		diagnostic, err := toProtocolDiagnostic(ctx, diag)
 		if err != nil {
 			return nil, err
 		}
@@ -83,11 +83,7 @@ func toProtocolDiagnostics(ctx context.Context, v source.View, diagnostics []sou
 	return reports, nil
 }
 
-func toProtocolDiagnostic(ctx context.Context, v source.View, diag source.Diagnostic) (protocol.Diagnostic, error) {
-	_, m, err := getSourceFile(ctx, v, diag.Span.URI())
-	if err != nil {
-		return protocol.Diagnostic{}, err
-	}
+func toProtocolDiagnostic(ctx context.Context, diag source.Diagnostic) (protocol.Diagnostic, error) {
 	var severity protocol.DiagnosticSeverity
 	switch diag.Severity {
 	case source.SeverityError:
@@ -95,13 +91,9 @@ func toProtocolDiagnostic(ctx context.Context, v source.View, diag source.Diagno
 	case source.SeverityWarning:
 		severity = protocol.SeverityWarning
 	}
-	rng, err := m.Range(diag.Span)
-	if err != nil {
-		return protocol.Diagnostic{}, err
-	}
 	return protocol.Diagnostic{
 		Message:  strings.TrimSpace(diag.Message), // go list returns errors prefixed by newline
-		Range:    rng,
+		Range:    diag.Range,
 		Severity: severity,
 		Source:   diag.Source,
 	}, nil

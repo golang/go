@@ -6,6 +6,7 @@ package cmd_test
 
 import (
 	"fmt"
+	"io/ioutil"
 	"strings"
 	"testing"
 
@@ -37,13 +38,25 @@ func (r *runner) Diagnostics(t *testing.T, data tests.Diagnostics) {
 			if len(bits) == 2 {
 				spn := span.Parse(strings.TrimSpace(bits[0]))
 				spn = span.New(spn.URI(), spn.Start(), span.Point{})
-				l = fmt.Sprintf("%s: %s", spn, strings.TrimSpace(bits[1]))
+				data, err := ioutil.ReadFile(fname)
+				if err != nil {
+					t.Fatal(err)
+				}
+				converter := span.NewContentConverter(fname, data)
+				s, err := spn.WithPosition(converter)
+				if err != nil {
+					t.Fatal(err)
+				}
+				l = fmt.Sprintf("%s: %s", s, strings.TrimSpace(bits[1]))
 			}
 			got[l] = struct{}{}
 		}
 		for _, diag := range want {
-			spn := span.New(diag.Span.URI(), diag.Span.Start(), diag.Span.Start())
-			expect := fmt.Sprintf("%v: %v", spn, diag.Message)
+			// TODO: This is a hack, fix this.
+			expect := fmt.Sprintf("%v:%v:%v: %v", diag.URI.Filename(), diag.Range.Start.Line+1, diag.Range.Start.Character+1, diag.Message)
+			if diag.Range.Start.Character == 0 {
+				expect = fmt.Sprintf("%v:%v: %v", diag.URI.Filename(), diag.Range.Start.Line+1, diag.Message)
+			}
 			_, found := got[expect]
 			if !found {
 				t.Errorf("missing diagnostic %q", expect)
