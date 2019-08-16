@@ -78,6 +78,9 @@ func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.U
 	// Check that the renaming of the identifier is ok.
 	for _, ref := range refs {
 		r.check(ref.obj)
+		if r.hadConflicts { // one error is enough.
+			break
+		}
 	}
 	if r.hadConflicts {
 		return nil, errors.Errorf(r.errors)
