@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"golang.org/x/tools/internal/telemetry"
-	"golang.org/x/tools/internal/telemetry/export/ocagent/wire"
 	"golang.org/x/tools/internal/telemetry/tag"
 )
 
@@ -19,11 +18,11 @@ func TestConvert_annotation(t *testing.T) {
 	tests := []struct {
 		name  string
 		event telemetry.Event
-		want  *wire.Annotation
+		want  string
 	}{
 		{
 			name: "no tags",
-			want: nil,
+			want: "null",
 		},
 		{
 			name: "description no error",
@@ -33,14 +32,20 @@ func TestConvert_annotation(t *testing.T) {
 					tag.Of("db", "godb"),
 				},
 			},
-			want: &wire.Annotation{
-				Description: &wire.TruncatableString{Value: "cache miss"},
-				Attributes: &wire.Attributes{
-					AttributeMap: map[string]wire.Attribute{
-						"db": wire.StringAttribute{StringValue: &wire.TruncatableString{Value: "godb"}},
-					},
-				},
-			},
+			want: `{
+  "description": {
+    "value": "cache miss"
+  },
+  "attributes": {
+    "attributeMap": {
+      "db": {
+        "stringValue": {
+          "value": "godb"
+        }
+      }
+    }
+  }
+}`,
 		},
 
 		{
@@ -52,15 +57,25 @@ func TestConvert_annotation(t *testing.T) {
 					tag.Of("db", "godb"),
 				},
 			},
-			want: &wire.Annotation{
-				Description: &wire.TruncatableString{Value: "cache miss"},
-				Attributes: &wire.Attributes{
-					AttributeMap: map[string]wire.Attribute{
-						"Error": wire.StringAttribute{StringValue: &wire.TruncatableString{Value: "no network connectivity"}},
-						"db":    wire.StringAttribute{StringValue: &wire.TruncatableString{Value: "godb"}},
-					},
-				},
-			},
+			want: `{
+  "description": {
+    "value": "cache miss"
+  },
+  "attributes": {
+    "attributeMap": {
+      "Error": {
+        "stringValue": {
+          "value": "no network connectivity"
+        }
+      },
+      "db": {
+        "stringValue": {
+          "value": "godb"
+        }
+      }
+    }
+  }
+}`,
 		},
 		{
 			name: "no description, but error",
@@ -70,14 +85,20 @@ func TestConvert_annotation(t *testing.T) {
 					tag.Of("db", "godb"),
 				},
 			},
-			want: &wire.Annotation{
-				Description: &wire.TruncatableString{Value: "no network connectivity"},
-				Attributes: &wire.Attributes{
-					AttributeMap: map[string]wire.Attribute{
-						"db": wire.StringAttribute{StringValue: &wire.TruncatableString{Value: "godb"}},
-					},
-				},
-			},
+			want: `{
+  "description": {
+    "value": "no network connectivity"
+  },
+  "attributes": {
+    "attributeMap": {
+      "db": {
+        "stringValue": {
+          "value": "godb"
+        }
+      }
+    }
+  }
+}`,
 		},
 		{
 			name: "enumerate all attribute types",
@@ -106,41 +127,71 @@ func TestConvert_annotation(t *testing.T) {
 					tag.Of("max_hops", uint64(0xffffff)),
 				},
 			},
-			want: &wire.Annotation{
-				Description: &wire.TruncatableString{Value: "cache miss"},
-				Attributes: &wire.Attributes{
-					AttributeMap: map[string]wire.Attribute{
-						"db": wire.StringAttribute{StringValue: &wire.TruncatableString{Value: "godb"}},
-
-						"age":       wire.DoubleAttribute{DoubleValue: 0.456},
-						"ttl":       wire.DoubleAttribute{DoubleValue: 5000.0},
-						"expiry_ms": wire.DoubleAttribute{DoubleValue: 1e3},
-
-						"retry": wire.BoolAttribute{BoolValue: false},
-						"stale": wire.BoolAttribute{BoolValue: true},
-
-						"max":      wire.IntAttribute{IntValue: 0x7fff},
-						"opcode":   wire.IntAttribute{IntValue: 0x7e},
-						"base":     wire.IntAttribute{IntValue: 1 << 9},
-						"checksum": wire.IntAttribute{IntValue: 0x11f7e294},
-						"mode":     wire.IntAttribute{IntValue: 0644},
-
-						"min":      wire.IntAttribute{IntValue: 1},
-						"mix":      wire.IntAttribute{IntValue: 44},
-						"port":     wire.IntAttribute{IntValue: 55678},
-						"min_hops": wire.IntAttribute{IntValue: 1 << 9},
-						"max_hops": wire.IntAttribute{IntValue: 0xffffff},
-					},
-				},
-			},
+			want: `{
+  "description": {
+    "value": "cache miss"
+  },
+  "attributes": {
+    "attributeMap": {
+      "age": {
+        "doubleValue": 0.456
+      },
+      "base": {
+        "intValue": 512
+      },
+      "checksum": {
+        "intValue": 301458068
+      },
+      "db": {
+        "stringValue": {
+          "value": "godb"
+        }
+      },
+      "expiry_ms": {
+        "doubleValue": 1000
+      },
+      "max": {
+        "intValue": 32767
+      },
+      "max_hops": {
+        "intValue": 16777215
+      },
+      "min": {
+        "intValue": 1
+      },
+      "min_hops": {
+        "intValue": 512
+      },
+      "mix": {
+        "intValue": 44
+      },
+      "mode": {
+        "intValue": 420
+      },
+      "opcode": {
+        "intValue": 126
+      },
+      "port": {
+        "intValue": 55678
+      },
+      "retry": {},
+      "stale": {
+        "boolValue": true
+      },
+      "ttl": {
+        "doubleValue": 5000
+      }
+    }
+  }
+}`,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := convertAnnotation(tt.event)
+			got := marshaled(convertAnnotation(tt.event))
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Fatalf("Got:\n%s\nWant:\n%s", marshaled(got), marshaled(tt.want))
+				t.Fatalf("Got:\n%s\nWant:\n%s", got, tt.want)
 			}
 		})
 	}
