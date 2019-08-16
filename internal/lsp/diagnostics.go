@@ -37,7 +37,7 @@ func (s *Server) Diagnostics(ctx context.Context, view source.View, uri span.URI
 	defer s.undeliveredMu.Unlock()
 
 	for uri, diagnostics := range reports {
-		if err := s.publishDiagnostics(ctx, view, uri, diagnostics); err != nil {
+		if err := s.publishDiagnostics(ctx, uri, diagnostics); err != nil {
 			if s.undelivered == nil {
 				s.undelivered = make(map[span.URI][]source.Diagnostic)
 			}
@@ -51,7 +51,7 @@ func (s *Server) Diagnostics(ctx context.Context, view source.View, uri span.URI
 	// Anytime we compute diagnostics, make sure to also send along any
 	// undelivered ones (only for remaining URIs).
 	for uri, diagnostics := range s.undelivered {
-		if err := s.publishDiagnostics(ctx, view, uri, diagnostics); err != nil {
+		if err := s.publishDiagnostics(ctx, uri, diagnostics); err != nil {
 			log.Error(ctx, "failed to deliver diagnostic for (will not retry)", err, telemetry.File)
 		}
 		// If we fail to deliver the same diagnostics twice, just give up.
@@ -59,7 +59,7 @@ func (s *Server) Diagnostics(ctx context.Context, view source.View, uri span.URI
 	}
 }
 
-func (s *Server) publishDiagnostics(ctx context.Context, view source.View, uri span.URI, diagnostics []source.Diagnostic) error {
+func (s *Server) publishDiagnostics(ctx context.Context, uri span.URI, diagnostics []source.Diagnostic) error {
 	protocolDiagnostics, err := toProtocolDiagnostics(ctx, diagnostics)
 	if err != nil {
 		return err

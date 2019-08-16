@@ -27,12 +27,16 @@ func (s *Server) formatting(ctx context.Context, params *protocol.DocumentFormat
 	return ToProtocolEdits(m, edits)
 }
 
-func spanToRange(ctx context.Context, view source.View, s span.Span) (source.GoFile, *protocol.ColumnMapper, span.Range, error) {
-	f, m, err := getGoFile(ctx, view, s.URI())
+func spanToRange(ctx context.Context, view source.View, spn span.Span) (source.GoFile, *protocol.ColumnMapper, span.Range, error) {
+	f, err := getGoFile(ctx, view, spn.URI())
 	if err != nil {
 		return nil, nil, span.Range{}, err
 	}
-	rng, err := s.Range(m.Converter)
+	m, err := getMapper(ctx, f)
+	if err != nil {
+		return nil, nil, span.Range{}, err
+	}
+	rng, err := spn.Range(m.Converter)
 	if err != nil {
 		return nil, nil, span.Range{}, err
 	}

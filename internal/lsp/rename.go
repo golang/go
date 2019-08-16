@@ -15,7 +15,11 @@ import (
 func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*protocol.WorkspaceEdit, error) {
 	uri := span.NewURI(params.TextDocument.URI)
 	view := s.session.ViewOf(uri)
-	f, m, err := getGoFile(ctx, view, uri)
+	f, err := getGoFile(ctx, view, uri)
+	if err != nil {
+		return nil, err
+	}
+	m, err := getMapper(ctx, f)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +41,11 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 	}
 	changes := make(map[string][]protocol.TextEdit)
 	for uri, textEdits := range edits {
-		_, m, err := getGoFile(ctx, view, uri)
+		f, err := getGoFile(ctx, view, uri)
+		if err != nil {
+			return nil, err
+		}
+		m, err := getMapper(ctx, f)
 		if err != nil {
 			return nil, err
 		}

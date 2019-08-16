@@ -17,7 +17,11 @@ import (
 func (s *Server) references(ctx context.Context, params *protocol.ReferenceParams) ([]protocol.Location, error) {
 	uri := span.NewURI(params.TextDocument.URI)
 	view := s.session.ViewOf(uri)
-	f, m, err := getGoFile(ctx, view, uri)
+	f, err := getGoFile(ctx, view, uri)
+	if err != nil {
+		return nil, err
+	}
+	m, err := getMapper(ctx, f)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +67,11 @@ func (s *Server) references(ctx context.Context, params *protocol.ReferenceParam
 		}
 		seen[refSpan] = true
 
-		_, refM, err := getSourceFile(ctx, view, refSpan.URI())
+		refFile, err := getGoFile(ctx, view, refSpan.URI())
+		if err != nil {
+			return nil, err
+		}
+		refM, err := getMapper(ctx, refFile)
 		if err != nil {
 			return nil, err
 		}

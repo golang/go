@@ -21,7 +21,11 @@ import (
 func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionParams) ([]protocol.CodeAction, error) {
 	uri := span.NewURI(params.TextDocument.URI)
 	view := s.session.ViewOf(uri)
-	f, m, err := getSourceFile(ctx, view, uri)
+	f, err := view.GetFile(ctx, uri)
+	if err != nil {
+		return nil, err
+	}
+	m, err := getMapper(ctx, f)
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +233,11 @@ func quickFixes(ctx context.Context, view source.View, gof source.GoFile) ([]pro
 			return nil, err
 		}
 		for _, ca := range diag.SuggestedFixes {
-			_, m, err := getGoFile(ctx, view, diag.URI)
+			f, err := view.GetFile(ctx, diag.URI)
+			if err != nil {
+				return nil, err
+			}
+			m, err := getMapper(ctx, f)
 			if err != nil {
 				return nil, err
 			}

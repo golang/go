@@ -275,9 +275,13 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 			}
 			continue
 		}
-		_, m, err := getSourceFile(r.ctx, r.server.session.ViewOf(uri), uri)
+		f, err := getGoFile(r.ctx, r.server.session.ViewOf(uri), uri)
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
+		}
+		m, err := getMapper(r.ctx, f)
+		if err != nil {
+			t.Fatal(err)
 		}
 		sedits, err := FromProtocolEdits(m, edits)
 		if err != nil {
@@ -312,9 +316,13 @@ func (r *runner) Import(t *testing.T, data tests.Imports) {
 			}
 			continue
 		}
-		_, m, err := getSourceFile(r.ctx, r.server.session.ViewOf(uri), uri)
+		f, err := getGoFile(r.ctx, r.server.session.ViewOf(uri), uri)
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
+		}
+		m, err := getMapper(r.ctx, f)
+		if err != nil {
+			t.Fatal(err)
 		}
 		var edits []protocol.TextEdit
 		for _, a := range actions {
@@ -501,9 +509,13 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 		var res []string
 		for uri, edits := range *workspaceEdits.Changes {
 			spnURI := span.URI(uri)
-			_, m, err := getSourceFile(r.ctx, r.server.session.ViewOf(span.URI(spnURI)), spnURI)
+			f, err := getGoFile(r.ctx, r.server.session.ViewOf(spnURI), spnURI)
 			if err != nil {
-				t.Error(err)
+				t.Fatal(err)
+			}
+			m, err := getMapper(r.ctx, f)
+			if err != nil {
+				t.Fatal(err)
 			}
 
 			sedits, err := FromProtocolEdits(m, edits)

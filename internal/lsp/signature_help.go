@@ -17,7 +17,11 @@ import (
 func (s *Server) signatureHelp(ctx context.Context, params *protocol.TextDocumentPositionParams) (*protocol.SignatureHelp, error) {
 	uri := span.NewURI(params.TextDocument.URI)
 	view := s.session.ViewOf(uri)
-	f, m, err := getGoFile(ctx, view, uri)
+	f, err := getGoFile(ctx, view, uri)
+	if err != nil {
+		return nil, err
+	}
+	m, err := getMapper(ctx, f)
 	if err != nil {
 		return nil, err
 	}

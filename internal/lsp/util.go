@@ -13,32 +13,26 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-func getSourceFile(ctx context.Context, v source.View, uri span.URI) (source.File, *protocol.ColumnMapper, error) {
-	f, err := v.GetFile(ctx, uri)
+func getGoFile(ctx context.Context, view source.View, uri span.URI) (source.GoFile, error) {
+	f, err := view.GetFile(ctx, uri)
 	if err != nil {
-		return nil, nil, err
-	}
-	data, _, err := f.Handle(ctx).Read(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	tok, err := f.GetToken(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	m := protocol.NewColumnMapper(f.URI(), f.URI().Filename(), f.FileSet(), tok, data)
-
-	return f, m, nil
-}
-
-func getGoFile(ctx context.Context, v source.View, uri span.URI) (source.GoFile, *protocol.ColumnMapper, error) {
-	f, m, err := getSourceFile(ctx, v, uri)
-	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	gof, ok := f.(source.GoFile)
 	if !ok {
-		return nil, nil, errors.Errorf("not a Go file %v", f.URI())
+		return nil, errors.Errorf("%s is not a Go file", uri)
 	}
-	return gof, m, nil
+	return gof, nil
+}
+
+func getMapper(ctx context.Context, f source.File) (*protocol.ColumnMapper, error) {
+	data, _, err := f.Handle(ctx).Read(ctx)
+	if err != nil {
+		return nil, err
+	}
+	tok, err := f.GetToken(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return protocol.NewColumnMapper(f.URI(), f.URI().Filename(), f.FileSet(), tok, data), nil
 }

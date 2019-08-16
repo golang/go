@@ -149,7 +149,7 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 	clear := []span.URI{uri} // by default, clear the closed URI
 	defer func() {
 		for _, uri := range clear {
-			if err := s.publishDiagnostics(ctx, view, uri, []source.Diagnostic{}); err != nil {
+			if err := s.publishDiagnostics(ctx, uri, []source.Diagnostic{}); err != nil {
 				log.Error(ctx, "failed to clear diagnostics", err, telemetry.File)
 			}
 		}

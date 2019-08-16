@@ -15,7 +15,11 @@ import (
 func (s *Server) definition(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
 	uri := span.NewURI(params.TextDocument.URI)
 	view := s.session.ViewOf(uri)
-	f, m, err := getGoFile(ctx, view, uri)
+	f, err := getGoFile(ctx, view, uri)
+	if err != nil {
+		return nil, err
+	}
+	m, err := getMapper(ctx, f)
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +39,11 @@ func (s *Server) definition(ctx context.Context, params *protocol.TextDocumentPo
 	if err != nil {
 		return nil, err
 	}
-	_, decM, err := getSourceFile(ctx, view, decSpan.URI())
+	decFile, err := getGoFile(ctx, view, decSpan.URI())
+	if err != nil {
+		return nil, err
+	}
+	decM, err := getMapper(ctx, decFile)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +57,11 @@ func (s *Server) definition(ctx context.Context, params *protocol.TextDocumentPo
 func (s *Server) typeDefinition(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
 	uri := span.NewURI(params.TextDocument.URI)
 	view := s.session.ViewOf(uri)
-	f, m, err := getGoFile(ctx, view, uri)
+	f, err := getGoFile(ctx, view, uri)
+	if err != nil {
+		return nil, err
+	}
+	m, err := getMapper(ctx, f)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +81,11 @@ func (s *Server) typeDefinition(ctx context.Context, params *protocol.TextDocume
 	if err != nil {
 		return nil, err
 	}
-	_, identM, err := getSourceFile(ctx, view, identSpan.URI())
+	identFile, err := getGoFile(ctx, view, identSpan.URI())
+	if err != nil {
+		return nil, err
+	}
+	identM, err := getMapper(ctx, identFile)
 	if err != nil {
 		return nil, err
 	}
