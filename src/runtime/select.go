@@ -493,8 +493,6 @@ sclose:
 }
 
 func (c *hchan) sortkey() uintptr {
-	// TODO(khr): if we have a moving garbage collector, we'll need to
-	// change this function.
 	return uintptr(unsafe.Pointer(c))
 }
 
