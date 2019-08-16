@@ -275,7 +275,9 @@ func checkFiles(t *testing.T, testfiles []string) {
 		conf.FakeImportC = true
 	}
 	conf.Trace = testing.Verbose()
-	conf.Importer = importer.Default()
+	// We don't use importer.Default() below so we can eventually
+	// get testdata/map.go2 to import chans (still to be fixed).
+	conf.Importer = importer.ForCompiler(fset, "source", nil)
 	conf.Error = func(err error) {
 		if *haltOnError {
 			defer panic(err)

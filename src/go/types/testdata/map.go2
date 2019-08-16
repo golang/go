@@ -89,8 +89,8 @@ func (m *Map(K, V)) InOrder() *Iterator(K, V) {
 		f(m.root)
 		sender.Close()
 	}()
-	// TODO(gri) The design doc doensn't require that we repeat the
-	// type parameters here. Fix the implementation.
+	// TODO(gri) The design draft doesn't require that we repeat
+	// the type parameters here. Fix the implementation.
 	return &Iterator(K, V){receiver}
 	// return &Iterator{receiver}
 }
