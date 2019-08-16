@@ -80,7 +80,7 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile) (map[packageID]*met
 
 	// Check if the context has been canceled before calling packages.Load.
 	if ctx.Err() != nil {
-		return nil, errors.Errorf("checkMetadata: %v", ctx.Err())
+		return nil, ctx.Err()
 	}
 
 	ctx, done := trace.StartSpan(ctx, "packages.Load", telemetry.File.Of(f.filename()))
@@ -171,6 +171,7 @@ func (v *view) shouldRunGopackages(ctx context.Context, f *goFile) (result bool)
 	// Get file content in case we don't already have it.
 	parsed, err := v.session.cache.ParseGoHandle(f.Handle(ctx), source.ParseHeader).Parse(ctx)
 	if err == context.Canceled {
+		log.Error(ctx, "parsing file header", err, tag.Of("file", f.URI()))
 		return false
 	}
 	if parsed == nil {

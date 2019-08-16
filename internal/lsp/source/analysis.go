@@ -28,7 +28,7 @@ func analyze(ctx context.Context, v View, cphs []CheckPackageHandle, analyzers [
 	defer done()
 
 	if ctx.Err() != nil {
-		return nil, errors.Errorf("analyze: %v", ctx.Err())
+		return nil, ctx.Err()
 	}
 
 	// Build nodes for initial packages.

@@ -70,7 +70,7 @@ func (h *parseGoHandle) Mode() source.ParseMode {
 func (h *parseGoHandle) Parse(ctx context.Context) (*ast.File, error) {
 	v := h.handle.Get(ctx)
 	if v == nil {
-		return nil, errors.Errorf("Parse: %v", ctx.Err())
+		return nil, ctx.Err()
 	}
 	data := v.(*parseGoData)
 	return data.ast, data.err

@@ -128,7 +128,7 @@ func (cph *checkPackageHandle) Check(ctx context.Context) (source.Package, error
 func (cph *checkPackageHandle) check(ctx context.Context) (*pkg, error) {
 	v := cph.handle.Get(ctx)
 	if v == nil {
-		return nil, errors.Errorf("check: %v", ctx.Err())
+		return nil, ctx.Err()
 	}
 	data := v.(*checkPackageData)
 	return data.pkg, data.err
@@ -255,7 +255,7 @@ func (imp *importer) typeCheck(cph *checkPackageHandle, m *metadata) (*pkg, erro
 
 	for _, err := range parseErrors {
 		if err == context.Canceled {
-			return nil, err
+			return nil, errors.Errorf("parsing files for %s: %v", m.pkgPath, err)
 		}
 		if err != nil {
 			imp.view.session.cache.appendPkgError(pkg, err)

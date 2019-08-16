@@ -51,7 +51,7 @@ func (h *tokenHandle) File() source.FileHandle {
 func (h *tokenHandle) Token(ctx context.Context) (*token.File, error) {
 	v := h.handle.Get(ctx)
 	if v == nil {
-		return nil, errors.Errorf("Token: %v", ctx.Err())
+		return nil, ctx.Err()
 	}
 	data := v.(*tokenData)
 	return data.tok, data.err
