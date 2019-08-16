@@ -113,7 +113,10 @@ gopls flags are:
 // If no arguments are passed it will invoke the server sub command, as a
 // temporary measure for compatibility.
 func (app *Application) Run(ctx context.Context, args ...string) error {
-	export.AddExporters(ocagent.Connect(app.name, app.OCAgent))
+	ocConfig := ocagent.Discover()
+	//TODO: we should not need to adjust the discovered configuration
+	ocConfig.Address = app.OCAgent
+	export.AddExporters(ocagent.Connect(ocConfig))
 	app.Serve.app = app
 	if len(args) == 0 {
 		tool.Main(ctx, &app.Serve, args)
