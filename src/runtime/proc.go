@@ -61,7 +61,7 @@ var modinfo string
 // thread finds work it takes itself out of the spinning state and proceeds to
 // execution. If it does not find work it takes itself out of the spinning state
 // and then parks.
-// If there is at least one spinning thread (sched.nmspinning>1), we don't unpark
+// If there is at least one spinning thread (sched.nmspinning>=1), we don't unpark
 // new threads when readying goroutines. To compensate for that, if the last spinning
 // thread finds work and stops spinning, it must unpark a new spinning thread.
 // This approach smooths out unjustified spikes of thread unparking,
