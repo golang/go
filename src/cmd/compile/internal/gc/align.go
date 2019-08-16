@@ -178,6 +178,11 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 // have not already been calculated, it calls Fatal.
 // This is used to prevent data races in the back end.
 func dowidth(t *types.Type) {
+	// Calling dowidth when typecheck tracing enabled is not safe.
+	// See issue #33658.
+	if enableTrace && skipDowidthForTracing {
+		return
+	}
 	if Widthptr == 0 {
 		Fatalf("dowidth without betypeinit")
 	}
