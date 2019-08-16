@@ -150,7 +150,7 @@ func (check *Checker) instantiatedType(e ast.Expr) Type {
 	typ := check.typ(e)
 	// A parameterized type where all type arguments are known
 	// (i.e., not type parameters themselves) can be instantiated.
-	if ptyp, _ := typ.(*Parameterized); ptyp != nil && !isParameterized(ptyp) {
+	if ptyp, _ := typ.(*Parameterized); ptyp != nil && !IsParameterized(ptyp) {
 		typ = check.inst(ptyp.tname, ptyp.targs)
 		// TODO(gri) can this ever be nil? comment.
 		if typ == nil {
@@ -276,7 +276,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 		typ := new(Parameterized)
 		def.setUnderlying(typ)
 		if check.parameterizedType(typ, e) {
-			if isParameterizedList(typ.targs) {
+			if IsParameterizedList(typ.targs) {
 				return typ
 			}
 			typ := check.inst(typ.tname, typ.targs)

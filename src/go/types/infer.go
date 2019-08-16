@@ -25,7 +25,7 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 	var indices []int
 	for i, arg := range args {
 		par := params.At(i)
-		if isParameterized(par.typ) {
+		if IsParameterized(par.typ) {
 			if arg.mode == invalid {
 				// TODO(gri) we might still be able to infer all targs by
 				//           simply ignoring (continue) invalid args
@@ -91,33 +91,46 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 	return targs
 }
 
-// isParameterized reports whether typ contains any type parameters.
-// TODO(gri) do we need to handle cycles here?
-func isParameterized(typ Type) bool {
+// IsParameterized reports whether typ contains any type parameters.
+func IsParameterized(typ Type) bool {
+	return isParameterized(typ, make(map[Type]bool))
+}
+
+func isParameterized(typ Type, seen map[Type]bool) (res bool) {
+	// detect cycles
+	// TODO(gri) can/should this be a Checker map?
+	if x, ok := seen[typ]; ok {
+		return x
+	}
+	seen[typ] = false
+	defer func() {
+		seen[typ] = res
+	}()
+
 	switch t := typ.(type) {
 	case nil, *Basic, *Named: // TODO(gri) should nil be handled here?
 		break
 
 	case *Array:
-		return isParameterized(t.elem)
+		return isParameterized(t.elem, seen)
 
 	case *Slice:
-		return isParameterized(t.elem)
+		return isParameterized(t.elem, seen)
 
 	case *Struct:
 		for _, fld := range t.fields {
-			if isParameterized(fld.typ) {
+			if isParameterized(fld.typ, seen) {
 				return true
 			}
 		}
 
 	case *Pointer:
-		return isParameterized(t.base)
+		return isParameterized(t.base, seen)
 
 	case *Tuple:
 		n := t.Len()
 		for i := 0; i < n; i++ {
-			if isParameterized(t.At(i).typ) {
+			if isParameterized(t.At(i).typ, seen) {
 				return true
 			}
 		}
@@ -128,26 +141,26 @@ func isParameterized(typ Type) bool {
 		// have methods where the receiver is a contract type
 		// parameter, by design.
 		//assert(t.recv == nil || !isParameterized(t.recv.typ))
-		return isParameterized(t.params) || isParameterized(t.results)
+		return isParameterized(t.params, seen) || isParameterized(t.results, seen)
 
 	case *Interface:
 		if t.allMethods == nil {
 			panic("incomplete method")
 		}
 		for _, m := range t.allMethods {
-			if isParameterized(m.typ) {
+			if isParameterized(m.typ, seen) {
 				return true
 			}
 		}
 
 	case *Map:
-		return isParameterized(t.key) || isParameterized(t.elem)
+		return isParameterized(t.key, seen) || isParameterized(t.elem, seen)
 
 	case *Chan:
-		return isParameterized(t.elem)
+		return isParameterized(t.elem, seen)
 
 	case *Parameterized:
-		return isParameterizedList(t.targs)
+		return isParameterizedList(t.targs, seen)
 
 	case *TypeParam:
 		return true
@@ -159,10 +172,14 @@ func isParameterized(typ Type) bool {
 	return false
 }
 
-// isParameterizedList reports whether any type in list is parameterized.
-func isParameterizedList(list []Type) bool {
+// IsParameterizedList reports whether any type in list is parameterized.
+func IsParameterizedList(list []Type) bool {
+	return isParameterizedList(list, make(map[Type]bool))
+}
+
+func isParameterizedList(list []Type, seen map[Type]bool) bool {
 	for _, t := range list {
-		if isParameterized(t) {
+		if isParameterized(t, seen) {
 			return true
 		}
 	}

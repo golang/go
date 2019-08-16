@@ -261,7 +261,7 @@ func (check *Checker) satisfyContract(contr *Contract, targs []Type) bool {
 		iface := contr.ifaceAt(i)
 		// If iface is parameterized, we need to replace the type parameters
 		// with the respective type arguments.
-		if isParameterized(iface) {
+		if IsParameterized(iface) {
 			panic("unimplemented")
 		}
 		// use interface type of type parameter, if any

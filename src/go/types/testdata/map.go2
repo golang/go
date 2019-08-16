@@ -44,7 +44,7 @@ func (m *Map(K, V)) find(key K) **node(K, V) {
 // If the key is already present, the value is replaced.
 // Returns true if this is a new key, false if already present.
 func (m *Map(K, V)) Insert(key K, val V) bool {
-	pn := m.find(key)
+	pn := m /* ERROR not implemented */ .find(key)
 	if *pn != nil {
 		(*pn).val = val
 		return false
@@ -56,7 +56,7 @@ func (m *Map(K, V)) Insert(key K, val V) bool {
 // Find returns the value associated with a key, or zero if not present.
 // The found result reports whether the key was found.
 func (m *Map(K, V)) Find(key K) (V, bool) {
-	pn := m.find(key)
+	pn := m /* ERROR not implemented */ .find(key)
 	if *pn == nil {
 		var zero V // see the discussion of zero values, above
 		return zero, false

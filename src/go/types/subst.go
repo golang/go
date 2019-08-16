@@ -123,7 +123,7 @@ func (s *subster) typ(typ Type) (res Type) {
 
 	case *Named:
 		// if not all type parameters are known, create a parameterized type
-		if isParameterizedList(s.targs) {
+		if IsParameterizedList(s.targs) {
 			return &Parameterized{t.obj, s.targs}
 		}
 

@@ -16,15 +16,12 @@ func (r Receiver(T)) Values() T {
 	return r.values
 }
 
-func Values (type T) (r Receiver(T)) T {
-        return r.values
-}
-
 func (it Iterator(K)) Next() K {
-	// x := it.r.Values()
-        x := Values(Pair(K))(it.r)
+	//x := it.r.Values()
         // it         : Iterator(K)
         // it.r       : Receiver(Pair(K))
         // it.r.Values: Pair(K)
+        //var r Receiver(Pair(K))
+        var x Pair(K) //= (r.Values)()
 	return x.key
 }

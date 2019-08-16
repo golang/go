@@ -112,7 +112,7 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 
 		// if type inference failed, a parametrized result must be invalidated
 		// (operands cannot have a parametrized type)
-		if x.mode == value && len(sig.tparams) > 0 && isParameterized(x.typ) {
+		if x.mode == value && len(sig.tparams) > 0 && IsParameterized(x.typ) {
 			x.mode = invalid
 		}
 
@@ -470,6 +470,11 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 	// methods may not have a fully set up signature yet
 	if m, _ := obj.(*Func); m != nil {
 		check.objDecl(m, nil)
+		// TODO(gri) fix this
+		if IsParameterized(x.typ) {
+			check.errorf(x.pos(), "method expressions/values/calls with parameterized receiver types not implemented yet")
+			goto Error
+		}
 	}
 
 	if x.mode == typexpr {
