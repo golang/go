@@ -53,7 +53,7 @@ import (
 // by calling SetEscapeHTML(false).
 //
 // Array and slice values encode as JSON arrays, except that
-// []byte encodes as a base64-encoded string, and a nil slice
+// []uint8 and []byte encodes as a base64-encoded string, and a nil slice
 // encodes as the null JSON value.
 //
 // Struct values encode as JSON objects.
