@@ -14,6 +14,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/diff"
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/trace"
@@ -233,4 +234,22 @@ func computeTextEdits(ctx context.Context, file File, formatted string) (edits [
 		return nil
 	}
 	return diff.ComputeEdits(file.URI(), string(data), formatted)
+}
+
+func ToProtocolEdits(m *protocol.ColumnMapper, edits []diff.TextEdit) ([]protocol.TextEdit, error) {
+	if edits == nil {
+		return nil, nil
+	}
+	result := make([]protocol.TextEdit, len(edits))
+	for i, edit := range edits {
+		rng, err := m.Range(edit.Span)
+		if err != nil {
+			return nil, err
+		}
+		result[i] = protocol.TextEdit{
+			Range:   rng,
+			NewText: edit.NewText,
+		}
+	}
+	return result, nil
 }

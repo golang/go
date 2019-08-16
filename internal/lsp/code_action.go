@@ -133,14 +133,14 @@ func organizeImports(ctx context.Context, view source.View, s span.Span) ([]prot
 		return nil, nil, err
 	}
 	// Convert all source edits to protocol edits.
-	pEdits, err := ToProtocolEdits(m, edits)
+	pEdits, err := source.ToProtocolEdits(m, edits)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	pEditsPerFix := make([]*protocolImportFix, len(editsPerFix))
 	for i, fix := range editsPerFix {
-		pEdits, err := ToProtocolEdits(m, fix.Edits)
+		pEdits, err := source.ToProtocolEdits(m, fix.Edits)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -241,7 +241,7 @@ func quickFixes(ctx context.Context, view source.View, gof source.GoFile) ([]pro
 			if err != nil {
 				return nil, err
 			}
-			edits, err := ToProtocolEdits(m, ca.Edits)
+			edits, err := source.ToProtocolEdits(m, ca.Edits)
 			if err != nil {
 				return nil, err
 			}

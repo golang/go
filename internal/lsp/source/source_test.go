@@ -18,6 +18,7 @@ import (
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/fuzzy"
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/span"
@@ -87,14 +88,12 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 		if err != nil {
 			t.Fatalf("failed for %v: %v", src, err)
 		}
-		tok, err := f.(source.GoFile).GetToken(ctx)
-		if err != nil {
-			t.Fatalf("failed to get token for %s: %v", src.URI(), err)
-		}
-		pos := tok.Pos(src.Start().Offset())
 		deepComplete := strings.Contains(string(src.URI()), "deepcomplete")
 		unimported := strings.Contains(string(src.URI()), "unimported")
-		list, surrounding, err := source.Completion(ctx, r.view, f.(source.GoFile), pos, source.CompletionOptions{
+		list, surrounding, err := source.Completion(ctx, r.view, f.(source.GoFile), protocol.Position{
+			Line:      float64(src.Start().Line() - 1),
+			Character: float64(src.Start().Column() - 1),
+		}, source.CompletionOptions{
 			DeepComplete:     deepComplete,
 			WantDocumentaton: true,
 			WantUnimported:   unimported,
@@ -144,12 +143,10 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			if err != nil {
 				t.Fatalf("failed for %v: %v", src, err)
 			}
-			tok, err := f.(source.GoFile).GetToken(ctx)
-			if err != nil {
-				t.Fatalf("failed to get token for %s: %v", src.URI(), err)
-			}
-			pos := tok.Pos(src.Start().Offset())
-			list, _, err := source.Completion(ctx, r.view, f.(source.GoFile), pos, source.CompletionOptions{
+			list, _, err := source.Completion(ctx, r.view, f.(source.GoFile), protocol.Position{
+				Line:      float64(src.Start().Line() - 1),
+				Character: float64(src.Start().Column() - 1),
+			}, source.CompletionOptions{
 				DeepComplete: strings.Contains(string(src.URI()), "deepcomplete"),
 			})
 			if err != nil {

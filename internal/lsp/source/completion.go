@@ -13,8 +13,8 @@ import (
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/imports"
-	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/fuzzy"
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
@@ -43,7 +43,7 @@ type CompletionItem struct {
 	// Additional text edits should be used to change text unrelated to the current cursor position
 	// (for example adding an import statement at the top of the file if the completion item will
 	// insert an unqualified type).
-	AdditionalTextEdits []diff.TextEdit
+	AdditionalTextEdits []protocol.TextEdit
 
 	// Depth is how many levels were searched to find this completion.
 	// For example when completing "foo<>", "fooBar" is depth 0, and
@@ -199,6 +199,9 @@ type completer struct {
 	// expensive and can be called many times for the same type while searching
 	// for deep completions.
 	methodSetCache map[methodSetKey]*types.MethodSet
+
+	// mapper converts the positions in the file from which the completion originated.
+	mapper *protocol.ColumnMapper
 }
 
 type compLitInfo struct {
@@ -229,13 +232,13 @@ type methodSetKey struct {
 
 // A Selection represents the cursor position and surrounding identifier.
 type Selection struct {
-	Content string
-	Range   span.Range
-	Cursor  token.Pos
+	content string
+	cursor  token.Pos
+	mappedRange
 }
 
 func (p Selection) Prefix() string {
-	return p.Content[:p.Cursor-p.Range.Start]
+	return p.content[:p.cursor-p.spanRange.Start]
 }
 
 func (c *completer) setSurrounding(ident *ast.Ident) {
@@ -246,9 +249,12 @@ func (c *completer) setSurrounding(ident *ast.Ident) {
 		return
 	}
 	c.surrounding = &Selection{
-		Content: ident.Name,
-		Range:   span.NewRange(c.view.Session().Cache().FileSet(), ident.Pos(), ident.End()),
-		Cursor:  c.pos,
+		content: ident.Name,
+		cursor:  c.pos,
+		mappedRange: mappedRange{
+			spanRange: span.NewRange(c.view.Session().Cache().FileSet(), ident.Pos(), ident.End()),
+			m:         c.mapper,
+		},
 	}
 
 	// Fuzzy matching shares the "useDeepCompletions" config flag, so if deep completions
@@ -258,6 +264,20 @@ func (c *completer) setSurrounding(ident *ast.Ident) {
 	} else {
 		c.matcher = prefixMatcher(strings.ToLower(c.surrounding.Prefix()))
 	}
+}
+
+func (c *completer) getSurrounding() *Selection {
+	if c.surrounding == nil {
+		c.surrounding = &Selection{
+			content: "",
+			cursor:  c.pos,
+			mappedRange: mappedRange{
+				spanRange: span.NewRange(c.view.Session().Cache().FileSet(), c.pos, c.pos),
+				m:         c.mapper,
+			},
+		}
+	}
+	return c.surrounding
 }
 
 // found adds a candidate completion. We will also search through the object's
@@ -351,27 +371,51 @@ type CompletionOptions struct {
 // The selection is computed based on the preceding identifier and can be used by
 // the client to score the quality of the completion. For instance, some clients
 // may tolerate imperfect matches as valid completion results, since users may make typos.
-func Completion(ctx context.Context, view View, f GoFile, pos token.Pos, opts CompletionOptions) ([]CompletionItem, *Selection, error) {
+func Completion(ctx context.Context, view View, f GoFile, pos protocol.Position, opts CompletionOptions) ([]CompletionItem, *Selection, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Completion")
 	defer done()
 
-	file, err := f.GetAST(ctx, ParseFull)
+	pkg, err := f.GetPackage(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	var ph ParseGoHandle
+	for _, h := range pkg.GetHandles() {
+		if h.File().Identity().URI == f.URI() {
+			ph = h
+		}
+	}
+	file, err := ph.Cached(ctx)
 	if file == nil {
 		return nil, nil, err
 	}
-	pkg, err := f.GetPackage(ctx)
+	data, _, err := ph.File().Read(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	fset := view.Session().Cache().FileSet()
+	tok := fset.File(file.Pos())
+	if tok == nil {
+		return nil, nil, errors.Errorf("no token.File for %s", f.URI())
+	}
+	m := protocol.NewColumnMapper(f.URI(), f.URI().Filename(), fset, tok, data)
+	spn, err := m.PointSpan(pos)
+	if err != nil {
+		return nil, nil, err
+	}
+	rng, err := spn.Range(m.Converter)
 	if err != nil {
 		return nil, nil, err
 	}
 	// Completion is based on what precedes the cursor.
 	// Find the path to the position before pos.
-	path, _ := astutil.PathEnclosingInterval(file, pos-1, pos-1)
+	path, _ := astutil.PathEnclosingInterval(file, rng.Start-1, rng.Start-1)
 	if path == nil {
 		return nil, nil, errors.Errorf("cannot find node enclosing position")
 	}
 	// Skip completion inside comments.
 	for _, g := range file.Comments {
-		if g.Pos() <= pos && pos <= g.End() {
+		if g.Pos() <= rng.Start && rng.Start <= g.End() {
 			return nil, nil, nil
 		}
 	}
@@ -380,7 +424,7 @@ func Completion(ctx context.Context, view View, f GoFile, pos token.Pos, opts Co
 		return nil, nil, nil
 	}
 
-	clInfo := enclosingCompositeLiteral(path, pos, pkg.GetTypesInfo())
+	clInfo := enclosingCompositeLiteral(path, rng.Start, pkg.GetTypesInfo())
 	c := &completer{
 		types:                     pkg.GetTypes(),
 		info:                      pkg.GetTypesInfo(),
@@ -390,14 +434,15 @@ func Completion(ctx context.Context, view View, f GoFile, pos token.Pos, opts Co
 		filename:                  f.URI().Filename(),
 		file:                      file,
 		path:                      path,
-		pos:                       pos,
+		pos:                       rng.Start,
 		seen:                      make(map[types.Object]bool),
-		enclosingFunction:         enclosingFunction(path, pos, pkg.GetTypesInfo()),
+		enclosingFunction:         enclosingFunction(path, rng.Start, pkg.GetTypesInfo()),
 		enclosingCompositeLiteral: clInfo,
 		opts:                      opts,
 		// default to a matcher that always matches
 		matcher:        prefixMatcher(""),
 		methodSetCache: make(map[methodSetKey]*types.MethodSet),
+		mapper:         m,
 	}
 
 	c.deepState.enabled = opts.DeepComplete
@@ -414,7 +459,7 @@ func Completion(ctx context.Context, view View, f GoFile, pos token.Pos, opts Co
 		if err := c.structLiteralFieldName(); err != nil {
 			return nil, nil, err
 		}
-		return c.items, c.surrounding, nil
+		return c.items, c.getSurrounding(), nil
 	}
 
 	switch n := path[0].(type) {
@@ -424,7 +469,7 @@ func Completion(ctx context.Context, view View, f GoFile, pos token.Pos, opts Co
 			if err := c.selector(sel); err != nil {
 				return nil, nil, err
 			}
-			return c.items, c.surrounding, nil
+			return c.items, c.getSurrounding(), nil
 		}
 		// reject defining identifiers
 		if obj, ok := pkg.GetTypesInfo().Defs[n]; ok {
@@ -472,7 +517,7 @@ func Completion(ctx context.Context, view View, f GoFile, pos token.Pos, opts Co
 		}
 	}
 
-	return c.items, c.surrounding, nil
+	return c.items, c.getSurrounding(), nil
 }
 
 func (c *completer) wantStructFieldCompletions() bool {

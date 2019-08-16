@@ -13,7 +13,7 @@ import (
 	"go/types"
 	"strings"
 
-	"golang.org/x/tools/internal/lsp/diff"
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
@@ -36,7 +36,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		kind               CompletionItemKind
 		plainSnippet       *snippet.Builder
 		placeholderSnippet *snippet.Builder
-		addlEdits          []diff.TextEdit
+		protocolEdits      []protocol.TextEdit
 	)
 
 	// expandFuncCall mutates the completion label, detail, and snippets
@@ -94,14 +94,18 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		if err != nil {
 			return CompletionItem{}, err
 		}
-		addlEdits = append(addlEdits, edit...)
+		addlEdits, err := ToProtocolEdits(c.mapper, edit)
+		if err != nil {
+			return CompletionItem{}, err
+		}
+		protocolEdits = append(protocolEdits, addlEdits...)
 	}
 
 	detail = strings.TrimPrefix(detail, "untyped ")
 	item := CompletionItem{
 		Label:               label,
 		InsertText:          insert,
-		AdditionalTextEdits: addlEdits,
+		AdditionalTextEdits: protocolEdits,
 		Detail:              detail,
 		Kind:                kind,
 		Score:               cand.score,

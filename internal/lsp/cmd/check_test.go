@@ -52,7 +52,6 @@ func (r *runner) Diagnostics(t *testing.T, data tests.Diagnostics) {
 			got[l] = struct{}{}
 		}
 		for _, diag := range want {
-			// TODO: This is a hack, fix this.
 			expect := fmt.Sprintf("%v:%v:%v: %v", diag.URI.Filename(), diag.Range.Start.Line+1, diag.Range.Start.Character+1, diag.Message)
 			if diag.Range.Start.Character == 0 {
 				expect = fmt.Sprintf("%v:%v: %v", diag.URI.Filename(), diag.Range.Start.Line+1, diag.Message)

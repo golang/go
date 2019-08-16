@@ -49,7 +49,7 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 		if err != nil {
 			return nil, err
 		}
-		protocolEdits, err := ToProtocolEdits(m, textEdits)
+		protocolEdits, err := source.ToProtocolEdits(m, textEdits)
 		if err != nil {
 			return nil, err
 		}

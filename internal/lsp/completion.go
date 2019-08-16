@@ -23,64 +23,42 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	if err != nil {
 		return nil, err
 	}
-	m, err := getMapper(ctx, f)
-	if err != nil {
-		return nil, err
-	}
-	spn, err := m.PointSpan(params.Position)
-	if err != nil {
-		return nil, err
-	}
-	rng, err := spn.Range(m.Converter)
-	if err != nil {
-		return nil, err
-	}
-	candidates, surrounding, err := source.Completion(ctx, view, f, rng.Start, source.CompletionOptions{
+	candidates, surrounding, err := source.Completion(ctx, view, f, params.Position, source.CompletionOptions{
 		DeepComplete:          s.useDeepCompletions,
 		WantDocumentaton:      s.wantCompletionDocumentation,
 		WantFullDocumentation: s.hoverKind == fullDocumentation,
 		WantUnimported:        s.wantUnimportedCompletions,
 	})
 	if err != nil {
-		log.Print(ctx, "no completions found", tag.Of("At", rng), tag.Of("Failure", err))
+		log.Print(ctx, "no completions found", tag.Of("At", params.Position), tag.Of("Failure", err))
 	}
-	return &protocol.CompletionList{
-		// When using deep completions/fuzzy matching, report results as incomplete so
-		// client fetches updated completions after every key stroke.
-		IsIncomplete: s.useDeepCompletions,
-		Items:        s.toProtocolCompletionItems(ctx, view, m, candidates, params.Position, surrounding),
-	}, nil
-}
-
-func (s *Server) toProtocolCompletionItems(ctx context.Context, view source.View, m *protocol.ColumnMapper, candidates []source.CompletionItem, pos protocol.Position, surrounding *source.Selection) []protocol.CompletionItem {
+	if candidates == nil {
+		return &protocol.CompletionList{
+			Items: []protocol.CompletionItem{},
+		}, nil
+	}
+	// We might need to adjust the position to account for the prefix.
+	rng, err := surrounding.Range()
+	if err != nil {
+		return nil, err
+	}
 	// Sort the candidates by score, since that is not supported by LSP yet.
 	sort.SliceStable(candidates, func(i, j int) bool {
 		return candidates[i].Score > candidates[j].Score
 	})
-	// We might need to adjust the position to account for the prefix.
-	insertionRange := protocol.Range{
-		Start: pos,
-		End:   pos,
-	}
-	if surrounding != nil {
-		spn, err := surrounding.Range.Span()
-		if err != nil {
-			log.Print(ctx, "failed to get span for surrounding position: %s:%v:%v: %v", tag.Of("Position", pos), tag.Of("Failure", err))
-		} else {
-			rng, err := m.Range(spn)
-			if err != nil {
-				log.Print(ctx, "failed to convert surrounding position", tag.Of("Position", pos), tag.Of("Failure", err))
-			} else {
-				insertionRange = rng
-			}
-		}
-	}
+	return &protocol.CompletionList{
+		// When using deep completions/fuzzy matching, report results as incomplete so
+		// client fetches updated completions after every key stroke.
+		IsIncomplete: s.useDeepCompletions,
+		Items:        s.toProtocolCompletionItems(candidates, rng),
+	}, nil
+}
 
+func (s *Server) toProtocolCompletionItems(candidates []source.CompletionItem, rng protocol.Range) []protocol.CompletionItem {
 	var (
 		items                  = make([]protocol.CompletionItem, 0, len(candidates))
 		numDeepCompletionsSeen int
 	)
-
 	for i, candidate := range candidates {
 		// Limit the number of deep completions to not overwhelm the user in cases
 		// with dozens of deep completion matches.
@@ -97,21 +75,16 @@ func (s *Server) toProtocolCompletionItems(ctx context.Context, view source.View
 		if s.insertTextFormat == protocol.SnippetTextFormat {
 			insertText = candidate.Snippet(s.usePlaceholders)
 		}
-		addlEdits, err := ToProtocolEdits(m, candidate.AdditionalTextEdits)
-		if err != nil {
-			log.Error(ctx, "failed to convert to protocol edits", err)
-			continue
-		}
 		item := protocol.CompletionItem{
 			Label:  candidate.Label,
 			Detail: candidate.Detail,
 			Kind:   toProtocolCompletionItemKind(candidate.Kind),
 			TextEdit: &protocol.TextEdit{
 				NewText: insertText,
-				Range:   insertionRange,
+				Range:   rng,
 			},
 			InsertTextFormat:    s.insertTextFormat,
-			AdditionalTextEdits: addlEdits,
+			AdditionalTextEdits: candidate.AdditionalTextEdits,
 			// This is a hack so that the client sorts completion results in the order
 			// according to their score. This can be removed upon the resolution of
 			// https://github.com/Microsoft/language-server-protocol/issues/348.

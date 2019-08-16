@@ -14,8 +14,37 @@ import (
 	"regexp"
 	"strings"
 
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
 )
+
+type mappedRange struct {
+	spanRange span.Range
+	m         *protocol.ColumnMapper
+
+	// protocolRange is the result of converting the spanRange using the mapper.
+	// It is computed on-demand.
+	protocolRange *protocol.Range
+}
+
+func (s mappedRange) Range() (protocol.Range, error) {
+	if s.protocolRange == nil {
+		spn, err := s.spanRange.Span()
+		if err != nil {
+			return protocol.Range{}, err
+		}
+		prng, err := s.m.Range(spn)
+		if err != nil {
+			return protocol.Range{}, err
+		}
+		s.protocolRange = &prng
+	}
+	return *s.protocolRange, nil
+}
+
+func (s mappedRange) URI() span.URI {
+	return s.m.URI
+}
 
 func IsGenerated(ctx context.Context, view View, uri span.URI) bool {
 	f, err := view.GetFile(ctx, uri)
