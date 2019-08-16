@@ -5,6 +5,7 @@
 package ocagent
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"reflect"
@@ -17,20 +18,23 @@ import (
 func TestConvert_annotation(t *testing.T) {
 	tests := []struct {
 		name  string
-		event telemetry.Event
+		event func(ctx context.Context) telemetry.Event
 		want  string
 	}{
 		{
-			name: "no tags",
-			want: "null",
+			name:  "no tags",
+			event: func(ctx context.Context) telemetry.Event { return telemetry.Event{} },
+			want:  "null",
 		},
 		{
 			name: "description no error",
-			event: telemetry.Event{
-				Message: "cache miss",
-				Tags: telemetry.TagList{
-					tag.Of("db", "godb"),
-				},
+			event: func(ctx context.Context) telemetry.Event {
+				return telemetry.Event{
+					Message: "cache miss",
+					Tags: telemetry.TagList{
+						tag.Of("db", "godb"),
+					},
+				}
 			},
 			want: `{
   "description": {
@@ -50,12 +54,14 @@ func TestConvert_annotation(t *testing.T) {
 
 		{
 			name: "description and error",
-			event: telemetry.Event{
-				Message: "cache miss",
-				Error:   errors.New("no network connectivity"),
-				Tags: telemetry.TagList{
-					tag.Of("db", "godb"),
-				},
+			event: func(ctx context.Context) telemetry.Event {
+				return telemetry.Event{
+					Message: "cache miss",
+					Error:   errors.New("no network connectivity"),
+					Tags: telemetry.TagList{
+						tag.Of("db", "godb"),
+					},
+				}
 			},
 			want: `{
   "description": {
@@ -79,11 +85,13 @@ func TestConvert_annotation(t *testing.T) {
 		},
 		{
 			name: "no description, but error",
-			event: telemetry.Event{
-				Error: errors.New("no network connectivity"),
-				Tags: telemetry.TagList{
-					tag.Of("db", "godb"),
-				},
+			event: func(ctx context.Context) telemetry.Event {
+				return telemetry.Event{
+					Error: errors.New("no network connectivity"),
+					Tags: telemetry.TagList{
+						tag.Of("db", "godb"),
+					},
+				}
 			},
 			want: `{
   "description": {
@@ -102,30 +110,32 @@ func TestConvert_annotation(t *testing.T) {
 		},
 		{
 			name: "enumerate all attribute types",
-			event: telemetry.Event{
-				Message: "cache miss",
-				Tags: telemetry.TagList{
-					tag.Of("db", "godb"),
+			event: func(ctx context.Context) telemetry.Event {
+				return telemetry.Event{
+					Message: "cache miss",
+					Tags: telemetry.TagList{
+						tag.Of("db", "godb"),
 
-					tag.Of("age", 0.456), // Constant converted into "float64"
-					tag.Of("ttl", float32(5000)),
-					tag.Of("expiry_ms", float64(1e3)),
+						tag.Of("age", 0.456), // Constant converted into "float64"
+						tag.Of("ttl", float32(5000)),
+						tag.Of("expiry_ms", float64(1e3)),
 
-					tag.Of("retry", false),
-					tag.Of("stale", true),
+						tag.Of("retry", false),
+						tag.Of("stale", true),
 
-					tag.Of("max", 0x7fff), // Constant converted into "int"
-					tag.Of("opcode", int8(0x7e)),
-					tag.Of("base", int16(1<<9)),
-					tag.Of("checksum", int32(0x11f7e294)),
-					tag.Of("mode", int64(0644)),
+						tag.Of("max", 0x7fff), // Constant converted into "int"
+						tag.Of("opcode", int8(0x7e)),
+						tag.Of("base", int16(1<<9)),
+						tag.Of("checksum", int32(0x11f7e294)),
+						tag.Of("mode", int64(0644)),
 
-					tag.Of("min", uint(1)),
-					tag.Of("mix", uint8(44)),
-					tag.Of("port", uint16(55678)),
-					tag.Of("min_hops", uint32(1<<9)),
-					tag.Of("max_hops", uint64(0xffffff)),
-				},
+						tag.Of("min", uint(1)),
+						tag.Of("mix", uint8(44)),
+						tag.Of("port", uint16(55678)),
+						tag.Of("min_hops", uint32(1<<9)),
+						tag.Of("max_hops", uint64(0xffffff)),
+					},
+				}
 			},
 			want: `{
   "description": {
@@ -186,10 +196,10 @@ func TestConvert_annotation(t *testing.T) {
 }`,
 		},
 	}
-
+	ctx := context.TODO()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := marshaled(convertAnnotation(tt.event))
+			got := marshaled(convertAnnotation(tt.event(ctx)))
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Fatalf("Got:\n%s\nWant:\n%s", got, tt.want)
 			}
