@@ -16,6 +16,7 @@ const enableTrace = false
 
 var trace bool
 var traceIndent []byte
+var skipDowidthForTracing bool
 
 func tracePrint(title string, n *Node) func(np **Node) {
 	indent := traceIndent
@@ -29,6 +30,8 @@ func tracePrint(title string, n *Node) func(np **Node) {
 		tc = n.Typecheck()
 	}
 
+	skipDowidthForTracing = true
+	defer func() { skipDowidthForTracing = false }()
 	fmt.Printf("%s: %s%s %p %s %v tc=%d\n", pos, indent, title, n, op, n, tc)
 	traceIndent = append(traceIndent, ". "...)
 
@@ -51,6 +54,8 @@ func tracePrint(title string, n *Node) func(np **Node) {
 			typ = n.Type
 		}
 
+		skipDowidthForTracing = true
+		defer func() { skipDowidthForTracing = false }()
 		fmt.Printf("%s: %s=> %p %s %v tc=%d type=%#L\n", pos, indent, n, op, n, tc, typ)
 	}
 }
