@@ -7,7 +7,6 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
-	"log"
 	"testing"
 )
 
@@ -203,7 +202,7 @@ func TestAddImport(t *testing.T) {
 		file := parse(t, test.name, test.in)
 		var before bytes.Buffer
 		ast.Fprint(&before, fset, file, nil)
-		edits, err := AddNamedImport(fset, file, test.renamedPkg, test.pkg)
+		edits, err := addNamedImport(fset, file, test.renamedPkg, test.pkg)
 		if err != nil && !test.unchanged {
 			t.Errorf("error adding import: %s", err)
 			continue
@@ -217,7 +216,7 @@ func TestAddImport(t *testing.T) {
 
 		// AddNamedImport should be idempotent. Verify that by calling it again,
 		// expecting no change to the AST, and the returned added value to always be false.
-		edits, err = AddNamedImport(fset, gotFile, test.renamedPkg, test.pkg)
+		edits, err = addNamedImport(fset, gotFile, test.renamedPkg, test.pkg)
 		if err != nil && !test.unchanged {
 			t.Errorf("error adding import: %s", err)
 			continue
@@ -236,17 +235,16 @@ func TestDoubleAddNamedImport(t *testing.T) {
 	in := "package main\n"
 	file := parse(t, name, in)
 	// Add a named import
-	edits, err := AddNamedImport(fset, file, "o", "os")
+	edits, err := addNamedImport(fset, file, "o", "os")
 	if err != nil {
 		t.Errorf("error adding import: %s", err)
 		return
 	}
 	got := applyEdits(in, edits)
-	log.Println(got)
 	gotFile := parse(t, name, got)
 
 	// Add a second named import
-	edits, err = AddNamedImport(fset, gotFile, "i", "io")
+	edits, err = addNamedImport(fset, gotFile, "i", "io")
 	if err != nil {
 		t.Errorf("error adding import: %s", err)
 		return

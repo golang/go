@@ -89,7 +89,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	// If this candidate needs an additional import statement,
 	// add the additional text edits needed.
 	if cand.imp != nil {
-		edit, err := AddNamedImport(c.view.Session().Cache().FileSet(), c.file, cand.imp.Name, cand.imp.ImportPath)
+		edit, err := addNamedImport(c.view.Session().Cache().FileSet(), c.file, cand.imp.Name, cand.imp.ImportPath)
 		if err != nil {
 			return CompletionItem{}, err
 		}
