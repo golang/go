@@ -52,10 +52,6 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	}, nil
 }
 
-// Limit deep completion results because in some cases there are too many
-// to be useful.
-const maxDeepCompletions = 3
-
 func (s *Server) toProtocolCompletionItems(ctx context.Context, view source.View, m *protocol.ColumnMapper, candidates []source.CompletionItem, pos protocol.Position, surrounding *source.Selection) []protocol.CompletionItem {
 	// Sort the candidates by score, since that is not supported by LSP yet.
 	sort.SliceStable(candidates, func(i, j int) bool {
@@ -92,7 +88,7 @@ func (s *Server) toProtocolCompletionItems(ctx context.Context, view source.View
 			if !s.useDeepCompletions {
 				continue
 			}
-			if numDeepCompletionsSeen >= maxDeepCompletions {
+			if numDeepCompletionsSeen >= source.MaxDeepCompletions {
 				continue
 			}
 			numDeepCompletionsSeen++

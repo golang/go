@@ -9,6 +9,10 @@ import (
 	"strings"
 )
 
+// Limit deep completion results because in most cases there are too many
+// to be useful.
+const MaxDeepCompletions = 3
+
 // deepCompletionState stores our state as we search for deep completions.
 // "deep completion" refers to searching into objects' fields and methods to
 // find more completion candidates.
@@ -23,6 +27,10 @@ type deepCompletionState struct {
 	// chainNames holds the names of the chain objects. This allows us to
 	// save allocations as we build many deep completion items.
 	chainNames []string
+
+	// highScores tracks the highest deep candidate scores we have found
+	// so far. This is used to avoid work for low scoring deep candidates.
+	highScores [MaxDeepCompletions]float64
 }
 
 // push pushes obj onto our search stack.
@@ -43,6 +51,34 @@ func (s *deepCompletionState) chainString(finalName string) string {
 	chainStr := strings.Join(s.chainNames, ".")
 	s.chainNames = s.chainNames[:len(s.chainNames)-1]
 	return chainStr
+}
+
+// isHighScore returns whether score is among the top MaxDeepCompletions
+// deep candidate scores encountered so far. If so, it adds score to
+// highScores, possibly displacing an existing high score.
+func (s *deepCompletionState) isHighScore(score float64) bool {
+	// Invariant: s.highScores is sorted with highest score first. Unclaimed
+	// positions are trailing zeros.
+
+	// First check for an unclaimed spot and claim if available.
+	for i, deepScore := range s.highScores {
+		if deepScore == 0 {
+			s.highScores[i] = score
+			return true
+		}
+	}
+
+	// Otherwise, if we beat an existing score then take its spot and scoot
+	// all lower scores down one position.
+	for i, deepScore := range s.highScores {
+		if score > deepScore {
+			copy(s.highScores[i+1:], s.highScores[i:])
+			s.highScores[i] = score
+			return true
+		}
+	}
+
+	return false
 }
 
 func (c *completer) inDeepCompletion() bool {
