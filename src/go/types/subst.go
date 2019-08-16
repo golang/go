@@ -122,22 +122,25 @@ func (s *subster) typ(typ Type) (res Type) {
 		}
 
 	case *Named:
+		// if not all type parameters are known, create a parameterized type
+		if isParameterizedList(s.targs) {
+			return &Parameterized{t.obj, s.targs}
+		}
+
 		// TODO(gri) revisit name creation (function local types, etc.) and factor out
 		name := TypeString(t, nil) + "<" + typeListString(s.targs) + ">"
-		//s.check.dump("- %s => %s", t, name)
 		if tname, found := s.check.typMap[name]; found {
-			//s.check.dump("- found %s", tname)
 			return tname.typ
 		}
+
 		// create a new named type and populate caches to avoid endless recursion
 		// TODO(gri) should use actual instantiation position
 		tname := NewTypeName(t.obj.pos, s.check.pkg, name, nil)
 		s.check.typMap[name] = tname
 		named := NewNamed(tname, nil, nil)
 		s.cache[t] = named
-		//s.check.dump("- installed %s", tname)
 		named.underlying = s.typ(t.underlying).Underlying()
-		//s.check.dump("- finished %s", tname)
+
 		// instantiate custom methods as necessary
 		for _, m := range t.methods {
 			// methods may not have a fully set up signature yet

@@ -1,13 +1,30 @@
-// Copyright 2019 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 package p
 
-type S(type T) struct {
-        f T
+type Pair(type K) struct {
+	key K
 }
 
-func (r S(T)) m() T {
-        return r.f
+type Receiver(type T) struct {
+	values T
+}
+
+type Iterator(type K) struct {
+	r Receiver(Pair(K))
+}
+
+func (r Receiver(T)) Values() T {
+	return r.values
+}
+
+func Values (type T) (r Receiver(T)) T {
+        return r.values
+}
+
+func (it Iterator(K)) Next() K {
+	// x := it.r.Values()
+        x := Values(Pair(K))(it.r)
+        // it         : Iterator(K)
+        // it.r       : Receiver(Pair(K))
+        // it.r.Values: Pair(K)
+	return x.key
 }

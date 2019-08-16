@@ -56,3 +56,25 @@ func (l List(E)) Head() (_ E, _ bool) {
 	}
 	return
 }
+
+// A test case for instantiating types with other types (extracted from map.go2)
+
+type Pair(type K) struct {
+	key K
+}
+
+type Receiver(type T) struct {
+	values T
+}
+
+type Iterator(type K) struct {
+	r Receiver(Pair(K))
+}
+
+func Values (type T) (r Receiver(T)) T {
+        return r.values
+}
+
+func (it Iterator(K)) Next() K {
+        return Values(Pair(K))(it.r).key
+}
