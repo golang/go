@@ -33,7 +33,7 @@ func Fuzz(data []byte) (score int) {
 		err = Unmarshal(m, u)
 		if err != nil {
 			fmt.Printf("v=%#v\n", v)
-			fmt.Println("m=%s\n", string(m))
+			fmt.Printf("m=%s\n", m)
 			panic(err)
 		}
 	}
