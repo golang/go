@@ -2664,7 +2664,7 @@ func goexit1() {
 	mcall(goexit0)
 }
 
-// goexit continuation on g0.
+// goexit0 continuation on g0.
 func goexit0(gp *g) {
 	_g_ := getg()
 
