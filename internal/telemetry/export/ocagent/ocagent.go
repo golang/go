@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"golang.org/x/tools/internal/telemetry"
@@ -26,6 +27,7 @@ const DefaultAddress = "http://localhost:55678"
 const exportRate = 2 * time.Second
 
 type exporter struct {
+	mu      sync.Mutex
 	address string
 	node    *wire.Node
 	spans   []*wire.Span
@@ -63,9 +65,7 @@ func Connect(service, address string) export.Exporter {
 	}
 	go func() {
 		for _ = range time.Tick(exportRate) {
-			export.Do(func() {
-				exporter.flush()
-			})
+			exporter.flush()
 		}
 	}()
 	return exporter
@@ -74,16 +74,22 @@ func Connect(service, address string) export.Exporter {
 func (e *exporter) StartSpan(ctx context.Context, span *telemetry.Span) {}
 
 func (e *exporter) FinishSpan(ctx context.Context, span *telemetry.Span) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	e.spans = append(e.spans, convertSpan(span))
 }
 
 func (e *exporter) Log(context.Context, telemetry.Event) {}
 
 func (e *exporter) Metric(ctx context.Context, data telemetry.MetricData) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	e.metrics = append(e.metrics, convertMetric(data))
 }
 
 func (e *exporter) flush() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	spans := e.spans
 	e.spans = nil
 	metrics := e.metrics

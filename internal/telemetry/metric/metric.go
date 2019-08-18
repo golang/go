@@ -215,21 +215,19 @@ func (data *Int64Data) Handle() string              { return data.Info.Name }
 func (data *Int64Data) Groups() []telemetry.TagList { return data.groups }
 
 func (data *Int64Data) modify(ctx context.Context, f func(v int64) int64) {
-	export.Do(func() {
-		index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
-		old := data.Rows
-		if insert {
-			data.Rows = make([]int64, len(old)+1)
-			copy(data.Rows, old[:index])
-			copy(data.Rows[index+1:], old[index:])
-		} else {
-			data.Rows = make([]int64, len(old))
-			copy(data.Rows, old)
-		}
-		data.Rows[index] = f(data.Rows[index])
-		frozen := *data
-		export.Metric(ctx, &frozen)
-	})
+	index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
+	old := data.Rows
+	if insert {
+		data.Rows = make([]int64, len(old)+1)
+		copy(data.Rows, old[:index])
+		copy(data.Rows[index+1:], old[index:])
+	} else {
+		data.Rows = make([]int64, len(old))
+		copy(data.Rows, old)
+	}
+	data.Rows[index] = f(data.Rows[index])
+	frozen := *data
+	export.Metric(ctx, &frozen)
 }
 
 func (data *Int64Data) countInt64(ctx context.Context, measure *stats.Int64Measure, value int64) {
@@ -252,21 +250,19 @@ func (data *Float64Data) Handle() string              { return data.Info.Name }
 func (data *Float64Data) Groups() []telemetry.TagList { return data.groups }
 
 func (data *Float64Data) modify(ctx context.Context, f func(v float64) float64) {
-	export.Do(func() {
-		index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
-		old := data.Rows
-		if insert {
-			data.Rows = make([]float64, len(old)+1)
-			copy(data.Rows, old[:index])
-			copy(data.Rows[index+1:], old[index:])
-		} else {
-			data.Rows = make([]float64, len(old))
-			copy(data.Rows, old)
-		}
-		data.Rows[index] = f(data.Rows[index])
-		frozen := *data
-		export.Metric(ctx, &frozen)
-	})
+	index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
+	old := data.Rows
+	if insert {
+		data.Rows = make([]float64, len(old)+1)
+		copy(data.Rows, old[:index])
+		copy(data.Rows[index+1:], old[index:])
+	} else {
+		data.Rows = make([]float64, len(old))
+		copy(data.Rows, old)
+	}
+	data.Rows[index] = f(data.Rows[index])
+	frozen := *data
+	export.Metric(ctx, &frozen)
 }
 
 func (data *Float64Data) sum(ctx context.Context, measure *stats.Float64Measure, value float64) {
@@ -281,27 +277,25 @@ func (data *HistogramInt64Data) Handle() string              { return data.Info.
 func (data *HistogramInt64Data) Groups() []telemetry.TagList { return data.groups }
 
 func (data *HistogramInt64Data) modify(ctx context.Context, f func(v *HistogramInt64Row)) {
-	export.Do(func() {
-		index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
-		old := data.Rows
-		var v HistogramInt64Row
-		if insert {
-			data.Rows = make([]*HistogramInt64Row, len(old)+1)
-			copy(data.Rows, old[:index])
-			copy(data.Rows[index+1:], old[index:])
-		} else {
-			data.Rows = make([]*HistogramInt64Row, len(old))
-			copy(data.Rows, old)
-			v = *data.Rows[index]
-		}
-		oldValues := v.Values
-		v.Values = make([]int64, len(data.Info.Buckets))
-		copy(v.Values, oldValues)
-		f(&v)
-		data.Rows[index] = &v
-		frozen := *data
-		export.Metric(ctx, &frozen)
-	})
+	index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
+	old := data.Rows
+	var v HistogramInt64Row
+	if insert {
+		data.Rows = make([]*HistogramInt64Row, len(old)+1)
+		copy(data.Rows, old[:index])
+		copy(data.Rows[index+1:], old[index:])
+	} else {
+		data.Rows = make([]*HistogramInt64Row, len(old))
+		copy(data.Rows, old)
+		v = *data.Rows[index]
+	}
+	oldValues := v.Values
+	v.Values = make([]int64, len(data.Info.Buckets))
+	copy(v.Values, oldValues)
+	f(&v)
+	data.Rows[index] = &v
+	frozen := *data
+	export.Metric(ctx, &frozen)
 }
 
 func (data *HistogramInt64Data) record(ctx context.Context, measure *stats.Int64Measure, value int64) {
@@ -326,27 +320,25 @@ func (data *HistogramFloat64Data) Handle() string              { return data.Inf
 func (data *HistogramFloat64Data) Groups() []telemetry.TagList { return data.groups }
 
 func (data *HistogramFloat64Data) modify(ctx context.Context, f func(v *HistogramFloat64Row)) {
-	export.Do(func() {
-		index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
-		old := data.Rows
-		var v HistogramFloat64Row
-		if insert {
-			data.Rows = make([]*HistogramFloat64Row, len(old)+1)
-			copy(data.Rows, old[:index])
-			copy(data.Rows[index+1:], old[index:])
-		} else {
-			data.Rows = make([]*HistogramFloat64Row, len(old))
-			copy(data.Rows, old)
-			v = *data.Rows[index]
-		}
-		oldValues := v.Values
-		v.Values = make([]int64, len(data.Info.Buckets))
-		copy(v.Values, oldValues)
-		f(&v)
-		data.Rows[index] = &v
-		frozen := *data
-		export.Metric(ctx, &frozen)
-	})
+	index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
+	old := data.Rows
+	var v HistogramFloat64Row
+	if insert {
+		data.Rows = make([]*HistogramFloat64Row, len(old)+1)
+		copy(data.Rows, old[:index])
+		copy(data.Rows[index+1:], old[index:])
+	} else {
+		data.Rows = make([]*HistogramFloat64Row, len(old))
+		copy(data.Rows, old)
+		v = *data.Rows[index]
+	}
+	oldValues := v.Values
+	v.Values = make([]int64, len(data.Info.Buckets))
+	copy(v.Values, oldValues)
+	f(&v)
+	data.Rows[index] = &v
+	frozen := *data
+	export.Metric(ctx, &frozen)
 }
 
 func (data *HistogramFloat64Data) record(ctx context.Context, measure *stats.Float64Measure, value float64) {

@@ -10,9 +10,9 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"sync"
 
 	"golang.org/x/tools/internal/telemetry"
-	"golang.org/x/tools/internal/telemetry/export"
 	"golang.org/x/tools/internal/telemetry/metric"
 )
 
@@ -21,6 +21,7 @@ func New() *Exporter {
 }
 
 type Exporter struct {
+	mu      sync.Mutex
 	metrics []telemetry.MetricData
 }
 
@@ -28,6 +29,8 @@ func (e *Exporter) StartSpan(ctx context.Context, span *telemetry.Span)  {}
 func (e *Exporter) FinishSpan(ctx context.Context, span *telemetry.Span) {}
 func (e *Exporter) Log(ctx context.Context, event telemetry.Event)       {}
 func (e *Exporter) Metric(ctx context.Context, data telemetry.MetricData) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	name := data.Handle()
 	// We keep the metrics in name sorted order so the page is stable and easy
 	// to read. We do this with an insertion sort rather than sorting the list
@@ -76,48 +79,45 @@ func (e *Exporter) row(w http.ResponseWriter, name string, group telemetry.TagLi
 }
 
 func (e *Exporter) Serve(w http.ResponseWriter, r *http.Request) {
-	done := make(chan struct{})
-	export.Do(func() {
-		defer close(done)
-		for _, data := range e.metrics {
-			switch data := data.(type) {
-			case *metric.Int64Data:
-				e.header(w, data.Info.Name, data.Info.Description, data.IsGauge, false)
-				for i, group := range data.Groups() {
-					e.row(w, data.Info.Name, group, "", data.Rows[i])
-				}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for _, data := range e.metrics {
+		switch data := data.(type) {
+		case *metric.Int64Data:
+			e.header(w, data.Info.Name, data.Info.Description, data.IsGauge, false)
+			for i, group := range data.Groups() {
+				e.row(w, data.Info.Name, group, "", data.Rows[i])
+			}
 
-			case *metric.Float64Data:
-				e.header(w, data.Info.Name, data.Info.Description, data.IsGauge, false)
-				for i, group := range data.Groups() {
-					e.row(w, data.Info.Name, group, "", data.Rows[i])
-				}
+		case *metric.Float64Data:
+			e.header(w, data.Info.Name, data.Info.Description, data.IsGauge, false)
+			for i, group := range data.Groups() {
+				e.row(w, data.Info.Name, group, "", data.Rows[i])
+			}
 
-			case *metric.HistogramInt64Data:
-				e.header(w, data.Info.Name, data.Info.Description, false, true)
-				for i, group := range data.Groups() {
-					row := data.Rows[i]
-					for j, b := range data.Info.Buckets {
-						e.row(w, data.Info.Name+"_bucket", group, fmt.Sprintf(`le="%v"`, b), row.Values[j])
-					}
-					e.row(w, data.Info.Name+"_bucket", group, `le="+Inf"`, row.Count)
-					e.row(w, data.Info.Name+"_count", group, "", row.Count)
-					e.row(w, data.Info.Name+"_sum", group, "", row.Sum)
+		case *metric.HistogramInt64Data:
+			e.header(w, data.Info.Name, data.Info.Description, false, true)
+			for i, group := range data.Groups() {
+				row := data.Rows[i]
+				for j, b := range data.Info.Buckets {
+					e.row(w, data.Info.Name+"_bucket", group, fmt.Sprintf(`le="%v"`, b), row.Values[j])
 				}
+				e.row(w, data.Info.Name+"_bucket", group, `le="+Inf"`, row.Count)
+				e.row(w, data.Info.Name+"_count", group, "", row.Count)
+				e.row(w, data.Info.Name+"_sum", group, "", row.Sum)
+			}
 
-			case *metric.HistogramFloat64Data:
-				e.header(w, data.Info.Name, data.Info.Description, false, true)
-				for i, group := range data.Groups() {
-					row := data.Rows[i]
-					for j, b := range data.Info.Buckets {
-						e.row(w, data.Info.Name+"_bucket", group, fmt.Sprintf(`le="%v"`, b), row.Values[j])
-					}
-					e.row(w, data.Info.Name+"_bucket", group, `le="+Inf"`, row.Count)
-					e.row(w, data.Info.Name+"_count", group, "", row.Count)
-					e.row(w, data.Info.Name+"_sum", group, "", row.Sum)
+		case *metric.HistogramFloat64Data:
+			e.header(w, data.Info.Name, data.Info.Description, false, true)
+			for i, group := range data.Groups() {
+				row := data.Rows[i]
+				for j, b := range data.Info.Buckets {
+					e.row(w, data.Info.Name+"_bucket", group, fmt.Sprintf(`le="%v"`, b), row.Values[j])
 				}
+				e.row(w, data.Info.Name+"_bucket", group, `le="+Inf"`, row.Count)
+				e.row(w, data.Info.Name+"_count", group, "", row.Count)
+				e.row(w, data.Info.Name+"_sum", group, "", row.Sum)
 			}
 		}
-	})
-	<-done
+	}
 }

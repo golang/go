@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package export
+package stats
 
 import (
 	"fmt"
@@ -23,14 +23,14 @@ func init() {
 	}()
 }
 
-// Do adds a task to the list of things to work on in the background.
+// do adds a task to the list of things to work on in the background.
 // All tasks will be handled in submission order, and no two tasks will happen
 // concurrently so they do not need to do any kind of locking.
 // It is safe however to call Do concurrently.
 // No promises are made about when the tasks will be performed.
 // This function may block, but in general it will return very quickly and
 // before the task has been run.
-func Do(task func()) {
+func do(task func()) {
 	select {
 	case workQueue <- task:
 	default:

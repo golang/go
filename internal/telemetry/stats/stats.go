@@ -69,9 +69,11 @@ func (m *Int64Measure) Subscribe(s Int64Subscriber) { m.subscribers = append(m.s
 
 // Record delivers a new value to the subscribers of this measure.
 func (m *Int64Measure) Record(ctx context.Context, value int64) {
-	for _, s := range m.subscribers {
-		s(ctx, m, value)
-	}
+	do(func() {
+		for _, s := range m.subscribers {
+			s(ctx, m, value)
+		}
+	})
 }
 
 // Name returns the name this measure was given on construction.
@@ -88,7 +90,9 @@ func (m *Float64Measure) Subscribe(s Float64Subscriber) { m.subscribers = append
 
 // Record delivers a new value to the subscribers of this measure.
 func (m *Float64Measure) Record(ctx context.Context, value float64) {
-	for _, s := range m.subscribers {
-		s(ctx, m, value)
-	}
+	do(func() {
+		for _, s := range m.subscribers {
+			s(ctx, m, value)
+		}
+	})
 }
