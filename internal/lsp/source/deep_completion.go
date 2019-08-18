@@ -7,6 +7,7 @@ package source
 import (
 	"go/types"
 	"strings"
+	"time"
 )
 
 // Limit deep completion results because in most cases there are too many
@@ -17,8 +18,9 @@ const MaxDeepCompletions = 3
 // "deep completion" refers to searching into objects' fields and methods to
 // find more completion candidates.
 type deepCompletionState struct {
-	// enabled is true if deep completions are enabled.
-	enabled bool
+	// maxDepth limits the deep completion search depth. 0 means
+	// disabled and -1 means unlimited.
+	maxDepth int
 
 	// chain holds the traversal path as we do a depth-first search through
 	// objects' members looking for exact type matches.
@@ -31,6 +33,10 @@ type deepCompletionState struct {
 	// highScores tracks the highest deep candidate scores we have found
 	// so far. This is used to avoid work for low scoring deep candidates.
 	highScores [MaxDeepCompletions]float64
+
+	// candidateCount is the count of unique deep candidates encountered
+	// so far.
+	candidateCount int
 }
 
 // push pushes obj onto our search stack.
@@ -85,10 +91,51 @@ func (c *completer) inDeepCompletion() bool {
 	return len(c.deepState.chain) > 0
 }
 
+// shouldPrune returns whether we should prune the current deep
+// candidate search to reduce the overall search scope. The
+// maximum search depth is reduced gradually as we use up our
+// completionBudget.
+func (c *completer) shouldPrune() bool {
+	if !c.inDeepCompletion() {
+		return false
+	}
+
+	c.deepState.candidateCount++
+
+	// Check our remaining budget every 1000 candidates.
+	if c.deepState.candidateCount%1000 == 0 {
+		spent := float64(time.Since(c.startTime)) / float64(completionBudget)
+
+		switch {
+		case spent >= 0.90:
+			// We are close to exhausting our budget. Disable deep completions.
+			c.deepState.maxDepth = 0
+		case spent >= 0.75:
+			// We are running out of budget, reduce max depth again.
+			c.deepState.maxDepth = 2
+		case spent >= 0.5:
+			// We have used half our budget, reduce max depth again.
+			c.deepState.maxDepth = 3
+		case spent >= 0.25:
+			// We have used a good chunk of our budget, so start limiting our search.
+			// By default the search depth is unlimited, so this limit, while still
+			// generous, is normally a huge reduction in search scope that will result
+			// in our search completing very soon.
+			c.deepState.maxDepth = 4
+		}
+	}
+
+	if c.deepState.maxDepth >= 0 {
+		return len(c.deepState.chain) >= c.deepState.maxDepth
+	}
+
+	return false
+}
+
 // deepSearch searches through obj's subordinate objects for more
 // completion items.
 func (c *completer) deepSearch(obj types.Object) {
-	if !c.deepState.enabled {
+	if c.deepState.maxDepth == 0 {
 		return
 	}
 

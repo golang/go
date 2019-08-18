@@ -10,6 +10,7 @@ import (
 	"go/token"
 	"go/types"
 	"strings"
+	"time"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/imports"
@@ -122,6 +123,12 @@ const (
 
 	// lowScore indicates an irrelevant or not useful completion item.
 	lowScore float64 = 0.01
+
+	// completionBudget is the soft latency goal for completion requests. Most
+	// requests finish in a couple milliseconds, but in some cases deep
+	// completions can take much longer. As we use up our budget we dynamically
+	// reduce the search scope to ensure we return timely results.
+	completionBudget = 100 * time.Millisecond
 )
 
 // matcher matches a candidate's label against the user input.
@@ -202,6 +209,10 @@ type completer struct {
 
 	// mapper converts the positions in the file from which the completion originated.
 	mapper *protocol.ColumnMapper
+
+	// startTime is when we started processing this completion request. It does
+	// not include any time the request spent in the queue.
+	startTime time.Time
 }
 
 type compLitInfo struct {
@@ -259,7 +270,7 @@ func (c *completer) setSurrounding(ident *ast.Ident) {
 
 	// Fuzzy matching shares the "useDeepCompletions" config flag, so if deep completions
 	// are enabled then also enable fuzzy matching.
-	if c.deepState.enabled {
+	if c.deepState.maxDepth != 0 {
 		c.matcher = fuzzy.NewMatcher(c.surrounding.Prefix(), fuzzy.Symbol)
 	} else {
 		c.matcher = prefixMatcher(strings.ToLower(c.surrounding.Prefix()))
@@ -304,6 +315,12 @@ func (c *completer) found(obj types.Object, score float64, imp *imports.ImportIn
 			return
 		}
 		c.seen[obj] = true
+	}
+
+	// If we are running out of budgeted time we must limit our search for deep
+	// completion candidates.
+	if c.shouldPrune() {
+		return
 	}
 
 	cand := candidate{
@@ -375,6 +392,8 @@ func Completion(ctx context.Context, view View, f GoFile, pos protocol.Position,
 	ctx, done := trace.StartSpan(ctx, "source.Completion")
 	defer done()
 
+	startTime := time.Now()
+
 	pkg, err := f.GetPackage(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -443,9 +462,12 @@ func Completion(ctx context.Context, view View, f GoFile, pos protocol.Position,
 		matcher:        prefixMatcher(""),
 		methodSetCache: make(map[methodSetKey]*types.MethodSet),
 		mapper:         m,
+		startTime:      startTime,
 	}
 
-	c.deepState.enabled = opts.DeepComplete
+	if opts.DeepComplete {
+		c.deepState.maxDepth = -1
+	}
 
 	// Set the filter surrounding.
 	if ident, ok := path[0].(*ast.Ident); ok {
