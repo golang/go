@@ -78,6 +78,8 @@
 // If the arguments to build are a list of .go files from a single directory,
 // build treats them as a list of source files specifying a single package.
 //
+// When compiling packages, build ignores files that end in '_test.go'.
+//
 // When compiling a single main package, build writes
 // the resulting executable to an output file named after
 // the first source file ('go build ed.go rx.go' writes 'ed' or 'ed.exe')
@@ -87,8 +89,6 @@
 // When compiling multiple packages or a single non-main package,
 // build compiles the packages but discards the resulting object,
 // serving only as a check that the packages can be built.
-//
-// When compiling packages, build ignores files that end in '_test.go'.
 //
 // The -o flag forces build to write the resulting executable or object
 // to the named output file or directory, instead of the default behavior described
