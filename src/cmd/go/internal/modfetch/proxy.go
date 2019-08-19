@@ -38,8 +38,8 @@ can be a module proxy.
 
 The GET requests sent to a Go module proxy are:
 
-GET $GOPROXY/<module>/@v/list returns a list of all known versions of the
-given module, one per line.
+GET $GOPROXY/<module>/@v/list returns a list of known versions of the given
+module, one per line.
 
 GET $GOPROXY/<module>/@v/<version>.info returns JSON-formatted metadata
 about that version of the given module.
@@ -49,6 +49,21 @@ for that version of the given module.
 
 GET $GOPROXY/<module>/@v/<version>.zip returns the zip archive
 for that version of the given module.
+
+GET $GOPROXY/<module>/@latest returns JSON-formatted metadata about the
+latest known version of the given module in the same format as
+<module>/@v/<version>.info. The latest version should be the version of
+the module the go command may use if <module>/@v/list is empty or no
+listed version is suitable. <module>/@latest is optional and may not
+be implemented by a module proxy.
+
+When resolving the latest version of a module, the go command will request
+<module>/@v/list, then, if no suitable versions are found, <module>/@latest.
+The go command prefers, in order: the semantically highest release version,
+the semantically highest pre-release version, and the chronologically
+most recent pseudo-version. In Go 1.12 and earlier, the go command considered
+pseudo-versions in <module>/@v/list to be pre-release versions, but this is
+no longer true since Go 1.13.
 
 To avoid problems when serving from case-sensitive file systems,
 the <module> and <version> elements are case-encoded, replacing every
