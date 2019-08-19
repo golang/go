@@ -81,11 +81,13 @@ type Server struct {
 	usePlaceholders               bool
 	hoverKind                     hoverKind
 	useDeepCompletions            bool
+	watchFileChanges              bool
 	wantCompletionDocumentation   bool
 	wantUnimportedCompletions     bool
 	insertTextFormat              protocol.InsertTextFormat
 	configurationSupported        bool
 	dynamicConfigurationSupported bool
+	dynamicWatchedFilesSupported  bool
 	preferredContentFormat        protocol.MarkupKind
 	disabledAnalyses              map[string]struct{}
 	wantSuggestedFixes            bool
@@ -130,8 +132,8 @@ func (s *Server) DidChangeConfiguration(context.Context, *protocol.DidChangeConf
 	return notImplemented("DidChangeConfiguration")
 }
 
-func (s *Server) DidChangeWatchedFiles(context.Context, *protocol.DidChangeWatchedFilesParams) error {
-	return notImplemented("DidChangeWatchedFiles")
+func (s *Server) DidChangeWatchedFiles(ctx context.Context, params *protocol.DidChangeWatchedFilesParams) error {
+	return s.didChangeWatchedFiles(ctx, params)
 }
 
 func (s *Server) Symbol(context.Context, *protocol.WorkspaceSymbolParams) ([]protocol.SymbolInformation, error) {

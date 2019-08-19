@@ -327,6 +327,10 @@ func (s *session) buildOverlay() map[string][]byte {
 	return overlays
 }
 
+func (s *session) DidChangeOutOfBand(uri span.URI) {
+	s.filesWatchMap.Notify(uri)
+}
+
 func (o *overlay) FileSystem() source.FileSystem {
 	return o.session
 }

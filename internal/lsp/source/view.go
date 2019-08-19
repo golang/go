@@ -181,11 +181,15 @@ type Session interface {
 	// DidClose is invoked each time an open file is closed in the editor.
 	DidClose(uri span.URI)
 
-	// IsOpen can be called to check if the editor has a file currently open.
+	// IsOpen returns whether the editor currently has a file open.
 	IsOpen(uri span.URI) bool
 
 	// Called to set the effective contents of a file from this session.
 	SetOverlay(uri span.URI, data []byte) (wasFirstChange bool)
+
+	// DidChangeOutOfBand is called when a file under the root folder
+	// changes. The file is not necessarily open in the editor.
+	DidChangeOutOfBand(uri span.URI)
 }
 
 // View represents a single workspace.
@@ -204,8 +208,13 @@ type View interface {
 	// BuiltinPackage returns the ast for the special "builtin" package.
 	BuiltinPackage() *ast.Package
 
-	// GetFile returns the file object for a given uri.
+	// GetFile returns the file object for a given URI, initializing it
+	// if it is not already part of the view.
 	GetFile(ctx context.Context, uri span.URI) (File, error)
+
+	// FindFile returns the file object for a given URI if it is
+	// already part of the view.
+	FindFile(ctx context.Context, uri span.URI) File
 
 	// Called to set the effective contents of a file from this view.
 	SetContent(ctx context.Context, uri span.URI, content []byte) (wasFirstChange bool, err error)
