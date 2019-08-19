@@ -26,6 +26,8 @@ type Exporter interface {
 	Log(context.Context, telemetry.Event)
 
 	Metric(context.Context, telemetry.MetricData)
+
+	Flush()
 }
 
 var (
@@ -89,4 +91,10 @@ func Metric(ctx context.Context, data telemetry.MetricData) {
 	exporterMu.Lock()
 	defer exporterMu.Unlock()
 	exporter.Metric(ctx, data)
+}
+
+func Flush() {
+	exporterMu.Lock()
+	defer exporterMu.Unlock()
+	exporter.Flush()
 }

@@ -21,3 +21,4 @@ func (null) StartSpan(context.Context, *telemetry.Span)   {}
 func (null) FinishSpan(context.Context, *telemetry.Span)  {}
 func (null) Log(context.Context, telemetry.Event)         {}
 func (null) Metric(context.Context, telemetry.MetricData) {}
+func (null) Flush()                                       {}

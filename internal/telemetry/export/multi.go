@@ -48,3 +48,8 @@ func (m multi) Metric(ctx context.Context, data telemetry.MetricData) {
 		o.Metric(ctx, data)
 	}
 }
+func (m multi) Flush() {
+	for _, o := range m {
+		o.Flush()
+	}
+}

@@ -93,6 +93,8 @@ type rpcCodeBucket struct {
 func (r *rpcs) StartSpan(ctx context.Context, span *telemetry.Span)  {}
 func (r *rpcs) FinishSpan(ctx context.Context, span *telemetry.Span) {}
 func (r *rpcs) Log(ctx context.Context, event telemetry.Event)       {}
+func (r *rpcs) Flush()                                               {}
+
 func (r *rpcs) Metric(ctx context.Context, data telemetry.MetricData) {
 	for i, group := range data.Groups() {
 		set := &r.Inbound

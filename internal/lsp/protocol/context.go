@@ -27,8 +27,11 @@ func WithClient(ctx context.Context, client Client) context.Context {
 // context.
 type logExporter struct{}
 
-func (logExporter) StartSpan(context.Context, *telemetry.Span)  {}
-func (logExporter) FinishSpan(context.Context, *telemetry.Span) {}
+func (logExporter) StartSpan(context.Context, *telemetry.Span)   {}
+func (logExporter) FinishSpan(context.Context, *telemetry.Span)  {}
+func (logExporter) Metric(context.Context, telemetry.MetricData) {}
+func (logExporter) Flush()                                       {}
+
 func (logExporter) Log(ctx context.Context, event telemetry.Event) {
 	client, ok := ctx.Value(clientKey).(Client)
 	if !ok {
@@ -40,4 +43,3 @@ func (logExporter) Log(ctx context.Context, event telemetry.Event) {
 	}
 	go client.LogMessage(xcontext.Detach(ctx), msg)
 }
-func (logExporter) Metric(context.Context, telemetry.MetricData) {}

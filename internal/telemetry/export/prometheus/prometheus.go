@@ -28,6 +28,8 @@ type Exporter struct {
 func (e *Exporter) StartSpan(ctx context.Context, span *telemetry.Span)  {}
 func (e *Exporter) FinishSpan(ctx context.Context, span *telemetry.Span) {}
 func (e *Exporter) Log(ctx context.Context, event telemetry.Event)       {}
+func (e *Exporter) Flush()                                               {}
+
 func (e *Exporter) Metric(ctx context.Context, data telemetry.MetricData) {
 	e.mu.Lock()
 	defer e.mu.Unlock()

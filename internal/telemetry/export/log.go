@@ -35,3 +35,4 @@ func (w *logWriter) Log(ctx context.Context, event telemetry.Event) {
 	fmt.Fprintf(w.writer, "%v\n", event)
 }
 func (w *logWriter) Metric(context.Context, telemetry.MetricData) {}
+func (w *logWriter) Flush()                                       {}

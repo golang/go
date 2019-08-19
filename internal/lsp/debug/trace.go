@@ -134,6 +134,8 @@ func (t *traces) Log(ctx context.Context, event telemetry.Event) {}
 
 func (t *traces) Metric(ctx context.Context, data telemetry.MetricData) {}
 
+func (t *traces) Flush() {}
+
 func (t *traces) getData(req *http.Request) interface{} {
 	if len(t.sets) == 0 {
 		return nil
