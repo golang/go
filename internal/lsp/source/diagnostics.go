@@ -35,6 +35,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
@@ -55,7 +56,7 @@ type Diagnostic struct {
 
 type SuggestedFixes struct {
 	Title string
-	Edits []TextEdit
+	Edits []diff.TextEdit
 }
 
 type DiagnosticSeverity int

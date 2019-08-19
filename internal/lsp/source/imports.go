@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -35,7 +36,7 @@ import (
 //	import pathpkg "path"
 //
 // addNamedImport only returns edits that affect the import declarations.
-func addNamedImport(fset *token.FileSet, f *ast.File, name, path string) (edits []TextEdit, err error) {
+func addNamedImport(fset *token.FileSet, f *ast.File, name, path string) (edits []diff.TextEdit, err error) {
 	if alreadyImports(f, name, path) {
 		return nil, nil
 	}
@@ -178,7 +179,7 @@ func addNamedImport(fset *token.FileSet, f *ast.File, name, path string) (edits 
 		return nil, err
 	}
 
-	edits = append(edits, TextEdit{
+	edits = append(edits, diff.TextEdit{
 		Span:    spn,
 		NewText: newText,
 	})

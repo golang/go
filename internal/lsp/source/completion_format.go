@@ -13,6 +13,7 @@ import (
 	"go/types"
 	"strings"
 
+	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/snippet"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
@@ -35,7 +36,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		kind               CompletionItemKind
 		plainSnippet       *snippet.Builder
 		placeholderSnippet *snippet.Builder
-		addlEdits          []TextEdit
+		addlEdits          []diff.TextEdit
 	)
 
 	// expandFuncCall mutates the completion label, detail, and snippets

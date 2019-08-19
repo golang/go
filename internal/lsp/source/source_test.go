@@ -289,13 +289,12 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 			}
 			continue
 		}
-		ops := source.EditsToDiff(edits)
 		data, _, err := f.Handle(ctx).Read(ctx)
 		if err != nil {
 			t.Error(err)
 			continue
 		}
-		got := strings.Join(diff.ApplyEdits(diff.SplitLines(string(data)), ops), "")
+		got := diff.ApplyEdits(string(data), edits)
 		if gofmted != got {
 			t.Errorf("format failed for %s, expected:\n%v\ngot:\n%v", filename, gofmted, got)
 		}
@@ -331,13 +330,12 @@ func (r *runner) Import(t *testing.T, data tests.Imports) {
 			}
 			continue
 		}
-		ops := source.EditsToDiff(edits)
 		data, _, err := f.Handle(ctx).Read(ctx)
 		if err != nil {
 			t.Error(err)
 			continue
 		}
-		got := strings.Join(diff.ApplyEdits(diff.SplitLines(string(data)), ops), "")
+		got := diff.ApplyEdits(string(data), edits)
 		if goimported != got {
 			t.Errorf("import failed for %s, expected:\n%v\ngot:\n%v", filename, goimported, got)
 		}
@@ -538,7 +536,7 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 	}
 }
 
-func applyEdits(contents string, edits []source.TextEdit) string {
+func applyEdits(contents string, edits []diff.TextEdit) string {
 	res := contents
 
 	// Apply the edits from the end of the file forward

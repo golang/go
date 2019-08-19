@@ -2,7 +2,9 @@ package source
 
 import (
 	"go/token"
+
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -16,7 +18,7 @@ func getCodeActions(fset *token.FileSet, diag analysis.Diagnostic) ([]SuggestedF
 			if err != nil {
 				return nil, err
 			}
-			ca.Edits = append(ca.Edits, TextEdit{span, string(te.NewText)})
+			ca.Edits = append(ca.Edits, diff.TextEdit{Span: span, NewText: string(te.NewText)})
 		}
 		cas = append(cas, ca)
 	}

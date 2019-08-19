@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/imports"
+	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/fuzzy"
 	"golang.org/x/tools/internal/lsp/snippet"
 	"golang.org/x/tools/internal/span"
@@ -41,7 +42,7 @@ type CompletionItem struct {
 	// Additional text edits should be used to change text unrelated to the current cursor position
 	// (for example adding an import statement at the top of the file if the completion item will
 	// insert an unqualified type).
-	AdditionalTextEdits []TextEdit
+	AdditionalTextEdits []diff.TextEdit
 
 	// Depth is how many levels were searched to find this completion.
 	// For example when completing "foo<>", "fooBar" is depth 0, and

@@ -8,6 +8,8 @@ import (
 	"go/parser"
 	"go/token"
 	"testing"
+
+	"golang.org/x/tools/internal/lsp/diff"
 )
 
 var fset = token.NewFileSet()
@@ -125,7 +127,7 @@ package main // Here is a comment after`,
 		name: "package statement multiline comments",
 		pkg:  "os",
 		in: `package main /* This is a multiline comment
-and it extends 
+and it extends
 further down*/`,
 		want: []importInfo{
 			importInfo{
@@ -137,7 +139,7 @@ further down*/`,
 	{
 		name: "import c",
 		pkg:  "os",
-		in: `package main 
+		in: `package main
 
 import "C"
 `,
@@ -155,7 +157,7 @@ import "C"
 	{
 		name: "existing imports",
 		pkg:  "os",
-		in: `package main 
+		in: `package main
 
 import "io"
 `,
@@ -173,7 +175,7 @@ import "io"
 	{
 		name: "existing imports with comment",
 		pkg:  "os",
-		in: `package main 
+		in: `package main
 
 import "io" // A comment
 `,
@@ -191,7 +193,7 @@ import "io" // A comment
 	{
 		name: "existing imports multiline comment",
 		pkg:  "os",
-		in: `package main 
+		in: `package main
 
 import "io" /* A comment
 that
@@ -212,7 +214,7 @@ extends */
 		name:       "renamed import",
 		renamedPkg: "o",
 		pkg:        "os",
-		in: `package main 
+		in: `package main
 `,
 		want: []importInfo{
 			importInfo{
@@ -314,7 +316,7 @@ func compareImports(t *testing.T, prefix string, got []*ast.ImportSpec, want []i
 	}
 }
 
-func applyEdits(contents string, edits []TextEdit) string {
+func applyEdits(contents string, edits []diff.TextEdit) string {
 	res := contents
 
 	// Apply the edits from the end of the file forward

@@ -7,6 +7,7 @@ package lsp
 import (
 	"context"
 
+	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -51,7 +52,7 @@ func spanToRange(ctx context.Context, view source.View, spn span.Span) (source.G
 	return f, m, rng, nil
 }
 
-func ToProtocolEdits(m *protocol.ColumnMapper, edits []source.TextEdit) ([]protocol.TextEdit, error) {
+func ToProtocolEdits(m *protocol.ColumnMapper, edits []diff.TextEdit) ([]protocol.TextEdit, error) {
 	if edits == nil {
 		return nil, nil
 	}
@@ -69,17 +70,17 @@ func ToProtocolEdits(m *protocol.ColumnMapper, edits []source.TextEdit) ([]proto
 	return result, nil
 }
 
-func FromProtocolEdits(m *protocol.ColumnMapper, edits []protocol.TextEdit) ([]source.TextEdit, error) {
+func FromProtocolEdits(m *protocol.ColumnMapper, edits []protocol.TextEdit) ([]diff.TextEdit, error) {
 	if edits == nil {
 		return nil, nil
 	}
-	result := make([]source.TextEdit, len(edits))
+	result := make([]diff.TextEdit, len(edits))
 	for i, edit := range edits {
 		spn, err := m.RangeSpan(edit.Range)
 		if err != nil {
 			return nil, err
 		}
-		result[i] = source.TextEdit{
+		result[i] = diff.TextEdit{
 			Span:    spn,
 			NewText: edit.NewText,
 		}

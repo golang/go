@@ -21,7 +21,7 @@ import (
 )
 
 // Format formats a file with a given range.
-func Format(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) {
+func Format(ctx context.Context, f GoFile, rng span.Range) ([]diff.TextEdit, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Format")
 	defer done()
 
@@ -74,7 +74,7 @@ func formatSource(ctx context.Context, file File) ([]byte, error) {
 }
 
 // Imports formats a file using the goimports tool.
-func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]TextEdit, error) {
+func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]diff.TextEdit, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Imports")
 	defer done()
 	data, _, err := f.Handle(ctx).Read(ctx)
@@ -112,14 +112,14 @@ func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]TextEd
 
 type ImportFix struct {
 	Fix   *imports.ImportFix
-	Edits []TextEdit
+	Edits []diff.TextEdit
 }
 
 // AllImportsFixes formats f for each possible fix to the imports.
 // In addition to returning the result of applying all edits,
 // it returns a list of fixes that could be applied to the file, with the
 // corresponding TextEdits that would be needed to apply that fix.
-func AllImportsFixes(ctx context.Context, view View, f GoFile, rng span.Range) (edits []TextEdit, editsPerFix []*ImportFix, err error) {
+func AllImportsFixes(ctx context.Context, view View, f GoFile, rng span.Range) (edits []diff.TextEdit, editsPerFix []*ImportFix, err error) {
 	ctx, done := trace.StartSpan(ctx, "source.AllImportsFixes")
 	defer done()
 	data, _, err := f.Handle(ctx).Read(ctx)
@@ -224,7 +224,7 @@ func hasListErrors(errors []packages.Error) bool {
 	return false
 }
 
-func computeTextEdits(ctx context.Context, file File, formatted string) (edits []TextEdit) {
+func computeTextEdits(ctx context.Context, file File, formatted string) (edits []diff.TextEdit) {
 	ctx, done := trace.StartSpan(ctx, "source.computeTextEdits")
 	defer done()
 	data, _, err := file.Handle(ctx).Read(ctx)
@@ -232,7 +232,5 @@ func computeTextEdits(ctx context.Context, file File, formatted string) (edits [
 		log.Error(ctx, "Cannot compute text edits", err)
 		return nil
 	}
-	u := diff.SplitLines(string(data))
-	f := diff.SplitLines(formatted)
-	return DiffToEdits(file.URI(), diff.Operations(u, f))
+	return diff.ComputeEdits(file.URI(), string(data), formatted)
 }

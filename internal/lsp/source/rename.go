@@ -14,6 +14,7 @@ import (
 	"regexp"
 
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/trace"
 	"golang.org/x/tools/refactor/satisfy"
@@ -35,7 +36,7 @@ type renamer struct {
 }
 
 // Rename returns a map of TextEdits for each file modified when renaming a given identifier within a package.
-func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.URI][]TextEdit, error) {
+func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.URI][]diff.TextEdit, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Rename")
 	defer done()
 
@@ -93,14 +94,14 @@ func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.U
 
 	// Sort edits for each file.
 	for _, edits := range changes {
-		sortTextEdits(edits)
+		diff.SortTextEdits(edits)
 	}
 	return changes, nil
 }
 
 // Rename all references to the identifier.
-func (r *renamer) update() (map[span.URI][]TextEdit, error) {
-	result := make(map[span.URI][]TextEdit)
+func (r *renamer) update() (map[span.URI][]diff.TextEdit, error) {
+	result := make(map[span.URI][]diff.TextEdit)
 	seen := make(map[span.Span]bool)
 
 	docRegexp, err := regexp.Compile(`\b` + r.from + `\b`)
@@ -129,7 +130,7 @@ func (r *renamer) update() (map[span.URI][]TextEdit, error) {
 		}
 
 		// Replace the identifier with r.to.
-		edit := TextEdit{
+		edit := diff.TextEdit{
 			Span:    refSpan,
 			NewText: r.to,
 		}
@@ -153,7 +154,7 @@ func (r *renamer) update() (map[span.URI][]TextEdit, error) {
 				if err != nil {
 					return nil, err
 				}
-				result[spn.URI()] = append(result[spn.URI()], TextEdit{
+				result[spn.URI()] = append(result[spn.URI()], diff.TextEdit{
 					Span:    spn,
 					NewText: r.to,
 				})
@@ -194,7 +195,7 @@ func (r *renamer) docComment(pkg Package, id *ast.Ident) *ast.CommentGroup {
 }
 
 // updatePkgName returns the updates to rename a pkgName in the import spec
-func (r *renamer) updatePkgName(pkgName *types.PkgName) (*TextEdit, error) {
+func (r *renamer) updatePkgName(pkgName *types.PkgName) (*diff.TextEdit, error) {
 	// Modify ImportSpec syntax to add or remove the Name as needed.
 	pkg := r.packages[pkgName.Pkg()]
 	_, path, _ := pathEnclosingInterval(r.ctx, r.fset, pkg, pkgName.Pos(), pkgName.Pos())
@@ -229,7 +230,7 @@ func (r *renamer) updatePkgName(pkgName *types.PkgName) (*TextEdit, error) {
 	format.Node(&buf, r.fset, updated)
 	newText := buf.String()
 
-	return &TextEdit{
+	return &diff.TextEdit{
 		Span:    spn,
 		NewText: newText,
 	}, nil

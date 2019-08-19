@@ -10,13 +10,10 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"sort"
-	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/imports"
-	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -303,64 +300,4 @@ type Package interface {
 
 	// GetActionGraph returns the action graph for the given package.
 	GetActionGraph(ctx context.Context, a *analysis.Analyzer) (*Action, error)
-}
-
-// TextEdit represents a change to a section of a document.
-// The text within the specified span should be replaced by the supplied new text.
-type TextEdit struct {
-	Span    span.Span
-	NewText string
-}
-
-// DiffToEdits converts from a sequence of diff operations to a sequence of
-// source.TextEdit
-func DiffToEdits(uri span.URI, ops []*diff.Op) []TextEdit {
-	edits := make([]TextEdit, 0, len(ops))
-	for _, op := range ops {
-		s := span.New(uri, span.NewPoint(op.I1+1, 1, 0), span.NewPoint(op.I2+1, 1, 0))
-		switch op.Kind {
-		case diff.Delete:
-			// Delete: unformatted[i1:i2] is deleted.
-			edits = append(edits, TextEdit{Span: s})
-		case diff.Insert:
-			// Insert: formatted[j1:j2] is inserted at unformatted[i1:i1].
-			if content := strings.Join(op.Content, ""); content != "" {
-				edits = append(edits, TextEdit{Span: s, NewText: content})
-			}
-		}
-	}
-	return edits
-}
-
-func EditsToDiff(edits []TextEdit) []*diff.Op {
-	iToJ := 0
-	ops := make([]*diff.Op, len(edits))
-	for i, edit := range edits {
-		i1 := edit.Span.Start().Line() - 1
-		i2 := edit.Span.End().Line() - 1
-		kind := diff.Insert
-		if edit.NewText == "" {
-			kind = diff.Delete
-		}
-		ops[i] = &diff.Op{
-			Kind:    kind,
-			Content: diff.SplitLines(edit.NewText),
-			I1:      i1,
-			I2:      i2,
-			J1:      i1 + iToJ,
-		}
-		if kind == diff.Insert {
-			iToJ += len(ops[i].Content)
-		} else {
-			iToJ -= i2 - i1
-		}
-	}
-	return ops
-}
-
-func sortTextEdits(d []TextEdit) {
-	// Use a stable sort to maintain the order of edits inserted at the same position.
-	sort.SliceStable(d, func(i int, j int) bool {
-		return span.Compare(d[i].Span, d[j].Span) < 0
-	})
 }
