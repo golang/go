@@ -825,7 +825,7 @@ godoc
       A new function <a href="/pkg/net/http/#NewRequestWithContext"><code>NewRequestWithContext</code></a> has been added and it
       accepts a <a href="/pkg/context/#Context"><code>Context</code></a> that controls the entire lifetime of
       the created outgoing <a href="/pkg/net/http/#Request"><code>Request</code></a>, suitable for use with
-      <a href="/pkg/net/http/#Client.Do"><code>Client.Do</code></a> and <a href="/pkg/net/http/#Transport.RoundTrip"><code>Transport.RoundTrip</code></a>
+      <a href="/pkg/net/http/#Client.Do"><code>Client.Do</code></a> and <a href="/pkg/net/http/#Transport.RoundTrip"><code>Transport.RoundTrip</code></a>.
     </p>
 
     <p><!-- CL 179457 -->
@@ -876,7 +876,7 @@ godoc
       Tracebacks, <a href="/pkg/runtime/#Caller"><code>runtime.Caller</code></a>,
       and <a href="/pkg/runtime/#Callers"><code>runtime.Callers</code></a> now refer to the function that
       initializes the global variables of <code>PKG</code>
-      as <code>PKG.init</code> instead of <code>PKG.init.ializers</code>
+      as <code>PKG.init</code> instead of <code>PKG.init.ializers</code>.
     </p>
 
 </dl><!-- runtime -->
@@ -892,6 +892,14 @@ godoc
 
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
+    <p><!-- CL 148958, CL 148959, CL 152697, CL 152698 -->
+      The fast paths of <a href="/pkg/sync/#Mutex.Lock"><code>Mutex.Lock</code></a>, <a href="/pkg/sync/#Mutex.Unlock"><code>Mutex.Unlock</code></a>,
+      <a href="/pkg/sync/#RWMutex.Lock"><code>RWMutex.Lock</code></a>, <a href="/pkg/sync/#Mutex.RUnlock"><code>RWMutex.RUnlock</code></a>, and
+      <a href="/pkg/sync/#Once.Do"><code>Once.Do</code></a> are now inlined in their callers.
+      For the uncontended cases on amd64, these changes make <a href="/pkg/sync/#Once.Do"><code>Once.Do</code></a> twice as fast, and the
+      <a href="/pkg/sync/#Mutex"><code>Mutex</code></a>/<a href="/pkg/sync/#RWMutex"><code>RWMutex</code></a> methods up to 10% faster.
+    </p>
+
     <p><!-- CL 166960 -->
       Large <a href="/pkg/sync/#Pool"><code>Pool</code></a> no longer increase stop-the-world pause times.
     </p>

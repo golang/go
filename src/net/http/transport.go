@@ -710,6 +710,8 @@ func resetProxyConfig() {
 }
 
 func (t *Transport) connectMethodForRequest(treq *transportRequest) (cm connectMethod, err error) {
+	// TODO: the validPort check is redundant after CL 189258, as url.URL.Port
+	// only returns valid ports now. golang.org/issue/33600
 	if port := treq.URL.Port(); !validPort(port) {
 		return cm, fmt.Errorf("invalid URL port %q", port)
 	}

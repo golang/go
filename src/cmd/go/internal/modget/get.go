@@ -735,7 +735,7 @@ func runQueries(cache map[querySpec]*query, queries []*query, modOnly map[string
 	return byPath
 }
 
-// getQuery evaluates the given package path, version pair
+// getQuery evaluates the given (package or module) path and version
 // to determine the underlying module version being requested.
 // If forceModulePath is set, getQuery must interpret path
 // as a module path.
@@ -753,40 +753,51 @@ func getQuery(path, vers string, prevM module.Version, forceModulePath bool) (mo
 		base.Fatalf("go get: internal error: prevM may be set if and only if forceModulePath is set")
 	}
 
-	if forceModulePath || !strings.Contains(path, "...") {
+	// If the query must be a module path, try only that module path.
+	if forceModulePath {
 		if path == modload.Target.Path {
 			if vers != "latest" {
 				return module.Version{}, fmt.Errorf("can't get a specific version of the main module")
 			}
 		}
 
-		// If the path doesn't contain a wildcard, try interpreting it as a module path.
 		info, err := modload.Query(path, vers, prevM.Version, modload.Allowed)
 		if err == nil {
 			return module.Version{Path: path, Version: info.Version}, nil
 		}
 
-		// If the query fails, and the path must be a real module, report the query error.
-		if forceModulePath {
-			// If the query was "upgrade" or "patch" and the current version has been
-			// replaced, check to see whether the error was for that same version:
-			// if so, the version was probably replaced because it is invalid,
-			// and we should keep that replacement without complaining.
-			if vers == "upgrade" || vers == "patch" {
-				var vErr *module.InvalidVersionError
-				if errors.As(err, &vErr) && vErr.Version == prevM.Version && modload.Replacement(prevM).Path != "" {
-					return prevM, nil
-				}
+		// If the query was "upgrade" or "patch" and the current version has been
+		// replaced, check to see whether the error was for that same version:
+		// if so, the version was probably replaced because it is invalid,
+		// and we should keep that replacement without complaining.
+		if vers == "upgrade" || vers == "patch" {
+			var vErr *module.InvalidVersionError
+			if errors.As(err, &vErr) && vErr.Version == prevM.Version && modload.Replacement(prevM).Path != "" {
+				return prevM, nil
 			}
-			return module.Version{}, err
 		}
-	}
 
-	// Otherwise, try a package path or pattern.
-	results, err := modload.QueryPattern(path, vers, modload.Allowed)
-	if err != nil {
 		return module.Version{}, err
 	}
+
+	// If the query may be either a package or a module, try it as a package path.
+	// If it turns out to only exist as a module, we can detect the resulting
+	// PackageNotInModuleError and avoid a second round-trip through (potentially)
+	// all of the configured proxies.
+	results, err := modload.QueryPattern(path, vers, modload.Allowed)
+	if err != nil {
+		// If the path doesn't contain a wildcard, check whether it was actually a
+		// module path instead. If so, return that.
+		if !strings.Contains(path, "...") {
+			var modErr *modload.PackageNotInModuleError
+			if errors.As(err, &modErr) && modErr.Mod.Path == path {
+				return modErr.Mod, nil
+			}
+		}
+
+		return module.Version{}, err
+	}
+
 	return results[0].Mod, nil
 }
 
