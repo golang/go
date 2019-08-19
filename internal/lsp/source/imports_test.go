@@ -84,10 +84,36 @@ import (
 		},
 	},
 	{
-		name: "package statement comments",
+		// Issue 33721: add import statement after package declaration preceded by comments.
+		name: "issue 33721 package statement comments before",
 		pkg:  "os",
-		in: `// This is a comment
-package main // This too`,
+		in: `// Here is a comment before
+package main
+`,
+		want: []importInfo{
+			importInfo{
+				name: "",
+				path: "os",
+			},
+		},
+	},
+	{
+		name: "package statement comments same line",
+		pkg:  "os",
+		in: `package main // Here is a comment after
+`,
+		want: []importInfo{
+			importInfo{
+				name: "",
+				path: "os",
+			},
+		},
+	},
+	{
+		name: "package statement comments before and after",
+		pkg:  "os",
+		in: `// Here is a comment before
+package main // Here is a comment after`,
 		want: []importInfo{
 			importInfo{
 				name: "",
