@@ -1048,7 +1048,96 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 */
 func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
-	p0 := p // save entry point, but skipping the two instructions setting R2 in shared mode
+	if c.ctxt.Flag_maymorestack != "" {
+		if c.ctxt.Flag_shared || c.ctxt.Flag_dynlink {
+			// See the call to morestack for why these are
+			// complicated to support.
+			c.ctxt.Diag("maymorestack with -shared or -dynlink is not supported")
+		}
+
+		// Spill arguments. This has to happen before we open
+		// any more frame space.
+		p = c.cursym.Func().SpillRegisterArgs(p, c.newprog)
+
+		// Save LR and REGCTXT
+		frameSize := 8 + c.ctxt.FixedFrameSize()
+
+		// MOVD LR, REGTMP
+		p = obj.Appendp(p, c.newprog)
+		p.As = AMOVD
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REG_LR
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REGTMP
+		// MOVDU REGTMP, -16(SP)
+		p = obj.Appendp(p, c.newprog)
+		p.As = AMOVDU
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REGTMP
+		p.To.Type = obj.TYPE_MEM
+		p.To.Offset = -frameSize
+		p.To.Reg = REGSP
+		p.Spadj = int32(frameSize)
+
+		// MOVD REGCTXT, 8(SP)
+		p = obj.Appendp(p, c.newprog)
+		p.As = AMOVD
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REGCTXT
+		p.To.Type = obj.TYPE_MEM
+		p.To.Offset = 8
+		p.To.Reg = REGSP
+
+		// BL maymorestack
+		p = obj.Appendp(p, c.newprog)
+		p.As = ABL
+		p.To.Type = obj.TYPE_BRANCH
+		// See ../x86/obj6.go
+		p.To.Sym = c.ctxt.LookupABI(c.ctxt.Flag_maymorestack, c.cursym.ABI())
+
+		// Restore LR and REGCTXT
+
+		// MOVD 8(SP), REGCTXT
+		p = obj.Appendp(p, c.newprog)
+		p.As = AMOVD
+		p.From.Type = obj.TYPE_MEM
+		p.From.Offset = 8
+		p.From.Reg = REGSP
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REGCTXT
+
+		// MOVD 0(SP), REGTMP
+		p = obj.Appendp(p, c.newprog)
+		p.As = AMOVD
+		p.From.Type = obj.TYPE_MEM
+		p.From.Offset = 0
+		p.From.Reg = REGSP
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REGTMP
+
+		// MOVD REGTMP, LR
+		p = obj.Appendp(p, c.newprog)
+		p.As = AMOVD
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REGTMP
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_LR
+
+		// ADD $16, SP
+		p = obj.Appendp(p, c.newprog)
+		p.As = AADD
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = frameSize
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REGSP
+		p.Spadj = -int32(frameSize)
+
+		// Unspill arguments.
+		p = c.cursym.Func().UnspillRegisterArgs(p, c.newprog)
+	}
+
+	// save entry point, but skipping the two instructions setting R2 in shared mode and maymorestack
+	startPred := p
 
 	// MOVD	g_stackguard(g), R22
 	p = obj.Appendp(p, c.newprog)
@@ -1262,7 +1351,7 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	p = obj.Appendp(p, c.newprog)
 	p.As = ABR
 	p.To.Type = obj.TYPE_BRANCH
-	p.To.SetTarget(p0.Link)
+	p.To.SetTarget(startPred.Link)
 
 	// placeholder for q1's jump target
 	p = obj.Appendp(p, c.newprog)
