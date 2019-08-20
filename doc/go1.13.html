@@ -389,6 +389,13 @@ go env -w GOSUMDB=off
   from the compiled executable, to improve build reproducibility.
 </p>
 
+<p id="o-dir"><!-- CL 167679 -->
+  If the <code>-o</code> flag passed to <code>go</code> <code>build</code>
+  refers to an existing directory, <code>go</code> <code>build</code> will now
+  write executable files within that directory for <code>main</code> packages
+  matching its package arguments.
+</p>
+
 <p id="comma-separated-tags"><!-- CL 173438 -->
   The <code>go</code> <code>build</code> flag <code>-tags</code> now takes a
   comma-separated list of build tags, to allow for multiple tags in
