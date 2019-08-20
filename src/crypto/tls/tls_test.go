@@ -370,47 +370,6 @@ func TestVerifyHostname(t *testing.T) {
 	}
 }
 
-func TestVerifyHostnameResumed(t *testing.T) {
-	t.Run("TLSv12", func(t *testing.T) { testVerifyHostnameResumed(t, VersionTLS12) })
-	t.Run("TLSv13", func(t *testing.T) { testVerifyHostnameResumed(t, VersionTLS13) })
-}
-
-func testVerifyHostnameResumed(t *testing.T, version uint16) {
-	testenv.MustHaveExternalNetwork(t)
-
-	config := &Config{
-		MaxVersion:         version,
-		ClientSessionCache: NewLRUClientSessionCache(32),
-	}
-	for i := 0; i < 2; i++ {
-		c, err := Dial("tcp", "mail.google.com:https", config)
-		if err != nil {
-			t.Fatalf("Dial #%d: %v", i, err)
-		}
-		cs := c.ConnectionState()
-		if i > 0 && !cs.DidResume {
-			t.Fatalf("Subsequent connection unexpectedly didn't resume")
-		}
-		if cs.Version != version {
-			t.Fatalf("Unexpectedly negotiated version %x", cs.Version)
-		}
-		if cs.VerifiedChains == nil {
-			t.Fatalf("Dial #%d: cs.VerifiedChains == nil", i)
-		}
-		if err := c.VerifyHostname("mail.google.com"); err != nil {
-			t.Fatalf("verify mail.google.com #%d: %v", i, err)
-		}
-		// Give the client a chance to read the server session tickets.
-		c.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
-		if _, err := c.Read(make([]byte, 1)); err != nil {
-			if err, ok := err.(net.Error); !ok || !err.Timeout() {
-				t.Fatal(err)
-			}
-		}
-		c.Close()
-	}
-}
-
 func TestConnCloseBreakingWrite(t *testing.T) {
 	ln := newLocalListener(t)
 	defer ln.Close()

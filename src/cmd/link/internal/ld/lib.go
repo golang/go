@@ -1803,7 +1803,15 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_NOTYPE || elf.ST_TYPE(elfsym.Info) == elf.STT_SECTION {
 			continue
 		}
-		lsym := ctxt.Syms.Lookup(elfsym.Name, 0)
+
+		// Symbols whose names start with "type." are compiler
+		// generated, so make functions with that prefix internal.
+		ver := 0
+		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && strings.HasPrefix(elfsym.Name, "type.") {
+			ver = sym.SymVerABIInternal
+		}
+
+		lsym := ctxt.Syms.Lookup(elfsym.Name, ver)
 		// Because loadlib above loads all .a files before loading any shared
 		// libraries, any non-dynimport symbols we find that duplicate symbols
 		// already loaded should be ignored (the symbols from the .a files
@@ -1831,7 +1839,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		// the ABIs are actually different. We might have to
 		// mangle Go function names in the .so to include the
 		// ABI.
-		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
+		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
 			alias := ctxt.Syms.Lookup(elfsym.Name, sym.SymVerABIInternal)
 			if alias.Type != 0 {
 				continue
@@ -1959,7 +1967,7 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
 		s.Attr |= sym.AttrStackCheck
 	}
 
-	if depth > 100 {
+	if depth > 500 {
 		Errorf(s, "nosplit stack check too deep")
 		stkbroke(ctxt, up, 0)
 		return -1
