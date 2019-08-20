@@ -192,6 +192,7 @@ func ParseFlags() {
 	Ctxt.Flag_shared = Ctxt.Flag_dynlink || Ctxt.Flag_shared
 	Ctxt.Flag_optimize = Flag.N == 0
 	Ctxt.Debugasm = int(Flag.S)
+	Ctxt.Flag_maymorestack = Debug.MayMoreStack
 
 	if flag.NArg() < 1 {
 		usage()

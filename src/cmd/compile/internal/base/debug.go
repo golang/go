@@ -42,6 +42,7 @@ type DebugFlags struct {
 	UnifiedQuirks        int    `help:"enable unified IR construction's quirks mode"`
 	WB                   int    `help:"print information about write barriers"`
 	ABIWrap              int    `help:"print information about ABI wrapper generation"`
+	MayMoreStack         string `help:"call named function before all stack growth checks"`
 
 	Any bool // set when any of the debug flags have been set
 }

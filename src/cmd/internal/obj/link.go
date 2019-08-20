@@ -880,7 +880,8 @@ type Link struct {
 	Flag_linkshared    bool
 	Flag_optimize      bool
 	Flag_locationlists bool
-	Retpoline          bool // emit use of retpoline stubs for indirect jmp/call
+	Retpoline          bool   // emit use of retpoline stubs for indirect jmp/call
+	Flag_maymorestack  string // If not "", call this function before stack checks
 	Bso                *bufio.Writer
 	Pathname           string
 	Pkgpath            string           // the current package's import path, "" if unknown
