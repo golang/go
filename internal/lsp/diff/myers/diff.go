@@ -67,6 +67,10 @@ func ApplyEdits(a []string, operations []*Op) []string {
 // Operations returns the list of operations to convert a into b, consolidating
 // operations for multiple lines and not including equal lines.
 func Operations(a, b []string) []*Op {
+	if len(a) == 0 && len(b) == 0 {
+		return nil
+	}
+
 	trace, offset := shortestEditSequence(a, b)
 	snakes := backtrack(trace, len(a), len(b), offset)
 
