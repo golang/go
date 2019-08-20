@@ -88,14 +88,14 @@ var algarray = [alg_max]typeAlg{
 var useAeshash bool
 
 // in asm_*.s
-func aeshash(p unsafe.Pointer, h, s uintptr) uintptr
-func aeshash32(p unsafe.Pointer, h uintptr) uintptr
-func aeshash64(p unsafe.Pointer, h uintptr) uintptr
-func aeshashstr(p unsafe.Pointer, h uintptr) uintptr
+func memhash(p unsafe.Pointer, h, s uintptr) uintptr
+func memhash32(p unsafe.Pointer, h uintptr) uintptr
+func memhash64(p unsafe.Pointer, h uintptr) uintptr
+func strhash(p unsafe.Pointer, h uintptr) uintptr
 
-func strhash(a unsafe.Pointer, h uintptr) uintptr {
+func strhashFallback(a unsafe.Pointer, h uintptr) uintptr {
 	x := (*stringStruct)(a)
-	return memhash(x.str, h, uintptr(x.len))
+	return memhashFallback(x.str, h, uintptr(x.len))
 }
 
 // NOTE: Because NaN != NaN, a map can contain any
@@ -305,14 +305,7 @@ func alginit() {
 }
 
 func initAlgAES() {
-	if GOOS == "aix" {
-		// runtime.algarray is immutable on AIX: see cmd/link/internal/ld/xcoff.go
-		return
-	}
 	useAeshash = true
-	algarray[alg_MEM32].hash = aeshash32
-	algarray[alg_MEM64].hash = aeshash64
-	algarray[alg_STRING].hash = aeshashstr
 	// Initialize with random data so hash collisions will be hard to engineer.
 	getRandomData(aeskeysched[:])
 }

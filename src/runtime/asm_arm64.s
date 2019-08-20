@@ -445,8 +445,11 @@ CALLFN(·call268435456, 268435464 )
 CALLFN(·call536870912, 536870920 )
 CALLFN(·call1073741824, 1073741832 )
 
-// func aeshash32(p unsafe.Pointer, h uintptr) uintptr
-TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-24
+// func memhash32(p unsafe.Pointer, h uintptr) uintptr
+TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
+	MOVB	runtime·useAeshash(SB), R0
+	CMP	$0, R0
+	BEQ	noaes
 	MOVD	p+0(FP), R0
 	MOVD	h+8(FP), R1
 	MOVD	$ret+16(FP), R2
@@ -465,9 +468,14 @@ TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-24
 
 	VST1	[V0.D1], (R2)
 	RET
+noaes:
+	B	runtime·memhash32Fallback(SB)
 
-// func aeshash64(p unsafe.Pointer, h uintptr) uintptr
-TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-24
+// func memhash64(p unsafe.Pointer, h uintptr) uintptr
+TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
+	MOVB	runtime·useAeshash(SB), R0
+	CMP	$0, R0
+	BEQ	noaes
 	MOVD	p+0(FP), R0
 	MOVD	h+8(FP), R1
 	MOVD	$ret+16(FP), R2
@@ -486,22 +494,34 @@ TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-24
 
 	VST1	[V0.D1], (R2)
 	RET
+noaes:
+	B	runtime·memhash64Fallback(SB)
 
-// func aeshash(p unsafe.Pointer, h, size uintptr) uintptr
-TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-32
+// func memhash(p unsafe.Pointer, h, size uintptr) uintptr
+TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-32
+	MOVB	runtime·useAeshash(SB), R0
+	CMP	$0, R0
+	BEQ	noaes
 	MOVD	p+0(FP), R0
 	MOVD	s+16(FP), R1
 	MOVWU	h+8(FP), R3
 	MOVD	$ret+24(FP), R2
 	B	aeshashbody<>(SB)
+noaes:
+	B	runtime·memhashFallback(SB)
 
-// func aeshashstr(p unsafe.Pointer, h uintptr) uintptr
-TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-24
+// func strhash(p unsafe.Pointer, h uintptr) uintptr
+TEXT runtime·strhash(SB),NOSPLIT|NOFRAME,$0-24
+	MOVB	runtime·useAeshash(SB), R0
+	CMP	$0, R0
+	BEQ	noaes
 	MOVD	p+0(FP), R10 // string pointer
 	LDP	(R10), (R0, R1) //string data/ length
 	MOVWU	h+8(FP), R3
 	MOVD	$ret+16(FP), R2 // return adddress
 	B	aeshashbody<>(SB)
+noaes:
+	B	runtime·strhashFallback(SB)
 
 // R0: data
 // R1: length (maximum 32 bits)

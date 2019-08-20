@@ -176,6 +176,16 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
 	RET
 
+// AES hashing not implemented for wasm
+TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-32
+	JMP	runtime·memhashFallback(SB)
+TEXT runtime·strhash(SB),NOSPLIT|NOFRAME,$0-24
+	JMP	runtime·strhashFallback(SB)
+TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
+	JMP	runtime·memhash32Fallback(SB)
+TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
+	JMP	runtime·memhash64Fallback(SB)
+
 TEXT runtime·return0(SB), NOSPLIT, $0-0
 	MOVD $0, RET0
 	RET
