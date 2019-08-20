@@ -23,7 +23,8 @@ import (
 // ModuleResolver implements resolver for modules using the go command as little
 // as feasible.
 type ModuleResolver struct {
-	env *ProcessEnv
+	env            *ProcessEnv
+	moduleCacheDir string
 
 	Initialized   bool
 	Main          *ModuleJSON
@@ -116,7 +117,7 @@ func (r *ModuleResolver) findPackage(importPath string) (*ModuleJSON, string) {
 		}
 		pathInModule := importPath[len(m.Path):]
 		pkgDir := filepath.Join(m.Dir, pathInModule)
-		if dirIsNestedModule(pkgDir, m) {
+		if r.dirIsNestedModule(pkgDir, m) {
 			continue
 		}
 
@@ -155,7 +156,7 @@ func (r *ModuleResolver) findModuleByDir(dir string) *ModuleJSON {
 			continue
 		}
 
-		if dirIsNestedModule(dir, m) {
+		if r.dirIsNestedModule(dir, m) {
 			continue
 		}
 
@@ -166,18 +167,28 @@ func (r *ModuleResolver) findModuleByDir(dir string) *ModuleJSON {
 
 // dirIsNestedModule reports if dir is contained in a nested module underneath
 // mod, not actually in mod.
-func dirIsNestedModule(dir string, mod *ModuleJSON) bool {
+func (r *ModuleResolver) dirIsNestedModule(dir string, mod *ModuleJSON) bool {
 	if !strings.HasPrefix(dir, mod.Dir) {
 		return false
 	}
-	mf := findModFile(dir)
+	if r.dirInModuleCache(dir) {
+		// Nested modules in the module cache are pruned,
+		// so it cannot be a nested module.
+		return false
+	}
+	mf := r.findModFile(dir)
 	if mf == "" {
 		return false
 	}
 	return filepath.Dir(mf) != mod.Dir
 }
 
-func findModFile(dir string) string {
+func (r *ModuleResolver) findModFile(dir string) string {
+	if r.dirInModuleCache(dir) {
+		matches := modCacheRegexp.FindStringSubmatch(dir)
+		index := strings.Index(dir, matches[1]+"@"+matches[2])
+		return filepath.Join(dir[:index], matches[1]+"@"+matches[2], "go.mod")
+	}
 	for {
 		f := filepath.Join(dir, "go.mod")
 		info, err := os.Stat(f)
@@ -190,6 +201,13 @@ func findModFile(dir string) string {
 		}
 		dir = d
 	}
+}
+
+func (r *ModuleResolver) dirInModuleCache(dir string) bool {
+	if r.moduleCacheDir == "" {
+		return false
+	}
+	return strings.HasPrefix(dir, r.moduleCacheDir)
 }
 
 func (r *ModuleResolver) loadPackageNames(importPaths []string, srcDir string) (map[string]string, error) {
@@ -223,9 +241,10 @@ func (r *ModuleResolver) scan(_ references) ([]*pkg, error) {
 	if r.Main != nil {
 		roots = append(roots, gopathwalk.Root{r.Main.Dir, gopathwalk.RootCurrentModule})
 	}
-	for _, p := range filepath.SplitList(r.env.GOPATH) {
-		roots = append(roots, gopathwalk.Root{filepath.Join(p, "/pkg/mod"), gopathwalk.RootModuleCache})
+	if r.moduleCacheDir == "" {
+		r.moduleCacheDir = filepath.Join(filepath.SplitList(r.env.GOPATH)[0], "/pkg/mod")
 	}
+	roots = append(roots, gopathwalk.Root{r.moduleCacheDir, gopathwalk.RootModuleCache})
 
 	// Walk replace targets, just in case they're not in any of the above.
 	for _, mod := range r.ModsByModPath {
@@ -359,15 +378,7 @@ func (r *ModuleResolver) scanDirForPackage(root gopathwalk.Root, dir string) (di
 	}
 
 	// Check that this package is not obviously impossible to import.
-	var modFile string
-	switch root.Type {
-	case gopathwalk.RootModuleCache:
-		matches := modCacheRegexp.FindStringSubmatch(subdir)
-		index := strings.Index(dir, matches[1]+"@"+matches[2])
-		modFile = filepath.Join(dir[:index], matches[1]+"@"+matches[2], "go.mod")
-	default:
-		modFile = findModFile(dir)
-	}
+	modFile := r.findModFile(dir)
 
 	var needsReplace bool
 	modBytes, err := ioutil.ReadFile(modFile)

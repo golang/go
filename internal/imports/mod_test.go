@@ -712,3 +712,24 @@ func writeProxyModule(base, arPath string) error {
 	}
 	return nil
 }
+
+// Tests that findModFile can find the mod files from a path in the module cache.
+func TestFindModFileModCache(t *testing.T) {
+	mt := setup(t, `
+-- go.mod --
+module x
+
+require rsc.io/quote v1.5.2
+-- x.go --
+package x
+import _ "rsc.io/quote"
+`, "")
+	defer mt.cleanup()
+	want := filepath.Join(mt.resolver.env.GOPATH, "pkg/mod", "rsc.io/quote@v1.5.2", "go.mod")
+
+	found := mt.assertScanFinds("rsc.io/quote", "quote")
+	modFile := mt.resolver.findModFile(found.dir)
+	if modFile != want {
+		t.Errorf("expected: %s, got: %s", want, modFile)
+	}
+}
