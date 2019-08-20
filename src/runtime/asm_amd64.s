@@ -885,21 +885,29 @@ done:
 	MOVQ	AX, ret+0(FP)
 	RET
 
-// func aeshash(p unsafe.Pointer, h, s uintptr) uintptr
+// func memhash(p unsafe.Pointer, h, s uintptr) uintptr
 // hash function using AES hardware instructions
-TEXT runtime·aeshash(SB),NOSPLIT,$0-32
+TEXT runtime·memhash(SB),NOSPLIT,$0-32
+	CMPB	runtime·useAeshash(SB), $0
+	JEQ	noaes
 	MOVQ	p+0(FP), AX	// ptr to data
 	MOVQ	s+16(FP), CX	// size
 	LEAQ	ret+24(FP), DX
 	JMP	aeshashbody<>(SB)
+noaes:
+	JMP	runtime·memhashFallback(SB)
 
-// func aeshashstr(p unsafe.Pointer, h uintptr) uintptr
-TEXT runtime·aeshashstr(SB),NOSPLIT,$0-24
+// func strhash(p unsafe.Pointer, h uintptr) uintptr
+TEXT runtime·strhash(SB),NOSPLIT,$0-24
+	CMPB	runtime·useAeshash(SB), $0
+	JEQ	noaes
 	MOVQ	p+0(FP), AX	// ptr to string struct
 	MOVQ	8(AX), CX	// length of string
 	MOVQ	(AX), AX	// string data
 	LEAQ	ret+16(FP), DX
 	JMP	aeshashbody<>(SB)
+noaes:
+	JMP	runtime·strhashFallback(SB)
 
 // AX: data
 // CX: length
@@ -1232,8 +1240,11 @@ aesloop:
 	MOVQ	X8, (DX)
 	RET
 
-// func aeshash32(p unsafe.Pointer, h uintptr) uintptr
-TEXT runtime·aeshash32(SB),NOSPLIT,$0-24
+// func memhash32(p unsafe.Pointer, h uintptr) uintptr
+TEXT runtime·memhash32(SB),NOSPLIT,$0-24
+	CMPB	runtime·useAeshash(SB), $0
+	JEQ	noaes
+	JMP	runtime·memhash32Fallback(SB)
 	MOVQ	p+0(FP), AX	// ptr to data
 	MOVQ	h+8(FP), X0	// seed
 	PINSRD	$2, (AX), X0	// data
@@ -1242,9 +1253,14 @@ TEXT runtime·aeshash32(SB),NOSPLIT,$0-24
 	AESENC	runtime·aeskeysched+32(SB), X0
 	MOVQ	X0, ret+16(FP)
 	RET
+noaes:
+	JMP	runtime·memhash32Fallback(SB)
 
-// func aeshash64(p unsafe.Pointer, h uintptr) uintptr
-TEXT runtime·aeshash64(SB),NOSPLIT,$0-24
+// func memhash64(p unsafe.Pointer, h uintptr) uintptr
+TEXT runtime·memhash64(SB),NOSPLIT,$0-24
+	CMPB	runtime·useAeshash(SB), $0
+	JEQ	noaes
+	JMP	runtime·memhash64Fallback(SB)
 	MOVQ	p+0(FP), AX	// ptr to data
 	MOVQ	h+8(FP), X0	// seed
 	PINSRQ	$1, (AX), X0	// data
@@ -1253,6 +1269,8 @@ TEXT runtime·aeshash64(SB),NOSPLIT,$0-24
 	AESENC	runtime·aeskeysched+32(SB), X0
 	MOVQ	X0, ret+16(FP)
 	RET
+noaes:
+	JMP	runtime·memhash64Fallback(SB)
 
 // simple mask to get rid of data in the high part of the register.
 DATA masks<>+0x00(SB)/8, $0x0000000000000000

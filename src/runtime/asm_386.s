@@ -911,18 +911,26 @@ TEXT runtime·emptyfunc(SB),0,$0-0
 	RET
 
 // hash function using AES hardware instructions
-TEXT runtime·aeshash(SB),NOSPLIT,$0-16
+TEXT runtime·memhash(SB),NOSPLIT,$0-16
+	CMPB	runtime·useAeshash(SB), $0
+	JEQ	noaes
 	MOVL	p+0(FP), AX	// ptr to data
 	MOVL	s+8(FP), BX	// size
 	LEAL	ret+12(FP), DX
 	JMP	aeshashbody<>(SB)
+noaes:
+	JMP	runtime·memhashFallback(SB)
 
-TEXT runtime·aeshashstr(SB),NOSPLIT,$0-12
+TEXT runtime·strhash(SB),NOSPLIT,$0-12
+	CMPB	runtime·useAeshash(SB), $0
+	JEQ	noaes
 	MOVL	p+0(FP), AX	// ptr to string object
 	MOVL	4(AX), BX	// length of string
 	MOVL	(AX), AX	// string data
 	LEAL	ret+8(FP), DX
 	JMP	aeshashbody<>(SB)
+noaes:
+	JMP	runtime·strhashFallback(SB)
 
 // AX: data
 // BX: length
@@ -1108,7 +1116,9 @@ aesloop:
 	MOVL	X4, (DX)
 	RET
 
-TEXT runtime·aeshash32(SB),NOSPLIT,$0-12
+TEXT runtime·memhash32(SB),NOSPLIT,$0-12
+	CMPB	runtime·useAeshash(SB), $0
+	JEQ	noaes
 	MOVL	p+0(FP), AX	// ptr to data
 	MOVL	h+4(FP), X0	// seed
 	PINSRD	$1, (AX), X0	// data
@@ -1117,8 +1127,12 @@ TEXT runtime·aeshash32(SB),NOSPLIT,$0-12
 	AESENC	runtime·aeskeysched+32(SB), X0
 	MOVL	X0, ret+8(FP)
 	RET
+noaes:
+	JMP	runtime·memhash32Fallback(SB)
 
-TEXT runtime·aeshash64(SB),NOSPLIT,$0-12
+TEXT runtime·memhash64(SB),NOSPLIT,$0-12
+	CMPB	runtime·useAeshash(SB), $0
+	JEQ	noaes
 	MOVL	p+0(FP), AX	// ptr to data
 	MOVQ	(AX), X0	// data
 	PINSRD	$2, h+4(FP), X0	// seed
@@ -1127,6 +1141,8 @@ TEXT runtime·aeshash64(SB),NOSPLIT,$0-12
 	AESENC	runtime·aeskeysched+32(SB), X0
 	MOVL	X0, ret+8(FP)
 	RET
+noaes:
+	JMP	runtime·memhash64Fallback(SB)
 
 // simple mask to get rid of data in the high part of the register.
 DATA masks<>+0x00(SB)/4, $0x00000000
