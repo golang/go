@@ -177,7 +177,7 @@ func (pkg *pkg) GetTypesSizes() types.Sizes {
 }
 
 func (pkg *pkg) IsIllTyped() bool {
-	return pkg.types == nil && pkg.typesInfo == nil
+	return pkg.types == nil || pkg.typesInfo == nil || pkg.typesSizes == nil
 }
 
 func (pkg *pkg) SetDiagnostics(diags []source.Diagnostic) {
