@@ -390,6 +390,8 @@
 (PopCount16 x) -> (I64Popcnt (ZeroExt16to64 x))
 (PopCount8  x) -> (I64Popcnt (ZeroExt8to64  x))
 
+(CondSelect <t> x y cond) -> (Select <t> x y cond)
+
 // --- Optimizations ---
 (I64Add (I64Const [x]) (I64Const [y])) -> (I64Const [x + y])
 (I64Mul (I64Const [x]) (I64Const [y])) -> (I64Const [x * y])

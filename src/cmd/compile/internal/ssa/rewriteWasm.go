@@ -50,6 +50,8 @@ func rewriteValueWasm(v *Value) bool {
 		return rewriteValueWasm_OpCom64_0(v)
 	case OpCom8:
 		return rewriteValueWasm_OpCom8_0(v)
+	case OpCondSelect:
+		return rewriteValueWasm_OpCondSelect_0(v)
 	case OpConst16:
 		return rewriteValueWasm_OpConst16_0(v)
 	case OpConst32:
@@ -862,6 +864,23 @@ func rewriteValueWasm_OpCom8_0(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
 		v0.AuxInt = -1
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueWasm_OpCondSelect_0(v *Value) bool {
+	// match: (CondSelect <t> x y cond)
+	// cond:
+	// result: (Select <t> x y cond)
+	for {
+		t := v.Type
+		cond := v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpWasmSelect)
+		v.Type = t
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(cond)
 		return true
 	}
 }
