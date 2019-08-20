@@ -1472,7 +1472,7 @@ possible:
 
 <pre>
 chan&lt;- chan int    // same as chan&lt;- (chan int)
-chan&lt;- &lt;-chan int  // same as chan&lt;- (&lt;-chan int)
+chan&lt;- chan&lt;- int  // same as chan&lt;- (chan&lt;- int)
 &lt;-chan &lt;-chan int  // same as &lt;-chan (&lt;-chan int)
 chan (&lt;-chan int)
 </pre>
