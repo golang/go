@@ -131,7 +131,7 @@ var consec8tab = [256]uint{
 	4, 3, 2, 2, 2, 1, 1, 1, 3, 2, 1, 1, 2, 1, 1, 0,
 }
 
-// summarize returns a packed summary of the bitmap in mallocBits.
+// summarize returns a packed summary of the bitmap in pallocBits.
 func (b *pallocBits) summarize() pallocSum {
 	// TODO(mknyszek): There may be something more clever to be done
 	// here to make the summarize operation more efficient. For example,
@@ -331,4 +331,29 @@ func findBitRange64(c uint64, n uint) uint {
 		cont = uint(bits.TrailingZeros64(^(c >> i)))
 	}
 	return i
+}
+
+// pallocData encapsulates pallocBits and a bitmap for
+// whether or not a given page is scavenged in a single
+// structure. It's effectively a pallocBits with
+// additional functionality.
+type pallocData struct {
+	pallocBits
+	scavenged pageBits
+}
+
+// allocRange sets bits [i, i+n) in the bitmap to 1 and
+// updates the scavenged bits appropriately.
+func (m *pallocData) allocRange(i, n uint) {
+	// Clear the scavenged bits when we alloc the range.
+	m.pallocBits.allocRange(i, n)
+	m.scavenged.clearRange(i, n)
+}
+
+// allocAll sets every bit in the bitmap to 1 and updates
+// the scavenged bits appropriately.
+func (m *pallocData) allocAll() {
+	// Clear the scavenged bits when we alloc the range.
+	m.pallocBits.allocAll()
+	m.scavenged.clearAll()
 }

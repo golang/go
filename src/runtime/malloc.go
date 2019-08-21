@@ -308,7 +308,7 @@ const (
 	//
 	// On other platforms, the user address space is contiguous
 	// and starts at 0, so no offset is necessary.
-	arenaBaseOffset uintptr = sys.GoarchAmd64 * (1 << 47)
+	arenaBaseOffset = sys.GoarchAmd64 * (1 << 47)
 
 	// Max number of threads to run garbage collection.
 	// 2, 3, and 4 are all plausible maximums depending
