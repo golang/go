@@ -11,6 +11,7 @@
 package dwarf
 
 import (
+	"encoding/binary"
 	"errors"
 	"strconv"
 )
@@ -733,6 +734,11 @@ func (d *Data) Reader() *Reader {
 // unit.
 func (r *Reader) AddressSize() int {
 	return r.d.unit[r.unit].asize
+}
+
+// ByteOrder returns the byte order in the current compilation unit.
+func (r *Reader) ByteOrder() binary.ByteOrder {
+	return r.b.order
 }
 
 // Seek positions the Reader at offset off in the encoded entry stream.
