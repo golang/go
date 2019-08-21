@@ -3543,14 +3543,16 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 35: /* mov SPR,R -> mrs */
 		o1 = c.oprrr(p, AMRS)
 
-		v := uint32(0)
-		// SysRegEnc function returns the system register encoding.
-		_, v = SysRegEnc(p.From.Reg)
+		// SysRegEnc function returns the system register encoding and accessFlags.
+		_, v, accessFlags := SysRegEnc(p.From.Reg)
 		if v == 0 {
 			c.ctxt.Diag("illegal system register:\n%v", p)
 		}
 		if (o1 & (v &^ (3 << 19))) != 0 {
 			c.ctxt.Diag("MRS register value overlap\n%v", p)
+		}
+		if accessFlags&SR_READ == 0 {
+			c.ctxt.Diag("system register is not readable: %v", p)
 		}
 
 		o1 |= v
@@ -3559,14 +3561,16 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 36: /* mov R,SPR */
 		o1 = c.oprrr(p, AMSR)
 
-		v := uint32(0)
-		// SysRegEnc function returns the system register encoding.
-		_, v = SysRegEnc(p.To.Reg)
+		// SysRegEnc function returns the system register encoding and accessFlags.
+		_, v, accessFlags := SysRegEnc(p.To.Reg)
 		if v == 0 {
 			c.ctxt.Diag("illegal system register:\n%v", p)
 		}
 		if (o1 & (v &^ (3 << 19))) != 0 {
 			c.ctxt.Diag("MSR register value overlap\n%v", p)
+		}
+		if accessFlags&SR_WRITE == 0 {
+			c.ctxt.Diag("system register is not writable: %v", p)
 		}
 
 		o1 |= v
