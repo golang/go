@@ -55,6 +55,11 @@
 
 package runtime
 
+import (
+	"math/bits"
+	"unsafe"
+)
+
 const (
 	// The background scavenger is paced according to these parameters.
 	//
@@ -407,4 +412,368 @@ func bgscavenge(c chan int) {
 		// Give something else a chance to run, no locks are held.
 		Gosched()
 	}
+}
+
+// scavenge scavenges nbytes worth of free pages, starting with the
+// highest address first. Successive calls continue from where it left
+// off until the heap is exhausted. Call resetScavengeAddr to bring it
+// back to the top of the heap.
+//
+// Returns the amount of memory scavenged in bytes.
+//
+// s.mheapLock must not be locked.
+//
+// Must run on the system stack because scavengeOne must run on the
+// system stack.
+//
+//go:systemstack
+func (s *pageAlloc) scavenge(nbytes uintptr) uintptr {
+	released := uintptr(0)
+	for released < nbytes {
+		r := s.scavengeOne(nbytes - released)
+		if r == 0 {
+			// Nothing left to scavenge! Give up.
+			break
+		}
+		released += r
+	}
+	return released
+}
+
+// resetScavengeAddr sets the scavenge start address to the top of the heap's
+// address space. This should be called each time the scavenger's pacing
+// changes.
+//
+// s.mheapLock must be held.
+func (s *pageAlloc) resetScavengeAddr() {
+	s.scavAddr = chunkBase(s.end) - 1
+}
+
+// scavengeOne starts from s.scavAddr and walks down the heap until it finds
+// a contiguous run of pages to scavenge. It will try to scavenge at most
+// max bytes at once, but may scavenge more to avoid breaking huge pages. Once
+// it scavenges some memory it returns how much it scavenged and updates s.scavAddr
+// appropriately. s.scavAddr must be reset manually and externally.
+//
+// Should it exhaust the heap, it will return 0 and set s.scavAddr to minScavAddr.
+//
+// s.mheapLock must not be locked. Must be run on the system stack because it
+// acquires the heap lock.
+//
+//go:systemstack
+func (s *pageAlloc) scavengeOne(max uintptr) uintptr {
+	// Calculate the maximum number of pages to scavenge.
+	//
+	// This should be alignUp(max, pageSize) / pageSize but max can and will
+	// be ^uintptr(0), so we need to be very careful not to overflow here.
+	// Rather than use alignUp, calculate the number of pages rounded down
+	// first, then add back one if necessary.
+	maxPages := max / pageSize
+	if max%pageSize != 0 {
+		maxPages++
+	}
+
+	// Calculate the minimum number of pages we can scavenge.
+	//
+	// Because we can only scavenge whole physical pages, we must
+	// ensure that we scavenge at least minPages each time, aligned
+	// to minPages*pageSize.
+	minPages := physPageSize / pageSize
+	if minPages < 1 {
+		minPages = 1
+	}
+
+	lock(s.mheapLock)
+	top := chunkIndex(s.scavAddr)
+	if top < s.start {
+		unlock(s.mheapLock)
+		return 0
+	}
+
+	// Check the chunk containing the scav addr, starting at the addr
+	// and see if there are any free and unscavenged pages.
+	ci := chunkIndex(s.scavAddr)
+	base, npages := s.chunks[ci].findScavengeCandidate(chunkPageIndex(s.scavAddr), minPages, maxPages)
+
+	// If we found something, scavenge it and return!
+	if npages != 0 {
+		s.scavengeRangeLocked(ci, base, npages)
+		unlock(s.mheapLock)
+		return uintptr(npages) * pageSize
+	}
+	unlock(s.mheapLock)
+
+	// Slow path: iterate optimistically looking for any free and unscavenged page.
+	// If we think we see something, stop and verify it!
+	for i := top - 1; i >= s.start; i-- {
+		// If this chunk is totally in-use or has no unscavenged pages, don't bother
+		// doing a  more sophisticated check.
+		//
+		// Note we're accessing the summary and the chunks without a lock, but
+		// that's fine. We're being optimistic anyway.
+
+		// Check if there are enough free pages at all. It's imperative that we
+		// check this before the chunk itself so that we quickly skip over
+		// unused parts of the address space, which may have a cleared bitmap
+		// but a zero'd summary which indicates not to allocate from there.
+		if s.summary[len(s.summary)-1][i].max() < uint(minPages) {
+			continue
+		}
+
+		// Run over the chunk looking harder for a candidate. Again, we could
+		// race with a lot of different pieces of code, but we're just being
+		// optimistic.
+		if !s.chunks[i].hasScavengeCandidate(minPages) {
+			continue
+		}
+
+		// We found a candidate, so let's lock and verify it.
+		lock(s.mheapLock)
+
+		// Find, verify, and scavenge if we can.
+		chunk := &s.chunks[i]
+		base, npages := chunk.findScavengeCandidate(pallocChunkPages-1, minPages, maxPages)
+		if npages > 0 {
+			// We found memory to scavenge! Mark the bits and report that up.
+			s.scavengeRangeLocked(i, base, npages)
+			unlock(s.mheapLock)
+			return uintptr(npages) * pageSize
+		}
+
+		// We were fooled, let's take this opportunity to move the scavAddr
+		// all the way down to where we searched as scavenged for future calls
+		// and keep iterating.
+		s.scavAddr = chunkBase(i-1) + pallocChunkPages*pageSize - 1
+		unlock(s.mheapLock)
+	}
+
+	lock(s.mheapLock)
+	// We couldn't find anything, so signal that there's nothing left
+	// to scavenge.
+	s.scavAddr = minScavAddr
+	unlock(s.mheapLock)
+
+	return 0
+}
+
+// scavengeRangeLocked scavenges the given region of memory.
+//
+// s.mheapLock must be held.
+func (s *pageAlloc) scavengeRangeLocked(ci chunkIdx, base, npages uint) {
+	s.chunks[ci].scavenged.setRange(base, npages)
+
+	// Compute the full address for the start of the range.
+	addr := chunkBase(ci) + uintptr(base)*pageSize
+
+	// Update the scav pointer.
+	s.scavAddr = addr - 1
+
+	// Only perform the actual scavenging if we're not in a test.
+	// It's dangerous to do so otherwise.
+	if s.test {
+		return
+	}
+	sysUnused(unsafe.Pointer(addr), uintptr(npages)*pageSize)
+
+	// Update global accounting only when not in test, otherwise
+	// the runtime's accounting will be wrong.
+	memstats.heap_released += uint64(npages) * pageSize
+}
+
+// fillAligned returns x but with all zeroes in m-aligned
+// groups of m bits set to 1 if any bit in the group is non-zero.
+//
+// For example, fillAligned(0x0100a3, 8) == 0xff00ff.
+//
+// Note that if m == 1, this is a no-op.
+//
+// m must be a power of 2 <= 64.
+func fillAligned(x uint64, m uint) uint64 {
+	apply := func(x uint64, c uint64) uint64 {
+		// The technique used it here is derived from
+		// https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord
+		// and extended for more than just bytes (like nibbles
+		// and uint16s) by using an appropriate constant.
+		//
+		// To summarize the technique, quoting from that page:
+		// "[It] works by first zeroing the high bits of the [8]
+		// bytes in the word. Subsequently, it adds a number that
+		// will result in an overflow to the high bit of a byte if
+		// any of the low bits were initialy set. Next the high
+		// bits of the original word are ORed with these values;
+		// thus, the high bit of a byte is set iff any bit in the
+		// byte was set. Finally, we determine if any of these high
+		// bits are zero by ORing with ones everywhere except the
+		// high bits and inverting the result."
+		return ^((((x & c) + c) | x) | c)
+	}
+	// Transform x to contain a 1 bit at the top of each m-aligned
+	// group of m zero bits.
+	switch m {
+	case 1:
+		return x
+	case 2:
+		x = apply(x, 0x5555555555555555)
+	case 4:
+		x = apply(x, 0x7777777777777777)
+	case 8:
+		x = apply(x, 0x7f7f7f7f7f7f7f7f)
+	case 16:
+		x = apply(x, 0x7fff7fff7fff7fff)
+	case 32:
+		x = apply(x, 0x7fffffff7fffffff)
+	case 64:
+		x = apply(x, 0x7fffffffffffffff)
+	}
+	// Now, the top bit of each m-aligned group in x is set
+	// that group was all zero in the original x.
+
+	// From each group of m bits subtract 1.
+	// Because we know only the top bits of each
+	// m-aligned group are set, we know this will
+	// set each group to have all the bits set except
+	// the top bit, so just OR with the original
+	// result to set all the bits.
+	return ^((x - (x >> (m - 1))) | x)
+}
+
+// hasScavengeCandidate returns true if there's any min-page-aligned groups of
+// min pages of free-and-unscavenged memory in the region represented by this
+// pallocData.
+//
+// min must be a non-zero power of 2 <= 64.
+func (m *pallocData) hasScavengeCandidate(min uintptr) bool {
+	if min&(min-1) != 0 || min == 0 {
+		print("runtime: min = ", min, "\n")
+		throw("min must be a non-zero power of 2")
+	} else if min > 64 {
+		print("runtime: min = ", min, "\n")
+		throw("physical page sizes > 512 KiB are not supported")
+	}
+
+	// The goal of this search is to see if the chunk contains any free and unscavenged memory.
+	for i := len(m.scavenged) - 1; i >= 0; i-- {
+		// 1s are scavenged OR non-free => 0s are unscavenged AND free
+		//
+		// TODO(mknyszek): Consider splitting up fillAligned into two
+		// functions, since here we technically could get by with just
+		// the first half of its computation. It'll save a few instructions
+		// but adds some additional code complexity.
+		x := fillAligned(m.scavenged[i]|m.pallocBits[i], uint(min))
+
+		// Quickly skip over chunks of non-free or scavenged pages.
+		if x != ^uint64(0) {
+			return true
+		}
+	}
+	return false
+}
+
+// findScavengeCandidate returns a start index and a size for this pallocData
+// segment which represents a contiguous region of free and unscavenged memory.
+//
+// searchIdx indicates the page index within this chunk to start the search, but
+// note that findScavengeCandidate searches backwards through the pallocData. As a
+// a result, it will return the highest scavenge candidate in address order.
+//
+// min indicates a hard minimum size and alignment for runs of pages. That is,
+// findScavengeCandidate will not return a region smaller than min pages in size,
+// or that is min pages or greater in size but not aligned to min. min must be
+// a non-zero power of 2 <= 64.
+//
+// max is a hint for how big of a region is desired. If max >= pallocChunkPages, then
+// findScavengeCandidate effectively returns entire free and unscavenged regions.
+// If max < pallocChunkPages, it may truncate the returned region such that size is
+// max. However, findScavengeCandidate may still return a larger region if, for
+// example, it chooses to preserve huge pages. That is, even if max is small,
+// size is not guaranteed to be equal to max. max is allowed to be less than min,
+// in which case it is as if max == min.
+func (m *pallocData) findScavengeCandidate(searchIdx uint, min, max uintptr) (uint, uint) {
+	if min&(min-1) != 0 || min == 0 {
+		print("runtime: min = ", min, "\n")
+		throw("min must be a non-zero power of 2")
+	} else if min > 64 {
+		print("runtime: min = ", min, "\n")
+		throw("physical page sizes > 512 KiB are not supported")
+	}
+	// max is allowed to be less than min, but we need to ensure
+	// we never truncate further than min.
+	if max < min {
+		max = min
+	}
+
+	i := int(searchIdx / 64)
+	// Start by quickly skipping over blocks of non-free or scavenged pages.
+	for ; i >= 0; i-- {
+		// 1s are scavenged OR non-free => 0s are unscavenged AND free
+		x := fillAligned(m.scavenged[i]|m.pallocBits[i], uint(min))
+		if x != ^uint64(0) {
+			break
+		}
+	}
+	if i < 0 {
+		// Failed to find any free/unscavenged pages.
+		return 0, 0
+	}
+	// We have something in the 64-bit chunk at i, but it could
+	// extend further. Loop until we find the extent of it.
+
+	// 1s are scavenged OR non-free => 0s are unscavenged AND free
+	x := fillAligned(m.scavenged[i]|m.pallocBits[i], uint(min))
+	z1 := uint(bits.LeadingZeros64(^x))
+	run, end := uint(0), uint(i)*64+(64-z1)
+	if x<<z1 != 0 {
+		// After shifting out z1 bits, we still have 1s,
+		// so the run ends inside this word.
+		run = uint(bits.LeadingZeros64(x << z1))
+	} else {
+		// After shifting out z1 bits, we have no more 1s.
+		// This means the run extends to the bottom of the
+		// word so it may extend into further words.
+		run = 64 - z1
+		for j := i - 1; j >= 0; j-- {
+			x := fillAligned(m.scavenged[j]|m.pallocBits[j], uint(min))
+			run += uint(bits.LeadingZeros64(x))
+			if x != 0 {
+				// The run stopped in this word.
+				break
+			}
+		}
+	}
+
+	// Split the run we found if it's larger than max but hold on to
+	// our original length, since we may need it later.
+	size := run
+	if size > uint(max) {
+		size = uint(max)
+	}
+	start := end - size
+
+	if physHugePageSize > pageSize && physHugePageSize > physPageSize {
+		// We have huge pages, so let's ensure we don't break one by scavenging
+		// over a huge page boundary. If the range [start, start+size) overlaps with
+		// a free-and-unscavenged huge page, we want to grow the region we scavenge
+		// to include that huge page.
+
+		// Compute the huge page boundary above our candidate.
+		pagesPerHugePage := uintptr(physHugePageSize / pageSize)
+		hugePageAbove := uint(alignUp(uintptr(start), pagesPerHugePage))
+
+		// If that boundary is within our current candidate, then we may be breaking
+		// a huge page.
+		if hugePageAbove <= end {
+			// Compute the huge page boundary below our candidate.
+			hugePageBelow := uint(alignDown(uintptr(start), pagesPerHugePage))
+
+			if hugePageBelow >= end-run {
+				// We're in danger of breaking apart a huge page since start+size crosses
+				// a huge page boundary and rounding down start to the nearest huge
+				// page boundary is included in the full run we found. Include the entire
+				// huge page in the bound by rounding down to the huge page size.
+				size = size + (start - hugePageBelow)
+				start = hugePageBelow
+			}
+		}
+	}
+	return start, size
 }
