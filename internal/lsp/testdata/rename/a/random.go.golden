@@ -4,7 +4,7 @@ package a
 
 import (
 	lg "log"
-	"fmt"
+	"fmt" //@rename("fmt", "fmty")
 	f2 "fmt"
 )
 
@@ -49,7 +49,7 @@ package a
 
 import (
 	lg "log"
-	"fmt"
+	"fmt" //@rename("fmt", "fmty")
 	fmt2 "fmt"
 )
 
@@ -88,13 +88,15 @@ func sw() {
 	}
 }
 
+-- fmty-rename --
+renaming import "fmt" not supported
 -- format-rename --
 random.go:
 package a
 
 import (
 	lg "log"
-	format "fmt"
+	format "fmt" //@rename("fmt", "fmty")
 	f2 "fmt"
 )
 
@@ -139,7 +141,7 @@ package a
 
 import (
 	"log"
-	"fmt"
+	"fmt" //@rename("fmt", "fmty")
 	f2 "fmt"
 )
 
@@ -184,7 +186,7 @@ package a
 
 import (
 	lg "log"
-	"fmt"
+	"fmt" //@rename("fmt", "fmty")
 	f2 "fmt"
 )
 
@@ -229,7 +231,7 @@ package a
 
 import (
 	lg "log"
-	"fmt"
+	"fmt" //@rename("fmt", "fmty")
 	f2 "fmt"
 )
 
@@ -274,7 +276,7 @@ package a
 
 import (
 	lg "log"
-	"fmt"
+	"fmt" //@rename("fmt", "fmty")
 	f2 "fmt"
 )
 
@@ -319,7 +321,7 @@ package a
 
 import (
 	lg "log"
-	"fmt"
+	"fmt" //@rename("fmt", "fmty")
 	f2 "fmt"
 )
 
@@ -364,7 +366,7 @@ package a
 
 import (
 	lg "log"
-	"fmt"
+	"fmt" //@rename("fmt", "fmty")
 	f2 "fmt"
 )
 
@@ -409,7 +411,7 @@ package a
 
 import (
 	lg "log"
-	"fmt"
+	"fmt" //@rename("fmt", "fmty")
 	f2 "fmt"
 )
 
@@ -454,7 +456,7 @@ package a
 
 import (
 	lg "log"
-	"fmt"
+	"fmt" //@rename("fmt", "fmty")
 	f2 "fmt"
 )
 

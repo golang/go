@@ -43,6 +43,11 @@ func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.U
 	if i.Name == newName {
 		return nil, errors.Errorf("old and new names are the same: %s", newName)
 	}
+	// If the object declaration is nil, assume it is an import spec and return an error.
+	// TODO(suzmue): support renaming of identifiers in an import spec.
+	if i.decl.obj == nil {
+		return nil, errors.Errorf("renaming import %q not supported", i.Name)
+	}
 	if !isValidIdentifier(i.Name) {
 		return nil, errors.Errorf("invalid identifier to rename: %q", i.Name)
 	}
