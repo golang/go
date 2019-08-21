@@ -67,8 +67,8 @@ godef/a/a.go:14:6-9: defined here as var err error
 
 -- err-hover --
 var err error
--- string-hover --
-string
 -- make-hover --
 The make built-in function allocates and initializes an object of type slice, map, or chan (only).
 func(t Type, size ...IntegerType) Type
+-- string-hover --
+string

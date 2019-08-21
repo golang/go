@@ -282,7 +282,7 @@ func objToNode(ctx context.Context, view View, originPkg *types.Package, obj typ
 func importSpec(ctx context.Context, f GoFile, fAST *ast.File, pkg Package, pos token.Pos) (*IdentifierInfo, error) {
 	var imp *ast.ImportSpec
 	for _, spec := range fAST.Imports {
-		if spec.Pos() <= pos && pos < spec.End() {
+		if spec.Path.Pos() <= pos && pos < spec.Path.End() {
 			imp = spec
 		}
 	}
