@@ -60,7 +60,17 @@ func dbDial() (dbName string, db *sumweb.Conn, err error) {
 	// $GOSUMDB can be "key" or "key url",
 	// and the key can be a full verifier key
 	// or a host on our list of known keys.
-	key := strings.Fields(cfg.GOSUMDB)
+
+	// Special case: sum.golang.google.cn
+	// is an alias, reachable inside mainland China,
+	// for sum.golang.org. If there are more
+	// of these we should add a map like knownGOSUMDB.
+	gosumdb := cfg.GOSUMDB
+	if gosumdb == "sum.golang.google.cn" {
+		gosumdb = "sum.golang.org https://sum.golang.google.cn"
+	}
+
+	key := strings.Fields(gosumdb)
 	if len(key) >= 1 {
 		if k := knownGOSUMDB[key[0]]; k != "" {
 			key[0] = k

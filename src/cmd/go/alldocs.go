@@ -2743,9 +2743,11 @@
 // 	GOSUMDB="sum.golang.org+<publickey>"
 // 	GOSUMDB="sum.golang.org+<publickey> https://sum.golang.org"
 //
-// The go command knows the public key of sum.golang.org; use of any other
-// database requires giving the public key explicitly. The URL defaults to
-// "https://" followed by the database name.
+// The go command knows the public key of sum.golang.org, and also that the name
+// sum.golang.google.cn (available inside mainland China) connects to the
+// sum.golang.org checksum database; use of any other database requires giving
+// the public key explicitly.
+// The URL defaults to "https://" followed by the database name.
 //
 // GOSUMDB defaults to "sum.golang.org", the Go checksum database run by Google.
 // See https://sum.golang.org/privacy for the service's privacy policy.
