@@ -643,7 +643,7 @@ func atof64(s string) (f float64, err error) {
 // ParseFloat returns the nearest floating-point number rounded
 // using IEEE754 unbiased rounding.
 // (Parsing a hexadecimal floating-point value only rounds when
-// there are more bits in the hexadecimal representatiton than
+// there are more bits in the hexadecimal representation than
 // will fit in the mantissa.)
 //
 // The errors that ParseFloat returns have concrete type *NumError
