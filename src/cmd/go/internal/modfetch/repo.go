@@ -161,15 +161,6 @@ type RevInfo struct {
 // and it can check that the path can be resolved to a target repository.
 // To avoid version control access except when absolutely necessary,
 // Lookup does not attempt to connect to the repository itself.
-//
-// The ImportRepoRev function is a variant of Import which is limited
-// to code in a source code repository at a particular revision identifier
-// (usually a commit hash or source code repository tag, not necessarily
-// a module version).
-// ImportRepoRev is used when converting legacy dependency requirements
-// from older systems into go.mod files. Those older systems worked
-// at either package or repository granularity, and most of the time they
-// recorded commit hashes, not tagged versions.
 
 var lookupCache par.Cache
 
@@ -277,53 +268,6 @@ func lookupCodeRepo(rr *get.RepoRoot) (codehost.Repo, error) {
 		return nil, fmt.Errorf("lookup %s: %v", rr.Root, err)
 	}
 	return code, nil
-}
-
-// ImportRepoRev returns the module and version to use to access
-// the given import path loaded from the source code repository that
-// the original "go get" would have used, at the specific repository revision
-// (typically a commit hash, but possibly also a source control tag).
-func ImportRepoRev(path, rev string) (Repo, *RevInfo, error) {
-	if cfg.BuildMod == "vendor" || cfg.BuildMod == "readonly" {
-		return nil, nil, fmt.Errorf("repo version lookup disabled by -mod=%s", cfg.BuildMod)
-	}
-
-	// Note: Because we are converting a code reference from a legacy
-	// version control system, we ignore meta tags about modules
-	// and use only direct source control entries (get.IgnoreMod).
-	security := web.SecureOnly
-	if get.Insecure {
-		security = web.Insecure
-	}
-	rr, err := get.RepoRootForImportPath(path, get.IgnoreMod, security)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	code, err := lookupCodeRepo(rr)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	revInfo, err := code.Stat(rev)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// TODO: Look in repo to find path, check for go.mod files.
-	// For now we're just assuming rr.Root is the module path,
-	// which is true in the absence of go.mod files.
-
-	repo, err := newCodeRepo(code, rr.Root, rr.Root)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	info, err := repo.(*codeRepo).convert(revInfo, rev)
-	if err != nil {
-		return nil, nil, err
-	}
-	return repo, info, nil
 }
 
 func SortVersions(list []string) {

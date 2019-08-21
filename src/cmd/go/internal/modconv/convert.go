@@ -66,16 +66,19 @@ func ConvertLegacyConfig(f *modfile.File, file string, data []byte) error {
 
 	work.Do(10, func(item interface{}) {
 		r := item.(module.Version)
-		repo, info, err := modfetch.ImportRepoRev(r.Path, r.Version)
+		var info *modfetch.RevInfo
+		err := modfetch.TryProxies(func(proxy string) (err error) {
+			info, err = modfetch.Stat(proxy, r.Path, r.Version)
+			return err
+		})
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "go: converting %s: stat %s@%s: %v\n", base.ShortPath(file), r.Path, r.Version, err)
 			return
 		}
 		mu.Lock()
-		path := repo.ModulePath()
 		// Don't use semver.Max here; need to preserve +incompatible suffix.
-		if v, ok := need[path]; !ok || semver.Compare(v, info.Version) < 0 {
-			need[path] = info.Version
+		if v, ok := need[r.Path]; !ok || semver.Compare(v, info.Version) < 0 {
+			need[r.Path] = info.Version
 		}
 		mu.Unlock()
 	})
