@@ -1165,9 +1165,7 @@ func (l *maxBytesReader) Close() error {
 
 func copyValues(dst, src url.Values) {
 	for k, vs := range src {
-		for _, value := range vs {
-			dst.Add(k, value)
-		}
+		dst[k] = append(dst[k], vs...)
 	}
 }
 
