@@ -723,6 +723,18 @@ godoc
       The new <a href="/pkg/math/big/#Rat.SetUint64"><code>Rat.SetUint64</code></a> method sets the <code>Rat</code> to a <code>uint64</code> value.
     </p>
 
+    <p><!-- CL 166157 -->
+      For <a href="/pkg/math/big/#Float.Parse"><code>Float.Parse</code></a>, if base is 0, underscores
+      may be used between digits for readability.
+      See the <a href="#language">Changes to the language</a> for details.
+    </p>
+
+    <p><!-- CL 166157 -->
+      For <a href="/pkg/math/big/#Int.SetString"><code>Int.SetString</code></a>, if base is 0, underscores
+      may be used between digits for readability.
+      See the <a href="#language">Changes to the language</a> for details.
+    </p>
+
     <p><!-- CL 168237 -->
       <a href="/pkg/math/big/#Rat.SetString"><code>Rat.SetString</code></a> now accepts non-decimal floating point representations.
     </p>
@@ -887,6 +899,18 @@ godoc
     </p>
 
 </dl><!-- runtime -->
+
+<dl id="strconv"><dt><a href="/pkg/strconv">strconv</a></dt>
+  <dd>
+    <p><!-- CL 160243 -->
+       For <a href="/pkg/math/big/#strconv.ParseFloat"><code>strconv.ParseFloat</code></a>,
+       <a href="/pkg/math/big/#strconv.ParseInt"><code>strconv.ParseInt</code></a>
+       and <a href="/pkg/math/big/#strconv.ParseUint"><code>strconv.ParseUint</code></a>,
+       if base is 0, underscores may be used between digits for readability.
+       See the <a href="#language">Changes to the language</a> for details.
+    </p>
+
+</dl><!-- strconv -->
 
 <dl id="strings"><dt><a href="/pkg/strings">strings</a></dt>
   <dd>
