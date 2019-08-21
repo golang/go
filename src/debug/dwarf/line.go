@@ -441,6 +441,19 @@ func (r *LineReader) readFileEntry() (bool, error) {
 	mtime := r.buf.uint()
 	length := int(r.buf.uint())
 
+	// If this is a dynamically added path and the cursor was
+	// backed up, we may have already added this entry. Avoid
+	// updating existing line table entries in this case. This
+	// avoids an allocation and potential racy access to the slice
+	// backing store if the user called Files.
+	if len(r.fileEntries) < cap(r.fileEntries) {
+		fe := r.fileEntries[:len(r.fileEntries)+1]
+		if fe[len(fe)-1] != nil {
+			// We already processed this addition.
+			r.fileEntries = fe
+			return false, nil
+		}
+	}
 	r.fileEntries = append(r.fileEntries, &LineFile{name, mtime, length})
 	return false, nil
 }
@@ -690,6 +703,22 @@ func (r *LineReader) resetState() {
 	}
 	r.fileIndex = 1
 	r.updateFile()
+}
+
+// Files returns the file name table of this compilation unit as of
+// the current position in the line table. The file name table may be
+// referenced from attributes in this compilation unit such as
+// AttrDeclFile.
+//
+// Entry 0 is always nil, since file index 0 represents "no file".
+//
+// The file name table of a compilation unit is not fixed. Files
+// returns the file table as of the current position in the line
+// table. This may contain more entries than the file table at an
+// earlier position in the line table, though existing entries never
+// change.
+func (r *LineReader) Files() []*LineFile {
+	return r.fileEntries
 }
 
 // ErrUnknownPC is the error returned by LineReader.ScanPC when the
