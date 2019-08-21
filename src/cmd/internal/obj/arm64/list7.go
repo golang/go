@@ -209,7 +209,7 @@ func rconv(r int) string {
 		return fmt.Sprintf("V%d.%s", r&31, arrange((r>>5)&15))
 	}
 	// Return system register name.
-	name, _ := SysRegEnc(int16(r))
+	name, _, _ := SysRegEnc(int16(r))
 	if name != "" {
 		return name
 	}

@@ -1221,7 +1221,7 @@ again:
 	MRS	DBGCLAIMSET_EL1, R7                // c77830d5
 	MSR	R13, DBGCLAIMSET_EL1               // cd7810d5
 	MRS	DBGDTRRX_EL0, R0                   // 000533d5
-	MSR	R29, DBGDTRRX_EL0                  // 1d0513d5
+	MSR	R29, DBGDTRTX_EL0                  // 1d0513d5
 	MRS	DBGDTR_EL0, R27                    // 1b0433d5
 	MSR	R30, DBGDTR_EL0                    // 1e0413d5
 	MRS	DBGPRCR_EL1, R4                    // 841430d5
