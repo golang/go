@@ -90,6 +90,14 @@ func (s *Server) initialize(ctx context.Context, params *protocol.InitializePara
 	} else {
 		codeActionProvider = true
 	}
+	var renameOpts interface{}
+	if params.Capabilities.TextDocument.Rename.PrepareSupport {
+		renameOpts = &protocol.RenameOptions{
+			PrepareProvider: true,
+		}
+	} else {
+		renameOpts = true
+	}
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
 			CodeActionProvider: codeActionProvider,
@@ -104,7 +112,7 @@ func (s *Server) initialize(ctx context.Context, params *protocol.InitializePara
 			DocumentHighlightProvider:  true,
 			DocumentLinkProvider:       &protocol.DocumentLinkOptions{},
 			ReferencesProvider:         true,
-			RenameProvider:             true,
+			RenameProvider:             renameOpts,
 			SignatureHelpProvider: &protocol.SignatureHelpOptions{
 				TriggerCharacters: []string{"(", ","},
 			},

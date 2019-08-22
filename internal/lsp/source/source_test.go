@@ -634,6 +634,53 @@ func applyEdits(contents string, edits []diff.TextEdit) string {
 	return res
 }
 
+func (r *runner) PrepareRename(t *testing.T, data tests.PrepareRenames) {
+	ctx := context.Background()
+	for src, want := range data {
+		f, err := r.view.GetFile(ctx, src.URI())
+		if err != nil {
+			t.Fatal(err)
+		}
+		srcRng, err := spanToRange(r.data, src)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Find the identifier at the position.
+		item, err := source.PrepareRename(ctx, r.view, f.(source.GoFile), srcRng.Start)
+		if err != nil {
+			if want.Text != "" { // expected an ident.
+				t.Errorf("prepare rename failed for %v: got error: %v", src, err)
+			}
+			continue
+		}
+		if item == nil {
+			if want.Text != "" {
+				t.Errorf("prepare rename failed for %v: got nil", src)
+			}
+			continue
+		}
+
+		if want.Text == "" && item != nil {
+			t.Errorf("prepare rename failed for %v: expected nil, got %v", src, item)
+			continue
+		}
+		gotSpn, err := item.Range.Span()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		wantSpn, err := want.Range.Span()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if gotSpn != wantSpn {
+			t.Errorf("prepare rename failed: incorrect range got %v want %v", item.Range, want.Range)
+		}
+	}
+}
+
 func (r *runner) Symbol(t *testing.T, data tests.Symbols) {
 	ctx := r.ctx
 	for uri, expectedSymbols := range data {

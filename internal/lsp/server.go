@@ -268,8 +268,9 @@ func (s *Server) LogTraceNotification(context.Context, *protocol.LogTraceParams)
 	return notImplemented("LogtraceNotification")
 }
 
-func (s *Server) PrepareRename(context.Context, *protocol.TextDocumentPositionParams) (*protocol.Range, error) {
-	return nil, notImplemented("PrepareRename")
+func (s *Server) PrepareRename(ctx context.Context, params *protocol.TextDocumentPositionParams) (*protocol.Range, error) {
+	// TODO(suzmue): support sending placeholder text.
+	return s.prepareRename(ctx, params)
 }
 
 func (s *Server) SetTraceNotification(context.Context, *protocol.SetTraceParams) error {

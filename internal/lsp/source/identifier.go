@@ -313,7 +313,7 @@ func importSpec(ctx context.Context, view View, f GoFile, fAST *ast.File, pkg Pa
 		Name: importPath,
 		pkg:  pkg,
 	}
-	if result.mappedRange, err = posToRange(ctx, view, imp.Pos(), imp.End()); err != nil {
+	if result.mappedRange, err = posToRange(ctx, view, imp.Path.Pos(), imp.Path.End()); err != nil {
 		return nil, err
 	}
 	// Consider the "declaration" of an import spec to be the imported package.

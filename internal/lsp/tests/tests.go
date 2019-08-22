@@ -40,6 +40,7 @@ const (
 	ExpectedHighlightsCount        = 2
 	ExpectedReferencesCount        = 5
 	ExpectedRenamesCount           = 20
+	ExpectedPrepareRenamesCount    = 8
 	ExpectedSymbolsCount           = 1
 	ExpectedSignaturesCount        = 21
 	ExpectedLinksCount             = 4
@@ -65,6 +66,7 @@ type Definitions map[span.Span]Definition
 type Highlights map[string][]span.Span
 type References map[span.Span][]span.Span
 type Renames map[span.Span]string
+type PrepareRenames map[span.Span]*source.PrepareItem
 type Symbols map[span.URI][]source.Symbol
 type SymbolsChildren map[string][]source.Symbol
 type Signatures map[span.Span]*source.SignatureInformation
@@ -84,6 +86,7 @@ type Data struct {
 	Highlights         Highlights
 	References         References
 	Renames            Renames
+	PrepareRenames     PrepareRenames
 	Symbols            Symbols
 	symbolsChildren    SymbolsChildren
 	Signatures         Signatures
@@ -105,6 +108,7 @@ type Tests interface {
 	Highlight(*testing.T, Highlights)
 	Reference(*testing.T, References)
 	Rename(*testing.T, Renames)
+	PrepareRename(*testing.T, PrepareRenames)
 	Symbol(*testing.T, Symbols)
 	SignatureHelp(*testing.T, Signatures)
 	Link(*testing.T, Links)
@@ -151,6 +155,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		Highlights:         make(Highlights),
 		References:         make(References),
 		Renames:            make(Renames),
+		PrepareRenames:     make(PrepareRenames),
 		Symbols:            make(Symbols),
 		symbolsChildren:    make(SymbolsChildren),
 		Signatures:         make(Signatures),
@@ -235,6 +240,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		"highlight": data.collectHighlights,
 		"refs":      data.collectReferences,
 		"rename":    data.collectRenames,
+		"prepare":   data.collectPrepareRenames,
 		"symbol":    data.collectSymbols,
 		"signature": data.collectSignatures,
 		"snippet":   data.collectCompletionSnippets,
@@ -337,6 +343,15 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			t.Errorf("got %v renames expected %v", len(data.Renames), ExpectedRenamesCount)
 		}
 		tests.Rename(t, data.Renames)
+	})
+
+	t.Run("PrepareRenames", func(t *testing.T) {
+		t.Helper()
+		if len(data.PrepareRenames) != ExpectedPrepareRenamesCount {
+			t.Errorf("got %v prepare renames expected %v", len(data.PrepareRenames), ExpectedPrepareRenamesCount)
+		}
+
+		tests.PrepareRename(t, data.PrepareRenames)
 	})
 
 	t.Run("Symbols", func(t *testing.T) {
@@ -611,6 +626,19 @@ func (data *Data) collectReferences(src span.Span, expected []span.Span) {
 
 func (data *Data) collectRenames(src span.Span, newText string) {
 	data.Renames[src] = newText
+}
+
+func (data *Data) collectPrepareRenames(src span.Span, rng span.Range, placeholder string) {
+	if int(rng.End-rng.Start) != len(placeholder) {
+		// If the length of the placeholder and the length of the range do not match,
+		// make the range just be the start.
+		rng = span.NewRange(rng.FileSet, rng.Start, rng.Start)
+	}
+
+	data.PrepareRenames[src] = &source.PrepareItem{
+		Range: rng,
+		Text:  placeholder,
+	}
 }
 
 func (data *Data) collectSymbols(name string, spn span.Span, kind string, parentName string) {

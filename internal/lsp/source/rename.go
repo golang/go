@@ -15,6 +15,7 @@ import (
 
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/internal/lsp/diff"
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/trace"
 	"golang.org/x/tools/refactor/satisfy"
@@ -35,6 +36,39 @@ type renamer struct {
 	changeMethods      bool
 }
 
+type PrepareItem struct {
+	Range span.Range
+	Text  string
+}
+
+func PrepareRename(ctx context.Context, view View, f GoFile, pos protocol.Position) (*PrepareItem, error) {
+	ctx, done := trace.StartSpan(ctx, "source.PrepareRename")
+	defer done()
+
+	i, err := Identifier(ctx, view, f, pos)
+	if err != nil {
+		return nil, err
+	}
+	// If the object declaration is nil, assume it is an import spec.
+	if i.Declaration.obj == nil {
+		// Find the corresponding package name for this import spec
+		// and rename that instead.
+		i, err = i.getPkgName(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Do not rename builtin identifiers.
+	if i.Declaration.obj.Parent() == types.Universe {
+		return nil, errors.Errorf("cannot rename builtin %q", i.Name)
+	}
+	return &PrepareItem{
+		Range: i.spanRange,
+		Text:  i.Name,
+	}, nil
+}
+
 // Rename returns a map of TextEdits for each file modified when renaming a given identifier within a package.
 func (i *IdentifierInfo) Rename(ctx context.Context, view View, newName string) (map[span.URI][]diff.TextEdit, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Rename")
@@ -53,7 +87,7 @@ func (i *IdentifierInfo) Rename(ctx context.Context, view View, newName string) 
 	if i.Name == newName {
 		return nil, errors.Errorf("old and new names are the same: %s", newName)
 	}
-	if !isValidIdentifier(i.Name) {
+	if !isValidIdentifier(newName) {
 		return nil, errors.Errorf("invalid identifier to rename: %q", i.Name)
 	}
 	// Do not rename builtin identifiers.
@@ -112,18 +146,31 @@ func (i *IdentifierInfo) Rename(ctx context.Context, view View, newName string) 
 // getPkgName gets the pkg name associated with an identifer representing
 // the import path in an import spec.
 func (i *IdentifierInfo) getPkgName(ctx context.Context) (*IdentifierInfo, error) {
-	file := i.File.FileSet().File(i.mappedRange.spanRange.Start)
-	pkgLine := file.Line(i.mappedRange.spanRange.Start)
+	file, err := i.File.GetAST(ctx, ParseHeader)
+	if err != nil {
+		return nil, err
+	}
+	var namePos token.Pos
+	for _, spec := range file.Imports {
+		if spec.Path.Pos() == i.spanRange.Start {
+			namePos = spec.Pos()
+			break
+		}
+	}
+	if !namePos.IsValid() {
+		return nil, errors.Errorf("import spec not found for %q", i.Name)
+	}
 
+	// Look for the object defined at NamePos.
 	for _, obj := range i.pkg.GetTypesInfo().Defs {
 		pkgName, ok := obj.(*types.PkgName)
-		if ok && file.Line(pkgName.Pos()) == pkgLine {
+		if ok && pkgName.Pos() == namePos {
 			return getPkgNameIdentifier(ctx, i, pkgName)
 		}
 	}
 	for _, obj := range i.pkg.GetTypesInfo().Implicits {
 		pkgName, ok := obj.(*types.PkgName)
-		if ok && file.Line(pkgName.Pos()) == pkgLine {
+		if ok && pkgName.Pos() == namePos {
 			return getPkgNameIdentifier(ctx, i, pkgName)
 		}
 	}
