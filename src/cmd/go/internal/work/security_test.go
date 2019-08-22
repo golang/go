@@ -143,6 +143,7 @@ var goodLinkerFlags = [][]string{
 	{"-L", "framework"},
 	{"-framework", "Chocolate"},
 	{"-v"},
+	{"-Wl,-sectcreate,__TEXT,__info_plist,${SRCDIR}/Info.plist"},
 	{"-Wl,-framework", "-Wl,Chocolate"},
 	{"-Wl,-framework,Chocolate"},
 	{"-Wl,-unresolved-symbols=ignore-all"},
