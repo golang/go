@@ -413,6 +413,8 @@ type FuncInfo struct {
 	GCLocals     *LSym
 	GCRegs       *LSym
 	StackObjects *LSym
+
+	FuncInfoSym *LSym
 }
 
 type InlMark struct {
@@ -635,15 +637,6 @@ type Auto struct {
 type Pcdata struct {
 	P []byte
 }
-
-// Package Index.
-const (
-	PkgIdxNone    = (1<<31 - 1) - iota // Non-package symbols
-	PkgIdxBuiltin                      // Predefined symbols // TODO: not used for now, we could use it for compiler-generated symbols like runtime.newobject
-	PkgIdxSelf                         // Symbols defined in the current package
-	PkgIdxInvalid = 0
-	// The index of other referenced packages starts from 1.
-)
 
 // Link holds the context for writing object code from a compiler
 // to be linker input or for reading that input into the linker.
