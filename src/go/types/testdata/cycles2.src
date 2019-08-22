@@ -22,13 +22,13 @@ func _() {
 
 	t.f(t)
 	t.f(u)
-	
+
 	u.f(t)
 	u.f(u)
 }
 
 
-// Test case for issue 6589.
+// Test case for issues #6589, #33656.
 
 type A interface {
 	a() interface {
@@ -45,26 +45,28 @@ type B interface {
 type AB interface {
 	a() interface {
 		A
-		B /* ERROR a redeclared */
+		// TODO(gri) there shouldn't be an error here. See issue #33656.
+		B // ERROR duplicate method a
 	}
 	b() interface {
 		A
-		B /* ERROR a redeclared */
+		// TODO(gri) there shouldn't be an error here. See issue #33656.
+		B // ERROR duplicate method a
 	}
 }
 
 var x AB
 var y interface {
 	A
-	B /* ERROR a redeclared */
+	B
 }
-var _ = x /* ERROR cannot compare */ == y
+var _ = x == y
 
 
 // Test case for issue 6638.
 
 type T interface {
-	m() [T /* ERROR no value */ (nil).m()[0]]int
+	m() [T(nil).m /* ERROR undefined */ ()[0]]int
 }
 
 // Variations of this test case.
