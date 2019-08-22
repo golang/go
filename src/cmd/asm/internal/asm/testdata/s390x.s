@@ -329,6 +329,9 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	TCEB	F5, $8                 // ed5000080010
 	TCDB	F15, $4095             // edf00fff0011
 
+	UNDEF                          // 00000000
+	NOPH                           // 0700
+
 	VL	(R15), V1               // e710f0000006
 	VST	V1, (R15)               // e710f000000e
 	VL	(R15), V31              // e7f0f0000806

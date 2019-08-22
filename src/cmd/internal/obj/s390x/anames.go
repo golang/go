@@ -696,6 +696,7 @@ var Anames = []string{
 	"VMSLEG",
 	"VMSLOG",
 	"VMSLEOG",
+	"NOPH",
 	"BYTE",
 	"WORD",
 	"DWORD",
