@@ -961,6 +961,13 @@ godoc
       <a href="/pkg/syscall/?GOOS=windows#Chmod"><code>Chmod</code></a> mode on Windows.
     </p>
 
+    <p><!-- CL 191337 -->
+      Values of type <code>Errno</code> can be tested against error values in
+      the <code>os</code> package,
+      like <a href="/pkg/os/#ErrExist"><code>ErrExist</code></a>, using
+      <a href="/pkg/errors/#Is"><code>errors.Is</code></a>.
+    </p>
+
 </dl><!-- syscall -->
 
 <dl id="syscall/js"><dt><a href="/pkg/syscall/js/">syscall/js</a></dt>
