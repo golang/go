@@ -472,171 +472,127 @@ func (check *Checker) declareInSet(oset *objset, pos token.Pos, obj Object) bool
 }
 
 func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, def *Named) {
-	// fast-track empty interface
-	if iface.Methods.List == nil {
-		ityp.allMethods = markComplete
-		return
-	}
+	for _, f := range iface.Methods.List {
+		if len(f.Names) > 0 {
+			// We have a method with name f.Names[0].
+			// (The parser ensures that there's only one method
+			// and we don't care if a constructed AST has more.)
+			name := f.Names[0]
+			if name.Name == "_" {
+				check.errorf(name.Pos(), "invalid method name _")
+				continue // ignore
+			}
 
-	// collect embedded interfaces
-	// Only needed for printing and API. Delay collection
-	// to end of type-checking (for package-global interfaces)
-	// when all types are complete. Local interfaces are handled
-	// after each statement (as each statement processes delayed
-	// functions).
-	interfaceContext := check.context // capture for use in closure below
-	check.later(func() {
-		if trace {
-			check.trace(iface.Pos(), "-- delayed checking embedded interfaces of %v", iface)
-			check.indent++
-			defer func() {
-				check.indent--
-			}()
-		}
-
-		// The context must be restored since for local interfaces
-		// delayed functions are processed after each statement
-		// (was issue #24140).
-		defer func(ctxt context) {
-			check.context = ctxt
-		}(check.context)
-		check.context = interfaceContext
-
-		for _, f := range iface.Methods.List {
-			if len(f.Names) == 0 {
-				typ := check.indirectType(f.Type)
-				// typ should be a named type denoting an interface
-				// (the parser will make sure it's a named type but
-				// constructed ASTs may be wrong).
-				if typ == Typ[Invalid] {
-					continue // error reported before
+			typ := check.indirectType(f.Type)
+			sig, _ := typ.(*Signature)
+			if sig == nil {
+				if typ != Typ[Invalid] {
+					check.invalidAST(f.Type.Pos(), "%s is not a method signature", typ)
 				}
-				embed, _ := typ.Underlying().(*Interface)
-				if embed == nil {
+				continue // ignore
+			}
+
+			// use named receiver type if available (for better error messages)
+			var recvTyp Type = ityp
+			if def != nil {
+				recvTyp = def
+			}
+			sig.recv = NewVar(name.Pos(), check.pkg, "", recvTyp)
+
+			m := NewFunc(name.Pos(), check.pkg, name.Name, sig)
+			check.recordDef(name, m)
+			ityp.methods = append(ityp.methods, m)
+		} else {
+			// We have an embedded interface and f.Type is its
+			// (possibly qualified) embedded type name. Collect
+			// it if it's a valid interface.
+			typ := check.typ(f.Type)
+
+			if _, ok := underlying(typ).(*Interface); !ok {
+				if typ != Typ[Invalid] {
 					check.errorf(f.Type.Pos(), "%s is not an interface", typ)
-					continue
 				}
-				// Correct embedded interfaces must be complete -
-				// don't just assert, but report error since this
-				// used to be the underlying cause for issue #18395.
-				if embed.allMethods == nil {
-					check.dump("%v: incomplete embedded interface %s", f.Type.Pos(), typ)
-					unreachable()
-				}
-				// collect interface
-				ityp.embeddeds = append(ityp.embeddeds, typ)
+				continue
 			}
-		}
-		// sort to match NewInterface/NewInterface2
-		// TODO(gri) we may be able to switch to source order
-		sort.Stable(byUniqueTypeName(ityp.embeddeds))
-	})
 
-	// compute method set
-	var tname *TypeName
-	var path []*TypeName
-	if def != nil {
-		tname = def.obj
-		path = []*TypeName{tname}
+			ityp.embeddeds = append(ityp.embeddeds, typ)
+			check.posMap[ityp] = append(check.posMap[ityp], f.Type.Pos())
+		}
 	}
-	info := check.infoFromTypeLit(check.scope, iface, tname, path)
-	if info == nil || info == &emptyIfaceInfo {
-		// we got an error or the empty interface - exit early
+
+	if len(ityp.methods) == 0 && len(ityp.embeddeds) == 0 {
+		// empty interface
 		ityp.allMethods = markComplete
 		return
 	}
 
-	// use named receiver type if available (for better error messages)
-	var recvTyp Type = ityp
-	if def != nil {
-		recvTyp = def
-	}
-
-	// Correct receiver type for all methods explicitly declared
-	// by this interface after we're done with type-checking at
-	// this level. See comment below for details.
-	check.later(func() {
-		for _, m := range ityp.methods {
-			m.typ.(*Signature).recv.typ = recvTyp
-		}
-	})
-
-	// collect methods
-	var sigfix []*methodInfo
-	for i, minfo := range info.methods {
-		fun := minfo.fun
-		if fun == nil {
-			name := minfo.src.Names[0]
-			pos := name.Pos()
-			// Don't type-check signature yet - use an
-			// empty signature now and update it later.
-			// But set up receiver since we know it and
-			// its position, and because interface method
-			// signatures don't get a receiver via regular
-			// type-checking (there isn't a receiver in the
-			// method's AST). Setting the receiver type is
-			// also important for ptrRecv() (see methodset.go).
-			//
-			// Note: For embedded methods, the receiver type
-			// should be the type of the interface that declared
-			// the methods in the first place. Since we get the
-			// methods here via methodInfo, which may be computed
-			// before we have all relevant interface types, we use
-			// the current interface's type (recvType). This may be
-			// the type of the interface embedding the interface that
-			// declared the methods. This doesn't matter for type-
-			// checking (we only care about the receiver type for
-			// the ptrRecv predicate, and it's never a pointer recv
-			// for interfaces), but it matters for go/types clients
-			// and for printing. We correct the receiver after type-
-			// checking.
-			//
-			// TODO(gri) Consider marking methods signatures
-			// as incomplete, for better error messages. See
-			// also the T4 and T5 tests in testdata/cycles2.src.
-			sig := new(Signature)
-			sig.recv = NewVar(pos, check.pkg, "", recvTyp)
-			fun = NewFunc(pos, check.pkg, name.Name, sig)
-			minfo.fun = fun
-			check.recordDef(name, fun)
-			sigfix = append(sigfix, minfo)
-		}
-		// fun != nil
-		if i < info.explicits {
-			ityp.methods = append(ityp.methods, fun)
-		}
-		ityp.allMethods = append(ityp.allMethods, fun)
-	}
-
-	// fix signatures now that we have collected all methods
-	savedContext := check.context
-	for _, minfo := range sigfix {
-		// (possibly embedded) methods must be type-checked within their scope and
-		// type-checking them must not affect the current context (was issue #23914)
-		check.context = context{scope: minfo.scope}
-		typ := check.indirectType(minfo.src.Type)
-		sig, _ := typ.(*Signature)
-		if sig == nil {
-			if typ != Typ[Invalid] {
-				check.invalidAST(minfo.src.Type.Pos(), "%s is not a method signature", typ)
-			}
-			continue // keep method with empty method signature
-		}
-		// update signature, but keep recv that was set up before
-		old := minfo.fun.typ.(*Signature)
-		sig.recv = old.recv
-		*old = *sig // update signature (don't replace pointer!)
-	}
-	check.context = savedContext
-
-	// sort to match NewInterface/NewInterface2
-	// TODO(gri) we may be able to switch to source order
+	// sort for API stability
 	sort.Sort(byUniqueMethodName(ityp.methods))
+	sort.Stable(byUniqueTypeName(ityp.embeddeds))
 
-	if ityp.allMethods == nil {
-		ityp.allMethods = markComplete
-	} else {
-		sort.Sort(byUniqueMethodName(ityp.allMethods))
+	check.later(func() { check.completeInterface(ityp) })
+}
+
+func (check *Checker) completeInterface(ityp *Interface) {
+	if ityp.allMethods != nil {
+		return
+	}
+
+	// completeInterface may be called via the LookupFieldOrMethod or
+	// MissingMethod external API in which case check will be nil. In
+	// this case, type-checking must be finished and all interfaces
+	// should have been completed.
+	if check == nil {
+		panic("internal error: incomplete interface")
+	}
+
+	if trace {
+		check.trace(token.NoPos, "complete %s", ityp)
+		check.indent++
+		defer func() {
+			check.indent--
+			check.trace(token.NoPos, "=> %s", ityp)
+		}()
+	}
+
+	ityp.allMethods = markComplete // avoid infinite recursion
+
+	var methods []*Func
+	var seen objset
+	addMethod := func(m *Func, explicit bool) {
+		switch alt := seen.insert(m); {
+		case alt == nil:
+			methods = append(methods, m)
+		case explicit || !Identical(m.Type(), alt.Type()):
+			check.errorf(m.pos, "duplicate method %s", m.name)
+			// We use "other" rather than "previous" here because
+			// the first declaration seen may not be textually
+			// earlier in the source.
+			check.errorf(alt.Pos(), "\tother declaration of %s", m) // secondary error, \t indented
+		default:
+			// silently drop method m
+		}
+	}
+
+	for _, m := range ityp.methods {
+		addMethod(m, true)
+	}
+
+	posList := check.posMap[ityp]
+	for i, typ := range ityp.embeddeds {
+		pos := posList[i] // embedding position
+		typ := typ.Underlying().(*Interface)
+		check.completeInterface(typ)
+		for _, m := range typ.allMethods {
+			copy := *m
+			copy.pos = pos // preserve embedding position
+			addMethod(&copy, false)
+		}
+	}
+
+	if methods != nil {
+		sort.Sort(byUniqueMethodName(methods))
+		ityp.allMethods = methods
 	}
 }
 

@@ -76,8 +76,9 @@ type Checker struct {
 	fset *token.FileSet
 	pkg  *Package
 	*Info
-	objMap map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
-	impMap map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
+	objMap map[Object]*declInfo       // maps package-level objects and (non-interface) methods to declaration info
+	impMap map[importKey]*Package     // maps (import path, source directory) to (complete or fake) package
+	posMap map[*Interface][]token.Pos // maps interface types to lists of embedded interface positions
 
 	// information collected during type-checking of a set of package files
 	// (initialized by Files, valid only for the duration of check.Files;
@@ -86,12 +87,10 @@ type Checker struct {
 	unusedDotImports map[*Scope]map[*Package]token.Pos // positions of unused dot-imported packages for each file scope
 
 	firstErr error                 // first error encountered
-	methods  map[*TypeName][]*Func // maps package scope type names to associated non-blank, non-interface methods
-	// TODO(gri) move interfaces up to the group of fields persistent across check.Files invocations (see also comment in Checker.initFiles)
-	interfaces map[*TypeName]*ifaceInfo // maps interface type names to corresponding interface infos
-	untyped    map[ast.Expr]exprInfo    // map of expressions without final type
-	delayed    []func()                 // stack of delayed actions
-	objPath    []Object                 // path of object dependencies during type inference (for cycle reporting)
+	methods  map[*TypeName][]*Func // maps package scope type names to associated non-blank (non-interface) methods
+	untyped  map[ast.Expr]exprInfo // map of expressions without final type
+	delayed  []func()              // stack of delayed actions
+	objPath  []Object              // path of object dependencies during type inference (for cycle reporting)
 
 	// context within which the current object is type-checked
 	// (valid only for the duration of type-checking a specific object)
@@ -181,6 +180,7 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 		Info:   info,
 		objMap: make(map[Object]*declInfo),
 		impMap: make(map[importKey]*Package),
+		posMap: make(map[*Interface][]token.Pos),
 	}
 }
 
@@ -193,15 +193,6 @@ func (check *Checker) initFiles(files []*ast.File) {
 
 	check.firstErr = nil
 	check.methods = nil
-	// Don't clear the interfaces cache! It's important that we don't recompute
-	// ifaceInfos repeatedly (due to multiple check.Files calls) because when
-	// they are recomputed, they are not used in the context of their original
-	// declaration (because those types are already type-checked, typically) and
-	// then they will get the wrong receiver types, which matters for go/types
-	// clients. It is also safe to not reset the interfaces cache because files
-	// added to a package cannot change (add methods to) existing interface types;
-	// they can only add new interfaces. See also the respective comment in
-	// checker.infoFromTypeName (interfaces.go). Was bug - see issue #29029.
 	check.untyped = nil
 	check.delayed = nil
 
