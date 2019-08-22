@@ -82,6 +82,11 @@ func newObjWriter(ctxt *Link, b *bufio.Writer, pkgpath string) *objWriter {
 }
 
 func WriteObjFile(ctxt *Link, bout *bio.Writer, pkgpath string) {
+	if ctxt.Flag_newobj {
+		WriteObjFile2(ctxt, bout, pkgpath)
+		return
+	}
+
 	b := bout.Writer
 	w := newObjWriter(ctxt, b, pkgpath)
 

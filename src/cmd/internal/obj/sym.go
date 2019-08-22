@@ -32,6 +32,7 @@
 package obj
 
 import (
+	"cmd/internal/goobj2"
 	"cmd/internal/objabi"
 	"fmt"
 	"log"
@@ -173,7 +174,7 @@ func (ctxt *Link) NumberSyms(asm bool) {
 	var idx, nonpkgidx int32 = 0, 0
 	ctxt.traverseSyms(traverseDefs, func(s *LSym) {
 		if asm || s.Pkg == "_" || s.DuplicateOK() {
-			s.PkgIdx = PkgIdxNone
+			s.PkgIdx = goobj2.PkgIdxNone
 			s.SymIdx = nonpkgidx
 			if nonpkgidx != int32(len(ctxt.nonpkgdefs)) {
 				panic("bad index")
@@ -181,7 +182,7 @@ func (ctxt *Link) NumberSyms(asm bool) {
 			ctxt.nonpkgdefs = append(ctxt.nonpkgdefs, s)
 			nonpkgidx++
 		} else {
-			s.PkgIdx = PkgIdxSelf
+			s.PkgIdx = goobj2.PkgIdxSelf
 			s.SymIdx = idx
 			if idx != int32(len(ctxt.defs)) {
 				panic("bad index")
@@ -195,12 +196,12 @@ func (ctxt *Link) NumberSyms(asm bool) {
 	ipkg := int32(1) // 0 is invalid index
 	nonpkgdef := nonpkgidx
 	ctxt.traverseSyms(traverseRefs|traverseAux, func(rs *LSym) {
-		if rs.PkgIdx != PkgIdxInvalid {
+		if rs.PkgIdx != goobj2.PkgIdxInvalid {
 			return
 		}
 		pkg := rs.Pkg
 		if pkg == "" || pkg == "\"\"" || pkg == "_" || !rs.Indexed() {
-			rs.PkgIdx = PkgIdxNone
+			rs.PkgIdx = goobj2.PkgIdxNone
 			rs.SymIdx = nonpkgidx
 			rs.Set(AttrIndexed, true)
 			if nonpkgidx != nonpkgdef+int32(len(ctxt.nonpkgrefs)) {
