@@ -235,15 +235,3 @@ func putpclcdelta(linkctxt *Link, dctxt dwCtxt, s *LSym, deltaPC uint64, deltaLC
 	// Output the special opcode.
 	dctxt.AddUint8(s, uint8(opcode))
 }
-
-// createDebugLinesFileTable creates a new symbol holding the list of files
-// in our package.
-func (ctxt *Link) createDebugLinesFileTable() {
-	dctxt := dwCtxt{ctxt}
-
-	fileLUT := ctxt.PosTable.DebugLinesFileTable()
-	s := ctxt.dwarfFileTableSymbol()
-	for _, file := range fileLUT {
-		dctxt.AddString(s, file)
-	}
-}

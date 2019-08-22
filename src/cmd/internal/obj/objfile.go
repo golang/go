@@ -86,7 +86,7 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer, pkgpath string) {
 	w := newObjWriter(ctxt, b, pkgpath)
 
 	// Magic header
-	w.wr.WriteString("\x00go112ld")
+	w.wr.WriteString("\x00go114ld")
 
 	// Version
 	w.wr.WriteByte(1)
@@ -96,6 +96,13 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer, pkgpath string) {
 		w.writeString(pkg)
 	}
 	w.writeString("")
+
+	// DWARF File Table
+	fileTable := ctxt.PosTable.DebugLinesFileTable()
+	w.writeInt(int64(len(fileTable)))
+	for _, str := range fileTable {
+		w.writeString(str)
+	}
 
 	// Symbol references
 	for _, s := range ctxt.Text {
@@ -161,7 +168,7 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer, pkgpath string) {
 	}
 
 	// Magic footer
-	w.wr.WriteString("\xffgo112ld")
+	w.wr.WriteString("\xffgo114ld")
 }
 
 // Symbols are prefixed so their content doesn't get confused with the magic footer.
@@ -639,23 +646,6 @@ func (ctxt *Link) DwarfIntConst(myimportpath, name, typename string, val int64) 
 		ctxt.Data = append(ctxt.Data, s)
 	})
 	dwarf.PutIntConst(dwCtxt{ctxt}, s, ctxt.Lookup(dwarf.InfoPrefix+typename), myimportpath+"."+name, val)
-}
-
-// dwarfFileTableSymbol creates (or finds) the symbol for holding the line table for this package.
-//
-// The symbol WILL NOT be unique at the per package/archive level. For example,
-// when writing a package archive, we'll write this symbol for the Go code, and
-// one for each assembly file in the package. As such, we can't treat this
-// symbol the same when we read in the object files in the linker. This symbol
-// won't make it to the symbol table, and compilation units will keep track of
-// it.
-// TODO: Actually save this to the object file, and read it back in the linker.
-func (ctxt *Link) dwarfFileTableSymbol() *LSym {
-	s := ctxt.LookupInit(dwarf.DebugLinesPrefix+".package", func(s *LSym) {
-		s.Type = objabi.SDWARFLINES
-		//ctxt.Data = append(ctxt.Data, s)
-	})
-	return s
 }
 
 func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath string) {
