@@ -278,13 +278,12 @@ func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
 // NewInterfaceType takes ownership of the provided methods and may modify their types by setting
 // missing receivers. To compute the method set of the interface, Complete must be called.
 func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
-	typ := new(Interface)
-
 	if len(methods) == 0 && len(embeddeds) == 0 {
-		return typ
+		return &emptyInterface
 	}
 
 	// set method receivers if necessary
+	typ := new(Interface)
 	for _, m := range methods {
 		if sig := m.typ.(*Signature); sig.recv == nil {
 			sig.recv = NewVar(m.pos, m.pkg, "", typ)
