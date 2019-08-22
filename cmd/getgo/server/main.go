@@ -4,11 +4,12 @@
 
 // Command server serves get.golang.org, redirecting users to the appropriate
 // getgo installer based on the request path.
-package server
+package main
 
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -28,8 +29,19 @@ var stringMatch = map[string]string{
 	"Darwin": macInstaller,
 }
 
-func init() {
+func main() {
 	http.HandleFunc("/", handler)
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+		fmt.Printf("Defaulting to port %s", port)
+	}
+
+	fmt.Printf("Listening on port %s", port)
+	if err := http.ListenAndServe(fmt.Sprintf(":%s", port), nil); err != nil {
+		fmt.Fprintf(os.Stderr, "http.ListenAndServe: %v", err)
+	}
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {

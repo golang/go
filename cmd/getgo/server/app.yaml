@@ -1,7 +1,2 @@
-runtime: go
+runtime: go112
 service: get
-api_version: go1
-
-handlers:
-- url: /.*
-  script: _go_app
