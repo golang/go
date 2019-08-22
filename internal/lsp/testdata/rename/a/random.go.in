@@ -3,7 +3,7 @@ package a
 import (
 	lg "log"
 	"fmt" //@rename("fmt", "fmty")
-	f2 "fmt"
+	f2 "fmt" //@rename("f2", "f2name"),rename("fmt","f2y")
 )
 
 func Random() int {

@@ -40,13 +40,18 @@ func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.U
 	ctx, done := trace.StartSpan(ctx, "source.Rename")
 	defer done()
 
+	// If the object declaration is nil, assume it is an import spec.
+	if i.decl.obj == nil {
+		// Find the corresponding package name for this import spec
+		// and rename that instead.
+		ident, err := i.getPkgName(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return ident.Rename(ctx, newName)
+	}
 	if i.Name == newName {
 		return nil, errors.Errorf("old and new names are the same: %s", newName)
-	}
-	// If the object declaration is nil, assume it is an import spec and return an error.
-	// TODO(suzmue): support renaming of identifiers in an import spec.
-	if i.decl.obj == nil {
-		return nil, errors.Errorf("renaming import %q not supported", i.Name)
 	}
 	if !isValidIdentifier(i.Name) {
 		return nil, errors.Errorf("invalid identifier to rename: %q", i.Name)
@@ -102,6 +107,52 @@ func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.U
 		diff.SortTextEdits(edits)
 	}
 	return changes, nil
+}
+
+// getPkgName gets the pkg name associated with an identifer representing
+// the import path in an import spec.
+func (i *IdentifierInfo) getPkgName(ctx context.Context) (*IdentifierInfo, error) {
+	file := i.File.FileSet().File(i.Range.Start)
+	pkgLine := file.Line(i.Range.Start)
+
+	for _, obj := range i.pkg.GetTypesInfo().Defs {
+		pkgName, ok := obj.(*types.PkgName)
+		if ok && file.Line(pkgName.Pos()) == pkgLine {
+			return getPkgNameIdentifier(ctx, i, pkgName)
+		}
+	}
+	for _, obj := range i.pkg.GetTypesInfo().Implicits {
+		pkgName, ok := obj.(*types.PkgName)
+		if ok && file.Line(pkgName.Pos()) == pkgLine {
+			return getPkgNameIdentifier(ctx, i, pkgName)
+		}
+	}
+	return nil, errors.Errorf("no package name for %q", i.Name)
+}
+
+// getPkgNameIdentifier returns an IdentifierInfo representing pkgName.
+// pkgName must be in the same package and file as ident.
+func getPkgNameIdentifier(ctx context.Context, ident *IdentifierInfo, pkgName *types.PkgName) (*IdentifierInfo, error) {
+	decl := declaration{
+		obj:         pkgName,
+		wasImplicit: true,
+	}
+	var err error
+	if decl.rng, err = objToRange(ctx, ident.File.FileSet(), decl.obj); err != nil {
+		return nil, err
+	}
+	if decl.node, err = objToNode(ctx, ident.File.View(), ident.pkg.GetTypes(), decl.obj, decl.rng); err != nil {
+		return nil, err
+	}
+	return &IdentifierInfo{
+		Name:             pkgName.Name(),
+		Range:            decl.rng,
+		File:             ident.File,
+		decl:             decl,
+		pkg:              ident.pkg,
+		wasEmbeddedField: false,
+		qf:               ident.qf,
+	}, nil
 }
 
 // Rename all references to the identifier.
