@@ -314,6 +314,9 @@ var optab = []Optab{
 	// undefined (deliberate illegal instruction)
 	{i: 78, as: obj.AUNDEF},
 
+	// 2 byte no-operation
+	{i: 66, as: ANOPH},
+
 	// vector instructions
 
 	// VRX store
@@ -3393,6 +3396,9 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		}
 		d2 := c.regoff(&p.To)
 		zRXE(opcode, uint32(p.From.Reg), 0, 0, uint32(d2), 0, asm)
+
+	case 66:
+		zRR(op_BCR, 0, 0, asm)
 
 	case 67: // fmov $0 freg
 		var opcode uint32
