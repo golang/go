@@ -16,8 +16,7 @@ import (
 // but using Go-native regular expressions.
 // To keep things reasonably close, this version uses (?m:re) for all user-provided
 // regular expressions. That is the only change to the code from codewalk.go.
-// See http://plan9.bell-labs.com/sys/doc/sam/sam.html Table II
-// for details on the syntax.
+// See http://9p.io/sys/doc/sam/sam.html Table II for details on the syntax.
 
 // addrToByte evaluates the given address starting at offset start in data.
 // It returns the lo and hi byte offset of the matched region within data.

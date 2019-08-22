@@ -287,8 +287,7 @@ func codewalkFileprint(w http.ResponseWriter, r *http.Request, f string) {
 
 // addrToByte evaluates the given address starting at offset start in data.
 // It returns the lo and hi byte offset of the matched region within data.
-// See http://plan9.bell-labs.com/sys/doc/sam/sam.html Table II
-// for details on the syntax.
+// See http://9p.io/sys/doc/sam/sam.html Table II for details on the syntax.
 func addrToByteRange(addr string, start int, data []byte) (lo, hi int, err error) {
 	var (
 		dir        byte
