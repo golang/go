@@ -315,7 +315,7 @@ go env -w GOSUMDB=off
 
 <p>
   The <code>go</code> command now verifies the mapping
-  between <a href="/cmd/go#hdr-Pseudo_versions">pseudo-versions</a> and
+  between <a href="/cmd/go/#hdr-Pseudo_versions">pseudo-versions</a> and
   version-control metadata. Specifically:
   <ul>
     <li>The version prefix must be of the form <code>vX.0.0</code>, or derived
@@ -551,9 +551,9 @@ godoc
   To support wrapping, <a href="#fmt"><code>fmt.Errorf</code></a> now has a <code>%w</code>
   verb for creating wrapped errors, and three new functions in
   the <a href="#errors"><code>errors</code></a> package (
-  <a href="/pkg/errors#Unwrap"><code>errors.Unwrap</code></a>,
-  <a href="/pkg/errors#Is"><code>errors.Is</code></a> and
-  <a href="/pkg/errors#As"><code>errors.As</code></a>) simplify unwrapping
+  <a href="/pkg/errors/#Unwrap"><code>errors.Unwrap</code></a>,
+  <a href="/pkg/errors/#Is"><code>errors.Is</code></a> and
+  <a href="/pkg/errors/#As"><code>errors.As</code></a>) simplify unwrapping
   and inspecting wrapped errors.
 </p>
 <p>
@@ -790,7 +790,7 @@ godoc
       <code>Timeout</code> method that returns <code>true</code> if called.
       This can make a keep-alive error difficult to distinguish from
       an error returned due to a missed deadline as set by the
-      <a href="/pkg/net#Conn"><code>SetDeadline</code></a>
+      <a href="/pkg/net/#Conn"><code>SetDeadline</code></a>
       method and similar methods.
       Code that uses deadlines and checks for them with
       the <code>Timeout</code> method or
@@ -819,7 +819,7 @@ godoc
     </p>
 
     <p><!-- CL 140357 -->
-      When reusing HTTP/2, the <a href="/pkg/net/http#Transport"><code>Transport</code></a> no longer performs unnecessary TLS handshakes.
+      When reusing HTTP/2, the <a href="/pkg/net/http/#Transport"><code>Transport</code></a> no longer performs unnecessary TLS handshakes.
     </p>
 
     <p><!-- CL 154383 -->
@@ -843,14 +843,14 @@ godoc
     </p>
 
     <p><!-- CL 167681 -->
-      The new <a href="/pkg/net/http#Server"><code>Server</code></a> fields
+      The new <a href="/pkg/net/http/#Server"><code>Server</code></a> fields
       <a href="/pkg/net/http/#Server.BaseContext"><code>BaseContext</code></a> and
       <a href="/pkg/net/http/#Server.ConnContext"><code>ConnContext</code></a>
-      allow finer control over the <a href="/pkg/context#Context"><code>Context</code></a> values provided to requests and connections.
+      allow finer control over the <a href="/pkg/context/#Context"><code>Context</code></a> values provided to requests and connections.
     </p>
 
     <p><!-- CL 167781 -->
-      <a href="/pkg/net/http#DetectContentType"><code>http.DetectContentType</code></a> now correctly detects RAR signatures, and can now also detect RAR v5 signatures.
+      <a href="/pkg/net/http/#DetectContentType"><code>http.DetectContentType</code></a> now correctly detects RAR signatures, and can now also detect RAR v5 signatures.
     </p>
 
     <p><!-- CL 173658 -->
@@ -888,9 +888,9 @@ godoc
 <dl id="os/exec"><dt><a href="/pkg/os/exec/">os/exec</a></dt>
   <dd>
     <p><!-- CL 174318 -->
-      On Windows, the environment for a <a href="/pkg/os/exec#Cmd"><code>Cmd</code></a> always inherits the
+      On Windows, the environment for a <a href="/pkg/os/exec/#Cmd"><code>Cmd</code></a> always inherits the
       <code>%SYSTEMROOT%</code> value of the parent process unless the
-      <a href="/pkg/os/exec#Cmd.Env"><code>Cmd.Env</code></a> field includes an explicit value for it.
+      <a href="/pkg/os/exec/#Cmd.Env"><code>Cmd.Env</code></a> field includes an explicit value for it.
     </p>
 
 </dl><!-- os/exec -->
