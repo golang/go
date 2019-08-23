@@ -63,8 +63,7 @@ type decoder struct {
 	//
 	// last is the most recently seen code, or decoderInvalidCode.
 	//
-	// An invariant is that
-	// (hi < overflow) || (hi == overflow && last == decoderInvalidCode)
+	// An invariant is that hi < overflow.
 	clear, eof, hi, overflow, last uint16
 
 	// Each code c in [lo, hi] expands to two or more bytes. For c != hi:
@@ -203,7 +202,7 @@ loop:
 			if d.width == maxWidth {
 				d.last = decoderInvalidCode
 				// Undo the d.hi++ a few lines above, so that (1) we maintain
-				// the invariant that d.hi <= d.overflow, and (2) d.hi does not
+				// the invariant that d.hi < d.overflow, and (2) d.hi does not
 				// eventually overflow a uint16.
 				d.hi--
 			} else {
