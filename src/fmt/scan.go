@@ -609,7 +609,7 @@ func (s *ss) scanRune(bitSize int) int64 {
 	return r
 }
 
-// scanBasePrefix reports whether the integer begins with a bas prefix
+// scanBasePrefix reports whether the integer begins with a base prefix
 // and returns the base, digit string, and whether a zero was found.
 // It is called only if the verb is %v.
 func (s *ss) scanBasePrefix() (base int, digits string, zeroFound bool) {
