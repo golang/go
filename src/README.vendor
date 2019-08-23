@@ -41,13 +41,13 @@ The vendor directory may be updated with 'go mod vendor'.
 A typical sequence might be:
 
     cd src
-    go get -m golang.org/x/net@latest
+    go get -d golang.org/x/net@latest
     go mod tidy
     go mod vendor
 
 Use caution when passing '-u' to 'go get'. The '-u' flag updates
-modules providing all transitively imported packages, not just
-the target module.
+modules providing all transitively imported packages, not only
+the module providing the target package.
 
 Note that 'go mod vendor' only copies packages that are transitively
 imported by packages in the current module. If a new package is needed,
