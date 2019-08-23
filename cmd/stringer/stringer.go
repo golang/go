@@ -56,6 +56,12 @@
 // where t is the lower-cased name of the first type listed. It can be overridden
 // with the -output flag.
 //
+// The -linecomment flag tells stringer to generate the text of any line comment, trimmed
+// of leading spaces, instead of the constant name. For instance, if the constants above had a
+// Pill prefix, one could write
+//   PillAspirin // Aspirin
+// to suppress it in the output.
+
 package main // import "golang.org/x/tools/cmd/stringer"
 
 import (
