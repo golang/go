@@ -285,7 +285,10 @@ func read(p []byte, int63 func() int64, readVal *int64, readPos *int8) (n int, e
  * Top-level convenience functions
  */
 
-var globalRand = New(&lockedSource{src: NewSource(1).(Source64)})
+var globalRand = New(&lockedSource{src: NewSource(1).(*rngSource)})
+
+// Type assert that globalRand's source is a lockedSource whose src is a *rngSource.
+var _ *rngSource = globalRand.src.(*lockedSource).src
 
 // Seed uses the provided seed value to initialize the default Source to a
 // deterministic state. If Seed is not called, the generator behaves as
@@ -373,7 +376,7 @@ func ExpFloat64() float64 { return globalRand.ExpFloat64() }
 
 type lockedSource struct {
 	lk  sync.Mutex
-	src Source64
+	src *rngSource
 }
 
 func (r *lockedSource) Int63() (n int64) {
