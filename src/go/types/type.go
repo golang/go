@@ -351,16 +351,18 @@ func (t *Interface) Complete() *Interface {
 
 	t.allMethods = markComplete // avoid infinite recursion
 
+	var todo []*Func
 	var methods []*Func
 	var seen objset
 	addMethod := func(m *Func, explicit bool) {
-		switch alt := seen.insert(m); {
-		case alt == nil:
+		switch other := seen.insert(m); {
+		case other == nil:
 			methods = append(methods, m)
-		case explicit || !Identical(m.Type(), alt.Type()):
+		case explicit:
 			panic("duplicate method " + m.name)
 		default:
-			// silently drop method m
+			// check method signatures after all locally embedded interfaces are computed
+			todo = append(todo, m, other.(*Func))
 		}
 	}
 
@@ -373,6 +375,14 @@ func (t *Interface) Complete() *Interface {
 		typ.Complete()
 		for _, m := range typ.allMethods {
 			addMethod(m, false)
+		}
+	}
+
+	for i := 0; i < len(todo); i += 2 {
+		m := todo[i]
+		other := todo[i+1]
+		if !Identical(m.typ, other.typ) {
+			panic("duplicate method " + m.name)
 		}
 	}
 
