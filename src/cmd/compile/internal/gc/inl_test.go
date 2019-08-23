@@ -148,6 +148,10 @@ func TestIntendedInlining(t *testing.T) {
 			"addVW",
 			"subVW",
 		},
+		"math/rand": {
+			"(*rngSource).Int63",
+			"(*rngSource).Uint64",
+		},
 	}
 
 	if runtime.GOARCH != "386" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" {
