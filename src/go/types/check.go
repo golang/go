@@ -269,6 +269,21 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 	return
 }
 
+// processDelayed processes all delayed actions pushed after top.
+func (check *Checker) processDelayed(top int) {
+	// If each delayed action pushes a new action, the
+	// stack will continue to grow during this loop.
+	// However, it is only processing functions (which
+	// are processed in a delayed fashion) that may
+	// add more actions (such as nested functions), so
+	// this is a sufficiently bounded process.
+	for i := top; i < len(check.delayed); i++ {
+		check.delayed[i]() // may append to check.delayed
+	}
+	assert(top <= len(check.delayed)) // stack must not have shrunk
+	check.delayed = check.delayed[:top]
+}
+
 func (check *Checker) processFinals() {
 	n := len(check.finals)
 	for _, f := range check.finals {
