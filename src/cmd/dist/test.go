@@ -972,6 +972,8 @@ func (t *tester) supportedBuildmode(mode string) bool {
 			return true
 		case "darwin-amd64":
 			return true
+		case "freebsd-amd64":
+			return true
 		}
 		return false
 	case "pie":
