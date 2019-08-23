@@ -667,6 +667,24 @@ godoc
 
 <dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
   <dd>
+    <!-- CL 160245 -->
+    <p>
+      The printing verbs <code>%x</code> and <code>%X</code> now format floating-point and
+      complex numbers in hexadecimal notation, in lower-case and upper-case respectively.
+    </p>
+
+    <!-- CL 160246 -->
+    <p>
+      The new printing verb <code>%O</code> formats integers in base 8, emitting the <code>0o</code> prefix.
+    </p>
+
+    <!-- CL 160247 -->
+    <p>
+      The scanner now accepts hexadecimal floating-point values, digit-separating underscores
+      and leading <code>0b</code> and <code>0o</code> prefixes.
+      See the <a href="#language">Changes to the language</a> for details.
+    </p>
+
     <!-- CL 176998 -->
     <p>The <a href="/pkg/fmt/#Errorf"><code>Errorf</code></a> function
       has a new verb, <code>%w</code>, whose operand must be an error.
