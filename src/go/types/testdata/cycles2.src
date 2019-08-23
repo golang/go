@@ -45,13 +45,11 @@ type B interface {
 type AB interface {
 	a() interface {
 		A
-		// TODO(gri) there shouldn't be an error here. See issue #33656.
-		B // ERROR duplicate method a
+		B
 	}
 	b() interface {
 		A
-		// TODO(gri) there shouldn't be an error here. See issue #33656.
-		B // ERROR duplicate method a
+		B
 	}
 }
 
