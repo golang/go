@@ -607,16 +607,6 @@ func (a inSourceOrder) Len() int           { return len(a) }
 func (a inSourceOrder) Less(i, j int) bool { return a[i].order() < a[j].order() }
 func (a inSourceOrder) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
-// processDelayed processes all delayed actions pushed after top.
-func (check *Checker) processDelayed(top int) {
-	for len(check.delayed) > top {
-		i := len(check.delayed) - 1
-		f := check.delayed[i]
-		check.delayed = check.delayed[:i]
-		f() // may append to check.delayed
-	}
-}
-
 // unusedImports checks for unused imports.
 func (check *Checker) unusedImports() {
 	// if function bodies are not checked, packages' uses are likely missing - don't check
