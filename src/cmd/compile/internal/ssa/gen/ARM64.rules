@@ -1863,9 +1863,8 @@
 (XORshiftLL <t> [c] (UBFX [bfc] x) x2) && c < 32 && t.Size() == 4 && bfc == armBFAuxInt(32-c, c)
 	-> (EXTRWconst [32-c] x2 x)
 
-// Generic rules rewrite certain AND to a pair of shifts.
-// However, on ARM64 the bitmask can fit into an instruction.
-// Rewrite it back to AND.
+// Rewrite special pairs of shifts to AND.
+// On ARM64 the bitmask can fit into an instruction.
 (SRLconst [c] (SLLconst [c] x)) && 0 < c && c < 64 -> (ANDconst [1<<uint(64-c)-1] x) // mask out high bits
 (SLLconst [c] (SRLconst [c] x)) && 0 < c && c < 64 -> (ANDconst [^(1<<uint(c)-1)] x) // mask out low bits
 
