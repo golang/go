@@ -445,8 +445,6 @@ TEXT runtime·switchtothread(SB),NOSPLIT,$0
 #define time_hi2 8
 
 TEXT runtime·nanotime(SB),NOSPLIT,$0-8
-	CMPB	runtime·useQPCTime(SB), $0
-	JNE	useQPC
 loop:
 	MOVL	(_INTERRUPT_TIME+time_hi1), AX
 	MOVL	(_INTERRUPT_TIME+time_lo), CX
@@ -463,13 +461,8 @@ loop:
 	MOVL	AX, ret_lo+0(FP)
 	MOVL	DX, ret_hi+4(FP)
 	RET
-useQPC:
-	JMP	runtime·nanotimeQPC(SB)
-	RET
 
 TEXT time·now(SB),NOSPLIT,$0-20
-	CMPB	runtime·useQPCTime(SB), $0
-	JNE	useQPC
 loop:
 	MOVL	(_INTERRUPT_TIME+time_hi1), AX
 	MOVL	(_INTERRUPT_TIME+time_lo), CX
@@ -537,7 +530,4 @@ wall:
 	ADCL	$0, DX
 	MOVL	AX, sec+0(FP)
 	MOVL	DX, sec+4(FP)
-	RET
-useQPC:
-	JMP	runtime·nowQPC(SB)
 	RET
