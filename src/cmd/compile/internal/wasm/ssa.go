@@ -201,7 +201,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			// Instead, we delay the generation to when the value is used and then directly generate it on the WebAssembly stack.
 			return
 		}
-		ssaGenValueOnStack(s, v)
+		ssaGenValueOnStack(s, v, true)
 		if s.OnWasmStackSkipped != 0 {
 			panic("wasm: bad stack")
 		}
@@ -209,7 +209,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	}
 }
 
-func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value) {
+func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
 	switch v.Op {
 	case ssa.OpWasmLoweredGetClosurePtr:
 		getReg(s, wasm.REG_CTXT)
@@ -257,8 +257,7 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpWasmSelect:
 		getValue64(s, v.Args[0])
 		getValue64(s, v.Args[1])
-		getValue64(s, v.Args[2])
-		s.Prog(wasm.AI32WrapI64)
+		getValue32(s, v.Args[2])
 		s.Prog(v.Op.Asm())
 
 	case ssa.OpWasmI64AddConst:
@@ -283,13 +282,17 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpWasmI64Eqz:
 		getValue64(s, v.Args[0])
 		s.Prog(v.Op.Asm())
-		s.Prog(wasm.AI64ExtendI32U)
+		if extend {
+			s.Prog(wasm.AI64ExtendI32U)
+		}
 
 	case ssa.OpWasmI64Eq, ssa.OpWasmI64Ne, ssa.OpWasmI64LtS, ssa.OpWasmI64LtU, ssa.OpWasmI64GtS, ssa.OpWasmI64GtU, ssa.OpWasmI64LeS, ssa.OpWasmI64LeU, ssa.OpWasmI64GeS, ssa.OpWasmI64GeU, ssa.OpWasmF64Eq, ssa.OpWasmF64Ne, ssa.OpWasmF64Lt, ssa.OpWasmF64Gt, ssa.OpWasmF64Le, ssa.OpWasmF64Ge:
 		getValue64(s, v.Args[0])
 		getValue64(s, v.Args[1])
 		s.Prog(v.Op.Asm())
-		s.Prog(wasm.AI64ExtendI32U)
+		if extend {
+			s.Prog(wasm.AI64ExtendI32U)
+		}
 
 	case ssa.OpWasmI64Add, ssa.OpWasmI64Sub, ssa.OpWasmI64Mul, ssa.OpWasmI64DivU, ssa.OpWasmI64RemS, ssa.OpWasmI64RemU, ssa.OpWasmI64And, ssa.OpWasmI64Or, ssa.OpWasmI64Xor, ssa.OpWasmI64Shl, ssa.OpWasmI64ShrS, ssa.OpWasmI64ShrU, ssa.OpWasmF64Add, ssa.OpWasmF64Sub, ssa.OpWasmF64Mul, ssa.OpWasmF64Div, ssa.OpWasmF64Copysign, ssa.OpWasmI64Rotl:
 		getValue64(s, v.Args[0])
@@ -348,11 +351,22 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value) {
 	}
 }
 
+func isCmp(v *ssa.Value) bool {
+	switch v.Op {
+	case ssa.OpWasmI64Eqz, ssa.OpWasmI64Eq, ssa.OpWasmI64Ne, ssa.OpWasmI64LtS, ssa.OpWasmI64LtU, ssa.OpWasmI64GtS, ssa.OpWasmI64GtU, ssa.OpWasmI64LeS, ssa.OpWasmI64LeU, ssa.OpWasmI64GeS, ssa.OpWasmI64GeU, ssa.OpWasmF64Eq, ssa.OpWasmF64Ne, ssa.OpWasmF64Lt, ssa.OpWasmF64Gt, ssa.OpWasmF64Le, ssa.OpWasmF64Ge:
+		return true
+	default:
+		return false
+	}
+}
+
 func getValue32(s *gc.SSAGenState, v *ssa.Value) {
 	if v.OnWasmStack {
 		s.OnWasmStackSkipped--
-		ssaGenValueOnStack(s, v)
-		s.Prog(wasm.AI32WrapI64)
+		ssaGenValueOnStack(s, v, false)
+		if !isCmp(v) {
+			s.Prog(wasm.AI32WrapI64)
+		}
 		return
 	}
 
@@ -366,7 +380,7 @@ func getValue32(s *gc.SSAGenState, v *ssa.Value) {
 func getValue64(s *gc.SSAGenState, v *ssa.Value) {
 	if v.OnWasmStack {
 		s.OnWasmStackSkipped--
-		ssaGenValueOnStack(s, v)
+		ssaGenValueOnStack(s, v, true)
 		return
 	}
 
