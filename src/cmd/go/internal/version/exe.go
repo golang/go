@@ -213,7 +213,13 @@ func (x *machoExe) ReadData(addr, size uint64) ([]byte, error) {
 }
 
 func (x *machoExe) DataStart() uint64 {
-	// Assume data is first non-empty writable segment.
+	// Look for section named "__go_buildinfo".
+	for _, sec := range x.f.Sections {
+		if sec.Name == "__go_buildinfo" {
+			return sec.Addr
+		}
+	}
+	// Try the first non-empty writable segment.
 	const RW = 3
 	for _, load := range x.f.Loads {
 		seg, ok := load.(*macho.Segment)

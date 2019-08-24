@@ -2066,7 +2066,7 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
 		s.Attr |= sym.AttrStackCheck
 	}
 
-	if depth > 100 {
+	if depth > 500 {
 		Errorf(s, "nosplit stack check too deep")
 		stkbroke(ctxt, up, 0)
 		return -1

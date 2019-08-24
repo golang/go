@@ -380,10 +380,10 @@ func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]Q
 			}
 			r.Packages = match(r.Mod, root, isLocal)
 			if len(r.Packages) == 0 {
-				return r, &packageNotInModuleError{
-					mod:     r.Mod,
-					query:   query,
-					pattern: pattern,
+				return r, &PackageNotInModuleError{
+					Mod:     r.Mod,
+					Query:   query,
+					Pattern: pattern,
 				}
 			}
 			return r, nil
@@ -446,30 +446,31 @@ func queryPrefixModules(candidateModules []string, queryModule func(path string)
 	wg.Wait()
 
 	// Classify the results. In case of failure, identify the error that the user
-	// is most likely to find helpful.
+	// is most likely to find helpful: the most useful class of error at the
+	// longest matching path.
 	var (
+		noPackage   *PackageNotInModuleError
 		noVersion   *NoMatchingVersionError
-		noPackage   *packageNotInModuleError
 		notExistErr error
 	)
 	for _, r := range results {
 		switch rErr := r.err.(type) {
 		case nil:
 			found = append(found, r.QueryResult)
+		case *PackageNotInModuleError:
+			if noPackage == nil {
+				noPackage = rErr
+			}
 		case *NoMatchingVersionError:
 			if noVersion == nil {
 				noVersion = rErr
-			}
-		case *packageNotInModuleError:
-			if noPackage == nil {
-				noPackage = rErr
 			}
 		default:
 			if errors.Is(rErr, os.ErrNotExist) {
 				if notExistErr == nil {
 					notExistErr = rErr
 				}
-			} else {
+			} else if err == nil {
 				err = r.err
 			}
 		}
@@ -515,31 +516,31 @@ func (e *NoMatchingVersionError) Error() string {
 	return fmt.Sprintf("no matching versions for query %q", e.query) + currentSuffix
 }
 
-// A packageNotInModuleError indicates that QueryPattern found a candidate
+// A PackageNotInModuleError indicates that QueryPattern found a candidate
 // module at the requested version, but that module did not contain any packages
 // matching the requested pattern.
 //
-// NOTE: packageNotInModuleError MUST NOT implement Is(os.ErrNotExist).
+// NOTE: PackageNotInModuleError MUST NOT implement Is(os.ErrNotExist).
 //
 // If the module came from a proxy, that proxy had to return a successful status
 // code for the versions it knows about, and thus did not have the opportunity
 // to return a non-400 status code to suppress fallback.
-type packageNotInModuleError struct {
-	mod     module.Version
-	query   string
-	pattern string
+type PackageNotInModuleError struct {
+	Mod     module.Version
+	Query   string
+	Pattern string
 }
 
-func (e *packageNotInModuleError) Error() string {
+func (e *PackageNotInModuleError) Error() string {
 	found := ""
-	if e.query != e.mod.Version {
-		found = fmt.Sprintf(" (%s)", e.mod.Version)
+	if e.Query != e.Mod.Version {
+		found = fmt.Sprintf(" (%s)", e.Mod.Version)
 	}
 
-	if strings.Contains(e.pattern, "...") {
-		return fmt.Sprintf("module %s@%s%s found, but does not contain packages matching %s", e.mod.Path, e.query, found, e.pattern)
+	if strings.Contains(e.Pattern, "...") {
+		return fmt.Sprintf("module %s@%s%s found, but does not contain packages matching %s", e.Mod.Path, e.Query, found, e.Pattern)
 	}
-	return fmt.Sprintf("module %s@%s%s found, but does not contain package %s", e.mod.Path, e.query, found, e.pattern)
+	return fmt.Sprintf("module %s@%s%s found, but does not contain package %s", e.Mod.Path, e.Query, found, e.Pattern)
 }
 
 // ModuleHasRootPackage returns whether module m contains a package m.Path.

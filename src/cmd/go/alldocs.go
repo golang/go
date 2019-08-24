@@ -78,6 +78,8 @@
 // If the arguments to build are a list of .go files from a single directory,
 // build treats them as a list of source files specifying a single package.
 //
+// When compiling packages, build ignores files that end in '_test.go'.
+//
 // When compiling a single main package, build writes
 // the resulting executable to an output file named after
 // the first source file ('go build ed.go rx.go' writes 'ed' or 'ed.exe')
@@ -87,8 +89,6 @@
 // When compiling multiple packages or a single non-main package,
 // build compiles the packages but discards the resulting object,
 // serving only as a check that the packages can be built.
-//
-// When compiling packages, build ignores files that end in '_test.go'.
 //
 // The -o flag forces build to write the resulting executable or object
 // to the named output file or directory, instead of the default behavior described
@@ -2743,9 +2743,11 @@
 // 	GOSUMDB="sum.golang.org+<publickey>"
 // 	GOSUMDB="sum.golang.org+<publickey> https://sum.golang.org"
 //
-// The go command knows the public key of sum.golang.org; use of any other
-// database requires giving the public key explicitly. The URL defaults to
-// "https://" followed by the database name.
+// The go command knows the public key of sum.golang.org, and also that the name
+// sum.golang.google.cn (available inside mainland China) connects to the
+// sum.golang.org checksum database; use of any other database requires giving
+// the public key explicitly.
+// The URL defaults to "https://" followed by the database name.
 //
 // GOSUMDB defaults to "sum.golang.org", the Go checksum database run by Google.
 // See https://sum.golang.org/privacy for the service's privacy policy.

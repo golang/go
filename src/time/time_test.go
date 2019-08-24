@@ -995,6 +995,7 @@ var subTests = []struct {
 	{Date(2300, 1, 1, 0, 0, 0, 0, UTC), Date(2000, 1, 1, 0, 0, 0, 0, UTC), Duration(maxDuration)},
 	{Date(2000, 1, 1, 0, 0, 0, 0, UTC), Date(2290, 1, 1, 0, 0, 0, 0, UTC), -290*365*24*Hour - 71*24*Hour},
 	{Date(2000, 1, 1, 0, 0, 0, 0, UTC), Date(2300, 1, 1, 0, 0, 0, 0, UTC), Duration(minDuration)},
+	{Date(2311, 11, 26, 02, 16, 47, 63535996, UTC), Date(2019, 8, 16, 2, 29, 30, 268436582, UTC), 9223372036795099414},
 	{MinMonoTime, MaxMonoTime, minDuration},
 	{MaxMonoTime, MinMonoTime, maxDuration},
 }
@@ -1004,14 +1005,6 @@ func TestSub(t *testing.T) {
 		got := st.t.Sub(st.u)
 		if got != st.d {
 			t.Errorf("#%d: Sub(%v, %v): got %v; want %v", i, st.t, st.u, got, st.d)
-		}
-	}
-}
-
-func BenchmarkSub(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		for _, st := range subTests {
-			st.t.Sub(st.u)
 		}
 	}
 }
