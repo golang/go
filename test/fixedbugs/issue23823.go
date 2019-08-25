@@ -6,10 +6,10 @@
 
 package p
 
-type I1 = interface {
+type I1 = interface { // ERROR "invalid recursive type"
 	I2
 }
 
-type I2 interface { // ERROR "invalid recursive type"
+type I2 interface {
 	I1
 }

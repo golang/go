@@ -456,8 +456,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			t = types.NewArray(r.Type, bound)
 		}
 
-		n.Op = OTYPE
-		n.Type = t
+		setTypeNode(n, t)
 		n.Left = nil
 		n.Right = nil
 		if !t.IsDDDArray() {
@@ -480,8 +479,8 @@ func typecheck1(n *Node, top int) (res *Node) {
 		if r.Type.NotInHeap() {
 			yyerror("go:notinheap map value not allowed")
 		}
-		n.Op = OTYPE
-		n.Type = types.NewMap(l.Type, r.Type)
+
+		setTypeNode(n, types.NewMap(l.Type, r.Type))
 		mapqueue = append(mapqueue, n) // check map keys when all types are settled
 		n.Left = nil
 		n.Right = nil
@@ -497,37 +496,28 @@ func typecheck1(n *Node, top int) (res *Node) {
 		if l.Type.NotInHeap() {
 			yyerror("chan of go:notinheap type not allowed")
 		}
-		t := types.NewChan(l.Type, n.TChanDir())
-		n.Op = OTYPE
-		n.Type = t
+
+		setTypeNode(n, types.NewChan(l.Type, n.TChanDir()))
 		n.Left = nil
 		n.ResetAux()
 
 	case OTSTRUCT:
 		ok |= Etype
-		n.Op = OTYPE
-		n.Type = tostruct(n.List.Slice())
-		if n.Type == nil || n.Type.Broke() {
+		t := tostruct(n.List.Slice())
+		if t.Broke() {
 			n.Type = nil
 			return n
 		}
+		setTypeNode(n, t)
 		n.List.Set(nil)
 
 	case OTINTER:
 		ok |= Etype
-		n.Op = OTYPE
-		n.Type = tointerface(n.List.Slice())
-		if n.Type == nil {
-			return n
-		}
+		setTypeNode(n, tointerface(n.List.Slice()))
 
 	case OTFUNC:
 		ok |= Etype
-		n.Op = OTYPE
-		n.Type = functype(n.Left, n.List.Slice(), n.Rlist.Slice())
-		if n.Type == nil {
-			return n
-		}
+		setTypeNode(n, functype(n.Left, n.List.Slice(), n.Rlist.Slice()))
 		n.Left = nil
 		n.List.Set(nil)
 		n.Rlist.Set(nil)
@@ -543,8 +533,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 		}
 		if l.Op == OTYPE {
 			ok |= Etype
-			n.Op = OTYPE
-			n.Type = types.NewPtr(l.Type)
+			setTypeNode(n, types.NewPtr(l.Type))
 			// Ensure l.Type gets dowidth'd for the backend. Issue 20174.
 			// Don't checkwidth [...] arrays, though, since they
 			// will be replaced by concrete-sized arrays. Issue 20333.
@@ -3683,8 +3672,7 @@ func typecheckdef(n *Node) {
 			defercheckwidth()
 		}
 		n.SetWalkdef(1)
-		n.Type = types.New(TFORW)
-		n.Type.Nod = asTypesNode(n)
+		setTypeNode(n, types.New(TFORW))
 		n.Type.Sym = n.Sym // TODO(gri) this also happens in typecheckdeftype(n) - where should it happen?
 		nerrors0 := nerrors
 		typecheckdeftype(n)
@@ -3950,4 +3938,11 @@ func deadcodeexpr(n *Node) *Node {
 		}
 	}
 	return n
+}
+
+// setTypeNode sets n to an OTYPE node representing t.
+func setTypeNode(n *Node, t *types.Type) {
+	n.Op = OTYPE
+	n.Type = t
+	n.Type.Nod = asTypesNode(n)
 }
