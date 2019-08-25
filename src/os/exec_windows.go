@@ -94,6 +94,7 @@ func findProcess(pid int) (p *Process, err error) {
 	if e != nil {
 		return nil, NewSyscallError("OpenProcess", e)
 	}
+	defer syscall.CloseHandle(h)
 	return newProcess(pid, uintptr(h)), nil
 }
 
