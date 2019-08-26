@@ -128,6 +128,11 @@ const (
 	IMAGE_REL_BASED_HIGHLOW = 3
 )
 
+const (
+	PeMinimumTargetMajorVersion = 6
+	PeMinimumTargetMinorVersion = 1
+)
+
 // DOS stub that prints out
 // "This program cannot be run in DOS mode."
 var dosstub = []uint8{
@@ -830,18 +835,18 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 	oh.SectionAlignment = uint32(PESECTALIGN)
 	oh64.FileAlignment = uint32(PEFILEALIGN)
 	oh.FileAlignment = uint32(PEFILEALIGN)
-	oh64.MajorOperatingSystemVersion = 6
-	oh.MajorOperatingSystemVersion = 6
-	oh64.MinorOperatingSystemVersion = 1
-	oh.MinorOperatingSystemVersion = 1
+	oh64.MajorOperatingSystemVersion = PeMinimumTargetMajorVersion
+	oh.MajorOperatingSystemVersion = PeMinimumTargetMajorVersion
+	oh64.MinorOperatingSystemVersion = PeMinimumTargetMinorVersion
+	oh.MinorOperatingSystemVersion = PeMinimumTargetMinorVersion
 	oh64.MajorImageVersion = 1
 	oh.MajorImageVersion = 1
 	oh64.MinorImageVersion = 0
 	oh.MinorImageVersion = 0
-	oh64.MajorSubsystemVersion = 6
-	oh.MajorSubsystemVersion = 6
-	oh64.MinorSubsystemVersion = 1
-	oh.MinorSubsystemVersion = 1
+	oh64.MajorSubsystemVersion = PeMinimumTargetMajorVersion
+	oh.MajorSubsystemVersion = PeMinimumTargetMajorVersion
+	oh64.MinorSubsystemVersion = PeMinimumTargetMinorVersion
+	oh.MinorSubsystemVersion = PeMinimumTargetMinorVersion
 	oh64.SizeOfImage = f.nextSectOffset
 	oh.SizeOfImage = f.nextSectOffset
 	oh64.SizeOfHeaders = uint32(PEFILEHEADR)
