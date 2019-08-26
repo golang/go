@@ -1175,6 +1175,11 @@ func (ctxt *Link) hostlink() {
 		// Mark as having awareness of terminal services, to avoid
 		// ancient compatibility hacks.
 		argv = append(argv, "-Wl,--tsaware")
+
+		argv = append(argv, fmt.Sprintf("-Wl,--major-os-version=%d", PeMinimumTargetMajorVersion))
+		argv = append(argv, fmt.Sprintf("-Wl,--minor-os-version=%d", PeMinimumTargetMinorVersion))
+		argv = append(argv, fmt.Sprintf("-Wl,--major-subsystem-version=%d", PeMinimumTargetMajorVersion))
+		argv = append(argv, fmt.Sprintf("-Wl,--minor-subsystem-version=%d", PeMinimumTargetMinorVersion))
 	case objabi.Haix:
 		argv = append(argv, "-pthread")
 		// prevent ld to reorder .text functions to keep the same
