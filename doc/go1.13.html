@@ -593,10 +593,15 @@ godoc
   <dd>
     <p>
       Support for SSL version 3.0 (SSLv3) <a href="https://golang.org/issue/32716">
-      is now deprecated and will be removed in Go 1.14</a>. Note that SSLv3
-      <a href="https://tools.ietf.org/html/rfc7568">is cryptographically
-      broken</a>, is already disabled by default in <code>crypto/tls</code>,
-      and was never supported by Go clients.
+      is now deprecated and will be removed in Go 1.14</a>. Note that SSLv3 is the
+      <a href="https://tools.ietf.org/html/rfc7568">cryptographically broken</a>
+      protocol predating TLS.
+    </p>
+
+    <p>
+      SSLv3 was always disabled by default, other than in Go 1.12, when it was
+      mistakenly enabled by default server-side. It is now again disabled by
+      default. (SSLv3 was never supported client-side.)
     </p>
 
     <p><!-- CL 177698 -->

@@ -77,6 +77,20 @@ func TestRejectBadProtocolVersion(t *testing.T) {
 	}, "unsupported versions")
 }
 
+func TestSSLv3OptIn(t *testing.T) {
+	config := testConfig.Clone()
+	config.MinVersion = 0
+	testClientHelloFailure(t, config, &clientHelloMsg{
+		vers:   VersionSSL30,
+		random: make([]byte, 32),
+	}, "unsupported versions")
+	testClientHelloFailure(t, config, &clientHelloMsg{
+		vers:              VersionTLS12,
+		supportedVersions: []uint16{VersionSSL30},
+		random:            make([]byte, 32),
+	}, "unsupported versions")
+}
+
 func TestNoSuiteOverlap(t *testing.T) {
 	clientHello := &clientHelloMsg{
 		vers:               VersionTLS10,
