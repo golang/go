@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// PE (Portable Executable) file writing
+// https://www.microsoft.com/whdc/system/platform/firmware/PECOFF.mspx
+
 package ld
 
 import (
@@ -123,13 +126,6 @@ const (
 
 	IMAGE_REL_BASED_HIGHLOW = 3
 )
-
-// Copyright 2009 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-// PE (Portable Executable) file writing
-// https://www.microsoft.com/whdc/system/platform/firmware/PECOFF.mspx
 
 // DOS stub that prints out
 // "This program cannot be run in DOS mode."
