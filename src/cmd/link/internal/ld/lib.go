@@ -1172,6 +1172,9 @@ func (ctxt *Link) hostlink() {
 		} else {
 			argv = append(argv, "-mconsole")
 		}
+		// Mark as having awareness of terminal services, to avoid
+		// ancient compatibility hacks.
+		argv = append(argv, "-Wl,--tsaware")
 	case objabi.Haix:
 		argv = append(argv, "-pthread")
 		// prevent ld to reorder .text functions to keep the same
