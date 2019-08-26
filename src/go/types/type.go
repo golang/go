@@ -371,8 +371,7 @@ func (t *Interface) Complete() *Interface {
 		case other == nil:
 			methods = append(methods, m)
 		case explicit:
-			// TODO(gri) enable again once contracts code calls Complete with correct interfaces
-			// panic("duplicate method " + m.name)
+			panic("duplicate method " + m.name)
 		default:
 			// check method signatures after all locally embedded interfaces are computed
 			todo = append(todo, m, other.(*Func))

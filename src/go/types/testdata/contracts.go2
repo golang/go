@@ -19,16 +19,16 @@ type _ contract(A, B, A /* ERROR A redeclared */ ){}
 contract _(A) { A } /* ERROR expected type */
 contract _(A) { A m(); A add(A) int }
 contract _(A) { B /* ERROR B not declared by contract */ m() }
-contract _(A) { A m(); A m /* ERROR already declared */ () }
+contract _(A) { A m(); A m /* ERROR duplicate method */ () }
 contract _(A) {
         A m()
-        A m /* ERROR already declared */ () int
+        A m /* ERROR duplicate method */ () int
 }
 contract _(A, B) {
         A m(x int) B
         B m(x int) A
-        A m /* ERROR already declared */ (x int) B
-        B m /* ERROR already declared */ (x int) B
+        A m /* ERROR duplicate method */ (x int) B
+        B m /* ERROR duplicate method */ (x int) B
 }
 
 contract _(A) {

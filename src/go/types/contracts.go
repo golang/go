@@ -8,7 +8,6 @@ package types
 
 import (
 	"go/ast"
-	"sort"
 )
 
 // TODO(gri) Handling a contract like a type is problematic because it
@@ -147,28 +146,11 @@ func (check *Checker) contractType(contr *Contract, e *ast.ContractType) {
 	}
 
 	// cleanup/complete interfaces
-	// TODO(gri) should check for duplicate entries in first pass (=> no need for this extra pass)
 	for tpar, iface := range ifaces {
 		if iface == nil {
 			ifaces[tpar] = &emptyInterface
 		} else {
-			var mset objset
-			i := 0
-			for _, m := range iface.methods {
-				if m0 := mset.insert(m); m0 != nil {
-					// A method with the same name exists already.
-					check.errorf(m.Pos(), "method %s already declared", m.name)
-					check.reportAltDecl(m0)
-				} else {
-					// only keep unique methods
-					// TODO(gri) revisit this code - introduced to fix large rebase
-					iface.methods[i] = m
-					i++
-				}
-			}
-			iface.methods = iface.methods[:i]
-			sort.Sort(byUniqueMethodName(iface.methods))
-			iface.Complete()
+			check.completeInterface(iface)
 		}
 	}
 
