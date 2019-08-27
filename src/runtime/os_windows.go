@@ -49,6 +49,7 @@ const (
 //go:cgo_import_dynamic runtime._VirtualFree VirtualFree%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._VirtualQuery VirtualQuery%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WaitForSingleObject WaitForSingleObject%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._WaitForMultipleObjects WaitForMultipleObjects%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WriteConsoleW WriteConsoleW%5 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WriteFile WriteFile%5 "kernel32.dll"
 
@@ -94,6 +95,7 @@ var (
 	_VirtualFree,
 	_VirtualQuery,
 	_WaitForSingleObject,
+	_WaitForMultipleObjects,
 	_WriteConsoleW,
 	_WriteFile,
 	_ stdFunction
@@ -137,7 +139,8 @@ func tstart_stdcall(newm *m)
 func ctrlhandler()
 
 type mOS struct {
-	waitsema uintptr // semaphore for parking on locks
+	waitsema   uintptr // semaphore for parking on locks
+	resumesema uintptr // semaphore to indicate suspend/resume
 }
 
 //go:linkname os_sigpipe os.sigpipe
@@ -248,6 +251,42 @@ func loadOptionalSyscalls() {
 	_WSAGetOverlappedResult = windowsFindfunc(ws232, []byte("WSAGetOverlappedResult\000"))
 	if _WSAGetOverlappedResult == nil {
 		throw("WSAGetOverlappedResult not found")
+	}
+}
+
+func monitorSuspendResume() {
+	const _DEVICE_NOTIFY_CALLBACK = 2
+	type _DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS struct {
+		callback uintptr
+		context  uintptr
+	}
+
+	powrprof := windowsLoadSystemLib([]byte("powrprof.dll\000"))
+	if powrprof == 0 {
+		return // Running on Windows 7, where we don't need it anyway.
+	}
+	powerRegisterSuspendResumeNotification := windowsFindfunc(powrprof, []byte("PowerRegisterSuspendResumeNotification\000"))
+	if powerRegisterSuspendResumeNotification == nil {
+		return // Running on Windows 7, where we don't need it anyway.
+	}
+	var fn interface{} = func(context uintptr, changeType uint32, setting uintptr) uintptr {
+		lock(&allglock)
+		for _, gp := range allgs {
+			if gp.m != nil && gp.m.resumesema != 0 {
+				stdcall1(_SetEvent, gp.m.resumesema)
+			}
+		}
+		unlock(&allglock)
+		return 0
+	}
+	params := _DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS{
+		callback: compileCallback(*efaceOf(&fn), true),
+	}
+	handle := uintptr(0)
+	if stdcall3(powerRegisterSuspendResumeNotification, _DEVICE_NOTIFY_CALLBACK,
+		uintptr(unsafe.Pointer(&params)),
+		uintptr(unsafe.Pointer(&handle))) != 0 {
+		throw("PowerRegisterSuspendResumeNotification failure")
 	}
 }
 
@@ -410,6 +449,10 @@ func goenvs() {
 	}
 
 	stdcall1(_FreeEnvironmentStringsW, uintptr(strings))
+
+	// We call this all the way here, late in init, so that malloc works
+	// for the callback function this generates.
+	monitorSuspendResume()
 }
 
 // exiting is set to non-zero when the process is exiting.
@@ -528,19 +571,32 @@ func semasleep(ns int64) int32 {
 		_WAIT_FAILED    = 0xFFFFFFFF
 	)
 
-	// store ms in ns to save stack space
+	var result uintptr
 	if ns < 0 {
-		ns = _INFINITE
+		result = stdcall2(_WaitForSingleObject, getg().m.waitsema, uintptr(_INFINITE))
 	} else {
-		ns = int64(timediv(ns, 1000000, nil))
-		if ns == 0 {
-			ns = 1
+		start := nanotime()
+		elapsed := int64(0)
+		for {
+			ms := int64(timediv(ns-elapsed, 1000000, nil))
+			if ms == 0 {
+				ms = 1
+			}
+			result = stdcall4(_WaitForMultipleObjects, 2,
+				uintptr(unsafe.Pointer(&[2]uintptr{getg().m.waitsema, getg().m.resumesema})),
+				0, uintptr(ms))
+			if result != _WAIT_OBJECT_0+1 {
+				// Not a suspend/resume event
+				break
+			}
+			elapsed = nanotime() - start
+			if elapsed >= ns {
+				return -1
+			}
 		}
 	}
-
-	result := stdcall2(_WaitForSingleObject, getg().m.waitsema, uintptr(ns))
 	switch result {
-	case _WAIT_OBJECT_0: //signaled
+	case _WAIT_OBJECT_0: // Signaled
 		return 0
 
 	case _WAIT_TIMEOUT:
@@ -588,6 +644,15 @@ func semacreate(mp *m) {
 			print("runtime: createevent failed; errno=", getlasterror(), "\n")
 			throw("runtime.semacreate")
 		})
+	}
+	mp.resumesema = stdcall4(_CreateEventA, 0, 0, 0, 0)
+	if mp.resumesema == 0 {
+		systemstack(func() {
+			print("runtime: createevent failed; errno=", getlasterror(), "\n")
+			throw("runtime.semacreate")
+		})
+		stdcall1(_CloseHandle, mp.waitsema)
+		mp.waitsema = 0
 	}
 }
 
