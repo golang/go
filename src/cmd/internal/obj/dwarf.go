@@ -53,10 +53,8 @@ func (ctxt *Link) generateDebugLinesSymbol(s, lines *LSym) {
 	line := 1
 	file := 1
 
-	dctxt.AddUint8(lines, 0) // start extended opcode
-	dwarf.Uleb128put(dctxt, lines, 1+int64(ctxt.Arch.PtrSize))
-	dctxt.AddUint8(lines, dwarf.DW_LNE_set_address)
-	dctxt.AddAddress(lines, nil, pc)
+	// The linker will insert the DW_LNE_set_address once determined; therefore,
+	// it's omitted here.
 
 	// Generate the actual line information.
 	// We use the pcline and pcfile to generate this section, and it's suboptimal.
