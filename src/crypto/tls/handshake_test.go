@@ -345,7 +345,6 @@ func runMain(m *testing.M) int {
 		Rand:               zeroSource{},
 		Certificates:       make([]Certificate, 2),
 		InsecureSkipVerify: true,
-		MaxVersion:         VersionTLS13,
 		CipherSuites:       allCipherSuites(),
 	}
 	testConfig.Certificates[0].Certificate = [][]byte{testRSACertificate}
