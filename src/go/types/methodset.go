@@ -62,6 +62,11 @@ func (s *MethodSet) Lookup(pkg *Package, name string) *Selection {
 // Shared empty method set.
 var emptyMethodSet MethodSet
 
+// Note: NewMethodSet is intended for external use only as it
+//       requires interfaces to be complete. If may be used
+//       internally if LookupFieldOrMethod completed the same
+//       interfaces beforehand.
+
 // NewMethodSet returns the method set for the given type T.
 // It always returns a non-nil method set, even if it is empty.
 func NewMethodSet(T Type) *MethodSet {

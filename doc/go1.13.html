@@ -12,7 +12,7 @@ Do not send CLs removing the interior tags from such phrases.
 -->
 
 <style>
-  ul li { margin: 0.5em 0; }
+  main ul li { margin: 0.5em 0; }
 </style>
 
 <h2 id="introduction">DRAFT RELEASE NOTES - Introduction to Go 1.13</h2>
@@ -31,7 +31,8 @@ Do not send CLs removing the interior tags from such phrases.
   for privacy information about these services and the
   <a href="/cmd/go/#hdr-Module_downloading_and_verification">go command documentation</a>
   for configuration details including how to disable the use of these servers or use
-  different ones.
+  different ones. If you depend on non-public modules, see the
+  <a href="/cmd/go/#hdr-Module_configuration_for_non_public_modules">documentation for configuring your environment</a>.
 </p>
 
 <h2 id="language">Changes to the language</h2>
@@ -315,7 +316,7 @@ go env -w GOSUMDB=off
 
 <p>
   The <code>go</code> command now verifies the mapping
-  between <a href="/cmd/go#hdr-Pseudo_versions">pseudo-versions</a> and
+  between <a href="/cmd/go/#hdr-Pseudo_versions">pseudo-versions</a> and
   version-control metadata. Specifically:
   <ul>
     <li>The version prefix must be of the form <code>vX.0.0</code>, or derived
@@ -551,9 +552,9 @@ godoc
   To support wrapping, <a href="#fmt"><code>fmt.Errorf</code></a> now has a <code>%w</code>
   verb for creating wrapped errors, and three new functions in
   the <a href="#errors"><code>errors</code></a> package (
-  <a href="/pkg/errors#Unwrap"><code>errors.Unwrap</code></a>,
-  <a href="/pkg/errors#Is"><code>errors.Is</code></a> and
-  <a href="/pkg/errors#As"><code>errors.As</code></a>) simplify unwrapping
+  <a href="/pkg/errors/#Unwrap"><code>errors.Unwrap</code></a>,
+  <a href="/pkg/errors/#Is"><code>errors.Is</code></a> and
+  <a href="/pkg/errors/#As"><code>errors.As</code></a>) simplify unwrapping
   and inspecting wrapped errors.
 </p>
 <p>
@@ -790,7 +791,7 @@ godoc
       <code>Timeout</code> method that returns <code>true</code> if called.
       This can make a keep-alive error difficult to distinguish from
       an error returned due to a missed deadline as set by the
-      <a href="/pkg/net#Conn"><code>SetDeadline</code></a>
+      <a href="/pkg/net/#Conn"><code>SetDeadline</code></a>
       method and similar methods.
       Code that uses deadlines and checks for them with
       the <code>Timeout</code> method or
@@ -819,7 +820,7 @@ godoc
     </p>
 
     <p><!-- CL 140357 -->
-      When reusing HTTP/2, the <a href="/pkg/net/http#Transport"><code>Transport</code></a> no longer performs unnecessary TLS handshakes.
+      When reusing HTTP/2, the <a href="/pkg/net/http/#Transport"><code>Transport</code></a> no longer performs unnecessary TLS handshakes.
     </p>
 
     <p><!-- CL 154383 -->
@@ -843,14 +844,14 @@ godoc
     </p>
 
     <p><!-- CL 167681 -->
-      The new <a href="/pkg/net/http#Server"><code>Server</code></a> fields
+      The new <a href="/pkg/net/http/#Server"><code>Server</code></a> fields
       <a href="/pkg/net/http/#Server.BaseContext"><code>BaseContext</code></a> and
       <a href="/pkg/net/http/#Server.ConnContext"><code>ConnContext</code></a>
-      allow finer control over the <a href="/pkg/context#Context"><code>Context</code></a> values provided to requests and connections.
+      allow finer control over the <a href="/pkg/context/#Context"><code>Context</code></a> values provided to requests and connections.
     </p>
 
     <p><!-- CL 167781 -->
-      <a href="/pkg/net/http#DetectContentType"><code>http.DetectContentType</code></a> now correctly detects RAR signatures, and can now also detect RAR v5 signatures.
+      <a href="/pkg/net/http/#DetectContentType"><code>http.DetectContentType</code></a> now correctly detects RAR signatures, and can now also detect RAR v5 signatures.
     </p>
 
     <p><!-- CL 173658 -->
@@ -888,9 +889,9 @@ godoc
 <dl id="os/exec"><dt><a href="/pkg/os/exec/">os/exec</a></dt>
   <dd>
     <p><!-- CL 174318 -->
-      On Windows, the environment for a <a href="/pkg/os/exec#Cmd"><code>Cmd</code></a> always inherits the
+      On Windows, the environment for a <a href="/pkg/os/exec/#Cmd"><code>Cmd</code></a> always inherits the
       <code>%SYSTEMROOT%</code> value of the parent process unless the
-      <a href="/pkg/os/exec#Cmd.Env"><code>Cmd.Env</code></a> field includes an explicit value for it.
+      <a href="/pkg/os/exec/#Cmd.Env"><code>Cmd.Env</code></a> field includes an explicit value for it.
     </p>
 
 </dl><!-- os/exec -->
@@ -918,19 +919,19 @@ godoc
 
 </dl><!-- runtime -->
 
-<dl id="strconv"><dt><a href="/pkg/strconv">strconv</a></dt>
+<dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
   <dd>
     <p><!-- CL 160243 -->
-       For <a href="/pkg/math/big/#strconv.ParseFloat"><code>strconv.ParseFloat</code></a>,
-       <a href="/pkg/math/big/#strconv.ParseInt"><code>strconv.ParseInt</code></a>
-       and <a href="/pkg/math/big/#strconv.ParseUint"><code>strconv.ParseUint</code></a>,
+       For <a href="/pkg/strconv/#ParseFloat"><code>strconv.ParseFloat</code></a>,
+       <a href="/pkg/strconv/#ParseInt"><code>strconv.ParseInt</code></a>
+       and <a href="/pkg/strconv/#ParseUint"><code>strconv.ParseUint</code></a>,
        if base is 0, underscores may be used between digits for readability.
        See the <a href="#language">Changes to the language</a> for details.
     </p>
 
 </dl><!-- strconv -->
 
-<dl id="strings"><dt><a href="/pkg/strings">strings</a></dt>
+<dl id="strings"><dt><a href="/pkg/strings/">strings</a></dt>
   <dd>
     <p><!-- CL 142003 -->
       The new <a href="/pkg/strings/#ToValidUTF8"><code>ToValidUTF8</code></a> function returns a
