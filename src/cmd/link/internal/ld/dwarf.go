@@ -17,6 +17,7 @@ import (
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
 	"fmt"
@@ -1000,96 +1001,6 @@ const (
 	OPCODE_BASE = 11
 )
 
-func putpclcdelta(linkctxt *Link, ctxt dwarf.Context, s *sym.Symbol, deltaPC uint64, deltaLC int64) {
-	// Choose a special opcode that minimizes the number of bytes needed to
-	// encode the remaining PC delta and LC delta.
-	var opcode int64
-	if deltaLC < LINE_BASE {
-		if deltaPC >= PC_RANGE {
-			opcode = OPCODE_BASE + (LINE_RANGE * PC_RANGE)
-		} else {
-			opcode = OPCODE_BASE + (LINE_RANGE * int64(deltaPC))
-		}
-	} else if deltaLC < LINE_BASE+LINE_RANGE {
-		if deltaPC >= PC_RANGE {
-			opcode = OPCODE_BASE + (deltaLC - LINE_BASE) + (LINE_RANGE * PC_RANGE)
-			if opcode > 255 {
-				opcode -= LINE_RANGE
-			}
-		} else {
-			opcode = OPCODE_BASE + (deltaLC - LINE_BASE) + (LINE_RANGE * int64(deltaPC))
-		}
-	} else {
-		if deltaPC <= PC_RANGE {
-			opcode = OPCODE_BASE + (LINE_RANGE - 1) + (LINE_RANGE * int64(deltaPC))
-			if opcode > 255 {
-				opcode = 255
-			}
-		} else {
-			// Use opcode 249 (pc+=23, lc+=5) or 255 (pc+=24, lc+=1).
-			//
-			// Let x=deltaPC-PC_RANGE.  If we use opcode 255, x will be the remaining
-			// deltaPC that we need to encode separately before emitting 255.  If we
-			// use opcode 249, we will need to encode x+1.  If x+1 takes one more
-			// byte to encode than x, then we use opcode 255.
-			//
-			// In all other cases x and x+1 take the same number of bytes to encode,
-			// so we use opcode 249, which may save us a byte in encoding deltaLC,
-			// for similar reasons.
-			switch deltaPC - PC_RANGE {
-			// PC_RANGE is the largest deltaPC we can encode in one byte, using
-			// DW_LNS_const_add_pc.
-			//
-			// (1<<16)-1 is the largest deltaPC we can encode in three bytes, using
-			// DW_LNS_fixed_advance_pc.
-			//
-			// (1<<(7n))-1 is the largest deltaPC we can encode in n+1 bytes for
-			// n=1,3,4,5,..., using DW_LNS_advance_pc.
-			case PC_RANGE, (1 << 7) - 1, (1 << 16) - 1, (1 << 21) - 1, (1 << 28) - 1,
-				(1 << 35) - 1, (1 << 42) - 1, (1 << 49) - 1, (1 << 56) - 1, (1 << 63) - 1:
-				opcode = 255
-			default:
-				opcode = OPCODE_BASE + LINE_RANGE*PC_RANGE - 1 // 249
-			}
-		}
-	}
-	if opcode < OPCODE_BASE || opcode > 255 {
-		panic(fmt.Sprintf("produced invalid special opcode %d", opcode))
-	}
-
-	// Subtract from deltaPC and deltaLC the amounts that the opcode will add.
-	deltaPC -= uint64((opcode - OPCODE_BASE) / LINE_RANGE)
-	deltaLC -= (opcode-OPCODE_BASE)%LINE_RANGE + LINE_BASE
-
-	// Encode deltaPC.
-	if deltaPC != 0 {
-		if deltaPC <= PC_RANGE {
-			// Adjust the opcode so that we can use the 1-byte DW_LNS_const_add_pc
-			// instruction.
-			opcode -= LINE_RANGE * int64(PC_RANGE-deltaPC)
-			if opcode < OPCODE_BASE {
-				panic(fmt.Sprintf("produced invalid special opcode %d", opcode))
-			}
-			s.AddUint8(dwarf.DW_LNS_const_add_pc)
-		} else if (1<<14) <= deltaPC && deltaPC < (1<<16) {
-			s.AddUint8(dwarf.DW_LNS_fixed_advance_pc)
-			s.AddUint16(linkctxt.Arch, uint16(deltaPC))
-		} else {
-			s.AddUint8(dwarf.DW_LNS_advance_pc)
-			dwarf.Uleb128put(ctxt, s, int64(deltaPC))
-		}
-	}
-
-	// Encode deltaLC.
-	if deltaLC != 0 {
-		s.AddUint8(dwarf.DW_LNS_advance_line)
-		dwarf.Sleb128put(ctxt, s, deltaLC)
-	}
-
-	// Output the special opcode.
-	s.AddUint8(uint8(opcode))
-}
-
 /*
  * Walk prog table, emit line program and build DIE tree.
  */
@@ -1155,34 +1066,40 @@ func writelines(ctxt *Link, unit *sym.CompilationUnit, ls *sym.Symbol) {
 	ls.AddUint8(0)                // standard_opcode_lengths[10]
 	ls.AddUint8(0)                // include_directories  (empty)
 
-	// Create the file table. fileNums maps from global file
-	// indexes (created by numberfile) to CU-local indexes.
-	fileNums := make(map[int]int)
-	for _, s := range unit.Textp { // textp has been dead-code-eliminated already.
-		dsym := dwarfFuncSym(ctxt, s, dwarf.InfoPrefix, true)
-		for _, f := range s.FuncInfo.File {
-			if _, ok := fileNums[int(f.Value)]; ok {
-				continue
+	// Copy over the file table.
+	fileNums := make(map[string]int)
+	for i, name := range unit.DWARFFileTable {
+		if len(name) != 0 {
+			if strings.HasPrefix(name, src.FileSymPrefix) {
+				name = name[len(src.FileSymPrefix):]
 			}
-			// File indexes are 1-based.
-			fileNums[int(f.Value)] = len(fileNums) + 1
-			Addstring(ls, f.Name)
-			ls.AddUint8(0)
-			ls.AddUint8(0)
-			ls.AddUint8(0)
+			name = expandGoroot(name)
+		} else {
+			// Can't have empty filenames, and having a unique filename is quite useful
+			// for debugging.
+			name = fmt.Sprintf("<missing>_%d", i)
 		}
+		fileNums[name] = i + 1
+		dwarfctxt.AddString(ls, name)
+		ls.AddUint8(0)
+		ls.AddUint8(0)
+		ls.AddUint8(0)
+	}
+	// Grab files for inlined functions.
+	// TODO: With difficulty, this could be moved into the compiler.
+	for _, s := range unit.Textp {
+		dsym := dwarfFuncSym(ctxt, s, dwarf.InfoPrefix, true)
 		for ri := 0; ri < len(dsym.R); ri++ {
 			r := &dsym.R[ri]
 			if r.Type != objabi.R_DWARFFILEREF {
 				continue
 			}
-			// A file that is only mentioned in an inlined subroutine will appear
-			// as a R_DWARFFILEREF but not in s.FuncInfo.File
-			if _, ok := fileNums[int(r.Sym.Value)]; ok {
+			name := r.Sym.Name
+			if _, ok := fileNums[name]; ok {
 				continue
 			}
-			fileNums[int(r.Sym.Value)] = len(fileNums) + 1
-			Addstring(ls, r.Sym.Name)
+			fileNums[name] = len(fileNums) + 1
+			dwarfctxt.AddString(ls, name)
 			ls.AddUint8(0)
 			ls.AddUint8(0)
 			ls.AddUint8(0)
@@ -1194,95 +1111,31 @@ func writelines(ctxt *Link, unit *sym.CompilationUnit, ls *sym.Symbol) {
 	// terminate file_names.
 	headerend = ls.Size
 
-	ls.AddUint8(0) // start extended opcode
-	dwarf.Uleb128put(dwarfctxt, ls, 1+int64(ctxt.Arch.PtrSize))
-	ls.AddUint8(dwarf.DW_LNE_set_address)
-
-	s := unit.Textp[0]
-	pc := s.Value
-	line := 1
-	file := 1
-	ls.AddAddr(ctxt.Arch, s)
-
-	pcfile := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
-	pcline := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
-	pcstmt := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
-	for i, s := range unit.Textp {
+	// Output the state machine for each function remaining.
+	var lastAddr int64
+	for _, s := range unit.Textp {
 		finddebugruntimepath(s)
 
-		pcfile.Init(s.FuncInfo.Pcfile.P)
-		pcline.Init(s.FuncInfo.Pcline.P)
-
-		isStmtSym := dwarfFuncSym(ctxt, s, dwarf.IsStmtPrefix, false)
-		if isStmtSym != nil && len(isStmtSym.P) > 0 {
-			pcstmt.Init(isStmtSym.P)
-		} else {
-			// Assembly files lack a pcstmt section, we assume that every instruction
-			// is a valid statement.
-			pcstmt.Done = true
-			pcstmt.Value = 1
+		// Set the PC.
+		ls.AddUint8(0)
+		dwarf.Uleb128put(dwarfctxt, ls, 1+int64(ctxt.Arch.PtrSize))
+		ls.AddUint8(dwarf.DW_LNE_set_address)
+		addr := ls.AddAddr(ctxt.Arch, s)
+		// Make sure the units are sorted.
+		if addr < lastAddr {
+			Errorf(s, "address wasn't increasing %x < %x", addr, lastAddr)
 		}
+		lastAddr = addr
 
-		var thispc uint32
-		// TODO this loop looks like it could exit with work remaining.
-		for !pcfile.Done && !pcline.Done {
-			// Only changed if it advanced
-			if int32(file) != pcfile.Value {
-				ls.AddUint8(dwarf.DW_LNS_set_file)
-				idx, ok := fileNums[int(pcfile.Value)]
-				if !ok {
-					Exitf("pcln table file missing from DWARF line table %q", s.Unit.Lib.Pkg)
-				}
-				dwarf.Uleb128put(dwarfctxt, ls, int64(idx))
-				file = int(pcfile.Value)
-			}
-
-			// Only changed if it advanced
-			if is_stmt != uint8(pcstmt.Value) {
-				new_stmt := uint8(pcstmt.Value)
-				switch new_stmt &^ 1 {
-				case obj.PrologueEnd:
-					ls.AddUint8(uint8(dwarf.DW_LNS_set_prologue_end))
-				case obj.EpilogueBegin:
-					// TODO if there is a use for this, add it.
-					// Don't forget to increase OPCODE_BASE by 1 and add entry for standard_opcode_lengths[11]
-				}
-				new_stmt &= 1
-				if is_stmt != new_stmt {
-					is_stmt = new_stmt
-					ls.AddUint8(uint8(dwarf.DW_LNS_negate_stmt))
-				}
-			}
-
-			// putpcldelta makes a row in the DWARF matrix, always, even if line is unchanged.
-			putpclcdelta(ctxt, dwarfctxt, ls, uint64(s.Value+int64(thispc)-pc), int64(pcline.Value)-int64(line))
-
-			pc = s.Value + int64(thispc)
-			line = int(pcline.Value)
-
-			// Take the minimum step forward for the three iterators
-			thispc = pcfile.NextPC
-			if pcline.NextPC < thispc {
-				thispc = pcline.NextPC
-			}
-			if !pcstmt.Done && pcstmt.NextPC < thispc {
-				thispc = pcstmt.NextPC
-			}
-
-			if pcfile.NextPC == thispc {
-				pcfile.Next()
-			}
-			if !pcstmt.Done && pcstmt.NextPC == thispc {
-				pcstmt.Next()
-			}
-			if pcline.NextPC == thispc {
-				pcline.Next()
-			}
-		}
-		if is_stmt == 0 && i < len(unit.Textp)-1 {
-			// If there is more than one function, ensure default value is established.
-			is_stmt = 1
-			ls.AddUint8(uint8(dwarf.DW_LNS_negate_stmt))
+		// Output the line table.
+		// TODO: Now that we have all the debug information in seperate
+		// symbols, it would make sense to use a rope, and concatenate them all
+		// together rather then the append() below. This would allow us to have
+		// the compiler emit the DW_LNE_set_address and a rope data structure
+		// to concat them all together in the output.
+		lines := dwarfFuncSym(ctxt, s, dwarf.DebugLinesPrefix, false)
+		if lines != nil {
+			ls.P = append(ls.P, lines.P...)
 		}
 	}
 
@@ -1308,13 +1161,14 @@ func writelines(ctxt *Link, unit *sym.CompilationUnit, ls *sym.Symbol) {
 	// DIE flavors (ex: variables) then those DIEs would need to
 	// be included below.
 	missing := make(map[int]interface{})
+	s := unit.Textp[0]
 	for _, f := range unit.FuncDIEs {
 		for ri := range f.R {
 			r := &f.R[ri]
 			if r.Type != objabi.R_DWARFFILEREF {
 				continue
 			}
-			idx, ok := fileNums[int(r.Sym.Value)]
+			idx, ok := fileNums[r.Sym.Name]
 			if ok {
 				if int(int32(idx)) != idx {
 					Errorf(f, "bad R_DWARFFILEREF relocation: file index overflow")
