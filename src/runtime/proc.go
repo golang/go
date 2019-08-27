@@ -237,29 +237,6 @@ func os_beforeExit() {
 	}
 }
 
-// start forcegc helper goroutine
-func init() {
-	go forcegchelper()
-}
-
-func forcegchelper() {
-	forcegc.g = getg()
-	for {
-		lock(&forcegc.lock)
-		if forcegc.idle != 0 {
-			throw("forcegc: phase error")
-		}
-		atomic.Store(&forcegc.idle, 1)
-		goparkunlock(&forcegc.lock, waitReasonForceGGIdle, traceEvGoBlock, 1)
-		// this goroutine is explicitly resumed by sysmon
-		if debug.gctrace > 0 {
-			println("GC forced")
-		}
-		// Time-triggered, fully concurrent.
-		gcStart(gcTrigger{kind: gcTriggerTime, now: nanotime()})
-	}
-}
-
 //go:nosplit
 
 // Gosched yields the processor, allowing other goroutines to run. It does not
