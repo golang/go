@@ -6,7 +6,6 @@ package godoc
 
 import (
 	"errors"
-	pathpkg "path"
 	"sync"
 	"time"
 
@@ -87,8 +86,6 @@ type Corpus struct {
 	// If nil, all directories are indexed if indexing is enabled.
 	IndexDirectory func(dir string) bool
 
-	testDir string // TODO(bradfitz,adg): migrate old godoc flag? looks unused.
-
 	// Send a value on this channel to trigger a metadata refresh.
 	// It is buffered so that if a signal is not lost if sent
 	// during a refresh.
@@ -158,7 +155,7 @@ func (c *Corpus) Init() error {
 }
 
 func (c *Corpus) initFSTree() error {
-	dir := c.newDirectory(pathpkg.Join("/", c.testDir), -1)
+	dir := c.newDirectory("/", -1)
 	if dir == nil {
 		return errors.New("godoc: corpus fstree is nil")
 	}
