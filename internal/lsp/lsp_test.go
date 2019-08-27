@@ -361,7 +361,7 @@ func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 		} else {
 			locs, err = r.server.Definition(r.ctx, params)
 			if err != nil {
-				t.Fatalf("failed for %v: %v", d.Src, err)
+				t.Fatalf("failed for %v: %+v", d.Src, err)
 			}
 			hover, err = r.server.Hover(r.ctx, params)
 		}

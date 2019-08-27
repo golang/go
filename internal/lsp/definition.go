@@ -19,39 +19,20 @@ func (s *Server) definition(ctx context.Context, params *protocol.TextDocumentPo
 	if err != nil {
 		return nil, err
 	}
-	m, err := getMapper(ctx, f)
+	ident, err := source.Identifier(ctx, view, f, params.Position)
 	if err != nil {
 		return nil, err
 	}
-	spn, err := m.PointSpan(params.Position)
+	decRange, err := ident.Declaration.Range()
 	if err != nil {
 		return nil, err
 	}
-	rng, err := spn.Range(m.Converter)
-	if err != nil {
-		return nil, err
-	}
-	ident, err := source.Identifier(ctx, f, rng.Start)
-	if err != nil {
-		return nil, err
-	}
-	decSpan, err := ident.DeclarationRange().Span()
-	if err != nil {
-		return nil, err
-	}
-	decFile, err := getGoFile(ctx, view, decSpan.URI())
-	if err != nil {
-		return nil, err
-	}
-	decM, err := getMapper(ctx, decFile)
-	if err != nil {
-		return nil, err
-	}
-	loc, err := decM.Location(decSpan)
-	if err != nil {
-		return nil, err
-	}
-	return []protocol.Location{loc}, nil
+	return []protocol.Location{
+		{
+			URI:   protocol.NewURI(ident.Declaration.URI()),
+			Range: decRange,
+		},
+	}, nil
 }
 
 func (s *Server) typeDefinition(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
@@ -61,37 +42,18 @@ func (s *Server) typeDefinition(ctx context.Context, params *protocol.TextDocume
 	if err != nil {
 		return nil, err
 	}
-	m, err := getMapper(ctx, f)
+	ident, err := source.Identifier(ctx, view, f, params.Position)
 	if err != nil {
 		return nil, err
 	}
-	spn, err := m.PointSpan(params.Position)
+	identRange, err := ident.Type.Range()
 	if err != nil {
 		return nil, err
 	}
-	rng, err := spn.Range(m.Converter)
-	if err != nil {
-		return nil, err
-	}
-	ident, err := source.Identifier(ctx, f, rng.Start)
-	if err != nil {
-		return nil, err
-	}
-	identSpan, err := ident.Type.Range.Span()
-	if err != nil {
-		return nil, err
-	}
-	identFile, err := getGoFile(ctx, view, identSpan.URI())
-	if err != nil {
-		return nil, err
-	}
-	identM, err := getMapper(ctx, identFile)
-	if err != nil {
-		return nil, err
-	}
-	loc, err := identM.Location(identSpan)
-	if err != nil {
-		return nil, err
-	}
-	return []protocol.Location{loc}, nil
+	return []protocol.Location{
+		{
+			URI:   protocol.NewURI(ident.Type.URI()),
+			Range: identRange,
+		},
+	}, nil
 }

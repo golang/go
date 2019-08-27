@@ -38,19 +38,7 @@ func (s *Server) hover(ctx context.Context, params *protocol.TextDocumentPositio
 	if err != nil {
 		return nil, err
 	}
-	m, err := getMapper(ctx, f)
-	if err != nil {
-		return nil, err
-	}
-	spn, err := m.PointSpan(params.Position)
-	if err != nil {
-		return nil, err
-	}
-	identRange, err := spn.Range(m.Converter)
-	if err != nil {
-		return nil, err
-	}
-	ident, err := source.Identifier(ctx, f, identRange.Start)
+	ident, err := source.Identifier(ctx, view, f, params.Position)
 	if err != nil {
 		return nil, nil
 	}
@@ -58,11 +46,7 @@ func (s *Server) hover(ctx context.Context, params *protocol.TextDocumentPositio
 	if err != nil {
 		return nil, err
 	}
-	identSpan, err := ident.Range.Span()
-	if err != nil {
-		return nil, err
-	}
-	rng, err := m.Range(identSpan)
+	rng, err := ident.Range()
 	if err != nil {
 		return nil, err
 	}

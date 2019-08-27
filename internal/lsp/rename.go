@@ -19,23 +19,11 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 	if err != nil {
 		return nil, err
 	}
-	m, err := getMapper(ctx, f)
+	ident, err := source.Identifier(ctx, view, f, params.Position)
 	if err != nil {
 		return nil, err
 	}
-	spn, err := m.PointSpan(params.Position)
-	if err != nil {
-		return nil, err
-	}
-	rng, err := spn.Range(m.Converter)
-	if err != nil {
-		return nil, err
-	}
-	ident, err := source.Identifier(ctx, f, rng.Start)
-	if err != nil {
-		return nil, err
-	}
-	edits, err := ident.Rename(ctx, params.NewName)
+	edits, err := ident.Rename(ctx, view, params.NewName)
 	if err != nil {
 		return nil, err
 	}

@@ -162,6 +162,10 @@ func (f *goFile) GetCachedPackage(ctx context.Context) (source.Package, error) {
 	}
 	f.mu.Unlock()
 
+	if len(cphs) == 0 {
+		return nil, errors.Errorf("no CheckPackageHandles for %s", f.URI())
+	}
+
 	cph, err := bestCheckPackageHandle(f.URI(), cphs)
 	if err != nil {
 		return nil, err
@@ -200,6 +204,16 @@ func (f *goFile) wrongParseMode(ctx context.Context, mode source.ParseMode) bool
 		}
 	}
 	return true
+}
+
+func (f *goFile) Builtin() (*ast.File, bool) {
+	builtinPkg := f.View().BuiltinPackage()
+	for filename, file := range builtinPkg.Files {
+		if filename == f.URI().Filename() {
+			return file, true
+		}
+	}
+	return nil, false
 }
 
 // isDirty is true if the file needs to be type-checked.

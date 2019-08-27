@@ -108,10 +108,9 @@ type Tests interface {
 
 type Definition struct {
 	Name      string
-	Src       span.Span
 	IsType    bool
 	OnlyHover bool
-	Def       span.Span
+	Src, Def  span.Span
 }
 
 type CompletionSnippet struct {

@@ -38,7 +38,7 @@ func (i *IdentifierInfo) Hover(ctx context.Context) (*HoverInformation, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Hover")
 	defer done()
 
-	h, err := i.decl.hover(ctx)
+	h, err := i.Declaration.hover(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -55,8 +55,8 @@ func (i *IdentifierInfo) Hover(ctx context.Context) (*HoverInformation, error) {
 	}
 
 	// Set the documentation.
-	if i.decl.obj != nil {
-		h.SingleLine = types.ObjectString(i.decl.obj, i.qf)
+	if i.Declaration.obj != nil {
+		h.SingleLine = types.ObjectString(i.Declaration.obj, i.qf)
 	}
 	if h.comment != nil {
 		h.FullDocumentation = h.comment.Text()
@@ -65,7 +65,7 @@ func (i *IdentifierInfo) Hover(ctx context.Context) (*HoverInformation, error) {
 	return h, nil
 }
 
-func (d declaration) hover(ctx context.Context) (*HoverInformation, error) {
+func (d Declaration) hover(ctx context.Context) (*HoverInformation, error) {
 	ctx, done := trace.StartSpan(ctx, "source.hover")
 	defer done()
 	obj := d.obj

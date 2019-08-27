@@ -115,11 +115,11 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	}
 	// TODO(rstambler): Log errors when this feature is enabled.
 	if c.opts.WantDocumentaton {
-		declRange, err := objToRange(c.ctx, c.view.Session().Cache().FileSet(), obj)
+		declRange, err := objToRange(c.ctx, c.view, obj)
 		if err != nil {
 			goto Return
 		}
-		pos := declRange.FileSet.Position(declRange.Start)
+		pos := c.view.Session().Cache().FileSet().Position(declRange.spanRange.Start)
 		if !pos.IsValid() {
 			goto Return
 		}
@@ -136,16 +136,20 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		if err != nil {
 			goto Return
 		}
-		var file *ast.File
-		for _, ph := range pkg.GetHandles() {
-			if ph.File().Identity().URI == gof.URI() {
-				file, _ = ph.Cached(c.ctx)
+		var ph ParseGoHandle
+		for _, h := range pkg.GetHandles() {
+			if h.File().Identity().URI == gof.URI() {
+				ph = h
 			}
 		}
+		if ph == nil {
+			goto Return
+		}
+		file, _ := ph.Cached(c.ctx)
 		if file == nil {
 			goto Return
 		}
-		ident, err := findIdentifier(c.ctx, gof, pkg, file, declRange.Start)
+		ident, err := findIdentifier(c.ctx, c.view, gof, pkg, file, declRange.spanRange.Start)
 		if err != nil {
 			goto Return
 		}

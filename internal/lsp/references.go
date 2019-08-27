@@ -21,44 +21,21 @@ func (s *Server) references(ctx context.Context, params *protocol.ReferenceParam
 	if err != nil {
 		return nil, err
 	}
-	m, err := getMapper(ctx, f)
-	if err != nil {
-		return nil, err
-	}
-	spn, err := m.PointSpan(params.Position)
-	if err != nil {
-		return nil, err
-	}
-	rng, err := spn.Range(m.Converter)
-	if err != nil {
-		return nil, err
-	}
 	// Find all references to the identifier at the position.
-	ident, err := source.Identifier(ctx, f, rng.Start)
+	ident, err := source.Identifier(ctx, view, f, params.Position)
 	if err != nil {
 		return nil, err
 	}
-	references, err := ident.References(ctx)
+	references, err := ident.References(ctx, view)
 	if err != nil {
 		log.Error(ctx, "no references", err, tag.Of("Identifier", ident.Name))
-	}
-	if params.Context.IncludeDeclaration {
-		// The declaration of this identifier may not be in the
-		// scope that we search for references, so make sure
-		// it is added to the beginning of the list if IncludeDeclaration
-		// was specified.
-		references = append([]*source.ReferenceInfo{
-			&source.ReferenceInfo{
-				Range: ident.DeclarationRange(),
-			},
-		}, references...)
 	}
 
 	// Get the location of each reference to return as the result.
 	locations := make([]protocol.Location, 0, len(references))
 	seen := make(map[span.Span]bool)
 	for _, ref := range references {
-		refSpan, err := ref.Range.Span()
+		refSpan, err := ref.Span()
 		if err != nil {
 			return nil, err
 		}
@@ -66,20 +43,31 @@ func (s *Server) references(ctx context.Context, params *protocol.ReferenceParam
 			continue // already added this location
 		}
 		seen[refSpan] = true
+		refRange, err := ref.Range()
+		if err != nil {
+			return nil, err
+		}
+		locations = append(locations, protocol.Location{
+			URI:   protocol.NewURI(ref.URI()),
+			Range: refRange,
+		})
+	}
+	// The declaration of this identifier may not be in the
+	// scope that we search for references, so make sure
+	// it is added to the beginning of the list if IncludeDeclaration
+	// was specified.
+	if params.Context.IncludeDeclaration {
+		rng, err := ident.Declaration.Range()
+		if err != nil {
+			return nil, err
+		}
+		locations = append([]protocol.Location{
+			{
+				URI:   protocol.NewURI(ident.Declaration.URI()),
+				Range: rng,
+			},
+		}, locations...)
 
-		refFile, err := getGoFile(ctx, view, refSpan.URI())
-		if err != nil {
-			return nil, err
-		}
-		refM, err := getMapper(ctx, refFile)
-		if err != nil {
-			return nil, err
-		}
-		loc, err := refM.Location(refSpan)
-		if err != nil {
-			return nil, err
-		}
-		locations = append(locations, loc)
 	}
 	return locations, nil
 }

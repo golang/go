@@ -12,6 +12,7 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/telemetry/trace"
 	errors "golang.org/x/xerrors"
 )
@@ -26,21 +27,25 @@ type ParameterInformation struct {
 	Label string
 }
 
-func SignatureHelp(ctx context.Context, f GoFile, pos token.Pos) (*SignatureInformation, error) {
+func SignatureHelp(ctx context.Context, view View, f GoFile, pos protocol.Position) (*SignatureInformation, error) {
 	ctx, done := trace.StartSpan(ctx, "source.SignatureHelp")
 	defer done()
 
-	file, err := f.GetAST(ctx, ParseFull)
-	if file == nil {
+	file, pkg, m, err := fileToMapper(ctx, view, f.URI())
+	if err != nil {
 		return nil, err
 	}
-	pkg, err := f.GetPackage(ctx)
+	spn, err := m.PointSpan(pos)
+	if err != nil {
+		return nil, err
+	}
+	rng, err := spn.Range(m.Converter)
 	if err != nil {
 		return nil, err
 	}
 	// Find a call expression surrounding the query position.
 	var callExpr *ast.CallExpr
-	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
+	path, _ := astutil.PathEnclosingInterval(file, rng.Start, rng.Start)
 	if path == nil {
 		return nil, errors.Errorf("cannot find node enclosing position")
 	}
@@ -48,7 +53,7 @@ FindCall:
 	for _, node := range path {
 		switch node := node.(type) {
 		case *ast.CallExpr:
-			if pos >= node.Lparen && pos <= node.Rparen {
+			if rng.Start >= node.Lparen && rng.Start <= node.Rparen {
 				callExpr = node
 				break FindCall
 			}
@@ -76,7 +81,7 @@ FindCall:
 
 	// Handle builtin functions separately.
 	if obj, ok := obj.(*types.Builtin); ok {
-		return builtinSignature(ctx, f.View(), callExpr, obj.Name(), pos)
+		return builtinSignature(ctx, f.View(), callExpr, obj.Name(), rng.Start)
 	}
 
 	// Get the type information for the function being called.
@@ -93,25 +98,25 @@ FindCall:
 	qf := qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo())
 	params := formatParams(sig.Params(), sig.Variadic(), qf)
 	results, writeResultParens := formatResults(sig.Results(), qf)
-	activeParam := activeParameter(callExpr, sig.Params().Len(), sig.Variadic(), pos)
+	activeParam := activeParameter(callExpr, sig.Params().Len(), sig.Variadic(), rng.Start)
 
 	var (
 		name    string
 		comment *ast.CommentGroup
 	)
 	if obj != nil {
-		rng, err := objToRange(ctx, f.FileSet(), obj)
+		rng, err := objToRange(ctx, view, obj)
 		if err != nil {
 			return nil, err
 		}
-		node, err := objToNode(ctx, f.View(), pkg.GetTypes(), obj, rng)
+		node, err := objToNode(ctx, f.View(), pkg.GetTypes(), obj, rng.spanRange)
 		if err != nil {
 			return nil, err
 		}
-		decl := &declaration{
-			obj:  obj,
-			rng:  rng,
-			node: node,
+		decl := &Declaration{
+			obj:         obj,
+			mappedRange: rng,
+			node:        node,
 		}
 		d, err := decl.hover(ctx)
 		if err != nil {

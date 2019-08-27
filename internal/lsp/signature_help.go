@@ -33,7 +33,7 @@ func (s *Server) signatureHelp(ctx context.Context, params *protocol.TextDocumen
 	if err != nil {
 		return nil, err
 	}
-	info, err := source.SignatureHelp(ctx, f, rng.Start)
+	info, err := source.SignatureHelp(ctx, view, f, params.Position)
 	if err != nil {
 		log.Print(ctx, "no signature help", tag.Of("At", rng), tag.Of("Failure", err))
 		return nil, nil

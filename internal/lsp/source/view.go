@@ -258,6 +258,8 @@ type File interface {
 type GoFile interface {
 	File
 
+	Builtin() (*ast.File, bool)
+
 	// GetAST returns the AST for the file, at or above the given mode.
 	GetAST(ctx context.Context, mode ParseMode) (*ast.File, error)
 

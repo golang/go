@@ -346,12 +346,11 @@ func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", d.Src, err)
 		}
-		tok, err := f.(source.GoFile).GetToken(ctx)
+		srcRng, err := spanToRange(r.data, d.Src)
 		if err != nil {
-			t.Fatalf("failed to get token for %s: %v", d.Src.URI(), err)
+			t.Fatal(err)
 		}
-		pos := tok.Pos(d.Src.Start().Offset())
-		ident, err := source.Identifier(ctx, f.(source.GoFile), pos)
+		ident, err := source.Identifier(ctx, r.view, f.(source.GoFile), srcRng.Start)
 		if err != nil {
 			t.Fatalf("failed for %v: %v", d.Src, err)
 		}
@@ -364,9 +363,15 @@ func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 			hover += h.Synopsis + "\n"
 		}
 		hover += h.Signature
-		rng := ident.DeclarationRange()
+		rng, err := ident.Range()
+		if err != nil {
+			t.Fatal(err)
+		}
 		if d.IsType {
-			rng = ident.Type.Range
+			rng, err = ident.Type.Range()
+			if err != nil {
+				t.Fatal(err)
+			}
 			hover = ""
 		}
 		if hover != "" {
@@ -378,10 +383,10 @@ func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 				t.Errorf("for %v got %q want %q", d.Src, hover, expectHover)
 			}
 		} else if !d.OnlyHover {
-			if def, err := rng.Span(); err != nil {
-				t.Fatalf("failed for %v: %v", rng, err)
-			} else if def != d.Def {
-				t.Errorf("for %v got %v want %v", d.Src, def, d.Def)
+			if defRng, err := spanToRange(r.data, d.Def); err != nil {
+				t.Fatal(err)
+			} else if rng != defRng {
+				t.Errorf("for %v got %v want %v", d.Src, rng, d.Def)
 			}
 		} else {
 			t.Errorf("no tests ran for %s", d.Src.URI())
@@ -424,12 +429,11 @@ func (r *runner) Reference(t *testing.T, data tests.References) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", src, err)
 		}
-		tok, err := f.(source.GoFile).GetToken(ctx)
+		srcRng, err := spanToRange(r.data, src)
 		if err != nil {
-			t.Fatalf("failed to get token for %s: %v", src.URI(), err)
+			t.Fatal(err)
 		}
-		pos := tok.Pos(src.Start().Offset())
-		ident, err := source.Identifier(ctx, f.(source.GoFile), pos)
+		ident, err := source.Identifier(ctx, r.view, f.(source.GoFile), srcRng.Start)
 		if err != nil {
 			t.Fatalf("failed for %v: %v", src, err)
 		}
@@ -439,16 +443,16 @@ func (r *runner) Reference(t *testing.T, data tests.References) {
 			want[pos] = true
 		}
 
-		refs, err := ident.References(ctx)
+		refs, err := ident.References(ctx, r.view)
 		if err != nil {
 			t.Fatalf("failed for %v: %v", src, err)
 		}
 
 		got := make(map[span.Span]bool)
 		for _, refInfo := range refs {
-			refSpan, err := refInfo.Range.Span()
+			refSpan, err := refInfo.Span()
 			if err != nil {
-				t.Errorf("failed for %v item %v: %v", src, refInfo.Name, err)
+				t.Fatal(err)
 			}
 			got[refSpan] = true
 		}
@@ -474,17 +478,16 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", spn, err)
 		}
-		tok, err := f.(source.GoFile).GetToken(ctx)
+		srcRng, err := spanToRange(r.data, spn)
 		if err != nil {
-			t.Fatalf("failed to get token for %s: %v", spn.URI(), err)
+			t.Fatal(err)
 		}
-		pos := tok.Pos(spn.Start().Offset())
-		ident, err := source.Identifier(r.ctx, f.(source.GoFile), pos)
+		ident, err := source.Identifier(r.ctx, r.view, f.(source.GoFile), srcRng.Start)
 		if err != nil {
 			t.Error(err)
 			continue
 		}
-		changes, err := ident.Rename(r.ctx, newText)
+		changes, err := ident.Rename(r.ctx, r.view, newText)
 		if err != nil {
 			renamed := string(r.data.Golden(tag, spn.URI().Filename(), func() ([]byte, error) {
 				return []byte(err.Error()), nil
@@ -619,12 +622,11 @@ func (r *runner) SignatureHelp(t *testing.T, data tests.Signatures) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", spn, err)
 		}
-		tok, err := f.(source.GoFile).GetToken(ctx)
+		rng, err := spanToRange(r.data, spn)
 		if err != nil {
-			t.Fatalf("failed to get token for %s: %v", spn.URI(), err)
+			t.Fatal(err)
 		}
-		pos := tok.Pos(spn.Start().Offset())
-		gotSignature, err := source.SignatureHelp(ctx, f.(source.GoFile), pos)
+		gotSignature, err := source.SignatureHelp(ctx, r.view, f.(source.GoFile), rng.Start)
 		if err != nil {
 			// Only fail if we got an error we did not expect.
 			if expectedSignature != nil {
@@ -666,4 +668,17 @@ func diffSignatures(spn span.Span, want *source.SignatureInformation, got *sourc
 
 func (r *runner) Link(t *testing.T, data tests.Links) {
 	// This is a pure LSP feature, no source level functionality to be tested.
+}
+
+func spanToRange(data *tests.Data, span span.Span) (protocol.Range, error) {
+	contents, err := data.Exported.FileContents(span.URI().Filename())
+	if err != nil {
+		return protocol.Range{}, err
+	}
+	m := protocol.NewColumnMapper(span.URI(), span.URI().Filename(), data.Exported.ExpectFileSet, nil, contents)
+	srcRng, err := m.Range(span)
+	if err != nil {
+		return protocol.Range{}, err
+	}
+	return srcRng, nil
 }
