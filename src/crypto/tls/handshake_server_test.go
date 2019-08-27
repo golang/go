@@ -61,32 +61,20 @@ func TestSimpleError(t *testing.T) {
 	testClientHelloFailure(t, testConfig, &serverHelloDoneMsg{}, "unexpected handshake message")
 }
 
-var badProtocolVersions = []uint16{0x0000, 0x0005, 0x0100, 0x0105, 0x0200, 0x0205}
+var badProtocolVersions = []uint16{0x0000, 0x0005, 0x0100, 0x0105, 0x0200, 0x0205, VersionSSL30}
 
 func TestRejectBadProtocolVersion(t *testing.T) {
+	config := testConfig.Clone()
+	config.MinVersion = VersionSSL30
 	for _, v := range badProtocolVersions {
-		testClientHelloFailure(t, testConfig, &clientHelloMsg{
+		testClientHelloFailure(t, config, &clientHelloMsg{
 			vers:   v,
 			random: make([]byte, 32),
 		}, "unsupported versions")
 	}
-	testClientHelloFailure(t, testConfig, &clientHelloMsg{
+	testClientHelloFailure(t, config, &clientHelloMsg{
 		vers:              VersionTLS12,
 		supportedVersions: badProtocolVersions,
-		random:            make([]byte, 32),
-	}, "unsupported versions")
-}
-
-func TestSSLv3OptIn(t *testing.T) {
-	config := testConfig.Clone()
-	config.MinVersion = 0
-	testClientHelloFailure(t, config, &clientHelloMsg{
-		vers:   VersionSSL30,
-		random: make([]byte, 32),
-	}, "unsupported versions")
-	testClientHelloFailure(t, config, &clientHelloMsg{
-		vers:              VersionTLS12,
-		supportedVersions: []uint16{VersionSSL30},
 		random:            make([]byte, 32),
 	}, "unsupported versions")
 }
@@ -689,10 +677,6 @@ func runServerTestForVersion(t *testing.T, template *serverTest, version, option
 	})
 }
 
-func runServerTestSSLv3(t *testing.T, template *serverTest) {
-	runServerTestForVersion(t, template, "SSLv3", "-ssl3")
-}
-
 func runServerTestTLS10(t *testing.T, template *serverTest) {
 	runServerTestForVersion(t, template, "TLSv10", "-tls1")
 }
@@ -714,7 +698,6 @@ func TestHandshakeServerRSARC4(t *testing.T) {
 		name:    "RSA-RC4",
 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "RC4-SHA"},
 	}
-	runServerTestSSLv3(t, test)
 	runServerTestTLS10(t, test)
 	runServerTestTLS11(t, test)
 	runServerTestTLS12(t, test)
@@ -725,7 +708,6 @@ func TestHandshakeServerRSA3DES(t *testing.T) {
 		name:    "RSA-3DES",
 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "DES-CBC3-SHA"},
 	}
-	runServerTestSSLv3(t, test)
 	runServerTestTLS10(t, test)
 	runServerTestTLS12(t, test)
 }
@@ -735,7 +717,6 @@ func TestHandshakeServerRSAAES(t *testing.T) {
 		name:    "RSA-AES",
 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA"},
 	}
-	runServerTestSSLv3(t, test)
 	runServerTestTLS10(t, test)
 	runServerTestTLS12(t, test)
 }
