@@ -953,6 +953,7 @@ func (t *Transport) queueForIdleConn(w *wantConn) (delivered bool) {
 		t.idleConnWait = make(map[connectMethodKey]wantConnQueue)
 	}
 	q := t.idleConnWait[w.key]
+	q.cleanFront()
 	q.pushBack(w)
 	t.idleConnWait[w.key] = q
 	return false
@@ -1137,7 +1138,7 @@ func (q *wantConnQueue) pushBack(w *wantConn) {
 	q.tail = append(q.tail, w)
 }
 
-// popFront removes and returns the w at the front of the queue.
+// popFront removes and returns the wantConn at the front of the queue.
 func (q *wantConnQueue) popFront() *wantConn {
 	if q.headPos >= len(q.head) {
 		if len(q.tail) == 0 {
@@ -1150,6 +1151,30 @@ func (q *wantConnQueue) popFront() *wantConn {
 	q.head[q.headPos] = nil
 	q.headPos++
 	return w
+}
+
+// peekFront returns the wantConn at the front of the queue without removing it.
+func (q *wantConnQueue) peekFront() *wantConn {
+	if q.headPos < len(q.head) {
+		return q.head[q.headPos]
+	}
+	if len(q.tail) > 0 {
+		return q.tail[0]
+	}
+	return nil
+}
+
+// cleanFront pops any wantConns that are no longer waiting from the head of the
+// queue, reporting whether any were popped.
+func (q *wantConnQueue) cleanFront() (cleaned bool) {
+	for {
+		w := q.peekFront()
+		if w == nil || w.waiting() {
+			return cleaned
+		}
+		q.popFront()
+		cleaned = true
+	}
 }
 
 // getConn dials and creates a new persistConn to the target as
@@ -1261,6 +1286,7 @@ func (t *Transport) queueForDial(w *wantConn) {
 		t.connsPerHostWait = make(map[connectMethodKey]wantConnQueue)
 	}
 	q := t.connsPerHostWait[w.key]
+	q.cleanFront()
 	q.pushBack(w)
 	t.connsPerHostWait[w.key] = q
 }

@@ -413,7 +413,7 @@ func releaseSudog(s *sudog) {
 // use the result as an address at which to start executing code.
 //go:nosplit
 func funcPC(f interface{}) uintptr {
-	return **(**uintptr)(add(unsafe.Pointer(&f), sys.PtrSize))
+	return *(*uintptr)(efaceOf(&f).data)
 }
 
 // called from assembly
@@ -3253,14 +3253,14 @@ func newproc(siz int32, fn *funcval) {
 	gp := getg()
 	pc := getcallerpc()
 	systemstack(func() {
-		newproc1(fn, (*uint8)(argp), siz, gp, pc)
+		newproc1(fn, argp, siz, gp, pc)
 	})
 }
 
 // Create a new g running fn with narg bytes of arguments starting
 // at argp. callerpc is the address of the go statement that created
 // this. The new g is put on the queue of g's waiting to run.
-func newproc1(fn *funcval, argp *uint8, narg int32, callergp *g, callerpc uintptr) {
+func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerpc uintptr) {
 	_g_ := getg()
 
 	if fn == nil {
@@ -3305,7 +3305,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, callergp *g, callerpc uintpt
 		spArg += sys.MinFrameSize
 	}
 	if narg > 0 {
-		memmove(unsafe.Pointer(spArg), unsafe.Pointer(argp), uintptr(narg))
+		memmove(unsafe.Pointer(spArg), argp, uintptr(narg))
 		// This is a stack-to-stack copy. If write barriers
 		// are enabled and the source stack is grey (the
 		// destination is always black), then perform a
