@@ -5,10 +5,12 @@
 package net_test
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
 	"net"
+	"time"
 )
 
 func ExampleListener() {
@@ -34,6 +36,39 @@ func ExampleListener() {
 			// Shut down the connection.
 			c.Close()
 		}(conn)
+	}
+}
+
+func ExampleDialer() {
+	d := net.Dialer{
+		Timeout: 3 * time.Minute,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	connCh := make(chan net.Conn)
+	go func() {
+		defer close(connCh)
+		conn, err := d.DialContext(ctx, "tcp", "localhost:12345")
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		connCh <- conn
+	}()
+
+	for {
+		select {
+		case <-time.After(time.Second):
+			// You can do cancel() here when something wrong happens.
+		case conn, ok := <-connCh:
+			if !ok {
+				return
+			}
+
+			conn.Write([]byte("hello, go"))
+			conn.Close()
+		}
 	}
 }
 
