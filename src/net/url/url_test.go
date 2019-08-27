@@ -1430,16 +1430,16 @@ func TestParseErrors(t *testing.T) {
 		{"http://[::1]/", false},
 		{"http://[::1]a", true},
 		{"http://[::1]%23", true},
-		{"http://[::1%25en0]", false},     // valid zone id
-		{"http://[::1]:", false},          // colon, but no port OK
-		{"http://x:", false},              // colon, but no port OK
-		{"http://[::1]:%38%30", true},     // not allowed: % encoding only for non-ASCII
-		{"http://[::1%25%41]", false},     // RFC 6874 allows over-escaping in zone
-		{"http://[%10::1]", true},         // no %xx escapes in IP address
-		{"http://[::1]/%48", false},       // %xx in path is fine
-		{"http://%41:8080/", true},        // not allowed: % encoding only for non-ASCII
-		{"mysql://x@y(z:123)/foo", false}, // golang.org/issue/12023
-		{"mysql://x@y(1.2.3.4:123)/foo", false},
+		{"http://[::1%25en0]", false},    // valid zone id
+		{"http://[::1]:", false},         // colon, but no port OK
+		{"http://x:", false},             // colon, but no port OK
+		{"http://[::1]:%38%30", true},    // not allowed: % encoding only for non-ASCII
+		{"http://[::1%25%41]", false},    // RFC 6874 allows over-escaping in zone
+		{"http://[%10::1]", true},        // no %xx escapes in IP address
+		{"http://[::1]/%48", false},      // %xx in path is fine
+		{"http://%41:8080/", true},       // not allowed: % encoding only for non-ASCII
+		{"mysql://x@y(z:123)/foo", true}, // not well-formed per RFC 3986, golang.org/issue/33646
+		{"mysql://x@y(1.2.3.4:123)/foo", true},
 
 		{" http://foo.com", true},         // invalid character in schema
 		{"ht tp://foo.com", true},         // invalid character in schema
@@ -1462,7 +1462,7 @@ func TestParseErrors(t *testing.T) {
 			continue
 		}
 		if err != nil {
-			t.Logf("Parse(%q) = %v; want no error", tt.in, err)
+			t.Errorf("Parse(%q) = %v; want no error", tt.in, err)
 		}
 	}
 }

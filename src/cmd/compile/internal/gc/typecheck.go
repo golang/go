@@ -2911,9 +2911,7 @@ func typecheckcomplit(n *Node) (res *Node) {
 			r = typecheck(r, ctxExpr)
 			r = defaultlit(r, t.Key())
 			l.Left = assignconv(r, t.Key(), "map key")
-			if cs.add(l.Left) != nil {
-				yyerror("duplicate key %v in map literal", l.Left)
-			}
+			cs.add(lineno, l.Left, "key", "map literal")
 
 			r = l.Right
 			pushtype(r, t.Elem())
