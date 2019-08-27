@@ -24,7 +24,8 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 		return nil, err
 	}
 	candidates, surrounding, err := source.Completion(ctx, view, f, params.Position, source.CompletionOptions{
-		DeepComplete:          s.useDeepCompletions,
+		WantDeepCompletion:    !s.disableDeepCompletion,
+		WantFuzzyMatching:     !s.disableFuzzyMatching,
 		WantDocumentaton:      s.wantCompletionDocumentation,
 		WantFullDocumentation: s.hoverKind == fullDocumentation,
 		WantUnimported:        s.wantUnimportedCompletions,
@@ -49,7 +50,7 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	return &protocol.CompletionList{
 		// When using deep completions/fuzzy matching, report results as incomplete so
 		// client fetches updated completions after every key stroke.
-		IsIncomplete: s.useDeepCompletions,
+		IsIncomplete: !s.disableDeepCompletion,
 		Items:        s.toProtocolCompletionItems(candidates, rng),
 	}, nil
 }
@@ -63,7 +64,7 @@ func (s *Server) toProtocolCompletionItems(candidates []source.CompletionItem, r
 		// Limit the number of deep completions to not overwhelm the user in cases
 		// with dozens of deep completion matches.
 		if candidate.Depth > 0 {
-			if !s.useDeepCompletions {
+			if s.disableDeepCompletion {
 				continue
 			}
 			if numDeepCompletionsSeen >= source.MaxDeepCompletions {

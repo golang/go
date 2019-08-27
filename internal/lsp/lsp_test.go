@@ -68,7 +68,8 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 					protocol.QuickFix:              true,
 				},
 				source.Mod: {},
-				source.Sum: {}},
+				source.Sum: {},
+			},
 			hoverKind: synopsisDocumentation,
 		},
 		data: data,
@@ -109,7 +110,8 @@ func (r *runner) Diagnostics(t *testing.T, data tests.Diagnostics) {
 
 func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests.CompletionSnippets, items tests.CompletionItems) {
 	defer func() {
-		r.server.useDeepCompletions = false
+		r.server.disableDeepCompletion = true
+		r.server.disableFuzzyMatching = true
 		r.server.wantUnimportedCompletions = false
 		r.server.wantCompletionDocumentation = false
 	}()
@@ -122,7 +124,8 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			want = append(want, *items[pos])
 		}
 
-		r.server.useDeepCompletions = strings.Contains(string(src.URI()), "deepcomplete")
+		r.server.disableDeepCompletion = !strings.Contains(string(src.URI()), "deepcomplete")
+		r.server.disableFuzzyMatching = !strings.Contains(string(src.URI()), "fuzzymatch")
 		r.server.wantUnimportedCompletions = strings.Contains(string(src.URI()), "unimported")
 
 		list := r.runCompletion(t, src)
@@ -152,7 +155,8 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 		r.server.usePlaceholders = usePlaceholders
 
 		for src, want := range snippets {
-			r.server.useDeepCompletions = strings.Contains(string(src.URI()), "deepcomplete")
+			r.server.disableDeepCompletion = !strings.Contains(string(src.URI()), "deepcomplete")
+			r.server.disableFuzzyMatching = !strings.Contains(string(src.URI()), "fuzzymatch")
 			r.server.wantUnimportedCompletions = strings.Contains(string(src.URI()), "unimported")
 
 			list := r.runCompletion(t, src)

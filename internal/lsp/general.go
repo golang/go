@@ -312,10 +312,8 @@ func (s *Server) processConfig(ctx context.Context, view source.View, config int
 		}
 	}
 
-	// Check if deep completions are enabled.
-	if useDeepCompletions, ok := c["useDeepCompletions"].(bool); ok {
-		s.useDeepCompletions = useDeepCompletions
-	}
+	s.disableDeepCompletion, _ = c["disableDeepCompletion"].(bool)
+	s.disableFuzzyMatching, _ = c["disableFuzzyMatching"].(bool)
 
 	// Check if want unimported package completions.
 	if wantUnimportedCompletions, ok := c["wantUnimportedCompletions"].(bool); ok {

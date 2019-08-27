@@ -89,14 +89,16 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			t.Fatalf("failed for %v: %v", src, err)
 		}
 		deepComplete := strings.Contains(string(src.URI()), "deepcomplete")
+		fuzzyMatch := strings.Contains(string(src.URI()), "fuzzymatch")
 		unimported := strings.Contains(string(src.URI()), "unimported")
 		list, surrounding, err := source.Completion(ctx, r.view, f.(source.GoFile), protocol.Position{
 			Line:      float64(src.Start().Line() - 1),
 			Character: float64(src.Start().Column() - 1),
 		}, source.CompletionOptions{
-			DeepComplete:     deepComplete,
-			WantDocumentaton: true,
-			WantUnimported:   unimported,
+			WantDeepCompletion: deepComplete,
+			WantFuzzyMatching:  fuzzyMatch,
+			WantDocumentaton:   true,
+			WantUnimported:     unimported,
 		})
 		if err != nil {
 			t.Fatalf("failed for %v: %v", src, err)
@@ -121,7 +123,7 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			// If deep completion is enabled, we need to use the fuzzy matcher to match
 			// the code's behvaior.
 			if deepComplete {
-				if fuzzyMatcher != nil && fuzzyMatcher.Score(item.Label) <= 0 {
+				if fuzzyMatcher != nil && fuzzyMatcher.Score(item.Label) < 0 {
 					continue
 				}
 			} else {
@@ -143,11 +145,13 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			if err != nil {
 				t.Fatalf("failed for %v: %v", src, err)
 			}
+
 			list, _, err := source.Completion(ctx, r.view, f.(source.GoFile), protocol.Position{
 				Line:      float64(src.Start().Line() - 1),
 				Character: float64(src.Start().Column() - 1),
 			}, source.CompletionOptions{
-				DeepComplete: strings.Contains(string(src.URI()), "deepcomplete"),
+				WantDeepCompletion: strings.Contains(string(src.URI()), "deepcomplete"),
+				WantFuzzyMatching:  strings.Contains(string(src.URI()), "fuzzymatch"),
 			})
 			if err != nil {
 				t.Fatalf("failed for %v: %v", src, err)

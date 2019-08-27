@@ -131,23 +131,21 @@ const (
 	completionBudget = 100 * time.Millisecond
 )
 
-// matcher matches a candidate's label against the user input.
-// The returned score reflects the quality of the match. A score
-// less than or equal to zero indicates no match, and a score of
-// one means a perfect match.
+// matcher matches a candidate's label against the user input.  The
+// returned score reflects the quality of the match. A score less than
+// zero indicates no match, and a score of one means a perfect match.
 type matcher interface {
 	Score(candidateLabel string) (score float32)
 }
 
-// prefixMatcher implements the original case insensitive prefix matching.
-// This matcher should go away once fuzzy matching is released.
+// prefixMatcher implements case insensitive prefix matching.
 type prefixMatcher string
 
 func (pm prefixMatcher) Score(candidateLabel string) float32 {
 	if strings.HasPrefix(strings.ToLower(candidateLabel), string(pm)) {
 		return 1
 	}
-	return 0
+	return -1
 }
 
 // completer contains the necessary information for a single completion request.
@@ -268,9 +266,7 @@ func (c *completer) setSurrounding(ident *ast.Ident) {
 		},
 	}
 
-	// Fuzzy matching shares the "useDeepCompletions" config flag, so if deep completions
-	// are enabled then also enable fuzzy matching.
-	if c.deepState.maxDepth != 0 {
+	if c.opts.WantFuzzyMatching {
 		c.matcher = fuzzy.NewMatcher(c.surrounding.Prefix(), fuzzy.Symbol)
 	} else {
 		c.matcher = prefixMatcher(strings.ToLower(c.surrounding.Prefix()))
@@ -334,11 +330,19 @@ func (c *completer) found(obj types.Object, score float64, imp *imports.ImportIn
 	}
 
 	// Favor shallow matches by lowering weight according to depth.
-	cand.score -= stdScore * float64(len(c.deepState.chain))
+	cand.score -= cand.score * float64(len(c.deepState.chain)) / 10
+	if cand.score < 0 {
+		cand.score = 0
+	}
 
 	cand.name = c.deepState.chainString(obj.Name())
 	matchScore := c.matcher.Score(cand.name)
-	if matchScore > 0 {
+	if matchScore >= 0 {
+		// Avoid a score of zero since that homogenizes all candidates.
+		if matchScore == 0 {
+			matchScore = 0.001
+		}
+
 		cand.score *= float64(matchScore)
 
 		// Avoid calling c.item() for deep candidates that wouldn't be in the top
@@ -376,10 +380,11 @@ type candidate struct {
 }
 
 type CompletionOptions struct {
-	DeepComplete          bool
+	WantDeepCompletion    bool
 	WantDocumentaton      bool
 	WantFullDocumentation bool
 	WantUnimported        bool
+	WantFuzzyMatching     bool
 }
 
 // Completion returns a list of possible candidates for completion, given a
@@ -465,7 +470,8 @@ func Completion(ctx context.Context, view View, f GoFile, pos protocol.Position,
 		startTime:      startTime,
 	}
 
-	if opts.DeepComplete {
+	if opts.WantDeepCompletion {
+		// Initialize max search depth to unlimited.
 		c.deepState.maxDepth = -1
 	}
 

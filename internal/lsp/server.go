@@ -80,7 +80,8 @@ type Server struct {
 	// TODO(rstambler): Separate these into their own struct?
 	usePlaceholders               bool
 	hoverKind                     hoverKind
-	useDeepCompletions            bool
+	disableDeepCompletion         bool
+	disableFuzzyMatching          bool
 	watchFileChanges              bool
 	wantCompletionDocumentation   bool
 	wantUnimportedCompletions     bool

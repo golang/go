@@ -39,7 +39,7 @@ func _() {
 	}
 	var circle deepCircle   //@item(deepCircle, "circle", "deepCircle", "var")
 	circle.deepCircle       //@item(deepCircleField, "circle.deepCircle", "*deepCircle", "field")
-	var _ deepCircle = circ //@complete(" //", deepCircle, deepCircleStruct, deepCircleField)
+	var _ deepCircle = circ //@complete(" //", deepCircle, deepCircleField)
 }
 
 func _() {
@@ -69,4 +69,22 @@ func _() {
 	nested{
 		a: 123, //@complete(" //", deepNestedField)
 	}
+}
+
+func _() {
+	var a struct {
+		b struct {
+			c int
+		}
+		d int
+	}
+
+	a.d   //@item(deepAD, "a.d", "int", "field")
+	a.b.c //@item(deepABC, "a.b.c", "int", "field")
+	a.b   //@item(deepAB, "a.b", "struct{...}", "field")
+	a     //@item(deepA, "a", "struct{...}", "var")
+
+	// "a.d" should be ranked above the deeper "a.b.c"
+	var i int
+	i = a //@complete(" //", deepAD, deepABC, deepA, deepAB)
 }
