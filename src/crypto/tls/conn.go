@@ -289,22 +289,6 @@ func extractPadding(payload []byte) (toRemove int, good byte) {
 	return
 }
 
-// extractPaddingSSL30 is a replacement for extractPadding in the case that the
-// protocol version is SSLv3. In this version, the contents of the padding
-// are random and cannot be checked.
-func extractPaddingSSL30(payload []byte) (toRemove int, good byte) {
-	if len(payload) < 1 {
-		return 0, 0
-	}
-
-	paddingLen := int(payload[len(payload)-1]) + 1
-	if paddingLen > len(payload) {
-		return 0, 0
-	}
-
-	return paddingLen, 255
-}
-
 func roundUp(a, b int) int {
 	return a + (b-a%b)%b
 }
@@ -382,11 +366,7 @@ func (hc *halfConn) decrypt(record []byte) ([]byte, recordType, error) {
 			// computing the digest. This makes the MAC roughly constant time as
 			// long as the digest computation is constant time and does not
 			// affect the subsequent write, modulo cache effects.
-			if hc.version == VersionSSL30 {
-				paddingLen, paddingGood = extractPaddingSSL30(payload)
-			} else {
-				paddingLen, paddingGood = extractPadding(payload)
-			}
+			paddingLen, paddingGood = extractPadding(payload)
 		default:
 			panic("unknown cipher type")
 		}
@@ -1110,7 +1090,7 @@ func (c *Conn) Write(b []byte) (int, error) {
 		return 0, errShutdown
 	}
 
-	// SSL 3.0 and TLS 1.0 are susceptible to a chosen-plaintext
+	// TLS 1.0 is susceptible to a chosen-plaintext
 	// attack when using block mode ciphers due to predictable IVs.
 	// This can be prevented by splitting each Application Data
 	// record into two records, effectively randomizing the IV.
@@ -1120,7 +1100,7 @@ func (c *Conn) Write(b []byte) (int, error) {
 	// https://www.imperialviolet.org/2012/01/15/beastfollowup.html
 
 	var m int
-	if len(b) > 1 && c.vers <= VersionTLS10 {
+	if len(b) > 1 && c.vers == VersionTLS10 {
 		if _, ok := c.out.cipher.(cipher.BlockMode); ok {
 			n, err := c.writeRecordLocked(recordTypeApplicationData, b[:1])
 			if err != nil {
