@@ -33,12 +33,12 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	MOVWBR	(R15), R9             // e390f000001e
 
 	MOVD	R1, n-8(SP)           // e310f0100024
-	MOVW	R2, n-8(SP)           // e320f0100050
-	MOVH	R3, n-8(SP)           // e330f0100070
-	MOVB	R4, n-8(SP)           // e340f0100072
-	MOVWZ	R5, n-8(SP)           // e350f0100050
-	MOVHZ	R6, n-8(SP)           // e360f0100070
-	MOVBZ	R7, n-8(SP)           // e370f0100072
+	MOVW	R2, n-8(SP)           // 5020f010
+	MOVH	R3, n-8(SP)           // 4030f010
+	MOVB	R4, n-8(SP)           // 4240f010
+	MOVWZ	R5, n-8(SP)           // 5050f010
+	MOVHZ	R6, n-8(SP)           // 4060f010
+	MOVBZ	R7, n-8(SP)           // 4270f010
 	MOVDBR	R8, n-8(SP)           // e380f010002f
 	MOVWBR	R9, n-8(SP)           // e390f010003e
 
@@ -57,6 +57,20 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	MOVB	$255, 4096(R4)        // ebff40000152
 	MOVB	$-128, -524288(R5)    // eb8050008052
 	MOVB	$1, -524289(R6)       // c0a1fff7ffff41aa60009201a000
+
+	// RX (12-bit displacement) and RXY (20-bit displacement) instruction encoding (e.g: ST vs STY)
+	MOVW	R1, 4095(R2)(R3)       // 50132fff
+	MOVW	R1, 4096(R2)(R3)       // e31320000150
+	MOVWZ	R1, 4095(R2)(R3)       // 50132fff
+	MOVWZ	R1, 4096(R2)(R3)       // e31320000150
+	MOVH	R1, 4095(R2)(R3)       // 40132fff
+	MOVHZ   R1, 4095(R2)(R3)       // 40132fff
+	MOVH	R1, 4096(R2)(R3)       // e31320000170
+	MOVHZ	R1, 4096(R2)(R3)       // e31320000170
+	MOVB	R1, 4095(R2)(R3)       // 42132fff
+	MOVBZ	R1, 4095(R2)(R3)       // 42132fff
+	MOVB	R1, 4096(R2)(R3)       // e31320000172
+	MOVBZ	R1, 4096(R2)(R3)       // e31320000172
 
 	ADD	R1, R2                // b9e81022
 	ADD	R1, R2, R3            // b9e81032
@@ -300,10 +314,22 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 
 	FMOVS	$0, F11                // b37400b0
 	FMOVD	$0, F12                // b37500c0
-	FMOVS	(R1)(R2*1), F0         // ed0210000064
-	FMOVS	n-8(SP), F15           // edf0f0100064
-	FMOVD	-9999999(R8)(R9*1), F8 // c0a1ff67698141aa9000ed8a80000065
+	FMOVS	(R1)(R2*1), F0         // 78021000
+	FMOVS	n-8(SP), F15           // 78f0f010
+	FMOVD	-9999999(R8)(R9*1), F8 // c0a1ff67698141aa9000688a8000
 	FMOVD	F4, F5                 // 2854
+
+	// RX (12-bit displacement) and RXY (20-bit displacement) instruction encoding (e.g. LD vs LDY)
+	FMOVD	(R1), F0               // 68001000
+	FMOVD	4095(R2), F13          // 68d02fff
+	FMOVD	4096(R2), F15          // edf020000165
+	FMOVS	4095(R2)(R3), F13      // 78d32fff
+	FMOVS	4096(R2)(R4), F15      // edf420000164
+	FMOVD	F0, 4095(R1)           // 60001fff
+	FMOVD	F0, 4096(R1)           // ed0010000167
+	FMOVS	F13, 4095(R2)(R3)      // 70d32fff
+	FMOVS	F13, 4096(R2)(R3)      // edd320000166
+
 	FADDS	F0, F15                // b30a00f0
 	FADD	F1, F14                // b31a00e1
 	FSUBS	F2, F13                // b30b00d2
