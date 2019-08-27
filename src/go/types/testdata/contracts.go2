@@ -101,3 +101,18 @@ var _ List /* ERROR not satisfied */ (int)
 type MyData string
 
 func (s MyData) String() string { return string(s) }
+
+// Contracts that mention types can only be satisfied by similar types.
+
+contract C3(T) {
+        T int16, int32, int, struct{x int}
+}
+
+type T2 (type _ C3) struct{}
+
+var _ T2 /* ERROR not satisfied */ (int8)
+var _ T2(int16)
+var _ T2(int32)
+var _ T2 /* ERROR not satisfied */ (int64)
+var _ T2(int)
+var _ T2(struct{x int})

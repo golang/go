@@ -249,6 +249,9 @@ type Interface struct {
 	embeddeds []Type  // ordered list of explicitly embedded types
 
 	allMethods []*Func // ordered list of methods declared with or embedded in this interface (TODO(gri): replace with mset)
+
+	// for contracts
+	types []Type // for contracts
 }
 
 // emptyInterface represents the empty (completed) interface

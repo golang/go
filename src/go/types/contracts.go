@@ -29,13 +29,13 @@ func (check *Checker) contractType(contr *Contract, e *ast.ContractType) {
 	// each type parameter's constraints are represented by an interface
 	ifaces := make(map[*TypeName]*Interface)
 
-	addMethod := func(tpar *TypeName, m *Func) {
+	ifaceFor := func(tpar *TypeName) *Interface {
 		iface := ifaces[tpar]
 		if iface == nil {
 			iface = new(Interface)
 			ifaces[tpar] = iface
 		}
-		iface.methods = append(iface.methods, m)
+		return iface
 	}
 
 	// collect constraints
@@ -75,6 +75,7 @@ func (check *Checker) contractType(contr *Contract, e *ast.ContractType) {
 			}
 
 			tpar := obj.(*TypeName)
+			iface := ifaceFor(tpar)
 			switch nmethods {
 			case 0:
 				// type constraints
@@ -92,7 +93,9 @@ func (check *Checker) contractType(contr *Contract, e *ast.ContractType) {
 						check.errorf(texpr.Pos(), "invalid type constraint %s (%s)", typ, why)
 						continue
 					}
-					// TODO(gri) add type
+					// add type
+					iface.types = append(iface.types, typ)
+
 				}
 
 			case 1:
@@ -115,7 +118,7 @@ func (check *Checker) contractType(contr *Contract, e *ast.ContractType) {
 				// add the method
 				mname := c.MNames[0]
 				m := NewFunc(mname.Pos(), check.pkg, mname.Name, sig)
-				addMethod(tpar, m)
+				iface.methods = append(iface.methods, m)
 
 			default:
 				// ignore (error was reported earlier)
@@ -243,6 +246,7 @@ func (check *Checker) satisfyContract(contr *Contract, targs []Type) bool {
 		iface := contr.ifaceAt(i)
 		// If iface is parameterized, we need to replace the type parameters
 		// with the respective type arguments.
+		// TODO(gri) fix this
 		if IsParameterized(iface) {
 			panic("unimplemented")
 		}
@@ -251,6 +255,24 @@ func (check *Checker) satisfyContract(contr *Contract, targs []Type) bool {
 		if m, _ := check.missingMethod(targ, iface, true); m != nil {
 			// check.dump("missing %s (%s, %s)", m, targ, iface)
 			return false
+		}
+		// targ's underlying type must also be one of the interface types listed, if any
+		if len(iface.types) > 0 {
+			utyp := targ.Underlying()
+			// TODO(gri) Cannot handle a type argument that is itself parameterized for now
+			switch utyp.(type) {
+			case *Interface, *Contract:
+				panic("unimplemented")
+			}
+			ok := false
+			for _, t := range iface.types {
+				// if we find one matching type, we're ok
+				if Identical(utyp, t) {
+					ok = true
+					break
+				}
+			}
+			return ok
 		}
 	}
 
