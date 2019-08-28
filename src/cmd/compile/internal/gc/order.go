@@ -64,7 +64,7 @@ func order(fn *Node) {
 func (o *Order) newTemp(t *types.Type, clear bool) *Node {
 	var v *Node
 	// Note: LongString is close to the type equality we want,
-	// but not exactly. We still need to double-check with eqtype.
+	// but not exactly. We still need to double-check with types.Identical.
 	key := t.LongString()
 	a := o.free[key]
 	for i, n := range a {

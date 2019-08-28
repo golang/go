@@ -484,3 +484,26 @@ func TestCopyBytesToJS(t *testing.T) {
 		})
 	}
 }
+
+// BenchmarkDOM is a simple benchmark which emulates a webapp making DOM operations.
+// It creates a div, and sets its id. Then searches by that id and sets some data.
+// Finally it removes that div.
+func BenchmarkDOM(b *testing.B) {
+	document := js.Global().Get("document")
+	if document == js.Undefined() {
+		b.Skip("Not a browser environment. Skipping.")
+	}
+	const data = "someString"
+	for i := 0; i < b.N; i++ {
+		div := document.Call("createElement", "div")
+		div.Call("setAttribute", "id", "myDiv")
+		document.Get("body").Call("appendChild", div)
+		myDiv := document.Call("getElementById", "myDiv")
+		myDiv.Set("innerHTML", data)
+
+		if got, want := myDiv.Get("innerHTML").String(), data; got != want {
+			b.Errorf("got %s, want %s", got, want)
+		}
+		document.Get("body").Call("removeChild", div)
+	}
+}

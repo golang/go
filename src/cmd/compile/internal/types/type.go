@@ -1013,7 +1013,7 @@ func (r *Sym) cmpsym(s *Sym) Cmp {
 // TODO(josharian): make this safe for recursive interface types
 // and use in signatlist sorting. See issue 19869.
 func (t *Type) cmp(x *Type) Cmp {
-	// This follows the structure of eqtype in subr.go
+	// This follows the structure of function identical in identity.go
 	// with two exceptions.
 	// 1. Symbols are compared more carefully because a <,=,> result is desired.
 	// 2. Maps are treated specially to avoid endless recursion -- maps

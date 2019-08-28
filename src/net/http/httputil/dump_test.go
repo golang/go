@@ -26,6 +26,7 @@ type dumpTest struct {
 
 	WantDump    string
 	WantDumpOut string
+	MustError   bool // if true, the test is expected to throw an error
 	NoBody      bool // if true, set DumpRequest{,Out} body to false
 }
 
@@ -206,6 +207,16 @@ var dumpTests = []dumpTest{
 }
 
 func TestDumpRequest(t *testing.T) {
+	// Make a copy of dumpTests and add 10 new cases with an empty URL
+	// to test that no goroutines are leaked. See golang.org/issue/32571.
+	// 10 seems to be a decent number which always triggers the failure.
+	dumpTests := dumpTests[:]
+	for i := 0; i < 10; i++ {
+		dumpTests = append(dumpTests, dumpTest{
+			Req:       mustNewRequest("GET", "", nil),
+			MustError: true,
+		})
+	}
 	numg0 := runtime.NumGoroutine()
 	for i, tt := range dumpTests {
 		if tt.Req != nil && tt.GetReq != nil || tt.Req == nil && tt.GetReq == nil {
@@ -248,6 +259,15 @@ func TestDumpRequest(t *testing.T) {
 				t.Errorf("DumpRequest %d, expecting:\n%s\nGot:\n%s\n", i, tt.WantDump, string(dump))
 				continue
 			}
+		}
+
+		if tt.MustError {
+			req := freshReq(tt)
+			_, err := DumpRequestOut(req, !tt.NoBody)
+			if err == nil {
+				t.Errorf("DumpRequestOut #%d: expected an error, got nil", i)
+			}
+			continue
 		}
 
 		if tt.WantDumpOut != "" {

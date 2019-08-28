@@ -267,21 +267,15 @@ func archArm64() *Arch {
 	for i := arm64.REG_V0; i <= arm64.REG_V31; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}
+
+	// System registers.
+	for i := 0; i < len(arm64.SystemReg); i++ {
+		register[arm64.SystemReg[i].Name] = arm64.SystemReg[i].Reg
+	}
+
 	register["LR"] = arm64.REGLINK
-	register["DAIF"] = arm64.REG_DAIF
-	register["NZCV"] = arm64.REG_NZCV
-	register["FPSR"] = arm64.REG_FPSR
-	register["FPCR"] = arm64.REG_FPCR
-	register["SPSR_EL1"] = arm64.REG_SPSR_EL1
-	register["ELR_EL1"] = arm64.REG_ELR_EL1
-	register["SPSR_EL2"] = arm64.REG_SPSR_EL2
-	register["ELR_EL2"] = arm64.REG_ELR_EL2
-	register["CurrentEL"] = arm64.REG_CurrentEL
-	register["SP_EL0"] = arm64.REG_SP_EL0
-	register["SPSel"] = arm64.REG_SPSel
 	register["DAIFSet"] = arm64.REG_DAIFSet
 	register["DAIFClr"] = arm64.REG_DAIFClr
-	register["DCZID_EL0"] = arm64.REG_DCZID_EL0
 	register["PLDL1KEEP"] = arm64.REG_PLDL1KEEP
 	register["PLDL1STRM"] = arm64.REG_PLDL1STRM
 	register["PLDL2KEEP"] = arm64.REG_PLDL2KEEP
