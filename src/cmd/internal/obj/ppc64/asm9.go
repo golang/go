@@ -449,6 +449,9 @@ var optab = []Optab{
 	{AVCMPGT, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 0},   /* vector compare greater than, vc-form */
 	{AVCMPNEZB, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 0}, /* vector compare not equal, vx-form */
 
+	/* Vector merge */
+	{AVMRGOW, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 0}, /* vector merge odd word, vx-form */
+
 	/* Vector permute */
 	{AVPERM, C_VREG, C_VREG, C_VREG, C_VREG, 83, 4, 0}, /* vector permute, va-form */
 
@@ -1353,6 +1356,9 @@ func buildop(ctxt *obj.Link) {
 			opset(AVAND, r0)
 			opset(AVANDC, r0)
 			opset(AVNAND, r0)
+
+		case AVMRGOW: /* vmrgew, vmrgow */
+			opset(AVMRGEW, r0)
 
 		case AVOR: /* vor, vorc, vxor, vnor, veqv */
 			opset(AVOR, r0)
@@ -4405,6 +4411,11 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 		return OPVX(4, 132, 0, 0) /* vrlw - v2.03 */
 	case AVRLD:
 		return OPVX(4, 196, 0, 0) /* vrld - v2.07 */
+
+	case AVMRGOW:
+		return OPVX(4, 1676, 0, 0) /* vmrgow - v2.07 */
+	case AVMRGEW:
+		return OPVX(4, 1932, 0, 0) /* vmrgew - v2.07 */
 
 	case AVSLB:
 		return OPVX(4, 260, 0, 0) /* vslh - v2.03 */
