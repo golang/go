@@ -12,6 +12,7 @@ import (
 	"go/token"
 	"go/types"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -147,7 +148,10 @@ func (v *view) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	if v.processEnv == nil {
-		v.processEnv = v.buildProcessEnv(ctx)
+		var err error
+		if v.processEnv, err = v.buildProcessEnv(ctx); err != nil {
+			return err
+		}
 	}
 
 	// Before running the user provided function, clear caches in the resolver.
@@ -176,7 +180,7 @@ func (v *view) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 	return nil
 }
 
-func (v *view) buildProcessEnv(ctx context.Context) *imports.ProcessEnv {
+func (v *view) buildProcessEnv(ctx context.Context) (*imports.ProcessEnv, error) {
 	cfg := v.Config(ctx)
 	env := &imports.ProcessEnv{
 		WorkingDir: cfg.Dir,
@@ -204,7 +208,17 @@ func (v *view) buildProcessEnv(ctx context.Context) *imports.ProcessEnv {
 			env.GOSUMDB = split[1]
 		}
 	}
-	return env
+
+	if env.GOPATH == "" {
+		cmd := exec.CommandContext(ctx, "go", "env", "GOPATH")
+		cmd.Env = cfg.Env
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return nil, err
+		} else {
+			env.GOPATH = strings.TrimSpace(string(out))
+		}
+	}
+	return env, nil
 }
 
 func (v *view) modFilesChanged() bool {
