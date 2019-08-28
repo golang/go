@@ -2289,7 +2289,7 @@ func TestTransportCancelRequestInDial(t *testing.T) {
 	got := logbuf.String()
 	want := `dial: blocking
 canceling
-Get = Get http://something.no-network.tld/: net/http: request canceled while waiting for connection
+Get = Get "http://something.no-network.tld/": net/http: request canceled while waiting for connection
 `
 	if got != want {
 		t.Errorf("Got events:\n%s\nWant:\n%s", got, want)
