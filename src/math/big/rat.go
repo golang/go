@@ -413,6 +413,8 @@ func (x *Rat) Num() *Int {
 // Denom returns the denominator of x; it is always > 0.
 // The result is a reference to x's denominator; it
 // may change if a new value is assigned to x, and vice versa.
+// If x's denominator is 1, Denom may materialize the denominator, thereby
+// modifying x.
 func (x *Rat) Denom() *Int {
 	x.b.neg = false // the result is always >= 0
 	if len(x.b.abs) == 0 {
