@@ -900,6 +900,13 @@ label1:
 //	<mnemonic> VRT,VRA,VRB,SHB
 	VSLDOI	$4, V2, V1, V0
 
+//	Vector merge odd and even word
+//	<MNEMONIC> VRA,VRB,VRT produces
+//	<mnemonic> VRT,VRA,VRB
+
+	VMRGOW	V4,V5,V6
+	VMRGEW	V4,V5,V6
+
 //	Vector count, VX-form
 //	<MNEMONIC> VRB,VRT produces
 //	<mnemonic> VRT,VRB
