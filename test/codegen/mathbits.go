@@ -208,7 +208,7 @@ func RotateLeft64(n uint64) uint64 {
 
 func RotateLeft32(n uint32) uint32 {
 	// amd64:"ROLL" 386:"ROLL"
-	// arm:`MOVW\tR[0-9]+@>[$]23`
+	// arm:`MOVW\tR[0-9]+@>23`
 	// arm64:"RORW"
 	// ppc64:"ROTLW"
 	// ppc64le:"ROTLW"
