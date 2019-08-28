@@ -360,8 +360,6 @@ func rewriteValue386(v *Value) bool {
 		return rewriteValue386_OpConstBool_0(v)
 	case OpConstNil:
 		return rewriteValue386_OpConstNil_0(v)
-	case OpCtz16:
-		return rewriteValue386_OpCtz16_0(v)
 	case OpCvt32Fto32:
 		return rewriteValue386_OpCvt32Fto32_0(v)
 	case OpCvt32Fto64F:
@@ -20782,22 +20780,6 @@ func rewriteValue386_OpConstNil_0(v *Value) bool {
 	for {
 		v.reset(Op386MOVLconst)
 		v.AuxInt = 0
-		return true
-	}
-}
-func rewriteValue386_OpCtz16_0(v *Value) bool {
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Ctz16 x)
-	// cond:
-	// result: (BSFL (ORLconst <typ.UInt32> [0x10000] x))
-	for {
-		x := v.Args[0]
-		v.reset(Op386BSFL)
-		v0 := b.NewValue0(v.Pos, Op386ORLconst, typ.UInt32)
-		v0.AuxInt = 0x10000
-		v0.AddArg(x)
-		v.AddArg(v0)
 		return true
 	}
 }
