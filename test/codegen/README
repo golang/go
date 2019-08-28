@@ -30,6 +30,12 @@ transformation, it can be useful to first run the test harness with a
 toolchain from a released Go version (and verify that the new tests
 fail), and then re-runnig the tests using the devel toolchain.
 
+By default, only checks that are relevant to the current GOOS/GOARCH
+are run. Checks for all platforms can be enabled by specifiying the
+-all_codegen option, as
+
+  $ ../bin/go run run.go -all_codegen codegen
+
 
 - Regexps comments syntax
 
