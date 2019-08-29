@@ -503,12 +503,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 	case OTSTRUCT:
 		ok |= Etype
-		t := tostruct(n.List.Slice())
-		if t.Broke() {
-			n.Type = nil
-			return n
-		}
-		setTypeNode(n, t)
+		setTypeNode(n, tostruct(n.List.Slice()))
 		n.List.Set(nil)
 
 	case OTINTER:
