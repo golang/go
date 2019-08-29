@@ -3132,8 +3132,8 @@ func (r *Row) Scan(dest ...interface{}) error {
 		}
 		return ErrNoRows
 	}
-	err := r.rows.Scan(dest...)
-	if err != nil {
+
+	if err := r.rows.Scan(dest...); err != nil {
 		return err
 	}
 	// Make sure the query can be processed to completion with no errors.
