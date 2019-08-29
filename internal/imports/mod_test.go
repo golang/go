@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/internal/module"
+	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/internal/txtar"
 )
 
@@ -578,6 +579,8 @@ type modTest struct {
 // in testdata/mod, along the lines of TestScript in cmd/go.
 func setup(t *testing.T, main, wd string) *modTest {
 	t.Helper()
+	testenv.NeedsTool(t, "go")
+
 	proxyOnce.Do(func() {
 		var err error
 		proxyDir, err = ioutil.TempDir("", "proxy-")

@@ -25,6 +25,7 @@ import (
 	"golang.org/x/tools/go/expect"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/testenv"
 )
 
 var (
@@ -127,6 +128,10 @@ func BenchmarkAll(b *testing.B, f func(*testing.B, Exporter)) {
 // debugging tests.
 func Export(t testing.TB, exporter Exporter, modules []Module) *Exported {
 	t.Helper()
+	if exporter == Modules {
+		testenv.NeedsTool(t, "go")
+	}
+
 	dirname := strings.Replace(t.Name(), "/", "_", -1)
 	dirname = strings.Replace(dirname, "#", "_", -1) // duplicate subtests get a #NNN suffix.
 	temp, err := ioutil.TempDir("", dirname)
@@ -185,6 +190,7 @@ func Export(t testing.TB, exporter Exporter, modules []Module) *Exported {
 	if err := exporter.Finalize(exported); err != nil {
 		t.Fatal(err)
 	}
+	testenv.NeedsGoPackagesEnv(t, exported.Config.Env)
 	return exported
 }
 

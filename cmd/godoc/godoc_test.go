@@ -21,6 +21,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/tools/internal/testenv"
 )
 
 // buildGodoc builds the godoc executable.
@@ -29,12 +31,15 @@ import (
 // TODO(adonovan): opt: do this at most once, and do the cleanup
 // exactly once.  How though?  There's no atexit.
 func buildGodoc(t *testing.T) (bin string, cleanup func()) {
+	t.Helper()
+
 	if runtime.GOARCH == "arm" {
 		t.Skip("skipping test on arm platforms; too slow")
 	}
 	if runtime.GOOS == "android" {
 		t.Skipf("the dependencies are not available on android")
 	}
+	testenv.NeedsTool(t, "go")
 
 	tmp, err := ioutil.TempDir("", "godoc-regtest-")
 	if err != nil {

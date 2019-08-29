@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/refactor/eg"
 )
 
@@ -38,6 +39,8 @@ var (
 )
 
 func Test(t *testing.T) {
+	testenv.NeedsTool(t, "go")
+
 	switch runtime.GOOS {
 	case "windows":
 		t.Skipf("skipping test on %q (no /usr/bin/diff)", runtime.GOOS)

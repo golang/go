@@ -17,6 +17,7 @@ import (
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa/ssautil"
+	"golang.org/x/tools/internal/testenv"
 )
 
 const hello = `package main
@@ -53,6 +54,8 @@ func TestBuildPackage(t *testing.T) {
 }
 
 func TestPackages(t *testing.T) {
+	testenv.NeedsGoPackages(t)
+
 	cfg := &packages.Config{Mode: packages.LoadSyntax}
 	initial, err := packages.Load(cfg, "bytes")
 	if err != nil {
@@ -106,6 +109,8 @@ func TestBuildPackage_MissingImport(t *testing.T) {
 }
 
 func TestIssue28106(t *testing.T) {
+	testenv.NeedsGoPackages(t)
+
 	// In go1.10, go/packages loads all packages from source, not
 	// export data, but does not type check function bodies of
 	// imported packages. This test ensures that we do not attempt

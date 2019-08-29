@@ -10,6 +10,7 @@ import (
 	"go/build"
 	"go/token"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -17,6 +18,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/buildutil"
+	"golang.org/x/tools/internal/testenv"
 )
 
 // TODO(adonovan): test reported source positions, somehow.
@@ -1278,11 +1280,17 @@ func main() {
 
 func TestDiff(t *testing.T) {
 	switch runtime.GOOS {
-	case "windows", "android":
-		t.Skipf("diff tool non-existent for %s on builders", runtime.GOOS)
+	case "windows":
+		if os.Getenv("GO_BUILDER_NAME") != "" {
+			if _, err := exec.LookPath(DiffCmd); err != nil {
+				t.Skipf("diff tool non-existent for %s on builders", runtime.GOOS)
+			}
+		}
 	case "plan9":
 		t.Skipf("plan9 diff tool doesn't support -u flag")
 	}
+	testenv.NeedsTool(t, DiffCmd)
+	testenv.NeedsTool(t, "go") // to locate golang.org/x/tools/refactor/rename
 
 	defer func() {
 		Diff = false

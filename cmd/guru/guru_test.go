@@ -48,6 +48,7 @@ import (
 	"testing"
 
 	guru "golang.org/x/tools/cmd/guru"
+	"golang.org/x/tools/internal/testenv"
 )
 
 func init() {
@@ -296,6 +297,7 @@ func TestGuru(t *testing.T) {
 			default:
 				cmd = exec.Command("/usr/bin/diff", "-u", golden, got)
 			}
+			testenv.NeedsTool(t, cmd.Path)
 			buf := new(bytes.Buffer)
 			cmd.Stdout = buf
 			cmd.Stderr = os.Stderr

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/testenv"
 )
 
 // This test loads the metadata for the standard library,
@@ -22,6 +23,8 @@ func TestStdlibMetadata(t *testing.T) {
 	// if runtime.GOOS == "android" {
 	// 	t.Skipf("incomplete std lib on %s", runtime.GOOS)
 	// }
+
+	testenv.NeedsGoPackages(t)
 
 	runtime.GC()
 	t0 := time.Now()
@@ -61,6 +64,8 @@ func TestCgoOption(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode; uses tons of memory (https://golang.org/issue/14113)")
 	}
+
+	testenv.NeedsGoPackages(t)
 
 	// TODO(adonovan): see if we can get away without these old
 	// go/loader hacks now that we use the go list command.

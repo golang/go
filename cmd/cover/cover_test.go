@@ -16,6 +16,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"golang.org/x/tools/internal/testenv"
 )
 
 const (
@@ -44,6 +46,8 @@ var debug = false // Keeps the rewritten files around if set.
 //	go run ./testdata/main.go ./testdata/test.go
 //
 func TestCover(t *testing.T) {
+	testenv.NeedsTool(t, "go")
+
 	// Read in the test file (testTest) and write it, with LINEs specified, to coverInput.
 	file, err := ioutil.ReadFile(testTest)
 	if err != nil {

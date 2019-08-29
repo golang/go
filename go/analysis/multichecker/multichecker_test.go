@@ -12,6 +12,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/multichecker"
 	"golang.org/x/tools/go/analysis/passes/findcall"
+	"golang.org/x/tools/internal/testenv"
 )
 
 func main() {
@@ -45,6 +46,8 @@ func TestExitCode(t *testing.T) {
 		main()
 		panic("unreachable")
 	}
+
+	testenv.NeedsTool(t, "go")
 
 	for _, test := range []struct {
 		args []string

@@ -1,0 +1,108 @@
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Package testenv contains helper functions for skipping tests
+// based on which tools are present in the environment.
+package testenv
+
+import (
+	"os"
+	"os/exec"
+	"runtime"
+	"strings"
+)
+
+// Testing is an abstraction of a *testing.T.
+type Testing interface {
+	Skipf(format string, args ...interface{})
+	Fatalf(format string, args ...interface{})
+}
+
+type helperer interface {
+	Helper()
+}
+
+// packageMainIsDevel reports whether the module containing package main
+// is a development version (if module information is available).
+//
+// Builds in GOPATH mode and builds that lack module information are assumed to
+// be development versions.
+var packageMainIsDevel = func() bool { return true }
+
+func allowMissingTool(tool string) bool {
+	if runtime.GOOS == "android" {
+		// Android builds generally run tests on a separate machine from the build,
+		// so don't expect any external tools to be available.
+		return true
+	}
+
+	if tool == "go" && os.Getenv("GO_BUILDER_NAME") == "illumos-amd64-joyent" {
+		// Work around a misconfigured builder (see https://golang.org/issue/33950).
+		return true
+	}
+
+	// If a developer is actively working on this test, we expect them to have all
+	// of its dependencies installed. However, if it's just a dependency of some
+	// other module (for example, being run via 'go test all'), we should be more
+	// tolerant of unusual environments.
+	return !packageMainIsDevel()
+}
+
+// NeedsTool skips t if the named tool is not present in the path.
+func NeedsTool(t Testing, tool string) {
+	_, err := exec.LookPath(tool)
+	if err == nil {
+		return
+	}
+
+	if t, ok := t.(helperer); ok {
+		t.Helper()
+	}
+	if allowMissingTool(tool) {
+		t.Skipf("skipping because %s tool not available: %v", tool, err)
+	} else {
+		t.Fatalf("%s tool not available: %v", tool, err)
+	}
+}
+
+// NeedsGoPackages skips t if the go/packages driver (or 'go' tool) implied by
+// the current process environment is not present in the path.
+func NeedsGoPackages(t Testing) {
+	if t, ok := t.(helperer); ok {
+		t.Helper()
+	}
+
+	tool := os.Getenv("GOPACKAGESDRIVER")
+	if tool == "" {
+		if _, err := exec.LookPath("gopackagesdriver"); err == nil {
+			tool = "gopackagesdriver"
+		} else {
+			tool = "go"
+		}
+	}
+
+	NeedsTool(t, tool)
+}
+
+// NeedsGoPackagesEnv skips t if the go/packages driver (or 'go' tool) implied
+// by env is not present in the path.
+func NeedsGoPackagesEnv(t Testing, env []string) {
+	if t, ok := t.(helperer); ok {
+		t.Helper()
+	}
+
+	for _, v := range env {
+		if strings.HasPrefix(v, "GOPACKAGESDRIVER=") {
+			tool := strings.TrimPrefix(v, "GOPACKAGESDRIVER=")
+			if tool == "off" {
+				NeedsTool(t, "go")
+			} else {
+				NeedsTool(t, tool)
+			}
+			return
+		}
+	}
+
+	NeedsGoPackages(t)
+}

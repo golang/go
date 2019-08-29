@@ -16,6 +16,7 @@ import (
 	"golang.org/x/tools/go/analysis/analysistest"
 	"golang.org/x/tools/go/analysis/internal/facts"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/testenv"
 )
 
 type myFact struct {
@@ -88,7 +89,7 @@ func TestEncodeDecode(t *testing.T) {
 		}},
 	} {
 		// load package
-		pkg, err := load(dir, test.path)
+		pkg, err := load(t, dir, test.path)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -155,12 +156,13 @@ func find(p *types.Package, expr string) types.Object {
 	return nil
 }
 
-func load(dir string, path string) (*types.Package, error) {
+func load(t *testing.T, dir string, path string) (*types.Package, error) {
 	cfg := &packages.Config{
 		Mode: packages.LoadSyntax,
 		Dir:  dir,
 		Env:  append(os.Environ(), "GOPATH="+dir, "GO111MODULE=off", "GOPROXY=off"),
 	}
+	testenv.NeedsGoPackagesEnv(t, cfg.Env)
 	pkgs, err := packages.Load(cfg, path)
 	if err != nil {
 		return nil, err
@@ -191,7 +193,7 @@ func TestFactFilter(t *testing.T) {
 	}
 	defer cleanup()
 
-	pkg, err := load(dir, "a")
+	pkg, err := load(t, dir, "a")
 	if err != nil {
 		t.Fatal(err)
 	}

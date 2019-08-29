@@ -17,6 +17,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"golang.org/x/tools/internal/testenv"
 )
 
 func init() {
@@ -32,6 +34,8 @@ func init() {
 }
 
 func TestCallgraph(t *testing.T) {
+	testenv.NeedsTool(t, "go")
+
 	gopath, err := filepath.Abs("testdata")
 	if err != nil {
 		t.Fatal(err)

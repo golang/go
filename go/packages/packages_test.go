@@ -24,6 +24,7 @@ import (
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/packages/packagestest"
+	"golang.org/x/tools/internal/testenv"
 )
 
 func TestMain(m *testing.M) {
@@ -55,6 +56,8 @@ func TestMain(m *testing.M) {
 
 // The zero-value of Config has LoadFiles mode.
 func TestLoadZeroConfig(t *testing.T) {
+	testenv.NeedsGoPackages(t)
+
 	initial, err := packages.Load(nil, "hash")
 	if err != nil {
 		t.Fatal(err)
@@ -1020,6 +1023,8 @@ func testNewPackagesInOverlay(t *testing.T, exporter packagestest.Exporter) {
 }
 
 func TestAdHocOverlays(t *testing.T) {
+	testenv.NeedsTool(t, "go")
+
 	// This test doesn't use packagestest because we are testing ad-hoc packages,
 	// which are outside of $GOPATH and outside of a module.
 	tmp, err := ioutil.TempDir("", "a")
@@ -1063,6 +1068,8 @@ const A = 1
 // TestOverlayModFileChanges tests the behavior resulting from having files from
 // multiple modules in overlays.
 func TestOverlayModFileChanges(t *testing.T) {
+	testenv.NeedsTool(t, "go")
+
 	// Create two unrelated modules in a temporary directory.
 	tmp, err := ioutil.TempDir("", "tmp")
 	if err != nil {

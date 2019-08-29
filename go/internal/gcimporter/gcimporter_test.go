@@ -19,6 +19,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/tools/internal/testenv"
 )
 
 // ----------------------------------------------------------------------------
@@ -52,6 +54,7 @@ func HasGoBuild() bool {
 // and then run them with os.StartProcess or exec.Command.
 // If not, MustHaveGoBuild calls t.Skip with an explanation.
 func MustHaveGoBuild(t *testing.T) {
+	testenv.NeedsTool(t, "go")
 	if !HasGoBuild() {
 		t.Skipf("skipping test: 'go build' not available on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}

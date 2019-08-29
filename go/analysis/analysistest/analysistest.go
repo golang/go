@@ -18,6 +18,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/checker"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/testenv"
 )
 
 // WriteFiles is a helper function that creates a temporary directory
@@ -98,6 +99,10 @@ type Testing interface {
 // attempted, even if unsuccessful. It is safe for a test to ignore all
 // the results, but a test may use it to perform additional checks.
 func Run(t Testing, dir string, a *analysis.Analyzer, patterns ...string) []*Result {
+	if t, ok := t.(testenv.Testing); ok {
+		testenv.NeedsGoPackages(t)
+	}
+
 	pkgs, err := loadPackages(dir, patterns...)
 	if err != nil {
 		t.Errorf("loading %s: %v", patterns, err)
