@@ -1,4 +1,4 @@
--- foldingRange --
+-- foldingRange-0 --
 package folding //@fold("package")
 
 import (<>)
@@ -8,11 +8,115 @@ import _ "os"
 // bar is a function.<>
 func bar(<>) string {<>}
 
--- foldingRange-comment --
+-- foldingRange-1 --
 package folding //@fold("package")
 
 import (
-	_ "fmt"
+	"fmt"
+	_ "log"
+)
+
+import _ "os"
+
+// bar is a function.
+// With a multiline doc comment.
+func bar() string {
+	switch {<>}
+
+	return `
+this string
+is not indented`
+
+}
+
+-- foldingRange-2 --
+package folding //@fold("package")
+
+import (
+	"fmt"
+	_ "log"
+)
+
+import _ "os"
+
+// bar is a function.
+// With a multiline doc comment.
+func bar() string {
+	switch {
+	case true:<>
+	case false:<>
+	default:<>
+	}
+
+	return `
+this string
+is not indented`
+
+}
+
+-- foldingRange-3 --
+package folding //@fold("package")
+
+import (
+	"fmt"
+	_ "log"
+)
+
+import _ "os"
+
+// bar is a function.
+// With a multiline doc comment.
+func bar() string {
+	switch {
+	case true:
+		if true {<>}
+	case false:
+		fmt.Println(<>)
+	default:
+		fmt.Println(<>)
+	}
+
+	return `
+this string
+is not indented`
+
+}
+
+-- foldingRange-4 --
+package folding //@fold("package")
+
+import (
+	"fmt"
+	_ "log"
+)
+
+import _ "os"
+
+// bar is a function.
+// With a multiline doc comment.
+func bar() string {
+	switch {
+	case true:
+		if true {
+			fmt.Println(<>)
+		}
+	case false:
+		fmt.Println("false")
+	default:
+		fmt.Println("default")
+	}
+
+	return `
+this string
+is not indented`
+
+}
+
+-- foldingRange-comment-0 --
+package folding //@fold("package")
+
+import (
+	"fmt"
 	_ "log"
 )
 
@@ -20,13 +124,24 @@ import _ "os"
 
 // bar is a function.<>
 func bar() string {
+	switch {
+	case true:
+		if true {
+			fmt.Println("true")
+		}
+	case false:
+		fmt.Println("false")
+	default:
+		fmt.Println("default")
+	}
+
 	return `
 this string
 is not indented`
 
 }
 
--- foldingRange-imports --
+-- foldingRange-imports-0 --
 package folding //@fold("package")
 
 import (<>)
@@ -36,6 +151,17 @@ import _ "os"
 // bar is a function.
 // With a multiline doc comment.
 func bar() string {
+	switch {
+	case true:
+		if true {
+			fmt.Println("true")
+		}
+	case false:
+		fmt.Println("false")
+	default:
+		fmt.Println("default")
+	}
+
 	return `
 this string
 is not indented`

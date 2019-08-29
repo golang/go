@@ -290,17 +290,21 @@ func (r *runner) FoldingRange(t *testing.T, data tests.FoldingRanges) {
 		}
 
 		// Fold all ranges.
-		got, err := foldRanges(m, string(m.Content), ranges)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
-		want := string(r.data.Golden("foldingRange", spn.URI().Filename(), func() ([]byte, error) {
-			return []byte(got), nil
-		}))
+		nonOverlapping := nonOverlappingRanges(ranges)
+		for i, rngs := range nonOverlapping {
+			got, err := foldRanges(m, string(m.Content), rngs)
+			if err != nil {
+				t.Error(err)
+				continue
+			}
+			tag := fmt.Sprintf("foldingRange-%d", i)
+			want := string(r.data.Golden(tag, spn.URI().Filename(), func() ([]byte, error) {
+				return []byte(got), nil
+			}))
 
-		if want != got {
-			t.Errorf("foldingRanges failed for %s, expected:\n%v\ngot:\n%v", filename, want, got)
+			if want != got {
+				t.Errorf("%s: foldingRanges failed for %s, expected:\n%v\ngot:\n%v", tag, filename, want, got)
+			}
 		}
 
 		// Filter by kind.
@@ -313,17 +317,21 @@ func (r *runner) FoldingRange(t *testing.T, data tests.FoldingRanges) {
 				}
 			}
 
-			got, err := foldRanges(m, string(m.Content), kindOnly)
-			if err != nil {
-				t.Error(err)
-				continue
-			}
-			want := string(r.data.Golden("foldingRange-"+string(kind), spn.URI().Filename(), func() ([]byte, error) {
-				return []byte(got), nil
-			}))
+			nonOverlapping := nonOverlappingRanges(kindOnly)
+			for i, rngs := range nonOverlapping {
+				got, err := foldRanges(m, string(m.Content), rngs)
+				if err != nil {
+					t.Error(err)
+					continue
+				}
+				tag := fmt.Sprintf("foldingRange-%s-%d", kind, i)
+				want := string(r.data.Golden(tag, spn.URI().Filename(), func() ([]byte, error) {
+					return []byte(got), nil
+				}))
 
-			if want != got {
-				t.Errorf("foldingRanges-%s failed for %s, expected:\n%v\ngot:\n%v", string(kind), filename, want, got)
+				if want != got {
+					t.Errorf("%s: foldingRanges failed for %s, expected:\n%v\ngot:\n%v", tag, filename, want, got)
+				}
 			}
 
 		}
@@ -331,9 +339,37 @@ func (r *runner) FoldingRange(t *testing.T, data tests.FoldingRanges) {
 	}
 }
 
+func nonOverlappingRanges(ranges []protocol.FoldingRange) (res [][]protocol.FoldingRange) {
+	for _, fRng := range ranges {
+		setNum := len(res)
+		for i := 0; i < len(res); i++ {
+			canInsert := true
+			for _, rng := range res[i] {
+				if conflict(rng, fRng) {
+					canInsert = false
+					break
+				}
+			}
+			if canInsert {
+				setNum = i
+				break
+			}
+		}
+		if setNum == len(res) {
+			res = append(res, []protocol.FoldingRange{})
+		}
+		res[setNum] = append(res[setNum], fRng)
+	}
+	return res
+}
+
+func conflict(a, b protocol.FoldingRange) bool {
+	// a start position is <= b start positions
+	return (a.StartLine < b.StartLine || (a.StartLine == b.StartLine && a.StartCharacter <= b.StartCharacter)) &&
+		(a.EndLine > b.StartLine || (a.EndLine == b.StartLine && a.EndCharacter > b.StartCharacter))
+}
+
 func foldRanges(m *protocol.ColumnMapper, contents string, ranges []protocol.FoldingRange) (string, error) {
-	// TODO(suzmue): Allow folding ranges to intersect for these tests, do a folding by level,
-	// or per individual fold.
 	foldedText := "<>"
 	res := contents
 	// Apply the edits from the end of the file forward
