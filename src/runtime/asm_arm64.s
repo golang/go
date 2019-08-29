@@ -504,7 +504,7 @@ TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-32
 	BEQ	noaes
 	MOVD	p+0(FP), R0
 	MOVD	s+16(FP), R1
-	MOVWU	h+8(FP), R3
+	MOVD	h+8(FP), R3
 	MOVD	$ret+24(FP), R2
 	B	aeshashbody<>(SB)
 noaes:
@@ -517,20 +517,20 @@ TEXT runtime·strhash(SB),NOSPLIT|NOFRAME,$0-24
 	BEQ	noaes
 	MOVD	p+0(FP), R10 // string pointer
 	LDP	(R10), (R0, R1) //string data/ length
-	MOVWU	h+8(FP), R3
+	MOVD	h+8(FP), R3
 	MOVD	$ret+16(FP), R2 // return adddress
 	B	aeshashbody<>(SB)
 noaes:
 	B	runtime·strhashFallback(SB)
 
 // R0: data
-// R1: length (maximum 32 bits)
+// R1: length
 // R2: address to put return value
 // R3: seed data
 TEXT aeshashbody<>(SB),NOSPLIT|NOFRAME,$0
 	VEOR	V30.B16, V30.B16, V30.B16
-	VMOV	R3, V30.S[0]
-	VMOV	R1, V30.S[1] // load length into seed
+	VMOV	R3, V30.D[0]
+	VMOV	R1, V30.D[1] // load length into seed
 
 	MOVD	$runtime·aeskeysched+0(SB), R4
 	VLD1.P	16(R4), [V0.B16]
