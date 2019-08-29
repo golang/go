@@ -26,6 +26,15 @@ import (
 	"golang.org/x/tools/go/packages/packagestest"
 )
 
+func TestMain(m *testing.M) {
+	if os.Getenv("GO_BUILDER_NAME") == "linux-arm" {
+		fmt.Fprintf(os.Stderr, "skipping test: linux-arm builder lacks sufficient memory (https://golang.org/issue/32834)\n")
+		os.Exit(0)
+	}
+
+	os.Exit(m.Run())
+}
+
 // TODO(adonovan): more test cases to write:
 //
 // - When the tests fail, make them print a 'cd & load' command

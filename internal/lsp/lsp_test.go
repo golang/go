@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"go/token"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
@@ -23,6 +24,15 @@ import (
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/span"
 )
+
+func TestMain(m *testing.M) {
+	if os.Getenv("GO_BUILDER_NAME") == "linux-arm" {
+		fmt.Fprintf(os.Stderr, "skipping test: linux-arm builder lacks sufficient memory (https://golang.org/issue/32834)\n")
+		os.Exit(0)
+	}
+
+	os.Exit(m.Run())
+}
 
 func TestLSP(t *testing.T) {
 	packagestest.TestAll(t, testLSP)
