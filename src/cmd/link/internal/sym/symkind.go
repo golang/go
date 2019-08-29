@@ -111,7 +111,6 @@ const (
 	SDWARFRANGE
 	SDWARFLOC
 	SDWARFLINES
-	SDWARFMISC // Not really a section; informs/affects other DWARF section generation
 
 	// ABI aliases (these never appear in the output)
 	SABIALIAS
@@ -132,7 +131,6 @@ var AbiSymKindToSymKind = [...]SymKind{
 	SDWARFRANGE,
 	SDWARFLOC,
 	SDWARFLINES,
-	SDWARFMISC,
 	SABIALIAS,
 }
 

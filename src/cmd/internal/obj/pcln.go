@@ -295,13 +295,6 @@ func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg i
 	return int32(p.To.Offset)
 }
 
-// stmtData writes out pc-linked is_stmt data for eventual use in the DWARF line numbering table.
-func stmtData(ctxt *Link, cursym *LSym) {
-	var pctostmtData Pcdata
-	funcpctab(ctxt, &pctostmtData, cursym, "pctostmt", pctostmt, nil)
-	cursym.Func.dwarfIsStmtSym.P = pctostmtData.P
-}
-
 func linkpcln(ctxt *Link, cursym *LSym) {
 	pcln := &cursym.Func.Pcln
 
