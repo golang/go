@@ -168,3 +168,143 @@ is not indented`
 
 }
 
+-- foldingRange-lineFolding-0 --
+package folding //@fold("package")
+
+import (<>)
+
+import _ "os"
+
+// bar is a function.<>
+func bar() string {<>}
+
+-- foldingRange-lineFolding-1 --
+package folding //@fold("package")
+
+import (
+	"fmt"
+	_ "log"
+)
+
+import _ "os"
+
+// bar is a function.
+// With a multiline doc comment.
+func bar() string {
+	switch {<>}
+
+	return `
+this string
+is not indented`
+
+}
+
+-- foldingRange-lineFolding-2 --
+package folding //@fold("package")
+
+import (
+	"fmt"
+	_ "log"
+)
+
+import _ "os"
+
+// bar is a function.
+// With a multiline doc comment.
+func bar() string {
+	switch {
+	case true:<>
+	case false:<>
+	default:<>
+	}
+
+	return `
+this string
+is not indented`
+
+}
+
+-- foldingRange-lineFolding-3 --
+package folding //@fold("package")
+
+import (
+	"fmt"
+	_ "log"
+)
+
+import _ "os"
+
+// bar is a function.
+// With a multiline doc comment.
+func bar() string {
+	switch {
+	case true:
+		if true {<>}
+	case false:
+		fmt.Println("false")
+	default:
+		fmt.Println("default")
+	}
+
+	return `
+this string
+is not indented`
+
+}
+
+-- foldingRange-lineFolding-comment-0 --
+package folding //@fold("package")
+
+import (
+	"fmt"
+	_ "log"
+)
+
+import _ "os"
+
+// bar is a function.<>
+func bar() string {
+	switch {
+	case true:
+		if true {
+			fmt.Println("true")
+		}
+	case false:
+		fmt.Println("false")
+	default:
+		fmt.Println("default")
+	}
+
+	return `
+this string
+is not indented`
+
+}
+
+-- foldingRange-lineFolding-imports-0 --
+package folding //@fold("package")
+
+import (<>)
+
+import _ "os"
+
+// bar is a function.
+// With a multiline doc comment.
+func bar() string {
+	switch {
+	case true:
+		if true {
+			fmt.Println("true")
+		}
+	case false:
+		fmt.Println("false")
+	default:
+		fmt.Println("default")
+	}
+
+	return `
+this string
+is not indented`
+
+}
+

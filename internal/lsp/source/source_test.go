@@ -271,17 +271,10 @@ func summarizeCompletionItems(i int, want []source.CompletionItem, got []source.
 func (r *runner) FoldingRange(t *testing.T, data tests.FoldingRanges) {
 	for _, spn := range data {
 		uri := spn.URI()
-		filename := uri.Filename()
 
 		f, err := r.view.GetFile(r.ctx, uri)
 		if err != nil {
 			t.Fatalf("failed for %v: %v", spn, err)
-		}
-
-		ranges, err := source.FoldingRange(r.ctx, r.view, f.(source.GoFile))
-		if err != nil {
-			t.Error(err)
-			continue
 		}
 		data, _, err := f.Handle(r.ctx).Read(r.ctx)
 		if err != nil {
@@ -289,51 +282,70 @@ func (r *runner) FoldingRange(t *testing.T, data tests.FoldingRanges) {
 			continue
 		}
 
-		// Fold all ranges.
-		nonOverlapping := nonOverlappingRanges(ranges)
+		// Test all folding ranges.
+		ranges, err := source.FoldingRange(r.ctx, r.view, f.(source.GoFile), false)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		r.foldingRanges(t, "foldingRange", uri, string(data), ranges)
+
+		// Test folding ranges with lineFoldingOnly
+		ranges, err = source.FoldingRange(r.ctx, r.view, f.(source.GoFile), true)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		r.foldingRanges(t, "foldingRange-lineFolding", uri, string(data), ranges)
+
+	}
+}
+
+func (r *runner) foldingRanges(t *testing.T, prefix string, uri span.URI, data string, ranges []source.FoldingRangeInfo) {
+	t.Helper()
+	// Fold all ranges.
+	nonOverlapping := nonOverlappingRanges(ranges)
+	for i, rngs := range nonOverlapping {
+		got, err := foldRanges(string(data), rngs)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		tag := fmt.Sprintf("%s-%d", prefix, i)
+		want := string(r.data.Golden(tag, uri.Filename(), func() ([]byte, error) {
+			return []byte(got), nil
+		}))
+
+		if want != got {
+			t.Errorf("%s: foldingRanges failed for %s, expected:\n%v\ngot:\n%v", tag, uri.Filename(), want, got)
+		}
+	}
+
+	// Filter by kind.
+	kinds := []protocol.FoldingRangeKind{protocol.Imports, protocol.Comment}
+	for _, kind := range kinds {
+		var kindOnly []source.FoldingRangeInfo
+		for _, fRng := range ranges {
+			if fRng.Kind == kind {
+				kindOnly = append(kindOnly, fRng)
+			}
+		}
+
+		nonOverlapping := nonOverlappingRanges(kindOnly)
 		for i, rngs := range nonOverlapping {
 			got, err := foldRanges(string(data), rngs)
 			if err != nil {
 				t.Error(err)
 				continue
 			}
-			tag := fmt.Sprintf("foldingRange-%d", i)
-			want := string(r.data.Golden(tag, spn.URI().Filename(), func() ([]byte, error) {
+			tag := fmt.Sprintf("%s-%s-%d", prefix, kind, i)
+			want := string(r.data.Golden(tag, uri.Filename(), func() ([]byte, error) {
 				return []byte(got), nil
 			}))
 
 			if want != got {
-				t.Errorf("%s: foldingRanges failed for %s, expected:\n%v\ngot:\n%v", tag, filename, want, got)
+				t.Errorf("%s: failed for %s, expected:\n%v\ngot:\n%v", tag, uri.Filename(), want, got)
 			}
-		}
-
-		// Filter by kind.
-		kinds := []protocol.FoldingRangeKind{protocol.Imports, protocol.Comment}
-		for _, kind := range kinds {
-			var kindOnly []source.FoldingRangeInfo
-			for _, fRng := range ranges {
-				if fRng.Kind == kind {
-					kindOnly = append(kindOnly, fRng)
-				}
-			}
-
-			nonOverlapping := nonOverlappingRanges(kindOnly)
-			for i, rngs := range nonOverlapping {
-				got, err := foldRanges(string(data), rngs)
-				if err != nil {
-					t.Error(err)
-					continue
-				}
-				tag := fmt.Sprintf("foldingRange-%s-%d", kind, i)
-				want := string(r.data.Golden(tag, spn.URI().Filename(), func() ([]byte, error) {
-					return []byte(got), nil
-				}))
-
-				if want != got {
-					t.Errorf("%s: failed for %s, expected:\n%v\ngot:\n%v", tag, filename, want, got)
-				}
-			}
-
 		}
 
 	}

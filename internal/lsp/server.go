@@ -92,6 +92,7 @@ type Server struct {
 	preferredContentFormat        protocol.MarkupKind
 	disabledAnalyses              map[string]struct{}
 	wantSuggestedFixes            bool
+	lineFoldingOnly               bool
 
 	supportedCodeActions map[source.FileKind]map[protocol.CodeActionKind]bool
 

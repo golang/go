@@ -158,6 +158,8 @@ func (s *Server) setClientCapabilities(caps protocol.ClientCapabilities) {
 	if len(caps.TextDocument.Hover.ContentFormat) > 0 {
 		s.preferredContentFormat = caps.TextDocument.Hover.ContentFormat[0]
 	}
+	// Check if the client supports only line folding.
+	s.lineFoldingOnly = caps.TextDocument.FoldingRange.LineFoldingOnly
 }
 
 func (s *Server) initialized(ctx context.Context, params *protocol.InitializedParams) error {

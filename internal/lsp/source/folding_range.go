@@ -16,7 +16,7 @@ type FoldingRangeInfo struct {
 }
 
 // FoldingRange gets all of the folding range for f.
-func FoldingRange(ctx context.Context, view View, f GoFile) (ranges []FoldingRangeInfo, err error) {
+func FoldingRange(ctx context.Context, view View, f GoFile, lineFoldingOnly bool) (ranges []FoldingRangeInfo, err error) {
 	// TODO(suzmue): consider limiting the number of folding ranges returned, and
 	// implement a way to prioritize folding ranges in that case.
 	file, err := f.GetAST(ctx, ParseFull)
@@ -54,6 +54,9 @@ func FoldingRange(ctx context.Context, view View, f GoFile) (ranges []FoldingRan
 		}
 
 		if start.IsValid() && end.IsValid() {
+			if lineFoldingOnly && f.FileSet().Position(start).Line == f.FileSet().Position(end).Line {
+				return true
+			}
 			ranges = append(ranges, FoldingRangeInfo{
 				Range: span.NewRange(f.FileSet(), start, end),
 				Kind:  kind,
