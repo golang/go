@@ -1025,6 +1025,7 @@ const A = 1
 `)
 	config := &packages.Config{
 		Dir:  tmp,
+		Env:  append(os.Environ(), "GOPACKAGESDRIVER=off"),
 		Mode: packages.LoadAllSyntax,
 		Overlay: map[string][]byte{
 			filename: content,
@@ -1093,6 +1094,7 @@ go 1.11
 	// Run packages.Load on mod2, while passing the contents over mod1/main.go in the overlay.
 	config := &packages.Config{
 		Dir:  mod2,
+		Env:  append(os.Environ(), "GOPACKAGESDRIVER=off"),
 		Mode: packages.LoadImports,
 		Overlay: map[string][]byte{
 			filepath.Join(mod1, "main.go"): []byte(`package main
@@ -1757,7 +1759,7 @@ func TestRejectInvalidQueries(t *testing.T) {
 	queries := []string{"key=", "key=value"}
 	cfg := &packages.Config{
 		Mode: packages.LoadImports,
-		Env:  append(os.Environ(), "GO111MODULE=off"),
+		Env:  append(os.Environ(), "GO111MODULE=off", "GOPACKAGESDRIVER=off"),
 	}
 	for _, q := range queries {
 		if _, err := packages.Load(cfg, q); err == nil {
@@ -1956,7 +1958,7 @@ func testReturnErrorWhenUsingNonGoFiles(t *testing.T, exporter packagestest.Expo
 			"b/b.c": `package b`,
 		}}})
 	defer exported.Cleanup()
-	config := packages.Config{}
+	config := packages.Config{Env: append(os.Environ(), "GOPACKAGESDRIVER=off")}
 	want := "named files must be .go files"
 	pkgs, err := packages.Load(&config, "a/a.go", "b/b.c")
 	if err != nil {
