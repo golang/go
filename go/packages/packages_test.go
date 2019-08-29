@@ -1018,6 +1018,51 @@ func testNewPackagesInOverlay(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
+func TestAdHocPackagesBadImport(t *testing.T) {
+	// TODO: Enable this test when github.com/golang/go/issues/33374 is resolved.
+	t.Skip()
+
+	// This test doesn't use packagestest because we are testing ad-hoc packages,
+	// which are outside of $GOPATH and outside of a module.
+	tmp, err := ioutil.TempDir("", "a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+
+	filename := filepath.Join(tmp, "a.go")
+	content := []byte(`package a
+import _ "badimport"
+const A = 1
+`)
+	if err := ioutil.WriteFile(filename, content, 0775); err != nil {
+		t.Fatal(err)
+	}
+
+	config := &packages.Config{
+		Dir:  tmp,
+		Mode: packages.LoadAllSyntax,
+	}
+	initial, err := packages.Load(config, fmt.Sprintf("file=%s", filename))
+	if err != nil {
+		t.Error(err)
+	}
+	// Check value of a.A.
+	a := initial[0]
+	if a.Errors != nil {
+		t.Fatalf("a: got errors %+v, want no error", err)
+	}
+	aA := constant(a, "A")
+	if aA == nil {
+		t.Errorf("a.A: got nil")
+		return
+	}
+	got := aA.Val().String()
+	if want := "1"; got != want {
+		t.Errorf("a.A: got %s, want %s", got, want)
+	}
+}
+
 func TestAdHocOverlays(t *testing.T) {
 	testenv.NeedsTool(t, "go")
 
@@ -1027,7 +1072,7 @@ func TestAdHocOverlays(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmp)
+	defer os.RemoveAll(tmp)
 
 	filename := filepath.Join(tmp, "a.go")
 	content := []byte(`package a
@@ -1071,14 +1116,13 @@ func TestOverlayModFileChanges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmp)
+	defer os.RemoveAll(tmp)
 
 	// mod1 has a dependency on golang.org/x/xerrors.
 	mod1, err := ioutil.TempDir(tmp, "mod1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(mod1)
 	if err := ioutil.WriteFile(filepath.Join(mod1, "go.mod"), []byte(`module mod1
 
 	require (
@@ -1093,7 +1137,6 @@ func TestOverlayModFileChanges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(mod2)
 
 	want := `module mod2
 
