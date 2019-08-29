@@ -2099,7 +2099,10 @@ func TestSkipArrayObjects(t *testing.T) {
 // slices, and arrays.
 // Issues 4900 and 8837, among others.
 func TestPrefilled(t *testing.T) {
-	// Values here change, cannot reuse table across runs.
+	type T struct {
+		A, B int
+	}
+	// Values here change, cannot reuse the table across runs.
 	var prefillTests = []struct {
 		in  string
 		ptr interface{}
@@ -2134,6 +2137,16 @@ func TestPrefilled(t *testing.T) {
 			in:  `[3]`,
 			ptr: &[...]int{1, 2},
 			out: &[...]int{3, 0},
+		},
+		{
+			in:  `[{"A": 3}]`,
+			ptr: &[]T{{A: -1, B: -2}, {A: -3, B: -4}},
+			out: &[]T{{A: 3}},
+		},
+		{
+			in:  `[{"A": 3}]`,
+			ptr: &[...]T{{A: -1, B: -2}, {A: -3, B: -4}},
+			out: &[...]T{{A: 3, B: -2}, {}},
 		},
 	}
 
