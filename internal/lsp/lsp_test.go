@@ -110,9 +110,9 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 		r.server.disableDeepCompletion = true
 		r.server.disableFuzzyMatching = true
 		r.server.wantUnimportedCompletions = false
-		r.server.wantCompletionDocumentation = false
 	}()
 
+	// Set this as a default.
 	r.server.wantCompletionDocumentation = true
 
 	for src, itemList := range data {

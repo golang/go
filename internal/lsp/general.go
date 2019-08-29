@@ -273,9 +273,12 @@ func (s *Server) processConfig(ctx context.Context, view source.View, config int
 	}
 
 	// Check if the user wants documentation in completion items.
+	// This defaults to true.
+	s.wantCompletionDocumentation = true
 	if wantCompletionDocumentation, ok := c["wantCompletionDocumentation"].(bool); ok {
 		s.wantCompletionDocumentation = wantCompletionDocumentation
 	}
+
 	// Check if placeholders are enabled.
 	if usePlaceholders, ok := c["usePlaceholders"].(bool); ok {
 		s.usePlaceholders = usePlaceholders

@@ -113,56 +113,56 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		plainSnippet:        plainSnippet,
 		placeholderSnippet:  placeholderSnippet,
 	}
-	// TODO(rstambler): Log errors when this feature is enabled.
-	if c.opts.WantDocumentaton {
-		declRange, err := objToRange(c.ctx, c.view, obj)
-		if err != nil {
-			goto Return
-		}
-		pos := c.view.Session().Cache().FileSet().Position(declRange.spanRange.Start)
-		if !pos.IsValid() {
-			goto Return
-		}
-		uri := span.FileURI(pos.Filename)
-		f, err := c.view.GetFile(c.ctx, uri)
-		if err != nil {
-			goto Return
-		}
-		gof, ok := f.(GoFile)
-		if !ok {
-			goto Return
-		}
-		pkg, err := gof.GetCachedPackage(c.ctx)
-		if err != nil {
-			goto Return
-		}
-		var ph ParseGoHandle
-		for _, h := range pkg.GetHandles() {
-			if h.File().Identity().URI == gof.URI() {
-				ph = h
-			}
-		}
-		if ph == nil {
-			goto Return
-		}
-		file, _ := ph.Cached(c.ctx)
-		if file == nil {
-			goto Return
-		}
-		ident, err := findIdentifier(c.ctx, c.view, gof, pkg, file, declRange.spanRange.Start)
-		if err != nil {
-			goto Return
-		}
-		hover, err := ident.Hover(c.ctx)
-		if err != nil {
-			goto Return
-		}
-		item.Documentation = hover.Synopsis
-		if c.opts.WantFullDocumentation {
-			item.Documentation = hover.FullDocumentation
+	// If the user doesn't want documentation for completion items.
+	if c.opts.NoDocumentation {
+		return item, nil
+	}
+	declRange, err := objToRange(c.ctx, c.view, obj)
+	if err != nil {
+		return item, nil
+	}
+	pos := c.view.Session().Cache().FileSet().Position(declRange.spanRange.Start)
+	if !pos.IsValid() {
+		return item, nil
+	}
+	uri := span.FileURI(pos.Filename)
+	f, err := c.view.GetFile(c.ctx, uri)
+	if err != nil {
+		return item, nil
+	}
+	gof, ok := f.(GoFile)
+	if !ok {
+		return item, nil
+	}
+	pkg, err := gof.GetCachedPackage(c.ctx)
+	if err != nil {
+		return item, nil
+	}
+	var ph ParseGoHandle
+	for _, h := range pkg.GetHandles() {
+		if h.File().Identity().URI == gof.URI() {
+			ph = h
 		}
 	}
-Return:
+	if ph == nil {
+		return item, nil
+	}
+	file, _ := ph.Cached(c.ctx)
+	if file == nil {
+		return item, nil
+	}
+	ident, err := findIdentifier(c.ctx, c.view, gof, pkg, file, declRange.spanRange.Start)
+	if err != nil {
+		return item, nil
+	}
+	hover, err := ident.Hover(c.ctx)
+	if err != nil {
+		return item, nil
+	}
+	item.Documentation = hover.Synopsis
+	if c.opts.WantFullDocumentation {
+		item.Documentation = hover.FullDocumentation
+	}
 	return item, nil
 }
 

@@ -380,11 +380,13 @@ type candidate struct {
 }
 
 type CompletionOptions struct {
-	WantDeepCompletion    bool
-	WantDocumentaton      bool
+	WantDeepCompletion bool
+	WantFuzzyMatching  bool
+
+	WantUnimported bool
+
+	NoDocumentation       bool
 	WantFullDocumentation bool
-	WantUnimported        bool
-	WantFuzzyMatching     bool
 }
 
 // Completion returns a list of possible candidates for completion, given a

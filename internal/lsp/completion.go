@@ -26,7 +26,7 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	candidates, surrounding, err := source.Completion(ctx, view, f, params.Position, source.CompletionOptions{
 		WantDeepCompletion:    !s.disableDeepCompletion,
 		WantFuzzyMatching:     !s.disableFuzzyMatching,
-		WantDocumentaton:      s.wantCompletionDocumentation,
+		NoDocumentation:       !s.wantCompletionDocumentation,
 		WantFullDocumentation: s.hoverKind == fullDocumentation,
 		WantUnimported:        s.wantUnimportedCompletions,
 	})

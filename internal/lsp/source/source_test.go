@@ -104,7 +104,6 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 		}, source.CompletionOptions{
 			WantDeepCompletion: deepComplete,
 			WantFuzzyMatching:  fuzzyMatch,
-			WantDocumentaton:   true,
 			WantUnimported:     unimported,
 		})
 		if err != nil {
