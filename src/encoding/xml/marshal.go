@@ -339,7 +339,7 @@ func (p *printer) createAttrPrefix(url string) string {
 	// Pick a name. We try to use the final element of the path
 	// but fall back to _.
 	prefix := strings.TrimRight(url, "/")
-	if i := strings.LastIndex(prefix, "/"); i >= 0 {
+	if i := strings.LastIndexByte(prefix, '/'); i >= 0 {
 		prefix = prefix[i+1:]
 	}
 	if prefix == "" || !isName([]byte(prefix)) || strings.Contains(prefix, ":") {

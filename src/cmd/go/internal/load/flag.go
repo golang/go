@@ -50,7 +50,7 @@ func (f *PerPackageFlag) set(v, cwd string) error {
 		return nil
 	}
 	if !strings.HasPrefix(v, "-") {
-		i := strings.Index(v, "=")
+		i := strings.IndexByte(v, '=')
 		if i < 0 {
 			return fmt.Errorf("missing =<value> in <pattern>=<value>")
 		}

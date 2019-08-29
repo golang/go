@@ -345,7 +345,7 @@ func Test(t *testing.T) {
 		if strings.HasPrefix(line, "#") || line == "" {
 			continue
 		}
-		i := strings.Index(line, ":")
+		i := strings.IndexByte(line, ':')
 		if i < 0 {
 			t.Fatalf("missing colon: %q", line)
 		}

@@ -999,7 +999,7 @@ func hostnameInSNI(name string) string {
 	if len(host) > 0 && host[0] == '[' && host[len(host)-1] == ']' {
 		host = host[1 : len(host)-1]
 	}
-	if i := strings.LastIndex(host, "%"); i > 0 {
+	if i := strings.LastIndexByte(host, '%'); i > 0 {
 		host = host[:i]
 	}
 	if net.ParseIP(host) != nil {

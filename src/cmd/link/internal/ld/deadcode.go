@@ -339,7 +339,7 @@ func (d *deadcodepass) flood() {
 			}
 			for i, m := range methodsigs {
 				name := string(m)
-				name = name[:strings.Index(name, "(")]
+				name = name[:strings.IndexByte(name, '(')]
 				if !strings.HasSuffix(methods[i].ifn().Name, name) {
 					panic(fmt.Sprintf("%q relocation for %q does not match method %q", s.Name, methods[i].ifn().Name, name))
 				}

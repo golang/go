@@ -594,7 +594,7 @@ func (server *Server) readRequestHeader(codec ServerCodec) (svc *service, mtype 
 	// we can still recover and move on to the next request.
 	keepReading = true
 
-	dot := strings.LastIndex(req.ServiceMethod, ".")
+	dot := strings.LastIndexByte(req.ServiceMethod, '.')
 	if dot < 0 {
 		err = errors.New("rpc: service/method request ill-formed: " + req.ServiceMethod)
 		return

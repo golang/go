@@ -545,7 +545,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
 			if strings.HasPrefix(t, "[") || strings.HasPrefix(t, "map[") {
 				// Lazy: assume there are no nested [] in the array
 				// length or map key type.
-				if i := strings.Index(t, "]"); i >= 0 {
+				if i := strings.IndexByte(t, ']'); i >= 0 {
 					typeof[n] = t[i+1:]
 				}
 			}
@@ -576,7 +576,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
 			t := expand(typeof[n])
 			if strings.HasPrefix(t, "[") { // array or slice
 				// Lazy: assume there are no nested [] in the array length.
-				if i := strings.Index(t, "]"); i >= 0 {
+				if i := strings.IndexByte(t, ']'); i >= 0 {
 					et := t[i+1:]
 					for _, e := range n.Elts {
 						if kv, ok := e.(*ast.KeyValueExpr); ok {
@@ -590,7 +590,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
 			}
 			if strings.HasPrefix(t, "map[") { // map
 				// Lazy: assume there are no nested [] in the map key type.
-				if i := strings.Index(t, "]"); i >= 0 {
+				if i := strings.IndexByte(t, ']'); i >= 0 {
 					kt, vt := t[4:i], t[i+1:]
 					for _, e := range n.Elts {
 						if kv, ok := e.(*ast.KeyValueExpr); ok {
@@ -630,11 +630,11 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
 				key, value = "int", "rune"
 			} else if strings.HasPrefix(t, "[") {
 				key = "int"
-				if i := strings.Index(t, "]"); i >= 0 {
+				if i := strings.IndexByte(t, ']'); i >= 0 {
 					value = t[i+1:]
 				}
 			} else if strings.HasPrefix(t, "map[") {
-				if i := strings.Index(t, "]"); i >= 0 {
+				if i := strings.IndexByte(t, ']'); i >= 0 {
 					key, value = t[4:i], t[i+1:]
 				}
 			}

@@ -181,7 +181,7 @@ func findCodeRoots() []Dir {
 	cmd.Stderr = os.Stderr
 	out, _ := cmd.Output()
 	for _, line := range strings.Split(string(out), "\n") {
-		i := strings.Index(line, "\t")
+		i := strings.IndexByte(line, '\t')
 		if i < 0 {
 			continue
 		}

@@ -1660,7 +1660,7 @@ func (cm *connectMethod) addr() string {
 func (cm *connectMethod) tlsHost() string {
 	h := cm.targetAddr
 	if hasPort(h) {
-		h = h[:strings.LastIndex(h, ":")]
+		h = h[:strings.LastIndexByte(h, ':')]
 	}
 	return h
 }

@@ -82,7 +82,7 @@ func crawl(url string, sourceURL string) {
 	mu.Lock()
 	defer mu.Unlock()
 	var frag string
-	if i := strings.Index(url, "#"); i >= 0 {
+	if i := strings.IndexByte(url, '#'); i >= 0 {
 		frag = url[i+1:]
 		url = url[:i]
 		if frag != "" {

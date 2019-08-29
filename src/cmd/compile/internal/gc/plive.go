@@ -1119,7 +1119,7 @@ func (lv *Liveness) showlive(v *ssa.Value, live bvec) {
 		s += fmt.Sprintf("entry to %s:", lv.fn.funcname())
 	} else if sym, ok := v.Aux.(*obj.LSym); ok {
 		fn := sym.Name
-		if pos := strings.Index(fn, "."); pos >= 0 {
+		if pos := strings.IndexByte(fn, '.'); pos >= 0 {
 			fn = fn[pos+1:]
 		}
 		s += fmt.Sprintf("call to %s:", fn)

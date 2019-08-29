@@ -948,7 +948,7 @@ func TestEmptyCallStack(t *testing.T) {
 // stackContainsLabeled takes a spec like funcname;key=value and matches if the stack has that key
 // and value and has funcname somewhere in the stack.
 func stackContainsLabeled(spec string, count uintptr, stk []*profile.Location, labels map[string][]string) bool {
-	semi := strings.Index(spec, ";")
+	semi := strings.IndexByte(spec, ';')
 	if semi == -1 {
 		panic("no semicolon in key/value spec")
 	}

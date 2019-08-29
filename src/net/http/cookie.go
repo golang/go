@@ -65,7 +65,7 @@ func readSetCookies(h Header) []*Cookie {
 			continue
 		}
 		parts[0] = strings.TrimSpace(parts[0])
-		j := strings.Index(parts[0], "=")
+		j := strings.IndexByte(parts[0], '=')
 		if j < 0 {
 			continue
 		}
@@ -89,7 +89,7 @@ func readSetCookies(h Header) []*Cookie {
 			}
 
 			attr, val := parts[i], ""
-			if j := strings.Index(attr, "="); j >= 0 {
+			if j := strings.IndexByte(attr, '='); j >= 0 {
 				attr, val = attr[:j], attr[j+1:]
 			}
 			lowerAttr := strings.ToLower(attr)
@@ -246,7 +246,7 @@ func readCookies(h Header, filter string) []*Cookie {
 
 		var part string
 		for len(line) > 0 { // continue since we have rest
-			if splitIndex := strings.Index(line, ";"); splitIndex > 0 {
+			if splitIndex := strings.IndexByte(line, ';'); splitIndex > 0 {
 				part, line = line[:splitIndex], line[splitIndex+1:]
 			} else {
 				part, line = line, ""
@@ -256,7 +256,7 @@ func readCookies(h Header, filter string) []*Cookie {
 				continue
 			}
 			name, val := part, ""
-			if j := strings.Index(part, "="); j >= 0 {
+			if j := strings.IndexByte(part, '='); j >= 0 {
 				name, val = name[:j], name[j+1:]
 			}
 			if !isCookieNameValid(name) {

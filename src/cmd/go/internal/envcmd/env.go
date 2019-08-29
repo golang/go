@@ -176,7 +176,7 @@ func ExtraEnvVarsCostly() []cfg.EnvVar {
 
 // argKey returns the KEY part of the arg KEY=VAL, or else arg itself.
 func argKey(arg string) string {
-	i := strings.Index(arg, "=")
+	i := strings.IndexByte(arg, '=')
 	if i < 0 {
 		return arg
 	}
@@ -226,13 +226,13 @@ func runEnv(cmd *base.Command, args []string) {
 		}
 		osEnv := make(map[string]string)
 		for _, e := range cfg.OrigEnv {
-			if i := strings.Index(e, "="); i >= 0 {
+			if i := strings.IndexByte(e, '='); i >= 0 {
 				osEnv[e[:i]] = e[i+1:]
 			}
 		}
 		add := make(map[string]string)
 		for _, arg := range args {
-			i := strings.Index(arg, "=")
+			i := strings.IndexByte(arg, '=')
 			if i < 0 {
 				base.Fatalf("go env -w: arguments must be KEY=VALUE: invalid argument: %s", arg)
 			}
@@ -427,7 +427,7 @@ func updateEnvFile(add map[string]string, del map[string]bool) {
 
 // lineToKey returns the KEY part of the line KEY=VALUE or else an empty string.
 func lineToKey(line string) string {
-	i := strings.Index(line, "=")
+	i := strings.IndexByte(line, '=')
 	if i < 0 || strings.Contains(line[:i], "#") {
 		return ""
 	}

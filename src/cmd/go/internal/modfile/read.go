@@ -29,7 +29,7 @@ func (p Position) add(s string) Position {
 	p.Byte += len(s)
 	if n := strings.Count(s, "\n"); n > 0 {
 		p.Line += n
-		s = s[strings.LastIndex(s, "\n")+1:]
+		s = s[strings.LastIndexByte(s, '\n')+1:]
 		p.LineRune = 1
 	}
 	p.LineRune += utf8.RuneCountInString(s)

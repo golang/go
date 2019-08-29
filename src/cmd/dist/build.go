@@ -1024,8 +1024,8 @@ func dopack(dst, src string, extra []string) {
 	for _, file := range extra {
 		b := readfile(file)
 		// find last path element for archive member name
-		i := strings.LastIndex(file, "/") + 1
-		j := strings.LastIndex(file, `\`) + 1
+		i := strings.LastIndexByte(file, '/') + 1
+		j := strings.LastIndexByte(file, '\\') + 1
 		if i < j {
 			i = j
 		}
@@ -1166,7 +1166,7 @@ func timelog(op, name string) {
 		buf := make([]byte, 100)
 		n, _ := f.Read(buf)
 		s := string(buf[:n])
-		if i := strings.Index(s, "\n"); i >= 0 {
+		if i := strings.IndexByte(s, '\n'); i >= 0 {
 			s = s[:i]
 		}
 		i := strings.Index(s, " start")

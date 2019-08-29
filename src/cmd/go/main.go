@@ -191,7 +191,7 @@ BigCmdLoop:
 			return
 		}
 		helpArg := ""
-		if i := strings.LastIndex(cfg.CmdName, " "); i >= 0 {
+		if i := strings.LastIndexByte(cfg.CmdName, ' '); i >= 0 {
 			helpArg = " " + cfg.CmdName[:i]
 		}
 		fmt.Fprintf(os.Stderr, "go %s: unknown command\nRun 'go help%s' for usage.\n", cfg.CmdName, helpArg)

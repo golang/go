@@ -225,8 +225,8 @@ func (p *Package) loadDefines(f *File) {
 		line = strings.TrimSpace(line[8:])
 
 		var key, val string
-		spaceIndex := strings.Index(line, " ")
-		tabIndex := strings.Index(line, "\t")
+		spaceIndex := strings.IndexByte(line, ' ')
+		tabIndex := strings.IndexByte(line, '\t')
 
 		if spaceIndex == -1 && tabIndex == -1 {
 			continue
@@ -394,11 +394,11 @@ func (p *Package) guessKinds(f *File) []*Name {
 			continue
 		}
 
-		c1 := strings.Index(line, ":")
+		c1 := strings.IndexByte(line, ':')
 		if c1 < 0 {
 			continue
 		}
-		c2 := strings.Index(line[c1+1:], ":")
+		c2 := strings.IndexByte(line[c1+1:], ':')
 		if c2 < 0 {
 			continue
 		}
@@ -2972,7 +2972,7 @@ func fieldPrefix(fld []*ast.Field) string {
 			if strings.HasPrefix(n.Name, "orig_") || strings.HasPrefix(n.Name, "_") {
 				continue
 			}
-			i := strings.Index(n.Name, "_")
+			i := strings.IndexByte(n.Name, '_')
 			if i < 0 {
 				continue
 			}

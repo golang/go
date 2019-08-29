@@ -69,7 +69,7 @@ func TestMajor(t *testing.T) {
 	for _, tt := range tests {
 		out := Major(tt.in)
 		want := ""
-		if i := strings.Index(tt.out, "."); i >= 0 {
+		if i := strings.IndexByte(tt.out, '.'); i >= 0 {
 			want = tt.out[:i]
 		}
 		if out != want {
@@ -84,10 +84,10 @@ func TestMajorMinor(t *testing.T) {
 		var want string
 		if tt.out != "" {
 			want = tt.in
-			if i := strings.Index(want, "+"); i >= 0 {
+			if i := strings.IndexByte(want, '+'); i >= 0 {
 				want = want[:i]
 			}
-			if i := strings.Index(want, "-"); i >= 0 {
+			if i := strings.IndexByte(want, '-'); i >= 0 {
 				want = want[:i]
 			}
 			switch strings.Count(want, ".") {
@@ -96,7 +96,7 @@ func TestMajorMinor(t *testing.T) {
 			case 1:
 				// ok
 			case 2:
-				want = want[:strings.LastIndex(want, ".")]
+				want = want[:strings.LastIndexByte(want, '.')]
 			}
 		}
 		if out != want {
@@ -110,7 +110,7 @@ func TestPrerelease(t *testing.T) {
 		pre := Prerelease(tt.in)
 		var want string
 		if tt.out != "" {
-			if i := strings.Index(tt.out, "-"); i >= 0 {
+			if i := strings.IndexByte(tt.out, '-'); i >= 0 {
 				want = tt.out[i:]
 			}
 		}
@@ -125,7 +125,7 @@ func TestBuild(t *testing.T) {
 		build := Build(tt.in)
 		var want string
 		if tt.out != "" {
-			if i := strings.Index(tt.in, "+"); i >= 0 {
+			if i := strings.IndexByte(tt.in, '+'); i >= 0 {
 				want = tt.in[i:]
 			}
 		}

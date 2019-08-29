@@ -242,7 +242,7 @@ func errorCheck(outStr string, wantAuto bool, fullshort ...string) (err error) {
 			// Assume errmsg says "file:line: foo".
 			// Cut leading "file:line: " to avoid accidental matching of file name instead of message.
 			text := errmsg
-			if i := strings.Index(text, " "); i >= 0 {
+			if i := strings.IndexByte(text, ' '); i >= 0 {
 				text = text[i+1:]
 			}
 			if we.re.MatchString(text) {
@@ -299,11 +299,11 @@ func splitOutput(out string, wantAuto bool) []string {
 // matchPrefix reports whether s starts with file name prefix followed by a :,
 // and possibly preceded by a directory name.
 func matchPrefix(s, prefix string) bool {
-	i := strings.Index(s, ":")
+	i := strings.IndexByte(s, ':')
 	if i < 0 {
 		return false
 	}
-	j := strings.LastIndex(s[:i], "/")
+	j := strings.LastIndexByte(s[:i], '/')
 	s = s[j+1:]
 	if len(s) <= len(prefix) || s[:len(prefix)] != prefix {
 		return false

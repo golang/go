@@ -313,15 +313,15 @@ func Main(archInit func(*Arch)) {
 
 	if outfile == "" {
 		p := flag.Arg(0)
-		if i := strings.LastIndex(p, "/"); i >= 0 {
+		if i := strings.LastIndexByte(p, '/'); i >= 0 {
 			p = p[i+1:]
 		}
 		if runtime.GOOS == "windows" {
-			if i := strings.LastIndex(p, `\`); i >= 0 {
+			if i := strings.LastIndexByte(p, '\\'); i >= 0 {
 				p = p[i+1:]
 			}
 		}
-		if i := strings.LastIndex(p, "."); i >= 0 {
+		if i := strings.LastIndexByte(p, '.'); i >= 0 {
 			p = p[:i]
 		}
 		suffix := ".o"
@@ -422,7 +422,7 @@ func Main(archInit func(*Arch)) {
 				// _ in phase name also matches space
 				phase := name[4:]
 				flag := "debug" // default flag is debug
-				if i := strings.Index(phase, "/"); i >= 0 {
+				if i := strings.IndexByte(phase, '/'); i >= 0 {
 					flag = phase[i+1:]
 					phase = phase[:i]
 				}
@@ -794,7 +794,7 @@ func addImportMap(s string) {
 	if strings.Count(s, "=") != 1 {
 		log.Fatal("-importmap argument must be of the form source=actual")
 	}
-	i := strings.Index(s, "=")
+	i := strings.IndexByte(s, '=')
 	source, actual := s[:i], s[i+1:]
 	if source == "" || actual == "" {
 		log.Fatal("-importmap argument must be of the form source=actual; source and actual must be non-empty")
@@ -817,13 +817,13 @@ func readImportCfg(file string) {
 		}
 
 		var verb, args string
-		if i := strings.Index(line, " "); i < 0 {
+		if i := strings.IndexByte(line, ' '); i < 0 {
 			verb = line
 		} else {
 			verb, args = line[:i], strings.TrimSpace(line[i+1:])
 		}
 		var before, after string
-		if i := strings.Index(args, "="); i >= 0 {
+		if i := strings.IndexByte(args, '='); i >= 0 {
 			before, after = args[:i], args[i+1:]
 		}
 		switch verb {
@@ -1258,7 +1258,7 @@ func pkgnotused(lineno src.XPos, path string, name string) {
 	// Note that this uses / always, even on Windows, because Go import
 	// paths always use forward slashes.
 	elem := path
-	if i := strings.LastIndex(elem, "/"); i >= 0 {
+	if i := strings.LastIndexByte(elem, '/'); i >= 0 {
 		elem = elem[i+1:]
 	}
 	if name == "" || elem == name {

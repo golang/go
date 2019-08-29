@@ -12,7 +12,7 @@ import "strings"
 // last segment of the path, and it makes for happier users if we escape that as
 // little as possible.
 func PathToPrefix(s string) string {
-	slash := strings.LastIndex(s, "/")
+	slash := strings.LastIndexByte(s, '/')
 	// check for chars that need escaping
 	n := 0
 	for r := 0; r < len(s); r++ {

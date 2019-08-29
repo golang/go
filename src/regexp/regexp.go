@@ -904,7 +904,7 @@ func (re *Regexp) ExpandString(dst []byte, template string, src string, match []
 
 func (re *Regexp) expand(dst []byte, template string, bsrc []byte, src string, match []int) []byte {
 	for len(template) > 0 {
-		i := strings.Index(template, "$")
+		i := strings.IndexByte(template, '$')
 		if i < 0 {
 			break
 		}

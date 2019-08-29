@@ -25,7 +25,7 @@ func TestForCompiler(t *testing.T) {
 		t.Fatalf("go list %s: %v\n%s", thePackage, err, out)
 	}
 	target := strings.TrimSpace(string(out))
-	i := strings.Index(target, ":")
+	i := strings.IndexByte(target, ':')
 	compiler, target := target[:i], target[i+1:]
 	if !strings.HasSuffix(target, ".a") {
 		t.Fatalf("unexpected package %s target %q (not *.a)", thePackage, target)

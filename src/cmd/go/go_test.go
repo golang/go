@@ -372,7 +372,7 @@ func (tg *testgoData) parallel() {
 	}
 	for _, e := range tg.env {
 		if strings.HasPrefix(e, "GOROOT=") || strings.HasPrefix(e, "GOPATH=") || strings.HasPrefix(e, "GOBIN=") {
-			val := e[strings.Index(e, "=")+1:]
+			val := e[strings.IndexByte(e, '=')+1:]
 			if strings.HasPrefix(val, "testdata") || strings.HasPrefix(val, "./testdata") {
 				tg.t.Fatalf("internal testsuite error: call to parallel with testdata in environment (%s)", e)
 			}
@@ -6188,7 +6188,7 @@ func TestLinkerTmpDirIsDeleted(t *testing.T) {
 		t.Fatalf(`fail to find "go.o" in "host link:" line %q`, hostLinkLine)
 	}
 	tmpdir = tmpdir[:i-1]
-	i = strings.LastIndex(tmpdir, `"`)
+	i = strings.LastIndexByte(tmpdir, '"')
 	if i == -1 {
 		t.Fatalf(`fail to find " in "host link:" line %q`, hostLinkLine)
 	}

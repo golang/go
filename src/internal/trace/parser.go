@@ -899,7 +899,7 @@ func symbolize(events []*Event, bin string) error {
 		f := &Frame{PC: pc}
 		f.Fn = fn[:len(fn)-1]
 		f.File = file[:len(file)-1]
-		if colon := strings.LastIndex(f.File, ":"); colon != -1 {
+		if colon := strings.LastIndexByte(f.File, ':'); colon != -1 {
 			ln, err := strconv.Atoi(f.File[colon+1:])
 			if err == nil {
 				f.File = f.File[:colon]

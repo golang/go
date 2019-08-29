@@ -303,7 +303,7 @@ func runGet(cmd *base.Command, args []string) {
 		// Argument is path or path@vers.
 		path := arg
 		vers := ""
-		if i := strings.Index(arg, "@"); i >= 0 {
+		if i := strings.IndexByte(arg, '@'); i >= 0 {
 			path, vers = arg[:i], arg[i+1:]
 		}
 		if strings.Contains(vers, "@") || arg != path && vers == "" {

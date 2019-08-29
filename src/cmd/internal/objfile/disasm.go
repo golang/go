@@ -104,8 +104,8 @@ func (d *Disasm) lookup(addr uint64) (name string, base uint64) {
 // It works on both Windows and Unix paths,
 // regardless of host operating system.
 func base(path string) string {
-	path = path[strings.LastIndex(path, "/")+1:]
-	path = path[strings.LastIndex(path, `\`)+1:]
+	path = path[strings.LastIndexByte(path, '/')+1:]
+	path = path[strings.LastIndexByte(path, '\\')+1:]
 	return path
 }
 

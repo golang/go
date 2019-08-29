@@ -154,7 +154,7 @@ func TestFuncAddress(t *testing.T) {
 					if strings.HasPrefix(wantName, "$") || strings.HasPrefix(wantName, "*") {
 						wantName = wantName[1:]
 					}
-					if i := strings.Index(wantName, "+"); i >= 0 {
+					if i := strings.IndexByte(wantName, '+'); i >= 0 {
 						wantName = wantName[:i]
 					}
 				}

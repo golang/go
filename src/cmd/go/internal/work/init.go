@@ -256,7 +256,7 @@ func inGOFLAGS(flag string) bool {
 		if strings.HasPrefix(name, "--") {
 			name = name[1:]
 		}
-		if i := strings.Index(name, "="); i >= 0 {
+		if i := strings.IndexByte(name, '='); i >= 0 {
 			name = name[:i]
 		}
 		if name == flag {

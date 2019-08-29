@@ -214,7 +214,7 @@ func main() {
 			features = append(features, f)
 			continue
 		}
-		comma := strings.Index(f, ",")
+		comma := strings.IndexByte(f, ',')
 		for cname := range cmap {
 			f2 := fmt.Sprintf("%s (%s)%s", f[:comma], cname, f[comma:])
 			features = append(features, f2)

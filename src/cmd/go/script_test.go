@@ -135,7 +135,7 @@ func (ts *testScript) setup() {
 
 	ts.envMap = make(map[string]string)
 	for _, kv := range ts.env {
-		if i := strings.Index(kv, "="); i >= 0 {
+		if i := strings.IndexByte(kv, '='); i >= 0 {
 			ts.envMap[kv[:i]] = kv[i+1:]
 		}
 	}
@@ -216,7 +216,7 @@ Script:
 		// Extract next line.
 		ts.lineno++
 		var line string
-		if i := strings.Index(script, "\n"); i >= 0 {
+		if i := strings.IndexByte(script, '\n'); i >= 0 {
 			line, script = script[:i], script[i+1:]
 		} else {
 			line, script = script, ""
@@ -550,7 +550,7 @@ func (ts *testScript) cmdEnv(neg bool, args []string) {
 	if len(args) == 0 {
 		printed := make(map[string]bool) // env list can have duplicates; only print effective value (from envMap) once
 		for _, kv := range ts.env {
-			k := kv[:strings.Index(kv, "=")]
+			k := kv[:strings.IndexByte(kv, '=')]
 			if !printed[k] {
 				fmt.Fprintf(&ts.log, "%s=%s\n", k, ts.envMap[k])
 			}
@@ -558,7 +558,7 @@ func (ts *testScript) cmdEnv(neg bool, args []string) {
 		return
 	}
 	for _, env := range args {
-		i := strings.Index(env, "=")
+		i := strings.IndexByte(env, '=')
 		if i < 0 {
 			// Display value instead of setting it.
 			fmt.Fprintf(&ts.log, "%s=%s\n", env, ts.envMap[env])

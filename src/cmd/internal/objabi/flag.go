@@ -83,8 +83,8 @@ func (versionFlag) Get() interface{} { return nil }
 func (versionFlag) String() string   { return "" }
 func (versionFlag) Set(s string) error {
 	name := os.Args[0]
-	name = name[strings.LastIndex(name, `/`)+1:]
-	name = name[strings.LastIndex(name, `\`)+1:]
+	name = name[strings.LastIndexByte(name, '/')+1:]
+	name = name[strings.LastIndexByte(name, '\\')+1:]
 	name = strings.TrimSuffix(name, ".exe")
 
 	// If there's an active experiment, include that,

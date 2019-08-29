@@ -67,7 +67,7 @@ func ldpkg(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, filename s
 	// process header lines
 	for data != "" {
 		var line string
-		if i := strings.Index(data, "\n"); i >= 0 {
+		if i := strings.IndexByte(data, '\n'); i >= 0 {
 			line, data = data[:i], data[i+1:]
 		} else {
 			line, data = data, ""
@@ -161,7 +161,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 
 			local = expandpkg(local, pkg)
 			q := ""
-			if i := strings.Index(remote, "#"); i >= 0 {
+			if i := strings.IndexByte(remote, '#'); i >= 0 {
 				remote, q = remote[:i], remote[i+1:]
 			}
 			s := ctxt.Syms.Lookup(local, 0)

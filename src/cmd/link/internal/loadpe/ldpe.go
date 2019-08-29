@@ -452,7 +452,7 @@ func readpesym(arch *sys.Arch, syms *sym.Symbols, f *pe.File, pesym *pe.COFFSymb
 	}
 
 	// remove last @XXX
-	if i := strings.LastIndex(name, "@"); i >= 0 {
+	if i := strings.LastIndexByte(name, '@'); i >= 0 {
 		name = name[:i]
 	}
 

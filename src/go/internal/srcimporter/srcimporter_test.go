@@ -108,7 +108,7 @@ func TestImportedTypes(t *testing.T) {
 	}
 
 	for _, test := range importedObjectTests {
-		i := strings.LastIndex(test.name, ".")
+		i := strings.LastIndexByte(test.name, '.')
 		if i < 0 {
 			t.Fatal("invalid test data format")
 		}

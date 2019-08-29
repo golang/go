@@ -474,7 +474,7 @@ func (e *MultiplePackageError) Error() string {
 }
 
 func nameExt(name string) string {
-	i := strings.LastIndex(name, ".")
+	i := strings.LastIndexByte(name, '.')
 	if i < 0 {
 		return ""
 	}
@@ -627,7 +627,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 						}
 						tried.vendor = append(tried.vendor, dir)
 					}
-					i := strings.LastIndex(sub, "/")
+					i := strings.LastIndexByte(sub, '/')
 					if i < 0 {
 						break
 					}
@@ -1247,7 +1247,7 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
 		return
 	}
 
-	i := strings.LastIndex(name, ".")
+	i := strings.LastIndexByte(name, '.')
 	if i < 0 {
 		i = len(name)
 	}
@@ -1430,7 +1430,7 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 
 		// Split at colon.
 		line = strings.TrimSpace(line[4:])
-		i := strings.Index(line, ":")
+		i := strings.IndexByte(line, ':')
 		if i < 0 {
 			return fmt.Errorf("%s: invalid #cgo line: %s", filename, orig)
 		}
@@ -1646,7 +1646,7 @@ func (ctxt *Context) match(name string, allTags map[string]bool) bool {
 		}
 		return false
 	}
-	if i := strings.Index(name, ","); i >= 0 {
+	if i := strings.IndexByte(name, ','); i >= 0 {
 		// comma-separated list
 		ok1 := ctxt.match(name[:i], allTags)
 		ok2 := ctxt.match(name[i+1:], allTags)
@@ -1713,7 +1713,7 @@ func (ctxt *Context) match(name string, allTags map[string]bool) bool {
 //
 // An exception: if GOOS=android, then files with GOOS=linux are also matched.
 func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
-	if dot := strings.Index(name, "."); dot != -1 {
+	if dot := strings.IndexByte(name, '.'); dot != -1 {
 		name = name[:dot]
 	}
 
@@ -1724,7 +1724,7 @@ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
 	// systems, such as android, to arrive without breaking existing code with
 	// innocuous source code in "android.go". The easiest fix: cut everything
 	// in the name before the initial _.
-	i := strings.Index(name, "_")
+	i := strings.IndexByte(name, '_')
 	if i < 0 {
 		return true
 	}

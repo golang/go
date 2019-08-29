@@ -73,7 +73,7 @@ func (c *Command) LongName() string {
 // Name returns the command's short name: the last word in the usage line before a flag or argument.
 func (c *Command) Name() string {
 	name := c.LongName()
-	if i := strings.LastIndex(name, " "); i >= 0 {
+	if i := strings.LastIndexByte(name, ' '); i >= 0 {
 		name = name[i+1:]
 	}
 	return name

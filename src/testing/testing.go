@@ -465,7 +465,7 @@ func (c *common) decorate(s string, skip int) string {
 	line := frame.Line
 	if file != "" {
 		// Truncate file name at last file name separator.
-		if index := strings.LastIndex(file, "/"); index >= 0 {
+		if index := strings.LastIndexByte(file, '/'); index >= 0 {
 			file = file[index+1:]
 		} else if index = strings.LastIndex(file, "\\"); index >= 0 {
 			file = file[index+1:]

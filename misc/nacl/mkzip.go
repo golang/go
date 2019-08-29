@@ -124,7 +124,7 @@ func init() {
 		lineno++
 		s := strings.TrimLeft(line, "\t")
 		prefix, line := line[:len(line)-len(s)], s
-		if i := strings.Index(line, "#"); i >= 0 {
+		if i := strings.IndexByte(line, '#'); i >= 0 {
 			line = line[:i]
 		}
 		f := strings.Fields(line)
@@ -150,7 +150,7 @@ func init() {
 		name := path.Join(parent, f[0])
 		src := filepath.Join(psrc, f[0])
 		for _, attr := range f[1:] {
-			i := strings.Index(attr, "=")
+			i := strings.IndexByte(attr, '=')
 			if i < 0 {
 				sysfatal("%s:%d: malformed attribute %q", args[0], lineno, attr)
 			}

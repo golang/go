@@ -55,7 +55,7 @@ func ModuleInfo(path string) *modinfo.ModulePublic {
 		return nil
 	}
 
-	if i := strings.Index(path, "@"); i >= 0 {
+	if i := strings.IndexByte(path, '@'); i >= 0 {
 		return moduleInfo(module.Version{Path: path[:i], Version: path[i+1:]}, false)
 	}
 

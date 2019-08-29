@@ -82,7 +82,7 @@ func InitGOFLAGS() {
 		if name[0] == '-' {
 			name = name[1:]
 		}
-		if i := strings.Index(name, "="); i >= 0 {
+		if i := strings.IndexByte(name, '='); i >= 0 {
 			name = name[:i]
 		}
 		if !knownFlag[name] {
@@ -115,7 +115,7 @@ func SetFromGOFLAGS(flags flag.FlagSet) {
 	}
 	for _, goflag := range goflags {
 		name, value, hasValue := goflag, "", false
-		if i := strings.Index(goflag, "="); i >= 0 {
+		if i := strings.IndexByte(goflag, '='); i >= 0 {
 			name, value, hasValue = goflag[:i], goflag[i+1:], true
 		}
 		if strings.HasPrefix(name, "--") {

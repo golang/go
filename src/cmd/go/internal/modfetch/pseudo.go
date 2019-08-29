@@ -66,7 +66,7 @@ func PseudoVersion(major, older string, t time.Time, rev string) string {
 
 	// Form (2), (3).
 	// Extract patch from vMAJOR.MINOR.PATCH
-	i := strings.LastIndex(older, ".") + 1
+	i := strings.LastIndexByte(older, '.') + 1
 	v, patch := older[:i], older[i:]
 
 	// Reassemble.
@@ -223,10 +223,10 @@ func parsePseudoVersion(v string) (base, timestamp, rev, build string, err error
 	}
 	build = semver.Build(v)
 	v = strings.TrimSuffix(v, build)
-	j := strings.LastIndex(v, "-")
+	j := strings.LastIndexByte(v, '-')
 	v, rev = v[:j], v[j+1:]
-	i := strings.LastIndex(v, "-")
-	if j := strings.LastIndex(v, "."); j > i {
+	i := strings.LastIndexByte(v, '-')
+	if j := strings.LastIndexByte(v, '.'); j > i {
 		base = v[:j] // "vX.Y.Z-pre.0" or "vX.Y.(Z+1)-0"
 		timestamp = v[j+1:]
 	} else {

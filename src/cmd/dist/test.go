@@ -841,7 +841,7 @@ func flattenCmdline(cmdline []interface{}) (bin string, args []string) {
 	drop := make([]bool, len(list))
 	have := map[string]int{}
 	for i := 1; i < len(list); i++ {
-		j := strings.Index(list[i], "=")
+		j := strings.IndexByte(list[i], '=')
 		if j < 0 {
 			continue
 		}

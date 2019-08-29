@@ -22,10 +22,10 @@ import (
 // ConvertLegacyConfig converts legacy config to modfile.
 // The file argument is slash-delimited.
 func ConvertLegacyConfig(f *modfile.File, file string, data []byte) error {
-	i := strings.LastIndex(file, "/")
+	i := strings.LastIndexByte(file, '/')
 	j := -2
 	if i >= 0 {
-		j = strings.LastIndex(file[:i], "/")
+		j = strings.LastIndexByte(file[:i], '/')
 	}
 	convert := Converters[file[i+1:]]
 	if convert == nil && j != -2 {

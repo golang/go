@@ -605,7 +605,7 @@ func symfmt(s *types.Sym, flag FmtFlag, mode fmtMode) string {
 		// FmtByte (hh) implies FmtShort (h)
 		// skip leading "type." in method name
 		name := s.Name
-		if i := strings.LastIndex(name, "."); i >= 0 {
+		if i := strings.LastIndexByte(name, '.'); i >= 0 {
 			name = name[i+1:]
 		}
 

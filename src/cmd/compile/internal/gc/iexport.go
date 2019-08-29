@@ -560,7 +560,7 @@ func (w *exportWriter) selector(s *types.Sym) {
 	// form T.M) during typechecking, but we want to write out
 	// just the bare method name.
 	name := s.Name
-	if i := strings.LastIndex(name, "."); i >= 0 {
+	if i := strings.LastIndexByte(name, '.'); i >= 0 {
 		name = name[i+1:]
 	} else {
 		pkg := w.currPkg
@@ -1388,7 +1388,7 @@ func (w *exportWriter) localIdent(s *types.Sym, v int32) {
 	}
 
 	// TODO(mdempsky): Fix autotmp hack.
-	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, ".autotmp_") {
+	if i := strings.LastIndexByte(name, '.'); i >= 0 && !strings.HasPrefix(name, ".autotmp_") {
 		Fatalf("unexpected dot in identifier: %v", name)
 	}
 

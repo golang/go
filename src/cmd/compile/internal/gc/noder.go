@@ -1526,7 +1526,7 @@ func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
 		fallthrough // because of //go:cgo_unsafe_args
 	default:
 		verb := text
-		if i := strings.Index(text, " "); i >= 0 {
+		if i := strings.IndexByte(text, ' '); i >= 0 {
 			verb = verb[:i]
 		}
 		prag := pragmaValue(verb)

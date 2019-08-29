@@ -181,7 +181,7 @@ func (p *AddressParser) ParseList(list string) ([]*Address, error) {
 // the name will be rendered according to RFC 2047.
 func (a *Address) String() string {
 	// Format address local@domain
-	at := strings.LastIndex(a.Address, "@")
+	at := strings.LastIndexByte(a.Address, '@')
 	var local, domain string
 	if at < 0 {
 		// This is a malformed address ("@" is required in addr-spec);

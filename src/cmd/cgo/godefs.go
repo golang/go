@@ -41,7 +41,7 @@ func (p *Package) godefs(f *File, srcfile string) string {
 				continue
 			}
 			s := strings.TrimSpace(c.Text[i+len("+godefs map"):])
-			i = strings.Index(s, " ")
+			i = strings.IndexByte(s, ' ')
 			if i < 0 {
 				fmt.Fprintf(os.Stderr, "invalid +godefs map comment: %s\n", c.Text)
 				continue

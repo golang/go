@@ -139,7 +139,7 @@ func (t *Tree) ErrorContext(n Node) (location, context string) {
 		tree = t
 	}
 	text := tree.text[:pos]
-	byteNum := strings.LastIndex(text, "\n")
+	byteNum := strings.LastIndexByte(text, '\n')
 	if byteNum == -1 {
 		byteNum = pos // On first line.
 	} else {

@@ -439,7 +439,7 @@ func hasFilepathPrefix(s, prefix string) bool {
 // need not have dots in the first element, and they just take their chances
 // with future collisions in the standard library.
 func IsStandardImportPath(path string) bool {
-	i := strings.Index(path, "/")
+	i := strings.IndexByte(path, '/')
 	if i < 0 {
 		i = len(path)
 	}

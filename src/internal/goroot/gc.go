@@ -99,7 +99,7 @@ func (gd *gccgoDirs) init() {
 func (gd *gccgoDirs) isStandard(path string) bool {
 	// Quick check: if the first path component has a '.', it's not
 	// in the standard library. This skips most GOPATH directories.
-	i := strings.Index(path, "/")
+	i := strings.IndexByte(path, '/')
 	if i < 0 {
 		i = len(path)
 	}

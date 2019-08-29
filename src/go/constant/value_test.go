@@ -129,7 +129,7 @@ func testNumbers(t *testing.T, kind token.Token, tests []string) {
 
 		x := MakeFromLiteral(a[0], kind, 0)
 		var y Value
-		if i := strings.Index(a[1], "/"); i >= 0 && kind == token.FLOAT {
+		if i := strings.IndexByte(a[1], '/'); i >= 0 && kind == token.FLOAT {
 			n := MakeFromLiteral(a[1][:i], token.INT, 0)
 			d := MakeFromLiteral(a[1][i+1:], token.INT, 0)
 			y = BinaryOp(n, token.QUO, d)

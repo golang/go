@@ -101,7 +101,7 @@ func matchTags(name string, tags map[string]bool) bool {
 	if name == "" {
 		return false
 	}
-	if i := strings.Index(name, ","); i >= 0 {
+	if i := strings.IndexByte(name, ','); i >= 0 {
 		// comma-separated list
 		ok1 := matchTags(name[:i], tags)
 		ok2 := matchTags(name[i+1:], tags)
@@ -166,7 +166,7 @@ func MatchFile(name string, tags map[string]bool) bool {
 	if tags["*"] {
 		return true
 	}
-	if dot := strings.Index(name, "."); dot != -1 {
+	if dot := strings.IndexByte(name, '.'); dot != -1 {
 		name = name[:dot]
 	}
 
@@ -177,7 +177,7 @@ func MatchFile(name string, tags map[string]bool) bool {
 	// systems, such as android, to arrive without breaking existing code with
 	// innocuous source code in "android.go". The easiest fix: cut everything
 	// in the name before the initial _.
-	i := strings.Index(name, "_")
+	i := strings.IndexByte(name, '_')
 	if i < 0 {
 		return true
 	}

@@ -86,7 +86,7 @@ func main() {
 		}
 		run(goCmd, "get", "-d", arg)
 		path := arg
-		if i := strings.Index(path, "@"); i >= 0 {
+		if i := strings.IndexByte(path, '@'); i >= 0 {
 			path = path[:i]
 		}
 		out := run(goCmd, "list", "-m", "-f={{.Path}} {{.Version}} {{.Dir}}", path)

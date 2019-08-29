@@ -61,13 +61,13 @@ func (ctxt *Link) readImportCfg(file string) {
 		}
 
 		var verb, args string
-		if i := strings.Index(line, " "); i < 0 {
+		if i := strings.IndexByte(line, ' '); i < 0 {
 			verb = line
 		} else {
 			verb, args = line[:i], strings.TrimSpace(line[i+1:])
 		}
 		var before, after string
-		if i := strings.Index(args, "="); i >= 0 {
+		if i := strings.IndexByte(args, '='); i >= 0 {
 			before, after = args[:i], args[i+1:]
 		}
 		switch verb {

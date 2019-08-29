@@ -412,7 +412,7 @@ func splitUSTARPath(name string) (prefix, suffix string, ok bool) {
 		length--
 	}
 
-	i := strings.LastIndex(name[:length], "/")
+	i := strings.LastIndexByte(name[:length], '/')
 	nlen := len(name) - i - 1 // nlen is length of suffix
 	plen := i                 // plen is length of prefix
 	if i <= 0 || nlen > nameSize || nlen == 0 || plen > prefixSize {

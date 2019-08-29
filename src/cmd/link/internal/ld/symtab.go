@@ -705,7 +705,7 @@ func (ctxt *Link) symtab() {
 }
 
 func isStaticTemp(name string) bool {
-	if i := strings.LastIndex(name, "/"); i >= 0 {
+	if i := strings.LastIndexByte(name, '/'); i >= 0 {
 		name = name[i:]
 	}
 	return strings.Contains(name, "..stmp_")

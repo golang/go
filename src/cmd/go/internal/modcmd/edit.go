@@ -228,7 +228,7 @@ func runEdit(cmd *base.Command, args []string) {
 
 // parsePathVersion parses -flag=arg expecting arg to be path@version.
 func parsePathVersion(flag, arg string) (path, version string) {
-	i := strings.Index(arg, "@")
+	i := strings.IndexByte(arg, '@')
 	if i < 0 {
 		base.Fatalf("go mod: -%s=%s: need path@version", flag, arg)
 	}
@@ -264,7 +264,7 @@ func parsePath(flag, arg string) (path string) {
 // parsePathVersionOptional parses path[@version], using adj to
 // describe any errors.
 func parsePathVersionOptional(adj, arg string, allowDirPath bool) (path, version string, err error) {
-	if i := strings.Index(arg, "@"); i < 0 {
+	if i := strings.IndexByte(arg, '@'); i < 0 {
 		path = arg
 	} else {
 		path, version = strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
@@ -323,7 +323,7 @@ func flagDropExclude(arg string) {
 // flagReplace implements the -replace flag.
 func flagReplace(arg string) {
 	var i int
-	if i = strings.Index(arg, "="); i < 0 {
+	if i = strings.IndexByte(arg, '='); i < 0 {
 		base.Fatalf("go mod: -replace=%s: need old[@v]=new[@w] (missing =)", arg)
 	}
 	old, new := strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])

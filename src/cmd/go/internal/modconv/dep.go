@@ -28,7 +28,7 @@ func ParseGopkgLock(file string, data []byte) (*modfile.File, error) {
 	var r *pkg
 	for lineno, line := range strings.Split(string(data), "\n") {
 		lineno++
-		if i := strings.Index(line, "#"); i >= 0 {
+		if i := strings.IndexByte(line, '#'); i >= 0 {
 			line = line[:i]
 		}
 		line = strings.TrimSpace(line)
@@ -44,7 +44,7 @@ func ParseGopkgLock(file string, data []byte) (*modfile.File, error) {
 		if r == nil {
 			continue
 		}
-		i := strings.Index(line, "=")
+		i := strings.IndexByte(line, '=')
 		if i < 0 {
 			continue
 		}

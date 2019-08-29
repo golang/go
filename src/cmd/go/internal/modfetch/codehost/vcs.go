@@ -538,7 +538,7 @@ func bzrParseStat(rev, out string) (*RevInfo, error) {
 		if line[0] == '-' {
 			continue
 		}
-		i := strings.Index(line, ":")
+		i := strings.IndexByte(line, ':')
 		if i < 0 {
 			// End of header, start of commit message.
 			break
@@ -546,7 +546,7 @@ func bzrParseStat(rev, out string) (*RevInfo, error) {
 		key, val := line[:i], strings.TrimSpace(line[i+1:])
 		switch key {
 		case "revno":
-			if j := strings.Index(val, " "); j >= 0 {
+			if j := strings.IndexByte(val, ' '); j >= 0 {
 				val = val[:j]
 			}
 			i, err := strconv.ParseInt(val, 10, 64)
@@ -555,7 +555,7 @@ func bzrParseStat(rev, out string) (*RevInfo, error) {
 			}
 			revno = i
 		case "timestamp":
-			j := strings.Index(val, " ")
+			j := strings.IndexByte(val, ' ')
 			if j < 0 {
 				return nil, vcsErrorf("unexpected timestamp from bzr log: %q", line)
 			}

@@ -89,7 +89,7 @@ func (s *TestServer) Lookup(ctx context.Context, key string) (int64, error) {
 	}
 
 	// Look up module and compute go.sum lines.
-	i := strings.Index(key, "@")
+	i := strings.IndexByte(key, '@')
 	if i < 0 {
 		return 0, fmt.Errorf("invalid lookup key %q", key)
 	}

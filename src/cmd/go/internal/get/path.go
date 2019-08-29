@@ -97,7 +97,7 @@ func checkElem(elem string, fileName bool) error {
 	// Windows disallows a bunch of path elements, sadly.
 	// See https://docs.microsoft.com/en-us/windows/desktop/fileio/naming-a-file
 	short := elem
-	if i := strings.Index(short, "."); i >= 0 {
+	if i := strings.IndexByte(short, '.'); i >= 0 {
 		short = short[:i]
 	}
 	for _, bad := range badWindowsNames {

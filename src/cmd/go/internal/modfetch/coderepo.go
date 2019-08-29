@@ -826,7 +826,7 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
 	haveGoMod := make(map[string]bool)
 	for _, zf := range zr.File {
 		if topPrefix == "" {
-			i := strings.Index(zf.Name, "/")
+			i := strings.IndexByte(zf.Name, '/')
 			if i < 0 {
 				return fmt.Errorf("missing top-level directory prefix")
 			}
@@ -861,7 +861,7 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
 		}
 
 		if topPrefix == "" {
-			i := strings.Index(zf.Name, "/")
+			i := strings.IndexByte(zf.Name, '/')
 			if i < 0 {
 				return fmt.Errorf("missing top-level directory prefix")
 			}

@@ -277,7 +277,7 @@ func bzrResolveRepo(vcsBzr *vcsCmd, rootDir, remoteRepo string) (realRepo string
 		return "", fmt.Errorf("unable to parse output of bzr info")
 	}
 
-	i := strings.Index(out, "\n")
+	i := strings.IndexByte(out, '\n')
 	if i < 0 {
 		return "", fmt.Errorf("unable to parse output of bzr info")
 	}
@@ -323,7 +323,7 @@ func svnRemoteRepo(vcsSvn *vcsCmd, rootDir string) (remoteRepo string, err error
 		return "", fmt.Errorf("unable to parse output of svn info")
 	}
 	out = out[i+len("\nURL: "):]
-	i = strings.Index(out, "\n")
+	i = strings.IndexByte(out, '\n')
 	if i < 0 {
 		return "", fmt.Errorf("unable to parse output of svn info")
 	}
@@ -765,7 +765,7 @@ func repoRootFromVCSPaths(importPath, scheme string, security web.SecurityMode, 
 // The URL leaves the Scheme field blank so that web.Get will try any scheme
 // allowed by the selected security mode.
 func urlForImportPath(importPath string) (*urlpkg.URL, error) {
-	slash := strings.Index(importPath, "/")
+	slash := strings.IndexByte(importPath, '/')
 	if slash < 0 {
 		slash = len(importPath)
 	}

@@ -176,7 +176,7 @@ func CheckPath(path string) error {
 	if err := checkPath(path, false); err != nil {
 		return fmt.Errorf("malformed module path %q: %v", path, err)
 	}
-	i := strings.Index(path, "/")
+	i := strings.IndexByte(path, '/')
 	if i < 0 {
 		i = len(path)
 	}
@@ -276,7 +276,7 @@ func checkElem(elem string, fileName bool) error {
 	// Windows disallows a bunch of path elements, sadly.
 	// See https://docs.microsoft.com/en-us/windows/desktop/fileio/naming-a-file
 	short := elem
-	if i := strings.Index(short, "."); i >= 0 {
+	if i := strings.IndexByte(short, '.'); i >= 0 {
 		short = short[:i]
 	}
 	for _, bad := range badWindowsNames {
@@ -448,10 +448,10 @@ func Sort(list []Version) {
 		vi := mi.Version
 		vj := mj.Version
 		var fi, fj string
-		if k := strings.Index(vi, "/"); k >= 0 {
+		if k := strings.IndexByte(vi, '/'); k >= 0 {
 			vi, fi = vi[:k], vi[k:]
 		}
-		if k := strings.Index(vj, "/"); k >= 0 {
+		if k := strings.IndexByte(vj, '/'); k >= 0 {
 			vj, fj = vj[:k], vj[k:]
 		}
 		if vi != vj {

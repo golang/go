@@ -731,7 +731,7 @@ func (w *HTMLWriter) WriteAST(phase string, buf *bytes.Buffer) {
 				idx := strings.Index(l, " l(")
 				if idx != -1 {
 					subl := l[idx+3:]
-					idxEnd := strings.Index(subl, ")")
+					idxEnd := strings.IndexByte(subl, ')')
 					if idxEnd != -1 {
 						if _, err := strconv.Atoi(subl[:idxEnd]); err == nil {
 							lineNo = subl[:idxEnd]

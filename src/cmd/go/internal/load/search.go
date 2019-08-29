@@ -22,7 +22,7 @@ func MatchPackage(pattern, cwd string) func(*Package) bool {
 		if i < 0 {
 			dir, pattern = pattern, ""
 		} else {
-			j := strings.LastIndex(pattern[:i], "/")
+			j := strings.LastIndexByte(pattern[:i], '/')
 			dir, pattern = pattern[:j], pattern[j+1:]
 		}
 		dir = filepath.Join(cwd, dir)
