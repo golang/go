@@ -257,6 +257,89 @@ func summarizeCompletionItems(i int, want []source.CompletionItem, got []source.
 	return msg.String()
 }
 
+func (r *runner) FoldingRange(t *testing.T, data tests.FoldingRanges) {
+	for _, spn := range data {
+		uri := spn.URI()
+		filename := uri.Filename()
+
+		f, err := r.view.GetFile(r.ctx, uri)
+		if err != nil {
+			t.Fatalf("failed for %v: %v", spn, err)
+		}
+
+		ranges, err := source.FoldingRange(r.ctx, r.view, f.(source.GoFile))
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		data, _, err := f.Handle(r.ctx).Read(r.ctx)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		// Fold all ranges.
+		got, err := foldRanges(string(data), ranges)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		want := string(r.data.Golden("foldingRange", spn.URI().Filename(), func() ([]byte, error) {
+			return []byte(got), nil
+		}))
+
+		if want != got {
+			t.Errorf("foldingRanges failed for %s, expected:\n%v\ngot:\n%v", filename, want, got)
+		}
+
+		// Filter by kind.
+		kinds := []protocol.FoldingRangeKind{protocol.Imports, protocol.Comment}
+		for _, kind := range kinds {
+			var kindOnly []source.FoldingRangeInfo
+			for _, fRng := range ranges {
+				if fRng.Kind == kind {
+					kindOnly = append(kindOnly, fRng)
+				}
+			}
+
+			got, err := foldRanges(string(data), kindOnly)
+			if err != nil {
+				t.Error(err)
+				continue
+			}
+			want := string(r.data.Golden("foldingRange-"+string(kind), spn.URI().Filename(), func() ([]byte, error) {
+				return []byte(got), nil
+			}))
+
+			if want != got {
+				t.Errorf("foldingRanges-%s failed for %s, expected:\n%v\ngot:\n%v", string(kind), filename, want, got)
+			}
+
+		}
+
+	}
+}
+
+func foldRanges(contents string, ranges []source.FoldingRangeInfo) (string, error) {
+	// TODO(suzmue): Allow folding ranges to intersect for these tests.
+	foldedText := "<>"
+	res := contents
+	// Apply the folds from the end of the file forward
+	// to preserve the offsets.
+	for i := len(ranges) - 1; i >= 0; i-- {
+		fRange := ranges[i]
+		spn, err := fRange.Range.Span()
+		if err != nil {
+			return "", err
+		}
+		start := spn.Start().Offset()
+		end := spn.End().Offset()
+
+		tmp := res[0:start] + foldedText
+		res = tmp + res[end:]
+	}
+	return res, nil
+}
+
 func (r *runner) Format(t *testing.T, data tests.Formats) {
 	ctx := r.ctx
 	for _, spn := range data {

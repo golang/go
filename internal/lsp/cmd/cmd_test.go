@@ -44,6 +44,10 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 	//TODO: add command line completions tests when it works
 }
 
+func (r *runner) FoldingRange(t *testing.T, data tests.FoldingRanges) {
+	//TODO: add command line folding range tests when it works
+}
+
 func (r *runner) Highlight(t *testing.T, data tests.Highlights) {
 	//TODO: add command line highlight tests when it works
 }

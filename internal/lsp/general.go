@@ -99,6 +99,7 @@ func (s *Server) initialize(ctx context.Context, params *protocol.InitializePara
 			DefinitionProvider:         true,
 			DocumentFormattingProvider: true,
 			DocumentSymbolProvider:     true,
+			FoldingRangeProvider:       true,
 			HoverProvider:              true,
 			DocumentHighlightProvider:  true,
 			DocumentLinkProvider:       &protocol.DocumentLinkOptions{},

@@ -260,8 +260,8 @@ func (s *Server) Declaration(context.Context, *protocol.TextDocumentPositionPara
 	return nil, notImplemented("Declaration")
 }
 
-func (s *Server) FoldingRange(context.Context, *protocol.FoldingRangeParams) ([]protocol.FoldingRange, error) {
-	return nil, notImplemented("FoldingRange")
+func (s *Server) FoldingRange(ctx context.Context, params *protocol.FoldingRangeParams) ([]protocol.FoldingRange, error) {
+	return s.foldingRange(ctx, params)
 }
 
 func (s *Server) LogTraceNotification(context.Context, *protocol.LogTraceParams) error {

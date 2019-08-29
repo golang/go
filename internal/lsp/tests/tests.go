@@ -36,6 +36,7 @@ const (
 	ExpectedImportCount            = 2
 	ExpectedDefinitionsCount       = 39
 	ExpectedTypeDefinitionsCount   = 2
+	ExpectedFoldingRangesCount     = 1
 	ExpectedHighlightsCount        = 2
 	ExpectedReferencesCount        = 5
 	ExpectedRenamesCount           = 20
@@ -57,6 +58,7 @@ type Diagnostics map[span.URI][]source.Diagnostic
 type CompletionItems map[token.Pos]*source.CompletionItem
 type Completions map[span.Span][]token.Pos
 type CompletionSnippets map[span.Span]CompletionSnippet
+type FoldingRanges []span.Span
 type Formats []span.Span
 type Imports []span.Span
 type Definitions map[span.Span]Definition
@@ -75,6 +77,7 @@ type Data struct {
 	CompletionItems    CompletionItems
 	Completions        Completions
 	CompletionSnippets CompletionSnippets
+	FoldingRanges      FoldingRanges
 	Formats            Formats
 	Imports            Imports
 	Definitions        Definitions
@@ -95,6 +98,7 @@ type Data struct {
 type Tests interface {
 	Diagnostics(*testing.T, Diagnostics)
 	Completion(*testing.T, Completions, CompletionSnippets, CompletionItems)
+	FoldingRange(*testing.T, FoldingRanges)
 	Format(*testing.T, Formats)
 	Import(*testing.T, Imports)
 	Definition(*testing.T, Definitions)
@@ -222,6 +226,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		"diag":      data.collectDiagnostics,
 		"item":      data.collectCompletionItems,
 		"complete":  data.collectCompletions,
+		"fold":      data.collectFoldingRanges,
 		"format":    data.collectFormats,
 		"import":    data.collectImports,
 		"godef":     data.collectDefinitions,
@@ -276,6 +281,14 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			t.Errorf("got %v diagnostics expected %v", diagnosticsCount, ExpectedDiagnosticsCount)
 		}
 		tests.Diagnostics(t, data.Diagnostics)
+	})
+
+	t.Run("FoldingRange", func(t *testing.T) {
+		t.Helper()
+		if len(data.FoldingRanges) != ExpectedFoldingRangesCount {
+			t.Errorf("got %v folding ranges expected %v", len(data.FoldingRanges), ExpectedFoldingRangesCount)
+		}
+		tests.FoldingRange(t, data.FoldingRanges)
 	})
 
 	t.Run("Format", func(t *testing.T) {
@@ -545,6 +558,10 @@ func (data *Data) collectCompletionItems(pos token.Pos, args []string) {
 		Kind:          source.ParseCompletionItemKind(kind),
 		Documentation: documentation,
 	}
+}
+
+func (data *Data) collectFoldingRanges(spn span.Span) {
+	data.FoldingRanges = append(data.FoldingRanges, spn)
 }
 
 func (data *Data) collectFormats(spn span.Span) {
