@@ -12,7 +12,6 @@
 #include <time.h>
 #include <sched.h>
 #include <unistd.h>
-#include <pthread.h>
 
 #include "libgo3.h"
 
@@ -52,18 +51,11 @@ static void init() {
 	}
 }
 
-static void *provokeSIGPIPE(void *arg) {
-	ProvokeSIGPIPE();
-	return NULL;
-}
-
 int main(int argc, char** argv) {
 	int verbose;
 	struct sigaction sa;
 	int i;
 	struct timespec ts;
-	int res;
-	pthread_t tid;
 
 	verbose = argc > 2;
 	setvbuf(stdout, NULL, _IONBF, 0);
@@ -75,19 +67,6 @@ int main(int argc, char** argv) {
 	// Test that the Go runtime handles SIGPIPE, even if we installed
 	// a non-default SIGPIPE handler before the runtime initializes.
 	ProvokeSIGPIPE();
-
-	// Test that SIGPIPE on a non-main thread is also handled by Go.
-	res = pthread_create(&tid, NULL, provokeSIGPIPE, NULL);
-	if (res != 0) {
-		fprintf(stderr, "pthread_create: %s\n", strerror(res));
-		exit(EXIT_FAILURE);
-	}
-
-	res = pthread_join(tid, NULL);
-	if (res != 0) {
-		fprintf(stderr, "pthread_join: %s\n", strerror(res));
-		exit(EXIT_FAILURE);
-	}
 
 	if (verbose) {
 		printf("calling sigaction\n");
