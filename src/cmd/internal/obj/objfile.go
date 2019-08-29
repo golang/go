@@ -551,7 +551,7 @@ func isDwarf64(ctxt *Link) bool {
 	return ctxt.Headtype == objabi.Haix
 }
 
-func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, dwarfAbsFnSym, dwarfIsStmtSym, dwarfDebugLines *LSym) {
+func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, dwarfAbsFnSym, dwarfDebugLines *LSym) {
 	if s.Type != objabi.STEXT {
 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
 	}
@@ -564,10 +564,9 @@ func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, 
 		if s.WasInlined() {
 			s.Func.dwarfAbsFnSym = ctxt.DwFixups.AbsFuncDwarfSym(s)
 		}
-		s.Func.dwarfIsStmtSym = ctxt.LookupDerived(s, dwarf.IsStmtPrefix+s.Name)
 		s.Func.dwarfDebugLinesSym = ctxt.LookupDerived(s, dwarf.DebugLinesPrefix+s.Name)
 	}
-	return s.Func.dwarfInfoSym, s.Func.dwarfLocSym, s.Func.dwarfRangesSym, s.Func.dwarfAbsFnSym, s.Func.dwarfIsStmtSym, s.Func.dwarfDebugLinesSym
+	return s.Func.dwarfInfoSym, s.Func.dwarfLocSym, s.Func.dwarfRangesSym, s.Func.dwarfAbsFnSym, s.Func.dwarfDebugLinesSym
 }
 
 func (s *LSym) Len() int64 {
@@ -591,14 +590,13 @@ func (ctxt *Link) fileSymbol(fn *LSym) *LSym {
 // TEXT symbol 's'. The various DWARF symbols must already have been
 // initialized in InitTextSym.
 func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string) {
-	info, loc, ranges, absfunc, _, lines := ctxt.dwarfSym(s)
+	info, loc, ranges, absfunc, lines := ctxt.dwarfSym(s)
 	if info.Size != 0 {
 		ctxt.Diag("makeFuncDebugEntry double process %v", s)
 	}
 	var scopes []dwarf.Scope
 	var inlcalls dwarf.InlCalls
 	if ctxt.DebugInfo != nil {
-		stmtData(ctxt, s)
 		scopes, inlcalls = ctxt.DebugInfo(s, curfn)
 	}
 	var err error

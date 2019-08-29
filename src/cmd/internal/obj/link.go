@@ -406,7 +406,6 @@ type FuncInfo struct {
 	dwarfLocSym        *LSym
 	dwarfRangesSym     *LSym
 	dwarfAbsFnSym      *LSym
-	dwarfIsStmtSym     *LSym
 	dwarfDebugLinesSym *LSym
 
 	GCArgs       *LSym
