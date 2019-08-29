@@ -16,6 +16,11 @@ func _() {
 		//@complete("", fieldX)
 		Y: 1,
 	}
+	_ = []*position{
+        {
+            //@complete("", fieldX, fieldY, structPosition)
+        },
+	}
 }
 
 func _() {

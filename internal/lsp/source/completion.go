@@ -765,7 +765,7 @@ func enclosingCompositeLiteral(path []ast.Node, pos token.Pos, info *types.Info)
 
 			clInfo := compLitInfo{
 				cl:     n,
-				clType: tv.Type.Underlying(),
+				clType: deref(tv.Type).Underlying(),
 			}
 
 			var (
