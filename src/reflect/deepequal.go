@@ -33,18 +33,20 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool, depth int) bool {
 
 	// We want to avoid putting more in the visited map than we need to.
 	// For any possible reference cycle that might be encountered,
-	// hard(t) needs to return true for at least one of the types in the cycle.
-	hard := func(k Kind) bool {
-		switch k {
+	// hard(v1, v2) needs to return true for at least one of the types in the cycle,
+	// and it's safe and valid to get Value's internal pointer.
+	hard := func(v1, v2 Value) bool {
+		switch v1.Kind() {
 		case Map, Slice, Ptr, Interface:
-			return true
+			// Nil pointers cannot be cyclic. Avoid putting them in the visited map.
+			return !v1.IsNil() && !v2.IsNil()
 		}
 		return false
 	}
 
-	if v1.CanAddr() && v2.CanAddr() && hard(v1.Kind()) {
-		addr1 := unsafe.Pointer(v1.UnsafeAddr())
-		addr2 := unsafe.Pointer(v2.UnsafeAddr())
+	if hard(v1, v2) {
+		addr1 := v1.ptr
+		addr2 := v2.ptr
 		if uintptr(addr1) > uintptr(addr2) {
 			// Canonicalize order to reduce number of entries in visited.
 			// Assumes non-moving garbage collector.
