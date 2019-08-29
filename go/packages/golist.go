@@ -21,6 +21,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"golang.org/x/tools/go/internal/packagesdriver"
 	"golang.org/x/tools/internal/gopathwalk"
@@ -889,8 +890,19 @@ func invokeGo(cfg *Config, args ...string) (*bytes.Buffer, error) {
 		// and should be suppressed by go list -e.
 		//
 		// This condition is not perfect yet because the error message can include other error messages than runtime/cgo.
-		if len(stderr.String()) > 0 && strings.HasPrefix(stderr.String(), "# runtime/cgo\n") {
-			return stdout, nil
+		isPkgPathRune := func(r rune) bool {
+			// From https://golang.org/ref/spec#Import_declarations:
+			//    Implementation restriction: A compiler may restrict ImportPaths to non-empty strings
+			//    using only characters belonging to Unicode's L, M, N, P, and S general categories
+			//    (the Graphic characters without spaces) and may also exclude the
+			//    characters !"#$%&'()*,:;<=>?[\]^`{|} and the Unicode replacement character U+FFFD.
+			return unicode.IsOneOf([]*unicode.RangeTable{unicode.L, unicode.M, unicode.N, unicode.P, unicode.S}, r) &&
+				strings.IndexRune("!\"#$%&'()*,:;<=>?[\\]^`{|}\uFFFD", r) == -1
+		}
+		if len(stderr.String()) > 0 && strings.HasPrefix(stderr.String(), "# ") {
+			if strings.HasPrefix(strings.TrimLeftFunc(stderr.String()[len("# "):], isPkgPathRune), "\n") {
+				return stdout, nil
+			}
 		}
 
 		// This error only appears in stderr. See golang.org/cl/166398 for a fix in go list to show

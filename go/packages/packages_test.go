@@ -2152,6 +2152,42 @@ const A = http.MethodGet
 	}
 }
 
+func TestCgoMissingFile(t *testing.T) { packagestest.TestAll(t, testCgoMissingFile) }
+func testCgoMissingFile(t *testing.T, exporter packagestest.Exporter) {
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/fake",
+		Files: map[string]interface{}{
+			"a/a.go": `package a
+
+// #include "foo.h"
+import "C"
+
+const A = 4
+`,
+		}}})
+	defer exported.Cleanup()
+
+	// Explicitly enable cgo.
+	exported.Config.Env = append(exported.Config.Env, "CGO_ENABLED=1")
+	exported.Config.Mode = packages.LoadAllSyntax
+	initial, err := packages.Load(exported.Config, "golang.org/fake/a")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check value of a.A.
+	a := initial[0]
+	aA := constant(a, "A")
+	if aA == nil {
+		t.Fatalf("a.A: got nil")
+	}
+	got := aA.Val().String()
+	if got != "4" {
+		t.Errorf("a.A: got %s, want %s", got, "4")
+	}
+}
+
 func TestIssue32814(t *testing.T) { packagestest.TestAll(t, testIssue32814) }
 func testIssue32814(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
@@ -2175,6 +2211,7 @@ func testIssue32814(t *testing.T, exporter packagestest.Exporter) {
 	}
 	if !pkg.Types.Complete() {
 		t.Fatalf("Types.Complete() for fmt pkg: got %v, want true", pkgs[0].Types.Complete())
+
 	}
 }
 
