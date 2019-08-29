@@ -117,7 +117,11 @@ func maybePrintfWrapper(info *types.Info, decl ast.Decl) *printfWrapper {
 	if !ok || fdecl.Body == nil {
 		return nil
 	}
-	fn := info.Defs[fdecl.Name].(*types.Func)
+	fn, ok := info.Defs[fdecl.Name].(*types.Func)
+	// Type information may be incomplete.
+	if !ok {
+		return nil
+	}
 
 	sig := fn.Type().(*types.Signature)
 	if !sig.Variadic() {
