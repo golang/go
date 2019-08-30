@@ -120,4 +120,17 @@ This is primarily an issue with the current design of the Go AST and
 it's possible that a new future version of the AST might make this a more
 viable option.
 
-### Supplying AST nodes directly 
+### Supplying AST nodes directly
+
+Another possibility would be for SuggestedFixes to supply the replacement
+ASTs directly. There is one primary limitation to this: that because
+comments to ASTs specify their location using token.Pos values, it's very
+difficult to place any comments in the right place.
+
+In general, it's also more difficult to generate the AST structures for
+some code than to generate the text for that code. So we prefer to allow
+the flexibility to do the latter.
+
+Because users can call ```format.Node``` to produce the text for any
+AST node, users will always be able to produce a SuggestedFix from AST
+nodes. In future, we may choose to add a convenience method that does this for users.
