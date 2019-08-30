@@ -172,6 +172,85 @@ main.x: relocation target main.zero not defined
 	}
 }
 
+func TestIssue33979(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+
+	tmpdir, err := ioutil.TempDir("", "unresolved-")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	write := func(name, content string) {
+		err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	run := func(name string, args ...string) string {
+		cmd := exec.Command(name, args...)
+		cmd.Dir = tmpdir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("'go %s' failed: %v, output: %s", strings.Join(args, " "), err, out)
+		}
+		return string(out)
+	}
+	runGo := func(args ...string) string {
+		return run(testenv.GoToolPath(t), args...)
+	}
+
+	// Test object with undefined reference that was not generated
+	// by Go, resulting in an SXREF symbol being loaded during linking.
+	// Because of issue #33979, the SXREF symbol would be found during
+	// error reporting, resulting in confusing error messages.
+
+	write("main.go", `package main
+func main() {
+        x()
+}
+func x()
+`)
+	// The following assembly must work on all architectures.
+	write("x.s", `
+TEXT ·x(SB),0,$0
+        CALL foo(SB)
+        RET
+`)
+	write("x.c", `
+void undefined();
+
+void foo() {
+        undefined();
+}
+`)
+
+	cc := strings.TrimSpace(runGo("env", "CC"))
+	cflags := strings.Fields(runGo("env", "GOGCCFLAGS"))
+
+	// Compile, assemble and pack the Go and C code.
+	runGo("tool", "asm", "-gensymabis", "-o", "symabis", "x.s")
+	runGo("tool", "compile", "-symabis", "symabis", "-p", "main", "-o", "x1.o", "main.go")
+	runGo("tool", "asm", "-o", "x2.o", "x.s")
+	run(cc, append(cflags, "-c", "-o", "x3.o", "x.c")...)
+	runGo("tool", "pack", "c", "x.a", "x1.o", "x2.o", "x3.o")
+
+	// Now attempt to link using the internal linker.
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "link", "-linkmode=internal", "x.a")
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected link to fail, but it succeeded")
+	}
+	got := string(out)
+	want := "main(.text): relocation target undefined not defined\n"
+	if !strings.Contains(got, want) {
+		t.Fatalf("got:\n%swant:\n%s", got, want)
+	}
+}
+
 func TestBuildForTvOS(t *testing.T) {
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveGoBuild(t)
