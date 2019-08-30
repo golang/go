@@ -236,7 +236,7 @@ func (t *Type) MapType() *Map {
 
 // Forward contains Type fields specific to forward types.
 type Forward struct {
-	Copyto      []*Node  // where to copy the eventual value to
+	Copyto      []*Type  // where to copy the eventual value to
 	Embedlineno src.XPos // first use of this type as an embedded type
 }
 

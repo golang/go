@@ -3442,26 +3442,28 @@ func checkMapKeys() {
 	mapqueue = nil
 }
 
-func copytype(n *Node, t *types.Type) {
-	if t.Etype == TFORW {
+func setUnderlying(t, underlying *types.Type) {
+	if underlying.Etype == TFORW {
 		// This type isn't computed yet; when it is, update n.
-		t.ForwardType().Copyto = append(t.ForwardType().Copyto, asTypesNode(n))
+		underlying.ForwardType().Copyto = append(underlying.ForwardType().Copyto, t)
 		return
 	}
 
-	embedlineno := n.Type.ForwardType().Embedlineno
-	l := n.Type.ForwardType().Copyto
-
-	cache := n.Type.Cache
+	n := asNode(t.Nod)
+	ft := t.ForwardType()
+	cache := t.Cache
 
 	// TODO(mdempsky): Fix Type rekinding.
-	*n.Type = *t
+	*t = *underlying
 
-	t = n.Type
+	// Restore unnecessarily clobbered attributes.
+	t.Nod = asTypesNode(n)
 	t.Sym = n.Sym
 	if n.Name != nil {
 		t.Vargen = n.Name.Vargen
 	}
+	t.Cache = cache
+	t.SetDeferwidth(false)
 
 	// spec: "The declared type does not inherit any methods bound
 	// to the existing type, but the method set of an interface
@@ -3471,24 +3473,20 @@ func copytype(n *Node, t *types.Type) {
 		*t.AllMethods() = types.Fields{}
 	}
 
-	t.Nod = asTypesNode(n)
-	t.SetDeferwidth(false)
-	t.Cache = cache
-
 	// Propagate go:notinheap pragma from the Name to the Type.
 	if n.Name != nil && n.Name.Param != nil && n.Name.Param.Pragma&NotInHeap != 0 {
 		t.SetNotInHeap(true)
 	}
 
-	// Update nodes waiting on this type.
-	for _, n := range l {
-		copytype(asNode(n), t)
+	// Update types waiting on this type.
+	for _, w := range ft.Copyto {
+		setUnderlying(w, t)
 	}
 
 	// Double-check use of type as embedded type.
-	if embedlineno.IsKnown() {
+	if ft.Embedlineno.IsKnown() {
 		if t.IsPtr() || t.IsUnsafePtr() {
-			yyerrorl(embedlineno, "embedded type cannot be a pointer")
+			yyerrorl(ft.Embedlineno, "embedded type cannot be a pointer")
 		}
 	}
 }
@@ -3509,7 +3507,7 @@ func typecheckdeftype(n *Node) {
 	} else {
 		// copy new type and clear fields
 		// that don't come along.
-		copytype(n, t)
+		setUnderlying(n.Type, t)
 	}
 }
 
