@@ -494,7 +494,7 @@ func (w WaitStatus) Signal() Signal {
 
 func (w WaitStatus) Continued() bool { return w&0x01000000 != 0 }
 
-func (w WaitStatus) CoreDump() bool { return w&0x200 == 0 }
+func (w WaitStatus) CoreDump() bool { return w&0x80 == 0x80 }
 
 func (w WaitStatus) TrapCause() int { return -1 }
 
