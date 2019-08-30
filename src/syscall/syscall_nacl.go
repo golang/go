@@ -52,7 +52,7 @@ const PathMax = 256
 //		err = errno
 //	}
 //
-// Errno values can be tested against error values from the the os package
+// Errno values can be tested against error values from the os package
 // using errors.Is. For example:
 //
 //	_, _, err := syscall.Syscall(...)
