@@ -189,6 +189,7 @@ var knownFormats = map[string]string{
 	"uint %x":              "",
 	"uint16 %d":            "",
 	"uint16 %x":            "",
+	"uint32 %#U":           "",
 	"uint32 %#x":           "",
 	"uint32 %d":            "",
 	"uint32 %v":            "",
