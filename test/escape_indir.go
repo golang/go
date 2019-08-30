@@ -54,7 +54,7 @@ func constptr1() {
 	i := 0           // ERROR "moved to heap: i"
 	x := &ConstPtr{} // ERROR "&ConstPtr literal escapes to heap"
 	x.p = &i
-	sink = x         // ERROR "x escapes to heap"
+	sink = x
 }
 
 func constptr2() {
@@ -144,7 +144,7 @@ func foo2() {
 		f **int
 	}
 	x := new(int) // ERROR "moved to heap: x" "new\(int\) escapes to heap"
-	sink = &x     // ERROR "&x escapes to heap"
+	sink = &x
 	var z Z
 	z.f = &x
 	p := z.f
