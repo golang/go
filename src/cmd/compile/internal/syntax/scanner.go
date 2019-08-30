@@ -35,8 +35,8 @@ type scanner struct {
 	// current token, valid after calling next()
 	line, col uint
 	tok       token
-	lit       string   // valid if tok is _Name, _Literal, or _Semi ("semicolon", "newline", or "EOF")
-	bad       bool     // valid if tok is _Literal, true if a syntax error occurred, lit may be incorrect
+	lit       string   // valid if tok is _Name, _Literal, or _Semi ("semicolon", "newline", or "EOF"); may be malformed if bad is true
+	bad       bool     // valid if tok is _Literal, true if a syntax error occurred, lit may be malformed
 	kind      LitKind  // valid if tok is _Literal
 	op        Operator // valid if tok is _Operator, _AssignOp, or _IncOp
 	prec      int      // valid if tok is _Operator, _AssignOp, or _IncOp
@@ -50,8 +50,6 @@ func (s *scanner) init(src io.Reader, errh func(line, col uint, msg string), mod
 
 // errorf reports an error at the most recently read character position.
 func (s *scanner) errorf(format string, args ...interface{}) {
-	// TODO(gri) Consider using s.bad to consistently suppress multiple errors
-	//           per token, here and below.
 	s.bad = true
 	s.error(fmt.Sprintf(format, args...))
 }
@@ -495,17 +493,19 @@ func (s *scanner) number(c rune) {
 		digsep |= ds
 	}
 
-	if digsep&1 == 0 {
+	if digsep&1 == 0 && !s.bad {
 		s.errorf("%s has no digits", litname(prefix))
 	}
 
 	// exponent
 	if e := lower(c); e == 'e' || e == 'p' {
-		switch {
-		case e == 'e' && prefix != 0 && prefix != '0':
-			s.errorf("%q exponent requires decimal mantissa", c)
-		case e == 'p' && prefix != 'x':
-			s.errorf("%q exponent requires hexadecimal mantissa", c)
+		if !s.bad {
+			switch {
+			case e == 'e' && prefix != 0 && prefix != '0':
+				s.errorf("%q exponent requires decimal mantissa", c)
+			case e == 'p' && prefix != 'x':
+				s.errorf("%q exponent requires hexadecimal mantissa", c)
+			}
 		}
 		c = s.getr()
 		s.kind = FloatLit
@@ -514,10 +514,10 @@ func (s *scanner) number(c rune) {
 		}
 		c, ds = s.digits(c, 10, nil)
 		digsep |= ds
-		if ds&1 == 0 {
+		if ds&1 == 0 && !s.bad {
 			s.errorf("exponent has no digits")
 		}
-	} else if prefix == 'x' && s.kind == FloatLit {
+	} else if prefix == 'x' && s.kind == FloatLit && !s.bad {
 		s.errorf("hexadecimal mantissa requires a 'p' exponent")
 	}
 
@@ -532,11 +532,11 @@ func (s *scanner) number(c rune) {
 	s.lit = string(s.stopLit())
 	s.tok = _Literal
 
-	if s.kind == IntLit && invalid >= 0 {
+	if s.kind == IntLit && invalid >= 0 && !s.bad {
 		s.errorAtf(invalid, "invalid digit %q in %s", s.lit[invalid], litname(prefix))
 	}
 
-	if digsep&2 != 0 {
+	if digsep&2 != 0 && !s.bad {
 		if i := invalidSep(s.lit); i >= 0 {
 			s.errorAtf(i, "'_' must separate successive digits")
 		}

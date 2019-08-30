@@ -652,3 +652,25 @@ func TestIssue21938(t *testing.T) {
 		t.Errorf("got %s %q; want %s %q", got.tok, got.lit, _Literal, ".5")
 	}
 }
+
+func TestIssue33961(t *testing.T) {
+	literals := `08__ 0b.p 0b_._p 0x.e 0x.p`
+	for _, lit := range strings.Split(literals, " ") {
+		n := 0
+		var got scanner
+		got.init(strings.NewReader(lit), func(_, _ uint, msg string) {
+			// fmt.Printf("%s: %s\n", lit, msg) // uncomment for debugging
+			n++
+		}, 0)
+		got.next()
+
+		if n != 1 {
+			t.Errorf("%q: got %d errors; want 1", lit, n)
+			continue
+		}
+
+		if !got.bad {
+			t.Errorf("%q: got error but bad not set", lit)
+		}
+	}
+}
