@@ -300,7 +300,7 @@ func (r *importReader) doDecl(n *Node) {
 		// after the underlying type has been assigned.
 		defercheckwidth()
 		underlying := r.typ()
-		copytype(typenod(t), underlying)
+		setUnderlying(t, underlying)
 		resumecheckwidth()
 
 		if underlying.IsInterface() {
