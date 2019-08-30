@@ -15,6 +15,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -135,7 +136,11 @@ func Test(t *testing.T) {
 			continue
 		}
 
-		got := filename + "t"       // foo.got
+		gotf, err := ioutil.TempFile("", filepath.Base(filename)+"t")
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := gotf.Name()          // foo.got
 		golden := filename + "lden" // foo.golden
 
 		// Write actual output to foo.got.

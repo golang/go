@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/build"
 	"go/token"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1290,7 +1291,7 @@ func TestDiff(t *testing.T) {
 		t.Skipf("plan9 diff tool doesn't support -u flag")
 	}
 	testenv.NeedsTool(t, DiffCmd)
-	testenv.NeedsTool(t, "go") // to locate golang.org/x/tools/refactor/rename
+	testenv.NeedsTool(t, "go") // to locate the package to be renamed
 
 	defer func() {
 		Diff = false
@@ -1299,7 +1300,42 @@ func TestDiff(t *testing.T) {
 	Diff = true
 	stdout = new(bytes.Buffer)
 
-	if err := Main(&build.Default, "", `"golang.org/x/tools/refactor/rename".justHereForTestingDiff`, "Foo"); err != nil {
+	// Set up a fake GOPATH in a temporary directory,
+	// and ensure we're in GOPATH mode.
+	tmpdir, err := ioutil.TempDir("", "TestDiff")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+	buildCtx := build.Default
+	buildCtx.GOPATH = tmpdir
+
+	pkgDir := filepath.Join(tmpdir, "src", "example.com", "rename")
+	if err := os.MkdirAll(pkgDir, 0777); err != nil {
+		t.Fatal(err)
+	}
+
+	prevWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(prevWD)
+
+	if err := os.Chdir(pkgDir); err != nil {
+		t.Fatal(err)
+	}
+
+	const goFile = `package rename
+
+func justHereForTestingDiff() {
+	justHereForTestingDiff()
+}
+`
+	if err := ioutil.WriteFile(filepath.Join(pkgDir, "rename_test.go"), []byte(goFile), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Main(&buildCtx, "", `"example.com/rename".justHereForTestingDiff`, "Foo"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1313,10 +1349,6 @@ func TestDiff(t *testing.T) {
 `) {
 		t.Errorf("unexpected diff:\n<<%s>>", stdout)
 	}
-}
-
-func justHereForTestingDiff() {
-	justHereForTestingDiff()
 }
 
 // ---------------------------------------------------------------------

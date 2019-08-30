@@ -23,17 +23,6 @@ import (
 const (
 	// Data directory, also the package directory for the test.
 	testdata = "testdata"
-
-	// Binaries we compile.
-	testcover = "./testcover.exe"
-)
-
-var (
-	// Files we use.
-	testMain    = filepath.Join(testdata, "main.go")
-	testTest    = filepath.Join(testdata, "test.go")
-	coverInput  = filepath.Join(testdata, "test_line.go")
-	coverOutput = filepath.Join(testdata, "test_cover.go")
 )
 
 var debug = false // Keeps the rewritten files around if set.
@@ -47,6 +36,34 @@ var debug = false // Keeps the rewritten files around if set.
 //
 func TestCover(t *testing.T) {
 	testenv.NeedsTool(t, "go")
+
+	tmpdir, err := ioutil.TempDir("", "TestCover")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if debug {
+			fmt.Printf("test files left in %s\n", tmpdir)
+		} else {
+			os.RemoveAll(tmpdir)
+		}
+	}()
+
+	testcover := filepath.Join(tmpdir, "testcover.exe")
+	testMain := filepath.Join(tmpdir, "main.go")
+	testTest := filepath.Join(tmpdir, "test.go")
+	coverInput := filepath.Join(tmpdir, "test_line.go")
+	coverOutput := filepath.Join(tmpdir, "test_cover.go")
+
+	for _, f := range []string{testMain, testTest} {
+		data, err := ioutil.ReadFile(filepath.Join(testdata, filepath.Base(f)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := ioutil.WriteFile(f, data, 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
 
 	// Read in the test file (testTest) and write it, with LINEs specified, to coverInput.
 	file, err := ioutil.ReadFile(testTest)
@@ -62,17 +79,9 @@ func TestCover(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// defer removal of test_line.go
-	if !debug {
-		defer os.Remove(coverInput)
-	}
-
 	// go build -o testcover
 	cmd := exec.Command("go", "build", "-o", testcover)
 	run(cmd, t)
-
-	// defer removal of testcover
-	defer os.Remove(testcover)
 
 	// ./testcover -mode=count -var=coverTest -o ./testdata/test_cover.go testdata/test_line.go
 	cmd = exec.Command(testcover, "-mode=count", "-var=coverTest", "-o", coverOutput, coverInput)
