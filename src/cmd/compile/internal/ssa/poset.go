@@ -116,10 +116,10 @@ type posetNode struct {
 // the nodes are different, either because SetNonEqual was called before, or because
 // we know that they are strictly ordered.
 //
-// It is implemented as a forest of DAGs; in each DAG, if node A dominates B,
-// it means that A<B. Equality is represented by mapping two SSA values to the same
-// DAG node; when a new equality relation is recorded between two existing nodes,
-// the nodes are merged, adjusting incoming and outgoing edges.
+// It is implemented as a forest of DAGs; in each DAG, if there is a path (directed)
+// from node A to B, it means that A<B (or A<=B). Equality is represented by mapping
+// two SSA values to the same DAG node; when a new equality relation is recorded
+// between two existing nodes,the nodes are merged, adjusting incoming and outgoing edges.
 //
 // Constants are specially treated. When a constant is added to the poset, it is
 // immediately linked to other constants already present; so for instance if the
@@ -519,11 +519,11 @@ func (po *poset) dfs(r uint32, strict bool, f func(i uint32) bool) bool {
 	return false
 }
 
-// Returns true if i1 dominates i2.
+// Returns true if there is a path from i1 to i2.
 // If strict ==  true: if the function returns true, then i1 <  i2.
 // If strict == false: if the function returns true, then i1 <= i2.
 // If the function returns false, no relation is known.
-func (po *poset) dominates(i1, i2 uint32, strict bool) bool {
+func (po *poset) reaches(i1, i2 uint32, strict bool) bool {
 	return po.dfs(i1, strict, func(n uint32) bool {
 		return n == i2
 	})
@@ -537,7 +537,7 @@ func (po *poset) findroot(i uint32) uint32 {
 	// storing a bitset for each root using it as a mini bloom filter
 	// of nodes present under that root.
 	for _, r := range po.roots {
-		if po.dominates(r, i, false) {
+		if po.reaches(r, i, false) {
 			return r
 		}
 	}
@@ -560,7 +560,7 @@ func (po *poset) mergeroot(r1, r2 uint32) uint32 {
 // found, the function does not modify the DAG and returns false.
 func (po *poset) collapsepath(n1, n2 *Value) bool {
 	i1, i2 := po.values[n1.ID], po.values[n2.ID]
-	if po.dominates(i1, i2, true) {
+	if po.reaches(i1, i2, true) {
 		return false
 	}
 
@@ -796,7 +796,7 @@ func (po *poset) Ordered(n1, n2 *Value) bool {
 		return false
 	}
 
-	return i1 != i2 && po.dominates(i1, i2, true)
+	return i1 != i2 && po.reaches(i1, i2, true)
 }
 
 // Ordered reports whether n1<=n2. It returns false either when it is
@@ -814,8 +814,8 @@ func (po *poset) OrderedOrEqual(n1, n2 *Value) bool {
 		return false
 	}
 
-	return i1 == i2 || po.dominates(i1, i2, false) ||
-		(po.dominates(i2, i1, false) && !po.dominates(i2, i1, true))
+	return i1 == i2 || po.reaches(i1, i2, false) ||
+		(po.reaches(i2, i1, false) && !po.reaches(i2, i1, true))
 }
 
 // Equal reports whether n1==n2. It returns false either when it is
@@ -923,8 +923,8 @@ func (po *poset) setOrder(n1, n2 *Value, strict bool) bool {
 		// Both n1 and n2 are in the poset. This is the complex part of the algorithm
 		// as we need to find many different cases and DAG shapes.
 
-		// Check if n1 somehow dominates n2
-		if po.dominates(i1, i2, false) {
+		// Check if n1 somehow reaches n2
+		if po.reaches(i1, i2, false) {
 			// This is the table of all cases we need to handle:
 			//
 			//      DAG          New      Action
@@ -935,7 +935,7 @@ func (po *poset) setOrder(n1, n2 *Value, strict bool) bool {
 			// #4:  N1<X<N2   |  N1<N2  | do nothing
 
 			// Check if we're in case #2
-			if strict && !po.dominates(i1, i2, true) {
+			if strict && !po.reaches(i1, i2, true) {
 				po.addchild(i1, i2, true)
 				return true
 			}
@@ -944,8 +944,8 @@ func (po *poset) setOrder(n1, n2 *Value, strict bool) bool {
 			return true
 		}
 
-		// Check if n2 somehow dominates n1
-		if po.dominates(i2, i1, false) {
+		// Check if n2 somehow reaches n1
+		if po.reaches(i2, i1, false) {
 			// This is the table of all cases we need to handle:
 			//
 			//      DAG           New      Action
@@ -1033,10 +1033,10 @@ func (po *poset) SetEqual(n1, n2 *Value) bool {
 
 		// If we already knew that n1<=n2, we can collapse the path to
 		// record n1==n2 (and viceversa).
-		if po.dominates(i1, i2, false) {
+		if po.reaches(i1, i2, false) {
 			return po.collapsepath(n1, n2)
 		}
-		if po.dominates(i2, i1, false) {
+		if po.reaches(i2, i1, false) {
 			return po.collapsepath(n2, n1)
 		}
 
@@ -1084,10 +1084,10 @@ func (po *poset) SetNonEqual(n1, n2 *Value) bool {
 	i1, f1 := po.lookup(n1)
 	i2, f2 := po.lookup(n2)
 	if f1 && f2 {
-		if po.dominates(i1, i2, false) && !po.dominates(i1, i2, true) {
+		if po.reaches(i1, i2, false) && !po.reaches(i1, i2, true) {
 			po.addchild(i1, i2, true)
 		}
-		if po.dominates(i2, i1, false) && !po.dominates(i2, i1, true) {
+		if po.reaches(i2, i1, false) && !po.reaches(i2, i1, true) {
 			po.addchild(i2, i1, true)
 		}
 	}
