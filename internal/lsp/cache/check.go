@@ -94,10 +94,15 @@ func (imp *importer) checkPackageHandle(m *metadata) (*checkPackageHandle, error
 		imports: make(map[packagePath]*checkPackageHandle),
 	}
 	h := imp.view.session.cache.store.Bind(key, func(ctx context.Context) interface{} {
+		origCtx := imp.ctx
+		defer func() { imp.ctx = origCtx }()
+
+		// We must use the store's detached context to avoid poisoning the
+		// cache with context.Canceled if the request is cancelled.
+		imp.ctx = ctx
+
 		data := &checkPackageData{}
-		data.pkg, data.err = func() (*pkg, error) {
-			return imp.typeCheck(cph, m)
-		}()
+		data.pkg, data.err = imp.typeCheck(cph, m)
 		return data
 	})
 	cph.handle = h
