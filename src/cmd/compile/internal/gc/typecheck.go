@@ -3669,9 +3669,7 @@ func typecheckdef(n *Node) {
 		}
 
 		// regular type declaration
-		if Curfn != nil {
-			defercheckwidth()
-		}
+		defercheckwidth()
 		n.SetWalkdef(1)
 		setTypeNode(n, types.New(TFORW))
 		n.Type.Sym = n.Sym
@@ -3682,9 +3680,7 @@ func typecheckdef(n *Node) {
 			// but it was reported. Silence future errors.
 			n.Type.SetBroke(true)
 		}
-		if Curfn != nil {
-			resumecheckwidth()
-		}
+		resumecheckwidth()
 	}
 
 ret:

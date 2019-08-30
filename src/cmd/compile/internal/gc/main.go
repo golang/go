@@ -527,7 +527,6 @@ func Main(archInit func(*Arch)) {
 	//   We also defer type alias declarations until phase 2
 	//   to avoid cycles like #18640.
 	//   TODO(gri) Remove this again once we have a fix for #25838.
-	defercheckwidth()
 
 	// Don't use range--typecheck can add closures to xtop.
 	timings.Start("fe", "typecheck", "top1")
@@ -549,7 +548,6 @@ func Main(archInit func(*Arch)) {
 			xtop[i] = typecheck(n, ctxStmt)
 		}
 	}
-	resumecheckwidth()
 
 	// Phase 3: Type check function bodies.
 	// Don't use range--typecheck can add closures to xtop.
@@ -1035,7 +1033,6 @@ func loadsys() {
 
 	inimport = true
 	typecheckok = true
-	defercheckwidth()
 
 	typs := runtimeTypes()
 	for _, d := range runtimeDecls {
@@ -1052,7 +1049,6 @@ func loadsys() {
 	}
 
 	typecheckok = false
-	resumecheckwidth()
 	inimport = false
 }
 
