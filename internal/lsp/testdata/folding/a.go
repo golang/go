@@ -14,15 +14,17 @@ func bar() string {
 	case true:
 		if true {
 			fmt.Println("true")
+		} else {
+			fmt.Println("false")
 		}
 	case false:
 		fmt.Println("false")
 	default:
 		fmt.Println("default")
 	}
-
+	// This is a multiline comment
+	// that is not a doc comment.
 	return `
 this string
 is not indented`
-
 }

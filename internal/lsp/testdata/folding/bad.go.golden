@@ -1,0 +1,119 @@
+-- foldingRange-0 --
+package folding //@fold("package")
+
+import (<>)
+
+import (<>)
+	
+// badBar is a function.
+func badBar(<>) string {<>}
+
+-- foldingRange-1 --
+package folding //@fold("package")
+
+import ( "fmt"
+	_ "log"
+)
+
+import ( 
+	_ "os" )
+	
+// badBar is a function.
+func badBar() string { x := true
+	if x {<>} else {<>}
+	return
+}
+
+-- foldingRange-2 --
+package folding //@fold("package")
+
+import ( "fmt"
+	_ "log"
+)
+
+import ( 
+	_ "os" )
+	
+// badBar is a function.
+func badBar() string { x := true
+	if x { 
+		// This is the only foldable thing in this file when lineFoldingOnly
+		fmt.Println(<>)
+	} else {
+		fmt.Println(<>) }
+	return
+}
+
+-- foldingRange-comment-0 --
+package folding //@fold("package")
+
+import ( "fmt"
+	_ "log"
+)
+
+import ( 
+	_ "os" )
+	
+// badBar is a function.<>
+func badBar() string { x := true
+	if x {
+		fmt.Println("true")
+	} else {
+		fmt.Println("false") }
+	return
+}
+
+-- foldingRange-imports-0 --
+package folding //@fold("package")
+
+import (<>)
+
+import (<>)
+	
+// badBar is a function.
+func badBar() string { x := true
+	if x { 
+		// This is the only foldable thing in this file when lineFoldingOnly
+		fmt.Println("true")
+	} else {
+		fmt.Println("false") }
+	return
+}
+
+-- foldingRange-lineFolding-0 --
+package folding //@fold("package")
+
+import ( "fmt"
+	_ "log"
+)
+
+import ( 
+	_ "os" )
+	
+// badBar is a function.
+func badBar() string { x := true
+	if x {<>
+	} else {
+		fmt.Println("false") }
+	return
+}
+
+-- foldingRange-lineFolding-comment-0 --
+package folding //@fold("package")
+
+import ( "fmt"
+	_ "log"
+)
+
+import ( 
+	_ "os" )
+	
+// badBar is a function.<>
+func badBar() string { x := true
+	if x {
+		fmt.Println("true")
+	} else {
+		fmt.Println("false") }
+	return
+}
+

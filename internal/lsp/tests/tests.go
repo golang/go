@@ -36,7 +36,7 @@ const (
 	ExpectedImportCount            = 2
 	ExpectedDefinitionsCount       = 39
 	ExpectedTypeDefinitionsCount   = 2
-	ExpectedFoldingRangesCount     = 1
+	ExpectedFoldingRangesCount     = 2
 	ExpectedHighlightsCount        = 2
 	ExpectedReferencesCount        = 6
 	ExpectedRenamesCount           = 20

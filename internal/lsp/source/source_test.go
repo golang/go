@@ -300,7 +300,7 @@ func (r *runner) FoldingRange(t *testing.T, data tests.FoldingRanges) {
 	}
 }
 
-func (r *runner) foldingRanges(t *testing.T, prefix string, uri span.URI, data string, ranges []source.FoldingRangeInfo) {
+func (r *runner) foldingRanges(t *testing.T, prefix string, uri span.URI, data string, ranges []*source.FoldingRangeInfo) {
 	t.Helper()
 	// Fold all ranges.
 	nonOverlapping := nonOverlappingRanges(ranges)
@@ -323,7 +323,7 @@ func (r *runner) foldingRanges(t *testing.T, prefix string, uri span.URI, data s
 	// Filter by kind.
 	kinds := []protocol.FoldingRangeKind{protocol.Imports, protocol.Comment}
 	for _, kind := range kinds {
-		var kindOnly []source.FoldingRangeInfo
+		var kindOnly []*source.FoldingRangeInfo
 		for _, fRng := range ranges {
 			if fRng.Kind == kind {
 				kindOnly = append(kindOnly, fRng)
@@ -350,7 +350,7 @@ func (r *runner) foldingRanges(t *testing.T, prefix string, uri span.URI, data s
 	}
 }
 
-func nonOverlappingRanges(ranges []source.FoldingRangeInfo) (res [][]source.FoldingRangeInfo) {
+func nonOverlappingRanges(ranges []*source.FoldingRangeInfo) (res [][]*source.FoldingRangeInfo) {
 	for _, fRng := range ranges {
 		setNum := len(res)
 		for i := 0; i < len(res); i++ {
@@ -367,19 +367,19 @@ func nonOverlappingRanges(ranges []source.FoldingRangeInfo) (res [][]source.Fold
 			}
 		}
 		if setNum == len(res) {
-			res = append(res, []source.FoldingRangeInfo{})
+			res = append(res, []*source.FoldingRangeInfo{})
 		}
 		res[setNum] = append(res[setNum], fRng)
 	}
 	return res
 }
 
-func conflict(a, b source.FoldingRangeInfo) bool {
+func conflict(a, b *source.FoldingRangeInfo) bool {
 	// a start position is <= b start positions
 	return a.Range.Start <= b.Range.Start && a.Range.End > b.Range.Start
 }
 
-func foldRanges(contents string, ranges []source.FoldingRangeInfo) (string, error) {
+func foldRanges(contents string, ranges []*source.FoldingRangeInfo) (string, error) {
 	foldedText := "<>"
 	res := contents
 	// Apply the folds from the end of the file forward
