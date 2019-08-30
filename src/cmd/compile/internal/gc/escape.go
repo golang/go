@@ -484,13 +484,6 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
 	case OCONVIFACE:
 		if !n.Left.Type.IsInterface() && !isdirectiface(n.Left.Type) {
 			k = e.spill(k, n)
-		} else {
-			// esc.go prints "escapes to heap" / "does not
-			// escape" messages for OCONVIFACE even when
-			// they don't allocate.  Match that behavior
-			// because it's easy.
-			// TODO(mdempsky): Remove and cleanup test expectations.
-			_ = e.spill(k, n)
 		}
 		e.expr(k.note(n, "interface-converted"), n.Left)
 
