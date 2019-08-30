@@ -23,14 +23,11 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/testenv"
 )
 
 func TestMain(m *testing.M) {
-	if os.Getenv("GO_BUILDER_NAME") == "linux-arm" {
-		fmt.Fprintf(os.Stderr, "skipping test: linux-arm builder lacks sufficient memory (https://golang.org/issue/32834)\n")
-		os.Exit(0)
-	}
-
+	testenv.ExitIfSmallMachine()
 	os.Exit(m.Run())
 }
 

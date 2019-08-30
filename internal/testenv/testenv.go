@@ -7,6 +7,7 @@
 package testenv
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
@@ -105,4 +106,15 @@ func NeedsGoPackagesEnv(t Testing, env []string) {
 	}
 
 	NeedsGoPackages(t)
+}
+
+// ExitIfSmallMachine emits a helpful diagnostic and calls os.Exit(0) if the
+// current machine is a builder known to have scarce resources.
+//
+// It should be called from within a TestMain function.
+func ExitIfSmallMachine() {
+	if os.Getenv("GO_BUILDER_NAME") == "linux-arm" {
+		fmt.Fprintln(os.Stderr, "skipping test: linux-arm builder lacks sufficient memory (https://golang.org/issue/32834)")
+		os.Exit(0)
+	}
 }

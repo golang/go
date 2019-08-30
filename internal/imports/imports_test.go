@@ -2,8 +2,16 @@ package imports
 
 import (
 	"go/build"
+	"os"
 	"testing"
+
+	"golang.org/x/tools/internal/testenv"
 )
+
+func TestMain(m *testing.M) {
+	testenv.ExitIfSmallMachine()
+	os.Exit(m.Run())
+}
 
 // TestNilOpts tests that process does not crash with nil opts.
 func TestNilOpts(t *testing.T) {

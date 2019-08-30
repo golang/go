@@ -13,6 +13,7 @@ import (
 	"go/build"
 	"go/constant"
 	"go/types"
+	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -23,7 +24,13 @@ import (
 
 	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/internal/testenv"
 )
+
+func TestMain(m *testing.M) {
+	testenv.ExitIfSmallMachine()
+	os.Exit(m.Run())
+}
 
 // TestFromArgs checks that conf.FromArgs populates conf correctly.
 // It does no I/O.

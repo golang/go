@@ -23,6 +23,11 @@ import (
 	"golang.org/x/tools/internal/testenv"
 )
 
+func TestMain(m *testing.M) {
+	testenv.ExitIfSmallMachine()
+	os.Exit(m.Run())
+}
+
 // ----------------------------------------------------------------------------
 // The following three functions (Builder, HasGoBuild, MustHaveGoBuild) were
 // copied from $GOROOT/src/internal/testenv since that package is not available
