@@ -217,7 +217,7 @@ func dowidth(t *types.Type) {
 	}
 
 	// defer checkwidth calls until after we're done
-	defercalc++
+	defercheckwidth()
 
 	lno := lineno
 	if asNode(t.Nod) != nil {
@@ -391,11 +391,7 @@ func dowidth(t *types.Type) {
 
 	lineno = lno
 
-	if defercalc == 1 {
-		resumecheckwidth()
-	} else {
-		defercalc--
-	}
+	resumecheckwidth()
 }
 
 // when a type's width should be known, we call checkwidth
@@ -440,24 +436,18 @@ func checkwidth(t *types.Type) {
 }
 
 func defercheckwidth() {
-	// we get out of sync on syntax errors, so don't be pedantic.
-	if defercalc != 0 && nerrors == 0 {
-		Fatalf("defercheckwidth")
-	}
-	defercalc = 1
+	defercalc++
 }
 
 func resumecheckwidth() {
-	if defercalc == 0 {
-		Fatalf("resumecheckwidth")
+	if defercalc == 1 {
+		for len(deferredTypeStack) > 0 {
+			t := deferredTypeStack[len(deferredTypeStack)-1]
+			deferredTypeStack = deferredTypeStack[:len(deferredTypeStack)-1]
+			t.SetDeferwidth(false)
+			dowidth(t)
+		}
 	}
 
-	for len(deferredTypeStack) > 0 {
-		t := deferredTypeStack[len(deferredTypeStack)-1]
-		deferredTypeStack = deferredTypeStack[:len(deferredTypeStack)-1]
-		t.SetDeferwidth(false)
-		dowidth(t)
-	}
-
-	defercalc = 0
+	defercalc--
 }
