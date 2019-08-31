@@ -16,24 +16,24 @@ var truncateWriterTests = []struct {
 	n   int
 }{
 	{"hello", "", -1, 5},
-	{"hello", "", 0, 5},
-	{"hello", "hel", 3, 5},
-	{"hello", "hello", 7, 5},
+	{"world", "", 0, 5},
+	{"abcde", "abc", 3, 5},
+	{"edcba", "edcba", 7, 5},
 }
 
 func TestTruncateWriter(t *testing.T) {
 	for _, tt := range truncateWriterTests {
-		rb := new(bytes.Buffer)
-		trb := TruncateWriter(rb, tt.twn)
+		w := new(bytes.Buffer)
+		trb := TruncateWriter(w, tt.twn)
 		n, err := trb.Write([]byte(tt.in))
 		if err != nil {
 			t.Error(err)
 		}
-		if rb.String() != tt.out {
-			t.Errorf("expected %s, got %s", tt.out, rb.String())
+		if w.String() != tt.out {
+			t.Errorf("got %q, expected %q", w.String(), tt.out)
 		}
 		if n != tt.n {
-			t.Errorf("expected to have read %d bytes, but read %d", tt.n, n)
+			t.Errorf("read %d bytes, but expected to have read %d bytes", n, tt.n)
 		}
 	}
 }
