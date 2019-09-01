@@ -71,9 +71,6 @@ type timersBucket struct {
 	t            []*timer
 }
 
-// nacl fake time support - time in nanoseconds since 1970
-var faketime int64
-
 // Package time APIs.
 // Godoc uses the comments in package time, not these.
 
