@@ -932,6 +932,9 @@ func (w *reflectWithString) resolve() error {
 		return nil
 	}
 	if tm, ok := w.v.Interface().(encoding.TextMarshaler); ok {
+		if w.v.Kind() == reflect.Ptr && w.v.IsNil() {
+			return nil
+		}
 		buf, err := tm.MarshalText()
 		w.s = string(buf)
 		return err
