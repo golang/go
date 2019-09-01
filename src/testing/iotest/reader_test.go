@@ -30,12 +30,12 @@ func TestOneByteReader(t *testing.T) {
 			t.Error(err)
 		}
 		if n != tt.n {
-			t.Errorf("expected to have read %d bytes, but read %d", tt.n, n)
+			t.Errorf("read %d, but expected to have read %d bytes", n, tt.n)
 		}
 		got := p[:n]
 		want := tt.p
 		if reflect.DeepEqual(got, want) != true {
-			t.Errorf("expected %v, got %v", want, got)
+			t.Errorf("got %q, expected %q", got, want)
 		}
 	}
 }
@@ -58,12 +58,12 @@ func TestHalfReader(t *testing.T) {
 			t.Error(err)
 		}
 		if n != tt.n {
-			t.Errorf("expected to have read %d bytes, but read %d", tt.n, n)
+			t.Errorf("read %d, but expected to have read %d bytes", n, tt.n)
 		}
 		got := p[:n]
 		want := tt.p
 		if reflect.DeepEqual(got, want) != true {
-			t.Errorf("expected %v, got %v", want, got)
+			t.Errorf("got %q, expected %q", got, want)
 		}
 	}
 }
@@ -72,28 +72,29 @@ func TestTimeoutReader(t *testing.T) {
 	data := []byte("hello, world")
 	r := TimeoutReader(bytes.NewReader(data))
 	p := make([]byte, 2)
+
 	n, err := r.Read(p)
 	if err != nil {
 		t.Error(err)
 	}
 	if n != 2 {
-		t.Errorf("expected to have read %d bytes, but read %d", 2, n)
+		t.Errorf("read %d, but expected to have read %d bytes", n, 2)
 	}
 
 	n, err = r.Read(p)
 	if err != ErrTimeout {
-		t.Errorf("Second call to Read should return %v, got %v", ErrTimeout, err)
+		t.Errorf("got %v, but second call to Read should return %v", err, ErrTimeout)
 	}
 	if n != 0 {
-		t.Errorf("expected to have read %d bytes, but read %d", 0, n)
+		t.Errorf("read %d, but expected to have read %d bytes", n, 0)
 	}
 
 	n, err = r.Read(p)
 	if err != nil {
-		t.Errorf("Subsequent call to read succeed. Got %v", err)
+		t.Errorf("got %v, but subsequent call to Read should succeed.", err)
 	}
 	if n != 2 {
-		t.Errorf("expected to have read %d bytes, but read %d", 2, n)
+		t.Errorf("read %d, but expected to have read %d bytes", n, 2)
 	}
 }
 
@@ -103,7 +104,7 @@ var dataErrReaderTests = []struct {
 	n    int
 }{
 	{[]byte("hello"), []byte("o"), 1},
-	{[]byte("hello,"), []byte("o,"), 2},
+	{[]byte("abcdef"), []byte("ef"), 2},
 }
 
 func TestDataErrReader(t *testing.T) {
@@ -122,7 +123,7 @@ func TestDataErrReader(t *testing.T) {
 			t.Errorf("Last call to Read should have read %d bytes instead of %d", n, tt.n)
 		}
 		if reflect.DeepEqual(p[:n], tt.p) != true {
-			t.Errorf("Wanted %v got %v", tt.p, p[:n])
+			t.Errorf("got %q, expected %q ", p[:n], tt.p)
 		}
 	}
 }
