@@ -11,8 +11,6 @@ import "cmd/compile/internal/types"
 // builtinpkg is a fake package that declares the universe block.
 var builtinpkg *types.Pkg
 
-var itable *types.Type // distinguished *byte
-
 var basicTypes = [...]struct {
 	name  string
 	etype types.EType
@@ -361,8 +359,6 @@ func typeinit() {
 
 	dowidth(types.Types[TSTRING])
 	dowidth(types.Idealstring)
-
-	itable = types.NewPtr(types.Types[TUINT8])
 }
 
 func makeErrorInterface() *types.Type {
