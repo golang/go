@@ -183,11 +183,11 @@ TEXT ·wasmWrite(SB), NOSPLIT, $0
 	CallImport
 	RET
 
-TEXT ·nanotime(SB), NOSPLIT, $0
+TEXT ·nanotime1(SB), NOSPLIT, $0
 	CallImport
 	RET
 
-TEXT ·walltime(SB), NOSPLIT, $0
+TEXT ·walltime1(SB), NOSPLIT, $0
 	CallImport
 	RET
 

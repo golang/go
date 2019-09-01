@@ -97,7 +97,7 @@ TEXT runtime·read(SB),NOSPLIT,$-4
 	MOVL	AX, ret+12(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$-4
+TEXT runtime·write1(SB),NOSPLIT,$-4
 	MOVL	$4, AX
 	INT	$0x80
 	JAE	2(PC)

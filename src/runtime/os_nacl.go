@@ -300,6 +300,8 @@ var lastfaketime int64
 // but the timestamp must increase if the fd changes.
 var lastfaketimefd int32
 
+func walltime() (sec int64, nsec int32)
+
 /*
 An attempt at IRT. Doesn't work. See end of sys_nacl_amd64.s.
 

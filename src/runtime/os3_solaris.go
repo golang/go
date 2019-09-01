@@ -393,11 +393,11 @@ func munmap(addr unsafe.Pointer, n uintptr) {
 	sysvicall2(&libc_munmap, uintptr(addr), uintptr(n))
 }
 
-func nanotime1()
+func nanotime2()
 
 //go:nosplit
-func nanotime() int64 {
-	return int64(sysvicall0((*libcFunc)(unsafe.Pointer(funcPC(nanotime1)))))
+func nanotime1() int64 {
+	return int64(sysvicall0((*libcFunc)(unsafe.Pointer(funcPC(nanotime2)))))
 }
 
 //go:nosplit
@@ -499,7 +499,7 @@ func usleep(µs uint32) {
 }
 
 //go:nosplit
-func write(fd uintptr, buf unsafe.Pointer, nbyte int32) int32 {
+func write1(fd uintptr, buf unsafe.Pointer, nbyte int32) int32 {
 	return int32(sysvicall3(&libc_write, uintptr(fd), uintptr(buf), uintptr(nbyte)))
 }
 

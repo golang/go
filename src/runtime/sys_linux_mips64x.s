@@ -88,7 +88,7 @@ TEXT runtime·closefd(SB),NOSPLIT|NOFRAME,$0-12
 	MOVW	R2, ret+8(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT|NOFRAME,$0-28
+TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0-28
 	MOVV	fd+0(FP), R4
 	MOVV	p+8(FP), R5
 	MOVW	n+16(FP), R6
@@ -176,8 +176,8 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	R2, ret+24(FP)
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB),NOSPLIT,$16
+// func walltime1() (sec int64, nsec int32)
+TEXT runtime·walltime1(SB),NOSPLIT,$16
 	MOVW	$0, R4 // CLOCK_REALTIME
 	MOVV	$0(R29), R5
 	MOVV	$SYS_clock_gettime, R2
@@ -188,7 +188,7 @@ TEXT runtime·walltime(SB),NOSPLIT,$16
 	MOVW	R5, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime(SB),NOSPLIT,$16
+TEXT runtime·nanotime1(SB),NOSPLIT,$16
 	MOVW	$1, R4 // CLOCK_MONOTONIC
 	MOVV	$0(R29), R5
 	MOVV	$SYS_clock_gettime, R2
