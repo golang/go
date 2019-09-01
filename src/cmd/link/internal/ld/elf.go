@@ -1948,10 +1948,10 @@ func Asmbelf(ctxt *Link, symo int64) {
 		for sub := s; sub != nil; sub = sub.Sub {
 			i++
 			if !sub.Attr.Local() {
-				sh.info = i
 				break
 			}
 		}
+		sh.info = i
 		shsym(sh, s)
 
 		sh = elfshname(".dynstr")
