@@ -2,11 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !faketime
 // +build !nacl
 
 package runtime
 
 import "unsafe"
+
+// faketime is the simulated time in nanoseconds since 1970 for the
+// playground.
+//
+// Zero means not to use faketime.
+var faketime int64
 
 //go:nosplit
 func nanotime() int64 {

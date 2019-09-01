@@ -289,6 +289,9 @@ func closeonexec(int32)                                   {}
 // gsignalStack is unused on nacl.
 type gsignalStack struct{}
 
+// nacl fake time support - time in nanoseconds since 1970
+var faketime int64
+
 var writelock uint32 // test-and-set spin lock for write
 
 // lastfaketime stores the last faketime value written to fd 1 or 2.
