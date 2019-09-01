@@ -167,6 +167,14 @@ func Read(fd int, p []byte) (n int, err error) {
 }
 
 func Write(fd int, p []byte) (n int, err error) {
+	if faketime && (fd == 1 || fd == 2) {
+		n = faketimeWrite(fd, p)
+		if n < 0 {
+			return 0, ErrorString("error")
+		}
+		return n, nil
+	}
+
 	return Pwrite(fd, p, -1)
 }
 
