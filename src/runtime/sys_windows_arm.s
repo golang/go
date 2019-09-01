@@ -495,7 +495,7 @@ TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
 #define time_hi1 4
 #define time_hi2 8
 
-TEXT runtime·nanotime(SB),NOSPLIT,$0-8
+TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
 	MOVW	$0, R0
 	MOVB	runtime·useQPCTime(SB), R0
 	CMP	$0, R0

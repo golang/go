@@ -416,8 +416,6 @@ func osinit() {
 	stdcall2(_SetProcessPriorityBoost, currentProcess, 1)
 }
 
-func nanotime() int64
-
 // useQPCTime controls whether time.now and nanotime use QueryPerformanceCounter.
 // This is only set to 1 when running under Wine.
 var useQPCTime uint8
@@ -542,8 +540,12 @@ func exit(code int32) {
 	stdcall1(_ExitProcess, uintptr(code))
 }
 
+// write1 must be nosplit because it's used as a last resort in
+// functions like badmorestackg0. In such cases, we'll always take the
+// ASCII path.
+//
 //go:nosplit
-func write(fd uintptr, buf unsafe.Pointer, n int32) int32 {
+func write1(fd uintptr, buf unsafe.Pointer, n int32) int32 {
 	const (
 		_STD_OUTPUT_HANDLE = ^uintptr(10) // -11
 		_STD_ERROR_HANDLE  = ^uintptr(11) // -12
@@ -639,6 +641,9 @@ func writeConsoleUTF16(handle uintptr, b []uint16) {
 	)
 	return
 }
+
+// walltime1 isn't implemented on Windows, but will never be called.
+func walltime1() (sec int64, nsec int32)
 
 //go:nosplit
 func semasleep(ns int64) int32 {

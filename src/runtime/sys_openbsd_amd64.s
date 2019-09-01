@@ -127,7 +127,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$-8
+TEXT runtime·write1(SB),NOSPLIT,$-8
 	MOVQ	fd+0(FP), DI		// arg 1 - fd
 	MOVQ	p+8(FP), SI		// arg 2 - buf
 	MOVL	n+16(FP), DX		// arg 3 - nbyte
@@ -181,8 +181,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-8
 	SYSCALL
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB), NOSPLIT, $32
+// func walltime1() (sec int64, nsec int32)
+TEXT runtime·walltime1(SB), NOSPLIT, $32
 	MOVQ	$0, DI			// arg 1 - clock_id
 	LEAQ	8(SP), SI		// arg 2 - tp
 	MOVL	$87, AX			// sys_clock_gettime
@@ -195,7 +195,7 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVL	DX, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime(SB),NOSPLIT,$24
+TEXT runtime·nanotime1(SB),NOSPLIT,$24
 	MOVQ	CLOCK_MONOTONIC, DI	// arg 1 - clock_id
 	LEAQ	8(SP), SI		// arg 2 - tp
 	MOVL	$87, AX			// sys_clock_gettime

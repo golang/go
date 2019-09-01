@@ -12,7 +12,7 @@ import (
 
 func exit(code int32)
 
-func write(fd uintptr, p unsafe.Pointer, n int32) int32 {
+func write1(fd uintptr, p unsafe.Pointer, n int32) int32 {
 	if fd > 2 {
 		throw("runtime.write to fd > 2 is unsupported")
 	}

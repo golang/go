@@ -21,7 +21,7 @@ func exit(code int32)
 func usleep(usec uint32)
 
 //go:noescape
-func write(fd uintptr, p unsafe.Pointer, n int32) int32
+func write1(fd uintptr, p unsafe.Pointer, n int32) int32
 
 //go:noescape
 func open(name *byte, mode, perm int32) int32

@@ -248,13 +248,13 @@
 						this.mem = new DataView(this._inst.exports.mem.buffer);
 					},
 
-					// func nanotime() int64
-					"runtime.nanotime": (sp) => {
+					// func nanotime1() int64
+					"runtime.nanotime1": (sp) => {
 						setInt64(sp + 8, (timeOrigin + performance.now()) * 1000000);
 					},
 
-					// func walltime() (sec int64, nsec int32)
-					"runtime.walltime": (sp) => {
+					// func walltime1() (sec int64, nsec int32)
+					"runtime.walltime1": (sp) => {
 						const msec = (new Date).getTime();
 						setInt64(sp + 8, msec / 1000);
 						this.mem.setInt32(sp + 16, (msec % 1000) * 1000000, true);
