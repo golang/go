@@ -37,8 +37,8 @@ func TestWriteLogger(t *testing.T) {
 		out := new(bytes.Buffer)
 		log.SetOutput(out)
 
-		r := new(bytes.Buffer)
-		wl := NewWriteLogger(tt.prefix, r)
+		w := new(bytes.Buffer)
+		wl := NewWriteLogger(tt.prefix, w)
 		wl.Write([]byte(tt.data))
 
 		if re.MatchString(out.String()) == false {
@@ -55,8 +55,8 @@ func TestWriteLoggerError(t *testing.T) {
 	out := new(bytes.Buffer)
 	log.SetOutput(out)
 
-	r := errWriter{err: err}
-	wl := NewWriteLogger("prefix", r)
+	w := errWriter{err: err}
+	wl := NewWriteLogger("prefix", w)
 	wl.Write([]byte(data))
 
 	if re.MatchString(out.String()) == false {
