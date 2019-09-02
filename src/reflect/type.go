@@ -527,11 +527,6 @@ func (n name) pkgPath() string {
 	return pkgPathName.name()
 }
 
-// round n up to a multiple of a.  a must be a power of 2.
-func round(n, a uintptr) uintptr {
-	return (n + a - 1) &^ (a - 1)
-}
-
 func newName(n, tag string, exported bool) name {
 	if len(n) > 1<<16-1 {
 		panic("reflect.nameFrom: name too long: " + n)
@@ -865,10 +860,6 @@ func (t *rtype) PkgPath() string {
 		return ""
 	}
 	return t.nameOff(ut.pkgPath).name()
-}
-
-func hasPrefix(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }
 
 func (t *rtype) hasName() bool {
