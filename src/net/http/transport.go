@@ -743,7 +743,6 @@ var (
 	errCloseIdleConns     = errors.New("http: CloseIdleConnections called")
 	errReadLoopExiting    = errors.New("http: persistConn.readLoop exiting")
 	errIdleConnTimeout    = errors.New("http: idle connection timeout")
-	errNotCachingH2Conn   = errors.New("http: not caching alternate protocol's connections")
 
 	// errServerClosedIdle is not seen by users for idempotent requests, but may be
 	// seen by a user if the server shuts down an idle connection and sends its FIN
@@ -1348,19 +1347,6 @@ func (t *Transport) decConnsPerHost(key connectMethodKey) {
 	} else {
 		t.connsPerHost[key] = n
 	}
-}
-
-// The connect method and the transport can both specify a TLS
-// Host name.  The transport's name takes precedence if present.
-func chooseTLSHost(cm connectMethod, t *Transport) string {
-	tlsHost := ""
-	if t.TLSClientConfig != nil {
-		tlsHost = t.TLSClientConfig.ServerName
-	}
-	if tlsHost == "" {
-		tlsHost = cm.tlsHost()
-	}
-	return tlsHost
 }
 
 // Add TLS to a persistent connection, i.e. negotiate a TLS session. If pconn is already a TLS
@@ -2623,11 +2609,6 @@ func (gz *gzipReader) Read(p []byte) (n int, err error) {
 
 func (gz *gzipReader) Close() error {
 	return gz.body.Close()
-}
-
-type readerAndCloser struct {
-	io.Reader
-	io.Closer
 }
 
 type tlsHandshakeTimeoutError struct{}
