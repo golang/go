@@ -40,35 +40,18 @@ func ExampleListener() {
 }
 
 func ExampleDialer() {
-	d := net.Dialer{
-		Timeout: 3 * time.Minute,
-	}
-	ctx, cancel := context.WithCancel(context.Background())
+	var d net.Dialer
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	connCh := make(chan net.Conn)
-	go func() {
-		defer close(connCh)
-		conn, err := d.DialContext(ctx, "tcp", "localhost:12345")
-		if err != nil {
-			log.Fatal(err)
-			return
-		}
 
-		connCh <- conn
-	}()
+	conn, err := d.DialContext(ctx, "tcp", "localhost:12345")
+	if err != nil {
+		log.Fatalf("Failed to dial: %v", err)
+	}
+	defer conn.Close()
 
-	for {
-		select {
-		case <-time.After(time.Second):
-			// You can do cancel() here when something wrong happens.
-		case conn, ok := <-connCh:
-			if !ok {
-				return
-			}
-
-			conn.Write([]byte("hello, go"))
-			conn.Close()
-		}
+	if _, err := conn.Write([]byte("Hello, World!")); err != nil {
+		log.Fatal(err)
 	}
 }
 
