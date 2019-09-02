@@ -2345,6 +2345,41 @@ func TestUnmarshalEmbeddedUnexported(t *testing.T) {
 	}
 }
 
+func TestUnmarshalErrorAfterMultipleJSON(t *testing.T) {
+	tests := []struct {
+		in  string
+		err error
+	}{{
+		in:  `1 false null :`,
+		err: &SyntaxError{"invalid character ':' looking for beginning of value", 14},
+	}, {
+		in:  `1 [] [,]`,
+		err: &SyntaxError{"invalid character ',' looking for beginning of value", 7},
+	}, {
+		in:  `1 [] [true:]`,
+		err: &SyntaxError{"invalid character ':' after array element", 11},
+	}, {
+		in:  `1  {}    {"x"=}`,
+		err: &SyntaxError{"invalid character '=' after object key", 14},
+	}, {
+		in:  `falsetruenul#`,
+		err: &SyntaxError{"invalid character '#' in literal null (expecting 'l')", 13},
+	}}
+	for i, tt := range tests {
+		dec := NewDecoder(strings.NewReader(tt.in))
+		var err error
+		for {
+			var v interface{}
+			if err = dec.Decode(&v); err != nil {
+				break
+			}
+		}
+		if !reflect.DeepEqual(err, tt.err) {
+			t.Errorf("#%d: got %#v, want %#v", i, err, tt.err)
+		}
+	}
+}
+
 type unmarshalPanic struct{}
 
 func (unmarshalPanic) UnmarshalJSON([]byte) error { panic(0xdead) }
