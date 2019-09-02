@@ -263,7 +263,7 @@ Previous       | [impl]
 |              | This feature is hard to scale up to large code bases, and is going to take thought to get right. It may be feasible to implemented a more limited form in the meantime.
 
 ---
-Document symbols | Provides the set of top level symbols in teh current file.
+Document symbols | Provides the set of top level symbols in the current file.
 ---------------- | ---
 Requires         | AST of the current file only
 LSP              | [`textDocument/documentSymbol`]
