@@ -2767,10 +2767,14 @@ func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask) 
 		s.addNamedValue(left, right)
 		return
 	}
-	// Left is not ssa-able. Compute its address.
-	if left.Op == ONAME && left.Class() != PEXTERN && skip == 0 {
-		s.vars[&memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, left, s.mem(), !left.IsAutoTmp())
+
+	// If this assignment clobbers an entire local variable, then emit
+	// OpVarDef so liveness analysis knows the variable is redefined.
+	if base := clobberBase(left); base.Op == ONAME && base.Class() != PEXTERN && skip == 0 {
+		s.vars[&memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, base, s.mem(), !base.IsAutoTmp())
 	}
+
+	// Left is not ssa-able. Compute its address.
 	addr := s.addr(left, false)
 	if isReflectHeaderDataField(left) {
 		// Package unsafe's documentation says storing pointers into
@@ -6209,4 +6213,14 @@ func (n *Node) StorageClass() ssa.StorageClass {
 		Fatalf("untranslatable storage class for %v: %s", n, n.Class())
 		return 0
 	}
+}
+
+func clobberBase(n *Node) *Node {
+	if n.Op == ODOT && n.Left.Type.NumFields() == 1 {
+		return clobberBase(n.Left)
+	}
+	if n.Op == OINDEX && n.Left.Type.IsArray() && n.Left.Type.NumElem() == 1 {
+		return clobberBase(n.Left)
+	}
+	return n
 }

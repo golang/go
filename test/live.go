@@ -659,7 +659,7 @@ func bad40() {
 
 func good40() {
 	ret := T40{}              // ERROR "stack object ret T40$"
-	ret.m = make(map[int]int) // ERROR "live at call to fastrand: .autotmp_[0-9]+ ret$" "stack object .autotmp_[0-9]+ map.hdr\[int\]int$"
+	ret.m = make(map[int]int) // ERROR "live at call to fastrand: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ map.hdr\[int\]int$"
 	t := &ret
 	printnl() // ERROR "live at call to printnl: ret$"
 	// Note: ret is live at the printnl because the compiler moves &ret
@@ -704,3 +704,14 @@ func f42() {
 
 //go:noescape
 func f43(a []*int)
+
+// Assigning to a sub-element that makes up an entire local variable
+// should clobber that variable.
+func f44(f func() [2]*int) interface{} { // ERROR "live at entry to f44: f"
+	type T struct {
+		s [1][2]*int
+	}
+	ret := T{}
+	ret.s[0] = f()
+	return ret // ERROR "stack object .autotmp_5 T"
+}
