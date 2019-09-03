@@ -13,6 +13,7 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
+	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
@@ -31,11 +32,12 @@ func init() {
 }
 
 var Analyzer = &analysis.Analyzer{
-	Name:      "printf",
-	Doc:       doc,
-	Requires:  []*analysis.Analyzer{inspect.Analyzer},
-	Run:       run,
-	FactTypes: []analysis.Fact{new(isWrapper)},
+	Name:       "printf",
+	Doc:        doc,
+	Requires:   []*analysis.Analyzer{inspect.Analyzer},
+	Run:        run,
+	ResultType: reflect.TypeOf((*Result)(nil)),
+	FactTypes:  []analysis.Fact{new(isWrapper)},
 }
 
 const doc = `check consistency of Printf format strings and arguments
@@ -66,18 +68,64 @@ argument list. Otherwise it is assumed to be Print-like, taking a list
 of arguments with no format string.
 `
 
+// Kind is a kind of fmt function behavior.
+type Kind int
+
+const (
+	KindNone   Kind = iota // not a fmt wrapper function
+	KindPrint              // function behaves like fmt.Print
+	KindPrintf             // function behaves like fmt.Printf
+	KindErrorf             // function behaves like fmt.Errorf
+)
+
+func (kind Kind) String() string {
+	switch kind {
+	case KindPrint:
+		return "print"
+	case KindPrintf:
+		return "printf"
+	case KindErrorf:
+		return "errorf"
+	}
+	return ""
+}
+
+// Result is the printf analyzer's result type. Clients may query the result
+// to learn whether a function behaves like fmt.Print or fmt.Printf.
+type Result struct {
+	funcs map[*types.Func]Kind
+}
+
+// Kind reports whether fn behaves like fmt.Print or fmt.Printf.
+func (r *Result) Kind(fn *types.Func) Kind {
+	_, ok := isPrint[fn.FullName()]
+	if !ok {
+		// Next look up just "printf", for use with -printf.funcs.
+		_, ok = isPrint[strings.ToLower(fn.Name())]
+	}
+	if ok {
+		if strings.HasSuffix(fn.Name(), "f") {
+			return KindPrintf
+		} else {
+			return KindPrint
+		}
+	}
+
+	return r.funcs[fn]
+}
+
 // isWrapper is a fact indicating that a function is a print or printf wrapper.
-type isWrapper struct{ Kind funcKind }
+type isWrapper struct{ Kind Kind }
 
 func (f *isWrapper) AFact() {}
 
 func (f *isWrapper) String() string {
 	switch f.Kind {
-	case kindPrintf:
+	case KindPrintf:
 		return "printfWrapper"
-	case kindPrint:
+	case KindPrint:
 		return "printWrapper"
-	case kindErrorf:
+	case KindErrorf:
 		return "errorfWrapper"
 	default:
 		return "unknownWrapper"
@@ -85,9 +133,12 @@ func (f *isWrapper) String() string {
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
-	findPrintfLike(pass)
+	res := &Result{
+		funcs: make(map[*types.Func]Kind),
+	}
+	findPrintfLike(pass, res)
 	checkCall(pass)
-	return nil, nil
+	return res, nil
 }
 
 type printfWrapper struct {
@@ -154,7 +205,7 @@ func maybePrintfWrapper(info *types.Info, decl ast.Decl) *printfWrapper {
 }
 
 // findPrintfLike scans the entire package to find printf-like functions.
-func findPrintfLike(pass *analysis.Pass) (interface{}, error) {
+func findPrintfLike(pass *analysis.Pass, res *Result) (interface{}, error) {
 	// Gather potential wrappers and call graph between them.
 	byObj := make(map[*types.Func]*printfWrapper)
 	var wrappers []*printfWrapper
@@ -209,7 +260,7 @@ func findPrintfLike(pass *analysis.Pass) (interface{}, error) {
 
 			fn, kind := printfNameAndKind(pass, call)
 			if kind != 0 {
-				checkPrintfFwd(pass, w, call, kind)
+				checkPrintfFwd(pass, w, call, kind, res)
 				return true
 			}
 
@@ -232,20 +283,11 @@ func match(info *types.Info, arg ast.Expr, param *types.Var) bool {
 	return ok && info.ObjectOf(id) == param
 }
 
-type funcKind int
-
-const (
-	kindUnknown funcKind = iota
-	kindPrintf           = iota
-	kindPrint
-	kindErrorf
-)
-
 // checkPrintfFwd checks that a printf-forwarding wrapper is forwarding correctly.
 // It diagnoses writing fmt.Printf(format, args) instead of fmt.Printf(format, args...).
-func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, kind funcKind) {
-	matched := kind == kindPrint ||
-		kind != kindUnknown && len(call.Args) >= 2 && match(pass.TypesInfo, call.Args[len(call.Args)-2], w.format)
+func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, kind Kind, res *Result) {
+	matched := kind == KindPrint ||
+		kind != KindNone && len(call.Args) >= 2 && match(pass.TypesInfo, call.Args[len(call.Args)-2], w.format)
 	if !matched {
 		return
 	}
@@ -266,7 +308,7 @@ func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, k
 			return
 		}
 		desc := "printf"
-		if kind == kindPrint {
+		if kind == KindPrint {
 			desc = "print"
 		}
 		pass.Reportf(call.Pos(), "missing ... in args forwarded to %s-like function", desc)
@@ -277,8 +319,9 @@ func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, k
 	if !pass.ImportObjectFact(fn, &fact) {
 		fact.Kind = kind
 		pass.ExportObjectFact(fn, &fact)
+		res.funcs[fn] = kind
 		for _, caller := range w.callers {
-			checkPrintfFwd(pass, caller.w, caller.call, kind)
+			checkPrintfFwd(pass, caller.w, caller.call, kind, res)
 		}
 	}
 }
@@ -427,15 +470,15 @@ func checkCall(pass *analysis.Pass) {
 		call := n.(*ast.CallExpr)
 		fn, kind := printfNameAndKind(pass, call)
 		switch kind {
-		case kindPrintf, kindErrorf:
+		case KindPrintf, KindErrorf:
 			checkPrintf(pass, kind, call, fn)
-		case kindPrint:
+		case KindPrint:
 			checkPrint(pass, call, fn)
 		}
 	})
 }
 
-func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func, kind funcKind) {
+func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func, kind Kind) {
 	fn, _ = typeutil.Callee(pass.TypesInfo, call).(*types.Func)
 	if fn == nil {
 		return nil, 0
@@ -448,11 +491,11 @@ func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func,
 	}
 	if ok {
 		if fn.Name() == "Errorf" {
-			kind = kindErrorf
+			kind = KindErrorf
 		} else if strings.HasSuffix(fn.Name(), "f") {
-			kind = kindPrintf
+			kind = KindPrintf
 		} else {
-			kind = kindPrint
+			kind = KindPrint
 		}
 		return fn, kind
 	}
@@ -462,7 +505,7 @@ func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func,
 		return fn, fact.Kind
 	}
 
-	return fn, kindUnknown
+	return fn, KindNone
 }
 
 // isFormatter reports whether t satisfies fmt.Formatter.
@@ -504,7 +547,7 @@ type formatState struct {
 }
 
 // checkPrintf checks a call to a formatted print routine such as Printf.
-func checkPrintf(pass *analysis.Pass, kind funcKind, call *ast.CallExpr, fn *types.Func) {
+func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.Func) {
 	format, idx := formatString(pass, call)
 	if idx < 0 {
 		if false {
@@ -542,7 +585,7 @@ func checkPrintf(pass *analysis.Pass, kind funcKind, call *ast.CallExpr, fn *typ
 			anyIndex = true
 		}
 		if state.verb == 'w' {
-			if kind != kindErrorf {
+			if kind != KindErrorf {
 				pass.Reportf(call.Pos(), "%s call has error-wrapping directive %%w", state.name)
 				return
 			}
