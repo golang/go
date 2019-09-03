@@ -82,6 +82,9 @@ func TestIExportData_stdlib(t *testing.T) {
 	if isRace {
 		t.Skipf("stdlib tests take too long in race mode and flake on builders")
 	}
+	if testing.Short() {
+		t.Skip("skipping RAM hungry test in -short mode")
+	}
 
 	// Load, parse and type-check the program.
 	ctxt := build.Default // copy
