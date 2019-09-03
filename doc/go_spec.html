@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 14, 2019",
+	"Subtitle": "Version of Aug 26, 2019",
 	"Path": "/ref/spec"
 }-->
 
@@ -1244,24 +1244,36 @@ The value of an uninitialized variable of interface type is <code>nil</code>.
 </p>
 
 <pre class="ebnf">
-InterfaceType      = "interface" "{" { MethodSpec ";" } "}" .
-MethodSpec         = MethodName Signature | InterfaceTypeName .
+InterfaceType      = "interface" "{" { ( MethodSpec | InterfaceTypeName ) ";" } "}" .
+MethodSpec         = MethodName Signature .
 MethodName         = identifier .
 InterfaceTypeName  = TypeName .
 </pre>
 
 <p>
-As with all method sets, in an interface type, each method must have a
-<a href="#Uniqueness_of_identifiers">unique</a>
-non-<a href="#Blank_identifier">blank</a> name.
+An interface type may specify methods <i>explicitly</i> through method specifications,
+or it may <i>embed</i> methods of other interfaces through interface type names.
 </p>
 
 <pre>
-// A simple File interface
+// A simple File interface.
 interface {
-	Read(b Buffer) bool
-	Write(b Buffer) bool
-	Close()
+	Read([]byte) (int, error)
+	Write([]byte) (int, error)
+	Close() error
+}
+</pre>
+
+<p>
+The name of each explicitly specified method must be <a href="#Uniqueness_of_identifiers">unique</a>
+and not <a href="#Blank_identifier">blank</a>.
+</p>
+
+<pre>
+interface {
+	String() string
+	String() string  // illegal: String not unique
+	_(x int)         // illegal: method must have non-blank name
 }
 </pre>
 
@@ -1272,9 +1284,9 @@ have the method set
 </p>
 
 <pre>
-func (p T) Read(b Buffer) bool { return … }
-func (p T) Write(b Buffer) bool { return … }
-func (p T) Close() { … }
+func (p T) Read(p []byte) (n int, err error)
+func (p T) Write(p []byte) (n int, err error)
+func (p T) Close() error
 </pre>
 
 <p>
@@ -1324,27 +1336,41 @@ as the <code>File</code> interface.
 <p>
 An interface <code>T</code> may use a (possibly qualified) interface type
 name <code>E</code> in place of a method specification. This is called
-<i>embedding</i> interface <code>E</code> in <code>T</code>; it adds
-all (exported and non-exported) methods of <code>E</code> to the interface
-<code>T</code>.
+<i>embedding</i> interface <code>E</code> in <code>T</code>.
+The <a href="#Method_sets">method set</a> of <code>T</code> is the <i>union</i>
+of the method sets of <code>T</code>’s explicitly declared methods and of
+<code>T</code>’s embedded interfaces.
 </p>
 
 <pre>
+type Reader interface {
+	Read(p []byte) (n int, err error)
+	Close() error
+}
+
+type Writer interface {
+	Write(p []byte) (n int, err error)
+	Close() error
+}
+
+// ReadWriter's methods are Read, Write, and Close.
 type ReadWriter interface {
-	Read(b Buffer) bool
-	Write(b Buffer) bool
+	Reader  // includes methods of Reader in ReadWriter's method set
+	Writer  // includes methods of Writer in ReadWriter's method set
 }
+</pre>
 
-type File interface {
-	ReadWriter  // same as adding the methods of ReadWriter
-	Locker      // same as adding the methods of Locker
-	Close()
-}
+<p>
+A <i>union</i> of method sets contains the (exported and non-exported)
+methods of each method set exactly once, and methods with the
+<a href="#Uniqueness_of_identifiers">same</a> names must
+have <a href="#Type_identity">identical</a> signatures.
+</p>
 
-type LockedFile interface {
-	Locker
-	File        // illegal: Lock, Unlock not unique
-	Lock()      // illegal: Lock not unique
+<pre>
+type ReadCloser interface {
+	Reader   // includes methods of Reader in ReadCloser's method set
+	Close()  // illegal: signatures of Reader.Close and Close are different
 }
 </pre>
 

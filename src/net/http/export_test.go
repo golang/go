@@ -166,30 +166,40 @@ func (t *Transport) IdleConnCountForTesting(scheme, addr string) int {
 	return 0
 }
 
-func (t *Transport) IdleConnChMapSizeForTesting() int {
+func (t *Transport) IdleConnWaitMapSizeForTesting() int {
 	t.idleMu.Lock()
 	defer t.idleMu.Unlock()
-	return len(t.idleConnCh)
+	return len(t.idleConnWait)
 }
 
 func (t *Transport) IsIdleForTesting() bool {
 	t.idleMu.Lock()
 	defer t.idleMu.Unlock()
-	return t.wantIdle
+	return t.closeIdle
 }
 
-func (t *Transport) RequestIdleConnChForTesting() {
-	t.getIdleConnCh(connectMethod{nil, "http", "example.com", false})
+func (t *Transport) QueueForIdleConnForTesting() {
+	t.queueForIdleConn(nil)
 }
 
+// PutIdleTestConn reports whether it was able to insert a fresh
+// persistConn for scheme, addr into the idle connection pool.
 func (t *Transport) PutIdleTestConn(scheme, addr string) bool {
 	c, _ := net.Pipe()
 	key := connectMethodKey{"", scheme, addr, false}
-	select {
-	case <-t.incHostConnCount(key):
-	default:
-		return false
+
+	if t.MaxConnsPerHost > 0 {
+		// Transport is tracking conns-per-host.
+		// Increment connection count to account
+		// for new persistConn created below.
+		t.connsPerHostMu.Lock()
+		if t.connsPerHost == nil {
+			t.connsPerHost = make(map[connectMethodKey]int)
+		}
+		t.connsPerHost[key]++
+		t.connsPerHostMu.Unlock()
 	}
+
 	return t.tryPutIdleConn(&persistConn{
 		t:        t,
 		conn:     c,                   // dummy

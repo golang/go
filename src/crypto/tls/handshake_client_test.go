@@ -25,18 +25,6 @@ import (
 	"time"
 )
 
-func init() {
-	// TLS 1.3 cipher suites preferences are not configurable and change based
-	// on the architecture. Force them to the version with AES acceleration for
-	// test consistency.
-	once.Do(initDefaultCipherSuites)
-	varDefaultCipherSuitesTLS13 = []uint16{
-		TLS_AES_128_GCM_SHA256,
-		TLS_CHACHA20_POLY1305_SHA256,
-		TLS_AES_256_GCM_SHA384,
-	}
-}
-
 // Note: see comment in handshake_test.go for details of how the reference
 // tests work.
 
@@ -287,8 +275,6 @@ func (test *clientTest) loadData() (flows [][]byte, err error) {
 }
 
 func (test *clientTest) run(t *testing.T, write bool) {
-	checkOpenSSLVersion(t)
-
 	var clientConn, serverConn net.Conn
 	var recordingConn *recordingConn
 	var childProcess *exec.Cmd

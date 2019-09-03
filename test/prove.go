@@ -853,6 +853,63 @@ func unrollIncMin(a []int) int {
 	return x
 }
 
+// The 4 xxxxExtNto64 functions below test whether prove is looking
+// through value-preserving sign/zero extensions of index values (issue #26292).
+
+// Look through all extensions
+func signExtNto64(x []int, j8 int8, j16 int16, j32 int32) int {
+	if len(x) < 22 {
+		return 0
+	}
+	if j8 >= 0 && j8 < 22 {
+		return x[j8]  // ERROR "Proved IsInBounds$"
+	}
+	if j16 >= 0 && j16 < 22 {
+		return x[j16]  // ERROR "Proved IsInBounds$"
+	}
+	if j32 >= 0 && j32 < 22 {
+		return x[j32]  // ERROR "Proved IsInBounds$"
+	}
+	return 0
+}
+
+func zeroExtNto64(x []int, j8 uint8, j16 uint16, j32 uint32) int {
+	if len(x) < 22 {
+		return 0
+	}
+	if j8 >= 0 && j8 < 22 {
+		return x[j8]  // ERROR "Proved IsInBounds$"
+	}
+	if j16 >= 0 && j16 < 22 {
+		return x[j16]  // ERROR "Proved IsInBounds$"
+	}
+	if j32 >= 0 && j32 < 22 {
+		return x[j32]  // ERROR "Proved IsInBounds$"
+	}
+	return 0
+}
+
+// Process fence-post implications through 32to64 extensions (issue #29964)
+func signExt32to64Fence(x []int, j int32) int {
+	if x[j] != 0 {
+		return 1
+	}
+	if j > 0 && x[j-1] != 0 {  // ERROR "Proved IsInBounds$"
+		return 1
+	}
+	return 0
+}
+
+func zeroExt32to64Fence(x []int, j uint32) int {
+	if x[j] != 0 {
+		return 1
+	}
+	if j > 0 && x[j-1] != 0 {  // ERROR "Proved IsInBounds$"
+		return 1
+	}
+	return 0
+}
+
 //go:noinline
 func useInt(a int) {
 }

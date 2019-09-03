@@ -3176,6 +3176,12 @@ func TestGoTestFooTestWorks(t *testing.T) {
 	tg.run("test", "testdata/standalone_test.go")
 }
 
+func TestGoTestTestMainSeesTestingFlags(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.run("test", "testdata/standalone_testmain_flag_test.go")
+}
+
 // Issue 22388
 func TestGoTestMainWithWrongSignature(t *testing.T) {
 	tg := testgo(t)
@@ -5068,6 +5074,11 @@ func TestExecBuildX(t *testing.T) {
 
 	tg.tempDir("cache")
 	tg.setenv("GOCACHE", tg.path("cache"))
+
+	// Before building our test main.go, ensure that an up-to-date copy of
+	// runtime/cgo is present in the cache. If it isn't, the 'go build' step below
+	// will fail with "can't open import". See golang.org/issue/29004.
+	tg.run("build", "runtime/cgo")
 
 	tg.tempFile("main.go", `package main; import "C"; func main() { print("hello") }`)
 	src := tg.path("main.go")

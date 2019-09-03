@@ -513,12 +513,12 @@ func (n *IPNet) Contains(ip IP) bool {
 // Network returns the address's network name, "ip+net".
 func (n *IPNet) Network() string { return "ip+net" }
 
-// String returns the CIDR notation of n like "192.0.2.1/24"
+// String returns the CIDR notation of n like "192.0.2.0/24"
 // or "2001:db8::/48" as defined in RFC 4632 and RFC 4291.
 // If the mask is not in the canonical form, it returns the
 // string which consists of an IP address, followed by a slash
 // character and a mask expressed as hexadecimal form with no
-// punctuation like "198.51.100.1/c000ff00".
+// punctuation like "198.51.100.0/c000ff00".
 func (n *IPNet) String() string {
 	nn, m := networkNumberAndMask(n)
 	if nn == nil || m == nil {

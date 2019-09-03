@@ -41,7 +41,7 @@ func NewWriter(w io.Writer) *Writer {
 	}
 }
 
-// Writer writes a single CSV record to w along with any necessary quoting.
+// Write writes a single CSV record to w along with any necessary quoting.
 // A record is a slice of strings with each string being one field.
 // Writes are buffered, so Flush must eventually be called to ensure
 // that the record is written to the underlying io.Writer.

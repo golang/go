@@ -7,7 +7,10 @@ package runtime
 import "unsafe"
 
 type mOS struct {
-	sema uintptr
+	initialized bool
+	mutex       pthreadmutex
+	cond        pthreadcond
+	count       int
 }
 
 func unimplemented(name string) {
@@ -17,32 +20,105 @@ func unimplemented(name string) {
 
 //go:nosplit
 func semacreate(mp *m) {
-	if mp.sema == 0 {
-		mp.sema = dispatch_semaphore_create(0)
+	if mp.initialized {
+		return
+	}
+	mp.initialized = true
+	if err := pthread_mutex_init(&mp.mutex, nil); err != 0 {
+		throw("pthread_mutex_init")
+	}
+	if err := pthread_cond_init(&mp.cond, nil); err != 0 {
+		throw("pthread_cond_init")
 	}
 }
 
-const (
-	_DISPATCH_TIME_NOW     = uint64(0)
-	_DISPATCH_TIME_FOREVER = ^uint64(0)
-)
-
 //go:nosplit
 func semasleep(ns int64) int32 {
-	mp := getg().m
-	t := _DISPATCH_TIME_FOREVER
+	var start int64
 	if ns >= 0 {
-		t = dispatch_time(_DISPATCH_TIME_NOW, ns)
+		start = nanotime()
 	}
-	if dispatch_semaphore_wait(mp.sema, t) != 0 {
-		return -1
+	mp := getg().m
+	pthread_mutex_lock(&mp.mutex)
+	for {
+		if mp.count > 0 {
+			mp.count--
+			pthread_mutex_unlock(&mp.mutex)
+			return 0
+		}
+		if ns >= 0 {
+			spent := nanotime() - start
+			if spent >= ns {
+				pthread_mutex_unlock(&mp.mutex)
+				return -1
+			}
+			var t timespec
+			t.setNsec(ns - spent)
+			err := pthread_cond_timedwait_relative_np(&mp.cond, &mp.mutex, &t)
+			if err == _ETIMEDOUT {
+				pthread_mutex_unlock(&mp.mutex)
+				return -1
+			}
+		} else {
+			pthread_cond_wait(&mp.cond, &mp.mutex)
+		}
 	}
-	return 0
 }
 
 //go:nosplit
 func semawakeup(mp *m) {
-	dispatch_semaphore_signal(mp.sema)
+	pthread_mutex_lock(&mp.mutex)
+	mp.count++
+	if mp.count > 0 {
+		pthread_cond_signal(&mp.cond)
+	}
+	pthread_mutex_unlock(&mp.mutex)
+}
+
+// The read and write file descriptors used by the sigNote functions.
+var sigNoteRead, sigNoteWrite int32
+
+// sigNoteSetup initializes an async-signal-safe note.
+//
+// The current implementation of notes on Darwin is not async-signal-safe,
+// because the functions pthread_mutex_lock, pthread_cond_signal, and
+// pthread_mutex_unlock, called by semawakeup, are not async-signal-safe.
+// There is only one case where we need to wake up a note from a signal
+// handler: the sigsend function. The signal handler code does not require
+// all the features of notes: it does not need to do a timed wait.
+// This is a separate implementation of notes, based on a pipe, that does
+// not support timed waits but is async-signal-safe.
+func sigNoteSetup(*note) {
+	if sigNoteRead != 0 || sigNoteWrite != 0 {
+		throw("duplicate sigNoteSetup")
+	}
+	var errno int32
+	sigNoteRead, sigNoteWrite, errno = pipe()
+	if errno != 0 {
+		throw("pipe failed")
+	}
+	closeonexec(sigNoteRead)
+	closeonexec(sigNoteWrite)
+
+	// Make the write end of the pipe non-blocking, so that if the pipe
+	// buffer is somehow full we will not block in the signal handler.
+	// Leave the read end of the pipe blocking so that we will block
+	// in sigNoteSleep.
+	setNonblock(sigNoteWrite)
+}
+
+// sigNoteWakeup wakes up a thread sleeping on a note created by sigNoteSetup.
+func sigNoteWakeup(*note) {
+	var b byte
+	write(uintptr(sigNoteWrite), unsafe.Pointer(&b), 1)
+}
+
+// sigNoteSleep waits for a note created by sigNoteSetup to be woken.
+func sigNoteSleep(*note) {
+	entersyscallblock()
+	var b byte
+	read(sigNoteRead, unsafe.Pointer(&b), 1)
+	exitsyscall()
 }
 
 // BSD interface for threading.

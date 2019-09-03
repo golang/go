@@ -22,6 +22,7 @@ import (
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
 	"cmd/go/internal/semver"
+	"cmd/go/internal/str"
 )
 
 type ImportMissingError struct {
@@ -35,6 +36,9 @@ type ImportMissingError struct {
 
 func (e *ImportMissingError) Error() string {
 	if e.Module.Path == "" {
+		if str.HasPathPrefix(e.ImportPath, "cmd") {
+			return fmt.Sprintf("package %s is not in GOROOT (%s)", e.ImportPath, filepath.Join(cfg.GOROOT, "src", e.ImportPath))
+		}
 		return "cannot find module providing package " + e.ImportPath
 	}
 	return "missing module for import: " + e.Module.Path + "@" + e.Module.Version + " provides " + e.ImportPath
@@ -73,6 +77,9 @@ func Import(path string) (m module.Version, dir string, err error) {
 		}
 		dir := filepath.Join(cfg.GOROOT, "src", path)
 		return module.Version{}, dir, nil
+	}
+	if str.HasPathPrefix(path, "cmd") {
+		return module.Version{}, "", &ImportMissingError{ImportPath: path}
 	}
 
 	// -mod=vendor is special.

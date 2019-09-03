@@ -1,0 +1,50 @@
+env GO111MODULE=on
+
+# Regression test for golang.org/issue/32715.
+
+# When using $GOPATH/pkg/mod/cache/download as a proxy,
+# 'latest' queries should prefer tagged versions over pseudo-versions.
+
+go mod download github.com/dmitshur-test/modtest5@v0.0.0-20190619020302-197a620e0c9a
+go mod download github.com/dmitshur-test/modtest5@v0.5.0-alpha
+go mod download github.com/dmitshur-test/modtest5@v0.5.0-alpha.0.20190619023908-3da23a9deb9e
+cmp $GOPATH/pkg/mod/cache/download/github.com/dmitshur-test/modtest5/@v/list $WORK/modtest5.list
+
+env GOPROXY=file:///$GOPATH/pkg/mod/cache/download
+env GOPATH=$WORK/gopath2
+mkdir $GOPATH
+
+go list -m -json github.com/dmitshur-test/modtest5@latest
+cmp stdout $WORK/modtest5.json
+
+# If the module proxy contains only pseudo-versions, 'latest' should stat
+# the version with the most recent timestamp — not the highest semantic
+# version — and return its metadata.
+env GOPROXY=file:///$WORK/tinyproxy
+go list -m -json dmitri.shuralyov.com/test/modtest3@latest
+cmp stdout $WORK/modtest3.json
+
+-- $WORK/modtest5.list --
+v0.0.0-20190619020302-197a620e0c9a
+v0.5.0-alpha
+v0.5.0-alpha.0.20190619023908-3da23a9deb9e
+-- $WORK/modtest5.json --
+{
+	"Path": "github.com/dmitshur-test/modtest5",
+	"Version": "v0.5.0-alpha",
+	"Time": "2019-06-18T19:04:46-07:00"
+}
+-- $WORK/tinyproxy/dmitri.shuralyov.com/test/modtest3/@v/list --
+v0.1.0-0.20161023043300-000000000000
+v0.0.0-20181023043359-a85b471d5412
+-- $WORK/tinyproxy/dmitri.shuralyov.com/test/modtest3/@v/v0.0.0-20181023043359-a85b471d5412.info --
+{
+	"Version": "v0.0.0-20181023043359-a85b471d5412",
+	"Time": "2018-10-22T21:33:59-07:00"
+}
+-- $WORK/modtest3.json --
+{
+	"Path": "dmitri.shuralyov.com/test/modtest3",
+	"Version": "v0.0.0-20181023043359-a85b471d5412",
+	"Time": "2018-10-22T21:33:59-07:00"
+}

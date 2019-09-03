@@ -60,7 +60,17 @@ func dbDial() (dbName string, db *sumweb.Conn, err error) {
 	// $GOSUMDB can be "key" or "key url",
 	// and the key can be a full verifier key
 	// or a host on our list of known keys.
-	key := strings.Fields(cfg.GOSUMDB)
+
+	// Special case: sum.golang.google.cn
+	// is an alias, reachable inside mainland China,
+	// for sum.golang.org. If there are more
+	// of these we should add a map like knownGOSUMDB.
+	gosumdb := cfg.GOSUMDB
+	if gosumdb == "sum.golang.google.cn" {
+		gosumdb = "sum.golang.org https://sum.golang.google.cn"
+	}
+
+	key := strings.Fields(gosumdb)
 	if len(key) >= 1 {
 		if k := knownGOSUMDB[key[0]]; k != "" {
 			key[0] = k
@@ -232,10 +242,10 @@ func (*dbClient) WriteConfig(file string, old, new []byte) error {
 }
 
 // ReadCache reads cached lookups or tiles from
-// GOPATH/pkg/mod/download/cache/sumdb,
+// GOPATH/pkg/mod/cache/download/sumdb,
 // which will be deleted by "go clean -modcache".
 func (*dbClient) ReadCache(file string) ([]byte, error) {
-	targ := filepath.Join(PkgMod, "download/cache/sumdb", file)
+	targ := filepath.Join(PkgMod, "cache/download/sumdb", file)
 	data, err := lockedfile.Read(targ)
 	// lockedfile.Write does not atomically create the file with contents.
 	// There is a moment between file creation and locking the file for writing,
@@ -249,7 +259,7 @@ func (*dbClient) ReadCache(file string) ([]byte, error) {
 
 // WriteCache updates cached lookups or tiles.
 func (*dbClient) WriteCache(file string, data []byte) {
-	targ := filepath.Join(PkgMod, "download/cache/sumdb", file)
+	targ := filepath.Join(PkgMod, "cache/download/sumdb", file)
 	os.MkdirAll(filepath.Dir(targ), 0777)
 	lockedfile.Write(targ, bytes.NewReader(data), 0666)
 }

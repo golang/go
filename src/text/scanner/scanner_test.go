@@ -886,8 +886,7 @@ func TestIssue30320(t *testing.T) {
 		{"foo01.bar31.xx-0-1-1-0", "01 31 0 1 1 0", ScanInts},
 		{"foo0/12/0/5.67", "0 12 0 5 67", ScanInts},
 		{"xxx1e0yyy", "1 0", ScanInts},
-		{"1_2", "1 2", ScanInts}, // don't consume _ as part of a number if not explicitly enabled
-		{"1_2", "1_2", ScanInts | AllowNumberbars},
+		{"1_2", "1_2", ScanInts},
 		{"xxx1.0yyy2e3ee", "1 0 2 3", ScanInts},
 		{"xxx1.0yyy2e3ee", "1.0 2e3", ScanFloats},
 	} {

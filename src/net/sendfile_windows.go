@@ -29,6 +29,13 @@ func sendFile(fd *netFD, r io.Reader) (written int64, err error, handled bool) {
 		if n <= 0 {
 			return 0, nil, true
 		}
+		// TransmitFile can be invoked in one call with at most
+		// 2,147,483,646 bytes: the maximum value for a 32-bit integer minus 1.
+		// See https://docs.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-transmitfile
+		const maxSendBytes = 0x7fffffff - 1
+		if n > maxSendBytes {
+			return 0, nil, false
+		}
 	}
 	f, ok := r.(*os.File)
 	if !ok {

@@ -576,10 +576,10 @@ func structfield(n *Node) *types.Field {
 
 // checkdupfields emits errors for duplicately named fields or methods in
 // a list of struct or interface types.
-func checkdupfields(what string, ts ...*types.Type) {
+func checkdupfields(what string, fss ...[]*types.Field) {
 	seen := make(map[*types.Sym]bool)
-	for _, t := range ts {
-		for _, f := range t.Fields().Slice() {
+	for _, fs := range fss {
+		for _, f := range fs {
 			if f.Sym == nil || f.Sym.IsBlank() {
 				continue
 			}
@@ -615,7 +615,7 @@ func tostruct0(t *types.Type, l []*Node) {
 	}
 	t.SetFields(fields)
 
-	checkdupfields("field", t)
+	checkdupfields("field", t.FieldSlice())
 
 	if !t.Broke() {
 		checkwidth(t)
@@ -747,7 +747,7 @@ func functype0(t *types.Type, this *Node, in, out []*Node) {
 	t.FuncType().Params = tofunargs(in, types.FunargParams)
 	t.FuncType().Results = tofunargs(out, types.FunargResults)
 
-	checkdupfields("argument", t.Recvs(), t.Params(), t.Results())
+	checkdupfields("argument", t.Recvs().FieldSlice(), t.Params().FieldSlice(), t.Results().FieldSlice())
 
 	if t.Recvs().Broke() || t.Results().Broke() || t.Params().Broke() {
 		t.SetBroke(true)

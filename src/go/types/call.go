@@ -370,7 +370,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		goto Error
 	}
 
-	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
+	obj, index, indirect = check.LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
 	if obj == nil {
 		switch {
 		case index != nil:
@@ -437,6 +437,10 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 
 			if debug {
 				// Verify that LookupFieldOrMethod and MethodSet.Lookup agree.
+				// TODO(gri) This only works because we call LookupFieldOrMethod
+				// _before_ calling NewMethodSet: LookupFieldOrMethod completes
+				// any incomplete interfaces so they are avaible to NewMethodSet
+				// (which assumes that interfaces have been completed already).
 				typ := x.typ
 				if x.mode == variable {
 					// If typ is not an (unnamed) pointer or an interface,

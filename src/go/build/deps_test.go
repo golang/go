@@ -173,6 +173,7 @@ var pkgDeps = map[string][]string{
 		"syscall/js",
 	},
 
+	"internal/cfg":     {"L0"},
 	"internal/poll":    {"L0", "internal/oserror", "internal/race", "syscall", "time", "unicode/utf16", "unicode/utf8", "internal/syscall/windows"},
 	"internal/testlog": {"L0"},
 	"os":               {"L1", "os", "syscall", "time", "internal/oserror", "internal/poll", "internal/syscall/windows", "internal/syscall/unix", "internal/testlog"},
@@ -206,7 +207,7 @@ var pkgDeps = map[string][]string{
 	"testing":               {"L2", "flag", "fmt", "internal/race", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
 	"testing/iotest":        {"L2", "log"},
 	"testing/quick":         {"L2", "flag", "fmt", "reflect", "time"},
-	"internal/testenv":      {"L2", "OS", "flag", "testing", "syscall"},
+	"internal/testenv":      {"L2", "OS", "flag", "testing", "syscall", "internal/cfg"},
 	"internal/lazyregexp":   {"L2", "OS", "regexp"},
 	"internal/lazytemplate": {"L2", "OS", "text/template"},
 
@@ -256,7 +257,7 @@ var pkgDeps = map[string][]string{
 	"compress/gzip":                  {"L4", "compress/flate"},
 	"compress/lzw":                   {"L4"},
 	"compress/zlib":                  {"L4", "compress/flate"},
-	"context":                        {"errors", "internal/oserror", "internal/reflectlite", "sync", "time"},
+	"context":                        {"errors", "internal/reflectlite", "sync", "time"},
 	"database/sql":                   {"L4", "container/list", "context", "database/sql/driver", "database/sql/internal"},
 	"database/sql/driver":            {"L4", "context", "time", "database/sql/internal"},
 	"debug/dwarf":                    {"L4"},

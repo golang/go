@@ -42,8 +42,9 @@ import (
 )
 
 var (
-	listErrors = flag.Bool("errlist", false, "list errors")
-	testFiles  = flag.String("files", "", "space-separated list of test files")
+	haltOnError = flag.Bool("halt", false, "halt on error")
+	listErrors  = flag.Bool("errlist", false, "list errors")
+	testFiles   = flag.String("files", "", "space-separated list of test files")
 )
 
 // The test filenames do not end in .go so that they are invisible
@@ -96,6 +97,7 @@ var tests = [][]string{
 	{"testdata/issue23203a.src"},
 	{"testdata/issue23203b.src"},
 	{"testdata/issue28251.src"},
+	{"testdata/issue6977.src"},
 }
 
 var fset = token.NewFileSet()
@@ -262,6 +264,9 @@ func checkFiles(t *testing.T, testfiles []string) {
 	}
 	conf.Importer = importer.Default()
 	conf.Error = func(err error) {
+		if *haltOnError {
+			defer panic(err)
+		}
 		if *listErrors {
 			t.Error(err)
 			return

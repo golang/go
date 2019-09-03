@@ -128,7 +128,7 @@ func TestConvertLegacyConfig(t *testing.T) {
 
 		{
 			// golang.org/issue/24585 - confusion about v2.0.0 tag in legacy non-v2 module
-			"github.com/fishy/gcsbucket", "v0.0.0-20150410205453-618d60fe84e0",
+			"github.com/fishy/gcsbucket", "v0.0.0-20180217031846-618d60fe84e0",
 			`module github.com/fishy/gcsbucket
 
 			require (

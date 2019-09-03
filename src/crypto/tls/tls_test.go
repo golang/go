@@ -359,50 +359,6 @@ func TestVerifyHostname(t *testing.T) {
 	}
 }
 
-func TestVerifyHostnameResumed(t *testing.T) {
-	t.Run("TLSv12", func(t *testing.T) { testVerifyHostnameResumed(t, VersionTLS12) })
-	t.Run("TLSv13", func(t *testing.T) { testVerifyHostnameResumed(t, VersionTLS13) })
-}
-
-func testVerifyHostnameResumed(t *testing.T, version uint16) {
-	testenv.MustHaveExternalNetwork(t)
-
-	config := &Config{
-		MaxVersion:         version,
-		ClientSessionCache: NewLRUClientSessionCache(32),
-	}
-	for i := 0; i < 2; i++ {
-		c, err := DialWithDialer(&net.Dialer{
-			Timeout: 10 * time.Second,
-		}, "tcp", "mail.google.com:https", config)
-		if err != nil {
-			t.Fatalf("Dial #%d: %v", i, err)
-		}
-		cs := c.ConnectionState()
-		if i > 0 && !cs.DidResume {
-			t.Fatalf("Subsequent connection unexpectedly didn't resume")
-		}
-		if cs.Version != version {
-			t.Fatalf("Unexpectedly negotiated version %x", cs.Version)
-		}
-		if cs.VerifiedChains == nil {
-			t.Fatalf("Dial #%d: cs.VerifiedChains == nil", i)
-		}
-		if err := c.VerifyHostname("mail.google.com"); err != nil {
-			t.Fatalf("verify mail.google.com #%d: %v", i, err)
-		}
-		// Have the server send some data so session tickets are delivered.
-		c.SetDeadline(time.Now().Add(5 * time.Second))
-		if _, err := io.WriteString(c, "HEAD / HTTP/1.0\n\n"); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := c.Read(make([]byte, 1)); err != nil {
-			t.Fatal(err)
-		}
-		c.Close()
-	}
-}
-
 func TestConnCloseBreakingWrite(t *testing.T) {
 	ln := newLocalListener(t)
 	defer ln.Close()

@@ -3,17 +3,8 @@
 
 package ssa
 
-import "fmt"
 import "math"
-import "cmd/internal/obj"
-import "cmd/internal/objabi"
 import "cmd/compile/internal/types"
-
-var _ = fmt.Println   // in case not otherwise used
-var _ = math.MinInt8  // in case not otherwise used
-var _ = obj.ANOP      // in case not otherwise used
-var _ = objabi.GOROOT // in case not otherwise used
-var _ = types.TypeMem // in case not otherwise used
 
 func rewriteValuegeneric(v *Value) bool {
 	switch v.Op {
@@ -98,7 +89,7 @@ func rewriteValuegeneric(v *Value) bool {
 	case OpDiv8u:
 		return rewriteValuegeneric_OpDiv8u_0(v)
 	case OpEq16:
-		return rewriteValuegeneric_OpEq16_0(v) || rewriteValuegeneric_OpEq16_10(v) || rewriteValuegeneric_OpEq16_20(v) || rewriteValuegeneric_OpEq16_30(v) || rewriteValuegeneric_OpEq16_40(v) || rewriteValuegeneric_OpEq16_50(v)
+		return rewriteValuegeneric_OpEq16_0(v) || rewriteValuegeneric_OpEq16_10(v) || rewriteValuegeneric_OpEq16_20(v) || rewriteValuegeneric_OpEq16_30(v) || rewriteValuegeneric_OpEq16_40(v) || rewriteValuegeneric_OpEq16_50(v) || rewriteValuegeneric_OpEq16_60(v)
 	case OpEq32:
 		return rewriteValuegeneric_OpEq32_0(v) || rewriteValuegeneric_OpEq32_10(v) || rewriteValuegeneric_OpEq32_20(v) || rewriteValuegeneric_OpEq32_30(v) || rewriteValuegeneric_OpEq32_40(v) || rewriteValuegeneric_OpEq32_50(v) || rewriteValuegeneric_OpEq32_60(v) || rewriteValuegeneric_OpEq32_70(v) || rewriteValuegeneric_OpEq32_80(v) || rewriteValuegeneric_OpEq32_90(v)
 	case OpEq32F:
@@ -284,17 +275,17 @@ func rewriteValuegeneric(v *Value) bool {
 	case OpNeg8:
 		return rewriteValuegeneric_OpNeg8_0(v)
 	case OpNeq16:
-		return rewriteValuegeneric_OpNeq16_0(v)
+		return rewriteValuegeneric_OpNeq16_0(v) || rewriteValuegeneric_OpNeq16_10(v)
 	case OpNeq32:
-		return rewriteValuegeneric_OpNeq32_0(v)
+		return rewriteValuegeneric_OpNeq32_0(v) || rewriteValuegeneric_OpNeq32_10(v)
 	case OpNeq32F:
 		return rewriteValuegeneric_OpNeq32F_0(v)
 	case OpNeq64:
-		return rewriteValuegeneric_OpNeq64_0(v)
+		return rewriteValuegeneric_OpNeq64_0(v) || rewriteValuegeneric_OpNeq64_10(v)
 	case OpNeq64F:
 		return rewriteValuegeneric_OpNeq64F_0(v)
 	case OpNeq8:
-		return rewriteValuegeneric_OpNeq8_0(v)
+		return rewriteValuegeneric_OpNeq8_0(v) || rewriteValuegeneric_OpNeq8_10(v)
 	case OpNeqB:
 		return rewriteValuegeneric_OpNeqB_0(v)
 	case OpNeqInter:
@@ -12725,6 +12716,188 @@ func rewriteValuegeneric_OpEq16_50(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+	// match: (Eq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [y]))
+	// cond: isPowerOfTwo(y)
+	// result: (Neq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd16 {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst16 {
+			break
+		}
+		if v_0_1.Type != t {
+			break
+		}
+		y := v_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst16 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		if v_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpNeq16)
+		v0 := b.NewValue0(v.Pos, OpAnd16, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst16, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst16, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Eq16 (And16 <t> (Const16 <t> [y]) x) (Const16 <t> [y]))
+	// cond: isPowerOfTwo(y)
+	// result: (Neq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd16 {
+			break
+		}
+		t := v_0.Type
+		x := v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst16 {
+			break
+		}
+		if v_0_0.Type != t {
+			break
+		}
+		y := v_0_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst16 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		if v_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpNeq16)
+		v0 := b.NewValue0(v.Pos, OpAnd16, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst16, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst16, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Eq16 (Const16 <t> [y]) (And16 <t> x (Const16 <t> [y])))
+	// cond: isPowerOfTwo(y)
+	// result: (Neq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst16 {
+			break
+		}
+		t := v_0.Type
+		y := v_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpAnd16 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst16 {
+			break
+		}
+		if v_1_1.Type != t {
+			break
+		}
+		if v_1_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpNeq16)
+		v0 := b.NewValue0(v.Pos, OpAnd16, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst16, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst16, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpEq16_60(v *Value) bool {
+	b := v.Block
+	// match: (Eq16 (Const16 <t> [y]) (And16 <t> (Const16 <t> [y]) x))
+	// cond: isPowerOfTwo(y)
+	// result: (Neq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst16 {
+			break
+		}
+		t := v_0.Type
+		y := v_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpAnd16 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		x := v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst16 {
+			break
+		}
+		if v_1_0.Type != t {
+			break
+		}
+		if v_1_0.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpNeq16)
+		v0 := b.NewValue0(v.Pos, OpAnd16, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst16, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst16, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpEq32_0(v *Value) bool {
@@ -19717,6 +19890,184 @@ func rewriteValuegeneric_OpEq32_90(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+	// match: (Eq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [y]))
+	// cond: isPowerOfTwo(y)
+	// result: (Neq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd32 {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst32 {
+			break
+		}
+		if v_0_1.Type != t {
+			break
+		}
+		y := v_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst32 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		if v_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpNeq32)
+		v0 := b.NewValue0(v.Pos, OpAnd32, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst32, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst32, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Eq32 (And32 <t> (Const32 <t> [y]) x) (Const32 <t> [y]))
+	// cond: isPowerOfTwo(y)
+	// result: (Neq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd32 {
+			break
+		}
+		t := v_0.Type
+		x := v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst32 {
+			break
+		}
+		if v_0_0.Type != t {
+			break
+		}
+		y := v_0_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst32 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		if v_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpNeq32)
+		v0 := b.NewValue0(v.Pos, OpAnd32, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst32, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst32, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Eq32 (Const32 <t> [y]) (And32 <t> x (Const32 <t> [y])))
+	// cond: isPowerOfTwo(y)
+	// result: (Neq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst32 {
+			break
+		}
+		t := v_0.Type
+		y := v_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpAnd32 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst32 {
+			break
+		}
+		if v_1_1.Type != t {
+			break
+		}
+		if v_1_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpNeq32)
+		v0 := b.NewValue0(v.Pos, OpAnd32, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst32, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst32, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Eq32 (Const32 <t> [y]) (And32 <t> (Const32 <t> [y]) x))
+	// cond: isPowerOfTwo(y)
+	// result: (Neq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst32 {
+			break
+		}
+		t := v_0.Type
+		y := v_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpAnd32 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		x := v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst32 {
+			break
+		}
+		if v_1_0.Type != t {
+			break
+		}
+		if v_1_0.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpNeq32)
+		v0 := b.NewValue0(v.Pos, OpAnd32, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst32, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst32, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpEq32F_0(v *Value) bool {
@@ -24067,6 +24418,7 @@ func rewriteValuegeneric_OpEq64_50(v *Value) bool {
 	return false
 }
 func rewriteValuegeneric_OpEq64_60(v *Value) bool {
+	b := v.Block
 	// match: (Eq64 (Const64 [0]) s:(Sub64 x y))
 	// cond: s.Uses == 1
 	// result: (Eq64 x y)
@@ -24091,6 +24443,184 @@ func rewriteValuegeneric_OpEq64_60(v *Value) bool {
 		v.reset(OpEq64)
 		v.AddArg(x)
 		v.AddArg(y)
+		return true
+	}
+	// match: (Eq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [y]))
+	// cond: isPowerOfTwo(y)
+	// result: (Neq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd64 {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst64 {
+			break
+		}
+		if v_0_1.Type != t {
+			break
+		}
+		y := v_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		if v_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpNeq64)
+		v0 := b.NewValue0(v.Pos, OpAnd64, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst64, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst64, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Eq64 (And64 <t> (Const64 <t> [y]) x) (Const64 <t> [y]))
+	// cond: isPowerOfTwo(y)
+	// result: (Neq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd64 {
+			break
+		}
+		t := v_0.Type
+		x := v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst64 {
+			break
+		}
+		if v_0_0.Type != t {
+			break
+		}
+		y := v_0_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		if v_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpNeq64)
+		v0 := b.NewValue0(v.Pos, OpAnd64, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst64, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst64, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Eq64 (Const64 <t> [y]) (And64 <t> x (Const64 <t> [y])))
+	// cond: isPowerOfTwo(y)
+	// result: (Neq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst64 {
+			break
+		}
+		t := v_0.Type
+		y := v_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpAnd64 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst64 {
+			break
+		}
+		if v_1_1.Type != t {
+			break
+		}
+		if v_1_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpNeq64)
+		v0 := b.NewValue0(v.Pos, OpAnd64, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst64, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst64, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Eq64 (Const64 <t> [y]) (And64 <t> (Const64 <t> [y]) x))
+	// cond: isPowerOfTwo(y)
+	// result: (Neq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst64 {
+			break
+		}
+		t := v_0.Type
+		y := v_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpAnd64 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		x := v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst64 {
+			break
+		}
+		if v_1_0.Type != t {
+			break
+		}
+		if v_1_0.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpNeq64)
+		v0 := b.NewValue0(v.Pos, OpAnd64, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst64, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst64, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
 		return true
 	}
 	return false
@@ -26184,6 +26714,184 @@ func rewriteValuegeneric_OpEq8_30(v *Value) bool {
 		v.reset(OpEq8)
 		v.AddArg(x)
 		v.AddArg(y)
+		return true
+	}
+	// match: (Eq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [y]))
+	// cond: isPowerOfTwo(y)
+	// result: (Neq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd8 {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst8 {
+			break
+		}
+		if v_0_1.Type != t {
+			break
+		}
+		y := v_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst8 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		if v_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpNeq8)
+		v0 := b.NewValue0(v.Pos, OpAnd8, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst8, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst8, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Eq8 (And8 <t> (Const8 <t> [y]) x) (Const8 <t> [y]))
+	// cond: isPowerOfTwo(y)
+	// result: (Neq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd8 {
+			break
+		}
+		t := v_0.Type
+		x := v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst8 {
+			break
+		}
+		if v_0_0.Type != t {
+			break
+		}
+		y := v_0_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst8 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		if v_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpNeq8)
+		v0 := b.NewValue0(v.Pos, OpAnd8, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst8, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst8, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Eq8 (Const8 <t> [y]) (And8 <t> x (Const8 <t> [y])))
+	// cond: isPowerOfTwo(y)
+	// result: (Neq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst8 {
+			break
+		}
+		t := v_0.Type
+		y := v_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpAnd8 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst8 {
+			break
+		}
+		if v_1_1.Type != t {
+			break
+		}
+		if v_1_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpNeq8)
+		v0 := b.NewValue0(v.Pos, OpAnd8, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst8, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst8, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Eq8 (Const8 <t> [y]) (And8 <t> (Const8 <t> [y]) x))
+	// cond: isPowerOfTwo(y)
+	// result: (Neq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst8 {
+			break
+		}
+		t := v_0.Type
+		y := v_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpAnd8 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		x := v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst8 {
+			break
+		}
+		if v_1_0.Type != t {
+			break
+		}
+		if v_1_0.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpNeq8)
+		v0 := b.NewValue0(v.Pos, OpAnd8, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst8, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst8, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
 		return true
 	}
 	return false
@@ -35985,6 +36693,188 @@ func rewriteValuegeneric_OpNeq16_0(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+	// match: (Neq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [y]))
+	// cond: isPowerOfTwo(y)
+	// result: (Eq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd16 {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst16 {
+			break
+		}
+		if v_0_1.Type != t {
+			break
+		}
+		y := v_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst16 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		if v_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpEq16)
+		v0 := b.NewValue0(v.Pos, OpAnd16, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst16, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst16, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpNeq16_10(v *Value) bool {
+	b := v.Block
+	// match: (Neq16 (And16 <t> (Const16 <t> [y]) x) (Const16 <t> [y]))
+	// cond: isPowerOfTwo(y)
+	// result: (Eq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd16 {
+			break
+		}
+		t := v_0.Type
+		x := v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst16 {
+			break
+		}
+		if v_0_0.Type != t {
+			break
+		}
+		y := v_0_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst16 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		if v_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpEq16)
+		v0 := b.NewValue0(v.Pos, OpAnd16, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst16, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst16, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Neq16 (Const16 <t> [y]) (And16 <t> x (Const16 <t> [y])))
+	// cond: isPowerOfTwo(y)
+	// result: (Eq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst16 {
+			break
+		}
+		t := v_0.Type
+		y := v_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpAnd16 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst16 {
+			break
+		}
+		if v_1_1.Type != t {
+			break
+		}
+		if v_1_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpEq16)
+		v0 := b.NewValue0(v.Pos, OpAnd16, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst16, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst16, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Neq16 (Const16 <t> [y]) (And16 <t> (Const16 <t> [y]) x))
+	// cond: isPowerOfTwo(y)
+	// result: (Eq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst16 {
+			break
+		}
+		t := v_0.Type
+		y := v_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpAnd16 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		x := v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst16 {
+			break
+		}
+		if v_1_0.Type != t {
+			break
+		}
+		if v_1_0.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpEq16)
+		v0 := b.NewValue0(v.Pos, OpAnd16, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst16, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst16, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpNeq32_0(v *Value) bool {
@@ -36215,6 +37105,188 @@ func rewriteValuegeneric_OpNeq32_0(v *Value) bool {
 		v.reset(OpNeq32)
 		v.AddArg(x)
 		v.AddArg(y)
+		return true
+	}
+	// match: (Neq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [y]))
+	// cond: isPowerOfTwo(y)
+	// result: (Eq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd32 {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst32 {
+			break
+		}
+		if v_0_1.Type != t {
+			break
+		}
+		y := v_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst32 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		if v_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpEq32)
+		v0 := b.NewValue0(v.Pos, OpAnd32, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst32, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst32, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpNeq32_10(v *Value) bool {
+	b := v.Block
+	// match: (Neq32 (And32 <t> (Const32 <t> [y]) x) (Const32 <t> [y]))
+	// cond: isPowerOfTwo(y)
+	// result: (Eq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd32 {
+			break
+		}
+		t := v_0.Type
+		x := v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst32 {
+			break
+		}
+		if v_0_0.Type != t {
+			break
+		}
+		y := v_0_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst32 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		if v_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpEq32)
+		v0 := b.NewValue0(v.Pos, OpAnd32, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst32, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst32, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Neq32 (Const32 <t> [y]) (And32 <t> x (Const32 <t> [y])))
+	// cond: isPowerOfTwo(y)
+	// result: (Eq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst32 {
+			break
+		}
+		t := v_0.Type
+		y := v_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpAnd32 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst32 {
+			break
+		}
+		if v_1_1.Type != t {
+			break
+		}
+		if v_1_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpEq32)
+		v0 := b.NewValue0(v.Pos, OpAnd32, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst32, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst32, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Neq32 (Const32 <t> [y]) (And32 <t> (Const32 <t> [y]) x))
+	// cond: isPowerOfTwo(y)
+	// result: (Eq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst32 {
+			break
+		}
+		t := v_0.Type
+		y := v_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpAnd32 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		x := v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst32 {
+			break
+		}
+		if v_1_0.Type != t {
+			break
+		}
+		if v_1_0.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpEq32)
+		v0 := b.NewValue0(v.Pos, OpAnd32, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst32, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst32, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
 		return true
 	}
 	return false
@@ -36490,6 +37562,188 @@ func rewriteValuegeneric_OpNeq64_0(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+	// match: (Neq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [y]))
+	// cond: isPowerOfTwo(y)
+	// result: (Eq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd64 {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst64 {
+			break
+		}
+		if v_0_1.Type != t {
+			break
+		}
+		y := v_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		if v_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpEq64)
+		v0 := b.NewValue0(v.Pos, OpAnd64, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst64, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst64, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpNeq64_10(v *Value) bool {
+	b := v.Block
+	// match: (Neq64 (And64 <t> (Const64 <t> [y]) x) (Const64 <t> [y]))
+	// cond: isPowerOfTwo(y)
+	// result: (Eq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd64 {
+			break
+		}
+		t := v_0.Type
+		x := v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst64 {
+			break
+		}
+		if v_0_0.Type != t {
+			break
+		}
+		y := v_0_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		if v_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpEq64)
+		v0 := b.NewValue0(v.Pos, OpAnd64, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst64, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst64, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Neq64 (Const64 <t> [y]) (And64 <t> x (Const64 <t> [y])))
+	// cond: isPowerOfTwo(y)
+	// result: (Eq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst64 {
+			break
+		}
+		t := v_0.Type
+		y := v_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpAnd64 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst64 {
+			break
+		}
+		if v_1_1.Type != t {
+			break
+		}
+		if v_1_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpEq64)
+		v0 := b.NewValue0(v.Pos, OpAnd64, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst64, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst64, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Neq64 (Const64 <t> [y]) (And64 <t> (Const64 <t> [y]) x))
+	// cond: isPowerOfTwo(y)
+	// result: (Eq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst64 {
+			break
+		}
+		t := v_0.Type
+		y := v_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpAnd64 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		x := v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst64 {
+			break
+		}
+		if v_1_0.Type != t {
+			break
+		}
+		if v_1_0.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpEq64)
+		v0 := b.NewValue0(v.Pos, OpAnd64, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst64, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst64, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpNeq64F_0(v *Value) bool {
@@ -36761,6 +38015,188 @@ func rewriteValuegeneric_OpNeq8_0(v *Value) bool {
 		v.reset(OpNeq8)
 		v.AddArg(x)
 		v.AddArg(y)
+		return true
+	}
+	// match: (Neq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [y]))
+	// cond: isPowerOfTwo(y)
+	// result: (Eq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd8 {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst8 {
+			break
+		}
+		if v_0_1.Type != t {
+			break
+		}
+		y := v_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst8 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		if v_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpEq8)
+		v0 := b.NewValue0(v.Pos, OpAnd8, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst8, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst8, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpNeq8_10(v *Value) bool {
+	b := v.Block
+	// match: (Neq8 (And8 <t> (Const8 <t> [y]) x) (Const8 <t> [y]))
+	// cond: isPowerOfTwo(y)
+	// result: (Eq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd8 {
+			break
+		}
+		t := v_0.Type
+		x := v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst8 {
+			break
+		}
+		if v_0_0.Type != t {
+			break
+		}
+		y := v_0_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst8 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		if v_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpEq8)
+		v0 := b.NewValue0(v.Pos, OpAnd8, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst8, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst8, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Neq8 (Const8 <t> [y]) (And8 <t> x (Const8 <t> [y])))
+	// cond: isPowerOfTwo(y)
+	// result: (Eq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst8 {
+			break
+		}
+		t := v_0.Type
+		y := v_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpAnd8 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst8 {
+			break
+		}
+		if v_1_1.Type != t {
+			break
+		}
+		if v_1_1.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpEq8)
+		v0 := b.NewValue0(v.Pos, OpAnd8, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst8, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst8, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Neq8 (Const8 <t> [y]) (And8 <t> (Const8 <t> [y]) x))
+	// cond: isPowerOfTwo(y)
+	// result: (Eq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst8 {
+			break
+		}
+		t := v_0.Type
+		y := v_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpAnd8 {
+			break
+		}
+		if v_1.Type != t {
+			break
+		}
+		x := v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst8 {
+			break
+		}
+		if v_1_0.Type != t {
+			break
+		}
+		if v_1_0.AuxInt != y {
+			break
+		}
+		if !(isPowerOfTwo(y)) {
+			break
+		}
+		v.reset(OpEq8)
+		v0 := b.NewValue0(v.Pos, OpAnd8, t)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpConst8, t)
+		v1.AuxInt = y
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpConst8, t)
+		v2.AuxInt = 0
+		v.AddArg(v2)
 		return true
 	}
 	return false
@@ -49166,11 +50602,7 @@ func rewriteValuegeneric_OpZeroExt8to64_0(v *Value) bool {
 	return false
 }
 func rewriteBlockgeneric(b *Block) bool {
-	config := b.Func.Config
-	typ := &config.Types
-	_ = typ
 	v := b.Control
-	_ = v
 	switch b.Kind {
 	case BlockIf:
 		// match: (If (Not cond) yes no)

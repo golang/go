@@ -78,8 +78,12 @@ func (h Header) write(w io.Writer, trace *httptrace.ClientTrace) error {
 	return h.writeSubset(w, nil, trace)
 }
 
-// Clone returns a copy of h.
+// Clone returns a copy of h or nil if h is nil.
 func (h Header) Clone() Header {
+	if h == nil {
+		return nil
+	}
+
 	// Find total number of values.
 	nv := 0
 	for _, vv := range h {
