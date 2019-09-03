@@ -365,6 +365,31 @@ func (f *goFile) invalidateContent(ctx context.Context) {
 	f.handle = nil
 }
 
+// invalidateMeta invalides package metadata for all files in f's
+// package. This forces f's package's metadata to be reloaded next
+// time the package is checked.
+func (f *goFile) invalidateMeta(ctx context.Context) {
+	pkgs, err := f.GetPackages(ctx)
+	if err != nil {
+		log.Error(ctx, "invalidateMeta: GetPackages", err, telemetry.File.Of(f.URI()))
+		return
+	}
+
+	for _, pkg := range pkgs {
+		for _, pgh := range pkg.GetHandles() {
+			uri := pgh.File().Identity().URI
+			if gof, _ := f.view.FindFile(ctx, uri).(*goFile); gof != nil {
+				gof.mu.Lock()
+				gof.meta = nil
+				gof.mu.Unlock()
+			}
+		}
+		f.view.mcache.mu.Lock()
+		delete(f.view.mcache.packages, packageID(pkg.ID()))
+		f.view.mcache.mu.Unlock()
+	}
+}
+
 // remove invalidates a package and its reverse dependencies in the view's
 // package cache. It is assumed that the caller has locked both the mutexes
 // of both the mcache and the pcache.

@@ -321,20 +321,3 @@ func (v *view) link(ctx context.Context, g *importGraph) error {
 	}
 	return nil
 }
-
-func identicalFileHandles(old, new []source.ParseGoHandle) bool {
-	if len(old) != len(new) {
-		return false
-	}
-	oldByIdentity := make(map[string]struct{}, len(old))
-	for _, ph := range old {
-		oldByIdentity[hashParseKey(ph)] = struct{}{}
-	}
-	for _, ph := range new {
-		if _, found := oldByIdentity[hashParseKey(ph)]; !found {
-			return false
-		}
-		delete(oldByIdentity, hashParseKey(ph))
-	}
-	return len(oldByIdentity) == 0
-}

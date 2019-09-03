@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 
 	"golang.org/x/tools/internal/lsp/debug"
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
@@ -336,8 +337,15 @@ func (s *session) buildOverlay() map[string][]byte {
 	return overlays
 }
 
-func (s *session) DidChangeOutOfBand(uri span.URI) {
-	s.filesWatchMap.Notify(uri)
+func (s *session) DidChangeOutOfBand(ctx context.Context, f source.GoFile, changeType protocol.FileChangeType) {
+	if changeType == protocol.Deleted {
+		// After a deletion we must invalidate the package's metadata to
+		// force a go/packages invocation to refresh the package's file
+		// list.
+		f.(*goFile).invalidateMeta(ctx)
+	}
+
+	s.filesWatchMap.Notify(f.URI())
 }
 
 func (o *overlay) FileSystem() source.FileSystem {

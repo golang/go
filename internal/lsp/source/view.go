@@ -14,6 +14,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/imports"
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -189,7 +190,7 @@ type Session interface {
 
 	// DidChangeOutOfBand is called when a file under the root folder
 	// changes. The file is not necessarily open in the editor.
-	DidChangeOutOfBand(uri span.URI)
+	DidChangeOutOfBand(ctx context.Context, f GoFile, change protocol.FileChangeType)
 
 	// Options returns a copy of the SessionOptions for this session.
 	Options() SessionOptions
@@ -270,10 +271,10 @@ type GoFile interface {
 	// GetPackages returns the CheckPackageHandles of the packages that this file belongs to.
 	GetCheckPackageHandles(ctx context.Context) ([]CheckPackageHandle, error)
 
-	// GetPackage returns the CheckPackageHandle for the package that this file belongs to.
+	// GetPackage returns the Package that this file belongs to.
 	GetPackage(ctx context.Context) (Package, error)
 
-	// GetPackages returns the CheckPackageHandles of the packages that this file belongs to.
+	// GetPackages returns the Packages that this file belongs to.
 	GetPackages(ctx context.Context) ([]Package, error)
 
 	// GetActiveReverseDeps returns the active files belonging to the reverse
