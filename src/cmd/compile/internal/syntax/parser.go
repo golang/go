@@ -869,7 +869,7 @@ func (p *parser) operand(keep_parens bool) Expr {
 	default:
 		x := p.bad()
 		p.syntaxError("expecting expression")
-		p.advance()
+		p.advance(_Rparen, _Rbrack, _Rbrace)
 		return x
 	}
 
@@ -1840,6 +1840,9 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 		} else {
 			// asking for a '{' rather than a ';' here leads to a better error message
 			p.want(_Lbrace)
+			if p.tok != _Lbrace {
+				p.advance(_Lbrace, _Rbrace) // for better synchronization (e.g., issue #22581)
+			}
 		}
 		if keyword == _For {
 			if p.tok != _Semi {

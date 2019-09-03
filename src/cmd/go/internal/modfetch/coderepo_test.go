@@ -7,7 +7,6 @@ package modfetch
 import (
 	"archive/zip"
 	"internal/testenv"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -87,6 +86,26 @@ var codeRepoTests = []codeRepoTest{
 	{
 		vcs:     "git",
 		path:    "github.com/rsc/vgotest1",
+		rev:     "v0.0.0-20180219231006-80d85c5d4d17",
+		version: "v0.0.0-20180219231006-80d85c5d4d17",
+		name:    "80d85c5d4d17598a0e9055e7c175a32b415d6128",
+		short:   "80d85c5d4d17",
+		time:    time.Date(2018, 2, 19, 23, 10, 6, 0, time.UTC),
+		zip: []string{
+			"LICENSE",
+			"README.md",
+			"pkg/p.go",
+		},
+	},
+	{
+		vcs:  "git",
+		path: "github.com/rsc/vgotest1",
+		rev:  "v0.0.1-0.20180219231006-80d85c5d4d17",
+		err:  `github.com/rsc/vgotest1@v0.0.1-0.20180219231006-80d85c5d4d17: invalid pseudo-version: tag (v0.0.0) found on revision 80d85c5d4d17 is already canonical, so should not be replaced with a pseudo-version derived from that tag`,
+	},
+	{
+		vcs:     "git",
+		path:    "github.com/rsc/vgotest1",
 		rev:     "v1.0.0",
 		version: "v1.0.0",
 		name:    "80d85c5d4d17598a0e9055e7c175a32b415d6128",
@@ -106,7 +125,7 @@ var codeRepoTests = []codeRepoTest{
 		name:    "45f53230a74ad275c7127e117ac46914c8126160",
 		short:   "45f53230a74a",
 		time:    time.Date(2018, 7, 19, 1, 21, 27, 0, time.UTC),
-		ziperr:  "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
+		err:     "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
 	},
 	{
 		vcs:     "git",
@@ -137,15 +156,14 @@ var codeRepoTests = []codeRepoTest{
 		},
 	},
 	{
-		vcs:      "git",
-		path:     "github.com/rsc/vgotest1/v2",
-		rev:      "45f53230a",
-		version:  "v2.0.0",
-		name:     "45f53230a74ad275c7127e117ac46914c8126160",
-		short:    "45f53230a74a",
-		time:     time.Date(2018, 7, 19, 1, 21, 27, 0, time.UTC),
-		gomoderr: "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
-		ziperr:   "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
+		vcs:     "git",
+		path:    "github.com/rsc/vgotest1/v2",
+		rev:     "45f53230a",
+		version: "v2.0.0",
+		name:    "45f53230a74ad275c7127e117ac46914c8126160",
+		short:   "45f53230a74a",
+		time:    time.Date(2018, 7, 19, 1, 21, 27, 0, time.UTC),
+		err:     "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
 	},
 	{
 		vcs:     "git",
@@ -155,7 +173,7 @@ var codeRepoTests = []codeRepoTest{
 		name:    "80d85c5d4d17598a0e9055e7c175a32b415d6128",
 		short:   "80d85c5d4d17",
 		time:    time.Date(2018, 2, 19, 23, 10, 6, 0, time.UTC),
-		ziperr:  "missing github.com/rsc/vgotest1/go.mod and .../v54321/go.mod at revision 80d85c5d4d17",
+		err:     "missing github.com/rsc/vgotest1/go.mod and .../v54321/go.mod at revision 80d85c5d4d17",
 	},
 	{
 		vcs:  "git",
@@ -211,24 +229,24 @@ var codeRepoTests = []codeRepoTest{
 		gomod:   "module \"github.com/rsc/vgotest1/v2\" // root go.mod\n",
 	},
 	{
-		vcs:      "git",
-		path:     "github.com/rsc/vgotest1/v2",
-		rev:      "v2.0.3",
-		version:  "v2.0.3",
-		name:     "f18795870fb14388a21ef3ebc1d75911c8694f31",
-		short:    "f18795870fb1",
-		time:     time.Date(2018, 2, 19, 23, 16, 4, 0, time.UTC),
-		gomoderr: "github.com/rsc/vgotest1/v2/go.mod has non-.../v2 module path \"github.com/rsc/vgotest\" at revision v2.0.3",
+		vcs:     "git",
+		path:    "github.com/rsc/vgotest1/v2",
+		rev:     "v2.0.3",
+		version: "v2.0.3",
+		name:    "f18795870fb14388a21ef3ebc1d75911c8694f31",
+		short:   "f18795870fb1",
+		time:    time.Date(2018, 2, 19, 23, 16, 4, 0, time.UTC),
+		err:     "github.com/rsc/vgotest1/v2/go.mod has non-.../v2 module path \"github.com/rsc/vgotest\" at revision v2.0.3",
 	},
 	{
-		vcs:      "git",
-		path:     "github.com/rsc/vgotest1/v2",
-		rev:      "v2.0.4",
-		version:  "v2.0.4",
-		name:     "1f863feb76bc7029b78b21c5375644838962f88d",
-		short:    "1f863feb76bc",
-		time:     time.Date(2018, 2, 20, 0, 3, 38, 0, time.UTC),
-		gomoderr: "github.com/rsc/vgotest1/go.mod and .../v2/go.mod both have .../v2 module paths at revision v2.0.4",
+		vcs:     "git",
+		path:    "github.com/rsc/vgotest1/v2",
+		rev:     "v2.0.4",
+		version: "v2.0.4",
+		name:    "1f863feb76bc7029b78b21c5375644838962f88d",
+		short:   "1f863feb76bc",
+		time:    time.Date(2018, 2, 20, 0, 3, 38, 0, time.UTC),
+		err:     "github.com/rsc/vgotest1/go.mod and .../v2/go.mod both have .../v2 module paths at revision v2.0.4",
 	},
 	{
 		vcs:     "git",
@@ -505,6 +523,7 @@ func TestCodeRepo(t *testing.T) {
 					tt.name = remap(tt.name, m)
 					tt.short = remap(tt.short, m)
 					tt.rev = remap(tt.rev, m)
+					tt.err = remap(tt.err, m)
 					tt.gomoderr = remap(tt.gomoderr, m)
 					tt.ziperr = remap(tt.ziperr, m)
 					t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.rev, f(tt))
@@ -516,7 +535,7 @@ func TestCodeRepo(t *testing.T) {
 }
 
 var hgmap = map[string]string{
-	"github.com/rsc/vgotest1/":                 "vcs-test.golang.org/hg/vgotest1.hg/",
+	"github.com/rsc/vgotest1":                  "vcs-test.golang.org/hg/vgotest1.hg",
 	"f18795870fb14388a21ef3ebc1d75911c8694f31": "a9ad6d1d14eb544f459f446210c7eb3b009807c6",
 	"ea65f87c8f52c15ea68f3bdd9925ef17e20d91e9": "f1fc0f22021b638d073d31c752847e7bf385def7",
 	"b769f2de407a4db81af9c5de0a06016d60d2ea09": "92c7eb888b4fac17f1c6bd2e1060a1b881a3b832",
@@ -632,14 +651,29 @@ var latestTests = []struct {
 		err:  "no commits",
 	},
 	{
-		vcs:     "git",
-		path:    "github.com/rsc/vgotest1",
-		version: "v0.0.0-20180219223237-a08abb797a67",
+		vcs:  "git",
+		path: "github.com/rsc/vgotest1",
+		err:  `github.com/rsc/vgotest1@v0.0.0-20180219223237-a08abb797a67: invalid version: go.mod has post-v0 module path "github.com/vgotest1/v2" at revision a08abb797a67`,
+	},
+	{
+		vcs:  "git",
+		path: "github.com/rsc/vgotest1/v2",
+		err:  `github.com/rsc/vgotest1/v2@v2.0.0-20180219223237-a08abb797a67: invalid version: github.com/rsc/vgotest1/go.mod and .../v2/go.mod both have .../v2 module paths at revision a08abb797a67`,
 	},
 	{
 		vcs:  "git",
 		path: "github.com/rsc/vgotest1/subdir",
-		err:  "missing github.com/rsc/vgotest1/subdir/go.mod at revision a08abb797a67",
+		err:  "github.com/rsc/vgotest1/subdir@v0.0.0-20180219223237-a08abb797a67: invalid version: missing github.com/rsc/vgotest1/subdir/go.mod at revision a08abb797a67",
+	},
+	{
+		vcs:     "git",
+		path:    "vcs-test.golang.org/git/commit-after-tag.git",
+		version: "v1.0.1-0.20190715211727-b325d8217783",
+	},
+	{
+		vcs:     "git",
+		path:    "vcs-test.golang.org/git/no-tags.git",
+		version: "v0.0.0-20190715212047-e706ba1d9f6d",
 	},
 	{
 		vcs:     "mod",
@@ -695,21 +729,10 @@ func TestLatest(t *testing.T) {
 // fixedTagsRepo is a fake codehost.Repo that returns a fixed list of tags
 type fixedTagsRepo struct {
 	tags []string
+	codehost.Repo
 }
 
-func (ch *fixedTagsRepo) Tags(string) ([]string, error)                  { return ch.tags, nil }
-func (ch *fixedTagsRepo) Latest() (*codehost.RevInfo, error)             { panic("not impl") }
-func (ch *fixedTagsRepo) ReadFile(string, string, int64) ([]byte, error) { panic("not impl") }
-func (ch *fixedTagsRepo) ReadFileRevs([]string, string, int64) (map[string]*codehost.FileRev, error) {
-	panic("not impl")
-}
-func (ch *fixedTagsRepo) ReadZip(string, string, int64) (io.ReadCloser, string, error) {
-	panic("not impl")
-}
-func (ch *fixedTagsRepo) RecentTag(string, string) (string, error) {
-	panic("not impl")
-}
-func (ch *fixedTagsRepo) Stat(string) (*codehost.RevInfo, error) { panic("not impl") }
+func (ch *fixedTagsRepo) Tags(string) ([]string, error) { return ch.tags, nil }
 
 func TestNonCanonicalSemver(t *testing.T) {
 	root := "golang.org/x/issue24476"

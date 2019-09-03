@@ -176,6 +176,14 @@ func TestHasToken(t *testing.T) {
 	}
 }
 
+func TestNilHeaderClone(t *testing.T) {
+	t1 := Header(nil)
+	t2 := t1.Clone()
+	if t2 != nil {
+		t.Errorf("cloned header does not match original: got: %+v; want: %+v", t2, nil)
+	}
+}
+
 var testHeader = Header{
 	"Content-Length": {"123"},
 	"Content-Type":   {"text/plain"},

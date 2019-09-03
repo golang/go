@@ -152,10 +152,10 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 // ParseInt interprets a string s in the given base (0, 2 to 36) and
 // bit size (0 to 64) and returns the corresponding value i.
 //
-// If base == 0, the base is implied by the string's prefix:
-// base 2 for "0b", base 8 for "0" or "0o", base 16 for "0x",
-// and base 10 otherwise.
-// If base is below 0, is 1, or is above 36, an error is returned.
+// If the base argument is 0, the true base is implied by the string's
+// prefix: 2 for "0b", 8 for "0" or "0o", 16 for "0x", and 10 otherwise.
+// Also, for argument base 0 only, underscore characters are permitted
+// as defined by the Go syntax for integer literals.
 //
 // The bitSize argument specifies the integer type
 // that the result must fit into. Bit sizes 0, 8, 16, 32, and 64

@@ -59,6 +59,17 @@ TEXT runtime·write_trampoline(SB),NOSPLIT,$0
 	POPQ	BP
 	RET
 
+TEXT runtime·pipe_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	CALL	libc_pipe(SB)		// pointer already in DI
+	TESTL	AX, AX
+	JEQ	3(PC)
+	CALL	libc_error(SB)		// return negative errno value
+	NEGL	AX
+	POPQ	BP
+	RET
+
 TEXT runtime·setitimer_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
@@ -482,44 +493,64 @@ TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
 	POPQ	BP
 	RET
 
-TEXT runtime·dispatch_semaphore_create_trampoline(SB),NOSPLIT,$0
+TEXT runtime·pthread_mutex_init_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	MOVQ	DI, BX
-	MOVQ	0(BX), DI	// arg 1 value
-	CALL	libc_dispatch_semaphore_create(SB)
-	MOVQ	AX, 8(BX)	// result sema
+	MOVQ	8(DI), SI	// arg 2 attr
+	MOVQ	0(DI), DI	// arg 1 mutex
+	CALL	libc_pthread_mutex_init(SB)
 	POPQ	BP
 	RET
 
-TEXT runtime·dispatch_semaphore_wait_trampoline(SB),NOSPLIT,$0
+TEXT runtime·pthread_mutex_lock_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	MOVQ	8(DI), SI	// arg 2 timeout
-	MOVQ	0(DI), DI	// arg 1 sema
-	CALL	libc_dispatch_semaphore_wait(SB)
-	TESTQ	AX, AX	// For safety convert 64-bit result to int32 0 or 1.
-	JEQ	2(PC)
-	MOVL	$1, AX
+	MOVQ	0(DI), DI	// arg 1 mutex
+	CALL	libc_pthread_mutex_lock(SB)
 	POPQ	BP
 	RET
 
-TEXT runtime·dispatch_semaphore_signal_trampoline(SB),NOSPLIT,$0
+TEXT runtime·pthread_mutex_unlock_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	MOVQ	0(DI), DI	// arg 1 sema
-	CALL	libc_dispatch_semaphore_signal(SB)
+	MOVQ	0(DI), DI	// arg 1 mutex
+	CALL	libc_pthread_mutex_unlock(SB)
 	POPQ	BP
 	RET
 
-TEXT runtime·dispatch_time_trampoline(SB),NOSPLIT,$0
+TEXT runtime·pthread_cond_init_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	MOVQ	DI, BX
-	MOVQ	0(BX), DI	// arg 1 base
-	MOVQ	8(BX), SI	// arg 2 delta
-	CALL	libc_dispatch_time(SB)
-	MOVQ	AX, 16(BX)
+	MOVQ	8(DI), SI	// arg 2 attr
+	MOVQ	0(DI), DI	// arg 1 cond
+	CALL	libc_pthread_cond_init(SB)
+	POPQ	BP
+	RET
+
+TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI	// arg 2 mutex
+	MOVQ	0(DI), DI	// arg 1 cond
+	CALL	libc_pthread_cond_wait(SB)
+	POPQ	BP
+	RET
+
+TEXT runtime·pthread_cond_timedwait_relative_np_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI	// arg 2 mutex
+	MOVQ	16(DI), DX	// arg 3 timeout
+	MOVQ	0(DI), DI	// arg 1 cond
+	CALL	libc_pthread_cond_timedwait_relative_np(SB)
+	POPQ	BP
+	RET
+
+TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	0(DI), DI	// arg 1 cond
+	CALL	libc_pthread_cond_signal(SB)
 	POPQ	BP
 	RET
 

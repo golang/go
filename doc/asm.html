@@ -590,26 +590,36 @@ Here follow some descriptions of key Go-specific details for the supported archi
 <p>
 The runtime pointer to the <code>g</code> structure is maintained
 through the value of an otherwise unused (as far as Go is concerned) register in the MMU.
-A OS-dependent macro <code>get_tls</code> is defined for the assembler if the source includes
-a special header, <code>go_asm.h</code>:
+An OS-dependent macro <code>get_tls</code> is defined for the assembler if the source is
+in the <code>runtime</code> package and includes a special header, <code>go_tls.h</code>:
 </p>
 
 <pre>
-#include "go_asm.h"
+#include "go_tls.h"
 </pre>
 
 <p>
 Within the runtime, the <code>get_tls</code> macro loads its argument register
 with a pointer to the <code>g</code> pointer, and the <code>g</code> struct
 contains the <code>m</code> pointer.
+There's another special header containing the offsets for each
+element of <code>g</code>, called <code>go_asm.h</code>.
 The sequence to load <code>g</code> and <code>m</code> using <code>CX</code> looks like this:
 </p>
 
 <pre>
+#include "go_tls.h"
+#include "go_asm.h"
+...
 get_tls(CX)
 MOVL	g(CX), AX     // Move g into AX.
 MOVL	g_m(AX), BX   // Move g.m into BX.
 </pre>
+
+<p>
+Note: The code above works only in the <code>runtime</code> package, while <code>go_tls.h</code> also
+applies to <a href="#arm">arm</a>, <a href="#amd64">amd64</a> and amd64p32, and <code>go_asm.h</code> applies to all architectures.
+</p>
 
 <p>
 Addressing modes:

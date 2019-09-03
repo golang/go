@@ -793,10 +793,10 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 	params := name.FuncType.Params
 	args := call.Call.Args
 
-	// Avoid a crash if the number of arguments is
-	// less than the number of parameters.
+	// Avoid a crash if the number of arguments doesn't match
+	// the number of parameters.
 	// This will be caught when the generated file is compiled.
-	if len(args) < len(params) {
+	if len(args) != len(params) {
 		return "", false
 	}
 
@@ -1239,6 +1239,8 @@ func (p *Package) isType(t ast.Expr) bool {
 		if strings.HasPrefix(t.Name, "_Ctype_") {
 			return true
 		}
+	case *ast.ParenExpr:
+		return p.isType(t.X)
 	case *ast.StarExpr:
 		return p.isType(t.X)
 	case *ast.ArrayType, *ast.StructType, *ast.FuncType, *ast.InterfaceType,
@@ -1256,6 +1258,8 @@ func (p *Package) isVariable(x ast.Expr) bool {
 		return true
 	case *ast.SelectorExpr:
 		return p.isVariable(x.X)
+	case *ast.IndexExpr:
+		return true
 	}
 	return false
 }

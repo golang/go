@@ -15,10 +15,14 @@ import (
 	"go/format"
 	"io/ioutil"
 	"log"
+	"os"
 	"path"
 	"regexp"
+	"runtime"
+	"runtime/pprof"
 	"sort"
 	"strings"
+	"sync"
 )
 
 type arch struct {
@@ -93,11 +97,36 @@ func (a arch) regMaskComment(r regMask) string {
 
 var archs []arch
 
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
+var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
+
 func main() {
 	flag.Parse()
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal("could not create CPU profile: ", err)
+		}
+		defer f.Close()
+		if err := pprof.StartCPUProfile(f); err != nil {
+			log.Fatal("could not start CPU profile: ", err)
+		}
+		defer pprof.StopCPUProfile()
+	}
 	sort.Sort(ArchsByName(archs))
 	genOp()
 	genLower()
+	if *memprofile != "" {
+		f, err := os.Create(*memprofile)
+		if err != nil {
+			log.Fatal("could not create memory profile: ", err)
+		}
+		defer f.Close()
+		runtime.GC() // get up-to-date statistics
+		if err := pprof.WriteHeapProfile(f); err != nil {
+			log.Fatal("could not write memory profile: ", err)
+		}
+	}
 }
 
 func genOp() {
@@ -395,11 +424,26 @@ func (a arch) Name() string {
 	return s
 }
 
+// genLower generates all arch-specific rewrite Go source files. The files are
+// generated and written concurrently, since it's a CPU-intensive task that can
+// easily make use of many cores on a machine.
+//
+// Note that there is no limit on the concurrency at the moment. On a four-core
+// laptop at the time of writing, peak RSS usually reached ~230MiB, which seems
+// doable by practially any machine nowadays. If that stops being the case, we
+// can cap this func to a fixed number of architectures being generated at once.
 func genLower() {
+	var wg sync.WaitGroup
 	for _, a := range archs {
-		genRules(a)
-		genSplitLoadRules(a)
+		a := a
+		wg.Add(1)
+		go func() {
+			genRules(a)
+			genSplitLoadRules(a)
+			wg.Done()
+		}()
 	}
+	wg.Wait()
 }
 
 // countRegs returns the number of set bits in the register mask.

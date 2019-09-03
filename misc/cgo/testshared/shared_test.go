@@ -941,3 +941,10 @@ func TestTestInstalledShared(t *testing.T) {
 func TestGeneratedMethod(t *testing.T) {
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue25065")
 }
+
+// Test use of shared library struct with generated hash function.
+// Issue 30768.
+func TestGeneratedHash(t *testing.T) {
+	goCmd(nil, "install", "-buildmode=shared", "-linkshared", "./issue30768/issue30768lib")
+	goCmd(nil, "test", "-linkshared", "./issue30768")
+}

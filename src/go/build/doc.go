@@ -70,10 +70,11 @@
 // To distinguish build constraints from package documentation, a series of
 // build constraints must be followed by a blank line.
 //
-// A build constraint is evaluated as the OR of space-separated options;
-// each option evaluates as the AND of its comma-separated terms;
-// and each term is an alphanumeric word or, preceded by !, its negation.
-// That is, the build constraint:
+// A build constraint is evaluated as the OR of space-separated options.
+// Each option evaluates as the AND of its comma-separated terms.
+// Each term consists of letters, digits, underscores, and dots.
+// A term may be negated with a preceding !.
+// For example, the build constraint:
 //
 //	// +build linux,386 darwin,!cgo
 //

@@ -94,7 +94,11 @@ const (
 	_PTHREAD_CREATE_DETACHED = 0x2
 
 	_F_SETFD    = 0x2
+	_F_GETFL    = 0x3
+	_F_SETFL    = 0x4
 	_FD_CLOEXEC = 0x1
+
+	_O_NONBLOCK = 4
 )
 
 type stackt struct {

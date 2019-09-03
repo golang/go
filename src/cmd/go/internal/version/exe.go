@@ -103,6 +103,11 @@ func (x *elfExe) ReadData(addr, size uint64) ([]byte, error) {
 }
 
 func (x *elfExe) DataStart() uint64 {
+	for _, s := range x.f.Sections {
+		if s.Name == ".go.buildinfo" {
+			return s.Addr
+		}
+	}
 	for _, p := range x.f.Progs {
 		if p.Type == elf.PT_LOAD && p.Flags&(elf.PF_X|elf.PF_W) == elf.PF_W {
 			return p.Vaddr
@@ -208,7 +213,13 @@ func (x *machoExe) ReadData(addr, size uint64) ([]byte, error) {
 }
 
 func (x *machoExe) DataStart() uint64 {
-	// Assume data is first non-empty writable segment.
+	// Look for section named "__go_buildinfo".
+	for _, sec := range x.f.Sections {
+		if sec.Name == "__go_buildinfo" {
+			return sec.Addr
+		}
+	}
+	// Try the first non-empty writable segment.
 	const RW = 3
 	for _, load := range x.f.Loads {
 		seg, ok := load.(*macho.Segment)

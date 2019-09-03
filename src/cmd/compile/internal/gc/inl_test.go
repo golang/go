@@ -31,10 +31,6 @@ func TestIntendedInlining(t *testing.T) {
 	// might not actually be inlined anywhere.
 	want := map[string][]string{
 		"runtime": {
-			// TODO(mvdan): enable these once mid-stack
-			// inlining is available
-			// "adjustctxt",
-
 			"add",
 			"acquirem",
 			"add1",

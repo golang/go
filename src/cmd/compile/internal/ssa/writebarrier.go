@@ -520,6 +520,10 @@ func IsReadOnlyGlobalAddr(v *Value) bool {
 	if !IsGlobalAddr(v) {
 		return false
 	}
+	if v.Op == OpConst64 || v.Op == OpConst32 {
+		// Nil pointers are read only. See issue 33438.
+		return true
+	}
 	// See TODO in OpAddr case in IsSanitizerSafeAddr below.
 	return strings.HasPrefix(v.Aux.(*obj.LSym).Name, `""..stmp_`)
 }

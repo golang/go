@@ -216,29 +216,21 @@ func (r *cachingRepo) Latest() (*RevInfo, error) {
 	return &info, nil
 }
 
-func (r *cachingRepo) GoMod(rev string) ([]byte, error) {
+func (r *cachingRepo) GoMod(version string) ([]byte, error) {
 	type cached struct {
 		text []byte
 		err  error
 	}
-	c := r.cache.Do("gomod:"+rev, func() interface{} {
-		file, text, err := readDiskGoMod(r.path, rev)
+	c := r.cache.Do("gomod:"+version, func() interface{} {
+		file, text, err := readDiskGoMod(r.path, version)
 		if err == nil {
 			// Note: readDiskGoMod already called checkGoMod.
 			return cached{text, nil}
 		}
 
-		// Convert rev to canonical version
-		// so that we use the right identifier in the go.sum check.
-		info, err := r.Stat(rev)
-		if err != nil {
-			return cached{nil, err}
-		}
-		rev = info.Version
-
-		text, err = r.r.GoMod(rev)
+		text, err = r.r.GoMod(version)
 		if err == nil {
-			checkGoMod(r.path, rev, text)
+			checkGoMod(r.path, version, text)
 			if err := writeDiskGoMod(file, text); err != nil {
 				fmt.Fprintf(os.Stderr, "go: writing go.mod cache: %v\n", err)
 			}

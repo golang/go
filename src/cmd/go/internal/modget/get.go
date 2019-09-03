@@ -39,17 +39,27 @@ and then builds and installs them.
 The first step is to resolve which dependencies to add.
 
 For each named package or package pattern, get must decide which version of
-the corresponding module to use. By default, get chooses the latest tagged
+the corresponding module to use. By default, get looks up the latest tagged
 release version, such as v0.4.5 or v1.2.3. If there are no tagged release
-versions, get chooses the latest tagged pre-release version, such as
-v0.0.1-pre1. If there are no tagged versions at all, get chooses the latest
-known commit.
+versions, get looks up the latest tagged pre-release version, such as
+v0.0.1-pre1. If there are no tagged versions at all, get looks up the latest
+known commit. If the module is not already required at a later version
+(for example, a pre-release newer than the latest release), get will use
+the version it looked up. Otherwise, get will use the currently
+required version.
 
 This default version selection can be overridden by adding an @version
 suffix to the package argument, as in 'go get golang.org/x/text@v0.3.0'.
+The version may be a prefix: @v1 denotes the latest available version starting
+with v1. See 'go help modules' under the heading 'Module queries' for the
+full query syntax.
+
 For modules stored in source control repositories, the version suffix can
 also be a commit hash, branch identifier, or other syntax known to the
-source control system, as in 'go get golang.org/x/text@master'.
+source control system, as in 'go get golang.org/x/text@master'. Note that
+branches with names that overlap with other module query syntax cannot be
+selected explicitly. For example, the suffix @v2 means the latest version
+starting with v2, not the branch named v2.
 
 If a module under consideration is already a dependency of the current
 development module, then get will update the required version.
@@ -59,12 +69,14 @@ dependency should be removed entirely, downgrading or removing modules
 depending on it as needed.
 
 The version suffix @latest explicitly requests the latest minor release of the
-given path. The suffix @patch requests the latest patch release: if the path
-is already in the build list, the selected version will have the same minor
-version. If the path is not already in the build list, @patch is equivalent
-to @latest. Neither @latest nor @patch will cause 'go get' to downgrade a module
-in the build list if it is required at a newer pre-release version that is
-newer than the latest released version.
+module named by the given path. The suffix @upgrade is like @latest but
+will not downgrade a module if it is already required at a revision or
+pre-release version newer than the latest released version. The suffix
+@patch requests the latest patch release: the latest released version
+with the same major and minor version numbers as the currently required
+version. Like @upgrade, @patch will not downgrade a module already required
+at a newer version. If the path is not already required, @upgrade and @patch
+are equivalent to @latest.
 
 Although get defaults to using the latest version of the module containing
 a named package, it does not use the latest version of that module's
@@ -178,7 +190,7 @@ func (v *upgradeFlag) Set(s string) error {
 		s = ""
 	}
 	if s == "true" {
-		s = "latest"
+		s = "upgrade"
 	}
 	*v = upgradeFlag(s)
 	return nil
@@ -202,8 +214,9 @@ type getArg struct {
 	// if there is no "@"). path specifies the modules or packages to get.
 	path string
 
-	// vers is the part of the argument after "@" (or "" if there is no "@").
-	// vers specifies the module version to get.
+	// vers is the part of the argument after "@" or an implied
+	// "upgrade" or "patch" if there is no "@". vers specifies the
+	// module version to get.
 	vers string
 }
 
@@ -249,7 +262,7 @@ func runGet(cmd *base.Command, args []string) {
 	}
 
 	switch getU {
-	case "", "latest", "patch":
+	case "", "upgrade", "patch":
 		// ok
 	default:
 		base.Fatalf("go get: unknown upgrade flag -u=%s", getU)
@@ -283,11 +296,11 @@ func runGet(cmd *base.Command, args []string) {
 
 	// Parse command-line arguments and report errors. The command-line
 	// arguments are of the form path@version or simply path, with implicit
-	// @latest. path@none is "downgrade away".
+	// @upgrade. path@none is "downgrade away".
 	var gets []getArg
 	var queries []*query
 	for _, arg := range search.CleanPatterns(args) {
-		// Argument is module query path@vers, or else path with implicit @latest.
+		// Argument is path or path@vers.
 		path := arg
 		vers := ""
 		if i := strings.Index(arg, "@"); i >= 0 {
@@ -298,10 +311,14 @@ func runGet(cmd *base.Command, args []string) {
 			continue
 		}
 
-		// If the user runs 'go get -u=patch some/module', update some/module to a
-		// patch release, not a minor version.
-		if vers == "" && getU != "" {
-			vers = string(getU)
+		// If no version suffix is specified, assume @upgrade.
+		// If -u=patch was specified, assume @patch instead.
+		if vers == "" {
+			if getU != "" {
+				vers = string(getU)
+			} else {
+				vers = "upgrade"
+			}
 		}
 
 		gets = append(gets, getArg{raw: arg, path: path, vers: vers})
@@ -358,7 +375,7 @@ func runGet(cmd *base.Command, args []string) {
 			// The argument is a package path.
 			if pkgs := modload.TargetPackages(path); len(pkgs) != 0 {
 				// The path is in the main module. Nothing to query.
-				if vers != "" && vers != "latest" && vers != "patch" {
+				if vers != "upgrade" && vers != "patch" {
 					base.Errorf("go get %s: can't request explicit version of path in main module", arg)
 				}
 				continue
@@ -376,8 +393,8 @@ func runGet(cmd *base.Command, args []string) {
 				continue
 			}
 
-			// If we're querying "latest" or "patch", we need to know the current
-			// version of the module. For "latest", we want to avoid accidentally
+			// If we're querying "upgrade" or "patch", we need to know the current
+			// version of the module. For "upgrade", we want to avoid accidentally
 			// downgrading from a newer prerelease. For "patch", we need to query
 			// the correct minor version.
 			// Here, we check if "path" is the name of a module in the build list
@@ -472,7 +489,6 @@ func runGet(cmd *base.Command, args []string) {
 	// and the load and upgrade operations may only add and upgrade modules
 	// in the build list.
 	var matches []*search.Match
-	var install []string
 	for {
 		var seenPkgs map[string]bool
 		seenQuery := make(map[querySpec]bool)
@@ -664,7 +680,7 @@ func runGet(cmd *base.Command, args []string) {
 	}
 	work.BuildInit()
 	pkgs := load.PackagesForBuild(pkgPatterns)
-	work.InstallPackages(install, pkgs)
+	work.InstallPackages(pkgPatterns, pkgs)
 }
 
 // runQueries looks up modules at target versions in parallel. Results will be
@@ -719,7 +735,7 @@ func runQueries(cache map[querySpec]*query, queries []*query, modOnly map[string
 	return byPath
 }
 
-// getQuery evaluates the given package path, version pair
+// getQuery evaluates the given (package or module) path and version
 // to determine the underlying module version being requested.
 // If forceModulePath is set, getQuery must interpret path
 // as a module path.
@@ -737,34 +753,51 @@ func getQuery(path, vers string, prevM module.Version, forceModulePath bool) (mo
 		base.Fatalf("go get: internal error: prevM may be set if and only if forceModulePath is set")
 	}
 
-	if vers == "" || vers == "patch" && prevM.Version == "" {
-		vers = "latest"
-	}
-
-	if forceModulePath || !strings.Contains(path, "...") {
+	// If the query must be a module path, try only that module path.
+	if forceModulePath {
 		if path == modload.Target.Path {
 			if vers != "latest" {
 				return module.Version{}, fmt.Errorf("can't get a specific version of the main module")
 			}
 		}
 
-		// If the path doesn't contain a wildcard, try interpreting it as a module path.
 		info, err := modload.Query(path, vers, prevM.Version, modload.Allowed)
 		if err == nil {
 			return module.Version{Path: path, Version: info.Version}, nil
 		}
 
-		// If the query fails, and the path must be a real module, report the query error.
-		if forceModulePath {
-			return module.Version{}, err
+		// If the query was "upgrade" or "patch" and the current version has been
+		// replaced, check to see whether the error was for that same version:
+		// if so, the version was probably replaced because it is invalid,
+		// and we should keep that replacement without complaining.
+		if vers == "upgrade" || vers == "patch" {
+			var vErr *module.InvalidVersionError
+			if errors.As(err, &vErr) && vErr.Version == prevM.Version && modload.Replacement(prevM).Path != "" {
+				return prevM, nil
+			}
 		}
-	}
 
-	// Otherwise, try a package path or pattern.
-	results, err := modload.QueryPattern(path, vers, modload.Allowed)
-	if err != nil {
 		return module.Version{}, err
 	}
+
+	// If the query may be either a package or a module, try it as a package path.
+	// If it turns out to only exist as a module, we can detect the resulting
+	// PackageNotInModuleError and avoid a second round-trip through (potentially)
+	// all of the configured proxies.
+	results, err := modload.QueryPattern(path, vers, modload.Allowed)
+	if err != nil {
+		// If the path doesn't contain a wildcard, check whether it was actually a
+		// module path instead. If so, return that.
+		if !strings.Contains(path, "...") {
+			var modErr *modload.PackageNotInModuleError
+			if errors.As(err, &modErr) && modErr.Mod.Path == path {
+				return modErr.Mod, nil
+			}
+		}
+
+		return module.Version{}, err
+	}
+
 	return results[0].Mod, nil
 }
 
@@ -894,13 +927,23 @@ func (u *upgrader) Upgrade(m module.Version) (module.Version, error) {
 	// which may return a pseudoversion for the latest commit.
 	// Query "latest" returns the newest tagged version or the newest
 	// prerelease version if there are no non-prereleases, or repo.Latest
-	// if there aren't any tagged versions. Since we're providing the previous
-	// version, Query will confirm the latest version is actually newer
-	// and will return the current version if not.
+	// if there aren't any tagged versions.
+	// If we're querying "upgrade" or "patch", Query will compare the current
+	// version against the chosen version and will return the current version
+	// if it is newer.
 	info, err := modload.Query(m.Path, string(getU), m.Version, modload.Allowed)
 	if err != nil {
 		// Report error but return m, to let version selection continue.
 		// (Reporting the error will fail the command at the next base.ExitIfErrors.)
+
+		// Special case: if the error is for m.Version itself and m.Version has a
+		// replacement, then keep it and don't report the error: the fact that the
+		// version is invalid is likely the reason it was replaced to begin with.
+		var vErr *module.InvalidVersionError
+		if errors.As(err, &vErr) && vErr.Version == m.Version && modload.Replacement(m).Path != "" {
+			return m, nil
+		}
+
 		// Special case: if the error is "no matching versions" then don't
 		// even report the error. Because Query does not consider pseudo-versions,
 		// it may happen that we have a pseudo-version but during -u=patch

@@ -79,14 +79,16 @@ type Repo interface {
 	// nested in a single top-level directory, whose name is not specified.
 	ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error)
 
-	// RecentTag returns the most recent tag at or before the given rev
-	// with the given prefix. It should make a best-effort attempt to
-	// find a tag that is a valid semantic version (following the prefix),
-	// or else the result is not useful to the caller, but it need not
-	// incur great expense in doing so. For example, the git implementation
-	// of RecentTag limits git's search to tags matching the glob expression
-	// "v[0-9]*.[0-9]*.[0-9]*" (after the prefix).
-	RecentTag(rev, prefix string) (tag string, err error)
+	// RecentTag returns the most recent tag on rev or one of its predecessors
+	// with the given prefix and major version.
+	// An empty major string matches any major version.
+	RecentTag(rev, prefix, major string) (tag string, err error)
+
+	// DescendsFrom reports whether rev or any of its ancestors has the given tag.
+	//
+	// DescendsFrom must return true for any tag returned by RecentTag for the
+	// same revision.
+	DescendsFrom(rev, tag string) (bool, error)
 }
 
 // A Rev describes a single revision in a source code repository.
@@ -103,6 +105,32 @@ type FileRev struct {
 	Rev  string // requested revision
 	Data []byte // file data
 	Err  error  // error if any; os.IsNotExist(Err)==true if rev exists but file does not exist in that rev
+}
+
+// UnknownRevisionError is an error equivalent to os.ErrNotExist, but for a
+// revision rather than a file.
+type UnknownRevisionError struct {
+	Rev string
+}
+
+func (e *UnknownRevisionError) Error() string {
+	return "unknown revision " + e.Rev
+}
+func (UnknownRevisionError) Is(err error) bool {
+	return err == os.ErrNotExist
+}
+
+// ErrNoCommits is an error equivalent to os.ErrNotExist indicating that a given
+// repository or module contains no commits.
+var ErrNoCommits error = noCommitsError{}
+
+type noCommitsError struct{}
+
+func (noCommitsError) Error() string {
+	return "no commits"
+}
+func (noCommitsError) Is(err error) bool {
+	return err == os.ErrNotExist
 }
 
 // AllHex reports whether the revision rev is entirely lower-case hexadecimal digits.

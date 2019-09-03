@@ -301,15 +301,15 @@ func (check *Checker) collectObjects() {
 								// A package scope may contain non-exported objects,
 								// do not import them!
 								if obj.Exported() {
-									// TODO(gri) When we import a package, we create
-									// a new local package object. We should do the
-									// same for each dot-imported object. That way
-									// they can have correct position information.
-									// (We must not modify their existing position
-									// information because the same package - found
-									// via Config.Packages - may be dot-imported in
-									// another package!)
-									check.declare(fileScope, nil, obj, token.NoPos)
+									// declare dot-imported object
+									// (Do not use check.declare because it modifies the object
+									// via Object.setScopePos, which leads to a race condition;
+									// the object may be imported into more than one file scope
+									// concurrently. See issue #32154.)
+									if alt := fileScope.Insert(obj); alt != nil {
+										check.errorf(s.Name.Pos(), "%s redeclared in this block", obj.Name())
+										check.reportAltDecl(alt)
+									}
 								}
 							}
 							// add position to set of dot-import positions for this file
@@ -317,6 +317,7 @@ func (check *Checker) collectObjects() {
 							check.addUnusedDotImport(fileScope, imp, s.Pos())
 						} else {
 							// declare imported package object in file scope
+							// (no need to provide s.Name since we called check.recordDef earlier)
 							check.declare(fileScope, nil, obj, token.NoPos)
 						}
 
@@ -605,16 +606,6 @@ type inSourceOrder []Object
 func (a inSourceOrder) Len() int           { return len(a) }
 func (a inSourceOrder) Less(i, j int) bool { return a[i].order() < a[j].order() }
 func (a inSourceOrder) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-
-// processDelayed processes all delayed actions pushed after top.
-func (check *Checker) processDelayed(top int) {
-	for len(check.delayed) > top {
-		i := len(check.delayed) - 1
-		f := check.delayed[i]
-		check.delayed = check.delayed[:i]
-		f() // may append to check.delayed
-	}
-}
 
 // unusedImports checks for unused imports.
 func (check *Checker) unusedImports() {

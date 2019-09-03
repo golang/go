@@ -196,6 +196,26 @@ func (p *proxyRepo) ModulePath() string {
 	return p.path
 }
 
+// versionError returns err wrapped in a ModuleError for p.path.
+func (p *proxyRepo) versionError(version string, err error) error {
+	if version != "" && version != module.CanonicalVersion(version) {
+		return &module.ModuleError{
+			Path: p.path,
+			Err: &module.InvalidVersionError{
+				Version: version,
+				Pseudo:  IsPseudoVersion(version),
+				Err:     err,
+			},
+		}
+	}
+
+	return &module.ModuleError{
+		Path:    p.path,
+		Version: version,
+		Err:     err,
+	}
+}
+
 func (p *proxyRepo) getBytes(path string) ([]byte, error) {
 	body, err := p.getBody(path)
 	if err != nil {
@@ -226,12 +246,12 @@ func (p *proxyRepo) getBody(path string) (io.ReadCloser, error) {
 func (p *proxyRepo) Versions(prefix string) ([]string, error) {
 	data, err := p.getBytes("@v/list")
 	if err != nil {
-		return nil, err
+		return nil, p.versionError("", err)
 	}
 	var list []string
 	for _, line := range strings.Split(string(data), "\n") {
 		f := strings.Fields(line)
-		if len(f) >= 1 && semver.IsValid(f[0]) && strings.HasPrefix(f[0], prefix) {
+		if len(f) >= 1 && semver.IsValid(f[0]) && strings.HasPrefix(f[0], prefix) && !IsPseudoVersion(f[0]) {
 			list = append(list, f[0])
 		}
 	}
@@ -242,44 +262,82 @@ func (p *proxyRepo) Versions(prefix string) ([]string, error) {
 func (p *proxyRepo) latest() (*RevInfo, error) {
 	data, err := p.getBytes("@v/list")
 	if err != nil {
-		return nil, err
+		return nil, p.versionError("", err)
 	}
-	var best time.Time
-	var bestVersion string
+
+	var (
+		bestTime             time.Time
+		bestTimeIsFromPseudo bool
+		bestVersion          string
+	)
+
 	for _, line := range strings.Split(string(data), "\n") {
 		f := strings.Fields(line)
-		if len(f) >= 2 && semver.IsValid(f[0]) {
-			ft, err := time.Parse(time.RFC3339, f[1])
-			if err == nil && best.Before(ft) {
-				best = ft
+		if len(f) >= 1 && semver.IsValid(f[0]) {
+			// If the proxy includes timestamps, prefer the timestamp it reports.
+			// Otherwise, derive the timestamp from the pseudo-version.
+			var (
+				ft             time.Time
+				ftIsFromPseudo = false
+			)
+			if len(f) >= 2 {
+				ft, _ = time.Parse(time.RFC3339, f[1])
+			} else if IsPseudoVersion(f[0]) {
+				ft, _ = PseudoVersionTime(f[0])
+				ftIsFromPseudo = true
+			} else {
+				// Repo.Latest promises that this method is only called where there are
+				// no tagged versions. Ignore any tagged versions that were added in the
+				// meantime.
+				continue
+			}
+			if bestTime.Before(ft) {
+				bestTime = ft
+				bestTimeIsFromPseudo = ftIsFromPseudo
 				bestVersion = f[0]
 			}
 		}
 	}
 	if bestVersion == "" {
-		return nil, fmt.Errorf("no commits")
+		return nil, p.versionError("", codehost.ErrNoCommits)
 	}
-	info := &RevInfo{
+
+	if bestTimeIsFromPseudo {
+		// We parsed bestTime from the pseudo-version, but that's in UTC and we're
+		// supposed to report the timestamp as reported by the VCS.
+		// Stat the selected version to canonicalize the timestamp.
+		//
+		// TODO(bcmills): Should we also stat other versions to ensure that we
+		// report the correct Name and Short for the revision?
+		return p.Stat(bestVersion)
+	}
+
+	return &RevInfo{
 		Version: bestVersion,
 		Name:    bestVersion,
 		Short:   bestVersion,
-		Time:    best,
-	}
-	return info, nil
+		Time:    bestTime,
+	}, nil
 }
 
 func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
 	encRev, err := module.EncodeVersion(rev)
 	if err != nil {
-		return nil, err
+		return nil, p.versionError(rev, err)
 	}
 	data, err := p.getBytes("@v/" + encRev + ".info")
 	if err != nil {
-		return nil, err
+		return nil, p.versionError(rev, err)
 	}
 	info := new(RevInfo)
 	if err := json.Unmarshal(data, info); err != nil {
-		return nil, err
+		return nil, p.versionError(rev, err)
+	}
+	if info.Version != rev && rev == module.CanonicalVersion(rev) && module.Check(p.path, rev) == nil {
+		// If we request a correct, appropriate version for the module path, the
+		// proxy must return either exactly that version or an error — not some
+		// arbitrary other version.
+		return nil, p.versionError(rev, fmt.Errorf("proxy returned info for version %s instead of requested version", info.Version))
 	}
 	return info, nil
 }
@@ -287,45 +345,55 @@ func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
 func (p *proxyRepo) Latest() (*RevInfo, error) {
 	data, err := p.getBytes("@latest")
 	if err != nil {
-		// TODO return err if not 404
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, p.versionError("", err)
+		}
 		return p.latest()
 	}
 	info := new(RevInfo)
 	if err := json.Unmarshal(data, info); err != nil {
-		return nil, err
+		return nil, p.versionError("", err)
 	}
 	return info, nil
 }
 
 func (p *proxyRepo) GoMod(version string) ([]byte, error) {
+	if version != module.CanonicalVersion(version) {
+		return nil, p.versionError(version, fmt.Errorf("internal error: version passed to GoMod is not canonical"))
+	}
+
 	encVer, err := module.EncodeVersion(version)
 	if err != nil {
-		return nil, err
+		return nil, p.versionError(version, err)
 	}
 	data, err := p.getBytes("@v/" + encVer + ".mod")
 	if err != nil {
-		return nil, err
+		return nil, p.versionError(version, err)
 	}
 	return data, nil
 }
 
 func (p *proxyRepo) Zip(dst io.Writer, version string) error {
+	if version != module.CanonicalVersion(version) {
+		return p.versionError(version, fmt.Errorf("internal error: version passed to Zip is not canonical"))
+	}
+
 	encVer, err := module.EncodeVersion(version)
 	if err != nil {
-		return err
+		return p.versionError(version, err)
 	}
 	body, err := p.getBody("@v/" + encVer + ".zip")
 	if err != nil {
-		return err
+		return p.versionError(version, err)
 	}
 	defer body.Close()
 
 	lr := &io.LimitedReader{R: body, N: codehost.MaxZipFile + 1}
 	if _, err := io.Copy(dst, lr); err != nil {
-		return err
+		return p.versionError(version, err)
 	}
 	if lr.N <= 0 {
-		return fmt.Errorf("downloaded zip file too large")
+		return p.versionError(version, fmt.Errorf("downloaded zip file too large"))
 	}
 	return nil
 }

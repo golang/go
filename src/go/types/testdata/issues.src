@@ -91,7 +91,7 @@ func issue10979() {
 		nosuchpkg /* ERROR undeclared name: nosuchpkg */ .Nosuchtype
 	}
 	type I interface {
-		I /* ERROR I\.m \(value of type func\(I\)\) is not a type */ .m
+		I.m /* ERROR no field or method m */
 		m()
 	}
 }
@@ -259,10 +259,9 @@ type E = interface {
 	m()
 }
 
-// Test case from issue. Eventually we may disallow this due
-// to the cycle via the alias type name. But for now we make
-// sure this is accepted.
-type issue25301b = interface {
+// Test case from issue.
+// cmd/compile reports a cycle as well.
+type issue25301b /* ERROR cycle */ = interface {
 	m() interface{ issue25301b }
 }
 

@@ -231,13 +231,13 @@ type CloseNotifier interface {
 
 var (
 	// ServerContextKey is a context key. It can be used in HTTP
-	// handlers with context.WithValue to access the server that
+	// handlers with Context.Value to access the server that
 	// started the handler. The associated value will be of
 	// type *Server.
 	ServerContextKey = &contextKey{"http-server"}
 
 	// LocalAddrContextKey is a context key. It can be used in
-	// HTTP handlers with context.WithValue to access the local
+	// HTTP handlers with Context.Value to access the local
 	// address the connection arrived on.
 	// The associated value will be of type net.Addr.
 	LocalAddrContextKey = &contextKey{"local-addr"}
@@ -3177,8 +3177,8 @@ func (srv *Server) onceSetNextProtoDefaults() {
 // After such a timeout, writes by h to its ResponseWriter will return
 // ErrHandlerTimeout.
 //
-// TimeoutHandler buffers all Handler writes to memory and does not
-// support the Hijacker or Flusher interfaces.
+// TimeoutHandler supports the Flusher and Pusher interfaces but does not
+// support the Hijacker interface.
 func TimeoutHandler(h Handler, dt time.Duration, msg string) Handler {
 	return &timeoutHandler{
 		handler: h,

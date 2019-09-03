@@ -655,13 +655,17 @@ func TestTransportMaxConnsPerHost(t *testing.T) {
 
 		expected := int32(tr.MaxConnsPerHost)
 		if dialCnt != expected {
-			t.Errorf("Too many dials (%s): %d", scheme, dialCnt)
+			t.Errorf("round 1: too many dials (%s): %d != %d", scheme, dialCnt, expected)
 		}
 		if gotConnCnt != expected {
-			t.Errorf("Too many get connections (%s): %d", scheme, gotConnCnt)
+			t.Errorf("round 1: too many get connections (%s): %d != %d", scheme, gotConnCnt, expected)
 		}
 		if ts.TLS != nil && tlsHandshakeCnt != expected {
-			t.Errorf("Too many tls handshakes (%s): %d", scheme, tlsHandshakeCnt)
+			t.Errorf("round 1: too many tls handshakes (%s): %d != %d", scheme, tlsHandshakeCnt, expected)
+		}
+
+		if t.Failed() {
+			t.FailNow()
 		}
 
 		(<-connCh).Close()
@@ -670,13 +674,13 @@ func TestTransportMaxConnsPerHost(t *testing.T) {
 		doReq()
 		expected++
 		if dialCnt != expected {
-			t.Errorf("Too many dials (%s): %d", scheme, dialCnt)
+			t.Errorf("round 2: too many dials (%s): %d", scheme, dialCnt)
 		}
 		if gotConnCnt != expected {
-			t.Errorf("Too many get connections (%s): %d", scheme, gotConnCnt)
+			t.Errorf("round 2: too many get connections (%s): %d != %d", scheme, gotConnCnt, expected)
 		}
 		if ts.TLS != nil && tlsHandshakeCnt != expected {
-			t.Errorf("Too many tls handshakes (%s): %d", scheme, tlsHandshakeCnt)
+			t.Errorf("round 2: too many tls handshakes (%s): %d != %d", scheme, tlsHandshakeCnt, expected)
 		}
 	}
 
@@ -1651,6 +1655,176 @@ func TestTransportPersistConnLeakShortBody(t *testing.T) {
 	t.Logf("goroutine growth: %d -> %d -> %d (delta: %d)", n0, nhigh, nfinal, growth)
 	if int(growth) > 5 {
 		t.Error("too many new goroutines")
+	}
+}
+
+// A countedConn is a net.Conn that decrements an atomic counter when finalized.
+type countedConn struct {
+	net.Conn
+}
+
+// A countingDialer dials connections and counts the number that remain reachable.
+type countingDialer struct {
+	dialer      net.Dialer
+	mu          sync.Mutex
+	total, live int64
+}
+
+func (d *countingDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	conn, err := d.dialer.DialContext(ctx, network, address)
+	if err != nil {
+		return nil, err
+	}
+
+	counted := new(countedConn)
+	counted.Conn = conn
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.total++
+	d.live++
+
+	runtime.SetFinalizer(counted, d.decrement)
+	return counted, nil
+}
+
+func (d *countingDialer) decrement(*countedConn) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.live--
+}
+
+func (d *countingDialer) Read() (total, live int64) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.total, d.live
+}
+
+func TestTransportPersistConnLeakNeverIdle(t *testing.T) {
+	defer afterTest(t)
+
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		// Close every connection so that it cannot be kept alive.
+		conn, _, err := w.(Hijacker).Hijack()
+		if err != nil {
+			t.Errorf("Hijack failed unexpectedly: %v", err)
+			return
+		}
+		conn.Close()
+	}))
+	defer ts.Close()
+
+	var d countingDialer
+	c := ts.Client()
+	c.Transport.(*Transport).DialContext = d.DialContext
+
+	body := []byte("Hello")
+	for i := 0; ; i++ {
+		total, live := d.Read()
+		if live < total {
+			break
+		}
+		if i >= 1<<12 {
+			t.Fatalf("Count of live client net.Conns (%d) not lower than total (%d) after %d Do / GC iterations.", live, total, i)
+		}
+
+		req, err := NewRequest("POST", ts.URL, bytes.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = c.Do(req)
+		if err == nil {
+			t.Fatal("expected broken connection")
+		}
+
+		runtime.GC()
+	}
+}
+
+type countedContext struct {
+	context.Context
+}
+
+type contextCounter struct {
+	mu   sync.Mutex
+	live int64
+}
+
+func (cc *contextCounter) Track(ctx context.Context) context.Context {
+	counted := new(countedContext)
+	counted.Context = ctx
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	cc.live++
+	runtime.SetFinalizer(counted, cc.decrement)
+	return counted
+}
+
+func (cc *contextCounter) decrement(*countedContext) {
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	cc.live--
+}
+
+func (cc *contextCounter) Read() (live int64) {
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	return cc.live
+}
+
+func TestTransportPersistConnContextLeakMaxConnsPerHost(t *testing.T) {
+	defer afterTest(t)
+
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		runtime.Gosched()
+		w.WriteHeader(StatusOK)
+	}))
+	defer ts.Close()
+
+	c := ts.Client()
+	c.Transport.(*Transport).MaxConnsPerHost = 1
+
+	ctx := context.Background()
+	body := []byte("Hello")
+	doPosts := func(cc *contextCounter) {
+		var wg sync.WaitGroup
+		for n := 64; n > 0; n-- {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+
+				ctx := cc.Track(ctx)
+				req, err := NewRequest("POST", ts.URL, bytes.NewReader(body))
+				if err != nil {
+					t.Error(err)
+				}
+
+				_, err = c.Do(req.WithContext(ctx))
+				if err != nil {
+					t.Errorf("Do failed with error: %v", err)
+				}
+			}()
+		}
+		wg.Wait()
+	}
+
+	var initialCC contextCounter
+	doPosts(&initialCC)
+
+	// flushCC exists only to put pressure on the GC to finalize the initialCC
+	// contexts: the flushCC allocations should eventually displace the initialCC
+	// allocations.
+	var flushCC contextCounter
+	for i := 0; ; i++ {
+		live := initialCC.Read()
+		if live == 0 {
+			break
+		}
+		if i >= 100 {
+			t.Fatalf("%d Contexts still not finalized after %d GC cycles.", live, i)
+		}
+		doPosts(&flushCC)
+		runtime.GC()
 	}
 }
 
@@ -2795,8 +2969,8 @@ func TestIdleConnChannelLeak(t *testing.T) {
 			<-didRead
 		}
 
-		if got := tr.IdleConnChMapSizeForTesting(); got != 0 {
-			t.Fatalf("ForDisableKeepAlives = %v, map size = %d; want 0", disableKeep, got)
+		if got := tr.IdleConnWaitMapSizeForTesting(); got != 0 {
+			t.Fatalf("for DisableKeepAlives = %v, map size = %d; want 0", disableKeep, got)
 		}
 	}
 }
@@ -3378,9 +3552,9 @@ func TestTransportCloseIdleConnsThenReturn(t *testing.T) {
 	}
 	wantIdle("after second put", 0)
 
-	tr.RequestIdleConnChForTesting() // should toggle the transport out of idle mode
+	tr.QueueForIdleConnForTesting() // should toggle the transport out of idle mode
 	if tr.IsIdleForTesting() {
-		t.Error("shouldn't be idle after RequestIdleConnChForTesting")
+		t.Error("shouldn't be idle after QueueForIdleConnForTesting")
 	}
 	if !tr.PutIdleTestConn("http", "example.com") {
 		t.Fatal("after re-activation")
@@ -3802,8 +3976,8 @@ func TestNoCrashReturningTransportAltConn(t *testing.T) {
 	ln := newLocalListener(t)
 	defer ln.Close()
 
-	handledPendingDial := make(chan bool, 1)
-	SetPendingDialHooks(nil, func() { handledPendingDial <- true })
+	var wg sync.WaitGroup
+	SetPendingDialHooks(func() { wg.Add(1) }, wg.Done)
 	defer SetPendingDialHooks(nil, nil)
 
 	testDone := make(chan struct{})
@@ -3873,7 +4047,7 @@ func TestNoCrashReturningTransportAltConn(t *testing.T) {
 
 	doReturned <- true
 	<-madeRoundTripper
-	<-handledPendingDial
+	wg.Wait()
 }
 
 func TestTransportReuseConnection_Gzip_Chunked(t *testing.T) {
@@ -4285,7 +4459,7 @@ func TestTransportRejectsAlphaPort(t *testing.T) {
 		t.Fatalf("got %#v; want *url.Error", err)
 	}
 	got := ue.Err.Error()
-	want := `invalid URL port "123foo"`
+	want := `invalid port ":123foo" after host`
 	if got != want {
 		t.Errorf("got error %q; want %q", got, want)
 	}

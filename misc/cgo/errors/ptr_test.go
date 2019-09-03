@@ -156,8 +156,8 @@ var ptrTests = []ptrTest{
 		// Storing a Go pointer into C memory should fail.
 		name: "barrier",
 		c: `#include <stdlib.h>
-                    char **f14a() { return malloc(sizeof(char*)); }
-                    void f14b(char **p) {}`,
+		    char **f14a() { return malloc(sizeof(char*)); }
+		    void f14b(char **p) {}`,
 		body:      `p := C.f14a(); *p = new(C.char); C.f14b(p)`,
 		fail:      true,
 		expensive: true,
@@ -167,9 +167,9 @@ var ptrTests = []ptrTest{
 		// large value should fail.
 		name: "barrierstruct",
 		c: `#include <stdlib.h>
-                    struct s15 { char *a[10]; };
-                    struct s15 *f15() { return malloc(sizeof(struct s15)); }
-                    void f15b(struct s15 *p) {}`,
+		    struct s15 { char *a[10]; };
+		    struct s15 *f15() { return malloc(sizeof(struct s15)); }
+		    void f15b(struct s15 *p) {}`,
 		body:      `p := C.f15(); p.a = [10]*C.char{new(C.char)}; C.f15b(p)`,
 		fail:      true,
 		expensive: true,
@@ -179,9 +179,9 @@ var ptrTests = []ptrTest{
 		// copy should fail.
 		name: "barrierslice",
 		c: `#include <stdlib.h>
-                    struct s16 { char *a[10]; };
-                    struct s16 *f16() { return malloc(sizeof(struct s16)); }
-                    void f16b(struct s16 *p) {}`,
+		    struct s16 { char *a[10]; };
+		    struct s16 *f16() { return malloc(sizeof(struct s16)); }
+		    void f16b(struct s16 *p) {}`,
 		body:      `p := C.f16(); copy(p.a[:], []*C.char{new(C.char)}); C.f16b(p)`,
 		fail:      true,
 		expensive: true,
@@ -191,9 +191,9 @@ var ptrTests = []ptrTest{
 		// different code path.
 		name: "barriergcprogarray",
 		c: `#include <stdlib.h>
-                    struct s17 { char *a[32769]; };
-                    struct s17 *f17() { return malloc(sizeof(struct s17)); }
-                    void f17b(struct s17 *p) {}`,
+		    struct s17 { char *a[32769]; };
+		    struct s17 *f17() { return malloc(sizeof(struct s17)); }
+		    void f17b(struct s17 *p) {}`,
 		body:      `p := C.f17(); p.a = [32769]*C.char{new(C.char)}; C.f17b(p)`,
 		fail:      true,
 		expensive: true,
@@ -202,10 +202,10 @@ var ptrTests = []ptrTest{
 		// Similar case, with a source on the heap.
 		name: "barriergcprogarrayheap",
 		c: `#include <stdlib.h>
-                    struct s18 { char *a[32769]; };
-                    struct s18 *f18() { return malloc(sizeof(struct s18)); }
-                    void f18b(struct s18 *p) {}
-                    void f18c(void *p) {}`,
+		    struct s18 { char *a[32769]; };
+		    struct s18 *f18() { return malloc(sizeof(struct s18)); }
+		    void f18b(struct s18 *p) {}
+		    void f18c(void *p) {}`,
 		imports:   []string{"unsafe"},
 		body:      `p := C.f18(); n := &[32769]*C.char{new(C.char)}; p.a = *n; C.f18b(p); n[0] = nil; C.f18c(unsafe.Pointer(n))`,
 		fail:      true,
@@ -215,10 +215,10 @@ var ptrTests = []ptrTest{
 		// A GC program with a struct.
 		name: "barriergcprogstruct",
 		c: `#include <stdlib.h>
-                    struct s19a { char *a[32769]; };
-                    struct s19b { struct s19a f; };
-                    struct s19b *f19() { return malloc(sizeof(struct s19b)); }
-                    void f19b(struct s19b *p) {}`,
+		    struct s19a { char *a[32769]; };
+		    struct s19b { struct s19a f; };
+		    struct s19b *f19() { return malloc(sizeof(struct s19b)); }
+		    void f19b(struct s19b *p) {}`,
 		body:      `p := C.f19(); p.f = C.struct_s19a{[32769]*C.char{new(C.char)}}; C.f19b(p)`,
 		fail:      true,
 		expensive: true,
@@ -227,11 +227,11 @@ var ptrTests = []ptrTest{
 		// Similar case, with a source on the heap.
 		name: "barriergcprogstructheap",
 		c: `#include <stdlib.h>
-                    struct s20a { char *a[32769]; };
-                    struct s20b { struct s20a f; };
-                    struct s20b *f20() { return malloc(sizeof(struct s20b)); }
-                    void f20b(struct s20b *p) {}
-                    void f20c(void *p) {}`,
+		    struct s20a { char *a[32769]; };
+		    struct s20b { struct s20a f; };
+		    struct s20b *f20() { return malloc(sizeof(struct s20b)); }
+		    void f20b(struct s20b *p) {}
+		    void f20c(void *p) {}`,
 		imports:   []string{"unsafe"},
 		body:      `p := C.f20(); n := &C.struct_s20a{[32769]*C.char{new(C.char)}}; p.f = *n; C.f20b(p); n.a[0] = nil; C.f20c(unsafe.Pointer(n))`,
 		fail:      true,
@@ -242,7 +242,7 @@ var ptrTests = []ptrTest{
 		name: "export1",
 		c:    `extern unsigned char *GoFn21();`,
 		support: `//export GoFn21
-                          func GoFn21() *byte { return new(byte) }`,
+		          func GoFn21() *byte { return new(byte) }`,
 		body: `C.GoFn21()`,
 		fail: true,
 	},
@@ -250,17 +250,17 @@ var ptrTests = []ptrTest{
 		// Returning a C pointer is fine.
 		name: "exportok",
 		c: `#include <stdlib.h>
-                    extern unsigned char *GoFn22();`,
+		    extern unsigned char *GoFn22();`,
 		support: `//export GoFn22
-                          func GoFn22() *byte { return (*byte)(C.malloc(1)) }`,
+		          func GoFn22() *byte { return (*byte)(C.malloc(1)) }`,
 		body: `C.GoFn22()`,
 	},
 	{
 		// Passing a Go string is fine.
 		name: "passstring",
 		c: `#include <stddef.h>
-                    typedef struct { const char *p; ptrdiff_t n; } gostring23;
-                    gostring23 f23(gostring23 s) { return s; }`,
+		    typedef struct { const char *p; ptrdiff_t n; } gostring23;
+		    gostring23 f23(gostring23 s) { return s; }`,
 		imports: []string{"unsafe"},
 		body:    `s := "a"; r := C.f23(*(*C.gostring23)(unsafe.Pointer(&s))); if *(*string)(unsafe.Pointer(&r)) != s { panic(r) }`,
 	},
@@ -279,12 +279,12 @@ var ptrTests = []ptrTest{
 		c:       `extern void f25();`,
 		imports: []string{"strings"},
 		support: `//export GoStr25
-                          func GoStr25() string { return strings.Repeat("a", 2) }`,
+		          func GoStr25() string { return strings.Repeat("a", 2) }`,
 		body: `C.f25()`,
 		c1: `#include <stddef.h>
-                                 typedef struct { const char *p; ptrdiff_t n; } gostring25;
-                                 extern gostring25 GoStr25();
-                                 void f25() { GoStr25(); }`,
+		     typedef struct { const char *p; ptrdiff_t n; } gostring25;
+		     extern gostring25 GoStr25();
+		     void f25() { GoStr25(); }`,
 		fail: true,
 	},
 	{
@@ -295,7 +295,7 @@ var ptrTests = []ptrTest{
 		// that is, we are testing something that is not unsafe.
 		name: "ptrdata1",
 		c: `#include <stdlib.h>
-                    void f26(void* p) {}`,
+		    void f26(void* p) {}`,
 		imports: []string{"unsafe"},
 		support: `type S26 struct { p *int; a [8*8]byte; u uintptr }`,
 		body:    `i := 0; p := &S26{u:uintptr(unsafe.Pointer(&i))}; q := (*S26)(C.malloc(C.size_t(unsafe.Sizeof(*p)))); *q = *p; C.f26(unsafe.Pointer(q))`,
@@ -305,7 +305,7 @@ var ptrTests = []ptrTest{
 		// Like ptrdata1, but with a type that uses a GC program.
 		name: "ptrdata2",
 		c: `#include <stdlib.h>
-                    void f27(void* p) {}`,
+		    void f27(void* p) {}`,
 		imports: []string{"unsafe"},
 		support: `type S27 struct { p *int; a [32769*8]byte; q *int; u uintptr }`,
 		body:    `i := 0; p := S27{u:uintptr(unsafe.Pointer(&i))}; q := (*S27)(C.malloc(C.size_t(unsafe.Sizeof(p)))); *q = p; C.f27(unsafe.Pointer(q))`,
@@ -423,6 +423,15 @@ var ptrTests = []ptrTest{
 		body:    `t := reflect.StructOf([]reflect.StructField{{Name: "MyInt38", Type: reflect.TypeOf(MyInt38(0)), Anonymous: true}}); v := reflect.New(t).Elem(); v.Interface().(Getter38).Get()`,
 		fail:    false,
 	},
+	{
+		// Test that a converted address of a struct field results
+		// in a check for just that field and not the whole struct.
+		name:    "structfieldcast",
+		c:       `struct S40i { int i; int* p; }; void f40(struct S40i* p) {}`,
+		support: `type S40 struct { p *int; a C.struct_S40i }`,
+		body:    `s := &S40{p: new(int)}; C.f40((*C.struct_S40i)(&s.a))`,
+		fail:    false,
+	},
 }
 
 func TestPointerChecks(t *testing.T) {
@@ -464,6 +473,9 @@ func buildPtrTests(t *testing.T) (dir, exe string) {
 
 	src := filepath.Join(gopath, "src", "ptrtest")
 	if err := os.MkdirAll(src, 0777); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(src, "go.mod"), []byte("module ptrtest"), 0666); err != nil {
 		t.Fatal(err)
 	}
 
