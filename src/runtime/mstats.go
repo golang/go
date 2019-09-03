@@ -79,6 +79,8 @@ type mstats struct {
 
 	last_gc_nanotime uint64 // last gc (monotonic time)
 	tinyallocs       uint64 // number of tiny allocations that didn't cause actual allocation; not exported to go directly
+	last_next_gc     uint64 // next_gc for the previous GC
+	last_heap_inuse  uint64 // heap_inuse at mark termination of the previous GC
 
 	// triggerRatio is the heap growth ratio that triggers marking.
 	//
