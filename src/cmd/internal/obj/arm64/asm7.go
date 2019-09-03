@@ -2486,6 +2486,7 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(AYIELD, t)
 			oprangeset(ASEV, t)
 			oprangeset(ASEVL, t)
+			oprangeset(ANOOP, t)
 			oprangeset(ADRPS, t)
 
 		case ACBZ:
@@ -6036,8 +6037,8 @@ func (c *ctxt7) op0(p *obj.Prog, a obj.As) uint32 {
 	case AERET:
 		return 0x6B<<25 | 4<<21 | 0x1F<<16 | 0<<10 | 0x1F<<5
 
-	// case ANOP:
-	// 	return SYSHINT(0)
+	case ANOOP:
+		return SYSHINT(0)
 
 	case AYIELD:
 		return SYSHINT(1)
