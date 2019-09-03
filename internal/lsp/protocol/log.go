@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/tools/internal/jsonrpc2"
@@ -51,11 +52,52 @@ type req struct {
 	start  time.Time
 }
 
-var (
-	// remember to delete the entries after responses are seen TODO
-	clientCalls = make(map[string]req)
-	serverCalls = make(map[string]req)
-)
+type mapped struct {
+	mu          sync.Mutex
+	clientCalls map[string]req
+	serverCalls map[string]req
+}
+
+var maps = &mapped{
+	sync.Mutex{},
+	make(map[string]req),
+	make(map[string]req),
+}
+
+// these 4 methods are each used exactly once, but it seemed
+// better to have the encapsulation rather than ad hoc mutex
+// code in 4 places
+func (m *mapped) client(id string, del bool) req {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	v := m.clientCalls[id]
+	if del {
+		delete(m.clientCalls, id)
+	}
+	return v
+}
+
+func (m *mapped) server(id string, del bool) req {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	v := m.serverCalls[id]
+	if del {
+		delete(m.serverCalls, id)
+	}
+	return v
+}
+
+func (m *mapped) setClient(id string, r req) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.clientCalls[id] = r
+}
+
+func (m *mapped) setServer(id string, r req) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.serverCalls[id] = r
+}
 
 const eor = "\r\n\r\n\r\n"
 
@@ -105,11 +147,12 @@ func logOut(outfd io.Writer, data []byte) {
 	if v.ID != nil && v.Method != "" && v.Params != nil {
 		fmt.Fprintf(&buf, "Received request '%s - (%s)'.\n", v.Method, id)
 		fmt.Fprintf(&buf, "Params: %s%s", *v.Params, eor)
-		serverCalls[id] = req{method: v.Method, start: tm}
+		maps.setServer(id, req{method: v.Method, start: tm})
 	} else if v.ID != nil && v.Method == "" && v.Params == nil {
-		elapsed := tm.Sub(clientCalls[id].start)
+		cc := maps.client(id, true)
+		elapsed := tm.Sub(cc.start)
 		fmt.Fprintf(&buf, "Received response '%s - (%s)' in %dms.\n",
-			clientCalls[id].method, id, elapsed/time.Millisecond)
+			cc.method, id, elapsed/time.Millisecond)
 		if v.Result == nil {
 			fmt.Fprintf(&buf, "Result: {}%s", eor)
 		} else {
@@ -131,7 +174,7 @@ func logOut(outfd io.Writer, data []byte) {
 		if v.Result != nil {
 			r = string(*v.Result)
 		}
-		fmt.Fprintf(&buf, "%s\n%s\n%s\r\n\r\n\r\n", p, r, v.Error)
+		fmt.Fprintf(&buf, "%s\n%s\n%s%s", p, r, v.Error, eor)
 	}
 	outfd.Write([]byte(buf.String()))
 }
@@ -160,11 +203,12 @@ func logIn(outfd io.Writer, data []byte) {
 			x = string(*v.Params)
 		}
 		fmt.Fprintf(&buf, "Params: %s%s", x, eor)
-		clientCalls[id] = req{method: v.Method, start: tm}
+		maps.setClient(id, req{method: v.Method, start: tm})
 	} else if v.ID != nil && v.Method == "" && v.Params == nil {
-		elapsed := tm.Sub(serverCalls[id].start)
+		sc := maps.server(id, true)
+		elapsed := tm.Sub(sc.start)
 		fmt.Fprintf(&buf, "Sending response '%s - (%s)' in %dms.\n",
-			serverCalls[id].method, id, elapsed/time.Millisecond)
+			sc.method, id, elapsed/time.Millisecond)
 		if v.Result == nil {
 			fmt.Fprintf(&buf, "Result: {}%s", eor)
 		} else {
@@ -186,7 +230,7 @@ func logIn(outfd io.Writer, data []byte) {
 		if v.Result != nil {
 			r = string(*v.Result)
 		}
-		fmt.Fprintf(&buf, "%s\n%s\n%s\r\n\r\n\r\n", p, r, v.Error)
+		fmt.Fprintf(&buf, "%s\n%s\n%s%s", p, r, v.Error, eor)
 	}
 	outfd.Write([]byte(buf.String()))
 }
