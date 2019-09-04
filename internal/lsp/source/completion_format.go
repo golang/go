@@ -30,20 +30,19 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	}
 
 	var (
-		label              = cand.name
-		detail             = types.TypeString(obj.Type(), c.qf)
-		insert             = label
-		kind               CompletionItemKind
-		plainSnippet       *snippet.Builder
-		placeholderSnippet *snippet.Builder
-		protocolEdits      []protocol.TextEdit
+		label         = cand.name
+		detail        = types.TypeString(obj.Type(), c.qf)
+		insert        = label
+		kind          CompletionItemKind
+		snip          *snippet.Builder
+		protocolEdits []protocol.TextEdit
 	)
 
-	// expandFuncCall mutates the completion label, detail, and snippets
+	// expandFuncCall mutates the completion label, detail, and snippet
 	// to that of an invocation of sig.
 	expandFuncCall := func(sig *types.Signature) {
 		params := formatParams(sig.Params(), sig.Variadic(), c.qf)
-		plainSnippet, placeholderSnippet = c.functionCallSnippets(label, params)
+		snip = c.functionCallSnippet(label, params)
 		results, writeParens := formatResults(sig.Results(), c.qf)
 		detail = "func" + formatFunction(params, results, writeParens)
 	}
@@ -59,7 +58,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		}
 		if obj.IsField() {
 			kind = FieldCompletionItem
-			plainSnippet, placeholderSnippet = c.structFieldSnippets(label, detail)
+			snip = c.structFieldSnippet(label, detail)
 		} else if c.isParameter(obj) {
 			kind = ParameterCompletionItem
 		} else {
@@ -110,8 +109,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		Kind:                kind,
 		Score:               cand.score,
 		Depth:               len(c.deepState.chain),
-		plainSnippet:        plainSnippet,
-		placeholderSnippet:  placeholderSnippet,
+		snippet:             snip,
 	}
 	// If the user doesn't want documentation for completion items.
 	if !c.opts.Documentation {
@@ -200,7 +198,7 @@ func (c *completer) formatBuiltin(cand candidate) CompletionItem {
 		results, writeResultParens := formatFieldList(c.ctx, c.view, decl.Type.Results)
 		item.Label = obj.Name()
 		item.Detail = "func" + formatFunction(params, results, writeResultParens)
-		item.plainSnippet, item.placeholderSnippet = c.functionCallSnippets(obj.Name(), params)
+		item.snippet = c.functionCallSnippet(obj.Name(), params)
 	case *types.TypeName:
 		if types.IsInterface(obj.Type()) {
 			item.Kind = InterfaceCompletionItem

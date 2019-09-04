@@ -10,6 +10,8 @@ import (
 
 func TestSnippetBuilder(t *testing.T) {
 	expect := func(expected string, fn func(*Builder)) {
+		t.Helper()
+
 		var b Builder
 		fn(&b)
 		if got := b.String(); got != expected {
@@ -23,7 +25,7 @@ func TestSnippetBuilder(t *testing.T) {
 		b.WriteText(`hi { } $ | " , / \`)
 	})
 
-	expect("${1}", func(b *Builder) {
+	expect("${1:}", func(b *Builder) {
 		b.WritePlaceholder(nil)
 	})
 

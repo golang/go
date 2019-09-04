@@ -322,7 +322,7 @@ func (s *Server) processConfig(ctx context.Context, view source.View, options *s
 	setBool(&options.Completion.Unimported, c, "wantUnimportedCompletions")
 
 	// If the user wants placeholders for autocompletion results.
-	setBool(&options.UsePlaceholders, c, "usePlaceholders")
+	setBool(&options.Completion.Placeholders, c, "usePlaceholders")
 
 	return nil
 }

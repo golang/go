@@ -167,6 +167,7 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 				Documentation: true,
 				Deep:          strings.Contains(string(src.URI()), "deepcomplete"),
 				FuzzyMatching: strings.Contains(string(src.URI()), "fuzzymatch"),
+				Placeholders:  usePlaceholders,
 			})
 			if err != nil {
 				t.Fatalf("failed for %v: %v", src, err)
@@ -186,8 +187,18 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			if usePlaceholders {
 				expected = want.PlaceholderSnippet
 			}
-			if actual := got.Snippet(usePlaceholders); expected != actual {
-				t.Errorf("%s: expected placeholder snippet %q, got %q", src, expected, actual)
+			if expected == "" {
+				if got != nil {
+					t.Fatalf("%s:%d: expected no matching snippet", src.URI(), src.Start().Line())
+				}
+			} else {
+				if got == nil {
+					t.Fatalf("%s:%d: couldn't find completion matching %q", src.URI(), src.Start().Line(), wantItem.Label)
+				}
+				actual := got.Snippet()
+				if expected != actual {
+					t.Errorf("%s: expected placeholder snippet %q, got %q", src, expected, actual)
+				}
 			}
 		}
 	}

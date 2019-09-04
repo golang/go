@@ -11,23 +11,23 @@ func (Foo) Baz() func() {} //@item(snipMethodBaz, "Baz", "func() func()", "metho
 func (Foo) BazBar() func() {} //@item(snipMethodBazBar, "BazBar", "func() func()", "method")
 
 func _() {
-	f //@snippet(" //", snipFoo, "foo(${1})", "foo(${1:i int}, ${2:b bool})")
+	f //@snippet(" //", snipFoo, "foo(${1:})", "foo(${1:i int}, ${2:b bool})")
 
-	bar //@snippet(" //", snipBar, "bar(${1})", "bar(${1:fn func()})")
+	bar //@snippet(" //", snipBar, "bar(${1:})", "bar(${1:fn func()})")
 
 	bar(nil) //@snippet("(", snipBar, "bar", "bar")
-	bar(ba) //@snippet(")", snipBar, "bar(${1})", "bar(${1:fn func()})")
+	bar(ba) //@snippet(")", snipBar, "bar(${1:})", "bar(${1:fn func()})")
 	var f Foo
 	bar(f.Ba) //@snippet(")", snipMethodBaz, "Baz()", "Baz()")
-	(bar)(nil) //@snippet(")", snipBar, "bar(${1})", "bar(${1:fn func()})")
+	(bar)(nil) //@snippet(")", snipBar, "bar(${1:})", "bar(${1:fn func()})")
 	(f.Ba)() //@snippet(")", snipMethodBaz, "Baz()", "Baz()")
 
 	Foo{
-		B //@snippet(" //", snipFieldBar, "Bar: ${1},", "Bar: ${1:int},")
+		B //@snippet(" //", snipFieldBar, "Bar: ${1:},", "Bar: ${1:int},")
 	}
 
-	Foo{B} //@snippet("}", snipFieldBar, "Bar: ${1}", "Bar: ${1:int}")
-	Foo{} //@snippet("}", snipFieldBar, "Bar: ${1}", "Bar: ${1:int}")
+	Foo{B} //@snippet("}", snipFieldBar, "Bar: ${1:}", "Bar: ${1:int}")
+	Foo{} //@snippet("}", snipFieldBar, "Bar: ${1:}", "Bar: ${1:int}")
 
 	Foo{Foo{}.B} //@snippet("} ", snipFieldBar, "Bar", "Bar")
 

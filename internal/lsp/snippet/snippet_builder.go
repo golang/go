@@ -43,9 +43,8 @@ func (b *Builder) WriteText(s string) {
 // The callback style allows for creating nested placeholders. To write an
 // empty tab stop, provide a nil callback.
 func (b *Builder) WritePlaceholder(fn func(*Builder)) {
-	fmt.Fprintf(&b.sb, "${%d", b.nextTabStop())
+	fmt.Fprintf(&b.sb, "${%d:", b.nextTabStop())
 	if fn != nil {
-		b.sb.WriteByte(':')
 		fn(b)
 	}
 	b.sb.WriteByte('}')

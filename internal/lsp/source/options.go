@@ -31,7 +31,6 @@ var (
 type SessionOptions struct {
 	Env              []string
 	BuildFlags       []string
-	UsePlaceholders  bool
 	HoverKind        HoverKind
 	DisabledAnalyses map[string]struct{}
 
@@ -59,6 +58,7 @@ type CompletionOptions struct {
 	Unimported        bool
 	Documentation     bool
 	FullDocumentation bool
+	Placeholders      bool
 }
 
 type HoverKind int

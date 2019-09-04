@@ -70,8 +70,9 @@ func (s *Server) toProtocolCompletionItems(candidates []source.CompletionItem, r
 		}
 		insertText := candidate.InsertText
 		if options.InsertTextFormat == protocol.SnippetTextFormat {
-			insertText = candidate.Snippet(options.UsePlaceholders)
+			insertText = candidate.Snippet()
 		}
+
 		item := protocol.CompletionItem{
 			Label:  candidate.Label,
 			Detail: candidate.Detail,
