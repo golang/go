@@ -61,37 +61,37 @@ func (i *IdentifierInfo) References(ctx context.Context, view View) ([]*Referenc
 			if obj == nil || !sameObj(obj, i.Declaration.obj) {
 				continue
 			}
-			reference := &ReferenceInfo{
+			rng, err := posToRange(ctx, view, ident.Pos(), ident.End())
+			if err != nil {
+				return nil, err
+			}
+			// Add the declarations at the beginning of the references list.
+			references = append([]*ReferenceInfo{{
 				Name:          ident.Name,
 				ident:         ident,
 				obj:           obj,
 				pkg:           pkg,
 				isDeclaration: true,
-			}
-			if reference.mappedRange, err = posToRange(ctx, view, ident.Pos(), ident.End()); err != nil {
-				return nil, err
-			}
-			// Add the declarations at the beginning of the references list.
-			references = append([]*ReferenceInfo{reference}, references...)
+				mappedRange:   rng,
+			}}, references...)
 		}
 		for ident, obj := range info.Uses {
 			if obj == nil || !sameObj(obj, i.Declaration.obj) {
 				continue
 			}
-			reference := &ReferenceInfo{
-				Name:  ident.Name,
-				ident: ident,
-				pkg:   pkg,
-				obj:   obj,
-			}
-			if reference.mappedRange, err = posToRange(ctx, view, ident.Pos(), ident.End()); err != nil {
+			rng, err := posToRange(ctx, view, ident.Pos(), ident.End())
+			if err != nil {
 				return nil, err
 			}
-			references = append(references, reference)
+			references = append(references, &ReferenceInfo{
+				Name:        ident.Name,
+				ident:       ident,
+				pkg:         pkg,
+				obj:         obj,
+				mappedRange: rng,
+			})
 		}
-
 	}
-
 	return references, nil
 }
 

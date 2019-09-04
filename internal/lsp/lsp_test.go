@@ -621,7 +621,6 @@ func (r *runner) Reference(t *testing.T, data tests.References) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", src, err)
 		}
-
 		if len(got) != len(want) {
 			t.Errorf("references failed: different lengths got %v want %v", len(got), len(want))
 		}

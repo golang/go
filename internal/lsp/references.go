@@ -57,17 +57,22 @@ func (s *Server) references(ctx context.Context, params *protocol.ReferenceParam
 	// it is added to the beginning of the list if IncludeDeclaration
 	// was specified.
 	if params.Context.IncludeDeclaration {
-		rng, err := ident.Declaration.Range()
+		decSpan, err := ident.Declaration.Span()
 		if err != nil {
 			return nil, err
 		}
-		locations = append([]protocol.Location{
-			{
-				URI:   protocol.NewURI(ident.Declaration.URI()),
-				Range: rng,
-			},
-		}, locations...)
-
+		if !seen[decSpan] {
+			rng, err := ident.Declaration.Range()
+			if err != nil {
+				return nil, err
+			}
+			locations = append([]protocol.Location{
+				{
+					URI:   protocol.NewURI(ident.Declaration.URI()),
+					Range: rng,
+				},
+			}, locations...)
+		}
 	}
 	return locations, nil
 }

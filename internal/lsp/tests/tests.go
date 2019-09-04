@@ -38,7 +38,7 @@ const (
 	ExpectedTypeDefinitionsCount   = 2
 	ExpectedFoldingRangesCount     = 1
 	ExpectedHighlightsCount        = 2
-	ExpectedReferencesCount        = 5
+	ExpectedReferencesCount        = 6
 	ExpectedRenamesCount           = 20
 	ExpectedPrepareRenamesCount    = 8
 	ExpectedSymbolsCount           = 1
