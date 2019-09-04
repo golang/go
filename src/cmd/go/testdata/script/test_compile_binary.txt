@@ -4,5 +4,5 @@ env GO111MODULE=off
 stderr 'build comment'
 
 -- compile_binary/foo_test.go --
-//+build foo
+// +build foo
 package foo
