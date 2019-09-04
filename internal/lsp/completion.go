@@ -73,6 +73,12 @@ func (s *Server) toProtocolCompletionItems(candidates []source.CompletionItem, r
 			insertText = candidate.Snippet()
 		}
 
+		// This can happen if the client has snippets disabled but the
+		// candidate only supports snippet insertion.
+		if insertText == "" {
+			continue
+		}
+
 		item := protocol.CompletionItem{
 			Label:  candidate.Label,
 			Detail: candidate.Detail,

@@ -180,7 +180,7 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 				}
 			}
 			if got == nil {
-				t.Fatalf("%s: couldn't find completion matching %q", src.URI(), wantItem.Label)
+				t.Fatalf("%s:%d: couldn't find completion matching %q", src.URI(), src.Start().Line(), wantItem.Label)
 			}
 			var expected string
 			if usePlaceholders {

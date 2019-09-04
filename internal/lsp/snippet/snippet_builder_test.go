@@ -48,4 +48,9 @@ func TestSnippetBuilder(t *testing.T) {
 	expect(`${1|one,{ \} \$ \| " \, / \\,three|}`, func(b *Builder) {
 		b.WriteChoice([]string{"one", `{ } $ | " , / \`, "three"})
 	})
+
+	expect("$0 hello", func(b *Builder) {
+		b.WriteFinalTabstop()
+		b.WriteText(" hello")
+	})
 }

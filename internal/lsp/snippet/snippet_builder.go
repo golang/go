@@ -50,6 +50,13 @@ func (b *Builder) WritePlaceholder(fn func(*Builder)) {
 	b.sb.WriteByte('}')
 }
 
+// WriteFinalTabstop marks where cursor ends up after the user has
+// cycled through all the normal tab stops. It defaults to the
+// character after the snippet.
+func (b *Builder) WriteFinalTabstop() {
+	fmt.Fprint(&b.sb, "$0")
+}
+
 // In addition to '\', '}', and '$', snippet choices also use '|' and ',' as
 // meta characters, so they must be escaped within the choices.
 var choiceReplacer = strings.NewReplacer(
