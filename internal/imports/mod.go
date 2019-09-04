@@ -397,6 +397,12 @@ func (r *ModuleResolver) scanDirForPackage(root gopathwalk.Root, dir string) (di
 		importPath = path.Join(r.Main.Path, filepath.ToSlash(subdir))
 	case gopathwalk.RootModuleCache:
 		matches := modCacheRegexp.FindStringSubmatch(subdir)
+		if len(matches) == 0 {
+			return directoryPackageInfo{
+				status: directoryScanned,
+				err:    fmt.Errorf("invalid module cache path: %v", subdir),
+			}, nil
+		}
 		modPath, err := module.DecodePath(filepath.ToSlash(matches[1]))
 		if err != nil {
 			if r.env.Debug {

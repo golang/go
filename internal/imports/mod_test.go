@@ -626,18 +626,7 @@ func setup(t *testing.T, main, wd string) *modTest {
 		T:        t,
 		env:      env,
 		resolver: &ModuleResolver{env: env},
-		cleanup: func() {
-			_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					return nil
-				}
-				if info.IsDir() {
-					_ = os.Chmod(path, 0777)
-				}
-				return nil
-			})
-			_ = os.RemoveAll(dir) // ignore errors
-		},
+		cleanup:  func() { removeDir(dir) },
 	}
 }
 
@@ -737,6 +726,19 @@ func writeProxyModule(base, arPath string) error {
 	return nil
 }
 
+func removeDir(dir string) {
+	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			_ = os.Chmod(path, 0777)
+		}
+		return nil
+	})
+	_ = os.RemoveAll(dir) // ignore errors
+}
+
 // Tests that findModFile can find the mod files from a path in the module cache.
 func TestFindModFileModCache(t *testing.T) {
 	mt := setup(t, `
@@ -756,4 +758,30 @@ import _ "rsc.io/quote"
 	if modFile != want {
 		t.Errorf("expected: %s, got: %s", want, modFile)
 	}
+}
+
+// Tests that crud in the module cache is ignored.
+func TestInvalidModCache(t *testing.T) {
+	dir, err := ioutil.TempDir("", t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer removeDir(dir)
+
+	// This doesn't have module@version like it should.
+	if err := os.MkdirAll(filepath.Join(dir, "gopath/pkg/mod/sabotage"), 0777); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(dir, "gopath/pkg/mod/sabotage/x.go"), []byte("package foo\n"), 0777); err != nil {
+		t.Fatal(err)
+	}
+	env := &ProcessEnv{
+		GOROOT:      build.Default.GOROOT,
+		GOPATH:      filepath.Join(dir, "gopath"),
+		GO111MODULE: "on",
+		GOSUMDB:     "off",
+		WorkingDir:  dir,
+	}
+	resolver := &ModuleResolver{env: env}
+	resolver.scan(nil)
 }
