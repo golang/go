@@ -365,26 +365,24 @@ func (f *goFile) invalidateContent(ctx context.Context) {
 	f.view.mcache.mu.Lock()
 	defer f.view.mcache.mu.Unlock()
 
+	var toDelete []packageID
+	f.mu.Lock()
+	for id, cph := range f.pkgs {
+		if cph != nil {
+			toDelete = append(toDelete, id)
+		}
+	}
+	f.mu.Unlock()
+
 	f.handleMu.Lock()
 	defer f.handleMu.Unlock()
 
-	f.invalidateAST(ctx)
-	f.handle = nil
-}
-
-// invalidateAST invalidates the AST of a Go file,
-// including any position and type information that depends on it.
-func (f *goFile) invalidateAST(ctx context.Context) {
-	f.mu.Lock()
-	cphs := f.pkgs
-	f.mu.Unlock()
-
 	// Remove the package and all of its reverse dependencies from the cache.
-	for id, cph := range cphs {
-		if cph != nil {
-			f.view.remove(ctx, id, map[packageID]struct{}{})
-		}
+	for _, id := range toDelete {
+		f.view.remove(ctx, id, map[packageID]struct{}{})
 	}
+
+	f.handle = nil
 }
 
 // remove invalidates a package and its reverse dependencies in the view's

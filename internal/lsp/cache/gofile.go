@@ -40,14 +40,6 @@ type goFile struct {
 	meta map[packageID]*metadata
 }
 
-type astFile struct {
-	uri       span.URI
-	file      *ast.File
-	err       error // parse errors
-	ph        source.ParseGoHandle
-	isTrimmed bool
-}
-
 func (f *goFile) GetToken(ctx context.Context) (*token.File, error) {
 	file, err := f.GetAST(ctx, source.ParseFull)
 	if file == nil {
