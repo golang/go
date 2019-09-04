@@ -67,6 +67,7 @@ type Link struct {
 	linkShared    bool // link against installed Go shared libraries
 	LinkMode      LinkMode
 	BuildMode     BuildMode
+	canUsePlugins bool // initialized when Loaded is set to true
 	compressDWARF bool
 
 	Tlsg         *sym.Symbol
