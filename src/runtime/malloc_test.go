@@ -177,10 +177,6 @@ func TestPhysicalMemoryUtilization(t *testing.T) {
 }
 
 func TestScavengedBitsCleared(t *testing.T) {
-	if OldPageAllocator {
-		// This test is only relevant for the new page allocator.
-		return
-	}
 	var mismatches [128]BitsMismatch
 	if n, ok := CheckScavengedBitsCleared(mismatches[:]); !ok {
 		t.Errorf("uncleared scavenged bits")
