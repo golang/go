@@ -111,7 +111,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		fetched, res, err = fetch(secure)
 		if err != nil {
 			if cfg.BuildX {
-				fmt.Fprintf(os.Stderr, "# get %s: %v\n", Redacted(url), err)
+				fmt.Fprintf(os.Stderr, "# get %s: %v\n", Redacted(secure), err)
 			}
 			if security != Insecure || url.Scheme == "https" {
 				// HTTPS failed, and we can't fall back to plain HTTP.
@@ -146,7 +146,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		insecure.Scheme = "http"
 		if insecure.User != nil && security != Insecure {
 			if cfg.BuildX {
-				fmt.Fprintf(os.Stderr, "# get %s: insecure credentials\n", Redacted(url))
+				fmt.Fprintf(os.Stderr, "# get %s: insecure credentials\n", Redacted(insecure))
 			}
 			return nil, fmt.Errorf("refusing to pass credentials to insecure URL: %s", Redacted(insecure))
 		}
@@ -154,7 +154,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		fetched, res, err = fetch(insecure)
 		if err != nil {
 			if cfg.BuildX {
-				fmt.Fprintf(os.Stderr, "# get %s: %v\n", Redacted(url), err)
+				fmt.Fprintf(os.Stderr, "# get %s: %v\n", Redacted(insecure), err)
 			}
 			// HTTP failed, and we already tried HTTPS if applicable.
 			// Report the error from the HTTP attempt.
@@ -165,7 +165,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 	// Note: accepting a non-200 OK here, so people can serve a
 	// meta import in their http 404 page.
 	if cfg.BuildX {
-		fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", Redacted(url), res.Status, time.Since(start).Seconds())
+		fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", Redacted(fetched), res.Status, time.Since(start).Seconds())
 	}
 	r := &Response{
 		URL:        Redacted(fetched),
