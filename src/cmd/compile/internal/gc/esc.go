@@ -405,19 +405,7 @@ const unsafeUintptrTag = "unsafe-uintptr"
 // marked go:uintptrescapes.
 const uintptrEscapesTag = "uintptr-escapes"
 
-func esctag(fn *Node) {
-	fn.Esc = EscFuncTagged
-
-	narg := 0
-	for _, fs := range types.RecvsParams {
-		for _, f := range fs(fn.Type).Fields().Slice() {
-			narg++
-			f.Note = escparamtag(fn, narg, f)
-		}
-	}
-}
-
-func escparamtag(fn *Node, narg int, f *types.Field) string {
+func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 	name := func() string {
 		if f.Sym != nil {
 			return f.Sym.Name
@@ -446,7 +434,14 @@ func escparamtag(fn *Node, narg int, f *types.Field) string {
 		// External functions are assumed unsafe, unless
 		// //go:noescape is given before the declaration.
 		if fn.Noescape() {
+			if Debug['m'] != 0 && f.Sym != nil {
+				Warnl(fn.Pos, "%S %v does not escape", funcSym(fn), name())
+			}
 			return mktag(EscNone)
+		}
+
+		if Debug['m'] != 0 && f.Sym != nil {
+			Warnl(fn.Pos, "leaking param: %v", name())
 		}
 		return mktag(EscHeap)
 	}
@@ -477,5 +472,26 @@ func escparamtag(fn *Node, narg int, f *types.Field) string {
 	}
 
 	n := asNode(f.Nname)
-	return mktag(int(n.Esc))
+	loc := e.oldLoc(n)
+	esc := finalizeEsc(loc.paramEsc)
+
+	if Debug['m'] != 0 && !loc.escapes {
+		if esc == EscNone {
+			Warnl(n.Pos, "%S %S does not escape", funcSym(fn), n)
+		} else if esc == EscHeap {
+			Warnl(n.Pos, "leaking param: %S", n)
+		} else {
+			if esc&EscContentEscapes != 0 {
+				Warnl(n.Pos, "leaking param content: %S", n)
+			}
+			for i := 0; i < numEscReturns; i++ {
+				if x := getEscReturn(esc, i); x >= 0 {
+					res := n.Name.Curfn.Type.Results().Field(i).Sym
+					Warnl(n.Pos, "leaking param: %S to result %v level=%d", n, res, x)
+				}
+			}
+		}
+	}
+
+	return mktag(int(esc))
 }
