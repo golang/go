@@ -18,7 +18,7 @@ func F1(a uintptr) {} // ERROR "escaping uintptr"
 
 //go:uintptrescapes
 //go:noinline
-func F2(a ...uintptr) {} // ERROR "escaping ...uintptr" "a does not escape"
+func F2(a ...uintptr) {} // ERROR "escaping ...uintptr"
 
 //go:uintptrescapes
 //go:noinline
