@@ -77,18 +77,15 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	// If the user wants to see quickfixes.
 	if wanted[protocol.QuickFix] {
 		// First, add the quick fixes reported by go/analysis.
-		// TODO: Enable this when this actually works. For now, it's needless work.
-		if s.session.Options().SuggestedFixes {
-			gof, ok := f.(source.GoFile)
-			if !ok {
-				return nil, fmt.Errorf("%s is not a Go file", f.URI())
-			}
-			qf, err := quickFixes(ctx, view, gof)
-			if err != nil {
-				log.Error(ctx, "quick fixes failed", err, telemetry.File.Of(uri))
-			}
-			codeActions = append(codeActions, qf...)
+		gof, ok := f.(source.GoFile)
+		if !ok {
+			return nil, fmt.Errorf("%s is not a Go file", f.URI())
 		}
+		qf, err := quickFixes(ctx, view, gof)
+		if err != nil {
+			log.Error(ctx, "quick fixes failed", err, telemetry.File.Of(uri))
+		}
+		codeActions = append(codeActions, qf...)
 
 		// If we also have diagnostics for missing imports, we can associate them with quick fixes.
 		if findImportErrors(params.Context.Diagnostics) {
@@ -204,7 +201,7 @@ func quickFixes(ctx context.Context, view source.View, gof source.GoFile) ([]pro
 	// TODO: This is technically racy because the diagnostics provided by the code action
 	// may not be the same as the ones that gopls is aware of.
 	// We need to figure out some way to solve this problem.
-	pkg, err := gof.GetPackage(ctx)
+	pkg, err := gof.GetCachedPackage(ctx)
 	if err != nil {
 		return nil, err
 	}

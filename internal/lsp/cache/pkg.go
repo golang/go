@@ -39,7 +39,7 @@ type pkg struct {
 	analyses map[*analysis.Analyzer]*analysisEntry
 
 	diagMu      sync.Mutex
-	diagnostics []source.Diagnostic
+	diagnostics map[*analysis.Analyzer][]source.Diagnostic
 }
 
 // packageID is a type that abstracts a package ID.
@@ -180,14 +180,22 @@ func (pkg *pkg) IsIllTyped() bool {
 	return pkg.types == nil || pkg.typesInfo == nil || pkg.typesSizes == nil
 }
 
-func (pkg *pkg) SetDiagnostics(diags []source.Diagnostic) {
+func (pkg *pkg) SetDiagnostics(a *analysis.Analyzer, diags []source.Diagnostic) {
 	pkg.diagMu.Lock()
 	defer pkg.diagMu.Unlock()
-	pkg.diagnostics = diags
+	if pkg.diagnostics == nil {
+		pkg.diagnostics = make(map[*analysis.Analyzer][]source.Diagnostic)
+	}
+	pkg.diagnostics[a] = diags
 }
 
 func (pkg *pkg) GetDiagnostics() []source.Diagnostic {
 	pkg.diagMu.Lock()
 	defer pkg.diagMu.Unlock()
-	return pkg.diagnostics
+
+	var diags []source.Diagnostic
+	for _, d := range pkg.diagnostics {
+		diags = append(diags, d...)
+	}
+	return diags
 }

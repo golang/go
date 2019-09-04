@@ -386,7 +386,7 @@ func runAnalyses(ctx context.Context, view View, cph CheckPackageHandle, disable
 		if err != nil {
 			return err
 		}
-		pkg.SetDiagnostics(sdiags)
+		pkg.SetDiagnostics(r.Analyzer, sdiags)
 	}
 	return nil
 }

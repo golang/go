@@ -34,6 +34,7 @@ const (
 	ExpectedDiagnosticsCount       = 21
 	ExpectedFormatCount            = 6
 	ExpectedImportCount            = 2
+	ExpectedSuggestedFixCount      = 1
 	ExpectedDefinitionsCount       = 39
 	ExpectedTypeDefinitionsCount   = 2
 	ExpectedFoldingRangesCount     = 2
@@ -62,6 +63,7 @@ type CompletionSnippets map[span.Span]CompletionSnippet
 type FoldingRanges []span.Span
 type Formats []span.Span
 type Imports []span.Span
+type SuggestedFixes []span.Span
 type Definitions map[span.Span]Definition
 type Highlights map[string][]span.Span
 type References map[span.Span][]span.Span
@@ -82,6 +84,7 @@ type Data struct {
 	FoldingRanges      FoldingRanges
 	Formats            Formats
 	Imports            Imports
+	SuggestedFixes     SuggestedFixes
 	Definitions        Definitions
 	Highlights         Highlights
 	References         References
@@ -104,6 +107,7 @@ type Tests interface {
 	FoldingRange(*testing.T, FoldingRanges)
 	Format(*testing.T, Formats)
 	Import(*testing.T, Imports)
+	SuggestedFix(*testing.T, SuggestedFixes)
 	Definition(*testing.T, Definitions)
 	Highlight(*testing.T, Highlights)
 	Reference(*testing.T, References)
@@ -228,23 +232,24 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 
 	// Collect any data that needs to be used by subsequent tests.
 	if err := data.Exported.Expect(map[string]interface{}{
-		"diag":      data.collectDiagnostics,
-		"item":      data.collectCompletionItems,
-		"complete":  data.collectCompletions,
-		"fold":      data.collectFoldingRanges,
-		"format":    data.collectFormats,
-		"import":    data.collectImports,
-		"godef":     data.collectDefinitions,
-		"typdef":    data.collectTypeDefinitions,
-		"hover":     data.collectHoverDefinitions,
-		"highlight": data.collectHighlights,
-		"refs":      data.collectReferences,
-		"rename":    data.collectRenames,
-		"prepare":   data.collectPrepareRenames,
-		"symbol":    data.collectSymbols,
-		"signature": data.collectSignatures,
-		"snippet":   data.collectCompletionSnippets,
-		"link":      data.collectLinks,
+		"diag":         data.collectDiagnostics,
+		"item":         data.collectCompletionItems,
+		"complete":     data.collectCompletions,
+		"fold":         data.collectFoldingRanges,
+		"format":       data.collectFormats,
+		"import":       data.collectImports,
+		"godef":        data.collectDefinitions,
+		"typdef":       data.collectTypeDefinitions,
+		"hover":        data.collectHoverDefinitions,
+		"highlight":    data.collectHighlights,
+		"refs":         data.collectReferences,
+		"rename":       data.collectRenames,
+		"prepare":      data.collectPrepareRenames,
+		"symbol":       data.collectSymbols,
+		"signature":    data.collectSignatures,
+		"snippet":      data.collectCompletionSnippets,
+		"link":         data.collectLinks,
+		"suggestedfix": data.collectSuggestedFixes,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -311,6 +316,14 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			t.Errorf("got %v imports expected %v", len(data.Imports), ExpectedImportCount)
 		}
 		tests.Import(t, data.Imports)
+	})
+
+	t.Run("SuggestedFix", func(t *testing.T) {
+		t.Helper()
+		if len(data.SuggestedFixes) != ExpectedSuggestedFixCount {
+			t.Errorf("got %v suggested fixes expected %v", len(data.SuggestedFixes), ExpectedSuggestedFixCount)
+		}
+		tests.SuggestedFix(t, data.SuggestedFixes)
 	})
 
 	t.Run("Definition", func(t *testing.T) {
@@ -585,6 +598,10 @@ func (data *Data) collectFormats(spn span.Span) {
 
 func (data *Data) collectImports(spn span.Span) {
 	data.Imports = append(data.Imports, spn)
+}
+
+func (data *Data) collectSuggestedFixes(spn span.Span) {
+	data.SuggestedFixes = append(data.SuggestedFixes, spn)
 }
 
 func (data *Data) collectDefinitions(src, target span.Span) {

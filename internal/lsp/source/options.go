@@ -33,7 +33,6 @@ type SessionOptions struct {
 	BuildFlags       []string
 	UsePlaceholders  bool
 	HoverKind        HoverKind
-	SuggestedFixes   bool
 	DisabledAnalyses map[string]struct{}
 
 	WatchFileChanges              bool

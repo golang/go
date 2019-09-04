@@ -302,9 +302,6 @@ func (s *Server) processConfig(ctx context.Context, view source.View, options *s
 		}
 	}
 
-	// Check if the user wants to see suggested fixes from go/analysis.
-	setBool(&options.SuggestedFixes, c, "wantSuggestedFixes")
-
 	// Check if the user has explicitly disabled any analyses.
 	if disabledAnalyses, ok := c["experimentalDisabledAnalyses"].([]interface{}); ok {
 		options.DisabledAnalyses = make(map[string]struct{})

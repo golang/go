@@ -491,6 +491,58 @@ func (r *runner) Import(t *testing.T, data tests.Imports) {
 	}
 }
 
+func (r *runner) SuggestedFix(t *testing.T, data tests.SuggestedFixes) {
+	for _, spn := range data {
+		uri := spn.URI()
+		filename := uri.Filename()
+		v := r.server.session.ViewOf(uri)
+		fixed := string(r.data.Golden("suggestedfix", filename, func() ([]byte, error) {
+			cmd := exec.Command("suggestedfix", filename) // TODO(matloob): what do we do here?
+			out, _ := cmd.Output()                        // ignore error, sometimes we have intentionally ungofmt-able files
+			return out, nil
+		}))
+		f, err := getGoFile(r.ctx, v, uri)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results, err := source.Diagnostics(r.ctx, v, f, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = results
+		actions, err := r.server.CodeAction(r.ctx, &protocol.CodeActionParams{
+			TextDocument: protocol.TextDocumentIdentifier{
+				URI: protocol.NewURI(uri),
+			},
+			Context: protocol.CodeActionContext{Only: []protocol.CodeActionKind{protocol.QuickFix}},
+		})
+		if err != nil {
+			if fixed != "" {
+				t.Error(err)
+			}
+			continue
+		}
+		m, err := r.mapper(f.URI())
+		if err != nil {
+			t.Fatal(err)
+		}
+		var edits []protocol.TextEdit
+		for _, a := range actions {
+			if a.Title == "Remove" {
+				edits = (*a.Edit.Changes)[string(uri)]
+			}
+		}
+		sedits, err := source.FromProtocolEdits(m, edits)
+		if err != nil {
+			t.Error(err)
+		}
+		got := diff.ApplyEdits(string(m.Content), sedits)
+		if fixed != got {
+			t.Errorf("suggested fixes failed for %s, expected:\n%v\ngot:\n%v", filename, fixed, got)
+		}
+	}
+}
+
 func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 	for _, d := range data {
 		sm, err := r.mapper(d.Src.URI())

@@ -311,7 +311,7 @@ type Package interface {
 	GetTypesSizes() types.Sizes
 	IsIllTyped() bool
 	GetDiagnostics() []Diagnostic
-	SetDiagnostics(diags []Diagnostic)
+	SetDiagnostics(a *analysis.Analyzer, diag []Diagnostic)
 
 	// GetImport returns the CheckPackageHandle for a package imported by this package.
 	GetImport(ctx context.Context, pkgPath string) (Package, error)

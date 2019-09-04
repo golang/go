@@ -494,6 +494,9 @@ func (r *runner) Import(t *testing.T, data tests.Imports) {
 	}
 }
 
+func (r *runner) SuggestedFix(t *testing.T, data tests.SuggestedFixes) {
+}
+
 func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 	ctx := r.ctx
 	for _, d := range data {
