@@ -71,7 +71,7 @@ func checkOpenSSLVersion() error {
 	println("to update the test data.")
 	println("")
 	println("Configure it with:")
-	println("./Configure enable-weak-ssl-ciphers enable-ssl3 enable-ssl3-method")
+	println("./Configure enable-weak-ssl-ciphers")
 	println("and then add the apps/ directory at the front of your PATH.")
 	println("***********************************************")
 
@@ -345,7 +345,6 @@ func runMain(m *testing.M) int {
 		Rand:               zeroSource{},
 		Certificates:       make([]Certificate, 2),
 		InsecureSkipVerify: true,
-		MinVersion:         VersionSSL30,
 		MaxVersion:         VersionTLS13,
 		CipherSuites:       allCipherSuites(),
 	}

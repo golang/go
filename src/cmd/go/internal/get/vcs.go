@@ -164,8 +164,14 @@ var vcsGit = &vcsCmd{
 	// See golang.org/issue/9032.
 	tagSyncDefault: []string{"submodule update --init --recursive"},
 
-	scheme:     []string{"git", "https", "http", "git+ssh", "ssh"},
-	pingCmd:    "ls-remote -- {scheme}://{repo}",
+	scheme: []string{"git", "https", "http", "git+ssh", "ssh"},
+
+	// Leave out the '--' separator in the ls-remote command: git 2.7.4 does not
+	// support such a separator for that command, and this use should be safe
+	// without it because the {scheme} value comes from the predefined list above.
+	// See golang.org/issue/33836.
+	pingCmd: "ls-remote {scheme}://{repo}",
+
 	remoteRepo: gitRemoteRepo,
 }
 
