@@ -634,7 +634,7 @@ func MinReqs() mvs.Reqs {
 			direct = append(direct, m.Path)
 		}
 	}
-	min, err := mvs.Req(Target, buildList, direct, Reqs())
+	min, err := mvs.Req(Target, direct, Reqs())
 	if err != nil {
 		base.Fatalf("go: %v", err)
 	}
