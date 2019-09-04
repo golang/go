@@ -23,6 +23,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -124,6 +125,12 @@ var testdataTests = []string{
 }
 
 func run(t *testing.T, input string) bool {
+	// The recover2 test case is broken when run against tip. See golang/go#34089.
+	// TODO(matloob): Figure out what's going on or fix this before go1.14 is released.
+	if filepath.Base(input) == "recover2.go" && strings.HasPrefix(runtime.Version(), "devel") {
+		t.Skip("The recover2.go test is broken in tip. See golang.org/issue/34089.")
+	}
+
 	t.Logf("Input: %s\n", input)
 
 	start := time.Now()
