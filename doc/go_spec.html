@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Aug 26, 2019",
+	"Subtitle": "Version of Sep 4, 2019",
 	"Path": "/ref/spec"
 }-->
 
@@ -3732,7 +3732,7 @@ be replaced by a bitwise AND operation:
 
 <p>
 The shift operators shift the left operand by the shift count specified by the
-right operand, which must be positive. If the shift count is negative at run time,
+right operand, which must be non-negative. If the shift count is negative at run time,
 a <a href="#Run_time_panics">run-time panic</a> occurs.
 The shift operators implement arithmetic shifts if the left operand is a signed
 integer and logical shifts if it is an unsigned integer.
