@@ -30,8 +30,8 @@ const (
 	VersionTLS12 = 0x0303
 	VersionTLS13 = 0x0304
 
-	// Deprecated: SSLv3 is cryptographically broken, and will be
-	// removed in Go 1.14. See golang.org/issue/32716.
+	// Deprecated: SSLv3 is cryptographically broken, and is no longer
+	// supported by this package. See golang.org/issue/32716.
 	VersionSSL30 = 0x0300
 )
 
@@ -283,7 +283,7 @@ func requiresClientCert(c ClientAuthType) bool {
 // sessions.
 type ClientSessionState struct {
 	sessionTicket      []uint8               // Encrypted ticket used for session resumption with server
-	vers               uint16                // SSL/TLS version negotiated for the session
+	vers               uint16                // TLS version negotiated for the session
 	cipherSuite        uint16                // Ciphersuite negotiated for the session
 	masterSecret       []byte                // Full handshake MasterSecret, or TLS 1.3 resumption_master_secret
 	serverCertificates []*x509.Certificate   // Certificate chain presented by the server
@@ -584,12 +584,12 @@ type Config struct {
 	// session resumption. It is only used by clients.
 	ClientSessionCache ClientSessionCache
 
-	// MinVersion contains the minimum SSL/TLS version that is acceptable.
-	// If zero, then TLS 1.0 is taken as the minimum.
+	// MinVersion contains the minimum TLS version that is acceptable.
+	// If zero, TLS 1.0 is currently taken as the minimum.
 	MinVersion uint16
 
-	// MaxVersion contains the maximum SSL/TLS version that is acceptable.
-	// If zero, then the maximum version supported by this package is used,
+	// MaxVersion contains the maximum TLS version that is acceptable.
+	// If zero, the maximum version supported by this package is used,
 	// which is currently TLS 1.3.
 	MaxVersion uint16
 
@@ -793,27 +793,18 @@ var supportedVersions = []uint16{
 	VersionTLS12,
 	VersionTLS11,
 	VersionTLS10,
-	VersionSSL30,
 }
 
-func (c *Config) supportedVersions(isClient bool) []uint16 {
+func (c *Config) supportedVersions() []uint16 {
 	versions := make([]uint16, 0, len(supportedVersions))
 	for _, v := range supportedVersions {
 		if needFIPS() && (v < fipsMinVersion(c) || v > fipsMaxVersion(c)) {
-			continue
-		}
-		// TLS 1.0 is the default minimum version.
-		if (c == nil || c.MinVersion == 0) && v < VersionTLS10 {
 			continue
 		}
 		if c != nil && c.MinVersion != 0 && v < c.MinVersion {
 			continue
 		}
 		if c != nil && c.MaxVersion != 0 && v > c.MaxVersion {
-			continue
-		}
-		// TLS 1.0 is the minimum version supported as a client.
-		if isClient && v < VersionTLS10 {
 			continue
 		}
 		// TLS 1.3 is opt-out in Go 1.13.
@@ -863,8 +854,8 @@ func goDebugString(key string) string {
 	return ""
 }
 
-func (c *Config) maxSupportedVersion(isClient bool) uint16 {
-	supportedVersions := c.supportedVersions(isClient)
+func (c *Config) maxSupportedVersion() uint16 {
+	supportedVersions := c.supportedVersions()
 	if len(supportedVersions) == 0 {
 		return 0
 	}
@@ -899,8 +890,8 @@ func (c *Config) curvePreferences() []CurveID {
 
 // mutualVersion returns the protocol version to use given the advertised
 // versions of the peer. Priority is given to the peer preference order.
-func (c *Config) mutualVersion(isClient bool, peerVersions []uint16) (uint16, bool) {
-	supportedVersions := c.supportedVersions(isClient)
+func (c *Config) mutualVersion(peerVersions []uint16) (uint16, bool) {
+	supportedVersions := c.supportedVersions()
 	for _, peerVersion := range peerVersions {
 		for _, v := range supportedVersions {
 			if v == peerVersion {

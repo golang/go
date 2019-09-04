@@ -1033,7 +1033,6 @@ func TestEscapeRoute(t *testing.T) {
 		VersionTLS12,
 		VersionTLS11,
 		VersionTLS10,
-		VersionSSL30,
 	}
 
 	expectVersion(t, testConfig, testConfig, VersionTLS12)
