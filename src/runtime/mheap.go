@@ -32,7 +32,6 @@ type mheap struct {
 	// lock must only be acquired on the system stack, otherwise a g
 	// could self-deadlock if its stack grows with the lock held.
 	lock      mutex
-	free      mTreap    // free spans
 	pages     pageAlloc // page allocation data structure
 	sweepgen  uint32    // sweep generation, see comment in mspan
 	sweepdone uint32    // all spans are swept
@@ -192,7 +191,6 @@ type mheap struct {
 
 	spanalloc             fixalloc // allocator for span*
 	cachealloc            fixalloc // allocator for mcache*
-	treapalloc            fixalloc // allocator for treapNodes*
 	specialfinalizeralloc fixalloc // allocator for specialfinalizer*
 	specialprofilealloc   fixalloc // allocator for specialprofile*
 	speciallock           mutex    // lock for special record allocators.
@@ -313,7 +311,6 @@ const (
 	mSpanDead   mSpanState = iota
 	mSpanInUse             // allocated for garbage collected heap
 	mSpanManual            // allocated for manual management (e.g., stack allocator)
-	mSpanFree
 )
 
 // mSpanStateNames are the names of the span states, indexed by
@@ -429,7 +426,6 @@ type mspan struct {
 	needzero    uint8         // needs to be zeroed before allocation
 	divShift    uint8         // for divide by elemsize - divMagic.shift
 	divShift2   uint8         // for divide by elemsize - divMagic.shift2
-	scavenged   bool          // whether this span has had its pages released to the OS
 	elemsize    uintptr       // computed from sizeclass or from npages
 	limit       uintptr       // end of data in span
 	speciallock mutex         // guards specials list
@@ -447,181 +443,6 @@ func (s *mspan) layout() (size, n, total uintptr) {
 		n = total / size
 	}
 	return
-}
-
-// physPageBounds returns the start and end of the span
-// rounded in to the physical page size.
-func (s *mspan) physPageBounds() (uintptr, uintptr) {
-	start := s.base()
-	end := start + s.npages<<_PageShift
-	if physPageSize > _PageSize {
-		// Round start and end in.
-		start = alignUp(start, physPageSize)
-		end = alignDown(end, physPageSize)
-	}
-	return start, end
-}
-
-func (h *mheap) coalesce(s *mspan) {
-	// merge is a helper which merges other into s, deletes references to other
-	// in heap metadata, and then discards it. other must be adjacent to s.
-	merge := func(a, b, other *mspan) {
-		// Caller must ensure a.startAddr < b.startAddr and that either a or
-		// b is s. a and b must be adjacent. other is whichever of the two is
-		// not s.
-
-		if pageSize < physPageSize && a.scavenged && b.scavenged {
-			// If we're merging two scavenged spans on systems where
-			// pageSize < physPageSize, then their boundary should always be on
-			// a physical page boundary, due to the realignment that happens
-			// during coalescing. Throw if this case is no longer true, which
-			// means the implementation should probably be changed to scavenge
-			// along the boundary.
-			_, start := a.physPageBounds()
-			end, _ := b.physPageBounds()
-			if start != end {
-				println("runtime: a.base=", hex(a.base()), "a.npages=", a.npages)
-				println("runtime: b.base=", hex(b.base()), "b.npages=", b.npages)
-				println("runtime: physPageSize=", physPageSize, "pageSize=", pageSize)
-				throw("neighboring scavenged spans boundary is not a physical page boundary")
-			}
-		}
-
-		// Adjust s via base and npages and also in heap metadata.
-		s.npages += other.npages
-		s.needzero |= other.needzero
-		if a == s {
-			h.setSpan(s.base()+s.npages*pageSize-1, s)
-		} else {
-			s.startAddr = other.startAddr
-			h.setSpan(s.base(), s)
-		}
-
-		// The size is potentially changing so the treap needs to delete adjacent nodes and
-		// insert back as a combined node.
-		h.free.removeSpan(other)
-		other.state.set(mSpanDead)
-		h.spanalloc.free(unsafe.Pointer(other))
-	}
-
-	// realign is a helper which shrinks other and grows s such that their
-	// boundary is on a physical page boundary.
-	realign := func(a, b, other *mspan) {
-		// Caller must ensure a.startAddr < b.startAddr and that either a or
-		// b is s. a and b must be adjacent. other is whichever of the two is
-		// not s.
-
-		// If pageSize >= physPageSize then spans are always aligned
-		// to physical page boundaries, so just exit.
-		if pageSize >= physPageSize {
-			return
-		}
-		// Since we're resizing other, we must remove it from the treap.
-		h.free.removeSpan(other)
-
-		// Round boundary to the nearest physical page size, toward the
-		// scavenged span.
-		boundary := b.startAddr
-		if a.scavenged {
-			boundary = alignDown(boundary, physPageSize)
-		} else {
-			boundary = alignUp(boundary, physPageSize)
-		}
-		a.npages = (boundary - a.startAddr) / pageSize
-		b.npages = (b.startAddr + b.npages*pageSize - boundary) / pageSize
-		b.startAddr = boundary
-
-		h.setSpan(boundary-1, a)
-		h.setSpan(boundary, b)
-
-		// Re-insert other now that it has a new size.
-		h.free.insert(other)
-	}
-
-	hpMiddle := s.hugePages()
-
-	// Coalesce with earlier, later spans.
-	var hpBefore uintptr
-	if before := spanOf(s.base() - 1); before != nil && before.state.get() == mSpanFree {
-		if s.scavenged == before.scavenged {
-			hpBefore = before.hugePages()
-			merge(before, s, before)
-		} else {
-			realign(before, s, before)
-		}
-	}
-
-	// Now check to see if next (greater addresses) span is free and can be coalesced.
-	var hpAfter uintptr
-	if after := spanOf(s.base() + s.npages*pageSize); after != nil && after.state.get() == mSpanFree {
-		if s.scavenged == after.scavenged {
-			hpAfter = after.hugePages()
-			merge(s, after, after)
-		} else {
-			realign(s, after, after)
-		}
-	}
-	if !s.scavenged && s.hugePages() > hpBefore+hpMiddle+hpAfter {
-		// If s has grown such that it now may contain more huge pages than it
-		// and its now-coalesced neighbors did before, then mark the whole region
-		// as huge-page-backable.
-		//
-		// Otherwise, on systems where we break up huge pages (like Linux)
-		// s may not be backed by huge pages because it could be made up of
-		// pieces which are broken up in the underlying VMA. The primary issue
-		// with this is that it can lead to a poor estimate of the amount of
-		// free memory backed by huge pages for determining the scavenging rate.
-		//
-		// TODO(mknyszek): Measure the performance characteristics of sysHugePage
-		// and determine whether it makes sense to only sysHugePage on the pages
-		// that matter, or if it's better to just mark the whole region.
-		sysHugePage(unsafe.Pointer(s.base()), s.npages*pageSize)
-	}
-}
-
-// hugePages returns the number of aligned physical huge pages in the memory
-// regioned owned by this mspan.
-func (s *mspan) hugePages() uintptr {
-	if physHugePageSize == 0 || s.npages < physHugePageSize/pageSize {
-		return 0
-	}
-	start := s.base()
-	end := start + s.npages*pageSize
-	if physHugePageSize > pageSize {
-		// Round start and end in.
-		start = alignUp(start, physHugePageSize)
-		end = alignDown(end, physHugePageSize)
-	}
-	if start < end {
-		return (end - start) >> physHugePageShift
-	}
-	return 0
-}
-
-func (s *mspan) scavenge() uintptr {
-	// start and end must be rounded in, otherwise madvise
-	// will round them *out* and release more memory
-	// than we want.
-	start, end := s.physPageBounds()
-	if end <= start {
-		// start and end don't span a whole physical page.
-		return 0
-	}
-	released := end - start
-	memstats.heap_released += uint64(released)
-	s.scavenged = true
-	sysUnused(unsafe.Pointer(start), released)
-	return released
-}
-
-// released returns the number of bytes in this span
-// which were returned back to the OS.
-func (s *mspan) released() uintptr {
-	if !s.scavenged {
-		return 0
-	}
-	start, end := s.physPageBounds()
-	return end - start
 }
 
 // recordspan adds a newly allocated span to h.allspans.
@@ -840,7 +661,6 @@ func pageIndexOf(p uintptr) (arena *heapArena, pageIdx uintptr, pageMask uint8) 
 
 // Initialize the heap.
 func (h *mheap) init() {
-	h.treapalloc.init(unsafe.Sizeof(treapNode{}), nil, nil, &memstats.other_sys)
 	h.spanalloc.init(unsafe.Sizeof(mspan{}), recordspan, unsafe.Pointer(h), &memstats.mspan_sys)
 	h.cachealloc.init(unsafe.Sizeof(mcache{}), nil, nil, &memstats.mcache_sys)
 	h.specialfinalizeralloc.init(unsafe.Sizeof(specialfinalizer{}), nil, nil, &memstats.other_sys)
@@ -862,9 +682,7 @@ func (h *mheap) init() {
 		h.central[i].mcentral.init(spanClass(i))
 	}
 
-	if !oldPageAllocator {
-		h.pages.init(&h.lock, &memstats.gc_sys)
-	}
+	h.pages.init(&h.lock, &memstats.gc_sys)
 }
 
 // reclaim sweeps and reclaims at least npage pages into the heap.
@@ -1195,12 +1013,6 @@ func (h *mheap) allocManual(npage uintptr, stat *uint64) *mspan {
 	return s
 }
 
-// setSpan modifies the span map so spanOf(base) is s.
-func (h *mheap) setSpan(base uintptr, s *mspan) {
-	ai := arenaIndex(base)
-	h.arenas[ai.l1()][ai.l2()].spans[(base/pageSize)%pagesPerArena] = s
-}
-
 // setSpans modifies the span map so [spanOf(base), spanOf(base+npage*pageSize))
 // is s.
 func (h *mheap) setSpans(base, npage uintptr, s *mspan) {
@@ -1274,9 +1086,6 @@ func (h *mheap) allocNeedsZero(base, npage uintptr) (needZero bool) {
 // The returned span has been removed from the
 // free structures, but its state is still mSpanFree.
 func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
-	if oldPageAllocator {
-		return h.allocSpanLockedOld(npage, stat)
-	}
 	base, scav := h.pages.alloc(npage)
 	if base != 0 {
 		goto HaveBase
@@ -1311,97 +1120,13 @@ HaveBase:
 	return s
 }
 
-// Allocates a span of the given size.  h must be locked.
-// The returned span has been removed from the
-// free structures, but its state is still mSpanFree.
-func (h *mheap) allocSpanLockedOld(npage uintptr, stat *uint64) *mspan {
-	t := h.free.find(npage)
-	if t.valid() {
-		goto HaveSpan
-	}
-	if !h.grow(npage) {
-		return nil
-	}
-	t = h.free.find(npage)
-	if t.valid() {
-		goto HaveSpan
-	}
-	throw("grew heap, but no adequate free span found")
-
-HaveSpan:
-	s := t.span()
-	if s.state.get() != mSpanFree {
-		throw("candidate mspan for allocation is not free")
-	}
-
-	// First, subtract any memory that was released back to
-	// the OS from s. We will add back what's left if necessary.
-	memstats.heap_released -= uint64(s.released())
-
-	if s.npages == npage {
-		h.free.erase(t)
-	} else if s.npages > npage {
-		// Trim off the lower bits and make that our new span.
-		// Do this in-place since this operation does not
-		// affect the original span's location in the treap.
-		n := (*mspan)(h.spanalloc.alloc())
-		h.free.mutate(t, func(s *mspan) {
-			n.init(s.base(), npage)
-			s.npages -= npage
-			s.startAddr = s.base() + npage*pageSize
-			h.setSpan(s.base()-1, n)
-			h.setSpan(s.base(), s)
-			h.setSpan(n.base(), n)
-			n.needzero = s.needzero
-			// n may not be big enough to actually be scavenged, but that's fine.
-			// We still want it to appear to be scavenged so that we can do the
-			// right bookkeeping later on in this function (i.e. sysUsed).
-			n.scavenged = s.scavenged
-			// Check if s is still scavenged.
-			if s.scavenged {
-				start, end := s.physPageBounds()
-				if start < end {
-					memstats.heap_released += uint64(end - start)
-				} else {
-					s.scavenged = false
-				}
-			}
-		})
-		s = n
-	} else {
-		throw("candidate mspan for allocation is too small")
-	}
-	// "Unscavenge" s only AFTER splitting so that
-	// we only sysUsed whatever we actually need.
-	if s.scavenged {
-		// sysUsed all the pages that are actually available
-		// in the span. Note that we don't need to decrement
-		// heap_released since we already did so earlier.
-		sysUsed(unsafe.Pointer(s.base()), s.npages<<_PageShift)
-		s.scavenged = false
-	}
-
-	h.setSpans(s.base(), npage, s)
-
-	*stat += uint64(npage << _PageShift)
-	memstats.heap_idle -= uint64(npage << _PageShift)
-
-	if s.inList() {
-		throw("still in list")
-	}
-	return s
-}
-
 // Try to add at least npage pages of memory to the heap,
 // returning whether it worked.
 //
 // h must be locked.
 func (h *mheap) grow(npage uintptr) bool {
-	ask := npage << _PageShift
-	if !oldPageAllocator {
-		// We must grow the heap in whole palloc chunks.
-		ask = alignUp(ask, pallocChunkBytes)
-	}
+	// We must grow the heap in whole palloc chunks.
+	ask := alignUp(npage, pallocChunkPages) * pageSize
 
 	totalGrowth := uintptr(0)
 	nBase := alignUp(h.curArena.base+ask, physPageSize)
@@ -1424,11 +1149,7 @@ func (h *mheap) grow(npage uintptr) bool {
 			// remains of the current space and switch to
 			// the new space. This should be rare.
 			if size := h.curArena.end - h.curArena.base; size != 0 {
-				if oldPageAllocator {
-					h.growAddSpan(unsafe.Pointer(h.curArena.base), size)
-				} else {
-					h.pages.grow(h.curArena.base, size)
-				}
+				h.pages.grow(h.curArena.base, size)
 				totalGrowth += size
 			}
 			// Switch to the new space.
@@ -1441,10 +1162,7 @@ func (h *mheap) grow(npage uintptr) bool {
 		//
 		// The allocation is always aligned to the heap arena
 		// size which is always > physPageSize, so its safe to
-		// just add directly to heap_released. Coalescing, if
-		// possible, will also always be correct in terms of
-		// accounting, because s.base() must be a physical
-		// page boundary.
+		// just add directly to heap_released.
 		memstats.heap_released += uint64(asize)
 		memstats.heap_idle += uint64(asize)
 
@@ -1455,48 +1173,21 @@ func (h *mheap) grow(npage uintptr) bool {
 	// Grow into the current arena.
 	v := h.curArena.base
 	h.curArena.base = nBase
-	if oldPageAllocator {
-		h.growAddSpan(unsafe.Pointer(v), nBase-v)
-	} else {
-		h.pages.grow(v, nBase-v)
-		totalGrowth += nBase - v
+	h.pages.grow(v, nBase-v)
+	totalGrowth += nBase - v
 
-		// We just caused a heap growth, so scavenge down what will soon be used.
-		// By scavenging inline we deal with the failure to allocate out of
-		// memory fragments by scavenging the memory fragments that are least
-		// likely to be re-used.
-		if retained := heapRetained(); retained+uint64(totalGrowth) > h.scavengeGoal {
-			todo := totalGrowth
-			if overage := uintptr(retained + uint64(totalGrowth) - h.scavengeGoal); todo > overage {
-				todo = overage
-			}
-			h.pages.scavenge(todo, true)
+	// We just caused a heap growth, so scavenge down what will soon be used.
+	// By scavenging inline we deal with the failure to allocate out of
+	// memory fragments by scavenging the memory fragments that are least
+	// likely to be re-used.
+	if retained := heapRetained(); retained+uint64(totalGrowth) > h.scavengeGoal {
+		todo := totalGrowth
+		if overage := uintptr(retained + uint64(totalGrowth) - h.scavengeGoal); todo > overage {
+			todo = overage
 		}
+		h.pages.scavenge(todo, true)
 	}
 	return true
-}
-
-// growAddSpan adds a free span when the heap grows into [v, v+size).
-// This memory must be in the Prepared state (not Ready).
-//
-// h must be locked.
-func (h *mheap) growAddSpan(v unsafe.Pointer, size uintptr) {
-	// Scavenge some pages to make up for the virtual memory space
-	// we just allocated, but only if we need to.
-	h.scavengeIfNeededLocked(size)
-
-	s := (*mspan)(h.spanalloc.alloc())
-	s.init(uintptr(v), size/pageSize)
-	h.setSpans(s.base(), s.npages, s)
-	s.state.set(mSpanFree)
-	// [v, v+size) is always in the Prepared state. The new span
-	// must be marked scavenged so the allocator transitions it to
-	// Ready when allocating from it.
-	s.scavenged = true
-	// This span is both released and idle, but grow already
-	// updated both memstats.
-	h.coalesce(s)
-	h.free.insert(s)
 }
 
 // Free the span back into the heap.
@@ -1577,135 +1268,12 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool) {
 		memstats.heap_idle += uint64(s.npages << _PageShift)
 	}
 
-	if oldPageAllocator {
-		s.state.set(mSpanFree)
-
-		// Coalesce span with neighbors.
-		h.coalesce(s)
-
-		// Insert s into the treap.
-		h.free.insert(s)
-		return
-	}
-
 	// Mark the space as free.
 	h.pages.free(s.base(), s.npages)
 
 	// Free the span structure. We no longer have a use for it.
 	s.state.set(mSpanDead)
 	h.spanalloc.free(unsafe.Pointer(s))
-}
-
-// scavengeSplit takes t.span() and attempts to split off a span containing size
-// (in bytes) worth of physical pages from the back.
-//
-// The split point is only approximately defined by size since the split point
-// is aligned to physPageSize and pageSize every time. If physHugePageSize is
-// non-zero and the split point would break apart a huge page in the span, then
-// the split point is also aligned to physHugePageSize.
-//
-// If the desired split point ends up at the base of s, or if size is obviously
-// much larger than s, then a split is not possible and this method returns nil.
-// Otherwise if a split occurred it returns the newly-created span.
-func (h *mheap) scavengeSplit(t treapIter, size uintptr) *mspan {
-	s := t.span()
-	start, end := s.physPageBounds()
-	if end <= start || end-start <= size {
-		// Size covers the whole span.
-		return nil
-	}
-	// The span is bigger than what we need, so compute the base for the new
-	// span if we decide to split.
-	base := end - size
-	// Round down to the next physical or logical page, whichever is bigger.
-	base &^= (physPageSize - 1) | (pageSize - 1)
-	if base <= start {
-		return nil
-	}
-	if physHugePageSize > pageSize && alignDown(base, physHugePageSize) >= start {
-		// We're in danger of breaking apart a huge page, so include the entire
-		// huge page in the bound by rounding down to the huge page size.
-		// base should still be aligned to pageSize.
-		base = alignDown(base, physHugePageSize)
-	}
-	if base == start {
-		// After all that we rounded base down to s.base(), so no need to split.
-		return nil
-	}
-	if base < start {
-		print("runtime: base=", base, ", s.npages=", s.npages, ", s.base()=", s.base(), ", size=", size, "\n")
-		print("runtime: physPageSize=", physPageSize, ", physHugePageSize=", physHugePageSize, "\n")
-		throw("bad span split base")
-	}
-
-	// Split s in-place, removing from the back.
-	n := (*mspan)(h.spanalloc.alloc())
-	nbytes := s.base() + s.npages*pageSize - base
-	h.free.mutate(t, func(s *mspan) {
-		n.init(base, nbytes/pageSize)
-		s.npages -= nbytes / pageSize
-		h.setSpan(n.base()-1, s)
-		h.setSpan(n.base(), n)
-		h.setSpan(n.base()+nbytes-1, n)
-		n.needzero = s.needzero
-		n.state.set(s.state.get())
-	})
-	return n
-}
-
-// scavengeLocked scavenges nbytes worth of spans in the free treap by
-// starting from the span with the highest base address and working down.
-// It then takes those spans and places them in scav.
-//
-// Returns the amount of memory scavenged in bytes. h must be locked.
-func (h *mheap) scavengeLocked(nbytes uintptr) uintptr {
-	released := uintptr(0)
-	// Iterate over spans with huge pages first, then spans without.
-	const mask = treapIterScav | treapIterHuge
-	for _, match := range []treapIterType{treapIterHuge, 0} {
-		// Iterate over the treap backwards (from highest address to lowest address)
-		// scavenging spans until we've reached our quota of nbytes.
-		for t := h.free.end(mask, match); released < nbytes && t.valid(); {
-			s := t.span()
-			start, end := s.physPageBounds()
-			if start >= end {
-				// This span doesn't cover at least one physical page, so skip it.
-				t = t.prev()
-				continue
-			}
-			n := t.prev()
-			if span := h.scavengeSplit(t, nbytes-released); span != nil {
-				s = span
-			} else {
-				h.free.erase(t)
-			}
-			released += s.scavenge()
-			// Now that s is scavenged, we must eagerly coalesce it
-			// with its neighbors to prevent having two spans with
-			// the same scavenged state adjacent to each other.
-			h.coalesce(s)
-			t = n
-			h.free.insert(s)
-		}
-	}
-	return released
-}
-
-// scavengeIfNeededLocked scavenges memory assuming that size bytes of memory
-// will become unscavenged soon. It only scavenges enough to bring heapRetained
-// back down to the scavengeGoal.
-//
-// h must be locked.
-func (h *mheap) scavengeIfNeededLocked(size uintptr) {
-	if r := heapRetained(); r+uint64(size) > h.scavengeGoal {
-		todo := uint64(size)
-		// If we're only going to go a little bit over, just request what
-		// we actually need done.
-		if overage := r + uint64(size) - h.scavengeGoal; overage < todo {
-			todo = overage
-		}
-		h.scavengeLocked(uintptr(todo))
-	}
 }
 
 // scavengeAll visits each node in the free treap and scavenges the
@@ -1718,12 +1286,7 @@ func (h *mheap) scavengeAll() {
 	gp := getg()
 	gp.m.mallocing++
 	lock(&h.lock)
-	var released uintptr
-	if oldPageAllocator {
-		released = h.scavengeLocked(^uintptr(0))
-	} else {
-		released = h.pages.scavenge(^uintptr(0), true)
-	}
+	released := h.pages.scavenge(^uintptr(0), true)
 	unlock(&h.lock)
 	gp.m.mallocing--
 
@@ -1752,7 +1315,6 @@ func (span *mspan) init(base uintptr, npages uintptr) {
 	span.allocCount = 0
 	span.spanclass = 0
 	span.elemsize = 0
-	span.scavenged = false
 	span.speciallock.key = 0
 	span.specials = nil
 	span.needzero = 0
