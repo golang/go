@@ -212,6 +212,8 @@ var tags [1 << (bitsPerOutputInTag + EscReturnBits)]string
 // mktag returns the string representation for an escape analysis tag.
 func mktag(mask int) string {
 	switch mask & EscMask {
+	case EscHeap:
+		return ""
 	case EscNone, EscReturn:
 	default:
 		Fatalf("escape mktag")
@@ -406,88 +408,74 @@ const uintptrEscapesTag = "uintptr-escapes"
 func esctag(fn *Node) {
 	fn.Esc = EscFuncTagged
 
-	name := func(s *types.Sym, narg int) string {
-		if s != nil {
-			return s.Name
+	narg := 0
+	for _, fs := range types.RecvsParams {
+		for _, f := range fs(fn.Type).Fields().Slice() {
+			narg++
+			f.Note = escparamtag(fn, narg, f)
+		}
+	}
+}
+
+func escparamtag(fn *Node, narg int, f *types.Field) string {
+	name := func() string {
+		if f.Sym != nil {
+			return f.Sym.Name
 		}
 		return fmt.Sprintf("arg#%d", narg)
 	}
 
-	// External functions are assumed unsafe,
-	// unless //go:noescape is given before the declaration.
 	if fn.Nbody.Len() == 0 {
-		if fn.Noescape() {
-			for _, f := range fn.Type.Params().Fields().Slice() {
-				if types.Haspointers(f.Type) {
-					f.Note = mktag(EscNone)
-				}
-			}
-		}
-
 		// Assume that uintptr arguments must be held live across the call.
 		// This is most important for syscall.Syscall.
 		// See golang.org/issue/13372.
 		// This really doesn't have much to do with escape analysis per se,
 		// but we are reusing the ability to annotate an individual function
 		// argument and pass those annotations along to importing code.
-		narg := 0
-		for _, f := range fn.Type.Params().Fields().Slice() {
-			narg++
-			if f.Type.Etype == TUINTPTR {
-				if Debug['m'] != 0 {
-					Warnl(fn.Pos, "%v assuming %v is unsafe uintptr", funcSym(fn), name(f.Sym, narg))
-				}
-				f.Note = unsafeUintptrTag
+		if f.Type.Etype == TUINTPTR {
+			if Debug['m'] != 0 {
+				Warnl(fn.Pos, "%v assuming %v is unsafe uintptr", funcSym(fn), name())
 			}
+			return unsafeUintptrTag
 		}
 
-		return
+		if !types.Haspointers(f.Type) { // don't bother tagging for scalars
+			return ""
+		}
+
+		// External functions are assumed unsafe, unless
+		// //go:noescape is given before the declaration.
+		if fn.Noescape() {
+			return mktag(EscNone)
+		}
+		return mktag(EscHeap)
 	}
 
 	if fn.Func.Pragma&UintptrEscapes != 0 {
-		narg := 0
-		for _, f := range fn.Type.Params().Fields().Slice() {
-			narg++
-			if f.Type.Etype == TUINTPTR {
-				if Debug['m'] != 0 {
-					Warnl(fn.Pos, "%v marking %v as escaping uintptr", funcSym(fn), name(f.Sym, narg))
-				}
-				f.Note = uintptrEscapesTag
+		if f.Type.Etype == TUINTPTR {
+			if Debug['m'] != 0 {
+				Warnl(fn.Pos, "%v marking %v as escaping uintptr", funcSym(fn), name())
 			}
-
-			if f.IsDDD() && f.Type.Elem().Etype == TUINTPTR {
-				// final argument is ...uintptr.
-				if Debug['m'] != 0 {
-					Warnl(fn.Pos, "%v marking %v as escaping ...uintptr", funcSym(fn), name(f.Sym, narg))
-				}
-				f.Note = uintptrEscapesTag
+			return uintptrEscapesTag
+		}
+		if f.IsDDD() && f.Type.Elem().Etype == TUINTPTR {
+			// final argument is ...uintptr.
+			if Debug['m'] != 0 {
+				Warnl(fn.Pos, "%v marking %v as escaping ...uintptr", funcSym(fn), name())
 			}
+			return uintptrEscapesTag
 		}
 	}
 
-	for _, fs := range types.RecvsParams {
-		for _, f := range fs(fn.Type).Fields().Slice() {
-			if !types.Haspointers(f.Type) { // don't bother tagging for scalars
-				continue
-			}
-			if f.Note == uintptrEscapesTag {
-				// Note is already set in the loop above.
-				continue
-			}
-
-			// Unnamed parameters are unused and therefore do not escape.
-			if f.Sym == nil || f.Sym.IsBlank() {
-				f.Note = mktag(EscNone)
-				continue
-			}
-
-			switch esc := asNode(f.Nname).Esc; esc & EscMask {
-			case EscNone, // not touched by escflood
-				EscReturn:
-				f.Note = mktag(int(esc))
-
-			case EscHeap: // touched by escflood, moved to heap
-			}
-		}
+	if !types.Haspointers(f.Type) { // don't bother tagging for scalars
+		return ""
 	}
+
+	// Unnamed parameters are unused and therefore do not escape.
+	if f.Sym == nil || f.Sym.IsBlank() {
+		return mktag(EscNone)
+	}
+
+	n := asNode(f.Nname)
+	return mktag(int(n.Esc))
 }
