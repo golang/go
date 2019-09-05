@@ -246,6 +246,7 @@ var (
 	GOPRIVATE = Getenv("GOPRIVATE")
 	GONOPROXY = envOr("GONOPROXY", GOPRIVATE)
 	GONOSUMDB = envOr("GONOSUMDB", GOPRIVATE)
+	GOPUSH    = Getenv("GOPUSH")
 )
 
 // GetArchEnv returns the name and setting of the

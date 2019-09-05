@@ -80,6 +80,7 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOOS", Value: cfg.Goos},
 		{Name: "GOPATH", Value: cfg.BuildContext.GOPATH},
 		{Name: "GOPRIVATE", Value: cfg.GOPRIVATE},
+		{Name: "GOPUSH", Value: cfg.GOPUSH},
 		{Name: "GOPROXY", Value: cfg.GOPROXY},
 		{Name: "GOROOT", Value: cfg.GOROOT},
 		{Name: "GOSUMDB", Value: cfg.GOSUMDB},

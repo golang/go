@@ -24,6 +24,7 @@ See 'go help modules' for an overview of module functionality.
 		cmdGraph,
 		cmdInit,
 		cmdPack,
+		cmdPush,
 		cmdTidy,
 		cmdVendor,
 		cmdVerify,
