@@ -411,12 +411,12 @@ var reqWriteTests = []reqWriteTest{
 			ProtoMajor: 1,
 			ProtoMinor: 1,
 			Header: Header{
-				"Host": []string{"bad.example.com"},
+				"Host": []string{"good.example.com"},
 			},
 		},
 
 		WantWrite: "GET /search HTTP/1.1\r\n" +
-			"Host: \r\n" +
+			"Host: good.example.com\r\n" +
 			"User-Agent: Go-http-client/1.1\r\n\r\n",
 	},
 
