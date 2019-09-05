@@ -143,6 +143,14 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 	return exe, nil
 }
 
+func TestVDSO(t *testing.T) {
+	output := runTestProg(t, "testprog", "SignalInVDSO")
+	want := "success\n"
+	if output != want {
+		t.Fatalf("output:\n%s\n\nwanted:\n%s", output, want);
+	}
+}
+
 var (
 	staleRuntimeOnce sync.Once // guards init of staleRuntimeErr
 	staleRuntimeErr  error
