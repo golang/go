@@ -556,13 +556,14 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 	// Clean the host, in case it arrives with unexpected stuff in it.
 	host := cleanHost(r.Host)
 	if host == "" {
-		if r.Header.has("Host") {
-			host = r.Header.Get("Host")
+		if r.URL == nil {
+			return errMissingHost
 		} else {
-			if r.URL == nil {
-				return errMissingHost
+			if r.Header.has("Host") {
+				host = cleanHost(r.Header.Get("Host"))
+			}else{
+				host = cleanHost(r.URL.Host)
 			}
-			host = cleanHost(r.URL.Host)
 		}
 	}
 
