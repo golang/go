@@ -107,6 +107,7 @@ type mheap struct {
 	scavengeRetainedBasis uint64
 	scavengeBytesPerNS    float64
 	scavengeRetainedGoal  uint64
+	scavengeGen           uint64 // incremented on each pacing update
 
 	// Page reclaimer state
 
