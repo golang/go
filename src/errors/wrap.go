@@ -59,7 +59,7 @@ func Is(err, target error) bool {
 }
 
 // As finds the first error in err's chain that matches target, and if so, sets
-// target to that error value and returns true.
+// target to that error value and returns true. Otherwise, it returns false.
 //
 // The chain consists of err itself followed by the sequence of errors obtained by
 // repeatedly calling Unwrap.
@@ -73,7 +73,7 @@ func Is(err, target error) bool {
 // a different error type.
 //
 // As panics if target is not a non-nil pointer to either a type that implements
-// error, or to any interface type. As returns false if err is nil.
+// error, or to any interface type.
 func As(err error, target interface{}) bool {
 	if target == nil {
 		panic("errors: target cannot be nil")
