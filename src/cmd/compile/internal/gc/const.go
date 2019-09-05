@@ -1173,7 +1173,9 @@ func defaultlitreuse(n *Node, t *types.Type, reuse canReuseNode) *Node {
 	switch ctype {
 	default:
 		if t != nil {
-			return convlit(n, t)
+			n = convlit(n, t)
+			lineno = lno
+			return n
 		}
 
 		switch n.Val().Ctype() {
