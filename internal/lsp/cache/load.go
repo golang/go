@@ -46,7 +46,7 @@ func (view *view) loadParseTypecheck(ctx context.Context, f *goFile) error {
 	return nil
 }
 
-func (view *view) load(ctx context.Context, f *goFile) (map[packageID]*metadata, error) {
+func (view *view) load(ctx context.Context, f *goFile) ([]*metadata, error) {
 	view.mu.Lock()
 	defer view.mu.Unlock()
 
@@ -84,9 +84,16 @@ func (view *view) load(ctx context.Context, f *goFile) (map[packageID]*metadata,
 
 // checkMetadata determines if we should run go/packages.Load for this file.
 // If yes, update the metadata for the file and its package.
-func (v *view) checkMetadata(ctx context.Context, f *goFile) (map[packageID]*metadata, error) {
-	if !v.shouldRunGopackages(ctx, f) {
-		return f.meta, nil
+func (v *view) checkMetadata(ctx context.Context, f *goFile) ([]*metadata, error) {
+	// Check if we need to re-run go/packages before loading the package.
+	f.mu.Lock()
+	runGopackages := v.shouldRunGopackages(ctx, f)
+	metadata := f.metadata()
+	f.mu.Unlock()
+
+	// The package metadata is correct as-is, so just return it.
+	if !runGopackages {
+		return metadata, nil
 	}
 
 	// Check if the context has been canceled before calling packages.Load.
@@ -127,7 +134,7 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile) (map[packageID]*met
 	return m, nil
 }
 
-func validateMetadata(ctx context.Context, missingImports map[packagePath]struct{}, f *goFile) (map[packageID]*metadata, error) {
+func validateMetadata(ctx context.Context, missingImports map[packagePath]struct{}, f *goFile) ([]*metadata, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -141,9 +148,11 @@ func validateMetadata(ctx context.Context, missingImports map[packagePath]struct
 	if sameSet(missingImports, f.missingImports) && len(f.pkgs) != 0 {
 		return nil, nil
 	}
+
 	// Otherwise, update the missing imports map.
 	f.missingImports = missingImports
-	return f.meta, nil
+
+	return f.metadata(), nil
 }
 
 func sameSet(x, y map[packagePath]struct{}) bool {
@@ -158,10 +167,10 @@ func sameSet(x, y map[packagePath]struct{}) bool {
 	return true
 }
 
-// reparseImports reparses a file's package and import declarations to
+// shouldRunGopackages reparses a file's package and import declarations to
 // determine if they have changed.
+// It assumes that the caller holds the lock on the f.mu lock.
 func (v *view) shouldRunGopackages(ctx context.Context, f *goFile) (result bool) {
-	f.mu.Lock()
 	defer func() {
 		// Clear metadata if we are intending to re-run go/packages.
 		if result {
@@ -173,7 +182,6 @@ func (v *view) shouldRunGopackages(ctx context.Context, f *goFile) (result bool)
 				delete(f.pkgs, k)
 			}
 		}
-		f.mu.Unlock()
 	}()
 
 	if len(f.meta) == 0 || len(f.missingImports) > 0 {

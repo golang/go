@@ -40,6 +40,15 @@ type goFile struct {
 	meta map[packageID]*metadata
 }
 
+// metadata assumes that the caller holds the f.mu lock.
+func (f *goFile) metadata() []*metadata {
+	result := make([]*metadata, 0, len(f.meta))
+	for _, m := range f.meta {
+		result = append(result, m)
+	}
+	return result
+}
+
 func (f *goFile) GetToken(ctx context.Context) (*token.File, error) {
 	file, err := f.GetAST(ctx, source.ParseFull)
 	if file == nil {
