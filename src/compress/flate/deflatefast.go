@@ -275,11 +275,24 @@ func (e *deflateFast) reset() {
 //
 // See https://golang.org/issue/18636.
 func (e *deflateFast) resetAll() {
-	// This is equivalent to:
-	//	*e = deflateFast{cur: maxStoreBlockSize, prev: e.prev[:0]}
-	e.cur = maxStoreBlockSize
-	e.prev = e.prev[:0]
-	for i := range e.table {
-		e.table[i] = tableEntry{}
+	if len(e.prev) == 0 {
+		// We have no history; just clear the table.
+		for i := range e.table[:] {
+			e.table[i] = tableEntry{}
+		}
+		e.cur = maxMatchOffset
+		return
 	}
+	// Shift down everything in the table that isn't already too far away.
+	minOff := e.cur + int32(len(e.prev)) - maxMatchOffset
+	for i := range e.table[:] {
+		v := e.table[i].offset
+		if v <= minOff {
+			v = 0
+		} else {
+			v = v - e.cur + maxMatchOffset
+		}
+		e.table[i].offset = v
+	}
+	e.cur = maxMatchOffset
 }
