@@ -140,7 +140,10 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
 	}
 	tags, err := r.code.Tags(p)
 	if err != nil {
-		return nil, err
+		return nil, &module.ModuleError{
+			Path: r.modPath,
+			Err:  err,
+		}
 	}
 
 	list := []string{}
@@ -171,7 +174,10 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
 		// by referring to them with a +incompatible suffix, as in v17.0.0+incompatible.
 		files, err := r.code.ReadFileRevs(incompatible, "go.mod", codehost.MaxGoMod)
 		if err != nil {
-			return nil, err
+			return nil, &module.ModuleError{
+				Path: r.modPath,
+				Err:  err,
+			}
 		}
 		for _, rev := range incompatible {
 			f := files[rev]
