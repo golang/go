@@ -1549,11 +1549,25 @@ func (s *state) ssaOp(op Op, t *types.Type) ssa.Op {
 }
 
 func floatForComplex(t *types.Type) *types.Type {
-	if t.Size() == 8 {
+	switch t.Etype {
+	case TCOMPLEX64:
 		return types.Types[TFLOAT32]
-	} else {
+	case TCOMPLEX128:
 		return types.Types[TFLOAT64]
 	}
+	Fatalf("unexpected type: %v", t)
+	return nil
+}
+
+func complexForFloat(t *types.Type) *types.Type {
+	switch t.Etype {
+	case TFLOAT32:
+		return types.Types[TCOMPLEX64]
+	case TFLOAT64:
+		return types.Types[TCOMPLEX128]
+	}
+	Fatalf("unexpected type: %v", t)
+	return nil
 }
 
 type opAndTwoTypes struct {
