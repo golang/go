@@ -709,7 +709,11 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 		if t.Etype != TIDEAL && !types.Identical(l.Type, r.Type) {
 			l, r = defaultlit2(l, r, true)
-			if r.Type.IsInterface() == l.Type.IsInterface() || aop == 0 {
+			if l.Type == nil || r.Type == nil {
+				n.Type = nil
+				return n
+			}
+			if l.Type.IsInterface() == r.Type.IsInterface() || aop == 0 {
 				yyerror("invalid operation: %v (mismatched types %v and %v)", n, l.Type, r.Type)
 				n.Type = nil
 				return n
@@ -1049,10 +1053,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			}
 
 		case TMAP:
-			n.Right = defaultlit(n.Right, t.Key())
-			if n.Right.Type != nil {
-				n.Right = assignconv(n.Right, t.Key(), "map index")
-			}
+			n.Right = assignconv(n.Right, t.Key(), "map index")
 			n.Type = t.Elem()
 			n.Op = OINDEXMAP
 			n.ResetAux()
@@ -1104,13 +1105,11 @@ func typecheck1(n *Node, top int) (res *Node) {
 			return n
 		}
 
-		n.Right = defaultlit(n.Right, t.Elem())
-		r := n.Right
-		if r.Type == nil {
+		n.Right = assignconv(n.Right, t.Elem(), "send")
+		if n.Right.Type == nil {
 			n.Type = nil
 			return n
 		}
-		n.Right = assignconv(r, t.Elem(), "send")
 		n.Type = nil
 
 	case OSLICEHEADER:
@@ -1638,7 +1637,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 		ok |= ctxExpr
 		checkwidth(n.Type) // ensure width is calculated for backend
 		n.Left = typecheck(n.Left, ctxExpr)
-		n.Left = convlit1(n.Left, n.Type, true, noReuse)
+		n.Left = convlit1(n.Left, n.Type, true, nil)
 		t := n.Left.Type
 		if t == nil || n.Type == nil {
 			n.Type = nil
@@ -2862,7 +2861,6 @@ func typecheckcomplit(n *Node) (res *Node) {
 			r := *vp
 			pushtype(r, t.Elem())
 			r = typecheck(r, ctxExpr)
-			r = defaultlit(r, t.Elem())
 			*vp = assignconv(r, t.Elem(), "array or slice literal")
 
 			i++
@@ -2900,14 +2898,12 @@ func typecheckcomplit(n *Node) (res *Node) {
 			r := l.Left
 			pushtype(r, t.Key())
 			r = typecheck(r, ctxExpr)
-			r = defaultlit(r, t.Key())
 			l.Left = assignconv(r, t.Key(), "map key")
 			cs.add(lineno, l.Left, "key", "map literal")
 
 			r = l.Right
 			pushtype(r, t.Elem())
 			r = typecheck(r, ctxExpr)
-			r = defaultlit(r, t.Elem())
 			l.Right = assignconv(r, t.Elem(), "map value")
 		}
 

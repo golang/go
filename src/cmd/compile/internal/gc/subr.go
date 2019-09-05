@@ -798,11 +798,10 @@ func assignconvfn(n *Node, t *types.Type, context func() string) *Node {
 		yyerror("use of untyped nil")
 	}
 
-	old := n
-	od := old.Diag()
-	old.SetDiag(true) // silence errors about n; we'll issue one below
-	n = defaultlit(n, t)
-	old.SetDiag(od)
+	n = convlit1(n, t, false, context)
+	if n.Type == nil {
+		return n
+	}
 	if t.Etype == TBLANK {
 		return n
 	}
@@ -826,9 +825,7 @@ func assignconvfn(n *Node, t *types.Type, context func() string) *Node {
 	var why string
 	op := assignop(n.Type, t, &why)
 	if op == 0 {
-		if !old.Diag() {
-			yyerror("cannot use %L as type %v in %s%s", n, t, context(), why)
-		}
+		yyerror("cannot use %L as type %v in %s%s", n, t, context(), why)
 		op = OCONV
 	}
 
