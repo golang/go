@@ -349,10 +349,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 		case TARRAY:
 			goto bad
 
-		case TPTR, TUNSAFEPTR:
-			n.SetVal(Val{new(Mpint)})
-
-		case TCHAN, TFUNC, TINTER, TMAP, TSLICE:
+		case TCHAN, TFUNC, TINTER, TMAP, TPTR, TSLICE, TUNSAFEPTR:
 			break
 		}
 
@@ -602,16 +599,7 @@ func evconst(n *Node) {
 
 	case OEQ, ONE, OLT, OLE, OGT, OGE:
 		if nl.Op == OLITERAL && nr.Op == OLITERAL {
-			if nl.Type.IsInterface() != nr.Type.IsInterface() {
-				// Mixed interface/non-interface
-				// constant comparison means comparing
-				// nil interface with some typed
-				// constant, which is always unequal.
-				// E.g., interface{}(nil) == (*int)(nil).
-				setboolconst(n, op == ONE)
-			} else {
-				setboolconst(n, compareOp(nl.Val(), op, nr.Val()))
-			}
+			setboolconst(n, compareOp(nl.Val(), op, nr.Val()))
 		}
 
 	case OLSH, ORSH:
@@ -732,15 +720,6 @@ func compareOp(x Val, op Op, y Val) bool {
 	x, y = match(x, y)
 
 	switch x.Ctype() {
-	case CTNIL:
-		_, _ = x.U.(*NilVal), y.U.(*NilVal) // assert dynamic types match
-		switch op {
-		case OEQ:
-			return true
-		case ONE:
-			return false
-		}
-
 	case CTBOOL:
 		x, y := x.U.(bool), y.U.(bool)
 		switch op {
