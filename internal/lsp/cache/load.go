@@ -26,12 +26,11 @@ func (view *view) loadParseTypecheck(ctx context.Context, f *goFile) error {
 	for _, m := range pkgs {
 		imp := &importer{
 			view:              view,
-			ctx:               ctx,
 			config:            view.Config(ctx),
 			seen:              make(map[packageID]struct{}),
 			topLevelPackageID: m.id,
 		}
-		cph, err := imp.checkPackageHandle(m)
+		cph, err := imp.checkPackageHandle(ctx, m)
 		if err != nil {
 			log.Error(ctx, "failed to get CheckPackgeHandle", err)
 			continue
@@ -42,7 +41,7 @@ func (view *view) loadParseTypecheck(ctx context.Context, f *goFile) error {
 			continue
 		}
 		// Cache this package on the file object, since all dependencies are cached in the Import function.
-		imp.cachePackage(cph, pkg, m)
+		imp.cachePackage(ctx, cph, pkg, m)
 	}
 	return nil
 }
