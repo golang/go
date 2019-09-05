@@ -150,13 +150,28 @@ func TryProxies(f func(proxy string) error) error {
 		return f("off")
 	}
 
+	var lastAttemptErr error
 	for _, proxy := range proxies {
 		err = f(proxy)
 		if !errors.Is(err, os.ErrNotExist) {
+			lastAttemptErr = err
 			break
 		}
+
+		// The error indicates that the module does not exist.
+		// In general we prefer to report the last such error,
+		// because it indicates the error that occurs after all other
+		// options have been exhausted.
+		//
+		// However, for modules in the NOPROXY list, the most useful error occurs
+		// first (with proxy set to "noproxy"), and the subsequent errors are all
+		// errNoProxy (which is not particularly helpful). Do not overwrite a more
+		// useful error with errNoproxy.
+		if lastAttemptErr == nil || !errors.Is(err, errNoproxy) {
+			lastAttemptErr = err
+		}
 	}
-	return err
+	return lastAttemptErr
 }
 
 type proxyRepo struct {
