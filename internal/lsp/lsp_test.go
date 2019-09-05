@@ -447,7 +447,7 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		sedits, err := FromProtocolEdits(m, edits)
+		sedits, err := source.FromProtocolEdits(m, edits)
 		if err != nil {
 			t.Error(err)
 		}
@@ -493,7 +493,7 @@ func (r *runner) Import(t *testing.T, data tests.Imports) {
 				edits = (*a.Edit.Changes)[string(uri)]
 			}
 		}
-		sedits, err := FromProtocolEdits(m, edits)
+		sedits, err := source.FromProtocolEdits(m, edits)
 		if err != nil {
 			t.Error(err)
 		}
@@ -679,7 +679,7 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 				t.Fatal(err)
 			}
 
-			sedits, err := FromProtocolEdits(m, edits)
+			sedits, err := source.FromProtocolEdits(m, edits)
 			if err != nil {
 				t.Error(err)
 			}

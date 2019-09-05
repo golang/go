@@ -21,21 +21,9 @@ func (s *Server) signatureHelp(ctx context.Context, params *protocol.TextDocumen
 	if err != nil {
 		return nil, err
 	}
-	m, err := getMapper(ctx, f)
-	if err != nil {
-		return nil, err
-	}
-	spn, err := m.PointSpan(params.Position)
-	if err != nil {
-		return nil, err
-	}
-	rng, err := spn.Range(m.Converter)
-	if err != nil {
-		return nil, err
-	}
 	info, err := source.SignatureHelp(ctx, view, f, params.Position)
 	if err != nil {
-		log.Print(ctx, "no signature help", tag.Of("At", rng), tag.Of("Failure", err))
+		log.Print(ctx, "no signature help", tag.Of("At", params.Position), tag.Of("Failure", err))
 		return nil, nil
 	}
 	return toProtocolSignatureHelp(info), nil

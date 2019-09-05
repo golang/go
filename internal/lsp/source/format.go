@@ -9,28 +9,31 @@ import (
 	"bytes"
 	"context"
 	"go/format"
+	"go/token"
 
-	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/trace"
 	errors "golang.org/x/xerrors"
 )
 
 // Format formats a file with a given range.
-func Format(ctx context.Context, f GoFile, rng span.Range) ([]diff.TextEdit, error) {
+func Format(ctx context.Context, view View, f File) ([]protocol.TextEdit, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Format")
 	defer done()
 
-	file, err := f.GetAST(ctx, ParseFull)
+	gof, ok := f.(GoFile)
+	if !ok {
+		return nil, errors.Errorf("formatting is not supported for non-Go files")
+	}
+	file, err := gof.GetAST(ctx, ParseFull)
 	if file == nil {
 		return nil, err
 	}
-	pkg, err := f.GetPackage(ctx)
+	pkg, err := gof.GetPackage(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -43,13 +46,8 @@ func Format(ctx context.Context, f GoFile, rng span.Range) ([]diff.TextEdit, err
 		if err != nil {
 			return nil, err
 		}
-		return computeTextEdits(ctx, f, string(formatted)), nil
+		return computeTextEdits(ctx, view.Session().Cache().FileSet(), f, string(formatted))
 	}
-	path, exact := astutil.PathEnclosingInterval(file, rng.Start, rng.End)
-	if !exact || len(path) == 0 {
-		return nil, errors.Errorf("no exact AST node matching the specified range")
-	}
-	node := path[0]
 
 	fset := f.FileSet()
 	buf := &bytes.Buffer{}
@@ -58,10 +56,10 @@ func Format(ctx context.Context, f GoFile, rng span.Range) ([]diff.TextEdit, err
 	// of Go used to build the LSP server will determine how it formats code.
 	// This should be acceptable for all users, who likely be prompted to rebuild
 	// the LSP server on each Go release.
-	if err := format.Node(buf, fset, node); err != nil {
+	if err := format.Node(buf, fset, file); err != nil {
 		return nil, err
 	}
-	return computeTextEdits(ctx, f, buf.String()), nil
+	return computeTextEdits(ctx, view.Session().Cache().FileSet(), f, buf.String())
 }
 
 func formatSource(ctx context.Context, file File) ([]byte, error) {
@@ -75,7 +73,7 @@ func formatSource(ctx context.Context, file File) ([]byte, error) {
 }
 
 // Imports formats a file using the goimports tool.
-func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]diff.TextEdit, error) {
+func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]protocol.TextEdit, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Imports")
 	defer done()
 	data, _, err := f.Handle(ctx).Read(ctx)
@@ -108,26 +106,32 @@ func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]diff.T
 	if err != nil {
 		return nil, err
 	}
-	return computeTextEdits(ctx, f, string(formatted)), nil
+	return computeTextEdits(ctx, view.Session().Cache().FileSet(), f, string(formatted))
 }
 
 type ImportFix struct {
 	Fix   *imports.ImportFix
-	Edits []diff.TextEdit
+	Edits []protocol.TextEdit
 }
 
 // AllImportsFixes formats f for each possible fix to the imports.
 // In addition to returning the result of applying all edits,
 // it returns a list of fixes that could be applied to the file, with the
 // corresponding TextEdits that would be needed to apply that fix.
-func AllImportsFixes(ctx context.Context, view View, f GoFile, rng span.Range) (edits []diff.TextEdit, editsPerFix []*ImportFix, err error) {
+func AllImportsFixes(ctx context.Context, view View, f File) (edits []protocol.TextEdit, editsPerFix []*ImportFix, err error) {
 	ctx, done := trace.StartSpan(ctx, "source.AllImportsFixes")
 	defer done()
+
+	gof, ok := f.(GoFile)
+	if !ok {
+		return nil, nil, errors.Errorf("no imports fixes for non-Go files: %v", err)
+	}
+
 	data, _, err := f.Handle(ctx).Read(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
-	pkg, err := f.GetPackage(ctx)
+	pkg, err := gof.GetPackage(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -153,7 +157,10 @@ func AllImportsFixes(ctx context.Context, view View, f GoFile, rng span.Range) (
 		if err != nil {
 			return err
 		}
-		edits = computeTextEdits(ctx, f, string(formatted))
+		edits, err = computeTextEdits(ctx, view.Session().Cache().FileSet(), f, string(formatted))
+		if err != nil {
+			return err
+		}
 		// Add the edits for each fix to the result.
 		editsPerFix = make([]*ImportFix, len(fixes))
 		for i, fix := range fixes {
@@ -161,12 +168,16 @@ func AllImportsFixes(ctx context.Context, view View, f GoFile, rng span.Range) (
 			if err != nil {
 				return err
 			}
+			edits, err := computeTextEdits(ctx, view.Session().Cache().FileSet(), f, string(formatted))
+			if err != nil {
+				return err
+			}
 			editsPerFix[i] = &ImportFix{
 				Fix:   fix,
-				Edits: computeTextEdits(ctx, f, string(formatted)),
+				Edits: edits,
 			}
 		}
-		return err
+		return nil
 	}
 	err = view.RunProcessEnvFunc(ctx, importFn, options)
 	if err != nil {
@@ -225,15 +236,19 @@ func hasListErrors(errors []packages.Error) bool {
 	return false
 }
 
-func computeTextEdits(ctx context.Context, file File, formatted string) (edits []diff.TextEdit) {
+func computeTextEdits(ctx context.Context, fset *token.FileSet, f File, formatted string) ([]protocol.TextEdit, error) {
 	ctx, done := trace.StartSpan(ctx, "source.computeTextEdits")
 	defer done()
-	data, _, err := file.Handle(ctx).Read(ctx)
+
+	data, _, err := f.Handle(ctx).Read(ctx)
 	if err != nil {
-		log.Error(ctx, "Cannot compute text edits", err)
-		return nil
+		return nil, err
 	}
-	return diff.ComputeEdits(file.URI(), string(data), formatted)
+	edits := diff.ComputeEdits(f.URI(), string(data), formatted)
+	m := protocol.NewColumnMapper(f.URI(), f.URI().Filename(), fset, nil, data)
+
+	return ToProtocolEdits(m, edits)
+
 }
 
 func ToProtocolEdits(m *protocol.ColumnMapper, edits []diff.TextEdit) ([]protocol.TextEdit, error) {
@@ -248,6 +263,24 @@ func ToProtocolEdits(m *protocol.ColumnMapper, edits []diff.TextEdit) ([]protoco
 		}
 		result[i] = protocol.TextEdit{
 			Range:   rng,
+			NewText: edit.NewText,
+		}
+	}
+	return result, nil
+}
+
+func FromProtocolEdits(m *protocol.ColumnMapper, edits []protocol.TextEdit) ([]diff.TextEdit, error) {
+	if edits == nil {
+		return nil, nil
+	}
+	result := make([]diff.TextEdit, len(edits))
+	for i, edit := range edits {
+		spn, err := m.RangeSpan(edit.Range)
+		if err != nil {
+			return nil, err
+		}
+		result[i] = diff.TextEdit{
+			Span:    spn,
 			NewText: edit.NewText,
 		}
 	}

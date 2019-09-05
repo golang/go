@@ -415,15 +415,7 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", spn, err)
 		}
-		tok, err := f.(source.GoFile).GetToken(ctx)
-		if err != nil {
-			t.Fatalf("failed to get token for %s: %v", spn.URI(), err)
-		}
-		rng, err := spn.Range(span.NewTokenConverter(f.FileSet(), tok))
-		if err != nil {
-			t.Fatalf("failed for %v: %v", spn, err)
-		}
-		edits, err := source.Format(ctx, f.(source.GoFile), rng)
+		edits, err := source.Format(ctx, r.view, f)
 		if err != nil {
 			if gofmted != "" {
 				t.Error(err)
@@ -435,7 +427,12 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 			t.Error(err)
 			continue
 		}
-		got := diff.ApplyEdits(string(data), edits)
+		m := protocol.NewColumnMapper(uri, filename, r.view.Session().Cache().FileSet(), nil, data)
+		diffEdits, err := source.FromProtocolEdits(m, edits)
+		if err != nil {
+			t.Error(err)
+		}
+		got := diff.ApplyEdits(string(data), diffEdits)
 		if gofmted != got {
 			t.Errorf("format failed for %s, expected:\n%v\ngot:\n%v", filename, gofmted, got)
 		}
@@ -476,7 +473,12 @@ func (r *runner) Import(t *testing.T, data tests.Imports) {
 			t.Error(err)
 			continue
 		}
-		got := diff.ApplyEdits(string(data), edits)
+		m := protocol.NewColumnMapper(uri, filename, r.view.Session().Cache().FileSet(), nil, data)
+		diffEdits, err := source.FromProtocolEdits(m, edits)
+		if err != nil {
+			t.Error(err)
+		}
+		got := diff.ApplyEdits(string(data), diffEdits)
 		if goimported != got {
 			t.Errorf("import failed for %s, expected:\n%v\ngot:\n%v", filename, goimported, got)
 		}
