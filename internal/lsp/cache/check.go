@@ -81,6 +81,7 @@ func (pkg *pkg) GetImport(ctx context.Context, pkgPath string) (source.Package, 
 func (imp *importer) checkPackageHandle(ctx context.Context, m *metadata) (*checkPackageHandle, error) {
 	phs, err := imp.parseGoHandles(ctx, m)
 	if err != nil {
+		log.Error(ctx, "no ParseGoHandles", err, telemetry.Package.Of(m.id))
 		return nil, err
 	}
 	key := checkPackageKey{
@@ -124,6 +125,9 @@ func (cph *checkPackageHandle) Check(ctx context.Context) (source.Package, error
 }
 
 func (cph *checkPackageHandle) check(ctx context.Context) (*pkg, error) {
+	ctx, done := trace.StartSpan(ctx, "cache.checkPackageHandle.check", telemetry.Package.Of(cph.m.id))
+	defer done()
+
 	v := cph.handle.Get(ctx)
 	if v == nil {
 		return nil, ctx.Err()
@@ -152,24 +156,20 @@ func (cph *checkPackageHandle) Cached(ctx context.Context) (source.Package, erro
 func (imp *importer) parseGoHandles(ctx context.Context, m *metadata) ([]source.ParseGoHandle, error) {
 	phs := make([]source.ParseGoHandle, 0, len(m.files))
 	for _, uri := range m.files {
-		// Call the unlocked version of getFile since we are holding the view's mutex.
 		f, err := imp.view.GetFile(ctx, uri)
 		if err != nil {
 			return nil, err
 		}
-		gof, ok := f.(*goFile)
-		if !ok {
-			return nil, errors.Errorf("%s is not a Go file", f.URI())
-		}
-		fh := gof.Handle(ctx)
+		fh := f.Handle(ctx)
 		mode := source.ParseExported
 		if imp.topLevelPackageID == m.id {
 			mode = source.ParseFull
-		} else if imp.view.session.cache.store.Cached(parseKey{
+		}
+		// If we have the full AST cached, don't bother getting the trimmed version.
+		if imp.view.session.cache.store.Cached(parseKey{
 			file: fh.Identity(),
 			mode: source.ParseFull,
 		}) != nil {
-			// If we have the full AST cached, don't bother getting the trimmed version.
 			mode = source.ParseFull
 		}
 		phs = append(phs, imp.view.session.cache.ParseGoHandle(fh, mode))
@@ -178,30 +178,36 @@ func (imp *importer) parseGoHandles(ctx context.Context, m *metadata) ([]source.
 }
 
 func (imp *importer) Import(pkgPath string) (*types.Package, error) {
+	ctx, done := trace.StartSpan(imp.ctx, "cache.importer.Import", telemetry.PackagePath.Of(pkgPath))
+	defer done()
+
 	// We need to set the parent package's imports, so there should always be one.
 	if imp.parentPkg == nil {
 		return nil, errors.Errorf("no parent package for import %s", pkgPath)
 	}
+
 	// Get the package metadata from the importing package.
 	cph, ok := imp.parentCheckPackageHandle.imports[packagePath(pkgPath)]
 	if !ok {
 		return nil, errors.Errorf("no package data for import path %s", pkgPath)
 	}
+
 	// Create a check package handle to get the type information for this package.
-	pkg, err := cph.check(imp.ctx)
+	pkg, err := cph.check(ctx)
 	if err != nil {
 		return nil, err
 	}
 	imp.parentPkg.imports[packagePath(pkgPath)] = pkg
+
 	// Add every file in this package to our cache.
-	if err := imp.cachePackage(imp.ctx, cph, pkg, cph.m); err != nil {
+	if err := imp.cachePackage(ctx, cph); err != nil {
 		return nil, err
 	}
 	return pkg.GetTypes(), nil
 }
 
 func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle, m *metadata) (*pkg, error) {
-	ctx, done := trace.StartSpan(ctx, "cache.importer.typeCheck")
+	ctx, done := trace.StartSpan(ctx, "cache.importer.typeCheck", telemetry.Package.Of(m.id))
 	defer done()
 
 	pkg := &pkg{
@@ -310,8 +316,8 @@ func (imp *importer) child(ctx context.Context, pkg *pkg, cph *checkPackageHandl
 	}
 }
 
-func (imp *importer) cachePackage(ctx context.Context, cph *checkPackageHandle, pkg *pkg, m *metadata) error {
-	for _, ph := range pkg.files {
+func (imp *importer) cachePackage(ctx context.Context, cph *checkPackageHandle) error {
+	for _, ph := range cph.files {
 		uri := ph.File().Identity().URI
 		f, err := imp.view.GetFile(ctx, uri)
 		if err != nil {
@@ -321,14 +327,14 @@ func (imp *importer) cachePackage(ctx context.Context, cph *checkPackageHandle, 
 		if !ok {
 			return errors.Errorf("%s is not a Go file", uri)
 		}
-		if err := imp.cachePerFile(ctx, gof, ph, cph, m); err != nil {
+		if err := imp.cachePerFile(ctx, gof, ph, cph); err != nil {
 			return errors.Errorf("failed to cache file %s: %v", gof.URI(), err)
 		}
 	}
 	return nil
 }
 
-func (imp *importer) cachePerFile(ctx context.Context, gof *goFile, ph source.ParseGoHandle, cph source.CheckPackageHandle, m *metadata) error {
+func (imp *importer) cachePerFile(ctx context.Context, gof *goFile, ph source.ParseGoHandle, cph *checkPackageHandle) error {
 	gof.mu.Lock()
 	defer gof.mu.Unlock()
 
@@ -336,7 +342,7 @@ func (imp *importer) cachePerFile(ctx context.Context, gof *goFile, ph source.Pa
 	if gof.pkgs == nil {
 		gof.pkgs = make(map[packageID]source.CheckPackageHandle)
 	}
-	gof.pkgs[m.id] = cph
+	gof.pkgs[cph.m.id] = cph
 
 	file, err := ph.Parse(ctx)
 	if file == nil {

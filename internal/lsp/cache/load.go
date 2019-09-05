@@ -19,11 +19,14 @@ import (
 )
 
 func (view *view) loadParseTypecheck(ctx context.Context, f *goFile) error {
-	pkgs, err := view.load(ctx, f)
+	ctx, done := trace.StartSpan(ctx, "cache.view.loadParseTypeCheck", telemetry.URI.Of(f.URI()))
+	defer done()
+
+	meta, err := view.load(ctx, f)
 	if err != nil {
 		return err
 	}
-	for _, m := range pkgs {
+	for _, m := range meta {
 		imp := &importer{
 			view:              view,
 			config:            view.Config(ctx),
@@ -32,21 +35,26 @@ func (view *view) loadParseTypecheck(ctx context.Context, f *goFile) error {
 		}
 		cph, err := imp.checkPackageHandle(ctx, m)
 		if err != nil {
-			log.Error(ctx, "failed to get CheckPackgeHandle", err)
+			log.Error(ctx, "loadParseTypeCheck: failed to get CheckPackageHandle", err, telemetry.Package.Of(m.id))
 			continue
 		}
-		pkg, err := cph.check(ctx)
-		if err != nil {
-			log.Error(ctx, "failed to check package", err)
+		if _, err := cph.check(ctx); err != nil {
+			log.Error(ctx, "loadParseTypeCheck: failed to check package", err, telemetry.Package.Of(m.id))
 			continue
 		}
 		// Cache this package on the file object, since all dependencies are cached in the Import function.
-		imp.cachePackage(ctx, cph, pkg, m)
+		if err := imp.cachePackage(ctx, cph); err != nil {
+			log.Error(ctx, "loadParseTypeCheck: failed to cache package", err, telemetry.Package.Of(m.id))
+			continue
+		}
 	}
 	return nil
 }
 
 func (view *view) load(ctx context.Context, f *goFile) ([]*metadata, error) {
+	ctx, done := trace.StartSpan(ctx, "cache.view.load", telemetry.URI.Of(f.URI()))
+	defer done()
+
 	view.mu.Lock()
 	defer view.mu.Unlock()
 
@@ -76,7 +84,7 @@ func (view *view) load(ctx context.Context, f *goFile) ([]*metadata, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(f.meta) == 0 {
+	if len(meta) == 0 {
 		return nil, fmt.Errorf("no package metadata found for %s", f.URI())
 	}
 	return meta, nil
