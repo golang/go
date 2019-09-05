@@ -73,24 +73,24 @@ func copyProject(sourcePath string, destinationPath string) {
 	})
 }
 
-func copyFile(source string, destination string) error {
+func copyFile(source string, destination string) {
 	in, err := os.Open(source)
 	if err != nil {
-		return err
+		return
 	}
 	defer in.Close()
 
 	out, err := os.Create(destination)
 	if err != nil {
-		return err
+		return
 	}
 	defer out.Close()
 
 	_, err = io.Copy(out, in)
 	if err != nil {
-		return err
+		return
 	}
-	return out.Close()
+	return
 }
 
 func compressFolder(folderToZip string, name string) {
