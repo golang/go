@@ -7,6 +7,7 @@ package tls_test
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -182,4 +183,56 @@ EKTcWGekdmdDPsHloRNtsiCa697B2O9IFA==
 		WriteTimeout: time.Minute,
 	}
 	log.Fatal(srv.ListenAndServeTLS("", ""))
+}
+
+func ExampleConfig_verifyPeerCertificate() {
+	// VerifyPeerCertificate can be used to replace and customize certificate
+	// verification. This example shows a VerifyPeerCertificate implementation
+	// that will be approximately equivalent to what crypto/tls does normally.
+
+	config := &tls.Config{
+		// Set InsecureSkipVerify to skip the default validation we are
+		// replacing. This will not disable VerifyPeerCertificate.
+		InsecureSkipVerify: true,
+
+		// While packages like net/http will implicitly set ServerName, the
+		// VerifyPeerCertificate callback can't access that value, so it has to be set
+		// explicitly here or in VerifyPeerCertificate on the client side. If in
+		// an http.Transport DialTLS callback, this can be obtained by passing
+		// the addr argument to net.SplitHostPort.
+		ServerName: "example.com",
+
+		// On the server side, set ClientAuth to require client certificates (or
+		// VerifyPeerCertificate will run anyway and panic accessing certs[0])
+		// but not verify them with the default verifier.
+		// ClientAuth: tls.RequireAnyClientCert,
+	}
+
+	config.VerifyPeerCertificate = func(certificates [][]byte, _ [][]*x509.Certificate) error {
+		certs := make([]*x509.Certificate, len(certificates))
+		for i, asn1Data := range certificates {
+			cert, err := x509.ParseCertificate(asn1Data)
+			if err != nil {
+				return errors.New("tls: failed to parse certificate from server: " + err.Error())
+			}
+			certs[i] = cert
+		}
+
+		opts := x509.VerifyOptions{
+			Roots:         config.RootCAs, // On the server side, use config.ClientCAs.
+			DNSName:       config.ServerName,
+			Intermediates: x509.NewCertPool(),
+			// On the server side, set KeyUsages to ExtKeyUsageClientAuth. The
+			// default value is appropriate for clients side verification.
+			// KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		}
+		for _, cert := range certs[1:] {
+			opts.Intermediates.AddCert(cert)
+		}
+		_, err := certs[0].Verify(opts)
+		return err
+	}
+
+	// Note that when InsecureSkipVerify and VerifyPeerCertificate are in use,
+	// ConnectionState.VerifiedChains will be nil.
 }
