@@ -186,9 +186,6 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 					break
 				}
 			}
-			if got == nil {
-				t.Fatalf("%s: couldn't find completion matching %q", src.URI(), wantItem.Label)
-			}
 			expected := want.PlainSnippet
 			if usePlaceholders {
 				expected = want.PlaceholderSnippet

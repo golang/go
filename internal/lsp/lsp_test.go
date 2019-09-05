@@ -179,17 +179,25 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 					break
 				}
 			}
-			if got == nil {
-				t.Fatalf("%s:%d: couldn't find completion matching %q", src.URI(), src.Start().Line(), wantItem.Label)
-			}
 			var expected string
 			if usePlaceholders {
 				expected = want.PlaceholderSnippet
 			} else {
 				expected = want.PlainSnippet
 			}
-			if expected != got.TextEdit.NewText {
-				t.Errorf("%s: expected snippet %q, got %q", src, expected, got.TextEdit.NewText)
+
+			if expected == "" {
+				if got != nil {
+					t.Fatalf("%s:%d: expected no snippet but got %q", src.URI(), src.Start().Line(), got.TextEdit.NewText)
+				}
+			} else {
+				if got == nil {
+					t.Fatalf("%s:%d: couldn't find completion matching %q", src.URI(), src.Start().Line(), wantItem.Label)
+				}
+
+				if expected != got.TextEdit.NewText {
+					t.Errorf("%s: expected snippet %q, got %q", src, expected, got.TextEdit.NewText)
+				}
 			}
 			view.SetOptions(original)
 		}

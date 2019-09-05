@@ -31,7 +31,7 @@ import (
 // are being executed. If a test is added, this number must be changed.
 const (
 	ExpectedCompletionsCount       = 164
-	ExpectedCompletionSnippetCount = 29
+	ExpectedCompletionSnippetCount = 35
 	ExpectedDiagnosticsCount       = 21
 	ExpectedFormatCount            = 6
 	ExpectedImportCount            = 2

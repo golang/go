@@ -1,5 +1,10 @@
 package snippets
 
+import (
+	"net/http"
+	"sort"
+)
+
 func _() {
 	[]int{}        //@item(litIntSlice, "[]int{}", "", "var")
 	make([]int, 0) //@item(makeIntSlice, "make([]int, 0)", "", "func")
@@ -95,4 +100,24 @@ func _() {
 	foo := func(s string, args ...myStruct) {}
 	// Don't give literal slice candidate for variadic arg.
 	foo("", myStruct) //@complete(")", litStructType)
+}
+
+func _() {
+	"func(...) {}" //@item(litFunc, "func(...) {}", "", "var")
+
+	sort.Slice(nil, f) //@snippet(")", litFunc, "func(i, j int) bool {$0\\}", "func(i, j int) bool {$0\\}")
+
+	http.HandleFunc("", f) //@snippet(")", litFunc, "", "func(${1:rw} http.ResponseWriter, ${2:r} *http.Request) {$0\\}")
+
+	var namedReturn func(s string) (b bool)
+	namedReturn = f //@snippet(" //", litFunc, "func(s string) (b bool) {$0\\}", "func(s string) (b bool) {$0\\}")
+
+	var multiReturn func() (bool, int)
+	multiReturn = f //@snippet(" //", litFunc, "func() (bool, int) {$0\\}", "func() (bool, int) {$0\\}")
+
+	var multiNamedReturn func() (b bool, i int)
+	multiNamedReturn = f //@snippet(" //", litFunc, "func() (b bool, i int) {$0\\}", "func() (b bool, i int) {$0\\}")
+
+	var duplicateParams func(myImpl, int, myImpl)
+	duplicateParams = f //@snippet(" //", litFunc, "", "func(${1:mi} myImpl, ${2:_} int, ${3:_} myImpl) {$0\\}")
 }

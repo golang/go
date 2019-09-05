@@ -662,7 +662,7 @@ func (c *completer) lexical() error {
 		// handled during the normal lexical object search. For example,
 		// if our expected type is "[]int", this will add a candidate of
 		// "[]int{}".
-		if _, named := c.expectedType.objType.(*types.Named); !named {
+		if _, named := deref(c.expectedType.objType).(*types.Named); !named {
 			c.literal(c.expectedType.objType)
 		}
 	}
