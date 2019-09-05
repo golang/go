@@ -33,8 +33,8 @@ func signalInVDSO() {
         t0 := time.Now()
         t1 := t0
         // We should get a profiling signal 100 times a second,
-        // so running for 10 seconds should be sufficient.
-        for t1.Sub(t0) < 10*time.Second {
+        // so running for 1 second should be sufficient.
+        for t1.Sub(t0) < time.Second {
                 t1 = time.Now()
         }
 

@@ -144,6 +144,7 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 }
 
 func TestVDSO(t *testing.T) {
+	t.Parallel()
 	output := runTestProg(t, "testprog", "SignalInVDSO")
 	want := "success\n"
 	if output != want {
