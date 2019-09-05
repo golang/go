@@ -122,6 +122,17 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile, fh source.FileHandl
 	// Track missing imports as we look at the package's errors.
 	missingImports := make(map[packagePath]struct{})
 
+	// Clear metadata since we are re-running go/packages.
+	// Reset the file's metadata and type information if we are re-running `go list`.
+	f.mu.Lock()
+	for k := range f.meta {
+		delete(f.meta, k)
+	}
+	for k := range f.pkgs {
+		delete(f.pkgs, k)
+	}
+	f.mu.Unlock()
+
 	log.Print(ctx, "go/packages.Load", tag.Of("packages", len(pkgs)))
 	for _, pkg := range pkgs {
 		log.Print(ctx, "go/packages.Load", tag.Of("package", pkg.PkgPath), tag.Of("files", pkg.CompiledGoFiles))
@@ -179,19 +190,6 @@ func sameSet(x, y map[packagePath]struct{}) bool {
 // determine if they have changed.
 // It assumes that the caller holds the lock on the f.mu lock.
 func (v *view) shouldRunGopackages(ctx context.Context, f *goFile, fh source.FileHandle) (result bool) {
-	defer func() {
-		// Clear metadata if we are intending to re-run go/packages.
-		if result {
-			// Reset the file's metadata and type information if we are re-running `go list`.
-			for k := range f.meta {
-				delete(f.meta, k)
-			}
-			for k := range f.pkgs {
-				delete(f.pkgs, k)
-			}
-		}
-	}()
-
 	if len(f.meta) == 0 || len(f.missingImports) > 0 {
 		return true
 	}
