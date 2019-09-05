@@ -33,11 +33,13 @@ type Version struct {
 	Path string
 
 	// Version is usually a semantic version in canonical form.
-	// There are two exceptions to this general rule.
+	// There are three exceptions to this general rule.
 	// First, the top-level target of a build has no specific version
 	// and uses Version = "".
 	// Second, during MVS calculations the version "none" is used
 	// to represent the decision to take no version of a given module.
+	// Third, filesystem paths found in "replace" directives are
+	// represented by a path with an empty version.
 	Version string `json:",omitempty"`
 }
 
