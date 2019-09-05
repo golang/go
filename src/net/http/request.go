@@ -556,10 +556,14 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 	// Clean the host, in case it arrives with unexpected stuff in it.
 	host := cleanHost(r.Host)
 	if host == "" {
-		if r.URL == nil {
-			return errMissingHost
+		if r.Header.has("Host") {
+			host = r.Header.Get("Host")
+		} else {
+			if r.URL == nil {
+				return errMissingHost
+			}
+			host = cleanHost(r.URL.Host)
 		}
-		host = cleanHost(r.URL.Host)
 	}
 
 	// According to RFC 6874, an HTTP client, proxy, or other
