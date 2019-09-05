@@ -678,7 +678,6 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 			if err != nil {
 				t.Fatal(err)
 			}
-
 			sedits, err := source.FromProtocolEdits(m, edits)
 			if err != nil {
 				t.Error(err)
@@ -791,30 +790,22 @@ func (r *runner) Symbol(t *testing.T, data tests.Symbols) {
 	}
 }
 
-func (r *runner) diffSymbols(t *testing.T, uri span.URI, want []source.Symbol, got []protocol.DocumentSymbol) string {
+func (r *runner) diffSymbols(t *testing.T, uri span.URI, want []protocol.DocumentSymbol, got []protocol.DocumentSymbol) string {
 	sort.Slice(want, func(i, j int) bool { return want[i].Name < want[j].Name })
 	sort.Slice(got, func(i, j int) bool { return got[i].Name < got[j].Name })
-	m, err := r.mapper(uri)
-	if err != nil {
-		t.Fatal(err)
-	}
 	if len(got) != len(want) {
-		return summarizeSymbols(-1, want, got, "different lengths got %v want %v", len(got), len(want))
+		return summarizeSymbols(t, -1, want, got, "different lengths got %v want %v", len(got), len(want))
 	}
 	for i, w := range want {
 		g := got[i]
 		if w.Name != g.Name {
-			return summarizeSymbols(i, want, got, "incorrect name got %v want %v", g.Name, w.Name)
+			return summarizeSymbols(t, i, want, got, "incorrect name got %v want %v", g.Name, w.Name)
 		}
-		if wkind := toProtocolSymbolKind(w.Kind); wkind != g.Kind {
-			return summarizeSymbols(i, want, got, "incorrect kind got %v want %v", g.Kind, wkind)
+		if w.Kind != g.Kind {
+			return summarizeSymbols(t, i, want, got, "incorrect kind got %v want %v", g.Kind, w.Kind)
 		}
-		spn, err := m.RangeSpan(g.SelectionRange)
-		if err != nil {
-			return summarizeSymbols(i, want, got, "%v", err)
-		}
-		if w.SelectionSpan != spn {
-			return summarizeSymbols(i, want, got, "incorrect span got %v want %v", spn, w.SelectionSpan)
+		if protocol.CompareRange(g.SelectionRange, w.SelectionRange) != 0 {
+			return summarizeSymbols(t, i, want, got, "incorrect span got %v want %v", g.SelectionRange, w.SelectionRange)
 		}
 		if msg := r.diffSymbols(t, uri, w.Children, g.Children); msg != "" {
 			return fmt.Sprintf("children of %s: %s", w.Name, msg)
@@ -823,7 +814,7 @@ func (r *runner) diffSymbols(t *testing.T, uri span.URI, want []source.Symbol, g
 	return ""
 }
 
-func summarizeSymbols(i int, want []source.Symbol, got []protocol.DocumentSymbol, reason string, args ...interface{}) string {
+func summarizeSymbols(t *testing.T, i int, want []protocol.DocumentSymbol, got []protocol.DocumentSymbol, reason string, args ...interface{}) string {
 	msg := &bytes.Buffer{}
 	fmt.Fprint(msg, "document symbols failed")
 	if i >= 0 {
@@ -833,7 +824,7 @@ func summarizeSymbols(i int, want []source.Symbol, got []protocol.DocumentSymbol
 	fmt.Fprintf(msg, reason, args...)
 	fmt.Fprint(msg, ":\nexpected:\n")
 	for _, s := range want {
-		fmt.Fprintf(msg, "  %v %v %v\n", s.Name, s.Kind, s.SelectionSpan)
+		fmt.Fprintf(msg, "  %v %v %v\n", s.Name, s.Kind, s.SelectionRange)
 	}
 	fmt.Fprintf(msg, "got:\n")
 	for _, s := range got {

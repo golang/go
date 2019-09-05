@@ -4,27 +4,16 @@
 
 package source
 
-import "fmt"
+import (
+	"fmt"
+)
 
 var (
-	namesSymbolKind         [int(FieldSymbol) + 1]string
 	namesDiagnosticSeverity [int(SeverityError) + 1]string
 	namesCompletionItemKind [int(PackageCompletionItem) + 1]string
 )
 
 func init() {
-	namesSymbolKind[PackageSymbol] = "Package"
-	namesSymbolKind[StructSymbol] = "Struct"
-	namesSymbolKind[VariableSymbol] = "Variable"
-	namesSymbolKind[ConstantSymbol] = "Constant"
-	namesSymbolKind[FunctionSymbol] = "Function"
-	namesSymbolKind[MethodSymbol] = "Method"
-	namesSymbolKind[InterfaceSymbol] = "Interface"
-	namesSymbolKind[NumberSymbol] = "Number"
-	namesSymbolKind[StringSymbol] = "String"
-	namesSymbolKind[BooleanSymbol] = "Boolean"
-	namesSymbolKind[FieldSymbol] = "Field"
-
 	namesDiagnosticSeverity[SeverityWarning] = "Warning"
 	namesDiagnosticSeverity[SeverityError] = "Error"
 
@@ -60,14 +49,6 @@ func parseEnum(s string, names []string) int {
 		}
 	}
 	return 0
-}
-
-func (e SymbolKind) Format(f fmt.State, c rune) {
-	formatEnum(f, c, int(e), namesSymbolKind[:], "SymbolKind")
-}
-
-func ParseSymbolKind(s string) SymbolKind {
-	return SymbolKind(parseEnum(s, namesSymbolKind[:]))
 }
 
 func (e DiagnosticSeverity) Format(f fmt.State, c rune) {

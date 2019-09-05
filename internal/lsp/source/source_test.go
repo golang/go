@@ -492,7 +492,7 @@ func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", d.Src, err)
 		}
-		srcRng, err := spanToRange(r.data, d.Src)
+		_, srcRng, err := spanToRange(r.data, d.Src)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -529,7 +529,7 @@ func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 				t.Errorf("for %v got %q want %q", d.Src, hover, expectHover)
 			}
 		} else if !d.OnlyHover {
-			if defRng, err := spanToRange(r.data, d.Def); err != nil {
+			if _, defRng, err := spanToRange(r.data, d.Def); err != nil {
 				t.Fatal(err)
 			} else if rng != defRng {
 				t.Errorf("for %v got %v want %v", d.Src, rng, d.Def)
@@ -544,25 +544,24 @@ func (r *runner) Highlight(t *testing.T, data tests.Highlights) {
 	ctx := r.ctx
 	for name, locations := range data {
 		src := locations[0]
-		f, err := r.view.GetFile(ctx, src.URI())
+		m, srcRng, err := spanToRange(r.data, src)
 		if err != nil {
-			t.Fatalf("failed for %v: %v", src, err)
+			t.Fatal(err)
 		}
-		tok, err := f.(source.GoFile).GetToken(ctx)
-		if err != nil {
-			t.Fatalf("failed to get token for %s: %v", src.URI(), err)
-		}
-		pos := tok.Pos(src.Start().Offset())
-		highlights, err := source.Highlight(ctx, f.(source.GoFile), pos)
+		highlights, err := source.Highlight(ctx, r.view, src.URI(), srcRng.Start)
 		if err != nil {
 			t.Errorf("highlight failed for %s: %v", src.URI(), err)
 		}
 		if len(highlights) != len(locations) {
 			t.Errorf("got %d highlights for %s, expected %d", len(highlights), name, len(locations))
 		}
-		for i, h := range highlights {
-			if h != locations[i] {
-				t.Errorf("want %v, got %v\n", locations[i], h)
+		for i, got := range highlights {
+			want, err := m.Range(locations[i])
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != want {
+				t.Errorf("want %v, got %v\n", want, got)
 			}
 		}
 	}
@@ -575,7 +574,7 @@ func (r *runner) Reference(t *testing.T, data tests.References) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", src, err)
 		}
-		srcRng, err := spanToRange(r.data, src)
+		_, srcRng, err := spanToRange(r.data, src)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -624,7 +623,7 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", spn, err)
 		}
-		srcRng, err := spanToRange(r.data, spn)
+		_, srcRng, err := spanToRange(r.data, spn)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -704,7 +703,7 @@ func (r *runner) PrepareRename(t *testing.T, data tests.PrepareRenames) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		srcRng, err := spanToRange(r.data, src)
+		_, srcRng, err := spanToRange(r.data, src)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -751,7 +750,7 @@ func (r *runner) Symbol(t *testing.T, data tests.Symbols) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", uri, err)
 		}
-		symbols, err := source.DocumentSymbols(ctx, f.(source.GoFile))
+		symbols, err := source.DocumentSymbols(ctx, r.view, f.(source.GoFile))
 		if err != nil {
 			t.Errorf("symbols failed for %s: %v", uri, err)
 		}
@@ -759,37 +758,37 @@ func (r *runner) Symbol(t *testing.T, data tests.Symbols) {
 			t.Errorf("want %d top-level symbols in %v, got %d", len(expectedSymbols), uri, len(symbols))
 			continue
 		}
-		if diff := r.diffSymbols(uri, expectedSymbols, symbols); diff != "" {
+		if diff := r.diffSymbols(t, uri, expectedSymbols, symbols); diff != "" {
 			t.Error(diff)
 		}
 	}
 }
 
-func (r *runner) diffSymbols(uri span.URI, want []source.Symbol, got []source.Symbol) string {
+func (r *runner) diffSymbols(t *testing.T, uri span.URI, want, got []protocol.DocumentSymbol) string {
 	sort.Slice(want, func(i, j int) bool { return want[i].Name < want[j].Name })
 	sort.Slice(got, func(i, j int) bool { return got[i].Name < got[j].Name })
 	if len(got) != len(want) {
-		return summarizeSymbols(-1, want, got, "different lengths got %v want %v", len(got), len(want))
+		return summarizeSymbols(t, -1, want, got, "different lengths got %v want %v", len(got), len(want))
 	}
 	for i, w := range want {
 		g := got[i]
 		if w.Name != g.Name {
-			return summarizeSymbols(i, want, got, "incorrect name got %v want %v", g.Name, w.Name)
+			return summarizeSymbols(t, i, want, got, "incorrect name got %v want %v", g.Name, w.Name)
 		}
 		if w.Kind != g.Kind {
-			return summarizeSymbols(i, want, got, "incorrect kind got %v want %v", g.Kind, w.Kind)
+			return summarizeSymbols(t, i, want, got, "incorrect kind got %v want %v", g.Kind, w.Kind)
 		}
-		if w.SelectionSpan != g.SelectionSpan {
-			return summarizeSymbols(i, want, got, "incorrect span got %v want %v", g.SelectionSpan, w.SelectionSpan)
+		if protocol.CompareRange(w.SelectionRange, g.SelectionRange) != 0 {
+			return summarizeSymbols(t, i, want, got, "incorrect span got %v want %v", g.SelectionRange, w.SelectionRange)
 		}
-		if msg := r.diffSymbols(uri, w.Children, g.Children); msg != "" {
+		if msg := r.diffSymbols(t, uri, w.Children, g.Children); msg != "" {
 			return fmt.Sprintf("children of %s: %s", w.Name, msg)
 		}
 	}
 	return ""
 }
 
-func summarizeSymbols(i int, want []source.Symbol, got []source.Symbol, reason string, args ...interface{}) string {
+func summarizeSymbols(t *testing.T, i int, want, got []protocol.DocumentSymbol, reason string, args ...interface{}) string {
 	msg := &bytes.Buffer{}
 	fmt.Fprint(msg, "document symbols failed")
 	if i >= 0 {
@@ -799,11 +798,11 @@ func summarizeSymbols(i int, want []source.Symbol, got []source.Symbol, reason s
 	fmt.Fprintf(msg, reason, args...)
 	fmt.Fprint(msg, ":\nexpected:\n")
 	for _, s := range want {
-		fmt.Fprintf(msg, "  %v %v %v\n", s.Name, s.Kind, s.SelectionSpan)
+		fmt.Fprintf(msg, "  %v %v %v\n", s.Name, s.Kind, s.SelectionRange)
 	}
 	fmt.Fprintf(msg, "got:\n")
 	for _, s := range got {
-		fmt.Fprintf(msg, "  %v %v %v\n", s.Name, s.Kind, s.SelectionSpan)
+		fmt.Fprintf(msg, "  %v %v %v\n", s.Name, s.Kind, s.SelectionRange)
 	}
 	return msg.String()
 }
@@ -815,7 +814,7 @@ func (r *runner) SignatureHelp(t *testing.T, data tests.Signatures) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", spn, err)
 		}
-		rng, err := spanToRange(r.data, spn)
+		_, rng, err := spanToRange(r.data, spn)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -863,15 +862,15 @@ func (r *runner) Link(t *testing.T, data tests.Links) {
 	// This is a pure LSP feature, no source level functionality to be tested.
 }
 
-func spanToRange(data *tests.Data, span span.Span) (protocol.Range, error) {
+func spanToRange(data *tests.Data, span span.Span) (*protocol.ColumnMapper, protocol.Range, error) {
 	contents, err := data.Exported.FileContents(span.URI().Filename())
 	if err != nil {
-		return protocol.Range{}, err
+		return nil, protocol.Range{}, err
 	}
 	m := protocol.NewColumnMapper(span.URI(), span.URI().Filename(), data.Exported.ExpectFileSet, nil, contents)
 	srcRng, err := m.Range(span)
 	if err != nil {
-		return protocol.Range{}, err
+		return nil, protocol.Range{}, err
 	}
-	return srcRng, nil
+	return m, srcRng, nil
 }

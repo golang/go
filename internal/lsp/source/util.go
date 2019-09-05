@@ -158,6 +158,59 @@ func IsGenerated(ctx context.Context, view View, uri span.URI) bool {
 	return false
 }
 
+func nodeToProtocolRange(ctx context.Context, view View, n ast.Node) (protocol.Range, error) {
+	mrng, err := nodeToMappedRange(ctx, view, n)
+	if err != nil {
+		return protocol.Range{}, err
+	}
+	return mrng.Range()
+}
+
+func objToMappedRange(ctx context.Context, view View, obj types.Object) (mappedRange, error) {
+	if pkgName, ok := obj.(*types.PkgName); ok {
+		// An imported Go package has a package-local, unqualified name.
+		// When the name matches the imported package name, there is no
+		// identifier in the import spec with the local package name.
+		//
+		// For example:
+		// 		import "go/ast" 	// name "ast" matches package name
+		// 		import a "go/ast"  	// name "a" does not match package name
+		//
+		// When the identifier does not appear in the source, have the range
+		// of the object be the point at the beginning of the declaration.
+		if pkgName.Imported().Name() == pkgName.Name() {
+			return nameToMappedRange(ctx, view, obj.Pos(), "")
+		}
+	}
+	return nameToMappedRange(ctx, view, obj.Pos(), obj.Name())
+}
+
+func nameToMappedRange(ctx context.Context, view View, pos token.Pos, name string) (mappedRange, error) {
+	return posToRange(ctx, view, pos, pos+token.Pos(len(name)))
+}
+
+func nodeToMappedRange(ctx context.Context, view View, n ast.Node) (mappedRange, error) {
+	return posToRange(ctx, view, n.Pos(), n.End())
+}
+
+func posToRange(ctx context.Context, view View, pos, end token.Pos) (mappedRange, error) {
+	if !pos.IsValid() {
+		return mappedRange{}, errors.Errorf("invalid position for %v", pos)
+	}
+	if !end.IsValid() {
+		return mappedRange{}, errors.Errorf("invalid position for %v", end)
+	}
+	posn := view.Session().Cache().FileSet().Position(pos)
+	_, m, err := cachedFileToMapper(ctx, view, span.FileURI(posn.Filename))
+	if err != nil {
+		return mappedRange{}, err
+	}
+	return mappedRange{
+		m:         m,
+		spanRange: span.NewRange(view.Session().Cache().FileSet(), pos, end),
+	}, nil
+}
+
 // Matches cgo generated comment as well as the proposed standard:
 //	https://golang.org/s/generatedcode
 var generatedRx = regexp.MustCompile(`// .*DO NOT EDIT\.?`)

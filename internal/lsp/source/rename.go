@@ -185,7 +185,7 @@ func getPkgNameIdentifier(ctx context.Context, ident *IdentifierInfo, pkgName *t
 		wasImplicit: true,
 	}
 	var err error
-	if decl.mappedRange, err = objToRange(ctx, ident.File.View(), decl.obj); err != nil {
+	if decl.mappedRange, err = objToMappedRange(ctx, ident.File.View(), decl.obj); err != nil {
 		return nil, err
 	}
 	if decl.node, err = objToNode(ctx, ident.File.View(), ident.pkg.GetTypes(), decl.obj, decl.mappedRange.spanRange); err != nil {

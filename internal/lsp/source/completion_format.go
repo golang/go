@@ -117,7 +117,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	if !c.opts.Documentation {
 		return item, nil
 	}
-	declRange, err := objToRange(c.ctx, c.view, obj)
+	declRange, err := objToMappedRange(c.ctx, c.view, obj)
 	if err != nil {
 		return item, nil
 	}

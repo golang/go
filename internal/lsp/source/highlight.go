@@ -7,38 +7,45 @@ package source
 import (
 	"context"
 	"go/ast"
-	"go/token"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/trace"
 	errors "golang.org/x/xerrors"
 )
 
-func Highlight(ctx context.Context, f GoFile, pos token.Pos) ([]span.Span, error) {
+func Highlight(ctx context.Context, view View, uri span.URI, pos protocol.Position) ([]protocol.Range, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Highlight")
 	defer done()
 
-	file, err := f.GetAST(ctx, ParseFull)
-	if file == nil {
+	file, _, m, err := fileToMapper(ctx, view, uri)
+	if err != nil {
 		return nil, err
 	}
-	fset := f.FileSet()
-	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
+	spn, err := m.PointSpan(pos)
+	if err != nil {
+		return nil, err
+	}
+	rng, err := spn.Range(m.Converter)
+	if err != nil {
+		return nil, err
+	}
+	path, _ := astutil.PathEnclosingInterval(file, rng.Start, rng.Start)
 	if len(path) == 0 {
-		return nil, errors.Errorf("no enclosing position found for %s", fset.Position(pos))
+		return nil, errors.Errorf("no enclosing position found for %s", pos)
 	}
 	id, ok := path[0].(*ast.Ident)
 	if !ok {
-		return nil, errors.Errorf("%s is not an identifier", fset.Position(pos))
+		return nil, errors.Errorf("%s is not an identifier", pos)
 	}
-	var result []span.Span
+	var result []protocol.Range
 	if id.Obj != nil {
 		ast.Inspect(path[len(path)-1], func(n ast.Node) bool {
 			if n, ok := n.(*ast.Ident); ok && n.Obj == id.Obj {
-				s, err := nodeSpan(n, fset)
+				rng, err := nodeToProtocolRange(ctx, view, n)
 				if err == nil {
-					result = append(result, s)
+					result = append(result, rng)
 				}
 			}
 			return true

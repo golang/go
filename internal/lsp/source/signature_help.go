@@ -105,7 +105,7 @@ FindCall:
 		comment *ast.CommentGroup
 	)
 	if obj != nil {
-		rng, err := objToRange(ctx, view, obj)
+		rng, err := objToMappedRange(ctx, view, obj)
 		if err != nil {
 			return nil, err
 		}
