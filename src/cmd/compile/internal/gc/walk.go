@@ -1753,7 +1753,7 @@ func walkCall(n *Node, init *Nodes) {
 			t = params.Field(i).Type
 		}
 		if instrumenting || fncall(arg, t) {
-			// make assignment of fncall to tempname
+			// make assignment of fncall to tempAt
 			tmp := temp(t)
 			a := nod(OAS, tmp, arg)
 			a = convas(a, init)
