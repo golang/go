@@ -61,12 +61,15 @@ func (c *completer) functionCallSnippets(name string, params []string) (*snippet
 	if len(c.path) > 1 {
 		switch n := c.path[1].(type) {
 		case *ast.CallExpr:
-			if n.Fun == c.path[0] {
+			// The Lparen != Rparen check detects fudged CallExprs we
+			// inserted when fixing the AST. In this case, we do still need
+			// to insert the calling "()" parens.
+			if n.Fun == c.path[0] && n.Lparen != n.Rparen {
 				return nil, nil
 			}
 		case *ast.SelectorExpr:
 			if len(c.path) > 2 {
-				if call, ok := c.path[2].(*ast.CallExpr); ok && call.Fun == c.path[1] {
+				if call, ok := c.path[2].(*ast.CallExpr); ok && call.Fun == c.path[1] && call.Lparen != call.Rparen {
 					return nil, nil
 				}
 			}
