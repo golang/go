@@ -14,7 +14,6 @@ import (
 
 func init() {
 	ComputeEdits = myersComputeEdits
-	ApplyEdits = myersApplyEdits
 	ToUnified = myersToUnified
 }
 
@@ -22,11 +21,6 @@ func myersComputeEdits(uri span.URI, before, after string) []TextEdit {
 	u := myers.SplitLines(before)
 	f := myers.SplitLines(after)
 	return myersDiffToEdits(uri, myers.Operations(u, f))
-}
-
-func myersApplyEdits(before string, edits []TextEdit) string {
-	ops := myersEditsToDiff(edits)
-	return strings.Join(myers.ApplyEdits(myers.SplitLines(before), ops), "")
 }
 
 func myersToUnified(from, to string, before string, edits []TextEdit) string {
