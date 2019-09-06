@@ -305,7 +305,7 @@ func (r *runner) FoldingRange(t *testing.T, data tests.FoldingRanges) {
 func (r *runner) foldingRanges(t *testing.T, prefix string, uri span.URI, data string, ranges []*source.FoldingRangeInfo) {
 	t.Helper()
 	// Fold all ranges.
-	nonOverlapping := nonOverlappingRanges(ranges)
+	nonOverlapping := nonOverlappingRanges(t, ranges)
 	for i, rngs := range nonOverlapping {
 		got, err := foldRanges(string(data), rngs)
 		if err != nil {
@@ -332,7 +332,7 @@ func (r *runner) foldingRanges(t *testing.T, prefix string, uri span.URI, data s
 			}
 		}
 
-		nonOverlapping := nonOverlappingRanges(kindOnly)
+		nonOverlapping := nonOverlappingRanges(t, kindOnly)
 		for i, rngs := range nonOverlapping {
 			got, err := foldRanges(string(data), rngs)
 			if err != nil {
@@ -352,13 +352,13 @@ func (r *runner) foldingRanges(t *testing.T, prefix string, uri span.URI, data s
 	}
 }
 
-func nonOverlappingRanges(ranges []*source.FoldingRangeInfo) (res [][]*source.FoldingRangeInfo) {
+func nonOverlappingRanges(t *testing.T, ranges []*source.FoldingRangeInfo) (res [][]*source.FoldingRangeInfo) {
 	for _, fRng := range ranges {
 		setNum := len(res)
 		for i := 0; i < len(res); i++ {
 			canInsert := true
 			for _, rng := range res[i] {
-				if conflict(rng, fRng) {
+				if conflict(t, rng, fRng) {
 					canInsert = false
 					break
 				}
@@ -376,9 +376,17 @@ func nonOverlappingRanges(ranges []*source.FoldingRangeInfo) (res [][]*source.Fo
 	return res
 }
 
-func conflict(a, b *source.FoldingRangeInfo) bool {
+func conflict(t *testing.T, a, b *source.FoldingRangeInfo) bool {
+	arng, err := a.Range()
+	if err != nil {
+		t.Fatal(err)
+	}
+	brng, err := b.Range()
+	if err != nil {
+		t.Fatal(err)
+	}
 	// a start position is <= b start positions
-	return a.Range.Start <= b.Range.Start && a.Range.End > b.Range.Start
+	return protocol.ComparePosition(arng.Start, brng.Start) <= 0 && protocol.ComparePosition(arng.End, brng.Start) > 0
 }
 
 func foldRanges(contents string, ranges []*source.FoldingRangeInfo) (string, error) {
@@ -388,7 +396,7 @@ func foldRanges(contents string, ranges []*source.FoldingRangeInfo) (string, err
 	// to preserve the offsets.
 	for i := len(ranges) - 1; i >= 0; i-- {
 		fRange := ranges[i]
-		spn, err := fRange.Range.Span()
+		spn, err := fRange.Span()
 		if err != nil {
 			return "", err
 		}

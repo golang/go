@@ -11,8 +11,8 @@ import (
 )
 
 type FoldingRangeInfo struct {
-	Range span.Range
-	Kind  protocol.FoldingRangeKind
+	mappedRange
+	Kind protocol.FoldingRangeKind
 }
 
 // FoldingRange gets all of the folding range for f.
@@ -24,9 +24,14 @@ func FoldingRange(ctx context.Context, view View, f GoFile, lineFoldingOnly bool
 	if err != nil {
 		return nil, err
 	}
+	data, _, err := f.Handle(ctx).Read(ctx)
+	if err != nil {
+		return nil, err
+	}
+	m := protocol.NewColumnMapper(f.URI(), f.URI().Filename(), fset, fset.File(file.Pos()), data)
 
 	// Get folding ranges for comments separately as they are not walked by ast.Inspect.
-	ranges = append(ranges, commentsFoldingRange(f.FileSet(), file)...)
+	ranges = append(ranges, commentsFoldingRange(view, m, file)...)
 
 	foldingFunc := foldingRange
 	if lineFoldingOnly {
@@ -34,29 +39,26 @@ func FoldingRange(ctx context.Context, view View, f GoFile, lineFoldingOnly bool
 	}
 
 	visit := func(n ast.Node) bool {
-		rng := foldingFunc(fset, n)
+		rng := foldingFunc(view, m, n)
 		if rng != nil {
 			ranges = append(ranges, rng)
 		}
 		return true
 	}
-
 	// Walk the ast and collect folding ranges.
 	ast.Inspect(file, visit)
 
 	sort.Slice(ranges, func(i, j int) bool {
-		if ranges[i].Range.Start < ranges[j].Range.Start {
-			return true
-		} else if ranges[i].Range.Start > ranges[j].Range.Start {
-			return false
-		}
-		return ranges[i].Range.End < ranges[j].Range.End
+		irng, _ := ranges[i].Range()
+		jrng, _ := ranges[j].Range()
+		return protocol.CompareRange(irng, jrng) < 0
 	})
+
 	return ranges, nil
 }
 
 // foldingRange calculates the folding range for n.
-func foldingRange(fset *token.FileSet, n ast.Node) *FoldingRangeInfo {
+func foldingRange(view View, m *protocol.ColumnMapper, n ast.Node) *FoldingRangeInfo {
 	var kind protocol.FoldingRangeKind
 	var start, end token.Pos
 	switch n := n.(type) {
@@ -80,18 +82,22 @@ func foldingRange(fset *token.FileSet, n ast.Node) *FoldingRangeInfo {
 		}
 		start, end = n.Lparen+1, n.Rparen
 	}
-
 	if !start.IsValid() || !end.IsValid() {
 		return nil
 	}
 	return &FoldingRangeInfo{
-		Range: span.NewRange(fset, start, end),
-		Kind:  kind,
+		mappedRange: mappedRange{
+			m:         m,
+			spanRange: span.NewRange(view.Session().Cache().FileSet(), start, end),
+		},
+		Kind: kind,
 	}
 }
 
 // lineFoldingRange calculates the line folding range for n.
-func lineFoldingRange(fset *token.FileSet, n ast.Node) *FoldingRangeInfo {
+func lineFoldingRange(view View, m *protocol.ColumnMapper, n ast.Node) *FoldingRangeInfo {
+	fset := view.Session().Cache().FileSet()
+
 	// TODO(suzmue): include trailing empty lines before the closing
 	// parenthesis/brace.
 	var kind protocol.FoldingRangeKind
@@ -169,47 +175,31 @@ func lineFoldingRange(fset *token.FileSet, n ast.Node) *FoldingRangeInfo {
 		return nil
 	}
 	return &FoldingRangeInfo{
-		Range: span.NewRange(fset, start, end),
-		Kind:  kind,
+		mappedRange: mappedRange{
+			m:         m,
+			spanRange: span.NewRange(fset, start, end),
+		},
+		Kind: kind,
 	}
 }
 
 // commentsFoldingRange returns the folding ranges for all comment blocks in file.
 // The folding range starts at the end of the first comment, and ends at the end of the
 // comment block and has kind protocol.Comment.
-func commentsFoldingRange(fset *token.FileSet, file *ast.File) (comments []*FoldingRangeInfo) {
+func commentsFoldingRange(view View, m *protocol.ColumnMapper, file *ast.File) (comments []*FoldingRangeInfo) {
 	for _, commentGrp := range file.Comments {
 		// Don't fold single comments.
 		if len(commentGrp.List) <= 1 {
 			continue
 		}
 		comments = append(comments, &FoldingRangeInfo{
-			// Fold from the end of the first line comment to the end of the comment block.
-			Range: span.NewRange(fset, commentGrp.List[0].End(), commentGrp.End()),
-			Kind:  protocol.Comment,
+			mappedRange: mappedRange{
+				m: m,
+				// Fold from the end of the first line comment to the end of the comment block.
+				spanRange: span.NewRange(view.Session().Cache().FileSet(), commentGrp.List[0].End(), commentGrp.End()),
+			},
+			Kind: protocol.Comment,
 		})
 	}
 	return comments
-}
-
-func ToProtocolFoldingRanges(m *protocol.ColumnMapper, ranges []*FoldingRangeInfo) ([]protocol.FoldingRange, error) {
-	var res []protocol.FoldingRange
-	for _, r := range ranges {
-		spn, err := r.Range.Span()
-		if err != nil {
-			return nil, err
-		}
-		rng, err := m.Range(spn)
-		if err != nil {
-			return nil, err
-		}
-		res = append(res, protocol.FoldingRange{
-			StartLine:      rng.Start.Line,
-			StartCharacter: rng.Start.Character,
-			EndLine:        rng.End.Line,
-			EndCharacter:   rng.End.Character,
-			Kind:           string(r.Kind),
-		})
-	}
-	return res, nil
 }

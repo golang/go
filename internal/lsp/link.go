@@ -27,7 +27,7 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 	if err != nil {
 		return nil, err
 	}
-	m, err := getMapper(ctx, f)
+	data, _, err := f.Handle(ctx).Read(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -35,6 +35,8 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 	if file == nil {
 		return nil, err
 	}
+	tok := view.Session().Cache().FileSet().File(file.Pos())
+	m := protocol.NewColumnMapper(f.URI(), f.URI().Filename(), f.FileSet(), tok, data)
 
 	var links []protocol.DocumentLink
 	ast.Inspect(file, func(node ast.Node) bool {
