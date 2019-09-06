@@ -292,8 +292,8 @@ func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle, m *
 	}
 	check := types.NewChecker(cfg, imp.view.session.cache.FileSet(), pkg.types, pkg.typesInfo)
 
-	// Ignore type-checking errors.
-	check.Files(files)
+	// Type checking errors are handled via the config, so ignore them here.
+	_ = check.Files(files)
 
 	return pkg, nil
 }
