@@ -302,15 +302,10 @@ func (r *runner) FoldingRange(t *testing.T, data tests.FoldingRanges) {
 }
 
 func (r *runner) foldingRanges(t *testing.T, prefix string, uri span.URI, ranges []protocol.FoldingRange) {
-	f, err := getGoFile(r.ctx, r.server.session.ViewOf(uri), uri)
+	m, err := r.mapper(uri)
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, err := getMapper(r.ctx, f)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	// Fold all ranges.
 	nonOverlapping := nonOverlappingRanges(ranges)
 	for i, rngs := range nonOverlapping {
@@ -439,11 +434,7 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 			}
 			continue
 		}
-		f, err := getGoFile(r.ctx, r.server.session.ViewOf(uri), uri)
-		if err != nil {
-			t.Fatal(err)
-		}
-		m, err := getMapper(r.ctx, f)
+		m, err := r.mapper(uri)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -479,11 +470,7 @@ func (r *runner) Import(t *testing.T, data tests.Imports) {
 			}
 			continue
 		}
-		f, err := getGoFile(r.ctx, r.server.session.ViewOf(uri), uri)
-		if err != nil {
-			t.Fatal(err)
-		}
-		m, err := getMapper(r.ctx, f)
+		m, err := r.mapper(uri)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -669,12 +656,7 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 
 		var res []string
 		for uri, edits := range *workspaceEdits.Changes {
-			spnURI := span.URI(uri)
-			f, err := getGoFile(r.ctx, r.server.session.ViewOf(spnURI), spnURI)
-			if err != nil {
-				t.Fatal(err)
-			}
-			m, err := getMapper(r.ctx, f)
+			m, err := r.mapper(span.URI(uri))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -682,7 +664,6 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 			if err != nil {
 				t.Error(err)
 			}
-
 			filename := filepath.Base(m.URI.Filename())
 			contents := applyEdits(string(m.Content), sedits)
 			res = append(res, fmt.Sprintf("%s:\n%s", filename, contents))

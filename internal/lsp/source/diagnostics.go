@@ -35,7 +35,6 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
@@ -51,12 +50,12 @@ type Diagnostic struct {
 	Source   string
 	Severity DiagnosticSeverity
 
-	SuggestedFixes []SuggestedFixes
+	SuggestedFixes []SuggestedFix
 }
 
-type SuggestedFixes struct {
+type SuggestedFix struct {
 	Title string
-	Edits []diff.TextEdit
+	Edits []protocol.TextEdit
 }
 
 type DiagnosticSeverity int
@@ -241,7 +240,7 @@ func toDiagnostic(ctx context.Context, view View, diag analysis.Diagnostic, cate
 	if diag.Category != "" {
 		category += "." + category
 	}
-	ca, err := getCodeActions(view.Session().Cache().FileSet(), diag)
+	ca, err := getCodeActions(ctx, view, diag)
 	if err != nil {
 		return Diagnostic{}, err
 	}

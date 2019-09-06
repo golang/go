@@ -28,20 +28,8 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 		return nil, err
 	}
 	changes := make(map[string][]protocol.TextEdit)
-	for uri, textEdits := range edits {
-		f, err := getGoFile(ctx, view, uri)
-		if err != nil {
-			return nil, err
-		}
-		m, err := getMapper(ctx, f)
-		if err != nil {
-			return nil, err
-		}
-		protocolEdits, err := source.ToProtocolEdits(m, textEdits)
-		if err != nil {
-			return nil, err
-		}
-		changes[string(uri)] = protocolEdits
+	for uri, e := range edits {
+		changes[protocol.NewURI(uri)] = e
 	}
 
 	return &protocol.WorkspaceEdit{Changes: &changes}, nil

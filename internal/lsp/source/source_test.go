@@ -657,14 +657,18 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 			if err != nil {
 				t.Fatalf("failed for %v: %v", spn, err)
 			}
-
 			data, _, err := f.Handle(ctx).Read(ctx)
 			if err != nil {
 				t.Error(err)
 				continue
 			}
+			m := protocol.NewColumnMapper(f.URI(), f.URI().Filename(), r.data.Exported.ExpectFileSet, nil, data)
 			filename := filepath.Base(editSpn.Filename())
-			contents := applyEdits(string(data), edits)
+			diffEdits, err := source.FromProtocolEdits(m, edits)
+			if err != nil {
+				t.Fatal(err)
+			}
+			contents := applyEdits(string(data), diffEdits)
 			res = append(res, fmt.Sprintf("%s:\n%s", filename, contents))
 		}
 

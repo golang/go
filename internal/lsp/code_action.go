@@ -213,25 +213,13 @@ func quickFixes(ctx context.Context, view source.View, gof source.GoFile) ([]pro
 		if err != nil {
 			return nil, err
 		}
-		for _, ca := range diag.SuggestedFixes {
-			f, err := view.GetFile(ctx, diag.URI)
-			if err != nil {
-				return nil, err
-			}
-			m, err := getMapper(ctx, f)
-			if err != nil {
-				return nil, err
-			}
-			edits, err := source.ToProtocolEdits(m, ca.Edits)
-			if err != nil {
-				return nil, err
-			}
+		for _, fix := range diag.SuggestedFixes {
 			codeActions = append(codeActions, protocol.CodeAction{
-				Title: ca.Title,
+				Title: fix.Title,
 				Kind:  protocol.QuickFix, // TODO(matloob): Be more accurate about these?
 				Edit: &protocol.WorkspaceEdit{
 					Changes: &map[string][]protocol.TextEdit{
-						protocol.NewURI(diag.URI): edits,
+						protocol.NewURI(diag.URI): fix.Edits,
 					},
 				},
 				Diagnostics: []protocol.Diagnostic{pdiag},

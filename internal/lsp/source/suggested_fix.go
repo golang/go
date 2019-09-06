@@ -1,26 +1,34 @@
 package source
 
 import (
-	"go/token"
+	"context"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/internal/lsp/diff"
-	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/lsp/protocol"
 )
 
-func getCodeActions(fset *token.FileSet, diag analysis.Diagnostic) ([]SuggestedFixes, error) {
-	var cas []SuggestedFixes
+func getCodeActions(ctx context.Context, view View, diag analysis.Diagnostic) ([]SuggestedFix, error) {
+	var fixes []SuggestedFix
 	for _, fix := range diag.SuggestedFixes {
-		var ca SuggestedFixes
-		ca.Title = fix.Message
-		for _, te := range fix.TextEdits {
-			span, err := span.NewRange(fset, te.Pos, te.End).Span()
+		var edits []protocol.TextEdit
+		for _, e := range fix.TextEdits {
+			mrng, err := posToRange(ctx, view, e.Pos, e.End)
 			if err != nil {
 				return nil, err
 			}
-			ca.Edits = append(ca.Edits, diff.TextEdit{Span: span, NewText: string(te.NewText)})
+			rng, err := mrng.Range()
+			if err != nil {
+				return nil, err
+			}
+			edits = append(edits, protocol.TextEdit{
+				Range:   rng,
+				NewText: string(e.NewText),
+			})
 		}
-		cas = append(cas, ca)
+		fixes = append(fixes, SuggestedFix{
+			Title: fix.Message,
+			Edits: edits,
+		})
 	}
-	return cas, nil
+	return fixes, nil
 }

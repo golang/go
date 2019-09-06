@@ -77,7 +77,7 @@ func PrepareRename(ctx context.Context, view View, f GoFile, pos protocol.Positi
 }
 
 // Rename returns a map of TextEdits for each file modified when renaming a given identifier within a package.
-func (i *IdentifierInfo) Rename(ctx context.Context, view View, newName string) (map[span.URI][]diff.TextEdit, error) {
+func (i *IdentifierInfo) Rename(ctx context.Context, view View, newName string) (map[span.URI][]protocol.TextEdit, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Rename")
 	defer done()
 
@@ -143,12 +143,22 @@ func (i *IdentifierInfo) Rename(ctx context.Context, view View, newName string) 
 	if err != nil {
 		return nil, err
 	}
-
-	// Sort edits for each file.
-	for _, edits := range changes {
+	result := make(map[span.URI][]protocol.TextEdit)
+	for uri, edits := range changes {
+		// Sort the edits first.
 		diff.SortTextEdits(edits)
+
+		_, m, err := cachedFileToMapper(ctx, view, uri)
+		if err != nil {
+			return nil, err
+		}
+		protocolEdits, err := ToProtocolEdits(m, edits)
+		if err != nil {
+			return nil, err
+		}
+		result[uri] = protocolEdits
 	}
-	return changes, nil
+	return result, nil
 }
 
 // getPkgName gets the pkg name associated with an identifer representing
