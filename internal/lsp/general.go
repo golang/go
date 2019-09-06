@@ -46,10 +46,9 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitia) (
 				Name: path.Base(params.RootURI),
 			}}
 		} else {
-			// no folders and no root, single file mode
-			//TODO(iancottrell): not sure how to do single file mode yet
-			//issue: golang.org/issue/31168
-			return nil, errors.Errorf("single file mode not supported yet")
+			// No folders and no root--we are in single file mode.
+			// TODO: https://golang.org/issue/34160.
+			return nil, errors.Errorf("gopls does not yet support editing a single file. Please open a directory.")
 		}
 	}
 

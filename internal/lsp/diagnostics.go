@@ -33,9 +33,15 @@ func (s *Server) diagnostics(view source.View, uri span.URI) error {
 	if !ok {
 		return errors.Errorf("%s is not a Go file", f.URI())
 	}
-	reports, err := source.Diagnostics(ctx, view, gof, view.Options().DisabledAnalyses)
+	reports, warningMsg, err := source.Diagnostics(ctx, view, gof, view.Options().DisabledAnalyses)
 	if err != nil {
 		return err
+	}
+	if warningMsg != "" {
+		s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+			Type:    protocol.Info,
+			Message: warningMsg,
+		})
 	}
 
 	s.undeliveredMu.Lock()

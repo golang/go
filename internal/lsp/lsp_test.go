@@ -94,7 +94,7 @@ func (r *runner) Diagnostics(t *testing.T, data tests.Diagnostics) {
 		if !ok {
 			t.Fatalf("%s is not a Go file: %v", uri, err)
 		}
-		results, err := source.Diagnostics(r.ctx, v, gof, nil)
+		results, _, err := source.Diagnostics(r.ctx, v, gof, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -558,7 +558,7 @@ func (r *runner) SuggestedFix(t *testing.T, data tests.SuggestedFixes) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		results, err := source.Diagnostics(r.ctx, v, f, nil)
+		results, _, err := source.Diagnostics(r.ctx, v, f, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

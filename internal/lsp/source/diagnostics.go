@@ -64,24 +64,34 @@ const (
 	SeverityError
 )
 
-func Diagnostics(ctx context.Context, view View, f GoFile, disabledAnalyses map[string]struct{}) (map[span.URI][]Diagnostic, error) {
+func Diagnostics(ctx context.Context, view View, f GoFile, disabledAnalyses map[string]struct{}) (map[span.URI][]Diagnostic, string, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Diagnostics", telemetry.File.Of(f.URI()))
 	defer done()
 
 	cphs, err := f.CheckPackageHandles(ctx)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	cph := NarrowestCheckPackageHandle(cphs)
 	pkg, err := cph.Check(ctx)
 	if err != nil {
 		log.Error(ctx, "no package for file", err)
-		return singleDiagnostic(f.URI(), "%s is not part of a package", f.URI()), nil
+		return singleDiagnostic(f.URI(), "%s is not part of a package", f.URI()), "", nil
 	}
+
 	// Prepare the reports we will send for the files in this package.
 	reports := make(map[span.URI][]Diagnostic)
 	for _, fh := range pkg.Files() {
 		clearReports(view, reports, fh.File().Identity().URI)
+	}
+
+	// If we have `go list` errors, we may want to offer a warning message to the user.
+	var warningMsg string
+	if hasListErrors(pkg.GetErrors()) {
+		warningMsg, err = checkCommonErrors(ctx, view, f.URI())
+		if err != nil {
+			log.Error(ctx, "error checking common errors", err, telemetry.File.Of(f.URI))
+		}
 	}
 
 	// Prepare any additional reports for the errors in this package.
@@ -104,19 +114,19 @@ func Diagnostics(ctx context.Context, view View, f GoFile, disabledAnalyses map[
 	for _, f := range revDeps {
 		cphs, err := f.CheckPackageHandles(ctx)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		cph := WidestCheckPackageHandle(cphs)
 		pkg, err := cph.Check(ctx)
 		if err != nil {
-			return nil, err
+			return nil, warningMsg, err
 		}
 		for _, fh := range pkg.Files() {
 			clearReports(view, reports, fh.File().Identity().URI)
 		}
 		diagnostics(ctx, view, pkg, reports)
 	}
-	return reports, nil
+	return reports, warningMsg, nil
 }
 
 type diagnosticSet struct {

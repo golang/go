@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"context"
 	"go/format"
+	"log"
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/imports"
@@ -268,6 +269,7 @@ func hasParseErrors(pkg Package, uri span.URI) bool {
 func hasListErrors(errors []packages.Error) bool {
 	for _, err := range errors {
 		if err.Kind == packages.ListError {
+			log.Printf("LIST ERROR: %v", err)
 			return true
 		}
 	}

@@ -68,7 +68,7 @@ func (r *runner) Diagnostics(t *testing.T, data tests.Diagnostics) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		results, err := source.Diagnostics(r.ctx, r.view, f.(source.GoFile), nil)
+		results, _, err := source.Diagnostics(r.ctx, r.view, f.(source.GoFile), nil)
 		if err != nil {
 			t.Fatal(err)
 		}
