@@ -998,6 +998,11 @@ func setconst(n *Node, v Val) {
 		Xoffset: BADWIDTH,
 	}
 	n.SetVal(v)
+	if n.Type.IsUntyped() {
+		// TODO(mdempsky): Make typecheck responsible for setting
+		// the correct untyped type.
+		n.Type = idealType(v.Ctype())
+	}
 
 	// Check range.
 	lno := setlineno(n)
@@ -1030,24 +1035,29 @@ func setintconst(n *Node, v int64) {
 func nodlit(v Val) *Node {
 	n := nod(OLITERAL, nil, nil)
 	n.SetVal(v)
-	switch v.Ctype() {
-	default:
-		Fatalf("nodlit ctype %d", v.Ctype())
-
-	case CTSTR:
-		n.Type = types.Idealstring
-
-	case CTBOOL:
-		n.Type = types.Idealbool
-
-	case CTINT, CTRUNE, CTFLT, CTCPLX:
-		n.Type = types.Types[TIDEAL]
-
-	case CTNIL:
-		n.Type = types.Types[TNIL]
-	}
-
+	n.Type = idealType(v.Ctype())
 	return n
+}
+
+func idealType(ct Ctype) *types.Type {
+	switch ct {
+	case CTSTR:
+		return types.Idealstring
+	case CTBOOL:
+		return types.Idealbool
+	case CTINT:
+		return types.Idealint
+	case CTRUNE:
+		return types.Idealrune
+	case CTFLT:
+		return types.Idealfloat
+	case CTCPLX:
+		return types.Idealcomplex
+	case CTNIL:
+		return types.Types[TNIL]
+	}
+	Fatalf("unexpected Ctype: %v", ct)
+	return nil
 }
 
 // idealkind returns a constant kind like consttype

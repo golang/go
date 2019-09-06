@@ -686,11 +686,21 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 	}
 
 	if int(t.Etype) < len(basicnames) && basicnames[t.Etype] != "" {
-		name := basicnames[t.Etype]
-		if t == types.Idealbool || t == types.Idealstring {
-			name = "untyped " + name
+		switch t {
+		case types.Idealbool:
+			return "untyped bool"
+		case types.Idealstring:
+			return "untyped string"
+		case types.Idealint:
+			return "untyped int"
+		case types.Idealrune:
+			return "untyped rune"
+		case types.Idealfloat:
+			return "untyped float"
+		case types.Idealcomplex:
+			return "untyped complex"
 		}
-		return name
+		return basicnames[t.Etype]
 	}
 
 	if mode == FDbg {

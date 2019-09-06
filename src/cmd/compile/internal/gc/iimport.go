@@ -374,8 +374,6 @@ func (p *importReader) value() (typ *types.Type, v Val) {
 		p.float(&x.Imag, typ)
 		v.U = x
 	}
-
-	typ = idealType(typ)
 	return
 }
 
