@@ -649,16 +649,10 @@ func (c *completer) lexical() error {
 				}
 			}
 
-			score := stdScore
-			// Rank builtins significantly lower than other results.
-			if scope == types.Universe {
-				score *= 0.1
-			}
-
 			// If we haven't already added a candidate for an object with this name.
 			if _, ok := seen[obj.Name()]; !ok {
 				seen[obj.Name()] = struct{}{}
-				c.found(obj, score, nil)
+				c.found(obj, stdScore, nil)
 			}
 		}
 	}
