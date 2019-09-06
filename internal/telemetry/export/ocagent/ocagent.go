@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package ocagent adds the ability to export all telemetry to an ocagent.
-// This keeps the complie time dependencies to zero and allows the agent to
+// This keeps the compile time dependencies to zero and allows the agent to
 // have the exporters needed for telemetry aggregation and viewing systems.
 package ocagent
 
