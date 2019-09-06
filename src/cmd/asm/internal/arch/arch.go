@@ -62,33 +62,19 @@ func Set(GOARCH string) *Arch {
 	case "arm64":
 		return archArm64()
 	case "mips":
-		a := archMips()
-		a.LinkArch = &mips.Linkmips
-		return a
+		return archMips(&mips.Linkmips)
 	case "mipsle":
-		a := archMips()
-		a.LinkArch = &mips.Linkmipsle
-		return a
+		return archMips(&mips.Linkmipsle)
 	case "mips64":
-		a := archMips64()
-		a.LinkArch = &mips.Linkmips64
-		return a
+		return archMips64(&mips.Linkmips64)
 	case "mips64le":
-		a := archMips64()
-		a.LinkArch = &mips.Linkmips64le
-		return a
+		return archMips64(&mips.Linkmips64le)
 	case "ppc64":
-		a := archPPC64()
-		a.LinkArch = &ppc64.Linkppc64
-		return a
+		return archPPC64(&ppc64.Linkppc64)
 	case "ppc64le":
-		a := archPPC64()
-		a.LinkArch = &ppc64.Linkppc64le
-		return a
+		return archPPC64(&ppc64.Linkppc64le)
 	case "s390x":
-		a := archS390x()
-		a.LinkArch = &s390x.Links390x
-		return a
+		return archS390x()
 	case "wasm":
 		return archWasm()
 	}
@@ -352,7 +338,7 @@ func archArm64() *Arch {
 
 }
 
-func archPPC64() *Arch {
+func archPPC64(linkArch *obj.LinkArch) *Arch {
 	register := make(map[string]int16)
 	// Create maps for easy lookup of instruction names etc.
 	// Note that there is no list of names as there is for x86.
@@ -408,7 +394,7 @@ func archPPC64() *Arch {
 	instructions["BL"] = ppc64.ABL
 
 	return &Arch{
-		LinkArch:       &ppc64.Linkppc64,
+		LinkArch:       linkArch,
 		Instructions:   instructions,
 		Register:       register,
 		RegisterPrefix: registerPrefix,
@@ -417,7 +403,7 @@ func archPPC64() *Arch {
 	}
 }
 
-func archMips() *Arch {
+func archMips(linkArch *obj.LinkArch) *Arch {
 	register := make(map[string]int16)
 	// Create maps for easy lookup of instruction names etc.
 	// Note that there is no list of names as there is for x86.
@@ -464,7 +450,7 @@ func archMips() *Arch {
 	instructions["JAL"] = mips.AJAL
 
 	return &Arch{
-		LinkArch:       &mips.Linkmipsle,
+		LinkArch:       linkArch,
 		Instructions:   instructions,
 		Register:       register,
 		RegisterPrefix: registerPrefix,
@@ -473,7 +459,7 @@ func archMips() *Arch {
 	}
 }
 
-func archMips64() *Arch {
+func archMips64(linkArch *obj.LinkArch) *Arch {
 	register := make(map[string]int16)
 	// Create maps for easy lookup of instruction names etc.
 	// Note that there is no list of names as there is for x86.
@@ -521,7 +507,7 @@ func archMips64() *Arch {
 	instructions["JAL"] = mips.AJAL
 
 	return &Arch{
-		LinkArch:       &mips.Linkmips64,
+		LinkArch:       linkArch,
 		Instructions:   instructions,
 		Register:       register,
 		RegisterPrefix: registerPrefix,
