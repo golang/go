@@ -413,20 +413,16 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 	return n
 
 bad:
-	reportErr := false
 	if !n.Diag() {
-		reportErr = !t.Broke()
+		if !t.Broke() {
+			yyerror("cannot convert %L to type %v", n, t)
+		}
 		n.SetDiag(true)
 	}
 
 	if n.Type.IsUntyped() {
 		n = defaultlitreuse(n, nil, reuse)
 	}
-
-	if reportErr {
-		yyerror("cannot convert %L to type %v", n, t)
-	}
-
 	return n
 }
 
