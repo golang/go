@@ -102,8 +102,8 @@ data, defined in detail in the corresponding sections that follow.
 		If the value of the pipeline has length zero, nothing is output;
 		otherwise, dot is set to the successive elements of the array,
 		slice, or map and T1 is executed. If the value is a map and the
-		keys are of basic type with a defined order ("comparable"), the
-		elements will be visited in sorted key order.
+		keys are of basic type with a defined order, the elements will be
+		visited in sorted key order.
 
 	{{range pipeline}} T1 {{else}} T0 {{end}}
 		The value of the pipeline must be an array, slice, map, or channel.
