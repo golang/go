@@ -709,13 +709,12 @@ func (r *runner) PrepareRename(t *testing.T, data tests.PrepareRenames) {
 	for src, want := range data {
 		f, err := r.view.GetFile(ctx, src.URI())
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("failed for %v: %v", src, err)
 		}
 		_, srcRng, err := spanToRange(r.data, src)
 		if err != nil {
 			t.Fatal(err)
 		}
-
 		// Find the identifier at the position.
 		item, err := source.PrepareRename(ctx, r.view, f.(source.GoFile), srcRng.Start)
 		if err != nil {
@@ -730,22 +729,11 @@ func (r *runner) PrepareRename(t *testing.T, data tests.PrepareRenames) {
 			}
 			continue
 		}
-
 		if want.Text == "" && item != nil {
 			t.Errorf("prepare rename failed for %v: expected nil, got %v", src, item)
 			continue
 		}
-		gotSpn, err := item.Range.Span()
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		wantSpn, err := want.Range.Span()
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if gotSpn != wantSpn {
+		if protocol.CompareRange(want.Range, item.Range) != 0 {
 			t.Errorf("prepare rename failed: incorrect range got %v want %v", item.Range, want.Range)
 		}
 	}

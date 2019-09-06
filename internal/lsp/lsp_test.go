@@ -711,44 +711,31 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 
 func (r *runner) PrepareRename(t *testing.T, data tests.PrepareRenames) {
 	for src, want := range data {
-
-		sm, err := r.mapper(src.URI())
+		m, err := r.mapper(src.URI())
 		if err != nil {
 			t.Fatal(err)
 		}
-		loc, err := sm.Location(src)
+		loc, err := m.Location(src)
 		if err != nil {
 			t.Fatalf("failed for %v: %v", src, err)
 		}
-
 		params := &protocol.TextDocumentPositionParams{
 			TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
 			Position:     loc.Range.Start,
 		}
-
-		rng, err := r.server.PrepareRename(context.Background(), params)
+		got, err := r.server.PrepareRename(context.Background(), params)
 		if err != nil {
 			t.Errorf("prepare rename failed for %v: got error: %v", src, err)
 			continue
 		}
-		if rng == nil {
+		if got == nil {
 			if want.Text != "" { // expected an ident.
 				t.Errorf("prepare rename failed for %v: got nil", src)
 			}
 			continue
 		}
-
-		wantSpn, err := want.Range.Span()
-		if err != nil {
-			t.Fatalf("failed for %v: %v", src, err)
-		}
-		got, err := sm.RangeSpan(*rng)
-		if err != nil {
-			t.Fatalf("failed for %v: %v", src, err)
-		}
-
-		if got != wantSpn {
-			t.Errorf("prepare rename failed: incorrect range got %v want %v", got, wantSpn)
+		if protocol.CompareRange(*got, want.Range) != 0 {
+			t.Errorf("prepare rename failed: incorrect range got %v want %v", *got, want.Range)
 		}
 	}
 }

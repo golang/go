@@ -37,7 +37,7 @@ type renamer struct {
 }
 
 type PrepareItem struct {
-	Range span.Range
+	Range protocol.Range
 	Text  string
 }
 
@@ -49,22 +49,29 @@ func PrepareRename(ctx context.Context, view View, f GoFile, pos protocol.Positi
 	if err != nil {
 		return nil, err
 	}
+
+	// TODO(rstambler): We should handle this in a better way.
 	// If the object declaration is nil, assume it is an import spec.
 	if i.Declaration.obj == nil {
 		// Find the corresponding package name for this import spec
 		// and rename that instead.
-		i, err = i.getPkgName(ctx)
+		ident, err := i.getPkgName(ctx)
 		if err != nil {
 			return nil, err
 		}
+		i = ident
 	}
 
 	// Do not rename builtin identifiers.
 	if i.Declaration.obj.Parent() == types.Universe {
 		return nil, errors.Errorf("cannot rename builtin %q", i.Name)
 	}
+	rng, err := i.mappedRange.Range()
+	if err != nil {
+		return nil, err
+	}
 	return &PrepareItem{
-		Range: i.spanRange,
+		Range: rng,
 		Text:  i.Name,
 	}, nil
 }
@@ -74,6 +81,7 @@ func (i *IdentifierInfo) Rename(ctx context.Context, view View, newName string) 
 	ctx, done := trace.StartSpan(ctx, "source.Rename")
 	defer done()
 
+	// TODO(rstambler): We should handle this in a better way.
 	// If the object declaration is nil, assume it is an import spec.
 	if i.Declaration.obj == nil {
 		// Find the corresponding package name for this import spec

@@ -634,9 +634,23 @@ func (data *Data) collectPrepareRenames(src span.Span, rng span.Range, placehold
 		// make the range just be the start.
 		rng = span.NewRange(rng.FileSet, rng.Start, rng.Start)
 	}
+	contents, err := data.Exported.FileContents(src.URI().Filename())
+	if err != nil {
+		return
+	}
+	m := protocol.NewColumnMapper(src.URI(), src.URI().Filename(), data.Exported.ExpectFileSet, nil, contents)
 
+	// Convert range to span and then to protocol.Range.
+	spn, err := rng.Span()
+	if err != nil {
+		return
+	}
+	prng, err := m.Range(spn)
+	if err != nil {
+		return
+	}
 	data.PrepareRenames[src] = &source.PrepareItem{
-		Range: rng,
+		Range: prng,
 		Text:  placeholder,
 	}
 }
