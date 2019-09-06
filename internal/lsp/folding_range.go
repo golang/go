@@ -20,7 +20,7 @@ func (s *Server) foldingRange(ctx context.Context, params *protocol.FoldingRange
 		return nil, err
 	}
 
-	ranges, err := source.FoldingRange(ctx, view, f, s.lineFoldingOnly)
+	ranges, err := source.FoldingRange(ctx, view, f, s.session.Options().LineFoldingOnly)
 	if err != nil {
 		return nil, err
 	}

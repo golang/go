@@ -28,6 +28,8 @@ type session struct {
 	cache *cache
 	id    string
 
+	options source.SessionOptions
+
 	viewMu  sync.Mutex
 	views   []*view
 	viewMap map[span.URI]source.View
@@ -52,6 +54,14 @@ type overlay struct {
 
 	// unchanged is true if a file has not yet been edited.
 	unchanged bool
+}
+
+func (s *session) Options() source.SessionOptions {
+	return s.options
+}
+
+func (s *session) SetOptions(options source.SessionOptions) {
+	s.options = options
 }
 
 func (s *session) Shutdown(ctx context.Context) {

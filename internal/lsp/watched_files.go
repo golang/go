@@ -14,7 +14,8 @@ import (
 )
 
 func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.DidChangeWatchedFilesParams) error {
-	if !s.watchFileChanges {
+	options := s.session.Options()
+	if !options.WatchFileChanges {
 		return nil
 	}
 

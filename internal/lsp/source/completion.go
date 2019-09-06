@@ -266,7 +266,7 @@ func (c *completer) setSurrounding(ident *ast.Ident) {
 		},
 	}
 
-	if c.opts.WantFuzzyMatching {
+	if c.opts.FuzzyMatching {
 		c.matcher = fuzzy.NewMatcher(c.surrounding.Prefix(), fuzzy.Symbol)
 	} else {
 		c.matcher = prefixMatcher(strings.ToLower(c.surrounding.Prefix()))
@@ -379,16 +379,6 @@ type candidate struct {
 	imp *imports.ImportInfo
 }
 
-type CompletionOptions struct {
-	WantDeepCompletion bool
-	WantFuzzyMatching  bool
-
-	WantUnimported bool
-
-	NoDocumentation       bool
-	WantFullDocumentation bool
-}
-
 // Completion returns a list of possible candidates for completion, given a
 // a file and a position.
 //
@@ -472,7 +462,7 @@ func Completion(ctx context.Context, view View, f GoFile, pos protocol.Position,
 		startTime:      startTime,
 	}
 
-	if opts.WantDeepCompletion {
+	if opts.Deep {
 		// Initialize max search depth to unlimited.
 		c.deepState.maxDepth = -1
 	}
@@ -673,7 +663,7 @@ func (c *completer) lexical() error {
 		}
 	}
 
-	if c.opts.WantUnimported {
+	if c.opts.Unimported {
 		// Suggest packages that have not been imported yet.
 		pkgs, err := CandidateImports(c.ctx, c.view, c.filename)
 		if err != nil {

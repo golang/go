@@ -32,21 +32,24 @@ func (s *Server) initialize(ctx context.Context, params *protocol.InitializePara
 	s.state = serverInitializing
 	s.stateMu.Unlock()
 
+	options := s.session.Options()
+	defer func() { s.session.SetOptions(options) }()
+
 	// TODO: Remove the option once we are certain there are no issues here.
-	s.textDocumentSyncKind = protocol.Incremental
+	options.TextDocumentSyncKind = protocol.Incremental
 	if opts, ok := params.InitializationOptions.(map[string]interface{}); ok {
 		if opt, ok := opts["noIncrementalSync"].(bool); ok && opt {
-			s.textDocumentSyncKind = protocol.Full
+			options.TextDocumentSyncKind = protocol.Full
 		}
 
 		// Check if user has enabled watching for file changes.
-		s.watchFileChanges, _ = opts["watchFileChanges"].(bool)
+		setBool(&options.WatchFileChanges, opts, "watchFileChanges")
 	}
 
 	// Default to using synopsis as a default for hover information.
-	s.hoverKind = synopsisDocumentation
+	options.HoverKind = source.SynopsisDocumentation
 
-	s.supportedCodeActions = map[source.FileKind]map[protocol.CodeActionKind]bool{
+	options.SupportedCodeActions = map[source.FileKind]map[protocol.CodeActionKind]bool{
 		source.Go: {
 			protocol.SourceOrganizeImports: true,
 			protocol.QuickFix:              true,
@@ -55,7 +58,7 @@ func (s *Server) initialize(ctx context.Context, params *protocol.InitializePara
 		source.Sum: {},
 	}
 
-	s.setClientCapabilities(params.Capabilities)
+	s.setClientCapabilities(&options, params.Capabilities)
 
 	folders := params.WorkspaceFolders
 	if len(folders) == 0 {
@@ -117,7 +120,7 @@ func (s *Server) initialize(ctx context.Context, params *protocol.InitializePara
 				TriggerCharacters: []string{"(", ","},
 			},
 			TextDocumentSync: &protocol.TextDocumentSyncOptions{
-				Change:    s.textDocumentSyncKind,
+				Change:    options.TextDocumentSyncKind,
 				OpenClose: true,
 				Save: &protocol.SaveOptions{
 					IncludeText: false,
@@ -142,24 +145,24 @@ func (s *Server) initialize(ctx context.Context, params *protocol.InitializePara
 	}, nil
 }
 
-func (s *Server) setClientCapabilities(caps protocol.ClientCapabilities) {
+func (s *Server) setClientCapabilities(o *source.SessionOptions, caps protocol.ClientCapabilities) {
 	// Check if the client supports snippets in completion items.
-	s.insertTextFormat = protocol.PlainTextTextFormat
+	o.InsertTextFormat = protocol.PlainTextTextFormat
 	if caps.TextDocument.Completion.CompletionItem.SnippetSupport {
-		s.insertTextFormat = protocol.SnippetTextFormat
+		o.InsertTextFormat = protocol.SnippetTextFormat
 	}
 	// Check if the client supports configuration messages.
-	s.configurationSupported = caps.Workspace.Configuration
-	s.dynamicConfigurationSupported = caps.Workspace.DidChangeConfiguration.DynamicRegistration
-	s.dynamicWatchedFilesSupported = caps.Workspace.DidChangeWatchedFiles.DynamicRegistration
+	o.ConfigurationSupported = caps.Workspace.Configuration
+	o.DynamicConfigurationSupported = caps.Workspace.DidChangeConfiguration.DynamicRegistration
+	o.DynamicWatchedFilesSupported = caps.Workspace.DidChangeWatchedFiles.DynamicRegistration
 
 	// Check which types of content format are supported by this client.
-	s.preferredContentFormat = protocol.PlainText
+	o.PreferredContentFormat = protocol.PlainText
 	if len(caps.TextDocument.Hover.ContentFormat) > 0 {
-		s.preferredContentFormat = caps.TextDocument.Hover.ContentFormat[0]
+		o.PreferredContentFormat = caps.TextDocument.Hover.ContentFormat[0]
 	}
 	// Check if the client supports only line folding.
-	s.lineFoldingOnly = caps.TextDocument.FoldingRange.LineFoldingOnly
+	o.LineFoldingOnly = caps.TextDocument.FoldingRange.LineFoldingOnly
 }
 
 func (s *Server) initialized(ctx context.Context, params *protocol.InitializedParams) error {
@@ -167,8 +170,11 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	s.state = serverInitialized
 	s.stateMu.Unlock()
 
+	options := s.session.Options()
+	defer func() { s.session.SetOptions(options) }()
+
 	var registrations []protocol.Registration
-	if s.configurationSupported && s.dynamicConfigurationSupported {
+	if options.ConfigurationSupported && options.DynamicConfigurationSupported {
 		registrations = append(registrations,
 			protocol.Registration{
 				ID:     "workspace/didChangeConfiguration",
@@ -181,7 +187,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 		)
 	}
 
-	if s.watchFileChanges && s.dynamicWatchedFilesSupported {
+	if options.WatchFileChanges && options.DynamicWatchedFilesSupported {
 		registrations = append(registrations, protocol.Registration{
 			ID:     "workspace/didChangeWatchedFiles",
 			Method: "workspace/didChangeWatchedFiles",
@@ -200,9 +206,9 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 		})
 	}
 
-	if s.configurationSupported {
+	if options.ConfigurationSupported {
 		for _, view := range s.session.Views() {
-			if err := s.fetchConfig(ctx, view); err != nil {
+			if err := s.fetchConfig(ctx, view, &options); err != nil {
 				return err
 			}
 		}
@@ -213,7 +219,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	return nil
 }
 
-func (s *Server) fetchConfig(ctx context.Context, view source.View) error {
+func (s *Server) fetchConfig(ctx context.Context, view source.View, options *source.SessionOptions) error {
 	configs, err := s.client.Configuration(ctx, &protocol.ConfigurationParams{
 		Items: []protocol.ConfigurationItem{{
 			ScopeURI: protocol.NewURI(view.Folder()),
@@ -228,14 +234,14 @@ func (s *Server) fetchConfig(ctx context.Context, view source.View) error {
 		return err
 	}
 	for _, config := range configs {
-		if err := s.processConfig(ctx, view, config); err != nil {
+		if err := s.processConfig(ctx, view, options, config); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (s *Server) processConfig(ctx context.Context, view source.View, config interface{}) error {
+func (s *Server) processConfig(ctx context.Context, view source.View, options *source.SessionOptions, config interface{}) error {
 	// TODO: We should probably store and process more of the config.
 	if config == nil {
 		return nil // ignore error if you don't have a config
@@ -274,28 +280,23 @@ func (s *Server) processConfig(ctx context.Context, view source.View, config int
 
 	// Check if the user wants documentation in completion items.
 	// This defaults to true.
-	s.wantCompletionDocumentation = true
-	if wantCompletionDocumentation, ok := c["wantCompletionDocumentation"].(bool); ok {
-		s.wantCompletionDocumentation = wantCompletionDocumentation
-	}
+	options.Completion.Documentation = true
+	setBool(&options.Completion.Documentation, c, "wantCompletionDocumentation")
+	setBool(&options.UsePlaceholders, c, "usePlaceholders")
 
-	// Check if placeholders are enabled.
-	if usePlaceholders, ok := c["usePlaceholders"].(bool); ok {
-		s.usePlaceholders = usePlaceholders
-	}
 	// Set the hover kind.
 	if hoverKind, ok := c["hoverKind"].(string); ok {
 		switch hoverKind {
 		case "NoDocumentation":
-			s.hoverKind = noDocumentation
+			options.HoverKind = source.NoDocumentation
 		case "SingleLine":
-			s.hoverKind = singleLine
+			options.HoverKind = source.SingleLine
 		case "SynopsisDocumentation":
-			s.hoverKind = synopsisDocumentation
+			options.HoverKind = source.SynopsisDocumentation
 		case "FullDocumentation":
-			s.hoverKind = fullDocumentation
+			options.HoverKind = source.FullDocumentation
 		case "Structured":
-			s.hoverKind = structured
+			options.HoverKind = source.Structured
 		default:
 			log.Error(ctx, "unsupported hover kind", nil, tag.Of("HoverKind", hoverKind))
 			// The default value is already be set to synopsis.
@@ -303,28 +304,23 @@ func (s *Server) processConfig(ctx context.Context, view source.View, config int
 	}
 
 	// Check if the user wants to see suggested fixes from go/analysis.
-	if wantSuggestedFixes, ok := c["wantSuggestedFixes"].(bool); ok {
-		s.wantSuggestedFixes = wantSuggestedFixes
-	}
+	setBool(&options.SuggestedFixes, c, "wantSuggestedFixes")
 
 	// Check if the user has explicitly disabled any analyses.
 	if disabledAnalyses, ok := c["experimentalDisabledAnalyses"].([]interface{}); ok {
-		s.disabledAnalyses = make(map[string]struct{})
+		options.DisabledAnalyses = make(map[string]struct{})
 		for _, a := range disabledAnalyses {
 			if a, ok := a.(string); ok {
-				s.disabledAnalyses[a] = struct{}{}
+				options.DisabledAnalyses[a] = struct{}{}
 			}
 		}
 	}
 
-	s.disableDeepCompletion, _ = c["disableDeepCompletion"].(bool)
-	s.disableFuzzyMatching, _ = c["disableFuzzyMatching"].(bool)
+	setNotBool(&options.Completion.Deep, c, "disableDeepCompletion")
+	setNotBool(&options.Completion.FuzzyMatching, c, "disableFuzzyMatching")
 
 	// Check if want unimported package completions.
-	if wantUnimportedCompletions, ok := c["wantUnimportedCompletions"].(bool); ok {
-		s.wantUnimportedCompletions = wantUnimportedCompletions
-	}
-
+	setBool(&options.Completion.Unimported, c, "wantUnimportedCompletions")
 	return nil
 }
 
@@ -348,4 +344,16 @@ func (s *Server) exit(ctx context.Context) error {
 	}
 	os.Exit(0)
 	return nil
+}
+
+func setBool(b *bool, m map[string]interface{}, name string) {
+	if v, ok := m[name].(bool); ok {
+		*b = v
+	}
+}
+
+func setNotBool(b *bool, m map[string]interface{}, name string) {
+	if v, ok := m[name].(bool); ok {
+		*b = !v
+	}
 }

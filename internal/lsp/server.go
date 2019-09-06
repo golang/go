@@ -76,28 +76,6 @@ type Server struct {
 	stateMu sync.Mutex
 	state   serverState
 
-	// Configurations.
-	// TODO(rstambler): Separate these into their own struct?
-	usePlaceholders               bool
-	hoverKind                     hoverKind
-	disableDeepCompletion         bool
-	disableFuzzyMatching          bool
-	watchFileChanges              bool
-	wantCompletionDocumentation   bool
-	wantUnimportedCompletions     bool
-	insertTextFormat              protocol.InsertTextFormat
-	configurationSupported        bool
-	dynamicConfigurationSupported bool
-	dynamicWatchedFilesSupported  bool
-	preferredContentFormat        protocol.MarkupKind
-	disabledAnalyses              map[string]struct{}
-	wantSuggestedFixes            bool
-	lineFoldingOnly               bool
-
-	supportedCodeActions map[source.FileKind]map[protocol.CodeActionKind]bool
-
-	textDocumentSyncKind protocol.TextDocumentSyncKind
-
 	session source.Session
 
 	// undelivered is a cache of any diagnostics that the server

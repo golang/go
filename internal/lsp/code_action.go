@@ -21,7 +21,7 @@ import (
 
 func (s *Server) getSupportedCodeActions() []protocol.CodeActionKind {
 	allCodeActionKinds := make(map[protocol.CodeActionKind]struct{})
-	for _, kinds := range s.supportedCodeActions {
+	for _, kinds := range s.session.Options().SupportedCodeActions {
 		for kind := range kinds {
 			allCodeActionKinds[kind] = struct{}{}
 		}
@@ -51,7 +51,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 
 	// Determine the supported actions for this file kind.
 	fileKind := f.Handle(ctx).Kind()
-	supportedCodeActions, ok := s.supportedCodeActions[fileKind]
+	supportedCodeActions, ok := s.session.Options().SupportedCodeActions[fileKind]
 	if !ok {
 		return nil, fmt.Errorf("no supported code actions for %v file kind", fileKind)
 	}
@@ -87,7 +87,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	if wanted[protocol.QuickFix] {
 		// First, add the quick fixes reported by go/analysis.
 		// TODO: Enable this when this actually works. For now, it's needless work.
-		if s.wantSuggestedFixes {
+		if s.session.Options().SuggestedFixes {
 			gof, ok := f.(source.GoFile)
 			if !ok {
 				return nil, fmt.Errorf("%s is not a Go file", f.URI())

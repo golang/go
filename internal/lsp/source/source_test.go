@@ -102,9 +102,10 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			Line:      float64(src.Start().Line() - 1),
 			Character: float64(src.Start().Column() - 1),
 		}, source.CompletionOptions{
-			WantDeepCompletion: deepComplete,
-			WantFuzzyMatching:  fuzzyMatch,
-			WantUnimported:     unimported,
+			Documentation: true,
+			Deep:          deepComplete,
+			FuzzyMatching: fuzzyMatch,
+			Unimported:    unimported,
 		})
 		if err != nil {
 			t.Fatalf("failed for %v: %v", src, err)
@@ -156,8 +157,9 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 				Line:      float64(src.Start().Line() - 1),
 				Character: float64(src.Start().Column() - 1),
 			}, source.CompletionOptions{
-				WantDeepCompletion: strings.Contains(string(src.URI()), "deepcomplete"),
-				WantFuzzyMatching:  strings.Contains(string(src.URI()), "fuzzymatch"),
+				Documentation: true,
+				Deep:          strings.Contains(string(src.URI()), "deepcomplete"),
+				FuzzyMatching: strings.Contains(string(src.URI()), "fuzzymatch"),
 			})
 			if err != nil {
 				t.Fatalf("failed for %v: %v", src, err)

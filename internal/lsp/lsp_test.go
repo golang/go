@@ -55,23 +55,27 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	for filename, content := range data.Config.Overlay {
 		session.SetOverlay(span.FileURI(filename), content)
 	}
+	options := session.Options()
+	options.SupportedCodeActions = map[source.FileKind]map[protocol.CodeActionKind]bool{
+		source.Go: {
+			protocol.SourceOrganizeImports: true,
+			protocol.QuickFix:              true,
+		},
+		source.Mod: {},
+		source.Sum: {},
+	}
+	options.HoverKind = source.SynopsisDocumentation
+	session.SetOptions(options)
+
 	r := &runner{
 		server: &Server{
 			session:     session,
 			undelivered: make(map[span.URI][]source.Diagnostic),
-			supportedCodeActions: map[source.FileKind]map[protocol.CodeActionKind]bool{
-				source.Go: {
-					protocol.SourceOrganizeImports: true,
-					protocol.QuickFix:              true,
-				},
-				source.Mod: {},
-				source.Sum: {},
-			},
-			hoverKind: synopsisDocumentation,
 		},
 		data: data,
 		ctx:  ctx,
 	}
+
 	tests.Run(t, r, data)
 }
 
@@ -106,14 +110,12 @@ func (r *runner) Diagnostics(t *testing.T, data tests.Diagnostics) {
 }
 
 func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests.CompletionSnippets, items tests.CompletionItems) {
-	defer func() {
-		r.server.disableDeepCompletion = true
-		r.server.disableFuzzyMatching = true
-		r.server.wantUnimportedCompletions = false
-	}()
+	original := r.server.session.Options()
+	modified := original
+	defer func() { r.server.session.SetOptions(original) }()
 
 	// Set this as a default.
-	r.server.wantCompletionDocumentation = true
+	modified.Completion.Documentation = true
 
 	for src, itemList := range data {
 		var want []source.CompletionItem
@@ -121,9 +123,10 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			want = append(want, *items[pos])
 		}
 
-		r.server.disableDeepCompletion = !strings.Contains(string(src.URI()), "deepcomplete")
-		r.server.disableFuzzyMatching = !strings.Contains(string(src.URI()), "fuzzymatch")
-		r.server.wantUnimportedCompletions = strings.Contains(string(src.URI()), "unimported")
+		modified.Completion.Deep = strings.Contains(string(src.URI()), "deepcomplete")
+		modified.Completion.FuzzyMatching = strings.Contains(string(src.URI()), "fuzzymatch")
+		modified.Completion.Unimported = strings.Contains(string(src.URI()), "unimported")
+		r.server.session.SetOptions(modified)
 
 		list := r.runCompletion(t, src)
 
@@ -140,21 +143,15 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 		}
 	}
 
-	origPlaceHolders := r.server.usePlaceholders
-	origTextFormat := r.server.insertTextFormat
-	defer func() {
-		r.server.usePlaceholders = origPlaceHolders
-		r.server.insertTextFormat = origTextFormat
-	}()
-
-	r.server.insertTextFormat = protocol.SnippetTextFormat
+	modified.InsertTextFormat = protocol.SnippetTextFormat
 	for _, usePlaceholders := range []bool{true, false} {
-		r.server.usePlaceholders = usePlaceholders
+		modified.UsePlaceholders = usePlaceholders
 
 		for src, want := range snippets {
-			r.server.disableDeepCompletion = !strings.Contains(string(src.URI()), "deepcomplete")
-			r.server.disableFuzzyMatching = !strings.Contains(string(src.URI()), "fuzzymatch")
-			r.server.wantUnimportedCompletions = strings.Contains(string(src.URI()), "unimported")
+			modified.Completion.Deep = strings.Contains(string(src.URI()), "deepcomplete")
+			modified.Completion.FuzzyMatching = strings.Contains(string(src.URI()), "fuzzymatch")
+			modified.Completion.Unimported = strings.Contains(string(src.URI()), "unimported")
+			r.server.session.SetOptions(modified)
 
 			list := r.runCompletion(t, src)
 
@@ -266,11 +263,16 @@ func summarizeCompletionItems(i int, want []source.CompletionItem, got []protoco
 }
 
 func (r *runner) FoldingRange(t *testing.T, data tests.FoldingRanges) {
+	original := r.server.session.Options()
+	modified := original
+	defer func() { r.server.session.SetOptions(original) }()
+
 	for _, spn := range data {
 		uri := spn.URI()
 
 		// Test all folding ranges.
-		r.server.lineFoldingOnly = false
+		modified.LineFoldingOnly = false
+		r.server.session.SetOptions(modified)
 		ranges, err := r.server.FoldingRange(r.ctx, &protocol.FoldingRangeParams{
 			TextDocument: protocol.TextDocumentIdentifier{
 				URI: protocol.NewURI(uri),
@@ -283,7 +285,8 @@ func (r *runner) FoldingRange(t *testing.T, data tests.FoldingRanges) {
 		r.foldingRanges(t, "foldingRange", uri, ranges)
 
 		// Test folding ranges with lineFoldingOnly = true.
-		r.server.lineFoldingOnly = true
+		modified.LineFoldingOnly = true
+		r.server.session.SetOptions(modified)
 		ranges, err = r.server.FoldingRange(r.ctx, &protocol.FoldingRangeParams{
 			TextDocument: protocol.TextDocumentIdentifier{
 				URI: protocol.NewURI(uri),

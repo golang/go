@@ -190,6 +190,12 @@ type Session interface {
 	// DidChangeOutOfBand is called when a file under the root folder
 	// changes. The file is not necessarily open in the editor.
 	DidChangeOutOfBand(uri span.URI)
+
+	// Options returns a copy of the SessionOptions for this session.
+	Options() SessionOptions
+
+	// SetOptions sets the options of this session to new values.
+	SetOptions(SessionOptions)
 }
 
 // View represents a single workspace.
@@ -243,6 +249,9 @@ type View interface {
 	// RunProcessEnvFunc runs fn with the process env for this view inserted into opts.
 	// Note: the process env contains cached module and filesystem state.
 	RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error, opts *imports.Options) error
+
+	// Options returns a copy of the ViewOptions for this view.
+	Options() ViewOptions
 }
 
 // File represents a source file of any type.

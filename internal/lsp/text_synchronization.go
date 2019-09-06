@@ -42,6 +42,7 @@ func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocume
 }
 
 func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDocumentParams) error {
+	options := s.session.Options()
 	if len(params.ContentChanges) < 1 {
 		return jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "no content changes provided")
 	}
@@ -54,7 +55,7 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 
 	// We only accept an incremental change if the server expected it.
 	if !isFullChange {
-		switch s.textDocumentSyncKind {
+		switch options.TextDocumentSyncKind {
 		case protocol.Full:
 			return errors.Errorf("expected a full content change, received incremental changes for %s", uri)
 		case protocol.Incremental:

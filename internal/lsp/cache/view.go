@@ -30,6 +30,8 @@ type view struct {
 	session *session
 	id      string
 
+	options source.ViewOptions
+
 	// mu protects all mutable state of the view.
 	mu sync.Mutex
 
@@ -116,6 +118,10 @@ func (v *view) Name() string {
 // Folder returns the root of this view.
 func (v *view) Folder() span.URI {
 	return v.folder
+}
+
+func (v *view) Options() source.ViewOptions {
+	return v.options
 }
 
 // Config returns the configuration used for the view's interaction with the

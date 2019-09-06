@@ -35,8 +35,10 @@ func (s *Server) addView(ctx context.Context, name string, uri span.URI) error {
 	s.stateMu.Lock()
 	state := s.state
 	s.stateMu.Unlock()
+	options := s.session.Options()
+	defer func() { s.session.SetOptions(options) }()
 	if state >= serverInitialized {
-		s.fetchConfig(ctx, view)
+		s.fetchConfig(ctx, view, &options)
 	}
 	return nil
 }
