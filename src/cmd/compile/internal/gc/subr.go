@@ -1286,7 +1286,7 @@ func dotpath(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool) (
 // will give shortest unique addressing.
 // modify the tree with missing type names.
 func adddot(n *Node) *Node {
-	n.Left = typecheck(n.Left, Etype|ctxExpr)
+	n.Left = typecheck(n.Left, ctxType|ctxExpr)
 	if n.Left.Diag() {
 		n.SetDiag(true)
 	}

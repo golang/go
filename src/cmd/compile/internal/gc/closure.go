@@ -73,7 +73,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
 
 func typecheckclosure(clo *Node, top int) {
 	xfunc := clo.Func.Closure
-	clo.Func.Ntype = typecheck(clo.Func.Ntype, Etype)
+	clo.Func.Ntype = typecheck(clo.Func.Ntype, ctxType)
 	clo.Type = clo.Func.Ntype.Type
 	clo.Func.Top = top
 

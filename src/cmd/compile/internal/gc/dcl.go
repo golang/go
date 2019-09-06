@@ -544,7 +544,7 @@ func structfield(n *Node) *types.Field {
 	f.Sym = n.Sym
 
 	if n.Left != nil {
-		n.Left = typecheck(n.Left, Etype)
+		n.Left = typecheck(n.Left, ctxType)
 		n.Type = n.Left.Type
 		n.Left = nil
 	}
@@ -668,7 +668,7 @@ func interfacefield(n *Node) *types.Field {
 	// Otherwise, Left is InterfaceTypeName.
 
 	if n.Left != nil {
-		n.Left = typecheck(n.Left, Etype)
+		n.Left = typecheck(n.Left, ctxType)
 		n.Type = n.Left.Type
 		n.Left = nil
 	}
@@ -1020,7 +1020,7 @@ func dclfunc(sym *types.Sym, tfn *Node) *Node {
 	fn.Func.Nname.Name.Param.Ntype = tfn
 	declare(fn.Func.Nname, PFUNC)
 	funchdr(fn)
-	fn.Func.Nname.Name.Param.Ntype = typecheck(fn.Func.Nname.Name.Param.Ntype, Etype)
+	fn.Func.Nname.Name.Param.Ntype = typecheck(fn.Func.Nname.Name.Param.Ntype, ctxType)
 	return fn
 }
 

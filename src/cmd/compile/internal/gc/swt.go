@@ -63,7 +63,7 @@ func typecheckswitch(n *Node) {
 
 	if n.Left != nil && n.Left.Op == OTYPESW {
 		// type switch
-		top = Etype
+		top = ctxType
 		n.Left.Right = typecheck(n.Left.Right, ctxExpr)
 		t = n.Left.Right.Type
 		if t != nil && !t.IsInterface() {
@@ -121,7 +121,7 @@ func typecheckswitch(n *Node) {
 			ls := ncase.List.Slice()
 			for i1, n1 := range ls {
 				setlineno(n1)
-				ls[i1] = typecheck(ls[i1], ctxExpr|Etype)
+				ls[i1] = typecheck(ls[i1], ctxExpr|ctxType)
 				n1 = ls[i1]
 				if n1.Type == nil || t == nil {
 					continue
@@ -149,7 +149,7 @@ func typecheckswitch(n *Node) {
 					}
 
 				// type switch
-				case Etype:
+				case ctxType:
 					var missing, have *types.Field
 					var ptr int
 					switch {
@@ -183,7 +183,7 @@ func typecheckswitch(n *Node) {
 			}
 		}
 
-		if top == Etype {
+		if top == ctxType {
 			ll := ncase.List
 			if ncase.Rlist.Len() != 0 {
 				nvar := ncase.Rlist.First()

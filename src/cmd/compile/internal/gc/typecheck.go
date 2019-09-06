@@ -58,7 +58,7 @@ func tracePrint(title string, n *Node) func(np **Node) {
 const (
 	ctxStmt    = 1 << iota // evaluated at statement level
 	ctxExpr                // evaluated in value context
-	Etype                  // evaluated in type context
+	ctxType                // evaluated in type context
 	ctxCallee              // call-only expressions are ok
 	ctxMultiOK             // multivalue function returns are ok
 	ctxAssign              // assigning to expression
@@ -242,14 +242,14 @@ func typecheck(n *Node, top int) (res *Node) {
 		switch n.Op {
 		// We can already diagnose variables used as types.
 		case ONAME:
-			if top&(ctxExpr|Etype) == Etype {
+			if top&(ctxExpr|ctxType) == ctxType {
 				yyerror("%v is not a type", n)
 			}
 
 		case OTYPE:
 			// Only report a type cycle if we are expecting a type.
 			// Otherwise let other code report an error.
-			if top&Etype == Etype {
+			if top&ctxType == ctxType {
 				// A cycle containing only alias types is an error
 				// since it would expand indefinitely when aliases
 				// are substituted.
@@ -272,7 +272,7 @@ func typecheck(n *Node, top int) (res *Node) {
 			}
 
 		case OLITERAL:
-			if top&(ctxExpr|Etype) == Etype {
+			if top&(ctxExpr|ctxType) == ctxType {
 				yyerror("%v is not a type", n)
 				break
 			}
@@ -397,15 +397,15 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 	// types (ODEREF is with exprs)
 	case OTYPE:
-		ok |= Etype
+		ok |= ctxType
 
 		if n.Type == nil {
 			return n
 		}
 
 	case OTARRAY:
-		ok |= Etype
-		r := typecheck(n.Right, Etype)
+		ok |= ctxType
+		r := typecheck(n.Right, ctxType)
 		if r.Type == nil {
 			n.Type = nil
 			return n
@@ -464,9 +464,9 @@ func typecheck1(n *Node, top int) (res *Node) {
 		}
 
 	case OTMAP:
-		ok |= Etype
-		n.Left = typecheck(n.Left, Etype)
-		n.Right = typecheck(n.Right, Etype)
+		ok |= ctxType
+		n.Left = typecheck(n.Left, ctxType)
+		n.Right = typecheck(n.Right, ctxType)
 		l := n.Left
 		r := n.Right
 		if l.Type == nil || r.Type == nil {
@@ -486,8 +486,8 @@ func typecheck1(n *Node, top int) (res *Node) {
 		n.Right = nil
 
 	case OTCHAN:
-		ok |= Etype
-		n.Left = typecheck(n.Left, Etype)
+		ok |= ctxType
+		n.Left = typecheck(n.Left, ctxType)
 		l := n.Left
 		if l.Type == nil {
 			n.Type = nil
@@ -502,16 +502,16 @@ func typecheck1(n *Node, top int) (res *Node) {
 		n.ResetAux()
 
 	case OTSTRUCT:
-		ok |= Etype
+		ok |= ctxType
 		setTypeNode(n, tostruct(n.List.Slice()))
 		n.List.Set(nil)
 
 	case OTINTER:
-		ok |= Etype
+		ok |= ctxType
 		setTypeNode(n, tointerface(n.List.Slice()))
 
 	case OTFUNC:
-		ok |= Etype
+		ok |= ctxType
 		setTypeNode(n, functype(n.Left, n.List.Slice(), n.Rlist.Slice()))
 		n.Left = nil
 		n.List.Set(nil)
@@ -519,7 +519,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 	// type or expr
 	case ODEREF:
-		n.Left = typecheck(n.Left, ctxExpr|Etype|top&ctxCompLit)
+		n.Left = typecheck(n.Left, ctxExpr|ctxType|top&ctxCompLit)
 		l := n.Left
 		t := l.Type
 		if t == nil {
@@ -527,7 +527,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			return n
 		}
 		if l.Op == OTYPE {
-			ok |= Etype
+			ok |= ctxType
 			setTypeNode(n, types.NewPtr(l.Type))
 			// Ensure l.Type gets dowidth'd for the backend. Issue 20174.
 			// Don't checkwidth [...] arrays, though, since they
@@ -876,7 +876,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			}
 		}
 
-		n.Left = typecheck(n.Left, ctxExpr|Etype)
+		n.Left = typecheck(n.Left, ctxExpr|ctxType)
 
 		n.Left = defaultlit(n.Left, nil)
 
@@ -969,7 +969,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 		}
 
 		if n.Right != nil {
-			n.Right = typecheck(n.Right, Etype)
+			n.Right = typecheck(n.Right, ctxType)
 			n.Type = n.Right.Type
 			n.Right = nil
 			if n.Type == nil {
@@ -1235,7 +1235,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 	// call and call like
 	case OCALL:
 		typecheckslice(n.Ninit.Slice(), ctxStmt) // imported rewritten f(g()) calls (#30907)
-		n.Left = typecheck(n.Left, ctxExpr|Etype|ctxCallee)
+		n.Left = typecheck(n.Left, ctxExpr|ctxType|ctxCallee)
 		if n.Left.Diag() {
 			n.SetDiag(true)
 		}
@@ -1689,7 +1689,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 		n.List.Set(nil)
 		l := args[0]
-		l = typecheck(l, Etype)
+		l = typecheck(l, ctxType)
 		t := l.Type
 		if t == nil {
 			n.Type = nil
@@ -1799,7 +1799,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 		}
 
 		l := args.First()
-		l = typecheck(l, Etype)
+		l = typecheck(l, ctxType)
 		t := l.Type
 		if t == nil {
 			n.Type = nil
@@ -2034,7 +2034,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 	case ODCLTYPE:
 		ok |= ctxStmt
-		n.Left = typecheck(n.Left, Etype)
+		n.Left = typecheck(n.Left, ctxType)
 		checkwidth(n.Left.Type)
 		if n.Left.Type != nil && n.Left.Type.NotInHeap() && n.Left.Name.Param.Pragma&NotInHeap == 0 {
 			// The type contains go:notinheap types, so it
@@ -2057,7 +2057,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 	}
 
 	evconst(n)
-	if n.Op == OTYPE && top&Etype == 0 {
+	if n.Op == OTYPE && top&ctxType == 0 {
 		if !n.Type.Broke() {
 			yyerror("type %v is not an expression", n.Type)
 		}
@@ -2065,20 +2065,20 @@ func typecheck1(n *Node, top int) (res *Node) {
 		return n
 	}
 
-	if top&(ctxExpr|Etype) == Etype && n.Op != OTYPE {
+	if top&(ctxExpr|ctxType) == ctxType && n.Op != OTYPE {
 		yyerror("%v is not a type", n)
 		n.Type = nil
 		return n
 	}
 
 	// TODO(rsc): simplify
-	if (top&(ctxCallee|ctxExpr|Etype) != 0) && top&ctxStmt == 0 && ok&(ctxExpr|Etype|ctxCallee) == 0 {
+	if (top&(ctxCallee|ctxExpr|ctxType) != 0) && top&ctxStmt == 0 && ok&(ctxExpr|ctxType|ctxCallee) == 0 {
 		yyerror("%v used as value", n)
 		n.Type = nil
 		return n
 	}
 
-	if (top&ctxStmt != 0) && top&(ctxCallee|ctxExpr|Etype) == 0 && ok&ctxStmt == 0 {
+	if (top&ctxStmt != 0) && top&(ctxCallee|ctxExpr|ctxType) == 0 && ok&ctxStmt == 0 {
 		if !n.Diag() {
 			yyerror("%v evaluated but not used", n)
 			n.SetDiag(true)
@@ -2475,11 +2475,11 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
 				checklvalue(n.Left, "call pointer method on")
 				n.Left = nod(OADDR, n.Left, nil)
 				n.Left.SetImplicit(true)
-				n.Left = typecheck(n.Left, Etype|ctxExpr)
+				n.Left = typecheck(n.Left, ctxType|ctxExpr)
 			} else if tt.IsPtr() && !rcvr.IsPtr() && types.Identical(tt.Elem(), rcvr) {
 				n.Left = nod(ODEREF, n.Left, nil)
 				n.Left.SetImplicit(true)
-				n.Left = typecheck(n.Left, Etype|ctxExpr)
+				n.Left = typecheck(n.Left, ctxType|ctxExpr)
 			} else if tt.IsPtr() && tt.Elem().IsPtr() && types.Identical(derefall(tt), derefall(rcvr)) {
 				yyerror("calling method %v with receiver %L requires explicit dereference", n.Sym, n.Left)
 				for tt.IsPtr() {
@@ -2489,7 +2489,7 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
 					}
 					n.Left = nod(ODEREF, n.Left, nil)
 					n.Left.SetImplicit(true)
-					n.Left = typecheck(n.Left, Etype|ctxExpr)
+					n.Left = typecheck(n.Left, ctxType|ctxExpr)
 					tt = tt.Elem()
 				}
 			} else {
@@ -2753,7 +2753,7 @@ func pushtype(n *Node, t *types.Type) {
 		n.SetImplicit(true)       // don't print
 		n.Right.SetImplicit(true) // * is okay
 	} else if Debug['s'] != 0 {
-		n.Right = typecheck(n.Right, Etype)
+		n.Right = typecheck(n.Right, ctxType)
 		if n.Right.Type != nil && types.Identical(n.Right.Type, t) {
 			fmt.Printf("%v: redundant type: %v\n", n.Line(), t)
 		}
@@ -2782,7 +2782,7 @@ func typecheckcomplit(n *Node) (res *Node) {
 	norig := n.copy()
 
 	setlineno(n.Right)
-	n.Right = typecheck(n.Right, Etype|ctxCompLit)
+	n.Right = typecheck(n.Right, ctxType|ctxCompLit)
 	l := n.Right // sic
 	t := l.Type
 	if t == nil {
@@ -3497,7 +3497,7 @@ func typecheckdeftype(n *Node) {
 	}
 
 	n.SetTypecheck(1)
-	n.Name.Param.Ntype = typecheck(n.Name.Param.Ntype, Etype)
+	n.Name.Param.Ntype = typecheck(n.Name.Param.Ntype, ctxType)
 	t := n.Name.Param.Ntype.Type
 	if t == nil {
 		n.SetDiag(true)
@@ -3559,7 +3559,7 @@ func typecheckdef(n *Node) {
 
 	case OLITERAL:
 		if n.Name.Param.Ntype != nil {
-			n.Name.Param.Ntype = typecheck(n.Name.Param.Ntype, Etype)
+			n.Name.Param.Ntype = typecheck(n.Name.Param.Ntype, ctxType)
 			n.Type = n.Name.Param.Ntype.Type
 			n.Name.Param.Ntype = nil
 			if n.Type == nil {
@@ -3611,7 +3611,7 @@ func typecheckdef(n *Node) {
 
 	case ONAME:
 		if n.Name.Param.Ntype != nil {
-			n.Name.Param.Ntype = typecheck(n.Name.Param.Ntype, Etype)
+			n.Name.Param.Ntype = typecheck(n.Name.Param.Ntype, ctxType)
 			n.Type = n.Name.Param.Ntype.Type
 			if n.Type == nil {
 				n.SetDiag(true)
@@ -3651,7 +3651,7 @@ func typecheckdef(n *Node) {
 			// to create a new type.
 			// If we have a syntax error, p.Ntype may be nil.
 			if p.Ntype != nil {
-				p.Ntype = typecheck(p.Ntype, Etype)
+				p.Ntype = typecheck(p.Ntype, ctxType)
 				n.Type = p.Ntype.Type
 				if n.Type == nil {
 					n.SetDiag(true)
