@@ -57,7 +57,7 @@ const (
 	TUNSAFEPTR
 
 	// pseudo-types for literals
-	TIDEAL
+	TIDEAL // untyped numeric constants
 	TNIL
 	TBLANK
 
@@ -94,7 +94,6 @@ const (
 // It also stores pointers to several special types:
 //   - Types[TANY] is the placeholder "any" type recognized by substArgTypes.
 //   - Types[TBLANK] represents the blank variable's type.
-//   - Types[TIDEAL] represents untyped numeric constants.
 //   - Types[TNIL] represents the predeclared "nil" value's type.
 //   - Types[TUNSAFEPTR] is package unsafe's Pointer type.
 var Types [NTYPE]*Type
@@ -112,8 +111,6 @@ var (
 	Idealbool   *Type
 
 	// Types to represent untyped numeric constants.
-	// Note: Currently these are only used within the binary export
-	// data format. The rest of the compiler only uses Types[TIDEAL].
 	Idealint     = New(TIDEAL)
 	Idealrune    = New(TIDEAL)
 	Idealfloat   = New(TIDEAL)
