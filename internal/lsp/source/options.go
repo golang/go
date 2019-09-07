@@ -21,6 +21,8 @@ var (
 		},
 		Completion: CompletionOptions{
 			Documentation: true,
+			Deep:          true,
+			FuzzyMatching: true,
 		},
 	}
 	DefaultViewOptions = ViewOptions{}
