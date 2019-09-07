@@ -35,7 +35,7 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 	return &protocol.WorkspaceEdit{Changes: &changes}, nil
 }
 
-func (s *Server) prepareRename(ctx context.Context, params *protocol.TextDocumentPositionParams) (*protocol.Range, error) {
+func (s *Server) prepareRename(ctx context.Context, params *protocol.PrepareRenameParams) (*protocol.Range, error) {
 	uri := span.NewURI(params.TextDocument.URI)
 	view := s.session.ViewOf(uri)
 	f, err := getGoFile(ctx, view, uri)

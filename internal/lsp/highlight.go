@@ -14,7 +14,7 @@ import (
 	"golang.org/x/tools/internal/telemetry/log"
 )
 
-func (s *Server) documentHighlight(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.DocumentHighlight, error) {
+func (s *Server) documentHighlight(ctx context.Context, params *protocol.DocumentHighlightParams) ([]protocol.DocumentHighlight, error) {
 	uri := span.NewURI(params.TextDocument.URI)
 	view := s.session.ViewOf(uri)
 	rngs, err := source.Highlight(ctx, view, uri, params.Position)

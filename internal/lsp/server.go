@@ -86,7 +86,7 @@ type Server struct {
 
 // General
 
-func (s *Server) Initialize(ctx context.Context, params *protocol.InitializeParams) (*protocol.InitializeResult, error) {
+func (s *Server) Initialize(ctx context.Context, params *protocol.ParamInitia) (*protocol.InitializeResult, error) {
 	return s.initialize(ctx, params)
 }
 
@@ -160,23 +160,23 @@ func (s *Server) Resolve(ctx context.Context, item *protocol.CompletionItem) (*p
 	return nil, notImplemented("completionItem/resolve")
 }
 
-func (s *Server) Hover(ctx context.Context, params *protocol.TextDocumentPositionParams) (*protocol.Hover, error) {
+func (s *Server) Hover(ctx context.Context, params *protocol.HoverParams) (*protocol.Hover, error) {
 	return s.hover(ctx, params)
 }
 
-func (s *Server) SignatureHelp(ctx context.Context, params *protocol.TextDocumentPositionParams) (*protocol.SignatureHelp, error) {
+func (s *Server) SignatureHelp(ctx context.Context, params *protocol.SignatureHelpParams) (*protocol.SignatureHelp, error) {
 	return s.signatureHelp(ctx, params)
 }
 
-func (s *Server) Definition(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
+func (s *Server) Definition(ctx context.Context, params *protocol.DefinitionParams) ([]protocol.Location, error) {
 	return s.definition(ctx, params)
 }
 
-func (s *Server) TypeDefinition(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
+func (s *Server) TypeDefinition(ctx context.Context, params *protocol.TypeDefinitionParams) ([]protocol.Location, error) {
 	return s.typeDefinition(ctx, params)
 }
 
-func (s *Server) Implementation(context.Context, *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
+func (s *Server) Implementation(context.Context, *protocol.ImplementationParams) ([]protocol.Location, error) {
 	return nil, notImplemented("Implementation")
 }
 
@@ -184,7 +184,7 @@ func (s *Server) References(ctx context.Context, params *protocol.ReferenceParam
 	return s.references(ctx, params)
 }
 
-func (s *Server) DocumentHighlight(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.DocumentHighlight, error) {
+func (s *Server) DocumentHighlight(ctx context.Context, params *protocol.DocumentHighlightParams) ([]protocol.DocumentHighlight, error) {
 	return s.documentHighlight(ctx, params)
 }
 
@@ -236,7 +236,7 @@ func (s *Server) Rename(ctx context.Context, params *protocol.RenameParams) (*pr
 	return s.rename(ctx, params)
 }
 
-func (s *Server) Declaration(context.Context, *protocol.TextDocumentPositionParams) ([]protocol.DeclarationLink, error) {
+func (s *Server) Declaration(context.Context, *protocol.DeclarationParams) ([]protocol.DeclarationLink, error) {
 	return nil, notImplemented("Declaration")
 }
 
@@ -248,9 +248,13 @@ func (s *Server) LogTraceNotification(context.Context, *protocol.LogTraceParams)
 	return notImplemented("LogtraceNotification")
 }
 
-func (s *Server) PrepareRename(ctx context.Context, params *protocol.TextDocumentPositionParams) (*protocol.Range, error) {
+func (s *Server) PrepareRename(ctx context.Context, params *protocol.PrepareRenameParams) (*protocol.Range, error) {
 	// TODO(suzmue): support sending placeholder text.
 	return s.prepareRename(ctx, params)
+}
+
+func (s *Server) Progress(context.Context, *protocol.ProgressParams) error {
+	return notImplemented("Progress")
 }
 
 func (s *Server) SetTraceNotification(context.Context, *protocol.SetTraceParams) error {

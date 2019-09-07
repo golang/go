@@ -501,20 +501,34 @@ func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", d.Src, err)
 		}
-		params := &protocol.TextDocumentPositionParams{
+		tdpp := protocol.TextDocumentPositionParams{
 			TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
 			Position:     loc.Range.Start,
 		}
 		var locs []protocol.Location
 		var hover *protocol.Hover
 		if d.IsType {
+			params := &protocol.TypeDefinitionParams{
+				tdpp,
+				protocol.WorkDoneProgressParams{},
+				protocol.PartialResultParams{},
+			}
 			locs, err = r.server.TypeDefinition(r.ctx, params)
 		} else {
+			params := &protocol.DefinitionParams{
+				tdpp,
+				protocol.WorkDoneProgressParams{},
+				protocol.PartialResultParams{},
+			}
 			locs, err = r.server.Definition(r.ctx, params)
 			if err != nil {
 				t.Fatalf("failed for %v: %+v", d.Src, err)
 			}
-			hover, err = r.server.Hover(r.ctx, params)
+			v := &protocol.HoverParams{
+				tdpp,
+				protocol.WorkDoneProgressParams{},
+			}
+			hover, err = r.server.Hover(r.ctx, v)
 		}
 		if err != nil {
 			t.Fatalf("failed for %v: %v", d.Src, err)
@@ -557,9 +571,14 @@ func (r *runner) Highlight(t *testing.T, data tests.Highlights) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", locations[0], err)
 		}
-		params := &protocol.TextDocumentPositionParams{
+		tdpp := protocol.TextDocumentPositionParams{
 			TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
 			Position:     loc.Range.Start,
+		}
+		params := &protocol.DocumentHighlightParams{
+			tdpp,
+			protocol.WorkDoneProgressParams{},
+			protocol.PartialResultParams{},
 		}
 		highlights, err := r.server.DocumentHighlight(r.ctx, params)
 		if err != nil {
@@ -700,9 +719,13 @@ func (r *runner) PrepareRename(t *testing.T, data tests.PrepareRenames) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", src, err)
 		}
-		params := &protocol.TextDocumentPositionParams{
+		tdpp := protocol.TextDocumentPositionParams{
 			TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
 			Position:     loc.Range.Start,
+		}
+		params := &protocol.PrepareRenameParams{
+			tdpp,
+			protocol.WorkDoneProgressParams{},
 		}
 		got, err := r.server.PrepareRename(context.Background(), params)
 		if err != nil {
@@ -811,12 +834,17 @@ func (r *runner) SignatureHelp(t *testing.T, data tests.Signatures) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", loc, err)
 		}
-		gotSignatures, err := r.server.SignatureHelp(r.ctx, &protocol.TextDocumentPositionParams{
+		tdpp := protocol.TextDocumentPositionParams{
 			TextDocument: protocol.TextDocumentIdentifier{
 				URI: protocol.NewURI(spn.URI()),
 			},
 			Position: loc.Range.Start,
-		})
+		}
+		params := &protocol.SignatureHelpParams{
+			tdpp,
+			protocol.WorkDoneProgressParams{},
+		}
+		gotSignatures, err := r.server.SignatureHelp(r.ctx, params)
 		if err != nil {
 			// Only fail if we got an error we did not expect.
 			if expectedSignatures != nil {

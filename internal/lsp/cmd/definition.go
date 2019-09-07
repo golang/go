@@ -74,9 +74,14 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	if err != nil {
 		return err
 	}
-	p := protocol.TextDocumentPositionParams{
+	tdpp := protocol.TextDocumentPositionParams{
 		TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
 		Position:     loc.Range.Start,
+	}
+	p := protocol.DefinitionParams{
+		tdpp,
+		protocol.WorkDoneProgressParams{},
+		protocol.PartialResultParams{},
 	}
 	locs, err := conn.Definition(ctx, &p)
 	if err != nil {
@@ -86,7 +91,11 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	if len(locs) == 0 {
 		return errors.Errorf("%v: not an identifier", from)
 	}
-	hover, err := conn.Hover(ctx, &p)
+	q := protocol.HoverParams{
+		tdpp,
+		protocol.WorkDoneProgressParams{},
+	}
+	hover, err := conn.Hover(ctx, &q)
 	if err != nil {
 		return errors.Errorf("%v: %v", from, err)
 	}

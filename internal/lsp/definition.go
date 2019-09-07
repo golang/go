@@ -12,7 +12,7 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-func (s *Server) definition(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
+func (s *Server) definition(ctx context.Context, params *protocol.DefinitionParams) ([]protocol.Location, error) {
 	uri := span.NewURI(params.TextDocument.URI)
 	view := s.session.ViewOf(uri)
 	f, err := getGoFile(ctx, view, uri)
@@ -35,7 +35,7 @@ func (s *Server) definition(ctx context.Context, params *protocol.TextDocumentPo
 	}, nil
 }
 
-func (s *Server) typeDefinition(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
+func (s *Server) typeDefinition(ctx context.Context, params *protocol.TypeDefinitionParams) ([]protocol.Location, error) {
 	uri := span.NewURI(params.TextDocument.URI)
 	view := s.session.ViewOf(uri)
 	f, err := getGoFile(ctx, view, uri)

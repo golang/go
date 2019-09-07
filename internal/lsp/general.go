@@ -21,7 +21,7 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-func (s *Server) initialize(ctx context.Context, params *protocol.InitializeParams) (*protocol.InitializeResult, error) {
+func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitia) (*protocol.InitializeResult, error) {
 	s.stateMu.Lock()
 	state := s.state
 	s.stateMu.Unlock()
@@ -82,7 +82,8 @@ func (s *Server) initialize(ctx context.Context, params *protocol.InitializePara
 	}
 
 	var codeActionProvider interface{}
-	if len(params.Capabilities.TextDocument.CodeAction.CodeActionLiteralSupport.CodeActionKind.ValueSet) > 0 {
+	if params.Capabilities.TextDocument.CodeAction.CodeActionLiteralSupport != nil &&
+		len(params.Capabilities.TextDocument.CodeAction.CodeActionLiteralSupport.CodeActionKind.ValueSet) > 0 {
 		// If the client has specified CodeActionLiteralSupport,
 		// send the code actions we support.
 		//
@@ -148,7 +149,8 @@ func (s *Server) initialize(ctx context.Context, params *protocol.InitializePara
 func (s *Server) setClientCapabilities(o *source.SessionOptions, caps protocol.ClientCapabilities) {
 	// Check if the client supports snippets in completion items.
 	o.InsertTextFormat = protocol.PlainTextTextFormat
-	if caps.TextDocument.Completion.CompletionItem.SnippetSupport {
+	if caps.TextDocument.Completion.CompletionItem != nil &&
+		caps.TextDocument.Completion.CompletionItem.SnippetSupport {
 		o.InsertTextFormat = protocol.SnippetTextFormat
 	}
 	// Check if the client supports configuration messages.
@@ -220,16 +222,19 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 }
 
 func (s *Server) fetchConfig(ctx context.Context, view source.View, options *source.SessionOptions) error {
-	configs, err := s.client.Configuration(ctx, &protocol.ConfigurationParams{
-		Items: []protocol.ConfigurationItem{{
-			ScopeURI: protocol.NewURI(view.Folder()),
-			Section:  "gopls",
-		}, {
-			ScopeURI: protocol.NewURI(view.Folder()),
-			Section:  view.Name(),
-		},
-		},
-	})
+	v := protocol.ParamConfig{
+		protocol.ConfigurationParams{
+			Items: []protocol.ConfigurationItem{{
+				ScopeURI: protocol.NewURI(view.Folder()),
+				Section:  "gopls",
+			}, {
+				ScopeURI: protocol.NewURI(view.Folder()),
+				Section:  view.Name(),
+			},
+			},
+		}, protocol.PartialResultParams{},
+	}
+	configs, err := s.client.Configuration(ctx, &v)
 	if err != nil {
 		return err
 	}

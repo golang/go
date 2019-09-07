@@ -15,7 +15,7 @@ import (
 	"golang.org/x/tools/internal/telemetry/log"
 )
 
-func (s *Server) hover(ctx context.Context, params *protocol.TextDocumentPositionParams) (*protocol.Hover, error) {
+func (s *Server) hover(ctx context.Context, params *protocol.HoverParams) (*protocol.Hover, error) {
 	uri := span.NewURI(params.TextDocument.URI)
 	view := s.session.ViewOf(uri)
 	f, err := getGoFile(ctx, view, uri)

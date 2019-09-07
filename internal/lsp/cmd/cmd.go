@@ -194,7 +194,7 @@ func (app *Application) connect(ctx context.Context) (*connection, error) {
 }
 
 func (c *connection) initialize(ctx context.Context) error {
-	params := &protocol.InitializeParams{}
+	params := &protocol.ParamInitia{}
 	params.RootURI = string(span.FileURI(c.Client.app.wd))
 	params.Capabilities.Workspace.Configuration = true
 	params.Capabilities.TextDocument.Hover.ContentFormat = []protocol.MarkupKind{protocol.PlainText}
@@ -283,7 +283,7 @@ func (c *cmdClient) WorkspaceFolders(ctx context.Context) ([]protocol.WorkspaceF
 	return nil, nil
 }
 
-func (c *cmdClient) Configuration(ctx context.Context, p *protocol.ConfigurationParams) ([]interface{}, error) {
+func (c *cmdClient) Configuration(ctx context.Context, p *protocol.ParamConfig) ([]interface{}, error) {
 	results := make([]interface{}, len(p.Items))
 	for i, item := range p.Items {
 		if item.Section != "gopls" {

@@ -21,35 +21,36 @@ type Server interface {
 	DidSave(context.Context, *DidSaveTextDocumentParams) error
 	WillSave(context.Context, *WillSaveTextDocumentParams) error
 	DidChangeWatchedFiles(context.Context, *DidChangeWatchedFilesParams) error
+	Progress(context.Context, *ProgressParams) error
 	SetTraceNotification(context.Context, *SetTraceParams) error
 	LogTraceNotification(context.Context, *LogTraceParams) error
-	Implementation(context.Context, *TextDocumentPositionParams) ([]Location, error)
-	TypeDefinition(context.Context, *TextDocumentPositionParams) ([]Location, error)
+	Implementation(context.Context, *ImplementationParams) ([]Location, error)
+	TypeDefinition(context.Context, *TypeDefinitionParams) ([]Location, error)
 	DocumentColor(context.Context, *DocumentColorParams) ([]ColorInformation, error)
 	ColorPresentation(context.Context, *ColorPresentationParams) ([]ColorPresentation, error)
 	FoldingRange(context.Context, *FoldingRangeParams) ([]FoldingRange, error)
-	Declaration(context.Context, *TextDocumentPositionParams) ([]DeclarationLink, error)
+	Declaration(context.Context, *DeclarationParams) ([]DeclarationLink, error)
 	SelectionRange(context.Context, *SelectionRangeParams) ([]SelectionRange, error)
-	Initialize(context.Context, *InitializeParams) (*InitializeResult, error)
+	Initialize(context.Context, *ParamInitia) (*InitializeResult, error)
 	Shutdown(context.Context) error
 	WillSaveWaitUntil(context.Context, *WillSaveTextDocumentParams) ([]TextEdit, error)
 	Completion(context.Context, *CompletionParams) (*CompletionList, error)
 	Resolve(context.Context, *CompletionItem) (*CompletionItem, error)
-	Hover(context.Context, *TextDocumentPositionParams) (*Hover, error)
-	SignatureHelp(context.Context, *TextDocumentPositionParams) (*SignatureHelp, error)
-	Definition(context.Context, *TextDocumentPositionParams) ([]Location, error)
+	Hover(context.Context, *HoverParams) (*Hover, error)
+	SignatureHelp(context.Context, *SignatureHelpParams) (*SignatureHelp, error)
+	Definition(context.Context, *DefinitionParams) ([]Location, error)
 	References(context.Context, *ReferenceParams) ([]Location, error)
-	DocumentHighlight(context.Context, *TextDocumentPositionParams) ([]DocumentHighlight, error)
+	DocumentHighlight(context.Context, *DocumentHighlightParams) ([]DocumentHighlight, error)
 	DocumentSymbol(context.Context, *DocumentSymbolParams) ([]DocumentSymbol, error)
-	Symbol(context.Context, *WorkspaceSymbolParams) ([]SymbolInformation, error)
 	CodeAction(context.Context, *CodeActionParams) ([]CodeAction, error)
+	Symbol(context.Context, *WorkspaceSymbolParams) ([]SymbolInformation, error)
 	CodeLens(context.Context, *CodeLensParams) ([]CodeLens, error)
 	ResolveCodeLens(context.Context, *CodeLens) (*CodeLens, error)
 	Formatting(context.Context, *DocumentFormattingParams) ([]TextEdit, error)
 	RangeFormatting(context.Context, *DocumentRangeFormattingParams) ([]TextEdit, error)
 	OnTypeFormatting(context.Context, *DocumentOnTypeFormattingParams) ([]TextEdit, error)
 	Rename(context.Context, *RenameParams) (*WorkspaceEdit, error)
-	PrepareRename(context.Context, *TextDocumentPositionParams) (*Range, error)
+	PrepareRename(context.Context, *PrepareRenameParams) (*Range, error)
 	DocumentLink(context.Context, *DocumentLinkParams) ([]DocumentLink, error)
 	ResolveDocumentLink(context.Context, *DocumentLink) (*DocumentLink, error)
 	ExecuteCommand(context.Context, *ExecuteCommandParams) (interface{}, error)
@@ -163,6 +164,16 @@ func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 			log.Error(ctx, "", err)
 		}
 		return true
+	case "$/progress": // notif
+		var params ProgressParams
+		if err := json.Unmarshal(*r.Params, &params); err != nil {
+			sendParseError(ctx, r, err)
+			return true
+		}
+		if err := h.server.Progress(ctx, &params); err != nil {
+			log.Error(ctx, "", err)
+		}
+		return true
 	case "$/setTraceNotification": // notif
 		var params SetTraceParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
@@ -184,7 +195,7 @@ func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 		}
 		return true
 	case "textDocument/implementation": // req
-		var params TextDocumentPositionParams
+		var params ImplementationParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
 			sendParseError(ctx, r, err)
 			return true
@@ -195,7 +206,7 @@ func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 		}
 		return true
 	case "textDocument/typeDefinition": // req
-		var params TextDocumentPositionParams
+		var params TypeDefinitionParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
 			sendParseError(ctx, r, err)
 			return true
@@ -239,7 +250,7 @@ func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 		}
 		return true
 	case "textDocument/declaration": // req
-		var params TextDocumentPositionParams
+		var params DeclarationParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
 			sendParseError(ctx, r, err)
 			return true
@@ -261,7 +272,7 @@ func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 		}
 		return true
 	case "initialize": // req
-		var params InitializeParams
+		var params ParamInitia
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
 			sendParseError(ctx, r, err)
 			return true
@@ -315,7 +326,7 @@ func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 		}
 		return true
 	case "textDocument/hover": // req
-		var params TextDocumentPositionParams
+		var params HoverParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
 			sendParseError(ctx, r, err)
 			return true
@@ -326,7 +337,7 @@ func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 		}
 		return true
 	case "textDocument/signatureHelp": // req
-		var params TextDocumentPositionParams
+		var params SignatureHelpParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
 			sendParseError(ctx, r, err)
 			return true
@@ -337,7 +348,7 @@ func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 		}
 		return true
 	case "textDocument/definition": // req
-		var params TextDocumentPositionParams
+		var params DefinitionParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
 			sendParseError(ctx, r, err)
 			return true
@@ -359,7 +370,7 @@ func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 		}
 		return true
 	case "textDocument/documentHighlight": // req
-		var params TextDocumentPositionParams
+		var params DocumentHighlightParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
 			sendParseError(ctx, r, err)
 			return true
@@ -380,17 +391,6 @@ func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 			log.Error(ctx, "", err)
 		}
 		return true
-	case "workspace/symbol": // req
-		var params WorkspaceSymbolParams
-		if err := json.Unmarshal(*r.Params, &params); err != nil {
-			sendParseError(ctx, r, err)
-			return true
-		}
-		resp, err := h.server.Symbol(ctx, &params)
-		if err := r.Reply(ctx, resp, err); err != nil {
-			log.Error(ctx, "", err)
-		}
-		return true
 	case "textDocument/codeAction": // req
 		var params CodeActionParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
@@ -398,6 +398,17 @@ func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 			return true
 		}
 		resp, err := h.server.CodeAction(ctx, &params)
+		if err := r.Reply(ctx, resp, err); err != nil {
+			log.Error(ctx, "", err)
+		}
+		return true
+	case "workspace/symbol": // req
+		var params WorkspaceSymbolParams
+		if err := json.Unmarshal(*r.Params, &params); err != nil {
+			sendParseError(ctx, r, err)
+			return true
+		}
+		resp, err := h.server.Symbol(ctx, &params)
 		if err := r.Reply(ctx, resp, err); err != nil {
 			log.Error(ctx, "", err)
 		}
@@ -469,7 +480,7 @@ func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 		}
 		return true
 	case "textDocument/prepareRename": // req
-		var params TextDocumentPositionParams
+		var params PrepareRenameParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
 			sendParseError(ctx, r, err)
 			return true
@@ -562,6 +573,10 @@ func (s *serverDispatcher) DidChangeWatchedFiles(ctx context.Context, params *Di
 	return s.Conn.Notify(ctx, "workspace/didChangeWatchedFiles", params)
 }
 
+func (s *serverDispatcher) Progress(ctx context.Context, params *ProgressParams) error {
+	return s.Conn.Notify(ctx, "$/progress", params)
+}
+
 func (s *serverDispatcher) SetTraceNotification(ctx context.Context, params *SetTraceParams) error {
 	return s.Conn.Notify(ctx, "$/setTraceNotification", params)
 }
@@ -569,7 +584,7 @@ func (s *serverDispatcher) SetTraceNotification(ctx context.Context, params *Set
 func (s *serverDispatcher) LogTraceNotification(ctx context.Context, params *LogTraceParams) error {
 	return s.Conn.Notify(ctx, "$/logTraceNotification", params)
 }
-func (s *serverDispatcher) Implementation(ctx context.Context, params *TextDocumentPositionParams) ([]Location, error) {
+func (s *serverDispatcher) Implementation(ctx context.Context, params *ImplementationParams) ([]Location, error) {
 	var result []Location
 	if err := s.Conn.Call(ctx, "textDocument/implementation", params, &result); err != nil {
 		return nil, err
@@ -577,7 +592,7 @@ func (s *serverDispatcher) Implementation(ctx context.Context, params *TextDocum
 	return result, nil
 }
 
-func (s *serverDispatcher) TypeDefinition(ctx context.Context, params *TextDocumentPositionParams) ([]Location, error) {
+func (s *serverDispatcher) TypeDefinition(ctx context.Context, params *TypeDefinitionParams) ([]Location, error) {
 	var result []Location
 	if err := s.Conn.Call(ctx, "textDocument/typeDefinition", params, &result); err != nil {
 		return nil, err
@@ -609,7 +624,7 @@ func (s *serverDispatcher) FoldingRange(ctx context.Context, params *FoldingRang
 	return result, nil
 }
 
-func (s *serverDispatcher) Declaration(ctx context.Context, params *TextDocumentPositionParams) ([]DeclarationLink, error) {
+func (s *serverDispatcher) Declaration(ctx context.Context, params *DeclarationParams) ([]DeclarationLink, error) {
 	var result []DeclarationLink
 	if err := s.Conn.Call(ctx, "textDocument/declaration", params, &result); err != nil {
 		return nil, err
@@ -625,7 +640,7 @@ func (s *serverDispatcher) SelectionRange(ctx context.Context, params *Selection
 	return result, nil
 }
 
-func (s *serverDispatcher) Initialize(ctx context.Context, params *InitializeParams) (*InitializeResult, error) {
+func (s *serverDispatcher) Initialize(ctx context.Context, params *ParamInitia) (*InitializeResult, error) {
 	var result InitializeResult
 	if err := s.Conn.Call(ctx, "initialize", params, &result); err != nil {
 		return nil, err
@@ -661,7 +676,7 @@ func (s *serverDispatcher) Resolve(ctx context.Context, params *CompletionItem) 
 	return &result, nil
 }
 
-func (s *serverDispatcher) Hover(ctx context.Context, params *TextDocumentPositionParams) (*Hover, error) {
+func (s *serverDispatcher) Hover(ctx context.Context, params *HoverParams) (*Hover, error) {
 	var result Hover
 	if err := s.Conn.Call(ctx, "textDocument/hover", params, &result); err != nil {
 		return nil, err
@@ -669,7 +684,7 @@ func (s *serverDispatcher) Hover(ctx context.Context, params *TextDocumentPositi
 	return &result, nil
 }
 
-func (s *serverDispatcher) SignatureHelp(ctx context.Context, params *TextDocumentPositionParams) (*SignatureHelp, error) {
+func (s *serverDispatcher) SignatureHelp(ctx context.Context, params *SignatureHelpParams) (*SignatureHelp, error) {
 	var result SignatureHelp
 	if err := s.Conn.Call(ctx, "textDocument/signatureHelp", params, &result); err != nil {
 		return nil, err
@@ -677,7 +692,7 @@ func (s *serverDispatcher) SignatureHelp(ctx context.Context, params *TextDocume
 	return &result, nil
 }
 
-func (s *serverDispatcher) Definition(ctx context.Context, params *TextDocumentPositionParams) ([]Location, error) {
+func (s *serverDispatcher) Definition(ctx context.Context, params *DefinitionParams) ([]Location, error) {
 	var result []Location
 	if err := s.Conn.Call(ctx, "textDocument/definition", params, &result); err != nil {
 		return nil, err
@@ -693,7 +708,7 @@ func (s *serverDispatcher) References(ctx context.Context, params *ReferencePara
 	return result, nil
 }
 
-func (s *serverDispatcher) DocumentHighlight(ctx context.Context, params *TextDocumentPositionParams) ([]DocumentHighlight, error) {
+func (s *serverDispatcher) DocumentHighlight(ctx context.Context, params *DocumentHighlightParams) ([]DocumentHighlight, error) {
 	var result []DocumentHighlight
 	if err := s.Conn.Call(ctx, "textDocument/documentHighlight", params, &result); err != nil {
 		return nil, err
@@ -709,17 +724,17 @@ func (s *serverDispatcher) DocumentSymbol(ctx context.Context, params *DocumentS
 	return result, nil
 }
 
-func (s *serverDispatcher) Symbol(ctx context.Context, params *WorkspaceSymbolParams) ([]SymbolInformation, error) {
-	var result []SymbolInformation
-	if err := s.Conn.Call(ctx, "workspace/symbol", params, &result); err != nil {
+func (s *serverDispatcher) CodeAction(ctx context.Context, params *CodeActionParams) ([]CodeAction, error) {
+	var result []CodeAction
+	if err := s.Conn.Call(ctx, "textDocument/codeAction", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func (s *serverDispatcher) CodeAction(ctx context.Context, params *CodeActionParams) ([]CodeAction, error) {
-	var result []CodeAction
-	if err := s.Conn.Call(ctx, "textDocument/codeAction", params, &result); err != nil {
+func (s *serverDispatcher) Symbol(ctx context.Context, params *WorkspaceSymbolParams) ([]SymbolInformation, error) {
+	var result []SymbolInformation
+	if err := s.Conn.Call(ctx, "workspace/symbol", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
@@ -773,7 +788,7 @@ func (s *serverDispatcher) Rename(ctx context.Context, params *RenameParams) (*W
 	return &result, nil
 }
 
-func (s *serverDispatcher) PrepareRename(ctx context.Context, params *TextDocumentPositionParams) (*Range, error) {
+func (s *serverDispatcher) PrepareRename(ctx context.Context, params *PrepareRenameParams) (*Range, error) {
 	var result Range
 	if err := s.Conn.Call(ctx, "textDocument/prepareRename", params, &result); err != nil {
 		return nil, err
@@ -810,4 +825,10 @@ type CancelParams struct {
 	 * The request id to cancel.
 	 */
 	ID jsonrpc2.ID `json:"id"`
+}
+
+// Types constructed to avoid structs as formal argument types
+type ParamInitia struct {
+	InitializeParams
+	WorkDoneProgressParams
 }

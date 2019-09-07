@@ -14,7 +14,7 @@ import (
 	"golang.org/x/tools/internal/telemetry/tag"
 )
 
-func (s *Server) signatureHelp(ctx context.Context, params *protocol.TextDocumentPositionParams) (*protocol.SignatureHelp, error) {
+func (s *Server) signatureHelp(ctx context.Context, params *protocol.SignatureHelpParams) (*protocol.SignatureHelp, error) {
 	uri := span.NewURI(params.TextDocument.URI)
 	view := s.session.ViewOf(uri)
 	f, err := getGoFile(ctx, view, uri)
