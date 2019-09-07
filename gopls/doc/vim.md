@@ -62,11 +62,13 @@ let g:lsc_server_commands = {
 \  "go": {
 \    "command": "gopls serve",
 \    "log_level": -1,
+\    "suppress_stderr": v:true,
 \  },
 \}
 ```
 
-The `log_level` part is needed to prevent breakage from logging. See [natebosch/vim-lsc#180].
+The `log_level` and `suppress_stderr` parts are needed to prevent breakage from logging. See
+[natebosch/vim-lsc#180] and [natebosch/vim-lsc#213].
 
 ## coc.nvim
 
