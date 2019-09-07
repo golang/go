@@ -60,6 +60,7 @@ var bootstrapDirs = []string{
 	"cmd/internal/obj/arm64",
 	"cmd/internal/obj/mips",
 	"cmd/internal/obj/ppc64",
+	"cmd/internal/obj/riscv",
 	"cmd/internal/obj/s390x",
 	"cmd/internal/obj/x86",
 	"cmd/internal/obj/wasm",

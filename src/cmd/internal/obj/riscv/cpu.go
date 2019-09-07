@@ -519,6 +519,9 @@ const (
 	AMOVWU
 	ASEQZ
 	ASNEZ
+
+	// End marker
+	ALAST
 )
 
 // All unary instructions which write to their arguments (as opposed to reading

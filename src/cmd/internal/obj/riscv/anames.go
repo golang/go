@@ -241,4 +241,5 @@ var Anames = []string{
 	"MOVWU",
 	"SEQZ",
 	"SNEZ",
+	"LAST",
 }
