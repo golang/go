@@ -26,7 +26,7 @@ func (s *Server) references(ctx context.Context, params *protocol.ReferenceParam
 	if err != nil {
 		return nil, err
 	}
-	references, err := ident.References(ctx, view)
+	references, err := ident.References(ctx)
 	if err != nil {
 		log.Error(ctx, "no references", err, tag.Of("Identifier", ident.Name))
 	}

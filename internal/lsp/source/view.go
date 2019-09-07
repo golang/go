@@ -259,8 +259,6 @@ type File interface {
 	URI() span.URI
 	View() View
 	Handle(ctx context.Context) FileHandle
-	FileSet() *token.FileSet
-	GetToken(ctx context.Context) (*token.File, error)
 }
 
 // GoFile represents a Go source file that has been type-checked.
@@ -269,11 +267,11 @@ type GoFile interface {
 
 	Builtin() (*ast.File, bool)
 
-	// GetAST returns the AST for the file, at or above the given mode.
-	GetAST(ctx context.Context, mode ParseMode) (*ast.File, error)
-
 	// GetCachedPackage returns the cached package for the file, if any.
 	GetCachedPackage(ctx context.Context) (Package, error)
+
+	// GetCachedPackage returns the cached package for the file, if any.
+	GetCachedPackages(ctx context.Context) ([]Package, error)
 
 	// GetPackage returns the CheckPackageHandle for the package that this file belongs to.
 	GetCheckPackageHandle(ctx context.Context) (CheckPackageHandle, error)

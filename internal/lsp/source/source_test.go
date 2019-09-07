@@ -461,11 +461,12 @@ func (r *runner) Import(t *testing.T, data tests.Imports) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", spn, err)
 		}
-		tok, err := f.(source.GoFile).GetToken(ctx)
+		fh := f.Handle(ctx)
+		tok, err := r.view.Session().Cache().TokenHandle(fh).Token(ctx)
 		if err != nil {
-			t.Fatalf("failed to get token for %s: %v", spn.URI(), err)
+			t.Fatal(err)
 		}
-		rng, err := spn.Range(span.NewTokenConverter(f.FileSet(), tok))
+		rng, err := spn.Range(span.NewTokenConverter(r.data.Exported.ExpectFileSet, tok))
 		if err != nil {
 			t.Fatalf("failed for %v: %v", spn, err)
 		}
@@ -476,7 +477,7 @@ func (r *runner) Import(t *testing.T, data tests.Imports) {
 			}
 			continue
 		}
-		data, _, err := f.Handle(ctx).Read(ctx)
+		data, _, err := fh.Read(ctx)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -596,7 +597,7 @@ func (r *runner) Reference(t *testing.T, data tests.References) {
 			want[pos] = true
 		}
 
-		refs, err := ident.References(ctx, r.view)
+		refs, err := ident.References(ctx)
 		if err != nil {
 			t.Fatalf("failed for %v: %v", src, err)
 		}

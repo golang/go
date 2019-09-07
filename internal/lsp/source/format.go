@@ -8,6 +8,7 @@ package source
 import (
 	"bytes"
 	"context"
+	"go/ast"
 	"go/format"
 	"go/token"
 
@@ -29,12 +30,17 @@ func Format(ctx context.Context, view View, f File) ([]protocol.TextEdit, error)
 	if !ok {
 		return nil, errors.Errorf("formatting is not supported for non-Go files")
 	}
-	file, err := gof.GetAST(ctx, ParseFull)
-	if file == nil {
-		return nil, err
-	}
 	pkg, err := gof.GetPackage(ctx)
 	if err != nil {
+		return nil, err
+	}
+	var file *ast.File
+	for _, ph := range pkg.GetHandles() {
+		if ph.File().Identity().URI == f.URI() {
+			file, err = ph.Cached(ctx)
+		}
+	}
+	if file == nil {
 		return nil, err
 	}
 	if hasListErrors(pkg.GetErrors()) || hasParseErrors(pkg, f.URI()) {
@@ -49,7 +55,7 @@ func Format(ctx context.Context, view View, f File) ([]protocol.TextEdit, error)
 		return computeTextEdits(ctx, view.Session().Cache().FileSet(), f, string(formatted))
 	}
 
-	fset := f.FileSet()
+	fset := view.Session().Cache().FileSet()
 	buf := &bytes.Buffer{}
 
 	// format.Node changes slightly from one release to another, so the version

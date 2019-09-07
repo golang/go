@@ -21,8 +21,9 @@ import (
 // IdentifierInfo holds information about an identifier in Go source.
 type IdentifierInfo struct {
 	Name string
-	mappedRange
+	View View
 	File GoFile
+	mappedRange
 
 	Type struct {
 		mappedRange
@@ -69,11 +70,11 @@ func findIdentifier(ctx context.Context, view View, f GoFile, pkg Package, file 
 	// If the position is not an identifier but immediately follows
 	// an identifier or selector period (as is common when
 	// requesting a completion), use the path to the preceding node.
-	result, err := identifier(ctx, view, f, pkg, file, pos-1)
-	if result == nil && err == nil {
-		err = errors.Errorf("no identifier found for %s", f.FileSet().Position(pos))
+	ident, err := identifier(ctx, view, f, pkg, file, pos-1)
+	if ident == nil && err == nil {
+		err = errors.New("no identifier found")
 	}
-	return result, err
+	return ident, err
 }
 
 // identifier checks a single position for a potential identifier.
@@ -92,6 +93,7 @@ func identifier(ctx context.Context, view View, f GoFile, pkg Package, file *ast
 		return nil, errors.Errorf("can't find node enclosing position")
 	}
 	result := &IdentifierInfo{
+		View: view,
 		File: f,
 		qf:   qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo()),
 		pkg:  pkg,
@@ -168,7 +170,7 @@ func identifier(ctx context.Context, view View, f GoFile, pkg Package, file *ast
 	if result.Declaration.mappedRange, err = objToMappedRange(ctx, view, result.Declaration.obj); err != nil {
 		return nil, err
 	}
-	if result.Declaration.node, err = objToNode(ctx, f.View(), pkg.GetTypes(), result.Declaration.obj, result.Declaration.mappedRange.spanRange); err != nil {
+	if result.Declaration.node, err = objToNode(ctx, view, pkg.GetTypes(), result.Declaration.obj, result.Declaration.mappedRange.spanRange); err != nil {
 		return nil, err
 	}
 	typ := pkg.GetTypesInfo().TypeOf(result.ident)
@@ -268,6 +270,7 @@ func importSpec(ctx context.Context, view View, f GoFile, fAST *ast.File, pkg Pa
 		return nil, errors.Errorf("import path not quoted: %s (%v)", imp.Path.Value, err)
 	}
 	result := &IdentifierInfo{
+		View: view,
 		File: f,
 		Name: importPath,
 		pkg:  pkg,

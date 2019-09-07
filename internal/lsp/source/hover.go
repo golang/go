@@ -46,7 +46,7 @@ func (i *IdentifierInfo) Hover(ctx context.Context) (*HoverInformation, error) {
 	switch x := h.source.(type) {
 	case ast.Node:
 		var b strings.Builder
-		if err := format.Node(&b, i.File.FileSet(), x); err != nil {
+		if err := format.Node(&b, i.View.Session().Cache().FileSet(), x); err != nil {
 			return nil, err
 		}
 		h.Signature = b.String()

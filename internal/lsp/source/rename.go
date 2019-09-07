@@ -110,14 +110,14 @@ func (i *IdentifierInfo) Rename(ctx context.Context, view View, newName string) 
 		return nil, errors.Errorf("failed to rename because %q is declared in package %q", i.Name, i.Declaration.obj.Pkg().Name())
 	}
 
-	refs, err := i.References(ctx, view)
+	refs, err := i.References(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	r := renamer{
 		ctx:          ctx,
-		fset:         i.File.FileSet(),
+		fset:         view.Session().Cache().FileSet(),
 		refs:         refs,
 		objsToUpdate: make(map[types.Object]bool),
 		from:         i.Name,
@@ -164,8 +164,16 @@ func (i *IdentifierInfo) Rename(ctx context.Context, view View, newName string) 
 // getPkgName gets the pkg name associated with an identifer representing
 // the import path in an import spec.
 func (i *IdentifierInfo) getPkgName(ctx context.Context) (*IdentifierInfo, error) {
-	file, err := i.File.GetAST(ctx, ParseHeader)
-	if err != nil {
+	var (
+		file *ast.File
+		err  error
+	)
+	for _, ph := range i.pkg.GetHandles() {
+		if ph.File().Identity().URI == i.File.URI() {
+			file, err = ph.Cached(ctx)
+		}
+	}
+	if file == nil {
 		return nil, err
 	}
 	var namePos token.Pos
@@ -211,6 +219,7 @@ func getPkgNameIdentifier(ctx context.Context, ident *IdentifierInfo, pkgName *t
 	}
 	return &IdentifierInfo{
 		Name:             pkgName.Name(),
+		View:             ident.View,
 		mappedRange:      decl.mappedRange,
 		File:             ident.File,
 		Declaration:      decl,

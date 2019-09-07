@@ -18,14 +18,20 @@ func DocumentSymbols(ctx context.Context, view View, f GoFile) ([]protocol.Docum
 	ctx, done := trace.StartSpan(ctx, "source.DocumentSymbols")
 	defer done()
 
-	file, err := f.GetAST(ctx, ParseFull)
-	if file == nil {
-		return nil, err
-	}
 	pkg, err := f.GetPackage(ctx)
 	if err != nil {
 		return nil, err
 	}
+	var file *ast.File
+	for _, ph := range pkg.GetHandles() {
+		if ph.File().Identity().URI == f.URI() {
+			file, err = ph.Cached(ctx)
+		}
+	}
+	if file == nil {
+		return nil, err
+	}
+
 	info := pkg.GetTypesInfo()
 	q := qualifier(file, pkg.GetTypes(), info)
 

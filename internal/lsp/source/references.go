@@ -25,7 +25,7 @@ type ReferenceInfo struct {
 
 // References returns a list of references for a given identifier within the packages
 // containing i.File. Declarations appear first in the result.
-func (i *IdentifierInfo) References(ctx context.Context, view View) ([]*ReferenceInfo, error) {
+func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, error) {
 	ctx, done := trace.StartSpan(ctx, "source.References")
 	defer done()
 	var references []*ReferenceInfo
@@ -34,8 +34,7 @@ func (i *IdentifierInfo) References(ctx context.Context, view View) ([]*Referenc
 	if i.Declaration.obj == nil {
 		return nil, errors.Errorf("no references for an import spec")
 	}
-
-	pkgs, err := i.File.GetPackages(ctx)
+	pkgs, err := i.File.GetCachedPackages(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +60,7 @@ func (i *IdentifierInfo) References(ctx context.Context, view View) ([]*Referenc
 			if obj == nil || !sameObj(obj, i.Declaration.obj) {
 				continue
 			}
-			rng, err := posToRange(ctx, view, ident.Pos(), ident.End())
+			rng, err := posToRange(ctx, i.View, ident.Pos(), ident.End())
 			if err != nil {
 				return nil, err
 			}
@@ -79,7 +78,7 @@ func (i *IdentifierInfo) References(ctx context.Context, view View) ([]*Referenc
 			if obj == nil || !sameObj(obj, i.Declaration.obj) {
 				continue
 			}
-			rng, err := posToRange(ctx, view, ident.Pos(), ident.End())
+			rng, err := posToRange(ctx, i.View, ident.Pos(), ident.End())
 			if err != nil {
 				return nil, err
 			}

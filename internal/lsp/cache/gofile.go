@@ -7,7 +7,6 @@ package cache
 import (
 	"context"
 	"go/ast"
-	"go/token"
 	"sync"
 
 	"golang.org/x/tools/internal/lsp/source"
@@ -47,36 +46,6 @@ func (f *goFile) metadata() []*metadata {
 		result = append(result, m)
 	}
 	return result
-}
-
-func (f *goFile) GetToken(ctx context.Context) (*token.File, error) {
-	file, err := f.GetAST(ctx, source.ParseFull)
-	if file == nil {
-		return nil, err
-	}
-	tok := f.view.session.cache.fset.File(file.Pos())
-	if tok == nil {
-		return nil, errors.Errorf("no token.File for %s", f.URI())
-	}
-	return tok, nil
-}
-
-func (f *goFile) GetAST(ctx context.Context, mode source.ParseMode) (*ast.File, error) {
-	ctx = telemetry.File.With(ctx, f.URI())
-	fh := f.Handle(ctx)
-
-	if f.isDirty(ctx, fh) || f.wrongParseMode(ctx, fh, mode) {
-		if err := f.view.loadParseTypecheck(ctx, f, fh); err != nil {
-			return nil, err
-		}
-	}
-	// Check for a cached AST first, in case getting a trimmed version would actually cause a re-parse.
-	cached, err := f.view.session.cache.cachedAST(fh, mode)
-	if cached != nil || err != nil {
-		return cached, err
-	}
-	ph := f.view.session.cache.ParseGoHandle(fh, mode)
-	return ph.Parse(ctx)
 }
 
 func (cache *cache) cachedAST(fh source.FileHandle, mode source.ParseMode) (*ast.File, error) {
@@ -173,6 +142,24 @@ func (f *goFile) GetCachedPackage(ctx context.Context) (source.Package, error) {
 		return nil, err
 	}
 	return cph.Cached(ctx)
+}
+
+func (f *goFile) GetCachedPackages(ctx context.Context) ([]source.Package, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	var pkgs []source.Package
+	for _, cph := range f.pkgs {
+		pkg, err := cph.Cached(ctx)
+		if err != nil {
+			return nil, err
+		}
+		pkgs = append(pkgs, pkg)
+	}
+	if len(pkgs) == 0 {
+		return nil, errors.Errorf("no CheckPackageHandles for %s", f.URI())
+	}
+	return pkgs, nil
 }
 
 // bestCheckPackageHandle picks the "narrowest" package for a given file.
