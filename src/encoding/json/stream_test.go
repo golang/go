@@ -159,33 +159,39 @@ func TestEncoderSetEscapeHTML(t *testing.T) {
 }
 
 func TestDecoder(t *testing.T) {
-	for i := 0; i <= len(streamTest); i++ {
-		// Use stream without newlines as input,
-		// just to stress the decoder even more.
-		// Our test input does not include back-to-back numbers.
-		// Otherwise stripping the newlines would
-		// merge two adjacent JSON values.
-		var buf bytes.Buffer
-		for _, c := range nlines(streamEncoded, i) {
-			if c != '\n' {
-				buf.WriteRune(c)
-			}
-		}
-		out := make([]interface{}, i)
-		dec := NewDecoder(&buf)
-		for j := range out {
-			if err := dec.Decode(&out[j]); err != nil {
-				t.Fatalf("decode #%d/%d: %v", j, i, err)
-			}
-		}
-		if !reflect.DeepEqual(out, streamTest[0:i]) {
-			t.Errorf("decoding %d items: mismatch", i)
-			for j := range out {
-				if !reflect.DeepEqual(out[j], streamTest[j]) {
-					t.Errorf("#%d: have %v want %v", j, out[j], streamTest[j])
+	// Test with and without key interning
+	for intern := 0; intern < 2; intern++ {
+		for i := 0; i <= len(streamTest); i++ {
+			// Use stream without newlines as input,
+			// just to stress the decoder even more.
+			// Our test input does not include back-to-back numbers.
+			// Otherwise stripping the newlines would
+			// merge two adjacent JSON values.
+			var buf bytes.Buffer
+			for _, c := range nlines(streamEncoded, i) {
+				if c != '\n' {
+					buf.WriteRune(c)
 				}
 			}
-			break
+			out := make([]interface{}, i)
+			dec := NewDecoder(&buf)
+			if intern == 1 {
+				dec.InternKeys()
+			}
+			for j := range out {
+				if err := dec.Decode(&out[j]); err != nil {
+					t.Fatalf("decode #%d/%d: %v", j, i, err)
+				}
+			}
+			if !reflect.DeepEqual(out, streamTest[0:i]) {
+				t.Errorf("decoding %d items: mismatch", i)
+				for j := range out {
+					if !reflect.DeepEqual(out[j], streamTest[j]) {
+						t.Errorf("#%d: have %v want %v", j, out[j], streamTest[j])
+					}
+				}
+				break
+			}
 		}
 	}
 }
@@ -394,35 +400,40 @@ var tokenStreamCases = []tokenStreamCase{
 }
 
 func TestDecodeInStream(t *testing.T) {
-	for ci, tcase := range tokenStreamCases {
+	for intern := 0; intern < 2; intern++ {
+		for ci, tcase := range tokenStreamCases {
 
-		dec := NewDecoder(strings.NewReader(tcase.json))
-		for i, etk := range tcase.expTokens {
-
-			var tk interface{}
-			var err error
-
-			if dt, ok := etk.(decodeThis); ok {
-				etk = dt.v
-				err = dec.Decode(&tk)
-			} else {
-				tk, err = dec.Token()
+			dec := NewDecoder(strings.NewReader(tcase.json))
+			if intern == 1 {
+				dec.InternKeys()
 			}
-			if experr, ok := etk.(error); ok {
-				if err == nil || !reflect.DeepEqual(err, experr) {
-					t.Errorf("case %v: Expected error %#v in %q, but was %#v", ci, experr, tcase.json, err)
+			for i, etk := range tcase.expTokens {
+
+				var tk interface{}
+				var err error
+
+				if dt, ok := etk.(decodeThis); ok {
+					etk = dt.v
+					err = dec.Decode(&tk)
+				} else {
+					tk, err = dec.Token()
 				}
-				break
-			} else if err == io.EOF {
-				t.Errorf("case %v: Unexpected EOF in %q", ci, tcase.json)
-				break
-			} else if err != nil {
-				t.Errorf("case %v: Unexpected error '%#v' in %q", ci, err, tcase.json)
-				break
-			}
-			if !reflect.DeepEqual(tk, etk) {
-				t.Errorf(`case %v: %q @ %v expected %T(%v) was %T(%v)`, ci, tcase.json, i, etk, etk, tk, tk)
-				break
+				if experr, ok := etk.(error); ok {
+					if err == nil || !reflect.DeepEqual(err, experr) {
+						t.Errorf("case %v: Expected error %#v in %q, but was %#v", ci, experr, tcase.json, err)
+					}
+					break
+				} else if err == io.EOF {
+					t.Errorf("case %v: Unexpected EOF in %q", ci, tcase.json)
+					break
+				} else if err != nil {
+					t.Errorf("case %v: Unexpected error '%#v' in %q", ci, err, tcase.json)
+					break
+				}
+				if !reflect.DeepEqual(tk, etk) {
+					t.Errorf(`case %v: %q @ %v expected %T(%v) was %T(%v)`, ci, tcase.json, i, etk, etk, tk, tk)
+					break
+				}
 			}
 		}
 	}

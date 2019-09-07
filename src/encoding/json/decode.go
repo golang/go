@@ -212,6 +212,9 @@ type decodeState struct {
 	savedError            error
 	useNumber             bool
 	disallowUnknownFields bool
+
+	// If non-nil, keys are interned in this map
+	internedKeys map[string]string
 }
 
 // readIndex returns the position of the last byte read.
@@ -1084,6 +1087,13 @@ func (d *decodeState) objectInterface() map[string]interface{} {
 		key, ok := unquote(item)
 		if !ok {
 			panic(phasePanicMsg)
+		}
+		if d.internedKeys != nil {
+			if s, ok := d.internedKeys[key]; ok {
+				key = s
+			} else {
+				d.internedKeys[key] = key
+			}
 		}
 
 		// Read : before value.

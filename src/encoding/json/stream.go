@@ -41,6 +41,15 @@ func (dec *Decoder) UseNumber() { dec.d.useNumber = true }
 // non-ignored, exported fields in the destination.
 func (dec *Decoder) DisallowUnknownFields() { dec.d.disallowUnknownFields = true }
 
+// InternKeys causes the Decoder to intern object keys to prevent
+// allocating multiple copies of the same string. This is only useful
+// if the JSON stream has repeated keys.
+func (dec *Decoder) InternKeys() {
+	if dec.d.internedKeys == nil {
+		dec.d.internedKeys = make(map[string]string)
+	}
+}
+
 // Decode reads the next JSON-encoded value from its
 // input and stores it in the value pointed to by v.
 //
@@ -444,6 +453,13 @@ func (dec *Decoder) Token() (Token, error) {
 					return nil, err
 				}
 				dec.tokenState = tokenObjectColon
+				if dec.d.internedKeys != nil {
+					if s, ok := dec.d.internedKeys[x]; ok {
+						x = s
+					} else {
+						dec.d.internedKeys[x] = x
+					}
+				}
 				return x, nil
 			}
 			fallthrough
