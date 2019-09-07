@@ -1,4 +1,4 @@
-//+build ignore
+// +build ignore
 
 // This file is the input to TestValueForExprStructConv in identical_test.go,
 // which uses the same framework as TestValueForExpr does in source_test.go.
