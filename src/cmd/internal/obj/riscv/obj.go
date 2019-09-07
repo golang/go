@@ -31,8 +31,43 @@ var RISCV64DWARFRegisters = map[int16]int16{}
 
 func buildop(ctxt *obj.Link) {}
 
+// progedit is called individually for each *obj.Prog. It normalizes instruction
+// formats and eliminates as many pseudo-instructions as possible.
 func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
-	// TODO(jsing): Implement.
+
+	// Expand binary instructions to ternary ones.
+	if p.Reg == 0 {
+		switch p.As {
+		case AADDI, ASLTI, ASLTIU, AANDI, AORI, AXORI, ASLLI, ASRLI, ASRAI,
+			AADD, AAND, AOR, AXOR, ASLL, ASRL, ASUB, ASRA:
+			p.Reg = p.To.Reg
+		}
+	}
+
+	// Rewrite instructions with constant operands to refer to the immediate
+	// form of the instruction.
+	if p.From.Type == obj.TYPE_CONST {
+		switch p.As {
+		case AADD:
+			p.As = AADDI
+		case ASLT:
+			p.As = ASLTI
+		case ASLTU:
+			p.As = ASLTIU
+		case AAND:
+			p.As = AANDI
+		case AOR:
+			p.As = AORI
+		case AXOR:
+			p.As = AXORI
+		case ASLL:
+			p.As = ASLLI
+		case ASRL:
+			p.As = ASRLI
+		case ASRA:
+			p.As = ASRAI
+		}
+	}
 }
 
 // setPCs sets the Pc field in all instructions reachable from p.
@@ -83,6 +118,103 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 }
 
+func regVal(r, min, max int16) uint32 {
+	if r < min || r > max {
+		panic(fmt.Sprintf("register out of range, want %d < %d < %d", min, r, max))
+	}
+	return uint32(r - min)
+}
+
+// regI returns an integer register.
+func regI(r int16) uint32 {
+	return regVal(r, REG_X0, REG_X31)
+}
+
+// regAddr extracts a register from an Addr.
+func regAddr(a obj.Addr, min, max int16) uint32 {
+	if a.Type != obj.TYPE_REG {
+		panic(fmt.Sprintf("ill typed: %+v", a))
+	}
+	return regVal(a.Reg, min, max)
+}
+
+// regIAddr extracts the integer register from an Addr.
+func regIAddr(a obj.Addr) uint32 {
+	return regAddr(a, REG_X0, REG_X31)
+}
+
+// immFits reports whether immediate value x fits in nbits bits as a
+// signed integer.
+func immFits(x int64, nbits uint) bool {
+	nbits--
+	var min int64 = -1 << nbits
+	var max int64 = 1<<nbits - 1
+	return min <= x && x <= max
+}
+
+// immI extracts the integer literal of the specified size from an Addr.
+func immI(a obj.Addr, nbits uint) uint32 {
+	if a.Type != obj.TYPE_CONST {
+		panic(fmt.Sprintf("ill typed: %+v", a))
+	}
+	if !immFits(a.Offset, nbits) {
+		panic(fmt.Sprintf("immediate %d in %v cannot fit in %d bits", a.Offset, a, nbits))
+	}
+	return uint32(a.Offset)
+}
+
+func wantImm(p *obj.Prog, pos string, a obj.Addr, nbits uint) {
+	if a.Type != obj.TYPE_CONST {
+		p.Ctxt.Diag("%v\texpected immediate in %s position but got %s", p, pos, obj.Dconv(p, &a))
+		return
+	}
+	if !immFits(a.Offset, nbits) {
+		p.Ctxt.Diag("%v\timmediate in %s position cannot be larger than %d bits but got %d", p, pos, nbits, a.Offset)
+	}
+}
+
+func wantReg(p *obj.Prog, pos string, descr string, r, min, max int16) {
+	if r < min || r > max {
+		p.Ctxt.Diag("%v\texpected %s register in %s position but got non-%s register %s", p, descr, pos, descr, regName(int(r)))
+	}
+}
+
+// wantIntReg checks that r is an integer register.
+func wantIntReg(p *obj.Prog, pos string, r int16) {
+	wantReg(p, pos, "integer", r, REG_X0, REG_X31)
+}
+
+func wantRegAddr(p *obj.Prog, pos string, a *obj.Addr, descr string, min int16, max int16) {
+	if a == nil {
+		p.Ctxt.Diag("%v\texpected register in %s position but got nothing", p, pos)
+		return
+	}
+	if a.Type != obj.TYPE_REG {
+		p.Ctxt.Diag("%v\texpected register in %s position but got %s", p, pos, obj.Dconv(p, a))
+		return
+	}
+	if a.Reg < min || a.Reg > max {
+		p.Ctxt.Diag("%v\texpected %s register in %s position but got non-%s register %s", p, descr, pos, descr, obj.Dconv(p, a))
+	}
+}
+
+// wantIntRegAddr checks that a contains an integer register.
+func wantIntRegAddr(p *obj.Prog, pos string, a *obj.Addr) {
+	wantRegAddr(p, pos, a, "integer", REG_X0, REG_X31)
+}
+
+func validateRIII(p *obj.Prog) {
+	wantIntRegAddr(p, "from", &p.From)
+	wantIntReg(p, "reg", p.Reg)
+	wantIntRegAddr(p, "to", &p.To)
+}
+
+func validateII(p *obj.Prog) {
+	wantImm(p, "from", p.From, 12)
+	wantIntReg(p, "reg", p.Reg)
+	wantIntRegAddr(p, "to", &p.To)
+}
+
 func validateRaw(p *obj.Prog) {
 	// Treat the raw value specially as a 32-bit unsigned integer.
 	// Nobody wants to enter negative machine code.
@@ -96,6 +228,42 @@ func validateRaw(p *obj.Prog) {
 	}
 }
 
+// encodeR encodes an R-type RISC-V instruction.
+func encodeR(p *obj.Prog, rs1 uint32, rs2 uint32, rd uint32) uint32 {
+	ins := encode(p.As)
+	if ins == nil {
+		panic("encodeR: could not encode instruction")
+	}
+	if ins.rs2 != 0 && rs2 != 0 {
+		panic("encodeR: instruction uses rs2, but rs2 was nonzero")
+	}
+
+	// Use Scond for the floating-point rounding mode override.
+	// TODO(sorear): Is there a more appropriate way to handle opcode extension bits like this?
+	return ins.funct7<<25 | ins.rs2<<20 | rs2<<20 | rs1<<15 | ins.funct3<<12 | uint32(p.Scond)<<12 | rd<<7 | ins.opcode
+}
+
+func encodeRIII(p *obj.Prog) uint32 {
+	return encodeR(p, regI(p.Reg), regIAddr(p.From), regIAddr(p.To))
+}
+
+// encodeI encodes an I-type RISC-V instruction.
+func encodeI(p *obj.Prog, rd uint32) uint32 {
+	imm := immI(p.From, 12)
+	rs1 := regI(p.Reg)
+	ins := encode(p.As)
+	if ins == nil {
+		panic("encodeI: could not encode instruction")
+	}
+	imm |= uint32(ins.csr)
+	return imm<<20 | rs1<<15 | ins.funct3<<12 | rd<<7 | ins.opcode
+}
+
+func encodeII(p *obj.Prog) uint32 {
+	return encodeI(p, regIAddr(p.To))
+}
+
+// encodeRaw encodes a raw instruction value.
 func encodeRaw(p *obj.Prog) uint32 {
 	// Treat the raw value specially as a 32-bit unsigned integer.
 	// Nobody wants to enter negative machine code.
@@ -116,6 +284,22 @@ type encoding struct {
 }
 
 var (
+	// Encodings have the following naming convention:
+	//
+	//  1. the instruction encoding (R/I/S/SB/U/UJ), in lowercase
+	//  2. zero or more register operand identifiers (I = integer
+	//     register, F = float register), in uppercase
+	//  3. the word "Encoding"
+	//
+	// For example, rIIIEncoding indicates an R-type instruction with two
+	// integer register inputs and an integer register output; sFEncoding
+	// indicates an S-type instruction with rs2 being a float register.
+
+	rIIIEncoding = encoding{encode: encodeRIII, validate: validateRIII, length: 4}
+
+	iIEncoding = encoding{encode: encodeII, validate: validateII, length: 4}
+
+	// rawEncoding encodes a raw instruction byte sequence.
 	rawEncoding = encoding{encode: encodeRaw, validate: validateRaw, length: 4}
 
 	// pseudoOpEncoding panics if encoding is attempted, but does no validation.
@@ -130,6 +314,29 @@ var (
 // Instructions are masked with obj.AMask to keep indices small.
 var encodingForAs = [ALAST & obj.AMask]encoding{
 	// TODO(jsing): Implement remaining instructions.
+
+	// Unprivileged ISA
+
+	// 2.4: Integer Computational Instructions
+	AADDI & obj.AMask:  iIEncoding,
+	ASLTI & obj.AMask:  iIEncoding,
+	ASLTIU & obj.AMask: iIEncoding,
+	AANDI & obj.AMask:  iIEncoding,
+	AORI & obj.AMask:   iIEncoding,
+	AXORI & obj.AMask:  iIEncoding,
+	ASLLI & obj.AMask:  iIEncoding,
+	ASRLI & obj.AMask:  iIEncoding,
+	ASRAI & obj.AMask:  iIEncoding,
+	AADD & obj.AMask:   rIIIEncoding,
+	ASLT & obj.AMask:   rIIIEncoding,
+	ASLTU & obj.AMask:  rIIIEncoding,
+	AAND & obj.AMask:   rIIIEncoding,
+	AOR & obj.AMask:    rIIIEncoding,
+	AXOR & obj.AMask:   rIIIEncoding,
+	ASLL & obj.AMask:   rIIIEncoding,
+	ASRL & obj.AMask:   rIIIEncoding,
+	ASUB & obj.AMask:   rIIIEncoding,
+	ASRA & obj.AMask:   rIIIEncoding,
 
 	// Escape hatch
 	AWORD & obj.AMask: rawEncoding,
