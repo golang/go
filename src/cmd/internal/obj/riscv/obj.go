@@ -68,6 +68,35 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.As = ASRAI
 		}
 	}
+
+	switch p.As {
+	case obj.AUNDEF, AECALL, AEBREAK, ASCALL, ASBREAK, ARDCYCLE, ARDTIME, ARDINSTRET:
+		switch p.As {
+		case obj.AUNDEF:
+			p.As = AEBREAK
+		case ASCALL:
+			// SCALL is the old name for ECALL.
+			p.As = AECALL
+		case ASBREAK:
+			// SBREAK is the old name for EBREAK.
+			p.As = AEBREAK
+		}
+
+		ins := encode(p.As)
+		if ins == nil {
+			panic("progedit: tried to rewrite nonexistent instruction")
+		}
+
+		// The CSR isn't exactly an offset, but it winds up in the
+		// immediate area of the encoded instruction, so record it in
+		// the Offset field.
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = ins.csr
+		p.Reg = REG_ZERO
+		if p.To.Type == obj.TYPE_NONE {
+			p.To.Type, p.To.Reg = obj.TYPE_REG, REG_ZERO
+		}
+	}
 }
 
 // setPCs sets the Pc field in all instructions reachable from p.
@@ -390,6 +419,17 @@ var encodingForAs = [ALAST & obj.AMask]encoding{
 	ADIVUW & obj.AMask:  rIIIEncoding,
 	AREMW & obj.AMask:   rIIIEncoding,
 	AREMUW & obj.AMask:  rIIIEncoding,
+
+	// 10.1: Base Counters and Timers
+	ARDCYCLE & obj.AMask:   iIEncoding,
+	ARDTIME & obj.AMask:    iIEncoding,
+	ARDINSTRET & obj.AMask: iIEncoding,
+
+	// Privileged ISA
+
+	// 3.2.1: Environment Call and Breakpoint
+	AECALL & obj.AMask:  iIEncoding,
+	AEBREAK & obj.AMask: iIEncoding,
 
 	// Escape hatch
 	AWORD & obj.AMask: rawEncoding,

@@ -116,6 +116,19 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	REMW	X5, X6, X7				// bb635302
 	REMUW	X5, X6, X7				// bb735302
 
+	// 10.1: Base Counters and Timers
+	RDCYCLE		X5				// f32200c0
+	RDTIME		X5				// f32210c0
+	RDINSTRET	X5				// f32220c0
+
+	// Privileged ISA
+
+	// 3.2.1: Environment Call and Breakpoint
+	ECALL						// 73000000
+	SCALL						// 73000000
+	EBREAK						// 73001000
+	SBREAK						// 73001000
+
 	// Arbitrary bytes (entered in little-endian mode)
 	WORD	$0x12345678	// WORD $305419896	// 78563412
 	WORD	$0x9abcdef0	// WORD $2596069104	// f0debc9a
