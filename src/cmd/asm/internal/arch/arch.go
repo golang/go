@@ -11,6 +11,7 @@ import (
 	"cmd/internal/obj/arm64"
 	"cmd/internal/obj/mips"
 	"cmd/internal/obj/ppc64"
+	"cmd/internal/obj/riscv"
 	"cmd/internal/obj/s390x"
 	"cmd/internal/obj/wasm"
 	"cmd/internal/obj/x86"
@@ -73,6 +74,8 @@ func Set(GOARCH string) *Arch {
 		return archPPC64(&ppc64.Linkppc64)
 	case "ppc64le":
 		return archPPC64(&ppc64.Linkppc64le)
+	case "riscv64":
+		return archRISCV64()
 	case "s390x":
 		return archS390x()
 	case "wasm":
@@ -83,6 +86,14 @@ func Set(GOARCH string) *Arch {
 
 func jumpX86(word string) bool {
 	return word[0] == 'J' || word == "CALL" || strings.HasPrefix(word, "LOOP") || word == "XBEGIN"
+}
+
+func jumpRISCV(word string) bool {
+	switch word {
+	case "BEQ", "BNE", "BLT", "BGE", "BLTU", "BGEU", "CALL", "JAL", "JALR", "JMP":
+		return true
+	}
+	return false
 }
 
 func jumpWasm(word string) bool {
@@ -513,6 +524,117 @@ func archMips64(linkArch *obj.LinkArch) *Arch {
 		RegisterPrefix: registerPrefix,
 		RegisterNumber: mipsRegisterNumber,
 		IsJump:         jumpMIPS,
+	}
+}
+
+func archRISCV64() *Arch {
+	register := make(map[string]int16)
+
+	// Standard register names.
+	for i := riscv.REG_X0; i <= riscv.REG_X31; i++ {
+		name := fmt.Sprintf("X%d", i-riscv.REG_X0)
+		register[name] = int16(i)
+	}
+	for i := riscv.REG_F0; i <= riscv.REG_F31; i++ {
+		name := fmt.Sprintf("F%d", i-riscv.REG_F0)
+		register[name] = int16(i)
+	}
+
+	// General registers with ABI names.
+	register["ZERO"] = riscv.REG_ZERO
+	register["RA"] = riscv.REG_RA
+	register["SP"] = riscv.REG_SP
+	register["GP"] = riscv.REG_GP
+	register["TP"] = riscv.REG_TP
+	register["T0"] = riscv.REG_T0
+	register["T1"] = riscv.REG_T1
+	register["T2"] = riscv.REG_T2
+	register["S0"] = riscv.REG_S0
+	register["S1"] = riscv.REG_S1
+	register["A0"] = riscv.REG_A0
+	register["A1"] = riscv.REG_A1
+	register["A2"] = riscv.REG_A2
+	register["A3"] = riscv.REG_A3
+	register["A4"] = riscv.REG_A4
+	register["A5"] = riscv.REG_A5
+	register["A6"] = riscv.REG_A6
+	register["A7"] = riscv.REG_A7
+	register["S2"] = riscv.REG_S2
+	register["S3"] = riscv.REG_S3
+	register["S4"] = riscv.REG_S4
+	register["S5"] = riscv.REG_S5
+	register["S6"] = riscv.REG_S6
+	register["S7"] = riscv.REG_S7
+	register["S8"] = riscv.REG_S8
+	register["S9"] = riscv.REG_S9
+	register["S10"] = riscv.REG_S10
+	register["S11"] = riscv.REG_S11
+	register["T3"] = riscv.REG_T3
+	register["T4"] = riscv.REG_T4
+	register["T5"] = riscv.REG_T5
+	register["T6"] = riscv.REG_T6
+
+	// Go runtime register names.
+	register["g"] = riscv.REG_G
+	register["CTXT"] = riscv.REG_CTXT
+	register["TMP"] = riscv.REG_TMP
+
+	// ABI names for floating point register.
+	register["FT0"] = riscv.REG_FT0
+	register["FT1"] = riscv.REG_FT1
+	register["FT2"] = riscv.REG_FT2
+	register["FT3"] = riscv.REG_FT3
+	register["FT4"] = riscv.REG_FT4
+	register["FT5"] = riscv.REG_FT5
+	register["FT6"] = riscv.REG_FT6
+	register["FT7"] = riscv.REG_FT7
+	register["FS0"] = riscv.REG_FS0
+	register["FS1"] = riscv.REG_FS1
+	register["FA0"] = riscv.REG_FA0
+	register["FA1"] = riscv.REG_FA1
+	register["FA2"] = riscv.REG_FA2
+	register["FA3"] = riscv.REG_FA3
+	register["FA4"] = riscv.REG_FA4
+	register["FA5"] = riscv.REG_FA5
+	register["FA6"] = riscv.REG_FA6
+	register["FA7"] = riscv.REG_FA7
+	register["FS2"] = riscv.REG_FS2
+	register["FS3"] = riscv.REG_FS3
+	register["FS4"] = riscv.REG_FS4
+	register["FS5"] = riscv.REG_FS5
+	register["FS6"] = riscv.REG_FS6
+	register["FS7"] = riscv.REG_FS7
+	register["FS8"] = riscv.REG_FS8
+	register["FS9"] = riscv.REG_FS9
+	register["FS10"] = riscv.REG_FS10
+	register["FS11"] = riscv.REG_FS11
+	register["FT8"] = riscv.REG_FT8
+	register["FT9"] = riscv.REG_FT9
+	register["FT10"] = riscv.REG_FT10
+	register["FT11"] = riscv.REG_FT11
+
+	// Pseudo-registers.
+	register["SB"] = RSB
+	register["FP"] = RFP
+	register["PC"] = RPC
+
+	instructions := make(map[string]obj.As)
+	for i, s := range obj.Anames {
+		instructions[s] = obj.As(i)
+	}
+	for i, s := range riscv.Anames {
+		if obj.As(i) >= obj.A_ARCHSPECIFIC {
+			instructions[s] = obj.As(i) + obj.ABaseRISCV
+		}
+	}
+
+	return &Arch{
+		LinkArch:       &riscv.LinkRISCV64,
+		Instructions:   instructions,
+		Register:       register,
+		RegisterPrefix: nil,
+		RegisterNumber: nilRegisterNumber,
+		IsJump:         jumpRISCV,
 	}
 }
 
