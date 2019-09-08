@@ -3,17 +3,8 @@
 
 package ssa
 
-import "fmt"
-import "math"
-import "cmd/internal/obj"
 import "cmd/internal/objabi"
 import "cmd/compile/internal/types"
-
-var _ = fmt.Println   // in case not otherwise used
-var _ = math.MinInt8  // in case not otherwise used
-var _ = obj.ANOP      // in case not otherwise used
-var _ = objabi.GOROOT // in case not otherwise used
-var _ = types.TypeMem // in case not otherwise used
 
 func rewriteValueARM(v *Value) bool {
 	switch v.Op {
@@ -429,6 +420,8 @@ func rewriteValueARM(v *Value) bool {
 		return rewriteValueARM_OpARMXORshiftRLreg_0(v)
 	case OpARMXORshiftRR:
 		return rewriteValueARM_OpARMXORshiftRR_0(v)
+	case OpAbs:
+		return rewriteValueARM_OpAbs_0(v)
 	case OpAdd16:
 		return rewriteValueARM_OpAdd16_0(v)
 	case OpAdd32:
@@ -17188,6 +17181,17 @@ func rewriteValueARM_OpARMXORshiftRR_0(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueARM_OpAbs_0(v *Value) bool {
+	// match: (Abs x)
+	// cond:
+	// result: (ABSD x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARMABSD)
+		v.AddArg(x)
+		return true
+	}
+}
 func rewriteValueARM_OpAdd16_0(v *Value) bool {
 	// match: (Add16 x y)
 	// cond:
@@ -20238,6 +20242,7 @@ func rewriteValueARM_OpRotateLeft16_0(v *Value) bool {
 	return false
 }
 func rewriteValueARM_OpRotateLeft32_0(v *Value) bool {
+	b := v.Block
 	// match: (RotateLeft32 x (MOVWconst [c]))
 	// cond:
 	// result: (SRRconst [-c&31] x)
@@ -20254,7 +20259,20 @@ func rewriteValueARM_OpRotateLeft32_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
+	// match: (RotateLeft32 x y)
+	// cond:
+	// result: (SRR x (RSBconst [0] <y.Type> y))
+	for {
+		y := v.Args[1]
+		x := v.Args[0]
+		v.reset(OpARMSRR)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpARMRSBconst, y.Type)
+		v0.AuxInt = 0
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
 }
 func rewriteValueARM_OpRotateLeft8_0(v *Value) bool {
 	b := v.Block
@@ -21785,11 +21803,7 @@ func rewriteValueARM_OpZeromask_0(v *Value) bool {
 	}
 }
 func rewriteBlockARM(b *Block) bool {
-	config := b.Func.Config
-	typ := &config.Types
-	_ = typ
 	v := b.Control
-	_ = v
 	switch b.Kind {
 	case BlockARMEQ:
 		// match: (EQ (FlagEQ) yes no)

@@ -914,7 +914,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 			p.WriteString("-->")
 			continue
 
-		case fInnerXml:
+		case fInnerXML:
 			vf = indirect(vf)
 			iface := vf.Interface()
 			switch raw := iface.(type) {

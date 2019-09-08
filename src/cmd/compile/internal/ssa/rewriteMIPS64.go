@@ -3,17 +3,7 @@
 
 package ssa
 
-import "fmt"
-import "math"
-import "cmd/internal/obj"
-import "cmd/internal/objabi"
 import "cmd/compile/internal/types"
-
-var _ = fmt.Println   // in case not otherwise used
-var _ = math.MinInt8  // in case not otherwise used
-var _ = obj.ANOP      // in case not otherwise used
-var _ = objabi.GOROOT // in case not otherwise used
-var _ = types.TypeMem // in case not otherwise used
 
 func rewriteValueMIPS64(v *Value) bool {
 	switch v.Op {
@@ -6979,6 +6969,25 @@ func rewriteValueMIPS64_OpMove_10(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] {t} dst src mem)
+	// cond: s%8 == 0 && s >= 24 && s <= 8*128 && t.(*types.Type).Alignment()%8 == 0 && !config.noDuffDevice
+	// result: (DUFFCOPY [16 * (128 - s/8)] dst src mem)
+	for {
+		s := v.AuxInt
+		t := v.Aux
+		mem := v.Args[2]
+		dst := v.Args[0]
+		src := v.Args[1]
+		if !(s%8 == 0 && s >= 24 && s <= 8*128 && t.(*types.Type).Alignment()%8 == 0 && !config.noDuffDevice) {
+			break
+		}
+		v.reset(OpMIPS64DUFFCOPY)
+		v.AuxInt = 16 * (128 - s/8)
+		v.AddArg(dst)
+		v.AddArg(src)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Move [s] {t} dst src mem)
 	// cond: s > 24 || t.(*types.Type).Alignment()%8 != 0
 	// result: (LoweredMove [t.(*types.Type).Alignment()] dst src (ADDVconst <src.Type> src [s-moveSize(t.(*types.Type).Alignment(), config)]) mem)
 	for {
@@ -10186,11 +10195,7 @@ func rewriteValueMIPS64_OpZeroExt8to64_0(v *Value) bool {
 	}
 }
 func rewriteBlockMIPS64(b *Block) bool {
-	config := b.Func.Config
-	typ := &config.Types
-	_ = typ
 	v := b.Control
-	_ = v
 	switch b.Kind {
 	case BlockMIPS64EQ:
 		// match: (EQ (FPFlagTrue cmp) yes no)

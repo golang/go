@@ -947,7 +947,6 @@ func Getpgrp() (pid int) {
 //sysnb prlimit(pid int, resource int, newlimit *Rlimit, old *Rlimit) (err error) = SYS_PRLIMIT64
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	Removexattr(path string, attr string) (err error)
-//sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
 //sys	Setdomainname(p []byte) (err error)
 //sys	Sethostname(p []byte) (err error)
 //sysnb	Setpgid(pid int, pgid int) (err error)

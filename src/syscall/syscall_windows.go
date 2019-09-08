@@ -77,6 +77,12 @@ func UTF16PtrFromString(s string) (*uint16, error) {
 }
 
 // Errno is the Windows error number.
+//
+// Errno values can be tested against error values from the os package
+// using errors.Is. For example:
+//
+//	_, _, err := syscall.Syscall(...)
+//	if errors.Is(err, os.ErrNotExist) ...
 type Errno uintptr
 
 func langid(pri, sub uint16) uint32 { return uint32(sub)<<10 | uint32(pri) }
@@ -115,10 +121,6 @@ const _ERROR_BAD_NETPATH = Errno(53)
 
 func (e Errno) Is(target error) bool {
 	switch target {
-	case oserror.ErrTemporary:
-		return e.Temporary()
-	case oserror.ErrTimeout:
-		return e.Timeout()
 	case oserror.ErrPermission:
 		return e == ERROR_ACCESS_DENIED
 	case oserror.ErrExist:

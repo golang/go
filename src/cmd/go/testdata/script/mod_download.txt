@@ -85,6 +85,16 @@ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
 go mod download -json rsc.io/quote@v1.5.1
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.zip
 
+# download reports errors encountered when locating modules
+! go mod download bad/path
+stderr '^module bad/path: not a known dependency$'
+! go mod download bad/path@latest
+stderr '^bad/path@latest: malformed module path "bad/path": missing dot in first path element$'
+! go mod download rsc.io/quote@v1.999.999
+stderr '^rsc.io/quote@v1.999.999: reading .*/v1.999.999.info: 404 Not Found$'
+! go mod download -json bad/path
+stdout '^\t"Error": "module bad/path: not a known dependency"'
+
 # allow go mod download without go.mod
 env GO111MODULE=auto
 rm go.mod

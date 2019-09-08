@@ -64,6 +64,7 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 		if growMemory(needed-current) == -1 {
 			return nil
 		}
+		resetMemoryDataView()
 	}
 
 	return v
@@ -71,6 +72,10 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 
 func currentMemory() int32
 func growMemory(pages int32) int32
+
+// resetMemoryDataView signals the JS front-end that WebAssembly's memory.grow instruction has been used.
+// This allows the front-end to replace the old DataView object with a new one.
+func resetMemoryDataView()
 
 func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
 	mSysStatInc(sysStat, n)

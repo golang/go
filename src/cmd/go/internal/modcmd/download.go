@@ -89,7 +89,8 @@ func runDownload(cmd *base.Command, args []string) {
 		if info.Replace != nil {
 			info = info.Replace
 		}
-		if info.Version == "" {
+		if info.Version == "" && info.Error == nil {
+			// main module
 			continue
 		}
 		m := &moduleJSON{
@@ -97,6 +98,10 @@ func runDownload(cmd *base.Command, args []string) {
 			Version: info.Version,
 		}
 		mods = append(mods, m)
+		if info.Error != nil {
+			m.Error = info.Error.Err
+			continue
+		}
 		work.Add(m)
 	}
 
@@ -110,12 +115,17 @@ func runDownload(cmd *base.Command, args []string) {
 		// downloading the modules.
 		var latestArgs []string
 		for _, m := range mods {
+			if m.Error != "" {
+				continue
+			}
 			latestArgs = append(latestArgs, m.Path+"@latest")
 		}
 
-		for _, info := range modload.ListModules(latestArgs, listU, listVersions) {
-			if info.Version != "" {
-				latest[info.Path] = info.Version
+		if len(latestArgs) > 0 {
+			for _, info := range modload.ListModules(latestArgs, listU, listVersions) {
+				if info.Version != "" {
+					latest[info.Path] = info.Version
+				}
 			}
 		}
 	}
@@ -169,7 +179,7 @@ func runDownload(cmd *base.Command, args []string) {
 	} else {
 		for _, m := range mods {
 			if m.Error != "" {
-				base.Errorf("%s@%s: %s\n", m.Path, m.Version, m.Error)
+				base.Errorf("%s", m.Error)
 			}
 		}
 		base.ExitIfErrors()

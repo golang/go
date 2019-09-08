@@ -1950,11 +1950,20 @@ func test27660(t *testing.T) {
 			// increase the likelihood that the race described in #27660
 			// results in corruption of ThreadSanitizer's internal state
 			// and thus an assertion failure or segfault.
+			i := 0
 			for ctx.Err() == nil {
 				j := rand.Intn(100)
 				locks[j].Lock()
 				ints[j]++
 				locks[j].Unlock()
+				// needed for gccgo, to avoid creation of an
+				// unpreemptible "fast path" in this loop. Choice
+				// of (1<<24) is somewhat arbitrary.
+				if i%(1<<24) == 0 {
+					runtime.Gosched()
+				}
+				i++
+
 			}
 		}()
 		time.Sleep(time.Millisecond)

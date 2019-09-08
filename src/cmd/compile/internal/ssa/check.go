@@ -155,12 +155,6 @@ func checkFunc(f *Func) {
 			case auxSymOff, auxSymValAndOff, auxTypSize:
 				canHaveAuxInt = true
 				canHaveAux = true
-			case auxSymInt32:
-				if v.AuxInt != int64(int32(v.AuxInt)) {
-					f.Fatalf("bad int32 AuxInt value for %v", v)
-				}
-				canHaveAuxInt = true
-				canHaveAux = true
 			case auxCCop:
 				if _, ok := v.Aux.(Op); !ok {
 					f.Fatalf("bad type %T for CCop in %v", v.Aux, v)

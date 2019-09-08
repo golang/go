@@ -48,6 +48,12 @@ const (
 	ADrop // opcode 0x1A
 	ASelect
 
+	ALocalGet // opcode 0x20
+	ALocalSet
+	ALocalTee
+	AGlobalGet
+	AGlobalSet
+
 	AI32Load // opcode 0x28
 	AI64Load
 	AF32Load

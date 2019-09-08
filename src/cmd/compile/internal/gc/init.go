@@ -102,9 +102,3 @@ func fninit(n []*Node) {
 	// It's not quite read only, the state field must be modifiable.
 	ggloblsym(lsym, int32(ot), obj.NOPTR)
 }
-
-func (n *Node) checkInitFuncSignature() {
-	if n.Type.NumRecvs()+n.Type.NumParams()+n.Type.NumResults() > 0 {
-		Fatalf("init function cannot have receiver, params, or results: %v (%v)", n, n.Type)
-	}
-}

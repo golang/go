@@ -1449,3 +1449,15 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
 
 	return lv.livenessMap
 }
+
+func isfat(t *types.Type) bool {
+	if t != nil {
+		switch t.Etype {
+		case TSTRUCT, TARRAY, TSLICE, TSTRING,
+			TINTER: // maybe remove later
+			return true
+		}
+	}
+
+	return false
+}

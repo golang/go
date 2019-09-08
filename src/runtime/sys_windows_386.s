@@ -444,7 +444,7 @@ TEXT runtime·switchtothread(SB),NOSPLIT,$0
 #define time_hi1 4
 #define time_hi2 8
 
-TEXT runtime·nanotime(SB),NOSPLIT,$0-8
+TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
 	CMPB	runtime·useQPCTime(SB), $0
 	JNE	useQPC
 loop:

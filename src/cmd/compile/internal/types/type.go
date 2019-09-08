@@ -236,7 +236,7 @@ func (t *Type) MapType() *Map {
 
 // Forward contains Type fields specific to forward types.
 type Forward struct {
-	Copyto      []*Node  // where to copy the eventual value to
+	Copyto      []*Type  // where to copy the eventual value to
 	Embedlineno src.XPos // first use of this type as an embedded type
 }
 
@@ -1013,7 +1013,7 @@ func (r *Sym) cmpsym(s *Sym) Cmp {
 // TODO(josharian): make this safe for recursive interface types
 // and use in signatlist sorting. See issue 19869.
 func (t *Type) cmp(x *Type) Cmp {
-	// This follows the structure of eqtype in subr.go
+	// This follows the structure of function identical in identity.go
 	// with two exceptions.
 	// 1. Symbols are compared more carefully because a <,=,> result is desired.
 	// 2. Maps are treated specially to avoid endless recursion -- maps
@@ -1279,6 +1279,15 @@ func (t *Type) IsUnsafePtr() bool {
 func (t *Type) IsPtrShaped() bool {
 	return t.Etype == TPTR || t.Etype == TUNSAFEPTR ||
 		t.Etype == TMAP || t.Etype == TCHAN || t.Etype == TFUNC
+}
+
+// HasNil reports whether the set of values determined by t includes nil.
+func (t *Type) HasNil() bool {
+	switch t.Etype {
+	case TCHAN, TFUNC, TINTER, TMAP, TPTR, TSLICE, TUNSAFEPTR:
+		return true
+	}
+	return false
 }
 
 func (t *Type) IsString() bool {

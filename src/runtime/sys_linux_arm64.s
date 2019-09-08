@@ -91,7 +91,7 @@ done:
 	MOVW	R0, ret+8(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT|NOFRAME,$0-28
+TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0-28
 	MOVD	fd+0(FP), R0
 	MOVD	p+8(FP), R1
 	MOVW	n+16(FP), R2
@@ -181,8 +181,8 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	R0, ret+24(FP)
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB),NOSPLIT,$24-12
+// func walltime1() (sec int64, nsec int32)
+TEXT runtime·walltime1(SB),NOSPLIT,$24-12
 	MOVD	RSP, R20	// R20 is unchanged by C code
 	MOVD	RSP, R1
 
@@ -225,7 +225,7 @@ finish:
 	MOVW	R5, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime(SB),NOSPLIT,$24-8
+TEXT runtime·nanotime1(SB),NOSPLIT,$24-8
 	MOVD	RSP, R20	// R20 is unchanged by C code
 	MOVD	RSP, R1
 

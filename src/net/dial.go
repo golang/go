@@ -23,6 +23,8 @@ const (
 // The zero value for each field is equivalent to dialing
 // without that option. Dialing with the zero value of Dialer
 // is therefore equivalent to just calling the Dial function.
+//
+// It is safe to call Dialer's methods concurrently.
 type Dialer struct {
 	// Timeout is the maximum amount of time a dial will wait for
 	// a connect to complete. If Deadline is also set, it may fail

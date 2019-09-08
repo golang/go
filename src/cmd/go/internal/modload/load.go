@@ -387,11 +387,13 @@ func loadAll(testAll bool) []string {
 
 	var paths []string
 	for _, pkg := range loaded.pkgs {
-		if e, ok := pkg.err.(*ImportMissingError); ok && e.Module.Path == "" {
-			continue // Package doesn't actually exist.
+		if pkg.err != nil {
+			base.Errorf("%s: %v", pkg.stackText(), pkg.err)
+			continue
 		}
 		paths = append(paths, pkg.path)
 	}
+	base.ExitIfErrors()
 	return paths
 }
 
@@ -1138,7 +1140,7 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 	if mpath := f.Module.Mod.Path; mpath != origPath && mpath != mod.Path {
 		return nil, module.VersionError(mod, fmt.Errorf(`parsing go.mod:
 	module declares its path as: %s
-	        but was required as: %s`, mod.Path, mpath))
+	        but was required as: %s`, mpath, mod.Path))
 	}
 	if f.Go != nil {
 		r.versions.LoadOrStore(mod, f.Go.Version)

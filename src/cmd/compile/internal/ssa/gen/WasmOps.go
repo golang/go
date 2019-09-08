@@ -206,6 +206,7 @@ func init() {
 
 		{name: "I64Ctz", asm: "I64Ctz", argLength: 1, reg: gp11, typ: "Int64"},       // ctz(arg0)
 		{name: "I64Clz", asm: "I64Clz", argLength: 1, reg: gp11, typ: "Int64"},       // clz(arg0)
+		{name: "I32Rotl", asm: "I32Rotl", argLength: 2, reg: gp21, typ: "Int32"},     // rotl(arg0, arg1)
 		{name: "I64Rotl", asm: "I64Rotl", argLength: 2, reg: gp21, typ: "Int64"},     // rotl(arg0, arg1)
 		{name: "I64Popcnt", asm: "I64Popcnt", argLength: 1, reg: gp11, typ: "Int64"}, // popcnt(arg0)
 	}

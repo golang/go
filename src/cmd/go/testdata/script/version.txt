@@ -8,5 +8,12 @@ go version -m fortune.exe
 stdout '^\tpath\trsc.io/fortune'
 stdout '^\tmod\trsc.io/fortune\tv1.0.0'
 
+go build -buildmode=pie -o external.exe rsc.io/fortune
+go version external.exe
+stdout '^external.exe: .+'
+go version -m external.exe
+stdout '^\tpath\trsc.io/fortune'
+stdout '^\tmod\trsc.io/fortune\tv1.0.0'
+
 -- go.mod --
 module m

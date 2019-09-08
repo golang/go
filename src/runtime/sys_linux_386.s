@@ -107,7 +107,7 @@ TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVL	AX, ret+4(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$0
+TEXT runtime·write1(SB),NOSPLIT,$0
 	MOVL	$SYS_write, AX
 	MOVL	fd+0(FP), BX
 	MOVL	p+4(FP), CX
@@ -192,8 +192,8 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-16
 	MOVL	AX, ret+12(FP)
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB), NOSPLIT, $0-12
+// func walltime1() (sec int64, nsec int32)
+TEXT runtime·walltime1(SB), NOSPLIT, $0-12
 	// We don't know how much stack space the VDSO code will need,
 	// so switch to g0.
 
@@ -257,7 +257,7 @@ finish:
 
 // int64 nanotime(void) so really
 // void nanotime(int64 *nsec)
-TEXT runtime·nanotime(SB), NOSPLIT, $0-8
+TEXT runtime·nanotime1(SB), NOSPLIT, $0-8
 	// Switch to g0 stack. See comment above in runtime·walltime.
 
 	MOVL	SP, BP	// Save old SP; BP unchanged by C code.

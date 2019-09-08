@@ -12,16 +12,16 @@ Do not send CLs removing the interior tags from such phrases.
 -->
 
 <style>
-  ul li { margin: 0.5em 0; }
+  main ul li { margin: 0.5em 0; }
 </style>
 
-<h2 id="introduction">DRAFT RELEASE NOTES - Introduction to Go 1.13</h2>
+<h2 id="introduction">Introduction to Go 1.13</h2>
 
 <p>
-  <strong>
-    Go 1.13 is not yet released. These are work-in-progress
-    release notes. Go 1.13 is expected to be released in August 2019.
-  </strong>
+  The latest Go release, version 1.13, arrives six months after <a href="go1.12">Go 1.12</a>.
+  Most of its changes are in the implementation of the toolchain, runtime, and libraries.
+  As always, the release maintains the Go 1 <a href="/doc/go1compat.html">promise of compatibility</a>.
+  We expect almost all Go programs to continue to compile and run as before.
 </p>
 
 <p>
@@ -31,7 +31,8 @@ Do not send CLs removing the interior tags from such phrases.
   for privacy information about these services and the
   <a href="/cmd/go/#hdr-Module_downloading_and_verification">go command documentation</a>
   for configuration details including how to disable the use of these servers or use
-  different ones.
+  different ones. If you depend on non-public modules, see the
+  <a href="/cmd/go/#hdr-Module_configuration_for_non_public_modules">documentation for configuring your environment</a>.
 </p>
 
 <h2 id="language">Changes to the language</h2>
@@ -105,6 +106,11 @@ Do not send CLs removing the interior tags from such phrases.
   Go 1.13 is the last release that will run on Native Client (NaCl).
 </p>
 
+<p><!-- CL 170119, CL 168882 -->
+  For <code>GOARCH=wasm</code>, the new environment variable <code>GOWASM</code> takes a comma-separated list of experimental features that the binary gets compiled with.
+  The valid values are documented <a href="/cmd/go/#hdr-Environment_variables">here</a>.
+</p>
+
 <h3 id="aix">AIX</h3>
 
 <p><!-- CL 164003, CL 169120 -->
@@ -116,7 +122,7 @@ Do not send CLs removing the interior tags from such phrases.
 <h3 id="android">Android</h3>
 
 <p><!-- CL 170127 -->
-  Go programs are now compatible with Android Q.
+  Go programs are now compatible with Android 10.
 </p>
 
 <h3 id="darwin">Darwin</h3>
@@ -133,7 +139,8 @@ Do not send CLs removing the interior tags from such phrases.
   As <a href="go1.12#freebsd">announced</a> in the Go 1.12 release notes,
   Go 1.13 now requires FreeBSD 11.2 or later;
   support for previous versions has been discontinued.
-  FreeBSD 12.0 or later requires a kernel with the COMPAT_FREEBSD11 option set (this is the default).
+  FreeBSD 12.0 or later requires a kernel with the <code>COMPAT_FREEBSD11</code>
+  option set (this is the default).
 </p>
 
 <h3 id="illumos">Illumos</h3>
@@ -142,18 +149,6 @@ Do not send CLs removing the interior tags from such phrases.
   Go now supports Illumos with <code>GOOS=illumos</code>.
   The <code>illumos</code> build tag implies the <code>solaris</code>
   build tag.
-</p>
-
-<h3 id="netbsd">NetBSD</h3>
-
-<p><!--CL 155739 -->
-  Go now supports NetBSD on arm64.
-</p>
-
-<h3 id="openbsd">OpenBSD</h3>
-
-<p><!--CL 174125 -->
-  Go now supports OpenBSD on arm64.
 </p>
 
 <h3 id="windows">Windows</h3>
@@ -310,7 +305,7 @@ go env -w GOSUMDB=off
 
 <p>
   The <code>go</code> command now verifies the mapping
-  between <a href="/cmd/go#hdr-Pseudo_versions">pseudo-versions</a> and
+  between <a href="/cmd/go/#hdr-Pseudo_versions">pseudo-versions</a> and
   version-control metadata. Specifically:
   <ul>
     <li>The version prefix must be of the form <code>vX.0.0</code>, or derived
@@ -382,6 +377,13 @@ go env -w GOSUMDB=off
   The new <a href="/cmd/go/#hdr-Compile_packages_and_dependencies"><code>go</code>
   <code>build</code> flag</a> <code>-trimpath</code> removes all file system paths
   from the compiled executable, to improve build reproducibility.
+</p>
+
+<p id="o-dir"><!-- CL 167679 -->
+  If the <code>-o</code> flag passed to <code>go</code> <code>build</code>
+  refers to an existing directory, <code>go</code> <code>build</code> will now
+  write executable files within that directory for <code>main</code> packages
+  matching its package arguments.
 </p>
 
 <p id="comma-separated-tags"><!-- CL 173438 -->
@@ -520,6 +522,37 @@ godoc
   <code>crypto/ed25519</code> when used with Go 1.13+.
 </p>
 
+<h3 id="error_wrapping">Error wrapping</h3>
+
+<p><!-- CL 163558, 176998 -->
+  Go 1.13 contains support for error wrapping, as first proposed in
+  the <a href="https://go.googlesource.com/proposal/+/master/design/29934-error-values.md">
+  Error Values proposal</a> and discussed on <a href="https://golang.org/issue/29934">the
+  associated issue</a>.
+</p>
+<p>
+  An error <code>e</code> can <em>wrap</em> another error <code>w</code> by providing
+  an <code>Unwrap</code> method that returns <code>w</code>. Both <code>e</code>
+  and <code>w</code> are available to programs, allowing <code>e</code> to provide
+  additional context to <code>w</code> or to reinterpret it while still allowing
+  programs to make decisions based on <code>w</code>.
+</p>
+<p>
+  To support wrapping, <a href="#fmt"><code>fmt.Errorf</code></a> now has a <code>%w</code>
+  verb for creating wrapped errors, and three new functions in
+  the <a href="#errors"><code>errors</code></a> package (
+  <a href="/pkg/errors/#Unwrap"><code>errors.Unwrap</code></a>,
+  <a href="/pkg/errors/#Is"><code>errors.Is</code></a> and
+  <a href="/pkg/errors/#As"><code>errors.As</code></a>) simplify unwrapping
+  and inspecting wrapped errors.
+</p>
+<p>
+  For more information, read the <a href="/pkg/errors/"><code>errors</code> package
+  documentation</a>, or see
+  the <a href="https://golang.org/wiki/ErrorValueFAQ">Error Value FAQ</a>.
+  There will soon be a blog post as well.
+</p>
+
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
 <p>
@@ -549,10 +582,15 @@ godoc
   <dd>
     <p>
       Support for SSL version 3.0 (SSLv3) <a href="https://golang.org/issue/32716">
-      is now deprecated and will be removed in Go 1.14</a>. Note that SSLv3
-      <a href="https://tools.ietf.org/html/rfc7568">is cryptographically
-      broken</a>, is already disabled by default in <code>crypto/tls</code>,
-      and was never supported by Go clients.
+      is now deprecated and will be removed in Go 1.14</a>. Note that SSLv3 is the
+      <a href="https://tools.ietf.org/html/rfc7568">cryptographically broken</a>
+      protocol predating TLS.
+    </p>
+
+    <p>
+      SSLv3 was always disabled by default, other than in Go 1.12, when it was
+      mistakenly enabled by default server-side. It is now again disabled by
+      default. (SSLv3 was never supported client-side.)
     </p>
 
     <p><!-- CL 177698 -->
@@ -607,7 +645,8 @@ godoc
   <dd>
     <!-- CL 163558 -->
     <p>
-      The new function <a href="/pkg/errors/#As"><code>As</code></a> finds the first error in a given error’s chain
+      The new function <a href="/pkg/errors/#As"><code>As</code></a> finds the first
+      error in a given error’s chain (sequence of wrapped errors)
       that matches a given target’s type, and if so, sets the target to that error value.
     </p>
     <p>
@@ -623,6 +662,24 @@ godoc
 
 <dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
   <dd>
+    <!-- CL 160245 -->
+    <p>
+      The printing verbs <code>%x</code> and <code>%X</code> now format floating-point and
+      complex numbers in hexadecimal notation, in lower-case and upper-case respectively.
+    </p>
+
+    <!-- CL 160246 -->
+    <p>
+      The new printing verb <code>%O</code> formats integers in base 8, emitting the <code>0o</code> prefix.
+    </p>
+
+    <!-- CL 160247 -->
+    <p>
+      The scanner now accepts hexadecimal floating-point values, digit-separating underscores
+      and leading <code>0b</code> and <code>0o</code> prefixes.
+      See the <a href="#language">Changes to the language</a> for details.
+    </p>
+
     <!-- CL 176998 -->
     <p>The <a href="/pkg/fmt/#Errorf"><code>Errorf</code></a> function
       has a new verb, <code>%w</code>, whose operand must be an error.
@@ -679,6 +736,18 @@ godoc
       The new <a href="/pkg/math/big/#Rat.SetUint64"><code>Rat.SetUint64</code></a> method sets the <code>Rat</code> to a <code>uint64</code> value.
     </p>
 
+    <p><!-- CL 166157 -->
+      For <a href="/pkg/math/big/#Float.Parse"><code>Float.Parse</code></a>, if base is 0, underscores
+      may be used between digits for readability.
+      See the <a href="#language">Changes to the language</a> for details.
+    </p>
+
+    <p><!-- CL 166157 -->
+      For <a href="/pkg/math/big/#Int.SetString"><code>Int.SetString</code></a>, if base is 0, underscores
+      may be used between digits for readability.
+      See the <a href="#language">Changes to the language</a> for details.
+    </p>
+
     <p><!-- CL 168237 -->
       <a href="/pkg/math/big/#Rat.SetString"><code>Rat.SetString</code></a> now accepts non-decimal floating point representations.
     </p>
@@ -701,18 +770,43 @@ godoc
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
     <p><!-- CL 156366 -->
-      On Unix systems where <code>use-vc</code> is set in <code>resolve.conf</code>, TCP is used for DNS resolution.
+      On Unix systems where <code>use-vc</code> is set in <code>resolv.conf</code>, TCP is used for DNS resolution.
     </p>
 
     <p><!-- CL 170678 -->
       The new field <a href="/pkg/net/#ListenConfig.KeepAlive"><code>ListenConfig.KeepAlive</code></a>
       specifies the keep-alive period for network connections accepted by the listener.
+      If this field is 0 (the default) TCP keep-alives will be enabled.
+      To disable them, set it to a negative value.
+    </p>
+    <p>
+      Note that the error returned from I/O on a connection that was
+      closed by a keep-alive timeout will have a
+      <code>Timeout</code> method that returns <code>true</code> if called.
+      This can make a keep-alive error difficult to distinguish from
+      an error returned due to a missed deadline as set by the
+      <a href="/pkg/net/#Conn"><code>SetDeadline</code></a>
+      method and similar methods.
+      Code that uses deadlines and checks for them with
+      the <code>Timeout</code> method or
+      with <a href="/pkg/os/#IsTimeout"><code>os.IsTimeout</code></a>
+      may want to disable keep-alives, or
+      use <code>errors.Is(syscall.ETIMEDOUT)</code> (on Unix systems)
+      which will return true for a keep-alive timeout and false for a
+      deadline timeout.
     </p>
 
 </dl><!-- net -->
 
 <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
   <dd>
+    <p><!-- CL 76410 -->
+      The new fields <a href="/pkg/net/http/#Transport.WriteBufferSize"><code>Transport.WriteBufferSize</code></a>
+      and <a href="/pkg/net/http/#Transport.ReadBufferSize"><code>Transport.ReadBufferSize</code></a>
+      allow one to specify the sizes of the write and read buffers for a <a href="/pkg/net/http/#Transport"><code>Transport</code></a>.
+      If either field is zero, a default size of 4KB is used.
+    </p>
+
     <p><!-- CL 130256 -->
       The new field <a href="/pkg/net/http/#Transport.ForceAttemptHTTP2"><code>Transport.ForceAttemptHTTP2</code></a>
       controls whether HTTP/2 is enabled when a non-zero <code>Dial</code>, <code>DialTLS</code>, or <code>DialContext</code>
@@ -720,7 +814,8 @@ godoc
     </p>
 
     <p><!-- CL 140357 -->
-      When reusing HTTP/2, the <a href="/pkg/net/http#Transport"><code>Transport</code></a> no longer performs unnecessary TLS handshakes.
+      <a href="/pkg/net/http/#Transport.MaxConnsPerHost"><code>Transport.MaxConnsPerHost</code></a> now works
+      properly with HTTP/2.
     </p>
 
     <p><!-- CL 154383 -->
@@ -729,16 +824,46 @@ godoc
       <a href="/pkg/net/http/#Pusher"><code>Pusher</code></a> and <a href="/pkg/net/http/#Flusher"><code>Flusher</code></a> interfaces.
     </p>
 
+    <p><!-- CL 157339 -->
+      The <code>StatusCode</code> <code>103</code> <code>"Early Hints"</code> has been added.
+    </p>
+
+    <p><!-- CL 163599 -->
+    <a href="/pkg/net/http/#Transport"><code>Transport</code></a> now uses the <a href="/pkg/net/http/#Request.Body"><code>Request.Body</code></a>'s
+    <a href="/pkg/io/#ReaderFrom"><code>io.ReaderFrom</code></a> implementation if available, to optimize writing the body.
+    </p>
+
+    <p><!-- CL 167017 -->
+      On encountering unsupported transfer-encodings, <a href="/pkg/net/http/#Server"><code>http.Server</code></a> now
+      returns a "501 Unimplemented" status as mandated by the HTTP specification <a href="https://tools.ietf.org/html/rfc7230#section-3.3.1">RFC 7230 Section 3.3.1</a>.
+    </p>
+
     <p><!-- CL 167681 -->
-      The new <a href="/pkg/net/http#Server"><code>Server</code></a> fields
+      The new <a href="/pkg/net/http/#Server"><code>Server</code></a> fields
       <a href="/pkg/net/http/#Server.BaseContext"><code>BaseContext</code></a> and
       <a href="/pkg/net/http/#Server.ConnContext"><code>ConnContext</code></a>
-      allow finer control over the <a href="/pkg/context#Context"><code>Context</code></a> values provided to requests and connections.
+      allow finer control over the <a href="/pkg/context/#Context"><code>Context</code></a> values provided to requests and connections.
+    </p>
+
+    <p><!-- CL 167781 -->
+      <a href="/pkg/net/http/#DetectContentType"><code>http.DetectContentType</code></a> now correctly detects RAR signatures, and can now also detect RAR v5 signatures.
     </p>
 
     <p><!-- CL 173658 -->
       The new <a href="/pkg/net/http/#Header"><code>Header</code></a> method
       <a href="/pkg/net/http/#Header.Clone"><code>Clone</code></a> returns a copy of the receiver.
+    </p>
+
+    <p><!-- CL 174324 -->
+      A new function <a href="/pkg/net/http/#NewRequestWithContext"><code>NewRequestWithContext</code></a> has been added and it
+      accepts a <a href="/pkg/context/#Context"><code>Context</code></a> that controls the entire lifetime of
+      the created outgoing <a href="/pkg/net/http/#Request"><code>Request</code></a>, suitable for use with
+      <a href="/pkg/net/http/#Client.Do"><code>Client.Do</code></a> and <a href="/pkg/net/http/#Transport.RoundTrip"><code>Transport.RoundTrip</code></a>.
+    </p>
+
+    <p><!-- CL 179457 -->
+      The <a href="/pkg/net/http/#Transport"><code>Transport</code></a> no longer logs errors when servers
+      gracefully shut down idle connections using a <code>"408 Request Timeout"</code> response.
     </p>
 
 </dl><!-- net/http -->
@@ -760,9 +885,9 @@ godoc
 <dl id="os/exec"><dt><a href="/pkg/os/exec/">os/exec</a></dt>
   <dd>
     <p><!-- CL 174318 -->
-      On Windows, the environment for a <a href="/pkg/os/exec#Cmd"><code>Cmd</code></a> always inherits the
+      On Windows, the environment for a <a href="/pkg/os/exec/#Cmd"><code>Cmd</code></a> always inherits the
       <code>%SYSTEMROOT%</code> value of the parent process unless the
-      <a href="/pkg/os/exec#Cmd.Env"><code>Cmd.Env</code></a> field includes an explicit value for it.
+      <a href="/pkg/os/exec/#Cmd.Env"><code>Cmd.Env</code></a> field includes an explicit value for it.
     </p>
 
 </dl><!-- os/exec -->
@@ -785,12 +910,24 @@ godoc
       Tracebacks, <a href="/pkg/runtime/#Caller"><code>runtime.Caller</code></a>,
       and <a href="/pkg/runtime/#Callers"><code>runtime.Callers</code></a> now refer to the function that
       initializes the global variables of <code>PKG</code>
-      as <code>PKG.init</code> instead of <code>PKG.init.ializers</code>
+      as <code>PKG.init</code> instead of <code>PKG.init.ializers</code>.
     </p>
 
 </dl><!-- runtime -->
 
-<dl id="strings"><dt><a href="/pkg/strings">strings</a></dt>
+<dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+  <dd>
+    <p><!-- CL 160243 -->
+       For <a href="/pkg/strconv/#ParseFloat"><code>strconv.ParseFloat</code></a>,
+       <a href="/pkg/strconv/#ParseInt"><code>strconv.ParseInt</code></a>
+       and <a href="/pkg/strconv/#ParseUint"><code>strconv.ParseUint</code></a>,
+       if base is 0, underscores may be used between digits for readability.
+       See the <a href="#language">Changes to the language</a> for details.
+    </p>
+
+</dl><!-- strconv -->
+
+<dl id="strings"><dt><a href="/pkg/strings/">strings</a></dt>
   <dd>
     <p><!-- CL 142003 -->
       The new <a href="/pkg/strings/#ToValidUTF8"><code>ToValidUTF8</code></a> function returns a
@@ -801,6 +938,14 @@ godoc
 
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
+    <p><!-- CL 148958, CL 148959, CL 152697, CL 152698 -->
+      The fast paths of <a href="/pkg/sync/#Mutex.Lock"><code>Mutex.Lock</code></a>, <a href="/pkg/sync/#Mutex.Unlock"><code>Mutex.Unlock</code></a>,
+      <a href="/pkg/sync/#RWMutex.Lock"><code>RWMutex.Lock</code></a>, <a href="/pkg/sync/#Mutex.RUnlock"><code>RWMutex.RUnlock</code></a>, and
+      <a href="/pkg/sync/#Once.Do"><code>Once.Do</code></a> are now inlined in their callers.
+      For the uncontended cases on amd64, these changes make <a href="/pkg/sync/#Once.Do"><code>Once.Do</code></a> twice as fast, and the
+      <a href="/pkg/sync/#Mutex"><code>Mutex</code></a>/<a href="/pkg/sync/#RWMutex"><code>RWMutex</code></a> methods up to 10% faster.
+    </p>
+
     <p><!-- CL 166960 -->
       Large <a href="/pkg/sync/#Pool"><code>Pool</code></a> no longer increase stop-the-world pause times.
     </p>
@@ -831,14 +976,22 @@ godoc
       <a href="/pkg/syscall/?GOOS=windows#Chmod"><code>Chmod</code></a> mode on Windows.
     </p>
 
+    <p><!-- CL 191337 -->
+      Values of type <code>Errno</code> can be tested against error values in
+      the <code>os</code> package,
+      like <a href="/pkg/os/#ErrExist"><code>ErrExist</code></a>, using
+      <a href="/pkg/errors/#Is"><code>errors.Is</code></a>.
+    </p>
+
 </dl><!-- syscall -->
 
 <dl id="syscall/js"><dt><a href="/pkg/syscall/js/">syscall/js</a></dt>
   <dd>
     <p><!-- CL 177537 -->
-      TypedArrayOf has been replaced by
+      <code>TypedArrayOf</code> has been replaced by
       <a href="/pkg/syscall/js/#CopyBytesToGo"><code>CopyBytesToGo</code></a> and
-      <a href="/pkg/syscall/js/#CopyBytesToJS"><code>CopyBytesToJS</code></a> for copying bytes between a byte slice and a Uint8Array.
+      <a href="/pkg/syscall/js/#CopyBytesToJS"><code>CopyBytesToJS</code></a> for copying bytes
+      between a byte slice and a <code>Uint8Array</code>.
     </p>
 
 </dl><!-- syscall/js -->
@@ -901,3 +1054,13 @@ godoc
 
 </dl><!-- time -->
 
+<dl id="unicode"><dt><a href="/pkg/unicode/">unicode</a></dt>
+  <dd>
+    <p>
+      The <a href="/pkg/unicode/"><code>unicode</code></a> package and associated
+      support throughout the system has been upgraded from Unicode 10.0 to
+      <a href="http://www.unicode.org/versions/Unicode11.0.0/">Unicode 11.0</a>,
+      which adds 684 new characters, including seven new scripts, and 66 new emoji.
+    </p>
+
+</dl><!-- unicode -->

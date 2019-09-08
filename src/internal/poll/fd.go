@@ -11,7 +11,6 @@ package poll
 
 import (
 	"errors"
-	"internal/oserror"
 )
 
 // ErrNetClosing is returned when a network descriptor is used after
@@ -46,10 +45,6 @@ type TimeoutError struct{}
 func (e *TimeoutError) Error() string   { return "i/o timeout" }
 func (e *TimeoutError) Timeout() bool   { return true }
 func (e *TimeoutError) Temporary() bool { return true }
-
-func (e *TimeoutError) Is(target error) bool {
-	return target == oserror.ErrTimeout || target == oserror.ErrTemporary
-}
 
 // ErrNotPollable is returned when the file or socket is not suitable
 // for event notification.

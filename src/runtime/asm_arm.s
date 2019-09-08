@@ -817,18 +817,14 @@ TEXT runtime·armPublicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
 	RET
 
 // AES hashing not implemented for ARM
-TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-0
-	MOVW	$0, R0
-	MOVW	(R0), R1
-TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-0
-	MOVW	$0, R0
-	MOVW	(R0), R1
-TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-0
-	MOVW	$0, R0
-	MOVW	(R0), R1
-TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
-	MOVW	$0, R0
-	MOVW	(R0), R1
+TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-16
+	JMP	runtime·memhashFallback(SB)
+TEXT runtime·strhash(SB),NOSPLIT|NOFRAME,$0-12
+	JMP	runtime·strhashFallback(SB)
+TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-12
+	JMP	runtime·memhash32Fallback(SB)
+TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-12
+	JMP	runtime·memhash64Fallback(SB)
 
 TEXT runtime·return0(SB),NOSPLIT,$0
 	MOVW	$0, R0

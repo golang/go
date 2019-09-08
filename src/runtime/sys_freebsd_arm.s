@@ -119,7 +119,7 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0
 	MOVW fd+0(FP), R0	// arg 1 fd
 	MOVW p+4(FP), R1	// arg 2 buf
 	MOVW n+8(FP), R2	// arg 3 count

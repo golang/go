@@ -780,16 +780,34 @@ var optab = []Optab{
 	{ASTLXR, C_REG, C_NONE, C_NONE, C_ZOREG, 59, 4, 0, 0, 0}, // RegTo2=C_REG
 	{ASTXP, C_PAIR, C_NONE, C_NONE, C_ZOREG, 59, 4, 0, 0, 0},
 
-	/* VLD1/VST1 */
+	/* VLD[1-4]/VST[1-4] */
 	{AVLD1, C_ZOREG, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, 0},
 	{AVLD1, C_LOREG, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
 	{AVLD1, C_ROFF, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
+	{AVLD2, C_ZOREG, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, 0},
+	{AVLD2, C_LOREG, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
+	{AVLD2, C_ROFF, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
+	{AVLD3, C_ZOREG, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, 0},
+	{AVLD3, C_LOREG, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
+	{AVLD3, C_ROFF, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
+	{AVLD4, C_ZOREG, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, 0},
+	{AVLD4, C_LOREG, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
+	{AVLD4, C_ROFF, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
 	{AVLD1, C_LOREG, C_NONE, C_NONE, C_ELEM, 97, 4, 0, 0, C_XPOST},
 	{AVLD1, C_ROFF, C_NONE, C_NONE, C_ELEM, 97, 4, 0, 0, C_XPOST},
 	{AVLD1, C_LOREG, C_NONE, C_NONE, C_ELEM, 97, 4, 0, 0, 0},
 	{AVST1, C_LIST, C_NONE, C_NONE, C_ZOREG, 84, 4, 0, 0, 0},
 	{AVST1, C_LIST, C_NONE, C_NONE, C_LOREG, 84, 4, 0, 0, C_XPOST},
 	{AVST1, C_LIST, C_NONE, C_NONE, C_ROFF, 84, 4, 0, 0, C_XPOST},
+	{AVST2, C_LIST, C_NONE, C_NONE, C_ZOREG, 84, 4, 0, 0, 0},
+	{AVST2, C_LIST, C_NONE, C_NONE, C_LOREG, 84, 4, 0, 0, C_XPOST},
+	{AVST2, C_LIST, C_NONE, C_NONE, C_ROFF, 84, 4, 0, 0, C_XPOST},
+	{AVST3, C_LIST, C_NONE, C_NONE, C_ZOREG, 84, 4, 0, 0, 0},
+	{AVST3, C_LIST, C_NONE, C_NONE, C_LOREG, 84, 4, 0, 0, C_XPOST},
+	{AVST3, C_LIST, C_NONE, C_NONE, C_ROFF, 84, 4, 0, 0, C_XPOST},
+	{AVST4, C_LIST, C_NONE, C_NONE, C_ZOREG, 84, 4, 0, 0, 0},
+	{AVST4, C_LIST, C_NONE, C_NONE, C_LOREG, 84, 4, 0, 0, C_XPOST},
+	{AVST4, C_LIST, C_NONE, C_NONE, C_ROFF, 84, 4, 0, 0, C_XPOST},
 	{AVST1, C_ELEM, C_NONE, C_NONE, C_LOREG, 96, 4, 0, 0, C_XPOST},
 	{AVST1, C_ELEM, C_NONE, C_NONE, C_ROFF, 96, 4, 0, 0, C_XPOST},
 	{AVST1, C_ELEM, C_NONE, C_NONE, C_LOREG, 96, 4, 0, 0, 0},
@@ -840,15 +858,6 @@ var pstatefield = []struct {
 	{REG_SPSel, 0<<16 | 4<<12 | 5<<5},
 	{REG_DAIFSet, 3<<16 | 4<<12 | 6<<5},
 	{REG_DAIFClr, 3<<16 | 4<<12 | 7<<5},
-}
-
-// the System register values, and value to use in instruction
-var systemreg = []struct {
-	reg int16
-	enc uint32
-}{
-	{REG_ELR_EL1, 8<<16 | 4<<12 | 1<<5},
-	{REG_DCZID_EL0, 3<<19 | 3<<16 | 7<<5},
 }
 
 var prfopfield = []struct {
@@ -2704,7 +2713,13 @@ func buildop(ctxt *obj.Link) {
 			AVCNT,
 			AVMOV,
 			AVLD1,
+			AVLD2,
+			AVLD3,
+			AVLD4,
 			AVST1,
+			AVST2,
+			AVST3,
+			AVST4,
 			AVTBL,
 			AVDUP,
 			AVMOVI,
@@ -2784,14 +2799,14 @@ func (c *ctxt7) checkindex(p *obj.Prog, index, maxindex int) {
 	}
 }
 
-/* checkoffset checks whether the immediate offset is valid for VLD1.P and VST1.P */
+/* checkoffset checks whether the immediate offset is valid for VLD[1-4].P and VST[1-4].P */
 func (c *ctxt7) checkoffset(p *obj.Prog, as obj.As) {
-	var offset, list, n int64
+	var offset, list, n, expect int64
 	switch as {
-	case AVLD1:
+	case AVLD1, AVLD2, AVLD3, AVLD4:
 		offset = p.From.Offset
 		list = p.To.Offset
-	case AVST1:
+	case AVST1, AVST2, AVST3, AVST4:
 		offset = p.To.Offset
 		list = p.From.Offset
 	default:
@@ -2816,6 +2831,21 @@ func (c *ctxt7) checkoffset(p *obj.Prog, as obj.As) {
 	}
 	if !(q == 0 && offset == n*8) && !(q == 1 && offset == n*16) {
 		c.ctxt.Diag("invalid post-increment offset: %v", p)
+	}
+
+	switch as {
+	case AVLD1, AVST1:
+		return
+	case AVLD2, AVST2:
+		expect = 2
+	case AVLD3, AVST3:
+		expect = 3
+	case AVLD4, AVST4:
+		expect = 4
+	}
+
+	if expect != n {
+		c.ctxt.Diag("expected %d registers, got %d: %v.", expect, n, p)
 	}
 }
 
@@ -3513,12 +3543,8 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.oprrr(p, AMRS)
 
 		v := uint32(0)
-		for i := 0; i < len(systemreg); i++ {
-			if systemreg[i].reg == p.From.Reg {
-				v = systemreg[i].enc
-				break
-			}
-		}
+		// SysRegEnc function returns the system register encoding.
+		_, v = SysRegEnc(p.From.Reg)
 		if v == 0 {
 			c.ctxt.Diag("illegal system register:\n%v", p)
 		}
@@ -3533,12 +3559,8 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.oprrr(p, AMSR)
 
 		v := uint32(0)
-		for i := 0; i < len(systemreg); i++ {
-			if systemreg[i].reg == p.To.Reg {
-				v = systemreg[i].enc
-				break
-			}
-		}
+		// SysRegEnc function returns the system register encoding.
+		_, v = SysRegEnc(p.To.Reg)
 		if v == 0 {
 			c.ctxt.Diag("illegal system register:\n%v", p)
 		}
@@ -4322,14 +4344,14 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o1 |= (uint32(imm5&0x1f) << 16) | (uint32(rf&31) << 5) | uint32(rt&31)
 
-	case 81: /* vld1 (Rn), [Vt1.<T>, Vt2.<T>, ...] */
+	case 81: /* vld[1-4] (Rn), [Vt1.<T>, Vt2.<T>, ...] */
+		c.checkoffset(p, p.As)
 		r := int(p.From.Reg)
 		o1 = 3<<26 | 1<<22
 		if o.scond == C_XPOST {
 			o1 |= 1 << 23
 			if p.From.Index == 0 {
 				// immediate offset variant
-				c.checkoffset(p, p.As)
 				o1 |= 0x1f << 16
 			} else {
 				// register offset variant
@@ -4340,6 +4362,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			}
 		}
 		o1 |= uint32(p.To.Offset)
+		// cmd/asm/internal/arch/arm64.go:ARM64RegisterListOffset
+		// add opcode(bit 12-15) for vld1, mask it off if it's not vld1
+		o1 = c.maskOpvldvst(p, o1)
 		o1 |= uint32(r&31) << 5
 
 	case 82: /* vmov Rn, Vd.<T> */
@@ -4427,14 +4452,14 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 		o1 |= (Q&1)<<30 | (size&3)<<22 | uint32(rf&31)<<5 | uint32(rt&31)
 
-	case 84: /* vst1 [Vt1.<T>, Vt2.<T>, ...], (Rn) */
+	case 84: /* vst[1-4] [Vt1.<T>, Vt2.<T>, ...], (Rn) */
+		c.checkoffset(p, p.As)
 		r := int(p.To.Reg)
 		o1 = 3 << 26
 		if o.scond == C_XPOST {
 			o1 |= 1 << 23
 			if p.To.Index == 0 {
 				// immediate offset variant
-				c.checkoffset(p, p.As)
 				o1 |= 0x1f << 16
 			} else {
 				// register offset variant
@@ -4445,6 +4470,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			}
 		}
 		o1 |= uint32(p.From.Offset)
+		// cmd/asm/internal/arch/arm64.go:ARM64RegisterListOffset
+		// add opcode(bit 12-15) for vst1, mask it off if it's not vst1
+		o1 = c.maskOpvldvst(p, o1)
 		o1 |= uint32(r&31) << 5
 
 	case 85: /* vaddv/vuaddlv Vn.<T>, Vd*/
@@ -6742,6 +6770,24 @@ func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh, ldp uin
 	}
 	ret |= 5<<27 | (ldp&1)<<22 | uint32(vo&0x7f)<<15 | (rh&31)<<10 | (rbase&31)<<5 | (rl & 31)
 	return ret
+}
+
+func (c *ctxt7) maskOpvldvst(p *obj.Prog, o1 uint32) uint32 {
+	if p.As == AVLD1 || p.As == AVST1 {
+		return o1
+	}
+
+	o1 &^= 0xf000 // mask out "opcode" field (bit 12-15)
+	switch p.As {
+	case AVLD2, AVST2:
+		o1 |= 8 << 12
+	case AVLD3, AVST3:
+		o1 |= 4 << 12
+	case AVLD4, AVST4:
+	default:
+		c.ctxt.Diag("unsupported instruction:%v\n", p.As)
+	}
+	return o1
 }
 
 /*

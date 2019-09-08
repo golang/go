@@ -450,6 +450,23 @@ func TestCertificateParse(t *testing.T) {
 	}
 }
 
+func TestCertificateEqualOnNil(t *testing.T) {
+	cNonNil := new(Certificate)
+	var cNil1, cNil2 *Certificate
+	if !cNil1.Equal(cNil2) {
+		t.Error("Nil certificates: cNil1 is not equal to cNil2")
+	}
+	if !cNil2.Equal(cNil1) {
+		t.Error("Nil certificates: cNil2 is not equal to cNil1")
+	}
+	if cNil1.Equal(cNonNil) {
+		t.Error("Unexpectedly cNil1 is equal to cNonNil")
+	}
+	if cNonNil.Equal(cNil1) {
+		t.Error("Unexpectedly cNonNil is equal to cNil1")
+	}
+}
+
 func TestMismatchedSignatureAlgorithm(t *testing.T) {
 	der, _ := pem.Decode([]byte(rsaPSSSelfSignedPEM))
 	if der == nil {

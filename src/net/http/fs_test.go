@@ -207,6 +207,18 @@ func TestServeFile_DotDot(t *testing.T) {
 	}
 }
 
+// Tests that this doesn't panic. (Issue 30165)
+func TestServeFileDirPanicEmptyPath(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/", nil)
+	req.URL.Path = ""
+	ServeFile(rec, req, "testdata")
+	res := rec.Result()
+	if res.StatusCode != 301 {
+		t.Errorf("code = %v; want 301", res.Status)
+	}
+}
+
 var fsRedirectTestData = []struct {
 	original, redirect string
 }{

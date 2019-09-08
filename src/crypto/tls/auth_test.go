@@ -32,7 +32,6 @@ func TestSignatureSelection(t *testing.T) {
 		// https://tools.ietf.org/html/rfc4346#page-44
 		{rsaCert, nil, nil, VersionTLS11, 0, signaturePKCS1v15, crypto.MD5SHA1},
 		{rsaCert, nil, nil, VersionTLS10, 0, signaturePKCS1v15, crypto.MD5SHA1},
-		{rsaCert, nil, nil, VersionSSL30, 0, signaturePKCS1v15, crypto.MD5SHA1},
 
 		// Before TLS 1.2, there is no signature_algorithms extension
 		// nor field in CertificateRequest and digitally-signed and thus
@@ -95,13 +94,6 @@ func TestSignatureSelection(t *testing.T) {
 		{ecdsaCert, []SignatureScheme{Ed25519}, []SignatureScheme{Ed25519}, VersionTLS12},
 		{ed25519Cert, nil, nil, VersionTLS11},
 		{ed25519Cert, nil, nil, VersionTLS10},
-		{ed25519Cert, nil, nil, VersionSSL30},
-
-		// ECDSA is unspecified for SSL 3.0 in RFC 4492.
-		// TODO a SSL 3.0 client cannot advertise signature_algorithms,
-		// but if an application feeds an ECDSA certificate anyway, it
-		// will be accepted rather than trigger a handshake failure. Ok?
-		//{ecdsaCert, nil, nil, VersionSSL30},
 	}
 
 	for testNo, test := range badTests {

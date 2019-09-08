@@ -2532,8 +2532,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	}
 
 	if cfg.BuildToolchainName == "gccgo" {
-		switch cfg.Goarch {
-		case "386", "amd64":
+		if b.gccSupportsFlag([]string{BuildToolchain.compiler()}, "-fsplit-stack") {
 			cgoCFLAGS = append(cgoCFLAGS, "-fsplit-stack")
 		}
 		cgoflags = append(cgoflags, "-gccgo")

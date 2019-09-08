@@ -1453,6 +1453,7 @@
 // Remove redundant ops
 // Not in generic rules, because they may appear after lowering e. g. Slicemask
 (NEG(Q|L) (NEG(Q|L) x)) -> x
+(NEG(Q|L) s:(SUB(Q|L) x y)) && s.Uses == 1 -> (SUB(Q|L) y x)
 
 // Convert constant subtracts to constant adds
 (SUBQconst [c] x) && c != -(1<<31) -> (ADDQconst [-c] x)
@@ -1501,7 +1502,10 @@
 (ORL x x) -> x
 (XORQ x x) -> (MOVQconst [0])
 (XORL x x) -> (MOVLconst [0])
+
+// Fold NEG into ADDconst/MULconst. Take care to keep c in 32 bit range.
 (NEGQ (ADDQconst [c] (NEGQ x))) && c != -(1<<31) -> (ADDQconst [-c] x)
+(MULQconst [c] (NEGQ x)) && c != -(1<<31) -> (MULQconst [-c] x)
 
 // checking AND against 0.
 (CMPQconst (ANDQ x y) [0]) -> (TESTQ x y)

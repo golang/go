@@ -981,15 +981,17 @@ func TestIssue10957(t *testing.T) {
 	}
 }
 
-// Verify the number of files is sane.
+// Verify that this particular malformed zip file is rejected.
 func TestIssue10956(t *testing.T) {
 	data := []byte("PK\x06\x06PK\x06\a0000\x00\x00\x00\x00\x00\x00\x00\x00" +
 		"0000PK\x05\x06000000000000" +
 		"0000\v\x00000\x00\x00\x00\x00\x00\x00\x000")
-	_, err := NewReader(bytes.NewReader(data), int64(len(data)))
-	const want = "TOC declares impossible 3472328296227680304 files in 57 byte"
-	if err == nil && !strings.Contains(err.Error(), want) {
-		t.Errorf("error = %v; want %q", err, want)
+	r, err := NewReader(bytes.NewReader(data), int64(len(data)))
+	if err == nil {
+		t.Errorf("got nil error, want ErrFormat")
+	}
+	if r != nil {
+		t.Errorf("got non-nil Reader, want nil")
 	}
 }
 

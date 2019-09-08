@@ -230,7 +230,7 @@ func usleep_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func write(fd uintptr, p unsafe.Pointer, n int32) int32 {
+func write1(fd uintptr, p unsafe.Pointer, n int32) int32 {
 	return libcCall(unsafe.Pointer(funcPC(write_trampoline)), unsafe.Pointer(&fd))
 }
 func write_trampoline()
@@ -244,7 +244,7 @@ func open_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func nanotime() int64 {
+func nanotime1() int64 {
 	var r struct {
 		t            int64  // raw timer
 		numer, denom uint32 // conversion factors. nanoseconds = t * numer / denom.
@@ -266,7 +266,7 @@ func nanotime_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func walltime() (int64, int32) {
+func walltime1() (int64, int32) {
 	var t timeval
 	libcCall(unsafe.Pointer(funcPC(walltime_trampoline)), unsafe.Pointer(&t))
 	return int64(t.tv_sec), 1000 * t.tv_usec

@@ -404,6 +404,14 @@ func Write(fd int, b []byte) (int, error) {
 		return n, err
 	}
 
+	if faketime && (fd == 1 || fd == 2) {
+		n := faketimeWrite(fd, b)
+		if n < 0 {
+			return 0, errnoErr(Errno(-n))
+		}
+		return n, nil
+	}
+
 	buf := uint8Array.New(len(b))
 	js.CopyBytesToJS(buf, b)
 	n, err := fsCall("write", fd, buf, 0, len(b), nil)

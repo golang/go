@@ -39,6 +39,8 @@ pkg debug/dwarf, method (*UnsupportedType) String() string
 pkg debug/dwarf, type UnsupportedType struct
 pkg debug/dwarf, type UnsupportedType struct, embedded CommonType
 pkg debug/dwarf, type UnsupportedType struct, Tag Tag
+pkg debug/elf, type Symbol struct, Library string
+pkg debug/elf, type Symbol struct, Version string
 pkg encoding/csv, method (*ParseError) Unwrap() error
 pkg encoding/json, method (*MarshalerError) Unwrap() error
 pkg errors, func As(error, interface{}) bool
@@ -209,8 +211,6 @@ pkg net/http, type Transport struct, ForceAttemptHTTP2 bool
 pkg net/http, type Transport struct, ReadBufferSize int
 pkg net/http, type Transport struct, WriteBufferSize int
 pkg net, method (*DNSConfigError) Unwrap() error
-pkg net, method (*DNSError) Is(error) bool
-pkg net, method (*OpError) Is(error) bool
 pkg net, method (*OpError) Unwrap() error
 pkg net, type DNSError struct, IsNotFound bool
 pkg net, type ListenConfig struct, KeepAlive time.Duration
@@ -237,8 +237,6 @@ pkg os (netbsd-arm64), const O_SYNC = 128
 pkg os (netbsd-arm64), const O_TRUNC = 1024
 pkg os (netbsd-arm64), const PathListSeparator = 58
 pkg os (netbsd-arm64), const PathSeparator = 47
-pkg os, var ErrTemporary error
-pkg os, var ErrTimeout error
 pkg path/filepath (netbsd-arm64-cgo), const ListSeparator = 58
 pkg path/filepath (netbsd-arm64-cgo), const Separator = 47
 pkg path/filepath (netbsd-arm64), const ListSeparator = 58

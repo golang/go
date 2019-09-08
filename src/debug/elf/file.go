@@ -1174,9 +1174,8 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 		return b, nil
 	}
 
-	// There are many other DWARF sections, but these
-	// are the ones the debug/dwarf package uses.
-	// Don't bother loading others.
+	// There are many DWARf sections, but these are the ones
+	// the debug/dwarf package started with.
 	var dat = map[string][]byte{"abbrev": nil, "info": nil, "str": nil, "line": nil, "ranges": nil}
 	for i, s := range f.Sections {
 		suffix := dwarfSuffix(s)
@@ -1198,10 +1197,14 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 		return nil, err
 	}
 
-	// Look for DWARF4 .debug_types sections.
+	// Look for DWARF4 .debug_types sections and DWARF5 sections.
 	for i, s := range f.Sections {
 		suffix := dwarfSuffix(s)
-		if suffix != "types" {
+		if suffix == "" {
+			continue
+		}
+		if _, ok := dat[suffix]; ok {
+			// Already handled.
 			continue
 		}
 
@@ -1210,9 +1213,14 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 			return nil, err
 		}
 
-		err = d.AddTypes(fmt.Sprintf("types-%d", i), b)
-		if err != nil {
-			return nil, err
+		if suffix == "types" {
+			if err := d.AddTypes(fmt.Sprintf("types-%d", i), b); err != nil {
+				return nil, err
+			}
+		} else {
+			if err := d.AddSection(".debug_"+suffix, b); err != nil {
+				return nil, err
+			}
 		}
 	}
 

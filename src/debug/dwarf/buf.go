@@ -99,6 +99,18 @@ func (b *buf) uint16() uint16 {
 	return b.order.Uint16(a)
 }
 
+func (b *buf) uint24() uint32 {
+	a := b.bytes(3)
+	if a == nil {
+		return 0
+	}
+	if b.dwarf.bigEndian {
+		return uint32(a[2]) | uint32(a[1])<<8 | uint32(a[0])<<16
+	} else {
+		return uint32(a[0]) | uint32(a[1])<<8 | uint32(a[2])<<16
+	}
+}
+
 func (b *buf) uint32() uint32 {
 	a := b.bytes(4)
 	if a == nil {

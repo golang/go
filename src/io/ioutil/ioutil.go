@@ -81,10 +81,7 @@ func WriteFile(filename string, data []byte, perm os.FileMode) error {
 	if err != nil {
 		return err
 	}
-	n, err := f.Write(data)
-	if err == nil && n < len(data) {
-		err = io.ErrShortWrite
-	}
+	_, err = f.Write(data)
 	if err1 := f.Close(); err == nil {
 		err = err1
 	}

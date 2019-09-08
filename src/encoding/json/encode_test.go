@@ -793,6 +793,21 @@ func TestTextMarshalerMapKeysAreSorted(t *testing.T) {
 	}
 }
 
+// https://golang.org/issue/33675
+func TestNilMarshalerTextMapKey(t *testing.T) {
+	b, err := Marshal(map[*unmarshalerText]int{
+		(*unmarshalerText)(nil):    1,
+		&unmarshalerText{"A", "B"}: 2,
+	})
+	if err != nil {
+		t.Fatalf("Failed to Marshal *text.Marshaler: %v", err)
+	}
+	const want = `{"":1,"A:B":2}`
+	if string(b) != want {
+		t.Errorf("Marshal map with *text.Marshaler keys: got %#q, want %#q", b, want)
+	}
+}
+
 var re = regexp.MustCompile
 
 // syntactic checks on form of marshaled floating point numbers.

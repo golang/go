@@ -278,36 +278,31 @@ func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
 // NewInterfaceType takes ownership of the provided methods and may modify their types by setting
 // missing receivers. To compute the method set of the interface, Complete must be called.
 func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
-	typ := new(Interface)
-
 	if len(methods) == 0 && len(embeddeds) == 0 {
-		return typ
+		return &emptyInterface
 	}
 
-	var mset objset
+	// set method receivers if necessary
+	typ := new(Interface)
 	for _, m := range methods {
-		if mset.insert(m) != nil {
-			panic("multiple methods with the same name")
-		}
-		// set receiver if we don't have one
 		if sig := m.typ.(*Signature); sig.recv == nil {
 			sig.recv = NewVar(m.pos, m.pkg, "", typ)
 		}
 	}
-	sort.Sort(byUniqueMethodName(methods))
 
-	if len(embeddeds) > 0 {
-		// All embedded types should be interfaces; however, defined types
-		// may not yet be fully resolved. Only verify that non-defined types
-		// are interfaces. This matches the behavior of the code before the
-		// fix for #25301 (issue #25596).
-		for _, t := range embeddeds {
-			if _, ok := t.(*Named); !ok && !IsInterface(t) {
-				panic("embedded type is not an interface")
-			}
+	// All embedded types should be interfaces; however, defined types
+	// may not yet be fully resolved. Only verify that non-defined types
+	// are interfaces. This matches the behavior of the code before the
+	// fix for #25301 (issue #25596).
+	for _, t := range embeddeds {
+		if _, ok := t.(*Named); !ok && !IsInterface(t) {
+			panic("embedded type is not an interface")
 		}
-		sort.Stable(byUniqueTypeName(embeddeds))
 	}
+
+	// sort for API stability
+	sort.Sort(byUniqueMethodName(methods))
+	sort.Stable(byUniqueTypeName(embeddeds))
 
 	typ.methods = methods
 	typ.embeddeds = embeddeds
@@ -346,28 +341,55 @@ func (t *Interface) Empty() bool { return len(t.allMethods) == 0 }
 // Complete computes the interface's method set. It must be called by users of
 // NewInterfaceType and NewInterface after the interface's embedded types are
 // fully defined and before using the interface type in any way other than to
-// form other types. Complete returns the receiver.
+// form other types. The interface must not contain duplicate methods or a
+// panic occurs. Complete returns the receiver.
 func (t *Interface) Complete() *Interface {
+	// TODO(gri) consolidate this method with Checker.completeInterface
 	if t.allMethods != nil {
 		return t
 	}
 
-	// collect all methods
-	var allMethods []*Func
-	allMethods = append(allMethods, t.methods...)
-	for _, et := range t.embeddeds {
-		it := et.Underlying().(*Interface)
-		it.Complete()
-		// copy embedded methods unchanged (see issue #28282)
-		allMethods = append(allMethods, it.allMethods...)
-	}
-	sort.Sort(byUniqueMethodName(allMethods))
+	t.allMethods = markComplete // avoid infinite recursion
 
-	// t.methods and/or t.embeddeds may have been empty
-	if allMethods == nil {
-		allMethods = markComplete
+	var todo []*Func
+	var methods []*Func
+	var seen objset
+	addMethod := func(m *Func, explicit bool) {
+		switch other := seen.insert(m); {
+		case other == nil:
+			methods = append(methods, m)
+		case explicit:
+			panic("duplicate method " + m.name)
+		default:
+			// check method signatures after all locally embedded interfaces are computed
+			todo = append(todo, m, other.(*Func))
+		}
 	}
-	t.allMethods = allMethods
+
+	for _, m := range t.methods {
+		addMethod(m, true)
+	}
+
+	for _, typ := range t.embeddeds {
+		typ := typ.Underlying().(*Interface)
+		typ.Complete()
+		for _, m := range typ.allMethods {
+			addMethod(m, false)
+		}
+	}
+
+	for i := 0; i < len(todo); i += 2 {
+		m := todo[i]
+		other := todo[i+1]
+		if !Identical(m.typ, other.typ) {
+			panic("duplicate method " + m.name)
+		}
+	}
+
+	if methods != nil {
+		sort.Sort(byUniqueMethodName(methods))
+		t.allMethods = methods
+	}
 
 	return t
 }

@@ -436,7 +436,7 @@ func TestReverseProxyCancelation(t *testing.T) {
 	}
 	if err == nil {
 		// This should be an error like:
-		// Get http://127.0.0.1:58079: read tcp 127.0.0.1:58079:
+		// Get "http://127.0.0.1:58079": read tcp 127.0.0.1:58079:
 		//    use of closed network connection
 		t.Error("Server.Client().Do() returned nil error; want non-nil error")
 	}

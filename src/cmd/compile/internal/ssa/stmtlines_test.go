@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"sort"
 	"testing"
 )
 
@@ -109,11 +110,23 @@ func TestStmtLines(t *testing.T) {
 		}
 	}
 
-	if runtime.GOARCH == "amd64" && len(nonStmtLines)*100 > len(lines) { // > 99% obtained on amd64, no backsliding
-		t.Errorf("Saw too many (amd64, > 1%%) lines without statement marks, total=%d, nostmt=%d\n", len(lines), len(nonStmtLines))
+	if runtime.GOARCH == "amd64" {
+		if len(nonStmtLines)*100 > len(lines) { // > 99% obtained on amd64, no backsliding
+			t.Errorf("Saw too many (amd64, > 1%%) lines without statement marks, total=%d, nostmt=%d ('-run TestStmtLines -v' lists failing lines)\n", len(lines), len(nonStmtLines))
+		}
+	} else if len(nonStmtLines)*100 > 2*len(lines) { // expect 98% elsewhere.
+		t.Errorf("Saw too many (not amd64, > 2%%) lines without statement marks, total=%d, nostmt=%d ('-run TestStmtLines -v' lists failing lines)\n", len(lines), len(nonStmtLines))
 	}
-	if len(nonStmtLines)*100 > 2*len(lines) { // expect 98% elsewhere.
-		t.Errorf("Saw too many (not amd64, > 2%%) lines without statement marks, total=%d, nostmt=%d\n", len(lines), len(nonStmtLines))
+	if testing.Verbose() {
+		sort.Slice(nonStmtLines, func(i, j int) bool {
+			if nonStmtLines[i].File != nonStmtLines[j].File {
+				return nonStmtLines[i].File < nonStmtLines[j].File
+			}
+			return nonStmtLines[i].Line < nonStmtLines[j].Line
+		})
+		for _, l := range nonStmtLines {
+			t.Logf("%s:%d has no DWARF is_stmt mark\n", l.File, l.Line)
+		}
 	}
 	t.Logf("total=%d, nostmt=%d\n", len(lines), len(nonStmtLines))
 }

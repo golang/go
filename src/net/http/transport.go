@@ -710,18 +710,10 @@ func resetProxyConfig() {
 }
 
 func (t *Transport) connectMethodForRequest(treq *transportRequest) (cm connectMethod, err error) {
-	if port := treq.URL.Port(); !validPort(port) {
-		return cm, fmt.Errorf("invalid URL port %q", port)
-	}
 	cm.targetScheme = treq.URL.Scheme
 	cm.targetAddr = canonicalAddr(treq.URL)
 	if t.Proxy != nil {
 		cm.proxyURL, err = t.Proxy(treq.Request)
-		if err == nil && cm.proxyURL != nil {
-			if port := cm.proxyURL.Port(); !validPort(port) {
-				return cm, fmt.Errorf("invalid proxy URL port %q", port)
-			}
-		}
 	}
 	cm.onlyH1 = treq.requiresHTTP1()
 	return cm, err
@@ -751,7 +743,6 @@ var (
 	errCloseIdleConns     = errors.New("http: CloseIdleConnections called")
 	errReadLoopExiting    = errors.New("http: persistConn.readLoop exiting")
 	errIdleConnTimeout    = errors.New("http: idle connection timeout")
-	errNotCachingH2Conn   = errors.New("http: not caching alternate protocol's connections")
 
 	// errServerClosedIdle is not seen by users for idempotent requests, but may be
 	// seen by a user if the server shuts down an idle connection and sends its FIN
@@ -951,6 +942,7 @@ func (t *Transport) queueForIdleConn(w *wantConn) (delivered bool) {
 		t.idleConnWait = make(map[connectMethodKey]wantConnQueue)
 	}
 	q := t.idleConnWait[w.key]
+	q.cleanFront()
 	q.pushBack(w)
 	t.idleConnWait[w.key] = q
 	return false
@@ -1135,7 +1127,7 @@ func (q *wantConnQueue) pushBack(w *wantConn) {
 	q.tail = append(q.tail, w)
 }
 
-// popFront removes and returns the w at the front of the queue.
+// popFront removes and returns the wantConn at the front of the queue.
 func (q *wantConnQueue) popFront() *wantConn {
 	if q.headPos >= len(q.head) {
 		if len(q.tail) == 0 {
@@ -1148,6 +1140,30 @@ func (q *wantConnQueue) popFront() *wantConn {
 	q.head[q.headPos] = nil
 	q.headPos++
 	return w
+}
+
+// peekFront returns the wantConn at the front of the queue without removing it.
+func (q *wantConnQueue) peekFront() *wantConn {
+	if q.headPos < len(q.head) {
+		return q.head[q.headPos]
+	}
+	if len(q.tail) > 0 {
+		return q.tail[0]
+	}
+	return nil
+}
+
+// cleanFront pops any wantConns that are no longer waiting from the head of the
+// queue, reporting whether any were popped.
+func (q *wantConnQueue) cleanFront() (cleaned bool) {
+	for {
+		w := q.peekFront()
+		if w == nil || w.waiting() {
+			return cleaned
+		}
+		q.popFront()
+		cleaned = true
+	}
 }
 
 // getConn dials and creates a new persistConn to the target as
@@ -1259,6 +1275,7 @@ func (t *Transport) queueForDial(w *wantConn) {
 		t.connsPerHostWait = make(map[connectMethodKey]wantConnQueue)
 	}
 	q := t.connsPerHostWait[w.key]
+	q.cleanFront()
 	q.pushBack(w)
 	t.connsPerHostWait[w.key] = q
 }
@@ -1330,19 +1347,6 @@ func (t *Transport) decConnsPerHost(key connectMethodKey) {
 	} else {
 		t.connsPerHost[key] = n
 	}
-}
-
-// The connect method and the transport can both specify a TLS
-// Host name.  The transport's name takes precedence if present.
-func chooseTLSHost(cm connectMethod, t *Transport) string {
-	tlsHost := ""
-	if t.TLSClientConfig != nil {
-		tlsHost = t.TLSClientConfig.ServerName
-	}
-	if tlsHost == "" {
-		tlsHost = cm.tlsHost()
-	}
-	return tlsHost
 }
 
 // Add TLS to a persistent connection, i.e. negotiate a TLS session. If pconn is already a TLS
@@ -2284,16 +2288,6 @@ func (e *httpError) Error() string   { return e.err }
 func (e *httpError) Timeout() bool   { return e.timeout }
 func (e *httpError) Temporary() bool { return true }
 
-func (e *httpError) Is(target error) bool {
-	switch target {
-	case os.ErrTimeout:
-		return e.timeout
-	case os.ErrTemporary:
-		return true
-	}
-	return false
-}
-
 var errTimeout error = &httpError{err: "net/http: timeout awaiting response headers", timeout: true}
 
 // errRequestCanceled is set to be identical to the one from h2 to facilitate
@@ -2617,20 +2611,11 @@ func (gz *gzipReader) Close() error {
 	return gz.body.Close()
 }
 
-type readerAndCloser struct {
-	io.Reader
-	io.Closer
-}
-
 type tlsHandshakeTimeoutError struct{}
 
 func (tlsHandshakeTimeoutError) Timeout() bool   { return true }
 func (tlsHandshakeTimeoutError) Temporary() bool { return true }
 func (tlsHandshakeTimeoutError) Error() string   { return "net/http: TLS handshake timeout" }
-
-func (tlsHandshakeTimeoutError) Is(target error) bool {
-	return target == os.ErrTimeout || target == os.ErrTemporary
-}
 
 // fakeLocker is a sync.Locker which does nothing. It's used to guard
 // test-only fields when not under test, to avoid runtime atomic
@@ -2687,16 +2672,4 @@ func (cl *connLRU) remove(pc *persistConn) {
 // len returns the number of items in the cache.
 func (cl *connLRU) len() int {
 	return len(cl.m)
-}
-
-// validPort reports whether p (without the colon) is a valid port in
-// a URL, per RFC 3986 Section 3.2.3, which says the port may be
-// empty, or only contain digits.
-func validPort(p string) bool {
-	for _, r := range []byte(p) {
-		if r < '0' || r > '9' {
-			return false
-		}
-	}
-	return true
 }
