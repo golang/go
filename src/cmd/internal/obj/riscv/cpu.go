@@ -211,27 +211,7 @@ const (
 	// Unprivileged ISA (Document Version 20190608-Base-Ratified)
 
 	// 2.4: Integer Computational Instructions
-	ASLLIRV32 = obj.ABaseRISCV + obj.A_ARCHSPECIFIC + iota
-	ASRLIRV32
-	ASRAIRV32
-
-	// 2.5: Control Transfer Instructions
-	AJAL
-	AJALR
-	ABEQ
-	ABNE
-	ABLT
-	ABLTU
-	ABGE
-	ABGEU
-
-	// 2.7: Memory Ordering Instructions
-	AFENCE
-	AFENCEI
-	AFENCETSO
-
-	// 5.2: Integer Computational Instructions
-	AADDI
+	AADDI = obj.ABaseRISCV + obj.A_ARCHSPECIFIC + iota
 	ASLTI
 	ASLTIU
 	AANDI
@@ -252,6 +232,40 @@ const (
 	ASRL
 	ASUB
 	ASRA
+
+	// The SLL/SRL/SRA instructions differ slightly between RV32 and RV64,
+	// hence there are pseudo-opcodes for the RV32 specific versions.
+	ASLLIRV32
+	ASRLIRV32
+	ASRAIRV32
+
+	// 2.5: Control Transfer Instructions
+	AJAL
+	AJALR
+	ABEQ
+	ABNE
+	ABLT
+	ABLTU
+	ABGE
+	ABGEU
+
+	// 2.6: Load and Store Instructions
+	ALW
+	ALWU
+	ALH
+	ALHU
+	ALB
+	ALBU
+	ASW
+	ASH
+	ASB
+
+	// 2.7: Memory Ordering Instructions
+	AFENCE
+	AFENCEI
+	AFENCETSO
+
+	// 5.2: Integer Computational Instructions (RV64I)
 	AADDIW
 	ASLLIW
 	ASRLIW
@@ -262,18 +276,9 @@ const (
 	ASUBW
 	ASRAW
 
-	// 5.3: Load and Store Instructions
+	// 5.3: Load and Store Instructions (RV64I)
 	ALD
-	ALW
-	ALWU
-	ALH
-	ALHU
-	ALB
-	ALBU
 	ASD
-	ASW
-	ASH
-	ASB
 
 	// 7.1: Multiplication Operations
 	AMUL
