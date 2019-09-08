@@ -207,7 +207,7 @@ func (v *view) buildProcessEnv(ctx context.Context) (*imports.ProcessEnv, error)
 		case "GO111MODULE":
 			env.GO111MODULE = split[1]
 		case "GOPROXY":
-			env.GOROOT = split[1]
+			env.GOPROXY = split[1]
 		case "GOFLAGS":
 			env.GOFLAGS = split[1]
 		case "GOSUMDB":
