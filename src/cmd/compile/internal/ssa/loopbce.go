@@ -186,7 +186,7 @@ func findIndVar(f *Func) []indVar {
 			// Handle induction variables of these forms.
 			// KNN is known-not-negative.
 			// SIGNED ARITHMETIC ONLY. (see switch on b.Control.Op above)
-			// Possibilitis for KNN are len and cap; perhaps we can infer others.
+			// Possibilities for KNN are len and cap; perhaps we can infer others.
 			// for i := 0; i <= KNN-k    ; i += k
 			// for i := 0; i <  KNN-(k-1); i += k
 			// Also handle decreasing.

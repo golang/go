@@ -1294,7 +1294,7 @@ type constSetKey struct {
 // equal value and identical type has already been added, then add
 // reports an error about the duplicate value.
 //
-// pos provides position information for where expression n occured
+// pos provides position information for where expression n occurred
 // (in case n does not have its own position information). what and
 // where are used in the error message.
 //

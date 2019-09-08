@@ -468,7 +468,7 @@ func (x *Int) TrailingZeroBits() uint {
 // If m == nil or m == 0, z = x**y unless y <= 0 then z = 1. If m > 0, y < 0,
 // and x and n are not relatively prime, z is unchanged and nil is returned.
 //
-// Modular exponentation of inputs of a particular size is not a
+// Modular exponentiation of inputs of a particular size is not a
 // cryptographically constant-time operation.
 func (z *Int) Exp(x, y, m *Int) *Int {
 	// See Knuth, volume 2, section 4.6.3.

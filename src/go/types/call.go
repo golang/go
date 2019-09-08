@@ -439,7 +439,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 				// Verify that LookupFieldOrMethod and MethodSet.Lookup agree.
 				// TODO(gri) This only works because we call LookupFieldOrMethod
 				// _before_ calling NewMethodSet: LookupFieldOrMethod completes
-				// any incomplete interfaces so they are avaible to NewMethodSet
+				// any incomplete interfaces so they are available to NewMethodSet
 				// (which assumes that interfaces have been completed already).
 				typ := x.typ
 				if x.mode == variable {

@@ -437,7 +437,7 @@ func (tr *transportRequest) setError(err error) {
 	tr.mu.Unlock()
 }
 
-// useRegisteredProtocol reports whether an alternate protocol (as reqistered
+// useRegisteredProtocol reports whether an alternate protocol (as registered
 // with Transport.RegisterProtocol) should be respected for this request.
 func (t *Transport) useRegisteredProtocol(req *Request) bool {
 	if req.URL.Scheme == "https" && req.requiresHTTP1() {
@@ -1903,7 +1903,7 @@ func (pc *persistConn) readLoop() {
 			}
 			return
 		}
-		pc.readLimit = maxInt64 // effictively no limit for response bodies
+		pc.readLimit = maxInt64 // effectively no limit for response bodies
 
 		pc.mu.Lock()
 		pc.numExpectedResponses--

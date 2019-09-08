@@ -362,7 +362,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// convert or check untyped argument
 		if isUntyped(x.typ) {
 			if x.mode == constant_ {
-				// an untyped constant number can alway be considered
+				// an untyped constant number can always be considered
 				// as a complex constant
 				if isNumeric(x.typ) {
 					x.typ = Typ[UntypedComplex]

@@ -570,7 +570,7 @@ func Main(archInit func(*Arch)) {
 			fcount++
 		}
 	}
-	// With all types ckecked, it's now safe to verify map keys. One single
+	// With all types checked, it's now safe to verify map keys. One single
 	// check past phase 9 isn't sufficient, as we may exit with other errors
 	// before then, thus skipping map key errors.
 	checkMapKeys()

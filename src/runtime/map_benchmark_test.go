@@ -251,7 +251,7 @@ func BenchmarkMapLast(b *testing.B) {
 }
 
 func BenchmarkMapCycle(b *testing.B) {
-	// Arrange map entries to be a permuation, so that
+	// Arrange map entries to be a permutation, so that
 	// we hit all entries, and one lookup is data dependent
 	// on the previous lookup.
 	const N = 3127

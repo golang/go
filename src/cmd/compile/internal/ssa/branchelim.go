@@ -319,7 +319,7 @@ func shouldElimIfElse(no, yes, post *Block, arch string) bool {
 		cost := phi * 1
 		if phi > 1 {
 			// If we have more than 1 phi and some values in post have args
-			// in yes or no blocks, we may have to recalucalte condition, because
+			// in yes or no blocks, we may have to recalculate condition, because
 			// those args may clobber flags. For now assume that all operations clobber flags.
 			cost += other * 1
 		}

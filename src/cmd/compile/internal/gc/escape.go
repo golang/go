@@ -24,7 +24,7 @@ import (
 // First, we construct a directed weighted graph where vertices
 // (termed "locations") represent variables allocated by statements
 // and expressions, and edges represent assignments between variables
-// (with weights reperesenting addressing/dereference counts).
+// (with weights representing addressing/dereference counts).
 //
 // Next we walk the graph looking for assignment paths that might
 // violate the invariants stated above. If a variable v's address is
@@ -33,7 +33,7 @@ import (
 //
 // To support interprocedural analysis, we also record data-flow from
 // each function's parameters to the heap and to its result
-// parameters. This information is summarized as "paremeter tags",
+// parameters. This information is summarized as "parameter tags",
 // which are used at static call sites to improve escape analysis of
 // function arguments.
 
@@ -44,7 +44,7 @@ import (
 // "location."
 //
 // We also model every Go assignment as a directed edges between
-// locations. The number of derefence operations minus the number of
+// locations. The number of dereference operations minus the number of
 // addressing operations is recorded as the edge's weight (termed
 // "derefs"). For example:
 //

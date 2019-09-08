@@ -632,7 +632,7 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
 		// the real module, found at a different path, usable only in
 		// a replace directive.
 		//
-		// TODO(bcmills): This doesn't seem right. Investigate futher.
+		// TODO(bcmills): This doesn't seem right. Investigate further.
 		// (Notably: why can't we replace foo/v2 with fork-of-foo/v3?)
 		dir2 := path.Join(r.codeDir, r.pathMajor[1:])
 		file2 = path.Join(dir2, "go.mod")

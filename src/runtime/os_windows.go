@@ -775,7 +775,7 @@ func newosproc(mp *m) {
 func newosproc0(mp *m, stk unsafe.Pointer) {
 	// TODO: this is completely broken. The args passed to newosproc0 (in asm_amd64.s)
 	// are stacksize and function, not *m and stack.
-	// Check os_linux.go for an implemention that might actually work.
+	// Check os_linux.go for an implementation that might actually work.
 	throw("bad newosproc0")
 }
 

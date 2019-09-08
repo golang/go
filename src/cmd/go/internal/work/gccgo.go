@@ -332,7 +332,7 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 		}
 
 		if haveShlib[filepath.Base(a.Target)] {
-			// This is a shared library we want to link againt.
+			// This is a shared library we want to link against.
 			if !addedShlib[a.Target] {
 				shlibs = append(shlibs, a.Target)
 				addedShlib[a.Target] = true

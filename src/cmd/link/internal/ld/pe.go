@@ -297,7 +297,7 @@ type peStringTable struct {
 	stringsLen int
 }
 
-// size resturns size of string table t.
+// size returns size of string table t.
 func (t *peStringTable) size() int {
 	// string table starts with 4-byte length at the beginning
 	return t.stringsLen + 4

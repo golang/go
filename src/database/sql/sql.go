@@ -2040,7 +2040,7 @@ func (tx *Tx) grabConn(ctx context.Context) (*driverConn, releaseConn, error) {
 		return nil, nil, ctx.Err()
 	}
 
-	// closeme.RLock must come before the check for isDone to prevent the Tx from
+	// closemu.RLock must come before the check for isDone to prevent the Tx from
 	// closing while a query is executing.
 	tx.closemu.RLock()
 	if tx.isDone() {
