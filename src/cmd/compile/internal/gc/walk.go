@@ -1265,7 +1265,7 @@ opswitch:
 			}
 			// Map initialization with a variable or large hint is
 			// more complicated. We therefore generate a call to
-			// runtime.makemap to intialize hmap and allocate the
+			// runtime.makemap to initialize hmap and allocate the
 			// map buckets.
 
 			// When hint fits into int, use makemap instead of

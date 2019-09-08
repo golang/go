@@ -1561,7 +1561,7 @@ func rclass(r int16) int {
 	return C_GOK
 }
 
-// con32class reclassifies the constant of 32-bit instruction. Becuase the constant type is 32-bit,
+// con32class reclassifies the constant of 32-bit instruction. Because the constant type is 32-bit,
 // but saved in Offset which type is int64, con32class treats it as uint32 type and reclassifies it.
 func (c *ctxt7) con32class(a *obj.Addr) int {
 	v := uint32(a.Offset)

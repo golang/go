@@ -489,7 +489,7 @@ func init() {
 		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
 		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
 
-		// Constant conditon code values. The condition code can be 0, 1, 2 or 3.
+		// Constant condition code values. The condition code can be 0, 1, 2 or 3.
 		{name: "FlagEQ"}, // CC=0 (equal)
 		{name: "FlagLT"}, // CC=1 (less than)
 		{name: "FlagGT"}, // CC=2 (greater than)

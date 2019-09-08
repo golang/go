@@ -302,7 +302,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 					// We have reached the end and are missing padding
 					return n, false, CorruptInputError(olen - len(src) - j)
 				}
-				// We have reached the end and are not expecing any padding
+				// We have reached the end and are not expecting any padding
 				dlen, end = j, true
 				break
 			}

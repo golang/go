@@ -6,7 +6,7 @@
 // Pollset syscalls are in netpoll_aix.go.
 // The implementation is based on Solaris and Windows.
 // Each syscall is made by calling its libc symbol using asmcgocall and asmsyscall6
-// asssembly functions.
+// assembly functions.
 
 package runtime
 

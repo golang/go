@@ -449,7 +449,7 @@ func getscheme(rawurl string) (scheme, path string, err error) {
 	return "", rawurl, nil
 }
 
-// split slices s into two substrings separated by the first occurence of
+// split slices s into two substrings separated by the first occurrence of
 // sep. If cutc is true then sep is included with the second substring.
 // If sep does not occur in s then s and the empty string is returned.
 func split(s string, sep byte, cutc bool) (string, string) {

@@ -495,7 +495,7 @@ func isStaticCompositeLiteral(n *Node) bool {
 // literal components of composite literals.
 // Dynamic initialization represents non-literals and
 // non-literal components of composite literals.
-// LocalCode initializion represents initialization
+// LocalCode initialization represents initialization
 // that occurs purely in generated code local to the function of use.
 // Initialization code is sometimes generated in passes,
 // first static then dynamic.

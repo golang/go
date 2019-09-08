@@ -991,7 +991,7 @@ func mutualProtocol(protos, preferenceProtos []string) (string, bool) {
 	return protos[0], true
 }
 
-// hostnameInSNI converts name into an approriate hostname for SNI.
+// hostnameInSNI converts name into an appropriate hostname for SNI.
 // Literal IP addresses and absolute FQDNs are not permitted as SNI values.
 // See RFC 6066, Section 3.
 func hostnameInSNI(name string) string {

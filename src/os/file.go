@@ -250,7 +250,7 @@ func Mkdir(name string, perm FileMode) error {
 	return nil
 }
 
-// setStickyBit adds ModeSticky to the permision bits of path, non atomic.
+// setStickyBit adds ModeSticky to the permission bits of path, non atomic.
 func setStickyBit(name string) error {
 	fi, err := Stat(name)
 	if err != nil {

@@ -1457,7 +1457,7 @@ var nameConstraintsTests = []nameConstraintsTest{
 	// that we can process CA certificates in the wild that have invalid SANs.
 	// See https://github.com/golang/go/issues/23995
 
-	// #77: an invalid DNS or mail SAN will not be detected if name constaint
+	// #77: an invalid DNS or mail SAN will not be detected if name constraint
 	// checking is not triggered.
 	{
 		roots: make([]constraintsSpec, 1),
@@ -1631,7 +1631,7 @@ func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.
 		NotAfter:              time.Unix(2000, 0),
 		KeyUsage:              KeyUsageCertSign,
 		BasicConstraintsValid: true,
-		IsCA:                  true,
+		IsCA: true,
 	}
 
 	if err := addConstraintsToTemplate(constraints, template); err != nil {
@@ -1668,7 +1668,7 @@ func makeConstraintsLeafCert(leaf leafSpec, key *ecdsa.PrivateKey, parent *Certi
 		NotAfter:              time.Unix(2000, 0),
 		KeyUsage:              KeyUsageDigitalSignature,
 		BasicConstraintsValid: true,
-		IsCA:                  false,
+		IsCA: false,
 	}
 
 	for _, name := range leaf.sans {

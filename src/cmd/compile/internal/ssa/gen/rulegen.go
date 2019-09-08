@@ -396,7 +396,7 @@ type Node interface{}
 // ast.Stmt under some limited circumstances.
 type Statement interface{}
 
-// bodyBase is shared by all of our statement psuedo-node types which can
+// bodyBase is shared by all of our statement pseudo-node types which can
 // contain other statements.
 type bodyBase struct {
 	list    []Statement

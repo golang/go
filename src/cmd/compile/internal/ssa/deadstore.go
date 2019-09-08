@@ -180,7 +180,7 @@ func elimDeadAutosGeneric(f *Func) {
 			}
 			return
 		case OpStore, OpMove, OpZero:
-			// v should be elimated if we eliminate the auto.
+			// v should be eliminated if we eliminate the auto.
 			n, ok := addr[args[0]]
 			if ok && elim[v] == nil {
 				elim[v] = n

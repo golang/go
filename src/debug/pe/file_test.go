@@ -215,7 +215,7 @@ var fileTests = []fileTest{
 		// testdata/vmlinuz-4.15.0-47-generic is a trimmed down version of Linux Kernel image.
 		// The original Linux Kernel image is about 8M and it is not recommended to add such a big binary file to the repo.
 		// Moreover only a very small portion of the original Kernel image was being parsed by debug/pe package.
-		// Inorder to indentify this portion, the original image was first parsed by modified debug/pe package.
+		// In order to identify this portion, the original image was first parsed by modified debug/pe package.
 		// Modification essentially communicated reader's positions before and after parsing.
 		// Finally, bytes between those positions where written to a separate file,
 		// generating trimmed down version Linux Kernel image used in this test case.

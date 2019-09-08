@@ -74,7 +74,7 @@ type regInfo struct {
 	// clobbers encodes the set of registers that are overwritten by
 	// the instruction (other than the output registers).
 	clobbers regMask
-	// outpus[i] encodes the set of registers allowed for the i'th output.
+	// outputs[i] encodes the set of registers allowed for the i'th output.
 	outputs []regMask
 }
 
@@ -430,7 +430,7 @@ func (a arch) Name() string {
 //
 // Note that there is no limit on the concurrency at the moment. On a four-core
 // laptop at the time of writing, peak RSS usually reached ~230MiB, which seems
-// doable by practially any machine nowadays. If that stops being the case, we
+// doable by practically any machine nowadays. If that stops being the case, we
 // can cap this func to a fixed number of architectures being generated at once.
 func genLower() {
 	var wg sync.WaitGroup
