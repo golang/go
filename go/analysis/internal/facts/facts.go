@@ -29,7 +29,7 @@
 // The notion of "exportedness" that matters here is that of the
 // compiler. According to the language spec, a method pkg.T.f is
 // unexported simply because its name starts with lowercase. But the
-// compiler must nonethless export f so that downstream compilations can
+// compiler must nonetheless export f so that downstream compilations can
 // accurately ascertain whether pkg.T implements an interface pkg.I
 // defined as interface{f()}. Exported thus means "described in export
 // data".
