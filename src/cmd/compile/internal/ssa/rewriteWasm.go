@@ -2742,6 +2742,44 @@ func rewriteValueWasm_OpLsh64x64_0(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+	// match: (Lsh64x64 x (I64Const [c]))
+	// cond: uint64(c) < 64
+	// result: (I64Shl x (I64Const [c]))
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpWasmI64Const {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) < 64) {
+			break
+		}
+		v.reset(OpWasmI64Shl)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
+		v0.AuxInt = c
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Lsh64x64 x (I64Const [c]))
+	// cond: uint64(c) >= 64
+	// result: (I64Const [0])
+	for {
+		_ = v.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpWasmI64Const {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) >= 64) {
+			break
+		}
+		v.reset(OpWasmI64Const)
+		v.AuxInt = 0
+		return true
+	}
 	// match: (Lsh64x64 x y)
 	// cond:
 	// result: (Select (I64Shl x y) (I64Const [0]) (I64LtU y (I64Const [64])))
@@ -4264,6 +4302,44 @@ func rewriteValueWasm_OpRsh64Ux64_0(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+	// match: (Rsh64Ux64 x (I64Const [c]))
+	// cond: uint64(c) < 64
+	// result: (I64ShrU x (I64Const [c]))
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpWasmI64Const {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) < 64) {
+			break
+		}
+		v.reset(OpWasmI64ShrU)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
+		v0.AuxInt = c
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Rsh64Ux64 x (I64Const [c]))
+	// cond: uint64(c) >= 64
+	// result: (I64Const [0])
+	for {
+		_ = v.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpWasmI64Const {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) >= 64) {
+			break
+		}
+		v.reset(OpWasmI64Const)
+		v.AuxInt = 0
+		return true
+	}
 	// match: (Rsh64Ux64 x y)
 	// cond:
 	// result: (Select (I64ShrU x y) (I64Const [0]) (I64LtU y (I64Const [64])))
@@ -4353,6 +4429,48 @@ func rewriteValueWasm_OpRsh64x64_0(v *Value) bool {
 		v.reset(OpWasmI64ShrS)
 		v.AddArg(x)
 		v.AddArg(y)
+		return true
+	}
+	// match: (Rsh64x64 x (I64Const [c]))
+	// cond: uint64(c) < 64
+	// result: (I64ShrS x (I64Const [c]))
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpWasmI64Const {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) < 64) {
+			break
+		}
+		v.reset(OpWasmI64ShrS)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
+		v0.AuxInt = c
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Rsh64x64 x (I64Const [c]))
+	// cond: uint64(c) >= 64
+	// result: (I64ShrS x (I64Const [63]))
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpWasmI64Const {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) >= 64) {
+			break
+		}
+		v.reset(OpWasmI64ShrS)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
+		v0.AuxInt = 63
+		v.AddArg(v0)
 		return true
 	}
 	// match: (Rsh64x64 x y)
