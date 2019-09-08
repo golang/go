@@ -109,6 +109,7 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	MULHD	R7, R2, R1            // b90400b2b98600a7ebb7003f000ab98000b2b90900abebb2003f000ab98000b7b9e9b01a
 	MULHDU	R3, R4                // b90400b4b98600a3b904004a
 	MULHDU	R5, R6, R7            // b90400b6b98600a5b904007a
+	MLGR	R1, R2                // b9860021
 	DIVD	R1, R2                // b90400b2b90d00a1b904002b
 	DIVD	R1, R2, R3            // b90400b2b90d00a1b904003b
 	DIVW	R4, R5                // b90400b5b91d00a4b904005b

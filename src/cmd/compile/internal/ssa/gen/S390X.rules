@@ -17,6 +17,7 @@
 (Mul(32|16|8)  x y) -> (MULLW  x y)
 (Mul32F x y) -> (FMULS x y)
 (Mul64F x y) -> (FMUL x y)
+(Mul64uhilo x y) -> (MLGR x y)
 
 (Div32F x y) -> (FDIVS x y)
 (Div64F x y) -> (FDIV x y)

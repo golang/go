@@ -174,6 +174,7 @@ var optab = []Optab{
 	{i: 12, as: ASUB, a1: C_LAUTO, a6: C_REG},
 	{i: 4, as: AMULHD, a1: C_REG, a6: C_REG},
 	{i: 4, as: AMULHD, a1: C_REG, a2: C_REG, a6: C_REG},
+	{i: 62, as: AMLGR, a1: C_REG, a6: C_REG},
 	{i: 2, as: ADIVW, a1: C_REG, a2: C_REG, a6: C_REG},
 	{i: 2, as: ADIVW, a1: C_REG, a6: C_REG},
 	{i: 10, as: ASUB, a1: C_REG, a2: C_REG, a6: C_REG},
@@ -3406,6 +3407,9 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		}
 		d2 := c.regoff(&p.To)
 		zRXE(opcode, uint32(p.From.Reg), 0, 0, uint32(d2), 0, asm)
+
+	case 62: // equivalent of Mul64 in math/bits
+		zRRE(op_MLGR, uint32(p.To.Reg), uint32(p.From.Reg), asm)
 
 	case 66:
 		zRR(op_BCR, 0, 0, asm)

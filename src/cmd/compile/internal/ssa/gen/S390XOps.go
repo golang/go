@@ -568,6 +568,19 @@ func init() {
 			clobberFlags: true,
 		},
 
+		// unsigned multiplication (64x64 → 128)
+		//
+		// Multiply the two 64-bit input operands together and place the 128-bit result into
+		// an even-odd register pair. The second register in the target pair also contains
+		// one of the input operands. Since we don't currently have a way to specify an
+		// even-odd register pair we hardcode this register pair as R2:R3.
+		{
+			name:      "MLGR",
+			argLength: 2,
+			reg:       regInfo{inputs: []regMask{gp, r3}, outputs: []regMask{r2, r3}},
+			asm:       "MLGR",
+		},
+
 		// pseudo operations to sum the output of the POPCNT instruction
 		{name: "SumBytes2", argLength: 1, typ: "UInt8"}, // sum the rightmost 2 bytes in arg0 ignoring overflow
 		{name: "SumBytes4", argLength: 1, typ: "UInt8"}, // sum the rightmost 4 bytes in arg0 ignoring overflow
