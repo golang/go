@@ -335,6 +335,8 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpMul64_0(v)
 	case OpMul64F:
 		return rewriteValueS390X_OpMul64F_0(v)
+	case OpMul64uhilo:
+		return rewriteValueS390X_OpMul64uhilo_0(v)
 	case OpMul8:
 		return rewriteValueS390X_OpMul8_0(v)
 	case OpNeg16:
@@ -4604,6 +4606,19 @@ func rewriteValueS390X_OpMul64F_0(v *Value) bool {
 		y := v.Args[1]
 		x := v.Args[0]
 		v.reset(OpS390XFMUL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueS390X_OpMul64uhilo_0(v *Value) bool {
+	// match: (Mul64uhilo x y)
+	// cond:
+	// result: (MLGR x y)
+	for {
+		y := v.Args[1]
+		x := v.Args[0]
+		v.reset(OpS390XMLGR)
 		v.AddArg(x)
 		v.AddArg(y)
 		return true

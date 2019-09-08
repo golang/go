@@ -2071,6 +2071,7 @@ const (
 	OpS390XLoweredAtomicExchange64
 	OpS390XFLOGR
 	OpS390XPOPCNT
+	OpS390XMLGR
 	OpS390XSumBytes2
 	OpS390XSumBytes4
 	OpS390XSumBytes8
@@ -27875,6 +27876,21 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+			},
+		},
+	},
+	{
+		name:   "MLGR",
+		argLen: 2,
+		asm:    s390x.AMLGR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 8},     // R3
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+			},
+			outputs: []outputInfo{
+				{0, 4}, // R2
+				{1, 8}, // R3
 			},
 		},
 	},
