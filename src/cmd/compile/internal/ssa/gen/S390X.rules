@@ -701,6 +701,8 @@
 // may need to be reworked when NIHH/OIHH are added
 (SRDconst [1] (SLDconst [1] (LGDR <t> x))) -> (LGDR <t> (LPDFR <x.Type> x))
 (LDGR <t> (SRDconst [1] (SLDconst [1] x))) -> (LPDFR (LDGR <t> x))
+(AND (MOVDconst [^(-1<<63)]) (LGDR <t> x)) -> (LGDR <t> (LPDFR <x.Type> x))
+(LDGR <t> (AND (MOVDconst [^(-1<<63)]) x)) -> (LPDFR (LDGR <t> x))
 (OR (MOVDconst [-1<<63]) (LGDR <t> x))     -> (LGDR <t> (LNDFR <x.Type> x))
 (LDGR <t> (OR (MOVDconst [-1<<63]) x))     -> (LNDFR (LDGR <t> x))
 
@@ -710,6 +712,8 @@
 // detect copysign
 (OR (SLDconst [63] (SRDconst [63] (LGDR x))) (LGDR (LPDFR <t> y))) -> (LGDR (CPSDR <t> y x))
 (OR (SLDconst [63] (SRDconst [63] (LGDR x))) (MOVDconst [c])) && c & -1<<63 == 0 -> (LGDR (CPSDR <x.Type> (FMOVDconst <x.Type> [c]) x))
+(OR (AND (MOVDconst [-1<<63]) (LGDR x)) (LGDR (LPDFR <t> y))) -> (LGDR (CPSDR <t> y x))
+(OR (AND (MOVDconst [-1<<63]) (LGDR x)) (MOVDconst [c])) && c & -1<<63 == 0 -> (LGDR (CPSDR <x.Type> (FMOVDconst <x.Type> [c]) x))
 (CPSDR y (FMOVDconst [c])) && c & -1<<63 == 0 -> (LPDFR y)
 (CPSDR y (FMOVDconst [c])) && c & -1<<63 != 0 -> (LNDFR y)
 
