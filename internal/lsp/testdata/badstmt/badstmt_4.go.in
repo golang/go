@@ -1,0 +1,11 @@
+package badstmt
+
+import (
+	"golang.org/x/tools/internal/lsp/foo"
+)
+
+func _() {
+	go func() {
+		defer foo. //@complete(" //", Foo, IntFoo, StructFoo)
+	}
+}

@@ -171,12 +171,12 @@ func isEllipsisArray(n ast.Expr) bool {
 
 // fix inspects the AST and potentially modifies any *ast.BadStmts so that it can be
 // type-checked more effectively.
-func fix(ctx context.Context, file *ast.File, tok *token.File, src []byte) error {
+func fix(ctx context.Context, n ast.Node, tok *token.File, src []byte) error {
 	var (
 		ancestors []ast.Node
 		err       error
 	)
-	ast.Inspect(file, func(n ast.Node) bool {
+	ast.Inspect(n, func(n ast.Node) bool {
 		if n == nil {
 			if len(ancestors) > 0 {
 				ancestors = ancestors[:len(ancestors)-1]
@@ -190,7 +190,10 @@ func fix(ctx context.Context, file *ast.File, tok *token.File, src []byte) error
 				parent = ancestors[len(ancestors)-1]
 			}
 			err = parseDeferOrGoStmt(n, parent, tok, src) // don't shadow err
-			if err != nil {
+			if err == nil {
+				// Recursively fix any BadStmts in our fixed node.
+				err = fix(ctx, parent, tok, src)
+			} else {
 				err = errors.Errorf("unable to parse defer or go from *ast.BadStmt: %v", err)
 			}
 			return false
@@ -329,17 +332,40 @@ FindTo:
 		exprBytes = append(exprBytes, '_')
 	}
 
-	exprStr := string(exprBytes)
-	expr, err := parser.ParseExpr(exprStr)
-	if expr == nil {
-		return errors.Errorf("no expr in %s: %v", exprStr, err)
+	// Wrap our expression to make it a valid Go file we can pass to ParseFile.
+	fileSrc := bytes.Join([][]byte{
+		[]byte("package fake;func _(){"),
+		exprBytes,
+		[]byte("}"),
+	}, nil)
+
+	// Use ParseFile instead of ParseExpr because ParseFile has
+	// best-effort behavior, whereas ParseExpr fails hard on any error.
+	fakeFile, err := parser.ParseFile(token.NewFileSet(), "", fileSrc, 0)
+	if fakeFile == nil {
+		return errors.Errorf("error reading fake file source: %v", err)
 	}
+
+	// Extract our expression node from inside the fake file.
+	if len(fakeFile.Decls) == 0 {
+		return errors.Errorf("error parsing fake file: %v", err)
+	}
+	fakeDecl, _ := fakeFile.Decls[0].(*ast.FuncDecl)
+	if fakeDecl == nil || len(fakeDecl.Body.List) == 0 {
+		return errors.Errorf("no statement in %s: %v", exprBytes, err)
+	}
+	exprStmt, ok := fakeDecl.Body.List[0].(*ast.ExprStmt)
+	if !ok {
+		return errors.Errorf("no expr in %s: %v", exprBytes, err)
+	}
+	expr := exprStmt.X
 
 	// parser.ParseExpr returns undefined positions.
 	// Adjust them for the current file.
-	offsetPositions(expr, from-1)
+	offsetPositions(expr, from-1-(expr.Pos()-1))
 
-	// Package the expression into a fake *ast.CallExpr and re-insert into the function.
+	// Package the expression into a fake *ast.CallExpr and re-insert
+	// into the function.
 	call := &ast.CallExpr{
 		Fun:    expr,
 		Lparen: to,
