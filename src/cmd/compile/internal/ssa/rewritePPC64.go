@@ -181,10 +181,10 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpEqB_0(v)
 	case OpEqPtr:
 		return rewriteValuePPC64_OpEqPtr_0(v)
-	case OpFloor:
-		return rewriteValuePPC64_OpFloor_0(v)
 	case OpFMA:
 		return rewriteValuePPC64_OpFMA_0(v)
+	case OpFloor:
+		return rewriteValuePPC64_OpFloor_0(v)
 	case OpGeq16:
 		return rewriteValuePPC64_OpGeq16_0(v)
 	case OpGeq16U:
@@ -1997,16 +1997,6 @@ func rewriteValuePPC64_OpEqPtr_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpFloor_0(v *Value) bool {
-	// match: (Floor x)
-	// result: (FFLOOR x)
-	for {
-		x := v.Args[0]
-		v.reset(OpPPC64FFLOOR)
-		v.AddArg(x)
-		return true
-	}
-}
 func rewriteValuePPC64_OpFMA_0(v *Value) bool {
 	// match: (FMA x y z)
 	// result: (FMADD x y z)
@@ -2018,6 +2008,16 @@ func rewriteValuePPC64_OpFMA_0(v *Value) bool {
 		v.AddArg(x)
 		v.AddArg(y)
 		v.AddArg(z)
+		return true
+	}
+}
+func rewriteValuePPC64_OpFloor_0(v *Value) bool {
+	// match: (Floor x)
+	// result: (FFLOOR x)
+	for {
+		x := v.Args[0]
+		v.reset(OpPPC64FFLOOR)
+		v.AddArg(x)
 		return true
 	}
 }
