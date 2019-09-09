@@ -65,9 +65,6 @@ const (
 	TFUNCARGS
 	TCHANARGS
 
-	// pseudo-types for import/export
-	TDDDFIELD // wrapper: contained type is a ... field
-
 	// SSA backend types
 	TSSA   // internal types used by SSA backend (flags, memory, etc.)
 	TTUPLE // a pair of types, used by SSA backend
@@ -128,7 +125,6 @@ type Type struct {
 	// TFUNC: *Func
 	// TSTRUCT: *Struct
 	// TINTER: *Interface
-	// TDDDFIELD: DDDField
 	// TFUNCARGS: FuncArgs
 	// TCHANARGS: ChanArgs
 	// TCHAN: *Chan
@@ -305,11 +301,6 @@ type Ptr struct {
 	Elem *Type // element type
 }
 
-// DDDField contains Type fields specific to TDDDFIELD types.
-type DDDField struct {
-	T *Type // reference to a slice type for ... args
-}
-
 // ChanArgs contains Type fields specific to TCHANARGS types.
 type ChanArgs struct {
 	T *Type // reference to a chan type whose elements need a width check
@@ -470,8 +461,6 @@ func New(et EType) *Type {
 		t.Extra = ChanArgs{}
 	case TFUNCARGS:
 		t.Extra = FuncArgs{}
-	case TDDDFIELD:
-		t.Extra = DDDField{}
 	case TCHAN:
 		t.Extra = new(Chan)
 	case TTUPLE:
@@ -570,13 +559,6 @@ func NewPtr(elem *Type) *Type {
 	if NewPtrCacheEnabled {
 		elem.Cache.ptr = t
 	}
-	return t
-}
-
-// NewDDDField returns a new TDDDFIELD type for slice type s.
-func NewDDDField(s *Type) *Type {
-	t := New(TDDDFIELD)
-	t.Extra = DDDField{T: s}
 	return t
 }
 
@@ -797,12 +779,6 @@ func (t *Type) Elem() *Type {
 	}
 	Fatalf("Type.Elem %s", t.Etype)
 	return nil
-}
-
-// DDDField returns the slice ... type for TDDDFIELD type t.
-func (t *Type) DDDField() *Type {
-	t.wantEtype(TDDDFIELD)
-	return t.Extra.(DDDField).T
 }
 
 // ChanArgs returns the channel type for TCHANARGS type t.

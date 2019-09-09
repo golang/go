@@ -864,9 +864,6 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 	case TUNSAFEPTR:
 		return "unsafe.Pointer"
 
-	case TDDDFIELD:
-		return mode.Sprintf("%v <%v> %v", t.Etype, t.Sym, t.DDDField())
-
 	case Txxx:
 		return "Txxx"
 	}
