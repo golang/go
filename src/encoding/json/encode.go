@@ -164,7 +164,6 @@ func Marshal(v interface{}) ([]byte, error) {
 	}
 	buf := append([]byte(nil), e.Bytes()...)
 
-	e.Reset()
 	encodeStatePool.Put(e)
 
 	return buf, nil
