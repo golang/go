@@ -435,11 +435,11 @@ func TestEmptyKeyAndValue(t *testing.T) {
 // ("quick keys") as well as long keys.
 func TestSingleBucketMapStringKeys_DupLen(t *testing.T) {
 	testMapLookups(t, map[string]string{
-		"x":    "x1val",
-		"xx":   "x2val",
-		"foo":  "fooval",
-		"bar":  "barval", // same key length as "foo"
-		"xxxx": "x4val",
+		"x":                      "x1val",
+		"xx":                     "x2val",
+		"foo":                    "fooval",
+		"bar":                    "barval", // same key length as "foo"
+		"xxxx":                   "x4val",
 		strings.Repeat("x", 128): "longval1",
 		strings.Repeat("y", 128): "longval2",
 	})

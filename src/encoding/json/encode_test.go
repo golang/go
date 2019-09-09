@@ -796,8 +796,8 @@ func TestTextMarshalerMapKeysAreSorted(t *testing.T) {
 // https://golang.org/issue/33675
 func TestNilMarshalerTextMapKey(t *testing.T) {
 	b, err := Marshal(map[*unmarshalerText]int{
-		(*unmarshalerText)(nil):    1,
-		&unmarshalerText{"A", "B"}: 2,
+		(*unmarshalerText)(nil): 1,
+		{"A", "B"}:              2,
 	})
 	if err != nil {
 		t.Fatalf("Failed to Marshal *text.Marshaler: %v", err)
