@@ -1697,37 +1697,37 @@
 // Divisibility check for signed integers for power of two constant are simple mask.
 // However, we must match against the rewritten n%c == 0 -> n - c*(n/c) == 0 -> n == c*(n/c)
 // where n/c contains fixup code to handle signed n.
-(Eq8 n (Lsh8x64
+((Eq8|Neq8) n (Lsh8x64
   (Rsh8x64
     (Add8  <t> n (Rsh8Ux64  <t> (Rsh8x64  <t> n (Const64 <typ.UInt64> [ 7])) (Const64 <typ.UInt64> [kbar])))
     (Const64 <typ.UInt64> [k]))
 	(Const64 <typ.UInt64> [k]))
 ) && k > 0 && k < 7 && kbar == 8 - k
-  -> (Eq8 (And8 <t> n (Const8 <t> [int64(1<<uint(k)-1)])) (Const8 <t> [0]))
+  -> ((Eq8|Neq8) (And8 <t> n (Const8 <t> [int64(1<<uint(k)-1)])) (Const8 <t> [0]))
 
-(Eq16 n (Lsh16x64
+((Eq16|Neq16) n (Lsh16x64
   (Rsh16x64
     (Add16 <t> n (Rsh16Ux64 <t> (Rsh16x64 <t> n (Const64 <typ.UInt64> [15])) (Const64 <typ.UInt64> [kbar])))
     (Const64 <typ.UInt64> [k]))
 	(Const64 <typ.UInt64> [k]))
 ) && k > 0 && k < 15 && kbar == 16 - k
-  -> (Eq16 (And16 <t> n (Const16 <t> [int64(1<<uint(k)-1)])) (Const16 <t> [0]))
+  -> ((Eq16|Neq16) (And16 <t> n (Const16 <t> [int64(1<<uint(k)-1)])) (Const16 <t> [0]))
 
-(Eq32 n (Lsh32x64
+((Eq32|Neq32) n (Lsh32x64
   (Rsh32x64
     (Add32 <t> n (Rsh32Ux64 <t> (Rsh32x64 <t> n (Const64 <typ.UInt64> [31])) (Const64 <typ.UInt64> [kbar])))
     (Const64 <typ.UInt64> [k]))
 	(Const64 <typ.UInt64> [k]))
 ) && k > 0 && k < 31 && kbar == 32 - k
-  -> (Eq32 (And32 <t> n (Const32 <t> [int64(1<<uint(k)-1)])) (Const32 <t> [0]))
+  -> ((Eq32|Neq32) (And32 <t> n (Const32 <t> [int64(1<<uint(k)-1)])) (Const32 <t> [0]))
 
-(Eq64 n (Lsh64x64
+((Eq64|Neq64) n (Lsh64x64
   (Rsh64x64
     (Add64 <t> n (Rsh64Ux64 <t> (Rsh64x64 <t> n (Const64 <typ.UInt64> [63])) (Const64 <typ.UInt64> [kbar])))
     (Const64 <typ.UInt64> [k]))
 	(Const64 <typ.UInt64> [k]))
 ) && k > 0 && k < 63 && kbar == 64 - k
-  -> (Eq64 (And64 <t> n (Const64 <t> [int64(1<<uint(k)-1)])) (Const64 <t> [0]))
+  -> ((Eq64|Neq64) (And64 <t> n (Const64 <t> [int64(1<<uint(k)-1)])) (Const64 <t> [0]))
 
 (Eq(8|16|32|64)  s:(Sub(8|16|32|64) x y) (Const(8|16|32|64) [0])) && s.Uses == 1 -> (Eq(8|16|32|64)  x y)
 (Neq(8|16|32|64) s:(Sub(8|16|32|64) x y) (Const(8|16|32|64) [0])) && s.Uses == 1 -> (Neq(8|16|32|64) x y)
