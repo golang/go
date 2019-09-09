@@ -197,6 +197,9 @@ func (b *Reader) Discard(n int) (discarded int, err error) {
 func (b *Reader) Read(p []byte) (n int, err error) {
 	n = len(p)
 	if n == 0 {
+		if b.Buffered() > 0 {
+			return 0, nil
+		}
 		return 0, b.readErr()
 	}
 	if b.r == b.w {

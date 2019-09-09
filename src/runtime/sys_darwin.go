@@ -197,6 +197,13 @@ func read(fd int32, p unsafe.Pointer, n int32) int32 {
 }
 func read_trampoline()
 
+func pipe() (r, w int32, errno int32) {
+	var p [2]int32
+	errno = libcCall(unsafe.Pointer(funcPC(pipe_trampoline)), noescape(unsafe.Pointer(&p)))
+	return p[0], p[1], errno
+}
+func pipe_trampoline()
+
 //go:nosplit
 //go:cgo_unsafe_args
 func closefd(fd int32) int32 {
@@ -339,33 +346,52 @@ func kevent_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func dispatch_semaphore_create(val int) (sema uintptr) {
-	libcCall(unsafe.Pointer(funcPC(dispatch_semaphore_create_trampoline)), unsafe.Pointer(&val))
-	return
+func pthread_mutex_init(m *pthreadmutex, attr *pthreadmutexattr) int32 {
+	return libcCall(unsafe.Pointer(funcPC(pthread_mutex_init_trampoline)), unsafe.Pointer(&m))
 }
-func dispatch_semaphore_create_trampoline()
+func pthread_mutex_init_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func dispatch_semaphore_wait(sema uintptr, t uint64) int32 {
-	return libcCall(unsafe.Pointer(funcPC(dispatch_semaphore_wait_trampoline)), unsafe.Pointer(&sema))
+func pthread_mutex_lock(m *pthreadmutex) int32 {
+	return libcCall(unsafe.Pointer(funcPC(pthread_mutex_lock_trampoline)), unsafe.Pointer(&m))
 }
-func dispatch_semaphore_wait_trampoline()
+func pthread_mutex_lock_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func dispatch_semaphore_signal(sema uintptr) {
-	libcCall(unsafe.Pointer(funcPC(dispatch_semaphore_signal_trampoline)), unsafe.Pointer(&sema))
+func pthread_mutex_unlock(m *pthreadmutex) int32 {
+	return libcCall(unsafe.Pointer(funcPC(pthread_mutex_unlock_trampoline)), unsafe.Pointer(&m))
 }
-func dispatch_semaphore_signal_trampoline()
+func pthread_mutex_unlock_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func dispatch_time(base uint64, delta int64) (result uint64) {
-	libcCall(unsafe.Pointer(funcPC(dispatch_time_trampoline)), unsafe.Pointer(&base))
-	return
+func pthread_cond_init(c *pthreadcond, attr *pthreadcondattr) int32 {
+	return libcCall(unsafe.Pointer(funcPC(pthread_cond_init_trampoline)), unsafe.Pointer(&c))
 }
-func dispatch_time_trampoline()
+func pthread_cond_init_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func pthread_cond_wait(c *pthreadcond, m *pthreadmutex) int32 {
+	return libcCall(unsafe.Pointer(funcPC(pthread_cond_wait_trampoline)), unsafe.Pointer(&c))
+}
+func pthread_cond_wait_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func pthread_cond_timedwait_relative_np(c *pthreadcond, m *pthreadmutex, t *timespec) int32 {
+	return libcCall(unsafe.Pointer(funcPC(pthread_cond_timedwait_relative_np_trampoline)), unsafe.Pointer(&c))
+}
+func pthread_cond_timedwait_relative_np_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func pthread_cond_signal(c *pthreadcond) int32 {
+	return libcCall(unsafe.Pointer(funcPC(pthread_cond_signal_trampoline)), unsafe.Pointer(&c))
+}
+func pthread_cond_signal_trampoline()
 
 // Not used on Darwin, but must be defined.
 func exitThread(wait *uint32) {
@@ -374,6 +400,12 @@ func exitThread(wait *uint32) {
 //go:nosplit
 func closeonexec(fd int32) {
 	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
+}
+
+//go:nosplit
+func setNonblock(fd int32) {
+	flags := fcntl(fd, _F_GETFL, 0)
+	fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
 }
 
 // Tell the linker that the libc_* functions are to be found
@@ -390,6 +422,7 @@ func closeonexec(fd int32) {
 //go:cgo_import_dynamic libc_close close "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_read read "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_write write "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pipe pipe "/usr/lib/libSystem.B.dylib"
 
 //go:cgo_import_dynamic libc_mmap mmap "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_munmap munmap "/usr/lib/libSystem.B.dylib"
@@ -411,10 +444,13 @@ func closeonexec(fd int32) {
 //go:cgo_import_dynamic libc_kqueue kqueue "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_kevent kevent "/usr/lib/libSystem.B.dylib"
 
-//go:cgo_import_dynamic libc_dispatch_semaphore_create dispatch_semaphore_create "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_dispatch_semaphore_wait dispatch_semaphore_wait "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_dispatch_semaphore_signal dispatch_semaphore_signal "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_dispatch_time dispatch_time "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_mutex_init pthread_mutex_init "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_mutex_lock pthread_mutex_lock "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_mutex_unlock pthread_mutex_unlock "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_cond_init pthread_cond_init "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_cond_wait pthread_cond_wait "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_cond_timedwait_relative_np pthread_cond_timedwait_relative_np "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_cond_signal pthread_cond_signal "/usr/lib/libSystem.B.dylib"
 
 // Magic incantation to get libSystem actually dynamically linked.
 // TODO: Why does the code require this?  See cmd/link/internal/ld/go.go

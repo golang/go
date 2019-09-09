@@ -17,6 +17,7 @@ stderr 'this.domain.is.invalid'
 stdout '"Error": ".*this.domain.is.invalid.*"'
 
 # download -json with version should print JSON
+# and download the .info file for the 'latest' version.
 go mod download -json 'rsc.io/quote@<=v1.5.0'
 stdout '^\t"Path": "rsc.io/quote"'
 stdout '^\t"Version": "v1.5.0"'
@@ -27,13 +28,14 @@ stdout '^\t"Sum": "h1:6fJa6E\+wGadANKkUMlZ0DhXFpoKlslOQDCo259XtdIE="'  # hash of
 stdout '^\t"GoModSum": "h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe\+TKr0="'
 ! stdout '"Error"'
 
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
+
 # download queries above should not have added to go.mod.
 go list -m all
 ! stdout rsc.io
 
 # add to go.mod so we can test non-query downloads
 go mod edit -require rsc.io/quote@v1.5.2
-! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
 ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
 ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
 
@@ -82,6 +84,16 @@ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
 # download will not follow replacements for explicit module queries
 go mod download -json rsc.io/quote@v1.5.1
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.zip
+
+# download reports errors encountered when locating modules
+! go mod download bad/path
+stderr '^module bad/path: not a known dependency$'
+! go mod download bad/path@latest
+stderr '^bad/path@latest: malformed module path "bad/path": missing dot in first path element$'
+! go mod download rsc.io/quote@v1.999.999
+stderr '^rsc.io/quote@v1.999.999: reading .*/v1.999.999.info: 404 Not Found$'
+! go mod download -json bad/path
+stdout '^\t"Error": "module bad/path: not a known dependency"'
 
 # allow go mod download without go.mod
 env GO111MODULE=auto

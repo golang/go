@@ -2057,6 +2057,16 @@ func (p Point) TotalDist(points ...Point) int {
 	return tot
 }
 
+// This will be index 5.
+func (p *Point) Int64Method(x int64) int64 {
+	return x
+}
+
+// This will be index 6.
+func (p *Point) Int32Method(x int32) int32 {
+	return x
+}
+
 func TestMethod(t *testing.T) {
 	// Non-curried method of type.
 	p := Point{3, 4}
@@ -2264,6 +2274,17 @@ func TestMethodValue(t *testing.T) {
 	i = ValueOf(v.Interface()).Call([]Value{ValueOf(17)})[0].Int()
 	if i != 425 {
 		t.Errorf("Interface MethodByName returned %d; want 425", i)
+	}
+
+	// For issue #33628: method args are not stored at the right offset
+	// on amd64p32.
+	m64 := ValueOf(&p).MethodByName("Int64Method").Interface().(func(int64) int64)
+	if x := m64(123); x != 123 {
+		t.Errorf("Int64Method returned %d; want 123", x)
+	}
+	m32 := ValueOf(&p).MethodByName("Int32Method").Interface().(func(int32) int32)
+	if x := m32(456); x != 456 {
+		t.Errorf("Int32Method returned %d; want 456", x)
 	}
 }
 

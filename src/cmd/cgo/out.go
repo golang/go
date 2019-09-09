@@ -268,6 +268,35 @@ func (p *Package) writeDefs() {
 	}
 }
 
+// elfImportedSymbols is like elf.File.ImportedSymbols, but it
+// includes weak symbols.
+//
+// A bug in some versions of LLD (at least LLD 8) cause it to emit
+// several pthreads symbols as weak, but we need to import those. See
+// issue #31912 or https://bugs.llvm.org/show_bug.cgi?id=42442.
+//
+// When doing external linking, we hand everything off to the external
+// linker, which will create its own dynamic symbol tables. For
+// internal linking, this may turn weak imports into strong imports,
+// which could cause dynamic linking to fail if a symbol really isn't
+// defined. However, the standard library depends on everything it
+// imports, and this is the primary use of dynamic symbol tables with
+// internal linking.
+func elfImportedSymbols(f *elf.File) []elf.ImportedSymbol {
+	syms, _ := f.DynamicSymbols()
+	var imports []elf.ImportedSymbol
+	for _, s := range syms {
+		if (elf.ST_BIND(s.Info) == elf.STB_GLOBAL || elf.ST_BIND(s.Info) == elf.STB_WEAK) && s.Section == elf.SHN_UNDEF {
+			imports = append(imports, elf.ImportedSymbol{
+				Name:    s.Name,
+				Library: s.Library,
+				Version: s.Version,
+			})
+		}
+	}
+	return imports
+}
+
 func dynimport(obj string) {
 	stdout := os.Stdout
 	if *dynout != "" {
@@ -290,7 +319,7 @@ func dynimport(obj string) {
 				}
 			}
 		}
-		sym, _ := f.ImportedSymbols()
+		sym := elfImportedSymbols(f)
 		for _, s := range sym {
 			targ := s.Name
 			if s.Version != "" {

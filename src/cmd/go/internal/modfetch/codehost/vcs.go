@@ -341,13 +341,15 @@ func (r *vcsRepo) Stat(rev string) (*RevInfo, error) {
 }
 
 func (r *vcsRepo) fetch() {
-	_, r.fetchErr = Run(r.dir, r.cmd.fetch)
+	if len(r.cmd.fetch) > 0 {
+		_, r.fetchErr = Run(r.dir, r.cmd.fetch)
+	}
 }
 
 func (r *vcsRepo) statLocal(rev string) (*RevInfo, error) {
 	out, err := Run(r.dir, r.cmd.statLocal(rev, r.remote))
 	if err != nil {
-		return nil, vcsErrorf("unknown revision %s", rev)
+		return nil, &UnknownRevisionError{Rev: rev}
 	}
 	return r.cmd.parseStat(rev, string(out))
 }
@@ -392,7 +394,7 @@ func (r *vcsRepo) ReadFileRevs(revs []string, file string, maxSize int64) (map[s
 	return nil, vcsErrorf("ReadFileRevs not implemented")
 }
 
-func (r *vcsRepo) RecentTag(rev, prefix string) (tag string, err error) {
+func (r *vcsRepo) RecentTag(rev, prefix, major string) (tag string, err error) {
 	// We don't technically need to lock here since we're returning an error
 	// uncondititonally, but doing so anyway will help to avoid baking in
 	// lock-inversion bugs.
@@ -403,6 +405,16 @@ func (r *vcsRepo) RecentTag(rev, prefix string) (tag string, err error) {
 	defer unlock()
 
 	return "", vcsErrorf("RecentTag not implemented")
+}
+
+func (r *vcsRepo) DescendsFrom(rev, tag string) (bool, error) {
+	unlock, err := r.mu.Lock()
+	if err != nil {
+		return false, err
+	}
+	defer unlock()
+
+	return false, vcsErrorf("DescendsFrom not implemented")
 }
 
 func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error) {

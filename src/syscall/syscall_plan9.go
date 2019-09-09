@@ -29,10 +29,6 @@ func NewError(s string) error { return ErrorString(s) }
 
 func (e ErrorString) Is(target error) bool {
 	switch target {
-	case oserror.ErrTemporary:
-		return e.Temporary()
-	case oserror.ErrTimeout:
-		return e.Timeout()
 	case oserror.ErrPermission:
 		return checkErrMessageContent(e, "permission denied")
 	case oserror.ErrExist:

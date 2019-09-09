@@ -78,6 +78,8 @@
 // If the arguments to build are a list of .go files from a single directory,
 // build treats them as a list of source files specifying a single package.
 //
+// When compiling packages, build ignores files that end in '_test.go'.
+//
 // When compiling a single main package, build writes
 // the resulting executable to an output file named after
 // the first source file ('go build ed.go rx.go' writes 'ed' or 'ed.exe')
@@ -87,8 +89,6 @@
 // When compiling multiple packages or a single non-main package,
 // build compiles the packages but discards the resulting object,
 // serving only as a check that the packages can be built.
-//
-// When compiling packages, build ignores files that end in '_test.go'.
 //
 // The -o flag forces build to write the resulting executable or object
 // to the named output file or directory, instead of the default behavior described
@@ -566,17 +566,27 @@
 // The first step is to resolve which dependencies to add.
 //
 // For each named package or package pattern, get must decide which version of
-// the corresponding module to use. By default, get chooses the latest tagged
+// the corresponding module to use. By default, get looks up the latest tagged
 // release version, such as v0.4.5 or v1.2.3. If there are no tagged release
-// versions, get chooses the latest tagged pre-release version, such as
-// v0.0.1-pre1. If there are no tagged versions at all, get chooses the latest
-// known commit.
+// versions, get looks up the latest tagged pre-release version, such as
+// v0.0.1-pre1. If there are no tagged versions at all, get looks up the latest
+// known commit. If the module is not already required at a later version
+// (for example, a pre-release newer than the latest release), get will use
+// the version it looked up. Otherwise, get will use the currently
+// required version.
 //
 // This default version selection can be overridden by adding an @version
 // suffix to the package argument, as in 'go get golang.org/x/text@v0.3.0'.
+// The version may be a prefix: @v1 denotes the latest available version starting
+// with v1. See 'go help modules' under the heading 'Module queries' for the
+// full query syntax.
+//
 // For modules stored in source control repositories, the version suffix can
 // also be a commit hash, branch identifier, or other syntax known to the
-// source control system, as in 'go get golang.org/x/text@master'.
+// source control system, as in 'go get golang.org/x/text@master'. Note that
+// branches with names that overlap with other module query syntax cannot be
+// selected explicitly. For example, the suffix @v2 means the latest version
+// starting with v2, not the branch named v2.
 //
 // If a module under consideration is already a dependency of the current
 // development module, then get will update the required version.
@@ -586,12 +596,14 @@
 // depending on it as needed.
 //
 // The version suffix @latest explicitly requests the latest minor release of the
-// given path. The suffix @patch requests the latest patch release: if the path
-// is already in the build list, the selected version will have the same minor
-// version. If the path is not already in the build list, @patch is equivalent
-// to @latest. Neither @latest nor @patch will cause 'go get' to downgrade a module
-// in the build list if it is required at a newer pre-release version that is
-// newer than the latest released version.
+// module named by the given path. The suffix @upgrade is like @latest but
+// will not downgrade a module if it is already required at a revision or
+// pre-release version newer than the latest released version. The suffix
+// @patch requests the latest patch release: the latest released version
+// with the same major and minor version numbers as the currently required
+// version. Like @upgrade, @patch will not downgrade a module already required
+// at a newer version. If the path is not already required, @upgrade and @patch
+// are equivalent to @latest.
 //
 // Although get defaults to using the latest version of the module containing
 // a named package, it does not use the latest version of that module's
@@ -1006,6 +1018,7 @@
 //         Dir      string // absolute path to cached source root directory
 //         Sum      string // checksum for path, version (as in go.sum)
 //         GoModSum string // checksum for go.mod (as in go.sum)
+//         Latest   bool   // would @latest resolve to this version?
 //     }
 //
 // See 'go help modules' for more about module queries.
@@ -1562,6 +1575,9 @@
 // 	GOCACHE
 // 		The directory where the go command will store cached
 // 		information for reuse in future builds.
+// 	GODEBUG
+// 		Enable various debugging facilities. See 'go doc runtime'
+// 		for details.
 // 	GOENV
 // 		The location of the Go environment configuration file.
 // 		Cannot be set using 'go env -w'.
@@ -1805,6 +1821,13 @@
 // commands that load packages also use and therefore update go.mod,
 // including go build, go get, go install, go list, go test, go mod graph,
 // go mod tidy, and go mod why.
+//
+// The expected language version, set by the go directive, determines
+// which language features are available when compiling the module.
+// Language features available in that version will be available for use.
+// Language features removed in earlier versions, or added in later versions,
+// will not be available. Note that the language version does not affect
+// build tags, which are determined by the Go release being used.
 //
 //
 // GOPATH environment variable
@@ -2489,12 +2512,25 @@
 // The string "latest" matches the latest available tagged version,
 // or else the underlying source repository's latest untagged revision.
 //
-// A revision identifier for the underlying source repository,
-// such as a commit hash prefix, revision tag, or branch name,
-// selects that specific code revision. If the revision is
-// also tagged with a semantic version, the query evaluates to
-// that semantic version. Otherwise the query evaluates to a
-// pseudo-version for the commit.
+// The string "upgrade" is like "latest", but if the module is
+// currently required at a later version than the version "latest"
+// would select (for example, a newer pre-release version), "upgrade"
+// will select the later version instead.
+//
+// The string "patch" matches the latest available tagged version
+// of a module with the same major and minor version numbers as the
+// currently required version. If no version is currently required,
+// "patch" is equivalent to "latest".
+//
+// A revision identifier for the underlying source repository, such as
+// a commit hash prefix, revision tag, or branch name, selects that
+// specific code revision. If the revision is also tagged with a
+// semantic version, the query evaluates to that semantic version.
+// Otherwise the query evaluates to a pseudo-version for the commit.
+// Note that branches and tags with names that are matched by other
+// query syntax cannot be selected this way. For example, the query
+// "v2" means the latest version starting with "v2", not the branch
+// named "v2".
 //
 // All queries prefer release versions to pre-release versions.
 // For example, "<v1.2.3" will prefer to return "v1.2.2"
@@ -2707,9 +2743,11 @@
 // 	GOSUMDB="sum.golang.org+<publickey>"
 // 	GOSUMDB="sum.golang.org+<publickey> https://sum.golang.org"
 //
-// The go command knows the public key of sum.golang.org; use of any other
-// database requires giving the public key explicitly. The URL defaults to
-// "https://" followed by the database name.
+// The go command knows the public key of sum.golang.org, and also that the name
+// sum.golang.google.cn (available inside mainland China) connects to the
+// sum.golang.org checksum database; use of any other database requires giving
+// the public key explicitly.
+// The URL defaults to "https://" followed by the database name.
 //
 // GOSUMDB defaults to "sum.golang.org", the Go checksum database run by Google.
 // See https://sum.golang.org/privacy for the service's privacy policy.
@@ -2760,7 +2798,7 @@
 // 	GOPROXY=proxy.example.com
 // 	GONOPROXY=none
 //
-// This would tell the go comamnd and other tools that modules beginning with
+// This would tell the go command and other tools that modules beginning with
 // a corp.example.com subdomain are private but that the company proxy should
 // be used for downloading both public and private modules, because
 // GONOPROXY has been set to a pattern that won't match any modules,

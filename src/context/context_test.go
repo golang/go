@@ -5,10 +5,8 @@
 package context
 
 import (
-	"errors"
 	"fmt"
 	"math/rand"
-	"os"
 	"runtime"
 	"strings"
 	"sync"
@@ -648,8 +646,5 @@ func XTestDeadlineExceededSupportsTimeout(t testingT) {
 	}
 	if !i.Timeout() {
 		t.Fatal("wrong value for timeout")
-	}
-	if !errors.Is(DeadlineExceeded, os.ErrTimeout) {
-		t.Fatal("errors.Is(DeadlineExceeded, os.ErrTimeout) = false, want true")
 	}
 }

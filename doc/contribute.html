@@ -238,14 +238,16 @@ $ git codereview help
 </pre>
 
 <p>
-prints help text, not an error.
+prints help text, not an error. If it prints an error, make sure that
+<code>$GOPATH/bin</code> is in your <code>$PATH</code>.
 </p>
 
 <p>
 On Windows, when using git-bash you must make sure that
 <code>git-codereview.exe</code> is in your <code>git</code> exec-path.
 Run <code>git --exec-path</code> to discover the right location then create a
-symbolic link or just copy the executable from $GOPATH/bin to this directory.
+symbolic link or just copy the executable from <code>$GOPATH/bin</code> to this
+directory.
 </p>
 
 

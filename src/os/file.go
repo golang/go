@@ -34,6 +34,10 @@
 //	}
 //	fmt.Printf("read %d bytes: %q\n", count, data[:count])
 //
+// Note: The maximum number of concurrent operations on a File may be limited by
+// the OS or the system. The number should be high, but exceeding it may degrade
+// performance or cause other issues.
+//
 package os
 
 import (

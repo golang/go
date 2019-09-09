@@ -44,14 +44,12 @@ type pkixPublicKey struct {
 	BitString asn1.BitString
 }
 
-// ParsePKIXPublicKey parses a DER encoded public key. These values are
-// typically found in PEM blocks with "BEGIN PUBLIC KEY".
+// ParsePKIXPublicKey parses a public key in PKIX, ASN.1 DER form.
 //
-// Supported key types include RSA, DSA, and ECDSA. Unknown key
-// types result in an error.
+// It returns a *rsa.PublicKey, *dsa.PublicKey, *ecdsa.PublicKey, or
+// ed25519.PublicKey. More types might be supported in the future.
 //
-// On success, pub will be of type *rsa.PublicKey, *dsa.PublicKey,
-// *ecdsa.PublicKey, or ed25519.PublicKey.
+// This kind of key is commonly encoded in PEM blocks of type "PUBLIC KEY".
 func ParsePKIXPublicKey(derBytes []byte) (pub interface{}, err error) {
 	var pki publicKeyInfo
 	if rest, err := asn1.Unmarshal(derBytes, &pki); err != nil {
@@ -106,7 +104,12 @@ func marshalPublicKey(pub interface{}) (publicKeyBytes []byte, publicKeyAlgorith
 	return publicKeyBytes, publicKeyAlgorithm, nil
 }
 
-// MarshalPKIXPublicKey serialises a public key to DER-encoded PKIX format.
+// MarshalPKIXPublicKey converts a public key to PKIX, ASN.1 DER form.
+//
+// The following key types are currently supported: *rsa.PublicKey, *ecdsa.PublicKey
+// and ed25519.PublicKey. Unsupported key types result in an error.
+//
+// This kind of key is commonly encoded in PEM blocks of type "PUBLIC KEY".
 func MarshalPKIXPublicKey(pub interface{}) ([]byte, error) {
 	var publicKeyBytes []byte
 	var publicKeyAlgorithm pkix.AlgorithmIdentifier

@@ -58,17 +58,19 @@ func (pos Position) String() string {
 // For instance, if the mode is ScanIdents (not ScanStrings), the string
 // "foo" is scanned as the token sequence '"' Ident '"'.
 //
+// Use GoTokens to configure the Scanner such that it accepts all Go
+// literal tokens including Go identifiers. Comments will be skipped.
+//
 const (
-	ScanIdents      = 1 << -Ident
-	ScanInts        = 1 << -Int
-	ScanFloats      = 1 << -Float // includes Ints and hexadecimal floats
-	ScanChars       = 1 << -Char
-	ScanStrings     = 1 << -String
-	ScanRawStrings  = 1 << -RawString
-	ScanComments    = 1 << -Comment
-	SkipComments    = 1 << -skipComment     // if set with ScanComments, comments become white space
-	AllowNumberbars = 1 << -allowNumberbars // if set, number literals may contain underbars as digit separators
-	GoTokens        = ScanIdents | ScanFloats | ScanChars | ScanStrings | ScanRawStrings | ScanComments | SkipComments | AllowNumberbars
+	ScanIdents     = 1 << -Ident
+	ScanInts       = 1 << -Int
+	ScanFloats     = 1 << -Float // includes Ints and hexadecimal floats
+	ScanChars      = 1 << -Char
+	ScanStrings    = 1 << -String
+	ScanRawStrings = 1 << -RawString
+	ScanComments   = 1 << -Comment
+	SkipComments   = 1 << -skipComment // if set with ScanComments, comments become white space
+	GoTokens       = ScanIdents | ScanFloats | ScanChars | ScanStrings | ScanRawStrings | ScanComments | SkipComments
 )
 
 // The result of Scan is one of these tokens or a Unicode character.
@@ -84,7 +86,6 @@ const (
 
 	// internal use only
 	skipComment
-	allowNumberbars
 )
 
 var tokenString = map[rune]string{
@@ -363,8 +364,7 @@ func lower(ch rune) rune     { return ('a' - 'A') | ch } // returns lower-case c
 func isDecimal(ch rune) bool { return '0' <= ch && ch <= '9' }
 func isHex(ch rune) bool     { return '0' <= ch && ch <= '9' || 'a' <= lower(ch) && lower(ch) <= 'f' }
 
-// digits accepts the sequence { digit } (if AllowNumberbars is not set)
-// or { digit | '_' } (if AllowNumberbars is set), starting with ch0.
+// digits accepts the sequence { digit | '_' } starting with ch0.
 // If base <= 10, digits accepts any decimal digit but records
 // the first invalid digit >= base in *invalid if *invalid == 0.
 // digits returns the first rune that is not part of the sequence
@@ -374,7 +374,7 @@ func (s *Scanner) digits(ch0 rune, base int, invalid *rune) (ch rune, digsep int
 	ch = ch0
 	if base <= 10 {
 		max := rune('0' + base)
-		for isDecimal(ch) || ch == '_' && s.Mode&AllowNumberbars != 0 {
+		for isDecimal(ch) || ch == '_' {
 			ds := 1
 			if ch == '_' {
 				ds = 2
@@ -385,7 +385,7 @@ func (s *Scanner) digits(ch0 rune, base int, invalid *rune) (ch rune, digsep int
 			ch = s.next()
 		}
 	} else {
-		for isHex(ch) || ch == '_' && s.Mode&AllowNumberbars != 0 {
+		for isHex(ch) || ch == '_' {
 			ds := 1
 			if ch == '_' {
 				ds = 2

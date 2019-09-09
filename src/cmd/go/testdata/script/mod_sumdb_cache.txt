@@ -28,7 +28,7 @@ cp go.mod.orig go.mod
 rm go.sum
 env GOPROXY=off
 go get -d rsc.io/quote@v1.5.2 # using cache
-rm $GOPATH/pkg/mod/download/cache/sumdb/localhost.localdev/sumdb/lookup/rsc.io/quote@v1.5.2
+rm $GOPATH/pkg/mod/cache/download/sumdb/localhost.localdev/sumdb/lookup/rsc.io/quote@v1.5.2
 go get -d rsc.io/quote@v1.5.2 # using go.sum
 
 # fetch fails once we lose access to both cache and go.sum

@@ -115,10 +115,6 @@ const _ERROR_BAD_NETPATH = Errno(53)
 
 func (e Errno) Is(target error) bool {
 	switch target {
-	case oserror.ErrTemporary:
-		return e.Temporary()
-	case oserror.ErrTimeout:
-		return e.Timeout()
 	case oserror.ErrPermission:
 		return e == ERROR_ACCESS_DENIED
 	case oserror.ErrExist:

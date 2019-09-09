@@ -13,7 +13,6 @@ package url
 import (
 	"errors"
 	"fmt"
-	"internal/oserror"
 	"sort"
 	"strconv"
 	"strings"
@@ -26,10 +25,22 @@ type Error struct {
 	Err error
 }
 
-func (e *Error) Unwrap() error   { return e.Err }
-func (e *Error) Error() string   { return e.Op + " " + e.URL + ": " + e.Err.Error() }
-func (e *Error) Timeout() bool   { return oserror.IsTimeout(e.Err) }
-func (e *Error) Temporary() bool { return oserror.IsTemporary(e.Err) }
+func (e *Error) Unwrap() error { return e.Err }
+func (e *Error) Error() string { return e.Op + " " + e.URL + ": " + e.Err.Error() }
+
+func (e *Error) Timeout() bool {
+	t, ok := e.Err.(interface {
+		Timeout() bool
+	})
+	return ok && t.Timeout()
+}
+
+func (e *Error) Temporary() bool {
+	t, ok := e.Err.(interface {
+		Temporary() bool
+	})
+	return ok && t.Temporary()
+}
 
 func ishex(c byte) bool {
 	switch {
@@ -637,6 +648,11 @@ func parseHost(host string) (string, error) {
 			}
 			return host1 + host2 + host3, nil
 		}
+	} else if i := strings.LastIndex(host, ":"); i != -1 {
+		colonPort := host[i:]
+		if !validOptionalPort(colonPort) {
+			return "", fmt.Errorf("invalid port %q after host", colonPort)
+		}
 	}
 
 	var err error
@@ -1035,44 +1051,39 @@ func (u *URL) RequestURI() string {
 	return result
 }
 
-// Hostname returns u.Host, without any port number.
+// Hostname returns u.Host, stripping any valid port number if present.
 //
-// If Host is an IPv6 literal with a port number, Hostname returns the
-// IPv6 literal without the square brackets. IPv6 literals may include
-// a zone identifier.
+// If the result is enclosed in square brackets, as literal IPv6 addresses are,
+// the square brackets are removed from the result.
 func (u *URL) Hostname() string {
-	return stripPort(u.Host)
+	host, _ := splitHostPort(u.Host)
+	return host
 }
 
 // Port returns the port part of u.Host, without the leading colon.
-// If u.Host doesn't contain a port, Port returns an empty string.
+//
+// If u.Host doesn't contain a valid numeric port, Port returns an empty string.
 func (u *URL) Port() string {
-	return portOnly(u.Host)
+	_, port := splitHostPort(u.Host)
+	return port
 }
 
-func stripPort(hostport string) string {
-	colon := strings.IndexByte(hostport, ':')
-	if colon == -1 {
-		return hostport
-	}
-	if i := strings.IndexByte(hostport, ']'); i != -1 {
-		return strings.TrimPrefix(hostport[:i], "[")
-	}
-	return hostport[:colon]
-}
+// splitHostPort separates host and port. If the port is not valid, it returns
+// the entire input as host, and it doesn't check the validity of the host.
+// Unlike net.SplitHostPort, but per RFC 3986, it requires ports to be numeric.
+func splitHostPort(hostport string) (host, port string) {
+	host = hostport
 
-func portOnly(hostport string) string {
-	colon := strings.IndexByte(hostport, ':')
-	if colon == -1 {
-		return ""
+	colon := strings.LastIndexByte(host, ':')
+	if colon != -1 && validOptionalPort(host[colon:]) {
+		host, port = host[:colon], host[colon+1:]
 	}
-	if i := strings.Index(hostport, "]:"); i != -1 {
-		return hostport[i+len("]:"):]
+
+	if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") {
+		host = host[1 : len(host)-1]
 	}
-	if strings.Contains(hostport, "]") {
-		return ""
-	}
-	return hostport[colon+len(":"):]
+
+	return
 }
 
 // Marshaling interface implementations.

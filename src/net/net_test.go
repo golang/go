@@ -525,6 +525,9 @@ func TestNotTemporaryRead(t *testing.T) {
 	if runtime.GOOS == "freebsd" {
 		testenv.SkipFlaky(t, 25289)
 	}
+	if runtime.GOOS == "aix" {
+		testenv.SkipFlaky(t, 29685)
+	}
 	t.Parallel()
 	server := func(cs *TCPConn) error {
 		cs.SetLinger(0)

@@ -920,7 +920,10 @@ func TestDotSlashLookup(t *testing.T) {
 		t.Skip("scanning file system takes too long")
 	}
 	maybeSkip(t)
-	where := pwd()
+	where, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer func() {
 		if err := os.Chdir(where); err != nil {
 			t.Fatal(err)
@@ -931,7 +934,7 @@ func TestDotSlashLookup(t *testing.T) {
 	}
 	var b bytes.Buffer
 	var flagSet flag.FlagSet
-	err := do(&b, &flagSet, []string{"./template"})
+	err = do(&b, &flagSet, []string{"./template"})
 	if err != nil {
 		t.Errorf("unexpected error %q from ./template", err)
 	}

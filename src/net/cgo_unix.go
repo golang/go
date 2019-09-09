@@ -24,7 +24,6 @@ import "C"
 
 import (
 	"context"
-	"os"
 	"syscall"
 	"unsafe"
 )
@@ -37,16 +36,6 @@ type addrinfoErrno int
 func (eai addrinfoErrno) Error() string   { return C.GoString(C.gai_strerror(C.int(eai))) }
 func (eai addrinfoErrno) Temporary() bool { return eai == C.EAI_AGAIN }
 func (eai addrinfoErrno) Timeout() bool   { return false }
-
-func (eai addrinfoErrno) Is(target error) bool {
-	switch target {
-	case os.ErrTemporary:
-		return eai.Temporary()
-	case os.ErrTimeout:
-		return eai.Timeout()
-	}
-	return false
-}
 
 type portLookupResult struct {
 	port int

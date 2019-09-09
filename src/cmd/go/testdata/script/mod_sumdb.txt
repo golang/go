@@ -9,8 +9,8 @@ env dbname=localhost.localdev/sumdb
 cp go.mod.orig go.mod
 env GOSUMDB=$sumdb' '$proxy/sumdb-wrong
 ! go get -d rsc.io/quote
-stderr 'verifying rsc.io/quote@v1.5.2/go.mod: checksum mismatch'
-stderr 'downloaded: h1:LzX7'
+stderr 'verifying rsc.io/quote@v1.5.2: checksum mismatch'
+stderr 'downloaded: h1:3fEy'
 stderr 'localhost.localdev/sumdb: h1:wrong'
 stderr 'SECURITY ERROR\nThis download does NOT match the one reported by the checksum server.'
 ! go get -d rsc.io/sampler

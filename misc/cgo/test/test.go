@@ -852,6 +852,8 @@ static void issue29781F(char **p, int n) {}
 // issue 31093
 static uint16_t issue31093F(uint16_t v) { return v; }
 
+// issue 32579
+typedef struct S32579 { unsigned char data[1]; } S32579;
 */
 import "C"
 
@@ -2082,4 +2084,14 @@ func test30065(t *testing.T) {
 
 func Issue31093() {
 	C.issue31093F(C.ushort(0))
+}
+
+// issue 32579
+
+func test32579(t *testing.T) {
+	var s [1]C.struct_S32579
+	C.memset(unsafe.Pointer(&s[0].data[0]), 1, 1)
+	if s[0].data[0] != 1 {
+		t.Errorf("&s[0].data[0] failed: got %d, want %d", s[0].data[0], 1)
+	}
 }
