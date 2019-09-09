@@ -5396,112 +5396,6 @@ func rewriteValuegeneric_OpAnd64_10(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
-	// match: (And64 <t> (Const64 [y]) x)
-	// cond: nlz(y) + nto(y) == 64 && nto(y) >= 32
-	// result: (Rsh64Ux64 (Lsh64x64 <t> x (Const64 <t> [nlz(y)])) (Const64 <t> [nlz(y)]))
-	for {
-		t := v.Type
-		x := v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpConst64 {
-			break
-		}
-		y := v_0.AuxInt
-		if !(nlz(y)+nto(y) == 64 && nto(y) >= 32) {
-			break
-		}
-		v.reset(OpRsh64Ux64)
-		v0 := b.NewValue0(v.Pos, OpLsh64x64, t)
-		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpConst64, t)
-		v1.AuxInt = nlz(y)
-		v0.AddArg(v1)
-		v.AddArg(v0)
-		v2 := b.NewValue0(v.Pos, OpConst64, t)
-		v2.AuxInt = nlz(y)
-		v.AddArg(v2)
-		return true
-	}
-	// match: (And64 <t> x (Const64 [y]))
-	// cond: nlz(y) + nto(y) == 64 && nto(y) >= 32
-	// result: (Rsh64Ux64 (Lsh64x64 <t> x (Const64 <t> [nlz(y)])) (Const64 <t> [nlz(y)]))
-	for {
-		t := v.Type
-		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		y := v_1.AuxInt
-		if !(nlz(y)+nto(y) == 64 && nto(y) >= 32) {
-			break
-		}
-		v.reset(OpRsh64Ux64)
-		v0 := b.NewValue0(v.Pos, OpLsh64x64, t)
-		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpConst64, t)
-		v1.AuxInt = nlz(y)
-		v0.AddArg(v1)
-		v.AddArg(v0)
-		v2 := b.NewValue0(v.Pos, OpConst64, t)
-		v2.AuxInt = nlz(y)
-		v.AddArg(v2)
-		return true
-	}
-	// match: (And64 <t> (Const64 [y]) x)
-	// cond: nlo(y) + ntz(y) == 64 && ntz(y) >= 32
-	// result: (Lsh64x64 (Rsh64Ux64 <t> x (Const64 <t> [ntz(y)])) (Const64 <t> [ntz(y)]))
-	for {
-		t := v.Type
-		x := v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpConst64 {
-			break
-		}
-		y := v_0.AuxInt
-		if !(nlo(y)+ntz(y) == 64 && ntz(y) >= 32) {
-			break
-		}
-		v.reset(OpLsh64x64)
-		v0 := b.NewValue0(v.Pos, OpRsh64Ux64, t)
-		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpConst64, t)
-		v1.AuxInt = ntz(y)
-		v0.AddArg(v1)
-		v.AddArg(v0)
-		v2 := b.NewValue0(v.Pos, OpConst64, t)
-		v2.AuxInt = ntz(y)
-		v.AddArg(v2)
-		return true
-	}
-	// match: (And64 <t> x (Const64 [y]))
-	// cond: nlo(y) + ntz(y) == 64 && ntz(y) >= 32
-	// result: (Lsh64x64 (Rsh64Ux64 <t> x (Const64 <t> [ntz(y)])) (Const64 <t> [ntz(y)]))
-	for {
-		t := v.Type
-		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		y := v_1.AuxInt
-		if !(nlo(y)+ntz(y) == 64 && ntz(y) >= 32) {
-			break
-		}
-		v.reset(OpLsh64x64)
-		v0 := b.NewValue0(v.Pos, OpRsh64Ux64, t)
-		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpConst64, t)
-		v1.AuxInt = ntz(y)
-		v0.AddArg(v1)
-		v.AddArg(v0)
-		v2 := b.NewValue0(v.Pos, OpConst64, t)
-		v2.AuxInt = ntz(y)
-		v.AddArg(v2)
-		return true
-	}
 	// match: (And64 (And64 i:(Const64 <t>) z) x)
 	// cond: (z.Op != OpConst64 && x.Op != OpConst64)
 	// result: (And64 i (And64 <t> z x))
@@ -5528,10 +5422,6 @@ func rewriteValuegeneric_OpAnd64_10(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpAnd64_20(v *Value) bool {
-	b := v.Block
 	// match: (And64 (And64 z i:(Const64 <t>)) x)
 	// cond: (z.Op != OpConst64 && x.Op != OpConst64)
 	// result: (And64 i (And64 <t> z x))
@@ -5641,6 +5531,10 @@ func rewriteValuegeneric_OpAnd64_20(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpAnd64_20(v *Value) bool {
+	b := v.Block
 	// match: (And64 (Const64 <t> [c]) (And64 x (Const64 <t> [d])))
 	// result: (And64 (Const64 <t> [c&d]) x)
 	for {
