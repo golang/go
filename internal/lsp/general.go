@@ -60,10 +60,10 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitia) (
 
 	s.setClientCapabilities(&options, params.Capabilities)
 
-	folders := params.WorkspaceFolders
-	if len(folders) == 0 {
+	s.pendingFolders = params.WorkspaceFolders
+	if len(s.pendingFolders) == 0 {
 		if params.RootURI != "" {
-			folders = []protocol.WorkspaceFolder{{
+			s.pendingFolders = []protocol.WorkspaceFolder{{
 				URI:  params.RootURI,
 				Name: path.Base(params.RootURI),
 			}}
@@ -72,12 +72,6 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitia) (
 			//TODO(iancottrell): not sure how to do single file mode yet
 			//issue: golang.org/issue/31168
 			return nil, errors.Errorf("single file mode not supported yet")
-		}
-	}
-
-	for _, folder := range folders {
-		if err := s.addView(ctx, folder.Name, span.NewURI(folder.URI)); err != nil {
-			return nil, err
 		}
 	}
 
@@ -208,28 +202,32 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 		})
 	}
 
-	if options.ConfigurationSupported {
-		for _, view := range s.session.Views() {
-			if err := s.fetchConfig(ctx, view, &options); err != nil {
-				return err
-			}
-		}
-	}
 	buf := &bytes.Buffer{}
 	debug.PrintVersionInfo(buf, true, debug.PlainText)
 	log.Print(ctx, buf.String())
+
+	for _, folder := range s.pendingFolders {
+		if err := s.addView(ctx, folder.Name, span.NewURI(folder.URI)); err != nil {
+			return err
+		}
+	}
+	s.pendingFolders = nil
+
 	return nil
 }
 
-func (s *Server) fetchConfig(ctx context.Context, view source.View, options *source.SessionOptions) error {
+func (s *Server) fetchConfig(ctx context.Context, name string, folder span.URI, options *source.SessionOptions, vo *source.ViewOptions) error {
+	if !options.ConfigurationSupported {
+		return nil
+	}
 	v := protocol.ParamConfig{
 		protocol.ConfigurationParams{
 			Items: []protocol.ConfigurationItem{{
-				ScopeURI: protocol.NewURI(view.Folder()),
+				ScopeURI: protocol.NewURI(folder),
 				Section:  "gopls",
 			}, {
-				ScopeURI: protocol.NewURI(view.Folder()),
-				Section:  view.Name(),
+				ScopeURI: protocol.NewURI(folder),
+				Section:  name,
 			},
 			},
 		}, protocol.PartialResultParams{},
@@ -239,14 +237,14 @@ func (s *Server) fetchConfig(ctx context.Context, view source.View, options *sou
 		return err
 	}
 	for _, config := range configs {
-		if err := s.processConfig(ctx, view, options, config); err != nil {
+		if err := s.processConfig(ctx, options, vo, config); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (s *Server) processConfig(ctx context.Context, view source.View, options *source.SessionOptions, config interface{}) error {
+func (s *Server) processConfig(ctx context.Context, options *source.SessionOptions, vo *source.ViewOptions, config interface{}) error {
 	// TODO: We should probably store and process more of the config.
 	if config == nil {
 		return nil // ignore error if you don't have a config
@@ -263,11 +261,9 @@ func (s *Server) processConfig(ctx context.Context, view source.View, options *s
 		if !ok {
 			return errors.Errorf("invalid config gopls.env type %T", env)
 		}
-		env := view.Env()
 		for k, v := range menv {
-			env = append(env, fmt.Sprintf("%s=%s", k, v))
+			vo.Env = append(vo.Env, fmt.Sprintf("%s=%s", k, v))
 		}
-		view.SetEnv(env)
 	}
 
 	// Get the build flags for the go/packages config.
@@ -280,7 +276,7 @@ func (s *Server) processConfig(ctx context.Context, view source.View, options *s
 		for _, flag := range iflags {
 			flags = append(flags, fmt.Sprintf("%s", flag))
 		}
-		view.SetBuildFlags(flags)
+		vo.BuildFlags = flags
 	}
 
 	// Set the hover kind.

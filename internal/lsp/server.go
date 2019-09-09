@@ -82,6 +82,10 @@ type Server struct {
 	// failed to deliver for some reason.
 	undeliveredMu sync.Mutex
 	undelivered   map[span.URI][]source.Diagnostic
+
+	// folders is only valid between initialize and initialized, and holds the
+	// set of folders to build views for when we are ready
+	pendingFolders []protocol.WorkspaceFolder
 }
 
 // General

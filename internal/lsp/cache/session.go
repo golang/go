@@ -6,7 +6,6 @@ package cache
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -79,22 +78,22 @@ func (s *session) Cache() source.Cache {
 	return s.cache
 }
 
-func (s *session) NewView(ctx context.Context, name string, folder span.URI) source.View {
+func (s *session) NewView(ctx context.Context, name string, folder span.URI, options source.ViewOptions) source.View {
 	index := atomic.AddInt64(&viewIndex, 1)
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
-	// We want a true background context and not a detatched context here
+	// We want a true background context and not a detached context here
 	// the spans need to be unrelated and no tag values should pollute it.
 	baseCtx := trace.Detach(xcontext.Detach(ctx))
 	backgroundCtx, cancel := context.WithCancel(baseCtx)
 	v := &view{
 		session:       s,
 		id:            strconv.FormatInt(index, 10),
+		options:       options,
 		baseCtx:       baseCtx,
 		backgroundCtx: backgroundCtx,
 		cancel:        cancel,
 		name:          name,
-		env:           os.Environ(),
 		folder:        folder,
 		filesByURI:    make(map[span.URI]viewFile),
 		filesByBase:   make(map[string][]viewFile),

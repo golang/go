@@ -53,9 +53,6 @@ type view struct {
 	// Folder is the root of this view.
 	folder span.URI
 
-	// env is the environment to use when invoking underlying tools.
-	env []string
-
 	// process is the process env for this view.
 	// Note: this contains cached module and filesystem state.
 	//
@@ -68,9 +65,6 @@ type view struct {
 	// by processEnvs resolver.
 	// TODO(suzmue): These versions may not actually be on disk.
 	modFileVersions map[string]string
-
-	// buildFlags is the build flags to use when invoking underlying tools.
-	buildFlags []string
 
 	// keep track of files by uri and by basename, a single file may be mapped
 	// to multiple uris, and the same basename may map to multiple files
@@ -130,8 +124,8 @@ func (v *view) Config(ctx context.Context) *packages.Config {
 	// TODO: Should we cache the config and/or overlay somewhere?
 	return &packages.Config{
 		Dir:        v.folder.Filename(),
-		Env:        v.env,
-		BuildFlags: v.buildFlags,
+		Env:        v.options.Env,
+		BuildFlags: v.options.BuildFlags,
 		Mode: packages.NeedName |
 			packages.NeedFiles |
 			packages.NeedCompiledGoFiles |
@@ -260,26 +254,6 @@ func (v *view) fileVersion(filename string) string {
 	uri := span.FileURI(filename)
 	f := v.session.GetFile(uri)
 	return f.Identity().Version
-}
-
-func (v *view) Env() []string {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	return v.env
-}
-
-func (v *view) SetEnv(env []string) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	//TODO: this should invalidate the entire view
-	v.env = env
-	v.processEnv = nil // recompute process env
-}
-
-func (v *view) SetBuildFlags(buildFlags []string) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	v.buildFlags = buildFlags
 }
 
 func (v *view) Shutdown(ctx context.Context) {

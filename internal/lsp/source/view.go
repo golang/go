@@ -151,7 +151,7 @@ type Cache interface {
 // A session may have many active views at any given time.
 type Session interface {
 	// NewView creates a new View and returns it.
-	NewView(ctx context.Context, name string, folder span.URI) View
+	NewView(ctx context.Context, name string, folder span.URI, options ViewOptions) View
 
 	// Cache returns the cache that created this session.
 	Cache() Cache
@@ -228,15 +228,6 @@ type View interface {
 	// BackgroundContext returns a context used for all background processing
 	// on behalf of this view.
 	BackgroundContext() context.Context
-
-	// Env returns the current set of environment overrides on this view.
-	Env() []string
-
-	// SetEnv is used to adjust the environment applied to the view.
-	SetEnv([]string)
-
-	// SetBuildFlags is used to adjust the build flags applied to the view.
-	SetBuildFlags([]string)
 
 	// Shutdown closes this view, and detaches it from it's session.
 	Shutdown(ctx context.Context)

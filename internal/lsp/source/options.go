@@ -4,7 +4,11 @@
 
 package source
 
-import "golang.org/x/tools/internal/lsp/protocol"
+import (
+	"os"
+
+	"golang.org/x/tools/internal/lsp/protocol"
+)
 
 var (
 	DefaultSessionOptions = SessionOptions{
@@ -24,8 +28,10 @@ var (
 			Deep:          true,
 			FuzzyMatching: true,
 		},
+		DefaultViewOptions: ViewOptions{
+			Env: os.Environ(),
+		},
 	}
-	DefaultViewOptions = ViewOptions{}
 )
 
 type SessionOptions struct {
@@ -47,9 +53,16 @@ type SessionOptions struct {
 	TextDocumentSyncKind protocol.TextDocumentSyncKind
 
 	Completion CompletionOptions
+
+	DefaultViewOptions ViewOptions
 }
 
 type ViewOptions struct {
+	// Env is the current set of environment overrides on this view.
+	Env []string
+
+	// BuildFlags is used to adjust the build flags applied to the view.
+	BuildFlags []string
 }
 
 type CompletionOptions struct {

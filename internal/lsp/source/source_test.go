@@ -48,12 +48,14 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 
 	cache := cache.New()
 	session := cache.NewSession(ctx)
+	options := session.Options()
+	vo := options.DefaultViewOptions
+	vo.Env = data.Config.Env
 	r := &runner{
-		view: session.NewView(ctx, "source_test", span.FileURI(data.Config.Dir)),
+		view: session.NewView(ctx, "source_test", span.FileURI(data.Config.Dir), vo),
 		data: data,
 		ctx:  ctx,
 	}
-	r.view.SetEnv(data.Config.Env)
 	for filename, content := range data.Config.Overlay {
 		session.SetOverlay(span.FileURI(filename), content)
 	}
