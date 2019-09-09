@@ -6,6 +6,7 @@ package lsp
 
 import (
 	"context"
+	"sort"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -58,17 +59,22 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 			case protocol.Deleted:
 				log.Print(ctx, "watched file deleted", telemetry.File)
 
-				pkg, err := gof.GetPackage(ctx)
+				cphs, err := gof.CheckPackageHandles(ctx)
 				if err != nil {
 					log.Error(ctx, "didChangeWatchedFiles: GetPackage", err, telemetry.File)
 					continue
 				}
-
-				// Find a different file in the same package we can use to
-				// trigger diagnostics.
+				// Find a different file in the same package we can use to trigger diagnostics.
+				// TODO(rstambler): Allow diagnostics to be called per-package to avoid this.
 				var otherFile source.GoFile
-				for _, pgh := range pkg.GetHandles() {
-					ident := pgh.File().Identity()
+				sort.Slice(cphs, func(i, j int) bool {
+					return len(cphs[i].Files()) > len(cphs[j].Files())
+				})
+				for _, ph := range cphs[0].Files() {
+					if len(cphs) > 1 && contains(cphs[1], ph.File()) {
+						continue
+					}
+					ident := ph.File().Identity()
 					if ident.URI == gof.URI() {
 						continue
 					}
@@ -77,7 +83,6 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 						break
 					}
 				}
-
 				s.session.DidChangeOutOfBand(ctx, gof, change.Type)
 
 				if otherFile != nil {
@@ -95,6 +100,14 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 			}
 		}
 	}
-
 	return nil
+}
+
+func contains(cph source.CheckPackageHandle, fh source.FileHandle) bool {
+	for _, ph := range cph.Files() {
+		if ph.File().Identity().URI == fh.Identity().URI {
+			return true
+		}
+	}
+	return false
 }

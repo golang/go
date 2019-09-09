@@ -59,7 +59,7 @@ func (view *view) load(ctx context.Context, f *goFile, fh source.FileHandle) ([]
 
 	var toDelete []packageID
 	f.mu.Lock()
-	for id, cph := range f.pkgs {
+	for id, cph := range f.cphs {
 		if cph != nil {
 			toDelete = append(toDelete, id)
 		}
@@ -124,8 +124,8 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile, fh source.FileHandl
 	for k := range f.meta {
 		delete(f.meta, k)
 	}
-	for k := range f.pkgs {
-		delete(f.pkgs, k)
+	for k := range f.cphs {
+		delete(f.cphs, k)
 	}
 	f.mu.Unlock()
 
@@ -160,7 +160,7 @@ func validateMetadata(ctx context.Context, missingImports map[packagePath]struct
 
 	// If we have already seen these missing imports before, and we have type information,
 	// there is no need to continue.
-	if sameSet(missingImports, f.missingImports) && len(f.pkgs) != 0 {
+	if sameSet(missingImports, f.missingImports) && len(f.cphs) != 0 {
 		return nil, nil
 	}
 

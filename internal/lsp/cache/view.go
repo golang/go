@@ -330,7 +330,7 @@ func (f *goFile) invalidateContent(ctx context.Context) {
 
 	var toDelete []packageID
 	f.mu.Lock()
-	for id, cph := range f.pkgs {
+	for id, cph := range f.cphs {
 		if cph != nil {
 			toDelete = append(toDelete, id)
 		}
@@ -352,14 +352,14 @@ func (f *goFile) invalidateContent(ctx context.Context) {
 // package. This forces f's package's metadata to be reloaded next
 // time the package is checked.
 func (f *goFile) invalidateMeta(ctx context.Context) {
-	pkgs, err := f.GetPackages(ctx)
+	cphs, err := f.CheckPackageHandles(ctx)
 	if err != nil {
 		log.Error(ctx, "invalidateMeta: GetPackages", err, telemetry.File.Of(f.URI()))
 		return
 	}
 
-	for _, pkg := range pkgs {
-		for _, pgh := range pkg.GetHandles() {
+	for _, pkg := range cphs {
+		for _, pgh := range pkg.Files() {
 			uri := pgh.File().Identity().URI
 			if gof, _ := f.view.FindFile(ctx, uri).(*goFile); gof != nil {
 				gof.mu.Lock()
@@ -402,7 +402,7 @@ func (v *view) remove(ctx context.Context, id packageID, seen map[packageID]stru
 			continue
 		}
 		gof.mu.Lock()
-		delete(gof.pkgs, id)
+		delete(gof.cphs, id)
 		gof.mu.Unlock()
 	}
 	return

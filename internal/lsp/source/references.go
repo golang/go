@@ -28,64 +28,62 @@ type ReferenceInfo struct {
 func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, error) {
 	ctx, done := trace.StartSpan(ctx, "source.References")
 	defer done()
+
 	var references []*ReferenceInfo
 
 	// If the object declaration is nil, assume it is an import spec and do not look for references.
 	if i.Declaration.obj == nil {
 		return nil, errors.Errorf("no references for an import spec")
 	}
-	for _, pkg := range i.pkgs {
-		info := pkg.GetTypesInfo()
-		if info == nil {
-			return nil, errors.Errorf("package %s has no types info", pkg.PkgPath())
+	info := i.pkg.GetTypesInfo()
+	if info == nil {
+		return nil, errors.Errorf("package %s has no types info", i.pkg.PkgPath())
+	}
+	if i.Declaration.wasImplicit {
+		// The definition is implicit, so we must add it separately.
+		// This occurs when the variable is declared in a type switch statement
+		// or is an implicit package name. Both implicits are local to a file.
+		references = append(references, &ReferenceInfo{
+			Name:          i.Declaration.obj.Name(),
+			mappedRange:   i.Declaration.mappedRange,
+			obj:           i.Declaration.obj,
+			pkg:           i.pkg,
+			isDeclaration: true,
+		})
+	}
+	for ident, obj := range info.Defs {
+		if obj == nil || !sameObj(obj, i.Declaration.obj) {
+			continue
 		}
-
-		if i.Declaration.wasImplicit {
-			// The definition is implicit, so we must add it separately.
-			// This occurs when the variable is declared in a type switch statement
-			// or is an implicit package name. Both implicits are local to a file.
-			references = append(references, &ReferenceInfo{
-				Name:          i.Declaration.obj.Name(),
-				mappedRange:   i.Declaration.mappedRange,
-				obj:           i.Declaration.obj,
-				pkg:           pkg,
-				isDeclaration: true,
-			})
+		rng, err := posToMappedRange(ctx, i.View, i.pkg, ident.Pos(), ident.End())
+		if err != nil {
+			return nil, err
 		}
-		for ident, obj := range info.Defs {
-			if obj == nil || !sameObj(obj, i.Declaration.obj) {
-				continue
-			}
-			rng, err := posToMappedRange(ctx, i.View, pkg, ident.Pos(), ident.End())
-			if err != nil {
-				return nil, err
-			}
-			// Add the declarations at the beginning of the references list.
-			references = append([]*ReferenceInfo{{
-				Name:          ident.Name,
-				ident:         ident,
-				obj:           obj,
-				pkg:           pkg,
-				isDeclaration: true,
-				mappedRange:   rng,
-			}}, references...)
+		// Add the declarations at the beginning of the references list.
+		references = append([]*ReferenceInfo{{
+			Name:          ident.Name,
+			ident:         ident,
+			obj:           obj,
+			pkg:           i.pkg,
+			isDeclaration: true,
+			mappedRange:   rng,
+		}}, references...)
+	}
+	for ident, obj := range info.Uses {
+		if obj == nil || !sameObj(obj, i.Declaration.obj) {
+			continue
 		}
-		for ident, obj := range info.Uses {
-			if obj == nil || !sameObj(obj, i.Declaration.obj) {
-				continue
-			}
-			rng, err := posToMappedRange(ctx, i.View, pkg, ident.Pos(), ident.End())
-			if err != nil {
-				return nil, err
-			}
-			references = append(references, &ReferenceInfo{
-				Name:        ident.Name,
-				ident:       ident,
-				pkg:         pkg,
-				obj:         obj,
-				mappedRange: rng,
-			})
+		rng, err := posToMappedRange(ctx, i.View, i.pkg, ident.Pos(), ident.End())
+		if err != nil {
+			return nil, err
 		}
+		references = append(references, &ReferenceInfo{
+			Name:        ident.Name,
+			ident:       ident,
+			pkg:         i.pkg,
+			obj:         obj,
+			mappedRange: rng,
+		})
 	}
 	return references, nil
 }

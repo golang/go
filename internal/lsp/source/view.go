@@ -265,23 +265,9 @@ type File interface {
 type GoFile interface {
 	File
 
-	// GetCachedPackage returns the cached package for the file, if any.
-	GetCachedPackage(ctx context.Context) (Package, error)
-
-	// GetCachedPackage returns the cached package for the file, if any.
-	GetCachedPackages(ctx context.Context) ([]Package, error)
-
-	// GetPackage returns the CheckPackageHandle for the package that this file belongs to.
-	GetCheckPackageHandle(ctx context.Context) (CheckPackageHandle, error)
-
-	// GetPackages returns the CheckPackageHandles of the packages that this file belongs to.
-	GetCheckPackageHandles(ctx context.Context) ([]CheckPackageHandle, error)
-
-	// GetPackage returns the Package that this file belongs to.
-	GetPackage(ctx context.Context) (Package, error)
-
-	// GetPackages returns the Packages that this file belongs to.
-	GetPackages(ctx context.Context) ([]Package, error)
+	// GetCheckPackageHandles returns the CheckPackageHandles for the packages
+	// that this file belongs to.
+	CheckPackageHandles(ctx context.Context) ([]CheckPackageHandle, error)
 
 	// GetActiveReverseDeps returns the active files belonging to the reverse
 	// dependencies of this file's package.
@@ -301,7 +287,7 @@ type SumFile interface {
 type Package interface {
 	ID() string
 	PkgPath() string
-	GetHandles() []ParseGoHandle
+	Files() []ParseGoHandle
 	GetSyntax(context.Context) []*ast.File
 	GetErrors() []packages.Error
 	GetTypes() *types.Package

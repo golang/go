@@ -31,16 +31,17 @@ func SignatureHelp(ctx context.Context, view View, f GoFile, pos protocol.Positi
 	ctx, done := trace.StartSpan(ctx, "source.SignatureHelp")
 	defer done()
 
-	pkgs, err := f.GetPackages(ctx)
+	cphs, err := f.CheckPackageHandles(ctx)
 	if err != nil {
 		return nil, err
 	}
-	pkg, err := bestPackage(f.URI(), pkgs)
+	cph := NarrowestCheckPackageHandle(cphs)
+	pkg, err := cph.Check(ctx)
 	if err != nil {
 		return nil, err
 	}
 	var ph ParseGoHandle
-	for _, h := range pkg.GetHandles() {
+	for _, h := range pkg.Files() {
 		if h.File().Identity().URI == f.URI() {
 			ph = h
 			break

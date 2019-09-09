@@ -28,12 +28,17 @@ func Format(ctx context.Context, view View, f File) ([]protocol.TextEdit, error)
 	if !ok {
 		return nil, errors.Errorf("formatting is not supported for non-Go files")
 	}
-	pkg, err := gof.GetPackage(ctx)
+	cphs, err := gof.CheckPackageHandles(ctx)
+	if err != nil {
+		return nil, err
+	}
+	cph := NarrowestCheckPackageHandle(cphs)
+	pkg, err := cph.Check(ctx)
 	if err != nil {
 		return nil, err
 	}
 	var ph ParseGoHandle
-	for _, h := range pkg.GetHandles() {
+	for _, h := range pkg.Files() {
 		if h.File().Identity().URI == f.URI() {
 			ph = h
 		}
@@ -84,7 +89,13 @@ func formatSource(ctx context.Context, file File) ([]byte, error) {
 func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]protocol.TextEdit, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Imports")
 	defer done()
-	pkg, err := f.GetPackage(ctx)
+
+	cphs, err := f.CheckPackageHandles(ctx)
+	if err != nil {
+		return nil, err
+	}
+	cph := NarrowestCheckPackageHandle(cphs)
+	pkg, err := cph.Check(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +103,7 @@ func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]protoc
 		return nil, errors.Errorf("%s has list errors, not running goimports", f.URI())
 	}
 	var ph ParseGoHandle
-	for _, h := range pkg.GetHandles() {
+	for _, h := range pkg.Files() {
 		if h.File().Identity().URI == f.URI() {
 			ph = h
 		}
@@ -146,7 +157,12 @@ func AllImportsFixes(ctx context.Context, view View, f File) (edits []protocol.T
 	if !ok {
 		return nil, nil, errors.Errorf("no imports fixes for non-Go files: %v", err)
 	}
-	pkg, err := gof.GetPackage(ctx)
+	cphs, err := gof.CheckPackageHandles(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	cph := NarrowestCheckPackageHandle(cphs)
+	pkg, err := cph.Check(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -164,7 +180,7 @@ func AllImportsFixes(ctx context.Context, view View, f File) (edits []protocol.T
 	}
 	importFn := func(opts *imports.Options) error {
 		var ph ParseGoHandle
-		for _, h := range pkg.GetHandles() {
+		for _, h := range pkg.Files() {
 			if h.File().Identity().URI == f.URI() {
 				ph = h
 			}

@@ -201,7 +201,12 @@ func quickFixes(ctx context.Context, view source.View, gof source.GoFile) ([]pro
 	// TODO: This is technically racy because the diagnostics provided by the code action
 	// may not be the same as the ones that gopls is aware of.
 	// We need to figure out some way to solve this problem.
-	pkg, err := gof.GetCachedPackage(ctx)
+	cphs, err := gof.CheckPackageHandles(ctx)
+	if err != nil {
+		return nil, err
+	}
+	cph := source.NarrowestCheckPackageHandle(cphs)
+	pkg, err := cph.Cached(ctx)
 	if err != nil {
 		return nil, err
 	}

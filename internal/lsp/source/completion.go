@@ -367,12 +367,17 @@ func Completion(ctx context.Context, view View, f GoFile, pos protocol.Position,
 
 	startTime := time.Now()
 
-	pkg, err := f.GetPackage(ctx)
+	cphs, err := f.CheckPackageHandles(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	cph := NarrowestCheckPackageHandle(cphs)
+	pkg, err := cph.Check(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 	var ph ParseGoHandle
-	for _, h := range pkg.GetHandles() {
+	for _, h := range pkg.Files() {
 		if h.File().Identity().URI == f.URI() {
 			ph = h
 		}

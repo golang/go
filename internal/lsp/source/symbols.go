@@ -18,7 +18,12 @@ func DocumentSymbols(ctx context.Context, view View, f GoFile) ([]protocol.Docum
 	ctx, done := trace.StartSpan(ctx, "source.DocumentSymbols")
 	defer done()
 
-	pkg, err := f.GetPackage(ctx)
+	cphs, err := f.CheckPackageHandles(ctx)
+	if err != nil {
+		return nil, err
+	}
+	cph := NarrowestCheckPackageHandle(cphs)
+	pkg, err := cph.Check(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -26,7 +31,7 @@ func DocumentSymbols(ctx context.Context, view View, f GoFile) ([]protocol.Docum
 		file *ast.File
 		m    *protocol.ColumnMapper
 	)
-	for _, ph := range pkg.GetHandles() {
+	for _, ph := range pkg.Files() {
 		if ph.File().Identity().URI == f.URI() {
 			file, m, err = ph.Cached(ctx)
 		}

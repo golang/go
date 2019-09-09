@@ -147,7 +147,7 @@ func (pkg *pkg) PkgPath() string {
 	return string(pkg.pkgPath)
 }
 
-func (pkg *pkg) GetHandles() []source.ParseGoHandle {
+func (pkg *pkg) Files() []source.ParseGoHandle {
 	return pkg.files
 }
 

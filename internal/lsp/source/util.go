@@ -51,22 +51,39 @@ func (s mappedRange) URI() span.URI {
 	return s.m.URI
 }
 
-// bestPackage picks the "narrowest" package for a given file.
+// NarrowestCheckPackageHandle picks the "narrowest" package for a given file.
 //
 // By "narrowest" package, we mean the package with the fewest number of files
 // that includes the given file. This solves the problem of test variants,
 // as the test will have more files than the non-test package.
-func bestPackage(uri span.URI, pkgs []Package) (Package, error) {
-	var result Package
-	for _, pkg := range pkgs {
-		if result == nil || len(pkg.GetHandles()) < len(result.GetHandles()) {
-			result = pkg
+func NarrowestCheckPackageHandle(handles []CheckPackageHandle) CheckPackageHandle {
+	if len(handles) < 1 {
+		return nil
+	}
+	result := handles[0]
+	for _, handle := range handles[1:] {
+		if result == nil || len(handle.Files()) < len(result.Files()) {
+			result = handle
 		}
 	}
-	if result == nil {
-		return nil, errors.Errorf("no CheckPackageHandle for %s", uri)
+	return result
+}
+
+// WidestCheckPackageHandle returns the CheckPackageHandle containing the most files.
+//
+// This is useful for something like diagnostics, where we'd prefer to offer diagnostics
+// for as many files as possible.
+func WidestCheckPackageHandle(handles []CheckPackageHandle) CheckPackageHandle {
+	if len(handles) < 1 {
+		return nil
 	}
-	return result, nil
+	result := handles[0]
+	for _, handle := range handles[1:] {
+		if result == nil || len(handle.Files()) > len(result.Files()) {
+			result = handle
+		}
+	}
+	return result
 }
 
 func IsGenerated(ctx context.Context, view View, uri span.URI) bool {

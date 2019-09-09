@@ -69,22 +69,11 @@ func Diagnostics(ctx context.Context, view View, f GoFile, disabledAnalyses map[
 	ctx, done := trace.StartSpan(ctx, "source.Diagnostics", telemetry.File.Of(f.URI()))
 	defer done()
 
-	cphs, err := f.GetCheckPackageHandles(ctx)
+	cphs, err := f.CheckPackageHandles(ctx)
 	if err != nil {
 		return nil, err
 	}
-	// Use the "biggest" package we know about.
-	// If we know about a package and its in-package tests,
-	// we should send diagnostics for both.
-	var cph CheckPackageHandle
-	for _, h := range cphs {
-		if cph == nil || len(h.Files()) > len(cph.Files()) {
-			cph = h
-		}
-	}
-	if cph == nil {
-		return nil, errors.Errorf("no package for file %s", f.URI())
-	}
+	cph := NarrowestCheckPackageHandle(cphs)
 	pkg, err := cph.Check(ctx)
 	if err != nil {
 		log.Error(ctx, "no package for file", err)
@@ -92,7 +81,7 @@ func Diagnostics(ctx context.Context, view View, f GoFile, disabledAnalyses map[
 	}
 	// Prepare the reports we will send for the files in this package.
 	reports := make(map[span.URI][]Diagnostic)
-	for _, fh := range pkg.GetHandles() {
+	for _, fh := range pkg.Files() {
 		clearReports(view, reports, fh.File().Identity().URI)
 	}
 
@@ -114,11 +103,16 @@ func Diagnostics(ctx context.Context, view View, f GoFile, disabledAnalyses map[
 	// Updates to the diagnostics for this package may need to be propagated.
 	revDeps := f.GetActiveReverseDeps(ctx)
 	for _, f := range revDeps {
-		pkg, err := f.GetPackage(ctx)
+		cphs, err := f.CheckPackageHandles(ctx)
 		if err != nil {
 			return nil, err
 		}
-		for _, fh := range pkg.GetHandles() {
+		cph := WidestCheckPackageHandle(cphs)
+		pkg, err := cph.Check(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, fh := range pkg.Files() {
 			clearReports(view, reports, fh.File().Identity().URI)
 		}
 		diagnostics(ctx, view, pkg, reports)
@@ -193,7 +187,7 @@ func spanToRange(ctx context.Context, view View, pkg Package, spn span.Span, isT
 		m    *protocol.ColumnMapper
 		err  error
 	)
-	for _, ph := range pkg.GetHandles() {
+	for _, ph := range pkg.Files() {
 		if ph.File().Identity().URI == spn.URI() {
 			fh = ph.File()
 			file, m, err = ph.Cached(ctx)
@@ -255,7 +249,12 @@ func toDiagnostic(ctx context.Context, view View, diag analysis.Diagnostic, cate
 	}
 	// If the package has changed since these diagnostics were computed,
 	// this may be incorrect. Should the package be associated with the diagnostic?
-	pkg, err := gof.GetCachedPackage(ctx)
+	cphs, err := gof.CheckPackageHandles(ctx)
+	if err != nil {
+		return Diagnostic{}, err
+	}
+	cph := NarrowestCheckPackageHandle(cphs)
+	pkg, err := cph.Cached(ctx)
 	if err != nil {
 		return Diagnostic{}, err
 	}
