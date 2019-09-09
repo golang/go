@@ -81,7 +81,7 @@ func abs32(x float32) float32 {
 
 // Check that it's using integer registers
 func copysign(a, b, c float64) {
-	// amd64:"BTRQ\t[$]63","SHRQ\t[$]63","SHLQ\t[$]63","ORQ"
+	// amd64:"BTRQ\t[$]63","ANDQ","ORQ"
 	// s390x:"CPSDR",-"MOVD"         (no integer load/store)
 	// ppc64:"FCPSGN"
 	// ppc64le:"FCPSGN"
@@ -100,7 +100,7 @@ func copysign(a, b, c float64) {
 	// s390x:"LNDFR\t",-"MOVD\t"     (no integer load/store)
 	sink64[2] = math.Float64frombits(math.Float64bits(a) | 1<<63)
 
-	// amd64:-"SHLQ\t[$]1",-"SHRQ\t[$]1","SHRQ\t[$]63","SHLQ\t[$]63","ORQ"
+	// amd64:"ANDQ","ORQ"
 	// s390x:"CPSDR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64:"FCPSGN"
 	// ppc64le:"FCPSGN"
