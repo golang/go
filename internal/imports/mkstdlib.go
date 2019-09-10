@@ -19,7 +19,6 @@ import (
 	"regexp"
 	"runtime"
 	"sort"
-	"strings"
 )
 
 func mustOpen(name string) io.Reader {
@@ -75,10 +74,6 @@ func main() {
 
 	for sc.Scan() {
 		l := sc.Text()
-		has := func(v string) bool { return strings.Contains(l, v) }
-		if has("struct, ") || has("interface, ") || has(", method (") {
-			continue
-		}
 		if m := sym.FindStringSubmatch(l); m != nil {
 			path, sym := m[1], m[2]
 

@@ -72,10 +72,6 @@ func main() {
 	paths := []string{"unsafe", "syscall/js"}
 	for sc.Scan() {
 		l := sc.Text()
-		has := func(v string) bool { return strings.Contains(l, v) }
-		if has("struct, ") || has("interface, ") || has(", method (") {
-			continue
-		}
 		if m := sym.FindStringSubmatch(l); m != nil {
 			path, _ := m[1], m[2]
 
