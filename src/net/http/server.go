@@ -231,13 +231,13 @@ type CloseNotifier interface {
 
 var (
 	// ServerContextKey is a context key. It can be used in HTTP
-	// handlers with context.WithValue to access the server that
+	// handlers with Context.Value to access the server that
 	// started the handler. The associated value will be of
 	// type *Server.
 	ServerContextKey = &contextKey{"http-server"}
 
 	// LocalAddrContextKey is a context key. It can be used in
-	// HTTP handlers with context.WithValue to access the local
+	// HTTP handlers with Context.Value to access the local
 	// address the connection arrived on.
 	// The associated value will be of type net.Addr.
 	LocalAddrContextKey = &contextKey{"local-addr"}
@@ -2488,7 +2488,12 @@ func ServeTLS(l net.Listener, handler Handler, certFile, keyFile string) error {
 // A Server defines parameters for running an HTTP server.
 // The zero value for Server is a valid configuration.
 type Server struct {
-	Addr    string  // TCP address to listen on, ":http" if empty
+	// Addr optionally specifies the TCP address for the server to listen on,
+	// in the form "host:port". If empty, ":http" (port 80) is used.
+	// The service names are defined in RFC 6335 and assigned by IANA.
+	// See net.Dial for details of the address format.
+	Addr string
+
 	Handler Handler // handler to invoke, http.DefaultServeMux if nil
 
 	// TLSConfig optionally provides a TLS configuration for use
@@ -3177,8 +3182,8 @@ func (srv *Server) onceSetNextProtoDefaults() {
 // After such a timeout, writes by h to its ResponseWriter will return
 // ErrHandlerTimeout.
 //
-// TimeoutHandler buffers all Handler writes to memory and does not
-// support the Hijacker or Flusher interfaces.
+// TimeoutHandler supports the Flusher and Pusher interfaces but does not
+// support the Hijacker interface.
 func TimeoutHandler(h Handler, dt time.Duration, msg string) Handler {
 	return &timeoutHandler{
 		handler: h,

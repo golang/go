@@ -72,7 +72,8 @@ import (
 // use. If the map is nil, Unmarshal allocates a new map. Otherwise Unmarshal
 // reuses the existing map, keeping existing entries. Unmarshal then stores
 // key-value pairs from the JSON object into the map. The map's key type must
-// either be a string, an integer, or implement encoding.TextUnmarshaler.
+// either be any string type, an integer, implement json.Unmarshaler, or
+// implement encoding.TextUnmarshaler.
 //
 // If a JSON value is not appropriate for a given target type,
 // or if a JSON number overflows the target type, Unmarshal
@@ -199,66 +200,6 @@ func (n Number) Int64() (int64, error) {
 	return strconv.ParseInt(string(n), 10, 64)
 }
 
-// isValidNumber reports whether s is a valid JSON number literal.
-func isValidNumber(s string) bool {
-	// This function implements the JSON numbers grammar.
-	// See https://tools.ietf.org/html/rfc7159#section-6
-	// and https://json.org/number.gif
-
-	if s == "" {
-		return false
-	}
-
-	// Optional -
-	if s[0] == '-' {
-		s = s[1:]
-		if s == "" {
-			return false
-		}
-	}
-
-	// Digits
-	switch {
-	default:
-		return false
-
-	case s[0] == '0':
-		s = s[1:]
-
-	case '1' <= s[0] && s[0] <= '9':
-		s = s[1:]
-		for len(s) > 0 && '0' <= s[0] && s[0] <= '9' {
-			s = s[1:]
-		}
-	}
-
-	// . followed by 1 or more digits.
-	if len(s) >= 2 && s[0] == '.' && '0' <= s[1] && s[1] <= '9' {
-		s = s[2:]
-		for len(s) > 0 && '0' <= s[0] && s[0] <= '9' {
-			s = s[1:]
-		}
-	}
-
-	// e or E followed by an optional - or + and
-	// 1 or more digits.
-	if len(s) >= 2 && (s[0] == 'e' || s[0] == 'E') {
-		s = s[1:]
-		if s[0] == '+' || s[0] == '-' {
-			s = s[1:]
-			if s == "" {
-				return false
-			}
-		}
-		for len(s) > 0 && '0' <= s[0] && s[0] <= '9' {
-			s = s[1:]
-		}
-	}
-
-	// Make sure we are at the end.
-	return s == ""
-}
-
 // decodeState represents the state while decoding a JSON value.
 type decodeState struct {
 	data         []byte
@@ -272,9 +213,6 @@ type decodeState struct {
 	savedError            error
 	useNumber             bool
 	disallowUnknownFields bool
-	// safeUnquote is the number of current string literal bytes that don't
-	// need to be unquoted. When negative, no bytes need unquoting.
-	safeUnquote int
 }
 
 // readIndex returns the position of the last byte read.
@@ -376,27 +314,13 @@ func (d *decodeState) rescanLiteral() {
 Switch:
 	switch data[i-1] {
 	case '"': // string
-		// safeUnquote is initialized at -1, which means that all bytes
-		// checked so far can be unquoted at a later time with no work
-		// at all. When reaching the closing '"', if safeUnquote is
-		// still -1, all bytes can be unquoted with no work. Otherwise,
-		// only those bytes up until the first '\\' or non-ascii rune
-		// can be safely unquoted.
-		safeUnquote := -1
 		for ; i < len(data); i++ {
-			if c := data[i]; c == '\\' {
-				if safeUnquote < 0 { // first unsafe byte
-					safeUnquote = int(i - d.off)
-				}
+			switch data[i] {
+			case '\\':
 				i++ // escaped char
-			} else if c == '"' {
-				d.safeUnquote = safeUnquote
+			case '"':
 				i++ // tokenize the closing quote too
 				break Switch
-			} else if c >= utf8.RuneSelf {
-				if safeUnquote < 0 { // first unsafe byte
-					safeUnquote = int(i - d.off)
-				}
 			}
 		}
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-': // number
@@ -492,8 +416,9 @@ func (d *decodeState) valueQuoted() interface{} {
 
 // indirect walks down v allocating pointers as needed,
 // until it gets to a non-pointer.
-// if it encounters an Unmarshaler, indirect stops and returns that.
-// if decodingNull is true, indirect stops at the last pointer so it can be set to nil.
+// If it encounters an Unmarshaler, indirect stops and returns that.
+// If decodingNull is true, indirect stops at the first settable pointer so it
+// can be set to nil.
 func indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnmarshaler, reflect.Value) {
 	// Issue #24153 indicates that it is generally not a guaranteed property
 	// that you may round-trip a reflect.Value by calling Value.Addr().Elem()
@@ -532,7 +457,7 @@ func indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnm
 			break
 		}
 
-		if v.Elem().Kind() != reflect.Ptr && decodingNull && v.CanSet() {
+		if decodingNull && v.CanSet() {
 			break
 		}
 
@@ -749,7 +674,7 @@ func (d *decodeState) object(v reflect.Value) error {
 		start := d.readIndex()
 		d.rescanLiteral()
 		item := d.data[start:d.readIndex()]
-		key, ok := d.unquoteBytes(item)
+		key, ok := unquoteBytes(item)
 		if !ok {
 			panic(phasePanicMsg)
 		}
@@ -950,7 +875,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 			d.saveError(&UnmarshalTypeError{Value: val, Type: v.Type(), Offset: int64(d.readIndex())})
 			return nil
 		}
-		s, ok := d.unquoteBytes(item)
+		s, ok := unquoteBytes(item)
 		if !ok {
 			if fromQuoted {
 				return fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
@@ -1001,7 +926,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		}
 
 	case '"': // string
-		s, ok := d.unquoteBytes(item)
+		s, ok := unquoteBytes(item)
 		if !ok {
 			if fromQuoted {
 				return fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
@@ -1044,10 +969,9 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		switch v.Kind() {
 		default:
 			if v.Kind() == reflect.String && v.Type() == numberType {
+				// s must be a valid number, because it's
+				// already been tokenized.
 				v.SetString(s)
-				if !isValidNumber(s) {
-					return fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", item)
-				}
 				break
 			}
 			if fromQuoted {
@@ -1159,7 +1083,7 @@ func (d *decodeState) objectInterface() map[string]interface{} {
 		start := d.readIndex()
 		d.rescanLiteral()
 		item := d.data[start:d.readIndex()]
-		key, ok := d.unquote(item)
+		key, ok := unquote(item)
 		if !ok {
 			panic(phasePanicMsg)
 		}
@@ -1208,7 +1132,7 @@ func (d *decodeState) literalInterface() interface{} {
 		return c == 't'
 
 	case '"': // string
-		s, ok := d.unquote(item)
+		s, ok := unquote(item)
 		if !ok {
 			panic(phasePanicMsg)
 		}
@@ -1251,21 +1175,38 @@ func getu4(s []byte) rune {
 
 // unquote converts a quoted JSON string literal s into an actual string t.
 // The rules are different than for Go, so cannot use strconv.Unquote.
-func (d *decodeState) unquote(s []byte) (t string, ok bool) {
-	s, ok = d.unquoteBytes(s)
+func unquote(s []byte) (t string, ok bool) {
+	s, ok = unquoteBytes(s)
 	t = string(s)
 	return
 }
 
-func (d *decodeState) unquoteBytes(s []byte) (t []byte, ok bool) {
-	r := d.safeUnquote
-	// The bytes have been scanned, so we know that the first and last bytes
-	// are double quotes.
+func unquoteBytes(s []byte) (t []byte, ok bool) {
+	if len(s) < 2 || s[0] != '"' || s[len(s)-1] != '"' {
+		return
+	}
 	s = s[1 : len(s)-1]
 
-	// If there are no unusual characters, no unquoting is needed, so return
-	// a slice of the original bytes.
-	if r == -1 {
+	// Check for unusual characters. If there are none,
+	// then no unquoting is needed, so return a slice of the
+	// original bytes.
+	r := 0
+	for r < len(s) {
+		c := s[r]
+		if c == '\\' || c == '"' || c < ' ' {
+			break
+		}
+		if c < utf8.RuneSelf {
+			r++
+			continue
+		}
+		rr, size := utf8.DecodeRune(s[r:])
+		if rr == utf8.RuneError && size == 1 {
+			break
+		}
+		r += size
+	}
+	if r == len(s) {
 		return s, true
 	}
 

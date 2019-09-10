@@ -474,11 +474,6 @@ func NeedsFixUp(v *Value) bool {
 	return v.AuxInt == 0
 }
 
-// i2f is used in rules for converting from an AuxInt to a float.
-func i2f(i int64) float64 {
-	return math.Float64frombits(uint64(i))
-}
-
 // auxFrom64F encodes a float64 value so it can be stored in an AuxInt.
 func auxFrom64F(f float64) int64 {
 	return int64(math.Float64bits(f))

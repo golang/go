@@ -18,10 +18,10 @@ type I4 interface { // GC_ERROR "invalid recursive type"
 	I4	// GCCGO_ERROR "interface"
 }
 
-type I5 interface {
+type I5 interface { // GC_ERROR "invalid recursive type"
 	I6	// GCCGO_ERROR "interface"
 }
 
-type I6 interface { // GC_ERROR "invalid recursive type"
+type I6 interface {
 	I5	// GCCGO_ERROR "interface"
 }

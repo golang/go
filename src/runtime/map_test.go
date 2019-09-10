@@ -1156,3 +1156,64 @@ func TestMapTombstones(t *testing.T) {
 	}
 	runtime.MapTombstoneCheck(m)
 }
+
+type canString int
+
+func (c canString) String() string {
+	return fmt.Sprintf("%d", int(c))
+}
+
+func TestMapInterfaceKey(t *testing.T) {
+	// Test all the special cases in runtime.typehash.
+	type GrabBag struct {
+		f32  float32
+		f64  float64
+		c64  complex64
+		c128 complex128
+		s    string
+		i0   interface{}
+		i1   interface {
+			String() string
+		}
+		a [4]string
+	}
+
+	m := map[interface{}]bool{}
+	// Put a bunch of data in m, so that a bad hash is likely to
+	// lead to a bad bucket, which will lead to a missed lookup.
+	for i := 0; i < 1000; i++ {
+		m[i] = true
+	}
+	m[GrabBag{f32: 1.0}] = true
+	if !m[GrabBag{f32: 1.0}] {
+		panic("f32 not found")
+	}
+	m[GrabBag{f64: 1.0}] = true
+	if !m[GrabBag{f64: 1.0}] {
+		panic("f64 not found")
+	}
+	m[GrabBag{c64: 1.0i}] = true
+	if !m[GrabBag{c64: 1.0i}] {
+		panic("c64 not found")
+	}
+	m[GrabBag{c128: 1.0i}] = true
+	if !m[GrabBag{c128: 1.0i}] {
+		panic("c128 not found")
+	}
+	m[GrabBag{s: "foo"}] = true
+	if !m[GrabBag{s: "foo"}] {
+		panic("string not found")
+	}
+	m[GrabBag{i0: "foo"}] = true
+	if !m[GrabBag{i0: "foo"}] {
+		panic("interface{} not found")
+	}
+	m[GrabBag{i1: canString(5)}] = true
+	if !m[GrabBag{i1: canString(5)}] {
+		panic("interface{String() string} not found")
+	}
+	m[GrabBag{a: [4]string{"foo", "bar", "baz", "bop"}}] = true
+	if !m[GrabBag{a: [4]string{"foo", "bar", "baz", "bop"}}] {
+		panic("array not found")
+	}
+}

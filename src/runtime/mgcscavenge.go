@@ -74,7 +74,7 @@ func heapRetained() uint64 {
 // its rate and RSS goal.
 //
 // The RSS goal is based on the current heap goal with a small overhead
-// to accomodate non-determinism in the allocator.
+// to accommodate non-determinism in the allocator.
 //
 // The pacing is based on scavengePageRate, which applies to both regular and
 // huge pages. See that constant for more information.

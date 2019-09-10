@@ -241,7 +241,7 @@ func TreeCanMatchPattern(pattern string) func(name string) bool {
 //
 // First, /... at the end of the pattern can match an empty string,
 // so that net/... matches both net and packages in its subdirectories, like net/http.
-// Second, any slash-separted pattern element containing a wildcard never
+// Second, any slash-separated pattern element containing a wildcard never
 // participates in a match of the "vendor" element in the path of a vendored
 // package, so that ./... does not match packages in subdirectories of
 // ./vendor or ./mycode/vendor, but ./vendor/... and ./mycode/vendor/... do.

@@ -228,6 +228,9 @@ func (f *File) WriteString(s string) (n int, err error) {
 // bits (before umask).
 // If there is an error, it will be of type *PathError.
 func Mkdir(name string, perm FileMode) error {
+	if runtime.GOOS == "windows" && isWindowsNulName(name) {
+		return &PathError{"mkdir", name, syscall.ENOTDIR}
+	}
 	e := syscall.Mkdir(fixLongPath(name), syscallMode(perm))
 
 	if e != nil {
@@ -247,7 +250,7 @@ func Mkdir(name string, perm FileMode) error {
 	return nil
 }
 
-// setStickyBit adds ModeSticky to the permision bits of path, non atomic.
+// setStickyBit adds ModeSticky to the permission bits of path, non atomic.
 func setStickyBit(name string) error {
 	fi, err := Stat(name)
 	if err != nil {
@@ -559,4 +562,22 @@ func (f *File) SyscallConn() (syscall.RawConn, error) {
 		return nil, err
 	}
 	return newRawConn(f)
+}
+
+// isWindowsNulName reports whether name is os.DevNull ('NUL') on Windows.
+// True is returned if name is 'NUL' whatever the case.
+func isWindowsNulName(name string) bool {
+	if len(name) != 3 {
+		return false
+	}
+	if name[0] != 'n' && name[0] != 'N' {
+		return false
+	}
+	if name[1] != 'u' && name[1] != 'U' {
+		return false
+	}
+	if name[2] != 'l' && name[2] != 'L' {
+		return false
+	}
+	return true
 }

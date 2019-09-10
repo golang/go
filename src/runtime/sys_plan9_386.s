@@ -102,9 +102,9 @@ TEXT runtime·nsec(SB),NOSPLIT,$8
 	MOVL	$-1, ret_hi+8(FP)
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB),NOSPLIT,$8-12
-	CALL	runtime·nanotime(SB)
+// func walltime1() (sec int64, nsec int32)
+TEXT runtime·walltime1(SB),NOSPLIT,$8-12
+	CALL	runtime·nanotime1(SB)
 	MOVL	0(SP), AX
 	MOVL	4(SP), DX
 

@@ -49,6 +49,7 @@ const (
 //go:cgo_import_dynamic runtime._VirtualFree VirtualFree%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._VirtualQuery VirtualQuery%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WaitForSingleObject WaitForSingleObject%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._WaitForMultipleObjects WaitForMultipleObjects%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WriteConsoleW WriteConsoleW%5 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WriteFile WriteFile%5 "kernel32.dll"
 
@@ -96,6 +97,7 @@ var (
 	_VirtualFree,
 	_VirtualQuery,
 	_WaitForSingleObject,
+	_WaitForMultipleObjects,
 	_WriteConsoleW,
 	_WriteFile,
 	_ stdFunction
@@ -139,7 +141,8 @@ func tstart_stdcall(newm *m)
 func ctrlhandler()
 
 type mOS struct {
-	waitsema uintptr // semaphore for parking on locks
+	waitsema   uintptr // semaphore for parking on locks
+	resumesema uintptr // semaphore to indicate suspend/resume
 }
 
 //go:linkname os_sigpipe os.sigpipe
@@ -255,6 +258,42 @@ func loadOptionalSyscalls() {
 	if windowsFindfunc(n32, []byte("wine_get_version\000")) != nil {
 		// running on Wine
 		initWine(k32)
+	}
+}
+
+func monitorSuspendResume() {
+	const _DEVICE_NOTIFY_CALLBACK = 2
+	type _DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS struct {
+		callback uintptr
+		context  uintptr
+	}
+
+	powrprof := windowsLoadSystemLib([]byte("powrprof.dll\000"))
+	if powrprof == 0 {
+		return // Running on Windows 7, where we don't need it anyway.
+	}
+	powerRegisterSuspendResumeNotification := windowsFindfunc(powrprof, []byte("PowerRegisterSuspendResumeNotification\000"))
+	if powerRegisterSuspendResumeNotification == nil {
+		return // Running on Windows 7, where we don't need it anyway.
+	}
+	var fn interface{} = func(context uintptr, changeType uint32, setting uintptr) uintptr {
+		lock(&allglock)
+		for _, gp := range allgs {
+			if gp.m != nil && gp.m.resumesema != 0 {
+				stdcall1(_SetEvent, gp.m.resumesema)
+			}
+		}
+		unlock(&allglock)
+		return 0
+	}
+	params := _DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS{
+		callback: compileCallback(*efaceOf(&fn), true),
+	}
+	handle := uintptr(0)
+	if stdcall3(powerRegisterSuspendResumeNotification, _DEVICE_NOTIFY_CALLBACK,
+		uintptr(unsafe.Pointer(&params)),
+		uintptr(unsafe.Pointer(&handle))) != 0 {
+		throw("PowerRegisterSuspendResumeNotification failure")
 	}
 }
 
@@ -377,8 +416,6 @@ func osinit() {
 	stdcall2(_SetProcessPriorityBoost, currentProcess, 1)
 }
 
-func nanotime() int64
-
 // useQPCTime controls whether time.now and nanotime use QueryPerformanceCounter.
 // This is only set to 1 when running under Wine.
 var useQPCTime uint8
@@ -488,6 +525,10 @@ func goenvs() {
 	}
 
 	stdcall1(_FreeEnvironmentStringsW, uintptr(strings))
+
+	// We call this all the way here, late in init, so that malloc works
+	// for the callback function this generates.
+	monitorSuspendResume()
 }
 
 // exiting is set to non-zero when the process is exiting.
@@ -499,8 +540,12 @@ func exit(code int32) {
 	stdcall1(_ExitProcess, uintptr(code))
 }
 
+// write1 must be nosplit because it's used as a last resort in
+// functions like badmorestackg0. In such cases, we'll always take the
+// ASCII path.
+//
 //go:nosplit
-func write(fd uintptr, buf unsafe.Pointer, n int32) int32 {
+func write1(fd uintptr, buf unsafe.Pointer, n int32) int32 {
 	const (
 		_STD_OUTPUT_HANDLE = ^uintptr(10) // -11
 		_STD_ERROR_HANDLE  = ^uintptr(11) // -12
@@ -597,6 +642,9 @@ func writeConsoleUTF16(handle uintptr, b []uint16) {
 	return
 }
 
+// walltime1 isn't implemented on Windows, but will never be called.
+func walltime1() (sec int64, nsec int32)
+
 //go:nosplit
 func semasleep(ns int64) int32 {
 	const (
@@ -606,19 +654,32 @@ func semasleep(ns int64) int32 {
 		_WAIT_FAILED    = 0xFFFFFFFF
 	)
 
-	// store ms in ns to save stack space
+	var result uintptr
 	if ns < 0 {
-		ns = _INFINITE
+		result = stdcall2(_WaitForSingleObject, getg().m.waitsema, uintptr(_INFINITE))
 	} else {
-		ns = int64(timediv(ns, 1000000, nil))
-		if ns == 0 {
-			ns = 1
+		start := nanotime()
+		elapsed := int64(0)
+		for {
+			ms := int64(timediv(ns-elapsed, 1000000, nil))
+			if ms == 0 {
+				ms = 1
+			}
+			result = stdcall4(_WaitForMultipleObjects, 2,
+				uintptr(unsafe.Pointer(&[2]uintptr{getg().m.waitsema, getg().m.resumesema})),
+				0, uintptr(ms))
+			if result != _WAIT_OBJECT_0+1 {
+				// Not a suspend/resume event
+				break
+			}
+			elapsed = nanotime() - start
+			if elapsed >= ns {
+				return -1
+			}
 		}
 	}
-
-	result := stdcall2(_WaitForSingleObject, getg().m.waitsema, uintptr(ns))
 	switch result {
-	case _WAIT_OBJECT_0: //signaled
+	case _WAIT_OBJECT_0: // Signaled
 		return 0
 
 	case _WAIT_TIMEOUT:
@@ -667,6 +728,15 @@ func semacreate(mp *m) {
 			throw("runtime.semacreate")
 		})
 	}
+	mp.resumesema = stdcall4(_CreateEventA, 0, 0, 0, 0)
+	if mp.resumesema == 0 {
+		systemstack(func() {
+			print("runtime: createevent failed; errno=", getlasterror(), "\n")
+			throw("runtime.semacreate")
+		})
+		stdcall1(_CloseHandle, mp.waitsema)
+		mp.waitsema = 0
+	}
 }
 
 // May run with m.p==nil, so write barriers are not allowed. This
@@ -705,7 +775,7 @@ func newosproc(mp *m) {
 func newosproc0(mp *m, stk unsafe.Pointer) {
 	// TODO: this is completely broken. The args passed to newosproc0 (in asm_amd64.s)
 	// are stacksize and function, not *m and stack.
-	// Check os_linux.go for an implemention that might actually work.
+	// Check os_linux.go for an implementation that might actually work.
 	throw("bad newosproc0")
 }
 
@@ -894,6 +964,8 @@ func ctrlhandler1(_type uint32) uint32 {
 	switch _type {
 	case _CTRL_C_EVENT, _CTRL_BREAK_EVENT:
 		s = _SIGINT
+	case _CTRL_CLOSE_EVENT, _CTRL_LOGOFF_EVENT, _CTRL_SHUTDOWN_EVENT:
+		s = _SIGTERM
 	default:
 		return 0
 	}

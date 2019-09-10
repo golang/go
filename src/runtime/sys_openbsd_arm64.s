@@ -63,7 +63,7 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R0, ret+24(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0
 	MOVW	fd+0(FP), R0		// arg 1 - fd
 	MOVD	p+8(FP), R1		// arg 2 - buf
 	MOVW	n+16(FP), R2		// arg 3 - nbyte
@@ -158,8 +158,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
 	SVC
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB), NOSPLIT, $32
+// func walltime1() (sec int64, nsec int32)
+TEXT runtime·walltime1(SB), NOSPLIT, $32
 	MOVW	CLOCK_REALTIME, R0	// arg 1 - clock_id
 	MOVD	$8(RSP), R1		// arg 2 - tp
 	MOVD	$87, R8			// sys_clock_gettime
@@ -172,9 +172,9 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 
 	RET
 
-// int64 nanotime(void) so really
-// void nanotime(int64 *nsec)
-TEXT runtime·nanotime(SB),NOSPLIT,$32
+// int64 nanotime1(void) so really
+// void nanotime1(int64 *nsec)
+TEXT runtime·nanotime1(SB),NOSPLIT,$32
 	MOVW	CLOCK_MONOTONIC, R0	// arg 1 - clock_id
 	MOVD	$8(RSP), R1		// arg 2 - tp
 	MOVD	$87, R8			// sys_clock_gettime

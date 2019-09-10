@@ -411,7 +411,7 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
 
 	if s.f.Config.ctxt.Arch.Arch == sys.ArchWasm {
 		// TODO(neelance): In theory this should never happen, because all wasm registers are equal.
-		// So if there is still a free register, the allocation should have picked that one in the first place insead of
+		// So if there is still a free register, the allocation should have picked that one in the first place instead of
 		// trying to kick some other value out. In practice, this case does happen and it breaks the stack optimization.
 		s.freeReg(r)
 		return r
@@ -489,7 +489,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 	}
 
 	var r register
-	// If nospill is set, the value is used immedately, so it can live on the WebAssembly stack.
+	// If nospill is set, the value is used immediately, so it can live on the WebAssembly stack.
 	onWasmStack := nospill && s.f.Config.ctxt.Arch.Arch == sys.ArchWasm
 	if !onWasmStack {
 		// Allocate a register.

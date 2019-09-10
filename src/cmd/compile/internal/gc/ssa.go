@@ -908,7 +908,7 @@ func (s *state) stmt(n *Node) {
 
 	case ODCL:
 		if n.Left.Class() == PAUTOHEAP {
-			Fatalf("DCL %v", n)
+			s.Fatalf("DCL %v", n)
 		}
 
 	case OLABEL:
@@ -966,7 +966,7 @@ func (s *state) stmt(n *Node) {
 				// rewritten during walk. Any that remain are just T{}
 				// or equivalents. Use the zero value.
 				if !isZero(rhs) {
-					Fatalf("literal with nonzero value in SSA: %v", rhs)
+					s.Fatalf("literal with nonzero value in SSA: %v", rhs)
 				}
 				rhs = nil
 			case OAPPEND:
@@ -1549,11 +1549,25 @@ func (s *state) ssaOp(op Op, t *types.Type) ssa.Op {
 }
 
 func floatForComplex(t *types.Type) *types.Type {
-	if t.Size() == 8 {
+	switch t.Etype {
+	case TCOMPLEX64:
 		return types.Types[TFLOAT32]
-	} else {
+	case TCOMPLEX128:
 		return types.Types[TFLOAT64]
 	}
+	Fatalf("unexpected type: %v", t)
+	return nil
+}
+
+func complexForFloat(t *types.Type) *types.Type {
+	switch t.Etype {
+	case TFLOAT32:
+		return types.Types[TCOMPLEX64]
+	case TFLOAT64:
+		return types.Types[TCOMPLEX128]
+	}
+	Fatalf("unexpected type: %v", t)
+	return nil
 }
 
 type opAndTwoTypes struct {
@@ -1631,7 +1645,7 @@ var fpConvOpToSSA32 = map[twoTypes]twoOpsAndType{
 	twoTypes{TFLOAT64, TUINT32}: twoOpsAndType{ssa.OpCvt64Fto32U, ssa.OpCopy, TUINT32},
 }
 
-// uint64<->float conversions, only on machines that have intructions for that
+// uint64<->float conversions, only on machines that have instructions for that
 var uint64fpConvOpToSSA = map[twoTypes]twoOpsAndType{
 	twoTypes{TUINT64, TFLOAT32}: twoOpsAndType{ssa.OpCopy, ssa.OpCvt64Uto32F, TUINT64},
 	twoTypes{TUINT64, TFLOAT64}: twoOpsAndType{ssa.OpCopy, ssa.OpCvt64Uto64F, TUINT64},
@@ -2295,7 +2309,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			// rewritten during walk. Any that remain are just T{}
 			// or equivalents. Use the zero value.
 			if !isZero(n.Left) {
-				Fatalf("literal with nonzero value in SSA: %v", n.Left)
+				s.Fatalf("literal with nonzero value in SSA: %v", n.Left)
 			}
 			return s.zeroVal(n.Type)
 		}
@@ -2457,7 +2471,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		// rewritten during walk. Any that remain are just T{}
 		// or equivalents. Use the zero value.
 		if !isZero(n) {
-			Fatalf("literal with nonzero value in SSA: %v", n)
+			s.Fatalf("literal with nonzero value in SSA: %v", n)
 		}
 		return s.zeroVal(n.Type)
 
@@ -2767,10 +2781,14 @@ func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask) 
 		s.addNamedValue(left, right)
 		return
 	}
-	// Left is not ssa-able. Compute its address.
-	if left.Op == ONAME && left.Class() != PEXTERN && skip == 0 {
-		s.vars[&memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, left, s.mem(), !left.IsAutoTmp())
+
+	// If this assignment clobbers an entire local variable, then emit
+	// OpVarDef so liveness analysis knows the variable is redefined.
+	if base := clobberBase(left); base.Op == ONAME && base.Class() != PEXTERN && skip == 0 {
+		s.vars[&memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, base, s.mem(), !base.IsAutoTmp())
 	}
+
+	// Left is not ssa-able. Compute its address.
 	addr := s.addr(left, false)
 	if isReflectHeaderDataField(left) {
 		// Package unsafe's documentation says storing pointers into
@@ -3297,7 +3315,7 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpAbs, types.Types[TFLOAT64], args[0])
 		},
-		sys.ARM64, sys.PPC64, sys.Wasm)
+		sys.ARM64, sys.ARM, sys.PPC64, sys.Wasm)
 	addF("math", "Copysign",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpCopysign, types.Types[TFLOAT64], args[0], args[1])
@@ -3370,7 +3388,7 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpCtz16, types.Types[TINT], args[0])
 		},
-		sys.AMD64, sys.ARM, sys.ARM64, sys.Wasm)
+		sys.AMD64, sys.I386, sys.ARM, sys.ARM64, sys.Wasm)
 	addF("math/bits", "TrailingZeros16",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			x := s.newValue1(ssa.OpZeroExt16to64, types.Types[TUINT64], args[0])
@@ -3504,7 +3522,7 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpRotateLeft32, types.Types[TUINT32], args[0], args[1])
 		},
-		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64)
+		sys.AMD64, sys.ARM, sys.ARM64, sys.S390X, sys.PPC64, sys.Wasm)
 	addF("math/bits", "RotateLeft64",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpRotateLeft64, types.Types[TUINT64], args[0], args[1])
@@ -3768,7 +3786,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		}
 	case OCALLMETH:
 		if fn.Op != ODOTMETH {
-			Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", fn)
+			s.Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", fn)
 		}
 		if k == callNormal {
 			sym = fn.Sym
@@ -3790,7 +3808,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		// want to set it here.
 	case OCALLINTER:
 		if fn.Op != ODOTINTER {
-			Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op)
+			s.Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op)
 		}
 		i := s.expr(fn.Left)
 		itab := s.newValue1(ssa.OpITab, types.Types[TUINTPTR], i)
@@ -3923,7 +3941,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		case sym != nil:
 			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, sym.Linksym(), s.mem())
 		default:
-			Fatalf("bad call type %v %v", n.Op, n)
+			s.Fatalf("bad call type %v %v", n.Op, n)
 		}
 		call.AuxInt = stksize // Call operations carry the argsize of the callee along with them
 	}
@@ -4079,7 +4097,7 @@ func (s *state) canSSA(n *Node) bool {
 		return false
 	}
 	if n.Class() == PAUTOHEAP {
-		Fatalf("canSSA of PAUTOHEAP %v", n)
+		s.Fatalf("canSSA of PAUTOHEAP %v", n)
 	}
 	switch n.Class() {
 	case PEXTERN:
@@ -4299,7 +4317,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 		b.SetControl(call)
 		call.AuxInt = off - Ctxt.FixedFrameSize()
 		if len(results) > 0 {
-			Fatalf("panic call can't have results")
+			s.Fatalf("panic call can't have results")
 		}
 		return nil
 	}
@@ -5258,7 +5276,7 @@ func emitStackObjects(e *ssafn, pp *Progs) {
 		// Locals have a negative Xoffset, in which case the offset is relative to varp.
 		off = duintptr(x, off, uint64(v.Xoffset))
 		if !typesym(v.Type).Siggen() {
-			Fatalf("stack object's type symbol not generated for type %s", v.Type)
+			e.Fatalf(v.Pos, "stack object's type symbol not generated for type %s", v.Type)
 		}
 		off = dsymptr(x, off, dtypesym(v.Type), 0)
 	}
@@ -5597,10 +5615,10 @@ func defframe(s *SSAGenState, e *ssafn) {
 			continue
 		}
 		if n.Class() != PAUTO {
-			Fatalf("needzero class %d", n.Class())
+			e.Fatalf(n.Pos, "needzero class %d", n.Class())
 		}
 		if n.Type.Size()%int64(Widthptr) != 0 || n.Xoffset%int64(Widthptr) != 0 || n.Type.Size() == 0 {
-			Fatalf("var %L has size %d offset %d", n, n.Type.Size(), n.Xoffset)
+			e.Fatalf(n.Pos, "var %L has size %d offset %d", n, n.Type.Size(), n.Xoffset)
 		}
 
 		if lo != hi && n.Xoffset+n.Type.Size() >= lo-int64(2*Widthreg) {
@@ -6096,7 +6114,7 @@ func (e *ssafn) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
 	n := name.N.(*Node)
 	at := name.Type
 	if at.NumElem() != 1 {
-		Fatalf("bad array size")
+		e.Fatalf(n.Pos, "bad array size")
 	}
 	et := at.Elem()
 	if n.Class() == PAUTO && !n.Addrtaken() {
@@ -6186,7 +6204,7 @@ func (e *ssafn) Syslook(name string) *obj.LSym {
 	case "typedmemclr":
 		return typedmemclr
 	}
-	Fatalf("unknown Syslook func %v", name)
+	e.Fatalf(src.NoXPos, "unknown Syslook func %v", name)
 	return nil
 }
 
@@ -6209,4 +6227,14 @@ func (n *Node) StorageClass() ssa.StorageClass {
 		Fatalf("untranslatable storage class for %v: %s", n, n.Class())
 		return 0
 	}
+}
+
+func clobberBase(n *Node) *Node {
+	if n.Op == ODOT && n.Left.Type.NumFields() == 1 {
+		return clobberBase(n.Left)
+	}
+	if n.Op == OINDEX && n.Left.Type.IsArray() && n.Left.Type.NumElem() == 1 {
+		return clobberBase(n.Left)
+	}
+	return n
 }

@@ -137,7 +137,7 @@ func (tur *typeUnitReader) Next() (*Entry, error) {
 	if len(tur.tu.data) == 0 {
 		return nil, nil
 	}
-	e := tur.b.entry(tur.tu.atable, tur.tu.base)
+	e := tur.b.entry(nil, tur.tu.atable, tur.tu.base, tur.tu.vers)
 	if tur.b.err != nil {
 		tur.err = tur.b.err
 		return nil, tur.err

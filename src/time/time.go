@@ -906,33 +906,16 @@ func (t Time) Sub(u Time) Duration {
 		}
 		return d
 	}
-
-	ts, us := t.sec(), u.sec()
-
-	var sec, nsec, d int64
-
-	ssub := ts - us
-	if (ssub < ts) != (us > 0) {
-		goto overflow
-	}
-
-	if ssub < int64(minDuration/Second) || ssub > int64(maxDuration/Second) {
-		goto overflow
-	}
-	sec = ssub * int64(Second)
-
-	nsec = int64(t.nsec() - u.nsec())
-	d = sec + nsec
-	if (d > sec) != (nsec > 0) {
-		goto overflow
-	}
-	return Duration(d)
-
-overflow:
-	if t.Before(u) {
+	d := Duration(t.sec()-u.sec())*Second + Duration(t.nsec()-u.nsec())
+	// Check for overflow or underflow.
+	switch {
+	case u.Add(d).Equal(t):
+		return d // d is correct
+	case t.Before(u):
 		return minDuration // t - u is negative out of range
+	default:
+		return maxDuration // t - u is positive out of range
 	}
-	return maxDuration // t - u is positive out of range
 }
 
 // Since returns the time elapsed since t.

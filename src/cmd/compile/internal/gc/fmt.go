@@ -457,8 +457,8 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 		fmt.Fprintf(s, " esc(%d)", n.Esc)
 	}
 
-	if e, ok := n.Opt().(*NodeEscState); ok && e.Loopdepth != 0 {
-		fmt.Fprintf(s, " ld(%d)", e.Loopdepth)
+	if e, ok := n.Opt().(*EscLocation); ok && e.loopDepth != 0 {
+		fmt.Fprintf(s, " ld(%d)", e.loopDepth)
 	}
 
 	if c == 0 && n.Typecheck() != 0 {
@@ -686,11 +686,21 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 	}
 
 	if int(t.Etype) < len(basicnames) && basicnames[t.Etype] != "" {
-		name := basicnames[t.Etype]
-		if t == types.Idealbool || t == types.Idealstring {
-			name = "untyped " + name
+		switch t {
+		case types.Idealbool:
+			return "untyped bool"
+		case types.Idealstring:
+			return "untyped string"
+		case types.Idealint:
+			return "untyped int"
+		case types.Idealrune:
+			return "untyped rune"
+		case types.Idealfloat:
+			return "untyped float"
+		case types.Idealcomplex:
+			return "untyped complex"
 		}
-		return name
+		return basicnames[t.Etype]
 	}
 
 	if mode == FDbg {
@@ -853,9 +863,6 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 
 	case TUNSAFEPTR:
 		return "unsafe.Pointer"
-
-	case TDDDFIELD:
-		return mode.Sprintf("%v <%v> %v", t.Etype, t.Sym, t.DDDField())
 
 	case Txxx:
 		return "Txxx"

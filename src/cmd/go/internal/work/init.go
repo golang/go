@@ -197,6 +197,7 @@ func buildModeInit() {
 			case "darwin/amd64":
 				// Skip DWARF generation due to #21647
 				forcedLdflags = append(forcedLdflags, "-w")
+			case "freebsd/amd64":
 			default:
 				base.Fatalf("-buildmode=plugin not supported on %s\n", platform)
 			}

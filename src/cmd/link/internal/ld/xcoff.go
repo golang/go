@@ -628,7 +628,7 @@ func logBase2(a int) uint8 {
 	return uint8(bits.Len(uint(a)) - 1)
 }
 
-// Write symbols needed when a new file appared :
+// Write symbols needed when a new file appeared:
 // - a C_FILE with one auxiliary entry for its name
 // - C_DWARF symbols to provide debug information
 // - a C_HIDEXT which will be a csect containing all of its functions
@@ -663,7 +663,7 @@ func (f *xcoffFile) writeSymbolNewFile(ctxt *Link, name string, firstEntry uint6
 			// Find the size of this corresponding package DWARF compilation unit.
 			// This size is set during DWARF generation (see dwarf.go).
 			dwsize = getDwsectCUSize(sect.Name, name)
-			// .debug_abbrev is commun to all packages and not found with the previous function
+			// .debug_abbrev is common to all packages and not found with the previous function
 			if sect.Name == ".debug_abbrev" {
 				s := ctxt.Syms.ROLookup(sect.Name, 0)
 				dwsize = uint64(s.Size)
@@ -779,7 +779,7 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x *sym.Symbol) []xcoffSym {
 		// in the current file.
 		// Same goes for runtime.text.X symbols.
 	} else if x.File == "" { // Undefined global symbol
-		// If this happens, the algorithme must be redone.
+		// If this happens, the algorithm must be redone.
 		if currSymSrcFile.name != "" {
 			Exitf("undefined global symbol found inside another file")
 		}
@@ -1161,38 +1161,6 @@ func (ctxt *Link) doxcoff() {
 	toc.Type = sym.SXCOFFTOC
 	toc.Attr |= sym.AttrReachable
 	toc.Attr |= sym.AttrVisibilityHidden
-
-	// XCOFF does not allow relocations of data symbol address to a text symbol.
-	// Such case occurs when a RODATA symbol retrieves a data symbol address.
-	// When it happens, this RODATA symbol is moved to .data section.
-	// runtime.algarray is a readonly symbol but stored inside .data section.
-	// If it stays in .data, all type symbols will be moved to .data which
-	// cannot be done.
-	algarray := ctxt.Syms.Lookup("runtime.algarray", 0)
-	algarray.Type = sym.SRODATA
-	for {
-		again := false
-		for _, s := range ctxt.Syms.Allsym {
-			if s.Type != sym.SRODATA {
-				continue
-			}
-			for ri := range s.R {
-				r := &s.R[ri]
-				if r.Type != objabi.R_ADDR {
-					continue
-				}
-				if r.Sym.Type != sym.Sxxx && r.Sym.Type != sym.STEXT && r.Sym.Type != sym.SRODATA {
-					s.Type = sym.SDATA
-					again = true
-					break
-				}
-			}
-
-		}
-		if !again {
-			break
-		}
-	}
 
 	// Add entry point to .loader symbols.
 	ep := ctxt.Syms.ROLookup(*flagEntrySymbol, 0)

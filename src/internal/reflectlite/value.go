@@ -179,19 +179,6 @@ type emptyInterface struct {
 	word unsafe.Pointer
 }
 
-// nonEmptyInterface is the header for an interface value with methods.
-type nonEmptyInterface struct {
-	// see ../runtime/iface.go:/Itab
-	itab *struct {
-		ityp *rtype // static interface type
-		typ  *rtype // dynamic concrete type
-		hash uint32 // copy of typ.hash
-		_    [4]byte
-		fun  [100000]unsafe.Pointer // method table
-	}
-	word unsafe.Pointer
-}
-
 // mustBeExported panics if f records that the value was obtained using
 // an unexported field.
 func (f flag) mustBeExported() {

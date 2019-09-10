@@ -97,7 +97,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$-8
+TEXT runtime·write1(SB),NOSPLIT,$-8
 	MOVQ	fd+0(FP), DI		// arg 1 fd
 	MOVQ	p+8(FP), SI		// arg 2 buf
 	MOVL	n+16(FP), DX		// arg 3 count

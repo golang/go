@@ -658,7 +658,7 @@ func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath str
 	}
 }
 
-// This table is designed to aid in the creation of references betweeen
+// This table is designed to aid in the creation of references between
 // DWARF subprogram DIEs.
 //
 // In most cases when one DWARF DIE has to refer to another DWARF DIE,

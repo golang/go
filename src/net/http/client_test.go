@@ -221,27 +221,27 @@ func TestClientRedirects(t *testing.T) {
 
 	c := ts.Client()
 	_, err := c.Get(ts.URL)
-	if e, g := "Get /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
+	if e, g := `Get "/?n=10": stopped after 10 redirects`, fmt.Sprintf("%v", err); e != g {
 		t.Errorf("with default client Get, expected error %q, got %q", e, g)
 	}
 
 	// HEAD request should also have the ability to follow redirects.
 	_, err = c.Head(ts.URL)
-	if e, g := "Head /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
+	if e, g := `Head "/?n=10": stopped after 10 redirects`, fmt.Sprintf("%v", err); e != g {
 		t.Errorf("with default client Head, expected error %q, got %q", e, g)
 	}
 
 	// Do should also follow redirects.
 	greq, _ := NewRequest("GET", ts.URL, nil)
 	_, err = c.Do(greq)
-	if e, g := "Get /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
+	if e, g := `Get "/?n=10": stopped after 10 redirects`, fmt.Sprintf("%v", err); e != g {
 		t.Errorf("with default client Do, expected error %q, got %q", e, g)
 	}
 
 	// Requests with an empty Method should also redirect (Issue 12705)
 	greq.Method = ""
 	_, err = c.Do(greq)
-	if e, g := "Get /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
+	if e, g := `Get "/?n=10": stopped after 10 redirects`, fmt.Sprintf("%v", err); e != g {
 		t.Errorf("with default client Do and empty Method, expected error %q, got %q", e, g)
 	}
 
@@ -1172,22 +1172,22 @@ func TestStripPasswordFromError(t *testing.T) {
 		{
 			desc: "Strip password from error message",
 			in:   "http://user:password@dummy.faketld/",
-			out:  "Get http://user:***@dummy.faketld/: dummy impl",
+			out:  `Get "http://user:***@dummy.faketld/": dummy impl`,
 		},
 		{
 			desc: "Don't Strip password from domain name",
 			in:   "http://user:password@password.faketld/",
-			out:  "Get http://user:***@password.faketld/: dummy impl",
+			out:  `Get "http://user:***@password.faketld/": dummy impl`,
 		},
 		{
 			desc: "Don't Strip password from path",
 			in:   "http://user:password@dummy.faketld/password",
-			out:  "Get http://user:***@dummy.faketld/password: dummy impl",
+			out:  `Get "http://user:***@dummy.faketld/password": dummy impl`,
 		},
 		{
 			desc: "Strip escaped password",
 			in:   "http://user:pa%2Fssword@dummy.faketld/",
-			out:  "Get http://user:***@dummy.faketld/: dummy impl",
+			out:  `Get "http://user:***@dummy.faketld/": dummy impl`,
 		},
 	}
 	for _, tC := range testCases {

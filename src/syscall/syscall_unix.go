@@ -107,6 +107,12 @@ func (m *mmapper) Munmap(data []byte) (err error) {
 //	if errno != 0 {
 //		err = errno
 //	}
+//
+// Errno values can be tested against error values from the os package
+// using errors.Is. For example:
+//
+//	_, _, err := syscall.Syscall(...)
+//	if errors.Is(err, os.ErrNotExist) ...
 type Errno uintptr
 
 func (e Errno) Error() string {
@@ -199,7 +205,14 @@ func Write(fd int, p []byte) (n int, err error) {
 	if race.Enabled {
 		race.ReleaseMerge(unsafe.Pointer(&ioSync))
 	}
-	n, err = write(fd, p)
+	if faketime && (fd == 1 || fd == 2) {
+		n = faketimeWrite(fd, p)
+		if n < 0 {
+			n, err = 0, errnoErr(Errno(-n))
+		}
+	} else {
+		n, err = write(fd, p)
+	}
 	if race.Enabled && n > 0 {
 		race.ReadRange(unsafe.Pointer(&p[0]), n)
 	}

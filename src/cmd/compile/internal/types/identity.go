@@ -53,6 +53,13 @@ func identical(t1, t2 *Type, cmpTags bool, assumedEqual map[typePair]struct{}) b
 	assumedEqual[typePair{t1, t2}] = struct{}{}
 
 	switch t1.Etype {
+	case TIDEAL:
+		// Historically, cmd/compile used a single "untyped
+		// number" type, so all untyped number types were
+		// identical. Match this behavior.
+		// TODO(mdempsky): Revisit this.
+		return true
+
 	case TINTER:
 		if t1.NumFields() != t2.NumFields() {
 			return false

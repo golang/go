@@ -37,6 +37,20 @@ func testSub64() {
 }
 
 //go:noinline
+func neg64(x float64) float64 {
+	return -x
+}
+
+func testNeg64() {
+	var zero float64
+	inf := 1.0 / zero
+	negZero := -1 / inf
+	if 1/neg64(negZero) != inf {
+		panic("-negZero != posZero (64 bit)")
+	}
+}
+
+//go:noinline
 func add32(x float32) float32 {
 	return x + 0
 }
@@ -64,9 +78,25 @@ func testSub32() {
 	}
 }
 
+//go:noinline
+func neg32(x float32) float32 {
+	return -x
+}
+
+func testNeg32() {
+	var zero float32
+	inf := 1.0 / zero
+	negZero := -1 / inf
+	if 1/neg32(negZero) != inf {
+		panic("-negZero != posZero (32 bit)")
+	}
+}
+
 func main() {
 	testAdd64()
 	testSub64()
+	testNeg64()
 	testAdd32()
 	testSub32()
+	testNeg32()
 }

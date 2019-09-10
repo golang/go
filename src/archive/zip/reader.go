@@ -8,7 +8,6 @@ import (
 	"bufio"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"hash"
 	"hash/crc32"
 	"io"
@@ -83,9 +82,6 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	end, err := readDirectoryEnd(r, size)
 	if err != nil {
 		return err
-	}
-	if end.directoryRecords > uint64(size)/fileHeaderLen {
-		return fmt.Errorf("archive/zip: TOC declares impossible %d files in %d byte zip", end.directoryRecords, size)
 	}
 	z.r = r
 	z.File = make([]*File, 0, end.directoryRecords)

@@ -653,7 +653,7 @@ func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd
 			}
 		} else if r.err != nil {
 			data.p = new(build.Package)
-			data.err = fmt.Errorf("unknown import path %q: %v", r.path, r.err)
+			data.err = r.err
 		} else if cfg.ModulesEnabled && path != "unsafe" {
 			data.p = new(build.Package)
 			data.err = fmt.Errorf("unknown import path %q: internal error: module loader did not resolve import", r.path)

@@ -1168,3 +1168,19 @@ func TestWindowsReadlink(t *testing.T) {
 	mklink(t, "relfilelink", "file")
 	testReadlink(t, "relfilelink", "file")
 }
+
+// os.Mkdir(os.DevNull) fails.
+func TestMkdirDevNull(t *testing.T) {
+	err := os.Mkdir(os.DevNull, 777)
+	oserr, ok := err.(*os.PathError)
+	if !ok {
+		t.Fatalf("error (%T) is not *os.PathError", err)
+	}
+	errno, ok := oserr.Err.(syscall.Errno)
+	if !ok {
+		t.Fatalf("error (%T) is not syscall.Errno", oserr)
+	}
+	if errno != syscall.ENOTDIR {
+		t.Fatalf("error %d is not syscall.ENOTDIR", errno)
+	}
+}

@@ -3,17 +3,8 @@
 
 package ssa
 
-import "fmt"
 import "math"
-import "cmd/internal/obj"
-import "cmd/internal/objabi"
 import "cmd/compile/internal/types"
-
-var _ = fmt.Println   // in case not otherwise used
-var _ = math.MinInt8  // in case not otherwise used
-var _ = obj.ANOP      // in case not otherwise used
-var _ = objabi.GOROOT // in case not otherwise used
-var _ = types.TypeMem // in case not otherwise used
 
 func rewriteValue386(v *Value) bool {
 	switch v.Op {
@@ -369,6 +360,10 @@ func rewriteValue386(v *Value) bool {
 		return rewriteValue386_OpConstBool_0(v)
 	case OpConstNil:
 		return rewriteValue386_OpConstNil_0(v)
+	case OpCtz16:
+		return rewriteValue386_OpCtz16_0(v)
+	case OpCtz16NonZero:
+		return rewriteValue386_OpCtz16NonZero_0(v)
 	case OpCvt32Fto32:
 		return rewriteValue386_OpCvt32Fto32_0(v)
 	case OpCvt32Fto64F:
@@ -20792,6 +20787,33 @@ func rewriteValue386_OpConstNil_0(v *Value) bool {
 		return true
 	}
 }
+func rewriteValue386_OpCtz16_0(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Ctz16 x)
+	// cond:
+	// result: (BSFL (ORLconst <typ.UInt32> [0x10000] x))
+	for {
+		x := v.Args[0]
+		v.reset(Op386BSFL)
+		v0 := b.NewValue0(v.Pos, Op386ORLconst, typ.UInt32)
+		v0.AuxInt = 0x10000
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpCtz16NonZero_0(v *Value) bool {
+	// match: (Ctz16NonZero x)
+	// cond:
+	// result: (BSFL x)
+	for {
+		x := v.Args[0]
+		v.reset(Op386BSFL)
+		v.AddArg(x)
+		return true
+	}
+}
 func rewriteValue386_OpCvt32Fto32_0(v *Value) bool {
 	// match: (Cvt32Fto32 x)
 	// cond:
@@ -24539,11 +24561,7 @@ func rewriteValue386_OpZeromask_0(v *Value) bool {
 	}
 }
 func rewriteBlock386(b *Block) bool {
-	config := b.Func.Config
-	typ := &config.Types
-	_ = typ
 	v := b.Control
-	_ = v
 	switch b.Kind {
 	case Block386EQ:
 		// match: (EQ (InvertFlags cmp) yes no)

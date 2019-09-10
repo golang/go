@@ -488,25 +488,25 @@ func (c *gcControllerState) revise() {
 	}
 	live := atomic.Load64(&memstats.heap_live)
 
-	var heapGoal, scanWorkExpected int64
-	if live <= memstats.next_gc {
-		// We're under the soft goal. Pace GC to complete at
-		// next_gc assuming the heap is in steady-state.
-		heapGoal = int64(memstats.next_gc)
+	// Assume we're under the soft goal. Pace GC to complete at
+	// next_gc assuming the heap is in steady-state.
+	heapGoal := int64(memstats.next_gc)
 
-		// Compute the expected scan work remaining.
-		//
-		// This is estimated based on the expected
-		// steady-state scannable heap. For example, with
-		// GOGC=100, only half of the scannable heap is
-		// expected to be live, so that's what we target.
-		//
-		// (This is a float calculation to avoid overflowing on
-		// 100*heap_scan.)
-		scanWorkExpected = int64(float64(memstats.heap_scan) * 100 / float64(100+gcpercent))
-	} else {
-		// We're past the soft goal. Pace GC so that in the
-		// worst case it will complete by the hard goal.
+	// Compute the expected scan work remaining.
+	//
+	// This is estimated based on the expected
+	// steady-state scannable heap. For example, with
+	// GOGC=100, only half of the scannable heap is
+	// expected to be live, so that's what we target.
+	//
+	// (This is a float calculation to avoid overflowing on
+	// 100*heap_scan.)
+	scanWorkExpected := int64(float64(memstats.heap_scan) * 100 / float64(100+gcpercent))
+
+	if live > memstats.next_gc || c.scanWork > scanWorkExpected {
+		// We're past the soft goal, or we've already done more scan
+		// work than we expected. Pace GC so that in the worst case it
+		// will complete by the hard goal.
 		const maxOvershoot = 1.1
 		heapGoal = int64(float64(memstats.next_gc) * maxOvershoot)
 
@@ -518,7 +518,7 @@ func (c *gcControllerState) revise() {
 	//
 	// Note that we currently count allocations during GC as both
 	// scannable heap (heap_scan) and scan work completed
-	// (scanWork), so allocation will change this difference will
+	// (scanWork), so allocation will change this difference
 	// slowly in the soft regime and not at all in the hard
 	// regime.
 	scanWorkRemaining := scanWorkExpected - c.scanWork
@@ -1248,6 +1248,7 @@ func gcStart(trigger gcTrigger) {
 	}
 
 	// Ok, we're doing it! Stop everybody else
+	semacquire(&gcsema)
 	semacquire(&worldsema)
 
 	if trace.enabled {
@@ -1353,6 +1354,7 @@ func gcStart(trigger gcTrigger) {
 		Gosched()
 	}
 
+	semrelease(&worldsema)
 	semrelease(&work.startSema)
 }
 
@@ -1415,6 +1417,10 @@ top:
 		return
 	}
 
+	// forEachP needs worldsema to execute, and we'll need it to
+	// stop the world later, so acquire worldsema now.
+	semacquire(&worldsema)
+
 	// Flush all local buffers and collect flushedWork flags.
 	gcMarkDoneFlushed = 0
 	systemstack(func() {
@@ -1475,6 +1481,7 @@ top:
 		// work to do. Keep going. It's possible the
 		// transition condition became true again during the
 		// ragged barrier, so re-check it.
+		semrelease(&worldsema)
 		goto top
 	}
 
@@ -1551,6 +1558,7 @@ top:
 				now := startTheWorldWithSema(true)
 				work.pauseNS += now - work.pauseStart
 			})
+			semrelease(&worldsema)
 			goto top
 		}
 	}
@@ -1761,6 +1769,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
 	}
 
 	semrelease(&worldsema)
+	semrelease(&gcsema)
 	// Careful: another GC cycle may start now.
 
 	releasem(mp)

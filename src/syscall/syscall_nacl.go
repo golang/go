@@ -51,6 +51,12 @@ const PathMax = 256
 //	if errno != 0 {
 //		err = errno
 //	}
+//
+// Errno values can be tested against error values from the os package
+// using errors.Is. For example:
+//
+//	_, _, err := syscall.Syscall(...)
+//	if errors.Is(err, os.ErrNotExist) ...
 type Errno uintptr
 
 func (e Errno) Error() string {

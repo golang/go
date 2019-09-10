@@ -509,8 +509,8 @@ func IsGlobalAddr(v *Value) bool {
 	if v.Op == OpAddr && v.Args[0].Op == OpSB {
 		return true // address of a global
 	}
-	if v.Op == OpConst64 || v.Op == OpConst32 {
-		return true // nil, the only possible pointer constant
+	if v.Op == OpConstNil {
+		return true
 	}
 	return false
 }
@@ -520,7 +520,7 @@ func IsReadOnlyGlobalAddr(v *Value) bool {
 	if !IsGlobalAddr(v) {
 		return false
 	}
-	if v.Op == OpConst64 || v.Op == OpConst32 {
+	if v.Op == OpConstNil {
 		// Nil pointers are read only. See issue 33438.
 		return true
 	}

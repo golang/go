@@ -1,4 +1,4 @@
-// errorcheck -0 -m -l -newescape=true
+// errorcheck -0 -m -l
 
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -84,7 +84,7 @@ func TFooI() {
 	a := int32(1) // ERROR "moved to heap: a"
 	b := "cat"
 	c := &a
-	FooI(a, b, c) // ERROR "a escapes to heap" "b escapes to heap" "c escapes to heap" "TFooI ... argument does not escape"
+	FooI(a, b, c) // ERROR "a escapes to heap" "b escapes to heap" "TFooI ... argument does not escape"
 }
 
 func FooJ(args ...interface{}) *int32 { // ERROR "leaking param: args to result ~r1 level=1"
@@ -108,14 +108,14 @@ func TFooJ1() {
 	a := int32(1)
 	b := "cat"
 	c := &a
-	FooJ(a, b, c) // ERROR "TFooJ1 a does not escape" "TFooJ1 b does not escape" "TFooJ1 c does not escape" "TFooJ1 ... argument does not escape"
+	FooJ(a, b, c) // ERROR "TFooJ1 a does not escape" "TFooJ1 b does not escape" "TFooJ1 ... argument does not escape"
 }
 
 func TFooJ2() {
 	a := int32(1) // ERROR "moved to heap: a"
 	b := "cat"
 	c := &a
-	isink = FooJ(a, b, c) // ERROR "a escapes to heap" "b escapes to heap" "c escapes to heap" "TFooJ2 ... argument does not escape"
+	isink = FooJ(a, b, c) // ERROR "a escapes to heap" "b escapes to heap" "TFooJ2 ... argument does not escape"
 }
 
 type fakeSlice struct {
@@ -144,7 +144,7 @@ func TFooK2() {
 	a := int32(1) // ERROR "moved to heap: a"
 	b := "cat"
 	c := &a
-	fs := fakeSlice{3, &[4]interface{}{a, b, c, nil}} // ERROR "a escapes to heap" "b escapes to heap" "c escapes to heap" "TFooK2 &\[4\]interface {} literal does not escape"
+	fs := fakeSlice{3, &[4]interface{}{a, b, c, nil}} // ERROR "a escapes to heap" "b escapes to heap" "TFooK2 &\[4\]interface {} literal does not escape"
 	isink = FooK(fs)
 }
 
@@ -169,6 +169,6 @@ func TFooL2() {
 	a := int32(1) // ERROR "moved to heap: a"
 	b := "cat"
 	c := &a
-	s := []interface{}{a, b, c} // ERROR "a escapes to heap" "b escapes to heap" "c escapes to heap" "TFooL2 \[\]interface {} literal does not escape"
+	s := []interface{}{a, b, c} // ERROR "a escapes to heap" "b escapes to heap" "TFooL2 \[\]interface {} literal does not escape"
 	isink = FooL(s)
 }

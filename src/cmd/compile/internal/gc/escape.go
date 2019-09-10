@@ -24,7 +24,7 @@ import (
 // First, we construct a directed weighted graph where vertices
 // (termed "locations") represent variables allocated by statements
 // and expressions, and edges represent assignments between variables
-// (with weights reperesenting addressing/dereference counts).
+// (with weights representing addressing/dereference counts).
 //
 // Next we walk the graph looking for assignment paths that might
 // violate the invariants stated above. If a variable v's address is
@@ -33,7 +33,7 @@ import (
 //
 // To support interprocedural analysis, we also record data-flow from
 // each function's parameters to the heap and to its result
-// parameters. This information is summarized as "paremeter tags",
+// parameters. This information is summarized as "parameter tags",
 // which are used at static call sites to improve escape analysis of
 // function arguments.
 
@@ -44,7 +44,7 @@ import (
 // "location."
 //
 // We also model every Go assignment as a directed edges between
-// locations. The number of derefence operations minus the number of
+// locations. The number of dereference operations minus the number of
 // addressing operations is recorded as the edge's weight (termed
 // "derefs"). For example:
 //
@@ -201,7 +201,7 @@ func (e *Escape) walkFunc(fn *Node) {
 
 	e.curfn = fn
 	e.loopDepth = 1
-	e.stmts(fn.Nbody)
+	e.block(fn.Nbody)
 }
 
 // Below we implement the methods for walking the AST and recording
@@ -284,14 +284,14 @@ func (e *Escape) stmt(n *Node) {
 
 	case OIF:
 		e.discard(n.Left)
-		e.stmts(n.Nbody)
-		e.stmts(n.Rlist)
+		e.block(n.Nbody)
+		e.block(n.Rlist)
 
 	case OFOR, OFORUNTIL:
 		e.loopDepth++
 		e.discard(n.Left)
 		e.stmt(n.Right)
-		e.stmts(n.Nbody)
+		e.block(n.Nbody)
 		e.loopDepth--
 
 	case ORANGE:
@@ -311,7 +311,7 @@ func (e *Escape) stmt(n *Node) {
 			}
 		}
 
-		e.stmts(n.Nbody)
+		e.block(n.Nbody)
 		e.loopDepth--
 
 	case OSWITCH:
@@ -340,13 +340,13 @@ func (e *Escape) stmt(n *Node) {
 			}
 
 			e.discards(cas.List)
-			e.stmts(cas.Nbody)
+			e.block(cas.Nbody)
 		}
 
 	case OSELECT:
 		for _, cas := range n.List.Slice() {
 			e.stmt(cas.Left)
-			e.stmts(cas.Nbody)
+			e.block(cas.Nbody)
 		}
 	case OSELRECV:
 		e.assign(n.Left, n.Right, "selrecv", n)
@@ -398,10 +398,16 @@ func (e *Escape) stmt(n *Node) {
 }
 
 func (e *Escape) stmts(l Nodes) {
-	// TODO(mdempsky): Preserve and restore e.loopDepth? See also #22438.
 	for _, n := range l.Slice() {
 		e.stmt(n)
 	}
+}
+
+// block is like stmts, but preserves loopDepth.
+func (e *Escape) block(l Nodes) {
+	old := e.loopDepth
+	e.stmts(l)
+	e.loopDepth = old
 }
 
 // expr models evaluating an expression n and flowing the result into
@@ -484,13 +490,6 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
 	case OCONVIFACE:
 		if !n.Left.Type.IsInterface() && !isdirectiface(n.Left.Type) {
 			k = e.spill(k, n)
-		} else {
-			// esc.go prints "escapes to heap" / "does not
-			// escape" messages for OCONVIFACE even when
-			// they don't allocate.  Match that behavior
-			// because it's easy.
-			// TODO(mdempsky): Remove and cleanup test expectations.
-			_ = e.spill(k, n)
 		}
 		e.expr(k.note(n, "interface-converted"), n.Left)
 

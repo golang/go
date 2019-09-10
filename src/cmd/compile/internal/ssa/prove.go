@@ -530,6 +530,25 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		}
 	}
 
+	// Look through value-preserving extensions.
+	// If the domain is appropriate for the pre-extension Type,
+	// repeat the update with the pre-extension Value.
+	if isCleanExt(v) {
+		switch {
+		case d == signed && v.Args[0].Type.IsSigned():
+			fallthrough
+		case d == unsigned && !v.Args[0].Type.IsSigned():
+			ft.update(parent, v.Args[0], w, d, r)
+		}
+	}
+	if isCleanExt(w) {
+		switch {
+		case d == signed && w.Args[0].Type.IsSigned():
+			fallthrough
+		case d == unsigned && !w.Args[0].Type.IsSigned():
+			ft.update(parent, v, w.Args[0], d, r)
+		}
+	}
 }
 
 var opMin = map[Op]int64{
@@ -582,6 +601,11 @@ func (ft *factsTable) isNonNegative(v *Value) bool {
 				return true
 			}
 		}
+	}
+
+	// Check if v is a value-preserving extension of a non-negative value.
+	if isCleanExt(v) && ft.isNonNegative(v.Args[0]) {
+		return true
 	}
 
 	// Check if the signed poset can prove that the value is >= 0
@@ -1298,4 +1322,21 @@ func isConstDelta(v *Value) (w *Value, delta int64) {
 		}
 	}
 	return nil, 0
+}
+
+// isCleanExt reports whether v is the result of a value-preserving
+// sign or zero extension
+func isCleanExt(v *Value) bool {
+	switch v.Op {
+	case OpSignExt8to16, OpSignExt8to32, OpSignExt8to64,
+		OpSignExt16to32, OpSignExt16to64, OpSignExt32to64:
+		// signed -> signed is the only value-preserving sign extension
+		return v.Args[0].Type.IsSigned() && v.Type.IsSigned()
+
+	case OpZeroExt8to16, OpZeroExt8to32, OpZeroExt8to64,
+		OpZeroExt16to32, OpZeroExt16to64, OpZeroExt32to64:
+		// unsigned -> signed/unsigned are value-preserving zero extensions
+		return !v.Args[0].Type.IsSigned()
+	}
+	return false
 }

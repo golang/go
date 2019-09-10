@@ -194,30 +194,37 @@ func Fatalf(fmt_ string, args ...interface{}) {
 	errorexit()
 }
 
-func setlineno(n *Node) src.XPos {
-	lno := lineno
-	if n != nil {
-		switch n.Op {
-		case ONAME, OPACK:
-			break
-
-		case OLITERAL, OTYPE:
-			if n.Sym != nil {
-				break
-			}
-			fallthrough
-
-		default:
-			lineno = n.Pos
-			if !lineno.IsKnown() {
-				if Debug['K'] != 0 {
-					Warn("setlineno: unknown position (line 0)")
-				}
-				lineno = lno
-			}
+// hasUniquePos reports whether n has a unique position that can be
+// used for reporting error messages.
+//
+// It's primarily used to distinguish references to named objects,
+// whose Pos will point back to their declaration position rather than
+// their usage position.
+func hasUniquePos(n *Node) bool {
+	switch n.Op {
+	case ONAME, OPACK:
+		return false
+	case OLITERAL, OTYPE:
+		if n.Sym != nil {
+			return false
 		}
 	}
 
+	if !n.Pos.IsKnown() {
+		if Debug['K'] != 0 {
+			Warn("setlineno: unknown position (line 0)")
+		}
+		return false
+	}
+
+	return true
+}
+
+func setlineno(n *Node) src.XPos {
+	lno := lineno
+	if n != nil && hasUniquePos(n) {
+		lineno = n.Pos
+	}
 	return lno
 }
 
@@ -791,11 +798,10 @@ func assignconvfn(n *Node, t *types.Type, context func() string) *Node {
 		yyerror("use of untyped nil")
 	}
 
-	old := n
-	od := old.Diag()
-	old.SetDiag(true) // silence errors about n; we'll issue one below
-	n = defaultlit(n, t)
-	old.SetDiag(od)
+	n = convlit1(n, t, false, context)
+	if n.Type == nil {
+		return n
+	}
 	if t.Etype == TBLANK {
 		return n
 	}
@@ -819,9 +825,7 @@ func assignconvfn(n *Node, t *types.Type, context func() string) *Node {
 	var why string
 	op := assignop(n.Type, t, &why)
 	if op == 0 {
-		if !old.Diag() {
-			yyerror("cannot use %L as type %v in %s%s", n, t, context(), why)
-		}
+		yyerror("cannot use %L as type %v in %s%s", n, t, context(), why)
 		op = OCONV
 	}
 
@@ -1279,7 +1283,7 @@ func dotpath(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool) (
 // will give shortest unique addressing.
 // modify the tree with missing type names.
 func adddot(n *Node) *Node {
-	n.Left = typecheck(n.Left, Etype|ctxExpr)
+	n.Left = typecheck(n.Left, ctxType|ctxExpr)
 	if n.Left.Diag() {
 		n.SetDiag(true)
 	}
@@ -1572,7 +1576,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type && rcvr.Elem().Sym != nil {
 		inlcalls(fn)
 	}
-	escapeImpl()([]*Node{fn}, false)
+	escapeFuncs([]*Node{fn}, false)
 
 	Curfn = nil
 	funccompile(fn)

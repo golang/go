@@ -457,6 +457,7 @@ const (
 	RBaseARM64 = 8 * 1024  // range [8k, 13k)
 	RBaseMIPS  = 13 * 1024 // range [13k, 14k)
 	RBaseS390X = 14 * 1024 // range [14k, 15k)
+	RBaseRISCV = 15 * 1024 // range [15k, 16k)
 	RBaseWasm  = 16 * 1024
 )
 

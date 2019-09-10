@@ -211,6 +211,7 @@ func init() {
 		{name: "NEGF", argLength: 1, reg: fp11, asm: "NEGF"},   // -arg0, float32
 		{name: "NEGD", argLength: 1, reg: fp11, asm: "NEGD"},   // -arg0, float64
 		{name: "SQRTD", argLength: 1, reg: fp11, asm: "SQRTD"}, // sqrt(arg0), float64
+		{name: "ABSD", argLength: 1, reg: fp11, asm: "ABSD"},   // abs(arg0), float64
 
 		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"},     // count leading zero
 		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},     // reverse byte order
@@ -224,6 +225,7 @@ func init() {
 		{name: "SRLconst", argLength: 1, reg: gp11, asm: "SRL", aux: "Int32"}, // arg0 >> auxInt, unsigned
 		{name: "SRA", argLength: 2, reg: gp21, asm: "SRA"},                    // arg0 >> arg1, signed, shift amount is mod 256
 		{name: "SRAconst", argLength: 1, reg: gp11, asm: "SRA", aux: "Int32"}, // arg0 >> auxInt, signed
+		{name: "SRR", argLength: 2, reg: gp21},                                // arg0 right rotate by arg1 bits
 		{name: "SRRconst", argLength: 1, reg: gp11, aux: "Int32"},             // arg0 right rotate by auxInt bits
 
 		{name: "ADDshiftLL", argLength: 2, reg: gp21, asm: "ADD", aux: "Int32"}, // arg0 + arg1<<auxInt

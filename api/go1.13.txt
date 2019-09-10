@@ -39,6 +39,8 @@ pkg debug/dwarf, method (*UnsupportedType) String() string
 pkg debug/dwarf, type UnsupportedType struct
 pkg debug/dwarf, type UnsupportedType struct, embedded CommonType
 pkg debug/dwarf, type UnsupportedType struct, Tag Tag
+pkg debug/elf, type Symbol struct, Library string
+pkg debug/elf, type Symbol struct, Version string
 pkg encoding/csv, method (*ParseError) Unwrap() error
 pkg encoding/json, method (*MarshalerError) Unwrap() error
 pkg errors, func As(error, interface{}) bool

@@ -129,10 +129,6 @@ func buildUser(pwd *C.struct_passwd) *User {
 	return u
 }
 
-func currentGroup() (*Group, error) {
-	return lookupUnixGid(syscall.Getgid())
-}
-
 func lookupGroup(groupname string) (*Group, error) {
 	var grp C.struct_group
 	var result *C.struct_group

@@ -50,7 +50,7 @@ TEXT runtime·read(SB),NOSPLIT,$-4
 	MOVL	AX, ret+12(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$-4
+TEXT runtime·write1(SB),NOSPLIT,$-4
 	MOVL	$4, AX			// sys_write
 	INT	$0x80
 	JAE	2(PC)
@@ -145,8 +145,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-4
 	INT	$0x80
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB), NOSPLIT, $32
+// func walltime1() (sec int64, nsec int32)
+TEXT runtime·walltime1(SB), NOSPLIT, $32
 	LEAL	12(SP), BX
 	MOVL	$0, 4(SP)		// arg 1 - clock_id
 	MOVL	BX, 8(SP)		// arg 2 - tp
@@ -162,9 +162,9 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVL	BX, nsec+8(FP)
 	RET
 
-// int64 nanotime(void) so really
-// void nanotime(int64 *nsec)
-TEXT runtime·nanotime(SB),NOSPLIT,$32
+// int64 nanotime1(void) so really
+// void nanotime1(int64 *nsec)
+TEXT runtime·nanotime1(SB),NOSPLIT,$32
 	LEAL	12(SP), BX
 	MOVL	CLOCK_MONOTONIC, 4(SP)	// arg 1 - clock_id
 	MOVL	BX, 8(SP)		// arg 2 - tp

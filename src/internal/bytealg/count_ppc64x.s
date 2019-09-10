@@ -49,7 +49,7 @@ TEXT countbytebody<>(SB), NOSPLIT|NOFRAME, $0-0
 cmploop:
 	LXVW4X (R3), VS32 // load bytes from string
 
-	// when the bytes match, the corresonding byte contains all 1s
+	// when the bytes match, the corresponding byte contains all 1s
 	VCMPEQUB V1, V0, V2     // compare bytes
 	VPOPCNTD V2, V3         // each double word contains its count
 	VADDUDM  V3, V5, V5     // accumulate bit count in each double word

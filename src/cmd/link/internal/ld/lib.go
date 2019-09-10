@@ -173,12 +173,15 @@ func (ctxt *Link) DynlinkingGo() bool {
 	if !ctxt.Loaded {
 		panic("DynlinkingGo called before all symbols loaded")
 	}
-	return ctxt.BuildMode == BuildModeShared || ctxt.linkShared || ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins()
+	return ctxt.BuildMode == BuildModeShared || ctxt.linkShared || ctxt.BuildMode == BuildModePlugin || ctxt.canUsePlugins
 }
 
 // CanUsePlugins reports whether a plugins can be used
 func (ctxt *Link) CanUsePlugins() bool {
-	return ctxt.Syms.ROLookup("plugin.Open", sym.SymVerABIInternal) != nil
+	if !ctxt.Loaded {
+		panic("CanUsePlugins called before all symbols loaded")
+	}
+	return ctxt.canUsePlugins
 }
 
 // UseRelro reports whether to make use of "read only relocations" aka
@@ -594,6 +597,9 @@ func (ctxt *Link) loadlib() {
 
 	// We've loaded all the code now.
 	ctxt.Loaded = true
+
+	// Record whether we can use plugins.
+	ctxt.canUsePlugins = (ctxt.Syms.ROLookup("plugin.Open", sym.SymVerABIInternal) != nil)
 
 	// If there are no dynamic libraries needed, gcc disables dynamic linking.
 	// Because of this, glibc's dynamic ELF loader occasionally (like in version 2.13)
@@ -1172,6 +1178,14 @@ func (ctxt *Link) hostlink() {
 		} else {
 			argv = append(argv, "-mconsole")
 		}
+		// Mark as having awareness of terminal services, to avoid
+		// ancient compatibility hacks.
+		argv = append(argv, "-Wl,--tsaware")
+
+		argv = append(argv, fmt.Sprintf("-Wl,--major-os-version=%d", PeMinimumTargetMajorVersion))
+		argv = append(argv, fmt.Sprintf("-Wl,--minor-os-version=%d", PeMinimumTargetMinorVersion))
+		argv = append(argv, fmt.Sprintf("-Wl,--major-subsystem-version=%d", PeMinimumTargetMajorVersion))
+		argv = append(argv, fmt.Sprintf("-Wl,--minor-subsystem-version=%d", PeMinimumTargetMinorVersion))
 	case objabi.Haix:
 		argv = append(argv, "-pthread")
 		// prevent ld to reorder .text functions to keep the same
@@ -1248,7 +1262,7 @@ func (ctxt *Link) hostlink() {
 		// from the beginning of the section (like sym.STYPE).
 		argv = append(argv, "-Wl,-znocopyreloc")
 
-		if ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
+		if ctxt.Arch.InFamily(sys.ARM, sys.ARM64) && (objabi.GOOS == "linux" || objabi.GOOS == "android") {
 			// On ARM, the GNU linker will generate COPY relocations
 			// even with -znocopyreloc set.
 			// https://sourceware.org/bugzilla/show_bug.cgi?id=19962
@@ -2066,7 +2080,7 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
 		s.Attr |= sym.AttrStackCheck
 	}
 
-	if depth > 100 {
+	if depth > 500 {
 		Errorf(s, "nosplit stack check too deep")
 		stkbroke(ctxt, up, 0)
 		return -1

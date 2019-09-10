@@ -696,10 +696,16 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool) {
 	scratch := framePool.Get().(unsafe.Pointer)
 
 	// Copy in receiver and rest of args.
-	// Avoid constructing out-of-bounds pointers if there are no args.
 	storeRcvr(rcvr, scratch)
-	if argSize-ptrSize > 0 {
-		typedmemmovepartial(frametype, add(scratch, ptrSize, "argSize > ptrSize"), frame, ptrSize, argSize-ptrSize)
+	// Align the first arg. Only on amd64p32 the alignment can be
+	// larger than ptrSize.
+	argOffset := uintptr(ptrSize)
+	if len(t.in()) > 0 {
+		argOffset = align(argOffset, uintptr(t.in()[0].align))
+	}
+	// Avoid constructing out-of-bounds pointers if there are no args.
+	if argSize-argOffset > 0 {
+		typedmemmovepartial(frametype, add(scratch, argOffset, "argSize > argOffset"), frame, argOffset, argSize-argOffset)
 	}
 
 	// Call.
@@ -714,9 +720,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool) {
 	// Ignore any changes to args and just copy return values.
 	// Avoid constructing out-of-bounds pointers if there are no return values.
 	if frametype.size-retOffset > 0 {
-		callerRetOffset := retOffset - ptrSize
+		callerRetOffset := retOffset - argOffset
 		if runtime.GOARCH == "amd64p32" {
-			callerRetOffset = align(argSize-ptrSize, 8)
+			callerRetOffset = align(argSize-argOffset, 8)
 		}
 		// This copies to the stack. Write barriers are not needed.
 		memmove(add(frame, callerRetOffset, "frametype.size > retOffset"),
@@ -2758,6 +2764,9 @@ func typedmemclrpartial(t *rtype, ptr unsafe.Pointer, off, size uintptr)
 // returning the number of elements copied.
 //go:noescape
 func typedslicecopy(elemType *rtype, dst, src sliceHeader) int
+
+//go:noescape
+func typehash(t *rtype, p unsafe.Pointer, h uintptr) uintptr
 
 // Dummy annotation marking that the value x escapes,
 // for use in cases where the reflect code is so clever that

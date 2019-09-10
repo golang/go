@@ -180,9 +180,12 @@ func traceBufPtrOf(b *traceBuf) traceBufPtr {
 // Most clients should use the runtime/trace package or the testing package's
 // -test.trace flag instead of calling StartTrace directly.
 func StartTrace() error {
-	// Stop the world, so that we can take a consistent snapshot
+	// Stop the world so that we can take a consistent snapshot
 	// of all goroutines at the beginning of the trace.
-	stopTheWorld("start tracing")
+	// Do not stop the world during GC so we ensure we always see
+	// a consistent view of GC-related events (e.g. a start is always
+	// paired with an end).
+	stopTheWorldGC("start tracing")
 
 	// We are in stop-the-world, but syscalls can finish and write to trace concurrently.
 	// Exitsyscall could check trace.enabled long before and then suddenly wake up
@@ -193,7 +196,7 @@ func StartTrace() error {
 
 	if trace.enabled || trace.shutdown {
 		unlock(&trace.bufLock)
-		startTheWorld()
+		startTheWorldGC()
 		return errorString("tracing is already enabled")
 	}
 
@@ -264,7 +267,7 @@ func StartTrace() error {
 
 	unlock(&trace.bufLock)
 
-	startTheWorld()
+	startTheWorldGC()
 	return nil
 }
 
@@ -273,14 +276,14 @@ func StartTrace() error {
 func StopTrace() {
 	// Stop the world so that we can collect the trace buffers from all p's below,
 	// and also to avoid races with traceEvent.
-	stopTheWorld("stop tracing")
+	stopTheWorldGC("stop tracing")
 
 	// See the comment in StartTrace.
 	lock(&trace.bufLock)
 
 	if !trace.enabled {
 		unlock(&trace.bufLock)
-		startTheWorld()
+		startTheWorldGC()
 		return
 	}
 
@@ -317,7 +320,7 @@ func StopTrace() {
 	trace.shutdown = true
 	unlock(&trace.bufLock)
 
-	startTheWorld()
+	startTheWorldGC()
 
 	// The world is started but we've set trace.shutdown, so new tracing can't start.
 	// Wait for the trace reader to flush pending buffers and stop.

@@ -358,7 +358,8 @@ func validRecs(r *syscall.DNSRecord, dnstype uint16, name string) []*syscall.DNS
 	}
 	rec := make([]*syscall.DNSRecord, 0, 10)
 	for p := r; p != nil; p = p.Next {
-		if p.Dw&dnsSectionMask != syscall.DnsSectionAnswer {
+		// in case of a local machine, DNS records are returned with DNSREC_QUESTION flag instead of DNS_ANSWER
+		if p.Dw&dnsSectionMask != syscall.DnsSectionAnswer && p.Dw&dnsSectionMask != syscall.DnsSectionQuestion {
 			continue
 		}
 		if p.Type != dnstype {

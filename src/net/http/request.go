@@ -763,7 +763,7 @@ func removeZone(host string) string {
 	return host[:j] + host[i:]
 }
 
-// ParseHTTPVersion parses a HTTP version string.
+// ParseHTTPVersion parses an HTTP version string.
 // "HTTP/1.0" returns (1, 0, true).
 func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
 	const Big = 1000000 // arbitrary upper bound
@@ -1165,9 +1165,7 @@ func (l *maxBytesReader) Close() error {
 
 func copyValues(dst, src url.Values) {
 	for k, vs := range src {
-		for _, value := range vs {
-			dst.Add(k, value)
-		}
+		dst[k] = append(dst[k], vs...)
 	}
 }
 

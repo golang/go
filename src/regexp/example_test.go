@@ -188,6 +188,19 @@ func ExampleRegexp_NumSubexp() {
 	// 4
 }
 
+func ExampleRegexp_ReplaceAll() {
+	re := regexp.MustCompile(`a(x*)b`)
+	fmt.Printf("%s\n", re.ReplaceAll([]byte("-ab-axxb-"), []byte("T")))
+	fmt.Printf("%s\n", re.ReplaceAll([]byte("-ab-axxb-"), []byte("$1")))
+	fmt.Printf("%s\n", re.ReplaceAll([]byte("-ab-axxb-"), []byte("$1W")))
+	fmt.Printf("%s\n", re.ReplaceAll([]byte("-ab-axxb-"), []byte("${1}W")))
+	// Output:
+	// -T-T-
+	// --xx-
+	// ---
+	// -W-xxW-
+}
+
 func ExampleRegexp_ReplaceAllLiteralString() {
 	re := regexp.MustCompile(`a(x*)b`)
 	fmt.Println(re.ReplaceAllLiteralString("-ab-axxb-", "T"))

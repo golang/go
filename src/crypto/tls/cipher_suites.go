@@ -141,14 +141,6 @@ func cipherAES(key, iv []byte, isRead bool) interface{} {
 
 // macSHA1 returns a macFunction for the given protocol version.
 func macSHA1(version uint16, key []byte) macFunction {
-	if version == VersionSSL30 {
-		mac := ssl30MAC{
-			h:   sha1.New(),
-			key: make([]byte, len(key)),
-		}
-		copy(mac.key, key)
-		return mac
-	}
 	return tls10MAC{h: hmac.New(newConstantTimeHash(sha1.New), key)}
 }
 
@@ -286,46 +278,6 @@ func aeadChaCha20Poly1305(key, nonceMask []byte) aead {
 	ret := &xorNonceAEAD{aead: aead}
 	copy(ret.nonceMask[:], nonceMask)
 	return ret
-}
-
-// ssl30MAC implements the SSLv3 MAC function, as defined in
-// www.mozilla.org/projects/security/pki/nss/ssl/draft302.txt section 5.2.3.1
-type ssl30MAC struct {
-	h   hash.Hash
-	key []byte
-	buf []byte
-}
-
-func (s ssl30MAC) Size() int {
-	return s.h.Size()
-}
-
-var ssl30Pad1 = [48]byte{0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36}
-
-var ssl30Pad2 = [48]byte{0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c}
-
-// MAC does not offer constant timing guarantees for SSL v3.0, since it's deemed
-// useless considering the similar, protocol-level POODLE vulnerability.
-func (s ssl30MAC) MAC(seq, header, data, extra []byte) []byte {
-	padLength := 48
-	if s.h.Size() == 20 {
-		padLength = 40
-	}
-
-	s.h.Reset()
-	s.h.Write(s.key)
-	s.h.Write(ssl30Pad1[:padLength])
-	s.h.Write(seq)
-	s.h.Write(header[:1])
-	s.h.Write(header[3:5])
-	s.h.Write(data)
-	s.buf = s.h.Sum(s.buf[:0])
-
-	s.h.Reset()
-	s.h.Write(s.key)
-	s.h.Write(ssl30Pad2[:padLength])
-	s.h.Write(s.buf)
-	return s.h.Sum(s.buf[:0])
 }
 
 type constantTimeHash interface {

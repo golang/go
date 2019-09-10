@@ -223,7 +223,7 @@ func (t SparseTree) domorder(x *Block) int32 {
 	// entry(x) < entry(y) allows cases x-dom-y and x-then-y.
 	// But by supposition, x does not dominate y. So we have x-then-y.
 	//
-	// For contractidion, assume x dominates z.
+	// For contradiction, assume x dominates z.
 	// Then entry(x) < entry(z) < exit(z) < exit(x).
 	// But we know x-then-y, so entry(x) < exit(x) < entry(y) < exit(y).
 	// Combining those, entry(x) < entry(z) < exit(z) < exit(x) < entry(y) < exit(y).

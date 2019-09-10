@@ -66,6 +66,9 @@
 
 (Sqrt x) -> (SQRTSD x)
 
+(Ctz16 x) -> (BSFL (ORLconst <typ.UInt32> [0x10000] x))
+(Ctz16NonZero x) -> (BSFL x)
+
 // Lowering extension
 (SignExt8to16  x) -> (MOVBLSX x)
 (SignExt8to32  x) -> (MOVBLSX x)

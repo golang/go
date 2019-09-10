@@ -6,7 +6,7 @@
 // Pollset syscalls are in netpoll_aix.go.
 // The implementation is based on Solaris and Windows.
 // Each syscall is made by calling its libc symbol using asmcgocall and asmsyscall6
-// asssembly functions.
+// assembly functions.
 
 package runtime
 
@@ -390,10 +390,10 @@ func exit(code int32) {
 	exit1(code)
 }
 
-func write1(fd, p uintptr, n int32) int32
+func write2(fd, p uintptr, n int32) int32
 
 //go:nosplit
-func write(fd uintptr, p unsafe.Pointer, n int32) int32 {
+func write1(fd uintptr, p unsafe.Pointer, n int32) int32 {
 	_g_ := getg()
 
 	// Check the validity of g because without a g during
@@ -402,7 +402,7 @@ func write(fd uintptr, p unsafe.Pointer, n int32) int32 {
 		r, _ := syscall3(&libc_write, uintptr(fd), uintptr(p), uintptr(n))
 		return int32(r)
 	}
-	return write1(fd, uintptr(p), n)
+	return write2(fd, uintptr(p), n)
 
 }
 

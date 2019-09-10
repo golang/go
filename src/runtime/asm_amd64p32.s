@@ -497,21 +497,17 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
 // write the implementations. Can copy and adjust the ones
 // in asm_amd64.s when the time comes.
 
-TEXT runtime·aeshash(SB),NOSPLIT,$0-20
-	MOVL	AX, ret+16(FP)
-	RET
+TEXT runtime·memhash(SB),NOSPLIT,$0-20
+	JMP	runtime·memhashFallback(SB)
 
-TEXT runtime·aeshashstr(SB),NOSPLIT,$0-12
-	MOVL	AX, ret+8(FP)
-	RET
+TEXT runtime·strhash(SB),NOSPLIT,$0-12
+	JMP	runtime·strhashFallback(SB)
 
-TEXT runtime·aeshash32(SB),NOSPLIT,$0-12
-	MOVL	AX, ret+8(FP)
-	RET
+TEXT runtime·memhash32(SB),NOSPLIT,$0-12
+	JMP	runtime·memhash32Fallback(SB)
 
-TEXT runtime·aeshash64(SB),NOSPLIT,$0-12
-	MOVL	AX, ret+8(FP)
-	RET
+TEXT runtime·memhash64(SB),NOSPLIT,$0-12
+	JMP	runtime·memhash64Fallback(SB)
 
 TEXT runtime·return0(SB), NOSPLIT, $0
 	MOVL	$0, AX

@@ -74,16 +74,18 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 		argsize += uintptrSize
 	}
 
-	lock(&cbs.lock)
-	defer unlock(&cbs.lock)
+	lock(&cbs.lock) // We don't unlock this in a defer because this is used from the system stack.
 
 	n := cbs.n
 	for i := 0; i < n; i++ {
 		if cbs.ctxt[i].gobody == fn.data && cbs.ctxt[i].isCleanstack() == cleanstack {
-			return callbackasmAddr(i)
+			r := callbackasmAddr(i)
+			unlock(&cbs.lock)
+			return r
 		}
 	}
 	if n >= cb_max {
+		unlock(&cbs.lock)
 		throw("too many callback functions")
 	}
 
@@ -99,7 +101,9 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 	cbs.ctxt[n] = c
 	cbs.n++
 
-	return callbackasmAddr(n)
+	r := callbackasmAddr(n)
+	unlock(&cbs.lock)
+	return r
 }
 
 const _LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800

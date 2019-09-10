@@ -121,7 +121,7 @@ func NodeHash(left, right Hash) Hash {
 func StoredHashIndex(level int, n int64) int64 {
 	// Level L's n'th hash is written right after level L+1's 2n+1'th hash.
 	// Work our way down to the level 0 ordering.
-	// We'll add back the orignal level count at the end.
+	// We'll add back the original level count at the end.
 	for l := level; l > 0; l-- {
 		n = 2*n + 1
 	}
@@ -155,7 +155,7 @@ func SplitStoredHashIndex(index int64) (level int, n int64) {
 		n++
 		indexN = x
 	}
-	// The hash we want was commited with record n,
+	// The hash we want was committed with record n,
 	// meaning it is one of (0, n), (1, n/2), (2, n/4), ...
 	level = int(index - indexN)
 	return level, n >> uint(level)

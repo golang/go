@@ -11,8 +11,6 @@ import "cmd/compile/internal/types"
 // builtinpkg is a fake package that declares the universe block.
 var builtinpkg *types.Pkg
 
-var itable *types.Type // distinguished *byte
-
 var basicTypes = [...]struct {
 	name  string
 	etype types.EType
@@ -336,14 +334,7 @@ func typeinit() {
 	maxfltval[TCOMPLEX128] = maxfltval[TFLOAT64]
 	minfltval[TCOMPLEX128] = minfltval[TFLOAT64]
 
-	// for walk to use in error messages
-	types.Types[TFUNC] = functype(nil, nil, nil)
-
-	// types used in front end
-	// types.Types[TNIL] got set early in lexinit
-	types.Types[TIDEAL] = types.New(TIDEAL)
-
-	types.Types[TINTER] = types.New(TINTER)
+	types.Types[TINTER] = types.New(TINTER) // empty interface
 
 	// simple aliases
 	simtype[TMAP] = TPTR
@@ -361,8 +352,6 @@ func typeinit() {
 
 	dowidth(types.Types[TSTRING])
 	dowidth(types.Idealstring)
-
-	itable = types.NewPtr(types.Types[TUINT8])
 }
 
 func makeErrorInterface() *types.Type {

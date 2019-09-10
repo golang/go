@@ -107,7 +107,7 @@ func NewConn(client Client) *Conn {
 	}
 }
 
-// init initiailzes the conn (if not already initialized)
+// init initializes the conn (if not already initialized)
 // and returns any initialization error.
 func (c *Conn) init() error {
 	c.initOnce.Do(c.initWork)

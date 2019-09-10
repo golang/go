@@ -17,9 +17,10 @@ import "unsafe"
 type tflag uint8
 
 const (
-	tflagUncommon  tflag = 1 << 0
-	tflagExtraStar tflag = 1 << 1
-	tflagNamed     tflag = 1 << 2
+	tflagUncommon      tflag = 1 << 0
+	tflagExtraStar     tflag = 1 << 1
+	tflagNamed         tflag = 1 << 2
+	tflagRegularMemory tflag = 1 << 3 // equal and hash can treat values of this type as a single region of t.size bytes
 )
 
 // Needs to be in sync with ../cmd/link/internal/ld/decodesym.go:/^func.commonsize,
@@ -33,7 +34,9 @@ type _type struct {
 	align      uint8
 	fieldalign uint8
 	kind       uint8
-	alg        *typeAlg
+	// function for comparing objects of this type
+	// (ptr to object A, ptr to object B) -> ==?
+	equal func(unsafe.Pointer, unsafe.Pointer) bool
 	// gcdata stores the GC type data for the garbage collector.
 	// If the KindGCProg bit is set in kind, gcdata is a GC program.
 	// Otherwise it is a ptrmask bitmap. See mbitmap.go for details.
@@ -358,10 +361,12 @@ type interfacetype struct {
 }
 
 type maptype struct {
-	typ        _type
-	key        *_type
-	elem       *_type
-	bucket     *_type // internal type representing a hash bucket
+	typ    _type
+	key    *_type
+	elem   *_type
+	bucket *_type // internal type representing a hash bucket
+	// function for hashing keys (ptr to key, seed) -> hash
+	hasher     func(unsafe.Pointer, uintptr) uintptr
 	keysize    uint8  // size of key slot
 	elemsize   uint8  // size of elem slot
 	bucketsize uint16 // size of bucket
@@ -495,6 +500,16 @@ func (n name) pkgPath() string {
 	copy((*[4]byte)(unsafe.Pointer(&nameOff))[:], (*[4]byte)(unsafe.Pointer(n.data(off)))[:])
 	pkgPathName := resolveNameOff(unsafe.Pointer(n.bytes), nameOff)
 	return pkgPathName.name()
+}
+
+func (n name) isBlank() bool {
+	if n.bytes == nil {
+		return false
+	}
+	if n.nameLen() != 1 {
+		return false
+	}
+	return *n.data(3) == '_'
 }
 
 // typelinksinit scans the types from extra modules and builds the

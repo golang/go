@@ -1942,8 +1942,17 @@ func Asmbelf(ctxt *Link, symo int64) {
 		sh.addralign = uint64(ctxt.Arch.RegSize)
 		sh.link = uint32(elfshname(".dynstr").shnum)
 
-		// sh->info = index of first non-local symbol (number of local symbols)
-		shsym(sh, ctxt.Syms.Lookup(".dynsym", 0))
+		// sh.info is the index of first non-local symbol (number of local symbols)
+		s := ctxt.Syms.Lookup(".dynsym", 0)
+		i := uint32(0)
+		for sub := s; sub != nil; sub = sub.Sub {
+			i++
+			if !sub.Attr.Local() {
+				break
+			}
+		}
+		sh.info = i
+		shsym(sh, s)
 
 		sh = elfshname(".dynstr")
 		sh.type_ = SHT_STRTAB

@@ -50,7 +50,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
 		return nil, nil, errors.New("tls: NextProtos values too large")
 	}
 
-	supportedVersions := config.supportedVersions(true)
+	supportedVersions := config.supportedVersions()
 	if len(supportedVersions) == 0 {
 		return nil, nil, errors.New("tls: no supported versions satisfy MinVersion and MaxVersion")
 	}
@@ -340,7 +340,7 @@ func (c *Conn) pickTLSVersion(serverHello *serverHelloMsg) error {
 		peerVersion = serverHello.supportedVersion
 	}
 
-	vers, ok := c.config.mutualVersion(true, []uint16{peerVersion})
+	vers, ok := c.config.mutualVersion([]uint16{peerVersion})
 	if !ok {
 		c.sendAlert(alertProtocolVersion)
 		return fmt.Errorf("tls: server selected unsupported protocol version %x", peerVersion)
@@ -991,7 +991,7 @@ func mutualProtocol(protos, preferenceProtos []string) (string, bool) {
 	return protos[0], true
 }
 
-// hostnameInSNI converts name into an approriate hostname for SNI.
+// hostnameInSNI converts name into an appropriate hostname for SNI.
 // Literal IP addresses and absolute FQDNs are not permitted as SNI values.
 // See RFC 6066, Section 3.
 func hostnameInSNI(name string) string {
