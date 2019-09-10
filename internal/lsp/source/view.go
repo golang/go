@@ -109,6 +109,9 @@ const (
 // CheckPackageHandle represents a handle to a specific version of a package.
 // It is uniquely defined by the file handles that make up the package.
 type CheckPackageHandle interface {
+	// ID returns the ID of the package associated with the CheckPackageHandle.
+	ID() string
+
 	// ParseGoHandle returns a ParseGoHandle for which to get the package.
 	Files() []ParseGoHandle
 

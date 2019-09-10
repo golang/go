@@ -43,6 +43,7 @@ type importer struct {
 
 // checkPackageKey uniquely identifies a package and its config.
 type checkPackageKey struct {
+	id     string
 	files  string
 	config string
 
@@ -85,6 +86,7 @@ func (imp *importer) checkPackageHandle(ctx context.Context, m *metadata) (*chec
 		return nil, err
 	}
 	key := checkPackageKey{
+		id:     string(m.id),
 		files:  hashParseKeys(phs),
 		config: hashConfig(imp.config),
 	}
@@ -142,6 +144,10 @@ func (cph *checkPackageHandle) Config() *packages.Config {
 
 func (cph *checkPackageHandle) Files() []source.ParseGoHandle {
 	return cph.files
+}
+
+func (cph *checkPackageHandle) ID() string {
+	return string(cph.m.id)
 }
 
 func (cph *checkPackageHandle) Cached(ctx context.Context) (source.Package, error) {

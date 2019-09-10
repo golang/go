@@ -278,7 +278,6 @@ func (v *view) link(ctx context.Context, g *importGraph) error {
 
 	// Add the metadata to the cache.
 	v.mcache.packages[m.id] = m
-	v.mcache.ids[g.pkgPath] = m.id
 
 	// Connect the import graph.
 	if g.parent != nil {
@@ -302,7 +301,7 @@ func (v *view) link(ctx context.Context, g *importGraph) error {
 				parent:         m,
 				missingImports: g.missingImports,
 			}); err != nil {
-				log.Error(ctx, "error in dependecny", err)
+				log.Error(ctx, "error in dependency", err)
 			}
 		}
 	}

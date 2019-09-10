@@ -100,7 +100,6 @@ func (s *session) NewView(ctx context.Context, name string, folder span.URI, opt
 		filesByBase:   make(map[string][]viewFile),
 		mcache: &metadataCache{
 			packages: make(map[packageID]*metadata),
-			ids:      make(map[packagePath]packageID),
 		},
 		ignoredURIs: make(map[span.URI]struct{}),
 	}

@@ -85,7 +85,6 @@ type view struct {
 type metadataCache struct {
 	mu       sync.Mutex // guards both maps
 	packages map[packageID]*metadata
-	ids      map[packagePath]packageID
 }
 
 type metadata struct {
@@ -423,6 +422,7 @@ func (v *view) remove(ctx context.Context, id packageID, seen map[packageID]stru
 		if cph, ok := gof.pkgs[id]; ok {
 			// Delete the package handle from the store.
 			v.session.cache.store.Delete(checkPackageKey{
+				id:     cph.ID(),
 				files:  hashParseKeys(cph.Files()),
 				config: hashConfig(cph.Config()),
 			})
