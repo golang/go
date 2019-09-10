@@ -56,163 +56,176 @@ type caseClauses struct {
 // typecheckswitch typechecks a switch statement.
 func typecheckswitch(n *Node) {
 	typecheckslice(n.Ninit.Slice(), ctxStmt)
-
-	var nilonly string
-	var top int
-	var t *types.Type
-
 	if n.Left != nil && n.Left.Op == OTYPESW {
-		// type switch
-		top = ctxType
-		n.Left.Right = typecheck(n.Left.Right, ctxExpr)
-		t = n.Left.Right.Type
-		if t != nil && !t.IsInterface() {
-			yyerrorl(n.Pos, "cannot type switch on non-interface value %L", n.Left.Right)
-		}
-		if v := n.Left.Left; v != nil && !v.isBlank() && n.List.Len() == 0 {
-			// We don't actually declare the type switch's guarded
-			// declaration itself. So if there are no cases, we
-			// won't notice that it went unused.
-			yyerrorl(v.Pos, "%v declared and not used", v.Sym)
-		}
+		typecheckTypeSwitch(n)
 	} else {
-		// expression switch
-		top = ctxExpr
-		if n.Left != nil {
-			n.Left = typecheck(n.Left, ctxExpr)
-			n.Left = defaultlit(n.Left, nil)
-			t = n.Left.Type
-		} else {
-			t = types.Types[TBOOL]
-		}
-		if t != nil {
-			switch {
-			case !okforeq[t.Etype]:
-				yyerrorl(n.Pos, "cannot switch on %L", n.Left)
-			case t.IsSlice():
-				nilonly = "slice"
-			case t.IsArray() && !IsComparable(t):
-				yyerrorl(n.Pos, "cannot switch on %L", n.Left)
-			case t.IsStruct():
-				if f := IncomparableField(t); f != nil {
-					yyerrorl(n.Pos, "cannot switch on %L (struct containing %v cannot be compared)", n.Left, f.Type)
-				}
-			case t.Etype == TFUNC:
-				nilonly = "func"
-			case t.IsMap():
-				nilonly = "map"
-			}
-		}
+		typecheckExprSwitch(n)
+	}
+}
+
+func typecheckTypeSwitch(n *Node) {
+	n.Left.Right = typecheck(n.Left.Right, ctxExpr)
+	t := n.Left.Right.Type
+	if t != nil && !t.IsInterface() {
+		yyerrorl(n.Pos, "cannot type switch on non-interface value %L", n.Left.Right)
+		t = nil
+	}
+	n.Type = t // TODO(mdempsky): Remove; statements aren't typed.
+
+	// We don't actually declare the type switch's guarded
+	// declaration itself. So if there are no cases, we won't
+	// notice that it went unused.
+	if v := n.Left.Left; v != nil && !v.isBlank() && n.List.Len() == 0 {
+		yyerrorl(v.Pos, "%v declared and not used", v.Sym)
 	}
 
-	n.Type = t
-
-	var def, niltype *Node
+	var defCase, nilCase *Node
 	for _, ncase := range n.List.Slice() {
-		if ncase.List.Len() == 0 {
-			// default
-			if def != nil {
-				setlineno(ncase)
-				yyerrorl(ncase.Pos, "multiple defaults in switch (first at %v)", def.Line())
+		ls := ncase.List.Slice()
+		if len(ls) == 0 { // default:
+			if defCase != nil {
+				yyerrorl(ncase.Pos, "multiple defaults in switch (first at %v)", defCase.Line())
 			} else {
-				def = ncase
+				defCase = ncase
 			}
-		} else {
-			ls := ncase.List.Slice()
-			for i1, n1 := range ls {
-				setlineno(n1)
-				ls[i1] = typecheck(ls[i1], ctxExpr|ctxType)
-				n1 = ls[i1]
-				if n1.Type == nil || t == nil {
-					continue
+		}
+
+		for i := range ls {
+			ls[i] = typecheck(ls[i], ctxExpr|ctxType)
+			n1 := ls[i]
+			if t == nil || n1.Type == nil {
+				continue
+			}
+
+			var missing, have *types.Field
+			var ptr int
+			switch {
+			case n1.isNil(): // case nil:
+				if nilCase != nil {
+					yyerrorl(ncase.Pos, "multiple nil cases in type switch (first at %v)", nilCase.Line())
+				} else {
+					nilCase = ncase
 				}
-
-				setlineno(ncase)
-				switch top {
-				// expression switch
-				case ctxExpr:
-					ls[i1] = defaultlit(ls[i1], t)
-					n1 = ls[i1]
-					switch {
-					case n1.Op == OTYPE:
-						yyerrorl(ncase.Pos, "type %v is not an expression", n1.Type)
-					case n1.Type != nil && assignop(n1.Type, t, nil) == 0 && assignop(t, n1.Type, nil) == 0:
-						if n.Left != nil {
-							yyerrorl(ncase.Pos, "invalid case %v in switch on %v (mismatched types %v and %v)", n1, n.Left, n1.Type, t)
-						} else {
-							yyerrorl(ncase.Pos, "invalid case %v in switch (mismatched types %v and bool)", n1, n1.Type)
-						}
-					case nilonly != "" && !n1.isNil():
-						yyerrorl(ncase.Pos, "invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Left)
-					case t.IsInterface() && !n1.Type.IsInterface() && !IsComparable(n1.Type):
-						yyerrorl(ncase.Pos, "invalid case %L in switch (incomparable type)", n1)
-					}
-
-				// type switch
-				case ctxType:
-					var missing, have *types.Field
-					var ptr int
-					switch {
-					case n1.Op == OLITERAL && n1.Type.IsKind(TNIL):
-						// case nil:
-						if niltype != nil {
-							yyerrorl(ncase.Pos, "multiple nil cases in type switch (first at %v)", niltype.Line())
-						} else {
-							niltype = ncase
-						}
-					case n1.Op != OTYPE && n1.Type != nil: // should this be ||?
-						yyerrorl(ncase.Pos, "%L is not a type", n1)
-						// reset to original type
-						n1 = n.Left.Right
-						ls[i1] = n1
-					case !n1.Type.IsInterface() && t.IsInterface() && !implements(n1.Type, t, &missing, &have, &ptr):
-						if have != nil && !missing.Broke() && !have.Broke() {
-							yyerrorl(ncase.Pos, "impossible type switch case: %L cannot have dynamic type %v"+
-								" (wrong type for %v method)\n\thave %v%S\n\twant %v%S", n.Left.Right, n1.Type, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
-						} else if !missing.Broke() {
-							if ptr != 0 {
-								yyerrorl(ncase.Pos, "impossible type switch case: %L cannot have dynamic type %v"+
-									" (%v method has pointer receiver)", n.Left.Right, n1.Type, missing.Sym)
-							} else {
-								yyerrorl(ncase.Pos, "impossible type switch case: %L cannot have dynamic type %v"+
-									" (missing %v method)", n.Left.Right, n1.Type, missing.Sym)
-							}
-						}
-					}
+			case n1.Op != OTYPE:
+				yyerrorl(ncase.Pos, "%L is not a type", n1)
+			case !n1.Type.IsInterface() && !implements(n1.Type, t, &missing, &have, &ptr) && !missing.Broke():
+				if have != nil && !have.Broke() {
+					yyerrorl(ncase.Pos, "impossible type switch case: %L cannot have dynamic type %v"+
+						" (wrong type for %v method)\n\thave %v%S\n\twant %v%S", n.Left.Right, n1.Type, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+				} else if ptr != 0 {
+					yyerrorl(ncase.Pos, "impossible type switch case: %L cannot have dynamic type %v"+
+						" (%v method has pointer receiver)", n.Left.Right, n1.Type, missing.Sym)
+				} else {
+					yyerrorl(ncase.Pos, "impossible type switch case: %L cannot have dynamic type %v"+
+						" (missing %v method)", n.Left.Right, n1.Type, missing.Sym)
 				}
 			}
 		}
 
-		if top == ctxType {
-			ll := ncase.List
-			if ncase.Rlist.Len() != 0 {
-				nvar := ncase.Rlist.First()
-				if ll.Len() == 1 && (ll.First().Type == nil || !ll.First().Type.IsKind(TNIL)) {
-					// single entry type switch
-					nvar.Type = ll.First().Type
-				} else {
-					// multiple entry type switch or default
-					nvar.Type = n.Type
+		if ncase.Rlist.Len() != 0 {
+			// Assign the clause variable's type.
+			vt := t
+			if len(ls) == 1 {
+				if ls[0].Op == OTYPE {
+					vt = ls[0].Type
+				} else if ls[0].Op != OLITERAL { // TODO(mdempsky): Should be !ls[0].isNil()
+					// Invalid single-type case;
+					// mark variable as broken.
+					vt = nil
 				}
-
-				if nvar.Type == nil || nvar.Type.IsUntyped() {
-					// if the value we're switching on has no type or is untyped,
-					// we've already printed an error and don't need to continue
-					// typechecking the body
-					continue
-				}
-
-				nvar = typecheck(nvar, ctxExpr|ctxAssign)
-				ncase.Rlist.SetFirst(nvar)
 			}
+
+			// TODO(mdempsky): It should be possible to
+			// still typecheck the case body.
+			if vt == nil {
+				continue
+			}
+
+			nvar := ncase.Rlist.First()
+			nvar.Type = vt
+			nvar = typecheck(nvar, ctxExpr|ctxAssign)
+			ncase.Rlist.SetFirst(nvar)
 		}
 
 		typecheckslice(ncase.Nbody.Slice(), ctxStmt)
 	}
-	switch top {
-	// expression switch
-	case ctxExpr:
-		checkDupExprCases(n.Left, n.List.Slice())
+}
+
+func typecheckExprSwitch(n *Node) {
+	t := types.Types[TBOOL]
+	if n.Left != nil {
+		n.Left = typecheck(n.Left, ctxExpr)
+		n.Left = defaultlit(n.Left, nil)
+		t = n.Left.Type
+	}
+
+	var nilonly string
+	if t != nil {
+		switch {
+		case t.IsMap():
+			nilonly = "map"
+		case t.Etype == TFUNC:
+			nilonly = "func"
+		case t.IsSlice():
+			nilonly = "slice"
+
+		case !IsComparable(t):
+			if t.IsStruct() {
+				yyerrorl(n.Pos, "cannot switch on %L (struct containing %v cannot be compared)", n.Left, IncomparableField(t).Type)
+			} else {
+				yyerrorl(n.Pos, "cannot switch on %L", n.Left)
+			}
+			t = nil
+		}
+	}
+	n.Type = t // TODO(mdempsky): Remove; statements aren't typed.
+
+	var defCase *Node
+	var cs constSet
+	for _, ncase := range n.List.Slice() {
+		ls := ncase.List.Slice()
+		if len(ls) == 0 { // default:
+			if defCase != nil {
+				yyerrorl(ncase.Pos, "multiple defaults in switch (first at %v)", defCase.Line())
+			} else {
+				defCase = ncase
+			}
+		}
+
+		for i := range ls {
+			setlineno(ncase)
+			ls[i] = typecheck(ls[i], ctxExpr)
+			ls[i] = defaultlit(ls[i], t)
+			n1 := ls[i]
+			if t == nil || n1.Type == nil {
+				continue
+			}
+
+			switch {
+			case nilonly != "" && !n1.isNil():
+				yyerrorl(ncase.Pos, "invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Left)
+			case t.IsInterface() && !n1.Type.IsInterface() && !IsComparable(n1.Type):
+				yyerrorl(ncase.Pos, "invalid case %L in switch (incomparable type)", n1)
+			case assignop(n1.Type, t, nil) == 0 && assignop(t, n1.Type, nil) == 0:
+				if n.Left != nil {
+					yyerrorl(ncase.Pos, "invalid case %v in switch on %v (mismatched types %v and %v)", n1, n.Left, n1.Type, t)
+				} else {
+					yyerrorl(ncase.Pos, "invalid case %v in switch (mismatched types %v and bool)", n1, n1.Type)
+				}
+			}
+
+			// Don't check for duplicate bools. Although the spec allows it,
+			// (1) the compiler hasn't checked it in the past, so compatibility mandates it, and
+			// (2) it would disallow useful things like
+			//       case GOARCH == "arm" && GOARM == "5":
+			//       case GOARCH == "arm":
+			//     which would both evaluate to false for non-ARM compiles.
+			if !n1.Type.IsBoolean() {
+				cs.add(ncase.Pos, n1, "case", "switch")
+			}
+		}
+
+		typecheckslice(ncase.Nbody.Slice(), ctxStmt)
 	}
 }
 
@@ -618,30 +631,6 @@ Outer:
 			}
 		}
 		seen[c.hash] = append(seen[c.hash], c.node)
-	}
-}
-
-func checkDupExprCases(exprname *Node, clauses []*Node) {
-	// boolean (naked) switch, nothing to do.
-	if exprname == nil {
-		return
-	}
-
-	var cs constSet
-	for _, ncase := range clauses {
-		for _, n := range ncase.List.Slice() {
-			// Don't check for duplicate bools. Although the spec allows it,
-			// (1) the compiler hasn't checked it in the past, so compatibility mandates it, and
-			// (2) it would disallow useful things like
-			//       case GOARCH == "arm" && GOARM == "5":
-			//       case GOARCH == "arm":
-			//     which would both evaluate to false for non-ARM compiles.
-			if n.Type.IsBoolean() {
-				continue
-			}
-
-			cs.add(ncase.Pos, n, "case", "switch")
-		}
 	}
 }
 
