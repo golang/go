@@ -106,6 +106,8 @@ func (r *ModuleResolver) init() error {
 // findPackage returns the module and directory that contains the package at
 // the given import path, or returns nil, "" if no module is in scope.
 func (r *ModuleResolver) findPackage(importPath string) (*ModuleJSON, string) {
+	// This can't find packages in the stdlib, but that's harmless for all
+	// the existing code paths.
 	for _, m := range r.ModsByModPath {
 		if !strings.HasPrefix(importPath, m.Path) {
 			continue
@@ -418,24 +420,28 @@ func (r *ModuleResolver) scanDirForPackage(root gopathwalk.Root, dir string) (di
 		importPath = subdir
 	}
 
+	result := directoryPackageInfo{
+		status:                 directoryScanned,
+		dir:                    dir,
+		nonCanonicalImportPath: importPath,
+		needsReplace:           false,
+	}
+	if root.Type == gopathwalk.RootGOROOT {
+		// stdlib packages are always in scope, despite the confusing go.mod
+		return result, nil
+	}
 	// Check that this package is not obviously impossible to import.
 	modFile := r.findModFile(dir)
 
-	var needsReplace bool
 	modBytes, err := ioutil.ReadFile(modFile)
 	if err == nil && !strings.HasPrefix(importPath, modulePath(modBytes)) {
 		// The module's declared path does not match
 		// its expected path. It probably needs a
 		// replace directive we don't have.
-		needsReplace = true
+		result.needsReplace = true
 	}
 
-	return directoryPackageInfo{
-		status:                 directoryScanned,
-		dir:                    dir,
-		nonCanonicalImportPath: importPath,
-		needsReplace:           needsReplace,
-	}, nil
+	return result, nil
 }
 
 // modCacheRegexp splits a path in a module cache into module, module version, and package.

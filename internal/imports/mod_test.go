@@ -19,6 +19,17 @@ import (
 	"golang.org/x/tools/internal/txtar"
 )
 
+// Tests that we can find packages in the stdlib.
+func TestScanStdlib(t *testing.T) {
+	mt := setup(t, `
+-- go.mod --
+module x
+`, "")
+	defer mt.cleanup()
+
+	mt.assertScanFinds("fmt", "fmt")
+}
+
 // Tests that we handle a nested module. This is different from other tests
 // where the module is in scope -- here we have to figure out the import path
 // without any help from go list.
