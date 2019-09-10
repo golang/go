@@ -38,6 +38,8 @@ type VCSError struct {
 
 func (e *VCSError) Error() string { return e.Err.Error() }
 
+func (e *VCSError) Unwrap() error { return e.Err }
+
 func vcsErrorf(format string, a ...interface{}) error {
 	return &VCSError{Err: fmt.Errorf(format, a...)}
 }

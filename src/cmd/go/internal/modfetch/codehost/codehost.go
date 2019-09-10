@@ -242,6 +242,8 @@ func (e *RunError) Error() string {
 	return text
 }
 
+func (e *RunError) Unwrap() error { return e.Err }
+
 var dirLock sync.Map
 
 // Run runs the command line in the given directory
