@@ -151,7 +151,6 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			}
 		}
 	}
-
 	modified.InsertTextFormat = protocol.SnippetTextFormat
 	for _, usePlaceholders := range []bool{true, false} {
 		for src, want := range snippets {

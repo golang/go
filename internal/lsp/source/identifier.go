@@ -104,18 +104,13 @@ func identifier(ctx context.Context, view View, pkgs []Package, file *ast.File, 
 		}
 	}
 	result := &IdentifierInfo{
-		View: view,
-		File: ph,
-		qf:   qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo()),
-		pkgs: pkgs,
+		View:  view,
+		File:  ph,
+		qf:    qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo()),
+		pkgs:  pkgs,
+		ident: searchForIdent(path[0]),
 	}
-
-	switch node := path[0].(type) {
-	case *ast.Ident:
-		result.ident = node
-	case *ast.SelectorExpr:
-		result.ident = node.Sel
-	}
+	// No identifier at the given position.
 	if result.ident == nil {
 		return nil, nil
 	}
@@ -200,6 +195,18 @@ func identifier(ctx context.Context, view View, pkgs []Package, file *ast.File, 
 		}
 	}
 	return result, nil
+}
+
+func searchForIdent(n ast.Node) *ast.Ident {
+	switch node := n.(type) {
+	case *ast.Ident:
+		return node
+	case *ast.SelectorExpr:
+		return node.Sel
+	case *ast.StarExpr:
+		return searchForIdent(node.X)
+	}
+	return nil
 }
 
 func typeToObject(typ types.Type) types.Object {

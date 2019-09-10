@@ -33,11 +33,12 @@ func _() {
 }
 
 func _() {
+	// deepCircle is circular.
 	type deepCircle struct {
 		*deepCircle
 	}
 	var circle deepCircle   //@item(deepCircle, "circle", "deepCircle", "var")
-	circle.deepCircle       //@item(deepCircleField, "circle.deepCircle", "*deepCircle", "field")
+	circle.deepCircle       //@item(deepCircleField, "circle.deepCircle", "*deepCircle", "field", "deepCircle is circular.")
 	var _ deepCircle = circ //@complete(" //", deepCircle, deepCircleField)
 }
 
