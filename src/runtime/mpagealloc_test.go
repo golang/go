@@ -36,9 +36,10 @@ func checkPageAlloc(t *testing.T, want, got *PageAlloc) {
 
 func TestPageAllocAlloc(t *testing.T) {
 	type hit struct {
-		npages, base uintptr
+		npages, base, scav uintptr
 	}
 	tests := map[string]struct {
+		scav   map[ChunkIdx][]BitRange
 		before map[ChunkIdx][]BitRange
 		after  map[ChunkIdx][]BitRange
 		hits   []hit
@@ -47,12 +48,15 @@ func TestPageAllocAlloc(t *testing.T) {
 			before: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {},
 			},
+			scav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {{0, 1}, {2, 2}},
+			},
 			hits: []hit{
-				{1, PageBase(BaseChunkIdx, 0)},
-				{1, PageBase(BaseChunkIdx, 1)},
-				{1, PageBase(BaseChunkIdx, 2)},
-				{1, PageBase(BaseChunkIdx, 3)},
-				{1, PageBase(BaseChunkIdx, 4)},
+				{1, PageBase(BaseChunkIdx, 0), PageSize},
+				{1, PageBase(BaseChunkIdx, 1), 0},
+				{1, PageBase(BaseChunkIdx, 2), PageSize},
+				{1, PageBase(BaseChunkIdx, 3), PageSize},
+				{1, PageBase(BaseChunkIdx, 4), 0},
 			},
 			after: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {{0, 5}},
@@ -64,8 +68,13 @@ func TestPageAllocAlloc(t *testing.T) {
 				BaseChunkIdx + 1: {{0, PallocChunkPages}},
 				BaseChunkIdx + 2: {{0, PallocChunkPages - 1}},
 			},
+			scav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:     {{0, PallocChunkPages}},
+				BaseChunkIdx + 1: {{0, PallocChunkPages}},
+				BaseChunkIdx + 2: {{0, PallocChunkPages}},
+			},
 			hits: []hit{
-				{1, PageBase(BaseChunkIdx+2, PallocChunkPages-1)},
+				{1, PageBase(BaseChunkIdx+2, PallocChunkPages-1), PageSize},
 			},
 			after: map[ChunkIdx][]BitRange{
 				BaseChunkIdx:     {{0, PallocChunkPages}},
@@ -78,8 +87,12 @@ func TestPageAllocAlloc(t *testing.T) {
 				BaseChunkIdx:        {{0, PallocChunkPages}},
 				BaseChunkIdx + 0xff: {{0, 0}},
 			},
+			scav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:        {{0, PallocChunkPages}},
+				BaseChunkIdx + 0xff: {{0, PallocChunkPages}},
+			},
 			hits: []hit{
-				{1, PageBase(BaseChunkIdx+0xff, 0)},
+				{1, PageBase(BaseChunkIdx+0xff, 0), PageSize},
 			},
 			after: map[ChunkIdx][]BitRange{
 				BaseChunkIdx:        {{0, PallocChunkPages}},
@@ -90,12 +103,15 @@ func TestPageAllocAlloc(t *testing.T) {
 			before: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {},
 			},
+			scav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {{0, 3}, {7, 1}},
+			},
 			hits: []hit{
-				{2, PageBase(BaseChunkIdx, 0)},
-				{2, PageBase(BaseChunkIdx, 2)},
-				{2, PageBase(BaseChunkIdx, 4)},
-				{2, PageBase(BaseChunkIdx, 6)},
-				{2, PageBase(BaseChunkIdx, 8)},
+				{2, PageBase(BaseChunkIdx, 0), 2 * PageSize},
+				{2, PageBase(BaseChunkIdx, 2), PageSize},
+				{2, PageBase(BaseChunkIdx, 4), 0},
+				{2, PageBase(BaseChunkIdx, 6), PageSize},
+				{2, PageBase(BaseChunkIdx, 8), 0},
 			},
 			after: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {{0, 10}},
@@ -106,8 +122,12 @@ func TestPageAllocAlloc(t *testing.T) {
 				BaseChunkIdx:     {{0, PallocChunkPages - 1}},
 				BaseChunkIdx + 1: {{1, PallocChunkPages - 1}},
 			},
+			scav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:     {{PallocChunkPages - 1, 1}},
+				BaseChunkIdx + 1: {},
+			},
 			hits: []hit{
-				{2, PageBase(BaseChunkIdx, PallocChunkPages-1)},
+				{2, PageBase(BaseChunkIdx, PallocChunkPages-1), PageSize},
 			},
 			after: map[ChunkIdx][]BitRange{
 				BaseChunkIdx:     {{0, PallocChunkPages}},
@@ -118,12 +138,15 @@ func TestPageAllocAlloc(t *testing.T) {
 			before: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {},
 			},
+			scav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {{0, 8}, {9, 1}, {17, 5}},
+			},
 			hits: []hit{
-				{5, PageBase(BaseChunkIdx, 0)},
-				{5, PageBase(BaseChunkIdx, 5)},
-				{5, PageBase(BaseChunkIdx, 10)},
-				{5, PageBase(BaseChunkIdx, 15)},
-				{5, PageBase(BaseChunkIdx, 20)},
+				{5, PageBase(BaseChunkIdx, 0), 5 * PageSize},
+				{5, PageBase(BaseChunkIdx, 5), 4 * PageSize},
+				{5, PageBase(BaseChunkIdx, 10), 0},
+				{5, PageBase(BaseChunkIdx, 15), 3 * PageSize},
+				{5, PageBase(BaseChunkIdx, 20), 2 * PageSize},
 			},
 			after: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {{0, 25}},
@@ -133,10 +156,13 @@ func TestPageAllocAlloc(t *testing.T) {
 			before: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {},
 			},
+			scav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {{21, 1}, {63, 65}},
+			},
 			hits: []hit{
-				{64, PageBase(BaseChunkIdx, 0)},
-				{64, PageBase(BaseChunkIdx, 64)},
-				{64, PageBase(BaseChunkIdx, 128)},
+				{64, PageBase(BaseChunkIdx, 0), 2 * PageSize},
+				{64, PageBase(BaseChunkIdx, 64), 64 * PageSize},
+				{64, PageBase(BaseChunkIdx, 128), 0},
 			},
 			after: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {{0, 192}},
@@ -146,10 +172,13 @@ func TestPageAllocAlloc(t *testing.T) {
 			before: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {},
 			},
+			scav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {{129, 1}},
+			},
 			hits: []hit{
-				{65, PageBase(BaseChunkIdx, 0)},
-				{65, PageBase(BaseChunkIdx, 65)},
-				{65, PageBase(BaseChunkIdx, 130)},
+				{65, PageBase(BaseChunkIdx, 0), 0},
+				{65, PageBase(BaseChunkIdx, 65), PageSize},
+				{65, PageBase(BaseChunkIdx, 130), 0},
 			},
 			after: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {{0, 195}},
@@ -160,13 +189,16 @@ func TestPageAllocAlloc(t *testing.T) {
 			before: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {},
 			},
+			scav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {{10, 1}},
+			},
 			hits: []hit{
-				{PallocChunkPages - 3, PageBase(BaseChunkIdx, 0)},
-				{PallocChunkPages - 3, 0},
-				{1, PageBase(BaseChunkIdx, PallocChunkPages-3)},
-				{2, PageBase(BaseChunkIdx, PallocChunkPages-2)},
-				{1, 0},
-				{PallocChunkPages - 3, 0},
+				{PallocChunkPages - 3, PageBase(BaseChunkIdx, 0), PageSize},
+				{PallocChunkPages - 3, 0, 0},
+				{1, PageBase(BaseChunkIdx, PallocChunkPages-3), 0},
+				{2, PageBase(BaseChunkIdx, PallocChunkPages-2), 0},
+				{1, 0, 0},
+				{PallocChunkPages - 3, 0, 0},
 			},
 			after: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {{0, PallocChunkPages}},
@@ -176,10 +208,13 @@ func TestPageAllocAlloc(t *testing.T) {
 			before: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {},
 			},
+			scav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {{0, 1}, {PallocChunkPages - 1, 1}},
+			},
 			hits: []hit{
-				{PallocChunkPages, PageBase(BaseChunkIdx, 0)},
-				{PallocChunkPages, 0},
-				{1, 0},
+				{PallocChunkPages, PageBase(BaseChunkIdx, 0), 2 * PageSize},
+				{PallocChunkPages, 0, 0},
+				{1, 0, 0},
 			},
 			after: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {{0, PallocChunkPages}},
@@ -190,10 +225,14 @@ func TestPageAllocAlloc(t *testing.T) {
 				BaseChunkIdx:     {{0, PallocChunkPages / 2}},
 				BaseChunkIdx + 1: {{PallocChunkPages / 2, PallocChunkPages / 2}},
 			},
+			scav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:     {},
+				BaseChunkIdx + 1: {{3, 100}},
+			},
 			hits: []hit{
-				{PallocChunkPages, PageBase(BaseChunkIdx, PallocChunkPages/2)},
-				{PallocChunkPages, 0},
-				{1, 0},
+				{PallocChunkPages, PageBase(BaseChunkIdx, PallocChunkPages/2), 100 * PageSize},
+				{PallocChunkPages, 0, 0},
+				{1, 0, 0},
 			},
 			after: map[ChunkIdx][]BitRange{
 				BaseChunkIdx:     {{0, PallocChunkPages}},
@@ -205,10 +244,14 @@ func TestPageAllocAlloc(t *testing.T) {
 				BaseChunkIdx:     {{0, PallocChunkPages / 2}},
 				BaseChunkIdx + 1: {},
 			},
+			scav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:     {{0, PallocChunkPages}},
+				BaseChunkIdx + 1: {{0, PallocChunkPages}},
+			},
 			hits: []hit{
-				{PallocChunkPages + 1, PageBase(BaseChunkIdx, PallocChunkPages/2)},
-				{PallocChunkPages, 0},
-				{1, PageBase(BaseChunkIdx+1, PallocChunkPages/2+1)},
+				{PallocChunkPages + 1, PageBase(BaseChunkIdx, PallocChunkPages/2), (PallocChunkPages + 1) * PageSize},
+				{PallocChunkPages, 0, 0},
+				{1, PageBase(BaseChunkIdx+1, PallocChunkPages/2+1), PageSize},
 			},
 			after: map[ChunkIdx][]BitRange{
 				BaseChunkIdx:     {{0, PallocChunkPages}},
@@ -220,10 +263,14 @@ func TestPageAllocAlloc(t *testing.T) {
 				BaseChunkIdx:     {},
 				BaseChunkIdx + 1: {},
 			},
+			scav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:     {},
+				BaseChunkIdx + 1: {},
+			},
 			hits: []hit{
-				{PallocChunkPages * 2, PageBase(BaseChunkIdx, 0)},
-				{PallocChunkPages * 2, 0},
-				{1, 0},
+				{PallocChunkPages * 2, PageBase(BaseChunkIdx, 0), 0},
+				{PallocChunkPages * 2, 0, 0},
+				{1, 0, 0},
 			},
 			after: map[ChunkIdx][]BitRange{
 				BaseChunkIdx:     {{0, PallocChunkPages}},
@@ -236,10 +283,15 @@ func TestPageAllocAlloc(t *testing.T) {
 				BaseChunkIdx + 0x100: {},
 				BaseChunkIdx + 0x101: {},
 			},
+			scav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:         {{0, PallocChunkPages}},
+				BaseChunkIdx + 0x100: {},
+				BaseChunkIdx + 0x101: {},
+			},
 			hits: []hit{
-				{PallocChunkPages * 2, PageBase(BaseChunkIdx+0x100, 0)},
-				{21, PageBase(BaseChunkIdx, 0)},
-				{1, PageBase(BaseChunkIdx, 21)},
+				{PallocChunkPages * 2, PageBase(BaseChunkIdx+0x100, 0), 0},
+				{21, PageBase(BaseChunkIdx, 0), 21 * PageSize},
+				{1, PageBase(BaseChunkIdx, 21), PageSize},
 			},
 			after: map[ChunkIdx][]BitRange{
 				BaseChunkIdx:         {{0, 22}},
@@ -253,10 +305,15 @@ func TestPageAllocAlloc(t *testing.T) {
 				BaseChunkIdx + 1: {},
 				BaseChunkIdx + 2: {{PallocChunkPages / 2, PallocChunkPages / 2}},
 			},
+			scav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:     {{0, 7}},
+				BaseChunkIdx + 1: {{3, 5}, {121, 10}},
+				BaseChunkIdx + 2: {{PallocChunkPages/2 + 12, 2}},
+			},
 			hits: []hit{
-				{PallocChunkPages * 2, PageBase(BaseChunkIdx, PallocChunkPages/2)},
-				{PallocChunkPages * 2, 0},
-				{1, 0},
+				{PallocChunkPages * 2, PageBase(BaseChunkIdx, PallocChunkPages/2), 15 * PageSize},
+				{PallocChunkPages * 2, 0, 0},
+				{1, 0, 0},
 			},
 			after: map[ChunkIdx][]BitRange{
 				BaseChunkIdx:     {{0, PallocChunkPages}},
@@ -271,10 +328,16 @@ func TestPageAllocAlloc(t *testing.T) {
 				BaseChunkIdx + 2: {{0, PallocChunkPages * 3 / 4}},
 				BaseChunkIdx + 3: {{0, 0}},
 			},
+			scav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:     {{0, PallocChunkPages}},
+				BaseChunkIdx + 1: {{PallocChunkPages / 2, PallocChunkPages/4 + 1}},
+				BaseChunkIdx + 2: {{PallocChunkPages / 3, 1}},
+				BaseChunkIdx + 3: {{PallocChunkPages * 2 / 3, 1}},
+			},
 			hits: []hit{
-				{PallocChunkPages * 5 / 4, PageBase(BaseChunkIdx+2, PallocChunkPages*3/4)},
-				{PallocChunkPages * 5 / 4, 0},
-				{1, PageBase(BaseChunkIdx+1, PallocChunkPages*3/4)},
+				{PallocChunkPages * 5 / 4, PageBase(BaseChunkIdx+2, PallocChunkPages*3/4), PageSize},
+				{PallocChunkPages * 5 / 4, 0, 0},
+				{1, PageBase(BaseChunkIdx+1, PallocChunkPages*3/4), PageSize},
 			},
 			after: map[ChunkIdx][]BitRange{
 				BaseChunkIdx:     {{0, PallocChunkPages}},
@@ -294,10 +357,20 @@ func TestPageAllocAlloc(t *testing.T) {
 				BaseChunkIdx + 6: {},
 				BaseChunkIdx + 7: {},
 			},
+			scav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:     {{50, 1}},
+				BaseChunkIdx + 1: {{31, 1}},
+				BaseChunkIdx + 2: {{7, 1}},
+				BaseChunkIdx + 3: {{200, 1}},
+				BaseChunkIdx + 4: {{3, 1}},
+				BaseChunkIdx + 5: {{51, 1}},
+				BaseChunkIdx + 6: {{20, 1}},
+				BaseChunkIdx + 7: {{1, 1}},
+			},
 			hits: []hit{
-				{PallocChunkPages*7 + 5, PageBase(BaseChunkIdx, 0)},
-				{PallocChunkPages*7 + 5, 0},
-				{1, PageBase(BaseChunkIdx+7, 5)},
+				{PallocChunkPages*7 + 5, PageBase(BaseChunkIdx, 0), 8 * PageSize},
+				{PallocChunkPages*7 + 5, 0, 0},
+				{1, PageBase(BaseChunkIdx+7, 5), 0},
 			},
 			after: map[ChunkIdx][]BitRange{
 				BaseChunkIdx:     {{0, PallocChunkPages}},
@@ -314,15 +387,19 @@ func TestPageAllocAlloc(t *testing.T) {
 	for name, v := range tests {
 		v := v
 		t.Run(name, func(t *testing.T) {
-			b := NewPageAlloc(v.before, nil)
+			b := NewPageAlloc(v.before, v.scav)
 			defer FreePageAlloc(b)
 
 			for iter, i := range v.hits {
-				if a := b.Alloc(i.npages); a != i.base {
-					t.Fatalf("bad alloc #%d: want 0x%x, got 0x%x", iter+1, i.base, a)
+				a, s := b.Alloc(i.npages)
+				if a != i.base {
+					t.Fatalf("bad alloc #%d: want base 0x%x, got 0x%x", iter+1, i.base, a)
+				}
+				if s != i.scav {
+					t.Fatalf("bad alloc #%d: want scav %d, got %d", iter+1, i.scav, s)
 				}
 			}
-			want := NewPageAlloc(v.after, nil)
+			want := NewPageAlloc(v.after, v.scav)
 			defer FreePageAlloc(want)
 
 			checkPageAlloc(t, want, b)
@@ -346,13 +423,13 @@ func TestPageAllocExhaust(t *testing.T) {
 			nAlloc := (PallocChunkPages * 4) / int(npages)
 			for i := 0; i < nAlloc; i++ {
 				addr := PageBase(BaseChunkIdx, uint(i)*uint(npages))
-				if a := b.Alloc(npages); a != addr {
+				if a, _ := b.Alloc(npages); a != addr {
 					t.Fatalf("bad alloc #%d: want 0x%x, got 0x%x", i+1, addr, a)
 				}
 			}
 
 			// Check to make sure the next allocation fails.
-			if a := b.Alloc(npages); a != 0 {
+			if a, _ := b.Alloc(npages); a != 0 {
 				t.Fatalf("bad alloc #%d: want 0, got 0x%x", nAlloc, a)
 			}
 
@@ -651,7 +728,7 @@ func TestPageAllocAllocAndFree(t *testing.T) {
 
 			for iter, i := range v.hits {
 				if i.alloc {
-					if a := b.Alloc(i.npages); a != i.base {
+					if a, _ := b.Alloc(i.npages); a != i.base {
 						t.Fatalf("bad alloc #%d: want 0x%x, got 0x%x", iter+1, i.base, a)
 					}
 				} else {
