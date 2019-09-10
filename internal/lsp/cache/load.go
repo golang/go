@@ -190,7 +190,7 @@ func (v *view) shouldRunGopackages(ctx context.Context, f *goFile, fh source.Fil
 		return true
 	}
 	// Get file content in case we don't already have it.
-	parsed, err := v.session.cache.ParseGoHandle(fh, source.ParseHeader).Parse(ctx)
+	parsed, _, err := v.session.cache.ParseGoHandle(fh, source.ParseHeader).Parse(ctx)
 	if err == context.Canceled {
 		log.Error(ctx, "parsing file header", err, tag.Of("file", f.URI()))
 		return false

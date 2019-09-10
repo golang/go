@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"go/types"
 	"os"
@@ -310,8 +309,11 @@ func (v *view) buildBuiltinPkg(ctx context.Context) {
 	pkg := pkgs[0]
 	files := make(map[string]*ast.File)
 	for _, filename := range pkg.GoFiles {
-		file, err := parser.ParseFile(cfg.Fset, filename, nil, parser.ParseComments)
-		if err != nil {
+		fh := v.session.GetFile(span.FileURI(filename))
+		ph := v.session.cache.ParseGoHandle(fh, source.ParseFull)
+		file, _, err := ph.Parse(ctx)
+		if file == nil {
+			log.Error(ctx, "failed to parse builtin", err, telemetry.File.Of(filename))
 			v.builtinPkg, _ = ast.NewPackage(cfg.Fset, nil, nil, nil)
 			return
 		}

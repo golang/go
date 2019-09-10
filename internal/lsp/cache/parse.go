@@ -13,9 +13,11 @@ import (
 	"go/token"
 	"reflect"
 
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/memoize"
+	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/trace"
 	errors "golang.org/x/xerrors"
@@ -39,8 +41,9 @@ type parseGoHandle struct {
 type parseGoData struct {
 	memoize.NoCopy
 
-	ast *ast.File
-	err error
+	ast    *ast.File
+	mapper *protocol.ColumnMapper
+	err    error
 }
 
 func (c *cache) ParseGoHandle(fh source.FileHandle, mode source.ParseMode) source.ParseGoHandle {
@@ -51,12 +54,30 @@ func (c *cache) ParseGoHandle(fh source.FileHandle, mode source.ParseMode) sourc
 	h := c.store.Bind(key, func(ctx context.Context) interface{} {
 		data := &parseGoData{}
 		data.ast, data.err = parseGo(ctx, c, fh, mode)
+		tok := c.FileSet().File(data.ast.Pos())
+		if tok == nil {
+			return data
+		}
+		uri := fh.Identity().URI
+		content, _, err := fh.Read(ctx)
+		if err != nil {
+			data.err = err
+			return data
+		}
+		data.mapper = newColumnMapper(uri, c.FileSet(), tok, content)
 		return data
 	})
 	return &parseGoHandle{
 		handle: h,
 		file:   fh,
 		mode:   mode,
+	}
+}
+func newColumnMapper(uri span.URI, fset *token.FileSet, tok *token.File, content []byte) *protocol.ColumnMapper {
+	return &protocol.ColumnMapper{
+		URI:       uri,
+		Converter: span.NewTokenConverter(fset, tok),
+		Content:   content,
 	}
 }
 
@@ -68,22 +89,22 @@ func (h *parseGoHandle) Mode() source.ParseMode {
 	return h.mode
 }
 
-func (h *parseGoHandle) Parse(ctx context.Context) (*ast.File, error) {
+func (h *parseGoHandle) Parse(ctx context.Context) (*ast.File, *protocol.ColumnMapper, error) {
 	v := h.handle.Get(ctx)
 	if v == nil {
-		return nil, ctx.Err()
+		return nil, nil, ctx.Err()
 	}
 	data := v.(*parseGoData)
-	return data.ast, data.err
+	return data.ast, data.mapper, data.err
 }
 
-func (h *parseGoHandle) Cached(ctx context.Context) (*ast.File, error) {
+func (h *parseGoHandle) Cached(ctx context.Context) (*ast.File, *protocol.ColumnMapper, error) {
 	v := h.handle.Cached()
 	if v == nil {
-		return nil, errors.Errorf("no cached value for %s", h.file.Identity().URI)
+		return nil, nil, errors.Errorf("no cached value for %s", h.file.Identity().URI)
 	}
 	data := v.(*parseGoData)
-	return data.ast, data.err
+	return data.ast, data.mapper, data.err
 }
 
 func hashParseKey(ph source.ParseGoHandle) string {

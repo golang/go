@@ -80,10 +80,10 @@ type ParseGoHandle interface {
 
 	// Parse returns the parsed AST for the file.
 	// If the file is not available, returns nil and an error.
-	Parse(ctx context.Context) (*ast.File, error)
+	Parse(ctx context.Context) (*ast.File, *protocol.ColumnMapper, error)
 
 	// Cached returns the AST for this handle, if it has already been stored.
-	Cached(ctx context.Context) (*ast.File, error)
+	Cached(ctx context.Context) (*ast.File, *protocol.ColumnMapper, error)
 }
 
 // ParseMode controls the content of the AST produced when parsing a source file.
@@ -321,5 +321,5 @@ type Package interface {
 
 	// FindFile returns the AST and type information for a file that may
 	// belong to or be part of a dependency of the given package.
-	FindFile(ctx context.Context, uri span.URI, pos token.Pos) (ParseGoHandle, *ast.File, Package, error)
+	FindFile(ctx context.Context, uri span.URI) (ParseGoHandle, *ast.File, Package, error)
 }

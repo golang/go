@@ -190,29 +190,22 @@ func spanToRange(ctx context.Context, view View, pkg Package, spn span.Span, isT
 	var (
 		fh   FileHandle
 		file *ast.File
+		m    *protocol.ColumnMapper
 		err  error
 	)
 	for _, ph := range pkg.GetHandles() {
 		if ph.File().Identity().URI == spn.URI() {
 			fh = ph.File()
-			file, err = ph.Cached(ctx)
+			file, m, err = ph.Cached(ctx)
 		}
 	}
 	if file == nil {
 		return protocol.Range{}, err
 	}
-	fset := view.Session().Cache().FileSet()
-	tok := fset.File(file.Pos())
-	if tok == nil {
-		return protocol.Range{}, errors.Errorf("no token.File for %s", spn.URI())
-	}
 	data, _, err := fh.Read(ctx)
 	if err != nil {
 		return protocol.Range{}, err
 	}
-	uri := fh.Identity().URI
-	m := protocol.NewColumnMapper(uri, uri.Filename(), fset, tok, data)
-
 	// Try to get a range for the diagnostic.
 	// TODO: Don't just limit ranges to type errors.
 	if spn.IsPoint() && isTypeError {

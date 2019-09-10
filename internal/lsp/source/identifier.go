@@ -226,9 +226,12 @@ func hasErrorType(obj types.Object) bool {
 
 func objToNode(ctx context.Context, view View, pkg Package, obj types.Object) (ast.Decl, error) {
 	uri := span.FileURI(view.Session().Cache().FileSet().Position(obj.Pos()).Filename)
-	_, declAST, _, err := pkg.FindFile(ctx, uri, obj.Pos())
+	_, declAST, _, err := pkg.FindFile(ctx, uri)
 	if declAST == nil {
 		return nil, err
+	}
+	if !(declAST.Pos() <= obj.Pos() && obj.Pos() <= declAST.End()) {
+		return nil, errors.Errorf("no file for %s", obj.Name())
 	}
 	path, _ := astutil.PathEnclosingInterval(declAST, obj.Pos(), obj.Pos())
 	if path == nil {

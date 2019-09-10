@@ -109,10 +109,14 @@ func (s *Server) applyChanges(ctx context.Context, uri span.URI, changes []proto
 	if err != nil {
 		return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "file not found (%v)", err)
 	}
-	fset := s.session.Cache().FileSet()
 	for _, change := range changes {
 		// Update column mapper along with the content.
-		m := protocol.NewColumnMapper(uri, uri.Filename(), fset, nil, content)
+		converter := span.NewContentConverter(uri.Filename(), content)
+		m := &protocol.ColumnMapper{
+			URI:       uri,
+			Converter: converter,
+			Content:   content,
+		}
 
 		spn, err := m.RangeSpan(*change.Range)
 		if err != nil {

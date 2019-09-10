@@ -51,7 +51,7 @@ func (s mappedRange) URI() span.URI {
 	return s.m.URI
 }
 
-// bestCheckPackageHandle picks the "narrowest" package for a given file.
+// bestPackage picks the "narrowest" package for a given file.
 //
 // By "narrowest" package, we mean the package with the fewest number of files
 // that includes the given file. This solves the problem of test variants,
@@ -126,20 +126,11 @@ func pkgToMapper(ctx context.Context, view View, pkg Package, uri span.URI) (*as
 	if ph == nil {
 		return nil, nil, errors.Errorf("no ParseGoHandle for %s", uri)
 	}
-	file, err := ph.Cached(ctx)
+	file, m, err := ph.Cached(ctx)
 	if file == nil {
 		return nil, nil, err
 	}
-	data, _, err := ph.File().Read(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	fset := view.Session().Cache().FileSet()
-	tok := fset.File(file.Pos())
-	if tok == nil {
-		return nil, nil, errors.Errorf("no token.File for %s", uri)
-	}
-	return file, protocol.NewColumnMapper(uri, uri.Filename(), fset, tok, data), nil
+	return file, m, nil
 }
 
 func builtinFileToMapper(ctx context.Context, view View, f GoFile, file *ast.File) (*ast.File, *protocol.ColumnMapper, error) {
@@ -148,12 +139,13 @@ func builtinFileToMapper(ctx context.Context, view View, f GoFile, file *ast.Fil
 	if err != nil {
 		return nil, nil, err
 	}
-	fset := view.Session().Cache().FileSet()
-	tok := fset.File(file.Pos())
-	if tok == nil {
-		return nil, nil, errors.Errorf("no token.File for %s", f.URI())
+	converter := span.NewContentConverter(fh.Identity().URI.Filename(), data)
+	m := &protocol.ColumnMapper{
+		URI:       fh.Identity().URI,
+		Content:   data,
+		Converter: converter,
 	}
-	return nil, protocol.NewColumnMapper(f.URI(), f.URI().Filename(), fset, tok, data), nil
+	return nil, m, nil
 }
 
 func IsGenerated(ctx context.Context, view View, uri span.URI) bool {
@@ -162,7 +154,7 @@ func IsGenerated(ctx context.Context, view View, uri span.URI) bool {
 		return false
 	}
 	ph := view.Session().Cache().ParseGoHandle(f.Handle(ctx), ParseHeader)
-	parsed, err := ph.Parse(ctx)
+	parsed, _, err := ph.Parse(ctx)
 	if parsed == nil {
 		return false
 	}

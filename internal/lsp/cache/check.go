@@ -258,7 +258,7 @@ func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle, m *
 		go func(i int, ph source.ParseGoHandle) {
 			defer wg.Done()
 
-			files[i], parseErrors[i] = ph.Parse(ctx)
+			files[i], _, parseErrors[i] = ph.Parse(ctx)
 		}(i, ph)
 	}
 	wg.Wait()
@@ -350,7 +350,7 @@ func (imp *importer) cachePerFile(ctx context.Context, gof *goFile, ph source.Pa
 	}
 	gof.pkgs[cph.m.id] = cph
 
-	file, err := ph.Parse(ctx)
+	file, _, err := ph.Parse(ctx)
 	if file == nil {
 		return errors.Errorf("no AST for %s: %v", ph.File().Identity().URI, err)
 	}

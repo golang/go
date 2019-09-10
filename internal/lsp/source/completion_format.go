@@ -18,6 +18,7 @@ import (
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/tag"
+	errors "golang.org/x/xerrors"
 )
 
 // formatCompletion creates a completion item for a given candidate.
@@ -124,9 +125,12 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	}
 
 	uri := span.FileURI(pos.Filename)
-	_, file, pkg, err := c.pkg.FindFile(c.ctx, uri, obj.Pos())
+	_, file, pkg, err := c.pkg.FindFile(c.ctx, uri)
 	if err != nil {
 		return CompletionItem{}, err
+	}
+	if !(file.Pos() <= obj.Pos() && obj.Pos() <= file.End()) {
+		return CompletionItem{}, errors.Errorf("no file for %s", obj.Name())
 	}
 	ident, err := findIdentifier(c.ctx, c.view, []Package{pkg}, file, obj.Pos())
 	if err != nil {

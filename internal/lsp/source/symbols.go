@@ -25,7 +25,7 @@ func DocumentSymbols(ctx context.Context, view View, f GoFile) ([]protocol.Docum
 	var file *ast.File
 	for _, ph := range pkg.GetHandles() {
 		if ph.File().Identity().URI == f.URI() {
-			file, err = ph.Cached(ctx)
+			file, _, err = ph.Cached(ctx)
 		}
 	}
 	if file == nil {

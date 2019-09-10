@@ -388,20 +388,10 @@ func Completion(ctx context.Context, view View, f GoFile, pos protocol.Position,
 			ph = h
 		}
 	}
-	file, err := ph.Cached(ctx)
+	file, m, err := ph.Cached(ctx)
 	if file == nil {
 		return nil, nil, err
 	}
-	data, _, err := ph.File().Read(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	fset := view.Session().Cache().FileSet()
-	tok := fset.File(file.Pos())
-	if tok == nil {
-		return nil, nil, errors.Errorf("no token.File for %s", f.URI())
-	}
-	m := protocol.NewColumnMapper(f.URI(), f.URI().Filename(), fset, tok, data)
 	spn, err := m.PointSpan(pos)
 	if err != nil {
 		return nil, nil, err

@@ -178,7 +178,7 @@ func (i *IdentifierInfo) getPkgName(ctx context.Context) (*IdentifierInfo, error
 	}
 	for _, ph := range pkg.GetHandles() {
 		if ph.File().Identity().URI == i.File.File().Identity().URI {
-			file, err = ph.Cached(ctx)
+			file, _, err = ph.Cached(ctx)
 		}
 	}
 	if file == nil {

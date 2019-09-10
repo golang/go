@@ -8,9 +8,7 @@ package source
 import (
 	"bytes"
 	"context"
-	"go/ast"
 	"go/format"
-	"go/token"
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/imports"
@@ -34,12 +32,16 @@ func Format(ctx context.Context, view View, f File) ([]protocol.TextEdit, error)
 	if err != nil {
 		return nil, err
 	}
-	var file *ast.File
-	for _, ph := range pkg.GetHandles() {
-		if ph.File().Identity().URI == f.URI() {
-			file, err = ph.Cached(ctx)
+	var ph ParseGoHandle
+	for _, h := range pkg.GetHandles() {
+		if h.File().Identity().URI == f.URI() {
+			ph = h
 		}
 	}
+	if ph == nil {
+		return nil, err
+	}
+	file, m, err := ph.Parse(ctx)
 	if file == nil {
 		return nil, err
 	}
@@ -52,7 +54,7 @@ func Format(ctx context.Context, view View, f File) ([]protocol.TextEdit, error)
 		if err != nil {
 			return nil, err
 		}
-		return computeTextEdits(ctx, view.Session().Cache().FileSet(), f, string(formatted))
+		return computeTextEdits(ctx, ph.File(), m, string(formatted))
 	}
 
 	fset := view.Session().Cache().FileSet()
@@ -65,7 +67,7 @@ func Format(ctx context.Context, view View, f File) ([]protocol.TextEdit, error)
 	if err := format.Node(buf, fset, file); err != nil {
 		return nil, err
 	}
-	return computeTextEdits(ctx, view.Session().Cache().FileSet(), f, buf.String())
+	return computeTextEdits(ctx, ph.File(), m, buf.String())
 }
 
 func formatSource(ctx context.Context, file File) ([]byte, error) {
@@ -82,10 +84,6 @@ func formatSource(ctx context.Context, file File) ([]byte, error) {
 func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]protocol.TextEdit, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Imports")
 	defer done()
-	data, _, err := f.Handle(ctx).Read(ctx)
-	if err != nil {
-		return nil, err
-	}
 	pkg, err := f.GetPackage(ctx)
 	if err != nil {
 		return nil, err
@@ -93,7 +91,15 @@ func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]protoc
 	if hasListErrors(pkg.GetErrors()) {
 		return nil, errors.Errorf("%s has list errors, not running goimports", f.URI())
 	}
-
+	var ph ParseGoHandle
+	for _, h := range pkg.GetHandles() {
+		if h.File().Identity().URI == f.URI() {
+			ph = h
+		}
+	}
+	if ph == nil {
+		return nil, err
+	}
 	options := &imports.Options{
 		// Defaults.
 		AllErrors:  true,
@@ -105,14 +111,22 @@ func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]protoc
 	}
 	var formatted []byte
 	importFn := func(opts *imports.Options) error {
-		formatted, err = imports.Process(f.URI().Filename(), data, opts)
+		data, _, err := ph.File().Read(ctx)
+		if err != nil {
+			return err
+		}
+		formatted, err = imports.Process(ph.File().Identity().URI.Filename(), data, opts)
 		return err
 	}
 	err = view.RunProcessEnvFunc(ctx, importFn, options)
 	if err != nil {
 		return nil, err
 	}
-	return computeTextEdits(ctx, view.Session().Cache().FileSet(), f, string(formatted))
+	_, m, err := ph.Parse(ctx)
+	if m == nil {
+		return nil, err
+	}
+	return computeTextEdits(ctx, ph.File(), m, string(formatted))
 }
 
 type ImportFix struct {
@@ -132,11 +146,6 @@ func AllImportsFixes(ctx context.Context, view View, f File) (edits []protocol.T
 	if !ok {
 		return nil, nil, errors.Errorf("no imports fixes for non-Go files: %v", err)
 	}
-
-	data, _, err := f.Handle(ctx).Read(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
 	pkg, err := gof.GetPackage(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -154,6 +163,19 @@ func AllImportsFixes(ctx context.Context, view View, f File) (edits []protocol.T
 		TabWidth:   8,
 	}
 	importFn := func(opts *imports.Options) error {
+		var ph ParseGoHandle
+		for _, h := range pkg.GetHandles() {
+			if h.File().Identity().URI == f.URI() {
+				ph = h
+			}
+		}
+		if ph == nil {
+			return errors.Errorf("no ParseGoHandle for %s", f.URI())
+		}
+		data, _, err := ph.File().Read(ctx)
+		if err != nil {
+			return err
+		}
 		fixes, err := imports.FixImports(f.URI().Filename(), data, opts)
 		if err != nil {
 			return err
@@ -163,7 +185,11 @@ func AllImportsFixes(ctx context.Context, view View, f File) (edits []protocol.T
 		if err != nil {
 			return err
 		}
-		edits, err = computeTextEdits(ctx, view.Session().Cache().FileSet(), f, string(formatted))
+		_, m, err := ph.Parse(ctx)
+		if m == nil {
+			return err
+		}
+		edits, err = computeTextEdits(ctx, ph.File(), m, string(formatted))
 		if err != nil {
 			return err
 		}
@@ -174,7 +200,7 @@ func AllImportsFixes(ctx context.Context, view View, f File) (edits []protocol.T
 			if err != nil {
 				return err
 			}
-			edits, err := computeTextEdits(ctx, view.Session().Cache().FileSet(), f, string(formatted))
+			edits, err := computeTextEdits(ctx, ph.File(), m, string(formatted))
 			if err != nil {
 				return err
 			}
@@ -242,19 +268,16 @@ func hasListErrors(errors []packages.Error) bool {
 	return false
 }
 
-func computeTextEdits(ctx context.Context, fset *token.FileSet, f File, formatted string) ([]protocol.TextEdit, error) {
+func computeTextEdits(ctx context.Context, fh FileHandle, m *protocol.ColumnMapper, formatted string) ([]protocol.TextEdit, error) {
 	ctx, done := trace.StartSpan(ctx, "source.computeTextEdits")
 	defer done()
 
-	data, _, err := f.Handle(ctx).Read(ctx)
+	data, _, err := fh.Read(ctx)
 	if err != nil {
 		return nil, err
 	}
-	edits := diff.ComputeEdits(f.URI(), string(data), formatted)
-	m := protocol.NewColumnMapper(f.URI(), f.URI().Filename(), fset, nil, data)
-
+	edits := diff.ComputeEdits(fh.Identity().URI, string(data), formatted)
 	return ToProtocolEdits(m, edits)
-
 }
 
 func ToProtocolEdits(m *protocol.ColumnMapper, edits []diff.TextEdit) ([]protocol.TextEdit, error) {

@@ -28,17 +28,10 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 		return nil, err
 	}
 	fh := f.Handle(ctx)
-	data, _, err := fh.Read(ctx)
-	if err != nil {
-		return nil, err
-	}
-	file, err := view.Session().Cache().ParseGoHandle(fh, source.ParseFull).Parse(ctx)
+	file, m, err := view.Session().Cache().ParseGoHandle(fh, source.ParseFull).Parse(ctx)
 	if file == nil {
 		return nil, err
 	}
-	tok := view.Session().Cache().FileSet().File(file.Pos())
-	m := protocol.NewColumnMapper(f.URI(), f.URI().Filename(), view.Session().Cache().FileSet(), tok, data)
-
 	var links []protocol.DocumentLink
 	ast.Inspect(file, func(node ast.Node) bool {
 		switch n := node.(type) {

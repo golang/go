@@ -7,7 +7,6 @@ package cache
 import (
 	"context"
 	"go/ast"
-	"go/token"
 	"go/types"
 	"sort"
 	"sync"
@@ -155,7 +154,7 @@ func (pkg *pkg) GetHandles() []source.ParseGoHandle {
 func (pkg *pkg) GetSyntax(ctx context.Context) []*ast.File {
 	var syntax []*ast.File
 	for _, ph := range pkg.files {
-		file, _ := ph.Cached(ctx)
+		file, _, _ := ph.Cached(ctx)
 		if file != nil {
 			syntax = append(syntax, file)
 		}
@@ -203,7 +202,7 @@ func (pkg *pkg) GetDiagnostics() []source.Diagnostic {
 	return diags
 }
 
-func (p *pkg) FindFile(ctx context.Context, uri span.URI, pos token.Pos) (source.ParseGoHandle, *ast.File, source.Package, error) {
+func (p *pkg) FindFile(ctx context.Context, uri span.URI) (source.ParseGoHandle, *ast.File, source.Package, error) {
 	queue := []*pkg{p}
 	seen := make(map[string]bool)
 
@@ -214,13 +213,11 @@ func (p *pkg) FindFile(ctx context.Context, uri span.URI, pos token.Pos) (source
 
 		for _, ph := range pkg.files {
 			if ph.File().Identity().URI == uri {
-				file, err := ph.Cached(ctx)
+				file, _, err := ph.Cached(ctx)
 				if file == nil {
 					return nil, nil, nil, err
 				}
-				if file.Pos() <= pos && pos <= file.End() {
-					return ph, file, pkg, nil
-				}
+				return ph, file, pkg, nil
 			}
 		}
 		for _, dep := range pkg.imports {

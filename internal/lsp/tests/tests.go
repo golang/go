@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"golang.org/x/tools/go/expect"
@@ -99,6 +100,9 @@ type Data struct {
 	fragments map[string]string
 	dir       string
 	golden    map[string]*Golden
+
+	mappersMu sync.Mutex
+	mappers   map[span.URI]*protocol.ColumnMapper
 }
 
 type Tests interface {
@@ -184,6 +188,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		dir:       dir,
 		fragments: map[string]string{},
 		golden:    map[string]*Golden{},
+		mappers:   map[span.URI]*protocol.ColumnMapper{},
 	}
 
 	files := packagestest.MustCopyFileTree(dir)
@@ -424,6 +429,25 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			}
 		}
 	}
+}
+
+func (data *Data) Mapper(uri span.URI) (*protocol.ColumnMapper, error) {
+	data.mappersMu.Lock()
+	defer data.mappersMu.Unlock()
+
+	if _, ok := data.mappers[uri]; !ok {
+		content, err := data.Exported.FileContents(uri.Filename())
+		if err != nil {
+			return nil, err
+		}
+		converter := span.NewContentConverter(uri.Filename(), content)
+		data.mappers[uri] = &protocol.ColumnMapper{
+			URI:       uri,
+			Converter: converter,
+			Content:   content,
+		}
+	}
+	return data.mappers[uri], nil
 }
 
 func (data *Data) Golden(tag string, target string, update func() ([]byte, error)) []byte {
@@ -672,20 +696,18 @@ func (data *Data) collectPrepareRenames(src span.Span, rng span.Range, placehold
 		// make the range just be the start.
 		rng = span.NewRange(rng.FileSet, rng.Start, rng.Start)
 	}
-	contents, err := data.Exported.FileContents(src.URI().Filename())
+	m, err := data.Mapper(src.URI())
 	if err != nil {
-		return
+		data.t.Fatal(err)
 	}
-	m := protocol.NewColumnMapper(src.URI(), src.URI().Filename(), data.Exported.ExpectFileSet, nil, contents)
-
 	// Convert range to span and then to protocol.Range.
 	spn, err := rng.Span()
 	if err != nil {
-		return
+		data.t.Fatal(err)
 	}
 	prng, err := m.Range(spn)
 	if err != nil {
-		return
+		data.t.Fatal(err)
 	}
 	data.PrepareRenames[src] = &source.PrepareItem{
 		Range: prng,
@@ -694,14 +716,13 @@ func (data *Data) collectPrepareRenames(src span.Span, rng span.Range, placehold
 }
 
 func (data *Data) collectSymbols(name string, spn span.Span, kind string, parentName string) {
-	contents, err := data.Exported.FileContents(spn.URI().Filename())
+	m, err := data.Mapper(spn.URI())
 	if err != nil {
-		return
+		data.t.Fatal(err)
 	}
-	m := protocol.NewColumnMapper(spn.URI(), spn.URI().Filename(), data.Exported.ExpectFileSet, nil, contents)
 	rng, err := m.Range(spn)
 	if err != nil {
-		return
+		data.t.Fatal(err)
 	}
 	sym := protocol.DocumentSymbol{
 		Name:           name,
