@@ -181,6 +181,13 @@ func ExampleRegexp_MatchString() {
 	// true
 }
 
+func ExampleRegexp_NumSubexp() {
+	re := regexp.MustCompile(`(.*)((a)b)(.*)a`)
+	fmt.Println(re.NumSubexp())
+	// Output:
+	// 4
+}
+
 func ExampleRegexp_ReplaceAll() {
 	re := regexp.MustCompile(`a(x*)b`)
 	fmt.Printf("%s\n", re.ReplaceAll([]byte("-ab-axxb-"), []byte("T")))
