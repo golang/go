@@ -475,13 +475,11 @@ func (p *parser) reserve(n int) {
 // used to resolve pointers to named types in case they are referenced
 // by embedded fields.
 func (p *parser) update(t types.Type, nlist []interface{}) {
-	if len(nlist) != 0 {
-		if t == reserved {
-			p.errorf("internal error: update(%v) invoked on reserved", nlist)
-		}
-		if t == nil {
-			p.errorf("internal error: update(%v) invoked on nil", nlist)
-		}
+	if t == reserved {
+		p.errorf("internal error: update(%v) invoked on reserved", nlist)
+	}
+	if t == nil {
+		p.errorf("internal error: update(%v) invoked on nil", nlist)
 	}
 	for _, n := range nlist {
 		switch n := n.(type) {
