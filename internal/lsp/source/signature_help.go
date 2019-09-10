@@ -31,7 +31,11 @@ func SignatureHelp(ctx context.Context, view View, f GoFile, pos protocol.Positi
 	ctx, done := trace.StartSpan(ctx, "source.SignatureHelp")
 	defer done()
 
-	file, pkg, m, err := fileToMapper(ctx, view, f.URI())
+	file, pkgs, m, err := fileToMapper(ctx, view, f.URI())
+	if err != nil {
+		return nil, err
+	}
+	pkg, err := bestPackage(f.URI(), pkgs)
 	if err != nil {
 		return nil, err
 	}
@@ -105,11 +109,11 @@ FindCall:
 		comment *ast.CommentGroup
 	)
 	if obj != nil {
-		rng, err := objToMappedRange(ctx, view, obj)
+		node, err := objToNode(ctx, f.View(), pkg, obj)
 		if err != nil {
 			return nil, err
 		}
-		node, err := objToNode(ctx, f.View(), pkg.GetTypes(), obj, rng.spanRange)
+		rng, err := objToMappedRange(ctx, view, obj)
 		if err != nil {
 			return nil, err
 		}

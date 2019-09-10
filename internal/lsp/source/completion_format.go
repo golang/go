@@ -124,32 +124,11 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		return item, nil
 	}
 	uri := span.FileURI(pos.Filename)
-	f, err := c.view.GetFile(c.ctx, uri)
-	if err != nil {
+	_, file, pkg, err := c.pkg.FindFile(c.ctx, uri, obj.Pos())
+	if file == nil || pkg == nil {
 		return item, nil
 	}
-	gof, ok := f.(GoFile)
-	if !ok {
-		return item, nil
-	}
-	pkg, err := gof.GetCachedPackage(c.ctx)
-	if err != nil {
-		return item, nil
-	}
-	var ph ParseGoHandle
-	for _, h := range pkg.GetHandles() {
-		if h.File().Identity().URI == gof.URI() {
-			ph = h
-		}
-	}
-	if ph == nil {
-		return item, nil
-	}
-	file, _ := ph.Cached(c.ctx)
-	if file == nil {
-		return item, nil
-	}
-	ident, err := findIdentifier(c.ctx, c.view, gof, pkg, file, declRange.spanRange.Start)
+	ident, err := findIdentifier(c.ctx, c.view, []Package{pkg}, file, obj.Pos())
 	if err != nil {
 		return item, nil
 	}

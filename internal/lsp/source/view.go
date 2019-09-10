@@ -318,4 +318,8 @@ type Package interface {
 
 	// GetActionGraph returns the action graph for the given package.
 	GetActionGraph(ctx context.Context, a *analysis.Analyzer) (*Action, error)
+
+	// FindFile returns the AST and type information for a file that may
+	// belong to or be part of a dependency of the given package.
+	FindFile(ctx context.Context, uri span.URI, pos token.Pos) (ParseGoHandle, *ast.File, Package, error)
 }

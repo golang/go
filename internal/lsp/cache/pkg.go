@@ -7,6 +7,7 @@ package cache
 import (
 	"context"
 	"go/ast"
+	"go/token"
 	"go/types"
 	"sort"
 	"sync"
@@ -14,6 +15,8 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/span"
+	errors "golang.org/x/xerrors"
 )
 
 // pkg contains the type information needed by the source package.
@@ -198,4 +201,33 @@ func (pkg *pkg) GetDiagnostics() []source.Diagnostic {
 		diags = append(diags, d...)
 	}
 	return diags
+}
+
+func (p *pkg) FindFile(ctx context.Context, uri span.URI, pos token.Pos) (source.ParseGoHandle, *ast.File, source.Package, error) {
+	queue := []*pkg{p}
+	seen := make(map[string]bool)
+
+	for len(queue) > 0 {
+		pkg := queue[0]
+		queue = queue[1:]
+		seen[pkg.ID()] = true
+
+		for _, ph := range pkg.files {
+			if ph.File().Identity().URI == uri {
+				file, err := ph.Cached(ctx)
+				if file == nil {
+					return nil, nil, nil, err
+				}
+				if file.Pos() <= pos && pos <= file.End() {
+					return ph, file, pkg, nil
+				}
+			}
+		}
+		for _, dep := range pkg.imports {
+			if !seen[dep.ID()] {
+				queue = append(queue, dep)
+			}
+		}
+	}
+	return nil, nil, nil, errors.Errorf("no file for %s", uri)
 }

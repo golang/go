@@ -102,11 +102,15 @@ func (i *IdentifierInfo) Rename(ctx context.Context, view View, newName string) 
 	if i.Declaration.obj.Parent() == types.Universe {
 		return nil, errors.Errorf("cannot rename builtin %q", i.Name)
 	}
-	if i.pkg == nil || i.pkg.IsIllTyped() {
-		return nil, errors.Errorf("package for %s is ill typed", i.File.URI())
+	pkg, err := bestPackage(i.File.File().Identity().URI, i.pkgs)
+	if err != nil {
+		return nil, err
+	}
+	if pkg == nil || pkg.IsIllTyped() {
+		return nil, errors.Errorf("package for %s is ill typed", i.File.File().Identity().URI)
 	}
 	// Do not rename identifiers declared in another package.
-	if i.pkg.GetTypes() != i.Declaration.obj.Pkg() {
+	if pkg.GetTypes() != i.Declaration.obj.Pkg() {
 		return nil, errors.Errorf("failed to rename because %q is declared in package %q", i.Name, i.Declaration.obj.Pkg().Name())
 	}
 
@@ -168,8 +172,12 @@ func (i *IdentifierInfo) getPkgName(ctx context.Context) (*IdentifierInfo, error
 		file *ast.File
 		err  error
 	)
-	for _, ph := range i.pkg.GetHandles() {
-		if ph.File().Identity().URI == i.File.URI() {
+	pkg, err := bestPackage(i.File.File().Identity().URI, i.pkgs)
+	if err != nil {
+		return nil, err
+	}
+	for _, ph := range pkg.GetHandles() {
+		if ph.File().Identity().URI == i.File.File().Identity().URI {
 			file, err = ph.Cached(ctx)
 		}
 	}
@@ -188,13 +196,13 @@ func (i *IdentifierInfo) getPkgName(ctx context.Context) (*IdentifierInfo, error
 	}
 
 	// Look for the object defined at NamePos.
-	for _, obj := range i.pkg.GetTypesInfo().Defs {
+	for _, obj := range pkg.GetTypesInfo().Defs {
 		pkgName, ok := obj.(*types.PkgName)
 		if ok && pkgName.Pos() == namePos {
 			return getPkgNameIdentifier(ctx, i, pkgName)
 		}
 	}
-	for _, obj := range i.pkg.GetTypesInfo().Implicits {
+	for _, obj := range pkg.GetTypesInfo().Implicits {
 		pkgName, ok := obj.(*types.PkgName)
 		if ok && pkgName.Pos() == namePos {
 			return getPkgNameIdentifier(ctx, i, pkgName)
@@ -211,10 +219,14 @@ func getPkgNameIdentifier(ctx context.Context, ident *IdentifierInfo, pkgName *t
 		wasImplicit: true,
 	}
 	var err error
-	if decl.mappedRange, err = objToMappedRange(ctx, ident.File.View(), decl.obj); err != nil {
+	if decl.mappedRange, err = objToMappedRange(ctx, ident.View, decl.obj); err != nil {
 		return nil, err
 	}
-	if decl.node, err = objToNode(ctx, ident.File.View(), ident.pkg.GetTypes(), decl.obj, decl.mappedRange.spanRange); err != nil {
+	pkg, err := bestPackage(ident.File.File().Identity().URI, ident.pkgs)
+	if err != nil {
+		return nil, err
+	}
+	if decl.node, err = objToNode(ctx, ident.View, pkg, decl.obj); err != nil {
 		return nil, err
 	}
 	return &IdentifierInfo{
@@ -223,7 +235,7 @@ func getPkgNameIdentifier(ctx context.Context, ident *IdentifierInfo, pkgName *t
 		mappedRange:      decl.mappedRange,
 		File:             ident.File,
 		Declaration:      decl,
-		pkg:              ident.pkg,
+		pkgs:             ident.pkgs,
 		wasEmbeddedField: false,
 		qf:               ident.qf,
 	}, nil

@@ -138,11 +138,10 @@ func (pm prefixMatcher) Score(candidateLabel string) float32 {
 
 // completer contains the necessary information for a single completion request.
 type completer struct {
-	// Package-specific fields.
-	types *types.Package
-	info  *types.Info
-	qf    types.Qualifier
-	opts  CompletionOptions
+	pkg Package
+
+	qf   types.Qualifier
+	opts CompletionOptions
 
 	// view is the View associated with this completion request.
 	view View
@@ -278,7 +277,7 @@ func (c *completer) getSurrounding() *Selection {
 // found adds a candidate completion. We will also search through the object's
 // members for more candidates.
 func (c *completer) found(obj types.Object, score float64, imp *imports.ImportInfo) {
-	if obj.Pkg() != nil && obj.Pkg() != c.types && !obj.Exported() {
+	if obj.Pkg() != nil && obj.Pkg() != c.pkg.GetTypes() && !obj.Exported() {
 		// obj is not accessible because it lives in another package and is not
 		// exported. Don't treat it as a completion candidate.
 		return
@@ -430,8 +429,7 @@ func Completion(ctx context.Context, view View, f GoFile, pos protocol.Position,
 
 	clInfo := enclosingCompositeLiteral(path, rng.Start, pkg.GetTypesInfo())
 	c := &completer{
-		types:                     pkg.GetTypes(),
-		info:                      pkg.GetTypesInfo(),
+		pkg:                       pkg,
 		qf:                        qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo()),
 		view:                      view,
 		ctx:                       ctx,
@@ -545,14 +543,14 @@ func (c *completer) wantTypeName() bool {
 func (c *completer) selector(sel *ast.SelectorExpr) error {
 	// Is sel a qualified identifier?
 	if id, ok := sel.X.(*ast.Ident); ok {
-		if pkgname, ok := c.info.Uses[id].(*types.PkgName); ok {
+		if pkgname, ok := c.pkg.GetTypesInfo().Uses[id].(*types.PkgName); ok {
 			c.packageMembers(pkgname)
 			return nil
 		}
 	}
 
 	// Invariant: sel is a true selector.
-	tv, ok := c.info.Types[sel.X]
+	tv, ok := c.pkg.GetTypesInfo().Types[sel.X]
 	if !ok {
 		return errors.Errorf("cannot resolve %s", sel.X)
 	}
@@ -601,9 +599,9 @@ func (c *completer) lexical() error {
 		case *ast.FuncLit:
 			n = node.Type
 		}
-		scopes = append(scopes, c.info.Scopes[n])
+		scopes = append(scopes, c.pkg.GetTypesInfo().Scopes[n])
 	}
-	scopes = append(scopes, c.types.Scope(), types.Universe)
+	scopes = append(scopes, c.pkg.GetTypes().Scope(), types.Universe)
 
 	// Track seen variables to avoid showing completions for shadowed variables.
 	// This works since we look at scopes from innermost to outermost.
@@ -631,7 +629,7 @@ func (c *completer) lexical() error {
 					node = c.path[i-1]
 				}
 				if node != nil {
-					if resolved := resolveInvalid(obj, node, c.info); resolved != nil {
+					if resolved := resolveInvalid(obj, node, c.pkg.GetTypesInfo()); resolved != nil {
 						obj = resolved
 					}
 				}
@@ -681,7 +679,7 @@ func (c *completer) structLiteralFieldName() error {
 			}
 
 			if key, ok := kvExpr.Key.(*ast.Ident); ok {
-				if used, ok := c.info.Uses[key]; ok {
+				if used, ok := c.pkg.GetTypesInfo().Uses[key]; ok {
 					if usedVar, ok := used.(*types.Var); ok {
 						addedFields[usedVar] = true
 					}
@@ -924,7 +922,7 @@ Nodes:
 			if c.pos < node.OpPos {
 				e = node.Y
 			}
-			if tv, ok := c.info.Types[e]; ok {
+			if tv, ok := c.pkg.GetTypesInfo().Types[e]; ok {
 				typ = tv.Type
 				break Nodes
 			}
@@ -935,7 +933,7 @@ Nodes:
 				if i >= len(node.Lhs) {
 					i = len(node.Lhs) - 1
 				}
-				if tv, ok := c.info.Types[node.Lhs[i]]; ok {
+				if tv, ok := c.pkg.GetTypesInfo().Types[node.Lhs[i]]; ok {
 					typ = tv.Type
 					break Nodes
 				}
@@ -946,12 +944,12 @@ Nodes:
 			if node.Lparen <= c.pos && c.pos <= node.Rparen {
 				// For type conversions like "int64(foo)" we can only infer our
 				// desired type is convertible to int64.
-				if typ := typeConversion(node, c.info); typ != nil {
+				if typ := typeConversion(node, c.pkg.GetTypesInfo()); typ != nil {
 					convertibleTo = typ
 					break Nodes
 				}
 
-				if tv, ok := c.info.Types[node.Fun]; ok {
+				if tv, ok := c.pkg.GetTypesInfo().Types[node.Fun]; ok {
 					if sig, ok := tv.Type.(*types.Signature); ok {
 						if sig.Params().Len() == 0 {
 							return typeInference{}
@@ -980,7 +978,7 @@ Nodes:
 			return typeInference{}
 		case *ast.CaseClause:
 			if swtch, ok := findSwitchStmt(c.path[i+1:], c.pos, node).(*ast.SwitchStmt); ok {
-				if tv, ok := c.info.Types[swtch.Tag]; ok {
+				if tv, ok := c.pkg.GetTypesInfo().Types[swtch.Tag]; ok {
 					typ = tv.Type
 					break Nodes
 				}
@@ -996,7 +994,7 @@ Nodes:
 		case *ast.IndexExpr:
 			// Make sure position falls within the brackets (e.g. "foo[<>]").
 			if node.Lbrack < c.pos && c.pos <= node.Rbrack {
-				if tv, ok := c.info.Types[node.X]; ok {
+				if tv, ok := c.pkg.GetTypesInfo().Types[node.X]; ok {
 					switch t := tv.Type.Underlying().(type) {
 					case *types.Map:
 						typ = t.Key()
@@ -1012,7 +1010,7 @@ Nodes:
 		case *ast.SendStmt:
 			// Make sure we are on right side of arrow (e.g. "foo <- <>").
 			if c.pos > node.Arrow+1 {
-				if tv, ok := c.info.Types[node.Chan]; ok {
+				if tv, ok := c.pkg.GetTypesInfo().Types[node.Chan]; ok {
 					if ch, ok := tv.Type.Underlying().(*types.Chan); ok {
 						typ = ch.Elem()
 						break Nodes
@@ -1146,7 +1144,7 @@ Nodes:
 				// The case clause types must be assertable from the type switch parameter.
 				ast.Inspect(swtch.Assign, func(n ast.Node) bool {
 					if ta, ok := n.(*ast.TypeAssertExpr); ok {
-						assertableFrom = c.info.TypeOf(ta.X)
+						assertableFrom = c.pkg.GetTypesInfo().TypeOf(ta.X)
 						return false
 					}
 					return true
@@ -1159,7 +1157,7 @@ Nodes:
 			// Expect type names in type assert expressions.
 			if n.Lparen < c.pos && c.pos <= n.Rparen {
 				// The type in parens must be assertable from the expression type.
-				assertableFrom = c.info.TypeOf(n.X)
+				assertableFrom = c.pkg.GetTypesInfo().TypeOf(n.X)
 				wantTypeName = true
 				break Nodes
 			}

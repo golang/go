@@ -34,11 +34,7 @@ func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, erro
 	if i.Declaration.obj == nil {
 		return nil, errors.Errorf("no references for an import spec")
 	}
-	pkgs, err := i.File.GetCachedPackages(ctx)
-	if err != nil {
-		return nil, err
-	}
-	for _, pkg := range pkgs {
+	for _, pkg := range i.pkgs {
 		info := pkg.GetTypesInfo()
 		if info == nil {
 			return nil, errors.Errorf("package %s has no types info", pkg.PkgPath())

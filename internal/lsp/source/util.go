@@ -51,7 +51,25 @@ func (s mappedRange) URI() span.URI {
 	return s.m.URI
 }
 
-func fileToMapper(ctx context.Context, view View, uri span.URI) (*ast.File, Package, *protocol.ColumnMapper, error) {
+// bestCheckPackageHandle picks the "narrowest" package for a given file.
+//
+// By "narrowest" package, we mean the package with the fewest number of files
+// that includes the given file. This solves the problem of test variants,
+// as the test will have more files than the non-test package.
+func bestPackage(uri span.URI, pkgs []Package) (Package, error) {
+	var result Package
+	for _, pkg := range pkgs {
+		if result == nil || len(pkg.GetHandles()) < len(result.GetHandles()) {
+			result = pkg
+		}
+	}
+	if result == nil {
+		return nil, errors.Errorf("no CheckPackageHandle for %s", uri)
+	}
+	return result, nil
+}
+
+func fileToMapper(ctx context.Context, view View, uri span.URI) (*ast.File, []Package, *protocol.ColumnMapper, error) {
 	f, err := view.GetFile(ctx, uri)
 	if err != nil {
 		return nil, nil, nil, err
@@ -60,7 +78,11 @@ func fileToMapper(ctx context.Context, view View, uri span.URI) (*ast.File, Pack
 	if !ok {
 		return nil, nil, nil, errors.Errorf("%s is not a Go file", f.URI())
 	}
-	pkg, err := gof.GetPackage(ctx)
+	pkgs, err := gof.GetPackages(ctx)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	pkg, err := bestPackage(f.URI(), pkgs)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -68,7 +90,7 @@ func fileToMapper(ctx context.Context, view View, uri span.URI) (*ast.File, Pack
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	return file, pkg, m, nil
+	return file, pkgs, m, nil
 }
 
 func cachedFileToMapper(ctx context.Context, view View, uri span.URI) (*ast.File, *protocol.ColumnMapper, error) {
