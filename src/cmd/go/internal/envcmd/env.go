@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 	"unicode/utf8"
+	"go/build"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
@@ -249,6 +250,21 @@ func runEnv(cmd *base.Command, args []string) {
 				fmt.Fprintf(os.Stderr, "warning: go env -w %s=... does not override conflicting OS environment variable\n", key)
 			}
 		}
+
+		goos,okGOOS := add["GOOS"]
+		goarch,okGOARCH := add["GOARCH"]
+		if okGOOS || okGOARCH {
+			if !okGOOS {
+				goos = cfg.Goos
+			}
+			if !okGOARCH {
+				goarch = cfg.Goarch
+			}
+			if err := work.CheckGOOSARCHPair(goos, goarch); err != nil {
+				base.Fatalf("go env -w: %v", err)
+			}
+		}
+
 		updateEnvFile(add, nil)
 		return
 	}
@@ -264,6 +280,18 @@ func runEnv(cmd *base.Command, args []string) {
 				base.Fatalf("go env -u: %v", err)
 			}
 			del[arg] = true
+		}
+		if del["GOOS"] || del["GOARCH"] {
+			goos, goarch := cfg.Goos, cfg.Goarch
+			if del["GOOS"] {
+				goos = build.Default.GOOS
+			}
+			if del["GOARCH"] {
+				goarch = build.Default.GOARCH
+			}
+			if err := work.CheckGOOSARCHPair(goos, goarch); err != nil {
+				base.Fatalf("go env -u: %v", err)
+			}
 		}
 		updateEnvFile(nil, del)
 		return
