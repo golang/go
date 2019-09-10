@@ -592,6 +592,13 @@ func TestNumError(t *testing.T) {
 	}
 }
 
+func TestNumErrorUnwrap(t *testing.T) {
+	err := &NumError{Err: ErrSyntax}
+	if !errors.Is(err, ErrSyntax) {
+		t.Error("errors.Is failed, wanted success")
+	}
+}
+
 func BenchmarkParseInt(b *testing.B) {
 	b.Run("Pos", func(b *testing.B) {
 		benchmarkParseInt(b, 1)
