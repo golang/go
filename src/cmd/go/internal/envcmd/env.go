@@ -8,6 +8,7 @@ package envcmd
 import (
 	"encoding/json"
 	"fmt"
+	"go/build"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -15,7 +16,6 @@ import (
 	"sort"
 	"strings"
 	"unicode/utf8"
-	"go/build"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
@@ -251,8 +251,8 @@ func runEnv(cmd *base.Command, args []string) {
 			}
 		}
 
-		goos,okGOOS := add["GOOS"]
-		goarch,okGOARCH := add["GOARCH"]
+		goos, okGOOS := add["GOOS"]
+		goarch, okGOARCH := add["GOARCH"]
 		if okGOOS || okGOARCH {
 			if !okGOOS {
 				goos = cfg.Goos

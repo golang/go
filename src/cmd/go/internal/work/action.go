@@ -308,7 +308,7 @@ func (b *Builder) Init() {
 func CheckGOOSARCHPair(goos, goarch string) error {
 	if _, ok := cfg.OSArchSupportsCgo[goos+"/"+goarch]; !ok && cfg.BuildContext.Compiler == "gc" {
 		return fmt.Errorf("unsupported GOOS/GOARCH pair %s/%s", goos, goarch)
-	}	
+	}
 	return nil
 }
 
