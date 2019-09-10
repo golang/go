@@ -600,11 +600,11 @@ func stringEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		return
 	}
 	if opts.quoted {
-		sb, err := Marshal(v.String())
-		if err != nil {
-			e.error(err)
-		}
-		e.string(string(sb), opts.escapeHTML)
+		b := make([]byte, 0, v.Len()+2)
+		b = append(b, '"')
+		b = append(b, []byte(v.String())...)
+		b = append(b, '"')
+		e.stringBytes(b, opts.escapeHTML)
 	} else {
 		e.string(v.String(), opts.escapeHTML)
 	}
