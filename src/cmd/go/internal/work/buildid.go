@@ -292,14 +292,19 @@ func (b *Builder) gccgoToolID(name, language string) (string, error) {
 				exe = lp
 			}
 		}
-		if _, err := os.Stat(exe); err != nil {
-			return "", fmt.Errorf("%s: can not find compiler %q: %v; output %q", name, exe, err, out)
+		id, err = buildid.ReadFile(exe)
+		if err != nil {
+			return "", err
 		}
-		id = b.fileHash(exe)
+
+		// If we can't find a build ID, use a hash.
+		if id == "" {
+			id = b.fileHash(exe)
+		}
 	}
 
 	b.id.Lock()
-	b.toolIDCache[name] = id
+	b.toolIDCache[key] = id
 	b.id.Unlock()
 
 	return id, nil
