@@ -751,9 +751,10 @@ type PallocBits pallocBits
 func (b *PallocBits) Find(npages uintptr, searchIdx uint) (uint, uint) {
 	return (*pallocBits)(b).find(npages, searchIdx)
 }
-func (b *PallocBits) AllocRange(i, n uint) { (*pallocBits)(b).allocRange(i, n) }
-func (b *PallocBits) Free(i, n uint)       { (*pallocBits)(b).free(i, n) }
-func (b *PallocBits) Summarize() PallocSum { return PallocSum((*pallocBits)(b).summarize()) }
+func (b *PallocBits) AllocRange(i, n uint)       { (*pallocBits)(b).allocRange(i, n) }
+func (b *PallocBits) Free(i, n uint)             { (*pallocBits)(b).free(i, n) }
+func (b *PallocBits) Summarize() PallocSum       { return PallocSum((*pallocBits)(b).summarize()) }
+func (b *PallocBits) PopcntRange(i, n uint) uint { return (*pageBits)(b).popcntRange(i, n) }
 
 // SummarizeSlow is a slow but more obviously correct implementation
 // of (*pallocBits).summarize. Used for testing.
@@ -853,8 +854,12 @@ type ChunkIdx chunkIdx
 // not in the heap, so is PageAlloc.
 type PageAlloc pageAlloc
 
-func (p *PageAlloc) Alloc(npages uintptr) uintptr { return (*pageAlloc)(p).alloc(npages) }
-func (p *PageAlloc) Free(base, npages uintptr)    { (*pageAlloc)(p).free(base, npages) }
+func (p *PageAlloc) Alloc(npages uintptr) (uintptr, uintptr) {
+	return (*pageAlloc)(p).alloc(npages)
+}
+func (p *PageAlloc) Free(base, npages uintptr) {
+	(*pageAlloc)(p).free(base, npages)
+}
 func (p *PageAlloc) Bounds() (ChunkIdx, ChunkIdx) {
 	return ChunkIdx((*pageAlloc)(p).start), ChunkIdx((*pageAlloc)(p).end)
 }

@@ -467,24 +467,33 @@ func (s *pageAlloc) update(base, npages uintptr, contig, alloc bool) {
 // allocated. It also updates the summaries to reflect the newly-updated
 // bitmap.
 //
+// Returns the amount of scavenged memory in bytes present in the
+// allocated range.
+//
 // s.mheapLock must be held.
-func (s *pageAlloc) allocRange(base, npages uintptr) {
+func (s *pageAlloc) allocRange(base, npages uintptr) uintptr {
 	limit := base + npages*pageSize - 1
 	sc, ec := chunkIndex(base), chunkIndex(limit)
 	si, ei := chunkPageIndex(base), chunkPageIndex(limit)
 
+	scav := uint(0)
 	if sc == ec {
 		// The range doesn't cross any chunk boundaries.
+		scav += s.chunks[sc].scavenged.popcntRange(si, ei+1-si)
 		s.chunks[sc].allocRange(si, ei+1-si)
 	} else {
 		// The range crosses at least one chunk boundary.
+		scav += s.chunks[sc].scavenged.popcntRange(si, pallocChunkPages-si)
 		s.chunks[sc].allocRange(si, pallocChunkPages-si)
 		for c := sc + 1; c < ec; c++ {
+			scav += s.chunks[c].scavenged.popcntRange(0, pallocChunkPages)
 			s.chunks[c].allocAll()
 		}
+		scav += s.chunks[ec].scavenged.popcntRange(0, ei+1)
 		s.chunks[ec].allocRange(0, ei+1)
 	}
 	s.update(base, npages, true, true)
+	return uintptr(scav) * pageSize
 }
 
 // find searches for the first (address-ordered) contiguous free region of
@@ -714,21 +723,23 @@ nextLevel:
 }
 
 // alloc allocates npages worth of memory from the page heap, returning the base
-// address for the allocation.
+// address for the allocation and the amount of scavenged memory in bytes
+// contained in the region [base address, base address + npages*pageSize).
 //
-// Returns 0 on failure.
+// Returns a 0 base address on failure, in which case other returned values
+// should be ignored.
 //
 // s.mheapLock must be held.
-func (s *pageAlloc) alloc(npages uintptr) uintptr {
+func (s *pageAlloc) alloc(npages uintptr) (addr uintptr, scav uintptr) {
 	// If the searchAddr refers to a region which has a higher address than
 	// any known chunk, then we know we're out of memory.
 	if chunkIndex(s.searchAddr) >= s.end {
-		return 0
+		return 0, 0
 	}
 
 	// If npages has a chance of fitting in the chunk where the searchAddr is,
 	// search it directly.
-	var addr, searchAddr uintptr
+	searchAddr := uintptr(0)
 	if pallocChunkPages-chunkPageIndex(s.searchAddr) >= uint(npages) {
 		// npages is guaranteed to be no greater than pallocChunkPages here.
 		i := chunkIndex(s.searchAddr)
@@ -756,11 +767,11 @@ func (s *pageAlloc) alloc(npages uintptr) uintptr {
 			// accommodate npages.
 			s.searchAddr = maxSearchAddr
 		}
-		return 0
+		return 0, 0
 	}
 Found:
 	// Go ahead and actually mark the bits now that we have an address.
-	s.allocRange(addr, npages)
+	scav = s.allocRange(addr, npages)
 
 	// If we found a higher (linearized) searchAddr, we know that all the
 	// heap memory before that searchAddr in a linear address space is
@@ -768,7 +779,7 @@ Found:
 	if s.compareSearchAddrTo(searchAddr) > 0 {
 		s.searchAddr = searchAddr
 	}
-	return addr
+	return addr, scav
 }
 
 // free returns npages worth of memory starting at base back to the page heap.

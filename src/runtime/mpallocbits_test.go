@@ -113,6 +113,98 @@ func checkPallocSum(t *testing.T, got, want PallocSum) {
 	}
 }
 
+func TestMallocBitsPopcntRange(t *testing.T) {
+	type test struct {
+		i, n uint // bit range to popcnt over.
+		want uint // expected popcnt result on that range.
+	}
+	tests := map[string]struct {
+		init  []BitRange // bit ranges to set to 1 in the bitmap.
+		tests []test     // a set of popcnt tests to run over the bitmap.
+	}{
+		"None": {
+			tests: []test{
+				{0, 1, 0},
+				{5, 3, 0},
+				{2, 11, 0},
+				{PallocChunkPages/4 + 1, PallocChunkPages / 2, 0},
+				{0, PallocChunkPages, 0},
+			},
+		},
+		"All": {
+			init: []BitRange{{0, PallocChunkPages}},
+			tests: []test{
+				{0, 1, 1},
+				{5, 3, 3},
+				{2, 11, 11},
+				{PallocChunkPages/4 + 1, PallocChunkPages / 2, PallocChunkPages / 2},
+				{0, PallocChunkPages, PallocChunkPages},
+			},
+		},
+		"Half": {
+			init: []BitRange{{PallocChunkPages / 2, PallocChunkPages / 2}},
+			tests: []test{
+				{0, 1, 0},
+				{5, 3, 0},
+				{2, 11, 0},
+				{PallocChunkPages/2 - 1, 1, 0},
+				{PallocChunkPages / 2, 1, 1},
+				{PallocChunkPages/2 + 10, 1, 1},
+				{PallocChunkPages/2 - 1, 2, 1},
+				{PallocChunkPages / 4, PallocChunkPages / 4, 0},
+				{PallocChunkPages / 4, PallocChunkPages/4 + 1, 1},
+				{PallocChunkPages/4 + 1, PallocChunkPages / 2, PallocChunkPages/4 + 1},
+				{0, PallocChunkPages, PallocChunkPages / 2},
+			},
+		},
+		"OddBound": {
+			init: []BitRange{{0, 111}},
+			tests: []test{
+				{0, 1, 1},
+				{5, 3, 3},
+				{2, 11, 11},
+				{110, 2, 1},
+				{99, 50, 12},
+				{110, 1, 1},
+				{111, 1, 0},
+				{99, 1, 1},
+				{120, 1, 0},
+				{PallocChunkPages / 2, PallocChunkPages / 2, 0},
+				{0, PallocChunkPages, 111},
+			},
+		},
+		"Scattered": {
+			init: []BitRange{
+				{1, 3}, {5, 1}, {7, 1}, {10, 2}, {13, 1}, {15, 4},
+				{21, 1}, {23, 1}, {26, 2}, {30, 5}, {36, 2}, {40, 3},
+				{44, 6}, {51, 1}, {53, 2}, {58, 3}, {63, 1}, {67, 2},
+				{71, 10}, {84, 1}, {89, 7}, {99, 2}, {103, 1}, {107, 2},
+				{111, 1}, {113, 1}, {115, 1}, {118, 1}, {120, 2}, {125, 5},
+			},
+			tests: []test{
+				{0, 11, 6},
+				{0, 64, 39},
+				{13, 64, 40},
+				{64, 64, 34},
+				{0, 128, 73},
+				{1, 128, 74},
+				{0, PallocChunkPages, 75},
+			},
+		},
+	}
+	for name, v := range tests {
+		v := v
+		t.Run(name, func(t *testing.T) {
+			b := makePallocBits(v.init)
+			for _, h := range v.tests {
+				if got := b.PopcntRange(h.i, h.n); got != h.want {
+					t.Errorf("bad popcnt (i=%d, n=%d): got %d, want %d", h.i, h.n, got, h.want)
+				}
+			}
+		})
+	}
+}
+
 // Ensures computing bit summaries works as expected by generating random
 // bitmaps and checking against a reference implementation.
 func TestPallocBitsSummarizeRandom(t *testing.T) {

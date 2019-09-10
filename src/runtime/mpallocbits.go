@@ -88,6 +88,26 @@ func (b *pageBits) clearAll() {
 	}
 }
 
+// popcntRange counts the number of set bits in the
+// range [i, i+n).
+func (b *pageBits) popcntRange(i, n uint) (s uint) {
+	if n == 1 {
+		return uint((b[i/64] >> (i % 64)) & 1)
+	}
+	_ = b[i/64]
+	j := i + n - 1
+	if i/64 == j/64 {
+		return uint(bits.OnesCount64((b[i/64] >> (i % 64)) & ((1 << n) - 1)))
+	}
+	_ = b[j/64]
+	s += uint(bits.OnesCount64(b[i/64] >> (i % 64)))
+	for k := i/64 + 1; k < j/64; k++ {
+		s += uint(bits.OnesCount64(b[k]))
+	}
+	s += uint(bits.OnesCount64(b[j/64] & ((1 << (j%64 + 1)) - 1)))
+	return
+}
+
 // pallocBits is a bitmap that tracks page allocations for at most one
 // palloc chunk.
 //
