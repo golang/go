@@ -113,7 +113,7 @@ It must be one of:
 * "FullDocumentation"
 * "Structured"
 
-**useDeepCompletions** *boolean*
+**deepCompletion** *boolean*
 
 If true this turns on the ability to return completions from deep inside relevant entities, rather than just the locally accessible ones, for instance it may suggest fields of local variables that match.
 
@@ -121,16 +121,11 @@ If true this turns on the ability to return completions from deep inside relevan
 
 If true then completion responses may contain placeholders inside their snippets.
 
-**wantCompletionDocumentation** *boolean*
+**completionDocumentation** *boolean*
 
 If true it indicates that the user wants documentation with their completion responses.
 
-**wantSuggestedFixes** *boolean*
-
-If true this turns on the ability for the analysis system to suggest fixes rather than just report problems.
-If supported by the editor, theses fixes can be automatically applied or applied with a single action.
-
-**wantUnimportedCompletions** *boolean*
+**completeUnimported** *boolean*
 
 If true the completion engine is allowed to make suggestions for packages that you do not currently import.
 
