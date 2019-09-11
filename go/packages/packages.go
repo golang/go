@@ -770,6 +770,14 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 		lpkg.Errors = append(lpkg.Errors, errs...)
 	}
 
+	if len(lpkg.CompiledGoFiles) == 0 && lpkg.ExportFile != "" {
+		// The config requested loading sources and types, but sources are missing.
+		// Add an error to the package and fall back to loading from export data.
+		appendError(Error{"-", fmt.Sprintf("sources missing for package %s", lpkg.ID), ParseError})
+		ld.loadFromExportData(lpkg)
+		return // can't get syntax trees for this package
+	}
+
 	files, errs := ld.parseFiles(lpkg.CompiledGoFiles)
 	for _, err := range errs {
 		appendError(err)
