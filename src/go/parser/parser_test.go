@@ -42,6 +42,22 @@ func nameFilter(filename string) bool {
 
 func dirFilter(f os.FileInfo) bool { return nameFilter(f.Name()) }
 
+func TestParseFile(t *testing.T) {
+	src := "package p\nvar _=s[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]"
+	_, err := ParseFile(token.NewFileSet(), "", src, 0)
+	if err == nil {
+		t.Errorf("ParseFile(%s) succeeded unexpectedly", src)
+	}
+}
+
+func TestParseExprFrom(t *testing.T) {
+	src := "s[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]"
+	_, err := ParseExprFrom(token.NewFileSet(), "", src, 0)
+	if err == nil {
+		t.Errorf("ParseExprFrom(%s) succeeded unexpectedly", src)
+	}
+}
+
 func TestParseDir(t *testing.T) {
 	path := "."
 	pkgs, err := ParseDir(token.NewFileSet(), path, dirFilter, 0)

@@ -173,7 +173,7 @@ func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, m
 // be a valid Go (type or value) expression. Specifically, fset must not
 // be nil.
 //
-func ParseExprFrom(fset *token.FileSet, filename string, src interface{}, mode Mode) (ast.Expr, error) {
+func ParseExprFrom(fset *token.FileSet, filename string, src interface{}, mode Mode) (expr ast.Expr, err error) {
 	if fset == nil {
 		panic("parser.ParseExprFrom: no token.FileSet provided (fset == nil)")
 	}
