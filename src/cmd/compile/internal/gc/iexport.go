@@ -202,6 +202,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"cmd/internal/src"
 	"encoding/binary"
 	"fmt"
@@ -932,10 +933,12 @@ func (w *exportWriter) string(s string) { w.uint64(w.p.stringOff(s)) }
 
 func (w *exportWriter) varExt(n *Node) {
 	w.linkname(n.Sym)
+	w.symIdx(n.Sym)
 }
 
 func (w *exportWriter) funcExt(n *Node) {
 	w.linkname(n.Sym)
+	w.symIdx(n.Sym)
 
 	// Escape analysis.
 	for _, fs := range types.RecvsParams {
@@ -972,6 +975,17 @@ func (w *exportWriter) methExt(m *types.Field) {
 
 func (w *exportWriter) linkname(s *types.Sym) {
 	w.string(s.Linkname)
+}
+
+func (w *exportWriter) symIdx(s *types.Sym) {
+	if Ctxt.Flag_newobj {
+		lsym := s.Linksym()
+		if lsym.PkgIdx > obj.PkgIdxSelf || lsym.PkgIdx == obj.PkgIdxInvalid || s.Linkname != "" {
+			w.int64(-1)
+		} else {
+			w.int64(int64(lsym.SymIdx))
+		}
+	}
 }
 
 // Inline bodies.

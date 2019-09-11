@@ -40,6 +40,7 @@ func main() {
 	}
 	ctxt.Flag_dynlink = *flags.Dynlink
 	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
+	ctxt.Flag_newobj = *flags.Newobj
 	ctxt.Bso = bufio.NewWriter(os.Stdout)
 	defer ctxt.Bso.Flush()
 
@@ -82,6 +83,7 @@ func main() {
 		}
 	}
 	if ok && !*flags.SymABIs {
+		ctxt.NumberSyms(true)
 		obj.WriteObjFile(ctxt, buf, "")
 	}
 	if !ok || diag {
