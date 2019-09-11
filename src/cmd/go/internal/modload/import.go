@@ -48,6 +48,10 @@ func (e *ImportMissingError) Error() string {
 	return fmt.Sprintf("missing module for import: %s@%s provides %s", e.Module.Path, e.Module.Version, e.ImportPath)
 }
 
+func (e *ImportMissingError) Unwrap() error {
+	return e.QueryErr
+}
+
 // Import finds the module and directory in the build list
 // containing the package with the given import path.
 // The answer must be unique: Import returns an error
