@@ -100,10 +100,8 @@ func resolve(n *Node) (res *Node) {
 	}
 
 	if r.Op == OIOTA {
-		if i := len(typecheckdefstack); i > 0 {
-			if x := typecheckdefstack[i-1]; x.Op == OLITERAL {
-				return nodintconst(x.Iota())
-			}
+		if x := getIotaValue(); x >= 0 {
+			return nodintconst(x)
 		}
 		return n
 	}
@@ -3934,4 +3932,20 @@ func setTypeNode(n *Node, t *types.Type) {
 	n.Op = OTYPE
 	n.Type = t
 	n.Type.Nod = asTypesNode(n)
+}
+
+// getIotaValue returns the current value for "iota",
+// or -1 if not within a ConstSpec.
+func getIotaValue() int64 {
+	if i := len(typecheckdefstack); i > 0 {
+		if x := typecheckdefstack[i-1]; x.Op == OLITERAL {
+			return x.Iota()
+		}
+	}
+
+	if Curfn != nil && Curfn.Iota() >= 0 {
+		return Curfn.Iota()
+	}
+
+	return -1
 }
