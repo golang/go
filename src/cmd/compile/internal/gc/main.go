@@ -723,6 +723,7 @@ func Main(archInit func(*Arch)) {
 
 	// Write object data to disk.
 	timings.Start("be", "dumpobj")
+	dumpdata()
 	dumpobj()
 	if asmhdr != "" {
 		dumpasmhdr()
