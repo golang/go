@@ -14,7 +14,8 @@ import (
 )
 
 var (
-	DefaultSessionOptions = SessionOptions{
+	DefaultOptions = Options{
+		Env:                    os.Environ(),
 		TextDocumentSyncKind:   protocol.Incremental,
 		HoverKind:              SynopsisDocumentation,
 		InsertTextFormat:       protocol.PlainTextTextFormat,
@@ -32,15 +33,17 @@ var (
 			Deep:          false,
 			FuzzyMatching: false,
 		},
-		DefaultViewOptions: ViewOptions{
-			Env: os.Environ(),
-		},
 	}
 )
 
-type SessionOptions struct {
-	Env              []string
-	BuildFlags       []string
+type Options struct {
+
+	// Env is the current set of environment overrides on this view.
+	Env []string
+
+	// BuildFlags is used to adjust the build flags applied to the view.
+	BuildFlags []string
+
 	HoverKind        HoverKind
 	DisabledAnalyses map[string]struct{}
 
@@ -58,16 +61,6 @@ type SessionOptions struct {
 	TextDocumentSyncKind protocol.TextDocumentSyncKind
 
 	Completion CompletionOptions
-
-	DefaultViewOptions ViewOptions
-}
-
-type ViewOptions struct {
-	// Env is the current set of environment overrides on this view.
-	Env []string
-
-	// BuildFlags is used to adjust the build flags applied to the view.
-	BuildFlags []string
 }
 
 type CompletionOptions struct {
@@ -80,10 +73,6 @@ type CompletionOptions struct {
 }
 
 type HoverKind int
-
-type Options interface {
-	set(name string, value interface{}) OptionResult
-}
 
 const (
 	SingleLine = HoverKind(iota)
@@ -104,8 +93,10 @@ type OptionResults []OptionResult
 type OptionResult struct {
 	Name  string
 	Value interface{}
-	State OptionState
 	Error error
+
+	State       OptionState
+	Replacement string
 }
 
 type OptionState int
@@ -116,7 +107,7 @@ const (
 	OptionUnexpected
 )
 
-func SetOptions(options Options, opts interface{}) OptionResults {
+func SetOptions(options *Options, opts interface{}) OptionResults {
 	var results OptionResults
 	switch opts := opts.(type) {
 	case nil:
@@ -133,7 +124,7 @@ func SetOptions(options Options, opts interface{}) OptionResults {
 	return results
 }
 
-func (o *SessionOptions) ForClientCapabilities(caps protocol.ClientCapabilities) {
+func (o *Options) ForClientCapabilities(caps protocol.ClientCapabilities) {
 	// Check if the client supports snippets in completion items.
 	if caps.TextDocument.Completion.CompletionItem != nil &&
 		caps.TextDocument.Completion.CompletionItem.SnippetSupport {
@@ -152,24 +143,46 @@ func (o *SessionOptions) ForClientCapabilities(caps protocol.ClientCapabilities)
 	o.LineFoldingOnly = caps.TextDocument.FoldingRange.LineFoldingOnly
 }
 
-func (o *SessionOptions) set(name string, value interface{}) OptionResult {
+func (o *Options) set(name string, value interface{}) OptionResult {
 	result := OptionResult{Name: name, Value: value}
 	switch name {
+	case "env":
+		menv, ok := value.(map[string]interface{})
+		if !ok {
+			result.errorf("invalid config gopls.env type %T", value)
+			break
+		}
+		for k, v := range menv {
+			o.Env = append(o.Env, fmt.Sprintf("%s=%s", k, v))
+		}
+
+	case "buildFlags":
+		iflags, ok := value.([]interface{})
+		if !ok {
+			result.errorf("invalid config gopls.buildFlags type %T", value)
+			break
+		}
+		flags := make([]string, 0, len(iflags))
+		for _, flag := range iflags {
+			flags = append(flags, fmt.Sprintf("%s", flag))
+		}
+		o.BuildFlags = flags
+
 	case "noIncrementalSync":
 		if v, ok := result.asBool(); ok && v {
 			o.TextDocumentSyncKind = protocol.Full
 		}
 	case "watchFileChanges":
 		result.setBool(&o.WatchFileChanges)
-	case "wantCompletionDocumentation":
+	case "completionDocumentation":
 		result.setBool(&o.Completion.Documentation)
 	case "usePlaceholders":
 		result.setBool(&o.Completion.Placeholders)
-	case "disableDeepCompletion":
-		result.setNotBool(&o.Completion.Deep)
-	case "disableFuzzyMatching":
-		result.setNotBool(&o.Completion.FuzzyMatching)
-	case "wantUnimportedCompletions":
+	case "deepCompletion":
+		result.setBool(&o.Completion.Deep)
+	case "fuzzyMatching":
+		result.setBool(&o.Completion.FuzzyMatching)
+	case "completeUnimported":
 		result.setBool(&o.Completion.Unimported)
 
 	case "hoverKind":
@@ -204,39 +217,25 @@ func (o *SessionOptions) set(name string, value interface{}) OptionResult {
 			o.DisabledAnalyses[fmt.Sprint(a)] = struct{}{}
 		}
 
+	// Deprecated settings.
 	case "wantSuggestedFixes":
 		result.State = OptionDeprecated
 
-	default:
-		return o.DefaultViewOptions.set(name, value)
-	}
-	return result
-}
+	case "disableDeepCompletion":
+		result.State = OptionDeprecated
+		result.Replacement = "deepCompletion"
 
-func (o *ViewOptions) set(name string, value interface{}) OptionResult {
-	result := OptionResult{Name: name, Value: value}
-	switch name {
-	case "env":
-		menv, ok := value.(map[string]interface{})
-		if !ok {
-			result.errorf("invalid config gopls.env type %T", value)
-			break
-		}
-		for k, v := range menv {
-			o.Env = append(o.Env, fmt.Sprintf("%s=%s", k, v))
-		}
+	case "disableFuzzyMatching":
+		result.State = OptionDeprecated
+		result.Replacement = "fuzzyMatching"
 
-	case "buildFlags":
-		iflags, ok := value.([]interface{})
-		if !ok {
-			result.errorf("invalid config gopls.buildFlags type %T", value)
-			break
-		}
-		flags := make([]string, 0, len(iflags))
-		for _, flag := range iflags {
-			flags = append(flags, fmt.Sprintf("%s", flag))
-		}
-		o.BuildFlags = flags
+	case "wantCompletionDocumentation":
+		result.State = OptionDeprecated
+		result.Replacement = "completionDocumentation"
+
+	case "wantUnimportedCompletions":
+		result.State = OptionDeprecated
+		result.Replacement = "completeUnimported"
 
 	default:
 		result.State = OptionUnexpected
@@ -260,11 +259,5 @@ func (r *OptionResult) asBool() (bool, bool) {
 func (r *OptionResult) setBool(b *bool) {
 	if v, ok := r.asBool(); ok {
 		*b = v
-	}
-}
-
-func (r *OptionResult) setNotBool(b *bool) {
-	if v, ok := r.asBool(); ok {
-		*b = !v
 	}
 }

@@ -298,8 +298,7 @@ func (c *cmdClient) Configuration(ctx context.Context, p *protocol.ParamConfig) 
 			env[l[0]] = l[1]
 		}
 		results[i] = map[string]interface{}{
-			"env":           env,
-			"noDocsOnHover": true,
+			"env": env,
 		}
 	}
 	return results, nil

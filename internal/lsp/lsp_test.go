@@ -61,9 +61,8 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	}
 	options.HoverKind = source.SynopsisDocumentation
 	session.SetOptions(options)
-	vo := options.DefaultViewOptions
-	vo.Env = data.Config.Env
-	session.NewView(ctx, viewName, span.FileURI(data.Config.Dir), vo)
+	options.Env = data.Config.Env
+	session.NewView(ctx, viewName, span.FileURI(data.Config.Dir), options)
 	for filename, content := range data.Config.Overlay {
 		session.SetOverlay(span.FileURI(filename), content)
 	}

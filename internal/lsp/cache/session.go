@@ -28,7 +28,7 @@ type session struct {
 	cache *cache
 	id    string
 
-	options source.SessionOptions
+	options source.Options
 
 	viewMu  sync.Mutex
 	views   []*view
@@ -56,11 +56,11 @@ type overlay struct {
 	unchanged bool
 }
 
-func (s *session) Options() source.SessionOptions {
+func (s *session) Options() source.Options {
 	return s.options
 }
 
-func (s *session) SetOptions(options source.SessionOptions) {
+func (s *session) SetOptions(options source.Options) {
 	s.options = options
 }
 
@@ -79,7 +79,7 @@ func (s *session) Cache() source.Cache {
 	return s.cache
 }
 
-func (s *session) NewView(ctx context.Context, name string, folder span.URI, options source.ViewOptions) source.View {
+func (s *session) NewView(ctx context.Context, name string, folder span.URI, options source.Options) source.View {
 	index := atomic.AddInt64(&viewIndex, 1)
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()

@@ -49,10 +49,9 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 	cache := cache.New()
 	session := cache.NewSession(ctx)
 	options := session.Options()
-	vo := options.DefaultViewOptions
-	vo.Env = data.Config.Env
+	options.Env = data.Config.Env
 	r := &runner{
-		view: session.NewView(ctx, "source_test", span.FileURI(data.Config.Dir), vo),
+		view: session.NewView(ctx, "source_test", span.FileURI(data.Config.Dir), options),
 		data: data,
 		ctx:  ctx,
 	}

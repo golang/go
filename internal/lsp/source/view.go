@@ -155,7 +155,7 @@ type Cache interface {
 // A session may have many active views at any given time.
 type Session interface {
 	// NewView creates a new View and returns it.
-	NewView(ctx context.Context, name string, folder span.URI, options ViewOptions) View
+	NewView(ctx context.Context, name string, folder span.URI, options Options) View
 
 	// Cache returns the cache that created this session.
 	Cache() Cache
@@ -196,10 +196,10 @@ type Session interface {
 	DidChangeOutOfBand(ctx context.Context, f GoFile, change protocol.FileChangeType)
 
 	// Options returns a copy of the SessionOptions for this session.
-	Options() SessionOptions
+	Options() Options
 
 	// SetOptions sets the options of this session to new values.
-	SetOptions(SessionOptions)
+	SetOptions(Options)
 }
 
 // View represents a single workspace.
@@ -246,7 +246,7 @@ type View interface {
 	RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error, opts *imports.Options) error
 
 	// Options returns a copy of the ViewOptions for this view.
-	Options() ViewOptions
+	Options() Options
 }
 
 // File represents a source file of any type.

@@ -30,7 +30,7 @@ type view struct {
 	session *session
 	id      string
 
-	options source.ViewOptions
+	options source.Options
 
 	// mu protects all mutable state of the view.
 	mu sync.Mutex
@@ -113,7 +113,7 @@ func (v *view) Folder() span.URI {
 	return v.folder
 }
 
-func (v *view) Options() source.ViewOptions {
+func (v *view) Options() source.Options {
 	return v.options
 }
 

@@ -38,8 +38,8 @@ func (s *Server) addView(ctx context.Context, name string, uri span.URI) error {
 		return errors.Errorf("addView called before server initialized")
 	}
 
-	viewOptions := s.session.Options().DefaultViewOptions
-	s.fetchConfig(ctx, name, uri, &viewOptions)
-	s.session.NewView(ctx, name, uri, viewOptions)
+	options := s.session.Options()
+	s.fetchConfig(ctx, name, uri, &options)
+	s.session.NewView(ctx, name, uri, options)
 	return nil
 }

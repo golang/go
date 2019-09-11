@@ -7,6 +7,7 @@ package lsp
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"path"
 
@@ -33,7 +34,7 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitia) (
 	options := s.session.Options()
 	defer func() { s.session.SetOptions(options) }()
 
-	//TODO: handle the options results
+	// TODO: Handle results here.
 	source.SetOptions(&options, params.InitializationOptions)
 	options.ForClientCapabilities(params.Capabilities)
 
@@ -172,7 +173,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	return nil
 }
 
-func (s *Server) fetchConfig(ctx context.Context, name string, folder span.URI, vo *source.ViewOptions) error {
+func (s *Server) fetchConfig(ctx context.Context, name string, folder span.URI, o *source.Options) error {
 	if !s.session.Options().ConfigurationSupported {
 		return nil
 	}
@@ -193,8 +194,31 @@ func (s *Server) fetchConfig(ctx context.Context, name string, folder span.URI, 
 		return err
 	}
 	for _, config := range configs {
-		//TODO: handle the options results
-		source.SetOptions(vo, config)
+		results := source.SetOptions(o, config)
+		for _, result := range results {
+			if result.Error != nil {
+				s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+					Type:    protocol.Error,
+					Message: result.Error.Error(),
+				})
+			}
+			switch result.State {
+			case source.OptionUnexpected:
+				s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+					Type:    protocol.Error,
+					Message: fmt.Sprintf("unexpected config %s", result.Name),
+				})
+			case source.OptionDeprecated:
+				msg := fmt.Sprintf("config %s is deprecated", result.Name)
+				if result.Replacement != "" {
+					msg = fmt.Sprintf("%s, use %s instead", msg, result.Replacement)
+				}
+				s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+					Type:    protocol.Warning,
+					Message: msg,
+				})
+			}
+		}
 	}
 	return nil
 }

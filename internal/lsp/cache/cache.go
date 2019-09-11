@@ -76,7 +76,7 @@ func (c *cache) NewSession(ctx context.Context) source.Session {
 	s := &session{
 		cache:         c,
 		id:            strconv.FormatInt(index, 10),
-		options:       source.DefaultSessionOptions,
+		options:       source.DefaultOptions,
 		overlays:      make(map[span.URI]*overlay),
 		filesWatchMap: NewWatchMap(),
 	}
