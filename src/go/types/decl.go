@@ -333,8 +333,8 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
 	assert(obj.typ == nil)
 
 	// use the correct value of iota
+	defer func(iota constant.Value) { check.iota = iota }(check.iota)
 	check.iota = obj.val
-	defer func() { check.iota = nil }()
 
 	// provide valid constant value under all circumstances
 	obj.val = constant.MakeUnknown()

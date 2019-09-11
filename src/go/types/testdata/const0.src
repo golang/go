@@ -308,6 +308,8 @@ const (
 			_ = unsafe.Sizeof([iota-1]int{} == x) // assert types are equal
 			_ = unsafe.Sizeof([Two]int{} == x)    // assert types are equal
 		)
+		var z [iota]int                           // [2]int
+		_ = unsafe.Sizeof([2]int{} == z)          // assert types are equal
 	})
 	three = iota // the sequence continues
 )
@@ -334,3 +336,15 @@ var _ = []int64{
 	1 * 1e9,
 	5 * 1e9,
 }
+
+const _ = unsafe.Sizeof(func() {
+	const _ = 0
+	_ = iota
+
+	const (
+	   zero = iota
+	   one
+	)
+	assert(one == 1)
+	assert(iota == 0)
+})
