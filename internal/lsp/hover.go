@@ -34,15 +34,14 @@ func (s *Server) hover(ctx context.Context, params *protocol.HoverParams) (*prot
 	if err != nil {
 		return nil, err
 	}
-	contents := s.toProtocolHoverContents(ctx, hover)
+	contents := s.toProtocolHoverContents(ctx, hover, view.Options())
 	return &protocol.Hover{
 		Contents: contents,
 		Range:    &rng,
 	}, nil
 }
 
-func (s *Server) toProtocolHoverContents(ctx context.Context, h *source.HoverInformation) protocol.MarkupContent {
-	options := s.session.Options()
+func (s *Server) toProtocolHoverContents(ctx context.Context, h *source.HoverInformation, options source.Options) protocol.MarkupContent {
 	content := protocol.MarkupContent{
 		Kind: options.PreferredContentFormat,
 	}

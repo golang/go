@@ -245,8 +245,13 @@ type View interface {
 	// Note: the process env contains cached module and filesystem state.
 	RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error, opts *imports.Options) error
 
-	// Options returns a copy of the ViewOptions for this view.
+	// Options returns a copy of the Options for this view.
 	Options() Options
+
+	// SetOptions sets the options of this view to new values.
+	// Warning: Do not use this, unless in a test.
+	// This function does not correctly invalidate the view when needed.
+	SetOptions(Options)
 }
 
 // File represents a source file of any type.

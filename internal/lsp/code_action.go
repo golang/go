@@ -47,7 +47,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 
 	// Determine the supported actions for this file kind.
 	fileKind := f.Handle(ctx).Kind()
-	supportedCodeActions, ok := s.session.Options().SupportedCodeActions[fileKind]
+	supportedCodeActions, ok := view.Options().SupportedCodeActions[fileKind]
 	if !ok {
 		return nil, fmt.Errorf("no supported code actions for %v file kind", fileKind)
 	}

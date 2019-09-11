@@ -110,14 +110,14 @@ func (r *runner) Diagnostics(t *testing.T, data tests.Diagnostics) {
 }
 
 func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests.CompletionSnippets, items tests.CompletionItems) {
-	original := r.server.session.Options()
-	modified := original
-	defer func() { r.server.session.SetOptions(original) }()
-
-	// Set this as a default.
-	modified.Completion.Documentation = true
-
 	for src, test := range data {
+		view := r.server.session.ViewOf(src.URI())
+		original := view.Options()
+		modified := original
+
+		// Set this as a default.
+		modified.Completion.Documentation = true
+
 		var want []source.CompletionItem
 		for _, pos := range test.CompletionItems {
 			want = append(want, *items[pos])
@@ -126,7 +126,7 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 		modified.Completion.Deep = strings.Contains(string(src.URI()), "deepcomplete")
 		modified.Completion.FuzzyMatching = strings.Contains(string(src.URI()), "fuzzymatch")
 		modified.Completion.Unimported = strings.Contains(string(src.URI()), "unimported")
-		r.server.session.SetOptions(modified)
+		view.SetOptions(modified)
 
 		list := r.runCompletion(t, src)
 
@@ -149,15 +149,22 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 				t.Errorf("%s: %s", src, msg)
 			}
 		}
+		view.SetOptions(original)
 	}
-	modified.InsertTextFormat = protocol.SnippetTextFormat
+
 	for _, usePlaceholders := range []bool{true, false} {
+
 		for src, want := range snippets {
+			view := r.server.session.ViewOf(src.URI())
+			original := view.Options()
+			modified := original
+
+			modified.InsertTextFormat = protocol.SnippetTextFormat
 			modified.Completion.Deep = strings.Contains(string(src.URI()), "deepcomplete")
 			modified.Completion.FuzzyMatching = strings.Contains(string(src.URI()), "fuzzymatch")
 			modified.Completion.Unimported = strings.Contains(string(src.URI()), "unimported")
 			modified.Completion.Placeholders = usePlaceholders
-			r.server.session.SetOptions(modified)
+			view.SetOptions(modified)
 
 			list := r.runCompletion(t, src)
 
@@ -181,6 +188,7 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			if expected != got.TextEdit.NewText {
 				t.Errorf("%s: expected snippet %q, got %q", src, expected, got.TextEdit.NewText)
 			}
+			view.SetOptions(original)
 		}
 	}
 }
@@ -306,16 +314,15 @@ func summarizeCompletionItems(i int, want []source.CompletionItem, got []protoco
 }
 
 func (r *runner) FoldingRange(t *testing.T, data tests.FoldingRanges) {
-	original := r.server.session.Options()
-	modified := original
-	defer func() { r.server.session.SetOptions(original) }()
-
 	for _, spn := range data {
 		uri := spn.URI()
+		view := r.server.session.ViewOf(uri)
+		original := view.Options()
+		modified := original
 
 		// Test all folding ranges.
 		modified.LineFoldingOnly = false
-		r.server.session.SetOptions(modified)
+		view.SetOptions(modified)
 		ranges, err := r.server.FoldingRange(r.ctx, &protocol.FoldingRangeParams{
 			TextDocument: protocol.TextDocumentIdentifier{
 				URI: protocol.NewURI(uri),
@@ -329,7 +336,7 @@ func (r *runner) FoldingRange(t *testing.T, data tests.FoldingRanges) {
 
 		// Test folding ranges with lineFoldingOnly = true.
 		modified.LineFoldingOnly = true
-		r.server.session.SetOptions(modified)
+		view.SetOptions(modified)
 		ranges, err = r.server.FoldingRange(r.ctx, &protocol.FoldingRangeParams{
 			TextDocument: protocol.TextDocumentIdentifier{
 				URI: protocol.NewURI(uri),
@@ -340,7 +347,7 @@ func (r *runner) FoldingRange(t *testing.T, data tests.FoldingRanges) {
 			continue
 		}
 		r.foldingRanges(t, "foldingRange-lineFolding", uri, ranges)
-
+		view.SetOptions(original)
 	}
 }
 

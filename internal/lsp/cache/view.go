@@ -117,6 +117,10 @@ func (v *view) Options() source.Options {
 	return v.options
 }
 
+func (v *view) SetOptions(options source.Options) {
+	v.options = options
+}
+
 // Config returns the configuration used for the view's interaction with the
 // go/packages API. It is shared across all views.
 func (v *view) Config(ctx context.Context) *packages.Config {

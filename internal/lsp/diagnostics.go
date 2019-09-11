@@ -27,7 +27,7 @@ func (s *Server) Diagnostics(ctx context.Context, view source.View, uri span.URI
 	if !ok {
 		return
 	}
-	reports, err := source.Diagnostics(ctx, view, gof, s.session.Options().DisabledAnalyses)
+	reports, err := source.Diagnostics(ctx, view, gof, view.Options().DisabledAnalyses)
 	if err != nil {
 		log.Error(ctx, "failed to compute diagnostics", err, telemetry.File)
 		return

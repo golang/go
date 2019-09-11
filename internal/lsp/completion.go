@@ -19,7 +19,7 @@ import (
 func (s *Server) completion(ctx context.Context, params *protocol.CompletionParams) (*protocol.CompletionList, error) {
 	uri := span.NewURI(params.TextDocument.URI)
 	view := s.session.ViewOf(uri)
-	options := s.session.Options()
+	options := view.Options()
 	f, err := getGoFile(ctx, view, uri)
 	if err != nil {
 		return nil, err
