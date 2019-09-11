@@ -48,6 +48,7 @@ type Node struct {
 	// - OSTRUCTKEY uses it to store the named field's offset.
 	// - Named OLITERALs use it to store their ambient iota value.
 	// - OINLMARK stores an index into the inlTree data structure.
+	// - OCLOSURE uses it to store ambient iota value, if any.
 	// Possibly still more uses. If you find any, document them.
 	Xoffset int64
 
