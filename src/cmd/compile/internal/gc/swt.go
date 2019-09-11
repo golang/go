@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 	"sort"
 )
 
@@ -80,6 +81,7 @@ func typecheckTypeSwitch(n *Node) {
 	}
 
 	var defCase, nilCase *Node
+	var ts typeSet
 	for _, ncase := range n.List.Slice() {
 		ls := ncase.List.Slice()
 		if len(ls) == 0 { // default:
@@ -120,6 +122,10 @@ func typecheckTypeSwitch(n *Node) {
 						" (missing %v method)", n.Left.Right, n1.Type, missing.Sym)
 				}
 			}
+
+			if n1.Op == OTYPE {
+				ts.add(ncase.Pos, n1.Type)
+			}
 		}
 
 		if ncase.Rlist.Len() != 0 {
@@ -149,6 +155,34 @@ func typecheckTypeSwitch(n *Node) {
 
 		typecheckslice(ncase.Nbody.Slice(), ctxStmt)
 	}
+}
+
+type typeSet struct {
+	m map[string][]typeSetEntry
+}
+
+type typeSetEntry struct {
+	pos src.XPos
+	typ *types.Type
+}
+
+func (s *typeSet) add(pos src.XPos, typ *types.Type) {
+	if s.m == nil {
+		s.m = make(map[string][]typeSetEntry)
+	}
+
+	// LongString does not uniquely identify types, so we need to
+	// disambiguate collisions with types.Identical.
+	// TODO(mdempsky): Add a method that *is* unique.
+	ls := typ.LongString()
+	prevs := s.m[ls]
+	for _, prev := range prevs {
+		if types.Identical(typ, prev.typ) {
+			yyerrorl(pos, "duplicate case %v in type switch\n\tprevious case at %s", typ, linestr(prev.pos))
+			return
+		}
+	}
+	s.m[ls] = append(prevs, typeSetEntry{pos, typ})
 }
 
 func typecheckExprSwitch(n *Node) {
@@ -599,39 +633,7 @@ func (s *typeSwitch) genCaseClauses(clauses []*Node) caseClauses {
 		cc.defjmp = nod(OBREAK, nil, nil)
 	}
 
-	// diagnose duplicate cases
-	s.checkDupCases(cc.list)
 	return cc
-}
-
-func (s *typeSwitch) checkDupCases(cc []caseClause) {
-	if len(cc) < 2 {
-		return
-	}
-	// We store seen types in a map keyed by type hash.
-	// It is possible, but very unlikely, for multiple distinct types to have the same hash.
-	seen := make(map[uint32][]*Node)
-	// To avoid many small allocations of length 1 slices,
-	// also set up a single large slice to slice into.
-	nn := make([]*Node, 0, len(cc))
-Outer:
-	for _, c := range cc {
-		prev, ok := seen[c.hash]
-		if !ok {
-			// First entry for this hash.
-			nn = append(nn, c.node)
-			seen[c.hash] = nn[len(nn)-1 : len(nn) : len(nn)]
-			continue
-		}
-		for _, n := range prev {
-			if types.Identical(n.Left.Type, c.node.Left.Type) {
-				yyerrorl(c.node.Pos, "duplicate case %v in type switch\n\tprevious case at %v", c.node.Left.Type, n.Line())
-				// avoid double-reporting errors
-				continue Outer
-			}
-		}
-		seen[c.hash] = append(seen[c.hash], c.node)
-	}
 }
 
 // walk generates an AST that implements sw,
