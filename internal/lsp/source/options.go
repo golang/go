@@ -29,8 +29,8 @@ var (
 		},
 		Completion: CompletionOptions{
 			Documentation: true,
-			Deep:          true,
-			FuzzyMatching: true,
+			Deep:          false,
+			FuzzyMatching: false,
 		},
 		DefaultViewOptions: ViewOptions{
 			Env: os.Environ(),
