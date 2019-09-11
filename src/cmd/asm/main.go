@@ -46,12 +46,11 @@ func main() {
 	architecture.Init(ctxt)
 
 	// Create object file, write header.
-	out, err := os.Create(*flags.OutputFile)
+	buf, err := bio.Create(*flags.OutputFile)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer bio.MustClose(out)
-	buf := bufio.NewWriter(bio.MustWriter(out))
+	defer buf.Close()
 
 	if !*flags.SymABIs {
 		fmt.Fprintf(buf, "go object %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version)
@@ -91,9 +90,8 @@ func main() {
 		} else {
 			log.Print("assembly failed")
 		}
-		out.Close()
+		buf.Close()
 		os.Remove(*flags.OutputFile)
 		os.Exit(1)
 	}
-	buf.Flush()
 }

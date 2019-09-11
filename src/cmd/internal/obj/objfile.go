@@ -8,6 +8,7 @@ package obj
 
 import (
 	"bufio"
+	"cmd/internal/bio"
 	"cmd/internal/dwarf"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
@@ -80,7 +81,8 @@ func newObjWriter(ctxt *Link, b *bufio.Writer, pkgpath string) *objWriter {
 	}
 }
 
-func WriteObjFile(ctxt *Link, b *bufio.Writer, pkgpath string) {
+func WriteObjFile(ctxt *Link, bout *bio.Writer, pkgpath string) {
+	b := bout.Writer
 	w := newObjWriter(ctxt, b, pkgpath)
 
 	// Magic header
