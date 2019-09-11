@@ -481,7 +481,11 @@ func textMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		e.WriteString("null")
 		return
 	}
-	m := v.Interface().(encoding.TextMarshaler)
+	m, ok := v.Interface().(encoding.TextMarshaler)
+	if !ok {
+		e.WriteString("null")
+		return
+	}
 	b, err := m.MarshalText()
 	if err != nil {
 		e.error(&MarshalerError{v.Type(), err})
