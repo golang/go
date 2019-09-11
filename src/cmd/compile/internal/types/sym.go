@@ -76,15 +76,24 @@ func (sym *Sym) LinksymName() string {
 	return sym.Pkg.Prefix + "." + sym.Name
 }
 
-func (sym *Sym) Linksym() *obj.LSym {
+func (sym *Sym) Linksym() (r *obj.LSym) {
 	if sym == nil {
 		return nil
 	}
 	if sym.Func() {
 		// This is a function symbol. Mark it as "internal ABI".
-		return Ctxt.LookupABI(sym.LinksymName(), obj.ABIInternal)
+		r = Ctxt.LookupABI(sym.LinksymName(), obj.ABIInternal)
+	} else {
+		r = Ctxt.Lookup(sym.LinksymName())
 	}
-	return Ctxt.Lookup(sym.LinksymName())
+	if r.Pkg == "" {
+		if sym.Linkname != "" {
+			r.Pkg = "_"
+		} else {
+			r.Pkg = sym.Pkg.Prefix
+		}
+	}
+	return
 }
 
 // Less reports whether symbol a is ordered before symbol b.

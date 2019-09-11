@@ -388,6 +388,10 @@ type LSym struct {
 	R      []Reloc
 
 	Func *FuncInfo
+
+	Pkg    string
+	PkgIdx int32
+	SymIdx int32 // TODO: replace RefIdx
 }
 
 // A FuncInfo contains extra fields for STEXT symbols.
@@ -460,7 +464,7 @@ const (
 )
 
 // Attribute is a set of symbol attributes.
-type Attribute uint16
+type Attribute uint32
 
 const (
 	AttrDuplicateOK Attribute = 1 << iota
@@ -501,6 +505,10 @@ const (
 	// keep unwinding beyond this frame.
 	AttrTopFrame
 
+	// Indexed indicates this symbol has been assigned with an index (when using the
+	// new object file format).
+	AttrIndexed
+
 	// attrABIBase is the value at which the ABI is encoded in
 	// Attribute. This must be last; all bits after this are
 	// assumed to be an ABI value.
@@ -524,6 +532,7 @@ func (a Attribute) NoFrame() bool       { return a&AttrNoFrame != 0 }
 func (a Attribute) Static() bool        { return a&AttrStatic != 0 }
 func (a Attribute) WasInlined() bool    { return a&AttrWasInlined != 0 }
 func (a Attribute) TopFrame() bool      { return a&AttrTopFrame != 0 }
+func (a Attribute) Indexed() bool       { return a&AttrIndexed != 0 }
 
 func (a *Attribute) Set(flag Attribute, value bool) {
 	if value {
@@ -558,6 +567,7 @@ var textAttrStrings = [...]struct {
 	{bit: AttrStatic, s: "STATIC"},
 	{bit: AttrWasInlined, s: ""},
 	{bit: AttrTopFrame, s: "TOPFRAME"},
+	{bit: AttrIndexed, s: ""},
 }
 
 // TextAttrString formats a for printing in as part of a TEXT prog.
@@ -626,6 +636,15 @@ type Pcdata struct {
 	P []byte
 }
 
+// Package Index.
+const (
+	PkgIdxNone    = (1<<31 - 1) - iota // Non-package symbols
+	PkgIdxBuiltin                      // Predefined symbols // TODO: not used for now, we could use it for compiler-generated symbols like runtime.newobject
+	PkgIdxSelf                         // Symbols defined in the current package
+	PkgIdxInvalid = 0
+	// The index of other referenced packages starts from 1.
+)
+
 // Link holds the context for writing object code from a compiler
 // to be linker input or for reading that input into the linker.
 type Link struct {
@@ -638,6 +657,7 @@ type Link struct {
 	Flag_dynlink       bool
 	Flag_optimize      bool
 	Flag_locationlists bool
+	Flag_newobj        bool // use new object file format
 	Bso                *bufio.Writer
 	Pathname           string
 	hashmu             sync.Mutex       // protects hash, funchash
@@ -671,6 +691,14 @@ type Link struct {
 	// TODO(austin): Replace this with ABI wrappers once the ABIs
 	// actually diverge.
 	ABIAliases []*LSym
+
+	// pkgIdx maps package path to index. The index is used for
+	// symbol reference in the object file.
+	pkgIdx map[string]int32
+
+	defs       []*LSym // list of defined symbols in the current package
+	nonpkgdefs []*LSym // list of defined non-package symbols
+	nonpkgrefs []*LSym // list of referenced non-package symbols
 }
 
 func (ctxt *Link) Diag(format string, args ...interface{}) {
