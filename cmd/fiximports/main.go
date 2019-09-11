@@ -58,7 +58,7 @@
 // The -baddomains flag is a list of domain names that should always be
 // considered non-canonical.  You can use this if you wish to make sure
 // that you no longer have any dependencies on packages from that
-// domain, even those that do not yet provide a canical import path
+// domain, even those that do not yet provide a canonical import path
 // comment.  For example, the default value of -baddomains includes the
 // moribund code hosting site code.google.com, so fiximports will report
 // an error for each import of a package from this domain remaining

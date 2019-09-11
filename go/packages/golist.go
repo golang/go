@@ -678,7 +678,7 @@ func golistDriver(cfg *Config, rootsDirs func() *goInfo, words ...string) (*driv
 		// go list -e, when given an absolute path, will find the package contained at
 		// that directory. But when no package exists there, it will return a fake package
 		// with an error and the ImportPath set to the absolute path provided to go list.
-		// Try toto convert that absolute path to what its package path would be if it's
+		// Try to convert that absolute path to what its package path would be if it's
 		// contained in a known module or GOPATH entry. This will allow the package to be
 		// properly "reclaimed" when overlays are processed.
 		if filepath.IsAbs(p.ImportPath) && p.Error != nil {

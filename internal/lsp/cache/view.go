@@ -364,7 +364,7 @@ func (f *goFile) invalidateContent(ctx context.Context) {
 	f.handle = nil
 }
 
-// invalidateMeta invalides package metadata for all files in f's
+// invalidateMeta invalidates package metadata for all files in f's
 // package. This forces f's package's metadata to be reloaded next
 // time the package is checked.
 func (f *goFile) invalidateMeta(ctx context.Context) {

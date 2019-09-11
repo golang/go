@@ -114,7 +114,7 @@ func (m *Matcher) SetInput(input Input) {
 }
 
 // Score returns the score returned by matching the candidate to the pattern.
-// This is not designed for parallel use. Multiple candidates must be scored sequentally.
+// This is not designed for parallel use. Multiple candidates must be scored sequentially.
 // Returns a score between 0 and 1 (0 - no match, 1 - perfect match).
 func (m *Matcher) Score(candidate string) float32 {
 	if len(candidate) > MaxInputSize {

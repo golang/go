@@ -58,7 +58,7 @@ func Foo() {
 
 	got := string(contents)
 	if got != want {
-		t.Errorf("contents of rewrtitten file\ngot: %s\nwant: %s", got, want)
+		t.Errorf("contents of rewritten file\ngot: %s\nwant: %s", got, want)
 	}
 
 	defer cleanup()

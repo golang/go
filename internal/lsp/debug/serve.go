@@ -357,7 +357,7 @@ var memoryTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 <tr><td class="label">Stack in use bytes</td><td class="value">{{fuint64 .StackInuse}}</td></tr>
 <tr><td class="label">Stack from system bytes</td><td class="value">{{fuint64 .StackSys}}</td></tr>
 <tr><td class="label">Bucket hash bytes</td><td class="value">{{fuint64 .BuckHashSys}}</td></tr>
-<tr><td class="label">GC metaata bytes</td><td class="value">{{fuint64 .GCSys}}</td></tr>
+<tr><td class="label">GC metadata bytes</td><td class="value">{{fuint64 .GCSys}}</td></tr>
 <tr><td class="label">Off heap bytes</td><td class="value">{{fuint64 .OtherSys}}</td></tr>
 </table>
 <h2>By size</h2>

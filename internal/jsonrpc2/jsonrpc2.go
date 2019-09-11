@@ -49,7 +49,7 @@ type Request struct {
 	WireRequest
 }
 
-// NewErrorf builds a Error struct for the suppied message and code.
+// NewErrorf builds a Error struct for the supplied message and code.
 // If args is not empty, message and args will be passed to Sprintf.
 func NewErrorf(code int64, format string, args ...interface{}) *Error {
 	return &Error{

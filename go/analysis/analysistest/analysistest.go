@@ -329,7 +329,7 @@ func (ex expectation) String() string {
 }
 
 // parseExpectations parses the content of a "// want ..." comment
-// and returns the expections, a mixture of diagnostics ("rx") and
+// and returns the expectations, a mixture of diagnostics ("rx") and
 // facts (name:"rx").
 func parseExpectations(text string) ([]expectation, error) {
 	var scanErr string

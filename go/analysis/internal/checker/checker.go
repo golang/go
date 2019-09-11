@@ -457,7 +457,7 @@ func printDiagnostics(roots []*action) (exitcode int) {
 		visitAll(roots)
 
 		if exitcode == 0 && len(seen) > 0 {
-			exitcode = 3 // successfuly produced diagnostics
+			exitcode = 3 // successfully produced diagnostics
 		}
 	}
 

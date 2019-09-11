@@ -46,7 +46,7 @@ func Packages(initial []*packages.Package, mode ssa.BuilderMode) (*ssa.Program, 
 //
 // AllPackages creates an SSA package for each well-typed package in the
 // initial list, plus all their dependencies. The resulting list of
-// packages corresponds to the list of intial packages, and may contain
+// packages corresponds to the list of initial packages, and may contain
 // a nil if SSA code could not be constructed for the corresponding
 // initial package due to type errors.
 //

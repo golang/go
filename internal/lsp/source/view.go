@@ -160,7 +160,7 @@ type Session interface {
 	// Cache returns the cache that created this session.
 	Cache() Cache
 
-	// View returns a view with a mathing name, if the session has one.
+	// View returns a view with a matching name, if the session has one.
 	View(name string) View
 
 	// ViewOf returns a view corresponding to the given URI.

@@ -2158,7 +2158,7 @@ func testAdHocContains(t *testing.T, exporter packagestest.Exporter) {
 		t.Fatalf("Imports of loaded package: want [fmt], got %v", pkg.Imports)
 	}
 	if len(pkg.GoFiles) != 1 || pkg.GoFiles[0] != filename {
-		t.Fatalf("GoFiles of loaded packge: want [%s], got %v", filename, pkg.GoFiles)
+		t.Fatalf("GoFiles of loaded package: want [%s], got %v", filename, pkg.GoFiles)
 	}
 }
 

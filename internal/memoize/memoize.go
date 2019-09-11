@@ -5,11 +5,11 @@
 // Package memoize supports memoizing the return values of functions with
 // idempotent results that are expensive to compute.
 //
-// The memoizied result is returned again the next time the function is invoked.
+// The memoized result is returned again the next time the function is invoked.
 // To prevent excessive memory use, the return values are only remembered
 // for as long as they still have a user.
 //
-// To use this package, build a store and use it to aquire handles with the
+// To use this package, build a store and use it to acquire handles with the
 // Bind method.
 //
 package memoize
@@ -49,7 +49,7 @@ type Handle struct {
 type entry struct {
 	noCopy
 	key interface{}
-	// mu contols access to the typ and ptr fields
+	// mu controls access to the typ and ptr fields
 	mu sync.Mutex
 	// the calculated value, as stored in an interface{}
 	typ, ptr uintptr

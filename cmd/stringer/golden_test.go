@@ -25,7 +25,7 @@ type Golden struct {
 	trimPrefix  string
 	lineComment bool
 	input       string // input; the package clause is provided when running the test.
-	output      string // exected output.
+	output      string // expected output.
 }
 
 var golden = []Golden{

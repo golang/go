@@ -376,7 +376,7 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 		return nil, fmt.Errorf("package %s does not contain %q", pkg.Path(), pkgobj)
 	}
 
-	// abtraction of *types.{Pointer,Slice,Array,Chan,Map}
+	// abstraction of *types.{Pointer,Slice,Array,Chan,Map}
 	type hasElem interface {
 		Elem() types.Type
 	}

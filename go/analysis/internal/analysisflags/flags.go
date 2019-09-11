@@ -209,7 +209,7 @@ func (versionFlag) Set(s string) error {
 		log.Fatalf("unsupported flag value: -V=%s", s)
 	}
 
-	// This replicates the miminal subset of
+	// This replicates the minimal subset of
 	// cmd/internal/objabi.AddVersionFlag, which is private to the
 	// go tool yet forms part of our command-line interface.
 	// TODO(adonovan): clarify the contract.

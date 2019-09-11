@@ -512,7 +512,7 @@ func (a *analysis) genAppend(instr *ssa.Call, cgn *cgnode) {
 	a.addressOf(instr.Type(), a.valueNode(z), w) //  z = &w
 }
 
-// genBuiltinCall generates contraints for a call to a built-in.
+// genBuiltinCall generates constraints for a call to a built-in.
 func (a *analysis) genBuiltinCall(instr ssa.CallInstruction, cgn *cgnode) {
 	call := instr.Common()
 	switch call.Value.(*ssa.Builtin).Name() {

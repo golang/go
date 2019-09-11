@@ -118,7 +118,7 @@ func (e *Exported) Expect(methods map[string]interface{}) error {
 	return nil
 }
 
-// Range is a type alias for span.Range for backwards compatability, prefer
+// Range is a type alias for span.Range for backwards compatibility, prefer
 // using span.Range directly.
 type Range = span.Range
 

@@ -42,7 +42,7 @@ func main() {
 	print() // want foo:
 	print() // want "\xZZ scan error"
 
-	// A dignostic is reported at this line, but the expectation doesn't match:
+	// A diagnostic is reported at this line, but the expectation doesn't match:
 	println("hello, world") // want "wrong expectation text"
 
 	// An unexpected diagnostic is reported at this line:

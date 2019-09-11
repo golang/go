@@ -281,7 +281,7 @@ FindTo:
 		//
 		// If the previous token was a "." and we are looking at a "}",
 		// the period is likely a dangling selector and needs a phantom
-		// "_". Likewise if the currnet token is on a different line than
+		// "_". Likewise if the current token is on a different line than
 		// the period, the period is likely a dangling selector.
 		if lastToken == token.PERIOD && (tkn == token.RBRACE || tok.Line(to) > tok.Line(last)) {
 			// Insert phantom "_" selector after the dangling ".".

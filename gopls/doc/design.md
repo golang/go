@@ -189,7 +189,7 @@ It could run as a daemon on the user's machine, but there are a lot of issues wi
 Persistent disk caches are very expensive to maintain, and require solving a lot of extra problems.
 Although building the information required is expensive compared to the latencies required of the requests, it is fairly minor compared to the startup times of an editor, so it is expected that rebuilding the information when gopls is restarted will be acceptable.
 
-The advantage gained from this is that gopls becomes stateless across restarts which means if it has issues or gets its state confused, a simle restart will often fix the problem.
+The advantage gained from this is that gopls becomes stateless across restarts which means if it has issues or gets its state confused, a simple restart will often fix the problem.
 It also means that when users report problems, the entire state of the on disk cache is not needed to diagnose and reproduce the issue.
 
 ### Communication: *stdin/stdout JSON*

@@ -245,7 +245,7 @@ func equalType(x, y types.Type) error {
 			return fmt.Errorf("results: %s", err)
 		}
 		if x.Variadic() != y.Variadic() {
-			return fmt.Errorf("unequal varidicity: %t vs %t",
+			return fmt.Errorf("unequal variadicity: %t vs %t",
 				x.Variadic(), y.Variadic())
 		}
 		if (x.Recv() != nil) != (y.Recv() != nil) {

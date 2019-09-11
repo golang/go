@@ -881,7 +881,7 @@ func (p *Presentation) writeNode(w io.Writer, pageInfo *PageInfo, fset *token.Fi
 		log.Print(err)
 	}
 
-	// Add comments to struct fields saying which Go version introducd them.
+	// Add comments to struct fields saying which Go version introduced them.
 	if structName != "" {
 		fieldSince := apiInfo.fieldSince[structName]
 		typeSince := apiInfo.typeSince[structName]

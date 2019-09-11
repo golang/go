@@ -46,7 +46,7 @@ func TestFormat(t *testing.T) {
 			for fi, format := range []string{"%v", "%#v", "%+v"} {
 				expect := toPath(test[fi])
 				if got := fmt.Sprintf(format, complete); got != expect {
-					t.Errorf("printing completeted %q as %q got %q expected %q [%+v]", text, format, got, expect, spn)
+					t.Errorf("printing completed %q as %q got %q expected %q [%+v]", text, format, got, expect, spn)
 				}
 			}
 		}

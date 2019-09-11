@@ -110,7 +110,7 @@ code review systems to suggest fixes that users can apply from their code review
 
 ### Performing transformations directly on the AST
 
-Even though it may be more convienient
+Even though it may be more convenient
 for authors of refactorings to perform transformations directly on
 the AST, allowing mutations on the AST would mean that a copy of the AST
 would need to be made every time a transformation was produced, to avoid

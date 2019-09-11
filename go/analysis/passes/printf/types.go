@@ -234,7 +234,7 @@ func matchStructArgType(pass *analysis.Pass, t printfArgType, typ *types.Struct,
 			return false
 		}
 		if t&argString != 0 && !typf.Exported() && isConvertibleToString(pass, typf.Type()) {
-			// Issue #17798: unexported Stringer or error cannot be properly fomatted.
+			// Issue #17798: unexported Stringer or error cannot be properly formatted.
 			return false
 		}
 	}

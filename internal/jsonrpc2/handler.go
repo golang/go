@@ -8,7 +8,7 @@ import (
 	"context"
 )
 
-// Handler is the interface used to hook into the mesage handling of an rpc
+// Handler is the interface used to hook into the message handling of an rpc
 // connection.
 type Handler interface {
 	// Deliver is invoked to handle incoming requests.

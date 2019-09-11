@@ -170,7 +170,7 @@ type completer struct {
 	// surrounding describes the identifier surrounding the position.
 	surrounding *Selection
 
-	// expectedType conains information about the type we expect the completion
+	// expectedType contains information about the type we expect the completion
 	// candidate to be. It will be the zero value if no information is available.
 	expectedType typeInference
 

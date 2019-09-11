@@ -130,7 +130,7 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			}
 
 			// If deep completion is enabled, we need to use the fuzzy matcher to match
-			// the code's behvaior.
+			// the code's behavior.
 			if deepComplete {
 				if fuzzyMatcher != nil && fuzzyMatcher.Score(item.Label) < 0 {
 					continue

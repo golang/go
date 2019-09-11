@@ -55,7 +55,7 @@ import (
 )
 
 // A Constraint records the fact that the RHS type does and must
-// satisify the LHS type, which is an interface.
+// satisfy the LHS type, which is an interface.
 // The names are suggestive of an assignment statement LHS = RHS.
 type Constraint struct {
 	LHS, RHS types.Type

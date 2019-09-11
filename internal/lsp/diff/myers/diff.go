@@ -139,7 +139,7 @@ func Operations(a, b []string) []*Op {
 
 // backtrack uses the trace for the edit sequence computation and returns the
 // "snakes" that make up the solution. A "snake" is a single deletion or
-// insertion followed by zero or diagnonals.
+// insertion followed by zero or diagonals.
 func backtrack(trace [][]int, x, y, offset int) [][]int {
 	snakes := make([][]int, len(trace))
 	d := len(trace) - 1

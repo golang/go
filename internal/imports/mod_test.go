@@ -586,7 +586,7 @@ type modTest struct {
 	cleanup  func()
 }
 
-// setup builds a test enviroment from a txtar and supporting modules
+// setup builds a test environment from a txtar and supporting modules
 // in testdata/mod, along the lines of TestScript in cmd/go.
 func setup(t *testing.T, main, wd string) *modTest {
 	t.Helper()

@@ -397,7 +397,7 @@ func digraph(cmd string, args []string) error {
 
 	case "transpose":
 		if len(args) != 0 {
-			return fmt.Errorf("usage: digraph tranpose")
+			return fmt.Errorf("usage: digraph transpose")
 		}
 		var revEdges []string
 		for node, succs := range g.transpose() {

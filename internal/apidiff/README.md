@@ -265,7 +265,7 @@ var x = C          // old type is int64, new is int
 var y int64 = x // fails with new: different types in assignment
 ```
 
-A change to the value of a constant can break compatiblity if the value is used
+A change to the value of a constant can break compatibility if the value is used
 in an array type:
 
 ```

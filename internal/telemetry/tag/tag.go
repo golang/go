@@ -18,7 +18,7 @@ import (
 //TODO: Do we need to do something more efficient than just store tags
 //TODO: directly on the context?
 
-// Tagger is the interface to somthing that returns a Tag given a context.
+// Tagger is the interface to something that returns a Tag given a context.
 // Both Tag itself and Key support this interface, allowing methods that can
 // take either (and other implementations as well)
 type Tagger interface {

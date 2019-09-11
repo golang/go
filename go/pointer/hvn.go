@@ -89,7 +89,7 @@ package pointer
 //   their expanded-out sets are equal.
 // * HR (HVN with deReference---see paper): this will require that we
 //   apply HVN until fixed point, which may need more bookkeeping of the
-//   correspondance of main nodes to onodes.
+//   correspondence of main nodes to onodes.
 // * Location Equivalence (see paper): have points-to sets contain not
 //   locations but location-equivalence class labels, each representing
 //   a set of locations.
