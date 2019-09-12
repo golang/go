@@ -23,14 +23,20 @@ import (
 )
 
 func waitSig(t *testing.T, c <-chan os.Signal, sig os.Signal) {
-	select {
-	case s := <-c:
-		if s != sig {
-			t.Fatalf("signal was %v, want %v", s, sig)
+	// Sleep multiple times to give the kernel more tries to
+	// deliver the signal.
+	for i := 0; i < 10; i++ {
+		select {
+		case s := <-c:
+			if s != sig {
+				t.Fatalf("signal was %v, want %v", s, sig)
+			}
+			return
+
+		case <-time.After(100 * time.Millisecond):
 		}
-	case <-time.After(1 * time.Second):
-		t.Fatalf("timeout waiting for %v", sig)
 	}
+	t.Fatalf("timeout waiting for %v", sig)
 }
 
 // Test that basic signal handling works.
@@ -268,7 +274,15 @@ func TestStop(t *testing.T) {
 		if sig == syscall.SIGWINCH || (sig == syscall.SIGHUP && *sendUncaughtSighup == 1) {
 			syscall.Kill(syscall.Getpid(), sig)
 		}
-		time.Sleep(100 * time.Millisecond)
+
+		// The kernel will deliver a signal as a thread returns
+		// from a syscall. If the only active thread is sleeping,
+		// and the system is busy, the kernel may not get around
+		// to waking up a thread to catch the signal.
+		// We try splitting up the sleep to give the kernel
+		// another chance to deliver the signal.
+		time.Sleep(50 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 
 		// Ask for signal
 		c := make(chan os.Signal, 1)
@@ -280,10 +294,11 @@ func TestStop(t *testing.T) {
 		waitSig(t, c, sig)
 
 		Stop(c)
+		time.Sleep(50 * time.Millisecond)
 		select {
 		case s := <-c:
 			t.Fatalf("unexpected signal %v", s)
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(50 * time.Millisecond):
 			// nothing to read - good
 		}
 
@@ -294,10 +309,11 @@ func TestStop(t *testing.T) {
 			syscall.Kill(syscall.Getpid(), sig)
 		}
 
+		time.Sleep(50 * time.Millisecond)
 		select {
 		case s := <-c:
 			t.Fatalf("unexpected signal %v", s)
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(50 * time.Millisecond):
 			// nothing to read - good
 		}
 	}
