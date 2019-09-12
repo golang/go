@@ -127,7 +127,7 @@ func constptr11() *ConstPtr {
 	return p
 }
 
-func foo(p **int) { // ERROR "foo p does not escape"
+func foo(p **int) { // ERROR "p does not escape"
 	i := 0 // ERROR "moved to heap: i"
 	y := p
 	*y = &i

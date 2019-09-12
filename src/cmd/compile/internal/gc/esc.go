@@ -392,7 +392,7 @@ func moveToHeap(n *Node) {
 	n.Name.Param.Heapaddr = heapaddr
 	n.Esc = EscHeap
 	if Debug['m'] != 0 {
-		fmt.Printf("%v: moved to heap: %v\n", n.Line(), n)
+		Warnl(n.Pos, "moved to heap: %v", n)
 	}
 }
 
@@ -422,7 +422,7 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 		// argument and pass those annotations along to importing code.
 		if f.Type.Etype == TUINTPTR {
 			if Debug['m'] != 0 {
-				Warnl(fn.Pos, "%v assuming %v is unsafe uintptr", funcSym(fn), name())
+				Warnl(f.Pos, "assuming %v is unsafe uintptr", name())
 			}
 			return unsafeUintptrTag
 		}
@@ -435,13 +435,13 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 		// //go:noescape is given before the declaration.
 		if fn.Noescape() {
 			if Debug['m'] != 0 && f.Sym != nil {
-				Warnl(fn.Pos, "%S %v does not escape", funcSym(fn), name())
+				Warnl(f.Pos, "%v does not escape", name())
 			}
 			return mktag(EscNone)
 		}
 
 		if Debug['m'] != 0 && f.Sym != nil {
-			Warnl(fn.Pos, "leaking param: %v", name())
+			Warnl(f.Pos, "leaking param: %v", name())
 		}
 		return mktag(EscHeap)
 	}
@@ -449,14 +449,14 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 	if fn.Func.Pragma&UintptrEscapes != 0 {
 		if f.Type.Etype == TUINTPTR {
 			if Debug['m'] != 0 {
-				Warnl(fn.Pos, "%v marking %v as escaping uintptr", funcSym(fn), name())
+				Warnl(f.Pos, "marking %v as escaping uintptr", name())
 			}
 			return uintptrEscapesTag
 		}
 		if f.IsDDD() && f.Type.Elem().Etype == TUINTPTR {
 			// final argument is ...uintptr.
 			if Debug['m'] != 0 {
-				Warnl(fn.Pos, "%v marking %v as escaping ...uintptr", funcSym(fn), name())
+				Warnl(f.Pos, "marking %v as escaping ...uintptr", name())
 			}
 			return uintptrEscapesTag
 		}
@@ -477,17 +477,17 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 
 	if Debug['m'] != 0 && !loc.escapes {
 		if esc == EscNone {
-			Warnl(n.Pos, "%S %S does not escape", funcSym(fn), n)
+			Warnl(f.Pos, "%v does not escape", name())
 		} else if esc == EscHeap {
-			Warnl(n.Pos, "leaking param: %S", n)
+			Warnl(f.Pos, "leaking param: %v", name())
 		} else {
 			if esc&EscContentEscapes != 0 {
-				Warnl(n.Pos, "leaking param content: %S", n)
+				Warnl(f.Pos, "leaking param content: %v", name())
 			}
 			for i := 0; i < numEscReturns; i++ {
 				if x := getEscReturn(esc, i); x >= 0 {
-					res := n.Name.Curfn.Type.Results().Field(i).Sym
-					Warnl(n.Pos, "leaking param: %S to result %v level=%d", n, res, x)
+					res := fn.Type.Results().Field(i).Sym
+					Warnl(f.Pos, "leaking param: %v to result %v level=%d", name(), res, x)
 				}
 			}
 		}

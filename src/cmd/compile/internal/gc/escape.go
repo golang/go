@@ -1289,7 +1289,7 @@ func (e *Escape) finish(fns []*Node) {
 			addrescapes(n)
 		} else {
 			if Debug['m'] != 0 && n.Op != ONAME && n.Op != OTYPESW && n.Op != ORANGE && n.Op != ODEFER {
-				Warnl(n.Pos, "%S %S does not escape", funcSym(loc.curfn), n)
+				Warnl(n.Pos, "%S does not escape", n)
 			}
 			n.Esc = EscNone
 			if loc.transient {
