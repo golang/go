@@ -28,7 +28,7 @@ func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
 	}
-	defer os.Remove(dir)
+	defer os.RemoveAll(dir)
 
 	// build go dll
 	dll := filepath.Join(dir, "testwinlib.dll")
