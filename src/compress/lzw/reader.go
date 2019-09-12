@@ -199,6 +199,9 @@ loop:
 		}
 		d.last, d.hi = code, d.hi+1
 		if d.hi >= d.overflow {
+			if d.hi > d.overflow {
+				panic("unreachable")
+			}
 			if d.width == maxWidth {
 				d.last = decoderInvalidCode
 				// Undo the d.hi++ a few lines above, so that (1) we maintain
@@ -207,7 +210,7 @@ loop:
 				d.hi--
 			} else {
 				d.width++
-				d.overflow <<= 1
+				d.overflow = 1 << d.width
 			}
 		}
 		if d.o >= flushBuffer {
