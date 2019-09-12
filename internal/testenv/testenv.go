@@ -75,7 +75,11 @@ func NeedsGoPackages(t Testing) {
 	}
 
 	tool := os.Getenv("GOPACKAGESDRIVER")
-	if tool == "" {
+	switch tool {
+	case "off":
+		// "off" forces go/packages to use the go command.
+		tool = "go"
+	case "":
 		if _, err := exec.LookPath("gopackagesdriver"); err == nil {
 			tool = "gopackagesdriver"
 		} else {
