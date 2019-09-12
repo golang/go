@@ -30,8 +30,8 @@ var (
 		},
 		Completion: CompletionOptions{
 			Documentation: true,
-			Deep:          false,
-			FuzzyMatching: false,
+			Deep:          true,
+			FuzzyMatching: true,
 		},
 	}
 )
