@@ -940,6 +940,16 @@ func invokeGo(cfg *Config, args ...string) (*bytes.Buffer, error) {
 			return bytes.NewBufferString(output), nil
 		}
 
+		// Workaround for #34273. go list -e with GO111MODULE=on has incorrect behavior when listing a
+		// directory outside any module.
+		if len(stderr.String()) > 0 && strings.Contains(stderr.String(), "outside available modules") {
+			output := fmt.Sprintf(`{"ImportPath": %q,"Incomplete": true,"Error": {"Pos": "","Err": %q}}`,
+				// TODO(matloob): command-line-arguments isn't correct here.
+				"command-line-arguments", strings.Trim(stderr.String(), "\n"))
+			return bytes.NewBufferString(output), nil
+
+		}
+
 		// Workaround for an instance of golang.org/issue/26755: go list -e  will return a non-zero exit
 		// status if there's a dependency on a package that doesn't exist. But it should return
 		// a zero exit status and set an error on that package.
