@@ -488,6 +488,37 @@ func TestAtoi(t *testing.T) {
 	}
 }
 
+func TestAtou(t *testing.T) {
+	switch IntSize {
+	case 32:
+		for i := range parseUint32Tests {
+			test := &parseUint32Tests[i]
+			out, err := Atou(test.in)
+			var testErr error
+			if test.err != nil {
+				testErr = &NumError{"Atou", test.in, test.err.(*NumError).Err}
+			}
+			if uint(test.out) != out || !reflect.DeepEqual(testErr, err) {
+				t.Errorf("Atou(%q) = %v, %v want %v, %v",
+					test.in, out, err, test.out, testErr)
+			}
+		}
+	case 64:
+		for i := range parseUint64Tests {
+			test := &parseUint64Tests[i]
+			out, err := Atou(test.in)
+			var testErr error
+			if test.err != nil {
+				testErr = &NumError{"Atou", test.in, test.err.(*NumError).Err}
+			}
+			if test.out != uint64(out) || !reflect.DeepEqual(testErr, err) {
+				t.Errorf("Atou(%q) = %v, %v want %v, %v",
+					test.in, out, err, test.out, testErr)
+			}
+		}
+	}
+}
+
 func bitSizeErrStub(name string, bitSize int) error {
 	return BitSizeError(name, "0", bitSize)
 }

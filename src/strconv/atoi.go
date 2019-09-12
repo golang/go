@@ -218,6 +218,33 @@ func ParseInt(s string, base int, bitSize int) (i int64, err error) {
 	return n, nil
 }
 
+// Atou is equivalent to ParseUint(s, 10, 0), converted to type uint.
+func Atou(s string) (uint, error) {
+	const fnAtou = "Atou"
+
+	sLen := len(s)
+	if intSize == 32 && (0 < sLen && sLen < 10) ||
+		intSize == 64 && (0 < sLen && sLen < 19) {
+		// Fast path for small integers that fit uint type.
+		un := uint(0)
+		for _, ch := range []byte(s) {
+			ch -= '0'
+			if ch > 9 {
+				return uint(0), &NumError{fnAtou, s, ErrSyntax}
+			}
+			un = un*10 + uint(ch)
+		}
+		return un, nil
+	}
+
+	// Slow path for invalid, big, or underscored integers.
+	un64, err := ParseUint(s, 10, 0)
+	if nerr, ok := err.(*NumError); ok {
+		nerr.Func = fnAtou
+	}
+	return uint(un64), err
+}
+
 // Atoi is equivalent to ParseInt(s, 10, 0), converted to type int.
 func Atoi(s string) (int, error) {
 	const fnAtoi = "Atoi"
