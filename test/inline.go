@@ -95,15 +95,15 @@ func p() int {
 }
 
 func q(x int) int {
-	foo := func() int { return x * 2 } // ERROR "can inline q.func1" "q func literal does not escape"
+	foo := func() int { return x * 2 } // ERROR "can inline q.func1" "func literal does not escape"
 	return foo()                       // ERROR "inlining call to q.func1"
 }
 
 func r(z int) int {
-	foo := func(x int) int { // ERROR "can inline r.func1" "r func literal does not escape"
+	foo := func(x int) int { // ERROR "can inline r.func1" "func literal does not escape"
 		return x + z
 	}
-	bar := func(x int) int { // ERROR "r func literal does not escape"
+	bar := func(x int) int { // ERROR "func literal does not escape"
 		return x + func(y int) int { // ERROR "can inline r.func2.1"
 			return 2*y + x*z
 		}(x) // ERROR "inlining call to r.func2.1"
@@ -112,7 +112,7 @@ func r(z int) int {
 }
 
 func s0(x int) int {
-	foo := func() { // ERROR "can inline s0.func1" "s0 func literal does not escape"
+	foo := func() { // ERROR "can inline s0.func1" "func literal does not escape"
 		x = x + 1
 	}
 	foo() // ERROR "inlining call to s0.func1"
@@ -120,7 +120,7 @@ func s0(x int) int {
 }
 
 func s1(x int) int {
-	foo := func() int { // ERROR "can inline s1.func1" "s1 func literal does not escape"
+	foo := func() int { // ERROR "can inline s1.func1" "func literal does not escape"
 		return x
 	}
 	x = x + 1
@@ -145,7 +145,7 @@ func switchBreak(x, y int) int {
 }
 
 // can't currently inline functions with a type switch
-func switchType(x interface{}) int { // ERROR "switchType x does not escape"
+func switchType(x interface{}) int { // ERROR "x does not escape"
 	switch x.(type) {
 	case int:
 		return x.(int)
