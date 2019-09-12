@@ -4,13 +4,13 @@
 
 // Lowering arithmetic
 (Add(64|32|16|8|Ptr) x y) -> (I64Add x y)
-(Add(64|32)F x y) -> (F64Add x y)
+(Add(64|32)F x y) -> (F(64|32)Add x y)
 
 (Sub(64|32|16|8|Ptr) x y) -> (I64Sub x y)
-(Sub(64|32)F x y) -> (F64Sub x y)
+(Sub(64|32)F x y) -> (F(64|32)Sub x y)
 
 (Mul(64|32|16|8) x y) -> (I64Mul x y)
-(Mul(64|32)F x y) -> (F64Mul x y)
+(Mul(64|32)F x y) -> (F(64|32)Mul x y)
 
 (Div64  x y) -> (I64DivS x y)
 (Div64u x y) -> (I64DivU x y)
@@ -20,7 +20,7 @@
 (Div16u x y) -> (I64DivU (ZeroExt16to64 x) (ZeroExt16to64 y))
 (Div8   x y) -> (I64DivS (SignExt8to64 x) (SignExt8to64 y))
 (Div8u  x y) -> (I64DivU (ZeroExt8to64 x) (ZeroExt8to64 y))
-(Div(64|32)F x y) -> (F64Div x y)
+(Div(64|32)F x y) -> (F(64|32)Div x y)
 
 (Mod64  x y) -> (I64RemS x y)
 (Mod64u x y) -> (I64RemU x y)
@@ -38,8 +38,7 @@
 (Xor(64|32|16|8) x y) -> (I64Xor x y)
 
 (Neg(64|32|16|8) x) -> (I64Sub (I64Const [0]) x)
-(Neg32F x) -> (F64Neg x)
-(Neg64F x) -> (F64Neg x)
+(Neg(64|32)F x) -> (F(64|32)Neg x)
 
 (Com(64|32|16|8) x) -> (I64Xor x (I64Const [-1]))
 
@@ -75,28 +74,24 @@
 (Trunc16to8         x) -> x
 
 // Lowering float <-> int
-(Cvt32to32F x) -> (LoweredRound32F (F64ConvertI64S (SignExt32to64 x)))
-(Cvt32to64F x) -> (F64ConvertI64S (SignExt32to64 x))
-(Cvt64to32F x) -> (LoweredRound32F (F64ConvertI64S x))
-(Cvt64to64F x) -> (F64ConvertI64S x)
-(Cvt32Uto32F x) -> (LoweredRound32F (F64ConvertI64U (ZeroExt32to64 x)))
-(Cvt32Uto64F x) -> (F64ConvertI64U (ZeroExt32to64 x))
-(Cvt64Uto32F x) -> (LoweredRound32F (F64ConvertI64U x))
-(Cvt64Uto64F x) -> (F64ConvertI64U x)
+(Cvt32to(64|32)F x) -> (F(64|32)ConvertI64S (SignExt32to64 x))
+(Cvt64to(64|32)F x) -> (F(64|32)ConvertI64S x)
+(Cvt32Uto(64|32)F x) -> (F(64|32)ConvertI64U (ZeroExt32to64 x))
+(Cvt64Uto(64|32)F x) -> (F(64|32)ConvertI64U x)
 
-(Cvt32Fto32 x) -> (I64TruncSatF64S x)
-(Cvt32Fto64 x) -> (I64TruncSatF64S x)
+(Cvt32Fto32 x) -> (I64TruncSatF32S x)
+(Cvt32Fto64 x) -> (I64TruncSatF32S x)
 (Cvt64Fto32 x) -> (I64TruncSatF64S x)
 (Cvt64Fto64 x) -> (I64TruncSatF64S x)
-(Cvt32Fto32U x) -> (I64TruncSatF64U x)
-(Cvt32Fto64U x) -> (I64TruncSatF64U x)
+(Cvt32Fto32U x) -> (I64TruncSatF32U x)
+(Cvt32Fto64U x) -> (I64TruncSatF32U x)
 (Cvt64Fto32U x) -> (I64TruncSatF64U x)
 (Cvt64Fto64U x) -> (I64TruncSatF64U x)
 
-(Cvt32Fto64F x) -> x
-(Cvt64Fto32F x) -> (LoweredRound32F x)
+(Cvt32Fto64F x) -> (F64PromoteF32 x)
+(Cvt64Fto32F x) -> (F32DemoteF64 x)
 
-(Round32F x) -> (LoweredRound32F x)
+(Round32F x) -> x
 (Round64F x) -> x
 
 // Lowering shifts
@@ -165,8 +160,7 @@
 (Less32U x y) -> (I64LtU (ZeroExt32to64 x) (ZeroExt32to64 y))
 (Less16U x y) -> (I64LtU (ZeroExt16to64 x) (ZeroExt16to64 y))
 (Less8U  x y) -> (I64LtU (ZeroExt8to64  x) (ZeroExt8to64  y))
-(Less64F x y) -> (F64Lt x y)
-(Less32F x y) -> (F64Lt (LoweredRound32F x) (LoweredRound32F y))
+(Less(64|32)F x y) -> (F(64|32)Lt x y)
 
 (Leq64  x y) -> (I64LeS x y)
 (Leq32  x y) -> (I64LeS (SignExt32to64 x) (SignExt32to64 y))
@@ -176,8 +170,7 @@
 (Leq32U x y) -> (I64LeU (ZeroExt32to64 x) (ZeroExt32to64 y))
 (Leq16U x y) -> (I64LeU (ZeroExt16to64 x) (ZeroExt16to64 y))
 (Leq8U  x y) -> (I64LeU (ZeroExt8to64  x) (ZeroExt8to64  y))
-(Leq64F x y) -> (F64Le x y)
-(Leq32F x y) -> (F64Le (LoweredRound32F x) (LoweredRound32F y))
+(Leq(64|32)F x y) -> (F(64|32)Le x y)
 
 (Greater64  x y) -> (I64GtS x y)
 (Greater32  x y) -> (I64GtS (SignExt32to64 x) (SignExt32to64 y))
@@ -187,8 +180,7 @@
 (Greater32U x y) -> (I64GtU (ZeroExt32to64 x) (ZeroExt32to64 y))
 (Greater16U x y) -> (I64GtU (ZeroExt16to64 x) (ZeroExt16to64 y))
 (Greater8U  x y) -> (I64GtU (ZeroExt8to64  x) (ZeroExt8to64  y))
-(Greater64F x y) -> (F64Gt x y)
-(Greater32F x y) -> (F64Gt (LoweredRound32F x) (LoweredRound32F y))
+(Greater(64|32)F x y) -> (F(64|32)Gt x y)
 
 (Geq64  x y) -> (I64GeS x y)
 (Geq32  x y) -> (I64GeS (SignExt32to64 x) (SignExt32to64 y))
@@ -198,8 +190,7 @@
 (Geq32U x y) -> (I64GeU (ZeroExt32to64 x) (ZeroExt32to64 y))
 (Geq16U x y) -> (I64GeU (ZeroExt16to64 x) (ZeroExt16to64 y))
 (Geq8U  x y) -> (I64GeU (ZeroExt8to64  x) (ZeroExt8to64  y))
-(Geq64F x y) -> (F64Ge x y)
-(Geq32F x y) -> (F64Ge (LoweredRound32F x) (LoweredRound32F y))
+(Geq(64|32)F x y) -> (F(64|32)Ge x y)
 
 (Eq64  x y) -> (I64Eq x y)
 (Eq32  x y) -> (I64Eq (ZeroExt32to64 x) (ZeroExt32to64 y))
@@ -207,8 +198,7 @@
 (Eq8   x y) -> (I64Eq (ZeroExt8to64  x) (ZeroExt8to64  y))
 (EqB   x y) -> (I64Eq x y)
 (EqPtr x y) -> (I64Eq x y)
-(Eq64F x y) -> (F64Eq x y)
-(Eq32F x y) -> (F64Eq (LoweredRound32F x) (LoweredRound32F y))
+(Eq(64|32)F x y) -> (F(64|32)Eq x y)
 
 (Neq64  x y) -> (I64Ne x y)
 (Neq32  x y) -> (I64Ne (ZeroExt32to64 x) (ZeroExt32to64 y))
@@ -216,8 +206,7 @@
 (Neq8   x y) -> (I64Ne (ZeroExt8to64  x) (ZeroExt8to64  y))
 (NeqB   x y) -> (I64Ne x y)
 (NeqPtr x y) -> (I64Ne x y)
-(Neq64F x y) -> (F64Ne x y)
-(Neq32F x y) -> (F64Ne (LoweredRound32F x) (LoweredRound32F y))
+(Neq(64|32)F x y) -> (F(64|32)Ne x y)
 
 // Lowering loads
 (Load <t> ptr mem) && is32BitFloat(t) -> (F32Load ptr mem)
@@ -327,7 +316,7 @@
 
 // Lowering constants
 (Const(64|32|16|8) [val]) -> (I64Const [val])
-(Const(64|32)F [val]) -> (F64Const [val])
+(Const(64|32)F [val]) -> (F(64|32)Const [val])
 (ConstNil) -> (I64Const [0])
 (ConstBool [b]) -> (I64Const [b])
 

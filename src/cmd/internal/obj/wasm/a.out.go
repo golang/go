@@ -266,7 +266,7 @@ const (
 	REG_RET3
 	REG_PAUSE
 
-	// locals
+	// i32 locals
 	REG_R0
 	REG_R1
 	REG_R2
@@ -283,6 +283,8 @@ const (
 	REG_R13
 	REG_R14
 	REG_R15
+
+	// f32 locals
 	REG_F0
 	REG_F1
 	REG_F2
@@ -299,6 +301,24 @@ const (
 	REG_F13
 	REG_F14
 	REG_F15
+
+	// f64 locals
+	REG_F16
+	REG_F17
+	REG_F18
+	REG_F19
+	REG_F20
+	REG_F21
+	REG_F22
+	REG_F23
+	REG_F24
+	REG_F25
+	REG_F26
+	REG_F27
+	REG_F28
+	REG_F29
+	REG_F30
+	REG_F31
 
 	REG_PC_B // also first parameter, i32
 
