@@ -495,18 +495,12 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 			return m, err
 		}
 
-		// Key ends at first colon; should not have trailing spaces
-		// but they appear in the wild, violating specs, so we remove
-		// them if present.
+		// Key ends at first colon.
 		i := bytes.IndexByte(kv, ':')
 		if i < 0 {
 			return m, ProtocolError("malformed MIME header line: " + string(kv))
 		}
-		endKey := i
-		for endKey > 0 && kv[endKey-1] == ' ' {
-			endKey--
-		}
-		key := canonicalMIMEHeaderKey(kv[:endKey])
+		key := canonicalMIMEHeaderKey(kv[:i])
 
 		// As per RFC 7230 field-name is a token, tokens consist of one or more chars.
 		// We could return a ProtocolError here, but better to be liberal in what we
