@@ -1,0 +1,140 @@
+<!--{
+        "Title": "Go 1.14 Release Notes",
+        "Path":  "/doc/go1.14",
+        "Template": true
+}-->
+
+<!--
+NOTE: In this document and others in this directory, the convention is to
+set fixed-width phrases with non-fixed-width spaces, as in
+<code>hello</code> <code>world</code>.
+Do not send CLs removing the interior tags from such phrases.
+-->
+
+<style>
+  main ul li { margin: 0.5em 0; }
+</style>
+
+<h2 id="introduction">DRAFT RELEASE NOTES — Introduction to Go 1.14</h2>
+
+<p>
+  <strong>
+    Go 1.14 is not yet released. These are work-in-progress
+    release notes. Go 1.14 is expected to be released in February 2020.
+  </strong>
+</p>
+
+<h2 id="language">Changes to the language</h2>
+
+<p>
+TODO
+</p>
+
+<h2 id="ports">Ports</h2>
+
+<p>
+TODO
+</p>
+
+<h3 id="nacl">Native Client (NaCl)</h3>
+
+<p><!-- golang.org/issue/30439 -->
+  As <a href="go1.13#ports">announced</a> in the Go 1.13 release notes,
+  Go 1.14 drops support for the Native Client platform (<code>GOOS=nacl</code>).
+</p>
+
+<h2 id="tools">Tools</h2>
+
+<p>
+TODO
+</p>
+
+<h3 id="go-command">Go command</h3>
+
+<p><!-- golang.org/issue/30748 -->
+  The <code>go</code> command now includes snippets of plain-text error messages
+  from module proxies and other HTTP servers.
+  An error message will only be shown if it is valid UTF-8 and consists of only
+  graphic characters and spaces.
+</p>
+
+<h2 id="runtime">Runtime</h2>
+
+<p>
+TODO
+</p>
+
+
+<h2 id="library">Core library</h2>
+
+<p>
+TODO
+</p>
+
+<dl id="bytes/hash"><dt><a href="/pkg/bytes/hash/">bytes/hash</a></dt>
+  <dd>
+    <p><!-- CL 186877 -->
+      TODO: <a href="https://golang.org/cl/186877">https://golang.org/cl/186877</a>: add hashing package for bytes and strings
+    </p>
+
+</dl><!-- bytes/hash -->
+
+<dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+  <dd>
+    <p><!-- CL 191976 -->
+      TODO: <a href="https://golang.org/cl/191976">https://golang.org/cl/191976</a>: remove SSLv3 support
+    </p>
+
+    <p><!-- CL 191999 -->
+      TODO: <a href="https://golang.org/cl/191999">https://golang.org/cl/191999</a>: remove TLS 1.3 opt-out
+    </p>
+
+</dl><!-- crypto/tls -->
+
+<dl id="encoding/asn1"><dt><a href="/pkg/encoding/asn1/">encoding/asn1</a></dt>
+  <dd>
+    <p><!-- CL 126624 -->
+      TODO: <a href="https://golang.org/cl/126624">https://golang.org/cl/126624</a>: handle ASN1&#39;s string type BMPString
+    </p>
+
+</dl><!-- encoding/asn1 -->
+
+<dl id="mime"><dt><a href="/pkg/mime/">mime</a></dt>
+  <dd>
+    <p><!-- CL 186927 -->
+      TODO: <a href="https://golang.org/cl/186927">https://golang.org/cl/186927</a>: update type of .js and .mjs files to text/javascript
+    </p>
+
+</dl><!-- mime -->
+
+<dl id="plugin"><dt><a href="/pkg/plugin/">plugin</a></dt>
+  <dd>
+    <p><!-- CL 191617 -->
+      TODO: <a href="https://golang.org/cl/191617">https://golang.org/cl/191617</a>: add freebsd/amd64 plugin support
+    </p>
+
+</dl><!-- plugin -->
+
+<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+  <dd>
+    <p><!-- CL 187739 -->
+      TODO: <a href="https://golang.org/cl/187739">https://golang.org/cl/187739</a>: treat CTRL_CLOSE_EVENT, CTRL_LOGOFF_EVENT, CTRL_SHUTDOWN_EVENT as SIGTERM on Windows
+    </p>
+
+    <p><!-- CL 188297 -->
+      TODO: <a href="https://golang.org/cl/188297">https://golang.org/cl/188297</a>: don&#39;t forward SIGPIPE on macOS
+    </p>
+
+</dl><!-- runtime -->
+
+<h3 id="minor_library_changes">Minor changes to the library</h3>
+
+<p>
+  As always, there are various minor changes and updates to the library,
+  made with the Go 1 <a href="/doc/go1compat">promise of compatibility</a>
+  in mind.
+</p>
+
+<p>
+TODO
+</p>
