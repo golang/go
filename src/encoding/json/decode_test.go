@@ -949,6 +949,37 @@ var unmarshalTests = []unmarshalTest{
 			Offset: 29,
 		},
 	},
+	// #14702
+	{
+		in:  `invalid`,
+		ptr: new(Number),
+		err: &SyntaxError{
+			msg:    "invalid character 'i' looking for beginning of value",
+			Offset: 1,
+		},
+	},
+	{
+		in:  `"invalid"`,
+		ptr: new(Number),
+		err: fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
+	},
+	{
+		in:  `{"A":"invalid"}`,
+		ptr: new(struct{ A Number }),
+		err: fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
+	},
+	{
+		in: `{"A":"invalid"}`,
+		ptr: new(struct {
+			A Number `json:",string"`
+		}),
+		err: fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into json.Number", `invalid`),
+	},
+	{
+		in:  `{"A":"invalid"}`,
+		ptr: new(map[string]Number),
+		err: fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
+	},
 }
 
 func TestMarshal(t *testing.T) {
