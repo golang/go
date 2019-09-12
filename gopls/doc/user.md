@@ -34,7 +34,7 @@ go: cannot use path@version syntax in GOPATH mode
 ```
 then run
 ```sh
-GO111MODULE=on go get golang.org/x/tools gopls@latest
+GO111MODULE=on go get golang.org/x/tools/gopls@latest
 ```
 
 
