@@ -76,13 +76,15 @@ type StringTag struct {
 	IntStr     int64   `json:",string"`
 	UintptrStr uintptr `json:",string"`
 	StrStr     string  `json:",string"`
+	NumberStr  Number  `json:",string"`
 }
 
 var stringTagExpected = `{
  "BoolStr": "true",
  "IntStr": "42",
  "UintptrStr": "44",
- "StrStr": "\"xzbit\""
+ "StrStr": "\"xzbit\"",
+ "NumberStr": "46"
 }`
 
 func TestStringTag(t *testing.T) {
@@ -91,6 +93,7 @@ func TestStringTag(t *testing.T) {
 	s.IntStr = 42
 	s.UintptrStr = 44
 	s.StrStr = "xzbit"
+	s.NumberStr = "46"
 	got, err := MarshalIndent(&s, "", " ")
 	if err != nil {
 		t.Fatal(err)
