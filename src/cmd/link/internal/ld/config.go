@@ -228,40 +228,34 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 // so the ctxt.LinkMode variable has an initial value from the -linkmode
 // flag and the iscgo externalobj variables are set.
 func determineLinkMode(ctxt *Link) {
-	switch ctxt.LinkMode {
-	case LinkAuto:
+	extNeeded, extReason := mustLinkExternal(ctxt)
+	via := ""
+
+	if ctxt.LinkMode == LinkAuto {
 		// The environment variable GO_EXTLINK_ENABLED controls the
 		// default value of -linkmode. If it is not set when the
 		// linker is called we take the value it was set to when
 		// cmd/link was compiled. (See make.bash.)
 		switch objabi.Getgoextlinkenabled() {
 		case "0":
-			if needed, reason := mustLinkExternal(ctxt); needed {
-				Exitf("internal linking requested via GO_EXTLINK_ENABLED, but external linking required: %s", reason)
-			}
 			ctxt.LinkMode = LinkInternal
+			via = "via GO_EXTLINK_ENABLED "
 		case "1":
-			if objabi.GOARCH == "ppc64" && objabi.GOOS != "aix" {
-				Exitf("external linking requested via GO_EXTLINK_ENABLED but not supported for %s/ppc64", objabi.GOOS)
-			}
 			ctxt.LinkMode = LinkExternal
+			via = "via GO_EXTLINK_ENABLED "
 		default:
-			if needed, _ := mustLinkExternal(ctxt); needed {
-				ctxt.LinkMode = LinkExternal
-			} else if iscgo && externalobj {
-				ctxt.LinkMode = LinkExternal
-			} else if ctxt.BuildMode == BuildModePIE {
+			if extNeeded || (iscgo && externalobj) || ctxt.BuildMode == BuildModePIE {
 				ctxt.LinkMode = LinkExternal
 			} else {
 				ctxt.LinkMode = LinkInternal
 			}
-			if objabi.GOARCH == "ppc64" && objabi.GOOS != "aix" && ctxt.LinkMode == LinkExternal {
-				Exitf("external linking is not supported for %s/ppc64", objabi.GOOS)
-			}
 		}
+	}
+
+	switch ctxt.LinkMode {
 	case LinkInternal:
-		if needed, reason := mustLinkExternal(ctxt); needed {
-			Exitf("internal linking requested but external linking required: %s", reason)
+		if extNeeded {
+			Exitf("internal linking requested %sbut external linking required: %s", via, extReason)
 		}
 	case LinkExternal:
 		if objabi.GOARCH == "ppc64" && objabi.GOOS != "aix" {
