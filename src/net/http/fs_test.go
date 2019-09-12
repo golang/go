@@ -1285,6 +1285,28 @@ func (d fileServerCleanPathDir) Open(path string) (File, error) {
 
 type panicOnSeek struct{ io.ReadSeeker }
 
+func Test_copyNIgnoreWriteError(t *testing.T) {
+	e := errors.New("io error")
+	tests := []struct {
+		name    string
+		dst     io.Writer
+		src     io.Reader
+		n       int64
+		wantErr error
+	}{
+		{"short read", ioutil.Discard, new(bytes.Buffer), 1, io.EOF},
+		{"read err", ioutil.Discard, errorReader{e}, 1, e},
+		{"no err", ioutil.Discard, strings.NewReader("content"), 3, nil},
+		{"write err", &net.IPConn{}, strings.NewReader("content"), 3, nil},
+	}
+	for _, test := range tests {
+		err := ExportCopyNIgnoreWriteError(test.dst, test.src, test.n)
+		if err != test.wantErr {
+			t.Errorf("%s copyNIgnoreWriteError got %v, want %v", test.name, err, test.wantErr)
+		}
+	}
+}
+
 func Test_scanETag(t *testing.T) {
 	tests := []struct {
 		in         string

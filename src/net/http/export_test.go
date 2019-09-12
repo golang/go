@@ -29,6 +29,7 @@ var (
 	ExportErrRequestCanceledConn      = errRequestCanceledConn
 	ExportErrServerClosedIdle         = errServerClosedIdle
 	ExportServeFile                   = serveFile
+	ExportCopyNIgnoreWriteError       = copyNIgnoreWriteError
 	ExportScanETag                    = scanETag
 	ExportHttp2ConfigureServer        = http2ConfigureServer
 	Export_shouldCopyHeaderOnRedirect = shouldCopyHeaderOnRedirect
