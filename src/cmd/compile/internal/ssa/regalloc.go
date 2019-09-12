@@ -792,7 +792,13 @@ func (s *regAllocState) compatRegs(t *types.Type) regMask {
 		return 0
 	}
 	if t.IsFloat() || t == types.TypeInt128 {
-		m = s.f.Config.fpRegMask
+		if t.Etype == types.TFLOAT32 && s.f.Config.fp32RegMask != 0 {
+			m = s.f.Config.fp32RegMask
+		} else if t.Etype == types.TFLOAT64 && s.f.Config.fp64RegMask != 0 {
+			m = s.f.Config.fp64RegMask
+		} else {
+			m = s.f.Config.fpRegMask
+		}
 	} else {
 		m = s.f.Config.gpRegMask
 	}
@@ -2220,13 +2226,8 @@ func (e *edgeState) erase(loc Location) {
 // findRegFor finds a register we can use to make a temp copy of type typ.
 func (e *edgeState) findRegFor(typ *types.Type) Location {
 	// Which registers are possibilities.
-	var m regMask
 	types := &e.s.f.Config.Types
-	if typ.IsFloat() {
-		m = e.s.compatRegs(types.Float64)
-	} else {
-		m = e.s.compatRegs(types.Int64)
-	}
+	m := e.s.compatRegs(typ)
 
 	// Pick a register. In priority order:
 	// 1) an unused register

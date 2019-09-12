@@ -59,6 +59,23 @@ var Register = map[string]int16{
 	"F14": REG_F14,
 	"F15": REG_F15,
 
+	"F16": REG_F16,
+	"F17": REG_F17,
+	"F18": REG_F18,
+	"F19": REG_F19,
+	"F20": REG_F20,
+	"F21": REG_F21,
+	"F22": REG_F22,
+	"F23": REG_F23,
+	"F24": REG_F24,
+	"F25": REG_F25,
+	"F26": REG_F26,
+	"F27": REG_F27,
+	"F28": REG_F28,
+	"F29": REG_F29,
+	"F30": REG_F30,
+	"F31": REG_F31,
+
 	"PC_B": REG_PC_B,
 }
 
@@ -841,7 +858,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		regs := []int16{REG_SP}
-		for reg := int16(REG_R0); reg <= REG_F15; reg++ {
+		for reg := int16(REG_R0); reg <= REG_F31; reg++ {
 			if regUsed[reg-MINREG] {
 				regs = append(regs, reg)
 			}
@@ -1022,6 +1039,11 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			}
 			writeSleb128(w, p.From.Offset)
 
+		case AF32Const:
+			b := make([]byte, 4)
+			binary.LittleEndian.PutUint32(b, math.Float32bits(float32(p.From.Val.(float64))))
+			w.Write(b)
+
 		case AF64Const:
 			b := make([]byte, 8)
 			binary.LittleEndian.PutUint64(b, math.Float64bits(p.From.Val.(float64)))
@@ -1106,6 +1128,8 @@ func regType(reg int16) valueType {
 	case reg >= REG_R0 && reg <= REG_R15:
 		return i64
 	case reg >= REG_F0 && reg <= REG_F15:
+		return f32
+	case reg >= REG_F16 && reg <= REG_F31:
 		return f64
 	default:
 		panic("invalid register")

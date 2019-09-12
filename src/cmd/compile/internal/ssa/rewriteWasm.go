@@ -617,11 +617,11 @@ func rewriteValueWasm_OpAdd32_0(v *Value) bool {
 func rewriteValueWasm_OpAdd32F_0(v *Value) bool {
 	// match: (Add32F x y)
 	// cond:
-	// result: (F64Add x y)
+	// result: (F32Add x y)
 	for {
 		y := v.Args[1]
 		x := v.Args[0]
-		v.reset(OpWasmF64Add)
+		v.reset(OpWasmF32Add)
 		v.AddArg(x)
 		v.AddArg(y)
 		return true
@@ -909,10 +909,10 @@ func rewriteValueWasm_OpConst32_0(v *Value) bool {
 func rewriteValueWasm_OpConst32F_0(v *Value) bool {
 	// match: (Const32F [val])
 	// cond:
-	// result: (F64Const [val])
+	// result: (F32Const [val])
 	for {
 		val := v.AuxInt
-		v.reset(OpWasmF64Const)
+		v.reset(OpWasmF32Const)
 		v.AuxInt = val
 		return true
 	}
@@ -1111,10 +1111,10 @@ func rewriteValueWasm_OpCtz8NonZero_0(v *Value) bool {
 func rewriteValueWasm_OpCvt32Fto32_0(v *Value) bool {
 	// match: (Cvt32Fto32 x)
 	// cond:
-	// result: (I64TruncSatF64S x)
+	// result: (I64TruncSatF32S x)
 	for {
 		x := v.Args[0]
-		v.reset(OpWasmI64TruncSatF64S)
+		v.reset(OpWasmI64TruncSatF32S)
 		v.AddArg(x)
 		return true
 	}
@@ -1122,10 +1122,10 @@ func rewriteValueWasm_OpCvt32Fto32_0(v *Value) bool {
 func rewriteValueWasm_OpCvt32Fto32U_0(v *Value) bool {
 	// match: (Cvt32Fto32U x)
 	// cond:
-	// result: (I64TruncSatF64U x)
+	// result: (I64TruncSatF32U x)
 	for {
 		x := v.Args[0]
-		v.reset(OpWasmI64TruncSatF64U)
+		v.reset(OpWasmI64TruncSatF32U)
 		v.AddArg(x)
 		return true
 	}
@@ -1133,10 +1133,10 @@ func rewriteValueWasm_OpCvt32Fto32U_0(v *Value) bool {
 func rewriteValueWasm_OpCvt32Fto64_0(v *Value) bool {
 	// match: (Cvt32Fto64 x)
 	// cond:
-	// result: (I64TruncSatF64S x)
+	// result: (I64TruncSatF32S x)
 	for {
 		x := v.Args[0]
-		v.reset(OpWasmI64TruncSatF64S)
+		v.reset(OpWasmI64TruncSatF32S)
 		v.AddArg(x)
 		return true
 	}
@@ -1144,11 +1144,10 @@ func rewriteValueWasm_OpCvt32Fto64_0(v *Value) bool {
 func rewriteValueWasm_OpCvt32Fto64F_0(v *Value) bool {
 	// match: (Cvt32Fto64F x)
 	// cond:
-	// result: x
+	// result: (F64PromoteF32 x)
 	for {
 		x := v.Args[0]
-		v.reset(OpCopy)
-		v.Type = x.Type
+		v.reset(OpWasmF64PromoteF32)
 		v.AddArg(x)
 		return true
 	}
@@ -1156,10 +1155,10 @@ func rewriteValueWasm_OpCvt32Fto64F_0(v *Value) bool {
 func rewriteValueWasm_OpCvt32Fto64U_0(v *Value) bool {
 	// match: (Cvt32Fto64U x)
 	// cond:
-	// result: (I64TruncSatF64U x)
+	// result: (I64TruncSatF32U x)
 	for {
 		x := v.Args[0]
-		v.reset(OpWasmI64TruncSatF64U)
+		v.reset(OpWasmI64TruncSatF32U)
 		v.AddArg(x)
 		return true
 	}
@@ -1169,14 +1168,12 @@ func rewriteValueWasm_OpCvt32Uto32F_0(v *Value) bool {
 	typ := &b.Func.Config.Types
 	// match: (Cvt32Uto32F x)
 	// cond:
-	// result: (LoweredRound32F (F64ConvertI64U (ZeroExt32to64 x)))
+	// result: (F32ConvertI64U (ZeroExt32to64 x))
 	for {
 		x := v.Args[0]
-		v.reset(OpWasmLoweredRound32F)
-		v0 := b.NewValue0(v.Pos, OpWasmF64ConvertI64U, typ.Float64)
-		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
-		v1.AddArg(x)
-		v0.AddArg(v1)
+		v.reset(OpWasmF32ConvertI64U)
+		v0 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -1201,14 +1198,12 @@ func rewriteValueWasm_OpCvt32to32F_0(v *Value) bool {
 	typ := &b.Func.Config.Types
 	// match: (Cvt32to32F x)
 	// cond:
-	// result: (LoweredRound32F (F64ConvertI64S (SignExt32to64 x)))
+	// result: (F32ConvertI64S (SignExt32to64 x))
 	for {
 		x := v.Args[0]
-		v.reset(OpWasmLoweredRound32F)
-		v0 := b.NewValue0(v.Pos, OpWasmF64ConvertI64S, typ.Float64)
-		v1 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
-		v1.AddArg(x)
-		v0.AddArg(v1)
+		v.reset(OpWasmF32ConvertI64S)
+		v0 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -1242,10 +1237,10 @@ func rewriteValueWasm_OpCvt64Fto32_0(v *Value) bool {
 func rewriteValueWasm_OpCvt64Fto32F_0(v *Value) bool {
 	// match: (Cvt64Fto32F x)
 	// cond:
-	// result: (LoweredRound32F x)
+	// result: (F32DemoteF64 x)
 	for {
 		x := v.Args[0]
-		v.reset(OpWasmLoweredRound32F)
+		v.reset(OpWasmF32DemoteF64)
 		v.AddArg(x)
 		return true
 	}
@@ -1284,17 +1279,13 @@ func rewriteValueWasm_OpCvt64Fto64U_0(v *Value) bool {
 	}
 }
 func rewriteValueWasm_OpCvt64Uto32F_0(v *Value) bool {
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (Cvt64Uto32F x)
 	// cond:
-	// result: (LoweredRound32F (F64ConvertI64U x))
+	// result: (F32ConvertI64U x)
 	for {
 		x := v.Args[0]
-		v.reset(OpWasmLoweredRound32F)
-		v0 := b.NewValue0(v.Pos, OpWasmF64ConvertI64U, typ.Float64)
-		v0.AddArg(x)
-		v.AddArg(v0)
+		v.reset(OpWasmF32ConvertI64U)
+		v.AddArg(x)
 		return true
 	}
 }
@@ -1310,17 +1301,13 @@ func rewriteValueWasm_OpCvt64Uto64F_0(v *Value) bool {
 	}
 }
 func rewriteValueWasm_OpCvt64to32F_0(v *Value) bool {
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (Cvt64to32F x)
 	// cond:
-	// result: (LoweredRound32F (F64ConvertI64S x))
+	// result: (F32ConvertI64S x)
 	for {
 		x := v.Args[0]
-		v.reset(OpWasmLoweredRound32F)
-		v0 := b.NewValue0(v.Pos, OpWasmF64ConvertI64S, typ.Float64)
-		v0.AddArg(x)
-		v.AddArg(v0)
+		v.reset(OpWasmF32ConvertI64S)
+		v.AddArg(x)
 		return true
 	}
 }
@@ -1395,11 +1382,11 @@ func rewriteValueWasm_OpDiv32_0(v *Value) bool {
 func rewriteValueWasm_OpDiv32F_0(v *Value) bool {
 	// match: (Div32F x y)
 	// cond:
-	// result: (F64Div x y)
+	// result: (F32Div x y)
 	for {
 		y := v.Args[1]
 		x := v.Args[0]
-		v.reset(OpWasmF64Div)
+		v.reset(OpWasmF32Div)
 		v.AddArg(x)
 		v.AddArg(y)
 		return true
@@ -1540,21 +1527,15 @@ func rewriteValueWasm_OpEq32_0(v *Value) bool {
 	}
 }
 func rewriteValueWasm_OpEq32F_0(v *Value) bool {
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (Eq32F x y)
 	// cond:
-	// result: (F64Eq (LoweredRound32F x) (LoweredRound32F y))
+	// result: (F32Eq x y)
 	for {
 		y := v.Args[1]
 		x := v.Args[0]
-		v.reset(OpWasmF64Eq)
-		v0 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
-		v1.AddArg(y)
-		v.AddArg(v1)
+		v.reset(OpWasmF32Eq)
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
 }
@@ -1698,21 +1679,15 @@ func rewriteValueWasm_OpGeq32_0(v *Value) bool {
 	}
 }
 func rewriteValueWasm_OpGeq32F_0(v *Value) bool {
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (Geq32F x y)
 	// cond:
-	// result: (F64Ge (LoweredRound32F x) (LoweredRound32F y))
+	// result: (F32Ge x y)
 	for {
 		y := v.Args[1]
 		x := v.Args[0]
-		v.reset(OpWasmF64Ge)
-		v0 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
-		v1.AddArg(y)
-		v.AddArg(v1)
+		v.reset(OpWasmF32Ge)
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
 }
@@ -1897,21 +1872,15 @@ func rewriteValueWasm_OpGreater32_0(v *Value) bool {
 	}
 }
 func rewriteValueWasm_OpGreater32F_0(v *Value) bool {
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (Greater32F x y)
 	// cond:
-	// result: (F64Gt (LoweredRound32F x) (LoweredRound32F y))
+	// result: (F32Gt x y)
 	for {
 		y := v.Args[1]
 		x := v.Args[0]
-		v.reset(OpWasmF64Gt)
-		v0 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
-		v1.AddArg(y)
-		v.AddArg(v1)
+		v.reset(OpWasmF32Gt)
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
 }
@@ -2125,21 +2094,15 @@ func rewriteValueWasm_OpLeq32_0(v *Value) bool {
 	}
 }
 func rewriteValueWasm_OpLeq32F_0(v *Value) bool {
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (Leq32F x y)
 	// cond:
-	// result: (F64Le (LoweredRound32F x) (LoweredRound32F y))
+	// result: (F32Le x y)
 	for {
 		y := v.Args[1]
 		x := v.Args[0]
-		v.reset(OpWasmF64Le)
-		v0 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
-		v1.AddArg(y)
-		v.AddArg(v1)
+		v.reset(OpWasmF32Le)
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
 }
@@ -2297,21 +2260,15 @@ func rewriteValueWasm_OpLess32_0(v *Value) bool {
 	}
 }
 func rewriteValueWasm_OpLess32F_0(v *Value) bool {
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (Less32F x y)
 	// cond:
-	// result: (F64Lt (LoweredRound32F x) (LoweredRound32F y))
+	// result: (F32Lt x y)
 	for {
 		y := v.Args[1]
 		x := v.Args[0]
-		v.reset(OpWasmF64Lt)
-		v0 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
-		v1.AddArg(y)
-		v.AddArg(v1)
+		v.reset(OpWasmF32Lt)
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
 }
@@ -3410,11 +3367,11 @@ func rewriteValueWasm_OpMul32_0(v *Value) bool {
 func rewriteValueWasm_OpMul32F_0(v *Value) bool {
 	// match: (Mul32F x y)
 	// cond:
-	// result: (F64Mul x y)
+	// result: (F32Mul x y)
 	for {
 		y := v.Args[1]
 		x := v.Args[0]
-		v.reset(OpWasmF64Mul)
+		v.reset(OpWasmF32Mul)
 		v.AddArg(x)
 		v.AddArg(y)
 		return true
@@ -3494,10 +3451,10 @@ func rewriteValueWasm_OpNeg32_0(v *Value) bool {
 func rewriteValueWasm_OpNeg32F_0(v *Value) bool {
 	// match: (Neg32F x)
 	// cond:
-	// result: (F64Neg x)
+	// result: (F32Neg x)
 	for {
 		x := v.Args[0]
-		v.reset(OpWasmF64Neg)
+		v.reset(OpWasmF32Neg)
 		v.AddArg(x)
 		return true
 	}
@@ -3584,21 +3541,15 @@ func rewriteValueWasm_OpNeq32_0(v *Value) bool {
 	}
 }
 func rewriteValueWasm_OpNeq32F_0(v *Value) bool {
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (Neq32F x y)
 	// cond:
-	// result: (F64Ne (LoweredRound32F x) (LoweredRound32F y))
+	// result: (F32Ne x y)
 	for {
 		y := v.Args[1]
 		x := v.Args[0]
-		v.reset(OpWasmF64Ne)
-		v0 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
-		v1.AddArg(y)
-		v.AddArg(v1)
+		v.reset(OpWasmF32Ne)
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
 }
@@ -3924,10 +3875,11 @@ func rewriteValueWasm_OpRotateLeft8_0(v *Value) bool {
 func rewriteValueWasm_OpRound32F_0(v *Value) bool {
 	// match: (Round32F x)
 	// cond:
-	// result: (LoweredRound32F x)
+	// result: x
 	for {
 		x := v.Args[0]
-		v.reset(OpWasmLoweredRound32F)
+		v.reset(OpCopy)
+		v.Type = x.Type
 		v.AddArg(x)
 		return true
 	}
@@ -5124,11 +5076,11 @@ func rewriteValueWasm_OpSub32_0(v *Value) bool {
 func rewriteValueWasm_OpSub32F_0(v *Value) bool {
 	// match: (Sub32F x y)
 	// cond:
-	// result: (F64Sub x y)
+	// result: (F32Sub x y)
 	for {
 		y := v.Args[1]
 		x := v.Args[0]
-		v.reset(OpWasmF64Sub)
+		v.reset(OpWasmF32Sub)
 		v.AddArg(x)
 		v.AddArg(y)
 		return true
