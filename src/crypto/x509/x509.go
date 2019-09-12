@@ -2052,6 +2052,7 @@ var emptyASN1Subject = []byte{0x30, 0}
 //  - ExcludedURIDomains
 //  - ExtKeyUsage
 //  - ExtraExtensions
+//  - IPAddresses
 //  - IsCA
 //  - IssuingCertificateURL
 //  - KeyUsage
