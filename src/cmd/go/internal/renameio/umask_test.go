@@ -19,6 +19,7 @@ func TestWriteFileModeAppliesUmask(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temporary directory: %v", err)
 	}
+	defer os.RemoveAll(dir)
 
 	const mode = 0644
 	const umask = 0007
@@ -29,7 +30,6 @@ func TestWriteFileModeAppliesUmask(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to write file: %v", err)
 	}
-	defer os.RemoveAll(dir)
 
 	fi, err := os.Stat(file)
 	if err != nil {
