@@ -15,28 +15,6 @@ import (
 	"strings"
 )
 
-// iselOp encodes mapping of comparison operations onto ISEL operands
-type iselOp struct {
-	cond        int64
-	valueIfCond int // if cond is true, the value to return (0 or 1)
-}
-
-// Input registers to ISEL used for comparison. Index 0 is zero, 1 is (will be) 1
-var iselRegs = [2]int16{ppc64.REG_R0, ppc64.REGTMP}
-
-var iselOps = map[ssa.Op]iselOp{
-	ssa.OpPPC64Equal:         {cond: ppc64.C_COND_EQ, valueIfCond: 1},
-	ssa.OpPPC64NotEqual:      {cond: ppc64.C_COND_EQ, valueIfCond: 0},
-	ssa.OpPPC64LessThan:      {cond: ppc64.C_COND_LT, valueIfCond: 1},
-	ssa.OpPPC64GreaterEqual:  {cond: ppc64.C_COND_LT, valueIfCond: 0},
-	ssa.OpPPC64GreaterThan:   {cond: ppc64.C_COND_GT, valueIfCond: 1},
-	ssa.OpPPC64LessEqual:     {cond: ppc64.C_COND_GT, valueIfCond: 0},
-	ssa.OpPPC64FLessThan:     {cond: ppc64.C_COND_LT, valueIfCond: 1},
-	ssa.OpPPC64FGreaterThan:  {cond: ppc64.C_COND_GT, valueIfCond: 1},
-	ssa.OpPPC64FLessEqual:    {cond: ppc64.C_COND_LT, valueIfCond: 1}, // 2 comparisons, 2nd is EQ
-	ssa.OpPPC64FGreaterEqual: {cond: ppc64.C_COND_GT, valueIfCond: 1}, // 2 comparisons, 2nd is EQ
-}
-
 // markMoves marks any MOVXconst ops that need to avoid clobbering flags.
 func ssaMarkMoves(s *gc.SSAGenState, b *ssa.Block) {
 	//	flive := b.FlagsLiveAtEnd
@@ -118,17 +96,6 @@ func storeByType(t *types.Type) obj.As {
 		}
 	}
 	panic("bad store type")
-}
-
-func ssaGenISEL(s *gc.SSAGenState, v *ssa.Value, cr int64, r1, r2 int16) {
-	r := v.Reg()
-	p := s.Prog(ppc64.AISEL)
-	p.To.Type = obj.TYPE_REG
-	p.To.Reg = r
-	p.Reg = r1
-	p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: r2})
-	p.From.Type = obj.TYPE_CONST
-	p.From.Offset = cr
 }
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
@@ -843,43 +810,32 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
 
-	case ssa.OpPPC64Equal,
-		ssa.OpPPC64NotEqual,
-		ssa.OpPPC64LessThan,
-		ssa.OpPPC64FLessThan,
-		ssa.OpPPC64LessEqual,
-		ssa.OpPPC64GreaterThan,
-		ssa.OpPPC64FGreaterThan,
-		ssa.OpPPC64GreaterEqual:
-
-		// On Power7 or later, can use isel instruction:
-		// for a < b, a > b, a = b:
-		//   rtmp := 1
-		//   isel rt,rtmp,r0,cond // rt is target in ppc asm
-
-		// for  a >= b, a <= b, a != b:
-		//   rtmp := 1
-		//   isel rt,0,rtmp,!cond // rt is target in ppc asm
-
-		p := s.Prog(ppc64.AMOVD)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 1
+	case ssa.OpPPC64ISEL, ssa.OpPPC64ISELB:
+		// ISEL, ISELB
+		// AuxInt value indicates condition: 0=LT 1=GT 2=EQ 4=GE 5=LE 6=NE
+		// ISEL only accepts 0, 1, 2 condition values but the others can be
+		// achieved by swapping operand order.
+		// arg0 ? arg1 : arg2 with conditions LT, GT, EQ
+		// arg0 ? arg2 : arg1 for conditions GE, LE, NE
+		// ISELB is used when a boolean result is needed, returning 0 or 1
+		p := s.Prog(ppc64.AISEL)
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = iselRegs[1]
-		iop := iselOps[v.Op]
-		ssaGenISEL(s, v, iop.cond, iselRegs[iop.valueIfCond], iselRegs[1-iop.valueIfCond])
-
-	case ssa.OpPPC64FLessEqual, // These include a second branch for EQ -- dealing with NaN prevents REL= to !REL conversion
-		ssa.OpPPC64FGreaterEqual:
-
-		p := s.Prog(ppc64.AMOVD)
+		p.To.Reg = v.Reg()
+		// For ISELB, boolean result 0 or 1. Use R0 for 0 operand to avoid load.
+		r := obj.Addr{Type: obj.TYPE_REG, Reg: ppc64.REG_R0}
+		if v.Op == ssa.OpPPC64ISEL {
+			r.Reg = v.Args[1].Reg()
+		}
+		// AuxInt values 4,5,6 implemented with reverse operand order from 0,1,2
+		if v.AuxInt > 3 {
+			p.Reg = r.Reg
+			p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[0].Reg()})
+		} else {
+			p.Reg = v.Args[0].Reg()
+			p.SetFrom3(r)
+		}
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 1
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = iselRegs[1]
-		iop := iselOps[v.Op]
-		ssaGenISEL(s, v, iop.cond, iselRegs[iop.valueIfCond], iselRegs[1-iop.valueIfCond])
-		ssaGenISEL(s, v, ppc64.C_COND_EQ, iselRegs[1], v.Reg())
+		p.From.Offset = v.AuxInt & 3
 
 	case ssa.OpPPC64LoweredZero:
 
@@ -1265,6 +1221,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			gc.Warnl(v.Pos, "generated nil check")
 		}
 
+	// These should be resolved by rules and not make it here.
+	case ssa.OpPPC64Equal, ssa.OpPPC64NotEqual, ssa.OpPPC64LessThan, ssa.OpPPC64FLessThan,
+		ssa.OpPPC64LessEqual, ssa.OpPPC64GreaterThan, ssa.OpPPC64FGreaterThan, ssa.OpPPC64GreaterEqual,
+		ssa.OpPPC64FLessEqual, ssa.OpPPC64FGreaterEqual:
+		v.Fatalf("Pseudo-op should not make it to codegen: %s ###\n", v.LongString())
 	case ssa.OpPPC64InvertFlags:
 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
 	case ssa.OpPPC64FlagEQ, ssa.OpPPC64FlagLT, ssa.OpPPC64FlagGT:
