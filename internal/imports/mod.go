@@ -313,7 +313,7 @@ func (r *ModuleResolver) scan(_ references) ([]*pkg, error) {
 
 		// The rest of this function canonicalizes the packages using the results
 		// of initializing the resolver from 'go list -m'.
-		res, err := r.canonicalize(info.nonCanonicalImportPath, info.dir, info.needsReplace)
+		res, err := r.canonicalize(root.Type, info.nonCanonicalImportPath, info.dir, info.needsReplace)
 		if err != nil {
 			return
 		}
@@ -335,7 +335,7 @@ func (r *ModuleResolver) scan(_ references) ([]*pkg, error) {
 			continue
 		}
 
-		res, err := r.canonicalize(info.nonCanonicalImportPath, info.dir, info.needsReplace)
+		res, err := r.canonicalize(gopathwalk.RootModuleCache, info.nonCanonicalImportPath, info.dir, info.needsReplace)
 		if err != nil {
 			continue
 		}
@@ -347,7 +347,15 @@ func (r *ModuleResolver) scan(_ references) ([]*pkg, error) {
 
 // canonicalize gets the result of canonicalizing the packages using the results
 // of initializing the resolver from 'go list -m'.
-func (r *ModuleResolver) canonicalize(importPath, dir string, needsReplace bool) (res *pkg, err error) {
+func (r *ModuleResolver) canonicalize(rootType gopathwalk.RootType, importPath, dir string, needsReplace bool) (res *pkg, err error) {
+	// Packages in GOROOT are already canonical, regardless of the std/cmd modules.
+	if rootType == gopathwalk.RootGOROOT {
+		return &pkg{
+			importPathShort: importPath,
+			dir:             dir,
+		}, nil
+	}
+
 	// Check if the directory is underneath a module that's in scope.
 	if mod := r.findModuleByDir(dir); mod != nil {
 		// It is. If dir is the target of a replace directive,

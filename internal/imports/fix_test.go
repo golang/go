@@ -7,6 +7,7 @@ package imports
 import (
 	"flag"
 	"fmt"
+	"go/build"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -1538,6 +1539,39 @@ func TestFindStdlib(t *testing.T) {
 	}
 }
 
+// https://golang.org/issue/31814
+func TestStdlibNotPrefixed(t *testing.T) {
+	const input = `package p
+var _ = bytes.Buffer
+`
+	const want = `package p
+
+import "bytes"
+
+var _ = bytes.Buffer
+`
+	// Force a scan of the stdlib.
+	savedStdlib := stdlib
+	defer func() { stdlib = savedStdlib }()
+	stdlib = map[string]map[string]bool{}
+
+	testConfig{
+		module: packagestest.Module{
+			Name: "ignored.com",
+		},
+	}.test(t, func(t *goimportTest) {
+		// Run in GOROOT/src so that the std module shows up in go list -m all.
+		t.env.WorkingDir = filepath.Join(t.env.GOROOT, "src")
+		got, err := t.processNonModule(filepath.Join(t.env.GOROOT, "src/x.go"), []byte(input), nil)
+		if err != nil {
+			t.Fatalf("Process() = %v", err)
+		}
+		if string(got) != want {
+			t.Errorf("Got:\n%s\nWant:\n%s", got, want)
+		}
+	})
+}
+
 type testConfig struct {
 	gopathOnly             bool
 	goPackagesIncompatible bool
@@ -1608,6 +1642,11 @@ func (c testConfig) test(t *testing.T, fn func(*goimportTest)) {
 					Debug:           *testDebug,
 				},
 				exported: exported,
+			}
+			if it.env.GOROOT == "" {
+				// packagestest clears out GOROOT to work around https://golang.org/issue/32849,
+				// which isn't relevant here. Fill it back in so we can find the standard library.
+				it.env.GOROOT = build.Default.GOROOT
 			}
 			fn(it)
 		})
