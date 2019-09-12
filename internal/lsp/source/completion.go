@@ -603,6 +603,8 @@ func (c *completer) lexical() error {
 	}
 	scopes = append(scopes, c.pkg.GetTypes().Scope(), types.Universe)
 
+	builtinIota := types.Universe.Lookup("iota")
+
 	// Track seen variables to avoid showing completions for shadowed variables.
 	// This works since we look at scopes from innermost to outermost.
 	seen := make(map[string]struct{})
@@ -635,6 +637,11 @@ func (c *completer) lexical() error {
 				}
 			}
 
+			// Don't suggest "iota" outside of const decls.
+			if obj == builtinIota && !c.inConstDecl() {
+				continue
+			}
+
 			// If we haven't already added a candidate for an object with this name.
 			if _, ok := seen[obj.Name()]; !ok {
 				seen[obj.Name()] = struct{}{}
@@ -663,6 +670,15 @@ func (c *completer) lexical() error {
 		}
 	}
 	return nil
+}
+
+func (c *completer) inConstDecl() bool {
+	for _, n := range c.path {
+		if decl, ok := n.(*ast.GenDecl); ok && decl.Tok == token.CONST {
+			return true
+		}
+	}
+	return false
 }
 
 // structLiteralFieldName finds completions for struct field names inside a struct literal.
