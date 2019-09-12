@@ -33,11 +33,11 @@ func Highlight(ctx context.Context, view View, uri span.URI, pos protocol.Positi
 	}
 	path, _ := astutil.PathEnclosingInterval(file, rng.Start, rng.Start)
 	if len(path) == 0 {
-		return nil, errors.Errorf("no enclosing position found for %s", pos)
+		return nil, errors.Errorf("no enclosing position found for %f:%f", pos.Line, pos.Character)
 	}
 	id, ok := path[0].(*ast.Ident)
 	if !ok {
-		return nil, errors.Errorf("%s is not an identifier", pos)
+		return nil, errors.Errorf("%f:%f is not an identifier", pos.Line, pos.Character)
 	}
 	var result []protocol.Range
 	if id.Obj != nil {
