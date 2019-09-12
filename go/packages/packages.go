@@ -1089,7 +1089,7 @@ func (ld *loader) loadFromExportData(lpkg *loaderPackage) (*types.Package, error
 	return tpkg, nil
 }
 
-// impliedLoadMode returns loadMode with it's dependencies
+// impliedLoadMode returns loadMode with its dependencies.
 func impliedLoadMode(loadMode LoadMode) LoadMode {
 	if loadMode&NeedTypesInfo != 0 && loadMode&NeedImports == 0 {
 		// If NeedTypesInfo, go/packages needs to do typechecking itself so it can
