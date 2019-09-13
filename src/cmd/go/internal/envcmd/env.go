@@ -284,10 +284,16 @@ func runEnv(cmd *base.Command, args []string) {
 		if del["GOOS"] || del["GOARCH"] {
 			goos, goarch := cfg.Goos, cfg.Goarch
 			if del["GOOS"] {
-				goos = build.Default.GOOS
+				goos = getOrigEnv("GOOS")
+				if goos == "" {
+					goos = build.Default.GOOS
+				}
 			}
 			if del["GOARCH"] {
-				goarch = build.Default.GOARCH
+				goarch = getOrigEnv("GOARCH")
+				if goarch == "" {
+					goarch = build.Default.GOARCH
+				}
 			}
 			if err := work.CheckGOOSARCHPair(goos, goarch); err != nil {
 				base.Fatalf("go env -u: %v", err)
@@ -357,6 +363,15 @@ func printEnvAsJSON(env []cfg.EnvVar) {
 	if err := enc.Encode(m); err != nil {
 		base.Fatalf("go env -json: %s", err)
 	}
+}
+
+func getOrigEnv(key string) string {
+	for _, v := range cfg.OrigEnv {
+		if strings.HasPrefix(v, key+"=") {
+			return strings.TrimPrefix(v, key+"=")
+		}
+	}
+	return ""
 }
 
 func checkEnvWrite(key, val string) error {
