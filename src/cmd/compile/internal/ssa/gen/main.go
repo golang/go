@@ -392,27 +392,34 @@ func genOp() {
 
 	// Check that the arch genfile handles all the arch-specific opcodes.
 	// This is very much a hack, but it is better than nothing.
+	var wg sync.WaitGroup
 	for _, a := range archs {
 		if a.genfile == "" {
 			continue
 		}
 
-		src, err := ioutil.ReadFile(a.genfile)
-		if err != nil {
-			log.Fatalf("can't read %s: %v", a.genfile, err)
-		}
-
-		for _, v := range a.ops {
-			pattern := fmt.Sprintf("\\Wssa[.]Op%s%s\\W", a.name, v.name)
-			match, err := regexp.Match(pattern, src)
+		a := a
+		wg.Add(1)
+		go func() {
+			src, err := ioutil.ReadFile(a.genfile)
 			if err != nil {
-				log.Fatalf("bad opcode regexp %s: %v", pattern, err)
+				log.Fatalf("can't read %s: %v", a.genfile, err)
 			}
-			if !match {
-				log.Fatalf("Op%s%s has no code generation in %s", a.name, v.name, a.genfile)
+
+			for _, v := range a.ops {
+				pattern := fmt.Sprintf(`\Wssa\.Op%s%s\W`, a.name, v.name)
+				match, err := regexp.Match(pattern, src)
+				if err != nil {
+					log.Fatalf("bad opcode regexp %s: %v", pattern, err)
+				}
+				if !match {
+					log.Fatalf("Op%s%s has no code generation in %s", a.name, v.name, a.genfile)
+				}
 			}
-		}
+			wg.Done()
+		}()
 	}
+	wg.Wait()
 }
 
 // Name returns the name of the architecture for use in Op* and Block* enumerations.
