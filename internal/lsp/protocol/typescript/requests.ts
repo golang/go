@@ -29,6 +29,7 @@ function prb(s: string) {
 }
 
 let program: ts.Program;
+
 function generate(files: string[], options: ts.CompilerOptions): void {
   program = ts.createProgram(files, options);
   program.getTypeChecker();
@@ -62,15 +63,11 @@ function generate(files: string[], options: ts.CompilerOptions): void {
   // 2. func (h *serverHandler) Deliver(...) { switch r.method }
   // 3. func (x *xDispatcher) Method(ctx, parm)
   not.forEach(
-    (v, k) => {
-      receives.get(k) == 'client' ? goNot(client, k) :
-        goNot(server, k)
-    });
+      (v, k) => {receives.get(k) == 'client' ? goNot(client, k) :
+                                               goNot(server, k)});
   req.forEach(
-    (v, k) => {
-      receives.get(k) == 'client' ? goReq(client, k) :
-        goReq(server, k)
-    });
+      (v, k) => {receives.get(k) == 'client' ? goReq(client, k) :
+                                               goReq(server, k)});
   // and print the Go code
   output(client);
   output(server);
@@ -104,7 +101,7 @@ const notNil = `if r.Params != nil {
 // Go code for notifications. Side is client or server, m is the request method
 function goNot(side: side, m: string) {
   const n = not.get(m);
-  let a = goType(m, n.typeArguments[0]);
+  let a = goType(side, m, n.typeArguments[0]);
   // let b = goType(m, n.typeArguments[1]); These are registration options
   const nm = methodName(m);
   side.methods.push(sig(nm, a, ''));
@@ -140,8 +137,8 @@ function goReq(side: side, m: string) {
   const n = req.get(m);
 
   const nm = methodName(m);
-  let a = goType(m, n.typeArguments[0]);
-  let b = goType(m, n.typeArguments[1]);
+  let a = goType(side, m, n.typeArguments[0]);
+  let b = goType(side, m, n.typeArguments[1]);
   if (n.getText().includes('Type0')) {
     b = a;
     a = '';  // workspace/workspaceFolders and shutdown
@@ -186,7 +183,7 @@ function goReq(side: side, m: string) {
     !b.startsWith('[]') && !b.startsWith('interface') && (theRet = '&result');
     callBody = `var result ${b}
 			if err := s.Conn.Call(ctx, "${m}", ${
-      p2}, &result); err != nil {
+        p2}, &result); err != nil {
 				return nil, err
       }
       return ${theRet}, nil
@@ -214,7 +211,7 @@ function methodName(m: string): string {
 function output(side: side) {
   if (side.outputFile === undefined) side.outputFile = `ts${side.name}.go`;
   side.fd = fs.openSync(side.outputFile, 'w');
-  const f = function (s: string) {
+  const f = function(s: string) {
     fs.writeSync(side.fd, s);
     fs.writeSync(side.fd, '\n');
   };
@@ -231,9 +228,10 @@ function output(side: side) {
   `);
   const a = side.name[0].toUpperCase() + side.name.substring(1)
   f(`type ${a} interface {`);
-  side.methods.forEach((v) => { f(v) });
+  side.methods.forEach((v) => {f(v)});
   f('}\n');
-  f(`func (h ${side.name}Handler) Deliver(ctx context.Context, r *jsonrpc2.Request, delivered bool) bool {
+  f(`func (h ${
+      side.name}Handler) Deliver(ctx context.Context, r *jsonrpc2.Request, delivered bool) bool {
       if delivered {
         return false
       }
@@ -246,7 +244,7 @@ function output(side: side) {
         }
         r.Conn().Cancel(params.ID)
         return true`);
-  side.cases.forEach((v) => { f(v) });
+  side.cases.forEach((v) => {f(v)});
   f(`
   default:
     return false
@@ -257,7 +255,7 @@ function output(side: side) {
     *jsonrpc2.Conn
   }
   `);
-  side.calls.forEach((v) => { f(v) });
+  side.calls.forEach((v) => {f(v)});
   if (side.name == 'server')
     f(`
   type CancelParams struct {
@@ -266,31 +264,46 @@ function output(side: side) {
      */
     ID jsonrpc2.ID \`json:"id"\`
   }`);
+  f(`// Types constructed to avoid structs as formal argument types`)
+  side.ourTypes.forEach((val, key) => f(`type ${val} ${key}`));
 }
 
 interface side {
   methods: string[];
   cases: string[];
   calls: string[];
+  ourTypes: Map<string, string>;
   name: string;    // client or server
   goName: string;  // Client or Server
   outputFile?: string;
   fd?: number
 }
-let client: side =
-  { methods: [], cases: [], calls: [], name: 'client', goName: 'Client' };
-let server: side =
-  { methods: [], cases: [], calls: [], name: 'server', goName: 'Server' };
+let client: side = {
+  methods: [],
+  cases: [],
+  calls: [],
+  name: 'client',
+  goName: 'Client',
+  ourTypes: new Map<string, string>()
+};
+let server: side = {
+  methods: [],
+  cases: [],
+  calls: [],
+  name: 'server',
+  goName: 'Server',
+  ourTypes: new Map<string, string>()
+};
 
 let req = new Map<string, ts.NewExpression>();        // requests
 let not = new Map<string, ts.NewExpression>();        // notifications
-let receives = new Map<string, 'server' | 'client'>();  // who receives it
+let receives = new Map<string, 'server'|'client'>();  // who receives it
 
 function setReceives() {
   // mark them all as server, then adjust the client ones.
   // it would be nice to have some independent check
-  req.forEach((_, k) => { receives.set(k, 'server') });
-  not.forEach((_, k) => { receives.set(k, 'server') });
+  req.forEach((_, k) => {receives.set(k, 'server')});
+  not.forEach((_, k) => {receives.set(k, 'server')});
   receives.set('window/logMessage', 'client');
   receives.set('telemetry/event', 'client');
   receives.set('client/registerCapability', 'client');
@@ -308,12 +321,12 @@ function setReceives() {
   })
 }
 
-function goType(m: string, n: ts.Node): string {
+function goType(side: side, m: string, n: ts.Node): string {
   if (n === undefined) return '';
   if (ts.isTypeReferenceNode(n)) return n.typeName.getText();
   if (n.kind == ts.SyntaxKind.VoidKeyword) return '';
   if (n.kind == ts.SyntaxKind.AnyKeyword) return 'interface{}';
-  if (ts.isArrayTypeNode(n)) return '[]' + goType(m, n.elementType);
+  if (ts.isArrayTypeNode(n)) return '[]' + goType(side, m, n.elementType);
   // special cases, before we get confused
   switch (m) {
     case 'textDocument/completion':
@@ -328,7 +341,8 @@ function goType(m: string, n: ts.Node): string {
   if (ts.isUnionTypeNode(n)) {
     let x: string[] = [];
     n.types.forEach(
-      (v) => { v.kind != ts.SyntaxKind.NullKeyword && x.push(goType(m, v)) });
+        (v) => {v.kind != ts.SyntaxKind.NullKeyword &&
+                x.push(goType(side, m, v))});
     if (x.length == 1) return x[0];
 
     prb(`===========${m} ${x}`)
@@ -337,6 +351,28 @@ function goType(m: string, n: ts.Node): string {
     if (x[0] == 'Definition') return '[]Location';
     if (x[1] == '[]' + x[0] + 'Link') return x[1];
     throw new Error(`${m}, ${x} unexpected types`)
+  }
+  if (ts.isIntersectionTypeNode(n)) {
+    // we expect only TypeReferences, and put out a struct with embedded types
+    // This is not good, as it uses a struct where a type name ought to be.
+    let x: string[] = [];
+    n.types.forEach((v) => {
+      // expect only TypeReferences
+      if (!ts.isTypeReferenceNode(v)) {
+        throw new Error(
+            `expected only TypeReferences in Intersection ${getText(n)}`)
+      }
+      x.push(goType(side, m, v));
+      x.push(';')
+    })
+    x.push('}')
+    let ans = 'struct {'.concat(...x);
+    // If ans does not have a type, create it
+    if (side.ourTypes.get(ans) == undefined) {
+      side.ourTypes.set(ans, 'Param' + getText(n).substring(0, 6))
+    }
+    // Return the type
+    return side.ourTypes.get(ans)
   }
   return '?';
 }
@@ -350,10 +386,10 @@ function genStuff(node: ts.Node) {
   // process the right kind of new expression
   const wh = node.expression.getText();
   if (wh != 'RequestType' && wh != 'RequestType0' && wh != 'NotificationType' &&
-    wh != 'NotificationType0')
+      wh != 'NotificationType0')
     return;
   if (node.arguments === undefined || node.arguments.length != 1 ||
-    !ts.isStringLiteral(node.arguments[0])) {
+      !ts.isStringLiteral(node.arguments[0])) {
     throw new Error(`missing n.arguments ${loc(node)}`)
   }
   // RequestType<useful>=new RequestTYpe('foo')
@@ -367,6 +403,14 @@ function genStuff(node: ts.Node) {
   s = s.substring(1, s.length - 1);    // remove quoting
   if (s == '$/cancelRequest') return;  // special case in output
   v.set(s, node);
+}
+
+// find the text of a node
+function getText(node: ts.Node): string {
+  let sf = node.getSourceFile();
+  let start = node.getStart(sf)
+  let end = node.getEnd()
+  return sf.text.substring(start, end)
 }
 
 function lookUp(n: ts.NewExpression): ts.NodeArray<ts.TypeNode> {
@@ -453,7 +497,7 @@ function loc(node: ts.Node): string {
   const n = fn.search(/-node./)
   fn = fn.substring(n + 6)
   return `${fn} ${x.line + 1}: ${x.character + 1} (${y.line + 1}: ${
-    y.character + 1})`
+      y.character + 1})`
 }
 
 // ad hoc argument parsing: [-d dir] [-o outputfile], and order matters
@@ -473,7 +517,7 @@ function main() {
   }
   createOutputFiles()
   generate(
-    files, { target: ts.ScriptTarget.ES5, module: ts.ModuleKind.CommonJS });
+      files, {target: ts.ScriptTarget.ES5, module: ts.ModuleKind.CommonJS});
 }
 
 main()

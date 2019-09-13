@@ -1,9 +1,8 @@
 import * as fs from 'fs';
 import * as ts from 'typescript';
 
-// 1. Everything that returns a Go thing should have unusable?: boolean
-// 2. Remember what gets exported, and don't print the others (so _ can stay)
-// 3. Merge all intersection types, and probably Heritage types too
+// Need a general strategy for union types. This code tries (heuristically)
+// to choose one, but sometimes defaults (heuristically) to interface{}
 interface Const {
   typeName: string  // repeated in each const
   goType: string
@@ -103,7 +102,7 @@ function generate(files: string[], options: ts.CompilerOptions): void {
     // Ignore top-level items that produce no output
     if (ts.isExpressionStatement(node) || ts.isFunctionDeclaration(node) ||
         ts.isImportDeclaration(node) || ts.isVariableStatement(node) ||
-        ts.isExportDeclaration(node) ||
+        ts.isExportDeclaration(node) || ts.isEmptyStatement(node) ||
         node.kind == ts.SyntaxKind.EndOfFileToken) {
       return;
     }
@@ -171,6 +170,7 @@ function generate(files: string[], options: ts.CompilerOptions): void {
     Structs.push(ans)
   }
 
+  // called only from doClassDeclaration
   function fromPropDecl(node: ts.PropertyDeclaration): Field {
     let id: ts.Identifier = (ts.isIdentifier(node.name) && node.name);
     let opt = node.questionToken != undefined;
@@ -270,6 +270,7 @@ function generate(files: string[], options: ts.CompilerOptions): void {
     return ans
   }
 
+  // optional gen is the contents of <T>
   function genProp(node: ts.PropertySignature, gen: ts.Identifier): Field {
     let id: ts.Identifier
     let thing: ts.Node
@@ -417,7 +418,7 @@ function generate(files: string[], options: ts.CompilerOptions): void {
   function doTypeAlias(node: ts.TypeAliasDeclaration) {
     // these are all Export Identifier alias
     let id: ts.Identifier = node.name;
-    let alias: ts.Node = node.type;
+    let alias: ts.TypeNode = node.type;
     let ans = {
       me: node,
       id: id,
@@ -427,10 +428,13 @@ function generate(files: string[], options: ts.CompilerOptions): void {
     };
     if (ts.isUnionTypeNode(alias)) {
       ans.goType = weirdUnionType(alias)
-      if (id.text == 'DocumentFilter')
       if (ans.goType == undefined) {
         // these are mostly redundant; maybe sort them out later
         return
+      }
+      if (ans.goType == 'interface{}') {
+        // we didn't know what to do, so explain the choice
+        ans.stuff = `// ` + getText(alias)
       }
       Types.push(ans)
       return
@@ -441,8 +445,9 @@ function generate(files: string[], options: ts.CompilerOptions): void {
         if (ts.isTypeReferenceNode(n)) {
           const s = toGoName(computeType(n).goType)
           embeds.push(s)
-          // It's here just for embedding, and not used independently
-          dontEmit.set(s, true);
+          // It's here just for embedding, and not used independently, maybe
+          // PJW!
+          // dontEmit.set(s, true); // PJW: do we need this?
         } else
           throw new Error(`expected TypeRef ${strKind(n)} ${loc(n)}`)
       })
@@ -492,13 +497,16 @@ function generate(files: string[], options: ts.CompilerOptions): void {
                                                          aString = true;
         return;
       }
+      if (n.kind == ts.SyntaxKind.NumberKeyword ||
+          n.kind == ts.SyntaxKind.StringKeyword) {
+        n.kind == ts.SyntaxKind.NumberKeyword ? aNumber = true : aString = true;
+        return
+      }
       bad = true
     })
     if (bad) return;  // none of these are useful (so far)
     if (aNumber) {
-      if (aString)
-        throw new Error(
-            `weirdUnionType is both number and string ${loc(node)}`);
+      if (aString) return 'interface{}';
       return 'float64';
     }
     if (aString) return 'string';
@@ -513,6 +521,7 @@ function generate(files: string[], options: ts.CompilerOptions): void {
     return ans
   }
 
+  // complex and filled with heuristics
   function computeType(node: ts.Node):
       {goType: string, gostuff?: string, optional?: boolean, fields?: Field[]} {
     switch (node.kind) {
@@ -540,13 +549,14 @@ function generate(files: string[], options: ts.CompilerOptions): void {
       if (ts.isQualifiedName(tn)) {
         throw new Error(`qualified name at ${loc(node)}`);
       } else if (ts.isIdentifier(tn)) {
-        return {goType: tn.text};
+        return {goType: toGoName(tn.text)};
       } else {
         throw new Error(
             `expected identifier got ${strKind(node.typeName)} at ${loc(tn)}`)
       }
     } else if (ts.isLiteralTypeNode(node)) {
       // string|float64 (are there other possibilities?)
+      // as of 20190908: only see string
       const txt = getText(node);
       let typ = 'float64'
       if (txt.charAt(0) == '\'') {
@@ -554,6 +564,7 @@ function generate(files: string[], options: ts.CompilerOptions): void {
       }
       return {goType: typ, gostuff: getText(node)};
     } else if (ts.isTypeLiteralNode(node)) {
+      // {[uri:string]: TextEdit[];} -> map[string][]TextEdit
       let x: Field[] = [];
       let indexCnt = 0
       node.forEachChild((n: ts.Node) => {
@@ -575,13 +586,16 @@ function generate(files: string[], options: ts.CompilerOptions): void {
       }
       return ({goType: 'embedded!', fields: x})
     } else if (ts.isUnionTypeNode(node)) {
+      // The major heuristics
       let x = new Array<{goType: string, gostuff?: string, optiona?: boolean}>()
       node.forEachChild((n: ts.Node) => {x.push(computeType(n))})
       if (x.length == 2 && x[1].goType == 'nil') {
+        // Foo | null, or Foo | undefined
         return x[0]  // make it optional somehow? TODO
       }
-      if (x[0].goType == 'bool') {  // take it
-        if (x[1].goType == 'RenameOptions') {
+      if (x[0].goType == 'bool') {  // take it, mostly
+        if (x[1].goType == 'RenameOptions' ||
+            x[1].goType == 'CodeActionOptions') {
           return ({goType: 'interface{}', gostuff: getText(node)})
         }
         return ({goType: 'bool', gostuff: getText(node)})
@@ -592,6 +606,7 @@ function generate(files: string[], options: ts.CompilerOptions): void {
         return ({goType: 'string', gostuff: gostuff})
       }
       if (x[0].goType == 'TextDocumentSyncOptions') {
+        // TextDocumentSyncOptions | TextDocumentSyncKind
         return ({goType: 'interface{}', gostuff: gostuff})
       }
       if (x[0].goType == 'float64' && x[1].goType == 'string') {
@@ -617,12 +632,13 @@ function generate(files: string[], options: ts.CompilerOptions): void {
       throw new Error('in UnionType, weird')
     } else if (ts.isParenthesizedTypeNode(node)) {
       // check that this is (TextDocumentEdit | CreateFile | RenameFile |
-      // DeleteFile) TODO(pjw)
+      // DeleteFile) TODO(pjw) IT IS NOT! FIX THIS! ALSO:
+      // (variousOptions & StaticFegistrationOptions)
       return {
         goType: 'TextDocumentEdit', gostuff: getText(node)
       }
     } else if (ts.isTupleTypeNode(node)) {
-      // string | [number, number]. TODO(pjw): check it really is
+      // in string | [number, number]. TODO(pjw): check it really is
       return {
         goType: 'string', gostuff: getText(node)
       }
@@ -774,7 +790,7 @@ function emitTypes() {
     let stuff = (t.stuff == undefined) ? '' : t.stuff;
     prgo(`// ${t.goName} is a type\n`)
     prgo(`${getComments(t.me)}`)
-    prgo(`type ${t.goName} ${t.goType}${stuff}\n`)
+    prgo(`type ${t.goName} = ${t.goType}${stuff}\n`)
     seenConstTypes.set(t.goName, true);
   }
 }
@@ -856,7 +872,7 @@ let byName = new Map<string, Struct>();
             fields.set(f.goName, x);
           }
         }
-        fields.forEach((val) => {
+        fields.forEach((val, key) => {
           if (val.length > 1) {
             // merge the fields with the same name
             prgo(strField(val[0], noopt, val));
@@ -878,6 +894,7 @@ let byName = new Map<string, Struct>();
   }
 
   // Turn a Field into an output string
+  // flds is for merging
   function strField(f: Field, noopt?: boolean, flds?: Field[]): string {
     let ans: string[] = [];
     let opt = (!noopt && f.optional) ? '*' : ''
@@ -895,6 +912,20 @@ let byName = new Map<string, Struct>();
       ans.push(`\t${f.goName} ${opt}${f.goType} ${f.json}${stuff}\n`)
     }
     else if (flds !== undefined) {
+      // The logic that got us here is imprecise, so it is possible that
+      // the fields are really all the same, and don't need to be
+      // combined into a struct.
+      let simple = true;
+      for (const ff of flds) {
+        if (ff.substruct !== undefined || byName.get(ff.goType) !== undefined) {
+          simple = false
+          break
+        }
+      }
+      if (simple) {
+        // should check that the ffs are really all the same
+        return strField(flds[0], noopt)
+      }
       ans.push(`\t${f.goName} ${opt}struct{\n`);
       for (const ff of flds) {
         if (ff.substruct !== undefined) {
@@ -926,8 +957,9 @@ let byName = new Map<string, Struct>();
     // need the consts too! Generate modifying prefixes and suffixes to ensure
     // consts are unique. (Go consts are package-level, but Typescript's are
     // not.) Use suffixes to minimize changes to gopls.
-    let pref = new Map<string, string>(
-      [['DiagnosticSeverity', 'Severity'], ['WatchKind', 'Watch']])  // typeName->prefix
+    let pref = new Map<string, string>([
+      ['DiagnosticSeverity', 'Severity'], ['WatchKind', 'Watch']
+    ])  // typeName->prefix
     let suff = new Map<string, string>([
       ['CompletionItemKind', 'Completion'], ['InsertTextFormat', 'TextFormat']
     ])
