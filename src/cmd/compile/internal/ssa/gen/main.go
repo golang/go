@@ -41,6 +41,7 @@ type arch struct {
 	framepointerreg int8
 	linkreg         int8
 	generic         bool
+	imports         []string
 }
 
 type opData struct {

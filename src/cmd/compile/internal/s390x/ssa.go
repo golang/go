@@ -571,17 +571,15 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		v.Fatalf("NOT/NOTW generated %s", v.LongString())
 	case ssa.OpS390XSumBytes2, ssa.OpS390XSumBytes4, ssa.OpS390XSumBytes8:
 		v.Fatalf("SumBytes generated %s", v.LongString())
-	case ssa.OpS390XMOVDEQ, ssa.OpS390XMOVDNE,
-		ssa.OpS390XMOVDLT, ssa.OpS390XMOVDLE,
-		ssa.OpS390XMOVDGT, ssa.OpS390XMOVDGE,
-		ssa.OpS390XMOVDGTnoinv, ssa.OpS390XMOVDGEnoinv:
+	case ssa.OpS390XLOCGR:
 		r := v.Reg()
 		if r != v.Args[0].Reg() {
 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
 		}
 		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = v.Args[1].Reg()
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = int64(v.Aux.(s390x.CCMask))
+		p.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 	case ssa.OpS390XFSQRT:
@@ -817,19 +815,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	}
 }
 
-var blockJump = [...]struct {
-	asm, invasm obj.As
-}{
-	ssa.BlockS390XEQ:  {s390x.ABEQ, s390x.ABNE},
-	ssa.BlockS390XNE:  {s390x.ABNE, s390x.ABEQ},
-	ssa.BlockS390XLT:  {s390x.ABLT, s390x.ABGE},
-	ssa.BlockS390XGE:  {s390x.ABGE, s390x.ABLT},
-	ssa.BlockS390XLE:  {s390x.ABLE, s390x.ABGT},
-	ssa.BlockS390XGT:  {s390x.ABGT, s390x.ABLE},
-	ssa.BlockS390XGTF: {s390x.ABGT, s390x.ABLEU},
-	ssa.BlockS390XGEF: {s390x.ABGE, s390x.ABLTU},
-}
-
 func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 	switch b.Kind {
 	case ssa.BlockPlain:
@@ -863,24 +848,20 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = b.Aux.(*obj.LSym)
-	case ssa.BlockS390XEQ, ssa.BlockS390XNE,
-		ssa.BlockS390XLT, ssa.BlockS390XGE,
-		ssa.BlockS390XLE, ssa.BlockS390XGT,
-		ssa.BlockS390XGEF, ssa.BlockS390XGTF:
-		jmp := blockJump[b.Kind]
-		switch next {
-		case b.Succs[0].Block():
-			s.Br(jmp.invasm, b.Succs[1].Block())
-		case b.Succs[1].Block():
-			s.Br(jmp.asm, b.Succs[0].Block())
-		default:
-			if b.Likely != ssa.BranchUnlikely {
-				s.Br(jmp.asm, b.Succs[0].Block())
-				s.Br(s390x.ABR, b.Succs[1].Block())
-			} else {
-				s.Br(jmp.invasm, b.Succs[1].Block())
-				s.Br(s390x.ABR, b.Succs[0].Block())
-			}
+	case ssa.BlockS390XBRC:
+		succs := [...]*ssa.Block{b.Succs[0].Block(), b.Succs[1].Block()}
+		mask := b.Aux.(s390x.CCMask)
+		if next == succs[0] {
+			succs[0], succs[1] = succs[1], succs[0]
+			mask = mask.Inverse()
+		}
+		// TODO: take into account Likely property for forward/backward
+		// branches.
+		p := s.Br(s390x.ABRC, succs[0])
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = int64(mask)
+		if next != succs[1] {
+			s.Br(s390x.ABR, succs[1])
 		}
 	default:
 		b.Fatalf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())

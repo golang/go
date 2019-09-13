@@ -37,7 +37,7 @@ func TestLoopConditionS390X(t *testing.T) {
 	//     MOVD   $0, R2
 	//     MOVD   $1, R3
 	//     CMP    R0, R1
-	//     MOVDLT R2, R3
+	//     LOCGR  $(8+2) R2, R3
 	//     CMPW   R2, $0
 	//     BNE    done
 	//     ADD    $3, R4
@@ -76,12 +76,7 @@ func TestLoopConditionS390X(t *testing.T) {
 	CheckFunc(fun.f)
 
 	checkOpcodeCounts(t, fun.f, map[Op]int{
-		OpS390XMOVDLT:    0,
-		OpS390XMOVDGT:    0,
-		OpS390XMOVDLE:    0,
-		OpS390XMOVDGE:    0,
-		OpS390XMOVDEQ:    0,
-		OpS390XMOVDNE:    0,
+		OpS390XLOCGR:     0,
 		OpS390XCMP:       1,
 		OpS390XCMPWconst: 0,
 	})

@@ -111,14 +111,7 @@ const (
 	BlockPPC64FGT
 	BlockPPC64FGE
 
-	BlockS390XEQ
-	BlockS390XNE
-	BlockS390XLT
-	BlockS390XLE
-	BlockS390XGT
-	BlockS390XGE
-	BlockS390XGTF
-	BlockS390XGEF
+	BlockS390XBRC
 
 	BlockPlain
 	BlockIf
@@ -227,14 +220,7 @@ var blockString = [...]string{
 	BlockPPC64FGT: "FGT",
 	BlockPPC64FGE: "FGE",
 
-	BlockS390XEQ:  "EQ",
-	BlockS390XNE:  "NE",
-	BlockS390XLT:  "LT",
-	BlockS390XLE:  "LE",
-	BlockS390XGT:  "GT",
-	BlockS390XGE:  "GE",
-	BlockS390XGTF: "GTF",
-	BlockS390XGEF: "GEF",
+	BlockS390XBRC: "BRC",
 
 	BlockPlain:  "Plain",
 	BlockIf:     "If",
@@ -1967,14 +1953,7 @@ const (
 	OpS390XNOT
 	OpS390XNOTW
 	OpS390XFSQRT
-	OpS390XMOVDEQ
-	OpS390XMOVDNE
-	OpS390XMOVDLT
-	OpS390XMOVDLE
-	OpS390XMOVDGT
-	OpS390XMOVDGE
-	OpS390XMOVDGTnoinv
-	OpS390XMOVDGEnoinv
+	OpS390XLOCGR
 	OpS390XMOVBreg
 	OpS390XMOVBZreg
 	OpS390XMOVHreg
@@ -26453,115 +26432,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MOVDEQ",
+		name:         "LOCGR",
+		auxType:      auxArchSpecific,
 		argLen:       3,
 		resultInArg0: true,
-		asm:          s390x.AMOVDEQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-			},
-			outputs: []outputInfo{
-				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-			},
-		},
-	},
-	{
-		name:         "MOVDNE",
-		argLen:       3,
-		resultInArg0: true,
-		asm:          s390x.AMOVDNE,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-			},
-			outputs: []outputInfo{
-				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-			},
-		},
-	},
-	{
-		name:         "MOVDLT",
-		argLen:       3,
-		resultInArg0: true,
-		asm:          s390x.AMOVDLT,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-			},
-			outputs: []outputInfo{
-				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-			},
-		},
-	},
-	{
-		name:         "MOVDLE",
-		argLen:       3,
-		resultInArg0: true,
-		asm:          s390x.AMOVDLE,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-			},
-			outputs: []outputInfo{
-				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-			},
-		},
-	},
-	{
-		name:         "MOVDGT",
-		argLen:       3,
-		resultInArg0: true,
-		asm:          s390x.AMOVDGT,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-			},
-			outputs: []outputInfo{
-				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-			},
-		},
-	},
-	{
-		name:         "MOVDGE",
-		argLen:       3,
-		resultInArg0: true,
-		asm:          s390x.AMOVDGE,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-			},
-			outputs: []outputInfo{
-				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-			},
-		},
-	},
-	{
-		name:         "MOVDGTnoinv",
-		argLen:       3,
-		resultInArg0: true,
-		asm:          s390x.AMOVDGT,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-			},
-			outputs: []outputInfo{
-				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-			},
-		},
-	},
-	{
-		name:         "MOVDGEnoinv",
-		argLen:       3,
-		resultInArg0: true,
-		asm:          s390x.AMOVDGE,
+		asm:          s390x.ALOCGR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
