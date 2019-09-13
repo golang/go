@@ -349,24 +349,52 @@ func (s *exprSwitch) flush() {
 	// (e.g., sort.Slice doesn't need to invoke the less function
 	// when there's only a single slice element).
 
-	// Sort strings by length and then by value.
-	// It is much cheaper to compare lengths than values,
-	// and all we need here is consistency.
-	// We respect this sorting below.
-	sort.Slice(cc, func(i, j int) bool {
-		vi := cc[i].lo.Val()
-		vj := cc[j].lo.Val()
-
-		if s.exprname.Type.IsString() {
-			si := vi.U.(string)
-			sj := vj.U.(string)
+	if s.exprname.Type.IsString() && len(cc) >= 2 {
+		// Sort strings by length and then by value. It is
+		// much cheaper to compare lengths than values, and
+		// all we need here is consistency. We respect this
+		// sorting below.
+		sort.Slice(cc, func(i, j int) bool {
+			si := strlit(cc[i].lo)
+			sj := strlit(cc[j].lo)
 			if len(si) != len(sj) {
 				return len(si) < len(sj)
 			}
 			return si < sj
-		}
+		})
 
-		return compareOp(vi, OLT, vj)
+		// runLen returns the string length associated with a
+		// particular run of exprClauses.
+		runLen := func(run []exprClause) int64 { return int64(len(strlit(run[0].lo))) }
+
+		// Collapse runs of consecutive strings with the same length.
+		var runs [][]exprClause
+		start := 0
+		for i := 1; i < len(cc); i++ {
+			if runLen(cc[start:]) != runLen(cc[i:]) {
+				runs = append(runs, cc[start:i])
+				start = i
+			}
+		}
+		runs = append(runs, cc[start:])
+
+		// Perform two-level binary search.
+		nlen := nod(OLEN, s.exprname, nil)
+		binarySearch(len(runs), &s.done,
+			func(i int) *Node {
+				return nod(OLE, nlen, nodintconst(runLen(runs[i-1])))
+			},
+			func(i int, nif *Node) {
+				run := runs[i]
+				nif.Left = nod(OEQ, nlen, nodintconst(runLen(run)))
+				s.search(run, &nif.Nbody)
+			},
+		)
+		return
+	}
+
+	sort.Slice(cc, func(i, j int) bool {
+		return compareOp(cc[i].lo.Val(), OLT, cc[j].lo.Val())
 	})
 
 	// Merge consecutive integer cases.
@@ -383,19 +411,13 @@ func (s *exprSwitch) flush() {
 		cc = merged
 	}
 
-	binarySearch(len(cc), &s.done,
-		func(i int) *Node {
-			mid := cc[i-1].hi
+	s.search(cc, &s.done)
+}
 
-			le := nod(OLE, s.exprname, mid)
-			if s.exprname.Type.IsString() {
-				// Compare strings by length and then
-				// by value; see sort.Slice above.
-				lenlt := nod(OLT, nod(OLEN, s.exprname, nil), nod(OLEN, mid, nil))
-				leneq := nod(OEQ, nod(OLEN, s.exprname, nil), nod(OLEN, mid, nil))
-				le = nod(OOROR, lenlt, nod(OANDAND, leneq, le))
-			}
-			return le
+func (s *exprSwitch) search(cc []exprClause, out *Nodes) {
+	binarySearch(len(cc), out,
+		func(i int) *Node {
+			return nod(OLE, s.exprname, cc[i-1].hi)
 		},
 		func(i int, nif *Node) {
 			c := &cc[i]
