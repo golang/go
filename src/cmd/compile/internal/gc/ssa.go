@@ -2336,7 +2336,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 				// Replace "abc"[1] with 'b'.
 				// Delayed until now because "abc"[1] is not an ideal constant.
 				// See test/fixedbugs/issue11370.go.
-				return s.newValue0I(ssa.OpConst8, types.Types[TUINT8], int64(int8(n.Left.Val().U.(string)[n.Right.Int64()])))
+				return s.newValue0I(ssa.OpConst8, types.Types[TUINT8], int64(int8(strlit(n.Left)[n.Right.Int64()])))
 			}
 			a := s.expr(n.Left)
 			i := s.expr(n.Right)
