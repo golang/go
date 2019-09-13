@@ -9,6 +9,6 @@ type ncBar struct { //@item(structNCBar, "ncBar", "struct{...}", "struct")
 func _() {
 	[]ncFoo{} //@item(litNCFoo, "[]ncFoo{}", "", "var")
 	_ := ncBar{
-		baz: [] //@complete(" //", litNCFoo, structNCBar, structNCFoo)
+		baz: [] //@complete(" //", structNCFoo, structNCBar)
 	}
 }

@@ -10,7 +10,7 @@ func helper(i foo.IntFoo) {} //@item(helper, "helper", "func(i foo.IntFoo)", "fu
 
 func _() {
 	help //@complete("l", helper)
-	_ = foo.StructFoo{} //@complete("S", Foo, IntFoo, StructFoo)
+	_ = foo.StructFoo{} //@complete("S", IntFoo, StructFoo, Foo)
 }
 
 // Bar is a function.

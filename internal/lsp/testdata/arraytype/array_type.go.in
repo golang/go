@@ -15,6 +15,8 @@ func _() {
 
 	[]foo.StructFoo //@complete(" //", StructFoo)
 
+	[]foo.StructFoo(nil) //@complete("(", StructFoo)
+	
 	[]*foo.StructFoo //@complete(" //", StructFoo)
 
 	[...]foo.StructFoo //@complete(" //", StructFoo)
@@ -22,4 +24,20 @@ func _() {
 	[2][][4]foo.StructFoo //@complete(" //", StructFoo)
 
 	[]struct { f []foo.StructFoo } //@complete(" }", StructFoo)
+}
+
+func _() {
+	type myInt int //@item(atMyInt, "myInt", "int", "type")
+
+	var mark []myInt //@item(atMark, "mark", "[]myInt", "var")
+
+	var s []myInt //@item(atS, "s", "[]myInt", "var")
+	s = []m //@complete(" //", atMyInt, atMark)
+	s = [] //@complete(" //", atMyInt, atMark, atS, PackageFoo)
+
+	var a [1]myInt
+	a = [1]m //@complete(" //", atMyInt, atMark)
+
+	var ds [][]myInt
+	ds = [][]m //@complete(" //", atMyInt, atMark)
 }

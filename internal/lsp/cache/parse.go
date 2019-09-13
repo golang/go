@@ -255,9 +255,16 @@ func fixArrayType(bad *ast.BadExpr, parent ast.Node, tok *token.File, src []byte
 		return errors.Errorf("invalid BadExpr from/to: %d/%d", from, to)
 	}
 
-	exprBytes := make([]byte, 0, int(to-from)+2)
+	exprBytes := make([]byte, 0, int(to-from)+3)
 	// Avoid doing tok.Offset(to) since that panics if badExpr ends at EOF.
 	exprBytes = append(exprBytes, src[tok.Offset(from):tok.Offset(to-1)+1]...)
+	exprBytes = bytes.TrimSpace(exprBytes)
+
+	// If our expression ends in "]" (e.g. "[]"), add a phantom selector
+	// so we can complete directly after the "[]".
+	if len(exprBytes) > 0 && exprBytes[len(exprBytes)-1] == ']' {
+		exprBytes = append(exprBytes, '_')
+	}
 
 	// Add "{}" to turn our ArrayType into a CompositeLit. This is to
 	// handle the case of "[...]int" where we must make it a composite
