@@ -1125,9 +1125,6 @@ func testcontainsInOverlays(t *testing.T, exporter packagestest.Exporter) {
 }
 
 func TestAdHocPackagesBadImport(t *testing.T) {
-	// TODO: Enable this test when github.com/golang/go/issues/33374 is resolved.
-	t.Skip()
-
 	// This test doesn't use packagestest because we are testing ad-hoc packages,
 	// which are outside of $GOPATH and outside of a module.
 	tmp, err := ioutil.TempDir("", "a")
@@ -1145,27 +1142,33 @@ const A = 1
 		t.Fatal(err)
 	}
 
-	config := &packages.Config{
-		Dir:  tmp,
-		Mode: packages.LoadAllSyntax,
-	}
-	initial, err := packages.Load(config, fmt.Sprintf("file=%s", filename))
-	if err != nil {
-		t.Error(err)
-	}
-	// Check value of a.A.
-	a := initial[0]
-	if a.Errors != nil {
-		t.Fatalf("a: got errors %+v, want no error", err)
-	}
-	aA := constant(a, "A")
-	if aA == nil {
-		t.Errorf("a.A: got nil")
-		return
-	}
-	got := aA.Val().String()
-	if want := "1"; got != want {
-		t.Errorf("a.A: got %s, want %s", got, want)
+	// Make sure that the user's value of GO111MODULE does not affect test results.
+	for _, go111module := range []string{"off", "auto", "on"} {
+		config := &packages.Config{
+			Env:  append(os.Environ(), "GOPACKAGESDRIVER=off", fmt.Sprintf("GO111MODULE=%s", go111module)),
+			Dir:  tmp,
+			Mode: packages.LoadAllSyntax,
+			Logf: t.Logf,
+		}
+		initial, err := packages.Load(config, fmt.Sprintf("file=%s", filename))
+		if err != nil {
+			t.Error(err)
+		}
+		if len(initial) == 0 {
+			t.Fatalf("no packages for %s with GO111MODULE=%s", filename, go111module)
+		}
+		// Check value of a.A.
+		a := initial[0]
+		// There's an error because there's a bad import.
+		aA := constant(a, "A")
+		if aA == nil {
+			t.Errorf("a.A: got nil")
+			return
+		}
+		got := aA.Val().String()
+		if want := "1"; got != want {
+			t.Errorf("a.A: got %s, want %s", got, want)
+		}
 	}
 }
 
@@ -1184,35 +1187,39 @@ func TestAdHocOverlays(t *testing.T) {
 	content := []byte(`package a
 const A = 1
 `)
-	config := &packages.Config{
-		Dir:  tmp,
-		Env:  append(os.Environ(), "GOPACKAGESDRIVER=off"),
-		Mode: packages.LoadAllSyntax,
-		Overlay: map[string][]byte{
-			filename: content,
-		},
-		Logf: t.Logf,
-	}
-	initial, err := packages.Load(config, fmt.Sprintf("file=%s", filename))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(initial) == 0 {
-		t.Fatalf("no packages for %s", filename)
-	}
-	// Check value of a.A.
-	a := initial[0]
-	if a.Errors != nil {
-		t.Fatalf("a: got errors %+v, want no error", err)
-	}
-	aA := constant(a, "A")
-	if aA == nil {
-		t.Errorf("a.A: got nil")
-		return
-	}
-	got := aA.Val().String()
-	if want := "1"; got != want {
-		t.Errorf("a.A: got %s, want %s", got, want)
+
+	// Make sure that the user's value of GO111MODULE does not affect test results.
+	for _, go111module := range []string{"off", "auto", "on"} {
+		config := &packages.Config{
+			Dir:  tmp,
+			Env:  append(os.Environ(), "GOPACKAGESDRIVER=off", fmt.Sprintf("GO111MODULE=%s", go111module)),
+			Mode: packages.LoadAllSyntax,
+			Overlay: map[string][]byte{
+				filename: content,
+			},
+			Logf: t.Logf,
+		}
+		initial, err := packages.Load(config, fmt.Sprintf("file=%s", filename))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(initial) == 0 {
+			t.Fatalf("no packages for %s with GO111MODULE=%s", filename, go111module)
+		}
+		// Check value of a.A.
+		a := initial[0]
+		if a.Errors != nil {
+			t.Fatalf("a: got errors %+v, want no error", err)
+		}
+		aA := constant(a, "A")
+		if aA == nil {
+			t.Errorf("a.A: got nil")
+			return
+		}
+		got := aA.Val().String()
+		if want := "1"; got != want {
+			t.Errorf("a.A: got %s, want %s", got, want)
+		}
 	}
 }
 

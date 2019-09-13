@@ -354,6 +354,16 @@ func adHocPackage(cfg *Config, driver driver, pattern, query string) (*driverRes
 	if err != nil {
 		return nil, err
 	}
+	// If we get nothing back from `go list`, try to make this file into its own ad-hoc package.
+	if len(dirResponse.Packages) == 0 && err == nil {
+		dirResponse.Packages = append(dirResponse.Packages, &Package{
+			ID:              "command-line-arguments",
+			PkgPath:         query,
+			GoFiles:         []string{query},
+			CompiledGoFiles: []string{query},
+		})
+		dirResponse.Roots = append(dirResponse.Roots, "command-line-arguments")
+	}
 	// Special case to handle issue #33482:
 	// If this is a file= query for ad-hoc packages where the file only exists on an overlay,
 	// and exists outside of a module, add the file in for the package.
