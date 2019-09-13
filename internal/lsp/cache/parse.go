@@ -199,45 +199,101 @@ func isEllipsisArray(n ast.Expr) bool {
 func fix(ctx context.Context, n ast.Node, tok *token.File, src []byte) error {
 	var (
 		ancestors []ast.Node
+		parent    ast.Node
 		err       error
 	)
 	ast.Inspect(n, func(n ast.Node) bool {
 		if n == nil {
 			if len(ancestors) > 0 {
 				ancestors = ancestors[:len(ancestors)-1]
+				if len(ancestors) > 0 {
+					parent = ancestors[len(ancestors)-1]
+				}
 			}
 			return false
 		}
+
 		switch n := n.(type) {
 		case *ast.BadStmt:
-			var parent ast.Node
-			if len(ancestors) > 0 {
-				parent = ancestors[len(ancestors)-1]
-			}
-			err = parseDeferOrGoStmt(n, parent, tok, src) // don't shadow err
+			err = fixDeferOrGoStmt(n, parent, tok, src) // don't shadow err
 			if err == nil {
-				// Recursively fix any BadStmts in our fixed node.
+				// Recursively fix in our fixed node.
 				err = fix(ctx, parent, tok, src)
 			} else {
 				err = errors.Errorf("unable to parse defer or go from *ast.BadStmt: %v", err)
 			}
 			return false
+		case *ast.BadExpr:
+			// Don't propagate this error since *ast.BadExpr is very common
+			// and it is only sometimes due to array types. Errors from here
+			// are expected and not actionable in general.
+			fixArrayErr := fixArrayType(n, parent, tok, src)
+			if fixArrayErr == nil {
+				// Recursively fix in our fixed node.
+				err = fix(ctx, parent, tok, src)
+			}
+			return false
 		default:
 			ancestors = append(ancestors, n)
+			parent = n
 			return true
 		}
 	})
 	return err
 }
 
-// parseDeferOrGoStmt tries to parse an *ast.BadStmt into a defer or a go statement.
+// fixArrayType tries to parse an *ast.BadExpr into an *ast.ArrayType.
+// go/parser often turns lone array types like "[]int" into BadExprs
+// if it isn't expecting a type.
+func fixArrayType(bad *ast.BadExpr, parent ast.Node, tok *token.File, src []byte) error {
+	// Our expected input is a bad expression that looks like "[]someExpr".
+
+	from := bad.Pos()
+	to := bad.End()
+
+	if !from.IsValid() || !to.IsValid() {
+		return errors.Errorf("invalid BadExpr from/to: %d/%d", from, to)
+	}
+
+	exprBytes := make([]byte, 0, int(to-from)+2)
+	// Avoid doing tok.Offset(to) since that panics if badExpr ends at EOF.
+	exprBytes = append(exprBytes, src[tok.Offset(from):tok.Offset(to-1)+1]...)
+
+	// Add "{}" to turn our ArrayType into a CompositeLit. This is to
+	// handle the case of "[...]int" where we must make it a composite
+	// literal to be parseable.
+	exprBytes = append(exprBytes, '{', '}')
+
+	expr, err := parseExpr(from, exprBytes)
+	if err != nil {
+		return err
+	}
+
+	cl, _ := expr.(*ast.CompositeLit)
+	if cl == nil {
+		return errors.Errorf("expr not compLit (%T)", expr)
+	}
+
+	at, _ := cl.Type.(*ast.ArrayType)
+	if at == nil {
+		return errors.Errorf("compLit type not array (%T)", cl.Type)
+	}
+
+	if !replaceNode(parent, bad, at) {
+		return errors.Errorf("couldn't replace array type")
+	}
+
+	return nil
+}
+
+// fixDeferOrGoStmt tries to parse an *ast.BadStmt into a defer or a go statement.
 //
 // go/parser packages a statement of the form "defer x." as an *ast.BadStmt because
 // it does not include a call expression. This means that go/types skips type-checking
 // this statement entirely, and we can't use the type information when completing.
 // Here, we try to generate a fake *ast.DeferStmt or *ast.GoStmt to put into the AST,
 // instead of the *ast.BadStmt.
-func parseDeferOrGoStmt(bad *ast.BadStmt, parent ast.Node, tok *token.File, src []byte) error {
+func fixDeferOrGoStmt(bad *ast.BadStmt, parent ast.Node, tok *token.File, src []byte) error {
 	// Check if we have a bad statement containing either a "go" or "defer".
 	s := &scanner.Scanner{}
 	s.Init(tok, src, nil, 0)
@@ -357,37 +413,10 @@ FindTo:
 		exprBytes = append(exprBytes, '_')
 	}
 
-	// Wrap our expression to make it a valid Go file we can pass to ParseFile.
-	fileSrc := bytes.Join([][]byte{
-		[]byte("package fake;func _(){"),
-		exprBytes,
-		[]byte("}"),
-	}, nil)
-
-	// Use ParseFile instead of ParseExpr because ParseFile has
-	// best-effort behavior, whereas ParseExpr fails hard on any error.
-	fakeFile, err := parser.ParseFile(token.NewFileSet(), "", fileSrc, 0)
-	if fakeFile == nil {
-		return errors.Errorf("error reading fake file source: %v", err)
+	expr, err := parseExpr(from, exprBytes)
+	if err != nil {
+		return err
 	}
-
-	// Extract our expression node from inside the fake file.
-	if len(fakeFile.Decls) == 0 {
-		return errors.Errorf("error parsing fake file: %v", err)
-	}
-	fakeDecl, _ := fakeFile.Decls[0].(*ast.FuncDecl)
-	if fakeDecl == nil || len(fakeDecl.Body.List) == 0 {
-		return errors.Errorf("no statement in %s: %v", exprBytes, err)
-	}
-	exprStmt, ok := fakeDecl.Body.List[0].(*ast.ExprStmt)
-	if !ok {
-		return errors.Errorf("no expr in %s: %v", exprBytes, err)
-	}
-	expr := exprStmt.X
-
-	// parser.ParseExpr returns undefined positions.
-	// Adjust them for the current file.
-	offsetPositions(expr, from-1-(expr.Pos()-1))
 
 	// Package the expression into a fake *ast.CallExpr and re-insert
 	// into the function.
@@ -396,6 +425,7 @@ FindTo:
 		Lparen: to,
 		Rparen: to,
 	}
+
 	switch stmt := stmt.(type) {
 	case *ast.DeferStmt:
 		stmt.Call = call
@@ -404,10 +434,51 @@ FindTo:
 	}
 
 	if !replaceNode(parent, bad, stmt) {
-		return errors.Errorf("couldn't replace %T in %T", stmt, parent)
+		return errors.Errorf("couldn't replace CallExpr")
 	}
 
 	return nil
+}
+
+// parseExpr parses the expression in src and updates its position to
+// start at pos.
+func parseExpr(pos token.Pos, src []byte) (ast.Expr, error) {
+	// Wrap our expression to make it a valid Go file we can pass to ParseFile.
+	fileSrc := bytes.Join([][]byte{
+		[]byte("package fake;func _(){"),
+		src,
+		[]byte("}"),
+	}, nil)
+
+	// Use ParseFile instead of ParseExpr because ParseFile has
+	// best-effort behavior, whereas ParseExpr fails hard on any error.
+	fakeFile, err := parser.ParseFile(token.NewFileSet(), "", fileSrc, 0)
+	if fakeFile == nil {
+		return nil, errors.Errorf("error reading fake file source: %v", err)
+	}
+
+	// Extract our expression node from inside the fake file.
+	if len(fakeFile.Decls) == 0 {
+		return nil, errors.Errorf("error parsing fake file: %v", err)
+	}
+
+	fakeDecl, _ := fakeFile.Decls[0].(*ast.FuncDecl)
+	if fakeDecl == nil || len(fakeDecl.Body.List) == 0 {
+		return nil, errors.Errorf("no statement in %s: %v", src, err)
+	}
+
+	exprStmt, ok := fakeDecl.Body.List[0].(*ast.ExprStmt)
+	if !ok {
+		return nil, errors.Errorf("no expr in %s: %v", src, err)
+	}
+
+	expr := exprStmt.X
+
+	// parser.ParseExpr returns undefined positions.
+	// Adjust them for the current file.
+	offsetPositions(expr, pos-1-(expr.Pos()-1))
+
+	return expr, nil
 }
 
 var tokenPosType = reflect.TypeOf(token.NoPos)
@@ -433,7 +504,7 @@ func offsetPositions(expr ast.Expr, offset token.Pos) {
 					continue
 				}
 
-				f.SetInt(int64(f.Interface().(token.Pos) + offset))
+				f.SetInt(f.Int() + int64(offset))
 			}
 		}
 

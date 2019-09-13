@@ -1,0 +1,25 @@
+package arraytype
+
+import (
+	"golang.org/x/tools/internal/lsp/foo"
+)
+
+func _() {
+	var (
+		val string //@item(atVal, "val", "string", "var")
+	)
+
+	[] //@complete(" //", atVal, PackageFoo)
+
+	[]val //@complete(" //", atVal)
+
+	[]foo.StructFoo //@complete(" //", StructFoo)
+
+	[]*foo.StructFoo //@complete(" //", StructFoo)
+
+	[...]foo.StructFoo //@complete(" //", StructFoo)
+
+	[2][][4]foo.StructFoo //@complete(" //", StructFoo)
+
+	[]struct { f []foo.StructFoo } //@complete(" }", StructFoo)
+}
