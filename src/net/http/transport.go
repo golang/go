@@ -1197,7 +1197,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (pc *persi
 		pc := w.pc
 		// Trace only for HTTP/1.
 		// HTTP/2 calls trace.GotConn itself.
-		if w.pc.alt == nil && trace != nil && trace.GotConn != nil {
+		if pc.alt == nil && trace != nil && trace.GotConn != nil {
 			trace.GotConn(pc.gotIdleConnTrace(pc.idleAt))
 		}
 		// set request canceler to some non-nil function so we
