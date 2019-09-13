@@ -397,14 +397,10 @@ func (s *exprSwitch) flush() {
 			}
 			return le
 		},
-		func(i int, out *Nodes) {
+		func(i int, nif *Node) {
 			c := &cc[i]
-
-			nif := nodl(c.pos, OIF, c.test(s.exprname), nil)
-			nif.Left = typecheck(nif.Left, ctxExpr)
-			nif.Left = defaultlit(nif.Left, nil)
+			nif.Left = c.test(s.exprname)
 			nif.Nbody.Set1(c.jmp)
-			out.Append(nif)
 		},
 	)
 }
@@ -521,8 +517,8 @@ func walkTypeSwitch(sw *Node) {
 		singleType := ncase.List.Len() == 1 && ncase.List.First().Op == OTYPE
 
 		label := autolabel(".s")
-
 		jmp := npos(ncase.Pos, nodSym(OGOTO, nil, label))
+
 		if ncase.List.Len() == 0 { // default:
 			if defaultGoto != nil {
 				Fatalf("duplicate default case not detected during typechecking")
@@ -672,16 +668,12 @@ func (s *typeSwitch) flush() {
 		func(i int) *Node {
 			return nod(OLE, s.hashname, nodintconst(int64(cc[i-1].hash)))
 		},
-		func(i int, out *Nodes) {
+		func(i int, nif *Node) {
 			// TODO(mdempsky): Omit hash equality check if
 			// there's only one type.
 			c := cc[i]
-			a := nod(OIF, nil, nil)
-			a.Left = nod(OEQ, s.hashname, nodintconst(int64(c.hash)))
-			a.Left = typecheck(a.Left, ctxExpr)
-			a.Left = defaultlit(a.Left, nil)
-			a.Nbody.AppendNodes(&c.body)
-			out.Append(a)
+			nif.Left = nod(OEQ, s.hashname, nodintconst(int64(c.hash)))
+			nif.Nbody.AppendNodes(&c.body)
 		},
 	)
 }
@@ -691,10 +683,11 @@ func (s *typeSwitch) flush() {
 // switch statements.
 //
 // less(i) should return a boolean expression. If it evaluates true,
-// then cases [0, i) will be tested; otherwise, cases [i, n).
+// then cases before i will be tested; otherwise, cases i and later.
 //
-// base(i, out) should append statements to out to test the i'th case.
-func binarySearch(n int, out *Nodes, less func(i int) *Node, base func(i int, out *Nodes)) {
+// base(i, nif) should setup nif (an OIF node) to test case i. In
+// particular, it should set nif.Left and nif.Nbody.
+func binarySearch(n int, out *Nodes, less func(i int) *Node, base func(i int, nif *Node)) {
 	const binarySearchMin = 4 // minimum number of cases for binary search
 
 	var do func(lo, hi int, out *Nodes)
@@ -702,7 +695,12 @@ func binarySearch(n int, out *Nodes, less func(i int) *Node, base func(i int, ou
 		n := hi - lo
 		if n < binarySearchMin {
 			for i := lo; i < hi; i++ {
-				base(i, out)
+				nif := nod(OIF, nil, nil)
+				base(i, nif)
+				nif.Left = typecheck(nif.Left, ctxExpr)
+				nif.Left = defaultlit(nif.Left, nil)
+				out.Append(nif)
+				out = &nif.Rlist
 			}
 			return
 		}
