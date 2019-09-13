@@ -354,18 +354,9 @@ func init() {
 
 		{name: "FSQRT", argLength: 1, reg: fp11, asm: "FSQRT"}, // sqrt(arg0)
 
-		{name: "MOVDEQ", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "MOVDEQ"}, // extract == condition from arg0
-		{name: "MOVDNE", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "MOVDNE"}, // extract != condition from arg0
-		{name: "MOVDLT", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "MOVDLT"}, // extract signed < condition from arg0
-		{name: "MOVDLE", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "MOVDLE"}, // extract signed <= condition from arg0
-		{name: "MOVDGT", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "MOVDGT"}, // extract signed > condition from arg0
-		{name: "MOVDGE", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "MOVDGE"}, // extract signed >= condition from arg0
-
-		// Different rules for floating point conditions because
-		// any comparison involving a NaN is always false and thus
-		// the patterns for inverting conditions cannot be used.
-		{name: "MOVDGTnoinv", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "MOVDGT"}, // extract floating > condition from arg0
-		{name: "MOVDGEnoinv", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "MOVDGE"}, // extract floating >= condition from arg0
+		// Conditional register-register moves.
+		// The aux for these values is an s390x.CCMask value representing the condition code mask.
+		{name: "LOCGR", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "LOCGR", aux: "ArchSpecific"}, // load arg1 into arg0 if the condition code in arg2 matches a masked bit in aux.
 
 		{name: "MOVBreg", argLength: 1, reg: gp11sp, asm: "MOVB", typ: "Int64"},    // sign extend arg0 from int8 to int64
 		{name: "MOVBZreg", argLength: 1, reg: gp11sp, asm: "MOVBZ", typ: "UInt64"}, // zero extend arg0 from int8 to int64
@@ -717,14 +708,7 @@ func init() {
 	}
 
 	var S390Xblocks = []blockData{
-		{name: "EQ"},
-		{name: "NE"},
-		{name: "LT"},
-		{name: "LE"},
-		{name: "GT"},
-		{name: "GE"},
-		{name: "GTF"}, // FP comparison
-		{name: "GEF"}, // FP comparison
+		{name: "BRC"}, // aux is condition code mask (s390x.CCMask)
 	}
 
 	archs = append(archs, arch{
@@ -738,5 +722,8 @@ func init() {
 		fpregmask:       fp,
 		framepointerreg: -1, // not used
 		linkreg:         int8(num["R14"]),
+		imports: []string{
+			"cmd/internal/obj/s390x",
+		},
 	})
 }

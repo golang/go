@@ -2639,35 +2639,35 @@ func (c *ctxtz) addcallreloc(sym *obj.LSym, add int64) *obj.Reloc {
 	return rel
 }
 
-func (c *ctxtz) branchMask(p *obj.Prog) uint32 {
+func (c *ctxtz) branchMask(p *obj.Prog) CCMask {
 	switch p.As {
 	case ABRC, ALOCR, ALOCGR,
 		ACRJ, ACGRJ, ACIJ, ACGIJ,
 		ACLRJ, ACLGRJ, ACLIJ, ACLGIJ:
-		return uint32(p.From.Offset)
+		return CCMask(p.From.Offset)
 	case ABEQ, ACMPBEQ, ACMPUBEQ, AMOVDEQ:
-		return 0x8
+		return Equal
 	case ABGE, ACMPBGE, ACMPUBGE, AMOVDGE:
-		return 0xA
+		return GreaterOrEqual
 	case ABGT, ACMPBGT, ACMPUBGT, AMOVDGT:
-		return 0x2
+		return Greater
 	case ABLE, ACMPBLE, ACMPUBLE, AMOVDLE:
-		return 0xC
+		return LessOrEqual
 	case ABLT, ACMPBLT, ACMPUBLT, AMOVDLT:
-		return 0x4
+		return Less
 	case ABNE, ACMPBNE, ACMPUBNE, AMOVDNE:
-		return 0x7
+		return NotEqual
 	case ABLEU: // LE or unordered
-		return 0xD
+		return NotGreater
 	case ABLTU: // LT or unordered
-		return 0x5
+		return LessOrUnordered
 	case ABVC:
-		return 0x0 // needs extra instruction
+		return Never // needs extra instruction
 	case ABVS:
-		return 0x1 // unordered
+		return Unordered
 	}
 	c.ctxt.Diag("unknown conditional branch %v", p.As)
-	return 0xF
+	return Always
 }
 
 func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
@@ -3073,7 +3073,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		if p.As == ABCL || p.As == ABL {
 			zRR(op_BASR, uint32(REG_LR), uint32(r), asm)
 		} else {
-			zRR(op_BCR, 0xF, uint32(r), asm)
+			zRR(op_BCR, uint32(Always), uint32(r), asm)
 		}
 
 	case 16: // conditional branch
@@ -3081,7 +3081,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		if p.Pcond != nil {
 			v = int32((p.Pcond.Pc - p.Pc) >> 1)
 		}
-		mask := c.branchMask(p)
+		mask := uint32(c.branchMask(p))
 		if p.To.Sym == nil && int32(int16(v)) == v {
 			zRI(op_BRC, mask, uint32(v), asm)
 		} else {
@@ -3092,14 +3092,14 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		}
 
 	case 17: // move on condition
-		m3 := c.branchMask(p)
+		m3 := uint32(c.branchMask(p))
 		zRRF(op_LOCGR, m3, 0, uint32(p.To.Reg), uint32(p.From.Reg), asm)
 
 	case 18: // br/bl reg
 		if p.As == ABL {
 			zRR(op_BASR, uint32(REG_LR), uint32(p.To.Reg), asm)
 		} else {
-			zRR(op_BCR, 0xF, uint32(p.To.Reg), asm)
+			zRR(op_BCR, uint32(Always), uint32(p.To.Reg), asm)
 		}
 
 	case 19: // mov $sym+n(SB) reg
@@ -3233,7 +3233,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		}
 
 	case 25: // load on condition (register)
-		m3 := c.branchMask(p)
+		m3 := uint32(c.branchMask(p))
 		var opcode uint32
 		switch p.As {
 		case ALOCR:
@@ -3448,7 +3448,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		zRRE(op_MLGR, uint32(p.To.Reg), uint32(p.From.Reg), asm)
 
 	case 66:
-		zRR(op_BCR, 0, 0, asm)
+		zRR(op_BCR, uint32(Never), 0, asm)
 
 	case 67: // fmov $0 freg
 		var opcode uint32
@@ -3634,7 +3634,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		}
 
 	case 80: // sync
-		zRR(op_BCR, 0xE, 0, asm)
+		zRR(op_BCR, uint32(NotEqual), 0, asm)
 
 	case 81: // float to fixed and fixed to float moves (no conversion)
 		switch p.As {
@@ -3830,7 +3830,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		if p.From.Type == obj.TYPE_CONST {
 			r1, r2 = p.Reg, p.RestArgs[0].Reg
 		}
-		m3 := c.branchMask(p)
+		m3 := uint32(c.branchMask(p))
 
 		var opcode uint32
 		switch p.As {
@@ -3859,7 +3859,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			// the condition code.
 			m3 ^= 0xe // invert 3-bit mask
 			zRIE(_b, opcode, uint32(r1), uint32(r2), uint32(sizeRIE+sizeRIL)/2, 0, 0, m3, 0, asm)
-			zRIL(_c, op_BRCL, 0xf, uint32(v-sizeRIE/2), asm)
+			zRIL(_c, op_BRCL, uint32(Always), uint32(v-sizeRIE/2), asm)
 		} else {
 			zRIE(_b, opcode, uint32(r1), uint32(r2), uint32(v), 0, 0, m3, 0, asm)
 		}
@@ -3875,7 +3875,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		if p.From.Type == obj.TYPE_CONST {
 			r1 = p.Reg
 		}
-		m3 := c.branchMask(p)
+		m3 := uint32(c.branchMask(p))
 
 		var opcode uint32
 		switch p.As {
@@ -3899,7 +3899,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			// the condition code.
 			m3 ^= 0xe // invert 3-bit mask
 			zRIE(_c, opcode, uint32(r1), m3, uint32(sizeRIE+sizeRIL)/2, 0, 0, 0, uint32(i2), asm)
-			zRIL(_c, op_BRCL, 0xf, uint32(v-sizeRIE/2), asm)
+			zRIL(_c, op_BRCL, uint32(Always), uint32(v-sizeRIE/2), asm)
 		} else {
 			zRIE(_c, opcode, uint32(r1), m3, uint32(v), 0, 0, 0, uint32(i2), asm)
 		}

@@ -179,7 +179,7 @@ func (v *Value) auxString() string {
 		return fmt.Sprintf(" [%g]", v.AuxFloat())
 	case auxString:
 		return fmt.Sprintf(" {%q}", v.Aux)
-	case auxSym, auxTyp:
+	case auxSym, auxTyp, auxArchSpecific:
 		if v.Aux != nil {
 			return fmt.Sprintf(" {%v}", v.Aux)
 		}

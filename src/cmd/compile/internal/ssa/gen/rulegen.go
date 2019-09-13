@@ -554,11 +554,13 @@ func fprint(w io.Writer, n Node) {
 		fmt.Fprintf(w, "// Code generated from gen/%s%s.rules; DO NOT EDIT.\n", n.arch.name, n.suffix)
 		fmt.Fprintf(w, "// generated with: cd gen; go run *.go\n")
 		fmt.Fprintf(w, "\npackage ssa\n")
-		for _, path := range []string{
-			"fmt", "math",
-			"cmd/internal/obj", "cmd/internal/objabi",
+		for _, path := range append([]string{
+			"fmt",
+			"math",
+			"cmd/internal/obj",
+			"cmd/internal/objabi",
 			"cmd/compile/internal/types",
-		} {
+		}, n.arch.imports...) {
 			fmt.Fprintf(w, "import %q\n", path)
 		}
 		for _, f := range n.list {
@@ -1162,7 +1164,7 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch, typ, auxi
 	}
 	if aux != "" {
 		switch op.aux {
-		case "String", "Sym", "SymOff", "SymValAndOff", "Typ", "TypSize", "CCop":
+		case "String", "Sym", "SymOff", "SymValAndOff", "Typ", "TypSize", "CCop", "ArchSpecific":
 		default:
 			log.Fatalf("%s: op %s %s can't have aux", loc, op.name, op.aux)
 		}
