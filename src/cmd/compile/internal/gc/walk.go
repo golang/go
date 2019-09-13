@@ -2711,7 +2711,8 @@ func isAppendOfMake(n *Node) bool {
 
 // extendslice rewrites append(l1, make([]T, l2)...) to
 //   init {
-//     if l2 < 0 {
+//     if l2 >= 0 { // Empty if block here for more meaningful node.SetLikely(true)
+//     } else {
 //       panicmakeslicelen()
 //     }
 //     s := l1
@@ -2750,12 +2751,12 @@ func extendslice(n *Node, init *Nodes) *Node {
 
 	var nodes []*Node
 
-	// if l2 < 0
-	nifneg := nod(OIF, nod(OLT, l2, nodintconst(0)), nil)
-	nifneg.SetLikely(false)
+	// if l2 >= 0 (likely happens), do nothing
+	nifneg := nod(OIF, nod(OGE, l2, nodintconst(0)), nil)
+	nifneg.SetLikely(true)
 
-	// panicmakeslicelen()
-	nifneg.Nbody.Set1(mkcall("panicmakeslicelen", nil, init))
+	// else panicmakeslicelen()
+	nifneg.Rlist.Set1(mkcall("panicmakeslicelen", nil, init))
 	nodes = append(nodes, nifneg)
 
 	// s := l1
