@@ -1017,7 +1017,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		haslit := false
 		for _, n1 := range n.List.Slice() {
 			hasbyte = hasbyte || n1.Op == OBYTES2STR
-			haslit = haslit || n1.Op == OLITERAL && len(n1.Val().U.(string)) != 0
+			haslit = haslit || n1.Op == OLITERAL && len(strlit(n1)) != 0
 		}
 
 		if haslit && hasbyte {

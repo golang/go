@@ -1054,7 +1054,7 @@ opswitch:
 				yyerror("index out of bounds")
 			}
 		} else if Isconst(n.Left, CTSTR) {
-			n.SetBounded(bounded(r, int64(len(n.Left.Val().U.(string)))))
+			n.SetBounded(bounded(r, int64(len(strlit(n.Left)))))
 			if Debug['m'] != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
 				Warn("index bounds check elided")
 			}
@@ -1389,7 +1389,7 @@ opswitch:
 	case OSTR2BYTES:
 		s := n.Left
 		if Isconst(s, CTSTR) {
-			sc := s.Val().U.(string)
+			sc := strlit(s)
 
 			// Allocate a [n]byte of the right size.
 			t := types.NewArray(types.Types[TUINT8], int64(len(sc)))
@@ -1792,7 +1792,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 	for i := 0; i < len(s); {
 		var strs []string
 		for i < len(s) && Isconst(s[i], CTSTR) {
-			strs = append(strs, s[i].Val().U.(string))
+			strs = append(strs, strlit(s[i]))
 			i++
 		}
 		if len(strs) > 0 {
@@ -1861,7 +1861,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 		case TSTRING:
 			cs := ""
 			if Isconst(n, CTSTR) {
-				cs = n.Val().U.(string)
+				cs = strlit(n)
 			}
 			switch cs {
 			case " ":
@@ -2510,7 +2510,7 @@ func addstr(n *Node, init *Nodes) *Node {
 		sz := int64(0)
 		for _, n1 := range n.List.Slice() {
 			if n1.Op == OLITERAL {
-				sz += int64(len(n1.Val().U.(string)))
+				sz += int64(len(strlit(n1)))
 			}
 		}
 
@@ -3350,7 +3350,7 @@ func walkcompareString(n *Node, init *Nodes) *Node {
 			// Length-only checks are ok, though.
 			maxRewriteLen = 0
 		}
-		if s := cs.Val().U.(string); len(s) <= maxRewriteLen {
+		if s := strlit(cs); len(s) <= maxRewriteLen {
 			if len(s) > 0 {
 				ncs = safeexpr(ncs, init)
 			}

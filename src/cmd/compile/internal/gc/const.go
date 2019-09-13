@@ -612,7 +612,7 @@ func evconst(n *Node) {
 				var strs []string
 				i2 := i1
 				for i2 < len(s) && Isconst(s[i2], CTSTR) {
-					strs = append(strs, s[i2].Val().U.(string))
+					strs = append(strs, strlit(s[i2]))
 					i2++
 				}
 
@@ -635,7 +635,7 @@ func evconst(n *Node) {
 		switch nl.Type.Etype {
 		case TSTRING:
 			if Isconst(nl, CTSTR) {
-				setintconst(n, int64(len(nl.Val().U.(string))))
+				setintconst(n, int64(len(strlit(nl))))
 			}
 		case TARRAY:
 			if !hascallchan(nl) {

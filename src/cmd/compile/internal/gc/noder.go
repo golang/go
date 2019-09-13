@@ -762,7 +762,7 @@ func (p *noder) sum(x syntax.Expr) *Node {
 	n := p.expr(x)
 	if Isconst(n, CTSTR) && n.Sym == nil {
 		nstr = n
-		chunks = append(chunks, nstr.Val().U.(string))
+		chunks = append(chunks, strlit(nstr))
 	}
 
 	for i := len(adds) - 1; i >= 0; i-- {
@@ -772,12 +772,12 @@ func (p *noder) sum(x syntax.Expr) *Node {
 		if Isconst(r, CTSTR) && r.Sym == nil {
 			if nstr != nil {
 				// Collapse r into nstr instead of adding to n.
-				chunks = append(chunks, r.Val().U.(string))
+				chunks = append(chunks, strlit(r))
 				continue
 			}
 
 			nstr = r
-			chunks = append(chunks, nstr.Val().U.(string))
+			chunks = append(chunks, strlit(nstr))
 		} else {
 			if len(chunks) > 1 {
 				nstr.SetVal(Val{U: strings.Join(chunks, "")})

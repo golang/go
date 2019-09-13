@@ -1043,8 +1043,8 @@ func typecheck1(n *Node, top int) (res *Node) {
 					yyerror("invalid %s index %v (index must be non-negative)", why, n.Right)
 				} else if t.IsArray() && x >= t.NumElem() {
 					yyerror("invalid array index %v (out of bounds for %d-element array)", n.Right, t.NumElem())
-				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.Val().U.(string))) {
-					yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(n.Left.Val().U.(string)))
+				} else if Isconst(n.Left, CTSTR) && x >= int64(len(strlit(n.Left))) {
+					yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(strlit(n.Left)))
 				} else if n.Right.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
 					yyerror("invalid %s index %v (index too large)", why, n.Right)
 				}
@@ -2148,8 +2148,8 @@ func checksliceindex(l *Node, r *Node, tp *types.Type) bool {
 		} else if tp != nil && tp.NumElem() >= 0 && r.Int64() > tp.NumElem() {
 			yyerror("invalid slice index %v (out of bounds for %d-element array)", r, tp.NumElem())
 			return false
-		} else if Isconst(l, CTSTR) && r.Int64() > int64(len(l.Val().U.(string))) {
-			yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(l.Val().U.(string)))
+		} else if Isconst(l, CTSTR) && r.Int64() > int64(len(strlit(l))) {
+			yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(strlit(l)))
 			return false
 		} else if r.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
 			yyerror("invalid slice index %v (index too large)", r)
@@ -3409,7 +3409,7 @@ func stringtoruneslit(n *Node) *Node {
 	}
 
 	var l []*Node
-	s := n.Left.Val().U.(string)
+	s := strlit(n.Left)
 	i := 0
 	for _, r := range s {
 		l = append(l, nod(OKEY, nodintconst(int64(i)), nodintconst(int64(r))))
