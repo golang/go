@@ -254,6 +254,16 @@ type Interface struct {
 	types []Type // for contracts
 }
 
+// is reports whether interface t represents types that all satisfy pred.
+func (t *Interface) is(pred func(Type) bool) bool {
+	for _, t := range t.types {
+		if !pred(t) {
+			return false
+		}
+	}
+	return true
+}
+
 // emptyInterface represents the empty (completed) interface
 var emptyInterface = Interface{allMethods: markComplete}
 

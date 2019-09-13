@@ -116,3 +116,16 @@ var _ T2(int32)
 var _ T2 /* ERROR not satisfied */ (int64)
 var _ T2(int)
 var _ T2(struct{x int})
+
+// Use of contracts in parameterized functions
+
+contract SignedInteger(T) {
+        T int8, int16, int32, int64, int
+}
+
+func min(type T SignedInteger)(x, y T) T {
+        if x < y {
+                return x
+        }
+        return y
+}

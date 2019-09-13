@@ -62,8 +62,13 @@ func isUntyped(typ Type) bool {
 }
 
 func isOrdered(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsOrdered != 0
+	switch t := typ.Underlying().(type) {
+	case *Basic:
+		return t.info&IsOrdered != 0
+	case *TypeParam:
+		return t.contr.ifaceAt(t.index).is(isOrdered)
+	}
+	return false
 }
 
 func isConstType(typ Type) bool {
