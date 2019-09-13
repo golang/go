@@ -607,13 +607,17 @@ func fprint(w io.Writer, n Node) {
 		fprint(w, n.expr)
 		fmt.Fprintf(w, " {\nbreak\n}\n")
 	case ast.Node:
-		printer.Fprint(w, emptyFset, n)
+		printConfig.Fprint(w, emptyFset, n)
 		if _, ok := n.(ast.Stmt); ok {
 			fmt.Fprintln(w)
 		}
 	default:
 		log.Fatalf("cannot print %T", n)
 	}
+}
+
+var printConfig = printer.Config{
+	Mode: printer.RawFormat, // we use go/format later, so skip work here
 }
 
 var emptyFset = token.NewFileSet()
