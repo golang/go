@@ -119,9 +119,9 @@ const (
 	completionBudget = 100 * time.Millisecond
 )
 
-// matcher matches a candidate's label against the user input.  The
-// returned score reflects the quality of the match. A score less than
-// zero indicates no match, and a score of one means a perfect match.
+// matcher matches a candidate's label against the user input. The
+// returned score reflects the quality of the match. A score of zero
+// indicates no match, and a score of one means a perfect match.
 type matcher interface {
 	Score(candidateLabel string) (score float32)
 }
@@ -324,12 +324,7 @@ func (c *completer) found(obj types.Object, score float64, imp *imports.ImportIn
 
 	cand.name = c.deepState.chainString(obj.Name())
 	matchScore := c.matcher.Score(cand.name)
-	if matchScore >= 0 {
-		// Avoid a score of zero since that homogenizes all candidates.
-		if matchScore == 0 {
-			matchScore = 0.001
-		}
-
+	if matchScore > 0 {
 		cand.score *= float64(matchScore)
 
 		// Avoid calling c.item() for deep candidates that wouldn't be in the top

@@ -18,10 +18,8 @@ func _() {
 
 	fab //@complete(" //", fuzzFabarField)
 
-	o //@complete(" //", fuzzFooBarField)
-
 	var myString string
-	myString = ar //@complete(" //", fuzzFooBarField, fuzzFabarField)
+	myString = af //@complete(" //", fuzzFooBarField, fuzzFabarField)
 
 	var b struct {
 		c struct {
