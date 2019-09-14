@@ -38,10 +38,6 @@ func (view *view) loadParseTypecheck(ctx context.Context, f *goFile, fh source.F
 			log.Error(ctx, "loadParseTypeCheck: failed to get CheckPackageHandle", err, telemetry.Package.Of(m.id))
 			continue
 		}
-		if _, err := cph.check(ctx); err != nil {
-			log.Error(ctx, "loadParseTypeCheck: failed to check package", err, telemetry.Package.Of(m.id))
-			continue
-		}
 		// Cache this package on the file object, since all dependencies are cached in the Import function.
 		if err := imp.cachePackage(ctx, cph); err != nil {
 			log.Error(ctx, "loadParseTypeCheck: failed to cache package", err, telemetry.Package.Of(m.id))
