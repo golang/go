@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/cache"
@@ -107,6 +108,8 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			Deep:          deepComplete,
 			FuzzyMatching: fuzzyMatch,
 			Unimported:    unimported,
+			// Crank this up so tests don't flake.
+			Budget: 5 * time.Second,
 		})
 		if err != nil {
 			t.Fatalf("failed for %v: %v", src, err)
@@ -169,6 +172,8 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 				Deep:          strings.Contains(string(src.URI()), "deepcomplete"),
 				FuzzyMatching: strings.Contains(string(src.URI()), "fuzzymatch"),
 				Placeholders:  usePlaceholders,
+				// Crank this up so tests don't flake.
+				Budget: 5 * time.Second,
 			})
 			if err != nil {
 				t.Fatalf("failed for %v: %v", src, err)

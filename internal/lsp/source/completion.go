@@ -111,12 +111,6 @@ const (
 
 	// lowScore indicates an irrelevant or not useful completion item.
 	lowScore float64 = 0.01
-
-	// completionBudget is the soft latency goal for completion requests. Most
-	// requests finish in a couple milliseconds, but in some cases deep
-	// completions can take much longer. As we use up our budget we dynamically
-	// reduce the search scope to ensure we return timely results.
-	completionBudget = 100 * time.Millisecond
 )
 
 // matcher matches a candidate's label against the user input. The

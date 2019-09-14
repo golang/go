@@ -100,11 +100,9 @@ func (c *completer) shouldPrune() bool {
 		return false
 	}
 
-	c.deepState.candidateCount++
-
-	// Check our remaining budget every 1000 candidates.
-	if c.deepState.candidateCount%1000 == 0 {
-		spent := float64(time.Since(c.startTime)) / float64(completionBudget)
+	// Check our remaining budget every 100 candidates.
+	if c.deepState.candidateCount%100 == 0 {
+		spent := float64(time.Since(c.startTime)) / float64(c.opts.Budget)
 
 		switch {
 		case spent >= 0.90:
@@ -124,6 +122,8 @@ func (c *completer) shouldPrune() bool {
 			c.deepState.maxDepth = 4
 		}
 	}
+
+	c.deepState.candidateCount++
 
 	if c.deepState.maxDepth >= 0 {
 		return len(c.deepState.chain) >= c.deepState.maxDepth

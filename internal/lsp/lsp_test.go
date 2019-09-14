@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/cache"
@@ -60,6 +61,8 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 		source.Sum: {},
 	}
 	options.HoverKind = source.SynopsisDocumentation
+	// Crank this up so tests don't flake.
+	options.Completion.Budget = 5 * time.Second
 	session.SetOptions(options)
 	options.Env = data.Config.Env
 	session.NewView(ctx, viewName, span.FileURI(data.Config.Dir), options)

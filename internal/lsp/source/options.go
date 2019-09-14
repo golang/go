@@ -7,6 +7,7 @@ package source
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/telemetry/tag"
@@ -32,6 +33,7 @@ var (
 			Documentation: true,
 			Deep:          true,
 			FuzzyMatching: true,
+			Budget:        100 * time.Millisecond,
 		},
 	}
 )
@@ -70,6 +72,13 @@ type CompletionOptions struct {
 	Documentation     bool
 	FullDocumentation bool
 	Placeholders      bool
+
+	// Budget is the soft latency goal for completion requests. Most
+	// requests finish in a couple milliseconds, but in some cases deep
+	// completions can take much longer. As we use up our budget we
+	// dynamically reduce the search scope to ensure we return timely
+	// results.
+	Budget time.Duration
 }
 
 type HoverKind int
