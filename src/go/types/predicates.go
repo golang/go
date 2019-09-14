@@ -16,40 +16,23 @@ func isNamed(typ Type) bool {
 	return ok
 }
 
-func isBoolean(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsBoolean != 0
+func is(typ Type, what BasicInfo) bool {
+	switch t := typ.Underlying().(type) {
+	case *Basic:
+		return t.info&what != 0
+	case *TypeParam:
+		return t.contr.ifaceAt(t.index).is(func(typ Type) bool { return is(typ, what) })
+	}
+	return false
 }
 
-func isInteger(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsInteger != 0
-}
-
-func isUnsigned(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsUnsigned != 0
-}
-
-func isFloat(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsFloat != 0
-}
-
-func isComplex(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsComplex != 0
-}
-
-func isNumeric(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsNumeric != 0
-}
-
-func isString(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsString != 0
-}
+func isBoolean(typ Type) bool  { return is(typ, IsBoolean) }
+func isInteger(typ Type) bool  { return is(typ, IsInteger) }
+func isUnsigned(typ Type) bool { return is(typ, IsUnsigned) }
+func isFloat(typ Type) bool    { return is(typ, IsFloat) }
+func isComplex(typ Type) bool  { return is(typ, IsComplex) }
+func isNumeric(typ Type) bool  { return is(typ, IsNumeric) }
+func isString(typ Type) bool   { return is(typ, IsString) }
 
 func isTyped(typ Type) bool {
 	t, ok := typ.Underlying().(*Basic)
@@ -61,15 +44,7 @@ func isUntyped(typ Type) bool {
 	return ok && t.info&IsUntyped != 0
 }
 
-func isOrdered(typ Type) bool {
-	switch t := typ.Underlying().(type) {
-	case *Basic:
-		return t.info&IsOrdered != 0
-	case *TypeParam:
-		return t.contr.ifaceAt(t.index).is(isOrdered)
-	}
-	return false
-}
+func isOrdered(typ Type) bool { return is(typ, IsOrdered) }
 
 func isConstType(typ Type) bool {
 	t, ok := typ.Underlying().(*Basic)
