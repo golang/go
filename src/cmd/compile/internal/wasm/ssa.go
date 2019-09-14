@@ -68,24 +68,35 @@ func ssaMarkMoves(s *gc.SSAGenState, b *ssa.Block) {
 }
 
 func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
-	goToBlock := func(block *ssa.Block, canFallthrough bool) {
-		if canFallthrough && block == next {
-			return
-		}
-		s.Br(obj.AJMP, block)
-	}
-
 	switch b.Kind {
 	case ssa.BlockPlain:
-		goToBlock(b.Succs[0].Block(), true)
+		if next != b.Succs[0].Block() {
+			s.Br(obj.AJMP, b.Succs[0].Block())
+		}
 
 	case ssa.BlockIf:
-		getValue32(s, b.Control)
-		s.Prog(wasm.AI32Eqz)
-		s.Prog(wasm.AIf)
-		goToBlock(b.Succs[1].Block(), false)
-		s.Prog(wasm.AEnd)
-		goToBlock(b.Succs[0].Block(), true)
+		switch next {
+		case b.Succs[0].Block():
+			// if false, jump to b.Succs[1]
+			getValue32(s, b.Control)
+			s.Prog(wasm.AI32Eqz)
+			s.Prog(wasm.AIf)
+			s.Br(obj.AJMP, b.Succs[1].Block())
+			s.Prog(wasm.AEnd)
+		case b.Succs[1].Block():
+			// if true, jump to b.Succs[0]
+			getValue32(s, b.Control)
+			s.Prog(wasm.AIf)
+			s.Br(obj.AJMP, b.Succs[0].Block())
+			s.Prog(wasm.AEnd)
+		default:
+			// if true, jump to b.Succs[0], else jump to b.Succs[1]
+			getValue32(s, b.Control)
+			s.Prog(wasm.AIf)
+			s.Br(obj.AJMP, b.Succs[0].Block())
+			s.Prog(wasm.AEnd)
+			s.Br(obj.AJMP, b.Succs[1].Block())
+		}
 
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
@@ -104,9 +115,11 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		s.Prog(wasm.AI64Eqz)
 		s.Prog(wasm.AI32Eqz)
 		s.Prog(wasm.AIf)
-		goToBlock(b.Succs[1].Block(), false)
+		s.Br(obj.AJMP, b.Succs[1].Block())
 		s.Prog(wasm.AEnd)
-		goToBlock(b.Succs[0].Block(), true)
+		if next != b.Succs[0].Block() {
+			s.Br(obj.AJMP, b.Succs[0].Block())
+		}
 
 	default:
 		panic("unexpected block")
