@@ -44,6 +44,11 @@ func ExampleAtanh() {
 	// Output: 0.00
 }
 
+func ExampleCopysign() {
+	fmt.Printf("%.2f", math.Copysign(3.2, -1))
+	// Output: -3.20
+}
+
 func ExampleCos() {
 	fmt.Printf("%.2f", math.Cos(math.Pi/2))
 	// Output: 0.00
@@ -172,4 +177,45 @@ func ExampleAbs() {
 	// Output:
 	// 2.0
 	// 2.0
+}
+func ExampleDim() {
+	fmt.Printf("%.2f\n", math.Dim(4, -2))
+	fmt.Printf("%.2f\n", math.Dim(-4, 2))
+	// Output:
+	// 6.00
+	// 0.00
+}
+
+func ExampleExp() {
+	fmt.Printf("%.2f\n", math.Exp(1))
+	fmt.Printf("%.2f\n", math.Exp(2))
+	fmt.Printf("%.2f\n", math.Exp(-1))
+	// Output:
+	// 2.72
+	// 7.39
+	// 0.37
+}
+
+func ExampleExp2() {
+	fmt.Printf("%.2f\n", math.Exp2(1))
+	fmt.Printf("%.2f\n", math.Exp2(-3))
+	// Output:
+	// 2.00
+	// 0.12
+}
+
+func ExampleExpm1() {
+	fmt.Printf("%.6f\n", math.Expm1(0.01))
+	fmt.Printf("%.6f\n", math.Expm1(-1))
+	// Output:
+	// 0.010050
+	// -0.632121
+}
+
+func ExampleTrunc() {
+	fmt.Printf("%.2f\n", math.Trunc(math.Pi))
+	fmt.Printf("%.2f\n", math.Trunc(-1.2345))
+	// Output:
+	// 3.00
+	// -1.00
 }
