@@ -257,6 +257,10 @@ func (f *Function) createSyntacticParams(recv *ast.FieldList, functype *ast.Func
 	}
 }
 
+type setNumable interface {
+	setNum(int)
+}
+
 // numberRegisters assigns numbers to all SSA registers
 // (value-defining Instructions) in f, to aid debugging.
 // (Non-Instruction Values are named at construction.)
@@ -267,9 +271,7 @@ func numberRegisters(f *Function) {
 		for _, instr := range b.Instrs {
 			switch instr.(type) {
 			case Value:
-				instr.(interface {
-					setNum(int)
-				}).setNum(v)
+				instr.(setNumable).setNum(v)
 				v++
 			}
 		}
