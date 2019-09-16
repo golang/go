@@ -473,7 +473,12 @@ func (f *File) parseSymtab(symdat, strtab, cmddat []byte, hdr *SymtabCmd, offset
 		if n.Name >= uint32(len(strtab)) {
 			return nil, &FormatError{offset, "invalid name in symbol table", n.Name}
 		}
-		sym.Name = cstring(strtab[n.Name:])
+		// We add "_" to Go symbols. Strip it here. See issue 33808.
+		name := cstring(strtab[n.Name:])
+		if strings.Contains(name, ".") && name[0] == '_' {
+			name = name[1:]
+		}
+		sym.Name = name
 		sym.Type = n.Type
 		sym.Sect = n.Sect
 		sym.Desc = n.Desc
