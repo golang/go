@@ -628,6 +628,25 @@ func (f *File) applyRelocations(dst []byte, rels []byte) error {
 	}
 }
 
+// relocSymbolTargetOK decides whether we should try to apply a
+// relocation to a DWARF data section, given a pointer to the symbol
+// targeted by the relocation. Most relocations in DWARF data tend to
+// be section-relative, but some target non-section symbols (for
+// example, low_PC attrs on subprogram or compilation unit DIEs that
+// target function symbols), and we need to include these as well.
+// Return value is a pair (X,Y) where X is a boolean indicating
+// whether the relocation is needed, and Y is the symbol value in the
+// case of a non-section relocation that needs to be applied.
+func relocSymbolTargetOK(sym *Symbol) (bool, uint64) {
+	if ST_TYPE(sym.Info) == STT_SECTION {
+		return true, 0
+	}
+	if sym.Section != SHN_UNDEF && sym.Section < SHN_LORESERVE {
+		return true, sym.Value
+	}
+	return false, 0
+}
+
 func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) error {
 	// 24 is the size of Rela64.
 	if len(rels)%24 != 0 {
@@ -651,26 +670,28 @@ func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) error {
 			continue
 		}
 		sym := &symbols[symNo-1]
-		if SymType(sym.Info&0xf) != STT_SECTION {
-			// We don't handle non-section relocations for now.
+		needed, val := relocSymbolTargetOK(sym)
+		if !needed {
 			continue
 		}
 
 		// There are relocations, so this must be a normal
-		// object file, and we only look at section symbols,
-		// so we assume that the symbol value is 0.
+		// object file.  The code below handles only basic relocations
+		// of the form S + A (symbol plus addend).
 
 		switch t {
 		case R_X86_64_64:
 			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
 				continue
 			}
-			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], uint64(rela.Addend))
+			val64 := val + uint64(rela.Addend)
+			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
 		case R_X86_64_32:
 			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
 				continue
 			}
-			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], uint32(rela.Addend))
+			val32 := uint32(val) + uint32(rela.Addend)
+			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], val32)
 		}
 	}
 
@@ -775,26 +796,28 @@ func (f *File) applyRelocationsARM64(dst []byte, rels []byte) error {
 			continue
 		}
 		sym := &symbols[symNo-1]
-		if SymType(sym.Info&0xf) != STT_SECTION {
-			// We don't handle non-section relocations for now.
+		needed, val := relocSymbolTargetOK(sym)
+		if !needed {
 			continue
 		}
 
 		// There are relocations, so this must be a normal
-		// object file, and we only look at section symbols,
-		// so we assume that the symbol value is 0.
+		// object file.  The code below handles only basic relocations
+		// of the form S + A (symbol plus addend).
 
 		switch t {
 		case R_AARCH64_ABS64:
 			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
 				continue
 			}
-			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], uint64(rela.Addend))
+			val64 := uint64(val) + uint64(rela.Addend)
+			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
 		case R_AARCH64_ABS32:
 			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
 				continue
 			}
-			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], uint32(rela.Addend))
+			val32 := uint32(val) + uint32(rela.Addend)
+			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], val32)
 		}
 	}
 
@@ -824,8 +847,8 @@ func (f *File) applyRelocationsPPC(dst []byte, rels []byte) error {
 			continue
 		}
 		sym := &symbols[symNo-1]
-		if SymType(sym.Info&0xf) != STT_SECTION {
-			// We don't handle non-section relocations for now.
+		needed, val := relocSymbolTargetOK(sym)
+		if !needed {
 			continue
 		}
 
@@ -834,7 +857,8 @@ func (f *File) applyRelocationsPPC(dst []byte, rels []byte) error {
 			if rela.Off+4 >= uint32(len(dst)) || rela.Addend < 0 {
 				continue
 			}
-			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], uint32(rela.Addend))
+			val32 := uint32(val) + uint32(rela.Addend)
+			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], val32)
 		}
 	}
 
@@ -864,8 +888,8 @@ func (f *File) applyRelocationsPPC64(dst []byte, rels []byte) error {
 			continue
 		}
 		sym := &symbols[symNo-1]
-		if SymType(sym.Info&0xf) != STT_SECTION {
-			// We don't handle non-section relocations for now.
+		needed, val := relocSymbolTargetOK(sym)
+		if !needed {
 			continue
 		}
 
@@ -874,12 +898,14 @@ func (f *File) applyRelocationsPPC64(dst []byte, rels []byte) error {
 			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
 				continue
 			}
-			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], uint64(rela.Addend))
+			val64 := val + uint64(rela.Addend)
+			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
 		case R_PPC64_ADDR32:
 			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
 				continue
 			}
-			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], uint32(rela.Addend))
+			val32 := uint32(val) + uint32(rela.Addend)
+			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], val32)
 		}
 	}
 
@@ -954,8 +980,8 @@ func (f *File) applyRelocationsMIPS64(dst []byte, rels []byte) error {
 			continue
 		}
 		sym := &symbols[symNo-1]
-		if SymType(sym.Info&0xf) != STT_SECTION {
-			// We don't handle non-section relocations for now.
+		needed, val := relocSymbolTargetOK(sym)
+		if !needed {
 			continue
 		}
 
@@ -964,12 +990,14 @@ func (f *File) applyRelocationsMIPS64(dst []byte, rels []byte) error {
 			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
 				continue
 			}
-			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], uint64(rela.Addend))
+			val64 := val + uint64(rela.Addend)
+			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
 		case R_MIPS_32:
 			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
 				continue
 			}
-			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], uint32(rela.Addend))
+			val32 := uint32(val) + uint32(rela.Addend)
+			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], val32)
 		}
 	}
 
@@ -999,10 +1027,8 @@ func (f *File) applyRelocationsRISCV64(dst []byte, rels []byte) error {
 			continue
 		}
 		sym := &symbols[symNo-1]
-		switch SymType(sym.Info & 0xf) {
-		case STT_SECTION, STT_NOTYPE:
-			break
-		default:
+		needed, val := relocSymbolTargetOK(sym)
+		if !needed {
 			continue
 		}
 
@@ -1011,14 +1037,14 @@ func (f *File) applyRelocationsRISCV64(dst []byte, rels []byte) error {
 			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
 				continue
 			}
-			val := sym.Value + uint64(rela.Addend)
-			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val)
+			val64 := val + uint64(rela.Addend)
+			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
 		case R_RISCV_32:
 			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
 				continue
 			}
-			val := uint32(sym.Value) + uint32(rela.Addend)
-			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], val)
+			val32 := uint32(val) + uint32(rela.Addend)
+			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], val32)
 		}
 	}
 
@@ -1048,10 +1074,8 @@ func (f *File) applyRelocationss390x(dst []byte, rels []byte) error {
 			continue
 		}
 		sym := &symbols[symNo-1]
-		switch SymType(sym.Info & 0xf) {
-		case STT_SECTION, STT_NOTYPE:
-			break
-		default:
+		needed, val := relocSymbolTargetOK(sym)
+		if !needed {
 			continue
 		}
 
@@ -1060,14 +1084,14 @@ func (f *File) applyRelocationss390x(dst []byte, rels []byte) error {
 			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
 				continue
 			}
-			val := sym.Value + uint64(rela.Addend)
-			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val)
+			val64 := val + uint64(rela.Addend)
+			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
 		case R_390_32:
 			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
 				continue
 			}
-			val := uint32(sym.Value) + uint32(rela.Addend)
-			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], val)
+			val32 := uint32(val) + uint32(rela.Addend)
+			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], val32)
 		}
 	}
 
@@ -1097,8 +1121,8 @@ func (f *File) applyRelocationsSPARC64(dst []byte, rels []byte) error {
 			continue
 		}
 		sym := &symbols[symNo-1]
-		if SymType(sym.Info&0xf) != STT_SECTION {
-			// We don't handle non-section relocations for now.
+		needed, val := relocSymbolTargetOK(sym)
+		if !needed {
 			continue
 		}
 
@@ -1107,12 +1131,14 @@ func (f *File) applyRelocationsSPARC64(dst []byte, rels []byte) error {
 			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
 				continue
 			}
-			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], uint64(rela.Addend))
+			val64 := val + uint64(rela.Addend)
+			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
 		case R_SPARC_32, R_SPARC_UA32:
 			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
 				continue
 			}
-			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], uint32(rela.Addend))
+			val32 := uint32(val) + uint32(rela.Addend)
+			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], val32)
 		}
 	}
 
