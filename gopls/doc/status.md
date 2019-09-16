@@ -1,4 +1,4 @@
-# gopls status
+# Status
 
 gopls is currently in **alpha**, so it is **not stable**.
 

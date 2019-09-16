@@ -1,6 +1,6 @@
 # Emacs
 
-Use [lsp-mode]. gopls is built in now as a client, so no special config is necessary. You first must install gopls and put it somewhere in your PATH. Here is an example (assuming you are using [use-package]) to get you started:
+Use [lsp-mode]. gopls is built in now as a client, so no special config is necessary. You first must install `gopls` and put it somewhere in your `PATH`. Here is an example (assuming you are using [use-package]) to get you started:
 
 ```lisp
 (use-package lsp-mode
