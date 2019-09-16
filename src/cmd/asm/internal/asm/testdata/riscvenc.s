@@ -6,10 +6,6 @@
 
 TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 
-	// Arbitrary bytes (entered in little-endian mode)
-	WORD	$0x12345678	// WORD $305419896	// 78563412
-	WORD	$0x9abcdef0	// WORD $2596069104	// f0debc9a
-
 	// Unprivileged ISA
 
 	// 2.4: Integer Computational Instructions
@@ -77,3 +73,49 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	SRA	X5, X6					// 33535340
 	SRA	$1, X5, X6				// 13d31240
 	SRA	$1, X5					// 93d21240
+
+	// 2.6: Load and Store Instructions
+	LW	$0, X5, X6				// 03a30200
+	LW	$4, X5, X6				// 03a34200
+	LWU	$0, X5, X6				// 03e30200
+	LWU	$4, X5, X6				// 03e34200
+	LH	$0, X5, X6				// 03930200
+	LH	$4, X5, X6				// 03934200
+	LHU	$0, X5, X6				// 03d30200
+	LHU	$4, X5, X6				// 03d34200
+	LB	$0, X5, X6				// 03830200
+	LB	$4, X5, X6				// 03834200
+	LBU	$0, X5, X6				// 03c30200
+	LBU	$4, X5, X6				// 03c34200
+
+	SW	$0, X5, X6				// 23205300
+	SW	$4, X5, X6				// 23225300
+	SH	$0, X5, X6				// 23105300
+	SH	$4, X5, X6				// 23125300
+	SB	$0, X5, X6				// 23005300
+	SB	$4, X5, X6				// 23025300
+
+	// 5.3: Load and Store Instructions (RV64I)
+	LD	$0, X5, X6				// 03b30200
+	LD	$4, X5, X6				// 03b34200
+	SD	$0, X5, X6				// 23305300
+	SD	$4, X5, X6				// 23325300
+
+	// 7.1: Multiplication Operations
+	MUL	X5, X6, X7				// b3035302
+	MULH	X5, X6, X7				// b3135302
+	MULHU	X5, X6, X7				// b3335302
+	MULHSU	X5, X6, X7				// b3235302
+	MULW	X5, X6, X7				// bb035302
+	DIV	X5, X6, X7				// b3435302
+	DIVU	X5, X6, X7				// b3535302
+	REM	X5, X6, X7				// b3635302
+	REMU	X5, X6, X7				// b3735302
+	DIVW	X5, X6, X7				// bb435302
+	DIVUW	X5, X6, X7				// bb535302
+	REMW	X5, X6, X7				// bb635302
+	REMUW	X5, X6, X7				// bb735302
+
+	// Arbitrary bytes (entered in little-endian mode)
+	WORD	$0x12345678	// WORD $305419896	// 78563412
+	WORD	$0x9abcdef0	// WORD $2596069104	// f0debc9a
