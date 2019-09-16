@@ -86,7 +86,7 @@ func fileToMapper(ctx context.Context, view View, uri span.URI) (*ast.File, []Pa
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	file, m, err := pkgToMapper(ctx, view, pkg, uri)
+	file, m, err := pkgToMapper(ctx, view, pkg, f.URI())
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -109,7 +109,7 @@ func cachedFileToMapper(ctx context.Context, view View, uri span.URI) (*ast.File
 	if err != nil {
 		return nil, nil, err
 	}
-	file, m, err := pkgToMapper(ctx, view, pkg, uri)
+	file, m, err := pkgToMapper(ctx, view, pkg, f.URI())
 	if err != nil {
 		return nil, nil, err
 	}

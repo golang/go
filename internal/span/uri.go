@@ -124,7 +124,11 @@ func FileURI(path string) URI {
 		Scheme: fileScheme,
 		Path:   path,
 	}
-	return URI(u.String())
+	uri := u.String()
+	if unescaped, err := url.PathUnescape(uri); err == nil {
+		uri = unescaped
+	}
+	return URI(uri)
 }
 
 // isWindowsDrivePath returns true if the file path is of the form used by

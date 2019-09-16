@@ -23,6 +23,7 @@ func TestURI(t *testing.T) {
 		`c:/Go/src/bob.go`,
 		`/path/to/dir`,
 		`/a/b/c/src/bob.go`,
+		`c:/Go/src/bob george/george/george.go`,
 	} {
 		testPath := filepath.FromSlash(test)
 		expectPath := testPath
