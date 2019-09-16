@@ -735,13 +735,15 @@ func funcname(f funcInfo) string {
 	return gostringnocopy(cfuncname(f))
 }
 
-func funcnameFromNameoff(f funcInfo, nameoff int32) string {
-	datap := f.datap
+func cfuncnameFromNameoff(f funcInfo, nameoff int32) *byte {
 	if !f.valid() {
-		return ""
+		return nil
 	}
-	cstr := &datap.pclntable[nameoff]
-	return gostringnocopy(cstr)
+	return &f.datap.pclntable[nameoff]
+}
+
+func funcnameFromNameoff(f funcInfo, nameoff int32) string {
+	return gostringnocopy(cfuncnameFromNameoff(f, nameoff))
 }
 
 func funcfile(f funcInfo, fileno int32) string {
