@@ -465,3 +465,31 @@ func TestIssue29029(t *testing.T) {
 		t.Errorf("\ngot : %swant: %s", got, want)
 	}
 }
+
+func TestIssue34151(t *testing.T) {
+	const asrc = `package a; type I interface{ M() }; type T struct { F interface { I } }`
+	const bsrc = `package b; import "a"; type T struct { F interface { a.I } }; var _ = a.T(T{})`
+
+	a, err := pkgFor("a", asrc, nil)
+	if err != nil {
+		t.Fatalf("package %s failed to typecheck: %v", a.Name(), err)
+	}
+
+	bast := mustParse(t, bsrc)
+	conf := Config{Importer: importHelper{a}}
+	b, err := conf.Check(bast.Name.Name, fset, []*ast.File{bast}, nil)
+	if err != nil {
+		t.Errorf("package %s failed to typecheck: %v", b.Name(), err)
+	}
+}
+
+type importHelper struct {
+	pkg *Package
+}
+
+func (h importHelper) Import(path string) (*Package, error) {
+	if path != h.pkg.Path() {
+		return nil, fmt.Errorf("got package path %q; want %q", path, h.pkg.Path())
+	}
+	return h.pkg, nil
+}

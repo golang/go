@@ -464,6 +464,11 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 				if m := mset.Lookup(check.pkg, sel); m == nil || m.obj != obj {
 					check.dump("%v: (%s).%v -> %s", e.Pos(), typ, obj.name, m)
 					check.dump("%s\n", mset)
+					// Caution: MethodSets are supposed to be used externally
+					// only (after all interface types were completed). It's
+					// now possible that we get here incorrectly. Not urgent
+					// to fix since we only run this code in debug mode.
+					// TODO(gri) fix this eventually.
 					panic("method sets and lookup don't agree")
 				}
 			}

@@ -329,14 +329,23 @@ func (t *Interface) Embedded(i int) *Named { tname, _ := t.embeddeds[i].(*Named)
 func (t *Interface) EmbeddedType(i int) Type { return t.embeddeds[i] }
 
 // NumMethods returns the total number of methods of interface t.
-func (t *Interface) NumMethods() int { return len(t.allMethods) }
+// The interface must have been completed.
+func (t *Interface) NumMethods() int { t.assertCompleteness(); return len(t.allMethods) }
+
+func (t *Interface) assertCompleteness() {
+	if t.allMethods == nil {
+		panic("interface is incomplete")
+	}
+}
 
 // Method returns the i'th method of interface t for 0 <= i < t.NumMethods().
 // The methods are ordered by their unique Id.
-func (t *Interface) Method(i int) *Func { return t.allMethods[i] }
+// The interface must have been completed.
+func (t *Interface) Method(i int) *Func { t.assertCompleteness(); return t.allMethods[i] }
 
 // Empty reports whether t is the empty interface.
-func (t *Interface) Empty() bool { return len(t.allMethods) == 0 }
+// The interface must have been completed.
+func (t *Interface) Empty() bool { t.assertCompleteness(); return len(t.allMethods) == 0 }
 
 // Complete computes the interface's method set. It must be called by users of
 // NewInterfaceType and NewInterface after the interface's embedded types are
