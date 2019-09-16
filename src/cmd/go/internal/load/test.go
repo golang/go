@@ -405,7 +405,7 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) {
 		// covered packages are imported by pmain. Linking multiple packages
 		// compiled with '-p main' causes duplicate symbol errors.
 		// See golang.org/issue/30907, golang.org/issue/34114.
-		if p.Name == "main" && p != pmain {
+		if p.Name == "main" && p != pmain && p != ptest {
 			split()
 		}
 	}
