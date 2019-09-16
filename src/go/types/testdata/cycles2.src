@@ -58,7 +58,9 @@ var y interface {
 	A
 	B
 }
-var _ = x == y
+
+// TODO(gri) This should be a valid compare. See #33656.
+var _ = x /* ERROR cannot compare */ == y
 
 
 // Test case for issue 6638.

@@ -538,10 +538,10 @@ func (check *Checker) completeInterface(ityp *Interface) {
 		return
 	}
 
-	// completeInterface may be called via the LookupFieldOrMethod or
-	// MissingMethod external API in which case check will be nil. In
-	// this case, type-checking must be finished and all interfaces
-	// should have been completed.
+	// completeInterface may be called via the LookupFieldOrMethod,
+	// MissingMethod, Identical, or IdenticalIgnoreTags external API
+	// in which case check will be nil. In this case, type-checking
+	// must be finished and all interfaces should have been completed.
 	if check == nil {
 		panic("internal error: incomplete interface")
 	}
@@ -569,7 +569,7 @@ func (check *Checker) completeInterface(ityp *Interface) {
 		default:
 			// check method signatures after all types are computed (issue #33656)
 			check.atEnd(func() {
-				if !Identical(m.typ, other.Type()) {
+				if !check.identical(m.typ, other.Type()) {
 					check.errorf(m.pos, "duplicate method %s", m.name)
 					check.reportAltDecl(other)
 				}
