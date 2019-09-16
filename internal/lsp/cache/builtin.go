@@ -21,6 +21,10 @@ func (b *builtinPkg) Lookup(name string) *ast.Object {
 	return b.pkg.Scope.Lookup(name)
 }
 
+func (b *builtinPkg) Files() []source.ParseGoHandle {
+	return b.files
+}
+
 // buildBuiltinPkg builds the view's builtin package.
 // It assumes that the view is not active yet,
 // i.e. it has not been added to the session's list of views.

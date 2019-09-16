@@ -31,12 +31,23 @@ func SignatureHelp(ctx context.Context, view View, f GoFile, pos protocol.Positi
 	ctx, done := trace.StartSpan(ctx, "source.SignatureHelp")
 	defer done()
 
-	file, pkgs, m, err := fileToMapper(ctx, view, f.URI())
+	pkgs, err := f.GetPackages(ctx)
 	if err != nil {
 		return nil, err
 	}
 	pkg, err := bestPackage(f.URI(), pkgs)
 	if err != nil {
+		return nil, err
+	}
+	var ph ParseGoHandle
+	for _, h := range pkg.GetHandles() {
+		if h.File().Identity().URI == f.URI() {
+			ph = h
+			break
+		}
+	}
+	file, m, err := ph.Cached(ctx)
+	if file == nil {
 		return nil, err
 	}
 	spn, err := m.PointSpan(pos)
@@ -113,7 +124,7 @@ FindCall:
 		if err != nil {
 			return nil, err
 		}
-		rng, err := objToMappedRange(ctx, view, obj)
+		rng, err := objToMappedRange(ctx, view, pkg, obj)
 		if err != nil {
 			return nil, err
 		}

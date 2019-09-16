@@ -149,13 +149,25 @@ func (i *IdentifierInfo) Rename(ctx context.Context, view View, newName string) 
 	}
 	result := make(map[span.URI][]protocol.TextEdit)
 	for uri, edits := range changes {
-		// Sort the edits first.
-		diff.SortTextEdits(edits)
-
-		_, m, err := cachedFileToMapper(ctx, view, uri)
+		// These edits should really be associated with FileHandles for maximal correctness.
+		// For now, this is good enough.
+		f, err := view.GetFile(ctx, uri)
 		if err != nil {
 			return nil, err
 		}
+		fh := f.Handle(ctx)
+		data, _, err := fh.Read(ctx)
+		if err != nil {
+			return nil, err
+		}
+		converter := span.NewContentConverter(uri.Filename(), data)
+		m := &protocol.ColumnMapper{
+			URI:       uri,
+			Converter: converter,
+			Content:   data,
+		}
+		// Sort the edits first.
+		diff.SortTextEdits(edits)
 		protocolEdits, err := ToProtocolEdits(m, edits)
 		if err != nil {
 			return nil, err
@@ -218,12 +230,11 @@ func getPkgNameIdentifier(ctx context.Context, ident *IdentifierInfo, pkgName *t
 		obj:         pkgName,
 		wasImplicit: true,
 	}
-	var err error
-	if decl.mappedRange, err = objToMappedRange(ctx, ident.View, decl.obj); err != nil {
-		return nil, err
-	}
 	pkg, err := bestPackage(ident.File.File().Identity().URI, ident.pkgs)
 	if err != nil {
+		return nil, err
+	}
+	if decl.mappedRange, err = objToMappedRange(ctx, ident.View, pkg, decl.obj); err != nil {
 		return nil, err
 	}
 	if decl.node, err = objToNode(ctx, ident.View, pkg, decl.obj); err != nil {

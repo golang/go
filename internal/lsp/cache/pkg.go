@@ -202,7 +202,12 @@ func (pkg *pkg) GetDiagnostics() []source.Diagnostic {
 	return diags
 }
 
-func (p *pkg) FindFile(ctx context.Context, uri span.URI) (source.ParseGoHandle, *ast.File, source.Package, error) {
+func (p *pkg) FindFile(ctx context.Context, uri span.URI) (source.ParseGoHandle, source.Package, error) {
+	// Special case for ignored files.
+	if p.view.Ignore(uri) {
+		return p.view.findIgnoredFile(ctx, uri)
+	}
+
 	queue := []*pkg{p}
 	seen := make(map[string]bool)
 
@@ -213,11 +218,7 @@ func (p *pkg) FindFile(ctx context.Context, uri span.URI) (source.ParseGoHandle,
 
 		for _, ph := range pkg.files {
 			if ph.File().Identity().URI == uri {
-				file, _, err := ph.Cached(ctx)
-				if file == nil {
-					return nil, nil, nil, err
-				}
-				return ph, file, pkg, nil
+				return ph, pkg, nil
 			}
 		}
 		for _, dep := range pkg.imports {
@@ -226,5 +227,5 @@ func (p *pkg) FindFile(ctx context.Context, uri span.URI) (source.ParseGoHandle,
 			}
 		}
 	}
-	return nil, nil, nil, errors.Errorf("no file for %s", uri)
+	return nil, nil, errors.Errorf("no file for %s", uri)
 }

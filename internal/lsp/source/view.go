@@ -319,9 +319,10 @@ type Package interface {
 
 	// FindFile returns the AST and type information for a file that may
 	// belong to or be part of a dependency of the given package.
-	FindFile(ctx context.Context, uri span.URI) (ParseGoHandle, *ast.File, Package, error)
+	FindFile(ctx context.Context, uri span.URI) (ParseGoHandle, Package, error)
 }
 
 type BuiltinPackage interface {
 	Lookup(name string) *ast.Object
+	Files() []ParseGoHandle
 }

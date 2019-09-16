@@ -245,10 +245,6 @@ func toDiagnostic(ctx context.Context, view View, diag analysis.Diagnostic, cate
 	if diag.Category != "" {
 		category += "." + category
 	}
-	ca, err := getCodeActions(ctx, view, diag)
-	if err != nil {
-		return Diagnostic{}, err
-	}
 	f, err := view.GetFile(ctx, spn.URI())
 	if err != nil {
 		return Diagnostic{}, err
@@ -263,6 +259,11 @@ func toDiagnostic(ctx context.Context, view View, diag analysis.Diagnostic, cate
 	if err != nil {
 		return Diagnostic{}, err
 	}
+	ca, err := getCodeActions(ctx, view, pkg, diag)
+	if err != nil {
+		return Diagnostic{}, err
+	}
+
 	rng, err := spanToRange(ctx, view, pkg, spn, false)
 	if err != nil {
 		return Diagnostic{}, err

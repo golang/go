@@ -23,6 +23,7 @@ import (
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
+	errors "golang.org/x/xerrors"
 )
 
 type view struct {
@@ -280,6 +281,16 @@ func (v *view) Ignore(uri span.URI) bool {
 
 	_, ok := v.ignoredURIs[uri]
 	return ok
+}
+
+func (v *view) findIgnoredFile(ctx context.Context, uri span.URI) (source.ParseGoHandle, source.Package, error) {
+	// Check the builtin package.
+	for _, h := range v.BuiltinPackage().Files() {
+		if h.File().Identity().URI == uri {
+			return h, nil, nil
+		}
+	}
+	return nil, nil, errors.Errorf("no ignored file for %s", uri)
 }
 
 func (v *view) BackgroundContext() context.Context {

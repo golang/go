@@ -69,73 +69,6 @@ func bestPackage(uri span.URI, pkgs []Package) (Package, error) {
 	return result, nil
 }
 
-func fileToMapper(ctx context.Context, view View, uri span.URI) (*ast.File, []Package, *protocol.ColumnMapper, error) {
-	f, err := view.GetFile(ctx, uri)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	gof, ok := f.(GoFile)
-	if !ok {
-		return nil, nil, nil, errors.Errorf("%s is not a Go file", f.URI())
-	}
-	pkgs, err := gof.GetPackages(ctx)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	pkg, err := bestPackage(f.URI(), pkgs)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	file, m, err := pkgToMapper(ctx, view, pkg, f.URI())
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	return file, pkgs, m, nil
-}
-
-func cachedFileToMapper(ctx context.Context, view View, uri span.URI) (*ast.File, *protocol.ColumnMapper, error) {
-	f, err := view.GetFile(ctx, uri)
-	if err != nil {
-		return nil, nil, err
-	}
-	gof, ok := f.(GoFile)
-	if !ok {
-		return nil, nil, errors.Errorf("%s is not a Go file", f.URI())
-	}
-	pkg, err := gof.GetCachedPackage(ctx)
-	if err == nil {
-		file, m, err := pkgToMapper(ctx, view, pkg, f.URI())
-		if err != nil {
-			return nil, nil, err
-		}
-		return file, m, nil
-	}
-	// Fallback to just looking for the AST.
-	ph := view.Session().Cache().ParseGoHandle(gof.Handle(ctx), ParseFull)
-	file, m, err := ph.Cached(ctx)
-	if file == nil {
-		return nil, nil, err
-	}
-	return file, m, nil
-}
-
-func pkgToMapper(ctx context.Context, view View, pkg Package, uri span.URI) (*ast.File, *protocol.ColumnMapper, error) {
-	var ph ParseGoHandle
-	for _, h := range pkg.GetHandles() {
-		if h.File().Identity().URI == uri {
-			ph = h
-		}
-	}
-	if ph == nil {
-		return nil, nil, errors.Errorf("no ParseGoHandle for %s", uri)
-	}
-	file, m, err := ph.Cached(ctx)
-	if file == nil {
-		return nil, nil, err
-	}
-	return file, m, nil
-}
-
 func IsGenerated(ctx context.Context, view View, uri span.URI) bool {
 	f, err := view.GetFile(ctx, uri)
 	if err != nil {
@@ -163,15 +96,15 @@ func IsGenerated(ctx context.Context, view View, uri span.URI) bool {
 	return false
 }
 
-func nodeToProtocolRange(ctx context.Context, view View, n ast.Node) (protocol.Range, error) {
-	mrng, err := nodeToMappedRange(ctx, view, n)
+func nodeToProtocolRange(ctx context.Context, view View, m *protocol.ColumnMapper, n ast.Node) (protocol.Range, error) {
+	mrng, err := nodeToMappedRange(ctx, view, m, n)
 	if err != nil {
 		return protocol.Range{}, err
 	}
 	return mrng.Range()
 }
 
-func objToMappedRange(ctx context.Context, view View, obj types.Object) (mappedRange, error) {
+func objToMappedRange(ctx context.Context, view View, pkg Package, obj types.Object) (mappedRange, error) {
 	if pkgName, ok := obj.(*types.PkgName); ok {
 		// An imported Go package has a package-local, unqualified name.
 		// When the name matches the imported package name, there is no
@@ -184,36 +117,52 @@ func objToMappedRange(ctx context.Context, view View, obj types.Object) (mappedR
 		// When the identifier does not appear in the source, have the range
 		// of the object be the point at the beginning of the declaration.
 		if pkgName.Imported().Name() == pkgName.Name() {
-			return nameToMappedRange(ctx, view, obj.Pos(), "")
+			return nameToMappedRange(ctx, view, pkg, obj.Pos(), "")
 		}
 	}
-	return nameToMappedRange(ctx, view, obj.Pos(), obj.Name())
+	return nameToMappedRange(ctx, view, pkg, obj.Pos(), obj.Name())
 }
 
-func nameToMappedRange(ctx context.Context, view View, pos token.Pos, name string) (mappedRange, error) {
-	return posToRange(ctx, view, pos, pos+token.Pos(len(name)))
+func nameToMappedRange(ctx context.Context, view View, pkg Package, pos token.Pos, name string) (mappedRange, error) {
+	return posToMappedRange(ctx, view, pkg, pos, pos+token.Pos(len(name)))
 }
 
-func nodeToMappedRange(ctx context.Context, view View, n ast.Node) (mappedRange, error) {
-	return posToRange(ctx, view, n.Pos(), n.End())
+func nodeToMappedRange(ctx context.Context, view View, m *protocol.ColumnMapper, n ast.Node) (mappedRange, error) {
+	return posToRange(ctx, view, m, n.Pos(), n.End())
 }
 
-func posToRange(ctx context.Context, view View, pos, end token.Pos) (mappedRange, error) {
+func posToMappedRange(ctx context.Context, view View, pkg Package, pos, end token.Pos) (mappedRange, error) {
+	m, err := posToMapper(ctx, view, pkg, pos)
+	if err != nil {
+		return mappedRange{}, err
+	}
+	return posToRange(ctx, view, m, pos, end)
+}
+
+func posToRange(ctx context.Context, view View, m *protocol.ColumnMapper, pos, end token.Pos) (mappedRange, error) {
 	if !pos.IsValid() {
 		return mappedRange{}, errors.Errorf("invalid position for %v", pos)
 	}
 	if !end.IsValid() {
 		return mappedRange{}, errors.Errorf("invalid position for %v", end)
 	}
-	posn := view.Session().Cache().FileSet().Position(pos)
-	_, m, err := cachedFileToMapper(ctx, view, span.FileURI(posn.Filename))
-	if err != nil {
-		return mappedRange{}, err
-	}
 	return mappedRange{
 		m:         m,
 		spanRange: span.NewRange(view.Session().Cache().FileSet(), pos, end),
 	}, nil
+}
+
+func posToMapper(ctx context.Context, view View, pkg Package, pos token.Pos) (*protocol.ColumnMapper, error) {
+	posn := view.Session().Cache().FileSet().Position(pos)
+	ph, _, err := pkg.FindFile(ctx, span.FileURI(posn.Filename))
+	if err != nil {
+		return nil, err
+	}
+	_, m, err := ph.Cached(ctx)
+	if m == nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 // Matches cgo generated comment as well as the proposed standard:
