@@ -246,7 +246,7 @@ func readCookies(h Header, filter string) []*Cookie {
 
 		var part string
 		for len(line) > 0 { // continue since we have rest
-			if splitIndex := strings.Index(line, ";"); splitIndex > 0 {
+			if splitIndex := strings.Index(line, ";"); splitIndex >= 0 {
 				part, line = line[:splitIndex], line[splitIndex+1:]
 			} else {
 				part, line = line, ""
