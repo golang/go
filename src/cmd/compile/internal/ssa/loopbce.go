@@ -111,17 +111,25 @@ func findIndVar(f *Func) []indVar {
 			continue
 		}
 
-		// See if the arguments are reversed (i < len() <=> len() > i)
-		less := true
-		if max.Op == OpPhi {
-			ind, max = max, ind
-			less = false
-		}
-
 		// See if this is really an induction variable
+		less := true
 		min, inc, nxt := parseIndVar(ind)
 		if min == nil {
-			continue
+			// We failed to parse the induction variable. Before punting, we want to check
+			// whether the control op was written with arguments in non-idiomatic order,
+			// so that we believe being "max" (the upper bound) is actually the induction
+			// variable itself. This would happen for code like:
+			//     for i := 0; len(n) > i; i++
+			min, inc, nxt = parseIndVar(max)
+			if min == nil {
+				// No recognied induction variable on either operand
+				continue
+			}
+
+			// Ok, the arguments were reversed. Swap them, and remember that we're
+			// looking at a ind >/>= loop (so the induction must be decrementing).
+			ind, max = max, ind
+			less = false
 		}
 
 		// Expect the increment to be a nonzero constant.
