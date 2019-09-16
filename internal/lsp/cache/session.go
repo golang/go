@@ -102,10 +102,11 @@ func (s *session) NewView(ctx context.Context, name string, folder span.URI, opt
 			packages: make(map[packageID]*metadata),
 		},
 		ignoredURIs: make(map[span.URI]struct{}),
+		builtin:     &builtinPkg{},
 	}
 	// Preemptively build the builtin package,
 	// so we immediately add builtin.go to the list of ignored files.
-	v.buildBuiltinPkg(ctx)
+	v.buildBuiltinPackage(ctx)
 
 	s.views = append(s.views, v)
 	// we always need to drop the view map

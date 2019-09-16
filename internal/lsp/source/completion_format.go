@@ -173,7 +173,11 @@ func (c *completer) formatBuiltin(cand candidate) CompletionItem {
 		item.Kind = ConstantCompletionItem
 	case *types.Builtin:
 		item.Kind = FunctionCompletionItem
-		decl, ok := lookupBuiltinDecl(c.view, obj.Name()).(*ast.FuncDecl)
+		builtin := c.view.BuiltinPackage().Lookup(obj.Name())
+		if obj == nil {
+			break
+		}
+		decl, ok := builtin.Decl.(*ast.FuncDecl)
 		if !ok {
 			break
 		}

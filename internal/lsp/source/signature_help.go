@@ -135,7 +135,11 @@ FindCall:
 }
 
 func builtinSignature(ctx context.Context, v View, callExpr *ast.CallExpr, name string, pos token.Pos) (*SignatureInformation, error) {
-	decl, ok := lookupBuiltinDecl(v, name).(*ast.FuncDecl)
+	obj := v.BuiltinPackage().Lookup(name)
+	if obj == nil {
+		return nil, errors.Errorf("no object for %s", name)
+	}
+	decl, ok := obj.Decl.(*ast.FuncDecl)
 	if !ok {
 		return nil, errors.Errorf("no function declaration for builtin: %s", name)
 	}

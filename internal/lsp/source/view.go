@@ -215,8 +215,8 @@ type View interface {
 	// Folder returns the root folder for this view.
 	Folder() span.URI
 
-	// BuiltinPackage returns the ast for the special "builtin" package.
-	BuiltinPackage() *ast.Package
+	// BuiltinPackage returns the type information for the special "builtin" package.
+	BuiltinPackage() BuiltinPackage
 
 	// GetFile returns the file object for a given URI, initializing it
 	// if it is not already part of the view.
@@ -264,8 +264,6 @@ type File interface {
 // GoFile represents a Go source file that has been type-checked.
 type GoFile interface {
 	File
-
-	Builtin() (*ast.File, bool)
 
 	// GetCachedPackage returns the cached package for the file, if any.
 	GetCachedPackage(ctx context.Context) (Package, error)
@@ -322,4 +320,8 @@ type Package interface {
 	// FindFile returns the AST and type information for a file that may
 	// belong to or be part of a dependency of the given package.
 	FindFile(ctx context.Context, uri span.URI) (ParseGoHandle, *ast.File, Package, error)
+}
+
+type BuiltinPackage interface {
+	Lookup(name string) *ast.Object
 }

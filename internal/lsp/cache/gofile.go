@@ -194,16 +194,6 @@ func (f *goFile) wrongParseMode(ctx context.Context, fh source.FileHandle, mode 
 	return true
 }
 
-func (f *goFile) Builtin() (*ast.File, bool) {
-	builtinPkg := f.View().BuiltinPackage()
-	for filename, file := range builtinPkg.Files {
-		if filename == f.URI().Filename() {
-			return file, true
-		}
-	}
-	return nil, false
-}
-
 // isDirty is true if the file needs to be type-checked.
 // It assumes that the file's view's mutex is held by the caller.
 func (f *goFile) isDirty(ctx context.Context, fh source.FileHandle) bool {

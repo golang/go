@@ -73,8 +73,8 @@ type view struct {
 	// mcache caches metadata for the packages of the opened files in a view.
 	mcache *metadataCache
 
-	// builtinPkg is the AST package used to resolve builtin types.
-	builtinPkg *ast.Package
+	// builtin is used to resolve builtin types.
+	builtin *builtinPkg
 
 	// ignoredURIs is the set of URIs of files that we ignore.
 	ignoredURIsMu sync.Mutex
@@ -289,41 +289,8 @@ func (v *view) BackgroundContext() context.Context {
 	return v.backgroundCtx
 }
 
-func (v *view) BuiltinPackage() *ast.Package {
-	return v.builtinPkg
-}
-
-// buildBuiltinPkg builds the view's builtin package.
-// It assumes that the view is not active yet,
-// i.e. it has not been added to the session's list of views.
-func (v *view) buildBuiltinPkg(ctx context.Context) {
-	cfg := *v.Config(ctx)
-	pkgs, err := packages.Load(&cfg, "builtin")
-	if err != nil {
-		log.Error(ctx, "error getting package metadata for \"builtin\" package", err)
-	}
-	if len(pkgs) != 1 {
-		v.builtinPkg, _ = ast.NewPackage(cfg.Fset, nil, nil, nil)
-		return
-	}
-	pkg := pkgs[0]
-	files := make(map[string]*ast.File)
-	for _, filename := range pkg.GoFiles {
-		fh := v.session.GetFile(span.FileURI(filename))
-		ph := v.session.cache.ParseGoHandle(fh, source.ParseFull)
-		file, _, err := ph.Parse(ctx)
-		if file == nil {
-			log.Error(ctx, "failed to parse builtin", err, telemetry.File.Of(filename))
-			v.builtinPkg, _ = ast.NewPackage(cfg.Fset, nil, nil, nil)
-			return
-		}
-		files[filename] = file
-
-		v.ignoredURIsMu.Lock()
-		v.ignoredURIs[span.NewURI(filename)] = struct{}{}
-		v.ignoredURIsMu.Unlock()
-	}
-	v.builtinPkg, _ = ast.NewPackage(cfg.Fset, files, nil, nil)
+func (v *view) BuiltinPackage() source.BuiltinPackage {
+	return v.builtin
 }
 
 // SetContent sets the overlay contents for a file.

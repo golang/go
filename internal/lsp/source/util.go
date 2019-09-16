@@ -102,15 +102,18 @@ func cachedFileToMapper(ctx context.Context, view View, uri span.URI) (*ast.File
 	if !ok {
 		return nil, nil, errors.Errorf("%s is not a Go file", f.URI())
 	}
-	if file, ok := gof.Builtin(); ok {
-		return builtinFileToMapper(ctx, view, gof, file)
-	}
 	pkg, err := gof.GetCachedPackage(ctx)
-	if err != nil {
-		return nil, nil, err
+	if err == nil {
+		file, m, err := pkgToMapper(ctx, view, pkg, f.URI())
+		if err != nil {
+			return nil, nil, err
+		}
+		return file, m, nil
 	}
-	file, m, err := pkgToMapper(ctx, view, pkg, f.URI())
-	if err != nil {
+	// Fallback to just looking for the AST.
+	ph := view.Session().Cache().ParseGoHandle(gof.Handle(ctx), ParseFull)
+	file, m, err := ph.Cached(ctx)
+	if file == nil {
 		return nil, nil, err
 	}
 	return file, m, nil
@@ -131,21 +134,6 @@ func pkgToMapper(ctx context.Context, view View, pkg Package, uri span.URI) (*as
 		return nil, nil, err
 	}
 	return file, m, nil
-}
-
-func builtinFileToMapper(ctx context.Context, view View, f GoFile, file *ast.File) (*ast.File, *protocol.ColumnMapper, error) {
-	fh := f.Handle(ctx)
-	data, _, err := fh.Read(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	converter := span.NewContentConverter(fh.Identity().URI.Filename(), data)
-	m := &protocol.ColumnMapper{
-		URI:       fh.Identity().URI,
-		Content:   data,
-		Converter: converter,
-	}
-	return nil, m, nil
 }
 
 func IsGenerated(ctx context.Context, view View, uri span.URI) bool {
@@ -353,18 +341,6 @@ func resolveInvalid(obj types.Object, node ast.Node, info *types.Info) types.Obj
 		}
 	})
 	return formatResult(resultExpr)
-}
-
-func lookupBuiltinDecl(v View, name string) interface{} {
-	builtinPkg := v.BuiltinPackage()
-	if builtinPkg == nil || builtinPkg.Scope == nil {
-		return nil
-	}
-	obj := builtinPkg.Scope.Lookup(name)
-	if obj == nil {
-		return nil
-	}
-	return obj.Decl
 }
 
 func isPointer(T types.Type) bool {

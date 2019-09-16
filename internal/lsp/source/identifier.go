@@ -143,7 +143,11 @@ func identifier(ctx context.Context, view View, pkgs []Package, file *ast.File, 
 
 	// Handle builtins separately.
 	if result.Declaration.obj.Parent() == types.Universe {
-		decl, ok := lookupBuiltinDecl(view, result.Name).(ast.Node)
+		obj := view.BuiltinPackage().Lookup(result.Name)
+		if obj == nil {
+			return result, nil
+		}
+		decl, ok := obj.Decl.(ast.Node)
 		if !ok {
 			return nil, errors.Errorf("no declaration for %s", result.Name)
 		}
