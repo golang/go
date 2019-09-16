@@ -168,6 +168,14 @@ func TestTinyAlloc(t *testing.T) {
 	}
 }
 
+func TestPageCacheLeak(t *testing.T) {
+	defer GOMAXPROCS(GOMAXPROCS(1))
+	leaked := PageCachePagesLeaked()
+	if leaked != 0 {
+		t.Fatalf("found %d leaked pages in page caches", leaked)
+	}
+}
+
 func TestPhysicalMemoryUtilization(t *testing.T) {
 	got := runTestProg(t, "testprog", "GCPhys")
 	want := "OK\n"
