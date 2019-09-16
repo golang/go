@@ -215,6 +215,12 @@ func validateII(p *obj.Prog) {
 	wantIntRegAddr(p, "to", &p.To)
 }
 
+func validateSI(p *obj.Prog) {
+	wantImm(p, "from", p.From, 12)
+	wantIntReg(p, "reg", p.Reg)
+	wantIntRegAddr(p, "to", &p.To)
+}
+
 func validateRaw(p *obj.Prog) {
 	// Treat the raw value specially as a 32-bit unsigned integer.
 	// Nobody wants to enter negative machine code.
@@ -263,6 +269,21 @@ func encodeII(p *obj.Prog) uint32 {
 	return encodeI(p, regIAddr(p.To))
 }
 
+// encodeS encodes an S-type RISC-V instruction.
+func encodeS(p *obj.Prog, rs2 uint32) uint32 {
+	imm := immI(p.From, 12)
+	rs1 := regIAddr(p.To)
+	i := encode(p.As)
+	if i == nil {
+		panic("encodeS: could not encode instruction")
+	}
+	return (imm>>5)<<25 | rs2<<20 | rs1<<15 | i.funct3<<12 | (imm&0x1f)<<7 | i.opcode
+}
+
+func encodeSI(p *obj.Prog) uint32 {
+	return encodeS(p, regI(p.Reg))
+}
+
 // encodeRaw encodes a raw instruction value.
 func encodeRaw(p *obj.Prog) uint32 {
 	// Treat the raw value specially as a 32-bit unsigned integer.
@@ -298,6 +319,8 @@ var (
 	rIIIEncoding = encoding{encode: encodeRIII, validate: validateRIII, length: 4}
 
 	iIEncoding = encoding{encode: encodeII, validate: validateII, length: 4}
+
+	sIEncoding = encoding{encode: encodeSI, validate: validateSI, length: 4}
 
 	// rawEncoding encodes a raw instruction byte sequence.
 	rawEncoding = encoding{encode: encodeRaw, validate: validateRaw, length: 4}
@@ -337,6 +360,36 @@ var encodingForAs = [ALAST & obj.AMask]encoding{
 	ASRL & obj.AMask:   rIIIEncoding,
 	ASUB & obj.AMask:   rIIIEncoding,
 	ASRA & obj.AMask:   rIIIEncoding,
+
+	// 2.6: Load and Store Instructions
+	ALW & obj.AMask:  iIEncoding,
+	ALWU & obj.AMask: iIEncoding,
+	ALH & obj.AMask:  iIEncoding,
+	ALHU & obj.AMask: iIEncoding,
+	ALB & obj.AMask:  iIEncoding,
+	ALBU & obj.AMask: iIEncoding,
+	ASW & obj.AMask:  sIEncoding,
+	ASH & obj.AMask:  sIEncoding,
+	ASB & obj.AMask:  sIEncoding,
+
+	// 5.3: Load and Store Instructions (RV64I)
+	ALD & obj.AMask: iIEncoding,
+	ASD & obj.AMask: sIEncoding,
+
+	// 7.1: Multiplication Operations
+	AMUL & obj.AMask:    rIIIEncoding,
+	AMULH & obj.AMask:   rIIIEncoding,
+	AMULHU & obj.AMask:  rIIIEncoding,
+	AMULHSU & obj.AMask: rIIIEncoding,
+	AMULW & obj.AMask:   rIIIEncoding,
+	ADIV & obj.AMask:    rIIIEncoding,
+	ADIVU & obj.AMask:   rIIIEncoding,
+	AREM & obj.AMask:    rIIIEncoding,
+	AREMU & obj.AMask:   rIIIEncoding,
+	ADIVW & obj.AMask:   rIIIEncoding,
+	ADIVUW & obj.AMask:  rIIIEncoding,
+	AREMW & obj.AMask:   rIIIEncoding,
+	AREMUW & obj.AMask:  rIIIEncoding,
 
 	// Escape hatch
 	AWORD & obj.AMask: rawEncoding,
