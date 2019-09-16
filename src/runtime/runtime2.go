@@ -555,6 +555,7 @@ type p struct {
 	sysmontick  sysmontick // last tick observed by sysmon
 	m           muintptr   // back-link to associated m (nil if idle)
 	mcache      *mcache
+	pcache      pageCache
 	raceprocctx uintptr
 
 	deferpool    [5][]*_defer // pool of available defer structs of different sizes (see panic.go)
@@ -611,7 +612,7 @@ type p struct {
 
 	palloc persistentAlloc // per-P to avoid mutex
 
-	// _ uint32 // Alignment for atomic fields below
+	_ uint32 // Alignment for atomic fields below
 
 	// Per-P GC state
 	gcAssistTime         int64    // Nanoseconds in assistAlloc
