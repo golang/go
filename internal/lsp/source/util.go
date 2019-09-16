@@ -123,6 +123,9 @@ func pkgToMapper(ctx context.Context, view View, pkg Package, uri span.URI) (*as
 			ph = h
 		}
 	}
+	if ph == nil {
+		return nil, nil, errors.Errorf("no ParseGoHandle for %s", uri)
+	}
 	file, err := ph.Cached(ctx)
 	if file == nil {
 		return nil, nil, err
