@@ -108,8 +108,15 @@ func TestParseExpr(t *testing.T) {
 
 	// an invalid expression
 	src = "a + *"
-	if _, err := ParseExpr(src); err == nil {
+	x, err = ParseExpr(src)
+	if err == nil {
 		t.Errorf("ParseExpr(%q): got no error", src)
+	}
+	if x == nil {
+		t.Errorf("ParseExpr(%q): got no (partial) result", src)
+	}
+	if _, ok := x.(*ast.BinaryExpr); !ok {
+		t.Errorf("ParseExpr(%q): got %T, want *ast.BinaryExpr", src, x)
 	}
 
 	// a valid expression followed by extra tokens is invalid
