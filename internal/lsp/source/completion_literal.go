@@ -85,6 +85,13 @@ func (c *completer) literal(literalType types.Type) {
 		switch t := literalType.Underlying().(type) {
 		case *types.Struct, *types.Array, *types.Slice, *types.Map:
 			c.compositeLiteral(t, typeName, float64(score))
+		case *types.Basic:
+			// Add a literal completion for basic types that implement our
+			// expected interface (e.g. named string type http.Dir
+			// implements http.FileSystem).
+			if isInterface(c.expectedType.objType) {
+				c.basicLiteral(t, typeName, float64(score))
+			}
 		}
 	}
 
@@ -255,6 +262,26 @@ func (c *completer) compositeLiteral(T types.Type, typeName string, matchScore f
 	c.items = append(c.items, CompletionItem{
 		Label:      nonSnippet,
 		InsertText: nonSnippet,
+		Score:      matchScore * literalCandidateScore,
+		Kind:       VariableCompletionItem,
+		snippet:    snip,
+	})
+}
+
+// basicLiteral adds a literal completion item for the given basic
+// type name typeName.
+func (c *completer) basicLiteral(T types.Type, typeName string, matchScore float64) {
+	snip := &snippet.Builder{}
+	snip.WriteText(typeName + "(")
+	snip.WriteFinalTabstop()
+	snip.WriteText(")")
+
+	nonSnippet := typeName + "()"
+
+	c.items = append(c.items, CompletionItem{
+		Label:      nonSnippet,
+		InsertText: nonSnippet,
+		Detail:     T.String(),
 		Score:      matchScore * literalCandidateScore,
 		Kind:       VariableCompletionItem,
 		snippet:    snip,

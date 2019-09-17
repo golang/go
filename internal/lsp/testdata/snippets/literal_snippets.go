@@ -66,6 +66,10 @@ func (myImpl) foo() {}
 
 func (*myImpl) bar() {}
 
+type myBasicImpl string
+
+func (myBasicImpl) foo() {}
+
 func _() {
 	type myIntf interface {
 		foo()
@@ -75,6 +79,10 @@ func _() {
 
 	var mi myIntf
 	mi = m //@snippet(" //", litImpl, "myImpl{\\}", "myImpl{\\}")
+
+	myBasicImpl() //@item(litBasicImpl, "myBasicImpl()", "string", "var")
+
+	mi = m //@snippet(" //", litBasicImpl, "myBasicImpl($0)", "myBasicImpl($0)")
 
 	// only satisfied by pointer to myImpl
 	type myPtrIntf interface {
