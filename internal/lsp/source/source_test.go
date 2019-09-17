@@ -157,7 +157,7 @@ func (r *runner) DeepCompletion(t *testing.T, src span.Span, test tests.Completi
 	fuzzyMatcher := fuzzy.NewMatcher(prefix)
 	var got []protocol.CompletionItem
 	for _, item := range list {
-		if fuzzyMatcher.Score(item.Label) < 0 {
+		if fuzzyMatcher.Score(item.Label) <= 0 {
 			continue
 		}
 		got = append(got, item)
@@ -186,7 +186,7 @@ func (r *runner) FuzzyCompletion(t *testing.T, src span.Span, test tests.Complet
 	}
 	var got []protocol.CompletionItem
 	for _, item := range list {
-		if fuzzyMatcher != nil && fuzzyMatcher.Score(item.Label) < 0 {
+		if fuzzyMatcher != nil && fuzzyMatcher.Score(item.Label) <= 0 {
 			continue
 		}
 		got = append(got, item)
@@ -222,13 +222,10 @@ func (r *runner) RankCompletion(t *testing.T, src span.Span, test tests.Completi
 		Deep:          true,
 		Budget:        5 * time.Second,
 	})
-	if !strings.Contains(string(src.URI()), "builtins") {
-		list = tests.FilterBuiltins(list)
-	}
 	fuzzyMatcher := fuzzy.NewMatcher(prefix)
 	var got []protocol.CompletionItem
 	for _, item := range list {
-		if fuzzyMatcher.Score(item.Label) < 0 {
+		if fuzzyMatcher.Score(item.Label) <= 0 {
 			continue
 		}
 		got = append(got, item)

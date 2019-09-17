@@ -1,10 +1,10 @@
 -- summary --
-CompletionsCount = 216
+CompletionsCount = 219
 CompletionSnippetCount = 39
 UnimportedCompletionsCount = 1
 DeepCompletionsCount = 5
 FuzzyCompletionsCount = 7
-RankedCompletionsCount = 1
+RankedCompletionsCount = 2
 CaseSensitiveCompletionsCount = 4
 DiagnosticsCount = 22
 FoldingRangesCount = 2

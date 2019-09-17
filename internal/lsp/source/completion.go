@@ -989,6 +989,9 @@ type typeNameInference struct {
 
 	// assertableFrom is a type that must be assertable to our candidate type.
 	assertableFrom types.Type
+
+	// wantComparable is true if we want a comparable type.
+	wantComparable bool
 }
 
 // expectedType returns information about the expected type for an expression at
@@ -1205,6 +1208,7 @@ func breaksExpectedTypeInference(n ast.Node) bool {
 func expectTypeName(c *completer) typeNameInference {
 	var (
 		wantTypeName   bool
+		wantComparable bool
 		modifiers      []typeModifier
 		assertableFrom types.Type
 	)
@@ -1280,6 +1284,16 @@ Nodes:
 
 				break Nodes
 			}
+		case *ast.MapType:
+			wantTypeName = true
+			if n.Key != nil {
+				wantComparable = n.Key.Pos() <= c.pos && c.pos <= n.Key.End()
+			} else {
+				// If the key is empty, assume we are completing the key if
+				// pos is directly after the "map[".
+				wantComparable = c.pos == n.Pos()+token.Pos(len("map["))
+			}
+			break Nodes
 		default:
 			if breaksExpectedTypeInference(p) {
 				return typeNameInference{}
@@ -1289,6 +1303,7 @@ Nodes:
 
 	return typeNameInference{
 		wantTypeName:   wantTypeName,
+		wantComparable: wantComparable,
 		modifiers:      modifiers,
 		assertableFrom: assertableFrom,
 	}
@@ -1387,6 +1402,10 @@ func (c *completer) matchingTypeName(cand *candidate) bool {
 				return false
 			}
 		}
+	}
+
+	if c.expectedType.typeName.wantComparable && !types.Comparable(actual) {
+		return false
 	}
 
 	// We can expect a type name and have an expected type in cases like:

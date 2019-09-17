@@ -1,0 +1,18 @@
+package maps
+
+func _() {
+	var aVar int          //@item(mapVar, "aVar", "int", "var")
+
+	// not comparabale
+	type aSlice []int     //@item(mapSliceType, "aSlice", "[]int", "type")
+
+	// comparable
+	type aStruct struct{} //@item(mapStructType, "aStruct", "struct{...}", "struct")
+
+	map[]a{} //@complete("]", mapStructType, mapSliceType, mapVar)
+
+	map[a]a{} //@complete("]", mapStructType, mapSliceType, mapVar)
+	map[a]a{} //@complete("{", mapSliceType, mapStructType, mapVar)
+
+	map[]a{} //@rank("]", int, mapSliceType)
+}
