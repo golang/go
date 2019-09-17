@@ -636,7 +636,6 @@ type bodyBase struct {
 	canFail bool
 }
 
-func (w *bodyBase) body() []Statement { return w.list }
 func (w *bodyBase) add(nodes ...Statement) {
 	w.list = append(w.list, nodes...)
 	for _, node := range nodes {
