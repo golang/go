@@ -749,7 +749,7 @@ func breakf(format string, a ...interface{}) *CondBreak {
 func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 	rr := &RuleRewrite{loc: rule.loc}
 	rr.match, rr.cond, rr.result = rule.parse()
-	_, _, _, aux, s := extract(rr.match) // remove parens, then split
+	_, _, auxint, aux, s := extract(rr.match) // remove parens, then split
 
 	// check match of control values
 	if len(s) < data.controls {
@@ -781,15 +781,28 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 			pos[i] = arg + ".Pos"
 		}
 	}
-	if aux != "" {
-		rr.add(declf(aux, "b.Aux"))
+	for _, e := range []struct {
+		name, field string
+	}{
+		{auxint, "AuxInt"},
+		{aux, "Aux"},
+	} {
+		if e.name == "" {
+			continue
+		}
+		if !token.IsIdentifier(e.name) || rr.declared(e.name) {
+			// code or variable
+			rr.add(breakf("b.%s != %s", e.field, e.name))
+		} else {
+			rr.add(declf(e.name, "b.%s", e.field))
+		}
 	}
 	if rr.cond != "" {
 		rr.add(breakf("!(%s)", rr.cond))
 	}
 
 	// Rule matches. Generate result.
-	outop, _, _, aux, t := extract(rr.result) // remove parens, then split
+	outop, _, auxint, aux, t := extract(rr.result) // remove parens, then split
 	_, outdata := getBlockInfo(outop, arch)
 	if len(t) < outdata.controls {
 		log.Fatalf("incorrect number of output arguments in %s, got %v wanted at least %v", rule, len(s), outdata.controls)
@@ -831,6 +844,9 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 		// Generate a new control value (or copy an existing value).
 		v := genResult0(rr, arch, control, false, false, newpos)
 		rr.add(stmtf("b.AddControl(%s)", v))
+	}
+	if auxint != "" {
+		rr.add(stmtf("b.AuxInt = %s", auxint))
 	}
 	if aux != "" {
 		rr.add(stmtf("b.Aux = %s", aux))

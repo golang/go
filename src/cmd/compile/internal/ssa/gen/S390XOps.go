@@ -707,8 +707,41 @@ func init() {
 		},
 	}
 
+	// All blocks on s390x have their condition code mask (s390x.CCMask) as the Aux value.
+	// The condition code mask is a 4-bit mask where each bit corresponds to a condition
+	// code value. If the value of the condition code matches a bit set in the condition
+	// code mask then the first successor is executed. Otherwise the second successor is
+	// executed.
+	//
+	// | condition code value |  mask bit  |
+	// +----------------------+------------+
+	// | 0 (equal)            | 0b1000 (8) |
+	// | 1 (less than)        | 0b0100 (4) |
+	// | 2 (greater than)     | 0b0010 (2) |
+	// | 3 (unordered)        | 0b0001 (1) |
+	//
+	// Note: that compare-and-branch instructions must not have bit 3 (0b0001) set.
 	var S390Xblocks = []blockData{
-		{name: "BRC", controls: 1}, // aux is condition code mask (s390x.CCMask)
+		// branch on condition
+		{name: "BRC", controls: 1}, // condition code value (flags) is Controls[0]
+
+		// compare-and-branch (register-register)
+		//  - integrates comparison of Controls[0] with Controls[1]
+		//  - both control values must be in general purpose registers
+		{name: "CRJ", controls: 2},   // signed 32-bit integer comparison
+		{name: "CGRJ", controls: 2},  // signed 64-bit integer comparison
+		{name: "CLRJ", controls: 2},  // unsigned 32-bit integer comparison
+		{name: "CLGRJ", controls: 2}, // unsigned 64-bit integer comparison
+
+		// compare-and-branch (register-immediate)
+		//  - integrates comparison of Controls[0] with AuxInt
+		//  - control value must be in a general purpose register
+		//  - the AuxInt value is sign-extended for signed comparisons
+		//    and zero-extended for unsigned comparisons
+		{name: "CIJ", controls: 1, auxint: "Int8"},    // signed 32-bit integer comparison
+		{name: "CGIJ", controls: 1, auxint: "Int8"},   // signed 64-bit integer comparison
+		{name: "CLIJ", controls: 1, auxint: "UInt8"},  // unsigned 32-bit integer comparison
+		{name: "CLGIJ", controls: 1, auxint: "UInt8"}, // unsigned 64-bit integer comparison
 	}
 
 	archs = append(archs, arch{

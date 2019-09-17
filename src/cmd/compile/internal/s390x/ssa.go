@@ -814,7 +814,33 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	}
 }
 
+func blockAsm(b *ssa.Block) obj.As {
+	switch b.Kind {
+	case ssa.BlockS390XBRC:
+		return s390x.ABRC
+	case ssa.BlockS390XCRJ:
+		return s390x.ACRJ
+	case ssa.BlockS390XCGRJ:
+		return s390x.ACGRJ
+	case ssa.BlockS390XCLRJ:
+		return s390x.ACLRJ
+	case ssa.BlockS390XCLGRJ:
+		return s390x.ACLGRJ
+	case ssa.BlockS390XCIJ:
+		return s390x.ACIJ
+	case ssa.BlockS390XCGIJ:
+		return s390x.ACGIJ
+	case ssa.BlockS390XCLIJ:
+		return s390x.ACLIJ
+	case ssa.BlockS390XCLGIJ:
+		return s390x.ACLGIJ
+	}
+	b.Fatalf("blockAsm not implemented: %s", b.LongString())
+	panic("unreachable")
+}
+
 func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+	// Handle generic blocks first.
 	switch b.Kind {
 	case ssa.BlockPlain:
 		if b.Succs[0].Block() != next {
@@ -822,47 +848,73 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
 		}
+		return
 	case ssa.BlockDefer:
 		// defer returns in R3:
 		// 0 if we should continue executing
 		// 1 if we should jump to deferreturn call
-		p := s.Prog(s390x.ACMPW)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = s390x.REG_R3
-		p.To.Type = obj.TYPE_CONST
-		p.To.Offset = 0
-		p = s.Prog(s390x.ABNE)
-		p.To.Type = obj.TYPE_BRANCH
-		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+		p := s.Br(s390x.ACIJ, b.Succs[1].Block())
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = int64(s390x.NotEqual & s390x.NotUnordered) // unordered is not possible
+		p.Reg = s390x.REG_R3
+		p.RestArgs = []obj.Addr{{Type: obj.TYPE_CONST, Offset: 0}}
 		if b.Succs[0].Block() != next {
-			p := s.Prog(s390x.ABR)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+			s.Br(s390x.ABR, b.Succs[0].Block())
 		}
+		return
 	case ssa.BlockExit:
+		return
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
+		return
 	case ssa.BlockRetJmp:
 		p := s.Prog(s390x.ABR)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = b.Aux.(*obj.LSym)
+		return
+	}
+
+	// Handle s390x-specific blocks. These blocks all have a
+	// condition code mask in the Aux value and 2 successors.
+	succs := [...]*ssa.Block{b.Succs[0].Block(), b.Succs[1].Block()}
+	mask := b.Aux.(s390x.CCMask)
+
+	// TODO: take into account Likely property for forward/backward
+	// branches. We currently can't do this because we don't know
+	// whether a block has already been emitted. In general forward
+	// branches are assumed 'not taken' and backward branches are
+	// assumed 'taken'.
+	if next == succs[0] {
+		succs[0], succs[1] = succs[1], succs[0]
+		mask = mask.Inverse()
+	}
+
+	p := s.Br(blockAsm(b), succs[0])
+	switch b.Kind {
 	case ssa.BlockS390XBRC:
-		succs := [...]*ssa.Block{b.Succs[0].Block(), b.Succs[1].Block()}
-		mask := b.Aux.(s390x.CCMask)
-		if next == succs[0] {
-			succs[0], succs[1] = succs[1], succs[0]
-			mask = mask.Inverse()
-		}
-		// TODO: take into account Likely property for forward/backward
-		// branches.
-		p := s.Br(s390x.ABRC, succs[0])
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(mask)
-		if next != succs[1] {
-			s.Br(s390x.ABR, succs[1])
-		}
+	case ssa.BlockS390XCGRJ, ssa.BlockS390XCRJ,
+		ssa.BlockS390XCLGRJ, ssa.BlockS390XCLRJ:
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = int64(mask & s390x.NotUnordered) // unordered is not possible
+		p.Reg = b.Controls[0].Reg()
+		p.RestArgs = []obj.Addr{{Type: obj.TYPE_REG, Reg: b.Controls[1].Reg()}}
+	case ssa.BlockS390XCGIJ, ssa.BlockS390XCIJ:
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = int64(mask & s390x.NotUnordered) // unordered is not possible
+		p.Reg = b.Controls[0].Reg()
+		p.RestArgs = []obj.Addr{{Type: obj.TYPE_CONST, Offset: int64(int8(b.AuxInt))}}
+	case ssa.BlockS390XCLGIJ, ssa.BlockS390XCLIJ:
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = int64(mask & s390x.NotUnordered) // unordered is not possible
+		p.Reg = b.Controls[0].Reg()
+		p.RestArgs = []obj.Addr{{Type: obj.TYPE_CONST, Offset: int64(uint8(b.AuxInt))}}
 	default:
 		b.Fatalf("branch not implemented: %s", b.LongString())
+	}
+	if next != succs[1] {
+		s.Br(s390x.ABR, succs[1])
 	}
 }
