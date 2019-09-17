@@ -26,6 +26,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/nilfunc"
 	"golang.org/x/tools/go/analysis/passes/printf"
 	"golang.org/x/tools/go/analysis/passes/shift"
+	"golang.org/x/tools/go/analysis/passes/sortslice"
 	"golang.org/x/tools/go/analysis/passes/stdmethods"
 	"golang.org/x/tools/go/analysis/passes/structtag"
 	"golang.org/x/tools/go/analysis/passes/tests"
@@ -355,6 +356,8 @@ var Analyzers = []*analysis.Analyzer{
 	unreachable.Analyzer,
 	unsafeptr.Analyzer,
 	unusedresult.Analyzer,
+	// Non-vet analyzers
+	sortslice.Analyzer,
 }
 
 func runAnalyses(ctx context.Context, view View, cph CheckPackageHandle, disabledAnalyses map[string]struct{}, report func(a *analysis.Analyzer, diag analysis.Diagnostic) error) error {
