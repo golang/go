@@ -614,24 +614,19 @@ func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 		var hover *protocol.Hover
 		if d.IsType {
 			params := &protocol.TypeDefinitionParams{
-				tdpp,
-				protocol.WorkDoneProgressParams{},
-				protocol.PartialResultParams{},
+				TextDocumentPositionParams: tdpp,
 			}
 			locs, err = r.server.TypeDefinition(r.ctx, params)
 		} else {
 			params := &protocol.DefinitionParams{
-				tdpp,
-				protocol.WorkDoneProgressParams{},
-				protocol.PartialResultParams{},
+				TextDocumentPositionParams: tdpp,
 			}
 			locs, err = r.server.Definition(r.ctx, params)
 			if err != nil {
 				t.Fatalf("failed for %v: %+v", d.Src, err)
 			}
 			v := &protocol.HoverParams{
-				tdpp,
-				protocol.WorkDoneProgressParams{},
+				TextDocumentPositionParams: tdpp,
 			}
 			hover, err = r.server.Hover(r.ctx, v)
 		}
@@ -681,9 +676,7 @@ func (r *runner) Highlight(t *testing.T, data tests.Highlights) {
 			Position:     loc.Range.Start,
 		}
 		params := &protocol.DocumentHighlightParams{
-			tdpp,
-			protocol.WorkDoneProgressParams{},
-			protocol.PartialResultParams{},
+			TextDocumentPositionParams: tdpp,
 		}
 		highlights, err := r.server.DocumentHighlight(r.ctx, params)
 		if err != nil {
@@ -829,8 +822,7 @@ func (r *runner) PrepareRename(t *testing.T, data tests.PrepareRenames) {
 			Position:     loc.Range.Start,
 		}
 		params := &protocol.PrepareRenameParams{
-			tdpp,
-			protocol.WorkDoneProgressParams{},
+			TextDocumentPositionParams: tdpp,
 		}
 		got, err := r.server.PrepareRename(context.Background(), params)
 		if err != nil {
@@ -946,8 +938,7 @@ func (r *runner) SignatureHelp(t *testing.T, data tests.Signatures) {
 			Position: loc.Range.Start,
 		}
 		params := &protocol.SignatureHelpParams{
-			tdpp,
-			protocol.WorkDoneProgressParams{},
+			TextDocumentPositionParams: tdpp,
 		}
 		gotSignatures, err := r.server.SignatureHelp(r.ctx, params)
 		if err != nil {

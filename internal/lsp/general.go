@@ -178,16 +178,15 @@ func (s *Server) fetchConfig(ctx context.Context, name string, folder span.URI, 
 		return nil
 	}
 	v := protocol.ParamConfig{
-		protocol.ConfigurationParams{
+		ConfigurationParams: protocol.ConfigurationParams{
 			Items: []protocol.ConfigurationItem{{
 				ScopeURI: protocol.NewURI(folder),
 				Section:  "gopls",
 			}, {
 				ScopeURI: protocol.NewURI(folder),
 				Section:  name,
-			},
-			},
-		}, protocol.PartialResultParams{},
+			}},
+		},
 	}
 	configs, err := s.client.Configuration(ctx, &v)
 	if err != nil {
