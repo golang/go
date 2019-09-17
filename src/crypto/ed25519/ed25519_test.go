@@ -191,6 +191,14 @@ func BenchmarkKeyGeneration(b *testing.B) {
 	}
 }
 
+func BenchmarkNewKeyFromSeed(b *testing.B) {
+	seed := make([]byte, SeedSize)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = NewKeyFromSeed(seed)
+	}
+}
+
 func BenchmarkSigning(b *testing.B) {
 	var zero zeroReader
 	_, priv, err := GenerateKey(zero)
