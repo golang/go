@@ -4,6 +4,8 @@
 
 package sym
 
+import "cmd/internal/goobj2"
+
 type Library struct {
 	Objref        string
 	Srcref        string
@@ -18,6 +20,11 @@ type Library struct {
 	Main          bool
 	Safe          bool
 	Units         []*CompilationUnit
+
+	Readers []struct { // TODO: probably move this to Loader
+		Reader  *goobj2.Reader
+		Version int
+	}
 }
 
 func (l Library) String() string {

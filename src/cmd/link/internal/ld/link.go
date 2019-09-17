@@ -35,6 +35,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/objfile"
 	"cmd/link/internal/sym"
 	"debug/elf"
 	"fmt"
@@ -96,6 +97,9 @@ type Link struct {
 	runtimeCU *sym.CompilationUnit   // One of the runtime CUs, the last one seen.
 
 	relocbuf []byte // temporary buffer for applying relocations
+
+	loader  *objfile.Loader
+	cgodata [][3]string // cgo directives to load, three strings are args for loadcgo
 }
 
 type unresolvedSymKey struct {
