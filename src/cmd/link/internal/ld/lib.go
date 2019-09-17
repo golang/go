@@ -375,15 +375,8 @@ func (ctxt *Link) findLibPath(libname string) string {
 }
 
 func (ctxt *Link) loadlib() {
-	switch ctxt.BuildMode {
-	case BuildModeCShared, BuildModePlugin:
-		s := ctxt.Syms.Lookup("runtime.islibrary", 0)
-		s.Attr |= sym.AttrDuplicateOK
-		s.AddUint8(1)
-	case BuildModeCArchive:
-		s := ctxt.Syms.Lookup("runtime.isarchive", 0)
-		s.Attr |= sym.AttrDuplicateOK
-		s.AddUint8(1)
+	if *flagNewobj {
+		ctxt.loader = objfile.NewLoader()
 	}
 
 	loadinternal(ctxt, "runtime")
@@ -408,6 +401,11 @@ func (ctxt *Link) loadlib() {
 		}
 	}
 
+	// XXX do it here for now
+	if *flagNewobj {
+		ctxt.loadlibfull()
+	}
+
 	for _, lib := range ctxt.Library {
 		if lib.Shlib != "" {
 			if ctxt.Debugvlog > 1 {
@@ -415,6 +413,19 @@ func (ctxt *Link) loadlib() {
 			}
 			ldshlibsyms(ctxt, lib.Shlib)
 		}
+	}
+
+	switch ctxt.BuildMode {
+	case BuildModeCShared, BuildModePlugin:
+		s := ctxt.Syms.Lookup("runtime.islibrary", 0)
+		s.Type = sym.SNOPTRDATA
+		s.Attr |= sym.AttrDuplicateOK
+		s.AddUint8(1)
+	case BuildModeCArchive:
+		s := ctxt.Syms.Lookup("runtime.isarchive", 0)
+		s.Type = sym.SNOPTRDATA
+		s.Attr |= sym.AttrDuplicateOK
+		s.AddUint8(1)
 	}
 
 	iscgo = ctxt.Syms.ROLookup("x_cgo_init", 0) != nil
@@ -843,7 +854,7 @@ func loadobjfile(ctxt *Link, lib *sym.Library) {
 	if err != nil {
 		Exitf("cannot open file %s: %v", lib.File, err)
 	}
-	defer f.Close()
+	//defer f.Close()
 	defer func() {
 		if pkg == "main" && !lib.Main {
 			Exitf("%s: not package main", lib.File)
@@ -1773,7 +1784,12 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	default:
 		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
 	}
-	c := objfile.Load(ctxt.Arch, ctxt.Syms, f, lib, unit, eof-f.Offset(), pn, flags)
+	var c int
+	if *flagNewobj {
+		objfile.LoadNew(ctxt.loader, ctxt.Arch, ctxt.Syms, f, lib, unit, eof-f.Offset(), pn, flags)
+	} else {
+		c = objfile.Load(ctxt.Arch, ctxt.Syms, f, lib, unit, eof-f.Offset(), pn, flags)
+	}
 	strictDupMsgCount += c
 	addImports(ctxt, lib, pn)
 	return nil
@@ -2544,4 +2560,41 @@ func dfs(lib *sym.Library, mark map[*sym.Library]markKind, order *[]*sym.Library
 	}
 	mark[lib] = visited
 	*order = append(*order, lib)
+}
+
+func (ctxt *Link) loadlibfull() {
+	// Add references of externally defined symbols.
+	for _, lib := range ctxt.Library {
+		for _, r := range lib.Readers {
+			objfile.LoadRefs(ctxt.loader, r.Reader, lib, ctxt.Arch, ctxt.Syms, r.Version)
+		}
+	}
+
+	// Load full symbol contents, resolve indexed references.
+	for _, lib := range ctxt.Library {
+		for _, r := range lib.Readers {
+			objfile.LoadFull(ctxt.loader, r.Reader, lib, ctxt.Syms, r.Version, ctxt.LibraryByPkg)
+		}
+	}
+
+	// For now, add all symbols to ctxt.Syms.
+	for _, s := range ctxt.loader.Syms {
+		if s != nil && s.Name != "" {
+			ctxt.Syms.Add(s)
+		}
+	}
+
+	// Now load cgo directives.
+	for _, p := range ctxt.cgodata {
+		loadcgo(ctxt, p[0], p[1], p[2])
+	}
+}
+
+func (ctxt *Link) dumpsyms() {
+	for _, s := range ctxt.Syms.Allsym {
+		fmt.Printf("%s %s %p\n", s, s.Type, s)
+		for i := range s.R {
+			fmt.Println("\t", s.R[i].Type, s.R[i].Sym)
+		}
+	}
 }

@@ -111,7 +111,12 @@ func ldpkg(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, filename s
 		}
 		p1 += p0
 
-		loadcgo(ctxt, filename, objabi.PathToPrefix(lib.Pkg), data[p0:p1])
+		if *flagNewobj {
+			// loadcgo creates sym.Symbol. Delay this until all the symbols are added.
+			ctxt.cgodata = append(ctxt.cgodata, [3]string{filename, objabi.PathToPrefix(lib.Pkg), data[p0:p1]})
+		} else {
+			loadcgo(ctxt, filename, objabi.PathToPrefix(lib.Pkg), data[p0:p1])
+		}
 	}
 }
 

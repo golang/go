@@ -86,6 +86,17 @@ func (syms *Symbols) ROLookup(name string, v int) *Symbol {
 	return syms.hash[v][name]
 }
 
+// Add an existing symbol to the symbol table.
+func (syms *Symbols) Add(s *Symbol) {
+	name := s.Name
+	v := int(s.Version)
+	m := syms.hash[v]
+	if _, ok := m[name]; ok {
+		panic(name + " already added")
+	}
+	m[name] = s
+}
+
 // Allocate a new version (i.e. symbol namespace).
 func (syms *Symbols) IncVersion() int {
 	syms.hash = append(syms.hash, make(map[string]*Symbol))
