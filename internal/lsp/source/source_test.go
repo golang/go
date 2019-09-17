@@ -49,7 +49,7 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 
 	cache := cache.New()
 	session := cache.NewSession(ctx)
-	options := session.Options()
+	options := tests.DefaultOptions()
 	options.Env = data.Config.Env
 	r := &runner{
 		view: session.NewView(ctx, "source_test", span.FileURI(data.Config.Dir), options),
@@ -86,245 +86,194 @@ func (r *runner) Diagnostics(t *testing.T, data tests.Diagnostics) {
 	}
 }
 
-func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests.CompletionSnippets, items tests.CompletionItems) {
-	ctx := r.ctx
+func (r *runner) Completion(t *testing.T, data tests.Completions, items tests.CompletionItems) {
 	for src, test := range data {
-		var want []source.CompletionItem
+		var want []protocol.CompletionItem
 		for _, pos := range test.CompletionItems {
-			want = append(want, *items[pos])
+			want = append(want, tests.ToProtocolCompletionItem(*items[pos]))
 		}
-		f, err := r.view.GetFile(ctx, src.URI())
-		if err != nil {
-			t.Fatalf("failed for %v: %v", src, err)
-		}
-		deepComplete := strings.Contains(string(src.URI()), "deepcomplete")
-		fuzzyMatch := strings.Contains(string(src.URI()), "fuzzymatch")
-		unimported := strings.Contains(string(src.URI()), "unimported")
-		list, surrounding, err := source.Completion(ctx, r.view, f.(source.GoFile), protocol.Position{
-			Line:      float64(src.Start().Line() - 1),
-			Character: float64(src.Start().Column() - 1),
-		}, source.CompletionOptions{
+		prefix, list := r.callCompletion(t, src, source.CompletionOptions{
 			Documentation: true,
-			Deep:          deepComplete,
-			FuzzyMatching: fuzzyMatch,
-			Unimported:    unimported,
-			// Crank this up so tests don't flake.
-			Budget: 5 * time.Second,
+			FuzzyMatching: true,
 		})
-		if err != nil {
-			t.Fatalf("failed for %v: %v", src, err)
+		if !strings.Contains(string(src.URI()), "builtins") {
+			list = tests.FilterBuiltins(list)
 		}
-		var (
-			prefix       string
-			fuzzyMatcher *fuzzy.Matcher
-		)
-		if surrounding != nil {
-			prefix = strings.ToLower(surrounding.Prefix())
-			if deepComplete && prefix != "" {
-				fuzzyMatcher = fuzzy.NewMatcher(surrounding.Prefix(), fuzzy.Symbol)
-			}
-		}
-		wantBuiltins := strings.Contains(string(src.URI()), "builtins")
-		var got []source.CompletionItem
+		var got []protocol.CompletionItem
 		for _, item := range list {
-			if !wantBuiltins && isBuiltin(item) {
+			if !strings.HasPrefix(strings.ToLower(item.Label), prefix) {
 				continue
-			}
-
-			// If deep completion is enabled, we need to use the fuzzy matcher to match
-			// the code's behavior.
-			if deepComplete {
-				if fuzzyMatcher != nil && fuzzyMatcher.Score(item.Label) < 0 {
-					continue
-				}
-			} else {
-				// We let the client do fuzzy matching, so we return all possible candidates.
-				// To simplify testing, filter results with prefixes that don't match exactly.
-				if !strings.HasPrefix(strings.ToLower(item.Label), prefix) {
-					continue
-				}
 			}
 			got = append(got, item)
 		}
-		switch test.Type {
-		case tests.CompletionFull:
-			if diff := diffCompletionItems(want, got); diff != "" {
+		if diff := tests.DiffCompletionItems(want, got); diff != "" {
+			t.Errorf("%s: %s", src, diff)
+		}
+	}
+}
+
+func (r *runner) CompletionSnippets(t *testing.T, data tests.CompletionSnippets, items tests.CompletionItems) {
+	for _, placeholders := range []bool{true, false} {
+		for src, expected := range data {
+			_, list := r.callCompletion(t, src, source.CompletionOptions{
+				Placeholders: placeholders,
+				Deep:         true,
+				Budget:       5 * time.Second,
+			})
+			got := tests.FindItem(list, *items[expected.CompletionItem])
+			want := expected.PlainSnippet
+			if placeholders {
+				want = expected.PlaceholderSnippet
+			}
+			if diff := tests.DiffSnippets(want, got); diff != "" {
 				t.Errorf("%s: %s", src, diff)
 			}
-		case tests.CompletionPartial:
-			if msg := checkCompletionOrder(want, got); msg != "" {
-				t.Errorf("%s: %s", src, msg)
-			}
-		}
-	}
-	for _, usePlaceholders := range []bool{true, false} {
-		for src, want := range snippets {
-			f, err := r.view.GetFile(ctx, src.URI())
-			if err != nil {
-				t.Fatalf("failed for %v: %v", src, err)
-			}
-
-			list, _, err := source.Completion(ctx, r.view, f.(source.GoFile), protocol.Position{
-				Line:      float64(src.Start().Line() - 1),
-				Character: float64(src.Start().Column() - 1),
-			}, source.CompletionOptions{
-				Documentation: true,
-				Deep:          strings.Contains(string(src.URI()), "deepcomplete"),
-				FuzzyMatching: strings.Contains(string(src.URI()), "fuzzymatch"),
-				Placeholders:  usePlaceholders,
-				// Crank this up so tests don't flake.
-				Budget: 5 * time.Second,
-			})
-			if err != nil {
-				t.Fatalf("failed for %v: %v", src, err)
-			}
-			wantItem := items[want.CompletionItem]
-			var got *source.CompletionItem
-			for _, item := range list {
-				if item.Label == wantItem.Label {
-					got = &item
-					break
-				}
-			}
-			expected := want.PlainSnippet
-			if usePlaceholders {
-				expected = want.PlaceholderSnippet
-			}
-			if expected == "" {
-				if got != nil {
-					t.Fatalf("%s:%d: expected no matching snippet", src.URI(), src.Start().Line())
-				}
-			} else {
-				if got == nil {
-					t.Fatalf("%s:%d: couldn't find completion matching %q", src.URI(), src.Start().Line(), wantItem.Label)
-				}
-				actual := got.Snippet()
-				if expected != actual {
-					t.Errorf("%s: expected placeholder snippet %q, got %q", src, expected, actual)
-				}
-			}
 		}
 	}
 }
 
-func isBuiltin(item source.CompletionItem) bool {
-	// If a type has no detail, it is a builtin type.
-	if item.Detail == "" && item.Kind == source.TypeCompletionItem {
-		return true
+func (r *runner) UnimportedCompletions(t *testing.T, data tests.UnimportedCompletions, items tests.CompletionItems) {
+	for src, test := range data {
+		var want []protocol.CompletionItem
+		for _, pos := range test.CompletionItems {
+			want = append(want, tests.ToProtocolCompletionItem(*items[pos]))
+		}
+		_, got := r.callCompletion(t, src, source.CompletionOptions{
+			Unimported: true,
+		})
+		if !strings.Contains(string(src.URI()), "builtins") {
+			got = tests.FilterBuiltins(got)
+		}
+		if diff := tests.DiffCompletionItems(want, got); diff != "" {
+			t.Errorf("%s: %s", src, diff)
+		}
 	}
-	// Remaining builtin constants, variables, interfaces, and functions.
-	trimmed := item.Label
-	if i := strings.Index(trimmed, "("); i >= 0 {
-		trimmed = trimmed[:i]
-	}
-	switch trimmed {
-	case "append", "cap", "close", "complex", "copy", "delete",
-		"error", "false", "imag", "iota", "len", "make", "new",
-		"nil", "panic", "print", "println", "real", "recover", "true":
-		return true
-	}
-	return false
 }
 
-// diffCompletionItems prints the diff between expected and actual completion
-// test results.
-func diffCompletionItems(want []source.CompletionItem, got []source.CompletionItem) string {
-	sort.SliceStable(got, func(i, j int) bool {
-		return got[i].Score > got[j].Score
-	})
-
-	// duplicate the lsp/completion logic to limit deep candidates to keep expected
-	// list short
-	var idx, seenDeepCompletions int
-	for _, item := range got {
-		if item.Depth > 0 {
-			if seenDeepCompletions >= 3 {
+func (r *runner) DeepCompletions(t *testing.T, data tests.DeepCompletions, items tests.CompletionItems) {
+	for src, test := range data {
+		var want []protocol.CompletionItem
+		for _, pos := range test.CompletionItems {
+			want = append(want, tests.ToProtocolCompletionItem(*items[pos]))
+		}
+		prefix, list := r.callCompletion(t, src, source.CompletionOptions{
+			Deep:          true,
+			Budget:        5 * time.Second,
+			Documentation: true,
+		})
+		if !strings.Contains(string(src.URI()), "builtins") {
+			list = tests.FilterBuiltins(list)
+		}
+		fuzzyMatcher := fuzzy.NewMatcher(prefix, fuzzy.Symbol)
+		var got []protocol.CompletionItem
+		for _, item := range list {
+			if fuzzyMatcher.Score(item.Label) < 0 {
 				continue
 			}
-			seenDeepCompletions++
+			got = append(got, item)
 		}
-		got[idx] = item
-		idx++
-	}
-	got = got[:idx]
-
-	if len(got) != len(want) {
-		return summarizeCompletionItems(-1, want, got, "different lengths got %v want %v", len(got), len(want))
-	}
-	for i, w := range want {
-		g := got[i]
-		if w.Label != g.Label {
-			return summarizeCompletionItems(i, want, got, "incorrect Label got %v want %v", g.Label, w.Label)
-		}
-		if w.Detail != g.Detail {
-			return summarizeCompletionItems(i, want, got, "incorrect Detail got %v want %v", g.Detail, w.Detail)
-		}
-		if w.Documentation != "" && !strings.HasPrefix(w.Documentation, "@") {
-			if w.Documentation != g.Documentation {
-				return summarizeCompletionItems(i, want, got, "incorrect Documentation got %v want %v", g.Documentation, w.Documentation)
-			}
-		}
-		if w.Kind != g.Kind {
-			return summarizeCompletionItems(i, want, got, "incorrect Kind got %v want %v", g.Kind, w.Kind)
+		if msg := tests.DiffCompletionItems(want, got); msg != "" {
+			t.Errorf("%s: %s", src, msg)
 		}
 	}
-	return ""
 }
 
-func checkCompletionOrder(want []source.CompletionItem, got []source.CompletionItem) string {
-	var (
-		matchedIdxs []int
-		lastGotIdx  int
-		inOrder     = true
-	)
-	for _, w := range want {
-		var found bool
-		for i, g := range got {
-			if w.Label == g.Label && w.Detail == g.Detail && w.Kind == g.Kind {
-				matchedIdxs = append(matchedIdxs, i)
-				found = true
-				if i < lastGotIdx {
-					inOrder = false
-				}
-				lastGotIdx = i
-				break
+func (r *runner) FuzzyCompletions(t *testing.T, data tests.FuzzyCompletions, items tests.CompletionItems) {
+	for src, test := range data {
+		var want []protocol.CompletionItem
+		for _, pos := range test.CompletionItems {
+			want = append(want, tests.ToProtocolCompletionItem(*items[pos]))
+		}
+		prefix, list := r.callCompletion(t, src, source.CompletionOptions{
+			FuzzyMatching: true,
+			Deep:          true,
+			Budget:        5 * time.Second,
+		})
+		if !strings.Contains(string(src.URI()), "builtins") {
+			list = tests.FilterBuiltins(list)
+		}
+		var fuzzyMatcher *fuzzy.Matcher
+		if prefix != "" {
+			fuzzyMatcher = fuzzy.NewMatcher(prefix, fuzzy.Symbol)
+		}
+		var got []protocol.CompletionItem
+		for _, item := range list {
+			if fuzzyMatcher != nil && fuzzyMatcher.Score(item.Label) < 0 {
+				continue
 			}
+			got = append(got, item)
 		}
-		if !found {
-			return summarizeCompletionItems(-1, []source.CompletionItem{w}, got, "didn't find expected completion")
+		if msg := tests.DiffCompletionItems(want, got); msg != "" {
+			t.Errorf("%s: %s", src, msg)
 		}
 	}
-
-	sort.Ints(matchedIdxs)
-	matched := make([]source.CompletionItem, 0, len(matchedIdxs))
-	for _, idx := range matchedIdxs {
-		matched = append(matched, got[idx])
-	}
-
-	if !inOrder {
-		return summarizeCompletionItems(-1, want, matched, "completions out of order")
-	}
-
-	return ""
 }
 
-func summarizeCompletionItems(i int, want []source.CompletionItem, got []source.CompletionItem, reason string, args ...interface{}) string {
-	msg := &bytes.Buffer{}
-	fmt.Fprint(msg, "completion failed")
-	if i >= 0 {
-		fmt.Fprintf(msg, " at %d", i)
+func (r *runner) RankCompletions(t *testing.T, data tests.RankCompletions, items tests.CompletionItems) {
+	for src, test := range data {
+		var want []protocol.CompletionItem
+		for _, pos := range test.CompletionItems {
+			want = append(want, tests.ToProtocolCompletionItem(*items[pos]))
+		}
+		prefix, list := r.callCompletion(t, src, source.CompletionOptions{
+			FuzzyMatching: true,
+			Deep:          true,
+			Budget:        5 * time.Second,
+		})
+		if !strings.Contains(string(src.URI()), "builtins") {
+			list = tests.FilterBuiltins(list)
+		}
+		fuzzyMatcher := fuzzy.NewMatcher(prefix, fuzzy.Symbol)
+		var got []protocol.CompletionItem
+		for _, item := range list {
+			if fuzzyMatcher.Score(item.Label) < 0 {
+				continue
+			}
+			got = append(got, item)
+		}
+		if msg := tests.CheckCompletionOrder(want, got); msg != "" {
+			t.Errorf("%s: %s", src, msg)
+		}
 	}
-	fmt.Fprint(msg, " because of ")
-	fmt.Fprintf(msg, reason, args...)
-	fmt.Fprint(msg, ":\nexpected:\n")
-	for _, d := range want {
-		fmt.Fprintf(msg, "  %v\n", d)
+}
+
+func (r *runner) callCompletion(t *testing.T, src span.Span, options source.CompletionOptions) (string, []protocol.CompletionItem) {
+	f, err := r.view.GetFile(r.ctx, src.URI())
+	if err != nil {
+		t.Fatal(err)
 	}
-	fmt.Fprintf(msg, "got:\n")
-	for _, d := range got {
-		fmt.Fprintf(msg, "  %v\n", d)
+	list, surrounding, err := source.Completion(r.ctx, r.view, f.(source.GoFile), protocol.Position{
+		Line:      float64(src.Start().Line() - 1),
+		Character: float64(src.Start().Column() - 1),
+	}, options)
+	if err != nil {
+		t.Fatalf("failed for %v: %v", src, err)
 	}
-	return msg.String()
+	var prefix string
+	if surrounding != nil {
+		prefix = strings.ToLower(surrounding.Prefix())
+	}
+	// TODO(rstambler): In testing this out, I noticed that scores are equal,
+	// even when they shouldn't be. This needs more investigation.
+	sort.SliceStable(list, func(i, j int) bool {
+		return list[i].Score > list[j].Score
+	})
+	var numDeepCompletionsSeen int
+	var items []source.CompletionItem
+	// Apply deep completion filtering.
+	for _, item := range list {
+		if item.Depth > 0 {
+			if !options.Deep {
+				continue
+			}
+			if numDeepCompletionsSeen >= source.MaxDeepCompletions {
+				continue
+			}
+			numDeepCompletionsSeen++
+		}
+		items = append(items, item)
+	}
+	return prefix, tests.ToProtocolCompletionItems(items)
 }
 
 func (r *runner) FoldingRange(t *testing.T, data tests.FoldingRanges) {

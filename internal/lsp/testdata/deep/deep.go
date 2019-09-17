@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package deepcomplete
+package deep
 
 import "context"
 
@@ -18,7 +18,7 @@ func wantsDeepB(deepB) {}
 func _() {
 	var a deepA   //@item(deepAVar, "a", "deepA", "var")
 	a.b           //@item(deepABField, "a.b", "deepB", "field")
-	wantsDeepB(a) //@complete(")", deepABField, deepAVar)
+	wantsDeepB(a) //@deep(")", deepABField, deepAVar)
 
 	deepA{a} //@snippet("}", deepABField, "a.b", "a.b")
 }
@@ -29,7 +29,7 @@ func _() {
 	context.Background() //@item(ctxBackground, "context.Background", "func() context.Context", "func", "Background returns a non-nil, empty Context.")
 	context.TODO()       //@item(ctxTODO, "context.TODO", "func() context.Context", "func", "TODO returns a non-nil, empty Context.")
 
-	wantsContext(c) //@completePartial(")", ctxBackground, ctxTODO)
+	wantsContext(c) //@rank(")", ctxBackground, ctxTODO)
 }
 
 func _() {
@@ -39,7 +39,7 @@ func _() {
 	}
 	var circle deepCircle   //@item(deepCircle, "circle", "deepCircle", "var")
 	circle.deepCircle       //@item(deepCircleField, "circle.deepCircle", "*deepCircle", "field", "deepCircle is circular.")
-	var _ deepCircle = circ //@complete(" //", deepCircle, deepCircleField)
+	var _ deepCircle = circ //@deep(" //", deepCircle, deepCircleField)
 }
 
 func _() {
@@ -57,7 +57,7 @@ func _() {
 	var a deepEmbedA //@item(deepEmbedA, "a", "deepEmbedA", "var")
 	a.deepEmbedB     //@item(deepEmbedB, "a.deepEmbedB", "deepEmbedB", "field")
 	a.deepEmbedC     //@item(deepEmbedC, "a.deepEmbedC", "deepEmbedC", "field")
-	wantsC(a)        //@complete(")", deepEmbedC, deepEmbedA, deepEmbedB)
+	wantsC(a)        //@deep(")", deepEmbedC, deepEmbedA, deepEmbedB)
 }
 
 func _() {
@@ -67,7 +67,7 @@ func _() {
 	}
 
 	nested{
-		a: 123, //@complete(" //", deepNestedField)
+		a: 123, //@deep(" //", deepNestedField)
 	}
 }
 
@@ -86,5 +86,5 @@ func _() {
 
 	// "a.d" should be ranked above the deeper "a.b.c"
 	var i int
-	i = a //@complete(" //", deepAD, deepABC, deepA, deepAB)
+	i = a //@deep(" //", deepAD, deepABC, deepA, deepAB)
 }

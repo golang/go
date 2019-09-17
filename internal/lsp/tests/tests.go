@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package tests exports functionality to be used across a variety of gopls tests.
 package tests
 
 import (
-	"bytes"
 	"context"
 	"flag"
-	"fmt"
 	"go/ast"
 	"go/token"
 	"io/ioutil"
@@ -30,22 +29,26 @@ import (
 // We hardcode the expected number of test cases to ensure that all tests
 // are being executed. If a test is added, this number must be changed.
 const (
-	ExpectedCompletionsCount       = 165
-	ExpectedCompletionSnippetCount = 35
-	ExpectedDiagnosticsCount       = 21
-	ExpectedFormatCount            = 6
-	ExpectedImportCount            = 2
-	ExpectedSuggestedFixCount      = 1
-	ExpectedDefinitionsCount       = 39
-	ExpectedTypeDefinitionsCount   = 2
-	ExpectedFoldingRangesCount     = 2
-	ExpectedHighlightsCount        = 2
-	ExpectedReferencesCount        = 6
-	ExpectedRenamesCount           = 20
-	ExpectedPrepareRenamesCount    = 8
-	ExpectedSymbolsCount           = 1
-	ExpectedSignaturesCount        = 21
-	ExpectedLinksCount             = 4
+	ExpectedCompletionsCount           = 152
+	ExpectedCompletionSnippetCount     = 35
+	ExpectedUnimportedCompletionsCount = 1
+	ExpectedDeepCompletionsCount       = 5
+	ExpectedFuzzyCompletionsCount      = 6
+	ExpectedRankedCompletionsCount     = 1
+	ExpectedDiagnosticsCount           = 21
+	ExpectedFormatCount                = 6
+	ExpectedImportCount                = 2
+	ExpectedSuggestedFixCount          = 1
+	ExpectedDefinitionsCount           = 39
+	ExpectedTypeDefinitionsCount       = 2
+	ExpectedFoldingRangesCount         = 2
+	ExpectedHighlightsCount            = 2
+	ExpectedReferencesCount            = 6
+	ExpectedRenamesCount               = 20
+	ExpectedPrepareRenamesCount        = 8
+	ExpectedSymbolsCount               = 1
+	ExpectedSignaturesCount            = 21
+	ExpectedLinksCount                 = 4
 )
 
 const (
@@ -61,6 +64,10 @@ type Diagnostics map[span.URI][]source.Diagnostic
 type CompletionItems map[token.Pos]*source.CompletionItem
 type Completions map[span.Span]Completion
 type CompletionSnippets map[span.Span]CompletionSnippet
+type UnimportedCompletions map[span.Span]Completion
+type DeepCompletions map[span.Span]Completion
+type FuzzyCompletions map[span.Span]Completion
+type RankCompletions map[span.Span]Completion
 type FoldingRanges []span.Span
 type Formats []span.Span
 type Imports []span.Span
@@ -76,25 +83,29 @@ type Signatures map[span.Span]*source.SignatureInformation
 type Links map[span.URI][]Link
 
 type Data struct {
-	Config             packages.Config
-	Exported           *packagestest.Exported
-	Diagnostics        Diagnostics
-	CompletionItems    CompletionItems
-	Completions        Completions
-	CompletionSnippets CompletionSnippets
-	FoldingRanges      FoldingRanges
-	Formats            Formats
-	Imports            Imports
-	SuggestedFixes     SuggestedFixes
-	Definitions        Definitions
-	Highlights         Highlights
-	References         References
-	Renames            Renames
-	PrepareRenames     PrepareRenames
-	Symbols            Symbols
-	symbolsChildren    SymbolsChildren
-	Signatures         Signatures
-	Links              Links
+	Config                packages.Config
+	Exported              *packagestest.Exported
+	Diagnostics           Diagnostics
+	CompletionItems       CompletionItems
+	Completions           Completions
+	CompletionSnippets    CompletionSnippets
+	UnimportedCompletions UnimportedCompletions
+	DeepCompletions       DeepCompletions
+	FuzzyCompletions      FuzzyCompletions
+	RankCompletions       RankCompletions
+	FoldingRanges         FoldingRanges
+	Formats               Formats
+	Imports               Imports
+	SuggestedFixes        SuggestedFixes
+	Definitions           Definitions
+	Highlights            Highlights
+	References            References
+	Renames               Renames
+	PrepareRenames        PrepareRenames
+	Symbols               Symbols
+	symbolsChildren       SymbolsChildren
+	Signatures            Signatures
+	Links                 Links
 
 	t         testing.TB
 	fragments map[string]string
@@ -107,7 +118,12 @@ type Data struct {
 
 type Tests interface {
 	Diagnostics(*testing.T, Diagnostics)
-	Completion(*testing.T, Completions, CompletionSnippets, CompletionItems)
+	Completion(*testing.T, Completions, CompletionItems)
+	CompletionSnippets(*testing.T, CompletionSnippets, CompletionItems)
+	UnimportedCompletions(*testing.T, UnimportedCompletions, CompletionItems)
+	DeepCompletions(*testing.T, DeepCompletions, CompletionItems)
+	FuzzyCompletions(*testing.T, FuzzyCompletions, CompletionItems)
+	RankCompletions(*testing.T, RankCompletions, CompletionItems)
 	FoldingRange(*testing.T, FoldingRanges)
 	Format(*testing.T, Formats)
 	Import(*testing.T, Imports)
@@ -132,16 +148,24 @@ type Definition struct {
 type CompletionTestType int
 
 const (
-	// Full means candidates in test must match full list of candidates.
-	CompletionFull CompletionTestType = iota
+	// Default runs the standard completion tests.
+	CompletionDefault = CompletionTestType(iota)
 
-	// Partial means candidates in test must be valid and in the right relative order.
-	CompletionPartial
+	// Unimported tests the autocompletion of unimported packages.
+	CompletionUnimported
+
+	// Deep tests deep completion.
+	CompletionDeep
+
+	// Fuzzy tests deep completion and fuzzy matching.
+	CompletionFuzzy
+
+	// CompletionRank candidates in test must be valid and in the right relative order.
+	CompletionRank
 )
 
 type Completion struct {
 	CompletionItems []token.Pos
-	Type            CompletionTestType
 }
 
 type CompletionSnippet struct {
@@ -166,23 +190,42 @@ func Context(t testing.TB) context.Context {
 	return context.Background()
 }
 
+func DefaultOptions() source.Options {
+	o := source.DefaultOptions
+	o.SupportedCodeActions = map[source.FileKind]map[protocol.CodeActionKind]bool{
+		source.Go: {
+			protocol.SourceOrganizeImports: true,
+			protocol.QuickFix:              true,
+		},
+		source.Mod: {},
+		source.Sum: {},
+	}
+	o.HoverKind = source.SynopsisDocumentation
+	o.InsertTextFormat = protocol.SnippetTextFormat
+	return o
+}
+
 func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 	t.Helper()
 
 	data := &Data{
-		Diagnostics:        make(Diagnostics),
-		CompletionItems:    make(CompletionItems),
-		Completions:        make(Completions),
-		CompletionSnippets: make(CompletionSnippets),
-		Definitions:        make(Definitions),
-		Highlights:         make(Highlights),
-		References:         make(References),
-		Renames:            make(Renames),
-		PrepareRenames:     make(PrepareRenames),
-		Symbols:            make(Symbols),
-		symbolsChildren:    make(SymbolsChildren),
-		Signatures:         make(Signatures),
-		Links:              make(Links),
+		Diagnostics:           make(Diagnostics),
+		CompletionItems:       make(CompletionItems),
+		Completions:           make(Completions),
+		CompletionSnippets:    make(CompletionSnippets),
+		UnimportedCompletions: make(UnimportedCompletions),
+		DeepCompletions:       make(DeepCompletions),
+		FuzzyCompletions:      make(FuzzyCompletions),
+		RankCompletions:       make(RankCompletions),
+		Definitions:           make(Definitions),
+		Highlights:            make(Highlights),
+		References:            make(References),
+		Renames:               make(Renames),
+		PrepareRenames:        make(PrepareRenames),
+		Symbols:               make(Symbols),
+		symbolsChildren:       make(SymbolsChildren),
+		Signatures:            make(Signatures),
+		Links:                 make(Links),
 
 		t:         t,
 		dir:       dir,
@@ -226,7 +269,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		},
 	}
 	data.Exported = packagestest.Export(t, exporter, modules)
-	for fragment, _ := range files {
+	for fragment := range files {
 		filename := data.Exported.File(testModule, fragment)
 		data.fragments[filename] = fragment
 	}
@@ -252,25 +295,30 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 
 	// Collect any data that needs to be used by subsequent tests.
 	if err := data.Exported.Expect(map[string]interface{}{
-		"diag":            data.collectDiagnostics,
-		"item":            data.collectCompletionItems,
-		"complete":        data.collectCompletions(CompletionFull),
-		"completePartial": data.collectCompletions(CompletionPartial),
-		"fold":            data.collectFoldingRanges,
-		"format":          data.collectFormats,
-		"import":          data.collectImports,
-		"godef":           data.collectDefinitions,
-		"typdef":          data.collectTypeDefinitions,
-		"hover":           data.collectHoverDefinitions,
-		"highlight":       data.collectHighlights,
-		"refs":            data.collectReferences,
-		"rename":          data.collectRenames,
-		"prepare":         data.collectPrepareRenames,
-		"symbol":          data.collectSymbols,
-		"signature":       data.collectSignatures,
-		"snippet":         data.collectCompletionSnippets,
-		"link":            data.collectLinks,
-		"suggestedfix":    data.collectSuggestedFixes,
+		"diag":       data.collectDiagnostics,
+		"item":       data.collectCompletionItems,
+		"complete":   data.collectCompletions(CompletionDefault),
+		"unimported": data.collectCompletions(CompletionUnimported),
+		"deep":       data.collectCompletions(CompletionDeep),
+		"fuzzy":      data.collectCompletions(CompletionFuzzy),
+		"rank":       data.collectCompletions(CompletionRank),
+		"snippet":    data.collectCompletionSnippets,
+		"fold":       data.collectFoldingRanges,
+		"format":     data.collectFormats,
+		"import":     data.collectImports,
+		"godef":      data.collectDefinitions,
+		"typdef":     data.collectTypeDefinitions,
+		"hover":      data.collectHoverDefinitions,
+		"highlight":  data.collectHighlights,
+		"refs":       data.collectReferences,
+		"rename":     data.collectRenames,
+		"prepare":    data.collectPrepareRenames,
+		"symbol":     data.collectSymbols,
+		"signature":  data.collectSignatures,
+
+		// LSP-only features.
+		"link":         data.collectLinks,
+		"suggestedfix": data.collectSuggestedFixes,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -292,15 +340,56 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 
 func Run(t *testing.T, tests Tests, data *Data) {
 	t.Helper()
+
 	t.Run("Completion", func(t *testing.T) {
 		t.Helper()
 		if len(data.Completions) != ExpectedCompletionsCount {
 			t.Errorf("got %v completions expected %v", len(data.Completions), ExpectedCompletionsCount)
 		}
+		tests.Completion(t, data.Completions, data.CompletionItems)
+	})
+
+	t.Run("CompletionSnippets", func(t *testing.T) {
+		t.Helper()
 		if len(data.CompletionSnippets) != ExpectedCompletionSnippetCount {
 			t.Errorf("got %v snippets expected %v", len(data.CompletionSnippets), ExpectedCompletionSnippetCount)
 		}
-		tests.Completion(t, data.Completions, data.CompletionSnippets, data.CompletionItems)
+		if len(data.CompletionSnippets) != ExpectedCompletionSnippetCount {
+			t.Errorf("got %v snippets expected %v", len(data.CompletionSnippets), ExpectedCompletionSnippetCount)
+		}
+		tests.CompletionSnippets(t, data.CompletionSnippets, data.CompletionItems)
+	})
+
+	t.Run("UnimportedCompletion", func(t *testing.T) {
+		t.Helper()
+		if len(data.UnimportedCompletions) != ExpectedUnimportedCompletionsCount {
+			t.Errorf("got %v unimported completions expected %v", len(data.UnimportedCompletions), ExpectedUnimportedCompletionsCount)
+		}
+		tests.UnimportedCompletions(t, data.UnimportedCompletions, data.CompletionItems)
+	})
+
+	t.Run("DeepCompletion", func(t *testing.T) {
+		t.Helper()
+		if len(data.DeepCompletions) != ExpectedDeepCompletionsCount {
+			t.Errorf("got %v deep completions expected %v", len(data.DeepCompletions), ExpectedDeepCompletionsCount)
+		}
+		tests.DeepCompletions(t, data.DeepCompletions, data.CompletionItems)
+	})
+
+	t.Run("FuzzyCompletion", func(t *testing.T) {
+		t.Helper()
+		if len(data.FuzzyCompletions) != ExpectedFuzzyCompletionsCount {
+			t.Errorf("got %v fuzzy completions expected %v", len(data.FuzzyCompletions), ExpectedFuzzyCompletionsCount)
+		}
+		tests.FuzzyCompletions(t, data.FuzzyCompletions, data.CompletionItems)
+	})
+
+	t.Run("RankCompletions", func(t *testing.T) {
+		t.Helper()
+		if len(data.RankCompletions) != ExpectedRankedCompletionsCount {
+			t.Errorf("got %v fuzzy completions expected %v", len(data.RankCompletions), ExpectedRankedCompletionsCount)
+		}
+		tests.RankCompletions(t, data.RankCompletions, data.CompletionItems)
 	})
 
 	t.Run("Diagnostics", func(t *testing.T) {
@@ -528,90 +617,32 @@ func (data *Data) collectDiagnostics(spn span.Span, msgSource, msg string) {
 	data.Diagnostics[spn.URI()] = append(data.Diagnostics[spn.URI()], want)
 }
 
-// diffDiagnostics prints the diff between expected and actual diagnostics test
-// results.
-func DiffDiagnostics(uri span.URI, want, got []source.Diagnostic) string {
-	sortDiagnostics(want)
-	sortDiagnostics(got)
-
-	if len(got) != len(want) {
-		return summarizeDiagnostics(-1, want, got, "different lengths got %v want %v", len(got), len(want))
-	}
-	for i, w := range want {
-		g := got[i]
-		if w.Message != g.Message {
-			return summarizeDiagnostics(i, want, got, "incorrect Message got %v want %v", g.Message, w.Message)
-		}
-		if protocol.ComparePosition(w.Range.Start, g.Range.Start) != 0 {
-			return summarizeDiagnostics(i, want, got, "incorrect Start got %v want %v", g.Range.Start, w.Range.Start)
-		}
-		// Special case for diagnostics on parse errors.
-		if strings.Contains(string(uri), "noparse") {
-			if protocol.ComparePosition(g.Range.Start, g.Range.End) != 0 || protocol.ComparePosition(w.Range.Start, g.Range.End) != 0 {
-				return summarizeDiagnostics(i, want, got, "incorrect End got %v want %v", g.Range.End, w.Range.Start)
-			}
-		} else if !protocol.IsPoint(g.Range) { // Accept any 'want' range if the diagnostic returns a zero-length range.
-			if protocol.ComparePosition(w.Range.End, g.Range.End) != 0 {
-				return summarizeDiagnostics(i, want, got, "incorrect End got %v want %v", g.Range.End, w.Range.End)
-			}
-		}
-		if w.Severity != g.Severity {
-			return summarizeDiagnostics(i, want, got, "incorrect Severity got %v want %v", g.Severity, w.Severity)
-		}
-		if w.Source != g.Source {
-			return summarizeDiagnostics(i, want, got, "incorrect Source got %v want %v", g.Source, w.Source)
-		}
-	}
-	return ""
-}
-
-func sortDiagnostics(d []source.Diagnostic) {
-	sort.Slice(d, func(i int, j int) bool {
-		return compareDiagnostic(d[i], d[j]) < 0
-	})
-}
-
-func compareDiagnostic(a, b source.Diagnostic) int {
-	if r := span.CompareURI(a.URI, b.URI); r != 0 {
-		return r
-	}
-	if r := protocol.CompareRange(a.Range, b.Range); r != 0 {
-		return r
-	}
-	if a.Message < b.Message {
-		return -1
-	}
-	if a.Message == b.Message {
-		return 0
-	} else {
-		return 1
-	}
-}
-
-func summarizeDiagnostics(i int, want []source.Diagnostic, got []source.Diagnostic, reason string, args ...interface{}) string {
-	msg := &bytes.Buffer{}
-	fmt.Fprint(msg, "diagnostics failed")
-	if i >= 0 {
-		fmt.Fprintf(msg, " at %d", i)
-	}
-	fmt.Fprint(msg, " because of ")
-	fmt.Fprintf(msg, reason, args...)
-	fmt.Fprint(msg, ":\nexpected:\n")
-	for _, d := range want {
-		fmt.Fprintf(msg, "  %s:%v: %s\n", d.URI, d.Range, d.Message)
-	}
-	fmt.Fprintf(msg, "got:\n")
-	for _, d := range got {
-		fmt.Fprintf(msg, "  %s:%v: %s\n", d.URI, d.Range, d.Message)
-	}
-	return msg.String()
-}
-
 func (data *Data) collectCompletions(typ CompletionTestType) func(span.Span, []token.Pos) {
-	return func(src span.Span, expected []token.Pos) {
-		data.Completions[src] = Completion{
+	result := func(m map[span.Span]Completion, src span.Span, expected []token.Pos) {
+		m[src] = Completion{
 			CompletionItems: expected,
-			Type:            typ,
+		}
+	}
+	switch typ {
+	case CompletionDeep:
+		return func(src span.Span, expected []token.Pos) {
+			result(data.DeepCompletions, src, expected)
+		}
+	case CompletionUnimported:
+		return func(src span.Span, expected []token.Pos) {
+			result(data.UnimportedCompletions, src, expected)
+		}
+	case CompletionFuzzy:
+		return func(src span.Span, expected []token.Pos) {
+			result(data.FuzzyCompletions, src, expected)
+		}
+	case CompletionRank:
+		return func(src span.Span, expected []token.Pos) {
+			result(data.RankCompletions, src, expected)
+		}
+	default:
+		return func(src span.Span, expected []token.Pos) {
+			result(data.Completions, src, expected)
 		}
 	}
 }

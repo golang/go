@@ -91,7 +91,7 @@ func main() {
 		marker := strings.ReplaceAll(path, "/", "slash")
 		markers = append(markers, marker)
 	}
-	outf("	//@complete(\"\", %s)\n", strings.Join(markers, ", "))
+	outf("	//@unimported(\"\", %s)\n", strings.Join(markers, ", "))
 	outf("}\n")
 	outf("// Create markers for unimported std lib packages. Only for use by this test.\n")
 

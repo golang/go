@@ -15,7 +15,6 @@ import (
 	"sort"
 	"strings"
 	"testing"
-	"time"
 
 	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/cache"
@@ -51,18 +50,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 
 	cache := cache.New()
 	session := cache.NewSession(ctx)
-	options := session.Options()
-	options.SupportedCodeActions = map[source.FileKind]map[protocol.CodeActionKind]bool{
-		source.Go: {
-			protocol.SourceOrganizeImports: true,
-			protocol.QuickFix:              true,
-		},
-		source.Mod: {},
-		source.Sum: {},
-	}
-	options.HoverKind = source.SynopsisDocumentation
-	// Crank this up so tests don't flake.
-	options.Completion.Budget = 5 * time.Second
+	options := tests.DefaultOptions()
 	session.SetOptions(options)
 	options.Env = data.Config.Env
 	session.NewView(ctx, viewName, span.FileURI(data.Config.Dir), options)
@@ -109,218 +97,6 @@ func (r *runner) Diagnostics(t *testing.T, data tests.Diagnostics) {
 			t.Error(diff)
 		}
 	}
-}
-
-func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests.CompletionSnippets, items tests.CompletionItems) {
-	for src, test := range data {
-		view := r.server.session.ViewOf(src.URI())
-		original := view.Options()
-		modified := original
-
-		// Set this as a default.
-		modified.Completion.Documentation = true
-
-		var want []source.CompletionItem
-		for _, pos := range test.CompletionItems {
-			want = append(want, *items[pos])
-		}
-
-		modified.Completion.Deep = strings.Contains(string(src.URI()), "deepcomplete")
-		modified.Completion.FuzzyMatching = strings.Contains(string(src.URI()), "fuzzymatch")
-		modified.Completion.Unimported = strings.Contains(string(src.URI()), "unimported")
-		view.SetOptions(modified)
-
-		list := r.runCompletion(t, src)
-
-		wantBuiltins := strings.Contains(string(src.URI()), "builtins")
-		var got []protocol.CompletionItem
-		for _, item := range list.Items {
-			if !wantBuiltins && isBuiltin(item) {
-				continue
-			}
-			got = append(got, item)
-		}
-
-		switch test.Type {
-		case tests.CompletionFull:
-			if diff := diffCompletionItems(want, got); diff != "" {
-				t.Errorf("%s: %s", src, diff)
-			}
-		case tests.CompletionPartial:
-			if msg := checkCompletionOrder(want, got); msg != "" {
-				t.Errorf("%s: %s", src, msg)
-			}
-		}
-		view.SetOptions(original)
-	}
-
-	for _, usePlaceholders := range []bool{true, false} {
-
-		for src, want := range snippets {
-			view := r.server.session.ViewOf(src.URI())
-			original := view.Options()
-			modified := original
-
-			modified.InsertTextFormat = protocol.SnippetTextFormat
-			modified.Completion.Deep = strings.Contains(string(src.URI()), "deepcomplete")
-			modified.Completion.FuzzyMatching = strings.Contains(string(src.URI()), "fuzzymatch")
-			modified.Completion.Unimported = strings.Contains(string(src.URI()), "unimported")
-			modified.Completion.Placeholders = usePlaceholders
-			view.SetOptions(modified)
-
-			list := r.runCompletion(t, src)
-
-			wantItem := items[want.CompletionItem]
-			var got *protocol.CompletionItem
-			for _, item := range list.Items {
-				if item.Label == wantItem.Label {
-					got = &item
-					break
-				}
-			}
-			var expected string
-			if usePlaceholders {
-				expected = want.PlaceholderSnippet
-			} else {
-				expected = want.PlainSnippet
-			}
-
-			if expected == "" {
-				if got != nil {
-					t.Fatalf("%s:%d: expected no snippet but got %q", src.URI(), src.Start().Line(), got.TextEdit.NewText)
-				}
-			} else {
-				if got == nil {
-					t.Fatalf("%s:%d: couldn't find completion matching %q", src.URI(), src.Start().Line(), wantItem.Label)
-				}
-
-				if expected != got.TextEdit.NewText {
-					t.Errorf("%s: expected snippet %q, got %q", src, expected, got.TextEdit.NewText)
-				}
-			}
-			view.SetOptions(original)
-		}
-	}
-}
-
-func (r *runner) runCompletion(t *testing.T, src span.Span) *protocol.CompletionList {
-	t.Helper()
-	list, err := r.server.Completion(r.ctx, &protocol.CompletionParams{
-		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-			TextDocument: protocol.TextDocumentIdentifier{
-				URI: protocol.NewURI(src.URI()),
-			},
-			Position: protocol.Position{
-				Line:      float64(src.Start().Line() - 1),
-				Character: float64(src.Start().Column() - 1),
-			},
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return list
-}
-
-func isBuiltin(item protocol.CompletionItem) bool {
-	// If a type has no detail, it is a builtin type.
-	if item.Detail == "" && item.Kind == protocol.TypeParameterCompletion {
-		return true
-	}
-	// Remaining builtin constants, variables, interfaces, and functions.
-	trimmed := item.Label
-	if i := strings.Index(trimmed, "("); i >= 0 {
-		trimmed = trimmed[:i]
-	}
-	switch trimmed {
-	case "append", "cap", "close", "complex", "copy", "delete",
-		"error", "false", "imag", "iota", "len", "make", "new",
-		"nil", "panic", "print", "println", "real", "recover", "true":
-		return true
-	}
-	return false
-}
-
-// diffCompletionItems prints the diff between expected and actual completion
-// test results.
-func diffCompletionItems(want []source.CompletionItem, got []protocol.CompletionItem) string {
-	if len(got) != len(want) {
-		return summarizeCompletionItems(-1, want, got, "different lengths got %v want %v", len(got), len(want))
-	}
-	for i, w := range want {
-		g := got[i]
-		if w.Label != g.Label {
-			return summarizeCompletionItems(i, want, got, "incorrect Label got %v want %v", g.Label, w.Label)
-		}
-		if w.Detail != g.Detail {
-			return summarizeCompletionItems(i, want, got, "incorrect Detail got %v want %v", g.Detail, w.Detail)
-		}
-		if w.Documentation != "" && !strings.HasPrefix(w.Documentation, "@") {
-			if w.Documentation != g.Documentation {
-				return summarizeCompletionItems(i, want, got, "incorrect Documentation got %v want %v", g.Documentation, w.Documentation)
-			}
-		}
-		if wkind := toProtocolCompletionItemKind(w.Kind); wkind != g.Kind {
-			return summarizeCompletionItems(i, want, got, "incorrect Kind got %v want %v", g.Kind, wkind)
-		}
-	}
-	return ""
-}
-
-func checkCompletionOrder(want []source.CompletionItem, got []protocol.CompletionItem) string {
-	var (
-		matchedIdxs []int
-		lastGotIdx  int
-		inOrder     = true
-	)
-	for _, w := range want {
-		var found bool
-		for i, g := range got {
-			if w.Label == g.Label && w.Detail == g.Detail && toProtocolCompletionItemKind(w.Kind) == g.Kind {
-				matchedIdxs = append(matchedIdxs, i)
-				found = true
-				if i < lastGotIdx {
-					inOrder = false
-				}
-				lastGotIdx = i
-				break
-			}
-		}
-		if !found {
-			return summarizeCompletionItems(-1, []source.CompletionItem{w}, got, "didn't find expected completion")
-		}
-	}
-
-	sort.Ints(matchedIdxs)
-	matched := make([]protocol.CompletionItem, 0, len(matchedIdxs))
-	for _, idx := range matchedIdxs {
-		matched = append(matched, got[idx])
-	}
-
-	if !inOrder {
-		return summarizeCompletionItems(-1, want, matched, "completions out of order")
-	}
-
-	return ""
-}
-
-func summarizeCompletionItems(i int, want []source.CompletionItem, got []protocol.CompletionItem, reason string, args ...interface{}) string {
-	msg := &bytes.Buffer{}
-	fmt.Fprint(msg, "completion failed")
-	if i >= 0 {
-		fmt.Fprintf(msg, " at %d", i)
-	}
-	fmt.Fprint(msg, " because of ")
-	fmt.Fprintf(msg, reason, args...)
-	fmt.Fprint(msg, ":\nexpected:\n")
-	for _, d := range want {
-		fmt.Fprintf(msg, "  %v\n", d)
-	}
-	fmt.Fprintf(msg, "got:\n")
-	for _, d := range got {
-		fmt.Fprintf(msg, "  %v\n", d)
-	}
-	return msg.String()
 }
 
 func (r *runner) FoldingRange(t *testing.T, data tests.FoldingRanges) {
@@ -909,7 +685,7 @@ func (r *runner) diffSymbols(t *testing.T, uri span.URI, want []protocol.Documen
 	return ""
 }
 
-func summarizeSymbols(t *testing.T, i int, want []protocol.DocumentSymbol, got []protocol.DocumentSymbol, reason string, args ...interface{}) string {
+func summarizeSymbols(t *testing.T, i int, want, got []protocol.DocumentSymbol, reason string, args ...interface{}) string {
 	msg := &bytes.Buffer{}
 	fmt.Fprint(msg, "document symbols failed")
 	if i >= 0 {

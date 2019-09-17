@@ -33,7 +33,27 @@ func NewRunner(exporter packagestest.Exporter, data *tests.Data, ctx context.Con
 	}
 }
 
-func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests.CompletionSnippets, items tests.CompletionItems) {
+func (r *runner) Completion(t *testing.T, data tests.Completions, items tests.CompletionItems) {
+	//TODO: add command line completions tests when it works
+}
+
+func (r *runner) CompletionSnippets(t *testing.T, data tests.CompletionSnippets, items tests.CompletionItems) {
+	//TODO: add command line completions tests when it works
+}
+
+func (r *runner) UnimportedCompletions(t *testing.T, data tests.UnimportedCompletions, items tests.CompletionItems) {
+	//TODO: add command line completions tests when it works
+}
+
+func (r *runner) DeepCompletions(t *testing.T, data tests.DeepCompletions, items tests.CompletionItems) {
+	//TODO: add command line completions tests when it works
+}
+
+func (r *runner) FuzzyCompletions(t *testing.T, data tests.FuzzyCompletions, items tests.CompletionItems) {
+	//TODO: add command line completions tests when it works
+}
+
+func (r *runner) RankCompletions(t *testing.T, data tests.RankCompletions, items tests.CompletionItems) {
 	//TODO: add command line completions tests when it works
 }
 

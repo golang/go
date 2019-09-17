@@ -1,0 +1,91 @@
+package tests
+
+import (
+	"bytes"
+	"fmt"
+	"sort"
+	"strings"
+
+	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/span"
+)
+
+// DiffDiagnostics prints the diff between expected and actual diagnostics test
+// results.
+func DiffDiagnostics(uri span.URI, want, got []source.Diagnostic) string {
+	sortDiagnostics(want)
+	sortDiagnostics(got)
+
+	if len(got) != len(want) {
+		return summarizeDiagnostics(-1, want, got, "different lengths got %v want %v", len(got), len(want))
+	}
+	for i, w := range want {
+		g := got[i]
+		if w.Message != g.Message {
+			return summarizeDiagnostics(i, want, got, "incorrect Message got %v want %v", g.Message, w.Message)
+		}
+		if protocol.ComparePosition(w.Range.Start, g.Range.Start) != 0 {
+			return summarizeDiagnostics(i, want, got, "incorrect Start got %v want %v", g.Range.Start, w.Range.Start)
+		}
+		// Special case for diagnostics on parse errors.
+		if strings.Contains(string(uri), "noparse") {
+			if protocol.ComparePosition(g.Range.Start, g.Range.End) != 0 || protocol.ComparePosition(w.Range.Start, g.Range.End) != 0 {
+				return summarizeDiagnostics(i, want, got, "incorrect End got %v want %v", g.Range.End, w.Range.Start)
+			}
+		} else if !protocol.IsPoint(g.Range) { // Accept any 'want' range if the diagnostic returns a zero-length range.
+			if protocol.ComparePosition(w.Range.End, g.Range.End) != 0 {
+				return summarizeDiagnostics(i, want, got, "incorrect End got %v want %v", g.Range.End, w.Range.End)
+			}
+		}
+		if w.Severity != g.Severity {
+			return summarizeDiagnostics(i, want, got, "incorrect Severity got %v want %v", g.Severity, w.Severity)
+		}
+		if w.Source != g.Source {
+			return summarizeDiagnostics(i, want, got, "incorrect Source got %v want %v", g.Source, w.Source)
+		}
+	}
+	return ""
+}
+
+func sortDiagnostics(d []source.Diagnostic) {
+	sort.Slice(d, func(i int, j int) bool {
+		return compareDiagnostic(d[i], d[j]) < 0
+	})
+}
+
+func compareDiagnostic(a, b source.Diagnostic) int {
+	if r := span.CompareURI(a.URI, b.URI); r != 0 {
+		return r
+	}
+	if r := protocol.CompareRange(a.Range, b.Range); r != 0 {
+		return r
+	}
+	if a.Message < b.Message {
+		return -1
+	}
+	if a.Message == b.Message {
+		return 0
+	} else {
+		return 1
+	}
+}
+
+func summarizeDiagnostics(i int, want []source.Diagnostic, got []source.Diagnostic, reason string, args ...interface{}) string {
+	msg := &bytes.Buffer{}
+	fmt.Fprint(msg, "diagnostics failed")
+	if i >= 0 {
+		fmt.Fprintf(msg, " at %d", i)
+	}
+	fmt.Fprint(msg, " because of ")
+	fmt.Fprintf(msg, reason, args...)
+	fmt.Fprint(msg, ":\nexpected:\n")
+	for _, d := range want {
+		fmt.Fprintf(msg, "  %s:%v: %s\n", d.URI, d.Range, d.Message)
+	}
+	fmt.Fprintf(msg, "got:\n")
+	for _, d := range got {
+		fmt.Fprintf(msg, "  %s:%v: %s\n", d.URI, d.Range, d.Message)
+	}
+	return msg.String()
+}

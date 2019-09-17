@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package fuzzymatch
+package fuzzy
 
 func _() {
 	var a struct {
@@ -13,13 +13,13 @@ func _() {
 	a.fabar  //@item(fuzzFabarField, "a.fabar", "int", "field")
 	a.fooBar //@item(fuzzFooBarField, "a.fooBar", "string", "field")
 
-	afa //@complete(" //", fuzzFabarField, fuzzFooBarField)
-	afb //@complete(" //", fuzzFooBarField, fuzzFabarField)
+	afa //@fuzzy(" //", fuzzFabarField, fuzzFooBarField)
+	afb //@fuzzy(" //", fuzzFooBarField, fuzzFabarField)
 
-	fab //@complete(" //", fuzzFabarField)
+	fab //@fuzzy(" //", fuzzFabarField)
 
 	var myString string
-	myString = af //@complete(" //", fuzzFooBarField, fuzzFabarField)
+	myString = af //@fuzzy(" //", fuzzFooBarField, fuzzFabarField)
 
 	var b struct {
 		c struct {
@@ -40,9 +40,9 @@ func _() {
 	b.c.d.e.abc //@item(fuzzABCstring, "b.c.d.e.abc", "string", "field")
 
 	// in depth order by default
-	abc //@complete(" //", fuzzABCInt, fuzzABCbool, fuzzABCfloat)
+	abc //@fuzzy(" //", fuzzABCInt, fuzzABCbool, fuzzABCfloat)
 
 	// deep candidate that matches expected type should still ranked first
 	var s string
-	s = abc //@complete(" //", fuzzABCstring, fuzzABCInt, fuzzABCbool)
+	s = abc //@fuzzy(" //", fuzzABCstring, fuzzABCInt, fuzzABCbool)
 }

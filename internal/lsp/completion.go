@@ -47,11 +47,11 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 		// When using deep completions/fuzzy matching, report results as incomplete so
 		// client fetches updated completions after every key stroke.
 		IsIncomplete: options.Completion.Deep,
-		Items:        s.toProtocolCompletionItems(candidates, rng, options),
+		Items:        toProtocolCompletionItems(candidates, rng, options),
 	}, nil
 }
 
-func (s *Server) toProtocolCompletionItems(candidates []source.CompletionItem, rng protocol.Range, options source.Options) []protocol.CompletionItem {
+func toProtocolCompletionItems(candidates []source.CompletionItem, rng protocol.Range, options source.Options) []protocol.CompletionItem {
 	var (
 		items                  = make([]protocol.CompletionItem, 0, len(candidates))
 		numDeepCompletionsSeen int

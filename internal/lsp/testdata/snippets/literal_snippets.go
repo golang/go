@@ -103,7 +103,7 @@ func _() {
 }
 
 func _() {
-	"func(...) {}" //@item(litFunc, "func(...) {}", "", "var")
+	_ = "func(...) {}" //@item(litFunc, "func(...) {}", "", "var")
 
 	sort.Slice(nil, f) //@snippet(")", litFunc, "func(i, j int) bool {$0\\}", "func(i, j int) bool {$0\\}")
 
