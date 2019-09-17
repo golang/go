@@ -392,34 +392,35 @@ func genOp() {
 
 	// Check that the arch genfile handles all the arch-specific opcodes.
 	// This is very much a hack, but it is better than nothing.
-	var wg sync.WaitGroup
+	//
+	// Do a single regexp pass to record all ops being handled in a map, and
+	// then compare that with the ops list. This is much faster than one
+	// regexp pass per opcode.
 	for _, a := range archs {
 		if a.genfile == "" {
 			continue
 		}
 
-		a := a
-		wg.Add(1)
-		go func() {
-			src, err := ioutil.ReadFile(a.genfile)
-			if err != nil {
-				log.Fatalf("can't read %s: %v", a.genfile, err)
-			}
+		pattern := fmt.Sprintf(`\Wssa\.Op%s([a-zA-Z0-9_]+)\W`, a.name)
+		rxOp, err := regexp.Compile(pattern)
+		if err != nil {
+			log.Fatalf("bad opcode regexp %s: %v", pattern, err)
+		}
 
-			for _, v := range a.ops {
-				pattern := fmt.Sprintf(`\Wssa\.Op%s%s\W`, a.name, v.name)
-				match, err := regexp.Match(pattern, src)
-				if err != nil {
-					log.Fatalf("bad opcode regexp %s: %v", pattern, err)
-				}
-				if !match {
-					log.Fatalf("Op%s%s has no code generation in %s", a.name, v.name, a.genfile)
-				}
+		src, err := ioutil.ReadFile(a.genfile)
+		if err != nil {
+			log.Fatalf("can't read %s: %v", a.genfile, err)
+		}
+		seen := make(map[string]bool, len(a.ops))
+		for _, m := range rxOp.FindAllSubmatch(src, -1) {
+			seen[string(m[1])] = true
+		}
+		for _, op := range a.ops {
+			if !seen[op.name] {
+				log.Fatalf("Op%s%s has no code generation in %s", a.name, op.name, a.genfile)
 			}
-			wg.Done()
-		}()
+		}
 	}
-	wg.Wait()
 }
 
 // Name returns the name of the architecture for use in Op* and Block* enumerations.
