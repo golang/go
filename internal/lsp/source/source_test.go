@@ -25,6 +25,7 @@ import (
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/testenv"
+	errors "golang.org/x/xerrors"
 )
 
 func TestMain(m *testing.M) {
@@ -246,7 +247,7 @@ func (r *runner) callCompletion(t *testing.T, src span.Span, options source.Comp
 		Line:      float64(src.Start().Line() - 1),
 		Character: float64(src.Start().Column() - 1),
 	}, options)
-	if err != nil {
+	if err != nil && !errors.As(err, &source.ErrIsDefinition{}) {
 		t.Fatalf("failed for %v: %v", src, err)
 	}
 	var prefix string

@@ -343,6 +343,21 @@ type candidate struct {
 	imp *imports.ImportInfo
 }
 
+// ErrIsDefinition is an error that informs the user they got no
+// completions because they tried to complete the name of a new object
+// being defined.
+type ErrIsDefinition struct {
+	objStr string
+}
+
+func (e ErrIsDefinition) Error() string {
+	msg := "this is a definition"
+	if e.objStr != "" {
+		msg += " of " + e.objStr
+	}
+	return msg
+}
+
 // Completion returns a list of possible candidates for completion, given a
 // a file and a position.
 //
@@ -449,15 +464,15 @@ func Completion(ctx context.Context, view View, f GoFile, pos protocol.Position,
 		}
 		// reject defining identifiers
 		if obj, ok := pkg.GetTypesInfo().Defs[n]; ok {
-			if v, ok := obj.(*types.Var); ok && v.IsField() {
+			if v, ok := obj.(*types.Var); ok && v.IsField() && v.Embedded() {
 				// An anonymous field is also a reference to a type.
 			} else {
-				of := ""
+				objStr := ""
 				if obj != nil {
 					qual := types.RelativeTo(pkg.GetTypes())
-					of += ", of " + types.ObjectString(obj, qual)
+					objStr = types.ObjectString(obj, qual)
 				}
-				return nil, nil, errors.Errorf("this is a definition%s", of)
+				return nil, nil, ErrIsDefinition{objStr: objStr}
 			}
 		}
 		if err := c.lexical(); err != nil {
@@ -1134,24 +1149,14 @@ func expectTypeName(c *completer) typeInference {
 Nodes:
 	for i, p := range c.path {
 		switch n := p.(type) {
-		case *ast.FuncDecl:
-			// Expect type names in a function declaration receiver, params and results.
-
-			if r := n.Recv; r != nil && r.Pos() <= c.pos && c.pos <= r.End() {
-				wantTypeName = true
-				break Nodes
-			}
-			if t := n.Type; t != nil {
-				if p := t.Params; p != nil && p.Pos() <= c.pos && c.pos <= p.End() {
-					wantTypeName = true
-					break Nodes
-				}
-				if r := t.Results; r != nil && r.Pos() <= c.pos && c.pos <= r.End() {
-					wantTypeName = true
-					break Nodes
-				}
-			}
-			return typeInference{}
+		case *ast.FieldList:
+			// Expect a type name if pos is in a FieldList. This applies to
+			// FuncType params/results, FuncDecl receiver, StructType, and
+			// InterfaceType. We don't need to worry about the field name
+			// because completion bails out early if pos is in an *ast.Ident
+			// that defines an object.
+			wantTypeName = true
+			break Nodes
 		case *ast.CaseClause:
 			// Expect type names in type switch case clauses.
 			if swtch, ok := findSwitchStmt(c.path[i+1:], c.pos, n).(*ast.TypeSwitchStmt); ok {
