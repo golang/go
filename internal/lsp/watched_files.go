@@ -13,7 +13,6 @@ import (
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
-	"golang.org/x/tools/internal/telemetry/trace"
 )
 
 func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.DidChangeWatchedFilesParams) error {
@@ -48,12 +47,7 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 				s.session.DidChangeOutOfBand(ctx, gof, change.Type)
 
 				// Refresh diagnostics to reflect updated file contents.
-				go func(view source.View) {
-					ctx := view.BackgroundContext()
-					ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
-					defer done()
-					s.Diagnostics(ctx, view, uri)
-				}(view)
+				go s.diagnostics(view, uri)
 			case protocol.Created:
 				log.Print(ctx, "watched file created", telemetry.File)
 			case protocol.Deleted:
@@ -85,18 +79,14 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 				}
 				s.session.DidChangeOutOfBand(ctx, gof, change.Type)
 
-				if otherFile != nil {
-					// Refresh diagnostics to reflect updated file contents.
-					go func(view source.View) {
-						ctx := view.BackgroundContext()
-						ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
-						defer done()
-						s.Diagnostics(ctx, view, otherFile.URI())
-					}(view)
-				} else {
-					// TODO: Handle case when there is no other file (i.e. deleted
-					//       file was the only file in the package).
+				// If this was the only file in the package, clear its diagnostics.
+				if otherFile == nil {
+					if err := s.publishDiagnostics(ctx, uri, []source.Diagnostic{}); err != nil {
+						log.Error(ctx, "failed to clear diagnostics", err, telemetry.URI.Of(uri))
+					}
+					return nil
 				}
+				go s.diagnostics(view, uri)
 			}
 		}
 	}

@@ -15,7 +15,6 @@ import (
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
-	"golang.org/x/tools/internal/telemetry/trace"
 	errors "golang.org/x/xerrors"
 )
 
@@ -32,12 +31,8 @@ func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocume
 	view := s.session.ViewOf(uri)
 
 	// Run diagnostics on the newly-changed file.
-	go func() {
-		ctx := view.BackgroundContext()
-		ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
-		defer done()
-		s.Diagnostics(ctx, view, uri)
-	}()
+	go s.diagnostics(view, uri)
+
 	return nil
 }
 
@@ -84,12 +79,8 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 	}
 
 	// Run diagnostics on the newly-changed file.
-	go func() {
-		ctx := view.BackgroundContext()
-		ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
-		defer done()
-		s.Diagnostics(ctx, view, uri)
-	}()
+	go s.diagnostics(view, uri)
+
 	return nil
 }
 
