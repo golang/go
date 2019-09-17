@@ -112,6 +112,14 @@ const (
 	BlockPPC64FGE
 
 	BlockS390XBRC
+	BlockS390XCRJ
+	BlockS390XCGRJ
+	BlockS390XCLRJ
+	BlockS390XCLGRJ
+	BlockS390XCIJ
+	BlockS390XCGIJ
+	BlockS390XCLIJ
+	BlockS390XCLGIJ
 
 	BlockPlain
 	BlockIf
@@ -220,7 +228,15 @@ var blockString = [...]string{
 	BlockPPC64FGT: "FGT",
 	BlockPPC64FGE: "FGE",
 
-	BlockS390XBRC: "BRC",
+	BlockS390XBRC:   "BRC",
+	BlockS390XCRJ:   "CRJ",
+	BlockS390XCGRJ:  "CGRJ",
+	BlockS390XCLRJ:  "CLRJ",
+	BlockS390XCLGRJ: "CLGRJ",
+	BlockS390XCIJ:   "CIJ",
+	BlockS390XCGIJ:  "CGIJ",
+	BlockS390XCLIJ:  "CLIJ",
+	BlockS390XCLGIJ: "CLGIJ",
 
 	BlockPlain:  "Plain",
 	BlockIf:     "If",
@@ -232,6 +248,15 @@ var blockString = [...]string{
 }
 
 func (k BlockKind) String() string { return blockString[k] }
+
+var blockAuxIntType = [...]string{
+	BlockS390XCIJ:   "Int8",
+	BlockS390XCGIJ:  "Int8",
+	BlockS390XCLIJ:  "UInt8",
+	BlockS390XCLGIJ: "UInt8",
+}
+
+func (k BlockKind) AuxIntType() string { return blockAuxIntType[k] }
 
 const (
 	OpInvalid Op = iota

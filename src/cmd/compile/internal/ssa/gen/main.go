@@ -70,6 +70,7 @@ type opData struct {
 type blockData struct {
 	name     string // the suffix for this block ("EQ", "LT", etc.)
 	controls int    // the number of control values this type of block requires
+	auxint   string // the type of the AuxInt value, if any
 }
 
 type regInfo struct {
@@ -218,6 +219,19 @@ func genOp() {
 	}
 	fmt.Fprintln(w, "}")
 	fmt.Fprintln(w, "func (k BlockKind) String() string {return blockString[k]}")
+
+	// generate block kind auxint method
+	fmt.Fprintln(w, "var blockAuxIntType = [...]string{")
+	for _, a := range archs {
+		for _, b := range a.blocks {
+			if b.auxint == "" {
+				continue
+			}
+			fmt.Fprintf(w, "Block%s%s:\"%s\",\n", a.Name(), b.name, b.auxint)
+		}
+	}
+	fmt.Fprintln(w, "}")
+	fmt.Fprintln(w, "func (k BlockKind) AuxIntType() string {return blockAuxIntType[k]}")
 
 	// generate Op* declarations
 	fmt.Fprintln(w, "const (")

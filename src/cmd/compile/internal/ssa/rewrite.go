@@ -404,6 +404,16 @@ func is16Bit(n int64) bool {
 	return n == int64(int16(n))
 }
 
+// is8Bit reports whether n can be represented as a signed 8 bit integer.
+func is8Bit(n int64) bool {
+	return n == int64(int8(n))
+}
+
+// isU8Bit reports whether n can be represented as an unsigned 8 bit integer.
+func isU8Bit(n int64) bool {
+	return n == int64(uint8(n))
+}
+
 // isU12Bit reports whether n can be represented as an unsigned 12 bit integer.
 func isU12Bit(n int64) bool {
 	return 0 <= n && n < (1<<12)
