@@ -91,6 +91,10 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg 
 			args = append(args, "-I", root)
 		}
 	}
+	if cfg.BuildTrimpath && b.gccSupportsFlag(args[:1], "-ffile-prefix-map=a=b") {
+		args = append(args, "-ffile-prefix-map="+base.Cwd+"=.")
+		args = append(args, "-ffile-prefix-map="+b.WorkDir+"=/tmp/go-build")
+	}
 	args = append(args, a.Package.Internal.Gccgoflags...)
 	for _, f := range gofiles {
 		args = append(args, mkAbs(p.Dir, f))
@@ -535,7 +539,10 @@ func (tools gccgoToolchain) cc(b *Builder, a *Action, ofile, cfile string) error
 		defs = append(defs, "-fsplit-stack")
 	}
 	defs = tools.maybePIC(defs)
-	if b.gccSupportsFlag(compiler, "-fdebug-prefix-map=a=b") {
+	if b.gccSupportsFlag(compiler, "-ffile-prefix-map=a=b") {
+		defs = append(defs, "-ffile-prefix-map="+base.Cwd+"=.")
+		defs = append(defs, "-ffile-prefix-map="+b.WorkDir+"=/tmp/go-build")
+	} else if b.gccSupportsFlag(compiler, "-fdebug-prefix-map=a=b") {
 		defs = append(defs, "-fdebug-prefix-map="+b.WorkDir+"=/tmp/go-build")
 	}
 	if b.gccSupportsFlag(compiler, "-gno-record-gcc-switches") {
