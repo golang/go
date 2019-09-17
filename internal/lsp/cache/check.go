@@ -258,15 +258,12 @@ func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle, m *
 		go func(i int, ph source.ParseGoHandle) {
 			defer wg.Done()
 
-			files[i], _, parseErrors[i] = ph.Parse(ctx)
+			files[i], _, parseErrors[i], _ = ph.Parse(ctx)
 		}(i, ph)
 	}
 	wg.Wait()
 
 	for _, err := range parseErrors {
-		if err == context.Canceled {
-			return nil, errors.Errorf("parsing files for %s: %v", m.pkgPath, err)
-		}
 		if err != nil {
 			imp.view.session.cache.appendPkgError(pkg, err)
 		}
@@ -350,9 +347,9 @@ func (imp *importer) cachePerFile(ctx context.Context, gof *goFile, ph source.Pa
 	}
 	gof.cphs[cph.m.id] = cph
 
-	file, _, err := ph.Parse(ctx)
-	if file == nil {
-		return errors.Errorf("no AST for %s: %v", ph.File().Identity().URI, err)
+	file, _, _, err := ph.Parse(ctx)
+	if err != nil {
+		return err
 	}
 	gof.imports = file.Imports
 	return nil

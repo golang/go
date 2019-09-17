@@ -92,8 +92,8 @@ func IsGenerated(ctx context.Context, view View, uri span.URI) bool {
 		return false
 	}
 	ph := view.Session().Cache().ParseGoHandle(f.Handle(ctx), ParseHeader)
-	parsed, _, err := ph.Parse(ctx)
-	if parsed == nil {
+	parsed, _, _, err := ph.Parse(ctx)
+	if err != nil {
 		return false
 	}
 	tok := view.Session().Cache().FileSet().File(parsed.Pos())
@@ -175,11 +175,8 @@ func posToMapper(ctx context.Context, view View, pkg Package, pos token.Pos) (*p
 	if err != nil {
 		return nil, err
 	}
-	_, m, err := ph.Cached(ctx)
-	if m == nil {
-		return nil, err
-	}
-	return m, nil
+	_, m, _, err := ph.Cached(ctx)
+	return m, err
 }
 
 // Matches cgo generated comment as well as the proposed standard:

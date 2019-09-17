@@ -18,8 +18,8 @@ func getCodeActions(ctx context.Context, view View, pkg Package, diag analysis.D
 			if err != nil {
 				return nil, err
 			}
-			_, m, err := ph.Cached(ctx)
-			if m == nil {
+			_, m, _, err := ph.Cached(ctx)
+			if err != nil {
 				return nil, err
 			}
 			mrng, err := posToRange(ctx, view, m, e.Pos, e.End)

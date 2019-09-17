@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"go/ast"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -181,22 +180,15 @@ func diagnostics(ctx context.Context, view View, pkg Package, reports map[span.U
 // spanToRange converts a span.Span to a protocol.Range,
 // assuming that the span belongs to the package whose diagnostics are being computed.
 func spanToRange(ctx context.Context, view View, pkg Package, spn span.Span, isTypeError bool) (protocol.Range, error) {
-	var (
-		fh   FileHandle
-		file *ast.File
-		m    *protocol.ColumnMapper
-		err  error
-	)
-	for _, ph := range pkg.Files() {
-		if ph.File().Identity().URI == spn.URI() {
-			fh = ph.File()
-			file, m, err = ph.Cached(ctx)
-		}
-	}
-	if file == nil {
+	ph, err := pkg.File(spn.URI())
+	if err != nil {
 		return protocol.Range{}, err
 	}
-	data, _, err := fh.Read(ctx)
+	_, m, _, err := ph.Cached(ctx)
+	if err != nil {
+		return protocol.Range{}, err
+	}
+	data, _, err := ph.File().Read(ctx)
 	if err != nil {
 		return protocol.Range{}, err
 	}

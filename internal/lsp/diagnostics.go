@@ -23,6 +23,7 @@ func (s *Server) diagnostics(view source.View, uri span.URI) error {
 	defer done()
 
 	ctx = telemetry.File.With(ctx, uri)
+
 	f, err := view.GetFile(ctx, uri)
 	if err != nil {
 		return err
@@ -45,8 +46,9 @@ func (s *Server) diagnostics(view source.View, uri span.URI) error {
 			if s.undelivered == nil {
 				s.undelivered = make(map[span.URI][]source.Diagnostic)
 			}
-			log.Error(ctx, "failed to deliver diagnostic (will retry)", err, telemetry.File)
 			s.undelivered[uri] = diagnostics
+
+			log.Error(ctx, "failed to deliver diagnostic (will retry)", err, telemetry.File)
 			continue
 		}
 		// In case we had old, undelivered diagnostics.
@@ -58,6 +60,7 @@ func (s *Server) diagnostics(view source.View, uri span.URI) error {
 		if err := s.publishDiagnostics(ctx, uri, diagnostics); err != nil {
 			log.Error(ctx, "failed to deliver diagnostic for (will not retry)", err, telemetry.File)
 		}
+
 		// If we fail to deliver the same diagnostics twice, just give up.
 		delete(s.undelivered, uri)
 	}

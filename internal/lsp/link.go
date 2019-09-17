@@ -28,8 +28,8 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 		return nil, err
 	}
 	fh := f.Handle(ctx)
-	file, m, err := view.Session().Cache().ParseGoHandle(fh, source.ParseFull).Parse(ctx)
-	if file == nil {
+	file, m, _, err := view.Session().Cache().ParseGoHandle(fh, source.ParseFull).Parse(ctx)
+	if err != nil {
 		return nil, err
 	}
 	var links []protocol.DocumentLink

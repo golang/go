@@ -123,14 +123,13 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	if !pos.IsValid() {
 		return item, nil
 	}
-
 	uri := span.FileURI(pos.Filename)
 	ph, pkg, err := c.pkg.FindFile(c.ctx, uri)
 	if err != nil {
 		return CompletionItem{}, err
 	}
-	file, _, err := ph.Cached(c.ctx)
-	if file == nil {
+	file, _, _, err := ph.Cached(c.ctx)
+	if err != nil {
 		return CompletionItem{}, err
 	}
 	if !(file.Pos() <= obj.Pos() && obj.Pos() <= file.End()) {

@@ -176,16 +176,12 @@ func (i *IdentifierInfo) Rename(ctx context.Context, view View, newName string) 
 // getPkgName gets the pkg name associated with an identifer representing
 // the import path in an import spec.
 func (i *IdentifierInfo) getPkgName(ctx context.Context) (*IdentifierInfo, error) {
-	var (
-		file *ast.File
-		err  error
-	)
-	for _, ph := range i.pkg.Files() {
-		if ph.File().Identity().URI == i.File.File().Identity().URI {
-			file, _, err = ph.Cached(ctx)
-		}
+	ph, err := i.pkg.File(i.URI())
+	if err != nil {
+		return nil, err
 	}
-	if file == nil {
+	file, _, _, err := ph.Cached(ctx)
+	if err != nil {
 		return nil, err
 	}
 	var namePos token.Pos
@@ -198,7 +194,6 @@ func (i *IdentifierInfo) getPkgName(ctx context.Context) (*IdentifierInfo, error
 	if !namePos.IsValid() {
 		return nil, errors.Errorf("import spec not found for %q", i.Name)
 	}
-
 	// Look for the object defined at NamePos.
 	for _, obj := range i.pkg.GetTypesInfo().Defs {
 		pkgName, ok := obj.(*types.PkgName)

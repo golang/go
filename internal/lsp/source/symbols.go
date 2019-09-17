@@ -27,16 +27,12 @@ func DocumentSymbols(ctx context.Context, view View, f GoFile) ([]protocol.Docum
 	if err != nil {
 		return nil, err
 	}
-	var (
-		file *ast.File
-		m    *protocol.ColumnMapper
-	)
-	for _, ph := range pkg.Files() {
-		if ph.File().Identity().URI == f.URI() {
-			file, m, err = ph.Cached(ctx)
-		}
+	ph, err := pkg.File(f.URI())
+	if err != nil {
+		return nil, err
 	}
-	if file == nil {
+	file, m, _, err := ph.Cached(ctx)
+	if err != nil {
 		return nil, err
 	}
 

@@ -37,17 +37,12 @@ func Format(ctx context.Context, view View, f File) ([]protocol.TextEdit, error)
 	if err != nil {
 		return nil, err
 	}
-	var ph ParseGoHandle
-	for _, h := range pkg.Files() {
-		if h.File().Identity().URI == f.URI() {
-			ph = h
-		}
-	}
-	if ph == nil {
+	ph, err := pkg.File(f.URI())
+	if err != nil {
 		return nil, err
 	}
-	file, m, err := ph.Parse(ctx)
-	if file == nil {
+	file, m, _, err := ph.Parse(ctx)
+	if err != nil {
 		return nil, err
 	}
 	if hasListErrors(pkg.GetErrors()) || hasParseErrors(pkg, f.URI()) {
@@ -102,13 +97,8 @@ func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]protoc
 	if hasListErrors(pkg.GetErrors()) {
 		return nil, errors.Errorf("%s has list errors, not running goimports", f.URI())
 	}
-	var ph ParseGoHandle
-	for _, h := range pkg.Files() {
-		if h.File().Identity().URI == f.URI() {
-			ph = h
-		}
-	}
-	if ph == nil {
+	ph, err := pkg.File(f.URI())
+	if err != nil {
 		return nil, err
 	}
 	options := &imports.Options{
@@ -133,8 +123,8 @@ func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]protoc
 	if err != nil {
 		return nil, err
 	}
-	_, m, err := ph.Parse(ctx)
-	if m == nil {
+	_, m, _, err := ph.Parse(ctx)
+	if err != nil {
 		return nil, err
 	}
 	return computeTextEdits(ctx, ph.File(), m, string(formatted))
@@ -201,8 +191,8 @@ func AllImportsFixes(ctx context.Context, view View, f File) (edits []protocol.T
 		if err != nil {
 			return err
 		}
-		_, m, err := ph.Parse(ctx)
-		if m == nil {
+		_, m, _, err := ph.Parse(ctx)
+		if err != nil {
 			return err
 		}
 		edits, err = computeTextEdits(ctx, ph.File(), m, string(formatted))

@@ -43,8 +43,8 @@ func (view *view) buildBuiltinPackage(ctx context.Context) error {
 		fh := view.session.GetFile(span.FileURI(filename))
 		ph := view.session.cache.ParseGoHandle(fh, source.ParseFull)
 		view.builtin.files = append(view.builtin.files, ph)
-		file, _, err := ph.Parse(ctx)
-		if file == nil {
+		file, _, _, err := ph.Parse(ctx)
+		if err != nil {
 			return err
 		}
 		files[filename] = file

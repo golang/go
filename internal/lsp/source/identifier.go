@@ -57,15 +57,12 @@ func Identifier(ctx context.Context, view View, f GoFile, pos protocol.Position)
 	if err != nil {
 		return nil, err
 	}
-	var ph ParseGoHandle
-	for _, h := range cph.Files() {
-		if h.File().Identity().URI == f.URI() {
-			ph = h
-			break
-		}
+	ph, err := pkg.File(f.URI())
+	if err != nil {
+		return nil, err
 	}
-	file, m, err := ph.Cached(ctx)
-	if file == nil {
+	file, m, _, err := ph.Cached(ctx)
+	if err != nil {
 		return nil, err
 	}
 	spn, err := m.PointSpan(pos)
@@ -246,7 +243,7 @@ func objToNode(ctx context.Context, view View, pkg Package, obj types.Object) (a
 	if err != nil {
 		return nil, err
 	}
-	declAST, _, err := ph.Cached(ctx)
+	declAST, _, _, err := ph.Cached(ctx)
 	if declAST == nil {
 		return nil, err
 	}

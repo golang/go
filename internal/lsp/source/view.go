@@ -80,10 +80,10 @@ type ParseGoHandle interface {
 
 	// Parse returns the parsed AST for the file.
 	// If the file is not available, returns nil and an error.
-	Parse(ctx context.Context) (*ast.File, *protocol.ColumnMapper, error)
+	Parse(ctx context.Context) (*ast.File, *protocol.ColumnMapper, error, error)
 
 	// Cached returns the AST for this handle, if it has already been stored.
-	Cached(ctx context.Context) (*ast.File, *protocol.ColumnMapper, error)
+	Cached(ctx context.Context) (*ast.File, *protocol.ColumnMapper, error, error)
 }
 
 // ParseMode controls the content of the AST produced when parsing a source file.
@@ -288,6 +288,7 @@ type Package interface {
 	ID() string
 	PkgPath() string
 	Files() []ParseGoHandle
+	File(uri span.URI) (ParseGoHandle, error)
 	GetSyntax(context.Context) []*ast.File
 	GetErrors() []packages.Error
 	GetTypes() *types.Package

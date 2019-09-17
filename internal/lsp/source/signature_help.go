@@ -40,15 +40,12 @@ func SignatureHelp(ctx context.Context, view View, f GoFile, pos protocol.Positi
 	if err != nil {
 		return nil, err
 	}
-	var ph ParseGoHandle
-	for _, h := range pkg.Files() {
-		if h.File().Identity().URI == f.URI() {
-			ph = h
-			break
-		}
+	ph, err := pkg.File(f.URI())
+	if err != nil {
+		return nil, err
 	}
-	file, m, err := ph.Cached(ctx)
-	if file == nil {
+	file, m, _, err := ph.Cached(ctx)
+	if err != nil {
 		return nil, err
 	}
 	spn, err := m.PointSpan(pos)

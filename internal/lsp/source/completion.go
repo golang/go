@@ -376,14 +376,12 @@ func Completion(ctx context.Context, view View, f GoFile, pos protocol.Position,
 	if err != nil {
 		return nil, nil, err
 	}
-	var ph ParseGoHandle
-	for _, h := range pkg.Files() {
-		if h.File().Identity().URI == f.URI() {
-			ph = h
-		}
+	ph, err := pkg.File(f.URI())
+	if err != nil {
+		return nil, nil, err
 	}
-	file, m, err := ph.Cached(ctx)
-	if file == nil {
+	file, m, _, err := ph.Cached(ctx)
+	if err != nil {
 		return nil, nil, err
 	}
 	spn, err := m.PointSpan(pos)

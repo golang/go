@@ -23,10 +23,9 @@ func Highlight(ctx context.Context, view View, uri span.URI, pos protocol.Positi
 	if err != nil {
 		return nil, err
 	}
-	fh := f.Handle(ctx)
-	ph := view.Session().Cache().ParseGoHandle(fh, ParseFull)
-	file, m, err := ph.Parse(ctx)
-	if file == nil {
+	ph := view.Session().Cache().ParseGoHandle(f.Handle(ctx), ParseFull)
+	file, m, _, err := ph.Parse(ctx)
+	if err != nil {
 		return nil, err
 	}
 	spn, err := m.PointSpan(pos)
