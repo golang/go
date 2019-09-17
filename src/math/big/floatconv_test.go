@@ -536,6 +536,10 @@ func TestFloatText(t *testing.T) {
 		{"-8191.53125", ToNegativeInf, 53, 'x', 4, "-0x1.fff9p+12"},
 		{"8191.53125", ToPositiveInf, 53, 'x', 4, "0x1.fff9p+12"},
 		{"-8191.53125", ToPositiveInf, 53, 'x', 4, "-0x1.fff8p+12"},
+
+		// issue 34343
+		{"0x.8p-2147483648", ToNearestEven, 4, 'p', -1, "0x.8p-2147483648"},
+		{"0x.8p-2147483648", ToNearestEven, 4, 'x', -1, "0x1p-2147483649"},
 	} {
 		f, _, err := ParseFloat(test.x, 0, test.prec, ToNearestEven)
 		if err != nil {
