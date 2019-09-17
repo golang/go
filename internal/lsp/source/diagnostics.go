@@ -72,7 +72,7 @@ func Diagnostics(ctx context.Context, view View, f GoFile, disabledAnalyses map[
 	if err != nil {
 		return nil, "", err
 	}
-	cph := NarrowestCheckPackageHandle(cphs)
+	cph := WidestCheckPackageHandle(cphs)
 	pkg, err := cph.Check(ctx)
 	if err != nil {
 		log.Error(ctx, "no package for file", err)
