@@ -563,11 +563,16 @@ func (c *completer) methodsAndFields(typ types.Type, addressable bool) error {
 func (c *completer) lexical() error {
 	var scopes []*types.Scope // scopes[i], where i<len(path), is the possibly nil Scope of path[i].
 	for _, n := range c.path {
+		// Include *FuncType scope if pos is inside the function body.
 		switch node := n.(type) {
 		case *ast.FuncDecl:
-			n = node.Type
+			if node.Body != nil && nodeContains(node.Body, c.pos) {
+				n = node.Type
+			}
 		case *ast.FuncLit:
-			n = node.Type
+			if node.Body != nil && nodeContains(node.Body, c.pos) {
+				n = node.Type
+			}
 		}
 		scopes = append(scopes, c.pkg.GetTypesInfo().Scopes[n])
 	}
@@ -652,6 +657,10 @@ func (c *completer) lexical() error {
 	}
 
 	return nil
+}
+
+func nodeContains(n ast.Node, pos token.Pos) bool {
+	return n != nil && n.Pos() <= pos && pos < n.End()
 }
 
 func (c *completer) inConstDecl() bool {

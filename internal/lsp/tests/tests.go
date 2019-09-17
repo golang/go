@@ -29,7 +29,7 @@ import (
 // We hardcode the expected number of test cases to ensure that all tests
 // are being executed. If a test is added, this number must be changed.
 const (
-	ExpectedCompletionsCount           = 152
+	ExpectedCompletionsCount           = 154
 	ExpectedCompletionSnippetCount     = 36
 	ExpectedUnimportedCompletionsCount = 1
 	ExpectedDeepCompletionsCount       = 5
