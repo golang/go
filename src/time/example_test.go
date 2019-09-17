@@ -113,6 +113,20 @@ func ExampleDuration_Hours() {
 	// Output: I've got 4.5 hours of work left.
 }
 
+func ExampleDuration_Microseconds() {
+	u, _ := time.ParseDuration("1s")
+	fmt.Printf("One second is %d microseconds.\n", u.Microseconds())
+	// Output:
+	// One second is 1000000 microseconds.
+}
+
+func ExampleDuration_Milliseconds() {
+	u, _ := time.ParseDuration("1s")
+	fmt.Printf("One second is %d milliseconds.\n", u.Milliseconds())
+	// Output:
+	// One second is 1000 milliseconds.
+}
+
 func ExampleDuration_Minutes() {
 	m, _ := time.ParseDuration("1h30m")
 	fmt.Printf("The movie is %.0f minutes long.", m.Minutes())
