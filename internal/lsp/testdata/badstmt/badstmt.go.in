@@ -11,6 +11,13 @@ func _() {
 }
 
 func _() {
+	switch true {
+	case true:
+		go foo.F //@complete(" //", Foo)
+	}
+}
+
+func _() {
 	defer func() {
 		foo.F //@complete(" //", Foo),snippet(" //", Foo, "Foo()", "Foo()")
 		foo. //@complete(" //", Foo, IntFoo, StructFoo)
