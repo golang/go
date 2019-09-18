@@ -57,6 +57,15 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	XOR	$1, X5, X6				// 13c31200
 	XOR	$1, X5					// 93c21200
 
+	AUIPC	$0, X10					// 17050000
+	AUIPC	$0, X11					// 97050000
+	AUIPC	$1, X10					// 17150000
+	AUIPC	$1048575, X10				// 17f5ffff
+
+	LUI	$0, X15					// b7070000
+	LUI	$167, X15				// b7770a00
+	LUI	$1048575, X15				// b7f7ffff
+
 	SLL	X6, X5, X7				// b3936200
 	SLL	X5, X6					// 33135300
 	SLL	$1, X5, X6				// 13931200
