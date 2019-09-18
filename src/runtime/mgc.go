@@ -865,7 +865,8 @@ func gcSetTriggerRatio(triggerRatio float64) {
 			heapDistance = _PageSize
 		}
 		pagesSwept := atomic.Load64(&mheap_.pagesSwept)
-		sweepDistancePages := int64(mheap_.pagesInUse) - int64(pagesSwept)
+		pagesInUse := atomic.Load64(&mheap_.pagesInUse)
+		sweepDistancePages := int64(pagesInUse) - int64(pagesSwept)
 		if sweepDistancePages <= 0 {
 			mheap_.sweepPagesPerByte = 0
 		} else {
