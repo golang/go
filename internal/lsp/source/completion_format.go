@@ -83,6 +83,9 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	case *types.PkgName:
 		kind = protocol.ModuleCompletion
 		detail = fmt.Sprintf("%q", obj.Imported().Path())
+	case *types.Label:
+		kind = protocol.ConstantCompletion
+		detail = "label"
 	}
 
 	// If this candidate needs an additional import statement,

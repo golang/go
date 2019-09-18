@@ -163,8 +163,9 @@ type completer struct {
 	// candidate to be. It will be the zero value if no information is available.
 	expectedType typeInference
 
-	// enclosingFunction is the function declaration enclosing the position.
-	enclosingFunction *types.Signature
+	// enclosingFunc contains information about the function enclosing
+	// the position.
+	enclosingFunc *funcInfo
 
 	// enclosingCompositeLiteral contains information about the composite literal
 	// enclosing the position.
@@ -187,6 +188,15 @@ type completer struct {
 	// startTime is when we started processing this completion request. It does
 	// not include any time the request spent in the queue.
 	startTime time.Time
+}
+
+// funcInfo holds info about a function object.
+type funcInfo struct {
+	// sig is the function declaration enclosing the position.
+	sig *types.Signature
+
+	// body is the function's body.
+	body *ast.BlockStmt
 }
 
 type compLitInfo struct {
@@ -434,7 +444,6 @@ func Completion(ctx context.Context, view View, f File, pos protocol.Position, o
 		return nil, nil, nil
 	}
 
-	clInfo := enclosingCompositeLiteral(path, rng.Start, pkg.GetTypesInfo())
 	c := &completer{
 		pkg:                       pkg,
 		snapshot:                  snapshot,
@@ -446,8 +455,8 @@ func Completion(ctx context.Context, view View, f File, pos protocol.Position, o
 		path:                      path,
 		pos:                       rng.Start,
 		seen:                      make(map[types.Object]bool),
-		enclosingFunction:         enclosingFunction(path, rng.Start, pkg.GetTypesInfo()),
-		enclosingCompositeLiteral: clInfo,
+		enclosingFunc:             enclosingFunction(path, rng.Start, pkg.GetTypesInfo()),
+		enclosingCompositeLiteral: enclosingCompositeLiteral(path, rng.Start, pkg.GetTypesInfo()),
 		opts:                      opts,
 		// default to a matcher that always matches
 		matcher:        prefixMatcher(""),
@@ -473,6 +482,11 @@ func Completion(ctx context.Context, view View, f File, pos protocol.Position, o
 		if err := c.structLiteralFieldName(); err != nil {
 			return nil, nil, err
 		}
+		return c.items, c.getSurrounding(), nil
+	}
+
+	if lt := c.wantLabelCompletion(); lt != labelNone {
+		c.labels(lt)
 		return c.items, c.getSurrounding(), nil
 	}
 
@@ -847,17 +861,24 @@ func enclosingCompositeLiteral(path []ast.Node, pos token.Pos, info *types.Info)
 	return nil
 }
 
-// enclosingFunction returns the signature of the function enclosing the given position.
-func enclosingFunction(path []ast.Node, pos token.Pos, info *types.Info) *types.Signature {
+// enclosingFunction returns the signature and body of the function
+// enclosing the given position.
+func enclosingFunction(path []ast.Node, pos token.Pos, info *types.Info) *funcInfo {
 	for _, node := range path {
 		switch t := node.(type) {
 		case *ast.FuncDecl:
 			if obj, ok := info.Defs[t.Name]; ok {
-				return obj.Type().(*types.Signature)
+				return &funcInfo{
+					sig:  obj.Type().(*types.Signature),
+					body: t.Body,
+				}
 			}
 		case *ast.FuncLit:
 			if typ, ok := info.Types[t]; ok {
-				return typ.Type.(*types.Signature)
+				return &funcInfo{
+					sig:  typ.Type.(*types.Signature),
+					body: t.Body,
+				}
 			}
 		}
 	}
@@ -1017,7 +1038,8 @@ Nodes:
 			}
 			return typeInference{}
 		case *ast.ReturnStmt:
-			if sig := c.enclosingFunction; sig != nil {
+			if c.enclosingFunc != nil {
+				sig := c.enclosingFunc.sig
 				// Find signature result that corresponds to our return statement.
 				if resultIdx := indexExprAtPos(c.pos, node.Results); resultIdx < len(node.Results) {
 					if resultIdx < sig.Results().Len() {
