@@ -926,7 +926,6 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
 		// update stats, sweep lists
 		h.pagesInUse += uint64(npage)
 		if large {
-			memstats.heap_objects++
 			mheap_.largealloc += uint64(s.elemsize)
 			mheap_.nlargealloc++
 			atomic.Xadd64(&memstats.heap_live, int64(npage<<_PageShift))
@@ -1201,10 +1200,7 @@ func (h *mheap) grow(npage uintptr) bool {
 }
 
 // Free the span back into the heap.
-//
-// large must match the value of large passed to mheap.alloc. This is
-// used for accounting.
-func (h *mheap) freeSpan(s *mspan, large bool) {
+func (h *mheap) freeSpan(s *mspan) {
 	systemstack(func() {
 		mp := getg().m
 		lock(&h.lock)
@@ -1217,10 +1213,6 @@ func (h *mheap) freeSpan(s *mspan, large bool) {
 			base := unsafe.Pointer(s.base())
 			bytes := s.npages << _PageShift
 			msanfree(base, bytes)
-		}
-		if large {
-			// Match accounting done in mheap.alloc.
-			memstats.heap_objects--
 		}
 		if gcBlackenEnabled != 0 {
 			// heap_scan changed.

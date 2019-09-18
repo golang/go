@@ -40,7 +40,10 @@ type mstats struct {
 	heap_idle     uint64 // bytes in idle spans
 	heap_inuse    uint64 // bytes in mSpanInUse spans
 	heap_released uint64 // bytes released to the os
-	heap_objects  uint64 // total number of allocated objects
+
+	// heap_objects is not used by the runtime directly and instead
+	// computed on the fly by updatememstats.
+	heap_objects uint64 // total number of allocated objects
 
 	// Statistics about allocation of low-level fixed-size structures.
 	// Protected by FixAlloc locks.
