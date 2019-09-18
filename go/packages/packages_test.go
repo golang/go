@@ -881,10 +881,11 @@ func testOverlay(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
 		Files: map[string]interface{}{
-			"a/a.go": `package a; import "golang.org/fake/b"; const A = "a" + b.B`,
-			"b/b.go": `package b; import "golang.org/fake/c"; const B = "b" + c.C`,
-			"c/c.go": `package c; const C = "c"`,
-			"d/d.go": `package d; const D = "d"`,
+			"a/a.go":      `package a; import "golang.org/fake/b"; const A = "a" + b.B`,
+			"b/b.go":      `package b; import "golang.org/fake/c"; const B = "b" + c.C`,
+			"c/c.go":      `package c; const C = "c"`,
+			"c/c_test.go": `package c; import "testing"; func TestC(t *testing.T) {}`,
+			"d/d.go":      `package d; const D = "d"`,
 		}}})
 	defer exported.Cleanup()
 
@@ -899,6 +900,8 @@ func testOverlay(t *testing.T, exporter packagestest.Exporter) {
 		{map[string][]byte{exported.File("golang.org/fake", "b/b.go"): []byte(`package b; import "golang.org/fake/c"; const B = "B" + c.C`)}, `"aBc"`, nil},
 		// Overlay with an existing file in an existing package adding a new import.
 		{map[string][]byte{exported.File("golang.org/fake", "b/b.go"): []byte(`package b; import "golang.org/fake/d"; const B = "B" + d.D`)}, `"aBd"`, nil},
+		// Overlay with an existing file in an existing package.
+		{map[string][]byte{exported.File("golang.org/fake", "c/c.go"): []byte(`package c; import "net/http"; const C = http.MethodGet`)}, `"abGET"`, nil},
 		// Overlay with a new file in an existing package.
 		{map[string][]byte{
 			exported.File("golang.org/fake", "c/c.go"):                                               []byte(`package c;`),
@@ -937,6 +940,43 @@ func testOverlay(t *testing.T, exporter packagestest.Exporter) {
 		})
 		if errs := errorMessages(errors); !reflect.DeepEqual(errs, test.wantErrs) {
 			t.Errorf("%d. got errors %s, want %s", i, errs, test.wantErrs)
+		}
+	}
+}
+
+func TestOverlayDeps(t *testing.T) { packagestest.TestAll(t, testOverlayDeps) }
+func testOverlayDeps(t *testing.T, exporter packagestest.Exporter) {
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/fake",
+		Files: map[string]interface{}{
+			"c/c.go":      `package c; const C = "c"`,
+			"c/c_test.go": `package c; import "testing"; func TestC(t *testing.T) {}`,
+		},
+	}})
+	defer exported.Cleanup()
+
+	exported.Config.Overlay = map[string][]byte{exported.File("golang.org/fake", "c/c.go"): []byte(`package c; import "net/http"; const C = http.MethodGet`)}
+	exported.Config.Mode = packages.NeedName |
+		packages.NeedFiles |
+		packages.NeedCompiledGoFiles |
+		packages.NeedImports |
+		packages.NeedDeps |
+		packages.NeedTypesSizes
+	initial, err := packages.Load(exported.Config, fmt.Sprintf("file=%s", exported.File("golang.org/fake", "c/c.go")))
+	if err != nil {
+		t.Error(err)
+	}
+	contains := func(imports map[string]*packages.Package, wantImport string) bool {
+		for imp := range imports {
+			if imp == wantImport {
+				return true
+			}
+		}
+		return false
+	}
+	for _, pkg := range initial {
+		if !contains(pkg.Imports, "net/http") {
+			t.Errorf("expected %s import in %s", "net/http", pkg.ID)
 		}
 	}
 }
