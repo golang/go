@@ -16,6 +16,11 @@ func (b *pageBits) get(i uint) uint {
 	return uint((b[i/64] >> (i % 64)) & 1)
 }
 
+// block64 returns the 64-bit aligned block of bits containing the i'th bit.
+func (b *pageBits) block64(i uint) uint64 {
+	return b[i/64]
+}
+
 // set sets bit i of pageBits.
 func (b *pageBits) set(i uint) {
 	b[i/64] |= 1 << (i % 64)
@@ -337,6 +342,13 @@ func (b *pallocBits) free(i, n uint) {
 // freeAll frees all the bits of b.
 func (b *pallocBits) freeAll() {
 	(*pageBits)(b).clearAll()
+}
+
+// pages64 returns a 64-bit bitmap representing a block of 64 pages aligned
+// to 64 pages. The returned block of pages is the one containing the i'th
+// page in this pallocBits. Each bit represents whether the page is in-use.
+func (b *pallocBits) pages64(i uint) uint64 {
+	return (*pageBits)(b).block64(i)
 }
 
 // findBitRange64 returns the bit index of the first set of
