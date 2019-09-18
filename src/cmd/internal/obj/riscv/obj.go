@@ -96,6 +96,16 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		if p.To.Type == obj.TYPE_NONE {
 			p.To.Type, p.To.Reg = obj.TYPE_REG, REG_ZERO
 		}
+
+	case AFSQRTS, AFSQRTD:
+		// These instructions expect a zero (i.e. float register 0)
+		// to be the second input operand.
+		p.Reg = p.From.Reg
+		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_F0}
+
+	case AFCVTWS, AFCVTLS, AFCVTWUS, AFCVTLUS, AFCVTWD, AFCVTLD, AFCVTWUD, AFCVTLUD:
+		// Set the rounding mode in funct3 to round to zero.
+		p.Scond = 1
 	}
 }
 
@@ -159,6 +169,11 @@ func regI(r int16) uint32 {
 	return regVal(r, REG_X0, REG_X31)
 }
 
+// regF returns a float register.
+func regF(r int16) uint32 {
+	return regVal(r, REG_F0, REG_F31)
+}
+
 // regAddr extracts a register from an Addr.
 func regAddr(a obj.Addr, min, max int16) uint32 {
 	if a.Type != obj.TYPE_REG {
@@ -170,6 +185,11 @@ func regAddr(a obj.Addr, min, max int16) uint32 {
 // regIAddr extracts the integer register from an Addr.
 func regIAddr(a obj.Addr) uint32 {
 	return regAddr(a, REG_X0, REG_X31)
+}
+
+// regFAddr extracts the float register from an Addr.
+func regFAddr(a obj.Addr) uint32 {
+	return regAddr(a, REG_F0, REG_F31)
 }
 
 // immFits reports whether immediate value x fits in nbits bits as a
@@ -213,6 +233,11 @@ func wantIntReg(p *obj.Prog, pos string, r int16) {
 	wantReg(p, pos, "integer", r, REG_X0, REG_X31)
 }
 
+// wantFloatReg checks that r is a floating-point register.
+func wantFloatReg(p *obj.Prog, pos string, r int16) {
+	wantReg(p, pos, "float", r, REG_F0, REG_F31)
+}
+
 func wantRegAddr(p *obj.Prog, pos string, a *obj.Addr, descr string, min int16, max int16) {
 	if a == nil {
 		p.Ctxt.Diag("%v\texpected register in %s position but got nothing", p, pos)
@@ -232,10 +257,42 @@ func wantIntRegAddr(p *obj.Prog, pos string, a *obj.Addr) {
 	wantRegAddr(p, pos, a, "integer", REG_X0, REG_X31)
 }
 
+// wantFloatRegAddr checks that a contains a floating-point register.
+func wantFloatRegAddr(p *obj.Prog, pos string, a *obj.Addr) {
+	wantRegAddr(p, pos, a, "float", REG_F0, REG_F31)
+}
+
 func validateRIII(p *obj.Prog) {
 	wantIntRegAddr(p, "from", &p.From)
 	wantIntReg(p, "reg", p.Reg)
 	wantIntRegAddr(p, "to", &p.To)
+}
+
+func validateRFFF(p *obj.Prog) {
+	wantFloatRegAddr(p, "from", &p.From)
+	wantFloatReg(p, "reg", p.Reg)
+	wantFloatRegAddr(p, "to", &p.To)
+}
+
+func validateRFFI(p *obj.Prog) {
+	wantFloatRegAddr(p, "from", &p.From)
+	wantFloatReg(p, "reg", p.Reg)
+	wantIntRegAddr(p, "to", &p.To)
+}
+
+func validateRFI(p *obj.Prog) {
+	wantFloatRegAddr(p, "from", &p.From)
+	wantIntRegAddr(p, "to", &p.To)
+}
+
+func validateRIF(p *obj.Prog) {
+	wantIntRegAddr(p, "from", &p.From)
+	wantFloatRegAddr(p, "to", &p.To)
+}
+
+func validateRFF(p *obj.Prog) {
+	wantFloatRegAddr(p, "from", &p.From)
+	wantFloatRegAddr(p, "to", &p.To)
 }
 
 func validateII(p *obj.Prog) {
@@ -244,9 +301,21 @@ func validateII(p *obj.Prog) {
 	wantIntRegAddr(p, "to", &p.To)
 }
 
+func validateIF(p *obj.Prog) {
+	wantImm(p, "from", p.From, 12)
+	wantIntReg(p, "reg", p.Reg)
+	wantFloatRegAddr(p, "to", &p.To)
+}
+
 func validateSI(p *obj.Prog) {
 	wantImm(p, "from", p.From, 12)
 	wantIntReg(p, "reg", p.Reg)
+	wantIntRegAddr(p, "to", &p.To)
+}
+
+func validateSF(p *obj.Prog) {
+	wantImm(p, "from", p.From, 12)
+	wantFloatReg(p, "reg", p.Reg)
 	wantIntRegAddr(p, "to", &p.To)
 }
 
@@ -282,6 +351,26 @@ func encodeRIII(p *obj.Prog) uint32 {
 	return encodeR(p, regI(p.Reg), regIAddr(p.From), regIAddr(p.To))
 }
 
+func encodeRFFF(p *obj.Prog) uint32 {
+	return encodeR(p, regF(p.Reg), regFAddr(p.From), regFAddr(p.To))
+}
+
+func encodeRFFI(p *obj.Prog) uint32 {
+	return encodeR(p, regF(p.Reg), regFAddr(p.From), regIAddr(p.To))
+}
+
+func encodeRFI(p *obj.Prog) uint32 {
+	return encodeR(p, regFAddr(p.From), 0, regIAddr(p.To))
+}
+
+func encodeRIF(p *obj.Prog) uint32 {
+	return encodeR(p, regIAddr(p.From), 0, regFAddr(p.To))
+}
+
+func encodeRFF(p *obj.Prog) uint32 {
+	return encodeR(p, regFAddr(p.From), 0, regFAddr(p.To))
+}
+
 // encodeI encodes an I-type RISC-V instruction.
 func encodeI(p *obj.Prog, rd uint32) uint32 {
 	imm := immI(p.From, 12)
@@ -298,6 +387,10 @@ func encodeII(p *obj.Prog) uint32 {
 	return encodeI(p, regIAddr(p.To))
 }
 
+func encodeIF(p *obj.Prog) uint32 {
+	return encodeI(p, regFAddr(p.To))
+}
+
 // encodeS encodes an S-type RISC-V instruction.
 func encodeS(p *obj.Prog, rs2 uint32) uint32 {
 	imm := immI(p.From, 12)
@@ -311,6 +404,10 @@ func encodeS(p *obj.Prog, rs2 uint32) uint32 {
 
 func encodeSI(p *obj.Prog) uint32 {
 	return encodeS(p, regI(p.Reg))
+}
+
+func encodeSF(p *obj.Prog) uint32 {
+	return encodeS(p, regF(p.Reg))
 }
 
 // encodeRaw encodes a raw instruction value.
@@ -346,10 +443,17 @@ var (
 	// indicates an S-type instruction with rs2 being a float register.
 
 	rIIIEncoding = encoding{encode: encodeRIII, validate: validateRIII, length: 4}
+	rFFFEncoding = encoding{encode: encodeRFFF, validate: validateRFFF, length: 4}
+	rFFIEncoding = encoding{encode: encodeRFFI, validate: validateRFFI, length: 4}
+	rFIEncoding  = encoding{encode: encodeRFI, validate: validateRFI, length: 4}
+	rIFEncoding  = encoding{encode: encodeRIF, validate: validateRIF, length: 4}
+	rFFEncoding  = encoding{encode: encodeRFF, validate: validateRFF, length: 4}
 
 	iIEncoding = encoding{encode: encodeII, validate: validateII, length: 4}
+	iFEncoding = encoding{encode: encodeIF, validate: validateIF, length: 4}
 
 	sIEncoding = encoding{encode: encodeSI, validate: validateSI, length: 4}
+	sFEncoding = encoding{encode: encodeSF, validate: validateSF, length: 4}
 
 	// rawEncoding encodes a raw instruction byte sequence.
 	rawEncoding = encoding{encode: encodeRaw, validate: validateRaw, length: 4}
@@ -435,6 +539,76 @@ var encodingForAs = [ALAST & obj.AMask]encoding{
 	ARDCYCLE & obj.AMask:   iIEncoding,
 	ARDTIME & obj.AMask:    iIEncoding,
 	ARDINSTRET & obj.AMask: iIEncoding,
+
+	// 11.5: Single-Precision Load and Store Instructions
+	AFLW & obj.AMask: iFEncoding,
+	AFSW & obj.AMask: sFEncoding,
+
+	// 11.6: Single-Precision Floating-Point Computational Instructions
+	AFADDS & obj.AMask:  rFFFEncoding,
+	AFSUBS & obj.AMask:  rFFFEncoding,
+	AFMULS & obj.AMask:  rFFFEncoding,
+	AFDIVS & obj.AMask:  rFFFEncoding,
+	AFMINS & obj.AMask:  rFFFEncoding,
+	AFMAXS & obj.AMask:  rFFFEncoding,
+	AFSQRTS & obj.AMask: rFFFEncoding,
+
+	// 11.7: Single-Precision Floating-Point Conversion and Move Instructions
+	AFCVTWS & obj.AMask:  rFIEncoding,
+	AFCVTLS & obj.AMask:  rFIEncoding,
+	AFCVTSW & obj.AMask:  rIFEncoding,
+	AFCVTSL & obj.AMask:  rIFEncoding,
+	AFCVTWUS & obj.AMask: rFIEncoding,
+	AFCVTLUS & obj.AMask: rFIEncoding,
+	AFCVTSWU & obj.AMask: rIFEncoding,
+	AFCVTSLU & obj.AMask: rIFEncoding,
+	AFSGNJS & obj.AMask:  rFFFEncoding,
+	AFSGNJNS & obj.AMask: rFFFEncoding,
+	AFSGNJXS & obj.AMask: rFFFEncoding,
+	AFMVXS & obj.AMask:   rFIEncoding,
+	AFMVSX & obj.AMask:   rIFEncoding,
+	AFMVXW & obj.AMask:   rFIEncoding,
+	AFMVWX & obj.AMask:   rIFEncoding,
+
+	// 11.8: Single-Precision Floating-Point Compare Instructions
+	AFEQS & obj.AMask: rFFIEncoding,
+	AFLTS & obj.AMask: rFFIEncoding,
+	AFLES & obj.AMask: rFFIEncoding,
+
+	// 12.3: Double-Precision Load and Store Instructions
+	AFLD & obj.AMask: iFEncoding,
+	AFSD & obj.AMask: sFEncoding,
+
+	// 12.4: Double-Precision Floating-Point Computational Instructions
+	AFADDD & obj.AMask:  rFFFEncoding,
+	AFSUBD & obj.AMask:  rFFFEncoding,
+	AFMULD & obj.AMask:  rFFFEncoding,
+	AFDIVD & obj.AMask:  rFFFEncoding,
+	AFMIND & obj.AMask:  rFFFEncoding,
+	AFMAXD & obj.AMask:  rFFFEncoding,
+	AFSQRTD & obj.AMask: rFFFEncoding,
+
+	// 12.5: Double-Precision Floating-Point Conversion and Move Instructions
+	AFCVTWD & obj.AMask:  rFIEncoding,
+	AFCVTLD & obj.AMask:  rFIEncoding,
+	AFCVTDW & obj.AMask:  rIFEncoding,
+	AFCVTDL & obj.AMask:  rIFEncoding,
+	AFCVTWUD & obj.AMask: rFIEncoding,
+	AFCVTLUD & obj.AMask: rFIEncoding,
+	AFCVTDWU & obj.AMask: rIFEncoding,
+	AFCVTDLU & obj.AMask: rIFEncoding,
+	AFCVTSD & obj.AMask:  rFFEncoding,
+	AFCVTDS & obj.AMask:  rFFEncoding,
+	AFSGNJD & obj.AMask:  rFFFEncoding,
+	AFSGNJND & obj.AMask: rFFFEncoding,
+	AFSGNJXD & obj.AMask: rFFFEncoding,
+	AFMVXD & obj.AMask:   rFIEncoding,
+	AFMVDX & obj.AMask:   rIFEncoding,
+
+	// 12.6: Double-Precision Floating-Point Compare Instructions
+	AFEQD & obj.AMask: rFFIEncoding,
+	AFLTD & obj.AMask: rFFIEncoding,
+	AFLED & obj.AMask: rFFIEncoding,
 
 	// Privileged ISA
 
