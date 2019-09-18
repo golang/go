@@ -107,7 +107,7 @@ func Build(v string) string {
 }
 
 // Compare returns an integer comparing two versions according to
-// according to semantic version precedence.
+// semantic version precedence.
 // The result will be 0 if v == w, -1 if v < w, or +1 if v > w.
 //
 // An invalid semantic version string is considered less than a valid one.
