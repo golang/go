@@ -110,29 +110,14 @@ func hasNil(typ Type) bool {
 	return false
 }
 
-// The functions Identical and IdenticalIgnoreTags are
-// provided for external use only, after interface types
-// were fully set up (completed). During type-checking,
-// use the methods identical and identicalIgnoreTags
-// which take a non-nil *Checker receiver.
-// TODO(gri) factor these out into api.go.
-
-// Identical reports whether x and y are identical types.
+// identical reports whether x and y are identical types.
 // Receivers of Signature types are ignored.
-func Identical(x, y Type) bool {
-	return (*Checker)(nil).identical(x, y)
-}
-
 func (check *Checker) identical(x, y Type) bool {
 	return check.identical0(x, y, true, nil)
 }
 
-// IdenticalIgnoreTags reports whether x and y are identical types if tags are ignored.
+// identicalIgnoreTags reports whether x and y are identical types if tags are ignored.
 // Receivers of Signature types are ignored.
-func IdenticalIgnoreTags(x, y Type) bool {
-	return (*Checker)(nil).identicalIgnoreTags(x, y)
-}
-
 func (check *Checker) identicalIgnoreTags(x, y Type) bool {
 	return check.identical0(x, y, false, nil)
 }
