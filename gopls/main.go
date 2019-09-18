@@ -12,10 +12,13 @@ import (
 	"context"
 	"os"
 
+	"golang.org/x/tools/gopls/internal/hooks"
 	"golang.org/x/tools/internal/lsp/cmd"
 	"golang.org/x/tools/internal/tool"
 )
 
 func main() {
-	tool.Main(context.Background(), cmd.New("gopls", "", nil), os.Args[1:])
+	ctx := context.Background()
+	ctx = hooks.Install(ctx)
+	tool.Main(ctx, cmd.New("gopls", "", nil), os.Args[1:])
 }
