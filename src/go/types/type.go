@@ -448,6 +448,7 @@ func (c *Chan) Elem() Type { return c.elem }
 
 // A Named represents a named type.
 type Named struct {
+	info       typeInfo  // for cycle detection
 	obj        *TypeName // corresponding declared object
 	underlying Type      // possibly a *Named during setup; never a *Named once set up completely
 	methods    []*Func   // methods declared for this type (not the method set of this type); signatures are type-checked lazily
