@@ -114,8 +114,37 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 	sort.Sort(ArchsByName(archs))
-	genOp()
-	genLower()
+
+	// The generate tasks are run concurrently, since they are CPU-intensive
+	// that can easily make use of many cores on a machine.
+	//
+	// Note that there is no limit on the concurrency at the moment. On a
+	// four-core laptop at the time of writing, peak RSS usually reaches
+	// ~200MiB, which seems doable by practically any machine nowadays. If
+	// that stops being the case, we can cap this func to a fixed number of
+	// architectures being generated at once.
+
+	tasks := []func(){
+		genOp,
+	}
+	for _, a := range archs {
+		a := a // the funcs are ran concurrently at a later time
+		tasks = append(tasks, func() {
+			genRules(a)
+			genSplitLoadRules(a)
+		})
+	}
+	var wg sync.WaitGroup
+	for _, task := range tasks {
+		task := task
+		wg.Add(1)
+		go func() {
+			task()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+
 	if *memprofile != "" {
 		f, err := os.Create(*memprofile)
 		if err != nil {
@@ -385,8 +414,7 @@ func genOp() {
 		panic(err)
 	}
 
-	err = ioutil.WriteFile("../opGen.go", b, 0666)
-	if err != nil {
+	if err := ioutil.WriteFile("../opGen.go", b, 0666); err != nil {
 		log.Fatalf("can't write output: %v\n", err)
 	}
 
@@ -430,28 +458,6 @@ func (a arch) Name() string {
 		s = ""
 	}
 	return s
-}
-
-// genLower generates all arch-specific rewrite Go source files. The files are
-// generated and written concurrently, since it's a CPU-intensive task that can
-// easily make use of many cores on a machine.
-//
-// Note that there is no limit on the concurrency at the moment. On a four-core
-// laptop at the time of writing, peak RSS usually reached ~230MiB, which seems
-// doable by practically any machine nowadays. If that stops being the case, we
-// can cap this func to a fixed number of architectures being generated at once.
-func genLower() {
-	var wg sync.WaitGroup
-	for _, a := range archs {
-		a := a
-		wg.Add(1)
-		go func() {
-			genRules(a)
-			genSplitLoadRules(a)
-			wg.Done()
-		}()
-	}
-	wg.Wait()
 }
 
 // countRegs returns the number of set bits in the register mask.
