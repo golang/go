@@ -973,6 +973,84 @@ func (h *mheap) allocNeedsZero(base, npage uintptr) (needZero bool) {
 	return
 }
 
+// tryAllocMSpan attempts to allocate an mspan object from
+// the P-local cache, but may fail.
+//
+// h need not be locked.
+//
+// This caller must ensure that its P won't change underneath
+// it during this function. Currently to ensure that we enforce
+// that the function is run on the system stack, because that's
+// the only place it is used now. In the future, this requirement
+// may be relaxed if its use is necessary elsewhere.
+//
+//go:systemstack
+func (h *mheap) tryAllocMSpan() *mspan {
+	pp := getg().m.p.ptr()
+	// If we don't have a p or the cache is empty, we can't do
+	// anything here.
+	if pp == nil || pp.mspancache.len == 0 {
+		return nil
+	}
+	// Pull off the last entry in the cache.
+	s := pp.mspancache.buf[pp.mspancache.len-1]
+	pp.mspancache.len--
+	return s
+}
+
+// allocMSpanLocked allocates an mspan object.
+//
+// h must be locked.
+//
+// allocMSpanLocked must be called on the system stack because
+// its caller holds the heap lock. See mheap for details.
+// Running on the system stack also ensures that we won't
+// switch Ps during this function. See tryAllocMSpan for details.
+//
+//go:systemstack
+func (h *mheap) allocMSpanLocked() *mspan {
+	pp := getg().m.p.ptr()
+	if pp == nil {
+		// We don't have a p so just do the normal thing.
+		return (*mspan)(h.spanalloc.alloc())
+	}
+	// Refill the cache if necessary.
+	if pp.mspancache.len == 0 {
+		const refillCount = len(pp.mspancache.buf) / 2
+		for i := 0; i < refillCount; i++ {
+			pp.mspancache.buf[i] = (*mspan)(h.spanalloc.alloc())
+		}
+		pp.mspancache.len = refillCount
+	}
+	// Pull off the last entry in the cache.
+	s := pp.mspancache.buf[pp.mspancache.len-1]
+	pp.mspancache.len--
+	return s
+}
+
+// freeMSpanLocked free an mspan object.
+//
+// h must be locked.
+//
+// freeMSpanLocked must be called on the system stack because
+// its caller holds the heap lock. See mheap for details.
+// Running on the system stack also ensures that we won't
+// switch Ps during this function. See tryAllocMSpan for details.
+//
+//go:systemstack
+func (h *mheap) freeMSpanLocked(s *mspan) {
+	pp := getg().m.p.ptr()
+	// First try to free the mspan directly to the cache.
+	if pp != nil && pp.mspancache.len < len(pp.mspancache.buf) {
+		pp.mspancache.buf[pp.mspancache.len] = s
+		pp.mspancache.len++
+		return
+	}
+	// Failing that (or if we don't have a p), just free it to
+	// the heap.
+	h.spanalloc.free(unsafe.Pointer(s))
+}
+
 // allocSpan allocates an mspan which owns npages worth of memory.
 //
 // If manual == false, allocSpan allocates a heap span of class spanclass
@@ -995,6 +1073,9 @@ func (h *mheap) allocSpan(npages uintptr, manual bool, spanclass spanClass, sysS
 	gp := getg()
 	base, scav := uintptr(0), uintptr(0)
 
+	// Try to allocate a cached span.
+	s = h.tryAllocMSpan()
+
 	// We failed to do what we need to do without the lock.
 	lock(&h.lock)
 
@@ -1014,6 +1095,11 @@ func (h *mheap) allocSpan(npages uintptr, manual bool, spanclass spanClass, sysS
 	throw("grew heap, but no adequate free space found")
 
 HaveBase:
+	if s == nil {
+		// We failed to get an mspan earlier, so grab
+		// one now that we have the heap lock.
+		s = h.allocMSpanLocked()
+	}
 	if !manual {
 		// This is a heap span, so we should do some additional accounting
 		// which may only be done with the heap locked.
@@ -1036,9 +1122,6 @@ HaveBase:
 			gcController.revise()
 		}
 	}
-
-	// Allocate an mspan object before releasing the lock.
-	s = (*mspan)(h.spanalloc.alloc())
 	unlock(&h.lock)
 
 	// Initialize the span.
@@ -1294,7 +1377,7 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool) {
 
 	// Free the span structure. We no longer have a use for it.
 	s.state.set(mSpanDead)
-	h.spanalloc.free(unsafe.Pointer(s))
+	h.freeMSpanLocked(s)
 }
 
 // scavengeAll visits each node in the free treap and scavenges the
