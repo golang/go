@@ -183,7 +183,7 @@ func (s *Server) fetchConfig(ctx context.Context, name string, folder span.URI, 
 				Section:  "gopls",
 			}, {
 				ScopeURI: protocol.NewURI(folder),
-				Section:  name,
+				Section:  fmt.Sprintf("gopls-%s", name),
 			}},
 		},
 	}
