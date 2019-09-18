@@ -41,9 +41,11 @@ func (c *completer) structFieldSnippet(label, detail string) *snippet.Builder {
 		}
 	})
 
+	fset := c.view.Session().Cache().FileSet()
+
 	// If the cursor position is on a different line from the literal's opening brace,
 	// we are in a multiline literal.
-	if c.view.Session().Cache().FileSet().Position(c.pos).Line != c.view.Session().Cache().FileSet().Position(clInfo.cl.Lbrace).Line {
+	if fset.Position(c.pos).Line != fset.Position(clInfo.cl.Lbrace).Line {
 		snip.WriteText(",")
 	}
 
@@ -52,9 +54,12 @@ func (c *completer) structFieldSnippet(label, detail string) *snippet.Builder {
 
 // functionCallSnippets calculates the snippet for function calls.
 func (c *completer) functionCallSnippet(name string, params []string) *snippet.Builder {
-	// If we are the left side (i.e. "Fun") part of a call expression,
-	// we don't want a snippet since there are already parens present.
-	if len(c.path) > 1 {
+	// If there is no suffix then we need to reuse existing call parens
+	// "()" if present. If there is an identifer suffix then we always
+	// need to include "()" since we don't overwrite the suffix.
+	if c.surrounding != nil && c.surrounding.Suffix() == "" && len(c.path) > 1 {
+		// If we are the left side (i.e. "Fun") part of a call expression,
+		// we don't want a snippet since there are already parens present.
 		switch n := c.path[1].(type) {
 		case *ast.CallExpr:
 			// The Lparen != Rparen check detects fudged CallExprs we

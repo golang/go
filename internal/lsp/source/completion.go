@@ -226,6 +226,10 @@ func (p Selection) Prefix() string {
 	return p.content[:p.cursor-p.spanRange.Start]
 }
 
+func (p Selection) Suffix() string {
+	return p.content[p.cursor-p.spanRange.Start:]
+}
+
 func (c *completer) setSurrounding(ident *ast.Ident) {
 	if c.surrounding != nil {
 		return
@@ -233,11 +237,13 @@ func (c *completer) setSurrounding(ident *ast.Ident) {
 	if !(ident.Pos() <= c.pos && c.pos <= ident.End()) {
 		return
 	}
+
 	c.surrounding = &Selection{
 		content: ident.Name,
 		cursor:  c.pos,
 		mappedRange: mappedRange{
-			spanRange: span.NewRange(c.view.Session().Cache().FileSet(), ident.Pos(), ident.End()),
+			// Overwrite the prefix only.
+			spanRange: span.NewRange(c.view.Session().Cache().FileSet(), ident.Pos(), c.pos),
 			m:         c.mapper,
 		},
 	}

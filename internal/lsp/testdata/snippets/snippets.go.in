@@ -32,8 +32,8 @@ func _() {
 	Foo{Foo{}.B} //@snippet("} ", snipFieldBar, "Bar", "Bar")
 
 	var err error
-	err.Error() //@snippet("E", Error, "Error", "Error")
-	f.Baz()     //@snippet("B", snipMethodBaz, "Baz", "Baz")
+	err.Error() //@snippet("E", Error, "Error()", "Error()")
+	f.Baz()     //@snippet("B", snipMethodBaz, "Baz()", "Baz()")
 
 	f.Baz()     //@snippet("(", snipMethodBazBar, "BazBar", "BazBar")
 }
