@@ -251,6 +251,9 @@ type View interface {
 	// Warning: Do not use this, unless in a test.
 	// This function does not correctly invalidate the view when needed.
 	SetOptions(Options)
+
+	// Analyzers returns the set of Analyzers active for this view.
+	Analyzers() []*analysis.Analyzer
 }
 
 // File represents a source file of any type.

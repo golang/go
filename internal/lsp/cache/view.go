@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/debug"
@@ -79,6 +80,8 @@ type view struct {
 	// ignoredURIs is the set of URIs of files that we ignore.
 	ignoredURIsMu sync.Mutex
 	ignoredURIs   map[span.URI]struct{}
+
+	analyzers []*analysis.Analyzer
 }
 
 type metadataCache struct {
@@ -509,6 +512,10 @@ func (v *view) findFile(uri span.URI) (viewFile, error) {
 	}
 	// no file with a matching name was found, it wasn't in our cache
 	return nil, nil
+}
+
+func (v *view) Analyzers() []*analysis.Analyzer {
+	return v.analyzers
 }
 
 func (f *fileBase) addURI(uri span.URI) int {
