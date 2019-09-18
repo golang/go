@@ -95,7 +95,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	SB	$0, X5, X6				// 23005300
 	SB	$4, X5, X6				// 23025300
 
-        // 5.2: Integer Computational Instructions (RV64I)
+	// 5.2: Integer Computational Instructions (RV64I)
 	ADDIW	$1, X5, X6				// 1b831200
 	SLLIW	$1, X5, X6				// 1b931200
 	SRLIW	$1, X5, X6				// 1bd31200
@@ -131,6 +131,75 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	RDCYCLE		X5				// f32200c0
 	RDTIME		X5				// f32210c0
 	RDINSTRET	X5				// f32220c0
+
+	// 11.5: Single-Precision Load and Store Instructions
+	FLW	$0, X5, F0				// 07a00200
+	FLW	$4, X5, F0				// 07a04200
+	FSW	$0, F0, X5				// 27a00200
+	FSW	$4, F0, X5				// 27a20200
+
+	// 11.6: Single-Precision Floating-Point Computational Instructions
+	FADDS	F1, F0, F2				// 53011000
+	FSUBS	F1, F0, F2				// 53011008
+	FMULS	F1, F0, F2				// 53011010
+	FDIVS	F1, F0, F2				// 53011018
+	FMINS	F1, F0, F2				// 53011028
+	FMAXS	F1, F0, F2				// 53111028
+	FSQRTS	F0, F1					// d3000058
+
+	// 11.7: Single-Precision Floating-Point Conversion and Move Instructions
+	FCVTWS	F0, X5					// d31200c0
+	FCVTLS	F0, X5					// d31220c0
+	FCVTSW	X5, F0					// 538002d0
+	FCVTSL	X5, F0					// 538022d0
+	FCVTWUS	F0, X5					// d31210c0
+	FCVTLUS	F0, X5					// d31230c0
+	FCVTSWU	X5, F0					// 538012d0
+	FCVTSLU	X5, F0					// 538032d0
+	FSGNJS	F1, F0, F2				// 53011020
+	FSGNJNS	F1, F0, F2				// 53111020
+	FSGNJXS	F1, F0, F2				// 53211020
+	FMVXS	F0, X5					// d30200e0
+	FMVSX	X5, F0					// 538002f0
+	FMVXW	F0, X5					// d30200e0
+	FMVWX	X5, F0					// 538002f0
+
+	// 11.8: Single-Precision Floating-Point Compare Instructions
+	FEQS	F0, F1, X7				// d3a300a0
+	FLTS	F0, F1, X7				// d39300a0
+	FLES	F0, F1, X7				// d38300a0
+
+	// 12.3: Double-Precision Load and Store Instructions
+	FLD	$0, X5, F0				// 07b00200
+	FLD	$4, X5, F0				// 07b04200
+	FSD	$0, F0, X5				// 27b00200
+	FSD	$4, F0, X5				// 27b20200
+
+	// 12.4: Double-Precision Floating-Point Computational Instructions
+	FADDD	F1, F0, F2				// 53011002
+	FSUBD	F1, F0, F2				// 5301100a
+	FMULD	F1, F0, F2				// 53011012
+	FDIVD	F1, F0, F2				// 5301101a
+	FMIND	F1, F0, F2				// 5301102a
+	FMAXD	F1, F0, F2				// 5311102a
+	FSQRTD	F0, F1					// d300005a
+
+	// 12.5: Double-Precision Floating-Point Conversion and Move Instructions
+	FCVTWD	F0, X5					// d31200c2
+	FCVTLD	F0, X5					// d31220c2
+	FCVTDW	X5, F0					// 538002d2
+	FCVTDL	X5, F0					// 538022d2
+	FCVTWUD F0, X5					// d31210c2
+	FCVTLUD F0, X5					// d31230c2
+	FCVTDWU X5, F0					// 538012d2
+	FCVTDLU X5, F0					// 538032d2
+	FCVTSD	F0, F1					// d3001040
+	FCVTDS	F0, F1					// d3000042
+	FSGNJD	F1, F0, F2				// 53011022
+	FSGNJND	F1, F0, F2				// 53111022
+	FSGNJXD	F1, F0, F2				// 53211022
+	FMVXD	F0, X5					// d30200e2
+	FMVDX	X5, F0					// 538002f2
 
 	// Privileged ISA
 

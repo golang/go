@@ -368,10 +368,10 @@ const (
 	AFSGNJS
 	AFSGNJNS
 	AFSGNJXS
-	AFMVSX
 	AFMVXS
-	AFMVWX
+	AFMVSX
 	AFMVXW
+	AFMVWX
 
 	// 11.8: Single-Precision Floating-Point Compare Instructions
 	AFEQS
