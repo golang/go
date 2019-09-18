@@ -2014,7 +2014,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 		n.Type = nil
 		return n
 
-	case OXCASE:
+	case OCASE:
 		ok |= ctxStmt
 		typecheckslice(n.List.Slice(), ctxExpr)
 		typecheckslice(n.Nbody.Slice(), ctxStmt)

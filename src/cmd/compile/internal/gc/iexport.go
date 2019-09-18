@@ -1079,8 +1079,8 @@ func (w *exportWriter) stmt(n *Node) {
 		w.exprsOrNil(n.Left, nil)
 		w.stmtList(n.List)
 
-	case OCASE, OXCASE:
-		w.op(OXCASE)
+	case OCASE:
+		w.op(OCASE)
 		w.pos(n.Pos)
 		w.stmtList(n.List)
 		w.stmtList(n.Nbody)

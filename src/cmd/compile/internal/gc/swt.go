@@ -434,7 +434,7 @@ func allCaseExprsAreSideEffectFree(sw *Node) bool {
 	// enough.
 
 	for _, ncase := range sw.List.Slice() {
-		if ncase.Op != OXCASE {
+		if ncase.Op != OCASE {
 			Fatalf("switch string(byteslice) bad op: %v", ncase.Op)
 		}
 		for _, v := range ncase.List.Slice() {

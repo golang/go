@@ -779,7 +779,7 @@ func (o *Order) stmt(n *Node) {
 		t := o.markTemp()
 
 		for _, n2 := range n.List.Slice() {
-			if n2.Op != OXCASE {
+			if n2.Op != OCASE {
 				Fatalf("order select case %v", n2.Op)
 			}
 			r := n2.Left
@@ -938,7 +938,7 @@ func (o *Order) stmt(n *Node) {
 		t := o.markTemp()
 		n.Left = o.expr(n.Left, nil)
 		for _, ncas := range n.List.Slice() {
-			if ncas.Op != OXCASE {
+			if ncas.Op != OCASE {
 				Fatalf("order switch case %v", ncas.Op)
 			}
 			o.exprListInPlace(ncas.List)

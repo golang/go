@@ -1188,7 +1188,7 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *Node, rbrace 
 		}
 		p.openScope(clause.Pos())
 
-		n := p.nod(clause, OXCASE, nil, nil)
+		n := p.nod(clause, OCASE, nil, nil)
 		if clause.Cases != nil {
 			n.List.Set(p.exprList(clause.Cases))
 		}
@@ -1244,7 +1244,7 @@ func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []*
 		}
 		p.openScope(clause.Pos())
 
-		n := p.nod(clause, OXCASE, nil, nil)
+		n := p.nod(clause, OCASE, nil, nil)
 		if clause.Comm != nil {
 			n.List.Set1(p.stmt(clause.Comm))
 		}
