@@ -274,7 +274,7 @@ var __debug_modinfo__ = %q
 	} else {
 		return []byte(fmt.Sprintf(`package main
 import _ "unsafe"
-//go:linkname __set_debug_modinfo__ runtime..z2fdebug.setmodinfo
+//go:linkname __set_debug_modinfo__ runtime.setmodinfo
 func __set_debug_modinfo__(string)
 func init() { __set_debug_modinfo__(%q) }
 	`, string(infoStart)+info+string(infoEnd)))
