@@ -48,16 +48,20 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
 				return nil
 			}
 
-			// Don't use GOROOT/src but do walk down into it.
-			if path == root && importPathRoot == "" {
-				return nil
-			}
-
 			want := true
-			// Avoid .foo, _foo, and testdata directory trees.
-			_, elem := filepath.Split(path)
-			if strings.HasPrefix(elem, ".") || strings.HasPrefix(elem, "_") || elem == "testdata" {
-				want = false
+			elem := ""
+
+			// Don't use GOROOT/src but do walk down into it.
+			if path == root {
+				if importPathRoot == "" {
+					return nil
+				}
+			} else {
+				// Avoid .foo, _foo, and testdata subdirectory trees.
+				_, elem = filepath.Split(path)
+				if strings.HasPrefix(elem, ".") || strings.HasPrefix(elem, "_") || elem == "testdata" {
+					want = false
+				}
 			}
 
 			name := importPathRoot + filepath.ToSlash(path[len(root):])
