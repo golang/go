@@ -42,6 +42,11 @@ func Format(ctx context.Context, view View, f File) ([]protocol.TextEdit, error)
 	if err != nil {
 		return nil, err
 	}
+	// Be extra careful that the file's ParseMode is correct,
+	// otherwise we might replace the user's code with a trimmed AST.
+	if ph.Mode() != ParseFull {
+		return nil, errors.Errorf("%s was parsed in the incorrect mode", ph.File().Identity().URI)
+	}
 	file, m, _, err := ph.Parse(ctx)
 	if err != nil {
 		return nil, err
@@ -101,6 +106,11 @@ func Imports(ctx context.Context, view View, f GoFile, rng span.Range) ([]protoc
 	ph, err := pkg.File(f.URI())
 	if err != nil {
 		return nil, err
+	}
+	// Be extra careful that the file's ParseMode is correct,
+	// otherwise we might replace the user's code with a trimmed AST.
+	if ph.Mode() != ParseFull {
+		return nil, errors.Errorf("%s was parsed in the incorrect mode", ph.File().Identity().URI)
 	}
 	options := &imports.Options{
 		// Defaults.
