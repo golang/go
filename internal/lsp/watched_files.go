@@ -86,7 +86,7 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 					}
 					return nil
 				}
-				go s.diagnostics(view, uri)
+				go s.diagnostics(view, otherFile.URI())
 			}
 		}
 	}
