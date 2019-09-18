@@ -1543,41 +1543,37 @@ func testName(t *testing.T, exporter packagestest.Exporter) {
 
 func TestName_Modules(t *testing.T) {
 	// Test the top-level package case described in runNamedQueries.
-	// Note that overriding GOPATH below prevents Export from
-	// creating more than one module.
-	exported := packagestest.Export(t, packagestest.Modules, []packagestest.Module{{
-		Name: "golang.org/pkg",
-		Files: map[string]interface{}{
-			"pkg.go": `package pkg`,
-		}}})
+	exported := packagestest.Export(t, packagestest.Modules, []packagestest.Module{
+		{
+			Name: "golang.org/pkg",
+			Files: map[string]interface{}{
+				"pkg.go": `package pkg`,
+			},
+		},
+		{
+			Name: "example.com/tools-testrepo",
+			Files: map[string]interface{}{
+				"pkg/pkg.go": `package pkg`,
+			},
+		},
+		{
+			Name: "example.com/tools-testrepo/v2",
+			Files: map[string]interface{}{
+				"pkg/pkg.go": `package pkg`,
+			},
+		},
+	})
 	defer exported.Cleanup()
 
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	gopath, err := ioutil.TempDir("", "TestName_Modules")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(gopath)
-	if err := copyAll(filepath.Join(wd, "testdata", "TestName_Modules"), gopath); err != nil {
-		t.Fatal(err)
-	}
-	// testdata/TestNamed_Modules contains:
-	// - pkg/mod/github.com/heschik/tools-testrepo@v1.0.0/pkg
-	// - pkg/mod/github.com/heschik/tools-testrepo/v2@v2.0.0/pkg
-	// - src/b/pkg
 	exported.Config.Mode = packages.LoadImports
-	exported.Config.Env = append(exported.Config.Env, "GOPATH="+gopath)
 	initial, err := packages.Load(exported.Config, "iamashamedtousethedisabledqueryname=pkg")
 	if err != nil {
 		t.Fatal(err)
 	}
 	graph, _ := importGraph(initial)
 	wantGraph := `
-* github.com/heschik/tools-testrepo/pkg
-* github.com/heschik/tools-testrepo/v2/pkg
+* example.com/tools-testrepo/pkg
+* example.com/tools-testrepo/v2/pkg
 * golang.org/pkg
 `[1:]
 	if graph != wantGraph {
@@ -2504,7 +2500,7 @@ func copyAll(srcPath, dstPath string) error {
 		if err != nil {
 			return err
 		}
-		dstFilePath := filepath.Join(dstPath, rel)
+		dstFilePath := strings.Replace(filepath.Join(dstPath, rel), "definitelynot_go.mod", "go.mod", -1)
 		if err := os.MkdirAll(filepath.Dir(dstFilePath), 0755); err != nil {
 			return err
 		}
