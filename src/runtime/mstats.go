@@ -31,7 +31,7 @@ type mstats struct {
 	nfree       uint64 // number of frees
 
 	// Statistics about malloc heap.
-	// Protected by mheap.lock
+	// Updated atomically, or with the world stopped.
 	//
 	// Like MemStats, heap_sys and heap_inuse do not count memory
 	// in manually-managed spans.
@@ -47,15 +47,15 @@ type mstats struct {
 
 	// Statistics about allocation of low-level fixed-size structures.
 	// Protected by FixAlloc locks.
-	stacks_inuse uint64 // bytes in manually-managed stack spans
+	stacks_inuse uint64 // bytes in manually-managed stack spans; updated atomically or during STW
 	stacks_sys   uint64 // only counts newosproc0 stack in mstats; differs from MemStats.StackSys
 	mspan_inuse  uint64 // mspan structures
 	mspan_sys    uint64
 	mcache_inuse uint64 // mcache structures
 	mcache_sys   uint64
 	buckhash_sys uint64 // profiling bucket hash table
-	gc_sys       uint64
-	other_sys    uint64
+	gc_sys       uint64 // updated atomically or during STW
+	other_sys    uint64 // updated atomically or during STW
 
 	// Statistics about garbage collector.
 	// Protected by mheap or stopping the world during GC.

@@ -57,6 +57,7 @@ package runtime
 
 import (
 	"math/bits"
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -78,10 +79,8 @@ const (
 )
 
 // heapRetained returns an estimate of the current heap RSS.
-//
-// mheap_.lock must be held or the world must be stopped.
 func heapRetained() uint64 {
-	return memstats.heap_sys - memstats.heap_released
+	return atomic.Load64(&memstats.heap_sys) - atomic.Load64(&memstats.heap_released)
 }
 
 // gcPaceScavenger updates the scavenger's pacing, particularly
@@ -489,7 +488,7 @@ func (s *pageAlloc) scavengeRangeLocked(ci chunkIdx, base, npages uint) {
 
 	// Update global accounting only when not in test, otherwise
 	// the runtime's accounting will be wrong.
-	memstats.heap_released += uint64(npages) * pageSize
+	mSysStatInc(&memstats.heap_released, uintptr(npages)*pageSize)
 }
 
 // fillAligned returns x but with all zeroes in m-aligned
