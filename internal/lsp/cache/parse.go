@@ -130,14 +130,19 @@ func parseGo(ctx context.Context, c *cache, fh source.FileHandle, mode source.Pa
 			log.Error(ctx, "failed to fix AST", err)
 		}
 	}
-	// If the file is nil only due to parse errors,
-	// the parse errors are the actual errors.
+
 	if file == nil {
-		return nil, nil, parseError, parseError
+		// If the file is nil only due to parse errors,
+		// the parse errors are the actual errors.
+		err := parseError
+		if err == nil {
+			err = errors.Errorf("no AST for %s", fh.Identity().URI)
+		}
+		return nil, nil, parseError, err
 	}
 	tok := c.FileSet().File(file.Pos())
 	if tok == nil {
-		return nil, nil, parseError, err
+		return nil, nil, parseError, errors.Errorf("no token.File for %s", fh.Identity().URI)
 	}
 	uri := fh.Identity().URI
 	content, _, err := fh.Read(ctx)
