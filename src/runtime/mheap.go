@@ -90,7 +90,7 @@ type mheap struct {
 	// accounting for current progress. If we could only adjust
 	// the slope, it would create a discontinuity in debt if any
 	// progress has already been made.
-	pagesInUse         uint64  // pages of spans in stats mSpanInUse; R/W with mheap.lock
+	pagesInUse         uint64  // pages of spans in stats mSpanInUse; updated atomically
 	pagesSwept         uint64  // pages swept this cycle; updated atomically
 	pagesSweptBasis    uint64  // pagesSwept to use as the origin of the sweep ratio; updated atomically
 	sweepHeapLiveBasis uint64  // value of heap_live to use as the origin of sweep ratio; written with lock, read without
@@ -238,7 +238,7 @@ type heapArena struct {
 	// but only the bit corresponding to the first page in each
 	// span is used.
 	//
-	// Writes are protected by mheap_.lock.
+	// Reads and writes are atomic.
 	pageInUse [pagesPerArena / 8]uint8
 
 	// pageMarks is a bitmap that indicates which spans have any
@@ -812,7 +812,7 @@ func (h *mheap) reclaimChunk(arenas []arenaIdx, pageIdx, n uintptr) uintptr {
 		// Scan this bitmap chunk for spans that are in-use
 		// but have no marked objects on them.
 		for i := range inUse {
-			inUseUnmarked := inUse[i] &^ marked[i]
+			inUseUnmarked := atomic.Load8(&inUse[i]) &^ marked[i]
 			if inUseUnmarked == 0 {
 				continue
 			}
@@ -831,7 +831,7 @@ func (h *mheap) reclaimChunk(arenas []arenaIdx, pageIdx, n uintptr) uintptr {
 						// spans were freed when we dropped the
 						// lock and we don't want to get stale
 						// pointers from the spans array.
-						inUseUnmarked = inUse[i] &^ marked[i]
+						inUseUnmarked = atomic.Load8(&inUse[i]) &^ marked[i]
 					}
 				}
 			}
@@ -934,11 +934,15 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass) *mspan {
 		s.state.set(mSpanInUse)
 
 		// Mark in-use span in arena page bitmap.
+		//
+		// This publishes the span to the page sweeper, so
+		// it's imperative that the span be completely initialized
+		// prior to this line.
 		arena, pageIdx, pageMask := pageIndexOf(s.base())
-		arena.pageInUse[pageIdx] |= pageMask
+		atomic.Or8(&arena.pageInUse[pageIdx], pageMask)
 
 		// Update related page sweeper stats.
-		h.pagesInUse += uint64(npage)
+		atomic.Xadd64(&h.pagesInUse, int64(npage))
 	}
 	// heap_scan and heap_live were updated.
 	if gcBlackenEnabled != 0 {
@@ -1264,11 +1268,11 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool) {
 			print("mheap.freeSpanLocked - span ", s, " ptr ", hex(s.base()), " allocCount ", s.allocCount, " sweepgen ", s.sweepgen, "/", h.sweepgen, "\n")
 			throw("mheap.freeSpanLocked - invalid free")
 		}
-		h.pagesInUse -= uint64(s.npages)
+		atomic.Xadd64(&h.pagesInUse, -int64(s.npages))
 
 		// Clear in-use bit in arena page bitmap.
 		arena, pageIdx, pageMask := pageIndexOf(s.base())
-		arena.pageInUse[pageIdx] &^= pageMask
+		atomic.And8(&arena.pageInUse[pageIdx], ^pageMask)
 	default:
 		throw("mheap.freeSpanLocked - invalid span state")
 	}
