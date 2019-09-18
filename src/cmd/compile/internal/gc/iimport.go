@@ -1003,19 +1003,13 @@ func (r *importReader) node() *Node {
 		n.List.Set(r.stmtList())
 		return n
 
-	// case OCASE, OXCASE:
-	// 	unreachable - mapped to OXCASE case below by exporter
-
-	case OXCASE:
-		n := nodl(r.pos(), OXCASE, nil, nil)
+	case OCASE:
+		n := nodl(r.pos(), OCASE, nil, nil)
 		n.List.Set(r.exprList())
 		// TODO(gri) eventually we must declare variables for type switch
 		// statements (type switch statements are not yet exported)
 		n.Nbody.Set(r.stmtList())
 		return n
-
-	// case OFALL:
-	// 	unreachable - mapped to OXFALL case below by exporter
 
 	case OFALL:
 		n := nodl(r.pos(), OFALL, nil, nil)

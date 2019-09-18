@@ -1035,26 +1035,10 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 
 		mode.Fprintf(s, " { %v }", n.List)
 
-	case OXCASE:
+	case OCASE:
 		if n.List.Len() != 0 {
 			mode.Fprintf(s, "case %.v", n.List)
 		} else {
-			fmt.Fprint(s, "default")
-		}
-		mode.Fprintf(s, ": %v", n.Nbody)
-
-	case OCASE:
-		switch {
-		case n.Left != nil:
-			// single element
-			mode.Fprintf(s, "case %v", n.Left)
-		case n.List.Len() > 0:
-			// range
-			if n.List.Len() != 2 {
-				Fatalf("bad OCASE list length %d", n.List.Len())
-			}
-			mode.Fprintf(s, "case %v..%v", n.List.First(), n.List.Second())
-		default:
 			fmt.Fprint(s, "default")
 		}
 		mode.Fprintf(s, ": %v", n.Nbody)
@@ -1192,7 +1176,6 @@ var opprec = []int{
 	ORETURN:     -1,
 	OSELECT:     -1,
 	OSWITCH:     -1,
-	OXCASE:      -1,
 
 	OEND: 0,
 }

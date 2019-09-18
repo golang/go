@@ -209,13 +209,8 @@ func walkstmt(n *Node) *Node {
 	case OBLOCK:
 		walkstmtlist(n.List.Slice())
 
-	case OXCASE:
-		yyerror("case statement out of place")
-		n.Op = OCASE
-		fallthrough
-
 	case OCASE:
-		n.Right = walkstmt(n.Right)
+		yyerror("case statement out of place")
 
 	case ODEFER:
 		Curfn.Func.SetHasDefer(true)
