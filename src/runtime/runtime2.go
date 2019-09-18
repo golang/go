@@ -588,6 +588,17 @@ type p struct {
 	sudogcache []*sudog
 	sudogbuf   [128]*sudog
 
+	// Cache of mspan objects from the heap.
+	mspancache struct {
+		// We need an explicit length here because this field is used
+		// in allocation codepaths where write barriers are not allowed,
+		// and eliminating the write barrier/keeping it eliminated from
+		// slice updates is tricky, moreso than just managing the length
+		// ourselves.
+		len int
+		buf [128]*mspan
+	}
+
 	tracebuf traceBufPtr
 
 	// traceSweep indicates the sweep events should be traced.
@@ -600,7 +611,7 @@ type p struct {
 
 	palloc persistentAlloc // per-P to avoid mutex
 
-	_ uint32 // Alignment for atomic fields below
+	// _ uint32 // Alignment for atomic fields below
 
 	// Per-P GC state
 	gcAssistTime         int64    // Nanoseconds in assistAlloc
