@@ -208,14 +208,15 @@ func idiomaticShortRedecl(pass *analysis.Pass, a *ast.AssignStmt) bool {
 func idiomaticRedecl(d *ast.ValueSpec) bool {
 	// Don't complain about deliberate redeclarations of the form
 	//	var i, j = i, j
+	// Don't ignore redeclarations of the form
+	//	var i = 3
 	if len(d.Names) != len(d.Values) {
 		return false
 	}
 	for i, lhs := range d.Names {
-		if rhs, ok := d.Values[i].(*ast.Ident); ok {
-			if lhs.Name != rhs.Name {
-				return false
-			}
+		rhs, ok := d.Values[i].(*ast.Ident)
+		if !ok || lhs.Name != rhs.Name {
+			return false
 		}
 	}
 	return true

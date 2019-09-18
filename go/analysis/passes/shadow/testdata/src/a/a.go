@@ -89,3 +89,12 @@ func shadowTypeSwitch(a interface{}) {
 		}
 	}
 }
+
+func shadowBlock() {
+	var a int
+	{
+		var a = 3 // want "declaration of .a. shadows declaration at line 94"
+		_ = a
+	}
+	_ = a
+}
