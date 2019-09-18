@@ -5,7 +5,7 @@
 #include "../../../../../runtime/textflag.h"
 
 TEXT asmtest(SB),DUPOK|NOSPLIT,$0
-
+start:
 	// Unprivileged ISA
 
 	// 2.4: Integer Computational Instructions
@@ -82,6 +82,22 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	SRA	X5, X6					// 33535340
 	SRA	$1, X5, X6				// 13d31240
 	SRA	$1, X5					// 93d21240
+
+	// 2.5: Control Transfer Instructions
+
+	// These jumps and branches get printed as a jump or branch
+	// to 2 because they transfer control to the second instruction
+	// in the function (the first instruction being an invisible
+	// stack pointer adjustment).
+	JAL	X5, start	// JAL	X5, 2		// eff2dff0
+	JALR	X6, (X5)				// 67830200
+	JALR	X6, 4(X5)				// 67834200
+	BEQ	X5, X6, start	// BEQ	X5, X6, 2	// e38062f0
+	BNE	X5, X6, start	// BNE	X5, X6, 2	// e39e62ee
+	BLT	X5, X6, start	// BLT	X5, X6, 2	// e3cc62ee
+	BLTU	X5, X6, start	// BLTU	X5, X6, 2	// e3ea62ee
+	BGE	X5, X6, start	// BGE	X5, X6, 2	// e3d862ee
+	BGEU	X5, X6, start	// BGEU	X5, X6, 2	// e3f662ee
 
 	// 2.6: Load and Store Instructions
 	LW	$0, X5, X6				// 03a30200
