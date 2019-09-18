@@ -401,6 +401,17 @@ var encodingForAs = [ALAST & obj.AMask]encoding{
 	ASH & obj.AMask:  sIEncoding,
 	ASB & obj.AMask:  sIEncoding,
 
+	// 5.2: Integer Computational Instructions (RV64I)
+	AADDIW & obj.AMask: iIEncoding,
+	ASLLIW & obj.AMask: iIEncoding,
+	ASRLIW & obj.AMask: iIEncoding,
+	ASRAIW & obj.AMask: iIEncoding,
+	AADDW & obj.AMask:  rIIIEncoding,
+	ASLLW & obj.AMask:  rIIIEncoding,
+	ASRLW & obj.AMask:  rIIIEncoding,
+	ASUBW & obj.AMask:  rIIIEncoding,
+	ASRAW & obj.AMask:  rIIIEncoding,
+
 	// 5.3: Load and Store Instructions (RV64I)
 	ALD & obj.AMask: iIEncoding,
 	ASD & obj.AMask: sIEncoding,
