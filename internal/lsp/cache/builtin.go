@@ -40,7 +40,7 @@ func (view *view) buildBuiltinPackage(ctx context.Context) error {
 	pkg := pkgs[0]
 	files := make(map[string]*ast.File)
 	for _, filename := range pkg.GoFiles {
-		fh := view.session.GetFile(span.FileURI(filename))
+		fh := view.session.GetFile(span.FileURI(filename), source.Go)
 		ph := view.session.cache.ParseGoHandle(fh, source.ParseFull)
 		view.builtin.files = append(view.builtin.files, ph)
 		file, _, _, err := ph.Parse(ctx)

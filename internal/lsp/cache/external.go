@@ -27,7 +27,7 @@ type nativeFileHandle struct {
 	identity source.FileIdentity
 }
 
-func (fs *nativeFileSystem) GetFile(uri span.URI) source.FileHandle {
+func (fs *nativeFileSystem) GetFile(uri span.URI, kind source.FileKind) source.FileHandle {
 	version := "DOES NOT EXIST"
 	if fi, err := os.Stat(uri.Filename()); err == nil {
 		version = fi.ModTime().String()
@@ -37,6 +37,7 @@ func (fs *nativeFileSystem) GetFile(uri span.URI) source.FileHandle {
 		identity: source.FileIdentity{
 			URI:     uri,
 			Version: version,
+			Kind:    kind,
 		},
 	}
 }
@@ -49,17 +50,12 @@ func (h *nativeFileHandle) Identity() source.FileIdentity {
 	return h.identity
 }
 
-func (h *nativeFileHandle) Kind() source.FileKind {
-	// TODO: How should we determine the file kind?
-	return source.Go
-}
-
 func (h *nativeFileHandle) Read(ctx context.Context) ([]byte, string, error) {
 	ctx, done := trace.StartSpan(ctx, "cache.nativeFileHandle.Read", telemetry.File.Of(h.identity.URI.Filename()))
 	defer done()
 	ioLimit <- struct{}{}
 	defer func() { <-ioLimit }()
-	//TODO: this should fail if the version is not the same as the handle
+	// TODO: this should fail if the version is not the same as the handle
 	data, err := ioutil.ReadFile(h.identity.URI.Filename())
 	if err != nil {
 		return nil, "", err

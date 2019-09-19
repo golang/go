@@ -22,10 +22,11 @@ import (
 type FileIdentity struct {
 	URI     span.URI
 	Version string
+	Kind    FileKind
 }
 
 func (identity FileIdentity) String() string {
-	return fmt.Sprintf("%s%s", identity.URI, identity.Version)
+	return fmt.Sprintf("%s%s%s", identity.URI, identity.Version, identity.Kind)
 }
 
 // FileHandle represents a handle to a specific version of a single file from
@@ -37,9 +38,6 @@ type FileHandle interface {
 	// Identity returns the FileIdentity for the file.
 	Identity() FileIdentity
 
-	// Kind returns the FileKind for the file.
-	Kind() FileKind
-
 	// Read reads the contents of a file and returns it along with its hash value.
 	// If the file is not available, returns a nil slice and an error.
 	Read(ctx context.Context) ([]byte, string, error)
@@ -48,7 +46,7 @@ type FileHandle interface {
 // FileSystem is the interface to something that provides file contents.
 type FileSystem interface {
 	// GetFile returns a handle for the specified file.
-	GetFile(uri span.URI) FileHandle
+	GetFile(uri span.URI, kind FileKind) FileHandle
 }
 
 // FileKind describes the kind of the file in question.
@@ -59,6 +57,7 @@ const (
 	Go = FileKind(iota)
 	Mod
 	Sum
+	UnknownKind
 )
 
 // TokenHandle represents a handle to the *token.File for a file.
@@ -189,7 +188,7 @@ type Session interface {
 	IsOpen(uri span.URI) bool
 
 	// Called to set the effective contents of a file from this session.
-	SetOverlay(uri span.URI, data []byte) (wasFirstChange bool)
+	SetOverlay(uri span.URI, kind FileKind, data []byte) (wasFirstChange bool)
 
 	// DidChangeOutOfBand is called when a file under the root folder
 	// changes. The file is not necessarily open in the editor.

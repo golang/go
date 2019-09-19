@@ -101,7 +101,7 @@ func (v *view) reverseDeps(ctx context.Context, seen map[packageID]struct{}, res
 	}
 	for _, uri := range m.files {
 		// Call unlocked version of getFile since we hold the lock on the view.
-		if f, err := v.getFile(ctx, uri); err == nil && v.session.IsOpen(uri) {
+		if f, err := v.getFile(ctx, uri, source.Go); err == nil && v.session.IsOpen(uri) {
 			results[f.(*goFile)] = struct{}{}
 		}
 	}

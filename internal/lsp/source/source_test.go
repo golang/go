@@ -57,7 +57,7 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 		ctx:  ctx,
 	}
 	for filename, content := range data.Config.Overlay {
-		session.SetOverlay(span.FileURI(filename), content)
+		session.SetOverlay(span.FileURI(filename), source.DetectLanguage("", filename), content)
 	}
 	tests.Run(t, r, data)
 }

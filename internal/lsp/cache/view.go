@@ -12,7 +12,6 @@ import (
 	"go/types"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 
@@ -229,7 +228,7 @@ func (v *view) modFilesChanged() bool {
 	// and modules included by a replace directive. Return true if
 	// any of these file versions do not match.
 	for filename, version := range v.modFileVersions {
-		if version != v.fileVersion(filename) {
+		if version != v.fileVersion(filename, source.Mod) {
 			return true
 		}
 	}
@@ -248,14 +247,14 @@ func (v *view) storeModFileVersions() {
 	// and modules included by a replace directive in the resolver.
 	for _, mod := range r.ModsByModPath {
 		if (mod.Main || mod.Replace != nil) && mod.GoMod != "" {
-			v.modFileVersions[mod.GoMod] = v.fileVersion(mod.GoMod)
+			v.modFileVersions[mod.GoMod] = v.fileVersion(mod.GoMod, source.Mod)
 		}
 	}
 }
 
-func (v *view) fileVersion(filename string) string {
+func (v *view) fileVersion(filename string, kind source.FileKind) string {
 	uri := span.FileURI(filename)
-	f := v.session.GetFile(uri)
+	f := v.session.GetFile(uri, kind)
 	return f.Identity().Version
 }
 
@@ -315,7 +314,8 @@ func (v *view) SetContent(ctx context.Context, uri span.URI, content []byte) (bo
 	v.backgroundCtx, v.cancel = context.WithCancel(v.baseCtx)
 
 	if !v.Ignore(uri) {
-		return v.session.SetOverlay(uri, content), nil
+		kind := source.DetectLanguage("", uri.Filename())
+		return v.session.SetOverlay(uri, kind, content), nil
 	}
 	return false, nil
 }
@@ -425,32 +425,33 @@ func (v *view) GetFile(ctx context.Context, uri span.URI) (source.File, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	return v.getFile(ctx, uri)
+	// TODO(rstambler): Should there be a version that provides a kind explicitly?
+	kind := source.DetectLanguage("", uri.Filename())
+	return v.getFile(ctx, uri, kind)
 }
 
 // getFile is the unlocked internal implementation of GetFile.
-func (v *view) getFile(ctx context.Context, uri span.URI) (viewFile, error) {
+func (v *view) getFile(ctx context.Context, uri span.URI, kind source.FileKind) (viewFile, error) {
 	if f, err := v.findFile(uri); err != nil {
 		return nil, err
 	} else if f != nil {
 		return f, nil
 	}
-	filename := uri.Filename()
 	var f viewFile
-	switch ext := filepath.Ext(filename); ext {
-	case ".mod":
+	switch kind {
+	case source.Mod:
 		f = &modFile{
 			fileBase: fileBase{
 				view:  v,
-				fname: filename,
+				fname: uri.Filename(),
 				kind:  source.Mod,
 			},
 		}
-	case ".sum":
+	case source.Sum:
 		f = &sumFile{
 			fileBase: fileBase{
 				view:  v,
-				fname: filename,
+				fname: uri.Filename(),
 				kind:  source.Sum,
 			},
 		}
@@ -459,7 +460,7 @@ func (v *view) getFile(ctx context.Context, uri span.URI) (viewFile, error) {
 		f = &goFile{
 			fileBase: fileBase{
 				view:  v,
-				fname: filename,
+				fname: uri.Filename(),
 				kind:  source.Go,
 			},
 		}

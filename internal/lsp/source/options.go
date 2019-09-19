@@ -26,8 +26,13 @@ var (
 				protocol.SourceOrganizeImports: true,
 				protocol.QuickFix:              true,
 			},
-			Mod: {},
+			Mod: {
+				protocol.SourceOrganizeImports: true,
+			},
 			Sum: {},
+		},
+		SupportedCommands: []string{
+			"tidy", // for go.mod files
 		},
 		Completion: CompletionOptions{
 			Documentation: true,
@@ -39,7 +44,6 @@ var (
 )
 
 type Options struct {
-
 	// Env is the current set of environment overrides on this view.
 	Env []string
 
@@ -58,6 +62,8 @@ type Options struct {
 	LineFoldingOnly               bool
 
 	SupportedCodeActions map[FileKind]map[protocol.CodeActionKind]bool
+
+	SupportedCommands []string
 
 	// TODO: Remove the option once we are certain there are no issues here.
 	TextDocumentSyncKind protocol.TextDocumentSyncKind

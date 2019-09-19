@@ -245,7 +245,7 @@ func (v *view) link(ctx context.Context, g *importGraph) error {
 		m.files = append(m.files, span.FileURI(filename))
 
 		// Call the unlocked version of getFile since we are holding the view's mutex.
-		f, err := v.getFile(ctx, span.FileURI(filename))
+		f, err := v.getFile(ctx, span.FileURI(filename), source.Go)
 		if err != nil {
 			log.Error(ctx, "no file", err, telemetry.File.Of(filename))
 			continue

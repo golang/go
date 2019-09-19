@@ -67,7 +67,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	options.Env = data.Config.Env
 	session.NewView(ctx, viewName, span.FileURI(data.Config.Dir), options)
 	for filename, content := range data.Config.Overlay {
-		session.SetOverlay(span.FileURI(filename), content)
+		session.SetOverlay(span.FileURI(filename), source.DetectLanguage("", filename), content)
 	}
 
 	r := &runner{

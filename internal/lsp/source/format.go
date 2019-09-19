@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"context"
 	"go/format"
-	"log"
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/imports"
@@ -150,15 +149,11 @@ type ImportFix struct {
 // In addition to returning the result of applying all edits,
 // it returns a list of fixes that could be applied to the file, with the
 // corresponding TextEdits that would be needed to apply that fix.
-func AllImportsFixes(ctx context.Context, view View, f File) (edits []protocol.TextEdit, editsPerFix []*ImportFix, err error) {
+func AllImportsFixes(ctx context.Context, view View, f GoFile) (edits []protocol.TextEdit, editsPerFix []*ImportFix, err error) {
 	ctx, done := trace.StartSpan(ctx, "source.AllImportsFixes")
 	defer done()
 
-	gof, ok := f.(GoFile)
-	if !ok {
-		return nil, nil, errors.Errorf("no imports fixes for non-Go files: %v", err)
-	}
-	cphs, err := gof.CheckPackageHandles(ctx)
+	cphs, err := f.CheckPackageHandles(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -279,7 +274,6 @@ func hasParseErrors(pkg Package, uri span.URI) bool {
 func hasListErrors(errors []packages.Error) bool {
 	for _, err := range errors {
 		if err.Kind == packages.ListError {
-			log.Printf("LIST ERROR: %v", err)
 			return true
 		}
 	}
