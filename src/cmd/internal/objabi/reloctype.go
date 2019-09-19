@@ -223,16 +223,34 @@ const (
 	R_XCOFFREF
 )
 
-// IsDirectJump reports whether r is a relocation for a direct jump.
-// A direct jump is a CALL or JMP instruction that takes the target address
-// as immediate. The address is embedded into the instruction, possibly
-// with limited width.
-// An indirect jump is a CALL or JMP instruction that takes the target address
-// in register or memory.
-func (r RelocType) IsDirectJump() bool {
+// IsDirectCall reports whether r is a relocation for a direct call.
+// A direct call is a CALL instruction that takes the target address
+// as an immediate. The address is embedded into the instruction, possibly
+// with limited width. An indirect call is a CALL instruction that takes
+// the target address in register or memory.
+func (r RelocType) IsDirectCall() bool {
 	switch r {
-	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLPOWER, R_CALLMIPS, R_JMPMIPS:
+	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLMIPS, R_CALLPOWER:
 		return true
 	}
 	return false
+}
+
+// IsDirectJump reports whether r is a relocation for a direct jump.
+// A direct jump is a JMP instruction that takes the target address
+// as an immediate. The address is embedded into the instruction, possibly
+// with limited width. An indirect jump is a JMP instruction that takes
+// the target address in register or memory.
+func (r RelocType) IsDirectJump() bool {
+	switch r {
+	case R_JMPMIPS:
+		return true
+	}
+	return false
+}
+
+// IsDirectCallOrJump reports whether r is a relocation for a direct
+// call or a direct jump.
+func (r RelocType) IsDirectCallOrJump() bool {
+	return r.IsDirectCall() || r.IsDirectJump()
 }
