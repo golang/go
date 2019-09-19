@@ -27,3 +27,4 @@ func TestCancelRemoves(t *testing.T)                   { XTestCancelRemoves(t) }
 func TestWithCancelCanceledParent(t *testing.T)        { XTestWithCancelCanceledParent(t) }
 func TestWithValueChecksKey(t *testing.T)              { XTestWithValueChecksKey(t) }
 func TestDeadlineExceededSupportsTimeout(t *testing.T) { XTestDeadlineExceededSupportsTimeout(t) }
+func TestCustomContextGoroutines(t *testing.T)         { XTestCustomContextGoroutines(t) }

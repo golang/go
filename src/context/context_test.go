@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -21,6 +22,7 @@ type testingT interface {
 	Failed() bool
 	Fatal(args ...interface{})
 	Fatalf(format string, args ...interface{})
+	Helper()
 	Log(args ...interface{})
 	Logf(format string, args ...interface{})
 	Name() string
@@ -401,7 +403,7 @@ func XTestAllocs(t testingT, testingShort func() bool, testingAllocsPerRun func(
 				c, _ := WithTimeout(bg, 15*time.Millisecond)
 				<-c.Done()
 			},
-			limit:      8,
+			limit:      12,
 			gccgoLimit: 15,
 		},
 		{
@@ -647,4 +649,82 @@ func XTestDeadlineExceededSupportsTimeout(t testingT) {
 	if !i.Timeout() {
 		t.Fatal("wrong value for timeout")
 	}
+}
+
+type myCtx struct {
+	Context
+}
+
+type myDoneCtx struct {
+	Context
+}
+
+func (d *myDoneCtx) Done() <-chan struct{} {
+	c := make(chan struct{})
+	return c
+}
+
+func XTestCustomContextGoroutines(t testingT) {
+	g := atomic.LoadInt32(&goroutines)
+	checkNoGoroutine := func() {
+		t.Helper()
+		now := atomic.LoadInt32(&goroutines)
+		if now != g {
+			t.Fatalf("%d goroutines created", now-g)
+		}
+	}
+	checkCreatedGoroutine := func() {
+		t.Helper()
+		now := atomic.LoadInt32(&goroutines)
+		if now != g+1 {
+			t.Fatalf("%d goroutines created, want 1", now-g)
+		}
+		g = now
+	}
+
+	_, cancel0 := WithCancel(&myDoneCtx{Background()})
+	cancel0()
+	checkCreatedGoroutine()
+
+	_, cancel0 = WithTimeout(&myDoneCtx{Background()}, 1*time.Hour)
+	cancel0()
+	checkCreatedGoroutine()
+
+	checkNoGoroutine()
+	defer checkNoGoroutine()
+
+	ctx1, cancel1 := WithCancel(Background())
+	defer cancel1()
+	checkNoGoroutine()
+
+	ctx2 := &myCtx{ctx1}
+	ctx3, cancel3 := WithCancel(ctx2)
+	defer cancel3()
+	checkNoGoroutine()
+
+	_, cancel3b := WithCancel(&myDoneCtx{ctx2})
+	defer cancel3b()
+	checkCreatedGoroutine() // ctx1 is not providing Done, must not be used
+
+	ctx4, cancel4 := WithTimeout(ctx3, 1*time.Hour)
+	defer cancel4()
+	checkNoGoroutine()
+
+	ctx5, cancel5 := WithCancel(ctx4)
+	defer cancel5()
+	checkNoGoroutine()
+
+	cancel5()
+	checkNoGoroutine()
+
+	_, cancel6 := WithTimeout(ctx5, 1*time.Hour)
+	defer cancel6()
+	checkNoGoroutine()
+
+	// Check applied to cancelled context.
+	cancel6()
+	cancel1()
+	_, cancel7 := WithCancel(ctx5)
+	defer cancel7()
+	checkNoGoroutine()
 }
