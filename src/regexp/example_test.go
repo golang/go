@@ -128,24 +128,6 @@ func ExampleRegexp_FindStringSubmatch() {
 	// ["abzc" "" "z"]
 }
 
-func ExampleRegexp_FindAllIndex() {
-	re := regexp.MustCompile(`a(x*)b`)
-	// Indices:
-	//    01234567   012345678
-	//    -ab-axb-   -axxb-ab-
-	fmt.Println(re.FindAllIndex([]byte("-ab-"), -1))
-	fmt.Println(re.FindAllIndex([]byte("-axxb-"), -1))
-	fmt.Println(re.FindAllIndex([]byte("-ab-axb-"), -1))
-	fmt.Println(re.FindAllIndex([]byte("-axxb-ab-"), -1))
-	fmt.Println(re.FindAllIndex([]byte("-foo-"), -1))
-	// Output:
-	// [[1 3]]
-	// [[1 5]]
-	// [[1 3] [4 7]]
-	// [[1 5] [6 8]]
-	// []
-}
-
 func ExampleRegexp_FindAllString() {
 	re := regexp.MustCompile(`a.`)
 	fmt.Println(re.FindAllString("paranormal", -1))
