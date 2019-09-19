@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package cmd_test
+package cmdtest
 
 import (
 	"fmt"
@@ -40,7 +40,7 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 			}
 			args = append(args, loc, tag)
 			var err error
-			got := captureStdOut(t, func() {
+			got := CaptureStdOut(t, func() {
 				err = tool.Run(r.ctx, app, args)
 			})
 			if err != nil {

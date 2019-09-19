@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package cmd_test
+package cmdtest
 
 import (
 	"fmt"
@@ -24,7 +24,7 @@ func (r *runner) Diagnostics(t *testing.T, data tests.Diagnostics) {
 		fname := uri.Filename()
 		args := []string{"-remote=internal", "check", fname}
 		app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Exported.Config.Env)
-		out := captureStdOut(t, func() {
+		out := CaptureStdOut(t, func() {
 			_ = tool.Run(r.ctx, app, args)
 		})
 		// parse got into a collection of reports

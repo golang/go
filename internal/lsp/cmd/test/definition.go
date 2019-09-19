@@ -2,13 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package cmd_test
+package cmdtest
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -36,33 +33,6 @@ var godefModes = []godefMode{
 	jsonGoDef,
 }
 
-func TestDefinitionHelpExample(t *testing.T) {
-	// TODO: https://golang.org/issue/32794.
-	t.Skip()
-	if runtime.GOOS == "android" {
-		t.Skip("not all source files are available on android")
-	}
-	dir, err := os.Getwd()
-	if err != nil {
-		t.Errorf("could not get wd: %v", err)
-		return
-	}
-	thisFile := filepath.Join(dir, "definition.go")
-	baseArgs := []string{"query", "definition"}
-	expect := regexp.MustCompile(`(?s)^[\w/\\:_-]+flag[/\\]flag.go:\d+:\d+-\d+: defined here as FlagSet struct {.*}$`)
-	for _, query := range []string{
-		fmt.Sprintf("%v:%v:%v", thisFile, cmd.ExampleLine, cmd.ExampleColumn),
-		fmt.Sprintf("%v:#%v", thisFile, cmd.ExampleOffset)} {
-		args := append(baseArgs, query)
-		got := captureStdOut(t, func() {
-			_ = tool.Run(tests.Context(t), cmd.New("gopls-test", "", nil), args)
-		})
-		if !expect.MatchString(got) {
-			t.Errorf("test with %v\nexpected:\n%s\ngot:\n%s", args, expect, got)
-		}
-	}
-}
-
 func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 	// TODO: https://golang.org/issue/32794.
 	t.Skip()
@@ -82,7 +52,7 @@ func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 			args = append(args, "definition")
 			uri := d.Src.URI()
 			args = append(args, fmt.Sprint(d.Src))
-			got := captureStdOut(t, func() {
+			got := CaptureStdOut(t, func() {
 				app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Exported.Config.Env)
 				_ = tool.Run(r.ctx, app, args)
 			})

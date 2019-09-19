@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package cmd_test
+package cmdtest
 
 import (
 	"os/exec"
@@ -38,7 +38,7 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 				continue
 			}
 			app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Config.Env)
-			got := captureStdOut(t, func() {
+			got := CaptureStdOut(t, func() {
 				_ = tool.Run(r.ctx, app, append([]string{"-remote=internal", "format"}, args...))
 			})
 			got = normalizePaths(r.data, got)
