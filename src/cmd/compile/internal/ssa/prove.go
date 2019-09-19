@@ -164,7 +164,8 @@ type factsTable struct {
 	// order is a couple of partial order sets that record information
 	// about relations between SSA values in the signed and unsigned
 	// domain.
-	order [2]*poset
+	orderS *poset
+	orderU *poset
 
 	// known lower and upper bounds on individual values.
 	limits     map[ID]limit
@@ -187,10 +188,10 @@ var checkpointBound = limitFact{}
 
 func newFactsTable(f *Func) *factsTable {
 	ft := &factsTable{}
-	ft.order[0] = f.newPoset() // signed
-	ft.order[1] = f.newPoset() // unsigned
-	ft.order[0].SetUnsigned(false)
-	ft.order[1].SetUnsigned(true)
+	ft.orderS = f.newPoset()
+	ft.orderU = f.newPoset()
+	ft.orderS.SetUnsigned(false)
+	ft.orderU.SetUnsigned(true)
 	ft.facts = make(map[pair]relation)
 	ft.stack = make([]fact, 4)
 	ft.limits = make(map[ID]limit)
@@ -221,23 +222,23 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 
 	if d == signed || d == unsigned {
 		var ok bool
-		idx := 0
+		order := ft.orderS
 		if d == unsigned {
-			idx = 1
+			order = ft.orderU
 		}
 		switch r {
 		case lt:
-			ok = ft.order[idx].SetOrder(v, w)
+			ok = order.SetOrder(v, w)
 		case gt:
-			ok = ft.order[idx].SetOrder(w, v)
+			ok = order.SetOrder(w, v)
 		case lt | eq:
-			ok = ft.order[idx].SetOrderOrEqual(v, w)
+			ok = order.SetOrderOrEqual(v, w)
 		case gt | eq:
-			ok = ft.order[idx].SetOrderOrEqual(w, v)
+			ok = order.SetOrderOrEqual(w, v)
 		case eq:
-			ok = ft.order[idx].SetEqual(v, w)
+			ok = order.SetEqual(v, w)
 		case lt | gt:
-			ok = ft.order[idx].SetNonEqual(v, w)
+			ok = order.SetNonEqual(v, w)
 		default:
 			panic("unknown relation")
 		}
@@ -588,6 +589,7 @@ func (ft *factsTable) isNonNegative(v *Value) bool {
 	}
 
 	// Check if the recorded limits can prove that the value is positive
+
 	if l, has := ft.limits[v.ID]; has && (l.min >= 0 || l.umax <= uint64(max)) {
 		return true
 	}
@@ -610,7 +612,7 @@ func (ft *factsTable) isNonNegative(v *Value) bool {
 	}
 
 	// Check if the signed poset can prove that the value is >= 0
-	return ft.order[0].OrderedOrEqual(ft.zero, v)
+	return ft.orderS.OrderedOrEqual(ft.zero, v)
 }
 
 // checkpoint saves the current state of known relations.
@@ -621,8 +623,8 @@ func (ft *factsTable) checkpoint() {
 	}
 	ft.stack = append(ft.stack, checkpointFact)
 	ft.limitStack = append(ft.limitStack, checkpointBound)
-	ft.order[0].Checkpoint()
-	ft.order[1].Checkpoint()
+	ft.orderS.Checkpoint()
+	ft.orderU.Checkpoint()
 }
 
 // restore restores known relation to the state just
@@ -658,8 +660,8 @@ func (ft *factsTable) restore() {
 			ft.limits[old.vid] = old.limit
 		}
 	}
-	ft.order[0].Undo()
-	ft.order[1].Undo()
+	ft.orderS.Undo()
+	ft.orderU.Undo()
 }
 
 func lessByID(v, w *Value) bool {
@@ -922,7 +924,7 @@ func prove(f *Func) {
 	ft.restore()
 
 	// Return the posets to the free list
-	for _, po := range ft.order {
+	for _, po := range []*poset{ft.orderS, ft.orderU} {
 		// Make sure it's empty as it should be. A non-empty poset
 		// might cause errors and miscompilations if reused.
 		if checkEnabled {
