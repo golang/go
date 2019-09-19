@@ -66,6 +66,13 @@ func unhex(c byte) byte {
 	return 0
 }
 
+func tohex(c byte) byte {
+	if c < 10 {
+		return '0' + c
+	}
+	return 'A' + c - 10
+}
+
 type encoding int
 
 const (
@@ -324,8 +331,8 @@ func escape(s string, mode encoding) string {
 			j++
 		case shouldEscape(c, mode):
 			t[j] = '%'
-			t[j+1] = "0123456789ABCDEF"[c>>4]
-			t[j+2] = "0123456789ABCDEF"[c&15]
+			t[j+1] = tohex(c>>4)
+			t[j+2] = tohex(c&15)
 			j += 3
 		default:
 			t[j] = s[i]
