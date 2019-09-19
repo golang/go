@@ -557,28 +557,43 @@ func (check *Checker) completeInterface(ityp *Interface) {
 
 	ityp.allMethods = markComplete // avoid infinite recursion
 
-	var methods []*Func
+	// Methods of embedded interfaces are collected unchanged; i.e., the identity
+	// of a method I.m's Func Object of an interface I is the same as that of
+	// the method m in an interface that embeds interface I. On the other hand,
+	// if a method is embedded via multiple overlapping embedded interfaces, we
+	// don't provide a guarantee which "original m" got chosen for the embedding
+	// interface. See also issue #34421.
+	//
+	// If we don't care to provide this identity guarantee anymore, instead of
+	// reusing the original method in embeddings, we can clone the method's Func
+	// Object and give it the position of a corresponding embedded interface. Then
+	// we can get rid of the mpos map below and simply use the cloned method's
+	// position.
+
 	var seen objset
-	addMethod := func(m *Func, explicit bool) {
+	var methods []*Func
+	mpos := make(map[*Func]token.Pos) // method specification or method embedding position, for good error messages
+	addMethod := func(pos token.Pos, m *Func, explicit bool) {
 		switch other := seen.insert(m); {
 		case other == nil:
 			methods = append(methods, m)
+			mpos[m] = pos
 		case explicit:
-			check.errorf(m.pos, "duplicate method %s", m.name)
-			check.reportAltDecl(other)
+			check.errorf(pos, "duplicate method %s", m.name)
+			check.errorf(mpos[other.(*Func)], "\tother declaration of %s", m.name) // secondary error, \t indented
 		default:
 			// check method signatures after all types are computed (issue #33656)
 			check.atEnd(func() {
 				if !check.identical(m.typ, other.Type()) {
-					check.errorf(m.pos, "duplicate method %s", m.name)
-					check.reportAltDecl(other)
+					check.errorf(pos, "duplicate method %s", m.name)
+					check.errorf(mpos[other.(*Func)], "\tother declaration of %s", m.name) // secondary error, \t indented
 				}
 			})
 		}
 	}
 
 	for _, m := range ityp.methods {
-		addMethod(m, true)
+		addMethod(m.pos, m, true)
 	}
 
 	posList := check.posMap[ityp]
@@ -587,9 +602,7 @@ func (check *Checker) completeInterface(ityp *Interface) {
 		typ := underlying(typ).(*Interface)
 		check.completeInterface(typ)
 		for _, m := range typ.allMethods {
-			copy := *m
-			copy.pos = pos // preserve embedding position
-			addMethod(&copy, false)
+			addMethod(pos, m, false) // use embedding position pos rather than m.pos
 		}
 	}
 
