@@ -33,15 +33,20 @@ type goFile struct {
 
 	imports []*ast.ImportSpec
 
-	cphs map[packageID]source.CheckPackageHandle
+	cphs map[packageKey]*checkPackageHandle
 	meta map[packageID]*metadata
+}
+
+type packageKey struct {
+	id   packageID
+	mode source.ParseMode
 }
 
 func (f *goFile) CheckPackageHandles(ctx context.Context) ([]source.CheckPackageHandle, error) {
 	ctx = telemetry.File.With(ctx, f.URI())
 	fh := f.Handle(ctx)
 
-	if f.isDirty(ctx, fh) || f.wrongParseMode(ctx, fh, source.ParseFull) {
+	if f.isDirty(ctx, fh) {
 		if err := f.view.loadParseTypecheck(ctx, f, fh); err != nil {
 			return nil, err
 		}
@@ -50,14 +55,22 @@ func (f *goFile) CheckPackageHandles(ctx context.Context) ([]source.CheckPackage
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	if len(f.cphs) == 0 {
+	var results []source.CheckPackageHandle
+	seenIDs := make(map[string]bool)
+	for _, cph := range f.cphs {
+		if seenIDs[cph.ID()] {
+			continue
+		}
+		if cph.mode() < source.ParseFull {
+			continue
+		}
+		results = append(results, cph)
+		seenIDs[cph.ID()] = true
+	}
+	if len(results) == 0 {
 		return nil, errors.Errorf("no CheckPackageHandles for %s", f.URI())
 	}
-	var cphs []source.CheckPackageHandle
-	for _, cph := range f.cphs {
-		cphs = append(cphs, cph)
-	}
-	return cphs, nil
+	return results, nil
 }
 
 func (f *goFile) GetActiveReverseDeps(ctx context.Context) (files []source.GoFile) {
@@ -119,20 +132,6 @@ func (f *goFile) metadata() []*metadata {
 	return result
 }
 
-func (f *goFile) wrongParseMode(ctx context.Context, fh source.FileHandle, mode source.ParseMode) bool {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	for _, cph := range f.cphs {
-		for _, ph := range cph.Files() {
-			if fh.Identity() == ph.File().Identity() {
-				return ph.Mode() < mode
-			}
-		}
-	}
-	return true
-}
-
 // isDirty is true if the file needs to be type-checked.
 // It assumes that the file's view's mutex is held by the caller.
 func (f *goFile) isDirty(ctx context.Context, fh source.FileHandle) bool {
@@ -145,7 +144,7 @@ func (f *goFile) isDirty(ctx context.Context, fh source.FileHandle) bool {
 	// Note: This must be the first case, otherwise we may not reset the value of f.justOpened.
 	if f.justOpened {
 		f.meta = make(map[packageID]*metadata)
-		f.cphs = make(map[packageID]source.CheckPackageHandle)
+		f.cphs = make(map[packageKey]*checkPackageHandle)
 		f.justOpened = false
 		return true
 	}
@@ -155,9 +154,11 @@ func (f *goFile) isDirty(ctx context.Context, fh source.FileHandle) bool {
 	if len(f.missingImports) > 0 {
 		return true
 	}
-	for _, cph := range f.cphs {
+	for key, cph := range f.cphs {
+		if key.mode != source.ParseFull {
+			continue
+		}
 		for _, file := range cph.Files() {
-			// There is a type-checked package for the current file handle.
 			if file.File().Identity() == fh.Identity() {
 				return false
 			}

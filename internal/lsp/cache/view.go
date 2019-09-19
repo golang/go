@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package cache implements the caching layer for gopls.
 package cache
 
 import (
@@ -331,11 +332,11 @@ func (f *goFile) invalidateContent(ctx context.Context) {
 	f.view.mcache.mu.Lock()
 	defer f.view.mcache.mu.Unlock()
 
-	var toDelete []packageID
+	toDelete := make(map[packageID]bool)
 	f.mu.Lock()
-	for id, cph := range f.cphs {
+	for key, cph := range f.cphs {
 		if cph != nil {
-			toDelete = append(toDelete, id)
+			toDelete[key.id] = true
 		}
 	}
 	f.mu.Unlock()
@@ -344,7 +345,7 @@ func (f *goFile) invalidateContent(ctx context.Context) {
 	defer f.handleMu.Unlock()
 
 	// Remove the package and all of its reverse dependencies from the cache.
-	for _, id := range toDelete {
+	for id := range toDelete {
 		f.view.remove(ctx, id, map[packageID]struct{}{})
 	}
 
@@ -405,7 +406,15 @@ func (v *view) remove(ctx context.Context, id packageID, seen map[packageID]stru
 			continue
 		}
 		gof.mu.Lock()
-		delete(gof.cphs, id)
+		for _, mode := range []source.ParseMode{
+			source.ParseExported,
+			source.ParseFull,
+		} {
+			delete(gof.cphs, packageKey{
+				id:   id,
+				mode: mode,
+			})
+		}
 		gof.mu.Unlock()
 	}
 	return

@@ -57,24 +57,6 @@ func (view *view) load(ctx context.Context, f *goFile, fh source.FileHandle) ([]
 	view.mcache.mu.Lock()
 	defer view.mcache.mu.Unlock()
 
-	var toDelete []packageID
-	f.mu.Lock()
-	for id, cph := range f.cphs {
-		if cph != nil {
-			toDelete = append(toDelete, id)
-		}
-	}
-	f.mu.Unlock()
-
-	// If the AST for this file is trimmed, and we are explicitly type-checking it,
-	// don't ignore function bodies.
-	if f.wrongParseMode(ctx, fh, source.ParseFull) {
-		// Remove the package and all of its reverse dependencies from the cache.
-		for _, id := range toDelete {
-			f.view.remove(ctx, id, map[packageID]struct{}{})
-		}
-	}
-
 	// Get the metadata for the file.
 	meta, err := view.checkMetadata(ctx, f, fh)
 	if err != nil {

@@ -62,6 +62,19 @@ type checkPackageHandle struct {
 	config *packages.Config
 }
 
+func (cph *checkPackageHandle) mode() source.ParseMode {
+	if len(cph.files) == 0 {
+		return -1
+	}
+	mode := cph.files[0].Mode()
+	for _, ph := range cph.files[1:] {
+		if ph.Mode() != mode {
+			return -1
+		}
+	}
+	return mode
+}
+
 // checkPackageData contains the data produced by type-checking a package.
 type checkPackageData struct {
 	memoize.NoCopy
@@ -85,18 +98,13 @@ func (imp *importer) checkPackageHandle(ctx context.Context, m *metadata) (*chec
 		log.Error(ctx, "no ParseGoHandles", err, telemetry.Package.Of(m.id))
 		return nil, err
 	}
-	key := checkPackageKey{
-		id:     string(m.id),
-		files:  hashParseKeys(phs),
-		config: hashConfig(imp.config),
-	}
 	cph := &checkPackageHandle{
 		m:       m,
 		files:   phs,
 		config:  imp.config,
 		imports: make(map[packagePath]*checkPackageHandle),
 	}
-	h := imp.view.session.cache.store.Bind(key, func(ctx context.Context) interface{} {
+	h := imp.view.session.cache.store.Bind(cph.key(), func(ctx context.Context) interface{} {
 		data := &checkPackageData{}
 		data.pkg, data.err = imp.typeCheck(ctx, cph, m)
 		return data
@@ -161,6 +169,14 @@ func (cph *checkPackageHandle) cached(ctx context.Context) (*pkg, error) {
 	}
 	data := v.(*checkPackageData)
 	return data.pkg, data.err
+}
+
+func (cph *checkPackageHandle) key() checkPackageKey {
+	return checkPackageKey{
+		id:     string(cph.m.id),
+		files:  hashParseKeys(cph.files),
+		config: hashConfig(cph.config),
+	}
 }
 
 func (imp *importer) parseGoHandles(ctx context.Context, m *metadata) ([]source.ParseGoHandle, error) {
@@ -343,9 +359,12 @@ func (imp *importer) cachePerFile(ctx context.Context, gof *goFile, ph source.Pa
 
 	// Set the package even if we failed to parse the file.
 	if gof.cphs == nil {
-		gof.cphs = make(map[packageID]source.CheckPackageHandle)
+		gof.cphs = make(map[packageKey]*checkPackageHandle)
 	}
-	gof.cphs[cph.m.id] = cph
+	gof.cphs[packageKey{
+		id:   cph.m.id,
+		mode: ph.Mode(),
+	}] = cph
 
 	file, _, _, err := ph.Parse(ctx)
 	if err != nil {
