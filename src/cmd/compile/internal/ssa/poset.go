@@ -106,17 +106,17 @@ type posetNode struct {
 // order so that if we know that A<B<C and later learn that A==D, Ordered will return
 // true for D<C.
 //
+// It is also possible to record inequality relations between nodes with SetNonEqual;
+// non-equality relations are not transitive, but they can still be useful: for instance
+// if we know that A<=B and later we learn that A!=B, we can deduce that A<B.
+// NonEqual can be used to check whether it is known that the nodes are different, either
+// because SetNonEqual was called before, or because we know that they are strictly ordered.
+//
 // poset will refuse to record new relations that contradict existing relations:
 // for instance if A<B<C, calling SetOrder for C<A will fail returning false; also
 // calling SetEqual for C==A will fail.
 //
-// It is also possible to record inequality relations between nodes with SetNonEqual;
-// given that non-equality is not transitive, the only effect is that a later call
-// to SetEqual for the same values will fail. NonEqual checks whether it is known that
-// the nodes are different, either because SetNonEqual was called before, or because
-// we know that they are strictly ordered.
-//
-// It is implemented as a forest of DAGs; in each DAG, if there is a path (directed)
+// poset is implemented as a forest of DAGs; in each DAG, if there is a path (directed)
 // from node A to B, it means that A<B (or A<=B). Equality is represented by mapping
 // two SSA values to the same DAG node; when a new equality relation is recorded
 // between two existing nodes,the nodes are merged, adjusting incoming and outgoing edges.
