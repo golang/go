@@ -151,6 +151,10 @@ func (cph *checkPackageHandle) ID() string {
 }
 
 func (cph *checkPackageHandle) Cached(ctx context.Context) (source.Package, error) {
+	return cph.cached(ctx)
+}
+
+func (cph *checkPackageHandle) cached(ctx context.Context) (*pkg, error) {
 	v := cph.handle.Cached()
 	if v == nil {
 		return nil, errors.Errorf("no cached type information for %s", cph.m.pkgPath)
@@ -171,13 +175,6 @@ func (imp *importer) parseGoHandles(ctx context.Context, m *metadata) ([]source.
 		if imp.topLevelPackageID == m.id {
 			mode = source.ParseFull
 		}
-		// If we have the full AST cached, don't bother getting the trimmed version.
-		if imp.view.session.cache.store.Cached(parseKey{
-			file: fh.Identity(),
-			mode: source.ParseFull,
-		}) != nil {
-			mode = source.ParseFull
-		}
 		phs = append(phs, imp.view.session.cache.ParseGoHandle(fh, mode))
 	}
 	return phs, nil
@@ -192,13 +189,16 @@ func (imp *importer) Import(pkgPath string) (*types.Package, error) {
 		return nil, errors.Errorf("no parent package for import %s", pkgPath)
 	}
 
-	// Get the package metadata from the importing package.
+	// Get the CheckPackageHandle from the importing package.
 	cph, ok := imp.parentCheckPackageHandle.imports[packagePath(pkgPath)]
 	if !ok {
 		return nil, errors.Errorf("no package data for import path %s", pkgPath)
 	}
-
-	// Create a check package handle to get the type information for this package.
+	for _, ph := range cph.Files() {
+		if ph.Mode() != source.ParseExported {
+			panic("dependency parsed in full mode")
+		}
+	}
 	pkg, err := cph.check(ctx)
 	if err != nil {
 		return nil, err

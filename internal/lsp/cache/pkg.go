@@ -44,10 +44,10 @@ type pkg struct {
 	diagnostics map[*analysis.Analyzer][]source.Diagnostic
 }
 
-// packageID is a type that abstracts a package ID.
+// Declare explicit types for package paths and IDs to ensure that we never use
+// an ID where a path belongs, and vice versa. If we confused the two, it would
+// result in confusing errors because package IDs often look like package paths.
 type packageID string
-
-// packagePath is a type that abstracts a package path.
 type packagePath string
 
 type analysisEntry struct {
