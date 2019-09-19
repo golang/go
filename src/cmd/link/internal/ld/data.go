@@ -74,7 +74,7 @@ func maxSizeTrampolinesPPC64(s *sym.Symbol, isTramp bool) uint64 {
 	n := uint64(0)
 	for ri := range s.R {
 		r := &s.R[ri]
-		if r.Type.IsDirectJump() {
+		if r.Type.IsDirectCallOrJump() {
 			n++
 		}
 	}
@@ -93,7 +93,7 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
 
 	for ri := range s.R {
 		r := &s.R[ri]
-		if !r.Type.IsDirectJump() {
+		if !r.Type.IsDirectCallOrJump() {
 			continue
 		}
 		if Symaddr(r.Sym) == 0 && (r.Sym.Type != sym.SDYNIMPORT && r.Sym.Type != sym.SUNDEFEXT) {
