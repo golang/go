@@ -587,7 +587,9 @@ func fprint(w io.Writer, n Node) {
 		}
 	case *RuleRewrite:
 		fmt.Fprintf(w, "// match: %s\n", n.match)
-		fmt.Fprintf(w, "// cond: %s\n", n.cond)
+		if n.cond != "" {
+			fmt.Fprintf(w, "// cond: %s\n", n.cond)
+		}
 		fmt.Fprintf(w, "// result: %s\n", n.result)
 		if n.checkOp != "" {
 			fmt.Fprintf(w, "for v.Op == %s {\n", n.checkOp)
@@ -636,13 +638,26 @@ type bodyBase struct {
 	canFail bool
 }
 
-func (w *bodyBase) add(nodes ...Statement) {
-	w.list = append(w.list, nodes...)
-	for _, node := range nodes {
-		if _, ok := node.(*CondBreak); ok {
-			w.canFail = true
+func (w *bodyBase) add(node Statement) {
+	var last Statement
+	if len(w.list) > 0 {
+		last = w.list[len(w.list)-1]
+	}
+	if node, ok := node.(*CondBreak); ok {
+		w.canFail = true
+		if last, ok := last.(*CondBreak); ok {
+			// Add to the previous "if <cond> { break }" via a
+			// logical OR, which will save verbosity.
+			last.expr = &ast.BinaryExpr{
+				Op: token.LOR,
+				X:  last.expr,
+				Y:  node.expr,
+			}
+			return
 		}
 	}
+
+	w.list = append(w.list, node)
 }
 
 // declared reports if the body contains a Declare with the given name.
