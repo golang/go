@@ -577,7 +577,7 @@ func TestAmbientCaps(t *testing.T) {
 }
 
 func TestAmbientCapsUserns(t *testing.T) {
-	skipNoUserNamespaces(t)
+	checkUserNS(t)
 	testAmbientCaps(t, true)
 }
 
