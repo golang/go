@@ -116,13 +116,13 @@
 {"Action":"output","Test":"Test☺☹/2","Output":"=== CONT  Test☺☹/2\n"}
 {"Action":"output","Test":"TestTags","Output":"--- PASS: TestTags (0.00s)\n"}
 {"Action":"output","Test":"TestTags/x_testtag_y","Output":"    --- PASS: TestTags/x_testtag_y (0.04s)\n"}
-{"Action":"output","Test":"TestTags/x_testtag_y","Output":"    \tvet_test.go:187: -tags=x testtag y\n"}
+{"Action":"output","Test":"TestTags/x_testtag_y","Output":"        vet_test.go:187: -tags=x testtag y\n"}
 {"Action":"pass","Test":"TestTags/x_testtag_y"}
 {"Action":"output","Test":"TestTags/x,testtag,y","Output":"    --- PASS: TestTags/x,testtag,y (0.04s)\n"}
-{"Action":"output","Test":"TestTags/x,testtag,y","Output":"    \tvet_test.go:187: -tags=x,testtag,y\n"}
+{"Action":"output","Test":"TestTags/x,testtag,y","Output":"        vet_test.go:187: -tags=x,testtag,y\n"}
 {"Action":"pass","Test":"TestTags/x,testtag,y"}
 {"Action":"output","Test":"TestTags/testtag","Output":"    --- PASS: TestTags/testtag (0.04s)\n"}
-{"Action":"output","Test":"TestTags/testtag","Output":"    \tvet_test.go:187: -tags=testtag\n"}
+{"Action":"output","Test":"TestTags/testtag","Output":"        vet_test.go:187: -tags=testtag\n"}
 {"Action":"pass","Test":"TestTags/testtag"}
 {"Action":"pass","Test":"TestTags"}
 {"Action":"cont","Test":"Test☺☹/1"}
@@ -139,28 +139,28 @@
 {"Action":"output","Test":"Test☺☹Dirs/cgo","Output":"=== CONT  Test☺☹Dirs/cgo\n"}
 {"Action":"output","Test":"Test☺☹","Output":"--- PASS: Test☺☹ (0.39s)\n"}
 {"Action":"output","Test":"Test☺☹/5","Output":"    --- PASS: Test☺☹/5 (0.07s)\n"}
-{"Action":"output","Test":"Test☺☹/5","Output":"    \tvet_test.go:114: φιλεσ: [\"testdata/copylock_func.go\" \"testdata/rangeloop.go\"]\n"}
+{"Action":"output","Test":"Test☺☹/5","Output":"        vet_test.go:114: φιλεσ: [\"testdata/copylock_func.go\" \"testdata/rangeloop.go\"]\n"}
 {"Action":"pass","Test":"Test☺☹/5"}
 {"Action":"output","Test":"Test☺☹/3","Output":"    --- PASS: Test☺☹/3 (0.07s)\n"}
-{"Action":"output","Test":"Test☺☹/3","Output":"    \tvet_test.go:114: φιλεσ: [\"testdata/composite.go\" \"testdata/nilfunc.go\"]\n"}
+{"Action":"output","Test":"Test☺☹/3","Output":"        vet_test.go:114: φιλεσ: [\"testdata/composite.go\" \"testdata/nilfunc.go\"]\n"}
 {"Action":"pass","Test":"Test☺☹/3"}
 {"Action":"output","Test":"Test☺☹/6","Output":"    --- PASS: Test☺☹/6 (0.07s)\n"}
-{"Action":"output","Test":"Test☺☹/6","Output":"    \tvet_test.go:114: φιλεσ: [\"testdata/copylock_range.go\" \"testdata/shadow.go\"]\n"}
+{"Action":"output","Test":"Test☺☹/6","Output":"        vet_test.go:114: φιλεσ: [\"testdata/copylock_range.go\" \"testdata/shadow.go\"]\n"}
 {"Action":"pass","Test":"Test☺☹/6"}
 {"Action":"output","Test":"Test☺☹/2","Output":"    --- PASS: Test☺☹/2 (0.07s)\n"}
-{"Action":"output","Test":"Test☺☹/2","Output":"    \tvet_test.go:114: φιλεσ: [\"testdata/bool.go\" \"testdata/method.go\" \"testdata/unused.go\"]\n"}
+{"Action":"output","Test":"Test☺☹/2","Output":"        vet_test.go:114: φιλεσ: [\"testdata/bool.go\" \"testdata/method.go\" \"testdata/unused.go\"]\n"}
 {"Action":"pass","Test":"Test☺☹/2"}
 {"Action":"output","Test":"Test☺☹/0","Output":"    --- PASS: Test☺☹/0 (0.13s)\n"}
-{"Action":"output","Test":"Test☺☹/0","Output":"    \tvet_test.go:114: φιλεσ: [\"testdata/assign.go\" \"testdata/httpresponse.go\" \"testdata/structtag.go\"]\n"}
+{"Action":"output","Test":"Test☺☹/0","Output":"        vet_test.go:114: φιλεσ: [\"testdata/assign.go\" \"testdata/httpresponse.go\" \"testdata/structtag.go\"]\n"}
 {"Action":"pass","Test":"Test☺☹/0"}
 {"Action":"output","Test":"Test☺☹/4","Output":"    --- PASS: Test☺☹/4 (0.16s)\n"}
-{"Action":"output","Test":"Test☺☹/4","Output":"    \tvet_test.go:114: φιλεσ: [\"testdata/copylock.go\" \"testdata/print.go\"]\n"}
+{"Action":"output","Test":"Test☺☹/4","Output":"        vet_test.go:114: φιλεσ: [\"testdata/copylock.go\" \"testdata/print.go\"]\n"}
 {"Action":"pass","Test":"Test☺☹/4"}
 {"Action":"output","Test":"Test☺☹/1","Output":"    --- PASS: Test☺☹/1 (0.07s)\n"}
-{"Action":"output","Test":"Test☺☹/1","Output":"    \tvet_test.go:114: φιλεσ: [\"testdata/atomic.go\" \"testdata/lostcancel.go\" \"testdata/unsafeptr.go\"]\n"}
+{"Action":"output","Test":"Test☺☹/1","Output":"        vet_test.go:114: φιλεσ: [\"testdata/atomic.go\" \"testdata/lostcancel.go\" \"testdata/unsafeptr.go\"]\n"}
 {"Action":"pass","Test":"Test☺☹/1"}
 {"Action":"output","Test":"Test☺☹/7","Output":"    --- PASS: Test☺☹/7 (0.19s)\n"}
-{"Action":"output","Test":"Test☺☹/7","Output":"    \tvet_test.go:114: φιλεσ: [\"testdata/deadcode.go\" \"testdata/shift.go\"]\n"}
+{"Action":"output","Test":"Test☺☹/7","Output":"        vet_test.go:114: φιλεσ: [\"testdata/deadcode.go\" \"testdata/shift.go\"]\n"}
 {"Action":"pass","Test":"Test☺☹/7"}
 {"Action":"pass","Test":"Test☺☹"}
 {"Action":"output","Test":"Test☺☹Dirs","Output":"--- PASS: Test☺☹Dirs (0.01s)\n"}
