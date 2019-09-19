@@ -125,7 +125,9 @@ type posetNode struct {
 // immediately linked to other constants already present; so for instance if the
 // poset knows that x<=3, and then x is tested against 5, 5 is first added and linked
 // 3 (using 3<5), so that the poset knows that x<=3<5; at that point, it is able
-// to answer x<5 correctly.
+// to answer x<5 correctly. This means that all constants are always within the same
+// DAG; as an implementation detail, we enfoce that the DAG containtining the constants
+// is always the first in the forest.
 //
 // poset is designed to be memory efficient and do little allocations during normal usage.
 // Most internal data structures are pre-allocated and flat, so for instance adding a
@@ -279,10 +281,14 @@ func (po *poset) newconst(n *Value) {
 
 	// If this is the first constant, put it into a new root, as
 	// we can't record an existing connection so we don't have
-	// a specific DAG to add it to.
+	// a specific DAG to add it to. Notice that we want all
+	// constants to be in root #0, so make sure the new root
+	// goes there.
 	if len(po.constants) == 0 {
+		idx := len(po.roots)
 		i := po.newnode(n)
 		po.roots = append(po.roots, i)
+		po.roots[0], po.roots[idx] = po.roots[idx], po.roots[0]
 		po.upush(undoNewRoot, i, 0)
 		po.constants = append(po.constants, n)
 		return
@@ -367,6 +373,9 @@ func (po *poset) newconst(n *Value) {
 		//
 		i2 := po.values[higherptr.ID]
 		r2 := po.findroot(i2)
+		if r2 != po.roots[0] { // all constants should be in root #0
+			panic("constant not in root #0")
+		}
 		dummy := po.newnode(nil)
 		po.changeroot(r2, dummy)
 		po.upush(undoChangeRoot, dummy, newedge(r2, false))
@@ -546,6 +555,12 @@ func (po *poset) findroot(i uint32) uint32 {
 
 // mergeroot merges two DAGs into one DAG by creating a new dummy root
 func (po *poset) mergeroot(r1, r2 uint32) uint32 {
+	// Root #0 is special as it contains all constants. Since mergeroot
+	// discards r2 as root and keeps r1, make sure that r2 is not root #0,
+	// otherwise constants would move to a different root.
+	if r2 == po.roots[0] {
+		r1, r2 = r2, r1
+	}
 	r := po.newnode(nil)
 	po.setchl(r, newedge(r1, false))
 	po.setchr(r, newedge(r2, false))
@@ -623,10 +638,9 @@ func (po *poset) CheckIntegrity() (err error) {
 	}
 
 	// Verify that each node appears in a single DAG, and that
-	// all constants are within the same DAG
-	var croot uint32
+	// all constants are within the first DAG
 	seen := newBitset(int(po.lastidx + 1))
-	for _, r := range po.roots {
+	for ridx, r := range po.roots {
 		if r == 0 {
 			err = errors.New("empty root")
 			return
@@ -639,10 +653,8 @@ func (po *poset) CheckIntegrity() (err error) {
 			}
 			seen.Set(i)
 			if constants.Test(i) {
-				if croot == 0 {
-					croot = r
-				} else if croot != r {
-					err = errors.New("constants are in different DAGs")
+				if ridx != 0 {
+					err = errors.New("constants not in the first DAG")
 					return true
 				}
 			}
