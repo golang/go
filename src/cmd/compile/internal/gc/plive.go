@@ -1450,7 +1450,19 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
 	return lv.livenessMap
 }
 
-// TODO(cuonglm,mdempsky): Revisit after #24416 is fixed.
+// isfat reports whether a variable of type t needs multiple assignments to initialize.
+// For example:
+//
+// 	type T struct { x, y int }
+// 	x := T{x: 0, y: 1}
+//
+// Then we need:
+//
+// 	var t T
+// 	t.x = 0
+// 	t.y = 1
+//
+// to fully initialize t.
 func isfat(t *types.Type) bool {
 	if t != nil {
 		switch t.Etype {
