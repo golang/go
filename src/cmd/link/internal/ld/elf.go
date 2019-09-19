@@ -176,6 +176,7 @@ const (
 	EM_MIPS_RS4_BE       = 10
 	EM_ALPHA_STD         = 41
 	EM_ALPHA             = 0x9026
+	EM_RISCV             = 243
 	SHN_UNDEF            = 0
 	SHN_LORESERVE        = 0xff00
 	SHN_LOPROC           = 0xff00
@@ -485,7 +486,7 @@ var buildinfo []byte
 func Elfinit(ctxt *Link) {
 	ctxt.IsELF = true
 
-	if ctxt.Arch.InFamily(sys.AMD64, sys.ARM64, sys.MIPS64, sys.PPC64, sys.S390X) {
+	if ctxt.Arch.InFamily(sys.AMD64, sys.ARM64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X) {
 		elfRelType = ".rela"
 	} else {
 		elfRelType = ".rel"
@@ -500,7 +501,7 @@ func Elfinit(ctxt *Link) {
 			ehdr.flags = 2 /* Version 2 ABI */
 		}
 		fallthrough
-	case sys.AMD64, sys.ARM64, sys.MIPS64:
+	case sys.AMD64, sys.ARM64, sys.MIPS64, sys.RISCV64:
 		if ctxt.Arch.Family == sys.MIPS64 {
 			ehdr.flags = 0x20000004 /* MIPS 3 CPIC */
 		}
@@ -1758,6 +1759,8 @@ func Asmbelf(ctxt *Link, symo int64) {
 		eh.machine = EM_386
 	case sys.PPC64:
 		eh.machine = EM_PPC64
+	case sys.RISCV64:
+		eh.machine = EM_RISCV
 	case sys.S390X:
 		eh.machine = EM_S390
 	}
