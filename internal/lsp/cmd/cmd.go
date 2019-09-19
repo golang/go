@@ -119,14 +119,12 @@ func (app *Application) Run(ctx context.Context, args ...string) error {
 	export.AddExporters(ocagent.Connect(ocConfig))
 	app.Serve.app = app
 	if len(args) == 0 {
-		tool.Main(ctx, &app.Serve, args)
-		return nil
+		return tool.Run(ctx, &app.Serve, args)
 	}
 	command, args := args[0], args[1:]
 	for _, c := range app.commands() {
 		if c.Name() == command {
-			tool.Main(ctx, c, args)
-			return nil
+			return tool.Run(ctx, c, args)
 		}
 	}
 	return tool.CommandLineErrorf("Unknown command %v", command)

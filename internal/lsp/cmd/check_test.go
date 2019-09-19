@@ -25,7 +25,7 @@ func (r *runner) Diagnostics(t *testing.T, data tests.Diagnostics) {
 		args := []string{"-remote=internal", "check", fname}
 		app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Exported.Config.Env)
 		out := captureStdOut(t, func() {
-			tool.Main(r.ctx, app, args)
+			_ = tool.Run(r.ctx, app, args)
 		})
 		// parse got into a collection of reports
 		got := map[string]struct{}{}

@@ -55,7 +55,7 @@ func TestDefinitionHelpExample(t *testing.T) {
 		fmt.Sprintf("%v:#%v", thisFile, cmd.ExampleOffset)} {
 		args := append(baseArgs, query)
 		got := captureStdOut(t, func() {
-			tool.Main(tests.Context(t), cmd.New("gopls-test", "", nil), args)
+			_ = tool.Run(tests.Context(t), cmd.New("gopls-test", "", nil), args)
 		})
 		if !expect.MatchString(got) {
 			t.Errorf("test with %v\nexpected:\n%s\ngot:\n%s", args, expect, got)
@@ -84,7 +84,7 @@ func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 			args = append(args, fmt.Sprint(d.Src))
 			got := captureStdOut(t, func() {
 				app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Exported.Config.Env)
-				tool.Main(r.ctx, app, args)
+				_ = tool.Run(r.ctx, app, args)
 			})
 			got = normalizePaths(r.data, got)
 			if mode&jsonGoDef != 0 && runtime.GOOS == "windows" {

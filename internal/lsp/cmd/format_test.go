@@ -39,7 +39,7 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 			}
 			app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Config.Env)
 			got := captureStdOut(t, func() {
-				tool.Main(r.ctx, app, append([]string{"-remote=internal", "format"}, args...))
+				_ = tool.Run(r.ctx, app, append([]string{"-remote=internal", "format"}, args...))
 			})
 			got = normalizePaths(r.data, got)
 			// check the first two lines are the expected file header
