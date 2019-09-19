@@ -291,51 +291,43 @@ func (e *Escape) stmt(n *Node) {
 
 	case ORANGE:
 		// for List = range Right { Nbody }
-
-		// Right is evaluated outside the loop.
-		tv := e.newLoc(n, false)
-		e.expr(tv.asHole(), n.Right)
-
 		e.loopDepth++
 		ks := e.addrs(n.List)
-		if len(ks) >= 2 {
-			if n.Right.Type.IsArray() {
-				e.flow(ks[1].note(n, "range"), tv)
-			} else {
-				e.flow(ks[1].deref(n, "range-deref"), tv)
-			}
-		}
-
 		e.block(n.Nbody)
 		e.loopDepth--
 
-	case OSWITCH:
-		var tv *EscLocation
-		if n.Left != nil {
-			if n.Left.Op == OTYPESW {
-				k := e.discardHole()
-				if n.Left.Left != nil {
-					tv = e.newLoc(n.Left, false)
-					k = tv.asHole()
-				}
-				e.expr(k, n.Left.Right)
+		// Right is evaluated outside the loop.
+		k := e.discardHole()
+		if len(ks) >= 2 {
+			if n.Right.Type.IsArray() {
+				k = ks[1].note(n, "range")
 			} else {
-				e.discard(n.Left)
+				k = ks[1].deref(n, "range-deref")
 			}
 		}
+		e.expr(e.later(k), n.Right)
 
+	case OSWITCH:
+		typesw := n.Left != nil && n.Left.Op == OTYPESW
+
+		var ks []EscHole
 		for _, cas := range n.List.Slice() { // cases
-			if tv != nil {
-				// type switch variables have no ODCL.
+			if typesw && n.Left.Left != nil {
 				cv := cas.Rlist.First()
-				k := e.dcl(cv)
+				k := e.dcl(cv) // type switch variables have no ODCL.
 				if types.Haspointers(cv.Type) {
-					e.flow(k.dotType(cv.Type, n, "switch case"), tv)
+					ks = append(ks, k.dotType(cv.Type, n, "switch case"))
 				}
 			}
 
 			e.discards(cas.List)
 			e.block(cas.Nbody)
+		}
+
+		if typesw {
+			e.expr(e.teeHole(ks...), n.Left.Right)
+		} else {
+			e.discard(n.Left)
 		}
 
 	case OSELECT:
@@ -882,8 +874,7 @@ func (e *Escape) augmentParamHole(k EscHole, where *Node) EscHole {
 	// transiently allocated.
 	if where.Op == ODEFER && e.loopDepth == 1 {
 		where.Esc = EscNever // force stack allocation of defer record (see ssa.go)
-		// TODO(mdempsky): Eliminate redundant EscLocation allocs.
-		return e.teeHole(k, e.newLoc(nil, false).asHole())
+		return e.later(k)
 	}
 
 	return e.heapHole()
@@ -988,12 +979,24 @@ func (e *Escape) dcl(n *Node) EscHole {
 	return loc.asHole()
 }
 
+// spill allocates a new location associated with expression n, flows
+// its address to k, and returns a hole that flows values to it. It's
+// intended for use with most expressions that allocate storage.
 func (e *Escape) spill(k EscHole, n *Node) EscHole {
 	// TODO(mdempsky): Optimize. E.g., if k is the heap or blank,
 	// then we already know whether n leaks, and we can return a
 	// more optimized hole.
 	loc := e.newLoc(n, true)
 	e.flow(k.addr(n, "spill"), loc)
+	return loc.asHole()
+}
+
+// later returns a new hole that flows into k, but some time later.
+// Its main effect is to prevent immediate reuse of temporary
+// variables introduced during Order.
+func (e *Escape) later(k EscHole) EscHole {
+	loc := e.newLoc(nil, false)
+	e.flow(k, loc)
 	return loc.asHole()
 }
 
@@ -1276,9 +1279,6 @@ func (e *Escape) finish(fns []*Node) {
 
 		// Update n.Esc based on escape analysis results.
 		//
-		// TODO(mdempsky): Simplify once compatibility with
-		// esc.go is no longer necessary.
-		//
 		// TODO(mdempsky): Describe path when Debug['m'] >= 2.
 
 		if loc.escapes {
@@ -1288,15 +1288,12 @@ func (e *Escape) finish(fns []*Node) {
 			n.Esc = EscHeap
 			addrescapes(n)
 		} else {
-			if Debug['m'] != 0 && n.Op != ONAME && n.Op != OTYPESW && n.Op != ORANGE && n.Op != ODEFER {
+			if Debug['m'] != 0 && n.Op != ONAME {
 				Warnl(n.Pos, "%S does not escape", n)
 			}
 			n.Esc = EscNone
 			if loc.transient {
-				switch n.Op {
-				case OCALLPART, OCLOSURE, ODDDARG, OARRAYLIT, OSLICELIT, OPTRLIT, OSTRUCTLIT:
-					n.SetNoescape(true)
-				}
+				n.SetNoescape(true)
 			}
 		}
 	}
