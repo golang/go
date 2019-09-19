@@ -1674,13 +1674,13 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 		return
 	}
 
-	if cfg.ModulesEnabled {
+	if cfg.ModulesEnabled && p.Error == nil {
 		mainPath := p.ImportPath
 		if p.Internal.CmdlineFiles {
 			mainPath = "command-line-arguments"
 		}
 		p.Module = ModPackageModuleInfo(mainPath)
-		if p.Name == "main" {
+		if p.Name == "main" && len(p.DepsErrors) == 0 {
 			p.Internal.BuildInfo = ModPackageBuildInfo(mainPath, p.Deps)
 		}
 	}

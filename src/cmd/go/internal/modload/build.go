@@ -183,6 +183,10 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 	return info
 }
 
+// PackageBuildInfo returns a string containing module version information
+// for modules providing packages named by path and deps. path and deps must
+// name packages that were resolved successfully with ImportPaths or one of
+// the Load functions.
 func PackageBuildInfo(path string, deps []string) string {
 	if isStandardImportPath(path) || !Enabled() {
 		return ""
