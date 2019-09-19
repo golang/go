@@ -1,6 +1,10 @@
 # It's absurd, but builds with -compiler=gccgo used to fail to build module m.
 # golang.org/issue/34358
 
+env GO111MODULE=off
+
+[short] skip
+
 cd m
 go build
 exists m$GOEXE
