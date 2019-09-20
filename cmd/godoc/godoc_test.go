@@ -75,56 +75,77 @@ func serverAddress(t *testing.T) string {
 	return ln.Addr().String()
 }
 
-func waitForServerReady(t *testing.T, addr string) {
-	waitForServer(t,
+func waitForServerReady(t *testing.T, cmd *exec.Cmd, addr string) {
+	ch := make(chan error, 1)
+	go func() { ch <- fmt.Errorf("server exited early: %v", cmd.Wait()) }()
+	go waitForServer(t, ch,
 		fmt.Sprintf("http://%v/", addr),
 		"The Go Programming Language",
 		15*time.Second,
 		false)
+	if err := <-ch; err != nil {
+		t.Fatal(err)
+	}
 }
 
-func waitForSearchReady(t *testing.T, addr string) {
-	waitForServer(t,
+func waitForSearchReady(t *testing.T, cmd *exec.Cmd, addr string) {
+	ch := make(chan error, 1)
+	go func() { ch <- fmt.Errorf("server exited early: %v", cmd.Wait()) }()
+	go waitForServer(t, ch,
 		fmt.Sprintf("http://%v/search?q=FALLTHROUGH", addr),
 		"The list of tokens.",
 		2*time.Minute,
 		false)
+	if err := <-ch; err != nil {
+		t.Fatal(err)
+	}
 }
 
 func waitUntilScanComplete(t *testing.T, addr string) {
-	waitForServer(t,
+	ch := make(chan error)
+	go waitForServer(t, ch,
 		fmt.Sprintf("http://%v/pkg", addr),
 		"Scan is not yet complete",
 		2*time.Minute,
+		// setting reverse as true, which means this waits
+		// until the string is not returned in the response anymore
 		true,
 	)
-	// setting reverse as true, which means this waits
-	// until the string is not returned in the response anymore
+	if err := <-ch; err != nil {
+		t.Fatal(err)
+	}
 }
 
 const pollInterval = 200 * time.Millisecond
 
-func waitForServer(t *testing.T, url, match string, timeout time.Duration, reverse bool) {
-	// "health check" duplicated from x/tools/cmd/tipgodoc/tip.go
+// waitForServer waits for server to meet the required condition.
+// It sends a single error value to ch, unless the test has failed.
+// The error value is nil if the required condition was met within
+// timeout, or non-nil otherwise.
+func waitForServer(t *testing.T, ch chan<- error, url, match string, timeout time.Duration, reverse bool) {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		time.Sleep(pollInterval)
+		if t.Failed() {
+			return
+		}
 		res, err := http.Get(url)
 		if err != nil {
 			continue
 		}
-		rbody, err := ioutil.ReadAll(res.Body)
+		body, err := ioutil.ReadAll(res.Body)
 		res.Body.Close()
-		if err == nil && res.StatusCode == http.StatusOK {
-			if bytes.Contains(rbody, []byte(match)) && !reverse {
-				return
-			}
-			if !bytes.Contains(rbody, []byte(match)) && reverse {
-				return
-			}
+		if err != nil || res.StatusCode != http.StatusOK {
+			continue
 		}
+		switch {
+		case !reverse && bytes.Contains(body, []byte(match)),
+			reverse && !bytes.Contains(body, []byte(match)):
+			ch <- nil
+			return
+		}
+		time.Sleep(pollInterval)
 	}
-	t.Fatalf("Server failed to respond in %v", timeout)
+	ch <- fmt.Errorf("server failed to respond in %v", timeout)
 }
 
 // hasTag checks whether a given release tag is contained in the current version
@@ -140,7 +161,7 @@ func hasTag(t string) bool {
 
 func killAndWait(cmd *exec.Cmd) {
 	cmd.Process.Kill()
-	cmd.Wait()
+	cmd.Process.Wait()
 }
 
 func TestURL(t *testing.T) {
@@ -228,9 +249,9 @@ func testWeb(t *testing.T, withIndex bool) {
 	defer killAndWait(cmd)
 
 	if withIndex {
-		waitForSearchReady(t, addr)
+		waitForSearchReady(t, cmd, addr)
 	} else {
-		waitForServerReady(t, addr)
+		waitForServerReady(t, cmd, addr)
 		waitUntilScanComplete(t, addr)
 	}
 
@@ -444,7 +465,7 @@ func main() { print(lib.V) }
 		t.Fatalf("failed to start godoc: %s", err)
 	}
 	defer killAndWait(cmd)
-	waitForServerReady(t, addr)
+	waitForServerReady(t, cmd, addr)
 
 	// Wait for type analysis to complete.
 	reader := bufio.NewReader(stderr)
