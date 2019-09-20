@@ -280,13 +280,13 @@ func sigpipe() {
 //
 //go:nosplit
 func sigFetchG(c *sigctxt) *g {
-    switch GOARCH {
-    case "arm", "arm64", "ppc64", "ppc64le":
-        if inVDSOPage(c.sigpc()) {
-            return nil
-        }
-    }
-    return getg()
+	switch GOARCH {
+	case "arm", "arm64":
+		if inVDSOPage(c.sigpc()) {
+			return nil
+		}
+	}
+	return getg()
 }
 
 // sigtrampgo is called from the signal handler function, sigtramp,
