@@ -126,6 +126,14 @@ func newKeyFromSeed(privateKey, seed []byte) {
 // Sign signs the message with privateKey and returns a signature. It will
 // panic if len(privateKey) is not PrivateKeySize.
 func Sign(privateKey PrivateKey, message []byte) []byte {
+	// Outline the function body so that the returned signature can be
+	// stack-allocated.
+	signature := make([]byte, SignatureSize)
+	sign(signature, privateKey, message)
+	return signature
+}
+
+func sign(signature, privateKey, message []byte) {
 	if l := len(privateKey); l != PrivateKeySize {
 		panic("ed25519: bad private key length: " + strconv.Itoa(l))
 	}
@@ -165,11 +173,8 @@ func Sign(privateKey PrivateKey, message []byte) []byte {
 	var s [32]byte
 	edwards25519.ScMulAdd(&s, &hramDigestReduced, &expandedSecretKey, &messageDigestReduced)
 
-	signature := make([]byte, SignatureSize)
 	copy(signature[:], encodedR[:])
 	copy(signature[32:], s[:])
-
-	return signature
 }
 
 // Verify reports whether sig is a valid signature of message by publicKey. It
