@@ -98,81 +98,139 @@ func (e InvalidHostError) Error() string {
 // Please be informed that for now shouldEscape does not check all
 // reserved characters correctly. See golang.org/issue/5684.
 func shouldEscape(c byte, mode encoding) bool {
-	// §2.3 Unreserved characters (alphanum)
-	if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9' {
-		return false
+	switch mode {
+	case encodePath:
+		return shouldEscapePathTable[c]
+	case encodePathSegment:
+		return shouldEscapePathSegmentTable[c]
+	case encodeHost:
+		return shouldEscapeHostTable[c]
+	case encodeZone:
+		return shouldEscapeZoneTable[c]
+	case encodeUserPassword:
+		return shouldEscapeUserPasswordTable[c]
+	case encodeQueryComponent:
+		return shouldEscapeQueryComponentTable[c]
+	case encodeFragment:
+		return shouldEscapeFragmentTable[c]
+	default:
+		panic(fmt.Sprintf("unknown mode %s", strconv.Itoa(int(mode))))
 	}
-
-	if mode == encodeHost || mode == encodeZone {
-		// §3.2.2 Host allows
-		//	sub-delims = "!" / "$" / "&" / "'" / "(" / ")" / "*" / "+" / "," / ";" / "="
-		// as part of reg-name.
-		// We add : because we include :port as part of host.
-		// We add [ ] because we include [ipv6]:port as part of host.
-		// We add < > because they're the only characters left that
-		// we could possibly allow, and Parse will reject them if we
-		// escape them (because hosts can't use %-encoding for
-		// ASCII bytes).
-		switch c {
-		case '!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '=', ':', '[', ']', '<', '>', '"':
-			return false
-		}
-	}
-
-	switch c {
-	case '-', '_', '.', '~': // §2.3 Unreserved characters (mark)
-		return false
-
-	case '$', '&', '+', ',', '/', ':', ';', '=', '?', '@': // §2.2 Reserved characters (reserved)
-		// Different sections of the URL allow a few of
-		// the reserved characters to appear unescaped.
-		switch mode {
-		case encodePath: // §3.3
-			// The RFC allows : @ & = + $ but saves / ; , for assigning
-			// meaning to individual path segments. This package
-			// only manipulates the path as a whole, so we allow those
-			// last three as well. That leaves only ? to escape.
-			return c == '?'
-
-		case encodePathSegment: // §3.3
-			// The RFC allows : @ & = + $ but saves / ; , for assigning
-			// meaning to individual path segments.
-			return c == '/' || c == ';' || c == ',' || c == '?'
-
-		case encodeUserPassword: // §3.2.1
-			// The RFC allows ';', ':', '&', '=', '+', '$', and ',' in
-			// userinfo, so we must escape only '@', '/', and '?'.
-			// The parsing of userinfo treats ':' as special so we must escape
-			// that too.
-			return c == '@' || c == '/' || c == '?' || c == ':'
-
-		case encodeQueryComponent: // §3.4
-			// The RFC reserves (so we must escape) everything.
-			return true
-
-		case encodeFragment: // §4.1
-			// The RFC text is silent but the grammar allows
-			// everything, so escape nothing.
-			return false
-		}
-	}
-
-	if mode == encodeFragment {
-		// RFC 3986 §2.2 allows not escaping sub-delims. A subset of sub-delims are
-		// included in reserved from RFC 2396 §2.2. The remaining sub-delims do not
-		// need to be escaped. To minimize potential breakage, we apply two restrictions:
-		// (1) we always escape sub-delims outside of the fragment, and (2) we always
-		// escape single quote to avoid breaking callers that had previously assumed that
-		// single quotes would be escaped. See issue #19917.
-		switch c {
-		case '!', '(', ')', '*':
-			return false
-		}
-	}
-
-	// Everything else must be escaped.
-	return true
 }
+
+var unreservedCharactersTable = func() [256]bool {
+	// §2.3 Unreserved characters
+	// unreserved  = ALPHA / DIGIT / "-" / "." / "_" / "~"
+	// Everything must be escaped excludes unreserved characters.
+	var t [256]bool
+	for i := 0; i < '0'; i++ {
+		t[i] = true
+	}
+	for i := '9' + 1; i < 'A'; i++ {
+		t[i] = true
+	}
+	for i := 'Z' + 1; i < 'a'; i++ {
+		t[i] = true
+	}
+	for i := 'z' + 1; i < 256; i++ {
+		t[i] = true
+	}
+
+	t['-'] = false
+	t['.'] = false
+	t['_'] = false
+	t['~'] = false
+
+	return t
+}()
+
+var shouldEscapePathTable = func() [256]bool {
+	// §3.3 Path
+	// The RFC allows : @ & = + $ but saves / ; , for assigning
+	// meaning to individual path segments. This package
+	// only manipulates the path as a whole, so we allow those
+	// last three as well. That leaves only ? to escape.
+	var t = unreservedCharactersTable
+
+	var tmp = [...]byte{':', '@', '&', '=', '+', '$', '/', ';', ','}
+	for i := 0; i < len(tmp); i++ {
+		t[tmp[i]] = false
+	}
+	return t
+}()
+
+var shouldEscapePathSegmentTable = func() [256]bool {
+	// §3.3 Path
+	// The RFC allows : @ & = + $ but saves / ; , for assigning
+	// meaning to individual path segments.
+	var t = unreservedCharactersTable
+
+	var tmp = [...]byte{':', '@', '&', '=', '+', '$',}
+	for i := 0; i < len(tmp); i++ {
+		t[tmp[i]] = false
+	}
+	return t
+}()
+
+var shouldEscapeHostTable = func() [256]bool {
+	// §3.2.2 Host allows
+	//	sub-delims = "!" / "$" / "&" / "'" / "(" / ")" / "*" / "+" / "," / ";" / "="
+	// as part of reg-name.
+	// We add : because we include :port as part of host.
+	// We add [ ] because we include [ipv6]:port as part of host.
+	// We add < > because they're the only characters left that
+	// we could possibly allow, and Parse will reject them if we
+	// escape them (because hosts can't use %-encoding for
+	// ASCII bytes).
+	var t = unreservedCharactersTable
+
+	var tmp = [...]byte{'!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '=', ':', '[', ']', '<', '>', '"'}
+	for i := 0; i < len(tmp); i++ {
+		t[tmp[i]] = false
+	}
+	return t
+}()
+
+var shouldEscapeZoneTable = shouldEscapeHostTable
+
+var shouldEscapeUserPasswordTable = func() [256]bool {
+	// §3.2.1 User Information
+	// The RFC allows ';', ':', '&', '=', '+', '$', and ',' in
+	// userinfo, so we must escape only '@', '/', and '?'.
+	// The parsing of userinfo treats ':' as special so we must escape
+	// that too.
+	var t = unreservedCharactersTable
+
+	var tmp = [...]byte{';', '&', '=', '+', '$', ','}
+	for i := 0; i < len(tmp); i++ {
+		t[tmp[i]] = false
+	}
+	return t
+}()
+
+// The RFC reserves (so we must escape) everything.
+var shouldEscapeQueryComponentTable = unreservedCharactersTable
+
+var shouldEscapeFragmentTable = func() [256]bool {
+	// § 3.5 Fragment
+	//	fragment    = *( pchar / "/" / "?" )
+	//	pchar       = unreserved / pct-encoded / sub-delims / ":" / "@"
+	//
+	// RFC 3986 §2.2 Reserved Characters
+	// The RFC allows not escaping sub-delims. A subset of sub-delims are
+	// included in reserved from RFC 2396 §2.2. The remaining sub-delims do not
+	// need to be escaped. To minimize potential breakage, we apply two restrictions:
+	// (1) we always escape sub-delims outside of the fragment, and (2) we always
+	// escape single quote to avoid breaking callers that had previously assumed that
+	// single quotes would be escaped. See issue #19917.
+	var t = unreservedCharactersTable
+
+	var tmp = [...]byte{'$', '&', '+', ',', '/', ':', ';', '=', '?', '@', '!', '(', ')', '*'}
+	for i := 0; i < len(tmp); i++ {
+		t[tmp[i]] = false
+	}
+	return t
+}()
 
 // QueryUnescape does the inverse transformation of QueryEscape,
 // converting each 3-byte encoded substring of the form "%AB" into the
