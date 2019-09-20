@@ -72,7 +72,7 @@ func current() (*User, error) {
 
 func listGroups(*User) ([]string, error) {
 	if runtime.GOOS == "android" || runtime.GOOS == "aix" {
-		return nil, errors.New(fmt.Sprintf("user: GroupIds not implemented on %s", runtime.GOOS))
+		return nil, fmt.Errorf("user: GroupIds not implemented on %s", runtime.GOOS)
 	}
 	return nil, errors.New("user: GroupIds requires cgo")
 }
