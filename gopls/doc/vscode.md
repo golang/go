@@ -14,10 +14,10 @@ Use the [VSCode-Go] plugin, with the following configuration:
 "gopls": {
     "usePlaceholders": true, // add parameter placeholders when completing a function
 
-    // ----- Experimental settings -----
+    // Experimental settings
     "completeUnimported": true, // autocomplete unimported packages
-    "watchChangedFiles": true, // watch file changes outside of the editor
-    "deepComplete": true, // deep completion
+    "watchChangedFiles": true,  // watch file changes outside of the editor
+    "deepCompletion": true,     // enable deep completion
 },
 "files.eol": "\n", // formatting only supports LF line endings
 ```
