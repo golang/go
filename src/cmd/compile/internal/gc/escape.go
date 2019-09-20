@@ -100,10 +100,14 @@ type EscLocation struct {
 	edges     []EscEdge // incoming edges
 	loopDepth int       // loopDepth at declaration
 
-	// derefs and walkgen are used during walk to track the
+	// derefs and walkgen are used during walkOne to track the
 	// minimal dereferences from the walk root.
 	derefs  int // >= -1
 	walkgen uint32
+
+	// queued is used by walkAll to track whether this location is
+	// in the walk queue.
+	queued bool
 
 	// escapes reports whether the represented variable's address
 	// escapes; that is, whether the variable must be heap
@@ -1070,30 +1074,45 @@ func (e *Escape) discardHole() EscHole { return e.blankLoc.asHole() }
 // walkAll computes the minimal dereferences between all pairs of
 // locations.
 func (e *Escape) walkAll() {
-	var walkgen uint32
+	// We use a work queue to keep track of locations that we need
+	// to visit, and repeatedly walk until we reach a fixed point.
 
-	for _, loc := range e.allLocs {
-		walkgen++
-		e.walkOne(loc, walkgen)
+	var todo []*EscLocation // LIFO queue
+	enqueue := func(loc *EscLocation) {
+		if !loc.queued {
+			todo = append(todo, loc)
+			loc.queued = true
+		}
 	}
 
-	// Walk the heap last so that we catch any edges to the heap
-	// added during walkOne.
-	walkgen++
-	e.walkOne(&e.heapLoc, walkgen)
+	enqueue(&e.heapLoc)
+	for _, loc := range e.allLocs {
+		enqueue(loc)
+	}
+
+	var walkgen uint32
+	for len(todo) > 0 {
+		root := todo[len(todo)-1]
+		todo = todo[:len(todo)-1]
+		root.queued = false
+
+		walkgen++
+		e.walkOne(root, walkgen, enqueue)
+	}
 }
 
 // walkOne computes the minimal number of dereferences from root to
 // all other locations.
-func (e *Escape) walkOne(root *EscLocation, walkgen uint32) {
+func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLocation)) {
 	// The data flow graph has negative edges (from addressing
 	// operations), so we use the Bellman-Ford algorithm. However,
 	// we don't have to worry about infinite negative cycles since
 	// we bound intermediate dereference counts to 0.
+
 	root.walkgen = walkgen
 	root.derefs = 0
 
-	todo := []*EscLocation{root}
+	todo := []*EscLocation{root} // LIFO queue
 	for len(todo) > 0 {
 		l := todo[len(todo)-1]
 		todo = todo[:len(todo)-1]
@@ -1112,9 +1131,9 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32) {
 			// If l's address flows to a non-transient
 			// location, then l can't be transiently
 			// allocated.
-			if !root.transient {
+			if !root.transient && l.transient {
 				l.transient = false
-				// TODO(mdempsky): Should we re-walk from l now?
+				enqueue(l)
 			}
 		}
 
@@ -1131,6 +1150,7 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32) {
 				// TODO(mdempsky): Better way to handle this?
 				if root != &e.heapLoc {
 					e.flow(e.heapHole(), l)
+					enqueue(&e.heapLoc)
 				}
 			}
 
