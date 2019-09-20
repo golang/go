@@ -6,6 +6,6 @@ func _() {
 
 	switch interface{}(pear).(type) {
 	case b: //@complete(":", basket, banana)
-		b //@complete(" //", banana, basket)
+		b //@complete(" //", banana, basket, break)
 	}
 }

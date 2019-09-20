@@ -515,6 +515,9 @@ func Completion(ctx context.Context, view View, f File, pos protocol.Position, o
 		if err := c.lexical(); err != nil {
 			return nil, nil, err
 		}
+		if err := c.keyword(); err != nil {
+			return nil, nil, err
+		}
 
 	// The function name hasn't been typed yet, but the parens are there:
 	//   recv.‸(arg)
