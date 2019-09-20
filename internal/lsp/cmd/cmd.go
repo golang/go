@@ -140,6 +140,7 @@ func (app *Application) commands() []tool.Application {
 		&check{app: app},
 		&format{app: app},
 		&query{app: app},
+		&rename{app: app},
 		&version{app: app},
 	}
 }

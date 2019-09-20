@@ -628,3 +628,284 @@ func sw() {
 	}
 }
 
+-- fmty-d-rename --
+--- rename/a/random.go.orig
++++ rename/a/random.go
+@@ -2,7 +2,7 @@
+ 
+ import (
+ 	lg "log"
+-	"fmt" //@rename("fmt", "fmty")
++	fmty "fmt" //@rename("fmt", "fmty")
+ 	f2 "fmt" //@rename("f2", "f2name"),rename("fmt","f2y")
+ )
+ 
+@@ -33,7 +33,7 @@
+ 
+ 	switch y := x.(type) { //@rename("y", "y0")
+ 	case int:
+-		fmt.Printf("%d", y) //@rename("y", "y1"),rename("fmt", "format")
++		fmty.Printf("%d", y) //@rename("y", "y1"),rename("fmt", "format")
+ 	case string:
+ 		lg.Printf("%s", y) //@rename("y", "y2"),rename("lg","log")
+ 	default:
+
+-- f2name-d-rename --
+--- rename/a/random.go.orig
++++ rename/a/random.go
+@@ -3,7 +3,7 @@
+ import (
+ 	lg "log"
+ 	"fmt" //@rename("fmt", "fmty")
+-	f2 "fmt" //@rename("f2", "f2name"),rename("fmt","f2y")
++	f2name "fmt" //@rename("f2", "f2name"),rename("fmt","f2y")
+ )
+ 
+ func Random() int {
+@@ -37,6 +37,6 @@
+ 	case string:
+ 		lg.Printf("%s", y) //@rename("y", "y2"),rename("lg","log")
+ 	default:
+-		f2.Printf("%v", y) //@rename("y", "y3"),rename("f2","fmt2")
++		f2name.Printf("%v", y) //@rename("y", "y3"),rename("f2","fmt2")
+ 	}
+ }
+
+-- f2y-d-rename --
+--- rename/a/random.go.orig
++++ rename/a/random.go
+@@ -3,7 +3,7 @@
+ import (
+ 	lg "log"
+ 	"fmt" //@rename("fmt", "fmty")
+-	f2 "fmt" //@rename("f2", "f2name"),rename("fmt","f2y")
++	f2y "fmt" //@rename("f2", "f2name"),rename("fmt","f2y")
+ )
+ 
+ func Random() int {
+@@ -37,6 +37,6 @@
+ 	case string:
+ 		lg.Printf("%s", y) //@rename("y", "y2"),rename("lg","log")
+ 	default:
+-		f2.Printf("%v", y) //@rename("y", "y3"),rename("f2","fmt2")
++		f2y.Printf("%v", y) //@rename("y", "y3"),rename("f2","fmt2")
+ 	}
+ }
+
+-- z-d-rename --
+--- rename/a/random.go.orig
++++ rename/a/random.go
+@@ -11,8 +11,8 @@
+ 	return y
+ }
+ 
+-func Random2(y int) int { //@rename("y", "z")
+-	return y
++func Random2(z int) int { //@rename("y", "z")
++	return z
+ }
+ 
+ type Pos struct {
+
+-- myX-d-rename --
+--- rename/a/random.go.orig
++++ rename/a/random.go
+@@ -16,11 +16,11 @@
+ }
+ 
+ type Pos struct {
+-	x, y int
++	myX, y int
+ }
+ 
+ func (p *Pos) Sum() int {
+-	return p.x + p.y //@rename("x", "myX")
++	return p.myX + p.y //@rename("x", "myX")
+ }
+ 
+ func _() {
+
+-- pos-d-rename --
+--- rename/a/random.go.orig
++++ rename/a/random.go
+@@ -24,8 +24,8 @@
+ }
+ 
+ func _() {
+-	var p Pos   //@rename("p", "pos")
+-	_ = p.Sum() //@rename("Sum", "GetSum")
++	var pos Pos   //@rename("p", "pos")
++	_ = pos.Sum() //@rename("Sum", "GetSum")
+ }
+ 
+ func sw() {
+
+-- GetSum-d-rename --
+--- rename/a/random.go.orig
++++ rename/a/random.go
+@@ -19,13 +19,13 @@
+ 	x, y int
+ }
+ 
+-func (p *Pos) Sum() int {
++func (p *Pos) GetSum() int {
+ 	return p.x + p.y //@rename("x", "myX")
+ }
+ 
+ func _() {
+ 	var p Pos   //@rename("p", "pos")
+-	_ = p.Sum() //@rename("Sum", "GetSum")
++	_ = p.GetSum() //@rename("Sum", "GetSum")
+ }
+ 
+ func sw() {
+
+-- y0-d-rename --
+--- rename/a/random.go.orig
++++ rename/a/random.go
+@@ -31,12 +31,12 @@
+ func sw() {
+ 	var x interface{}
+ 
+-	switch y := x.(type) { //@rename("y", "y0")
++	switch y0 := x.(type) { //@rename("y", "y0")
+ 	case int:
+-		fmt.Printf("%d", y) //@rename("y", "y1"),rename("fmt", "format")
++		fmt.Printf("%d", y0) //@rename("y", "y1"),rename("fmt", "format")
+ 	case string:
+-		lg.Printf("%s", y) //@rename("y", "y2"),rename("lg","log")
++		lg.Printf("%s", y0) //@rename("y", "y2"),rename("lg","log")
+ 	default:
+-		f2.Printf("%v", y) //@rename("y", "y3"),rename("f2","fmt2")
++		f2.Printf("%v", y0) //@rename("y", "y3"),rename("f2","fmt2")
+ 	}
+ }
+
+-- format-d-rename --
+--- rename/a/random.go.orig
++++ rename/a/random.go
+@@ -2,7 +2,7 @@
+ 
+ import (
+ 	lg "log"
+-	"fmt" //@rename("fmt", "fmty")
++	format "fmt" //@rename("fmt", "fmty")
+ 	f2 "fmt" //@rename("f2", "f2name"),rename("fmt","f2y")
+ )
+ 
+@@ -33,7 +33,7 @@
+ 
+ 	switch y := x.(type) { //@rename("y", "y0")
+ 	case int:
+-		fmt.Printf("%d", y) //@rename("y", "y1"),rename("fmt", "format")
++		format.Printf("%d", y) //@rename("y", "y1"),rename("fmt", "format")
+ 	case string:
+ 		lg.Printf("%s", y) //@rename("y", "y2"),rename("lg","log")
+ 	default:
+
+-- y1-d-rename --
+--- rename/a/random.go.orig
++++ rename/a/random.go
+@@ -31,12 +31,12 @@
+ func sw() {
+ 	var x interface{}
+ 
+-	switch y := x.(type) { //@rename("y", "y0")
++	switch y1 := x.(type) { //@rename("y", "y0")
+ 	case int:
+-		fmt.Printf("%d", y) //@rename("y", "y1"),rename("fmt", "format")
++		fmt.Printf("%d", y1) //@rename("y", "y1"),rename("fmt", "format")
+ 	case string:
+-		lg.Printf("%s", y) //@rename("y", "y2"),rename("lg","log")
++		lg.Printf("%s", y1) //@rename("y", "y2"),rename("lg","log")
+ 	default:
+-		f2.Printf("%v", y) //@rename("y", "y3"),rename("f2","fmt2")
++		f2.Printf("%v", y1) //@rename("y", "y3"),rename("f2","fmt2")
+ 	}
+ }
+
+-- log-d-rename --
+--- rename/a/random.go.orig
++++ rename/a/random.go
+@@ -1,7 +1,7 @@
+ package a
+ 
+ import (
+-	lg "log"
++	"log"
+ 	"fmt" //@rename("fmt", "fmty")
+ 	f2 "fmt" //@rename("f2", "f2name"),rename("fmt","f2y")
+ )
+@@ -35,7 +35,7 @@
+ 	case int:
+ 		fmt.Printf("%d", y) //@rename("y", "y1"),rename("fmt", "format")
+ 	case string:
+-		lg.Printf("%s", y) //@rename("y", "y2"),rename("lg","log")
++		log.Printf("%s", y) //@rename("y", "y2"),rename("lg","log")
+ 	default:
+ 		f2.Printf("%v", y) //@rename("y", "y3"),rename("f2","fmt2")
+ 	}
+
+-- y2-d-rename --
+--- rename/a/random.go.orig
++++ rename/a/random.go
+@@ -31,12 +31,12 @@
+ func sw() {
+ 	var x interface{}
+ 
+-	switch y := x.(type) { //@rename("y", "y0")
++	switch y2 := x.(type) { //@rename("y", "y0")
+ 	case int:
+-		fmt.Printf("%d", y) //@rename("y", "y1"),rename("fmt", "format")
++		fmt.Printf("%d", y2) //@rename("y", "y1"),rename("fmt", "format")
+ 	case string:
+-		lg.Printf("%s", y) //@rename("y", "y2"),rename("lg","log")
++		lg.Printf("%s", y2) //@rename("y", "y2"),rename("lg","log")
+ 	default:
+-		f2.Printf("%v", y) //@rename("y", "y3"),rename("f2","fmt2")
++		f2.Printf("%v", y2) //@rename("y", "y3"),rename("f2","fmt2")
+ 	}
+ }
+
+-- fmt2-d-rename --
+--- rename/a/random.go.orig
++++ rename/a/random.go
+@@ -3,7 +3,7 @@
+ import (
+ 	lg "log"
+ 	"fmt" //@rename("fmt", "fmty")
+-	f2 "fmt" //@rename("f2", "f2name"),rename("fmt","f2y")
++	fmt2 "fmt" //@rename("f2", "f2name"),rename("fmt","f2y")
+ )
+ 
+ func Random() int {
+@@ -37,6 +37,6 @@
+ 	case string:
+ 		lg.Printf("%s", y) //@rename("y", "y2"),rename("lg","log")
+ 	default:
+-		f2.Printf("%v", y) //@rename("y", "y3"),rename("f2","fmt2")
++		fmt2.Printf("%v", y) //@rename("y", "y3"),rename("f2","fmt2")
+ 	}
+ }
+
+-- y3-d-rename --
+--- rename/a/random.go.orig
++++ rename/a/random.go
+@@ -31,12 +31,12 @@
+ func sw() {
+ 	var x interface{}
+ 
+-	switch y := x.(type) { //@rename("y", "y0")
++	switch y3 := x.(type) { //@rename("y", "y0")
+ 	case int:
+-		fmt.Printf("%d", y) //@rename("y", "y1"),rename("fmt", "format")
++		fmt.Printf("%d", y3) //@rename("y", "y1"),rename("fmt", "format")
+ 	case string:
+-		lg.Printf("%s", y) //@rename("y", "y2"),rename("lg","log")
++		lg.Printf("%s", y3) //@rename("y", "y2"),rename("lg","log")
+ 	default:
+-		f2.Printf("%v", y) //@rename("y", "y3"),rename("f2","fmt2")
++		f2.Printf("%v", y3) //@rename("y", "y3"),rename("f2","fmt2")
+ 	}
+ }
+
