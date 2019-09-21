@@ -24,6 +24,26 @@ func (a HardwareAddr) String() string {
 	return string(buf)
 }
 
+// MarshalText implements encoding.TextMarshaler using the
+// standard string representation of a HardwareAddr.
+func (a HardwareAddr) MarshalText() ([]byte, error) {
+	return []byte(a.String()), nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (a *HardwareAddr) UnmarshalText(text []byte) error {
+	if len(text) == 0 {
+		*a = nil
+		return nil
+	}
+	v, err := ParseMAC(string(text))
+	if err != nil {
+		return err
+	}
+	*a = v
+	return nil
+}
+
 // ParseMAC parses s as an IEEE 802 MAC-48, EUI-48, EUI-64, or a 20-octet
 // IP over InfiniBand link-layer address using one of the following formats:
 //	00:00:5e:00:53:01

@@ -107,3 +107,65 @@ func TestParseMAC(t *testing.T) {
 		}
 	}
 }
+
+func TestHardwareAddr_UnmarshalText(t *testing.T) {
+	tests := []struct {
+		msg     string
+		text    string
+		wantStr string
+		wantErr string
+	}{
+		{
+			msg:     "valid mac",
+			text:    "aa:bb:cc:dd:ee:ff",
+			wantStr: "aa:bb:cc:dd:ee:ff",
+			wantErr: "",
+		}, {
+			msg:     "empty text",
+			text:    "",
+			wantStr: "",
+			wantErr: "",
+		}, {
+			msg:     "invalid text",
+			text:    "foo-bar-baz",
+			wantStr: "",
+			wantErr: "address foo-bar-baz: invalid MAC address",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.msg, func(t *testing.T) {
+			var a HardwareAddr
+			err := a.UnmarshalText([]byte(tt.text))
+			if tt.wantErr != "" && err.Error() != tt.wantErr {
+				t.Errorf("Wanted err %q got %q", tt.wantErr, err.Error())
+			} else if tt.wantErr == "" && err != nil {
+				t.Errorf("Unexpected error %q", err)
+			}
+
+			if tt.wantStr != a.String() {
+				t.Errorf("Wanted address string %q but got %q", tt.wantStr, a.String())
+			}
+		})
+	}
+}
+
+func TestHardwareAddr_MarshalText(t *testing.T) {
+	input := "aa:bb:cc:dd:ee:ff"
+
+	var a HardwareAddr
+	if err := a.UnmarshalText([]byte(input)); err != nil {
+		t.Fatalf("Unexpected error while unmarashaling: %q", err)
+	}
+
+	output, err := a.MarshalText()
+	if err != nil {
+		t.Fatalf("Error marshaling: %s", err)
+	}
+
+	if err := a.UnmarshalText([]byte(input)); err != nil {
+		t.Fatalf("Unexpected error while marshaling: %q", err)
+	}
+	if input != string(output) {
+		t.Errorf("Input/Output mismatch: %q and %q", input, string(output))
+	}
+}
