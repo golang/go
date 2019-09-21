@@ -32,7 +32,7 @@ type _type struct {
 	hash       uint32
 	tflag      tflag
 	align      uint8
-	fieldalign uint8
+	fieldAlign uint8
 	kind       uint8
 	// function for comparing objects of this type
 	// (ptr to object A, ptr to object B) -> ==?
