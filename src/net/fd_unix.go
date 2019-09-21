@@ -248,7 +248,7 @@ func (fd *netFD) accept() (netfd *netFD, err error) {
 		return nil, err
 	}
 	if err = netfd.init(); err != nil {
-		fd.Close()
+		netfd.Close()
 		return nil, err
 	}
 	lsa, _ := syscall.Getsockname(netfd.pfd.Sysfd)
