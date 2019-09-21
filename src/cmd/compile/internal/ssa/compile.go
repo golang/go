@@ -286,10 +286,12 @@ commas. For example:
 
 	if phase == "check" && flag == "on" {
 		checkEnabled = val != 0
+		debugPoset = checkEnabled // also turn on advanced self-checking in prove's datastructure
 		return ""
 	}
 	if phase == "check" && flag == "off" {
 		checkEnabled = val == 0
+		debugPoset = checkEnabled
 		return ""
 	}
 
