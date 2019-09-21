@@ -5,7 +5,6 @@
 package ssa
 
 import (
-	"errors"
 	"fmt"
 	"os"
 )
@@ -625,13 +624,12 @@ func (po *poset) setnoneq(id1, id2 ID) {
 
 // CheckIntegrity verifies internal integrity of a poset. It is intended
 // for debugging purposes.
-func (po *poset) CheckIntegrity() (err error) {
+func (po *poset) CheckIntegrity() {
 	// Record which index is a constant
 	constants := newBitset(int(po.lastidx + 1))
 	for _, c := range po.constants {
 		if idx, ok := po.values[c.ID]; !ok {
-			err = errors.New("node missing for constant")
-			return err
+			panic("node missing for constant")
 		} else {
 			constants.Set(idx)
 		}
@@ -642,34 +640,27 @@ func (po *poset) CheckIntegrity() (err error) {
 	seen := newBitset(int(po.lastidx + 1))
 	for ridx, r := range po.roots {
 		if r == 0 {
-			err = errors.New("empty root")
-			return
+			panic("empty root")
 		}
 
 		po.dfs(r, false, func(i uint32) bool {
 			if seen.Test(i) {
-				err = errors.New("duplicate node")
-				return true
+				panic("duplicate node")
 			}
 			seen.Set(i)
 			if constants.Test(i) {
 				if ridx != 0 {
-					err = errors.New("constants not in the first DAG")
-					return true
+					panic("constants not in the first DAG")
 				}
 			}
 			return false
 		})
-		if err != nil {
-			return
-		}
 	}
 
 	// Verify that values contain the minimum set
 	for id, idx := range po.values {
 		if !seen.Test(idx) {
-			err = fmt.Errorf("spurious value [%d]=%d", id, idx)
-			return
+			panic(fmt.Errorf("spurious value [%d]=%d", id, idx))
 		}
 	}
 
@@ -677,17 +668,13 @@ func (po *poset) CheckIntegrity() (err error) {
 	for i, n := range po.nodes {
 		if n.l|n.r != 0 {
 			if !seen.Test(uint32(i)) {
-				err = fmt.Errorf("children of unknown node %d->%v", i, n)
-				return
+				panic(fmt.Errorf("children of unknown node %d->%v", i, n))
 			}
 			if n.l.Target() == uint32(i) || n.r.Target() == uint32(i) {
-				err = fmt.Errorf("self-loop on node %d", i)
-				return
+				panic(fmt.Errorf("self-loop on node %d", i))
 			}
 		}
 	}
-
-	return
 }
 
 // CheckEmpty checks that a poset is completely empty.

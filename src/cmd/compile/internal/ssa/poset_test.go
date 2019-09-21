@@ -146,9 +146,7 @@ func testPosetOps(t *testing.T, unsigned bool, ops []posetTestOp) {
 			po.DotDump(fmt.Sprintf("op%d.dot", idx), fmt.Sprintf("Last op: %v", op))
 		}
 
-		if err := po.CheckIntegrity(); err != nil {
-			t.Fatalf("op%d%v: integrity error: %v", idx, op, err)
-		}
+		po.CheckIntegrity()
 	}
 
 	// Check that the poset is completely empty
