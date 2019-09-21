@@ -3594,6 +3594,44 @@ func TestTransportTraceGotConnH2IdleConns(t *testing.T) {
 	wantIdle("after round trip", 1)
 }
 
+func TestTransportRemovesH2ConnsAfterIdle(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
+	trFunc := func(tr *Transport) {
+		tr.MaxConnsPerHost = 1
+		tr.MaxIdleConnsPerHost = 1
+		tr.IdleConnTimeout = 10 * time.Millisecond
+	}
+	cst := newClientServerTest(t, h2Mode, HandlerFunc(func(w ResponseWriter, r *Request) {}), trFunc)
+	defer cst.close()
+
+	if _, err := cst.c.Get(cst.ts.URL); err != nil {
+		t.Fatalf("got error: %s", err)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	got := make(chan error)
+	go func() {
+		if _, err := cst.c.Get(cst.ts.URL); err != nil {
+			got <- err
+		}
+		close(got)
+	}()
+
+	timeout := time.NewTimer(5 * time.Second)
+	defer timeout.Stop()
+	select {
+	case err := <-got:
+		if err != nil {
+			t.Fatalf("got error: %s", err)
+		}
+	case <-timeout.C:
+		t.Fatal("request never completed")
+	}
+}
+
 // This tests that an client requesting a content range won't also
 // implicitly ask for gzip support. If they want that, they need to do it
 // on their own.
