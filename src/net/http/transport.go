@@ -539,6 +539,7 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		}
 		if http2isNoCachedConnError(err) {
 			t.removeIdleConn(pconn)
+			t.decConnsPerHost(pconn.cacheKey)
 		} else if !pconn.shouldRetryRequest(req, err) {
 			// Issue 16465: return underlying net.Conn.Read error from peek,
 			// as we've historically done.
