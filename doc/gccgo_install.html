@@ -5,8 +5,8 @@
 
 <p>
 This document explains how to use gccgo, a compiler for
-the Go language.  The gccgo compiler is a new frontend
-for GCC, the widely used GNU compiler.  Although the
+the Go language. The gccgo compiler is a new frontend
+for GCC, the widely used GNU compiler. Although the
 frontend itself is under a BSD-style license, gccgo is
 normally used as part of GCC and is then covered by
 the <a href="https://www.gnu.org/licenses/gpl.html">GNU General Public
@@ -24,10 +24,10 @@ compiler.
 
 <p>
 The simplest way to install gccgo is to install a GCC binary release
-built to include Go support.  GCC binary releases are available from
+built to include Go support. GCC binary releases are available from
 <a href="https://gcc.gnu.org/install/binaries.html">various
 websites</a> and are typically included as part of GNU/Linux
-distributions.  We expect that most people who build these binaries
+distributions. We expect that most people who build these binaries
 will include Go support.
 </p>
 
@@ -38,7 +38,7 @@ The GCC 4.7.1 release and all later 4.7 releases include a complete
 
 <p>
 Due to timing, the GCC 4.8.0 and 4.8.1 releases are close to but not
-identical to Go 1.1.  The GCC 4.8.2 release includes a complete Go
+identical to Go 1.1. The GCC 4.8.2 release includes a complete Go
 1.1.2 implementation.
 </p>
 
@@ -48,39 +48,43 @@ The GCC 4.9 releases include a complete Go 1.2 implementation.
 
 <p>
 The GCC 5 releases include a complete implementation of the Go 1.4
-user libraries.  The Go 1.4 runtime is not fully merged, but that
+user libraries. The Go 1.4 runtime is not fully merged, but that
 should not be visible to Go programs.
 </p>
 
 <p>
 The GCC 6 releases include a complete implementation of the Go 1.6.1
-user libraries.  The Go 1.6 runtime is not fully merged, but that
+user libraries. The Go 1.6 runtime is not fully merged, but that
 should not be visible to Go programs.
 </p>
 
 <p>
 The GCC 7 releases include a complete implementation of the Go 1.8.1
-user libraries.  As with earlier releases, the Go 1.8 runtime is not
+user libraries. As with earlier releases, the Go 1.8 runtime is not
 fully merged, but that should not be visible to Go programs.
 </p>
 
 <p>
-The GCC 8 releases are expected to include a complete implementation
-of the Go 1.10 release, depending on release timing.  The Go 1.10
-runtime has now been fully merged into the GCC development sources,
-and concurrent garbage collection is expected to be fully supported in
-GCC 8.
+The GCC 8 releases include a complete implementation of the Go 1.10.1
+release. The Go 1.10 runtime has now been fully merged into the GCC
+development sources, and concurrent garbage collection is fully
+supported.
+</p>
+
+<p>
+The GCC 9 releases include a complete implementation of the Go 1.12.2
+release.
 </p>
 
 <h2 id="Source_code">Source code</h2>
 
 <p>
 If you cannot use a release, or prefer to build gccgo for
-yourself, 
-the gccgo source code is accessible via Subversion.  The
+yourself,
+the gccgo source code is accessible via Subversion. The
 GCC web site
 has <a href="https://gcc.gnu.org/svn.html">instructions for getting the
-GCC source code</a>.  The gccgo source code is included.  As a
+GCC source code</a>. The gccgo source code is included. As a
 convenience, a stable version of the Go support is available in
 a branch of the main GCC code
 repository: <code>svn://gcc.gnu.org/svn/gcc/branches/gccgo</code>.
@@ -90,7 +94,7 @@ This branch is periodically updated with stable Go compiler sources.
 <p>
 Note that although <code>gcc.gnu.org</code> is the most convenient way
 to get the source code for the Go frontend, it is not where the master
-sources live.  If you want to contribute changes to the Go frontend
+sources live. If you want to contribute changes to the Go frontend
 compiler, see <a href="/doc/gccgo_contribute.html">Contributing to
 gccgo</a>.
 </p>
@@ -100,16 +104,16 @@ gccgo</a>.
 
 <p>
 Building gccgo is just like building GCC
-with one or two additional options.  See
+with one or two additional options. See
 the <a href="https://gcc.gnu.org/install/">instructions on the gcc web
-site</a>.  When you run <code>configure</code>, add the
+site</a>. When you run <code>configure</code>, add the
 option <code>--enable-languages=c,c++,go</code> (along with other
-languages you may want to build).  If you are targeting a 32-bit x86,
+languages you may want to build). If you are targeting a 32-bit x86,
 then you will want to build gccgo to default to
 supporting locked compare and exchange instructions; do this by also
 using the <code>configure</code> option <code>--with-arch=i586</code>
 (or a newer architecture, depending on where you need your programs to
-run).  If you are targeting a 64-bit x86, but sometimes want to use
+run). If you are targeting a 64-bit x86, but sometimes want to use
 the <code>-m32</code> option, then use the <code>configure</code>
 option <code>--with-arch-32=i586</code>.
 </p>
@@ -118,18 +122,18 @@ option <code>--with-arch-32=i586</code>.
 
 <p>
 On x86 GNU/Linux systems the gccgo compiler is able to
-use a small discontiguous stack for goroutines.  This permits programs
+use a small discontiguous stack for goroutines. This permits programs
 to run many more goroutines, since each goroutine can use a relatively
-small stack.  Doing this requires using the gold linker version 2.22
-or later.  You can either install GNU binutils 2.22 or later, or you
+small stack. Doing this requires using the gold linker version 2.22
+or later. You can either install GNU binutils 2.22 or later, or you
 can build gold yourself.
 </p>
 
 <p>
 To build gold yourself, build the GNU binutils,
 using <code>--enable-gold=default</code> when you run
-the <code>configure</code> script.  Before building, you must install
-the flex and bison packages.  A typical sequence would look like
+the <code>configure</code> script. Before building, you must install
+the flex and bison packages. A typical sequence would look like
 this (you can replace <code>/opt/gold</code> with any directory to
 which you have write access):
 </p>
@@ -157,7 +161,7 @@ option <code>--with-ld=<var>GOLD_BINARY</var></code>.
 A number of prerequisites are required to build GCC, as
 described on
 the <a href="https://gcc.gnu.org/install/prerequisites.html">gcc web
-site</a>.  It is important to install all the prerequisites before
+site</a>. It is important to install all the prerequisites before
 running the gcc <code>configure</code> script.
 The prerequisite libraries can be conveniently downloaded using the
 script <code>contrib/download_prerequisites</code> in the GCC sources.
@@ -183,7 +187,7 @@ make install
 <h2 id="Using_gccgo">Using gccgo</h2>
 
 <p>
-The gccgo compiler works like other gcc frontends.  As of GCC 5 the gccgo
+The gccgo compiler works like other gcc frontends. As of GCC 5 the gccgo
 installation also includes a version of the <code>go</code> command,
 which may be used to build Go programs as described at
 <a href="https://golang.org/cmd/go">https://golang.org/cmd/go</a>.
@@ -208,7 +212,7 @@ gccgo -o file file.o
 
 <p>
 To run the resulting file, you will need to tell the program where to
-find the compiled Go packages.  There are a few ways to do this:
+find the compiled Go packages. There are a few ways to do this:
 </p>
 
 <ul>
@@ -226,11 +230,11 @@ export LD_LIBRARY_PATH
 
 <p>
 Here <code>${prefix}</code> is the <code>--prefix</code> option used
-when building gccgo.  For a binary install this is
-normally <code>/usr</code>.  Whether to use <code>lib</code>
+when building gccgo. For a binary install this is
+normally <code>/usr</code>. Whether to use <code>lib</code>
 or <code>lib64</code> depends on the target.
 Typically <code>lib64</code> is correct for x86_64 systems,
-and <code>lib</code> is correct for other systems.  The idea is to
+and <code>lib</code> is correct for other systems. The idea is to
 name the directory where <code>libgo.so</code> is found.
 </p>
 
@@ -325,9 +329,9 @@ objcopy -j .go_export FILE.o FILE.gox
 
 <p>
 The gccgo compiler will look in the current
-directory for import files.  In more complex scenarios you
+directory for import files. In more complex scenarios you
 may pass the <code>-I</code> or <code>-L</code> option to
-gccgo.  Both options take directories to search. The
+gccgo. Both options take directories to search. The
 <code>-L</code> option is also passed to the linker.
 </p>
 
@@ -348,11 +352,11 @@ gccgo -o main main.o mypackage.o   # Explicitly links with mypackage.o
 
 <p>
 If you use the <code>-g</code> option when you compile, you can run
-<code>gdb</code> on your executable.  The debugger has only limited
-knowledge about Go.  You can set breakpoints, single-step,
-etc.  You can print variables, but they will be printed as though they
-had C/C++ types.  For numeric types this doesn't matter.  Go strings
-and interfaces will show up as two-element structures.  Go
+<code>gdb</code> on your executable. The debugger has only limited
+knowledge about Go. You can set breakpoints, single-step,
+etc. You can print variables, but they will be printed as though they
+had C/C++ types. For numeric types this doesn't matter. Go strings
+and interfaces will show up as two-element structures. Go
 maps and channels are always represented as C pointers to run-time
 structures.
 </p>
@@ -399,7 +403,7 @@ assuming that the C pointer does point to 10 elements.
 </p>
 
 <p>
-A slice in Go is a structure.  The current definition is
+A slice in Go is a structure. The current definition is
 (this is <b style="color: red;">subject to change</b>):
 </p>
 
@@ -413,15 +417,15 @@ struct __go_slice {
 
 <p>
 The type of a Go function is a pointer to a struct (this is
-<b style="color: red;">subject to change</b>).  The first field in the
+<b style="color: red;">subject to change</b>). The first field in the
 struct points to the code of the function, which will be equivalent to
 a pointer to a C function whose parameter types are equivalent, with
-an additional trailing parameter.  The trailing parameter is the
+an additional trailing parameter. The trailing parameter is the
 closure, and the argument to pass is a pointer to the Go function
 struct.
 
 When a Go function returns more than one value, the C function returns
-a struct.  For example, these functions are roughly equivalent:
+a struct. For example, these functions are roughly equivalent:
 </p>
 
 <pre>
@@ -458,7 +462,7 @@ pointer while the C function is still using it.
 <p>
 Go code can call C functions directly using a Go extension implemented
 in gccgo: a function declaration may be preceded by
-<code>//extern NAME</code>.  For example, here is how the C function
+<code>//extern NAME</code>. For example, here is how the C function
 <code>open</code> can be declared in Go:
 </p>
 
@@ -518,11 +522,11 @@ the <code>-gccgo</code> option instead.
 
 <p>
 Compile your C code as usual, and add the option
-<code>-fdump-go-spec=<var>FILENAME</var></code>.  This will create the
+<code>-fdump-go-spec=<var>FILENAME</var></code>. This will create the
 file <code><var>FILENAME</var></code> as a side effect of the
-compilation.  This file will contain Go declarations for the types,
-variables and functions declared in the C code.  C types that can not
-be represented in Go will be recorded as comments in the Go code.  The
+compilation. This file will contain Go declarations for the types,
+variables and functions declared in the C code. C types that can not
+be represented in Go will be recorded as comments in the Go code. The
 generated file will not have a <code>package</code> declaration, but
 can otherwise be compiled directly by gccgo.
 </p>

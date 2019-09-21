@@ -42,7 +42,7 @@ func caller1() {
 }
 
 // in -> other in
-func param2(p1 *int, p2 **int) { // ERROR "leaking param: p1$" "param2 p2 does not escape$"
+func param2(p1 *int, p2 **int) { // ERROR "leaking param: p1$" "p2 does not escape$"
 	*p2 = p1
 }
 
@@ -137,7 +137,7 @@ type Pair struct {
 	p2 *int
 }
 
-func param3(p *Pair) { // ERROR "param3 p does not escape"
+func param3(p *Pair) { // ERROR "p does not escape"
 	p.p1 = p.p2 // ERROR "param3 ignoring self-assignment in p.p1 = p.p2"
 }
 
@@ -158,7 +158,7 @@ func caller3b() {
 }
 
 // in -> rcvr
-func (p *Pair) param4(i *int) { // ERROR "\(\*Pair\).param4 p does not escape$" "leaking param: i$"
+func (p *Pair) param4(i *int) { // ERROR "p does not escape$" "leaking param: i$"
 	p.p1 = i
 }
 
@@ -211,7 +211,7 @@ func caller7() {
 }
 
 // **in -> heap
-func param8(i **int) { // ERROR "param8 i does not escape$"
+func param8(i **int) { // ERROR "i does not escape$"
 	sink = **i // ERROR "\* \(\*i\) escapes to heap"
 }
 
@@ -294,7 +294,7 @@ type Indir struct {
 	p ***int
 }
 
-func (r *Indir) param12(i **int) { // ERROR "\(\*Indir\).param12 r does not escape$" "moved to heap: i$"
+func (r *Indir) param12(i **int) { // ERROR "r does not escape$" "moved to heap: i$"
 	r.p = &i
 }
 
@@ -309,7 +309,7 @@ func caller12a() {
 func caller12b() {
 	i := 0        // ERROR "moved to heap: i$"
 	p := &i       // ERROR "moved to heap: p$"
-	r := &Indir{} // ERROR "caller12b &Indir literal does not escape$"
+	r := &Indir{} // ERROR "&Indir literal does not escape$"
 	r.param12(&p)
 	_ = r
 }
@@ -335,7 +335,7 @@ type Val struct {
 	p **int
 }
 
-func (v Val) param13(i *int) { // ERROR "Val.param13 v does not escape$" "leaking param: i$"
+func (v Val) param13(i *int) { // ERROR "v does not escape$" "leaking param: i$"
 	*v.p = i
 }
 
@@ -359,7 +359,7 @@ func caller13b() {
 func caller13c() {
 	i := 0 // ERROR "moved to heap: i$"
 	var p *int
-	v := &Val{&p} // ERROR "caller13c &Val literal does not escape$"
+	v := &Val{&p} // ERROR "&Val literal does not escape$"
 	v.param13(&i)
 	_ = v
 }
@@ -400,7 +400,7 @@ func caller13g() {
 func caller13h() {
 	i := 0 // ERROR "moved to heap: i$"
 	var p *int
-	v := &Val{&p} // ERROR "caller13h &Val literal does not escape$"
+	v := &Val{&p} // ERROR "&Val literal does not escape$"
 	v.param13(&i)
 	sink = **v.p  // ERROR "\* \(\*v\.p\) escapes to heap"
 }
@@ -420,7 +420,7 @@ func g(x *Node) *Node { // ERROR "leaking param content: x"
 }
 
 func h(x *Node) { // ERROR "leaking param: x"
-	y := &Node{x} // ERROR "h &Node literal does not escape"
+	y := &Node{x} // ERROR "&Node literal does not escape"
 	Sink = g(y)
 	f(y)
 }

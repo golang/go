@@ -43,10 +43,13 @@ func (p *exporter) markType(t *types.Type) {
 	// the user already needs some way to construct values of
 	// those types.
 	switch t.Etype {
-	case TPTR, TARRAY, TSLICE, TCHAN:
-		// TODO(mdempsky): Skip marking element type for
-		// send-only channels?
+	case TPTR, TARRAY, TSLICE:
 		p.markType(t.Elem())
+
+	case TCHAN:
+		if t.ChanDir().CanRecv() {
+			p.markType(t.Elem())
+		}
 
 	case TMAP:
 		p.markType(t.Key())

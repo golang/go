@@ -206,7 +206,7 @@ func TestMain(m *testing.M) {
 		// (installed in GOROOT/pkg/tool/GOOS_GOARCH).
 		// If these are not the same toolchain, then the entire standard library
 		// will look out of date (the compilers in those two different tool directories
-		// are built for different architectures and have different buid IDs),
+		// are built for different architectures and have different build IDs),
 		// which will cause many tests to do unnecessary rebuilds and some
 		// tests to attempt to overwrite the installed standard library.
 		// Bail out entirely in this case.

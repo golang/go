@@ -373,9 +373,6 @@ func init() {
 		{name: "MOVHZreg", argLength: 1, reg: gp11sp, asm: "MOVHZ", typ: "UInt64"}, // zero extend arg0 from int16 to int64
 		{name: "MOVWreg", argLength: 1, reg: gp11sp, asm: "MOVW", typ: "Int64"},    // sign extend arg0 from int32 to int64
 		{name: "MOVWZreg", argLength: 1, reg: gp11sp, asm: "MOVWZ", typ: "UInt64"}, // zero extend arg0 from int32 to int64
-		{name: "MOVDreg", argLength: 1, reg: gp11sp, asm: "MOVD"},                  // move from arg0
-
-		{name: "MOVDnop", argLength: 1, reg: gp11, resultInArg0: true}, // nop, return arg0 in same register
 
 		{name: "MOVDconst", reg: gp01, asm: "MOVD", typ: "UInt64", aux: "Int64", rematerializeable: true}, // auxint
 
@@ -489,7 +486,7 @@ func init() {
 		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
 		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
 
-		// Constant conditon code values. The condition code can be 0, 1, 2 or 3.
+		// Constant condition code values. The condition code can be 0, 1, 2 or 3.
 		{name: "FlagEQ"}, // CC=0 (equal)
 		{name: "FlagLT"}, // CC=1 (less than)
 		{name: "FlagGT"}, // CC=2 (greater than)
@@ -569,6 +566,19 @@ func init() {
 			asm:          "POPCNT",
 			typ:          "UInt64",
 			clobberFlags: true,
+		},
+
+		// unsigned multiplication (64x64 → 128)
+		//
+		// Multiply the two 64-bit input operands together and place the 128-bit result into
+		// an even-odd register pair. The second register in the target pair also contains
+		// one of the input operands. Since we don't currently have a way to specify an
+		// even-odd register pair we hardcode this register pair as R2:R3.
+		{
+			name:      "MLGR",
+			argLength: 2,
+			reg:       regInfo{inputs: []regMask{gp, r3}, outputs: []regMask{r2, r3}},
+			asm:       "MLGR",
 		},
 
 		// pseudo operations to sum the output of the POPCNT instruction

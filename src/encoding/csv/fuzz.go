@@ -17,13 +17,13 @@ func Fuzz(data []byte) int {
 	buf := new(bytes.Buffer)
 
 	for _, tt := range []Reader{
-		Reader{},
-		Reader{Comma: ';'},
-		Reader{Comma: '\t'},
-		Reader{LazyQuotes: true},
-		Reader{TrimLeadingSpace: true},
-		Reader{Comment: '#'},
-		Reader{Comment: ';'},
+		{},
+		{Comma: ';'},
+		{Comma: '\t'},
+		{LazyQuotes: true},
+		{TrimLeadingSpace: true},
+		{Comment: '#'},
+		{Comment: ';'},
 	} {
 		r := NewReader(bytes.NewReader(data))
 		r.Comma = tt.Comma

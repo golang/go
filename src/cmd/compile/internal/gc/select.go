@@ -12,7 +12,7 @@ func typecheckselect(sel *Node) {
 	lno := setlineno(sel)
 	typecheckslice(sel.Ninit.Slice(), ctxStmt)
 	for _, ncase := range sel.List.Slice() {
-		if ncase.Op != OXCASE {
+		if ncase.Op != OCASE {
 			setlineno(ncase)
 			Fatalf("typecheckselect %v", ncase.Op)
 		}

@@ -38,8 +38,8 @@ can be a module proxy.
 
 The GET requests sent to a Go module proxy are:
 
-GET $GOPROXY/<module>/@v/list returns a list of all known versions of the
-given module, one per line.
+GET $GOPROXY/<module>/@v/list returns a list of known versions of the given
+module, one per line.
 
 GET $GOPROXY/<module>/@v/<version>.info returns JSON-formatted metadata
 about that version of the given module.
@@ -49,6 +49,21 @@ for that version of the given module.
 
 GET $GOPROXY/<module>/@v/<version>.zip returns the zip archive
 for that version of the given module.
+
+GET $GOPROXY/<module>/@latest returns JSON-formatted metadata about the
+latest known version of the given module in the same format as
+<module>/@v/<version>.info. The latest version should be the version of
+the module the go command may use if <module>/@v/list is empty or no
+listed version is suitable. <module>/@latest is optional and may not
+be implemented by a module proxy.
+
+When resolving the latest version of a module, the go command will request
+<module>/@v/list, then, if no suitable versions are found, <module>/@latest.
+The go command prefers, in order: the semantically highest release version,
+the semantically highest pre-release version, and the chronologically
+most recent pseudo-version. In Go 1.12 and earlier, the go command considered
+pseudo-versions in <module>/@v/list to be pre-release versions, but this is
+no longer true since Go 1.13.
 
 To avoid problems when serving from case-sensitive file systems,
 the <module> and <version> elements are case-encoded, replacing every
@@ -150,13 +165,28 @@ func TryProxies(f func(proxy string) error) error {
 		return f("off")
 	}
 
+	var lastAttemptErr error
 	for _, proxy := range proxies {
 		err = f(proxy)
 		if !errors.Is(err, os.ErrNotExist) {
+			lastAttemptErr = err
 			break
 		}
+
+		// The error indicates that the module does not exist.
+		// In general we prefer to report the last such error,
+		// because it indicates the error that occurs after all other
+		// options have been exhausted.
+		//
+		// However, for modules in the NOPROXY list, the most useful error occurs
+		// first (with proxy set to "noproxy"), and the subsequent errors are all
+		// errNoProxy (which is not particularly helpful). Do not overwrite a more
+		// useful error with errNoproxy.
+		if lastAttemptErr == nil || !errors.Is(err, errNoproxy) {
+			lastAttemptErr = err
+		}
 	}
-	return err
+	return lastAttemptErr
 }
 
 type proxyRepo struct {

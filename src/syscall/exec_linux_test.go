@@ -42,6 +42,18 @@ func skipInContainer(t *testing.T) {
 	}
 }
 
+func skipNoUserNamespaces(t *testing.T) {
+	if _, err := os.Stat("/proc/self/ns/user"); err != nil {
+		if os.IsNotExist(err) {
+			t.Skip("kernel doesn't support user namespaces")
+		}
+		if os.IsPermission(err) {
+			t.Skip("unable to test user namespaces due to permissions")
+		}
+		t.Fatalf("Failed to stat /proc/self/ns/user: %v", err)
+	}
+}
+
 func skipUnprivilegedUserClone(t *testing.T) {
 	// Skip the test if the sysctl that prevents unprivileged user
 	// from creating user namespaces is enabled.
@@ -64,15 +76,7 @@ func isChrooted(t *testing.T) bool {
 
 func checkUserNS(t *testing.T) {
 	skipInContainer(t)
-	if _, err := os.Stat("/proc/self/ns/user"); err != nil {
-		if os.IsNotExist(err) {
-			t.Skip("kernel doesn't support user namespaces")
-		}
-		if os.IsPermission(err) {
-			t.Skip("unable to test user namespaces due to permissions")
-		}
-		t.Fatalf("Failed to stat /proc/self/ns/user: %v", err)
-	}
+	skipNoUserNamespaces(t)
 	if isChrooted(t) {
 		// create_user_ns in the kernel (see
 		// https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/kernel/user_namespace.c)
@@ -573,6 +577,7 @@ func TestAmbientCaps(t *testing.T) {
 }
 
 func TestAmbientCapsUserns(t *testing.T) {
+	checkUserNS(t)
 	testAmbientCaps(t, true)
 }
 

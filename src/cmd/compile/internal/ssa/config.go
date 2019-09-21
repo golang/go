@@ -25,6 +25,8 @@ type Config struct {
 	registers      []Register    // machine registers
 	gpRegMask      regMask       // general purpose integer register mask
 	fpRegMask      regMask       // floating point register mask
+	fp32RegMask    regMask       // floating point register mask
+	fp64RegMask    regMask       // floating point register mask
 	specialRegMask regMask       // special register mask
 	GCRegMap       []*Register   // garbage collector register map, by GC register index
 	FPReg          int8          // register number of frame pointer, -1 if not used
@@ -324,6 +326,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.registers = registersWasm[:]
 		c.gpRegMask = gpRegMaskWasm
 		c.fpRegMask = fpRegMaskWasm
+		c.fp32RegMask = fp32RegMaskWasm
+		c.fp64RegMask = fp64RegMaskWasm
 		c.FPReg = framepointerRegWasm
 		c.LinkReg = linkRegWasm
 		c.hasGReg = true

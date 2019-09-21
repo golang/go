@@ -401,6 +401,11 @@ type B struct {
 	B bool `json:",string"`
 }
 
+type DoublePtr struct {
+	I **int
+	J **int
+}
+
 var unmarshalTests = []unmarshalTest{
 	// basic types
 	{in: `true`, ptr: new(bool), out: true},
@@ -655,6 +660,11 @@ var unmarshalTests = []unmarshalTest{
 		ptr:                   new(S10),
 		err:                   fmt.Errorf("json: unknown field \"X\""),
 		disallowUnknownFields: true,
+	},
+	{
+		in:  `{"I": 0, "I": null, "J": null}`,
+		ptr: new(DoublePtr),
+		out: DoublePtr{I: nil, J: nil},
 	},
 
 	// invalid UTF-8 is coerced to valid UTF-8.
@@ -938,6 +948,37 @@ var unmarshalTests = []unmarshalTest{
 			Type:   reflect.TypeOf(int(0)),
 			Offset: 29,
 		},
+	},
+	// #14702
+	{
+		in:  `invalid`,
+		ptr: new(Number),
+		err: &SyntaxError{
+			msg:    "invalid character 'i' looking for beginning of value",
+			Offset: 1,
+		},
+	},
+	{
+		in:  `"invalid"`,
+		ptr: new(Number),
+		err: fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
+	},
+	{
+		in:  `{"A":"invalid"}`,
+		ptr: new(struct{ A Number }),
+		err: fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
+	},
+	{
+		in: `{"A":"invalid"}`,
+		ptr: new(struct {
+			A Number `json:",string"`
+		}),
+		err: fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into json.Number", `invalid`),
+	},
+	{
+		in:  `{"A":"invalid"}`,
+		ptr: new(map[string]Number),
+		err: fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
 	},
 }
 

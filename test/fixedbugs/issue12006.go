@@ -8,7 +8,7 @@
 
 package foo
 
-func FooN(vals ...*int) (s int) { // ERROR "FooN vals does not escape"
+func FooN(vals ...*int) (s int) { // ERROR "vals does not escape"
 	for _, v := range vals {
 		s += *v
 	}
@@ -37,14 +37,14 @@ func FooNz(vals ...*int) (s int) { // ERROR "leaking param: vals"
 func TFooN() {
 	for i := 0; i < 1000; i++ {
 		var i, j int
-		FooN(&i, &j) // ERROR "TFooN ... argument does not escape"
+		FooN(&i, &j) // ERROR "... argument does not escape"
 	}
 }
 
 func TFooNx() {
 	for i := 0; i < 1000; i++ {
 		var i, j, k int   // ERROR "moved to heap: i" "moved to heap: j" "moved to heap: k"
-		FooNx(&k, &i, &j) // ERROR "TFooNx ... argument does not escape"
+		FooNx(&k, &i, &j) // ERROR "... argument does not escape"
 	}
 }
 
@@ -84,7 +84,7 @@ func TFooI() {
 	a := int32(1) // ERROR "moved to heap: a"
 	b := "cat"
 	c := &a
-	FooI(a, b, c) // ERROR "a escapes to heap" "b escapes to heap" "TFooI ... argument does not escape"
+	FooI(a, b, c) // ERROR "a escapes to heap" "b escapes to heap" "... argument does not escape"
 }
 
 func FooJ(args ...interface{}) *int32 { // ERROR "leaking param: args to result ~r1 level=1"
@@ -108,14 +108,14 @@ func TFooJ1() {
 	a := int32(1)
 	b := "cat"
 	c := &a
-	FooJ(a, b, c) // ERROR "TFooJ1 a does not escape" "TFooJ1 b does not escape" "TFooJ1 ... argument does not escape"
+	FooJ(a, b, c) // ERROR "a does not escape" "b does not escape" "... argument does not escape"
 }
 
 func TFooJ2() {
 	a := int32(1) // ERROR "moved to heap: a"
 	b := "cat"
 	c := &a
-	isink = FooJ(a, b, c) // ERROR "a escapes to heap" "b escapes to heap" "TFooJ2 ... argument does not escape"
+	isink = FooJ(a, b, c) // ERROR "a escapes to heap" "b escapes to heap" "... argument does not escape"
 }
 
 type fakeSlice struct {
@@ -144,7 +144,7 @@ func TFooK2() {
 	a := int32(1) // ERROR "moved to heap: a"
 	b := "cat"
 	c := &a
-	fs := fakeSlice{3, &[4]interface{}{a, b, c, nil}} // ERROR "a escapes to heap" "b escapes to heap" "TFooK2 &\[4\]interface {} literal does not escape"
+	fs := fakeSlice{3, &[4]interface{}{a, b, c, nil}} // ERROR "a escapes to heap" "b escapes to heap" "&\[4\]interface {} literal does not escape"
 	isink = FooK(fs)
 }
 
@@ -169,6 +169,6 @@ func TFooL2() {
 	a := int32(1) // ERROR "moved to heap: a"
 	b := "cat"
 	c := &a
-	s := []interface{}{a, b, c} // ERROR "a escapes to heap" "b escapes to heap" "TFooL2 \[\]interface {} literal does not escape"
+	s := []interface{}{a, b, c} // ERROR "a escapes to heap" "b escapes to heap" "\[\]interface {} literal does not escape"
 	isink = FooL(s)
 }

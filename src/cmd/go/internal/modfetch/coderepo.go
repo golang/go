@@ -140,7 +140,10 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
 	}
 	tags, err := r.code.Tags(p)
 	if err != nil {
-		return nil, err
+		return nil, &module.ModuleError{
+			Path: r.modPath,
+			Err:  err,
+		}
 	}
 
 	list := []string{}
@@ -171,7 +174,10 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
 		// by referring to them with a +incompatible suffix, as in v17.0.0+incompatible.
 		files, err := r.code.ReadFileRevs(incompatible, "go.mod", codehost.MaxGoMod)
 		if err != nil {
-			return nil, err
+			return nil, &module.ModuleError{
+				Path: r.modPath,
+				Err:  err,
+			}
 		}
 		for _, rev := range incompatible {
 			f := files[rev]
@@ -632,7 +638,7 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
 		// the real module, found at a different path, usable only in
 		// a replace directive.
 		//
-		// TODO(bcmills): This doesn't seem right. Investigate futher.
+		// TODO(bcmills): This doesn't seem right. Investigate further.
 		// (Notably: why can't we replace foo/v2 with fork-of-foo/v3?)
 		dir2 := path.Join(r.codeDir, r.pathMajor[1:])
 		file2 = path.Join(dir2, "go.mod")

@@ -240,6 +240,7 @@ const (
 	AMULLD
 	AMULHD
 	AMULHDU
+	AMLGR
 	ASUB
 	ASUBC
 	ASUBV
@@ -965,6 +966,8 @@ const (
 	AVMSLEG
 	AVMSLOG
 	AVMSLEOG
+
+	ANOPH // NOP
 
 	// binary
 	ABYTE

@@ -661,7 +661,7 @@ func RepoRootForImportPath(importPath string, mod ModuleMode, security web.Secur
 	if err == errUnknownSite {
 		rr, err = repoRootForImportDynamic(importPath, mod, security)
 		if err != nil {
-			err = fmt.Errorf("unrecognized import path %q (%v)", importPath, err)
+			err = fmt.Errorf("unrecognized import path %q: %v", importPath, err)
 		}
 	}
 	if err != nil {
@@ -799,6 +799,13 @@ func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.Se
 	body := resp.Body
 	defer body.Close()
 	imports, err := parseMetaGoImports(body, mod)
+	if len(imports) == 0 {
+		if respErr := resp.Err(); respErr != nil {
+			// If the server's status was not OK, prefer to report that instead of
+			// an XML parse error.
+			return nil, respErr
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("parsing %s: %v", importPath, err)
 	}
@@ -909,6 +916,13 @@ func metaImportsForPrefix(importPrefix string, mod ModuleMode, security web.Secu
 		body := resp.Body
 		defer body.Close()
 		imports, err := parseMetaGoImports(body, mod)
+		if len(imports) == 0 {
+			if respErr := resp.Err(); respErr != nil {
+				// If the server's status was not OK, prefer to report that instead of
+				// an XML parse error.
+				return setCache(fetchResult{url: url, err: respErr})
+			}
+		}
 		if err != nil {
 			return setCache(fetchResult{url: url, err: fmt.Errorf("parsing %s: %v", resp.URL, err)})
 		}
@@ -962,7 +976,7 @@ func (m ImportMismatchError) Error() string {
 
 // matchGoImport returns the metaImport from imports matching importPath.
 // An error is returned if there are multiple matches.
-// errNoMatch is returned if none match.
+// An ImportMismatchError is returned if none match.
 func matchGoImport(imports []metaImport, importPath string) (metaImport, error) {
 	match := -1
 

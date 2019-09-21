@@ -110,11 +110,13 @@
 // 		The default is the number of CPUs available.
 // 	-race
 // 		enable data race detection.
-// 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
+// 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, windows/amd64,
+// 		linux/ppc64le and linux/arm64 (only for 48-bit VMA).
 // 	-msan
 // 		enable interoperation with memory sanitizer.
 // 		Supported only on linux/amd64, linux/arm64
 // 		and only with Clang/LLVM as the host C compiler.
+// 		On linux/arm64, pie build mode will be used.
 // 	-v
 // 		print the names of packages as they are compiled.
 // 	-work
@@ -361,6 +363,8 @@
 // 		Treat a command (package main) like a regular package.
 // 		Otherwise package main's exported symbols are hidden
 // 		when showing the package's top-level documentation.
+// 	-short
+// 		One-line representation for each symbol.
 // 	-src
 // 		Show the full source code for the symbol. This will
 // 		display the full Go source of its declaration and
@@ -2060,8 +2064,8 @@
 //
 // The GET requests sent to a Go module proxy are:
 //
-// GET $GOPROXY/<module>/@v/list returns a list of all known versions of the
-// given module, one per line.
+// GET $GOPROXY/<module>/@v/list returns a list of known versions of the given
+// module, one per line.
 //
 // GET $GOPROXY/<module>/@v/<version>.info returns JSON-formatted metadata
 // about that version of the given module.
@@ -2071,6 +2075,21 @@
 //
 // GET $GOPROXY/<module>/@v/<version>.zip returns the zip archive
 // for that version of the given module.
+//
+// GET $GOPROXY/<module>/@latest returns JSON-formatted metadata about the
+// latest known version of the given module in the same format as
+// <module>/@v/<version>.info. The latest version should be the version of
+// the module the go command may use if <module>/@v/list is empty or no
+// listed version is suitable. <module>/@latest is optional and may not
+// be implemented by a module proxy.
+//
+// When resolving the latest version of a module, the go command will request
+// <module>/@v/list, then, if no suitable versions are found, <module>/@latest.
+// The go command prefers, in order: the semantically highest release version,
+// the semantically highest pre-release version, and the chronologically
+// most recent pseudo-version. In Go 1.12 and earlier, the go command considered
+// pseudo-versions in <module>/@v/list to be pre-release versions, but this is
+// no longer true since Go 1.13.
 //
 // To avoid problems when serving from case-sensitive file systems,
 // the <module> and <version> elements are case-encoded, replacing every

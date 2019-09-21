@@ -174,6 +174,7 @@ var optab = []Optab{
 	{i: 12, as: ASUB, a1: C_LAUTO, a6: C_REG},
 	{i: 4, as: AMULHD, a1: C_REG, a6: C_REG},
 	{i: 4, as: AMULHD, a1: C_REG, a2: C_REG, a6: C_REG},
+	{i: 62, as: AMLGR, a1: C_REG, a6: C_REG},
 	{i: 2, as: ADIVW, a1: C_REG, a2: C_REG, a6: C_REG},
 	{i: 2, as: ADIVW, a1: C_REG, a6: C_REG},
 	{i: 10, as: ASUB, a1: C_REG, a2: C_REG, a6: C_REG},
@@ -313,6 +314,9 @@ var optab = []Optab{
 
 	// undefined (deliberate illegal instruction)
 	{i: 78, as: obj.AUNDEF},
+
+	// 2 byte no-operation
+	{i: 66, as: ANOPH},
 
 	// vector instructions
 
@@ -3317,7 +3321,12 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			x2 = REGTMP
 			d2 = 0
 		}
-		zRXY(c.zopstore(p.As), uint32(p.From.Reg), uint32(x2), uint32(b2), uint32(d2), asm)
+		// Emits an RX instruction if an appropriate one exists and the displacement fits in 12 bits. Otherwise use an RXY instruction.
+		if op, ok := c.zopstore12(p.As); ok && isU12(d2) {
+			zRX(op, uint32(p.From.Reg), uint32(x2), uint32(b2), uint32(d2), asm)
+		} else {
+			zRXY(c.zopstore(p.As), uint32(p.From.Reg), uint32(x2), uint32(b2), uint32(d2), asm)
+		}
 
 	case 36: // mov mem reg (no relocation)
 		d2 := c.regoff(&p.From)
@@ -3334,7 +3343,12 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			x2 = REGTMP
 			d2 = 0
 		}
-		zRXY(c.zopload(p.As), uint32(p.To.Reg), uint32(x2), uint32(b2), uint32(d2), asm)
+		// Emits an RX instruction if an appropriate one exists and the displacement fits in 12 bits. Otherwise use an RXY instruction.
+		if op, ok := c.zopload12(p.As); ok && isU12(d2) {
+			zRX(op, uint32(p.To.Reg), uint32(x2), uint32(b2), uint32(d2), asm)
+		} else {
+			zRXY(c.zopload(p.As), uint32(p.To.Reg), uint32(x2), uint32(b2), uint32(d2), asm)
+		}
 
 	case 40: // word/byte
 		wd := uint32(c.regoff(&p.From))
@@ -3393,6 +3407,12 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		}
 		d2 := c.regoff(&p.To)
 		zRXE(opcode, uint32(p.From.Reg), 0, 0, uint32(d2), 0, asm)
+
+	case 62: // equivalent of Mul64 in math/bits
+		zRRE(op_MLGR, uint32(p.To.Reg), uint32(p.From.Reg), asm)
+
+	case 66:
+		zRR(op_BCR, 0, 0, asm)
 
 	case 67: // fmov $0 freg
 		var opcode uint32
@@ -4209,6 +4229,22 @@ func (c *ctxtz) regoff(a *obj.Addr) int32 {
 	return int32(c.vregoff(a))
 }
 
+// find if the displacement is within 12 bit
+func isU12(displacement int32) bool {
+	return displacement >= 0 && displacement < DISP12
+}
+
+// zopload12 returns the RX op with 12 bit displacement for the given load
+func (c *ctxtz) zopload12(a obj.As) (uint32, bool) {
+	switch a {
+	case AFMOVD:
+		return op_LD, true
+	case AFMOVS:
+		return op_LE, true
+	}
+	return 0, false
+}
+
 // zopload returns the RXY op for the given load
 func (c *ctxtz) zopload(a obj.As) uint32 {
 	switch a {
@@ -4245,6 +4281,23 @@ func (c *ctxtz) zopload(a obj.As) uint32 {
 
 	c.ctxt.Diag("unknown store opcode %v", a)
 	return 0
+}
+
+// zopstore12 returns the RX op with 12 bit displacement for the given store
+func (c *ctxtz) zopstore12(a obj.As) (uint32, bool) {
+	switch a {
+	case AFMOVD:
+		return op_STD, true
+	case AFMOVS:
+		return op_STE, true
+	case AMOVW, AMOVWZ:
+		return op_ST, true
+	case AMOVH, AMOVHZ:
+		return op_STH, true
+	case AMOVB, AMOVBZ:
+		return op_STC, true
+	}
+	return 0, false
 }
 
 // zopstore returns the RXY op for the given store

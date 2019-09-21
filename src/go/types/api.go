@@ -374,3 +374,15 @@ func Implements(V Type, T *Interface) bool {
 	f, _ := MissingMethod(V, T, true)
 	return f == nil
 }
+
+// Identical reports whether x and y are identical types.
+// Receivers of Signature types are ignored.
+func Identical(x, y Type) bool {
+	return (*Checker)(nil).identical(x, y)
+}
+
+// IdenticalIgnoreTags reports whether x and y are identical types if tags are ignored.
+// Receivers of Signature types are ignored.
+func IdenticalIgnoreTags(x, y Type) bool {
+	return (*Checker)(nil).identicalIgnoreTags(x, y)
+}

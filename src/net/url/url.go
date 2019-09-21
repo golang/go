@@ -42,6 +42,8 @@ func (e *Error) Temporary() bool {
 	return ok && t.Temporary()
 }
 
+const upperhex = "0123456789ABCDEF"
+
 func ishex(c byte) bool {
 	switch {
 	case '0' <= c && c <= '9':
@@ -324,8 +326,8 @@ func escape(s string, mode encoding) string {
 			j++
 		case shouldEscape(c, mode):
 			t[j] = '%'
-			t[j+1] = "0123456789ABCDEF"[c>>4]
-			t[j+2] = "0123456789ABCDEF"[c&15]
+			t[j+1] = upperhex[c>>4]
+			t[j+2] = upperhex[c&15]
 			j += 3
 		default:
 			t[j] = s[i]
@@ -449,7 +451,7 @@ func getscheme(rawurl string) (scheme, path string, err error) {
 	return "", rawurl, nil
 }
 
-// split slices s into two substrings separated by the first occurence of
+// split slices s into two substrings separated by the first occurrence of
 // sep. If cutc is true then sep is included with the second substring.
 // If sep does not occur in s then s and the empty string is returned.
 func split(s string, sep byte, cutc bool) (string, string) {

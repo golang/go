@@ -73,6 +73,12 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
 
 func typecheckclosure(clo *Node, top int) {
 	xfunc := clo.Func.Closure
+	// Set current associated iota value, so iota can be used inside
+	// function in ConstSpec, see issue #22344
+	if x := getIotaValue(); x >= 0 {
+		xfunc.SetIota(x)
+	}
+
 	clo.Func.Ntype = typecheck(clo.Func.Ntype, ctxType)
 	clo.Type = clo.Func.Ntype.Type
 	clo.Func.Top = top

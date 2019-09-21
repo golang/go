@@ -118,6 +118,11 @@ func TestEncoderSetEscapeHTML(t *testing.T) {
 		Ptr    strPtrMarshaler
 	}{`"<str>"`, `"<str>"`}
 
+	// https://golang.org/issue/34154
+	stringOption := struct {
+		Bar string `json:"bar,string"`
+	}{`<html>foobar</html>`}
+
 	for _, tt := range []struct {
 		name       string
 		v          interface{}
@@ -136,6 +141,11 @@ func TestEncoderSetEscapeHTML(t *testing.T) {
 			`"<str>"`, marshalerStruct,
 			`{"NonPtr":"\u003cstr\u003e","Ptr":"\u003cstr\u003e"}`,
 			`{"NonPtr":"<str>","Ptr":"<str>"}`,
+		},
+		{
+			"stringOption", stringOption,
+			`{"bar":"\"\u003chtml\u003efoobar\u003c/html\u003e\""}`,
+			`{"bar":"\"<html>foobar</html>\""}`,
 		},
 	} {
 		var buf bytes.Buffer

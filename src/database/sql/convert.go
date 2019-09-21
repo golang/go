@@ -565,7 +565,7 @@ func callValuerValue(vr driver.Valuer) (v driver.Value, err error) {
 // coefficient (also known as a significand) as a []byte, and an int32 exponent.
 // These are composed into a final value as "decimal = (neg) (form=finite) coefficient * 10 ^ exponent".
 // A zero length coefficient is a zero value.
-// The big-endian integer coefficent stores the most significant byte first (at coefficent[0]).
+// The big-endian integer coefficient stores the most significant byte first (at coefficient[0]).
 // If the form is not finite the coefficient and exponent should be ignored.
 // The negative parameter may be set to true for any form, although implementations are not required
 // to respect the negative parameter in the non-finite form.

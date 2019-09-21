@@ -48,6 +48,7 @@ type Node struct {
 	// - OSTRUCTKEY uses it to store the named field's offset.
 	// - Named OLITERALs use it to store their ambient iota value.
 	// - OINLMARK stores an index into the inlTree data structure.
+	// - OCLOSURE uses it to store ambient iota value, if any.
 	// Possibly still more uses. If you find any, document them.
 	Xoffset int64
 
@@ -691,7 +692,7 @@ const (
 	ORECV        // <-Left
 	ORUNESTR     // Type(Left) (Type is string, Left is rune)
 	OSELRECV     // Left = <-Right.Left: (appears as .Left of OCASE; Right.Op == ORECV)
-	OSELRECV2    // List = <-Right.Left: (apperas as .Left of OCASE; count(List) == 2, Right.Op == ORECV)
+	OSELRECV2    // List = <-Right.Left: (appears as .Left of OCASE; count(List) == 2, Right.Op == ORECV)
 	OIOTA        // iota
 	OREAL        // real(Left)
 	OIMAG        // imag(Left)
@@ -703,8 +704,7 @@ const (
 	// statements
 	OBLOCK    // { List } (block of code)
 	OBREAK    // break [Sym]
-	OCASE     // case Left or List[0]..List[1]: Nbody (select case after processing; Left==nil and List==nil means default)
-	OXCASE    // case List: Nbody (select case before processing; List==nil means default)
+	OCASE     // case List: Nbody (List==nil means default)
 	OCONTINUE // continue [Sym]
 	ODEFER    // defer Left (Left must be call)
 	OEMPTY    // no-op (empty statement)
@@ -726,8 +726,8 @@ const (
 	OGO     // go Left (Left must be call)
 	ORANGE  // for List = range Right { Nbody }
 	ORETURN // return List
-	OSELECT // select { List } (List is list of OXCASE or OCASE)
-	OSWITCH // switch Ninit; Left { List } (List is a list of OXCASE or OCASE)
+	OSELECT // select { List } (List is list of OCASE)
+	OSWITCH // switch Ninit; Left { List } (List is a list of OCASE)
 	OTYPESW // Left = Right.(type) (appears as .Left of OSWITCH)
 
 	// types

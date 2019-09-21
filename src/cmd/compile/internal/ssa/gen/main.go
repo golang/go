@@ -34,6 +34,8 @@ type arch struct {
 	regnames        []string
 	gpregmask       regMask
 	fpregmask       regMask
+	fp32regmask     regMask
+	fp64regmask     regMask
 	specialregmask  regMask
 	framepointerreg int8
 	linkreg         int8
@@ -74,7 +76,7 @@ type regInfo struct {
 	// clobbers encodes the set of registers that are overwritten by
 	// the instruction (other than the output registers).
 	clobbers regMask
-	// outpus[i] encodes the set of registers allowed for the i'th output.
+	// outputs[i] encodes the set of registers allowed for the i'th output.
 	outputs []regMask
 }
 
@@ -114,8 +116,37 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 	sort.Sort(ArchsByName(archs))
-	genOp()
-	genLower()
+
+	// The generate tasks are run concurrently, since they are CPU-intensive
+	// that can easily make use of many cores on a machine.
+	//
+	// Note that there is no limit on the concurrency at the moment. On a
+	// four-core laptop at the time of writing, peak RSS usually reaches
+	// ~200MiB, which seems doable by practically any machine nowadays. If
+	// that stops being the case, we can cap this func to a fixed number of
+	// architectures being generated at once.
+
+	tasks := []func(){
+		genOp,
+	}
+	for _, a := range archs {
+		a := a // the funcs are ran concurrently at a later time
+		tasks = append(tasks, func() {
+			genRules(a)
+			genSplitLoadRules(a)
+		})
+	}
+	var wg sync.WaitGroup
+	for _, task := range tasks {
+		task := task
+		wg.Add(1)
+		go func() {
+			task()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+
 	if *memprofile != "" {
 		f, err := os.Create(*memprofile)
 		if err != nil {
@@ -371,6 +402,12 @@ func genOp() {
 		fmt.Fprintln(w, "}")
 		fmt.Fprintf(w, "var gpRegMask%s = regMask(%d)\n", a.name, a.gpregmask)
 		fmt.Fprintf(w, "var fpRegMask%s = regMask(%d)\n", a.name, a.fpregmask)
+		if a.fp32regmask != 0 {
+			fmt.Fprintf(w, "var fp32RegMask%s = regMask(%d)\n", a.name, a.fp32regmask)
+		}
+		if a.fp64regmask != 0 {
+			fmt.Fprintf(w, "var fp64RegMask%s = regMask(%d)\n", a.name, a.fp64regmask)
+		}
 		fmt.Fprintf(w, "var specialRegMask%s = regMask(%d)\n", a.name, a.specialregmask)
 		fmt.Fprintf(w, "var framepointerReg%s = int8(%d)\n", a.name, a.framepointerreg)
 		fmt.Fprintf(w, "var linkReg%s = int8(%d)\n", a.name, a.linkreg)
@@ -385,31 +422,38 @@ func genOp() {
 		panic(err)
 	}
 
-	err = ioutil.WriteFile("../opGen.go", b, 0666)
-	if err != nil {
+	if err := ioutil.WriteFile("../opGen.go", b, 0666); err != nil {
 		log.Fatalf("can't write output: %v\n", err)
 	}
 
 	// Check that the arch genfile handles all the arch-specific opcodes.
 	// This is very much a hack, but it is better than nothing.
+	//
+	// Do a single regexp pass to record all ops being handled in a map, and
+	// then compare that with the ops list. This is much faster than one
+	// regexp pass per opcode.
 	for _, a := range archs {
 		if a.genfile == "" {
 			continue
+		}
+
+		pattern := fmt.Sprintf(`\Wssa\.Op%s([a-zA-Z0-9_]+)\W`, a.name)
+		rxOp, err := regexp.Compile(pattern)
+		if err != nil {
+			log.Fatalf("bad opcode regexp %s: %v", pattern, err)
 		}
 
 		src, err := ioutil.ReadFile(a.genfile)
 		if err != nil {
 			log.Fatalf("can't read %s: %v", a.genfile, err)
 		}
-
-		for _, v := range a.ops {
-			pattern := fmt.Sprintf("\\Wssa[.]Op%s%s\\W", a.name, v.name)
-			match, err := regexp.Match(pattern, src)
-			if err != nil {
-				log.Fatalf("bad opcode regexp %s: %v", pattern, err)
-			}
-			if !match {
-				log.Fatalf("Op%s%s has no code generation in %s", a.name, v.name, a.genfile)
+		seen := make(map[string]bool, len(a.ops))
+		for _, m := range rxOp.FindAllSubmatch(src, -1) {
+			seen[string(m[1])] = true
+		}
+		for _, op := range a.ops {
+			if !seen[op.name] {
+				log.Fatalf("Op%s%s has no code generation in %s", a.name, op.name, a.genfile)
 			}
 		}
 	}
@@ -422,28 +466,6 @@ func (a arch) Name() string {
 		s = ""
 	}
 	return s
-}
-
-// genLower generates all arch-specific rewrite Go source files. The files are
-// generated and written concurrently, since it's a CPU-intensive task that can
-// easily make use of many cores on a machine.
-//
-// Note that there is no limit on the concurrency at the moment. On a four-core
-// laptop at the time of writing, peak RSS usually reached ~230MiB, which seems
-// doable by practially any machine nowadays. If that stops being the case, we
-// can cap this func to a fixed number of architectures being generated at once.
-func genLower() {
-	var wg sync.WaitGroup
-	for _, a := range archs {
-		a := a
-		wg.Add(1)
-		go func() {
-			genRules(a)
-			genSplitLoadRules(a)
-			wg.Done()
-		}()
-	}
-	wg.Wait()
 }
 
 // countRegs returns the number of set bits in the register mask.

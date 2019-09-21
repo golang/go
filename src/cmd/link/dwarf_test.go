@@ -167,7 +167,7 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 
 func TestDWARF(t *testing.T) {
 	testDWARF(t, "", true)
-	if runtime.GOOS == "darwin" && !testing.Short() {
+	if !testing.Short() {
 		t.Run("c-archive", func(t *testing.T) {
 			testDWARF(t, "c-archive", true)
 		})

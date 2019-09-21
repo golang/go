@@ -110,7 +110,7 @@ func efaceEscape1() {
 	{
 		i := 0         // ERROR "moved to heap: i"
 		v := M1{&i, 0}
-		var x M = v // ERROR "efaceEscape1 v does not escape"
+		var x M = v // ERROR "v does not escape"
 		v1 := x.(M1)
 		sink = v1 // ERROR "v1 escapes to heap"
 	}

@@ -437,7 +437,7 @@ func (tr *transportRequest) setError(err error) {
 	tr.mu.Unlock()
 }
 
-// useRegisteredProtocol reports whether an alternate protocol (as reqistered
+// useRegisteredProtocol reports whether an alternate protocol (as registered
 // with Transport.RegisterProtocol) should be respected for this request.
 func (t *Transport) useRegisteredProtocol(req *Request) bool {
 	if req.URL.Scheme == "https" && req.requiresHTTP1() {
@@ -1195,7 +1195,9 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (pc *persi
 	// Queue for idle connection.
 	if delivered := t.queueForIdleConn(w); delivered {
 		pc := w.pc
-		if trace != nil && trace.GotConn != nil {
+		// Trace only for HTTP/1.
+		// HTTP/2 calls trace.GotConn itself.
+		if pc.alt == nil && trace != nil && trace.GotConn != nil {
 			trace.GotConn(pc.gotIdleConnTrace(pc.idleAt))
 		}
 		// set request canceler to some non-nil function so we
@@ -1903,7 +1905,7 @@ func (pc *persistConn) readLoop() {
 			}
 			return
 		}
-		pc.readLimit = maxInt64 // effictively no limit for response bodies
+		pc.readLimit = maxInt64 // effectively no limit for response bodies
 
 		pc.mu.Lock()
 		pc.numExpectedResponses--

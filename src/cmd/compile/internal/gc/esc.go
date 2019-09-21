@@ -212,6 +212,8 @@ var tags [1 << (bitsPerOutputInTag + EscReturnBits)]string
 // mktag returns the string representation for an escape analysis tag.
 func mktag(mask int) string {
 	switch mask & EscMask {
+	case EscHeap:
+		return ""
 	case EscNone, EscReturn:
 	default:
 		Fatalf("escape mktag")
@@ -390,7 +392,7 @@ func moveToHeap(n *Node) {
 	n.Name.Param.Heapaddr = heapaddr
 	n.Esc = EscHeap
 	if Debug['m'] != 0 {
-		fmt.Printf("%v: moved to heap: %v\n", n.Line(), n)
+		Warnl(n.Pos, "moved to heap: %v", n)
 	}
 }
 
@@ -403,91 +405,93 @@ const unsafeUintptrTag = "unsafe-uintptr"
 // marked go:uintptrescapes.
 const uintptrEscapesTag = "uintptr-escapes"
 
-func esctag(fn *Node) {
-	fn.Esc = EscFuncTagged
-
-	name := func(s *types.Sym, narg int) string {
-		if s != nil {
-			return s.Name
+func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
+	name := func() string {
+		if f.Sym != nil {
+			return f.Sym.Name
 		}
 		return fmt.Sprintf("arg#%d", narg)
 	}
 
-	// External functions are assumed unsafe,
-	// unless //go:noescape is given before the declaration.
 	if fn.Nbody.Len() == 0 {
-		if fn.Noescape() {
-			for _, f := range fn.Type.Params().Fields().Slice() {
-				if types.Haspointers(f.Type) {
-					f.Note = mktag(EscNone)
-				}
-			}
-		}
-
 		// Assume that uintptr arguments must be held live across the call.
 		// This is most important for syscall.Syscall.
 		// See golang.org/issue/13372.
 		// This really doesn't have much to do with escape analysis per se,
 		// but we are reusing the ability to annotate an individual function
 		// argument and pass those annotations along to importing code.
-		narg := 0
-		for _, f := range fn.Type.Params().Fields().Slice() {
-			narg++
-			if f.Type.Etype == TUINTPTR {
-				if Debug['m'] != 0 {
-					Warnl(fn.Pos, "%v assuming %v is unsafe uintptr", funcSym(fn), name(f.Sym, narg))
-				}
-				f.Note = unsafeUintptrTag
+		if f.Type.Etype == TUINTPTR {
+			if Debug['m'] != 0 {
+				Warnl(f.Pos, "assuming %v is unsafe uintptr", name())
 			}
+			return unsafeUintptrTag
 		}
 
-		return
+		if !types.Haspointers(f.Type) { // don't bother tagging for scalars
+			return ""
+		}
+
+		// External functions are assumed unsafe, unless
+		// //go:noescape is given before the declaration.
+		if fn.Noescape() {
+			if Debug['m'] != 0 && f.Sym != nil {
+				Warnl(f.Pos, "%v does not escape", name())
+			}
+			return mktag(EscNone)
+		}
+
+		if Debug['m'] != 0 && f.Sym != nil {
+			Warnl(f.Pos, "leaking param: %v", name())
+		}
+		return mktag(EscHeap)
 	}
 
 	if fn.Func.Pragma&UintptrEscapes != 0 {
-		narg := 0
-		for _, f := range fn.Type.Params().Fields().Slice() {
-			narg++
-			if f.Type.Etype == TUINTPTR {
-				if Debug['m'] != 0 {
-					Warnl(fn.Pos, "%v marking %v as escaping uintptr", funcSym(fn), name(f.Sym, narg))
-				}
-				f.Note = uintptrEscapesTag
+		if f.Type.Etype == TUINTPTR {
+			if Debug['m'] != 0 {
+				Warnl(f.Pos, "marking %v as escaping uintptr", name())
 			}
+			return uintptrEscapesTag
+		}
+		if f.IsDDD() && f.Type.Elem().Etype == TUINTPTR {
+			// final argument is ...uintptr.
+			if Debug['m'] != 0 {
+				Warnl(f.Pos, "marking %v as escaping ...uintptr", name())
+			}
+			return uintptrEscapesTag
+		}
+	}
 
-			if f.IsDDD() && f.Type.Elem().Etype == TUINTPTR {
-				// final argument is ...uintptr.
-				if Debug['m'] != 0 {
-					Warnl(fn.Pos, "%v marking %v as escaping ...uintptr", funcSym(fn), name(f.Sym, narg))
+	if !types.Haspointers(f.Type) { // don't bother tagging for scalars
+		return ""
+	}
+
+	// Unnamed parameters are unused and therefore do not escape.
+	if f.Sym == nil || f.Sym.IsBlank() {
+		return mktag(EscNone)
+	}
+
+	n := asNode(f.Nname)
+	loc := e.oldLoc(n)
+	esc := finalizeEsc(loc.paramEsc)
+
+	if Debug['m'] != 0 && !loc.escapes {
+		if esc == EscNone {
+			Warnl(f.Pos, "%v does not escape", name())
+		} else if esc == EscHeap {
+			Warnl(f.Pos, "leaking param: %v", name())
+		} else {
+			if esc&EscContentEscapes != 0 {
+				Warnl(f.Pos, "leaking param content: %v", name())
+			}
+			for i := 0; i < numEscReturns; i++ {
+				if x := getEscReturn(esc, i); x >= 0 {
+					res := fn.Type.Results().Field(i).Sym
+					Warnl(f.Pos, "leaking param: %v to result %v level=%d", name(), res, x)
 				}
-				f.Note = uintptrEscapesTag
 			}
 		}
 	}
 
-	for _, fs := range types.RecvsParams {
-		for _, f := range fs(fn.Type).Fields().Slice() {
-			if !types.Haspointers(f.Type) { // don't bother tagging for scalars
-				continue
-			}
-			if f.Note == uintptrEscapesTag {
-				// Note is already set in the loop above.
-				continue
-			}
-
-			// Unnamed parameters are unused and therefore do not escape.
-			if f.Sym == nil || f.Sym.IsBlank() {
-				f.Note = mktag(EscNone)
-				continue
-			}
-
-			switch esc := asNode(f.Nname).Esc; esc & EscMask {
-			case EscNone, // not touched by escflood
-				EscReturn:
-				f.Note = mktag(int(esc))
-
-			case EscHeap: // touched by escflood, moved to heap
-			}
-		}
-	}
+	return mktag(int(esc))
 }

@@ -6,9 +6,11 @@ package codehost
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,6 +23,7 @@ import (
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/par"
 	"cmd/go/internal/semver"
+	"cmd/go/internal/web"
 )
 
 // GitRepo returns the code repository at the given Git remote reference.
@@ -33,6 +36,15 @@ func GitRepo(remote string) (Repo, error) {
 func LocalGitRepo(remote string) (Repo, error) {
 	return newGitRepoCached(remote, true)
 }
+
+// A notExistError wraps another error to retain its original text
+// but makes it opaquely equivalent to os.ErrNotExist.
+type notExistError struct {
+	err error
+}
+
+func (e notExistError) Error() string   { return e.err.Error() }
+func (notExistError) Is(err error) bool { return err == os.ErrNotExist }
 
 const gitWorkDirType = "git3"
 
@@ -85,8 +97,9 @@ func newGitRepo(remote string, localOK bool) (Repo, error) {
 				os.RemoveAll(r.dir)
 				return nil, err
 			}
-			r.remote = "origin"
 		}
+		r.remoteURL = r.remote
+		r.remote = "origin"
 	} else {
 		// Local path.
 		// Disallow colon (not in ://) because sometimes
@@ -113,9 +126,9 @@ func newGitRepo(remote string, localOK bool) (Repo, error) {
 }
 
 type gitRepo struct {
-	remote string
-	local  bool
-	dir    string
+	remote, remoteURL string
+	local             bool
+	dir               string
 
 	mu lockedfile.Mutex // protects fetchLevel and git repo state
 
@@ -166,14 +179,25 @@ func (r *gitRepo) loadRefs() {
 	// The git protocol sends all known refs and ls-remote filters them on the client side,
 	// so we might as well record both heads and tags in one shot.
 	// Most of the time we only care about tags but sometimes we care about heads too.
-	out, err := Run(r.dir, "git", "ls-remote", "-q", r.remote)
-	if err != nil {
-		if rerr, ok := err.(*RunError); ok {
+	out, gitErr := Run(r.dir, "git", "ls-remote", "-q", r.remote)
+	if gitErr != nil {
+		if rerr, ok := gitErr.(*RunError); ok {
 			if bytes.Contains(rerr.Stderr, []byte("fatal: could not read Username")) {
 				rerr.HelpText = "Confirm the import path was entered correctly.\nIf this is a private repository, see https://golang.org/doc/faq#git_https for additional information."
 			}
 		}
-		r.refsErr = err
+
+		// If the remote URL doesn't exist at all, ideally we should treat the whole
+		// repository as nonexistent by wrapping the error in a notExistError.
+		// For HTTP and HTTPS, that's easy to detect: we'll try to fetch the URL
+		// ourselves and see what code it serves.
+		if u, err := url.Parse(r.remoteURL); err == nil && (u.Scheme == "http" || u.Scheme == "https") {
+			if _, err := web.GetBytes(u); errors.Is(err, os.ErrNotExist) {
+				gitErr = notExistError{gitErr}
+			}
+		}
+
+		r.refsErr = gitErr
 		return
 	}
 

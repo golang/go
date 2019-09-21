@@ -686,11 +686,21 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 	}
 
 	if int(t.Etype) < len(basicnames) && basicnames[t.Etype] != "" {
-		name := basicnames[t.Etype]
-		if t == types.Idealbool || t == types.Idealstring {
-			name = "untyped " + name
+		switch t {
+		case types.Idealbool:
+			return "untyped bool"
+		case types.Idealstring:
+			return "untyped string"
+		case types.Idealint:
+			return "untyped int"
+		case types.Idealrune:
+			return "untyped rune"
+		case types.Idealfloat:
+			return "untyped float"
+		case types.Idealcomplex:
+			return "untyped complex"
 		}
-		return name
+		return basicnames[t.Etype]
 	}
 
 	if mode == FDbg {
@@ -853,9 +863,6 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 
 	case TUNSAFEPTR:
 		return "unsafe.Pointer"
-
-	case TDDDFIELD:
-		return mode.Sprintf("%v <%v> %v", t.Etype, t.Sym, t.DDDField())
 
 	case Txxx:
 		return "Txxx"
@@ -1028,26 +1035,10 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 
 		mode.Fprintf(s, " { %v }", n.List)
 
-	case OXCASE:
+	case OCASE:
 		if n.List.Len() != 0 {
 			mode.Fprintf(s, "case %.v", n.List)
 		} else {
-			fmt.Fprint(s, "default")
-		}
-		mode.Fprintf(s, ": %v", n.Nbody)
-
-	case OCASE:
-		switch {
-		case n.Left != nil:
-			// single element
-			mode.Fprintf(s, "case %v", n.Left)
-		case n.List.Len() > 0:
-			// range
-			if n.List.Len() != 2 {
-				Fatalf("bad OCASE list length %d", n.List.Len())
-			}
-			mode.Fprintf(s, "case %v..%v", n.List.First(), n.List.Second())
-		default:
 			fmt.Fprint(s, "default")
 		}
 		mode.Fprintf(s, ": %v", n.Nbody)
@@ -1185,7 +1176,6 @@ var opprec = []int{
 	ORETURN:     -1,
 	OSELECT:     -1,
 	OSWITCH:     -1,
-	OXCASE:      -1,
 
 	OEND: 0,
 }

@@ -21,12 +21,13 @@ import (
 	"go/parser"
 	"go/printer"
 	"go/token"
-	"go/types"
 	"io"
 	"log"
 	"os"
+	"path"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
@@ -266,38 +267,38 @@ func genRulesSuffix(arch arch, suff string) {
 	}
 	tfile := fset.File(file.Pos())
 
-	for n := 0; n < 3; n++ {
-		unused := make(map[token.Pos]bool)
-		conf := types.Config{Error: func(err error) {
-			if terr, ok := err.(types.Error); ok && strings.Contains(terr.Msg, "not used") {
-				unused[terr.Pos] = true
-			}
-		}}
-		_, _ = conf.Check("ssa", fset, []*ast.File{file}, nil)
-		if len(unused) == 0 {
-			break
-		}
-		pre := func(c *astutil.Cursor) bool {
-			if node := c.Node(); node != nil && unused[node.Pos()] {
-				c.Delete()
-				// Unused imports and declarations use exactly
-				// one line. Prevent leaving an empty line.
-				tfile.MergeLine(tfile.Position(node.Pos()).Line)
-				return false
-			}
+	// First, use unusedInspector to find the unused declarations by their
+	// start position.
+	u := unusedInspector{unused: make(map[token.Pos]bool)}
+	u.node(file)
+
+	// Then, delete said nodes via astutil.Apply.
+	pre := func(c *astutil.Cursor) bool {
+		node := c.Node()
+		if node == nil {
 			return true
 		}
-		post := func(c *astutil.Cursor) bool {
-			switch node := c.Node().(type) {
-			case *ast.GenDecl:
-				if len(node.Specs) == 0 {
-					c.Delete()
-				}
-			}
-			return true
+		if u.unused[node.Pos()] {
+			c.Delete()
+			// Unused imports and declarations use exactly
+			// one line. Prevent leaving an empty line.
+			tfile.MergeLine(tfile.Position(node.Pos()).Line)
+			return false
 		}
-		file = astutil.Apply(file, pre, post).(*ast.File)
+		return true
 	}
+	post := func(c *astutil.Cursor) bool {
+		switch node := c.Node().(type) {
+		case *ast.GenDecl:
+			if len(node.Specs) == 0 {
+				// Don't leave a broken or empty GenDecl behind,
+				// such as "import ()".
+				c.Delete()
+			}
+		}
+		return true
+	}
+	file = astutil.Apply(file, pre, post).(*ast.File)
 
 	// Write the well-formatted source to file
 	f, err := os.Create("../rewrite" + arch.name + suff + ".go")
@@ -317,6 +318,234 @@ func genRulesSuffix(arch arch, suff string) {
 	if err := f.Close(); err != nil {
 		log.Fatalf("can't write output: %v", err)
 	}
+}
+
+// unusedInspector can be used to detect unused variables and imports in an
+// ast.Node via its node method. The result is available in the "unused" map.
+//
+// note that unusedInspector is lazy and best-effort; it only supports the node
+// types and patterns used by the rulegen program.
+type unusedInspector struct {
+	// scope is the current scope, which can never be nil when a declaration
+	// is encountered. That is, the unusedInspector.node entrypoint should
+	// generally be an entire file or block.
+	scope *scope
+
+	// unused is the resulting set of unused declared names, indexed by the
+	// starting position of the node that declared the name.
+	unused map[token.Pos]bool
+
+	// defining is the object currently being defined; this is useful so
+	// that if "foo := bar" is unused and removed, we can then detect if
+	// "bar" becomes unused as well.
+	defining *object
+}
+
+// scoped opens a new scope when called, and returns a function which closes
+// that same scope. When a scope is closed, unused variables are recorded.
+func (u *unusedInspector) scoped() func() {
+	outer := u.scope
+	u.scope = &scope{outer: outer, objects: map[string]*object{}}
+	return func() {
+		for anyUnused := true; anyUnused; {
+			anyUnused = false
+			for _, obj := range u.scope.objects {
+				if obj.numUses > 0 {
+					continue
+				}
+				u.unused[obj.pos] = true
+				for _, used := range obj.used {
+					if used.numUses--; used.numUses == 0 {
+						anyUnused = true
+					}
+				}
+				// We've decremented numUses for each of the
+				// objects in used. Zero this slice too, to keep
+				// everything consistent.
+				obj.used = nil
+			}
+		}
+		u.scope = outer
+	}
+}
+
+func (u *unusedInspector) exprs(list []ast.Expr) {
+	for _, x := range list {
+		u.node(x)
+	}
+}
+
+func (u *unusedInspector) stmts(list []ast.Stmt) {
+	for _, x := range list {
+		u.node(x)
+	}
+}
+
+func (u *unusedInspector) decls(list []ast.Decl) {
+	for _, x := range list {
+		u.node(x)
+	}
+}
+
+func (u *unusedInspector) node(node ast.Node) {
+	switch node := node.(type) {
+	case *ast.File:
+		defer u.scoped()()
+		u.decls(node.Decls)
+	case *ast.GenDecl:
+		for _, spec := range node.Specs {
+			u.node(spec)
+		}
+	case *ast.ImportSpec:
+		impPath, _ := strconv.Unquote(node.Path.Value)
+		name := path.Base(impPath)
+		u.scope.objects[name] = &object{
+			name: name,
+			pos:  node.Pos(),
+		}
+	case *ast.FuncDecl:
+		u.node(node.Type)
+		if node.Body != nil {
+			u.node(node.Body)
+		}
+	case *ast.FuncType:
+		if node.Params != nil {
+			u.node(node.Params)
+		}
+		if node.Results != nil {
+			u.node(node.Results)
+		}
+	case *ast.FieldList:
+		for _, field := range node.List {
+			u.node(field)
+		}
+	case *ast.Field:
+		u.node(node.Type)
+
+	// statements
+
+	case *ast.BlockStmt:
+		defer u.scoped()()
+		u.stmts(node.List)
+	case *ast.IfStmt:
+		if node.Init != nil {
+			u.node(node.Init)
+		}
+		u.node(node.Cond)
+		u.node(node.Body)
+		if node.Else != nil {
+			u.node(node.Else)
+		}
+	case *ast.ForStmt:
+		if node.Init != nil {
+			u.node(node.Init)
+		}
+		if node.Cond != nil {
+			u.node(node.Cond)
+		}
+		if node.Post != nil {
+			u.node(node.Post)
+		}
+		u.node(node.Body)
+	case *ast.SwitchStmt:
+		if node.Init != nil {
+			u.node(node.Init)
+		}
+		if node.Tag != nil {
+			u.node(node.Tag)
+		}
+		u.node(node.Body)
+	case *ast.CaseClause:
+		u.exprs(node.List)
+		defer u.scoped()()
+		u.stmts(node.Body)
+	case *ast.BranchStmt:
+	case *ast.ExprStmt:
+		u.node(node.X)
+	case *ast.AssignStmt:
+		if node.Tok != token.DEFINE {
+			u.exprs(node.Rhs)
+			u.exprs(node.Lhs)
+			break
+		}
+		if len(node.Lhs) != 1 {
+			panic("no support for := with multiple names")
+		}
+
+		name := node.Lhs[0].(*ast.Ident)
+		obj := &object{
+			name: name.Name,
+			pos:  name.NamePos,
+		}
+
+		old := u.defining
+		u.defining = obj
+		u.exprs(node.Rhs)
+		u.defining = old
+
+		u.scope.objects[name.Name] = obj
+	case *ast.ReturnStmt:
+		u.exprs(node.Results)
+
+	// expressions
+
+	case *ast.CallExpr:
+		u.node(node.Fun)
+		u.exprs(node.Args)
+	case *ast.SelectorExpr:
+		u.node(node.X)
+	case *ast.UnaryExpr:
+		u.node(node.X)
+	case *ast.BinaryExpr:
+		u.node(node.X)
+		u.node(node.Y)
+	case *ast.StarExpr:
+		u.node(node.X)
+	case *ast.ParenExpr:
+		u.node(node.X)
+	case *ast.IndexExpr:
+		u.node(node.X)
+		u.node(node.Index)
+	case *ast.TypeAssertExpr:
+		u.node(node.X)
+		u.node(node.Type)
+	case *ast.Ident:
+		if obj := u.scope.Lookup(node.Name); obj != nil {
+			obj.numUses++
+			if u.defining != nil {
+				u.defining.used = append(u.defining.used, obj)
+			}
+		}
+	case *ast.BasicLit:
+	default:
+		panic(fmt.Sprintf("unhandled node: %T", node))
+	}
+}
+
+// scope keeps track of a certain scope and its declared names, as well as the
+// outer (parent) scope.
+type scope struct {
+	outer   *scope             // can be nil, if this is the top-level scope
+	objects map[string]*object // indexed by each declared name
+}
+
+func (s *scope) Lookup(name string) *object {
+	if obj := s.objects[name]; obj != nil {
+		return obj
+	}
+	if s.outer == nil {
+		return nil
+	}
+	return s.outer.Lookup(name)
+}
+
+// object keeps track of a declared name, such as a variable or import.
+type object struct {
+	name string
+	pos  token.Pos // start position of the node declaring the object
+
+	numUses int       // number of times this object is used
+	used    []*object // objects that its declaration makes use of
 }
 
 func fprint(w io.Writer, n Node) {
@@ -378,13 +607,17 @@ func fprint(w io.Writer, n Node) {
 		fprint(w, n.expr)
 		fmt.Fprintf(w, " {\nbreak\n}\n")
 	case ast.Node:
-		printer.Fprint(w, emptyFset, n)
+		printConfig.Fprint(w, emptyFset, n)
 		if _, ok := n.(ast.Stmt); ok {
 			fmt.Fprintln(w)
 		}
 	default:
 		log.Fatalf("cannot print %T", n)
 	}
+}
+
+var printConfig = printer.Config{
+	Mode: printer.RawFormat, // we use go/format later, so skip work here
 }
 
 var emptyFset = token.NewFileSet()
@@ -396,14 +629,13 @@ type Node interface{}
 // ast.Stmt under some limited circumstances.
 type Statement interface{}
 
-// bodyBase is shared by all of our statement psuedo-node types which can
+// bodyBase is shared by all of our statement pseudo-node types which can
 // contain other statements.
 type bodyBase struct {
 	list    []Statement
 	canFail bool
 }
 
-func (w *bodyBase) body() []Statement { return w.list }
 func (w *bodyBase) add(nodes ...Statement) {
 	w.list = append(w.list, nodes...)
 	for _, node := range nodes {

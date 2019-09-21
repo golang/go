@@ -54,8 +54,9 @@ func actionList(root *Action) []*Action {
 
 // do runs the action graph rooted at root.
 func (b *Builder) Do(root *Action) {
-	if c := cache.Default(); c != nil && !b.IsCmdList {
+	if !b.IsCmdList {
 		// If we're doing real work, take time at the end to trim the cache.
+		c := cache.Default()
 		defer c.Trim()
 	}
 
@@ -200,12 +201,12 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	// same compiler settings and can reuse each other's results.
 	// If not, the reason is already recorded in buildGcflags.
 	fmt.Fprintf(h, "compile\n")
+	// Only include the package directory if it may affect the output.
+	// We trim workspace paths for all packages when -trimpath is set.
 	// The compiler hides the exact value of $GOROOT
-	// when building things in GOROOT,
-	// but it does not hide the exact value of $GOPATH.
-	// Include the full dir in that case.
+	// when building things in GOROOT.
 	// Assume b.WorkDir is being trimmed properly.
-	if !p.Goroot && !strings.HasPrefix(p.Dir, b.WorkDir) {
+	if !p.Goroot && !cfg.BuildTrimpath && !strings.HasPrefix(p.Dir, b.WorkDir) {
 		fmt.Fprintf(h, "dir %s\n", p.Dir)
 	}
 	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
@@ -406,15 +407,19 @@ func (b *Builder) build(a *Action) (err error) {
 			if b.NeedExport {
 				p.Export = a.built
 			}
-			if need&needCompiledGoFiles != 0 && b.loadCachedSrcFiles(a) {
-				need &^= needCompiledGoFiles
+			if need&needCompiledGoFiles != 0 {
+				if err := b.loadCachedSrcFiles(a); err == nil {
+					need &^= needCompiledGoFiles
+				}
 			}
 		}
 
 		// Source files might be cached, even if the full action is not
 		// (e.g., go list -compiled -find).
-		if !cachedBuild && need&needCompiledGoFiles != 0 && b.loadCachedSrcFiles(a) {
-			need &^= needCompiledGoFiles
+		if !cachedBuild && need&needCompiledGoFiles != 0 {
+			if err := b.loadCachedSrcFiles(a); err == nil {
+				need &^= needCompiledGoFiles
+			}
 		}
 
 		if need == 0 {
@@ -459,16 +464,20 @@ func (b *Builder) build(a *Action) (err error) {
 	objdir := a.Objdir
 
 	// Load cached cgo header, but only if we're skipping the main build (cachedBuild==true).
-	if cachedBuild && need&needCgoHdr != 0 && b.loadCachedCgoHdr(a) {
-		need &^= needCgoHdr
+	if cachedBuild && need&needCgoHdr != 0 {
+		if err := b.loadCachedCgoHdr(a); err == nil {
+			need &^= needCgoHdr
+		}
 	}
 
 	// Load cached vet config, but only if that's all we have left
 	// (need == needVet, not testing just the one bit).
 	// If we are going to do a full build anyway,
 	// we're going to regenerate the files below anyway.
-	if need == needVet && b.loadCachedVet(a) {
-		need &^= needVet
+	if need == needVet {
+		if err := b.loadCachedVet(a); err == nil {
+			need &^= needVet
+		}
 	}
 	if need == 0 {
 		return nil
@@ -615,8 +624,8 @@ func (b *Builder) build(a *Action) (err error) {
 		need &^= needVet
 	}
 	if need&needCompiledGoFiles != 0 {
-		if !b.loadCachedSrcFiles(a) {
-			return fmt.Errorf("failed to cache compiled Go files")
+		if err := b.loadCachedSrcFiles(a); err != nil {
+			return fmt.Errorf("loading compiled Go files from cache: %w", err)
 		}
 		need &^= needCompiledGoFiles
 	}
@@ -654,7 +663,7 @@ func (b *Builder) build(a *Action) (err error) {
 	}
 
 	if p.Internal.BuildInfo != "" && cfg.ModulesEnabled {
-		if err := b.writeFile(objdir+"_gomod_.go", load.ModInfoProg(p.Internal.BuildInfo)); err != nil {
+		if err := b.writeFile(objdir+"_gomod_.go", load.ModInfoProg(p.Internal.BuildInfo, cfg.BuildToolchainName == "gccgo")); err != nil {
 			return err
 		}
 		gofiles = append(gofiles, objdir+"_gomod_.go")
@@ -788,7 +797,7 @@ func (b *Builder) cacheObjdirFile(a *Action, c *cache.Cache, name string) error 
 func (b *Builder) findCachedObjdirFile(a *Action, c *cache.Cache, name string) (string, error) {
 	file, _, err := c.GetFile(cache.Subkey(a.actionID, name))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("loading cached file %s: %w", name, err)
 	}
 	return file, nil
 }
@@ -803,26 +812,16 @@ func (b *Builder) loadCachedObjdirFile(a *Action, c *cache.Cache, name string) e
 
 func (b *Builder) cacheCgoHdr(a *Action) {
 	c := cache.Default()
-	if c == nil {
-		return
-	}
 	b.cacheObjdirFile(a, c, "_cgo_install.h")
 }
 
-func (b *Builder) loadCachedCgoHdr(a *Action) bool {
+func (b *Builder) loadCachedCgoHdr(a *Action) error {
 	c := cache.Default()
-	if c == nil {
-		return false
-	}
-	err := b.loadCachedObjdirFile(a, c, "_cgo_install.h")
-	return err == nil
+	return b.loadCachedObjdirFile(a, c, "_cgo_install.h")
 }
 
 func (b *Builder) cacheSrcFiles(a *Action, srcfiles []string) {
 	c := cache.Default()
-	if c == nil {
-		return
-	}
 	var buf bytes.Buffer
 	for _, file := range srcfiles {
 		if !strings.HasPrefix(file, a.Objdir) {
@@ -842,14 +841,11 @@ func (b *Builder) cacheSrcFiles(a *Action, srcfiles []string) {
 	c.PutBytes(cache.Subkey(a.actionID, "srcfiles"), buf.Bytes())
 }
 
-func (b *Builder) loadCachedVet(a *Action) bool {
+func (b *Builder) loadCachedVet(a *Action) error {
 	c := cache.Default()
-	if c == nil {
-		return false
-	}
 	list, _, err := c.GetBytes(cache.Subkey(a.actionID, "srcfiles"))
 	if err != nil {
-		return false
+		return fmt.Errorf("reading srcfiles list: %w", err)
 	}
 	var srcfiles []string
 	for _, name := range strings.Split(string(list), "\n") {
@@ -861,22 +857,19 @@ func (b *Builder) loadCachedVet(a *Action) bool {
 			continue
 		}
 		if err := b.loadCachedObjdirFile(a, c, name); err != nil {
-			return false
+			return err
 		}
 		srcfiles = append(srcfiles, a.Objdir+name)
 	}
 	buildVetConfig(a, srcfiles)
-	return true
+	return nil
 }
 
-func (b *Builder) loadCachedSrcFiles(a *Action) bool {
+func (b *Builder) loadCachedSrcFiles(a *Action) error {
 	c := cache.Default()
-	if c == nil {
-		return false
-	}
 	list, _, err := c.GetBytes(cache.Subkey(a.actionID, "srcfiles"))
 	if err != nil {
-		return false
+		return fmt.Errorf("reading srcfiles list: %w", err)
 	}
 	var files []string
 	for _, name := range strings.Split(string(list), "\n") {
@@ -889,12 +882,12 @@ func (b *Builder) loadCachedSrcFiles(a *Action) bool {
 		}
 		file, err := b.findCachedObjdirFile(a, c, name)
 		if err != nil {
-			return false
+			return fmt.Errorf("finding %s: %w", name, err)
 		}
 		files = append(files, file)
 	}
 	a.Package.CompiledGoFiles = files
-	return true
+	return nil
 }
 
 // vetConfig is the configuration passed to vet describing a single package.
@@ -1058,12 +1051,11 @@ func (b *Builder) vet(a *Action) error {
 	}
 	key := cache.ActionID(h.Sum())
 
-	if vcfg.VetxOnly {
-		if c := cache.Default(); c != nil && !cfg.BuildA {
-			if file, _, err := c.GetFile(key); err == nil {
-				a.built = file
-				return nil
-			}
+	if vcfg.VetxOnly && !cfg.BuildA {
+		c := cache.Default()
+		if file, _, err := c.GetFile(key); err == nil {
+			a.built = file
+			return nil
 		}
 	}
 
@@ -1091,9 +1083,7 @@ func (b *Builder) vet(a *Action) error {
 	// If vet wrote export data, save it for input to future vets.
 	if f, err := os.Open(vcfg.VetxOutput); err == nil {
 		a.built = vcfg.VetxOutput
-		if c := cache.Default(); c != nil {
-			c.Put(key, f)
-		}
+		cache.Default().Put(key, f)
 		f.Close()
 	}
 
@@ -1650,7 +1640,7 @@ func (b *Builder) copyFile(dst, src string, perm os.FileMode, force bool) error 
 		df, err = os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("copying %s: %w", src, err) // err should already refer to dst
 	}
 
 	_, err = io.Copy(df, sf)

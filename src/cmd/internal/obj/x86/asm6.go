@@ -3055,7 +3055,7 @@ func (ab *AsmBuf) Put(b []byte) {
 }
 
 // PutOpBytesLit writes zero terminated sequence of bytes from op,
-// starting at specified offsed (e.g. z counter value).
+// starting at specified offset (e.g. z counter value).
 // Trailing 0 is not written.
 //
 // Intended to be used for literal Z cases.

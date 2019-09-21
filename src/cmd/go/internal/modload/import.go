@@ -5,7 +5,6 @@
 package modload
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"go/build"
@@ -28,6 +27,7 @@ import (
 type ImportMissingError struct {
 	ImportPath string
 	Module     module.Version
+	QueryErr   error
 
 	// newMissingVersion is set to a newer version of Module if one is present
 	// in the build list. When set, we can't automatically upgrade.
@@ -39,9 +39,51 @@ func (e *ImportMissingError) Error() string {
 		if str.HasPathPrefix(e.ImportPath, "cmd") {
 			return fmt.Sprintf("package %s is not in GOROOT (%s)", e.ImportPath, filepath.Join(cfg.GOROOT, "src", e.ImportPath))
 		}
+		if e.QueryErr != nil {
+			return fmt.Sprintf("cannot find module providing package %s: %v", e.ImportPath, e.QueryErr)
+		}
 		return "cannot find module providing package " + e.ImportPath
 	}
-	return "missing module for import: " + e.Module.Path + "@" + e.Module.Version + " provides " + e.ImportPath
+	return fmt.Sprintf("missing module for import: %s@%s provides %s", e.Module.Path, e.Module.Version, e.ImportPath)
+}
+
+func (e *ImportMissingError) Unwrap() error {
+	return e.QueryErr
+}
+
+// An AmbiguousImportError indicates an import of a package found in multiple
+// modules in the build list, or found in both the main module and its vendor
+// directory.
+type AmbiguousImportError struct {
+	ImportPath string
+	Dirs       []string
+	Modules    []module.Version // Either empty or 1:1 with Dirs.
+}
+
+func (e *AmbiguousImportError) Error() string {
+	locType := "modules"
+	if len(e.Modules) == 0 {
+		locType = "directories"
+	}
+
+	var buf strings.Builder
+	fmt.Fprintf(&buf, "ambiguous import: found package %s in multiple %s:", e.ImportPath, locType)
+
+	for i, dir := range e.Dirs {
+		buf.WriteString("\n\t")
+		if i < len(e.Modules) {
+			m := e.Modules[i]
+			buf.WriteString(m.Path)
+			if m.Version != "" {
+				fmt.Fprintf(&buf, " %s", m.Version)
+			}
+			fmt.Fprintf(&buf, " (%s)", dir)
+		} else {
+			buf.WriteString(dir)
+		}
+	}
+
+	return buf.String()
 }
 
 // Import finds the module and directory in the build list
@@ -88,7 +130,7 @@ func Import(path string) (m module.Version, dir string, err error) {
 		mainDir, mainOK := dirInModule(path, targetPrefix, ModRoot(), true)
 		vendorDir, vendorOK := dirInModule(path, "", filepath.Join(ModRoot(), "vendor"), false)
 		if mainOK && vendorOK {
-			return module.Version{}, "", fmt.Errorf("ambiguous import: found %s in multiple directories:\n\t%s\n\t%s", path, mainDir, vendorDir)
+			return module.Version{}, "", &AmbiguousImportError{ImportPath: path, Dirs: []string{mainDir, vendorDir}}
 		}
 		// Prefer to return main directory if there is one,
 		// Note that we're not checking that the package exists.
@@ -128,16 +170,7 @@ func Import(path string) (m module.Version, dir string, err error) {
 		return mods[0], dirs[0], nil
 	}
 	if len(mods) > 0 {
-		var buf bytes.Buffer
-		fmt.Fprintf(&buf, "ambiguous import: found %s in multiple modules:", path)
-		for i, m := range mods {
-			fmt.Fprintf(&buf, "\n\t%s", m.Path)
-			if m.Version != "" {
-				fmt.Fprintf(&buf, " %s", m.Version)
-			}
-			fmt.Fprintf(&buf, " (%s)", dirs[i])
-		}
-		return module.Version{}, "", errors.New(buf.String())
+		return module.Version{}, "", &AmbiguousImportError{ImportPath: path, Dirs: dirs, Modules: mods}
 	}
 
 	// Look up module containing the package, for addition to the build list.
@@ -197,7 +230,7 @@ func Import(path string) (m module.Version, dir string, err error) {
 		if errors.Is(err, os.ErrNotExist) {
 			// Return "cannot find module providing package […]" instead of whatever
 			// low-level error QueryPackage produced.
-			return module.Version{}, "", &ImportMissingError{ImportPath: path}
+			return module.Version{}, "", &ImportMissingError{ImportPath: path, QueryErr: err}
 		} else {
 			return module.Version{}, "", err
 		}

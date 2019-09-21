@@ -209,13 +209,8 @@ func walkstmt(n *Node) *Node {
 	case OBLOCK:
 		walkstmtlist(n.List.Slice())
 
-	case OXCASE:
-		yyerror("case statement out of place")
-		n.Op = OCASE
-		fallthrough
-
 	case OCASE:
-		n.Right = walkstmt(n.Right)
+		yyerror("case statement out of place")
 
 	case ODEFER:
 		Curfn.Func.SetHasDefer(true)
@@ -1054,7 +1049,7 @@ opswitch:
 				yyerror("index out of bounds")
 			}
 		} else if Isconst(n.Left, CTSTR) {
-			n.SetBounded(bounded(r, int64(len(n.Left.Val().U.(string)))))
+			n.SetBounded(bounded(r, int64(len(strlit(n.Left)))))
 			if Debug['m'] != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
 				Warn("index bounds check elided")
 			}
@@ -1265,7 +1260,7 @@ opswitch:
 			}
 			// Map initialization with a variable or large hint is
 			// more complicated. We therefore generate a call to
-			// runtime.makemap to intialize hmap and allocate the
+			// runtime.makemap to initialize hmap and allocate the
 			// map buckets.
 
 			// When hint fits into int, use makemap instead of
@@ -1389,7 +1384,7 @@ opswitch:
 	case OSTR2BYTES:
 		s := n.Left
 		if Isconst(s, CTSTR) {
-			sc := s.Val().U.(string)
+			sc := strlit(s)
 
 			// Allocate a [n]byte of the right size.
 			t := types.NewArray(types.Types[TUINT8], int64(len(sc)))
@@ -1792,7 +1787,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 	for i := 0; i < len(s); {
 		var strs []string
 		for i < len(s) && Isconst(s[i], CTSTR) {
-			strs = append(strs, s[i].Val().U.(string))
+			strs = append(strs, strlit(s[i]))
 			i++
 		}
 		if len(strs) > 0 {
@@ -1861,7 +1856,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 		case TSTRING:
 			cs := ""
 			if Isconst(n, CTSTR) {
-				cs = n.Val().U.(string)
+				cs = strlit(n)
 			}
 			switch cs {
 			case " ":
@@ -2510,7 +2505,7 @@ func addstr(n *Node, init *Nodes) *Node {
 		sz := int64(0)
 		for _, n1 := range n.List.Slice() {
 			if n1.Op == OLITERAL {
-				sz += int64(len(n1.Val().U.(string)))
+				sz += int64(len(strlit(n1)))
 			}
 		}
 
@@ -2700,15 +2695,14 @@ func isAppendOfMake(n *Node) bool {
 		return false
 	}
 
-	// y must be either an integer constant or a variable of type int.
-	// typecheck checks that constant arguments to make are not negative and
-	// fit into an int.
-	// runtime.growslice uses int as type for the newcap argument.
-	// Constraining variables to be type int avoids the need for runtime checks
-	// that e.g. check if an int64 value fits into an int.
-	// TODO(moehrmann): support other integer types that always fit in an int
+	// y must be either an integer constant or the largest possible positive value
+	// of variable y needs to fit into an uint.
+
+	// typecheck made sure that constant arguments to make are not negative and fit into an int.
+
+	// The care of overflow of the len argument to make will be handled by an explicit check of int(len) < 0 during runtime.
 	y := second.Left
-	if !Isconst(y, CTINT) && y.Type.Etype != TINT {
+	if !Isconst(y, CTINT) && maxintval[y.Type.Etype].Cmp(maxintval[TUINT]) > 0 {
 		return false
 	}
 
@@ -2742,7 +2736,9 @@ func isAppendOfMake(n *Node) bool {
 //   }
 //   s
 func extendslice(n *Node, init *Nodes) *Node {
-	// isAppendOfMake made sure l2 fits in an int.
+	// isAppendOfMake made sure all possible positive values of l2 fit into an uint.
+	// The case of l2 overflow when converting from e.g. uint to int is handled by an explicit
+	// check of l2 < 0 at runtime which is generated below.
 	l2 := conv(n.List.Second().Left, types.Types[TINT])
 	l2 = typecheck(l2, ctxExpr)
 	n.List.SetSecond(l2) // walkAppendArgs expects l2 in n.List.Second().
@@ -3350,7 +3346,7 @@ func walkcompareString(n *Node, init *Nodes) *Node {
 			// Length-only checks are ok, though.
 			maxRewriteLen = 0
 		}
-		if s := cs.Val().U.(string); len(s) <= maxRewriteLen {
+		if s := strlit(cs); len(s) <= maxRewriteLen {
 			if len(s) > 0 {
 				ncs = safeexpr(ncs, init)
 			}

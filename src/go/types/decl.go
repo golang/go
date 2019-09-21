@@ -38,22 +38,7 @@ func (check *Checker) declare(scope *Scope, id *ast.Ident, obj Object, pos token
 }
 
 // pathString returns a string of the form a->b-> ... ->g for a path [a, b, ... g].
-// TODO(gri) remove once we don't need the old cycle detection (explicitly passed
-//           []*TypeName path) anymore
-func pathString(path []*TypeName) string {
-	var s string
-	for i, p := range path {
-		if i > 0 {
-			s += "->"
-		}
-		s += p.Name()
-	}
-	return s
-}
-
-// objPathString returns a string of the form a->b-> ... ->g for a path [a, b, ... g].
-// TODO(gri) s/objPathString/pathString/ once we got rid of pathString above
-func objPathString(path []Object) string {
+func pathString(path []Object) string {
 	var s string
 	for i, p := range path {
 		if i > 0 {
@@ -68,7 +53,7 @@ func objPathString(path []Object) string {
 // For the meaning of def, see Checker.definedType, in typexpr.go.
 func (check *Checker) objDecl(obj Object, def *Named) {
 	if trace {
-		check.trace(obj.Pos(), "-- checking %s %s (objPath = %s)", obj.color(), obj, objPathString(check.objPath))
+		check.trace(obj.Pos(), "-- checking %s %s (objPath = %s)", obj.color(), obj, pathString(check.objPath))
 		check.indent++
 		defer func() {
 			check.indent--
@@ -291,7 +276,7 @@ func (check *Checker) typeCycle(obj Object) (isCycle bool) {
 	}
 
 	if trace {
-		check.trace(obj.Pos(), "## cycle detected: objPath = %s->%s (len = %d)", objPathString(cycle), obj.Name(), ncycle)
+		check.trace(obj.Pos(), "## cycle detected: objPath = %s->%s (len = %d)", pathString(cycle), obj.Name(), ncycle)
 		check.trace(obj.Pos(), "## cycle contains: %d values, has indirection = %v, has type definition = %v", nval, hasIndir, hasTDef)
 		defer func() {
 			if isCycle {
@@ -333,8 +318,8 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
 	assert(obj.typ == nil)
 
 	// use the correct value of iota
+	defer func(iota constant.Value) { check.iota = iota }(check.iota)
 	check.iota = obj.val
-	defer func() { check.iota = nil }()
 
 	// provide valid constant value under all circumstances
 	obj.val = constant.MakeUnknown()

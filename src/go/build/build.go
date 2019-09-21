@@ -981,7 +981,7 @@ Found:
 var errNoModules = errors.New("not using modules")
 
 // importGo checks whether it can use the go command to find the directory for path.
-// If using the go command is not appopriate, importGo returns errNoModules.
+// If using the go command is not appropriate, importGo returns errNoModules.
 // Otherwise, importGo tries using the go command and reports whether that succeeded.
 // Using the go command lets build.Import and build.Context.Import find code
 // in Go modules. In the long term we want tools to use go/packages (currently golang.org/x/tools/go/packages),

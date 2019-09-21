@@ -100,10 +100,8 @@ func resolve(n *Node) (res *Node) {
 	}
 
 	if r.Op == OIOTA {
-		if i := len(typecheckdefstack); i > 0 {
-			if x := typecheckdefstack[i-1]; x.Op == OLITERAL {
-				return nodintconst(x.Iota())
-			}
+		if x := getIotaValue(); x >= 0 {
+			return nodintconst(x)
 		}
 		return n
 	}
@@ -709,7 +707,11 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 		if t.Etype != TIDEAL && !types.Identical(l.Type, r.Type) {
 			l, r = defaultlit2(l, r, true)
-			if r.Type.IsInterface() == l.Type.IsInterface() || aop == 0 {
+			if l.Type == nil || r.Type == nil {
+				n.Type = nil
+				return n
+			}
+			if l.Type.IsInterface() == r.Type.IsInterface() || aop == 0 {
 				yyerror("invalid operation: %v (mismatched types %v and %v)", n, l.Type, r.Type)
 				n.Type = nil
 				return n
@@ -1041,18 +1043,15 @@ func typecheck1(n *Node, top int) (res *Node) {
 					yyerror("invalid %s index %v (index must be non-negative)", why, n.Right)
 				} else if t.IsArray() && x >= t.NumElem() {
 					yyerror("invalid array index %v (out of bounds for %d-element array)", n.Right, t.NumElem())
-				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.Val().U.(string))) {
-					yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(n.Left.Val().U.(string)))
+				} else if Isconst(n.Left, CTSTR) && x >= int64(len(strlit(n.Left))) {
+					yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(strlit(n.Left)))
 				} else if n.Right.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
 					yyerror("invalid %s index %v (index too large)", why, n.Right)
 				}
 			}
 
 		case TMAP:
-			n.Right = defaultlit(n.Right, t.Key())
-			if n.Right.Type != nil {
-				n.Right = assignconv(n.Right, t.Key(), "map index")
-			}
+			n.Right = assignconv(n.Right, t.Key(), "map index")
 			n.Type = t.Elem()
 			n.Op = OINDEXMAP
 			n.ResetAux()
@@ -1104,13 +1103,11 @@ func typecheck1(n *Node, top int) (res *Node) {
 			return n
 		}
 
-		n.Right = defaultlit(n.Right, t.Elem())
-		r := n.Right
-		if r.Type == nil {
+		n.Right = assignconv(n.Right, t.Elem(), "send")
+		if n.Right.Type == nil {
 			n.Type = nil
 			return n
 		}
-		n.Right = assignconv(r, t.Elem(), "send")
 		n.Type = nil
 
 	case OSLICEHEADER:
@@ -1408,20 +1405,18 @@ func typecheck1(n *Node, top int) (res *Node) {
 		}
 
 		// Determine result type.
-		et := t.Etype
-		switch et {
+		switch t.Etype {
 		case TIDEAL:
-			// result is ideal
+			n.Type = types.Idealfloat
 		case TCOMPLEX64:
-			et = TFLOAT32
+			n.Type = types.Types[TFLOAT32]
 		case TCOMPLEX128:
-			et = TFLOAT64
+			n.Type = types.Types[TFLOAT64]
 		default:
 			yyerror("invalid argument %L for %v", l, n.Op)
 			n.Type = nil
 			return n
 		}
-		n.Type = types.Types[et]
 
 	case OCOMPLEX:
 		ok |= ctxExpr
@@ -1458,7 +1453,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			return n
 
 		case TIDEAL:
-			t = types.Types[TIDEAL]
+			t = types.Idealcomplex
 
 		case TFLOAT32:
 			t = types.Types[TCOMPLEX64]
@@ -1638,7 +1633,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 		ok |= ctxExpr
 		checkwidth(n.Type) // ensure width is calculated for backend
 		n.Left = typecheck(n.Left, ctxExpr)
-		n.Left = convlit1(n.Left, n.Type, true, noReuse)
+		n.Left = convlit1(n.Left, n.Type, true, nil)
 		t := n.Left.Type
 		if t == nil || n.Type == nil {
 			n.Type = nil
@@ -2019,7 +2014,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 		n.Type = nil
 		return n
 
-	case OXCASE:
+	case OCASE:
 		ok |= ctxStmt
 		typecheckslice(n.List.Slice(), ctxExpr)
 		typecheckslice(n.Nbody.Slice(), ctxStmt)
@@ -2153,8 +2148,8 @@ func checksliceindex(l *Node, r *Node, tp *types.Type) bool {
 		} else if tp != nil && tp.NumElem() >= 0 && r.Int64() > tp.NumElem() {
 			yyerror("invalid slice index %v (out of bounds for %d-element array)", r, tp.NumElem())
 			return false
-		} else if Isconst(l, CTSTR) && r.Int64() > int64(len(l.Val().U.(string))) {
-			yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(l.Val().U.(string)))
+		} else if Isconst(l, CTSTR) && r.Int64() > int64(len(strlit(l))) {
+			yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(strlit(l)))
 			return false
 		} else if r.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
 			yyerror("invalid slice index %v (index too large)", r)
@@ -2684,20 +2679,20 @@ func errorDetails(nl Nodes, tstruct *types.Type, isddd bool) string {
 // e.g in error messages about wrong arguments to return.
 func sigrepr(t *types.Type) string {
 	switch t {
-	default:
-		return t.String()
-
-	case types.Types[TIDEAL]:
-		// "untyped number" is not commonly used
-		// outside of the compiler, so let's use "number".
-		return "number"
-
 	case types.Idealstring:
 		return "string"
-
 	case types.Idealbool:
 		return "bool"
 	}
+
+	if t.Etype == TIDEAL {
+		// "untyped number" is not commonly used
+		// outside of the compiler, so let's use "number".
+		// TODO(mdempsky): Revisit this.
+		return "number"
+	}
+
+	return t.String()
 }
 
 // retsigerr returns the signature of the types
@@ -2862,7 +2857,6 @@ func typecheckcomplit(n *Node) (res *Node) {
 			r := *vp
 			pushtype(r, t.Elem())
 			r = typecheck(r, ctxExpr)
-			r = defaultlit(r, t.Elem())
 			*vp = assignconv(r, t.Elem(), "array or slice literal")
 
 			i++
@@ -2900,14 +2894,12 @@ func typecheckcomplit(n *Node) (res *Node) {
 			r := l.Left
 			pushtype(r, t.Key())
 			r = typecheck(r, ctxExpr)
-			r = defaultlit(r, t.Key())
 			l.Left = assignconv(r, t.Key(), "map key")
 			cs.add(lineno, l.Left, "key", "map literal")
 
 			r = l.Right
 			pushtype(r, t.Elem())
 			r = typecheck(r, ctxExpr)
-			r = defaultlit(r, t.Elem())
 			l.Right = assignconv(r, t.Elem(), "map value")
 		}
 
@@ -3417,7 +3409,7 @@ func stringtoruneslit(n *Node) *Node {
 	}
 
 	var l []*Node
-	s := n.Left.Val().U.(string)
+	s := strlit(n.Left)
 	i := 0
 	for _, r := range s {
 		l = append(l, nod(OKEY, nodintconst(int64(i)), nodintconst(int64(r))))
@@ -3940,4 +3932,20 @@ func setTypeNode(n *Node, t *types.Type) {
 	n.Op = OTYPE
 	n.Type = t
 	n.Type.Nod = asTypesNode(n)
+}
+
+// getIotaValue returns the current value for "iota",
+// or -1 if not within a ConstSpec.
+func getIotaValue() int64 {
+	if i := len(typecheckdefstack); i > 0 {
+		if x := typecheckdefstack[i-1]; x.Op == OLITERAL {
+			return x.Iota()
+		}
+	}
+
+	if Curfn != nil && Curfn.Iota() >= 0 {
+		return Curfn.Iota()
+	}
+
+	return -1
 }

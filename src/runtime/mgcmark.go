@@ -237,14 +237,18 @@ func markrootBlock(b0, n0 uintptr, ptrmask0 *uint8, gcw *gcWork, shard int) {
 		throw("rootBlockBytes must be a multiple of 8*ptrSize")
 	}
 
-	b := b0 + uintptr(shard)*rootBlockBytes
-	if b >= b0+n0 {
+	// Note that if b0 is toward the end of the address space,
+	// then b0 + rootBlockBytes might wrap around.
+	// These tests are written to avoid any possible overflow.
+	off := uintptr(shard) * rootBlockBytes
+	if off >= n0 {
 		return
 	}
+	b := b0 + off
 	ptrmask := (*uint8)(add(unsafe.Pointer(ptrmask0), uintptr(shard)*(rootBlockBytes/(8*sys.PtrSize))))
 	n := uintptr(rootBlockBytes)
-	if b+n > b0+n0 {
-		n = b0 + n0 - b
+	if off+n > n0 {
+		n = n0 - off
 	}
 
 	// Scan this shard.

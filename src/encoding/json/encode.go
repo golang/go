@@ -164,7 +164,6 @@ func Marshal(v interface{}) ([]byte, error) {
 	}
 	buf := append([]byte(nil), e.Bytes()...)
 
-	e.Reset()
 	encodeStatePool.Put(e)
 
 	return buf, nil
@@ -482,7 +481,11 @@ func textMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		e.WriteString("null")
 		return
 	}
-	m := v.Interface().(encoding.TextMarshaler)
+	m, ok := v.Interface().(encoding.TextMarshaler)
+	if !ok {
+		e.WriteString("null")
+		return
+	}
 	b, err := m.MarshalText()
 	if err != nil {
 		e.error(&MarshalerError{v.Type(), err})
@@ -597,15 +600,21 @@ func stringEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		if !isValidNumber(numStr) {
 			e.error(fmt.Errorf("json: invalid number literal %q", numStr))
 		}
+		if opts.quoted {
+			e.WriteByte('"')
+		}
 		e.WriteString(numStr)
+		if opts.quoted {
+			e.WriteByte('"')
+		}
 		return
 	}
 	if opts.quoted {
-		sb, err := Marshal(v.String())
-		if err != nil {
-			e.error(err)
-		}
-		e.string(string(sb), opts.escapeHTML)
+		b := make([]byte, 0, v.Len()+2)
+		b = append(b, '"')
+		b = append(b, []byte(v.String())...)
+		b = append(b, '"')
+		e.stringBytes(b, opts.escapeHTML)
 	} else {
 		e.string(v.String(), opts.escapeHTML)
 	}

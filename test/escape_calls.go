@@ -44,7 +44,7 @@ func walk(np **Node) int { // ERROR "leaking param content: np"
 }
 
 // Test for bug where func var f used prototype's escape analysis results.
-func prototype(xyz []string) {} // ERROR "prototype xyz does not escape"
+func prototype(xyz []string) {} // ERROR "xyz does not escape"
 func bar() {
 	var got [][]string
 	f := prototype

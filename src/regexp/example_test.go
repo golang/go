@@ -94,9 +94,11 @@ func ExampleRegexp_FindSubmatch() {
 func ExampleRegexp_Match() {
 	re := regexp.MustCompile(`foo.?`)
 	fmt.Println(re.Match([]byte(`seafood fool`)))
+	fmt.Println(re.Match([]byte(`something else`)))
 
 	// Output:
 	// true
+	// false
 }
 
 func ExampleRegexp_FindString() {
@@ -179,6 +181,17 @@ func ExampleRegexp_MatchString() {
 	// false
 	// true
 	// true
+}
+
+func ExampleRegexp_NumSubexp() {
+	re0 := regexp.MustCompile(`a.`)
+	fmt.Printf("%d\n", re0.NumSubexp())
+
+	re := regexp.MustCompile(`(.*)((a)b)(.*)a`)
+	fmt.Println(re.NumSubexp())
+	// Output:
+	// 0
+	// 4
 }
 
 func ExampleRegexp_ReplaceAll() {
@@ -341,6 +354,7 @@ func ExampleRegexp_FindIndex() {
 	// [18 33]
 	// option1: value1
 }
+
 func ExampleRegexp_FindAllSubmatchIndex() {
 	content := []byte(`
 	# comment line
@@ -365,4 +379,14 @@ func ExampleRegexp_FindAllSubmatchIndex() {
 	// option2: value2
 	// option2
 	// value2
+}
+
+func ExampleRegexp_FindAllIndex() {
+	content := []byte("London")
+	re := regexp.MustCompile(`o.`)
+	fmt.Println(re.FindAllIndex(content, 1))
+	fmt.Println(re.FindAllIndex(content, -1))
+	// Output:
+	// [[1 3]]
+	// [[1 3] [4 6]]
 }

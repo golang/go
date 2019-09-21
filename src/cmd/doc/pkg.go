@@ -507,24 +507,34 @@ func (pkg *Package) allDoc() {
 func (pkg *Package) packageDoc() {
 	defer pkg.flush()
 
-	doc.ToText(&pkg.buf, pkg.doc.Doc, "", indent, indentedWidth)
-	pkg.newlines(1)
+	if !short {
+		doc.ToText(&pkg.buf, pkg.doc.Doc, "", indent, indentedWidth)
+		pkg.newlines(1)
+	}
 
 	if pkg.pkg.Name == "main" && !showCmd {
 		// Show only package docs for commands.
 		return
 	}
 
-	pkg.newlines(2) // Guarantee blank line before the components.
+	if !short {
+		pkg.newlines(2) // Guarantee blank line before the components.
+	}
+
 	pkg.valueSummary(pkg.doc.Consts, false)
 	pkg.valueSummary(pkg.doc.Vars, false)
 	pkg.funcSummary(pkg.doc.Funcs, false)
 	pkg.typeSummary()
-	pkg.bugs()
+	if !short {
+		pkg.bugs()
+	}
 }
 
 // packageClause prints the package clause.
 func (pkg *Package) packageClause() {
+	if short {
+		return
+	}
 	importPath := pkg.build.ImportComment
 	if importPath == "" {
 		importPath = pkg.build.ImportPath

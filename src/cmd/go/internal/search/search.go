@@ -241,7 +241,7 @@ func TreeCanMatchPattern(pattern string) func(name string) bool {
 //
 // First, /... at the end of the pattern can match an empty string,
 // so that net/... matches both net and packages in its subdirectories, like net/http.
-// Second, any slash-separted pattern element containing a wildcard never
+// Second, any slash-separated pattern element containing a wildcard never
 // participates in a match of the "vendor" element in the path of a vendored
 // package, so that ./... does not match packages in subdirectories of
 // ./vendor or ./mycode/vendor, but ./vendor/... and ./mycode/vendor/... do.
@@ -363,30 +363,40 @@ func ImportPathsQuiet(patterns []string) []*Match {
 
 // CleanPatterns returns the patterns to use for the given
 // command line. It canonicalizes the patterns but does not
-// evaluate any matches.
+// evaluate any matches. It preserves text after '@' for commands
+// that accept versions.
 func CleanPatterns(patterns []string) []string {
 	if len(patterns) == 0 {
 		return []string{"."}
 	}
 	var out []string
 	for _, a := range patterns {
+		var p, v string
+		if i := strings.IndexByte(a, '@'); i < 0 {
+			p = a
+		} else {
+			p = a[:i]
+			v = a[i:]
+		}
+
 		// Arguments are supposed to be import paths, but
 		// as a courtesy to Windows developers, rewrite \ to /
 		// in command-line arguments. Handles .\... and so on.
 		if filepath.Separator == '\\' {
-			a = strings.ReplaceAll(a, `\`, `/`)
+			p = strings.ReplaceAll(p, `\`, `/`)
 		}
 
 		// Put argument in canonical form, but preserve leading ./.
-		if strings.HasPrefix(a, "./") {
-			a = "./" + path.Clean(a)
-			if a == "./." {
-				a = "."
+		if strings.HasPrefix(p, "./") {
+			p = "./" + path.Clean(p)
+			if p == "./." {
+				p = "."
 			}
 		} else {
-			a = path.Clean(a)
+			p = path.Clean(p)
 		}
-		out = append(out, a)
+
+		out = append(out, p+v)
 	}
 	return out
 }

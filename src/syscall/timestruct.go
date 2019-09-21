@@ -8,7 +8,7 @@ package syscall
 
 // TimespecToNsec converts a Timespec value into a number of
 // nanoseconds since the Unix epoch.
-func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+func TimespecToNsec(ts Timespec) int64 { return ts.Nano() }
 
 // NsecToTimespec takes a number of nanoseconds since the Unix epoch
 // and returns the corresponding Timespec value.
@@ -24,7 +24,7 @@ func NsecToTimespec(nsec int64) Timespec {
 
 // TimevalToNsec converts a Timeval value into a number of nanoseconds
 // since the Unix epoch.
-func TimevalToNsec(tv Timeval) int64 { return int64(tv.Sec)*1e9 + int64(tv.Usec)*1e3 }
+func TimevalToNsec(tv Timeval) int64 { return tv.Nano() }
 
 // NsecToTimeval takes a number of nanoseconds since the Unix epoch
 // and returns the corresponding Timeval value.

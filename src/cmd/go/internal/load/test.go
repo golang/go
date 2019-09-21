@@ -399,10 +399,13 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) {
 			}
 		}
 
-		// Don't compile build info from a main package. This can happen
-		// if -coverpkg patterns include main packages, since those packages
-		// are imported by pmain. See golang.org/issue/30907.
-		if p.Internal.BuildInfo != "" && p != pmain {
+		// Force main packages the test imports to be built as libraries.
+		// Normal imports of main packages are forbidden by the package loader,
+		// but this can still happen if -coverpkg patterns include main packages:
+		// covered packages are imported by pmain. Linking multiple packages
+		// compiled with '-p main' causes duplicate symbol errors.
+		// See golang.org/issue/30907, golang.org/issue/34114.
+		if p.Name == "main" && p != pmain && p != ptest {
 			split()
 		}
 	}

@@ -22,7 +22,7 @@ func ReadBuildInfo() (info *BuildInfo, ok bool) {
 // the running binary.
 type BuildInfo struct {
 	Path string    // The main package path
-	Main Module    // The main module information
+	Main Module    // The module containing the main package
 	Deps []*Module // Module dependencies
 }
 

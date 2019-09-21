@@ -24,7 +24,7 @@ import (
 // First, we construct a directed weighted graph where vertices
 // (termed "locations") represent variables allocated by statements
 // and expressions, and edges represent assignments between variables
-// (with weights reperesenting addressing/dereference counts).
+// (with weights representing addressing/dereference counts).
 //
 // Next we walk the graph looking for assignment paths that might
 // violate the invariants stated above. If a variable v's address is
@@ -33,7 +33,7 @@ import (
 //
 // To support interprocedural analysis, we also record data-flow from
 // each function's parameters to the heap and to its result
-// parameters. This information is summarized as "paremeter tags",
+// parameters. This information is summarized as "parameter tags",
 // which are used at static call sites to improve escape analysis of
 // function arguments.
 
@@ -44,7 +44,7 @@ import (
 // "location."
 //
 // We also model every Go assignment as a directed edges between
-// locations. The number of derefence operations minus the number of
+// locations. The number of dereference operations minus the number of
 // addressing operations is recorded as the edge's weight (termed
 // "derefs"). For example:
 //
@@ -147,12 +147,7 @@ func escapeFuncs(fns []*Node, recursive bool) {
 	e.curfn = nil
 
 	e.walkAll()
-	e.finish()
-
-	// Record parameter tags for package export data.
-	for _, fn := range fns {
-		esctag(fn)
-	}
+	e.finish(fns)
 }
 
 func (e *Escape) initFunc(fn *Node) {
@@ -1258,7 +1253,20 @@ func (l *EscLocation) leakTo(sink *EscLocation, derefs int) {
 	}
 }
 
-func (e *Escape) finish() {
+func (e *Escape) finish(fns []*Node) {
+	// Record parameter tags for package export data.
+	for _, fn := range fns {
+		fn.Esc = EscFuncTagged
+
+		narg := 0
+		for _, fs := range types.RecvsParams {
+			for _, f := range fs(fn.Type).Fields().Slice() {
+				narg++
+				f.Note = e.paramTag(fn, narg, f)
+			}
+		}
+	}
+
 	for _, loc := range e.allLocs {
 		n := loc.n
 		if n == nil {
@@ -1279,37 +1287,16 @@ func (e *Escape) finish() {
 			}
 			n.Esc = EscHeap
 			addrescapes(n)
-		} else if loc.isName(PPARAM) {
-			n.Esc = finalizeEsc(loc.paramEsc)
-
-			if Debug['m'] != 0 && types.Haspointers(n.Type) {
-				if n.Esc == EscNone {
-					Warnl(n.Pos, "%S %S does not escape", funcSym(loc.curfn), n)
-				} else if n.Esc == EscHeap {
-					Warnl(n.Pos, "leaking param: %S", n)
-				} else {
-					if n.Esc&EscContentEscapes != 0 {
-						Warnl(n.Pos, "leaking param content: %S", n)
-					}
-					for i := 0; i < numEscReturns; i++ {
-						if x := getEscReturn(n.Esc, i); x >= 0 {
-							res := n.Name.Curfn.Type.Results().Field(i).Sym
-							Warnl(n.Pos, "leaking param: %S to result %v level=%d", n, res, x)
-						}
-					}
-				}
-			}
 		} else {
+			if Debug['m'] != 0 && n.Op != ONAME && n.Op != OTYPESW && n.Op != ORANGE && n.Op != ODEFER {
+				Warnl(n.Pos, "%S does not escape", n)
+			}
 			n.Esc = EscNone
 			if loc.transient {
 				switch n.Op {
 				case OCALLPART, OCLOSURE, ODDDARG, OARRAYLIT, OSLICELIT, OPTRLIT, OSTRUCTLIT:
 					n.SetNoescape(true)
 				}
-			}
-
-			if Debug['m'] != 0 && n.Op != ONAME && n.Op != OTYPESW && n.Op != ORANGE && n.Op != ODEFER {
-				Warnl(n.Pos, "%S %S does not escape", funcSym(loc.curfn), n)
 			}
 		}
 	}

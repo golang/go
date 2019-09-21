@@ -33,11 +33,13 @@ type Version struct {
 	Path string
 
 	// Version is usually a semantic version in canonical form.
-	// There are two exceptions to this general rule.
+	// There are three exceptions to this general rule.
 	// First, the top-level target of a build has no specific version
 	// and uses Version = "".
 	// Second, during MVS calculations the version "none" is used
 	// to represent the decision to take no version of a given module.
+	// Third, filesystem paths found in "replace" directives are
+	// represented by a path with an empty version.
 	Version string `json:",omitempty"`
 }
 
@@ -48,8 +50,13 @@ type ModuleError struct {
 	Err     error
 }
 
-// VersionError returns a ModuleError derived from a Version and error.
+// VersionError returns a ModuleError derived from a Version and error,
+// or err itself if it is already such an error.
 func VersionError(v Version, err error) error {
+	var mErr *ModuleError
+	if errors.As(err, &mErr) && mErr.Path == v.Path && mErr.Version == v.Version {
+		return err
+	}
 	return &ModuleError{
 		Path:    v.Path,
 		Version: v.Version,

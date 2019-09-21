@@ -457,12 +457,13 @@
 			this.argv.forEach((arg) => {
 				argvPtrs.push(strPtr(arg));
 			});
+			argvPtrs.push(0);
 
 			const keys = Object.keys(this.env).sort();
-			argvPtrs.push(keys.length);
 			keys.forEach((key) => {
 				argvPtrs.push(strPtr(`${key}=${this.env[key]}`));
 			});
+			argvPtrs.push(0);
 
 			const argv = offset;
 			argvPtrs.forEach((ptr) => {

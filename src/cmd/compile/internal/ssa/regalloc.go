@@ -411,7 +411,7 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
 
 	if s.f.Config.ctxt.Arch.Arch == sys.ArchWasm {
 		// TODO(neelance): In theory this should never happen, because all wasm registers are equal.
-		// So if there is still a free register, the allocation should have picked that one in the first place insead of
+		// So if there is still a free register, the allocation should have picked that one in the first place instead of
 		// trying to kick some other value out. In practice, this case does happen and it breaks the stack optimization.
 		s.freeReg(r)
 		return r
@@ -489,7 +489,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 	}
 
 	var r register
-	// If nospill is set, the value is used immedately, so it can live on the WebAssembly stack.
+	// If nospill is set, the value is used immediately, so it can live on the WebAssembly stack.
 	onWasmStack := nospill && s.f.Config.ctxt.Arch.Arch == sys.ArchWasm
 	if !onWasmStack {
 		// Allocate a register.
@@ -792,7 +792,13 @@ func (s *regAllocState) compatRegs(t *types.Type) regMask {
 		return 0
 	}
 	if t.IsFloat() || t == types.TypeInt128 {
-		m = s.f.Config.fpRegMask
+		if t.Etype == types.TFLOAT32 && s.f.Config.fp32RegMask != 0 {
+			m = s.f.Config.fp32RegMask
+		} else if t.Etype == types.TFLOAT64 && s.f.Config.fp64RegMask != 0 {
+			m = s.f.Config.fp64RegMask
+		} else {
+			m = s.f.Config.fpRegMask
+		}
 	} else {
 		m = s.f.Config.gpRegMask
 	}
@@ -2220,13 +2226,8 @@ func (e *edgeState) erase(loc Location) {
 // findRegFor finds a register we can use to make a temp copy of type typ.
 func (e *edgeState) findRegFor(typ *types.Type) Location {
 	// Which registers are possibilities.
-	var m regMask
 	types := &e.s.f.Config.Types
-	if typ.IsFloat() {
-		m = e.s.compatRegs(types.Float64)
-	} else {
-		m = e.s.compatRegs(types.Int64)
-	}
+	m := e.s.compatRegs(typ)
 
 	// Pick a register. In priority order:
 	// 1) an unused register

@@ -6,10 +6,8 @@
 package base32
 
 import (
-	"bytes"
 	"io"
 	"strconv"
-	"strings"
 )
 
 /*
@@ -61,13 +59,6 @@ var StdEncoding = NewEncoding(encodeStd)
 // HexEncoding is the ``Extended Hex Alphabet'' defined in RFC 4648.
 // It is typically used in DNS.
 var HexEncoding = NewEncoding(encodeHex)
-
-var removeNewlinesMapper = func(r rune) rune {
-	if r == '\r' || r == '\n' {
-		return -1
-	}
-	return r
-}
 
 // WithPadding creates a new encoding identical to enc except
 // with a specified padding character, or NoPadding to disable padding.
@@ -302,7 +293,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 					// We have reached the end and are missing padding
 					return n, false, CorruptInputError(olen - len(src) - j)
 				}
-				// We have reached the end and are not expecing any padding
+				// We have reached the end and are not expecting any padding
 				dlen, end = j, true
 				break
 			}
@@ -372,17 +363,18 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 // number of bytes successfully written and CorruptInputError.
 // New line characters (\r and \n) are ignored.
 func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
-	src = bytes.Map(removeNewlinesMapper, src)
-	n, _, err = enc.decode(dst, src)
+	buf := make([]byte, len(src))
+	l := stripNewlines(buf, src)
+	n, _, err = enc.decode(dst, buf[:l])
 	return
 }
 
 // DecodeString returns the bytes represented by the base32 string s.
 func (enc *Encoding) DecodeString(s string) ([]byte, error) {
-	s = strings.Map(removeNewlinesMapper, s)
-	dbuf := make([]byte, enc.DecodedLen(len(s)))
-	n, _, err := enc.decode(dbuf, []byte(s))
-	return dbuf[:n], err
+	buf := []byte(s)
+	l := stripNewlines(buf, buf)
+	n, _, err := enc.decode(buf, buf[:l])
+	return buf[:n], err
 }
 
 type decoder struct {
@@ -497,18 +489,25 @@ type newlineFilteringReader struct {
 	wrapped io.Reader
 }
 
+// stripNewlines removes newline characters and returns the number
+// of non-newline characters copied to dst.
+func stripNewlines(dst, src []byte) int {
+	offset := 0
+	for _, b := range src {
+		if b == '\r' || b == '\n' {
+			continue
+		}
+		dst[offset] = b
+		offset++
+	}
+	return offset
+}
+
 func (r *newlineFilteringReader) Read(p []byte) (int, error) {
 	n, err := r.wrapped.Read(p)
 	for n > 0 {
-		offset := 0
-		for i, b := range p[0:n] {
-			if b != '\r' && b != '\n' {
-				if i != offset {
-					p[offset] = b
-				}
-				offset++
-			}
-		}
+		s := p[0:n]
+		offset := stripNewlines(s, s)
 		if err != nil || offset > 0 {
 			return offset, err
 		}

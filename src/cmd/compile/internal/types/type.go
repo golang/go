@@ -57,16 +57,13 @@ const (
 	TUNSAFEPTR
 
 	// pseudo-types for literals
-	TIDEAL
+	TIDEAL // untyped numeric constants
 	TNIL
 	TBLANK
 
 	// pseudo-types for frame layout
 	TFUNCARGS
 	TCHANARGS
-
-	// pseudo-types for import/export
-	TDDDFIELD // wrapper: contained type is a ... field
 
 	// SSA backend types
 	TSSA   // internal types used by SSA backend (flags, memory, etc.)
@@ -94,7 +91,6 @@ const (
 // It also stores pointers to several special types:
 //   - Types[TANY] is the placeholder "any" type recognized by substArgTypes.
 //   - Types[TBLANK] represents the blank variable's type.
-//   - Types[TIDEAL] represents untyped numeric constants.
 //   - Types[TNIL] represents the predeclared "nil" value's type.
 //   - Types[TUNSAFEPTR] is package unsafe's Pointer type.
 var Types [NTYPE]*Type
@@ -112,8 +108,6 @@ var (
 	Idealbool   *Type
 
 	// Types to represent untyped numeric constants.
-	// Note: Currently these are only used within the binary export
-	// data format. The rest of the compiler only uses Types[TIDEAL].
 	Idealint     = New(TIDEAL)
 	Idealrune    = New(TIDEAL)
 	Idealfloat   = New(TIDEAL)
@@ -131,7 +125,6 @@ type Type struct {
 	// TFUNC: *Func
 	// TSTRUCT: *Struct
 	// TINTER: *Interface
-	// TDDDFIELD: DDDField
 	// TFUNCARGS: FuncArgs
 	// TCHANARGS: ChanArgs
 	// TCHAN: *Chan
@@ -308,11 +301,6 @@ type Ptr struct {
 	Elem *Type // element type
 }
 
-// DDDField contains Type fields specific to TDDDFIELD types.
-type DDDField struct {
-	T *Type // reference to a slice type for ... args
-}
-
 // ChanArgs contains Type fields specific to TCHANARGS types.
 type ChanArgs struct {
 	T *Type // reference to a chan type whose elements need a width check
@@ -473,8 +461,6 @@ func New(et EType) *Type {
 		t.Extra = ChanArgs{}
 	case TFUNCARGS:
 		t.Extra = FuncArgs{}
-	case TDDDFIELD:
-		t.Extra = DDDField{}
 	case TCHAN:
 		t.Extra = new(Chan)
 	case TTUPLE:
@@ -573,13 +559,6 @@ func NewPtr(elem *Type) *Type {
 	if NewPtrCacheEnabled {
 		elem.Cache.ptr = t
 	}
-	return t
-}
-
-// NewDDDField returns a new TDDDFIELD type for slice type s.
-func NewDDDField(s *Type) *Type {
-	t := New(TDDDFIELD)
-	t.Extra = DDDField{T: s}
 	return t
 }
 
@@ -800,12 +779,6 @@ func (t *Type) Elem() *Type {
 	}
 	Fatalf("Type.Elem %s", t.Etype)
 	return nil
-}
-
-// DDDField returns the slice ... type for TDDDFIELD type t.
-func (t *Type) DDDField() *Type {
-	t.wantEtype(TDDDFIELD)
-	return t.Extra.(DDDField).T
 }
 
 // ChanArgs returns the channel type for TCHANARGS type t.
@@ -1279,6 +1252,15 @@ func (t *Type) IsUnsafePtr() bool {
 func (t *Type) IsPtrShaped() bool {
 	return t.Etype == TPTR || t.Etype == TUNSAFEPTR ||
 		t.Etype == TMAP || t.Etype == TCHAN || t.Etype == TFUNC
+}
+
+// HasNil reports whether the set of values determined by t includes nil.
+func (t *Type) HasNil() bool {
+	switch t.Etype {
+	case TCHAN, TFUNC, TINTER, TMAP, TPTR, TSLICE, TUNSAFEPTR:
+		return true
+	}
+	return false
 }
 
 func (t *Type) IsString() bool {
