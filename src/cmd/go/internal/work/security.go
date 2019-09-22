@@ -280,6 +280,15 @@ Args:
 					continue Args
 				}
 
+				// Permit -I= /path, -I $SYSROOT.
+				if i+1 < len(list) && arg == "-I" {
+					if (strings.HasPrefix(list[i+1], "=") || strings.HasPrefix(list[i+1], "$SYSROOT")) &&
+						load.SafeArg(list[i+1][1:]) {
+						i++
+						continue Args
+					}
+				}
+
 				if i+1 < len(list) {
 					return fmt.Errorf("invalid flag in %s: %s %s (see https://golang.org/s/invalidflag)", source, arg, list[i+1])
 				}
