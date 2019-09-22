@@ -776,6 +776,8 @@ func prove(f *Func) {
 	ft := newFactsTable(f)
 	ft.checkpoint()
 
+	var lensVars map[*Block][]*Value
+
 	// Find length and capacity ops.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
@@ -793,12 +795,24 @@ func prove(f *Func) {
 				}
 				ft.lens[v.Args[0].ID] = v
 				ft.update(b, v, ft.zero, signed, gt|eq)
+				if v.Args[0].Op == OpSliceMake {
+					if lensVars == nil {
+						lensVars = make(map[*Block][]*Value)
+					}
+					lensVars[b] = append(lensVars[b], v)
+				}
 			case OpSliceCap:
 				if ft.caps == nil {
 					ft.caps = map[ID]*Value{}
 				}
 				ft.caps[v.Args[0].ID] = v
 				ft.update(b, v, ft.zero, signed, gt|eq)
+				if v.Args[0].Op == OpSliceMake {
+					if lensVars == nil {
+						lensVars = make(map[*Block][]*Value)
+					}
+					lensVars[b] = append(lensVars[b], v)
+				}
 			}
 		}
 	}
@@ -852,8 +866,21 @@ func prove(f *Func) {
 		switch node.state {
 		case descend:
 			ft.checkpoint()
+
+			// Entering the block, add the block-depending facts that we collected
+			// at the beginning: induction variables and lens/caps of slices.
 			if iv, ok := indVars[node.block]; ok {
 				addIndVarRestrictions(ft, parent, iv)
+			}
+			if lens, ok := lensVars[node.block]; ok {
+				for _, v := range lens {
+					switch v.Op {
+					case OpSliceLen:
+						ft.update(node.block, v, v.Args[0].Args[1], signed, eq)
+					case OpSliceCap:
+						ft.update(node.block, v, v.Args[0].Args[2], signed, eq)
+					}
+				}
 			}
 
 			if branch != unknown {
