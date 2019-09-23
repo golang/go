@@ -237,7 +237,7 @@ func genRulesSuffix(arch arch, suff string) {
 	// so we can make this one function with a switch.
 	fn = &Func{kind: "Block"}
 	fn.add(declf("config", "b.Func.Config"))
-	fn.add(declf("typ", "&config.Types"))
+	fn.add(declf("typ", "&b.Func.Config.Types"))
 	fn.add(declf("v", "b.Control"))
 
 	sw = &Switch{expr: exprf("b.Kind")}
@@ -851,28 +851,21 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string) (pos, checkOp string
 		pos = v + ".Pos"
 	}
 
-	if typ != "" {
-		if !token.IsIdentifier(typ) || rr.declared(typ) {
-			// code or variable
-			rr.add(breakf("%s.Type != %s", v, typ))
-		} else {
-			rr.add(declf(typ, "%s.Type", v))
+	for _, e := range []struct {
+		name, field string
+	}{
+		{typ, "Type"},
+		{auxint, "AuxInt"},
+		{aux, "Aux"},
+	} {
+		if e.name == "" {
+			continue
 		}
-	}
-	if auxint != "" {
-		if !token.IsIdentifier(auxint) || rr.declared(auxint) {
+		if !token.IsIdentifier(e.name) || rr.declared(e.name) {
 			// code or variable
-			rr.add(breakf("%s.AuxInt != %s", v, auxint))
+			rr.add(breakf("%s.%s != %s", v, e.field, e.name))
 		} else {
-			rr.add(declf(auxint, "%s.AuxInt", v))
-		}
-	}
-	if aux != "" {
-		if !token.IsIdentifier(aux) || rr.declared(aux) {
-			// code or variable
-			rr.add(breakf("%s.Aux != %s", v, aux))
-		} else {
-			rr.add(declf(aux, "%s.Aux", v))
+			rr.add(declf(e.name, "%s.%s", v, e.field))
 		}
 	}
 
@@ -921,7 +914,6 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string) (pos, checkOp string
 		rr.add(declf(argname, "%s.Args[%d]", v, i))
 		bexpr := exprf("%s.Op != addLater", argname)
 		rr.add(&CondBreak{expr: bexpr})
-		rr.canFail = true // since we're not using breakf
 		argPos, argCheckOp := genMatch0(rr, arch, arg, argname)
 		bexpr.(*ast.BinaryExpr).Y.(*ast.Ident).Name = argCheckOp
 
