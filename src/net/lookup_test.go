@@ -193,7 +193,9 @@ func TestLookupGmailNS(t *testing.T) {
 			t.Error("got no record")
 		}
 		for _, ns := range nss {
-			if !strings.HasSuffix(ns.Host, tt.host) {
+			// Some nameservers alter the case of NS records. See #34446.
+			host := strings.ToLower(ns.Host)
+			if !strings.HasSuffix(host, tt.host) {
 				t.Errorf("got %v; want a record containing %s", ns, tt.host)
 			}
 		}
