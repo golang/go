@@ -116,9 +116,9 @@ func TestConvertCPUProfile(t *testing.T) {
 
 	b := []uint64{
 		3, 0, 500, // hz = 500
-		5, 0, 10, uint64(addr1), uint64(addr1 + 2), // 10 samples in addr1
-		5, 0, 40, uint64(addr2), uint64(addr2 + 2), // 40 samples in addr2
-		5, 0, 10, uint64(addr1), uint64(addr1 + 2), // 10 samples in addr1
+		5, 0, 10, uint64(addr1 + 1), uint64(addr1 + 2), // 10 samples in addr1
+		5, 0, 40, uint64(addr2 + 1), uint64(addr2 + 2), // 40 samples in addr2
+		5, 0, 10, uint64(addr1 + 1), uint64(addr1 + 2), // 10 samples in addr1
 	}
 	p, err := translateCPUProfile(b)
 	if err != nil {

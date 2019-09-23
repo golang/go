@@ -340,7 +340,20 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			pc := frame.pc
 			// backup to CALL instruction to read inlining info (same logic as below)
 			tracepc := pc
-			if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
+			// Normally, pc is a return address. In that case, we want to look up
+			// file/line information using pc-1, because that is the pc of the
+			// call instruction (more precisely, the last byte of the call instruction).
+			// Callers expect the pc buffer to contain return addresses and do the
+			// same -1 themselves, so we keep pc unchanged.
+			// When the pc is from a signal (e.g. profiler or segv) then we want
+			// to look up file/line information using pc, and we store pc+1 in the
+			// pc buffer so callers can unconditionally subtract 1 before looking up.
+			// See issue 34123.
+			// The pc can be at function entry when the frame is initialized without
+			// actually running code, like runtime.mstart.
+			if (n == 0 && flags&_TraceTrap != 0) || waspanic || pc == f.entry {
+				pc++
+			} else {
 				tracepc--
 			}
 
