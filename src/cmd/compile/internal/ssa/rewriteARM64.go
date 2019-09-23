@@ -28467,33 +28467,6 @@ func rewriteValueARM64_OpARM64ORshiftRL_0(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
-	// match: (ORshiftRL [rc] (ANDconst [ac] y) (SLLconst [lc] x))
-	// cond: lc < rc && ac == ^((1<<uint(64-rc)-1))
-	// result: (BFXIL [armBFAuxInt(rc-lc, 64-rc)] y x)
-	for {
-		rc := v.AuxInt
-		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARM64ANDconst {
-			break
-		}
-		ac := v_0.AuxInt
-		y := v_0.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARM64SLLconst {
-			break
-		}
-		lc := v_1.AuxInt
-		x := v_1.Args[0]
-		if !(lc < rc && ac == ^(1<<uint(64-rc)-1)) {
-			break
-		}
-		v.reset(OpARM64BFXIL)
-		v.AuxInt = armBFAuxInt(rc-lc, 64-rc)
-		v.AddArg(y)
-		v.AddArg(x)
-		return true
-	}
 	return false
 }
 func rewriteValueARM64_OpARM64RORWconst_0(v *Value) bool {
