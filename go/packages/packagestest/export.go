@@ -8,6 +8,59 @@ Package packagestest creates temporary projects on disk for testing go tools on.
 By changing the exporter used, you can create projects for multiple build
 systems from the same description, and run the same tests on them in many
 cases.
+
+Example
+
+As an example of packagestest use, consider the following test that runs
+the 'go list' command on the specified modules:
+
+	// TestGoList exercises the 'go list' command in module mode and in GOPATH mode.
+	func TestGoList(t *testing.T) { packagestest.TestAll(t, testGoList) }
+	func testGoList(t *testing.T, x packagestest.Exporter) {
+		e := packagestest.Export(t, x, []packagestest.Module{
+			{
+				Name: "gopher.example/repoa",
+				Files: map[string]interface{}{
+					"a/a.go": "package a",
+				},
+			},
+			{
+				Name: "gopher.example/repob",
+				Files: map[string]interface{}{
+					"b/b.go": "package b",
+				},
+			},
+		})
+		defer e.Cleanup()
+
+		cmd := exec.Command("go", "list", "gopher.example/...")
+		cmd.Dir = e.Config.Dir
+		cmd.Env = e.Config.Env
+		out, err := cmd.Output()
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("'go list gopher.example/...' with %s mode layout:\n%s", x.Name(), out)
+	}
+
+TestGoList uses TestAll to exercise the 'go list' command with all
+exporters known to packagestest. Currently, packagestest includes
+exporters that produce module mode layouts and GOPATH mode layouts.
+Running the test with verbose output will print:
+
+	=== RUN   TestGoList
+	=== RUN   TestGoList/GOPATH
+	=== RUN   TestGoList/Modules
+	--- PASS: TestGoList (0.21s)
+	    --- PASS: TestGoList/GOPATH (0.03s)
+	        main_test.go:36: 'go list gopher.example/...' with GOPATH mode layout:
+	            gopher.example/repoa/a
+	            gopher.example/repob/b
+	    --- PASS: TestGoList/Modules (0.18s)
+	        main_test.go:36: 'go list gopher.example/...' with Modules mode layout:
+	            gopher.example/repoa/a
+	            gopher.example/repob/b
+
 */
 package packagestest
 
