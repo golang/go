@@ -11,7 +11,6 @@ import (
 	"cmd/link/internal/sym"
 	"io"
 	"regexp"
-	"runtime"
 )
 
 const (
@@ -177,7 +176,6 @@ func asmb2(ctxt *ld.Link) {
 		writeBuildID(ctxt, buildid)
 	}
 
-	writeGoVersion(ctxt)
 	writeTypeSec(ctxt, types)
 	writeImportSec(ctxt, hostImports)
 	writeFunctionSec(ctxt, fns)
@@ -188,6 +186,7 @@ func asmb2(ctxt *ld.Link) {
 	writeElementSec(ctxt, uint64(len(hostImports)), uint64(len(fns)))
 	writeCodeSec(ctxt, fns)
 	writeDataSec(ctxt)
+	writeProducerSec(ctxt)
 	if !*ld.FlagS {
 		writeNameSec(ctxt, len(hostImports), fns)
 	}
@@ -223,13 +222,6 @@ func writeBuildID(ctxt *ld.Link, buildid []byte) {
 	sizeOffset := writeSecHeader(ctxt, sectionCustom)
 	writeName(ctxt.Out, "go.buildid")
 	ctxt.Out.Write(buildid)
-	writeSecSize(ctxt, sizeOffset)
-}
-
-func writeGoVersion(ctxt *ld.Link) {
-	sizeOffset := writeSecHeader(ctxt, sectionCustom)
-	writeName(ctxt.Out, "go.version")
-	ctxt.Out.Write([]byte(runtime.Version()))
 	writeSecSize(ctxt, sizeOffset)
 }
 
@@ -484,6 +476,26 @@ func writeDataSec(ctxt *ld.Link) {
 		writeUleb128(ctxt.Out, uint64(len(seg.data)))
 		ctxt.Out.Write(seg.data)
 	}
+
+	writeSecSize(ctxt, sizeOffset)
+}
+
+// writeProducerSec writes an optional section that reports the source language and compiler version.
+func writeProducerSec(ctxt *ld.Link) {
+	sizeOffset := writeSecHeader(ctxt, sectionCustom)
+	writeName(ctxt.Out, "producers")
+
+	writeUleb128(ctxt.Out, 2) // number of fields
+
+	writeName(ctxt.Out, "language")     // field name
+	writeUleb128(ctxt.Out, 1)           // number of values
+	writeName(ctxt.Out, "Go")           // value: name
+	writeName(ctxt.Out, objabi.Version) // value: version
+
+	writeName(ctxt.Out, "processed-by")   // field name
+	writeUleb128(ctxt.Out, 1)             // number of values
+	writeName(ctxt.Out, "Go cmd/compile") // value: name
+	writeName(ctxt.Out, objabi.Version)   // value: version
 
 	writeSecSize(ctxt, sizeOffset)
 }
