@@ -108,7 +108,7 @@ type mountedFS struct {
 	new string
 }
 
-// hasPathPrefix returns true if x == y or x == y + "/" + more
+// hasPathPrefix reports whether x == y or x == y + "/" + more.
 func hasPathPrefix(x, y string) bool {
 	return x == y || strings.HasPrefix(x, y) && (strings.HasSuffix(y, "/") || strings.HasPrefix(x[len(y):], "/"))
 }

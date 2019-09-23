@@ -47,7 +47,7 @@ func (s *handlerServer) registerWithMux(mux *http.ServeMux) {
 	mux.Handle(s.pattern, s)
 }
 
-// getPageInfo returns the PageInfo for a package directory abspath. If the
+// GetPageInfo returns the PageInfo for a package directory abspath. If the
 // parameter genAST is set, an AST containing only the package exports is
 // computed (PageInfo.PAst), otherwise package documentation (PageInfo.Doc)
 // is extracted from the AST. If there is no corresponding package in the
