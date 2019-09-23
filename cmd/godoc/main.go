@@ -20,15 +20,19 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/json"
 	_ "expvar" // to serve /debug/vars
 	"flag"
 	"fmt"
 	"go/build"
+	"io"
 	"log"
 	"net/http"
 	_ "net/http/pprof" // to serve /debug/pprof/*
 	"net/url"
 	"os"
+	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -41,6 +45,7 @@ import (
 	"golang.org/x/tools/godoc/vfs/gatefs"
 	"golang.org/x/tools/godoc/vfs/mapfs"
 	"golang.org/x/tools/godoc/vfs/zipfs"
+	"golang.org/x/xerrors"
 )
 
 const defaultAddr = "localhost:6060" // default webserver address
@@ -53,7 +58,7 @@ var (
 	// file-based index
 	writeIndex = flag.Bool("write_index", false, "write index to a file; the file name must be specified with -index_files")
 
-	analysisFlag = flag.String("analysis", "", `comma-separated list of analyses to perform (supported: type, pointer). See http://golang.org/lib/godoc/analysis/help.html`)
+	analysisFlag = flag.String("analysis", "", `comma-separated list of analyses to perform when in GOPATH mode (supported: type, pointer). See https://golang.org/lib/godoc/analysis/help.html`)
 
 	// network
 	httpAddr = flag.String("http", defaultAddr, "HTTP service address")
@@ -196,9 +201,52 @@ func main() {
 		fs.Bind("/lib/godoc", mapfs.New(static.Files), "/", vfs.BindReplace)
 	}
 
-	// Bind $GOPATH trees into Go root.
-	for _, p := range filepath.SplitList(build.Default.GOPATH) {
-		fs.Bind("/src", gatefs.New(vfs.OS(p), fsGate), "/src", vfs.BindAfter)
+	// Get the GOMOD value, use it to determine if godoc is being invoked in module mode.
+	goModFile, err := goMod()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to determine go env GOMOD value: %v", err)
+		goModFile = "" // Fall back to GOPATH mode.
+	}
+
+	if goModFile != "" {
+		fmt.Printf("using module mode; GOMOD=%s\n", goModFile)
+
+		if *analysisFlag != "" {
+			fmt.Fprintln(os.Stderr, "The -analysis flag is supported only in GOPATH mode at this time.")
+			fmt.Fprintln(os.Stderr, "See https://golang.org/issue/34473.")
+			usage()
+		}
+
+		// Try to download dependencies that are not in the module cache in order to
+		// to show their documentation.
+		// This may fail if module downloading is disallowed (GOPROXY=off) or due to
+		// limited connectivity, in which case we print errors to stderr and show
+		// documentation only for packages that are available.
+		fillModuleCache(os.Stderr)
+
+		// Determine modules in the build list.
+		mods, err := buildList()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to determine the build list of the main module: %v", err)
+			os.Exit(1)
+		}
+
+		// Bind module trees into Go root.
+		for _, m := range mods {
+			if m.Dir == "" {
+				// Module is not available in the module cache, skip it.
+				continue
+			}
+			dst := path.Join("/src", m.Path)
+			fs.Bind(dst, gatefs.New(vfs.OS(m.Dir), fsGate), "/", vfs.BindAfter)
+		}
+	} else {
+		fmt.Println("using GOPATH mode")
+
+		// Bind $GOPATH trees into Go root.
+		for _, p := range filepath.SplitList(build.Default.GOPATH) {
+			fs.Bind("/src", gatefs.New(vfs.OS(p), fsGate), "/src", vfs.BindAfter)
+		}
 	}
 
 	var typeAnalysis, pointerAnalysis bool
@@ -215,7 +263,12 @@ func main() {
 		}
 	}
 
-	corpus := godoc.NewCorpus(fs)
+	var corpus *godoc.Corpus
+	if goModFile != "" {
+		corpus = godoc.NewCorpus(moduleFS{fs})
+	} else {
+		corpus = godoc.NewCorpus(fs)
+	}
 	corpus.Verbose = *verbose
 	corpus.MaxResults = *maxResults
 	corpus.IndexEnabled = *indexEnabled
@@ -328,6 +381,139 @@ func main() {
 		log.Fatalf("ListenAndServe %s: %v", *httpAddr, err)
 	}
 }
+
+// goMod returns the go env GOMOD value in the current directory
+// by invoking the go command.
+//
+// GOMOD is documented at https://golang.org/cmd/go/#hdr-Environment_variables:
+//
+// 	The absolute path to the go.mod of the main module,
+// 	or the empty string if not using modules.
+//
+func goMod() (string, error) {
+	out, err := exec.Command("go", "env", "-json", "GOMOD").Output()
+	if ee := (*exec.ExitError)(nil); xerrors.As(err, &ee) {
+		return "", fmt.Errorf("go command exited unsuccessfully: %v\n%s", ee.ProcessState.String(), ee.Stderr)
+	} else if err != nil {
+		return "", err
+	}
+	var env struct {
+		GoMod string
+	}
+	err = json.Unmarshal(out, &env)
+	if err != nil {
+		return "", err
+	}
+	return env.GoMod, nil
+}
+
+// fillModuleCache does a best-effort attempt to fill the module cache
+// with all dependencies of the main module in the current directory
+// by invoking the go command. Module download logs are streamed to w.
+// If there are any problems encountered, they are also written to w.
+// It should only be used when operating in module mode.
+//
+// See https://golang.org/cmd/go/#hdr-Download_modules_to_local_cache.
+func fillModuleCache(w io.Writer) {
+	cmd := exec.Command("go", "mod", "download", "-json")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = w
+	err := cmd.Run()
+	if ee := (*exec.ExitError)(nil); xerrors.As(err, &ee) && ee.ExitCode() == 1 {
+		// Exit code 1 from this command means there were some
+		// non-empty Error values in the output. Print them to w.
+		fmt.Fprintf(w, "documentation for some packages is not shown:\n")
+		for dec := json.NewDecoder(&out); ; {
+			var m struct {
+				Path    string // Module path.
+				Version string // Module version.
+				Error   string // Error loading module.
+			}
+			err := dec.Decode(&m)
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				fmt.Fprintf(w, "error decoding JSON object from go mod download -json: %v\n", err)
+				continue
+			}
+			if m.Error == "" {
+				continue
+			}
+			fmt.Fprintf(w, "\tmodule %s@%s is not in the module cache and there was a problem downloading it: %s\n", m.Path, m.Version, m.Error)
+		}
+	} else if err != nil {
+		fmt.Fprintf(w, "there was a problem filling module cache: %v\n", err)
+	}
+}
+
+// buildList determines the build list in the current directory
+// by invoking the go command. It should only be used when operating
+// in module mode.
+//
+// See https://golang.org/cmd/go/#hdr-The_main_module_and_the_build_list.
+func buildList() ([]mod, error) {
+	out, err := exec.Command("go", "list", "-m", "-json", "all").Output()
+	if ee := (*exec.ExitError)(nil); xerrors.As(err, &ee) {
+		return nil, fmt.Errorf("go command exited unsuccessfully: %v\n%s", ee.ProcessState.String(), ee.Stderr)
+	} else if err != nil {
+		return nil, err
+	}
+	var mods []mod
+	for dec := json.NewDecoder(bytes.NewReader(out)); ; {
+		var m mod
+		err := dec.Decode(&m)
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+		mods = append(mods, m)
+	}
+	return mods, nil
+}
+
+type mod struct {
+	Path string // Module path.
+	Dir  string // Directory holding files for this module, if any.
+}
+
+// moduleFS is a vfs.FileSystem wrapper used when godoc is running
+// in module mode. It's needed so that packages inside modules are
+// considered to be third party.
+//
+// It overrides the RootType method of the underlying filesystem
+// and implements it using a heuristic based on the import path.
+// If the first element of the import path does not contain a dot,
+// that package is considered to be inside GOROOT. If it contains
+// a dot, then that package is considered to be third party.
+//
+// TODO(dmitshur): The RootType abstraction works well when GOPATH
+// workspaces are bound at their roots, but scales poorly in the
+// general case. It should be replaced by a more direct solution
+// for determining whether a package is third party or not.
+//
+type moduleFS struct{ vfs.FileSystem }
+
+func (moduleFS) RootType(path string) vfs.RootType {
+	if !strings.HasPrefix(path, "/src/") {
+		return ""
+	}
+	domain := path[len("/src/"):]
+	if i := strings.Index(domain, "/"); i >= 0 {
+		domain = domain[:i]
+	}
+	if !strings.Contains(domain, ".") {
+		// No dot in the first element of import path
+		// suggests this is a package in GOROOT.
+		return vfs.RootTypeGoRoot
+	} else {
+		// A dot in the first element of import path
+		// suggests this is a third party package.
+		return vfs.RootTypeGoPath
+	}
+}
+func (fs moduleFS) String() string { return "module(" + fs.FileSystem.String() + ")" }
 
 // Hooks that are set non-nil in autocert.go if the "autocert" build tag
 // is used.

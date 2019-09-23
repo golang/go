@@ -209,8 +209,11 @@ func TestURL(t *testing.T) {
 func TestWeb(t *testing.T) {
 	bin, cleanup := buildGodoc(t)
 	defer cleanup()
-	testWeb(t, packagestest.GOPATH, bin, false)
-	// TODO(golang.org/issue/33655): Add support for module mode, then enable its test coverage.
+	for _, x := range packagestest.All {
+		t.Run(x.Name(), func(t *testing.T) {
+			testWeb(t, x, bin, false)
+		})
+	}
 }
 
 // Basic integration test for godoc HTTP interface.
