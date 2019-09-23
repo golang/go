@@ -107,6 +107,12 @@ type EscLocation struct {
 	derefs  int // >= -1
 	walkgen uint32
 
+	// dst and dstEdgeindex track the next immediate assignment
+	// destination location during walkone, along with the index
+	// of the edge pointing back to this location.
+	dst        *EscLocation
+	dstEdgeIdx int
+
 	// queued is used by walkAll to track whether this location is
 	// in the walk queue.
 	queued bool
@@ -129,6 +135,7 @@ type EscLocation struct {
 type EscEdge struct {
 	src    *EscLocation
 	derefs int // >= -1
+	notes  *EscNote
 }
 
 // escapeFuncs performs escape analysis on a minimal batch of
@@ -318,7 +325,7 @@ func (e *Escape) stmt(n *Node) {
 				cv := cas.Rlist.First()
 				k := e.dcl(cv) // type switch variables have no ODCL.
 				if types.Haspointers(cv.Type) {
-					ks = append(ks, k.dotType(cv.Type, n, "switch case"))
+					ks = append(ks, k.dotType(cv.Type, cas, "switch case"))
 				}
 			}
 
@@ -692,12 +699,12 @@ func (e *Escape) assign(dst, src *Node, why string, where *Node) {
 
 	k := e.addr(dst)
 	if dst != nil && dst.Op == ODOTPTR && isReflectHeaderDataField(dst) {
-		e.unsafeValue(e.heapHole(), src)
+		e.unsafeValue(e.heapHole().note(where, why), src)
 	} else {
 		if ignore {
 			k = e.discardHole()
 		}
-		e.expr(k, src)
+		e.expr(k.note(where, why), src)
 	}
 }
 
@@ -815,18 +822,18 @@ func (e *Escape) call(ks []EscHole, call, where *Node) {
 
 	if call.Op == OCALLFUNC {
 		// Evaluate callee function expression.
-		e.expr(e.augmentParamHole(e.discardHole(), where), call.Left)
+		e.expr(e.augmentParamHole(e.discardHole(), call, where), call.Left)
 	}
 
 	if recv != nil {
 		// TODO(mdempsky): Handle go:uintptrescapes here too?
-		e.expr(e.augmentParamHole(recvK, where), recv)
+		e.expr(e.augmentParamHole(recvK, call, where), recv)
 	}
 
 	// Apply augmentParamHole before ODDDARG so that it affects
 	// the implicit slice allocation for variadic calls, if any.
 	for i, paramK := range paramKs {
-		paramKs[i] = e.augmentParamHole(paramK, where)
+		paramKs[i] = e.augmentParamHole(paramK, call, where)
 	}
 
 	// TODO(mdempsky): Remove after early ddd-ification.
@@ -870,7 +877,8 @@ func (e *Escape) call(ks []EscHole, call, where *Node) {
 
 // augmentParamHole augments parameter holes as necessary for use in
 // go/defer statements.
-func (e *Escape) augmentParamHole(k EscHole, where *Node) EscHole {
+func (e *Escape) augmentParamHole(k EscHole, call, where *Node) EscHole {
+	k = k.note(call, "call parameter")
 	if where == nil {
 		return k
 	}
@@ -886,7 +894,7 @@ func (e *Escape) augmentParamHole(k EscHole, where *Node) EscHole {
 		return e.later(k)
 	}
 
-	return e.heapHole()
+	return e.heapHole().note(where, "call parameter")
 }
 
 // tagHole returns a hole for evaluating an argument passed to param.
@@ -923,10 +931,26 @@ func (e *Escape) tagHole(ks []EscHole, param *types.Field, static bool) EscHole 
 type EscHole struct {
 	dst    *EscLocation
 	derefs int // >= -1
+	notes  *EscNote
+}
+
+type EscNote struct {
+	next  *EscNote
+	where *Node
+	why   string
 }
 
 func (k EscHole) note(where *Node, why string) EscHole {
-	// TODO(mdempsky): Keep a record of where/why for diagnostics.
+	if where == nil || why == "" {
+		Fatalf("note: missing where/why")
+	}
+	if Debug['m'] >= 2 {
+		k.notes = &EscNote{
+			next:  k.notes,
+			where: where,
+			why:   why,
+		}
+	}
 	return k
 }
 
@@ -1068,7 +1092,7 @@ func (e *Escape) flow(k EscHole, src *EscLocation) {
 	}
 
 	// TODO(mdempsky): Deduplicate edges?
-	dst.edges = append(dst.edges, EscEdge{src: src, derefs: k.derefs})
+	dst.edges = append(dst.edges, EscEdge{src: src, derefs: k.derefs, notes: k.notes})
 }
 
 func (e *Escape) heapHole() EscHole    { return e.heapLoc.asHole() }
@@ -1119,6 +1143,7 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
 
 	root.walkgen = walkgen
 	root.derefs = 0
+	root.dst = nil
 
 	todo := []*EscLocation{root} // LIFO queue
 	for len(todo) > 0 {
@@ -1152,6 +1177,10 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
 			// that value flow for tagging the function
 			// later.
 			if l.isName(PPARAM) {
+				if Debug['m'] >= 2 && !l.escapes {
+					fmt.Printf("%s: parameter %v leaks to %s with derefs=%d:\n", linestr(l.n.Pos), l.n, e.explainLoc(root), base)
+					e.explainPath(root, l)
+				}
 				l.leakTo(root, base)
 			}
 
@@ -1159,13 +1188,17 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
 			// outlives it, then l needs to be heap
 			// allocated.
 			if addressOf && !l.escapes {
+				if Debug['m'] >= 2 {
+					fmt.Printf("%s: %v escapes to heap:\n", linestr(l.n.Pos), l.n)
+					e.explainPath(root, l)
+				}
 				l.escapes = true
 				enqueue(l)
 				continue
 			}
 		}
 
-		for _, edge := range l.edges {
+		for i, edge := range l.edges {
 			if edge.src.escapes {
 				continue
 			}
@@ -1173,10 +1206,53 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
 			if edge.src.walkgen != walkgen || edge.src.derefs > derefs {
 				edge.src.walkgen = walkgen
 				edge.src.derefs = derefs
+				edge.src.dst = l
+				edge.src.dstEdgeIdx = i
 				todo = append(todo, edge.src)
 			}
 		}
 	}
+}
+
+// explainPath prints an explanation of how src flows to the walk root.
+func (e *Escape) explainPath(root, src *EscLocation) {
+	pos := linestr(src.n.Pos)
+	for {
+		dst := src.dst
+		edge := &dst.edges[src.dstEdgeIdx]
+		if edge.src != src {
+			Fatalf("path inconsistency: %v != %v", edge.src, src)
+		}
+
+		derefs := "&"
+		if edge.derefs >= 0 {
+			derefs = strings.Repeat("*", edge.derefs)
+		}
+
+		fmt.Printf("%s:   flow: %s = %s%v:\n", pos, e.explainLoc(dst), derefs, e.explainLoc(src))
+		for notes := edge.notes; notes != nil; notes = notes.next {
+			fmt.Printf("%s:     from %v (%v) at %s\n", pos, notes.where, notes.why, linestr(notes.where.Pos))
+		}
+
+		if dst == root {
+			break
+		}
+		src = dst
+	}
+}
+
+func (e *Escape) explainLoc(l *EscLocation) string {
+	if l == &e.heapLoc {
+		return "{heap}"
+	}
+	if l.n == nil {
+		// TODO(mdempsky): Omit entirely.
+		return "{temp}"
+	}
+	if l.n.Op == ONAME {
+		return fmt.Sprintf("%v", l.n)
+	}
+	return fmt.Sprintf("{storage for %v}", l.n)
 }
 
 // outlives reports whether values stored in l may survive beyond
