@@ -36448,8 +36448,7 @@ func rewriteValueS390X_OpZeroExt8to64_0(v *Value) bool {
 	}
 }
 func rewriteBlockS390X(b *Block) bool {
-	config := b.Func.Config
-	typ := &config.Types
+	typ := &b.Func.Config.Types
 	v := b.Control
 	switch b.Kind {
 	case BlockS390XBRC:
