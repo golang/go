@@ -242,9 +242,10 @@ type importReader struct {
 	strings.Reader
 	p *iimporter
 
-	currPkg  *types.Pkg
-	prevBase *src.PosBase
-	prevLine int64
+	currPkg    *types.Pkg
+	prevBase   *src.PosBase
+	prevLine   int64
+	prevColumn int64
 }
 
 func (p *iimporter) newReader(off uint64, pkg *types.Pkg) *importReader {
@@ -446,16 +447,16 @@ func (r *importReader) qualifiedIdent() *types.Sym {
 
 func (r *importReader) pos() src.XPos {
 	delta := r.int64()
-	if delta != deltaNewFile {
-		r.prevLine += delta
-	} else if l := r.int64(); l == -1 {
-		r.prevLine += deltaNewFile
-	} else {
-		r.prevBase = r.posBase()
-		r.prevLine = l
+	r.prevColumn += delta >> 1
+	if delta&1 != 0 {
+		delta = r.int64()
+		r.prevLine += delta >> 1
+		if delta&1 != 0 {
+			r.prevBase = r.posBase()
+		}
 	}
 
-	if (r.prevBase == nil || r.prevBase.AbsFilename() == "") && r.prevLine == 0 {
+	if (r.prevBase == nil || r.prevBase.AbsFilename() == "") && r.prevLine == 0 && r.prevColumn == 0 {
 		// TODO(mdempsky): Remove once we reliably write
 		// position information for all nodes.
 		return src.NoXPos
@@ -464,7 +465,7 @@ func (r *importReader) pos() src.XPos {
 	if r.prevBase == nil {
 		Fatalf("missing posbase")
 	}
-	pos := src.MakePos(r.prevBase, uint(r.prevLine), 0)
+	pos := src.MakePos(r.prevBase, uint(r.prevLine), uint(r.prevColumn))
 	return Ctxt.PosTable.XPos(pos)
 }
 
