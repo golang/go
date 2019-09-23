@@ -7,6 +7,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"go/ast"
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/source"
@@ -38,12 +39,42 @@ func (view *view) loadParseTypecheck(ctx context.Context, f *goFile, fh source.F
 			log.Error(ctx, "loadParseTypeCheck: failed to get CheckPackageHandle", err, telemetry.Package.Of(m.id))
 			continue
 		}
-		// Cache this package on the file object, since all dependencies are cached in the Import function.
-		if err := imp.cachePackage(ctx, cph); err != nil {
-			log.Error(ctx, "loadParseTypeCheck: failed to cache package", err, telemetry.Package.Of(m.id))
-			continue
+		// Cache the package type information for the top-level package.
+		for _, ph := range cph.files {
+			file, _, _, err := ph.Parse(ctx)
+			if err != nil {
+				return err
+			}
+			f, err := imp.view.GetFile(ctx, ph.File().Identity().URI)
+			if err != nil {
+				return errors.Errorf("no such file %s: %v", ph.File().Identity().URI, err)
+			}
+			gof, ok := f.(*goFile)
+			if !ok {
+				return errors.Errorf("%s is not a Go file", ph.File().Identity().URI)
+			}
+			if err := cachePerFile(ctx, gof, ph.Mode(), file.Imports, cph); err != nil {
+				return err
+			}
 		}
 	}
+	return nil
+}
+
+func cachePerFile(ctx context.Context, f *goFile, mode source.ParseMode, imports []*ast.ImportSpec, cph *checkPackageHandle) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	f.imports = imports
+
+	if f.cphs == nil {
+		f.cphs = make(map[packageKey]*checkPackageHandle)
+	}
+	f.cphs[packageKey{
+		id:   cph.m.id,
+		mode: mode,
+	}] = cph
+
 	return nil
 }
 

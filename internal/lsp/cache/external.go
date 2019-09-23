@@ -53,6 +53,7 @@ func (h *nativeFileHandle) Identity() source.FileIdentity {
 func (h *nativeFileHandle) Read(ctx context.Context) ([]byte, string, error) {
 	ctx, done := trace.StartSpan(ctx, "cache.nativeFileHandle.Read", telemetry.File.Of(h.identity.URI.Filename()))
 	defer done()
+
 	ioLimit <- struct{}{}
 	defer func() { <-ioLimit }()
 	// TODO: this should fail if the version is not the same as the handle

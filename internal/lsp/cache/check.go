@@ -220,11 +220,6 @@ func (imp *importer) Import(pkgPath string) (*types.Package, error) {
 		return nil, err
 	}
 	imp.parentPkg.imports[packagePath(pkgPath)] = pkg
-
-	// Add every file in this package to our cache.
-	if err := imp.cachePackage(ctx, cph); err != nil {
-		return nil, err
-	}
 	return pkg.GetTypes(), nil
 }
 
@@ -333,45 +328,6 @@ func (imp *importer) child(ctx context.Context, pkg *pkg, cph *checkPackageHandl
 		parentPkg:                pkg,
 		parentCheckPackageHandle: cph,
 	}
-}
-
-func (imp *importer) cachePackage(ctx context.Context, cph *checkPackageHandle) error {
-	for _, ph := range cph.files {
-		uri := ph.File().Identity().URI
-		f, err := imp.view.GetFile(ctx, uri)
-		if err != nil {
-			return errors.Errorf("no such file %s: %v", uri, err)
-		}
-		gof, ok := f.(*goFile)
-		if !ok {
-			return errors.Errorf("%s is not a Go file", uri)
-		}
-		if err := imp.cachePerFile(ctx, gof, ph, cph); err != nil {
-			return errors.Errorf("failed to cache file %s: %v", gof.URI(), err)
-		}
-	}
-	return nil
-}
-
-func (imp *importer) cachePerFile(ctx context.Context, gof *goFile, ph source.ParseGoHandle, cph *checkPackageHandle) error {
-	gof.mu.Lock()
-	defer gof.mu.Unlock()
-
-	// Set the package even if we failed to parse the file.
-	if gof.cphs == nil {
-		gof.cphs = make(map[packageKey]*checkPackageHandle)
-	}
-	gof.cphs[packageKey{
-		id:   cph.m.id,
-		mode: ph.Mode(),
-	}] = cph
-
-	file, _, _, err := ph.Parse(ctx)
-	if err != nil {
-		return err
-	}
-	gof.imports = file.Imports
-	return nil
 }
 
 func (c *cache) appendPkgError(pkg *pkg, err error) {
