@@ -359,13 +359,7 @@ func (b *profileBuilder) build() {
 			}
 		}
 
-		// Addresses from stack traces point to the next instruction after each call,
-		// except for the leaf, which points to where the signal occurred.
-		// appendLocsForStack expects return PCs so increment the leaf address to
-		// look like a return PC.
-		e.stk[0] += 1
 		locs = b.appendLocsForStack(locs[:0], e.stk)
-		e.stk[0] -= 1 // undo the adjustment on the leaf.
 
 		b.pbSample(values, locs, labels)
 	}
