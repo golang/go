@@ -60,8 +60,8 @@ func deadcode(ctxt *Link) {
 	d.init()
 	d.flood()
 
-	callSym := ctxt.Syms.ROLookup("reflect.Value.Call", sym.SymVerABIInternal)
-	methSym := ctxt.Syms.ROLookup("reflect.Value.Method", sym.SymVerABIInternal)
+	callSym := ctxt.Lookup("reflect.Value.Call", sym.SymVerABIInternal)
+	methSym := ctxt.Lookup("reflect.Value.Method", sym.SymVerABIInternal)
 	reflectSeen := false
 
 	if ctxt.DynlinkingGo() {
@@ -283,7 +283,7 @@ func (d *deadcodepass) init() {
 
 				// We don't keep the go.plugin.exports symbol,
 				// but we do keep the symbols it refers to.
-				exports := d.ctxt.Syms.ROLookup("go.plugin.exports", 0)
+				exports := d.ctxt.Lookup("go.plugin.exports", 0)
 				if exports != nil {
 					for i := range exports.R {
 						d.mark(exports.R[i].Sym, nil)
@@ -298,9 +298,9 @@ func (d *deadcodepass) init() {
 
 	for _, name := range names {
 		// Mark symbol as an data/ABI0 symbol.
-		d.mark(d.ctxt.Syms.ROLookup(name, 0), nil)
+		d.mark(d.ctxt.Lookup(name, 0), nil)
 		// Also mark any Go functions (internal ABI).
-		d.mark(d.ctxt.Syms.ROLookup(name, sym.SymVerABIInternal), nil)
+		d.mark(d.ctxt.Lookup(name, sym.SymVerABIInternal), nil)
 	}
 }
 

@@ -209,6 +209,9 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.loadlib()
 
 	deadcode(ctxt)
+	if *flagNewobj {
+		ctxt.loadlibfull() // XXX do it here for now
+	}
 	ctxt.linksetup()
 	ctxt.dostrdata()
 
