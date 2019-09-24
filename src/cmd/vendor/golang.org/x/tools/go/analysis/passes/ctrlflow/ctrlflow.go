@@ -102,10 +102,11 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
 		switch n := n.(type) {
 		case *ast.FuncDecl:
-			fn := pass.TypesInfo.Defs[n.Name].(*types.Func)
-			funcDecls[fn] = &declInfo{decl: n}
-			decls = append(decls, fn)
-
+			// Type information may be incomplete.
+			if fn, ok := pass.TypesInfo.Defs[n.Name].(*types.Func); ok {
+				funcDecls[fn] = &declInfo{decl: n}
+				decls = append(decls, fn)
+			}
 		case *ast.FuncLit:
 			funcLits[n] = new(litInfo)
 			lits = append(lits, n)

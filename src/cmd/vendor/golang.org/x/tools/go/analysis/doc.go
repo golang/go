@@ -67,7 +67,7 @@ To add a new Analyzer to an existing driver, add another item to the list:
 	}
 
 A driver may use the name, flags, and documentation to provide on-line
-help that describes the analyses its performs.
+help that describes the analyses it performs.
 The doc comment contains a brief one-line summary,
 optionally followed by paragraphs of explanation.
 The vet command, shown below, is an example of a driver that runs
@@ -169,7 +169,7 @@ type information, and source positions for a single package of Go code.
 
 The OtherFiles field provides the names, but not the contents, of non-Go
 files such as assembly that are part of this package. See the "asmdecl"
-or "buildtags" analyzers for examples of loading non-Go files and report
+or "buildtags" analyzers for examples of loading non-Go files and reporting
 diagnostics against them.
 
 The ResultOf field provides the results computed by the analyzers
@@ -231,7 +231,7 @@ understood as alternative or non-standard type systems. For example,
 vet's printf checker infers whether a function has the "printf wrapper"
 type, and it applies stricter checks to calls of such functions. In
 addition, it records which functions are printf wrappers for use by
-later analysis units to identify other printf wrappers by induction.
+later analysis passes to identify other printf wrappers by induction.
 A result such as “f is a printf wrapper” that is not interesting by
 itself but serves as a stepping stone to an interesting result (such as
 a diagnostic) is called a "fact".
@@ -252,9 +252,9 @@ An Analyzer that uses facts must declare their types:
 
 	type isWrapper struct{} // => *types.Func f “is a printf wrapper”
 
-A driver program ensures that facts for a pass’s dependencies are
-generated before analyzing the pass and are responsible for propagating
-facts between from one pass to another, possibly across address spaces.
+The driver program ensures that facts for a pass’s dependencies are
+generated before analyzing the package and is responsible for propagating
+facts from one package to another, possibly across address spaces.
 Consequently, Facts must be serializable. The API requires that drivers
 use the gob encoding, an efficient, robust, self-describing binary
 protocol. A fact type may implement the GobEncoder/GobDecoder interfaces
@@ -288,10 +288,10 @@ not currently apply analyzers to packages of the standard library.
 Therefore, for best results, analyzer authors should not rely on
 analysis facts being available for standard packages.
 For example, although the printf checker is capable of deducing during
-analysis of the log package that log.Printf is a printf-wrapper,
+analysis of the log package that log.Printf is a printf wrapper,
 this fact is built in to the analyzer so that it correctly checks
 calls to log.Printf even when run in a driver that does not apply
-it to standard packages. We plan to remove this limitation in future.
+it to standard packages. We would like to remove this limitation in future.
 
 
 Testing an Analyzer
