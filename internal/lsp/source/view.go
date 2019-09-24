@@ -297,8 +297,9 @@ type Package interface {
 	GetTypesInfo() *types.Info
 	GetTypesSizes() types.Sizes
 	IsIllTyped() bool
-	GetDiagnostics() []Diagnostic
-	SetDiagnostics(a *analysis.Analyzer, diag []Diagnostic)
+
+	SetDiagnostics(*analysis.Analyzer, []Diagnostic)
+	FindDiagnostic(protocol.Diagnostic) (*Diagnostic, error)
 
 	// GetImport returns the CheckPackageHandle for a package imported by this package.
 	GetImport(ctx context.Context, pkgPath string) (Package, error)

@@ -75,21 +75,21 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		if err != nil {
 			return nil, err
 		}
-		if wanted[protocol.QuickFix] {
+		if diagnostics := params.Context.Diagnostics; wanted[protocol.QuickFix] && len(diagnostics) > 0 {
 			// First, add the quick fixes reported by go/analysis.
-			qf, err := quickFixes(ctx, view, gof)
+			qf, err := quickFixes(ctx, view, gof, diagnostics)
 			if err != nil {
 				log.Error(ctx, "quick fixes failed", err, telemetry.File.Of(uri))
 			}
 			codeActions = append(codeActions, qf...)
 
 			// If we also have diagnostics for missing imports, we can associate them with quick fixes.
-			if findImportErrors(params.Context.Diagnostics) {
+			if findImportErrors(diagnostics) {
 				// Separate this into a set of codeActions per diagnostic, where
 				// each action is the addition, removal, or renaming of one import.
 				for _, importFix := range editsPerFix {
 					// Get the diagnostics this fix would affect.
-					if fixDiagnostics := importDiagnostics(importFix.Fix, params.Context.Diagnostics); len(fixDiagnostics) > 0 {
+					if fixDiagnostics := importDiagnostics(importFix.Fix, diagnostics); len(fixDiagnostics) > 0 {
 						codeActions = append(codeActions, protocol.CodeAction{
 							Title: importFixTitle(importFix.Fix),
 							Kind:  protocol.QuickFix,
@@ -207,36 +207,36 @@ func importDiagnostics(fix *imports.ImportFix, diagnostics []protocol.Diagnostic
 	return results
 }
 
-func quickFixes(ctx context.Context, view source.View, gof source.GoFile) ([]protocol.CodeAction, error) {
+func quickFixes(ctx context.Context, view source.View, gof source.GoFile, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
 	var codeActions []protocol.CodeAction
-
-	// TODO: This is technically racy because the diagnostics provided by the code action
-	// may not be the same as the ones that gopls is aware of.
-	// We need to figure out some way to solve this problem.
 	cphs, err := gof.CheckPackageHandles(ctx)
 	if err != nil {
 		return nil, err
 	}
-	cph := source.NarrowestCheckPackageHandle(cphs)
+	// We get the package that source.Diagnostics would've used. This is hack.
+	// TODO(golang/go#32443): The correct solution will be to cache diagnostics per-file per-snapshot.
+	cph := source.WidestCheckPackageHandle(cphs)
 	pkg, err := cph.Cached(ctx)
 	if err != nil {
 		return nil, err
 	}
-	for _, diag := range pkg.GetDiagnostics() {
-		pdiag, err := toProtocolDiagnostic(ctx, diag)
+	for _, diag := range diagnostics {
+		sdiag, err := pkg.FindDiagnostic(diag)
 		if err != nil {
-			return nil, err
+			continue
 		}
-		for _, fix := range diag.SuggestedFixes {
+		for _, fix := range sdiag.SuggestedFixes {
+			edits := make(map[string][]protocol.TextEdit)
+			for uri, e := range fix.Edits {
+				edits[protocol.NewURI(uri)] = e
+			}
 			codeActions = append(codeActions, protocol.CodeAction{
-				Title: fix.Title,
-				Kind:  protocol.QuickFix, // TODO(matloob): Be more accurate about these?
+				Title:       fix.Title,
+				Kind:        protocol.QuickFix,
+				Diagnostics: []protocol.Diagnostic{diag},
 				Edit: &protocol.WorkspaceEdit{
-					Changes: &map[string][]protocol.TextEdit{
-						protocol.NewURI(diag.URI): fix.Edits,
-					},
+					Changes: &edits,
 				},
-				Diagnostics: []protocol.Diagnostic{pdiag},
 			})
 		}
 	}

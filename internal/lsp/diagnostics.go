@@ -74,30 +74,22 @@ func (s *Server) diagnostics(view source.View, uri span.URI) error {
 }
 
 func (s *Server) publishDiagnostics(ctx context.Context, uri span.URI, diagnostics []source.Diagnostic) error {
-	protocolDiagnostics, err := toProtocolDiagnostics(ctx, diagnostics)
-	if err != nil {
-		return err
-	}
 	s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
-		Diagnostics: protocolDiagnostics,
+		Diagnostics: toProtocolDiagnostics(ctx, diagnostics),
 		URI:         protocol.NewURI(uri),
 	})
 	return nil
 }
 
-func toProtocolDiagnostics(ctx context.Context, diagnostics []source.Diagnostic) ([]protocol.Diagnostic, error) {
+func toProtocolDiagnostics(ctx context.Context, diagnostics []source.Diagnostic) []protocol.Diagnostic {
 	reports := []protocol.Diagnostic{}
 	for _, diag := range diagnostics {
-		diagnostic, err := toProtocolDiagnostic(ctx, diag)
-		if err != nil {
-			return nil, err
-		}
-		reports = append(reports, diagnostic)
+		reports = append(reports, toProtocolDiagnostic(ctx, diag))
 	}
-	return reports, nil
+	return reports
 }
 
-func toProtocolDiagnostic(ctx context.Context, diag source.Diagnostic) (protocol.Diagnostic, error) {
+func toProtocolDiagnostic(ctx context.Context, diag source.Diagnostic) protocol.Diagnostic {
 	var severity protocol.DiagnosticSeverity
 	switch diag.Severity {
 	case source.SeverityError:
@@ -110,5 +102,6 @@ func toProtocolDiagnostic(ctx context.Context, diag source.Diagnostic) (protocol
 		Range:    diag.Range,
 		Severity: severity,
 		Source:   diag.Source,
-	}, nil
+		Tags:     diag.Tags,
+	}
 }

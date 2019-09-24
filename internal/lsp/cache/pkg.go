@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	errors "golang.org/x/xerrors"
@@ -200,15 +201,25 @@ func (pkg *pkg) SetDiagnostics(a *analysis.Analyzer, diags []source.Diagnostic) 
 	pkg.diagnostics[a] = diags
 }
 
-func (pkg *pkg) GetDiagnostics() []source.Diagnostic {
-	pkg.diagMu.Lock()
-	defer pkg.diagMu.Unlock()
+func (p *pkg) FindDiagnostic(pdiag protocol.Diagnostic) (*source.Diagnostic, error) {
+	p.diagMu.Lock()
+	defer p.diagMu.Unlock()
 
-	var diags []source.Diagnostic
-	for _, d := range pkg.diagnostics {
-		diags = append(diags, d...)
+	for a, diagnostics := range p.diagnostics {
+		if a.Name != pdiag.Source {
+			continue
+		}
+		for _, d := range diagnostics {
+			if d.Message != pdiag.Message {
+				continue
+			}
+			if protocol.CompareRange(d.Range, pdiag.Range) != 0 {
+				continue
+			}
+			return &d, nil
+		}
 	}
-	return diags
+	return nil, errors.Errorf("no matching diagnostic for %v", pdiag)
 }
 
 func (p *pkg) FindFile(ctx context.Context, uri span.URI) (source.ParseGoHandle, source.Package, error) {

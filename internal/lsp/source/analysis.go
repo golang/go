@@ -61,17 +61,18 @@ func analyze(ctx context.Context, v View, cphs []CheckPackageHandle, analyzers [
 // package (as different analyzers are applied, either in sequence or
 // parallel), and across packages (as dependencies are analyzed).
 type Action struct {
-	once         sync.Once
-	Analyzer     *analysis.Analyzer
-	Pkg          Package
-	Deps         []*Action
+	once        sync.Once
+	Analyzer    *analysis.Analyzer
+	Pkg         Package
+	Deps        []*Action
+	diagnostics []analysis.Diagnostic
+
 	pass         *analysis.Pass
 	isroot       bool
 	objectFacts  map[objectFactKey]analysis.Fact
 	packageFacts map[packageFactKey]analysis.Fact
 	inputs       map[*analysis.Analyzer]interface{}
 	result       interface{}
-	diagnostics  []analysis.Diagnostic
 	err          error
 	duration     time.Duration
 	view         View

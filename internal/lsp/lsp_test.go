@@ -331,26 +331,28 @@ func (r *runner) SuggestedFix(t *testing.T, data tests.SuggestedFixes) {
 	for _, spn := range data {
 		uri := spn.URI()
 		filename := uri.Filename()
-		v := r.server.session.ViewOf(uri)
+		view := r.server.session.ViewOf(uri)
 		fixed := string(r.data.Golden("suggestedfix", filename, func() ([]byte, error) {
 			cmd := exec.Command("suggestedfix", filename) // TODO(matloob): what do we do here?
 			out, _ := cmd.Output()                        // ignore error, sometimes we have intentionally ungofmt-able files
 			return out, nil
 		}))
-		f, err := getGoFile(r.ctx, v, uri)
+		f, err := getGoFile(r.ctx, view, uri)
 		if err != nil {
 			t.Fatal(err)
 		}
-		results, _, err := source.Diagnostics(r.ctx, v, f, nil)
+		diagnostics, _, err := source.Diagnostics(r.ctx, view, f, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
-		_ = results
 		actions, err := r.server.CodeAction(r.ctx, &protocol.CodeActionParams{
 			TextDocument: protocol.TextDocumentIdentifier{
 				URI: protocol.NewURI(uri),
 			},
-			Context: protocol.CodeActionContext{Only: []protocol.CodeActionKind{protocol.QuickFix}},
+			Context: protocol.CodeActionContext{
+				Only:        []protocol.CodeActionKind{protocol.QuickFix},
+				Diagnostics: toProtocolDiagnostics(r.ctx, diagnostics[uri]),
+			},
 		})
 		if err != nil {
 			if fixed != "" {
