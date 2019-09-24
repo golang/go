@@ -1,4 +1,2 @@
--- rFunc-d-rename --
-renaming "sFunc" to "rFunc" not possible because "golang.org/x/tools/internal/lsp/rename/bad" has errors
 -- rFunc-rename --
 renaming "sFunc" to "rFunc" not possible because "golang.org/x/tools/internal/lsp/rename/bad" has errors

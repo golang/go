@@ -6,7 +6,6 @@ package cmdtest
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"golang.org/x/tools/internal/lsp/cmd"
@@ -14,35 +13,28 @@ import (
 	"golang.org/x/tools/internal/tool"
 )
 
-var renameModes = [][]string{
-	[]string{},
-	[]string{"-d"},
-}
-
 func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 	filename := spn.URI().Filename()
-	for _, mode := range renameModes {
-		goldenTag := newText + strings.Join(mode, "") + "-rename"
-		app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Config.Env)
-		loc := fmt.Sprintf("%v", spn)
-		args := []string{"-remote=internal", "rename"}
-		if strings.Join(mode, "") != "" {
-			args = append(args, strings.Join(mode, ""))
-		}
-		args = append(args, loc, newText)
-		var err error
-		got := CaptureStdOut(t, func() {
-			err = tool.Run(r.ctx, app, args)
-		})
-		if err != nil {
-			got = err.Error()
-		}
-		got = normalizePaths(r.data, got)
-		expect := string(r.data.Golden(goldenTag, filename, func() ([]byte, error) {
-			return []byte(got), nil
-		}))
-		if expect != got {
-			t.Errorf("rename failed with %#v expected:\n%s\ngot:\n%s", args, expect, got)
-		}
+	goldenTag := newText + "-rename"
+	app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Config.Env)
+	loc := fmt.Sprintf("%v", spn)
+	var err error
+	got := CaptureStdOut(t, func() {
+		err = tool.Run(r.ctx, app, []string{"-remote=internal", "rename", loc, newText})
+	})
+	if err != nil {
+		got = err.Error()
 	}
+	got = normalizePaths(r.data, got)
+	expect := string(r.data.Golden(goldenTag, filename, func() ([]byte, error) {
+		return []byte(got), nil
+	}))
+	if expect != got {
+		t.Errorf("rename failed with %v %v expected:\n%s\ngot:\n%s", loc, newText, expect, got)
+	}
+	// now check we can build a valid unified diff
+	unified := CaptureStdOut(t, func() {
+		_ = tool.Run(r.ctx, app, []string{"-remote=internal", "rename", "-d", loc, newText})
+	})
+	checkUnified(t, filename, expect, unified)
 }

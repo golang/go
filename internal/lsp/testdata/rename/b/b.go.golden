@@ -1,4 +1,2 @@
--- uint-d-rename --
-cannot rename builtin "int"
 -- uint-rename --
 cannot rename builtin "int"

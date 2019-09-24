@@ -104,6 +104,9 @@ func addEqualLines(h *Hunk, lines []string, start, end int) int {
 }
 
 func (u Unified) Format(f fmt.State, r rune) {
+	if len(u.Hunks) == 0 {
+		return
+	}
 	fmt.Fprintf(f, "--- %s\n", u.From)
 	fmt.Fprintf(f, "+++ %s\n", u.To)
 	for _, hunk := range u.Hunks {
