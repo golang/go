@@ -122,6 +122,21 @@ func BenchmarkDeferMany(b *testing.B) {
 	}
 }
 
+func BenchmarkPanicRecover(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		defer3()
+	}
+}
+
+func defer3() {
+	defer func(x, y, z int) {
+		if recover() == nil {
+			panic("failed recover")
+		}
+	}(1, 2, 3)
+	panic("hi")
+}
+
 // golang.org/issue/7063
 func TestStopCPUProfilingWithProfilerOff(t *testing.T) {
 	SetCPUProfileRate(0)

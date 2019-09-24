@@ -22,6 +22,8 @@ func init() {
 	register("StackOverflow", StackOverflow)
 	register("ThreadExhaustion", ThreadExhaustion)
 	register("RecursivePanic", RecursivePanic)
+	register("RecursivePanic2", RecursivePanic2)
+	register("RecursivePanic3", RecursivePanic3)
 	register("GoexitExit", GoexitExit)
 	register("GoNil", GoNil)
 	register("MainGoroutineID", MainGoroutineID)
@@ -109,6 +111,39 @@ func RecursivePanic() {
 		}(x)
 	}()
 	panic("again")
+}
+
+// Same as RecursivePanic, but do the first recover and the second panic in
+// separate defers, and make sure they are executed in the correct order.
+func RecursivePanic2() {
+	func() {
+		defer func() {
+			fmt.Println(recover())
+		}()
+		var x [8192]byte
+		func(x [8192]byte) {
+			defer func() {
+				panic("second panic")
+			}()
+			defer func() {
+				fmt.Println(recover())
+			}()
+			panic("first panic")
+		}(x)
+	}()
+	panic("third panic")
+}
+
+// Make sure that the first panic finished as a panic, even though the second
+// panic was recovered
+func RecursivePanic3() {
+	defer func() {
+		defer func() {
+			recover()
+		}()
+		panic("second panic")
+	}()
+	panic("first panic")
 }
 
 func GoexitExit() {
