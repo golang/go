@@ -197,12 +197,9 @@ package url
 //
 // Please be informed that for now shouldEscape does not check all
 // reserved characters correctly. See golang.org/issue/5684.
-// See src/net/url/escape_gen.go for more info information.
+// See src/net/url/escape_gen.go for more information.
 func shouldEscape(c byte, mode encoding) bool {
-	if shouldEscapeTable[int(mode*256) + int(c)] == 0 {
-		return false
-	}
-	return true
+	return shouldEscapeTable[int(mode*256) + int(c)] != 0
 }
 `
 
