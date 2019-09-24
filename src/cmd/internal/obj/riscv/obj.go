@@ -43,10 +43,7 @@ func lowerJALR(p *obj.Prog) {
 	// target register in Reg, and the offset in From.
 	p.Reg = p.To.Reg
 	p.From, p.To = p.To, p.From
-
-	// Reset Reg so the string looks correct.
-	p.From.Type = obj.TYPE_CONST
-	p.From.Reg = obj.REG_NONE
+	p.From.Type, p.From.Reg = obj.TYPE_CONST, obj.REG_NONE
 }
 
 // progedit is called individually for each *obj.Prog. It normalizes instruction
@@ -88,6 +85,27 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	}
 
 	switch p.As {
+	case ALW, ALWU, ALH, ALHU, ALB, ALBU, ALD, AFLW, AFLD:
+		switch p.From.Type {
+		case obj.TYPE_MEM:
+			// Convert loads from memory/addresses to ternary form.
+			p.Reg = p.From.Reg
+			p.From.Type, p.From.Reg = obj.TYPE_CONST, obj.REG_NONE
+		default:
+			p.Ctxt.Diag("%v\tmemory required for source", p)
+		}
+
+	case ASW, ASH, ASB, ASD, AFSW, AFSD:
+		switch p.To.Type {
+		case obj.TYPE_MEM:
+			// Convert stores to memory/addresses to ternary form.
+			p.Reg = p.From.Reg
+			p.From.Type, p.From.Offset, p.From.Reg = obj.TYPE_CONST, p.To.Offset, obj.REG_NONE
+			p.To.Type, p.To.Offset = obj.TYPE_REG, 0
+		default:
+			p.Ctxt.Diag("%v\tmemory required for destination", p)
+		}
+
 	case AJALR:
 		lowerJALR(p)
 

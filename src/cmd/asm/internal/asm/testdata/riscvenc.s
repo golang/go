@@ -100,25 +100,25 @@ start:
 	BGEU	X5, X6, start	// BGEU	X5, X6, 2	// e3f662ee
 
 	// 2.6: Load and Store Instructions
-	LW	$0, X5, X6				// 03a30200
-	LW	$4, X5, X6				// 03a34200
-	LWU	$0, X5, X6				// 03e30200
-	LWU	$4, X5, X6				// 03e34200
-	LH	$0, X5, X6				// 03930200
-	LH	$4, X5, X6				// 03934200
-	LHU	$0, X5, X6				// 03d30200
-	LHU	$4, X5, X6				// 03d34200
-	LB	$0, X5, X6				// 03830200
-	LB	$4, X5, X6				// 03834200
-	LBU	$0, X5, X6				// 03c30200
-	LBU	$4, X5, X6				// 03c34200
+	LW	(X5), X6				// 03a30200
+	LW	4(X5), X6				// 03a34200
+	LWU	(X5), X6				// 03e30200
+	LWU	4(X5), X6				// 03e34200
+	LH	(X5), X6				// 03930200
+	LH	4(X5), X6				// 03934200
+	LHU	(X5), X6				// 03d30200
+	LHU	4(X5), X6				// 03d34200
+	LB	(X5), X6				// 03830200
+	LB	4(X5), X6				// 03834200
+	LBU	(X5), X6				// 03c30200
+	LBU	4(X5), X6				// 03c34200
 
-	SW	$0, X5, X6				// 23205300
-	SW	$4, X5, X6				// 23225300
-	SH	$0, X5, X6				// 23105300
-	SH	$4, X5, X6				// 23125300
-	SB	$0, X5, X6				// 23005300
-	SB	$4, X5, X6				// 23025300
+	SW	X5, (X6)				// 23205300
+	SW	X5, 4(X6)				// 23225300
+	SH	X5, (X6)				// 23105300
+	SH	X5, 4(X6)				// 23125300
+	SB	X5, (X6)				// 23005300
+	SB	X5, 4(X6)				// 23025300
 
 	// 5.2: Integer Computational Instructions (RV64I)
 	ADDIW	$1, X5, X6				// 1b831200
@@ -132,10 +132,10 @@ start:
 	SRAW	X5, X6, X7				// bb535340
 
 	// 5.3: Load and Store Instructions (RV64I)
-	LD	$0, X5, X6				// 03b30200
-	LD	$4, X5, X6				// 03b34200
-	SD	$0, X5, X6				// 23305300
-	SD	$4, X5, X6				// 23325300
+	LD	(X5), X6				// 03b30200
+	LD	4(X5), X6				// 03b34200
+	SD	X5, (X6)				// 23305300
+	SD	X5, 4(X6)				// 23325300
 
 	// 7.1: Multiplication Operations
 	MUL	X5, X6, X7				// b3035302
@@ -158,10 +158,10 @@ start:
 	RDINSTRET	X5				// f32220c0
 
 	// 11.5: Single-Precision Load and Store Instructions
-	FLW	$0, X5, F0				// 07a00200
-	FLW	$4, X5, F0				// 07a04200
-	FSW	$0, F0, X5				// 27a00200
-	FSW	$4, F0, X5				// 27a20200
+	FLW	(X5), F0				// 07a00200
+	FLW	4(X5), F0				// 07a04200
+	FSW	F0, (X5)				// 27a00200
+	FSW	F0, 4(X5)				// 27a20200
 
 	// 11.6: Single-Precision Floating-Point Computational Instructions
 	FADDS	F1, F0, F2				// 53011000
@@ -195,10 +195,10 @@ start:
 	FLES	F0, F1, X7				// d38300a0
 
 	// 12.3: Double-Precision Load and Store Instructions
-	FLD	$0, X5, F0				// 07b00200
-	FLD	$4, X5, F0				// 07b04200
-	FSD	$0, F0, X5				// 27b00200
-	FSD	$4, F0, X5				// 27b20200
+	FLD	(X5), F0				// 07b00200
+	FLD	4(X5), F0				// 07b04200
+	FSD	F0, (X5)				// 27b00200
+	FSD	F0, 4(X5)				// 27b20200
 
 	// 12.4: Double-Precision Floating-Point Computational Instructions
 	FADDD	F1, F0, F2				// 53011002
