@@ -53,8 +53,8 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitia) (
 	}
 
 	var codeActionProvider interface{}
-	if params.Capabilities.TextDocument.CodeAction.CodeActionLiteralSupport != nil &&
-		len(params.Capabilities.TextDocument.CodeAction.CodeActionLiteralSupport.CodeActionKind.ValueSet) > 0 {
+	if ca := params.Capabilities.TextDocument.CodeAction; ca != nil && ca.CodeActionLiteralSupport != nil &&
+		len(ca.CodeActionLiteralSupport.CodeActionKind.ValueSet) > 0 {
 		// If the client has specified CodeActionLiteralSupport,
 		// send the code actions we support.
 		//
@@ -66,9 +66,9 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitia) (
 		codeActionProvider = true
 	}
 	var renameOpts interface{}
-	if params.Capabilities.TextDocument.Rename.PrepareSupport {
+	if r := params.Capabilities.TextDocument.Rename; r != nil {
 		renameOpts = &protocol.RenameOptions{
-			PrepareProvider: true,
+			PrepareProvider: r.PrepareSupport,
 		}
 	} else {
 		renameOpts = true

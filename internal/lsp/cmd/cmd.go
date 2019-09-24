@@ -196,7 +196,9 @@ func (c *connection) initialize(ctx context.Context) error {
 	params := &protocol.ParamInitia{}
 	params.RootURI = string(span.FileURI(c.Client.app.wd))
 	params.Capabilities.Workspace.Configuration = true
-	params.Capabilities.TextDocument.Hover.ContentFormat = []protocol.MarkupKind{protocol.PlainText}
+	params.Capabilities.TextDocument.Hover = &protocol.HoverClientCapabilities{
+		ContentFormat: []protocol.MarkupKind{protocol.PlainText},
+	}
 	if _, err := c.Server.Initialize(ctx, params); err != nil {
 		return err
 	}

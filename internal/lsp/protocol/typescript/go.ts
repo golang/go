@@ -53,7 +53,7 @@ let fnames = [
   `${srcDir}/protocol/src/protocol.ts`, `${srcDir}/types/src/main.ts`,
   `${srcDir}/jsonrpc/src/main.ts`
 ];
-let gitHash = 'fda16d6b63ba0fbdbd21d437ea810685528a0018';
+let gitHash = '36ac51f057215e6e2e0408384e07ecf564a938da';
 let outFname = 'tsprotocol.go';
 let fda: number, fdb: number, fde: number;  // file descriptors
 

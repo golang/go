@@ -1,7 +1,7 @@
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
-// commit: fda16d6b63ba0fbdbd21d437ea810685528a0018
-// last fetched Fri Sep 06 2019 18:16:51 GMT-0400 (Eastern Daylight Time)
+// commit: 36ac51f057215e6e2e0408384e07ecf564a938da
+// last fetched Tue Sep 24 2019 17:44:28 GMT-0400 (Eastern Daylight Time)
 package protocol
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
@@ -36,15 +36,6 @@ type ImplementationRegistrationOptions struct {
 	TextDocumentRegistrationOptions
 	ImplementationOptions
 	StaticRegistrationOptions
-}
-
-// ImplementationServerCapabilities is
-type ImplementationServerCapabilities struct {
-
-	/*ImplementationProvider defined:
-	 * The server provides Goto Implementation support.
-	 */
-	ImplementationProvider bool `json:"implementationProvider,omitempty"` // boolean | ImplementationOptions | ImplementationRegistrationOptions
 }
 
 // ImplementationParams is
@@ -84,15 +75,6 @@ type TypeDefinitionRegistrationOptions struct {
 	TextDocumentRegistrationOptions
 	TypeDefinitionOptions
 	StaticRegistrationOptions
-}
-
-// TypeDefinitionServerCapabilities is
-type TypeDefinitionServerCapabilities struct {
-
-	/*TypeDefinitionProvider defined:
-	 * The server provides Goto Type Definition support.
-	 */
-	TypeDefinitionProvider bool `json:"typeDefinitionProvider,omitempty"` // boolean | TypeDefinitionOptions | TypeDefinitionRegistrationOptions
 }
 
 // TypeDefinitionParams is
@@ -236,47 +218,32 @@ type ConfigurationParams struct {
 	Items []ConfigurationItem `json:"items"`
 }
 
-// ColorClientCapabilities is
-type ColorClientCapabilities struct {
+// DocumentColorClientCapabilities is
+type DocumentColorClientCapabilities struct {
 
-	/*TextDocument defined:
-	 * The text document client capabilities
+	/*DynamicRegistration defined:
+	 * Whether implementation supports dynamic registration. If this is set to `true`
+	 * the client supports the new `DocumentColorRegistrationOptions` return value
+	 * for the corresponding server capability as well.
 	 */
-	TextDocument *struct {
-
-		/*ColorProvider defined:
-		 * Capabilities specific to the colorProvider
-		 */
-		ColorProvider *struct {
-
-			/*DynamicRegistration defined:
-			 * Whether implementation supports dynamic registration. If this is set to `true`
-			 * the client supports the new `(ColorRegistrationOptions & StaticRegistrationOptions)`
-			 * return value for the corresponding server capability as well.
-			 */
-			DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
-		} `json:"colorProvider,omitempty"`
-	} `json:"textDocument,omitempty"`
+	DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
 }
 
-// ColorOptions is
-type ColorOptions struct {
+// DocumentColorOptions is
+type DocumentColorOptions struct {
+
+	/*ResolveProvider defined:
+	 * Code lens has a resolve provider as well.
+	 */
+	ResolveProvider bool `json:"resolveProvider,omitempty"`
 	WorkDoneProgressOptions
 }
 
-// ColorRegistrationOptions is
-type ColorRegistrationOptions struct {
+// DocumentColorRegistrationOptions is
+type DocumentColorRegistrationOptions struct {
 	TextDocumentRegistrationOptions
-	ColorOptions
-}
-
-// ColorServerCapabilities is
-type ColorServerCapabilities struct {
-
-	/*ColorProvider defined:
-	 * The server provides color provider support.
-	 */
-	ColorProvider bool `json:"colorProvider,omitempty"` // boolean | ColorOptions | (ColorRegistrationOptions & StaticRegistrationOptions)
+	StaticRegistrationOptions
+	DocumentColorOptions
 }
 
 /*DocumentColorParams defined:
@@ -318,36 +285,24 @@ type ColorPresentationParams struct {
 // FoldingRangeClientCapabilities is
 type FoldingRangeClientCapabilities struct {
 
-	/*TextDocument defined:
-	 * The text document client capabilities
+	/*DynamicRegistration defined:
+	 * Whether implementation supports dynamic registration for folding range providers. If this is set to `true`
+	 * the client supports the new `FoldingRangeRegistrationOptions` return value for the corresponding server
+	 * capability as well.
 	 */
-	TextDocument *struct {
+	DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
 
-		/*FoldingRange defined:
-		 * Capabilities specific to `textDocument/foldingRange` requests
-		 */
-		FoldingRange *struct {
+	/*RangeLimit defined:
+	 * The maximum number of folding ranges that the client prefers to receive per document. The value serves as a
+	 * hint, servers are free to follow the limit.
+	 */
+	RangeLimit float64 `json:"rangeLimit,omitempty"`
 
-			/*DynamicRegistration defined:
-			 * Whether implementation supports dynamic registration for folding range providers. If this is set to `true`
-			 * the client supports the new `(FoldingRangeProviderOptions & TextDocumentRegistrationOptions & StaticRegistrationOptions)`
-			 * return value for the corresponding server capability as well.
-			 */
-			DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
-
-			/*RangeLimit defined:
-			 * The maximum number of folding ranges that the client prefers to receive per document. The value serves as a
-			 * hint, servers are free to follow the limit.
-			 */
-			RangeLimit float64 `json:"rangeLimit,omitempty"`
-
-			/*LineFoldingOnly defined:
-			 * If set, the client signals that it only supports folding complete lines. If set, client will
-			 * ignore specified `startCharacter` and `endCharacter` properties in a FoldingRange.
-			 */
-			LineFoldingOnly bool `json:"lineFoldingOnly,omitempty"`
-		} `json:"foldingRange,omitempty"`
-	} `json:"textDocument,omitempty"`
+	/*LineFoldingOnly defined:
+	 * If set, the client signals that it only supports folding complete lines. If set, client will
+	 * ignore specified `startCharacter` and `endCharacter` properties in a FoldingRange.
+	 */
+	LineFoldingOnly bool `json:"lineFoldingOnly,omitempty"`
 }
 
 // FoldingRangeOptions is
@@ -359,15 +314,7 @@ type FoldingRangeOptions struct {
 type FoldingRangeRegistrationOptions struct {
 	TextDocumentRegistrationOptions
 	FoldingRangeOptions
-}
-
-// FoldingRangeServerCapabilities is
-type FoldingRangeServerCapabilities struct {
-
-	/*FoldingRangeProvider defined:
-	 * The server provides folding provider support.
-	 */
-	FoldingRangeProvider bool `json:"foldingRangeProvider,omitempty"` // boolean | FoldingRangeOptions | (FoldingRangeRegistrationOptions & StaticRegistrationOptions)
+	StaticRegistrationOptions
 }
 
 /*FoldingRange defined:
@@ -446,15 +393,6 @@ type DeclarationRegistrationOptions struct {
 	StaticRegistrationOptions
 }
 
-// DeclarationServerCapabilities is
-type DeclarationServerCapabilities struct {
-
-	/*DeclarationProvider defined:
-	 * The server provides Goto Type Definition support.
-	 */
-	DeclarationProvider bool `json:"declarationProvider,omitempty"` // boolean | DeclarationOptions | DeclarationRegistrationOptions
-}
-
 // DeclarationParams is
 type DeclarationParams struct {
 	TextDocumentPositionParams
@@ -465,24 +403,12 @@ type DeclarationParams struct {
 // SelectionRangeClientCapabilities is
 type SelectionRangeClientCapabilities struct {
 
-	/*TextDocument defined:
-	 * The text document client capabilities
+	/*DynamicRegistration defined:
+	 * Whether implementation supports dynamic registration for selection range providers. If this is set to `true`
+	 * the client supports the new `SelectionRangeRegistrationOptions` return value for the corresponding server
+	 * capability as well.
 	 */
-	TextDocument *struct {
-
-		/*SelectionRange defined:
-		 * Capabilities specific to `textDocument/selectionRange` requests
-		 */
-		SelectionRange *struct {
-
-			/*DynamicRegistration defined:
-			 * Whether implementation supports dynamic registration for selection range providers. If this is set to `true`
-			 * the client supports the new `(SelectionRangeProviderOptions & TextDocumentRegistrationOptions & StaticRegistrationOptions)`
-			 * return value for the corresponding server capability as well.
-			 */
-			DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
-		} `json:"selectionRange,omitempty"`
-	} `json:"textDocument,omitempty"`
+	DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
 }
 
 // SelectionRangeOptions is
@@ -494,15 +420,7 @@ type SelectionRangeOptions struct {
 type SelectionRangeRegistrationOptions struct {
 	SelectionRangeOptions
 	TextDocumentRegistrationOptions
-}
-
-// SelectionRangeServerCapabilities is
-type SelectionRangeServerCapabilities struct {
-
-	/*SelectionRangeProvider defined:
-	 * The server provides selection range support.
-	 */
-	SelectionRangeProvider bool `json:"selectionRangeProvider,omitempty"` // boolean | SelectionRangeOptions | (SelectionRangeRegistrationOptions & StaticRegistrationOptions)
+	StaticRegistrationOptions
 }
 
 /*SelectionRangeParams defined:
@@ -678,7 +596,7 @@ type TextDocumentClientCapabilities struct {
 	/*Declaration defined:
 	 * Capabilities specific to the `textDocument/declaration`
 	 *
-	 * Since 3.14.0
+	 * @since 3.14.0
 	 */
 	Declaration *DeclarationClientCapabilities `json:"declaration,omitempty"`
 
@@ -690,14 +608,14 @@ type TextDocumentClientCapabilities struct {
 	/*TypeDefinition defined:
 	 * Capabilities specific to the `textDocument/typeDefinition`
 	 *
-	 * Since 3.6.0
+	 * @since 3.6.0
 	 */
 	TypeDefinition *TypeDefinitionClientCapabilities `json:"typeDefinition,omitempty"`
 
 	/*Implementation defined:
 	 * Capabilities specific to the `textDocument/implementation`
 	 *
-	 * Since 3.6.0
+	 * @since 3.6.0
 	 */
 	Implementation *ImplementationClientCapabilities `json:"implementation,omitempty"`
 
@@ -721,77 +639,54 @@ type TextDocumentClientCapabilities struct {
 	 */
 	CodeAction *CodeActionClientCapabilities `json:"codeAction,omitempty"`
 
-	/*Formatting defined:
-	 * Capabilities specific to the `textDocument/formatting`
-	 */
-	Formatting *struct {
-
-		/*DynamicRegistration defined:
-		 * Whether formatting supports dynamic registration.
-		 */
-		DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
-	} `json:"formatting,omitempty"`
-
-	/*RangeFormatting defined:
-	 * Capabilities specific to the `textDocument/rangeFormatting`
-	 */
-	RangeFormatting *struct {
-
-		/*DynamicRegistration defined:
-		 * Whether range formatting supports dynamic registration.
-		 */
-		DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
-	} `json:"rangeFormatting,omitempty"`
-
-	/*OnTypeFormatting defined:
-	 * Capabilities specific to the `textDocument/onTypeFormatting`
-	 */
-	OnTypeFormatting *struct {
-
-		/*DynamicRegistration defined:
-		 * Whether on type formatting supports dynamic registration.
-		 */
-		DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
-	} `json:"onTypeFormatting,omitempty"`
-
 	/*CodeLens defined:
 	 * Capabilities specific to the `textDocument/codeLens`
 	 */
-	CodeLens *struct {
-
-		/*DynamicRegistration defined:
-		 * Whether code lens supports dynamic registration.
-		 */
-		DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
-	} `json:"codeLens,omitempty"`
+	CodeLens *CodeLensClientCapabilities `json:"codeLens,omitempty"`
 
 	/*DocumentLink defined:
 	 * Capabilities specific to the `textDocument/documentLink`
 	 */
-	DocumentLink *struct {
+	DocumentLink *DocumentLinkClientCapabilities `json:"documentLink,omitempty"`
 
-		/*DynamicRegistration defined:
-		 * Whether document link supports dynamic registration.
-		 */
-		DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
-	} `json:"documentLink,omitempty"`
+	/*ColorProvider defined:
+	 * Capabilities specific to the `textDocument/documentColor`
+	 */
+	ColorProvider *DocumentColorClientCapabilities `json:"colorProvider,omitempty"`
+
+	/*Formatting defined:
+	 * Capabilities specific to the `textDocument/formatting`
+	 */
+	Formatting *DocumentFormattingClientCapabilities `json:"formatting,omitempty"`
+
+	/*RangeFormatting defined:
+	 * Capabilities specific to the `textDocument/rangeFormatting`
+	 */
+	RangeFormatting *DocumentRangeFormattingClientCapabilities `json:"rangeFormatting,omitempty"`
+
+	/*OnTypeFormatting defined:
+	 * Capabilities specific to the `textDocument/onTypeFormatting`
+	 */
+	OnTypeFormatting *DocumentOnTypeFormattingClientCapabilities `json:"onTypeFormatting,omitempty"`
 
 	/*Rename defined:
 	 * Capabilities specific to the `textDocument/rename`
 	 */
-	Rename *struct {
+	Rename *RenameClientCapabilities `json:"rename,omitempty"`
 
-		/*DynamicRegistration defined:
-		 * Whether rename supports dynamic registration.
-		 */
-		DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
+	/*FoldingRange defined:
+	 * Capabilities specific to `textDocument/foldingRange` requests.
+	 *
+	 * @since 3.10.0
+	 */
+	FoldingRange *FoldingRangeClientCapabilities `json:"foldingRange,omitempty"`
 
-		/*PrepareSupport defined:
-		 * Client supports testing for validity of rename operations
-		 * before execution.
-		 */
-		PrepareSupport bool `json:"prepareSupport,omitempty"`
-	} `json:"rename,omitempty"`
+	/*SelectionRange defined:
+	 * Capabilities specific to `textDocument/selectionRange` requests
+	 *
+	 * @since 3.15.0
+	 */
+	SelectionRange *SelectionRangeClientCapabilities `json:"selectionRange,omitempty"`
 
 	/*PublishDiagnostics defined:
 	 * Capabilities specific to `textDocument/publishDiagnostics`.
@@ -879,202 +774,7 @@ type ClientCapabilities struct {
 	/*TextDocument defined:
 	 * Text document specific client capabilities.
 	 */
-	TextDocument struct {
-
-		/*Synchronization defined:
-		 * Defines which synchronization capabilities the client supports.
-		 */
-		Synchronization TextDocumentSyncClientCapabilities `json:"synchronization,omitempty"`
-
-		/*Completion defined:
-		 * Capabilities specific to the `textDocument/completion`
-		 */
-		Completion CompletionClientCapabilities `json:"completion,omitempty"`
-
-		/*Hover defined:
-		 * Capabilities specific to the `textDocument/hover`
-		 */
-		Hover HoverClientCapabilities `json:"hover,omitempty"`
-
-		/*SignatureHelp defined:
-		 * Capabilities specific to the `textDocument/signatureHelp`
-		 */
-		SignatureHelp SignatureHelpClientCapabilities `json:"signatureHelp,omitempty"`
-
-		/*Declaration defined:
-		 * Capabilities specific to the `textDocument/declaration`
-		 *
-		 * Since 3.14.0
-		 */
-		Declaration DeclarationClientCapabilities `json:"declaration,omitempty"`
-
-		/*Definition defined:
-		 * Capabilities specific to the `textDocument/definition`
-		 */
-		Definition DefinitionClientCapabilities `json:"definition,omitempty"`
-
-		/*TypeDefinition defined:
-		 * Capabilities specific to the `textDocument/typeDefinition`
-		 *
-		 * Since 3.6.0
-		 */
-		TypeDefinition TypeDefinitionClientCapabilities `json:"typeDefinition,omitempty"`
-
-		/*Implementation defined:
-		 * Capabilities specific to the `textDocument/implementation`
-		 *
-		 * Since 3.6.0
-		 */
-		Implementation ImplementationClientCapabilities `json:"implementation,omitempty"`
-
-		/*References defined:
-		 * Capabilities specific to the `textDocument/references`
-		 */
-		References ReferenceClientCapabilities `json:"references,omitempty"`
-
-		/*DocumentHighlight defined:
-		 * Capabilities specific to the `textDocument/documentHighlight`
-		 */
-		DocumentHighlight DocumentHighlightClientCapabilities `json:"documentHighlight,omitempty"`
-
-		/*DocumentSymbol defined:
-		 * Capabilities specific to the `textDocument/documentSymbol`
-		 */
-		DocumentSymbol DocumentSymbolClientCapabilities `json:"documentSymbol,omitempty"`
-
-		/*CodeAction defined:
-		 * Capabilities specific to the `textDocument/codeAction`
-		 */
-		CodeAction CodeActionClientCapabilities `json:"codeAction,omitempty"`
-
-		/*Formatting defined:
-		 * Capabilities specific to the `textDocument/formatting`
-		 */
-		Formatting struct {
-
-			/*DynamicRegistration defined:
-			 * Whether formatting supports dynamic registration.
-			 */
-			DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
-		} `json:"formatting,omitempty"`
-
-		/*RangeFormatting defined:
-		 * Capabilities specific to the `textDocument/rangeFormatting`
-		 */
-		RangeFormatting struct {
-
-			/*DynamicRegistration defined:
-			 * Whether range formatting supports dynamic registration.
-			 */
-			DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
-		} `json:"rangeFormatting,omitempty"`
-
-		/*OnTypeFormatting defined:
-		 * Capabilities specific to the `textDocument/onTypeFormatting`
-		 */
-		OnTypeFormatting struct {
-
-			/*DynamicRegistration defined:
-			 * Whether on type formatting supports dynamic registration.
-			 */
-			DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
-		} `json:"onTypeFormatting,omitempty"`
-
-		/*CodeLens defined:
-		 * Capabilities specific to the `textDocument/codeLens`
-		 */
-		CodeLens struct {
-
-			/*DynamicRegistration defined:
-			 * Whether code lens supports dynamic registration.
-			 */
-			DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
-		} `json:"codeLens,omitempty"`
-
-		/*DocumentLink defined:
-		 * Capabilities specific to the `textDocument/documentLink`
-		 */
-		DocumentLink struct {
-
-			/*DynamicRegistration defined:
-			 * Whether document link supports dynamic registration.
-			 */
-			DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
-		} `json:"documentLink,omitempty"`
-
-		/*Rename defined:
-		 * Capabilities specific to the `textDocument/rename`
-		 */
-		Rename struct {
-
-			/*DynamicRegistration defined:
-			 * Whether rename supports dynamic registration.
-			 */
-			DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
-
-			/*PrepareSupport defined:
-			 * Client supports testing for validity of rename operations
-			 * before execution.
-			 */
-			PrepareSupport bool `json:"prepareSupport,omitempty"`
-		} `json:"rename,omitempty"`
-
-		/*PublishDiagnostics defined:
-		 * Capabilities specific to `textDocument/publishDiagnostics`.
-		 */
-		PublishDiagnostics PublishDiagnosticsClientCapabilities `json:"publishDiagnostics,omitempty"`
-
-		/*ColorProvider defined:
-		 * Capabilities specific to the colorProvider
-		 */
-		ColorProvider struct {
-
-			/*DynamicRegistration defined:
-			 * Whether implementation supports dynamic registration. If this is set to `true`
-			 * the client supports the new `(ColorRegistrationOptions & StaticRegistrationOptions)`
-			 * return value for the corresponding server capability as well.
-			 */
-			DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
-		} `json:"colorProvider,omitempty"`
-
-		/*FoldingRange defined:
-		 * Capabilities specific to `textDocument/foldingRange` requests
-		 */
-		FoldingRange struct {
-
-			/*DynamicRegistration defined:
-			 * Whether implementation supports dynamic registration for folding range providers. If this is set to `true`
-			 * the client supports the new `(FoldingRangeProviderOptions & TextDocumentRegistrationOptions & StaticRegistrationOptions)`
-			 * return value for the corresponding server capability as well.
-			 */
-			DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
-
-			/*RangeLimit defined:
-			 * The maximum number of folding ranges that the client prefers to receive per document. The value serves as a
-			 * hint, servers are free to follow the limit.
-			 */
-			RangeLimit float64 `json:"rangeLimit,omitempty"`
-
-			/*LineFoldingOnly defined:
-			 * If set, the client signals that it only supports folding complete lines. If set, client will
-			 * ignore specified `startCharacter` and `endCharacter` properties in a FoldingRange.
-			 */
-			LineFoldingOnly bool `json:"lineFoldingOnly,omitempty"`
-		} `json:"foldingRange,omitempty"`
-
-		/*SelectionRange defined:
-		 * Capabilities specific to `textDocument/selectionRange` requests
-		 */
-		SelectionRange struct {
-
-			/*DynamicRegistration defined:
-			 * Whether implementation supports dynamic registration for selection range providers. If this is set to `true`
-			 * the client supports the new `(SelectionRangeProviderOptions & TextDocumentRegistrationOptions & StaticRegistrationOptions)`
-			 * return value for the corresponding server capability as well.
-			 */
-			DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
-		} `json:"selectionRange,omitempty"`
-	} `json:"textDocument,omitempty"`
+	TextDocument TextDocumentClientCapabilities `json:"textDocument,omitempty"`
 
 	/*Window defined:
 	 * Window specific client capabilities.
@@ -1087,18 +787,11 @@ type ClientCapabilities struct {
 	Experimental interface{} `json:"experimental,omitempty"`
 
 	/*DynamicRegistration defined:
-	 * Whether implementation supports dynamic registration. If this is set to `true`
-	 * the client supports the new `ImplementationRegistrationOptions` return value
-	 * for the corresponding server capability as well.
+	 * Whether implementation supports dynamic registration for selection range providers. If this is set to `true`
+	 * the client supports the new `SelectionRangeRegistrationOptions` return value for the corresponding server
+	 * capability as well.
 	 */
 	DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
-
-	/*LinkSupport defined:
-	 * The client supports additional metadata in the form of definition links.
-	 *
-	 * Since 3.14.0
-	 */
-	LinkSupport bool `json:"linkSupport,omitempty"`
 }
 
 /*StaticRegistrationOptions defined:
@@ -1124,72 +817,6 @@ type TextDocumentRegistrationOptions struct {
 	 * the document selector provided on the client side will be used.
 	 */
 	DocumentSelector DocumentSelector `json:"documentSelector"`
-}
-
-/*CodeLensOptions defined:
- * Code Lens options.
- */
-type CodeLensOptions struct {
-
-	/*ResolveProvider defined:
-	 * Code lens has a resolve provider as well.
-	 */
-	ResolveProvider bool `json:"resolveProvider,omitempty"`
-	WorkDoneProgressOptions
-}
-
-/*DocumentFormattingOptions defined:
- * Document formatting options.
- */
-type DocumentFormattingOptions struct {
-	WorkDoneProgressOptions
-}
-
-/*DocumentRangeFormattingOptions defined:
- * Document range formatting options.
- */
-type DocumentRangeFormattingOptions struct {
-	WorkDoneProgressOptions
-}
-
-/*DocumentOnTypeFormattingOptions defined:
- * Format document on type options
- */
-type DocumentOnTypeFormattingOptions struct {
-
-	/*FirstTriggerCharacter defined:
-	 * A character on which formatting should be triggered, like `}`.
-	 */
-	FirstTriggerCharacter string `json:"firstTriggerCharacter"`
-
-	/*MoreTriggerCharacter defined:
-	 * More trigger characters.
-	 */
-	MoreTriggerCharacter []string `json:"moreTriggerCharacter,omitempty"`
-}
-
-/*RenameOptions defined:
- * Rename options
- */
-type RenameOptions struct {
-
-	/*PrepareProvider defined:
-	 * Renames should be checked and tested before being executed.
-	 */
-	PrepareProvider bool `json:"prepareProvider,omitempty"`
-	WorkDoneProgressOptions
-}
-
-/*DocumentLinkOptions defined:
- * Document link options
- */
-type DocumentLinkOptions struct {
-
-	/*ResolveProvider defined:
-	 * Document links have a resolve provider as well.
-	 */
-	ResolveProvider bool `json:"resolveProvider,omitempty"`
-	WorkDoneProgressOptions
 }
 
 /*SaveOptions defined:
@@ -1222,25 +849,40 @@ type InnerServerCapabilities struct {
 	 */
 	TextDocumentSync interface{} `json:"textDocumentSync,omitempty"` // TextDocumentSyncOptions | TextDocumentSyncKind
 
-	/*HoverProvider defined:
-	 * The server provides hover support.
-	 */
-	HoverProvider bool `json:"hoverProvider,omitempty"` // boolean | HoverOptions
-
 	/*CompletionProvider defined:
 	 * The server provides completion support.
 	 */
 	CompletionProvider *CompletionOptions `json:"completionProvider,omitempty"`
+
+	/*HoverProvider defined:
+	 * The server provides hover support.
+	 */
+	HoverProvider bool `json:"hoverProvider,omitempty"` // boolean | HoverOptions
 
 	/*SignatureHelpProvider defined:
 	 * The server provides signature help support.
 	 */
 	SignatureHelpProvider *SignatureHelpOptions `json:"signatureHelpProvider,omitempty"`
 
+	/*DeclarationProvider defined:
+	 * The server provides Goto Declaration support.
+	 */
+	DeclarationProvider bool `json:"declarationProvider,omitempty"` // boolean | DeclarationOptions | DeclarationRegistrationOptions
+
 	/*DefinitionProvider defined:
 	 * The server provides goto definition support.
 	 */
 	DefinitionProvider bool `json:"definitionProvider,omitempty"` // boolean | DefinitionOptions
+
+	/*TypeDefinitionProvider defined:
+	 * The server provides Goto Type Definition support.
+	 */
+	TypeDefinitionProvider bool `json:"typeDefinitionProvider,omitempty"` // boolean | TypeDefinitionOptions | TypeDefinitionRegistrationOptions
+
+	/*ImplementationProvider defined:
+	 * The server provides Goto Implementation support.
+	 */
+	ImplementationProvider bool `json:"implementationProvider,omitempty"` // boolean | ImplementationOptions | ImplementationRegistrationOptions
 
 	/*ReferencesProvider defined:
 	 * The server provides find references support.
@@ -1264,15 +906,25 @@ type InnerServerCapabilities struct {
 	 */
 	CodeActionProvider interface{} `json:"codeActionProvider,omitempty"` // boolean | CodeActionOptions
 
-	/*WorkspaceSymbolProvider defined:
-	 * The server provides workspace symbol support.
-	 */
-	WorkspaceSymbolProvider bool `json:"workspaceSymbolProvider,omitempty"` // boolean | WorkspaceSymbolOptions
-
 	/*CodeLensProvider defined:
 	 * The server provides code lens.
 	 */
 	CodeLensProvider *CodeLensOptions `json:"codeLensProvider,omitempty"`
+
+	/*DocumentLinkProvider defined:
+	 * The server provides document link support.
+	 */
+	DocumentLinkProvider *DocumentLinkOptions `json:"documentLinkProvider,omitempty"`
+
+	/*ColorProvider defined:
+	 * The server provides color provider support.
+	 */
+	ColorProvider bool `json:"colorProvider,omitempty"` // boolean | DocumentColorOptions | DocumentColorRegistrationOptions
+
+	/*WorkspaceSymbolProvider defined:
+	 * The server provides workspace symbol support.
+	 */
+	WorkspaceSymbolProvider bool `json:"workspaceSymbolProvider,omitempty"` // boolean | WorkspaceSymbolOptions
 
 	/*DocumentFormattingProvider defined:
 	 * The server provides document formatting.
@@ -1296,10 +948,15 @@ type InnerServerCapabilities struct {
 	 */
 	RenameProvider interface{} `json:"renameProvider,omitempty"` // boolean | RenameOptions
 
-	/*DocumentLinkProvider defined:
-	 * The server provides document link support.
+	/*FoldingRangeProvider defined:
+	 * The server provides folding provider support.
 	 */
-	DocumentLinkProvider *DocumentLinkOptions `json:"documentLinkProvider,omitempty"`
+	FoldingRangeProvider bool `json:"foldingRangeProvider,omitempty"` // boolean | FoldingRangeOptions | FoldingRangeRegistrationOptions
+
+	/*SelectionRangeProvider defined:
+	 * The server provides selection range support.
+	 */
+	SelectionRangeProvider bool `json:"selectionRangeProvider,omitempty"` // boolean | SelectionRangeOptions | SelectionRangeRegistrationOptions
 
 	/*ExecuteCommandProvider defined:
 	 * The server provides execute command support.
@@ -1321,25 +978,40 @@ type ServerCapabilities struct {
 	 */
 	TextDocumentSync interface{} `json:"textDocumentSync,omitempty"` // TextDocumentSyncOptions | TextDocumentSyncKind
 
-	/*HoverProvider defined:
-	 * The server provides hover support.
-	 */
-	HoverProvider bool `json:"hoverProvider,omitempty"` // boolean | HoverOptions
-
 	/*CompletionProvider defined:
 	 * The server provides completion support.
 	 */
 	CompletionProvider *CompletionOptions `json:"completionProvider,omitempty"`
+
+	/*HoverProvider defined:
+	 * The server provides hover support.
+	 */
+	HoverProvider bool `json:"hoverProvider,omitempty"` // boolean | HoverOptions
 
 	/*SignatureHelpProvider defined:
 	 * The server provides signature help support.
 	 */
 	SignatureHelpProvider *SignatureHelpOptions `json:"signatureHelpProvider,omitempty"`
 
+	/*DeclarationProvider defined:
+	 * The server provides Goto Declaration support.
+	 */
+	DeclarationProvider bool `json:"declarationProvider,omitempty"` // boolean | DeclarationOptions | DeclarationRegistrationOptions
+
 	/*DefinitionProvider defined:
 	 * The server provides goto definition support.
 	 */
 	DefinitionProvider bool `json:"definitionProvider,omitempty"` // boolean | DefinitionOptions
+
+	/*TypeDefinitionProvider defined:
+	 * The server provides Goto Type Definition support.
+	 */
+	TypeDefinitionProvider bool `json:"typeDefinitionProvider,omitempty"` // boolean | TypeDefinitionOptions | TypeDefinitionRegistrationOptions
+
+	/*ImplementationProvider defined:
+	 * The server provides Goto Implementation support.
+	 */
+	ImplementationProvider bool `json:"implementationProvider,omitempty"` // boolean | ImplementationOptions | ImplementationRegistrationOptions
 
 	/*ReferencesProvider defined:
 	 * The server provides find references support.
@@ -1363,15 +1035,25 @@ type ServerCapabilities struct {
 	 */
 	CodeActionProvider interface{} `json:"codeActionProvider,omitempty"` // boolean | CodeActionOptions
 
-	/*WorkspaceSymbolProvider defined:
-	 * The server provides workspace symbol support.
-	 */
-	WorkspaceSymbolProvider bool `json:"workspaceSymbolProvider,omitempty"` // boolean | WorkspaceSymbolOptions
-
 	/*CodeLensProvider defined:
 	 * The server provides code lens.
 	 */
 	CodeLensProvider *CodeLensOptions `json:"codeLensProvider,omitempty"`
+
+	/*DocumentLinkProvider defined:
+	 * The server provides document link support.
+	 */
+	DocumentLinkProvider *DocumentLinkOptions `json:"documentLinkProvider,omitempty"`
+
+	/*ColorProvider defined:
+	 * The server provides color provider support.
+	 */
+	ColorProvider bool `json:"colorProvider,omitempty"` // boolean | DocumentColorOptions | DocumentColorRegistrationOptions
+
+	/*WorkspaceSymbolProvider defined:
+	 * The server provides workspace symbol support.
+	 */
+	WorkspaceSymbolProvider bool `json:"workspaceSymbolProvider,omitempty"` // boolean | WorkspaceSymbolOptions
 
 	/*DocumentFormattingProvider defined:
 	 * The server provides document formatting.
@@ -1395,10 +1077,15 @@ type ServerCapabilities struct {
 	 */
 	RenameProvider interface{} `json:"renameProvider,omitempty"` // boolean | RenameOptions
 
-	/*DocumentLinkProvider defined:
-	 * The server provides document link support.
+	/*FoldingRangeProvider defined:
+	 * The server provides folding provider support.
 	 */
-	DocumentLinkProvider *DocumentLinkOptions `json:"documentLinkProvider,omitempty"`
+	FoldingRangeProvider bool `json:"foldingRangeProvider,omitempty"` // boolean | FoldingRangeOptions | FoldingRangeRegistrationOptions
+
+	/*SelectionRangeProvider defined:
+	 * The server provides selection range support.
+	 */
+	SelectionRangeProvider bool `json:"selectionRangeProvider,omitempty"` // boolean | SelectionRangeOptions | SelectionRangeRegistrationOptions
 
 	/*ExecuteCommandProvider defined:
 	 * The server provides execute command support.
@@ -1409,16 +1096,6 @@ type ServerCapabilities struct {
 	 * Experimental server capabilities.
 	 */
 	Experimental interface{} `json:"experimental,omitempty"`
-
-	/*ImplementationProvider defined:
-	 * The server provides Goto Implementation support.
-	 */
-	ImplementationProvider bool `json:"implementationProvider,omitempty"` // boolean | ImplementationOptions | ImplementationRegistrationOptions
-
-	/*TypeDefinitionProvider defined:
-	 * The server provides Goto Type Definition support.
-	 */
-	TypeDefinitionProvider bool `json:"typeDefinitionProvider,omitempty"` // boolean | TypeDefinitionOptions | TypeDefinitionRegistrationOptions
 
 	/*Workspace defined:
 	 * The workspace server capabilities
@@ -1445,26 +1122,6 @@ type ServerCapabilities struct {
 			ChangeNotifications string `json:"changeNotifications,omitempty"` // string | boolean
 		} `json:"workspaceFolders,omitempty"`
 	} `json:"workspace,omitempty"`
-
-	/*ColorProvider defined:
-	 * The server provides color provider support.
-	 */
-	ColorProvider bool `json:"colorProvider,omitempty"` // boolean | ColorOptions | (ColorRegistrationOptions & StaticRegistrationOptions)
-
-	/*FoldingRangeProvider defined:
-	 * The server provides folding provider support.
-	 */
-	FoldingRangeProvider bool `json:"foldingRangeProvider,omitempty"` // boolean | FoldingRangeOptions | (FoldingRangeRegistrationOptions & StaticRegistrationOptions)
-
-	/*DeclarationProvider defined:
-	 * The server provides Goto Type Definition support.
-	 */
-	DeclarationProvider bool `json:"declarationProvider,omitempty"` // boolean | DeclarationOptions | DeclarationRegistrationOptions
-
-	/*SelectionRangeProvider defined:
-	 * The server provides selection range support.
-	 */
-	SelectionRangeProvider bool `json:"selectionRangeProvider,omitempty"` // boolean | SelectionRangeOptions | (SelectionRangeRegistrationOptions & StaticRegistrationOptions)
 }
 
 /*InnerInitializeParams defined:
@@ -1477,6 +1134,24 @@ type InnerInitializeParams struct {
 	 * the server.
 	 */
 	ProcessID float64 `json:"processId"`
+
+	/*ClientInfo defined:
+	 * Information about the client
+	 *
+	 * @since 3.15.0
+	 */
+	ClientInfo *struct {
+
+		/*Name defined:
+		 * The name of the client as defined by the client.
+		 */
+		Name string `json:"name"`
+
+		/*Version defined:
+		 * The client's version as defined by the client.
+		 */
+		Version string `json:"version,omitempty"`
+	} `json:"clientInfo,omitempty"`
 
 	/*RootPath defined:
 	 * The rootPath of the workspace. Is null
@@ -1520,6 +1195,24 @@ type InitializeParams struct {
 	 * the server.
 	 */
 	ProcessID float64 `json:"processId"`
+
+	/*ClientInfo defined:
+	 * Information about the client
+	 *
+	 * @since 3.15.0
+	 */
+	ClientInfo *struct {
+
+		/*Name defined:
+		 * The name of the client as defined by the client.
+		 */
+		Name string `json:"name"`
+
+		/*Version defined:
+		 * The client's version as defined by the client.
+		 */
+		Version string `json:"version,omitempty"`
+	} `json:"clientInfo,omitempty"`
 
 	/*RootPath defined:
 	 * The rootPath of the workspace. Is null
@@ -1568,6 +1261,24 @@ type InitializeResult struct {
 	 * The capabilities the language server provides.
 	 */
 	Capabilities ServerCapabilities `json:"capabilities"`
+
+	/*ServerInfo defined:
+	 * Information about the server.
+	 *
+	 * @since 3.15.0
+	 */
+	ServerInfo *struct {
+
+		/*Name defined:
+		 * The name of the server as defined by the server.
+		 */
+		Name string `json:"name"`
+
+		/*Version defined:
+		 * The servers's version as defined by the server.
+		 */
+		Version string `json:"version,omitempty"`
+	} `json:"serverInfo,omitempty"`
 
 	/*Custom defined:
 	 * Custom initialization results.
@@ -1904,10 +1615,17 @@ type PublishDiagnosticsClientCapabilities struct {
 
 	/*TagSupport defined:
 	 * Client supports the tag property to provide meta data about a diagnostic.
+	 * Clients supporting tags have to handle unknown tags gracefully.
 	 *
-	 * Since 3.15
+	 * @since 3.15.0
 	 */
-	TagSupport bool `json:"tagSupport,omitempty"`
+	TagSupport *struct {
+
+		/*ValueSet defined:
+		 * The tags supported by the client.
+		 */
+		ValueSet []DiagnosticTag `json:"valueSet"`
+	} `json:"tagSupport,omitempty"`
 }
 
 /*PublishDiagnosticsParams defined:
@@ -1923,7 +1641,7 @@ type PublishDiagnosticsParams struct {
 	/*Version defined:
 	 * Optional the version number of the document the diagnostics are published for.
 	 *
-	 * @since 3.15
+	 * @since 3.15.0
 	 */
 	Version float64 `json:"version,omitempty"`
 
@@ -1979,6 +1697,22 @@ type CompletionClientCapabilities struct {
 		 * Client supports the preselect property on a completion item.
 		 */
 		PreselectSupport bool `json:"preselectSupport,omitempty"`
+
+		/*TagSupport defined:
+		 * Client supports the tag property on a completion item. Clients supporting
+		 * tags have to handle unknown tags gracefully. Clients especially need to
+		 * preserve unknown tags when sending a completion item back to the server in
+		 * a resolve call.
+		 *
+		 * @since 3.15.0
+		 */
+		TagSupport *struct {
+
+			/*ValueSet defined:
+			 * The tags supported by the client.
+			 */
+			ValueSet []CompletionItemTag `json:"valueSet"`
+		} `json:"tagSupport,omitempty"`
 	} `json:"completionItem,omitempty"`
 
 	// CompletionItemKind is
@@ -2028,7 +1762,7 @@ type CompletionParams struct {
 
 	/*Context defined:
 	 * The completion context. This is only available it the client specifies
-	 * to send this using `ClientCapabilities.textDocument.completion.contextSupport === true`
+	 * to send this using the client capability `textDocument.completion.contextSupport === true`
 	 */
 	Context *CompletionContext `json:"context,omitempty"`
 	TextDocumentPositionParams
@@ -2058,7 +1792,7 @@ type CompletionOptions struct {
 	 * if clients don't support individual commmit characters per completion item. See
 	 * `ClientCapabilities.textDocument.completion.completionItem.commitCharactersSupport`
 	 *
-	 * Since 3.2.0
+	 * @since 3.2.0
 	 */
 	AllCommitCharacters []string `json:"allCommitCharacters,omitempty"`
 
@@ -2147,11 +1881,21 @@ type SignatureHelpClientCapabilities struct {
 			 * The client supports processing label offsets instead of a
 			 * simple label string.
 			 *
-			 * Since 3.14.0
+			 * @since 3.14.0
 			 */
 			LabelOffsetSupport bool `json:"labelOffsetSupport,omitempty"`
 		} `json:"parameterInformation,omitempty"`
 	} `json:"signatureInformation,omitempty"`
+
+	/*ContextSupport defined:
+	 * The client supports to send additional context information for a
+	 * `textDocument/signatureHelp` request. A client that opts into
+	 * contextSupport will also support the `retriggerCharacters` on
+	 * `SignatureHelpOptions`.
+	 *
+	 * @since 3.15.0
+	 */
+	ContextSupport bool `json:"contextSupport,omitempty"`
 }
 
 /*SignatureHelpOptions defined:
@@ -2160,17 +1904,70 @@ type SignatureHelpClientCapabilities struct {
 type SignatureHelpOptions struct {
 
 	/*TriggerCharacters defined:
-	 * The characters that trigger signature help
-	 * automatically.
+	 * List of characters that trigger signature help.
 	 */
 	TriggerCharacters []string `json:"triggerCharacters,omitempty"`
+
+	/*RetriggerCharacters defined:
+	 * List of characters that re-trigger signature help.
+	 *
+	 * These trigger characters are only active when signature help is already showing. All trigger characters
+	 * are also counted as re-trigger characters.
+	 *
+	 * @since 3.15.0
+	 */
+	RetriggerCharacters []string `json:"retriggerCharacters,omitempty"`
 	WorkDoneProgressOptions
+}
+
+/*SignatureHelpContext defined:
+ * Additional information about the context in which a signature help request was triggered.
+ *
+ * @since 3.15.0
+ */
+type SignatureHelpContext struct {
+
+	/*TriggerKind defined:
+	 * Action that caused signature help to be triggered.
+	 */
+	TriggerKind SignatureHelpTriggerKind `json:"triggerKind"`
+
+	/*TriggerCharacter defined:
+	 * Character that caused signature help to be triggered.
+	 *
+	 * This is undefined when `triggerKind !== SignatureHelpTriggerKind.TriggerCharacter`
+	 */
+	TriggerCharacter string `json:"triggerCharacter,omitempty"`
+
+	/*IsRetrigger defined:
+	 * `true` if signature help was already showing when it was triggered.
+	 *
+	 * Retriggers occur when the signature help is already active and can be caused by actions such as
+	 * typing a trigger character, a cursor move, or document content changes.
+	 */
+	IsRetrigger bool `json:"isRetrigger"`
+
+	/*ActiveSignatureHelp defined:
+	 * The currently active `SignatureHelp`.
+	 *
+	 * The `activeSignatureHelp` has its `SignatureHelp.activeSignature` field updated based on
+	 * the user navigating through available signatures.
+	 */
+	ActiveSignatureHelp *SignatureHelp `json:"activeSignatureHelp,omitempty"`
 }
 
 /*SignatureHelpParams defined:
  * Parameters for a [SignatureHelpRequest](#SignatureHelpRequest).
  */
 type SignatureHelpParams struct {
+
+	/*Context defined:
+	 * The signature help context. This is only available if the client specifies
+	 * to send this using the client capability `textDocument.signatureHelp.contextSupport === true`
+	 *
+	 * @since 3.15.0
+	 */
+	Context *SignatureHelpContext `json:"context,omitempty"`
 	TextDocumentPositionParams
 	WorkDoneProgressParams
 }
@@ -2196,7 +1993,7 @@ type DefinitionClientCapabilities struct {
 	/*LinkSupport defined:
 	 * The client supports additional metadata in the form of definition links.
 	 *
-	 * Since 3.14.0
+	 * @since 3.14.0
 	 */
 	LinkSupport bool `json:"linkSupport,omitempty"`
 }
@@ -2374,7 +2171,7 @@ type CodeActionClientCapabilities struct {
 	 * The client support code action literals as a valid
 	 * response of the `textDocument/codeAction` request.
 	 *
-	 * Since 3.8.0
+	 * @since 3.8.0
 	 */
 	CodeActionLiteralSupport *struct {
 
@@ -2393,6 +2190,12 @@ type CodeActionClientCapabilities struct {
 			ValueSet []CodeActionKind `json:"valueSet"`
 		} `json:"codeActionKind"`
 	} `json:"codeActionLiteralSupport,omitempty"`
+
+	/*IsPreferredSupport defined:
+	 * Whether code action supports the `isPreferred` property.
+	 * @since 3.15.0
+	 */
+	IsPreferredSupport bool `json:"isPreferredSupport,omitempty"`
 }
 
 /*CodeActionParams defined:
@@ -2476,7 +2279,8 @@ type WorkspaceSymbolClientCapabilities struct {
 type WorkspaceSymbolParams struct {
 
 	/*Query defined:
-	 * A non-empty query string
+	 * A query string to filter symbols by. Clients may send an empty
+	 * string here to request all symbols.
 	 */
 	Query string `json:"query"`
 	WorkDoneProgressParams
@@ -2497,6 +2301,17 @@ type WorkspaceSymbolRegistrationOptions struct {
 	WorkspaceSymbolOptions
 }
 
+/*CodeLensClientCapabilities defined:
+ * The client capabilities  of a [CodeLensRequest](#CodeLensRequest).
+ */
+type CodeLensClientCapabilities struct {
+
+	/*DynamicRegistration defined:
+	 * Whether code lens supports dynamic registration.
+	 */
+	DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
+}
+
 /*CodeLensParams defined:
  * The parameters of a [CodeLensRequest](#CodeLensRequest).
  */
@@ -2510,12 +2325,86 @@ type CodeLensParams struct {
 	PartialResultParams
 }
 
+/*CodeLensOptions defined:
+ * Code Lens provider options of a [CodeLensRequest](#CodeLensRequest).
+ */
+type CodeLensOptions struct {
+
+	/*ResolveProvider defined:
+	 * Code lens has a resolve provider as well.
+	 */
+	ResolveProvider bool `json:"resolveProvider,omitempty"`
+	WorkDoneProgressOptions
+}
+
 /*CodeLensRegistrationOptions defined:
  * Registration options for a [CodeLensRequest](#CodeLensRequest).
  */
 type CodeLensRegistrationOptions struct {
 	TextDocumentRegistrationOptions
 	CodeLensOptions
+}
+
+/*DocumentLinkClientCapabilities defined:
+ * The client capabilities of a [DocumentLinkRequest](#DocumentLinkRequest).
+ */
+type DocumentLinkClientCapabilities struct {
+
+	/*DynamicRegistration defined:
+	 * Whether document link supports dynamic registration.
+	 */
+	DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
+
+	/*TooltipSupport defined:
+	 * Whether the client support the `tooltip` property on `DocumentLink`.
+	 *
+	 * @since 3.15.0
+	 */
+	TooltipSupport bool `json:"tooltipSupport,omitempty"`
+}
+
+/*DocumentLinkParams defined:
+ * The parameters of a [DocumentLinkRequest](#DocumentLinkRequest).
+ */
+type DocumentLinkParams struct {
+
+	/*TextDocument defined:
+	 * The document to provide document links for.
+	 */
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+	WorkDoneProgressParams
+	PartialResultParams
+}
+
+/*DocumentLinkOptions defined:
+ * Provider options for a [DocumentLinkRequest](#DocumentLinkRequest).
+ */
+type DocumentLinkOptions struct {
+
+	/*ResolveProvider defined:
+	 * Document links have a resolve provider as well.
+	 */
+	ResolveProvider bool `json:"resolveProvider,omitempty"`
+	WorkDoneProgressOptions
+}
+
+/*DocumentLinkRegistrationOptions defined:
+ * Registration options for a [DocumentLinkRequest](#DocumentLinkRequest).
+ */
+type DocumentLinkRegistrationOptions struct {
+	TextDocumentRegistrationOptions
+	DocumentLinkOptions
+}
+
+/*DocumentFormattingClientCapabilities defined:
+ * Client capabilities of a [DocumentFormattingRequest](#DocumentFormattingRequest).
+ */
+type DocumentFormattingClientCapabilities struct {
+
+	/*DynamicRegistration defined:
+	 * Whether formatting supports dynamic registration.
+	 */
+	DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
 }
 
 /*DocumentFormattingParams defined:
@@ -2535,12 +2424,30 @@ type DocumentFormattingParams struct {
 	WorkDoneProgressParams
 }
 
+/*DocumentFormattingOptions defined:
+ * Provider options for a [DocumentFormattingRequest](#DocumentFormattingRequest).
+ */
+type DocumentFormattingOptions struct {
+	WorkDoneProgressOptions
+}
+
 /*DocumentFormattingRegistrationOptions defined:
  * Registration options for a [DocumentFormattingRequest](#DocumentFormattingRequest).
  */
 type DocumentFormattingRegistrationOptions struct {
 	TextDocumentRegistrationOptions
 	DocumentFormattingOptions
+}
+
+/*DocumentRangeFormattingClientCapabilities defined:
+ * Client capabilities of a [DocumentRangeFormattingRequest](#DocumentRangeFormattingRequest).
+ */
+type DocumentRangeFormattingClientCapabilities struct {
+
+	/*DynamicRegistration defined:
+	 * Whether range formatting supports dynamic registration.
+	 */
+	DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
 }
 
 /*DocumentRangeFormattingParams defined:
@@ -2565,12 +2472,30 @@ type DocumentRangeFormattingParams struct {
 	WorkDoneProgressParams
 }
 
+/*DocumentRangeFormattingOptions defined:
+ * Provider options for a [DocumentRangeFormattingRequest](#DocumentRangeFormattingRequest).
+ */
+type DocumentRangeFormattingOptions struct {
+	WorkDoneProgressOptions
+}
+
 /*DocumentRangeFormattingRegistrationOptions defined:
  * Registration options for a [DocumentRangeFormattingRequest](#DocumentRangeFormattingRequest).
  */
 type DocumentRangeFormattingRegistrationOptions struct {
 	TextDocumentRegistrationOptions
 	DocumentRangeFormattingOptions
+}
+
+/*DocumentOnTypeFormattingClientCapabilities defined:
+ * Client capabilities of a [DocumentOnTypeFormattingRequest](#DocumentOnTypeFormattingRequest).
+ */
+type DocumentOnTypeFormattingClientCapabilities struct {
+
+	/*DynamicRegistration defined:
+	 * Whether on type formatting supports dynamic registration.
+	 */
+	DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
 }
 
 /*DocumentOnTypeFormattingParams defined:
@@ -2599,12 +2524,45 @@ type DocumentOnTypeFormattingParams struct {
 	Options FormattingOptions `json:"options"`
 }
 
+/*DocumentOnTypeFormattingOptions defined:
+ * Provider options for a [DocumentOnTypeFormattingRequest](#DocumentOnTypeFormattingRequest).
+ */
+type DocumentOnTypeFormattingOptions struct {
+
+	/*FirstTriggerCharacter defined:
+	 * A character on which formatting should be triggered, like `}`.
+	 */
+	FirstTriggerCharacter string `json:"firstTriggerCharacter"`
+
+	/*MoreTriggerCharacter defined:
+	 * More trigger characters.
+	 */
+	MoreTriggerCharacter []string `json:"moreTriggerCharacter,omitempty"`
+}
+
 /*DocumentOnTypeFormattingRegistrationOptions defined:
  * Registration options for a [DocumentOnTypeFormattingRequest](#DocumentOnTypeFormattingRequest).
  */
 type DocumentOnTypeFormattingRegistrationOptions struct {
 	TextDocumentRegistrationOptions
 	DocumentOnTypeFormattingOptions
+}
+
+// RenameClientCapabilities is
+type RenameClientCapabilities struct {
+
+	/*DynamicRegistration defined:
+	 * Whether rename supports dynamic registration.
+	 */
+	DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
+
+	/*PrepareSupport defined:
+	 * Client supports testing for validity of rename operations
+	 * before execution.
+	 *
+	 * @since version 3.12.0
+	 */
+	PrepareSupport bool `json:"prepareSupport,omitempty"`
 }
 
 /*RenameParams defined:
@@ -2631,6 +2589,20 @@ type RenameParams struct {
 	WorkDoneProgressParams
 }
 
+/*RenameOptions defined:
+ * Provider options for a [RenameRequest](#RenameRequest).
+ */
+type RenameOptions struct {
+
+	/*PrepareProvider defined:
+	 * Renames should be checked and tested before being executed.
+	 *
+	 * @since version 3.12.0
+	 */
+	PrepareProvider bool `json:"prepareProvider,omitempty"`
+	WorkDoneProgressOptions
+}
+
 /*RenameRegistrationOptions defined:
  * Registration options for a [RenameRequest](#RenameRequest).
  */
@@ -2643,27 +2615,6 @@ type RenameRegistrationOptions struct {
 type PrepareRenameParams struct {
 	TextDocumentPositionParams
 	WorkDoneProgressParams
-}
-
-/*DocumentLinkParams defined:
- * The parameters of a [DocumentLinkRequest](#DocumentLinkRequest).
- */
-type DocumentLinkParams struct {
-
-	/*TextDocument defined:
-	 * The document to provide document links for.
-	 */
-	TextDocument TextDocumentIdentifier `json:"textDocument"`
-	WorkDoneProgressParams
-	PartialResultParams
-}
-
-/*DocumentLinkRegistrationOptions defined:
- * Registration options for a [DocumentLinkRequest](#DocumentLinkRequest).
- */
-type DocumentLinkRegistrationOptions struct {
-	TextDocumentRegistrationOptions
-	DocumentLinkOptions
 }
 
 /*ExecuteCommandClientCapabilities defined:
@@ -2725,7 +2676,7 @@ type WorkspaceEditClientCapabilities struct {
 	 * The resource operations the client supports. Clients should at least
 	 * support 'create', 'rename' and 'delete' files and folders.
 	 *
-	 * Since 3.13
+	 * @since 3.13.0
 	 */
 	ResourceOperations []ResourceOperationKind `json:"resourceOperations,omitempty"`
 
@@ -2733,7 +2684,7 @@ type WorkspaceEditClientCapabilities struct {
 	 * The failure handling strategy of a client if applying the workspace edit
 	 * fails.
 	 *
-	 * Since 3.13
+	 * @since 3.13.0
 	 */
 	FailureHandling FailureHandlingKind `json:"failureHandling,omitempty"`
 }
@@ -3340,6 +3291,13 @@ type CompletionItem struct {
 	 */
 	Kind CompletionItemKind `json:"kind,omitempty"`
 
+	/*Tags defined:
+	 * Tags for this completion item.
+	 *
+	 * @since 3.15.0
+	 */
+	Tags []CompletionItemTag `json:"tags,omitempty"`
+
 	/*Detail defined:
 	 * A human-readable string with additional information
 	 * about this item, like type or symbol information.
@@ -3353,6 +3311,7 @@ type CompletionItem struct {
 
 	/*Deprecated defined:
 	 * Indicates if this item is deprecated.
+	 * @deprecated Use `tags` instead.
 	 */
 	Deprecated bool `json:"deprecated,omitempty"`
 
@@ -3720,6 +3679,17 @@ type CodeAction struct {
 	 */
 	Diagnostics []Diagnostic `json:"diagnostics,omitempty"`
 
+	/*IsPreferred defined:
+	 * Marks this as a preferred action. Preferred actions are used by the `auto fix` command and can be targeted
+	 * by keybindings.
+	 *
+	 * A quick fix should be marked preferred if it properly addresses the underlying error.
+	 * A refactoring should be marked preferred if it is the most reasonable choice of actions to take.
+	 *
+	 * @since 3.15.0
+	 */
+	IsPreferred bool `json:"isPreferred,omitempty"`
+
 	/*Edit defined:
 	 * The workspace edit this code action performs.
 	 */
@@ -3777,16 +3747,22 @@ type FormattingOptions struct {
 
 	/*TrimTrailingWhitespace defined:
 	 * Trim trailing whitespaces on a line.
+	 *
+	 * @since 3.15.0
 	 */
 	TrimTrailingWhitespace bool `json:"trimTrailingWhitespace,omitempty"`
 
 	/*InsertFinalNewline defined:
 	 * Insert a newline character at the end of the file if one does not exist.
+	 *
+	 * @since 3.15.0
 	 */
 	InsertFinalNewline bool `json:"insertFinalNewline,omitempty"`
 
 	/*TrimFinalNewlines defined:
 	 * Trim all newlines after the final newline at the end of the file.
+	 *
+	 * @since 3.15.0
 	 */
 	TrimFinalNewlines bool `json:"trimFinalNewlines,omitempty"`
 
@@ -3811,6 +3787,17 @@ type DocumentLink struct {
 	 * The uri this link points to.
 	 */
 	Target string `json:"target,omitempty"`
+
+	/*Tooltip defined:
+	 * The tooltip text when you hover over this link.
+	 *
+	 * If a tooltip is provided, is will be displayed in a string that includes instructions on how to
+	 * trigger the link, such as `{0} (ctrl + click)`. The specific instructions vary depending on OS,
+	 * user settings, and localization.
+	 *
+	 * @since 3.15.0
+	 */
+	Tooltip string `json:"tooltip,omitempty"`
 
 	/*Data defined:
 	 * A data entry field that is preserved on a document link between a
@@ -3982,6 +3969,9 @@ type WatchKind float64
 // CompletionTriggerKind defines constants
 type CompletionTriggerKind float64
 
+// SignatureHelpTriggerKind defines constants
+type SignatureHelpTriggerKind float64
+
 // DiagnosticSeverity defines constants
 type DiagnosticSeverity float64
 
@@ -3996,6 +3986,9 @@ type CompletionItemKind float64
 
 // InsertTextFormat defines constants
 type InsertTextFormat float64
+
+// CompletionItemTag defines constants
+type CompletionItemTag float64
 
 // DocumentHighlightKind defines constants
 type DocumentHighlightKind float64
@@ -4175,6 +4168,11 @@ const (
 	 * Completion was re-triggered as current completion list is incomplete
 	 */
 	TriggerForIncompleteCompletions CompletionTriggerKind = 3
+
+	/*ContentChange defined:
+	 * Signature help was triggered by the cursor moving or by the document content changing.
+	 */
+	ContentChange SignatureHelpTriggerKind = 3
 
 	/*SeverityError defined:
 	 * Reports an error.
