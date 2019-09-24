@@ -237,7 +237,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = r0
 		p.To.Reg = s390x.REG_R2
 		p.To.Type = obj.TYPE_REG
-
 	case ssa.OpS390XFMADD, ssa.OpS390XFMADDS,
 		ssa.OpS390XFMSUB, ssa.OpS390XFMSUBS:
 		r := v.Reg()
