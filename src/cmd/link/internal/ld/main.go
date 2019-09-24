@@ -208,9 +208,10 @@ func Main(arch *sys.Arch, theArch Arch) {
 	}
 	ctxt.loadlib()
 
-	ctxt.dostrdata()
 	deadcode(ctxt)
-	//ctxt.dumpsyms() // XXX
+	ctxt.linksetup()
+	ctxt.dostrdata()
+
 	dwarfGenerateDebugInfo(ctxt)
 	if objabi.Fieldtrack_enabled != 0 {
 		fieldtrack(ctxt)

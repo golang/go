@@ -415,37 +415,110 @@ func (ctxt *Link) loadlib() {
 		}
 	}
 
-	switch ctxt.BuildMode {
-	case BuildModeCShared, BuildModePlugin:
-		s := ctxt.Syms.Lookup("runtime.islibrary", 0)
-		s.Type = sym.SNOPTRDATA
-		s.Attr |= sym.AttrDuplicateOK
-		s.AddUint8(1)
-	case BuildModeCArchive:
-		s := ctxt.Syms.Lookup("runtime.isarchive", 0)
-		s.Type = sym.SNOPTRDATA
-		s.Attr |= sym.AttrDuplicateOK
-		s.AddUint8(1)
-	}
-
 	iscgo = ctxt.Syms.ROLookup("x_cgo_init", 0) != nil
 
 	// We now have enough information to determine the link mode.
 	determineLinkMode(ctxt)
 
-	// Recalculate pe parameters now that we have ctxt.LinkMode set.
-	if ctxt.HeadType == objabi.Hwindows {
-		Peinit(ctxt)
+	// Now that we know the link mode, trim the dynexp list.
+	x := sym.AttrCgoExportDynamic
+
+	if ctxt.LinkMode == LinkExternal {
+		x = sym.AttrCgoExportStatic
+	}
+	w := 0
+	for i := range dynexp {
+		if dynexp[i].Attr&x != 0 {
+			dynexp[w] = dynexp[i]
+			w++
+		}
+	}
+	dynexp = dynexp[:w]
+
+	// Resolve ABI aliases in the list of cgo-exported functions.
+	// This is necessary because we load the ABI0 symbol for all
+	// cgo exports.
+	for i, s := range dynexp {
+		if s.Type != sym.SABIALIAS {
+			continue
+		}
+		t := resolveABIAlias(s)
+		t.Attr |= s.Attr
+		t.SetExtname(s.Extname())
+		dynexp[i] = t
 	}
 
-	if ctxt.HeadType == objabi.Hdarwin && ctxt.LinkMode == LinkExternal {
-		*FlagTextAddr = 0
+	// In internal link mode, read the host object files.
+	if ctxt.LinkMode == LinkInternal {
+		// Drop all the cgo_import_static declarations.
+		// Turns out we won't be needing them.
+		for _, s := range ctxt.Syms.Allsym {
+			if s.Type == sym.SHOSTOBJ {
+				// If a symbol was marked both
+				// cgo_import_static and cgo_import_dynamic,
+				// then we want to make it cgo_import_dynamic
+				// now.
+				if s.Extname() != "" && s.Dynimplib() != "" && !s.Attr.CgoExport() {
+					s.Type = sym.SDYNIMPORT
+				} else {
+					s.Type = 0
+				}
+			}
+		}
+
+		hostobjs(ctxt)
+
+		// If we have any undefined symbols in external
+		// objects, try to read them from the libgcc file.
+		any := false
+		for _, s := range ctxt.Syms.Allsym {
+			for i := range s.R {
+				r := &s.R[i] // Copying sym.Reloc has measurable impact on performance
+				if r.Sym != nil && r.Sym.Type == sym.SXREF && r.Sym.Name != ".got" {
+					any = true
+					break
+				}
+			}
+		}
+		if any {
+			if *flagLibGCC == "" {
+				*flagLibGCC = ctxt.findLibPathCmd("--print-libgcc-file-name", "libgcc")
+			}
+			if runtime.GOOS == "openbsd" && *flagLibGCC == "libgcc.a" {
+				// On OpenBSD `clang --print-libgcc-file-name` returns "libgcc.a".
+				// In this case we fail to load libgcc.a and can encounter link
+				// errors - see if we can find libcompiler_rt.a instead.
+				*flagLibGCC = ctxt.findLibPathCmd("--print-file-name=libcompiler_rt.a", "libcompiler_rt")
+			}
+			if *flagLibGCC != "none" {
+				hostArchive(ctxt, *flagLibGCC)
+			}
+			if ctxt.HeadType == objabi.Hwindows {
+				if p := ctxt.findLibPath("libmingwex.a"); p != "none" {
+					hostArchive(ctxt, p)
+				}
+				if p := ctxt.findLibPath("libmingw32.a"); p != "none" {
+					hostArchive(ctxt, p)
+				}
+				// TODO: maybe do something similar to peimporteddlls to collect all lib names
+				// and try link them all to final exe just like libmingwex.a and libmingw32.a:
+				/*
+					for:
+					#cgo windows LDFLAGS: -lmsvcrt -lm
+					import:
+					libmsvcrt.a libm.a
+				*/
+			}
+		}
+	} else {
+		hostlinksetup(ctxt)
 	}
 
-	if ctxt.LinkMode == LinkExternal && ctxt.Arch.Family == sys.PPC64 && objabi.GOOS != "aix" {
-		toc := ctxt.Syms.Lookup(".TOC.", 0)
-		toc.Type = sym.SDYNIMPORT
-	}
+	// We've loaded all the code now.
+	ctxt.Loaded = true
+
+	// Record whether we can use plugins.
+	ctxt.canUsePlugins = (ctxt.Syms.ROLookup("plugin.Open", sym.SymVerABIInternal) != nil)
 
 	if ctxt.LinkMode == LinkExternal && !iscgo && ctxt.LibraryByPkg["runtime/cgo"] == nil && !(objabi.GOOS == "darwin" && (ctxt.Arch.Family == sys.AMD64 || ctxt.Arch.Family == sys.I386)) {
 		// This indicates a user requested -linkmode=external.
@@ -464,22 +537,90 @@ func (ctxt *Link) loadlib() {
 		}
 	}
 
-	if ctxt.LinkMode == LinkInternal {
-		// Drop all the cgo_import_static declarations.
-		// Turns out we won't be needing them.
-		for _, s := range ctxt.Syms.Allsym {
-			if s.Type == sym.SHOSTOBJ {
-				// If a symbol was marked both
-				// cgo_import_static and cgo_import_dynamic,
-				// then we want to make it cgo_import_dynamic
-				// now.
-				if s.Extname() != "" && s.Dynimplib() != "" && !s.Attr.CgoExport() {
-					s.Type = sym.SDYNIMPORT
-				} else {
-					s.Type = 0
+	importcycles()
+
+	// put symbols into Textp
+	// do it in postorder so that packages are laid down in dependency order
+	// internal first, then everything else
+	ctxt.Library = postorder(ctxt.Library)
+	for _, doInternal := range [2]bool{true, false} {
+		for _, lib := range ctxt.Library {
+			if isRuntimeDepPkg(lib.Pkg) != doInternal {
+				continue
+			}
+			ctxt.Textp = append(ctxt.Textp, lib.Textp...)
+			for _, s := range lib.DupTextSyms {
+				if !s.Attr.OnList() {
+					ctxt.Textp = append(ctxt.Textp, s)
+					s.Attr |= sym.AttrOnList
+					// dupok symbols may be defined in multiple packages. its
+					// associated package is chosen sort of arbitrarily (the
+					// first containing package that the linker loads). canonicalize
+					// it here to the package with which it will be laid down
+					// in text.
+					s.File = objabi.PathToPrefix(lib.Pkg)
 				}
 			}
 		}
+	}
+
+	if len(ctxt.Shlibs) > 0 {
+		// We might have overwritten some functions above (this tends to happen for the
+		// autogenerated type equality/hashing functions) and we don't want to generated
+		// pcln table entries for these any more so remove them from Textp.
+		textp := make([]*sym.Symbol, 0, len(ctxt.Textp))
+		for _, s := range ctxt.Textp {
+			if s.Type != sym.SDYNIMPORT {
+				textp = append(textp, s)
+			}
+		}
+		ctxt.Textp = textp
+	}
+}
+
+// Set up flags and special symbols depending on the platform build mode.
+func (ctxt *Link) linksetup() {
+	switch ctxt.BuildMode {
+	case BuildModeCShared, BuildModePlugin:
+		s := ctxt.Syms.Lookup("runtime.islibrary", 0)
+		s.Type = sym.SNOPTRDATA
+		s.Attr |= sym.AttrDuplicateOK
+		s.AddUint8(1)
+	case BuildModeCArchive:
+		s := ctxt.Syms.Lookup("runtime.isarchive", 0)
+		s.Type = sym.SNOPTRDATA
+		s.Attr |= sym.AttrDuplicateOK
+		s.AddUint8(1)
+	}
+
+	// Recalculate pe parameters now that we have ctxt.LinkMode set.
+	if ctxt.HeadType == objabi.Hwindows {
+		Peinit(ctxt)
+	}
+
+	if ctxt.HeadType == objabi.Hdarwin && ctxt.LinkMode == LinkExternal {
+		*FlagTextAddr = 0
+	}
+
+	// If there are no dynamic libraries needed, gcc disables dynamic linking.
+	// Because of this, glibc's dynamic ELF loader occasionally (like in version 2.13)
+	// assumes that a dynamic binary always refers to at least one dynamic library.
+	// Rather than be a source of test cases for glibc, disable dynamic linking
+	// the same way that gcc would.
+	//
+	// Exception: on OS X, programs such as Shark only work with dynamic
+	// binaries, so leave it enabled on OS X (Mach-O) binaries.
+	// Also leave it enabled on Solaris which doesn't support
+	// statically linked binaries.
+	if ctxt.BuildMode == BuildModeExe {
+		if havedynamic == 0 && ctxt.HeadType != objabi.Hdarwin && ctxt.HeadType != objabi.Hsolaris {
+			*FlagD = true
+		}
+	}
+
+	if ctxt.LinkMode == LinkExternal && ctxt.Arch.Family == sys.PPC64 && objabi.GOOS != "aix" {
+		toc := ctxt.Syms.Lookup(".TOC.", 0)
+		toc.Type = sym.SDYNIMPORT
 	}
 
 	// The Android Q linker started to complain about underalignment of the our TLS
@@ -542,93 +683,6 @@ func (ctxt *Link) loadlib() {
 	moduledata.Attr |= sym.AttrReachable
 	ctxt.Moduledata = moduledata
 
-	// Now that we know the link mode, trim the dynexp list.
-	x := sym.AttrCgoExportDynamic
-
-	if ctxt.LinkMode == LinkExternal {
-		x = sym.AttrCgoExportStatic
-	}
-	w := 0
-	for i := range dynexp {
-		if dynexp[i].Attr&x != 0 {
-			dynexp[w] = dynexp[i]
-			w++
-		}
-	}
-	dynexp = dynexp[:w]
-
-	// In internal link mode, read the host object files.
-	if ctxt.LinkMode == LinkInternal {
-		hostobjs(ctxt)
-
-		// If we have any undefined symbols in external
-		// objects, try to read them from the libgcc file.
-		any := false
-		for _, s := range ctxt.Syms.Allsym {
-			for i := range s.R {
-				r := &s.R[i] // Copying sym.Reloc has measurable impact on performance
-				if r.Sym != nil && r.Sym.Type == sym.SXREF && r.Sym.Name != ".got" {
-					any = true
-					break
-				}
-			}
-		}
-		if any {
-			if *flagLibGCC == "" {
-				*flagLibGCC = ctxt.findLibPathCmd("--print-libgcc-file-name", "libgcc")
-			}
-			if runtime.GOOS == "openbsd" && *flagLibGCC == "libgcc.a" {
-				// On OpenBSD `clang --print-libgcc-file-name` returns "libgcc.a".
-				// In this case we fail to load libgcc.a and can encounter link
-				// errors - see if we can find libcompiler_rt.a instead.
-				*flagLibGCC = ctxt.findLibPathCmd("--print-file-name=libcompiler_rt.a", "libcompiler_rt")
-			}
-			if *flagLibGCC != "none" {
-				hostArchive(ctxt, *flagLibGCC)
-			}
-			if ctxt.HeadType == objabi.Hwindows {
-				if p := ctxt.findLibPath("libmingwex.a"); p != "none" {
-					hostArchive(ctxt, p)
-				}
-				if p := ctxt.findLibPath("libmingw32.a"); p != "none" {
-					hostArchive(ctxt, p)
-				}
-				// TODO: maybe do something similar to peimporteddlls to collect all lib names
-				// and try link them all to final exe just like libmingwex.a and libmingw32.a:
-				/*
-					for:
-					#cgo windows LDFLAGS: -lmsvcrt -lm
-					import:
-					libmsvcrt.a libm.a
-				*/
-			}
-		}
-	} else {
-		hostlinksetup(ctxt)
-	}
-
-	// We've loaded all the code now.
-	ctxt.Loaded = true
-
-	// Record whether we can use plugins.
-	ctxt.canUsePlugins = (ctxt.Syms.ROLookup("plugin.Open", sym.SymVerABIInternal) != nil)
-
-	// If there are no dynamic libraries needed, gcc disables dynamic linking.
-	// Because of this, glibc's dynamic ELF loader occasionally (like in version 2.13)
-	// assumes that a dynamic binary always refers to at least one dynamic library.
-	// Rather than be a source of test cases for glibc, disable dynamic linking
-	// the same way that gcc would.
-	//
-	// Exception: on OS X, programs such as Shark only work with dynamic
-	// binaries, so leave it enabled on OS X (Mach-O) binaries.
-	// Also leave it enabled on Solaris which doesn't support
-	// statically linked binaries.
-	if ctxt.BuildMode == BuildModeExe {
-		if havedynamic == 0 && ctxt.HeadType != objabi.Hdarwin && ctxt.HeadType != objabi.Hsolaris {
-			*FlagD = true
-		}
-	}
-
 	// If package versioning is required, generate a hash of the
 	// packages used in the link.
 	if ctxt.BuildMode == BuildModeShared || ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins() {
@@ -645,59 +699,6 @@ func (ctxt *Link) loadlib() {
 			got.Type = sym.SDYNIMPORT
 			got.Attr |= sym.AttrReachable
 		}
-	}
-
-	importcycles()
-
-	// put symbols into Textp
-	// do it in postorder so that packages are laid down in dependency order
-	// internal first, then everything else
-	ctxt.Library = postorder(ctxt.Library)
-	for _, doInternal := range [2]bool{true, false} {
-		for _, lib := range ctxt.Library {
-			if isRuntimeDepPkg(lib.Pkg) != doInternal {
-				continue
-			}
-			ctxt.Textp = append(ctxt.Textp, lib.Textp...)
-			for _, s := range lib.DupTextSyms {
-				if !s.Attr.OnList() {
-					ctxt.Textp = append(ctxt.Textp, s)
-					s.Attr |= sym.AttrOnList
-					// dupok symbols may be defined in multiple packages. its
-					// associated package is chosen sort of arbitrarily (the
-					// first containing package that the linker loads). canonicalize
-					// it here to the package with which it will be laid down
-					// in text.
-					s.File = objabi.PathToPrefix(lib.Pkg)
-				}
-			}
-		}
-	}
-
-	if len(ctxt.Shlibs) > 0 {
-		// We might have overwritten some functions above (this tends to happen for the
-		// autogenerated type equality/hashing functions) and we don't want to generated
-		// pcln table entries for these any more so remove them from Textp.
-		textp := make([]*sym.Symbol, 0, len(ctxt.Textp))
-		for _, s := range ctxt.Textp {
-			if s.Type != sym.SDYNIMPORT {
-				textp = append(textp, s)
-			}
-		}
-		ctxt.Textp = textp
-	}
-
-	// Resolve ABI aliases in the list of cgo-exported functions.
-	// This is necessary because we load the ABI0 symbol for all
-	// cgo exports.
-	for i, s := range dynexp {
-		if s.Type != sym.SABIALIAS {
-			continue
-		}
-		t := resolveABIAlias(s)
-		t.Attr |= s.Attr
-		t.SetExtname(s.Extname())
-		dynexp[i] = t
 	}
 }
 
