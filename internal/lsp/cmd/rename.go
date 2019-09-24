@@ -117,7 +117,9 @@ func (r *rename) Run(ctx context.Context, args ...string) error {
 			diffs := diff.ToUnified(filename+".orig", filename, string(cmdFile.mapper.Content), myersEdits)
 			fmt.Print(diffs)
 		default:
-			fmt.Printf("%s:\n", filepath.Base(filename))
+			if len(keys) > 1 {
+				fmt.Printf("%s:\n", filepath.Base(filename))
+			}
 			fmt.Print(string(newContent))
 			if changeCount > 1 { // if this wasn't last change, print newline
 				fmt.Println()

@@ -52,7 +52,6 @@ func TestSomething(t *testing.T) {
  }
 
 -- testyX-rename --
-testy_test.go:
 package testy
 
 import "testing"

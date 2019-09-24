@@ -687,7 +687,10 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 				t.Fatal(err)
 			}
 			contents := applyEdits(string(data), diffEdits)
-			res = append(res, fmt.Sprintf("%s:\n%s", filename, contents))
+			if len(changes) > 1 {
+				contents = fmt.Sprintf("%s:\n%s", filename, contents)
+			}
+			res = append(res, contents)
 		}
 
 		// Sort on filename

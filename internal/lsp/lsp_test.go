@@ -564,7 +564,10 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 			}
 			filename := filepath.Base(m.URI.Filename())
 			contents := applyEdits(string(m.Content), sedits)
-			res = append(res, fmt.Sprintf("%s:\n%s", filename, contents))
+			if len(*workspaceEdits.Changes) > 1 {
+				contents = fmt.Sprintf("%s:\n%s", filename, contents)
+			}
+			res = append(res, contents)
 		}
 
 		// Sort on filename

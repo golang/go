@@ -19,7 +19,6 @@
  func sw() {
 
 -- GetSum-rename --
-random.go:
 package a
 
 import (
@@ -85,7 +84,6 @@ func sw() {
  }
 
 -- f2name-rename --
-random.go:
 package a
 
 import (
@@ -151,7 +149,6 @@ func sw() {
  }
 
 -- f2y-rename --
-random.go:
 package a
 
 import (
@@ -217,7 +214,6 @@ func sw() {
  }
 
 -- fmt2-rename --
-random.go:
 package a
 
 import (
@@ -284,7 +280,6 @@ func sw() {
  	default:
 
 -- fmty-rename --
-random.go:
 package a
 
 import (
@@ -351,7 +346,6 @@ func sw() {
  	default:
 
 -- format-rename --
-random.go:
 package a
 
 import (
@@ -418,7 +412,6 @@ func sw() {
  	}
 
 -- log-rename --
-random.go:
 package a
 
 import (
@@ -481,7 +474,6 @@ func sw() {
  func _() {
 
 -- myX-rename --
-random.go:
 package a
 
 import (
@@ -541,7 +533,6 @@ func sw() {
  func sw() {
 
 -- pos-rename --
-random.go:
 package a
 
 import (
@@ -607,7 +598,6 @@ func sw() {
  }
 
 -- y0-rename --
-random.go:
 package a
 
 import (
@@ -673,7 +663,6 @@ func sw() {
  }
 
 -- y1-rename --
-random.go:
 package a
 
 import (
@@ -739,7 +728,6 @@ func sw() {
  }
 
 -- y2-rename --
-random.go:
 package a
 
 import (
@@ -805,7 +793,6 @@ func sw() {
  }
 
 -- y3-rename --
-random.go:
 package a
 
 import (
@@ -865,7 +852,6 @@ func sw() {
  type Pos struct {
 
 -- z-rename --
-random.go:
 package a
 
 import (
