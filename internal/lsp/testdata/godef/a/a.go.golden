@@ -1,6 +1,5 @@
 -- Random-definition --
 godef/a/random.go:3:6-12: defined here as func Random() int
-
 -- Random-definition-json --
 {
 	"span": {
@@ -23,7 +22,6 @@ godef/a/random.go:3:6-12: defined here as func Random() int
 func Random() int
 -- Random2-definition --
 godef/a/random.go:8:6-13: defined here as func Random2(y int) int
-
 -- Random2-definition-json --
 {
 	"span": {
@@ -46,7 +44,6 @@ godef/a/random.go:8:6-13: defined here as func Random2(y int) int
 func Random2(y int) int
 -- err-definition --
 godef/a/a.go:14:6-9: defined here as var err error
-
 -- err-definition-json --
 {
 	"span": {

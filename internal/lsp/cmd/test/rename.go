@@ -28,10 +28,6 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 		filename := spn.URI().Filename()
 		for _, mode := range renameModes {
 			goldenTag := data[spn] + strings.Join(mode, "") + "-rename"
-			expect := string(r.data.Golden(goldenTag, filename, func() ([]byte, error) {
-				return []byte{}, nil
-			}))
-
 			app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Config.Env)
 			loc := fmt.Sprintf("%v", spn)
 			args := []string{"-remote=internal", "rename"}
@@ -47,6 +43,9 @@ func (r *runner) Rename(t *testing.T, data tests.Renames) {
 				got = err.Error()
 			}
 			got = normalizePaths(r.data, got)
+			expect := string(r.data.Golden(goldenTag, filename, func() ([]byte, error) {
+				return []byte(got), nil
+			}))
 			if expect != got {
 				t.Errorf("rename failed with %#v expected:\n%s\ngot:\n%s", args, expect, got)
 			}

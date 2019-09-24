@@ -58,7 +58,7 @@ const (
 	testModule        = "golang.org/x/tools/internal/lsp"
 )
 
-var updateGolden = flag.Bool("golden", false, "Update golden files")
+var UpdateGolden = flag.Bool("golden", false, "Update golden files")
 
 type Diagnostics map[span.URI][]source.Diagnostic
 type CompletionItems map[token.Pos]*source.CompletionItem
@@ -503,7 +503,7 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		tests.Link(t, data.Links)
 	})
 
-	if *updateGolden {
+	if *UpdateGolden {
 		for _, golden := range data.golden {
 			if !golden.Modified {
 				continue
@@ -548,7 +548,7 @@ func (data *Data) Golden(tag string, target string, update func() ([]byte, error
 	}
 	golden := data.golden[fragment]
 	if golden == nil {
-		if !*updateGolden {
+		if !*UpdateGolden {
 			data.t.Fatalf("could not find golden file %v: %v", fragment, tag)
 		}
 		golden = &Golden{
@@ -566,7 +566,7 @@ func (data *Data) Golden(tag string, target string, update func() ([]byte, error
 			break
 		}
 	}
-	if *updateGolden {
+	if *UpdateGolden {
 		if file == nil {
 			golden.Archive.Files = append(golden.Archive.Files, txtar.File{
 				Name: tag,

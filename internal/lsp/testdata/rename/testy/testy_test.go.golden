@@ -1,46 +1,3 @@
--- b-rename --
-testy.go:
-package testy
-
-type tt int //@rename("tt", "testyType")
-
-func b() {
-	foo := 42 //@rename("foo", "bar")
-}
-
-testy_test.go:
-package testy
-
-import "testing"
-
-func TestSomething(t *testing.T) {
-	var x int //@rename("x", "testyX")
-	b()       //@rename("a", "b")
-}
-
--- testyX-rename --
-testy_test.go:
-package testy
-
-import "testing"
-
-func TestSomething(t *testing.T) {
-	var testyX int //@rename("x", "testyX")
-	a()       //@rename("a", "b")
-}
-
--- testyX-d-rename --
---- rename/testy/testy_test.go.orig
-+++ rename/testy/testy_test.go
-@@ -3,6 +3,6 @@
- import "testing"
- 
- func TestSomething(t *testing.T) {
--	var x int //@rename("x", "testyX")
-+	var testyX int //@rename("x", "testyX")
- 	a()       //@rename("a", "b")
- }
-
 -- b-d-rename --
 --- rename/testy/testy.go.orig
 +++ rename/testy/testy.go
@@ -61,4 +18,47 @@ func TestSomething(t *testing.T) {
 -	a()       //@rename("a", "b")
 +	b()       //@rename("a", "b")
  }
+
+-- b-rename --
+testy.go:
+package testy
+
+type tt int //@rename("tt", "testyType")
+
+func b() {
+	foo := 42 //@rename("foo", "bar")
+}
+
+testy_test.go:
+package testy
+
+import "testing"
+
+func TestSomething(t *testing.T) {
+	var x int //@rename("x", "testyX")
+	b()       //@rename("a", "b")
+}
+
+-- testyX-d-rename --
+--- rename/testy/testy_test.go.orig
++++ rename/testy/testy_test.go
+@@ -3,6 +3,6 @@
+ import "testing"
+ 
+ func TestSomething(t *testing.T) {
+-	var x int //@rename("x", "testyX")
++	var testyX int //@rename("x", "testyX")
+ 	a()       //@rename("a", "b")
+ }
+
+-- testyX-rename --
+testy_test.go:
+package testy
+
+import "testing"
+
+func TestSomething(t *testing.T) {
+	var testyX int //@rename("x", "testyX")
+	a()       //@rename("a", "b")
+}
 

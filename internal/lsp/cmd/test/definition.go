@@ -35,7 +35,9 @@ var godefModes = []godefMode{
 
 func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 	// TODO: https://golang.org/issue/32794.
-	t.Skip()
+	if !*tests.UpdateGolden {
+		t.Skip()
+	}
 	for _, d := range data {
 		if d.IsType || d.OnlyHover {
 			// TODO: support type definition, hover queries

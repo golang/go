@@ -4,7 +4,6 @@ godef/b/b.go:8:6-8: defined here as S1 struct {
 	S2      //@godef("S2", S2), mark(S1S2, "S2")
 	a.A     //@godef("A", A)
 }
-
 -- S1-definition-json --
 {
 	"span": {
@@ -12,12 +11,12 @@ godef/b/b.go:8:6-8: defined here as S1 struct {
 		"start": {
 			"line": 8,
 			"column": 6,
-			"offset": 196
+			"offset": 212
 		},
 		"end": {
 			"line": 8,
 			"column": 8,
-			"offset": 198
+			"offset": 214
 		}
 	},
 	"description": "S1 struct {\n\tF1  int //@mark(S1F1, \"F1\")\n\tS2      //@godef(\"S2\", S2), mark(S1S2, \"S2\")\n\ta.A     //@godef(\"A\", A)\n}"
@@ -30,8 +29,8 @@ S1 struct {
 	a.A     //@godef("A", A)
 }
 -- S1F1-definition --
-godef/b/b.go:9:2-4: defined here as field F1 int
-
+godef/b/b.go:9:2-4: defined here as @mark(S1F1, "F1")
+field F1 int
 -- S1F1-definition-json --
 {
 	"span": {
@@ -39,15 +38,15 @@ godef/b/b.go:9:2-4: defined here as field F1 int
 		"start": {
 			"line": 9,
 			"column": 2,
-			"offset": 215
+			"offset": 231
 		},
 		"end": {
 			"line": 9,
 			"column": 4,
-			"offset": 217
+			"offset": 233
 		}
 	},
-	"description": "field F1 int"
+	"description": "@mark(S1F1, \"F1\")\nfield F1 int"
 }
 
 -- S1F1-hover --

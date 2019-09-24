@@ -1,6 +1,6 @@
 -- Member-definition --
-godef/a/d.go:6:2-8: defined here as field Member string
-
+godef/a/d.go:6:2-8: defined here as @Member
+field Member string
 -- Member-definition-json --
 {
 	"span": {
@@ -16,7 +16,7 @@ godef/a/d.go:6:2-8: defined here as field Member string
 			"offset": 61
 		}
 	},
-	"description": "field Member string"
+	"description": "@Member\nfield Member string"
 }
 
 -- Member-hover --
@@ -24,7 +24,6 @@ godef/a/d.go:6:2-8: defined here as field Member string
 field Member string
 -- Other-definition --
 godef/a/d.go:9:5-10: defined here as var a.Other a.Thing
-
 -- Other-definition-json --
 {
 	"span": {
@@ -49,7 +48,6 @@ var a.Other a.Thing
 godef/a/d.go:5:6-11: defined here as Thing struct {
 	Member string //@Member
 }
-
 -- Thing-definition-json --
 {
 	"span": {
@@ -74,7 +72,6 @@ Thing struct {
 }
 -- Things-definition --
 godef/a/d.go:11:6-12: defined here as func a.Things(val []string) []a.Thing
-
 -- Things-definition-json --
 {
 	"span": {

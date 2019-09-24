@@ -332,11 +332,6 @@ func (r *runner) SuggestedFix(t *testing.T, data tests.SuggestedFixes) {
 		uri := spn.URI()
 		filename := uri.Filename()
 		view := r.server.session.ViewOf(uri)
-		fixed := string(r.data.Golden("suggestedfix", filename, func() ([]byte, error) {
-			cmd := exec.Command("suggestedfix", filename) // TODO(matloob): what do we do here?
-			out, _ := cmd.Output()                        // ignore error, sometimes we have intentionally ungofmt-able files
-			return out, nil
-		}))
 		f, err := getGoFile(r.ctx, view, uri)
 		if err != nil {
 			t.Fatal(err)
@@ -355,9 +350,7 @@ func (r *runner) SuggestedFix(t *testing.T, data tests.SuggestedFixes) {
 			},
 		})
 		if err != nil {
-			if fixed != "" {
-				t.Error(err)
-			}
+			t.Error(err)
 			continue
 		}
 		m, err := r.data.Mapper(f.URI())
@@ -375,6 +368,9 @@ func (r *runner) SuggestedFix(t *testing.T, data tests.SuggestedFixes) {
 			t.Error(err)
 		}
 		got := diff.ApplyEdits(string(m.Content), sedits)
+		fixed := string(r.data.Golden("suggestedfix", filename, func() ([]byte, error) {
+			return []byte(got), nil
+		}))
 		if fixed != got {
 			t.Errorf("suggested fixes failed for %s, expected:\n%v\ngot:\n%v", filename, fixed, got)
 		}

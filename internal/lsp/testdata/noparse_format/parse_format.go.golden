@@ -6,4 +6,15 @@ func _() {
 }
 
 -- gofmt-d --
+--- noparse_format/parse_format.go.orig
++++ noparse_format/parse_format.go
+@@ -1,5 +1,5 @@
+ package noparse_format //@format("package")
+ 
+ func _() {
+-f()
+-}
+\ No newline at end of file
++	f()
++}
 
