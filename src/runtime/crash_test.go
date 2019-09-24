@@ -260,6 +260,30 @@ panic: again
 
 }
 
+func TestRecursivePanic2(t *testing.T) {
+	output := runTestProg(t, "testprog", "RecursivePanic2")
+	want := `first panic
+second panic
+panic: third panic
+
+`
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+
+}
+
+func TestRecursivePanic3(t *testing.T) {
+	output := runTestProg(t, "testprog", "RecursivePanic3")
+	want := `panic: first panic
+
+`
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+
+}
+
 func TestGoexitCrash(t *testing.T) {
 	output := runTestProg(t, "testprog", "GoexitExit")
 	want := "no goroutines (main called runtime.Goexit) - deadlock!"
@@ -422,7 +446,7 @@ func TestNetpollDeadlock(t *testing.T) {
 func TestPanicTraceback(t *testing.T) {
 	t.Parallel()
 	output := runTestProg(t, "testprog", "PanicTraceback")
-	want := "panic: hello"
+	want := "panic: hello\n\tpanic: panic pt2\n\tpanic: panic pt1\n"
 	if !strings.HasPrefix(output, want) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}

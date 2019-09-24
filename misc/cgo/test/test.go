@@ -1000,6 +1000,17 @@ func benchCgoCall(b *testing.B) {
 	}
 }
 
+// Benchmark measuring overhead from Go to C and back to Go (via a callback)
+func benchCallback(b *testing.B) {
+	var x = false
+	for i := 0; i < b.N; i++ {
+		nestedCall(func() { x = true })
+	}
+	if !x {
+		b.Fatal("nestedCall was not invoked")
+	}
+}
+
 var sinkString string
 
 func benchGoString(b *testing.B) {
