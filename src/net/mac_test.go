@@ -116,11 +116,24 @@ func TestHardwareAddr_UnmarshalText(t *testing.T) {
 		wantErr string
 	}{
 		{
-			msg:     "valid mac",
+			msg:     "valid mac1",
 			text:    "aa:bb:cc:dd:ee:ff",
 			wantStr: "aa:bb:cc:dd:ee:ff",
 			wantErr: "",
-		}, {
+		},
+		{
+			msg:     "valid mac2",
+			text:    "00-00-5e-00-63-01",
+			wantStr: "00:00:5e:00:63:01",
+			wantErr: "",
+		},
+		{
+			msg:     "binary mac",
+			text:    "VCKpL053",
+			wantStr: "54:22:a9:2f:4e:77",
+			wantErr: "",
+		},
+		{
 			msg:     "empty text",
 			text:    "",
 			wantStr: "",

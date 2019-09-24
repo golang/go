@@ -4,6 +4,8 @@
 
 package net
 
+import "encoding/base64"
+
 const hexDigit = "0123456789abcdef"
 
 // A HardwareAddr represents a physical hardware address.
@@ -36,6 +38,15 @@ func (a *HardwareAddr) UnmarshalText(text []byte) error {
 		*a = nil
 		return nil
 	}
+
+	// first attempt to decode raw bytes in case the mac address
+	// was encoded as a raw byte slice in an older verison of golang.
+	b64buf := make([]byte, 6)
+	if _, err := base64.StdEncoding.Decode(b64buf, text); err == nil {
+		*a = b64buf
+		return nil
+	}
+
 	v, err := ParseMAC(string(text))
 	if err != nil {
 		return err
