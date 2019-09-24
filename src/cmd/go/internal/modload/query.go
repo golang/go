@@ -471,7 +471,17 @@ func queryPrefixModules(candidateModules []string, queryModule func(path string)
 					notExistErr = rErr
 				}
 			} else if err == nil {
-				err = r.err
+				if len(found) > 0 {
+					// golang.org/issue/34094: If we have already found a module
+					// containing the target package, ignore errors for modules with
+					// shorter paths.
+
+					// golang.org/issue/34383 is a special case of this: if we have
+					// already found example.com/foo/v2@v2.0.0 with a matching go.mod
+					// file, ignore the error from example.com/foo@v2.0.0.
+				} else {
+					err = r.err
+				}
 			}
 		}
 	}
