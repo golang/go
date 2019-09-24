@@ -192,7 +192,7 @@ type Session interface {
 
 	// DidChangeOutOfBand is called when a file under the root folder
 	// changes. The file is not necessarily open in the editor.
-	DidChangeOutOfBand(ctx context.Context, f GoFile, change protocol.FileChangeType)
+	DidChangeOutOfBand(ctx context.Context, uri span.URI, change protocol.FileChangeType)
 
 	// Options returns a copy of the SessionOptions for this session.
 	Options() Options
@@ -254,6 +254,10 @@ type View interface {
 
 	// Analyzers returns the set of Analyzers active for this view.
 	Analyzers() []*analysis.Analyzer
+
+	// GetActiveReverseDeps returns the active files belonging to the reverse
+	// dependencies of this file's package.
+	GetActiveReverseDeps(ctx context.Context, uri span.URI) []CheckPackageHandle
 }
 
 // File represents a source file of any type.
@@ -270,10 +274,6 @@ type GoFile interface {
 	// GetCheckPackageHandles returns the CheckPackageHandles for the packages
 	// that this file belongs to.
 	CheckPackageHandles(ctx context.Context) ([]CheckPackageHandle, error)
-
-	// GetActiveReverseDeps returns the active files belonging to the reverse
-	// dependencies of this file's package.
-	GetActiveReverseDeps(ctx context.Context) []GoFile
 }
 
 type ModFile interface {

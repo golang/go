@@ -84,13 +84,8 @@ func Diagnostics(ctx context.Context, view View, f GoFile, disabledAnalyses map[
 		}
 	}
 	// Updates to the diagnostics for this package may need to be propagated.
-	revDeps := f.GetActiveReverseDeps(ctx)
-	for _, f := range revDeps {
-		cphs, err := f.CheckPackageHandles(ctx)
-		if err != nil {
-			return nil, "", err
-		}
-		cph := WidestCheckPackageHandle(cphs)
+	revDeps := view.GetActiveReverseDeps(ctx, f.URI())
+	for _, cph := range revDeps {
 		pkg, err := cph.Check(ctx)
 		if err != nil {
 			return nil, warningMsg, err

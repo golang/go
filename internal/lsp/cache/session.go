@@ -98,8 +98,10 @@ func (s *session) NewView(ctx context.Context, name string, folder span.URI, opt
 		folder:        folder,
 		filesByURI:    make(map[span.URI]viewFile),
 		filesByBase:   make(map[string][]viewFile),
-		mcache: &metadataCache{
-			packages: make(map[packageID]*metadata),
+		snapshot: &snapshot{
+			packages: make(map[span.URI]map[packageKey]*checkPackageHandle),
+			ids:      make(map[span.URI][]packageID),
+			metadata: make(map[packageID]*metadata),
 		},
 		ignoredURIs: make(map[span.URI]struct{}),
 		builtin:     &builtinPkg{},
@@ -142,6 +144,19 @@ func (s *session) ViewOf(uri span.URI) source.View {
 	v := s.bestView(uri)
 	s.viewMap[uri] = v
 	return v
+}
+
+func (s *session) viewsOf(uri span.URI) []*view {
+	s.viewMu.Lock()
+	defer s.viewMu.Unlock()
+
+	var views []*view
+	for _, view := range s.views {
+		if strings.HasPrefix(string(uri), string(view.Folder())) {
+			views = append(views, view)
+		}
+	}
+	return views
 }
 
 func (s *session) Views() []source.View {
@@ -219,21 +234,7 @@ func (s *session) DidOpen(ctx context.Context, uri span.URI, kind source.FileKin
 	// A file may be in multiple views.
 	for _, view := range s.views {
 		if strings.HasPrefix(string(uri), string(view.Folder())) {
-			f, err := view.GetFile(ctx, uri)
-			if err != nil {
-				log.Error(ctx, "error getting file", nil, telemetry.File)
-				return
-			}
-			gof, ok := f.(*goFile)
-			if !ok {
-				log.Error(ctx, "not a Go file", nil, telemetry.File)
-				return
-			}
-			// Force a reload of the package metadata by clearing the cached data.
-			gof.mu.Lock()
-			gof.meta = make(map[packageID]*metadata)
-			gof.cphs = make(map[packageKey]*checkPackageHandle)
-			gof.mu.Unlock()
+			view.invalidateMetadata(uri)
 		}
 	}
 }
@@ -341,15 +342,16 @@ func (s *session) buildOverlay() map[string][]byte {
 	return overlays
 }
 
-func (s *session) DidChangeOutOfBand(ctx context.Context, f source.GoFile, changeType protocol.FileChangeType) {
+func (s *session) DidChangeOutOfBand(ctx context.Context, uri span.URI, changeType protocol.FileChangeType) {
 	if changeType == protocol.Deleted {
 		// After a deletion we must invalidate the package's metadata to
-		// force a go/packages invocation to refresh the package's file
-		// list.
-		f.(*goFile).invalidateMeta(ctx)
+		// force a go/packages invocation to refresh the package's file list.
+		views := s.viewsOf(uri)
+		for _, v := range views {
+			v.invalidateMetadata(uri)
+		}
 	}
-
-	s.filesWatchMap.Notify(f.URI())
+	s.filesWatchMap.Notify(uri)
 }
 
 func (o *overlay) FileSystem() source.FileSystem {

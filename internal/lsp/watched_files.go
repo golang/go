@@ -44,7 +44,7 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 			case protocol.Changed:
 				log.Print(ctx, "watched file changed", telemetry.File)
 
-				s.session.DidChangeOutOfBand(ctx, gof, change.Type)
+				s.session.DidChangeOutOfBand(ctx, uri, change.Type)
 
 				// Refresh diagnostics to reflect updated file contents.
 				go s.diagnostics(view, uri)
@@ -77,7 +77,7 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 						break
 					}
 				}
-				s.session.DidChangeOutOfBand(ctx, gof, change.Type)
+				s.session.DidChangeOutOfBand(ctx, uri, change.Type)
 
 				// If this was the only file in the package, clear its diagnostics.
 				if otherFile == nil {
