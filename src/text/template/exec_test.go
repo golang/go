@@ -663,6 +663,12 @@ var execTests = []execTest{
 	{"bug17c", "{{len .NonEmptyInterfacePtS}}", "2", tVal, true},
 	{"bug17d", "{{index .NonEmptyInterfacePtS 0}}", "a", tVal, true},
 	{"bug17e", "{{range .NonEmptyInterfacePtS}}-{{.}}-{{end}}", "-a--b-", tVal, true},
+
+	// More variadic function corner cases. Some runes would get evaluated
+	// as constant floats instead of ints. Issue 34483.
+	{"bug18a", "{{eq . '.'}}", "true", '.', true},
+	{"bug18b", "{{eq . 'e'}}", "true", 'e', true},
+	{"bug18c", "{{eq . 'P'}}", "true", 'P', true},
 }
 
 func zeroArgs() string {
