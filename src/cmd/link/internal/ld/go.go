@@ -169,7 +169,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 			if i := strings.Index(remote, "#"); i >= 0 {
 				remote, q = remote[:i], remote[i+1:]
 			}
-			s := ctxt.Syms.Lookup(local, 0)
+			s := ctxt.LookupOrCreate(local, 0)
 			if s.Type == 0 || s.Type == sym.SXREF || s.Type == sym.SHOSTOBJ {
 				s.SetDynimplib(lib)
 				s.SetExtname(remote)
@@ -188,7 +188,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 			}
 			local := f[1]
 
-			s := ctxt.Syms.Lookup(local, 0)
+			s := ctxt.LookupOrCreate(local, 0)
 			s.Type = sym.SHOSTOBJ
 			s.Size = 0
 			continue
@@ -209,7 +209,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 			// functions. Link.loadlib will resolve any
 			// ABI aliases we find here (since we may not
 			// yet know it's an alias).
-			s := ctxt.Syms.Lookup(local, 0)
+			s := ctxt.LookupOrCreate(local, 0)
 
 			switch ctxt.BuildMode {
 			case BuildModeCShared, BuildModeCArchive, BuildModePlugin:

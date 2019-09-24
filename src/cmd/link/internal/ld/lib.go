@@ -401,21 +401,24 @@ func (ctxt *Link) loadlib() {
 		}
 	}
 
-	// XXX do it here for now
 	if *flagNewobj {
-		ctxt.loadlibfull()
-	}
-
-	for _, lib := range ctxt.Library {
-		if lib.Shlib != "" {
-			if ctxt.Debugvlog > 1 {
-				ctxt.Logf("%5.2f autolib: %s (from %s)\n", Cputime(), lib.Shlib, lib.Objref)
+		// Add references of externally defined symbols.
+		for _, lib := range ctxt.Library {
+			for _, r := range lib.Readers {
+				objfile.LoadRefs(ctxt.loader, r.Reader, lib, ctxt.Arch, ctxt.Syms, r.Version)
 			}
-			ldshlibsyms(ctxt, lib.Shlib)
+		}
+
+		// Load cgo directives.
+		for _, p := range ctxt.cgodata {
+			loadcgo(ctxt, p[0], p[1], p[2])
 		}
 	}
 
-	iscgo = ctxt.Syms.ROLookup("x_cgo_init", 0) != nil
+	iscgo = ctxt.Lookup("x_cgo_init", 0) != nil
+
+	// Record whether we can use plugins.
+	ctxt.canUsePlugins = (ctxt.Lookup("plugin.Open", sym.SymVerABIInternal) != nil)
 
 	// We now have enough information to determine the link mode.
 	determineLinkMode(ctxt)
@@ -448,8 +451,34 @@ func (ctxt *Link) loadlib() {
 		dynexp[i] = t
 	}
 
+	for _, lib := range ctxt.Library {
+		if lib.Shlib != "" {
+			if ctxt.Debugvlog > 1 {
+				ctxt.Logf("%5.2f autolib: %s (from %s)\n", Cputime(), lib.Shlib, lib.Objref)
+			}
+			ldshlibsyms(ctxt, lib.Shlib)
+		}
+	}
+
+	if ctxt.LinkMode == LinkExternal && !iscgo && ctxt.LibraryByPkg["runtime/cgo"] == nil && !(objabi.GOOS == "darwin" && (ctxt.Arch.Family == sys.AMD64 || ctxt.Arch.Family == sys.I386)) {
+		// This indicates a user requested -linkmode=external.
+		// The startup code uses an import of runtime/cgo to decide
+		// whether to initialize the TLS.  So give it one. This could
+		// be handled differently but it's an unusual case.
+		if lib := loadinternal(ctxt, "runtime/cgo"); lib != nil {
+			if lib.Shlib != "" {
+				ldshlibsyms(ctxt, lib.Shlib)
+			} else {
+				if ctxt.BuildMode == BuildModeShared || ctxt.linkShared {
+					Exitf("cannot implicitly include runtime/cgo in a shared library")
+				}
+				loadobjfile(ctxt, lib)
+			}
+		}
+	}
+
 	// In internal link mode, read the host object files.
-	if ctxt.LinkMode == LinkInternal {
+	if ctxt.LinkMode == LinkInternal && len(hostobj) != 0 {
 		// Drop all the cgo_import_static declarations.
 		// Turns out we won't be needing them.
 		for _, s := range ctxt.Syms.Allsym {
@@ -510,34 +539,23 @@ func (ctxt *Link) loadlib() {
 				*/
 			}
 		}
-	} else {
+	} else if ctxt.LinkMode == LinkExternal {
 		hostlinksetup(ctxt)
 	}
 
 	// We've loaded all the code now.
 	ctxt.Loaded = true
 
-	// Record whether we can use plugins.
-	ctxt.canUsePlugins = (ctxt.Syms.ROLookup("plugin.Open", sym.SymVerABIInternal) != nil)
+	importcycles()
 
-	if ctxt.LinkMode == LinkExternal && !iscgo && ctxt.LibraryByPkg["runtime/cgo"] == nil && !(objabi.GOOS == "darwin" && (ctxt.Arch.Family == sys.AMD64 || ctxt.Arch.Family == sys.I386)) {
-		// This indicates a user requested -linkmode=external.
-		// The startup code uses an import of runtime/cgo to decide
-		// whether to initialize the TLS.  So give it one. This could
-		// be handled differently but it's an unusual case.
-		if lib := loadinternal(ctxt, "runtime/cgo"); lib != nil {
-			if lib.Shlib != "" {
-				ldshlibsyms(ctxt, lib.Shlib)
-			} else {
-				if ctxt.BuildMode == BuildModeShared || ctxt.linkShared {
-					Exitf("cannot implicitly include runtime/cgo in a shared library")
-				}
-				loadobjfile(ctxt, lib)
+	// For now, load relocations for dead-code elimination.
+	if *flagNewobj {
+		for _, lib := range ctxt.Library {
+			for _, r := range lib.Readers {
+				objfile.LoadReloc(ctxt.loader, r.Reader, lib, r.Version, ctxt.LibraryByPkg)
 			}
 		}
 	}
-
-	importcycles()
 }
 
 // Set up flags and special symbols depending on the platform build mode.
@@ -1907,7 +1925,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 			ver = sym.SymVerABIInternal
 		}
 
-		lsym := ctxt.Syms.Lookup(elfsym.Name, ver)
+		lsym := ctxt.LookupOrCreate(elfsym.Name, ver)
 		// Because loadlib above loads all .a files before loading any shared
 		// libraries, any non-dynimport symbols we find that duplicate symbols
 		// already loaded should be ignored (the symbols from the .a files
@@ -2526,17 +2544,10 @@ func dfs(lib *sym.Library, mark map[*sym.Library]markKind, order *[]*sym.Library
 }
 
 func (ctxt *Link) loadlibfull() {
-	// Add references of externally defined symbols.
-	for _, lib := range ctxt.Library {
-		for _, r := range lib.Readers {
-			objfile.LoadRefs(ctxt.loader, r.Reader, lib, ctxt.Arch, ctxt.Syms, r.Version)
-		}
-	}
-
 	// Load full symbol contents, resolve indexed references.
 	for _, lib := range ctxt.Library {
 		for _, r := range lib.Readers {
-			objfile.LoadFull(ctxt.loader, r.Reader, lib, ctxt.Syms, r.Version, ctxt.LibraryByPkg)
+			objfile.LoadFull(ctxt.loader, r.Reader, lib, r.Version, ctxt.LibraryByPkg)
 		}
 	}
 
@@ -2545,11 +2556,6 @@ func (ctxt *Link) loadlibfull() {
 		if s != nil && s.Name != "" {
 			ctxt.Syms.Add(s)
 		}
-	}
-
-	// Now load cgo directives.
-	for _, p := range ctxt.cgodata {
-		loadcgo(ctxt, p[0], p[1], p[2])
 	}
 }
 
