@@ -124,7 +124,7 @@ func main() {
 	var shouldEscapeQueryComponentTable = unreservedCharactersTable
 
 	var shouldEscapeFragmentTable = func() [256]bool {
-		// § 3.5 Fragment
+		// §3.5 Fragment
 		//	fragment    = *( pchar / "/" / "?" )
 		//	pchar       = unreserved / pct-encoded / sub-delims / ":" / "@"
 		//
