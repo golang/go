@@ -158,6 +158,14 @@ func (cph *checkPackageHandle) ID() string {
 	return string(cph.m.id)
 }
 
+func (cph *checkPackageHandle) MissingDependencies() []string {
+	var md []string
+	for i := range cph.m.missingDeps {
+		md = append(md, string(i))
+	}
+	return md
+}
+
 func (cph *checkPackageHandle) Cached(ctx context.Context) (source.Package, error) {
 	return cph.cached(ctx)
 }

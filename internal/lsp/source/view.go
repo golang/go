@@ -122,6 +122,8 @@ type CheckPackageHandle interface {
 
 	// Cached returns the Package for the CheckPackageHandle if it has already been stored.
 	Cached(ctx context.Context) (Package, error)
+
+	MissingDependencies() []string
 }
 
 // Cache abstracts the core logic of dealing with the environment from the

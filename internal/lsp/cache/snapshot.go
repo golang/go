@@ -20,17 +20,18 @@ type snapshot struct {
 }
 
 type metadata struct {
-	id         packageID
-	pkgPath    packagePath
-	name       string
-	files      []span.URI
-	typesSizes types.Sizes
-	parents    map[packageID]bool
-	children   map[packageID]*metadata
-	errors     []packages.Error
+	id          packageID
+	pkgPath     packagePath
+	name        string
+	files       []span.URI
+	typesSizes  types.Sizes
+	parents     map[packageID]bool
+	children    map[packageID]*metadata
+	errors      []packages.Error
+	missingDeps map[packagePath]struct{}
 }
 
-func (v *view) getSnapshot(uri span.URI) ([]*metadata, map[packageKey]*checkPackageHandle) {
+func (v *view) getSnapshot(uri span.URI) ([]*metadata, []*checkPackageHandle) {
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock()
 
@@ -38,7 +39,11 @@ func (v *view) getSnapshot(uri span.URI) ([]*metadata, map[packageKey]*checkPack
 	for _, id := range v.snapshot.ids[uri] {
 		m = append(m, v.snapshot.metadata[id])
 	}
-	return m, v.snapshot.packages[uri]
+	var cphs []*checkPackageHandle
+	for _, cph := range v.snapshot.packages[uri] {
+		cphs = append(cphs, cph)
+	}
+	return m, cphs
 }
 
 func (v *view) getMetadata(uri span.URI) []*metadata {
@@ -59,11 +64,17 @@ func (v *view) getPackages(uri span.URI) map[packageKey]*checkPackageHandle {
 	return v.snapshot.packages[uri]
 }
 
-func (v *view) updateMetadata(ctx context.Context, uri span.URI, pkgs []*packages.Package) ([]*metadata, error) {
+func (v *view) updateMetadata(ctx context.Context, uri span.URI, pkgs []*packages.Package) ([]*metadata, map[packageID]map[packagePath]struct{}, error) {
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock()
 
 	// Clear metadata since we are re-running go/packages.
+	prevMissingImports := make(map[packageID]map[packagePath]struct{})
+	for _, id := range v.snapshot.ids[uri] {
+		if m, ok := v.snapshot.metadata[id]; ok && len(m.missingDeps) > 0 {
+			prevMissingImports[id] = m.missingDeps
+		}
+	}
 	without := make(map[span.URI]struct{})
 	for _, id := range v.snapshot.ids[uri] {
 		v.remove(id, without, map[packageID]struct{}{})
@@ -80,11 +91,14 @@ func (v *view) updateMetadata(ctx context.Context, uri span.URI, pkgs []*package
 			pkg:     pkg,
 			parent:  nil,
 		}); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		results = append(results, v.snapshot.metadata[packageID(pkg.ID)])
 	}
-	return results, nil
+	if len(results) == 0 {
+		return nil, nil, errors.Errorf("no metadata for %s", uri)
+	}
+	return results, prevMissingImports, nil
 }
 
 type importGraph struct {
@@ -134,6 +148,10 @@ func (v *view) updateImportGraph(ctx context.Context, g *importGraph) error {
 		}
 		// Don't remember any imports with significant errors.
 		if importPkgPath != "unsafe" && len(importPkg.CompiledGoFiles) == 0 {
+			if m.missingDeps == nil {
+				m.missingDeps = make(map[packagePath]struct{})
+			}
+			m.missingDeps[importPkgPath] = struct{}{}
 			continue
 		}
 		if _, ok := m.children[packageID(importPkg.ID)]; !ok {

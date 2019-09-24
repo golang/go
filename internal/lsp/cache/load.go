@@ -27,6 +27,11 @@ func (v *view) loadParseTypecheck(ctx context.Context, f *goFile, fh source.File
 	if err != nil {
 		return nil, err
 	}
+	// If load has explicitly returns nil metadata and no error,
+	// it means that we should not re-typecheck the packages.
+	if meta == nil {
+		return nil, nil
+	}
 	var (
 		cphs    []*checkPackageHandle
 		results []source.CheckPackageHandle
@@ -129,7 +134,15 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile, fh source.FileHandl
 		// Return this error as a diagnostic to the user.
 		return nil, err
 	}
-	return v.updateMetadata(ctx, f.URI(), pkgs)
+	m, prevMissingImports, err := v.updateMetadata(ctx, f.URI(), pkgs)
+	if err != nil {
+		return nil, err
+	}
+	meta, err := validateMetadata(ctx, m, prevMissingImports)
+	if err != nil {
+		return nil, err
+	}
+	return meta, nil
 }
 
 // shouldRunGopackages reparses a file's package and import declarations to
@@ -160,4 +173,37 @@ func (v *view) shouldRunGopackages(ctx context.Context, f *goFile, file *ast.Fil
 		}
 	}
 	return false
+}
+
+func validateMetadata(ctx context.Context, metadata []*metadata, prevMissingImports map[packageID]map[packagePath]struct{}) ([]*metadata, error) {
+	// If we saw incorrect metadata for this package previously, don't both rechecking it.
+	for _, m := range metadata {
+		if len(m.missingDeps) > 0 {
+			prev, ok := prevMissingImports[m.id]
+			// There are missing imports that we previously hadn't seen before.
+			if !ok {
+				return metadata, nil
+			}
+			// The set of missing imports has changed.
+			if !sameSet(prev, m.missingDeps) {
+				return metadata, nil
+			}
+		} else {
+			// There are no missing imports.
+			return metadata, nil
+		}
+	}
+	return nil, nil
+}
+
+func sameSet(x, y map[packagePath]struct{}) bool {
+	if len(x) != len(y) {
+		return false
+	}
+	for k := range x {
+		if _, ok := y[k]; !ok {
+			return false
+		}
+	}
+	return true
 }

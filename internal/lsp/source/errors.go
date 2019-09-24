@@ -12,7 +12,20 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
+const (
+	// TODO(rstambler): We should really be able to point to a link on the website.
+	modulesWiki = "https://github.com/golang/go/wiki/Modules"
+)
+
 func checkCommonErrors(ctx context.Context, view View, uri span.URI) (string, error) {
+	// Unfortunately, we probably can't have go/packages expose a function like this.
+	// Since we only really understand the `go` command, check the user's GOPACKAGESDRIVER
+	// and, if they are using `go list`, consider the possible error cases.
+	gopackagesdriver := os.Getenv("GOPACKAGESDRIVER")
+	if gopackagesdriver != "" && gopackagesdriver != "off" {
+		return "", nil
+	}
+
 	// Some cases we should be able to detect:
 	//
 	//  1. The user is in GOPATH mode and is working outside their GOPATH
@@ -49,7 +62,7 @@ func checkCommonErrors(ctx context.Context, view View, uri span.URI) (string, er
 			msg = "You are in module mode, but you are not inside of a module. Please create a module."
 		}
 	} else {
-		msg = "You are neither in a module nor in your GOPATH. Please see X for information on how to set up your Go project."
+		msg = fmt.Sprintf("You are neither in a module nor in your GOPATH. Please see %s for information on how to set up your Go project.", modulesWiki)
 	}
 	return msg, nil
 }

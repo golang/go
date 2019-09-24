@@ -47,6 +47,16 @@ func Diagnostics(ctx context.Context, view View, f GoFile, disabledAnalyses map[
 		return nil, "", err
 	}
 	cph := WidestCheckPackageHandle(cphs)
+
+	// If we are missing dependencies, it may because the user's workspace is
+	// not correctly configured. Report errors, if possible.
+	var warningMsg string
+	if len(cph.MissingDependencies()) > 0 {
+		warningMsg, err = checkCommonErrors(ctx, view, f.URI())
+		if err != nil {
+			log.Error(ctx, "error checking common errors", err, telemetry.File.Of(f.URI))
+		}
+	}
 	pkg, err := cph.Check(ctx)
 	if err != nil {
 		log.Error(ctx, "no package for file", err)
@@ -57,15 +67,6 @@ func Diagnostics(ctx context.Context, view View, f GoFile, disabledAnalyses map[
 	reports := make(map[span.URI][]Diagnostic)
 	for _, fh := range pkg.Files() {
 		clearReports(view, reports, fh.File().Identity().URI)
-	}
-
-	// If we have `go list` errors, we may want to offer a warning message to the user.
-	var warningMsg string
-	if hasListErrors(pkg.GetErrors()) {
-		warningMsg, err = checkCommonErrors(ctx, view, f.URI())
-		if err != nil {
-			log.Error(ctx, "error checking common errors", err, telemetry.File.Of(f.URI))
-		}
 	}
 
 	// Prepare any additional reports for the errors in this package.
