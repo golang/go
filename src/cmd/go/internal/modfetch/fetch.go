@@ -250,7 +250,9 @@ func downloadZip(mod module.Version, zipfile string) (err error) {
 	if err != nil {
 		return err
 	}
-	checkModSum(mod, hash)
+	if err := checkModSum(mod, hash); err != nil {
+		return err
+	}
 
 	if err := renameio.WriteFile(zipfile+"hash", []byte(hash), 0666); err != nil {
 		return err
@@ -282,21 +284,22 @@ var goSum struct {
 }
 
 // initGoSum initializes the go.sum data.
-// It reports whether use of go.sum is now enabled.
+// The boolean it returns reports whether the
+// use of go.sum is now enabled.
 // The goSum lock must be held.
-func initGoSum() bool {
+func initGoSum() (bool, error) {
 	if GoSumFile == "" {
-		return false
+		return false, nil
 	}
 	if goSum.m != nil {
-		return true
+		return true, nil
 	}
 
 	goSum.m = make(map[module.Version][]string)
 	goSum.checked = make(map[modSum]bool)
 	data, err := renameio.ReadFile(GoSumFile)
 	if err != nil && !os.IsNotExist(err) {
-		base.Fatalf("go: %v", err)
+		return false, err
 	}
 	goSum.enabled = true
 	readGoSum(goSum.m, GoSumFile, data)
@@ -314,7 +317,7 @@ func initGoSum() bool {
 		}
 		goSum.modverify = alt
 	}
-	return true
+	return true, nil
 }
 
 // emptyGoModHash is the hash of a 1-file tree containing a 0-length go.mod.
@@ -324,7 +327,7 @@ const emptyGoModHash = "h1:G7mAYYxgmS0lVkHyy2hEOLQCFB0DlQFTMLWggykrydY="
 
 // readGoSum parses data, which is the content of file,
 // and adds it to goSum.m. The goSum lock must be held.
-func readGoSum(dst map[module.Version][]string, file string, data []byte) {
+func readGoSum(dst map[module.Version][]string, file string, data []byte) error {
 	lineno := 0
 	for len(data) > 0 {
 		var line []byte
@@ -341,7 +344,7 @@ func readGoSum(dst map[module.Version][]string, file string, data []byte) {
 			continue
 		}
 		if len(f) != 3 {
-			base.Fatalf("go: malformed go.sum:\n%s:%d: wrong number of fields %v", file, lineno, len(f))
+			return fmt.Errorf("malformed go.sum:\n%s:%d: wrong number of fields %v", file, lineno, len(f))
 		}
 		if f[2] == emptyGoModHash {
 			// Old bug; drop it.
@@ -350,6 +353,7 @@ func readGoSum(dst map[module.Version][]string, file string, data []byte) {
 		mod := module.Version{Path: f[0], Version: f[1]}
 		dst[mod] = append(dst[mod], f[2])
 	}
+	return nil
 }
 
 // checkMod checks the given module's checksum.
@@ -377,7 +381,9 @@ func checkMod(mod module.Version) {
 		base.Fatalf("verifying %v", module.VersionError(mod, fmt.Errorf("unexpected ziphash: %q", h)))
 	}
 
-	checkModSum(mod, h)
+	if err := checkModSum(mod, h); err != nil {
+		base.Fatalf("%s", err)
+	}
 }
 
 // goModSum returns the checksum for the go.mod contents.
@@ -389,17 +395,17 @@ func goModSum(data []byte) (string, error) {
 
 // checkGoMod checks the given module's go.mod checksum;
 // data is the go.mod content.
-func checkGoMod(path, version string, data []byte) {
+func checkGoMod(path, version string, data []byte) error {
 	h, err := goModSum(data)
 	if err != nil {
-		base.Fatalf("verifying %s %s go.mod: %v", path, version, err)
+		return &module.ModuleError{Path: path, Version: version, Err: fmt.Errorf("verifying go.mod: %v", err)}
 	}
 
-	checkModSum(module.Version{Path: path, Version: version + "/go.mod"}, h)
+	return checkModSum(module.Version{Path: path, Version: version + "/go.mod"}, h)
 }
 
 // checkModSum checks that the recorded checksum for mod is h.
-func checkModSum(mod module.Version, h string) {
+func checkModSum(mod module.Version, h string) error {
 	// We lock goSum when manipulating it,
 	// but we arrange to release the lock when calling checkSumDB,
 	// so that parallel calls to checkModHash can execute parallel calls
@@ -407,19 +413,24 @@ func checkModSum(mod module.Version, h string) {
 
 	// Check whether mod+h is listed in go.sum already. If so, we're done.
 	goSum.mu.Lock()
-	inited := initGoSum()
+	inited, err := initGoSum()
+	if err != nil {
+		return err
+	}
 	done := inited && haveModSumLocked(mod, h)
 	goSum.mu.Unlock()
 
 	if done {
-		return
+		return nil
 	}
 
 	// Not listed, so we want to add them.
 	// Consult checksum database if appropriate.
 	if useSumDB(mod) {
 		// Calls base.Fatalf if mismatch detected.
-		checkSumDB(mod, h)
+		if err := checkSumDB(mod, h); err != nil {
+			return err
+		}
 	}
 
 	// Add mod+h to go.sum, if it hasn't appeared already.
@@ -428,6 +439,7 @@ func checkModSum(mod module.Version, h string) {
 		addModSumLocked(mod, h)
 		goSum.mu.Unlock()
 	}
+	return nil
 }
 
 // haveModSumLocked reports whether the pair mod,h is already listed in go.sum.
@@ -461,22 +473,23 @@ func addModSumLocked(mod module.Version, h string) {
 
 // checkSumDB checks the mod, h pair against the Go checksum database.
 // It calls base.Fatalf if the hash is to be rejected.
-func checkSumDB(mod module.Version, h string) {
+func checkSumDB(mod module.Version, h string) error {
 	db, lines, err := lookupSumDB(mod)
 	if err != nil {
-		base.Fatalf("verifying %s@%s: %v", mod.Path, mod.Version, err)
+		return module.VersionError(mod, fmt.Errorf("verifying module: %v", err))
 	}
 
 	have := mod.Path + " " + mod.Version + " " + h
 	prefix := mod.Path + " " + mod.Version + " h1:"
 	for _, line := range lines {
 		if line == have {
-			return
+			return nil
 		}
 		if strings.HasPrefix(line, prefix) {
-			base.Fatalf("verifying %s@%s: checksum mismatch\n\tdownloaded: %v\n\t%s: %v"+sumdbMismatch, mod.Path, mod.Version, h, db, line[len(prefix)-len("h1:"):])
+			return module.VersionError(mod, fmt.Errorf("verifying module: checksum mismatch\n\tdownloaded: %v\n\t%s: %v"+sumdbMismatch, h, db, line[len(prefix)-len("h1:"):]))
 		}
 	}
+	return nil
 }
 
 // Sum returns the checksum for the downloaded copy of the given module,
@@ -586,7 +599,11 @@ func WriteGoSum() {
 func TrimGoSum(keep map[module.Version]bool) {
 	goSum.mu.Lock()
 	defer goSum.mu.Unlock()
-	if !initGoSum() {
+	inited, err := initGoSum()
+	if err != nil {
+		base.Fatalf("%s", err)
+	}
+	if !inited {
 		return
 	}
 
