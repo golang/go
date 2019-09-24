@@ -229,9 +229,10 @@ func (s *session) DidOpen(ctx context.Context, uri span.URI, kind source.FileKin
 				log.Error(ctx, "not a Go file", nil, telemetry.File)
 				return
 			}
-			// Mark file as open.
+			// Force a reload of the package metadata by clearing the cached data.
 			gof.mu.Lock()
-			gof.justOpened = true
+			gof.meta = make(map[packageID]*metadata)
+			gof.cphs = make(map[packageKey]*checkPackageHandle)
 			gof.mu.Unlock()
 		}
 	}

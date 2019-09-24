@@ -69,7 +69,6 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	for filename, content := range data.Config.Overlay {
 		session.SetOverlay(span.FileURI(filename), source.DetectLanguage("", filename), content)
 	}
-
 	r := &runner{
 		server: &Server{
 			session:     session,

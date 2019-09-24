@@ -26,11 +26,6 @@ type goFile struct {
 	// It contains any packages with `go list` errors.
 	missingImports map[packagePath]struct{}
 
-	// justOpened indicates that the file has just been opened.
-	// We re-run go/packages.Load on just opened files to make sure
-	// that we know about all of their packages.
-	justOpened bool
-
 	imports []*ast.ImportSpec
 
 	cphs map[packageKey]*checkPackageHandle
@@ -138,16 +133,6 @@ func (f *goFile) isDirty(ctx context.Context, fh source.FileHandle) bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	// If the the file has just been opened,
-	// it may be part of more packages than we are aware of.
-	//
-	// Note: This must be the first case, otherwise we may not reset the value of f.justOpened.
-	if f.justOpened {
-		f.meta = make(map[packageID]*metadata)
-		f.cphs = make(map[packageKey]*checkPackageHandle)
-		f.justOpened = false
-		return true
-	}
 	if len(f.meta) == 0 || len(f.cphs) == 0 {
 		return true
 	}
