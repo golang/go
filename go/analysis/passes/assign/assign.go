@@ -63,7 +63,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				pass.Report(analysis.Diagnostic{
 					Pos: stmt.Pos(), Message: fmt.Sprintf("self-assignment of %s to %s", re, le),
 					SuggestedFixes: []analysis.SuggestedFix{
-						{Message: "Remove", TextEdits: []analysis.TextEdit{{stmt.Pos(), stmt.End(), []byte{}}}},
+						{Message: "Remove", TextEdits: []analysis.TextEdit{
+							{Pos: stmt.Pos(), End: stmt.End(), NewText: []byte{}},
+						}},
 					},
 				})
 			}
