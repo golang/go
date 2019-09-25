@@ -735,6 +735,14 @@ const (
 	PallocChunkPages = pallocChunkPages
 )
 
+// Expose pallocSum for testing.
+type PallocSum pallocSum
+
+func PackPallocSum(start, max, end uint) PallocSum { return PallocSum(packPallocSum(start, max, end)) }
+func (m PallocSum) Start() uint                    { return pallocSum(m).start() }
+func (m PallocSum) Max() uint                      { return pallocSum(m).max() }
+func (m PallocSum) End() uint                      { return pallocSum(m).end() }
+
 // Expose pallocBits for testing.
 type PallocBits pallocBits
 
@@ -743,6 +751,33 @@ func (b *PallocBits) Find(npages uintptr, searchIdx uint) (uint, uint) {
 }
 func (b *PallocBits) AllocRange(i, n uint) { (*pallocBits)(b).allocRange(i, n) }
 func (b *PallocBits) Free(i, n uint)       { (*pallocBits)(b).free(i, n) }
+func (b *PallocBits) Summarize() PallocSum { return PallocSum((*pallocBits)(b).summarize()) }
+
+// SummarizeSlow is a slow but more obviously correct implementation
+// of (*pallocBits).summarize. Used for testing.
+func SummarizeSlow(b *PallocBits) PallocSum {
+	var start, max, end uint
+
+	const N = uint(len(b)) * 64
+	for start < N && (*pageBits)(b).get(start) == 0 {
+		start++
+	}
+	for end < N && (*pageBits)(b).get(N-end-1) == 0 {
+		end++
+	}
+	run := uint(0)
+	for i := uint(0); i < N; i++ {
+		if (*pageBits)(b).get(i) == 0 {
+			run++
+		} else {
+			run = 0
+		}
+		if run > max {
+			max = run
+		}
+	}
+	return PackPallocSum(start, max, end)
+}
 
 // Expose non-trivial helpers for testing.
 func FindBitRange64(c uint64, n uint) uint { return findBitRange64(c, n) }
