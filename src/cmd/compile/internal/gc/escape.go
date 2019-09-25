@@ -505,10 +505,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
 	case OCALLPART:
 		e.spill(k, n)
 
-		// esc.go says "Contents make it to memory, lose
-		// track."  I think we can just flow n.Left to our
-		// spilled location though.
-		// TODO(mdempsky): Try that.
+		// TODO(mdempsky): We can do better here. See #27557.
 		e.assignHeap(n.Left, "call part", n)
 
 	case OPTRLIT:
