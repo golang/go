@@ -802,17 +802,8 @@ func (r *importReader) node() *Node {
 	//	unimplemented
 
 	case OPTRLIT:
-		pos := r.pos()
-		n := npos(pos, r.expr())
-		if !r.bool() /* !implicit, i.e. '&' operator */ {
-			if n.Op == OCOMPLIT {
-				// Special case for &T{...}: turn into (*T){...}.
-				n.Right = nodl(pos, ODEREF, n.Right, nil)
-				n.Right.SetImplicit(true)
-			} else {
-				n = nodl(pos, OADDR, n, nil)
-			}
-		}
+		n := nodl(r.pos(), OADDR, r.expr(), nil)
+		_ = r.bool()
 		return n
 
 	case OSTRUCTLIT:
