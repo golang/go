@@ -5,6 +5,8 @@
 package runtime_test
 
 import (
+	"fmt"
+	"math/rand"
 	. "runtime"
 	"testing"
 )
@@ -92,6 +94,130 @@ func TestPallocBitsAllocRange(t *testing.T) {
 func invertPallocBits(b *PallocBits) {
 	for i := range b {
 		b[i] = ^b[i]
+	}
+}
+
+// Ensures two packed summaries are identical, and reports a detailed description
+// of the difference if they're not.
+func checkPallocSum(t *testing.T, got, want PallocSum) {
+	if got.Start() != want.Start() {
+		t.Errorf("inconsistent start: got %d, want %d", got.Start(), want.Start())
+	}
+	if got.Max() != want.Max() {
+		t.Errorf("inconsistent max: got %d, want %d", got.Max(), want.Max())
+	}
+	if got.End() != want.End() {
+		t.Errorf("inconsistent end: got %d, want %d", got.End(), want.End())
+	}
+}
+
+// Ensures computing bit summaries works as expected by generating random
+// bitmaps and checking against a reference implementation.
+func TestPallocBitsSummarizeRandom(t *testing.T) {
+	b := new(PallocBits)
+	for i := 0; i < 1000; i++ {
+		// Randomize bitmap.
+		for i := range b {
+			b[i] = rand.Uint64()
+		}
+		// Check summary against reference implementation.
+		checkPallocSum(t, b.Summarize(), SummarizeSlow(b))
+	}
+}
+
+// Ensures computing bit summaries works as expected.
+func TestPallocBitsSummarize(t *testing.T) {
+	var emptySum = PackPallocSum(PallocChunkPages, PallocChunkPages, PallocChunkPages)
+	type test struct {
+		free []BitRange // Ranges of free (zero) bits.
+		hits []PallocSum
+	}
+	tests := make(map[string]test)
+	tests["NoneFree"] = test{
+		free: []BitRange{},
+		hits: []PallocSum{
+			PackPallocSum(0, 0, 0),
+		},
+	}
+	tests["OnlyStart"] = test{
+		free: []BitRange{{0, 10}},
+		hits: []PallocSum{
+			PackPallocSum(10, 10, 0),
+		},
+	}
+	tests["OnlyEnd"] = test{
+		free: []BitRange{{PallocChunkPages - 40, 40}},
+		hits: []PallocSum{
+			PackPallocSum(0, 40, 40),
+		},
+	}
+	tests["StartAndEnd"] = test{
+		free: []BitRange{{0, 11}, {PallocChunkPages - 23, 23}},
+		hits: []PallocSum{
+			PackPallocSum(11, 23, 23),
+		},
+	}
+	tests["StartMaxEnd"] = test{
+		free: []BitRange{{0, 4}, {50, 100}, {PallocChunkPages - 4, 4}},
+		hits: []PallocSum{
+			PackPallocSum(4, 100, 4),
+		},
+	}
+	tests["OnlyMax"] = test{
+		free: []BitRange{{1, 20}, {35, 241}, {PallocChunkPages - 50, 30}},
+		hits: []PallocSum{
+			PackPallocSum(0, 241, 0),
+		},
+	}
+	tests["MultiMax"] = test{
+		free: []BitRange{{35, 2}, {40, 5}, {100, 5}},
+		hits: []PallocSum{
+			PackPallocSum(0, 5, 0),
+		},
+	}
+	tests["One"] = test{
+		free: []BitRange{{2, 1}},
+		hits: []PallocSum{
+			PackPallocSum(0, 1, 0),
+		},
+	}
+	tests["AllFree"] = test{
+		free: []BitRange{{0, PallocChunkPages}},
+		hits: []PallocSum{
+			emptySum,
+		},
+	}
+	for name, v := range tests {
+		v := v
+		t.Run(name, func(t *testing.T) {
+			b := makePallocBits(v.free)
+			// In the PallocBits we create 1's represent free spots, but in our actual
+			// PallocBits 1 means not free, so invert.
+			invertPallocBits(b)
+			for _, h := range v.hits {
+				checkPallocSum(t, b.Summarize(), h)
+			}
+		})
+	}
+}
+
+// Benchmarks how quickly we can summarize a PallocBits.
+func BenchmarkPallocBitsSummarize(b *testing.B) {
+	buf0 := new(PallocBits)
+	buf1 := new(PallocBits)
+	for i := 0; i < len(buf1); i++ {
+		buf1[i] = ^uint64(0)
+	}
+	bufa := new(PallocBits)
+	for i := 0; i < len(bufa); i++ {
+		bufa[i] = 0xaa
+	}
+	for _, buf := range []*PallocBits{buf0, buf1, bufa} {
+		b.Run(fmt.Sprintf("Unpacked%02X", buf[0]), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				buf.Summarize()
+			}
+		})
 	}
 }
 

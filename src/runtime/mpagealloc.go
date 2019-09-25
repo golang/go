@@ -70,3 +70,61 @@ const (
 	summaryLevelBits = 3
 	summaryL0Bits    = heapAddrBits - logPallocChunkBytes - (summaryLevels-1)*summaryLevelBits
 )
+
+const (
+	// maxPackedValue is the maximum value that any of the three fields in
+	// the pallocSum may take on.
+	maxPackedValue    = 1 << logMaxPackedValue
+	logMaxPackedValue = logPallocChunkPages + (summaryLevels-1)*summaryLevelBits
+)
+
+// pallocSum is a packed summary type which packs three numbers: start, max,
+// and end into a single 8-byte value. Each of these values are a summary of
+// a bitmap and are thus counts, each of which may have a maximum value of
+// 2^21 - 1, or all three may be equal to 2^21. The latter case is represented
+// by just setting the 64th bit.
+type pallocSum uint64
+
+// packPallocSum takes a start, max, and end value and produces a pallocSum.
+func packPallocSum(start, max, end uint) pallocSum {
+	if max == maxPackedValue {
+		return pallocSum(uint64(1 << 63))
+	}
+	return pallocSum((uint64(start) & (maxPackedValue - 1)) |
+		((uint64(max) & (maxPackedValue - 1)) << logMaxPackedValue) |
+		((uint64(end) & (maxPackedValue - 1)) << (2 * logMaxPackedValue)))
+}
+
+// start extracts the start value from a packed sum.
+func (p pallocSum) start() uint {
+	if uint64(p)&uint64(1<<63) != 0 {
+		return maxPackedValue
+	}
+	return uint(uint64(p) & (maxPackedValue - 1))
+}
+
+// max extracts the max value from a packed sum.
+func (p pallocSum) max() uint {
+	if uint64(p)&uint64(1<<63) != 0 {
+		return maxPackedValue
+	}
+	return uint((uint64(p) >> logMaxPackedValue) & (maxPackedValue - 1))
+}
+
+// end extracts the end value from a packed sum.
+func (p pallocSum) end() uint {
+	if uint64(p)&uint64(1<<63) != 0 {
+		return maxPackedValue
+	}
+	return uint((uint64(p) >> (2 * logMaxPackedValue)) & (maxPackedValue - 1))
+}
+
+// unpack unpacks all three values from the summary.
+func (p pallocSum) unpack() (uint, uint, uint) {
+	if uint64(p)&uint64(1<<63) != 0 {
+		return maxPackedValue, maxPackedValue, maxPackedValue
+	}
+	return uint(uint64(p) & (maxPackedValue - 1)),
+		uint((uint64(p) >> logMaxPackedValue) & (maxPackedValue - 1)),
+		uint((uint64(p) >> (2 * logMaxPackedValue)) & (maxPackedValue - 1))
+}
