@@ -284,7 +284,7 @@ func (c *completer) basicLiteral(T types.Type, typeName string, matchScore float
 		InsertText: nonSnippet,
 		Detail:     T.String(),
 		Score:      matchScore * literalCandidateScore,
-		Kind:       VariableCompletionItem,
+		Kind:       protocol.VariableCompletion,
 		snippet:    snip,
 	})
 }

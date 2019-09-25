@@ -136,6 +136,9 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile, fh source.FileHandl
 // determine if they have changed.
 // It assumes that the caller holds the lock on the f.mu lock.
 func (v *view) shouldRunGopackages(ctx context.Context, f *goFile, file *ast.File, metadata []*metadata) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	// Check if the package's name has changed, by checking if this is a filename
 	// we already know about, and if so, check if its package name has changed.
 	for _, m := range metadata {
