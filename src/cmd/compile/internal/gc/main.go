@@ -238,7 +238,6 @@ func Main(archInit func(*Arch)) {
 	if sys.RaceDetectorSupported(objabi.GOOS, objabi.GOARCH) {
 		flag.BoolVar(&flag_race, "race", false, "enable race detector")
 	}
-	objabi.Flagcount("s", "warn about composite literals that can be simplified", &Debug['s'])
 	if enableTrace {
 		flag.BoolVar(&trace, "t", false, "trace type-checking")
 	}
