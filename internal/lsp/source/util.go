@@ -398,18 +398,18 @@ func formatResults(tup *types.Tuple, qf types.Qualifier) ([]string, bool) {
 }
 
 // formatType returns the detail and kind for an object of type *types.TypeName.
-func formatType(typ types.Type, qf types.Qualifier) (detail string, kind CompletionItemKind) {
+func formatType(typ types.Type, qf types.Qualifier) (detail string, kind protocol.CompletionItemKind) {
 	if types.IsInterface(typ) {
 		detail = "interface{...}"
-		kind = InterfaceCompletionItem
+		kind = protocol.InterfaceCompletion
 	} else if _, ok := typ.(*types.Struct); ok {
 		detail = "struct{...}"
-		kind = StructCompletionItem
+		kind = protocol.StructCompletion
 	} else if typ != typ.Underlying() {
 		detail, kind = formatType(typ.Underlying(), qf)
 	} else {
 		detail = types.TypeString(typ, qf)
-		kind = TypeCompletionItem
+		kind = protocol.ClassCompletion
 	}
 	return detail, kind
 }

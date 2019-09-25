@@ -21,38 +21,13 @@ func ToProtocolCompletionItems(items []source.CompletionItem) []protocol.Complet
 func ToProtocolCompletionItem(item source.CompletionItem) protocol.CompletionItem {
 	return protocol.CompletionItem{
 		Label:         item.Label,
-		Kind:          toProtocolCompletionItemKind(item.Kind),
+		Kind:          item.Kind,
 		Detail:        item.Detail,
 		Documentation: item.Documentation,
 		InsertText:    item.InsertText,
 		TextEdit: &protocol.TextEdit{
 			NewText: item.Snippet(),
 		},
-	}
-}
-
-func toProtocolCompletionItemKind(kind source.CompletionItemKind) protocol.CompletionItemKind {
-	switch kind {
-	case source.InterfaceCompletionItem:
-		return protocol.InterfaceCompletion
-	case source.StructCompletionItem:
-		return protocol.StructCompletion
-	case source.TypeCompletionItem:
-		return protocol.TypeParameterCompletion // ??
-	case source.ConstantCompletionItem:
-		return protocol.ConstantCompletion
-	case source.FieldCompletionItem:
-		return protocol.FieldCompletion
-	case source.ParameterCompletionItem, source.VariableCompletionItem:
-		return protocol.VariableCompletion
-	case source.FunctionCompletionItem:
-		return protocol.FunctionCompletion
-	case source.MethodCompletionItem:
-		return protocol.MethodCompletion
-	case source.PackageCompletionItem:
-		return protocol.ModuleCompletion // ??
-	default:
-		return protocol.TextCompletion
 	}
 }
 
@@ -68,7 +43,7 @@ func FilterBuiltins(items []protocol.CompletionItem) []protocol.CompletionItem {
 }
 
 func isBuiltin(label, detail string, kind protocol.CompletionItemKind) bool {
-	if detail == "" && kind == protocol.TypeParameterCompletion {
+	if detail == "" && kind == protocol.ClassCompletion {
 		return true
 	}
 	// Remaining builtin constants, variables, interfaces, and functions.

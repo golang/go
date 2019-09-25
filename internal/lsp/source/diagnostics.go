@@ -25,7 +25,7 @@ type Diagnostic struct {
 	Range    protocol.Range
 	Message  string
 	Source   string
-	Severity DiagnosticSeverity
+	Severity protocol.DiagnosticSeverity
 	Tags     []protocol.DiagnosticTag
 
 	SuggestedFixes []SuggestedFix
@@ -113,7 +113,7 @@ func diagnostics(ctx context.Context, view View, pkg Package, reports map[span.U
 			URI:      spn.URI(),
 			Message:  err.Msg,
 			Source:   "LSP",
-			Severity: SeverityError,
+			Severity: protocol.SeverityError,
 		}
 		set, ok := diagSets[diag.URI]
 		if !ok {
@@ -249,7 +249,7 @@ func toDiagnostic(ctx context.Context, view View, diag analysis.Diagnostic, cate
 		Range:          rng,
 		Source:         category,
 		Message:        diag.Message,
-		Severity:       SeverityWarning,
+		Severity:       protocol.SeverityWarning,
 		SuggestedFixes: fixes,
 		Tags:           tags,
 	}, nil
@@ -302,7 +302,7 @@ func singleDiagnostic(uri span.URI, format string, a ...interface{}) map[span.UR
 			URI:      uri,
 			Range:    protocol.Range{},
 			Message:  fmt.Sprintf(format, a...),
-			Severity: SeverityError,
+			Severity: protocol.SeverityError,
 		}},
 	}
 }

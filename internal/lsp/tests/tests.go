@@ -590,9 +590,9 @@ func (data *Data) collectDiagnostics(spn span.Span, msgSource, msg string) {
 	if _, ok := data.Diagnostics[spn.URI()]; !ok {
 		data.Diagnostics[spn.URI()] = []source.Diagnostic{}
 	}
-	severity := source.SeverityError
+	severity := protocol.SeverityError
 	if strings.Contains(string(spn.URI()), "analyzer") {
-		severity = source.SeverityWarning
+		severity = protocol.SeverityWarning
 	}
 	// This is not the correct way to do this,
 	// but it seems excessive to do the full conversion here.
@@ -657,7 +657,7 @@ func (data *Data) collectCompletionItems(pos token.Pos, args []string) {
 	data.CompletionItems[pos] = &source.CompletionItem{
 		Label:         label,
 		Detail:        detail,
-		Kind:          source.ParseCompletionItemKind(kind),
+		Kind:          protocol.ParseCompletionItemKind(kind),
 		Documentation: documentation,
 	}
 }

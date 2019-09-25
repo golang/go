@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode"
 
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
 )
 
@@ -216,7 +217,7 @@ func (c *completer) functionLiteral(sig *types.Signature, matchScore float64) {
 	c.items = append(c.items, CompletionItem{
 		Label:   "func(...) {}",
 		Score:   matchScore * literalCandidateScore,
-		Kind:    VariableCompletionItem,
+		Kind:    protocol.VariableCompletion,
 		snippet: snip,
 	})
 }
@@ -263,7 +264,7 @@ func (c *completer) compositeLiteral(T types.Type, typeName string, matchScore f
 		Label:      nonSnippet,
 		InsertText: nonSnippet,
 		Score:      matchScore * literalCandidateScore,
-		Kind:       VariableCompletionItem,
+		Kind:       protocol.VariableCompletion,
 		snippet:    snip,
 	})
 }
@@ -316,7 +317,7 @@ func (c *completer) makeCall(typeName string, secondArg string, matchScore float
 		Label:      nonSnippet.String(),
 		InsertText: nonSnippet.String(),
 		Score:      matchScore * literalCandidateScore,
-		Kind:       FunctionCompletionItem,
+		Kind:       protocol.FunctionCompletion,
 		snippet:    snip,
 	})
 }

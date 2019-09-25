@@ -84,24 +84,13 @@ func (s *Server) publishDiagnostics(ctx context.Context, uri span.URI, diagnosti
 func toProtocolDiagnostics(ctx context.Context, diagnostics []source.Diagnostic) []protocol.Diagnostic {
 	reports := []protocol.Diagnostic{}
 	for _, diag := range diagnostics {
-		reports = append(reports, toProtocolDiagnostic(ctx, diag))
+		reports = append(reports, protocol.Diagnostic{
+			Message:  strings.TrimSpace(diag.Message), // go list returns errors prefixed by newline
+			Range:    diag.Range,
+			Severity: diag.Severity,
+			Source:   diag.Source,
+			Tags:     diag.Tags,
+		})
 	}
 	return reports
-}
-
-func toProtocolDiagnostic(ctx context.Context, diag source.Diagnostic) protocol.Diagnostic {
-	var severity protocol.DiagnosticSeverity
-	switch diag.Severity {
-	case source.SeverityError:
-		severity = protocol.SeverityError
-	case source.SeverityWarning:
-		severity = protocol.SeverityWarning
-	}
-	return protocol.Diagnostic{
-		Message:  strings.TrimSpace(diag.Message), // go list returns errors prefixed by newline
-		Range:    diag.Range,
-		Severity: severity,
-		Source:   diag.Source,
-		Tags:     diag.Tags,
-	}
 }

@@ -61,7 +61,7 @@ func init() {
 	namesCompletionItemKind[int(ConstructorCompletion)] = "constructor"
 	namesCompletionItemKind[int(FieldCompletion)] = "field"
 	namesCompletionItemKind[int(VariableCompletion)] = "var"
-	namesCompletionItemKind[int(ClassCompletion)] = "class"
+	namesCompletionItemKind[int(ClassCompletion)] = "type"
 	namesCompletionItemKind[int(InterfaceCompletion)] = "interface"
 	namesCompletionItemKind[int(ModuleCompletion)] = "package"
 	namesCompletionItemKind[int(PropertyCompletion)] = "property"
@@ -79,7 +79,7 @@ func init() {
 	namesCompletionItemKind[int(StructCompletion)] = "struct"
 	namesCompletionItemKind[int(EventCompletion)] = "event"
 	namesCompletionItemKind[int(OperatorCompletion)] = "operator"
-	namesCompletionItemKind[int(TypeParameterCompletion)] = "type"
+	namesCompletionItemKind[int(TypeParameterCompletion)] = "typeParam"
 
 	namesInsertTextFormat[int(PlainTextTextFormat)] = "PlainText"
 	namesInsertTextFormat[int(SnippetTextFormat)] = "Snippet"

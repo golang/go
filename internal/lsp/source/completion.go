@@ -36,7 +36,7 @@ type CompletionItem struct {
 	// The insert text does not contain snippets.
 	InsertText string
 
-	Kind CompletionItemKind
+	Kind protocol.CompletionItemKind
 
 	// An optional array of additional TextEdits that are applied when
 	// selecting this completion.
@@ -84,22 +84,6 @@ func (i *CompletionItem) Snippet() string {
 	}
 	return i.InsertText
 }
-
-type CompletionItemKind int
-
-const (
-	Unknown CompletionItemKind = iota
-	InterfaceCompletionItem
-	StructCompletionItem
-	TypeCompletionItem
-	ConstantCompletionItem
-	FieldCompletionItem
-	ParameterCompletionItem
-	VariableCompletionItem
-	FunctionCompletionItem
-	MethodCompletionItem
-	PackageCompletionItem
-)
 
 // Scoring constants are used for weighting the relevance of different candidates.
 const (
