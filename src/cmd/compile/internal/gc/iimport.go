@@ -801,10 +801,8 @@ func (r *importReader) node() *Node {
 	// case OCLOSURE:
 	//	unimplemented
 
-	case OPTRLIT:
-		n := nodl(r.pos(), OADDR, r.expr(), nil)
-		_ = r.bool()
-		return n
+	// case OPTRLIT:
+	//	unreachable - mapped to case OADDR below by exporter
 
 	case OSTRUCTLIT:
 		// TODO(mdempsky): Export position information for OSTRUCTKEY nodes.
