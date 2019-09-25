@@ -148,7 +148,7 @@ func TestVDSO(t *testing.T) {
 	output := runTestProg(t, "testprog", "SignalInVDSO")
 	want := "success\n"
 	if output != want {
-		t.Fatalf("output:\n%s\n\nwanted:\n%s", output, want);
+		t.Fatalf("output:\n%s\n\nwanted:\n%s", output, want)
 	}
 }
 
