@@ -3026,7 +3026,7 @@ func typecheckcomplit(n *Node) (res *Node) {
 
 	n.Orig = norig
 	if n.Type.IsPtr() {
-		n = nod(OPTRLIT, n, nil)
+		n = nodl(n.Pos, OPTRLIT, n, nil)
 		n.SetTypecheck(1)
 		n.Type = n.Left.Type
 		n.Left.Type = t
