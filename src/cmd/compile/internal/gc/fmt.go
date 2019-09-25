@@ -1304,12 +1304,8 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 
 	case OCOMPLIT:
 		if mode == FErr {
-			if n.Right != nil && n.Right.Type != nil && !n.Implicit() {
-				if n.Right.Implicit() && n.Right.Type.IsPtr() {
-					mode.Fprintf(s, "&%v literal", n.Right.Type.Elem())
-					return
-				}
-				mode.Fprintf(s, "%v literal", n.Right.Type)
+			if n.Right != nil {
+				mode.Fprintf(s, "%v literal", n.Right)
 				return
 			}
 

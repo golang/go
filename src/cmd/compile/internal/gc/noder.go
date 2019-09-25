@@ -662,15 +662,6 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		}
 		x := p.expr(expr.X)
 		if expr.Y == nil {
-			if expr.Op == syntax.And {
-				x = unparen(x) // TODO(mdempsky): Needed?
-				if x.Op == OCOMPLIT {
-					// Special case for &T{...}: turn into (*T){...}.
-					x.Right = p.nod(expr, ODEREF, x.Right, nil)
-					x.Right.SetImplicit(true)
-					return x
-				}
-			}
 			return p.nod(expr, p.unOp(expr.Op), x, nil)
 		}
 		return p.nod(expr, p.binOp(expr.Op), x, p.expr(expr.Y))

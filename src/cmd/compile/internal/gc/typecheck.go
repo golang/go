@@ -830,36 +830,38 @@ func typecheck1(n *Node, top int) (res *Node) {
 			n.Type = nil
 			return n
 		}
-		checklvalue(n.Left, "take the address of")
-		r := outervalue(n.Left)
-		var l *Node
-		for l = n.Left; l != r; l = l.Left {
-			l.SetAddrtaken(true)
-			if l.IsClosureVar() && !capturevarscomplete {
-				// Mark the original variable as Addrtaken so that capturevars
-				// knows not to pass it by value.
-				// But if the capturevars phase is complete, don't touch it,
-				// in case l.Name's containing function has not yet been compiled.
-				l.Name.Defn.SetAddrtaken(true)
+
+		switch n.Left.Op {
+		case OARRAYLIT, OMAPLIT, OSLICELIT, OSTRUCTLIT:
+			n.Op = OPTRLIT
+
+		default:
+			checklvalue(n.Left, "take the address of")
+			r := outervalue(n.Left)
+			if r.Orig != r && r.Op == ONAME {
+				Fatalf("found non-orig name node %v", r) // TODO(mdempsky): What does this mean?
+			}
+			for l := n.Left; ; l = l.Left {
+				l.SetAddrtaken(true)
+				if l.IsClosureVar() && !capturevarscomplete {
+					// Mark the original variable as Addrtaken so that capturevars
+					// knows not to pass it by value.
+					// But if the capturevars phase is complete, don't touch it,
+					// in case l.Name's containing function has not yet been compiled.
+					l.Name.Defn.SetAddrtaken(true)
+				}
+				if l == r {
+					break
+				}
+			}
+			n.Left = defaultlit(n.Left, nil)
+			if n.Left.Type == nil {
+				n.Type = nil
+				return n
 			}
 		}
 
-		if l.Orig != l && l.Op == ONAME {
-			Fatalf("found non-orig name node %v", l)
-		}
-		l.SetAddrtaken(true)
-		if l.IsClosureVar() && !capturevarscomplete {
-			// See comments above about closure variables.
-			l.Name.Defn.SetAddrtaken(true)
-		}
-		n.Left = defaultlit(n.Left, nil)
-		l = n.Left
-		t := l.Type
-		if t == nil {
-			n.Type = nil
-			return n
-		}
-		n.Type = types.NewPtr(t)
+		n.Type = types.NewPtr(n.Left.Type)
 
 	case OCOMPLIT:
 		ok |= ctxExpr
@@ -2723,13 +2725,8 @@ func fielddup(name string, hash map[string]bool) {
 	hash[name] = true
 }
 
-// iscomptype reports whether type t is a composite literal type
-// or a pointer to one.
+// iscomptype reports whether type t is a composite literal type.
 func iscomptype(t *types.Type) bool {
-	if t.IsPtr() {
-		t = t.Elem()
-	}
-
 	switch t.Etype {
 	case TARRAY, TSLICE, TSTRUCT, TMAP:
 		return true
@@ -2738,16 +2735,27 @@ func iscomptype(t *types.Type) bool {
 	}
 }
 
-func pushtype(n *Node, t *types.Type) {
-	if n == nil || n.Op != OCOMPLIT || !iscomptype(t) {
-		return
+// pushtype adds elided type information for composite literals if
+// appropriate, and returns the resulting expression.
+func pushtype(n *Node, t *types.Type) *Node {
+	if n == nil || n.Op != OCOMPLIT || n.Right != nil {
+		return n
 	}
 
-	if n.Right == nil {
+	switch {
+	case iscomptype(t):
+		// For T, return T{...}.
 		n.Right = typenod(t)
-		n.SetImplicit(true)       // don't print
-		n.Right.SetImplicit(true) // * is okay
+
+	case t.IsPtr() && iscomptype(t.Elem()):
+		// For *T, return &T{...}.
+		n.Right = typenod(t.Elem())
+
+		n = nodl(n.Pos, OADDR, n, nil)
+		n.SetImplicit(true)
 	}
+
+	return n
 }
 
 // The result of typecheckcomplit MUST be assigned back to n, e.g.
@@ -2782,28 +2790,9 @@ func typecheckcomplit(n *Node) (res *Node) {
 	nerr := nerrors
 	n.Type = t
 
-	if t.IsPtr() {
-		// For better or worse, we don't allow pointers as the composite literal type,
-		// except when using the &T syntax, which sets implicit on the ODEREF.
-		if !n.Right.Implicit() {
-			yyerror("invalid pointer type %v for composite literal (use &%v instead)", t, t.Elem())
-			n.Type = nil
-			return n
-		}
-
-		// Also, the underlying type must be a struct, map, slice, or array.
-		if !iscomptype(t) {
-			yyerror("invalid pointer type %v for composite literal", t)
-			n.Type = nil
-			return n
-		}
-
-		t = t.Elem()
-	}
-
 	switch t.Etype {
 	default:
-		yyerror("invalid type for composite literal: %v", t)
+		yyerror("invalid composite literal type %v", t)
 		n.Type = nil
 
 	case TARRAY, TSLICE:
@@ -2850,7 +2839,7 @@ func typecheckcomplit(n *Node) (res *Node) {
 			}
 
 			r := *vp
-			pushtype(r, t.Elem())
+			r = pushtype(r, t.Elem())
 			r = typecheck(r, ctxExpr)
 			*vp = assignconv(r, t.Elem(), "array or slice literal")
 
@@ -2887,13 +2876,13 @@ func typecheckcomplit(n *Node) (res *Node) {
 			}
 
 			r := l.Left
-			pushtype(r, t.Key())
+			r = pushtype(r, t.Key())
 			r = typecheck(r, ctxExpr)
 			l.Left = assignconv(r, t.Key(), "map key")
 			cs.add(lineno, l.Left, "key", "map literal")
 
 			r = l.Right
-			pushtype(r, t.Elem())
+			r = pushtype(r, t.Elem())
 			r = typecheck(r, ctxExpr)
 			l.Right = assignconv(r, t.Elem(), "map value")
 		}
@@ -3022,15 +3011,6 @@ func typecheckcomplit(n *Node) (res *Node) {
 
 	if nerr != nerrors {
 		return n
-	}
-
-	n.Orig = norig
-	if n.Type.IsPtr() {
-		n = nodl(n.Pos, OPTRLIT, n, nil)
-		n.SetTypecheck(1)
-		n.Type = n.Left.Type
-		n.Left.Type = t
-		n.Left.SetTypecheck(1)
 	}
 
 	n.Orig = norig

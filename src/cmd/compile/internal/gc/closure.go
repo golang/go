@@ -395,17 +395,15 @@ func walkclosure(clo *Node, init *Nodes) *Node {
 
 	typ := closureType(clo)
 
-	clos := nod(OCOMPLIT, nil, nod(ODEREF, typenod(typ), nil))
+	clos := nod(OCOMPLIT, nil, typenod(typ))
 	clos.Esc = clo.Esc
-	clos.Right.SetImplicit(true)
 	clos.List.Set(append([]*Node{nod(OCFUNC, xfunc.Func.Nname, nil)}, clo.Func.Enter.Slice()...))
+
+	clos = nod(OADDR, clos, nil)
+	clos.Esc = clo.Esc
 
 	// Force type conversion from *struct to the func type.
 	clos = convnop(clos, clo.Type)
-
-	// typecheck will insert a PTRLIT node under CONVNOP,
-	// tag it with escape analysis result.
-	clos.Left.Esc = clo.Esc
 
 	// non-escaping temp to use, if any.
 	if x := prealloc[clo]; x != nil {
@@ -547,17 +545,15 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 
 	typ := partialCallType(n)
 
-	clos := nod(OCOMPLIT, nil, nod(ODEREF, typenod(typ), nil))
+	clos := nod(OCOMPLIT, nil, typenod(typ))
 	clos.Esc = n.Esc
-	clos.Right.SetImplicit(true)
 	clos.List.Set2(nod(OCFUNC, n.Func.Nname, nil), n.Left)
+
+	clos = nod(OADDR, clos, nil)
+	clos.Esc = n.Esc
 
 	// Force type conversion from *struct to the func type.
 	clos = convnop(clos, n.Type)
-
-	// The typecheck inside convnop will insert a PTRLIT node under CONVNOP.
-	// Tag it with escape analysis result.
-	clos.Left.Esc = n.Esc
 
 	// non-escaping temp to use, if any.
 	if x := prealloc[n]; x != nil {

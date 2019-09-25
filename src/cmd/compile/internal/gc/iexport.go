@@ -1181,10 +1181,10 @@ func (w *exportWriter) expr(n *Node) {
 	// 	should have been resolved by typechecking - handled by default case
 
 	case OPTRLIT:
-		w.op(OPTRLIT)
+		w.op(OPTRLIT) // TODO(mdempsky): Replace with OADDR.
 		w.pos(n.Pos)
 		w.expr(n.Left)
-		w.bool(n.Implicit())
+		w.bool(false)
 
 	case OSTRUCTLIT:
 		w.op(OSTRUCTLIT)
