@@ -8,6 +8,7 @@
 #include "go_tls.h"
 #include "funcdata.h"
 #include "textflag.h"
+#include "asm_ppc64x.h"
 
 // The following functions allow calling the clang-compiled race runtime directly
 // from Go code without going all the way through cgo.
@@ -101,7 +102,7 @@ TEXT	runtime·racereadrangepc1(SB), NOSPLIT, $0-24
 	MOVD    $__tsan_read_range(SB), R8
 	BR	racecalladdr<>(SB)
 
-TEXT    runtime·RaceReadRange(SB), NOSPLIT, $0-24
+TEXT    runtime·RaceReadRange(SB), NOSPLIT, $0-16
 	BR	runtime·racereadrange(SB)
 
 // func runtime·RaceWriteRange(addr, size uintptr)
@@ -467,9 +468,9 @@ rest:
 	MOVD	R10, 16(R1)
 	MOVW	CR, R10
 	MOVW	R10, 8(R1)
-	MOVDU   R1, -336(R1) // Allocate frame needed for register save area
+	MOVDU   R1, -336(R1) // Allocate frame needed for outargs and register save area
 
-	MOVD    R14, 40(R1)
+	MOVD    R14, 328(R1)
 	MOVD    R15, 48(R1)
 	MOVD    R16, 56(R1)
 	MOVD    R17, 64(R1)
@@ -511,8 +512,8 @@ rest:
 
 	MOVD	g_m(g), R7
 	MOVD	m_g0(R7), g // set g = m-> g0
-	MOVD	R3, cmd+0(FP) // can't use R1 here ?? use input args and assumer caller expects those?
-	MOVD	R4, ctx+8(FP) // can't use R1 here ??
+	MOVD	R3, FIXED_FRAME+0(R1)
+	MOVD	R4, FIXED_FRAME+8(R1)
 	BL	runtime·racecallback(SB)
 	// All registers are clobbered after Go code, reload.
 	MOVD    runtime·tls_g(SB), R10
@@ -520,7 +521,7 @@ rest:
 
 	MOVD	g_m(g), R7
 	MOVD	m_curg(R7), g // restore g = m->curg
-	MOVD    40(R1), R14
+	MOVD    328(R1), R14
 	MOVD    48(R1), R15
 	MOVD    56(R1), R16
 	MOVD    64(R1), R17
