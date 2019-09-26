@@ -62,7 +62,6 @@ const (
 	ctxCallee              // call-only expressions are ok
 	ctxMultiOK             // multivalue function returns are ok
 	ctxAssign              // assigning to expression
-	ctxCompLit             // type in composite literal
 )
 
 // type checks the whole tree of an expression.
@@ -413,15 +412,12 @@ func typecheck1(n *Node, top int) (res *Node) {
 		if n.Left == nil {
 			t = types.NewSlice(r.Type)
 		} else if n.Left.Op == ODDD {
-			if top&ctxCompLit == 0 {
-				if !n.Diag() {
-					n.SetDiag(true)
-					yyerror("use of [...] array outside of array literal")
-				}
-				n.Type = nil
-				return n
+			if !n.Diag() {
+				n.SetDiag(true)
+				yyerror("use of [...] array outside of array literal")
 			}
-			t = types.NewDDDArray(r.Type)
+			n.Type = nil
+			return n
 		} else {
 			n.Left = indexlit(typecheck(n.Left, ctxExpr))
 			l := n.Left
@@ -457,9 +453,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 		setTypeNode(n, t)
 		n.Left = nil
 		n.Right = nil
-		if !t.IsDDDArray() {
-			checkwidth(t)
-		}
+		checkwidth(t)
 
 	case OTMAP:
 		ok |= ctxType
@@ -517,7 +511,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 	// type or expr
 	case ODEREF:
-		n.Left = typecheck(n.Left, ctxExpr|ctxType|top&ctxCompLit)
+		n.Left = typecheck(n.Left, ctxExpr|ctxType)
 		l := n.Left
 		t := l.Type
 		if t == nil {
@@ -527,13 +521,9 @@ func typecheck1(n *Node, top int) (res *Node) {
 		if l.Op == OTYPE {
 			ok |= ctxType
 			setTypeNode(n, types.NewPtr(l.Type))
-			// Ensure l.Type gets dowidth'd for the backend. Issue 20174.
-			// Don't checkwidth [...] arrays, though, since they
-			// will be replaced by concrete-sized arrays. Issue 20333.
-			if !l.Type.IsDDDArray() {
-				checkwidth(l.Type)
-			}
 			n.Left = nil
+			// Ensure l.Type gets dowidth'd for the backend. Issue 20174.
+			checkwidth(l.Type)
 			break
 		}
 
@@ -1257,7 +1247,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 		n.Left = defaultlit(n.Left, nil)
 		l = n.Left
 		if l.Op == OTYPE {
-			if n.IsDDD() || l.Type.IsDDDArray() {
+			if n.IsDDD() {
 				if !l.Type.Broke() {
 					yyerror("invalid use of ... in type conversion to %v", l.Type)
 				}
@@ -2777,17 +2767,33 @@ func typecheckcomplit(n *Node) (res *Node) {
 	}
 
 	// Save original node (including n.Right)
-	norig := n.copy()
+	n.Orig = n.copy()
 
 	setlineno(n.Right)
-	n.Right = typecheck(n.Right, ctxType|ctxCompLit)
-	l := n.Right // sic
-	t := l.Type
+
+	// Need to handle [...]T arrays specially.
+	if n.Right.Op == OTARRAY && n.Right.Left != nil && n.Right.Left.Op == ODDD {
+		n.Right.Right = typecheck(n.Right.Right, ctxType)
+		if n.Right.Right.Type == nil {
+			n.Type = nil
+			return n
+		}
+		elemType := n.Right.Right.Type
+
+		length := typecheckarraylit(elemType, -1, n.List.Slice())
+
+		n.Op = OARRAYLIT
+		n.Type = types.NewArray(elemType, length)
+		n.Right = nil
+		return n
+	}
+
+	n.Right = typecheck(n.Right, ctxType)
+	t := n.Right.Type
 	if t == nil {
 		n.Type = nil
 		return n
 	}
-	nerr := nerrors
 	n.Type = t
 
 	switch t.Etype {
@@ -2796,12 +2802,7 @@ func typecheckcomplit(n *Node) (res *Node) {
 		n.Type = nil
 
 	case TARRAY:
-		if t.IsDDDArray() {
-			length := typecheckarraylit(t.Elem(), -1, n.List.Slice())
-			t.SetNumElem(length)
-		} else {
-			typecheckarraylit(t.Elem(), t.NumElem(), n.List.Slice())
-		}
+		typecheckarraylit(t.Elem(), t.NumElem(), n.List.Slice())
 		n.Op = OARRAYLIT
 		n.Right = nil
 
@@ -2954,11 +2955,6 @@ func typecheckcomplit(n *Node) (res *Node) {
 		n.Right = nil
 	}
 
-	if nerr != nerrors {
-		return n
-	}
-
-	n.Orig = norig
 	return n
 }
 

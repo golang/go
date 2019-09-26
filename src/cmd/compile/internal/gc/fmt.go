@@ -720,9 +720,6 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 		return "*" + tmodeString(t.Elem(), mode, depth)
 
 	case TARRAY:
-		if t.IsDDDArray() {
-			return "[...]" + tmodeString(t.Elem(), mode, depth)
-		}
 		return "[" + strconv.FormatInt(t.NumElem(), 10) + "]" + tmodeString(t.Elem(), mode, depth)
 
 	case TSLICE:
