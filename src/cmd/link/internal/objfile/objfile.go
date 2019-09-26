@@ -342,6 +342,10 @@ overwrite:
 			}
 		}
 
+		// Temporary: zero out the autom list after we've read it.
+		// In a subsequent patch we'll remove autom handling more completely.
+		pc.Autom = nil
+
 		pc.Pcsp.P = r.readData()
 		pc.Pcfile.P = r.readData()
 		pc.Pcline.P = r.readData()
