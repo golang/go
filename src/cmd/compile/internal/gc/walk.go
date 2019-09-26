@@ -3130,20 +3130,10 @@ func walkcompare(n *Node, init *Nodes) *Node {
 			Fatalf("arguments of comparison must be lvalues - %v %v", cmpl, cmpr)
 		}
 
-		pl := temp(types.NewPtr(t))
-		al := nod(OAS, pl, nod(OADDR, cmpl, nil))
-		al = typecheck(al, ctxStmt)
-		init.Append(al)
-
-		pr := temp(types.NewPtr(t))
-		ar := nod(OAS, pr, nod(OADDR, cmpr, nil))
-		ar = typecheck(ar, ctxStmt)
-		init.Append(ar)
-
 		fn, needsize := eqfor(t)
 		call := nod(OCALL, fn, nil)
-		call.List.Append(pl)
-		call.List.Append(pr)
+		call.List.Append(nod(OADDR, cmpl, nil))
+		call.List.Append(nod(OADDR, cmpr, nil))
 		if needsize {
 			call.List.Append(nodintconst(t.Width))
 		}
