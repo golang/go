@@ -16,7 +16,10 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/packages/packagestest"
+	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/tests"
+	"golang.org/x/tools/internal/span"
 )
 
 type runner struct {
@@ -33,67 +36,67 @@ func NewRunner(exporter packagestest.Exporter, data *tests.Data, ctx context.Con
 	}
 }
 
-func (r *runner) Completion(t *testing.T, data tests.Completions, items tests.CompletionItems) {
+func (r *runner) Completion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
 	//TODO: add command line completions tests when it works
 }
 
-func (r *runner) CompletionSnippets(t *testing.T, data tests.CompletionSnippets, items tests.CompletionItems) {
+func (r *runner) CompletionSnippet(t *testing.T, src span.Span, expected tests.CompletionSnippet, placeholders bool, items tests.CompletionItems) {
 	//TODO: add command line completions tests when it works
 }
 
-func (r *runner) UnimportedCompletions(t *testing.T, data tests.UnimportedCompletions, items tests.CompletionItems) {
+func (r *runner) UnimportedCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
 	//TODO: add command line completions tests when it works
 }
 
-func (r *runner) DeepCompletions(t *testing.T, data tests.DeepCompletions, items tests.CompletionItems) {
+func (r *runner) DeepCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
 	//TODO: add command line completions tests when it works
 }
 
-func (r *runner) FuzzyCompletions(t *testing.T, data tests.FuzzyCompletions, items tests.CompletionItems) {
+func (r *runner) FuzzyCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
 	//TODO: add command line completions tests when it works
 }
 
-func (r *runner) CaseSensitiveCompletions(t *testing.T, data tests.CaseSensitiveCompletions, items tests.CompletionItems) {
+func (r *runner) CaseSensitiveCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
 	//TODO: add command line completions tests when it works
 }
 
-func (r *runner) RankCompletions(t *testing.T, data tests.RankCompletions, items tests.CompletionItems) {
+func (r *runner) RankCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
 	//TODO: add command line completions tests when it works
 }
 
-func (r *runner) FoldingRange(t *testing.T, data tests.FoldingRanges) {
+func (r *runner) FoldingRange(t *testing.T, spn span.Span) {
 	//TODO: add command line folding range tests when it works
 }
 
-func (r *runner) Highlight(t *testing.T, data tests.Highlights) {
+func (r *runner) Highlight(t *testing.T, name string, locations []span.Span) {
 	//TODO: add command line highlight tests when it works
 }
 
-func (r *runner) Reference(t *testing.T, data tests.References) {
+func (r *runner) Reference(t *testing.T, src span.Span, itemList []span.Span) {
 	//TODO: add command line references tests when it works
 }
 
-func (r *runner) PrepareRename(t *testing.T, data tests.PrepareRenames) {
+func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.PrepareItem) {
 	//TODO: add command line prepare rename tests when it works
 }
 
-func (r *runner) Symbol(t *testing.T, data tests.Symbols) {
+func (r *runner) Symbol(t *testing.T, uri span.URI, expectedSymbols []protocol.DocumentSymbol) {
 	//TODO: add command line symbol tests when it works
 }
 
-func (r *runner) SignatureHelp(t *testing.T, data tests.Signatures) {
+func (r *runner) SignatureHelp(t *testing.T, spn span.Span, expectedSignature *source.SignatureInformation) {
 	//TODO: add command line signature tests when it works
 }
 
-func (r *runner) Link(t *testing.T, data tests.Links) {
+func (r *runner) Link(t *testing.T, uri span.URI, wantLinks []tests.Link) {
 	//TODO: add command line link tests when it works
 }
 
-func (r *runner) Import(t *testing.T, data tests.Imports) {
+func (r *runner) Import(t *testing.T, spn span.Span) {
 	//TODO: add command line imports tests when it works
 }
 
-func (r *runner) SuggestedFix(t *testing.T, data tests.SuggestedFixes) {
+func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 	//TODO: add suggested fix tests when it works
 }
 

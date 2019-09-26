@@ -11,119 +11,103 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-func (r *runner) Completion(t *testing.T, data tests.Completions, items tests.CompletionItems) {
-	for src, test := range data {
-		got := r.callCompletion(t, src, source.CompletionOptions{
-			Deep:          false,
-			FuzzyMatching: false,
-			Documentation: true,
-		})
-		if !strings.Contains(string(src.URI()), "builtins") {
-			got = tests.FilterBuiltins(got)
-		}
-		want := expected(t, test, items)
-		if diff := tests.DiffCompletionItems(want, got); diff != "" {
-			t.Errorf("%s: %s", src, diff)
-		}
+func (r *runner) Completion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
+	got := r.callCompletion(t, src, source.CompletionOptions{
+		Deep:          false,
+		FuzzyMatching: false,
+		Documentation: true,
+	})
+	if !strings.Contains(string(src.URI()), "builtins") {
+		got = tests.FilterBuiltins(got)
+	}
+	want := expected(t, test, items)
+	if diff := tests.DiffCompletionItems(want, got); diff != "" {
+		t.Errorf("%s: %s", src, diff)
 	}
 }
 
-func (r *runner) CompletionSnippets(t *testing.T, data tests.CompletionSnippets, items tests.CompletionItems) {
-	for _, placeholders := range []bool{true, false} {
-		for src, expected := range data {
-			list := r.callCompletion(t, src, source.CompletionOptions{
-				Placeholders:  placeholders,
-				Deep:          true,
-				Budget:        5 * time.Second,
-				FuzzyMatching: true,
-			})
-			got := tests.FindItem(list, *items[expected.CompletionItem])
-			want := expected.PlainSnippet
-			if placeholders {
-				want = expected.PlaceholderSnippet
-			}
-			if diff := tests.DiffSnippets(want, got); diff != "" {
-				t.Errorf("%s: %v", src, diff)
-			}
-		}
+func (r *runner) CompletionSnippet(t *testing.T, src span.Span, expected tests.CompletionSnippet, placeholders bool, items tests.CompletionItems) {
+	list := r.callCompletion(t, src, source.CompletionOptions{
+		Placeholders:  placeholders,
+		Deep:          true,
+		Budget:        5 * time.Second,
+		FuzzyMatching: true,
+	})
+	got := tests.FindItem(list, *items[expected.CompletionItem])
+	want := expected.PlainSnippet
+	if placeholders {
+		want = expected.PlaceholderSnippet
+	}
+	if diff := tests.DiffSnippets(want, got); diff != "" {
+		t.Errorf("%s: %v", src, diff)
 	}
 }
 
-func (r *runner) UnimportedCompletions(t *testing.T, data tests.UnimportedCompletions, items tests.CompletionItems) {
-	for src, test := range data {
-		got := r.callCompletion(t, src, source.CompletionOptions{
-			Unimported: true,
-		})
-		if !strings.Contains(string(src.URI()), "builtins") {
-			got = tests.FilterBuiltins(got)
-		}
-		want := expected(t, test, items)
-		if diff := tests.DiffCompletionItems(want, got); diff != "" {
-			t.Errorf("%s: %s", src, diff)
-		}
+func (r *runner) UnimportedCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
+	got := r.callCompletion(t, src, source.CompletionOptions{
+		Unimported: true,
+	})
+	if !strings.Contains(string(src.URI()), "builtins") {
+		got = tests.FilterBuiltins(got)
+	}
+	want := expected(t, test, items)
+	if diff := tests.DiffCompletionItems(want, got); diff != "" {
+		t.Errorf("%s: %s", src, diff)
 	}
 }
 
-func (r *runner) DeepCompletions(t *testing.T, data tests.DeepCompletions, items tests.CompletionItems) {
-	for src, test := range data {
-		got := r.callCompletion(t, src, source.CompletionOptions{
-			Deep:          true,
-			Budget:        5 * time.Second,
-			Documentation: true,
-		})
-		if !strings.Contains(string(src.URI()), "builtins") {
-			got = tests.FilterBuiltins(got)
-		}
-		want := expected(t, test, items)
-		if msg := tests.DiffCompletionItems(want, got); msg != "" {
-			t.Errorf("%s: %s", src, msg)
-		}
+func (r *runner) DeepCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
+	got := r.callCompletion(t, src, source.CompletionOptions{
+		Deep:          true,
+		Budget:        5 * time.Second,
+		Documentation: true,
+	})
+	if !strings.Contains(string(src.URI()), "builtins") {
+		got = tests.FilterBuiltins(got)
+	}
+	want := expected(t, test, items)
+	if msg := tests.DiffCompletionItems(want, got); msg != "" {
+		t.Errorf("%s: %s", src, msg)
 	}
 }
 
-func (r *runner) FuzzyCompletions(t *testing.T, data tests.FuzzyCompletions, items tests.CompletionItems) {
-	for src, test := range data {
-		got := r.callCompletion(t, src, source.CompletionOptions{
-			FuzzyMatching: true,
-			Deep:          true,
-			Budget:        5 * time.Second,
-		})
-		if !strings.Contains(string(src.URI()), "builtins") {
-			got = tests.FilterBuiltins(got)
-		}
-		want := expected(t, test, items)
-		if msg := tests.DiffCompletionItems(want, got); msg != "" {
-			t.Errorf("%s: %s", src, msg)
-		}
+func (r *runner) FuzzyCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
+	got := r.callCompletion(t, src, source.CompletionOptions{
+		FuzzyMatching: true,
+		Deep:          true,
+		Budget:        5 * time.Second,
+	})
+	if !strings.Contains(string(src.URI()), "builtins") {
+		got = tests.FilterBuiltins(got)
+	}
+	want := expected(t, test, items)
+	if msg := tests.DiffCompletionItems(want, got); msg != "" {
+		t.Errorf("%s: %s", src, msg)
 	}
 }
 
-func (r *runner) CaseSensitiveCompletions(t *testing.T, data tests.CaseSensitiveCompletions, items tests.CompletionItems) {
-	for src, test := range data {
-		got := r.callCompletion(t, src, source.CompletionOptions{
-			CaseSensitive: true,
-		})
-		if !strings.Contains(string(src.URI()), "builtins") {
-			got = tests.FilterBuiltins(got)
-		}
-		want := expected(t, test, items)
-		if msg := tests.DiffCompletionItems(want, got); msg != "" {
-			t.Errorf("%s: %s", src, msg)
-		}
+func (r *runner) CaseSensitiveCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
+	got := r.callCompletion(t, src, source.CompletionOptions{
+		CaseSensitive: true,
+	})
+	if !strings.Contains(string(src.URI()), "builtins") {
+		got = tests.FilterBuiltins(got)
+	}
+	want := expected(t, test, items)
+	if msg := tests.DiffCompletionItems(want, got); msg != "" {
+		t.Errorf("%s: %s", src, msg)
 	}
 }
 
-func (r *runner) RankCompletions(t *testing.T, data tests.RankCompletions, items tests.CompletionItems) {
-	for src, test := range data {
-		got := r.callCompletion(t, src, source.CompletionOptions{
-			FuzzyMatching: true,
-			Deep:          true,
-			Budget:        5 * time.Second,
-		})
-		want := expected(t, test, items)
-		if msg := tests.CheckCompletionOrder(want, got); msg != "" {
-			t.Errorf("%s: %s", src, msg)
-		}
+func (r *runner) RankCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
+	got := r.callCompletion(t, src, source.CompletionOptions{
+		FuzzyMatching: true,
+		Deep:          true,
+		Budget:        5 * time.Second,
+	})
+	want := expected(t, test, items)
+	if msg := tests.CheckCompletionOrder(want, got); msg != "" {
+		t.Errorf("%s: %s", src, msg)
 	}
 }
 

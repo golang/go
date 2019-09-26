@@ -96,26 +96,26 @@ type Data struct {
 }
 
 type Tests interface {
-	Diagnostics(*testing.T, Diagnostics)
-	Completion(*testing.T, Completions, CompletionItems)
-	CompletionSnippets(*testing.T, CompletionSnippets, CompletionItems)
-	UnimportedCompletions(*testing.T, UnimportedCompletions, CompletionItems)
-	DeepCompletions(*testing.T, DeepCompletions, CompletionItems)
-	FuzzyCompletions(*testing.T, FuzzyCompletions, CompletionItems)
-	CaseSensitiveCompletions(*testing.T, CaseSensitiveCompletions, CompletionItems)
-	RankCompletions(*testing.T, RankCompletions, CompletionItems)
-	FoldingRange(*testing.T, FoldingRanges)
-	Format(*testing.T, Formats)
-	Import(*testing.T, Imports)
-	SuggestedFix(*testing.T, SuggestedFixes)
-	Definition(*testing.T, Definitions)
-	Highlight(*testing.T, Highlights)
-	Reference(*testing.T, References)
-	Rename(*testing.T, Renames)
-	PrepareRename(*testing.T, PrepareRenames)
-	Symbol(*testing.T, Symbols)
-	SignatureHelp(*testing.T, Signatures)
-	Link(*testing.T, Links)
+	Diagnostics(*testing.T, span.URI, []source.Diagnostic)
+	Completion(*testing.T, span.Span, Completion, CompletionItems)
+	CompletionSnippet(*testing.T, span.Span, CompletionSnippet, bool, CompletionItems)
+	UnimportedCompletion(*testing.T, span.Span, Completion, CompletionItems)
+	DeepCompletion(*testing.T, span.Span, Completion, CompletionItems)
+	FuzzyCompletion(*testing.T, span.Span, Completion, CompletionItems)
+	CaseSensitiveCompletion(*testing.T, span.Span, Completion, CompletionItems)
+	RankCompletion(*testing.T, span.Span, Completion, CompletionItems)
+	FoldingRange(*testing.T, span.Span)
+	Format(*testing.T, span.Span)
+	Import(*testing.T, span.Span)
+	SuggestedFix(*testing.T, span.Span)
+	Definition(*testing.T, span.Span, Definition)
+	Highlight(*testing.T, string, []span.Span)
+	Reference(*testing.T, span.Span, []span.Span)
+	Rename(*testing.T, span.Span, string)
+	PrepareRename(*testing.T, span.Span, *source.PrepareItem)
+	Symbol(*testing.T, span.URI, []protocol.DocumentSymbol)
+	SignatureHelp(*testing.T, span.Span, *source.SignatureInformation)
+	Link(*testing.T, span.URI, []Link)
 }
 
 type Definition struct {
@@ -327,102 +327,144 @@ func Run(t *testing.T, tests Tests, data *Data) {
 
 	t.Run("Completion", func(t *testing.T) {
 		t.Helper()
-		tests.Completion(t, data.Completions, data.CompletionItems)
+		for src, test := range data.Completions {
+			tests.Completion(t, src, test, data.CompletionItems)
+		}
 	})
 
 	t.Run("CompletionSnippets", func(t *testing.T) {
 		t.Helper()
-		tests.CompletionSnippets(t, data.CompletionSnippets, data.CompletionItems)
+		for _, placeholders := range []bool{true, false} {
+			for src, expected := range data.CompletionSnippets {
+				tests.CompletionSnippet(t, src, expected, placeholders, data.CompletionItems)
+			}
+		}
 	})
 
 	t.Run("UnimportedCompletion", func(t *testing.T) {
 		t.Helper()
-		tests.UnimportedCompletions(t, data.UnimportedCompletions, data.CompletionItems)
+		for src, test := range data.UnimportedCompletions {
+			tests.UnimportedCompletion(t, src, test, data.CompletionItems)
+		}
 	})
 
 	t.Run("DeepCompletion", func(t *testing.T) {
 		t.Helper()
-		tests.DeepCompletions(t, data.DeepCompletions, data.CompletionItems)
+		for src, test := range data.DeepCompletions {
+			tests.DeepCompletion(t, src, test, data.CompletionItems)
+		}
 	})
 
 	t.Run("FuzzyCompletion", func(t *testing.T) {
 		t.Helper()
-		tests.FuzzyCompletions(t, data.FuzzyCompletions, data.CompletionItems)
+		for src, test := range data.FuzzyCompletions {
+			tests.FuzzyCompletion(t, src, test, data.CompletionItems)
+		}
 	})
 
 	t.Run("CaseSensitiveCompletion", func(t *testing.T) {
 		t.Helper()
-		tests.CaseSensitiveCompletions(t, data.CaseSensitiveCompletions, data.CompletionItems)
+		for src, test := range data.CaseSensitiveCompletions {
+			tests.CaseSensitiveCompletion(t, src, test, data.CompletionItems)
+		}
 	})
 
 	t.Run("RankCompletions", func(t *testing.T) {
 		t.Helper()
-		tests.RankCompletions(t, data.RankCompletions, data.CompletionItems)
+		for src, test := range data.RankCompletions {
+			tests.RankCompletion(t, src, test, data.CompletionItems)
+		}
 	})
 
 	t.Run("Diagnostics", func(t *testing.T) {
 		t.Helper()
-		tests.Diagnostics(t, data.Diagnostics)
+		for uri, want := range data.Diagnostics {
+			tests.Diagnostics(t, uri, want)
+		}
 	})
 
 	t.Run("FoldingRange", func(t *testing.T) {
 		t.Helper()
-		tests.FoldingRange(t, data.FoldingRanges)
+		for _, spn := range data.FoldingRanges {
+			tests.FoldingRange(t, spn)
+		}
 	})
 
 	t.Run("Format", func(t *testing.T) {
 		t.Helper()
-		tests.Format(t, data.Formats)
+		for _, spn := range data.Formats {
+			tests.Format(t, spn)
+		}
 	})
 
 	t.Run("Import", func(t *testing.T) {
 		t.Helper()
-		tests.Import(t, data.Imports)
+		for _, spn := range data.Imports {
+			tests.Import(t, spn)
+		}
 	})
 
 	t.Run("SuggestedFix", func(t *testing.T) {
 		t.Helper()
-		tests.SuggestedFix(t, data.SuggestedFixes)
+		for _, spn := range data.SuggestedFixes {
+			tests.SuggestedFix(t, spn)
+		}
 	})
 
 	t.Run("Definition", func(t *testing.T) {
 		t.Helper()
-		tests.Definition(t, data.Definitions)
+		for spn, d := range data.Definitions {
+			tests.Definition(t, spn, d)
+		}
 	})
 
 	t.Run("Highlight", func(t *testing.T) {
 		t.Helper()
-		tests.Highlight(t, data.Highlights)
+		for name, locations := range data.Highlights {
+			tests.Highlight(t, name, locations)
+		}
 	})
 
 	t.Run("References", func(t *testing.T) {
 		t.Helper()
-		tests.Reference(t, data.References)
+		for src, itemList := range data.References {
+			tests.Reference(t, src, itemList)
+		}
 	})
 
 	t.Run("Renames", func(t *testing.T) {
 		t.Helper()
-		tests.Rename(t, data.Renames)
+		for spn, newText := range data.Renames {
+			tests.Rename(t, spn, newText)
+		}
 	})
 
 	t.Run("PrepareRenames", func(t *testing.T) {
 		t.Helper()
-		tests.PrepareRename(t, data.PrepareRenames)
+		for src, want := range data.PrepareRenames {
+			tests.PrepareRename(t, src, want)
+		}
 	})
 
 	t.Run("Symbols", func(t *testing.T) {
 		t.Helper()
-		tests.Symbol(t, data.Symbols)
+		for uri, expectedSymbols := range data.Symbols {
+			tests.Symbol(t, uri, expectedSymbols)
+		}
 	})
 
 	t.Run("SignatureHelp", func(t *testing.T) {
 		t.Helper()
-		tests.SignatureHelp(t, data.Signatures)
+		for spn, expectedSignature := range data.Signatures {
+			tests.SignatureHelp(t, spn, expectedSignature)
+		}
 	})
 
 	t.Run("Link", func(t *testing.T) {
 		t.Helper()
-		tests.Link(t, data.Links)
+		for uri, wantLinks := range data.Links {
+			tests.Link(t, uri, wantLinks)
+		}
 	})
 
 	if *UpdateGolden {
