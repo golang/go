@@ -376,7 +376,7 @@ func compileFunctions() {
 	}
 }
 
-func debuginfo(fnsym *obj.LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) {
+func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) {
 	fn := curfn.(*Node)
 	if fn.Func.Nname != nil {
 		if expect := fn.Func.Nname.Sym.Linksym(); fnsym != expect {
@@ -414,9 +414,25 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCall
 			Name:    name,
 			Gotype:  gotype,
 		})
+		fnsym.Func.RecordAutoType(gotype)
 	}
 
 	decls, dwarfVars := createDwarfVars(fnsym, fn.Func, automDecls)
+
+	// For each type referenced by the functions auto vars, attach a
+	// dummy relocation to the function symbol to insure that the type
+	// included in DWARF processing during linking.
+	typesyms := []*obj.LSym{}
+	for t, _ := range fnsym.Func.Autot {
+		typesyms = append(typesyms, t)
+	}
+	sort.Sort(obj.BySymName(typesyms))
+	for _, sym := range typesyms {
+		r := obj.Addrel(infosym)
+		r.Sym = sym
+		r.Type = objabi.R_USETYPE
+	}
+	fnsym.Func.Autot = nil
 
 	var varScopes []ScopeID
 	for _, decl := range decls {
@@ -643,7 +659,7 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, automDecls []*Node) ([]*Node, []
 			Name:    obj.NAME_DELETED_AUTO,
 			Gotype:  gotype,
 		})
-
+		fnsym.Func.RecordAutoType(gotype)
 	}
 
 	return decls, vars
