@@ -591,7 +591,7 @@ func evconst(n *Node) {
 			setconst(n, shiftOp(nl.Val(), op, nr.Val()))
 		}
 
-	case OCONV:
+	case OCONV, ORUNESTR:
 		if okforconst[n.Type.Etype] && nl.Op == OLITERAL {
 			setconst(n, convertVal(nl.Val(), n.Type, true))
 		}
