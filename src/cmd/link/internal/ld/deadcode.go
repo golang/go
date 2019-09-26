@@ -270,12 +270,6 @@ func (d *deadcodepass) flood() {
 			if d.ctxt.Debugvlog > 1 {
 				d.ctxt.Logf("marktext %s\n", s.Name)
 			}
-			if s.FuncInfo != nil {
-				for _, a := range s.FuncInfo.Autom {
-					d.mark(a.Gotype, s)
-				}
-			}
-
 		}
 
 		if strings.HasPrefix(s.Name, "type.") && s.Name[5] != '.' {

@@ -55,7 +55,6 @@ type objReader struct {
 	data        []byte
 	reloc       []sym.Reloc
 	pcdata      []sym.Pcdata
-	autom       []sym.Auto
 	funcdata    []*sym.Symbol
 	funcdataoff []int64
 	file        []*sym.Symbol
@@ -193,8 +192,7 @@ func (r *objReader) readSlices() {
 	r.reloc = make([]sym.Reloc, n)
 	n = r.readInt()
 	r.pcdata = make([]sym.Pcdata, n)
-	n = r.readInt()
-	r.autom = make([]sym.Auto, n)
+	_ = r.readInt() // TODO: remove on next object file rev (autom count)
 	n = r.readInt()
 	r.funcdata = make([]*sym.Symbol, n)
 	r.funcdataoff = make([]int64, n)
@@ -328,23 +326,9 @@ overwrite:
 			s.Attr |= sym.AttrTopFrame
 		}
 		n := r.readInt()
-		pc.Autom = r.autom[:n:n]
-		if !isdup {
-			r.autom = r.autom[n:]
+		if n != 0 {
+			log.Fatalf("stale object file: autom count nonzero")
 		}
-
-		for i := 0; i < n; i++ {
-			pc.Autom[i] = sym.Auto{
-				Asym:    r.readSymIndex(),
-				Aoffset: r.readInt32(),
-				Name:    r.readInt16(),
-				Gotype:  r.readSymIndex(),
-			}
-		}
-
-		// Temporary: zero out the autom list after we've read it.
-		// In a subsequent patch we'll remove autom handling more completely.
-		pc.Autom = nil
 
 		pc.Pcsp.P = r.readData()
 		pc.Pcfile.P = r.readData()
