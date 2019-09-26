@@ -495,14 +495,6 @@ func NewSlice(elem *Type) *Type {
 	return t
 }
 
-// NewDDDArray returns a new [...]T array Type.
-func NewDDDArray(elem *Type) *Type {
-	t := New(TARRAY)
-	t.Extra = &Array{Elem: elem, Bound: -1}
-	t.SetNotInHeap(elem.NotInHeap())
-	return t
-}
-
 // NewChan returns a new chan Type with direction dir.
 func NewChan(elem *Type, dir ChanDir) *Type {
 	t := New(TCHAN)
@@ -880,13 +872,6 @@ func (t *Type) SetFields(fields []*Field) {
 func (t *Type) SetInterface(methods []*Field) {
 	t.wantEtype(TINTER)
 	t.Methods().Set(methods)
-}
-
-func (t *Type) IsDDDArray() bool {
-	if t.Etype != TARRAY {
-		return false
-	}
-	return t.Extra.(*Array).Bound < 0
 }
 
 func (t *Type) WidthCalculated() bool {
@@ -1325,23 +1310,7 @@ func (t *Type) FieldName(i int) string {
 
 func (t *Type) NumElem() int64 {
 	t.wantEtype(TARRAY)
-	at := t.Extra.(*Array)
-	if at.Bound < 0 {
-		Fatalf("NumElem array %v does not have bound yet", t)
-	}
-	return at.Bound
-}
-
-// SetNumElem sets the number of elements in an array type.
-// The only allowed use is on array types created with NewDDDArray.
-// For other uses, create a new array with NewArray instead.
-func (t *Type) SetNumElem(n int64) {
-	t.wantEtype(TARRAY)
-	at := t.Extra.(*Array)
-	if at.Bound >= 0 {
-		Fatalf("SetNumElem array %v already has bound %d", t, at.Bound)
-	}
-	at.Bound = n
+	return t.Extra.(*Array).Bound
 }
 
 type componentsIncludeBlankFields bool

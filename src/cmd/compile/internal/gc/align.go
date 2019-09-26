@@ -324,13 +324,6 @@ func dowidth(t *types.Type) {
 		if t.Elem() == nil {
 			break
 		}
-		if t.IsDDDArray() {
-			if !t.Broke() {
-				yyerror("use of [...] array outside of array literal")
-				t.SetBroke(true)
-			}
-			break
-		}
 
 		dowidth(t.Elem())
 		if t.Elem().Width != 0 {
