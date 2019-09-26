@@ -76,6 +76,7 @@ type Options struct {
 type CompletionOptions struct {
 	Deep              bool
 	FuzzyMatching     bool
+	CaseSensitive     bool
 	Unimported        bool
 	Documentation     bool
 	FullDocumentation bool
@@ -200,6 +201,8 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 		result.setBool(&o.Completion.Deep)
 	case "fuzzyMatching":
 		result.setBool(&o.Completion.FuzzyMatching)
+	case "caseSensitiveCompletion":
+		result.setBool(&o.Completion.CaseSensitive)
 	case "completeUnimported":
 		result.setBool(&o.Completion.Unimported)
 

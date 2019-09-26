@@ -53,6 +53,10 @@ func (r *runner) FuzzyCompletions(t *testing.T, data tests.FuzzyCompletions, ite
 	//TODO: add command line completions tests when it works
 }
 
+func (r *runner) CaseSensitiveCompletions(t *testing.T, data tests.CaseSensitiveCompletions, items tests.CompletionItems) {
+	//TODO: add command line completions tests when it works
+}
+
 func (r *runner) RankCompletions(t *testing.T, data tests.RankCompletions, items tests.CompletionItems) {
 	//TODO: add command line completions tests when it works
 }

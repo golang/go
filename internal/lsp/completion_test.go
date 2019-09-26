@@ -98,6 +98,21 @@ func (r *runner) FuzzyCompletions(t *testing.T, data tests.FuzzyCompletions, ite
 	}
 }
 
+func (r *runner) CaseSensitiveCompletions(t *testing.T, data tests.CaseSensitiveCompletions, items tests.CompletionItems) {
+	for src, test := range data {
+		got := r.callCompletion(t, src, source.CompletionOptions{
+			CaseSensitive: true,
+		})
+		if !strings.Contains(string(src.URI()), "builtins") {
+			got = tests.FilterBuiltins(got)
+		}
+		want := expected(t, test, items)
+		if msg := tests.DiffCompletionItems(want, got); msg != "" {
+			t.Errorf("%s: %s", src, msg)
+		}
+	}
+}
+
 func (r *runner) RankCompletions(t *testing.T, data tests.RankCompletions, items tests.CompletionItems) {
 	for src, test := range data {
 		got := r.callCompletion(t, src, source.CompletionOptions{

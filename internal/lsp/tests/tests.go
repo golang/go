@@ -29,26 +29,27 @@ import (
 // We hardcode the expected number of test cases to ensure that all tests
 // are being executed. If a test is added, this number must be changed.
 const (
-	ExpectedCompletionsCount           = 169
-	ExpectedCompletionSnippetCount     = 36
-	ExpectedUnimportedCompletionsCount = 1
-	ExpectedDeepCompletionsCount       = 5
-	ExpectedFuzzyCompletionsCount      = 6
-	ExpectedRankedCompletionsCount     = 1
-	ExpectedDiagnosticsCount           = 21
-	ExpectedFormatCount                = 6
-	ExpectedImportCount                = 2
-	ExpectedSuggestedFixCount          = 1
-	ExpectedDefinitionsCount           = 39
-	ExpectedTypeDefinitionsCount       = 2
-	ExpectedFoldingRangesCount         = 2
-	ExpectedHighlightsCount            = 2
-	ExpectedReferencesCount            = 6
-	ExpectedRenamesCount               = 20
-	ExpectedPrepareRenamesCount        = 8
-	ExpectedSymbolsCount               = 1
-	ExpectedSignaturesCount            = 21
-	ExpectedLinksCount                 = 4
+	ExpectedCompletionsCount              = 169
+	ExpectedCompletionSnippetCount        = 36
+	ExpectedUnimportedCompletionsCount    = 1
+	ExpectedDeepCompletionsCount          = 5
+	ExpectedFuzzyCompletionsCount         = 6
+	ExpectedCaseSensitiveCompletionsCount = 4
+	ExpectedRankedCompletionsCount        = 1
+	ExpectedDiagnosticsCount              = 21
+	ExpectedFormatCount                   = 6
+	ExpectedImportCount                   = 2
+	ExpectedSuggestedFixCount             = 1
+	ExpectedDefinitionsCount              = 39
+	ExpectedTypeDefinitionsCount          = 2
+	ExpectedFoldingRangesCount            = 2
+	ExpectedHighlightsCount               = 2
+	ExpectedReferencesCount               = 6
+	ExpectedRenamesCount                  = 20
+	ExpectedPrepareRenamesCount           = 8
+	ExpectedSymbolsCount                  = 1
+	ExpectedSignaturesCount               = 21
+	ExpectedLinksCount                    = 4
 )
 
 const (
@@ -67,6 +68,7 @@ type CompletionSnippets map[span.Span]CompletionSnippet
 type UnimportedCompletions map[span.Span]Completion
 type DeepCompletions map[span.Span]Completion
 type FuzzyCompletions map[span.Span]Completion
+type CaseSensitiveCompletions map[span.Span]Completion
 type RankCompletions map[span.Span]Completion
 type FoldingRanges []span.Span
 type Formats []span.Span
@@ -83,29 +85,30 @@ type Signatures map[span.Span]*source.SignatureInformation
 type Links map[span.URI][]Link
 
 type Data struct {
-	Config                packages.Config
-	Exported              *packagestest.Exported
-	Diagnostics           Diagnostics
-	CompletionItems       CompletionItems
-	Completions           Completions
-	CompletionSnippets    CompletionSnippets
-	UnimportedCompletions UnimportedCompletions
-	DeepCompletions       DeepCompletions
-	FuzzyCompletions      FuzzyCompletions
-	RankCompletions       RankCompletions
-	FoldingRanges         FoldingRanges
-	Formats               Formats
-	Imports               Imports
-	SuggestedFixes        SuggestedFixes
-	Definitions           Definitions
-	Highlights            Highlights
-	References            References
-	Renames               Renames
-	PrepareRenames        PrepareRenames
-	Symbols               Symbols
-	symbolsChildren       SymbolsChildren
-	Signatures            Signatures
-	Links                 Links
+	Config                   packages.Config
+	Exported                 *packagestest.Exported
+	Diagnostics              Diagnostics
+	CompletionItems          CompletionItems
+	Completions              Completions
+	CompletionSnippets       CompletionSnippets
+	UnimportedCompletions    UnimportedCompletions
+	DeepCompletions          DeepCompletions
+	FuzzyCompletions         FuzzyCompletions
+	CaseSensitiveCompletions CaseSensitiveCompletions
+	RankCompletions          RankCompletions
+	FoldingRanges            FoldingRanges
+	Formats                  Formats
+	Imports                  Imports
+	SuggestedFixes           SuggestedFixes
+	Definitions              Definitions
+	Highlights               Highlights
+	References               References
+	Renames                  Renames
+	PrepareRenames           PrepareRenames
+	Symbols                  Symbols
+	symbolsChildren          SymbolsChildren
+	Signatures               Signatures
+	Links                    Links
 
 	t         testing.TB
 	fragments map[string]string
@@ -123,6 +126,7 @@ type Tests interface {
 	UnimportedCompletions(*testing.T, UnimportedCompletions, CompletionItems)
 	DeepCompletions(*testing.T, DeepCompletions, CompletionItems)
 	FuzzyCompletions(*testing.T, FuzzyCompletions, CompletionItems)
+	CaseSensitiveCompletions(*testing.T, CaseSensitiveCompletions, CompletionItems)
 	RankCompletions(*testing.T, RankCompletions, CompletionItems)
 	FoldingRange(*testing.T, FoldingRanges)
 	Format(*testing.T, Formats)
@@ -159,6 +163,9 @@ const (
 
 	// Fuzzy tests deep completion and fuzzy matching.
 	CompletionFuzzy
+
+	// CaseSensitive tests case sensitive completion
+	CompletionCaseSensitve
 
 	// CompletionRank candidates in test must be valid and in the right relative order.
 	CompletionRank
@@ -209,23 +216,24 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 	t.Helper()
 
 	data := &Data{
-		Diagnostics:           make(Diagnostics),
-		CompletionItems:       make(CompletionItems),
-		Completions:           make(Completions),
-		CompletionSnippets:    make(CompletionSnippets),
-		UnimportedCompletions: make(UnimportedCompletions),
-		DeepCompletions:       make(DeepCompletions),
-		FuzzyCompletions:      make(FuzzyCompletions),
-		RankCompletions:       make(RankCompletions),
-		Definitions:           make(Definitions),
-		Highlights:            make(Highlights),
-		References:            make(References),
-		Renames:               make(Renames),
-		PrepareRenames:        make(PrepareRenames),
-		Symbols:               make(Symbols),
-		symbolsChildren:       make(SymbolsChildren),
-		Signatures:            make(Signatures),
-		Links:                 make(Links),
+		Diagnostics:              make(Diagnostics),
+		CompletionItems:          make(CompletionItems),
+		Completions:              make(Completions),
+		CompletionSnippets:       make(CompletionSnippets),
+		UnimportedCompletions:    make(UnimportedCompletions),
+		DeepCompletions:          make(DeepCompletions),
+		FuzzyCompletions:         make(FuzzyCompletions),
+		RankCompletions:          make(RankCompletions),
+		CaseSensitiveCompletions: make(CaseSensitiveCompletions),
+		Definitions:              make(Definitions),
+		Highlights:               make(Highlights),
+		References:               make(References),
+		Renames:                  make(Renames),
+		PrepareRenames:           make(PrepareRenames),
+		Symbols:                  make(Symbols),
+		symbolsChildren:          make(SymbolsChildren),
+		Signatures:               make(Signatures),
+		Links:                    make(Links),
 
 		t:         t,
 		dir:       dir,
@@ -295,28 +303,29 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 
 	// Collect any data that needs to be used by subsequent tests.
 	if err := data.Exported.Expect(map[string]interface{}{
-		"diag":         data.collectDiagnostics,
-		"item":         data.collectCompletionItems,
-		"complete":     data.collectCompletions(CompletionDefault),
-		"unimported":   data.collectCompletions(CompletionUnimported),
-		"deep":         data.collectCompletions(CompletionDeep),
-		"fuzzy":        data.collectCompletions(CompletionFuzzy),
-		"rank":         data.collectCompletions(CompletionRank),
-		"snippet":      data.collectCompletionSnippets,
-		"fold":         data.collectFoldingRanges,
-		"format":       data.collectFormats,
-		"import":       data.collectImports,
-		"godef":        data.collectDefinitions,
-		"typdef":       data.collectTypeDefinitions,
-		"hover":        data.collectHoverDefinitions,
-		"highlight":    data.collectHighlights,
-		"refs":         data.collectReferences,
-		"rename":       data.collectRenames,
-		"prepare":      data.collectPrepareRenames,
-		"symbol":       data.collectSymbols,
-		"signature":    data.collectSignatures,
-		"link":         data.collectLinks,
-		"suggestedfix": data.collectSuggestedFixes,
+		"diag":          data.collectDiagnostics,
+		"item":          data.collectCompletionItems,
+		"complete":      data.collectCompletions(CompletionDefault),
+		"unimported":    data.collectCompletions(CompletionUnimported),
+		"deep":          data.collectCompletions(CompletionDeep),
+		"fuzzy":         data.collectCompletions(CompletionFuzzy),
+		"casesensitive": data.collectCompletions(CompletionCaseSensitve),
+		"rank":          data.collectCompletions(CompletionRank),
+		"snippet":       data.collectCompletionSnippets,
+		"fold":          data.collectFoldingRanges,
+		"format":        data.collectFormats,
+		"import":        data.collectImports,
+		"godef":         data.collectDefinitions,
+		"typdef":        data.collectTypeDefinitions,
+		"hover":         data.collectHoverDefinitions,
+		"highlight":     data.collectHighlights,
+		"refs":          data.collectReferences,
+		"rename":        data.collectRenames,
+		"prepare":       data.collectPrepareRenames,
+		"symbol":        data.collectSymbols,
+		"signature":     data.collectSignatures,
+		"link":          data.collectLinks,
+		"suggestedfix":  data.collectSuggestedFixes,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -380,6 +389,14 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			t.Errorf("got %v fuzzy completions expected %v", len(data.FuzzyCompletions), ExpectedFuzzyCompletionsCount)
 		}
 		tests.FuzzyCompletions(t, data.FuzzyCompletions, data.CompletionItems)
+	})
+
+	t.Run("CaseSensitiveCompletion", func(t *testing.T) {
+		t.Helper()
+		if len(data.CaseSensitiveCompletions) != ExpectedCaseSensitiveCompletionsCount {
+			t.Errorf("got %v case sensitive completions expected %v", len(data.CaseSensitiveCompletions), ExpectedCaseSensitiveCompletionsCount)
+		}
+		tests.CaseSensitiveCompletions(t, data.CaseSensitiveCompletions, data.CompletionItems)
 	})
 
 	t.Run("RankCompletions", func(t *testing.T) {
@@ -637,6 +654,10 @@ func (data *Data) collectCompletions(typ CompletionTestType) func(span.Span, []t
 	case CompletionRank:
 		return func(src span.Span, expected []token.Pos) {
 			result(data.RankCompletions, src, expected)
+		}
+	case CompletionCaseSensitve:
+		return func(src span.Span, expected []token.Pos) {
+			result(data.CaseSensitiveCompletions, src, expected)
 		}
 	default:
 		return func(src span.Span, expected []token.Pos) {

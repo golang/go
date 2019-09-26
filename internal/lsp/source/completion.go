@@ -104,11 +104,21 @@ type matcher interface {
 	Score(candidateLabel string) (score float32)
 }
 
-// prefixMatcher implements case insensitive prefix matching.
+// prefixMatcher implements case sensitive prefix matching.
 type prefixMatcher string
 
 func (pm prefixMatcher) Score(candidateLabel string) float32 {
-	if strings.HasPrefix(strings.ToLower(candidateLabel), string(pm)) {
+	if strings.HasPrefix(candidateLabel, string(pm)) {
+		return 1
+	}
+	return -1
+}
+
+// insensitivePrefixMatcher implements case insensitive prefix matching.
+type insensitivePrefixMatcher string
+
+func (ipm insensitivePrefixMatcher) Score(candidateLabel string) float32 {
+	if strings.HasPrefix(strings.ToLower(candidateLabel), string(ipm)) {
 		return 1
 	}
 	return -1
@@ -233,8 +243,10 @@ func (c *completer) setSurrounding(ident *ast.Ident) {
 
 	if c.opts.FuzzyMatching {
 		c.matcher = fuzzy.NewMatcher(c.surrounding.Prefix(), fuzzy.Symbol)
+	} else if c.opts.CaseSensitive {
+		c.matcher = prefixMatcher(c.surrounding.Prefix())
 	} else {
-		c.matcher = prefixMatcher(strings.ToLower(c.surrounding.Prefix()))
+		c.matcher = insensitivePrefixMatcher(strings.ToLower(c.surrounding.Prefix()))
 	}
 }
 
