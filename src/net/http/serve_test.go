@@ -6161,6 +6161,54 @@ func TestUnsupportedTransferEncodingsReturn501(t *testing.T) {
 	}
 }
 
+// Issue 34439: ensure that TimeoutHandler doesn't implement Flusher
+// and that any interaction with Flusher won't affect TimeoutHandler's behavior.
+func TestTimeoutHandlerAndFlusher(t *testing.T) {
+	timeout := 50 * time.Millisecond
+
+	handler := HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.WriteHeader(StatusTeapot)
+		w.Write([]byte("line1\n"))
+		fl, ok := w.(Flusher)
+		if ok {
+			fl.Flush()
+		}
+		time.Sleep(timeout * 2)
+		w.Write([]byte("line2\n"))
+	})
+
+	cst := httptest.NewUnstartedServer(TimeoutHandler(handler, timeout, "TIMED OUT\n"))
+	// Provide a logger that will report an error on any superfluous log.
+	cst.Config.ErrorLog = log.New(&errorOnWrite{t: t}, "", 0)
+	cst.Start()
+	defer cst.Close()
+
+	res, err := cst.Client().Get(cst.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+
+	if g, w := res.StatusCode, StatusServiceUnavailable; g != w {
+		t.Errorf("Status code mismatch\ngot:  %d\nwant: %d", g, w)
+	}
+
+	slurp, _ := ioutil.ReadAll(res.Body)
+	if g, w := string(slurp), "TIMED OUT\n"; g != w {
+		t.Fatalf("Body mismatch\ngot:  %q\nwant: %q", g, w)
+	}
+}
+
+// errorOnWrite will invoke t.Error on any attempted write.
+type errorOnWrite struct {
+	t *testing.T
+}
+
+func (ew *errorOnWrite) Write(b []byte) (int, error) {
+	ew.t.Errorf("Unexpected write: %s\n", b)
+	return len(b), nil
+}
+
 // fetchWireResponse is a helper for dialing to host,
 // sending http1ReqBody as the payload and retrieving
 // the response as it was sent on the wire.
