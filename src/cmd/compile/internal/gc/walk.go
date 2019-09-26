@@ -3125,21 +3125,11 @@ func walkcompare(n *Node, init *Nodes) *Node {
 
 	// Chose not to inline. Call equality function directly.
 	if !inline {
-		if isvaluelit(cmpl) {
-			var_ := temp(cmpl.Type)
-			anylit(cmpl, var_, init)
-			cmpl = var_
-		}
-		if isvaluelit(cmpr) {
-			var_ := temp(cmpr.Type)
-			anylit(cmpr, var_, init)
-			cmpr = var_
-		}
+		// eq algs take pointers; cmpl and cmpr must be addressable
 		if !islvalue(cmpl) || !islvalue(cmpr) {
 			Fatalf("arguments of comparison must be lvalues - %v %v", cmpl, cmpr)
 		}
 
-		// eq algs take pointers
 		pl := temp(types.NewPtr(t))
 		al := nod(OAS, pl, nod(OADDR, cmpl, nil))
 		al = typecheck(al, ctxStmt)
