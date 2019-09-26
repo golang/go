@@ -384,13 +384,12 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
 		}
 	}
 
-	var automDecls []*Node
-	// Populate Automs for fn.
+	var apdecls []*Node
+	// Populate decls for fn.
 	for _, n := range fn.Func.Dcl {
 		if n.Op != ONAME { // might be OTYPE or OLITERAL
 			continue
 		}
-		var name obj.AddrName
 		switch n.Class() {
 		case PAUTO:
 			if !n.Name.Used() {
@@ -400,24 +399,15 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
 				}
 				continue
 			}
-			name = obj.NAME_AUTO
 		case PPARAM, PPARAMOUT:
-			name = obj.NAME_PARAM
 		default:
 			continue
 		}
-		automDecls = append(automDecls, n)
-		gotype := ngotype(n).Linksym()
-		fnsym.Func.Autom = append(fnsym.Func.Autom, &obj.Auto{
-			Asym:    Ctxt.Lookup(n.Sym.Name),
-			Aoffset: int32(n.Xoffset),
-			Name:    name,
-			Gotype:  gotype,
-		})
-		fnsym.Func.RecordAutoType(gotype)
+		apdecls = append(apdecls, n)
+		fnsym.Func.RecordAutoType(ngotype(n).Linksym())
 	}
 
-	decls, dwarfVars := createDwarfVars(fnsym, fn.Func, automDecls)
+	decls, dwarfVars := createDwarfVars(fnsym, fn.Func, apdecls)
 
 	// For each type referenced by the functions auto vars, attach a
 	// dummy relocation to the function symbol to insure that the type
@@ -467,11 +457,11 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
 
 // createSimpleVars creates a DWARF entry for every variable declared in the
 // function, claiming that they are permanently on the stack.
-func createSimpleVars(automDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool) {
+func createSimpleVars(apDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool) {
 	var vars []*dwarf.Var
 	var decls []*Node
 	selected := make(map[*Node]bool)
-	for _, n := range automDecls {
+	for _, n := range apDecls {
 		if n.IsAutoTmp() {
 			continue
 		}
@@ -559,7 +549,7 @@ func createComplexVars(fn *Func) ([]*Node, []*dwarf.Var, map[*Node]bool) {
 
 // createDwarfVars process fn, returning a list of DWARF variables and the
 // Nodes they represent.
-func createDwarfVars(fnsym *obj.LSym, fn *Func, automDecls []*Node) ([]*Node, []*dwarf.Var) {
+func createDwarfVars(fnsym *obj.LSym, fn *Func, apDecls []*Node) ([]*Node, []*dwarf.Var) {
 	// Collect a raw list of DWARF vars.
 	var vars []*dwarf.Var
 	var decls []*Node
@@ -567,10 +557,10 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, automDecls []*Node) ([]*Node, []
 	if Ctxt.Flag_locationlists && Ctxt.Flag_optimize && fn.DebugInfo != nil {
 		decls, vars, selected = createComplexVars(fn)
 	} else {
-		decls, vars, selected = createSimpleVars(automDecls)
+		decls, vars, selected = createSimpleVars(apDecls)
 	}
 
-	dcl := automDecls
+	dcl := apDecls
 	if fnsym.WasInlined() {
 		dcl = preInliningDcls(fnsym)
 	}
@@ -649,17 +639,8 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, automDecls []*Node) ([]*Node, []
 			InlIndex:      int32(inlIndex),
 			ChildIndex:    -1,
 		})
-		// Append a "deleted auto" entry to the autom list so as to
-		// insure that the type in question is picked up by the linker.
-		// See issue 22941.
-		gotype := ngotype(n).Linksym()
-		fnsym.Func.Autom = append(fnsym.Func.Autom, &obj.Auto{
-			Asym:    Ctxt.Lookup(n.Sym.Name),
-			Aoffset: int32(-1),
-			Name:    obj.NAME_DELETED_AUTO,
-			Gotype:  gotype,
-		})
-		fnsym.Func.RecordAutoType(gotype)
+		// Record go type of to insure that it gets emitted by the linker.
+		fnsym.Func.RecordAutoType(ngotype(n).Linksym())
 	}
 
 	return decls, vars
