@@ -6,8 +6,10 @@
 package tests
 
 import (
+	"bytes"
 	"context"
 	"flag"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"io/ioutil"
@@ -24,32 +26,6 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/txtar"
-)
-
-// We hardcode the expected number of test cases to ensure that all tests
-// are being executed. If a test is added, this number must be changed.
-const (
-	ExpectedCompletionsCount              = 169
-	ExpectedCompletionSnippetCount        = 36
-	ExpectedUnimportedCompletionsCount    = 1
-	ExpectedDeepCompletionsCount          = 5
-	ExpectedFuzzyCompletionsCount         = 6
-	ExpectedCaseSensitiveCompletionsCount = 4
-	ExpectedRankedCompletionsCount        = 1
-	ExpectedDiagnosticsCount              = 21
-	ExpectedFormatCount                   = 6
-	ExpectedImportCount                   = 2
-	ExpectedSuggestedFixCount             = 1
-	ExpectedDefinitionsCount              = 39
-	ExpectedTypeDefinitionsCount          = 2
-	ExpectedFoldingRangesCount            = 2
-	ExpectedHighlightsCount               = 2
-	ExpectedReferencesCount               = 6
-	ExpectedRenamesCount                  = 20
-	ExpectedPrepareRenamesCount           = 8
-	ExpectedSymbolsCount                  = 1
-	ExpectedSignaturesCount               = 21
-	ExpectedLinksCount                    = 4
 )
 
 const (
@@ -347,176 +323,105 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 
 func Run(t *testing.T, tests Tests, data *Data) {
 	t.Helper()
+	checkData(t, data)
 
 	t.Run("Completion", func(t *testing.T) {
 		t.Helper()
-		if len(data.Completions) != ExpectedCompletionsCount {
-			t.Errorf("got %v completions expected %v", len(data.Completions), ExpectedCompletionsCount)
-		}
 		tests.Completion(t, data.Completions, data.CompletionItems)
 	})
 
 	t.Run("CompletionSnippets", func(t *testing.T) {
 		t.Helper()
-		if len(data.CompletionSnippets) != ExpectedCompletionSnippetCount {
-			t.Errorf("got %v snippets expected %v", len(data.CompletionSnippets), ExpectedCompletionSnippetCount)
-		}
-		if len(data.CompletionSnippets) != ExpectedCompletionSnippetCount {
-			t.Errorf("got %v snippets expected %v", len(data.CompletionSnippets), ExpectedCompletionSnippetCount)
-		}
 		tests.CompletionSnippets(t, data.CompletionSnippets, data.CompletionItems)
 	})
 
 	t.Run("UnimportedCompletion", func(t *testing.T) {
 		t.Helper()
-		if len(data.UnimportedCompletions) != ExpectedUnimportedCompletionsCount {
-			t.Errorf("got %v unimported completions expected %v", len(data.UnimportedCompletions), ExpectedUnimportedCompletionsCount)
-		}
 		tests.UnimportedCompletions(t, data.UnimportedCompletions, data.CompletionItems)
 	})
 
 	t.Run("DeepCompletion", func(t *testing.T) {
 		t.Helper()
-		if len(data.DeepCompletions) != ExpectedDeepCompletionsCount {
-			t.Errorf("got %v deep completions expected %v", len(data.DeepCompletions), ExpectedDeepCompletionsCount)
-		}
 		tests.DeepCompletions(t, data.DeepCompletions, data.CompletionItems)
 	})
 
 	t.Run("FuzzyCompletion", func(t *testing.T) {
 		t.Helper()
-		if len(data.FuzzyCompletions) != ExpectedFuzzyCompletionsCount {
-			t.Errorf("got %v fuzzy completions expected %v", len(data.FuzzyCompletions), ExpectedFuzzyCompletionsCount)
-		}
 		tests.FuzzyCompletions(t, data.FuzzyCompletions, data.CompletionItems)
 	})
 
 	t.Run("CaseSensitiveCompletion", func(t *testing.T) {
 		t.Helper()
-		if len(data.CaseSensitiveCompletions) != ExpectedCaseSensitiveCompletionsCount {
-			t.Errorf("got %v case sensitive completions expected %v", len(data.CaseSensitiveCompletions), ExpectedCaseSensitiveCompletionsCount)
-		}
 		tests.CaseSensitiveCompletions(t, data.CaseSensitiveCompletions, data.CompletionItems)
 	})
 
 	t.Run("RankCompletions", func(t *testing.T) {
 		t.Helper()
-		if len(data.RankCompletions) != ExpectedRankedCompletionsCount {
-			t.Errorf("got %v fuzzy completions expected %v", len(data.RankCompletions), ExpectedRankedCompletionsCount)
-		}
 		tests.RankCompletions(t, data.RankCompletions, data.CompletionItems)
 	})
 
 	t.Run("Diagnostics", func(t *testing.T) {
 		t.Helper()
-		diagnosticsCount := 0
-		for _, want := range data.Diagnostics {
-			diagnosticsCount += len(want)
-		}
-		if diagnosticsCount != ExpectedDiagnosticsCount {
-			t.Errorf("got %v diagnostics expected %v", diagnosticsCount, ExpectedDiagnosticsCount)
-		}
 		tests.Diagnostics(t, data.Diagnostics)
 	})
 
 	t.Run("FoldingRange", func(t *testing.T) {
 		t.Helper()
-		if len(data.FoldingRanges) != ExpectedFoldingRangesCount {
-			t.Errorf("got %v folding ranges expected %v", len(data.FoldingRanges), ExpectedFoldingRangesCount)
-		}
 		tests.FoldingRange(t, data.FoldingRanges)
 	})
 
 	t.Run("Format", func(t *testing.T) {
 		t.Helper()
-		if len(data.Formats) != ExpectedFormatCount {
-			t.Errorf("got %v formats expected %v", len(data.Formats), ExpectedFormatCount)
-		}
 		tests.Format(t, data.Formats)
 	})
 
 	t.Run("Import", func(t *testing.T) {
 		t.Helper()
-		if len(data.Imports) != ExpectedImportCount {
-			t.Errorf("got %v imports expected %v", len(data.Imports), ExpectedImportCount)
-		}
 		tests.Import(t, data.Imports)
 	})
 
 	t.Run("SuggestedFix", func(t *testing.T) {
 		t.Helper()
-		if len(data.SuggestedFixes) != ExpectedSuggestedFixCount {
-			t.Errorf("got %v suggested fixes expected %v", len(data.SuggestedFixes), ExpectedSuggestedFixCount)
-		}
 		tests.SuggestedFix(t, data.SuggestedFixes)
 	})
 
 	t.Run("Definition", func(t *testing.T) {
 		t.Helper()
-		if len(data.Definitions) != ExpectedDefinitionsCount {
-			t.Errorf("got %v definitions expected %v", len(data.Definitions), ExpectedDefinitionsCount)
-		}
 		tests.Definition(t, data.Definitions)
 	})
 
 	t.Run("Highlight", func(t *testing.T) {
 		t.Helper()
-		if len(data.Highlights) != ExpectedHighlightsCount {
-			t.Errorf("got %v highlights expected %v", len(data.Highlights), ExpectedHighlightsCount)
-		}
 		tests.Highlight(t, data.Highlights)
 	})
 
 	t.Run("References", func(t *testing.T) {
 		t.Helper()
-		if len(data.References) != ExpectedReferencesCount {
-			t.Errorf("got %v references expected %v", len(data.References), ExpectedReferencesCount)
-		}
 		tests.Reference(t, data.References)
 	})
 
 	t.Run("Renames", func(t *testing.T) {
 		t.Helper()
-		if len(data.Renames) != ExpectedRenamesCount {
-			t.Errorf("got %v renames expected %v", len(data.Renames), ExpectedRenamesCount)
-		}
 		tests.Rename(t, data.Renames)
 	})
 
 	t.Run("PrepareRenames", func(t *testing.T) {
 		t.Helper()
-		if len(data.PrepareRenames) != ExpectedPrepareRenamesCount {
-			t.Errorf("got %v prepare renames expected %v", len(data.PrepareRenames), ExpectedPrepareRenamesCount)
-		}
-
 		tests.PrepareRename(t, data.PrepareRenames)
 	})
 
 	t.Run("Symbols", func(t *testing.T) {
 		t.Helper()
-		if len(data.Symbols) != ExpectedSymbolsCount {
-			t.Errorf("got %v symbols expected %v", len(data.Symbols), ExpectedSymbolsCount)
-		}
 		tests.Symbol(t, data.Symbols)
 	})
 
 	t.Run("SignatureHelp", func(t *testing.T) {
 		t.Helper()
-		if len(data.Signatures) != ExpectedSignaturesCount {
-			t.Errorf("got %v signatures expected %v", len(data.Signatures), ExpectedSignaturesCount)
-		}
 		tests.SignatureHelp(t, data.Signatures)
 	})
 
 	t.Run("Link", func(t *testing.T) {
 		t.Helper()
-		linksCount := 0
-		for _, want := range data.Links {
-			linksCount += len(want)
-		}
-		if linksCount != ExpectedLinksCount {
-			t.Errorf("got %v links expected %v", linksCount, ExpectedLinksCount)
-		}
 		tests.Link(t, data.Links)
 	})
 
@@ -532,6 +437,57 @@ func Run(t *testing.T, tests Tests, data *Data) {
 				t.Fatal(err)
 			}
 		}
+	}
+}
+
+func checkData(t *testing.T, data *Data) {
+	buf := &bytes.Buffer{}
+	diagnosticsCount := 0
+	for _, want := range data.Diagnostics {
+		diagnosticsCount += len(want)
+	}
+	linksCount := 0
+	for _, want := range data.Links {
+		linksCount += len(want)
+	}
+	definitionCount := 0
+	typeDefinitionCount := 0
+	for _, d := range data.Definitions {
+		if d.IsType {
+			typeDefinitionCount++
+		} else {
+			definitionCount++
+		}
+	}
+
+	fmt.Fprintf(buf, "CompletionsCount = %v\n", len(data.Completions))
+	fmt.Fprintf(buf, "CompletionSnippetCount = %v\n", len(data.CompletionSnippets))
+	fmt.Fprintf(buf, "UnimportedCompletionsCount = %v\n", len(data.UnimportedCompletions))
+	fmt.Fprintf(buf, "DeepCompletionsCount = %v\n", len(data.DeepCompletions))
+	fmt.Fprintf(buf, "FuzzyCompletionsCount = %v\n", len(data.FuzzyCompletions))
+	fmt.Fprintf(buf, "RankedCompletionsCount = %v\n", len(data.RankCompletions))
+	fmt.Fprintf(buf, "CaseSensitiveCompletionsCount = %v\n", len(data.CaseSensitiveCompletions))
+	fmt.Fprintf(buf, "DiagnosticsCount = %v\n", diagnosticsCount)
+	fmt.Fprintf(buf, "FoldingRangesCount = %v\n", len(data.FoldingRanges))
+	fmt.Fprintf(buf, "FormatCount = %v\n", len(data.Formats))
+	fmt.Fprintf(buf, "ImportCount = %v\n", len(data.Imports))
+	fmt.Fprintf(buf, "SuggestedFixCount = %v\n", len(data.SuggestedFixes))
+	fmt.Fprintf(buf, "DefinitionsCount = %v\n", definitionCount)
+	fmt.Fprintf(buf, "TypeDefinitionsCount = %v\n", typeDefinitionCount)
+	fmt.Fprintf(buf, "HighlightsCount = %v\n", len(data.Highlights))
+	fmt.Fprintf(buf, "ReferencesCount = %v\n", len(data.References))
+	fmt.Fprintf(buf, "RenamesCount = %v\n", len(data.Renames))
+	fmt.Fprintf(buf, "PrepareRenamesCount = %v\n", len(data.PrepareRenames))
+	fmt.Fprintf(buf, "SymbolsCount = %v\n", len(data.Symbols))
+	fmt.Fprintf(buf, "SignaturesCount = %v\n", len(data.Signatures))
+	fmt.Fprintf(buf, "LinksCount = %v\n", linksCount)
+
+	want := string(data.Golden("summary", "summary.txt", func() ([]byte, error) {
+		return buf.Bytes(), nil
+	}))
+	got := buf.String()
+	if want != got {
+		t.Errorf("test summary does not match, want\n%s\ngot:\n%s", want, got)
 	}
 }
 
