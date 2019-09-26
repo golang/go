@@ -59,9 +59,9 @@ const (
 // something whose address is returned -- but that implies stored into the heap,
 // hence EscHeap, which means that the details are not currently relevant. )
 const (
-	bitsPerOutputInTag = 3                                 // For each output, the number of bits for a tag
-	bitsMaskForTag     = uint16(1<<bitsPerOutputInTag) - 1 // The bit mask to extract a single tag.
-	maxEncodedLevel    = int(bitsMaskForTag - 1)           // The largest level that can be stored in a tag.
+	bitsPerOutputInTag = 3                                   // For each output, the number of bits for a tag
+	bitsMaskForTag     = EscLeaks(1<<bitsPerOutputInTag) - 1 // The bit mask to extract a single tag.
+	maxEncodedLevel    = int(bitsMaskForTag - 1)             // The largest level that can be stored in a tag.
 )
 
 // funcSym returns fn.Func.Nname.Sym if no nils are encountered along the way.
@@ -210,7 +210,7 @@ func mustHeapAlloc(n *Node) bool {
 var tags [1 << (bitsPerOutputInTag + EscReturnBits)]string
 
 // mktag returns the string representation for an escape analysis tag.
-func mktag(mask int) string {
+func mktag(mask EscLeaks) string {
 	switch mask & EscMask {
 	case EscHeap:
 		return ""
@@ -219,24 +219,24 @@ func mktag(mask int) string {
 		Fatalf("escape mktag")
 	}
 
-	if mask < len(tags) && tags[mask] != "" {
+	if int(mask) < len(tags) && tags[mask] != "" {
 		return tags[mask]
 	}
 
 	s := fmt.Sprintf("esc:0x%x", mask)
-	if mask < len(tags) {
+	if int(mask) < len(tags) {
 		tags[mask] = s
 	}
 	return s
 }
 
 // parsetag decodes an escape analysis tag and returns the esc value.
-func parsetag(note string) uint16 {
+func parsetag(note string) EscLeaks {
 	if !strings.HasPrefix(note, "esc:") {
 		return EscUnknown
 	}
 	n, _ := strconv.ParseInt(note[4:], 0, 0)
-	em := uint16(n)
+	em := EscLeaks(n)
 	if em == 0 {
 		return EscNone
 	}
@@ -431,19 +431,22 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 			return ""
 		}
 
+		var esc EscLeaks
+
 		// External functions are assumed unsafe, unless
 		// //go:noescape is given before the declaration.
 		if fn.Noescape() {
 			if Debug['m'] != 0 && f.Sym != nil {
 				Warnl(f.Pos, "%v does not escape", name())
 			}
-			return mktag(EscNone)
+		} else {
+			if Debug['m'] != 0 && f.Sym != nil {
+				Warnl(f.Pos, "leaking param: %v", name())
+			}
+			esc.AddHeap(0)
 		}
 
-		if Debug['m'] != 0 && f.Sym != nil {
-			Warnl(f.Pos, "leaking param: %v", name())
-		}
-		return mktag(EscHeap)
+		return esc.Encode()
 	}
 
 	if fn.Func.Pragma&UintptrEscapes != 0 {
@@ -468,30 +471,37 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 
 	// Unnamed parameters are unused and therefore do not escape.
 	if f.Sym == nil || f.Sym.IsBlank() {
-		return mktag(EscNone)
+		var esc EscLeaks
+		return esc.Encode()
 	}
 
 	n := asNode(f.Nname)
 	loc := e.oldLoc(n)
-	esc := finalizeEsc(loc.paramEsc)
+	esc := loc.paramEsc
+	esc.Optimize()
 
 	if Debug['m'] != 0 && !loc.escapes {
-		if esc == EscNone {
-			Warnl(f.Pos, "%v does not escape", name())
-		} else if esc == EscHeap {
-			Warnl(f.Pos, "leaking param: %v", name())
-		} else {
-			if esc&EscContentEscapes != 0 {
+		leaks := false
+		if x := esc.Heap(); x >= 0 {
+			if x == 0 {
+				Warnl(f.Pos, "leaking param: %v", name())
+			} else {
+				// TODO(mdempsky): Mention level=x like below?
 				Warnl(f.Pos, "leaking param content: %v", name())
 			}
-			for i := 0; i < numEscReturns; i++ {
-				if x := getEscReturn(esc, i); x >= 0 {
-					res := fn.Type.Results().Field(i).Sym
-					Warnl(f.Pos, "leaking param: %v to result %v level=%d", name(), res, x)
-				}
+			leaks = true
+		}
+		for i := 0; i < numEscResults; i++ {
+			if x := esc.Result(i); x >= 0 {
+				res := fn.Type.Results().Field(i).Sym
+				Warnl(f.Pos, "leaking param: %v to result %v level=%d", name(), res, x)
+				leaks = true
 			}
+		}
+		if !leaks {
+			Warnl(f.Pos, "%v does not escape", name())
 		}
 	}
 
-	return mktag(int(esc))
+	return esc.Encode()
 }

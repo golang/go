@@ -119,9 +119,8 @@ type EscLocation struct {
 	// its storage can be immediately reused.
 	transient bool
 
-	// paramEsc records the represented parameter's escape tags.
-	// See "Parameter tags" below for details.
-	paramEsc uint16
+	// paramEsc records the represented parameter's leak set.
+	paramEsc EscLeaks
 }
 
 // An EscEdge represents an assignment edge between two Go variables.
@@ -892,20 +891,16 @@ func (e *Escape) tagHole(ks []EscHole, param *types.Field, static bool) EscHole 
 		return e.heapHole()
 	}
 
-	esc := parsetag(param.Note)
-	switch esc {
-	case EscHeap, EscUnknown:
-		return e.heapHole()
-	}
-
 	var tagKs []EscHole
-	if esc&EscContentEscapes != 0 {
-		tagKs = append(tagKs, e.heapHole().shift(1))
+
+	esc := ParseLeaks(param.Note)
+	if x := esc.Heap(); x >= 0 {
+		tagKs = append(tagKs, e.heapHole().shift(x))
 	}
 
 	if ks != nil {
-		for i := 0; i < numEscReturns; i++ {
-			if x := getEscReturn(esc, i); x >= 0 {
+		for i := 0; i < numEscResults; i++ {
+			if x := esc.Result(i); x >= 0 {
 				tagKs = append(tagKs, ks[i].shift(x))
 			}
 		}
@@ -1247,31 +1242,20 @@ func containsClosure(f, c *Node) bool {
 
 // leak records that parameter l leaks to sink.
 func (l *EscLocation) leakTo(sink *EscLocation, derefs int) {
-	// Short circuit if l already leaks to heap.
-	if l.paramEsc == EscHeap {
-		return
-	}
-
 	// If sink is a result parameter and we can fit return bits
 	// into the escape analysis tag, then record a return leak.
 	if sink.isName(PPARAMOUT) && sink.curfn == l.curfn {
 		// TODO(mdempsky): Eliminate dependency on Vargen here.
 		ri := int(sink.n.Name.Vargen) - 1
-		if ri < numEscReturns {
+		if ri < numEscResults {
 			// Leak to result parameter.
-			if old := getEscReturn(l.paramEsc, ri); old < 0 || derefs < old {
-				l.paramEsc = setEscReturn(l.paramEsc, ri, derefs)
-			}
+			l.paramEsc.AddResult(ri, derefs)
 			return
 		}
 	}
 
 	// Otherwise, record as heap leak.
-	if derefs > 0 {
-		l.paramEsc |= EscContentEscapes
-	} else {
-		l.paramEsc = EscHeap
-	}
+	l.paramEsc.AddHeap(derefs)
 }
 
 func (e *Escape) finish(fns []*Node) {
@@ -1321,37 +1305,11 @@ func (l *EscLocation) isName(c Class) bool {
 	return l.n != nil && l.n.Op == ONAME && l.n.Class() == c
 }
 
-func finalizeEsc(esc uint16) uint16 {
-	esc = optimizeReturns(esc)
-
-	if esc>>EscReturnBits != 0 {
-		esc |= EscReturn
-	} else if esc&EscMask == 0 {
-		esc |= EscNone
-	}
-
-	return esc
-}
-
-func optimizeReturns(esc uint16) uint16 {
-	if esc&EscContentEscapes != 0 {
-		// EscContentEscapes represents a path of length 1
-		// from the heap. No point in keeping paths of equal
-		// or longer length to result parameters.
-		for i := 0; i < numEscReturns; i++ {
-			if x := getEscReturn(esc, i); x >= 1 {
-				esc = setEscReturn(esc, i, -1)
-			}
-		}
-	}
-	return esc
-}
-
 // Parameter tags.
 //
 // The escape bits saved for each analyzed parameter record the
 // minimal derefs (if any) from that parameter to the heap, or to any
-// of its function's (first numEscReturns) result parameters.
+// of its function's (first numEscResults) result parameters.
 //
 // Paths to the heap are encoded via EscHeap (length 0) or
 // EscContentEscapes (length 1); if neither of these are set, then
@@ -1365,29 +1323,98 @@ func optimizeReturns(esc uint16) uint16 {
 // uintptrEscapesTag and unsafeUintptrTag). These could be simplified
 // once compatibility with esc.go is no longer a concern.
 
-const numEscReturns = (16 - EscReturnBits) / bitsPerOutputInTag
+const numEscResults = (16 - EscReturnBits) / bitsPerOutputInTag
 
-func getEscReturn(esc uint16, i int) int {
-	return int((esc>>escReturnShift(i))&bitsMaskForTag) - 1
+// An EscLeaks records the minimal deref count for assignment flows
+// from a parameter to the heap or to any of its function's (first
+// numEscResults) result parameters. If no assignment flow exists,
+// that respective count is reported as -1.
+type EscLeaks uint16
+
+func (l EscLeaks) Heap() int {
+	if l == EscHeap {
+		return 0
+	}
+	if l&EscContentEscapes != 0 {
+		return 1
+	}
+	return -1
 }
 
-func setEscReturn(esc uint16, i, v int) uint16 {
-	if v < -1 {
-		Fatalf("invalid esc return value: %v", v)
+func (l *EscLeaks) AddHeap(derefs int) {
+	if *l == EscHeap {
+		return // already leaks to heap
 	}
-	if v > maxEncodedLevel {
-		v = maxEncodedLevel
+
+	if derefs > 0 {
+		*l |= EscContentEscapes
+	} else {
+		*l = EscHeap
+	}
+}
+
+func (l EscLeaks) Result(i int) int {
+	return int((l>>escReturnShift(i))&bitsMaskForTag) - 1
+}
+
+func (l *EscLeaks) AddResult(i, derefs int) {
+	if *l == EscHeap {
+		return // already leaks to heap
+	}
+
+	if old := l.Result(i); old < 0 || derefs < old {
+		l.setResult(i, derefs)
+	}
+}
+
+func (l *EscLeaks) setResult(i, derefs int) {
+	if derefs < -1 {
+		Fatalf("invalid derefs count: %v", derefs)
+	}
+	if derefs > maxEncodedLevel {
+		derefs = maxEncodedLevel
 	}
 
 	shift := escReturnShift(i)
-	esc &^= bitsMaskForTag << shift
-	esc |= uint16(v+1) << shift
-	return esc
+	*l &^= bitsMaskForTag << shift
+	*l |= EscLeaks(derefs+1) << shift
 }
 
 func escReturnShift(i int) uint {
-	if uint(i) >= numEscReturns {
+	if uint(i) >= numEscResults {
 		Fatalf("esc return index out of bounds: %v", i)
 	}
 	return uint(EscReturnBits + i*bitsPerOutputInTag)
+}
+
+func (l *EscLeaks) Optimize() {
+	// If we have a path to the heap, then there's no use in
+	// keeping equal or longer paths elsewhere.
+	if x := l.Heap(); x >= 0 {
+		for i := 0; i < numEscResults; i++ {
+			if l.Result(i) >= x {
+				l.setResult(i, -1)
+			}
+		}
+	}
+}
+
+func (l EscLeaks) Encode() string {
+	if l&EscMask == 0 {
+		if l>>EscReturnBits != 0 {
+			l |= EscReturn
+		} else {
+			l |= EscNone
+		}
+	}
+
+	return mktag(l)
+}
+
+func ParseLeaks(s string) EscLeaks {
+	l := parsetag(s)
+	if l == EscUnknown {
+		return EscHeap
+	}
+	return l
 }
