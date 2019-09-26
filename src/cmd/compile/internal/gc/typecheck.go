@@ -2795,75 +2795,20 @@ func typecheckcomplit(n *Node) (res *Node) {
 		yyerror("invalid composite literal type %v", t)
 		n.Type = nil
 
-	case TARRAY, TSLICE:
-		// If there are key/value pairs, create a map to keep seen
-		// keys so we can check for duplicate indices.
-		var indices map[int64]bool
-		for _, n1 := range n.List.Slice() {
-			if n1.Op == OKEY {
-				indices = make(map[int64]bool)
-				break
-			}
-		}
-
-		var length, i int64
-		checkBounds := t.IsArray() && !t.IsDDDArray()
-		nl := n.List.Slice()
-		for i2, l := range nl {
-			setlineno(l)
-			vp := &nl[i2]
-			if l.Op == OKEY {
-				l.Left = typecheck(l.Left, ctxExpr)
-				evconst(l.Left)
-				i = indexconst(l.Left)
-				if i < 0 {
-					if !l.Left.Diag() {
-						if i == -2 {
-							yyerror("index too large")
-						} else {
-							yyerror("index must be non-negative integer constant")
-						}
-						l.Left.SetDiag(true)
-					}
-					i = -(1 << 30) // stay negative for a while
-				}
-				vp = &l.Right
-			}
-
-			if i >= 0 && indices != nil {
-				if indices[i] {
-					yyerror("duplicate index in array literal: %d", i)
-				} else {
-					indices[i] = true
-				}
-			}
-
-			r := *vp
-			r = pushtype(r, t.Elem())
-			r = typecheck(r, ctxExpr)
-			*vp = assignconv(r, t.Elem(), "array or slice literal")
-
-			i++
-			if i > length {
-				length = i
-				if checkBounds && length > t.NumElem() {
-					setlineno(l)
-					yyerror("array index %d out of bounds [0:%d]", length-1, t.NumElem())
-					checkBounds = false
-				}
-			}
-		}
-
+	case TARRAY:
 		if t.IsDDDArray() {
+			length := typecheckarraylit(t.Elem(), -1, n.List.Slice())
 			t.SetNumElem(length)
-		}
-		if t.IsSlice() {
-			n.Op = OSLICELIT
-			n.Right = nodintconst(length)
 		} else {
-			n.Op = OARRAYLIT
-			n.Right = nil
+			typecheckarraylit(t.Elem(), t.NumElem(), n.List.Slice())
 		}
+		n.Op = OARRAYLIT
+		n.Right = nil
+
+	case TSLICE:
+		length := typecheckarraylit(t.Elem(), -1, n.List.Slice())
+		n.Op = OSLICELIT
+		n.Right = nodintconst(length)
 
 	case TMAP:
 		var cs constSet
@@ -3015,6 +2960,67 @@ func typecheckcomplit(n *Node) (res *Node) {
 
 	n.Orig = norig
 	return n
+}
+
+func typecheckarraylit(elemType *types.Type, bound int64, elts []*Node) int64 {
+	// If there are key/value pairs, create a map to keep seen
+	// keys so we can check for duplicate indices.
+	var indices map[int64]bool
+	for _, elt := range elts {
+		if elt.Op == OKEY {
+			indices = make(map[int64]bool)
+			break
+		}
+	}
+
+	var key, length int64
+	for i, elt := range elts {
+		setlineno(elt)
+		vp := &elts[i]
+		if elt.Op == OKEY {
+			elt.Left = typecheck(elt.Left, ctxExpr)
+			key = indexconst(elt.Left)
+			if key < 0 {
+				if !elt.Left.Diag() {
+					if key == -2 {
+						yyerror("index too large")
+					} else {
+						yyerror("index must be non-negative integer constant")
+					}
+					elt.Left.SetDiag(true)
+				}
+				key = -(1 << 30) // stay negative for a while
+			}
+			vp = &elt.Right
+		}
+
+		r := *vp
+		r = pushtype(r, elemType)
+		r = typecheck(r, ctxExpr)
+		*vp = assignconv(r, elemType, "array or slice literal")
+
+		if key >= 0 {
+			if indices != nil {
+				if indices[key] {
+					yyerror("duplicate index in array literal: %d", key)
+				} else {
+					indices[key] = true
+				}
+			}
+
+			if bound >= 0 && key >= bound {
+				yyerror("array index %d out of bounds [0:%d]", key, bound)
+				bound = -1
+			}
+		}
+
+		key++
+		if key > length {
+			length = key
+		}
+	}
+
+	return length
 }
 
 // visible reports whether sym is exported or locally defined.
