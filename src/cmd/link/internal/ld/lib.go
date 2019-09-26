@@ -2366,7 +2366,6 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 		}
 	}
 
-	var off int32
 	for _, s := range ctxt.Textp {
 		put(ctxt, s, s.Name, TextSym, s.Value, s.Gotype)
 
@@ -2379,39 +2378,6 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 
 		if s.FuncInfo == nil {
 			continue
-		}
-		for _, a := range s.FuncInfo.Autom {
-			if a.Name == objabi.A_DELETED_AUTO {
-				put(ctxt, nil, "", DeletedAutoSym, 0, a.Gotype)
-				continue
-			}
-
-			// Emit a or p according to actual offset, even if label is wrong.
-			// This avoids negative offsets, which cannot be encoded.
-			if a.Name != objabi.A_AUTO && a.Name != objabi.A_PARAM {
-				continue
-			}
-
-			// compute offset relative to FP
-			if a.Name == objabi.A_PARAM {
-				off = a.Aoffset
-			} else {
-				off = a.Aoffset - int32(ctxt.Arch.PtrSize)
-			}
-
-			// FP
-			if off >= 0 {
-				put(ctxt, nil, a.Asym.Name, ParamSym, int64(off), a.Gotype)
-				continue
-			}
-
-			// SP
-			if off <= int32(-ctxt.Arch.PtrSize) {
-				put(ctxt, nil, a.Asym.Name, AutoSym, -(int64(off) + int64(ctxt.Arch.PtrSize)), a.Gotype)
-				continue
-			}
-			// Otherwise, off is addressing the saved program counter.
-			// Something underhanded is going on. Say nothing.
 		}
 	}
 
