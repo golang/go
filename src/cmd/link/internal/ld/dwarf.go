@@ -1766,6 +1766,24 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 	// Create DIEs for global variables and the types they use.
 	genasmsym(ctxt, defdwsymb)
 
+	// Create DIEs for variable types indirectly referenced by function
+	// autos (which may not appear directly as param/var DIEs).
+	for _, lib := range ctxt.Library {
+		for _, unit := range lib.Units {
+			lists := [][]*sym.Symbol{unit.AbsFnDIEs, unit.FuncDIEs}
+			for _, list := range lists {
+				for _, s := range list {
+					for i := 0; i < len(s.R); i++ {
+						r := &s.R[i]
+						if r.Type == objabi.R_USETYPE {
+							defgotype(ctxt, r.Sym)
+						}
+					}
+				}
+			}
+		}
+	}
+
 	synthesizestringtypes(ctxt, dwtypes.Child)
 	synthesizeslicetypes(ctxt, dwtypes.Child)
 	synthesizemaptypes(ctxt, dwtypes.Child)
