@@ -250,6 +250,9 @@ func isUnneededSSARewriteFile(srcFile string) (archCaps string, unneeded bool) {
 	archCaps = fileArch
 	fileArch = strings.ToLower(fileArch)
 	fileArch = strings.TrimSuffix(fileArch, "splitload")
+	if fileArch == os.Getenv("GOHOSTARCH") {
+		return "", false
+	}
 	if fileArch == strings.TrimSuffix(runtime.GOARCH, "le") {
 		return "", false
 	}
