@@ -874,9 +874,9 @@ func (s *state) stmt(n *Node) {
 		s.call(n.Left, callGo)
 
 	case OAS2DOTTYPE:
-		res, resok := s.dottype(n.Rlist.First(), true)
+		res, resok := s.dottype(n.Right, true)
 		deref := false
-		if !canSSAType(n.Rlist.First().Type) {
+		if !canSSAType(n.Right.Type) {
 			if res.Op != ssa.OpLoad {
 				s.Fatalf("dottype of non-load")
 			}
@@ -896,10 +896,10 @@ func (s *state) stmt(n *Node) {
 
 	case OAS2FUNC:
 		// We come here only when it is an intrinsic call returning two values.
-		if !isIntrinsicCall(n.Rlist.First()) {
-			s.Fatalf("non-intrinsic AS2FUNC not expanded %v", n.Rlist.First())
+		if !isIntrinsicCall(n.Right) {
+			s.Fatalf("non-intrinsic AS2FUNC not expanded %v", n.Right)
 		}
-		v := s.intrinsicCall(n.Rlist.First())
+		v := s.intrinsicCall(n.Right)
 		v1 := s.newValue1(ssa.OpSelect0, n.List.First().Type, v)
 		v2 := s.newValue1(ssa.OpSelect1, n.List.Second().Type, v)
 		s.assign(n.List.First(), v1, false, 0)

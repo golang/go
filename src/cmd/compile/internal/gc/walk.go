@@ -691,12 +691,12 @@ opswitch:
 	case OAS2FUNC:
 		init.AppendNodes(&n.Ninit)
 
-		r := n.Rlist.First()
+		r := n.Right
 		walkexprlistsafe(n.List.Slice(), init)
 		r = walkexpr(r, init)
 
 		if isIntrinsicCall(r) {
-			n.Rlist.Set1(r)
+			n.Right = r
 			break
 		}
 		init.Append(r)
@@ -709,7 +709,7 @@ opswitch:
 	case OAS2RECV:
 		init.AppendNodes(&n.Ninit)
 
-		r := n.Rlist.First()
+		r := n.Right
 		walkexprlistsafe(n.List.Slice(), init)
 		r.Left = walkexpr(r.Left, init)
 		var n1 *Node
@@ -728,7 +728,7 @@ opswitch:
 	case OAS2MAPR:
 		init.AppendNodes(&n.Ninit)
 
-		r := n.Rlist.First()
+		r := n.Right
 		walkexprlistsafe(n.List.Slice(), init)
 		r.Left = walkexpr(r.Left, init)
 		r.Right = walkexpr(r.Right, init)
@@ -767,7 +767,7 @@ opswitch:
 		if ok := n.List.Second(); !ok.isBlank() && ok.Type.IsBoolean() {
 			r.Type.Field(1).Type = ok.Type
 		}
-		n.Rlist.Set1(r)
+		n.Right = r
 		n.Op = OAS2FUNC
 
 		// don't generate a = *var if a is _
@@ -801,7 +801,7 @@ opswitch:
 
 	case OAS2DOTTYPE:
 		walkexprlistsafe(n.List.Slice(), init)
-		n.Rlist.SetFirst(walkexpr(n.Rlist.First(), init))
+		n.Right = walkexpr(n.Right, init)
 
 	case OCONVIFACE:
 		n.Left = walkexpr(n.Left, init)

@@ -3275,6 +3275,8 @@ func typecheckas2(n *Node) {
 				goto mismatch
 			}
 			n.Op = OAS2FUNC
+			n.Right = r
+			n.Rlist.Set(nil)
 			for i, l := range n.List.Slice() {
 				f := r.Type.Field(i)
 				if f.Type != nil && l.Type != nil {
@@ -3298,15 +3300,14 @@ func typecheckas2(n *Node) {
 			switch r.Op {
 			case OINDEXMAP:
 				n.Op = OAS2MAPR
-
 			case ORECV:
 				n.Op = OAS2RECV
-
 			case ODOTTYPE:
 				n.Op = OAS2DOTTYPE
 				r.Op = ODOTTYPE2
 			}
-
+			n.Right = r
+			n.Rlist.Set(nil)
 			if l.Type != nil {
 				checkassignto(r.Type, l)
 			}

@@ -343,7 +343,7 @@ func walkrange(n *Node) *Node {
 		a := nod(OAS2RECV, nil, nil)
 		a.SetTypecheck(1)
 		a.List.Set2(hv1, hb)
-		a.Rlist.Set1(nod(ORECV, ha, nil))
+		a.Right = nod(ORECV, ha, nil)
 		n.Left.Ninit.Set1(a)
 		if v1 == nil {
 			body = nil
