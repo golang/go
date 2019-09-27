@@ -63,8 +63,8 @@ const (
 // If the export data version is not recognized or the format is otherwise
 // compromised, an error is returned.
 func IImportData(fset *token.FileSet, imports map[string]*types.Package, data []byte, path string) (_ int, pkg *types.Package, err error) {
-	const currentVersion = 0
-	version := -1
+	const currentVersion = 1
+	version := int64(-1)
 	defer func() {
 		if e := recover(); e != nil {
 			if version > currentVersion {
@@ -77,9 +77,9 @@ func IImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 
 	r := &intReader{bytes.NewReader(data), path}
 
-	version = int(r.uint64())
+	version = int64(r.uint64())
 	switch version {
-	case currentVersion:
+	case currentVersion, 0:
 	default:
 		errorf("unknown iexport format version %d", version)
 	}
@@ -93,7 +93,8 @@ func IImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 	r.Seek(sLen+dLen, io.SeekCurrent)
 
 	p := iimporter{
-		ipath: path,
+		ipath:   path,
+		version: int(version),
 
 		stringData:  stringData,
 		stringCache: make(map[uint64]string),
@@ -175,7 +176,8 @@ func IImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 }
 
 type iimporter struct {
-	ipath string
+	ipath   string
+	version int
 
 	stringData  []byte
 	stringCache map[uint64]string
@@ -255,6 +257,7 @@ type importReader struct {
 	currPkg    *types.Package
 	prevFile   string
 	prevLine   int64
+	prevColumn int64
 }
 
 func (r *importReader) obj(name string) {
@@ -448,6 +451,19 @@ func (r *importReader) qualifiedIdent() (*types.Package, string) {
 }
 
 func (r *importReader) pos() token.Pos {
+	if r.p.version >= 1 {
+		r.posv1()
+	} else {
+		r.posv0()
+	}
+
+	if r.prevFile == "" && r.prevLine == 0 && r.prevColumn == 0 {
+		return token.NoPos
+	}
+	return r.p.fake.pos(r.prevFile, int(r.prevLine), int(r.prevColumn))
+}
+
+func (r *importReader) posv0() {
 	delta := r.int64()
 	if delta != deltaNewFile {
 		r.prevLine += delta
@@ -457,12 +473,18 @@ func (r *importReader) pos() token.Pos {
 		r.prevFile = r.string()
 		r.prevLine = l
 	}
+}
 
-	if r.prevFile == "" && r.prevLine == 0 {
-		return token.NoPos
+func (r *importReader) posv1() {
+	delta := r.int64()
+	r.prevColumn += delta >> 1
+	if delta&1 != 0 {
+		delta = r.int64()
+		r.prevLine += delta >> 1
+		if delta&1 != 0 {
+			r.prevFile = r.string()
+		}
 	}
-
-	return r.p.fake.pos(r.prevFile, int(r.prevLine))
 }
 
 func (r *importReader) typ() types.Type {
