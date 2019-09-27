@@ -420,7 +420,9 @@ func Join(s [][]byte, sep []byte) []byte {
 	}
 	if len(s) == 1 {
 		// Just return a copy.
-		return append([]byte(nil), s[0]...)
+		b := make([]byte, len(s[0]))
+		copy(b, s[0])
+		return b
 	}
 	n := len(sep) * (len(s) - 1)
 	for _, v := range s {
