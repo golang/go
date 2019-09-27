@@ -629,25 +629,54 @@ func (po *poset) mergeroot(r1, r2 uint32) uint32 {
 	return r
 }
 
-// collapsepath marks i1 and i2 as equal and collapses as equal all
-// nodes across all paths between i1 and i2. If a strict edge is
+// collapsepath marks n1 and n2 as equal and collapses as equal all
+// nodes across all paths between n1 and n2. If a strict edge is
 // found, the function does not modify the DAG and returns false.
+// Complexity is O(n).
 func (po *poset) collapsepath(n1, n2 *Value) bool {
 	i1, i2 := po.values[n1.ID], po.values[n2.ID]
 	if po.reaches(i1, i2, true) {
 		return false
 	}
 
-	// TODO: for now, only handle the simple case of i2 being child of i1
-	l, r := po.children(i1)
-	if l.Target() == i2 || r.Target() == i2 {
-		i2s := newBitset(int(po.lastidx) + 1)
-		i2s.Set(i2)
-		po.aliasnodes(n1, i2s)
-		po.addchild(i1, i2, false)
-		return true
-	}
+	// Find all the paths from i1 to i2
+	paths := po.findpaths(i1, i2)
+	// Mark all nodes in all the paths as aliases of n1
+	// (excluding n1 itself)
+	paths.Clear(i1)
+	po.aliasnodes(n1, paths)
 	return true
+}
+
+// findpaths is a recursive function that calculates all paths from cur to dst
+// and return them as a bitset (the index of a node is set in the bitset if
+// that node is on at least one path from cur to dst).
+// We do a DFS from cur (stopping going deep any time we reach dst, if ever),
+// and mark as part of the paths any node that has a children which is already
+// part of the path (or is dst itself).
+func (po *poset) findpaths(cur, dst uint32) bitset {
+	seen := newBitset(int(po.lastidx + 1))
+	path := newBitset(int(po.lastidx + 1))
+	path.Set(dst)
+	po.findpaths1(cur, dst, seen, path)
+	return path
+}
+
+func (po *poset) findpaths1(cur, dst uint32, seen bitset, path bitset) {
+	if cur == dst {
+		return
+	}
+	seen.Set(cur)
+	l, r := po.chl(cur), po.chr(cur)
+	if !seen.Test(l) {
+		po.findpaths1(l, dst, seen, path)
+	}
+	if !seen.Test(r) {
+		po.findpaths1(r, dst, seen, path)
+	}
+	if path.Test(l) || path.Test(r) {
+		path.Set(cur)
+	}
 }
 
 // Check whether it is recorded that i1!=i2
