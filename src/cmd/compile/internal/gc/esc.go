@@ -7,8 +7,6 @@ package gc
 import (
 	"cmd/compile/internal/types"
 	"fmt"
-	"strconv"
-	"strings"
 )
 
 func escapes(all []*Node) {
@@ -36,32 +34,11 @@ func max8(a, b int8) int8 {
 	return b
 }
 
-// Escape constants are numbered in order of increasing "escapiness"
-// to help make inferences be monotonic. With the exception of
-// EscNever which is sticky, eX < eY means that eY is more exposed
-// than eX, and hence replaces it in a conservative analysis.
 const (
-	EscUnknown        = iota
-	EscNone           // Does not escape to heap, result, or parameters.
-	EscReturn         // Is returned or reachable from returned.
-	EscHeap           // Reachable from the heap
-	EscNever          // By construction will not escape.
-	EscBits           = 3
-	EscMask           = (1 << EscBits) - 1
-	EscContentEscapes = 1 << EscBits // value obtained by indirect of parameter escapes to heap
-	EscReturnBits     = EscBits + 1
-	// Node.esc encoding = | escapeReturnEncoding:(width-4) | contentEscapes:1 | escEnum:3
-)
-
-// For each input parameter to a function, the escapeReturnEncoding describes
-// how the parameter may leak to the function's outputs. This is currently the
-// "level" of the leak where level is 0 or larger (negative level means stored into
-// something whose address is returned -- but that implies stored into the heap,
-// hence EscHeap, which means that the details are not currently relevant. )
-const (
-	bitsPerOutputInTag = 3                                   // For each output, the number of bits for a tag
-	bitsMaskForTag     = EscLeaks(1<<bitsPerOutputInTag) - 1 // The bit mask to extract a single tag.
-	maxEncodedLevel    = int(bitsMaskForTag - 1)             // The largest level that can be stored in a tag.
+	EscUnknown = iota
+	EscNone    // Does not escape to heap, result, or parameters.
+	EscHeap    // Reachable from the heap
+	EscNever   // By construction will not escape.
 )
 
 // funcSym returns fn.Func.Nname.Sym if no nils are encountered along the way.
@@ -198,49 +175,6 @@ func mustHeapAlloc(n *Node) bool {
 		(n.Type.Width > maxStackVarSize ||
 			(n.Op == ONEW || n.Op == OPTRLIT) && n.Type.Elem().Width >= maxImplicitStackVarSize ||
 			n.Op == OMAKESLICE && !isSmallMakeSlice(n))
-}
-
-// Common case for escapes is 16 bits 000000000xxxEEEE
-// where commonest cases for xxx encoding in-to-out pointer
-//  flow are 000, 001, 010, 011  and EEEE is computed Esc bits.
-// Note width of xxx depends on value of constant
-// bitsPerOutputInTag -- expect 2 or 3, so in practice the
-// tag cache array is 64 or 128 long. Some entries will
-// never be populated.
-var tags [1 << (bitsPerOutputInTag + EscReturnBits)]string
-
-// mktag returns the string representation for an escape analysis tag.
-func mktag(mask EscLeaks) string {
-	switch mask & EscMask {
-	case EscHeap:
-		return ""
-	case EscNone, EscReturn:
-	default:
-		Fatalf("escape mktag")
-	}
-
-	if int(mask) < len(tags) && tags[mask] != "" {
-		return tags[mask]
-	}
-
-	s := fmt.Sprintf("esc:0x%x", mask)
-	if int(mask) < len(tags) {
-		tags[mask] = s
-	}
-	return s
-}
-
-// parsetag decodes an escape analysis tag and returns the esc value.
-func parsetag(note string) EscLeaks {
-	if !strings.HasPrefix(note, "esc:") {
-		return EscUnknown
-	}
-	n, _ := strconv.ParseInt(note[4:], 0, 0)
-	em := EscLeaks(n)
-	if em == 0 {
-		return EscNone
-	}
-	return em
 }
 
 // addrescapes tags node n as having had its address taken
@@ -481,7 +415,9 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 	esc.Optimize()
 
 	if Debug['m'] != 0 && !loc.escapes {
-		leaks := false
+		if esc.Empty() {
+			Warnl(f.Pos, "%v does not escape", name())
+		}
 		if x := esc.Heap(); x >= 0 {
 			if x == 0 {
 				Warnl(f.Pos, "leaking param: %v", name())
@@ -489,17 +425,12 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 				// TODO(mdempsky): Mention level=x like below?
 				Warnl(f.Pos, "leaking param content: %v", name())
 			}
-			leaks = true
 		}
 		for i := 0; i < numEscResults; i++ {
 			if x := esc.Result(i); x >= 0 {
 				res := fn.Type.Results().Field(i).Sym
 				Warnl(f.Pos, "leaking param: %v to result %v level=%d", name(), res, x)
-				leaks = true
 			}
-		}
-		if !leaks {
-			Warnl(f.Pos, "%v does not escape", name())
 		}
 	}
 
