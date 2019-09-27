@@ -835,7 +835,7 @@ func loadobjfile(ctxt *Link, lib *sym.Library) {
 	if err != nil {
 		Exitf("cannot open file %s: %v", lib.File, err)
 	}
-	//defer f.Close()
+	defer f.Close()
 	defer func() {
 		if pkg == "main" && !lib.Main {
 			Exitf("%s: not package main", lib.File)

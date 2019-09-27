@@ -124,8 +124,11 @@ func (l *Loader) Lookup(name string, ver int) int {
 // Preload a package: add autolibs, add symbols to the symbol table.
 // Does not read symbol data yet.
 func LoadNew(l *Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64, pn string, flags int) {
-	start := f.Offset()
-	r := goobj2.NewReader(f.File(), uint32(start))
+	roObject, readonly, err := f.Slice(uint64(length))
+	if err != nil {
+		log.Fatal("cannot read object file:", err)
+	}
+	r := goobj2.NewReaderFromBytes(roObject, readonly)
 	if r == nil {
 		panic("cannot read object file")
 	}
@@ -314,6 +317,7 @@ func LoadReloc(l *Loader, r *goobj2.Reader, lib *sym.Library, localSymVersion in
 		// XXX deadcode needs symbol data for type symbols. Read it now.
 		if strings.HasPrefix(name, "type.") {
 			s.P = r.BytesAt(r.DataOff(i), r.DataSize(i))
+			s.Attr.Set(sym.AttrReadOnly, r.ReadOnly())
 			s.Size = int64(osym.Siz)
 		}
 
@@ -422,6 +426,7 @@ func LoadFull(l *Loader, r *goobj2.Reader, lib *sym.Library, localSymVersion int
 
 		// Symbol data
 		s.P = r.BytesAt(r.DataOff(i), datasize)
+		s.Attr.Set(sym.AttrReadOnly, r.ReadOnly())
 
 		// Aux symbol info
 		isym := -1
