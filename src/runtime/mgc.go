@@ -2168,8 +2168,7 @@ func gcResetMarkState() {
 	// allgs doesn't change.
 	lock(&allglock)
 	for _, gp := range allgs {
-		gp.gcscandone = false  // set to true in gcphasework
-		gp.gcscanvalid = false // stack has not been scanned
+		gp.gcscandone = false // set to true in gcphasework
 		gp.gcAssistBytes = 0
 	}
 	unlock(&allglock)
