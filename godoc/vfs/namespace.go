@@ -298,66 +298,52 @@ var startTime = time.Now()
 func (ns NameSpace) ReadDir(path string) ([]os.FileInfo, error) {
 	path = ns.clean(path)
 
+	// List matching directories and determine whether any of them contain
+	// Go files.
 	var (
-		haveGo   = false
-		haveName = map[string]bool{}
-		all      []os.FileInfo
-		err      error
-		first    []os.FileInfo
+		dirs       [][]os.FileInfo
+		goDirIndex = -1
+		readDirErr error
 	)
 
 	for _, m := range ns.resolve(path) {
-		dir, err1 := m.fs.ReadDir(m.translate(path))
-		if err1 != nil {
-			if err == nil {
-				err = err1
+		dir, err := m.fs.ReadDir(m.translate(path))
+		if err != nil {
+			if readDirErr == nil {
+				readDirErr = err
 			}
 			continue
 		}
 
-		if dir == nil {
-			dir = []os.FileInfo{}
-		}
+		dirs = append(dirs, dir)
 
-		if first == nil {
-			first = dir
-		}
-
-		// If we don't yet have Go files in 'all' and this directory
-		// has some, add all the files from this directory.
-		// Otherwise, only add subdirectories.
-		useFiles := false
-		if !haveGo {
-			for _, d := range dir {
-				if strings.HasSuffix(d.Name(), ".go") {
-					useFiles = true
-					haveGo = true
+		if goDirIndex < 0 {
+			for _, f := range dir {
+				if !f.IsDir() && strings.HasSuffix(f.Name(), ".go") {
+					goDirIndex = len(dirs) - 1
 					break
 				}
 			}
 		}
+	}
 
-		for _, d := range dir {
-			name := d.Name()
-			if (d.IsDir() || useFiles) && !haveName[name] {
+	// Build a list of files and subdirectories. If a directory contains Go files,
+	// only include files from that directory. Otherwise, include files from
+	// all directories. Include subdirectories from all directories regardless
+	// of whether Go files are present.
+	haveName := make(map[string]bool)
+	var all []os.FileInfo
+	for i, dir := range dirs {
+		for _, f := range dir {
+			name := f.Name()
+			if !haveName[name] && (f.IsDir() || goDirIndex < 0 || goDirIndex == i) {
+				all = append(all, f)
 				haveName[name] = true
-				all = append(all, d)
 			}
 		}
 	}
 
-	// We didn't find any directories containing Go files.
-	// If some directory returned successfully, use that.
-	if !haveGo {
-		for _, d := range first {
-			if !haveName[d.Name()] {
-				haveName[d.Name()] = true
-				all = append(all, d)
-			}
-		}
-	}
-
-	// Built union.  Add any missing directories needed to reach mount points.
+	// Add any missing directories needed to reach mount points.
 	for old := range ns {
 		if hasPathPrefix(old, path) && old != path {
 			// Find next element after path in old.
@@ -374,7 +360,7 @@ func (ns NameSpace) ReadDir(path string) ([]os.FileInfo, error) {
 	}
 
 	if len(all) == 0 {
-		return nil, err
+		return nil, readDirErr
 	}
 
 	sort.Sort(byName(all))
