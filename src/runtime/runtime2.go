@@ -418,11 +418,14 @@ type g struct {
 	schedlink    guintptr
 	waitsince    int64      // approx time when the g become blocked
 	waitreason   waitReason // if status==Gwaiting
-	preempt      bool       // preemption signal, duplicates stackguard0 = stackpreempt
-	preemptStop  bool       // transition to _Gpreempted on preemption; otherwise, just deschedule
-	paniconfault bool       // panic (instead of crash) on unexpected fault address
-	gcscandone   bool       // g has scanned stack; protected by _Gscan bit in status
-	throwsplit   bool       // must not split stack
+
+	preempt       bool // preemption signal, duplicates stackguard0 = stackpreempt
+	preemptStop   bool // transition to _Gpreempted on preemption; otherwise, just deschedule
+	preemptShrink bool // shrink stack at synchronous safe point
+
+	paniconfault bool // panic (instead of crash) on unexpected fault address
+	gcscandone   bool // g has scanned stack; protected by _Gscan bit in status
+	throwsplit   bool // must not split stack
 	// activeStackChans indicates that there are unlocked channels
 	// pointing into this goroutine's stack. If true, stack
 	// copying needs to acquire channel locks to protect these

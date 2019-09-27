@@ -1010,6 +1010,13 @@ func newstack() {
 			throw("runtime: g is running but p is not")
 		}
 
+		if gp.preemptShrink {
+			// We're at a synchronous safe point now, so
+			// do the pending stack shrink.
+			gp.preemptShrink = false
+			shrinkstack(gp)
+		}
+
 		if gp.preemptStop {
 			preemptPark(gp) // never returns
 		}
@@ -1057,16 +1064,36 @@ func gostartcallfn(gobuf *gobuf, fv *funcval) {
 	gostartcall(gobuf, fn, unsafe.Pointer(fv))
 }
 
+// isShrinkStackSafe returns whether it's safe to attempt to shrink
+// gp's stack. Shrinking the stack is only safe when we have precise
+// pointer maps for all frames on the stack.
+func isShrinkStackSafe(gp *g) bool {
+	// We can't copy the stack if we're in a syscall.
+	// The syscall might have pointers into the stack and
+	// often we don't have precise pointer maps for the innermost
+	// frames.
+	return gp.syscallsp == 0
+}
+
 // Maybe shrink the stack being used by gp.
-// Called at garbage collection time.
-// gp must be stopped, but the world need not be.
+//
+// gp must be stopped and we must own its stack. It may be in
+// _Grunning, but only if this is our own user G.
 func shrinkstack(gp *g) {
-	gstatus := readgstatus(gp)
 	if gp.stack.lo == 0 {
 		throw("missing stack in shrinkstack")
 	}
-	if gstatus&_Gscan == 0 {
-		throw("bad status in shrinkstack")
+	if s := readgstatus(gp); s&_Gscan == 0 {
+		// We don't own the stack via _Gscan. We could still
+		// own it if this is our own user G and we're on the
+		// system stack.
+		if !(gp == getg().m.curg && getg() != getg().m.curg && s == _Grunning) {
+			// We don't own the stack.
+			throw("bad status in shrinkstack")
+		}
+	}
+	if !isShrinkStackSafe(gp) {
+		throw("shrinkstack at bad time")
 	}
 	// Check for self-shrinks while in a libcall. These may have
 	// pointers into the stack disguised as uintptrs, but these
@@ -1099,12 +1126,6 @@ func shrinkstack(gp *g) {
 	// there's room for nosplit functions.
 	avail := gp.stack.hi - gp.stack.lo
 	if used := gp.stack.hi - gp.sched.sp + _StackLimit; used >= avail/4 {
-		return
-	}
-
-	// We can't copy the stack if we're in a syscall.
-	// The syscall might have pointers into the stack.
-	if gp.syscallsp != 0 {
 		return
 	}
 
