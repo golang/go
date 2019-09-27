@@ -125,8 +125,7 @@ func gcMarkRootCheck() {
 fail:
 	println("gp", gp, "goid", gp.goid,
 		"status", readgstatus(gp),
-		"gcscandone", gp.gcscandone,
-		"gcscanvalid", gp.gcscanvalid)
+		"gcscandone", gp.gcscandone)
 	unlock(&allglock) // Avoid self-deadlock with traceback.
 	throw("scan missed a g")
 }
@@ -674,10 +673,6 @@ func gcFlushBgCredit(scanWork int64) {
 //go:nowritebarrier
 //go:systemstack
 func scanstack(gp *g, gcw *gcWork) {
-	if gp.gcscanvalid {
-		return
-	}
-
 	if readgstatus(gp)&_Gscan == 0 {
 		print("runtime:scanstack: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", hex(readgstatus(gp)), "\n")
 		throw("scanstack - bad status")
@@ -817,8 +812,6 @@ func scanstack(gp *g, gcw *gcWork) {
 	if state.buf != nil || state.freeBuf != nil {
 		throw("remaining pointer buffers")
 	}
-
-	gp.gcscanvalid = true
 }
 
 // Scan a stack frame: local variables and function arguments/results.

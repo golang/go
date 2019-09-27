@@ -422,7 +422,6 @@ type g struct {
 	preemptStop    bool       // transition to _Gpreempted on preemption; otherwise, just deschedule
 	paniconfault   bool       // panic (instead of crash) on unexpected fault address
 	gcscandone     bool       // g has scanned stack; protected by _Gscan bit in status
-	gcscanvalid    bool       // false at start of gc cycle, true if G has not run since last scan; TODO: remove?
 	throwsplit     bool       // must not split stack
 	raceignore     int8       // ignore race detection events
 	sysblocktraced bool       // StartTrace has emitted EvGoInSyscall about this goroutine

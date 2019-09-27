@@ -710,18 +710,6 @@ func readgstatus(gp *g) uint32 {
 	return atomic.Load(&gp.atomicstatus)
 }
 
-// Ownership of gcscanvalid:
-//
-// If gp is running (meaning status == _Grunning or _Grunning|_Gscan),
-// then gp owns gp.gcscanvalid, and other goroutines must not modify it.
-//
-// Otherwise, a second goroutine can lock the scan state by setting _Gscan
-// in the status bit and then modify gcscanvalid, and then unlock the scan state.
-//
-// Note that the first condition implies an exception to the second:
-// if a second goroutine changes gp's status to _Grunning|_Gscan,
-// that second goroutine still does not have the right to modify gcscanvalid.
-
 // The Gscanstatuses are acting like locks and this releases them.
 // If it proves to be a performance hit we should be able to make these
 // simple atomic stores but for now we are going to throw if
@@ -781,17 +769,6 @@ func casgstatus(gp *g, oldval, newval uint32) {
 		})
 	}
 
-	if oldval == _Grunning && gp.gcscanvalid {
-		// If oldvall == _Grunning, then the actual status must be
-		// _Grunning or _Grunning|_Gscan; either way,
-		// we own gp.gcscanvalid, so it's safe to read.
-		// gp.gcscanvalid must not be true when we are running.
-		systemstack(func() {
-			print("runtime: casgstatus ", hex(oldval), "->", hex(newval), " gp.status=", hex(gp.atomicstatus), " gp.gcscanvalid=true\n")
-			throw("casgstatus")
-		})
-	}
-
 	// See https://golang.org/cl/21503 for justification of the yield delay.
 	const yieldDelay = 5 * 1000
 	var nextYield int64
@@ -813,9 +790,6 @@ func casgstatus(gp *g, oldval, newval uint32) {
 			osyield()
 			nextYield = nanotime() + yieldDelay/2
 		}
-	}
-	if newval == _Grunning {
-		gp.gcscanvalid = false
 	}
 }
 
@@ -1585,7 +1559,6 @@ func oneNewExtraM() {
 	gp.syscallpc = gp.sched.pc
 	gp.syscallsp = gp.sched.sp
 	gp.stktopsp = gp.sched.sp
-	gp.gcscanvalid = true
 	// malg returns status as _Gidle. Change to _Gdead before
 	// adding to allg where GC can see it. We use _Gdead to hide
 	// this from tracebacks and stack scans since it isn't a
@@ -2815,9 +2788,6 @@ func goexit0(gp *g) {
 		gp.gcAssistBytes = 0
 	}
 
-	// Note that gp's stack scan is now "valid" because it has no
-	// stack.
-	gp.gcscanvalid = true
 	dropg()
 
 	if GOARCH == "wasm" { // no threads yet on wasm
@@ -3462,7 +3432,6 @@ func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerp
 	if isSystemGoroutine(newg, false) {
 		atomic.Xadd(&sched.ngsys, +1)
 	}
-	newg.gcscanvalid = false
 	casgstatus(newg, _Gdead, _Grunnable)
 
 	if _p_.goidcache == _p_.goidcacheend {
