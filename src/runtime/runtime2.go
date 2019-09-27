@@ -421,7 +421,6 @@ type g struct {
 	preempt        bool       // preemption signal, duplicates stackguard0 = stackpreempt
 	preemptStop    bool       // transition to _Gpreempted on preemption; otherwise, just deschedule
 	paniconfault   bool       // panic (instead of crash) on unexpected fault address
-	preemptscan    bool       // preempted g does scan for gc
 	gcscandone     bool       // g has scanned stack; protected by _Gscan bit in status
 	gcscanvalid    bool       // false at start of gc cycle, true if G has not run since last scan; TODO: remove?
 	throwsplit     bool       // must not split stack
