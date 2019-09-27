@@ -328,7 +328,10 @@ func Run(t *testing.T, tests Tests, data *Data) {
 	t.Run("Completion", func(t *testing.T) {
 		t.Helper()
 		for src, test := range data.Completions {
-			tests.Completion(t, src, test, data.CompletionItems)
+			t.Run(spanName(src), func(t *testing.T) {
+				t.Helper()
+				tests.Completion(t, src, test, data.CompletionItems)
+			})
 		}
 	})
 
@@ -336,7 +339,14 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		t.Helper()
 		for _, placeholders := range []bool{true, false} {
 			for src, expected := range data.CompletionSnippets {
-				tests.CompletionSnippet(t, src, expected, placeholders, data.CompletionItems)
+				name := spanName(src)
+				if placeholders {
+					name += "_placeholders"
+				}
+				t.Run(name, func(t *testing.T) {
+					t.Helper()
+					tests.CompletionSnippet(t, src, expected, placeholders, data.CompletionItems)
+				})
 			}
 		}
 	})
@@ -344,126 +354,180 @@ func Run(t *testing.T, tests Tests, data *Data) {
 	t.Run("UnimportedCompletion", func(t *testing.T) {
 		t.Helper()
 		for src, test := range data.UnimportedCompletions {
-			tests.UnimportedCompletion(t, src, test, data.CompletionItems)
+			t.Run(spanName(src), func(t *testing.T) {
+				t.Helper()
+				tests.UnimportedCompletion(t, src, test, data.CompletionItems)
+			})
 		}
 	})
 
 	t.Run("DeepCompletion", func(t *testing.T) {
 		t.Helper()
 		for src, test := range data.DeepCompletions {
-			tests.DeepCompletion(t, src, test, data.CompletionItems)
+			t.Run(spanName(src), func(t *testing.T) {
+				t.Helper()
+				tests.DeepCompletion(t, src, test, data.CompletionItems)
+			})
 		}
 	})
 
 	t.Run("FuzzyCompletion", func(t *testing.T) {
 		t.Helper()
 		for src, test := range data.FuzzyCompletions {
-			tests.FuzzyCompletion(t, src, test, data.CompletionItems)
+			t.Run(spanName(src), func(t *testing.T) {
+				t.Helper()
+				tests.FuzzyCompletion(t, src, test, data.CompletionItems)
+			})
 		}
 	})
 
 	t.Run("CaseSensitiveCompletion", func(t *testing.T) {
 		t.Helper()
 		for src, test := range data.CaseSensitiveCompletions {
-			tests.CaseSensitiveCompletion(t, src, test, data.CompletionItems)
+			t.Run(spanName(src), func(t *testing.T) {
+				t.Helper()
+				tests.CaseSensitiveCompletion(t, src, test, data.CompletionItems)
+			})
 		}
 	})
 
 	t.Run("RankCompletions", func(t *testing.T) {
 		t.Helper()
 		for src, test := range data.RankCompletions {
-			tests.RankCompletion(t, src, test, data.CompletionItems)
+			t.Run(spanName(src), func(t *testing.T) {
+				t.Helper()
+				tests.RankCompletion(t, src, test, data.CompletionItems)
+			})
 		}
 	})
 
 	t.Run("Diagnostics", func(t *testing.T) {
 		t.Helper()
 		for uri, want := range data.Diagnostics {
-			tests.Diagnostics(t, uri, want)
+			t.Run(uriName(uri), func(t *testing.T) {
+				t.Helper()
+				tests.Diagnostics(t, uri, want)
+			})
 		}
 	})
 
 	t.Run("FoldingRange", func(t *testing.T) {
 		t.Helper()
 		for _, spn := range data.FoldingRanges {
-			tests.FoldingRange(t, spn)
+			t.Run(uriName(spn.URI()), func(t *testing.T) {
+				t.Helper()
+				tests.FoldingRange(t, spn)
+			})
 		}
 	})
 
 	t.Run("Format", func(t *testing.T) {
 		t.Helper()
 		for _, spn := range data.Formats {
-			tests.Format(t, spn)
+			t.Run(uriName(spn.URI()), func(t *testing.T) {
+				t.Helper()
+				tests.Format(t, spn)
+			})
 		}
 	})
 
 	t.Run("Import", func(t *testing.T) {
 		t.Helper()
 		for _, spn := range data.Imports {
-			tests.Import(t, spn)
+			t.Run(uriName(spn.URI()), func(t *testing.T) {
+				t.Helper()
+				tests.Import(t, spn)
+			})
 		}
 	})
 
 	t.Run("SuggestedFix", func(t *testing.T) {
 		t.Helper()
 		for _, spn := range data.SuggestedFixes {
-			tests.SuggestedFix(t, spn)
+			t.Run(spanName(spn), func(t *testing.T) {
+				t.Helper()
+				tests.SuggestedFix(t, spn)
+			})
 		}
 	})
 
 	t.Run("Definition", func(t *testing.T) {
 		t.Helper()
 		for spn, d := range data.Definitions {
-			tests.Definition(t, spn, d)
+			t.Run(spanName(spn), func(t *testing.T) {
+				t.Helper()
+				tests.Definition(t, spn, d)
+			})
 		}
 	})
 
 	t.Run("Highlight", func(t *testing.T) {
 		t.Helper()
 		for name, locations := range data.Highlights {
-			tests.Highlight(t, name, locations)
+			t.Run(name, func(t *testing.T) {
+				t.Helper()
+				tests.Highlight(t, name, locations)
+			})
 		}
 	})
 
 	t.Run("References", func(t *testing.T) {
 		t.Helper()
 		for src, itemList := range data.References {
-			tests.Reference(t, src, itemList)
+			t.Run(spanName(src), func(t *testing.T) {
+				t.Helper()
+				tests.Reference(t, src, itemList)
+			})
 		}
 	})
 
 	t.Run("Renames", func(t *testing.T) {
 		t.Helper()
 		for spn, newText := range data.Renames {
-			tests.Rename(t, spn, newText)
+			t.Run(uriName(spn.URI())+"_"+newText, func(t *testing.T) {
+				t.Helper()
+				tests.Rename(t, spn, newText)
+			})
 		}
 	})
 
 	t.Run("PrepareRenames", func(t *testing.T) {
 		t.Helper()
 		for src, want := range data.PrepareRenames {
-			tests.PrepareRename(t, src, want)
+			t.Run(spanName(src), func(t *testing.T) {
+				t.Helper()
+				tests.PrepareRename(t, src, want)
+			})
 		}
 	})
 
 	t.Run("Symbols", func(t *testing.T) {
 		t.Helper()
 		for uri, expectedSymbols := range data.Symbols {
-			tests.Symbol(t, uri, expectedSymbols)
+			t.Run(uriName(uri), func(t *testing.T) {
+				t.Helper()
+				tests.Symbol(t, uri, expectedSymbols)
+			})
 		}
 	})
 
 	t.Run("SignatureHelp", func(t *testing.T) {
 		t.Helper()
 		for spn, expectedSignature := range data.Signatures {
-			tests.SignatureHelp(t, spn, expectedSignature)
+			t.Run(spanName(spn), func(t *testing.T) {
+				t.Helper()
+				tests.SignatureHelp(t, spn, expectedSignature)
+			})
 		}
 	})
 
 	t.Run("Link", func(t *testing.T) {
 		t.Helper()
 		for uri, wantLinks := range data.Links {
-			tests.Link(t, uri, wantLinks)
+			t.Run(uriName(uri), func(t *testing.T) {
+				t.Helper()
+				tests.Link(t, uri, wantLinks)
+			})
 		}
 	})
 
@@ -811,4 +875,12 @@ func (data *Data) collectLinks(spn span.Span, link string, note *expect.Note, fs
 		Target:       link,
 		NotePosition: position,
 	})
+}
+
+func uriName(uri span.URI) string {
+	return filepath.Base(strings.TrimSuffix(uri.Filename(), ".go"))
+}
+
+func spanName(spn span.Span) string {
+	return fmt.Sprintf("%v_%v_%v", uriName(spn.URI()), spn.Start().Line(), spn.Start().Column())
 }
