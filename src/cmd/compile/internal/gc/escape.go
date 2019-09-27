@@ -361,18 +361,18 @@ func (e *Escape) stmt(n *Node) {
 		}
 
 	case OAS2DOTTYPE: // v, ok = x.(type)
-		e.assign(n.List.First(), n.Rlist.First(), "assign-pair-dot-type", n)
+		e.assign(n.List.First(), n.Right, "assign-pair-dot-type", n)
 		e.assign(n.List.Second(), nil, "assign-pair-dot-type", n)
 	case OAS2MAPR: // v, ok = m[k]
-		e.assign(n.List.First(), n.Rlist.First(), "assign-pair-mapr", n)
+		e.assign(n.List.First(), n.Right, "assign-pair-mapr", n)
 		e.assign(n.List.Second(), nil, "assign-pair-mapr", n)
 	case OAS2RECV: // v, ok = <-ch
-		e.assign(n.List.First(), n.Rlist.First(), "assign-pair-receive", n)
+		e.assign(n.List.First(), n.Right, "assign-pair-receive", n)
 		e.assign(n.List.Second(), nil, "assign-pair-receive", n)
 
 	case OAS2FUNC:
-		e.stmts(n.Rlist.First().Ninit)
-		e.call(e.addrs(n.List), n.Rlist.First(), nil)
+		e.stmts(n.Right.Ninit)
+		e.call(e.addrs(n.List), n.Right, nil)
 	case ORETURN:
 		results := e.curfn.Type.Results().FieldSlice()
 		for i, v := range n.List.Slice() {

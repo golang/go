@@ -1044,11 +1044,17 @@ func (w *exportWriter) stmt(n *Node) {
 			w.expr(n.Right)
 		}
 
-	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+	case OAS2:
 		w.op(OAS2)
 		w.pos(n.Pos)
 		w.exprList(n.List)
 		w.exprList(n.Rlist)
+
+	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+		w.op(OAS2)
+		w.pos(n.Pos)
+		w.exprList(n.List)
+		w.exprList(asNodes([]*Node{n.Right}))
 
 	case ORETURN:
 		w.op(ORETURN)

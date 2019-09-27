@@ -60,7 +60,7 @@ func typecheckselect(sel *Node) {
 
 				// convert x, ok = <-c into OSELRECV2(x, <-c) with ntest=ok
 			case OAS2RECV:
-				if n.Rlist.First().Op != ORECV {
+				if n.Right.Op != ORECV {
 					yyerrorl(n.Pos, "select assignment must have receive on right hand side")
 					break
 				}
@@ -68,8 +68,6 @@ func typecheckselect(sel *Node) {
 				n.Op = OSELRECV2
 				n.Left = n.List.First()
 				n.List.Set1(n.List.Second())
-				n.Right = n.Rlist.First()
-				n.Rlist.Set(nil)
 
 				// convert <-c into OSELRECV(N, <-c)
 			case ORECV:
