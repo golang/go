@@ -211,14 +211,24 @@ func markroot(gcw *gcWork, i uint32) {
 				userG.waitreason = waitReasonGarbageCollectionScan
 			}
 
-			// TODO: scang blocks until gp's stack has
-			// been scanned, which may take a while for
+			// TODO: suspendG blocks (and spins) until gp
+			// stops, which may take a while for
 			// running goroutines. Consider doing this in
 			// two phases where the first is non-blocking:
 			// we scan the stacks we can and ask running
 			// goroutines to scan themselves; and the
 			// second blocks.
-			scang(gp, gcw)
+			stopped := suspendG(gp)
+			if stopped.dead {
+				gp.gcscandone = true
+				return
+			}
+			if gp.gcscandone {
+				throw("g already scanned")
+			}
+			scanstack(gp, gcw)
+			gp.gcscandone = true
+			resumeG(stopped)
 
 			if selfScan {
 				casgstatus(userG, _Gwaiting, _Grunning)

@@ -1017,6 +1017,11 @@ func newstack() {
 		if thisg.m.p == 0 && thisg.m.locks == 0 {
 			throw("runtime: g is running but p is not")
 		}
+
+		if gp.preemptStop {
+			preemptPark(gp) // never returns
+		}
+
 		// Synchronize with scang.
 		casgstatus(gp, _Grunning, _Gwaiting)
 		if gp.preemptscan {

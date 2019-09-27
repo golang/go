@@ -738,7 +738,8 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
 	case _Gscanrunnable,
 		_Gscanwaiting,
 		_Gscanrunning,
-		_Gscansyscall:
+		_Gscansyscall,
+		_Gscanpreempted:
 		if newval == oldval&^_Gscan {
 			success = atomic.Cas(&gp.atomicstatus, oldval, newval)
 		}
@@ -842,6 +843,28 @@ func casgcopystack(gp *g) uint32 {
 			return oldstatus
 		}
 	}
+}
+
+// casGToPreemptScan transitions gp from _Grunning to _Gscan|_Gpreempted.
+//
+// TODO(austin): This is the only status operation that both changes
+// the status and locks the _Gscan bit. Rethink this.
+func casGToPreemptScan(gp *g, old, new uint32) {
+	if old != _Grunning || new != _Gscan|_Gpreempted {
+		throw("bad g transition")
+	}
+	for !atomic.Cas(&gp.atomicstatus, _Grunning, _Gscan|_Gpreempted) {
+	}
+}
+
+// casGFromPreempted attempts to transition gp from _Gpreempted to
+// _Gwaiting. If successful, the caller is responsible for
+// re-scheduling gp.
+func casGFromPreempted(gp *g, old, new uint32) bool {
+	if old != _Gpreempted || new != _Gwaiting {
+		throw("bad g transition")
+	}
+	return atomic.Cas(&gp.atomicstatus, _Gpreempted, _Gwaiting)
 }
 
 // scang blocks until gp's stack has been scanned.
@@ -1676,7 +1699,6 @@ func oneNewExtraM() {
 	gp.syscallsp = gp.sched.sp
 	gp.stktopsp = gp.sched.sp
 	gp.gcscanvalid = true
-	gp.gcscandone = true
 	// malg returns status as _Gidle. Change to _Gdead before
 	// adding to allg where GC can see it. We use _Gdead to hide
 	// this from tracebacks and stack scans since it isn't a
@@ -2838,6 +2860,32 @@ func gopreempt_m(gp *g) {
 	goschedImpl(gp)
 }
 
+// preemptPark parks gp and puts it in _Gpreempted.
+//
+//go:systemstack
+func preemptPark(gp *g) {
+	if trace.enabled {
+		traceGoPark(traceEvGoBlock, 0)
+	}
+	status := readgstatus(gp)
+	if status&^_Gscan != _Grunning {
+		dumpgstatus(gp)
+		throw("bad g status")
+	}
+	gp.waitreason = waitReasonPreempted
+	// Transition from _Grunning to _Gscan|_Gpreempted. We can't
+	// be in _Grunning when we dropg because then we'd be running
+	// without an M, but the moment we're in _Gpreempted,
+	// something could claim this G before we've fully cleaned it
+	// up. Hence, we set the scan bit to lock down further
+	// transitions until we can dropg.
+	casGToPreemptScan(gp, _Grunning, _Gscan|_Gpreempted)
+	dropg()
+	casfrom_Gscanstatus(gp, _Gscan|_Gpreempted, _Gpreempted)
+
+	schedule()
+}
+
 // Finishes execution of the current goroutine.
 func goexit1() {
 	if raceenabled {
@@ -2861,6 +2909,7 @@ func goexit0(gp *g) {
 	locked := gp.lockedm != 0
 	gp.lockedm = 0
 	_g_.m.lockedg = 0
+	gp.preemptStop = false
 	gp.paniconfault = false
 	gp._defer = nil // should be true already but just in case.
 	gp._panic = nil // non-nil for Goexit during panic. points at stack-allocated data.
@@ -4436,7 +4485,8 @@ func checkdead() {
 		}
 		s := readgstatus(gp)
 		switch s &^ _Gscan {
-		case _Gwaiting:
+		case _Gwaiting,
+			_Gpreempted:
 			grunning++
 		case _Grunnable,
 			_Grunning,
