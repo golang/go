@@ -76,11 +76,7 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnosti
 	if err != nil {
 		t.Fatalf("no file for %s: %v", f, err)
 	}
-	gof, ok := f.(source.GoFile)
-	if !ok {
-		t.Fatalf("%s is not a Go file: %v", uri, err)
-	}
-	results, _, err := source.Diagnostics(r.ctx, v, gof, nil)
+	results, _, err := source.Diagnostics(r.ctx, v, f, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -323,7 +319,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 	uri := spn.URI()
 	filename := uri.Filename()
 	view := r.server.session.ViewOf(uri)
-	f, err := getGoFile(r.ctx, view, uri)
+	f, err := view.GetFile(r.ctx, uri)
 	if err != nil {
 		t.Fatal(err)
 	}

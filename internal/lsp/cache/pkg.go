@@ -191,6 +191,14 @@ func (pkg *pkg) IsIllTyped() bool {
 	return pkg.types == nil || pkg.typesInfo == nil || pkg.typesSizes == nil
 }
 
+func (pkg *pkg) GetImport(ctx context.Context, pkgPath string) (source.Package, error) {
+	if imp := pkg.imports[packagePath(pkgPath)]; imp != nil {
+		return imp, nil
+	}
+	// Don't return a nil pointer because that still satisfies the interface.
+	return nil, errors.Errorf("no imported package for %s", pkgPath)
+}
+
 func (pkg *pkg) SetDiagnostics(a *analysis.Analyzer, diags []source.Diagnostic) {
 	pkg.diagMu.Lock()
 	defer pkg.diagMu.Unlock()

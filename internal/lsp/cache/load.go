@@ -7,7 +7,7 @@ package cache
 import (
 	"context"
 	"fmt"
-	"go/ast"
+	"go/types"
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/source"
@@ -19,122 +19,37 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-func (v *view) loadParseTypecheck(ctx context.Context, f *goFile, fh source.FileHandle) ([]source.CheckPackageHandle, error) {
-	ctx, done := trace.StartSpan(ctx, "cache.view.loadParseTypeCheck", telemetry.URI.Of(f.URI()))
-	defer done()
-
-	meta, err := v.load(ctx, f, fh)
-	if err != nil {
-		return nil, err
-	}
-	// If load has explicitly returns nil metadata and no error,
-	// it means that we should not re-typecheck the packages.
-	if meta == nil {
-		return nil, nil
-	}
-	var (
-		cphs    []*checkPackageHandle
-		results []source.CheckPackageHandle
-	)
-	for _, m := range meta {
-		imp := &importer{
-			view:              v,
-			config:            v.Config(ctx),
-			seen:              make(map[packageID]struct{}),
-			topLevelPackageID: m.id,
-		}
-		cph, err := imp.checkPackageHandle(ctx, m)
-		if err != nil {
-			return nil, err
-		}
-		for _, ph := range cph.files {
-			if err := v.cachePerFile(ctx, ph); err != nil {
-				return nil, err
-			}
-		}
-		cphs = append(cphs, cph)
-		results = append(results, cph)
-	}
-	// Cache the package type information for the top-level package.
-	v.updatePackages(cphs)
-	return results, nil
+type packageKey struct {
+	mode source.ParseMode
+	id   packageID
 }
 
-func (v *view) cachePerFile(ctx context.Context, ph source.ParseGoHandle) error {
-	file, _, _, err := ph.Parse(ctx)
-	if err != nil {
-		return err
-	}
-	f, err := v.GetFile(ctx, ph.File().Identity().URI)
-	if err != nil {
-		return err
-	}
-	gof, ok := f.(*goFile)
-	if !ok {
-		return errors.Errorf("%s is not a Go file", ph.File().Identity().URI)
-	}
-	gof.mu.Lock()
-	gof.imports = file.Imports
-	gof.mu.Unlock()
-	return nil
+type metadata struct {
+	id          packageID
+	pkgPath     packagePath
+	name        string
+	files       []span.URI
+	typesSizes  types.Sizes
+	errors      []packages.Error
+	deps        []packageID
+	missingDeps map[packagePath]struct{}
 }
 
-func (view *view) load(ctx context.Context, f *goFile, fh source.FileHandle) ([]*metadata, error) {
-	ctx, done := trace.StartSpan(ctx, "cache.view.load", telemetry.URI.Of(f.URI()))
+func (s *snapshot) load(ctx context.Context, uri span.URI, cfg *packages.Config) ([]*metadata, error) {
+	ctx, done := trace.StartSpan(ctx, "cache.view.load", telemetry.URI.Of(uri))
 	defer done()
 
-	// Get the metadata for the file.
-	meta, err := view.checkMetadata(ctx, f, fh)
-	if err != nil {
-		return nil, err
-	}
-	if len(meta) == 0 {
-		return nil, fmt.Errorf("no package metadata found for %s", f.URI())
-	}
-	return meta, nil
-}
-
-// checkMetadata determines if we should run go/packages.Load for this file.
-// If yes, update the metadata for the file and its package.
-func (v *view) checkMetadata(ctx context.Context, f *goFile, fh source.FileHandle) ([]*metadata, error) {
-	var shouldRunGopackages bool
-
-	m := v.getMetadata(fh.Identity().URI)
-	if len(m) == 0 {
-		shouldRunGopackages = true
-	}
-	// Get file content in case we don't already have it.
-	parsed, _, _, err := v.session.cache.ParseGoHandle(fh, source.ParseHeader).Parse(ctx)
-	if err != nil {
-		return nil, err
-	}
-	// Check if we need to re-run go/packages before loading the package.
-	shouldRunGopackages = shouldRunGopackages || v.shouldRunGopackages(ctx, f, parsed, m)
-
-	// The package metadata is correct as-is, so just return it.
-	if !shouldRunGopackages {
-		return m, nil
-	}
-
-	// Don't bother running go/packages if the context has been canceled.
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
-
-	ctx, done := trace.StartSpan(ctx, "packages.Load", telemetry.File.Of(f.filename()))
-	defer done()
-
-	pkgs, err := packages.Load(v.Config(ctx), fmt.Sprintf("file=%s", f.filename()))
+	pkgs, err := packages.Load(cfg, fmt.Sprintf("file=%s", uri.Filename()))
 	log.Print(ctx, "go/packages.Load", tag.Of("packages", len(pkgs)))
 
 	if len(pkgs) == 0 {
 		if err == nil {
-			err = errors.Errorf("go/packages.Load: no packages found for %s", f.filename())
+			err = errors.Errorf("go/packages.Load: no packages found for %s", uri)
 		}
 		// Return this error as a diagnostic to the user.
 		return nil, err
 	}
-	m, prevMissingImports, err := v.updateMetadata(ctx, f.URI(), pkgs)
+	m, prevMissingImports, err := s.updateMetadata(ctx, uri, pkgs)
 	if err != nil {
 		return nil, err
 	}
@@ -143,36 +58,6 @@ func (v *view) checkMetadata(ctx context.Context, f *goFile, fh source.FileHandl
 		return nil, err
 	}
 	return meta, nil
-}
-
-// shouldRunGopackages reparses a file's package and import declarations to
-// determine if they have changed.
-// It assumes that the caller holds the lock on the f.mu lock.
-func (v *view) shouldRunGopackages(ctx context.Context, f *goFile, file *ast.File, metadata []*metadata) bool {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	// Check if the package's name has changed, by checking if this is a filename
-	// we already know about, and if so, check if its package name has changed.
-	for _, m := range metadata {
-		for _, uri := range m.files {
-			if span.CompareURI(uri, f.URI()) == 0 {
-				if m.name != file.Name.Name {
-					return true
-				}
-			}
-		}
-	}
-	// If the package's imports have changed, re-run `go list`.
-	if len(f.imports) != len(file.Imports) {
-		return true
-	}
-	for i, importSpec := range f.imports {
-		if importSpec.Path.Value != file.Imports[i].Path.Value {
-			return true
-		}
-	}
-	return false
 }
 
 func validateMetadata(ctx context.Context, metadata []*metadata, prevMissingImports map[packageID]map[packagePath]struct{}) ([]*metadata, error) {
@@ -206,4 +91,124 @@ func sameSet(x, y map[packagePath]struct{}) bool {
 		}
 	}
 	return true
+}
+
+// shouldLoad reparses a file's package and import declarations to
+// determine if they have changed.
+func (c *cache) shouldLoad(ctx context.Context, s *snapshot, originalFH, currentFH source.FileHandle) bool {
+	if originalFH == nil {
+		return true
+	}
+
+	// Get the original parsed file in order to check package name and imports.
+	original, _, _, err := c.ParseGoHandle(originalFH, source.ParseHeader).Parse(ctx)
+	if err != nil {
+		return false
+	}
+
+	// Get the current parsed file in order to check package name and imports.
+	current, _, _, err := c.ParseGoHandle(currentFH, source.ParseHeader).Parse(ctx)
+	if err != nil {
+		return false
+	}
+
+	// Check if the package's metadata has changed. The cases handled are:
+	//
+	//    1. A package's name has changed
+	//    2. A file's imports have changed
+	//
+	if original.Name.Name != current.Name.Name {
+		return true
+	}
+	// If the package's imports have changed, re-run `go list`.
+	if len(original.Imports) != len(current.Imports) {
+		return true
+	}
+	for i, importSpec := range original.Imports {
+		// TODO: Handle the case where the imports have just been re-ordered.
+		if importSpec.Path.Value != current.Imports[i].Path.Value {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *snapshot) updateMetadata(ctx context.Context, uri span.URI, pkgs []*packages.Package) ([]*metadata, map[packageID]map[packagePath]struct{}, error) {
+	// Clear metadata since we are re-running go/packages.
+	prevMissingImports := make(map[packageID]map[packagePath]struct{})
+	m := s.getMetadataForURI(uri)
+
+	for _, m := range m {
+		if len(m.missingDeps) > 0 {
+			prevMissingImports[m.id] = m.missingDeps
+		}
+	}
+
+	var results []*metadata
+	for _, pkg := range pkgs {
+		log.Print(ctx, "go/packages.Load", tag.Of("package", pkg.PkgPath), tag.Of("files", pkg.CompiledGoFiles))
+
+		// Set the metadata for this package.
+		if err := s.updateImports(ctx, packagePath(pkg.PkgPath), pkg); err != nil {
+			return nil, nil, err
+		}
+		m := s.getMetadata(packageID(pkg.ID))
+		if m != nil {
+			results = append(results, m)
+		}
+	}
+
+	// Rebuild the import graph when the metadata is updated.
+	s.clearAndRebuildImportGraph()
+
+	if len(results) == 0 {
+		return nil, nil, errors.Errorf("no metadata for %s", uri)
+	}
+	return results, prevMissingImports, nil
+}
+
+func (s *snapshot) updateImports(ctx context.Context, pkgPath packagePath, pkg *packages.Package) error {
+	// Recreate the metadata rather than reusing it to avoid locking.
+	m := &metadata{
+		id:         packageID(pkg.ID),
+		pkgPath:    pkgPath,
+		name:       pkg.Name,
+		typesSizes: pkg.TypesSizes,
+		errors:     pkg.Errors,
+	}
+	for _, filename := range pkg.CompiledGoFiles {
+		uri := span.FileURI(filename)
+		m.files = append(m.files, uri)
+
+		s.addID(uri, m.id)
+	}
+
+	// Add the metadata to the cache.
+	s.setMetadata(m)
+
+	for importPath, importPkg := range pkg.Imports {
+		importPkgPath := packagePath(importPath)
+		importID := packageID(importPkg.ID)
+
+		if importPkgPath == pkgPath {
+			return errors.Errorf("cycle detected in %s", importPath)
+		}
+		m.deps = append(m.deps, importID)
+
+		// Don't remember any imports with significant errors.
+		if importPkgPath != "unsafe" && len(importPkg.CompiledGoFiles) == 0 {
+			if m.missingDeps == nil {
+				m.missingDeps = make(map[packagePath]struct{})
+			}
+			m.missingDeps[importPkgPath] = struct{}{}
+			continue
+		}
+		dep := s.getMetadata(importID)
+		if dep == nil {
+			if err := s.updateImports(ctx, importPkgPath, importPkg); err != nil {
+				log.Error(ctx, "error in dependency", err)
+			}
+		}
+	}
+	return nil
 }

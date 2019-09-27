@@ -68,7 +68,7 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnosti
 	if err != nil {
 		t.Fatal(err)
 	}
-	results, _, err := source.Diagnostics(r.ctx, r.view, f.(source.GoFile), nil)
+	results, _, err := source.Diagnostics(r.ctx, r.view, f, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,7 +243,7 @@ func (r *runner) callCompletion(t *testing.T, src span.Span, options source.Comp
 	if err != nil {
 		t.Fatal(err)
 	}
-	list, surrounding, err := source.Completion(r.ctx, r.view, f.(source.GoFile), protocol.Position{
+	list, surrounding, err := source.Completion(r.ctx, r.view, f, protocol.Position{
 		Line:      float64(src.Start().Line() - 1),
 		Character: float64(src.Start().Column() - 1),
 	}, options)
@@ -284,14 +284,15 @@ func (r *runner) FoldingRange(t *testing.T, spn span.Span) {
 	if err != nil {
 		t.Fatalf("failed for %v: %v", spn, err)
 	}
-	data, _, err := f.Handle(r.ctx).Read(r.ctx)
+	fh := r.view.Snapshot().Handle(r.ctx, f)
+	data, _, err := fh.Read(r.ctx)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
 	// Test all folding ranges.
-	ranges, err := source.FoldingRange(r.ctx, r.view, f.(source.GoFile), false)
+	ranges, err := source.FoldingRange(r.ctx, r.view, f, false)
 	if err != nil {
 		t.Error(err)
 		return
@@ -299,7 +300,7 @@ func (r *runner) FoldingRange(t *testing.T, spn span.Span) {
 	r.foldingRanges(t, "foldingRange", uri, string(data), ranges)
 
 	// Test folding ranges with lineFoldingOnly
-	ranges, err = source.FoldingRange(r.ctx, r.view, f.(source.GoFile), true)
+	ranges, err = source.FoldingRange(r.ctx, r.view, f, true)
 	if err != nil {
 		t.Error(err)
 		return
@@ -434,7 +435,8 @@ func (r *runner) Format(t *testing.T, spn span.Span) {
 		}
 		return
 	}
-	data, _, err := f.Handle(ctx).Read(ctx)
+	fh := r.view.Snapshot().Handle(r.ctx, f)
+	data, _, err := fh.Read(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -465,7 +467,7 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 	if err != nil {
 		t.Fatalf("failed for %v: %v", spn, err)
 	}
-	fh := f.Handle(ctx)
+	fh := r.view.Snapshot().Handle(r.ctx, f)
 	tok, err := r.view.Session().Cache().TokenHandle(fh).Token(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -474,7 +476,7 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 	if err != nil {
 		t.Fatalf("failed for %v: %v", spn, err)
 	}
-	edits, err := source.Imports(ctx, r.view, f.(source.GoFile), rng)
+	edits, err := source.Imports(ctx, r.view, f, rng)
 	if err != nil {
 		if goimported != "" {
 			t.Error(err)
@@ -512,7 +514,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ident, err := source.Identifier(ctx, r.view, f.(source.GoFile), srcRng.Start)
+	ident, err := source.Identifier(ctx, r.view, f, srcRng.Start)
 	if err != nil {
 		t.Fatalf("failed for %v: %v", d.Src, err)
 	}
@@ -590,7 +592,7 @@ func (r *runner) Reference(t *testing.T, src span.Span, itemList []span.Span) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ident, err := source.Identifier(ctx, r.view, f.(source.GoFile), srcRng.Start)
+	ident, err := source.Identifier(ctx, r.view, f, srcRng.Start)
 	if err != nil {
 		t.Fatalf("failed for %v: %v", src, err)
 	}
@@ -637,7 +639,7 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ident, err := source.Identifier(r.ctx, r.view, f.(source.GoFile), srcRng.Start)
+	ident, err := source.Identifier(r.ctx, r.view, f, srcRng.Start)
 	if err != nil {
 		t.Error(err)
 		return
@@ -659,7 +661,7 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", spn, err)
 		}
-		fh := f.Handle(ctx)
+		fh := r.view.Snapshot().Handle(r.ctx, f)
 		data, _, err := fh.Read(ctx)
 		if err != nil {
 			t.Fatal(err)
@@ -726,7 +728,7 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 		t.Fatal(err)
 	}
 	// Find the identifier at the position.
-	item, err := source.PrepareRename(ctx, r.view, f.(source.GoFile), srcRng.Start)
+	item, err := source.PrepareRename(ctx, r.view, f, srcRng.Start)
 	if err != nil {
 		if want.Text != "" { // expected an ident.
 			t.Errorf("prepare rename failed for %v: got error: %v", src, err)
@@ -754,7 +756,7 @@ func (r *runner) Symbol(t *testing.T, uri span.URI, expectedSymbols []protocol.D
 	if err != nil {
 		t.Fatalf("failed for %v: %v", uri, err)
 	}
-	symbols, err := source.DocumentSymbols(ctx, r.view, f.(source.GoFile))
+	symbols, err := source.DocumentSymbols(ctx, r.view, f)
 	if err != nil {
 		t.Errorf("symbols failed for %s: %v", uri, err)
 	}
@@ -820,7 +822,7 @@ func (r *runner) SignatureHelp(t *testing.T, spn span.Span, expectedSignature *s
 	if err != nil {
 		t.Fatal(err)
 	}
-	gotSignature, err := source.SignatureHelp(ctx, r.view, f.(source.GoFile), rng.Start)
+	gotSignature, err := source.SignatureHelp(ctx, r.view, f, rng.Start)
 	if err != nil {
 		// Only fail if we got an error we did not expect.
 		if expectedSignature != nil {

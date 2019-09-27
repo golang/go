@@ -19,7 +19,7 @@ func (s *Server) documentSymbol(ctx context.Context, params *protocol.DocumentSy
 
 	uri := span.NewURI(params.TextDocument.URI)
 	view := s.session.ViewOf(uri)
-	f, err := getGoFile(ctx, view, uri)
+	f, err := view.GetFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}

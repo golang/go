@@ -27,8 +27,10 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		return nil, err
 	}
 
+	fh := view.Snapshot().Handle(ctx, f)
+
 	// Determine the supported actions for this file kind.
-	fileKind := f.Handle(ctx).Identity().Kind
+	fileKind := fh.Identity().Kind
 	supportedCodeActions, ok := view.Options().SupportedCodeActions[fileKind]
 	if !ok {
 		return nil, fmt.Errorf("no supported code actions for %v file kind", fileKind)
@@ -67,17 +69,13 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			},
 		})
 	case source.Go:
-		gof, ok := f.(source.GoFile)
-		if !ok {
-			return nil, errors.Errorf("%s is not a Go file", f.URI())
-		}
-		edits, editsPerFix, err := source.AllImportsFixes(ctx, view, gof)
+		edits, editsPerFix, err := source.AllImportsFixes(ctx, view, f)
 		if err != nil {
 			return nil, err
 		}
 		if diagnostics := params.Context.Diagnostics; wanted[protocol.QuickFix] && len(diagnostics) > 0 {
 			// First, add the quick fixes reported by go/analysis.
-			qf, err := quickFixes(ctx, view, gof, diagnostics)
+			qf, err := quickFixes(ctx, view, f, diagnostics)
 			if err != nil {
 				log.Error(ctx, "quick fixes failed", err, telemetry.File.Of(uri))
 			}
@@ -207,9 +205,9 @@ func importDiagnostics(fix *imports.ImportFix, diagnostics []protocol.Diagnostic
 	return results
 }
 
-func quickFixes(ctx context.Context, view source.View, gof source.GoFile, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
+func quickFixes(ctx context.Context, view source.View, f source.File, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
 	var codeActions []protocol.CodeAction
-	cphs, err := gof.CheckPackageHandles(ctx)
+	_, cphs, err := view.CheckPackageHandles(ctx, f)
 	if err != nil {
 		return nil, err
 	}

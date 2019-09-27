@@ -2,286 +2,171 @@ package cache
 
 import (
 	"context"
-	"go/types"
+	"sync"
 
-	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/telemetry/log"
-	"golang.org/x/tools/internal/telemetry/tag"
-	errors "golang.org/x/xerrors"
 )
 
 type snapshot struct {
-	id uint64
+	id   uint64
+	view *view
 
-	packages map[span.URI]map[packageKey]*checkPackageHandle
-	ids      map[span.URI][]packageID
+	mu sync.Mutex
+
+	// ids maps file URIs to package IDs.
+	// It may be invalidated on calls to go/packages.
+	ids map[span.URI][]packageID
+
+	// metadata maps file IDs to their associated metadata.
+	// It may invalidated on calls to go/packages.
 	metadata map[packageID]*metadata
+
+	// importedBy maps package IDs to the list of packages that import them.
+	importedBy map[packageID][]packageID
+
+	// files maps file URIs to their corresponding FileHandles.
+	// It may invalidated when a file's content changes.
+	files map[span.URI]source.FileHandle
+
+	// packages maps a file URI to a set of CheckPackageHandles to which that file belongs.
+	// It may be invalidated when a file's content changes.
+	packages map[span.URI]map[packageKey]*checkPackageHandle
 }
 
-type metadata struct {
-	id          packageID
-	pkgPath     packagePath
-	name        string
-	files       []span.URI
-	typesSizes  types.Sizes
-	parents     map[packageID]bool
-	children    map[packageID]*metadata
-	errors      []packages.Error
-	missingDeps map[packagePath]struct{}
-}
+func (s *snapshot) getImportedBy(id packageID) []packageID {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-func (v *view) getSnapshot(uri span.URI) ([]*metadata, []*checkPackageHandle) {
-	v.snapshotMu.Lock()
-	defer v.snapshotMu.Unlock()
-
-	var m []*metadata
-	for _, id := range v.snapshot.ids[uri] {
-		m = append(m, v.snapshot.metadata[id])
+	// If we haven't rebuilt the import graph since creating the snapshot.
+	if len(s.importedBy) == 0 {
+		s.rebuildImportGraph()
 	}
-	var cphs []*checkPackageHandle
-	for _, cph := range v.snapshot.packages[uri] {
+
+	return s.importedBy[id]
+}
+
+func (s *snapshot) addPackage(uri span.URI, cph *checkPackageHandle) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	pkgs, ok := s.packages[uri]
+	if !ok {
+		pkgs = make(map[packageKey]*checkPackageHandle)
+		s.packages[uri] = pkgs
+	}
+	// TODO: Check that there isn't already something set here.
+	// This can't be done until we fix the cache keys for CheckPackageHandles.
+	pkgs[packageKey{
+		id:   cph.m.id,
+		mode: cph.Mode(),
+	}] = cph
+}
+
+func (s *snapshot) getPackages(uri span.URI) (cphs []source.CheckPackageHandle) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, cph := range s.packages[uri] {
 		cphs = append(cphs, cph)
 	}
-	return m, cphs
+	return cphs
 }
 
-func (v *view) getMetadata(uri span.URI) []*metadata {
-	v.snapshotMu.Lock()
-	defer v.snapshotMu.Unlock()
+func (s *snapshot) getMetadataForURI(uri span.URI) (metadata []*metadata) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	var m []*metadata
-	for _, id := range v.snapshot.ids[uri] {
-		m = append(m, v.snapshot.metadata[id])
-	}
-	return m
-}
-
-func (v *view) getPackages(uri span.URI) map[packageKey]*checkPackageHandle {
-	v.snapshotMu.Lock()
-	defer v.snapshotMu.Unlock()
-
-	return v.snapshot.packages[uri]
-}
-
-func (v *view) updateMetadata(ctx context.Context, uri span.URI, pkgs []*packages.Package) ([]*metadata, map[packageID]map[packagePath]struct{}, error) {
-	v.snapshotMu.Lock()
-	defer v.snapshotMu.Unlock()
-
-	// Clear metadata since we are re-running go/packages.
-	prevMissingImports := make(map[packageID]map[packagePath]struct{})
-	for _, id := range v.snapshot.ids[uri] {
-		if m, ok := v.snapshot.metadata[id]; ok && len(m.missingDeps) > 0 {
-			prevMissingImports[id] = m.missingDeps
+	for _, id := range s.ids[uri] {
+		if m, ok := s.metadata[id]; ok {
+			metadata = append(metadata, m)
 		}
 	}
-	without := make(map[span.URI]struct{})
-	for _, id := range v.snapshot.ids[uri] {
-		v.remove(id, without, map[packageID]struct{}{})
-	}
-	v.snapshot = v.snapshot.cloneMetadata(without)
-
-	var results []*metadata
-	for _, pkg := range pkgs {
-		log.Print(ctx, "go/packages.Load", tag.Of("package", pkg.PkgPath), tag.Of("files", pkg.CompiledGoFiles))
-
-		// Build the import graph for this package.
-		if err := v.updateImportGraph(ctx, &importGraph{
-			pkgPath: packagePath(pkg.PkgPath),
-			pkg:     pkg,
-			parent:  nil,
-		}); err != nil {
-			return nil, nil, err
-		}
-		results = append(results, v.snapshot.metadata[packageID(pkg.ID)])
-	}
-	if len(results) == 0 {
-		return nil, nil, errors.Errorf("no metadata for %s", uri)
-	}
-	return results, prevMissingImports, nil
+	return metadata
 }
 
-type importGraph struct {
-	pkgPath packagePath
-	pkg     *packages.Package
-	parent  *metadata
+func (s *snapshot) setMetadata(m *metadata) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.metadata[m.id] = m
 }
 
-func (v *view) updateImportGraph(ctx context.Context, g *importGraph) error {
-	// Recreate the metadata rather than reusing it to avoid locking.
-	m := &metadata{
-		id:         packageID(g.pkg.ID),
-		pkgPath:    g.pkgPath,
-		name:       g.pkg.Name,
-		typesSizes: g.pkg.TypesSizes,
-		errors:     g.pkg.Errors,
-	}
-	for _, filename := range g.pkg.CompiledGoFiles {
-		uri := span.FileURI(filename)
-		v.snapshot.ids[uri] = append(v.snapshot.ids[uri], m.id)
-		m.files = append(m.files, uri)
-	}
-	// Preserve the import graph.
-	if original, ok := v.snapshot.metadata[m.id]; ok {
-		m.children = original.children
-		m.parents = original.parents
-	}
-	if m.children == nil {
-		m.children = make(map[packageID]*metadata)
-	}
-	if m.parents == nil {
-		m.parents = make(map[packageID]bool)
-	}
+func (s *snapshot) getMetadata(id packageID) *metadata {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	// Add the metadata to the cache.
-	v.snapshot.metadata[m.id] = m
-
-	// Connect the import graph.
-	if g.parent != nil {
-		m.parents[g.parent.id] = true
-		g.parent.children[m.id] = m
-	}
-	for importPath, importPkg := range g.pkg.Imports {
-		importPkgPath := packagePath(importPath)
-		if importPkgPath == g.pkgPath {
-			return errors.Errorf("cycle detected in %s", importPath)
-		}
-		// Don't remember any imports with significant errors.
-		if importPkgPath != "unsafe" && len(importPkg.CompiledGoFiles) == 0 {
-			if m.missingDeps == nil {
-				m.missingDeps = make(map[packagePath]struct{})
-			}
-			m.missingDeps[importPkgPath] = struct{}{}
-			continue
-		}
-		if _, ok := m.children[packageID(importPkg.ID)]; !ok {
-			if err := v.updateImportGraph(ctx, &importGraph{
-				pkgPath: importPkgPath,
-				pkg:     importPkg,
-				parent:  m,
-			}); err != nil {
-				log.Error(ctx, "error in dependency", err)
-			}
-		}
-	}
-	// Clear out any imports that have been removed since the package was last loaded.
-	for importID := range m.children {
-		child, ok := v.snapshot.metadata[importID]
-		if !ok {
-			continue
-		}
-		importPath := string(child.pkgPath)
-		if _, ok := g.pkg.Imports[importPath]; ok {
-			continue
-		}
-		delete(m.children, importID)
-		delete(child.parents, m.id)
-	}
-	return nil
+	return s.metadata[id]
 }
 
-func (v *view) updatePackages(cphs []*checkPackageHandle) {
-	v.snapshotMu.Lock()
-	defer v.snapshotMu.Unlock()
+func (s *snapshot) addID(uri span.URI, id packageID) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	for _, cph := range cphs {
-		for _, ph := range cph.files {
-			uri := ph.File().Identity().URI
-			if _, ok := v.snapshot.packages[uri]; !ok {
-				v.snapshot.packages[uri] = make(map[packageKey]*checkPackageHandle)
-			}
-			v.snapshot.packages[uri][packageKey{
-				id:   cph.m.id,
-				mode: ph.Mode(),
-			}] = cph
-		}
-	}
+	s.ids[uri] = append(s.ids[uri], id)
 }
 
-// invalidateContent invalidates the content of a Go file,
-// including any position and type information that depends on it.
-func (v *view) invalidateContent(ctx context.Context, f *goFile) {
-	f.handleMu.Lock()
-	defer f.handleMu.Unlock()
+func (s *snapshot) getIDs(uri span.URI) []packageID {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	without := make(map[span.URI]struct{})
-
-	// Remove the package and all of its reverse dependencies from the cache.
-	v.snapshotMu.Lock()
-	defer v.snapshotMu.Unlock()
-
-	for _, id := range v.snapshot.ids[f.URI()] {
-		f.view.remove(id, without, map[packageID]struct{}{})
-	}
-	v.snapshot = v.snapshot.clonePackages(without)
-	f.handle = nil
+	return s.ids[uri]
 }
 
-// invalidateMeta invalidates package metadata for all files in f's
-// package. This forces f's package's metadata to be reloaded next
-// time the package is checked.
-func (v *view) invalidateMetadata(uri span.URI) {
-	v.snapshotMu.Lock()
-	defer v.snapshotMu.Unlock()
+func (s *snapshot) getFile(uri span.URI) source.FileHandle {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	without := make(map[span.URI]struct{})
-
-	for _, id := range v.snapshot.ids[uri] {
-		v.remove(id, without, map[packageID]struct{}{})
-	}
-	v.snapshot = v.snapshot.cloneMetadata(without)
+	return s.files[uri]
 }
 
-// remove invalidates a package and its reverse dependencies in the view's
-// package cache. It is assumed that the caller has locked both the mutexes
-// of both the mcache and the pcache.
-func (v *view) remove(id packageID, toDelete map[span.URI]struct{}, seen map[packageID]struct{}) {
-	if _, ok := seen[id]; ok {
-		return
+func (s *snapshot) Handle(ctx context.Context, f source.File) source.FileHandle {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, ok := s.files[f.URI()]; !ok {
+		s.files[f.URI()] = s.view.session.GetFile(f.URI(), f.Kind())
 	}
-	m, ok := v.snapshot.metadata[id]
-	if !ok {
-		return
-	}
-	seen[id] = struct{}{}
-	for parentID := range m.parents {
-		v.remove(parentID, toDelete, seen)
-	}
-	for _, uri := range m.files {
-		toDelete[uri] = struct{}{}
-	}
+	return s.files[f.URI()]
 }
 
-func (s *snapshot) clonePackages(without map[span.URI]struct{}) *snapshot {
+func (s *snapshot) clone(withoutURI span.URI, withoutTypes, withoutMetadata map[span.URI]struct{}) *snapshot {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	result := &snapshot{
-		id:       s.id + 1,
-		packages: make(map[span.URI]map[packageKey]*checkPackageHandle),
-		ids:      s.ids,
-		metadata: s.metadata,
+		id:         s.id + 1,
+		view:       s.view,
+		packages:   make(map[span.URI]map[packageKey]*checkPackageHandle),
+		ids:        make(map[span.URI][]packageID),
+		metadata:   make(map[packageID]*metadata),
+		importedBy: make(map[packageID][]packageID),
+		files:      make(map[span.URI]source.FileHandle),
+	}
+	// Copy all of the FileHandles except for the one that was invalidated.
+	for k, v := range s.files {
+		if k == withoutURI {
+			continue
+		}
+		result.files[k] = v
 	}
 	for k, v := range s.packages {
-		if _, ok := without[k]; ok {
-			continue
+		if withoutTypes != nil {
+			if _, ok := withoutTypes[k]; ok {
+				continue
+			}
 		}
 		result.packages[k] = v
 	}
-	return result
-}
-
-func (s *snapshot) cloneMetadata(without map[span.URI]struct{}) *snapshot {
-	result := &snapshot{
-		id:       s.id + 1,
-		packages: s.packages,
-		ids:      make(map[span.URI][]packageID),
-		metadata: make(map[packageID]*metadata),
-	}
 	withoutIDs := make(map[packageID]struct{})
 	for k, ids := range s.ids {
-		if _, ok := without[k]; ok {
-			for _, id := range ids {
-				withoutIDs[id] = struct{}{}
+		if withoutMetadata != nil {
+			if _, ok := withoutMetadata[k]; ok {
+				for _, id := range ids {
+					withoutIDs[id] = struct{}{}
+				}
+				continue
 			}
-			continue
 		}
 		result.ids[k] = ids
 	}
@@ -294,34 +179,91 @@ func (s *snapshot) cloneMetadata(without map[span.URI]struct{}) *snapshot {
 	return result
 }
 
-func (v *view) reverseDependencies(ctx context.Context, uri span.URI) map[span.URI]struct{} {
-	seen := make(map[packageID]struct{})
-	uris := make(map[span.URI]struct{})
+// invalidateContent invalidates the content of a Go file,
+// including any position and type information that depends on it.
+func (v *view) invalidateContent(ctx context.Context, uri span.URI, kind source.FileKind) {
+	withoutTypes := make(map[span.URI]struct{})
+	withoutMetadata := make(map[span.URI]struct{})
 
+	// This should be the only time we hold the view's snapshot lock for any period of time.
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock()
 
-	for _, id := range v.snapshot.ids[uri] {
-		v.rdeps(id, seen, uris, id)
+	ids := v.snapshot.getIDs(uri)
+
+	// Remove the package and all of its reverse dependencies from the cache.
+	for _, id := range ids {
+		v.snapshot.reverseDependencies(id, withoutTypes, map[packageID]struct{}{})
 	}
-	return uris
+
+	// Get the original FileHandle for the URI, if it exists.
+	originalFH := v.snapshot.getFile(uri)
+
+	// Get the current FileHandle for the URI.
+	currentFH := v.session.GetFile(uri, kind)
+
+	// Check if the file's package name or imports have changed,
+	// and if so, invalidate metadata.
+	if v.session.cache.shouldLoad(ctx, v.snapshot, originalFH, currentFH) {
+		withoutMetadata = withoutTypes
+
+		// TODO: If a package's name has changed,
+		// we should invalidate the metadata for the new package name (if it exists).
+	}
+
+	v.snapshot = v.snapshot.clone(uri, withoutTypes, withoutMetadata)
 }
 
-func (v *view) rdeps(topID packageID, seen map[packageID]struct{}, results map[span.URI]struct{}, id packageID) {
+// invalidateMetadata invalidates package metadata for all files in f's
+// package. This forces f's package's metadata to be reloaded next
+// time the package is checked.
+//
+// TODO: This function shouldn't be necessary.
+// We should be able to handle its use cases more efficiently.
+func (v *view) invalidateMetadata(uri span.URI) {
+	v.snapshotMu.Lock()
+	defer v.snapshotMu.Unlock()
+
+	withoutMetadata := make(map[span.URI]struct{})
+	for _, id := range v.snapshot.getIDs(uri) {
+		v.snapshot.reverseDependencies(id, withoutMetadata, map[packageID]struct{}{})
+	}
+	v.snapshot = v.snapshot.clone(uri, nil, withoutMetadata)
+}
+
+// reverseDependencies populates the uris map with file URIs belonging to the
+// provided package and its transitive reverse dependencies.
+func (s *snapshot) reverseDependencies(id packageID, uris map[span.URI]struct{}, seen map[packageID]struct{}) {
 	if _, ok := seen[id]; ok {
 		return
 	}
-	seen[id] = struct{}{}
-	m, ok := v.snapshot.metadata[id]
-	if !ok {
+	m := s.getMetadata(id)
+	if m == nil {
 		return
 	}
-	if id != topID {
-		for _, uri := range m.files {
-			results[uri] = struct{}{}
-		}
+	seen[id] = struct{}{}
+	importedBy := s.getImportedBy(id)
+	for _, parentID := range importedBy {
+		s.reverseDependencies(parentID, uris, seen)
 	}
-	for parentID := range m.parents {
-		v.rdeps(topID, seen, results, parentID)
+	for _, uri := range m.files {
+		uris[uri] = struct{}{}
+	}
+}
+
+func (s *snapshot) clearAndRebuildImportGraph() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Completely invalidate the original map.
+	s.importedBy = make(map[packageID][]packageID)
+	s.rebuildImportGraph()
+}
+
+func (s *snapshot) rebuildImportGraph() {
+	for id, m := range s.metadata {
+		for _, importID := range m.deps {
+			s.importedBy[importID] = append(s.importedBy[importID], id)
+		}
 	}
 }

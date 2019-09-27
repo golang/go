@@ -22,7 +22,8 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		if err != nil {
 			return nil, err
 		}
-		if _, ok := f.(source.ModFile); !ok {
+		fh := view.Snapshot().Handle(ctx, f)
+		if fh.Identity().Kind != source.Mod {
 			return nil, errors.Errorf("%s is not a mod file", uri)
 		}
 		// Run go.mod tidy on the view.

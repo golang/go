@@ -17,7 +17,6 @@ import (
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/trace"
-	errors "golang.org/x/xerrors"
 )
 
 type Diagnostic struct {
@@ -38,11 +37,11 @@ const (
 	SeverityError
 )
 
-func Diagnostics(ctx context.Context, view View, f GoFile, disabledAnalyses map[string]struct{}) (map[span.URI][]Diagnostic, string, error) {
+func Diagnostics(ctx context.Context, view View, f File, disabledAnalyses map[string]struct{}) (map[span.URI][]Diagnostic, string, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Diagnostics", telemetry.File.Of(f.URI()))
 	defer done()
 
-	cphs, err := f.CheckPackageHandles(ctx)
+	_, cphs, err := view.CheckPackageHandles(ctx, f)
 	if err != nil {
 		return nil, "", err
 	}
@@ -85,7 +84,7 @@ func Diagnostics(ctx context.Context, view View, f GoFile, disabledAnalyses map[
 		}
 	}
 	// Updates to the diagnostics for this package may need to be propagated.
-	revDeps := view.GetActiveReverseDeps(ctx, f.URI())
+	revDeps := view.GetActiveReverseDeps(ctx, f)
 	for _, cph := range revDeps {
 		pkg, err := cph.Check(ctx)
 		if err != nil {
@@ -215,13 +214,9 @@ func toDiagnostic(ctx context.Context, view View, diag analysis.Diagnostic, cate
 	if err != nil {
 		return Diagnostic{}, err
 	}
-	gof, ok := f.(GoFile)
-	if !ok {
-		return Diagnostic{}, errors.Errorf("%s is not a Go file", f.URI())
-	}
 	// If the package has changed since these diagnostics were computed,
 	// this may be incorrect. Should the package be associated with the diagnostic?
-	cphs, err := gof.CheckPackageHandles(ctx)
+	_, cphs, err := view.CheckPackageHandles(ctx, f)
 	if err != nil {
 		return Diagnostic{}, err
 	}

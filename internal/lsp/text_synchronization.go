@@ -136,7 +136,7 @@ func (s *Server) didSave(ctx context.Context, params *protocol.DidSaveTextDocume
 
 func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocumentParams) error {
 	uri := span.NewURI(params.TextDocument.URI)
-	ctx = telemetry.File.With(ctx, uri)
+	ctx = telemetry.URI.With(ctx, uri)
 	s.session.DidClose(uri)
 	view := s.session.ViewOf(uri)
 	if _, err := view.SetContent(ctx, uri, nil); err != nil {
@@ -154,18 +154,11 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 	// clear out all diagnostics for the package.
 	f, err := view.GetFile(ctx, uri)
 	if err != nil {
-		log.Error(ctx, "no file for %s: %v", err, telemetry.File)
-		return nil
+		log.Error(ctx, "no file", err, telemetry.URI)
 	}
-	// For non-Go files, don't return any diagnostics.
-	gof, ok := f.(source.GoFile)
-	if !ok {
-		log.Error(ctx, "closing a non-Go file, no diagnostics to clear", nil, telemetry.File)
-		return nil
-	}
-	cphs, err := gof.CheckPackageHandles(ctx)
+	_, cphs, err := view.CheckPackageHandles(ctx, f)
 	if err != nil {
-		log.Error(ctx, "no CheckPackageHandles", err, telemetry.URI.Of(gof.URI()))
+		log.Error(ctx, "no CheckPackageHandles", err, telemetry.URI.Of(uri))
 		return nil
 	}
 	for _, cph := range cphs {

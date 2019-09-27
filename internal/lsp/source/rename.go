@@ -41,7 +41,7 @@ type PrepareItem struct {
 	Text  string
 }
 
-func PrepareRename(ctx context.Context, view View, f GoFile, pos protocol.Position) (*PrepareItem, error) {
+func PrepareRename(ctx context.Context, view View, f File, pos protocol.Position) (*PrepareItem, error) {
 	ctx, done := trace.StartSpan(ctx, "source.PrepareRename")
 	defer done()
 
@@ -151,7 +151,7 @@ func (i *IdentifierInfo) Rename(ctx context.Context, view View, newName string) 
 		if err != nil {
 			return nil, err
 		}
-		fh := f.Handle(ctx)
+		fh := i.snapshot.Handle(ctx, f)
 		data, _, err := fh.Read(ctx)
 		if err != nil {
 			return nil, err
@@ -227,6 +227,7 @@ func getPkgNameIdentifier(ctx context.Context, ident *IdentifierInfo, pkgName *t
 	return &IdentifierInfo{
 		Name:             pkgName.Name(),
 		View:             ident.View,
+		snapshot:         ident.snapshot,
 		mappedRange:      decl.mappedRange,
 		File:             ident.File,
 		Declaration:      decl,

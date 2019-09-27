@@ -102,10 +102,12 @@ func (s *session) NewView(ctx context.Context, name string, folder span.URI, opt
 			packages: make(map[span.URI]map[packageKey]*checkPackageHandle),
 			ids:      make(map[span.URI][]packageID),
 			metadata: make(map[packageID]*metadata),
+			files:    make(map[span.URI]source.FileHandle),
 		},
 		ignoredURIs: make(map[span.URI]struct{}),
 		builtin:     &builtinPkg{},
 	}
+	v.snapshot.view = v
 	v.analyzers = UpdateAnalyzers(v, defaultAnalyzers)
 	// Preemptively build the builtin package,
 	// so we immediately add builtin.go to the list of ignored files.

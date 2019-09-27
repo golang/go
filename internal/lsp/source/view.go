@@ -117,6 +117,10 @@ type CheckPackageHandle interface {
 	// Config is the *packages.Config that the package metadata was loaded with.
 	Config() *packages.Config
 
+	// Mode returns the ParseMode for all of the files in the CheckPackageHandle.
+	// The files should always have the same parse mode.
+	Mode() ParseMode
+
 	// Check returns the type-checked Package for the CheckPackageHandle.
 	Check(ctx context.Context) (Package, error)
 
@@ -240,6 +244,7 @@ type View interface {
 	// Ignore returns true if this file should be ignored by this view.
 	Ignore(span.URI) bool
 
+	// Config returns the configuration for the view.
 	Config(ctx context.Context) *packages.Config
 
 	// RunProcessEnvFunc runs fn with the process env for this view inserted into opts.
@@ -257,33 +262,28 @@ type View interface {
 	// Analyzers returns the set of Analyzers active for this view.
 	Analyzers() []*analysis.Analyzer
 
+	// CheckPackageHandles returns the CheckPackageHandles for the packages
+	// that this file belongs to.
+	CheckPackageHandles(ctx context.Context, f File) (Snapshot, []CheckPackageHandle, error)
+
 	// GetActiveReverseDeps returns the active files belonging to the reverse
 	// dependencies of this file's package.
-	GetActiveReverseDeps(ctx context.Context, uri span.URI) []CheckPackageHandle
+	GetActiveReverseDeps(ctx context.Context, f File) []CheckPackageHandle
+
+	// Snapshot returns the current snapshot for the view.
+	Snapshot() Snapshot
+}
+
+// Snapshot represents the current state for the given view.
+type Snapshot interface {
+	// Handle returns the FileHandle for the given file.
+	Handle(ctx context.Context, f File) FileHandle
 }
 
 // File represents a source file of any type.
 type File interface {
 	URI() span.URI
-	View() View
-	Handle(ctx context.Context) FileHandle
-}
-
-// GoFile represents a Go source file that has been type-checked.
-type GoFile interface {
-	File
-
-	// GetCheckPackageHandles returns the CheckPackageHandles for the packages
-	// that this file belongs to.
-	CheckPackageHandles(ctx context.Context) ([]CheckPackageHandle, error)
-}
-
-type ModFile interface {
-	File
-}
-
-type SumFile interface {
-	File
+	Kind() FileKind
 }
 
 // Package represents a Go package that has been type-checked. It maintains

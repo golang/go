@@ -6,8 +6,6 @@ package cache
 
 import (
 	"context"
-	"go/ast"
-	"sync"
 
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
@@ -15,68 +13,112 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-// goFile holds all of the information we know about a Go file.
-type goFile struct {
-	fileBase
+func (v *view) CheckPackageHandles(ctx context.Context, f source.File) (source.Snapshot, []source.CheckPackageHandle, error) {
+	// Get the snapshot that will be used for type-checking.
+	s := v.getSnapshot()
 
-	// mu protects all mutable state of the Go file,
-	// which can be modified during type-checking.
-	mu sync.Mutex
-
-	imports []*ast.ImportSpec
+	cphs, err := s.checkPackageHandles(ctx, f)
+	if err != nil {
+		return nil, nil, err
+	}
+	return s, cphs, nil
 }
 
-type packageKey struct {
-	id   packageID
-	mode source.ParseMode
-}
-
-func (f *goFile) CheckPackageHandles(ctx context.Context) (results []source.CheckPackageHandle, err error) {
+func (s *snapshot) checkPackageHandles(ctx context.Context, f source.File) ([]source.CheckPackageHandle, error) {
 	ctx = telemetry.File.With(ctx, f.URI())
-	fh := f.Handle(ctx)
 
-	var dirty bool
-	meta, pkgs := f.view.getSnapshot(f.URI())
-	if len(meta) == 0 {
-		dirty = true
-	}
-	for _, m := range meta {
-		if len(m.missingDeps) != 0 {
-			dirty = true
-		}
-	}
-	for _, cph := range pkgs {
-		// If we're explicitly checking if a file needs to be type-checked,
-		// we need it to be fully parsed.
-		if cph.mode() != source.ParseFull {
-			continue
-		}
-		// Check if there is a fully-parsed package to which this file belongs.
-		for _, file := range cph.Files() {
-			if file.File().Identity() == fh.Identity() {
-				results = append(results, cph)
-			}
-		}
-	}
-	if dirty || len(results) == 0 {
-		cphs, err := f.view.loadParseTypecheck(ctx, f, fh)
+	fh := s.Handle(ctx, f)
+
+	// Determine if we need to type-check the package.
+	m, cphs, load, check := s.shouldCheck(fh)
+	cfg := s.view.Config(ctx)
+
+	// We may need to re-load package metadata.
+	// We only need to this if it has been invalidated, and is therefore unvailable.
+	if load {
+		var err error
+		m, err = s.load(ctx, f.URI(), cfg)
 		if err != nil {
 			return nil, err
 		}
-		if cphs == nil {
-			return results, nil
+		// If load has explicitly returned nil metadata and no error,
+		// it means that we should not re-type-check the packages.
+		if m == nil {
+			return cphs, nil
 		}
-		results = cphs
 	}
-	if len(results) == 0 {
+	if check {
+		var results []source.CheckPackageHandle
+		for _, m := range m {
+			imp := &importer{
+				config:            cfg,
+				seen:              make(map[packageID]struct{}),
+				topLevelPackageID: m.id,
+				snapshot:          s,
+			}
+			cph, err := imp.checkPackageHandle(ctx, m.id, s)
+			if err != nil {
+				return nil, err
+			}
+			results = append(results, cph)
+		}
+		cphs = results
+	}
+	if len(cphs) == 0 {
 		return nil, errors.Errorf("no CheckPackageHandles for %s", f.URI())
 	}
-	return results, nil
+	return cphs, nil
 }
 
-func (v *view) GetActiveReverseDeps(ctx context.Context, uri span.URI) (results []source.CheckPackageHandle) {
+func (s *snapshot) shouldCheck(fh source.FileHandle) (m []*metadata, cphs []source.CheckPackageHandle, load, check bool) {
+	// Get the metadata for the given file.
+	m = s.getMetadataForURI(fh.Identity().URI)
+
+	// If there is no metadata for the package, we definitely need to type-check again.
+	if len(m) == 0 {
+		return nil, nil, true, true
+	}
+
+	// If the metadata for the package had missing dependencies,
+	// we _may_ need to re-check. If the missing dependencies haven't changed
+	// since previous load, we will not check again.
+	for _, m := range m {
+		if len(m.missingDeps) != 0 {
+			load = true
+			check = true
+		}
+	}
+	// We expect to see a checked package for each package ID,
+	// and it should be parsed in full mode.
 	var (
-		rdeps = v.reverseDependencies(ctx, uri)
+		expected   = len(m)
+		cachedCPHs = s.getPackages(fh.Identity().URI)
+	)
+	if len(cachedCPHs) < expected {
+		return m, nil, load, true
+	}
+	for _, cph := range cachedCPHs {
+		// The package may have been checked in the exported mode.
+		if cph.Mode() != source.ParseFull {
+			continue
+		}
+		// Confirm that the file belongs to this package.
+		for _, file := range cph.Files() {
+			if file.File().Identity() == fh.Identity() {
+				cphs = append(cphs, cph)
+			}
+		}
+	}
+	if len(cphs) < expected {
+		return m, nil, load, true
+	}
+	return m, cphs, load, check
+}
+
+func (v *view) GetActiveReverseDeps(ctx context.Context, f source.File) (results []source.CheckPackageHandle) {
+	var (
+		s     = v.getSnapshot()
+		rdeps = transitiveReverseDependencies(ctx, f.URI(), s)
 		files = v.openFiles(ctx, rdeps)
 		seen  = make(map[span.URI]struct{})
 	)
@@ -84,11 +126,7 @@ func (v *view) GetActiveReverseDeps(ctx context.Context, uri span.URI) (results 
 		if _, ok := seen[f.URI()]; ok {
 			continue
 		}
-		gof, ok := f.(source.GoFile)
-		if !ok {
-			continue
-		}
-		cphs, err := gof.CheckPackageHandles(ctx)
+		cphs, err := s.checkPackageHandles(ctx, f)
 		if err != nil {
 			continue
 		}
@@ -99,4 +137,29 @@ func (v *view) GetActiveReverseDeps(ctx context.Context, uri span.URI) (results 
 		results = append(results, cph)
 	}
 	return results
+}
+
+func transitiveReverseDependencies(ctx context.Context, uri span.URI, s *snapshot) (result []span.URI) {
+	var (
+		seen         = make(map[packageID]struct{})
+		uris         = make(map[span.URI]struct{})
+		topLevelURIs = make(map[span.URI]struct{})
+	)
+
+	metadata := s.getMetadataForURI(uri)
+
+	for _, m := range metadata {
+		for _, uri := range m.files {
+			topLevelURIs[uri] = struct{}{}
+		}
+		s.reverseDependencies(m.id, uris, seen)
+	}
+	// Filter out the URIs that belong to the original package.
+	for uri := range uris {
+		if _, ok := topLevelURIs[uri]; ok {
+			continue
+		}
+		result = append(result, uri)
+	}
+	return result
 }

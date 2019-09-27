@@ -23,9 +23,9 @@ import (
 )
 
 type importer struct {
-	view   *view
-	ctx    context.Context
-	config *packages.Config
+	snapshot *snapshot
+	ctx      context.Context
+	config   *packages.Config
 
 	// seen maintains the set of previously imported packages.
 	// If we have seen a package that is already in this map, we have a circular import.
@@ -62,7 +62,7 @@ type checkPackageHandle struct {
 	config *packages.Config
 }
 
-func (cph *checkPackageHandle) mode() source.ParseMode {
+func (cph *checkPackageHandle) Mode() source.ParseMode {
 	if len(cph.files) == 0 {
 		return -1
 	}
@@ -83,19 +83,15 @@ type checkPackageData struct {
 	err error
 }
 
-func (pkg *pkg) GetImport(ctx context.Context, pkgPath string) (source.Package, error) {
-	if imp := pkg.imports[packagePath(pkgPath)]; imp != nil {
-		return imp, nil
-	}
-	// Don't return a nil pointer because that still satisfies the interface.
-	return nil, errors.Errorf("no imported package for %s", pkgPath)
-}
-
 // checkPackageHandle returns a source.CheckPackageHandle for a given package and config.
-func (imp *importer) checkPackageHandle(ctx context.Context, m *metadata) (*checkPackageHandle, error) {
+func (imp *importer) checkPackageHandle(ctx context.Context, id packageID, s *snapshot) (*checkPackageHandle, error) {
+	m := s.getMetadata(id)
+	if m == nil {
+		return nil, errors.Errorf("no metadata for %s", id)
+	}
 	phs, err := imp.parseGoHandles(ctx, m)
 	if err != nil {
-		log.Error(ctx, "no ParseGoHandles", err, telemetry.Package.Of(m.id))
+		log.Error(ctx, "no ParseGoHandles", err, telemetry.Package.Of(id))
 		return nil, err
 	}
 	cph := &checkPackageHandle{
@@ -104,12 +100,19 @@ func (imp *importer) checkPackageHandle(ctx context.Context, m *metadata) (*chec
 		config:  imp.config,
 		imports: make(map[packagePath]*checkPackageHandle),
 	}
-	h := imp.view.session.cache.store.Bind(cph.key(), func(ctx context.Context) interface{} {
+	h := imp.snapshot.view.session.cache.store.Bind(cph.key(), func(ctx context.Context) interface{} {
 		data := &checkPackageData{}
 		data.pkg, data.err = imp.typeCheck(ctx, cph, m)
 		return data
 	})
+
 	cph.handle = h
+
+	// Cache the CheckPackageHandle in the snapshot.
+	for _, ph := range cph.files {
+		uri := ph.File().Identity().URI
+		s.addPackage(uri, cph)
+	}
 	return cph, nil
 }
 
@@ -190,16 +193,16 @@ func (cph *checkPackageHandle) key() checkPackageKey {
 func (imp *importer) parseGoHandles(ctx context.Context, m *metadata) ([]source.ParseGoHandle, error) {
 	phs := make([]source.ParseGoHandle, 0, len(m.files))
 	for _, uri := range m.files {
-		f, err := imp.view.GetFile(ctx, uri)
+		f, err := imp.snapshot.view.GetFile(ctx, uri)
 		if err != nil {
 			return nil, err
 		}
-		fh := f.Handle(ctx)
+		fh := imp.snapshot.Handle(ctx, f)
 		mode := source.ParseExported
 		if imp.topLevelPackageID == m.id {
 			mode = source.ParseFull
 		}
-		phs = append(phs, imp.view.session.cache.ParseGoHandle(fh, mode))
+		phs = append(phs, imp.snapshot.view.session.cache.ParseGoHandle(fh, mode))
 	}
 	return phs, nil
 }
@@ -236,7 +239,7 @@ func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle, m *
 	defer done()
 
 	pkg := &pkg{
-		view:       imp.view,
+		view:       imp.snapshot.view,
 		id:         m.id,
 		pkgPath:    m.pkgPath,
 		files:      cph.Files(),
@@ -259,13 +262,17 @@ func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle, m *
 	}
 	// Set imports of package to correspond to cached packages.
 	cimp := imp.child(ctx, pkg, cph)
-	for _, child := range m.children {
-		childHandle, err := cimp.checkPackageHandle(ctx, child)
-		if err != nil {
-			log.Error(ctx, "no check package handle", err, telemetry.Package.Of(child.id))
+	for _, depID := range m.deps {
+		dep := imp.snapshot.getMetadata(depID)
+		if dep == nil {
 			continue
 		}
-		cph.imports[child.pkgPath] = childHandle
+		depHandle, err := cimp.checkPackageHandle(ctx, depID, imp.snapshot)
+		if err != nil {
+			log.Error(ctx, "no check package handle", err, telemetry.Package.Of(depID))
+			continue
+		}
+		cph.imports[dep.pkgPath] = depHandle
 	}
 	var (
 		files       = make([]*ast.File, len(pkg.files))
@@ -284,7 +291,7 @@ func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle, m *
 
 	for _, err := range parseErrors {
 		if err != nil {
-			imp.view.session.cache.appendPkgError(pkg, err)
+			imp.snapshot.view.session.cache.appendPkgError(pkg, err)
 		}
 	}
 
@@ -308,11 +315,11 @@ func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle, m *
 
 	cfg := &types.Config{
 		Error: func(err error) {
-			imp.view.session.cache.appendPkgError(pkg, err)
+			imp.snapshot.view.session.cache.appendPkgError(pkg, err)
 		},
 		Importer: cimp,
 	}
-	check := types.NewChecker(cfg, imp.view.session.cache.FileSet(), pkg.types, pkg.typesInfo)
+	check := types.NewChecker(cfg, imp.snapshot.view.session.cache.FileSet(), pkg.types, pkg.typesInfo)
 
 	// Type checking errors are handled via the config, so ignore them here.
 	_ = check.Files(files)
@@ -328,7 +335,7 @@ func (imp *importer) child(ctx context.Context, pkg *pkg, cph *checkPackageHandl
 	}
 	seen[pkg.id] = struct{}{}
 	return &importer{
-		view:                     imp.view,
+		snapshot:                 imp.snapshot,
 		ctx:                      ctx,
 		config:                   imp.config,
 		seen:                     seen,

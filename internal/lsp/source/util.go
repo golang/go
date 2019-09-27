@@ -91,7 +91,7 @@ func IsGenerated(ctx context.Context, view View, uri span.URI) bool {
 	if err != nil {
 		return false
 	}
-	ph := view.Session().Cache().ParseGoHandle(f.Handle(ctx), ParseHeader)
+	ph := view.Session().Cache().ParseGoHandle(view.Snapshot().Handle(ctx, f), ParseHeader)
 	parsed, _, _, err := ph.Parse(ctx)
 	if err != nil {
 		return false

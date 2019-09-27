@@ -23,7 +23,8 @@ func Highlight(ctx context.Context, view View, uri span.URI, pos protocol.Positi
 	if err != nil {
 		return nil, err
 	}
-	ph := view.Session().Cache().ParseGoHandle(f.Handle(ctx), ParseFull)
+	fh := view.Snapshot().Handle(ctx, f)
+	ph := view.Session().Cache().ParseGoHandle(fh, ParseFull)
 	file, m, _, err := ph.Parse(ctx)
 	if err != nil {
 		return nil, err
