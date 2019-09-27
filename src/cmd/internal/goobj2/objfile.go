@@ -7,11 +7,13 @@
 package goobj2 // TODO: replace the goobj package?
 
 import (
+	"bytes"
 	"cmd/internal/bio"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
+	"unsafe"
 )
 
 // New object file format.
@@ -354,6 +356,9 @@ func (w *Writer) Offset() uint32 {
 }
 
 type Reader struct {
+	b        []byte // mmapped bytes, if not nil
+	readonly bool   // whether b is backed with read-only memory
+
 	rd    io.ReaderAt
 	start uint32
 	h     Header // keep block offsets
@@ -368,10 +373,25 @@ func NewReader(rd io.ReaderAt, off uint32) *Reader {
 	return r
 }
 
+func NewReaderFromBytes(b []byte, readonly bool) *Reader {
+	r := &Reader{b: b, readonly: readonly, rd: bytes.NewReader(b), start: 0}
+	err := r.h.Read(r)
+	if err != nil {
+		return nil
+	}
+	return r
+}
+
 func (r *Reader) BytesAt(off uint32, len int) []byte {
-	// TODO: read from mapped memory
+	if len == 0 {
+		return nil
+	}
+	if r.b != nil {
+		end := int(off) + len
+		return r.b[int(off):end:end]
+	}
 	b := make([]byte, len)
-	_, err := r.rd.ReadAt(b[:], int64(r.start+off))
+	_, err := r.rd.ReadAt(b, int64(r.start+off))
 	if err != nil {
 		panic("corrupted input")
 	}
@@ -379,12 +399,8 @@ func (r *Reader) BytesAt(off uint32, len int) []byte {
 }
 
 func (r *Reader) uint64At(off uint32) uint64 {
-	var b [8]byte
-	n, err := r.rd.ReadAt(b[:], int64(r.start+off))
-	if n != 8 || err != nil {
-		panic("corrupted input")
-	}
-	return binary.LittleEndian.Uint64(b[:])
+	b := r.BytesAt(off, 8)
+	return binary.LittleEndian.Uint64(b)
 }
 
 func (r *Reader) int64At(off uint32) int64 {
@@ -392,12 +408,8 @@ func (r *Reader) int64At(off uint32) int64 {
 }
 
 func (r *Reader) uint32At(off uint32) uint32 {
-	var b [4]byte
-	n, err := r.rd.ReadAt(b[:], int64(r.start+off))
-	if n != 4 || err != nil {
-		panic("corrupted input")
-	}
-	return binary.LittleEndian.Uint32(b[:])
+	b := r.BytesAt(off, 4)
+	return binary.LittleEndian.Uint32(b)
 }
 
 func (r *Reader) int32At(off uint32) int32 {
@@ -405,32 +417,44 @@ func (r *Reader) int32At(off uint32) int32 {
 }
 
 func (r *Reader) uint16At(off uint32) uint16 {
-	var b [2]byte
-	n, err := r.rd.ReadAt(b[:], int64(r.start+off))
-	if n != 2 || err != nil {
-		panic("corrupted input")
-	}
-	return binary.LittleEndian.Uint16(b[:])
+	b := r.BytesAt(off, 2)
+	return binary.LittleEndian.Uint16(b)
 }
 
 func (r *Reader) uint8At(off uint32) uint8 {
-	var b [1]byte
-	n, err := r.rd.ReadAt(b[:], int64(r.start+off))
-	if n != 1 || err != nil {
-		panic("corrupted input")
-	}
+	b := r.BytesAt(off, 1)
 	return b[0]
 }
 
 func (r *Reader) StringAt(off uint32) string {
-	// TODO: have some way to construct a string without copy
 	l := r.uint32At(off)
+	if r.b != nil {
+		b := r.b[off+4 : off+4+l]
+		if r.readonly {
+			return toString(b) // backed by RO memory, ok to make unsafe string
+		}
+		return string(b)
+	}
 	b := make([]byte, l)
 	n, err := r.rd.ReadAt(b, int64(r.start+off+4))
 	if n != int(l) || err != nil {
 		panic("corrupted input")
 	}
 	return string(b)
+}
+
+func toString(b []byte) string {
+	type stringHeader struct {
+		str unsafe.Pointer
+		len int
+	}
+
+	if len(b) == 0 {
+		return ""
+	}
+	ss := stringHeader{str: unsafe.Pointer(&b[0]), len: len(b)}
+	s := *(*string)(unsafe.Pointer(&ss))
+	return s
 }
 
 func (r *Reader) StringRef(off uint32) string {
@@ -510,4 +534,9 @@ func (r *Reader) DataSize(i int) int {
 // AuxDataBase returns the base offset of the aux data block.
 func (r *Reader) PcdataBase() uint32 {
 	return r.h.Offsets[BlkPcdata]
+}
+
+// ReadOnly returns whether r.BytesAt returns read-only bytes.
+func (r *Reader) ReadOnly() bool {
+	return r.readonly
 }
