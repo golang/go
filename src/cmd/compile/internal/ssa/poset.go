@@ -407,7 +407,19 @@ func (po *poset) newconst(n *Value) {
 	po.upushconst(i, 0)
 }
 
-// aliasnode records that n2 is an alias of n1
+// aliasnewnode records that a single node n2 (not in the poset yet) is an alias
+// of the master node n1.
+func (po *poset) aliasnewnode(n1, n2 *Value) {
+	i1, i2 := po.values[n1.ID], po.values[n2.ID]
+	if i1 == 0 || i2 != 0 {
+		panic("aliasnewnode invalid arguments")
+	}
+
+	po.values[n2.ID] = i1
+	po.upushalias(n2.ID, 0)
+}
+
+// aliasnode records that n2 (already in the poset) is an alias of n1
 func (po *poset) aliasnode(n1, n2 *Value) {
 	i1 := po.values[n1.ID]
 	if i1 == 0 {
@@ -415,48 +427,44 @@ func (po *poset) aliasnode(n1, n2 *Value) {
 	}
 
 	i2 := po.values[n2.ID]
-	if i2 != 0 {
-		// Rename all references to i2 into i1
-		// (do not touch i1 itself, otherwise we can create useless self-loops)
-		for idx, n := range po.nodes {
-			if uint32(idx) != i1 {
-				l, r := n.l, n.r
-				if l.Target() == i2 {
-					po.setchl(uint32(idx), newedge(i1, l.Strict()))
-					po.upush(undoSetChl, uint32(idx), l)
-				}
-				if r.Target() == i2 {
-					po.setchr(uint32(idx), newedge(i1, r.Strict()))
-					po.upush(undoSetChr, uint32(idx), r)
-				}
+	if i2 == 0 {
+		panic("aliasnode for non-existing node")
+	}
+	// Rename all references to i2 into i1
+	// (do not touch i1 itself, otherwise we can create useless self-loops)
+	for idx, n := range po.nodes {
+		if uint32(idx) != i1 {
+			l, r := n.l, n.r
+			if l.Target() == i2 {
+				po.setchl(uint32(idx), newedge(i1, l.Strict()))
+				po.upush(undoSetChl, uint32(idx), l)
+			}
+			if r.Target() == i2 {
+				po.setchr(uint32(idx), newedge(i1, r.Strict()))
+				po.upush(undoSetChr, uint32(idx), r)
 			}
 		}
+	}
 
-		// Reassign all existing IDs that point to i2 to i1.
-		// This includes n2.ID.
-		for k, v := range po.values {
-			if v == i2 {
-				po.values[k] = i1
-				po.upushalias(k, i2)
-			}
+	// Reassign all existing IDs that point to i2 to i1.
+	// This includes n2.ID.
+	for k, v := range po.values {
+		if v == i2 {
+			po.values[k] = i1
+			po.upushalias(k, i2)
 		}
+	}
 
-		if n2.isGenericIntConst() {
-			val := n2.AuxInt
-			if po.flags&posetFlagUnsigned != 0 {
-				val = int64(n2.AuxUnsigned())
-			}
-			if po.constants[val] != i2 {
-				panic("aliasing constant which is not registered")
-			}
-			po.constants[val] = i1
-			po.upushconst(i1, i2)
+	if n2.isGenericIntConst() {
+		val := n2.AuxInt
+		if po.flags&posetFlagUnsigned != 0 {
+			val = int64(n2.AuxUnsigned())
 		}
-
-	} else {
-		// n2.ID wasn't seen before, so record it as alias to i1
-		po.values[n2.ID] = i1
-		po.upushalias(n2.ID, 0)
+		if po.constants[val] != i2 {
+			panic("aliasing constant which is not registered")
+		}
+		po.constants[val] = i1
+		po.upushconst(i1, i2)
 	}
 }
 
@@ -1093,11 +1101,11 @@ func (po *poset) SetEqual(n1, n2 *Value) bool {
 		i1 = po.newnode(n1)
 		po.roots = append(po.roots, i1)
 		po.upush(undoNewRoot, i1, 0)
-		po.aliasnode(n1, n2)
+		po.aliasnewnode(n1, n2)
 	case f1 && !f2:
-		po.aliasnode(n1, n2)
+		po.aliasnewnode(n1, n2)
 	case !f1 && f2:
-		po.aliasnode(n2, n1)
+		po.aliasnewnode(n2, n1)
 	case f1 && f2:
 		if i1 == i2 {
 			// Already aliased, ignore
