@@ -44,9 +44,6 @@ func checkPath(path string, fileName bool) error {
 	if path[0] == '-' {
 		return fmt.Errorf("leading dash")
 	}
-	if strings.Contains(path, "..") {
-		return fmt.Errorf("double dot")
-	}
 	if strings.Contains(path, "//") {
 		return fmt.Errorf("double slash")
 	}
