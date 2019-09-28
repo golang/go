@@ -1,24 +1,25 @@
-package diff
+package diff_test
 
 import (
 	"testing"
 
+	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/span"
 )
 
 func TestApplyEdits(t *testing.T) {
 	var testCases = []struct {
 		before string
-		edits  []TextEdit
+		edits  []diff.TextEdit
 		want   string
 	}{
 		{"", nil, ""},
-		{"X", []TextEdit{{newSpan(0, 1), "Y"}}, "Y"},
-		{" X ", []TextEdit{{newSpan(1, 2), "Y"}}, " Y "},
-		{" X X ", []TextEdit{{newSpan(1, 2), "Y"}, {newSpan(3, 4), "Z"}}, " Y Z "},
+		{"X", []diff.TextEdit{{newSpan(0, 1), "Y"}}, "Y"},
+		{" X ", []diff.TextEdit{{newSpan(1, 2), "Y"}}, " Y "},
+		{" X X ", []diff.TextEdit{{newSpan(1, 2), "Y"}, {newSpan(3, 4), "Z"}}, " Y Z "},
 	}
 	for _, tc := range testCases {
-		if got := applyEdits(tc.before, tc.edits); got != tc.want {
+		if got := diff.ApplyEdits(tc.before, tc.edits); got != tc.want {
 			t.Errorf("applyEdits(%v, %v): got %v, want %v", tc.before, tc.edits, got, tc.want)
 		}
 	}

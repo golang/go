@@ -20,7 +20,6 @@ type TextEdit struct {
 
 var (
 	ComputeEdits func(uri span.URI, before, after string) []TextEdit
-	ApplyEdits   func(before string, edits []TextEdit) string
 	ToUnified    func(from, to string, before string, edits []TextEdit) string
 )
 

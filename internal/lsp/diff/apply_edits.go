@@ -7,11 +7,7 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-func init() {
-	ApplyEdits = applyEdits
-}
-
-func applyEdits(before string, edits []TextEdit) string {
+func ApplyEdits(before string, edits []TextEdit) string {
 	// Preconditions:
 	//   - all of the edits apply to before
 	//   - and all the spans for each TextEdit have the same URI
