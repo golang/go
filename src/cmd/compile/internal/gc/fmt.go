@@ -945,7 +945,8 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 		fallthrough
 
 	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
-		mode.Fprintf(s, "%.v = %.v", n.List, n.Right)
+		mode.Fprintf(s, "%.v = %v", n.List, n.Right)
+
 	case ORETURN:
 		mode.Fprintf(s, "return %.v", n.List)
 
