@@ -7,6 +7,7 @@
 package mapfs // import "golang.org/x/tools/godoc/vfs/mapfs"
 
 import (
+	"fmt"
 	"io"
 	"os"
 	pathpkg "path"
@@ -18,9 +19,21 @@ import (
 )
 
 // New returns a new FileSystem from the provided map.
-// Map keys should be forward slash-separated pathnames
-// and not contain a leading slash.
+// Map keys must be forward slash-separated paths with
+// no leading slash, such as "file1.txt" or "dir/file2.txt".
+// New panics if any of the paths contain a leading slash.
 func New(m map[string]string) vfs.FileSystem {
+	// Verify all provided paths are relative before proceeding.
+	var pathsWithLeadingSlash []string
+	for p := range m {
+		if strings.HasPrefix(p, "/") {
+			pathsWithLeadingSlash = append(pathsWithLeadingSlash, p)
+		}
+	}
+	if len(pathsWithLeadingSlash) > 0 {
+		panic(fmt.Errorf("mapfs.New: invalid paths with a leading slash: %q", pathsWithLeadingSlash))
+	}
+
 	return mapFS(m)
 }
 
