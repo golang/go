@@ -29,6 +29,12 @@ var (
 	//   s := []byte("...")   allocating [n]byte on the stack
 	// Note: the flag smallframes can update this value.
 	maxImplicitStackVarSize = int64(64 * 1024)
+
+	// smallArrayBytes is the maximum size of an array which is considered small.
+	// Small arrays will be initialized directly with a sequence of constant stores.
+	// Large arrays will be initialized by copying from a static temp.
+	// 256 bytes was chosen to minimize generated code + statictmp size.
+	smallArrayBytes = int64(256)
 )
 
 // isRuntimePkg reports whether p is package runtime.

@@ -113,3 +113,54 @@ func SliceNilCheck(s []int) {
 	// amd64:-`TESTB`
 	_ = *p
 }
+
+// ---------------------- //
+//   Init slice literal   //
+// ---------------------- //
+// See issue 21561
+func InitSmallSliceLiteral() []int {
+	// amd64:`MOVQ\t[$]42`
+	return []int{42}
+}
+
+func InitNotSmallSliceLiteral() []int {
+	// amd64:`MOVQ\t.*autotmp_`
+	return []int{
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+		42,
+	}
+}
