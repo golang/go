@@ -244,6 +244,28 @@ godef/a/a.go:9:6-11: defined here as func a.Stuff()
 
 -- Stuff-hover --
 func a.Stuff()
+-- X-definition --
+godef/b/b.go:37:7-8: defined here as const X untyped int = 0
+-- X-definition-json --
+{
+	"span": {
+		"uri": "file://godef/b/b.go",
+		"start": {
+			"line": 37,
+			"column": 7,
+			"offset": 812
+		},
+		"end": {
+			"line": 37,
+			"column": 8,
+			"offset": 813
+		}
+	},
+	"description": "const X untyped int = 0"
+}
+
+-- X-hover --
+const X untyped int = 0
 -- myFoo-definition --
 godef/b/b.go:4:2-7: defined here as package myFoo ("golang.org/x/tools/internal/lsp/foo")
 -- myFoo-definition-json --

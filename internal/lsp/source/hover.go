@@ -6,6 +6,7 @@ package source
 
 import (
 	"context"
+	"fmt"
 	"go/ast"
 	"go/doc"
 	"go/format"
@@ -51,18 +52,29 @@ func (i *IdentifierInfo) Hover(ctx context.Context) (*HoverInformation, error) {
 		}
 		h.Signature = b.String()
 	case types.Object:
-		h.Signature = types.ObjectString(x, i.qf)
+		h.Signature = objectString(x, i.qf)
 	}
 
 	// Set the documentation.
 	if i.Declaration.obj != nil {
-		h.SingleLine = types.ObjectString(i.Declaration.obj, i.qf)
+		h.SingleLine = objectString(i.Declaration.obj, i.qf)
 	}
 	if h.comment != nil {
 		h.FullDocumentation = h.comment.Text()
 		h.Synopsis = doc.Synopsis(h.FullDocumentation)
 	}
 	return h, nil
+}
+
+// objectString is a wrapper around the types.ObjectString function.
+// It handles adding more information to the object string.
+func objectString(obj types.Object, qf types.Qualifier) string {
+	str := types.ObjectString(obj, qf)
+	switch obj := obj.(type) {
+	case *types.Const:
+		str = fmt.Sprintf("%s = %s", str, obj.Val())
+	}
+	return str
 }
 
 func (d Declaration) hover(ctx context.Context) (*HoverInformation, error) {

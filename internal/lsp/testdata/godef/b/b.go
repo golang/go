@@ -33,3 +33,5 @@ func Bar() {
 
 	var _ *myFoo.StructFoo //@godef("myFoo", myFoo)
 }
+
+const X = 0 //@mark(X, "X"),godef("X", X)
