@@ -16,6 +16,10 @@ TEXT ·valueSet(SB), NOSPLIT, $0
   CallImport
   RET
 
+TEXT ·valueDelete(SB), NOSPLIT, $0
+  CallImport
+  RET
+
 TEXT ·valueIndex(SB), NOSPLIT, $0
   CallImport
   RET
