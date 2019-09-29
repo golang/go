@@ -334,6 +334,24 @@ func fieldtrack(ctxt *Link) {
 }
 
 func (ctxt *Link) addexport() {
+	// Track undefined external symbols during external link.
+	if ctxt.LinkMode == LinkExternal {
+		for _, s := range ctxt.Syms.Allsym {
+			if !s.Attr.Reachable() || s.Attr.Special() || s.Attr.SubSymbol() {
+				continue
+			}
+			if s.Type != sym.STEXT {
+				continue
+			}
+			for i := range s.R {
+				r := &s.R[i]
+				if r.Sym != nil && r.Sym.Type == sym.Sxxx {
+					r.Sym.Type = sym.SUNDEFEXT
+				}
+			}
+		}
+	}
+
 	// TODO(aix)
 	if ctxt.HeadType == objabi.Hdarwin || ctxt.HeadType == objabi.Haix {
 		return
