@@ -47,19 +47,40 @@ type nameVer struct {
 	v    int
 }
 
+type bitmap []uint32
+
+// set the i-th bit.
+func (bm bitmap) Set(i Sym) {
+	n, r := uint(i)/32, uint(i)%32
+	bm[n] |= 1 << r
+}
+
+// whether the i-th bit is set.
+func (bm bitmap) Has(i Sym) bool {
+	n, r := uint(i)/32, uint(i)%32
+	return bm[n]&(1<<r) != 0
+}
+
+func makeBitmap(n int) bitmap {
+	return make(bitmap, (n+31)/32)
+}
+
 // A Loader loads new object files and resolves indexed symbol references.
 //
 // TODO: describe local-global index mapping.
 type Loader struct {
-	start map[*oReader]Sym // map from object file to its start index
-	objs  []objIdx         // sorted by start index (i.e. objIdx.i)
-	max   Sym              // current max index
+	start    map[*oReader]Sym // map from object file to its start index
+	objs     []objIdx         // sorted by start index (i.e. objIdx.i)
+	max      Sym              // current max index
+	extStart Sym              // from this index on, the symbols are externally defined
 
 	symsByName map[nameVer]Sym // map symbol name to index
 
 	objByPkg map[string]*oReader // map package path to its Go object reader
 
 	Syms []*sym.Symbol // indexed symbols. XXX we still make sym.Symbol for now.
+
+	Reachable bitmap // bitmap of reachable symbols, indexed by global index
 }
 
 func NewLoader() *Loader {
@@ -95,6 +116,9 @@ func (l *Loader) AddObj(pkg string, r *oReader) Sym {
 
 // Add a symbol with a given index, return if it is added.
 func (l *Loader) AddSym(name string, ver int, i Sym, dupok bool) bool {
+	if l.extStart != 0 {
+		panic("AddSym called after AddExtSym is called")
+	}
 	nv := nameVer{name, ver}
 	if _, ok := l.symsByName[nv]; ok {
 		if dupok || true { // TODO: "true" isn't quite right. need to implement "overwrite" logic.
@@ -116,6 +140,9 @@ func (l *Loader) AddExtSym(name string, ver int) Sym {
 	i := l.max + 1
 	l.symsByName[nv] = i
 	l.max++
+	if l.extStart == 0 {
+		l.extStart = i
+	}
 	return i
 }
 
@@ -126,13 +153,16 @@ func (l *Loader) ToGlobal(r *oReader, i int) Sym {
 
 // Convert a global index to a local index.
 func (l *Loader) ToLocal(i Sym) (*oReader, int) {
-	k := sort.Search(int(i), func(k int) bool {
-		return l.objs[k].i >= i
-	})
-	if k == len(l.objs) {
-		return nil, 0
+	if l.extStart != 0 && i >= l.extStart {
+		return nil, int(i - l.extStart)
 	}
-	return l.objs[k].r, int(i - l.objs[k].i)
+	// Search for the local object holding index i.
+	// Below k is the first one that has its start index > i,
+	// so k-1 is the one we want.
+	k := sort.Search(len(l.objs), func(k int) bool {
+		return l.objs[k].i > i
+	})
+	return l.objs[k-1].r, int(i - l.objs[k-1].i)
 }
 
 // Resolve a local symbol reference. Return global index.
@@ -170,6 +200,94 @@ func (l *Loader) Resolve(r *oReader, s goobj2.SymRef) Sym {
 func (l *Loader) Lookup(name string, ver int) Sym {
 	nv := nameVer{name, ver}
 	return l.symsByName[nv]
+}
+
+// Number of total symbols.
+func (l *Loader) NSym() int {
+	return int(l.max + 1)
+}
+
+// Returns the raw (unpatched) name of the i-th symbol.
+func (l *Loader) RawSymName(i Sym) string {
+	r, li := l.ToLocal(i)
+	if r == nil {
+		return ""
+	}
+	osym := goobj2.Sym{}
+	osym.Read(r.Reader, r.SymOff(li))
+	return osym.Name
+}
+
+// Returns the (patched) name of the i-th symbol.
+func (l *Loader) SymName(i Sym) string {
+	r, li := l.ToLocal(i)
+	if r == nil {
+		return ""
+	}
+	osym := goobj2.Sym{}
+	osym.Read(r.Reader, r.SymOff(li))
+	return strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
+}
+
+// Returns the type of the i-th symbol.
+func (l *Loader) SymType(i Sym) sym.SymKind {
+	r, li := l.ToLocal(i)
+	if r == nil {
+		return 0
+	}
+	osym := goobj2.Sym{}
+	osym.Read(r.Reader, r.SymOff(li))
+	return sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)]
+}
+
+// Returns the number of relocations given a global index.
+func (l *Loader) NReloc(i Sym) int {
+	r, li := l.ToLocal(i)
+	if r == nil {
+		return 0
+	}
+	return r.NReloc(li)
+}
+
+// Returns the referred symbol of the j-th relocation of the i-th
+// symbol.
+func (l *Loader) RelocSym(i Sym, j int) Sym {
+	r, li := l.ToLocal(i)
+	rel := goobj2.Reloc{}
+	rel.Read(r.Reader, r.RelocOff(li, j))
+	return l.Resolve(r, rel.Sym)
+}
+
+// Returns the relocation type of the j-th relocation of the i-th
+// symbol.
+func (l *Loader) RelocType(i Sym, j int) objabi.RelocType {
+	r, li := l.ToLocal(i)
+	rel := goobj2.Reloc{}
+	rel.Read(r.Reader, r.RelocOff(li, j))
+	return objabi.RelocType(rel.Type)
+}
+
+// Returns the number of aux symbols given a global index.
+func (l *Loader) NAux(i Sym) int {
+	r, li := l.ToLocal(i)
+	if r == nil {
+		return 0
+	}
+	return r.NAux(li)
+}
+
+// Returns the referred symbol of the j-th aux symbol of the i-th
+// symbol.
+func (l *Loader) AuxSym(i Sym, j int) Sym {
+	r, li := l.ToLocal(i)
+	a := goobj2.Aux{}
+	a.Read(r.Reader, r.AuxOff(li, j))
+	return l.Resolve(r, a.Sym)
+}
+
+// Initialize Reachable bitmap for running deadcode pass.
+func (l *Loader) InitReachable() {
+	l.Reachable = makeBitmap(l.NSym())
 }
 
 // Preload a package: add autolibs, add symbols to the symbol table.
@@ -338,6 +456,12 @@ func loadObjReloc(l *Loader, r *oReader) {
 		if t == 0 {
 			log.Fatalf("missing type for %s in %s", s.Name, lib)
 		}
+		if !s.Attr.Reachable() && (t < sym.SDWARFSECT || t > sym.SDWARFLINES) && !(t == sym.SRODATA && strings.HasPrefix(name, "type.")) {
+			// No need to load unreachable symbols.
+			// XXX DWARF symbols may be used but are not marked reachable.
+			// XXX type symbol's content may be needed in DWARF code, but they are not marked.
+			continue
+		}
 		if t == sym.SBSS && (s.Type == sym.SRODATA || s.Type == sym.SNOPTRBSS) {
 			t = s.Type
 		}
@@ -350,20 +474,31 @@ func loadObjReloc(l *Loader, r *oReader) {
 		for j := range s.R {
 			rel := goobj2.Reloc{}
 			rel.Read(r.Reader, r.RelocOff(i, j))
+			rs := l.Resolve(r, rel.Sym)
+			rt := objabi.RelocType(rel.Type)
+			sz := rel.Siz
+			if rt == objabi.R_METHODOFF {
+				if l.Reachable.Has(rs) {
+					rt = objabi.R_ADDROFF
+				} else {
+					sz = 0
+					rs = 0
+				}
+			}
+			if rt == objabi.R_WEAKADDROFF && !l.Reachable.Has(rs) {
+				rs = 0
+				sz = 0
+			}
+			if rs != 0 && l.SymType(rs) == sym.SABIALIAS {
+				rs = l.RelocSym(rs, 0)
+			}
 			s.R[j] = sym.Reloc{
 				Off:  rel.Off,
-				Siz:  rel.Siz,
-				Type: objabi.RelocType(rel.Type),
+				Siz:  sz,
+				Type: rt,
 				Add:  rel.Add,
-				Sym:  resolveSymRef(rel.Sym),
+				Sym:  l.Syms[rs],
 			}
-		}
-
-		// XXX deadcode needs symbol data for type symbols. Read it now.
-		if strings.HasPrefix(name, "type.") {
-			s.P = r.Data(i)
-			s.Attr.Set(sym.AttrReadOnly, r.ReadOnly())
-			s.Size = int64(osym.Siz)
 		}
 
 		// Aux symbol
@@ -430,9 +565,10 @@ func loadObjFull(l *Loader, r *oReader) {
 		if s == nil || s.Name == "" {
 			continue
 		}
-		if !s.Attr.Reachable() && (s.Type < sym.SDWARFSECT || s.Type > sym.SDWARFLINES) {
+		if !s.Attr.Reachable() && (s.Type < sym.SDWARFSECT || s.Type > sym.SDWARFLINES) && !(s.Type == sym.SRODATA && strings.HasPrefix(s.Name, "type.")) {
 			// No need to load unreachable symbols.
 			// XXX DWARF symbols may be used but are not marked reachable.
+			// XXX type symbol's content may be needed in DWARF code, but they are not marked.
 			continue
 		}
 
