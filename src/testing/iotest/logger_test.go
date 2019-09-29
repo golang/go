@@ -13,16 +13,6 @@ import (
 	"testing"
 )
 
-var writeLoggerTests = []struct {
-	prefix string
-	data   string
-}{
-	{"", "hello, world"},
-	{"prefix", ""},
-	{"", ""},
-	{"prefix", "hello, world"},
-}
-
 type errWriter struct {
 	err error
 }
@@ -32,18 +22,34 @@ func (w errWriter) Write([]byte) (int, error) {
 }
 
 func TestWriteLogger(t *testing.T) {
-	for i, tt := range writeLoggerTests {
-		re := regexp.MustCompile(`\d{4}\/\d{2}\/\d{2}\s\d{2}:\d{2}:\d{2}\s` + tt.prefix + `\s` + fmt.Sprintf("%x", tt.data))
-		out := new(bytes.Buffer)
-		log.SetOutput(out)
+	olw := log.Writer()
+	olf := log.Flags()
+	olp := log.Prefix()
 
-		w := new(bytes.Buffer)
-		wl := NewWriteLogger(tt.prefix, w)
-		wl.Write([]byte(tt.data))
+	// Revert the original log settings before we exit.
+	defer func() {
+		log.SetFlags(olf)
+		log.SetPrefix(olp)
+		log.SetOutput(olw)
+	}()
 
-		if re.MatchString(out.String()) == false {
-			t.Errorf("%d: No match on log output, got %q", i, out.String())
-		}
+	lOut := new(bytes.Buffer)
+	log.SetPrefix("lw: ")
+	log.SetOutput(lOut)
+	log.SetFlags(0)
+
+	lw := new(bytes.Buffer)
+	wl := NewWriteLogger("write:", lw)
+	if _, err := wl.Write([]byte("Hello, World!")); err != nil {
+		t.Fatalf("Unexpectedly failed to write: %v", err)
+	}
+
+	if g, w := lw.String(), "Hello, World!"; g != w {
+		t.Errorf("WriteLogger mismatch\n\tgot:  %q\n\twant: %q", g, w)
+	}
+	wantLogWithHex := fmt.Sprintf("lw: write: %x\n", "Hello, World!")
+	if g, w := lOut.String(), wantLogWithHex; g != w {
+		t.Errorf("WriteLogger mismatch\n\tgot:  %q\n\twant: %q", g, w)
 	}
 }
 
