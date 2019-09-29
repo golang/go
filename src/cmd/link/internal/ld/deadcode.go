@@ -50,6 +50,11 @@ func deadcode(ctxt *Link) {
 		ctxt.Logf("%5.2f deadcode\n", Cputime())
 	}
 
+	if *flagNewobj {
+		deadcode2(ctxt)
+		return
+	}
+
 	d := &deadcodepass{
 		ctxt:        ctxt,
 		ifaceMethod: make(map[methodsig]bool),
@@ -118,6 +123,10 @@ func deadcode(ctxt *Link) {
 		}
 	}
 
+	addToTextp(ctxt)
+}
+
+func addToTextp(ctxt *Link) {
 	// Remove dead text but keep file information (z symbols).
 	textp := []*sym.Symbol{}
 	for _, s := range ctxt.Textp {

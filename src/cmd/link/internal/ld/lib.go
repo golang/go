@@ -543,11 +543,6 @@ func (ctxt *Link) loadlib() {
 	ctxt.Loaded = true
 
 	importcycles()
-
-	// For now, load relocations for dead-code elimination.
-	if *flagNewobj {
-		objfile.LoadReloc(ctxt.loader)
-	}
 }
 
 // Set up flags and special symbols depending on the platform build mode.
@@ -2537,6 +2532,7 @@ func dfs(lib *sym.Library, mark map[*sym.Library]markKind, order *[]*sym.Library
 
 func (ctxt *Link) loadlibfull() {
 	// Load full symbol contents, resolve indexed references.
+	objfile.LoadReloc(ctxt.loader)
 	objfile.LoadFull(ctxt.loader)
 
 	// For now, add all symbols to ctxt.Syms.
@@ -2548,6 +2544,8 @@ func (ctxt *Link) loadlibfull() {
 
 	// Drop the reference.
 	ctxt.loader = nil
+
+	addToTextp(ctxt)
 }
 
 func (ctxt *Link) dumpsyms() {
