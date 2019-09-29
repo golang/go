@@ -7,7 +7,6 @@ package iotest
 import (
 	"bytes"
 	"io"
-	"reflect"
 	"testing"
 )
 
@@ -34,7 +33,7 @@ func TestOneByteReader(t *testing.T) {
 		}
 		got := p[:n]
 		want := tt.p
-		if reflect.DeepEqual(got, want) != true {
+		if !bytes.Equal(got, want) {
 			t.Errorf("got %q, expected %q", got, want)
 		}
 	}
@@ -62,7 +61,7 @@ func TestHalfReader(t *testing.T) {
 		}
 		got := p[:n]
 		want := tt.p
-		if reflect.DeepEqual(got, want) != true {
+		if !bytes.Equal(got, want) {
 			t.Errorf("got %q, expected %q", got, want)
 		}
 	}
@@ -122,7 +121,7 @@ func TestDataErrReader(t *testing.T) {
 		if n != tt.n {
 			t.Errorf("Last call to Read should have read %d bytes instead of %d", n, tt.n)
 		}
-		if reflect.DeepEqual(p[:n], tt.p) != true {
+		if !bytes.Equal(p[:n], tt.p) {
 			t.Errorf("got %q, expected %q ", p[:n], tt.p)
 		}
 	}
