@@ -27,7 +27,7 @@ func TestTruncateWriter(t *testing.T) {
 		tw := TruncateWriter(buf, tt.trunc)
 		n, err := tw.Write([]byte(tt.in))
 		if err != nil {
-			t.Error(err)
+			t.Errorf("Unexpected error %v for\n\t%+v", err, tt)
 		}
 		if buf.String() != tt.want {
 			t.Errorf("got %q, expected %q", buf.String(), tt.want)
