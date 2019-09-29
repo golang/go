@@ -809,7 +809,7 @@ func machogenasmsym(ctxt *Link) {
 			}
 		}
 
-		if s.Type == sym.SDYNIMPORT || s.Type == sym.SHOSTOBJ {
+		if s.Type == sym.SDYNIMPORT || s.Type == sym.SHOSTOBJ || s.Type == sym.SUNDEFEXT {
 			if s.Attr.Reachable() {
 				addsym(ctxt, s, "", DataSym, 0, nil)
 			}
@@ -886,7 +886,7 @@ func machosymtab(ctxt *Link) {
 		// replace "·" as ".", because DTrace cannot handle it.
 		Addstring(symstr, strings.Replace(s.Extname(), "·", ".", -1))
 
-		if s.Type == sym.SDYNIMPORT || s.Type == sym.SHOSTOBJ {
+		if s.Type == sym.SDYNIMPORT || s.Type == sym.SHOSTOBJ || s.Type == sym.SUNDEFEXT {
 			symtab.AddUint8(0x01)                             // type N_EXT, external symbol
 			symtab.AddUint8(0)                                // no section
 			symtab.AddUint16(ctxt.Arch, 0)                    // desc
