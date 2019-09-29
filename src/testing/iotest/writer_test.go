@@ -29,11 +29,11 @@ func TestTruncateWriter(t *testing.T) {
 		if err != nil {
 			t.Errorf("Unexpected error %v for\n\t%+v", err, tt)
 		}
-		if buf.String() != tt.want {
-			t.Errorf("got %q, expected %q", buf.String(), tt.want)
+		if g, w := buf.String(), tt.want; g != w {
+			t.Errorf("got %q, expected %q", g, w)
 		}
-		if n != tt.n {
-			t.Errorf("read %d bytes, but expected to have read %d bytes", n, tt.n)
+		if g, w := n, tt.n; g != w {
+			t.Errorf("read %d bytes, but expected to have read %d bytes", g, w)
 		}
 	}
 }
