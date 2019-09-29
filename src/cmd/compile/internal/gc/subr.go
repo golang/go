@@ -1189,7 +1189,12 @@ func lookdot0(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool) 
 		}
 	}
 
-	u = methtype(t)
+	u = t
+	if t.Sym != nil && t.IsPtr() && !t.Elem().IsPtr() {
+		// If t is a defined pointer type, then x.m is shorthand for (*x).m.
+		u = t.Elem()
+	}
+	u = methtype(u)
 	if u != nil {
 		for _, f := range u.Methods().Slice() {
 			if f.Embedded == 0 && (f.Sym == s || (ignorecase && strings.EqualFold(f.Sym.Name, s.Name))) {
