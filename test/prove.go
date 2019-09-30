@@ -507,7 +507,7 @@ func sm1(b []int, x int) {
 	useSlice(b[2:8]) // ERROR "Proved slicemask not needed$"
 	// Test non-constant argument with known limits.
 	if cap(b) > 10 {
-		useSlice(b[2:]) // ERROR "Proved slicemask not needed$"
+		useSlice(b[2:])
 	}
 }
 
