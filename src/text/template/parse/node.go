@@ -160,23 +160,23 @@ func (p *PipeNode) append(command *CommandNode) {
 }
 
 func (p *PipeNode) String() string {
-	s := ""
+	var sb strings.Builder
 	if len(p.Decl) > 0 {
 		for i, v := range p.Decl {
 			if i > 0 {
-				s += ", "
+				sb.WriteString(", ")
 			}
-			s += v.String()
+			sb.WriteString(v.String())
 		}
-		s += " := "
+		sb.WriteString(" := ")
 	}
 	for i, c := range p.Cmds {
 		if i > 0 {
-			s += " | "
+			sb.WriteString(" | ")
 		}
-		s += c.String()
+		sb.WriteString(c.String())
 	}
-	return s
+	return sb.String()
 }
 
 func (p *PipeNode) tree() *Tree {
@@ -249,18 +249,20 @@ func (c *CommandNode) append(arg Node) {
 }
 
 func (c *CommandNode) String() string {
-	s := ""
+	var sb strings.Builder
 	for i, arg := range c.Args {
 		if i > 0 {
-			s += " "
+			sb.WriteByte(' ')
 		}
 		if arg, ok := arg.(*PipeNode); ok {
-			s += "(" + arg.String() + ")"
+			sb.WriteByte('(')
+			sb.WriteString(arg.String())
+			sb.WriteByte(')')
 			continue
 		}
-		s += arg.String()
+		sb.WriteString(arg.String())
 	}
-	return s
+	return sb.String()
 }
 
 func (c *CommandNode) tree() *Tree {
@@ -333,14 +335,14 @@ func (t *Tree) newVariable(pos Pos, ident string) *VariableNode {
 }
 
 func (v *VariableNode) String() string {
-	s := ""
+	var sb strings.Builder
 	for i, id := range v.Ident {
 		if i > 0 {
-			s += "."
+			sb.WriteByte('.')
 		}
-		s += id
+		sb.WriteString(id)
 	}
-	return s
+	return sb.String()
 }
 
 func (v *VariableNode) tree() *Tree {
@@ -426,11 +428,12 @@ func (t *Tree) newField(pos Pos, ident string) *FieldNode {
 }
 
 func (f *FieldNode) String() string {
-	s := ""
+	var sb strings.Builder
 	for _, id := range f.Ident {
-		s += "." + id
+		sb.WriteByte('.')
+		sb.WriteString(id)
 	}
-	return s
+	return sb.String()
 }
 
 func (f *FieldNode) tree() *Tree {

@@ -553,3 +553,19 @@ func BenchmarkParseLarge(b *testing.B) {
 		}
 	}
 }
+
+var sink string
+
+func BenchmarkVariableString(b *testing.B) {
+	v := &VariableNode{
+		Ident: []string{"$", "A", "BB", "CCC", "THIS_IS_THE_VARIABLE_BEING_PROCESSED"},
+	}
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		sink = v.String()
+	}
+	if sink == "" {
+		b.Fatal("Benchmark was not run")
+	}
+}
