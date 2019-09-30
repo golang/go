@@ -187,9 +187,9 @@ func (p *PipeNode) CopyPipe() *PipeNode {
 	if p == nil {
 		return p
 	}
-	vars := make([]*VariableNode, 0, len(p.Decl))
-	for _, d := range p.Decl {
-		vars = append(vars, d.Copy().(*VariableNode))
+	vars := make([]*VariableNode, len(p.Decl))
+	for i, d := range p.Decl {
+		vars[i] = d.Copy().(*VariableNode)
 	}
 	n := p.tr.newPipeline(p.Pos, p.Line, vars)
 	n.IsAssign = p.IsAssign
