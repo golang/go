@@ -266,6 +266,7 @@ func (v *Value) reset(op Op) {
 }
 
 // copyInto makes a new value identical to v and adds it to the end of b.
+// unlike copyIntoWithXPos this does not check for v.Pos being a statement.
 func (v *Value) copyInto(b *Block) *Value {
 	c := b.NewValue0(v.Pos.WithNotStmt(), v.Op, v.Type) // Lose the position, this causes line number churn otherwise.
 	c.Aux = v.Aux
@@ -281,7 +282,14 @@ func (v *Value) copyInto(b *Block) *Value {
 
 // copyIntoWithXPos makes a new value identical to v and adds it to the end of b.
 // The supplied position is used as the position of the new value.
+// Because this is used for rematerialization, check for case that (rematerialized)
+// input to value with position 'pos' carried a statement mark, and that the supplied
+// position (of the instruction using the rematerialized value) is not marked, and
+// preserve that mark if its line matches the supplied position.
 func (v *Value) copyIntoWithXPos(b *Block, pos src.XPos) *Value {
+	if v.Pos.IsStmt() == src.PosIsStmt && pos.IsStmt() != src.PosIsStmt && v.Pos.SameFileAndLine(pos) {
+		pos = pos.WithIsStmt()
+	}
 	c := b.NewValue0(pos, v.Op, v.Type)
 	c.Aux = v.Aux
 	c.AuxInt = v.AuxInt
