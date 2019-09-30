@@ -634,3 +634,75 @@ func BenchmarkLittleEndianPutUint64(b *testing.B) {
 		LittleEndian.PutUint64(putbuf[:], uint64(i))
 	}
 }
+
+func BenchmarkReadFloats(b *testing.B) {
+	var ls Struct
+	bsr := &byteSliceReader{}
+	var r io.Reader = bsr
+	b.SetBytes(4 + 8)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bsr.remain = big[30:]
+		Read(r, BigEndian, &ls.Float32)
+		Read(r, BigEndian, &ls.Float64)
+	}
+	b.StopTimer()
+	want := s
+	want.Int8 = 0
+	want.Int16 = 0
+	want.Int32 = 0
+	want.Int64 = 0
+	want.Uint8 = 0
+	want.Uint16 = 0
+	want.Uint32 = 0
+	want.Uint64 = 0
+	want.Complex64 = 0
+	want.Complex128 = 0
+	want.Array = [4]uint8{0, 0, 0, 0}
+	want.Bool = false
+	want.BoolArray = [4]bool{false, false, false, false}
+	if b.N > 0 && !reflect.DeepEqual(ls, want) {
+		b.Fatalf("struct doesn't match:\ngot  %v;\nwant %v", ls, want)
+	}
+}
+
+func BenchmarkWriteFloats(b *testing.B) {
+	buf := new(bytes.Buffer)
+	var w io.Writer = buf
+	b.SetBytes(4 + 8)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		Write(w, BigEndian, s.Float32)
+		Write(w, BigEndian, s.Float64)
+	}
+	b.StopTimer()
+	if b.N > 0 && !bytes.Equal(buf.Bytes(), big[30:30+4+8]) {
+		b.Fatalf("first half doesn't match: %x %x", buf.Bytes(), big[30:30+4+8])
+	}
+}
+
+func BenchmarkReadSlice1000Float32s(b *testing.B) {
+	bsr := &byteSliceReader{}
+	slice := make([]float32, 1000)
+	buf := make([]byte, len(slice)*4)
+	b.SetBytes(int64(len(buf)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bsr.remain = buf
+		Read(bsr, BigEndian, slice)
+	}
+}
+
+func BenchmarkWriteSlice1000Float32s(b *testing.B) {
+	slice := make([]float32, 1000)
+	buf := new(bytes.Buffer)
+	var w io.Writer = buf
+	b.SetBytes(4 * 1000)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		Write(w, BigEndian, slice)
+	}
+	b.StopTimer()
+}
