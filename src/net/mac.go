@@ -39,7 +39,7 @@ func (a *HardwareAddr) UnmarshalText(text []byte) error {
 		return nil
 	}
 
-	// first attempt to decode raw bytes in case the mac address
+	// First, attempt to decode raw bytes in case the mac address
 	// was encoded as a raw byte slice in an older verison of golang.
 	b64buf := make([]byte, 6)
 	if _, err := base64.StdEncoding.Decode(b64buf, text); err == nil {
@@ -47,6 +47,7 @@ func (a *HardwareAddr) UnmarshalText(text []byte) error {
 		return nil
 	}
 
+	// Otherwise, fallback to normal MAC address parsing.
 	v, err := ParseMAC(string(text))
 	if err != nil {
 		return err

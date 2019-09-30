@@ -138,7 +138,8 @@ func TestHardwareAddr_UnmarshalText(t *testing.T) {
 			text:    "",
 			wantStr: "",
 			wantErr: "",
-		}, {
+		},
+		{
 			msg:     "invalid text",
 			text:    "foo-bar-baz",
 			wantStr: "",
@@ -149,17 +150,19 @@ func TestHardwareAddr_UnmarshalText(t *testing.T) {
 		t.Run(tt.msg, func(t *testing.T) {
 			var a HardwareAddr
 			err := a.UnmarshalText([]byte(tt.text))
-			if tt.wantErr != "" && err.Error() != tt.wantErr {
-				t.Errorf("Wanted err %q got %q", tt.wantErr, err.Error())
-			} else if tt.wantErr == "" && err != nil {
-				t.Errorf("Unexpected error %q", err)
-			}
-
-			if tt.wantStr != a.String() {
-				t.Errorf("Wanted address string %q but got %q", tt.wantStr, a.String())
+			gotStr := a.String()
+			if tt.wantStr != gotStr || !matchErr(tt.wantErr, err) {
+				t.Errorf("want: addr = %q, err = %q, got: addr = %q, err = %q", tt.wantStr, tt.wantErr, gotStr, err)
 			}
 		})
 	}
+}
+
+func matchErr(s string, err error) bool {
+	if s == "" {
+		return err == nil
+	}
+	return err != nil && strings.Contains(err.Error(), s)
 }
 
 func TestHardwareAddr_MarshalText(t *testing.T) {
@@ -167,18 +170,19 @@ func TestHardwareAddr_MarshalText(t *testing.T) {
 
 	var a HardwareAddr
 	if err := a.UnmarshalText([]byte(input)); err != nil {
-		t.Fatalf("Unexpected error while unmarashaling: %q", err)
+		t.Fatal(err)
 	}
 
 	output, err := a.MarshalText()
 	if err != nil {
-		t.Fatalf("Error marshaling: %s", err)
+		t.Fatal(err)
 	}
 
 	if err := a.UnmarshalText([]byte(input)); err != nil {
-		t.Fatalf("Unexpected error while marshaling: %q", err)
+		t.Fatal(err)
 	}
+
 	if input != string(output) {
-		t.Errorf("Input/Output mismatch: %q and %q", input, string(output))
+		t.Errorf("want %q, got %q", input, string(output))
 	}
 }
