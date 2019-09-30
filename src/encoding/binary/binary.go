@@ -185,6 +185,10 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
 			*data = int64(order.Uint64(bs))
 		case *uint64:
 			*data = order.Uint64(bs)
+		case *float32:
+			*data = math.Float32frombits(order.Uint32(bs))
+		case *float64:
+			*data = math.Float64frombits(order.Uint64(bs))
 		case []bool:
 			for i, x := range bs { // Easier to loop over the input for 8-bit values.
 				data[i] = x != 0
@@ -218,6 +222,14 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
 		case []uint64:
 			for i := range data {
 				data[i] = order.Uint64(bs[8*i:])
+			}
+		case []float32:
+			for i := range data {
+				data[i] = math.Float32frombits(order.Uint32(bs[4*i:]))
+			}
+		case []float64:
+			for i := range data {
+				data[i] = math.Float64frombits(order.Uint64(bs[8*i:]))
 			}
 		default:
 			n = 0 // fast path doesn't apply
@@ -342,6 +354,22 @@ func Write(w io.Writer, order ByteOrder, data interface{}) error {
 		case []uint64:
 			for i, x := range v {
 				order.PutUint64(bs[8*i:], x)
+			}
+		case *float32:
+			order.PutUint32(bs, math.Float32bits(*v))
+		case float32:
+			order.PutUint32(bs, math.Float32bits(v))
+		case []float32:
+			for i, x := range v {
+				order.PutUint32(bs[4*i:], math.Float32bits(x))
+			}
+		case *float64:
+			order.PutUint64(bs, math.Float64bits(*v))
+		case float64:
+			order.PutUint64(bs, math.Float64bits(v))
+		case []float64:
+			for i, x := range v {
+				order.PutUint64(bs[8*i:], math.Float64bits(x))
 			}
 		}
 		_, err := w.Write(bs)
@@ -695,6 +723,14 @@ func intDataSize(data interface{}) int {
 	case []int64:
 		return 8 * len(data)
 	case []uint64:
+		return 8 * len(data)
+	case float32, *float32:
+		return 4
+	case float64, *float64:
+		return 8
+	case []float32:
+		return 4 * len(data)
+	case []float64:
 		return 8 * len(data)
 	}
 	return 0
