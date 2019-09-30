@@ -106,10 +106,10 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.As = AADD
 		}
 	}
-	if c.ctxt.Flag_dynlink {
-		c.rewriteToUseGot(p)
-	} else if c.ctxt.Headtype == objabi.Haix {
+	if c.ctxt.Headtype == objabi.Haix {
 		c.rewriteToUseTOC(p)
+	} else if c.ctxt.Flag_dynlink {
+		c.rewriteToUseGot(p)
 	}
 }
 
@@ -118,6 +118,62 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 func (c *ctxt9) rewriteToUseTOC(p *obj.Prog) {
 	if p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
 		return
+	}
+
+	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
+		// ADUFFZERO/ADUFFCOPY is considered as an ABL except in dynamic
+		// link where it should be an indirect call.
+		if !c.ctxt.Flag_dynlink {
+			return
+		}
+		//     ADUFFxxx $offset
+		// becomes
+		//     MOVD runtime.duffxxx@TOC, R12
+		//     ADD $offset, R12
+		//     MOVD R12, CTR
+		//     BL (CTR)
+		var sym *obj.LSym
+		if p.As == obj.ADUFFZERO {
+			sym = c.ctxt.Lookup("runtime.duffzero")
+		} else {
+			sym = c.ctxt.Lookup("runtime.duffcopy")
+		}
+		// Retrieve or create the TOC anchor.
+		symtoc := c.ctxt.LookupInit("TOC."+sym.Name, func(s *obj.LSym) {
+			s.Type = objabi.SDATA
+			s.Set(obj.AttrDuplicateOK, true)
+			c.ctxt.Data = append(c.ctxt.Data, s)
+			s.WriteAddr(c.ctxt, 0, 8, sym, 0)
+		})
+
+		offset := p.To.Offset
+		p.As = AMOVD
+		p.From.Type = obj.TYPE_MEM
+		p.From.Name = obj.NAME_TOCREF
+		p.From.Sym = symtoc
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_R12
+		p.To.Name = obj.NAME_NONE
+		p.To.Offset = 0
+		p.To.Sym = nil
+		p1 := obj.Appendp(p, c.newprog)
+		p1.As = AADD
+		p1.From.Type = obj.TYPE_CONST
+		p1.From.Offset = offset
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = REG_R12
+		p2 := obj.Appendp(p1, c.newprog)
+		p2.As = AMOVD
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = REG_R12
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = REG_CTR
+		p3 := obj.Appendp(p2, c.newprog)
+		p3.As = obj.ACALL
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = REG_R12
+		p3.To.Type = obj.TYPE_REG
+		p3.To.Reg = REG_CTR
 	}
 
 	var source *obj.Addr
