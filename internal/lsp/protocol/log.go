@@ -159,8 +159,12 @@ func logOut(outfd io.Writer, data []byte) {
 			fmt.Fprintf(&buf, "Result: %s%s", string(*v.Result), eor)
 		}
 	} else if v.ID == nil && v.Method != "" && v.Params != nil {
+		p := "null"
+		if v.Params != nil {
+			p = string(*v.Params)
+		}
 		fmt.Fprintf(&buf, "Received notification '%s'.\n", v.Method)
-		fmt.Fprintf(&buf, "Params: %s%s", *v.Params, eor)
+		fmt.Fprintf(&buf, "Params: %s%s", p, eor)
 	} else { // for completeness, as it should never happen
 		buf = strings.Builder{} // undo common Trace
 		fmt.Fprintf(&buf, "[Error - %s] on write ID?%v method:%q Params:%v Result:%v Error:%v%s",
