@@ -153,10 +153,18 @@ func nilcheckelim(f *Func) {
 					work = append(work, bp{op: ClearPtr, ptr: ptr})
 					fallthrough // a non-eliminated nil check might be a good place for a statement boundary.
 				default:
-					if pendingLines.contains(v.Pos) && v.Pos.IsStmt() != src.PosNotStmt {
+					if v.Pos.IsStmt() != src.PosNotStmt && !isPoorStatementOp(v.Op) && pendingLines.contains(v.Pos) {
 						v.Pos = v.Pos.WithIsStmt()
 						pendingLines.remove(v.Pos)
 					}
+				}
+			}
+			// This reduces the lost statement count in "go" by 5 (out of 500 total).
+			for j := 0; j < i; j++ { // is this an ordering problem?
+				v := b.Values[j]
+				if v.Pos.IsStmt() != src.PosNotStmt && !isPoorStatementOp(v.Op) && pendingLines.contains(v.Pos) {
+					v.Pos = v.Pos.WithIsStmt()
+					pendingLines.remove(v.Pos)
 				}
 			}
 			if pendingLines.contains(b.Pos) {
