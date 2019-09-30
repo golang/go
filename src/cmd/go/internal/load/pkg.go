@@ -2135,30 +2135,25 @@ func GoFilesPackage(gofiles []string) *Package {
 	pkg.Match = gofiles
 
 	if pkg.Name == "main" {
-		exe := GoFilesExe(gofiles) + cfg.ExeSuffix
-		if cfg.BuildO == "" {
-			cfg.BuildO = exe
-		}
+		_, elem := filepath.Split(gofiles[0])
+		exe := elem[:len(elem)-len(".go")] + cfg.ExeSuffix
+
 		if cfg.GOBIN != "" {
 			pkg.Target = filepath.Join(cfg.GOBIN, exe)
 		} else if cfg.ModulesEnabled {
 			pkg.Target = filepath.Join(ModBinDir(), exe)
+		}
+
+		if cfg.BuildO == "" {
+			cfg.BuildO = exe
+		} else if fi, err := os.Stat(cfg.BuildO); err == nil && fi.IsDir() {
+			// If the named output is a directory that exists,
+			// then any resulting executables will be written to that directory.
+			pkg.Target = filepath.Join(cfg.BuildO, exe)
 		}
 	}
 
 	setToolFlags(pkg)
 
 	return pkg
-}
-
-// GoFilesExe generate a suitable name for an executable given a collection of Go files,
-// using the first element in the collection without the prefix.
-//
-// Returns empty string in case of empty collection.
-func GoFilesExe(gofiles []string) string {
-	if len(gofiles) == 0 {
-		return ""
-	}
-	_, elem := filepath.Split(gofiles[0])
-	return elem[:len(elem)-len(".go")]
 }

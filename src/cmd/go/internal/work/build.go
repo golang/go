@@ -364,18 +364,12 @@ func runBuild(cmd *base.Command, args []string) {
 				if p.Name != "main" {
 					continue
 				}
-
-				var exe string
-				// Generate the exe name from files listed on 
-				// the command line in case of local packages
-				if p.Internal.Local && p.Internal.CmdlineFiles {
-					exe = load.GoFilesExe(p.GoFiles)
-				} else {
-					exe = load.DefaultExecName(p.ImportPath)
+				
+				if !p.Internal.Local {
+					p.Target = filepath.Join(cfg.BuildO, load.DefaultExecName(p.ImportPath))
+					p.Target += cfg.ExeSuffix
 				}
 
-				p.Target = filepath.Join(cfg.BuildO, exe)
-				p.Target += cfg.ExeSuffix
 				p.Stale = true
 				p.StaleReason = "build -o flag in use"
 				a.Deps = append(a.Deps, b.AutoAction(ModeInstall, depMode, p))
