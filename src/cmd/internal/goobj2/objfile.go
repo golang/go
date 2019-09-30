@@ -31,6 +31,8 @@ import (
 //
 //    PkgIndex [...]stringOff // TODO: add fingerprints
 //
+//    DwarfFiles [...]stringOff // XXX as a separate block for now
+//
 //    SymbolDefs [...]struct {
 //       Name stringOff
 //       ABI  uint16
@@ -126,6 +128,7 @@ const (
 // Blocks
 const (
 	BlkPkgIdx = iota
+	BlkDwarfFile
 	BlkSymdef
 	BlkNonpkgdef
 	BlkNonpkgref
@@ -471,6 +474,24 @@ func (r *Reader) Pkglist() []string {
 	return s
 }
 
+func (r *Reader) NPkg() int {
+	return int(r.h.Offsets[BlkPkgIdx+1]-r.h.Offsets[BlkPkgIdx]) / 4
+}
+
+func (r *Reader) Pkg(i int) string {
+	off := r.h.Offsets[BlkPkgIdx] + uint32(i)*4
+	return r.StringRef(off)
+}
+
+func (r *Reader) NDwarfFile() int {
+	return int(r.h.Offsets[BlkDwarfFile+1]-r.h.Offsets[BlkDwarfFile]) / 4
+}
+
+func (r *Reader) DwarfFile(i int) string {
+	off := r.h.Offsets[BlkDwarfFile] + uint32(i)*4
+	return r.StringRef(off)
+}
+
 func (r *Reader) NSym() int {
 	symsiz := (&Sym{}).Size()
 	return int(r.h.Offsets[BlkSymdef+1]-r.h.Offsets[BlkSymdef]) / symsiz
@@ -529,6 +550,11 @@ func (r *Reader) DataOff(i int) uint32 {
 // DataSize returns the size of the i-th symbol's data.
 func (r *Reader) DataSize(i int) int {
 	return int(r.DataOff(i+1) - r.DataOff(i))
+}
+
+// Data returns the i-th symbol's data.
+func (r *Reader) Data(i int) []byte {
+	return r.BytesAt(r.DataOff(i), r.DataSize(i))
 }
 
 // AuxDataBase returns the base offset of the aux data block.
