@@ -187,7 +187,7 @@ func (p *PipeNode) CopyPipe() *PipeNode {
 	if p == nil {
 		return p
 	}
-	var vars []*VariableNode
+	vars := make([]*VariableNode, 0, len(p.Decl))
 	for _, d := range p.Decl {
 		vars = append(vars, d.Copy().(*VariableNode))
 	}
