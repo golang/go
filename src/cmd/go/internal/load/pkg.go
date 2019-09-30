@@ -2142,14 +2142,8 @@ func GoFilesPackage(gofiles []string) *Package {
 			pkg.Target = filepath.Join(cfg.GOBIN, exe)
 		} else if cfg.ModulesEnabled {
 			pkg.Target = filepath.Join(ModBinDir(), exe)
-		}
-
-		if cfg.BuildO == "" {
-			cfg.BuildO = exe
-		} else if fi, err := os.Stat(cfg.BuildO); err == nil && fi.IsDir() {
-			// If the named output is a directory that exists,
-			// then any resulting executables will be written to that directory.
-			pkg.Target = filepath.Join(cfg.BuildO, exe)
+		} else {
+			pkg.Target = exe
 		}
 	}
 

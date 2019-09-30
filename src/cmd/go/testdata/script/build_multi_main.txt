@@ -13,7 +13,7 @@ stderr 'already exists and is a directory'
 # Verify build -o output correctly local packages
 mkdir $WORK/local
 go build -o $WORK/local ./exec.go
-exists $WORK/local/exec
+exists $WORK/local/exec$GOEXE
 
 -- go.mod --
 module exmod

@@ -364,12 +364,8 @@ func runBuild(cmd *base.Command, args []string) {
 				if p.Name != "main" {
 					continue
 				}
-				
-				if !p.Internal.Local {
-					p.Target = filepath.Join(cfg.BuildO, load.DefaultExecName(p.ImportPath))
-					p.Target += cfg.ExeSuffix
-				}
 
+				p.Target = filepath.Join(cfg.BuildO, filepath.Base(p.Target))
 				p.Stale = true
 				p.StaleReason = "build -o flag in use"
 				a.Deps = append(a.Deps, b.AutoAction(ModeInstall, depMode, p))
