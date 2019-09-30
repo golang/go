@@ -403,11 +403,7 @@ func (ctxt *Link) loadlib() {
 
 	if *flagNewobj {
 		// Add references of externally defined symbols.
-		for _, lib := range ctxt.Library {
-			for _, r := range lib.Readers {
-				objfile.LoadRefs(ctxt.loader, r.Reader, lib, ctxt.Arch, ctxt.Syms, r.Version)
-			}
-		}
+		objfile.LoadRefs(ctxt.loader, ctxt.Arch, ctxt.Syms)
 
 		// Load cgo directives.
 		for _, p := range ctxt.cgodata {
@@ -550,11 +546,7 @@ func (ctxt *Link) loadlib() {
 
 	// For now, load relocations for dead-code elimination.
 	if *flagNewobj {
-		for _, lib := range ctxt.Library {
-			for _, r := range lib.Readers {
-				objfile.LoadReloc(ctxt.loader, r.Reader, lib, r.Version, ctxt.LibraryByPkg)
-			}
-		}
+		objfile.LoadReloc(ctxt.loader)
 	}
 }
 
@@ -2545,11 +2537,7 @@ func dfs(lib *sym.Library, mark map[*sym.Library]markKind, order *[]*sym.Library
 
 func (ctxt *Link) loadlibfull() {
 	// Load full symbol contents, resolve indexed references.
-	for _, lib := range ctxt.Library {
-		for _, r := range lib.Readers {
-			objfile.LoadFull(ctxt.loader, r.Reader, lib, r.Version, ctxt.LibraryByPkg)
-		}
-	}
+	objfile.LoadFull(ctxt.loader)
 
 	// For now, add all symbols to ctxt.Syms.
 	for _, s := range ctxt.loader.Syms {
@@ -2557,6 +2545,9 @@ func (ctxt *Link) loadlibfull() {
 			ctxt.Syms.Add(s)
 		}
 	}
+
+	// Drop the reference.
+	ctxt.loader = nil
 }
 
 func (ctxt *Link) dumpsyms() {

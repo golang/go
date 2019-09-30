@@ -5,7 +5,9 @@
 package objfile
 
 import (
+	"bytes"
 	"cmd/internal/bio"
+	"cmd/internal/dwarf"
 	"cmd/internal/goobj2"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -21,8 +23,18 @@ import (
 
 var _ = fmt.Print
 
+// oReader is a wrapper type of obj.Reader, along with some
+// extra information.
+// TODO: rename to objReader once the old one is gone?
+type oReader struct {
+	*goobj2.Reader
+	unit      *sym.CompilationUnit
+	version   int // version of static symbol
+	pkgprefix string
+}
+
 type objIdx struct {
-	r *goobj2.Reader
+	r *oReader
 	i int // start index
 }
 
@@ -35,33 +47,39 @@ type nameVer struct {
 //
 // TODO: describe local-global index mapping.
 type Loader struct {
-	start map[*goobj2.Reader]int // map from object file to its start index
-	objs  []objIdx               // sorted by start index (i.e. objIdx.i)
-	max   int                    // current max index
+	start map[*oReader]int // map from object file to its start index
+	objs  []objIdx         // sorted by start index (i.e. objIdx.i)
+	max   int              // current max index
 
 	symsByName map[nameVer]int // map symbol name to index
+
+	objByPkg map[string]*oReader // map package path to its Go object reader
 
 	Syms []*sym.Symbol // indexed symbols. XXX we still make sym.Symbol for now.
 }
 
 func NewLoader() *Loader {
 	return &Loader{
-		start:      make(map[*goobj2.Reader]int),
+		start:      make(map[*oReader]int),
 		objs:       []objIdx{{nil, 0}},
 		symsByName: make(map[nameVer]int),
+		objByPkg:   make(map[string]*oReader),
 		Syms:       []*sym.Symbol{nil},
 	}
 }
 
 // Return the start index in the global index space for a given object file.
-func (l *Loader) StartIndex(r *goobj2.Reader) int {
+func (l *Loader) StartIndex(r *oReader) int {
 	return l.start[r]
 }
 
 // Add object file r, return the start index.
-func (l *Loader) AddObj(r *goobj2.Reader) int {
+func (l *Loader) AddObj(pkg string, r *oReader) int {
 	if _, ok := l.start[r]; ok {
 		panic("already added")
+	}
+	if _, ok := l.objByPkg[pkg]; !ok {
+		l.objByPkg[pkg] = r
 	}
 	n := r.NSym() + r.NNonpkgdef()
 	i := l.max + 1
@@ -98,12 +116,12 @@ func (l *Loader) AddExtSym(name string, ver int) int {
 }
 
 // Convert a local index to a global index.
-func (l *Loader) ToGlobal(r *goobj2.Reader, i int) int {
+func (l *Loader) ToGlobal(r *oReader, i int) int {
 	return l.StartIndex(r) + i
 }
 
-// Convert a global index to a global index. Is it useful?
-func (l *Loader) ToLocal(i int) (*goobj2.Reader, int) {
+// Convert a global index to a local index.
+func (l *Loader) ToLocal(i int) (*oReader, int) {
 	k := sort.Search(i, func(k int) bool {
 		return l.objs[k].i >= i
 	})
@@ -111,6 +129,35 @@ func (l *Loader) ToLocal(i int) (*goobj2.Reader, int) {
 		return nil, 0
 	}
 	return l.objs[k].r, i - l.objs[k].i
+}
+
+// Resolve a local symbol reference. Return global index.
+func (l *Loader) Resolve(r *oReader, s goobj2.SymRef) int {
+	var rr *oReader
+	switch p := s.PkgIdx; p {
+	case goobj2.PkgIdxInvalid:
+		if s.SymIdx != 0 {
+			panic("bad sym ref")
+		}
+		return 0
+	case goobj2.PkgIdxNone:
+		// Resolve by name
+		i := int(s.SymIdx) + r.NSym()
+		osym := goobj2.Sym{}
+		osym.Read(r.Reader, r.SymOff(i))
+		name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
+		v := abiToVer(osym.ABI, r.version)
+		nv := nameVer{name, v}
+		return l.symsByName[nv]
+	case goobj2.PkgIdxBuiltin:
+		panic("PkgIdxBuiltin not used")
+	case goobj2.PkgIdxSelf:
+		rr = r
+	default:
+		pkg := r.Pkg(int(p))
+		rr = l.objByPkg[pkg]
+	}
+	return l.ToGlobal(rr, int(s.SymIdx))
 }
 
 // Look up a symbol by name, return global index, or 0 if not found.
@@ -133,17 +180,24 @@ func LoadNew(l *Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *s
 		panic("cannot read object file")
 	}
 	localSymVersion := syms.IncVersion()
-	lib.Readers = append(lib.Readers, struct {
-		Reader  *goobj2.Reader
-		Version int
-	}{r, localSymVersion})
-
 	pkgprefix := objabi.PathToPrefix(lib.Pkg) + "."
+	or := &oReader{r, unit, localSymVersion, pkgprefix}
 
 	// Autolib
-	lib.ImportStrings = append(lib.ImportStrings, r.Pkglist()[1:]...)
+	npkg := r.NPkg()
+	lib.ImportStrings = append(lib.ImportStrings, make([]string, npkg-1)...)[:len(lib.ImportStrings)]
+	for i := 1; i < npkg; i++ {
+		lib.ImportStrings = append(lib.ImportStrings, r.Pkg(i))
+	}
 
-	istart := l.AddObj(r)
+	// DWARF file table
+	nfile := r.NDwarfFile()
+	unit.DWARFFileTable = make([]string, nfile)
+	for i := range unit.DWARFFileTable {
+		unit.DWARFFileTable[i] = r.DwarfFile(i)
+	}
+
+	istart := l.AddObj(lib.Pkg, or)
 
 	ndef := r.NSym()
 	nnonpkgdef := r.NNonpkgdef()
@@ -172,14 +226,21 @@ func LoadNew(l *Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *s
 
 // Make sure referenced symbols are added. Most of them should already be added.
 // This should only be needed for referenced external symbols.
-func LoadRefs(l *Loader, r *goobj2.Reader, lib *sym.Library, arch *sys.Arch, syms *sym.Symbols, localSymVersion int) {
+func LoadRefs(l *Loader, arch *sys.Arch, syms *sym.Symbols) {
+	for _, o := range l.objs[1:] {
+		loadObjRefs(l, o.r, arch, syms)
+	}
+}
+
+func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch, syms *sym.Symbols) {
+	lib := r.unit.Lib
 	pkgprefix := objabi.PathToPrefix(lib.Pkg) + "."
 	ndef := r.NSym() + r.NNonpkgdef()
 	for i, n := 0, r.NNonpkgref(); i < n; i++ {
 		osym := goobj2.Sym{}
-		osym.Read(r, r.SymOff(ndef+i))
+		osym.Read(r.Reader, r.SymOff(ndef+i))
 		name := strings.Replace(osym.Name, "\"\".", pkgprefix, -1)
-		v := abiToVer(osym.ABI, localSymVersion)
+		v := abiToVer(osym.ABI, r.version)
 		if ii := l.AddExtSym(name, v); ii != 0 {
 			s := syms.Newsym(name, v)
 			preprocess(arch, s) // TODO: put this at a better place
@@ -231,40 +292,19 @@ func preprocess(arch *sys.Arch, s *sym.Symbol) {
 // Load relocations for building the dependency graph in deadcode pass.
 // For now, we load symbol types, relocations, gotype, and the contents
 // of type symbols, which are needed in deadcode.
-func LoadReloc(l *Loader, r *goobj2.Reader, lib *sym.Library, localSymVersion int, libByPkg map[string]*sym.Library) {
-	// PkgIdx
-	pkglist := r.Pkglist()
+func LoadReloc(l *Loader) {
+	for _, o := range l.objs[1:] {
+		loadObjReloc(l, o.r)
+	}
+}
 
+func loadObjReloc(l *Loader, r *oReader) {
+	lib := r.unit.Lib
 	pkgprefix := objabi.PathToPrefix(lib.Pkg) + "."
 	istart := l.StartIndex(r)
 
 	resolveSymRef := func(s goobj2.SymRef) *sym.Symbol {
-		var rr *goobj2.Reader
-		switch p := s.PkgIdx; p {
-		case goobj2.PkgIdxInvalid:
-			if s.SymIdx != 0 {
-				panic("bad sym ref")
-			}
-			return nil
-		case goobj2.PkgIdxNone:
-			// Resolve by name
-			i := int(s.SymIdx) + r.NSym()
-			osym := goobj2.Sym{}
-			osym.Read(r, r.SymOff(i))
-			name := strings.Replace(osym.Name, "\"\".", pkgprefix, -1)
-			v := abiToVer(osym.ABI, localSymVersion)
-			nv := nameVer{name, v}
-			i = l.symsByName[nv]
-			return l.Syms[i]
-		case goobj2.PkgIdxBuiltin:
-			panic("PkgIdxBuiltin is not used")
-		case goobj2.PkgIdxSelf:
-			rr = r
-		default:
-			pkg := pkglist[p]
-			rr = libByPkg[pkg].Readers[0].Reader // typically Readers[0] is go object (others are asm)
-		}
-		i := l.ToGlobal(rr, int(s.SymIdx))
+		i := l.Resolve(r, s)
 		return l.Syms[i]
 	}
 
@@ -275,7 +315,7 @@ func LoadReloc(l *Loader, r *goobj2.Reader, lib *sym.Library, localSymVersion in
 		}
 
 		osym := goobj2.Sym{}
-		osym.Read(r, r.SymOff(i))
+		osym.Read(r.Reader, r.SymOff(i))
 		name := strings.Replace(osym.Name, "\"\".", pkgprefix, -1)
 		if s.Name != name { // Sanity check. We can remove it in the final version.
 			fmt.Println("name mismatch:", lib, i, s.Name, name)
@@ -298,13 +338,14 @@ func LoadReloc(l *Loader, r *goobj2.Reader, lib *sym.Library, localSymVersion in
 			t = s.Type
 		}
 		s.Type = t
+		s.Unit = r.unit
 
 		// Reloc
 		nreloc := r.NReloc(i)
 		s.R = make([]sym.Reloc, nreloc)
 		for j := range s.R {
 			rel := goobj2.Reloc{}
-			rel.Read(r, r.RelocOff(i, j))
+			rel.Read(r.Reader, r.RelocOff(i, j))
 			s.R[j] = sym.Reloc{
 				Off:  rel.Off,
 				Siz:  rel.Siz,
@@ -316,7 +357,7 @@ func LoadReloc(l *Loader, r *goobj2.Reader, lib *sym.Library, localSymVersion in
 
 		// XXX deadcode needs symbol data for type symbols. Read it now.
 		if strings.HasPrefix(name, "type.") {
-			s.P = r.BytesAt(r.DataOff(i), r.DataSize(i))
+			s.P = r.Data(i)
 			s.Attr.Set(sym.AttrReadOnly, r.ReadOnly())
 			s.Size = int64(osym.Siz)
 		}
@@ -325,7 +366,7 @@ func LoadReloc(l *Loader, r *goobj2.Reader, lib *sym.Library, localSymVersion in
 		naux := r.NAux(i)
 		for j := 0; j < naux; j++ {
 			a := goobj2.Aux{}
-			a.Read(r, r.AuxOff(i, j))
+			a.Read(r.Reader, r.AuxOff(i, j))
 			switch a.Type {
 			case goobj2.AuxGotype:
 				typ := resolveSymRef(a.Sym)
@@ -363,38 +404,19 @@ func LoadReloc(l *Loader, r *goobj2.Reader, lib *sym.Library, localSymVersion in
 // TODO: For now, some contents are already load in LoadReloc. Maybe
 // we should combine LoadReloc back into this, once we rewrite deadcode
 // pass to use index directly.
-func LoadFull(l *Loader, r *goobj2.Reader, lib *sym.Library, localSymVersion int, libByPkg map[string]*sym.Library) {
-	// PkgIdx
-	pkglist := r.Pkglist()
+func LoadFull(l *Loader) {
+	for _, o := range l.objs[1:] {
+		loadObjFull(l, o.r)
+	}
+}
 
+func loadObjFull(l *Loader, r *oReader) {
+	lib := r.unit.Lib
 	pkgprefix := objabi.PathToPrefix(lib.Pkg) + "."
 	istart := l.StartIndex(r)
 
 	resolveSymRef := func(s goobj2.SymRef) *sym.Symbol {
-		var rr *goobj2.Reader
-		switch p := s.PkgIdx; p {
-		case goobj2.PkgIdxInvalid:
-			if s.SymIdx != 0 {
-				panic("bad sym ref")
-			}
-			return nil
-		case goobj2.PkgIdxNone:
-			// Resolve by name
-			i := int(s.SymIdx) + r.NSym()
-			osym := goobj2.Sym{}
-			osym.Read(r, r.SymOff(i))
-			name := strings.Replace(osym.Name, "\"\".", pkgprefix, -1)
-			v := abiToVer(osym.ABI, localSymVersion)
-			nv := nameVer{name, v}
-			i = l.symsByName[nv]
-			return l.Syms[i]
-		case goobj2.PkgIdxSelf:
-			rr = r
-		default:
-			pkg := pkglist[p]
-			rr = libByPkg[pkg].Readers[0].Reader // typically Readers[0] is go object (others are asm)
-		}
-		i := l.ToGlobal(rr, int(s.SymIdx))
+		i := l.Resolve(r, s)
 		return l.Syms[i]
 	}
 
@@ -411,7 +433,7 @@ func LoadFull(l *Loader, r *goobj2.Reader, lib *sym.Library, localSymVersion int
 		}
 
 		osym := goobj2.Sym{}
-		osym.Read(r, r.SymOff(i))
+		osym.Read(r.Reader, r.SymOff(i))
 		name := strings.Replace(osym.Name, "\"\".", pkgprefix, -1)
 		if s.Name != name { // Sanity check. We can remove it in the final version.
 			fmt.Println("name mismatch:", lib, i, s.Name, name)
@@ -421,11 +443,10 @@ func LoadFull(l *Loader, r *goobj2.Reader, lib *sym.Library, localSymVersion int
 		dupok := osym.Flag&goobj2.SymFlagDupok != 0
 		local := osym.Flag&goobj2.SymFlagLocal != 0
 		makeTypelink := osym.Flag&goobj2.SymFlagTypelink != 0
-		datasize := r.DataSize(i)
 		size := osym.Siz
 
 		// Symbol data
-		s.P = r.BytesAt(r.DataOff(i), datasize)
+		s.P = r.Data(i)
 		s.Attr.Set(sym.AttrReadOnly, r.ReadOnly())
 
 		// Aux symbol info
@@ -433,7 +454,7 @@ func LoadFull(l *Loader, r *goobj2.Reader, lib *sym.Library, localSymVersion int
 		naux := r.NAux(i)
 		for j := 0; j < naux; j++ {
 			a := goobj2.Aux{}
-			a.Read(r, r.AuxOff(i, j))
+			a.Read(r.Reader, r.AuxOff(i, j))
 			switch a.Type {
 			case goobj2.AuxGotype, goobj2.AuxFuncdata:
 				// already loaded
@@ -457,6 +478,14 @@ func LoadFull(l *Loader, r *goobj2.Reader, lib *sym.Library, localSymVersion int
 		s.Attr.Set(sym.AttrLocal, local)
 		s.Attr.Set(sym.AttrMakeTypelink, makeTypelink)
 
+		if s.Type == sym.SDWARFINFO {
+			// For DWARF symbols, replace `"".` to actual package prefix
+			// in the symbol content.
+			// TODO: maybe we should do this in the compiler and get rid
+			// of this.
+			patchDWARFName(s, r)
+		}
+
 		if s.Type != sym.STEXT {
 			continue
 		}
@@ -465,7 +494,7 @@ func LoadFull(l *Loader, r *goobj2.Reader, lib *sym.Library, localSymVersion int
 		if isym == -1 {
 			continue
 		}
-		b := r.BytesAt(r.DataOff(isym), r.DataSize(isym))
+		b := r.Data(isym)
 		info := goobj2.FuncInfo{}
 		info.Read(b)
 
@@ -505,6 +534,35 @@ func LoadFull(l *Loader, r *goobj2.Reader, lib *sym.Library, localSymVersion int
 		}
 		for k := range pc.File {
 			pc.File[k] = resolveSymRef(info.File[k])
+		}
+	}
+}
+
+func patchDWARFName(s *sym.Symbol, r *oReader) {
+	// This is kind of ugly. Really the package name should not
+	// even be included here.
+	if s.Size < 1 || s.P[0] != dwarf.DW_ABRV_FUNCTION {
+		return
+	}
+	e := bytes.IndexByte(s.P, 0)
+	if e == -1 {
+		return
+	}
+	p := bytes.Index(s.P[:e], emptyPkg)
+	if p == -1 {
+		return
+	}
+	pkgprefix := []byte(r.pkgprefix)
+	patched := bytes.Replace(s.P[:e], emptyPkg, pkgprefix, -1)
+
+	s.P = append(patched, s.P[e:]...)
+	s.Attr.Set(sym.AttrReadOnly, false)
+	delta := int64(len(s.P)) - s.Size
+	s.Size = int64(len(s.P))
+	for i := range s.R {
+		r := &s.R[i]
+		if r.Off > int32(e) {
+			r.Off += int32(delta)
 		}
 	}
 }

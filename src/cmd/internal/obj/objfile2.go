@@ -42,6 +42,12 @@ func WriteObjFile2(ctxt *Link, b *bio.Writer, pkgpath string) {
 		w.StringRef(pkg)
 	}
 
+	// DWARF file table
+	h.Offsets[goobj2.BlkDwarfFile] = w.Offset()
+	for _, f := range ctxt.PosTable.DebugLinesFileTable() {
+		w.StringRef(f)
+	}
+
 	// Symbol definitions
 	h.Offsets[goobj2.BlkSymdef] = w.Offset()
 	for _, s := range ctxt.defs {
@@ -198,6 +204,9 @@ func (w *writer) StringTable() {
 			w.AddString(f)
 		}
 	})
+	for _, f := range w.ctxt.PosTable.DebugLinesFileTable() {
+		w.AddString(f)
+	}
 }
 
 func (w *writer) Sym(s *LSym) {
