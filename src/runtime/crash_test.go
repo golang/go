@@ -143,9 +143,18 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 	return exe, nil
 }
 
-func TestVDSO(t *testing.T) {
+func TestSIGPROFInVDSO(t *testing.T) {
 	t.Parallel()
-	output := runTestProg(t, "testprog", "SignalInVDSO")
+	output := runTestProg(t, "testprog", "SIGPROFInVDSO")
+	want := "success\n"
+	if output != want {
+		t.Fatalf("output:\n%s\n\nwanted:\n%s", output, want)
+	}
+}
+
+func TestSIGUSR1InVDSO(t *testing.T) {
+	t.Parallel()
+	output := runTestProg(t, "testprog", "SIGUSR1InVDSO")
 	want := "success\n"
 	if output != want {
 		t.Fatalf("output:\n%s\n\nwanted:\n%s", output, want)
