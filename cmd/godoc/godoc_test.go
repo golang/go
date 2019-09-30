@@ -126,6 +126,7 @@ const pollInterval = 200 * time.Millisecond
 func waitForServer(t *testing.T, ch chan<- error, url, match string, timeout time.Duration, reverse bool) {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
+		time.Sleep(pollInterval)
 		if t.Failed() {
 			return
 		}
@@ -144,7 +145,6 @@ func waitForServer(t *testing.T, ch chan<- error, url, match string, timeout tim
 			ch <- nil
 			return
 		}
-		time.Sleep(pollInterval)
 	}
 	ch <- fmt.Errorf("server failed to respond in %v", timeout)
 }
