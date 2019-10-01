@@ -125,17 +125,17 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 		// order code.
 		switch obj := obj.(type) {
 		case *Const:
-			if check.typeCycle(obj) || obj.typ == nil {
+			if check.cycle(obj) || obj.typ == nil {
 				obj.typ = Typ[Invalid]
 			}
 
 		case *Var:
-			if check.typeCycle(obj) || obj.typ == nil {
+			if check.cycle(obj) || obj.typ == nil {
 				obj.typ = Typ[Invalid]
 			}
 
 		case *TypeName:
-			if check.typeCycle(obj) {
+			if check.cycle(obj) {
 				// break cycle
 				// (without this, calling underlying()
 				// below may lead to an endless loop
@@ -145,7 +145,7 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 			}
 
 		case *Func:
-			if check.typeCycle(obj) {
+			if check.cycle(obj) {
 				// Don't set obj.typ to Typ[Invalid] here
 				// because plenty of code type-asserts that
 				// functions have a *Signature type. Grey
@@ -198,11 +198,9 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 	}
 }
 
-// typeCycle checks if the cycle starting with obj is valid and
+// cycle checks if the cycle starting with obj is valid and
 // reports an error if it is not.
-// TODO(gri) rename s/typeCycle/cycle/ once we don't need the other
-// cycle method anymore.
-func (check *Checker) typeCycle(obj Object) (isCycle bool) {
+func (check *Checker) cycle(obj Object) (isCycle bool) {
 	// The object map contains the package scope objects and the non-interface methods.
 	if debug {
 		info := check.objMap[obj]
