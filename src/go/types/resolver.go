@@ -25,11 +25,8 @@ type declInfo struct {
 	alias bool          // type alias declaration
 
 	// The deps field tracks initialization expression dependencies.
-	deps objSet // lazily initialized
+	deps map[Object]bool // lazily initialized
 }
-
-// An objSet is simply a set of objects.
-type objSet map[Object]bool
 
 // hasInitializer reports whether the declared object has an initialization
 // expression or function body.
@@ -41,7 +38,7 @@ func (d *declInfo) hasInitializer() bool {
 func (d *declInfo) addDep(obj Object) {
 	m := d.deps
 	if m == nil {
-		m = make(objSet)
+		m = make(map[Object]bool)
 		d.deps = m
 	}
 	m[obj] = true
