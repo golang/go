@@ -139,7 +139,7 @@ func Import(path string) (m module.Version, dir string, err error) {
 			return Target, mainDir, nil
 		}
 		readVendorList()
-		return vendorMap[path], vendorDir, nil
+		return vendorPkgModule[path], vendorDir, nil
 	}
 
 	// Check each module on the build list.

@@ -1,4 +1,5 @@
 # github.com/google/pprof v0.0.0-20190515194954-54271f7e092f
+## explicit
 github.com/google/pprof/driver
 github.com/google/pprof/internal/binutils
 github.com/google/pprof/internal/driver
@@ -15,18 +16,23 @@ github.com/google/pprof/third_party/d3
 github.com/google/pprof/third_party/d3flamegraph
 github.com/google/pprof/third_party/svgpan
 # github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44
+## explicit
 github.com/ianlancetaylor/demangle
 # golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1
+## explicit
 golang.org/x/arch/arm/armasm
 golang.org/x/arch/arm64/arm64asm
 golang.org/x/arch/ppc64/ppc64asm
 golang.org/x/arch/x86/x86asm
 # golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c
+## explicit
 golang.org/x/crypto/ssh/terminal
 # golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82
+## explicit
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 # golang.org/x/tools v0.0.0-20190925211824-e4ea94538f5b
+## explicit
 golang.org/x/tools/go/analysis
 golang.org/x/tools/go/analysis/internal/analysisflags
 golang.org/x/tools/go/analysis/internal/facts

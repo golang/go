@@ -1,9 +1,5 @@
 env GO111MODULE=on
 
-go list -m all
-stdout '^x v1.0.0 => ./x'
-stdout '^w'
-
 [!short] go build
 [!short] ! go build -mod=vendor
 
@@ -20,10 +16,10 @@ stderr '^z'
 ! stderr '^w'
 grep 'a/foo/bar/b\na/foo/bar/c' vendor/modules.txt # must be sorted
 
-go list -f {{.Dir}} x
+go list -mod=mod -f {{.Dir}} x
 stdout 'src[\\/]x'
 
-go list -f {{.Dir}} -m x
+go list -mod=mod -f {{.Dir}} -m x
 stdout 'src[\\/]x'
 
 go list -mod=vendor -f {{.Dir}} x
@@ -32,7 +28,7 @@ stdout 'src[\\/]vendor[\\/]x'
 go list -mod=vendor -f {{.Dir}} -m x
 stdout 'src[\\/]vendor[\\/]x'
 
-go list -f {{.Dir}} -m w
+go list -mod=mod -f {{.Dir}} -m w
 stdout 'src[\\/]w'
 
 ! go list -mod=vendor -f {{.Dir}} w
