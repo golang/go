@@ -38,10 +38,11 @@ type Config struct {
 	ContentPath  string // Relative or absolute location of article files and related content.
 	TemplatePath string // Relative or absolute location of template files.
 
-	BaseURL  string // Absolute base URL (for permalinks; no trailing slash).
-	BasePath string // Base URL path relative to server root (no trailing slash).
-	GodocURL string // The base URL of godoc (for menu bar; no trailing slash).
-	Hostname string // Server host name, used for rendering ATOM feeds.
+	BaseURL       string        // Absolute base URL (for permalinks; no trailing slash).
+	BasePath      string        // Base URL path relative to server root (no trailing slash).
+	GodocURL      string        // The base URL of godoc (for menu bar; no trailing slash).
+	Hostname      string        // Server host name, used for rendering ATOM feeds.
+	AnalyticsHTML template.HTML // Optional analytics HTML to insert at the beginning of <head>.
 
 	HomeArticles int    // Articles to display on the home page.
 	FeedArticles int    // Articles to include in Atom and JSON feeds.
@@ -379,17 +380,22 @@ func summary(d *Doc) string {
 
 // rootData encapsulates data destined for the root template.
 type rootData struct {
-	Doc      *Doc
-	BasePath string
-	GodocURL string
-	Data     interface{}
+	Doc           *Doc
+	BasePath      string
+	GodocURL      string
+	AnalyticsHTML template.HTML
+	Data          interface{}
 }
 
 // ServeHTTP serves the front, index, and article pages
 // as well as the ATOM and JSON feeds.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var (
-		d = rootData{BasePath: s.cfg.BasePath, GodocURL: s.cfg.GodocURL}
+		d = rootData{
+			BasePath:      s.cfg.BasePath,
+			GodocURL:      s.cfg.GodocURL,
+			AnalyticsHTML: s.cfg.AnalyticsHTML,
+		}
 		t *template.Template
 	)
 	switch p := strings.TrimPrefix(r.URL.Path, s.cfg.BasePath); p {
