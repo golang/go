@@ -816,7 +816,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 	// Rewrite C.f(p) to
 	//    func() {
 	//            _cgo0 := p
-	//            _cgoCheckPointer(_cgo0)
+	//            _cgoCheckPointer(_cgo0, nil)
 	//            C.f(_cgo0)
 	//    }()
 	// Using a function literal like this lets us evaluate the
@@ -834,7 +834,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 	//    defer func() func() {
 	//            _cgo0 := p
 	//            return func() {
-	//                    _cgoCheckPointer(_cgo0)
+	//                    _cgoCheckPointer(_cgo0, nil)
 	//                    C.f(_cgo0)
 	//            }
 	//    }()()
@@ -921,7 +921,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 		}
 
 		fmt.Fprintf(&sb, "_cgo%d := %s; ", i, gofmtPos(arg, origArg.Pos()))
-		fmt.Fprintf(&sbCheck, "_cgoCheckPointer(_cgo%d); ", i)
+		fmt.Fprintf(&sbCheck, "_cgoCheckPointer(_cgo%d, nil); ", i)
 	}
 
 	if call.Deferred {
