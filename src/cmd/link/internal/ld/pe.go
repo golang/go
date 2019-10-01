@@ -685,7 +685,7 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 		// Only windows/386 requires underscore prefix on external symbols.
 		if ctxt.Arch.Family == sys.I386 &&
 			ctxt.LinkMode == LinkExternal &&
-			(s.Type == sym.SHOSTOBJ || s.Type == sym.SUNDEFEXT || s.Attr.CgoExport()) {
+			(s.Type == sym.SHOSTOBJ || s.Attr.CgoExport()) {
 			s.Name = "_" + s.Name
 		}
 

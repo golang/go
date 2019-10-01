@@ -104,7 +104,6 @@ const (
 	SCONST
 	SDYNIMPORT
 	SHOSTOBJ
-	SUNDEFEXT // Undefined symbol for resolution by external linker
 
 	// Sections for debugging information
 	SDWARFSECT
