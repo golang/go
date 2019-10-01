@@ -579,13 +579,13 @@ func (w *Walker) ImportFrom(fromPath, fromDir string, mode types.ImportMode) (*t
 	filenames := append(append([]string{}, info.GoFiles...), info.CgoFiles...)
 
 	// Parse package files.
-	var files []*ast.File
-	for _, file := range filenames {
-		f, err := w.parseFile(dir, file)
+	files := make([]*ast.File, len(filenames))
+	for i, file := range filenames {
+		f, _ := w.parseFile(dir, file)
 		if err != nil {
 			log.Fatalf("error parsing package %s: %s", name, err)
 		}
-		files = append(files, f)
+		files[i] = f
 	}
 
 	// Type-check package files.
