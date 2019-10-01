@@ -369,6 +369,7 @@ func (d Delim) String() string {
 // Commas and colons are elided.
 func (dec *Decoder) Token() (Token, error) {
 	for {
+		dec.scan.bytes++
 		c, err := dec.peek()
 		if err != nil {
 			return nil, err
@@ -438,6 +439,9 @@ func (dec *Decoder) Token() (Token, error) {
 				var x string
 				old := dec.tokenState
 				dec.tokenState = tokenTopValue
+				// Counter the increment done at the start of the iteration, since
+				// dec.readValue manages this counter on its own.
+				dec.scan.bytes--
 				err := dec.Decode(&x)
 				dec.tokenState = old
 				if err != nil {
@@ -452,6 +456,9 @@ func (dec *Decoder) Token() (Token, error) {
 			if !dec.tokenValueAllowed() {
 				return dec.tokenError(c)
 			}
+			// Counter the increment done at the start of the iteration, since
+			// dec.readValue manages this counter on its own.
+			dec.scan.bytes--
 			var x interface{}
 			if err := dec.Decode(&x); err != nil {
 				return nil, err
