@@ -1391,24 +1391,44 @@ var cgoSyscallExclude = map[string]bool{
 
 var foldPath = make(map[string]string)
 
-// DefaultExecName returns the default executable name
-// for a package with the import path importPath.
+// exeFromImportPath returns an executable name
+// for a package using the import path.
 //
-// The default executable name is the last element of the import path.
+// The executable name is the last element of the import path.
 // In module-aware mode, an additional rule is used on import paths
 // consisting of two or more path elements. If the last element is
 // a vN path element specifying the major version, then the
 // second last element of the import path is used instead.
-func DefaultExecName(importPath string) string {
-	_, elem := pathpkg.Split(importPath)
+func (p *Package) exeFromImportPath() string {
+	_, elem := pathpkg.Split(p.ImportPath)
 	if cfg.ModulesEnabled {
 		// If this is example.com/mycmd/v2, it's more useful to
 		// install it as mycmd than as v2. See golang.org/issue/24667.
-		if elem != importPath && isVersionElement(elem) {
-			_, elem = pathpkg.Split(pathpkg.Dir(importPath))
+		if elem != p.ImportPath && isVersionElement(elem) {
+			_, elem = pathpkg.Split(pathpkg.Dir(p.ImportPath))
 		}
 	}
 	return elem
+}
+
+// exeFromFiles returns an executable name for a package
+// using the first element in the GoFiles collection without the prefix.
+//
+// Returns empty string in case of empty collection.
+func (p *Package) exeFromFiles() string {
+	if len(p.GoFiles) == 0 {
+		return ""
+	}
+	_, elem := filepath.Split(p.GoFiles[0])
+	return elem[:len(elem)-len(".go")]
+}
+
+// DefaultExecName returns the default executable name for a package
+func (p *Package) DefaultExecName() string {
+	if p.Internal.CmdlineFiles {
+		return p.exeFromFiles()
+	}
+	return p.exeFromImportPath()
 }
 
 // load populates p using information from bp, err, which should
@@ -1451,7 +1471,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 			p.Error = &PackageError{Err: e}
 			return
 		}
-		elem := DefaultExecName(p.ImportPath)
+		elem := p.DefaultExecName()
 		full := cfg.BuildContext.GOOS + "_" + cfg.BuildContext.GOARCH + "/" + elem
 		if cfg.BuildContext.GOOS != base.ToolGOOS || cfg.BuildContext.GOARCH != base.ToolGOARCH {
 			// Install cross-compiled binaries to subdirectories of bin.
@@ -2135,15 +2155,12 @@ func GoFilesPackage(gofiles []string) *Package {
 	pkg.Match = gofiles
 
 	if pkg.Name == "main" {
-		_, elem := filepath.Split(gofiles[0])
-		exe := elem[:len(elem)-len(".go")] + cfg.ExeSuffix
+		exe := pkg.exeFromFiles() + cfg.ExeSuffix
 
 		if cfg.GOBIN != "" {
 			pkg.Target = filepath.Join(cfg.GOBIN, exe)
 		} else if cfg.ModulesEnabled {
 			pkg.Target = filepath.Join(ModBinDir(), exe)
-		} else {
-			pkg.Target = exe
 		}
 	}
 

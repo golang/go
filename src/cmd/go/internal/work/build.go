@@ -320,7 +320,7 @@ func runBuild(cmd *base.Command, args []string) {
 	explicitO := len(cfg.BuildO) > 0
 
 	if len(pkgs) == 1 && pkgs[0].Name == "main" && cfg.BuildO == "" {
-		cfg.BuildO = load.DefaultExecName(pkgs[0].ImportPath)
+		cfg.BuildO = pkgs[0].DefaultExecName()
 		cfg.BuildO += cfg.ExeSuffix
 	}
 
@@ -365,7 +365,8 @@ func runBuild(cmd *base.Command, args []string) {
 					continue
 				}
 
-				p.Target = filepath.Join(cfg.BuildO, filepath.Base(p.Target))
+				p.Target = filepath.Join(cfg.BuildO, p.DefaultExecName())
+				p.Target += cfg.ExeSuffix
 				p.Stale = true
 				p.StaleReason = "build -o flag in use"
 				a.Deps = append(a.Deps, b.AutoAction(ModeInstall, depMode, p))
@@ -586,7 +587,7 @@ func InstallPackages(patterns []string, pkgs []*load.Package) {
 	if len(patterns) == 0 && len(pkgs) == 1 && pkgs[0].Name == "main" {
 		// Compute file 'go build' would have created.
 		// If it exists and is an executable file, remove it.
-		targ := load.DefaultExecName(pkgs[0].ImportPath)
+		targ := pkgs[0].DefaultExecName()
 		targ += cfg.ExeSuffix
 		if filepath.Join(pkgs[0].Dir, targ) != pkgs[0].Target { // maybe $GOBIN is the current directory
 			fi, err := os.Stat(targ)
