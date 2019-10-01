@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/internal/src"
 	"fmt"
 	"math"
 )
@@ -1284,17 +1285,21 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 }
 
 func removeBranch(b *Block, branch branch) {
+	c := b.Controls[0]
 	if b.Func.pass.debug > 0 {
 		verb := "Proved"
 		if branch == positive {
 			verb = "Disproved"
 		}
-		c := b.Controls[0]
 		if b.Func.pass.debug > 1 {
 			b.Func.Warnl(b.Pos, "%s %s (%s)", verb, c.Op, c)
 		} else {
 			b.Func.Warnl(b.Pos, "%s %s", verb, c.Op)
 		}
+	}
+	if c != nil && c.Pos.IsStmt() == src.PosIsStmt && c.Pos.SameFileAndLine(b.Pos) {
+		// attempt to preserve statement marker.
+		b.Pos = b.Pos.WithIsStmt()
 	}
 	b.Kind = BlockFirst
 	b.ResetControls()
