@@ -55,7 +55,7 @@ func Format(ctx context.Context, view View, f File) ([]protocol.TextEdit, error)
 		if err != nil {
 			return nil, err
 		}
-		return computeTextEdits(ctx, ph.File(), m, string(formatted))
+		return computeTextEdits(ctx, view, ph.File(), m, string(formatted))
 	}
 
 	fset := view.Session().Cache().FileSet()
@@ -68,7 +68,7 @@ func Format(ctx context.Context, view View, f File) ([]protocol.TextEdit, error)
 	if err := format.Node(buf, fset, file); err != nil {
 		return nil, err
 	}
-	return computeTextEdits(ctx, ph.File(), m, buf.String())
+	return computeTextEdits(ctx, view, ph.File(), m, buf.String())
 }
 
 func formatSource(ctx context.Context, s Snapshot, f File) ([]byte, error) {
@@ -134,7 +134,7 @@ func Imports(ctx context.Context, view View, f File) ([]protocol.TextEdit, error
 	if err != nil {
 		return nil, err
 	}
-	return computeTextEdits(ctx, ph.File(), m, string(formatted))
+	return computeTextEdits(ctx, view, ph.File(), m, string(formatted))
 }
 
 type ImportFix struct {
@@ -198,7 +198,7 @@ func AllImportsFixes(ctx context.Context, view View, f File) (edits []protocol.T
 		if err != nil {
 			return err
 		}
-		edits, err = computeTextEdits(ctx, ph.File(), m, string(formatted))
+		edits, err = computeTextEdits(ctx, view, ph.File(), m, string(formatted))
 		if err != nil {
 			return err
 		}
@@ -209,7 +209,7 @@ func AllImportsFixes(ctx context.Context, view View, f File) (edits []protocol.T
 			if err != nil {
 				return err
 			}
-			edits, err := computeTextEdits(ctx, ph.File(), m, string(formatted))
+			edits, err := computeTextEdits(ctx, view, ph.File(), m, string(formatted))
 			if err != nil {
 				return err
 			}
@@ -277,7 +277,7 @@ func hasListErrors(errors []packages.Error) bool {
 	return false
 }
 
-func computeTextEdits(ctx context.Context, fh FileHandle, m *protocol.ColumnMapper, formatted string) ([]protocol.TextEdit, error) {
+func computeTextEdits(ctx context.Context, view View, fh FileHandle, m *protocol.ColumnMapper, formatted string) ([]protocol.TextEdit, error) {
 	ctx, done := trace.StartSpan(ctx, "source.computeTextEdits")
 	defer done()
 
@@ -285,7 +285,7 @@ func computeTextEdits(ctx context.Context, fh FileHandle, m *protocol.ColumnMapp
 	if err != nil {
 		return nil, err
 	}
-	edits := diff.ComputeEdits(fh.Identity().URI, string(data), formatted)
+	edits := view.Options().ComputeEdits(fh.Identity().URI, string(data), formatted)
 	return ToProtocolEdits(m, edits)
 }
 

@@ -7,9 +7,10 @@ package diff_test
 import (
 	"testing"
 
+	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/diff/difftest"
 )
 
 func TestDiff(t *testing.T) {
-	difftest.DiffTest(t)
+	difftest.DiffTest(t, diff.MyersComputeEdits)
 }

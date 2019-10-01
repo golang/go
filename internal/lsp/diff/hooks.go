@@ -18,9 +18,10 @@ type TextEdit struct {
 	NewText string
 }
 
+type ComputeEdits func(uri span.URI, before, after string) []TextEdit
+
 var (
-	ComputeEdits func(uri span.URI, before, after string) []TextEdit
-	ToUnified    func(from, to string, before string, edits []TextEdit) string
+	ToUnified func(from, to string, before string, edits []TextEdit) string
 )
 
 func SortTextEdits(d []TextEdit) {

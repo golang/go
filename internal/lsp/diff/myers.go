@@ -13,11 +13,10 @@ import (
 )
 
 func init() {
-	ComputeEdits = myersComputeEdits
 	ToUnified = myersToUnified
 }
 
-func myersComputeEdits(uri span.URI, before, after string) []TextEdit {
+func MyersComputeEdits(uri span.URI, before, after string) []TextEdit {
 	u := myers.SplitLines(before)
 	f := myers.SplitLines(after)
 	return myersDiffToEdits(uri, myers.Operations(u, f))

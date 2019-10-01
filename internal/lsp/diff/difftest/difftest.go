@@ -14,7 +14,7 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-func DiffTest(t *testing.T) {
+func DiffTest(t *testing.T, compute diff.ComputeEdits) {
 	t.Helper()
 	for _, test := range []struct{ name, in, out, unified string }{{
 		name: "empty",
@@ -41,7 +41,7 @@ func DiffTest(t *testing.T) {
 		in:   "one\nthree\n",
 		out:  "one\ntwo\nthree\n",
 	}} {
-		edits := diff.ComputeEdits(span.FileURI("/"+test.name), test.in, test.out)
+		edits := compute(span.FileURI("/"+test.name), test.in, test.out)
 		got := diff.ApplyEdits(test.in, edits)
 		if got != test.out {
 			t.Logf("test %v had diff:%v\n", test.name, diff.ToUnified(test.name+".orig", test.name, test.in, edits))

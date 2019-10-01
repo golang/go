@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/telemetry/tag"
 	errors "golang.org/x/xerrors"
@@ -40,6 +41,7 @@ var (
 			FuzzyMatching: true,
 			Budget:        100 * time.Millisecond,
 		},
+		ComputeEdits: diff.MyersComputeEdits,
 	}
 )
 
@@ -71,6 +73,8 @@ type Options struct {
 	TextDocumentSyncKind protocol.TextDocumentSyncKind
 
 	Completion CompletionOptions
+
+	ComputeEdits diff.ComputeEdits
 }
 
 type CompletionOptions struct {
