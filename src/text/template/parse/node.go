@@ -7,7 +7,6 @@
 package parse
 
 import (
-	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
@@ -94,11 +93,11 @@ func (l *ListNode) tree() *Tree {
 }
 
 func (l *ListNode) String() string {
-	b := new(bytes.Buffer)
+	var sb strings.Builder
 	for _, n := range l.Nodes {
-		fmt.Fprint(b, n)
+		sb.WriteString(n.String())
 	}
-	return b.String()
+	return sb.String()
 }
 
 func (l *ListNode) CopyList() *ListNode {
@@ -472,14 +471,19 @@ func (c *ChainNode) Add(field string) {
 }
 
 func (c *ChainNode) String() string {
-	s := c.Node.String()
+	var sb strings.Builder
 	if _, ok := c.Node.(*PipeNode); ok {
-		s = "(" + s + ")"
+		sb.WriteByte('(')
+		sb.WriteString(c.Node.String())
+		sb.WriteByte(')')
+	} else {
+		sb.WriteString(c.Node.String())
 	}
 	for _, field := range c.Field {
-		s += "." + field
+		sb.WriteByte('.')
+		sb.WriteString(field)
 	}
-	return s
+	return sb.String()
 }
 
 func (c *ChainNode) tree() *Tree {
