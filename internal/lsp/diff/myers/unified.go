@@ -7,6 +7,8 @@ package myers
 import (
 	"fmt"
 	"strings"
+
+	"golang.org/x/tools/internal/lsp/diff"
 )
 
 type Unified struct {
@@ -21,7 +23,7 @@ type Hunk struct {
 }
 
 type Line struct {
-	Kind    OpKind
+	Kind    diff.OpKind
 	Content string
 }
 
@@ -67,14 +69,14 @@ func ToUnified(from, to string, lines []string, ops []*Op) Unified {
 		}
 		last = op.I1
 		switch op.Kind {
-		case Delete:
+		case diff.Delete:
 			for i := op.I1; i < op.I2; i++ {
-				h.Lines = append(h.Lines, Line{Kind: Delete, Content: lines[i]})
+				h.Lines = append(h.Lines, Line{Kind: diff.Delete, Content: lines[i]})
 				last++
 			}
-		case Insert:
+		case diff.Insert:
 			for _, c := range op.Content {
-				h.Lines = append(h.Lines, Line{Kind: Insert, Content: c})
+				h.Lines = append(h.Lines, Line{Kind: diff.Insert, Content: c})
 			}
 		default:
 			// all other op types ignored
@@ -97,7 +99,7 @@ func addEqualLines(h *Hunk, lines []string, start, end int) int {
 		if i >= len(lines) {
 			return delta
 		}
-		h.Lines = append(h.Lines, Line{Kind: Equal, Content: lines[i]})
+		h.Lines = append(h.Lines, Line{Kind: diff.Equal, Content: lines[i]})
 		delta++
 	}
 	return delta
@@ -113,9 +115,9 @@ func (u Unified) Format(f fmt.State, r rune) {
 		fromCount, toCount := 0, 0
 		for _, l := range hunk.Lines {
 			switch l.Kind {
-			case Delete:
+			case diff.Delete:
 				fromCount++
-			case Insert:
+			case diff.Insert:
 				toCount++
 			default:
 				fromCount++
@@ -136,9 +138,9 @@ func (u Unified) Format(f fmt.State, r rune) {
 		fmt.Fprint(f, " @@\n")
 		for _, l := range hunk.Lines {
 			switch l.Kind {
-			case Delete:
+			case diff.Delete:
 				fmt.Fprintf(f, "-%s", l.Content)
-			case Insert:
+			case diff.Insert:
 				fmt.Fprintf(f, "+%s", l.Content)
 			default:
 				fmt.Fprintf(f, " %s", l.Content)

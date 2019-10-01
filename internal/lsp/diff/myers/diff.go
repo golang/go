@@ -5,38 +5,21 @@
 // Package myers implements the Myers diff algorithm.
 package myers
 
-import "strings"
+import (
+	"strings"
+
+	"golang.org/x/tools/internal/lsp/diff"
+)
 
 // Sources:
 // https://blog.jcoglan.com/2017/02/17/the-myers-diff-algorithm-part-3/
 // https://www.codeproject.com/Articles/42279/%2FArticles%2F42279%2FInvestigating-Myers-diff-algorithm-Part-1-of-2
 
 type Op struct {
-	Kind    OpKind
+	Kind    diff.OpKind
 	Content []string // content from b
 	I1, I2  int      // indices of the line in a
 	J1      int      // indices of the line in b, J2 implied by len(Content)
-}
-
-type OpKind int
-
-const (
-	Delete OpKind = iota
-	Insert
-	Equal
-)
-
-func (k OpKind) String() string {
-	switch k {
-	case Delete:
-		return "delete"
-	case Insert:
-		return "insert"
-	case Equal:
-		return "equal"
-	default:
-		panic("unknown operation kind")
-	}
 }
 
 func ApplyEdits(a []string, operations []*Op) []string {
@@ -50,7 +33,7 @@ func ApplyEdits(a []string, operations []*Op) []string {
 			}
 		}
 		switch op.Kind {
-		case Equal, Insert:
+		case diff.Equal, diff.Insert:
 			b = append(b, op.Content...)
 		}
 		prevI2 = op.I2
@@ -84,7 +67,7 @@ func Operations(a, b []string) []*Op {
 			return
 		}
 		op.I2 = i2
-		if op.Kind == Insert {
+		if op.Kind == diff.Insert {
 			op.Content = b[op.J1:j2]
 		}
 		solution[i] = op
@@ -100,7 +83,7 @@ func Operations(a, b []string) []*Op {
 		for snake[0]-snake[1] > x-y {
 			if op == nil {
 				op = &Op{
-					Kind: Delete,
+					Kind: diff.Delete,
 					I1:   x,
 					J1:   y,
 				}
@@ -116,7 +99,7 @@ func Operations(a, b []string) []*Op {
 		for snake[0]-snake[1] < x-y {
 			if op == nil {
 				op = &Op{
-					Kind: Insert,
+					Kind: diff.Insert,
 					I1:   x,
 					J1:   y,
 				}

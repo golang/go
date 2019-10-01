@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/tools/internal/lsp/diff"
+	"golang.org/x/tools/internal/lsp/diff/difftest"
 	"golang.org/x/tools/internal/lsp/diff/myers"
 )
 
@@ -26,6 +28,10 @@ const (
 var verifyDiff = flag.Bool("verify-diff", false, "Check that the unified diff output matches `diff -u`")
 
 func TestDiff(t *testing.T) {
+	difftest.DiffTest(t, myers.ComputeEdits)
+}
+
+func TestMyersDiff(t *testing.T) {
 	for _, test := range []struct {
 		a, b       string
 		lines      []*myers.Op
@@ -42,8 +48,8 @@ func TestDiff(t *testing.T) {
 			a: "A\n",
 			b: "B\n",
 			operations: []*myers.Op{
-				&myers.Op{Kind: myers.Delete, I1: 0, I2: 1, J1: 0},
-				&myers.Op{Kind: myers.Insert, Content: []string{"B\n"}, I1: 1, I2: 1, J1: 0},
+				&myers.Op{Kind: diff.Delete, I1: 0, I2: 1, J1: 0},
+				&myers.Op{Kind: diff.Insert, Content: []string{"B\n"}, I1: 1, I2: 1, J1: 0},
 			},
 			unified: `
 @@ -1 +1 @@
@@ -53,8 +59,8 @@ func TestDiff(t *testing.T) {
 			a: "A",
 			b: "B",
 			operations: []*myers.Op{
-				&myers.Op{Kind: myers.Delete, I1: 0, I2: 1, J1: 0},
-				&myers.Op{Kind: myers.Insert, Content: []string{"B"}, I1: 1, I2: 1, J1: 0},
+				&myers.Op{Kind: diff.Delete, I1: 0, I2: 1, J1: 0},
+				&myers.Op{Kind: diff.Insert, Content: []string{"B"}, I1: 1, I2: 1, J1: 0},
 			},
 			unified: `
 @@ -1 +1 @@
@@ -66,11 +72,11 @@ func TestDiff(t *testing.T) {
 			a: "A\nB\nC\nA\nB\nB\nA\n",
 			b: "C\nB\nA\nB\nA\nC\n",
 			operations: []*myers.Op{
-				&myers.Op{Kind: myers.Delete, I1: 0, I2: 1, J1: 0},
-				&myers.Op{Kind: myers.Delete, I1: 1, I2: 2, J1: 0},
-				&myers.Op{Kind: myers.Insert, Content: []string{"B\n"}, I1: 3, I2: 3, J1: 1},
-				&myers.Op{Kind: myers.Delete, I1: 5, I2: 6, J1: 4},
-				&myers.Op{Kind: myers.Insert, Content: []string{"C\n"}, I1: 7, I2: 7, J1: 5},
+				&myers.Op{Kind: diff.Delete, I1: 0, I2: 1, J1: 0},
+				&myers.Op{Kind: diff.Delete, I1: 1, I2: 2, J1: 0},
+				&myers.Op{Kind: diff.Insert, Content: []string{"B\n"}, I1: 3, I2: 3, J1: 1},
+				&myers.Op{Kind: diff.Delete, I1: 5, I2: 6, J1: 4},
+				&myers.Op{Kind: diff.Insert, Content: []string{"C\n"}, I1: 7, I2: 7, J1: 5},
 			},
 			unified: `
 @@ -1,7 +1,6 @@
@@ -90,9 +96,9 @@ func TestDiff(t *testing.T) {
 			a: "A\nB\n",
 			b: "A\nC\n\n",
 			operations: []*myers.Op{
-				&myers.Op{Kind: myers.Delete, I1: 1, I2: 2, J1: 1},
-				&myers.Op{Kind: myers.Insert, Content: []string{"C\n"}, I1: 2, I2: 2, J1: 1},
-				&myers.Op{Kind: myers.Insert, Content: []string{"\n"}, I1: 2, I2: 2, J1: 2},
+				&myers.Op{Kind: diff.Delete, I1: 1, I2: 2, J1: 1},
+				&myers.Op{Kind: diff.Insert, Content: []string{"C\n"}, I1: 2, I2: 2, J1: 1},
+				&myers.Op{Kind: diff.Insert, Content: []string{"\n"}, I1: 2, I2: 2, J1: 2},
 			},
 			unified: `
 @@ -1,2 +1,3 @@
