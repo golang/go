@@ -411,7 +411,7 @@ func (o *Order) call(n *Node) {
 	n.Right = o.expr(n.Right, nil) // ODDDARG temp
 	o.exprList(n.List)
 
-	if n.Op != OCALLFUNC {
+	if n.Op != OCALLFUNC && n.Op != OCALLMETH {
 		return
 	}
 	keepAlive := func(i int) {
