@@ -581,7 +581,7 @@ func (w *Walker) ImportFrom(fromPath, fromDir string, mode types.ImportMode) (*t
 	// Parse package files.
 	files := make([]*ast.File, len(filenames))
 	for i, file := range filenames {
-		f, _ := w.parseFile(dir, file)
+		f, err := w.parseFile(dir, file)
 		if err != nil {
 			log.Fatalf("error parsing package %s: %s", name, err)
 		}
