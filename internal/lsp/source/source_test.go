@@ -468,15 +468,7 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 		t.Fatalf("failed for %v: %v", spn, err)
 	}
 	fh := r.view.Snapshot().Handle(r.ctx, f)
-	tok, err := r.view.Session().Cache().TokenHandle(fh).Token(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rng, err := spn.Range(span.NewTokenConverter(r.data.Exported.ExpectFileSet, tok))
-	if err != nil {
-		t.Fatalf("failed for %v: %v", spn, err)
-	}
-	edits, err := source.Imports(ctx, r.view, f, rng)
+	edits, err := source.Imports(ctx, r.view, f)
 	if err != nil {
 		if goimported != "" {
 			t.Error(err)

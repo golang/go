@@ -83,7 +83,7 @@ func formatSource(ctx context.Context, s Snapshot, f File) ([]byte, error) {
 }
 
 // Imports formats a file using the goimports tool.
-func Imports(ctx context.Context, view View, f File, rng span.Range) ([]protocol.TextEdit, error) {
+func Imports(ctx context.Context, view View, f File) ([]protocol.TextEdit, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Imports")
 	defer done()
 

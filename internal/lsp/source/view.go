@@ -60,15 +60,6 @@ const (
 	UnknownKind
 )
 
-// TokenHandle represents a handle to the *token.File for a file.
-type TokenHandle interface {
-	// File returns a file handle for which to get the *token.File.
-	File() FileHandle
-
-	// Token returns the *token.File for the file.
-	Token(ctx context.Context) (*token.File, error)
-}
-
 // ParseGoHandle represents a handle to the AST for a file.
 type ParseGoHandle interface {
 	// File returns a file handle for which to get the AST.
@@ -146,9 +137,6 @@ type Cache interface {
 
 	// FileSet returns the shared fileset used by all files in the system.
 	FileSet() *token.FileSet
-
-	// TokenHandle returns a TokenHandle for the given file handle.
-	TokenHandle(fh FileHandle) TokenHandle
 
 	// ParseGoHandle returns a ParseGoHandle for the given file handle.
 	ParseGoHandle(fh FileHandle, mode ParseMode) ParseGoHandle
