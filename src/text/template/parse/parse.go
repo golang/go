@@ -108,13 +108,8 @@ func (t *Tree) nextNonSpace() (token item) {
 }
 
 // peekNonSpace returns but does not consume the next non-space token.
-func (t *Tree) peekNonSpace() (token item) {
-	for {
-		token = t.next()
-		if token.typ != itemSpace {
-			break
-		}
-	}
+func (t *Tree) peekNonSpace() item {
+	token := t.nextNonSpace()
 	t.backup()
 	return token
 }
