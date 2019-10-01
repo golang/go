@@ -88,3 +88,38 @@ func _() {
 	var i int
 	i = a //@deep(" //", deepAD, deepABC, deepA, deepAB)
 }
+
+type foo struct {
+	b bar
+}
+
+func (f foo) bar() bar {
+	return f.b
+}
+
+func (f foo) barPtr() *bar {
+	return &f.b
+}
+
+type bar struct{}
+
+func (b bar) valueReceiver() int {
+	return 0
+}
+
+func (b *bar) ptrReceiver() int {
+	return 0
+}
+
+func _() {
+	var (
+		i int
+		f foo
+	)
+
+	f.bar().valueReceiver    //@item(deepBarValue, "f.bar().valueReceiver", "func() int", "method")
+	f.barPtr().valueReceiver //@item(deepBarPtrValue, "f.barPtr().valueReceiver", "func() int", "method")
+	f.barPtr().ptrReceiver   //@item(deepBarPtrPtr, "f.barPtr().ptrReceiver", "func() int", "method")
+
+	i = fb //@fuzzy(" //", deepBarValue, deepBarPtrPtr, deepBarPtrValue)
+}

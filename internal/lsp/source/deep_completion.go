@@ -39,10 +39,16 @@ type deepCompletionState struct {
 	candidateCount int
 }
 
-// push pushes obj onto our search stack.
-func (s *deepCompletionState) push(obj types.Object) {
+// push pushes obj onto our search stack. If invoke is true then
+// invocation parens "()" will be appended to the object name.
+func (s *deepCompletionState) push(obj types.Object, invoke bool) {
 	s.chain = append(s.chain, obj)
-	s.chainNames = append(s.chainNames, obj.Name())
+
+	name := obj.Name()
+	if invoke {
+		name += "()"
+	}
+	s.chainNames = append(s.chainNames, name)
 }
 
 // pop pops the last object off our search stack.
@@ -156,8 +162,21 @@ func (c *completer) deepSearch(obj types.Object) {
 		return
 	}
 
+	if sig, ok := obj.Type().Underlying().(*types.Signature); ok {
+		// If obj is a function that takes no arguments and returns one
+		// value, keep searching across the function call.
+		if sig.Params().Len() == 0 && sig.Results().Len() == 1 {
+			// Pass invoke=true since the function needs to be invoked in
+			// the deep chain.
+			c.deepState.push(obj, true)
+			// The result of a function call is not addressable.
+			c.methodsAndFields(sig.Results().At(0).Type(), false)
+			c.deepState.pop()
+		}
+	}
+
 	// Push this object onto our search stack.
-	c.deepState.push(obj)
+	c.deepState.push(obj, false)
 
 	switch obj := obj.(type) {
 	case *types.PkgName:
