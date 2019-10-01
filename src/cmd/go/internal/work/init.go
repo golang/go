@@ -247,12 +247,12 @@ func buildModeInit() {
 	switch cfg.BuildMod {
 	case "":
 		// ok
-	case "readonly", "vendor":
+	case "readonly", "vendor", "mod":
 		if load.ModLookup == nil && !inGOFLAGS("-mod") {
 			base.Fatalf("build flag -mod=%s only valid when using modules", cfg.BuildMod)
 		}
 	default:
-		base.Fatalf("-mod=%s not supported (can be '', 'readonly', or 'vendor')", cfg.BuildMod)
+		base.Fatalf("-mod=%s not supported (can be '', 'mod', 'readonly', or 'vendor')", cfg.BuildMod)
 	}
 }
 
