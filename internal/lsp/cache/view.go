@@ -22,6 +22,7 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
+	"golang.org/x/tools/internal/xcontext"
 	errors "golang.org/x/xerrors"
 )
 
@@ -353,6 +354,7 @@ func (v *view) getFile(ctx context.Context, uri span.URI, kind source.FileKind) 
 		kind:  source.Go,
 	}
 	v.session.filesWatchMap.Watch(uri, func() {
+		ctx := xcontext.Detach(ctx)
 		v.invalidateContent(ctx, uri, kind)
 	})
 	v.mapFile(uri, f)

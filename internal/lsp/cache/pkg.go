@@ -208,11 +208,11 @@ func (p *pkg) SetDiagnostics(a *analysis.Analyzer, diags []source.Diagnostic) {
 	p.diagnostics[a] = diags
 }
 
-func (p *pkg) FindDiagnostic(pdiag protocol.Diagnostic) (*source.Diagnostic, error) {
-	p.diagMu.Lock()
-	defer p.diagMu.Unlock()
+func (pkg *pkg) FindDiagnostic(pdiag protocol.Diagnostic) (*source.Diagnostic, error) {
+	pkg.diagMu.Lock()
+	defer pkg.diagMu.Unlock()
 
-	for a, diagnostics := range p.diagnostics {
+	for a, diagnostics := range pkg.diagnostics {
 		if a.Name != pdiag.Source {
 			continue
 		}

@@ -99,15 +99,17 @@ func (s *session) NewView(ctx context.Context, name string, folder span.URI, opt
 		filesByURI:    make(map[span.URI]viewFile),
 		filesByBase:   make(map[string][]viewFile),
 		snapshot: &snapshot{
-			packages: make(map[span.URI]map[packageKey]*checkPackageHandle),
-			ids:      make(map[span.URI][]packageID),
-			metadata: make(map[packageID]*metadata),
-			files:    make(map[span.URI]source.FileHandle),
+			packages:   make(map[packageKey]*checkPackageHandle),
+			ids:        make(map[span.URI][]packageID),
+			metadata:   make(map[packageID]*metadata),
+			files:      make(map[span.URI]source.FileHandle),
+			importedBy: make(map[packageID][]packageID),
 		},
 		ignoredURIs: make(map[span.URI]struct{}),
 		builtin:     &builtinPkg{},
 	}
 	v.snapshot.view = v
+
 	v.analyzers = UpdateAnalyzers(v, defaultAnalyzers)
 	// Preemptively build the builtin package,
 	// so we immediately add builtin.go to the list of ignored files.
@@ -236,7 +238,7 @@ func (s *session) DidOpen(ctx context.Context, uri span.URI, kind source.FileKin
 	// A file may be in multiple views.
 	for _, view := range s.views {
 		if strings.HasPrefix(string(uri), string(view.Folder())) {
-			view.invalidateMetadata(uri)
+			view.invalidateMetadata(ctx, uri)
 		}
 	}
 }
@@ -350,7 +352,7 @@ func (s *session) DidChangeOutOfBand(ctx context.Context, uri span.URI, changeTy
 		// force a go/packages invocation to refresh the package's file list.
 		views := s.viewsOf(uri)
 		for _, v := range views {
-			v.invalidateMetadata(uri)
+			v.invalidateMetadata(ctx, uri)
 		}
 	}
 	s.filesWatchMap.Notify(uri)

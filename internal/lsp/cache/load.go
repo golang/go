@@ -33,12 +33,16 @@ type metadata struct {
 	errors      []packages.Error
 	deps        []packageID
 	missingDeps map[packagePath]struct{}
+
+	// config is the *packages.Config associated with the loaded package.
+	config *packages.Config
 }
 
-func (s *snapshot) load(ctx context.Context, uri span.URI, cfg *packages.Config) ([]*metadata, error) {
+func (s *snapshot) load(ctx context.Context, uri span.URI) ([]*metadata, error) {
 	ctx, done := trace.StartSpan(ctx, "cache.view.load", telemetry.URI.Of(uri))
 	defer done()
 
+	cfg := s.view.Config(ctx)
 	pkgs, err := packages.Load(cfg, fmt.Sprintf("file=%s", uri.Filename()))
 	log.Print(ctx, "go/packages.Load", tag.Of("packages", len(pkgs)))
 
@@ -49,7 +53,7 @@ func (s *snapshot) load(ctx context.Context, uri span.URI, cfg *packages.Config)
 		// Return this error as a diagnostic to the user.
 		return nil, err
 	}
-	m, prevMissingImports, err := s.updateMetadata(ctx, uri, pkgs)
+	m, prevMissingImports, err := s.updateMetadata(ctx, uri, pkgs, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -103,12 +107,14 @@ func (c *cache) shouldLoad(ctx context.Context, s *snapshot, originalFH, current
 	// Get the original parsed file in order to check package name and imports.
 	original, _, _, err := c.ParseGoHandle(originalFH, source.ParseHeader).Parse(ctx)
 	if err != nil {
+		log.Error(ctx, "no ParseGoHandle for original FileHandle", err, telemetry.URI.Of(originalFH.Identity().URI))
 		return false
 	}
 
 	// Get the current parsed file in order to check package name and imports.
 	current, _, _, err := c.ParseGoHandle(currentFH, source.ParseHeader).Parse(ctx)
 	if err != nil {
+		log.Error(ctx, "no ParseGoHandle for original FileHandle", err, telemetry.URI.Of(currentFH.Identity().URI))
 		return false
 	}
 
@@ -133,7 +139,7 @@ func (c *cache) shouldLoad(ctx context.Context, s *snapshot, originalFH, current
 	return false
 }
 
-func (s *snapshot) updateMetadata(ctx context.Context, uri span.URI, pkgs []*packages.Package) ([]*metadata, map[packageID]map[packagePath]struct{}, error) {
+func (s *snapshot) updateMetadata(ctx context.Context, uri span.URI, pkgs []*packages.Package, cfg *packages.Config) ([]*metadata, map[packageID]map[packagePath]struct{}, error) {
 	// Clear metadata since we are re-running go/packages.
 	prevMissingImports := make(map[packageID]map[packagePath]struct{})
 	m := s.getMetadataForURI(uri)
@@ -149,7 +155,7 @@ func (s *snapshot) updateMetadata(ctx context.Context, uri span.URI, pkgs []*pac
 		log.Print(ctx, "go/packages.Load", tag.Of("package", pkg.PkgPath), tag.Of("files", pkg.CompiledGoFiles))
 
 		// Set the metadata for this package.
-		if err := s.updateImports(ctx, packagePath(pkg.PkgPath), pkg); err != nil {
+		if err := s.updateImports(ctx, packagePath(pkg.PkgPath), pkg, cfg); err != nil {
 			return nil, nil, err
 		}
 		m := s.getMetadata(packageID(pkg.ID))
@@ -167,7 +173,7 @@ func (s *snapshot) updateMetadata(ctx context.Context, uri span.URI, pkgs []*pac
 	return results, prevMissingImports, nil
 }
 
-func (s *snapshot) updateImports(ctx context.Context, pkgPath packagePath, pkg *packages.Package) error {
+func (s *snapshot) updateImports(ctx context.Context, pkgPath packagePath, pkg *packages.Package, cfg *packages.Config) error {
 	// Recreate the metadata rather than reusing it to avoid locking.
 	m := &metadata{
 		id:         packageID(pkg.ID),
@@ -175,6 +181,7 @@ func (s *snapshot) updateImports(ctx context.Context, pkgPath packagePath, pkg *
 		name:       pkg.Name,
 		typesSizes: pkg.TypesSizes,
 		errors:     pkg.Errors,
+		config:     cfg,
 	}
 	for _, filename := range pkg.CompiledGoFiles {
 		uri := span.FileURI(filename)
@@ -205,7 +212,7 @@ func (s *snapshot) updateImports(ctx context.Context, pkgPath packagePath, pkg *
 		}
 		dep := s.getMetadata(importID)
 		if dep == nil {
-			if err := s.updateImports(ctx, importPkgPath, importPkg); err != nil {
+			if err := s.updateImports(ctx, importPkgPath, importPkg, cfg); err != nil {
 				log.Error(ctx, "error in dependency", err)
 			}
 		}

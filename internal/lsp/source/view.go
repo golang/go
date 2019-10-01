@@ -105,13 +105,6 @@ type CheckPackageHandle interface {
 	// ParseGoHandle returns a ParseGoHandle for which to get the package.
 	Files() []ParseGoHandle
 
-	// Config is the *packages.Config that the package metadata was loaded with.
-	Config() *packages.Config
-
-	// Mode returns the ParseMode for all of the files in the CheckPackageHandle.
-	// The files should always have the same parse mode.
-	Mode() ParseMode
-
 	// Check returns the type-checked Package for the CheckPackageHandle.
 	Check(ctx context.Context) (Package, error)
 

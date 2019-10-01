@@ -75,7 +75,7 @@ func (h *parseGoHandle) Mode() source.ParseMode {
 func (h *parseGoHandle) Parse(ctx context.Context) (*ast.File, *protocol.ColumnMapper, error, error) {
 	v := h.handle.Get(ctx)
 	if v == nil {
-		return nil, nil, nil, ctx.Err()
+		return nil, nil, nil, errors.Errorf("no parsed file for %s", h.File().Identity().URI)
 	}
 	data := v.(*parseGoData)
 	return data.ast, data.mapper, data.parseError, data.err

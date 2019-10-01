@@ -31,7 +31,7 @@ type snapshot struct {
 
 	// packages maps a file URI to a set of CheckPackageHandles to which that file belongs.
 	// It may be invalidated when a file's content changes.
-	packages map[span.URI]map[packageKey]*checkPackageHandle
+	packages map[packageKey]*checkPackageHandle
 }
 
 func (s *snapshot) getImportedBy(id packageID) []packageID {
@@ -46,31 +46,47 @@ func (s *snapshot) getImportedBy(id packageID) []packageID {
 	return s.importedBy[id]
 }
 
-func (s *snapshot) addPackage(uri span.URI, cph *checkPackageHandle) {
+func (s *snapshot) addPackage(cph *checkPackageHandle) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	pkgs, ok := s.packages[uri]
-	if !ok {
-		pkgs = make(map[packageKey]*checkPackageHandle)
-		s.packages[uri] = pkgs
+	// TODO: We should make sure not to compute duplicate CheckPackageHandles,
+	// and instead panic here. This will be hard to do because we may encounter
+	// the same package multiple times in the dependency tree.
+	if _, ok := s.packages[cph.packageKey()]; ok {
+		return
 	}
-	// TODO: Check that there isn't already something set here.
-	// This can't be done until we fix the cache keys for CheckPackageHandles.
-	pkgs[packageKey{
-		id:   cph.m.id,
-		mode: cph.Mode(),
-	}] = cph
+	s.packages[cph.packageKey()] = cph
 }
 
-func (s *snapshot) getPackages(uri span.URI) (cphs []source.CheckPackageHandle) {
+func (s *snapshot) getPackages(uri span.URI, m source.ParseMode) (cphs []source.CheckPackageHandle) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for _, cph := range s.packages[uri] {
-		cphs = append(cphs, cph)
+	if ids, ok := s.ids[uri]; ok {
+		for _, id := range ids {
+			key := packageKey{
+				id:   id,
+				mode: m,
+			}
+			cph, ok := s.packages[key]
+			if ok {
+				cphs = append(cphs, cph)
+			}
+		}
 	}
 	return cphs
+}
+
+func (s *snapshot) getPackage(id packageID, m source.ParseMode) *checkPackageHandle {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	key := packageKey{
+		id:   id,
+		mode: m,
+	}
+	return s.packages[key]
 }
 
 func (s *snapshot) getMetadataForURI(uri span.URI) (metadata []*metadata) {
@@ -89,6 +105,12 @@ func (s *snapshot) setMetadata(m *metadata) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// TODO: We should make sure not to set duplicate metadata,
+	// and instead panic here. This can be done by making sure not to
+	// reset metadata information for packages we've already seen.
+	if _, ok := s.metadata[m.id]; ok {
+		return
+	}
 	s.metadata[m.id] = m
 }
 
@@ -103,6 +125,14 @@ func (s *snapshot) addID(uri span.URI, id packageID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	for _, existingID := range s.ids[uri] {
+		if existingID == id {
+			// TODO: We should make sure not to set duplicate IDs,
+			// and instead panic here. This can be done by making sure not to
+			// reset metadata information for packages we've already seen.
+			return
+		}
+	}
 	s.ids[uri] = append(s.ids[uri], id)
 }
 
@@ -130,52 +160,67 @@ func (s *snapshot) Handle(ctx context.Context, f source.File) source.FileHandle 
 	return s.files[f.URI()]
 }
 
-func (s *snapshot) clone(withoutURI span.URI, withoutTypes, withoutMetadata map[span.URI]struct{}) *snapshot {
+func (s *snapshot) clone(ctx context.Context, withoutURI *span.URI, withoutTypes, withoutMetadata map[span.URI]struct{}) *snapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	result := &snapshot{
 		id:         s.id + 1,
 		view:       s.view,
-		packages:   make(map[span.URI]map[packageKey]*checkPackageHandle),
 		ids:        make(map[span.URI][]packageID),
-		metadata:   make(map[packageID]*metadata),
 		importedBy: make(map[packageID][]packageID),
+		metadata:   make(map[packageID]*metadata),
+		packages:   make(map[packageKey]*checkPackageHandle),
 		files:      make(map[span.URI]source.FileHandle),
 	}
 	// Copy all of the FileHandles except for the one that was invalidated.
 	for k, v := range s.files {
-		if k == withoutURI {
+		if withoutURI != nil && k == *withoutURI {
 			continue
 		}
 		result.files[k] = v
 	}
-	for k, v := range s.packages {
+	// Collect the IDs for the packages associated with the excluded URIs.
+	withoutMetadataIDs := make(map[packageID]struct{})
+	withoutTypesIDs := make(map[packageID]struct{})
+	for k, ids := range s.ids {
+		// Map URIs to IDs for exclusion.
 		if withoutTypes != nil {
 			if _, ok := withoutTypes[k]; ok {
-				continue
+				for _, id := range ids {
+					withoutTypesIDs[id] = struct{}{}
+				}
 			}
 		}
-		result.packages[k] = v
-	}
-	withoutIDs := make(map[packageID]struct{})
-	for k, ids := range s.ids {
 		if withoutMetadata != nil {
 			if _, ok := withoutMetadata[k]; ok {
 				for _, id := range ids {
-					withoutIDs[id] = struct{}{}
+					withoutMetadataIDs[id] = struct{}{}
 				}
 				continue
 			}
 		}
 		result.ids[k] = ids
 	}
+	// Copy the package type information.
+	for k, v := range s.packages {
+		if _, ok := withoutTypesIDs[k.id]; ok {
+			continue
+		}
+		if _, ok := withoutMetadataIDs[k.id]; ok {
+			continue
+		}
+		result.packages[k] = v
+	}
+	// Copy the package metadata.
 	for k, v := range s.metadata {
-		if _, ok := withoutIDs[k]; ok {
+		if _, ok := withoutMetadataIDs[k]; ok {
 			continue
 		}
 		result.metadata[k] = v
 	}
+	// Don't bother copying the importedBy graph,
+	// as it changes each time we update metadata.
 	return result
 }
 
@@ -210,8 +255,7 @@ func (v *view) invalidateContent(ctx context.Context, uri span.URI, kind source.
 		// TODO: If a package's name has changed,
 		// we should invalidate the metadata for the new package name (if it exists).
 	}
-
-	v.snapshot = v.snapshot.clone(uri, withoutTypes, withoutMetadata)
+	v.snapshot = v.snapshot.clone(ctx, &uri, withoutTypes, withoutMetadata)
 }
 
 // invalidateMetadata invalidates package metadata for all files in f's
@@ -220,15 +264,16 @@ func (v *view) invalidateContent(ctx context.Context, uri span.URI, kind source.
 //
 // TODO: This function shouldn't be necessary.
 // We should be able to handle its use cases more efficiently.
-func (v *view) invalidateMetadata(uri span.URI) {
+func (v *view) invalidateMetadata(ctx context.Context, uri span.URI) {
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock()
 
 	withoutMetadata := make(map[span.URI]struct{})
+
 	for _, id := range v.snapshot.getIDs(uri) {
 		v.snapshot.reverseDependencies(id, withoutMetadata, map[packageID]struct{}{})
 	}
-	v.snapshot = v.snapshot.clone(uri, nil, withoutMetadata)
+	v.snapshot = v.snapshot.clone(ctx, nil, withoutMetadata, withoutMetadata)
 }
 
 // reverseDependencies populates the uris map with file URIs belonging to the
