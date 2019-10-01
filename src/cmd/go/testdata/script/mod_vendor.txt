@@ -63,6 +63,7 @@ go build
 go build -mod=vendor
 go test -mod=vendor . ./subdir
 go test -mod=vendor ./...
+go fmt -mod=vendor ./...
 
 -- go.mod --
 module m

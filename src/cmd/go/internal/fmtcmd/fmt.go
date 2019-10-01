@@ -22,6 +22,7 @@ import (
 
 func init() {
 	base.AddBuildFlagsNX(&CmdFmt.Flag)
+	base.AddLoadFlags(&CmdFmt.Flag)
 }
 
 var CmdFmt = &base.Command{
@@ -37,6 +38,9 @@ For more about specifying packages, see 'go help packages'.
 
 The -n flag prints commands that would be executed.
 The -x flag prints commands as they are executed.
+
+The -mod flag's value sets which module download mode
+to use: readonly or vendor. See 'go help modules' for more.
 
 To run gofmt with specific options, run gofmt itself.
 
