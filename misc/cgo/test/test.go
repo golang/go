@@ -115,6 +115,44 @@ int add(int x, int y) {
 	return x+y;
 };
 
+// Following mimicks vulkan complex definitions for benchmarking cgocheck overhead.
+
+typedef uint32_t VkFlags;
+typedef VkFlags  VkDeviceQueueCreateFlags;
+typedef uint32_t VkStructureType;
+
+typedef struct VkDeviceQueueCreateInfo {
+    VkStructureType             sType;
+    const void*                 pNext;
+    VkDeviceQueueCreateFlags    flags;
+    uint32_t                    queueFamilyIndex;
+    uint32_t                    queueCount;
+    const float*                pQueuePriorities;
+} VkDeviceQueueCreateInfo;
+
+typedef struct VkPhysicalDeviceFeatures {
+    uint32_t bools[56];
+} VkPhysicalDeviceFeatures;
+
+typedef struct VkDeviceCreateInfo {
+    VkStructureType                    sType;
+    const void*                        pNext;
+    VkFlags                            flags;
+    uint32_t                           queueCreateInfoCount;
+    const VkDeviceQueueCreateInfo*     pQueueCreateInfos;
+    uint32_t                           enabledLayerCount;
+    const char* const*                 ppEnabledLayerNames;
+    uint32_t                           enabledExtensionCount;
+    const char* const*                 ppEnabledExtensionNames;
+    const VkPhysicalDeviceFeatures*    pEnabledFeatures;
+} VkDeviceCreateInfo;
+
+void handleComplexPointer(VkDeviceCreateInfo *a0) {}
+void handleComplexPointer8(
+	VkDeviceCreateInfo *a0, VkDeviceCreateInfo *a1, VkDeviceCreateInfo *a2, VkDeviceCreateInfo *a3,
+	VkDeviceCreateInfo *a4, VkDeviceCreateInfo *a5, VkDeviceCreateInfo *a6, VkDeviceCreateInfo *a7
+) {}
+
 // complex alignment
 
 struct {
@@ -993,11 +1031,45 @@ type Context struct {
 }
 
 func benchCgoCall(b *testing.B) {
-	const x = C.int(2)
-	const y = C.int(3)
-	for i := 0; i < b.N; i++ {
-		C.add(x, y)
-	}
+	b.Run("add-int", func(b *testing.B) {
+		const x = C.int(2)
+		const y = C.int(3)
+
+		for i := 0; i < b.N; i++ {
+			C.add(x, y)
+		}
+	})
+
+	b.Run("one-pointer", func(b *testing.B) {
+		var a0 C.VkDeviceCreateInfo
+		for i := 0; i < b.N; i++ {
+			C.handleComplexPointer(&a0)
+		}
+	})
+	b.Run("eight-pointers", func(b *testing.B) {
+		var a0, a1, a2, a3, a4, a5, a6, a7 C.VkDeviceCreateInfo
+		for i := 0; i < b.N; i++ {
+			C.handleComplexPointer8(&a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7)
+		}
+	})
+	b.Run("eight-pointers-nil", func(b *testing.B) {
+		var a0, a1, a2, a3, a4, a5, a6, a7 *C.VkDeviceCreateInfo
+		for i := 0; i < b.N; i++ {
+			C.handleComplexPointer8(a0, a1, a2, a3, a4, a5, a6, a7)
+		}
+	})
+	b.Run("eight-pointers-array", func(b *testing.B) {
+		var a [8]C.VkDeviceCreateInfo
+		for i := 0; i < b.N; i++ {
+			C.handleComplexPointer8(&a[0], &a[1], &a[2], &a[3], &a[4], &a[5], &a[6], &a[7])
+		}
+	})
+	b.Run("eight-pointers-slice", func(b *testing.B) {
+		a := make([]C.VkDeviceCreateInfo, 8)
+		for i := 0; i < b.N; i++ {
+			C.handleComplexPointer8(&a[0], &a[1], &a[2], &a[3], &a[4], &a[5], &a[6], &a[7])
+		}
+	})
 }
 
 // Benchmark measuring overhead from Go to C and back to Go (via a callback)
