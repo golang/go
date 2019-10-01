@@ -554,7 +554,7 @@ func BenchmarkParseLarge(b *testing.B) {
 	}
 }
 
-var sink string
+var sinkv, sinkl string
 
 func BenchmarkVariableString(b *testing.B) {
 	v := &VariableNode{
@@ -563,9 +563,25 @@ func BenchmarkVariableString(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		sink = v.String()
+		sinkv = v.String()
 	}
-	if sink == "" {
+	if sinkv == "" {
+		b.Fatal("Benchmark was not run")
+	}
+}
+
+func BenchmarkListString(b *testing.B) {
+	text := `{{ (printf .Field1.Field2.Field3).Value }}`
+	tree, err := New("bench").Parse(text, "", "", make(map[string]*Tree), builtins)
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		sinkl = tree.Root.String()
+	}
+	if sinkl == "" {
 		b.Fatal("Benchmark was not run")
 	}
 }
