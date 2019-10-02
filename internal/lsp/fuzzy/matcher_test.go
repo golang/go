@@ -17,7 +17,7 @@ import (
 	"golang.org/x/tools/internal/lsp/fuzzy"
 )
 
-func ExampleFuzzyMatcher() {
+func ExampleMatcher() {
 	pattern := "TEdit"
 	candidates := []string{"fuzzy.TextEdit", "ArtEdit", "TED talks about IT"}
 

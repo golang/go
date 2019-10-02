@@ -44,13 +44,13 @@ Example: reformat this file:
 
 // Run performs the check on the files specified by args and prints the
 // results to stdout.
-func (f *format) Run(ctx context.Context, args ...string) error {
+func (c *format) Run(ctx context.Context, args ...string) error {
 	if len(args) == 0 {
 		// no files, so no results
 		return nil
 	}
 	// now we ready to kick things off
-	conn, err := f.app.connect(ctx)
+	conn, err := c.app.connect(ctx)
 	if err != nil {
 		return err
 	}
@@ -82,19 +82,19 @@ func (f *format) Run(ctx context.Context, args ...string) error {
 		}
 		formatted := diff.ApplyEdits(string(file.mapper.Content), sedits)
 		printIt := true
-		if f.List {
+		if c.List {
 			printIt = false
 			if len(edits) > 0 {
 				fmt.Println(filename)
 			}
 		}
-		if f.Write {
+		if c.Write {
 			printIt = false
 			if len(edits) > 0 {
 				ioutil.WriteFile(filename, []byte(formatted), 0644)
 			}
 		}
-		if f.Diff {
+		if c.Diff {
 			printIt = false
 			u := diff.ToUnified(filename+".orig", filename, string(file.mapper.Content), sedits)
 			fmt.Print(u)

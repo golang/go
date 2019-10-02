@@ -83,7 +83,7 @@ func (r *rename) Run(ctx context.Context, args ...string) error {
 
 	// Make output order predictable
 	var keys []string
-	for u, _ := range *we.Changes {
+	for u := range *we.Changes {
 		keys = append(keys, u)
 	}
 	sort.Strings(keys)

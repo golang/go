@@ -52,6 +52,7 @@ func (h *nativeFileHandle) Identity() source.FileIdentity {
 
 func (h *nativeFileHandle) Read(ctx context.Context) ([]byte, string, error) {
 	ctx, done := trace.StartSpan(ctx, "cache.nativeFileHandle.Read", telemetry.File.Of(h.identity.URI.Filename()))
+	_ = ctx
 	defer done()
 
 	ioLimit <- struct{}{}

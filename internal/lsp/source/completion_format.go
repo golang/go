@@ -210,7 +210,7 @@ func formatFieldList(ctx context.Context, v View, list *ast.FieldList) ([]string
 		}
 		typ := replacer.Replace(b.String())
 		if len(p.Names) == 0 {
-			result = append(result, fmt.Sprintf("%s", typ))
+			result = append(result, typ)
 		}
 		for _, name := range p.Names {
 			if name.Name != "" {
@@ -219,7 +219,7 @@ func formatFieldList(ctx context.Context, v View, list *ast.FieldList) ([]string
 				}
 				result = append(result, fmt.Sprintf("%s %s", name.Name, typ))
 			} else {
-				result = append(result, fmt.Sprintf("%s", typ))
+				result = append(result, typ)
 			}
 		}
 	}

@@ -612,7 +612,7 @@ func (r *runner) Reference(t *testing.T, src span.Span, itemList []span.Span) {
 		t.Errorf("references failed: different lengths got %v want %v", len(got), len(want))
 	}
 
-	for spn, _ := range got {
+	for spn := range got {
 		if !want[spn] {
 			t.Errorf("references failed: incorrect references got %v want locations %v", got, want)
 		}

@@ -28,8 +28,8 @@ func (b *builtinPkg) Files() []source.ParseGoHandle {
 // buildBuiltinPkg builds the view's builtin package.
 // It assumes that the view is not active yet,
 // i.e. it has not been added to the session's list of views.
-func (view *view) buildBuiltinPackage(ctx context.Context) error {
-	cfg := view.Config(ctx)
+func (v *view) buildBuiltinPackage(ctx context.Context) error {
+	cfg := v.Config(ctx)
 	pkgs, err := packages.Load(cfg, "builtin")
 	if err != nil {
 		return err
@@ -40,19 +40,19 @@ func (view *view) buildBuiltinPackage(ctx context.Context) error {
 	pkg := pkgs[0]
 	files := make(map[string]*ast.File)
 	for _, filename := range pkg.GoFiles {
-		fh := view.session.GetFile(span.FileURI(filename), source.Go)
-		ph := view.session.cache.ParseGoHandle(fh, source.ParseFull)
-		view.builtin.files = append(view.builtin.files, ph)
+		fh := v.session.GetFile(span.FileURI(filename), source.Go)
+		ph := v.session.cache.ParseGoHandle(fh, source.ParseFull)
+		v.builtin.files = append(v.builtin.files, ph)
 		file, _, _, err := ph.Parse(ctx)
 		if err != nil {
 			return err
 		}
 		files[filename] = file
 
-		view.ignoredURIsMu.Lock()
-		view.ignoredURIs[span.NewURI(filename)] = struct{}{}
-		view.ignoredURIsMu.Unlock()
+		v.ignoredURIsMu.Lock()
+		v.ignoredURIs[span.NewURI(filename)] = struct{}{}
+		v.ignoredURIsMu.Unlock()
 	}
-	view.builtin.pkg, err = ast.NewPackage(cfg.Fset, files, nil, nil)
+	v.builtin.pkg, err = ast.NewPackage(cfg.Fset, files, nil, nil)
 	return err
 }

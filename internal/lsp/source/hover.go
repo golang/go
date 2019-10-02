@@ -78,8 +78,9 @@ func objectString(obj types.Object, qf types.Qualifier) string {
 }
 
 func (d Declaration) hover(ctx context.Context) (*HoverInformation, error) {
-	ctx, done := trace.StartSpan(ctx, "source.hover")
+	_, done := trace.StartSpan(ctx, "source.hover")
 	defer done()
+
 	obj := d.obj
 	switch node := d.node.(type) {
 	case *ast.ImportSpec:

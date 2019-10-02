@@ -62,7 +62,7 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnosti
 			delete(got, expect)
 		}
 	}
-	for extra, _ := range got {
+	for extra := range got {
 		t.Errorf("extra diagnostic %q", extra)
 	}
 }
