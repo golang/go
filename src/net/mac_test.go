@@ -109,6 +109,13 @@ func TestParseMAC(t *testing.T) {
 }
 
 func TestHardwareAddr_UnmarshalText(t *testing.T) {
+	matchErr := func(s string, err error) bool {
+		if s == "" {
+			return err == nil
+		}
+		return err != nil && strings.Contains(err.Error(), s)
+	}
+
 	tests := []struct {
 		msg     string
 		text    string
@@ -156,13 +163,6 @@ func TestHardwareAddr_UnmarshalText(t *testing.T) {
 			}
 		})
 	}
-}
-
-func matchErr(s string, err error) bool {
-	if s == "" {
-		return err == nil
-	}
-	return err != nil && strings.Contains(err.Error(), s)
 }
 
 func TestHardwareAddr_MarshalText(t *testing.T) {
