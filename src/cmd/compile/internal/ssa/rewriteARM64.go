@@ -33299,13 +33299,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64EQ
-			b.ResetControls()
+			b.Reset(BlockARM64EQ)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TSTWconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (EQ (CMPconst [0] z:(AND x y)) yes no)
@@ -33325,13 +33323,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64EQ
-			b.ResetControls()
+			b.Reset(BlockARM64EQ)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TST, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (EQ (CMPWconst [0] z:(AND x y)) yes no)
@@ -33351,13 +33347,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64EQ
-			b.ResetControls()
+			b.Reset(BlockARM64EQ)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TSTW, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (EQ (CMPconst [0] x:(ANDconst [c] y)) yes no)
@@ -33377,13 +33371,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64EQ
-			b.ResetControls()
+			b.Reset(BlockARM64EQ)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TSTconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (EQ (CMPconst [0] x:(ADDconst [c] y)) yes no)
@@ -33403,13 +33395,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64EQ
-			b.ResetControls()
+			b.Reset(BlockARM64EQ)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (EQ (CMPWconst [0] x:(ADDconst [c] y)) yes no)
@@ -33429,13 +33419,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64EQ
-			b.ResetControls()
+			b.Reset(BlockARM64EQ)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNWconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (EQ (CMPconst [0] z:(ADD x y)) yes no)
@@ -33455,13 +33443,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64EQ
-			b.ResetControls()
+			b.Reset(BlockARM64EQ)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (EQ (CMPWconst [0] z:(ADD x y)) yes no)
@@ -33481,13 +33467,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64EQ
-			b.ResetControls()
+			b.Reset(BlockARM64EQ)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (EQ (CMP x z:(NEG y)) yes no)
@@ -33505,13 +33489,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64EQ
-			b.ResetControls()
+			b.Reset(BlockARM64EQ)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (EQ (CMPW x z:(NEG y)) yes no)
@@ -33529,13 +33511,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64EQ
-			b.ResetControls()
+			b.Reset(BlockARM64EQ)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (EQ (CMPconst [0] x) yes no)
@@ -33546,10 +33526,8 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			x := v_0.Args[0]
-			b.Kind = BlockARM64Z
-			b.ResetControls()
+			b.Reset(BlockARM64Z)
 			b.AddControl(x)
-			b.Aux = nil
 			return true
 		}
 		// match: (EQ (CMPWconst [0] x) yes no)
@@ -33560,10 +33538,8 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			x := v_0.Args[0]
-			b.Kind = BlockARM64ZW
-			b.ResetControls()
+			b.Reset(BlockARM64ZW)
 			b.AddControl(x)
-			b.Aux = nil
 			return true
 		}
 		// match: (EQ (CMPconst [0] z:(MADD a x y)) yes no)
@@ -33584,8 +33560,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64EQ
-			b.ResetControls()
+			b.Reset(BlockARM64EQ)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
@@ -33593,7 +33568,6 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (EQ (CMPconst [0] z:(MSUB a x y)) yes no)
@@ -33614,8 +33588,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64EQ
-			b.ResetControls()
+			b.Reset(BlockARM64EQ)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMP, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
@@ -33623,7 +33596,6 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (EQ (CMPWconst [0] z:(MADDW a x y)) yes no)
@@ -33644,8 +33616,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64EQ
-			b.ResetControls()
+			b.Reset(BlockARM64EQ)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
@@ -33653,7 +33624,6 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (EQ (CMPWconst [0] z:(MSUBW a x y)) yes no)
@@ -33674,8 +33644,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64EQ
-			b.ResetControls()
+			b.Reset(BlockARM64EQ)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMPW, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
@@ -33683,7 +33652,6 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (EQ (TSTconst [c] x) yes no)
@@ -33696,8 +33664,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(oneBit(c)) {
 				break
 			}
-			b.Kind = BlockARM64TBZ
-			b.ResetControls()
+			b.Reset(BlockARM64TBZ)
 			b.AddControl(x)
 			b.Aux = ntz(c)
 			return true
@@ -33712,8 +33679,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(oneBit(int64(uint32(c)))) {
 				break
 			}
-			b.Kind = BlockARM64TBZ
-			b.ResetControls()
+			b.Reset(BlockARM64TBZ)
 			b.AddControl(x)
 			b.Aux = ntz(int64(uint32(c)))
 			return true
@@ -33721,44 +33687,34 @@ func rewriteBlockARM64(b *Block) bool {
 		// match: (EQ (FlagEQ) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagEQ {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (EQ (FlagLT_ULT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagLT_ULT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (EQ (FlagLT_UGT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagLT_UGT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (EQ (FlagGT_ULT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagGT_ULT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (EQ (FlagGT_UGT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagGT_UGT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
@@ -33767,10 +33723,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.Kind = BlockARM64EQ
-			b.ResetControls()
+			b.Reset(BlockARM64EQ)
 			b.AddControl(cmp)
-			b.Aux = nil
 			return true
 		}
 	case BlockARM64FGE:
@@ -33779,10 +33733,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.Kind = BlockARM64FLE
-			b.ResetControls()
+			b.Reset(BlockARM64FLE)
 			b.AddControl(cmp)
-			b.Aux = nil
 			return true
 		}
 	case BlockARM64FGT:
@@ -33791,10 +33743,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.Kind = BlockARM64FLT
-			b.ResetControls()
+			b.Reset(BlockARM64FLT)
 			b.AddControl(cmp)
-			b.Aux = nil
 			return true
 		}
 	case BlockARM64FLE:
@@ -33803,10 +33753,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.Kind = BlockARM64FGE
-			b.ResetControls()
+			b.Reset(BlockARM64FGE)
 			b.AddControl(cmp)
-			b.Aux = nil
 			return true
 		}
 	case BlockARM64FLT:
@@ -33815,10 +33763,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.Kind = BlockARM64FGT
-			b.ResetControls()
+			b.Reset(BlockARM64FGT)
 			b.AddControl(cmp)
-			b.Aux = nil
 			return true
 		}
 	case BlockARM64GE:
@@ -33839,13 +33785,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GE
-			b.ResetControls()
+			b.Reset(BlockARM64GE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TSTWconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GE (CMPconst [0] z:(AND x y)) yes no)
@@ -33865,13 +33809,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GE
-			b.ResetControls()
+			b.Reset(BlockARM64GE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TST, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GE (CMPWconst [0] z:(AND x y)) yes no)
@@ -33891,13 +33833,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GE
-			b.ResetControls()
+			b.Reset(BlockARM64GE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TSTW, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GE (CMPconst [0] x:(ANDconst [c] y)) yes no)
@@ -33917,13 +33857,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GE
-			b.ResetControls()
+			b.Reset(BlockARM64GE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TSTconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GE (CMPconst [0] x:(ADDconst [c] y)) yes no)
@@ -33943,13 +33881,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GE
-			b.ResetControls()
+			b.Reset(BlockARM64GE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GE (CMPWconst [0] x:(ADDconst [c] y)) yes no)
@@ -33969,13 +33905,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GE
-			b.ResetControls()
+			b.Reset(BlockARM64GE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNWconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GE (CMPconst [0] z:(ADD x y)) yes no)
@@ -33995,13 +33929,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GE
-			b.ResetControls()
+			b.Reset(BlockARM64GE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GE (CMPWconst [0] z:(ADD x y)) yes no)
@@ -34021,13 +33953,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GE
-			b.ResetControls()
+			b.Reset(BlockARM64GE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GE (CMP x z:(NEG y)) yes no)
@@ -34045,13 +33975,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GE
-			b.ResetControls()
+			b.Reset(BlockARM64GE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GE (CMPW x z:(NEG y)) yes no)
@@ -34069,13 +33997,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GE
-			b.ResetControls()
+			b.Reset(BlockARM64GE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GE (CMPconst [0] z:(MADD a x y)) yes no)
@@ -34096,8 +34022,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GE
-			b.ResetControls()
+			b.Reset(BlockARM64GE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
@@ -34105,7 +34030,6 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GE (CMPconst [0] z:(MSUB a x y)) yes no)
@@ -34126,8 +34050,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GE
-			b.ResetControls()
+			b.Reset(BlockARM64GE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMP, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
@@ -34135,7 +34058,6 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GE (CMPWconst [0] z:(MADDW a x y)) yes no)
@@ -34156,8 +34078,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GE
-			b.ResetControls()
+			b.Reset(BlockARM64GE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
@@ -34165,7 +34086,6 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GE (CMPWconst [0] z:(MSUBW a x y)) yes no)
@@ -34186,8 +34106,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GE
-			b.ResetControls()
+			b.Reset(BlockARM64GE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMPW, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
@@ -34195,7 +34114,6 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GE (CMPWconst [0] x) yes no)
@@ -34206,8 +34124,7 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			x := v_0.Args[0]
-			b.Kind = BlockARM64TBZ
-			b.ResetControls()
+			b.Reset(BlockARM64TBZ)
 			b.AddControl(x)
 			b.Aux = int64(31)
 			return true
@@ -34220,8 +34137,7 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			x := v_0.Args[0]
-			b.Kind = BlockARM64TBZ
-			b.ResetControls()
+			b.Reset(BlockARM64TBZ)
 			b.AddControl(x)
 			b.Aux = int64(63)
 			return true
@@ -34229,43 +34145,33 @@ func rewriteBlockARM64(b *Block) bool {
 		// match: (GE (FlagEQ) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagEQ {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (GE (FlagLT_ULT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagLT_ULT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (GE (FlagLT_UGT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagLT_UGT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (GE (FlagGT_ULT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagGT_ULT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (GE (FlagGT_UGT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagGT_UGT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (GE (InvertFlags cmp) yes no)
@@ -34273,10 +34179,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.Kind = BlockARM64LE
-			b.ResetControls()
+			b.Reset(BlockARM64LE)
 			b.AddControl(cmp)
-			b.Aux = nil
 			return true
 		}
 	case BlockARM64GT:
@@ -34297,13 +34201,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GT
-			b.ResetControls()
+			b.Reset(BlockARM64GT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TSTWconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GT (CMPconst [0] z:(AND x y)) yes no)
@@ -34323,13 +34225,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GT
-			b.ResetControls()
+			b.Reset(BlockARM64GT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TST, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GT (CMPWconst [0] z:(AND x y)) yes no)
@@ -34349,13 +34249,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GT
-			b.ResetControls()
+			b.Reset(BlockARM64GT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TSTW, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GT (CMPconst [0] x:(ANDconst [c] y)) yes no)
@@ -34375,13 +34273,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GT
-			b.ResetControls()
+			b.Reset(BlockARM64GT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TSTconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GT (CMPconst [0] x:(ADDconst [c] y)) yes no)
@@ -34401,13 +34297,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GT
-			b.ResetControls()
+			b.Reset(BlockARM64GT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GT (CMPWconst [0] x:(ADDconst [c] y)) yes no)
@@ -34427,13 +34321,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GT
-			b.ResetControls()
+			b.Reset(BlockARM64GT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNWconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GT (CMPconst [0] z:(ADD x y)) yes no)
@@ -34453,13 +34345,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GT
-			b.ResetControls()
+			b.Reset(BlockARM64GT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GT (CMPWconst [0] z:(ADD x y)) yes no)
@@ -34479,13 +34369,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GT
-			b.ResetControls()
+			b.Reset(BlockARM64GT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GT (CMP x z:(NEG y)) yes no)
@@ -34503,13 +34391,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GT
-			b.ResetControls()
+			b.Reset(BlockARM64GT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GT (CMPW x z:(NEG y)) yes no)
@@ -34527,13 +34413,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GT
-			b.ResetControls()
+			b.Reset(BlockARM64GT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GT (CMPconst [0] z:(MADD a x y)) yes no)
@@ -34554,8 +34438,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GT
-			b.ResetControls()
+			b.Reset(BlockARM64GT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
@@ -34563,7 +34446,6 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GT (CMPconst [0] z:(MSUB a x y)) yes no)
@@ -34584,8 +34466,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GT
-			b.ResetControls()
+			b.Reset(BlockARM64GT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMP, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
@@ -34593,7 +34474,6 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GT (CMPWconst [0] z:(MADDW a x y)) yes no)
@@ -34614,8 +34494,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GT
-			b.ResetControls()
+			b.Reset(BlockARM64GT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
@@ -34623,7 +34502,6 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GT (CMPWconst [0] z:(MSUBW a x y)) yes no)
@@ -34644,8 +34522,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64GT
-			b.ResetControls()
+			b.Reset(BlockARM64GT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMPW, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
@@ -34653,50 +34530,39 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (GT (FlagEQ) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagEQ {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (GT (FlagLT_ULT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagLT_ULT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (GT (FlagLT_UGT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagLT_UGT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (GT (FlagGT_ULT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagGT_ULT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (GT (FlagGT_UGT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagGT_UGT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (GT (InvertFlags cmp) yes no)
@@ -34704,10 +34570,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.Kind = BlockARM64LT
-			b.ResetControls()
+			b.Reset(BlockARM64LT)
 			b.AddControl(cmp)
-			b.Aux = nil
 			return true
 		}
 	case BlockIf:
@@ -34716,10 +34580,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64Equal {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64EQ
-			b.ResetControls()
+			b.Reset(BlockARM64EQ)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (If (NotEqual cc) yes no)
@@ -34727,10 +34589,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64NotEqual {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64NE
-			b.ResetControls()
+			b.Reset(BlockARM64NE)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (If (LessThan cc) yes no)
@@ -34738,10 +34598,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64LessThan {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64LT
-			b.ResetControls()
+			b.Reset(BlockARM64LT)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (If (LessThanU cc) yes no)
@@ -34749,10 +34607,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64LessThanU {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64ULT
-			b.ResetControls()
+			b.Reset(BlockARM64ULT)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (If (LessEqual cc) yes no)
@@ -34760,10 +34616,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64LessEqual {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64LE
-			b.ResetControls()
+			b.Reset(BlockARM64LE)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (If (LessEqualU cc) yes no)
@@ -34771,10 +34625,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64LessEqualU {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64ULE
-			b.ResetControls()
+			b.Reset(BlockARM64ULE)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (If (GreaterThan cc) yes no)
@@ -34782,10 +34634,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64GreaterThan {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64GT
-			b.ResetControls()
+			b.Reset(BlockARM64GT)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (If (GreaterThanU cc) yes no)
@@ -34793,10 +34643,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64GreaterThanU {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64UGT
-			b.ResetControls()
+			b.Reset(BlockARM64UGT)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (If (GreaterEqual cc) yes no)
@@ -34804,10 +34652,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64GreaterEqual {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64GE
-			b.ResetControls()
+			b.Reset(BlockARM64GE)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (If (GreaterEqualU cc) yes no)
@@ -34815,10 +34661,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64GreaterEqualU {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64UGE
-			b.ResetControls()
+			b.Reset(BlockARM64UGE)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (If (LessThanF cc) yes no)
@@ -34826,10 +34670,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64LessThanF {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64FLT
-			b.ResetControls()
+			b.Reset(BlockARM64FLT)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (If (LessEqualF cc) yes no)
@@ -34837,10 +34679,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64LessEqualF {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64FLE
-			b.ResetControls()
+			b.Reset(BlockARM64FLE)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (If (GreaterThanF cc) yes no)
@@ -34848,10 +34688,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64GreaterThanF {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64FGT
-			b.ResetControls()
+			b.Reset(BlockARM64FGT)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (If (GreaterEqualF cc) yes no)
@@ -34859,20 +34697,16 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64GreaterEqualF {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64FGE
-			b.ResetControls()
+			b.Reset(BlockARM64FGE)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (If cond yes no)
 		// result: (NZ cond yes no)
 		for {
 			cond := b.Controls[0]
-			b.Kind = BlockARM64NZ
-			b.ResetControls()
+			b.Reset(BlockARM64NZ)
 			b.AddControl(cond)
-			b.Aux = nil
 			return true
 		}
 	case BlockARM64LE:
@@ -34893,13 +34727,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LE
-			b.ResetControls()
+			b.Reset(BlockARM64LE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TSTWconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LE (CMPconst [0] z:(AND x y)) yes no)
@@ -34919,13 +34751,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LE
-			b.ResetControls()
+			b.Reset(BlockARM64LE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TST, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LE (CMPWconst [0] z:(AND x y)) yes no)
@@ -34945,13 +34775,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LE
-			b.ResetControls()
+			b.Reset(BlockARM64LE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TSTW, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LE (CMPconst [0] x:(ANDconst [c] y)) yes no)
@@ -34971,13 +34799,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LE
-			b.ResetControls()
+			b.Reset(BlockARM64LE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TSTconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LE (CMPconst [0] x:(ADDconst [c] y)) yes no)
@@ -34997,13 +34823,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LE
-			b.ResetControls()
+			b.Reset(BlockARM64LE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LE (CMPWconst [0] x:(ADDconst [c] y)) yes no)
@@ -35023,13 +34847,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LE
-			b.ResetControls()
+			b.Reset(BlockARM64LE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNWconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LE (CMPconst [0] z:(ADD x y)) yes no)
@@ -35049,13 +34871,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LE
-			b.ResetControls()
+			b.Reset(BlockARM64LE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LE (CMPWconst [0] z:(ADD x y)) yes no)
@@ -35075,13 +34895,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LE
-			b.ResetControls()
+			b.Reset(BlockARM64LE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LE (CMP x z:(NEG y)) yes no)
@@ -35099,13 +34917,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LE
-			b.ResetControls()
+			b.Reset(BlockARM64LE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LE (CMPW x z:(NEG y)) yes no)
@@ -35123,13 +34939,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LE
-			b.ResetControls()
+			b.Reset(BlockARM64LE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LE (CMPconst [0] z:(MADD a x y)) yes no)
@@ -35150,8 +34964,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LE
-			b.ResetControls()
+			b.Reset(BlockARM64LE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
@@ -35159,7 +34972,6 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LE (CMPconst [0] z:(MSUB a x y)) yes no)
@@ -35180,8 +34992,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LE
-			b.ResetControls()
+			b.Reset(BlockARM64LE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMP, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
@@ -35189,7 +35000,6 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LE (CMPWconst [0] z:(MADDW a x y)) yes no)
@@ -35210,8 +35020,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LE
-			b.ResetControls()
+			b.Reset(BlockARM64LE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
@@ -35219,7 +35028,6 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LE (CMPWconst [0] z:(MSUBW a x y)) yes no)
@@ -35240,8 +35048,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LE
-			b.ResetControls()
+			b.Reset(BlockARM64LE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMPW, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
@@ -35249,48 +35056,37 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LE (FlagEQ) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagEQ {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (LE (FlagLT_ULT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagLT_ULT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (LE (FlagLT_UGT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagLT_UGT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (LE (FlagGT_ULT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagGT_ULT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (LE (FlagGT_UGT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagGT_UGT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
@@ -35299,10 +35095,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.Kind = BlockARM64GE
-			b.ResetControls()
+			b.Reset(BlockARM64GE)
 			b.AddControl(cmp)
-			b.Aux = nil
 			return true
 		}
 	case BlockARM64LT:
@@ -35323,13 +35117,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LT
-			b.ResetControls()
+			b.Reset(BlockARM64LT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TSTWconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LT (CMPconst [0] z:(AND x y)) yes no)
@@ -35349,13 +35141,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LT
-			b.ResetControls()
+			b.Reset(BlockARM64LT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TST, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LT (CMPWconst [0] z:(AND x y)) yes no)
@@ -35375,13 +35165,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LT
-			b.ResetControls()
+			b.Reset(BlockARM64LT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TSTW, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LT (CMPconst [0] x:(ANDconst [c] y)) yes no)
@@ -35401,13 +35189,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LT
-			b.ResetControls()
+			b.Reset(BlockARM64LT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TSTconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LT (CMPconst [0] x:(ADDconst [c] y)) yes no)
@@ -35427,13 +35213,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LT
-			b.ResetControls()
+			b.Reset(BlockARM64LT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LT (CMPWconst [0] x:(ADDconst [c] y)) yes no)
@@ -35453,13 +35237,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LT
-			b.ResetControls()
+			b.Reset(BlockARM64LT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNWconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LT (CMPconst [0] z:(ADD x y)) yes no)
@@ -35479,13 +35261,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LT
-			b.ResetControls()
+			b.Reset(BlockARM64LT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LT (CMPWconst [0] z:(ADD x y)) yes no)
@@ -35505,13 +35285,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LT
-			b.ResetControls()
+			b.Reset(BlockARM64LT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LT (CMP x z:(NEG y)) yes no)
@@ -35529,13 +35307,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LT
-			b.ResetControls()
+			b.Reset(BlockARM64LT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LT (CMPW x z:(NEG y)) yes no)
@@ -35553,13 +35329,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LT
-			b.ResetControls()
+			b.Reset(BlockARM64LT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LT (CMPconst [0] z:(MADD a x y)) yes no)
@@ -35580,8 +35354,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LT
-			b.ResetControls()
+			b.Reset(BlockARM64LT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
@@ -35589,7 +35362,6 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LT (CMPconst [0] z:(MSUB a x y)) yes no)
@@ -35610,8 +35382,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LT
-			b.ResetControls()
+			b.Reset(BlockARM64LT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMP, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
@@ -35619,7 +35390,6 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LT (CMPWconst [0] z:(MADDW a x y)) yes no)
@@ -35640,8 +35410,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LT
-			b.ResetControls()
+			b.Reset(BlockARM64LT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
@@ -35649,7 +35418,6 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LT (CMPWconst [0] z:(MSUBW a x y)) yes no)
@@ -35670,8 +35438,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64LT
-			b.ResetControls()
+			b.Reset(BlockARM64LT)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMPW, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
@@ -35679,7 +35446,6 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (LT (CMPWconst [0] x) yes no)
@@ -35690,8 +35456,7 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			x := v_0.Args[0]
-			b.Kind = BlockARM64TBNZ
-			b.ResetControls()
+			b.Reset(BlockARM64TBNZ)
 			b.AddControl(x)
 			b.Aux = int64(31)
 			return true
@@ -35704,8 +35469,7 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			x := v_0.Args[0]
-			b.Kind = BlockARM64TBNZ
-			b.ResetControls()
+			b.Reset(BlockARM64TBNZ)
 			b.AddControl(x)
 			b.Aux = int64(63)
 			return true
@@ -35713,43 +35477,33 @@ func rewriteBlockARM64(b *Block) bool {
 		// match: (LT (FlagEQ) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagEQ {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (LT (FlagLT_ULT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagLT_ULT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (LT (FlagLT_UGT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagLT_UGT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (LT (FlagGT_ULT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagGT_ULT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (LT (FlagGT_UGT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagGT_UGT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
@@ -35758,10 +35512,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.Kind = BlockARM64GT
-			b.ResetControls()
+			b.Reset(BlockARM64GT)
 			b.AddControl(cmp)
-			b.Aux = nil
 			return true
 		}
 	case BlockARM64NE:
@@ -35782,13 +35534,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64NE
-			b.ResetControls()
+			b.Reset(BlockARM64NE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TSTWconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (NE (CMPconst [0] z:(AND x y)) yes no)
@@ -35808,13 +35558,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64NE
-			b.ResetControls()
+			b.Reset(BlockARM64NE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TST, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (NE (CMPWconst [0] z:(AND x y)) yes no)
@@ -35834,13 +35582,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64NE
-			b.ResetControls()
+			b.Reset(BlockARM64NE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TSTW, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (NE (CMPconst [0] x:(ANDconst [c] y)) yes no)
@@ -35860,13 +35606,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64NE
-			b.ResetControls()
+			b.Reset(BlockARM64NE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64TSTconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (NE (CMPconst [0] x:(ADDconst [c] y)) yes no)
@@ -35886,13 +35630,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64NE
-			b.ResetControls()
+			b.Reset(BlockARM64NE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (NE (CMPWconst [0] x:(ADDconst [c] y)) yes no)
@@ -35912,13 +35654,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(x.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64NE
-			b.ResetControls()
+			b.Reset(BlockARM64NE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNWconst, types.TypeFlags)
 			v0.AuxInt = c
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (NE (CMPconst [0] z:(ADD x y)) yes no)
@@ -35938,13 +35678,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64NE
-			b.ResetControls()
+			b.Reset(BlockARM64NE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (NE (CMPWconst [0] z:(ADD x y)) yes no)
@@ -35964,13 +35702,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64NE
-			b.ResetControls()
+			b.Reset(BlockARM64NE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (NE (CMP x z:(NEG y)) yes no)
@@ -35988,13 +35724,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64NE
-			b.ResetControls()
+			b.Reset(BlockARM64NE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (NE (CMPW x z:(NEG y)) yes no)
@@ -36012,13 +35746,11 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64NE
-			b.ResetControls()
+			b.Reset(BlockARM64NE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (NE (CMPconst [0] x) yes no)
@@ -36029,10 +35761,8 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			x := v_0.Args[0]
-			b.Kind = BlockARM64NZ
-			b.ResetControls()
+			b.Reset(BlockARM64NZ)
 			b.AddControl(x)
-			b.Aux = nil
 			return true
 		}
 		// match: (NE (CMPWconst [0] x) yes no)
@@ -36043,10 +35773,8 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			x := v_0.Args[0]
-			b.Kind = BlockARM64NZW
-			b.ResetControls()
+			b.Reset(BlockARM64NZW)
 			b.AddControl(x)
-			b.Aux = nil
 			return true
 		}
 		// match: (NE (CMPconst [0] z:(MADD a x y)) yes no)
@@ -36067,8 +35795,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64NE
-			b.ResetControls()
+			b.Reset(BlockARM64NE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
@@ -36076,7 +35803,6 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (NE (CMPconst [0] z:(MSUB a x y)) yes no)
@@ -36097,8 +35823,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64NE
-			b.ResetControls()
+			b.Reset(BlockARM64NE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMP, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
@@ -36106,7 +35831,6 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (NE (CMPWconst [0] z:(MADDW a x y)) yes no)
@@ -36127,8 +35851,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64NE
-			b.ResetControls()
+			b.Reset(BlockARM64NE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
@@ -36136,7 +35859,6 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (NE (CMPWconst [0] z:(MSUBW a x y)) yes no)
@@ -36157,8 +35879,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(z.Uses == 1) {
 				break
 			}
-			b.Kind = BlockARM64NE
-			b.ResetControls()
+			b.Reset(BlockARM64NE)
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMPW, types.TypeFlags)
 			v0.AddArg(a)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
@@ -36166,7 +35887,6 @@ func rewriteBlockARM64(b *Block) bool {
 			v1.AddArg(y)
 			v0.AddArg(v1)
 			b.AddControl(v0)
-			b.Aux = nil
 			return true
 		}
 		// match: (NE (TSTconst [c] x) yes no)
@@ -36179,8 +35899,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(oneBit(c)) {
 				break
 			}
-			b.Kind = BlockARM64TBNZ
-			b.ResetControls()
+			b.Reset(BlockARM64TBNZ)
 			b.AddControl(x)
 			b.Aux = ntz(c)
 			return true
@@ -36195,8 +35914,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(oneBit(int64(uint32(c)))) {
 				break
 			}
-			b.Kind = BlockARM64TBNZ
-			b.ResetControls()
+			b.Reset(BlockARM64TBNZ)
 			b.AddControl(x)
 			b.Aux = ntz(int64(uint32(c)))
 			return true
@@ -36204,42 +35922,32 @@ func rewriteBlockARM64(b *Block) bool {
 		// match: (NE (FlagEQ) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagEQ {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (NE (FlagLT_ULT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagLT_ULT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (NE (FlagLT_UGT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagLT_UGT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (NE (FlagGT_ULT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagGT_ULT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (NE (FlagGT_UGT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagGT_UGT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (NE (InvertFlags cmp) yes no)
@@ -36247,10 +35955,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.Kind = BlockARM64NE
-			b.ResetControls()
+			b.Reset(BlockARM64NE)
 			b.AddControl(cmp)
-			b.Aux = nil
 			return true
 		}
 	case BlockARM64NZ:
@@ -36259,10 +35965,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64Equal {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64EQ
-			b.ResetControls()
+			b.Reset(BlockARM64EQ)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (NZ (NotEqual cc) yes no)
@@ -36270,10 +35974,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64NotEqual {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64NE
-			b.ResetControls()
+			b.Reset(BlockARM64NE)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (NZ (LessThan cc) yes no)
@@ -36281,10 +35983,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64LessThan {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64LT
-			b.ResetControls()
+			b.Reset(BlockARM64LT)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (NZ (LessThanU cc) yes no)
@@ -36292,10 +35992,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64LessThanU {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64ULT
-			b.ResetControls()
+			b.Reset(BlockARM64ULT)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (NZ (LessEqual cc) yes no)
@@ -36303,10 +36001,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64LessEqual {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64LE
-			b.ResetControls()
+			b.Reset(BlockARM64LE)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (NZ (LessEqualU cc) yes no)
@@ -36314,10 +36010,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64LessEqualU {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64ULE
-			b.ResetControls()
+			b.Reset(BlockARM64ULE)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (NZ (GreaterThan cc) yes no)
@@ -36325,10 +36019,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64GreaterThan {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64GT
-			b.ResetControls()
+			b.Reset(BlockARM64GT)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (NZ (GreaterThanU cc) yes no)
@@ -36336,10 +36028,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64GreaterThanU {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64UGT
-			b.ResetControls()
+			b.Reset(BlockARM64UGT)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (NZ (GreaterEqual cc) yes no)
@@ -36347,10 +36037,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64GreaterEqual {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64GE
-			b.ResetControls()
+			b.Reset(BlockARM64GE)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (NZ (GreaterEqualU cc) yes no)
@@ -36358,10 +36046,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64GreaterEqualU {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64UGE
-			b.ResetControls()
+			b.Reset(BlockARM64UGE)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (NZ (LessThanF cc) yes no)
@@ -36369,10 +36055,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64LessThanF {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64FLT
-			b.ResetControls()
+			b.Reset(BlockARM64FLT)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (NZ (LessEqualF cc) yes no)
@@ -36380,10 +36064,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64LessEqualF {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64FLE
-			b.ResetControls()
+			b.Reset(BlockARM64FLE)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (NZ (GreaterThanF cc) yes no)
@@ -36391,10 +36073,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64GreaterThanF {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64FGT
-			b.ResetControls()
+			b.Reset(BlockARM64FGT)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (NZ (GreaterEqualF cc) yes no)
@@ -36402,10 +36082,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64GreaterEqualF {
 			v_0 := b.Controls[0]
 			cc := v_0.Args[0]
-			b.Kind = BlockARM64FGE
-			b.ResetControls()
+			b.Reset(BlockARM64FGE)
 			b.AddControl(cc)
-			b.Aux = nil
 			return true
 		}
 		// match: (NZ (ANDconst [c] x) yes no)
@@ -36418,8 +36096,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(oneBit(c)) {
 				break
 			}
-			b.Kind = BlockARM64TBNZ
-			b.ResetControls()
+			b.Reset(BlockARM64TBNZ)
 			b.AddControl(x)
 			b.Aux = ntz(c)
 			return true
@@ -36431,9 +36108,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if v_0.AuxInt != 0 {
 				break
 			}
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
@@ -36446,9 +36121,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(c != 0) {
 				break
 			}
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 	case BlockARM64NZW:
@@ -36462,8 +36135,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(oneBit(int64(uint32(c)))) {
 				break
 			}
-			b.Kind = BlockARM64TBNZ
-			b.ResetControls()
+			b.Reset(BlockARM64TBNZ)
 			b.AddControl(x)
 			b.Aux = ntz(int64(uint32(c)))
 			return true
@@ -36477,9 +36149,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(int32(c) == 0) {
 				break
 			}
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
@@ -36492,52 +36162,40 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(int32(c) != 0) {
 				break
 			}
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 	case BlockARM64UGE:
 		// match: (UGE (FlagEQ) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagEQ {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (UGE (FlagLT_ULT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagLT_ULT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (UGE (FlagLT_UGT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagLT_UGT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (UGE (FlagGT_ULT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagGT_ULT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (UGE (FlagGT_UGT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagGT_UGT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (UGE (InvertFlags cmp) yes no)
@@ -36545,54 +36203,42 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.Kind = BlockARM64ULE
-			b.ResetControls()
+			b.Reset(BlockARM64ULE)
 			b.AddControl(cmp)
-			b.Aux = nil
 			return true
 		}
 	case BlockARM64UGT:
 		// match: (UGT (FlagEQ) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagEQ {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (UGT (FlagLT_ULT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagLT_ULT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (UGT (FlagLT_UGT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagLT_UGT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (UGT (FlagGT_ULT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagGT_ULT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (UGT (FlagGT_UGT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagGT_UGT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (UGT (InvertFlags cmp) yes no)
@@ -36600,52 +36246,40 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.Kind = BlockARM64ULT
-			b.ResetControls()
+			b.Reset(BlockARM64ULT)
 			b.AddControl(cmp)
-			b.Aux = nil
 			return true
 		}
 	case BlockARM64ULE:
 		// match: (ULE (FlagEQ) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagEQ {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (ULE (FlagLT_ULT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagLT_ULT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (ULE (FlagLT_UGT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagLT_UGT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (ULE (FlagGT_ULT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagGT_ULT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (ULE (FlagGT_UGT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagGT_UGT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
@@ -36654,53 +36288,41 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.Kind = BlockARM64UGE
-			b.ResetControls()
+			b.Reset(BlockARM64UGE)
 			b.AddControl(cmp)
-			b.Aux = nil
 			return true
 		}
 	case BlockARM64ULT:
 		// match: (ULT (FlagEQ) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagEQ {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (ULT (FlagLT_ULT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagLT_ULT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (ULT (FlagLT_UGT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagLT_UGT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (ULT (FlagGT_ULT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpARM64FlagGT_ULT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (ULT (FlagGT_UGT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64FlagGT_UGT {
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
@@ -36709,10 +36331,8 @@ func rewriteBlockARM64(b *Block) bool {
 		for b.Controls[0].Op == OpARM64InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.Kind = BlockARM64UGT
-			b.ResetControls()
+			b.Reset(BlockARM64UGT)
 			b.AddControl(cmp)
-			b.Aux = nil
 			return true
 		}
 	case BlockARM64Z:
@@ -36726,8 +36346,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(oneBit(c)) {
 				break
 			}
-			b.Kind = BlockARM64TBZ
-			b.ResetControls()
+			b.Reset(BlockARM64TBZ)
 			b.AddControl(x)
 			b.Aux = ntz(c)
 			return true
@@ -36739,9 +36358,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if v_0.AuxInt != 0 {
 				break
 			}
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (Z (MOVDconst [c]) yes no)
@@ -36753,9 +36370,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(c != 0) {
 				break
 			}
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
@@ -36770,8 +36385,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(oneBit(int64(uint32(c)))) {
 				break
 			}
-			b.Kind = BlockARM64TBZ
-			b.ResetControls()
+			b.Reset(BlockARM64TBZ)
 			b.AddControl(x)
 			b.Aux = ntz(int64(uint32(c)))
 			return true
@@ -36785,9 +36399,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(int32(c) == 0) {
 				break
 			}
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (ZW (MOVDconst [c]) yes no)
@@ -36799,9 +36411,7 @@ func rewriteBlockARM64(b *Block) bool {
 			if !(int32(c) != 0) {
 				break
 			}
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
