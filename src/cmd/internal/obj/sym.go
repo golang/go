@@ -78,6 +78,13 @@ func (ctxt *Link) LookupStatic(name string) *LSym {
 // LookupABI looks up a symbol with the given ABI.
 // If it does not exist, it creates it.
 func (ctxt *Link) LookupABI(name string, abi ABI) *LSym {
+	return ctxt.LookupABIInit(name, abi, nil)
+}
+
+// LookupABI looks up a symbol with the given ABI.
+// If it does not exist, it creates it and
+// passes it to init for one-time initialization.
+func (ctxt *Link) LookupABIInit(name string, abi ABI, init func(s *LSym)) *LSym {
 	var hash map[string]*LSym
 	switch abi {
 	case ABI0:
@@ -94,6 +101,9 @@ func (ctxt *Link) LookupABI(name string, abi ABI) *LSym {
 		s = &LSym{Name: name}
 		s.SetABI(abi)
 		hash[name] = s
+		if init != nil {
+			init(s)
+		}
 	}
 	ctxt.hashmu.Unlock()
 	return s
