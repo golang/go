@@ -730,3 +730,11 @@ func RunGetgThreadSwitchTest() {
 		panic("g1 != g3")
 	}
 }
+
+var Semacquire = semacquire
+var Semrelease1 = semrelease1
+
+func SemNwait(addr *uint32) uint32 {
+	root := semroot(addr)
+	return atomic.Load(&root.nwait)
+}
