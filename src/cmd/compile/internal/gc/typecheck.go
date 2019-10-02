@@ -604,7 +604,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 				return n
 			}
 			if t.IsSigned() && !langSupported(1, 13) {
-				yyerror("invalid operation: %v (signed shift count type %v, only supported as of -lang=go1.13)", n, r.Type)
+				yyerrorv("go1.13", "invalid operation: %v (signed shift count type %v)", n, r.Type)
 				n.Type = nil
 				return n
 			}
