@@ -58,6 +58,20 @@ func (p *pipe) Read(b []byte) (n int, err error) {
 }
 
 func (p *pipe) WriteTo(w Writer) (n int64, err error) {
+	// If we panic while writing, we need to unblock the writer. We do this
+	// by reporting that we wrote nothing. This isn't entirely accurate but
+	// it's the best we can do.
+	//
+	// Note: Write side of the pipe won't return "0" to the caller unless
+	// the caller actually tried to write 0 bytes. Instead, it'll loop
+	// internally and retry the write.
+	var writing bool
+	defer func() {
+		if writing {
+			p.rdCh <- 0
+		}
+	}()
+
 	for {
 		select {
 		case <-p.done:
@@ -71,8 +85,11 @@ func (p *pipe) WriteTo(w Writer) (n int64, err error) {
 
 		select {
 		case bw := <-p.wrCh:
+			writing = true
 			nr, err := w.Write(bw)
+			writing = false
 			p.rdCh <- nr
+
 			n += int64(nr)
 			if err != nil {
 				return n, err
