@@ -154,6 +154,11 @@ func yyerrorl(pos src.XPos, format string, args ...interface{}) {
 	}
 }
 
+func yyerrorv(lang string, format string, args ...interface{}) {
+	what := fmt.Sprintf(format, args...)
+	yyerrorl(lineno, "%s requires %s or later (-lang was set to %s; check go.mod)", what, lang, flag_lang)
+}
+
 func yyerror(format string, args ...interface{}) {
 	yyerrorl(lineno, format, args...)
 }

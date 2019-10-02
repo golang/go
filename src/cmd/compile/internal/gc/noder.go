@@ -1327,7 +1327,7 @@ func checkLangCompat(lit *syntax.BasicLit) {
 	}
 	// len(s) > 2
 	if strings.Contains(s, "_") {
-		yyerror("underscores in numeric literals only supported as of -lang=go1.13")
+		yyerrorv("go1.13", "underscores in numeric literals")
 		return
 	}
 	if s[0] != '0' {
@@ -1335,15 +1335,15 @@ func checkLangCompat(lit *syntax.BasicLit) {
 	}
 	base := s[1]
 	if base == 'b' || base == 'B' {
-		yyerror("binary literals only supported as of -lang=go1.13")
+		yyerrorv("go1.13", "binary literals")
 		return
 	}
 	if base == 'o' || base == 'O' {
-		yyerror("0o/0O-style octal literals only supported as of -lang=go1.13")
+		yyerrorv("go1.13", "0o/0O-style octal literals")
 		return
 	}
 	if lit.Kind != syntax.IntLit && (base == 'x' || base == 'X') {
-		yyerror("hexadecimal floating-point literals only supported as of -lang=go1.13")
+		yyerrorv("go1.13", "hexadecimal floating-point literals")
 	}
 }
 
