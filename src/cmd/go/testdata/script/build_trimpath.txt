@@ -21,9 +21,9 @@ go build -trimpath -o hello.exe hello.go
 # the current workspace or GOROOT.
 cd $WORK
 env GO111MODULE=on
-go build -trimpath -o fortune.exe rsc.io/fortune
-! grep -q $GOROOT_REGEXP fortune.exe
-! grep -q $WORK_REGEXP fortune.exe
+go get -trimpath rsc.io/fortune
+! grep -q $GOROOT_REGEXP $GOPATH/bin/fortune$GOEXE
+! grep -q $WORK_REGEXP $GOPATH/bin/fortune$GOEXE
 
 # Two binaries built from identical packages in different directories
 # should be identical.
