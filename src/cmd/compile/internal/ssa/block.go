@@ -211,6 +211,15 @@ func (b *Block) CopyControls(from *Block) {
 	}
 }
 
+// Reset sets the block to the provided kind and clears all the blocks control
+// and auxilliary values. Other properties of the block, such as its successors,
+// predecessors and values are left unmodified.
+func (b *Block) Reset(kind BlockKind) {
+	b.Kind = kind
+	b.ResetControls()
+	b.Aux = nil
+}
+
 // AddEdgeTo adds an edge from block b to block c. Used during building of the
 // SSA graph; do not use on an already-completed SSA graph.
 func (b *Block) AddEdgeTo(c *Block) {
