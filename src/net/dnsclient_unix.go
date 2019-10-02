@@ -765,6 +765,14 @@ func (r *Resolver) goLookupPTR(ctx context.Context, addr string) ([]string, erro
 			}
 		}
 		if h.Type != dnsmessage.TypePTR {
+			err := p.SkipAnswer()
+			if err != nil {
+				return nil, &DNSError{
+					Err:    "cannot marshal DNS message",
+					Name:   addr,
+					Server: server,
+				}
+			}
 			continue
 		}
 		ptr, err := p.PTRResource()
