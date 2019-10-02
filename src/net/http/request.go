@@ -217,9 +217,11 @@ type Request struct {
 	// Transport.DisableKeepAlives were set.
 	Close bool
 
-	// For server requests, Host specifies the host on which the URL
-	// is sought. Per RFC 7230, section 5.4, this is either the value
-	// of the "Host" header or the host name given in the URL itself.
+	// For server requests, Host specifies the host on which the
+	// URL is sought. For HTTP/1 (per RFC 7230, section 5.4), this
+	// is either the value of the "Host" header or the host name
+	// given in the URL itself. For HTTP/2, it is the value of the
+	// ":authority" pseudo-header field.
 	// It may be of the form "host:port". For international domain
 	// names, Host may be in Punycode or Unicode form. Use
 	// golang.org/x/net/idna to convert it to either format if
