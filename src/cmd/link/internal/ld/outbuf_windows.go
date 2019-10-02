@@ -42,6 +42,8 @@ func (out *OutBuf) Munmap() {
 }
 
 func (out *OutBuf) Msync() error {
-	// does nothing on windows
-	return nil
+	if out.buf == nil {
+		return nil
+	}
+	return syscall.FlushViewOfFile(uintptr(unsafe.Pointer(&out.buf[0])), 0)
 }
