@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package myers
+package diff
 
 import (
 	"fmt"
 	"strings"
 
-	"golang.org/x/tools/internal/lsp/diff"
+	"golang.org/x/tools/internal/span"
 )
 
 type Unified struct {
@@ -23,7 +23,7 @@ type Hunk struct {
 }
 
 type Line struct {
-	Kind    diff.OpKind
+	Kind    OpKind
 	Content string
 }
 
@@ -32,25 +32,34 @@ const (
 	gap  = edge * 2
 )
 
-func ToUnified(from, to string, lines []string, ops []*Op) Unified {
+func ToUnified(from, to string, content string, edits []TextEdit) Unified {
 	u := Unified{
 		From: from,
 		To:   to,
 	}
-	if len(ops) == 0 {
+	if len(edits) == 0 {
 		return u
 	}
+	lines := splitLines(content)
 	var h *Hunk
-	last := -(gap + 2)
-	for _, op := range ops {
+	last := 0
+	c := span.NewContentConverter(from, []byte(content))
+	toLine := 0
+	for _, edit := range edits {
+		spn, _ := edit.Span.WithAll(c)
+		start := spn.Start().Line() - 1
+		end := spn.End().Line() - 1
+		if spn.Start().Column() > 1 || spn.End().Column() > 1 {
+			panic("cannot convert partial line edits to unified diff")
+		}
 		switch {
-		case op.I1 < last:
-			panic("cannot convert unsorted operations to unified diff")
-		case op.I1 == last:
+		case start < last:
+			panic("cannot convert unsorted edits to unified diff")
+		case h != nil && start == last:
 			//direct extension
-		case op.I1 <= last+gap:
+		case h != nil && start <= last+gap:
 			//within range of previous lines, add the joiners
-			addEqualLines(h, lines, last, op.I1)
+			addEqualLines(h, lines, last, start)
 		default:
 			//need to start a new hunk
 			if h != nil {
@@ -58,28 +67,27 @@ func ToUnified(from, to string, lines []string, ops []*Op) Unified {
 				addEqualLines(h, lines, last, last+edge)
 				u.Hunks = append(u.Hunks, h)
 			}
+			toLine += start - last
 			h = &Hunk{
-				FromLine: op.I1 + 1,
-				ToLine:   op.J1 + 1,
+				FromLine: start + 1,
+				ToLine:   toLine + 1,
 			}
 			// add the edge to the new hunk
-			delta := addEqualLines(h, lines, op.I1-edge, op.I1)
+			delta := addEqualLines(h, lines, start-edge, start)
 			h.FromLine -= delta
 			h.ToLine -= delta
 		}
-		last = op.I1
-		switch op.Kind {
-		case diff.Delete:
-			for i := op.I1; i < op.I2; i++ {
-				h.Lines = append(h.Lines, Line{Kind: diff.Delete, Content: lines[i]})
+		last = start
+		if edit.NewText == "" {
+			for i := start; i < end; i++ {
+				h.Lines = append(h.Lines, Line{Kind: Delete, Content: lines[i]})
 				last++
 			}
-		case diff.Insert:
-			for _, c := range op.Content {
-				h.Lines = append(h.Lines, Line{Kind: diff.Insert, Content: c})
+		} else {
+			for _, line := range splitLines(edit.NewText) {
+				h.Lines = append(h.Lines, Line{Kind: Insert, Content: line})
+				toLine++
 			}
-		default:
-			// all other op types ignored
 		}
 	}
 	if h != nil {
@@ -88,6 +96,14 @@ func ToUnified(from, to string, lines []string, ops []*Op) Unified {
 		u.Hunks = append(u.Hunks, h)
 	}
 	return u
+}
+
+func splitLines(text string) []string {
+	lines := strings.SplitAfter(text, "\n")
+	if lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+	return lines
 }
 
 func addEqualLines(h *Hunk, lines []string, start, end int) int {
@@ -99,7 +115,7 @@ func addEqualLines(h *Hunk, lines []string, start, end int) int {
 		if i >= len(lines) {
 			return delta
 		}
-		h.Lines = append(h.Lines, Line{Kind: diff.Equal, Content: lines[i]})
+		h.Lines = append(h.Lines, Line{Kind: Equal, Content: lines[i]})
 		delta++
 	}
 	return delta
@@ -115,9 +131,9 @@ func (u Unified) Format(f fmt.State, r rune) {
 		fromCount, toCount := 0, 0
 		for _, l := range hunk.Lines {
 			switch l.Kind {
-			case diff.Delete:
+			case Delete:
 				fromCount++
-			case diff.Insert:
+			case Insert:
 				toCount++
 			default:
 				fromCount++
@@ -138,9 +154,9 @@ func (u Unified) Format(f fmt.State, r rune) {
 		fmt.Fprint(f, " @@\n")
 		for _, l := range hunk.Lines {
 			switch l.Kind {
-			case diff.Delete:
+			case Delete:
 				fmt.Fprintf(f, "-%s", l.Content)
-			case diff.Insert:
+			case Insert:
 				fmt.Fprintf(f, "+%s", l.Content)
 			default:
 				fmt.Fprintf(f, " %s", l.Content)

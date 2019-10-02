@@ -20,10 +20,6 @@ type TextEdit struct {
 
 type ComputeEdits func(uri span.URI, before, after string) []TextEdit
 
-var (
-	ToUnified func(from, to string, before string, edits []TextEdit) string
-)
-
 type OpKind int
 
 const (

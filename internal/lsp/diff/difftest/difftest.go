@@ -151,7 +151,7 @@ func DiffTest(t *testing.T, compute diff.ComputeEdits) {
 			t.Helper()
 			edits := compute(span.FileURI("/"+test.name), test.in, test.out)
 			got := diff.ApplyEdits(test.in, edits)
-			unified := diff.ToUnified("from", "to", test.in, edits)
+			unified := fmt.Sprint(diff.ToUnified("from", "to", test.in, edits))
 			if got != test.out {
 				t.Errorf("got patched:\n%v\nfrom diff:\n%v\nexpected:\n%v", got, unified, test.out)
 			}

@@ -5,27 +5,16 @@
 package myers
 
 import (
-	"fmt"
 	"strings"
 
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/span"
 )
 
-func init() {
-	diff.ToUnified = myersToUnified
-}
-
 func ComputeEdits(uri span.URI, before, after string) []diff.TextEdit {
 	u := SplitLines(before)
 	f := SplitLines(after)
 	return myersDiffToEdits(uri, Operations(u, f))
-}
-
-func myersToUnified(from, to string, before string, edits []diff.TextEdit) string {
-	u := SplitLines(before)
-	ops := myersEditsToDiff(edits)
-	return fmt.Sprint(ToUnified(from, to, u, ops))
 }
 
 func myersDiffToEdits(uri span.URI, ops []*Op) []diff.TextEdit {
