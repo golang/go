@@ -291,7 +291,7 @@ func isNaN(f float64) bool {
 // Sort is a convenience method.
 func (p Float64Slice) Sort() { Sort(p) }
 
-// StringSlice attaches the methods of Interface to []string, sorting in increasing order.
+// StringSlice attaches the methods of Interface to []string, sorting in lexicographical order.
 type StringSlice []string
 
 func (p StringSlice) Len() int           { return len(p) }
@@ -310,7 +310,7 @@ func Ints(a []int) { Sort(IntSlice(a)) }
 // (not-a-number values are treated as less than other values).
 func Float64s(a []float64) { Sort(Float64Slice(a)) }
 
-// Strings sorts a slice of strings in increasing order.
+// Strings sorts a slice of strings in lexicographical order.
 func Strings(a []string) { Sort(StringSlice(a)) }
 
 // IntsAreSorted tests whether a slice of ints is sorted in increasing order.
@@ -320,7 +320,7 @@ func IntsAreSorted(a []int) bool { return IsSorted(IntSlice(a)) }
 // (not-a-number values are treated as less than other values).
 func Float64sAreSorted(a []float64) bool { return IsSorted(Float64Slice(a)) }
 
-// StringsAreSorted tests whether a slice of strings is sorted in increasing order.
+// StringsAreSorted tests whether a slice of strings is sorted in lexicographical.
 func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }
 
 // Notes on stable sorting:
