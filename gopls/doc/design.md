@@ -351,7 +351,7 @@ Previous        | N/A
 |               | This is a brand new feature powered by the new go/analysis engine, and it should allow a huge amount of automated refactoring.
 
 
-[LSP specification]: https://microsoft.github.io/language-server-protocol/specification
+[LSP specification]: https://microsoft.github.io/language-server-protocol/specifications/specification-3-14/
 [talk]: TODO
 [slides]: https://github.com/gophercon/2019-talks/blob/master/RebeccaStambler-GoPleaseStopBreakingMyEditor/slides.pdf "Go, please stop breaking my editor!"
 [JSON rpc 2]: https://www.jsonrpc.org/specification
@@ -376,25 +376,25 @@ Previous        | N/A
 [go/token]: https://golang.org/pkg/go/token/
 
 
-[`completionItem/resolve`]:https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#completionItem_resolve
-[`textDocument/codeAction`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_codeAction
-[`textDocument/completion`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_completion
-[`textDocument/declaration`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_declaration
-[`textDocument/definition`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_definition
-[`textDocument/documentLink`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_documentLink
-[`textDocument/documentSymbol`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_documentSymbol
-[`textDocument/foldingRange`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_foldingRange
-[`textDocument/formatting`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_formatting
-[`textDocument/highlight`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_highlight
-[`textDocument/hover`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_hover
-[`textDocument/implementation`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_implementation
-[`textDocument/onTypeFormatting`]:https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_onTypeFormatting
-[`textDocument/prepareRename`]:https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_prepareRename
-[`textDocument/publishDiagnostics`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_publishDiagnostics
-[`textDocument/rangeFormatting`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_rangeFormatting
-[`textDocument/references`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_references
-[`textDocument/rename`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_rename
-[`textDocument/selectionRange`]:https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_selectionRange
-[`textDocument/signatureHelp`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_signatureHelp
-[`textDocument/typeDefinition`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_typeDefinition
-[`workspace/didChangeWatchedFiles`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#workspace_didChangeWatchedFiles
+[`completionItem/resolve`]:https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#completionItem_resolve
+[`textDocument/codeAction`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_codeAction
+[`textDocument/completion`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_completion
+[`textDocument/declaration`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_declaration
+[`textDocument/definition`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_definition
+[`textDocument/documentLink`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_documentLink
+[`textDocument/documentSymbol`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_documentSymbol
+[`textDocument/foldingRange`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_foldingRange
+[`textDocument/formatting`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_formatting
+[`textDocument/highlight`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_highlight
+[`textDocument/hover`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_hover
+[`textDocument/implementation`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_implementation
+[`textDocument/onTypeFormatting`]:https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_onTypeFormatting
+[`textDocument/prepareRename`]:https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_prepareRename
+[`textDocument/publishDiagnostics`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_publishDiagnostics
+[`textDocument/rangeFormatting`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_rangeFormatting
+[`textDocument/references`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_references
+[`textDocument/rename`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_rename
+[`textDocument/selectionRange`]:https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_selectionRange
+[`textDocument/signatureHelp`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_signatureHelp
+[`textDocument/typeDefinition`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_typeDefinition
+[`workspace/didChangeWatchedFiles`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#workspace_didChangeWatchedFiles

@@ -65,26 +65,26 @@ This is currently being added to gopls by a community member, and tracked in [#3
 [ServerCapabilities]: https://godoc.org/golang.org/x/tools/internal/lsp/protocol#ServerCapabilities
 [`golang.org/x/tools/internal/span`]: https://godoc.org/golang.org/x/tools/internal/span#NewPoint
 
-[LSP specification]: https://microsoft.github.io/language-server-protocol/specification
-[lsp-response]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#response-message
-[initialize]: https://microsoft.github.io/language-server-protocol/specification#initialize
-[lsp-text-documents]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#text-documents
-[lsp-textedit]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textedit
+[LSP specification]: https://microsoft.github.io/language-server-protocol/specifications/specification-3-14/
+[lsp-response]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#response-message
+[initialize]: https://microsoft.github.io/language-server-protocol/specifications/specification-3-14/#initialize
+[lsp-text-documents]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#text-documents
+[lsp-textedit]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textedit
 
-[`textDocument/codeAction`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_codeAction
-[`textDocument/completion`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_completion
-[`textDocument/definition`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_definition
-[`textDocument/typeDefinition`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_typeDefinition
-[`textDocument/formatting`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_formatting
-[`textDocument/highlight`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_highlight
-[`textDocument/hover`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_hover
-[`textDocument/documentLink`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_documentLink
-[`textDocument/publishDiagnostics`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_publishDiagnostics
-[`textDocument/references`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_references
-[`textDocument/rename`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_rename
-[`textDocument/signatureHelp`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_signatureHelp
-[`textDocument/documentSymbols`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#textDocument_documentSymbols
-[`workspace/didChangeWatchedFiles`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/specification.md#workspace_didChangeWatchedFiles
+[`textDocument/codeAction`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_codeAction
+[`textDocument/completion`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_completion
+[`textDocument/definition`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_definition
+[`textDocument/typeDefinition`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_typeDefinition
+[`textDocument/formatting`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_formatting
+[`textDocument/highlight`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_highlight
+[`textDocument/hover`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_hover
+[`textDocument/documentLink`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_documentLink
+[`textDocument/publishDiagnostics`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_publishDiagnostics
+[`textDocument/references`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_references
+[`textDocument/rename`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_rename
+[`textDocument/signatureHelp`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_signatureHelp
+[`textDocument/documentSymbols`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_documentSymbols
+[`workspace/didChangeWatchedFiles`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#workspace_didChangeWatchedFiles
 
 [#31080]: https://github.com/golang/go/issues/31080
 [#31553]: https://github.com/golang/go/issues/31553

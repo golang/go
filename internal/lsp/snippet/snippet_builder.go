@@ -9,7 +9,7 @@
 // tab stops defined in the snippet. Each tab stop can optionally have placeholder
 // text, which can be pre-selected by editors. For a full description of syntax
 // and features, see "Snippet Syntax" at
-// https://microsoft.github.io/language-server-protocol/specification#textDocument_completion.
+// https://microsoft.github.io/language-server-protocol/specifications/specification-3-14/#textDocument_completion.
 //
 // A typical snippet looks like "foo(${1:i int}, ${2:s string})".
 package snippet
@@ -28,7 +28,7 @@ type Builder struct {
 	sb             strings.Builder
 }
 
-// Escape characters defined in https://microsoft.github.io/language-server-protocol/specification#textDocument_completion under "Grammar".
+// Escape characters defined in https://microsoft.github.io/language-server-protocol/specifications/specification-3-14/#textDocument_completion under "Grammar".
 var replacer = strings.NewReplacer(
 	`\`, `\\`,
 	`}`, `\}`,
