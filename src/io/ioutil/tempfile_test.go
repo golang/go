@@ -54,18 +54,47 @@ func TestTempDir(t *testing.T) {
 		t.Errorf("TempDir(`/_not_exists_`, `foo`) = %v, %v", name, err)
 	}
 
-	dir := os.TempDir()
-	name, err = TempDir(dir, "ioutil_test")
-	if name == "" || err != nil {
-		t.Errorf("TempDir(dir, `ioutil_test`) = %v, %v", name, err)
+	tests := []struct {
+		pattern                string
+		wantPrefix, wantSuffix string
+	}{
+		{"ioutil_test", "ioutil_test", ""},
+		{"ioutil_test*", "ioutil_test", ""},
+		{"ioutil_test*xyz", "ioutil_test", "xyz"},
 	}
-	if name != "" {
-		os.Remove(name)
-		re := regexp.MustCompile("^" + regexp.QuoteMeta(filepath.Join(dir, "ioutil_test")) + "[0-9]+$")
+
+	dir := os.TempDir()
+
+	runTestTempDir := func(t *testing.T, pattern, wantRePat string) {
+		name, err := TempDir(dir, pattern)
+		if name == "" || err != nil {
+			t.Fatalf("TempDir(dir, `ioutil_test`) = %v, %v", name, err)
+		}
+		defer os.Remove(name)
+
+		re := regexp.MustCompile(wantRePat)
 		if !re.MatchString(name) {
-			t.Errorf("TempDir(`"+dir+"`, `ioutil_test`) created bad name %s", name)
+			t.Errorf("TempDir(%q, %q) created bad name\n\t%q\ndid not match pattern\n\t%q", dir, pattern, name, wantRePat)
 		}
 	}
+
+	for _, tt := range tests {
+		t.Run(tt.pattern, func(t *testing.T) {
+			wantRePat := "^" + regexp.QuoteMeta(filepath.Join(dir, tt.wantPrefix)) + "[0-9]+" + regexp.QuoteMeta(tt.wantSuffix) + "$"
+			runTestTempDir(t, tt.pattern, wantRePat)
+		})
+	}
+
+	// Separately testing "*xyz" (which has no prefix). That is when constructing the
+	// pattern to assert on, as in the previous loop, using filepath.Join for an empty
+	// prefix filepath.Join(dir, ""), produces the pattern:
+	//     ^<DIR>[0-9]+xyz$
+	// yet we just want to match
+	//     "^<DIR>/[0-9]+xyz"
+	t.Run("*xyz", func(t *testing.T) {
+		wantRePat := "^" + regexp.QuoteMeta(filepath.Join(dir)) + regexp.QuoteMeta(string(filepath.Separator)) + "[0-9]+xyz$"
+		runTestTempDir(t, "*xyz", wantRePat)
+	})
 }
 
 // test that we return a nice error message if the dir argument to TempDir doesn't
