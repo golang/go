@@ -57,6 +57,8 @@ var (
 
 	CmdModInit   bool   // running 'go mod init'
 	CmdModModule string // module argument for 'go mod init'
+
+	allowMissingModuleImports bool
 )
 
 // ModFile returns the parsed go.mod file.
@@ -199,28 +201,21 @@ func Init() {
 	if modRoot == "" {
 		// We're in module mode, but not inside a module.
 		//
-		// If the command is 'go get' or 'go list' and all of the args are in the
-		// same existing module, we could use that module's download directory in
-		// the module cache as the module root, applying any replacements and/or
-		// exclusions specified by that module. However, that would leave us in a
-		// strange state: we want 'go get' to be consistent with 'go list', and 'go
-		// list' should be able to operate on multiple modules. Moreover, the 'get'
-		// target might specify relative file paths (e.g. in the same repository) as
-		// replacements, and we would not be able to apply those anyway: we would
-		// need to either error out or ignore just those replacements, when a build
-		// from an empty module could proceed without error.
+		// Commands like 'go build', 'go run', 'go list' have no go.mod file to
+		// read or write. They would need to find and download the latest versions
+		// of a potentially large number of modules with no way to save version
+		// information. We can succeed slowly (but not reproducibly), but that's
+		// not usually a good experience.
 		//
-		// Instead, we'll operate as though we're in some ephemeral external module,
-		// ignoring all replacements and exclusions uniformly.
-
-		// Normally we check sums using the go.sum file from the main module, but
-		// without a main module we do not have an authoritative go.sum file.
+		// Instead, we forbid resolving import paths to modules other than std and
+		// cmd. Users may still build packages specified with .go files on the
+		// command line, but they'll see an error if those files import anything
+		// outside std.
 		//
-		// TODO(bcmills): In Go 1.13, check sums when outside the main module.
+		// This can be overridden by calling AllowMissingModuleImports.
+		// For example, 'go get' does this, since it is expected to resolve paths.
 		//
-		// One possible approach is to merge the go.sum files from all of the
-		// modules we download: that doesn't protect us against bad top-level
-		// modules, but it at least ensures consistency for transitive dependencies.
+		// See golang.org/issue/32027.
 	} else {
 		modfetch.GoSumFile = filepath.Join(modRoot, "go.sum")
 		search.SetModRoot(modRoot)
@@ -358,6 +353,14 @@ func InitMod() {
 		// TODO(golang.org/issue/33326): if cfg.BuildMod != "readonly"?
 		WriteGoMod()
 	}
+}
+
+// AllowMissingModuleImports allows import paths to be resolved to modules
+// when there is no module root. Normally, this is forbidden because it's slow
+// and there's no way to make the result reproducible, but some commands
+// like 'go get' are expected to do this.
+func AllowMissingModuleImports() {
+	allowMissingModuleImports = true
 }
 
 // modFileToBuildList initializes buildList from the modFile.

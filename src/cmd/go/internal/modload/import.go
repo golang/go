@@ -185,6 +185,12 @@ func Import(path string) (m module.Version, dir string, err error) {
 	if cfg.BuildMod == "readonly" {
 		return module.Version{}, "", fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
 	}
+	if modRoot == "" && !allowMissingModuleImports {
+		return module.Version{}, "", &ImportMissingError{
+			Path:     path,
+			QueryErr: errors.New("working directory is not part of a module"),
+		}
+	}
 
 	// Not on build list.
 	// To avoid spurious remote fetches, next try the latest replacement for each module.

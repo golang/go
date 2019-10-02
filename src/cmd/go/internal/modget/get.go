@@ -284,6 +284,10 @@ func runGet(cmd *base.Command, args []string) {
 	// what was requested.
 	modload.DisallowWriteGoMod()
 
+	// Allow looking up modules for import paths outside of a module.
+	// 'go get' is expected to do this, unlike other commands.
+	modload.AllowMissingModuleImports()
+
 	// Parse command-line arguments and report errors. The command-line
 	// arguments are of the form path@version or simply path, with implicit
 	// @upgrade. path@none is "downgrade away".
