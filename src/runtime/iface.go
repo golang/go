@@ -295,11 +295,11 @@ var (
 	stringEface interface{} = stringInterfacePtr("")
 	sliceEface  interface{} = sliceInterfacePtr(nil)
 
-	uint16Type *_type = (*eface)(unsafe.Pointer(&uint16Eface))._type
-	uint32Type *_type = (*eface)(unsafe.Pointer(&uint32Eface))._type
-	uint64Type *_type = (*eface)(unsafe.Pointer(&uint64Eface))._type
-	stringType *_type = (*eface)(unsafe.Pointer(&stringEface))._type
-	sliceType  *_type = (*eface)(unsafe.Pointer(&sliceEface))._type
+	uint16Type *_type = efaceOf(&uint16Eface)._type
+	uint32Type *_type = efaceOf(&uint32Eface)._type
+	uint64Type *_type = efaceOf(&uint64Eface)._type
+	stringType *_type = efaceOf(&stringEface)._type
+	sliceType  *_type = efaceOf(&sliceEface)._type
 )
 
 // The conv and assert functions below do very similar things.
