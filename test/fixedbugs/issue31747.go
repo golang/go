@@ -8,11 +8,11 @@ package p
 
 // numeric literals
 const (
-	_ = 1_000 // ERROR "underscores in numeric literals only supported as of -lang=go1.13"
-	_ = 0b111 // ERROR "binary literals only supported as of -lang=go1.13"
-	_ = 0o567 // ERROR "0o/0O-style octal literals only supported as of -lang=go1.13"
+	_ = 1_000 // ERROR "underscores in numeric literals requires go1.13 or later \(-lang was set to go1.12; check go.mod\)"
+	_ = 0b111 // ERROR "binary literals requires go1.13 or later"
+	_ = 0o567 // ERROR "0o/0O-style octal literals requires go1.13 or later"
 	_ = 0xabc // ok
-	_ = 0x0p1 // ERROR "hexadecimal floating-point literals only supported as of -lang=go1.13"
+	_ = 0x0p1 // ERROR "hexadecimal floating-point literals requires go1.13 or later"
 
 	_ = 0B111 // ERROR "binary"
 	_ = 0O567 // ERROR "octal"
@@ -29,6 +29,6 @@ const (
 // signed shift counts
 var (
 	s int
-	_ = 1 << s // ERROR "signed shift count type int, only supported as of -lang=go1.13"
+	_ = 1 << s // ERROR "invalid operation: 1 << s \(signed shift count type int\) requires go1.13 or later"
 	_ = 1 >> s // ERROR "signed shift count"
 )
