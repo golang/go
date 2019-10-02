@@ -167,8 +167,8 @@ func init() {
 
 	CmdInstall.Flag.BoolVar(&cfg.BuildI, "i", false, "")
 
-	AddBuildFlags(CmdBuild)
-	AddBuildFlags(CmdInstall)
+	AddBuildFlags(CmdBuild, DefaultBuildFlags)
+	AddBuildFlags(CmdInstall, DefaultBuildFlags)
 }
 
 // Note that flags consulted by other parts of the code
@@ -216,9 +216,16 @@ func init() {
 	}
 }
 
+type BuildFlagMask int
+
+const (
+	DefaultBuildFlags BuildFlagMask = 0
+	OmitModFlag       BuildFlagMask = 1 << iota
+)
+
 // addBuildFlags adds the flags common to the build, clean, get,
 // install, list, run, and test commands.
-func AddBuildFlags(cmd *base.Command) {
+func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.BoolVar(&cfg.BuildA, "a", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildN, "n", false, "")
 	cmd.Flag.IntVar(&cfg.BuildP, "p", cfg.BuildP, "")
@@ -230,7 +237,9 @@ func AddBuildFlags(cmd *base.Command) {
 	cmd.Flag.StringVar(&cfg.BuildBuildmode, "buildmode", "default", "")
 	cmd.Flag.Var(&load.BuildGcflags, "gcflags", "")
 	cmd.Flag.Var(&load.BuildGccgoflags, "gccgoflags", "")
-	cmd.Flag.StringVar(&cfg.BuildMod, "mod", "", "")
+	if mask&OmitModFlag == 0 {
+		cmd.Flag.StringVar(&cfg.BuildMod, "mod", "", "")
+	}
 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
 	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
 	cmd.Flag.BoolVar(&cfg.BuildLinkshared, "linkshared", false, "")

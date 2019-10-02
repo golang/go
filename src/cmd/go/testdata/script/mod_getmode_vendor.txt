@@ -13,7 +13,7 @@ stdout '^golang.org/x/text v0.0.0.* .*vendor[\\/]golang.org[\\/]x[\\/]text$'
 ! go list -mod=vendor -m rsc.io/quote@latest
 stderr 'module lookup disabled by -mod=vendor'
 ! go get -mod=vendor -u
-stderr 'go get: disabled by -mod=vendor'
+stderr 'flag provided but not defined: -mod'
 
 -- go.mod --
 module x

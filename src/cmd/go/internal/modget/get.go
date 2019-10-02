@@ -7,7 +7,6 @@ package modget
 
 import (
 	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/get"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/load"
@@ -199,7 +198,7 @@ func (v *upgradeFlag) Set(s string) error {
 func (v *upgradeFlag) String() string { return "" }
 
 func init() {
-	work.AddBuildFlags(CmdGet)
+	work.AddBuildFlags(CmdGet, work.OmitModFlag)
 	CmdGet.Run = runGet // break init loop
 	CmdGet.Flag.BoolVar(&get.Insecure, "insecure", get.Insecure, "")
 	CmdGet.Flag.Var(&getU, "u", "")
@@ -256,11 +255,6 @@ type query struct {
 }
 
 func runGet(cmd *base.Command, args []string) {
-	// -mod=readonly has no effect on "go get".
-	if cfg.BuildMod == "readonly" {
-		cfg.BuildMod = ""
-	}
-
 	switch getU {
 	case "", "upgrade", "patch":
 		// ok
@@ -277,10 +271,6 @@ func runGet(cmd *base.Command, args []string) {
 		base.Fatalf("go get: -m flag is no longer supported; consider -d to skip building packages")
 	}
 	modload.LoadTests = *getT
-
-	if cfg.BuildMod == "vendor" {
-		base.Fatalf("go get: disabled by -mod=%s", cfg.BuildMod)
-	}
 
 	buildList := modload.LoadBuildList()
 	buildList = buildList[:len(buildList):len(buildList)] // copy on append
