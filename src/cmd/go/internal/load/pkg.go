@@ -1412,14 +1412,17 @@ func (p *Package) exeFromImportPath() string {
 }
 
 // exeFromFiles returns an executable name for a package
-// using the first element in the GoFiles collection without the prefix.
+// using the first element in GoFiles or CgoFiles collections without the prefix.
 //
 // Returns empty string in case of empty collection.
 func (p *Package) exeFromFiles() string {
-	if len(p.GoFiles) == 0 {
-		return ""
+	var src string
+	if len(p.GoFiles) > 0 {
+		src = p.GoFiles[0]
+	} else if len(p.CgoFiles) > 0 {
+		src = p.CgoFiles[0]
 	}
-	_, elem := filepath.Split(p.GoFiles[0])
+	_, elem := filepath.Split(src)
 	return elem[:len(elem)-len(".go")]
 }
 
@@ -2155,7 +2158,7 @@ func GoFilesPackage(gofiles []string) *Package {
 	pkg.Match = gofiles
 
 	if pkg.Name == "main" {
-		exe := pkg.exeFromFiles() + cfg.ExeSuffix
+		exe := pkg.DefaultExecName() + cfg.ExeSuffix
 
 		if cfg.GOBIN != "" {
 			pkg.Target = filepath.Join(cfg.GOBIN, exe)
