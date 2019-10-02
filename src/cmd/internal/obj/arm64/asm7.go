@@ -784,15 +784,9 @@ var optab = []Optab{
 	{AVLD1, C_ZOREG, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, 0},
 	{AVLD1, C_LOREG, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
 	{AVLD1, C_ROFF, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
-	{AVLD2, C_ZOREG, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, 0},
-	{AVLD2, C_LOREG, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
-	{AVLD2, C_ROFF, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
-	{AVLD3, C_ZOREG, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, 0},
-	{AVLD3, C_LOREG, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
-	{AVLD3, C_ROFF, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
-	{AVLD4, C_ZOREG, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, 0},
-	{AVLD4, C_LOREG, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
-	{AVLD4, C_ROFF, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
+	{AVLD1R, C_ZOREG, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, 0},
+	{AVLD1R, C_LOREG, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
+	{AVLD1R, C_ROFF, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
 	{AVLD1, C_LOREG, C_NONE, C_NONE, C_ELEM, 97, 4, 0, 0, C_XPOST},
 	{AVLD1, C_ROFF, C_NONE, C_NONE, C_ELEM, 97, 4, 0, 0, C_XPOST},
 	{AVLD1, C_LOREG, C_NONE, C_NONE, C_ELEM, 97, 4, 0, 0, 0},
@@ -2709,13 +2703,18 @@ func buildop(ctxt *obj.Link) {
 		case AVZIP1:
 			oprangeset(AVZIP2, t)
 
+		case AVLD1R:
+			oprangeset(AVLD2, t)
+			oprangeset(AVLD2R, t)
+			oprangeset(AVLD3, t)
+			oprangeset(AVLD3R, t)
+			oprangeset(AVLD4, t)
+			oprangeset(AVLD4R, t)
+
 		case ASHA1H,
 			AVCNT,
 			AVMOV,
 			AVLD1,
-			AVLD2,
-			AVLD3,
-			AVLD4,
 			AVST1,
 			AVST2,
 			AVST3,
@@ -2803,7 +2802,7 @@ func (c *ctxt7) checkindex(p *obj.Prog, index, maxindex int) {
 func (c *ctxt7) checkoffset(p *obj.Prog, as obj.As) {
 	var offset, list, n, expect int64
 	switch as {
-	case AVLD1, AVLD2, AVLD3, AVLD4:
+	case AVLD1, AVLD2, AVLD3, AVLD4, AVLD1R, AVLD2R, AVLD3R, AVLD4R:
 		offset = p.From.Offset
 		list = p.To.Offset
 	case AVST1, AVST2, AVST3, AVST4:
@@ -2836,11 +2835,13 @@ func (c *ctxt7) checkoffset(p *obj.Prog, as obj.As) {
 	switch as {
 	case AVLD1, AVST1:
 		return
-	case AVLD2, AVST2:
+	case AVLD1R:
+		expect = 1
+	case AVLD2, AVST2, AVLD2R:
 		expect = 2
-	case AVLD3, AVST3:
+	case AVLD3, AVST3, AVLD3R:
 		expect = 3
-	case AVLD4, AVST4:
+	case AVLD4, AVST4, AVLD4R:
 		expect = 4
 	}
 
@@ -4344,10 +4345,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o1 |= (uint32(imm5&0x1f) << 16) | (uint32(rf&31) << 5) | uint32(rt&31)
 
-	case 81: /* vld[1-4] (Rn), [Vt1.<T>, Vt2.<T>, ...] */
+	case 81: /* vld[1-4]|vld[1-4]r (Rn), [Vt1.<T>, Vt2.<T>, ...] */
 		c.checkoffset(p, p.As)
 		r := int(p.From.Reg)
-		o1 = 3<<26 | 1<<22
+		o1 = c.oprrr(p, p.As)
 		if o.scond == C_XPOST {
 			o1 |= 1 << 23
 			if p.From.Index == 0 {
@@ -4358,7 +4359,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 				if isRegShiftOrExt(&p.From) {
 					c.ctxt.Diag("invalid extended register op: %v\n", p)
 				}
-				o1 |= uint32(p.From.Index&31) << 16
+				o1 |= uint32(p.From.Index&0x1f) << 16
 			}
 		}
 		o1 |= uint32(p.To.Offset)
@@ -5591,6 +5592,15 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
 
 	case AVRBIT:
 		return 0x2E<<24 | 1<<22 | 0x10<<17 | 5<<12 | 2<<10
+
+	case AVLD1, AVLD2, AVLD3, AVLD4:
+		return 3<<26 | 1<<22
+
+	case AVLD1R, AVLD3R:
+		return 0xD<<24 | 1<<22
+
+	case AVLD2R, AVLD4R:
+		return 0xD<<24 | 3<<21
 	}
 
 	c.ctxt.Diag("%v: bad rrr %d %v", p, a, a)
@@ -6779,6 +6789,10 @@ func (c *ctxt7) maskOpvldvst(p *obj.Prog, o1 uint32) uint32 {
 
 	o1 &^= 0xf000 // mask out "opcode" field (bit 12-15)
 	switch p.As {
+	case AVLD1R, AVLD2R:
+		o1 |= 0xC << 12
+	case AVLD3R, AVLD4R:
+		o1 |= 0xE << 12
 	case AVLD2, AVST2:
 		o1 |= 8 << 12
 	case AVLD3, AVST3:
