@@ -716,6 +716,7 @@ func binarySearch(n int, out *Nodes, less func(i int) *Node, base func(i int, ni
 			for i := lo; i < hi; i++ {
 				nif := nod(OIF, nil, nil)
 				base(i, nif)
+				lineno = lineno.WithNotStmt()
 				nif.Left = typecheck(nif.Left, ctxExpr)
 				nif.Left = defaultlit(nif.Left, nil)
 				out.Append(nif)
@@ -727,6 +728,7 @@ func binarySearch(n int, out *Nodes, less func(i int) *Node, base func(i int, ni
 		half := lo + n/2
 		nif := nod(OIF, nil, nil)
 		nif.Left = less(half)
+		lineno = lineno.WithNotStmt()
 		nif.Left = typecheck(nif.Left, ctxExpr)
 		nif.Left = defaultlit(nif.Left, nil)
 		do(lo, half, &nif.Nbody)
