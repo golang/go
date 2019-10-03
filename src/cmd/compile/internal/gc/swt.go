@@ -513,6 +513,7 @@ func walkTypeSwitch(sw *Node) {
 	// Use a similar strategy for non-empty interfaces.
 	ifNil := nod(OIF, nil, nil)
 	ifNil.Left = nod(OEQ, itab, nodnil())
+	lineno = lineno.WithNotStmt() // disable statement marks after the first check.
 	ifNil.Left = typecheck(ifNil.Left, ctxExpr)
 	ifNil.Left = defaultlit(ifNil.Left, nil)
 	// ifNil.Nbody assigned at end.
