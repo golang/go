@@ -237,3 +237,33 @@ start:
 	// Arbitrary bytes (entered in little-endian mode)
 	WORD	$0x12345678	// WORD $305419896	// 78563412
 	WORD	$0x9abcdef0	// WORD $2596069104	// f0debc9a
+
+	// MOV pseudo-instructions
+	MOV	X5, X6					// 13830200
+	MOV	$2047, X5				// 9b02f07f
+	MOV	$-2048, X5				// 9b020080
+
+	MOV	(X5), X6				// 03b30200
+	MOV	4(X5), X6				// 03b34200
+	MOVB	(X5), X6				// 03830200
+	MOVB	4(X5), X6				// 03834200
+	MOVH	(X5), X6				// 03930200
+	MOVH	4(X5), X6				// 03934200
+	MOVW	(X5), X6				// 03a30200
+	MOVW	4(X5), X6				// 03a34200
+	MOV	X5, (X6)				// 23305300
+	MOV	X5, 4(X6)				// 23325300
+	MOVB	X5, (X6)				// 23005300
+	MOVB	X5, 4(X6)				// 23025300
+	MOVH	X5, (X6)				// 23105300
+	MOVH	X5, 4(X6)				// 23125300
+	MOVW	X5, (X6)				// 23205300
+	MOVW	X5, 4(X6)				// 23225300
+
+	MOVF	4(X5), F0				// 07a04200
+	MOVF	F0, 4(X5)				// 27a20200
+	MOVF	F0, F1					// d3000020
+
+	MOVD	4(X5), F0				// 07b04200
+	MOVD	F0, 4(X5)				// 27b20200
+	MOVD	F0, F1					// d3000022

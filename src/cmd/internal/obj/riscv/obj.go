@@ -148,12 +148,292 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	}
 }
 
+// addrToReg extracts the register from an Addr, handling special Addr.Names.
+func addrToReg(a obj.Addr) int16 {
+	switch a.Name {
+	case obj.NAME_PARAM, obj.NAME_AUTO:
+		return REG_SP
+	}
+	return a.Reg
+}
+
+// movToLoad converts a MOV mnemonic into the corresponding load instruction.
+func movToLoad(mnemonic obj.As) obj.As {
+	switch mnemonic {
+	case AMOV:
+		return ALD
+	case AMOVB:
+		return ALB
+	case AMOVH:
+		return ALH
+	case AMOVW:
+		return ALW
+	case AMOVBU:
+		return ALBU
+	case AMOVHU:
+		return ALHU
+	case AMOVWU:
+		return ALWU
+	case AMOVF:
+		return AFLW
+	case AMOVD:
+		return AFLD
+	default:
+		panic(fmt.Sprintf("%+v is not a MOV", mnemonic))
+	}
+}
+
+// movToStore converts a MOV mnemonic into the corresponding store instruction.
+func movToStore(mnemonic obj.As) obj.As {
+	switch mnemonic {
+	case AMOV:
+		return ASD
+	case AMOVB:
+		return ASB
+	case AMOVH:
+		return ASH
+	case AMOVW:
+		return ASW
+	case AMOVF:
+		return AFSW
+	case AMOVD:
+		return AFSD
+	default:
+		panic(fmt.Sprintf("%+v is not a MOV", mnemonic))
+	}
+}
+
+// rewriteMOV rewrites MOV pseudo-instructions.
+func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
+	switch p.As {
+	case AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
+	default:
+		panic(fmt.Sprintf("%+v is not a MOV pseudo-instruction", p.As))
+	}
+
+	switch p.From.Type {
+	case obj.TYPE_MEM: // MOV c(Rs), Rd -> L $c, Rs, Rd
+		switch p.From.Name {
+		case obj.NAME_AUTO, obj.NAME_PARAM, obj.NAME_NONE:
+			if p.To.Type != obj.TYPE_REG {
+				ctxt.Diag("unsupported load at %v", p)
+			}
+			p.As = movToLoad(p.As)
+			p.Reg = addrToReg(p.From)
+			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset}
+
+		case obj.NAME_EXTERN, obj.NAME_STATIC:
+			// AUIPC $off_hi, R
+			// L $off_lo, R
+			as := p.As
+			to := p.To
+
+			// The offset is not really encoded with either instruction.
+			// It will be extracted later for a relocation.
+			p.As = AAUIPC
+			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym}
+			p.Reg = 0
+			p.To = obj.Addr{Type: obj.TYPE_REG, Reg: to.Reg}
+			p.Mark |= NEED_PCREL_ITYPE_RELOC
+			p = obj.Appendp(p, newprog)
+
+			p.As = movToLoad(as)
+			p.From = obj.Addr{Type: obj.TYPE_CONST}
+			p.Reg = to.Reg
+			p.To = to
+
+		default:
+			ctxt.Diag("unsupported name %d for %v", p.From.Name, p)
+		}
+
+	case obj.TYPE_REG:
+		switch p.To.Type {
+		case obj.TYPE_REG:
+			switch p.As {
+			case AMOV: // MOV Ra, Rb -> ADDI $0, Ra, Rb
+				p.As = AADDI
+				p.Reg = p.From.Reg
+				p.From = obj.Addr{Type: obj.TYPE_CONST}
+
+			case AMOVF: // MOVF Ra, Rb -> FSGNJS Ra, Ra, Rb
+				p.As = AFSGNJS
+				p.Reg = p.From.Reg
+
+			case AMOVD: // MOVD Ra, Rb -> FSGNJD Ra, Ra, Rb
+				p.As = AFSGNJD
+				p.Reg = p.From.Reg
+
+			default:
+				ctxt.Diag("unsupported register-register move at %v", p)
+			}
+
+		case obj.TYPE_MEM: // MOV Rs, c(Rd) -> S $c, Rs, Rd
+			switch p.As {
+			case AMOVBU, AMOVHU, AMOVWU:
+				ctxt.Diag("unsupported unsigned store at %v", p)
+			}
+			switch p.To.Name {
+			case obj.NAME_AUTO, obj.NAME_PARAM, obj.NAME_NONE:
+				// The destination address goes in p.From and p.To here,
+				// with the offset in p.From and the register in p.To.
+				// The source register goes in Reg.
+				p.As = movToStore(p.As)
+				p.Reg = p.From.Reg
+				p.From = p.To
+				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset}
+				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: addrToReg(p.To)}
+
+			case obj.NAME_EXTERN:
+				// AUIPC $off_hi, TMP
+				// S $off_lo, TMP, R
+				as := p.As
+				from := p.From
+
+				// The offset is not really encoded with either instruction.
+				// It will be extracted later for a relocation.
+				p.As = AAUIPC
+				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: p.To.Offset, Sym: p.To.Sym}
+				p.Reg = 0
+				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+				p.Mark |= NEED_PCREL_STYPE_RELOC
+				p = obj.Appendp(p, newprog)
+
+				p.As = movToStore(as)
+				p.From = obj.Addr{Type: obj.TYPE_CONST}
+				p.Reg = from.Reg
+				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+
+			default:
+				ctxt.Diag("unsupported name %d for %v", p.From.Name, p)
+			}
+
+		default:
+			ctxt.Diag("unsupported MOV at %v", p)
+		}
+
+	case obj.TYPE_CONST:
+		// MOV $c, R
+		// If c is small enough, convert to:
+		//   ADD $c, ZERO, R
+		// If not, convert to:
+		//   LUI top20bits(c), R
+		//   ADD bottom12bits(c), R, R
+		if p.As != AMOV {
+			ctxt.Diag("unsupported constant load at %v", p)
+		}
+		off := p.From.Offset
+		to := p.To
+
+		low, high, err := split32BitImmediate(off)
+		if err != nil {
+			ctxt.Diag("%v: constant %d too large: %v", p, off, err)
+		}
+
+		// LUI is only necessary if the offset doesn't fit in 12-bits.
+		needLUI := high != 0
+		if needLUI {
+			p.As = ALUI
+			p.To = to
+			// Pass top 20 bits to LUI.
+			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: high}
+			p = obj.Appendp(p, newprog)
+		}
+		p.As = AADDIW
+		p.To = to
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: low}
+		p.Reg = REG_ZERO
+		if needLUI {
+			p.Reg = to.Reg
+		}
+
+	case obj.TYPE_ADDR: // MOV $sym+off(SP/SB), R
+		if p.To.Type != obj.TYPE_REG || p.As != AMOV {
+			ctxt.Diag("unsupported addr MOV at %v", p)
+		}
+		switch p.From.Name {
+		case obj.NAME_EXTERN, obj.NAME_STATIC:
+			// AUIPC $off_hi, R
+			// ADDI $off_lo, R
+			to := p.To
+
+			// The offset is not really encoded with either instruction.
+			// It will be extracted later for a relocation.
+			p.As = AAUIPC
+			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym}
+			p.Reg = 0
+			p.To = to
+			p.Mark |= NEED_PCREL_ITYPE_RELOC
+			p = obj.Appendp(p, newprog)
+
+			p.As = AADDI
+			p.From = obj.Addr{Type: obj.TYPE_CONST}
+			p.Reg = to.Reg
+			p.To = to
+
+		case obj.NAME_PARAM, obj.NAME_AUTO:
+			p.As = AADDI
+			p.Reg = REG_SP
+			p.From.Type = obj.TYPE_CONST
+
+		case obj.NAME_NONE:
+			p.As = AADDI
+			p.Reg = p.From.Reg
+			p.From.Type = obj.TYPE_CONST
+			p.From.Reg = 0
+
+		default:
+			ctxt.Diag("bad addr MOV from name %v at %v", p.From.Name, p)
+		}
+
+	default:
+		ctxt.Diag("unsupported MOV at %v", p)
+	}
+}
+
 // setPCs sets the Pc field in all instructions reachable from p.
 // It uses pc as the initial value.
 func setPCs(p *obj.Prog, pc int64) {
 	for ; p != nil; p = p.Link {
 		p.Pc = pc
 		pc += int64(encodingForProg(p).length)
+	}
+}
+
+// stackOffset updates Addr offsets based on the current stack size.
+//
+// The stack looks like:
+// -------------------
+// |                 |
+// |      PARAMs     |
+// |                 |
+// |                 |
+// -------------------
+// |    Parent RA    |   SP on function entry
+// -------------------
+// |                 |
+// |                 |
+// |       AUTOs     |
+// |                 |
+// |                 |
+// -------------------
+// |        RA       |   SP during function execution
+// -------------------
+//
+// FixedFrameSize makes other packages aware of the space allocated for RA.
+//
+// A nicer version of this diagram can be found on slide 21 of the presentation
+// attached to:
+//
+//   https://golang.org/issue/16922#issuecomment-243748180
+//
+func stackOffset(a *obj.Addr, stacksize int64) {
+	switch a.Name {
+	case obj.NAME_AUTO:
+		// Adjust to the top of AUTOs.
+		a.Offset += stacksize
+	case obj.NAME_PARAM:
+		// Adjust to the bottom of PARAMs.
+		a.Offset += stacksize + 8
 	}
 }
 
@@ -188,6 +468,24 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	// TODO(jsing): Implement.
 
+	// Update stack-based offsets.
+	for p := cursym.Func.Text; p != nil; p = p.Link {
+		stackOffset(&p.From, stacksize)
+		stackOffset(&p.To, stacksize)
+	}
+
+	// Additional instruction rewriting. Any rewrites that change the number
+	// of instructions must occur here (before jump target resolution).
+	for p := cursym.Func.Text; p != nil; p = p.Link {
+		switch p.As {
+		case AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
+			// Rewrite MOV pseudo-instructions. This cannot be done in
+			// progedit, as SP offsets need to be applied before we split
+			// up some of the Addrs.
+			rewriteMOV(ctxt, newprog, p)
+		}
+	}
+
 	setPCs(cursym.Func.Text, 0)
 
 	// Resolve branch and jump targets.
@@ -207,6 +505,46 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	for p := cursym.Func.Text; p != nil; p = p.Link {
 		encodingForProg(p).validate(p)
 	}
+}
+
+// signExtend sign extends val starting at bit bit.
+func signExtend(val int64, bit uint) int64 {
+	return val << (64 - bit) >> (64 - bit)
+}
+
+// split32BitImmediate splits a signed 32-bit immediate into a signed 20-bit
+// upper immediate and a signed 12-bit lower immediate to be added to the upper
+// result. For example, high may be used in LUI and low in a following ADDI to
+// generate a full 32-bit constant.
+func split32BitImmediate(imm int64) (low, high int64, err error) {
+	if !immIFits(imm, 32) {
+		return 0, 0, fmt.Errorf("immediate does not fit in 32-bits: %d", imm)
+	}
+
+	// Nothing special needs to be done if the immediate fits in 12-bits.
+	if immIFits(imm, 12) {
+		return imm, 0, nil
+	}
+
+	high = imm >> 12
+
+	// The bottom 12 bits will be treated as signed.
+	//
+	// If that will result in a negative 12 bit number, add 1 to
+	// our upper bits to adjust for the borrow.
+	//
+	// It is not possible for this increment to overflow. To
+	// overflow, the 20 top bits would be 1, and the sign bit for
+	// the low 12 bits would be set, in which case the entire 32
+	// bit pattern fits in a 12 bit signed value.
+	if imm&(1<<11) != 0 {
+		high++
+	}
+
+	low = signExtend(imm, 12)
+	high = signExtend(high, 20)
+
+	return low, high, nil
 }
 
 func regVal(r, min, max int16) uint32 {
