@@ -1085,13 +1085,13 @@ func (p *GCProg) AddSym(s *sym.Symbol) {
 	}
 
 	ptrsize := int64(p.ctxt.Arch.PtrSize)
-	nptr := decodetypePtrdata(p.ctxt.Arch, typ) / ptrsize
+	nptr := decodetypePtrdata(p.ctxt.Arch, typ.P) / ptrsize
 
 	if debugGCProg {
 		fmt.Fprintf(os.Stderr, "gcprog sym: %s at %d (ptr=%d+%d)\n", s.Name, s.Value, s.Value/ptrsize, nptr)
 	}
 
-	if decodetypeUsegcprog(p.ctxt.Arch, typ) == 0 {
+	if decodetypeUsegcprog(p.ctxt.Arch, typ.P) == 0 {
 		// Copy pointers from mask into program.
 		mask := decodetypeGcmask(p.ctxt, typ)
 		for i := int64(0); i < nptr; i++ {

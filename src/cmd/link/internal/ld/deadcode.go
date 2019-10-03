@@ -322,7 +322,7 @@ func (d *deadcodepass) flood() {
 				// later will give a better error than deadcode.
 				continue
 			}
-			if decodetypeKind(d.ctxt.Arch, s)&kindMask == kindInterface {
+			if decodetypeKind(d.ctxt.Arch, s.P)&kindMask == kindInterface {
 				for _, sig := range decodeIfaceMethods(d.ctxt.Arch, s) {
 					if d.ctxt.Debugvlog > 1 {
 						d.ctxt.Logf("reached iface method: %s\n", sig)
