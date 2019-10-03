@@ -975,6 +975,49 @@ func TestVerifyCertificateWithDSASignature(t *testing.T) {
 	}
 }
 
+const dsaCert1024WithSha256 = `-----BEGIN CERTIFICATE-----
+MIIDKzCCAumgAwIBAgIUOXWPK4gTRZVVY7OSXTU00QEWQU8wCwYJYIZIAWUDBAMC
+MEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJ
+bnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwIBcNMTkxMDAxMDYxODUyWhgPMzAxOTAy
+MDEwNjE4NTJaMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEw
+HwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwggG4MIIBLAYHKoZIzjgE
+ATCCAR8CgYEAr79m/1ypU1aUbbLX1jikTyX7w2QYP+EkxNtXUiiTuxkC1KBqqxT3
+0Aht2vxFR47ODEK4B79rHO+UevhaqDaAHSH7Z/9umS0h0aS32KLDLb+LI5AneCrn
+eW5YbVhfD03N7uR4kKUCKOnWj5hAk9xiE3y7oFR0bBXzqrrHJF9LMd0CFQCB6lSj
+HSW0rGmNxIZsBl72u7JFLQKBgQCOFd1PGEQmddn0cdFgby5QQfjrqmoD1zNlFZEt
+L0x1EbndFwelLlF1ChNh3NPNUkjwRbla07FDlONs1GMJq6w4vW11ns+pUvAZ2+RM
+EVFjugip8az2ncn3UujGTVdFxnSTLBsRlMP/tFDK3ky//8zn/5ha9SKKw4v1uv6M
+JuoIbwOBhQACgYEAoeKeR90nwrnoPi5MOUPBLQvuzB87slfr+3kL8vFCmgjA6MtB
+7TxQKoBTOo5aVgWDp0lMIMxLd6btzBrm6r3VdRlh/cL8/PtbxkFwBa+Upe4o5NAh
+ISCe2/f2leT1PxtF8xxYjz/fszeUeHsJbVMilE2cuB2SYrR5tMExiqy+QpqjUzBR
+MB0GA1UdDgQWBBQDMIEL8Z3jc1d9wCxWtksUWc8RkjAfBgNVHSMEGDAWgBQDMIEL
+8Z3jc1d9wCxWtksUWc8RkjAPBgNVHRMBAf8EBTADAQH/MAsGCWCGSAFlAwQDAgMv
+ADAsAhQFehZgI4OyKBGpfnXvyJ0Z/0a6nAIUTO265Ane87LfJuQr3FrqvuCI354=
+-----END CERTIFICATE-----
+`
+
+func TestVerifyCertificateWithDSATooLongHash(t *testing.T) {
+	pemBlock, _ := pem.Decode([]byte(dsaCert1024WithSha256))
+	cert, err := ParseCertificate(pemBlock.Bytes)
+	if err != nil {
+		t.Fatalf("Failed to parse certificate: %s", err)
+	}
+
+	// test cert is self-signed
+	if err = cert.CheckSignatureFrom(cert); err != nil {
+		t.Fatalf("DSA Certificate self-signature verification failed: %s", err)
+	}
+
+	signed := []byte("A wild Gopher appears!\n")
+	signature, _ := hex.DecodeString("302c0214417aca7ff458f5b566e43e7b82f994953da84be50214625901e249e33f4e4838f8b5966020c286dd610e")
+
+	// This signature is using SHA256, but only has 1024 DSA key. The hash has to be truncated
+	// in CheckSignature, otherwise it won't pass.
+	if err = cert.CheckSignature(DSAWithSHA256, signed, signature); err != nil {
+		t.Fatalf("DSA signature verification failed: %s", err)
+	}
+}
+
 var rsaPSSSelfSignedPEM = `-----BEGIN CERTIFICATE-----
 MIIGHjCCA9KgAwIBAgIBdjBBBgkqhkiG9w0BAQowNKAPMA0GCWCGSAFlAwQCAQUA
 oRwwGgYJKoZIhvcNAQEIMA0GCWCGSAFlAwQCAQUAogMCASAwbjELMAkGA1UEBhMC
