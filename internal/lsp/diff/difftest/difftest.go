@@ -23,7 +23,7 @@ const (
 
 var TestCases = []struct {
 	Name, In, Out, Unified string
-	Edits                  []diff.TextEdit
+	Edits, LineEdits       []diff.TextEdit
 	NoDiff                 bool
 }{{
 	Name: "empty",
@@ -42,7 +42,8 @@ var TestCases = []struct {
 -fruit
 +cheese
 `[1:],
-	Edits: []diff.TextEdit{{Span: newSpan(0, 5), NewText: "cheese"}},
+	Edits:     []diff.TextEdit{{Span: newSpan(0, 5), NewText: "cheese"}},
+	LineEdits: []diff.TextEdit{{Span: newSpan(0, 6), NewText: "cheese\n"}},
 }, {
 	Name: "insert_rune",
 	In:   "gord\n",
@@ -52,7 +53,8 @@ var TestCases = []struct {
 -gord
 +gourd
 `[1:],
-	Edits: []diff.TextEdit{{Span: newSpan(2, 2), NewText: "u"}},
+	Edits:     []diff.TextEdit{{Span: newSpan(2, 2), NewText: "u"}},
+	LineEdits: []diff.TextEdit{{Span: newSpan(0, 5), NewText: "gourd\n"}},
 }, {
 	Name: "delete_rune",
 	In:   "groat\n",
@@ -62,7 +64,8 @@ var TestCases = []struct {
 -groat
 +goat
 `[1:],
-	Edits: []diff.TextEdit{{Span: newSpan(1, 2), NewText: ""}},
+	Edits:     []diff.TextEdit{{Span: newSpan(1, 2), NewText: ""}},
+	LineEdits: []diff.TextEdit{{Span: newSpan(0, 6), NewText: "goat\n"}},
 }, {
 	Name: "replace_rune",
 	In:   "loud\n",
@@ -72,7 +75,8 @@ var TestCases = []struct {
 -loud
 +lord
 `[1:],
-	Edits: []diff.TextEdit{{Span: newSpan(2, 3), NewText: "r"}},
+	Edits:     []diff.TextEdit{{Span: newSpan(2, 3), NewText: "r"}},
+	LineEdits: []diff.TextEdit{{Span: newSpan(0, 5), NewText: "lord\n"}},
 }, {
 	Name: "replace_partials",
 	In:   "blanket\n",
@@ -86,6 +90,7 @@ var TestCases = []struct {
 		{Span: newSpan(1, 3), NewText: "u"},
 		{Span: newSpan(6, 7), NewText: "r"},
 	},
+	LineEdits: []diff.TextEdit{{Span: newSpan(0, 8), NewText: "bunker\n"}},
 }, {
 	Name: "insert_line",
 	In:   "one\nthree\n",
@@ -144,7 +149,8 @@ var TestCases = []struct {
 +C
 +
 `[1:],
-		Edits: []diff.TextEdit{{Span: newSpan(2, 3), NewText: "C\n"}},
+		Edits:     []diff.TextEdit{{Span: newSpan(2, 3), NewText: "C\n"}},
+		LineEdits: []diff.TextEdit{{Span: newSpan(2, 4), NewText: "C\n\n"}},
 	},
 	{
 		Name: "mulitple_replace",
@@ -178,6 +184,9 @@ func init() {
 		c := span.NewContentConverter("", []byte(tc.In))
 		for i := range tc.Edits {
 			tc.Edits[i].Span, _ = tc.Edits[i].Span.WithAll(c)
+		}
+		for i := range tc.LineEdits {
+			tc.LineEdits[i].Span, _ = tc.LineEdits[i].Span.WithAll(c)
 		}
 	}
 }

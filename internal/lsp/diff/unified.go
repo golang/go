@@ -7,8 +7,6 @@ package diff
 import (
 	"fmt"
 	"strings"
-
-	"golang.org/x/tools/internal/span"
 )
 
 // Unified represents a set of edits as a unified diff.
@@ -85,21 +83,18 @@ func ToUnified(from, to string, content string, edits []TextEdit) Unified {
 	if len(edits) == 0 {
 		return u
 	}
+	c, edits, partial := prepareEdits(content, edits)
+	if partial {
+		edits = lineEdits(content, c, edits)
+	}
 	lines := splitLines(content)
 	var h *Hunk
 	last := 0
-	c := span.NewContentConverter(from, []byte(content))
 	toLine := 0
 	for _, edit := range edits {
-		spn, _ := edit.Span.WithAll(c)
-		start := spn.Start().Line() - 1
-		end := spn.End().Line() - 1
-		if spn.Start().Column() > 1 || spn.End().Column() > 1 {
-			panic("cannot convert partial line edits to unified diff")
-		}
+		start := edit.Span.Start().Line() - 1
+		end := edit.Span.End().Line() - 1
 		switch {
-		case start < last:
-			panic("cannot convert unsorted edits to unified diff")
 		case h != nil && start == last:
 			//direct extension
 		case h != nil && start <= last+gap:
@@ -123,12 +118,11 @@ func ToUnified(from, to string, content string, edits []TextEdit) Unified {
 			h.ToLine -= delta
 		}
 		last = start
-		if edit.NewText == "" {
-			for i := start; i < end; i++ {
-				h.Lines = append(h.Lines, Line{Kind: Delete, Content: lines[i]})
-				last++
-			}
-		} else {
+		for i := start; i < end; i++ {
+			h.Lines = append(h.Lines, Line{Kind: Delete, Content: lines[i]})
+			last++
+		}
+		if edit.NewText != "" {
 			for _, line := range splitLines(edit.NewText) {
 				h.Lines = append(h.Lines, Line{Kind: Insert, Content: line})
 				toLine++
