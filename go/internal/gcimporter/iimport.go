@@ -143,11 +143,19 @@ func IImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 		p.pkgIndex[pkg] = nameIndex
 		pkgList[i] = pkg
 	}
+	if len(pkgList) == 0 {
+		errorf("no packages found for %s", path)
+		panic("unreachable")
+	}
 	var localpkg *types.Package
 	for _, pkg := range pkgList {
 		if pkg.Path() == path {
 			localpkg = pkg
+			break
 		}
+	}
+	if localpkg == nil {
+		localpkg = pkgList[0]
 	}
 
 	names := make([]string, 0, len(p.pkgIndex[localpkg]))
