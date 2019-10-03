@@ -188,6 +188,20 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$12
 	INVOKE_SYSCALL
 	RET
 
+TEXT ·getpid(SB),NOSPLIT,$0-4
+	MOVL	$SYS_getpid, AX
+	INVOKE_SYSCALL
+	MOVL	AX, ret+0(FP)
+	RET
+
+TEXT ·tgkill(SB),NOSPLIT,$0
+	MOVL	$SYS_tgkill, AX
+	MOVL	tgid+0(FP), BX
+	MOVL	tid+4(FP), CX
+	MOVL	sig+8(FP), DX
+	INVOKE_SYSCALL
+	RET
+
 TEXT runtime·setitimer(SB),NOSPLIT,$0-12
 	MOVL	$SYS_setittimer, AX
 	MOVL	mode+0(FP), BX

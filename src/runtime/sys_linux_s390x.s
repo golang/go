@@ -163,6 +163,20 @@ TEXT runtime·raiseproc(SB),NOSPLIT|NOFRAME,$0
 	SYSCALL
 	RET
 
+TEXT ·getpid(SB),NOSPLIT|NOFRAME,$0-8
+	MOVW	$SYS_getpid, R1
+	SYSCALL
+	MOVD	R2, ret+0(FP)
+	RET
+
+TEXT ·tgkill(SB),NOSPLIT|NOFRAME,$0-24
+	MOVD	tgid+0(FP), R2
+	MOVD	tid+8(FP), R3
+	MOVD	sig+16(FP), R4
+	MOVW	$SYS_tgkill, R1
+	SYSCALL
+	RET
+
 TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
 	MOVW	mode+0(FP), R2
 	MOVD	new+8(FP), R3
