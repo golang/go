@@ -9,47 +9,42 @@ import (
 	"strings"
 
 	"golang.org/x/tools/internal/lsp/diff"
+	"golang.org/x/tools/internal/span"
 )
 
 // Sources:
 // https://blog.jcoglan.com/2017/02/17/the-myers-diff-algorithm-part-3/
 // https://www.codeproject.com/Articles/42279/%2FArticles%2F42279%2FInvestigating-Myers-diff-algorithm-Part-1-of-2
 
-type Op struct {
+func ComputeEdits(uri span.URI, before, after string) []diff.TextEdit {
+	ops := operations(splitLines(before), splitLines(after))
+	edits := make([]diff.TextEdit, 0, len(ops))
+	for _, op := range ops {
+		s := span.New(uri, span.NewPoint(op.I1+1, 1, 0), span.NewPoint(op.I2+1, 1, 0))
+		switch op.Kind {
+		case diff.Delete:
+			// Delete: unformatted[i1:i2] is deleted.
+			edits = append(edits, diff.TextEdit{Span: s})
+		case diff.Insert:
+			// Insert: formatted[j1:j2] is inserted at unformatted[i1:i1].
+			if content := strings.Join(op.Content, ""); content != "" {
+				edits = append(edits, diff.TextEdit{Span: s, NewText: content})
+			}
+		}
+	}
+	return edits
+}
+
+type operation struct {
 	Kind    diff.OpKind
 	Content []string // content from b
 	I1, I2  int      // indices of the line in a
 	J1      int      // indices of the line in b, J2 implied by len(Content)
 }
 
-func ApplyEdits(a []string, operations []*Op) []string {
-	var b []string
-	var prevI2 int
-	for _, op := range operations {
-		// catch up to latest indices
-		if op.I1-prevI2 > 0 {
-			for _, c := range a[prevI2:op.I1] {
-				b = append(b, c)
-			}
-		}
-		switch op.Kind {
-		case diff.Equal, diff.Insert:
-			b = append(b, op.Content...)
-		}
-		prevI2 = op.I2
-	}
-	// final catch up
-	if len(a)-prevI2 > 0 {
-		for _, c := range a[prevI2:len(a)] {
-			b = append(b, c)
-		}
-	}
-	return b
-}
-
-// Operations returns the list of operations to convert a into b, consolidating
+// operations returns the list of operations to convert a into b, consolidating
 // operations for multiple lines and not including equal lines.
-func Operations(a, b []string) []*Op {
+func operations(a, b []string) []*operation {
 	if len(a) == 0 && len(b) == 0 {
 		return nil
 	}
@@ -60,9 +55,9 @@ func Operations(a, b []string) []*Op {
 	M, N := len(a), len(b)
 
 	var i int
-	solution := make([]*Op, len(a)+len(b))
+	solution := make([]*operation, len(a)+len(b))
 
-	add := func(op *Op, i2, j2 int) {
+	add := func(op *operation, i2, j2 int) {
 		if op == nil {
 			return
 		}
@@ -78,11 +73,11 @@ func Operations(a, b []string) []*Op {
 		if len(snake) < 2 {
 			continue
 		}
-		var op *Op
+		var op *operation
 		// delete (horizontal)
 		for snake[0]-snake[1] > x-y {
 			if op == nil {
-				op = &Op{
+				op = &operation{
 					Kind: diff.Delete,
 					I1:   x,
 					J1:   y,
@@ -98,7 +93,7 @@ func Operations(a, b []string) []*Op {
 		// insert (vertical)
 		for snake[0]-snake[1] < x-y {
 			if op == nil {
-				op = &Op{
+				op = &operation{
 					Kind: diff.Insert,
 					I1:   x,
 					J1:   y,
@@ -201,7 +196,7 @@ func shortestEditSequence(a, b []string) ([][]int, int) {
 	return nil, 0
 }
 
-func SplitLines(text string) []string {
+func splitLines(text string) []string {
 	lines := strings.SplitAfter(text, "\n")
 	if lines[len(lines)-1] == "" {
 		lines = lines[:len(lines)-1]
