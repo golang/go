@@ -345,7 +345,7 @@ func runBuild(cmd *base.Command, args []string) {
 		if cfg.BuildO == os.DevNull {
 			goto NoOutput
 		}
-		
+
 		// If the -o name exists and is a directory, then
 		// write all main packages to that directory.
 		// Otherwise require only a single package be built.

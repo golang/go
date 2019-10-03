@@ -1421,18 +1421,8 @@ func (p *Package) exeFromFiles() string {
 		src = p.GoFiles[0]
 	} else if len(p.CgoFiles) > 0 {
 		src = p.CgoFiles[0]
-	} else if len(p.TestGoFiles) > 0 {
-		src = p.TestGoFiles[0]
-	} else if len(p.XTestGoFiles) > 0 {
-		src = p.XTestGoFiles[0]
 	} else {
-		// this case could only happen if the provided source uses cgo
-		// while cgo is disabled.
-		hint := ""
-		if !cfg.BuildContext.CgoEnabled {
-			hint = " (cgo is disabled)"
-		}
-		base.Fatalf("go build: no suitable source files%s", hint)
+		return ""
 	}
 	_, elem := filepath.Split(src)
 	return elem[:len(elem)-len(".go")]
