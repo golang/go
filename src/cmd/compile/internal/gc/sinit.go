@@ -83,6 +83,9 @@ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
 	if r.Name.Defn.Op != OAS {
 		return false
 	}
+	if r.Type.IsString() { // perhaps overwritten by cmd/link -X (#34675)
+		return false
+	}
 	orig := r
 	r = r.Name.Defn.Right
 
