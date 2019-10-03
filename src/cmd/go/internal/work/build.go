@@ -317,13 +317,6 @@ func runBuild(cmd *base.Command, args []string) {
 
 	pkgs := load.PackagesForBuild(args)
 
-	explicitO := len(cfg.BuildO) > 0
-
-	if len(pkgs) == 1 && pkgs[0].Name == "main" && cfg.BuildO == "" {
-		cfg.BuildO = pkgs[0].DefaultExecName()
-		cfg.BuildO += cfg.ExeSuffix
-	}
-
 	// sanity check some often mis-used options
 	switch cfg.BuildContext.Compiler {
 	case "gccgo":
@@ -346,19 +339,17 @@ func runBuild(cmd *base.Command, args []string) {
 
 	pkgs = omitTestOnly(pkgsFilter(load.Packages(args)))
 
-	// Special case -o /dev/null by not writing at all.
-	if cfg.BuildO == os.DevNull {
-		cfg.BuildO = ""
-	}
-
 	if cfg.BuildO != "" {
+
+		// Special case -o /dev/null by not writing at all.
+		if cfg.BuildO == os.DevNull {
+			goto NoOutput
+		}
+		
 		// If the -o name exists and is a directory, then
 		// write all main packages to that directory.
 		// Otherwise require only a single package be built.
 		if fi, err := os.Stat(cfg.BuildO); err == nil && fi.IsDir() {
-			if !explicitO {
-				base.Fatalf("go build: build output %q already exists and is a directory", cfg.BuildO)
-			}
 			a := &Action{Mode: "go build"}
 			for _, p := range pkgs {
 				if p.Name != "main" {
@@ -389,8 +380,17 @@ func runBuild(cmd *base.Command, args []string) {
 		a := b.AutoAction(ModeInstall, depMode, p)
 		b.Do(a)
 		return
+	} else if len(pkgs) == 1 && pkgs[0].Name == "main" {
+		p := pkgs[0]
+		p.Target = p.DefaultExecName()
+		p.Target += cfg.ExeSuffix
+		p.Stale = true
+		a := b.AutoAction(ModeInstall, depMode, p)
+		b.Do(a)
+		return
 	}
 
+NoOutput:
 	a := &Action{Mode: "go build"}
 	for _, p := range pkgs {
 		a.Deps = append(a.Deps, b.AutoAction(ModeBuild, depMode, p))
