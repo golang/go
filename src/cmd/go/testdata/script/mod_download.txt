@@ -17,7 +17,6 @@ stderr 'this.domain.is.invalid'
 stdout '"Error": ".*this.domain.is.invalid.*"'
 
 # download -json with version should print JSON
-# and download the .info file for the 'latest' version.
 go mod download -json 'rsc.io/quote@<=v1.5.0'
 stdout '^\t"Path": "rsc.io/quote"'
 stdout '^\t"Version": "v1.5.0"'
@@ -28,14 +27,13 @@ stdout '^\t"Sum": "h1:6fJa6E\+wGadANKkUMlZ0DhXFpoKlslOQDCo259XtdIE="'  # hash of
 stdout '^\t"GoModSum": "h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe\+TKr0="'
 ! stdout '"Error"'
 
-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
-
 # download queries above should not have added to go.mod.
 go list -m all
 ! stdout rsc.io
 
 # add to go.mod so we can test non-query downloads
 go mod edit -require rsc.io/quote@v1.5.2
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
 ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
 ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
 
