@@ -172,6 +172,20 @@ TEXT	runtime·raiseproc(SB),NOSPLIT|NOFRAME,$0
 	SWI	$0
 	RET
 
+TEXT ·getpid(SB),NOSPLIT,$0-4
+	MOVW	$SYS_getpid, R7
+	SWI	$0
+	MOVW	R0, ret+0(FP)
+	RET
+
+TEXT ·tgkill(SB),NOSPLIT,$0-12
+	MOVW	tgid+0(FP), R0
+	MOVW	tid+4(FP), R1
+	MOVW	sig+8(FP), R2
+	MOVW	$SYS_tgkill, R7
+	SWI	$0
+	RET
+
 TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVW	addr+0(FP), R0
 	MOVW	n+4(FP), R1
