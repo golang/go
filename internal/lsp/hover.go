@@ -49,20 +49,33 @@ func (s *Server) toProtocolHoverContents(ctx context.Context, h *source.HoverInf
 	if content.Kind == protocol.Markdown {
 		signature = fmt.Sprintf("```go\n%s\n```", h.Signature)
 	}
+
 	switch options.HoverKind {
 	case source.SingleLine:
-		content.Value = h.SingleLine
+		doc := h.SingleLine
+		if content.Kind == protocol.Markdown {
+			doc = source.CommentToMarkdown(doc)
+		}
+		content.Value = doc
 	case source.NoDocumentation:
 		content.Value = signature
 	case source.SynopsisDocumentation:
 		if h.Synopsis != "" {
-			content.Value = fmt.Sprintf("%s\n%s", h.Synopsis, signature)
+			doc := h.Synopsis
+			if content.Kind == protocol.Markdown {
+				doc = source.CommentToMarkdown(h.Synopsis)
+			}
+			content.Value = fmt.Sprintf("%s\n%s", doc, signature)
 		} else {
 			content.Value = signature
 		}
 	case source.FullDocumentation:
 		if h.FullDocumentation != "" {
-			content.Value = fmt.Sprintf("%s\n%s", signature, h.FullDocumentation)
+			doc := h.FullDocumentation
+			if content.Kind == protocol.Markdown {
+				doc = source.CommentToMarkdown(h.FullDocumentation)
+			}
+			content.Value = fmt.Sprintf("%s\n%s", signature, doc)
 		} else {
 			content.Value = signature
 		}
