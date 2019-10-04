@@ -10148,7 +10148,8 @@ type http2randomWriteScheduler struct {
 	zero http2writeQueue
 
 	// sq contains the stream-specific queues, keyed by stream ID.
-	// When a stream is idle or closed, it's deleted from the map.
+	// When a stream is idle, closed, or emptied, it's deleted
+	// from the map.
 	sq map[uint32]*http2writeQueue
 
 	// pool of empty queues for reuse.
@@ -10192,8 +10193,12 @@ func (ws *http2randomWriteScheduler) Pop() (http2FrameWriteRequest, bool) {
 		return ws.zero.shift(), true
 	}
 	// Iterate over all non-idle streams until finding one that can be consumed.
-	for _, q := range ws.sq {
+	for streamID, q := range ws.sq {
 		if wr, ok := q.consume(math.MaxInt32); ok {
+			if q.empty() {
+				delete(ws.sq, streamID)
+				ws.queuePool.put(q)
+			}
 			return wr, true
 		}
 	}
