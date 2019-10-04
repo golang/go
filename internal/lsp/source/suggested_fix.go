@@ -13,7 +13,7 @@ type SuggestedFix struct {
 	Edits map[span.URI][]protocol.TextEdit
 }
 
-func suggestedFixes(ctx context.Context, view View, pkg Package, diag analysis.Diagnostic) ([]SuggestedFix, error) {
+func suggestedFixes(ctx context.Context, view View, pkg Package, diag *analysis.Diagnostic) ([]SuggestedFix, error) {
 	var fixes []SuggestedFix
 	for _, fix := range diag.SuggestedFixes {
 		edits := make(map[span.URI][]protocol.TextEdit)

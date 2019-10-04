@@ -34,6 +34,10 @@ type snapshot struct {
 	packages map[packageKey]*checkPackageHandle
 }
 
+func (s *snapshot) View() source.View {
+	return s.view
+}
+
 func (s *snapshot) getImportedBy(id packageID) []packageID {
 	s.mu.Lock()
 	defer s.mu.Unlock()

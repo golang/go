@@ -14,7 +14,6 @@ import (
 	"sort"
 	"sync"
 
-	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
@@ -279,7 +278,6 @@ func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle) (*p
 			Selections: make(map[*ast.SelectorExpr]*types.Selection),
 			Scopes:     make(map[ast.Node]*types.Scope),
 		},
-		analyses: make(map[*analysis.Analyzer]*analysisEntry),
 	}
 	// If the package comes back with errors from `go list`,
 	// don't bother type-checking it.

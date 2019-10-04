@@ -111,6 +111,7 @@ type CheckPackageHandle interface {
 	// Cached returns the Package for the CheckPackageHandle if it has already been stored.
 	Cached(ctx context.Context) (Package, error)
 
+	// MissingDependencies reports any unresolved imports.
 	MissingDependencies() []string
 }
 
@@ -256,6 +257,12 @@ type View interface {
 type Snapshot interface {
 	// Handle returns the FileHandle for the given file.
 	Handle(ctx context.Context, f File) FileHandle
+
+	// View returns the View associated with this snapshot.
+	View() View
+
+	// Analyze runs the analyses for the given package at this snapshot.
+	Analyze(ctx context.Context, id string, analyzers []*analysis.Analyzer) (map[*analysis.Analyzer][]*analysis.Diagnostic, error)
 }
 
 // File represents a source file of any type.
@@ -283,9 +290,6 @@ type Package interface {
 
 	// GetImport returns the CheckPackageHandle for a package imported by this package.
 	GetImport(ctx context.Context, pkgPath string) (Package, error)
-
-	// GetActionGraph returns the action graph for the given package.
-	GetActionGraph(ctx context.Context, a *analysis.Analyzer) (*Action, error)
 
 	// FindFile returns the AST and type information for a file that may
 	// belong to or be part of a dependency of the given package.
