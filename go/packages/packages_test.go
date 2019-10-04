@@ -2039,8 +2039,8 @@ func testErrorMissingFile(t *testing.T, exporter packagestest.Exporter) {
 	if len(pkgs) == 0 && runtime.GOOS == "windows" {
 		t.Skip("Issue #31344: the ad-hoc command-line-arguments package isn't created on windows")
 	}
-	if len(pkgs) != 1 || pkgs[0].PkgPath != "command-line-arguments" {
-		t.Fatalf("packages.Load: want [command-line-arguments], got %v", pkgs)
+	if len(pkgs) != 1 || (pkgs[0].PkgPath != "command-line-arguments" && pkgs[0].PkgPath != "missing.go") {
+		t.Fatalf("packages.Load: want [command-line-arguments] or [missing.go], got %v", pkgs)
 	}
 	if len(pkgs[0].Errors) == 0 {
 		t.Errorf("result of Load: want package with errors, got none: %+v", pkgs[0])
@@ -2062,24 +2062,16 @@ func testReturnErrorWhenUsingNonGoFiles(t *testing.T, exporter packagestest.Expo
 		}}})
 	defer exported.Cleanup()
 	config := packages.Config{Env: append(os.Environ(), "GOPACKAGESDRIVER=off")}
-	want := "named files must be .go files"
-	pkgs, err := packages.Load(&config, "a/a.go", "b/b.c")
+	pkgs, err := packages.Load(&config, "b/b.c")
 	if err != nil {
-		// Check if the error returned is the one we expected.
-		if !strings.Contains(err.Error(), want) {
-			t.Fatalf("want error message: %s, got: %s", want, err.Error())
-		}
 		return
 	}
-	if len(pkgs) != 1 || pkgs[0].PkgPath != "command-line-arguments" {
-		t.Fatalf("packages.Load: want [command-line-arguments], got %v", pkgs)
+	// Go <1.14 calls the package command-line-arguments while Go 1.14+ uses the file names.
+	if len(pkgs) != 1 || (pkgs[0].PkgPath != "command-line-arguments" && pkgs[0].PkgPath != "b/b.c") {
+		t.Fatalf("packages.Load: want [command-line-arguments] or [b/b.c], got %v", pkgs)
 	}
 	if len(pkgs[0].Errors) != 1 {
 		t.Fatalf("result of Load: want package with one error, got: %+v", pkgs[0])
-	}
-	got := pkgs[0].Errors[0].Error()
-	if !strings.Contains(got, want) {
-		t.Fatalf("want error message: %s, got: %s", want, got)
 	}
 }
 
