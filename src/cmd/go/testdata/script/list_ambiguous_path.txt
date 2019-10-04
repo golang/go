@@ -1,8 +1,6 @@
 # Ensures that we can correctly list package patterns ending in '.go'.
 # See golang.org/issue/34653.
 
-env GO111MODULE=on
-
 # A single pattern for a package ending in '.go'.
 go list ./foo.go
 stdout '^test/foo.go$'
