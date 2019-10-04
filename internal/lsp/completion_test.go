@@ -51,7 +51,7 @@ func (r *runner) UnimportedCompletion(t *testing.T, src span.Span, test tests.Co
 		got = tests.FilterBuiltins(got)
 	}
 	want := expected(t, test, items)
-	if diff := tests.DiffCompletionItems(want, got); diff != "" {
+	if diff := tests.CheckCompletionOrder(want, got); diff != "" {
 		t.Errorf("%s: %s", src, diff)
 	}
 }

@@ -119,13 +119,18 @@ func (r *ModuleResolver) findPackage(importPath string) (*ModuleJSON, string) {
 		}
 
 		if info, ok := r.moduleCacheInfo.Load(pkgDir); ok {
-			if packageScanned, err := info.reachedStatus(directoryScanned); packageScanned {
+			// This is slightly wrong: a directory doesn't have to have an
+			// importable package to count as a package for package-to-module
+			// resolution. package main or _test files should count but
+			// don't.
+			if loaded, err := info.reachedStatus(nameLoaded); loaded {
 				if err != nil {
-					// There was some error with scanning this directory.
-					// It does not contain a valid package.
-					continue
+					continue // No package in this dir.
 				}
 				return m, pkgDir
+			}
+			if scanned, err := info.reachedStatus(directoryScanned); scanned && err != nil {
+				continue // Dir is unreadable, etc.
 			}
 		}
 
@@ -237,7 +242,7 @@ func (r *ModuleResolver) loadPackageNames(importPaths []string, srcDir string) (
 	return names, nil
 }
 
-func (r *ModuleResolver) scan(_ references) ([]*pkg, error) {
+func (r *ModuleResolver) scan(_ references, loadNames bool, exclude []gopathwalk.RootType) ([]*pkg, error) {
 	if err := r.init(); err != nil {
 		return nil, err
 	}
@@ -260,6 +265,8 @@ func (r *ModuleResolver) scan(_ references) ([]*pkg, error) {
 			roots = append(roots, gopathwalk.Root{mod.Dir, gopathwalk.RootOther})
 		}
 	}
+
+	roots = filterRoots(roots, exclude)
 
 	var result []*pkg
 	dupCheck := make(map[string]bool)
@@ -311,9 +318,16 @@ func (r *ModuleResolver) scan(_ references) ([]*pkg, error) {
 			return
 		}
 
+		if loadNames {
+			info.packageName, info.err = packageDirToName(dir)
+			if info.err != nil {
+				return
+			}
+		}
+
 		// The rest of this function canonicalizes the packages using the results
 		// of initializing the resolver from 'go list -m'.
-		res, err := r.canonicalize(root.Type, info.nonCanonicalImportPath, info.dir, info.needsReplace)
+		res, err := r.canonicalize(root.Type, info)
 		if err != nil {
 			return
 		}
@@ -335,7 +349,23 @@ func (r *ModuleResolver) scan(_ references) ([]*pkg, error) {
 			continue
 		}
 
-		res, err := r.canonicalize(gopathwalk.RootModuleCache, info.nonCanonicalImportPath, info.dir, info.needsReplace)
+		// If we want package names, make sure the cache has them.
+		if loadNames {
+			loaded, err := info.reachedStatus(nameLoaded)
+			if loaded && err != nil {
+				continue
+			}
+			if !loaded {
+				info.packageName, info.err = packageDirToName(info.dir)
+				info.status = nameLoaded
+				r.moduleCacheInfo.Store(info.dir, info)
+				if info.err != nil {
+					continue
+				}
+			}
+		}
+
+		res, err := r.canonicalize(gopathwalk.RootModuleCache, info)
 		if err != nil {
 			continue
 		}
@@ -347,38 +377,42 @@ func (r *ModuleResolver) scan(_ references) ([]*pkg, error) {
 
 // canonicalize gets the result of canonicalizing the packages using the results
 // of initializing the resolver from 'go list -m'.
-func (r *ModuleResolver) canonicalize(rootType gopathwalk.RootType, importPath, dir string, needsReplace bool) (res *pkg, err error) {
+func (r *ModuleResolver) canonicalize(rootType gopathwalk.RootType, info directoryPackageInfo) (*pkg, error) {
 	// Packages in GOROOT are already canonical, regardless of the std/cmd modules.
 	if rootType == gopathwalk.RootGOROOT {
 		return &pkg{
-			importPathShort: importPath,
-			dir:             dir,
+			importPathShort: info.nonCanonicalImportPath,
+			dir:             info.dir,
+			packageName:     path.Base(info.nonCanonicalImportPath),
 		}, nil
 	}
 
+	importPath := info.nonCanonicalImportPath
 	// Check if the directory is underneath a module that's in scope.
-	if mod := r.findModuleByDir(dir); mod != nil {
+	if mod := r.findModuleByDir(info.dir); mod != nil {
 		// It is. If dir is the target of a replace directive,
 		// our guessed import path is wrong. Use the real one.
-		if mod.Dir == dir {
+		if mod.Dir == info.dir {
 			importPath = mod.Path
 		} else {
-			dirInMod := dir[len(mod.Dir)+len("/"):]
+			dirInMod := info.dir[len(mod.Dir)+len("/"):]
 			importPath = path.Join(mod.Path, filepath.ToSlash(dirInMod))
 		}
-	} else if needsReplace {
-		return nil, fmt.Errorf("needed this package to be in scope: %s", dir)
+	} else if info.needsReplace {
+		return nil, fmt.Errorf("package in %q is not valid without a replace statement", info.dir)
 	}
 
+	res := &pkg{
+		importPathShort: VendorlessPath(importPath),
+		dir:             info.dir,
+		packageName:     info.packageName, // may not be populated if the caller didn't ask for it
+	}
 	// We may have discovered a package that has a different version
 	// in scope already. Canonicalize to that one if possible.
 	if _, canonicalDir := r.findPackage(importPath); canonicalDir != "" {
-		dir = canonicalDir
+		res.dir = canonicalDir
 	}
-	return &pkg{
-		importPathShort: VendorlessPath(importPath),
-		dir:             dir,
-	}, nil
+	return res, nil
 }
 
 func (r *ModuleResolver) loadExports(ctx context.Context, expectPackage string, pkg *pkg) (map[string]bool, error) {

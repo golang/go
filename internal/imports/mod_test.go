@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"go/build"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -14,6 +15,7 @@ import (
 	"sync"
 	"testing"
 
+	"golang.org/x/tools/internal/gopathwalk"
 	"golang.org/x/tools/internal/module"
 	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/internal/txtar"
@@ -86,7 +88,7 @@ package z
 
 	mt.assertFound("y", "y")
 
-	scan, err := mt.resolver.scan(nil)
+	scan, err := mt.resolver.scan(nil, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,8 +166,8 @@ import _ "rsc.io/quote"
 `, "")
 	defer mt.cleanup()
 
-	mt.assertScanFinds("rsc.io/quote/buggy", "buggy")
-	mt.assertScanFinds("rsc.io/quote/buggy", "buggy")
+	mt.assertScanFinds("rsc.io/quote", "quote")
+	mt.assertScanFinds("rsc.io/quote", "quote")
 }
 
 // Tests that scanning the module cache > 1 after changing a package in module cache to make it unimportable
@@ -215,7 +217,7 @@ import _ "rsc.io/quote"
 }
 
 // Tests that -mod=vendor sort of works. Adapted from mod_getmode_vendor.txt.
-func TestModeGetmodeVendor(t *testing.T) {
+func TestModGetmodeVendor(t *testing.T) {
 	t.Skip("'go list -m -mod=vendor' currently not allowed: see golang.org/issue/34826")
 	mt := setup(t, `
 -- go.mod --
@@ -540,7 +542,7 @@ func (t *modTest) assertFound(importPath, pkgName string) (string, *pkg) {
 
 func (t *modTest) assertScanFinds(importPath, pkgName string) *pkg {
 	t.Helper()
-	scan, err := t.resolver.scan(nil)
+	scan, err := t.resolver.scan(nil, true, nil)
 	if err != nil {
 		t.Errorf("scan failed: %v", err)
 	}
@@ -795,5 +797,20 @@ func TestInvalidModCache(t *testing.T) {
 		WorkingDir:  dir,
 	}
 	resolver := &ModuleResolver{env: env}
-	resolver.scan(nil)
+	resolver.scan(nil, true, nil)
+}
+
+func BenchmarkScanModCache(b *testing.B) {
+	env := &ProcessEnv{
+		Debug:  true,
+		GOPATH: build.Default.GOPATH,
+		GOROOT: build.Default.GOROOT,
+		Logf:   log.Printf,
+	}
+	exclude := []gopathwalk.RootType{gopathwalk.RootCurrentModule, gopathwalk.RootGOROOT, gopathwalk.RootOther}
+	env.GetResolver().scan(nil, true, exclude)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		env.GetResolver().scan(nil, true, exclude)
+	}
 }

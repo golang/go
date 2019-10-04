@@ -586,18 +586,20 @@ func getFixes(fset *token.FileSet, f *ast.File, filename string, env *ProcessEnv
 
 // getAllCandidates gets all of the candidates to be imported, regardless of if they are needed.
 func getAllCandidates(filename string, env *ProcessEnv) ([]ImportFix, error) {
-	// TODO(suzmue): scan for additional candidates and filter out
-	// current package.
+	// TODO(heschi): filter out current package. (Don't forget x_test can import x.)
 
-	// Get the stdlib candidates and sort by import path.
-	var paths []string
-	for importPath := range stdlib {
-		paths = append(paths, importPath)
+	// Exclude goroot results -- getting them is relatively expensive, not cached,
+	// and generally redundant with the in-memory version.
+	exclude := []gopathwalk.RootType{gopathwalk.RootGOROOT}
+	// Only the go/packages resolver uses the first argument, and nobody uses that resolver.
+	pkgs, err := env.GetResolver().scan(nil, true, exclude)
+	if err != nil {
+		return nil, err
 	}
-	sort.Strings(paths)
 
+	// Start off with the standard library.
 	var imports []ImportFix
-	for _, importPath := range paths {
+	for importPath := range stdlib {
 		imports = append(imports, ImportFix{
 			StmtInfo: ImportInfo{
 				ImportPath: importPath,
@@ -606,6 +608,27 @@ func getAllCandidates(filename string, env *ProcessEnv) ([]ImportFix, error) {
 			FixType:   AddImport,
 		})
 	}
+
+	dupCheck := map[string]struct{}{}
+	for _, pkg := range pkgs {
+		if !canUse(filename, pkg.dir) {
+			continue
+		}
+		if _, ok := dupCheck[pkg.importPathShort]; ok {
+			continue
+		}
+		dupCheck[pkg.importPathShort] = struct{}{}
+		imports = append(imports, ImportFix{
+			StmtInfo: ImportInfo{
+				ImportPath: pkg.importPathShort,
+			},
+			IdentName: pkg.packageName,
+			FixType:   AddImport,
+		})
+	}
+	sort.Slice(imports, func(i int, j int) bool {
+		return imports[i].StmtInfo.ImportPath < imports[j].StmtInfo.ImportPath
+	})
 	return imports, nil
 }
 
@@ -736,8 +759,10 @@ func addStdlibCandidates(pass *pass, refs references) {
 type Resolver interface {
 	// loadPackageNames loads the package names in importPaths.
 	loadPackageNames(importPaths []string, srcDir string) (map[string]string, error)
-	// scan finds (at least) the packages satisfying refs. The returned slice is unordered.
-	scan(refs references) ([]*pkg, error)
+	// scan finds (at least) the packages satisfying refs. If loadNames is true,
+	// package names will be set on the results, and dirs whose package name
+	// could not be determined will be excluded.
+	scan(refs references, loadNames bool, exclude []gopathwalk.RootType) ([]*pkg, error)
 	// loadExports returns the set of exported symbols in the package at dir.
 	// It returns an error if the package name in dir does not match expectPackage.
 	// loadExports may be called concurrently.
@@ -773,7 +798,7 @@ func (r *goPackagesResolver) loadPackageNames(importPaths []string, srcDir strin
 
 }
 
-func (r *goPackagesResolver) scan(refs references) ([]*pkg, error) {
+func (r *goPackagesResolver) scan(refs references, _ bool, _ []gopathwalk.RootType) ([]*pkg, error) {
 	var loadQueries []string
 	for pkgName := range refs {
 		loadQueries = append(loadQueries, "iamashamedtousethedisabledqueryname="+pkgName)
@@ -791,6 +816,7 @@ func (r *goPackagesResolver) scan(refs references) ([]*pkg, error) {
 			dir:             filepath.Dir(goPackage.CompiledGoFiles[0]),
 			importPathShort: VendorlessPath(goPackage.PkgPath),
 			goPackage:       goPackage,
+			packageName:     goPackage.Name,
 		})
 	}
 	return scan, nil
@@ -817,7 +843,7 @@ func (r *goPackagesResolver) loadExports(ctx context.Context, expectPackage stri
 }
 
 func addExternalCandidates(pass *pass, refs references, filename string) error {
-	dirScan, err := pass.env.GetResolver().scan(refs)
+	dirScan, err := pass.env.GetResolver().scan(refs, false, nil)
 	if err != nil {
 		return err
 	}
@@ -1001,6 +1027,7 @@ type pkg struct {
 	goPackage       *packages.Package
 	dir             string // absolute file path to pkg directory ("/usr/lib/go/src/net/http")
 	importPathShort string // vendorless import path ("net/http", "a/b")
+	packageName     string // package name loaded from source if requested
 }
 
 type pkgDistance struct {
@@ -1044,7 +1071,7 @@ func distance(basepath, targetpath string) int {
 	return strings.Count(p, string(filepath.Separator)) + 1
 }
 
-func (r *gopathResolver) scan(_ references) ([]*pkg, error) {
+func (r *gopathResolver) scan(_ references, loadNames bool, exclude []gopathwalk.RootType) ([]*pkg, error) {
 	dupCheck := make(map[string]bool)
 	var result []*pkg
 
@@ -1059,13 +1086,36 @@ func (r *gopathResolver) scan(_ references) ([]*pkg, error) {
 		}
 		dupCheck[dir] = true
 		importpath := filepath.ToSlash(dir[len(root.Path)+len("/"):])
-		result = append(result, &pkg{
+		p := &pkg{
 			importPathShort: VendorlessPath(importpath),
 			dir:             dir,
-		})
+		}
+		if loadNames {
+			var err error
+			p.packageName, err = packageDirToName(dir)
+			if err != nil {
+				return // Typically an unimportable package like main.
+			}
+		}
+		result = append(result, p)
 	}
-	gopathwalk.Walk(gopathwalk.SrcDirsRoots(r.env.buildContext()), add, gopathwalk.Options{Debug: r.env.Debug, ModulesEnabled: false})
+	roots := filterRoots(gopathwalk.SrcDirsRoots(r.env.buildContext()), exclude)
+	gopathwalk.Walk(roots, add, gopathwalk.Options{Debug: r.env.Debug, ModulesEnabled: false})
 	return result, nil
+}
+
+func filterRoots(roots []gopathwalk.Root, exclude []gopathwalk.RootType) []gopathwalk.Root {
+	var result []gopathwalk.Root
+outer:
+	for _, root := range roots {
+		for _, i := range exclude {
+			if i == root.Type {
+				continue outer
+			}
+		}
+		result = append(result, root)
+	}
+	return result
 }
 
 func (r *gopathResolver) loadExports(ctx context.Context, expectPackage string, pkg *pkg) (map[string]bool, error) {

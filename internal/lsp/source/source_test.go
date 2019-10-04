@@ -136,7 +136,7 @@ func (r *runner) UnimportedCompletion(t *testing.T, src span.Span, test tests.Co
 	if !strings.Contains(string(src.URI()), "builtins") {
 		got = tests.FilterBuiltins(got)
 	}
-	if diff := tests.DiffCompletionItems(want, got); diff != "" {
+	if diff := tests.CheckCompletionOrder(want, got); diff != "" {
 		t.Errorf("%s: %s", src, diff)
 	}
 }

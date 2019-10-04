@@ -30,6 +30,7 @@ type directoryPackageStatus int
 const (
 	_ directoryPackageStatus = iota
 	directoryScanned
+	nameLoaded
 )
 
 type directoryPackageInfo struct {
@@ -38,7 +39,7 @@ type directoryPackageInfo struct {
 	// err is non-nil when there was an error trying to reach status.
 	err error
 
-	// Set when status > directoryScanned.
+	// Set when status >= directoryScanned.
 
 	// dir is the absolute directory of this package.
 	dir string
@@ -49,6 +50,10 @@ type directoryPackageInfo struct {
 	// the modules declared path, making it impossible to import without a
 	// replace directive.
 	needsReplace bool
+
+	// Set when status >= nameLoaded.
+
+	packageName string // the package name, as declared in the source.
 }
 
 // reachedStatus returns true when info has a status at least target and any error associated with
@@ -90,13 +95,8 @@ type moduleCacheInfo struct {
 func (d *moduleCacheInfo) Store(dir string, info directoryPackageInfo) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	d.modCacheDirInfo[dir] = &directoryPackageInfo{
-		status:                 info.status,
-		err:                    info.err,
-		dir:                    info.dir,
-		nonCanonicalImportPath: info.nonCanonicalImportPath,
-		needsReplace:           info.needsReplace,
-	}
+	stored := info // defensive copy
+	d.modCacheDirInfo[dir] = &stored
 }
 
 // Load returns a copy of the directoryPackageInfo for absolute directory dir.

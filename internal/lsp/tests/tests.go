@@ -251,6 +251,12 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 			Files:   files,
 			Overlay: overlays,
 		},
+		{
+			Name: "example.com/extramodule",
+			Files: map[string]interface{}{
+				"pkg/x.go": "package pkg\n",
+			},
+		},
 	}
 	data.Exported = packagestest.Export(t, exporter, modules)
 	for fragment := range files {

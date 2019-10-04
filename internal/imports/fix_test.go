@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/build"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"sync"
@@ -2513,33 +2514,48 @@ var _ = bytes.Buffer{}
 
 // TestStdLibGetCandidates tests that get packages finds std library packages
 // with correct priorities.
-func TestStdLibGetCandidates(t *testing.T) {
-	want := []struct {
-		wantName string
-		wantPkg  string
-	}{
+func TestGetCandidates(t *testing.T) {
+	type res struct {
+		name, path string
+	}
+	want := []res{
+		{"bar", "bar.com/bar"},
 		{"bytes", "bytes"},
 		{"rand", "crypto/rand"},
+		{"foo", "foo.com/foo"},
 		{"rand", "math/rand"},
 		{"http", "net/http"},
 	}
 
-	got, err := GetAllCandidates("", nil)
-	if err != nil {
-		t.Fatalf("Process() = %v", err)
-	}
-	wantIdx := 0
-	for _, fix := range got {
-		if wantIdx >= len(want) {
-			break
+	testConfig{
+		modules: []packagestest.Module{
+			{
+				Name:  "foo.com",
+				Files: fm{"foo/foo.go": "package foo\n"},
+			},
+			{
+				Name:  "bar.com",
+				Files: fm{"bar/bar.go": "package bar\n"},
+			},
+		},
+		goPackagesIncompatible: true, // getAllCandidates doesn't support the go/packages resolver.
+	}.test(t, func(t *goimportTest) {
+		candidates, err := getAllCandidates("x.go", t.env)
+		if err != nil {
+			t.Fatalf("GetAllCandidates() = %v", err)
 		}
-		if want[wantIdx].wantName == fix.IdentName && want[wantIdx].wantPkg == fix.StmtInfo.ImportPath && "" == fix.StmtInfo.Name {
-			wantIdx++
+		var got []res
+		for _, c := range candidates {
+			for _, w := range want {
+				if c.StmtInfo.ImportPath == w.path {
+					got = append(got, res{c.IdentName, c.StmtInfo.ImportPath})
+				}
+			}
 		}
-	}
-	if wantIdx < len(want) {
-		t.Errorf("expected to find candidate with path: %q, name: %q next in ordered scan of results`", want[wantIdx].wantPkg, want[wantIdx].wantName)
-	}
+		if !reflect.DeepEqual(want, got) {
+			t.Errorf("wanted stdlib results in order %v, got %v", want, got)
+		}
+	})
 }
 
 // Tests #34895: process should not panic on concurrent calls.
