@@ -678,15 +678,6 @@ func runGet(cmd *base.Command, args []string) {
 	if *getD || len(pkgPatterns) == 0 {
 		return
 	}
-	// TODO(golang.org/issue/32483): handle paths ending with ".go" consistently
-	// with 'go build'. When we load packages above, we interpret arguments as
-	// package patterns, not source files. To preserve that interpretation here,
-	// we add a trailing slash to any patterns ending with ".go".
-	for i := range pkgPatterns {
-		if strings.HasSuffix(pkgPatterns[i], ".go") {
-			pkgPatterns[i] += "/"
-		}
-	}
 	work.BuildInit()
 	pkgs := load.PackagesForBuild(pkgPatterns)
 	work.InstallPackages(pkgPatterns, pkgs)
