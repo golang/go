@@ -339,13 +339,10 @@ func runBuild(cmd *base.Command, args []string) {
 
 	pkgs = omitTestOnly(pkgsFilter(load.Packages(args)))
 
-	if cfg.BuildO != "" {
-
-		// Special case -o /dev/null by not writing at all.
-		if cfg.BuildO == os.DevNull {
-			goto NoOutput
-		}
-
+	// Special case -o /dev/null by not writing at all.
+	if cfg.BuildO == os.DevNull {
+		cfg.BuildO = ""
+	} else if cfg.BuildO != "" {
 		// If the -o name exists and is a directory, then
 		// write all main packages to that directory.
 		// Otherwise require only a single package be built.
@@ -390,7 +387,6 @@ func runBuild(cmd *base.Command, args []string) {
 		return
 	}
 
-NoOutput:
 	a := &Action{Mode: "go build"}
 	for _, p := range pkgs {
 		a.Deps = append(a.Deps, b.AutoAction(ModeBuild, depMode, p))
