@@ -89,7 +89,7 @@ func (o *Order) newTemp(t *types.Type, clear bool) *Node {
 	return v
 }
 
-// copyExpr behaves like ordertemp but also emits
+// copyExpr behaves like newTemp but also emits
 // code to initialize the temporary to the value n.
 //
 // The clear argument is provided for use when the evaluation
@@ -181,12 +181,12 @@ func (o *Order) safeExpr(n *Node) *Node {
 		return typecheck(a, ctxExpr)
 
 	default:
-		Fatalf("ordersafeexpr %v", n.Op)
+		Fatalf("order.safeExpr %v", n.Op)
 		return nil // not reached
 	}
 }
 
-// Isaddrokay reports whether it is okay to pass n's address to runtime routines.
+// isaddrokay reports whether it is okay to pass n's address to runtime routines.
 // Taking the address of a variable makes the liveness and optimization analyses
 // lose track of where the variable's lifetime ends. To avoid hurting the analyses
 // of ordinary stack variables, those are not 'isaddrokay'. Temporaries are okay,
@@ -274,13 +274,13 @@ func mapKeyReplaceStrConv(n *Node) bool {
 
 type ordermarker int
 
-// Marktemp returns the top of the temporary variable stack.
+// markTemp returns the top of the temporary variable stack.
 func (o *Order) markTemp() ordermarker {
 	return ordermarker(len(o.temp))
 }
 
-// Poptemp pops temporaries off the stack until reaching the mark,
-// which must have been returned by marktemp.
+// popTemp pops temporaries off the stack until reaching the mark,
+// which must have been returned by markTemp.
 func (o *Order) popTemp(mark ordermarker) {
 	for _, n := range o.temp[mark:] {
 		key := n.Type.LongString()
@@ -289,7 +289,7 @@ func (o *Order) popTemp(mark ordermarker) {
 	o.temp = o.temp[:mark]
 }
 
-// Cleantempnopop emits VARKILL and if needed VARLIVE instructions
+// cleanTempNoPop emits VARKILL and if needed VARLIVE instructions
 // to *out for each temporary above the mark on the temporary stack.
 // It does not pop the temporaries from the stack.
 func (o *Order) cleanTempNoPop(mark ordermarker) []*Node {
@@ -372,7 +372,7 @@ func (o *Order) init(n *Node) {
 		// For concurrency safety, don't mutate potentially shared nodes.
 		// First, ensure that no work is required here.
 		if n.Ninit.Len() > 0 {
-			Fatalf("orderinit shared node with ninit")
+			Fatalf("order.init shared node with ninit")
 		}
 		return
 	}
@@ -445,7 +445,7 @@ func (o *Order) call(n *Node) {
 func (o *Order) mapAssign(n *Node) {
 	switch n.Op {
 	default:
-		Fatalf("ordermapassign %v", n.Op)
+		Fatalf("order.mapAssign %v", n.Op)
 
 	case OAS, OASOP:
 		if n.Left.Op == OINDEXMAP {
@@ -501,7 +501,7 @@ func (o *Order) stmt(n *Node) {
 
 	switch n.Op {
 	default:
-		Fatalf("orderstmt %v", n.Op)
+		Fatalf("order.stmt %v", n.Op)
 
 	case OVARKILL, OVARLIVE, OINLMARK:
 		o.out = append(o.out, n)
@@ -713,7 +713,7 @@ func (o *Order) stmt(n *Node) {
 		orderBody := true
 		switch n.Type.Etype {
 		default:
-			Fatalf("orderstmt range %v", n.Type)
+			Fatalf("order.stmt range %v", n.Type)
 
 		case TARRAY, TSLICE:
 			if n.List.Len() < 2 || n.List.Second().isBlank() {
@@ -930,7 +930,7 @@ func (o *Order) stmt(n *Node) {
 	// TODO(rsc): Clean temporaries more aggressively.
 	// Note that because walkswitch will rewrite some of the
 	// switch into a binary search, this is not as easy as it looks.
-	// (If we ran that code here we could invoke orderstmt on
+	// (If we ran that code here we could invoke order.stmt on
 	// the if-else chain instead.)
 	// For now just clean all the temporaries at the end.
 	// In practice that's fine.
