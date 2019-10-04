@@ -235,10 +235,10 @@ func (l *Loader) NSym() int {
 
 // Returns the raw (unpatched) name of the i-th symbol.
 func (l *Loader) RawSymName(i Sym) string {
-	r, li := l.ToLocal(i)
-	if r == nil {
+	if l.extStart != 0 && i >= l.extStart {
 		return ""
 	}
+	r, li := l.ToLocal(i)
 	osym := goobj2.Sym{}
 	osym.Read(r.Reader, r.SymOff(li))
 	return osym.Name
@@ -246,10 +246,10 @@ func (l *Loader) RawSymName(i Sym) string {
 
 // Returns the (patched) name of the i-th symbol.
 func (l *Loader) SymName(i Sym) string {
-	r, li := l.ToLocal(i)
-	if r == nil {
+	if l.extStart != 0 && i >= l.extStart {
 		return ""
 	}
+	r, li := l.ToLocal(i)
 	osym := goobj2.Sym{}
 	osym.Read(r.Reader, r.SymOff(li))
 	return strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
@@ -257,27 +257,39 @@ func (l *Loader) SymName(i Sym) string {
 
 // Returns the type of the i-th symbol.
 func (l *Loader) SymType(i Sym) sym.SymKind {
-	r, li := l.ToLocal(i)
-	if r == nil {
+	if l.extStart != 0 && i >= l.extStart {
 		return 0
 	}
+	r, li := l.ToLocal(i)
 	osym := goobj2.Sym{}
 	osym.Read(r.Reader, r.SymOff(li))
 	return sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)]
 }
 
+// Returns the symbol content of the i-th symbol. i is global index.
+func (l *Loader) Data(i Sym) []byte {
+	if l.extStart != 0 && i >= l.extStart {
+		return nil
+	}
+	r, li := l.ToLocal(i)
+	return r.Data(li)
+}
+
 // Returns the number of aux symbols given a global index.
 func (l *Loader) NAux(i Sym) int {
-	r, li := l.ToLocal(i)
-	if r == nil {
+	if l.extStart != 0 && i >= l.extStart {
 		return 0
 	}
+	r, li := l.ToLocal(i)
 	return r.NAux(li)
 }
 
 // Returns the referred symbol of the j-th aux symbol of the i-th
 // symbol.
 func (l *Loader) AuxSym(i Sym, j int) Sym {
+	if l.extStart != 0 && i >= l.extStart {
+		return 0
+	}
 	r, li := l.ToLocal(i)
 	a := goobj2.Aux{}
 	a.Read(r.Reader, r.AuxOff(li, j))
@@ -305,10 +317,10 @@ func (relocs *Relocs) At(j int) Reloc {
 
 // Relocs returns a Relocs object for the given global sym.
 func (l *Loader) Relocs(i Sym) Relocs {
-	r, li := l.ToLocal(i)
-	if r == nil {
+	if l.extStart != 0 && i >= l.extStart {
 		return Relocs{}
 	}
+	r, li := l.ToLocal(i)
 	return l.relocs(r, li)
 }
 
