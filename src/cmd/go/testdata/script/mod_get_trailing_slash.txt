@@ -1,8 +1,9 @@
-# go list should fail to load a package ending with ".go" since that denotes
-# a source file. However, ".go/" should work.
-# TODO(golang.org/issue/32483): perhaps we should treat non-existent paths
-# with .go suffixes as package paths instead.
-! go list example.com/dotgo.go
+# go list should succeed to load a package ending with ".go" if the path does
+# not correspond to an existing local file. Listing a pattern ending with
+# ".go/" should try to list a package regardless of whether a file exists at the
+# path without the suffixed "/" or not.
+go list example.com/dotgo.go
+stdout ^example.com/dotgo.go$
 go list example.com/dotgo.go/
 stdout ^example.com/dotgo.go$
 
@@ -15,9 +16,6 @@ go get -d example.com/dotgo.go@v1.0.0
 go get -d example.com/dotgo.go/@v1.0.0
 
 # go get (without -d) should also succeed in either case.
-# TODO(golang.org/issue/32483): we should be consistent with 'go build',
-# 'go list', and other commands. 'go list example.com/dotgo.go' (above) and
-# 'go get example.com/dotgo.go' should both succeed or both fail.
 [short] skip
 go get example.com/dotgo.go
 go get example.com/dotgo.go/

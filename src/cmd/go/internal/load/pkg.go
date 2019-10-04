@@ -1950,9 +1950,14 @@ func Packages(args []string) []*Package {
 // cannot be loaded at all.
 // The packages that fail to load will have p.Error != nil.
 func PackagesAndErrors(patterns []string) []*Package {
-	if len(patterns) > 0 {
-		for _, p := range patterns {
-			if strings.HasSuffix(p, ".go") {
+	for _, p := range patterns {
+		// Listing is only supported with all patterns referring to either:
+		// - Files that are part of the same directory.
+		// - Explicit package paths or patterns.
+		if strings.HasSuffix(p, ".go") {
+			// We need to test whether the path is an actual Go file and not a
+			// package path or pattern ending in '.go' (see golang.org/issue/34653).
+			if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
 				return []*Package{GoFilesPackage(patterns)}
 			}
 		}
