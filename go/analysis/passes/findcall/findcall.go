@@ -5,7 +5,10 @@
 // The findcall package defines an Analyzer that serves as a trivial
 // example and test of the Analysis API. It reports a diagnostic for
 // every call to a function or method of the name specified by its
-// -name flag.
+// -name flag. It also exports a fact for each declaration that
+// matches the name, plus a package-level fact if the package contained
+// one or more such declarations.
+
 package findcall
 
 import (
@@ -67,6 +70,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				}
 			}
 		}
+	}
+
+	if len(pass.AllObjectFacts()) > 0 {
+		pass.ExportPackageFact(new(foundFact))
 	}
 
 	return nil, nil

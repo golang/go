@@ -29,12 +29,14 @@ func TestFromStringLiterals(t *testing.T) {
 		{
 			desc:    "SimpleTest",
 			pkgpath: "main",
-			files: map[string]string{"main/main.go": `package main
+			files: map[string]string{"main/main.go": `package main // want package:"found"
 
 func main() {
 	println("hello") // want "call of println"
 	print("goodbye") // not a call of println
-}`,
+}
+
+func println(s string) {} // want println:"found"`,
 			},
 		},
 	} {
