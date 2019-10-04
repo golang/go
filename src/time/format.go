@@ -283,7 +283,7 @@ func nextStdChunk(layout string) (prefix string, std int, suffix string) {
 	return layout, 0, ""
 }
 
-var longDayNames = []string{
+var LongDayNames = []string{
 	"Sunday",
 	"Monday",
 	"Tuesday",
@@ -293,7 +293,7 @@ var longDayNames = []string{
 	"Saturday",
 }
 
-var shortDayNames = []string{
+var ShortDayNames = []string{
 	"Sun",
 	"Mon",
 	"Tue",
@@ -303,7 +303,7 @@ var shortDayNames = []string{
 	"Sat",
 }
 
-var shortMonthNames = []string{
+var ShortMonthNames = []string{
 	"Jan",
 	"Feb",
 	"Mar",
@@ -318,7 +318,7 @@ var shortMonthNames = []string{
 	"Dec",
 }
 
-var longMonthNames = []string{
+var LongMonthNames = []string{
 	"January",
 	"February",
 	"March",
@@ -883,10 +883,10 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			p, value = value[0:4], value[4:]
 			year, err = atoi(p)
 		case stdMonth:
-			month, value, err = lookup(shortMonthNames, value)
+			month, value, err = lookup(ShortMonthNames, value)
 			month++
 		case stdLongMonth:
-			month, value, err = lookup(longMonthNames, value)
+			month, value, err = lookup(LongMonthNames, value)
 			month++
 		case stdNumMonth, stdZeroMonth:
 			month, value, err = getnum(value, std == stdZeroMonth)
@@ -895,9 +895,9 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			}
 		case stdWeekDay:
 			// Ignore weekday except for error checking.
-			_, value, err = lookup(shortDayNames, value)
+			_, value, err = lookup(ShortDayNames, value)
 		case stdLongWeekDay:
-			_, value, err = lookup(longDayNames, value)
+			_, value, err = lookup(LongDayNames, value)
 		case stdDay, stdUnderDay, stdZeroDay:
 			if std == stdUnderDay && len(value) > 0 && value[0] == ' ' {
 				value = value[1:]

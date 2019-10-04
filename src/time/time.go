@@ -285,7 +285,7 @@ const (
 	December
 )
 
-var months = [...]string{
+var Months = [...]string{
 	"January",
 	"February",
 	"March",
@@ -303,7 +303,7 @@ var months = [...]string{
 // String returns the English name of the month ("January", "February", ...).
 func (m Month) String() string {
 	if January <= m && m <= December {
-		return months[m-1]
+		return Months[m-1]
 	}
 	buf := make([]byte, 20)
 	n := fmtInt(buf, uint64(m))
@@ -323,7 +323,7 @@ const (
 	Saturday
 )
 
-var days = [...]string{
+var Days = [...]string{
 	"Sunday",
 	"Monday",
 	"Tuesday",
@@ -336,7 +336,7 @@ var days = [...]string{
 // String returns the English name of the day ("Sunday", "Monday", ...).
 func (d Weekday) String() string {
 	if Sunday <= d && d <= Saturday {
-		return days[d]
+		return Days[d]
 	}
 	buf := make([]byte, 20)
 	n := fmtInt(buf, uint64(d))
