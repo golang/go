@@ -248,14 +248,14 @@ func cse(f *Func) {
 				}
 			}
 		}
-		if v := b.Control; v != nil {
+		for i, v := range b.ControlValues() {
 			if x := rewrite[v.ID]; x != nil {
 				if v.Op == OpNilCheck {
 					// nilcheck pass will remove the nil checks and log
 					// them appropriately, so don't mess with them here.
 					continue
 				}
-				b.SetControl(x)
+				b.ReplaceControl(i, x)
 			}
 		}
 	}

@@ -11,6 +11,10 @@ import (
 )
 
 func TestErrorf(t *testing.T) {
+	// noVetErrorf is an alias for fmt.Errorf that does not trigger vet warnings for
+	// %w format strings.
+	noVetErrorf := fmt.Errorf
+
 	wrapped := errors.New("inner error")
 	for _, test := range []struct {
 		err        error
@@ -46,13 +50,13 @@ func TestErrorf(t *testing.T) {
 		err:      fmt.Errorf("%v with added context", wrapped),
 		wantText: "inner error with added context",
 	}, {
-		err:      fmt.Errorf("%w is not an error", "not-an-error"),
+		err:      noVetErrorf("%w is not an error", "not-an-error"),
 		wantText: "%!w(string=not-an-error) is not an error",
 	}, {
-		err:      fmt.Errorf("wrapped two errors: %w %w", errString("1"), errString("2")),
+		err:      noVetErrorf("wrapped two errors: %w %w", errString("1"), errString("2")),
 		wantText: "wrapped two errors: 1 %!w(fmt_test.errString=2)",
 	}, {
-		err:      fmt.Errorf("wrapped three errors: %w %w %w", errString("1"), errString("2"), errString("3")),
+		err:      noVetErrorf("wrapped three errors: %w %w %w", errString("1"), errString("2"), errString("3")),
 		wantText: "wrapped three errors: 1 %!w(fmt_test.errString=2) %!w(fmt_test.errString=3)",
 	}, {
 		err:        fmt.Errorf("%w", nil),

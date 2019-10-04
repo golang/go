@@ -1346,16 +1346,16 @@
 (SBBLcarrymask (FlagGT_UGT)) -> (MOVLconst [0])
 
 // Absorb flag constants into branches.
-((EQ|LE|GE|ULE|UGE) (FlagEQ) yes no) -> (First nil yes no)
-((NE|LT|GT|ULT|UGT) (FlagEQ) yes no) -> (First nil no yes)
-((NE|LT|LE|ULT|ULE) (FlagLT_ULT) yes no) -> (First nil yes no)
-((EQ|GT|GE|UGT|UGE) (FlagLT_ULT) yes no) -> (First nil no yes)
-((NE|LT|LE|UGT|UGE) (FlagLT_UGT) yes no) -> (First nil yes no)
-((EQ|GT|GE|ULT|ULE) (FlagLT_UGT) yes no) -> (First nil no yes)
-((NE|GT|GE|ULT|ULE) (FlagGT_ULT) yes no) -> (First nil yes no)
-((EQ|LT|LE|UGT|UGE) (FlagGT_ULT) yes no) -> (First nil no yes)
-((NE|GT|GE|UGT|UGE) (FlagGT_UGT) yes no) -> (First nil yes no)
-((EQ|LT|LE|ULT|ULE) (FlagGT_UGT) yes no) -> (First nil no yes)
+((EQ|LE|GE|ULE|UGE) (FlagEQ) yes no) -> (First yes no)
+((NE|LT|GT|ULT|UGT) (FlagEQ) yes no) -> (First no yes)
+((NE|LT|LE|ULT|ULE) (FlagLT_ULT) yes no) -> (First yes no)
+((EQ|GT|GE|UGT|UGE) (FlagLT_ULT) yes no) -> (First no yes)
+((NE|LT|LE|UGT|UGE) (FlagLT_UGT) yes no) -> (First yes no)
+((EQ|GT|GE|ULT|ULE) (FlagLT_UGT) yes no) -> (First no yes)
+((NE|GT|GE|ULT|ULE) (FlagGT_ULT) yes no) -> (First yes no)
+((EQ|LT|LE|UGT|UGE) (FlagGT_ULT) yes no) -> (First no yes)
+((NE|GT|GE|UGT|UGE) (FlagGT_UGT) yes no) -> (First yes no)
+((EQ|LT|LE|ULT|ULE) (FlagGT_UGT) yes no) -> (First no yes)
 
 // Absorb flag constants into SETxx ops.
 ((SETEQ|SETLE|SETGE|SETBE|SETAE) (FlagEQ))     -> (MOVLconst [1])

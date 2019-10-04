@@ -99,9 +99,8 @@ func nilcheckelim(f *Func) {
 			// First, see if we're dominated by an explicit nil check.
 			if len(b.Preds) == 1 {
 				p := b.Preds[0].b
-				if p.Kind == BlockIf && p.Control.Op == OpIsNonNil && p.Succs[0].b == b {
-					ptr := p.Control.Args[0]
-					if !nonNilValues[ptr.ID] {
+				if p.Kind == BlockIf && p.Controls[0].Op == OpIsNonNil && p.Succs[0].b == b {
+					if ptr := p.Controls[0].Args[0]; !nonNilValues[ptr.ID] {
 						nonNilValues[ptr.ID] = true
 						work = append(work, bp{op: ClearPtr, ptr: ptr})
 					}
@@ -154,10 +153,18 @@ func nilcheckelim(f *Func) {
 					work = append(work, bp{op: ClearPtr, ptr: ptr})
 					fallthrough // a non-eliminated nil check might be a good place for a statement boundary.
 				default:
-					if pendingLines.contains(v.Pos) && v.Pos.IsStmt() != src.PosNotStmt {
+					if v.Pos.IsStmt() != src.PosNotStmt && !isPoorStatementOp(v.Op) && pendingLines.contains(v.Pos) {
 						v.Pos = v.Pos.WithIsStmt()
 						pendingLines.remove(v.Pos)
 					}
+				}
+			}
+			// This reduces the lost statement count in "go" by 5 (out of 500 total).
+			for j := 0; j < i; j++ { // is this an ordering problem?
+				v := b.Values[j]
+				if v.Pos.IsStmt() != src.PosNotStmt && !isPoorStatementOp(v.Op) && pendingLines.contains(v.Pos) {
+					v.Pos = v.Pos.WithIsStmt()
+					pendingLines.remove(v.Pos)
 				}
 			}
 			if pendingLines.contains(b.Pos) {

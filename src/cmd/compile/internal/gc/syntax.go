@@ -600,10 +600,10 @@ const (
 	OSTR2RUNES    // Type(Left) (Type is []rune, Left is a string)
 	OAS           // Left = Right or (if Colas=true) Left := Right
 	OAS2          // List = Rlist (x, y, z = a, b, c)
-	OAS2DOTTYPE   // List = Rlist (x, ok = I.(int))
-	OAS2FUNC      // List = Rlist (x, y = f())
-	OAS2MAPR      // List = Rlist (x, ok = m["foo"])
-	OAS2RECV      // List = Rlist (x, ok = <-c)
+	OAS2DOTTYPE   // List = Right (x, ok = I.(int))
+	OAS2FUNC      // List = Right (x, y = f())
+	OAS2MAPR      // List = Right (x, ok = m["foo"])
+	OAS2RECV      // List = Right (x, ok = <-c)
 	OASOP         // Left Etype= Right (x += y)
 	OCALL         // Left(List) (function call, method call or type conversion)
 

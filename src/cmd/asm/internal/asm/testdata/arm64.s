@@ -352,6 +352,18 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VLD4	(R15), [V10.H4, V11.H4, V12.H4, V13.H4]         // ea05400c
 	VLD4.P	32(R24), [V31.B8, V0.B8, V1.B8, V2.B8]          // 1f03df0c
 	VLD4.P	(R13)(R9), [V14.S2, V15.S2, V16.S2, V17.S2]     // VLD4.P	(R13)(R9*1), [V14.S2,V15.S2,V16.S2,V17.S2] // ae09c90c
+	VLD1R	(R0), [V0.B16]					// 00c0404d
+	VLD1R.P	16(R0), [V0.B16]				// 00c0df4d
+	VLD1R.P	(R15)(R1), [V15.H4]				// VLD1R.P	(R15)(R1*1), [V15.H4] // efc5c10d
+	VLD2R	(R15), [V15.H4, V16.H4]				// efc5600d
+	VLD2R.P	32(R0), [V0.D2, V1.D2]				// 00ccff4d
+	VLD2R.P	(R0)(R5), [V31.D1, V0.D1]			// VLD2R.P	(R0)(R5*1), [V31.D1, V0.D1] // 1fcce50d
+	VLD3R	(RSP), [V31.S2, V0.S2, V1.S2]			// ffeb400d
+	VLD3R.P	24(R15), [V15.H4, V16.H4, V17.H4]		// efe5df0d
+	VLD3R.P	(R15)(R6), [V15.H8, V16.H8, V17.H8]		// VLD3R.P	(R15)(R6*1), [V15.H8, V16.H8, V17.H8] // efe5c64d
+	VLD4R	(R0), [V0.B8, V1.B8, V2.B8, V3.B8]		// 00e0600d
+	VLD4R.P	64(RSP), [V31.S4, V0.S4, V1.S4, V2.S4]		// ffebff4d
+	VLD4R.P	(R15)(R9), [V15.H4, V16.H4, V17.H4, V18.H4]	// VLD4R.P	(R15)(R9*1), [V15.H4, V16.H4, V17.H4, V18.H4] // efe5e90d
 	VST1.P	[V24.S2], 8(R2)                                 // 58789f0c
 	VST1	[V29.S2, V30.S2], (R29)                         // bdab000c
 	VST1	[V14.H4, V15.H4, V16.H4], (R27)                 // 6e67000c

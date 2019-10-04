@@ -49,7 +49,7 @@ See also: go build.
 func init() {
 	CmdRun.Run = runRun // break init loop
 
-	work.AddBuildFlags(CmdRun)
+	work.AddBuildFlags(CmdRun, work.DefaultBuildFlags)
 	CmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
 }
 

@@ -874,9 +874,9 @@ func (s *state) stmt(n *Node) {
 		s.call(n.Left, callGo)
 
 	case OAS2DOTTYPE:
-		res, resok := s.dottype(n.Rlist.First(), true)
+		res, resok := s.dottype(n.Right, true)
 		deref := false
-		if !canSSAType(n.Rlist.First().Type) {
+		if !canSSAType(n.Right.Type) {
 			if res.Op != ssa.OpLoad {
 				s.Fatalf("dottype of non-load")
 			}
@@ -896,10 +896,10 @@ func (s *state) stmt(n *Node) {
 
 	case OAS2FUNC:
 		// We come here only when it is an intrinsic call returning two values.
-		if !isIntrinsicCall(n.Rlist.First()) {
-			s.Fatalf("non-intrinsic AS2FUNC not expanded %v", n.Rlist.First())
+		if !isIntrinsicCall(n.Right) {
+			s.Fatalf("non-intrinsic AS2FUNC not expanded %v", n.Right)
 		}
-		v := s.intrinsicCall(n.Rlist.First())
+		v := s.intrinsicCall(n.Right)
 		v1 := s.newValue1(ssa.OpSelect0, n.List.First().Type, v)
 		v2 := s.newValue1(ssa.OpSelect1, n.List.Second().Type, v)
 		s.assign(n.List.First(), v1, false, 0)
@@ -3671,7 +3671,7 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpMul64uhilo, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1])
 		},
-		sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64LE, sys.ArchPPC64)
+		sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64LE, sys.ArchPPC64, sys.ArchS390X)
 	add("math/big", "divWW",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssa.OpDiv128u, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
@@ -5238,8 +5238,11 @@ func (s *SSAGenState) DebugFriendlySetPosFrom(v *ssa.Value) {
 			// in the generated code.
 			if p.IsStmt() != src.PosIsStmt {
 				p = p.WithNotStmt()
+				// Calls use the pos attached to v, but copy the statement mark from SSAGenState
 			}
 			s.SetPos(p)
+		} else {
+			s.SetPos(s.pp.pos.WithNotStmt())
 		}
 	}
 }
@@ -5878,10 +5881,15 @@ func (s *SSAGenState) AddrScratch(a *obj.Addr) {
 // Call returns a new CALL instruction for the SSA value v.
 // It uses PrepareCall to prepare the call.
 func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
+	pPosIsStmt := s.pp.pos.IsStmt() // The statement-ness fo the call comes from ssaGenState
 	s.PrepareCall(v)
 
 	p := s.Prog(obj.ACALL)
-	p.Pos = v.Pos
+	if pPosIsStmt == src.PosIsStmt {
+		p.Pos = v.Pos.WithIsStmt()
+	} else {
+		p.Pos = v.Pos.WithNotStmt()
+	}
 	if sym, ok := v.Aux.(*obj.LSym); ok {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN

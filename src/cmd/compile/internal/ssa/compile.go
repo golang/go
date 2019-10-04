@@ -409,6 +409,7 @@ var passes = [...]pass{
 	{name: "opt deadcode", fn: deadcode, required: true}, // remove any blocks orphaned during opt
 	{name: "generic cse", fn: cse},
 	{name: "phiopt", fn: phiopt},
+	{name: "gcse deadcode", fn: deadcode, required: true}, // clean out after cse and phiopt
 	{name: "nilcheckelim", fn: nilcheckelim},
 	{name: "prove", fn: prove},
 	{name: "fuse plain", fn: fusePlain},

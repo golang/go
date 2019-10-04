@@ -73,7 +73,6 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
 		serverName:                   hostnameInSNI(config.ServerName),
 		supportedCurves:              config.curvePreferences(),
 		supportedPoints:              []uint8{pointFormatUncompressed},
-		nextProtoNeg:                 len(config.NextProtos) > 0,
 		secureRenegotiationSupported: true,
 		alpnProtocols:                config.NextProtos,
 		supportedVersions:            supportedVersions,
@@ -673,24 +672,12 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 		}
 	}
 
-	clientDidNPN := hs.hello.nextProtoNeg
 	clientDidALPN := len(hs.hello.alpnProtocols) > 0
-	serverHasNPN := hs.serverHello.nextProtoNeg
 	serverHasALPN := len(hs.serverHello.alpnProtocol) > 0
-
-	if !clientDidNPN && serverHasNPN {
-		c.sendAlert(alertHandshakeFailure)
-		return false, errors.New("tls: server advertised unrequested NPN extension")
-	}
 
 	if !clientDidALPN && serverHasALPN {
 		c.sendAlert(alertHandshakeFailure)
 		return false, errors.New("tls: server advertised unrequested ALPN extension")
-	}
-
-	if serverHasNPN && serverHasALPN {
-		c.sendAlert(alertHandshakeFailure)
-		return false, errors.New("tls: server advertised both NPN and ALPN extensions")
 	}
 
 	if serverHasALPN {
@@ -783,18 +770,6 @@ func (hs *clientHandshakeState) sendFinished(out []byte) error {
 
 	if _, err := c.writeRecord(recordTypeChangeCipherSpec, []byte{1}); err != nil {
 		return err
-	}
-	if hs.serverHello.nextProtoNeg {
-		nextProto := new(nextProtoMsg)
-		proto, fallback := mutualProtocol(c.config.NextProtos, hs.serverHello.nextProtos)
-		nextProto.proto = proto
-		c.clientProtocol = proto
-		c.clientProtocolFallback = fallback
-
-		hs.finishedHash.Write(nextProto.marshal())
-		if _, err := c.writeRecord(recordTypeHandshake, nextProto.marshal()); err != nil {
-			return err
-		}
 	}
 
 	finished := new(finishedMsg)

@@ -585,16 +585,16 @@ func init() {
 	}
 
 	blocks := []blockData{
-		{name: "EQ"},
-		{name: "NE"},
-		{name: "LT"},
-		{name: "LE"},
-		{name: "GT"},
-		{name: "GE"},
-		{name: "FLT"},
-		{name: "FLE"},
-		{name: "FGT"},
-		{name: "FGE"},
+		{name: "EQ", controls: 1},
+		{name: "NE", controls: 1},
+		{name: "LT", controls: 1},
+		{name: "LE", controls: 1},
+		{name: "GT", controls: 1},
+		{name: "GE", controls: 1},
+		{name: "FLT", controls: 1},
+		{name: "FLE", controls: 1},
+		{name: "FGT", controls: 1},
+		{name: "FGE", controls: 1},
 	}
 
 	archs = append(archs, arch{

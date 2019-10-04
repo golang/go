@@ -701,8 +701,10 @@ func (s *regAllocState) init(f *Func) {
 		for _, b := range f.Blocks {
 			// New block. Clear candidate set.
 			canLiveOnStack.clear()
-			if b.Control != nil && b.Control.Uses == 1 && !opcodeTable[b.Control.Op].generic {
-				canLiveOnStack.add(b.Control.ID)
+			for _, c := range b.ControlValues() {
+				if c.Uses == 1 && !opcodeTable[c.Op].generic {
+					canLiveOnStack.add(c.ID)
+				}
 			}
 			// Walking backwards.
 			for i := len(b.Values) - 1; i >= 0; i-- {
@@ -856,9 +858,11 @@ func (s *regAllocState) regalloc(f *Func) {
 			s.addUse(e.ID, int32(len(b.Values))+e.dist, e.pos) // pseudo-uses from beyond end of block
 			regValLiveSet.add(e.ID)
 		}
-		if v := b.Control; v != nil && s.values[v.ID].needReg {
-			s.addUse(v.ID, int32(len(b.Values)), b.Pos) // pseudo-use by control value
-			regValLiveSet.add(v.ID)
+		for _, v := range b.ControlValues() {
+			if s.values[v.ID].needReg {
+				s.addUse(v.ID, int32(len(b.Values)), b.Pos) // pseudo-use by control values
+				regValLiveSet.add(v.ID)
+			}
 		}
 		for i := len(b.Values) - 1; i >= 0; i-- {
 			v := b.Values[i]
@@ -1503,21 +1507,32 @@ func (s *regAllocState) regalloc(f *Func) {
 		issueSpill:
 		}
 
-		// Load control value into reg.
-		if v := b.Control; v != nil && s.values[v.ID].needReg {
+		// Copy the control values - we need this so we can reduce the
+		// uses property of these values later.
+		controls := append(make([]*Value, 0, 2), b.ControlValues()...)
+
+		// Load control values into registers.
+		for i, v := range b.ControlValues() {
+			if !s.values[v.ID].needReg {
+				continue
+			}
 			if s.f.pass.debug > regDebug {
 				fmt.Printf("  processing control %s\n", v.LongString())
 			}
 			// We assume that a control input can be passed in any
 			// type-compatible register. If this turns out not to be true,
 			// we'll need to introduce a regspec for a block's control value.
-			b.Control = s.allocValToReg(v, s.compatRegs(v.Type), false, b.Pos)
-			if b.Control != v {
-				v.Uses--
-				b.Control.Uses++
+			b.ReplaceControl(i, s.allocValToReg(v, s.compatRegs(v.Type), false, b.Pos))
+		}
+
+		// Reduce the uses of the control values once registers have been loaded.
+		// This loop is equivalent to the advanceUses method.
+		for _, v := range controls {
+			vi := &s.values[v.ID]
+			if !vi.needReg {
+				continue
 			}
 			// Remove this use from the uses list.
-			vi := &s.values[v.ID]
 			u := vi.uses
 			vi.uses = u.next
 			if u.next == nil {
@@ -2355,9 +2370,11 @@ func (s *regAllocState) computeLive() {
 				live.set(e.ID, e.dist+int32(len(b.Values)), e.pos)
 			}
 
-			// Mark control value as live
-			if b.Control != nil && s.values[b.Control.ID].needReg {
-				live.set(b.Control.ID, int32(len(b.Values)), b.Pos)
+			// Mark control values as live
+			for _, c := range b.ControlValues() {
+				if s.values[c.ID].needReg {
+					live.set(c.ID, int32(len(b.Values)), b.Pos)
+				}
 			}
 
 			// Propagate backwards to the start of the block

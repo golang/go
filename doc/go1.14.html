@@ -58,6 +58,13 @@ TODO
   graphic characters and spaces.
 </p>
 
+<p><!-- golang.org/issue/32502, golang.org/issue/30345 -->
+  The <code>go</code> <code>get</code> subcommand no longer accepts
+  the <code>-mod</code> flag. Previously, the flag's setting either
+  <a href="https://golang.org/issue/30345">was ignored</a> or
+  <a href="https://golang.org/issue/32502">caused the build to fail</a>.
+</p>
+
 <h2 id="runtime">Runtime</h2>
 
 <p>
@@ -89,6 +96,14 @@ TODO
       TODO: <a href="https://golang.org/cl/191999">https://golang.org/cl/191999</a>: remove TLS 1.3 opt-out
     </p>
 
+    <p><!-- CL 174329 -->
+      The <code>tls</code> package no longer supports NPN and now only
+      supports ALPN. In previous releases it supported both. There are
+      no API changes and code should function identically as before.
+      Most other clients & servers have already removed NPN support in
+      favor of the standardized ALPN.
+    </p>
+
 </dl><!-- crypto/tls -->
 
 <dl id="encoding/asn1"><dt><a href="/pkg/encoding/asn1/">encoding/asn1</a></dt>
@@ -114,6 +129,19 @@ TODO
     </p>
 
 </dl><!-- plugin -->
+
+<dl id="reflect">
+
+<dt><a href="/pkg/reflect/">reflect</a></dt>
+  <dd>
+    <p><!-- CL 85661 -->
+      <a href="/pkg/reflect#StructOf"><code>StructOf</code></a> now
+      supports creating struct types with unexported fields, by
+      setting the <code>PkgPath</code> field in
+      a <code>StructField</code> element.
+    </p>
+
+</dl><!-- reflect -->
 
 <dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>

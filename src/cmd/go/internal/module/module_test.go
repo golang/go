@@ -80,7 +80,7 @@ var checkPathTests = []struct {
 	{"x./z", false, false, false},
 	{".x/z", false, false, true},
 	{"-x/z", false, false, false},
-	{"x..y/z", false, false, false},
+	{"x..y/z", true, true, true},
 	{"x.y/z/../../w", false, false, false},
 	{"x.y//z", false, false, false},
 	{"x.y/z//w", false, false, false},
@@ -173,6 +173,7 @@ var checkPathTests = []struct {
 	// When we do, we'll enable them everywhere, not just for GitHub.
 	{"github.com/user/unicode/испытание", false, false, true},
 
+	{".../x", false, false, false},
 	{"../x", false, false, false},
 	{"./y", false, false, false},
 	{"x:y", false, false, false},

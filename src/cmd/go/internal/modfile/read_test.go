@@ -363,3 +363,26 @@ func TestModulePath(t *testing.T) {
 		})
 	}
 }
+
+func TestGoVersion(t *testing.T) {
+	for _, test := range []struct {
+		desc, input string
+		ok          bool
+	}{
+		{desc: "empty", input: "module m\ngo \n", ok: false},
+		{desc: "one", input: "module m\ngo 1\n", ok: false},
+		{desc: "two", input: "module m\ngo 1.22\n", ok: true},
+		{desc: "three", input: "module m\ngo 1.22.333", ok: false},
+		{desc: "before", input: "module m\ngo v1.2\n", ok: false},
+		{desc: "after", input: "module m\ngo 1.2rc1\n", ok: false},
+		{desc: "space", input: "module m\ngo 1.2 3.4\n", ok: false},
+	} {
+		t.Run(test.desc, func(t *testing.T) {
+			if _, err := Parse("go.mod", []byte(test.input), nil); err == nil && !test.ok {
+				t.Error("unexpected success")
+			} else if err != nil && test.ok {
+				t.Errorf("unexpected error: %v", err)
+			}
+		})
+	}
+}

@@ -510,7 +510,6 @@ func illegalClientHelloChange(ch, ch1 *clientHelloMsg) bool {
 		!bytes.Equal(ch.random, ch1.random) ||
 		!bytes.Equal(ch.sessionId, ch1.sessionId) ||
 		!bytes.Equal(ch.compressionMethods, ch1.compressionMethods) ||
-		ch.nextProtoNeg != ch1.nextProtoNeg ||
 		ch.serverName != ch1.serverName ||
 		ch.ocspStapling != ch1.ocspStapling ||
 		!bytes.Equal(ch.supportedPoints, ch1.supportedPoints) ||

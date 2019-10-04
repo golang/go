@@ -64,7 +64,7 @@ func unregisterAllDrivers() {
 func Drivers() []string {
 	driversMu.RLock()
 	defer driversMu.RUnlock()
-	var list []string
+	list := make([]string, 0, len(drivers))
 	for name := range drivers {
 		list = append(list, name)
 	}

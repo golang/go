@@ -184,8 +184,9 @@
 //     }
 //
 //
-// Pos encodes a file:line pair, incorporating a simple delta encoding
-// scheme within a data object. See exportWriter.pos for details.
+// Pos encodes a file:line:column triple, incorporating a simple delta
+// encoding scheme within a data object. See exportWriter.pos for
+// details.
 //
 //
 // Compiler-specific details.
@@ -213,8 +214,9 @@ import (
 )
 
 // Current indexed export format version. Increase with each format change.
+// 1: added column details to Pos
 // 0: Go1.11 encoding
-const iexportVersion = 0
+const iexportVersion = 1
 
 // predeclReserved is the number of type offsets reserved for types
 // implicitly declared in the universe block.
@@ -402,10 +404,11 @@ func (p *iexporter) pushDecl(n *Node) {
 type exportWriter struct {
 	p *iexporter
 
-	data     intWriter
-	currPkg  *types.Pkg
-	prevFile string
-	prevLine int64
+	data       intWriter
+	currPkg    *types.Pkg
+	prevFile   string
+	prevLine   int64
+	prevColumn int64
 }
 
 func (p *iexporter) doDecl(n *Node) {
@@ -511,29 +514,39 @@ func (w *exportWriter) pos(pos src.XPos) {
 	p := Ctxt.PosTable.Pos(pos)
 	file := p.Base().AbsFilename()
 	line := int64(p.RelLine())
+	column := int64(p.RelCol())
 
-	// When file is the same as the last position (common case),
-	// we can save a few bytes by delta encoding just the line
-	// number.
+	// Encode position relative to the last position: column
+	// delta, then line delta, then file name. We reserve the
+	// bottom bit of the column and line deltas to encode whether
+	// the remaining fields are present.
 	//
 	// Note: Because data objects may be read out of order (or not
 	// at all), we can only apply delta encoding within a single
-	// object. This is handled implicitly by tracking prevFile and
-	// prevLine as fields of exportWriter.
+	// object. This is handled implicitly by tracking prevFile,
+	// prevLine, and prevColumn as fields of exportWriter.
 
-	if file == w.prevFile {
-		delta := line - w.prevLine
-		w.int64(delta)
-		if delta == deltaNewFile {
-			w.int64(-1)
-		}
-	} else {
-		w.int64(deltaNewFile)
-		w.int64(line) // line >= 0
-		w.string(file)
-		w.prevFile = file
+	deltaColumn := (column - w.prevColumn) << 1
+	deltaLine := (line - w.prevLine) << 1
+
+	if file != w.prevFile {
+		deltaLine |= 1
 	}
+	if deltaLine != 0 {
+		deltaColumn |= 1
+	}
+
+	w.int64(deltaColumn)
+	if deltaColumn&1 != 0 {
+		w.int64(deltaLine)
+		if deltaLine&1 != 0 {
+			w.string(file)
+		}
+	}
+
+	w.prevFile = file
 	w.prevLine = line
+	w.prevColumn = column
 }
 
 func (w *exportWriter) pkg(pkg *types.Pkg) {
@@ -1045,11 +1058,17 @@ func (w *exportWriter) stmt(n *Node) {
 			w.expr(n.Right)
 		}
 
-	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+	case OAS2:
 		w.op(OAS2)
 		w.pos(n.Pos)
 		w.exprList(n.List)
 		w.exprList(n.Rlist)
+
+	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+		w.op(OAS2)
+		w.pos(n.Pos)
+		w.exprList(n.List)
+		w.exprList(asNodes([]*Node{n.Right}))
 
 	case ORETURN:
 		w.op(ORETURN)

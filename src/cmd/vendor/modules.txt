@@ -26,7 +26,7 @@ golang.org/x/crypto/ssh/terminal
 # golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/tools v0.0.0-20190611154301-25a4f137592f
+# golang.org/x/tools v0.0.0-20190925211824-e4ea94538f5b
 golang.org/x/tools/go/analysis
 golang.org/x/tools/go/analysis/internal/analysisflags
 golang.org/x/tools/go/analysis/internal/facts

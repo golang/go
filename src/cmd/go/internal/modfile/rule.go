@@ -153,7 +153,7 @@ func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (*File
 	return f, nil
 }
 
-var GoVersionRE = lazyregexp.New(`([1-9][0-9]*)\.(0|[1-9][0-9]*)`)
+var GoVersionRE = lazyregexp.New(`^([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
 
 func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, fix VersionFixer, strict bool) {
 	// If strict is false, this module is a dependency.
