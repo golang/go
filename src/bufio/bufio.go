@@ -432,6 +432,7 @@ func (b *Reader) ReadBytes(delim byte) ([]byte, error) {
 	var frag []byte
 	var full [][]byte
 	var err error
+	n := 0
 	for {
 		var e error
 		frag, e = b.ReadSlice(delim)
@@ -447,18 +448,15 @@ func (b *Reader) ReadBytes(delim byte) ([]byte, error) {
 		buf := make([]byte, len(frag))
 		copy(buf, frag)
 		full = append(full, buf)
+		n += len(buf)
 	}
 
-	// Allocate new buffer to hold the full pieces and the fragment.
-	n := 0
-	for i := range full {
-		n += len(full[i])
-	}
 	n += len(frag)
 
-	// Copy full pieces and fragment in.
+	// Allocate new buffer to hold the full pieces and the fragment.
 	buf := make([]byte, n)
 	n = 0
+	// Copy full pieces and fragment in.
 	for i := range full {
 		n += copy(buf[n:], full[i])
 	}
