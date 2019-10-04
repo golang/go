@@ -892,6 +892,11 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 		if dsaSig.R.Sign() <= 0 || dsaSig.S.Sign() <= 0 {
 			return errors.New("x509: DSA signature contained zero or negative values")
 		}
+		// According to FIPS 186-3, section 4.6, the hash must be truncated if it is longer
+		// than the key length, but crypto/dsa doesn't do it automatically.
+		if maxHashLen := pub.Q.BitLen() / 8; maxHashLen < len(signed) {
+			signed = signed[:maxHashLen]
+		}
 		if !dsa.Verify(pub, signed, dsaSig.R, dsaSig.S) {
 			return errors.New("x509: DSA verification failure")
 		}
