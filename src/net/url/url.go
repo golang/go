@@ -821,6 +821,17 @@ func (u *URL) String() string {
 	return buf.String()
 }
 
+// Masked returns the same value that calling String() does but it masks the
+// password (if exists) of the URL with "xxxxx" so it can be safely used in
+// logs.
+func (u *URL) Masked() string {
+	msk := *u
+	if _, has := msk.User.Password(); has {
+		msk.User = UserPassword(msk.User.Username(), "xxxxx")
+	}
+	return msk.String()
+}
+
 // Values maps a string key to a list of values.
 // It is typically used for query parameters and form values.
 // Unlike in the http.Header map, the keys in a Values map

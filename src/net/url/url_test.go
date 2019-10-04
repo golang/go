@@ -765,6 +765,74 @@ func TestURLString(t *testing.T) {
 	}
 }
 
+var maskedURLTestsPtr = []struct {
+	url        *URL
+	want       string
+	shouldMask bool
+}{
+	{
+		url: &URL{
+			Scheme: "http",
+			Host:   "host.tld",
+			Path:   "this:that",
+			User:   UserPassword("user", "password"),
+		},
+		want:       "http://user:xxxxx@host.tld/this:that",
+		shouldMask: true,
+	},
+	{
+		url: &URL{
+			Scheme: "http",
+			Host:   "host.tld",
+			Path:   "this:that",
+			User:   User("user"),
+		},
+		want:       "http://user@host.tld/this:that",
+		shouldMask: false,
+	},
+}
+
+var maskedURLTests = []struct {
+	url  *URL
+	want string
+}{
+	{
+		url: &URL{
+			Scheme: "http",
+			Host:   "host.tld",
+			Path:   "this:that",
+			User:   UserPassword("user", "password"),
+		},
+		want: "http://user:xxxxx@host.tld/this:that",
+	},
+	{
+		url: &URL{
+			Scheme: "http",
+			Host:   "host.tld",
+			Path:   "this:that",
+			User:   User("user"),
+		},
+		want: "http://user@host.tld/this:that",
+	},
+}
+
+func TestURLMask(t *testing.T) {
+	for _, tt := range maskedURLTests {
+		if got := tt.url.Masked(); got != tt.want {
+			t.Errorf("%+v.Masked() = %q; want %q", tt.url, got, tt.want)
+		}
+	}
+	for _, tt := range maskedURLTestsPtr {
+		if got := tt.url.Masked(); got != tt.want {
+			t.Errorf("%+v.Masked() = %q; want %q", tt.url, got, tt.want)
+		}
+
+		if tt.shouldMask && tt.url.Masked() == tt.url.String() {
+			t.Errorf("%+v.Masked() password should differ to %+v.String()", tt.url, tt.url)
+		}
+	}
+}
+
 type EscapeTest struct {
 	in  string
 	out string
