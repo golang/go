@@ -2703,7 +2703,7 @@ func gosched_m(gp *g) {
 // goschedguarded is a forbidden-states-avoided version of gosched_m
 func goschedguarded_m(gp *g) {
 
-	if gp.m.locks != 0 || gp.m.mallocing != 0 || gp.m.preemptoff != "" || gp.m.p.ptr().status != _Prunning {
+	if !canPreemptM(gp.m) {
 		gogo(&gp.sched) // never return
 	}
 

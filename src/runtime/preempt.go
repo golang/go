@@ -223,3 +223,12 @@ func resumeG(state suspendGState) {
 		ready(gp, 0, true)
 	}
 }
+
+// canPreemptM reports whether mp is in a state that is safe to preempt.
+//
+// It is nosplit because it has nosplit callers.
+//
+//go:nosplit
+func canPreemptM(mp *m) bool {
+	return mp.locks == 0 && mp.mallocing == 0 && mp.preemptoff == "" && mp.p.ptr().status == _Prunning
+}
