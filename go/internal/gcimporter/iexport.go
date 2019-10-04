@@ -267,6 +267,11 @@ func (w *exportWriter) tag(tag byte) {
 }
 
 func (w *exportWriter) pos(pos token.Pos) {
+	if w.p.fset == nil {
+		w.int64(0)
+		return
+	}
+
 	p := w.p.fset.Position(pos)
 	file := p.Filename
 	line := int64(p.Line)

@@ -198,7 +198,8 @@ func TestIExportData_typealiases(t *testing.T) {
 	checkPkg(t, pkg1, "export")
 
 	// export
-	exportdata, err := gcimporter.IExportData(fset1, pkg1)
+	// use a nil fileset here to confirm that it doesn't panic
+	exportdata, err := gcimporter.IExportData(nil, pkg1)
 	if err != nil {
 		t.Fatal(err)
 	}
