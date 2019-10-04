@@ -59,7 +59,7 @@ func Init() (*sys.Arch, ld.Arch) {
 
 		Linuxdynld: "/lib/ld-linux-aarch64.so.1",
 
-		Freebsddynld:   "XXX",
+		Freebsddynld:   "/usr/libexec/ld-elf.so.1",
 		Openbsddynld:   "/usr/libexec/ld.so",
 		Netbsddynld:    "/libexec/ld.elf_so",
 		Dragonflydynld: "XXX",
@@ -85,6 +85,7 @@ func archinit(ctxt *ld.Link) {
 		}
 
 	case objabi.Hlinux, /* arm64 elf */
+		objabi.Hfreebsd,
 		objabi.Hnetbsd,
 		objabi.Hopenbsd:
 		ld.Elfinit(ctxt)
