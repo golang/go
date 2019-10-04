@@ -708,7 +708,7 @@ func init() {
 	}
 
 	var S390Xblocks = []blockData{
-		{name: "BRC"}, // aux is condition code mask (s390x.CCMask)
+		{name: "BRC", controls: 1}, // aux is condition code mask (s390x.CCMask)
 	}
 
 	archs = append(archs, arch{

@@ -29,7 +29,7 @@
 // The notion of "exportedness" that matters here is that of the
 // compiler. According to the language spec, a method pkg.T.f is
 // unexported simply because its name starts with lowercase. But the
-// compiler must nonethless export f so that downstream compilations can
+// compiler must nonetheless export f so that downstream compilations can
 // accurately ascertain whether pkg.T implements an interface pkg.I
 // defined as interface{f()}. Exported thus means "described in export
 // data".
@@ -99,6 +99,16 @@ func (s *Set) ExportObjectFact(obj types.Object, fact analysis.Fact) {
 	s.mu.Unlock()
 }
 
+func (s *Set) AllObjectFacts(filter map[reflect.Type]bool) []analysis.ObjectFact {
+	var facts []analysis.ObjectFact
+	for k, v := range s.m {
+		if k.obj != nil && filter[k.t] {
+			facts = append(facts, analysis.ObjectFact{Object: k.obj, Fact: v})
+		}
+	}
+	return facts
+}
+
 // ImportPackageFact implements analysis.Pass.ImportPackageFact.
 func (s *Set) ImportPackageFact(pkg *types.Package, ptr analysis.Fact) bool {
 	if pkg == nil {
@@ -120,6 +130,16 @@ func (s *Set) ExportPackageFact(fact analysis.Fact) {
 	s.mu.Lock()
 	s.m[key] = fact // clobber any existing entry
 	s.mu.Unlock()
+}
+
+func (s *Set) AllPackageFacts(filter map[reflect.Type]bool) []analysis.PackageFact {
+	var facts []analysis.PackageFact
+	for k, v := range s.m {
+		if k.obj == nil && filter[k.t] {
+			facts = append(facts, analysis.PackageFact{Package: k.pkg, Fact: v})
+		}
+	}
+	return facts
 }
 
 // gobFact is the Gob declaration of a serialized fact.

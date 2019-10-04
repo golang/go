@@ -149,7 +149,7 @@ var (
 )
 
 func init() {
-	work.AddBuildFlags(CmdGenerate)
+	work.AddBuildFlags(CmdGenerate, work.DefaultBuildFlags)
 	CmdGenerate.Flag.StringVar(&generateRunFlag, "run", "", "")
 }
 

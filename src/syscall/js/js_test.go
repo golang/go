@@ -212,6 +212,18 @@ func TestSet(t *testing.T) {
 	})
 }
 
+func TestDelete(t *testing.T) {
+	dummys.Set("test", 42)
+	dummys.Delete("test")
+	if dummys.Call("hasOwnProperty", "test").Bool() {
+		t.Errorf("property still exists")
+	}
+
+	expectValueError(t, func() {
+		dummys.Get("zero").Delete("badField")
+	})
+}
+
 func TestIndex(t *testing.T) {
 	if got := dummys.Get("someArray").Index(1).Int(); got != 42 {
 		t.Errorf("got %#v, want %#v", got, 42)

@@ -610,7 +610,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 			writeNotModified(w)
 			return
 		}
-		w.Header().Set("Last-Modified", d.ModTime().UTC().Format(TimeFormat))
+		setLastModified(w, d.ModTime())
 		dirList(w, r, f)
 		return
 	}

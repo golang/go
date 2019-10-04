@@ -580,6 +580,12 @@ func inlnode(n *Node, maxCost int32) *Node {
 	if n.Right != nil && n.Right.Op == OINLCALL {
 		if n.Op == OFOR || n.Op == OFORUNTIL {
 			inlconv2stmt(n.Right)
+		} else if n.Op == OAS2FUNC {
+			n.Rlist.Set(inlconv2list(n.Right))
+			n.Right = nil
+			n.Op = OAS2
+			n.SetTypecheck(0)
+			n = typecheck(n, ctxStmt)
 		} else {
 			n.Right = inlconv2expr(n.Right)
 		}
@@ -602,20 +608,13 @@ func inlnode(n *Node, maxCost int32) *Node {
 	}
 
 	inlnodelist(n.Rlist, maxCost)
-	if n.Op == OAS2FUNC && n.Rlist.First().Op == OINLCALL {
-		n.Rlist.Set(inlconv2list(n.Rlist.First()))
-		n.Op = OAS2
-		n.SetTypecheck(0)
-		n = typecheck(n, ctxStmt)
-	} else {
-		s := n.Rlist.Slice()
-		for i1, n1 := range s {
-			if n1.Op == OINLCALL {
-				if n.Op == OIF {
-					inlconv2stmt(n1)
-				} else {
-					s[i1] = inlconv2expr(s[i1])
-				}
+	s := n.Rlist.Slice()
+	for i1, n1 := range s {
+		if n1.Op == OINLCALL {
+			if n.Op == OIF {
+				inlconv2stmt(n1)
+			} else {
+				s[i1] = inlconv2expr(s[i1])
 			}
 		}
 	}

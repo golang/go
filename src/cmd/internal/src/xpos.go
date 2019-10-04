@@ -35,6 +35,11 @@ func (p XPos) SameFile(q XPos) bool {
 	return p.index == q.index
 }
 
+// SameFileAndLine reports whether p and q are positions on the same line in the same file.
+func (p XPos) SameFileAndLine(q XPos) bool {
+	return p.index == q.index && p.lico.SameLine(q.lico)
+}
+
 // After reports whether the position p comes after q in the source.
 // For positions with different bases, ordering is by base index.
 func (p XPos) After(q XPos) bool {

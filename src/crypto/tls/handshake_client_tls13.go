@@ -123,9 +123,7 @@ func (hs *clientHandshakeStateTLS13) checkServerHelloOrHRR() error {
 		return errors.New("tls: server sent an incorrect legacy version")
 	}
 
-	if hs.serverHello.nextProtoNeg ||
-		len(hs.serverHello.nextProtos) != 0 ||
-		hs.serverHello.ocspStapling ||
+	if hs.serverHello.ocspStapling ||
 		hs.serverHello.ticketSupported ||
 		hs.serverHello.secureRenegotiationSupported ||
 		len(hs.serverHello.secureRenegotiation) != 0 ||

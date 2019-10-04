@@ -287,7 +287,7 @@ For more about modules, see 'go help modules'.
 
 func init() {
 	CmdList.Run = runList // break init cycle
-	work.AddBuildFlags(CmdList)
+	work.AddBuildFlags(CmdList, work.DefaultBuildFlags)
 }
 
 var (

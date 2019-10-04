@@ -32,7 +32,7 @@ func shortcircuit(f *Func) {
 				if p.Kind != BlockIf {
 					continue
 				}
-				if p.Control != a {
+				if p.Controls[0] != a {
 					continue
 				}
 				if e.i == 0 {
@@ -103,7 +103,7 @@ func shortcircuitBlock(b *Block) bool {
 	// Look for control values of the form Copy(Not(Copy(Phi(const, ...)))).
 	// Those must be the only values in the b, and they each must be used only by b.
 	// Track the negations so that we can swap successors as needed later.
-	v := b.Control
+	v := b.Controls[0]
 	nval := 1 // the control value
 	swap := false
 	for v.Uses == 1 && v.Block == b && (v.Op == OpCopy || v.Op == OpNot) {

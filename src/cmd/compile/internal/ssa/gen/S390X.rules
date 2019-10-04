@@ -976,15 +976,15 @@
 (CMP(W|W|WU|WU)const (MOV(W|WZ|W|WZ)reg x) [c]) -> (CMP(W|W|WU|WU)const x [c])
 
 // Absorb flag constants into branches.
-(BRC {c} (FlagEQ) yes no) && c.(s390x.CCMask) & s390x.Equal     != 0 -> (First nil yes no)
-(BRC {c} (FlagLT) yes no) && c.(s390x.CCMask) & s390x.Less      != 0 -> (First nil yes no)
-(BRC {c} (FlagGT) yes no) && c.(s390x.CCMask) & s390x.Greater   != 0 -> (First nil yes no)
-(BRC {c} (FlagOV) yes no) && c.(s390x.CCMask) & s390x.Unordered != 0 -> (First nil yes no)
+(BRC {c} (FlagEQ) yes no) && c.(s390x.CCMask) & s390x.Equal     != 0 -> (First yes no)
+(BRC {c} (FlagLT) yes no) && c.(s390x.CCMask) & s390x.Less      != 0 -> (First yes no)
+(BRC {c} (FlagGT) yes no) && c.(s390x.CCMask) & s390x.Greater   != 0 -> (First yes no)
+(BRC {c} (FlagOV) yes no) && c.(s390x.CCMask) & s390x.Unordered != 0 -> (First yes no)
 
-(BRC {c} (FlagEQ) yes no) && c.(s390x.CCMask) & s390x.Equal     == 0 -> (First nil no yes)
-(BRC {c} (FlagLT) yes no) && c.(s390x.CCMask) & s390x.Less      == 0 -> (First nil no yes)
-(BRC {c} (FlagGT) yes no) && c.(s390x.CCMask) & s390x.Greater   == 0 -> (First nil no yes)
-(BRC {c} (FlagOV) yes no) && c.(s390x.CCMask) & s390x.Unordered == 0 -> (First nil no yes)
+(BRC {c} (FlagEQ) yes no) && c.(s390x.CCMask) & s390x.Equal     == 0 -> (First no yes)
+(BRC {c} (FlagLT) yes no) && c.(s390x.CCMask) & s390x.Less      == 0 -> (First no yes)
+(BRC {c} (FlagGT) yes no) && c.(s390x.CCMask) & s390x.Greater   == 0 -> (First no yes)
+(BRC {c} (FlagOV) yes no) && c.(s390x.CCMask) & s390x.Unordered == 0 -> (First no yes)
 
 // Absorb flag constants into SETxx ops.
 (LOCGR {c} _ x (FlagEQ)) && c.(s390x.CCMask) & s390x.Equal     != 0 -> x

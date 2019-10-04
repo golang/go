@@ -447,29 +447,29 @@
 (NE (CMPWconst [0] (ANDconst [c] x)) yes no) -> (NE (ANDCCconst [c] x) yes no)
 
 // absorb flag constants into branches
-(EQ (FlagEQ) yes no) -> (First nil yes no)
-(EQ (FlagLT) yes no) -> (First nil no yes)
-(EQ (FlagGT) yes no) -> (First nil no yes)
+(EQ (FlagEQ) yes no) -> (First yes no)
+(EQ (FlagLT) yes no) -> (First no yes)
+(EQ (FlagGT) yes no) -> (First no yes)
 
-(NE (FlagEQ) yes no) -> (First nil no yes)
-(NE (FlagLT) yes no) -> (First nil yes no)
-(NE (FlagGT) yes no) -> (First nil yes no)
+(NE (FlagEQ) yes no) -> (First no yes)
+(NE (FlagLT) yes no) -> (First yes no)
+(NE (FlagGT) yes no) -> (First yes no)
 
-(LT (FlagEQ) yes no) -> (First nil no yes)
-(LT (FlagLT) yes no) -> (First nil yes no)
-(LT (FlagGT) yes no) -> (First nil no yes)
+(LT (FlagEQ) yes no) -> (First no yes)
+(LT (FlagLT) yes no) -> (First yes no)
+(LT (FlagGT) yes no) -> (First no yes)
 
-(LE (FlagEQ) yes no) -> (First nil yes no)
-(LE (FlagLT) yes no) -> (First nil yes no)
-(LE (FlagGT) yes no) -> (First nil no yes)
+(LE (FlagEQ) yes no) -> (First yes no)
+(LE (FlagLT) yes no) -> (First yes no)
+(LE (FlagGT) yes no) -> (First no yes)
 
-(GT (FlagEQ) yes no) -> (First nil no yes)
-(GT (FlagLT) yes no) -> (First nil no yes)
-(GT (FlagGT) yes no) -> (First nil yes no)
+(GT (FlagEQ) yes no) -> (First no yes)
+(GT (FlagLT) yes no) -> (First no yes)
+(GT (FlagGT) yes no) -> (First yes no)
 
-(GE (FlagEQ) yes no) -> (First nil yes no)
-(GE (FlagLT) yes no) -> (First nil no yes)
-(GE (FlagGT) yes no) -> (First nil yes no)
+(GE (FlagEQ) yes no) -> (First yes no)
+(GE (FlagLT) yes no) -> (First no yes)
+(GE (FlagGT) yes no) -> (First yes no)
 
 // absorb InvertFlags into branches
 (LT (InvertFlags cmp) yes no) -> (GT cmp yes no)

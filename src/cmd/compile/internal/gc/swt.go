@@ -268,7 +268,6 @@ func walkExprSwitch(sw *Node) {
 		exprname: cond,
 	}
 
-	br := nod(OBREAK, nil, nil)
 	var defaultGoto *Node
 	var body Nodes
 	for _, ncase := range sw.List.Slice() {
@@ -290,13 +289,17 @@ func walkExprSwitch(sw *Node) {
 		// Process body.
 		body.Append(npos(ncase.Pos, nodSym(OLABEL, nil, label)))
 		body.Append(ncase.Nbody.Slice()...)
-		if !hasFall(ncase.Nbody.Slice()) {
+		if fall, pos := hasFall(ncase.Nbody.Slice()); !fall {
+			br := nod(OBREAK, nil, nil)
+			br.Pos = pos
 			body.Append(br)
 		}
 	}
 	sw.List.Set(nil)
 
 	if defaultGoto == nil {
+		br := nod(OBREAK, nil, nil)
+		br.Pos = br.Pos.WithNotStmt()
 		defaultGoto = br
 	}
 
@@ -469,7 +472,7 @@ func allCaseExprsAreSideEffectFree(sw *Node) bool {
 }
 
 // hasFall reports whether stmts ends with a "fallthrough" statement.
-func hasFall(stmts []*Node) bool {
+func hasFall(stmts []*Node) (bool, src.XPos) {
 	// Search backwards for the index of the fallthrough
 	// statement. Do not assume it'll be in the last
 	// position, since in some cases (e.g. when the statement
@@ -480,7 +483,10 @@ func hasFall(stmts []*Node) bool {
 	for i >= 0 && stmts[i].Op == OVARKILL {
 		i--
 	}
-	return i >= 0 && stmts[i].Op == OFALL
+	if i < 0 {
+		return false, src.NoXPos
+	}
+	return stmts[i].Op == OFALL, stmts[i].Pos
 }
 
 // walkTypeSwitch generates an AST that implements sw, where sw is a

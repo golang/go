@@ -39,31 +39,31 @@ func checkFunc(f *Func) {
 			if len(b.Succs) != 0 {
 				f.Fatalf("exit block %s has successors", b)
 			}
-			if b.Control == nil {
+			if b.NumControls() != 1 {
 				f.Fatalf("exit block %s has no control value", b)
 			}
-			if !b.Control.Type.IsMemory() {
-				f.Fatalf("exit block %s has non-memory control value %s", b, b.Control.LongString())
+			if !b.Controls[0].Type.IsMemory() {
+				f.Fatalf("exit block %s has non-memory control value %s", b, b.Controls[0].LongString())
 			}
 		case BlockRet:
 			if len(b.Succs) != 0 {
 				f.Fatalf("ret block %s has successors", b)
 			}
-			if b.Control == nil {
+			if b.NumControls() != 1 {
 				f.Fatalf("ret block %s has nil control", b)
 			}
-			if !b.Control.Type.IsMemory() {
-				f.Fatalf("ret block %s has non-memory control value %s", b, b.Control.LongString())
+			if !b.Controls[0].Type.IsMemory() {
+				f.Fatalf("ret block %s has non-memory control value %s", b, b.Controls[0].LongString())
 			}
 		case BlockRetJmp:
 			if len(b.Succs) != 0 {
 				f.Fatalf("retjmp block %s len(Succs)==%d, want 0", b, len(b.Succs))
 			}
-			if b.Control == nil {
+			if b.NumControls() != 1 {
 				f.Fatalf("retjmp block %s has nil control", b)
 			}
-			if !b.Control.Type.IsMemory() {
-				f.Fatalf("retjmp block %s has non-memory control value %s", b, b.Control.LongString())
+			if !b.Controls[0].Type.IsMemory() {
+				f.Fatalf("retjmp block %s has non-memory control value %s", b, b.Controls[0].LongString())
 			}
 			if b.Aux == nil {
 				f.Fatalf("retjmp block %s has nil Aux field", b)
@@ -72,34 +72,34 @@ func checkFunc(f *Func) {
 			if len(b.Succs) != 1 {
 				f.Fatalf("plain block %s len(Succs)==%d, want 1", b, len(b.Succs))
 			}
-			if b.Control != nil {
-				f.Fatalf("plain block %s has non-nil control %s", b, b.Control.LongString())
+			if b.NumControls() != 0 {
+				f.Fatalf("plain block %s has non-nil control %s", b, b.Controls[0].LongString())
 			}
 		case BlockIf:
 			if len(b.Succs) != 2 {
 				f.Fatalf("if block %s len(Succs)==%d, want 2", b, len(b.Succs))
 			}
-			if b.Control == nil {
+			if b.NumControls() != 1 {
 				f.Fatalf("if block %s has no control value", b)
 			}
-			if !b.Control.Type.IsBoolean() {
-				f.Fatalf("if block %s has non-bool control value %s", b, b.Control.LongString())
+			if !b.Controls[0].Type.IsBoolean() {
+				f.Fatalf("if block %s has non-bool control value %s", b, b.Controls[0].LongString())
 			}
 		case BlockDefer:
 			if len(b.Succs) != 2 {
 				f.Fatalf("defer block %s len(Succs)==%d, want 2", b, len(b.Succs))
 			}
-			if b.Control == nil {
+			if b.NumControls() != 1 {
 				f.Fatalf("defer block %s has no control value", b)
 			}
-			if !b.Control.Type.IsMemory() {
-				f.Fatalf("defer block %s has non-memory control value %s", b, b.Control.LongString())
+			if !b.Controls[0].Type.IsMemory() {
+				f.Fatalf("defer block %s has non-memory control value %s", b, b.Controls[0].LongString())
 			}
 		case BlockFirst:
 			if len(b.Succs) != 2 {
 				f.Fatalf("plain/dead block %s len(Succs)==%d, want 2", b, len(b.Succs))
 			}
-			if b.Control != nil {
+			if b.NumControls() != 0 {
 				f.Fatalf("plain/dead block %s has a control value", b)
 			}
 		}
@@ -263,8 +263,10 @@ func checkFunc(f *Func) {
 				}
 			}
 		}
-		if b.Control != nil && !valueMark[b.Control.ID] {
-			f.Fatalf("control value for %s is missing: %v", b, b.Control)
+		for _, c := range b.ControlValues() {
+			if !valueMark[c.ID] {
+				f.Fatalf("control value for %s is missing: %v", b, c)
+			}
 		}
 	}
 	for b := f.freeBlocks; b != nil; b = b.succstorage[0].b {
@@ -296,8 +298,10 @@ func checkFunc(f *Func) {
 					}
 				}
 			}
-			if b.Control != nil && !domCheck(f, sdom, b.Control.Block, b) {
-				f.Fatalf("control value %s for %s doesn't dominate", b.Control, b)
+			for _, c := range b.ControlValues() {
+				if !domCheck(f, sdom, c.Block, b) {
+					f.Fatalf("control value %s for %s doesn't dominate", c, b)
+				}
 			}
 		}
 	}
@@ -329,8 +333,8 @@ func checkFunc(f *Func) {
 				uses[a.ID]++
 			}
 		}
-		if b.Control != nil {
-			uses[b.Control.ID]++
+		for _, c := range b.ControlValues() {
+			uses[c.ID]++
 		}
 	}
 	for _, b := range f.Blocks {

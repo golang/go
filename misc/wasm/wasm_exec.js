@@ -308,6 +308,11 @@
 						Reflect.set(loadValue(sp + 8), loadString(sp + 16), loadValue(sp + 32));
 					},
 
+					// func valueDelete(v ref, p string)
+					"syscall/js.valueDelete": (sp) => {
+						Reflect.deleteProperty(loadValue(sp + 8), loadString(sp + 16));
+					},
+
 					// func valueIndex(v ref, i int) ref
 					"syscall/js.valueIndex": (sp) => {
 						storeValue(sp + 24, Reflect.get(loadValue(sp + 8), getInt64(sp + 16)));

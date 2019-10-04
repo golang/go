@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/internal/src"
 	"fmt"
 	"math"
 )
@@ -979,7 +980,7 @@ func addIndVarRestrictions(ft *factsTable, b *Block, iv indVar) {
 // addBranchRestrictions updates the factsTables ft with the facts learned when
 // branching from Block b in direction br.
 func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
-	c := b.Control
+	c := b.Controls[0]
 	switch br {
 	case negative:
 		addRestrictions(b, ft, boolean, nil, c, eq)
@@ -988,14 +989,14 @@ func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
 	default:
 		panic("unknown branch")
 	}
-	if tr, has := domainRelationTable[b.Control.Op]; has {
+	if tr, has := domainRelationTable[c.Op]; has {
 		// When we branched from parent we learned a new set of
 		// restrictions. Update the factsTable accordingly.
 		d := tr.d
 		if d == signed && ft.isNonNegative(c.Args[0]) && ft.isNonNegative(c.Args[1]) {
 			d |= unsigned
 		}
-		switch b.Control.Op {
+		switch c.Op {
 		case OpIsInBounds, OpIsSliceInBounds:
 			// 0 <= a0 < a1 (or 0 <= a0 <= a1)
 			//
@@ -1096,6 +1097,7 @@ func addLocalInductiveFacts(ft *factsTable, b *Block) {
 			if pred.Kind != BlockIf {
 				continue
 			}
+			control := pred.Controls[0]
 
 			br := unknown
 			if pred.Succs[0].b == child {
@@ -1108,7 +1110,7 @@ func addLocalInductiveFacts(ft *factsTable, b *Block) {
 				br = negative
 			}
 
-			tr, has := domainRelationTable[pred.Control.Op]
+			tr, has := domainRelationTable[control.Op]
 			if !has {
 				continue
 			}
@@ -1121,10 +1123,10 @@ func addLocalInductiveFacts(ft *factsTable, b *Block) {
 
 			// Check for i2 < max or max > i2.
 			var max *Value
-			if r == lt && pred.Control.Args[0] == i2 {
-				max = pred.Control.Args[1]
-			} else if r == gt && pred.Control.Args[1] == i2 {
-				max = pred.Control.Args[0]
+			if r == lt && control.Args[0] == i2 {
+				max = control.Args[1]
+			} else if r == gt && control.Args[1] == i2 {
+				max = control.Args[0]
 			} else {
 				continue
 			}
@@ -1283,20 +1285,24 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 }
 
 func removeBranch(b *Block, branch branch) {
+	c := b.Controls[0]
 	if b.Func.pass.debug > 0 {
 		verb := "Proved"
 		if branch == positive {
 			verb = "Disproved"
 		}
-		c := b.Control
 		if b.Func.pass.debug > 1 {
 			b.Func.Warnl(b.Pos, "%s %s (%s)", verb, c.Op, c)
 		} else {
 			b.Func.Warnl(b.Pos, "%s %s", verb, c.Op)
 		}
 	}
+	if c != nil && c.Pos.IsStmt() == src.PosIsStmt && c.Pos.SameFileAndLine(b.Pos) {
+		// attempt to preserve statement marker.
+		b.Pos = b.Pos.WithIsStmt()
+	}
 	b.Kind = BlockFirst
-	b.SetControl(nil)
+	b.ResetControls()
 	if branch == positive {
 		b.swapSuccessors()
 	}

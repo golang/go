@@ -118,7 +118,7 @@ func fuseBlockIf(b *Block) bool {
 	}
 	b.Kind = BlockPlain
 	b.Likely = BranchUnknown
-	b.SetControl(nil)
+	b.ResetControls()
 
 	// Trash the empty blocks s0 and s1.
 	blocks := [...]*Block{s0, s1}

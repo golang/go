@@ -195,27 +195,31 @@ func schedule(f *Func) {
 			}
 		}
 
-		if b.Control != nil && b.Control.Op != OpPhi && b.Control.Op != OpArg {
-			// Force the control value to be scheduled at the end,
-			// unless it is a phi value (which must be first).
+		for _, c := range b.ControlValues() {
+			// Force the control values to be scheduled at the end,
+			// unless they are phi values (which must be first).
 			// OpArg also goes first -- if it is stack it register allocates
 			// to a LoadReg, if it is register it is from the beginning anyway.
-			score[b.Control.ID] = ScoreControl
+			if c.Op == OpPhi || c.Op == OpArg {
+				continue
+			}
+			score[c.ID] = ScoreControl
 
-			// Schedule values dependent on the control value at the end.
+			// Schedule values dependent on the control values at the end.
 			// This reduces the number of register spills. We don't find
-			// all values that depend on the control, just values with a
+			// all values that depend on the controls, just values with a
 			// direct dependency. This is cheaper and in testing there
 			// was no difference in the number of spills.
 			for _, v := range b.Values {
 				if v.Op != OpPhi {
 					for _, a := range v.Args {
-						if a == b.Control {
+						if a == c {
 							score[v.ID] = ScoreControl
 						}
 					}
 				}
 			}
+
 		}
 
 		// To put things into a priority queue

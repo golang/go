@@ -128,11 +128,13 @@ type Pass struct {
 	// See comments for ExportObjectFact.
 	ExportPackageFact func(fact Fact)
 
-	// AllPackageFacts returns a new slice containing all package facts in unspecified order.
+	// AllPackageFacts returns a new slice containing all package facts of the analysis's FactTypes
+	// in unspecified order.
 	// WARNING: This is an experimental API and may change in the future.
 	AllPackageFacts func() []PackageFact
 
-	// AllObjectFacts returns a new slice containing all object facts in unspecified order.
+	// AllObjectFacts returns a new slice containing all object facts of the analysis's FactTypes
+	// in unspecified order.
 	// WARNING: This is an experimental API and may change in the future.
 	AllObjectFacts func() []ObjectFact
 
@@ -210,19 +212,4 @@ func (pass *Pass) String() string {
 // A Fact should not be modified once exported.
 type Fact interface {
 	AFact() // dummy method to avoid type errors
-}
-
-// A Diagnostic is a message associated with a source location or range.
-//
-// An Analyzer may return a variety of diagnostics; the optional Category,
-// which should be a constant, may be used to classify them.
-// It is primarily intended to make it easy to look up documentation.
-//
-// If End is provided, the diagnostic is specified to apply to the range between
-// Pos and End.
-type Diagnostic struct {
-	Pos      token.Pos
-	End      token.Pos // optional
-	Category string    // optional
-	Message  string
 }

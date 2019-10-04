@@ -167,8 +167,8 @@ func init() {
 
 	CmdInstall.Flag.BoolVar(&cfg.BuildI, "i", false, "")
 
-	AddBuildFlags(CmdBuild)
-	AddBuildFlags(CmdInstall)
+	AddBuildFlags(CmdBuild, DefaultBuildFlags)
+	AddBuildFlags(CmdInstall, DefaultBuildFlags)
 }
 
 // Note that flags consulted by other parts of the code
@@ -216,9 +216,16 @@ func init() {
 	}
 }
 
+type BuildFlagMask int
+
+const (
+	DefaultBuildFlags BuildFlagMask = 0
+	OmitModFlag       BuildFlagMask = 1 << iota
+)
+
 // addBuildFlags adds the flags common to the build, clean, get,
 // install, list, run, and test commands.
-func AddBuildFlags(cmd *base.Command) {
+func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.BoolVar(&cfg.BuildA, "a", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildN, "n", false, "")
 	cmd.Flag.IntVar(&cfg.BuildP, "p", cfg.BuildP, "")
@@ -230,7 +237,9 @@ func AddBuildFlags(cmd *base.Command) {
 	cmd.Flag.StringVar(&cfg.BuildBuildmode, "buildmode", "default", "")
 	cmd.Flag.Var(&load.BuildGcflags, "gcflags", "")
 	cmd.Flag.Var(&load.BuildGccgoflags, "gccgoflags", "")
-	cmd.Flag.StringVar(&cfg.BuildMod, "mod", "", "")
+	if mask&OmitModFlag == 0 {
+		cmd.Flag.StringVar(&cfg.BuildMod, "mod", "", "")
+	}
 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
 	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
 	cmd.Flag.BoolVar(&cfg.BuildLinkshared, "linkshared", false, "")
@@ -320,7 +329,7 @@ func runBuild(cmd *base.Command, args []string) {
 	explicitO := len(cfg.BuildO) > 0
 
 	if len(pkgs) == 1 && pkgs[0].Name == "main" && cfg.BuildO == "" {
-		cfg.BuildO = load.DefaultExecName(pkgs[0].ImportPath)
+		cfg.BuildO = pkgs[0].DefaultExecName()
 		cfg.BuildO += cfg.ExeSuffix
 	}
 
@@ -364,7 +373,8 @@ func runBuild(cmd *base.Command, args []string) {
 				if p.Name != "main" {
 					continue
 				}
-				p.Target = filepath.Join(cfg.BuildO, load.DefaultExecName(p.ImportPath))
+
+				p.Target = filepath.Join(cfg.BuildO, p.DefaultExecName())
 				p.Target += cfg.ExeSuffix
 				p.Stale = true
 				p.StaleReason = "build -o flag in use"
@@ -586,7 +596,7 @@ func InstallPackages(patterns []string, pkgs []*load.Package) {
 	if len(patterns) == 0 && len(pkgs) == 1 && pkgs[0].Name == "main" {
 		// Compute file 'go build' would have created.
 		// If it exists and is an executable file, remove it.
-		targ := load.DefaultExecName(pkgs[0].ImportPath)
+		targ := pkgs[0].DefaultExecName()
 		targ += cfg.ExeSuffix
 		if filepath.Join(pkgs[0].Dir, targ) != pkgs[0].Target { // maybe $GOBIN is the current directory
 			fi, err := os.Stat(targ)

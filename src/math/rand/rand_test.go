@@ -565,6 +565,14 @@ func BenchmarkInt63Threadsafe(b *testing.B) {
 	}
 }
 
+func BenchmarkInt63ThreadsafeParallel(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Int63()
+		}
+	})
+}
+
 func BenchmarkInt63Unthreadsafe(b *testing.B) {
 	r := New(NewSource(1))
 	for n := b.N; n > 0; n-- {

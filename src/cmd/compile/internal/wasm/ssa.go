@@ -78,20 +78,20 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		switch next {
 		case b.Succs[0].Block():
 			// if false, jump to b.Succs[1]
-			getValue32(s, b.Control)
+			getValue32(s, b.Controls[0])
 			s.Prog(wasm.AI32Eqz)
 			s.Prog(wasm.AIf)
 			s.Br(obj.AJMP, b.Succs[1].Block())
 			s.Prog(wasm.AEnd)
 		case b.Succs[1].Block():
 			// if true, jump to b.Succs[0]
-			getValue32(s, b.Control)
+			getValue32(s, b.Controls[0])
 			s.Prog(wasm.AIf)
 			s.Br(obj.AJMP, b.Succs[0].Block())
 			s.Prog(wasm.AEnd)
 		default:
 			// if true, jump to b.Succs[0], else jump to b.Succs[1]
-			getValue32(s, b.Control)
+			getValue32(s, b.Controls[0])
 			s.Prog(wasm.AIf)
 			s.Br(obj.AJMP, b.Succs[0].Block())
 			s.Prog(wasm.AEnd)
