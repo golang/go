@@ -1348,7 +1348,10 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, 
 			return nil, nil, errPrintedOutput
 		}
 		if len(out) > 0 {
-			ldflags = strings.Fields(string(out))
+			ldflags, err = splitPkgConfigOutput(out)
+			if err != nil {
+				return nil, nil, err
+			}
 			if err := checkLinkerFlags("LDFLAGS", "pkg-config --libs", ldflags); err != nil {
 				return nil, nil, err
 			}
