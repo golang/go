@@ -99,7 +99,16 @@ type Link struct {
 	relocbuf []byte // temporary buffer for applying relocations
 
 	loader  *objfile.Loader
-	cgodata [][3]string // cgo directives to load, three strings are args for loadcgo
+	cgodata []cgodata // cgo directives to load, three strings are args for loadcgo
+
+	cgo_export_static  map[string]bool
+	cgo_export_dynamic map[string]bool
+}
+
+type cgodata struct {
+	file       string
+	pkg        string
+	directives [][]string
 }
 
 type unresolvedSymKey struct {
@@ -175,33 +184,4 @@ func addImports(ctxt *Link, l *sym.Library, pn string) {
 		}
 	}
 	l.ImportStrings = nil
-}
-
-// convenient helper during the transition period.
-func (ctxt *Link) Lookup(name string, ver int) *sym.Symbol {
-	if *flagNewobj {
-		i := ctxt.loader.Lookup(name, ver)
-		if i == 0 {
-			return nil
-		}
-		return ctxt.loader.Syms[i]
-	} else {
-		return ctxt.Syms.ROLookup(name, ver)
-	}
-}
-
-// convenient helper during the transition period.
-func (ctxt *Link) LookupOrCreate(name string, ver int) *sym.Symbol {
-	if *flagNewobj {
-		i := ctxt.loader.Lookup(name, ver)
-		if i != 0 {
-			return ctxt.loader.Syms[i]
-		}
-		ctxt.loader.AddExtSym(name, ver)
-		s := ctxt.Syms.Newsym(name, ver)
-		ctxt.loader.Syms = append(ctxt.loader.Syms, s)
-		return s
-	} else {
-		return ctxt.Syms.Lookup(name, ver)
-	}
 }
