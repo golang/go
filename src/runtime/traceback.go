@@ -997,8 +997,8 @@ func topofstack(f funcInfo, g0 bool) bool {
 
 // isSystemGoroutine reports whether the goroutine g must be omitted
 // in stack dumps and deadlock detector. This is any goroutine that
-// starts at a runtime.* entry point, except for runtime.main and
-// sometimes runtime.runfinq.
+// starts at a runtime.* entry point, except for runtime.main,
+// runtime.handleAsyncEvents (wasm only) and sometimes runtime.runfinq.
 //
 // If fixed is true, any goroutine that can vary between user and
 // system (that is, the finalizer goroutine) is considered a user
@@ -1009,7 +1009,7 @@ func isSystemGoroutine(gp *g, fixed bool) bool {
 	if !f.valid() {
 		return false
 	}
-	if f.funcID == funcID_runtime_main {
+	if f.funcID == funcID_runtime_main || f.funcID == funcID_handleAsyncEvents {
 		return false
 	}
 	if f.funcID == funcID_runfinq {
