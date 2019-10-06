@@ -16,7 +16,7 @@ Use the [VSCode-Go] plugin, with the following configuration:
 
     // Experimental settings
     "completeUnimported": true, // autocomplete unimported packages
-    "watchChangedFiles": true,  // watch file changes outside of the editor
+    "watchFileChanges": true,  // watch file changes outside of the editor
     "deepCompletion": true,     // enable deep completion
 },
 "files.eol": "\n", // formatting only supports LF line endings
