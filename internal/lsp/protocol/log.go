@@ -211,7 +211,7 @@ func logIn(outfd io.Writer, data []byte) {
 	} else if v.ID != nil && v.Method == "" && v.Params == nil {
 		sc := maps.server(id, true)
 		elapsed := tm.Sub(sc.start)
-		fmt.Fprintf(&buf, "Sending response '%s - (%s)' in %dms.\n",
+		fmt.Fprintf(&buf, "Sending response '%s - (%s)' took %dms.\n",
 			sc.method, id, elapsed/time.Millisecond)
 		if v.Result == nil {
 			fmt.Fprintf(&buf, "Result: {}%s", eor)
