@@ -9,6 +9,7 @@ package stats
 
 import (
 	"context"
+	"time"
 
 	"golang.org/x/tools/internal/telemetry/unit"
 )
@@ -31,11 +32,11 @@ type Float64Measure struct {
 
 // Int64Subscriber is the type for functions that want to listen to
 // integer statistic events.
-type Int64Subscriber func(context.Context, *Int64Measure, int64)
+type Int64Subscriber func(ctx context.Context, im *Int64Measure, value int64, at time.Time)
 
 // Float64Subscriber is the type for functions that want to listen to
 // floating point statistic events.
-type Float64Subscriber func(context.Context, *Float64Measure, float64)
+type Float64Subscriber func(ctx context.Context, fm *Float64Measure, value float64, at time.Time)
 
 // Int64 creates a new Int64Measure and prepares it for use.
 func Int64(name string, description string, unit unit.Unit) *Int64Measure {
@@ -69,9 +70,10 @@ func (m *Int64Measure) Subscribe(s Int64Subscriber) { m.subscribers = append(m.s
 
 // Record delivers a new value to the subscribers of this measure.
 func (m *Int64Measure) Record(ctx context.Context, value int64) {
+	at := time.Now()
 	do(func() {
 		for _, s := range m.subscribers {
-			s(ctx, m, value)
+			s(ctx, m, value, at)
 		}
 	})
 }
@@ -90,9 +92,10 @@ func (m *Float64Measure) Subscribe(s Float64Subscriber) { m.subscribers = append
 
 // Record delivers a new value to the subscribers of this measure.
 func (m *Float64Measure) Record(ctx context.Context, value float64) {
+	at := time.Now()
 	do(func() {
 		for _, s := range m.subscribers {
-			s(ctx, m, value)
+			s(ctx, m, value, at)
 		}
 	})
 }

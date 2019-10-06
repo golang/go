@@ -8,6 +8,7 @@ package metric
 import (
 	"context"
 	"sort"
+	"time"
 
 	"golang.org/x/tools/internal/telemetry"
 	"golang.org/x/tools/internal/telemetry/export"
@@ -230,19 +231,23 @@ func (data *Int64Data) modify(ctx context.Context, f func(v int64) int64) {
 	export.Metric(ctx, &frozen)
 }
 
-func (data *Int64Data) countInt64(ctx context.Context, measure *stats.Int64Measure, value int64) {
+func (data *Int64Data) countInt64(ctx context.Context, measure *stats.Int64Measure, value int64, at time.Time) {
+	// TODO: Use at.
 	data.modify(ctx, func(v int64) int64 { return v + 1 })
 }
 
-func (data *Int64Data) countFloat64(ctx context.Context, measure *stats.Float64Measure, value float64) {
+func (data *Int64Data) countFloat64(ctx context.Context, measure *stats.Float64Measure, value float64, at time.Time) {
+	// TODO: Use at.
 	data.modify(ctx, func(v int64) int64 { return v + 1 })
 }
 
-func (data *Int64Data) sum(ctx context.Context, measure *stats.Int64Measure, value int64) {
+func (data *Int64Data) sum(ctx context.Context, measure *stats.Int64Measure, value int64, at time.Time) {
+	// TODO: Use at.
 	data.modify(ctx, func(v int64) int64 { return v + value })
 }
 
-func (data *Int64Data) latest(ctx context.Context, measure *stats.Int64Measure, value int64) {
+func (data *Int64Data) latest(ctx context.Context, measure *stats.Int64Measure, value int64, at time.Time) {
+	// TODO: Use at.
 	data.modify(ctx, func(v int64) int64 { return value })
 }
 
@@ -265,11 +270,12 @@ func (data *Float64Data) modify(ctx context.Context, f func(v float64) float64) 
 	export.Metric(ctx, &frozen)
 }
 
-func (data *Float64Data) sum(ctx context.Context, measure *stats.Float64Measure, value float64) {
+func (data *Float64Data) sum(ctx context.Context, measure *stats.Float64Measure, value float64, at time.Time) {
 	data.modify(ctx, func(v float64) float64 { return v + value })
 }
 
-func (data *Float64Data) latest(ctx context.Context, measure *stats.Float64Measure, value float64) {
+func (data *Float64Data) latest(ctx context.Context, measure *stats.Float64Measure, value float64, at time.Time) {
+	// TODO: Use at.
 	data.modify(ctx, func(v float64) float64 { return value })
 }
 
@@ -298,7 +304,8 @@ func (data *HistogramInt64Data) modify(ctx context.Context, f func(v *HistogramI
 	export.Metric(ctx, &frozen)
 }
 
-func (data *HistogramInt64Data) record(ctx context.Context, measure *stats.Int64Measure, value int64) {
+func (data *HistogramInt64Data) record(ctx context.Context, measure *stats.Int64Measure, value int64, at time.Time) {
+	// TODO: Use at.
 	data.modify(ctx, func(v *HistogramInt64Row) {
 		v.Sum += value
 		if v.Min > value || v.Count == 0 {
@@ -341,7 +348,8 @@ func (data *HistogramFloat64Data) modify(ctx context.Context, f func(v *Histogra
 	export.Metric(ctx, &frozen)
 }
 
-func (data *HistogramFloat64Data) record(ctx context.Context, measure *stats.Float64Measure, value float64) {
+func (data *HistogramFloat64Data) record(ctx context.Context, measure *stats.Float64Measure, value float64, at time.Time) {
+	// TODO: Use at.
 	data.modify(ctx, func(v *HistogramFloat64Row) {
 		v.Sum += value
 		if v.Min > value || v.Count == 0 {
