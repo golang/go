@@ -588,20 +588,10 @@ func walkTypeSwitch(sw *Node) {
 	if defaultGoto == nil {
 		defaultGoto = br
 	}
-
-	if nilGoto != nil {
-		ifNil.Nbody.Set1(nilGoto)
-	} else {
-		// TODO(mdempsky): Just use defaultGoto directly.
-
-		// Jump to default case.
-		label := autolabel(".s")
-		ifNil.Nbody.Set1(nodSym(OGOTO, nil, label))
-		// Wrap default case with label.
-		blk := nod(OBLOCK, nil, nil)
-		blk.List.Set2(nodSym(OLABEL, nil, label), defaultGoto)
-		defaultGoto = blk
+	if nilGoto == nil {
+		nilGoto = defaultGoto
 	}
+	ifNil.Nbody.Set1(nilGoto)
 
 	s.Emit(&sw.Nbody)
 	sw.Nbody.Append(defaultGoto)
