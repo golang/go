@@ -6,6 +6,7 @@
 // +build !windows
 // +build !freebsd
 // +build !aix
+// +build !solaris
 
 package runtime
 
