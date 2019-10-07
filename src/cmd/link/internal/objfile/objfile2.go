@@ -223,9 +223,6 @@ func preprocess(arch *sys.Arch, s *sym.Symbol) {
 		}
 		s.Attr.Set(sym.AttrReachable, false)
 	}
-	if strings.HasPrefix(s.Name, "runtime.gcbits.") {
-		s.Attr |= sym.AttrLocal
-	}
 }
 
 func LoadFull(l *Loader, r *goobj2.Reader, lib *sym.Library, syms *sym.Symbols, localSymVersion int, libByPkg map[string]*sym.Library) {
