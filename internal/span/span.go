@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package span contains support for representing with positions and ranges in
+// text files.
 package span
 
 import (
@@ -33,6 +35,9 @@ type point struct {
 	Column int `json:"column"`
 	Offset int `json:"offset"`
 }
+
+// Invalid is a span that reports false from IsValid
+var Invalid = Span{v: span{Start: invalidPoint.v, End: invalidPoint.v}}
 
 var invalidPoint = Point{v: point{Line: 0, Column: 0, Offset: -1}}
 
