@@ -435,6 +435,12 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	VMSLEG  V21, V22, V23, V24      // e78563807fb8
 	VMSLOG  V21, V22, V23, V24      // e78563407fb8
 	VMSLEOG V21, V22, V23, V24      // e78563c07fb8
+	VSUMGH	V1, V2, V3              // e73120001065
+	VSUMGF	V16, V17, V18           // e72010002e65
+	VSUMQF	V4, V5, V6              // e76450002067
+	VSUMQG	V19, V20, V21           // e75340003e67
+	VSUMB	V7, V8, V9              // e79780000064
+	VSUMH	V22, V23, V24           // e78670001e64
 
 	RET
 	RET	foo(SB)
