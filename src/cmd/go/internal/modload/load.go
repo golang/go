@@ -211,11 +211,17 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 
 	// One last pass to finalize wildcards.
 	updateMatches(matches, false)
+	checkMultiplePaths()
+	WriteGoMod()
 
-	// A given module path may be used as itself or as a replacement for another
-	// module, but not both at the same time. Otherwise, the aliasing behavior is
-	// too subtle (see https://golang.org/issue/26607), and we don't want to
-	// commit to a specific behavior at this point.
+	return matches
+}
+
+// checkMultiplePaths verifies that a given module path is used as itself
+// or as a replacement for another module, but not both at the same time.
+//
+// (See https://golang.org/issue/26607 and https://golang.org/issue/34650.)
+func checkMultiplePaths() {
 	firstPath := make(map[module.Version]string, len(buildList))
 	for _, mod := range buildList {
 		src := mod
@@ -229,9 +235,6 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 		}
 	}
 	base.ExitIfErrors()
-	WriteGoMod()
-
-	return matches
 }
 
 // pathInModuleCache returns the import path of the directory dir,
@@ -383,6 +386,7 @@ func loadAll(testAll bool) []string {
 	}
 	all := TargetPackages("...")
 	loaded.load(func() []string { return all })
+	checkMultiplePaths()
 	WriteGoMod()
 
 	var paths []string
