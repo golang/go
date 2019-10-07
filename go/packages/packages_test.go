@@ -983,14 +983,23 @@ func testOverlayDeps(t *testing.T, exporter packagestest.Exporter) {
 
 func TestNewPackagesInOverlay(t *testing.T) { packagestest.TestAll(t, testNewPackagesInOverlay) }
 func testNewPackagesInOverlay(t *testing.T, exporter packagestest.Exporter) {
-	exported := packagestest.Export(t, exporter, []packagestest.Module{{
-		Name: "golang.org/fake",
-		Files: map[string]interface{}{
-			"a/a.go": `package a; import "golang.org/fake/b"; const A = "a" + b.B`,
-			"b/b.go": `package b; import "golang.org/fake/c"; const B = "b" + c.C`,
-			"c/c.go": `package c; const C = "c"`,
-			"d/d.go": `package d; const D = "d"`,
-		}}})
+	exported := packagestest.Export(t, exporter, []packagestest.Module{
+		{
+			Name: "golang.org/fake",
+			Files: map[string]interface{}{
+				"a/a.go": `package a; import "golang.org/fake/b"; const A = "a" + b.B`,
+				"b/b.go": `package b; import "golang.org/fake/c"; const B = "b" + c.C`,
+				"c/c.go": `package c; const C = "c"`,
+				"d/d.go": `package d; const D = "d"`,
+			},
+		},
+		{
+			Name: "example.com/extramodule",
+			Files: map[string]interface{}{
+				"pkg/x.go": "package pkg\n",
+			},
+		},
+	})
 	defer exported.Cleanup()
 
 	dir := filepath.Dir(filepath.Dir(exported.File("golang.org/fake", "a/a.go")))
@@ -1120,7 +1129,7 @@ func TestAdHocOverlays(t *testing.T) {
 
 	// This test doesn't use packagestest because we are testing ad-hoc packages,
 	// which are outside of $GOPATH and outside of a module.
-	tmp, err := ioutil.TempDir("", "a")
+	tmp, err := ioutil.TempDir("", "testAdHocOverlays")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1137,10 +1146,14 @@ const A = 1
 		Overlay: map[string][]byte{
 			filename: content,
 		},
+		Logf: t.Logf,
 	}
 	initial, err := packages.Load(config, fmt.Sprintf("file=%s", filename))
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
+	}
+	if len(initial) == 0 {
+		t.Fatalf("no packages for %s", filename)
 	}
 	// Check value of a.A.
 	a := initial[0]

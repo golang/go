@@ -294,15 +294,16 @@ func runContainsQueries(cfg *Config, driver driver, response *responseDeduper, q
 			// Special case to handle issue #33482:
 			// If this is a file= query for ad-hoc packages where the file only exists on an overlay,
 			// and exists outside of a module, add the file in for the package.
-			if len(dirResponse.Packages) == 1 && len(dirResponse.Packages) == 1 &&
-				dirResponse.Packages[0].ID == "command-line-arguments" && len(dirResponse.Packages[0].GoFiles) == 0 {
-				filename := filepath.Join(pattern, filepath.Base(query)) // avoid recomputing abspath
-				// TODO(matloob): check if the file is outside of a root dir?
-				for path := range cfg.Overlay {
-					if path == filename {
-						dirResponse.Packages[0].Errors = nil
-						dirResponse.Packages[0].GoFiles = []string{path}
-						dirResponse.Packages[0].CompiledGoFiles = []string{path}
+			if len(dirResponse.Packages) == 1 && (dirResponse.Packages[0].ID == "command-line-arguments" || dirResponse.Packages[0].PkgPath == filepath.ToSlash(query)) {
+				if len(dirResponse.Packages[0].GoFiles) == 0 {
+					filename := filepath.Join(pattern, filepath.Base(query)) // avoid recomputing abspath
+					// TODO(matloob): check if the file is outside of a root dir?
+					for path := range cfg.Overlay {
+						if path == filename {
+							dirResponse.Packages[0].Errors = nil
+							dirResponse.Packages[0].GoFiles = []string{path}
+							dirResponse.Packages[0].CompiledGoFiles = []string{path}
+						}
 					}
 				}
 			}
@@ -682,7 +683,7 @@ func golistDriver(cfg *Config, rootsDirs func() *goInfo, words ...string) (*driv
 		// contained in a known module or GOPATH entry. This will allow the package to be
 		// properly "reclaimed" when overlays are processed.
 		if filepath.IsAbs(p.ImportPath) && p.Error != nil {
-			pkgPath, ok := getPkgPath(p.ImportPath, rootsDirs)
+			pkgPath, ok := getPkgPath(cfg, p.ImportPath, rootsDirs)
 			if ok {
 				p.ImportPath = pkgPath
 			}
@@ -792,15 +793,31 @@ func golistDriver(cfg *Config, rootsDirs func() *goInfo, words ...string) (*driv
 }
 
 // getPkgPath finds the package path of a directory if it's relative to a root directory.
-func getPkgPath(dir string, goInfo func() *goInfo) (string, bool) {
+func getPkgPath(cfg *Config, dir string, goInfo func() *goInfo) (string, bool) {
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		cfg.Logf("error getting absolute path of %s: %v", dir, err)
+		return "", false
+	}
 	for rdir, rpath := range goInfo().rootDirs {
+		absRdir, err := filepath.Abs(rdir)
+		if err != nil {
+			cfg.Logf("error getting absolute path of %s: %v", rdir, err)
+			continue
+		}
+		// Make sure that the directory is in the module,
+		// to avoid creating a path relative to another module.
+		if !strings.HasPrefix(absDir, absRdir) {
+			cfg.Logf("%s does not have prefix %s", absDir, absRdir)
+			continue
+		}
 		// TODO(matloob): This doesn't properly handle symlinks.
 		r, err := filepath.Rel(rdir, dir)
 		if err != nil {
 			continue
 		}
 		if rpath != "" {
-			// We choose only ore root even though the directory even it can belong in multiple modules
+			// We choose only one root even though the directory even it can belong in multiple modules
 			// or GOPATH entries. This is okay because we only need to work with absolute dirs when a
 			// file is missing from disk, for instance when gopls calls go/packages in an overlay.
 			// Once the file is saved, gopls, or the next invocation of the tool will get the correct
@@ -808,6 +825,7 @@ func getPkgPath(dir string, goInfo func() *goInfo) (string, bool) {
 			// TODO(matloob): Implement module tiebreaking?
 			return path.Join(rpath, filepath.ToSlash(r)), true
 		}
+		return filepath.ToSlash(r), true
 	}
 	return "", false
 }
@@ -859,7 +877,7 @@ func invokeGo(cfg *Config, args ...string) (*bytes.Buffer, error) {
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	defer func(start time.Time) {
-		cfg.Logf("%s for %v, stderr: <<%s>>\n", time.Since(start), cmdDebugStr(cmd, args...), stderr)
+		cfg.Logf("%s for %v, stderr: <<%s>> stdout: <<%s>>\n", time.Since(start), cmdDebugStr(cmd, args...), stderr, stdout)
 	}(time.Now())
 
 	if err := cmd.Run(); err != nil {
@@ -987,12 +1005,6 @@ func invokeGo(cfg *Config, args ...string) (*bytes.Buffer, error) {
 	if len(stderr.Bytes()) != 0 && os.Getenv("GOPACKAGESPRINTGOLISTERRORS") != "" {
 		fmt.Fprintf(os.Stderr, "%s stderr: <<%s>>\n", cmdDebugStr(cmd, args...), stderr)
 	}
-
-	// debugging
-	if false {
-		fmt.Fprintf(os.Stderr, "%s stdout: <<%s>>\n", cmdDebugStr(cmd, args...), stdout)
-	}
-
 	return stdout, nil
 }
 
