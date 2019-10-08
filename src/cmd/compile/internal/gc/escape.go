@@ -1293,7 +1293,7 @@ func (e *Escape) finish(fns []*Node) {
 			}
 			n.Esc = EscNone
 			if loc.transient {
-				n.SetNoescape(true)
+				n.SetTransient(true)
 			}
 		}
 	}

@@ -151,7 +151,7 @@ const (
 	_, nodeDiag      // already printed error about this
 	_, nodeColas     // OAS resulting from :=
 	_, nodeNonNil    // guaranteed to be non-nil
-	_, nodeNoescape  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
+	_, nodeTransient // storage can be reused immediately after this statement
 	_, nodeBounded   // bounds check unnecessary
 	_, nodeAddable   // addressable
 	_, nodeHasCall   // expression contains a function call
@@ -179,7 +179,7 @@ func (n *Node) IsDDD() bool                 { return n.flags&nodeIsDDD != 0 }
 func (n *Node) Diag() bool                  { return n.flags&nodeDiag != 0 }
 func (n *Node) Colas() bool                 { return n.flags&nodeColas != 0 }
 func (n *Node) NonNil() bool                { return n.flags&nodeNonNil != 0 }
-func (n *Node) Noescape() bool              { return n.flags&nodeNoescape != 0 }
+func (n *Node) Transient() bool             { return n.flags&nodeTransient != 0 }
 func (n *Node) Bounded() bool               { return n.flags&nodeBounded != 0 }
 func (n *Node) Addable() bool               { return n.flags&nodeAddable != 0 }
 func (n *Node) HasCall() bool               { return n.flags&nodeHasCall != 0 }
@@ -206,7 +206,7 @@ func (n *Node) SetIsDDD(b bool)                 { n.flags.set(nodeIsDDD, b) }
 func (n *Node) SetDiag(b bool)                  { n.flags.set(nodeDiag, b) }
 func (n *Node) SetColas(b bool)                 { n.flags.set(nodeColas, b) }
 func (n *Node) SetNonNil(b bool)                { n.flags.set(nodeNonNil, b) }
-func (n *Node) SetNoescape(b bool)              { n.flags.set(nodeNoescape, b) }
+func (n *Node) SetTransient(b bool)             { n.flags.set(nodeTransient, b) }
 func (n *Node) SetBounded(b bool)               { n.flags.set(nodeBounded, b) }
 func (n *Node) SetAddable(b bool)               { n.flags.set(nodeAddable, b) }
 func (n *Node) SetHasCall(b bool)               { n.flags.set(nodeHasCall, b) }
