@@ -13,6 +13,11 @@ go get -d vcs-test.golang.org/git/v3pkg.git/v3@v3.0.0
 go list -m vcs-test.golang.org/git/v3pkg.git/v3
 stdout '^vcs-test.golang.org/git/v3pkg.git/v3 v3.0.0$'
 
+go get -d vcs-test.golang.org/git/empty-v2-without-v1.git/v2@v2.0.0
+
+go list -m vcs-test.golang.org/git/empty-v2-without-v1.git/v2
+stdout '^vcs-test.golang.org/git/empty-v2-without-v1.git/v2 v2.0.0$'
+
 -- go.mod --
 module example.com
 go 1.13
