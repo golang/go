@@ -462,10 +462,10 @@ func LoadFull(l *Loader, arch *sys.Arch, syms *sym.Symbols) {
 	// external symbols
 	for i := l.extStart; i <= l.max; i++ {
 		nv := l.extSyms[i-l.extStart]
-		if l.Reachable.Has(i) || strings.HasPrefix(nv.name, "go.info.") || strings.HasPrefix(nv.name, "gofile..") { // XXX some go.info and file symbols are used but not marked
+		if l.Reachable.Has(i) || strings.HasPrefix(nv.name, "gofile..") { // XXX file symbols are used but not marked
 			s := syms.Newsym(nv.name, nv.v)
 			preprocess(arch, s)
-			s.Attr.Set(sym.AttrReachable, true)
+			s.Attr.Set(sym.AttrReachable, l.Reachable.Has(i))
 			l.Syms[i] = s
 		}
 	}
@@ -499,10 +499,9 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) {
 		if t == 0 {
 			log.Fatalf("missing type for %s in %s", name, lib)
 		}
-		if !l.Reachable.Has(istart+Sym(i)) && (t < sym.SDWARFSECT || t > sym.SDWARFLINES) && !(t == sym.SRODATA && strings.HasPrefix(name, "type.")) && name != "runtime.addmoduledata" && name != "runtime.lastmoduledatap" {
+		if !l.Reachable.Has(istart+Sym(i)) && !(t == sym.SRODATA && strings.HasPrefix(name, "type.")) && name != "runtime.addmoduledata" && name != "runtime.lastmoduledatap" {
 			// No need to load unreachable symbols.
-			// XXX DWARF symbols may be used but are not marked reachable.
-			// XXX type symbol's content may be needed in DWARF code, but they are not marked.
+			// XXX some type symbol's content may be needed in DWARF code, but they are not marked.
 			// XXX reference to runtime.addmoduledata may be generated later by the linker in plugin mode.
 			continue
 		}
@@ -612,6 +611,8 @@ func loadObjFull(l *Loader, r *oReader) {
 					panic("funcinfo symbol not defined in current package")
 				}
 				isym = int(a.Sym.SymIdx)
+			case goobj2.AuxDwarfInfo, goobj2.AuxDwarfLoc, goobj2.AuxDwarfRanges, goobj2.AuxDwarfLines:
+				// ignored for now
 			default:
 				panic("unknown aux type")
 			}

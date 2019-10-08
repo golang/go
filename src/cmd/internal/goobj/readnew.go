@@ -125,6 +125,8 @@ func (r *objReader) readNew() {
 				isym = int(a.Sym.SymIdx)
 			case goobj2.AuxFuncdata:
 				funcdata = append(funcdata, a.Sym)
+			case goobj2.AuxDwarfInfo, goobj2.AuxDwarfLoc, goobj2.AuxDwarfRanges, goobj2.AuxDwarfLines:
+				// nothing to do
 			default:
 				panic("unknown aux type")
 			}

@@ -95,13 +95,7 @@ func WriteObjFile2(ctxt *Link, b *bio.Writer, pkgpath string) {
 	for _, list := range lists {
 		for _, s := range list {
 			w.Uint32(naux)
-			if s.Gotype != nil {
-				naux++
-			}
-			if s.Func != nil {
-				// FuncInfo is an aux symbol, each Funcdata is an aux symbol
-				naux += 1 + uint32(len(s.Func.Pcln.Funcdata))
-			}
+			naux += uint32(nAuxSym(s))
 		}
 	}
 	w.Uint32(naux)
@@ -301,7 +295,61 @@ func (w *writer) Aux(s *LSym) {
 			}
 			o.Write(w.Writer)
 		}
+
+		if s.Func.dwarfInfoSym != nil {
+			o := goobj2.Aux{
+				Type: goobj2.AuxDwarfInfo,
+				Sym:  makeSymRef(s.Func.dwarfInfoSym),
+			}
+			o.Write(w.Writer)
+		}
+		if s.Func.dwarfLocSym != nil {
+			o := goobj2.Aux{
+				Type: goobj2.AuxDwarfLoc,
+				Sym:  makeSymRef(s.Func.dwarfLocSym),
+			}
+			o.Write(w.Writer)
+		}
+		if s.Func.dwarfRangesSym != nil {
+			o := goobj2.Aux{
+				Type: goobj2.AuxDwarfRanges,
+				Sym:  makeSymRef(s.Func.dwarfRangesSym),
+			}
+			o.Write(w.Writer)
+		}
+		if s.Func.dwarfDebugLinesSym != nil {
+			o := goobj2.Aux{
+				Type: goobj2.AuxDwarfLines,
+				Sym:  makeSymRef(s.Func.dwarfDebugLinesSym),
+			}
+			o.Write(w.Writer)
+		}
 	}
+}
+
+// return the number of aux symbols s have.
+func nAuxSym(s *LSym) int {
+	n := 0
+	if s.Gotype != nil {
+		n++
+	}
+	if s.Func != nil {
+		// FuncInfo is an aux symbol, each Funcdata is an aux symbol
+		n += 1 + len(s.Func.Pcln.Funcdata)
+		if s.Func.dwarfInfoSym != nil {
+			n++
+		}
+		if s.Func.dwarfLocSym != nil {
+			n++
+		}
+		if s.Func.dwarfRangesSym != nil {
+			n++
+		}
+		if s.Func.dwarfDebugLinesSym != nil {
+			n++
+		}
+	}
+	return n
 }
 
 // generate symbols for FuncInfo.
