@@ -191,6 +191,11 @@ const (
 	SymFlagDupok = 1 << iota
 	SymFlagLocal
 	SymFlagTypelink
+	SymFlagLeaf
+	SymFlagCFunc
+	SymFlagReflectMethod
+	SymFlagShared // This is really silly
+	SymFlagTopFrame
 )
 
 func (s *Sym) Write(w *Writer) {

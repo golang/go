@@ -228,6 +228,21 @@ func (w *writer) Sym(s *LSym) {
 	if s.MakeTypelink() {
 		flag |= goobj2.SymFlagTypelink
 	}
+	if s.Leaf() {
+		flag |= goobj2.SymFlagLeaf
+	}
+	if s.CFunc() {
+		flag |= goobj2.SymFlagCFunc
+	}
+	if s.ReflectMethod() {
+		flag |= goobj2.SymFlagReflectMethod
+	}
+	if w.ctxt.Flag_shared { // This is really silly
+		flag |= goobj2.SymFlagShared
+	}
+	if s.TopFrame() {
+		flag |= goobj2.SymFlagTopFrame
+	}
 	o := goobj2.Sym{
 		Name: s.Name,
 		ABI:  abi,
@@ -299,25 +314,8 @@ func genFuncInfoSyms(ctxt *Link) {
 		if s.NoSplit() {
 			nosplit = 1
 		}
-		flags := uint8(0)
-		if s.Leaf() {
-			flags |= goobj2.FuncFlagLeaf
-		}
-		if s.CFunc() {
-			flags |= goobj2.FuncFlagCFunc
-		}
-		if s.ReflectMethod() {
-			flags |= goobj2.FuncFlagReflectMethod
-		}
-		if ctxt.Flag_shared { // This is really silly
-			flags |= goobj2.FuncFlagShared
-		}
-		if s.TopFrame() {
-			flags |= goobj2.FuncFlagTopFrame
-		}
 		o := goobj2.FuncInfo{
 			NoSplit: nosplit,
-			Flags:   flags,
 			Args:    uint32(s.Func.Args),
 			Locals:  uint32(s.Func.Locals),
 		}
