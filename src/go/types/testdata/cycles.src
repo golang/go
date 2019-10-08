@@ -23,10 +23,8 @@ type (
 	A0 /* ERROR cycle */ [10]A0
 	A1 [10]*A1
 
-	// TODO(gri) It would be nicer to report the cycle starting
-	//           with A2 (also below, for S4). See issue #34771.
-	A2 [10]A3
-	A3 /* ERROR cycle */ [10]A4
+	A2 /* ERROR cycle */ [10]A3
+	A3 [10]A4
 	A4 A2
 
 	A5 [10]A6
@@ -41,8 +39,8 @@ type (
 	S2 struct{ _ *S2 }
 	S3 struct{ *S3 }
 
-	S4 struct{ S5 }
-	S5 /* ERROR cycle */ struct{ S6 }
+	S4 /* ERROR cycle */ struct{ S5 }
+	S5 struct{ S6 }
 	S6 S4
 
 	// pointers
@@ -71,6 +69,15 @@ type (
 
 	// channels
 	C0 chan C0
+)
+
+// test case for issue #34771
+type (
+	AA /* ERROR cycle */ B
+	B C
+	C [10]D
+	D E
+	E AA
 )
 
 func _() {

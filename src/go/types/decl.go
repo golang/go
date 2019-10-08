@@ -311,10 +311,16 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 		}
 
 	case *Named:
+		// don't report a 2nd error if we already know the type is invalid
+		// (e.g., if a cycle was detected earlier, via Checker.underlying).
+		if t.underlying == Typ[Invalid] {
+			t.info = invalid
+			return invalid
+		}
 		switch t.info {
 		case unknown:
 			t.info = marked
-			t.info = check.validType(t.underlying, append(path, t.obj))
+			t.info = check.validType(t.orig, append(path, t.obj))
 		case marked:
 			// cycle detected
 			for i, tn := range path {
@@ -535,7 +541,7 @@ func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, alias bo
 		obj.typ = named // make sure recursive type declarations terminate
 
 		// determine underlying type of named
-		check.definedType(typ, named)
+		named.orig = check.definedType(typ, named)
 
 		// The underlying type of named may be itself a named type that is
 		// incomplete:
