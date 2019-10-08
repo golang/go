@@ -15,7 +15,6 @@ import (
 // TODO: make each pcdata a separate symbol?
 type FuncInfo struct {
 	NoSplit uint8
-	Flags   uint8
 
 	Args   uint32
 	Locals uint32
@@ -32,17 +31,8 @@ type FuncInfo struct {
 	// TODO: InlTree
 }
 
-const (
-	FuncFlagLeaf = 1 << iota
-	FuncFlagCFunc
-	FuncFlagReflectMethod
-	FuncFlagShared // This is really silly
-	FuncFlagTopFrame
-)
-
 func (a *FuncInfo) Write(w *bytes.Buffer) {
 	w.WriteByte(a.NoSplit)
-	w.WriteByte(a.Flags)
 
 	var b [4]byte
 	writeUint32 := func(x uint32) {
@@ -77,8 +67,7 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
 
 func (a *FuncInfo) Read(b []byte) {
 	a.NoSplit = b[0]
-	a.Flags = b[1]
-	b = b[2:]
+	b = b[1:]
 
 	readUint32 := func() uint32 {
 		x := binary.LittleEndian.Uint32(b)

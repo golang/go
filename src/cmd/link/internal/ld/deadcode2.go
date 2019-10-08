@@ -18,9 +18,6 @@ import (
 var _ = fmt.Print
 
 // TODO:
-// - Live method tracking:
-//   The special handling of reflect.Type.Method has not
-//   been implemented.
 // - Shared object support:
 //   It basically marks everything. We could consider using
 //   a different mechanism to represent it.
@@ -42,7 +39,7 @@ type deadcodePass2 struct {
 
 	ifaceMethod     map[methodsig]bool // methods declared in reached interfaces
 	markableMethods []methodref2       // methods of reached types
-	reflectMethod   bool               // TODO: this is not set for now
+	reflectSeen     bool               // whether we have seen a reflect method call
 }
 
 func (d *deadcodePass2) init() {
@@ -94,6 +91,8 @@ func (d *deadcodePass2) init() {
 func (d *deadcodePass2) flood() {
 	for !d.wq.empty() {
 		symIdx := d.wq.pop()
+
+		d.reflectSeen = d.reflectSeen || d.loader.IsReflectMethod(symIdx)
 
 		name := d.loader.RawSymName(symIdx)
 		if strings.HasPrefix(name, "type.") && name[5] != '.' { // TODO: use an attribute instead of checking name
@@ -168,23 +167,18 @@ func deadcode2(ctxt *Link) {
 
 	callSym := loader.Lookup("reflect.Value.Call", sym.SymVerABIInternal)
 	methSym := loader.Lookup("reflect.Value.Method", sym.SymVerABIInternal)
-	reflectSeen := false
 
 	if ctxt.DynlinkingGo() {
 		// Exported methods may satisfy interfaces we don't know
 		// about yet when dynamically linking.
-		reflectSeen = true
+		d.reflectSeen = true
 	}
 
 	for {
-		if !reflectSeen {
-			if d.reflectMethod || (callSym != 0 && loader.Reachable.Has(callSym)) || (methSym != 0 && loader.Reachable.Has(methSym)) {
-				// Methods might be called via reflection. Give up on
-				// static analysis, mark all exported methods of
-				// all reachable types as reachable.
-				reflectSeen = true
-			}
-		}
+		// Methods might be called via reflection. Give up on
+		// static analysis, mark all exported methods of
+		// all reachable types as reachable.
+		d.reflectSeen = d.reflectSeen || (callSym != 0 && loader.Reachable.Has(callSym)) || (methSym != 0 && loader.Reachable.Has(methSym))
 
 		// Mark all methods that could satisfy a discovered
 		// interface as reachable. We recheck old marked interfaces
@@ -192,7 +186,7 @@ func deadcode2(ctxt *Link) {
 		// in the last pass.
 		rem := d.markableMethods[:0]
 		for _, m := range d.markableMethods {
-			if (reflectSeen && m.isExported()) || d.ifaceMethod[m.m] {
+			if (d.reflectSeen && m.isExported()) || d.ifaceMethod[m.m] {
 				d.markMethod(m)
 			} else {
 				rem = append(rem, m)
