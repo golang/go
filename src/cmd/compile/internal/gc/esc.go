@@ -369,7 +369,7 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 
 		// External functions are assumed unsafe, unless
 		// //go:noescape is given before the declaration.
-		if fn.Noescape() {
+		if fn.Func.Pragma&Noescape != 0 {
 			if Debug['m'] != 0 && f.Sym != nil {
 				Warnl(f.Pos, "%v does not escape", name())
 			}
