@@ -274,7 +274,7 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 		stk.Push(arg)
 		err := downloadPackage(p)
 		if err != nil {
-			base.Errorf("%s", &load.PackageError{ImportStack: stk.Copy(), Err: err.Error()})
+			base.Errorf("%s", &load.PackageError{ImportStack: stk.Copy(), Err: err})
 			stk.Pop()
 			return
 		}
@@ -355,7 +355,7 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 				stk.Push(path)
 				err := &load.PackageError{
 					ImportStack: stk.Copy(),
-					Err:         "must be imported as " + path[j+len("vendor/"):],
+					Err:         load.ImportErrorf(path, "%s must be imported as %s", path, path[j+len("vendor/"):]),
 				}
 				stk.Pop()
 				base.Errorf("%s", err)

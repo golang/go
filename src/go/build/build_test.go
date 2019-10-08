@@ -7,6 +7,7 @@ package build
 import (
 	"internal/testenv"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -445,5 +446,31 @@ func TestIssue23594(t *testing.T) {
 
 	if p.Doc != "Correct" {
 		t.Fatalf("incorrectly set .Doc to %q", p.Doc)
+	}
+}
+
+// TestMissingImportErrorRepetition checks that when an unknown package is
+// imported, the package path is only shown once in the error.
+// Verifies golang.org/issue/34752.
+func TestMissingImportErrorRepetition(t *testing.T) {
+	testenv.MustHaveGoBuild(t) // need 'go list' internally
+	tmp, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+	if err := ioutil.WriteFile(filepath.Join(tmp, "go.mod"), []byte("module m"), 0666); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Setenv("GO111MODULE", os.Getenv("GO111MODULE"))
+	os.Setenv("GO111MODULE", "on")
+	defer os.Setenv("GOPROXY", os.Getenv("GOPROXY"))
+	os.Setenv("GOPROXY", "off")
+
+	pkgPath := "example.com/hello"
+	if _, err = Import(pkgPath, tmp, FindOnly); err == nil {
+		t.Fatal("unexpected success")
+	} else if n := strings.Count(err.Error(), pkgPath); n != 1 {
+		t.Fatalf("package path %q appears in error %d times; should appear once\nerror: %v", pkgPath, n, err)
 	}
 }

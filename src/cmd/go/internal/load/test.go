@@ -110,7 +110,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
 			// non-test copy of a package.
 			ptestErr = &PackageError{
 				ImportStack:   testImportStack(stk[0], p1, p.ImportPath),
-				Err:           "import cycle not allowed in test",
+				Err:           errors.New("import cycle not allowed in test"),
 				IsImportCycle: true,
 			}
 		}
@@ -271,7 +271,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
 	// afterward that gathers t.Cover information.
 	t, err := loadTestFuncs(ptest)
 	if err != nil && pmain.Error == nil {
-		pmain.Error = &PackageError{Err: err.Error()}
+		pmain.Error = &PackageError{Err: err}
 	}
 	t.Cover = cover
 	if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {
@@ -322,7 +322,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
 
 	data, err := formatTestmain(t)
 	if err != nil && pmain.Error == nil {
-		pmain.Error = &PackageError{Err: err.Error()}
+		pmain.Error = &PackageError{Err: err}
 	}
 	if data != nil {
 		pmain.Internal.TestmainGo = &data
