@@ -566,6 +566,9 @@ func (f *File) SetRequire(req []*Require) {
 				var newLines []*Line
 				for _, line := range stmt.Line {
 					if p, err := parseString(&line.Token[0]); err == nil && need[p] != "" {
+						if len(line.Comments.Before) == 1 && len(line.Comments.Before[0].Token) == 0 {
+							line.Comments.Before = line.Comments.Before[:0]
+						}
 						line.Token[1] = need[p]
 						delete(need, p)
 						setIndirect(line, indirect[p])
