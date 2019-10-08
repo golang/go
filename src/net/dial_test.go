@@ -763,11 +763,6 @@ func TestDialCancel(t *testing.T) {
 	}
 	mustHaveExternalNetwork(t)
 
-	if runtime.GOOS == "nacl" {
-		// nacl doesn't have external network access.
-		t.Skipf("skipping on %s", runtime.GOOS)
-	}
-
 	blackholeIPPort := JoinHostPort(slowDst4, "1234")
 	if !supportsIPv4() {
 		blackholeIPPort = JoinHostPort(slowDst6, "1234")
@@ -923,7 +918,7 @@ func TestDialListenerAddr(t *testing.T) {
 
 func TestDialerControl(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "plan9":
+	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 // +build !faketime
-// +build !nacl
 
 package runtime
 

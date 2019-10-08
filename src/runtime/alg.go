@@ -321,7 +321,6 @@ var hashkey [4]uintptr
 func alginit() {
 	// Install AES hash algorithms if the instructions needed are present.
 	if (GOARCH == "386" || GOARCH == "amd64") &&
-		GOOS != "nacl" &&
 		cpu.X86.HasAES && // AESENC
 		cpu.X86.HasSSSE3 && // PSHUFB
 		cpu.X86.HasSSE41 { // PINSR{D,Q}

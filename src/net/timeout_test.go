@@ -411,9 +411,6 @@ func TestReadTimeoutMustNotReturn(t *testing.T) {
 		if perr := parseReadError(err); perr != nil {
 			t.Error(perr)
 		}
-		if err == io.EOF && runtime.GOOS == "nacl" { // see golang.org/issue/8044
-			return
-		}
 		if nerr, ok := err.(Error); !ok || nerr.Timeout() || nerr.Temporary() {
 			t.Fatal(err)
 		}
@@ -432,11 +429,6 @@ var readFromTimeoutTests = []struct {
 }
 
 func TestReadFromTimeout(t *testing.T) {
-	switch runtime.GOOS {
-	case "nacl":
-		t.Skipf("not supported on %s", runtime.GOOS) // see golang.org/issue/8916
-	}
-
 	ch := make(chan Addr)
 	defer close(ch)
 	handler := func(ls *localPacketServer, c PacketConn) {
@@ -620,11 +612,6 @@ var writeToTimeoutTests = []struct {
 
 func TestWriteToTimeout(t *testing.T) {
 	t.Parallel()
-
-	switch runtime.GOOS {
-	case "nacl":
-		t.Skipf("not supported on %s", runtime.GOOS)
-	}
 
 	c1, err := newLocalPacketListener("udp")
 	if err != nil {
@@ -990,11 +977,6 @@ func TestReadWriteProlongedTimeout(t *testing.T) {
 
 func TestReadWriteDeadlineRace(t *testing.T) {
 	t.Parallel()
-
-	switch runtime.GOOS {
-	case "nacl":
-		t.Skipf("not supported on %s", runtime.GOOS)
-	}
 
 	N := 1000
 	if testing.Short() {

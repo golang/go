@@ -100,7 +100,7 @@ var importerTests = [...]importerTest{
 }
 
 func TestGoxImporter(t *testing.T) {
-	testenv.MustHaveExec(t) // this is to skip nacl, js
+	testenv.MustHaveExec(t)
 	initmap := make(map[*types.Package]InitData)
 	imp := GetImporter([]string{"testdata"}, initmap)
 
