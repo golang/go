@@ -552,3 +552,12 @@ func (c *valueCtx) Value(key interface{}) interface{} {
 	}
 	return c.Context.Value(key)
 }
+
+// A ErrorCancelFunc tells an opertion to abandon due to the error.
+type ErrorCancelFunc func(error)
+
+func WithErrorCancel(parent Context) (Context, CancelFunc, ErrorCancelFunc) {
+	c := newCancelCtx(parent)
+	propagateCancel(parent, &c)
+	return &c, func() { c.cancel(true, Canceled) }, func(err error) { c.cancel(true, err) }
+}

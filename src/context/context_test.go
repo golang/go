@@ -5,6 +5,7 @@
 package context
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"runtime"
@@ -727,4 +728,31 @@ func XTestCustomContextGoroutines(t testingT) {
 	_, cancel7 := WithCancel(ctx5)
 	defer cancel7()
 	checkNoGoroutine()
+}
+
+func XTestWithErrorCancel(t testingT) {
+	c1, _, errorCancel := WithErrorCancel(Background())
+
+	if got, want := fmt.Sprint(c1), "context.Background.WithCancel"; got != want {
+		t.Errorf("c1.String() = %q want %q", got, want)
+	}
+
+	o := otherContext{c1}
+	c2, _, _ := WithErrorCancel(o)
+	contexts := []Context{c1, o, c2}
+
+	err := errors.New("An error")
+	errorCancel(err)
+	time.Sleep(100 * time.Millisecond) // let cancelation propagate
+
+	for i, c := range contexts {
+		select {
+		case <-c.Done():
+		default:
+			t.Errorf("<-c[%d].Done() blocked, but shouldn't have", i)
+		}
+		if e := c.Err(); e != err {
+			t.Errorf("c[%d].Err() == %v want %v", i, e, err)
+		}
+	}
 }
