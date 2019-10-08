@@ -1046,7 +1046,7 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode, 
 		parent = d
 	}
 
-	cmd := exec.Command("go", "list", "-compiler="+ctxt.Compiler, "-tags="+strings.Join(ctxt.BuildTags, ","), "-installsuffix="+ctxt.InstallSuffix, "-f={{.Dir}}\n{{.ImportPath}}\n{{.Root}}\n{{.Goroot}}\n", path)
+	cmd := exec.Command("go", "list", "-e", "-compiler="+ctxt.Compiler, "-tags="+strings.Join(ctxt.BuildTags, ","), "-installsuffix="+ctxt.InstallSuffix, "-f={{.Dir}}\n{{.ImportPath}}\n{{.Root}}\n{{.Goroot}}\n{{if .Error}}{{.Error}}{{end}}\n", "--", path)
 
 	// TODO(bcmills): This is wrong if srcDir is in a vendor directory, or if
 	// srcDir is in some module dependency of the main module. The main module
@@ -1073,12 +1073,22 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode, 
 		return fmt.Errorf("go/build: importGo %s: %v\n%s\n", path, err, stderr.String())
 	}
 
-	f := strings.Split(stdout.String(), "\n")
-	if len(f) != 5 || f[4] != "" {
+	f := strings.SplitN(stdout.String(), "\n", 5)
+	if len(f) != 5 {
 		return fmt.Errorf("go/build: importGo %s: unexpected output:\n%s\n", path, stdout.String())
 	}
+	dir := f[0]
+	errStr := strings.TrimSpace(f[4])
+	if errStr != "" && p.Dir == "" {
+		// If 'go list' could not locate the package, return the same error that
+		// 'go list' reported.
+		// If 'go list' did locate the package (p.Dir is not empty), ignore the
+		// error. It was probably related to loading source files, and we'll
+		// encounter it ourselves shortly.
+		return errors.New(errStr)
+	}
 
-	p.Dir = f[0]
+	p.Dir = dir
 	p.ImportPath = f[1]
 	p.Root = f[2]
 	p.Goroot = f[3] == "true"

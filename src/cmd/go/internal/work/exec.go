@@ -433,7 +433,7 @@ func (b *Builder) build(a *Action) (err error) {
 			err = fmt.Errorf("go build %s: %v", a.Package.ImportPath, err)
 		}
 		if err != nil && b.IsCmdList && b.NeedError && p.Error == nil {
-			p.Error = &load.PackageError{Err: err.Error()}
+			p.Error = &load.PackageError{Err: err}
 		}
 	}()
 	if cfg.BuildN {

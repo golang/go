@@ -72,7 +72,7 @@ func runFmt(cmd *base.Command, args []string) {
 			continue
 		}
 		if pkg.Error != nil {
-			if strings.HasPrefix(pkg.Error.Err, "build constraints exclude all Go files") {
+			if strings.HasPrefix(pkg.Error.Err.Error(), "build constraints exclude all Go files") {
 				// Skip this error, as we will format
 				// all files regardless.
 			} else {
