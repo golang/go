@@ -69,6 +69,13 @@ TODO
   <code>go.mod</code> file.
 </p>
 
+<p>
+  <code>go</code> <code>list</code> <code>-m</code> no longer silently omits
+  transitive dependencies that do not provide packages in
+  the <code>vendor</code> directory. It now fails explicitly if
+  <code>-mod=vendor</code> is set.
+</p>
+
 <p><!-- golang.org/issue/32502, golang.org/issue/30345 -->
   The <code>go</code> <code>get</code> command no longer accepts
   the <code>-mod</code> flag. Previously, the flag's setting either

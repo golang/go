@@ -15,15 +15,11 @@ stdout '^'$WORK'[/\\]auto$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
 
-go list -m all
-stdout '^example.com/auto$'
-stdout 'example.com/printversion v1.0.0'
-stdout 'example.com/version v1.0.0'
+! go list -m all
+stderr 'can''t list modules with -mod=vendor'
 
-go list -m -f '{{.Dir}}' all
-stdout '^'$WORK'[/\\]auto$'
-stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
-stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
+! go list -m -f '{{.Dir}}' all
+stderr 'can''t list modules with -mod=vendor'
 
 # An explicit -mod=mod should force the vendor directory to be ignored.
 env GOFLAGS=-mod=mod
