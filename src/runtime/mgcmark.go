@@ -196,7 +196,7 @@ func markroot(gcw *gcWork, i uint32) {
 			gp.waitsince = work.tstart
 		}
 
-		// scang must be done on the system stack in case
+		// scanstack must be done on the system stack in case
 		// we're trying to scan our own stack.
 		systemstack(func() {
 			// If this is a self-scan, put the user G in
@@ -714,6 +714,10 @@ func scanstack(gp *g, gcw *gcWork) {
 
 	if stackTraceDebug {
 		println("stack trace goroutine", gp.goid)
+	}
+
+	if debugScanConservative && gp.asyncSafePoint {
+		print("scanning async preempted goroutine ", gp.goid, " stack [", hex(gp.stack.lo), ",", hex(gp.stack.hi), ")\n")
 	}
 
 	// Scan the saved context register. This is effectively a live

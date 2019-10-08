@@ -423,6 +423,11 @@ type g struct {
 	preemptStop   bool // transition to _Gpreempted on preemption; otherwise, just deschedule
 	preemptShrink bool // shrink stack at synchronous safe point
 
+	// asyncSafePoint is set if g is stopped at an asynchronous
+	// safe point. This means there are frames on the stack
+	// without precise pointer information.
+	asyncSafePoint bool
+
 	paniconfault bool // panic (instead of crash) on unexpected fault address
 	gcscandone   bool // g has scanned stack; protected by _Gscan bit in status
 	throwsplit   bool // must not split stack
@@ -530,6 +535,11 @@ type m struct {
 
 	vdsoSP uintptr // SP for traceback while in VDSO call (0 if not in call)
 	vdsoPC uintptr // PC for traceback while in VDSO call
+
+	// preemptGen counts the number of completed preemption
+	// signals. This is used to detect when a preemption is
+	// requested, but fails. Accessed atomically.
+	preemptGen uint32
 
 	dlogPerM
 

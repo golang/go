@@ -38,6 +38,38 @@ const (
 	_SIG_IGN uintptr = 1
 )
 
+// sigPreempt is the signal used for non-cooperative preemption.
+//
+// There's no good way to choose this signal, but there are some
+// heuristics:
+//
+// 1. It should be a signal that's passed-through by debuggers by
+// default. On Linux, this is SIGALRM, SIGURG, SIGCHLD, SIGIO,
+// SIGVTALRM, SIGPROF, and SIGWINCH, plus some glibc-internal signals.
+//
+// 2. It shouldn't be used internally by libc in mixed Go/C binaries
+// because libc may assume it's the only thing that can handle these
+// signals. For example SIGCANCEL or SIGSETXID.
+//
+// 3. It should be a signal that can happen spuriously without
+// consequences. For example, SIGALRM is a bad choice because the
+// signal handler can't tell if it was caused by the real process
+// alarm or not (arguably this means the signal is broken, but I
+// digress). SIGUSR1 and SIGUSR2 are also bad because those are often
+// used in meaningful ways by applications.
+//
+// 4. We need to deal with platforms without real-time signals (like
+// macOS), so those are out.
+//
+// We use SIGURG because it meets all of these criteria, is extremely
+// unlikely to be used by an application for its "real" meaning (both
+// because out-of-band data is basically unused and because SIGURG
+// doesn't report which socket has the condition, making it pretty
+// useless), and even if it is, the application has to be ready for
+// spurious SIGURG. SIGIO wouldn't be a bad choice either, but is more
+// likely to be used for real.
+const sigPreempt = _SIGURG
+
 // Stores the signal handlers registered before Go installed its own.
 // These signal handlers will be invoked in cases where Go doesn't want to
 // handle a particular signal (e.g., signal occurred on a non-Go thread).
@@ -290,6 +322,36 @@ func sigpipe() {
 	dieFromSignal(_SIGPIPE)
 }
 
+// doSigPreempt handles a preemption signal on gp.
+func doSigPreempt(gp *g, ctxt *sigctxt) {
+	// Check if this G wants to be preempted and is safe to
+	// preempt.
+	if wantAsyncPreempt(gp) && isAsyncSafePoint(gp, ctxt.sigpc(), ctxt.sigsp()) {
+		// Inject a call to asyncPreempt.
+		ctxt.pushCall(funcPC(asyncPreempt))
+	}
+
+	// Acknowledge the preemption.
+	atomic.Xadd(&gp.m.preemptGen, 1)
+}
+
+const preemptMSupported = pushCallSupported
+
+// preemptM sends a preemption request to mp. This request may be
+// handled asynchronously and may be coalesced with other requests to
+// the M. When the request is received, if the running G or P are
+// marked for preemption and the goroutine is at an asynchronous
+// safe-point, it will preempt the goroutine. It always atomically
+// increments mp.preemptGen after handling a preemption request.
+func preemptM(mp *m) {
+	if !pushCallSupported {
+		// This architecture doesn't support ctxt.pushCall
+		// yet, so doSigPreempt won't work.
+		return
+	}
+	signalM(mp, sigPreempt)
+}
+
 // sigFetchG fetches the value of G safely when running in a signal handler.
 // On some architectures, the g value may be clobbered when running in a VDSO.
 // See issue #32912.
@@ -444,6 +506,14 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 
 	if sig == _SIGUSR1 && testSigusr1 != nil && testSigusr1(gp) {
 		return
+	}
+
+	if sig == sigPreempt {
+		// Might be a preemption signal.
+		doSigPreempt(gp, c)
+		// Even if this was definitely a preemption signal, it
+		// may have been coalesced with another signal, so we
+		// still let it through to the application.
 	}
 
 	flags := int32(_SigThrow)
