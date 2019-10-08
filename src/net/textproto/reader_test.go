@@ -218,6 +218,10 @@ func TestReadMIMEHeaderMalformed(t *testing.T) {
 		" First: line with leading space\r\nFoo: foo\r\n\r\n",
 		"\tFirst: line with leading tab\r\nFoo: foo\r\n\r\n",
 		"Foo: foo\r\nNo colon second line\r\n\r\n",
+		"Foo-\n\tBar: foo\r\n\r\n",
+		"Foo-\r\n\tBar: foo\r\n\r\n",
+		"Foo\r\n\t: foo\r\n\r\n",
+		"Foo-\n\tBar",
 	}
 
 	for _, input := range inputs {
