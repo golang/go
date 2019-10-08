@@ -1379,7 +1379,12 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	if bodyAllowedForStatus(code) {
 		// If no content type, apply sniffing algorithm to body.
 		_, haveType := header["Content-Type"]
-		if !haveType && !hasTE && len(p) > 0 {
+
+		// If the Content-Encoding was set and is non-blank,
+		// we shouldn't sniff the body. See Issue 31753.
+		ce := header.Get("Content-Encoding")
+		hasCE := len(ce) > 0
+		if !hasCE && !haveType && !hasTE && len(p) > 0 {
 			setHeader.contentType = DetectContentType(p)
 		}
 	} else {
