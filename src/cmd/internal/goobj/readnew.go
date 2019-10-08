@@ -154,6 +154,7 @@ func (r *objReader) readNew() {
 			PCData:   make([]Data, len(info.Pcdata)-1), // -1 as we appended one above
 			FuncData: make([]FuncData, len(info.Funcdataoff)),
 			File:     make([]string, len(info.File)),
+			InlTree:  make([]InlinedCall, len(info.InlTree)),
 		}
 		sym.Func = f
 		for k := range f.PCData {
@@ -166,6 +167,16 @@ func (r *objReader) readNew() {
 		for k := range f.File {
 			symID := resolveSymRef(info.File[k])
 			f.File[k] = symID.Name
+		}
+		for k := range f.InlTree {
+			inl := &info.InlTree[k]
+			f.InlTree[k] = InlinedCall{
+				Parent:   int64(inl.Parent),
+				File:     resolveSymRef(inl.File).Name,
+				Line:     int64(inl.Line),
+				Func:     resolveSymRef(inl.Func),
+				ParentPC: int64(inl.ParentPC),
+			}
 		}
 	}
 }

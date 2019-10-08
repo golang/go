@@ -395,6 +395,18 @@ func genFuncInfoSyms(ctxt *Link) {
 			fsym := ctxt.Lookup(f)
 			o.File[i] = makeSymRef(fsym)
 		}
+		o.InlTree = make([]goobj2.InlTreeNode, len(pc.InlTree.nodes))
+		for i, inl := range pc.InlTree.nodes {
+			f, l := linkgetlineFromPos(ctxt, inl.Pos)
+			fsym := ctxt.Lookup(f)
+			o.InlTree[i] = goobj2.InlTreeNode{
+				Parent:   int32(inl.Parent),
+				File:     makeSymRef(fsym),
+				Line:     l,
+				Func:     makeSymRef(inl.Func),
+				ParentPC: inl.ParentPC,
+			}
+		}
 
 		o.Write(&b)
 		isym := &LSym{

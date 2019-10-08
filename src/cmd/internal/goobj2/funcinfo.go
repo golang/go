@@ -28,7 +28,7 @@ type FuncInfo struct {
 	Funcdataoff []uint32
 	File        []SymRef // TODO: just use string?
 
-	// TODO: InlTree
+	InlTree []InlTreeNode
 }
 
 func (a *FuncInfo) Write(w *bytes.Buffer) {
@@ -61,8 +61,10 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
 		writeUint32(f.PkgIdx)
 		writeUint32(f.SymIdx)
 	}
-
-	// TODO: InlTree
+	writeUint32(uint32(len(a.InlTree)))
+	for i := range a.InlTree {
+		a.InlTree[i].Write(w)
+	}
 }
 
 func (a *FuncInfo) Read(b []byte) {
@@ -98,6 +100,48 @@ func (a *FuncInfo) Read(b []byte) {
 	for i := range a.File {
 		a.File[i] = SymRef{readUint32(), readUint32()}
 	}
+	inltreelen := readUint32()
+	a.InlTree = make([]InlTreeNode, inltreelen)
+	for i := range a.InlTree {
+		b = a.InlTree[i].Read(b)
+	}
+}
 
-	// TODO: InlTree
+// InlTreeNode is the serialized form of FileInfo.InlTree.
+type InlTreeNode struct {
+	Parent   int32
+	File     SymRef
+	Line     int32
+	Func     SymRef
+	ParentPC int32
+}
+
+func (inl *InlTreeNode) Write(w *bytes.Buffer) {
+	var b [4]byte
+	writeUint32 := func(x uint32) {
+		binary.LittleEndian.PutUint32(b[:], x)
+		w.Write(b[:])
+	}
+	writeUint32(uint32(inl.Parent))
+	writeUint32(inl.File.PkgIdx)
+	writeUint32(inl.File.SymIdx)
+	writeUint32(uint32(inl.Line))
+	writeUint32(inl.Func.PkgIdx)
+	writeUint32(inl.Func.SymIdx)
+	writeUint32(uint32(inl.ParentPC))
+}
+
+// Read an InlTreeNode from b, return the remaining bytes.
+func (inl *InlTreeNode) Read(b []byte) []byte {
+	readUint32 := func() uint32 {
+		x := binary.LittleEndian.Uint32(b)
+		b = b[4:]
+		return x
+	}
+	inl.Parent = int32(readUint32())
+	inl.File = SymRef{readUint32(), readUint32()}
+	inl.Line = int32(readUint32())
+	inl.Func = SymRef{readUint32(), readUint32()}
+	inl.ParentPC = int32(readUint32())
+	return b
 }
