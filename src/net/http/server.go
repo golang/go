@@ -2886,8 +2886,6 @@ func (srv *Server) Serve(l net.Listener) error {
 	}
 	defer srv.trackListener(&l, false)
 
-	var tempDelay time.Duration // how long to sleep on accept failure
-
 	baseCtx := context.Background()
 	if srv.BaseContext != nil {
 		baseCtx = srv.BaseContext(origListener)
@@ -2896,16 +2894,18 @@ func (srv *Server) Serve(l net.Listener) error {
 		}
 	}
 
+	var tempDelay time.Duration // how long to sleep on accept failure
+
 	ctx := context.WithValue(baseCtx, ServerContextKey, srv)
 	for {
-		rw, e := l.Accept()
-		if e != nil {
+		rw, err := l.Accept()
+		if err != nil {
 			select {
 			case <-srv.getDoneChan():
 				return ErrServerClosed
 			default:
 			}
-			if ne, ok := e.(net.Error); ok && ne.Temporary() {
+			if ne, ok := err.(net.Error); ok && ne.Temporary() {
 				if tempDelay == 0 {
 					tempDelay = 5 * time.Millisecond
 				} else {
@@ -2914,11 +2914,11 @@ func (srv *Server) Serve(l net.Listener) error {
 				if max := 1 * time.Second; tempDelay > max {
 					tempDelay = max
 				}
-				srv.logf("http: Accept error: %v; retrying in %v", e, tempDelay)
+				srv.logf("http: Accept error: %v; retrying in %v", err, tempDelay)
 				time.Sleep(tempDelay)
 				continue
 			}
-			return e
+			return err
 		}
 		if cc := srv.ConnContext; cc != nil {
 			ctx = cc(ctx, rw)
