@@ -1072,7 +1072,11 @@ func isShrinkStackSafe(gp *g) bool {
 	// The syscall might have pointers into the stack and
 	// often we don't have precise pointer maps for the innermost
 	// frames.
-	return gp.syscallsp == 0
+	//
+	// We also can't copy the stack if we're at an asynchronous
+	// safe-point because we don't have precise pointer maps for
+	// all frames.
+	return gp.syscallsp == 0 && !gp.asyncSafePoint
 }
 
 // Maybe shrink the stack being used by gp.

@@ -784,6 +784,25 @@ func funcspdelta(f funcInfo, targetpc uintptr, cache *pcvalueCache) int32 {
 	return x
 }
 
+// funcMaxSPDelta returns the maximum spdelta at any point in f.
+func funcMaxSPDelta(f funcInfo) int32 {
+	datap := f.datap
+	p := datap.pclntable[f.pcsp:]
+	pc := f.entry
+	val := int32(-1)
+	max := int32(0)
+	for {
+		var ok bool
+		p, ok = step(p, &pc, &val, pc == f.entry)
+		if !ok {
+			return max
+		}
+		if val > max {
+			max = val
+		}
+	}
+}
+
 func pcdatastart(f funcInfo, table int32) int32 {
 	return *(*int32)(add(unsafe.Pointer(&f.nfuncdata), unsafe.Sizeof(f.nfuncdata)+uintptr(table)*4))
 }
