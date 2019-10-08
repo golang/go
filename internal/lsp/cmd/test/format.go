@@ -15,6 +15,7 @@ import (
 
 	"golang.org/x/tools/internal/lsp/cmd"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/internal/tool"
 )
 
@@ -58,9 +59,7 @@ func fixFileHeader(s string) string {
 }
 
 func checkUnified(t *testing.T, filename string, expect string, patch string) {
-	if testing.Short() {
-		t.Skip("running patch is expensive")
-	}
+	testenv.NeedsTool(t, "patch")
 	if strings.Count(patch, "\n+++ ") > 1 {
 		// TODO(golang/go/#34580)
 		t.Skip("multi-file patch tests not supported yet")
