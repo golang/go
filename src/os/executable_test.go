@@ -17,7 +17,7 @@ import (
 const executable_EnvVar = "OSTEST_OUTPUT_EXECPATH"
 
 func TestExecutable(t *testing.T) {
-	testenv.MustHaveExec(t) // will also exclude nacl, which doesn't support Executable anyway
+	testenv.MustHaveExec(t)
 	ep, err := os.Executable()
 	if err != nil {
 		t.Fatalf("Executable failed: %v", err)

@@ -1159,9 +1159,7 @@ func testChtimes(t *testing.T, name string) {
 	pmt := postStat.ModTime()
 	if !pat.Before(at) {
 		switch runtime.GOOS {
-		case "plan9", "nacl":
-			// Ignore.
-			// Plan 9, NaCl:
+		case "plan9":
 			// Mtime is the time of the last change of
 			// content.  Similarly, atime is set whenever
 			// the contents are accessed; also, it is set
@@ -1351,10 +1349,6 @@ func TestSeek(t *testing.T) {
 		{0, io.SeekCurrent, 2<<32 - 1},
 	}
 	for i, tt := range tests {
-		if runtime.GOOS == "nacl" && tt.out > 1<<30 {
-			t.Logf("skipping test case #%d on nacl; https://golang.org/issue/21728", i)
-			continue
-		}
 		off, err := f.Seek(tt.in, tt.whence)
 		if off != tt.out || err != nil {
 			if e, ok := err.(*PathError); ok && e.Err == syscall.EINVAL && tt.out > 1<<32 && runtime.GOOS == "linux" {
@@ -1371,7 +1365,7 @@ func TestSeek(t *testing.T) {
 
 func TestSeekError(t *testing.T) {
 	switch runtime.GOOS {
-	case "js", "nacl", "plan9":
+	case "js", "plan9":
 		t.Skipf("skipping test on %v", runtime.GOOS)
 	}
 

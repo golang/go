@@ -33,9 +33,6 @@ func TestMain(m *testing.M) {
 }
 
 func maybeSkip(t *testing.T) {
-	if strings.HasPrefix(runtime.GOOS, "nacl") {
-		t.Skip("nacl does not have a full file tree")
-	}
 	if runtime.GOOS == "darwin" && strings.HasPrefix(runtime.GOARCH, "arm") {
 		t.Skip("darwin/arm does not have a full file tree")
 	}

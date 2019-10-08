@@ -265,12 +265,6 @@ linux_s390x)
 	mksysnum="./mksysnum_linux.pl $unistd_h"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
-nacl_386)
-	mkerrors=""
-	mksyscall="./mksyscall.pl -l32 -nacl"
-	mksysnum=""
-	mktypes=""
-	;;
 nacl_amd64p32)
 	mkerrors=""
 	mksyscall="./mksyscall.pl -nacl"

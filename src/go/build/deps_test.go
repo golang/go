@@ -514,7 +514,7 @@ func listStdPkgs(goroot string) ([]string, error) {
 
 func TestDependencies(t *testing.T) {
 	iOS := runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
-	if runtime.GOOS == "nacl" || iOS {
+	if iOS {
 		// Tests run in a limited file system and we do not
 		// provide access to every source file.
 		t.Skipf("skipping on %s/%s, missing full GOROOT", runtime.GOOS, runtime.GOARCH)

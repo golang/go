@@ -109,9 +109,6 @@ TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME,$0
 	MOVL	SP, (g_stack+stack_hi)(BP)
 
 	// find out information about the processor we're on
-#ifdef GOOS_nacl // NaCl doesn't like PUSHFL/POPFL
-	JMP 	has_cpuid
-#else
 	// first see if CPUID instruction is supported.
 	PUSHFL
 	PUSHFL
@@ -123,7 +120,6 @@ TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME,$0
 	POPFL	// restore EFLAGS
 	TESTL	$(1<<21), AX
 	JNE 	has_cpuid
-#endif
 
 bad_proc: // show that the program requires MMX.
 	MOVL	$2, 0(SP)

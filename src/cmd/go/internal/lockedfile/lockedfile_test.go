@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // js and nacl do not support inter-process file locking.
-// +build !js,!nacl
+// +build !js
 
 package lockedfile_test
 

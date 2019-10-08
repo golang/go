@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 // +build faketime
-// +build !nacl
 // +build !windows
 
 // Faketime isn't currently supported on Windows. This would require:
