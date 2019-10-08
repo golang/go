@@ -1008,8 +1008,12 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode, 
 		return errNoModules
 	}
 
-	// If modules are not enabled, then the in-process code works fine and we should keep using it.
-	switch os.Getenv("GO111MODULE") {
+	// Predict whether module aware mode is enabled by checking the value of
+	// GO111MODULE and looking for a go.mod file in the source directory or
+	// one of its parents. Running 'go env GOMOD' in the source directory would
+	// give a canonical answer, but we'd prefer not to execute another command.
+	go111Module := os.Getenv("GO111MODULE")
+	switch go111Module {
 	case "off":
 		return errNoModules
 	default: // "", "on", "auto", anything else
@@ -1031,19 +1035,21 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode, 
 		}
 	}
 
-	// Look to see if there is a go.mod.
+	// Unless GO111MODULE=on, look to see if there is a go.mod.
 	// Since go1.13, it doesn't matter if we're inside GOPATH.
-	parent := absSrcDir
-	for {
-		info, err := os.Stat(filepath.Join(parent, "go.mod"))
-		if err == nil && !info.IsDir() {
-			break
+	if go111Module != "on" {
+		parent := absSrcDir
+		for {
+			info, err := os.Stat(filepath.Join(parent, "go.mod"))
+			if err == nil && !info.IsDir() {
+				break
+			}
+			d := filepath.Dir(parent)
+			if len(d) >= len(parent) {
+				return errNoModules // reached top of file system, no go.mod
+			}
+			parent = d
 		}
-		d := filepath.Dir(parent)
-		if len(d) >= len(parent) {
-			return errNoModules // reached top of file system, no go.mod
-		}
-		parent = d
 	}
 
 	cmd := exec.Command("go", "list", "-e", "-compiler="+ctxt.Compiler, "-tags="+strings.Join(ctxt.BuildTags, ","), "-installsuffix="+ctxt.InstallSuffix, "-f={{.Dir}}\n{{.ImportPath}}\n{{.Root}}\n{{.Goroot}}\n{{if .Error}}{{.Error}}{{end}}\n", "--", path)
