@@ -139,6 +139,10 @@ const (
 	parseArrayValue         // parsing array value
 )
 
+// This limits the max nesting depth to prevent stack overflow.
+// This is permitted by https://tools.ietf.org/html/rfc7159#section-9
+const maxNestingDepth = 10000
+
 // reset prepares the scanner for use.
 // It must be called before calling s.step.
 func (s *scanner) reset() {
@@ -168,8 +172,13 @@ func (s *scanner) eof() int {
 }
 
 // pushParseState pushes a new parse state p onto the parse stack.
-func (s *scanner) pushParseState(p int) {
-	s.parseState = append(s.parseState, p)
+// an error state is returned if maxNestingDepth was exceeded, otherwise successState is returned.
+func (s *scanner) pushParseState(c byte, newParseState int, successState int) int {
+	s.parseState = append(s.parseState, newParseState)
+	if len(s.parseState) <= maxNestingDepth {
+		return successState
+	}
+	return s.error(c, "exceeded max depth")
 }
 
 // popParseState pops a parse state (already obtained) off the stack
@@ -208,12 +217,10 @@ func stateBeginValue(s *scanner, c byte) int {
 	switch c {
 	case '{':
 		s.step = stateBeginStringOrEmpty
-		s.pushParseState(parseObjectKey)
-		return scanBeginObject
+		return s.pushParseState(c, parseObjectKey, scanBeginObject)
 	case '[':
 		s.step = stateBeginValueOrEmpty
-		s.pushParseState(parseArrayValue)
-		return scanBeginArray
+		return s.pushParseState(c, parseArrayValue, scanBeginArray)
 	case '"':
 		s.step = stateInString
 		return scanBeginLiteral
