@@ -33,7 +33,7 @@ func TestTruncateWriter(t *testing.T) {
 			t.Errorf("got %q, expected %q", g, w)
 		}
 		if g, w := n, tt.n; g != w {
-			t.Errorf("read %d bytes, but expected to have read %d bytes", g, w)
+			t.Errorf("read %d bytes, but expected to have read %d bytes for\n\t%+v", g, w, tt)
 		}
 	}
 }
