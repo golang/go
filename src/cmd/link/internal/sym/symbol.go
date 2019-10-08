@@ -534,7 +534,7 @@ type InlinedCall struct {
 	Parent   int32   // index of parent in InlTree
 	File     *Symbol // file of the inlined call
 	Line     int32   // line number of the inlined call
-	Func     *Symbol // function that was inlined
+	Func     string  // name of the function that was inlined
 	ParentPC int32   // PC of the instruction just before the inlined body (offset from function start)
 }
 

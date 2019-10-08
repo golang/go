@@ -277,6 +277,10 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
 						if call.Func != nil {
 							fn(call.Func)
 						}
+						f, _ := linkgetlineFromPos(ctxt, call.Pos)
+						if fsym := ctxt.Lookup(f); fsym != nil {
+							fn(fsym)
+						}
 					}
 				}
 			}
