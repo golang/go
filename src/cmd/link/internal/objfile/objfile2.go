@@ -103,6 +103,7 @@ func (l *Loader) AddObj(pkg string, r *oReader) Sym {
 	if _, ok := l.start[r]; ok {
 		panic("already added")
 	}
+	pkg = objabi.PathToPrefix(pkg) // the object file contains escaped package path
 	if _, ok := l.objByPkg[pkg]; !ok {
 		l.objByPkg[pkg] = r
 	}
@@ -189,7 +190,11 @@ func (l *Loader) Resolve(r *oReader, s goobj2.SymRef) Sym {
 		rr = r
 	default:
 		pkg := r.Pkg(int(p))
-		rr = l.objByPkg[pkg]
+		var ok bool
+		rr, ok = l.objByPkg[pkg]
+		if !ok {
+			log.Fatalf("reference of nonexisted package %s, from %v", pkg, r.unit.Lib)
+		}
 	}
 	return l.ToGlobal(rr, int(s.SymIdx))
 }
