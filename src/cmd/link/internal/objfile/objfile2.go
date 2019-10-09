@@ -366,11 +366,7 @@ func LoadNew(l *Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *s
 	or := &oReader{r, unit, localSymVersion, pkgprefix}
 
 	// Autolib
-	npkg := r.NPkg()
-	lib.ImportStrings = append(lib.ImportStrings, make([]string, npkg-1)...)[:len(lib.ImportStrings)]
-	for i := 1; i < npkg; i++ {
-		lib.ImportStrings = append(lib.ImportStrings, r.Pkg(i))
-	}
+	lib.ImportStrings = append(lib.ImportStrings, r.Autolib()...)
 
 	// DWARF file table
 	nfile := r.NDwarfFile()

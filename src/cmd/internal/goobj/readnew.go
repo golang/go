@@ -21,8 +21,9 @@ func (r *objReader) readNew() {
 	}
 
 	// Imports
+	r.p.Imports = rr.Autolib()
+
 	pkglist := rr.Pkglist()
-	r.p.Imports = pkglist[1:] // index 0 is a dummy invalid package
 
 	abiToVer := func(abi uint16) int64 {
 		var vers int64
