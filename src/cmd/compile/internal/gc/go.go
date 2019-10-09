@@ -247,8 +247,6 @@ var Ctxt *obj.Link
 
 var writearchive bool
 
-var Nacl bool
-
 var nodfp *Node
 
 var disable_checknil int

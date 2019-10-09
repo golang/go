@@ -1822,9 +1822,8 @@ func Asmbelf(ctxt *Link, symo int64) {
 	/*
 	 * PHDR must be in a loaded segment. Adjust the text
 	 * segment boundaries downwards to include it.
-	 * Except on NaCl where it must not be loaded.
 	 */
-	if ctxt.HeadType != objabi.Hnacl {
+	{
 		o := int64(Segtext.Vaddr - pph.vaddr)
 		Segtext.Vaddr -= uint64(o)
 		Segtext.Length += uint64(o)

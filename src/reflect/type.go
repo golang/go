@@ -2168,11 +2168,6 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 	var ptrdata uintptr
 	var overflowPad uintptr
 
-	// On NaCl, pad if needed to make overflow end at the proper struct alignment.
-	// On other systems, align > ptrSize is not possible.
-	if runtime.GOARCH == "amd64p32" && (ktyp.align > ptrSize || etyp.align > ptrSize) {
-		overflowPad = ptrSize
-	}
 	size := bucketSize*(1+ktyp.size+etyp.size) + overflowPad + ptrSize
 	if size&uintptr(ktyp.align-1) != 0 || size&uintptr(etyp.align-1) != 0 {
 		panic("reflect: bad size computation in MapOf")
