@@ -6,7 +6,7 @@ CAUTION: EARLY PROTOTYPE. MISSING PIECES. THERE ARE BUGS.
 
 Read and use the code at your own risk.
 
-That said, the go/parser and go/ast changes are working and pass tests
+The go/parser and go/ast changes are working and pass tests
 including all the larger examples in the latest contracts design doc.
 Look for the *.go2 files in go/parser/testdata.
 
@@ -19,8 +19,8 @@ Specifically, the following pieces (and more) are missing from type-
 checking or lead to unexpected behavior:
 
 - Importing of packages with type parameters or contracts.
-- Type-checking of contracts is limited to contracts with methods.
-- Methods with parameterized receiver types are not implemented yet.
+- Type-checking of contracts with type constraints shows initial
+  signs of life but is still work in progress.
 
 The following is "working" (as in: can be type-checked without errors):
 
@@ -28,6 +28,8 @@ The following is "working" (as in: can be type-checked without errors):
 - Declaration and use (calls) of parameterized functions,
   including type inference from function arguments.
 - Some larger tests pass mostly (see testdata/*.go2 files).
+- First contracts with type constraints and simple operators
+  (see end of testdata/contracts.go2 file for examples).
 
 Some code may look like it's working, but it may simply not do anything.
 
@@ -37,7 +39,7 @@ them to be significantly better in a more complete implementation.
 To play with this prototype:
 
 - Cherry-pick this CL on top of tip (the cherry-pick was tested with
-  tip at 4983a0b75b40):
+  tip at 5650a53dac737):
 
   git fetch "https://go.googlesource.com/go" ... && git cherry-pick FETCH_HEAD
 
@@ -57,3 +59,7 @@ See also `gotype -h` for more information.
 Note: Currently, files containing parameterized code have extension ".go2".
 This is solely to distinguish them from regular Go code and to prevent gofmt
 from touching them. We expect a proper implementation to keep using ".go".
+
+Update 8/04/2019: Several bugs around type inference and type instantiation fixed.
+Update 8/16/2019: Many issues around type instantiations and contracts with methods fixed.
+Update 10/8/2019: Contracts with type constraints starting to be usable.
