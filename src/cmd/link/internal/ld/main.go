@@ -86,7 +86,7 @@ var (
 	flagInterpreter = flag.String("I", "", "use `linker` as ELF dynamic linker")
 	FlagDebugTramp  = flag.Int("debugtramp", 0, "debug trampolines")
 	FlagStrictDups  = flag.Int("strictdups", 0, "sanity check duplicate symbol contents during object file reading (1=warn 2=err).")
-	flagNewobj      = flag.Bool("newobj", false, "use new object file format")
+	flagNewobj      = flag.Bool("newobj", true, "use new object file format")
 
 	FlagRound       = flag.Int("R", -1, "set address rounding `quantum`")
 	FlagTextAddr    = flag.Int64("T", -1, "set text segment `address`")
