@@ -23,6 +23,10 @@ import (
 
 var _ = fmt.Print
 
+// Sym encapsulates a global symbol index, used to identify a specific
+// Go symbol. The 0-valued Sym is corresponds to an invalid symbol.
+type Sym int
+
 // oReader is a wrapper type of obj.Reader, along with some
 // extra information.
 // TODO: rename to objReader once the old one is gone?
@@ -35,7 +39,7 @@ type oReader struct {
 
 type objIdx struct {
 	r *oReader
-	i int // start index
+	i Sym // start index
 }
 
 type nameVer struct {
@@ -47,11 +51,11 @@ type nameVer struct {
 //
 // TODO: describe local-global index mapping.
 type Loader struct {
-	start map[*oReader]int // map from object file to its start index
+	start map[*oReader]Sym // map from object file to its start index
 	objs  []objIdx         // sorted by start index (i.e. objIdx.i)
-	max   int              // current max index
+	max   Sym              // current max index
 
-	symsByName map[nameVer]int // map symbol name to index
+	symsByName map[nameVer]Sym // map symbol name to index
 
 	objByPkg map[string]*oReader // map package path to its Go object reader
 
@@ -60,21 +64,21 @@ type Loader struct {
 
 func NewLoader() *Loader {
 	return &Loader{
-		start:      make(map[*oReader]int),
+		start:      make(map[*oReader]Sym),
 		objs:       []objIdx{{nil, 0}},
-		symsByName: make(map[nameVer]int),
+		symsByName: make(map[nameVer]Sym),
 		objByPkg:   make(map[string]*oReader),
 		Syms:       []*sym.Symbol{nil},
 	}
 }
 
 // Return the start index in the global index space for a given object file.
-func (l *Loader) StartIndex(r *oReader) int {
+func (l *Loader) StartIndex(r *oReader) Sym {
 	return l.start[r]
 }
 
 // Add object file r, return the start index.
-func (l *Loader) AddObj(pkg string, r *oReader) int {
+func (l *Loader) AddObj(pkg string, r *oReader) Sym {
 	if _, ok := l.start[r]; ok {
 		panic("already added")
 	}
@@ -85,12 +89,12 @@ func (l *Loader) AddObj(pkg string, r *oReader) int {
 	i := l.max + 1
 	l.start[r] = i
 	l.objs = append(l.objs, objIdx{r, i})
-	l.max += n
+	l.max += Sym(n)
 	return i
 }
 
 // Add a symbol with a given index, return if it is added.
-func (l *Loader) AddSym(name string, ver int, i int, dupok bool) bool {
+func (l *Loader) AddSym(name string, ver int, i Sym, dupok bool) bool {
 	nv := nameVer{name, ver}
 	if _, ok := l.symsByName[nv]; ok {
 		if dupok || true { // TODO: "true" isn't quite right. need to implement "overwrite" logic.
@@ -104,7 +108,7 @@ func (l *Loader) AddSym(name string, ver int, i int, dupok bool) bool {
 
 // Add an external symbol (without index). Return the index of newly added
 // symbol, or 0 if not added.
-func (l *Loader) AddExtSym(name string, ver int) int {
+func (l *Loader) AddExtSym(name string, ver int) Sym {
 	nv := nameVer{name, ver}
 	if _, ok := l.symsByName[nv]; ok {
 		return 0
@@ -116,23 +120,23 @@ func (l *Loader) AddExtSym(name string, ver int) int {
 }
 
 // Convert a local index to a global index.
-func (l *Loader) ToGlobal(r *oReader, i int) int {
-	return l.StartIndex(r) + i
+func (l *Loader) ToGlobal(r *oReader, i int) Sym {
+	return l.StartIndex(r) + Sym(i)
 }
 
 // Convert a global index to a local index.
-func (l *Loader) ToLocal(i int) (*oReader, int) {
-	k := sort.Search(i, func(k int) bool {
+func (l *Loader) ToLocal(i Sym) (*oReader, int) {
+	k := sort.Search(int(i), func(k int) bool {
 		return l.objs[k].i >= i
 	})
 	if k == len(l.objs) {
 		return nil, 0
 	}
-	return l.objs[k].r, i - l.objs[k].i
+	return l.objs[k].r, int(i - l.objs[k].i)
 }
 
 // Resolve a local symbol reference. Return global index.
-func (l *Loader) Resolve(r *oReader, s goobj2.SymRef) int {
+func (l *Loader) Resolve(r *oReader, s goobj2.SymRef) Sym {
 	var rr *oReader
 	switch p := s.PkgIdx; p {
 	case goobj2.PkgIdxInvalid:
@@ -163,7 +167,7 @@ func (l *Loader) Resolve(r *oReader, s goobj2.SymRef) int {
 // Look up a symbol by name, return global index, or 0 if not found.
 // This is more like Syms.ROLookup than Lookup -- it doesn't create
 // new symbol.
-func (l *Loader) Lookup(name string, ver int) int {
+func (l *Loader) Lookup(name string, ver int) Sym {
 	nv := nameVer{name, ver}
 	return l.symsByName[nv]
 }
@@ -213,10 +217,10 @@ func LoadNew(l *Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *s
 		}
 		v := abiToVer(osym.ABI, localSymVersion)
 		dupok := osym.Flag&goobj2.SymFlagDupok != 0
-		if l.AddSym(name, v, istart+i, dupok) {
+		if l.AddSym(name, v, istart+Sym(i), dupok) {
 			s := syms.Newsym(name, v)
 			preprocess(arch, s) // TODO: put this at a better place
-			l.Syms[istart+i] = s
+			l.Syms[istart+Sym(i)] = s
 		}
 	}
 
@@ -244,7 +248,7 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch, syms *sym.Symbols) {
 		if ii := l.AddExtSym(name, v); ii != 0 {
 			s := syms.Newsym(name, v)
 			preprocess(arch, s) // TODO: put this at a better place
-			if ii != len(l.Syms) {
+			if ii != Sym(len(l.Syms)) {
 				panic("AddExtSym returned bad index")
 			}
 			l.Syms = append(l.Syms, s)
@@ -309,7 +313,7 @@ func loadObjReloc(l *Loader, r *oReader) {
 	}
 
 	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
-		s := l.Syms[istart+i]
+		s := l.Syms[istart+Sym(i)]
 		if s == nil || s.Name == "" {
 			continue
 		}
@@ -422,7 +426,7 @@ func loadObjFull(l *Loader, r *oReader) {
 
 	pcdataBase := r.PcdataBase()
 	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
-		s := l.Syms[istart+i]
+		s := l.Syms[istart+Sym(i)]
 		if s == nil || s.Name == "" {
 			continue
 		}
