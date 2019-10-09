@@ -22,7 +22,9 @@ import (
 var tmp, exe string // populated by buildObjdump
 
 func TestMain(m *testing.M) {
-	testenv.MainMust(testenv.HasGoBuild)
+	if !testenv.HasGoBuild() {
+		return
+	}
 
 	var exitcode int
 	if err := buildObjdump(); err == nil {

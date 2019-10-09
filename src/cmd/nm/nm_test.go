@@ -26,7 +26,9 @@ func TestMain(m *testing.M) {
 }
 
 func testMain(m *testing.M) int {
-	testenv.MainMust(testenv.HasGoBuild)
+	if !testenv.HasGoBuild() {
+		return 0
+	}
 
 	tmpDir, err := ioutil.TempDir("", "TestNM")
 	if err != nil {
