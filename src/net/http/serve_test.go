@@ -6167,7 +6167,6 @@ func TestContentEncodingNoSniffing_h1(t *testing.T) {
 }
 
 func TestContentEncodingNoSniffing_h2(t *testing.T) {
-	t.Skip("Waiting for h2_bundle.go update after https://golang.org/issue/31753")
 	testContentEncodingNoSniffing(t, h2Mode)
 }
 

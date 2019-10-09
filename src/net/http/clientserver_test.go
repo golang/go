@@ -192,8 +192,6 @@ func (tt h12Compare) reqFunc() reqFunc {
 }
 
 func (tt h12Compare) run(t *testing.T) {
-	t.Skip("Temporarily disabling until https://golang.org/issue/31753 is fixed")
-
 	setParallel(t)
 	cst1 := newClientServerTest(t, false, HandlerFunc(tt.Handler), tt.Opts...)
 	defer cst1.close()
