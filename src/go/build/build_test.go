@@ -295,7 +295,7 @@ func TestShellSafety(t *testing.T) {
 		result                  bool
 	}{
 		{"-I${SRCDIR}/../include", "/projects/src/issue 11868", "-I/projects/src/issue 11868/../include", true},
-		{"-I${SRCDIR}", "wtf$@%", "-Iwtf$@%", true},
+		{"-I${SRCDIR}", "~wtf$@%^", "-I~wtf$@%^", true},
 		{"-X${SRCDIR}/1,${SRCDIR}/2", "/projects/src/issue 11868", "-X/projects/src/issue 11868/1,/projects/src/issue 11868/2", true},
 		{"-I/tmp -I/tmp", "/tmp2", "-I/tmp -I/tmp", true},
 		{"-I/tmp", "/tmp/[0]", "-I/tmp", true},
