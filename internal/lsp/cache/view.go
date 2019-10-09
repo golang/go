@@ -141,15 +141,11 @@ func (v *view) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 	}
 
 	// Before running the user provided function, clear caches in the resolver.
-	if v.modFilesChanged() {
-		if r, ok := v.processEnv.GetResolver().(*imports.ModuleResolver); ok {
-			// Clear the resolver cache and set Initialized to false.
-			r.Initialized = false
-			r.Main = nil
-			r.ModsByModPath = nil
-			r.ModsByDir = nil
-			// Reset the modFileVersions.
-			v.modFileVersions = nil
+	if r, ok := v.processEnv.GetResolver().(*imports.ModuleResolver); ok {
+		if v.modFilesChanged() {
+			r.ClearForNewMod()
+		} else {
+			r.ClearForNewScan()
 		}
 	}
 

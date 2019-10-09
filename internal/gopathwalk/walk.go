@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"golang.org/x/tools/internal/fastwalk"
 )
@@ -83,8 +84,9 @@ func walkDir(root Root, add func(Root, string), skip func(root Root, dir string)
 		}
 		return
 	}
+	start := time.Now()
 	if opts.Debug {
-		log.Printf("scanning %s", root.Path)
+		log.Printf("gopathwalk: scanning %s", root.Path)
 	}
 	w := &walker{
 		root: root,
@@ -98,7 +100,7 @@ func walkDir(root Root, add func(Root, string), skip func(root Root, dir string)
 	}
 
 	if opts.Debug {
-		log.Printf("scanned %s", root.Path)
+		log.Printf("gopathwalk: scanned %s in %v", root.Path, time.Since(start))
 	}
 }
 

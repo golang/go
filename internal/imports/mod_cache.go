@@ -2,11 +2,10 @@ package imports
 
 import (
 	"sync"
+
+	"golang.org/x/tools/internal/gopathwalk"
 )
 
-// ModuleResolver implements Resolver for modules using the go command as little
-// as feasible.
-//
 // To find packages to import, the resolver needs to know about all of the
 // the packages that could be imported. This includes packages that are
 // already in modules that are in (1) the current module, (2) replace targets,
@@ -42,12 +41,13 @@ type directoryPackageInfo struct {
 	// Set when status >= directoryScanned.
 
 	// dir is the absolute directory of this package.
-	dir string
-	// nonCanonicalImportPath is the expected import path for this package.
-	// This may not be an import path that can be used to import this package.
+	dir      string
+	rootType gopathwalk.RootType
+	// nonCanonicalImportPath is the package's expected import path. It may
+	// not actually be importable at that path.
 	nonCanonicalImportPath string
 	// needsReplace is true if the nonCanonicalImportPath does not match the
-	// the modules declared path, making it impossible to import without a
+	// module's declared path, making it impossible to import without a
 	// replace directive.
 	needsReplace bool
 
@@ -68,8 +68,8 @@ func (info *directoryPackageInfo) reachedStatus(target directoryPackageStatus) (
 	return true, nil
 }
 
-// moduleCacheInfo is a concurrency safe map for storing information about
-// the directories in the module cache.
+// dirInfoCache is a concurrency safe map for storing information about
+// directories that may contain packages.
 //
 // The information in this cache is built incrementally. Entries are initialized in scan.
 // No new keys should be added in any other functions, as all directories containing
@@ -78,32 +78,30 @@ func (info *directoryPackageInfo) reachedStatus(target directoryPackageStatus) (
 // Other functions, including loadExports and findPackage, may update entries in this cache
 // as they discover new things about the directory.
 //
-// We do not need to protect the data in the cache for multiple writes, because it only stores
-// module cache directories, which do not change. If two competing stores take place, there will be
-// one store that wins. Although this could result in a loss of information it will not be incorrect
-// and may just result in recomputing the same result later.
+// The information in the cache is not expected to change for the cache's
+// lifetime, so there is no protection against competing writes. Users should
+// take care not to hold the cache across changes to the underlying files.
 //
 // TODO(suzmue): consider other concurrency strategies and data structures (RWLocks, sync.Map, etc)
-type moduleCacheInfo struct {
+type dirInfoCache struct {
 	mu sync.Mutex
-	// modCacheDirInfo stores information about packages in
-	// module cache directories. Keyed by absolute directory.
-	modCacheDirInfo map[string]*directoryPackageInfo
+	// dirs stores information about packages in directories, keyed by absolute path.
+	dirs map[string]*directoryPackageInfo
 }
 
 // Store stores the package info for dir.
-func (d *moduleCacheInfo) Store(dir string, info directoryPackageInfo) {
+func (d *dirInfoCache) Store(dir string, info directoryPackageInfo) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	stored := info // defensive copy
-	d.modCacheDirInfo[dir] = &stored
+	d.dirs[dir] = &stored
 }
 
 // Load returns a copy of the directoryPackageInfo for absolute directory dir.
-func (d *moduleCacheInfo) Load(dir string) (directoryPackageInfo, bool) {
+func (d *dirInfoCache) Load(dir string) (directoryPackageInfo, bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	info, ok := d.modCacheDirInfo[dir]
+	info, ok := d.dirs[dir]
 	if !ok {
 		return directoryPackageInfo{}, false
 	}
@@ -111,10 +109,10 @@ func (d *moduleCacheInfo) Load(dir string) (directoryPackageInfo, bool) {
 }
 
 // Keys returns the keys currently present in d.
-func (d *moduleCacheInfo) Keys() (keys []string) {
+func (d *dirInfoCache) Keys() (keys []string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	for key := range d.modCacheDirInfo {
+	for key := range d.dirs {
 		keys = append(keys, key)
 	}
 	return keys

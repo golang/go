@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
+	"log"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -1642,6 +1643,7 @@ func (c testConfig) test(t *testing.T, fn func(*goimportTest)) {
 					WorkingDir:      exported.Config.Dir,
 					ForceGoPackages: forceGoPackages,
 					Debug:           *testDebug,
+					Logf:            log.Printf,
 				},
 				exported: exported,
 			}

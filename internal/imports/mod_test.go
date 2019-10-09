@@ -807,10 +807,11 @@ func BenchmarkScanModCache(b *testing.B) {
 		GOROOT: build.Default.GOROOT,
 		Logf:   log.Printf,
 	}
-	exclude := []gopathwalk.RootType{gopathwalk.RootCurrentModule, gopathwalk.RootGOROOT, gopathwalk.RootOther}
+	exclude := []gopathwalk.RootType{gopathwalk.RootGOROOT}
 	env.GetResolver().scan(nil, true, exclude)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		env.GetResolver().scan(nil, true, exclude)
+		env.GetResolver().(*ModuleResolver).ClearForNewScan()
 	}
 }

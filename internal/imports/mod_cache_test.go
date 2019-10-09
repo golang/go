@@ -53,8 +53,8 @@ func TestDirectoryPackageInfoReachedStatus(t *testing.T) {
 }
 
 func TestModCacheInfo(t *testing.T) {
-	m := &moduleCacheInfo{
-		modCacheDirInfo: make(map[string]*directoryPackageInfo),
+	m := &dirInfoCache{
+		dirs: make(map[string]*directoryPackageInfo),
 	}
 
 	dirInfo := []struct {
