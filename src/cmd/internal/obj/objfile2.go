@@ -17,6 +17,10 @@ import (
 
 // Entry point of writing new object file.
 func WriteObjFile2(ctxt *Link, b *bio.Writer, pkgpath string) {
+	if ctxt.Debugasm > 0 {
+		ctxt.traverseSyms(traverseDefs, ctxt.writeSymDebug)
+	}
+
 	genFuncInfoSyms(ctxt)
 
 	w := writer{

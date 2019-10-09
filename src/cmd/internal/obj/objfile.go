@@ -228,8 +228,7 @@ func (w *objWriter) writeRefs(s *LSym) {
 	}
 }
 
-func (w *objWriter) writeSymDebug(s *LSym) {
-	ctxt := w.ctxt
+func (ctxt *Link) writeSymDebug(s *LSym) {
 	fmt.Fprintf(ctxt.Bso, "%s ", s.Name)
 	if s.Type != 0 {
 		fmt.Fprintf(ctxt.Bso, "%v ", s.Type)
@@ -309,7 +308,7 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 func (w *objWriter) writeSym(s *LSym) {
 	ctxt := w.ctxt
 	if ctxt.Debugasm > 0 {
-		w.writeSymDebug(s)
+		w.ctxt.writeSymDebug(s)
 	}
 
 	w.wr.WriteByte(symPrefix)
