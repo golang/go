@@ -8,7 +8,11 @@ package syscall
 
 import "runtime"
 
-// TODO: generate with runtime/mknacl.sh, allow override with IRT.
+// These were originally used by Nacl, then later also used by
+// js/wasm. Now that they're only used by js/wasm, these numbers are
+// just arbitrary.
+//
+// TODO: delete? replace with something meaningful?
 const (
 	sys_null                 = 1
 	sys_nameservice          = 2

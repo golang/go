@@ -6250,8 +6250,6 @@ func rewriteValueARM_OpARMLessThanU_0(v *Value) bool {
 	return false
 }
 func rewriteValueARM_OpARMMOVBUload_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (MOVBUload [off1] {sym} (ADDconst [off2] ptr) mem)
 	// result: (MOVBUload [off1+off2] {sym} ptr mem)
 	for {
@@ -6339,7 +6337,7 @@ func rewriteValueARM_OpARMMOVBUload_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVBUload [0] {sym} (ADD ptr idx) mem)
-	// cond: sym == nil && !config.nacl
+	// cond: sym == nil
 	// result: (MOVBUloadidx ptr idx mem)
 	for {
 		if v.AuxInt != 0 {
@@ -6353,7 +6351,7 @@ func rewriteValueARM_OpARMMOVBUload_0(v *Value) bool {
 		}
 		idx := v_0.Args[1]
 		ptr := v_0.Args[0]
-		if !(sym == nil && !config.nacl) {
+		if !(sym == nil) {
 			break
 		}
 		v.reset(OpARMMOVBUloadidx)
@@ -6491,8 +6489,6 @@ func rewriteValueARM_OpARMMOVBUreg_0(v *Value) bool {
 	return false
 }
 func rewriteValueARM_OpARMMOVBload_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (MOVBload [off1] {sym} (ADDconst [off2] ptr) mem)
 	// result: (MOVBload [off1+off2] {sym} ptr mem)
 	for {
@@ -6580,7 +6576,7 @@ func rewriteValueARM_OpARMMOVBload_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVBload [0] {sym} (ADD ptr idx) mem)
-	// cond: sym == nil && !config.nacl
+	// cond: sym == nil
 	// result: (MOVBloadidx ptr idx mem)
 	for {
 		if v.AuxInt != 0 {
@@ -6594,7 +6590,7 @@ func rewriteValueARM_OpARMMOVBload_0(v *Value) bool {
 		}
 		idx := v_0.Args[1]
 		ptr := v_0.Args[0]
-		if !(sym == nil && !config.nacl) {
+		if !(sym == nil) {
 			break
 		}
 		v.reset(OpARMMOVBloadidx)
@@ -6721,8 +6717,6 @@ func rewriteValueARM_OpARMMOVBreg_0(v *Value) bool {
 	return false
 }
 func rewriteValueARM_OpARMMOVBstore_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (MOVBstore [off1] {sym} (ADDconst [off2] ptr) val mem)
 	// result: (MOVBstore [off1+off2] {sym} ptr val mem)
 	for {
@@ -6872,7 +6866,7 @@ func rewriteValueARM_OpARMMOVBstore_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVBstore [0] {sym} (ADD ptr idx) val mem)
-	// cond: sym == nil && !config.nacl
+	// cond: sym == nil
 	// result: (MOVBstoreidx ptr idx val mem)
 	for {
 		if v.AuxInt != 0 {
@@ -6887,7 +6881,7 @@ func rewriteValueARM_OpARMMOVBstore_0(v *Value) bool {
 		idx := v_0.Args[1]
 		ptr := v_0.Args[0]
 		val := v.Args[1]
-		if !(sym == nil && !config.nacl) {
+		if !(sym == nil) {
 			break
 		}
 		v.reset(OpARMMOVBstoreidx)
@@ -7350,7 +7344,7 @@ func rewriteValueARM_OpARMMOVHUload_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVHUload [0] {sym} (ADD ptr idx) mem)
-	// cond: sym == nil && !config.nacl
+	// cond: sym == nil
 	// result: (MOVHUloadidx ptr idx mem)
 	for {
 		if v.AuxInt != 0 {
@@ -7364,7 +7358,7 @@ func rewriteValueARM_OpARMMOVHUload_0(v *Value) bool {
 		}
 		idx := v_0.Args[1]
 		ptr := v_0.Args[0]
-		if !(sym == nil && !config.nacl) {
+		if !(sym == nil) {
 			break
 		}
 		v.reset(OpARMMOVHUloadidx)
@@ -7525,8 +7519,6 @@ func rewriteValueARM_OpARMMOVHUreg_0(v *Value) bool {
 	return false
 }
 func rewriteValueARM_OpARMMOVHload_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (MOVHload [off1] {sym} (ADDconst [off2] ptr) mem)
 	// result: (MOVHload [off1+off2] {sym} ptr mem)
 	for {
@@ -7614,7 +7606,7 @@ func rewriteValueARM_OpARMMOVHload_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVHload [0] {sym} (ADD ptr idx) mem)
-	// cond: sym == nil && !config.nacl
+	// cond: sym == nil
 	// result: (MOVHloadidx ptr idx mem)
 	for {
 		if v.AuxInt != 0 {
@@ -7628,7 +7620,7 @@ func rewriteValueARM_OpARMMOVHload_0(v *Value) bool {
 		}
 		idx := v_0.Args[1]
 		ptr := v_0.Args[0]
-		if !(sym == nil && !config.nacl) {
+		if !(sym == nil) {
 			break
 		}
 		v.reset(OpARMMOVHloadidx)
@@ -7801,8 +7793,6 @@ func rewriteValueARM_OpARMMOVHreg_0(v *Value) bool {
 	return false
 }
 func rewriteValueARM_OpARMMOVHstore_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (MOVHstore [off1] {sym} (ADDconst [off2] ptr) val mem)
 	// result: (MOVHstore [off1+off2] {sym} ptr val mem)
 	for {
@@ -7912,7 +7902,7 @@ func rewriteValueARM_OpARMMOVHstore_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVHstore [0] {sym} (ADD ptr idx) val mem)
-	// cond: sym == nil && !config.nacl
+	// cond: sym == nil
 	// result: (MOVHstoreidx ptr idx val mem)
 	for {
 		if v.AuxInt != 0 {
@@ -7927,7 +7917,7 @@ func rewriteValueARM_OpARMMOVHstore_0(v *Value) bool {
 		idx := v_0.Args[1]
 		ptr := v_0.Args[0]
 		val := v.Args[1]
-		if !(sym == nil && !config.nacl) {
+		if !(sym == nil) {
 			break
 		}
 		v.reset(OpARMMOVHstoreidx)
@@ -8069,7 +8059,7 @@ func rewriteValueARM_OpARMMOVWload_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVWload [0] {sym} (ADD ptr idx) mem)
-	// cond: sym == nil && !config.nacl
+	// cond: sym == nil
 	// result: (MOVWloadidx ptr idx mem)
 	for {
 		if v.AuxInt != 0 {
@@ -8083,7 +8073,7 @@ func rewriteValueARM_OpARMMOVWload_0(v *Value) bool {
 		}
 		idx := v_0.Args[1]
 		ptr := v_0.Args[0]
-		if !(sym == nil && !config.nacl) {
+		if !(sym == nil) {
 			break
 		}
 		v.reset(OpARMMOVWloadidx)
@@ -8093,7 +8083,7 @@ func rewriteValueARM_OpARMMOVWload_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVWload [0] {sym} (ADDshiftLL ptr idx [c]) mem)
-	// cond: sym == nil && !config.nacl
+	// cond: sym == nil
 	// result: (MOVWloadshiftLL ptr idx [c] mem)
 	for {
 		if v.AuxInt != 0 {
@@ -8108,7 +8098,7 @@ func rewriteValueARM_OpARMMOVWload_0(v *Value) bool {
 		c := v_0.AuxInt
 		idx := v_0.Args[1]
 		ptr := v_0.Args[0]
-		if !(sym == nil && !config.nacl) {
+		if !(sym == nil) {
 			break
 		}
 		v.reset(OpARMMOVWloadshiftLL)
@@ -8119,7 +8109,7 @@ func rewriteValueARM_OpARMMOVWload_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVWload [0] {sym} (ADDshiftRL ptr idx [c]) mem)
-	// cond: sym == nil && !config.nacl
+	// cond: sym == nil
 	// result: (MOVWloadshiftRL ptr idx [c] mem)
 	for {
 		if v.AuxInt != 0 {
@@ -8134,7 +8124,7 @@ func rewriteValueARM_OpARMMOVWload_0(v *Value) bool {
 		c := v_0.AuxInt
 		idx := v_0.Args[1]
 		ptr := v_0.Args[0]
-		if !(sym == nil && !config.nacl) {
+		if !(sym == nil) {
 			break
 		}
 		v.reset(OpARMMOVWloadshiftRL)
@@ -8145,7 +8135,7 @@ func rewriteValueARM_OpARMMOVWload_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVWload [0] {sym} (ADDshiftRA ptr idx [c]) mem)
-	// cond: sym == nil && !config.nacl
+	// cond: sym == nil
 	// result: (MOVWloadshiftRA ptr idx [c] mem)
 	for {
 		if v.AuxInt != 0 {
@@ -8160,7 +8150,7 @@ func rewriteValueARM_OpARMMOVWload_0(v *Value) bool {
 		c := v_0.AuxInt
 		idx := v_0.Args[1]
 		ptr := v_0.Args[0]
-		if !(sym == nil && !config.nacl) {
+		if !(sym == nil) {
 			break
 		}
 		v.reset(OpARMMOVWloadshiftRA)
@@ -8524,8 +8514,6 @@ func rewriteValueARM_OpARMMOVWreg_0(v *Value) bool {
 	return false
 }
 func rewriteValueARM_OpARMMOVWstore_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (MOVWstore [off1] {sym} (ADDconst [off2] ptr) val mem)
 	// result: (MOVWstore [off1+off2] {sym} ptr val mem)
 	for {
@@ -8595,7 +8583,7 @@ func rewriteValueARM_OpARMMOVWstore_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVWstore [0] {sym} (ADD ptr idx) val mem)
-	// cond: sym == nil && !config.nacl
+	// cond: sym == nil
 	// result: (MOVWstoreidx ptr idx val mem)
 	for {
 		if v.AuxInt != 0 {
@@ -8610,7 +8598,7 @@ func rewriteValueARM_OpARMMOVWstore_0(v *Value) bool {
 		idx := v_0.Args[1]
 		ptr := v_0.Args[0]
 		val := v.Args[1]
-		if !(sym == nil && !config.nacl) {
+		if !(sym == nil) {
 			break
 		}
 		v.reset(OpARMMOVWstoreidx)
@@ -8621,7 +8609,7 @@ func rewriteValueARM_OpARMMOVWstore_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVWstore [0] {sym} (ADDshiftLL ptr idx [c]) val mem)
-	// cond: sym == nil && !config.nacl
+	// cond: sym == nil
 	// result: (MOVWstoreshiftLL ptr idx [c] val mem)
 	for {
 		if v.AuxInt != 0 {
@@ -8637,7 +8625,7 @@ func rewriteValueARM_OpARMMOVWstore_0(v *Value) bool {
 		idx := v_0.Args[1]
 		ptr := v_0.Args[0]
 		val := v.Args[1]
-		if !(sym == nil && !config.nacl) {
+		if !(sym == nil) {
 			break
 		}
 		v.reset(OpARMMOVWstoreshiftLL)
@@ -8649,7 +8637,7 @@ func rewriteValueARM_OpARMMOVWstore_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVWstore [0] {sym} (ADDshiftRL ptr idx [c]) val mem)
-	// cond: sym == nil && !config.nacl
+	// cond: sym == nil
 	// result: (MOVWstoreshiftRL ptr idx [c] val mem)
 	for {
 		if v.AuxInt != 0 {
@@ -8665,7 +8653,7 @@ func rewriteValueARM_OpARMMOVWstore_0(v *Value) bool {
 		idx := v_0.Args[1]
 		ptr := v_0.Args[0]
 		val := v.Args[1]
-		if !(sym == nil && !config.nacl) {
+		if !(sym == nil) {
 			break
 		}
 		v.reset(OpARMMOVWstoreshiftRL)
@@ -8677,7 +8665,7 @@ func rewriteValueARM_OpARMMOVWstore_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVWstore [0] {sym} (ADDshiftRA ptr idx [c]) val mem)
-	// cond: sym == nil && !config.nacl
+	// cond: sym == nil
 	// result: (MOVWstoreshiftRA ptr idx [c] val mem)
 	for {
 		if v.AuxInt != 0 {
@@ -8693,7 +8681,7 @@ func rewriteValueARM_OpARMMOVWstore_0(v *Value) bool {
 		idx := v_0.Args[1]
 		ptr := v_0.Args[0]
 		val := v.Args[1]
-		if !(sym == nil && !config.nacl) {
+		if !(sym == nil) {
 			break
 		}
 		v.reset(OpARMMOVWstoreshiftRA)

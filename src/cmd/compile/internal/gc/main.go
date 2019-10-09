@@ -187,7 +187,6 @@ func Main(archInit func(*Arch)) {
 	// pseudo-package used for methods with anonymous receivers
 	gopkg = types.NewPkg("go", "")
 
-	Nacl = objabi.GOOS == "nacl"
 	Wasm := objabi.GOARCH == "wasm"
 
 	// Whether the limit for stack-allocated objects is much smaller than normal.

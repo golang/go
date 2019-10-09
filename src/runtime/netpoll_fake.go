@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Fake network poller for wasm/js.
-// Should never be used, because NaCl and wasm/js network connections do not honor "SetNonblock".
+// Should never be used, because wasm/js network connections do not honor "SetNonblock".
 
 // +build js,wasm
 

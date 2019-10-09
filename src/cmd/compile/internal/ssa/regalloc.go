@@ -625,15 +625,6 @@ func (s *regAllocState) init(f *Func) {
 			s.f.fe.Fatalf(src.NoXPos, "arch %s not implemented", s.f.Config.arch)
 		}
 	}
-	if s.f.Config.nacl {
-		switch s.f.Config.arch {
-		case "arm":
-			s.allocatable &^= 1 << 9 // R9 is "thread pointer" on nacl/arm
-		case "amd64p32":
-			s.allocatable &^= 1 << 5  // BP - reserved for nacl
-			s.allocatable &^= 1 << 15 // R15 - reserved for nacl
-		}
-	}
 	if s.f.Config.use387 {
 		s.allocatable &^= 1 << 15 // X7 disallowed (one 387 register is used as scratch space during SSE->387 generation in ../x86/387.go)
 	}
