@@ -109,6 +109,7 @@ func (v *view) Config(ctx context.Context) *packages.Config {
 	// TODO: Should we cache the config and/or overlay somewhere?
 	return &packages.Config{
 		Dir:        v.folder.Filename(),
+		Context:    ctx,
 		Env:        v.options.Env,
 		BuildFlags: v.options.BuildFlags,
 		Mode: packages.NeedName |
