@@ -24,6 +24,7 @@ func init() {
 	register("RecursivePanic", RecursivePanic)
 	register("RecursivePanic2", RecursivePanic2)
 	register("RecursivePanic3", RecursivePanic3)
+	register("RecursivePanic4", RecursivePanic4)
 	register("GoexitExit", GoexitExit)
 	register("GoNil", GoNil)
 	register("MainGoroutineID", MainGoroutineID)
@@ -31,6 +32,8 @@ func init() {
 	register("GoexitInPanic", GoexitInPanic)
 	register("PanicAfterGoexit", PanicAfterGoexit)
 	register("RecoveredPanicAfterGoexit", RecoveredPanicAfterGoexit)
+	register("RecoverBeforePanicAfterGoexit", RecoverBeforePanicAfterGoexit)
+	register("RecoverBeforePanicAfterGoexit2", RecoverBeforePanicAfterGoexit2)
 	register("PanicTraceback", PanicTraceback)
 	register("GoschedInPanic", GoschedInPanic)
 	register("SyscallInPanic", SyscallInPanic)
@@ -146,6 +149,17 @@ func RecursivePanic3() {
 	panic("first panic")
 }
 
+// Test case where a single defer recovers one panic but starts another panic. If
+// the second panic is never recovered, then the recovered first panic will still
+// appear on the panic stack (labeled '[recovered]') and the runtime stack.
+func RecursivePanic4() {
+	defer func() {
+		recover()
+		panic("second panic")
+	}()
+	panic("first panic")
+}
+
 func GoexitExit() {
 	println("t1")
 	go func() {
@@ -232,6 +246,50 @@ func RecoveredPanicAfterGoexit() {
 				panic("bad recover")
 			}
 		}()
+		panic("hello")
+	}()
+	runtime.Goexit()
+}
+
+func RecoverBeforePanicAfterGoexit() {
+	// 1. defer a function that recovers
+	// 2. defer a function that panics
+	// 3. call goexit
+	// Goexit runs the #2 defer. Its panic
+	// is caught by the #1 defer.  For Goexit, we explicitly
+	// resume execution in the Goexit loop, instead of resuming
+	// execution in the caller (which would make the Goexit disappear!)
+	defer func() {
+		r := recover()
+		if r == nil {
+			panic("bad recover")
+		}
+	}()
+	defer func() {
+		panic("hello")
+	}()
+	runtime.Goexit()
+}
+
+func RecoverBeforePanicAfterGoexit2() {
+	for i := 0; i < 2; i++ {
+		defer func() {
+		}()
+	}
+	// 1. defer a function that recovers
+	// 2. defer a function that panics
+	// 3. call goexit
+	// Goexit runs the #2 defer. Its panic
+	// is caught by the #1 defer.  For Goexit, we explicitly
+	// resume execution in the Goexit loop, instead of resuming
+	// execution in the caller (which would make the Goexit disappear!)
+	defer func() {
+		r := recover()
+		if r == nil {
+			panic("bad recover")
+		}
+	}()
+	defer func() {
 		panic("hello")
 	}()
 	runtime.Goexit()

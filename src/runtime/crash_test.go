@@ -284,6 +284,17 @@ func TestRecursivePanic3(t *testing.T) {
 
 }
 
+func TestRecursivePanic4(t *testing.T) {
+	output := runTestProg(t, "testprog", "RecursivePanic4")
+	want := `panic: first panic [recovered]
+	panic: second panic
+`
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+
+}
+
 func TestGoexitCrash(t *testing.T) {
 	output := runTestProg(t, "testprog", "GoexitExit")
 	want := "no goroutines (main called runtime.Goexit) - deadlock!"
@@ -415,23 +426,21 @@ func TestRecoveredPanicAfterGoexit(t *testing.T) {
 }
 
 func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
-	// 1. defer a function that recovers
-	// 2. defer a function that panics
-	// 3. call goexit
-	// Goexit should run the #2 defer. Its panic
-	// should be caught by the #1 defer, and execution
-	// should resume in the caller. Like the Goexit
-	// never happened!
-	defer func() {
-		r := recover()
-		if r == nil {
-			panic("bad recover")
-		}
-	}()
-	defer func() {
-		panic("hello")
-	}()
-	runtime.Goexit()
+	t.Parallel()
+	output := runTestProg(t, "testprog", "RecoverBeforePanicAfterGoexit")
+	want := "fatal error: no goroutines (main called runtime.Goexit) - deadlock!"
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+}
+
+func TestRecoverBeforePanicAfterGoexit2(t *testing.T) {
+	t.Parallel()
+	output := runTestProg(t, "testprog", "RecoverBeforePanicAfterGoexit2")
+	want := "fatal error: no goroutines (main called runtime.Goexit) - deadlock!"
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
 }
 
 func TestNetpollDeadlock(t *testing.T) {
