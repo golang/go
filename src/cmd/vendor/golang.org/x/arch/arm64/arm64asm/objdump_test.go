@@ -103,6 +103,13 @@ func allowedMismatchObjdump(text string, inst *Inst, dec ExtInst) bool {
 			return true
 		}
 	}
+	// New objdump supports some newer mnemonics than this package. This
+	// package should be updated to support the new mnemonics and the sense
+	// of this reversed to continue passing with older objdumps but that
+	// requires internal ARM tooling.
+	if newForm, ok := newMnemonics[text]; ok && newForm == dec.text {
+		return true
+	}
 	// GNU objdump misses spaces between operands for some instructions (e.g., "ld1 {v10.2s, v11.2s}, [x23],#16")
 	if strings.Replace(text, " ", "", -1) == strings.Replace(dec.text, " ", "", -1) {
 		return true
@@ -147,4 +154,9 @@ var oldObjdumpMismatch = map[string]string{
 	"strb":  "sturb",
 	"strh":  "sturh",
 	"prfm":  "prfum",
+}
+
+var newMnemonics = map[string]string{
+	"dsb #0x00": "ssbb",
+	"dsb #0x04": "pssbb",
 }
