@@ -13,7 +13,6 @@ package testenv
 import (
 	"errors"
 	"flag"
-	"fmt"
 	"internal/cfg"
 	"os"
 	"os/exec"
@@ -31,14 +30,6 @@ import (
 // Builder returns the empty string.
 func Builder() string {
 	return os.Getenv("GO_BUILDER_NAME")
-}
-
-func MainMust(cond func() bool) {
-	if !cond() {
-		fmt.Println("testenv: warning: can't run any tests")
-		fmt.Println("SKIP")
-		os.Exit(0)
-	}
 }
 
 // HasGoBuild reports whether the current system can build programs with ``go build''
