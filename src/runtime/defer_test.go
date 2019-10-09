@@ -121,18 +121,16 @@ func TestDisappearingDefer(t *testing.T) {
 }
 
 // This tests an extra recursive panic behavior that is only specified in the
-// code.  Suppose a first panic P1 happens and starts processing defer calls.  If
-// a second panic P2 happens while processing defer call D in frame F, then defer
+// code. Suppose a first panic P1 happens and starts processing defer calls. If a
+// second panic P2 happens while processing defer call D in frame F, then defer
 // call processing is restarted (with some potentially new defer calls created by
-// D or its callees).  If the defer processing reaches the started defer call D
+// D or its callees). If the defer processing reaches the started defer call D
 // again in the defer stack, then the original panic P1 is aborted and cannot
-// continue panic processing or be recovered.  If the panic P2 does a recover at
-// some point, it will naturally the original panic P1 from the stack, since the
-// original panic had to be in frame F or a descendant of F.
+// continue panic processing or be recovered. If the panic P2 does a recover at
+// some point, it will naturally remove the original panic P1 from the stack
+// (since the original panic had to be in frame F or a descendant of F).
 func TestAbortedPanic(t *testing.T) {
 	defer func() {
-		// The first panic should have been "aborted", so there is
-		// no other panic to recover
 		r := recover()
 		if r != nil {
 			t.Fatal(fmt.Sprintf("wanted nil recover, got %v", r))
