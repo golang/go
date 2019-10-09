@@ -27,7 +27,7 @@ import (
 	"cmd/go/internal/module"
 	"cmd/go/internal/note"
 	"cmd/go/internal/str"
-	"cmd/go/internal/sumweb"
+	"cmd/go/internal/sumdb"
 	"cmd/go/internal/web"
 )
 
@@ -52,11 +52,11 @@ func lookupSumDB(mod module.Version) (dbname string, lines []string, err error) 
 var (
 	dbOnce sync.Once
 	dbName string
-	db     *sumweb.Conn
+	db     *sumdb.Client
 	dbErr  error
 )
 
-func dbDial() (dbName string, db *sumweb.Conn, err error) {
+func dbDial() (dbName string, db *sumdb.Client, err error) {
 	// $GOSUMDB can be "key" or "key url",
 	// and the key can be a full verifier key
 	// or a host on our list of known keys.
@@ -106,7 +106,7 @@ func dbDial() (dbName string, db *sumweb.Conn, err error) {
 		base = u
 	}
 
-	return name, sumweb.NewConn(&dbClient{key: key[0], name: name, direct: direct, base: base}), nil
+	return name, sumdb.NewClient(&dbClient{key: key[0], name: name, direct: direct, base: base}), nil
 }
 
 type dbClient struct {
@@ -227,7 +227,7 @@ func (*dbClient) WriteConfig(file string, old, new []byte) error {
 		return err
 	}
 	if len(data) > 0 && !bytes.Equal(data, old) {
-		return sumweb.ErrWriteConflict
+		return sumdb.ErrWriteConflict
 	}
 	if _, err := f.Seek(0, 0); err != nil {
 		return err

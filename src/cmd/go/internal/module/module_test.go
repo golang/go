@@ -238,43 +238,43 @@ func TestSplitPathVersion(t *testing.T) {
 	}
 }
 
-var encodeTests = []struct {
+var escapeTests = []struct {
 	path string
-	enc  string // empty means same as path
+	esc  string // empty means same as path
 }{
 	{path: "ascii.com/abcdefghijklmnopqrstuvwxyz.-+/~_0123456789"},
-	{path: "github.com/GoogleCloudPlatform/omega", enc: "github.com/!google!cloud!platform/omega"},
+	{path: "github.com/GoogleCloudPlatform/omega", esc: "github.com/!google!cloud!platform/omega"},
 }
 
-func TestEncodePath(t *testing.T) {
+func TestEscapePath(t *testing.T) {
 	// Check invalid paths.
 	for _, tt := range checkPathTests {
 		if !tt.ok {
-			_, err := EncodePath(tt.path)
+			_, err := EscapePath(tt.path)
 			if err == nil {
-				t.Errorf("EncodePath(%q): succeeded, want error (invalid path)", tt.path)
+				t.Errorf("EscapePath(%q): succeeded, want error (invalid path)", tt.path)
 			}
 		}
 	}
 
 	// Check encodings.
-	for _, tt := range encodeTests {
-		enc, err := EncodePath(tt.path)
+	for _, tt := range escapeTests {
+		esc, err := EscapePath(tt.path)
 		if err != nil {
-			t.Errorf("EncodePath(%q): unexpected error: %v", tt.path, err)
+			t.Errorf("EscapePath(%q): unexpected error: %v", tt.path, err)
 			continue
 		}
-		want := tt.enc
+		want := tt.esc
 		if want == "" {
 			want = tt.path
 		}
-		if enc != want {
-			t.Errorf("EncodePath(%q) = %q, want %q", tt.path, enc, want)
+		if esc != want {
+			t.Errorf("EscapePath(%q) = %q, want %q", tt.path, esc, want)
 		}
 	}
 }
 
-var badDecode = []string{
+var badUnescape = []string{
 	"github.com/GoogleCloudPlatform/omega",
 	"github.com/!google!cloud!platform!/omega",
 	"github.com/!0google!cloud!platform/omega",
@@ -283,38 +283,38 @@ var badDecode = []string{
 	"",
 }
 
-func TestDecodePath(t *testing.T) {
+func TestUnescapePath(t *testing.T) {
 	// Check invalid decodings.
-	for _, bad := range badDecode {
-		_, err := DecodePath(bad)
+	for _, bad := range badUnescape {
+		_, err := UnescapePath(bad)
 		if err == nil {
-			t.Errorf("DecodePath(%q): succeeded, want error (invalid decoding)", bad)
+			t.Errorf("UnescapePath(%q): succeeded, want error (invalid decoding)", bad)
 		}
 	}
 
 	// Check invalid paths (or maybe decodings).
 	for _, tt := range checkPathTests {
 		if !tt.ok {
-			path, err := DecodePath(tt.path)
+			path, err := UnescapePath(tt.path)
 			if err == nil {
-				t.Errorf("DecodePath(%q) = %q, want error (invalid path)", tt.path, path)
+				t.Errorf("UnescapePath(%q) = %q, want error (invalid path)", tt.path, path)
 			}
 		}
 	}
 
 	// Check encodings.
-	for _, tt := range encodeTests {
-		enc := tt.enc
-		if enc == "" {
-			enc = tt.path
+	for _, tt := range escapeTests {
+		esc := tt.esc
+		if esc == "" {
+			esc = tt.path
 		}
-		path, err := DecodePath(enc)
+		path, err := UnescapePath(esc)
 		if err != nil {
-			t.Errorf("DecodePath(%q): unexpected error: %v", enc, err)
+			t.Errorf("UnescapePath(%q): unexpected error: %v", esc, err)
 			continue
 		}
 		if path != tt.path {
-			t.Errorf("DecodePath(%q) = %q, want %q", enc, path, tt.path)
+			t.Errorf("UnescapePath(%q) = %q, want %q", esc, path, tt.path)
 		}
 	}
 }

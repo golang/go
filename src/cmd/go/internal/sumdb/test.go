@@ -2,22 +2,21 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package sumweb
+package sumdb
 
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"strings"
 	"sync"
 
+	"cmd/go/internal/module"
 	"cmd/go/internal/note"
 	"cmd/go/internal/tlog"
 )
 
 // NewTestServer constructs a new TestServer
 // that will sign its tree with the given signer key
-// (see cmd/go/internal/note)
+// (see golang.org/x/mod/sumdb/note)
 // and fetch new records as needed by calling gosum.
 func NewTestServer(signer string, gosum func(path, vers string) ([]byte, error)) *TestServer {
 	return &TestServer{signer: signer, gosum: gosum}
@@ -43,10 +42,6 @@ func (h testHashes) ReadHashes(indexes []int64) ([]tlog.Hash, error) {
 		list = append(list, h[id])
 	}
 	return list, nil
-}
-
-func (s *TestServer) NewContext(r *http.Request) (context.Context, error) {
-	return nil, nil
 }
 
 func (s *TestServer) Signed(ctx context.Context) ([]byte, error) {
@@ -80,7 +75,8 @@ func (s *TestServer) ReadRecords(ctx context.Context, id, n int64) ([][]byte, er
 	return list, nil
 }
 
-func (s *TestServer) Lookup(ctx context.Context, key string) (int64, error) {
+func (s *TestServer) Lookup(ctx context.Context, m module.Version) (int64, error) {
+	key := m.String()
 	s.mu.Lock()
 	id, ok := s.lookup[key]
 	s.mu.Unlock()
@@ -89,12 +85,7 @@ func (s *TestServer) Lookup(ctx context.Context, key string) (int64, error) {
 	}
 
 	// Look up module and compute go.sum lines.
-	i := strings.Index(key, "@")
-	if i < 0 {
-		return 0, fmt.Errorf("invalid lookup key %q", key)
-	}
-	path, vers := key[:i], key[i+1:]
-	data, err := s.gosum(path, vers)
+	data, err := s.gosum(m.Path, m.Version)
 	if err != nil {
 		return 0, err
 	}

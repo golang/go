@@ -548,9 +548,6 @@ func Open(msg []byte, known Verifiers) (*Note, error) {
 		Text: string(text),
 	}
 
-	var buf bytes.Buffer
-	buf.Write(text)
-
 	// Parse and verify signatures.
 	// Ignore duplicate signatures.
 	seen := make(map[nameHash]bool)
