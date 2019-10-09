@@ -40,6 +40,12 @@ func WriteObjFile2(ctxt *Link, b *bio.Writer, pkgpath string) {
 	// String table
 	w.StringTable()
 
+	// Autolib
+	h.Offsets[goobj2.BlkAutolib] = w.Offset()
+	for _, pkg := range ctxt.Imports {
+		w.StringRef(pkg)
+	}
+
 	// Package references
 	h.Offsets[goobj2.BlkPkgIdx] = w.Offset()
 	for _, pkg := range w.pkglist {
@@ -171,13 +177,6 @@ func (w *writer) init() {
 	w.pkglist[0] = "" // dummy invalid package for index 0
 	for pkg, i := range w.ctxt.pkgIdx {
 		w.pkglist[i] = pkg
-	}
-
-	// Also make sure imported packages appear in the list (even if no symbol is referenced).
-	for _, pkg := range w.ctxt.Imports {
-		if _, ok := w.ctxt.pkgIdx[pkg]; !ok {
-			w.pkglist = append(w.pkglist, pkg)
-		}
 	}
 }
 

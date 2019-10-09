@@ -29,7 +29,8 @@ import (
 //       Data [...]byte
 //    }
 //
-//    PkgIndex [...]stringOff // TODO: add fingerprints
+//    Autolib  [...]stringOff // imported packages (for file loading) // TODO: add fingerprints
+//    PkgIndex [...]stringOff // referenced packages by index
 //
 //    DwarfFiles [...]stringOff // XXX as a separate block for now
 //
@@ -127,7 +128,8 @@ const (
 
 // Blocks
 const (
-	BlkPkgIdx = iota
+	BlkAutolib = iota
+	BlkPkgIdx
 	BlkDwarfFile
 	BlkSymdef
 	BlkNonpkgdef
@@ -467,6 +469,16 @@ func toString(b []byte) string {
 
 func (r *Reader) StringRef(off uint32) string {
 	return r.StringAt(r.uint32At(off))
+}
+
+func (r *Reader) Autolib() []string {
+	n := (r.h.Offsets[BlkAutolib+1] - r.h.Offsets[BlkAutolib]) / 4
+	s := make([]string, n)
+	for i := range s {
+		off := r.h.Offsets[BlkAutolib] + uint32(i)*4
+		s[i] = r.StringRef(off)
+	}
+	return s
 }
 
 func (r *Reader) Pkglist() []string {
