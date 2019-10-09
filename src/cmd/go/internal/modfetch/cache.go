@@ -32,7 +32,7 @@ func cacheDir(path string) (string, error) {
 	if PkgMod == "" {
 		return "", fmt.Errorf("internal error: modfetch.PkgMod not set")
 	}
-	enc, err := module.EncodePath(path)
+	enc, err := module.EscapePath(path)
 	if err != nil {
 		return "", err
 	}
@@ -50,7 +50,7 @@ func CachePath(m module.Version, suffix string) (string, error) {
 	if module.CanonicalVersion(m.Version) != m.Version {
 		return "", fmt.Errorf("non-canonical module version %q", m.Version)
 	}
-	encVer, err := module.EncodeVersion(m.Version)
+	encVer, err := module.EscapeVersion(m.Version)
 	if err != nil {
 		return "", err
 	}
@@ -63,7 +63,7 @@ func DownloadDir(m module.Version) (string, error) {
 	if PkgMod == "" {
 		return "", fmt.Errorf("internal error: modfetch.PkgMod not set")
 	}
-	enc, err := module.EncodePath(m.Path)
+	enc, err := module.EscapePath(m.Path)
 	if err != nil {
 		return "", err
 	}
@@ -73,7 +73,7 @@ func DownloadDir(m module.Version) (string, error) {
 	if module.CanonicalVersion(m.Version) != m.Version {
 		return "", fmt.Errorf("non-canonical module version %q", m.Version)
 	}
-	encVer, err := module.EncodeVersion(m.Version)
+	encVer, err := module.EscapeVersion(m.Version)
 	if err != nil {
 		return "", err
 	}

@@ -5,9 +5,6 @@
 // Package tlog implements a tamper-evident log
 // used in the Go module go.sum database server.
 //
-// This package is part of a DRAFT of what the go.sum database server will look like.
-// Do not assume the details here are final!
-//
 // This package follows the design of Certificate Transparency (RFC 6962)
 // and its proofs are compatible with that system.
 // See TestCertificateTransparency.

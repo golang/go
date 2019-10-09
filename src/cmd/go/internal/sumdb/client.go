@@ -2,28 +2,29 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package sumweb
+package sumdb
 
 import (
 	"bytes"
 	"errors"
 	"fmt"
+	"path"
 	"strings"
 	"sync"
 	"sync/atomic"
 
+	"cmd/go/internal/module"
 	"cmd/go/internal/note"
-	"cmd/go/internal/str"
 	"cmd/go/internal/tlog"
 )
 
-// A Client provides the external operations
-// (file caching, HTTP fetches, and so on)
-// needed to implement the HTTP client Conn.
+// A ClientOps provides the external operations
+// (file caching, HTTP fetches, and so on) needed by the Client.
 // The methods must be safe for concurrent use by multiple goroutines.
-type Client interface {
+type ClientOps interface {
 	// ReadRemote reads and returns the content served at the given path
-	// on the remote database server. The path begins with "/lookup" or "/tile/".
+	// on the remote database server. The path begins with "/lookup" or "/tile/",
+	// and there is no need to parse the path in any way.
 	// It is the implementation's responsibility to turn that path into a full URL
 	// and make the HTTP request. ReadRemote should return an error for
 	// any non-200 HTTP response status.
@@ -35,7 +36,7 @@ type Client interface {
 	// "key" returns a file containing the verifier key for the server.
 	//
 	// serverName + "/latest" returns a file containing the latest known
-	// signed tree from the server. It is read and written (using WriteConfig).
+	// signed tree from the server.
 	// To signal that the client wishes to start with an "empty" signed tree,
 	// ReadConfig can return a successful empty result (0 bytes of data).
 	ReadConfig(file string) ([]byte, error)
@@ -45,6 +46,7 @@ type Client interface {
 	// If the old []byte does not match the stored configuration,
 	// WriteConfig must return ErrWriteConflict.
 	// Otherwise, WriteConfig should atomically replace old with new.
+	// The "key" configuration file is never written using WriteConfig.
 	WriteConfig(file string, old, new []byte) error
 
 	// ReadCache reads and returns the content of the named cache file.
@@ -61,7 +63,7 @@ type Client interface {
 	Log(msg string)
 
 	// SecurityError prints the given security error log message.
-	// The Conn returns ErrSecurity from any operation that invokes SecurityError,
+	// The Client returns ErrSecurity from any operation that invokes SecurityError,
 	// but the return value is mainly for testing. In a real program,
 	// SecurityError should typically print the message and call log.Fatal or os.Exit.
 	SecurityError(msg string)
@@ -70,13 +72,13 @@ type Client interface {
 // ErrWriteConflict signals a write conflict during Client.WriteConfig.
 var ErrWriteConflict = errors.New("write conflict")
 
-// ErrSecurity is returned by Conn operations that invoke Client.SecurityError.
+// ErrSecurity is returned by Client operations that invoke Client.SecurityError.
 var ErrSecurity = errors.New("security error: misbehaving server")
 
-// A Conn is a client connection to a go.sum database.
+// A Client is a client connection to a checksum database.
 // All the methods are safe for simultaneous use by multiple goroutines.
-type Conn struct {
-	client Client // client-provided external world
+type Client struct {
+	ops ClientOps // access to operations in the external world
 
 	didLookup uint32
 
@@ -97,28 +99,28 @@ type Conn struct {
 	latestMsg []byte    // encoded signed note for latest
 
 	tileSavedMu sync.Mutex
-	tileSaved   map[tlog.Tile]bool // which tiles have been saved using c.client.WriteCache already
+	tileSaved   map[tlog.Tile]bool // which tiles have been saved using c.ops.WriteCache already
 }
 
-// NewConn returns a new Conn using the given Client.
-func NewConn(client Client) *Conn {
-	return &Conn{
-		client: client,
+// NewClient returns a new Client using the given Client.
+func NewClient(ops ClientOps) *Client {
+	return &Client{
+		ops: ops,
 	}
 }
 
-// init initializes the conn (if not already initialized)
+// init initiailzes the client (if not already initialized)
 // and returns any initialization error.
-func (c *Conn) init() error {
+func (c *Client) init() error {
 	c.initOnce.Do(c.initWork)
 	return c.initErr
 }
 
 // initWork does the actual initialization work.
-func (c *Conn) initWork() {
+func (c *Client) initWork() {
 	defer func() {
 		if c.initErr != nil {
-			c.initErr = fmt.Errorf("initializing sumweb.Conn: %v", c.initErr)
+			c.initErr = fmt.Errorf("initializing sumdb.Client: %v", c.initErr)
 		}
 	}()
 
@@ -128,7 +130,7 @@ func (c *Conn) initWork() {
 	}
 	c.tileSaved = make(map[tlog.Tile]bool)
 
-	vkey, err := c.client.ReadConfig("key")
+	vkey, err := c.ops.ReadConfig("key")
 	if err != nil {
 		c.initErr = err
 		return
@@ -141,7 +143,7 @@ func (c *Conn) initWork() {
 	c.verifiers = note.VerifierList(verifier)
 	c.name = verifier.Name()
 
-	data, err := c.client.ReadConfig(c.name + "/latest")
+	data, err := c.ops.ReadConfig(c.name + "/latest")
 	if err != nil {
 		c.initErr = err
 		return
@@ -152,12 +154,17 @@ func (c *Conn) initWork() {
 	}
 }
 
-// SetTileHeight sets the tile height for the Conn.
+// SetTileHeight sets the tile height for the Client.
 // Any call to SetTileHeight must happen before the first call to Lookup.
-// If SetTileHeight is not called, the Conn defaults to tile height 8.
-func (c *Conn) SetTileHeight(height int) {
+// If SetTileHeight is not called, the Client defaults to tile height 8.
+// SetTileHeight can be called at most once,
+// and if so it must be called before the first call to Lookup.
+func (c *Client) SetTileHeight(height int) {
 	if atomic.LoadUint32(&c.didLookup) != 0 {
 		panic("SetTileHeight used after Lookup")
+	}
+	if height <= 0 {
+		panic("invalid call to SetTileHeight")
 	}
 	if c.tileHeight != 0 {
 		panic("multiple calls to SetTileHeight")
@@ -165,11 +172,12 @@ func (c *Conn) SetTileHeight(height int) {
 	c.tileHeight = height
 }
 
-// SetGONOSUMDB sets the list of comma-separated GONOSUMDB patterns for the Conn.
+// SetGONOSUMDB sets the list of comma-separated GONOSUMDB patterns for the Client.
 // For any module path matching one of the patterns,
 // Lookup will return ErrGONOSUMDB.
-// Any call to SetGONOSUMDB must happen before the first call to Lookup.
-func (c *Conn) SetGONOSUMDB(list string) {
+// SetGONOSUMDB can be called at most once,
+// and if so it must be called before the first call to Lookup.
+func (c *Client) SetGONOSUMDB(list string) {
 	if atomic.LoadUint32(&c.didLookup) != 0 {
 		panic("SetGONOSUMDB used after Lookup")
 	}
@@ -184,14 +192,58 @@ func (c *Conn) SetGONOSUMDB(list string) {
 // usually from the environment variable).
 var ErrGONOSUMDB = errors.New("skipped (listed in GONOSUMDB)")
 
-func (c *Conn) skip(target string) bool {
-	return str.GlobsMatchPath(c.nosumdb, target)
+func (c *Client) skip(target string) bool {
+	return globsMatchPath(c.nosumdb, target)
+}
+
+// globsMatchPath reports whether any path prefix of target
+// matches one of the glob patterns (as defined by path.Match)
+// in the comma-separated globs list.
+// It ignores any empty or malformed patterns in the list.
+func globsMatchPath(globs, target string) bool {
+	for globs != "" {
+		// Extract next non-empty glob in comma-separated list.
+		var glob string
+		if i := strings.Index(globs, ","); i >= 0 {
+			glob, globs = globs[:i], globs[i+1:]
+		} else {
+			glob, globs = globs, ""
+		}
+		if glob == "" {
+			continue
+		}
+
+		// A glob with N+1 path elements (N slashes) needs to be matched
+		// against the first N+1 path elements of target,
+		// which end just before the N+1'th slash.
+		n := strings.Count(glob, "/")
+		prefix := target
+		// Walk target, counting slashes, truncating at the N+1'th slash.
+		for i := 0; i < len(target); i++ {
+			if target[i] == '/' {
+				if n == 0 {
+					prefix = target[:i]
+					break
+				}
+				n--
+			}
+		}
+		if n > 0 {
+			// Not enough prefix elements.
+			continue
+		}
+		matched, _ := path.Match(glob, prefix)
+		if matched {
+			return true
+		}
+	}
+	return false
 }
 
 // Lookup returns the go.sum lines for the given module path and version.
 // The version may end in a /go.mod suffix, in which case Lookup returns
 // the go.sum lines for the module's go.mod-only hash.
-func (c *Conn) Lookup(path, vers string) (lines []string, err error) {
+func (c *Client) Lookup(path, vers string) (lines []string, err error) {
 	atomic.StoreUint32(&c.didLookup, 1)
 
 	if c.skip(path) {
@@ -209,16 +261,16 @@ func (c *Conn) Lookup(path, vers string) (lines []string, err error) {
 	}
 
 	// Prepare encoded cache filename / URL.
-	epath, err := encodePath(path)
+	epath, err := module.EscapePath(path)
 	if err != nil {
 		return nil, err
 	}
-	evers, err := encodeVersion(strings.TrimSuffix(vers, "/go.mod"))
+	evers, err := module.EscapeVersion(strings.TrimSuffix(vers, "/go.mod"))
 	if err != nil {
 		return nil, err
 	}
-	file := c.name + "/lookup/" + epath + "@" + evers
 	remotePath := "/lookup/" + epath + "@" + evers
+	file := c.name + remotePath
 
 	// Fetch the data.
 	// The lookupCache avoids redundant ReadCache/GetURL operations
@@ -232,9 +284,9 @@ func (c *Conn) Lookup(path, vers string) (lines []string, err error) {
 	result := c.record.Do(file, func() interface{} {
 		// Try the on-disk cache, or else get from web.
 		writeCache := false
-		data, err := c.client.ReadCache(file)
+		data, err := c.ops.ReadCache(file)
 		if err != nil {
-			data, err = c.client.ReadRemote(remotePath)
+			data, err = c.ops.ReadRemote(remotePath)
 			if err != nil {
 				return cached{nil, err}
 			}
@@ -256,7 +308,7 @@ func (c *Conn) Lookup(path, vers string) (lines []string, err error) {
 		// Now that we've validated the record,
 		// save it to the on-disk cache (unless that's where it came from).
 		if writeCache {
-			c.client.WriteCache(file, data)
+			c.ops.WriteCache(file, data)
 		}
 
 		return cached{data, nil}
@@ -278,15 +330,15 @@ func (c *Conn) Lookup(path, vers string) (lines []string, err error) {
 }
 
 // mergeLatest merges the tree head in msg
-// with the Conn's current latest tree head,
+// with the Client's current latest tree head,
 // ensuring the result is a consistent timeline.
-// If the result is inconsistent, mergeLatest calls c.client.SecurityError
+// If the result is inconsistent, mergeLatest calls c.ops.SecurityError
 // with a detailed security error message and then
-// (only if c.client.SecurityError does not exit the program) returns ErrSecurity.
-// If the Conn's current latest tree head moves forward,
+// (only if c.ops.SecurityError does not exit the program) returns ErrSecurity.
+// If the Client's current latest tree head moves forward,
 // mergeLatest updates the underlying configuration file as well,
 // taking care to merge any independent updates to that configuration.
-func (c *Conn) mergeLatest(msg []byte) error {
+func (c *Client) mergeLatest(msg []byte) error {
 	// Merge msg into our in-memory copy of the latest tree head.
 	when, err := c.mergeLatestMem(msg)
 	if err != nil {
@@ -303,7 +355,7 @@ func (c *Conn) mergeLatest(msg []byte) error {
 	// we need to merge any updates made there as well.
 	// Note that writeConfig is an atomic compare-and-swap.
 	for {
-		msg, err := c.client.ReadConfig(c.name + "/latest")
+		msg, err := c.ops.ReadConfig(c.name + "/latest")
 		if err != nil {
 			return err
 		}
@@ -321,7 +373,7 @@ func (c *Conn) mergeLatest(msg []byte) error {
 		c.latestMu.Lock()
 		latestMsg := c.latestMsg
 		c.latestMu.Unlock()
-		if err := c.client.WriteConfig(c.name+"/latest", msg, latestMsg); err != ErrWriteConflict {
+		if err := c.ops.WriteConfig(c.name+"/latest", msg, latestMsg); err != ErrWriteConflict {
 			// Success or a non-write-conflict error.
 			return err
 		}
@@ -342,7 +394,7 @@ const (
 // msgPast means msg was from before c.latest,
 // msgNow means msg was exactly c.latest, and
 // msgFuture means msg was from after c.latest, which has now been updated.
-func (c *Conn) mergeLatestMem(msg []byte) (when int, err error) {
+func (c *Client) mergeLatestMem(msg []byte) (when int, err error) {
 	if len(msg) == 0 {
 		// Accept empty msg as the unsigned, empty timeline.
 		c.latestMu.Lock()
@@ -412,7 +464,7 @@ func (c *Conn) mergeLatestMem(msg []byte) (when int, err error) {
 // If an error occurs, such as malformed data or a network problem, checkTrees returns that error.
 // If on the other hand checkTrees finds evidence of misbehavior, it prepares a detailed
 // message and calls log.Fatal.
-func (c *Conn) checkTrees(older tlog.Tree, olderNote []byte, newer tlog.Tree, newerNote []byte) error {
+func (c *Client) checkTrees(older tlog.Tree, olderNote []byte, newer tlog.Tree, newerNote []byte) error {
 	thr := tlog.TileHashReader(newer, &c.tileReader)
 	h, err := tlog.TreeHash(older.N, thr)
 	if err != nil {
@@ -456,12 +508,12 @@ func (c *Conn) checkTrees(older tlog.Tree, olderNote []byte, newer tlog.Tree, ne
 			fmt.Fprintf(&buf, "\n\t%v", h)
 		}
 	}
-	c.client.SecurityError(buf.String())
+	c.ops.SecurityError(buf.String())
 	return ErrSecurity
 }
 
 // checkRecord checks that record #id's hash matches data.
-func (c *Conn) checkRecord(id int64, data []byte) error {
+func (c *Client) checkRecord(id int64, data []byte) error {
 	c.latestMu.Lock()
 	latest := c.latest
 	c.latestMu.Unlock()
@@ -479,11 +531,11 @@ func (c *Conn) checkRecord(id int64, data []byte) error {
 	return fmt.Errorf("cannot authenticate record data in server response")
 }
 
-// tileReader is a *Conn wrapper that implements tlog.TileReader.
+// tileReader is a *Client wrapper that implements tlog.TileReader.
 // The separate type avoids exposing the ReadTiles and SaveTiles
-// methods on Conn itself.
+// methods on Client itself.
 type tileReader struct {
-	c *Conn
+	c *Client
 }
 
 func (r *tileReader) Height() int {
@@ -516,17 +568,17 @@ func (r *tileReader) ReadTiles(tiles []tlog.Tile) ([][]byte, error) {
 }
 
 // tileCacheKey returns the cache key for the tile.
-func (c *Conn) tileCacheKey(tile tlog.Tile) string {
+func (c *Client) tileCacheKey(tile tlog.Tile) string {
 	return c.name + "/" + tile.Path()
 }
 
 // tileRemotePath returns the remote path for the tile.
-func (c *Conn) tileRemotePath(tile tlog.Tile) string {
+func (c *Client) tileRemotePath(tile tlog.Tile) string {
 	return "/" + tile.Path()
 }
 
 // readTile reads a single tile, either from the on-disk cache or the server.
-func (c *Conn) readTile(tile tlog.Tile) ([]byte, error) {
+func (c *Client) readTile(tile tlog.Tile) ([]byte, error) {
 	type cached struct {
 		data []byte
 		err  error
@@ -534,7 +586,7 @@ func (c *Conn) readTile(tile tlog.Tile) ([]byte, error) {
 
 	result := c.tileCache.Do(tile, func() interface{} {
 		// Try the requested tile in on-disk cache.
-		data, err := c.client.ReadCache(c.tileCacheKey(tile))
+		data, err := c.ops.ReadCache(c.tileCacheKey(tile))
 		if err == nil {
 			c.markTileSaved(tile)
 			return cached{data, nil}
@@ -544,9 +596,9 @@ func (c *Conn) readTile(tile tlog.Tile) ([]byte, error) {
 		// We only save authenticated tiles to the on-disk cache,
 		// so the recreated prefix is equally authenticated.
 		full := tile
-		full.W = 1 << tile.H
+		full.W = 1 << uint(tile.H)
 		if tile != full {
-			data, err := c.client.ReadCache(c.tileCacheKey(full))
+			data, err := c.ops.ReadCache(c.tileCacheKey(full))
 			if err == nil {
 				c.markTileSaved(tile) // don't save tile later; we already have full
 				return cached{data[:len(data)/full.W*tile.W], nil}
@@ -554,7 +606,7 @@ func (c *Conn) readTile(tile tlog.Tile) ([]byte, error) {
 		}
 
 		// Try requested tile from server.
-		data, err = c.client.ReadRemote(c.tileRemotePath(tile))
+		data, err = c.ops.ReadRemote(c.tileRemotePath(tile))
 		if err == nil {
 			return cached{data, nil}
 		}
@@ -564,7 +616,7 @@ func (c *Conn) readTile(tile tlog.Tile) ([]byte, error) {
 		// the tile has been completed and only the complete one
 		// is available.
 		if tile != full {
-			data, err := c.client.ReadRemote(c.tileRemotePath(full))
+			data, err := c.ops.ReadRemote(c.tileRemotePath(full))
 			if err == nil {
 				// Note: We could save the full tile in the on-disk cache here,
 				// but we don't know if it is valid yet, and we will only find out
@@ -585,7 +637,7 @@ func (c *Conn) readTile(tile tlog.Tile) ([]byte, error) {
 
 // markTileSaved records that tile is already present in the on-disk cache,
 // so that a future SaveTiles for that tile can be ignored.
-func (c *Conn) markTileSaved(tile tlog.Tile) {
+func (c *Client) markTileSaved(tile tlog.Tile) {
 	c.tileSavedMu.Lock()
 	c.tileSaved[tile] = true
 	c.tileSavedMu.Unlock()
@@ -613,7 +665,7 @@ func (r *tileReader) SaveTiles(tiles []tlog.Tile, data [][]byte) {
 			// c.tileSaved[tile] is still true and we will not try to write it again.
 			// Next time we run maybe we'll redownload it again and be
 			// more successful.
-			c.client.WriteCache(c.name+"/"+tile.Path(), data[i])
+			c.ops.WriteCache(c.name+"/"+tile.Path(), data[i])
 		}
 	}
 }

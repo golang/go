@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package sumweb implements the HTTP protocols for serving or accessing a go.sum database.
-package sumweb
+// Package sumdb implements the HTTP protocols for serving or accessing a module checksum database.
+package sumdb
 
 import (
 	"context"
@@ -12,48 +12,50 @@ import (
 	"os"
 	"strings"
 
+	"cmd/go/internal/module"
 	"cmd/go/internal/tlog"
 )
 
-// A Server provides the external operations
-// (underlying database access and so on)
-// needed to implement the HTTP server Handler.
-type Server interface {
-	// NewContext returns the context to use for the request r.
-	NewContext(r *http.Request) (context.Context, error)
-
+// A ServerOps provides the external operations
+// (underlying database access and so on) needed by the Server.
+type ServerOps interface {
 	// Signed returns the signed hash of the latest tree.
 	Signed(ctx context.Context) ([]byte, error)
 
 	// ReadRecords returns the content for the n records id through id+n-1.
 	ReadRecords(ctx context.Context, id, n int64) ([][]byte, error)
 
-	// Lookup looks up a record by its associated key ("module@version"),
+	// Lookup looks up a record for the given module,
 	// returning the record ID.
-	Lookup(ctx context.Context, key string) (int64, error)
+	Lookup(ctx context.Context, m module.Version) (int64, error)
 
 	// ReadTileData reads the content of tile t.
 	// It is only invoked for hash tiles (t.L ≥ 0).
 	ReadTileData(ctx context.Context, t tlog.Tile) ([]byte, error)
 }
 
-// A Handler is the go.sum database server handler,
-// which should be invoked to serve the paths listed in Paths.
-// The calling code is responsible for initializing Server.
-type Handler struct {
-	Server Server
+// A Server is the checksum database HTTP server,
+// which implements http.Handler and should be invoked
+// to serve the paths listed in ServerPaths.
+type Server struct {
+	ops ServerOps
 }
 
-// Paths are the URL paths for which Handler should be invoked.
+// NewServer returns a new Server using the given operations.
+func NewServer(ops ServerOps) *Server {
+	return &Server{ops: ops}
+}
+
+// ServerPaths are the URL paths the Server can (and should) serve.
 //
 // Typically a server will do:
 //
-//	handler := &sumweb.Handler{Server: srv}
-//	for _, path := range sumweb.Paths {
-//		http.HandleFunc(path, handler)
+//	srv := sumdb.NewServer(ops)
+//	for _, path := range sumdb.ServerPaths {
+//		http.Handle(path, srv)
 //	}
 //
-var Paths = []string{
+var ServerPaths = []string{
 	"/lookup/",
 	"/latest",
 	"/tile/",
@@ -61,12 +63,8 @@ var Paths = []string{
 
 var modVerRE = lazyregexp.New(`^[^@]+@v[0-9]+\.[0-9]+\.[0-9]+(-[^@]*)?(\+incompatible)?$`)
 
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx, err := h.Server.NewContext(r)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 
 	switch {
 	default:
@@ -79,23 +77,23 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		i := strings.Index(mod, "@")
-		encPath, encVers := mod[:i], mod[i+1:]
-		path, err := decodePath(encPath)
+		escPath, escVers := mod[:i], mod[i+1:]
+		path, err := module.UnescapePath(escPath)
 		if err != nil {
 			reportError(w, r, err)
 			return
 		}
-		vers, err := decodeVersion(encVers)
+		vers, err := module.UnescapeVersion(escVers)
 		if err != nil {
 			reportError(w, r, err)
 			return
 		}
-		id, err := h.Server.Lookup(ctx, path+"@"+vers)
+		id, err := s.ops.Lookup(ctx, module.Version{Path: path, Version: vers})
 		if err != nil {
 			reportError(w, r, err)
 			return
 		}
-		records, err := h.Server.ReadRecords(ctx, id, 1)
+		records, err := s.ops.ReadRecords(ctx, id, 1)
 		if err != nil {
 			// This should never happen - the lookup says the record exists.
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -110,7 +108,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		signed, err := h.Server.Signed(ctx)
+		signed, err := s.ops.Signed(ctx)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -120,7 +118,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Write(signed)
 
 	case r.URL.Path == "/latest":
-		data, err := h.Server.Signed(ctx)
+		data, err := s.ops.Signed(ctx)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -137,7 +135,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if t.L == -1 {
 			// Record data.
 			start := t.N << uint(t.H)
-			records, err := h.Server.ReadRecords(ctx, start, int64(t.W))
+			records, err := s.ops.ReadRecords(ctx, start, int64(t.W))
 			if err != nil {
 				reportError(w, r, err)
 				return
@@ -159,7 +157,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		data, err := h.Server.ReadTileData(ctx, t)
+		data, err := s.ops.ReadTileData(ctx, t)
 		if err != nil {
 			reportError(w, r, err)
 			return

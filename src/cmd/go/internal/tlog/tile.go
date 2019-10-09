@@ -33,6 +33,9 @@ import (
 // The special level L=-1 holds raw record data instead of hashes.
 // In this case, the level encodes into a tile path as the path element
 // "data" instead of "-1".
+//
+// See also https://golang.org/design/25530-sumdb#checksum-database
+// and https://research.swtch.com/tlog#tiling_a_log.
 type Tile struct {
 	H int   // height of tile (1 ≤ H ≤ 30)
 	L int   // level in tiling (-1 ≤ L ≤ 63)
@@ -40,11 +43,13 @@ type Tile struct {
 	W int   // width of tile (1 ≤ W ≤ 2**H; 2**H is complete tile)
 }
 
-// TileForIndex returns the tile of height h ≥ 1
+// TileForIndex returns the tile of fixed height h ≥ 1
 // and least width storing the given hash storage index.
+//
+// If h ≤ 0, TileForIndex panics.
 func TileForIndex(h int, index int64) Tile {
-	if h < 1 {
-		panic("TileForIndex: invalid height")
+	if h <= 0 {
+		panic(fmt.Sprintf("TileForIndex: invalid height %d", h))
 	}
 	t, _, _ := tileForIndex(h, index)
 	return t
@@ -99,8 +104,10 @@ func tileHash(data []byte) Hash {
 // that must be published when publishing from a tree of
 // size newTreeSize to replace a tree of size oldTreeSize.
 // (No tiles need to be published for a tree of size zero.)
+//
+// If h ≤ 0, TileForIndex panics.
 func NewTiles(h int, oldTreeSize, newTreeSize int64) []Tile {
-	if h < 1 {
+	if h <= 0 {
 		panic(fmt.Sprintf("NewTiles: invalid height %d", h))
 	}
 	H := uint(h)
@@ -244,6 +251,16 @@ type TileReader interface {
 	// a data record for each tile (len(data) == len(tiles))
 	// and each data record must be the correct length
 	// (len(data[i]) == tiles[i].W*HashSize).
+	//
+	// An implementation of ReadTiles typically reads
+	// them from an on-disk cache or else from a remote
+	// tile server. Tile data downloaded from a server should
+	// be considered suspect and not saved into a persistent
+	// on-disk cache before returning from ReadTiles.
+	// When the client confirms the validity of the tile data,
+	// it will call SaveTiles to signal that they can be safely
+	// written to persistent storage.
+	// See also https://research.swtch.com/tlog#authenticating_tiles.
 	ReadTiles(tiles []Tile) (data [][]byte, err error)
 
 	// SaveTiles informs the TileReader that the tile data
