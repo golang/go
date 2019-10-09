@@ -816,7 +816,7 @@ func genhash(ctxt *Link, lib *sym.Library) {
 		return
 	}
 	h.Write(pkgDefBytes[0:firstEOL])
-	h.Write(pkgDefBytes[firstDoubleDollar : firstDoubleDollar+secondDoubleDollar])
+	//h.Write(pkgDefBytes[firstDoubleDollar : firstDoubleDollar+secondDoubleDollar]) // TODO: newobj: -dynlink may change symbol numbering? which will make the export data differ
 	lib.Hash = hex.EncodeToString(h.Sum(nil))
 }
 
