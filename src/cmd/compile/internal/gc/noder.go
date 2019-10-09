@@ -25,7 +25,7 @@ import (
 // and its root represented by *Node is appended to xtop.
 // Returns the total count of parsed lines.
 func parseFiles(filenames []string) uint {
-	var noders []*noder
+	noders := make([]*noder, 0, len(filenames))
 	// Limit the number of simultaneously open files.
 	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
 
@@ -398,7 +398,7 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []*Node {
 		typ, values = cs.typ, cs.values
 	}
 
-	var nn []*Node
+	nn := make([]*Node, 0, len(names))
 	for i, n := range names {
 		if i >= len(values) {
 			yyerror("missing value in const declaration")
@@ -453,7 +453,7 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
 }
 
 func (p *noder) declNames(names []*syntax.Name) []*Node {
-	var nodes []*Node
+	nodes := make([]*Node, 0, len(names))
 	for _, name := range names {
 		nodes = append(nodes, p.declName(name))
 	}
@@ -540,7 +540,7 @@ func (p *noder) signature(recv *syntax.Field, typ *syntax.FuncType) *Node {
 }
 
 func (p *noder) params(params []*syntax.Field, dddOk bool) []*Node {
-	var nodes []*Node
+	nodes := make([]*Node, 0, len(params))
 	for i, param := range params {
 		p.setlineno(param)
 		nodes = append(nodes, p.param(param, dddOk, i+1 == len(params)))
@@ -590,7 +590,7 @@ func (p *noder) exprList(expr syntax.Expr) []*Node {
 }
 
 func (p *noder) exprs(exprs []syntax.Expr) []*Node {
-	var nodes []*Node
+	nodes := make([]*Node, 0, len(exprs))
 	for _, expr := range exprs {
 		nodes = append(nodes, p.expr(expr))
 	}
@@ -809,7 +809,7 @@ func (p *noder) chanDir(dir syntax.ChanDir) types.ChanDir {
 }
 
 func (p *noder) structType(expr *syntax.StructType) *Node {
-	var l []*Node
+	l := make([]*Node, 0, len(expr.FieldList))
 	for i, field := range expr.FieldList {
 		p.setlineno(field)
 		var n *Node
@@ -831,7 +831,7 @@ func (p *noder) structType(expr *syntax.StructType) *Node {
 }
 
 func (p *noder) interfaceType(expr *syntax.InterfaceType) *Node {
-	var l []*Node
+	l := make([]*Node, 0, len(expr.MethodList))
 	for _, method := range expr.MethodList {
 		p.setlineno(method)
 		var n *Node
@@ -1170,7 +1170,7 @@ func (p *noder) switchStmt(stmt *syntax.SwitchStmt) *Node {
 }
 
 func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *Node, rbrace syntax.Pos) []*Node {
-	var nodes []*Node
+	nodes := make([]*Node, 0, len(clauses))
 	for i, clause := range clauses {
 		p.setlineno(clause)
 		if i > 0 {
@@ -1226,7 +1226,7 @@ func (p *noder) selectStmt(stmt *syntax.SelectStmt) *Node {
 }
 
 func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []*Node {
-	var nodes []*Node
+	nodes := make([]*Node, 0, len(clauses))
 	for i, clause := range clauses {
 		p.setlineno(clause)
 		if i > 0 {
