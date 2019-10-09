@@ -8,6 +8,7 @@ import (
 	"cmd/internal/goobj2"
 	"cmd/internal/objabi"
 	"fmt"
+	"strings"
 )
 
 // Read object file in new format. For now we still fill
@@ -67,7 +68,11 @@ func (r *objReader) readNew() {
 		if osym.Name == "" {
 			continue // not a real symbol
 		}
-		symID := SymID{Name: osym.Name, Version: abiToVer(osym.ABI)}
+		// In a symbol name in an object file, "". denotes the
+		// prefix for the package in which the object file has been found.
+		// Expand it.
+		name := strings.ReplaceAll(osym.Name, `"".`, r.pkgprefix)
+		symID := SymID{Name: name, Version: abiToVer(osym.ABI)}
 		r.p.SymRefs = append(r.p.SymRefs, symID)
 
 		if i >= ndef {
