@@ -25,8 +25,6 @@ stderr 'cannot find main module'
 go list all
 ! stdout .
 stderr 'warning: "all" matched no packages'
-go list -m all
-stderr 'warning: pattern "all" matched no module dependencies'
 
 # 'go list' on standard-library packages should work, since they do not depend
 # on the contents of any module.
@@ -49,10 +47,13 @@ stdout 'example.com/version v1.1.0'
 go list -m -versions example.com/version
 stdout 'v1.0.0\s+v1.0.1\s+v1.1.0'
 
-# 'go list -m <mods> all' does not include the dependencies of <mods> in the computation of 'all'.
-go list -m example.com/printversion@v1.0.0 all
-stdout 'example.com/printversion v1.0.0'
-stderr 'warning: pattern "all" matched no module dependencies'
+# 'go list -m all' should fail. "all" is not meaningful outside of a module.
+! go list -m all
+stderr 'go: cannot match "all": working directory is not part of a module'
+
+# 'go list -m <mods> all' should also fail.
+! go list -m example.com/printversion@v1.0.0 all
+stderr 'go: cannot match "all": working directory is not part of a module'
 ! stdout 'example.com/version'
 
 
@@ -87,6 +88,10 @@ go mod download example.com/printversion@v1.0.0
 exists $GOPATH/pkg/mod/cache/download/example.com/printversion/@v/v1.0.0.zip
 ! exists $GOPATH/pkg/mod/cache/download/example.com/version/@v/v1.0.0.zip
 
+# 'go mod download all' should fail. "all" is not meaningful outside of a module.
+! go mod download all
+stderr 'go: cannot match "all": working directory is not part of a module'
+
 # 'go mod vendor' should fail: it starts by clearing the existing vendor
 # directory, and we don't know where that is.
 ! go mod vendor
@@ -109,9 +114,8 @@ stderr 'cannot find main module'
 
 # 'go get -u all' upgrades the transitive import graph of the main module,
 # which is empty.
-go get -u all
-! stdout .
-stderr 'warning: "all" matched no packages'
+! go get -u all
+stderr 'go get all: cannot match "all": working directory is not part of a module'
 
 # 'go get' should check the proposed module graph for consistency,
 # even though we won't write it anywhere.
