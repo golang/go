@@ -55,6 +55,9 @@ func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
 		if search.IsRelativePath(arg) {
 			base.Fatalf("go: cannot use relative path %s to specify module", arg)
 		}
+		if !HasModRoot() && arg == "all" {
+			base.Fatalf(`go: cannot match "all": working directory is not part of a module`)
+		}
 		if i := strings.Index(arg, "@"); i >= 0 {
 			path := arg[:i]
 			vers := arg[i+1:]
