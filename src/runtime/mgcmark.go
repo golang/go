@@ -757,13 +757,17 @@ func scanstack(gp *g, gcw *gcWork) {
 	}
 	if gp._panic != nil {
 		// Panics are always stack allocated.
-		state.putPtr(uintptr(unsafe.Pointer(gp._panic)))
+		state.putPtr(uintptr(unsafe.Pointer(gp._panic)), false)
 	}
 
 	// Find and scan all reachable stack objects.
+	//
+	// The state's pointer queue prioritizes precise pointers over
+	// conservative pointers so that we'll prefer scanning stack
+	// objects precisely.
 	state.buildIndex()
 	for {
-		p := state.getPtr()
+		p, conservative := state.getPtr()
 		if p == 0 {
 			break
 		}
@@ -778,7 +782,13 @@ func scanstack(gp *g, gcw *gcWork) {
 		}
 		obj.setType(nil) // Don't scan it again.
 		if stackTraceDebug {
-			println("  live stkobj at", hex(state.stack.lo+uintptr(obj.off)), "of type", t.string())
+			printlock()
+			print("  live stkobj at", hex(state.stack.lo+uintptr(obj.off)), "of type", t.string())
+			if conservative {
+				print(" (conservative)")
+			}
+			println()
+			printunlock()
 		}
 		gcdata := t.gcdata
 		var s *mspan
@@ -796,7 +806,12 @@ func scanstack(gp *g, gcw *gcWork) {
 			gcdata = (*byte)(unsafe.Pointer(s.startAddr))
 		}
 
-		scanblock(state.stack.lo+uintptr(obj.off), t.ptrdata, gcdata, gcw, &state)
+		b := state.stack.lo + uintptr(obj.off)
+		if conservative {
+			scanConservative(b, t.ptrdata, gcdata, gcw, &state)
+		} else {
+			scanblock(b, t.ptrdata, gcdata, gcw, &state)
+		}
 
 		if s != nil {
 			dematerializeGCProg(s)
@@ -820,7 +835,7 @@ func scanstack(gp *g, gcw *gcWork) {
 		x.nobj = 0
 		putempty((*workbuf)(unsafe.Pointer(x)))
 	}
-	if state.buf != nil || state.freeBuf != nil {
+	if state.buf != nil || state.cbuf != nil || state.freeBuf != nil {
 		throw("remaining pointer buffers")
 	}
 }
@@ -830,6 +845,49 @@ func scanstack(gp *g, gcw *gcWork) {
 func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
 	if _DebugGC > 1 && frame.continpc != 0 {
 		print("scanframe ", funcname(frame.fn), "\n")
+	}
+
+	isAsyncPreempt := frame.fn.valid() && frame.fn.funcID == funcID_asyncPreempt
+	if state.conservative || isAsyncPreempt {
+		if debugScanConservative {
+			println("conservatively scanning function", funcname(frame.fn), "at PC", hex(frame.continpc))
+		}
+
+		// Conservatively scan the frame. Unlike the precise
+		// case, this includes the outgoing argument space
+		// since we may have stopped while this function was
+		// setting up a call.
+		//
+		// TODO: We could narrow this down if the compiler
+		// produced a single map per function of stack slots
+		// and registers that ever contain a pointer.
+		if frame.varp != 0 {
+			size := frame.varp - frame.sp
+			if size > 0 {
+				scanConservative(frame.sp, size, nil, gcw, state)
+			}
+		}
+
+		// Scan arguments to this frame.
+		if frame.arglen != 0 {
+			// TODO: We could pass the entry argument map
+			// to narrow this down further.
+			scanConservative(frame.argp, frame.arglen, nil, gcw, state)
+		}
+
+		if isAsyncPreempt {
+			// This function's frame contained the
+			// registers for the asynchronously stopped
+			// parent frame. Scan the parent
+			// conservatively.
+			state.conservative = true
+		} else {
+			// We only wanted to scan those two frames
+			// conservatively. Clear the flag for future
+			// frames.
+			state.conservative = false
+		}
+		return
 	}
 
 	locals, args, objs := getStackMap(frame, &state.cache, false)
@@ -1104,7 +1162,7 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork, stk *stackScanState)
 					if obj, span, objIndex := findObject(p, b, i); obj != 0 {
 						greyobject(obj, b, i, span, gcw, objIndex)
 					} else if stk != nil && p >= stk.stack.lo && p < stk.stack.hi {
-						stk.putPtr(p)
+						stk.putPtr(p, false)
 					}
 				}
 			}
@@ -1212,6 +1270,101 @@ func scanobject(b uintptr, gcw *gcWork) {
 	}
 	gcw.bytesMarked += uint64(n)
 	gcw.scanWork += int64(i)
+}
+
+// scanConservative scans block [b, b+n) conservatively, treating any
+// pointer-like value in the block as a pointer.
+//
+// If ptrmask != nil, only words that are marked in ptrmask are
+// considered as potential pointers.
+//
+// If state != nil, it's assumed that [b, b+n) is a block in the stack
+// and may contain pointers to stack objects.
+func scanConservative(b, n uintptr, ptrmask *uint8, gcw *gcWork, state *stackScanState) {
+	if debugScanConservative {
+		printlock()
+		print("conservatively scanning [", hex(b), ",", hex(b+n), ")\n")
+		hexdumpWords(b, b+n, func(p uintptr) byte {
+			if ptrmask != nil {
+				word := (p - b) / sys.PtrSize
+				bits := *addb(ptrmask, word/8)
+				if (bits>>(word%8))&1 == 0 {
+					return '$'
+				}
+			}
+
+			val := *(*uintptr)(unsafe.Pointer(p))
+			if state != nil && state.stack.lo <= val && val < state.stack.hi {
+				return '@'
+			}
+
+			span := spanOfHeap(val)
+			if span == nil {
+				return ' '
+			}
+			idx := span.objIndex(val)
+			if span.isFree(idx) {
+				return ' '
+			}
+			return '*'
+		})
+		printunlock()
+	}
+
+	for i := uintptr(0); i < n; i += sys.PtrSize {
+		if ptrmask != nil {
+			word := i / sys.PtrSize
+			bits := *addb(ptrmask, word/8)
+			if bits == 0 {
+				// Skip 8 words (the loop increment will do the 8th)
+				//
+				// This must be the first time we've
+				// seen this word of ptrmask, so i
+				// must be 8-word-aligned, but check
+				// our reasoning just in case.
+				if i%(sys.PtrSize*8) != 0 {
+					throw("misaligned mask")
+				}
+				i += sys.PtrSize*8 - sys.PtrSize
+				continue
+			}
+			if (bits>>(word%8))&1 == 0 {
+				continue
+			}
+		}
+
+		val := *(*uintptr)(unsafe.Pointer(b + i))
+
+		// Check if val points into the stack.
+		if state != nil && state.stack.lo <= val && val < state.stack.hi {
+			// val may point to a stack object. This
+			// object may be dead from last cycle and
+			// hence may contain pointers to unallocated
+			// objects, but unlike heap objects we can't
+			// tell if it's already dead. Hence, if all
+			// pointers to this object are from
+			// conservative scanning, we have to scan it
+			// defensively, too.
+			state.putPtr(val, true)
+			continue
+		}
+
+		// Check if val points to a heap span.
+		span := spanOfHeap(val)
+		if span == nil {
+			continue
+		}
+
+		// Check if val points to an allocated object.
+		idx := span.objIndex(val)
+		if span.isFree(idx) {
+			continue
+		}
+
+		// val points to an allocated object. Mark it.
+		obj := span.base() + idx*span.elemsize
+		greyobject(obj, b, i, span, gcw, idx)
+	}
 }
 
 // Shade the object if it isn't already.
