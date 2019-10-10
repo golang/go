@@ -93,15 +93,15 @@ var TestCases = []struct {
 	LineEdits: []diff.TextEdit{{Span: newSpan(0, 8), NewText: "bunker\n"}},
 }, {
 	Name: "insert_line",
-	In:   "one\nthree\n",
-	Out:  "one\ntwo\nthree\n",
+	In:   "1: one\n3: three\n",
+	Out:  "1: one\n2: two\n3: three\n",
 	Unified: UnifiedPrefix + `
 @@ -1,2 +1,3 @@
- one
-+two
- three
+ 1: one
++2: two
+ 3: three
 `[1:],
-	Edits: []diff.TextEdit{{Span: newSpan(4, 4), NewText: "two\n"}},
+	Edits: []diff.TextEdit{{Span: newSpan(7, 7), NewText: "2: two\n"}},
 }, {
 	Name: "replace_no_newline",
 	In:   "A",
@@ -174,6 +174,7 @@ var TestCases = []struct {
 			{Span: newSpan(2, 8), NewText: "H\nI\nJ\n"},
 			{Span: newSpan(12, 14), NewText: "K\n"},
 		},
+		NoDiff: true, // diff algorithm produces different delete/insert pattern
 	},
 }
 
@@ -202,7 +203,7 @@ func DiffTest(t *testing.T, compute diff.ComputeEdits) {
 			if got != test.Out {
 				t.Errorf("got patched:\n%v\nfrom diff:\n%v\nexpected:\n%v", got, unified, test.Out)
 			}
-			if unified != test.Unified {
+			if !test.NoDiff && unified != test.Unified {
 				t.Errorf("got diff:\n%v\nexpected:\n%v", unified, test.Unified)
 			}
 		})
