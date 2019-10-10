@@ -53,22 +53,33 @@ func TestWriteLogger(t *testing.T) {
 	}
 }
 
-func TestWriteLoggerError(t *testing.T) {
-	prefix := "prefix"
-	data := "hello, world"
-	err := errors.New("write error")
-	re := regexp.MustCompile(`\d{4}\/\d{2}\/\d{2}\s\d{2}:\d{2}:\d{2}\s` + prefix + `\s:\s` + fmt.Sprintf("%s", err))
-	out := new(bytes.Buffer)
-	log.SetOutput(out)
+func TestWriteLogger_errorOnWrite(t *testing.T) {
+	olw := log.Writer()
+	olf := log.Flags()
+	olp := log.Prefix()
 
-	w := errWriter{err: err}
-	wl := NewWriteLogger("prefix", w)
-	wl.Write([]byte(data))
+	// Revert the original log settings before we exit.
+	defer func() {
+		log.SetFlags(olf)
+		log.SetPrefix(olp)
+		log.SetOutput(olw)
+	}()
 
-	if re.MatchString(out.String()) == false {
-		t.Errorf("No match on log output, got %q", out.String())
+	lOut := new(bytes.Buffer)
+	log.SetPrefix("lw: ")
+	log.SetOutput(lOut)
+	log.SetFlags(0)
+
+	lw := errWriter{err: errors.New("Write Error!")}
+	wl := NewWriteLogger("write:", lw)
+	if _, err := wl.Write([]byte("Hello, World!")); err == nil {
+		t.Fatalf("Unexpectedly succeeded to write: %v", err)
 	}
 
+	wantLogWithHex := fmt.Sprintf("lw: write: %x: %v\n", "", "Write Error!")
+	if g, w := lOut.String(), wantLogWithHex; g != w {
+		t.Errorf("WriteLogger mismatch\n\tgot:  %q\n\twant: %q", g, w)
+	}
 }
 
 var readLoggerTests = []struct {
@@ -90,20 +101,39 @@ func (r errReader) Read([]byte) (int, error) {
 }
 
 func TestReadLogger(t *testing.T) {
-	for i, tt := range readLoggerTests {
-		re := regexp.MustCompile(`\d{4}\/\d{2}\/\d{2}\s\d{2}:\d{2}:\d{2}\s` + tt.prefix + `\s` + fmt.Sprintf("%x", tt.data))
+	olw := log.Writer()
+	olf := log.Flags()
+	olp := log.Prefix()
 
-		p := make([]byte, len(tt.data))
-		out := new(bytes.Buffer)
-		log.SetOutput(out)
+	// Revert the original log settings before we exit.
+	defer func() {
+		log.SetFlags(olf)
+		log.SetPrefix(olp)
+		log.SetOutput(olw)
+	}()
 
-		r := bytes.NewReader([]byte(tt.data))
-		rl := NewReadLogger(tt.prefix, r)
-		rl.Read(p)
+	lOut := new(bytes.Buffer)
+	log.SetPrefix("lr: ")
+	log.SetOutput(lOut)
+	log.SetFlags(0)
 
-		if re.MatchString(out.String()) == false {
-			t.Errorf("%d: No match on log output, got %q", i, out.String())
-		}
+	rb := []byte("Hello, World!")
+	p := make([]byte, len(rb))
+	lr := bytes.NewReader(rb)
+	rl := NewReadLogger("read:", lr)
+
+	n, err := rl.Read(p)
+	if err != nil {
+		t.Fatalf("Unexpectedly failed to read: %v", err)
+	}
+
+	if g, w := p[:n], rb; !bytes.Equal(g, w) {
+		t.Errorf("ReadLogger mismatch\n\tgot:  %q\n\twant: %q", g, w)
+	}
+
+	wantLogWithHex := fmt.Sprintf("lr: read: %x\n", "Hello, World!")
+	if g, w := lOut.String(), wantLogWithHex; g != w {
+		t.Errorf("ReadLogger mismatch\n\tgot:  %q\n\twant: %q", g, w)
 	}
 }
 
