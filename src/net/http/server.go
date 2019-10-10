@@ -3227,8 +3227,9 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
 	r = r.WithContext(ctx)
 	done := make(chan struct{})
 	tw := &timeoutWriter{
-		w: w,
-		h: make(Header),
+		w:   w,
+		h:   make(Header),
+		req: r,
 	}
 	panicChan := make(chan interface{}, 1)
 	go func() {
@@ -3268,6 +3269,7 @@ type timeoutWriter struct {
 	w    ResponseWriter
 	h    Header
 	wbuf bytes.Buffer
+	req  *Request
 
 	mu          sync.Mutex
 	timedOut    bool
@@ -3294,24 +3296,32 @@ func (tw *timeoutWriter) Write(p []byte) (int, error) {
 		return 0, ErrHandlerTimeout
 	}
 	if !tw.wroteHeader {
-		tw.writeHeader(StatusOK)
+		tw.writeHeaderLocked(StatusOK)
 	}
 	return tw.wbuf.Write(p)
 }
 
-func (tw *timeoutWriter) WriteHeader(code int) {
+func (tw *timeoutWriter) writeHeaderLocked(code int) {
 	checkWriteHeaderCode(code)
-	tw.mu.Lock()
-	defer tw.mu.Unlock()
-	if tw.timedOut || tw.wroteHeader {
+
+	switch {
+	case tw.timedOut:
 		return
+	case tw.wroteHeader:
+		if tw.req != nil {
+			caller := relevantCaller()
+			logf(tw.req, "http: superfluous response.WriteHeader call from %s (%s:%d)", caller.Function, path.Base(caller.File), caller.Line)
+		}
+	default:
+		tw.wroteHeader = true
+		tw.code = code
 	}
-	tw.writeHeader(code)
 }
 
-func (tw *timeoutWriter) writeHeader(code int) {
-	tw.wroteHeader = true
-	tw.code = code
+func (tw *timeoutWriter) WriteHeader(code int) {
+	tw.mu.Lock()
+	defer tw.mu.Unlock()
+	tw.writeHeaderLocked(code)
 }
 
 // onceCloseListener wraps a net.Listener, protecting it from
