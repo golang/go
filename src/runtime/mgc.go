@@ -769,11 +769,25 @@ func gcSetTriggerRatio(triggerRatio float64) {
 		goal = memstats.heap_marked + memstats.heap_marked*uint64(gcpercent)/100
 	}
 
+	// If we let triggerRatio go too low, then if the application
+	// is allocating very rapidly we might end up in a situation
+	// where we're allocating black during a nearly always-on GC.
+	// The result of this is a growing heap and ultimately an
+	// increase in RSS. By capping us at a point >0, we're essentially
+	// saying that we're OK using more CPU during the GC to prevent
+	// this growth in RSS.
+	//
+	// The current constant was chosen empirically: given a sufficiently
+	// fast/scalable allocator with 48 Ps that could drive the trigger ratio
+	// to <0.05, this constant causes applications to retain the same peak
+	// RSS compared to not having this allocator.
+	const minTriggerRatio = 0.6
+
 	// Set the trigger ratio, capped to reasonable bounds.
-	if triggerRatio < 0 {
+	if triggerRatio < minTriggerRatio {
 		// This can happen if the mutator is allocating very
 		// quickly or the GC is scanning very slowly.
-		triggerRatio = 0
+		triggerRatio = minTriggerRatio
 	} else if gcpercent >= 0 {
 		// Ensure there's always a little margin so that the
 		// mutator assist ratio isn't infinity.
