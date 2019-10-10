@@ -26,8 +26,8 @@ import (
 // takes up only 4 bytes on the stack, while on 64-bit systems it takes up 8 bytes.
 // Typically this is ptrSize.
 //
-// As an exception, amd64p32 has ptrSize == 4 but the CALL instruction still
-// stores an 8-byte return PC onto the stack. To accommodate this, we use regSize
+// As an exception, amd64p32 had ptrSize == 4 but the CALL instruction still
+// stored an 8-byte return PC onto the stack. To accommodate this, we used regSize
 // as the size of the architecture-pushed return PC.
 //
 // usesLR is defined below in terms of minFrameSize, which is defined in

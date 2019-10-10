@@ -56,8 +56,6 @@ func Set(GOARCH string) *Arch {
 		return archX86(&x86.Link386)
 	case "amd64":
 		return archX86(&x86.Linkamd64)
-	case "amd64p32":
-		return archX86(&x86.Linkamd64p32)
 	case "arm":
 		return archArm()
 	case "arm64":

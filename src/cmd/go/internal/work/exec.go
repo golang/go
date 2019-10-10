@@ -2390,7 +2390,7 @@ func (b *Builder) gccArchArgs() []string {
 	switch cfg.Goarch {
 	case "386":
 		return []string{"-m32"}
-	case "amd64", "amd64p32":
+	case "amd64":
 		return []string{"-m64"}
 	case "arm":
 		return []string{"-marm"} // not thumb

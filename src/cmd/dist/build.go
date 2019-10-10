@@ -61,7 +61,6 @@ var (
 var okgoarch = []string{
 	"386",
 	"amd64",
-	"amd64p32",
 	"arm",
 	"arm64",
 	"mips",
@@ -86,6 +85,7 @@ var okgoos = []string{
 	"android",
 	"solaris",
 	"freebsd",
+	"nacl", // keep;
 	"netbsd",
 	"openbsd",
 	"plan9",

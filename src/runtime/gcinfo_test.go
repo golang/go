@@ -187,14 +187,6 @@ func infoBigStruct() []byte {
 			typeScalar, typeScalar, typeScalar, // t int; y uint16; u uint64
 			typePointer, typeScalar, // i string
 		}
-	case "amd64p32":
-		return []byte{
-			typePointer,                                                // q *int
-			typeScalar, typeScalar, typeScalar, typeScalar, typeScalar, // w byte; e [17]byte
-			typePointer, typeScalar, typeScalar, // r []byte
-			typeScalar, typeScalar, typeScalar, typeScalar, typeScalar, // t int; y uint16; u uint64
-			typePointer, typeScalar, // i string
-		}
 	default:
 		panic("unknown arch")
 	}

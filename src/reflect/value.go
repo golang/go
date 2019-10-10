@@ -555,9 +555,6 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool) {
 	// Copy results back into argument frame.
 	if numOut > 0 {
 		off += -off & (ptrSize - 1)
-		if runtime.GOARCH == "amd64p32" {
-			off = align(off, 8)
-		}
 		for i, typ := range ftyp.out() {
 			v := out[i]
 			if v.typ == nil {
@@ -697,8 +694,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool) {
 
 	// Copy in receiver and rest of args.
 	storeRcvr(rcvr, scratch)
-	// Align the first arg. Only on amd64p32 the alignment can be
-	// larger than ptrSize.
+	// Align the first arg. The alignment can't be larger than ptrSize.
 	argOffset := uintptr(ptrSize)
 	if len(t.in()) > 0 {
 		argOffset = align(argOffset, uintptr(t.in()[0].align))
@@ -713,17 +709,11 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool) {
 	// and then copies the results back into scratch.
 	call(frametype, fn, scratch, uint32(frametype.size), uint32(retOffset))
 
-	// Copy return values. On amd64p32, the beginning of return values
-	// is 64-bit aligned, so the caller's frame layout (which doesn't have
-	// a receiver) is different from the layout of the fn call, which has
-	// a receiver.
+	// Copy return values.
 	// Ignore any changes to args and just copy return values.
 	// Avoid constructing out-of-bounds pointers if there are no return values.
 	if frametype.size-retOffset > 0 {
 		callerRetOffset := retOffset - argOffset
-		if runtime.GOARCH == "amd64p32" {
-			callerRetOffset = align(argSize-argOffset, 8)
-		}
 		// This copies to the stack. Write barriers are not needed.
 		memmove(add(frame, callerRetOffset, "frametype.size > retOffset"),
 			add(scratch, retOffset, "frametype.size > retOffset"),
