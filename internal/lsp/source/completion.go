@@ -393,7 +393,10 @@ func Completion(ctx context.Context, view View, f File, pos protocol.Position, o
 	if err != nil {
 		return nil, nil, err
 	}
-	cph := NarrowestCheckPackageHandle(cphs)
+	cph, err := NarrowestCheckPackageHandle(cphs)
+	if err != nil {
+		return nil, nil, err
+	}
 	pkg, err := cph.Check(ctx)
 	if err != nil {
 		return nil, nil, err

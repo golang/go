@@ -53,7 +53,10 @@ func Identifier(ctx context.Context, view View, f File, pos protocol.Position) (
 	if err != nil {
 		return nil, err
 	}
-	cph := WidestCheckPackageHandle(cphs)
+	cph, err := WidestCheckPackageHandle(cphs)
+	if err != nil {
+		return nil, err
+	}
 	pkg, err := cph.Check(ctx)
 	if err != nil {
 		return nil, err

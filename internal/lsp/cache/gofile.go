@@ -110,7 +110,10 @@ func (v *view) GetActiveReverseDeps(ctx context.Context, f source.File) (results
 		if err != nil {
 			continue
 		}
-		cph := source.WidestCheckPackageHandle(cphs)
+		cph, err := source.WidestCheckPackageHandle(cphs)
+		if err != nil {
+			continue
+		}
 		for _, ph := range cph.Files() {
 			seen[ph.File().Identity().URI] = struct{}{}
 		}

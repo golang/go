@@ -28,7 +28,10 @@ func Format(ctx context.Context, view View, f File) ([]protocol.TextEdit, error)
 	if err != nil {
 		return nil, err
 	}
-	cph := NarrowestCheckPackageHandle(cphs)
+	cph, err := NarrowestCheckPackageHandle(cphs)
+	if err != nil {
+		return nil, err
+	}
 	pkg, err := cph.Check(ctx)
 	if err != nil {
 		return nil, err
@@ -91,7 +94,10 @@ func Imports(ctx context.Context, view View, f File) ([]protocol.TextEdit, error
 	if err != nil {
 		return nil, err
 	}
-	cph := NarrowestCheckPackageHandle(cphs)
+	cph, err := NarrowestCheckPackageHandle(cphs)
+	if err != nil {
+		return nil, err
+	}
 	pkg, err := cph.Check(ctx)
 	if err != nil {
 		return nil, err
@@ -154,7 +160,10 @@ func AllImportsFixes(ctx context.Context, view View, f File) (edits []protocol.T
 	if err != nil {
 		return nil, nil, err
 	}
-	cph := NarrowestCheckPackageHandle(cphs)
+	cph, err := NarrowestCheckPackageHandle(cphs)
+	if err != nil {
+		return nil, nil, err
+	}
 	pkg, err := cph.Check(ctx)
 	if err != nil {
 		return nil, nil, err

@@ -45,7 +45,10 @@ func Diagnostics(ctx context.Context, view View, f File, disabledAnalyses map[st
 	if err != nil {
 		return nil, "", err
 	}
-	cph := WidestCheckPackageHandle(cphs)
+	cph, err := WidestCheckPackageHandle(cphs)
+	if err != nil {
+		return nil, "", err
+	}
 
 	// If we are missing dependencies, it may because the user's workspace is
 	// not correctly configured. Report errors, if possible.
@@ -220,7 +223,10 @@ func toDiagnostic(ctx context.Context, view View, diag analysis.Diagnostic, cate
 	if err != nil {
 		return Diagnostic{}, err
 	}
-	cph := NarrowestCheckPackageHandle(cphs)
+	cph, err := NarrowestCheckPackageHandle(cphs)
+	if err != nil {
+		return Diagnostic{}, err
+	}
 	pkg, err := cph.Cached(ctx)
 	if err != nil {
 		return Diagnostic{}, err

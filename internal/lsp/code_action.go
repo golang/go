@@ -213,7 +213,10 @@ func quickFixes(ctx context.Context, view source.View, f source.File, diagnostic
 	}
 	// We get the package that source.Diagnostics would've used. This is hack.
 	// TODO(golang/go#32443): The correct solution will be to cache diagnostics per-file per-snapshot.
-	cph := source.WidestCheckPackageHandle(cphs)
+	cph, err := source.WidestCheckPackageHandle(cphs)
+	if err != nil {
+		return nil, err
+	}
 	pkg, err := cph.Cached(ctx)
 	if err != nil {
 		return nil, err
