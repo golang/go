@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"regexp"
 	"testing"
 )
 
@@ -82,16 +81,6 @@ func TestWriteLogger_errorOnWrite(t *testing.T) {
 	}
 }
 
-var readLoggerTests = []struct {
-	prefix string
-	data   string
-}{
-	{"", "hello, world"},
-	{"prefix", ""},
-	{"", ""},
-	{"prefix", "hello, world"},
-}
-
 type errReader struct {
 	err error
 }
@@ -117,9 +106,9 @@ func TestReadLogger(t *testing.T) {
 	log.SetOutput(lOut)
 	log.SetFlags(0)
 
-	rb := []byte("Hello, World!")
-	p := make([]byte, len(rb))
-	lr := bytes.NewReader(rb)
+	data := []byte("Hello, World!")
+	p := make([]byte, len(data))
+	lr := bytes.NewReader(data)
 	rl := NewReadLogger("read:", lr)
 
 	n, err := rl.Read(p)
@@ -127,7 +116,7 @@ func TestReadLogger(t *testing.T) {
 		t.Fatalf("Unexpectedly failed to read: %v", err)
 	}
 
-	if g, w := p[:n], rb; !bytes.Equal(g, w) {
+	if g, w := p[:n], data; !bytes.Equal(g, w) {
 		t.Errorf("ReadLogger mismatch\n\tgot:  %q\n\twant: %q", g, w)
 	}
 
@@ -137,21 +126,35 @@ func TestReadLogger(t *testing.T) {
 	}
 }
 
-func TestReadLoggerError(t *testing.T) {
-	prefix := "prefix"
-	data := "hello, world"
-	err := errors.New("read error")
-	re := regexp.MustCompile(`\d{4}\/\d{2}\/\d{2}\s\d{2}:\d{2}:\d{2}\s` + prefix + `\s:\s` + fmt.Sprintf("%s", err))
+func TestReadLogger_errorOnRead(t *testing.T) {
+	olw := log.Writer()
+	olf := log.Flags()
+	olp := log.Prefix()
 
+	// Revert the original log settings before we exit.
+	defer func() {
+		log.SetFlags(olf)
+		log.SetPrefix(olp)
+		log.SetOutput(olw)
+	}()
+
+	lOut := new(bytes.Buffer)
+	log.SetPrefix("lr: ")
+	log.SetOutput(lOut)
+	log.SetFlags(0)
+
+	data := []byte("Hello, World!")
 	p := make([]byte, len(data))
-	out := new(bytes.Buffer)
-	log.SetOutput(out)
 
-	r := errReader{err: err}
-	rl := NewReadLogger(prefix, r)
-	rl.Read(p)
+	lr := errReader{err: errors.New("Read Error!")}
+	rl := NewReadLogger("read", lr)
+	n, err := rl.Read(p)
+	if err == nil {
+		t.Fatalf("Unexpectedly succeeded to read: %v", err)
+	}
 
-	if re.MatchString(out.String()) == false {
-		t.Errorf("No match on log output, got %q", out.String())
+	wantLogWithHex := fmt.Sprintf("lr: read %x: %v\n", p[:n], "Read Error!")
+	if g, w := lOut.String(), wantLogWithHex; g != w {
+		t.Errorf("ReadLogger mismatch\n\tgot:  %q\n\twant: %q", g, w)
 	}
 }
