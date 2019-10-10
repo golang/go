@@ -283,6 +283,16 @@ func Publish(name string, v Var) {
 	sort.Strings(varKeys)
 }
 
+// RemoveAll removes all exported variables.
+func RemoveAll() {
+	varKeysMu.Lock()
+	defer varKeysMu.Unlock()
+	for _, k := range varKeys {
+		vars.Delete(k)
+	}
+	varKeys = nil
+}
+
 // Get retrieves a named exported variable. It returns nil if the name has
 // not been registered.
 func Get(name string) Var {
