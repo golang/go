@@ -17,10 +17,9 @@ loop:
 		Get R2
 		I32Const $1
 		I32Sub
-		Set R2
+		Tee R2
 
 		// n == 0
-		Get R2
 		I32Eqz
 		If
 			Return
@@ -54,10 +53,9 @@ loop:
 		Get R1
 		I32Const $1
 		I32Sub
-		Set R1
+		Tee R1
 
 		// n == 0
-		Get R1
 		I32Eqz
 		If
 			Return
