@@ -203,7 +203,19 @@ func convertSpan(span *telemetry.Span) *wire.Span {
 }
 
 func convertMetric(data telemetry.MetricData) *wire.Metric {
-	return nil //TODO:
+	descriptor := dataToMetricDescriptor(data)
+	timeseries := dataToTimeseries(data)
+
+	if descriptor == nil && timeseries == nil {
+		return nil
+	}
+
+	// TODO: handle Histogram metrics
+	return &wire.Metric{
+		MetricDescriptor: descriptor,
+		Timeseries:       timeseries,
+		// TODO: attach Resource?
+	}
 }
 
 func convertAttributes(tags telemetry.TagList) *wire.Attributes {
