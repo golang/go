@@ -21,7 +21,7 @@ func is(typ Type, what BasicInfo) bool {
 	case *Basic:
 		return t.info&what != 0
 	case *TypeParam:
-		return t.contr.ifaceAt(t.index).is(func(typ Type) bool { return is(typ, what) })
+		return t.Interface().is(func(typ Type) bool { return is(typ, what) })
 	}
 	return false
 }

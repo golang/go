@@ -265,7 +265,21 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 		// the argument types must be of floating-point type
-		if !isFloat(x.typ) {
+		f := func(x Type) Type {
+			if t, _ := x.Underlying().(*Basic); t != nil {
+				switch t.kind {
+				case Float32:
+					return Typ[Complex64]
+				case Float64:
+					return Typ[Complex128]
+				case UntypedFloat:
+					return Typ[UntypedComplex]
+				}
+			}
+			return nil
+		}
+		resTyp := applyTypeFunc(f, x.typ)
+		if resTyp == nil {
 			check.invalidArg(x.pos(), "arguments have type %s, expected floating-point", x.typ)
 			return
 		}
@@ -276,20 +290,6 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		} else {
 			x.mode = value
 		}
-
-		// determine result type
-		var res BasicKind
-		switch x.typ.Underlying().(*Basic).kind {
-		case Float32:
-			res = Complex64
-		case Float64:
-			res = Complex128
-		case UntypedFloat:
-			res = UntypedComplex
-		default:
-			unreachable()
-		}
-		resTyp := Typ[res]
 
 		if check.Types != nil && x.mode != constant_ {
 			check.recordBuiltinType(call.Fun, makeSig(resTyp, x.typ, x.typ))
@@ -383,7 +383,21 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 		// the argument must be of complex type
-		if !isComplex(x.typ) {
+		f := func(x Type) Type {
+			if t, _ := x.Underlying().(*Basic); t != nil {
+				switch t.kind {
+				case Complex64:
+					return Typ[Float32]
+				case Complex128:
+					return Typ[Float64]
+				case UntypedComplex:
+					return Typ[UntypedFloat]
+				}
+			}
+			return nil
+		}
+		resTyp := applyTypeFunc(f, x.typ)
+		if resTyp == nil {
 			check.invalidArg(x.pos(), "argument has type %s, expected complex type", x.typ)
 			return
 		}
@@ -398,20 +412,6 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		} else {
 			x.mode = value
 		}
-
-		// determine result type
-		var res BasicKind
-		switch x.typ.Underlying().(*Basic).kind {
-		case Complex64:
-			res = Float32
-		case Complex128:
-			res = Float64
-		case UntypedComplex:
-			res = UntypedFloat
-		default:
-			unreachable()
-		}
-		resTyp := Typ[res]
 
 		if check.Types != nil && x.mode != constant_ {
 			check.recordBuiltinType(call.Fun, makeSig(resTyp, x.typ))
@@ -645,6 +645,51 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	}
 
 	return true
+}
+
+// applyTypeFunc applies f to x. If x is a type parameter,
+// the result is an anonymous type parameter constrained by
+// an unnamed contract. The type constraints of that contract
+// are computed by applying f to each of the contract type
+// constraints of x. If any of these applications of f return
+// nil, applyTypeFunc returns nil.
+// If x is not a type parameter, the result is f(x).
+func applyTypeFunc(f func(Type) Type, x Type) Type {
+	if tp, _ := x.Underlying().(*TypeParam); tp != nil {
+		// Test if t satisfies the requirements for the argument
+		// type and collect possible result types at the same time.
+		var resTypes []Type
+		if !tp.Interface().is(func(x Type) bool {
+			if r := f(x); r != nil {
+				resTypes = append(resTypes, r)
+				return true
+			}
+			return false
+		}) {
+			return nil
+		}
+
+		// TODO(gri) Would it be ok to return just the one type
+		//           if len(resType) == 1? What about top-level
+		//           uses of real() where the result is used to
+		//           define type and initialize a variable?
+
+		// construct a suitable new type parameter
+		tpar := NewTypeName(token.NoPos, nil /* = Universe pkg */, "<type parameter literal>", nil)
+		resTyp := NewTypeParam(tpar, 0, nil) // assigns type to tpar as a side-effect
+
+		// construct a corresponding interface and contract
+		iface := &Interface{allMethods: markComplete, types: resTypes}
+		contr := &Contract{
+			TParams: []*TypeName{tpar},
+			IFaces:  map[*TypeName]*Interface{tpar: iface},
+		}
+		resTyp.contr = contr
+
+		return resTyp
+	}
+
+	return f(x)
 }
 
 // makeSig makes a signature for the given argument and result types.

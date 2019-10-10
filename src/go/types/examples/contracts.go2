@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 // This file shows examples of contract declarations.
-// They are not type-checked at the moment.
 
 package p
 

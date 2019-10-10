@@ -144,3 +144,20 @@ func sum(type T Integer)(data []T) T {
         }
         return s
 }
+
+// Contracts and built-ins whose result type depends on the argument type.
+
+contract FloatComplex(F, C) {
+        F float32, float64
+        C complex64, complex128
+}
+
+func _(type F, C FloatComplex)(c C) {
+        _ = real(c)
+        _ = imag(c)
+        re := real(c)
+        im := imag(c)
+        var _ F = re // TODO(gri) why does this work? (no type conversion needed?)
+        var _ F = im // TODO(gri) why does this work? (no type conversion needed?)
+        c = C(complex(re, im))
+}

@@ -521,6 +521,9 @@ type Parameterized struct {
 }
 
 // A Contract represents a contract.
+// TODO(gri) Do we need the ability to represent unnamed type parameter literals?
+//           For instance, when creating (result) type parameters out of whole cloth
+//           say for the result type of real/imag(x) where x is of a parameterized type.
 type Contract struct {
 	TParams []*TypeName
 	IFaces  map[*TypeName]*Interface
@@ -559,6 +562,7 @@ func NewTypeParam(obj *TypeName, index int, contr *Contract) *TypeParam {
 // Interface returns the type parameter's interface as
 // specified via its contract. If there is no contract,
 // the result is the empty interface.
+// TODO(gri) should this be Underlying instead?
 func (t *TypeParam) Interface() *Interface {
 	return t.contr.ifaceAt(t.index)
 }
@@ -578,7 +582,7 @@ func (c *Chan) Underlying() Type          { return c }
 func (t *Named) Underlying() Type         { return t.underlying }
 func (p *Parameterized) Underlying() Type { return p.tname.typ.Underlying() }
 func (c *Contract) Underlying() Type      { return c }
-func (t *TypeParam) Underlying() Type     { return t }
+func (t *TypeParam) Underlying() Type     { return t } // TODO(gri) should this return t.Interface() instead?
 
 func (b *Basic) String() string         { return TypeString(b, nil) }
 func (a *Array) String() string         { return TypeString(a, nil) }
