@@ -922,7 +922,7 @@ var (
 	// Information about what cpu features are available.
 	// Packages outside the runtime should not use these
 	// as they are not an external api.
-	// Set on startup in asm_{386,amd64,amd64p32}.s
+	// Set on startup in asm_{386,amd64}.s
 	processorVersionInfo uint32
 	isIntel              bool
 	lfenceBeforeRdtsc    bool

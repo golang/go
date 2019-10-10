@@ -1061,7 +1061,7 @@ func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
 	// lowers them, so we only perform this optimization on platforms that we know to
 	// have fast Move ops.
 	switch c.arch {
-	case "amd64", "amd64p32":
+	case "amd64":
 		return sz <= 16 || (sz < 1024 && disjoint(dst, sz, src, sz))
 	case "386", "ppc64", "ppc64le", "arm64":
 		return sz <= 8
@@ -1077,7 +1077,7 @@ func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
 // for sizes < 32-bit.  This is used to decide whether to promote some rotations.
 func hasSmallRotate(c *Config) bool {
 	switch c.arch {
-	case "amd64", "amd64p32", "386":
+	case "amd64", "386":
 		return true
 	default:
 		return false

@@ -16,7 +16,6 @@
 package reflect
 
 import (
-	"runtime"
 	"strconv"
 	"sync"
 	"unicode"
@@ -3015,9 +3014,6 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, argSize, retOffset 
 		offset += arg.size
 	}
 	argSize = offset
-	if runtime.GOARCH == "amd64p32" {
-		offset += -offset & (8 - 1)
-	}
 	offset += -offset & (ptrSize - 1)
 	retOffset = offset
 	for _, res := range t.out() {
@@ -3032,9 +3028,6 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, argSize, retOffset 
 		align:   ptrSize,
 		size:    offset,
 		ptrdata: uintptr(ptrmap.n) * ptrSize,
-	}
-	if runtime.GOARCH == "amd64p32" {
-		x.align = 8
 	}
 	if ptrmap.n > 0 {
 		x.gcdata = &ptrmap.data[0]

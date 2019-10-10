@@ -38,9 +38,6 @@ import (
 
 func Init() (*sys.Arch, ld.Arch) {
 	arch := sys.ArchAMD64
-	if objabi.GOARCH == "amd64p32" {
-		arch = sys.ArchAMD64P32
-	}
 
 	theArch := ld.Arch{
 		Funcalign:  funcAlign,

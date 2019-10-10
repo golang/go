@@ -6104,9 +6104,6 @@ var funcLayoutTests []funcLayoutTest
 
 func init() {
 	var argAlign uintptr = PtrSize
-	if runtime.GOARCH == "amd64p32" {
-		argAlign = 2 * PtrSize
-	}
 	roundup := func(x uintptr, a uintptr) uintptr {
 		return (x + a - 1) / a * a
 	}
