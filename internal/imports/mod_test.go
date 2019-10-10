@@ -216,6 +216,7 @@ import _ "rsc.io/quote"
 
 // Tests that -mod=vendor sort of works. Adapted from mod_getmode_vendor.txt.
 func TestModeGetmodeVendor(t *testing.T) {
+	t.Skip("'go list -m -mod=vendor' currently not allowed: see golang.org/issue/34826")
 	mt := setup(t, `
 -- go.mod --
 module x
