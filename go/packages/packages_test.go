@@ -1951,7 +1951,6 @@ EOF
 	} else {
 		pathWithDriver = binDir
 	}
-	coreEnv := exported.Config.Env
 	for _, test := range []struct {
 		desc    string
 		path    string
@@ -1979,7 +1978,10 @@ EOF
 			oldPath := os.Getenv(pathKey)
 			os.Setenv(pathKey, test.path)
 			defer os.Setenv(pathKey, oldPath)
-			exported.Config.Env = append(coreEnv, "GOPACKAGESDRIVER="+test.driver)
+			// Clone exported.Config
+			config := exported.Config
+			config.Env = append([]string{}, exported.Config.Env...)
+			config.Env = append(config.Env, "GOPACKAGESDRIVER="+test.driver)
 			pkgs, err := packages.Load(exported.Config, "golist")
 			if err != nil {
 				t.Fatal(err)
