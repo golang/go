@@ -512,6 +512,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 		hover += h.Synopsis + "\n"
 	}
 	hover += h.Signature
+	hover += "\n" + h.DocumentationLink(r.view.Options())
 	rng, err := ident.Declaration.Range()
 	if err != nil {
 		t.Fatal(err)

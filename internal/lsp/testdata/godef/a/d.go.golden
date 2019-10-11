@@ -22,6 +22,7 @@ field Member string
 -- Member-hover --
 @Member
 field Member string
+
 -- Method-definition --
 godef/a/d.go:15:16-22: defined here as func (Thing).Method(i int) string
 -- Method-definition-json --
@@ -44,8 +45,10 @@ godef/a/d.go:15:16-22: defined here as func (Thing).Method(i int) string
 
 -- Method-hover --
 func (Thing).Method(i int) string
+
 -- Other-definition --
 godef/a/d.go:9:5-10: defined here as var Other Thing
+[Other on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)
 -- Other-definition-json --
 {
 	"span": {
@@ -61,15 +64,17 @@ godef/a/d.go:9:5-10: defined here as var Other Thing
 			"offset": 91
 		}
 	},
-	"description": "var Other Thing"
+	"description": "var Other Thing\n[Other on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)"
 }
 
 -- Other-hover --
 var Other Thing
+[Other on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)
 -- Thing-definition --
 godef/a/d.go:5:6-11: defined here as Thing struct {
 	Member string //@Member
 }
+[Thing on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing)
 -- Thing-definition-json --
 {
 	"span": {
@@ -85,15 +90,17 @@ godef/a/d.go:5:6-11: defined here as Thing struct {
 			"offset": 35
 		}
 	},
-	"description": "Thing struct {\n\tMember string //@Member\n}"
+	"description": "Thing struct {\n\tMember string //@Member\n}\n[Thing on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing)"
 }
 
 -- Thing-hover --
 Thing struct {
 	Member string //@Member
 }
+[Thing on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing)
 -- Things-definition --
 godef/a/d.go:11:6-12: defined here as func Things(val []string) []Thing
+[Things on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Things)
 -- Things-definition-json --
 {
 	"span": {
@@ -109,8 +116,9 @@ godef/a/d.go:11:6-12: defined here as func Things(val []string) []Thing
 			"offset": 119
 		}
 	},
-	"description": "func Things(val []string) []Thing"
+	"description": "func Things(val []string) []Thing\n[Things on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Things)"
 }
 
 -- Things-hover --
 func Things(val []string) []Thing
+[Things on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Things)

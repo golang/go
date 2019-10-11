@@ -73,6 +73,7 @@ func (s *Server) toProtocolHoverContents(ctx context.Context, h *source.HoverInf
 		} else {
 			content.Value = signature
 		}
+		content.Value += "\n" + h.DocumentationLink(options)
 	case source.FullDocumentation:
 		if h.FullDocumentation != "" {
 			doc := h.FullDocumentation
@@ -83,6 +84,7 @@ func (s *Server) toProtocolHoverContents(ctx context.Context, h *source.HoverInf
 		} else {
 			content.Value = signature
 		}
+		content.Value += "\n" + h.DocumentationLink(options)
 	case source.Structured:
 		b, err := json.Marshal(h)
 		if err != nil {

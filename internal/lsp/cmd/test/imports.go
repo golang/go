@@ -21,6 +21,6 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 		return out, nil
 	}))
 	if want != got {
-		t.Errorf("imports failed for %s, expected:\n%v\ngot:\n%v", filename, want, got)
+		t.Errorf("imports failed for %s, expected:\n%q\ngot:\n%q", filename, want, got)
 	}
 }

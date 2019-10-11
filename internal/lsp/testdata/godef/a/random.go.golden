@@ -20,6 +20,7 @@ godef/a/random.go:16:15-18: defined here as func (*Pos).Sum() int
 
 -- PosSum-hover --
 func (*Pos).Sum() int
+
 -- PosX-definition --
 godef/a/random.go:13:2-3: defined here as @mark(PosX, "x"),mark(PosY, "y")
 field x int
@@ -44,6 +45,7 @@ field x int
 -- PosX-hover --
 @mark(PosX, "x"),mark(PosY, "y")
 field x int
+
 -- RandomParamY-definition --
 godef/a/random.go:8:14-15: defined here as var y int
 -- RandomParamY-definition-json --
@@ -66,3 +68,4 @@ godef/a/random.go:8:14-15: defined here as var y int
 
 -- RandomParamY-hover --
 var y int
+

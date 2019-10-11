@@ -31,8 +31,21 @@ type HoverInformation struct {
 	// FullDocumentation is the symbol's full documentation.
 	FullDocumentation string `json:"fullDocumentation"`
 
+	// pkgPath holds the package path of the hovered symbol.
+	pkgPath string
+
+	// symbolName holds the symbol name without any package prefix.
+	symbolName string
+
 	source  interface{}
 	comment *ast.CommentGroup
+}
+
+func (h *HoverInformation) DocumentationLink(options Options) string {
+	if h.symbolName == "" || h.pkgPath == "" || options.LinkTarget == "" {
+		return ""
+	}
+	return fmt.Sprintf("[%s on %s](https://%s/%s#%s)", h.symbolName, options.LinkTarget, options.LinkTarget, h.pkgPath, h.symbolName)
 }
 
 func (i *IdentifierInfo) Hover(ctx context.Context) (*HoverInformation, error) {
@@ -54,11 +67,17 @@ func (i *IdentifierInfo) Hover(ctx context.Context) (*HoverInformation, error) {
 	case types.Object:
 		h.Signature = objectString(x, i.qf)
 	}
-
-	// Set the documentation.
-	if i.Declaration.obj != nil {
-		h.SingleLine = objectString(i.Declaration.obj, i.qf)
+	if obj := i.Declaration.obj; obj != nil {
+		// Only show the documentation links for symbols in the package scope.
+		// TODO(https://golang.org/issue/34240): Handle other symbols.
+		if obj.Exported() && obj.Parent() == obj.Pkg().Scope() {
+			h.pkgPath = obj.Pkg().Path()
+			h.symbolName = obj.Name()
+		}
+		// Set the documentation.
+		h.SingleLine = objectString(obj, i.qf)
 	}
+
 	if h.comment != nil {
 		h.FullDocumentation = h.comment.Text()
 		h.Synopsis = doc.Synopsis(h.FullDocumentation)

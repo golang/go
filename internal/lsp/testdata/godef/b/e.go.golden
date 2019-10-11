@@ -22,8 +22,10 @@ field Member string
 -- Member-hover --
 @Member
 field Member string
+
 -- Other-definition --
 godef/a/d.go:9:5-10: defined here as var a.Other a.Thing
+[Other on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)
 -- Other-definition-json --
 {
 	"span": {
@@ -39,15 +41,17 @@ godef/a/d.go:9:5-10: defined here as var a.Other a.Thing
 			"offset": 91
 		}
 	},
-	"description": "var a.Other a.Thing"
+	"description": "var a.Other a.Thing\n[Other on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)"
 }
 
 -- Other-hover --
 var a.Other a.Thing
+[Other on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)
 -- Thing-definition --
 godef/a/d.go:5:6-11: defined here as Thing struct {
 	Member string //@Member
 }
+[Thing on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing)
 -- Thing-definition-json --
 {
 	"span": {
@@ -63,15 +67,17 @@ godef/a/d.go:5:6-11: defined here as Thing struct {
 			"offset": 35
 		}
 	},
-	"description": "Thing struct {\n\tMember string //@Member\n}"
+	"description": "Thing struct {\n\tMember string //@Member\n}\n[Thing on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing)"
 }
 
 -- Thing-hover --
 Thing struct {
 	Member string //@Member
 }
+[Thing on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing)
 -- Things-definition --
 godef/a/d.go:11:6-12: defined here as func a.Things(val []string) []a.Thing
+[Things on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Things)
 -- Things-definition-json --
 {
 	"span": {
@@ -87,8 +93,9 @@ godef/a/d.go:11:6-12: defined here as func a.Things(val []string) []a.Thing
 			"offset": 119
 		}
 	},
-	"description": "func a.Things(val []string) []a.Thing"
+	"description": "func a.Things(val []string) []a.Thing\n[Things on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Things)"
 }
 
 -- Things-hover --
 func a.Things(val []string) []a.Thing
+[Things on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Things)

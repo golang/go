@@ -20,3 +20,4 @@ godef/broken/unclosedIf.go:7:7-19: defined here as var myUnclosedIf string
 
 -- myUnclosedIf-hover --
 var myUnclosedIf string
+

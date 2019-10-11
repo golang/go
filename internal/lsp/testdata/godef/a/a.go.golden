@@ -1,5 +1,6 @@
 -- Random-definition --
 godef/a/random.go:3:6-12: defined here as func Random() int
+[Random on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random)
 -- Random-definition-json --
 {
 	"span": {
@@ -15,13 +16,15 @@ godef/a/random.go:3:6-12: defined here as func Random() int
 			"offset": 22
 		}
 	},
-	"description": "func Random() int"
+	"description": "func Random() int\n[Random on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random)"
 }
 
 -- Random-hover --
 func Random() int
+[Random on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random)
 -- Random2-definition --
 godef/a/random.go:8:6-13: defined here as func Random2(y int) int
+[Random2 on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random2)
 -- Random2-definition-json --
 {
 	"span": {
@@ -37,11 +40,12 @@ godef/a/random.go:8:6-13: defined here as func Random2(y int) int
 			"offset": 78
 		}
 	},
-	"description": "func Random2(y int) int"
+	"description": "func Random2(y int) int\n[Random2 on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random2)"
 }
 
 -- Random2-hover --
 func Random2(y int) int
+[Random2 on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random2)
 -- err-definition --
 godef/a/a.go:14:6-9: defined here as var err error
 -- err-definition-json --
@@ -64,8 +68,11 @@ godef/a/a.go:14:6-9: defined here as var err error
 
 -- err-hover --
 var err error
+
 -- make-hover --
 The make built-in function allocates and initializes an object of type slice, map, or chan (only).
 func(t Type, size ...IntegerType) Type
+
 -- string-hover --
 string
+
