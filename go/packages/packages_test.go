@@ -2273,8 +2273,14 @@ const A = 4
 	}
 }
 
+var race = false
+
 func TestIssue32814(t *testing.T) { packagestest.TestAll(t, testIssue32814) }
 func testIssue32814(t *testing.T, exporter packagestest.Exporter) {
+	if v := runtime.Version(); strings.Contains(v, "devel") && race {
+		t.Skip("golang.org/issue/31749: This test is broken on tip in race mode. Skip until it's fixed.")
+	}
+
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name:  "golang.org/fake",
 		Files: map[string]interface{}{}}})
