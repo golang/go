@@ -284,6 +284,10 @@ func runGet(cmd *base.Command, args []string) {
 	// what was requested.
 	modload.DisallowWriteGoMod()
 
+	// Allow looking up modules for import paths outside of a module.
+	// 'go get' is expected to do this, unlike other commands.
+	modload.AllowMissingModuleImports()
+
 	// Parse command-line arguments and report errors. The command-line
 	// arguments are of the form path@version or simply path, with implicit
 	// @upgrade. path@none is "downgrade away".
@@ -354,6 +358,10 @@ func runGet(cmd *base.Command, args []string) {
 			// upgrade golang.org/x/tools.
 
 		case path == "all":
+			// If there is no main module, "all" is not meaningful.
+			if !modload.HasModRoot() {
+				base.Errorf(`go get %s: cannot match "all": working directory is not part of a module`, arg)
+			}
 			// Don't query modules until we load packages. We'll automatically
 			// look up any missing modules.
 

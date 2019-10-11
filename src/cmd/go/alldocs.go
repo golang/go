@@ -435,6 +435,9 @@
 // The -n flag prints commands that would be executed.
 // The -x flag prints commands as they are executed.
 //
+// The -mod flag's value sets which module download mode
+// to use: readonly or vendor. See 'go help modules' for more.
+//
 // To run gofmt with specific options, run gofmt itself.
 //
 // See also: go fix, go vet.
@@ -1235,7 +1238,7 @@
 // If the -exec flag is not given, GOOS or GOARCH is different from the system
 // default, and a program named go_$GOOS_$GOARCH_exec can be found
 // on the current search path, 'go run' invokes the binary using that program,
-// for example 'go_nacl_386_exec a.out arguments...'. This allows execution of
+// for example 'go_js_wasm_exec a.out arguments...'. This allows execution of
 // cross-compiled programs when a simulator or other execution method is
 // available.
 //

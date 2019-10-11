@@ -433,7 +433,7 @@ func (b *Builder) build(a *Action) (err error) {
 			err = fmt.Errorf("go build %s: %v", a.Package.ImportPath, err)
 		}
 		if err != nil && b.IsCmdList && b.NeedError && p.Error == nil {
-			p.Error = &load.PackageError{Err: err.Error()}
+			p.Error = &load.PackageError{Err: err}
 		}
 	}()
 	if cfg.BuildN {
@@ -2390,7 +2390,7 @@ func (b *Builder) gccArchArgs() []string {
 	switch cfg.Goarch {
 	case "386":
 		return []string{"-m32"}
-	case "amd64", "amd64p32":
+	case "amd64":
 		return []string{"-m64"}
 	case "arm":
 		return []string{"-marm"} // not thumb

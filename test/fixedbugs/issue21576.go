@@ -44,7 +44,9 @@ func main() {
 		log.Fatalf("Write error %v", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// Using a timeout of 1 minute in case other factors might slow
+	// down the start of "go run". See https://golang.org/issue/34836.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "go", "run", file)
@@ -55,6 +57,6 @@ func main() {
 
 	want := []byte("fatal error: all goroutines are asleep - deadlock!")
 	if !bytes.Contains(output, want) {
-		log.Fatalf("Unmatched error message %q:\nin\n%s", want, output)
+		log.Fatalf("Unmatched error message %q:\nin\n%s\nError: %v", want, output, err)
 	}
 }

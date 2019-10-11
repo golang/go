@@ -2411,3 +2411,23 @@ func TestUnmarshalRecursivePointer(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+type textUnmarshalerString string
+
+func (m *textUnmarshalerString) UnmarshalText(text []byte) error {
+	*m = textUnmarshalerString(strings.ToLower(string(text)))
+	return nil
+}
+
+// Test unmarshal to a map, with map key is a user defined type.
+// See golang.org/issues/34437.
+func TestUnmarshalMapWithTextUnmarshalerStringKey(t *testing.T) {
+	var p map[textUnmarshalerString]string
+	if err := Unmarshal([]byte(`{"FOO": "1"}`), &p); err != nil {
+		t.Fatalf("Unmarshal unexpected error: %v", err)
+	}
+
+	if _, ok := p["foo"]; !ok {
+		t.Errorf(`Key "foo" is not existed in map: %v`, p)
+	}
+}

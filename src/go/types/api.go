@@ -259,9 +259,6 @@ type TypeAndValue struct {
 	Value constant.Value
 }
 
-// TODO(gri) Consider eliminating the IsVoid predicate. Instead, report
-// "void" values as regular values but with the empty tuple type.
-
 // IsVoid reports whether the corresponding expression
 // is a function call without results.
 func (tv TypeAndValue) IsVoid() bool {

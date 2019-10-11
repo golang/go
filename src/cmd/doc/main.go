@@ -231,8 +231,8 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
 	// First, is it a complete package path as it is? If so, we are done.
 	// This avoids confusion over package paths that have other
 	// package paths as their prefix.
-	pkg, err = build.Import(arg, wd, build.ImportComment)
-	if err == nil {
+	pkg, importErr := build.Import(arg, wd, build.ImportComment)
+	if importErr == nil {
 		return pkg, arg, "", false
 	}
 	// Another disambiguator: If the symbol starts with an upper
@@ -286,7 +286,18 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
 	}
 	// If it has a slash, we've failed.
 	if slash >= 0 {
-		log.Fatalf("no such package %s", arg[0:period])
+		// build.Import should always include the path in its error message,
+		// and we should avoid repeating it. Unfortunately, build.Import doesn't
+		// return a structured error. That can't easily be fixed, since it
+		// invokes 'go list' and returns the error text from the loaded package.
+		// TODO(golang.org/issue/34750): load using golang.org/x/tools/go/packages
+		// instead of go/build.
+		importErrStr := importErr.Error()
+		if strings.Contains(importErrStr, arg[:period]) {
+			log.Fatal(importErrStr)
+		} else {
+			log.Fatalf("no such package %s: %s", arg[:period], importErrStr)
+		}
 	}
 	// Guess it's a symbol in the current directory.
 	return importDir(wd), "", arg, false

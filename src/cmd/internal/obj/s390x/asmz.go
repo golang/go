@@ -256,6 +256,10 @@ var optab = []Optab{
 	{i: 90, as: ACLGIJ, a1: C_SCON, a2: C_REG, a3: C_ADDCON, a6: C_SBRA},
 	{i: 90, as: ACMPUBEQ, a1: C_REG, a3: C_ANDCON, a6: C_SBRA},
 
+	// branch on count
+	{i: 41, as: ABRCT, a1: C_REG, a6: C_SBRA},
+	{i: 41, as: ABRCTG, a1: C_REG, a6: C_SBRA},
+
 	// move on condition
 	{i: 17, as: AMOVDEQ, a1: C_REG, a6: C_REG},
 
@@ -3393,6 +3397,21 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		} else { //BYTE
 			*asm = append(*asm, uint8(wd))
 		}
+
+	case 41: // branch on count
+		r1 := p.From.Reg
+		ri2 := (p.Pcond.Pc - p.Pc) >> 1
+		if int64(int16(ri2)) != ri2 {
+			c.ctxt.Diag("branch target too far away")
+		}
+		var opcode uint32
+		switch p.As {
+		case ABRCT:
+			opcode = op_BRCT
+		case ABRCTG:
+			opcode = op_BRCTG
+		}
+		zRI(opcode, uint32(r1), uint32(ri2), asm)
 
 	case 47: // negate [reg] reg
 		r := p.From.Reg

@@ -241,7 +241,7 @@ func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64, pr
 				fmt.Fprintf(tw, "  %s:%d\t%#x\t", base(file), line, pc)
 			}
 
-			if size%4 != 0 || d.goarch == "386" || d.goarch == "amd64" || d.goarch == "amd64p32" {
+			if size%4 != 0 || d.goarch == "386" || d.goarch == "amd64" {
 				// Print instruction as bytes.
 				fmt.Fprintf(tw, "%x", code[i:i+size])
 			} else {
@@ -367,24 +367,22 @@ func disasm_ppc64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.By
 }
 
 var disasms = map[string]disasmFunc{
-	"386":      disasm_386,
-	"amd64":    disasm_amd64,
-	"amd64p32": disasm_amd64,
-	"arm":      disasm_arm,
-	"arm64":    disasm_arm64,
-	"ppc64":    disasm_ppc64,
-	"ppc64le":  disasm_ppc64,
+	"386":     disasm_386,
+	"amd64":   disasm_amd64,
+	"arm":     disasm_arm,
+	"arm64":   disasm_arm64,
+	"ppc64":   disasm_ppc64,
+	"ppc64le": disasm_ppc64,
 }
 
 var byteOrders = map[string]binary.ByteOrder{
-	"386":      binary.LittleEndian,
-	"amd64":    binary.LittleEndian,
-	"amd64p32": binary.LittleEndian,
-	"arm":      binary.LittleEndian,
-	"arm64":    binary.LittleEndian,
-	"ppc64":    binary.BigEndian,
-	"ppc64le":  binary.LittleEndian,
-	"s390x":    binary.BigEndian,
+	"386":     binary.LittleEndian,
+	"amd64":   binary.LittleEndian,
+	"arm":     binary.LittleEndian,
+	"arm64":   binary.LittleEndian,
+	"ppc64":   binary.BigEndian,
+	"ppc64le": binary.LittleEndian,
+	"s390x":   binary.BigEndian,
 }
 
 type Liner interface {

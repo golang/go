@@ -32,7 +32,7 @@ stdout m
 
 -- go.mod --
 module m
-
+go 1.12
 -- x.go --
 package x
 import _ "rsc.io/quote"

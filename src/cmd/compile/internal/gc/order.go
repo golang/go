@@ -1174,7 +1174,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		}
 
 	case OCLOSURE:
-		if n.Noescape() && n.Func.Closure.Func.Cvars.Len() > 0 {
+		if n.Transient() && n.Func.Closure.Func.Cvars.Len() > 0 {
 			prealloc[n] = o.newTemp(closureType(n), false)
 		}
 
@@ -1183,7 +1183,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		n.Right = o.expr(n.Right, nil)
 		o.exprList(n.List)
 		o.exprList(n.Rlist)
-		if n.Noescape() {
+		if n.Transient() {
 			var t *types.Type
 			switch n.Op {
 			case OSLICELIT:
@@ -1195,7 +1195,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		}
 
 	case ODDDARG:
-		if n.Noescape() {
+		if n.Transient() {
 			// The ddd argument does not live beyond the call it is created for.
 			// Allocate a temporary that will be cleaned up when this statement
 			// completes. We could be more aggressive and try to arrange for it

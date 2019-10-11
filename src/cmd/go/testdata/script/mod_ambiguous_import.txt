@@ -20,7 +20,7 @@ stderr '^can.t load package: package example.com/m/importy: ambiguous import: fo
 
 -- $WORK/go.mod --
 module example.com/m
-go 1.14
+go 1.13
 require (
 	example.com/a v0.1.0
 	example.com/a/x v0.1.0

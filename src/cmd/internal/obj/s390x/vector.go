@@ -978,9 +978,9 @@ func vop(as obj.As) (opcode, es, cs uint32) {
 	case AVSUMQ:
 		return op_VSUMQ, 0, 0
 	case AVSUMQF:
-		return op_VSUMQ, 1, 0
-	case AVSUMQG:
 		return op_VSUMQ, 2, 0
+	case AVSUMQG:
+		return op_VSUMQ, 3, 0
 	case AVSUM:
 		return op_VSUM, 0, 0
 	case AVSUMB:

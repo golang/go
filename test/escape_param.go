@@ -205,7 +205,7 @@ func param7(i ***int) { // ERROR "leaking param content: i$"
 
 func caller7() {
 	i := 0      // ERROR "moved to heap: i$"
-	p := &i     // ERROR "moved to heap: p$"
+	p := &i
 	p2 := &p
 	param7(&p2)
 }

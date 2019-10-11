@@ -193,9 +193,6 @@ func TestSetPanicOnFault(t *testing.T) {
 }
 
 func testSetPanicOnFault(t *testing.T, addr uintptr, nfault *int) {
-	if GOOS == "nacl" {
-		t.Skip("nacl doesn't seem to fault on high addresses")
-	}
 	if GOOS == "js" {
 		t.Skip("js does not support catching faults")
 	}
@@ -294,7 +291,7 @@ func TestTrailingZero(t *testing.T) {
 }
 
 func TestBadOpen(t *testing.T) {
-	if GOOS == "windows" || GOOS == "nacl" || GOOS == "js" {
+	if GOOS == "windows" || GOOS == "js" {
 		t.Skip("skipping OS that doesn't have open/read/write/close")
 	}
 	// make sure we get the correct error code if open fails. Same for

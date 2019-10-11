@@ -185,14 +185,10 @@ GLOBL	runtime·mainPC(SB),RODATA,$4
 TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
 	// gdb won't skip this breakpoint instruction automatically,
 	// so you must manually "set $pc+=4" to skip it and continue.
-#ifdef GOOS_nacl
-	WORD	$0xe125be7f	// BKPT 0x5bef, NACL_INSTR_ARM_BREAKPOINT
-#else
 #ifdef GOOS_plan9
 	WORD	$0xD1200070	// undefined instruction used as armv5 breakpoint in Plan 9
 #else
 	WORD	$0xe7f001f0	// undefined instruction that gdb understands is a software breakpoint
-#endif
 #endif
 	RET
 
@@ -327,9 +323,6 @@ switch:
 	// save our state in g->sched. Pretend to
 	// be systemstack_switch if the G stack is scanned.
 	MOVW	$runtime·systemstack_switch(SB), R3
-#ifdef GOOS_nacl
-	ADD	$4, R3, R3 // get past nacl-insert bic instruction
-#endif
 	ADD	$4, R3, R3 // get past push {lr}
 	MOVW	R3, (g_sched+gobuf_pc)(g)
 	MOVW	R13, (g_sched+gobuf_sp)(g)
@@ -887,7 +880,6 @@ TEXT runtime·usplitR0(SB),NOSPLIT,$0
 	SUB	R1, R3, R1
 	RET
 
-#ifndef GOOS_nacl
 // This is called from .init_array and follows the platform, not Go, ABI.
 TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
 	MOVW	R9, saver9-4(SP) // The access to global variables below implicitly uses R9, which is callee-save
@@ -898,7 +890,6 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
 	MOVW	saver11-8(SP), R11
 	MOVW	saver9-4(SP), R9
 	RET
-#endif
 
 TEXT ·checkASM(SB),NOSPLIT,$0-1
 	MOVW	$1, R3
@@ -935,8 +926,6 @@ ret:
 	MOVM.IA.W	(R13), [R0,R1]
 	// Do the write.
 	MOVW	R3, (R2)
-	// Normally RET on nacl clobbers R12, but because this
-	// function has no frame it doesn't have to usual epilogue.
 	RET
 
 flush:

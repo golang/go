@@ -409,6 +409,10 @@ const (
 	ABVS
 	ASYSCALL
 
+	// branch on count
+	ABRCT
+	ABRCTG
+
 	// compare and branch
 	ACRJ
 	ACGRJ

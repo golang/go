@@ -30,6 +30,7 @@ import (
 	"cmd/go/internal/mvs"
 	"cmd/go/internal/renameio"
 	"cmd/go/internal/search"
+	"cmd/go/internal/semver"
 )
 
 var (
@@ -56,6 +57,8 @@ var (
 
 	CmdModInit   bool   // running 'go mod init'
 	CmdModModule string // module argument for 'go mod init'
+
+	allowMissingModuleImports bool
 )
 
 // ModFile returns the parsed go.mod file.
@@ -198,28 +201,21 @@ func Init() {
 	if modRoot == "" {
 		// We're in module mode, but not inside a module.
 		//
-		// If the command is 'go get' or 'go list' and all of the args are in the
-		// same existing module, we could use that module's download directory in
-		// the module cache as the module root, applying any replacements and/or
-		// exclusions specified by that module. However, that would leave us in a
-		// strange state: we want 'go get' to be consistent with 'go list', and 'go
-		// list' should be able to operate on multiple modules. Moreover, the 'get'
-		// target might specify relative file paths (e.g. in the same repository) as
-		// replacements, and we would not be able to apply those anyway: we would
-		// need to either error out or ignore just those replacements, when a build
-		// from an empty module could proceed without error.
+		// Commands like 'go build', 'go run', 'go list' have no go.mod file to
+		// read or write. They would need to find and download the latest versions
+		// of a potentially large number of modules with no way to save version
+		// information. We can succeed slowly (but not reproducibly), but that's
+		// not usually a good experience.
 		//
-		// Instead, we'll operate as though we're in some ephemeral external module,
-		// ignoring all replacements and exclusions uniformly.
-
-		// Normally we check sums using the go.sum file from the main module, but
-		// without a main module we do not have an authoritative go.sum file.
+		// Instead, we forbid resolving import paths to modules other than std and
+		// cmd. Users may still build packages specified with .go files on the
+		// command line, but they'll see an error if those files import anything
+		// outside std.
 		//
-		// TODO(bcmills): In Go 1.13, check sums when outside the main module.
+		// This can be overridden by calling AllowMissingModuleImports.
+		// For example, 'go get' does this, since it is expected to resolve paths.
 		//
-		// One possible approach is to merge the go.sum files from all of the
-		// modules we download: that doesn't protect us against bad top-level
-		// modules, but it at least ensures consistency for transitive dependencies.
+		// See golang.org/issue/32027.
 	} else {
 		modfetch.GoSumFile = filepath.Join(modRoot, "go.sum")
 		search.SetModRoot(modRoot)
@@ -349,8 +345,22 @@ func InitMod() {
 		excluded[x.Mod] = true
 	}
 	modFileToBuildList()
-	stdVendorMode()
-	WriteGoMod()
+	setDefaultBuildMod()
+	if cfg.BuildMod == "vendor" {
+		readVendorList()
+		checkVendorConsistency()
+	} else {
+		// TODO(golang.org/issue/33326): if cfg.BuildMod != "readonly"?
+		WriteGoMod()
+	}
+}
+
+// AllowMissingModuleImports allows import paths to be resolved to modules
+// when there is no module root. Normally, this is forbidden because it's slow
+// and there's no way to make the result reproducible, but some commands
+// like 'go get' are expected to do this.
+func AllowMissingModuleImports() {
+	allowMissingModuleImports = true
 }
 
 // modFileToBuildList initializes buildList from the modFile.
@@ -371,40 +381,133 @@ func modFileToBuildList() {
 	buildList = list
 }
 
-// stdVendorMode applies inside $GOROOT/src.
-// It checks that the go.mod matches vendor/modules.txt
-// and then sets -mod=vendor unless this is a command
-// that has to do explicitly with modules.
-func stdVendorMode() {
-	if !targetInGorootSrc {
+// setDefaultBuildMod sets a default value for cfg.BuildMod
+// if it is currently empty.
+func setDefaultBuildMod() {
+	if cfg.BuildMod != "" {
+		// Don't override an explicit '-mod=' argument.
 		return
 	}
+	cfg.BuildMod = "mod"
 	if cfg.CmdName == "get" || strings.HasPrefix(cfg.CmdName, "mod ") {
+		// Don't set -mod implicitly for commands whose purpose is to
+		// manipulate the build list.
 		return
+	}
+	if modRoot != "" {
+		if fi, err := os.Stat(filepath.Join(modRoot, "vendor")); err == nil && fi.IsDir() {
+			modGo := "unspecified"
+			if modFile.Go != nil {
+				if semver.Compare("v"+modFile.Go.Version, "v1.14") >= 0 {
+					// The Go version is at least 1.14, and a vendor directory exists.
+					// Set -mod=vendor by default.
+					cfg.BuildMod = "vendor"
+					return
+				} else {
+					modGo = modFile.Go.Version
+				}
+			}
+			fmt.Fprintf(os.Stderr, "go: not defaulting to -mod=vendor because go.mod 'go' version is %s\n", modGo)
+		}
 	}
 
+	// TODO(golang.org/issue/33326): set -mod=readonly implicitly if the go.mod
+	// file is itself read-only?
+}
+
+// checkVendorConsistency verifies that the vendor/modules.txt file matches (if
+// go 1.14) or at least does not contradict (go 1.13 or earlier) the
+// requirements and replacements listed in the main module's go.mod file.
+func checkVendorConsistency() {
 	readVendorList()
-BuildList:
-	for _, m := range buildList {
-		if m.Path == "cmd" || m.Path == "std" {
-			continue
+
+	pre114 := false
+	if modFile.Go == nil || semver.Compare("v"+modFile.Go.Version, "v1.14") < 0 {
+		// Go versions before 1.14 did not include enough information in
+		// vendor/modules.txt to check for consistency.
+		// If we know that we're on an earlier version, relax the consistency check.
+		pre114 = true
+	}
+
+	vendErrors := new(strings.Builder)
+	vendErrorf := func(mod module.Version, format string, args ...interface{}) {
+		detail := fmt.Sprintf(format, args...)
+		if mod.Version == "" {
+			fmt.Fprintf(vendErrors, "\n\t%s: %s", mod.Path, detail)
+		} else {
+			fmt.Fprintf(vendErrors, "\n\t%s@%s: %s", mod.Path, mod.Version, detail)
 		}
-		for _, v := range vendorList {
-			if m.Path == v.Path {
-				if m.Version != v.Version {
-					base.Fatalf("go: inconsistent vendoring in %s:\n"+
-						"\tgo.mod requires %s %s but vendor/modules.txt has %s.\n"+
-						"\trun 'go mod tidy; go mod vendor' to sync",
-						modRoot, m.Path, m.Version, v.Version)
+	}
+
+	explicitInGoMod := make(map[module.Version]bool, len(modFile.Require))
+	for _, r := range modFile.Require {
+		explicitInGoMod[r.Mod] = true
+		if !vendorMeta[r.Mod].Explicit {
+			if pre114 {
+				// Before 1.14, modules.txt did not indicate whether modules were listed
+				// explicitly in the main module's go.mod file.
+				// However, we can at least detect a version mismatch if packages were
+				// vendored from a non-matching version.
+				if vv, ok := vendorVersion[r.Mod.Path]; ok && vv != r.Mod.Version {
+					vendErrorf(r.Mod, fmt.Sprintf("is explicitly required in go.mod, but vendor/modules.txt indicates %s@%s", r.Mod.Path, vv))
 				}
-				continue BuildList
+			} else {
+				vendErrorf(r.Mod, "is explicitly required in go.mod, but not marked as explicit in vendor/modules.txt")
 			}
 		}
-		base.Fatalf("go: inconsistent vendoring in %s:\n"+
-			"\tgo.mod requires %s %s but vendor/modules.txt does not include it.\n"+
-			"\trun 'go mod tidy; go mod vendor' to sync", modRoot, m.Path, m.Version)
 	}
-	cfg.BuildMod = "vendor"
+
+	describe := func(m module.Version) string {
+		if m.Version == "" {
+			return m.Path
+		}
+		return m.Path + "@" + m.Version
+	}
+
+	// We need to verify *all* replacements that occur in modfile: even if they
+	// don't directly apply to any module in the vendor list, the replacement
+	// go.mod file can affect the selected versions of other (transitive)
+	// dependencies
+	goModReplacement := make(map[module.Version]module.Version, len(modFile.Replace))
+	for _, r := range modFile.Replace {
+		goModReplacement[r.Old] = r.New
+		vr := vendorMeta[r.Old].Replacement
+		if vr == (module.Version{}) {
+			if pre114 && (r.Old.Version == "" || vendorVersion[r.Old.Path] != r.Old.Version) {
+				// Before 1.14, modules.txt omitted wildcard replacements and
+				// replacements for modules that did not have any packages to vendor.
+			} else {
+				vendErrorf(r.Old, "is replaced in go.mod, but not marked as replaced in vendor/modules.txt")
+			}
+		} else if vr != r.New {
+			vendErrorf(r.Old, "is replaced by %s in go.mod, but marked as replaced by %s in vendor/modules.txt", describe(r.New), describe(vr))
+		}
+	}
+
+	for _, mod := range vendorList {
+		meta := vendorMeta[mod]
+		if meta.Explicit && !explicitInGoMod[mod] {
+			vendErrorf(mod, "is marked as explicit in vendor/modules.txt, but not explicitly required in go.mod")
+		}
+	}
+
+	for _, mod := range vendorReplaced {
+		r, ok := goModReplacement[mod]
+		if !ok {
+			r, ok = goModReplacement[module.Version{Path: mod.Path}]
+		}
+		if !ok {
+			vendErrorf(mod, "is marked as replaced in vendor/modules.txt, but not replaced in go.mod")
+			continue
+		}
+		if meta := vendorMeta[mod]; r != meta.Replacement {
+			vendErrorf(mod, "is marked as replaced by %s in vendor/modules.txt, but replaced by %s in go.mod", describe(meta.Replacement), describe(r))
+		}
+	}
+
+	if vendErrors.Len() > 0 {
+		base.Fatalf("go: inconsistent vendoring in %s:%s\n\nrun 'go mod vendor' to sync, or use -mod=mod or -mod=readonly to ignore the vendor directory", modRoot, vendErrors)
+	}
 }
 
 // Allowed reports whether module m is allowed (not excluded) by the main module's go.mod.

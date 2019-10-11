@@ -6,12 +6,12 @@ env GOPATH=$WORK/empty
 env GOPROXY=file:///nonexist
 
 go list -mod=vendor
-go list -mod=vendor -m -f '{{.Path}} {{.Version}} {{.Dir}}' all
+go list -mod=vendor -f '{{with .Module}}{{.Path}} {{.Version}}{{end}} {{.Dir}}' all
 stdout '^rsc.io/quote v1.5.1 .*vendor[\\/]rsc.io[\\/]quote$'
-stdout '^golang.org/x/text v0.0.0.* .*vendor[\\/]golang.org[\\/]x[\\/]text$'
+stdout '^golang.org/x/text v0.0.0.* .*vendor[\\/]golang.org[\\/]x[\\/]text[\\/]language$'
 
 ! go list -mod=vendor -m rsc.io/quote@latest
-stderr 'module lookup disabled by -mod=vendor'
+stderr 'go list -m: can''t list modules with -mod=vendor\n\tuse -mod=mod or -mod=readonly to ignore the vendor directory'
 ! go get -mod=vendor -u
 stderr 'flag provided but not defined: -mod'
 

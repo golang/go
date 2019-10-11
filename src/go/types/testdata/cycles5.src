@@ -188,3 +188,13 @@ func h() [h /* ERROR no value */ ()[0]]int { panic(0) }
 
 var c14 /* ERROR cycle */ T14
 type T14 [uintptr(unsafe.Sizeof(&c14))]byte
+
+// issue #34333
+type T15 /* ERROR cycle */ struct {
+	f func() T16
+	b T16
+}
+
+type T16 struct {
+	T15
+}

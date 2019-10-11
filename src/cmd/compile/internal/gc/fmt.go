@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 	"fmt"
 	"io"
 	"strconv"
@@ -425,7 +426,14 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 	}
 
 	if n.Pos.IsKnown() {
-		fmt.Fprintf(s, " l(%d)", n.Pos.Line())
+		pfx := ""
+		switch n.Pos.IsStmt() {
+		case src.PosNotStmt:
+			pfx = "_" // "-" would be confusing
+		case src.PosIsStmt:
+			pfx = "+"
+		}
+		fmt.Fprintf(s, " l(%s%d)", pfx, n.Pos.Line())
 	}
 
 	if c == 0 && n.Xoffset != BADWIDTH {

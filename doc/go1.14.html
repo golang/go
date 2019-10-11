@@ -51,18 +51,43 @@ TODO
 
 <h3 id="go-command">Go command</h3>
 
+<!-- golang.org/issue/33848 -->
+<p>
+  When the main module contains a top-level <code>vendor</code> directory and
+  its <code>go.mod</code> file specifies <code>go</code> <code>1.14</code> or
+  higher, the <code>go</code> command now defaults to <code>-mod=vendor</code>
+  for operations that accept that flag. A new value for that flag,
+  <code>-mod=mod</code>, causes the <code>go</code> command to instead load
+  modules from the module cache (as when no <code>vendor</code> directory is
+  present).
+</p>
+
+<p>
+  When <code>-mod=vendor</code> is set (explicitly or by default), the
+  <code>go</code> command now verifies that the main module's
+  <code>vendor/modules.txt</code> file is consistent with its
+  <code>go.mod</code> file.
+</p>
+
+<p>
+  <code>go</code> <code>list</code> <code>-m</code> no longer silently omits
+  transitive dependencies that do not provide packages in
+  the <code>vendor</code> directory. It now fails explicitly if
+  <code>-mod=vendor</code> is set.
+</p>
+
+<p><!-- golang.org/issue/32502, golang.org/issue/30345 -->
+  The <code>go</code> <code>get</code> command no longer accepts
+  the <code>-mod</code> flag. Previously, the flag's setting either
+  <a href="https://golang.org/issue/30345">was ignored</a> or
+  <a href="https://golang.org/issue/32502">caused the build to fail</a>.
+</p>
+
 <p><!-- golang.org/issue/30748 -->
   The <code>go</code> command now includes snippets of plain-text error messages
   from module proxies and other HTTP servers.
   An error message will only be shown if it is valid UTF-8 and consists of only
   graphic characters and spaces.
-</p>
-
-<p><!-- golang.org/issue/32502, golang.org/issue/30345 -->
-  The <code>go</code> <code>get</code> subcommand no longer accepts
-  the <code>-mod</code> flag. Previously, the flag's setting either
-  <a href="https://golang.org/issue/30345">was ignored</a> or
-  <a href="https://golang.org/issue/32502">caused the build to fail</a>.
 </p>
 
 <h2 id="runtime">Runtime</h2>

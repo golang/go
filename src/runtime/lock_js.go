@@ -149,16 +149,18 @@ var returnedEventHandler *g
 func init() {
 	// At the toplevel we need an extra goroutine that handles asynchronous events.
 	initg := getg()
-	go func() {
-		returnedEventHandler = getg()
-		goready(initg, 1)
-
-		gopark(nil, nil, waitReasonZero, traceEvNone, 1)
-		returnedEventHandler = nil
-
-		pause(getcallersp() - 16)
-	}()
+	go handleAsyncEvents(initg)
 	gopark(nil, nil, waitReasonZero, traceEvNone, 1)
+}
+
+func handleAsyncEvents(initg *g) {
+	returnedEventHandler = getg()
+	goready(initg, 1)
+
+	gopark(nil, nil, waitReasonZero, traceEvNone, 1)
+	returnedEventHandler = nil
+
+	pause(getcallersp() - 16)
 }
 
 // beforeIdle gets called by the scheduler if no goroutine is awake.

@@ -3881,7 +3881,7 @@ type http2ServeConnOpts struct {
 }
 
 func (o *http2ServeConnOpts) context() context.Context {
-	if o.Context != nil {
+	if o != nil && o.Context != nil {
 		return o.Context
 	}
 	return context.Background()
@@ -5979,7 +5979,11 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 			clen = strconv.Itoa(len(p))
 		}
 		_, hasContentType := rws.snapHeader["Content-Type"]
-		if !hasContentType && http2bodyAllowedForStatus(rws.status) && len(p) > 0 {
+		// If the Content-Encoding is non-blank, we shouldn't
+		// sniff the body. See Issue golang.org/issue/31753.
+		ce := rws.snapHeader.Get("Content-Encoding")
+		hasCE := len(ce) > 0
+		if !hasCE && !hasContentType && http2bodyAllowedForStatus(rws.status) && len(p) > 0 {
 			ctype = DetectContentType(p)
 		}
 		var date string
@@ -6088,7 +6092,7 @@ const http2TrailerPrefix = "Trailer:"
 // trailers. That worked for a while, until we found the first major
 // user of Trailers in the wild: gRPC (using them only over http2),
 // and gRPC libraries permit setting trailers mid-stream without
-// predeclarnig them. So: change of plans. We still permit the old
+// predeclaring them. So: change of plans. We still permit the old
 // way, but we also permit this hack: if a Header() key begins with
 // "Trailer:", the suffix of that key is a Trailer. Because ':' is an
 // invalid token byte anyway, there is no ambiguity. (And it's already
@@ -6388,7 +6392,7 @@ func (sc *http2serverConn) startPush(msg *http2startPushRequest) {
 	// PUSH_PROMISE frames MUST only be sent on a peer-initiated stream that
 	// is in either the "open" or "half-closed (remote)" state.
 	if msg.parent.state != http2stateOpen && msg.parent.state != http2stateHalfClosedRemote {
-		// responseWriter.Push checks that the stream is peer-initiaed.
+		// responseWriter.Push checks that the stream is peer-initiated.
 		msg.done <- http2errStreamClosed
 		return
 	}
@@ -7705,6 +7709,8 @@ var (
 
 	// abort request body write, but send stream reset of cancel.
 	http2errStopReqBodyWriteAndCancel = errors.New("http2: canceling request")
+
+	http2errReqBodyTooLong = errors.New("http2: request body larger than specified content length")
 )
 
 func (cs *http2clientStream) writeRequestBody(body io.Reader, bodyCloser io.Closer) (err error) {
@@ -7727,10 +7733,32 @@ func (cs *http2clientStream) writeRequestBody(body io.Reader, bodyCloser io.Clos
 
 	req := cs.req
 	hasTrailers := req.Trailer != nil
+	remainLen := http2actualContentLength(req)
+	hasContentLen := remainLen != -1
 
 	var sawEOF bool
 	for !sawEOF {
-		n, err := body.Read(buf)
+		n, err := body.Read(buf[:len(buf)-1])
+		if hasContentLen {
+			remainLen -= int64(n)
+			if remainLen == 0 && err == nil {
+				// The request body's Content-Length was predeclared and
+				// we just finished reading it all, but the underlying io.Reader
+				// returned the final chunk with a nil error (which is one of
+				// the two valid things a Reader can do at EOF). Because we'd prefer
+				// to send the END_STREAM bit early, double-check that we're actually
+				// at EOF. Subsequent reads should return (0, EOF) at this point.
+				// If either value is different, we return an error in one of two ways below.
+				var n1 int
+				n1, err = body.Read(buf[n:])
+				remainLen -= int64(n1)
+			}
+			if remainLen < 0 {
+				err = http2errReqBodyTooLong
+				cc.writeStreamReset(cs.ID, http2ErrCodeCancel, err)
+				return err
+			}
+		}
 		if err == io.EOF {
 			sawEOF = true
 			err = nil
@@ -9831,7 +9859,7 @@ func (n *http2priorityNode) addBytes(b int64) {
 }
 
 // walkReadyInOrder iterates over the tree in priority order, calling f for each node
-// with a non-empty write queue. When f returns true, this funcion returns true and the
+// with a non-empty write queue. When f returns true, this function returns true and the
 // walk halts. tmp is used as scratch space for sorting.
 //
 // f(n, openParent) takes two arguments: the node to visit, n, and a bool that is true
@@ -10148,7 +10176,8 @@ type http2randomWriteScheduler struct {
 	zero http2writeQueue
 
 	// sq contains the stream-specific queues, keyed by stream ID.
-	// When a stream is idle or closed, it's deleted from the map.
+	// When a stream is idle, closed, or emptied, it's deleted
+	// from the map.
 	sq map[uint32]*http2writeQueue
 
 	// pool of empty queues for reuse.
@@ -10192,8 +10221,12 @@ func (ws *http2randomWriteScheduler) Pop() (http2FrameWriteRequest, bool) {
 		return ws.zero.shift(), true
 	}
 	// Iterate over all non-idle streams until finding one that can be consumed.
-	for _, q := range ws.sq {
+	for streamID, q := range ws.sq {
 		if wr, ok := q.consume(math.MaxInt32); ok {
+			if q.empty() {
+				delete(ws.sq, streamID)
+				ws.queuePool.put(q)
+			}
 			return wr, true
 		}
 	}

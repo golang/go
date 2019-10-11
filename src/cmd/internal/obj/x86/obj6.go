@@ -48,7 +48,6 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
 	if ctxt.Arch.Family == sys.I386 {
 		switch ctxt.Headtype {
 		case objabi.Hlinux,
-			objabi.Hnacl,
 			objabi.Hplan9,
 			objabi.Hwindows:
 			return false
@@ -206,14 +205,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.As = ALEAQ
 			p.From.Type = obj.TYPE_MEM
 		}
-	}
-
-	if ctxt.Headtype == objabi.Hnacl && ctxt.Arch.Family == sys.AMD64 {
-		if p.GetFrom3() != nil {
-			nacladdr(ctxt, p, p.GetFrom3())
-		}
-		nacladdr(ctxt, p, &p.From)
-		nacladdr(ctxt, p, &p.To)
 	}
 
 	// Rewrite float constants to values stored in memory.
@@ -568,38 +559,6 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	obj.Nopout(p)
 }
 
-func nacladdr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
-	if p.As == ALEAL || p.As == ALEAQ {
-		return
-	}
-
-	if a.Reg == REG_BP {
-		ctxt.Diag("invalid address: %v", p)
-		return
-	}
-
-	if a.Reg == REG_TLS {
-		a.Reg = REG_BP
-	}
-	if a.Type == obj.TYPE_MEM && a.Name == obj.NAME_NONE {
-		switch a.Reg {
-		// all ok
-		case REG_BP, REG_SP, REG_R15:
-			break
-
-		default:
-			if a.Index != REG_NONE {
-				ctxt.Diag("invalid address %v", p)
-			}
-			a.Index = a.Reg
-			if a.Index != REG_NONE {
-				a.Scale = 1
-			}
-			a.Reg = REG_R15
-		}
-	}
-}
-
 func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	if cursym.Func.Text == nil || cursym.Func.Text.Link == nil {
 		return
@@ -762,13 +721,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.From.Offset = 4 * int64(ctxt.Arch.PtrSize) // g_panic
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_BX
-		if ctxt.Headtype == objabi.Hnacl && ctxt.Arch.Family == sys.AMD64 {
-			p.As = AMOVL
-			p.From.Type = obj.TYPE_MEM
-			p.From.Reg = REG_R15
-			p.From.Scale = 1
-			p.From.Index = REG_CX
-		}
 		if ctxt.Arch.Family == sys.I386 {
 			p.As = AMOVL
 		}
@@ -780,7 +732,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.From.Reg = REG_BX
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_BX
-		if ctxt.Headtype == objabi.Hnacl || ctxt.Arch.Family == sys.I386 {
+		if ctxt.Arch.Family == sys.I386 {
 			p.As = ATESTL
 		}
 
@@ -807,7 +759,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.From.Offset = int64(autoffset) + int64(ctxt.Arch.RegSize)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_DI
-		if ctxt.Headtype == objabi.Hnacl || ctxt.Arch.Family == sys.I386 {
+		if ctxt.Arch.Family == sys.I386 {
 			p.As = ALEAL
 		}
 
@@ -822,13 +774,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.From.Offset = 0 // Panic.argp
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_DI
-		if ctxt.Headtype == objabi.Hnacl && ctxt.Arch.Family == sys.AMD64 {
-			p.As = ACMPL
-			p.From.Type = obj.TYPE_MEM
-			p.From.Reg = REG_R15
-			p.From.Scale = 1
-			p.From.Index = REG_BX
-		}
 		if ctxt.Arch.Family == sys.I386 {
 			p.As = ACMPL
 		}
@@ -847,13 +792,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = REG_BX
 		p.To.Offset = 0 // Panic.argp
-		if ctxt.Headtype == objabi.Hnacl && ctxt.Arch.Family == sys.AMD64 {
-			p.As = AMOVL
-			p.To.Type = obj.TYPE_MEM
-			p.To.Reg = REG_R15
-			p.To.Scale = 1
-			p.To.Index = REG_BX
-		}
 		if ctxt.Arch.Family == sys.I386 {
 			p.As = AMOVL
 		}
@@ -988,14 +926,6 @@ func isZeroArgRuntimeCall(s *obj.LSym) bool {
 }
 
 func indir_cx(ctxt *obj.Link, a *obj.Addr) {
-	if ctxt.Headtype == objabi.Hnacl && ctxt.Arch.Family == sys.AMD64 {
-		a.Type = obj.TYPE_MEM
-		a.Reg = REG_R15
-		a.Index = REG_CX
-		a.Scale = 1
-		return
-	}
-
 	a.Type = obj.TYPE_MEM
 	a.Reg = REG_CX
 }
@@ -1040,7 +970,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	mov := AMOVQ
 	sub := ASUBQ
 
-	if ctxt.Headtype == objabi.Hnacl || ctxt.Arch.Family == sys.I386 {
+	if ctxt.Arch.Family == sys.I386 {
 		cmp = ACMPL
 		lea = ALEAL
 		mov = AMOVL
@@ -1288,16 +1218,6 @@ var unaryDst = map[obj.As]bool{
 
 var Linkamd64 = obj.LinkArch{
 	Arch:           sys.ArchAMD64,
-	Init:           instinit,
-	Preprocess:     preprocess,
-	Assemble:       span6,
-	Progedit:       progedit,
-	UnaryDst:       unaryDst,
-	DWARFRegisters: AMD64DWARFRegisters,
-}
-
-var Linkamd64p32 = obj.LinkArch{
-	Arch:           sys.ArchAMD64P32,
 	Init:           instinit,
 	Preprocess:     preprocess,
 	Assemble:       span6,

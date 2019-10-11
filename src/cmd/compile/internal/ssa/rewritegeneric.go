@@ -47414,10 +47414,8 @@ func rewriteBlockgeneric(b *Block) bool {
 		for b.Controls[0].Op == OpNot {
 			v_0 := b.Controls[0]
 			cond := v_0.Args[0]
-			b.Kind = BlockIf
-			b.ResetControls()
+			b.Reset(BlockIf)
 			b.AddControl(cond)
-			b.Aux = nil
 			b.swapSuccessors()
 			return true
 		}
@@ -47430,9 +47428,7 @@ func rewriteBlockgeneric(b *Block) bool {
 			if !(c == 1) {
 				break
 			}
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (If (ConstBool [c]) yes no)
@@ -47444,9 +47440,7 @@ func rewriteBlockgeneric(b *Block) bool {
 			if !(c == 0) {
 				break
 			}
-			b.Kind = BlockFirst
-			b.ResetControls()
-			b.Aux = nil
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}

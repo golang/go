@@ -36,6 +36,11 @@ go doc rsc.io/quote
 ! stdout 'Package quote is located in a GOPATH workspace.'
 stdout 'Package quote collects pithy sayings.'
 
+# Check that a sensible error message is printed when a package is not found.
+env GOPROXY=off
+! go doc example.com/hello
+stderr '^doc: cannot find module providing package example.com/hello: module lookup disabled by GOPROXY=off$'
+
 -- go.mod --
 module x
 require rsc.io/quote v1.5.2

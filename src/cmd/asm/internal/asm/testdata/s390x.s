@@ -266,6 +266,9 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	BLTU	0(PC)                  // a7540000
 	BLEU	0(PC)                  // a7d40000
 
+	BRCT	R1, 0(PC)              // a7160000
+	BRCTG	R2, 0(PC)              // a7270000
+
 	CMPBNE	R1, R2, 0(PC)          // ec1200007064
 	CMPBEQ	R3, R4, 0(PC)          // ec3400008064
 	CMPBLT	R5, R6, 0(PC)          // ec5600004064
@@ -435,6 +438,12 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	VMSLEG  V21, V22, V23, V24      // e78563807fb8
 	VMSLOG  V21, V22, V23, V24      // e78563407fb8
 	VMSLEOG V21, V22, V23, V24      // e78563c07fb8
+	VSUMGH	V1, V2, V3              // e73120001065
+	VSUMGF	V16, V17, V18           // e72010002e65
+	VSUMQF	V4, V5, V6              // e76450002067
+	VSUMQG	V19, V20, V21           // e75340003e67
+	VSUMB	V7, V8, V9              // e79780000064
+	VSUMH	V22, V23, V24           // e78670001e64
 
 	RET
 	RET	foo(SB)

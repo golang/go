@@ -5,7 +5,6 @@
 // +build !plan9
 // +build !solaris
 // +build !windows
-// +build !nacl
 // +build !js
 // +build !darwin
 // +build !aix

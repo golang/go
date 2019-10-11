@@ -1391,15 +1391,8 @@ func TestUnaligned64(t *testing.T) {
 	// Unaligned 64-bit atomics on 32-bit systems are
 	// a continual source of pain. Test that on 32-bit systems they crash
 	// instead of failing silently.
-
-	switch runtime.GOARCH {
-	default:
-		if !arch32 {
-			t.Skip("test only runs on 32-bit systems")
-		}
-	case "amd64p32":
-		// amd64p32 can handle unaligned atomics.
-		t.Skipf("test not needed on %v", runtime.GOARCH)
+	if !arch32 {
+		t.Skip("test only runs on 32-bit systems")
 	}
 
 	x := make([]uint32, 4)

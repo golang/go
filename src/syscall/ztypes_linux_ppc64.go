@@ -586,6 +586,12 @@ const (
 	_AT_EACCESS          = 0x200
 )
 
+type pollFd struct {
+	Fd      int32
+	Events  int16
+	Revents int16
+}
+
 type Termios struct {
 	Iflag     uint32
 	Oflag     uint32

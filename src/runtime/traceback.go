@@ -26,8 +26,8 @@ import (
 // takes up only 4 bytes on the stack, while on 64-bit systems it takes up 8 bytes.
 // Typically this is ptrSize.
 //
-// As an exception, amd64p32 has ptrSize == 4 but the CALL instruction still
-// stores an 8-byte return PC onto the stack. To accommodate this, we use regSize
+// As an exception, amd64p32 had ptrSize == 4 but the CALL instruction still
+// stored an 8-byte return PC onto the stack. To accommodate this, we used regSize
 // as the size of the architecture-pushed return PC.
 //
 // usesLR is defined below in terms of minFrameSize, which is defined in
@@ -997,8 +997,8 @@ func topofstack(f funcInfo, g0 bool) bool {
 
 // isSystemGoroutine reports whether the goroutine g must be omitted
 // in stack dumps and deadlock detector. This is any goroutine that
-// starts at a runtime.* entry point, except for runtime.main and
-// sometimes runtime.runfinq.
+// starts at a runtime.* entry point, except for runtime.main,
+// runtime.handleAsyncEvents (wasm only) and sometimes runtime.runfinq.
 //
 // If fixed is true, any goroutine that can vary between user and
 // system (that is, the finalizer goroutine) is considered a user
@@ -1009,7 +1009,7 @@ func isSystemGoroutine(gp *g, fixed bool) bool {
 	if !f.valid() {
 		return false
 	}
-	if f.funcID == funcID_runtime_main {
+	if f.funcID == funcID_runtime_main || f.funcID == funcID_handleAsyncEvents {
 		return false
 	}
 	if f.funcID == funcID_runfinq {

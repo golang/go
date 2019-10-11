@@ -79,7 +79,9 @@ should only run when the condition is satisfied. The available conditions are:
    - [exec:prog] for whether prog is available for execution (found by exec.LookPath)
 
 A condition can be negated: [!short] means to run the rest of the line
-when testing.Short() is false.
+when testing.Short() is false. Multiple conditions may be given for a single
+command, for example, '[linux] [amd64] skip'. The command will run if all conditions
+are satisfied.
 
 The commands are:
 
