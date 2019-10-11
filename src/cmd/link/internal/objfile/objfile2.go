@@ -477,8 +477,8 @@ func loadObjReloc(l *Loader, r *oReader) {
 		}
 
 		if s.Type != 0 && s.Type != sym.SXREF {
-			fmt.Println("symbol already processed:", lib, i, s)
-			panic("symbol already processed")
+			// We've already seen this symbol, it likely came from a host object.
+			continue
 		}
 
 		t := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)]
