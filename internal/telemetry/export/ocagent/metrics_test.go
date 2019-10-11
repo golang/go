@@ -62,6 +62,46 @@ func TestDataToMetricDescriptor(t *testing.T) {
 				},
 			},
 		},
+		{
+			"HistogramInt64",
+			&metric.HistogramInt64Data{
+				Info: &metric.HistogramInt64{
+					Name:        "histogram int",
+					Description: "histogram int metric",
+					Keys:        []interface{}{"hello"},
+				},
+			},
+			&wire.MetricDescriptor{
+				Name:        "histogram int",
+				Description: "histogram int metric",
+				Type:        wire.MetricDescriptor_CUMULATIVE_DISTRIBUTION,
+				LabelKeys: []*wire.LabelKey{
+					&wire.LabelKey{
+						Key: "hello",
+					},
+				},
+			},
+		},
+		{
+			"HistogramFloat64",
+			&metric.HistogramFloat64Data{
+				Info: &metric.HistogramFloat64{
+					Name:        "histogram float",
+					Description: "histogram float metric",
+					Keys:        []interface{}{"hello"},
+				},
+			},
+			&wire.MetricDescriptor{
+				Name:        "histogram float",
+				Description: "histogram float metric",
+				Type:        wire.MetricDescriptor_CUMULATIVE_DISTRIBUTION,
+				LabelKeys: []*wire.LabelKey{
+					&wire.LabelKey{
+						Key: "hello",
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -102,6 +142,24 @@ func TestGetDescription(t *testing.T) {
 				},
 			},
 			"float metric",
+		},
+		{
+			"HistogramInt64Data description",
+			&metric.HistogramInt64Data{
+				Info: &metric.HistogramInt64{
+					Description: "histogram int metric",
+				},
+			},
+			"histogram int metric",
+		},
+		{
+			"HistogramFloat64Data description",
+			&metric.HistogramFloat64Data{
+				Info: &metric.HistogramFloat64{
+					Description: "histogram float metric",
+				},
+			},
+			"histogram float metric",
 		},
 	}
 
@@ -157,6 +215,36 @@ func TestGetLabelKeys(t *testing.T) {
 				},
 			},
 		},
+		{
+			"HistogramInt64Data label keys",
+			&metric.HistogramInt64Data{
+				Info: &metric.HistogramInt64{
+					Keys: []interface{}{
+						"hello",
+					},
+				},
+			},
+			[]*wire.LabelKey{
+				&wire.LabelKey{
+					Key: "hello",
+				},
+			},
+		},
+		{
+			"HistogramFloat64Data label keys",
+			&metric.HistogramFloat64Data{
+				Info: &metric.HistogramFloat64{
+					Keys: []interface{}{
+						"hello",
+					},
+				},
+			},
+			[]*wire.LabelKey{
+				&wire.LabelKey{
+					Key: "hello",
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -206,6 +294,16 @@ func TestDataToMetricDescriptorType(t *testing.T) {
 				IsGauge: false,
 			},
 			wire.MetricDescriptor_CUMULATIVE_DOUBLE,
+		},
+		{
+			"HistogramInt64",
+			&metric.HistogramInt64Data{},
+			wire.MetricDescriptor_CUMULATIVE_DISTRIBUTION,
+		},
+		{
+			"HistogramFloat64",
+			&metric.HistogramFloat64Data{},
+			wire.MetricDescriptor_CUMULATIVE_DISTRIBUTION,
 		},
 	}
 
@@ -288,6 +386,104 @@ func TestDataToTimeseries(t *testing.T) {
 				},
 			},
 		},
+		{
+			"HistogramInt64Data",
+			&metric.HistogramInt64Data{
+				Rows: []*metric.HistogramInt64Row{
+					{
+						Count: 6,
+						Sum:   40,
+						Values: []int64{
+							1,
+							2,
+							3,
+						},
+					},
+				},
+				Info: &metric.HistogramInt64{
+					Buckets: []int64{
+						0, 5, 10,
+					},
+				},
+			},
+			[]*wire.TimeSeries{
+				&wire.TimeSeries{
+					Points: []*wire.Point{
+						&wire.Point{
+							Value: wire.PointDistributionValue{
+								DistributionValue: &wire.DistributionValue{
+									Count: 6,
+									Sum:   40,
+									Buckets: []*wire.Bucket{
+										{
+											Count: 1,
+										},
+										{
+											Count: 2,
+										},
+										{
+											Count: 3,
+										},
+									},
+									BucketOptions: wire.BucketOptionsExplicit{
+										Bounds: []float64{
+											0, 5, 10,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			"HistogramFloat64Data",
+			&metric.HistogramFloat64Data{
+				Rows: []*metric.HistogramFloat64Row{
+					{
+						Count: 3,
+						Sum:   10,
+						Values: []int64{
+							1,
+							2,
+						},
+					},
+				},
+				Info: &metric.HistogramFloat64{
+					Buckets: []float64{
+						0, 5,
+					},
+				},
+			},
+			[]*wire.TimeSeries{
+				&wire.TimeSeries{
+					Points: []*wire.Point{
+						&wire.Point{
+							Value: wire.PointDistributionValue{
+								DistributionValue: &wire.DistributionValue{
+									Count: 3,
+									Sum:   10,
+									Buckets: []*wire.Bucket{
+										{
+											Count: 1,
+										},
+										{
+											Count: 2,
+										},
+									},
+									BucketOptions: wire.BucketOptionsExplicit{
+										Bounds: []float64{
+											0, 5,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -330,6 +526,26 @@ func TestNumRows(t *testing.T) {
 			},
 			2,
 		},
+		{
+			"1 row HistogramInt64Data",
+			&metric.HistogramInt64Data{
+				Rows: []*metric.HistogramInt64Row{
+					{},
+				},
+			},
+			1,
+		},
+		{
+			"3 row HistogramFloat64Data",
+			&metric.HistogramFloat64Data{
+				Rows: []*metric.HistogramFloat64Row{
+					{},
+					{},
+					{},
+				},
+			},
+			3,
+		},
 	}
 
 	for _, tt := range tests {
@@ -354,6 +570,62 @@ func TestDataToPoints(t *testing.T) {
 		Rows: []float64{
 			0.5,
 			0.25,
+		},
+	}
+
+	histogramInt64Data := &metric.HistogramInt64Data{
+		Rows: []*metric.HistogramInt64Row{
+			{
+				Count: 6,
+				Sum:   40,
+				Values: []int64{
+					1,
+					2,
+					3,
+				},
+			},
+			{
+				Count: 12,
+				Sum:   80,
+				Values: []int64{
+					2,
+					4,
+					6,
+				},
+			},
+		},
+		Info: &metric.HistogramInt64{
+			Buckets: []int64{
+				0, 5, 10,
+			},
+		},
+	}
+
+	histogramFloat64Data := &metric.HistogramFloat64Data{
+		Rows: []*metric.HistogramFloat64Row{
+			{
+				Count: 6,
+				Sum:   40,
+				Values: []int64{
+					1,
+					2,
+					3,
+				},
+			},
+			{
+				Count: 18,
+				Sum:   80,
+				Values: []int64{
+					3,
+					6,
+					9,
+				},
+			},
+		},
+		Info: &metric.HistogramFloat64{
+			Buckets: []float64{
+				0, 5, 10,
+			},
 		},
 	}
 
@@ -417,6 +689,130 @@ func TestDataToPoints(t *testing.T) {
 				},
 			},
 		},
+		{
+			"HistogramInt64Data index 0",
+			histogramInt64Data,
+			0,
+			[]*wire.Point{
+				{
+					Value: wire.PointDistributionValue{
+						DistributionValue: &wire.DistributionValue{
+							Count: 6,
+							Sum:   40,
+							Buckets: []*wire.Bucket{
+								{
+									Count: 1,
+								},
+								{
+									Count: 2,
+								},
+								{
+									Count: 3,
+								},
+							},
+							BucketOptions: wire.BucketOptionsExplicit{
+								Bounds: []float64{
+									0, 5, 10,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			"HistogramInt64Data index 1",
+			histogramInt64Data,
+			1,
+			[]*wire.Point{
+				{
+					Value: wire.PointDistributionValue{
+						DistributionValue: &wire.DistributionValue{
+							Count: 12,
+							Sum:   80,
+							Buckets: []*wire.Bucket{
+								{
+									Count: 2,
+								},
+								{
+									Count: 4,
+								},
+								{
+									Count: 6,
+								},
+							},
+							BucketOptions: wire.BucketOptionsExplicit{
+								Bounds: []float64{
+									0, 5, 10,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			"HistogramFloat64Data index 0",
+			histogramFloat64Data,
+			0,
+			[]*wire.Point{
+				{
+					Value: wire.PointDistributionValue{
+						DistributionValue: &wire.DistributionValue{
+							Count: 6,
+							Sum:   40,
+							Buckets: []*wire.Bucket{
+								{
+									Count: 1,
+								},
+								{
+									Count: 2,
+								},
+								{
+									Count: 3,
+								},
+							},
+							BucketOptions: wire.BucketOptionsExplicit{
+								Bounds: []float64{
+									0, 5, 10,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			"HistogramFloat64Data index 1",
+			histogramFloat64Data,
+			1,
+			[]*wire.Point{
+				{
+					Value: wire.PointDistributionValue{
+						DistributionValue: &wire.DistributionValue{
+							Count: 18,
+							Sum:   80,
+							Buckets: []*wire.Bucket{
+								{
+									Count: 3,
+								},
+								{
+									Count: 6,
+								},
+								{
+									Count: 9,
+								},
+							},
+							BucketOptions: wire.BucketOptionsExplicit{
+								Bounds: []float64{
+									0, 5, 10,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -427,6 +823,68 @@ func TestDataToPoints(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDistributionToPoints(t *testing.T) {
+	tests := []struct {
+		name    string
+		counts  []int64
+		count   int64
+		sum     float64
+		buckets []float64
+		want    []*wire.Point
+	}{
+		{
+			name: "3 buckets",
+			counts: []int64{
+				1,
+				2,
+				3,
+			},
+			count: 6,
+			sum:   40,
+			buckets: []float64{
+				0, 5, 10,
+			},
+			want: []*wire.Point{
+				{
+					Value: wire.PointDistributionValue{
+						DistributionValue: &wire.DistributionValue{
+							Count: 6,
+							Sum:   40,
+							// TODO: SumOfSquaredDeviation?
+							Buckets: []*wire.Bucket{
+								&wire.Bucket{
+									Count: 1,
+								},
+								&wire.Bucket{
+									Count: 2,
+								},
+								&wire.Bucket{
+									Count: 3,
+								},
+							},
+							BucketOptions: wire.BucketOptionsExplicit{
+								Bounds: []float64{
+									0, 5, 10,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := distributionToPoints(tt.counts, tt.count, tt.sum, tt.buckets)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("Got:\n%s\nWant:\n%s", marshaled(got), marshaled(tt.want))
+			}
+		})
+	}
+
 }
 
 func TestInfoKeysToLabelKeys(t *testing.T) {

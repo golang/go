@@ -36,6 +36,12 @@ func getDescription(data telemetry.MetricData) string {
 
 	case *metric.Float64Data:
 		return d.Info.Description
+
+	case *metric.HistogramInt64Data:
+		return d.Info.Description
+
+	case *metric.HistogramFloat64Data:
+		return d.Info.Description
 	}
 
 	return ""
@@ -49,6 +55,12 @@ func getLabelKeys(data telemetry.MetricData) []*wire.LabelKey {
 		return infoKeysToLabelKeys(d.Info.Keys)
 
 	case *metric.Float64Data:
+		return infoKeysToLabelKeys(d.Info.Keys)
+
+	case *metric.HistogramInt64Data:
+		return infoKeysToLabelKeys(d.Info.Keys)
+
+	case *metric.HistogramFloat64Data:
 		return infoKeysToLabelKeys(d.Info.Keys)
 	}
 
@@ -70,6 +82,12 @@ func dataToMetricDescriptorType(data telemetry.MetricData) wire.MetricDescriptor
 			return wire.MetricDescriptor_GAUGE_DOUBLE
 		}
 		return wire.MetricDescriptor_CUMULATIVE_DOUBLE
+
+	case *metric.HistogramInt64Data:
+		return wire.MetricDescriptor_CUMULATIVE_DISTRIBUTION
+
+	case *metric.HistogramFloat64Data:
+		return wire.MetricDescriptor_CUMULATIVE_DISTRIBUTION
 	}
 
 	return wire.MetricDescriptor_UNSPECIFIED
@@ -103,6 +121,10 @@ func numRows(data telemetry.MetricData) int {
 		return len(d.Rows)
 	case *metric.Float64Data:
 		return len(d.Rows)
+	case *metric.HistogramInt64Data:
+		return len(d.Rows)
+	case *metric.HistogramFloat64Data:
+		return len(d.Rows)
 	}
 
 	return 0
@@ -130,9 +152,46 @@ func dataToPoints(data telemetry.MetricData, i int) []*wire.Point {
 				// TODO: attach Timestamp
 			},
 		}
+	case *metric.HistogramInt64Data:
+		row := d.Rows[i]
+		bucketBounds := make([]float64, len(d.Info.Buckets))
+		for i, val := range d.Info.Buckets {
+			bucketBounds[i] = float64(val)
+		}
+		return distributionToPoints(row.Values, row.Count, float64(row.Sum), bucketBounds)
+	case *metric.HistogramFloat64Data:
+		row := d.Rows[i]
+		return distributionToPoints(row.Values, row.Count, row.Sum, d.Info.Buckets)
 	}
 
 	return nil
+}
+
+// distributionToPoints returns an array of *wire.Points containing a
+// wire.PointDistributionValue representing a distribution with the
+// supplied counts, count, and sum.
+func distributionToPoints(counts []int64, count int64, sum float64, bucketBounds []float64) []*wire.Point {
+	buckets := make([]*wire.Bucket, len(counts))
+	for i := 0; i < len(counts); i++ {
+		buckets[i] = &wire.Bucket{
+			Count: counts[i],
+		}
+	}
+	return []*wire.Point{
+		{
+			Value: wire.PointDistributionValue{
+				DistributionValue: &wire.DistributionValue{
+					Count: count,
+					Sum:   sum,
+					// TODO: SumOfSquaredDeviation?
+					Buckets: buckets,
+					BucketOptions: wire.BucketOptionsExplicit{
+						Bounds: bucketBounds,
+					},
+				},
+			},
+		},
+	}
 }
 
 // infoKeysToLabelKeys returns an array of *wire.LabelKeys containing the
