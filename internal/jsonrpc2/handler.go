@@ -38,9 +38,9 @@ type Handler interface {
 	// response
 
 	// Request is called near the start of processing any request.
-	Request(ctx context.Context, direction Direction, r *WireRequest) context.Context
+	Request(ctx context.Context, conn *Conn, direction Direction, r *WireRequest) context.Context
 	// Response is called near the start of processing any response.
-	Response(ctx context.Context, direction Direction, r *WireResponse) context.Context
+	Response(ctx context.Context, conn *Conn, direction Direction, r *WireResponse) context.Context
 	// Done is called when any request is fully processed.
 	// For calls, this means the response has also been processed, for notifies
 	// this is as soon as the message has been written to the stream.
@@ -90,11 +90,11 @@ func (EmptyHandler) Cancel(ctx context.Context, conn *Conn, id ID, cancelled boo
 	return false
 }
 
-func (EmptyHandler) Request(ctx context.Context, direction Direction, r *WireRequest) context.Context {
+func (EmptyHandler) Request(ctx context.Context, conn *Conn, direction Direction, r *WireRequest) context.Context {
 	return ctx
 }
 
-func (EmptyHandler) Response(ctx context.Context, direction Direction, r *WireResponse) context.Context {
+func (EmptyHandler) Response(ctx context.Context, conn *Conn, direction Direction, r *WireResponse) context.Context {
 	return ctx
 }
 

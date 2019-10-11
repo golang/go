@@ -8,6 +8,7 @@ import (
 
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/telemetry/log"
+	"golang.org/x/tools/internal/xcontext"
 )
 
 type Server interface {
@@ -46,13 +47,13 @@ type Server interface {
 	Symbol(context.Context, *WorkspaceSymbolParams) ([]SymbolInformation, error)
 	CodeLens(context.Context, *CodeLensParams) ([]CodeLens, error)
 	ResolveCodeLens(context.Context, *CodeLens) (*CodeLens, error)
+	DocumentLink(context.Context, *DocumentLinkParams) ([]DocumentLink, error)
+	ResolveDocumentLink(context.Context, *DocumentLink) (*DocumentLink, error)
 	Formatting(context.Context, *DocumentFormattingParams) ([]TextEdit, error)
 	RangeFormatting(context.Context, *DocumentRangeFormattingParams) ([]TextEdit, error)
 	OnTypeFormatting(context.Context, *DocumentOnTypeFormattingParams) ([]TextEdit, error)
 	Rename(context.Context, *RenameParams) (*WorkspaceEdit, error)
 	PrepareRename(context.Context, *PrepareRenameParams) (*Range, error)
-	DocumentLink(context.Context, *DocumentLinkParams) ([]DocumentLink, error)
-	ResolveDocumentLink(context.Context, *DocumentLink) (*DocumentLink, error)
 	ExecuteCommand(context.Context, *ExecuteCommandParams) (interface{}, error)
 }
 
@@ -60,15 +61,12 @@ func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 	if delivered {
 		return false
 	}
-	switch r.Method {
-	case "$/cancelRequest":
-		var params CancelParams
-		if err := json.Unmarshal(*r.Params, &params); err != nil {
-			sendParseError(ctx, r, err)
-			return true
-		}
-		r.Conn().Cancel(params.ID)
+	if ctx.Err() != nil {
+		ctx := xcontext.Detach(ctx)
+		r.Reply(ctx, nil, jsonrpc2.NewErrorf(RequestCancelledError, ""))
 		return true
+	}
+	switch r.Method {
 	case "workspace/didChangeWorkspaceFolders": // notif
 		var params DidChangeWorkspaceFoldersParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
@@ -435,6 +433,28 @@ func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 			log.Error(ctx, "", err)
 		}
 		return true
+	case "textDocument/documentLink": // req
+		var params DocumentLinkParams
+		if err := json.Unmarshal(*r.Params, &params); err != nil {
+			sendParseError(ctx, r, err)
+			return true
+		}
+		resp, err := h.server.DocumentLink(ctx, &params)
+		if err := r.Reply(ctx, resp, err); err != nil {
+			log.Error(ctx, "", err)
+		}
+		return true
+	case "documentLink/resolve": // req
+		var params DocumentLink
+		if err := json.Unmarshal(*r.Params, &params); err != nil {
+			sendParseError(ctx, r, err)
+			return true
+		}
+		resp, err := h.server.ResolveDocumentLink(ctx, &params)
+		if err := r.Reply(ctx, resp, err); err != nil {
+			log.Error(ctx, "", err)
+		}
+		return true
 	case "textDocument/formatting": // req
 		var params DocumentFormattingParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
@@ -486,28 +506,6 @@ func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 			return true
 		}
 		resp, err := h.server.PrepareRename(ctx, &params)
-		if err := r.Reply(ctx, resp, err); err != nil {
-			log.Error(ctx, "", err)
-		}
-		return true
-	case "textDocument/documentLink": // req
-		var params DocumentLinkParams
-		if err := json.Unmarshal(*r.Params, &params); err != nil {
-			sendParseError(ctx, r, err)
-			return true
-		}
-		resp, err := h.server.DocumentLink(ctx, &params)
-		if err := r.Reply(ctx, resp, err); err != nil {
-			log.Error(ctx, "", err)
-		}
-		return true
-	case "documentLink/resolve": // req
-		var params DocumentLink
-		if err := json.Unmarshal(*r.Params, &params); err != nil {
-			sendParseError(ctx, r, err)
-			return true
-		}
-		resp, err := h.server.ResolveDocumentLink(ctx, &params)
 		if err := r.Reply(ctx, resp, err); err != nil {
 			log.Error(ctx, "", err)
 		}
@@ -756,6 +754,22 @@ func (s *serverDispatcher) ResolveCodeLens(ctx context.Context, params *CodeLens
 	return &result, nil
 }
 
+func (s *serverDispatcher) DocumentLink(ctx context.Context, params *DocumentLinkParams) ([]DocumentLink, error) {
+	var result []DocumentLink
+	if err := s.Conn.Call(ctx, "textDocument/documentLink", params, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *serverDispatcher) ResolveDocumentLink(ctx context.Context, params *DocumentLink) (*DocumentLink, error) {
+	var result DocumentLink
+	if err := s.Conn.Call(ctx, "documentLink/resolve", params, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 func (s *serverDispatcher) Formatting(ctx context.Context, params *DocumentFormattingParams) ([]TextEdit, error) {
 	var result []TextEdit
 	if err := s.Conn.Call(ctx, "textDocument/formatting", params, &result); err != nil {
@@ -791,22 +805,6 @@ func (s *serverDispatcher) Rename(ctx context.Context, params *RenameParams) (*W
 func (s *serverDispatcher) PrepareRename(ctx context.Context, params *PrepareRenameParams) (*Range, error) {
 	var result Range
 	if err := s.Conn.Call(ctx, "textDocument/prepareRename", params, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-func (s *serverDispatcher) DocumentLink(ctx context.Context, params *DocumentLinkParams) ([]DocumentLink, error) {
-	var result []DocumentLink
-	if err := s.Conn.Call(ctx, "textDocument/documentLink", params, &result); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func (s *serverDispatcher) ResolveDocumentLink(ctx context.Context, params *DocumentLink) (*DocumentLink, error) {
-	var result DocumentLink
-	if err := s.Conn.Call(ctx, "documentLink/resolve", params, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil

@@ -149,7 +149,7 @@ func (h *handler) Cancel(ctx context.Context, conn *jsonrpc2.Conn, id jsonrpc2.I
 	return false
 }
 
-func (h *handler) Request(ctx context.Context, direction jsonrpc2.Direction, r *jsonrpc2.WireRequest) context.Context {
+func (h *handler) Request(ctx context.Context, conn *jsonrpc2.Conn, direction jsonrpc2.Direction, r *jsonrpc2.WireRequest) context.Context {
 	if r.Method == "" {
 		panic("no method in rpc stats")
 	}
@@ -174,7 +174,7 @@ func (h *handler) Request(ctx context.Context, direction jsonrpc2.Direction, r *
 	return ctx
 }
 
-func (h *handler) Response(ctx context.Context, direction jsonrpc2.Direction, r *jsonrpc2.WireResponse) context.Context {
+func (h *handler) Response(ctx context.Context, conn *jsonrpc2.Conn, direction jsonrpc2.Direction, r *jsonrpc2.WireResponse) context.Context {
 	return ctx
 }
 

@@ -224,7 +224,8 @@ function output(side: side) {
 
     "golang.org/x/tools/internal/jsonrpc2"
     "golang.org/x/tools/internal/telemetry/log"
-  )
+    "golang.org/x/tools/internal/xcontext"
+    )
   `);
   const a = side.name[0].toUpperCase() + side.name.substring(1)
   f(`type ${a} interface {`);
@@ -235,15 +236,12 @@ function output(side: side) {
       if delivered {
         return false
       }
-      switch r.Method {
-      case "$/cancelRequest":
-        var params CancelParams
-        if err := json.Unmarshal(*r.Params, &params); err != nil {
-          sendParseError(ctx, r, err)
-          return true
-        }
-        r.Conn().Cancel(params.ID)
-        return true`);
+      if ctx.Err() != nil {
+        ctx := xcontext.Detach(ctx)
+        r.Reply(ctx, nil, jsonrpc2.NewErrorf(RequestCancelledError, ""))
+        return true
+      }
+      switch r.Method {`);
   side.cases.forEach((v) => {f(v)});
   f(`
   default:
