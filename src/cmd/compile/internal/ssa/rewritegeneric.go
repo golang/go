@@ -36678,6 +36678,48 @@ func rewriteValuegeneric_OpNot_0(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+	// match: (Not (EqPtr x y))
+	// result: (NeqPtr x y)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpEqPtr {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpNeqPtr)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (Not (Eq64F x y))
+	// result: (Neq64F x y)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpEq64F {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpNeq64F)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (Not (Eq32F x y))
+	// result: (Neq32F x y)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpEq32F {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpNeq32F)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
 	// match: (Not (Neq64 x y))
 	// result: (Eq64 x y)
 	for {
@@ -36692,6 +36734,9 @@ func rewriteValuegeneric_OpNot_0(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpNot_10(v *Value) bool {
 	// match: (Not (Neq32 x y))
 	// result: (Eq32 x y)
 	for {
@@ -36734,9 +36779,6 @@ func rewriteValuegeneric_OpNot_0(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpNot_10(v *Value) bool {
 	// match: (Not (NeqB x y))
 	// result: (EqB x y)
 	for {
@@ -36747,6 +36789,48 @@ func rewriteValuegeneric_OpNot_10(v *Value) bool {
 		y := v_0.Args[1]
 		x := v_0.Args[0]
 		v.reset(OpEqB)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (Not (NeqPtr x y))
+	// result: (EqPtr x y)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpNeqPtr {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpEqPtr)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (Not (Neq64F x y))
+	// result: (Eq64F x y)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpNeq64F {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpEq64F)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (Not (Neq32F x y))
+	// result: (Eq32F x y)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpNeq32F {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpEq32F)
 		v.AddArg(x)
 		v.AddArg(y)
 		return true
@@ -36793,6 +36877,9 @@ func rewriteValuegeneric_OpNot_10(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpNot_20(v *Value) bool {
 	// match: (Not (Greater8 x y))
 	// result: (Leq8 x y)
 	for {
@@ -36877,9 +36964,6 @@ func rewriteValuegeneric_OpNot_10(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpNot_20(v *Value) bool {
 	// match: (Not (Geq32 x y))
 	// result: (Less32 x y)
 	for {
@@ -36936,6 +37020,9 @@ func rewriteValuegeneric_OpNot_20(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpNot_30(v *Value) bool {
 	// match: (Not (Geq32U x y))
 	// result: (Less32U x y)
 	for {
@@ -37020,9 +37107,6 @@ func rewriteValuegeneric_OpNot_20(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpNot_30(v *Value) bool {
 	// match: (Not (Less8 x y))
 	// result: (Geq8 x y)
 	for {
@@ -37079,6 +37163,9 @@ func rewriteValuegeneric_OpNot_30(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpNot_40(v *Value) bool {
 	// match: (Not (Less8U x y))
 	// result: (Geq8U x y)
 	for {
@@ -37163,9 +37250,6 @@ func rewriteValuegeneric_OpNot_30(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpNot_40(v *Value) bool {
 	// match: (Not (Leq32U x y))
 	// result: (Greater32U x y)
 	for {

@@ -260,8 +260,8 @@
 (Sub8  x (Const8  <t> [c])) && x.Op != OpConst8  -> (Add8  (Const8  <t> [int64(int8(-c))]) x)
 
 // fold negation into comparison operators
-(Not (Eq(64|32|16|8|B) x y)) -> (Neq(64|32|16|8|B) x y)
-(Not (Neq(64|32|16|8|B) x y)) -> (Eq(64|32|16|8|B) x y)
+(Not (Eq(64|32|16|8|B|Ptr|64F|32F) x y)) -> (Neq(64|32|16|8|B|Ptr|64F|32F) x y)
+(Not (Neq(64|32|16|8|B|Ptr|64F|32F) x y)) -> (Eq(64|32|16|8|B|Ptr|64F|32F) x y)
 
 (Not (Greater(64|32|16|8) x y)) -> (Leq(64|32|16|8) x y)
 (Not (Greater(64|32|16|8)U x y)) -> (Leq(64|32|16|8)U x y)
@@ -272,7 +272,6 @@
 (Not (Less(64|32|16|8)U x y)) -> (Geq(64|32|16|8)U x y)
 (Not (Leq(64|32|16|8) x y)) -> (Greater(64|32|16|8) x y)
 (Not (Leq(64|32|16|8)U x y)) -> (Greater(64|32|16|8)U x y)
-
 
 // Distribute multiplication c * (d+x) -> c*d + c*x. Useful for:
 // a[i].b = ...; a[i+1].b = ...
