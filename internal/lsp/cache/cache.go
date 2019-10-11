@@ -18,21 +18,23 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-func New() source.Cache {
+func New(options func(*source.Options)) source.Cache {
 	index := atomic.AddInt64(&cacheIndex, 1)
 	c := &cache{
-		fs:   &nativeFileSystem{},
-		id:   strconv.FormatInt(index, 10),
-		fset: token.NewFileSet(),
+		fs:      &nativeFileSystem{},
+		id:      strconv.FormatInt(index, 10),
+		fset:    token.NewFileSet(),
+		options: options,
 	}
 	debug.AddCache(debugCache{c})
 	return c
 }
 
 type cache struct {
-	fs   source.FileSystem
-	id   string
-	fset *token.FileSet
+	fs      source.FileSystem
+	id      string
+	fset    *token.FileSet
+	options func(*source.Options)
 
 	store memoize.Store
 }

@@ -240,9 +240,6 @@ type View interface {
 	// This function does not correctly invalidate the view when needed.
 	SetOptions(Options)
 
-	// Analyzers returns the set of Analyzers active for this view.
-	Analyzers() []*analysis.Analyzer
-
 	// CheckPackageHandles returns the CheckPackageHandles for the packages
 	// that this file belongs to.
 	CheckPackageHandles(ctx context.Context, f File) (Snapshot, []CheckPackageHandle, error)

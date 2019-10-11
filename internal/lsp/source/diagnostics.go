@@ -305,7 +305,7 @@ func singleDiagnostic(uri span.URI, format string, a ...interface{}) map[span.UR
 
 func runAnalyses(ctx context.Context, view View, cph CheckPackageHandle, disabledAnalyses map[string]struct{}, report func(a *analysis.Analyzer, diag analysis.Diagnostic) error) error {
 	var analyzers []*analysis.Analyzer
-	for _, a := range view.Analyzers() {
+	for _, a := range view.Options().Analyzers {
 		if _, ok := disabledAnalyses[a.Name]; ok {
 			continue
 		}

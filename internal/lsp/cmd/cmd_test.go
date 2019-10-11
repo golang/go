@@ -32,7 +32,7 @@ func TestCommandLine(t *testing.T) {
 func testCommandLine(t *testing.T, exporter packagestest.Exporter) {
 	data := tests.Load(t, exporter, "../testdata")
 	defer data.Exported.Cleanup()
-	tests.Run(t, cmdtest.NewRunner(exporter, data, tests.Context(t)), data)
+	tests.Run(t, cmdtest.NewRunner(exporter, data, tests.Context(t), nil), data)
 }
 
 func TestDefinitionHelpExample(t *testing.T) {
@@ -54,7 +54,7 @@ func TestDefinitionHelpExample(t *testing.T) {
 		fmt.Sprintf("%v:#%v", thisFile, cmd.ExampleOffset)} {
 		args := append(baseArgs, query)
 		got := cmdtest.CaptureStdOut(t, func() {
-			_ = tool.Run(tests.Context(t), cmd.New("gopls-test", "", nil), args)
+			_ = tool.Run(tests.Context(t), cmd.New("gopls-test", "", nil, nil), args)
 		})
 		if !expect.MatchString(got) {
 			t.Errorf("test with %v\nexpected:\n%s\ngot:\n%s", args, expect, got)

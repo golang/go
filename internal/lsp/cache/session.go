@@ -110,7 +110,10 @@ func (s *session) NewView(ctx context.Context, name string, folder span.URI, opt
 	}
 	v.snapshot.view = v
 
-	v.analyzers = UpdateAnalyzers(v, defaultAnalyzers)
+	if v.session.cache.options != nil {
+		v.session.cache.options(&v.options)
+	}
+
 	// Preemptively build the builtin package,
 	// so we immediately add builtin.go to the list of ignored files.
 	v.buildBuiltinPackage(ctx)

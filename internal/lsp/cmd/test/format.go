@@ -33,7 +33,7 @@ func (r *runner) Format(t *testing.T, spn span.Span) {
 		//TODO: our error handling differs, for now just skip unformattable files
 		t.Skip("Unformattable file")
 	}
-	app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Config.Env)
+	app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Config.Env, r.options)
 	got := CaptureStdOut(t, func() {
 		_ = tool.Run(r.ctx, app, append([]string{"-remote=internal", "format"}, filename))
 	})

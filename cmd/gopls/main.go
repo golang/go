@@ -19,5 +19,5 @@ import (
 
 func main() {
 	debug.Version += "-cmd.gopls"
-	tool.Main(context.Background(), cmd.New("gopls-legacy", "", nil), os.Args[1:])
+	tool.Main(context.Background(), cmd.New("gopls-legacy", "", nil, nil), os.Args[1:])
 }

@@ -8,12 +8,12 @@
 package hooks // import "golang.org/x/tools/gopls/internal/hooks"
 
 import (
-	"context"
-
-	"golang.org/x/tools/internal/lsp/cache"
+	"golang.org/x/tools/internal/lsp/source"
 )
 
-func Install(ctx context.Context) context.Context {
-	cache.UpdateAnalyzers = updateAnalyzers
-	return ctx
+func Options(options *source.Options) {
+	if options.GoDiff {
+		options.ComputeEdits = ComputeEdits
+	}
+	updateAnalyzers(options)
 }

@@ -9,6 +9,30 @@ import (
 	"os"
 	"time"
 
+	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/asmdecl"
+	"golang.org/x/tools/go/analysis/passes/assign"
+	"golang.org/x/tools/go/analysis/passes/atomic"
+	"golang.org/x/tools/go/analysis/passes/atomicalign"
+	"golang.org/x/tools/go/analysis/passes/bools"
+	"golang.org/x/tools/go/analysis/passes/buildtag"
+	"golang.org/x/tools/go/analysis/passes/cgocall"
+	"golang.org/x/tools/go/analysis/passes/composite"
+	"golang.org/x/tools/go/analysis/passes/copylock"
+	"golang.org/x/tools/go/analysis/passes/httpresponse"
+	"golang.org/x/tools/go/analysis/passes/loopclosure"
+	"golang.org/x/tools/go/analysis/passes/lostcancel"
+	"golang.org/x/tools/go/analysis/passes/nilfunc"
+	"golang.org/x/tools/go/analysis/passes/printf"
+	"golang.org/x/tools/go/analysis/passes/shift"
+	"golang.org/x/tools/go/analysis/passes/sortslice"
+	"golang.org/x/tools/go/analysis/passes/stdmethods"
+	"golang.org/x/tools/go/analysis/passes/structtag"
+	"golang.org/x/tools/go/analysis/passes/tests"
+	"golang.org/x/tools/go/analysis/passes/unmarshal"
+	"golang.org/x/tools/go/analysis/passes/unreachable"
+	"golang.org/x/tools/go/analysis/passes/unsafeptr"
+	"golang.org/x/tools/go/analysis/passes/unusedresult"
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/diff/myers"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -43,6 +67,7 @@ var (
 			Budget:        100 * time.Millisecond,
 		},
 		ComputeEdits: myers.ComputeEdits,
+		Analyzers:    defaultAnalyzers,
 	}
 )
 
@@ -57,6 +82,7 @@ type Options struct {
 	DisabledAnalyses map[string]struct{}
 
 	StaticCheck bool
+	GoDiff      bool
 
 	WatchFileChanges              bool
 	InsertTextFormat              protocol.InsertTextFormat
@@ -76,6 +102,8 @@ type Options struct {
 	Completion CompletionOptions
 
 	ComputeEdits diff.ComputeEdits
+
+	Analyzers []*analysis.Analyzer
 }
 
 type CompletionOptions struct {
@@ -246,6 +274,9 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 	case "staticcheck":
 		result.setBool(&o.StaticCheck)
 
+	case "go-diff":
+		result.setBool(&o.GoDiff)
+
 	// Deprecated settings.
 	case "wantSuggestedFixes":
 		result.State = OptionDeprecated
@@ -289,4 +320,32 @@ func (r *OptionResult) setBool(b *bool) {
 	if v, ok := r.asBool(); ok {
 		*b = v
 	}
+}
+
+var defaultAnalyzers = []*analysis.Analyzer{
+	// The traditional vet suite:
+	asmdecl.Analyzer,
+	assign.Analyzer,
+	atomic.Analyzer,
+	atomicalign.Analyzer,
+	bools.Analyzer,
+	buildtag.Analyzer,
+	cgocall.Analyzer,
+	composite.Analyzer,
+	copylock.Analyzer,
+	httpresponse.Analyzer,
+	loopclosure.Analyzer,
+	lostcancel.Analyzer,
+	nilfunc.Analyzer,
+	printf.Analyzer,
+	shift.Analyzer,
+	stdmethods.Analyzer,
+	structtag.Analyzer,
+	tests.Analyzer,
+	unmarshal.Analyzer,
+	unreachable.Analyzer,
+	unsafeptr.Analyzer,
+	unusedresult.Analyzer,
+	// Non-vet analyzers
+	sortslice.Analyzer,
 }

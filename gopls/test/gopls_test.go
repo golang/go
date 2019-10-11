@@ -5,7 +5,6 @@
 package gopls_test
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -30,9 +29,7 @@ func testCommandLine(t *testing.T, exporter packagestest.Exporter) {
 	if stat, err := os.Stat(testdata); err != nil || !stat.IsDir() {
 		t.Skip("testdata directory not present")
 	}
-	ctx := context.Background()
-	hooks.Install(ctx)
 	data := tests.Load(t, exporter, testdata)
 	defer data.Exported.Cleanup()
-	tests.Run(t, cmdtest.NewRunner(exporter, data, tests.Context(t)), data)
+	tests.Run(t, cmdtest.NewRunner(exporter, data, tests.Context(t), hooks.Options), data)
 }

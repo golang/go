@@ -22,7 +22,7 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnosti
 	}
 	fname := uri.Filename()
 	args := []string{"-remote=internal", "check", fname}
-	app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Exported.Config.Env)
+	app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Exported.Config.Env, r.options)
 	out := CaptureStdOut(t, func() {
 		_ = tool.Run(r.ctx, app, args)
 	})

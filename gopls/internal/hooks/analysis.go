@@ -5,24 +5,22 @@
 package hooks
 
 import (
-	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/lsp/source"
 	"honnef.co/go/tools/simple"
 	"honnef.co/go/tools/staticcheck"
 	"honnef.co/go/tools/stylecheck"
 )
 
-func updateAnalyzers(v source.View, analyzers []*analysis.Analyzer) []*analysis.Analyzer {
-	if v.Options().StaticCheck {
+func updateAnalyzers(options *source.Options) {
+	if options.StaticCheck {
 		for _, a := range simple.Analyzers {
-			analyzers = append(analyzers, a)
+			options.Analyzers = append(options.Analyzers, a)
 		}
 		for _, a := range staticcheck.Analyzers {
-			analyzers = append(analyzers, a)
+			options.Analyzers = append(options.Analyzers, a)
 		}
 		for _, a := range stylecheck.Analyzers {
-			analyzers = append(analyzers, a)
+			options.Analyzers = append(options.Analyzers, a)
 		}
 	}
-	return analyzers
 }

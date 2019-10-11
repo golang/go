@@ -26,13 +26,15 @@ type runner struct {
 	exporter packagestest.Exporter
 	data     *tests.Data
 	ctx      context.Context
+	options  func(*source.Options)
 }
 
-func NewRunner(exporter packagestest.Exporter, data *tests.Data, ctx context.Context) tests.Tests {
+func NewRunner(exporter packagestest.Exporter, data *tests.Data, ctx context.Context, options func(*source.Options)) tests.Tests {
 	return &runner{
 		exporter: exporter,
 		data:     data,
 		ctx:      ctx,
+		options:  options,
 	}
 }
 

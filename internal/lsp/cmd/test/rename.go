@@ -16,7 +16,7 @@ import (
 func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 	filename := spn.URI().Filename()
 	goldenTag := newText + "-rename"
-	app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Config.Env)
+	app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Config.Env, r.options)
 	loc := fmt.Sprintf("%v", spn)
 	var err error
 	got := CaptureStdOut(t, func() {

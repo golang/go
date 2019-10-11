@@ -54,7 +54,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 		uri := d.Src.URI()
 		args = append(args, fmt.Sprint(d.Src))
 		got := CaptureStdOut(t, func() {
-			app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Exported.Config.Env)
+			app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Exported.Config.Env, r.options)
 			_ = tool.Run(r.ctx, app, args)
 		})
 		got = normalizePaths(r.data, got)
