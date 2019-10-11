@@ -562,23 +562,7 @@ func (o *Order) stmt(n *Node) {
 		o.mapAssign(n)
 		o.cleanTemp(t)
 
-	// Special: make sure key is addressable if needed,
-	// and make sure OINDEXMAP is not copied out.
-	case OAS2MAPR:
-		t := o.markTemp()
-		o.exprList(n.List)
-		r := n.Right
-		r.Left = o.expr(r.Left, nil)
-		r.Right = o.expr(r.Right, nil)
-
-		// See similar conversion for OINDEXMAP below.
-		_ = mapKeyReplaceStrConv(r.Right)
-
-		r.Right = o.mapKeyTemp(r.Left.Type, r.Right)
-		o.okAs2(n)
-		o.cleanTemp(t)
-
-	// Special: avoid copy of func call n.Rlist.First().
+	// Special: avoid copy of func call n.Right
 	case OAS2FUNC:
 		t := o.markTemp()
 		o.exprList(n.List)
@@ -588,32 +572,29 @@ func (o *Order) stmt(n *Node) {
 		o.cleanTemp(t)
 
 	// Special: use temporary variables to hold result,
-	// so that assertI2Tetc can take address of temporary.
+	// so that runtime can take address of temporary.
 	// No temporary for blank assignment.
-	case OAS2DOTTYPE:
+	//
+	// OAS2MAPR: make sure key is addressable if needed,
+	//           and make sure OINDEXMAP is not copied out.
+	case OAS2DOTTYPE, OAS2RECV, OAS2MAPR:
 		t := o.markTemp()
 		o.exprList(n.List)
-		n.Right.Left = o.expr(n.Right.Left, nil) // i in i.(T)
-		o.okAs2(n)
-		o.cleanTemp(t)
 
-	// Special: use temporary variables to hold result,
-	// so that chanrecv can take address of temporary.
-	case OAS2RECV:
-		t := o.markTemp()
-		o.exprList(n.List)
-		n.Right.Left = o.expr(n.Right.Left, nil) // arg to recv
-		ch := n.Right.Left.Type
-		tmp1 := o.newTemp(ch.Elem(), types.Haspointers(ch.Elem()))
-		tmp2 := o.newTemp(types.Types[TBOOL], false)
-		o.out = append(o.out, n)
-		r := nod(OAS, n.List.First(), tmp1)
-		r = typecheck(r, ctxStmt)
-		o.mapAssign(r)
-		r = okas(n.List.Second(), tmp2)
-		r = typecheck(r, ctxStmt)
-		o.mapAssign(r)
-		n.List.Set2(tmp1, tmp2)
+		switch r := n.Right; r.Op {
+		case ODOTTYPE2, ORECV:
+			r.Left = o.expr(r.Left, nil)
+		case OINDEXMAP:
+			r.Left = o.expr(r.Left, nil)
+			r.Right = o.expr(r.Right, nil)
+			// See similar conversion for OINDEXMAP below.
+			_ = mapKeyReplaceStrConv(r.Right)
+			r.Right = o.mapKeyTemp(r.Left.Type, r.Right)
+		default:
+			Fatalf("order.stmt: %v", r.Op)
+		}
+
+		o.okAs2(n)
 		o.cleanTemp(t)
 
 	// Special: does not save n onto out.
@@ -1310,7 +1291,7 @@ func okas(ok, val *Node) *Node {
 }
 
 // as2 orders OAS2XXXX nodes. It creates temporaries to ensure left-to-right assignment.
-// The caller should order the right-hand side of the assignment before calling orderas2.
+// The caller should order the right-hand side of the assignment before calling order.as2.
 // It rewrites,
 // 	a, b, a = ...
 // as
@@ -1338,7 +1319,7 @@ func (o *Order) as2(n *Node) {
 	o.stmt(as)
 }
 
-// okAs2 orders OAS2 with ok.
+// okAs2 orders OAS2XXX with ok.
 // Just like as2, this also adds temporaries to ensure left-to-right assignment.
 func (o *Order) okAs2(n *Node) {
 	var tmp1, tmp2 *Node
