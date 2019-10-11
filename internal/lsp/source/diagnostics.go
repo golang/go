@@ -26,6 +26,13 @@ type Diagnostic struct {
 	Tags     []protocol.DiagnosticTag
 
 	SuggestedFixes []SuggestedFix
+	Related        []RelatedInformation
+}
+
+type RelatedInformation struct {
+	URI     span.URI
+	Range   protocol.Range
+	Message string
 }
 
 type DiagnosticSeverity int
@@ -170,26 +177,30 @@ func analyses(ctx context.Context, snapshot Snapshot, cph CheckPackageHandle, di
 	return nil
 }
 
-func toDiagnostic(ctx context.Context, view View, diag *analysis.Diagnostic, category string) (Diagnostic, error) {
-	spn, err := span.NewRange(view.Session().Cache().FileSet(), diag.Pos, diag.End).Span()
-	if err != nil {
-		return Diagnostic{}, err
-	}
+func packageForSpan(ctx context.Context, view View, spn span.Span) (Package, error) {
 	f, err := view.GetFile(ctx, spn.URI())
 	if err != nil {
-		return Diagnostic{}, err
+		return nil, err
 	}
 	// If the package has changed since these diagnostics were computed,
 	// this may be incorrect. Should the package be associated with the diagnostic?
 	_, cphs, err := view.CheckPackageHandles(ctx, f)
 	if err != nil {
-		return Diagnostic{}, err
+		return nil, err
 	}
 	cph, err := NarrowestCheckPackageHandle(cphs)
 	if err != nil {
+		return nil, err
+	}
+	return cph.Cached(ctx)
+}
+
+func toDiagnostic(ctx context.Context, view View, diag *analysis.Diagnostic, category string) (Diagnostic, error) {
+	spn, err := span.NewRange(view.Session().Cache().FileSet(), diag.Pos, diag.End).Span()
+	if err != nil {
 		return Diagnostic{}, err
 	}
-	pkg, err := cph.Cached(ctx)
+	pkg, err := packageForSpan(ctx, view, spn)
 	if err != nil {
 		return Diagnostic{}, err
 	}
@@ -209,6 +220,12 @@ func toDiagnostic(ctx context.Context, view View, diag *analysis.Diagnostic, cat
 	if err != nil {
 		return Diagnostic{}, err
 	}
+
+	related, err := relatedInformation(ctx, view, diag)
+	if err != nil {
+		return Diagnostic{}, err
+	}
+
 	// This is a bit of a hack, but clients > 3.15 will be able to grey out unnecessary code.
 	// If we are deleting code as part of all of our suggested fixes, assume that this is dead code.
 	// TODO(golang/go/#34508): Return these codes from the diagnostics themselves.
@@ -227,7 +244,34 @@ func toDiagnostic(ctx context.Context, view View, diag *analysis.Diagnostic, cat
 		Severity:       protocol.SeverityWarning,
 		SuggestedFixes: fixes,
 		Tags:           tags,
+		Related:        related,
 	}, nil
+}
+
+func relatedInformation(ctx context.Context, view View, diag *analysis.Diagnostic) ([]RelatedInformation, error) {
+	var out []RelatedInformation
+	for _, related := range diag.Related {
+		r := span.NewRange(view.Session().Cache().FileSet(), related.Pos, related.End)
+		spn, err := r.Span()
+		if err != nil {
+			return nil, err
+		}
+		pkg, err := packageForSpan(ctx, view, spn)
+		if err != nil {
+			return nil, err
+		}
+		rng, err := spanToRange(ctx, view, pkg, spn, false)
+		if err != nil {
+			return nil, err
+		}
+
+		out = append(out, RelatedInformation{
+			URI:     spn.URI(),
+			Range:   rng,
+			Message: related.Message,
+		})
+	}
+	return out, nil
 }
 
 func clearReports(v View, reports map[span.URI][]Diagnostic, uri span.URI) {

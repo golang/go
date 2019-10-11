@@ -78,11 +78,17 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		if ident.Name == from {
 			msg := fmt.Sprintf("renaming %q to %q", from, to)
 			pass.Report(analysis.Diagnostic{
-				ident.Pos(), ident.End(), "", msg,
-				[]analysis.SuggestedFix{
-					{msg, []analysis.TextEdit{
-						{ident.Pos(), ident.End(), []byte(to)}},
+				Pos:     ident.Pos(),
+				End:     ident.End(),
+				Message: msg,
+				SuggestedFixes: []analysis.SuggestedFix{{
+					Message: msg,
+					TextEdits: []analysis.TextEdit{{
+						Pos:     ident.Pos(),
+						End:     ident.End(),
+						NewText: []byte(to),
 					}},
+				}},
 			})
 		}
 	})
