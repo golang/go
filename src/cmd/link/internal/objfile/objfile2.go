@@ -559,20 +559,36 @@ func loadObjFull(l *Loader, r *oReader) {
 
 	pcdataBase := r.PcdataBase()
 	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
-		s := l.Syms[istart+Sym(i)]
-		if s == nil || s.Name == "" {
-			continue
-		}
-
 		osym := goobj2.Sym{}
 		osym.Read(r.Reader, r.SymOff(i))
 		name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
+		if name == "" {
+			continue
+		}
+		ver := abiToVer(osym.ABI, r.version)
+		dupok := osym.Flag&goobj2.SymFlagDupok != 0
+		if dupsym := l.symsByName[nameVer{name, ver}]; dupsym != istart+Sym(i) {
+			if dupok && l.Reachable.Has(dupsym) {
+				// A dupok symbol is resolved to another package. We still need
+				// to record its presence in the current package, as the trampoline
+				// pass expects packages are laid out in dependency order.
+				s := l.Syms[dupsym]
+				if s.Type == sym.STEXT {
+					lib.DupTextSyms = append(lib.DupTextSyms, s)
+				}
+			}
+			continue
+		}
+
+		s := l.Syms[istart+Sym(i)]
+		if s == nil {
+			continue
+		}
 		if s.Name != name { // Sanity check. We can remove it in the final version.
 			fmt.Println("name mismatch:", lib, i, s.Name, name)
 			panic("name mismatch")
 		}
 
-		dupok := osym.Flag&goobj2.SymFlagDupok != 0
 		local := osym.Flag&goobj2.SymFlagLocal != 0
 		makeTypelink := osym.Flag&goobj2.SymFlagTypelink != 0
 		size := osym.Siz
