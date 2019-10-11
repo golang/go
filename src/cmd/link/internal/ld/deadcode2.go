@@ -64,9 +64,9 @@ func (d *deadcodePass2) init() {
 			// but we do keep the symbols it refers to.
 			exportsIdx := d.loader.Lookup("go.plugin.exports", 0)
 			if exportsIdx != 0 {
-				nreloc := d.loader.NReloc(exportsIdx)
-				for i := 0; i < nreloc; i++ {
-					d.mark(d.loader.RelocSym(exportsIdx, i))
+				relocs := d.loader.Relocs(exportsIdx)
+				for i := 0; i < relocs.Count; i++ {
+					d.mark(relocs.At(i).Sym)
 				}
 			}
 		}
@@ -86,17 +86,17 @@ func (d *deadcodePass2) init() {
 func (d *deadcodePass2) flood() {
 	for !d.wq.empty() {
 		symIdx := d.wq.pop()
-		nreloc := d.loader.NReloc(symIdx)
-		for i := 0; i < nreloc; i++ {
-			t := d.loader.RelocType(symIdx, i)
-			if t == objabi.R_WEAKADDROFF {
+		relocs := d.loader.Relocs(symIdx)
+		for i := 0; i < relocs.Count; i++ {
+			r := relocs.At(i)
+			if r.Type == objabi.R_WEAKADDROFF {
 				continue
 			}
-			if t == objabi.R_METHODOFF {
+			if r.Type == objabi.R_METHODOFF {
 				// TODO: we should do something about it
 				// For now, all the methods are considered live
 			}
-			d.mark(d.loader.RelocSym(symIdx, i))
+			d.mark(r.Sym)
 		}
 		naux := d.loader.NAux(symIdx)
 		for i := 0; i < naux; i++ {
@@ -125,7 +125,8 @@ func deadcode2(ctxt *Link) {
 		for i := 1; i < n; i++ {
 			s := objfile.Sym(i)
 			if strings.HasPrefix(loader.RawSymName(s), "go.itablink.") {
-				if d.loader.NReloc(s) > 0 && loader.Reachable.Has(loader.RelocSym(s, 0)) {
+				relocs := loader.Relocs(s)
+				if relocs.Count > 0 && loader.Reachable.Has(relocs.At(0).Sym) {
 					loader.Reachable.Set(s)
 				}
 			}
