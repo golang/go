@@ -87,6 +87,13 @@ func loadTypes(path, pkgName string, v visitor) {
 }
 
 func TestMirrorWithReflect(t *testing.T) {
+	reflectDir := filepath.Join(runtime.GOROOT(), "src", "reflect")
+	if _, err := os.Stat(reflectDir); os.IsNotExist(err) {
+		// On some mobile builders, the test binary executes on a machine without a
+		// complete GOROOT source tree.
+		t.Skipf("GOROOT source not present")
+	}
+
 	var wg sync.WaitGroup
 	rl, r := newVisitor(), newVisitor()
 
@@ -95,7 +102,7 @@ func TestMirrorWithReflect(t *testing.T) {
 		v         visitor
 	}{
 		{".", "reflectlite", rl},
-		{filepath.Join(runtime.GOROOT(), "src", "reflect"), "reflect", r},
+		{reflectDir, "reflect", r},
 	} {
 		tc := tc
 		wg.Add(1)
