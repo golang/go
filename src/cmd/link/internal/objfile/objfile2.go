@@ -27,6 +27,27 @@ var _ = fmt.Print
 // Go symbol. The 0-valued Sym is corresponds to an invalid symbol.
 type Sym int
 
+// Relocs encapsulates the set of relocations on a given symbol; an
+// instance of this type is returned by the Loader Relocs() method.
+type Relocs struct {
+	Count int // number of relocs
+
+	li int      // local index of symbol whose relocs we're examining
+	r  *oReader // object reader for containing package
+	l  *Loader  // loader
+}
+
+// Reloc contains the payload for a specific relocation.
+// TODO: replace this with sym.Reloc, once we change the
+// relocation target from "*sym.Symbol" to "loader.Sym" in sym.Reloc.
+type Reloc struct {
+	Off  int32            // offset to rewrite
+	Size uint8            // number of bytes to rewrite: 0, 1, 2, or 4
+	Type objabi.RelocType // the relocation type
+	Add  int64            // addend
+	Sym  Sym              // global index of symbol the reloc addresses
+}
+
 // oReader is a wrapper type of obj.Reader, along with some
 // extra information.
 // TODO: rename to objReader once the old one is gone?
@@ -295,6 +316,39 @@ func (l *Loader) InitReachable() {
 	l.Reachable = makeBitmap(l.NSym())
 }
 
+// At method returns the j-th reloc for a global symbol.
+func (relocs *Relocs) At(j int) Reloc {
+	rel := goobj2.Reloc{}
+	rel.Read(relocs.r.Reader, relocs.r.RelocOff(relocs.li, j))
+	target := relocs.l.Resolve(relocs.r, rel.Sym)
+	return Reloc{
+		Off:  rel.Off,
+		Size: rel.Siz,
+		Type: objabi.RelocType(rel.Type),
+		Add:  rel.Add,
+		Sym:  target,
+	}
+}
+
+// Relocs returns a Relocs object for the given global sym.
+func (l *Loader) Relocs(i Sym) Relocs {
+	r, li := l.ToLocal(i)
+	if r == nil {
+		return Relocs{}
+	}
+	return l.relocs(r, li)
+}
+
+// Relocs returns a Relocs object given a local sym index and reader.
+func (l *Loader) relocs(r *oReader, li int) Relocs {
+	return Relocs{
+		Count: r.NReloc(li),
+		li:    li,
+		r:     r,
+		l:     l,
+	}
+}
+
 // Preload a package: add autolibs, add symbols to the symbol table.
 // Does not read symbol data yet.
 func LoadNew(l *Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64, pn string, flags int) {
@@ -473,15 +527,14 @@ func loadObjReloc(l *Loader, r *oReader) {
 		s.Type = t
 		s.Unit = r.unit
 
-		// Reloc
-		nreloc := r.NReloc(i)
-		s.R = make([]sym.Reloc, nreloc)
+		// Relocs
+		relocs := l.relocs(r, i)
+		s.R = make([]sym.Reloc, relocs.Count)
 		for j := range s.R {
-			rel := goobj2.Reloc{}
-			rel.Read(r.Reader, r.RelocOff(i, j))
-			rs := l.Resolve(r, rel.Sym)
-			rt := objabi.RelocType(rel.Type)
-			sz := rel.Siz
+			r := relocs.At(j)
+			rs := r.Sym
+			sz := r.Size
+			rt := r.Type
 			if rt == objabi.R_METHODOFF {
 				if l.Reachable.Has(rs) {
 					rt = objabi.R_ADDROFF
@@ -495,13 +548,14 @@ func loadObjReloc(l *Loader, r *oReader) {
 				sz = 0
 			}
 			if rs != 0 && l.SymType(rs) == sym.SABIALIAS {
-				rs = l.RelocSym(rs, 0)
+				rsrelocs := l.Relocs(rs)
+				rs = rsrelocs.At(0).Sym
 			}
 			s.R[j] = sym.Reloc{
-				Off:  rel.Off,
+				Off:  r.Off,
 				Siz:  sz,
 				Type: rt,
-				Add:  rel.Add,
+				Add:  r.Add,
 				Sym:  l.Syms[rs],
 			}
 		}
