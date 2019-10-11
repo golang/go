@@ -83,7 +83,9 @@ func prepareEdits(before string, edits []TextEdit) (*span.TokenConverter, []Text
 	for i, edit := range edits {
 		edit.Span, _ = edit.Span.WithAll(c)
 		copied[i] = edit
-		partial = partial || edit.Span.Start().Column() > 1 || edit.Span.End().Column() > 1
+		partial = partial ||
+			edit.Span.Start().Offset() >= len(before) ||
+			edit.Span.Start().Column() > 1 || edit.Span.End().Column() > 1
 	}
 	SortTextEdits(copied)
 	return c, copied, partial
@@ -124,6 +126,19 @@ func addEdit(before string, edits []TextEdit, edit TextEdit) []TextEdit {
 		// prepend the text and adjust to start of line
 		delta := start.Column() - 1
 		start = span.NewPoint(start.Line(), 1, start.Offset()-delta)
+		edit.Span = span.New(edit.Span.URI(), start, end)
+		edit.NewText = before[start.Offset():start.Offset()+delta] + edit.NewText
+	}
+	if start.Offset() >= len(before) && start.Line() > 1 && before[len(before)-1] != '\n' {
+		// after end of file that does not end in eol, so join to last line of file
+		// to do this we need to know where the start of the last line was
+		eol := strings.LastIndex(before, "\n")
+		if eol < 0 {
+			// file is one non terminated line
+			eol = 0
+		}
+		delta := len(before) - eol
+		start = span.NewPoint(start.Line()-1, 1, start.Offset()-delta)
 		edit.Span = span.New(edit.Span.URI(), start, end)
 		edit.NewText = before[start.Offset():start.Offset()+delta] + edit.NewText
 	}

@@ -115,6 +115,31 @@ var TestCases = []struct {
 `[1:],
 	Edits: []diff.TextEdit{{Span: newSpan(0, 1), NewText: "B"}},
 }, {
+	Name: "add_end",
+	In:   "A",
+	Out:  "AB",
+	Unified: UnifiedPrefix + `
+@@ -1 +1 @@
+-A
+\ No newline at end of file
++AB
+\ No newline at end of file
+`[1:],
+	Edits:     []diff.TextEdit{{Span: newSpan(1, 1), NewText: "B"}},
+	LineEdits: []diff.TextEdit{{Span: newSpan(0, 1), NewText: "AB"}},
+}, {
+	Name: "add_newline",
+	In:   "A",
+	Out:  "A\n",
+	Unified: UnifiedPrefix + `
+@@ -1 +1 @@
+-A
+\ No newline at end of file
++A
+`[1:],
+	Edits:     []diff.TextEdit{{Span: newSpan(1, 1), NewText: "\n"}},
+	LineEdits: []diff.TextEdit{{Span: newSpan(0, 1), NewText: "A\n"}},
+}, {
 	Name: "delete_front",
 	In:   "A\nB\nC\nA\nB\nB\nA\n",
 	Out:  "C\nB\nA\nB\nA\nC\n",
