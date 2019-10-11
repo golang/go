@@ -248,15 +248,19 @@ var blockString = [...]string{
 }
 
 func (k BlockKind) String() string { return blockString[k] }
-
-var blockAuxIntType = [...]string{
-	BlockS390XCIJ:   "Int8",
-	BlockS390XCGIJ:  "Int8",
-	BlockS390XCLIJ:  "UInt8",
-	BlockS390XCLGIJ: "UInt8",
+func (k BlockKind) AuxIntType() string {
+	switch k {
+	case BlockS390XCIJ:
+		return "Int8"
+	case BlockS390XCGIJ:
+		return "Int8"
+	case BlockS390XCLIJ:
+		return "UInt8"
+	case BlockS390XCLGIJ:
+		return "UInt8"
+	}
+	return ""
 }
-
-func (k BlockKind) AuxIntType() string { return blockAuxIntType[k] }
 
 const (
 	OpInvalid Op = iota

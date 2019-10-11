@@ -221,17 +221,19 @@ func genOp() {
 	fmt.Fprintln(w, "func (k BlockKind) String() string {return blockString[k]}")
 
 	// generate block kind auxint method
-	fmt.Fprintln(w, "var blockAuxIntType = [...]string{")
+	fmt.Fprintln(w, "func (k BlockKind) AuxIntType() string {")
+	fmt.Fprintln(w, "switch k {")
 	for _, a := range archs {
 		for _, b := range a.blocks {
 			if b.auxint == "" {
 				continue
 			}
-			fmt.Fprintf(w, "Block%s%s:\"%s\",\n", a.Name(), b.name, b.auxint)
+			fmt.Fprintf(w, "case Block%s%s: return \"%s\"\n", a.Name(), b.name, b.auxint)
 		}
 	}
 	fmt.Fprintln(w, "}")
-	fmt.Fprintln(w, "func (k BlockKind) AuxIntType() string {return blockAuxIntType[k]}")
+	fmt.Fprintln(w, "return \"\"")
+	fmt.Fprintln(w, "}")
 
 	// generate Op* declarations
 	fmt.Fprintln(w, "const (")
