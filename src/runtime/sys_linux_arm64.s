@@ -208,6 +208,13 @@ noswitch:
 	MOVD	runtime·vdsoClockgettimeSym(SB), R2
 	CBZ	R2, fallback
 	BL	(R2)
+
+	SUB	$24, RSP
+	MOVD	R20, 16(RSP)
+	BL	runtime·sigClearPending(SB)
+	MOVD	16(RSP), R20
+	ADD	$24, RSP
+
 	B	finish
 
 fallback:
@@ -251,6 +258,13 @@ noswitch:
 	MOVD	runtime·vdsoClockgettimeSym(SB), R2
 	CBZ	R2, fallback
 	BL	(R2)
+
+	SUB	$24, RSP
+	MOVD	R20, 16(RSP)
+	BL	runtime·sigClearPending(SB)
+	MOVD	16(RSP), R20
+	ADD	$24, RSP
+
 	B	finish
 
 fallback:

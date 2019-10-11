@@ -274,19 +274,56 @@ func sigpipe() {
 	dieFromSignal(_SIGPIPE)
 }
 
-// sigFetchG fetches the value of G safely when running in a signal handler.
 // On some architectures, the g value may be clobbered when running in a VDSO.
 // See issue #32912.
 //
 //go:nosplit
-func sigFetchG(c *sigctxt) *g {
+func sigClobbered(c *sigctxt) bool {
 	switch GOARCH {
 	case "arm", "arm64":
-		if inVDSOPage(c.sigpc()) {
-			return nil
+		return inVDSOPage(c.sigpc());
+	}
+	return false
+}
+
+// sigpending stores signals during the Go signal handler when the g value is clobbered.
+// See issue #34391.
+var sigpending [(_NSIG + 31) / 32]uint32
+
+func sigAddPending(s uint32) {
+	for {
+		p := sigpending[s/32]
+		q := p | (1 << (s & 31))
+		if atomic.Cas(&sigpending[s/32], p, q) {
+			return
 		}
 	}
-	return getg()
+}
+
+// sigClearPending is called from outside the signal handler context.
+// It should be called just after the clobbered G value is restored.
+//go:nosplit
+//go:nowritebarrierrec
+func sigClearPending() {
+	for s := 0; s < _NSIG; s++ {
+		// steal signal from pending queue
+		steal := false
+		for {
+			p := sigpending[s/32]
+			if p & (1 << (s & 31)) == 0 {
+				break
+			}
+			q := p &^ (1 << (s & 31))
+			if atomic.Cas(&sigpending[s/32], p, q) {
+				steal = true
+				break
+			}
+		}
+		if !steal {
+			continue
+		}
+		raise(uint32(s))
+	}
 }
 
 // sigtrampgo is called from the signal handler function, sigtramp,
@@ -305,7 +342,16 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 		return
 	}
 	c := &sigctxt{info, ctx}
-	g := sigFetchG(c)
+	if sigClobbered(c) {
+		if sig == _SIGPROF {
+			sigprofNonGoPC(c.sigpc())
+			return
+		}
+		// at this point iscgo must be true
+		sigAddPending(sig)
+		return
+	}
+	g := getg()
 	if g == nil {
 		if sig == _SIGPROF {
 			sigprofNonGoPC(c.sigpc())
@@ -670,13 +716,19 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 	if (c.sigcode() == _SI_USER || flags&_SigPanic == 0) && sig != _SIGPIPE {
 		return false
 	}
-	// Determine if the signal occurred inside Go code. We test that:
-	//   (1) we weren't in VDSO page,
-	//   (2) we were in a goroutine (i.e., m.curg != nil), and
-	//   (3) we weren't in CGO.
-	g := sigFetchG(c)
-	if g != nil && g.m != nil && g.m.curg != nil && !g.m.incgo {
-		return false
+	if sigClobbered(c) {
+		// There is no handler to be forwarded to.
+		if !iscgo {
+			return false
+		}
+	} else {
+		// Determine if the signal occurred inside Go code. We test that:
+		//   (1) we were in a goroutine (i.e., m.curg != nil), and
+		//   (2) we weren't in CGO.
+		g := getg()
+		if g != nil && g.m != nil && g.m.curg != nil && !g.m.incgo {
+			return false
+		}
 	}
 
 	// Signal not handled by Go, forward it.

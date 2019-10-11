@@ -247,6 +247,15 @@ noswitch:
 	B.EQ	fallback
 
 	BL	(R11)
+
+	SUB	$24, R13
+	MOVW	R4, 8(R13)
+	MOVW	R5, 12(R13)
+	BL	runtime·sigClearPending(SB)
+	MOVW	12(R13), R5
+	MOVW	8(R13), R4
+	ADD	$24, R13
+
 	JMP	finish
 
 fallback:
@@ -298,6 +307,15 @@ noswitch:
 	B.EQ	fallback
 
 	BL	(R11)
+
+	SUB	$24, R13
+	MOVW	R4, 8(R13)
+	MOVW	R5, 12(R13)
+	BL	runtime·sigClearPending(SB)
+	MOVW	12(R13), R5
+	MOVW	8(R13), R4
+	ADD	$24, R13
+
 	JMP	finish
 
 fallback:
