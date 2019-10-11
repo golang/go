@@ -59,19 +59,24 @@ func runVendor(cmd *base.Command, args []string) {
 		modpkgs[m] = append(modpkgs[m], pkg)
 	}
 
+	isExplicit := map[module.Version]bool{}
+	for _, r := range modload.ModFile().Require {
+		isExplicit[r.Mod] = true
+	}
+
 	var buf bytes.Buffer
 	for _, m := range modload.BuildList()[1:] {
-		if pkgs := modpkgs[m]; len(pkgs) > 0 {
-			repl := ""
-			if r := modload.Replacement(m); r.Path != "" {
-				repl = " => " + r.Path
-				if r.Version != "" {
-					repl += " " + r.Version
-				}
-			}
-			fmt.Fprintf(&buf, "# %s %s%s\n", m.Path, m.Version, repl)
+		if pkgs := modpkgs[m]; len(pkgs) > 0 || isExplicit[m] {
+			line := moduleLine(m, modload.Replacement(m))
+			buf.WriteString(line)
 			if cfg.BuildV {
-				fmt.Fprintf(os.Stderr, "# %s %s%s\n", m.Path, m.Version, repl)
+				os.Stderr.WriteString(line)
+			}
+			if isExplicit[m] {
+				buf.WriteString("## explicit\n")
+				if cfg.BuildV {
+					os.Stderr.WriteString("## explicit\n")
+				}
 			}
 			sort.Strings(pkgs)
 			for _, pkg := range pkgs {
@@ -83,6 +88,24 @@ func runVendor(cmd *base.Command, args []string) {
 			}
 		}
 	}
+
+	// Record unused and wildcard replacements at the end of the modules.txt file:
+	// without access to the complete build list, the consumer of the vendor
+	// directory can't otherwise determine that those replacements had no effect.
+	for _, r := range modload.ModFile().Replace {
+		if len(modpkgs[r.Old]) > 0 {
+			// We we already recorded this replacement in the entry for the replaced
+			// module with the packages it provides.
+			continue
+		}
+
+		line := moduleLine(r.Old, r.New)
+		buf.WriteString(line)
+		if cfg.BuildV {
+			os.Stderr.WriteString(line)
+		}
+	}
+
 	if buf.Len() == 0 {
 		fmt.Fprintf(os.Stderr, "go: no dependencies to vendor\n")
 		return
@@ -90,6 +113,26 @@ func runVendor(cmd *base.Command, args []string) {
 	if err := ioutil.WriteFile(filepath.Join(vdir, "modules.txt"), buf.Bytes(), 0666); err != nil {
 		base.Fatalf("go mod vendor: %v", err)
 	}
+}
+
+func moduleLine(m, r module.Version) string {
+	b := new(strings.Builder)
+	b.WriteString("# ")
+	b.WriteString(m.Path)
+	if m.Version != "" {
+		b.WriteString(" ")
+		b.WriteString(m.Version)
+	}
+	if r.Path != "" {
+		b.WriteString(" => ")
+		b.WriteString(r.Path)
+		if r.Version != "" {
+			b.WriteString(" ")
+			b.WriteString(r.Version)
+		}
+	}
+	b.WriteString("\n")
+	return b.String()
 }
 
 func vendorPkg(vdir, pkg string) {

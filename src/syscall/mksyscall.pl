@@ -29,7 +29,6 @@ my $darwin = 0;
 my $openbsd = 0;
 my $netbsd = 0;
 my $dragonfly = 0;
-my $nacl = 0;
 my $arm = 0; # 64-bit value should use (even, odd)-pair
 my $tags = "";  # build tags
 
@@ -58,10 +57,6 @@ if($ARGV[0] eq "-netbsd") {
 }
 if($ARGV[0] eq "-dragonfly") {
 	$dragonfly = 1;
-	shift;
-}
-if($ARGV[0] eq "-nacl") {
-	$nacl = 1;
 	shift;
 }
 if($ARGV[0] eq "-arm") {
@@ -262,9 +257,6 @@ while(<>) {
 		$sysname = "SYS_$func";
 		$sysname =~ s/([a-z])([A-Z])/${1}_$2/g;	# turn FooBar into Foo_Bar
 		$sysname =~ y/a-z/A-Z/;
-		if($nacl) {
-			$sysname =~ y/A-Z/a-z/;
-		}
 		if($darwin) {
 			$sysname =~ y/A-Z/a-z/;
 			$sysname = substr $sysname, 4;

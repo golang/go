@@ -1,15 +1,15 @@
 env GO111MODULE=on
 
-go list -m all
-stdout '^x v1.0.0 => ./x'
-stdout '^w'
-
+# Without vendoring, a build should succeed unless -mod=vendor is set.
 [!short] go build
 [!short] ! go build -mod=vendor
 
+# Without vendoring, 'go list' should report the replacement directory for
+# a package in a replaced module.
 go list -f {{.Dir}} x
 stdout 'src[\\/]x'
 
+# 'go mod vendor' should copy all replaced modules to the vendor directory.
 go mod vendor -v
 stderr '^# x v1.0.0 => ./x'
 stderr '^x'
@@ -20,28 +20,38 @@ stderr '^z'
 ! stderr '^w'
 grep 'a/foo/bar/b\na/foo/bar/c' vendor/modules.txt # must be sorted
 
-go list -f {{.Dir}} x
+# An explicit '-mod=mod' should ignore the vendor directory.
+go list -mod=mod -f {{.Dir}} x
 stdout 'src[\\/]x'
 
-go list -f {{.Dir}} -m x
+go list -mod=mod -f {{.Dir}} -m x
 stdout 'src[\\/]x'
 
+# An explicit '-mod=vendor' should report package directories within
+# the vendor directory.
 go list -mod=vendor -f {{.Dir}} x
 stdout 'src[\\/]vendor[\\/]x'
 
-go list -mod=vendor -f {{.Dir}} -m x
-stdout 'src[\\/]vendor[\\/]x'
+# 'go list -mod=vendor -m' does not have enough information to list modules
+# accurately, and should fail.
+! go list -mod=vendor -f {{.Dir}} -m x
+stderr 'can''t list modules with -mod=vendor\n\tuse -mod=mod or -mod=readonly to ignore the vendor directory'
 
-go list -f {{.Dir}} -m w
+# 'go list -mod=mod' should report packages outside the import graph,
+# but 'go list -mod=vendor' should error out for them.
+go list -mod=mod -f {{.Dir}} w
 stdout 'src[\\/]w'
 
 ! go list -mod=vendor -f {{.Dir}} w
 stderr 'src[\\/]vendor[\\/]w'
 
+# Test dependencies should not be copied.
 ! exists vendor/x/testdata
 ! exists vendor/a/foo/bar/b/ignored.go
 ! exists vendor/a/foo/bar/b/main_test.go
 
+# Licenses and other metadata for each module should be copied
+# if any package within their module is copied.
 exists vendor/a/foo/AUTHORS.txt
 exists vendor/a/foo/CONTRIBUTORS
 exists vendor/a/foo/LICENSE
@@ -59,10 +69,12 @@ exists vendor/mysite/myname/mypkg/LICENSE.txt
 
 [short] stop
 
-go build
+# 'go build' and 'go test' using vendored packages should succeed.
+go build -mod=mod
 go build -mod=vendor
 go test -mod=vendor . ./subdir
 go test -mod=vendor ./...
+go fmt -mod=vendor ./...
 
 -- go.mod --
 module m

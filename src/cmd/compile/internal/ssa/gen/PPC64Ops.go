@@ -416,13 +416,13 @@ func init() {
 		// a loop is generated when there is more than one iteration
 		// needed to clear 4 doublewords
 		//
+		//	XXLXOR	VS32,VS32,VS32
 		// 	MOVD	$len/32,R31
 		//	MOVD	R31,CTR
+		//	MOVD	$16,R31
 		//	loop:
-		//	MOVD	R0,(R3)
-		//	MOVD	R0,8(R3)
-		//	MOVD	R0,16(R3)
-		//	MOVD	R0,24(R3)
+		//	STXVD2X VS32,(R0)(R3)
+		//	STXVD2X	VS32,(R31),R3)
 		//	ADD	R3,32
 		//	BC	loop
 
@@ -448,33 +448,38 @@ func init() {
 			typ:            "Mem",
 			faultOnNilArg0: true,
 		},
+		// R31 is temp register
 		// Loop code:
-		//	MOVD len/32,REG_TMP  only for loop
-		//	MOVD REG_TMP,CTR     only for loop
+		//	MOVD len/32,R31		set up loop ctr
+		//	MOVD R31,CTR
+		//	MOVD $16,R31		index register
 		// loop:
-		//	MOVD (R4),R7
-		//	MOVD 8(R4),R8
-		//	MOVD 16(R4),R9
-		//	MOVD 24(R4),R10
-		//	ADD  R4,$32          only with loop
-		//	MOVD R7,(R3)
-		//	MOVD R8,8(R3)
-		//	MOVD R9,16(R3)
-		//	MOVD R10,24(R3)
-		//	ADD  R3,$32          only with loop
-		//	BC 16,0,loop         only with loop
+		//	LXVD2X (R0)(R4),VS32
+		//	LXVD2X (R31)(R4),VS33
+		//	ADD  R4,$32          increment src
+		//	STXVD2X VS32,(R0)(R3)
+		//	STXVD2X VS33,(R31)(R3)
+		//	ADD  R3,$32          increment dst
+		//	BC 16,0,loop         branch ctr
+		// For this purpose, VS32 and VS33 are treated as
+		// scratch registers. Since regalloc does not
+		// track vector registers, even if it could be marked
+		// as clobbered it would have no effect.
+		// TODO: If vector registers are managed by regalloc
+		// mark these as clobbered.
+		//
 		// Bytes not moved by this loop are moved
 		// with a combination of the following instructions,
 		// starting with the largest sizes and generating as
 		// many as needed, using the appropriate offset value.
-		//	MOVD  n(R4),R7
-		//	MOVD  R7,n(R3)
-		//	MOVW  n1(R4),R7
-		//	MOVW  R7,n1(R3)
-		//	MOVH  n2(R4),R7
-		//	MOVH  R7,n2(R3)
-		//	MOVB  n3(R4),R7
-		//	MOVB  R7,n3(R3)
+		//	MOVD  n(R4),R14
+		//	MOVD  R14,n(R3)
+		//	MOVW  n1(R4),R14
+		//	MOVW  R14,n1(R3)
+		//	MOVH  n2(R4),R14
+		//	MOVH  R14,n2(R3)
+		//	MOVB  n3(R4),R14
+		//	MOVB  R14,n3(R3)
 
 		{
 			name:      "LoweredMove",
@@ -482,7 +487,7 @@ func init() {
 			argLength: 3,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R3"), buildReg("R4")},
-				clobbers: buildReg("R3 R4 R7 R8 R9 R10"),
+				clobbers: buildReg("R3 R4 R14"),
 			},
 			clobberFlags:   true,
 			typ:            "Mem",

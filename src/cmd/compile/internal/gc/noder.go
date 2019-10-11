@@ -495,7 +495,6 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 
 	pragma := fun.Pragma
 	f.Func.Pragma = fun.Pragma
-	f.SetNoescape(pragma&Noescape != 0)
 	if pragma&Systemstack != 0 && pragma&Nosplit != 0 {
 		yyerrorl(f.Pos, "go:nosplit and go:systemstack cannot be combined")
 	}
@@ -507,7 +506,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 	p.funcBody(f, fun.Body)
 
 	if fun.Body != nil {
-		if f.Noescape() {
+		if f.Func.Pragma&Noescape != 0 {
 			yyerrorl(f.Pos, "can only use //go:noescape with external func implementations")
 		}
 	} else {

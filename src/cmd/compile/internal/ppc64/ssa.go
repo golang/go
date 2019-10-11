@@ -855,13 +855,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// for sizes >= 64 generate a loop as follows:
 
 		// set up loop counter in CTR, used by BC
+		//       XXLXOR VS32,VS32,VS32
 		//	 MOVD len/32,REG_TMP
 		//	 MOVD REG_TMP,CTR
+		//       MOVD $16,REG_TMP
 		//	 loop:
-		//	 MOVD R0,(R3)
-		//	 MOVD R0,8(R3)
-		//	 MOVD R0,16(R3)
-		//	 MOVD R0,24(R3)
+		//	 STXVD2X VS32,(R0)(R3)
+		//	 STXVD2X VS32,(R31)(R3)
 		//	 ADD  $32,R3
 		//	 BC   16, 0, loop
 		//
@@ -895,8 +895,16 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// only generate a loop if there is more
 		// than 1 iteration.
 		if ctr > 1 {
+			// Set up VS32 (V0) to hold 0s
+			p := s.Prog(ppc64.AXXLXOR)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = ppc64.REG_VS32
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = ppc64.REG_VS32
+			p.Reg = ppc64.REG_VS32
+
 			// Set up CTR loop counter
-			p := s.Prog(ppc64.AMOVD)
+			p = s.Prog(ppc64.AMOVD)
 			p.From.Type = obj.TYPE_CONST
 			p.From.Offset = ctr
 			p.To.Type = obj.TYPE_REG
@@ -908,22 +916,34 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = ppc64.REG_CTR
 
-			// generate 4 MOVDs
+			// Set up R31 to hold index value 16
+			p = s.Prog(ppc64.AMOVD)
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = 16
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = ppc64.REGTMP
+
+			// generate 2 STXVD2Xs to store 16 bytes
 			// when this is a loop then the top must be saved
 			var top *obj.Prog
-			for offset := int64(0); offset < 32; offset += 8 {
-				// This is the top of loop
-				p := s.Prog(ppc64.AMOVD)
-				p.From.Type = obj.TYPE_REG
-				p.From.Reg = ppc64.REG_R0
-				p.To.Type = obj.TYPE_MEM
-				p.To.Reg = v.Args[0].Reg()
-				p.To.Offset = offset
-				// Save the top of loop
-				if top == nil {
-					top = p
-				}
+			// This is the top of loop
+			p = s.Prog(ppc64.ASTXVD2X)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = ppc64.REG_VS32
+			p.To.Type = obj.TYPE_MEM
+			p.To.Reg = v.Args[0].Reg()
+			p.To.Index = ppc64.REGZERO
+			// Save the top of loop
+			if top == nil {
+				top = p
 			}
+
+			p = s.Prog(ppc64.ASTXVD2X)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = ppc64.REG_VS32
+			p.To.Type = obj.TYPE_MEM
+			p.To.Reg = v.Args[0].Reg()
+			p.To.Index = ppc64.REGTMP
 
 			// Increment address for the
 			// 4 doublewords just zeroed.
@@ -994,30 +1014,27 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// When moving >= 64 bytes a loop is used
 		//	MOVD len/32,REG_TMP
 		//	MOVD REG_TMP,CTR
+		//	MOVD $16,REG_TMP
 		// top:
-		//	MOVD (R4),R7
-		//	MOVD 8(R4),R8
-		//	MOVD 16(R4),R9
-		//	MOVD 24(R4),R10
-		//	ADD  R4,$32
-		//	MOVD R7,(R3)
-		//	MOVD R8,8(R3)
-		//	MOVD R9,16(R3)
-		//	MOVD R10,24(R3)
-		//	ADD  R3,$32
+		//	LXVD2X (R0)(R4),VS32
+		//	LXVD2X (R31)(R4),VS33
+		//	ADD $32,R4
+		//	STXVD2X VS32,(R0)(R3)
+		//	STXVD2X VS33,(R31)(R4)
+		//	ADD $32,R3
 		//	BC 16,0,top
 		// Bytes not moved by this loop are moved
 		// with a combination of the following instructions,
 		// starting with the largest sizes and generating as
 		// many as needed, using the appropriate offset value.
-		//	MOVD  n(R4),R7
-		//	MOVD  R7,n(R3)
-		//	MOVW  n1(R4),R7
-		//	MOVW  R7,n1(R3)
-		//	MOVH  n2(R4),R7
-		//	MOVH  R7,n2(R3)
-		//	MOVB  n3(R4),R7
-		//	MOVB  R7,n3(R3)
+		//	MOVD  n(R4),R14
+		//	MOVD  R14,n(R3)
+		//	MOVW  n1(R4),R14
+		//	MOVW  R14,n1(R3)
+		//	MOVH  n2(R4),R14
+		//	MOVH  R14,n2(R3)
+		//	MOVB  n3(R4),R14
+		//	MOVB  R14,n3(R3)
 
 		// Each loop iteration moves 32 bytes
 		ctr := v.AuxInt / 32
@@ -1030,7 +1047,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 		// The set of registers used here, must match the clobbered reg list
 		// in PPC64Ops.go.
-		useregs := []int16{ppc64.REG_R7, ppc64.REG_R8, ppc64.REG_R9, ppc64.REG_R10}
 		offset := int64(0)
 
 		// top of the loop
@@ -1050,22 +1066,35 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = ppc64.REG_CTR
 
-			// Generate all the MOVDs for loads
-			// based off the same register, increasing
-			// the offset by 8 for each instruction
-			for _, rg := range useregs {
-				p := s.Prog(ppc64.AMOVD)
-				p.From.Type = obj.TYPE_MEM
-				p.From.Reg = src_reg
-				p.From.Offset = offset
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = rg
-				if top == nil {
-					top = p
-				}
-				offset += 8
+			// Use REGTMP as index reg
+			p = s.Prog(ppc64.AMOVD)
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = 16
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = ppc64.REGTMP
+
+			// Generate 16 byte loads and stores.
+			// Use temp register for index (16)
+			// on the second one.
+			p = s.Prog(ppc64.ALXVD2X)
+			p.From.Type = obj.TYPE_MEM
+			p.From.Reg = src_reg
+			p.From.Index = ppc64.REGZERO
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = ppc64.REG_VS32
+
+			if top == nil {
+				top = p
 			}
-			// increment the src_reg for next iteration
+
+			p = s.Prog(ppc64.ALXVD2X)
+			p.From.Type = obj.TYPE_MEM
+			p.From.Reg = src_reg
+			p.From.Index = ppc64.REGTMP
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = ppc64.REG_VS33
+
+			// increment the src reg for next iteration
 			p = s.Prog(ppc64.AADD)
 			p.Reg = src_reg
 			p.From.Type = obj.TYPE_CONST
@@ -1073,20 +1102,22 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = src_reg
 
-			// generate the MOVDs for stores, based
-			// off the same register, using the same
-			// offsets as in the loads.
-			offset = int64(0)
-			for _, rg := range useregs {
-				p := s.Prog(ppc64.AMOVD)
-				p.From.Type = obj.TYPE_REG
-				p.From.Reg = rg
-				p.To.Type = obj.TYPE_MEM
-				p.To.Reg = dst_reg
-				p.To.Offset = offset
-				offset += 8
-			}
-			// increment the dst_reg for next iteration
+			// generate 16 byte stores
+			p = s.Prog(ppc64.ASTXVD2X)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = ppc64.REG_VS32
+			p.To.Type = obj.TYPE_MEM
+			p.To.Reg = dst_reg
+			p.To.Index = ppc64.REGZERO
+
+			p = s.Prog(ppc64.ASTXVD2X)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = ppc64.REG_VS33
+			p.To.Type = obj.TYPE_MEM
+			p.To.Reg = dst_reg
+			p.To.Index = ppc64.REGTMP
+
+			// increment the dst reg for next iteration
 			p = s.Prog(ppc64.AADD)
 			p.Reg = dst_reg
 			p.From.Type = obj.TYPE_CONST
@@ -1114,6 +1145,57 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			rem += 32
 		}
 
+		if rem >= 16 {
+			// Generate 16 byte loads and stores.
+			// Use temp register for index (value 16)
+			// on the second one.
+			p := s.Prog(ppc64.ALXVD2X)
+			p.From.Type = obj.TYPE_MEM
+			p.From.Reg = src_reg
+			p.From.Index = ppc64.REGZERO
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = ppc64.REG_VS32
+
+			p = s.Prog(ppc64.ASTXVD2X)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = ppc64.REG_VS32
+			p.To.Type = obj.TYPE_MEM
+			p.To.Reg = dst_reg
+			p.To.Index = ppc64.REGZERO
+
+			offset = 16
+			rem -= 16
+
+			if rem >= 16 {
+				// Use REGTMP as index reg
+				p = s.Prog(ppc64.AMOVD)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = 16
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = ppc64.REGTMP
+
+				// Generate 16 byte loads and stores.
+				// Use temp register for index (16)
+				// on the second one.
+				p = s.Prog(ppc64.ALXVD2X)
+				p.From.Type = obj.TYPE_MEM
+				p.From.Reg = src_reg
+				p.From.Index = ppc64.REGTMP
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = ppc64.REG_VS32
+
+				p = s.Prog(ppc64.ASTXVD2X)
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = ppc64.REG_VS32
+				p.To.Type = obj.TYPE_MEM
+				p.To.Reg = dst_reg
+				p.To.Index = ppc64.REGTMP
+
+				offset = 32
+				rem -= 16
+			}
+		}
+
 		// Generate all the remaining load and store pairs, starting with
 		// as many 8 byte moves as possible, then 4, 2, 1.
 		for rem > 0 {
@@ -1129,7 +1211,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			// Load
 			p := s.Prog(op)
 			p.To.Type = obj.TYPE_REG
-			p.To.Reg = ppc64.REG_R7
+			p.To.Reg = ppc64.REG_R14
 			p.From.Type = obj.TYPE_MEM
 			p.From.Reg = src_reg
 			p.From.Offset = offset
@@ -1137,7 +1219,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			// Store
 			p = s.Prog(op)
 			p.From.Type = obj.TYPE_REG
-			p.From.Reg = ppc64.REG_R7
+			p.From.Reg = ppc64.REG_R14
 			p.To.Type = obj.TYPE_MEM
 			p.To.Reg = dst_reg
 			p.To.Offset = offset

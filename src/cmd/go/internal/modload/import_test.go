@@ -44,6 +44,10 @@ var importTests = []struct {
 func TestImport(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 	testenv.MustHaveExecPath(t, "git")
+	defer func(old bool) {
+		allowMissingModuleImports = old
+	}(allowMissingModuleImports)
+	AllowMissingModuleImports()
 
 	for _, tt := range importTests {
 		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {

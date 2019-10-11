@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/module"
 	"cmd/go/internal/par"
@@ -25,30 +26,36 @@ import (
 )
 
 type ImportMissingError struct {
-	ImportPath string
-	Module     module.Version
-	QueryErr   error
+	Path     string
+	Module   module.Version
+	QueryErr error
 
 	// newMissingVersion is set to a newer version of Module if one is present
 	// in the build list. When set, we can't automatically upgrade.
 	newMissingVersion string
 }
 
+var _ load.ImportPathError = (*ImportMissingError)(nil)
+
 func (e *ImportMissingError) Error() string {
 	if e.Module.Path == "" {
-		if str.HasPathPrefix(e.ImportPath, "cmd") {
-			return fmt.Sprintf("package %s is not in GOROOT (%s)", e.ImportPath, filepath.Join(cfg.GOROOT, "src", e.ImportPath))
+		if str.HasPathPrefix(e.Path, "cmd") {
+			return fmt.Sprintf("package %s is not in GOROOT (%s)", e.Path, filepath.Join(cfg.GOROOT, "src", e.Path))
 		}
 		if e.QueryErr != nil {
-			return fmt.Sprintf("cannot find module providing package %s: %v", e.ImportPath, e.QueryErr)
+			return fmt.Sprintf("cannot find module providing package %s: %v", e.Path, e.QueryErr)
 		}
-		return "cannot find module providing package " + e.ImportPath
+		return "cannot find module providing package " + e.Path
 	}
-	return fmt.Sprintf("missing module for import: %s@%s provides %s", e.Module.Path, e.Module.Version, e.ImportPath)
+	return fmt.Sprintf("missing module for import: %s@%s provides %s", e.Module.Path, e.Module.Version, e.Path)
 }
 
 func (e *ImportMissingError) Unwrap() error {
 	return e.QueryErr
+}
+
+func (e *ImportMissingError) ImportPath() string {
+	return e.Path
 }
 
 // An AmbiguousImportError indicates an import of a package found in multiple
@@ -121,7 +128,7 @@ func Import(path string) (m module.Version, dir string, err error) {
 		return module.Version{}, dir, nil
 	}
 	if str.HasPathPrefix(path, "cmd") {
-		return module.Version{}, "", &ImportMissingError{ImportPath: path}
+		return module.Version{}, "", &ImportMissingError{Path: path}
 	}
 
 	// -mod=vendor is special.
@@ -139,7 +146,7 @@ func Import(path string) (m module.Version, dir string, err error) {
 			return Target, mainDir, nil
 		}
 		readVendorList()
-		return vendorMap[path], vendorDir, nil
+		return vendorPkgModule[path], vendorDir, nil
 	}
 
 	// Check each module on the build list.
@@ -177,6 +184,12 @@ func Import(path string) (m module.Version, dir string, err error) {
 	// Goal is to determine the module, download it to dir, and return m, dir, ErrMissing.
 	if cfg.BuildMod == "readonly" {
 		return module.Version{}, "", fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
+	}
+	if modRoot == "" && !allowMissingModuleImports {
+		return module.Version{}, "", &ImportMissingError{
+			Path:     path,
+			QueryErr: errors.New("working directory is not part of a module"),
+		}
 	}
 
 	// Not on build list.
@@ -220,7 +233,7 @@ func Import(path string) (m module.Version, dir string, err error) {
 			}
 			_, ok := dirInModule(path, m.Path, root, isLocal)
 			if ok {
-				return m, "", &ImportMissingError{ImportPath: path, Module: m}
+				return m, "", &ImportMissingError{Path: path, Module: m}
 			}
 		}
 	}
@@ -230,7 +243,7 @@ func Import(path string) (m module.Version, dir string, err error) {
 		if errors.Is(err, os.ErrNotExist) {
 			// Return "cannot find module providing package […]" instead of whatever
 			// low-level error QueryPackage produced.
-			return module.Version{}, "", &ImportMissingError{ImportPath: path, QueryErr: err}
+			return module.Version{}, "", &ImportMissingError{Path: path, QueryErr: err}
 		} else {
 			return module.Version{}, "", err
 		}
@@ -255,7 +268,7 @@ func Import(path string) (m module.Version, dir string, err error) {
 			}
 		}
 	}
-	return m, "", &ImportMissingError{ImportPath: path, Module: m, newMissingVersion: newMissingVersion}
+	return m, "", &ImportMissingError{Path: path, Module: m, newMissingVersion: newMissingVersion}
 }
 
 // maybeInModule reports whether, syntactically,

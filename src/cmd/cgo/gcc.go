@@ -2189,6 +2189,11 @@ func (c *typeConv) FinishType(pos token.Pos) {
 // Type returns a *Type with the same memory layout as
 // dtype when used as the type of a variable or a struct field.
 func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+	return c.loadType(dtype, pos, "")
+}
+
+// loadType recursively loads the requested dtype and its dependency graph.
+func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Type {
 	// Always recompute bad pointer typedefs, as the set of such
 	// typedefs changes as we see more types.
 	checkCache := true
@@ -2196,7 +2201,9 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		checkCache = false
 	}
 
-	key := dtype.String()
+	// The cache key should be relative to its parent.
+	// See issue https://golang.org/issue/31891
+	key := parent + " > " + dtype.String()
 
 	if checkCache {
 		if t, ok := c.m[key]; ok {
@@ -2236,7 +2243,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 			// Translate to zero-length array instead.
 			count = 0
 		}
-		sub := c.Type(dt.Type, pos)
+		sub := c.loadType(dt.Type, pos, key)
 		t.Align = sub.Align
 		t.Go = &ast.ArrayType{
 			Len: c.intExpr(count),
@@ -2381,7 +2388,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		c.ptrs[key] = append(c.ptrs[key], t)
 
 	case *dwarf.QualType:
-		t1 := c.Type(dt.Type, pos)
+		t1 := c.loadType(dt.Type, pos, key)
 		t.Size = t1.Size
 		t.Align = t1.Align
 		t.Go = t1.Go
@@ -2465,7 +2472,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		}
 		name := c.Ident("_Ctype_" + dt.Name)
 		goIdent[name.Name] = name
-		sub := c.Type(dt.Type, pos)
+		sub := c.loadType(dt.Type, pos, key)
 		if c.badPointerTypedef(dt) {
 			// Treat this typedef as a uintptr.
 			s := *sub

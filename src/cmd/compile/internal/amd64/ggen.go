@@ -94,7 +94,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Pr
 		if cnt%16 != 0 {
 			p = pp.Appendpp(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_MEM, x86.REG_SP, off+cnt-int64(16))
 		}
-	} else if !gc.Nacl && !isPlan9 && (cnt <= int64(128*gc.Widthreg)) {
+	} else if !isPlan9 && (cnt <= int64(128*gc.Widthreg)) {
 		if *state&x0 == 0 {
 			p = pp.Appendpp(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_REG, x86.REG_X0, 0)
 			*state |= x0

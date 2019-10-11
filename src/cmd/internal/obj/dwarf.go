@@ -8,6 +8,7 @@ package obj
 
 import (
 	"cmd/internal/dwarf"
+	"cmd/internal/src"
 	"fmt"
 )
 
@@ -48,78 +49,45 @@ func (ctxt *Link) generateDebugLinesSymbol(s, lines *LSym) {
 	// generating the line table. See below.
 	// TODO: Once delve can support multiple DW_LNS_end_statements, we don't have
 	// to do this.
-	is_stmt := uint8(1)
+	stmt := true
+	line := int64(1)
 	pc := s.Func.Text.Pc
-	line := 1
-	file := 1
+	name := ""
+	prologue, wrotePrologue := false, false
+	// Walk the progs, generating the DWARF table.
+	for p := s.Func.Text; p != nil; p = p.Link {
+		prologue = prologue || (p.Pos.Xlogue() == src.PosPrologueEnd)
+		// If we're not at a real instruction, keep looping!
+		if p.Pos.Line() == 0 || (p.Link != nil && p.Link.Pc == p.Pc) {
+			continue
+		}
+		newStmt := p.Pos.IsStmt() != src.PosNotStmt
+		newName, newLine := linkgetlineFromPos(ctxt, p.Pos)
 
-	// The linker will insert the DW_LNE_set_address once determined; therefore,
-	// it's omitted here.
-
-	// Generate the actual line information.
-	// We use the pcline and pcfile to generate this section, and it's suboptimal.
-	// Likely better would be to generate this dirrectly from the progs and not
-	// parse those tables.
-	// TODO: Generate from the progs if it's faster.
-	pcfile := NewPCIter(uint32(ctxt.Arch.Arch.MinLC))
-	pcline := NewPCIter(uint32(ctxt.Arch.Arch.MinLC))
-	pcstmt := NewPCIter(uint32(ctxt.Arch.Arch.MinLC))
-	pcfile.Init(s.Func.Pcln.Pcfile.P)
-	pcline.Init(s.Func.Pcln.Pcline.P)
-	var pctostmtData Pcdata
-	funcpctab(ctxt, &pctostmtData, s, "pctostmt", pctostmt, nil)
-	pcstmt.Init(pctostmtData.P)
-	var thispc uint32
-
-	for !pcfile.Done && !pcline.Done {
-		// Only changed if it advanced
-		if int32(file) != pcfile.Value {
+		// Output debug info.
+		wrote := false
+		if name != newName {
+			newFile := ctxt.PosTable.FileIndex(newName) + 1 // 1 indexing for the table.
 			dctxt.AddUint8(lines, dwarf.DW_LNS_set_file)
-			dwarf.Uleb128put(dctxt, lines, fileNums[pcfile.Value])
-			file = int(pcfile.Value)
+			dwarf.Uleb128put(dctxt, lines, int64(newFile))
+			name = newName
+			wrote = true
+		}
+		if prologue && !wrotePrologue {
+			dctxt.AddUint8(lines, uint8(dwarf.DW_LNS_set_prologue_end))
+			wrotePrologue = true
+			wrote = true
+		}
+		if stmt != newStmt {
+			dctxt.AddUint8(lines, uint8(dwarf.DW_LNS_negate_stmt))
+			stmt = newStmt
+			wrote = true
 		}
 
-		// Only changed if it advanced
-		if is_stmt != uint8(pcstmt.Value) {
-			new_stmt := uint8(pcstmt.Value)
-			switch new_stmt &^ 1 {
-			case PrologueEnd:
-				dctxt.AddUint8(lines, uint8(dwarf.DW_LNS_set_prologue_end))
-			case EpilogueBegin:
-				// TODO if there is a use for this, add it.
-				// Don't forget to increase OPCODE_BASE by 1 and add entry for standard_opcode_lengths[11]
-				panic("unsupported EpilogueBegin")
-			}
-			new_stmt &= 1
-			if is_stmt != new_stmt {
-				is_stmt = new_stmt
-				dctxt.AddUint8(lines, uint8(dwarf.DW_LNS_negate_stmt))
-			}
-		}
-
-		// putpcldelta makes a row in the DWARF matrix, always, even if line is unchanged.
-		putpclcdelta(ctxt, dctxt, lines, uint64(s.Func.Text.Pc+int64(thispc)-pc), int64(pcline.Value)-int64(line))
-
-		pc = s.Func.Text.Pc + int64(thispc)
-		line = int(pcline.Value)
-
-		// Take the minimum step forward for the three iterators
-		thispc = pcfile.NextPC
-		if pcline.NextPC < thispc {
-			thispc = pcline.NextPC
-		}
-		if !pcstmt.Done && pcstmt.NextPC < thispc {
-			thispc = pcstmt.NextPC
-		}
-
-		if pcfile.NextPC == thispc {
-			pcfile.Next()
-		}
-		if !pcstmt.Done && pcstmt.NextPC == thispc {
-			pcstmt.Next()
-		}
-		if pcline.NextPC == thispc {
-			pcline.Next()
+		if line != int64(newLine) || wrote {
+			pcdelta := p.Pc - pc
+			putpclcdelta(ctxt, dctxt, lines, uint64(pcdelta), int64(newLine)-line)
+			line, pc = int64(newLine), p.Pc
 		}
 	}
 
@@ -129,16 +97,16 @@ func (ctxt *Link) generateDebugLinesSymbol(s, lines *LSym) {
 	//   file = 1
 	//   line = 1
 	//   column = 0
-	//   is_stmt = set in header, we assume true
+	//   stmt = set in header, we assume true
 	//   basic_block = false
 	// Careful readers of the DWARF specification will note that we don't reset
 	// the address of the state machine -- but this will happen at the beginning
-	// of the NEXT block of opcodes. (See the SetAddress call above.)
+	// of the NEXT block of opcodes.
 	dctxt.AddUint8(lines, dwarf.DW_LNS_set_file)
 	dwarf.Uleb128put(dctxt, lines, 1)
 	dctxt.AddUint8(lines, dwarf.DW_LNS_advance_line)
 	dwarf.Sleb128put(dctxt, lines, int64(1-line))
-	if is_stmt != 1 {
+	if !stmt {
 		dctxt.AddUint8(lines, dwarf.DW_LNS_negate_stmt)
 	}
 	dctxt.AddUint8(lines, dwarf.DW_LNS_copy)

@@ -120,7 +120,8 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 	}
 
 	if cfg.BuildMod == "vendor" {
-		info.Dir = filepath.Join(ModRoot(), "vendor", m.Path)
+		// The vendor directory doesn't contain enough information to reconstruct
+		// anything more about the module.
 		return info
 	}
 

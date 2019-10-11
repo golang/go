@@ -416,6 +416,8 @@ const (
 	_AT_EACCESS          = C.AT_EACCESS
 )
 
+type pollFd C.struct_pollfd
+
 // Terminal handling
 
 type Termios C.struct_termios

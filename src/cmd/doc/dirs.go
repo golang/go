@@ -162,7 +162,15 @@ func findCodeRoots() []Dir {
 		// Check for use of modules by 'go env GOMOD',
 		// which reports a go.mod file path if modules are enabled.
 		stdout, _ := exec.Command("go", "env", "GOMOD").Output()
-		usingModules = len(bytes.TrimSpace(stdout)) > 0
+		gomod := string(bytes.TrimSpace(stdout))
+		usingModules = len(gomod) > 0
+		if gomod == os.DevNull {
+			// Modules are enabled, but the working directory is outside any module.
+			// We can still access std, cmd, and packages specified as source files
+			// on the command line, but there are no module roots.
+			// Avoid 'go list -m all' below, since it will not work.
+			return list
+		}
 	}
 
 	if !usingModules {

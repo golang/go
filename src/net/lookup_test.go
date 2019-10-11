@@ -858,10 +858,6 @@ func TestLookupProtocol_Minimal(t *testing.T) {
 }
 
 func TestLookupNonLDH(t *testing.T) {
-	if runtime.GOOS == "nacl" {
-		t.Skip("skip on nacl")
-	}
-
 	defer dnsWaitGroup.Wait()
 
 	if fixup := forceGoDNS(); fixup != nil {
@@ -886,10 +882,6 @@ func TestLookupNonLDH(t *testing.T) {
 
 func TestLookupContextCancel(t *testing.T) {
 	mustHaveExternalNetwork(t)
-	if runtime.GOOS == "nacl" {
-		t.Skip("skip on nacl")
-	}
-
 	defer dnsWaitGroup.Wait()
 
 	ctx, ctxCancel := context.WithCancel(context.Background())
@@ -911,9 +903,6 @@ func TestLookupContextCancel(t *testing.T) {
 // crashes if nil is used.
 func TestNilResolverLookup(t *testing.T) {
 	mustHaveExternalNetwork(t)
-	if runtime.GOOS == "nacl" {
-		t.Skip("skip on nacl")
-	}
 	var r *Resolver = nil
 	ctx := context.Background()
 
@@ -933,10 +922,6 @@ func TestNilResolverLookup(t *testing.T) {
 // canceled lookups (see golang.org/issue/24178 for details).
 func TestLookupHostCancel(t *testing.T) {
 	mustHaveExternalNetwork(t)
-	if runtime.GOOS == "nacl" {
-		t.Skip("skip on nacl")
-	}
-
 	const (
 		google        = "www.google.com"
 		invalidDomain = "invalid.invalid" // RFC 2606 reserves .invalid

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build 386 amd64 amd64p32
+// +build 386 amd64
 
 package cpu
 
@@ -55,8 +55,8 @@ func doinit() {
 		{Name: "sse42", Feature: &X86.HasSSE42},
 		{Name: "ssse3", Feature: &X86.HasSSSE3},
 
-		// These capabilities should always be enabled on amd64(p32):
-		{Name: "sse2", Feature: &X86.HasSSE2, Required: GOARCH == "amd64" || GOARCH == "amd64p32"},
+		// These capabilities should always be enabled on amd64:
+		{Name: "sse2", Feature: &X86.HasSSE2, Required: GOARCH == "amd64"},
 	}
 
 	maxID, _, _, _ := cpuid(0, 0)

@@ -2168,9 +2168,6 @@ func (ctxt *Link) address() []*sym.Segment {
 	}
 
 	Segtext.Length = va - uint64(*FlagTextAddr)
-	if ctxt.HeadType == objabi.Hnacl {
-		va += 32 // room for the "halt sled"
-	}
 
 	if len(Segrodata.Sections) > 0 {
 		// align to page boundary so as not to mix

@@ -4,10 +4,19 @@
 
 package syscall
 
+import "unsafe"
+
 const (
 	_SYS_dup       = SYS_DUP3
 	_SYS_setgroups = SYS_SETGROUPS
 )
+
+func EpollCreate(size int) (fd int, err error) {
+	if size <= 0 {
+		return -1, EINVAL
+	}
+	return EpollCreate1(0)
+}
 
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) = SYS_EPOLL_PWAIT
 //sys	Fchown(fd int, uid int, gid int) (err error)
@@ -85,7 +94,6 @@ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err
 }
 
 //sysnb	Gettimeofday(tv *Timeval) (err error)
-//sysnb	Time(t *Time_t) (tt Time_t, err error)
 
 func setTimespec(sec, nsec int64) Timespec {
 	return Timespec{Sec: sec, Nsec: nsec}
@@ -93,6 +101,50 @@ func setTimespec(sec, nsec int64) Timespec {
 
 func setTimeval(sec, usec int64) Timeval {
 	return Timeval{Sec: sec, Usec: usec}
+}
+
+func futimesat(dirfd int, path string, tv *[2]Timeval) (err error) {
+	if tv == nil {
+		return utimensat(dirfd, path, nil, 0)
+	}
+
+	ts := []Timespec{
+		NsecToTimespec(TimevalToNsec(tv[0])),
+		NsecToTimespec(TimevalToNsec(tv[1])),
+	}
+	return utimensat(dirfd, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
+}
+
+func Time(t *Time_t) (Time_t, error) {
+	var tv Timeval
+	err := Gettimeofday(&tv)
+	if err != nil {
+		return 0, err
+	}
+	if t != nil {
+		*t = Time_t(tv.Sec)
+	}
+	return Time_t(tv.Sec), nil
+}
+
+func Utime(path string, buf *Utimbuf) error {
+	tv := []Timeval{
+		{Sec: buf.Actime},
+		{Sec: buf.Modtime},
+	}
+	return Utimes(path, tv)
+}
+
+func utimes(path string, tv *[2]Timeval) (err error) {
+	if tv == nil {
+		return utimensat(_AT_FDCWD, path, nil, 0)
+	}
+
+	ts := []Timespec{
+		NsecToTimespec(TimevalToNsec(tv[0])),
+		NsecToTimespec(TimevalToNsec(tv[1])),
+	}
+	return utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
 }
 
 func Pipe(p []int) (err error) {
@@ -139,20 +191,11 @@ func InotifyInit() (fd int, err error) {
 	return InotifyInit1(0)
 }
 
-// TODO(dfc): constants that should be in zsysnum_linux_arm64.go, remove
-// these when the deprecated syscalls that the syscall package relies on
-// are removed.
-const (
-	SYS_GETPGRP      = 1060
-	SYS_UTIMES       = 1037
-	SYS_FUTIMESAT    = 1066
-	SYS_PAUSE        = 1061
-	SYS_USTAT        = 1070
-	SYS_UTIME        = 1063
-	SYS_LCHOWN       = 1032
-	SYS_TIME         = 1062
-	SYS_EPOLL_CREATE = 1042
-	SYS_EPOLL_WAIT   = 1069
-)
+//sys	ppoll(fds *pollFd, nfds int, timeout *Timespec, sigmask *sigset_t) (n int, err error)
+
+func Pause() error {
+	_, err := ppoll(nil, 0, nil, nil)
+	return err
+}
 
 func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)

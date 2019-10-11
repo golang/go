@@ -296,10 +296,11 @@ func writeTableSec(ctxt *ld.Link, fns []*wasmFunc) {
 func writeMemorySec(ctxt *ld.Link) {
 	sizeOffset := writeSecHeader(ctxt, sectionMemory)
 
-	const (
-		initialSize  = 16 << 20 // 16MB, enough for runtime init without growing
-		wasmPageSize = 64 << 10 // 64KB
-	)
+	dataSection := ctxt.Syms.Lookup("runtime.data", 0).Sect
+	dataEnd := dataSection.Vaddr + dataSection.Length
+	var initialSize = dataEnd + 16<<20 // 16MB, enough for runtime init without growing
+
+	const wasmPageSize = 64 << 10 // 64KB
 
 	writeUleb128(ctxt.Out, 1)                        // number of memories
 	ctxt.Out.WriteByte(0x00)                         // no maximum memory size

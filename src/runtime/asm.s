@@ -19,9 +19,6 @@ GLOBL runtime·no_pointers_stackmap(SB),RODATA, $8
 #ifdef GOARCH_386
 #define SKIP4 BYTE $0x90; BYTE $0x90; BYTE $0x90; BYTE $0x90
 #endif
-#ifdef GOARCH_amd64p32
-#define SKIP4 BYTE $0x90; BYTE $0x90; BYTE $0x90; BYTE $0x90
-#endif
 #ifdef GOARCH_wasm
 #define SKIP4 UNDEF; UNDEF; UNDEF; UNDEF
 #endif

@@ -404,6 +404,16 @@ func is16Bit(n int64) bool {
 	return n == int64(int16(n))
 }
 
+// is8Bit reports whether n can be represented as a signed 8 bit integer.
+func is8Bit(n int64) bool {
+	return n == int64(int8(n))
+}
+
+// isU8Bit reports whether n can be represented as an unsigned 8 bit integer.
+func isU8Bit(n int64) bool {
+	return n == int64(uint8(n))
+}
+
 // isU12Bit reports whether n can be represented as an unsigned 12 bit integer.
 func isU12Bit(n int64) bool {
 	return 0 <= n && n < (1<<12)
@@ -1051,7 +1061,7 @@ func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
 	// lowers them, so we only perform this optimization on platforms that we know to
 	// have fast Move ops.
 	switch c.arch {
-	case "amd64", "amd64p32":
+	case "amd64":
 		return sz <= 16 || (sz < 1024 && disjoint(dst, sz, src, sz))
 	case "386", "ppc64", "ppc64le", "arm64":
 		return sz <= 8
@@ -1067,7 +1077,7 @@ func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
 // for sizes < 32-bit.  This is used to decide whether to promote some rotations.
 func hasSmallRotate(c *Config) bool {
 	switch c.arch {
-	case "amd64", "amd64p32", "386":
+	case "amd64", "386":
 		return true
 	default:
 		return false
