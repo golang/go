@@ -813,8 +813,7 @@ func (po *poset) OrderedOrEqual(n1, n2 *Value) bool {
 		return false
 	}
 
-	return i1 == i2 || po.reaches(i1, i2, false) ||
-		(po.reaches(i2, i1, false) && !po.reaches(i2, i1, true))
+	return i1 == i2 || po.reaches(i1, i2, false)
 }
 
 // Equal reports whether n1==n2. It returns false either when it is
