@@ -24,6 +24,8 @@ func cstring(b []byte) string {
 // StringTable is a COFF string table.
 type StringTable []byte
 
+const largeBufferSize = 1024 * 1024
+
 func readStringTable(fh *FileHeader, r io.ReadSeeker) (StringTable, error) {
 	// COFF string table is located right after COFF symbol table.
 	if fh.PointerToSymbolTable <= 0 {
@@ -42,6 +44,9 @@ func readStringTable(fh *FileHeader, r io.ReadSeeker) (StringTable, error) {
 	// string table length includes itself
 	if l <= 4 {
 		return nil, nil
+	}
+	if l > largeBufferSize {
+		return nil, fmt.Errorf("string table length is too large: %d", l)
 	}
 	l -= 4
 	buf := make([]byte, l)
