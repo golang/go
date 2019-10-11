@@ -21,8 +21,8 @@ cd "$WORKTREE/src"
 cd ../misc/boring
 for branch in "$@"; do
     ./build.release "origin/$branch"
+    ./build.docker
 done
-./build.docker
 
 git add RELEASES
 git commit -m "misc/boring: add new releases to RELEASES file"
