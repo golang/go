@@ -2526,6 +2526,83 @@ func testIssue35331(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
+func TestLoadModeStrings(t *testing.T) {
+	testcases := []struct {
+		mode     packages.LoadMode
+		expected string
+	}{
+		{
+			packages.LoadMode(0),
+			"LoadMode(0)",
+		},
+		{
+			packages.NeedName,
+			"LoadMode(NeedName)",
+		},
+		{
+			packages.NeedFiles,
+			"LoadMode(NeedFiles)",
+		},
+		{
+			packages.NeedCompiledGoFiles,
+			"LoadMode(NeedCompiledGoFiles)",
+		},
+		{
+			packages.NeedImports,
+			"LoadMode(NeedImports)",
+		},
+		{
+			packages.NeedDeps,
+			"LoadMode(NeedDeps)",
+		},
+		{
+			packages.NeedExportsFile,
+			"LoadMode(NeedExportsFile)",
+		},
+		{
+			packages.NeedTypes,
+			"LoadMode(NeedTypes)",
+		},
+		{
+			packages.NeedSyntax,
+			"LoadMode(NeedSyntax)",
+		},
+		{
+			packages.NeedTypesInfo,
+			"LoadMode(NeedTypesInfo)",
+		},
+		{
+			packages.NeedTypesSizes,
+			"LoadMode(NeedTypesSizes)",
+		},
+		{
+			packages.NeedName | packages.NeedExportsFile,
+			"LoadMode(NeedName|NeedExportsFile)",
+		},
+		{
+			packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles | packages.NeedImports | packages.NeedDeps | packages.NeedExportsFile | packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedTypesSizes,
+			"LoadMode(NeedName|NeedFiles|NeedCompiledGoFiles|NeedImports|NeedDeps|NeedExportsFile|NeedTypes|NeedSyntax|NeedTypesInfo|NeedTypesSizes)",
+		},
+		{
+			packages.NeedName | 8192,
+			"LoadMode(NeedName|Unknown)",
+		},
+		{
+			4096,
+			"LoadMode(Unknown)",
+		},
+	}
+
+	for tcInd, tc := range testcases {
+		t.Run(fmt.Sprintf("test-%d", tcInd), func(t *testing.T) {
+			actual := tc.mode.String()
+			if tc.expected != actual {
+				t.Errorf("want %#v, got %#v", tc.expected, actual)
+			}
+		})
+	}
+}
+
 func errorMessages(errors []packages.Error) []string {
 	var msgs []string
 	for _, err := range errors {
