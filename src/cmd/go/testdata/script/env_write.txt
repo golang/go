@@ -96,3 +96,29 @@ stderr 'GOPATH entry cannot start with shell metacharacter'
 
 ! go env -w GOPATH=./go
 stderr 'GOPATH entry is relative; must be absolute path'
+
+# go env -w/-u checks validity of GOOS/ARCH combinations
+env GOOS=
+env GOARCH=
+# check -w doesn't allow invalid GOOS
+! go env -w GOOS=linuxx
+stderr 'unsupported GOOS/GOARCH pair linuxx'
+# check -w doesn't allow invalid GOARCH
+! go env -w GOARCH=amd644
+stderr 'unsupported GOOS/GOARCH.*/amd644$'
+# check -w doesn't allow invalid GOOS with valid GOARCH
+! go env -w GOOS=linuxx GOARCH=amd64
+stderr 'unsupported GOOS/GOARCH pair linuxx'
+# check that -u won't allow an invalid combination after a successful -w
+go env -w GOOS=nacl GOARCH=amd64p32 
+! go env -u GOOS
+stderr 'unsupported GOOS/GOARCH.*/amd64p32$'
+# check that -u considers explicit envs in action validation
+go env -u GOOS GOARCH
+env GOOS=nacl
+env GOARCH=amd64p32
+go env -w GOOS=linux GOARCH=amd64
+env GOOS=
+! go env -u GOARCH
+stderr 'linux/amd64p32'
+
