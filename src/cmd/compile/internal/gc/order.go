@@ -513,26 +513,6 @@ func (o *Order) stmt(n *Node) {
 		o.mapAssign(n)
 		o.cleanTemp(t)
 
-	case OAS2,
-		OCLOSE,
-		OCOPY,
-		OPRINT,
-		OPRINTN,
-		ORECOVER,
-		ORECV:
-		t := o.markTemp()
-		n.Left = o.expr(n.Left, nil)
-		n.Right = o.expr(n.Right, nil)
-		o.exprList(n.List)
-		o.exprList(n.Rlist)
-		switch n.Op {
-		case OAS2:
-			o.mapAssign(n)
-		default:
-			o.out = append(o.out, n)
-		}
-		o.cleanTemp(t)
-
 	case OASOP:
 		t := o.markTemp()
 		n.Left = o.expr(n.Left, nil)
@@ -559,6 +539,13 @@ func (o *Order) stmt(n *Node) {
 			n.ResetAux()
 		}
 
+		o.mapAssign(n)
+		o.cleanTemp(t)
+
+	case OAS2:
+		t := o.markTemp()
+		o.exprList(n.List)
+		o.exprList(n.Rlist)
 		o.mapAssign(n)
 		o.cleanTemp(t)
 
@@ -617,6 +604,20 @@ func (o *Order) stmt(n *Node) {
 	case OCALLFUNC, OCALLINTER, OCALLMETH:
 		t := o.markTemp()
 		o.call(n)
+		o.out = append(o.out, n)
+		o.cleanTemp(t)
+
+	case OCLOSE,
+		OCOPY,
+		OPRINT,
+		OPRINTN,
+		ORECOVER,
+		ORECV:
+		t := o.markTemp()
+		n.Left = o.expr(n.Left, nil)
+		n.Right = o.expr(n.Right, nil)
+		o.exprList(n.List)
+		o.exprList(n.Rlist)
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
 
