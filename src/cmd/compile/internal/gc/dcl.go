@@ -60,10 +60,6 @@ var declare_typegen int
 // declare records that Node n declares symbol n.Sym in the specified
 // declaration context.
 func declare(n *Node, ctxt Class) {
-	if ctxt == PDISCARD {
-		return
-	}
-
 	if n.isBlank() {
 		return
 	}
