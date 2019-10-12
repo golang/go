@@ -6151,7 +6151,6 @@ func (e *ssafn) splitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t 
 	n.Sym = s
 	n.Type = t
 	n.SetClass(PAUTO)
-	n.SetAddable(true)
 	n.Esc = EscNever
 	n.Name.Curfn = e.curfn
 	e.curfn.Func.Dcl = append(e.curfn.Func.Dcl, n)

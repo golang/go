@@ -417,10 +417,6 @@ func (n *Node) format(s fmt.State, verb rune, mode fmtMode) {
 func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 	c := flag & FmtShort
 
-	if c == 0 && n.Addable() {
-		fmt.Fprintf(s, " a(%v)", n.Addable())
-	}
-
 	if c == 0 && n.Name != nil && n.Name.Vargen != 0 {
 		fmt.Fprintf(s, " g(%d)", n.Name.Vargen)
 	}
