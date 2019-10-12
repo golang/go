@@ -21,6 +21,10 @@ import (
 	"time"
 )
 
+func hasSuffixFold(s, suffix string) bool {
+	return strings.HasSuffix(strings.ToLower(s), strings.ToLower(suffix))
+}
+
 func lookupLocalhost(ctx context.Context, fn func(context.Context, string, string) ([]IPAddr, error), network, host string) ([]IPAddr, error) {
 	switch host {
 	case "localhost":
@@ -97,11 +101,11 @@ func TestLookupGoogleSRV(t *testing.T) {
 		if len(srvs) == 0 {
 			t.Error("got no record")
 		}
-		if !strings.HasSuffix(cname, tt.cname) {
+		if !hasSuffixFold(cname, tt.cname) {
 			t.Errorf("got %s; want %s", cname, tt.cname)
 		}
 		for _, srv := range srvs {
-			if !strings.HasSuffix(srv.Target, tt.target) {
+			if !hasSuffixFold(srv.Target, tt.target) {
 				t.Errorf("got %v; want a record containing %s", srv, tt.target)
 			}
 		}
@@ -147,7 +151,7 @@ func TestLookupGmailMX(t *testing.T) {
 			t.Error("got no record")
 		}
 		for _, mx := range mxs {
-			if !strings.HasSuffix(mx.Host, tt.host) {
+			if !hasSuffixFold(mx.Host, tt.host) {
 				t.Errorf("got %v; want a record containing %s", mx, tt.host)
 			}
 		}
@@ -193,9 +197,7 @@ func TestLookupGmailNS(t *testing.T) {
 			t.Error("got no record")
 		}
 		for _, ns := range nss {
-			// Some nameservers alter the case of NS records. See #34446.
-			host := strings.ToLower(ns.Host)
-			if !strings.HasSuffix(host, tt.host) {
+			if !hasSuffixFold(ns.Host, tt.host) {
 				t.Errorf("got %v; want a record containing %s", ns, tt.host)
 			}
 		}
@@ -281,7 +283,7 @@ func TestLookupGooglePublicDNSAddr(t *testing.T) {
 			t.Error("got no record")
 		}
 		for _, name := range names {
-			if !strings.HasSuffix(name, ".google.com.") && !strings.HasSuffix(name, ".google.") {
+			if !hasSuffixFold(name, ".google.com.") && !hasSuffixFold(name, ".google.") {
 				t.Errorf("got %q; want a record ending in .google.com. or .google.", name)
 			}
 		}
@@ -373,7 +375,7 @@ func TestLookupCNAME(t *testing.T) {
 			}
 			t.Fatal(err)
 		}
-		if !strings.HasSuffix(cname, tt.cname) {
+		if !hasSuffixFold(cname, tt.cname) {
 			t.Errorf("got %s; want a record containing %s", cname, tt.cname)
 		}
 	}
@@ -658,7 +660,7 @@ func testDots(t *testing.T, mode string) {
 		t.Errorf("LookupAddr(8.8.8.8): %v (mode=%v)", err, mode)
 	} else {
 		for _, name := range names {
-			if !strings.HasSuffix(name, ".google.com.") && !strings.HasSuffix(name, ".google.") {
+			if !hasSuffixFold(name, ".google.com.") && !hasSuffixFold(name, ".google.") {
 				t.Errorf("LookupAddr(8.8.8.8) = %v, want names ending in .google.com or .google with trailing dot (mode=%v)", names, mode)
 				break
 			}
@@ -679,7 +681,7 @@ func testDots(t *testing.T, mode string) {
 		t.Errorf("LookupMX(google.com): %v (mode=%v)", err, mode)
 	} else {
 		for _, mx := range mxs {
-			if !strings.HasSuffix(mx.Host, ".google.com.") {
+			if !hasSuffixFold(mx.Host, ".google.com.") {
 				t.Errorf("LookupMX(google.com) = %v, want names ending in .google.com. with trailing dot (mode=%v)", mxString(mxs), mode)
 				break
 			}
@@ -692,7 +694,7 @@ func testDots(t *testing.T, mode string) {
 		t.Errorf("LookupNS(google.com): %v (mode=%v)", err, mode)
 	} else {
 		for _, ns := range nss {
-			if !strings.HasSuffix(ns.Host, ".google.com.") {
+			if !hasSuffixFold(ns.Host, ".google.com.") {
 				t.Errorf("LookupNS(google.com) = %v, want names ending in .google.com. with trailing dot (mode=%v)", nsString(nss), mode)
 				break
 			}
@@ -704,11 +706,11 @@ func testDots(t *testing.T, mode string) {
 		testenv.SkipFlakyNet(t)
 		t.Errorf("LookupSRV(xmpp-server, tcp, google.com): %v (mode=%v)", err, mode)
 	} else {
-		if !strings.HasSuffix(cname, ".google.com.") {
+		if !hasSuffixFold(cname, ".google.com.") {
 			t.Errorf("LookupSRV(xmpp-server, tcp, google.com) returned cname=%v, want name ending in .google.com. with trailing dot (mode=%v)", cname, mode)
 		}
 		for _, srv := range srvs {
-			if !strings.HasSuffix(srv.Target, ".google.com.") {
+			if !hasSuffixFold(srv.Target, ".google.com.") {
 				t.Errorf("LookupSRV(xmpp-server, tcp, google.com) returned addrs=%v, want names ending in .google.com. with trailing dot (mode=%v)", srvString(srvs), mode)
 				break
 			}
