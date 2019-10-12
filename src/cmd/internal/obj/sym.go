@@ -37,6 +37,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"sort"
 )
 
 func Linknew(arch *LinkArch) *Link {
@@ -165,6 +166,16 @@ func (ctxt *Link) Int64Sym(i int64) *LSym {
 func (ctxt *Link) NumberSyms(asm bool) {
 	if !ctxt.Flag_newobj {
 		return
+	}
+
+	if ctxt.Headtype == objabi.Haix {
+		// Data must be sorted to keep a constant order in TOC symbols.
+		// As they are created during Progedit, two symbols can be switched between
+		// two different compilations. Therefore, BuildID will be different.
+		// TODO: find a better place and optimize to only sort TOC symbols
+		sort.Slice(ctxt.Data, func(i, j int) bool {
+			return ctxt.Data[i].Name < ctxt.Data[j].Name
+		})
 	}
 
 	ctxt.pkgIdx = make(map[string]int32)
