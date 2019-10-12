@@ -56,6 +56,7 @@ const (
 )
 
 // UTC represents Universal Coordinated Time (UTC).
+// Clients should not modify it.
 var UTC *Location = &utcLoc
 
 // utcLoc is separate so that get can refer to &utcLoc
@@ -64,6 +65,7 @@ var UTC *Location = &utcLoc
 var utcLoc = Location{name: "UTC"}
 
 // Local represents the system's local time zone.
+// Clients should not modify it.
 var Local *Location = &localLoc
 
 // localLoc is separate so that initLocal can initialize
