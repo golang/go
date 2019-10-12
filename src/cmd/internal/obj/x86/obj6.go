@@ -663,8 +663,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		markedPrologue = true
 	}
 
-	deltasp := autoffset
-
 	if bpsize > 0 {
 		// Save caller's BP
 		p = obj.Appendp(p, newprog)
@@ -809,7 +807,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p = end
 	}
 
-	for ; p != nil; p = p.Link {
+	var deltasp int32
+	for p = cursym.Func.Text; p != nil; p = p.Link {
 		pcsize := ctxt.Arch.RegSize
 		switch p.From.Name {
 		case obj.NAME_AUTO:
@@ -864,6 +863,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		case APOPW, APOPFW:
 			deltasp -= 2
 			p.Spadj = -2
+			continue
+
+		case AADJSP:
+			p.Spadj = int32(p.From.Offset)
+			deltasp += int32(p.From.Offset)
 			continue
 
 		case obj.ARET:
