@@ -147,14 +147,14 @@ type posetNode struct {
 //          J    K
 //
 type poset struct {
-	lastidx   uint32           // last generated dense index
-	flags     uint8            // internal flags
-	values    map[ID]uint32    // map SSA values to dense indexes
-	constants map[int64]uint32 // record SSA constants together with their value
-	nodes     []posetNode      // nodes (in all DAGs)
-	roots     []uint32         // list of root nodes (forest)
-	noneq     map[ID]bitset    // non-equal relations
-	undo      []posetUndo      // undo chain
+	lastidx   uint32            // last generated dense index
+	flags     uint8             // internal flags
+	values    map[ID]uint32     // map SSA values to dense indexes
+	constants map[int64]uint32  // record SSA constants together with their value
+	nodes     []posetNode       // nodes (in all DAGs)
+	roots     []uint32          // list of root nodes (forest)
+	noneq     map[uint32]bitset // non-equal relations
+	undo      []posetUndo       // undo chain
 }
 
 func newPoset() *poset {
@@ -163,7 +163,7 @@ func newPoset() *poset {
 		constants: make(map[int64]uint32, 8),
 		nodes:     make([]posetNode, 1, 16),
 		roots:     make([]uint32, 0, 4),
-		noneq:     make(map[ID]bitset),
+		noneq:     make(map[uint32]bitset),
 		undo:      make([]posetUndo, 0, 4),
 	}
 }
@@ -197,8 +197,8 @@ func (po *poset) upushnew(id ID, idx uint32) {
 }
 
 // upushneq pushes a new undo pass for a nonequal relation
-func (po *poset) upushneq(id1 ID, id2 ID) {
-	po.undo = append(po.undo, posetUndo{typ: undoNonEqual, ID: id1, idx: uint32(id2)})
+func (po *poset) upushneq(idx1 uint32, idx2 uint32) {
+	po.undo = append(po.undo, posetUndo{typ: undoNonEqual, ID: ID(idx1), idx: idx2})
 }
 
 // upushalias pushes a new undo pass for aliasing two nodes
@@ -622,38 +622,61 @@ func (po *poset) collapsepath(n1, n2 *Value) bool {
 	return true
 }
 
-// Check whether it is recorded that id1!=id2
-func (po *poset) isnoneq(id1, id2 ID) bool {
-	if id1 < id2 {
-		id1, id2 = id2, id1
+// Check whether it is recorded that i1!=i2
+func (po *poset) isnoneq(i1, i2 uint32) bool {
+	if i1 == i2 {
+		return false
+	}
+	if i1 < i2 {
+		i1, i2 = i2, i1
 	}
 
 	// Check if we recorded a non-equal relation before
-	if bs, ok := po.noneq[id1]; ok && bs.Test(uint32(id2)) {
+	if bs, ok := po.noneq[i1]; ok && bs.Test(i2) {
 		return true
 	}
 	return false
 }
 
-// Record that id1!=id2
-func (po *poset) setnoneq(id1, id2 ID) {
-	if id1 < id2 {
-		id1, id2 = id2, id1
+// Record that i1!=i2
+func (po *poset) setnoneq(n1, n2 *Value) {
+	i1, f1 := po.lookup(n1)
+	i2, f2 := po.lookup(n2)
+
+	// If any of the nodes do not exist in the poset, allocate them. Since
+	// we don't know any relation (in the partial order) about them, they must
+	// become independent roots.
+	if !f1 {
+		i1 = po.newnode(n1)
+		po.roots = append(po.roots, i1)
+		po.upush(undoNewRoot, i1, 0)
 	}
-	bs := po.noneq[id1]
+	if !f2 {
+		i2 = po.newnode(n2)
+		po.roots = append(po.roots, i2)
+		po.upush(undoNewRoot, i2, 0)
+	}
+
+	if i1 == i2 {
+		panic("setnoneq on same node")
+	}
+	if i1 < i2 {
+		i1, i2 = i2, i1
+	}
+	bs := po.noneq[i1]
 	if bs == nil {
 		// Given that we record non-equality relations using the
-		// higher ID as a key, the bitsize will never change size.
+		// higher index as a key, the bitsize will never change size.
 		// TODO(rasky): if memory is a problem, consider allocating
-		// a small bitset and lazily grow it when higher IDs arrive.
-		bs = newBitset(int(id1))
-		po.noneq[id1] = bs
-	} else if bs.Test(uint32(id2)) {
+		// a small bitset and lazily grow it when higher indices arrive.
+		bs = newBitset(int(i1))
+		po.noneq[i1] = bs
+	} else if bs.Test(i2) {
 		// Already recorded
 		return
 	}
-	bs.Set(uint32(id2))
-	po.upushneq(id1, id2)
+	bs.Set(i2)
+	po.upushneq(i1, i2)
 }
 
 // CheckIntegrity verifies internal integrity of a poset. It is intended
@@ -876,7 +899,17 @@ func (po *poset) NonEqual(n1, n2 *Value) bool {
 	if n1.ID == n2.ID {
 		panic("should not call NonEqual with n1==n2")
 	}
-	if po.isnoneq(n1.ID, n2.ID) {
+
+	// If we never saw the nodes before, we don't
+	// have a recorded non-equality.
+	i1, f1 := po.lookup(n1)
+	i2, f2 := po.lookup(n2)
+	if !f1 || !f2 {
+		return false
+	}
+
+	// Check if we recored inequality
+	if po.isnoneq(i1, i2) {
 		return true
 	}
 
@@ -892,12 +925,6 @@ func (po *poset) NonEqual(n1, n2 *Value) bool {
 // if this is a contradiction.
 // Implements SetOrder() and SetOrderOrEqual()
 func (po *poset) setOrder(n1, n2 *Value, strict bool) bool {
-	// If we are trying to record n1<=n2 but we learned that n1!=n2,
-	// record n1<n2, as it provides more information.
-	if !strict && po.isnoneq(n1.ID, n2.ID) {
-		strict = true
-	}
-
 	i1, f1 := po.lookup(n1)
 	i2, f2 := po.lookup(n2)
 
@@ -954,6 +981,12 @@ func (po *poset) setOrder(n1, n2 *Value, strict bool) bool {
 		// (that is, we cannot set n1<n2 if n1==n2).
 		if i1 == i2 {
 			return !strict
+		}
+
+		// If we are trying to record n1<=n2 but we learned that n1!=n2,
+		// record n1<n2, as it provides more information.
+		if !strict && po.isnoneq(i1, i2) {
+			strict = true
 		}
 
 		// Both n1 and n2 are in the poset. This is the complex part of the algorithm
@@ -1052,11 +1085,6 @@ func (po *poset) SetEqual(n1, n2 *Value) bool {
 		panic("should not call Add with n1==n2")
 	}
 
-	// If we recorded that n1!=n2, this is a contradiction.
-	if po.isnoneq(n1.ID, n2.ID) {
-		return false
-	}
-
 	i1, f1 := po.lookup(n1)
 	i2, f2 := po.lookup(n2)
 
@@ -1074,6 +1102,11 @@ func (po *poset) SetEqual(n1, n2 *Value) bool {
 		if i1 == i2 {
 			// Already aliased, ignore
 			return true
+		}
+
+		// If we recorded that n1!=n2, this is a contradiction.
+		if po.isnoneq(i1, i2) {
+			return false
 		}
 
 		// If we already knew that n1<=n2, we can collapse the path to
@@ -1114,30 +1147,39 @@ func (po *poset) SetNonEqual(n1, n2 *Value) bool {
 		panic("should not call SetNonEqual with n1==n2")
 	}
 
-	// See if we already know this
-	if po.isnoneq(n1.ID, n2.ID) {
+	// Check whether the nodes are already in the poset
+	i1, f1 := po.lookup(n1)
+	i2, f2 := po.lookup(n2)
+
+	// If either node wasn't present, we just record the new relation
+	// and exit.
+	if !f1 || !f2 {
+		po.setnoneq(n1, n2)
 		return true
 	}
 
-	// Check if we're contradicting an existing relation
+	// See if we already know this, in which case there's nothing to do.
+	if po.isnoneq(i1, i2) {
+		return true
+	}
+
+	// Check if we're contradicting an existing equality relation
 	if po.Equal(n1, n2) {
 		return false
 	}
 
 	// Record non-equality
-	po.setnoneq(n1.ID, n2.ID)
+	po.setnoneq(n1, n2)
 
 	// If we know that i1<=i2 but not i1<i2, learn that as we
 	// now know that they are not equal. Do the same for i2<=i1.
-	i1, f1 := po.lookup(n1)
-	i2, f2 := po.lookup(n2)
-	if f1 && f2 {
-		if po.reaches(i1, i2, false) && !po.reaches(i1, i2, true) {
-			po.addchild(i1, i2, true)
-		}
-		if po.reaches(i2, i1, false) && !po.reaches(i2, i1, true) {
-			po.addchild(i2, i1, true)
-		}
+	// Do this check only if both nodes were already in the DAG,
+	// otherwise there cannot be an existing relation.
+	if po.reaches(i1, i2, false) && !po.reaches(i1, i2, true) {
+		po.addchild(i1, i2, true)
+	}
+	if po.reaches(i2, i1, false) && !po.reaches(i2, i1, true) {
+		po.addchild(i2, i1, true)
 	}
 
 	return true
@@ -1177,7 +1219,7 @@ func (po *poset) Undo() {
 			po.setchr(pass.idx, pass.edge)
 
 		case undoNonEqual:
-			po.noneq[pass.ID].Clear(pass.idx)
+			po.noneq[uint32(pass.ID)].Clear(pass.idx)
 
 		case undoNewNode:
 			if pass.idx != po.lastidx {
