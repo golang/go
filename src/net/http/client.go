@@ -434,8 +434,8 @@ func Get(url string) (resp *Response, err error) {
 // An error is returned if the Client's CheckRedirect function fails
 // or if there was an HTTP protocol error. A non-2xx response doesn't
 // cause an error. Any returned error will be of type *url.Error. The
-// url.Error value's Timeout method will report true if request timed
-// out or was canceled.
+// url.Error value's Timeout method will report true if the request
+// timed out.
 //
 // When err is nil, resp always contains a non-nil resp.Body.
 // Caller should close resp.Body when done reading from it.
