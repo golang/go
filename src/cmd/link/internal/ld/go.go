@@ -197,7 +197,7 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string) {
 				remote, q = remote[:i], remote[i+1:]
 			}
 			s := ctxt.Syms.Lookup(local, 0)
-			if s.Type == 0 || s.Type == sym.SXREF || s.Type == sym.SHOSTOBJ {
+			if s.Type == 0 || s.Type == sym.SXREF || s.Type == sym.SBSS || s.Type == sym.SNOPTRBSS || s.Type == sym.SHOSTOBJ {
 				s.SetDynimplib(lib)
 				s.SetExtname(remote)
 				s.SetDynimpvers(q)
