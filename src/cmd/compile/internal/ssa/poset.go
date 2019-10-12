@@ -874,7 +874,7 @@ func (po *poset) NonEqual(n1, n2 *Value) bool {
 		defer po.CheckIntegrity()
 	}
 	if n1.ID == n2.ID {
-		panic("should not call Equal with n1==n2")
+		panic("should not call NonEqual with n1==n2")
 	}
 	if po.isnoneq(n1.ID, n2.ID) {
 		return true
@@ -888,7 +888,8 @@ func (po *poset) NonEqual(n1, n2 *Value) bool {
 	return false
 }
 
-// setOrder records that n1<n2 or n1<=n2 (depending on strict).
+// setOrder records that n1<n2 or n1<=n2 (depending on strict). Returns false
+// if this is a contradiction.
 // Implements SetOrder() and SetOrderOrEqual()
 func (po *poset) setOrder(n1, n2 *Value, strict bool) bool {
 	// If we are trying to record n1<=n2 but we learned that n1!=n2,
@@ -1110,7 +1111,7 @@ func (po *poset) SetNonEqual(n1, n2 *Value) bool {
 		defer po.CheckIntegrity()
 	}
 	if n1.ID == n2.ID {
-		panic("should not call Equal with n1==n2")
+		panic("should not call SetNonEqual with n1==n2")
 	}
 
 	// See if we already know this
