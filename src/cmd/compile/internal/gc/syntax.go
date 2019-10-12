@@ -153,7 +153,6 @@ const (
 	_, nodeNonNil    // guaranteed to be non-nil
 	_, nodeTransient // storage can be reused immediately after this statement
 	_, nodeBounded   // bounds check unnecessary
-	_, nodeAddable   // addressable
 	_, nodeHasCall   // expression contains a function call
 	_, nodeLikely    // if statement condition likely
 	_, nodeHasVal    // node.E contains a Val
@@ -181,7 +180,6 @@ func (n *Node) Colas() bool                 { return n.flags&nodeColas != 0 }
 func (n *Node) NonNil() bool                { return n.flags&nodeNonNil != 0 }
 func (n *Node) Transient() bool             { return n.flags&nodeTransient != 0 }
 func (n *Node) Bounded() bool               { return n.flags&nodeBounded != 0 }
-func (n *Node) Addable() bool               { return n.flags&nodeAddable != 0 }
 func (n *Node) HasCall() bool               { return n.flags&nodeHasCall != 0 }
 func (n *Node) Likely() bool                { return n.flags&nodeLikely != 0 }
 func (n *Node) HasVal() bool                { return n.flags&nodeHasVal != 0 }
@@ -208,7 +206,6 @@ func (n *Node) SetColas(b bool)                 { n.flags.set(nodeColas, b) }
 func (n *Node) SetNonNil(b bool)                { n.flags.set(nodeNonNil, b) }
 func (n *Node) SetTransient(b bool)             { n.flags.set(nodeTransient, b) }
 func (n *Node) SetBounded(b bool)               { n.flags.set(nodeBounded, b) }
-func (n *Node) SetAddable(b bool)               { n.flags.set(nodeAddable, b) }
 func (n *Node) SetHasCall(b bool)               { n.flags.set(nodeHasCall, b) }
 func (n *Node) SetLikely(b bool)                { n.flags.set(nodeLikely, b) }
 func (n *Node) SetHasVal(b bool)                { n.flags.set(nodeHasVal, b) }

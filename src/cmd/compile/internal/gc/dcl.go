@@ -203,7 +203,6 @@ func newnoname(s *types.Sym) *Node {
 	}
 	n := nod(ONONAME, nil, nil)
 	n.Sym = s
-	n.SetAddable(true)
 	n.Xoffset = 0
 	return n
 }
@@ -282,7 +281,6 @@ func oldname(s *types.Sym) *Node {
 			c.SetIsClosureVar(true)
 			c.SetIsDDD(n.IsDDD())
 			c.Name.Defn = n
-			c.SetAddable(false)
 
 			// Link into list of active closure variables.
 			// Popped from list in func closurebody.

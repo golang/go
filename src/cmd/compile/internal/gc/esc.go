@@ -283,7 +283,6 @@ func moveToHeap(n *Node) {
 		// and substitute that copy into the function declaration list
 		// so that analyses of the local (on-stack) variables use it.
 		stackcopy := newname(n.Sym)
-		stackcopy.SetAddable(false)
 		stackcopy.Type = n.Type
 		stackcopy.Xoffset = n.Xoffset
 		stackcopy.SetClass(n.Class())
