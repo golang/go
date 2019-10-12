@@ -550,7 +550,7 @@ func archreloctoc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
 	const prefix = "TOC."
 	var tarSym *sym.Symbol
 	if strings.HasPrefix(r.Sym.Name, prefix) {
-		tarSym = ctxt.Syms.ROLookup(strings.TrimPrefix(r.Sym.Name, prefix), 0)
+		tarSym = r.Sym.R[0].Sym
 	} else {
 		ld.Errorf(s, "archreloctoc called for a symbol without TOC anchor")
 	}
