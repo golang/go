@@ -995,9 +995,9 @@ func (e *Escape) later(k EscHole) EscHole {
 // canonicalNode returns the canonical *Node that n logically
 // represents.
 func canonicalNode(n *Node) *Node {
-	if n != nil && n.IsClosureVar() {
+	if n != nil && n.Op == ONAME && n.Name.IsClosureVar() {
 		n = n.Name.Defn
-		if n.IsClosureVar() {
+		if n.Name.IsClosureVar() {
 			Fatalf("still closure var")
 		}
 	}

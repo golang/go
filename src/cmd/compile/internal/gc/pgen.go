@@ -262,7 +262,7 @@ func compile(fn *Node) {
 	for _, n := range fn.Func.Dcl {
 		switch n.Class() {
 		case PPARAM, PPARAMOUT, PAUTO:
-			if livenessShouldTrack(n) && n.Addrtaken() {
+			if livenessShouldTrack(n) && n.Name.Addrtaken() {
 				dtypesym(n.Type)
 				// Also make sure we allocate a linker symbol
 				// for the stack object data, for the same reason.
@@ -498,9 +498,9 @@ func createSimpleVar(n *Node) *dwarf.Var {
 	typename := dwarf.InfoPrefix + typesymname(n.Type)
 	inlIndex := 0
 	if genDwarfInline > 1 {
-		if n.InlFormal() || n.InlLocal() {
+		if n.Name.InlFormal() || n.Name.InlLocal() {
 			inlIndex = posInlIndex(n.Pos) + 1
-			if n.InlFormal() {
+			if n.Name.InlFormal() {
 				abbrev = dwarf.DW_ABRV_PARAM
 			}
 		}
@@ -509,7 +509,7 @@ func createSimpleVar(n *Node) *dwarf.Var {
 	return &dwarf.Var{
 		Name:          n.Sym.Name,
 		IsReturnValue: n.Class() == PPARAMOUT,
-		IsInlFormal:   n.InlFormal(),
+		IsInlFormal:   n.Name.InlFormal(),
 		Abbrev:        abbrev,
 		StackOffset:   int32(offs),
 		Type:          Ctxt.Lookup(typename),
@@ -619,9 +619,9 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, apDecls []*Node) ([]*Node, []*dw
 		}
 		inlIndex := 0
 		if genDwarfInline > 1 {
-			if n.InlFormal() || n.InlLocal() {
+			if n.Name.InlFormal() || n.Name.InlLocal() {
 				inlIndex = posInlIndex(n.Pos) + 1
-				if n.InlFormal() {
+				if n.Name.InlFormal() {
 					abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
 				}
 			}
@@ -707,9 +707,9 @@ func createComplexVar(fn *Func, varID ssa.VarID) *dwarf.Var {
 	typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
 	inlIndex := 0
 	if genDwarfInline > 1 {
-		if n.InlFormal() || n.InlLocal() {
+		if n.Name.InlFormal() || n.Name.InlLocal() {
 			inlIndex = posInlIndex(n.Pos) + 1
-			if n.InlFormal() {
+			if n.Name.InlFormal() {
 				abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
 			}
 		}
@@ -718,7 +718,7 @@ func createComplexVar(fn *Func, varID ssa.VarID) *dwarf.Var {
 	dvar := &dwarf.Var{
 		Name:          n.Sym.Name,
 		IsReturnValue: n.Class() == PPARAMOUT,
-		IsInlFormal:   n.InlFormal(),
+		IsInlFormal:   n.Name.InlFormal(),
 		Abbrev:        abbrev,
 		Type:          Ctxt.Lookup(typename),
 		// The stack offset is used as a sorting key, so for decomposed

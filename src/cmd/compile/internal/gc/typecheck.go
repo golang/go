@@ -828,20 +828,17 @@ func typecheck1(n *Node, top int) (res *Node) {
 		default:
 			checklvalue(n.Left, "take the address of")
 			r := outervalue(n.Left)
-			if r.Orig != r && r.Op == ONAME {
-				Fatalf("found non-orig name node %v", r) // TODO(mdempsky): What does this mean?
-			}
-			for l := n.Left; ; l = l.Left {
-				l.SetAddrtaken(true)
-				if l.IsClosureVar() && !capturevarscomplete {
+			if r.Op == ONAME {
+				if r.Orig != r {
+					Fatalf("found non-orig name node %v", r) // TODO(mdempsky): What does this mean?
+				}
+				r.Name.SetAddrtaken(true)
+				if r.Name.IsClosureVar() && !capturevarscomplete {
 					// Mark the original variable as Addrtaken so that capturevars
 					// knows not to pass it by value.
 					// But if the capturevars phase is complete, don't touch it,
 					// in case l.Name's containing function has not yet been compiled.
-					l.Name.Defn.SetAddrtaken(true)
-				}
-				if l == r {
-					break
+					r.Name.Defn.Name.SetAddrtaken(true)
 				}
 			}
 			n.Left = defaultlit(n.Left, nil)
@@ -3061,17 +3058,11 @@ func checkassign(stmt *Node, n *Node) {
 	// Variables declared in ORANGE are assigned on every iteration.
 	if n.Name == nil || n.Name.Defn != stmt || stmt.Op == ORANGE {
 		r := outervalue(n)
-		var l *Node
-		for l = n; l != r; l = l.Left {
-			l.SetAssigned(true)
-			if l.IsClosureVar() {
-				l.Name.Defn.SetAssigned(true)
+		if r.Op == ONAME {
+			r.Name.SetAssigned(true)
+			if r.Name.IsClosureVar() {
+				r.Name.Defn.Name.SetAssigned(true)
 			}
-		}
-
-		l.SetAssigned(true)
-		if l.IsClosureVar() {
-			l.Name.Defn.SetAssigned(true)
 		}
 	}
 

@@ -141,11 +141,7 @@ const (
 	nodeInitorder, _                   // tracks state during init1; two bits
 	_, _                               // second nodeInitorder bit
 	_, nodeHasBreak
-	_, nodeIsClosureVar
-	_, nodeIsOutputParamHeapAddr
-	_, nodeNoInline  // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
-	_, nodeAssigned  // is the variable ever assigned to
-	_, nodeAddrtaken // address taken, even if not moved to heap
+	_, nodeNoInline // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
 	_, nodeImplicit
 	_, nodeIsDDD     // is the argument variadic
 	_, nodeDiag      // already printed error about this
@@ -158,8 +154,6 @@ const (
 	_, nodeHasVal    // node.E contains a Val
 	_, nodeHasOpt    // node.E contains an Opt
 	_, nodeEmbedded  // ODCLFIELD embedded type
-	_, nodeInlFormal // OPAUTO created by inliner, derived from callee formal
-	_, nodeInlLocal  // OPAUTO created by inliner, derived from callee local
 )
 
 func (n *Node) Class() Class     { return Class(n.flags.get3(nodeClass)) }
@@ -167,52 +161,40 @@ func (n *Node) Walkdef() uint8   { return n.flags.get2(nodeWalkdef) }
 func (n *Node) Typecheck() uint8 { return n.flags.get2(nodeTypecheck) }
 func (n *Node) Initorder() uint8 { return n.flags.get2(nodeInitorder) }
 
-func (n *Node) HasBreak() bool              { return n.flags&nodeHasBreak != 0 }
-func (n *Node) IsClosureVar() bool          { return n.flags&nodeIsClosureVar != 0 }
-func (n *Node) NoInline() bool              { return n.flags&nodeNoInline != 0 }
-func (n *Node) IsOutputParamHeapAddr() bool { return n.flags&nodeIsOutputParamHeapAddr != 0 }
-func (n *Node) Assigned() bool              { return n.flags&nodeAssigned != 0 }
-func (n *Node) Addrtaken() bool             { return n.flags&nodeAddrtaken != 0 }
-func (n *Node) Implicit() bool              { return n.flags&nodeImplicit != 0 }
-func (n *Node) IsDDD() bool                 { return n.flags&nodeIsDDD != 0 }
-func (n *Node) Diag() bool                  { return n.flags&nodeDiag != 0 }
-func (n *Node) Colas() bool                 { return n.flags&nodeColas != 0 }
-func (n *Node) NonNil() bool                { return n.flags&nodeNonNil != 0 }
-func (n *Node) Transient() bool             { return n.flags&nodeTransient != 0 }
-func (n *Node) Bounded() bool               { return n.flags&nodeBounded != 0 }
-func (n *Node) HasCall() bool               { return n.flags&nodeHasCall != 0 }
-func (n *Node) Likely() bool                { return n.flags&nodeLikely != 0 }
-func (n *Node) HasVal() bool                { return n.flags&nodeHasVal != 0 }
-func (n *Node) HasOpt() bool                { return n.flags&nodeHasOpt != 0 }
-func (n *Node) Embedded() bool              { return n.flags&nodeEmbedded != 0 }
-func (n *Node) InlFormal() bool             { return n.flags&nodeInlFormal != 0 }
-func (n *Node) InlLocal() bool              { return n.flags&nodeInlLocal != 0 }
+func (n *Node) HasBreak() bool  { return n.flags&nodeHasBreak != 0 }
+func (n *Node) NoInline() bool  { return n.flags&nodeNoInline != 0 }
+func (n *Node) Implicit() bool  { return n.flags&nodeImplicit != 0 }
+func (n *Node) IsDDD() bool     { return n.flags&nodeIsDDD != 0 }
+func (n *Node) Diag() bool      { return n.flags&nodeDiag != 0 }
+func (n *Node) Colas() bool     { return n.flags&nodeColas != 0 }
+func (n *Node) NonNil() bool    { return n.flags&nodeNonNil != 0 }
+func (n *Node) Transient() bool { return n.flags&nodeTransient != 0 }
+func (n *Node) Bounded() bool   { return n.flags&nodeBounded != 0 }
+func (n *Node) HasCall() bool   { return n.flags&nodeHasCall != 0 }
+func (n *Node) Likely() bool    { return n.flags&nodeLikely != 0 }
+func (n *Node) HasVal() bool    { return n.flags&nodeHasVal != 0 }
+func (n *Node) HasOpt() bool    { return n.flags&nodeHasOpt != 0 }
+func (n *Node) Embedded() bool  { return n.flags&nodeEmbedded != 0 }
 
 func (n *Node) SetClass(b Class)     { n.flags.set3(nodeClass, uint8(b)) }
 func (n *Node) SetWalkdef(b uint8)   { n.flags.set2(nodeWalkdef, b) }
 func (n *Node) SetTypecheck(b uint8) { n.flags.set2(nodeTypecheck, b) }
 func (n *Node) SetInitorder(b uint8) { n.flags.set2(nodeInitorder, b) }
 
-func (n *Node) SetHasBreak(b bool)              { n.flags.set(nodeHasBreak, b) }
-func (n *Node) SetIsClosureVar(b bool)          { n.flags.set(nodeIsClosureVar, b) }
-func (n *Node) SetNoInline(b bool)              { n.flags.set(nodeNoInline, b) }
-func (n *Node) SetIsOutputParamHeapAddr(b bool) { n.flags.set(nodeIsOutputParamHeapAddr, b) }
-func (n *Node) SetAssigned(b bool)              { n.flags.set(nodeAssigned, b) }
-func (n *Node) SetAddrtaken(b bool)             { n.flags.set(nodeAddrtaken, b) }
-func (n *Node) SetImplicit(b bool)              { n.flags.set(nodeImplicit, b) }
-func (n *Node) SetIsDDD(b bool)                 { n.flags.set(nodeIsDDD, b) }
-func (n *Node) SetDiag(b bool)                  { n.flags.set(nodeDiag, b) }
-func (n *Node) SetColas(b bool)                 { n.flags.set(nodeColas, b) }
-func (n *Node) SetNonNil(b bool)                { n.flags.set(nodeNonNil, b) }
-func (n *Node) SetTransient(b bool)             { n.flags.set(nodeTransient, b) }
-func (n *Node) SetBounded(b bool)               { n.flags.set(nodeBounded, b) }
-func (n *Node) SetHasCall(b bool)               { n.flags.set(nodeHasCall, b) }
-func (n *Node) SetLikely(b bool)                { n.flags.set(nodeLikely, b) }
-func (n *Node) SetHasVal(b bool)                { n.flags.set(nodeHasVal, b) }
-func (n *Node) SetHasOpt(b bool)                { n.flags.set(nodeHasOpt, b) }
-func (n *Node) SetEmbedded(b bool)              { n.flags.set(nodeEmbedded, b) }
-func (n *Node) SetInlFormal(b bool)             { n.flags.set(nodeInlFormal, b) }
-func (n *Node) SetInlLocal(b bool)              { n.flags.set(nodeInlLocal, b) }
+func (n *Node) SetHasBreak(b bool)  { n.flags.set(nodeHasBreak, b) }
+func (n *Node) SetNoInline(b bool)  { n.flags.set(nodeNoInline, b) }
+func (n *Node) SetImplicit(b bool)  { n.flags.set(nodeImplicit, b) }
+func (n *Node) SetIsDDD(b bool)     { n.flags.set(nodeIsDDD, b) }
+func (n *Node) SetDiag(b bool)      { n.flags.set(nodeDiag, b) }
+func (n *Node) SetColas(b bool)     { n.flags.set(nodeColas, b) }
+func (n *Node) SetNonNil(b bool)    { n.flags.set(nodeNonNil, b) }
+func (n *Node) SetTransient(b bool) { n.flags.set(nodeTransient, b) }
+func (n *Node) SetBounded(b bool)   { n.flags.set(nodeBounded, b) }
+func (n *Node) SetHasCall(b bool)   { n.flags.set(nodeHasCall, b) }
+func (n *Node) SetLikely(b bool)    { n.flags.set(nodeLikely, b) }
+func (n *Node) SetHasVal(b bool)    { n.flags.set(nodeHasVal, b) }
+func (n *Node) SetHasOpt(b bool)    { n.flags.set(nodeHasOpt, b) }
+func (n *Node) SetEmbedded(b bool)  { n.flags.set(nodeEmbedded, b) }
 
 // Val returns the Val for the node.
 func (n *Node) Val() Val {
@@ -296,34 +278,52 @@ type Name struct {
 	Param     *Param     // additional fields for ONAME, OTYPE
 	Decldepth int32      // declaration loop depth, increased for every loop or label
 	Vargen    int32      // unique name for ONAME within a function.  Function outputs are numbered starting at one.
-	flags     bitset8
+	flags     bitset16
 }
 
 const (
 	nameCaptured = 1 << iota // is the variable captured by a closure
 	nameReadonly
-	nameByval     // is the variable captured by value or by reference
-	nameNeedzero  // if it contains pointers, needs to be zeroed on function entry
-	nameKeepalive // mark value live across unknown assembly call
-	nameAutoTemp  // is the variable a temporary (implies no dwarf info. reset if escapes to heap)
-	nameUsed      // for variable declared and not used error
+	nameByval                 // is the variable captured by value or by reference
+	nameNeedzero              // if it contains pointers, needs to be zeroed on function entry
+	nameKeepalive             // mark value live across unknown assembly call
+	nameAutoTemp              // is the variable a temporary (implies no dwarf info. reset if escapes to heap)
+	nameUsed                  // for variable declared and not used error
+	nameIsClosureVar          // PAUTOHEAP closure pseudo-variable; original at n.Name.Defn
+	nameIsOutputParamHeapAddr // pointer to a result parameter's heap copy
+	nameAssigned              // is the variable ever assigned to
+	nameAddrtaken             // address taken, even if not moved to heap
+	nameInlFormal             // OPAUTO created by inliner, derived from callee formal
+	nameInlLocal              // OPAUTO created by inliner, derived from callee local
 )
 
-func (n *Name) Captured() bool  { return n.flags&nameCaptured != 0 }
-func (n *Name) Readonly() bool  { return n.flags&nameReadonly != 0 }
-func (n *Name) Byval() bool     { return n.flags&nameByval != 0 }
-func (n *Name) Needzero() bool  { return n.flags&nameNeedzero != 0 }
-func (n *Name) Keepalive() bool { return n.flags&nameKeepalive != 0 }
-func (n *Name) AutoTemp() bool  { return n.flags&nameAutoTemp != 0 }
-func (n *Name) Used() bool      { return n.flags&nameUsed != 0 }
+func (n *Name) Captured() bool              { return n.flags&nameCaptured != 0 }
+func (n *Name) Readonly() bool              { return n.flags&nameReadonly != 0 }
+func (n *Name) Byval() bool                 { return n.flags&nameByval != 0 }
+func (n *Name) Needzero() bool              { return n.flags&nameNeedzero != 0 }
+func (n *Name) Keepalive() bool             { return n.flags&nameKeepalive != 0 }
+func (n *Name) AutoTemp() bool              { return n.flags&nameAutoTemp != 0 }
+func (n *Name) Used() bool                  { return n.flags&nameUsed != 0 }
+func (n *Name) IsClosureVar() bool          { return n.flags&nameIsClosureVar != 0 }
+func (n *Name) IsOutputParamHeapAddr() bool { return n.flags&nameIsOutputParamHeapAddr != 0 }
+func (n *Name) Assigned() bool              { return n.flags&nameAssigned != 0 }
+func (n *Name) Addrtaken() bool             { return n.flags&nameAddrtaken != 0 }
+func (n *Name) InlFormal() bool             { return n.flags&nameInlFormal != 0 }
+func (n *Name) InlLocal() bool              { return n.flags&nameInlLocal != 0 }
 
-func (n *Name) SetCaptured(b bool)  { n.flags.set(nameCaptured, b) }
-func (n *Name) SetReadonly(b bool)  { n.flags.set(nameReadonly, b) }
-func (n *Name) SetByval(b bool)     { n.flags.set(nameByval, b) }
-func (n *Name) SetNeedzero(b bool)  { n.flags.set(nameNeedzero, b) }
-func (n *Name) SetKeepalive(b bool) { n.flags.set(nameKeepalive, b) }
-func (n *Name) SetAutoTemp(b bool)  { n.flags.set(nameAutoTemp, b) }
-func (n *Name) SetUsed(b bool)      { n.flags.set(nameUsed, b) }
+func (n *Name) SetCaptured(b bool)              { n.flags.set(nameCaptured, b) }
+func (n *Name) SetReadonly(b bool)              { n.flags.set(nameReadonly, b) }
+func (n *Name) SetByval(b bool)                 { n.flags.set(nameByval, b) }
+func (n *Name) SetNeedzero(b bool)              { n.flags.set(nameNeedzero, b) }
+func (n *Name) SetKeepalive(b bool)             { n.flags.set(nameKeepalive, b) }
+func (n *Name) SetAutoTemp(b bool)              { n.flags.set(nameAutoTemp, b) }
+func (n *Name) SetUsed(b bool)                  { n.flags.set(nameUsed, b) }
+func (n *Name) SetIsClosureVar(b bool)          { n.flags.set(nameIsClosureVar, b) }
+func (n *Name) SetIsOutputParamHeapAddr(b bool) { n.flags.set(nameIsOutputParamHeapAddr, b) }
+func (n *Name) SetAssigned(b bool)              { n.flags.set(nameAssigned, b) }
+func (n *Name) SetAddrtaken(b bool)             { n.flags.set(nameAddrtaken, b) }
+func (n *Name) SetInlFormal(b bool)             { n.flags.set(nameInlFormal, b) }
+func (n *Name) SetInlLocal(b bool)              { n.flags.set(nameInlLocal, b) }
 
 type Param struct {
 	Ntype    *Node

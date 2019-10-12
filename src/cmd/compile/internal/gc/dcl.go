@@ -278,7 +278,7 @@ func oldname(s *types.Sym) *Node {
 			// Do not have a closure var for the active closure yet; make one.
 			c = newname(s)
 			c.SetClass(PAUTOHEAP)
-			c.SetIsClosureVar(true)
+			c.Name.SetIsClosureVar(true)
 			c.SetIsDDD(n.IsDDD())
 			c.Name.Defn = n
 
