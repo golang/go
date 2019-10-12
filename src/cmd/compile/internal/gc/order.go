@@ -298,7 +298,7 @@ func (o *Order) cleanTempNoPop(mark ordermarker) []*Node {
 		n := o.temp[i]
 		if n.Name.Keepalive() {
 			n.Name.SetKeepalive(false)
-			n.SetAddrtaken(true) // ensure SSA keeps the n variable
+			n.Name.SetAddrtaken(true) // ensure SSA keeps the n variable
 			live := nod(OVARLIVE, n, nil)
 			live = typecheck(live, ctxStmt)
 			out = append(out, live)

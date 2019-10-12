@@ -655,7 +655,7 @@ func inlnode(n *Node, maxCost int32) *Node {
 					// NB: this check is necessary to prevent indirect re-assignment of the variable
 					// having the address taken after the invocation or only used for reads is actually fine
 					// but we have no easy way to distinguish the safe cases
-					if d.Left.Addrtaken() {
+					if d.Left.Name.Addrtaken() {
 						if Debug['m'] > 1 {
 							fmt.Printf("%v: cannot inline escaping closure variable %v\n", n.Line(), n.Left)
 						}
@@ -919,9 +919,9 @@ func mkinlcall(n, fn *Node, maxCost int32) *Node {
 		if genDwarfInline > 0 {
 			inlf := inlvars[ln]
 			if ln.Class() == PPARAM {
-				inlf.SetInlFormal(true)
+				inlf.Name.SetInlFormal(true)
 			} else {
-				inlf.SetInlLocal(true)
+				inlf.Name.SetInlLocal(true)
 			}
 			inlf.Pos = ln.Pos
 			inlfvars = append(inlfvars, inlf)
@@ -947,7 +947,7 @@ func mkinlcall(n, fn *Node, maxCost int32) *Node {
 			// was manufactured by the inliner (e.g. "~R2"); such vars
 			// were not part of the original callee.
 			if !strings.HasPrefix(m.Sym.Name, "~R") {
-				m.SetInlFormal(true)
+				m.Name.SetInlFormal(true)
 				m.Pos = mpos
 				inlfvars = append(inlfvars, m)
 			}
@@ -1125,7 +1125,7 @@ func inlvar(var_ *Node) *Node {
 	n.SetClass(PAUTO)
 	n.Name.SetUsed(true)
 	n.Name.Curfn = Curfn // the calling function, not the called one
-	n.SetAddrtaken(var_.Addrtaken())
+	n.Name.SetAddrtaken(var_.Name.Addrtaken())
 
 	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 	return n

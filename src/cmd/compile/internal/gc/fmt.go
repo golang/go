@@ -483,12 +483,13 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 		fmt.Fprintf(s, " embedded")
 	}
 
-	if n.Addrtaken() {
-		fmt.Fprint(s, " addrtaken")
-	}
-
-	if n.Assigned() {
-		fmt.Fprint(s, " assigned")
+	if n.Op == ONAME {
+		if n.Name.Addrtaken() {
+			fmt.Fprint(s, " addrtaken")
+		}
+		if n.Name.Assigned() {
+			fmt.Fprint(s, " assigned")
+		}
 	}
 	if n.Bounded() {
 		fmt.Fprint(s, " bounded")
