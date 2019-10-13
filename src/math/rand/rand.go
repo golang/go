@@ -384,6 +384,14 @@ type lockedSource struct {
 	src *rngSource
 }
 
+// NewLockedSource returns a new pseudo-random Source seeded with the given value.
+// It is safe for concurrent use by multiple goroutines.
+func NewLockedSource(seed int64) Source {
+	var rng rngSource
+	rng.Seed(seed)
+	return &lockedSource{src: &rng}
+}
+
 func (r *lockedSource) Int63() (n int64) {
 	r.lk.Lock()
 	n = r.src.Int63()
