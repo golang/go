@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 
 	"golang.org/x/tools/go/packages/packagestest"
@@ -1680,8 +1681,9 @@ func (t *goimportTest) processNonModule(file string, contents []byte, opts *Opti
 	if opts == nil {
 		opts = &Options{Comments: true, TabIndent: true, TabWidth: 8}
 	}
-	opts.Env = t.env
-	opts.Env.Debug = *testDebug
+	// ProcessEnv is not safe for concurrent use. Make a copy.
+	env := *t.env
+	opts.Env = &env
 	return Process(file, contents, opts)
 }
 
@@ -2538,4 +2540,46 @@ func TestStdLibGetCandidates(t *testing.T) {
 	if wantIdx < len(want) {
 		t.Errorf("expected to find candidate with path: %q, name: %q next in ordered scan of results`", want[wantIdx].wantPkg, want[wantIdx].wantName)
 	}
+}
+
+// Tests #34895: process should not panic on concurrent calls.
+func TestConcurrentProcess(t *testing.T) {
+	testConfig{
+		module: packagestest.Module{
+			Name: "foo.com",
+			Files: fm{
+				"p/first.go": `package foo
+
+func _() {
+	fmt.Println()
+}
+`,
+				"p/second.go": `package foo
+
+import "fmt"
+
+func _() {
+	fmt.Println()
+	imports.Bar() // not imported.
+}
+`,
+			},
+		},
+	}.test(t, func(t *goimportTest) {
+		var (
+			n  = 10
+			wg sync.WaitGroup
+		)
+		wg.Add(n)
+		for i := 0; i < n; i++ {
+			go func() {
+				defer wg.Done()
+				_, err := t.process("foo.com", "p/first.go", nil, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}()
+		}
+		wg.Wait()
+	})
 }

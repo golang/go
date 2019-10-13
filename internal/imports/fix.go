@@ -475,9 +475,9 @@ func (p *pass) assumeSiblingImportsValid() {
 		}
 		for left, rights := range refs {
 			if imp, ok := importsByName[left]; ok {
-				if _, ok := stdlib[imp.ImportPath]; ok {
+				if m, ok := stdlib[imp.ImportPath]; ok {
 					// We have the stdlib in memory; no need to guess.
-					rights = stdlib[imp.ImportPath]
+					rights = copyExports(m)
 				}
 				p.addCandidate(imp, &packageInfo{
 					// no name; we already know it.
@@ -712,9 +712,10 @@ func cmdDebugStr(cmd *exec.Cmd) string {
 
 func addStdlibCandidates(pass *pass, refs references) {
 	add := func(pkg string) {
+		exports := copyExports(stdlib[pkg])
 		pass.addCandidate(
 			&ImportInfo{ImportPath: pkg},
-			&packageInfo{name: path.Base(pkg), exports: stdlib[pkg]})
+			&packageInfo{name: path.Base(pkg), exports: exports})
 	}
 	for left := range refs {
 		if left == "rand" {
@@ -1382,4 +1383,12 @@ type visitFn func(node ast.Node) ast.Visitor
 
 func (fn visitFn) Visit(node ast.Node) ast.Visitor {
 	return fn(node)
+}
+
+func copyExports(pkg map[string]bool) map[string]bool {
+	m := make(map[string]bool, len(pkg))
+	for k, v := range pkg {
+		m[k] = v
+	}
+	return m
 }
