@@ -282,7 +282,11 @@ func asyncPreempt()
 func asyncPreempt2() {
 	gp := getg()
 	gp.asyncSafePoint = true
-	mcall(preemptPark)
+	if gp.preemptStop {
+		mcall(preemptPark)
+	} else {
+		mcall(gopreempt_m)
+	}
 	gp.asyncSafePoint = false
 }
 
@@ -316,7 +320,8 @@ func init() {
 // wantAsyncPreempt returns whether an asynchronous preemption is
 // queued for gp.
 func wantAsyncPreempt(gp *g) bool {
-	return gp.preemptStop && readgstatus(gp)&^_Gscan == _Grunning
+	// Check both the G and the P.
+	return (gp.preempt || gp.m.p != 0 && gp.m.p.ptr().preempt) && readgstatus(gp)&^_Gscan == _Grunning
 }
 
 // isAsyncSafePoint reports whether gp at instruction PC is an

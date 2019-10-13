@@ -2487,11 +2487,13 @@ func schedule() {
 	}
 
 top:
+	pp := _g_.m.p.ptr()
+	pp.preempt = false
+
 	if sched.gcwaiting != 0 {
 		gcstopm()
 		goto top
 	}
-	pp := _g_.m.p.ptr()
 	if pp.runSafePointFn != 0 {
 		runSafePointFn()
 	}
@@ -4654,6 +4656,13 @@ func preemptone(_p_ *p) bool {
 	// Setting gp->stackguard0 to StackPreempt folds
 	// preemption into the normal stack overflow check.
 	gp.stackguard0 = stackPreempt
+
+	// Request an async preemption of this P.
+	if preemptMSupported && debug.asyncpreemptoff == 0 {
+		_p_.preempt = true
+		preemptM(mp)
+	}
+
 	return true
 }
 
