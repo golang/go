@@ -552,7 +552,7 @@ func tostr(v Val) Val {
 
 func consttype(n *Node) Ctype {
 	if n == nil || n.Op != OLITERAL {
-		return 0
+		return CTxxx
 	}
 	return n.Val().Ctype()
 }
