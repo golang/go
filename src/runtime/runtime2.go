@@ -642,6 +642,10 @@ type p struct {
 	// Race context used while executing timer functions.
 	timerRaceCtx uintptr
 
+	// preempt is set to indicate that this P should be enter the
+	// scheduler ASAP (regardless of what G is running on it).
+	preempt bool
+
 	pad cpu.CacheLinePad
 }
 
