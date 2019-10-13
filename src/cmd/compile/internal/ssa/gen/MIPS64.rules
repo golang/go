@@ -10,6 +10,7 @@
 
 (Mul(64|32|16|8) x y) -> (Select1 (MULVU x y))
 (Mul(32|64)F x y) -> (MUL(F|D) x y)
+(Mul64uhilo x y) -> (MULVU x y)
 
 (Hmul64 x y) -> (Select0 (MULV x y))
 (Hmul64u x y) -> (Select0 (MULVU x y))
