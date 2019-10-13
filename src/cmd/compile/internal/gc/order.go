@@ -202,7 +202,7 @@ func isaddrokay(n *Node) bool {
 // The result of addrTemp MUST be assigned back to n, e.g.
 // 	n.Left = o.addrTemp(n.Left)
 func (o *Order) addrTemp(n *Node) *Node {
-	if consttype(n) > 0 {
+	if consttype(n) != CTxxx {
 		// TODO: expand this to all static composite literal nodes?
 		n = defaultlit(n, nil)
 		dowidth(n.Type)
