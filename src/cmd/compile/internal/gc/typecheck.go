@@ -3812,6 +3812,33 @@ func checkreturn(fn *Node) {
 
 func deadcode(fn *Node) {
 	deadcodeslice(fn.Nbody)
+	deadcodefn(fn)
+}
+
+func deadcodefn(fn *Node) {
+	if fn.Nbody.Len() == 0 {
+		return
+	}
+
+	for _, n := range fn.Nbody.Slice() {
+		if n.Ninit.Len() > 0 {
+			return
+		}
+		switch n.Op {
+		case OIF:
+			if !Isconst(n.Left, CTBOOL) || n.Nbody.Len() > 0 || n.Rlist.Len() > 0 {
+				return
+			}
+		case OFOR:
+			if !Isconst(n.Left, CTBOOL) || n.Left.Bool() {
+				return
+			}
+		default:
+			return
+		}
+	}
+
+	fn.Nbody.Set([]*Node{nod(OEMPTY, nil, nil)})
 }
 
 func deadcodeslice(nn Nodes) {
