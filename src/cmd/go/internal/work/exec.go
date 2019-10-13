@@ -1023,7 +1023,7 @@ func (b *Builder) vet(a *Action) error {
 	// dependency tree turn on *more* analysis, as here.
 	// (The unsafeptr check does not write any facts for use by
 	// later vet runs.)
-	if a.Package.Goroot && !VetExplicit {
+	if a.Package.Goroot && !VetExplicit && VetTool == "" {
 		// Note that $GOROOT/src/buildall.bash
 		// does the same for the misc-compile trybots
 		// and should be updated if these flags are
