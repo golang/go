@@ -62,3 +62,9 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	c.set_r10(uint32(uintptr(unsafe.Pointer(gp))))
 	c.set_pc(uint32(funcPC(sigpanic)))
 }
+
+const pushCallSupported = false
+
+func (c *sigctxt) pushCall(targetPC uintptr) {
+	throw("not implemented")
+}

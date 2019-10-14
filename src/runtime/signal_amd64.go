@@ -66,14 +66,22 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	sp := uintptr(c.rsp())
 
 	if shouldPushSigpanic(gp, pc, *(*uintptr)(unsafe.Pointer(sp))) {
-		// Make it look the like faulting PC called sigpanic.
-		if sys.RegSize > sys.PtrSize {
-			sp -= sys.PtrSize
-			*(*uintptr)(unsafe.Pointer(sp)) = 0
-		}
-		sp -= sys.PtrSize
-		*(*uintptr)(unsafe.Pointer(sp)) = pc
-		c.set_rsp(uint64(sp))
+		c.pushCall(funcPC(sigpanic))
+	} else {
+		// Not safe to push the call. Just clobber the frame.
+		c.set_rip(uint64(funcPC(sigpanic)))
 	}
-	c.set_rip(uint64(funcPC(sigpanic)))
+}
+
+// TODO: Remove pushCallSupported once all platforms support it.
+const pushCallSupported = true
+
+func (c *sigctxt) pushCall(targetPC uintptr) {
+	// Make it look like the signaled instruction called target.
+	pc := uintptr(c.rip())
+	sp := uintptr(c.rsp())
+	sp -= sys.PtrSize
+	*(*uintptr)(unsafe.Pointer(sp)) = pc
+	c.set_rsp(uint64(sp))
+	c.set_rip(uint64(targetPC))
 }
