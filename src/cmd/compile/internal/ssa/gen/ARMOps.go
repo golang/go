@@ -154,7 +154,7 @@ func init() {
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R1"), buildReg("R0")},
 				outputs:  []regMask{buildReg("R0"), buildReg("R1")},
-				clobbers: buildReg("R2 R3 R14"), // also clobbers R12 on NaCl (modified in ../config.go)
+				clobbers: buildReg("R2 R3 R14"),
 			},
 			clobberFlags: true,
 			typ:          "(UInt32,UInt32)",
