@@ -42,8 +42,10 @@ func sigprocmask(how int32, new, old *sigset) {
 //go:noescape
 func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
 
-func raise(sig uint32)
 func raiseproc(sig uint32)
+
+func getthrid() int32
+func thrkill(tid int32, sig int)
 
 //go:noescape
 func tfork(param *tforkt, psize uintptr, mm *m, gg *g, fn uintptr) int32
@@ -190,7 +192,7 @@ func newosproc(mp *m) {
 	// rather than at the top of it.
 	param := tforkt{
 		tf_tcb:   unsafe.Pointer(&mp.tls[0]),
-		tf_tid:   (*int32)(unsafe.Pointer(&mp.procid)),
+		tf_tid:   nil, // minit will record tid
 		tf_stack: uintptr(stk) - sys.PtrSize,
 	}
 
@@ -238,10 +240,7 @@ func mpreinit(mp *m) {
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, can not allocate memory.
 func minit() {
-	// m.procid is a uint64, but tfork writes an int32. Fix it up.
-	_g_ := getg()
-	_g_.m.procid = uint64(*(*int32)(unsafe.Pointer(&_g_.m.procid)))
-
+	getg().m.procid = uint64(getthrid())
 	minitSignals()
 }
 
@@ -336,4 +335,12 @@ func osStackRemap(s *mspan, flags int32) {
 		print("runtime: remapping stack memory ", hex(s.base()), " ", s.npages*pageSize, " a=", a, " err=", err, "\n")
 		throw("remapping stack memory failed")
 	}
+}
+
+func raise(sig uint32) {
+	thrkill(getthrid(), int(sig))
+}
+
+func signalM(mp *m, sig int) {
+	thrkill(int32(mp.procid), sig)
 }

@@ -126,6 +126,8 @@ type thrparam struct {
 	spare      [3]uintptr
 }
 
+type thread int32 // long
+
 type sigset struct {
 	__bits [4]uint32
 }

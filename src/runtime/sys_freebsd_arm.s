@@ -165,14 +165,17 @@ TEXT runtime·closefd(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R0, ret+4(FP)
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$8
-	// thr_self(&4(R13))
-	MOVW $4(R13), R0 // arg 1 &4(R13)
+TEXT runtime·thr_self(SB),NOSPLIT,$0-4
+	// thr_self(&0(FP))
+	MOVW $ret+0(FP), R0 // arg 1
 	MOVW $SYS_thr_self, R7
 	SWI $0
-	// thr_kill(self, SIGPIPE)
-	MOVW 4(R13), R0	// arg 1 id
-	MOVW sig+0(FP), R1	// arg 2 - signal
+	RET
+
+TEXT runtime·thr_kill(SB),NOSPLIT,$0-8
+	// thr_kill(tid, sig)
+	MOVW tid+0(FP), R0	// arg 1 id
+	MOVW sig+4(FP), R1	// arg 2 signal
 	MOVW $SYS_thr_kill, R7
 	SWI $0
 	RET

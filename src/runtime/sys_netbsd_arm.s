@@ -193,9 +193,9 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 	SWI $SYS___nanosleep50
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$16
-	SWI	$SYS__lwp_self	// the returned R0 is arg 1
-	MOVW	sig+0(FP), R1	// arg 2 - signal
+TEXT runtime·lwp_kill(SB),NOSPLIT,$0-8
+	MOVW	tid+0(FP), R0	// arg 1 - tid
+	MOVW	sig+4(FP), R1	// arg 2 - signal
 	SWI	$SYS__lwp_kill
 	RET
 

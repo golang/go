@@ -140,12 +140,11 @@ TEXT runtime·usleep(SB),NOSPLIT,$24
 	INT	$0x80
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$12
-	MOVL	$SYS__lwp_self, AX
-	INT	$0x80
+TEXT runtime·lwp_kill(SB),NOSPLIT,$12-8
 	MOVL	$0, 0(SP)
+	MOVL	tid+0(FP), AX
 	MOVL	AX, 4(SP)		// arg 1 - target
-	MOVL	sig+0(FP), AX
+	MOVL	sig+4(FP), AX
 	MOVL	AX, 8(SP)		// arg 2 - signo
 	MOVL	$SYS__lwp_kill, AX
 	INT	$0x80
