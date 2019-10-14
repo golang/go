@@ -233,7 +233,7 @@ func wakeScavenger() {
 		// Unpark the goroutine and tell it that there may have been a pacing
 		// change.
 		scavenge.parked = false
-		ready(scavenge.g, 0, true)
+		goready(scavenge.g, 0)
 	}
 	unlock(&scavenge.lock)
 }
