@@ -29,6 +29,8 @@ import (
 //go:cgo_import_dynamic libc_pthread_attr_setdetachstate pthread_attr_setdetachstate "libc.so"
 //go:cgo_import_dynamic libc_pthread_attr_setstack pthread_attr_setstack "libc.so"
 //go:cgo_import_dynamic libc_pthread_create pthread_create "libc.so"
+//go:cgo_import_dynamic libc_pthread_self pthread_self "libc.so"
+//go:cgo_import_dynamic libc_pthread_kill pthread_kill "libc.so"
 //go:cgo_import_dynamic libc_raise raise "libc.so"
 //go:cgo_import_dynamic libc_read read "libc.so"
 //go:cgo_import_dynamic libc_select select "libc.so"
@@ -61,6 +63,8 @@ import (
 //go:linkname libc_pthread_attr_setdetachstate libc_pthread_attr_setdetachstate
 //go:linkname libc_pthread_attr_setstack libc_pthread_attr_setstack
 //go:linkname libc_pthread_create libc_pthread_create
+//go:linkname libc_pthread_self libc_pthread_self
+//go:linkname libc_pthread_kill libc_pthread_kill
 //go:linkname libc_raise libc_raise
 //go:linkname libc_read libc_read
 //go:linkname libc_select libc_select
@@ -94,6 +98,8 @@ var (
 	libc_pthread_attr_setdetachstate,
 	libc_pthread_attr_setstack,
 	libc_pthread_create,
+	libc_pthread_self,
+	libc_pthread_kill,
 	libc_raise,
 	libc_read,
 	libc_sched_yield,
@@ -214,6 +220,8 @@ func minit() {
 	asmcgocall(unsafe.Pointer(funcPC(miniterrno)), unsafe.Pointer(&libc____errno))
 
 	minitSignals()
+
+	getg().m.procid = uint64(pthread_self())
 }
 
 // Called from dropm to undo the effect of an minit.
@@ -432,6 +440,14 @@ func pthread_attr_setstack(attr *pthreadattr, addr uintptr, size uint64) int32 {
 
 func pthread_create(thread *pthread, attr *pthreadattr, fn uintptr, arg unsafe.Pointer) int32 {
 	return int32(sysvicall4(&libc_pthread_create, uintptr(unsafe.Pointer(thread)), uintptr(unsafe.Pointer(attr)), uintptr(fn), uintptr(arg)))
+}
+
+func pthread_self() pthread {
+	return pthread(sysvicall0(&libc_pthread_self))
+}
+
+func signalM(mp *m, sig int) {
+	sysvicall2(&libc_pthread_kill, uintptr(pthread(mp.procid)), uintptr(sig))
 }
 
 //go:nosplit

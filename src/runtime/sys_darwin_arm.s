@@ -405,6 +405,18 @@ TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
 	BL	libc_pthread_cond_signal(SB)
 	RET
 
+TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
+	MOVW	R0, R4		// R4 is callee-save
+	BL	libc_pthread_self(SB)
+	MOVW	R0, 0(R4)	// return value
+	RET
+
+TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
+	MOVW	4(R0), R1	// arg 2 sig
+	MOVW	0(R0), R0	// arg 1 thread
+	BL	libc_pthread_kill(SB)
+	RET
+
 // syscall calls a function in libc on behalf of the syscall package.
 // syscall takes a pointer to a struct like:
 // struct {
