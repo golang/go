@@ -104,6 +104,7 @@ func (s *session) NewView(ctx context.Context, name string, folder span.URI, opt
 			metadata:   make(map[packageID]*metadata),
 			files:      make(map[span.URI]source.FileHandle),
 			importedBy: make(map[packageID][]packageID),
+			actions:    make(map[actionKey]*actionHandle),
 		},
 		ignoredURIs: make(map[span.URI]struct{}),
 		builtin:     &builtinPkg{},

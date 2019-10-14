@@ -29,9 +29,12 @@ type snapshot struct {
 	// It may invalidated when a file's content changes.
 	files map[span.URI]source.FileHandle
 
-	// packages maps a file URI to a set of CheckPackageHandles to which that file belongs.
+	// packages maps a packageKey to a set of CheckPackageHandles to which that file belongs.
 	// It may be invalidated when a file's content changes.
 	packages map[packageKey]*checkPackageHandle
+
+	// actions maps an actionkey to its actionHandle.
+	actions map[actionKey]*actionHandle
 }
 
 func (s *snapshot) View() source.View {
@@ -91,6 +94,37 @@ func (s *snapshot) getPackage(id packageID, m source.ParseMode) *checkPackageHan
 		mode: m,
 	}
 	return s.packages[key]
+}
+
+func (s *snapshot) getAction(id packageID, m source.ParseMode, analyzer string) *actionHandle {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	key := actionKey{
+		pkg: packageKey{
+			id:   id,
+			mode: m,
+		},
+		analyzer: analyzer,
+	}
+	return s.actions[key]
+}
+
+func (s *snapshot) addAction(ah *actionHandle) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	key := actionKey{
+		analyzer: ah.analyzer.Name,
+		pkg: packageKey{
+			id:   ah.pkg.id,
+			mode: ah.pkg.mode,
+		},
+	}
+	if _, ok := s.actions[key]; ok {
+		return
+	}
+	s.actions[key] = ah
 }
 
 func (s *snapshot) getMetadataForURI(uri span.URI) (metadata []*metadata) {
@@ -175,6 +209,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURI *span.URI, withoutTypes
 		importedBy: make(map[packageID][]packageID),
 		metadata:   make(map[packageID]*metadata),
 		packages:   make(map[packageKey]*checkPackageHandle),
+		actions:    make(map[actionKey]*actionHandle),
 		files:      make(map[span.URI]source.FileHandle),
 	}
 	// Copy all of the FileHandles except for the one that was invalidated.
@@ -215,6 +250,16 @@ func (s *snapshot) clone(ctx context.Context, withoutURI *span.URI, withoutTypes
 			continue
 		}
 		result.packages[k] = v
+	}
+	// Copy the package analysis information.
+	for k, v := range s.actions {
+		if _, ok := withoutTypesIDs[k.pkg.id]; ok {
+			continue
+		}
+		if _, ok := withoutMetadataIDs[k.pkg.id]; ok {
+			continue
+		}
+		result.actions[k] = v
 	}
 	// Copy the package metadata.
 	for k, v := range s.metadata {

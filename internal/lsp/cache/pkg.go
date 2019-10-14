@@ -24,6 +24,7 @@ type pkg struct {
 
 	// ID and package path have their own types to avoid being used interchangeably.
 	id         packageID
+	mode       source.ParseMode
 	pkgPath    packagePath
 	files      []source.ParseGoHandle
 	errors     []packages.Error

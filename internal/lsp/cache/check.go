@@ -266,6 +266,7 @@ func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle) (*p
 	pkg := &pkg{
 		view:       imp.snapshot.view,
 		id:         cph.m.id,
+		mode:       cph.mode,
 		pkgPath:    cph.m.pkgPath,
 		files:      cph.Files(),
 		imports:    make(map[packagePath]*pkg),

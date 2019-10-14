@@ -17,6 +17,11 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
+type actionKey struct {
+	pkg      packageKey
+	analyzer string // analyzer name
+}
+
 func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*analysis.Analyzer) (map[*analysis.Analyzer][]*analysis.Diagnostic, error) {
 	var roots []*actionHandle
 
@@ -79,6 +84,10 @@ type packageFactKey struct {
 }
 
 func (s *snapshot) actionHandle(ctx context.Context, id packageID, mode source.ParseMode, a *analysis.Analyzer) (*actionHandle, error) {
+	ah := s.getAction(id, mode, a.Name)
+	if ah != nil {
+		return ah, nil
+	}
 	cph := s.getPackage(id, mode)
 	if cph == nil {
 		return nil, errors.Errorf("no CheckPackageHandle for %s:%v", id, mode == source.ParseExported)
@@ -90,7 +99,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, mode source.P
 	if err != nil {
 		return nil, err
 	}
-	ah := &actionHandle{
+	ah = &actionHandle{
 		analyzer: a,
 		pkg:      pkg,
 	}
@@ -118,12 +127,13 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, mode source.P
 			ah.deps = append(ah.deps, depActionHandle)
 		}
 	}
-	h := s.view.session.cache.store.Bind(actionKey(a, cph), func(ctx context.Context) interface{} {
+	h := s.view.session.cache.store.Bind(buildActionKey(a, cph), func(ctx context.Context) interface{} {
 		data := &actionData{}
 		data.diagnostics, data.result, data.err = ah.exec(ctx, s.view.session.cache.fset)
 		return data
 	})
 	ah.handle = h
+	s.addAction(ah)
 	return ah, nil
 }
 
@@ -136,7 +146,7 @@ func (ah *actionHandle) analyze(ctx context.Context) ([]*analysis.Diagnostic, in
 	return data.diagnostics, data.result, data.err
 }
 
-func actionKey(a *analysis.Analyzer, cph *checkPackageHandle) string {
+func buildActionKey(a *analysis.Analyzer, cph *checkPackageHandle) string {
 	return hashContents([]byte(fmt.Sprintf("%s %s", a, string(cph.key))))
 }
 
