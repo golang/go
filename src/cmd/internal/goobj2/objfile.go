@@ -220,6 +220,15 @@ func (s *Sym) Size() int {
 	return 4 + 2 + 1 + 1 + 4
 }
 
+func (s *Sym) Dupok() bool         { return s.Flag&SymFlagDupok != 0 }
+func (s *Sym) Local() bool         { return s.Flag&SymFlagLocal != 0 }
+func (s *Sym) Typelink() bool      { return s.Flag&SymFlagTypelink != 0 }
+func (s *Sym) Leaf() bool          { return s.Flag&SymFlagLeaf != 0 }
+func (s *Sym) CFunc() bool         { return s.Flag&SymFlagCFunc != 0 }
+func (s *Sym) ReflectMethod() bool { return s.Flag&SymFlagReflectMethod != 0 }
+func (s *Sym) Shared() bool        { return s.Flag&SymFlagShared != 0 }
+func (s *Sym) TopFrame() bool      { return s.Flag&SymFlagTopFrame != 0 }
+
 // Symbol reference.
 type SymRef struct {
 	PkgIdx uint32
