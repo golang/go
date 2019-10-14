@@ -26,7 +26,10 @@ import (
 const iexportVersion = 0
 
 // IExportData returns the binary export data for pkg.
+//
 // If no file set is provided, position info will be missing.
+// The package path of the top-level package will not be recorded,
+// so that calls to IImportData can override with a provided package path.
 func IExportData(fset *token.FileSet, pkg *types.Package) (b []byte, err error) {
 	defer func() {
 		if e := recover(); e != nil {
@@ -46,6 +49,7 @@ func IExportData(fset *token.FileSet, pkg *types.Package) (b []byte, err error) 
 		stringIndex: map[string]uint64{},
 		declIndex:   map[types.Object]uint64{},
 		typIndex:    map[types.Type]uint64{},
+		localpkg:    pkg,
 	}
 
 	for i, pt := range predeclared() {
@@ -71,7 +75,7 @@ func IExportData(fset *token.FileSet, pkg *types.Package) (b []byte, err error) 
 	// Append indices to data0 section.
 	dataLen := uint64(p.data0.Len())
 	w := p.newWriter()
-	w.writeIndex(p.declIndex, pkg)
+	w.writeIndex(p.declIndex)
 	w.flush()
 
 	// Assemble header.
@@ -93,14 +97,14 @@ func IExportData(fset *token.FileSet, pkg *types.Package) (b []byte, err error) 
 // we're writing out the main index, which is also read by
 // non-compiler tools and includes a complete package description
 // (i.e., name and height).
-func (w *exportWriter) writeIndex(index map[types.Object]uint64, localpkg *types.Package) {
+func (w *exportWriter) writeIndex(index map[types.Object]uint64) {
 	// Build a map from packages to objects from that package.
 	pkgObjs := map[*types.Package][]types.Object{}
 
 	// For the main index, make sure to include every package that
 	// we reference, even if we're not exporting (or reexporting)
 	// any symbols from it.
-	pkgObjs[localpkg] = nil
+	pkgObjs[w.p.localpkg] = nil
 	for pkg := range w.p.allPkgs {
 		pkgObjs[pkg] = nil
 	}
@@ -119,12 +123,12 @@ func (w *exportWriter) writeIndex(index map[types.Object]uint64, localpkg *types
 	}
 
 	sort.Slice(pkgs, func(i, j int) bool {
-		return pkgs[i].Path() < pkgs[j].Path()
+		return w.exportPath(pkgs[i]) < w.exportPath(pkgs[j])
 	})
 
 	w.uint64(uint64(len(pkgs)))
 	for _, pkg := range pkgs {
-		w.string(pkg.Path())
+		w.string(w.exportPath(pkg))
 		w.string(pkg.Name())
 		w.uint64(uint64(0)) // package height is not needed for go/types
 
@@ -140,6 +144,8 @@ func (w *exportWriter) writeIndex(index map[types.Object]uint64, localpkg *types
 type iexporter struct {
 	fset *token.FileSet
 	out  *bytes.Buffer
+
+	localpkg *types.Package
 
 	// allPkgs tracks all packages that have been referenced by
 	// the export data, so we can ensure to include them in the
@@ -191,6 +197,13 @@ type exportWriter struct {
 	currPkg  *types.Package
 	prevFile string
 	prevLine int64
+}
+
+func (w *exportWriter) exportPath(pkg *types.Package) string {
+	if pkg == w.p.localpkg {
+		return ""
+	}
+	return pkg.Path()
 }
 
 func (p *iexporter) doDecl(obj types.Object) {
@@ -302,7 +315,7 @@ func (w *exportWriter) pkg(pkg *types.Package) {
 	// Ensure any referenced packages are declared in the main index.
 	w.p.allPkgs[pkg] = true
 
-	w.string(pkg.Path())
+	w.string(w.exportPath(pkg))
 }
 
 func (w *exportWriter) qualifiedIdent(obj types.Object) {

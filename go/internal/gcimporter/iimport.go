@@ -147,24 +147,14 @@ func IImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 		errorf("no packages found for %s", path)
 		panic("unreachable")
 	}
-	var localpkg *types.Package
-	for _, pkg := range pkgList {
-		if pkg.Path() == path {
-			localpkg = pkg
-			break
-		}
-	}
-	if localpkg == nil {
-		localpkg = pkgList[0]
-	}
-
-	names := make([]string, 0, len(p.pkgIndex[localpkg]))
-	for name := range p.pkgIndex[localpkg] {
+	p.ipkg = pkgList[0]
+	names := make([]string, 0, len(p.pkgIndex[p.ipkg]))
+	for name := range p.pkgIndex[p.ipkg] {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		p.doDecl(localpkg, name)
+		p.doDecl(p.ipkg, name)
 	}
 
 	for _, typ := range p.interfaceList {
@@ -174,17 +164,18 @@ func IImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 	// record all referenced packages as imports
 	list := append(([]*types.Package)(nil), pkgList[1:]...)
 	sort.Sort(byPath(list))
-	localpkg.SetImports(list)
+	p.ipkg.SetImports(list)
 
 	// package was imported completely and without errors
-	localpkg.MarkComplete()
+	p.ipkg.MarkComplete()
 
 	consumed, _ := r.Seek(0, io.SeekCurrent)
-	return int(consumed), localpkg, nil
+	return int(consumed), p.ipkg, nil
 }
 
 type iimporter struct {
 	ipath   string
+	ipkg    *types.Package
 	version int
 
 	stringData  []byte
@@ -236,6 +227,9 @@ func (p *iimporter) pkgAt(off uint64) *types.Package {
 		return pkg
 	}
 	path := p.stringAt(off)
+	if path == p.ipath {
+		return p.ipkg
+	}
 	errorf("missing package %q in %q", path, p.ipath)
 	return nil
 }
