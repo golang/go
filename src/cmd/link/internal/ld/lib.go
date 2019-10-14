@@ -38,6 +38,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loadelf"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/loadmacho"
 	"cmd/link/internal/loadpe"
 	"cmd/link/internal/loadxcoff"
@@ -376,7 +377,7 @@ func (ctxt *Link) findLibPath(libname string) string {
 
 func (ctxt *Link) loadlib() {
 	if *flagNewobj {
-		ctxt.loader = objfile.NewLoader()
+		ctxt.loader = loader.NewLoader()
 	}
 
 	ctxt.cgo_export_static = make(map[string]bool)
@@ -434,7 +435,7 @@ func (ctxt *Link) loadlib() {
 
 	if *flagNewobj {
 		// Add references of externally defined symbols.
-		objfile.LoadRefs(ctxt.loader, ctxt.Arch, ctxt.Syms)
+		ctxt.loader.LoadRefs(ctxt.Arch, ctxt.Syms)
 	}
 
 	// Now that we know the link mode, set the dynexp list.
@@ -1772,7 +1773,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	}
 	var c int
 	if *flagNewobj {
-		objfile.LoadNew(ctxt.loader, ctxt.Arch, ctxt.Syms, f, lib, unit, eof-f.Offset(), pn, flags)
+		ctxt.loader.Preload(ctxt.Arch, ctxt.Syms, f, lib, unit, eof-f.Offset(), pn, flags)
 	} else {
 		c = objfile.Load(ctxt.Arch, ctxt.Syms, f, lib, unit, eof-f.Offset(), pn, flags)
 	}
@@ -2550,7 +2551,7 @@ func dfs(lib *sym.Library, mark map[*sym.Library]markKind, order *[]*sym.Library
 
 func (ctxt *Link) loadlibfull() {
 	// Load full symbol contents, resolve indexed references.
-	objfile.LoadFull(ctxt.loader, ctxt.Arch, ctxt.Syms)
+	ctxt.loader.LoadFull(ctxt.Arch, ctxt.Syms)
 
 	// For now, add all symbols to ctxt.Syms.
 	for _, s := range ctxt.loader.Syms {

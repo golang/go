@@ -10,7 +10,7 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
-	"cmd/link/internal/objfile"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
@@ -424,7 +424,7 @@ func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
 	return 0
 }
 
-func Load(l *objfile.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string) error {
+func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string) error {
 	lookup := func(name string, version int) *sym.Symbol {
 		// Check to see if we've already defined the symbol.
 		if i := l.Lookup(name, version); i != 0 {
