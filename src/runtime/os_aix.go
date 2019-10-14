@@ -175,6 +175,7 @@ func miniterrno() {
 func minit() {
 	miniterrno()
 	minitSignals()
+	getg().m.procid = uint64(pthread_self())
 }
 
 func unminit() {

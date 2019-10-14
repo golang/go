@@ -295,6 +295,7 @@ func minit() {
 		minitSignalStack()
 	}
 	minitSignalMask()
+	getg().m.procid = uint64(pthread_self())
 }
 
 // Called from dropm to undo the effect of an minit.
@@ -405,4 +406,8 @@ func sysargs(argc int32, argv **byte) {
 	if len(executablePath) > len(prefix) && executablePath[:len(prefix)] == prefix {
 		executablePath = executablePath[len(prefix):]
 	}
+}
+
+func signalM(mp *m, sig int) {
+	pthread_kill(pthread(mp.procid), uint32(sig))
 }
