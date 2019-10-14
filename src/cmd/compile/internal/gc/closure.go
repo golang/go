@@ -345,7 +345,7 @@ func closuredebugruntimecheck(clo *Node) {
 		}
 	}
 	if compiling_runtime && clo.Esc == EscHeap {
-		yyerrorl(clo.Pos, "heap-allocated closure, not allowed in runtime.")
+		yyerrorl(clo.Pos, "heap-allocated closure, not allowed in runtime")
 	}
 }
 
