@@ -195,7 +195,7 @@ func walkstmt(n *Node) *Node {
 		v := n.Left
 		if v.Class() == PAUTOHEAP {
 			if compiling_runtime {
-				yyerror("%v escapes to heap, not allowed in runtime.", v)
+				yyerror("%v escapes to heap, not allowed in runtime", v)
 			}
 			if prealloc[v] == nil {
 				prealloc[v] = callnew(v.Type)
