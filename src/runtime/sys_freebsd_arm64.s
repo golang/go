@@ -197,13 +197,19 @@ TEXT runtime·usleep(SB),NOSPLIT,$24-4
 	SVC
 	RET
 
-// func raise(sig uint32)
-TEXT runtime·raise(SB),NOSPLIT,$8
-	MOVD	$8(RSP), R0	// arg 1 &8(RSP)
+// func thr_self() thread
+TEXT runtime·thr_self(SB),NOSPLIT,$8-8
+	MOVD	$ptr-8(SP), R0	// arg 1 &8(SP)
 	MOVD	$SYS_thr_self, R8
 	SVC
-	MOVD	8(RSP), R0	// arg 1 pid
-	MOVW	sig+0(FP), R1
+	MOVD	ptr-8(SP), R0
+	MOVD	R0, ret+0(FP)
+	RET
+
+// func thr_kill(t thread, sig int)
+TEXT runtime·thr_kill(SB),NOSPLIT,$0-16
+	MOVD	tid+0(FP), R0	// arg 1 pid
+	MOVD	sig+8(FP), R1	// arg 2 sig
 	MOVD	$SYS_thr_kill, R8
 	SVC
 	RET

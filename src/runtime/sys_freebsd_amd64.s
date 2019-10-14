@@ -132,14 +132,17 @@ TEXT runtime·write1(SB),NOSPLIT,$-8
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$16
-	// thr_self(&8(SP))
-	LEAQ	8(SP), DI	// arg 1 &8(SP)
+TEXT runtime·thr_self(SB),NOSPLIT,$0-8
+	// thr_self(&0(FP))
+	LEAQ	ret+0(FP), DI	// arg 1
 	MOVL	$432, AX
 	SYSCALL
-	// thr_kill(self, SIGPIPE)
-	MOVQ	8(SP), DI	// arg 1 id
-	MOVL	sig+0(FP), SI	// arg 2
+	RET
+
+TEXT runtime·thr_kill(SB),NOSPLIT,$0-16
+	// thr_kill(tid, sig)
+	MOVQ	tid+0(FP), DI	// arg 1 id
+	MOVQ	sig+8(FP), SI	// arg 2 sig
 	MOVL	$433, AX
 	SYSCALL
 	RET

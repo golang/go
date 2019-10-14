@@ -134,12 +134,16 @@ TEXT runtime·write1(SB),NOSPLIT,$-8
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$16
+TEXT runtime·lwp_gettid(SB),NOSPLIT,$0-4
 	MOVL	$496, AX	// lwp_gettid
 	SYSCALL
-	MOVQ	$-1, DI		// arg 1 - pid
-	MOVQ	AX, SI		// arg 2 - tid
-	MOVL	sig+0(FP), DX	// arg 3 - signum
+	MOVL	AX, ret+0(FP)
+	RET
+
+TEXT runtime·lwp_kill(SB),NOSPLIT,$0-16
+	MOVL	pid+0(FP), DI	// arg 1 - pid
+	MOVL	tid+4(FP), SI	// arg 2 - tid
+	MOVQ	sig+8(FP), DX	// arg 3 - signum
 	MOVL	$497, AX	// lwp_kill
 	SYSCALL
 	RET

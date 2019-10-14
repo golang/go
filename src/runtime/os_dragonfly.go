@@ -38,8 +38,10 @@ func setitimer(mode int32, new, old *itimerval)
 //go:noescape
 func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
 
-func raise(sig uint32)
 func raiseproc(sig uint32)
+
+func lwp_gettid() int32
+func lwp_kill(pid, tid int32, sig int)
 
 //go:noescape
 func sys_umtx_sleep(addr *uint32, val, timeout int32) int32
@@ -151,7 +153,7 @@ func newosproc(mp *m) {
 		start_func: funcPC(lwp_start),
 		arg:        unsafe.Pointer(mp),
 		stack:      uintptr(stk),
-		tid1:       unsafe.Pointer(&mp.procid),
+		tid1:       nil, // minit will record tid
 		tid2:       nil,
 	}
 
@@ -191,10 +193,7 @@ func mpreinit(mp *m) {
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, cannot allocate memory.
 func minit() {
-	// m.procid is a uint64, but lwp_start writes an int32. Fix it up.
-	_g_ := getg()
-	_g_.m.procid = uint64(*(*int32)(unsafe.Pointer(&_g_.m.procid)))
-
+	getg().m.procid = uint64(lwp_gettid())
 	minitSignals()
 }
 
@@ -287,4 +286,18 @@ func sysauxv(auxv []uintptr) {
 			physPageSize = val
 		}
 	}
+}
+
+// raise sends a signal to the calling thread.
+//
+// It must be nosplit because it is used by the signal handler before
+// it definitely has a Go stack.
+//
+//go:nosplit
+func raise(sig uint32) {
+	lwp_kill(-1, lwp_gettid(), int(sig))
+}
+
+func signalM(mp *m, sig int) {
+	lwp_kill(-1, int32(mp.procid), sig)
 }

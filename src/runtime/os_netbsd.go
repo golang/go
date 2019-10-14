@@ -47,8 +47,9 @@ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, nds
 
 func lwp_tramp()
 
-func raise(sig uint32)
 func raiseproc(sig uint32)
+
+func lwp_kill(tid int32, sig int)
 
 //go:noescape
 func getcontext(ctxt unsafe.Pointer)
@@ -360,4 +361,18 @@ func sysauxv(auxv []uintptr) {
 			physPageSize = val
 		}
 	}
+}
+
+// raise sends signal to the calling thread.
+//
+// It must be nosplit because it is used by the signal handler before
+// it definitely has a Go stack.
+//
+//go:nosplit
+func raise(sig uint32) {
+	lwp_kill(lwp_self(), int(sig))
+}
+
+func signalM(mp *m, sig int) {
+	lwp_kill(int32(mp.procid), sig)
 }

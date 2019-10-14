@@ -114,11 +114,15 @@ TEXT runtime·usleep(SB),NOSPLIT,$24-4
 	SVC
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$0
+TEXT runtime·getthrid(SB),NOSPLIT,$0-4
 	MOVD	$299, R8		// sys_getthrid
 	SVC
-					// arg 1 - tid, already in R0
-	MOVW	sig+0(FP), R1		// arg 2 - signum
+	MOVW	R0, ret+0(FP)
+	RET
+
+TEXT runtime·thrkill(SB),NOSPLIT,$0-16
+	MOVW	tid+0(FP), R0		// arg 1 - tid
+	MOVD	sig+8(FP), R1		// arg 2 - signum
 	MOVW	$0, R2			// arg 3 - tcb
 	MOVD	$119, R8		// sys_thrkill
 	SVC

@@ -171,11 +171,15 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 	SYSCALL
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$16
+TEXT runtime·getthrid(SB),NOSPLIT,$0-4
 	MOVL	$299, AX		// sys_getthrid
 	SYSCALL
-	MOVQ	AX, DI			// arg 1 - tid
-	MOVL	sig+0(FP), SI		// arg 2 - signum
+	MOVL	AX, ret+0(FP)
+	RET
+
+TEXT runtime·thrkill(SB),NOSPLIT,$0-16
+	MOVL	tid+0(FP), DI		// arg 1 - tid
+	MOVQ	sig+8(FP), SI		// arg 2 - signum
 	MOVQ	$0, DX			// arg 3 - tcb
 	MOVL	$119, AX		// sys_thrkill
 	SYSCALL
