@@ -79,10 +79,15 @@ Use [coc.nvim], with the following `coc-settings.json` configuration:
     "golang": {
       "command": "gopls",
       "rootPatterns": ["go.mod", ".vim/", ".git/", ".hg/"],
-      "filetypes": ["go"]
+      "filetypes": ["go"],
+      "initializationOptions": {
+        "usePlaceholders": true
+      }
     }
   }
 ```
+
+Other [settings](settings.md) can be added in `initializationOptions` too.
 
 The `editor.action.organizeImport` code action will auto-format code and add missing imports. To run this automatically on save, add the following line to your `init.vim`:
 
