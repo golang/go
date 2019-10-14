@@ -35,6 +35,8 @@ The support commands are:
 		all strongly connected components (one per line)
 	scc <node>
 		the set of nodes nodes strongly connected to the specified one
+	focus <node>
+		the subgraph containing all directed paths that pass through the specified node
 
 Input format:
 
@@ -91,6 +93,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -121,6 +124,8 @@ The support commands are:
 		all strongly connected components (one per line)
 	scc <node>
 		the set of nodes nodes strongly connected to the specified one
+	focus <node>
+		the subgraph containing all directed paths that pass through the specified node
 `)
 	os.Exit(2)
 }
@@ -152,7 +157,7 @@ func (l nodelist) println(sep string) {
 	fmt.Fprintln(stdout)
 }
 
-type nodeset map[string]bool
+type nodeset map[string]bool // TODO(deklerk): change bool to struct to reduce memory footprint
 
 func (s nodeset) sort() nodelist {
 	nodes := make(nodelist, len(s))
@@ -497,6 +502,36 @@ func digraph(cmd string, args []string) error {
 				break
 			}
 		}
+
+	case "focus":
+		if len(args) != 1 {
+			return fmt.Errorf("usage: digraph focus <node>")
+		}
+		node := args[0]
+		if g[node] == nil {
+			return fmt.Errorf("no such node %q", node)
+		}
+
+		edges := make(map[string]struct{})
+		for from := range g.reachableFrom(nodeset{node: true}) {
+			for to := range g[from] {
+				edges[fmt.Sprintf("%s %s", from, to)] = struct{}{}
+			}
+		}
+
+		gtrans := g.transpose()
+		for from := range gtrans.reachableFrom(nodeset{node: true}) {
+			for to := range gtrans[from] {
+				edges[fmt.Sprintf("%s %s", to, from)] = struct{}{}
+			}
+		}
+
+		edgesSorted := make([]string, len(edges))
+		for e := range edges {
+			edgesSorted = append(edgesSorted, e)
+		}
+		sort.Strings(edgesSorted)
+		fmt.Fprintln(stdout, strings.Join(edgesSorted, "\n"))
 
 	default:
 		return fmt.Errorf("no such command %q", cmd)

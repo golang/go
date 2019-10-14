@@ -283,3 +283,64 @@ func TestQuotedLength(t *testing.T) {
 		}
 	}
 }
+
+func TestFocus(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		in    string
+		focus string
+		want  string
+	}{
+		{
+			name:  "Basic",
+			in:    "A B",
+			focus: "B",
+			want:  "A B\n",
+		},
+		{
+			name: "Some Nodes Not Included",
+			// C does not have a path involving B, and should not be included
+			// in the output.
+			in:    "A B\nA C",
+			focus: "B",
+			want:  "A B\n",
+		},
+		{
+			name: "Cycle In Path",
+			// A <-> B -> C
+			in:    "A B\nB A\nB C",
+			focus: "C",
+			want:  "A B\nB A\nB C\n",
+		},
+		{
+			name: "Cycle Out Of Path",
+			// C <- A <->B
+			in:    "A B\nB A\nB C",
+			focus: "C",
+			want:  "A B\nB A\nB C\n",
+		},
+		{
+			name: "Complex",
+			// Paths in and out from focus.
+			//                   /-> F
+			//      /-> B -> D --
+			// A --              \-> E
+			//      \-> C
+			in:    "A B\nA C\nB D\nD F\nD E",
+			focus: "D",
+			want:  "A B\nB D\nD E\nD F\n",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			stdin = strings.NewReader(test.in)
+			stdout = new(bytes.Buffer)
+			if err := digraph("focus", []string{test.focus}); err != nil {
+				t.Fatal(err)
+			}
+			got := stdout.(fmt.Stringer).String()
+			if got != test.want {
+				t.Errorf("digraph(focus, %s) = got %q, want %q", test.focus, got, test.want)
+			}
+		})
+	}
+}
