@@ -17,3 +17,7 @@ func (b B) Func(x a.A) a.A {
 type ktype int
 
 const k ktype = 0
+
+func Func2() a.AI {
+	return a.ACC
+}
