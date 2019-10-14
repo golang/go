@@ -29,14 +29,18 @@ func runParallel(N, iter int, f func()) {
 }
 
 func TestXadduintptr(t *testing.T) {
-	const N = 20
-	const iter = 100000
+	N := 20
+	iter := 100000
+	if testing.Short() {
+		N = 10
+		iter = 10000
+	}
 	inc := uintptr(100)
 	total := uintptr(0)
 	runParallel(N, iter, func() {
 		atomic.Xadduintptr(&total, inc)
 	})
-	if want := uintptr(N * iter * inc); want != total {
+	if want := uintptr(N*iter) * inc; want != total {
 		t.Fatalf("xadduintpr error, want %d, got %d", want, total)
 	}
 	total = 0
@@ -82,14 +86,8 @@ func TestUnaligned64(t *testing.T) {
 	// a continual source of pain. Test that on 32-bit systems they crash
 	// instead of failing silently.
 
-	switch runtime.GOARCH {
-	default:
-		if unsafe.Sizeof(int(0)) != 4 {
-			t.Skip("test only runs on 32-bit systems")
-		}
-	case "amd64p32":
-		// amd64p32 can handle unaligned atomics.
-		t.Skipf("test not needed on %v", runtime.GOARCH)
+	if unsafe.Sizeof(int(0)) != 4 {
+		t.Skip("test only runs on 32-bit systems")
 	}
 
 	x := make([]uint32, 4)

@@ -5,6 +5,24 @@
 // TODO(neelance): implement with actual atomic operations as soon as threads are available
 // See https://github.com/WebAssembly/design/issues/1073
 
+// Export some functions via linkname to assembly in sync/atomic.
+//go:linkname Load
+//go:linkname Loadp
+//go:linkname Load64
+//go:linkname Loaduintptr
+//go:linkname Xadd
+//go:linkname Xadd64
+//go:linkname Xadduintptr
+//go:linkname Xchg
+//go:linkname Xchg64
+//go:linkname Xchguintptr
+//go:linkname Cas
+//go:linkname Cas64
+//go:linkname Casuintptr
+//go:linkname Store
+//go:linkname Store64
+//go:linkname Storeuintptr
+
 package atomic
 
 import "unsafe"
@@ -19,6 +37,18 @@ func Load(ptr *uint32) uint32 {
 //go:noinline
 func Loadp(ptr unsafe.Pointer) unsafe.Pointer {
 	return *(*unsafe.Pointer)(ptr)
+}
+
+//go:nosplit
+//go:noinline
+func LoadAcq(ptr *uint32) uint32 {
+	return *ptr
+}
+
+//go:nosplit
+//go:noinline
+func Load8(ptr *uint8) uint8 {
+	return *ptr
 }
 
 //go:nosplit
@@ -107,14 +137,23 @@ func Store(ptr *uint32, val uint32) {
 
 //go:nosplit
 //go:noinline
+func StoreRel(ptr *uint32, val uint32) {
+	*ptr = val
+}
+
+//go:nosplit
+//go:noinline
 func Store64(ptr *uint64, val uint64) {
 	*ptr = val
 }
 
+//go:notinheap
+type noWB struct{}
+
 //go:noinline
 //go:nosplit
 func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer) {
-	*(*uintptr)(ptr) = uintptr(val)
+	*(**noWB)(ptr) = (*noWB)(val)
 }
 
 //go:nosplit
@@ -140,6 +179,16 @@ func Casp1(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool {
 //go:nosplit
 //go:noinline
 func Casuintptr(ptr *uintptr, old, new uintptr) bool {
+	if *ptr == old {
+		*ptr = new
+		return true
+	}
+	return false
+}
+
+//go:nosplit
+//go:noinline
+func CasRel(ptr *uint32, old, new uint32) bool {
 	if *ptr == old {
 		*ptr = new
 		return true

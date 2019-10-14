@@ -179,7 +179,7 @@ func integer2floatConversions(t *testing.T) {
 	}
 	{
 		// Check maximum values
-		a, b, c, d, e, f, g, h, i := conv2Float64_ssa(127, 255, 32767, 65535, 0x7fffffff, 0xffffffff, 0x7fffFFFFffffFFFF, 0xffffFFFFffffFFFF, 3.402823E38)
+		a, b, c, d, e, f, g, h, i := conv2Float64_ssa(127, 255, 32767, 65535, 0x7fffffff, 0xffffffff, 0x7fffFFFFffffFFFF, 0xffffFFFFffffFFFF, 3.402823e38)
 		expect64(t, "a", a, 127)
 		expect64(t, "b", b, 255)
 		expect64(t, "c", c, 32767)
@@ -188,11 +188,11 @@ func integer2floatConversions(t *testing.T) {
 		expect64(t, "f", f, float64(uint32(0xffffffff)))
 		expect64(t, "g", g, float64(int64(0x7fffffffffffffff)))
 		expect64(t, "h", h, float64(uint64(0xffffffffffffffff)))
-		expect64(t, "i", i, float64(float32(3.402823E38)))
+		expect64(t, "i", i, float64(float32(3.402823e38)))
 	}
 	{
 		// Check minimum values (and tweaks for unsigned)
-		a, b, c, d, e, f, g, h, i := conv2Float64_ssa(-128, 254, -32768, 65534, ^0x7fffffff, 0xfffffffe, ^0x7fffFFFFffffFFFF, 0xffffFFFFffffF401, 1.5E-45)
+		a, b, c, d, e, f, g, h, i := conv2Float64_ssa(-128, 254, -32768, 65534, ^0x7fffffff, 0xfffffffe, ^0x7fffFFFFffffFFFF, 0xffffFFFFffffF401, 1.5e-45)
 		expect64(t, "a", a, -128)
 		expect64(t, "b", b, 254)
 		expect64(t, "c", c, -32768)
@@ -201,11 +201,11 @@ func integer2floatConversions(t *testing.T) {
 		expect64(t, "f", f, float64(uint32(0xfffffffe)))
 		expect64(t, "g", g, float64(^int64(0x7fffffffffffffff)))
 		expect64(t, "h", h, float64(uint64(0xfffffffffffff401)))
-		expect64(t, "i", i, float64(float32(1.5E-45)))
+		expect64(t, "i", i, float64(float32(1.5e-45)))
 	}
 	{
 		// Check maximum values
-		a, b, c, d, e, f, g, h, i := conv2Float32_ssa(127, 255, 32767, 65535, 0x7fffffff, 0xffffffff, 0x7fffFFFFffffFFFF, 0xffffFFFFffffFFFF, 3.402823E38)
+		a, b, c, d, e, f, g, h, i := conv2Float32_ssa(127, 255, 32767, 65535, 0x7fffffff, 0xffffffff, 0x7fffFFFFffffFFFF, 0xffffFFFFffffFFFF, 3.402823e38)
 		expect32(t, "a", a, 127)
 		expect32(t, "b", b, 255)
 		expect32(t, "c", c, 32767)
@@ -214,11 +214,11 @@ func integer2floatConversions(t *testing.T) {
 		expect32(t, "f", f, float32(uint32(0xffffffff)))
 		expect32(t, "g", g, float32(int64(0x7fffffffffffffff)))
 		expect32(t, "h", h, float32(uint64(0xffffffffffffffff)))
-		expect32(t, "i", i, float32(float64(3.402823E38)))
+		expect32(t, "i", i, float32(float64(3.402823e38)))
 	}
 	{
 		// Check minimum values (and tweaks for unsigned)
-		a, b, c, d, e, f, g, h, i := conv2Float32_ssa(-128, 254, -32768, 65534, ^0x7fffffff, 0xfffffffe, ^0x7fffFFFFffffFFFF, 0xffffFFFFffffF401, 1.5E-45)
+		a, b, c, d, e, f, g, h, i := conv2Float32_ssa(-128, 254, -32768, 65534, ^0x7fffffff, 0xfffffffe, ^0x7fffFFFFffffFFFF, 0xffffFFFFffffF401, 1.5e-45)
 		expect32(t, "a", a, -128)
 		expect32(t, "b", b, 254)
 		expect32(t, "c", c, -32768)
@@ -227,7 +227,7 @@ func integer2floatConversions(t *testing.T) {
 		expect32(t, "f", f, float32(uint32(0xfffffffe)))
 		expect32(t, "g", g, float32(^int64(0x7fffffffffffffff)))
 		expect32(t, "h", h, float32(uint64(0xfffffffffffff401)))
-		expect32(t, "i", i, float32(float64(1.5E-45)))
+		expect32(t, "i", i, float32(float64(1.5e-45)))
 	}
 }
 
@@ -1685,7 +1685,7 @@ func TestFP(t *testing.T) {
 	c := float32(3.0)
 	d := float32(4.0)
 
-	tiny := float32(1.5E-45) // smallest f32 denorm = 2**(-149)
+	tiny := float32(1.5e-45) // smallest f32 denorm = 2**(-149)
 	dtiny := float64(tiny)   // well within range of f64
 
 	fail64("+", add64_ssa, a, b, 7.0)

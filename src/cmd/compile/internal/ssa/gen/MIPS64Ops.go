@@ -136,6 +136,10 @@ func init() {
 		lo         = buildReg("LO")
 		hi         = buildReg("HI")
 		callerSave = gp | fp | lo | hi | buildReg("g") // runtime.setg (and anything calling it) may clobber g
+		r1         = buildReg("R1")
+		r2         = buildReg("R2")
+		r3         = buildReg("R3")
+		r4         = buildReg("R4")
 	)
 	// Common regInfo
 	var (
@@ -288,6 +292,24 @@ func init() {
 			faultOnNilArg0: true,
 		},
 
+		// duffcopy
+		// arg0 = address of dst memory (in R2, changed as side effect)
+		// arg1 = address of src memory (in R1, changed as side effect)
+		// arg2 = mem
+		// auxint = offset into duffcopy code to start executing
+		// returns mem
+		{
+			name:      "DUFFCOPY",
+			aux:       "Int64",
+			argLength: 3,
+			reg: regInfo{
+				inputs:   []regMask{buildReg("R2"), buildReg("R1")},
+				clobbers: buildReg("R1 R2 R31"),
+			},
+			faultOnNilArg0: true,
+			faultOnNilArg1: true,
+		},
+
 		// large or unaligned zeroing
 		// arg0 = address of memory to zero (in R1, changed as side effect)
 		// arg1 = address of the last element to zero
@@ -339,6 +361,7 @@ func init() {
 		// atomic loads.
 		// load from arg0. arg1=mem.
 		// returns <value,memory> so they can be properly ordered with other loads.
+		{name: "LoweredAtomicLoad8", argLength: 2, reg: gpload, faultOnNilArg0: true},
 		{name: "LoweredAtomicLoad32", argLength: 2, reg: gpload, faultOnNilArg0: true},
 		{name: "LoweredAtomicLoad64", argLength: 2, reg: gpload, faultOnNilArg0: true},
 
@@ -420,17 +443,24 @@ func init() {
 		// but clobbers R31 (LR) because it's a call
 		// and R23 (REGTMP).
 		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R20"), buildReg("R21")}, clobbers: (callerSave &^ gpg) | buildReg("R31")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+
+		// There are three of these functions so that they can have three different register inputs.
+		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+		// default registers to match so we don't need to copy registers around unnecessarily.
+		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r3, r4}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
 	}
 
 	blocks := []blockData{
-		{name: "EQ"},
-		{name: "NE"},
-		{name: "LTZ"}, // < 0
-		{name: "LEZ"}, // <= 0
-		{name: "GTZ"}, // > 0
-		{name: "GEZ"}, // >= 0
-		{name: "FPT"}, // FP flag is true
-		{name: "FPF"}, // FP flag is false
+		{name: "EQ", controls: 1},
+		{name: "NE", controls: 1},
+		{name: "LTZ", controls: 1}, // < 0
+		{name: "LEZ", controls: 1}, // <= 0
+		{name: "GTZ", controls: 1}, // > 0
+		{name: "GEZ", controls: 1}, // >= 0
+		{name: "FPT", controls: 1}, // FP flag is true
+		{name: "FPF", controls: 1}, // FP flag is false
 	}
 
 	archs = append(archs, arch{

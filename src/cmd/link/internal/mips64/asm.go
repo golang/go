@@ -209,7 +209,9 @@ func asmb(ctxt *ld.Link) {
 
 	ctxt.Out.SeekSet(int64(ld.Segdwarf.Fileoff))
 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
+}
 
+func asmb2(ctxt *ld.Link) {
 	/* output symbol table */
 	ld.Symsize = 0
 
@@ -283,8 +285,7 @@ func asmb(ctxt *ld.Link) {
 	case objabi.Hlinux,
 		objabi.Hfreebsd,
 		objabi.Hnetbsd,
-		objabi.Hopenbsd,
-		objabi.Hnacl:
+		objabi.Hopenbsd:
 		ld.Asmbelf(ctxt, int64(symo))
 	}
 

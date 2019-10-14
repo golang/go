@@ -36,6 +36,7 @@ func CompareString2(s string) bool {
 func CompareString3(s string) bool {
 	// amd64:`CMPQ\t\(.*\), [A-Z]`
 	// arm64:-`CMPW\t`
+	// ppc64:-`CMPW\t`
 	// ppc64le:-`CMPW\t`
 	// s390x:-`CMPW\t`
 	return s == "xxxxxxxx"
@@ -158,14 +159,92 @@ func CmpZero4(a int64, ptr *int) {
 	}
 }
 
-func CmpToZero(a, b int32) int32 {
-	if a&b < 0 { // arm:`TST`,-`AND`
+func CmpToZero(a, b, d int32, e, f int64) int32 {
+	// arm:`TST`,-`AND`
+	// arm64:`TSTW`,-`AND`
+	// 386:`TESTL`,-`ANDL`
+	// amd64:`TESTL`,-`ANDL`
+	c0 := a&b < 0
+	// arm:`CMN`,-`ADD`
+	// arm64:`CMNW`,-`ADD`
+	c1 := a+b < 0
+	// arm:`TEQ`,-`XOR`
+	c2 := a^b < 0
+	// arm64:`TST`,-`AND`
+	// amd64:`TESTQ`,-`ANDQ`
+	c3 := e&f < 0
+	// arm64:`CMN`,-`ADD`
+	c4 := e+f < 0
+	// not optimized to single CMNW/CMN due to further use of b+d
+	// arm64:`ADD`,-`CMNW`
+	// arm:`ADD`,-`CMN`
+	c5 := b+d == 0
+	// not optimized to single TSTW/TST due to further use of a&d
+	// arm64:`AND`,-`TSTW`
+	// arm:`AND`,-`TST`
+	// 386:`ANDL`
+	c6 := a&d >= 0
+	// arm64:`TST\sR[0-9]+<<3,\sR[0-9]+`
+	c7 := e&(f<<3) < 0
+	// arm64:`CMN\sR[0-9]+<<3,\sR[0-9]+`
+	c8 := e+(f<<3) < 0
+	if c0 {
 		return 1
-	} else if a+b < 0 { // arm:`CMN`,-`ADD`
+	} else if c1 {
 		return 2
-	} else if a^b < 0 { // arm:`TEQ`,-`XOR`
+	} else if c2 {
 		return 3
+	} else if c3 {
+		return 4
+	} else if c4 {
+		return 5
+	} else if c5 {
+		return b + d
+	} else if c6 {
+		return a & d
+	} else if c7 {
+		return 7
+	} else if c8 {
+		return 8
 	} else {
 		return 0
 	}
+}
+
+func CmpLogicalToZero(a, b, c uint32, d, e uint64) uint64 {
+
+	// ppc64:"ANDCC",-"CMPW"
+	// ppc64le:"ANDCC",-"CMPW"
+	// wasm:"I64Eqz",-"I32Eqz",-"I64ExtendI32U",-"I32WrapI64"
+	if a&63 == 0 {
+		return 1
+	}
+
+	// ppc64:"ANDCC",-"CMP"
+	// ppc64le:"ANDCC",-"CMP"
+	// wasm:"I64Eqz",-"I32Eqz",-"I64ExtendI32U",-"I32WrapI64"
+	if d&255 == 0 {
+		return 1
+	}
+
+	// ppc64:"ANDCC",-"CMP"
+	// ppc64le:"ANDCC",-"CMP"
+	// wasm:"I64Eqz",-"I32Eqz",-"I64ExtendI32U",-"I32WrapI64"
+	if d&e == 0 {
+		return 1
+	}
+	// ppc64:"ORCC",-"CMP"
+	// ppc64le:"ORCC",-"CMP"
+	// wasm:"I64Eqz",-"I32Eqz",-"I64ExtendI32U",-"I32WrapI64"
+	if d|e == 0 {
+		return 1
+	}
+
+	// ppc64:"XORCC",-"CMP"
+	// ppc64le:"XORCC",-"CMP"
+	// wasm:"I64Eqz","I32Eqz",-"I64ExtendI32U",-"I32WrapI64"
+	if e^d == 0 {
+		return 1
+	}
+	return 0
 }

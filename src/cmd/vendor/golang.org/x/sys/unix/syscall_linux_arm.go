@@ -19,12 +19,18 @@ func setTimeval(sec, usec int64) Timeval {
 	return Timeval{Sec: int32(sec), Usec: int32(usec)}
 }
 
+//sysnb	pipe(p *[2]_C_int) (err error)
+
 func Pipe(p []int) (err error) {
 	if len(p) != 2 {
 		return EINVAL
 	}
 	var pp [2]_C_int
+	// Try pipe2 first for Android O, then try pipe for kernel 2.6.23.
 	err = pipe2(&pp, 0)
+	if err == ENOSYS {
+		err = pipe(&pp)
+	}
 	p[0] = int(pp[0])
 	p[1] = int(pp[1])
 	return
@@ -89,6 +95,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 //sys	Listen(s int, n int) (err error)
 //sys	Lstat(path string, stat *Stat_t) (err error) = SYS_LSTAT64
 //sys	Pause() (err error)
+//sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
 //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS__NEWSELECT
 //sys	Setfsgid(gid int) (err error) = SYS_SETFSGID32
@@ -256,4 +263,12 @@ func Poll(fds []PollFd, timeout int) (n int, err error) {
 		return poll(nil, 0, timeout)
 	}
 	return poll(&fds[0], len(fds), timeout)
+}
+
+//sys	armSyncFileRange(fd int, flags int, off int64, n int64) (err error) = SYS_ARM_SYNC_FILE_RANGE
+
+func SyncFileRange(fd int, off int64, n int64, flags int) error {
+	// The sync_file_range and arm_sync_file_range syscalls differ only in the
+	// order of their arguments.
+	return armSyncFileRange(fd, flags, off, n)
 }

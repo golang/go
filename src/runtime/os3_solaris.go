@@ -273,6 +273,7 @@ func sigdelset(mask *sigset, i int) {
 	mask.__sigbits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
 }
 
+//go:nosplit
 func (c *sigctxt) fixsigcode(sig uint32) {
 }
 
@@ -293,7 +294,7 @@ func semacreate(mp *m) {
 	_g_.m.scratch = mscratch{}
 	_g_.m.scratch.v[0] = unsafe.Sizeof(*sem)
 	_g_.m.libcall.args = uintptr(unsafe.Pointer(&_g_.m.scratch))
-	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&_g_.m.libcall))
+	asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&_g_.m.libcall))
 	sem = (*semt)(unsafe.Pointer(_g_.m.libcall.r1))
 	if sem_init(sem, 0, 0) != 0 {
 		throw("sem_init")
@@ -314,7 +315,7 @@ func semasleep(ns int64) int32 {
 		_m_.scratch.v[0] = _m_.waitsema
 		_m_.scratch.v[1] = uintptr(unsafe.Pointer(&_m_.ts))
 		_m_.libcall.args = uintptr(unsafe.Pointer(&_m_.scratch))
-		asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&_m_.libcall))
+		asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&_m_.libcall))
 		if *_m_.perrno != 0 {
 			if *_m_.perrno == _ETIMEDOUT || *_m_.perrno == _EAGAIN || *_m_.perrno == _EINTR {
 				return -1
@@ -329,7 +330,7 @@ func semasleep(ns int64) int32 {
 		_m_.scratch = mscratch{}
 		_m_.scratch.v[0] = _m_.waitsema
 		_m_.libcall.args = uintptr(unsafe.Pointer(&_m_.scratch))
-		asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&_m_.libcall))
+		asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&_m_.libcall))
 		if _m_.libcall.r1 == 0 {
 			break
 		}
@@ -383,7 +384,7 @@ func doMmap(addr, n, prot, flags, fd, off uintptr) (uintptr, uintptr) {
 	libcall.fn = uintptr(unsafe.Pointer(&libc_mmap))
 	libcall.n = 6
 	libcall.args = uintptr(noescape(unsafe.Pointer(&addr)))
-	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&libcall))
+	asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&libcall))
 	return libcall.r1, libcall.err
 }
 
@@ -392,11 +393,16 @@ func munmap(addr unsafe.Pointer, n uintptr) {
 	sysvicall2(&libc_munmap, uintptr(addr), uintptr(n))
 }
 
-func nanotime1()
+const (
+	_CLOCK_REALTIME  = 3
+	_CLOCK_MONOTONIC = 4
+)
 
 //go:nosplit
-func nanotime() int64 {
-	return int64(sysvicall0((*libcFunc)(unsafe.Pointer(funcPC(nanotime1)))))
+func nanotime1() int64 {
+	var ts mts
+	sysvicall2(&libc_clock_gettime, _CLOCK_MONOTONIC, uintptr(unsafe.Pointer(&ts)))
+	return ts.tv_sec*1e9 + ts.tv_nsec
 }
 
 //go:nosplit
@@ -497,8 +503,14 @@ func usleep(µs uint32) {
 	usleep1(µs)
 }
 
+func walltime1() (sec int64, nsec int32) {
+	var ts mts
+	sysvicall2(&libc_clock_gettime, _CLOCK_REALTIME, uintptr(unsafe.Pointer(&ts)))
+	return ts.tv_sec, int32(ts.tv_nsec)
+}
+
 //go:nosplit
-func write(fd uintptr, buf unsafe.Pointer, nbyte int32) int32 {
+func write1(fd uintptr, buf unsafe.Pointer, nbyte int32) int32 {
 	return int32(sysvicall3(&libc_write, uintptr(fd), uintptr(buf), uintptr(nbyte)))
 }
 

@@ -13,8 +13,11 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
+	"internal/xcoff"
 	"io"
+	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -56,14 +59,14 @@ func (p *Package) writeDefs() {
 	fmt.Fprintf(fm, "int main() { return 0; }\n")
 	if *importRuntimeCgo {
 		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int, __SIZE_TYPE__), void *a, int c, __SIZE_TYPE__ ctxt) { }\n")
-		fmt.Fprintf(fm, "__SIZE_TYPE__ _cgo_wait_runtime_init_done() { return 0; }\n")
+		fmt.Fprintf(fm, "__SIZE_TYPE__ _cgo_wait_runtime_init_done(void) { return 0; }\n")
 		fmt.Fprintf(fm, "void _cgo_release_context(__SIZE_TYPE__ ctxt) { }\n")
 		fmt.Fprintf(fm, "char* _cgo_topofstack(void) { return (char*)0; }\n")
 	} else {
 		// If we're not importing runtime/cgo, we *are* runtime/cgo,
 		// which provides these functions. We just need a prototype.
 		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int, __SIZE_TYPE__), void *a, int c, __SIZE_TYPE__ ctxt);\n")
-		fmt.Fprintf(fm, "__SIZE_TYPE__ _cgo_wait_runtime_init_done();\n")
+		fmt.Fprintf(fm, "__SIZE_TYPE__ _cgo_wait_runtime_init_done(void);\n")
 		fmt.Fprintf(fm, "void _cgo_release_context(__SIZE_TYPE__);\n")
 	}
 	fmt.Fprintf(fm, "void _cgo_allocate(void *a, int c) { }\n")
@@ -243,11 +246,55 @@ func (p *Package) writeDefs() {
 
 	init := gccgoInit.String()
 	if init != "" {
-		fmt.Fprintln(fc, "static void init(void) __attribute__ ((constructor));")
+		// The init function does nothing but simple
+		// assignments, so it won't use much stack space, so
+		// it's OK to not split the stack. Splitting the stack
+		// can run into a bug in clang (as of 2018-11-09):
+		// this is a leaf function, and when clang sees a leaf
+		// function it won't emit the split stack prologue for
+		// the function. However, if this function refers to a
+		// non-split-stack function, which will happen if the
+		// cgo code refers to a C function not compiled with
+		// -fsplit-stack, then the linker will think that it
+		// needs to adjust the split stack prologue, but there
+		// won't be one. Marking the function explicitly
+		// no_split_stack works around this problem by telling
+		// the linker that it's OK if there is no split stack
+		// prologue.
+		fmt.Fprintln(fc, "static void init(void) __attribute__ ((constructor, no_split_stack));")
 		fmt.Fprintln(fc, "static void init(void) {")
 		fmt.Fprint(fc, init)
 		fmt.Fprintln(fc, "}")
 	}
+}
+
+// elfImportedSymbols is like elf.File.ImportedSymbols, but it
+// includes weak symbols.
+//
+// A bug in some versions of LLD (at least LLD 8) cause it to emit
+// several pthreads symbols as weak, but we need to import those. See
+// issue #31912 or https://bugs.llvm.org/show_bug.cgi?id=42442.
+//
+// When doing external linking, we hand everything off to the external
+// linker, which will create its own dynamic symbol tables. For
+// internal linking, this may turn weak imports into strong imports,
+// which could cause dynamic linking to fail if a symbol really isn't
+// defined. However, the standard library depends on everything it
+// imports, and this is the primary use of dynamic symbol tables with
+// internal linking.
+func elfImportedSymbols(f *elf.File) []elf.ImportedSymbol {
+	syms, _ := f.DynamicSymbols()
+	var imports []elf.ImportedSymbol
+	for _, s := range syms {
+		if (elf.ST_BIND(s.Info) == elf.STB_GLOBAL || elf.ST_BIND(s.Info) == elf.STB_WEAK) && s.Section == elf.SHN_UNDEF {
+			imports = append(imports, elf.ImportedSymbol{
+				Name:    s.Name,
+				Library: s.Library,
+				Version: s.Version,
+			})
+		}
+	}
+	return imports
 }
 
 func dynimport(obj string) {
@@ -272,7 +319,7 @@ func dynimport(obj string) {
 				}
 			}
 		}
-		sym, _ := f.ImportedSymbols()
+		sym := elfImportedSymbols(f)
 		for _, s := range sym {
 			targ := s.Name
 			if s.Version != "" {
@@ -312,7 +359,31 @@ func dynimport(obj string) {
 		return
 	}
 
-	fatalf("cannot parse %s as ELF, Mach-O or PE", obj)
+	if f, err := xcoff.Open(obj); err == nil {
+		sym, err := f.ImportedSymbols()
+		if err != nil {
+			fatalf("cannot load imported symbols from XCOFF file %s: %v", obj, err)
+		}
+		for _, s := range sym {
+			if s.Name == "runtime_rt0_go" || s.Name == "_rt0_ppc64_aix_lib" {
+				// These symbols are imported by runtime/cgo but
+				// must not be added to _cgo_import.go as there are
+				// Go symbols.
+				continue
+			}
+			fmt.Fprintf(stdout, "//go:cgo_import_dynamic %s %s %q\n", s.Name, s.Name, s.Library)
+		}
+		lib, err := f.ImportedLibraries()
+		if err != nil {
+			fatalf("cannot load imported libraries from XCOFF file %s: %v", obj, err)
+		}
+		for _, l := range lib {
+			fmt.Fprintf(stdout, "//go:cgo_import_dynamic _ _ %q\n", l)
+		}
+		return
+	}
+
+	fatalf("cannot parse %s as ELF, Mach-O, PE or XCOFF", obj)
 }
 
 // Construct a gcc struct matching the gc argument frame.
@@ -740,8 +811,15 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 	fmt.Fprintf(fgcc, "#include <stdlib.h>\n")
 	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n\n")
 
+	// We use packed structs, but they are always aligned.
+	// The pragmas and address-of-packed-member are only recognized as
+	// warning groups in clang 4.0+, so ignore unknown pragmas first.
+	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Wunknown-pragmas\"\n")
+	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Wpragmas\"\n")
+	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Waddress-of-packed-member\"\n")
+
 	fmt.Fprintf(fgcc, "extern void crosscall2(void (*fn)(void *, int, __SIZE_TYPE__), void *, int, __SIZE_TYPE__);\n")
-	fmt.Fprintf(fgcc, "extern __SIZE_TYPE__ _cgo_wait_runtime_init_done();\n")
+	fmt.Fprintf(fgcc, "extern __SIZE_TYPE__ _cgo_wait_runtime_init_done(void);\n")
 	fmt.Fprintf(fgcc, "extern void _cgo_release_context(__SIZE_TYPE__);\n\n")
 	fmt.Fprintf(fgcc, "extern char* _cgo_topofstack(void);")
 	fmt.Fprintf(fgcc, "%s\n", tsanProlog)
@@ -1167,12 +1245,91 @@ func (p *Package) writeExportHeader(fgcch io.Writer) {
 	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
 }
 
-// Return the package prefix when using gccgo.
-func (p *Package) gccgoSymbolPrefix() string {
-	if !*gccgo {
-		return ""
+// gccgoUsesNewMangling reports whether gccgo uses the new collision-free
+// packagepath mangling scheme (see determineGccgoManglingScheme for more
+// info).
+func gccgoUsesNewMangling() bool {
+	if !gccgoMangleCheckDone {
+		gccgoNewmanglingInEffect = determineGccgoManglingScheme()
+		gccgoMangleCheckDone = true
+	}
+	return gccgoNewmanglingInEffect
+}
+
+const mangleCheckCode = `
+package läufer
+func Run(x int) int {
+  return 1
+}
+`
+
+// determineGccgoManglingScheme performs a runtime test to see which
+// flavor of packagepath mangling gccgo is using. Older versions of
+// gccgo use a simple mangling scheme where there can be collisions
+// between packages whose paths are different but mangle to the same
+// string. More recent versions of gccgo use a new mangler that avoids
+// these collisions. Return value is whether gccgo uses the new mangling.
+func determineGccgoManglingScheme() bool {
+
+	// Emit a small Go file for gccgo to compile.
+	filepat := "*_gccgo_manglecheck.go"
+	var f *os.File
+	var err error
+	if f, err = ioutil.TempFile(*objDir, filepat); err != nil {
+		fatalf("%v", err)
+	}
+	gofilename := f.Name()
+	defer os.Remove(gofilename)
+
+	if err = ioutil.WriteFile(gofilename, []byte(mangleCheckCode), 0666); err != nil {
+		fatalf("%v", err)
 	}
 
+	// Compile with gccgo, capturing generated assembly.
+	gccgocmd := os.Getenv("GCCGO")
+	if gccgocmd == "" {
+		gpath, gerr := exec.LookPath("gccgo")
+		if gerr != nil {
+			fatalf("unable to locate gccgo: %v", gerr)
+		}
+		gccgocmd = gpath
+	}
+	cmd := exec.Command(gccgocmd, "-S", "-o", "-", gofilename)
+	buf, cerr := cmd.CombinedOutput()
+	if cerr != nil {
+		fatalf("%s", cerr)
+	}
+
+	// New mangling: expect go.l..u00e4ufer.Run
+	// Old mangling: expect go.l__ufer.Run
+	return regexp.MustCompile(`go\.l\.\.u00e4ufer\.Run`).Match(buf)
+}
+
+// gccgoPkgpathToSymbolNew converts a package path to a gccgo-style
+// package symbol.
+func gccgoPkgpathToSymbolNew(ppath string) string {
+	bsl := []byte{}
+	changed := false
+	for _, c := range []byte(ppath) {
+		switch {
+		case 'A' <= c && c <= 'Z', 'a' <= c && c <= 'z',
+			'0' <= c && c <= '9', c == '_', c == '.':
+			bsl = append(bsl, c)
+		default:
+			changed = true
+			encbytes := []byte(fmt.Sprintf("..z%02x", c))
+			bsl = append(bsl, encbytes...)
+		}
+	}
+	if !changed {
+		return ppath
+	}
+	return string(bsl)
+}
+
+// gccgoPkgpathToSymbolOld converts a package path to a gccgo-style
+// package symbol using the older mangling scheme.
+func gccgoPkgpathToSymbolOld(ppath string) string {
 	clean := func(r rune) rune {
 		switch {
 		case 'A' <= r && r <= 'Z', 'a' <= r && r <= 'z',
@@ -1181,14 +1338,32 @@ func (p *Package) gccgoSymbolPrefix() string {
 		}
 		return '_'
 	}
+	return strings.Map(clean, ppath)
+}
+
+// gccgoPkgpathToSymbol converts a package path to a mangled packagepath
+// symbol.
+func gccgoPkgpathToSymbol(ppath string) string {
+	if gccgoUsesNewMangling() {
+		return gccgoPkgpathToSymbolNew(ppath)
+	} else {
+		return gccgoPkgpathToSymbolOld(ppath)
+	}
+}
+
+// Return the package prefix when using gccgo.
+func (p *Package) gccgoSymbolPrefix() string {
+	if !*gccgo {
+		return ""
+	}
 
 	if *gccgopkgpath != "" {
-		return strings.Map(clean, *gccgopkgpath)
+		return gccgoPkgpathToSymbol(*gccgopkgpath)
 	}
 	if *gccgoprefix == "" && p.PackageName == "main" {
 		return "main"
 	}
-	prefix := strings.Map(clean, *gccgoprefix)
+	prefix := gccgoPkgpathToSymbol(*gccgoprefix)
 	if prefix == "" {
 		prefix = "go"
 	}
@@ -1340,6 +1515,15 @@ __cgo_size_assert(double, 8)
 
 extern char* _cgo_topofstack(void);
 
+/*
+  We use packed structs, but they are always aligned.
+  The pragmas and address-of-packed-member are only recognized as warning
+  groups in clang 4.0+, so ignore unknown pragmas first.
+*/
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+
 #include <errno.h>
 #include <string.h>
 `
@@ -1422,6 +1606,7 @@ const builtinProlog = `
 /* Define intgo when compiling with GCC.  */
 typedef ptrdiff_t intgo;
 
+#define GO_CGO_GOSTRING_TYPEDEF
 typedef struct { const char *p; intgo n; } _GoString_;
 typedef struct { char *p; intgo n; intgo c; } _GoBytes_;
 _GoString_ GoString(char *p);
@@ -1446,14 +1631,14 @@ func _cgo_runtime_cgocall(unsafe.Pointer, uintptr) int32
 func _cgo_runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr, uintptr)
 
 //go:linkname _cgoCheckPointer runtime.cgoCheckPointer
-func _cgoCheckPointer(interface{}, ...interface{})
+func _cgoCheckPointer(interface{}, interface{})
 
 //go:linkname _cgoCheckResult runtime.cgoCheckResult
 func _cgoCheckResult(interface{})
 `
 
 const gccgoGoProlog = `
-func _cgoCheckPointer(interface{}, ...interface{})
+func _cgoCheckPointer(interface{}, interface{})
 
 func _cgoCheckResult(interface{})
 `
@@ -1640,16 +1825,16 @@ typedef struct __go_empty_interface {
 	void *__object;
 } Eface;
 
-extern void runtimeCgoCheckPointer(Eface, Slice)
+extern void runtimeCgoCheckPointer(Eface, Eface)
 	__asm__("runtime.cgoCheckPointer")
 	__attribute__((weak));
 
-extern void localCgoCheckPointer(Eface, Slice)
+extern void localCgoCheckPointer(Eface, Eface)
 	__asm__("GCCGOSYMBOLPREF._cgoCheckPointer");
 
-void localCgoCheckPointer(Eface ptr, Slice args) {
+void localCgoCheckPointer(Eface ptr, Eface arg) {
 	if(runtimeCgoCheckPointer) {
-		runtimeCgoCheckPointer(ptr, args);
+		runtimeCgoCheckPointer(ptr, arg);
 	}
 }
 
@@ -1673,15 +1858,20 @@ void localCgoCheckResult(Eface val) {
 // because _cgo_export.h defines GoString as a struct while builtinProlog
 // defines it as a function. We don't change this to avoid unnecessarily
 // breaking existing code.
+// The test of GO_CGO_GOSTRING_TYPEDEF avoids a duplicate definition
+// error if a Go file with a cgo comment #include's the export header
+// generated by a different package.
 const builtinExportProlog = `
-#line 1 "cgo-builtin-prolog"
+#line 1 "cgo-builtin-export-prolog"
 
 #include <stddef.h> /* for ptrdiff_t below */
 
 #ifndef GO_CGO_EXPORT_PROLOGUE_H
 #define GO_CGO_EXPORT_PROLOGUE_H
 
+#ifndef GO_CGO_GOSTRING_TYPEDEF
 typedef struct { const char *p; ptrdiff_t n; } _GoString_;
+#endif
 
 #endif
 `
@@ -1690,6 +1880,19 @@ func (p *Package) gccExportHeaderProlog() string {
 	return strings.Replace(gccExportHeaderProlog, "GOINTBITS", fmt.Sprint(8*p.IntSize), -1)
 }
 
+// gccExportHeaderProlog is written to the exported header, after the
+// import "C" comment preamble but before the generated declarations
+// of exported functions. This permits the generated declarations to
+// use the type names that appear in goTypes, above.
+//
+// The test of GO_CGO_GOSTRING_TYPEDEF avoids a duplicate definition
+// error if a Go file with a cgo comment #include's the export header
+// generated by a different package. Unfortunately GoString means two
+// different things: in this prolog it means a C name for the Go type,
+// while in the prolog written into the start of the C code generated
+// from a cgo-using Go file it means the C.GoString function. There is
+// no way to resolve this conflict, but it also doesn't make much
+// difference, as Go code never wants to refer to the latter meaning.
 const gccExportHeaderProlog = `
 /* Start of boilerplate cgo prologue.  */
 #line 1 "cgo-gcc-export-header-prolog"
@@ -1719,7 +1922,9 @@ typedef double _Complex GoComplex128;
 */
 typedef char _check_for_GOINTBITS_bit_pointer_matching_GoInt[sizeof(void*)==GOINTBITS/8 ? 1:-1];
 
+#ifndef GO_CGO_GOSTRING_TYPEDEF
 typedef _GoString_ GoString;
+#endif
 typedef void *GoMap;
 typedef void *GoChan;
 typedef struct { void *t; void *v; } GoInterface;
@@ -1755,5 +1960,5 @@ static void GoInit(void) {
 		runtime_iscgo = 1;
 }
 
-extern __SIZE_TYPE__ _cgo_wait_runtime_init_done() __attribute__ ((weak));
+extern __SIZE_TYPE__ _cgo_wait_runtime_init_done(void) __attribute__ ((weak));
 `

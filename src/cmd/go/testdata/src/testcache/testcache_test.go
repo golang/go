@@ -72,7 +72,7 @@ func TestDirList(t *testing.T) {
 }
 
 func TestExec(t *testing.T) {
-	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" || runtime.GOOS == "nacl" {
+	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" {
 		t.Skip("non-unix")
 	}
 

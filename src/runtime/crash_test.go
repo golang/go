@@ -143,6 +143,15 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 	return exe, nil
 }
 
+func TestVDSO(t *testing.T) {
+	t.Parallel()
+	output := runTestProg(t, "testprog", "SignalInVDSO")
+	want := "success\n"
+	if output != want {
+		t.Fatalf("output:\n%s\n\nwanted:\n%s", output, want)
+	}
+}
+
 var (
 	staleRuntimeOnce sync.Once // guards init of staleRuntimeErr
 	staleRuntimeErr  error
@@ -243,6 +252,30 @@ func TestRecursivePanic(t *testing.T) {
 	output := runTestProg(t, "testprog", "RecursivePanic")
 	want := `wrap: bad
 panic: again
+
+`
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+
+}
+
+func TestRecursivePanic2(t *testing.T) {
+	output := runTestProg(t, "testprog", "RecursivePanic2")
+	want := `first panic
+second panic
+panic: third panic
+
+`
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+
+}
+
+func TestRecursivePanic3(t *testing.T) {
+	output := runTestProg(t, "testprog", "RecursivePanic3")
+	want := `panic: first panic
 
 `
 	if !strings.HasPrefix(output, want) {
@@ -413,7 +446,7 @@ func TestNetpollDeadlock(t *testing.T) {
 func TestPanicTraceback(t *testing.T) {
 	t.Parallel()
 	output := runTestProg(t, "testprog", "PanicTraceback")
-	want := "panic: hello"
+	want := "panic: hello\n\tpanic: panic pt2\n\tpanic: panic pt1\n"
 	if !strings.HasPrefix(output, want) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}
@@ -686,7 +719,7 @@ func init() {
 
 func TestRuntimePanic(t *testing.T) {
 	testenv.MustHaveExec(t)
-	cmd := exec.Command(os.Args[0], "-test.run=TestRuntimePanic")
+	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestRuntimePanic"))
 	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_PANIC=1")
 	out, err := cmd.CombinedOutput()
 	t.Logf("%s", out)
@@ -724,4 +757,16 @@ func TestG0StackOverflow(t *testing.T) {
 	}
 
 	runtime.G0StackOverflow()
+}
+
+// Test that panic message is not clobbered.
+// See issue 30150.
+func TestDoublePanic(t *testing.T) {
+	output := runTestProg(t, "testprog", "DoublePanic", "GODEBUG=clobberfree=1")
+	wants := []string{"panic: XXX", "panic: YYY"}
+	for _, want := range wants {
+		if !strings.Contains(output, want) {
+			t.Errorf("output:\n%s\n\nwant output containing: %s", output, want)
+		}
+	}
 }

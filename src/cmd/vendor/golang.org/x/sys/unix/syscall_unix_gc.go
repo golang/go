@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build darwin dragonfly freebsd linux netbsd openbsd solaris
-// +build !gccgo
+// +build !gccgo,!ppc64le,!ppc64
 
 package unix
 

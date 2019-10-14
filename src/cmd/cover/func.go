@@ -191,6 +191,10 @@ func findPkgs(profiles []*Profile) (map[string]*Pkg, error) {
 		}
 	}
 
+	if len(list) == 0 {
+		return pkgs, nil
+	}
+
 	// Note: usually run as "go tool cover" in which case $GOROOT is set,
 	// in which case runtime.GOROOT() does exactly what we want.
 	goTool := filepath.Join(runtime.GOROOT(), "bin/go")

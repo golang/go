@@ -8,7 +8,14 @@ package elliptic
 
 import (
 	"crypto/subtle"
+	"internal/cpu"
 	"math/big"
+	"unsafe"
+)
+
+const (
+	offsetS390xHasVX  = unsafe.Offsetof(cpu.S390X.HasVX)
+	offsetS390xHasVE1 = unsafe.Offsetof(cpu.S390X.HasVXE)
 )
 
 type p256CurveFast struct {
@@ -26,14 +33,26 @@ var (
 	p256PreFast *[37][64]p256Point
 )
 
-// hasVectorFacility reports whether the machine has the z/Architecture
-// vector facility installed and enabled.
-func hasVectorFacility() bool
+//go:noescape
+func p256MulInternalTrampolineSetup()
 
-var hasVX = hasVectorFacility()
+//go:noescape
+func p256SqrInternalTrampolineSetup()
+
+//go:noescape
+func p256MulInternalVX()
+
+//go:noescape
+func p256MulInternalVMSL()
+
+//go:noescape
+func p256SqrInternalVX()
+
+//go:noescape
+func p256SqrInternalVMSL()
 
 func initP256Arch() {
-	if hasVX {
+	if cpu.S390X.HasVX {
 		p256 = p256CurveFast{p256Params}
 		initTable()
 		return
@@ -52,11 +71,14 @@ func (curve p256CurveFast) Params() *CurveParams {
 // Montgomery multiplication modulo P256
 //
 //go:noescape
+func p256SqrAsm(res, in1 []byte)
+
+//go:noescape
 func p256MulAsm(res, in1, in2 []byte)
 
 // Montgomery square modulo P256
 func p256Sqr(res, in []byte) {
-	p256MulAsm(res, in, in)
+	p256SqrAsm(res, in)
 }
 
 // Montgomery multiplication by 1

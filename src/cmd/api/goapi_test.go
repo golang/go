@@ -188,3 +188,31 @@ func BenchmarkAll(b *testing.B) {
 		}
 	}
 }
+
+func TestIssue21181(t *testing.T) {
+	for _, c := range contexts {
+		c.Compiler = build.Default.Compiler
+	}
+	for _, context := range contexts {
+		w := NewWalker(context, "testdata/src/issue21181")
+		pkg, err := w.Import("p")
+		if err != nil {
+			t.Fatalf("%s: (%s-%s) %s %v", err, context.GOOS, context.GOARCH,
+				pkg.Name(), w.imported)
+		}
+		w.export(pkg)
+	}
+}
+
+func TestIssue29837(t *testing.T) {
+	for _, c := range contexts {
+		c.Compiler = build.Default.Compiler
+	}
+	for _, context := range contexts {
+		w := NewWalker(context, "testdata/src/issue29837")
+		_, err := w.Import("p")
+		if _, nogo := err.(*build.NoGoError); !nogo {
+			t.Errorf("expected *build.NoGoError, got %T", err)
+		}
+	}
+}

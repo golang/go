@@ -28,6 +28,10 @@ func TestAMD64BadInstParser(t *testing.T) {
 		{"VADDPD.BCST.Z.SAE X0, X1, X2", `Z suffix should be the last; can't combine rounding/SAE and broadcast`},
 		{"VADDPD.SAE.SAE X0, X1, X2", `duplicate suffix "SAE"`},
 		{"VADDPD.RZ_SAE.SAE X0, X1, X2", `bad suffix combination`},
+
+		// BSWAP on 16-bit registers is undefined. See #29167,
+		{"BSWAPW DX", `unrecognized instruction`},
+		{"BSWAPW R11", `unrecognized instruction`},
 	})
 }
 
@@ -38,8 +42,7 @@ func testBadInstParser(t *testing.T, goarch string, tests []badInstTest) {
 		parser := NewParser(ctxt, arch, tokenizer)
 
 		err := tryParse(t, func() {
-			parser.start(lex.Tokenize(test.input))
-			parser.line()
+			parser.Parse()
 		})
 
 		switch {

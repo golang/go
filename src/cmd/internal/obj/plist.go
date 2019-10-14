@@ -27,7 +27,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 
 	var plink *Prog
 	for p := plist.Firstpc; p != nil; p = plink {
-		if ctxt.Debugasm && ctxt.Debugvlog {
+		if ctxt.Debugasm > 0 && ctxt.Debugvlog {
 			fmt.Printf("obj: %v\n", p)
 		}
 		plink = p.Link
@@ -105,6 +105,9 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 		linkpatch(ctxt, s, newprog)
 		ctxt.Arch.Preprocess(ctxt, s, newprog)
 		ctxt.Arch.Assemble(ctxt, s, newprog)
+		if ctxt.Errors > 0 {
+			continue
+		}
 		linkpcln(ctxt, s)
 		ctxt.populateDWARF(plist.Curfn, s, myimportpath)
 	}
@@ -129,11 +132,12 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	s.Set(AttrWrapper, flag&WRAPPER != 0)
 	s.Set(AttrNeedCtxt, flag&NEEDCTXT != 0)
 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
+	s.Set(AttrTopFrame, flag&TOPFRAME != 0)
 	s.Type = objabi.STEXT
 	ctxt.Text = append(ctxt.Text, s)
 
 	// Set up DWARF entries for s.
-	info, loc, ranges, _, isstmt := ctxt.dwarfSym(s)
+	info, loc, ranges, _, lines := ctxt.dwarfSym(s)
 	info.Type = objabi.SDWARFINFO
 	info.Set(AttrDuplicateOK, s.DuplicateOK())
 	if loc != nil {
@@ -144,21 +148,9 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	ranges.Type = objabi.SDWARFRANGE
 	ranges.Set(AttrDuplicateOK, s.DuplicateOK())
 	ctxt.Data = append(ctxt.Data, info, ranges)
-	isstmt.Type = objabi.SDWARFMISC
-	isstmt.Set(AttrDuplicateOK, s.DuplicateOK())
-	ctxt.Data = append(ctxt.Data, isstmt)
-
-	// Set up the function's gcargs and gclocals.
-	// They will be filled in later if needed.
-	gcargs := &s.Func.GCArgs
-	gcargs.Set(AttrDuplicateOK, true)
-	gcargs.Type = objabi.SRODATA
-	gclocals := &s.Func.GCLocals
-	gclocals.Set(AttrDuplicateOK, true)
-	gclocals.Type = objabi.SRODATA
-	gcregs := &s.Func.GCRegs
-	gcregs.Set(AttrDuplicateOK, true)
-	gcregs.Type = objabi.SRODATA
+	lines.Type = objabi.SDWARFLINES
+	lines.Set(AttrDuplicateOK, s.DuplicateOK())
+	ctxt.Data = append(ctxt.Data, lines)
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {

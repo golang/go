@@ -154,7 +154,7 @@ var fileTests = []fileTest{
 		nil,
 		nil,
 		map[string][]Reloc{
-			"__text": []Reloc{
+			"__text": {
 				{
 					Addr:      0x1d,
 					Type:      uint8(GENERIC_RELOC_VANILLA),
@@ -189,7 +189,7 @@ var fileTests = []fileTest{
 		nil,
 		nil,
 		map[string][]Reloc{
-			"__text": []Reloc{
+			"__text": {
 				{
 					Addr:   0x19,
 					Type:   uint8(X86_64_RELOC_BRANCH),
@@ -207,7 +207,7 @@ var fileTests = []fileTest{
 					Value:  2,
 				},
 			},
-			"__compact_unwind": []Reloc{
+			"__compact_unwind": {
 				{
 					Addr:   0x0,
 					Type:   uint8(X86_64_RELOC_UNSIGNED),

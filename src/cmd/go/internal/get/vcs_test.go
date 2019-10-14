@@ -181,7 +181,7 @@ func TestRepoRootForImportPath(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		got, err := RepoRootForImportPath(test.path, IgnoreMod, web.Secure)
+		got, err := RepoRootForImportPath(test.path, IgnoreMod, web.SecureOnly)
 		want := test.want
 
 		if want == nil {

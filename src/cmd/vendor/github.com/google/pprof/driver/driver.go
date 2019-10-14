@@ -17,6 +17,7 @@ package driver
 
 import (
 	"io"
+	"net/http"
 	"regexp"
 	"time"
 
@@ -48,13 +49,14 @@ func (o *Options) internalOptions() *plugin.Options {
 		}
 	}
 	return &plugin.Options{
-		Writer:     o.Writer,
-		Flagset:    o.Flagset,
-		Fetch:      o.Fetch,
-		Sym:        sym,
-		Obj:        obj,
-		UI:         o.UI,
-		HTTPServer: httpServer,
+		Writer:        o.Writer,
+		Flagset:       o.Flagset,
+		Fetch:         o.Fetch,
+		Sym:           sym,
+		Obj:           obj,
+		UI:            o.UI,
+		HTTPServer:    httpServer,
+		HTTPTransport: o.HTTPTransport,
 	}
 }
 
@@ -64,13 +66,14 @@ type HTTPServerArgs plugin.HTTPServerArgs
 
 // Options groups all the optional plugins into pprof.
 type Options struct {
-	Writer     Writer
-	Flagset    FlagSet
-	Fetch      Fetcher
-	Sym        Symbolizer
-	Obj        ObjTool
-	UI         UI
-	HTTPServer func(*HTTPServerArgs) error
+	Writer        Writer
+	Flagset       FlagSet
+	Fetch         Fetcher
+	Sym           Symbolizer
+	Obj           ObjTool
+	UI            UI
+	HTTPServer    func(*HTTPServerArgs) error
+	HTTPTransport http.RoundTripper
 }
 
 // Writer provides a mechanism to write data under a certain name,
@@ -100,11 +103,15 @@ type FlagSet interface {
 	// single flag
 	StringList(name string, def string, usage string) *[]*string
 
-	// ExtraUsage returns any additional text that should be
-	// printed after the standard usage message.
-	// The typical use of ExtraUsage is to show any custom flags
-	// defined by the specific pprof plugins being used.
+	// ExtraUsage returns any additional text that should be printed after the
+	// standard usage message. The extra usage message returned includes all text
+	// added with AddExtraUsage().
+	// The typical use of ExtraUsage is to show any custom flags defined by the
+	// specific pprof plugins being used.
 	ExtraUsage() string
+
+	// AddExtraUsage appends additional text to the end of the extra usage message.
+	AddExtraUsage(eu string)
 
 	// Parse initializes the flags with their values for this run
 	// and returns the non-flag command line arguments.

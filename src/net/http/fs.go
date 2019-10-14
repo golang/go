@@ -63,6 +63,8 @@ func mapDirOpenError(originalErr error, name string) error {
 	return originalErr
 }
 
+// Open implements FileSystem using os.Open, opening files for reading rooted
+// and relative to the directory d.
 func (d Dir) Open(name string) (File, error) {
 	if filepath.Separator != '/' && strings.ContainsRune(name, filepath.Separator) {
 		return nil, errors.New("http: invalid character in file path")
@@ -580,17 +582,15 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 		}
 	}
 
-	// redirect if the directory name doesn't end in a slash
 	if d.IsDir() {
 		url := r.URL.Path
-		if url[len(url)-1] != '/' {
+		// redirect if the directory name doesn't end in a slash
+		if url == "" || url[len(url)-1] != '/' {
 			localRedirect(w, r, path.Base(url)+"/")
 			return
 		}
-	}
 
-	// use contents of index.html for directory, if present
-	if d.IsDir() {
+		// use contents of index.html for directory, if present
 		index := strings.TrimSuffix(name, "/") + indexPage
 		ff, err := fs.Open(index)
 		if err == nil {
@@ -610,7 +610,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 			writeNotModified(w)
 			return
 		}
-		w.Header().Set("Last-Modified", d.ModTime().UTC().Format(TimeFormat))
+		setLastModified(w, d.ModTime())
 		dirList(w, r, f)
 		return
 	}

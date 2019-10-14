@@ -81,7 +81,7 @@ func TestCFBVectors(t *testing.T) {
 		plaintextCopy := make([]byte, len(ciphertext))
 		cfbdec.XORKeyStream(plaintextCopy, ciphertext)
 
-		if !bytes.Equal(plaintextCopy, plaintextCopy) {
+		if !bytes.Equal(plaintextCopy, plaintext) {
 			t.Errorf("#%d: wrong plaintext: got %x, expected %x", i, plaintextCopy, plaintext)
 		}
 	}

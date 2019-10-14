@@ -6,11 +6,11 @@
 package unix
 
 const (
-	sizeofPtr      = 0x8
-	sizeofShort    = 0x2
-	sizeofInt      = 0x4
-	sizeofLong     = 0x8
-	sizeofLongLong = 0x8
+	SizeofPtr      = 0x8
+	SizeofShort    = 0x2
+	SizeofInt      = 0x4
+	SizeofLong     = 0x8
+	SizeofLongLong = 0x8
 )
 
 type (
@@ -496,4 +496,14 @@ type Utsname struct {
 	Release  [256]byte
 	Version  [256]byte
 	Machine  [256]byte
+}
+
+const SizeofClockinfo = 0x14
+
+type Clockinfo struct {
+	Hz      int32
+	Tick    int32
+	Tickadj int32
+	Stathz  int32
+	Profhz  int32
 }

@@ -12,7 +12,7 @@ import (
 	"unicode/utf8"
 )
 
-// A Writer writes records to a CSV encoded file.
+// A Writer writes records using CSV encoding.
 //
 // As returned by NewWriter, a Writer writes records terminated by a
 // newline and uses ',' as the field delimiter. The exported fields can be
@@ -21,6 +21,12 @@ import (
 // Comma is the field delimiter.
 //
 // If UseCRLF is true, the Writer ends each output line with \r\n instead of \n.
+//
+// The writes of individual records are buffered.
+// After all data has been written, the client should call the
+// Flush method to guarantee all data has been forwarded to
+// the underlying io.Writer.  Any errors that occurred should
+// be checked by calling the Error method.
 type Writer struct {
 	Comma   rune // Field delimiter (set to ',' by NewWriter)
 	UseCRLF bool // True to use \r\n as the line terminator
@@ -35,8 +41,10 @@ func NewWriter(w io.Writer) *Writer {
 	}
 }
 
-// Writer writes a single CSV record to w along with any necessary quoting.
+// Write writes a single CSV record to w along with any necessary quoting.
 // A record is a slice of strings with each string being one field.
+// Writes are buffered, so Flush must eventually be called to ensure
+// that the record is written to the underlying io.Writer.
 func (w *Writer) Write(record []string) error {
 	if !validDelim(w.Comma) {
 		return errInvalidDelim
@@ -122,7 +130,8 @@ func (w *Writer) Error() error {
 	return err
 }
 
-// WriteAll writes multiple CSV records to w using Write and then calls Flush.
+// WriteAll writes multiple CSV records to w using Write and then calls Flush,
+// returning any error from the Flush.
 func (w *Writer) WriteAll(records [][]string) error {
 	for _, record := range records {
 		err := w.Write(record)

@@ -1,5 +1,0 @@
-// darwin/arm-specific vet whitelist. See readme.txt for details.
-
-// Ok.
-
-runtime/asm_arm.s: [arm] sigreturn: function sigreturn missing Go declaration

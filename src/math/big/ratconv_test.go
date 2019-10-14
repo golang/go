@@ -7,11 +7,83 @@ package big
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"math"
 	"strconv"
 	"strings"
 	"testing"
 )
+
+var exponentTests = []struct {
+	s       string // string to be scanned
+	base2ok bool   // true if 'p'/'P' exponents are accepted
+	sepOk   bool   // true if '_' separators are accepted
+	x       int64  // expected exponent
+	b       int    // expected exponent base
+	err     error  // expected error
+	next    rune   // next character (or 0, if at EOF)
+}{
+	// valid, without separators
+	{"", false, false, 0, 10, nil, 0},
+	{"1", false, false, 0, 10, nil, '1'},
+	{"e0", false, false, 0, 10, nil, 0},
+	{"E1", false, false, 1, 10, nil, 0},
+	{"e+10", false, false, 10, 10, nil, 0},
+	{"e-10", false, false, -10, 10, nil, 0},
+	{"e123456789a", false, false, 123456789, 10, nil, 'a'},
+	{"p", false, false, 0, 10, nil, 'p'},
+	{"P+100", false, false, 0, 10, nil, 'P'},
+	{"p0", true, false, 0, 2, nil, 0},
+	{"P-123", true, false, -123, 2, nil, 0},
+	{"p+0a", true, false, 0, 2, nil, 'a'},
+	{"p+123__", true, false, 123, 2, nil, '_'}, // '_' is not part of the number anymore
+
+	// valid, with separators
+	{"e+1_0", false, true, 10, 10, nil, 0},
+	{"e-1_0", false, true, -10, 10, nil, 0},
+	{"e123_456_789a", false, true, 123456789, 10, nil, 'a'},
+	{"P+1_00", false, true, 0, 10, nil, 'P'},
+	{"p-1_2_3", true, true, -123, 2, nil, 0},
+
+	// invalid: no digits
+	{"e", false, false, 0, 10, errNoDigits, 0},
+	{"ef", false, false, 0, 10, errNoDigits, 'f'},
+	{"e+", false, false, 0, 10, errNoDigits, 0},
+	{"E-x", false, false, 0, 10, errNoDigits, 'x'},
+	{"p", true, false, 0, 2, errNoDigits, 0},
+	{"P-", true, false, 0, 2, errNoDigits, 0},
+	{"p+e", true, false, 0, 2, errNoDigits, 'e'},
+	{"e+_x", false, true, 0, 10, errNoDigits, 'x'},
+
+	// invalid: incorrect use of separator
+	{"e0_", false, true, 0, 10, errInvalSep, 0},
+	{"e_0", false, true, 0, 10, errInvalSep, 0},
+	{"e-1_2__3", false, true, -123, 10, errInvalSep, 0},
+}
+
+func TestScanExponent(t *testing.T) {
+	for _, a := range exponentTests {
+		r := strings.NewReader(a.s)
+		x, b, err := scanExponent(r, a.base2ok, a.sepOk)
+		if err != a.err {
+			t.Errorf("scanExponent%+v\n\tgot error = %v; want %v", a, err, a.err)
+		}
+		if x != a.x {
+			t.Errorf("scanExponent%+v\n\tgot z = %v; want %v", a, x, a.x)
+		}
+		if b != a.b {
+			t.Errorf("scanExponent%+v\n\tgot b = %d; want %d", a, b, a.b)
+		}
+		next, _, err := r.ReadRune()
+		if err == io.EOF {
+			next = 0
+			err = nil
+		}
+		if err == nil && next != a.next {
+			t.Errorf("scanExponent%+v\n\tgot next = %q; want %q", a, next, a.next)
+		}
+	}
+}
 
 type StringTest struct {
 	in, out string
@@ -19,13 +91,7 @@ type StringTest struct {
 }
 
 var setStringTests = []StringTest{
-	{"0", "0", true},
-	{"-0", "0", true},
-	{"1", "1", true},
-	{"-1", "-1", true},
-	{"1.", "1", true},
-	{"1e0", "1", true},
-	{"1.e1", "10", true},
+	// invalid
 	{in: "1e"},
 	{in: "1.e"},
 	{in: "1e+14e-5"},
@@ -33,6 +99,20 @@ var setStringTests = []StringTest{
 	{in: "r"},
 	{in: "a/b"},
 	{in: "a.b"},
+	{in: "1/0"},
+	{in: "4/3/2"}, // issue 17001
+	{in: "4/3/"},
+	{in: "4/3."},
+	{in: "4/"},
+
+	// valid
+	{"0", "0", true},
+	{"-0", "0", true},
+	{"1", "1", true},
+	{"-1", "-1", true},
+	{"1.", "1", true},
+	{"1e0", "1", true},
+	{"1.e1", "10", true},
 	{"-0.1", "-1/10", true},
 	{"-.1", "-1/10", true},
 	{"2/4", "1/2", true},
@@ -49,22 +129,55 @@ var setStringTests = []StringTest{
 	{"106/141787961317645621392", "53/70893980658822810696", true},
 	{"204211327800791583.81095", "4084226556015831676219/20000", true},
 	{"0e9999999999", "0", true}, // issue #16176
-	{in: "1/0"},
-	{in: "4/3/2"}, // issue 17001
-	{in: "4/3/"},
-	{in: "4/3."},
-	{in: "4/"},
 }
 
 // These are not supported by fmt.Fscanf.
 var setStringTests2 = []StringTest{
-	{"0x10", "16", true},
-	{"-010/1", "-8", true}, // TODO(gri) should we even permit octal here?
-	{"-010.", "-10", true},
-	{"0x10/0x20", "1/2", true},
-	{"0b1000/3", "8/3", true},
+	// invalid
 	{in: "4/3x"},
-	// TODO(gri) add more tests
+	{in: "0/-1"},
+	{in: "-1/-1"},
+
+	// invalid with separators
+	// (smoke tests only - a comprehensive set of tests is in natconv_test.go)
+	{in: "10_/1"},
+	{in: "_10/1"},
+	{in: "1/1__0"},
+
+	// valid
+	{"0b1000/3", "8/3", true},
+	{"0B1000/0x8", "1", true},
+	{"-010/1", "-8", true}, // 0-prefix indicates octal in this case
+	{"-010.0", "-10", true},
+	{"-0o10/1", "-8", true},
+	{"0x10/1", "16", true},
+	{"0x10/0x20", "1/2", true},
+
+	{"0010", "10", true}, // 0-prefix is ignored in this case (not a fraction)
+	{"0x10.0", "16", true},
+	{"0x1.8", "3/2", true},
+	{"0X1.8p4", "24", true},
+	{"0x1.1E2", "2289/2048", true}, // E is part of hex mantissa, not exponent
+	{"0b1.1E2", "150", true},
+	{"0B1.1P3", "12", true},
+	{"0o10e-2", "2/25", true},
+	{"0O10p-3", "1", true},
+
+	// valid with separators
+	// (smoke tests only - a comprehensive set of tests is in natconv_test.go)
+	{"0b_1000/3", "8/3", true},
+	{"0B_10_00/0x8", "1", true},
+	{"0xdead/0B1101_1110_1010_1101", "1", true},
+	{"0B1101_1110_1010_1101/0XD_E_A_D", "1", true},
+	{"1_000.0", "1000", true},
+
+	{"0x_10.0", "16", true},
+	{"0x1_0.0", "16", true},
+	{"0x1.8_0", "3/2", true},
+	{"0X1.8p0_4", "24", true},
+	{"0b1.1_0E2", "150", true},
+	{"0o1_0e-2", "2/25", true},
+	{"0O_10p-3", "1", true},
 }
 
 func TestRatSetString(t *testing.T) {
@@ -81,8 +194,12 @@ func TestRatSetString(t *testing.T) {
 			} else if x.RatString() != test.out {
 				t.Errorf("#%d SetString(%q) got %s want %s", i, test.in, x.RatString(), test.out)
 			}
-		} else if x != nil {
-			t.Errorf("#%d SetString(%q) got %p want nil", i, test.in, x)
+		} else {
+			if test.ok {
+				t.Errorf("#%d SetString(%q) expected success", i, test.in)
+			} else if x != nil {
+				t.Errorf("#%d SetString(%q) got %p want nil", i, test.in, x)
+			}
 		}
 	}
 }
@@ -454,6 +571,21 @@ func TestFloat64SpecialCases(t *testing.T) {
 		// 4. Check exactness using slow algorithm.
 		if wasExact := new(Rat).SetFloat64(f).Cmp(r) == 0; wasExact != exact {
 			t.Errorf("Rat.SetString(%q).Float64().exact = %t, want %t", input, exact, wasExact)
+		}
+	}
+}
+
+func TestIssue31184(t *testing.T) {
+	var x Rat
+	for _, want := range []string{
+		"-213.090",
+		"8.192",
+		"16.000",
+	} {
+		x.SetString(want)
+		got := x.FloatString(3)
+		if got != want {
+			t.Errorf("got %s, want %s", got, want)
 		}
 	}
 }

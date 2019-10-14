@@ -1,5 +1,0 @@
-// mips64-specific vet whitelist. See readme.txt for details.
-
-runtime/duff_mips64x.s: [GOARCH] duffzero: function duffzero missing Go declaration
-runtime/tls_mips64x.s: [GOARCH] save_g: function save_g missing Go declaration
-runtime/tls_mips64x.s: [GOARCH] load_g: function load_g missing Go declaration

@@ -35,7 +35,7 @@ ldrsh, sturh, strh =>  MOVH.
 
 4. Go moves conditions into opcode suffix, like BLT.
 
-5. Go adds a V prefix for most floating-point and SIMD instrutions except cryptographic extension
+5. Go adds a V prefix for most floating-point and SIMD instructions, except cryptographic extension
 instructions and floating-point(scalar) instructions.
 
   Examples:
@@ -89,7 +89,7 @@ such as str, stur, strb, sturb, strh, sturh stlr, stlrb. stlrh, st1.
   Examples:
     MOVD R29, 384(R19)    <=>    str x29, [x19,#384]
     MOVB.P R30, 30(R4)    <=>    strb w30, [x4],#30
-    STLRH R21, (R18)      <=>    stlrh w21, [x18]
+    STLRH R21, (R19)      <=>    stlrh w21, [x19]
 
 (2) MADD, MADDW, MSUB, MSUBW, SMADDL, SMSUBL, UMADDL, UMSUBL <Rm>, <Ra>, <Rn>, <Rd>
 
@@ -127,7 +127,7 @@ such as str, stur, strb, sturb, strh, sturh stlr, stlrb. stlrh, st1.
 
   Examples:
     CCMN VS, R13, R22, $10     <=>    ccmn x13, x22, #0xa, vs
-    CCMPW HS, R18, R14, $11    <=>    ccmp w18, w14, #0xb, cs
+    CCMPW HS, R19, R14, $11    <=>    ccmp w19, w14, #0xb, cs
 
 (9) CSEL, CSELW, CSNEG, CSNEGW, CSINC, CSINCW <cond>, <Rn>, <Rm>, <Rd> ;
 FCSELD, FCSELS <cond>, <Fn>, <Fm>, <Fd>
@@ -144,19 +144,19 @@ FCSELD, FCSELS <cond>, <Fn>, <Fm>, <Fd>
 
   Examples:
     STLXR ZR, (R15), R16    <=>    stlxr w16, xzr, [x15]
-    STXRB R9, (R21), R18    <=>    stxrb w18, w9, [x21]
+    STXRB R9, (R21), R19    <=>    stxrb w19, w9, [x21]
 
 (12) STLXP, STLXPW, STXP, STXPW (<Rf1>, <Rf2>), (<Rn|RSP>), <Rs>
 
   Examples:
-    STLXP (R17, R18), (R4), R5      <=>    stlxp w5, x17, x18, [x4]
+    STLXP (R17, R19), (R4), R5      <=>    stlxp w5, x17, x19, [x4]
     STXPW (R30, R25), (R22), R13    <=>    stxp w13, w30, w25, [x22]
 
 2. Expressions for special arguments.
 
 #<immediate> is written as $<immediate>.
 
-Optionally-shifted immedate.
+Optionally-shifted immediate.
 
   Examples:
     ADD $(3151<<12), R14, R20     <=>    add x20, x14, #0xc4f, lsl #12
@@ -173,7 +173,7 @@ Extended registers are written as <Rm>{.<extend>{<<<amount>}}.
 <extend> can be UXTB, UXTH, UXTW, UXTX, SXTB, SXTH, SXTW or SXTX.
 
   Examples:
-    ADDS R18.UXTB<<4, R9, R26     <=>    adds x26, x9, w18, uxtb #4
+    ADDS R19.UXTB<<4, R9, R26     <=>    adds x26, x9, w19, uxtb #4
     ADDSW R14.SXTX, R14, R6       <=>    adds w6, w14, w14, sxtx
 
 Memory references: [<Xn|SP>{,#0}] is written as (Rn|RSP), a base register and an immediate

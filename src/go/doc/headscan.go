@@ -22,9 +22,9 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/token"
+	"internal/lazyregexp"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 )
@@ -35,7 +35,7 @@ var (
 )
 
 // ToHTML in comment.go assigns a (possibly blank) ID to each heading
-var html_h = regexp.MustCompile(`<h3 id="[^"]*">`)
+var html_h = lazyregexp.New(`<h3 id="[^"]*">`)
 
 const html_endh = "</h3>\n"
 

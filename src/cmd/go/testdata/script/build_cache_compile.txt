@@ -1,3 +1,6 @@
+env GO111MODULE=off
+[short] skip
+
 # Set up fresh GOCACHE.
 env GOCACHE=$WORK/gocache
 mkdir $GOCACHE

@@ -26,6 +26,9 @@ void cpuHog() {
 	salt2 = foo;
 }
 
+void cpuHog2() {
+}
+
 static int cpuHogCount;
 
 struct cgoTracebackArg {
@@ -37,10 +40,13 @@ struct cgoTracebackArg {
 
 // pprofCgoTraceback is passed to runtime.SetCgoTraceback.
 // For testing purposes it pretends that all CPU hits in C code are in cpuHog.
+// Issue #29034: At least 2 frames are required to verify all frames are captured
+// since runtime/pprof ignores the runtime.goexit base frame if it exists.
 void pprofCgoTraceback(void* parg) {
 	struct cgoTracebackArg* arg = (struct cgoTracebackArg*)(parg);
 	arg->buf[0] = (uintptr_t)(cpuHog) + 0x10;
-	arg->buf[1] = 0;
+	arg->buf[1] = (uintptr_t)(cpuHog2) + 0x4;
+	arg->buf[2] = 0;
 	++cpuHogCount;
 }
 

@@ -16,6 +16,8 @@ func movesmall4() {
 	// amd64:-".*memmove"
 	// arm:-".*memmove"
 	// arm64:-".*memmove"
+	// ppc64:-".*memmove"
+	// ppc64le:-".*memmove"
 	copy(x[1:], x[:])
 }
 
@@ -24,6 +26,8 @@ func movesmall7() {
 	// 386:-".*memmove"
 	// amd64:-".*memmove"
 	// arm64:-".*memmove"
+	// ppc64:-".*memmove"
+	// ppc64le:-".*memmove"
 	copy(x[1:], x[:])
 }
 
@@ -63,6 +67,7 @@ func moveDisjointNoOverlap(a *[256]byte) {
 
 func ptrEqual() {
 	// amd64:-"JEQ",-"JNE"
+	// ppc64:-"BEQ",-"BNE"
 	// ppc64le:-"BEQ",-"BNE"
 	// s390x:-"BEQ",-"BNE"
 	copy(x[:], x[:])
@@ -70,6 +75,7 @@ func ptrEqual() {
 
 func ptrOneOffset() {
 	// amd64:-"JEQ",-"JNE"
+	// ppc64:-"BEQ",-"BNE"
 	// ppc64le:-"BEQ",-"BNE"
 	// s390x:-"BEQ",-"BNE"
 	copy(x[1:], x[:])
@@ -77,6 +83,7 @@ func ptrOneOffset() {
 
 func ptrBothOffset() {
 	// amd64:-"JEQ",-"JNE"
+	// ppc64:-"BEQ",-"BNE"
 	// ppc64le:-"BEQ",-"BNE"
 	// s390x:-"BEQ",-"BNE"
 	copy(x[1:], x[2:])

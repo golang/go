@@ -29,7 +29,8 @@ func BuildInit() {
 		p, err := filepath.Abs(cfg.BuildPkgdir)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "go %s: evaluating -pkgdir: %v\n", flag.Args()[0], err)
-			os.Exit(2)
+			base.SetExitStatus(2)
+			base.Exit()
 		}
 		cfg.BuildPkgdir = p
 	}
@@ -41,27 +42,36 @@ func instrumentInit() {
 	}
 	if cfg.BuildRace && cfg.BuildMSan {
 		fmt.Fprintf(os.Stderr, "go %s: may not use -race and -msan simultaneously\n", flag.Args()[0])
-		os.Exit(2)
+		base.SetExitStatus(2)
+		base.Exit()
 	}
 	if cfg.BuildMSan && !sys.MSanSupported(cfg.Goos, cfg.Goarch) {
 		fmt.Fprintf(os.Stderr, "-msan is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
-		os.Exit(2)
+		base.SetExitStatus(2)
+		base.Exit()
 	}
 	if cfg.BuildRace {
 		if !sys.RaceDetectorSupported(cfg.Goos, cfg.Goarch) {
-			fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, linux/ppc64le, freebsd/amd64, netbsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
-			os.Exit(2)
+			fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
+			base.SetExitStatus(2)
+			base.Exit()
 		}
 	}
 	mode := "race"
 	if cfg.BuildMSan {
 		mode = "msan"
+		// MSAN does not support non-PIE binaries on ARM64.
+		// See issue #33712 for details.
+		if cfg.Goos == "linux" && cfg.Goarch == "arm64" && cfg.BuildBuildmode == "default" {
+			cfg.BuildBuildmode = "pie"
+		}
 	}
 	modeFlag := "-" + mode
 
 	if !cfg.BuildContext.CgoEnabled {
 		fmt.Fprintf(os.Stderr, "go %s: %s requires cgo; enable cgo by setting CGO_ENABLED=1\n", flag.Args()[0], modeFlag)
-		os.Exit(2)
+		base.SetExitStatus(2)
+		base.Exit()
 	}
 	forcedGcflags = append(forcedGcflags, modeFlag)
 	forcedLdflags = append(forcedLdflags, modeFlag)
@@ -82,19 +92,23 @@ func buildModeInit() {
 		pkgsFilter = pkgsNotMain
 	case "c-archive":
 		pkgsFilter = oneMainPkg
-		switch platform {
-		case "darwin/arm", "darwin/arm64":
-			codegenArg = "-shared"
-		default:
-			switch cfg.Goos {
-			case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
-				if platform == "linux/ppc64" {
-					base.Fatalf("-buildmode=c-archive not supported on %s\n", platform)
-				}
-				// Use -shared so that the result is
-				// suitable for inclusion in a PIE or
-				// shared library.
+		if gccgo {
+			codegenArg = "-fPIC"
+		} else {
+			switch platform {
+			case "darwin/arm", "darwin/arm64":
 				codegenArg = "-shared"
+			default:
+				switch cfg.Goos {
+				case "dragonfly", "freebsd", "illumos", "linux", "netbsd", "openbsd", "solaris":
+					if platform == "linux/ppc64" {
+						base.Fatalf("-buildmode=c-archive not supported on %s\n", platform)
+					}
+					// Use -shared so that the result is
+					// suitable for inclusion in a PIE or
+					// shared library.
+					codegenArg = "-shared"
+				}
 			}
 		}
 		cfg.ExeSuffix = ".a"
@@ -129,6 +143,9 @@ func buildModeInit() {
 		default:
 			ldBuildmode = "exe"
 		}
+		if gccgo {
+			codegenArg = ""
+		}
 	case "exe":
 		pkgsFilter = pkgsMain
 		ldBuildmode = "exe"
@@ -143,7 +160,7 @@ func buildModeInit() {
 			base.Fatalf("-buildmode=pie not supported when -race is enabled")
 		}
 		if gccgo {
-			base.Fatalf("-buildmode=pie not supported by gccgo")
+			codegenArg = "-fPIE"
 		} else {
 			switch platform {
 			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x",
@@ -152,6 +169,7 @@ func buildModeInit() {
 				codegenArg = "-shared"
 			case "darwin/amd64":
 				codegenArg = "-shared"
+			case "aix/ppc64":
 			default:
 				base.Fatalf("-buildmode=pie not supported on %s\n", platform)
 			}
@@ -184,6 +202,7 @@ func buildModeInit() {
 			case "darwin/amd64":
 				// Skip DWARF generation due to #21647
 				forcedLdflags = append(forcedLdflags, "-w")
+			case "freebsd/amd64":
 			default:
 				base.Fatalf("-buildmode=plugin not supported on %s\n", platform)
 			}
@@ -228,12 +247,12 @@ func buildModeInit() {
 	switch cfg.BuildMod {
 	case "":
 		// ok
-	case "readonly", "vendor":
+	case "readonly", "vendor", "mod":
 		if load.ModLookup == nil && !inGOFLAGS("-mod") {
 			base.Fatalf("build flag -mod=%s only valid when using modules", cfg.BuildMod)
 		}
 	default:
-		base.Fatalf("-mod=%s not supported (can be '', 'readonly', or 'vendor')", cfg.BuildMod)
+		base.Fatalf("-mod=%s not supported (can be '', 'mod', 'readonly', or 'vendor')", cfg.BuildMod)
 	}
 }
 

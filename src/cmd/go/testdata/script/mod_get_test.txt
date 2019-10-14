@@ -1,0 +1,58 @@
+env GO111MODULE=on
+
+# By default, 'go get' should ignore tests
+cp go.mod.empty go.mod
+go get m/a
+! grep rsc.io/quote go.mod
+
+# 'go get -t' should consider test dependencies of the named package.
+cp go.mod.empty go.mod
+go get -d -t m/a
+grep 'rsc.io/quote v1.5.2$' go.mod
+
+# 'go get -t' should not consider test dependencies of imported packages,
+# including packages imported from tests.
+cp go.mod.empty go.mod
+go get -d -t m/b
+! grep rsc.io/quote go.mod
+
+# 'go get -t -u' should update test dependencies of the named package.
+cp go.mod.empty go.mod
+go mod edit -require=rsc.io/quote@v1.5.1
+go get -d -t -u m/a
+grep 'rsc.io/quote v1.5.2$' go.mod
+
+# 'go get -t -u' should not add or update test dependencies
+# of imported packages, including packages imported from tests.
+cp go.mod.empty go.mod
+go get -d -t -u m/b
+! grep rsc.io/quote go.mod
+go mod edit -require=rsc.io/quote@v1.5.1
+go get -d -t -u m/b
+grep 'rsc.io/quote v1.5.1$' go.mod
+
+# 'go get all' should consider test dependencies with or without -t.
+cp go.mod.empty go.mod
+go get all
+grep 'rsc.io/quote v1.5.2$' go.mod
+
+-- go.mod.empty --
+module m
+
+-- a/a.go --
+package a
+
+-- a/a_test.go --
+package a_test
+
+import _ "rsc.io/quote"
+
+-- b/b.go --
+package b
+
+import _ "m/a"
+
+-- b/b_test.go --
+package b_test
+
+import _ "m/a"

@@ -1,4 +1,5 @@
 env GO111MODULE=on
+[short] skip
 
 # -mod=readonly must not resolve missing modules nor update go.mod
 #
@@ -36,6 +37,8 @@ cmp go.mod go.mod.inconsistent
 
 -- go.mod --
 module m
+
+go 1.20
 
 -- x.go --
 package x

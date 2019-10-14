@@ -43,6 +43,9 @@ TEXT runtime∕internal∕atomic·Cas64(SB), NOSPLIT, $0-25
 TEXT runtime∕internal∕atomic·Casuintptr(SB), NOSPLIT, $0-25
 	JMP	runtime∕internal∕atomic·Cas64(SB)
 
+TEXT runtime∕internal∕atomic·CasRel(SB), NOSPLIT, $0-17
+	JMP	runtime∕internal∕atomic·Cas(SB)
+
 TEXT runtime∕internal∕atomic·Loaduintptr(SB), NOSPLIT, $0-16
 	JMP	runtime∕internal∕atomic·Load64(SB)
 
@@ -129,6 +132,9 @@ TEXT runtime∕internal∕atomic·Store(SB), NOSPLIT, $0-12
 	MOVL	val+8(FP), AX
 	XCHGL	AX, 0(BX)
 	RET
+
+TEXT runtime∕internal∕atomic·StoreRel(SB), NOSPLIT, $0-12
+	JMP	runtime∕internal∕atomic·Store(SB)
 
 TEXT runtime∕internal∕atomic·Store64(SB), NOSPLIT, $0-16
 	MOVQ	ptr+0(FP), BX

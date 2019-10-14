@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"fmt"
 	"math"
 	"net"
 	"runtime"
@@ -891,11 +892,92 @@ func testLockOSThreadExit(t *testing.T, prog string) {
 	output := runTestProg(t, prog, "LockOSThreadMain", "GOMAXPROCS=1")
 	want := "OK\n"
 	if output != want {
-		t.Errorf("want %s, got %s\n", want, output)
+		t.Errorf("want %q, got %q", want, output)
 	}
 
 	output = runTestProg(t, prog, "LockOSThreadAlt")
 	if output != want {
-		t.Errorf("want %s, got %s\n", want, output)
+		t.Errorf("want %q, got %q", want, output)
 	}
+}
+
+func TestLockOSThreadAvoidsStatePropagation(t *testing.T) {
+	want := "OK\n"
+	skip := "unshare not permitted\n"
+	output := runTestProg(t, "testprog", "LockOSThreadAvoidsStatePropagation", "GOMAXPROCS=1")
+	if output == skip {
+		t.Skip("unshare syscall not permitted on this system")
+	} else if output != want {
+		t.Errorf("want %q, got %q", want, output)
+	}
+}
+
+// fakeSyscall emulates a system call.
+//go:nosplit
+func fakeSyscall(duration time.Duration) {
+	runtime.Entersyscall()
+	for start := runtime.Nanotime(); runtime.Nanotime()-start < int64(duration); {
+	}
+	runtime.Exitsyscall()
+}
+
+// Check that a goroutine will be preempted if it is calling short system calls.
+func testPreemptionAfterSyscall(t *testing.T, syscallDuration time.Duration) {
+	if runtime.GOARCH == "wasm" {
+		t.Skip("no preemption on wasm yet")
+	}
+
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
+
+	interations := 10
+	if testing.Short() {
+		interations = 1
+	}
+	const (
+		maxDuration = 3 * time.Second
+		nroutines   = 8
+	)
+
+	for i := 0; i < interations; i++ {
+		c := make(chan bool, nroutines)
+		stop := uint32(0)
+
+		start := time.Now()
+		for g := 0; g < nroutines; g++ {
+			go func(stop *uint32) {
+				c <- true
+				for atomic.LoadUint32(stop) == 0 {
+					fakeSyscall(syscallDuration)
+				}
+				c <- true
+			}(&stop)
+		}
+		// wait until all goroutines have started.
+		for g := 0; g < nroutines; g++ {
+			<-c
+		}
+		atomic.StoreUint32(&stop, 1)
+		// wait until all goroutines have finished.
+		for g := 0; g < nroutines; g++ {
+			<-c
+		}
+		duration := time.Since(start)
+
+		if duration > maxDuration {
+			t.Errorf("timeout exceeded: %v (%v)", duration, maxDuration)
+		}
+	}
+}
+
+func TestPreemptionAfterSyscall(t *testing.T) {
+	for _, i := range []time.Duration{10, 100, 1000} {
+		d := i * time.Microsecond
+		t.Run(fmt.Sprint(d), func(t *testing.T) {
+			testPreemptionAfterSyscall(t, d)
+		})
+	}
+}
+
+func TestGetgThreadSwitch(t *testing.T) {
+	runtime.RunGetgThreadSwitchTest()
 }

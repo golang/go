@@ -222,7 +222,7 @@ var pow = []complex128{
 	(-2.499956739197529585028819e+00 + 1.759751724335650228957144e+00i),
 	(7.357094338218116311191939e+04 - 5.089973412479151648145882e+04i),
 	(1.320777296067768517259592e+01 - 3.165621914333901498921986e+01i),
-	(-3.123287828297300934072149e-07 - 1.9849567521490553032502223E-7i),
+	(-3.123287828297300934072149e-07 - 1.9849567521490553032502223e-7i),
 	(8.0622651468477229614813e+04 - 7.80028727944573092944363e+04i),
 	(-1.0268824572103165858577141e+00 - 4.716844738244989776610672e-01i),
 	(-4.35953819012244175753187e+01 + 2.2036445974645306917648585e+02i),
@@ -400,8 +400,10 @@ var polarSC = []ff{
 }
 var vcPowSC = [][2]complex128{
 	{NaN(), NaN()},
+	{0, NaN()},
 }
 var powSC = []complex128{
+	NaN(),
 	NaN(),
 }
 var vcSinSC = []complex128{
@@ -734,8 +736,8 @@ func TestPow(t *testing.T) {
 		}
 	}
 	for i := 0; i < len(vcPowSC); i++ {
-		if f := Pow(vcPowSC[i][0], vcPowSC[i][0]); !cAlike(powSC[i], f) {
-			t.Errorf("Pow(%g, %g) = %g, want %g", vcPowSC[i][0], vcPowSC[i][0], f, powSC[i])
+		if f := Pow(vcPowSC[i][0], vcPowSC[i][1]); !cAlike(powSC[i], f) {
+			t.Errorf("Pow(%g, %g) = %g, want %g", vcPowSC[i][0], vcPowSC[i][1], f, powSC[i])
 		}
 	}
 	for _, pt := range branchPoints {

@@ -131,6 +131,7 @@ func TestDriverPanic(t *testing.T) {
 }
 
 func exec(t testing.TB, db *DB, query string, args ...interface{}) {
+	t.Helper()
 	_, err := db.Exec(query, args...)
 	if err != nil {
 		t.Fatalf("Exec of %q: %v", query, err)
@@ -397,7 +398,7 @@ func TestQueryContextWait(t *testing.T) {
 	prepares0 := numPrepares(t, db)
 
 	// TODO(kardianos): convert this from using a timeout to using an explicit
-	// cancel when the query signals that is is "executing" the query.
+	// cancel when the query signals that it is "executing" the query.
 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
 	defer cancel()
 
@@ -597,7 +598,7 @@ func TestPoolExhaustOnCancel(t *testing.T) {
 	state := 0
 
 	// waiter will be called for all queries, including
-	// initial setup queries. The state is only assigned when no
+	// initial setup queries. The state is only assigned when
 	// no queries are made.
 	//
 	// Only allow the first batch of queries to finish once the
@@ -1338,6 +1339,100 @@ func TestConnQuery(t *testing.T) {
 	}
 }
 
+func TestConnRaw(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn.dc.ci.(*fakeConn).skipDirtySession = true
+	defer conn.Close()
+
+	sawFunc := false
+	err = conn.Raw(func(dc interface{}) error {
+		sawFunc = true
+		if _, ok := dc.(*fakeConn); !ok {
+			return fmt.Errorf("got %T want *fakeConn", dc)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sawFunc {
+		t.Fatal("Raw func not called")
+	}
+
+	func() {
+		defer func() {
+			x := recover()
+			if x == nil {
+				t.Fatal("expected panic")
+			}
+			conn.closemu.Lock()
+			closed := conn.dc == nil
+			conn.closemu.Unlock()
+			if !closed {
+				t.Fatal("expected connection to be closed after panic")
+			}
+		}()
+		err = conn.Raw(func(dc interface{}) error {
+			panic("Conn.Raw panic should return an error")
+		})
+		t.Fatal("expected panic from Raw func")
+	}()
+}
+
+func TestCursorFake(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
+	exec(t, db, "CREATE|peoplecursor|list=table")
+	exec(t, db, "INSERT|peoplecursor|list=people!name!age")
+
+	rows, err := db.QueryContext(ctx, `SELECT|peoplecursor|list|`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		t.Fatal("no rows")
+	}
+	var cursor = &Rows{}
+	err = rows.Scan(cursor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cursor.Close()
+
+	const expectedRows = 3
+	var currentRow int64
+
+	var n int64
+	var s string
+	for cursor.Next() {
+		currentRow++
+		err = cursor.Scan(&s, &n)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n != currentRow {
+			t.Errorf("expected number(Age)=%d, got %d", currentRow, n)
+		}
+	}
+	if currentRow != expectedRows {
+		t.Errorf("expected %d rows, got %d rows", expectedRows, currentRow)
+	}
+}
+
 func TestInvalidNilValues(t *testing.T) {
 	var date1 time.Time
 	var date2 int
@@ -1355,7 +1450,7 @@ func TestInvalidNilValues(t *testing.T) {
 		{
 			name:          "int",
 			input:         &date2,
-			expectedError: `sql: Scan error on column index 0, name "bdate": converting driver.Value type <nil> ("<nil>") to a int: invalid syntax`,
+			expectedError: `sql: Scan error on column index 0, name "bdate": converting NULL to int is unsupported`,
 		},
 	}
 
@@ -1625,6 +1720,18 @@ func TestNullInt64Param(t *testing.T) {
 	nullTestRun(t, spec)
 }
 
+func TestNullInt32Param(t *testing.T) {
+	spec := nullTestSpec{"nullint32", "int32", [6]nullTestRow{
+		{NullInt32{31, true}, 1, NullInt32{31, true}},
+		{NullInt32{-22, false}, 1, NullInt32{0, false}},
+		{22, 1, NullInt32{22, true}},
+		{NullInt32{33, true}, 1, NullInt32{33, true}},
+		{NullInt32{222, false}, 1, NullInt32{0, false}},
+		{0, NullInt32{31, false}, nil},
+	}}
+	nullTestRun(t, spec)
+}
+
 func TestNullFloat64Param(t *testing.T) {
 	spec := nullTestSpec{"nullfloat64", "float64", [6]nullTestRow{
 		{NullFloat64{31.2, true}, 1, NullFloat64{31.2, true}},
@@ -1645,6 +1752,21 @@ func TestNullBoolParam(t *testing.T) {
 		{NullBool{true, true}, false, NullBool{true, true}},
 		{NullBool{true, false}, true, NullBool{false, false}},
 		{true, NullBool{true, false}, nil},
+	}}
+	nullTestRun(t, spec)
+}
+
+func TestNullTimeParam(t *testing.T) {
+	t0 := time.Time{}
+	t1 := time.Date(2000, 1, 1, 8, 9, 10, 11, time.UTC)
+	t2 := time.Date(2010, 1, 1, 8, 9, 10, 11, time.UTC)
+	spec := nullTestSpec{"nulldatetime", "datetime", [6]nullTestRow{
+		{NullTime{t1, true}, t2, NullTime{t1, true}},
+		{NullTime{t1, false}, t2, NullTime{t0, false}},
+		{t1, t2, NullTime{t1, true}},
+		{NullTime{t1, true}, t2, NullTime{t1, true}},
+		{NullTime{t1, false}, t2, NullTime{t0, false}},
+		{t2, NullTime{t1, false}, nil},
 	}}
 	nullTestRun(t, spec)
 }
@@ -3415,6 +3537,58 @@ func TestConnectionLeak(t *testing.T) {
 	wg.Wait()
 }
 
+func TestStatsMaxIdleClosedZero(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	db.SetConnMaxLifetime(0)
+
+	preMaxIdleClosed := db.Stats().MaxIdleClosed
+
+	for i := 0; i < 10; i++ {
+		rows, err := db.Query("SELECT|people|name|")
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows.Close()
+	}
+
+	st := db.Stats()
+	maxIdleClosed := st.MaxIdleClosed - preMaxIdleClosed
+	t.Logf("MaxIdleClosed: %d", maxIdleClosed)
+	if maxIdleClosed != 0 {
+		t.Fatal("expected 0 max idle closed conns, got: ", maxIdleClosed)
+	}
+}
+
+func TestStatsMaxIdleClosedTen(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(0)
+	db.SetConnMaxLifetime(0)
+
+	preMaxIdleClosed := db.Stats().MaxIdleClosed
+
+	for i := 0; i < 10; i++ {
+		rows, err := db.Query("SELECT|people|name|")
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows.Close()
+	}
+
+	st := db.Stats()
+	maxIdleClosed := st.MaxIdleClosed - preMaxIdleClosed
+	t.Logf("MaxIdleClosed: %d", maxIdleClosed)
+	if maxIdleClosed != 10 {
+		t.Fatal("expected 0 max idle closed conns, got: ", maxIdleClosed)
+	}
+}
+
 type nvcDriver struct {
 	fakeDriver
 	skipNamedValueCheck bool
@@ -3432,7 +3606,7 @@ type nvcConn struct {
 	skipNamedValueCheck bool
 }
 
-type decimal struct {
+type decimalInt struct {
 	value int
 }
 
@@ -3456,7 +3630,7 @@ func (c *nvcConn) CheckNamedValue(nv *driver.NamedValue) error {
 			nv.Value = "OUT:*string"
 		}
 		return nil
-	case decimal, []int64:
+	case decimalInt, []int64:
 		return nil
 	case doNotInclude:
 		return driver.ErrRemoveArgument
@@ -3485,13 +3659,13 @@ func TestNamedValueChecker(t *testing.T) {
 	}
 
 	o1 := ""
-	_, err = db.ExecContext(ctx, "INSERT|keys|dec1=?A,str1=?,out1=?O1,array1=?", Named("A", decimal{123}), "hello", Named("O1", Out{Dest: &o1}), []int64{42, 128, 707}, doNotInclude{})
+	_, err = db.ExecContext(ctx, "INSERT|keys|dec1=?A,str1=?,out1=?O1,array1=?", Named("A", decimalInt{123}), "hello", Named("O1", Out{Dest: &o1}), []int64{42, 128, 707}, doNotInclude{})
 	if err != nil {
 		t.Fatal("exec insert", err)
 	}
 	var (
 		str1 string
-		dec1 decimal
+		dec1 decimalInt
 		arr1 []int64
 	)
 	err = db.QueryRowContext(ctx, "SELECT|keys|dec1,str1,array1|").Scan(&dec1, &str1, &arr1)
@@ -3501,7 +3675,7 @@ func TestNamedValueChecker(t *testing.T) {
 
 	list := []struct{ got, want interface{} }{
 		{o1, "from-server"},
-		{dec1, decimal{123}},
+		{dec1, decimalInt{123}},
 		{str1, "hello"},
 		{arr1, []int64{42, 128, 707}},
 	}
@@ -3534,7 +3708,7 @@ func TestNamedValueCheckerSkip(t *testing.T) {
 		t.Fatal("exec create", err)
 	}
 
-	_, err = db.ExecContext(ctx, "INSERT|keys|dec1=?A", Named("A", decimal{123}))
+	_, err = db.ExecContext(ctx, "INSERT|keys|dec1=?A", Named("A", decimalInt{123}))
 	if err == nil {
 		t.Fatalf("expected error with bad argument, got %v", err)
 	}
@@ -3609,7 +3783,7 @@ func (c *ctxOnlyConn) ExecContext(ctx context.Context, q string, args []driver.N
 // TestQueryExecContextOnly ensures drivers only need to implement QueryContext
 // and ExecContext methods.
 func TestQueryExecContextOnly(t *testing.T) {
-	// Ensure connection does not implment non-context interfaces.
+	// Ensure connection does not implement non-context interfaces.
 	var connType driver.Conn = &ctxOnlyConn{}
 	if _, ok := connType.(driver.Execer); ok {
 		t.Fatalf("%T must not implement driver.Execer", connType)

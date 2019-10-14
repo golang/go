@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"path"
 	"strings"
 )
 
@@ -25,7 +26,7 @@ func unreachable() {
 
 func (check *Checker) qualifier(pkg *Package) string {
 	if pkg != check.pkg {
-		return pkg.path
+		return path.Base(pkg.path) // avoid excessively long path names in error messages
 	}
 	return ""
 }
@@ -79,6 +80,10 @@ func (check *Checker) err(pos token.Pos, msg string, soft bool) {
 	err := Error{check.fset, pos, msg, soft}
 	if check.firstErr == nil {
 		check.firstErr = err
+	}
+
+	if trace {
+		check.trace(pos, "ERROR: %s", msg)
 	}
 
 	f := check.conf.Error

@@ -12,8 +12,6 @@ import (
 )
 
 var (
-	flagiexport bool // if set, use indexed export data format
-
 	Debug_export int // if set, print debugging information about export data
 )
 
@@ -64,27 +62,16 @@ func autoexport(n *Node, ctxt Class) {
 	}
 }
 
-// methodbyname sorts types by symbol name.
-type methodbyname []*types.Field
-
-func (x methodbyname) Len() int           { return len(x) }
-func (x methodbyname) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x methodbyname) Less(i, j int) bool { return x[i].Sym.Name < x[j].Sym.Name }
-
 func dumpexport(bout *bio.Writer) {
 	// The linker also looks for the $$ marker - use char after $$ to distinguish format.
 	exportf(bout, "\n$$B\n") // indicate binary export format
 	off := bout.Offset()
-	if flagiexport {
-		iexport(bout.Writer)
-	} else {
-		export(bout.Writer, Debug_export != 0)
-	}
+	iexport(bout.Writer)
 	size := bout.Offset() - off
 	exportf(bout, "\n$$\n")
 
 	if Debug_export != 0 {
-		fmt.Printf("export data size = %d bytes\n", size)
+		fmt.Printf("BenchmarkExportSize:%s 1 %d bytes\n", myimportpath, size)
 	}
 }
 
@@ -95,7 +82,7 @@ func importsym(ipkg *types.Pkg, s *types.Sym, op Op) *Node {
 		// declaration for all imported symbols. The exception
 		// is declarations for Runtimepkg, which are populated
 		// by loadsys instead.
-		if flagiexport && s.Pkg != Runtimepkg {
+		if s.Pkg != Runtimepkg {
 			Fatalf("missing ONONAME for %v\n", s)
 		}
 
@@ -137,7 +124,7 @@ func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {
 func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op, ctxt Class, t *types.Type) *Node {
 	n := importsym(ipkg, s, op)
 	if n.Op != ONONAME {
-		if n.Op == op && (n.Class() != ctxt || !eqtype(n.Type, t)) {
+		if n.Op == op && (n.Class() != ctxt || !types.Identical(n.Type, t)) {
 			redeclare(lineno, s, fmt.Sprintf("during import %q", ipkg.Path))
 		}
 		return nil
@@ -146,6 +133,9 @@ func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op, ctxt Class, t
 	n.Op = op
 	n.Pos = pos
 	n.SetClass(ctxt)
+	if ctxt == PFUNC {
+		n.Sym.SetFunc(true)
+	}
 	n.Type = t
 	return n
 }
@@ -219,6 +209,10 @@ func dumpasmhdr() {
 		}
 		switch n.Op {
 		case OLITERAL:
+			t := n.Val().Ctype()
+			if t == CTFLT || t == CTCPLX {
+				break
+			}
 			fmt.Fprintf(b, "#define const_%s %#v\n", n.Sym.Name, n.Val())
 
 		case OTYPE:

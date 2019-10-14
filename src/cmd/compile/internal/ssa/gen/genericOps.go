@@ -55,6 +55,9 @@ var genericOps = []opData{
 	{name: "Mul32uhilo", argLength: 2, typ: "(UInt32,UInt32)", commutative: true}, // arg0 * arg1, returns (hi, lo)
 	{name: "Mul64uhilo", argLength: 2, typ: "(UInt64,UInt64)", commutative: true}, // arg0 * arg1, returns (hi, lo)
 
+	{name: "Mul32uover", argLength: 2, typ: "(UInt32,Bool)", commutative: true}, // Let x = arg0*arg1 (full 32x32-> 64 unsigned multiply), returns (uint32(x), (uint32(x) != x))
+	{name: "Mul64uover", argLength: 2, typ: "(UInt64,Bool)", commutative: true}, // Let x = arg0*arg1 (full 64x64->128 unsigned multiply), returns (uint64(x), (uint64(x) != x))
+
 	// Weird special instructions for use in the strength reduction of divides.
 	// These ops compute unsigned (arg0 + arg1) / 2, correct to all
 	// 32/64 bits, even when the intermediate result of the add has 33/65 bits.
@@ -63,23 +66,26 @@ var genericOps = []opData{
 	{name: "Avg32u", argLength: 2, typ: "UInt32"}, // 32-bit platforms only
 	{name: "Avg64u", argLength: 2, typ: "UInt64"}, // 64-bit platforms only
 
+	// For Div16, Div32 and Div64, AuxInt non-zero means that the divisor has been proved to be not -1
+	// or that the dividend is not the most negative value.
 	{name: "Div8", argLength: 2},  // arg0 / arg1, signed
 	{name: "Div8u", argLength: 2}, // arg0 / arg1, unsigned
-	{name: "Div16", argLength: 2},
+	{name: "Div16", argLength: 2, aux: "Bool"},
 	{name: "Div16u", argLength: 2},
-	{name: "Div32", argLength: 2},
+	{name: "Div32", argLength: 2, aux: "Bool"},
 	{name: "Div32u", argLength: 2},
-	{name: "Div64", argLength: 2},
+	{name: "Div64", argLength: 2, aux: "Bool"},
 	{name: "Div64u", argLength: 2},
 	{name: "Div128u", argLength: 3}, // arg0:arg1 / arg2 (128-bit divided by 64-bit), returns (q, r)
 
+	// For Mod16, Mod32 and Mod64, AuxInt non-zero means that the divisor has been proved to be not -1.
 	{name: "Mod8", argLength: 2},  // arg0 % arg1, signed
 	{name: "Mod8u", argLength: 2}, // arg0 % arg1, unsigned
-	{name: "Mod16", argLength: 2},
+	{name: "Mod16", argLength: 2, aux: "Bool"},
 	{name: "Mod16u", argLength: 2},
-	{name: "Mod32", argLength: 2},
+	{name: "Mod32", argLength: 2, aux: "Bool"},
 	{name: "Mod32u", argLength: 2},
-	{name: "Mod64", argLength: 2},
+	{name: "Mod64", argLength: 2, aux: "Bool"},
 	{name: "Mod64u", argLength: 2},
 
 	{name: "And8", argLength: 2, commutative: true}, // arg0 & arg1
@@ -363,6 +369,14 @@ var genericOps = []opData{
 	// arch-dependent), and is not a safe-point.
 	{name: "WB", argLength: 3, typ: "Mem", aux: "Sym", symEffect: "None"}, // arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
 
+	// PanicBounds and PanicExtend generate a runtime panic.
+	// Their arguments provide index values to use in panic messages.
+	// Both PanicBounds and PanicExtend have an AuxInt value from the BoundsKind type (in ../op.go).
+	// PanicBounds' index is int sized.
+	// PanicExtend's index is int64 sized. (PanicExtend is only used on 32-bit archs.)
+	{name: "PanicBounds", argLength: 3, aux: "Int64", typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory.
+	{name: "PanicExtend", argLength: 4, aux: "Int64", typ: "Mem"}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory.
+
 	// Function calls. Arguments to the call have already been written to the stack.
 	// Return values appear on the stack. The method receiver, if any, is treated
 	// as a phantom first argument.
@@ -470,8 +484,13 @@ var genericOps = []opData{
 
 	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem", symEffect: "None", zeroWidth: true}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
 	{name: "VarKill", argLength: 1, aux: "Sym", symEffect: "None"},                             // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
-	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read", zeroWidth: true},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
-	{name: "KeepAlive", argLength: 2, typ: "Mem", zeroWidth: true},                             // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
+	// TODO: what's the difference between VarLive and KeepAlive?
+	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read", zeroWidth: true}, // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
+	{name: "KeepAlive", argLength: 2, typ: "Mem", zeroWidth: true},                  // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
+
+	// InlMark marks the start of an inlined function body. Its AuxInt field
+	// distinguishes which entry in the local inline tree it is marking.
+	{name: "InlMark", argLength: 1, aux: "Int32", typ: "Void"}, // arg[0]=mem, returns void.
 
 	// Ops for breaking 64-bit operations on 32-bit architectures
 	{name: "Int64Make", argLength: 2, typ: "UInt64"}, // arg0=hi, arg1=lo
@@ -483,6 +502,9 @@ var genericOps = []opData{
 
 	{name: "Sub32carry", argLength: 2, typ: "(UInt32,Flags)"}, // arg0 - arg1, returns (value, carry)
 	{name: "Sub32withcarry", argLength: 3},                    // arg0 - arg1 - arg2, arg2=carry (0 or 1)
+
+	{name: "Add64carry", argLength: 3, commutative: true, typ: "(UInt64,UInt64)"}, // arg0 + arg1 + arg2, arg2 must be 0 or 1. returns (value, value>>64)
+	{name: "Sub64borrow", argLength: 3, typ: "(UInt64,UInt64)"},                   // arg0 - (arg1 + arg2), arg2 must be 0 or 1. returns (value, value>>64&1)
 
 	{name: "Signmask", argLength: 1, typ: "Int32"},  // 0 if arg0 >= 0, -1 if arg0 < 0
 	{name: "Zeromask", argLength: 1, typ: "UInt32"}, // 0 if arg0 == 0, 0xffffffff if arg0 != 0
@@ -505,20 +527,24 @@ var genericOps = []opData{
 	// Atomic loads return a new memory so that the loads are properly ordered
 	// with respect to other loads and stores.
 	// TODO: use for sync/atomic at some point.
-	{name: "AtomicLoad32", argLength: 2, typ: "(UInt32,Mem)"},                               // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
-	{name: "AtomicLoad64", argLength: 2, typ: "(UInt64,Mem)"},                               // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
-	{name: "AtomicLoadPtr", argLength: 2, typ: "(BytePtr,Mem)"},                             // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
-	{name: "AtomicStore32", argLength: 3, typ: "Mem", hasSideEffects: true},                 // Store arg1 to *arg0.  arg2=memory.  Returns memory.
-	{name: "AtomicStore64", argLength: 3, typ: "Mem", hasSideEffects: true},                 // Store arg1 to *arg0.  arg2=memory.  Returns memory.
-	{name: "AtomicStorePtrNoWB", argLength: 3, typ: "Mem", hasSideEffects: true},            // Store arg1 to *arg0.  arg2=memory.  Returns memory.
-	{name: "AtomicExchange32", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},     // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
-	{name: "AtomicExchange64", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},     // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
-	{name: "AtomicAdd32", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},          // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
-	{name: "AtomicAdd64", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},          // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
-	{name: "AtomicCompareAndSwap32", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Returns true iff store happens and new memory.
-	{name: "AtomicCompareAndSwap64", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Returns true iff store happens and new memory.
-	{name: "AtomicAnd8", argLength: 3, typ: "Mem", hasSideEffects: true},                    // *arg0 &= arg1.  arg2=memory.  Returns memory.
-	{name: "AtomicOr8", argLength: 3, typ: "Mem", hasSideEffects: true},                     // *arg0 |= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicLoad8", argLength: 2, typ: "(UInt8,Mem)"},                                    // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+	{name: "AtomicLoad32", argLength: 2, typ: "(UInt32,Mem)"},                                  // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+	{name: "AtomicLoad64", argLength: 2, typ: "(UInt64,Mem)"},                                  // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+	{name: "AtomicLoadPtr", argLength: 2, typ: "(BytePtr,Mem)"},                                // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+	{name: "AtomicLoadAcq32", argLength: 2, typ: "(UInt32,Mem)"},                               // Load from arg0.  arg1=memory.  Lock acquisition, returns loaded value and new memory.
+	{name: "AtomicStore32", argLength: 3, typ: "Mem", hasSideEffects: true},                    // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+	{name: "AtomicStore64", argLength: 3, typ: "Mem", hasSideEffects: true},                    // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+	{name: "AtomicStorePtrNoWB", argLength: 3, typ: "Mem", hasSideEffects: true},               // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+	{name: "AtomicStoreRel32", argLength: 3, typ: "Mem", hasSideEffects: true},                 // Store arg1 to *arg0.  arg2=memory.  Lock release, returns memory.
+	{name: "AtomicExchange32", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},        // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicExchange64", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},        // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicAdd32", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},             // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+	{name: "AtomicAdd64", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},             // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+	{name: "AtomicCompareAndSwap32", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true},    // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
+	{name: "AtomicCompareAndSwap64", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true},    // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
+	{name: "AtomicCompareAndSwapRel32", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Lock release, reports whether store happens and new memory.
+	{name: "AtomicAnd8", argLength: 3, typ: "Mem", hasSideEffects: true},                       // *arg0 &= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicOr8", argLength: 3, typ: "Mem", hasSideEffects: true},                        // *arg0 |= arg1.  arg2=memory.  Returns memory.
 
 	// Atomic operation variants
 	// These variants have the same semantics as above atomic operations.
@@ -531,24 +557,22 @@ var genericOps = []opData{
 	{name: "Clobber", argLength: 0, typ: "Void", aux: "SymOff", symEffect: "None"}, // write an invalid pointer value to the given pointer slot of a stack variable
 }
 
-//     kind           control    successors       implicit exit
+//     kind          controls        successors   implicit exit
 //   ----------------------------------------------------------
-//     Exit        return mem                []             yes
-//      Ret        return mem                []             yes
-//   RetJmp        return mem                []             yes
-//    Plain               nil            [next]
-//       If   a boolean Value      [then, else]
-//     Call               mem            [next]             yes  (control opcode should be OpCall or OpStaticCall)
-//    Check              void            [next]             yes  (control opcode should be Op{Lowered}NilCheck)
-//    First               nil    [always,never]
+//     Exit      [return mem]                []             yes
+//      Ret      [return mem]                []             yes
+//   RetJmp      [return mem]                []             yes
+//    Plain                []            [next]
+//       If   [boolean Value]      [then, else]
+//    First                []   [always, never]
 
 var genericBlocks = []blockData{
-	{name: "Plain"},  // a single successor
-	{name: "If"},     // 2 successors, if control goto Succs[0] else goto Succs[1]
-	{name: "Defer"},  // 2 successors, Succs[0]=defer queued, Succs[1]=defer recovered. control is call op (of memory type)
-	{name: "Ret"},    // no successors, control value is memory result
-	{name: "RetJmp"}, // no successors, jumps to b.Aux.(*gc.Sym)
-	{name: "Exit"},   // no successors, control value generates a panic
+	{name: "Plain"},               // a single successor
+	{name: "If", controls: 1},     // if Controls[0] goto Succs[0] else goto Succs[1]
+	{name: "Defer", controls: 1},  // Succs[0]=defer queued, Succs[1]=defer recovered. Controls[0] is call op (of memory type)
+	{name: "Ret", controls: 1},    // no successors, Controls[0] value is memory result
+	{name: "RetJmp", controls: 1}, // no successors, Controls[0] value is memory result, jumps to b.Aux.(*gc.Sym)
+	{name: "Exit", controls: 1},   // no successors, Controls[0] value generates a panic
 
 	// transient block state used for dead code removal
 	{name: "First"}, // 2 successors, always takes the first one (second is dead)

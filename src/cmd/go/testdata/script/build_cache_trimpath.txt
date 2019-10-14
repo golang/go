@@ -1,0 +1,20 @@
+env GO111MODULE=on
+
+# Set up fresh GOCACHE.
+env GOCACHE=$WORK/gocache
+mkdir $GOCACHE
+
+cd $WORK
+go build -o a.out
+
+# Varying -trimpath should cause a rebuild.
+go build -x -o a.out -trimpath
+stderr '(compile|gccgo)( |\.exe)'
+stderr 'link( |\.exe)'
+
+-- $WORK/hello.go --
+package main
+func main() { println("hello") }
+
+-- $WORK/go.mod --
+module m

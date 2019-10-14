@@ -58,16 +58,18 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
 	}
 }
 
-func ginsnop(pp *gc.Progs) {
+func ginsnop(pp *gc.Progs) *obj.Prog {
 	p := pp.Prog(ppc64.AOR)
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = ppc64.REG_R0
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = ppc64.REG_R0
+	return p
 }
 
-func ginsnop2(pp *gc.Progs) {
-	// PPC64 is unusual because TWO nops are required
+func ginsnopdefer(pp *gc.Progs) *obj.Prog {
+	// On PPC64 two nops are required in the defer case.
+	//
 	// (see gc/cgen.go, gc/plive.go -- copy of comment below)
 	//
 	// On ppc64, when compiling Go into position
@@ -87,7 +89,7 @@ func ginsnop2(pp *gc.Progs) {
 		p.From.Reg = ppc64.REGSP
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = ppc64.REG_R2
-	} else {
-		ginsnop(pp)
+		return p
 	}
+	return ginsnop(pp)
 }

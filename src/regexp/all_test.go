@@ -550,8 +550,8 @@ func TestOnePassCutoff(t *testing.T) {
 	if err != nil {
 		t.Fatalf("compile: %v", err)
 	}
-	if compileOnePass(p) != notOnePass {
-		t.Fatalf("makeOnePass succeeded; wanted notOnePass")
+	if compileOnePass(p) != nil {
+		t.Fatalf("makeOnePass succeeded; wanted nil")
 	}
 }
 
@@ -857,5 +857,75 @@ func BenchmarkQuoteMetaNone(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		sink = QuoteMeta(s)
+	}
+}
+
+var compileBenchData = []struct{ name, re string }{
+	{"Onepass", `^a.[l-nA-Cg-j]?e$`},
+	{"Medium", `^((a|b|[d-z0-9])*(日){4,5}.)+$`},
+	{"Hard", strings.Repeat(`((abc)*|`, 50) + strings.Repeat(`)`, 50)},
+}
+
+func BenchmarkCompile(b *testing.B) {
+	for _, data := range compileBenchData {
+		b.Run(data.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				if _, err := Compile(data.re); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func TestDeepEqual(t *testing.T) {
+	re1 := MustCompile("a.*b.*c.*d")
+	re2 := MustCompile("a.*b.*c.*d")
+	if !reflect.DeepEqual(re1, re2) { // has always been true, since Go 1.
+		t.Errorf("DeepEqual(re1, re2) = false, want true")
+	}
+
+	re1.MatchString("abcdefghijklmn")
+	if !reflect.DeepEqual(re1, re2) {
+		t.Errorf("DeepEqual(re1, re2) = false, want true")
+	}
+
+	re2.MatchString("abcdefghijklmn")
+	if !reflect.DeepEqual(re1, re2) {
+		t.Errorf("DeepEqual(re1, re2) = false, want true")
+	}
+
+	re2.MatchString(strings.Repeat("abcdefghijklmn", 100))
+	if !reflect.DeepEqual(re1, re2) {
+		t.Errorf("DeepEqual(re1, re2) = false, want true")
+	}
+}
+
+var minInputLenTests = []struct {
+	Regexp string
+	min    int
+}{
+	{``, 0},
+	{`a`, 1},
+	{`aa`, 2},
+	{`(aa)a`, 3},
+	{`(?:aa)a`, 3},
+	{`a?a`, 1},
+	{`(aaa)|(aa)`, 2},
+	{`(aa)+a`, 3},
+	{`(aa)*a`, 1},
+	{`(aa){3,5}`, 6},
+	{`[a-z]`, 1},
+	{`日`, 3},
+}
+
+func TestMinInputLen(t *testing.T) {
+	for _, tt := range minInputLenTests {
+		re, _ := syntax.Parse(tt.Regexp, syntax.Perl)
+		m := minInputLen(re)
+		if m != tt.min {
+			t.Errorf("regexp %#q has minInputLen %d, should be %d", tt.Regexp, m, tt.min)
+		}
 	}
 }

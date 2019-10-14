@@ -92,7 +92,7 @@ type cgoCallers [32]uintptr
 // Call from Go to C.
 //go:nosplit
 func cgocall(fn, arg unsafe.Pointer) int32 {
-	if !iscgo && GOOS != "solaris" && GOOS != "windows" {
+	if !iscgo && GOOS != "solaris" && GOOS != "illumos" && GOOS != "windows" {
 		throw("cgocall unavailable")
 	}
 
@@ -130,11 +130,18 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 	mp.incgo = true
 	errno := asmcgocall(fn, arg)
 
-	// Call endcgo before exitsyscall because exitsyscall may
+	// Update accounting before exitsyscall because exitsyscall may
 	// reschedule us on to a different M.
-	endcgo(mp)
+	mp.incgo = false
+	mp.ncgo--
 
 	exitsyscall()
+
+	// Note that raceacquire must be called only after exitsyscall has
+	// wired this M to a P.
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&racecgosync))
+	}
 
 	// From the garbage collector's perspective, time can move
 	// backwards in the sequence above. If there's a callback into
@@ -151,16 +158,6 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 	KeepAlive(mp)
 
 	return errno
-}
-
-//go:nosplit
-func endcgo(mp *m) {
-	mp.incgo = false
-	mp.ncgo--
-
-	if raceenabled {
-		raceacquire(unsafe.Pointer(&racecgosync))
-	}
 }
 
 // Call from C back to Go.
@@ -347,13 +344,14 @@ func unwindm(restore *bool) {
 			sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 16))
 		}
 
-		// Call endcgo to do the accounting that cgocall will not have a
-		// chance to do during an unwind.
+		// Do the accounting that cgocall will not have a chance to do
+		// during an unwind.
 		//
 		// In the case where a Go call originates from C, ncgo is 0
 		// and there is no matching cgocall to end.
 		if mp.ncgo > 0 {
-			endcgo(mp)
+			mp.incgo = false
+			mp.ncgo--
 		}
 
 		releasem(mp)
@@ -408,24 +406,24 @@ var racecgosync uint64 // represents possible synchronization in C code
 
 // cgoCheckPointer checks if the argument contains a Go pointer that
 // points to a Go pointer, and panics if it does.
-func cgoCheckPointer(ptr interface{}, args ...interface{}) {
+func cgoCheckPointer(ptr interface{}, arg interface{}) {
 	if debug.cgocheck == 0 {
 		return
 	}
 
-	ep := (*eface)(unsafe.Pointer(&ptr))
+	ep := efaceOf(&ptr)
 	t := ep._type
 
 	top := true
-	if len(args) > 0 && (t.kind&kindMask == kindPtr || t.kind&kindMask == kindUnsafePointer) {
+	if arg != nil && (t.kind&kindMask == kindPtr || t.kind&kindMask == kindUnsafePointer) {
 		p := ep.data
 		if t.kind&kindDirectIface == 0 {
 			p = *(*unsafe.Pointer)(p)
 		}
-		if !cgoIsGoPointer(p) {
+		if p == nil || !cgoIsGoPointer(p) {
 			return
 		}
-		aep := (*eface)(unsafe.Pointer(&args[0]))
+		aep := efaceOf(&arg)
 		switch aep._type.kind & kindMask {
 		case kindBool:
 			if t.kind&kindMask == kindUnsafePointer {
@@ -462,7 +460,7 @@ const cgoResultFail = "cgo result has Go pointer"
 // depending on indir. The top parameter is whether we are at the top
 // level, where Go pointers are allowed.
 func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
-	if t.kind&kindNoPointers != 0 {
+	if t.ptrdata == 0 || p == nil {
 		// If the type has no pointers there is nothing to do.
 		return
 	}
@@ -519,13 +517,13 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 		st := (*slicetype)(unsafe.Pointer(t))
 		s := (*slice)(p)
 		p = s.array
-		if !cgoIsGoPointer(p) {
+		if p == nil || !cgoIsGoPointer(p) {
 			return
 		}
 		if !top {
 			panic(errorString(msg))
 		}
-		if st.elem.kind&kindNoPointers != 0 {
+		if st.elem.ptrdata == 0 {
 			return
 		}
 		for i := 0; i < s.cap; i++ {
@@ -550,11 +548,17 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 			return
 		}
 		for _, f := range st.fields {
+			if f.typ.ptrdata == 0 {
+				continue
+			}
 			cgoCheckArg(f.typ, add(p, f.offset()), true, top, msg)
 		}
 	case kindPtr, kindUnsafePointer:
 		if indir {
 			p = *(*unsafe.Pointer)(p)
+			if p == nil {
+				return
+			}
 		}
 
 		if !cgoIsGoPointer(p) {
@@ -608,7 +612,7 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
 	return
 }
 
-// cgoIsGoPointer returns whether the pointer is a Go pointer--a
+// cgoIsGoPointer reports whether the pointer is a Go pointer--a
 // pointer to Go memory. We only care about Go memory that might
 // contain pointers.
 //go:nosplit
@@ -631,7 +635,7 @@ func cgoIsGoPointer(p unsafe.Pointer) bool {
 	return false
 }
 
-// cgoInRange returns whether p is between start and end.
+// cgoInRange reports whether p is between start and end.
 //go:nosplit
 //go:nowritebarrierrec
 func cgoInRange(p unsafe.Pointer, start, end uintptr) bool {
@@ -646,7 +650,7 @@ func cgoCheckResult(val interface{}) {
 		return
 	}
 
-	ep := (*eface)(unsafe.Pointer(&val))
+	ep := efaceOf(&val)
 	t := ep._type
 	cgoCheckArg(t, ep.data, t.kind&kindDirectIface == 0, false, cgoResultFail)
 }

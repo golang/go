@@ -80,7 +80,7 @@ func (e CertificateInvalidError) Error() string {
 	case NotAuthorizedToSign:
 		return "x509: certificate is not authorized to sign other certificates"
 	case Expired:
-		return "x509: certificate has expired or is not yet valid"
+		return "x509: certificate has expired or is not yet valid: " + e.Detail
 	case CANotAuthorizedForThisName:
 		return "x509: a root or intermediate certificate is not authorized to sign for this name: " + e.Detail
 	case CANotAuthorizedForExtKeyUsage:
@@ -222,10 +222,9 @@ type rfc2821Mailbox struct {
 }
 
 // parseRFC2821Mailbox parses an email address into local and domain parts,
-// based on the ABNF for a “Mailbox” from RFC 2821. According to
-// https://tools.ietf.org/html/rfc5280#section-4.2.1.6 that's correct for an
-// rfc822Name from a certificate: “The format of an rfc822Name is a "Mailbox"
-// as defined in https://tools.ietf.org/html/rfc2821#section-4.1.2”.
+// based on the ABNF for a “Mailbox” from RFC 2821. According to RFC 5280,
+// Section 4.2.1.6 that's correct for an rfc822Name from a certificate: “The
+// format of an rfc822Name is a "Mailbox" as defined in RFC 2821, Section 4.1.2”.
 func parseRFC2821Mailbox(in string) (mailbox rfc2821Mailbox, ok bool) {
 	if len(in) == 0 {
 		return mailbox, false
@@ -242,9 +241,8 @@ func parseRFC2821Mailbox(in string) (mailbox rfc2821Mailbox, ok bool) {
 		// quoted-pair = ("\" text) / obs-qp
 		// text = %d1-9 / %d11 / %d12 / %d14-127 / obs-text
 		//
-		// (Names beginning with “obs-” are the obsolete syntax from
-		// https://tools.ietf.org/html/rfc2822#section-4. Since it has
-		// been 16 years, we no longer accept that.)
+		// (Names beginning with “obs-” are the obsolete syntax from RFC 2822,
+		// Section 4. Since it has been 16 years, we no longer accept that.)
 		in = in[1:]
 	QuotedString:
 		for {
@@ -298,7 +296,7 @@ func parseRFC2821Mailbox(in string) (mailbox rfc2821Mailbox, ok bool) {
 		// Atom ("." Atom)*
 	NextChar:
 		for len(in) > 0 {
-			// atext from https://tools.ietf.org/html/rfc2822#section-3.2.4
+			// atext from RFC 2822, Section 3.2.4
 			c := in[0]
 
 			switch {
@@ -334,7 +332,7 @@ func parseRFC2821Mailbox(in string) (mailbox rfc2821Mailbox, ok bool) {
 			return mailbox, false
 		}
 
-		// https://tools.ietf.org/html/rfc3696#section-3
+		// From RFC 3696, Section 3:
 		// “period (".") may also appear, but may not be used to start
 		// or end the local part, nor may two or more consecutive
 		// periods appear.”
@@ -371,7 +369,7 @@ func domainToReverseLabels(domain string) (reverseLabels []string, ok bool) {
 			reverseLabels = append(reverseLabels, domain)
 			domain = ""
 		} else {
-			reverseLabels = append(reverseLabels, domain[i+1:len(domain)])
+			reverseLabels = append(reverseLabels, domain[i+1:])
 			domain = domain[:i]
 		}
 	}
@@ -415,7 +413,7 @@ func matchEmailConstraint(mailbox rfc2821Mailbox, constraint string) (bool, erro
 }
 
 func matchURIConstraint(uri *url.URL, constraint string) (bool, error) {
-	// https://tools.ietf.org/html/rfc5280#section-4.2.1.10
+	// From RFC 5280, Section 4.2.1.10:
 	// “a uniformResourceIdentifier that does not include an authority
 	// component with a host name specified as a fully qualified domain
 	// name (e.g., if the URI either does not include an authority
@@ -578,8 +576,18 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 	if now.IsZero() {
 		now = time.Now()
 	}
-	if now.Before(c.NotBefore) || now.After(c.NotAfter) {
-		return CertificateInvalidError{c, Expired, ""}
+	if now.Before(c.NotBefore) {
+		return CertificateInvalidError{
+			Cert: c,
+			Reason: Expired,
+			Detail: fmt.Sprintf("current time %s is before %s", now.Format(time.RFC3339), c.NotBefore.Format(time.RFC3339)),
+		}
+	} else if now.After(c.NotAfter) {
+		return CertificateInvalidError{
+			Cert: c,
+			Reason: Expired,
+			Detail: fmt.Sprintf("current time %s is after %s", now.Format(time.RFC3339), c.NotAfter.Format(time.RFC3339)),
+		}
 	}
 
 	maxConstraintComparisons := opts.MaxConstraintComparisions
@@ -765,7 +773,7 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 	if opts.Roots.contains(c) {
 		candidateChains = append(candidateChains, []*Certificate{c})
 	} else {
-		if candidateChains, err = c.buildChains(make(map[int][][]*Certificate), []*Certificate{c}, &opts); err != nil {
+		if candidateChains, err = c.buildChains(nil, []*Certificate{c}, nil, &opts); err != nil {
 			return nil, err
 		}
 	}
@@ -802,65 +810,81 @@ func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate 
 	return n
 }
 
-func (c *Certificate) buildChains(cache map[int][][]*Certificate, currentChain []*Certificate, opts *VerifyOptions) (chains [][]*Certificate, err error) {
-	possibleRoots, failedRoot, rootErr := opts.Roots.findVerifiedParents(c)
-nextRoot:
-	for _, rootNum := range possibleRoots {
-		root := opts.Roots.certs[rootNum]
+// maxChainSignatureChecks is the maximum number of CheckSignatureFrom calls
+// that an invocation of buildChains will (tranistively) make. Most chains are
+// less than 15 certificates long, so this leaves space for multiple chains and
+// for failed checks due to different intermediates having the same Subject.
+const maxChainSignatureChecks = 100
 
+func (c *Certificate) buildChains(cache map[*Certificate][][]*Certificate, currentChain []*Certificate, sigChecks *int, opts *VerifyOptions) (chains [][]*Certificate, err error) {
+	var (
+		hintErr  error
+		hintCert *Certificate
+	)
+
+	considerCandidate := func(certType int, candidate *Certificate) {
 		for _, cert := range currentChain {
-			if cert.Equal(root) {
-				continue nextRoot
+			if cert.Equal(candidate) {
+				return
 			}
 		}
 
-		err = root.isValid(rootCertificate, currentChain, opts)
-		if err != nil {
-			continue
+		if sigChecks == nil {
+			sigChecks = new(int)
 		}
-		chains = append(chains, appendToFreshChain(currentChain, root))
+		*sigChecks++
+		if *sigChecks > maxChainSignatureChecks {
+			err = errors.New("x509: signature check attempts limit reached while verifying certificate chain")
+			return
+		}
+
+		if err := c.CheckSignatureFrom(candidate); err != nil {
+			if hintErr == nil {
+				hintErr = err
+				hintCert = candidate
+			}
+			return
+		}
+
+		err = candidate.isValid(certType, currentChain, opts)
+		if err != nil {
+			return
+		}
+
+		switch certType {
+		case rootCertificate:
+			chains = append(chains, appendToFreshChain(currentChain, candidate))
+		case intermediateCertificate:
+			if cache == nil {
+				cache = make(map[*Certificate][][]*Certificate)
+			}
+			childChains, ok := cache[candidate]
+			if !ok {
+				childChains, err = candidate.buildChains(cache, appendToFreshChain(currentChain, candidate), sigChecks, opts)
+				cache[candidate] = childChains
+			}
+			chains = append(chains, childChains...)
+		}
 	}
 
-	possibleIntermediates, failedIntermediate, intermediateErr := opts.Intermediates.findVerifiedParents(c)
-nextIntermediate:
-	for _, intermediateNum := range possibleIntermediates {
-		intermediate := opts.Intermediates.certs[intermediateNum]
-		for _, cert := range currentChain {
-			if cert.Equal(intermediate) {
-				continue nextIntermediate
-			}
-		}
-		err = intermediate.isValid(intermediateCertificate, currentChain, opts)
-		if err != nil {
-			continue
-		}
-		var childChains [][]*Certificate
-		childChains, ok := cache[intermediateNum]
-		if !ok {
-			childChains, err = intermediate.buildChains(cache, appendToFreshChain(currentChain, intermediate), opts)
-			cache[intermediateNum] = childChains
-		}
-		chains = append(chains, childChains...)
+	for _, rootNum := range opts.Roots.findPotentialParents(c) {
+		considerCandidate(rootCertificate, opts.Roots.certs[rootNum])
+	}
+	for _, intermediateNum := range opts.Intermediates.findPotentialParents(c) {
+		considerCandidate(intermediateCertificate, opts.Intermediates.certs[intermediateNum])
 	}
 
 	if len(chains) > 0 {
 		err = nil
 	}
-
 	if len(chains) == 0 && err == nil {
-		hintErr := rootErr
-		hintCert := failedRoot
-		if hintErr == nil {
-			hintErr = intermediateErr
-			hintCert = failedIntermediate
-		}
 		err = UnknownAuthorityError{c, hintErr, hintCert}
 	}
 
 	return
 }
 
-// validHostname returns whether host is a valid hostname that can be matched or
+// validHostname reports whether host is a valid hostname that can be matched or
 // matched against according to RFC 6125 2.2, with some leniency to accommodate
 // legacy values.
 func validHostname(host string) bool {
@@ -894,8 +918,8 @@ func validHostname(host string) bool {
 			if c == '-' && j != 0 {
 				continue
 			}
-			if c == '_' {
-				// _ is not a valid character in hostnames, but it's commonly
+			if c == '_' || c == ':' {
+				// Not valid characters in hostnames, but commonly
 				// found in deployments outside the WebPKI.
 				continue
 			}
@@ -987,7 +1011,7 @@ func (c *Certificate) VerifyHostname(h string) error {
 	}
 	if ip := net.ParseIP(candidateIP); ip != nil {
 		// We only match IP addresses against IP SANs.
-		// https://tools.ietf.org/html/rfc6125#appendix-B.2
+		// See RFC 6125, Appendix B.2.
 		for _, candidate := range c.IPAddresses {
 			if ip.Equal(candidate) {
 				return nil

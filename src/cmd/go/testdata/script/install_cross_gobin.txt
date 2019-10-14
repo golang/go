@@ -1,3 +1,6 @@
+env GO111MODULE=off
+[!short] skip # rebuilds std for alternate architecture
+
 cd mycmd
 go build mycmd
 

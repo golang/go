@@ -205,8 +205,10 @@ marked `//go:notinheap` (see below).
 Objects that are allocated in unmanaged memory **must not** contain
 heap pointers unless the following rules are also obeyed:
 
-1. Any pointers from unmanaged memory to the heap must be added as
-   explicit garbage collection roots in `runtime.markroot`.
+1. Any pointers from unmanaged memory to the heap must be garbage
+   collection roots. More specifically, any pointer must either be
+   accessible through a global variable or be added as an explicit
+   garbage collection root in `runtime.markroot`.
 
 2. If the memory is reused, the heap pointers must be zero-initialized
    before they become visible as GC roots. Otherwise, the GC may

@@ -11,8 +11,8 @@ The receiver verifies the hash by recomputing it using the same key.
 Receivers should be careful to use Equal to compare MACs in order to avoid
 timing side-channels:
 
-	// CheckMAC reports whether messageMAC is a valid HMAC tag for message.
-	func CheckMAC(message, messageMAC, key []byte) bool {
+	// ValidMAC reports whether messageMAC is a valid HMAC tag for message.
+	func ValidMAC(message, messageMAC, key []byte) bool {
 		mac := hmac.New(sha256.New, key)
 		mac.Write(message)
 		expectedMAC := mac.Sum(nil)

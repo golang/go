@@ -23,3 +23,7 @@ var Reader io.Reader
 func Read(b []byte) (n int, err error) {
 	return io.ReadFull(Reader, b)
 }
+
+func warnBlocked() {
+	println("crypto/rand: blocked for 60 seconds waiting to read random data from the kernel")
+}

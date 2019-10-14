@@ -52,7 +52,7 @@ func usage() {
 			fmt.Fprintf(os.Stderr, "\n%s\n", f.name)
 		}
 		desc := strings.TrimSpace(f.desc)
-		desc = strings.Replace(desc, "\n", "\n\t", -1)
+		desc = strings.ReplaceAll(desc, "\n", "\n\t")
 		fmt.Fprintf(os.Stderr, "\t%s\n", desc)
 	}
 	os.Exit(2)

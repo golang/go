@@ -13,7 +13,7 @@ import (
 )
 
 // builtin type-checks a call to the built-in specified by id and
-// returns true if the call is valid, with *x holding the result;
+// reports whether the call is valid, with *x holding the result;
 // but x.expr is not set. If the call is invalid, the result is
 // false, and *x is undefined.
 //
@@ -95,7 +95,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// spec: "As a special case, append also accepts a first argument assignable
 		// to type []byte with a second argument of string type followed by ... .
 		// This form appends the bytes of the string.
-		if nargs == 2 && call.Ellipsis.IsValid() && x.assignableTo(check.conf, NewSlice(universeByte), nil) {
+		if nargs == 2 && call.Ellipsis.IsValid() && x.assignableTo(check, NewSlice(universeByte), nil) {
 			arg(x, 1)
 			if x.mode == invalid {
 				return
@@ -257,7 +257,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 		// both argument types must be identical
-		if !Identical(x.typ, y.typ) {
+		if !check.identical(x.typ, y.typ) {
 			check.invalidArg(x.pos(), "mismatched types %s and %s", x.typ, y.typ)
 			return
 		}
@@ -322,7 +322,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		if !Identical(dst, src) {
+		if !check.identical(dst, src) {
 			check.invalidArg(x.pos(), "arguments to copy %s and %s have different element types %s and %s", x, &y, dst, src)
 			return
 		}
@@ -345,7 +345,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		if !x.assignableTo(check.conf, m.key, nil) {
+		if !x.assignableTo(check, m.key, nil) {
 			check.invalidArg(x.pos(), "%s is not assignable to %s", x, m.key)
 			return
 		}
@@ -362,7 +362,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// convert or check untyped argument
 		if isUntyped(x.typ) {
 			if x.mode == constant_ {
-				// an untyped constant number can alway be considered
+				// an untyped constant number can always be considered
 				// as a complex constant
 				if isNumeric(x.typ) {
 					x.typ = Typ[UntypedComplex]
@@ -559,7 +559,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		base := derefStructPtr(x.typ)
 		sel := selx.Sel.Name
-		obj, index, indirect := LookupFieldOrMethod(base, false, check.pkg, sel)
+		obj, index, indirect := check.LookupFieldOrMethod(base, false, check.pkg, sel)
 		switch obj.(type) {
 		case nil:
 			check.invalidArg(x.pos(), "%s has no single field %s", base, sel)

@@ -23,6 +23,9 @@ TEXT runtime∕internal∕atomic·Cas(SB), NOSPLIT, $0-13
 TEXT runtime∕internal∕atomic·Casuintptr(SB), NOSPLIT, $0-13
 	JMP	runtime∕internal∕atomic·Cas(SB)
 
+TEXT runtime∕internal∕atomic·CasRel(SB), NOSPLIT, $0-13
+	JMP	runtime∕internal∕atomic·Cas(SB)
+
 TEXT runtime∕internal∕atomic·Loaduintptr(SB), NOSPLIT, $0-8
 	JMP	runtime∕internal∕atomic·Load(SB)
 
@@ -179,6 +182,9 @@ TEXT runtime∕internal∕atomic·Store(SB), NOSPLIT, $0-8
 	MOVL	val+4(FP), AX
 	XCHGL	AX, 0(BX)
 	RET
+
+TEXT runtime∕internal∕atomic·StoreRel(SB), NOSPLIT, $0-8
+	JMP	runtime∕internal∕atomic·Store(SB)
 
 // uint64 atomicload64(uint64 volatile* addr);
 TEXT runtime∕internal∕atomic·Load64(SB), NOSPLIT, $0-12

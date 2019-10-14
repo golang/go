@@ -5,9 +5,15 @@
 package ld
 
 import (
+	"bytes"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
+	"debug/macho"
+	"encoding/binary"
+	"fmt"
+	"io"
+	"os"
 	"sort"
 	"strings"
 )
@@ -45,10 +51,19 @@ type MachoSeg struct {
 	flag       uint32
 }
 
+// MachoPlatformLoad represents a LC_VERSION_MIN_* or
+// LC_BUILD_VERSION load command.
+type MachoPlatformLoad struct {
+	platform MachoPlatform // One of PLATFORM_* constants.
+	cmd      MachoLoad
+}
+
 type MachoLoad struct {
 	type_ uint32
 	data  []uint32
 }
+
+type MachoPlatform int
 
 /*
  * Total amount of space to reserve at the start of the file
@@ -126,7 +141,7 @@ const (
 	LC_SUB_LIBRARY              = 0x15
 	LC_TWOLEVEL_HINTS           = 0x16
 	LC_PREBIND_CKSUM            = 0x17
-	LC_LOAD_WEAK_DYLIB          = 0x18
+	LC_LOAD_WEAK_DYLIB          = 0x80000018
 	LC_SEGMENT_64               = 0x19
 	LC_ROUTINES_64              = 0x1a
 	LC_UUID                     = 0x1b
@@ -167,12 +182,22 @@ const (
 	S_ATTR_SOME_INSTRUCTIONS   = 0x00000400
 )
 
+const (
+	PLATFORM_MACOS    MachoPlatform = 1
+	PLATFORM_IOS      MachoPlatform = 2
+	PLATFORM_TVOS     MachoPlatform = 3
+	PLATFORM_WATCHOS  MachoPlatform = 4
+	PLATFORM_BRIDGEOS MachoPlatform = 5
+)
+
 // Mach-O file writing
 // https://developer.apple.com/mac/library/DOCUMENTATION/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html
 
 var machohdr MachoHdr
 
 var load []MachoLoad
+
+var machoPlatform MachoPlatform
 
 var seg [16]MachoSeg
 
@@ -365,6 +390,38 @@ func (ctxt *Link) domacho() {
 		return
 	}
 
+	// Copy platform load command.
+	for _, h := range hostobj {
+		load, err := hostobjMachoPlatform(&h)
+		if err != nil {
+			Exitf("%v", err)
+		}
+		if load != nil {
+			machoPlatform = load.platform
+			ml := newMachoLoad(ctxt.Arch, load.cmd.type_, uint32(len(load.cmd.data)))
+			copy(ml.data, load.cmd.data)
+			break
+		}
+	}
+	if machoPlatform == 0 {
+		machoPlatform = PLATFORM_MACOS
+		if ctxt.LinkMode == LinkInternal {
+			// For lldb, must say LC_VERSION_MIN_MACOSX or else
+			// it won't know that this Mach-O binary is from OS X
+			// (could be iOS or WatchOS instead).
+			// Go on iOS uses linkmode=external, and linkmode=external
+			// adds this itself. So we only need this code for linkmode=internal
+			// and we can assume OS X.
+			//
+			// See golang.org/issues/12941.
+			//
+			// The version must be at least 10.9; see golang.org/issues/30488.
+			ml := newMachoLoad(ctxt.Arch, LC_VERSION_MIN_MACOSX, 2)
+			ml.data[0] = 10<<16 | 9<<8 | 0<<0 // OS X version 10.9.0
+			ml.data[1] = 10<<16 | 9<<8 | 0<<0 // SDK 10.9.0
+		}
+	}
+
 	// empirically, string table must begin with " \x00".
 	s := ctxt.Syms.Lookup(".machosymstr", 0)
 
@@ -394,6 +451,14 @@ func (ctxt *Link) domacho() {
 		s = ctxt.Syms.Lookup(".linkedit.got", 0) // indirect table for .got
 		s.Type = sym.SMACHOINDIRECTGOT
 		s.Attr |= sym.AttrReachable
+	}
+
+	// Add a dummy symbol that will become the __asm marker section.
+	if ctxt.LinkMode == LinkExternal {
+		s := ctxt.Syms.Lookup(".llvmasm", 0)
+		s.Type = sym.SMACHO
+		s.Attr |= sym.AttrReachable
+		s.AddUint8(0)
 	}
 }
 
@@ -481,6 +546,17 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) 
 		msect.flag = S_MOD_INIT_FUNC_POINTERS
 	}
 
+	// Some platforms such as watchOS and tvOS require binaries with
+	// bitcode enabled. The Go toolchain can't output bitcode, so use
+	// a marker section in the __LLVM segment, "__asm", to tell the Apple
+	// toolchain that the Go text came from assembler and thus has no
+	// bitcode. This is not true, but Kotlin/Native, Rust and Flutter
+	// are also using this trick.
+	if sect.Name == ".llvmasm" {
+		msect.name = "__asm"
+		msect.segname = "__LLVM"
+	}
+
 	if segname == "__DWARF" {
 		msect.flag |= S_ATTR_DEBUG
 	}
@@ -518,12 +594,8 @@ func Asmbmacho(ctxt *Link) {
 		ms = newMachoSeg("", 40)
 
 		ms.fileoffset = Segtext.Fileoff
-		if ctxt.Arch.Family == sys.ARM || ctxt.BuildMode == BuildModeCArchive {
-			ms.filesize = Segdata.Fileoff + Segdata.Filelen - Segtext.Fileoff
-		} else {
-			ms.filesize = Segdwarf.Fileoff + Segdwarf.Filelen - Segtext.Fileoff
-			ms.vsize = Segdwarf.Vaddr + Segdwarf.Length - Segtext.Vaddr
-		}
+		ms.filesize = Segdwarf.Fileoff + Segdwarf.Filelen - Segtext.Fileoff
+		ms.vsize = Segdwarf.Vaddr + Segdwarf.Length - Segtext.Vaddr
 	}
 
 	/* segment for zero page */
@@ -653,20 +725,6 @@ func Asmbmacho(ctxt *Link) {
 		}
 	}
 
-	if ctxt.LinkMode == LinkInternal {
-		// For lldb, must say LC_VERSION_MIN_MACOSX or else
-		// it won't know that this Mach-O binary is from OS X
-		// (could be iOS or WatchOS instead).
-		// Go on iOS uses linkmode=external, and linkmode=external
-		// adds this itself. So we only need this code for linkmode=internal
-		// and we can assume OS X.
-		//
-		// See golang.org/issues/12941.
-		ml := newMachoLoad(ctxt.Arch, LC_VERSION_MIN_MACOSX, 2)
-		ml.data[0] = 10<<16 | 7<<8 | 0<<0 // OS X version 10.7.0
-		ml.data[1] = 10<<16 | 7<<8 | 0<<0 // SDK 10.7.0
-	}
-
 	a := machowrite(ctxt.Arch, ctxt.Out, ctxt.LinkMode)
 	if int32(a) > HEADR {
 		Exitf("HEADR too small: %d > %d", a, HEADR)
@@ -730,6 +788,27 @@ func (x machoscmp) Less(i, j int) bool {
 func machogenasmsym(ctxt *Link) {
 	genasmsym(ctxt, addsym)
 	for _, s := range ctxt.Syms.Allsym {
+		// Some 64-bit functions have a "$INODE64" or "$INODE64$UNIX2003" suffix.
+		if s.Type == sym.SDYNIMPORT && s.Dynimplib() == "/usr/lib/libSystem.B.dylib" {
+			// But only on macOS.
+			if machoPlatform == PLATFORM_MACOS {
+				switch n := s.Extname(); n {
+				case "fdopendir":
+					switch objabi.GOARCH {
+					case "amd64":
+						s.SetExtname(n + "$INODE64")
+					case "386":
+						s.SetExtname(n + "$INODE64$UNIX2003")
+					}
+				case "readdir_r", "getfsstat":
+					switch objabi.GOARCH {
+					case "amd64", "386":
+						s.SetExtname(n + "$INODE64")
+					}
+				}
+			}
+		}
+
 		if s.Type == sym.SDYNIMPORT || s.Type == sym.SHOSTOBJ {
 			if s.Attr.Reachable() {
 				addsym(ctxt, s, "", DataSym, 0, nil)
@@ -778,7 +857,7 @@ func machoShouldExport(ctxt *Link, s *sym.Symbol) bool {
 	if strings.HasPrefix(s.Name, "go.link.pkghash") {
 		return true
 	}
-	return s.Type >= sym.SELFSECT // only writable sections
+	return s.Type >= sym.SFirstWritable // only writable sections
 }
 
 func machosymtab(ctxt *Link) {
@@ -790,6 +869,7 @@ func machosymtab(ctxt *Link) {
 		symtab.AddUint32(ctxt.Arch, uint32(symstr.Size))
 
 		export := machoShouldExport(ctxt, s)
+		isGoSymbol := strings.Contains(s.Extname(), ".")
 
 		// In normal buildmodes, only add _ to C symbols, as
 		// Go symbols have dot in the name.
@@ -798,8 +878,8 @@ func machosymtab(ctxt *Link) {
 		// symbols like crosscall2 are in pclntab and end up
 		// pointing at the host binary, breaking unwinding.
 		// See Issue #18190.
-		cexport := !strings.Contains(s.Extname(), ".") && (ctxt.BuildMode != BuildModePlugin || onlycsymbol(s))
-		if cexport || export {
+		cexport := !isGoSymbol && (ctxt.BuildMode != BuildModePlugin || onlycsymbol(s))
+		if cexport || export || isGoSymbol {
 			symstr.AddUint8('_')
 		}
 
@@ -976,4 +1056,59 @@ func Machoemitreloc(ctxt *Link) {
 	for _, sect := range Segdwarf.Sections {
 		machorelocsect(ctxt, sect, dwarfp)
 	}
+}
+
+// hostobjMachoPlatform returns the first platform load command found
+// in the host object, if any.
+func hostobjMachoPlatform(h *Hostobj) (*MachoPlatformLoad, error) {
+	f, err := os.Open(h.file)
+	if err != nil {
+		return nil, fmt.Errorf("%s: failed to open host object: %v\n", h.file, err)
+	}
+	defer f.Close()
+	sr := io.NewSectionReader(f, h.off, h.length)
+	m, err := macho.NewFile(sr)
+	if err != nil {
+		// Not a valid Mach-O file.
+		return nil, nil
+	}
+	return peekMachoPlatform(m)
+}
+
+// peekMachoPlatform returns the first LC_VERSION_MIN_* or LC_BUILD_VERSION
+// load command found in the Mach-O file, if any.
+func peekMachoPlatform(m *macho.File) (*MachoPlatformLoad, error) {
+	for _, cmd := range m.Loads {
+		raw := cmd.Raw()
+		ml := MachoLoad{
+			type_: m.ByteOrder.Uint32(raw),
+		}
+		// Skip the type and command length.
+		data := raw[8:]
+		var p MachoPlatform
+		switch ml.type_ {
+		case LC_VERSION_MIN_IPHONEOS:
+			p = PLATFORM_IOS
+		case LC_VERSION_MIN_MACOSX:
+			p = PLATFORM_MACOS
+		case LC_VERSION_MIN_WATCHOS:
+			p = PLATFORM_WATCHOS
+		case LC_VERSION_MIN_TVOS:
+			p = PLATFORM_TVOS
+		case LC_BUILD_VERSION:
+			p = MachoPlatform(m.ByteOrder.Uint32(data))
+		default:
+			continue
+		}
+		ml.data = make([]uint32, len(data)/4)
+		r := bytes.NewReader(data)
+		if err := binary.Read(r, m.ByteOrder, &ml.data); err != nil {
+			return nil, err
+		}
+		return &MachoPlatformLoad{
+			platform: p,
+			cmd:      ml,
+		}, nil
+	}
+	return nil, nil
 }

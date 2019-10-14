@@ -62,13 +62,9 @@ TEXT ·log10Asm(SB),NOSPLIT,$8-16
 	BYTE    $0xFF
 	WORD    $0x5840F008     //l %r4, 8(%r15)
 	SUBW    R4, R2, R3
-	WORD    $0xEC5320AF     //risbg %r5,%r3,32,128+47,0
-	BYTE    $0x00
-	BYTE    $0x55
+	RISBGZ	$32, $47, $0, R3, R5
 	MOVH    $0x0, R1
-	WORD    $0xEC15001F     //risbgn %r1,%r5,64-64+0,64-64+0+32-1,64-0-32
-	BYTE    $0x20
-	BYTE    $0x59
+	RISBGN	$0, $31, $32, R5, R1
 	WORD    $0xC0590016     //iilf %r5,1507327
 	BYTE    $0xFF
 	BYTE    $0xFF
@@ -94,13 +90,9 @@ L2:
 	BYTE    $0x1C
 	FMOVD   F0, x-8(SP)
 	WORD    $0x5B20F008     //s %r2, 8(%r15)
-	WORD    $0xEC3239BC     //risbg %r3,%r2,57,128+60,64-13
-	BYTE    $0x33
-	BYTE    $0x55
+	RISBGZ	$57, $60, $51, R2, R3
 	ANDW    $0xFFFF0000, R2
-	WORD    $0xEC12001F     //risbgn %r1,%r2,64-64+0,64-64+0+32-1,64-0-32
-	BYTE    $0x20
-	BYTE    $0x59
+	RISBGN	$0, $31, $32, R2, R1
 	ADDW    $0x4000000, R2
 	BLEU    L17
 L8:
@@ -122,9 +114,7 @@ L4:
 	FMOVD   log10rodataL19<>+72(SB), F1
 	WFMADB  V0, V2, V1, V2
 	FMOVD   log10rodataL19<>+64(SB), F1
-	WORD    $0xEC3339BC     //risbg %r3,%r3,57,128+60,0
-	BYTE    $0x00
-	BYTE    $0x55
+	RISBGZ	$57, $60, $0, R3, R3
 	WFMADB  V4, V6, V2, V6
 	FMOVD   log10rodataL19<>+56(SB), F2
 	WFMADB  V0, V1, V2, V1
@@ -145,12 +135,8 @@ L4:
 	RET
 
 L16:
-	WORD    $0xEC2328B7     //risbg %r2,%r3,40,128+55,64-8
-	BYTE    $0x38
-	BYTE    $0x55
-	WORD    $0xEC3339BC     //risbg %r3,%r3,57,128+60,64-13
-	BYTE    $0x33
-	BYTE    $0x55
+	RISBGZ	$40, $55, $56, R3, R2
+	RISBGZ	$57, $60, $51, R3, R3
 	ORW     $0x45000000, R2
 	BR      L4
 L13:

@@ -48,7 +48,6 @@
 #define SYS_mincore		218
 #define SYS_madvise		219
 #define SYS_gettid		224
-#define SYS_tkill		238
 #define SYS_futex		240
 #define SYS_sched_getaffinity	242
 #define SYS_set_thread_area	243
@@ -57,6 +56,7 @@
 #define SYS_epoll_ctl		255
 #define SYS_epoll_wait		256
 #define SYS_clock_gettime	265
+#define SYS_tgkill		270
 #define SYS_epoll_create1	329
 
 TEXT runtime·exit(SB),NOSPLIT,$0
@@ -107,7 +107,7 @@ TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVL	AX, ret+4(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$0
+TEXT runtime·write1(SB),NOSPLIT,$0
 	MOVL	$SYS_write, AX
 	MOVL	fd+0(FP), BX
 	MOVL	p+4(FP), CX
@@ -155,11 +155,14 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT,$12
+	MOVL	$SYS_getpid, AX
+	INVOKE_SYSCALL
+	MOVL	AX, BX	// arg 1 pid
 	MOVL	$SYS_gettid, AX
 	INVOKE_SYSCALL
-	MOVL	AX, BX	// arg 1 tid
-	MOVL	sig+0(FP), CX	// arg 2 signal
-	MOVL	$SYS_tkill, AX
+	MOVL	AX, CX	// arg 2 tid
+	MOVL	sig+0(FP), DX	// arg 3 signal
+	MOVL	$SYS_tgkill, AX
 	INVOKE_SYSCALL
 	RET
 
@@ -189,8 +192,8 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-16
 	MOVL	AX, ret+12(FP)
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB), NOSPLIT, $0-12
+// func walltime1() (sec int64, nsec int32)
+TEXT runtime·walltime1(SB), NOSPLIT, $0-12
 	// We don't know how much stack space the VDSO code will need,
 	// so switch to g0.
 
@@ -254,7 +257,7 @@ finish:
 
 // int64 nanotime(void) so really
 // void nanotime(int64 *nsec)
-TEXT runtime·nanotime(SB), NOSPLIT, $0-8
+TEXT runtime·nanotime1(SB), NOSPLIT, $0-8
 	// Switch to g0 stack. See comment above in runtime·walltime.
 
 	MOVL	SP, BP	// Save old SP; BP unchanged by C code.
@@ -424,7 +427,7 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVL	n+4(FP), CX
 	MOVL	flags+8(FP), DX
 	INVOKE_SYSCALL
-	// ignore failure - maybe pages are locked
+	MOVL	AX, ret+12(FP)
 	RET
 
 // int32 futex(int32 *uaddr, int32 op, int32 val,
@@ -471,6 +474,7 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	RET
 
 	// Paranoia: check that SP is as we expect.
+	NOP	SP // tell vet SP changed - stop checking offsets
 	MOVL	12(SP), BP
 	CMPL	BP, $1234
 	JEQ	2(PC)
@@ -569,15 +573,11 @@ GLOBL runtime·tls_entry_number(SB), NOPTR, $4
 // The name, setldt, is a misnomer, although we leave this name as it is for
 // the compatibility with other platforms.
 TEXT runtime·setldt(SB),NOSPLIT,$32
-	MOVL	address+4(FP), DX	// base address
+	MOVL	base+4(FP), DX
 
 #ifdef GOOS_android
-	/*
-	 * Same as in sys_darwin_386.s:/ugliness, different constant.
-	 * address currently holds m->tls, which must be %gs:0xf8.
-	 * See cgo/gcc_android_386.c for the derivation of the constant.
-	 */
-	SUBL	$0xf8, DX
+	// Android stores the TLS offset in runtime·tls_g.
+	SUBL	runtime·tls_g(SB), DX
 	MOVL	DX, 0(DX)
 #else
 	/*

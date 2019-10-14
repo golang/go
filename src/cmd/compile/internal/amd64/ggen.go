@@ -94,7 +94,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Pr
 		if cnt%16 != 0 {
 			p = pp.Appendpp(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_MEM, x86.REG_SP, off+cnt-int64(16))
 		}
-	} else if !gc.Nacl && !isPlan9 && (cnt <= int64(128*gc.Widthreg)) {
+	} else if !isPlan9 && (cnt <= int64(128*gc.Widthreg)) {
 		if *state&x0 == 0 {
 			p = pp.Appendpp(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_REG, x86.REG_X0, 0)
 			*state |= x0
@@ -141,13 +141,17 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
 	}
 }
 
-func ginsnop(pp *gc.Progs) {
-	// This is actually not the x86 NOP anymore,
-	// but at the point where it gets used, AX is dead
-	// so it's okay if we lose the high bits.
+func ginsnop(pp *gc.Progs) *obj.Prog {
+	// This is a hardware nop (1-byte 0x90) instruction,
+	// even though we describe it as an explicit XCHGL here.
+	// Particularly, this does not zero the high 32 bits
+	// like typical *L opcodes.
+	// (gas assembles "xchg %eax,%eax" to 0x87 0xc0, which
+	// does zero the high 32 bits.)
 	p := pp.Prog(x86.AXCHGL)
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = x86.REG_AX
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = x86.REG_AX
+	return p
 }

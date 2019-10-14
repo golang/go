@@ -110,16 +110,16 @@ func hasNil(typ Type) bool {
 	return false
 }
 
-// Identical reports whether x and y are identical types.
+// identical reports whether x and y are identical types.
 // Receivers of Signature types are ignored.
-func Identical(x, y Type) bool {
-	return identical(x, y, true, nil)
+func (check *Checker) identical(x, y Type) bool {
+	return check.identical0(x, y, true, nil)
 }
 
-// IdenticalIgnoreTags reports whether x and y are identical types if tags are ignored.
+// identicalIgnoreTags reports whether x and y are identical types if tags are ignored.
 // Receivers of Signature types are ignored.
-func IdenticalIgnoreTags(x, y Type) bool {
-	return identical(x, y, false, nil)
+func (check *Checker) identicalIgnoreTags(x, y Type) bool {
+	return check.identical0(x, y, false, nil)
 }
 
 // An ifacePair is a node in a stack of interface type pairs compared for identity.
@@ -132,7 +132,7 @@ func (p *ifacePair) identical(q *ifacePair) bool {
 	return p.x == q.x && p.y == q.y || p.x == q.y && p.y == q.x
 }
 
-func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 	if x == y {
 		return true
 	}
@@ -152,13 +152,13 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 		if y, ok := y.(*Array); ok {
 			// If one or both array lengths are unknown (< 0) due to some error,
 			// assume they are the same to avoid spurious follow-on errors.
-			return (x.len < 0 || y.len < 0 || x.len == y.len) && identical(x.elem, y.elem, cmpTags, p)
+			return (x.len < 0 || y.len < 0 || x.len == y.len) && check.identical0(x.elem, y.elem, cmpTags, p)
 		}
 
 	case *Slice:
 		// Two slice types are identical if they have identical element types.
 		if y, ok := y.(*Slice); ok {
-			return identical(x.elem, y.elem, cmpTags, p)
+			return check.identical0(x.elem, y.elem, cmpTags, p)
 		}
 
 	case *Struct:
@@ -173,7 +173,7 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 					if f.embedded != g.embedded ||
 						cmpTags && x.Tag(i) != y.Tag(i) ||
 						!f.sameId(g.pkg, g.name) ||
-						!identical(f.typ, g.typ, cmpTags, p) {
+						!check.identical0(f.typ, g.typ, cmpTags, p) {
 						return false
 					}
 				}
@@ -184,7 +184,7 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 	case *Pointer:
 		// Two pointer types are identical if they have identical base types.
 		if y, ok := y.(*Pointer); ok {
-			return identical(x.base, y.base, cmpTags, p)
+			return check.identical0(x.base, y.base, cmpTags, p)
 		}
 
 	case *Tuple:
@@ -195,7 +195,7 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 				if x != nil {
 					for i, v := range x.vars {
 						w := y.vars[i]
-						if !identical(v.typ, w.typ, cmpTags, p) {
+						if !check.identical0(v.typ, w.typ, cmpTags, p) {
 							return false
 						}
 					}
@@ -211,8 +211,8 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 		// names are not required to match.
 		if y, ok := y.(*Signature); ok {
 			return x.variadic == y.variadic &&
-				identical(x.params, y.params, cmpTags, p) &&
-				identical(x.results, y.results, cmpTags, p)
+				check.identical0(x.params, y.params, cmpTags, p) &&
+				check.identical0(x.results, y.results, cmpTags, p)
 		}
 
 	case *Interface:
@@ -220,6 +220,14 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 		// the same names and identical function types. Lower-case method names from
 		// different packages are always different. The order of the methods is irrelevant.
 		if y, ok := y.(*Interface); ok {
+			// If identical0 is called (indirectly) via an external API entry point
+			// (such as Identical, IdenticalIgnoreTags, etc.), check is nil. But in
+			// that case, interfaces are expected to be complete and lazy completion
+			// here is not needed.
+			if check != nil {
+				check.completeInterface(x)
+				check.completeInterface(y)
+			}
 			a := x.allMethods
 			b := y.allMethods
 			if len(a) == len(b) {
@@ -258,7 +266,7 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 				}
 				for i, f := range a {
 					g := b[i]
-					if f.Id() != g.Id() || !identical(f.typ, g.typ, cmpTags, q) {
+					if f.Id() != g.Id() || !check.identical0(f.typ, g.typ, cmpTags, q) {
 						return false
 					}
 				}
@@ -269,14 +277,14 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 	case *Map:
 		// Two map types are identical if they have identical key and value types.
 		if y, ok := y.(*Map); ok {
-			return identical(x.key, y.key, cmpTags, p) && identical(x.elem, y.elem, cmpTags, p)
+			return check.identical0(x.key, y.key, cmpTags, p) && check.identical0(x.elem, y.elem, cmpTags, p)
 		}
 
 	case *Chan:
 		// Two channel types are identical if they have identical value types
 		// and the same direction.
 		if y, ok := y.(*Chan); ok {
-			return x.dir == y.dir && identical(x.elem, y.elem, cmpTags, p)
+			return x.dir == y.dir && check.identical0(x.elem, y.elem, cmpTags, p)
 		}
 
 	case *Named:

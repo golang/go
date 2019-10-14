@@ -12,6 +12,11 @@ license that can be found in the LICENSE file.
 </head>
 
 <body>
+	<!--
+	Add the following polyfill for Microsoft Edge 17/18 support:
+	<script src="https://cdn.jsdelivr.net/npm/text-encoding@0.7.0/lib/encoding.min.js"></script>
+	(see https://caniuse.com/#feat=textencoder)
+	-->
 	<script src="wasm_exec.js"></script>
 	<script>
 		if (!WebAssembly.instantiateStreaming) { // polyfill
@@ -27,6 +32,8 @@ license that can be found in the LICENSE file.
 			mod = result.module;
 			inst = result.instance;
 			document.getElementById("runButton").disabled = false;
+		}).catch((err) => {
+			console.error(err);
 		});
 
 		async function run() {

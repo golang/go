@@ -50,19 +50,31 @@ func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int) error) (in
 	h.gp = gp
 	h.fv, h.argp, h.argSize = fv, argp, argSize
 	h.handleF = h.handle // Avoid allocating closure during signal
-	noteclear(&h.done)
 
 	defer func() { testSigtrap = nil }()
-	testSigtrap = h.inject
-	if err := tkill(tid); err != nil {
-		return nil, err
+	for i := 0; ; i++ {
+		testSigtrap = h.inject
+		noteclear(&h.done)
+		h.err = ""
+
+		if err := tkill(tid); err != nil {
+			return nil, err
+		}
+		// Wait for completion.
+		notetsleepg(&h.done, -1)
+		if h.err != "" {
+			switch h.err {
+			case "retry _Grunnable", "executing on Go runtime stack":
+				// These are transient states. Try to get out of them.
+				if i < 100 {
+					Gosched()
+					continue
+				}
+			}
+			return nil, h.err
+		}
+		return h.panic, nil
 	}
-	// Wait for completion.
-	notetsleepg(&h.done, -1)
-	if len(h.err) != 0 {
-		return nil, h.err
-	}
-	return h.panic, nil
 }
 
 type debugCallHandler struct {
@@ -99,12 +111,18 @@ func (h *debugCallHandler) inject(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
 		h.savedRegs.fpstate = nil
 		// Set PC to debugCallV1.
 		ctxt.set_rip(uint64(funcPC(debugCallV1)))
+		// Call injected. Switch to the debugCall protocol.
+		testSigtrap = h.handleF
+	case _Grunnable:
+		// Ask InjectDebugCall to pause for a bit and then try
+		// again to interrupt this goroutine.
+		h.err = plainError("retry _Grunnable")
+		notewakeup(&h.done)
 	default:
 		h.err = plainError("goroutine in unexpected state at call inject")
-		return true
+		notewakeup(&h.done)
 	}
-	// Switch to the debugCall protocol and resume execution.
-	testSigtrap = h.handleF
+	// Resume execution.
 	return true
 }
 
@@ -149,6 +167,7 @@ func (h *debugCallHandler) handle(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
 		sp := ctxt.rsp()
 		reason := *(*string)(unsafe.Pointer(uintptr(sp)))
 		h.err = plainError(reason)
+		// Don't wake h.done. We need to transition to status 16 first.
 	case 16:
 		// Restore all registers except RIP and RSP.
 		rip, rsp := ctxt.rip(), ctxt.rsp()
@@ -162,6 +181,7 @@ func (h *debugCallHandler) handle(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
 		notewakeup(&h.done)
 	default:
 		h.err = plainError("unexpected debugCallV1 status")
+		notewakeup(&h.done)
 	}
 	// Resume execution.
 	return true

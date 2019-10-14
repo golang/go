@@ -37,7 +37,7 @@ ongothread:
 
 	// Build a 32-byte stack frame for us for this call.
 	// Saved LR (none available) is at the bottom,
-	// then the PC argument for setsigsegv, 
+	// then the PC argument for setsigsegv,
 	// then a copy of the LR for us to restore.
 	MOVD.W $0, -32(RSP)
 	MOVD R1, 8(RSP)

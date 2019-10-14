@@ -5,17 +5,19 @@
 package modcmd
 
 import (
+	"cmd/go/internal/cfg"
+	"encoding/json"
+	"os"
+
 	"cmd/go/internal/base"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/module"
 	"cmd/go/internal/par"
-	"encoding/json"
-	"os"
 )
 
 var cmdDownload = &base.Command{
-	UsageLine: "go mod download [-dir] [-json] [modules]",
+	UsageLine: "go mod download [-json] [modules]",
 	Short:     "download modules to local cache",
 	Long: `
 Download downloads the named modules, which can be module patterns selecting
@@ -66,6 +68,13 @@ type moduleJSON struct {
 }
 
 func runDownload(cmd *base.Command, args []string) {
+	// Check whether modules are enabled and whether we're in a module.
+	if cfg.Getenv("GO111MODULE") == "off" {
+		base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
+	}
+	if !modload.HasModRoot() && len(args) == 0 {
+		base.Fatalf("go mod download: no modules specified (see 'go help mod download')")
+	}
 	if len(args) == 0 {
 		args = []string{"all"}
 	}
@@ -78,7 +87,8 @@ func runDownload(cmd *base.Command, args []string) {
 		if info.Replace != nil {
 			info = info.Replace
 		}
-		if info.Version == "" {
+		if info.Version == "" && info.Error == nil {
+			// main module
 			continue
 		}
 		m := &moduleJSON{
@@ -86,6 +96,10 @@ func runDownload(cmd *base.Command, args []string) {
 			Version: info.Version,
 		}
 		mods = append(mods, m)
+		if info.Error != nil {
+			m.Error = info.Error.Err
+			continue
+		}
 		work.Add(m)
 	}
 
@@ -128,6 +142,16 @@ func runDownload(cmd *base.Command, args []string) {
 				base.Fatalf("%v", err)
 			}
 			os.Stdout.Write(append(b, '\n'))
+			if m.Error != "" {
+				base.SetExitStatus(1)
+			}
 		}
+	} else {
+		for _, m := range mods {
+			if m.Error != "" {
+				base.Errorf("%s", m.Error)
+			}
+		}
+		base.ExitIfErrors()
 	}
 }

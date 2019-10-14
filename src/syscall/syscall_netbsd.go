@@ -52,7 +52,6 @@ func sysctlNodes(mib []_C_int) (nodes []Sysctlnode, err error) {
 }
 
 func nametomib(name string) (mib []_C_int, err error) {
-
 	// Split name into components.
 	var parts []string
 	last := 0
@@ -234,3 +233,4 @@ func setattrlistTimes(path string, times []Timespec) error {
 //sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
 //sys	getcwd(buf []byte) (n int, err error) = SYS___GETCWD
+//sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL

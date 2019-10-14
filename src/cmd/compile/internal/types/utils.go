@@ -11,9 +11,6 @@ import (
 
 const BADWIDTH = -1000000000
 
-// Initialized by frontend. Exists only here.
-var Tptr EType // either TPTR32 or TPTR64
-
 // The following variables must be initialized early by the frontend.
 // They are here to break import cycles.
 // TODO(gri) eliminate these dependencies.

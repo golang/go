@@ -12,14 +12,15 @@ import (
 
 // makeFuncImpl is the closure value implementing the function
 // returned by MakeFunc.
-// The first two words of this type must be kept in sync with
+// The first three words of this type must be kept in sync with
 // methodValue and runtime.reflectMethodValue.
 // Any changes should be reflected in all three.
 type makeFuncImpl struct {
-	code  uintptr
-	stack *bitVector
-	typ   *funcType
-	fn    func([]Value) []Value
+	code   uintptr
+	stack  *bitVector // ptrmap for both args and results
+	argLen uintptr    // just args
+	ftyp   *funcType
+	fn     func([]Value) []Value
 }
 
 // MakeFunc returns a new function of the given Type
@@ -59,9 +60,9 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
 	code := **(**uintptr)(unsafe.Pointer(&dummy))
 
 	// makeFuncImpl contains a stack map for use by the runtime
-	_, _, _, stack, _ := funcLayout(t, nil)
+	_, argLen, _, stack, _ := funcLayout(ftyp, nil)
 
-	impl := &makeFuncImpl{code: code, stack: stack, typ: ftyp, fn: fn}
+	impl := &makeFuncImpl{code: code, stack: stack, argLen: argLen, ftyp: ftyp, fn: fn}
 
 	return Value{t, unsafe.Pointer(impl), flag(Func)}
 }
@@ -73,12 +74,13 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
 // word in the passed-in argument frame.
 func makeFuncStub()
 
-// The first two words of this type must be kept in sync with
+// The first 3 words of this type must be kept in sync with
 // makeFuncImpl and runtime.reflectMethodValue.
 // Any changes should be reflected in all three.
 type methodValue struct {
 	fn     uintptr
-	stack  *bitVector
+	stack  *bitVector // ptrmap for both args and results
+	argLen uintptr    // just args
 	method int
 	rcvr   Value
 }
@@ -101,7 +103,7 @@ func makeMethodValue(op string, v Value) Value {
 	rcvr := Value{v.typ, v.ptr, fl}
 
 	// v.Type returns the actual type of the method value.
-	funcType := v.Type().(*rtype)
+	ftyp := (*funcType)(unsafe.Pointer(v.Type().(*rtype)))
 
 	// Indirect Go func value (dummy) to obtain
 	// actual code address. (A Go func value is a pointer
@@ -110,11 +112,12 @@ func makeMethodValue(op string, v Value) Value {
 	code := **(**uintptr)(unsafe.Pointer(&dummy))
 
 	// methodValue contains a stack map for use by the runtime
-	_, _, _, stack, _ := funcLayout(funcType, nil)
+	_, argLen, _, stack, _ := funcLayout(ftyp, nil)
 
 	fv := &methodValue{
 		fn:     code,
 		stack:  stack,
+		argLen: argLen,
 		method: int(v.flag) >> flagMethodShift,
 		rcvr:   rcvr,
 	}
@@ -124,7 +127,7 @@ func makeMethodValue(op string, v Value) Value {
 	// but we want Interface() and other operations to fail early.
 	methodReceiver(op, fv.rcvr, fv.method)
 
-	return Value{funcType, unsafe.Pointer(fv), v.flag&flagRO | flag(Func)}
+	return Value{&ftyp.rtype, unsafe.Pointer(fv), v.flag&flagRO | flag(Func)}
 }
 
 // methodValueCall is an assembly function that is the code half of

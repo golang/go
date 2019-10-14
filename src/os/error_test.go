@@ -5,6 +5,7 @@
 package os_test
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -26,7 +27,7 @@ func TestErrIsExist(t *testing.T) {
 		t.Fatal("Open should have failed")
 		return
 	}
-	if s := checkErrorPredicate("os.IsExist", os.IsExist, err); s != "" {
+	if s := checkErrorPredicate("os.IsExist", os.IsExist, err, os.ErrExist); s != "" {
 		t.Fatal(s)
 		return
 	}
@@ -38,7 +39,7 @@ func testErrNotExist(name string) string {
 		f.Close()
 		return "Open should have failed"
 	}
-	if s := checkErrorPredicate("os.IsNotExist", os.IsNotExist, err); s != "" {
+	if s := checkErrorPredicate("os.IsNotExist", os.IsNotExist, err, os.ErrNotExist); s != "" {
 		return s
 	}
 
@@ -46,7 +47,7 @@ func testErrNotExist(name string) string {
 	if err == nil {
 		return "Chdir should have failed"
 	}
-	if s := checkErrorPredicate("os.IsNotExist", os.IsNotExist, err); s != "" {
+	if s := checkErrorPredicate("os.IsNotExist", os.IsNotExist, err, os.ErrNotExist); s != "" {
 		return s
 	}
 	return ""
@@ -73,9 +74,12 @@ func TestErrIsNotExist(t *testing.T) {
 	}
 }
 
-func checkErrorPredicate(predName string, pred func(error) bool, err error) string {
+func checkErrorPredicate(predName string, pred func(error) bool, err, target error) string {
 	if !pred(err) {
 		return fmt.Sprintf("%s does not work as expected for %#v", predName, err)
+	}
+	if !errors.Is(err, target) {
+		return fmt.Sprintf("errors.Is(%#v, %#v) = false, want true", err, target)
 	}
 	return ""
 }
@@ -107,8 +111,14 @@ func TestIsExist(t *testing.T) {
 		if is := os.IsExist(tt.err); is != tt.is {
 			t.Errorf("os.IsExist(%T %v) = %v, want %v", tt.err, tt.err, is, tt.is)
 		}
+		if is := errors.Is(tt.err, os.ErrExist); is != tt.is {
+			t.Errorf("errors.Is(%T %v, os.ErrExist) = %v, want %v", tt.err, tt.err, is, tt.is)
+		}
 		if isnot := os.IsNotExist(tt.err); isnot != tt.isnot {
 			t.Errorf("os.IsNotExist(%T %v) = %v, want %v", tt.err, tt.err, isnot, tt.isnot)
+		}
+		if isnot := errors.Is(tt.err, os.ErrNotExist); isnot != tt.isnot {
+			t.Errorf("errors.Is(%T %v, os.ErrNotExist) = %v, want %v", tt.err, tt.err, isnot, tt.isnot)
 		}
 	}
 }
@@ -128,6 +138,9 @@ func TestIsPermission(t *testing.T) {
 	for _, tt := range isPermissionTests {
 		if got := os.IsPermission(tt.err); got != tt.want {
 			t.Errorf("os.IsPermission(%#v) = %v; want %v", tt.err, got, tt.want)
+		}
+		if got := errors.Is(tt.err, os.ErrPermission); got != tt.want {
+			t.Errorf("errors.Is(%#v, os.ErrPermission) = %v; want %v", tt.err, got, tt.want)
 		}
 	}
 }
@@ -153,5 +166,22 @@ func TestErrPathNUL(t *testing.T) {
 	if err == nil {
 		f2.Close()
 		t.Fatal("Open should have failed")
+	}
+}
+
+func TestPathErrorUnwrap(t *testing.T) {
+	pe := &os.PathError{Err: os.ErrInvalid}
+	if !errors.Is(pe, os.ErrInvalid) {
+		t.Error("errors.Is failed, wanted success")
+	}
+}
+
+type myErrorIs struct{ error }
+
+func (e myErrorIs) Is(target error) bool { return target == e.error }
+
+func TestErrorIsMethods(t *testing.T) {
+	if os.IsPermission(myErrorIs{os.ErrPermission}) {
+		t.Error("os.IsPermission(err) = true when err.Is(os.ErrPermission), wanted false")
 	}
 }

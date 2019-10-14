@@ -8,6 +8,7 @@ package syscall
 
 import (
 	errorspkg "errors"
+	"internal/oserror"
 	"internal/race"
 	"runtime"
 	"sync"
@@ -76,6 +77,12 @@ func UTF16PtrFromString(s string) (*uint16, error) {
 }
 
 // Errno is the Windows error number.
+//
+// Errno values can be tested against error values from the os package
+// using errors.Is. For example:
+//
+//	_, _, err := syscall.Syscall(...)
+//	if errors.Is(err, os.ErrNotExist) ...
 type Errno uintptr
 
 func langid(pri, sub uint16) uint32 { return uint32(sub)<<10 | uint32(pri) }
@@ -110,6 +117,24 @@ func (e Errno) Error() string {
 	return string(utf16.Decode(b[:n]))
 }
 
+const _ERROR_BAD_NETPATH = Errno(53)
+
+func (e Errno) Is(target error) bool {
+	switch target {
+	case oserror.ErrPermission:
+		return e == ERROR_ACCESS_DENIED
+	case oserror.ErrExist:
+		return e == ERROR_ALREADY_EXISTS ||
+			e == ERROR_DIR_NOT_EMPTY ||
+			e == ERROR_FILE_EXISTS
+	case oserror.ErrNotExist:
+		return e == ERROR_FILE_NOT_FOUND ||
+			e == _ERROR_BAD_NETPATH ||
+			e == ERROR_PATH_NOT_FOUND
+	}
+	return false
+}
+
 func (e Errno) Temporary() bool {
 	return e == EINTR || e == EMFILE || e.Timeout()
 }
@@ -123,14 +148,14 @@ func compileCallback(fn interface{}, cleanstack bool) uintptr
 
 // NewCallback converts a Go function to a function pointer conforming to the stdcall calling convention.
 // This is useful when interoperating with Windows code requiring callbacks.
-// The argument is expected to be a function with with one uintptr-sized result. The function must not have arguments with size larger than the size of uintptr.
+// The argument is expected to be a function with one uintptr-sized result. The function must not have arguments with size larger than the size of uintptr.
 func NewCallback(fn interface{}) uintptr {
 	return compileCallback(fn, true)
 }
 
 // NewCallbackCDecl converts a Go function to a function pointer conforming to the cdecl calling convention.
 // This is useful when interoperating with Windows code requiring callbacks.
-// The argument is expected to be a function with with one uintptr-sized result. The function must not have arguments with size larger than the size of uintptr.
+// The argument is expected to be a function with one uintptr-sized result. The function must not have arguments with size larger than the size of uintptr.
 func NewCallbackCDecl(fn interface{}) uintptr {
 	return compileCallback(fn, false)
 }
@@ -544,9 +569,6 @@ func Fsync(fd Handle) (err error) {
 }
 
 func Chmod(path string, mode uint32) (err error) {
-	if mode == 0 {
-		return EINVAL
-	}
 	p, e := UTF16PtrFromString(path)
 	if e != nil {
 		return e

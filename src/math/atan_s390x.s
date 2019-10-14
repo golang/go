@@ -55,9 +55,7 @@ TEXT	·atanAsm(SB), NOSPLIT, $0-16
 	MOVD	$·atanrodataL8<>+0(SB), R5
 	MOVH	$0x3FE0, R3
 	LGDR	F0, R1
-	WORD	$0xEC1120BF	//risbgn	%r1,%r1,64-32,128+63,64+0+32
-	BYTE	$0x60
-	BYTE	$0x59
+	RISBGNZ	$32, $63, $32, R1, R1
 	RLL	$16, R1, R2
 	ANDW	$0x7FF0, R2
 	MOVW	R2, R6
@@ -66,9 +64,7 @@ TEXT	·atanAsm(SB), NOSPLIT, $0-16
 	MOVD	$·atanxmone<>+0(SB), R3
 	FMOVD	0(R3), F2
 	WFDDB	V0, V2, V0
-	WORD	$0xEC113FBF	//risbg	%r1,%r1,64-1,128+63,64+32+1
-	BYTE	$0x61
-	BYTE	$0x55
+	RISBGZ	$63, $63, $33, R1, R1
 	MOVD	$·atanxpi2h<>+0(SB), R3
 	MOVWZ	R1, R1
 	SLD	$3, R1, R1

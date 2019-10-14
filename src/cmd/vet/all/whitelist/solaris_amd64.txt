@@ -1,6 +1,0 @@
-// solaris/amd64-specific vet whitelist. See readme.txt for details.
-
-runtime/sys_solaris_amd64.s: [amd64] settls: function settls missing Go declaration
-runtime/sys_solaris_amd64.s: [amd64] pipe1: function pipe1 missing Go declaration
-runtime/sys_solaris_amd64.s: [amd64] asmsysvicall6: function asmsysvicall6 missing Go declaration
-runtime/sys_solaris_amd64.s: [amd64] usleep2: function usleep2 missing Go declaration

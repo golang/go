@@ -23,11 +23,12 @@ func EncodedLen(n int) int { return n * 2 }
 // of bytes written to dst, but this value is always EncodedLen(len(src)).
 // Encode implements hexadecimal encoding.
 func Encode(dst, src []byte) int {
-	for i, v := range src {
-		dst[i*2] = hextable[v>>4]
-		dst[i*2+1] = hextable[v&0x0f]
+	j := 0
+	for _, v := range src {
+		dst[j] = hextable[v>>4]
+		dst[j+1] = hextable[v&0x0f]
+		j += 2
 	}
-
 	return len(src) * 2
 }
 
@@ -55,23 +56,24 @@ func DecodedLen(x int) int { return x / 2 }
 // If the input is malformed, Decode returns the number
 // of bytes decoded before the error.
 func Decode(dst, src []byte) (int, error) {
-	var i int
-	for i = 0; i < len(src)/2; i++ {
-		a, ok := fromHexChar(src[i*2])
+	i, j := 0, 1
+	for ; j < len(src); j += 2 {
+		a, ok := fromHexChar(src[j-1])
 		if !ok {
-			return i, InvalidByteError(src[i*2])
+			return i, InvalidByteError(src[j-1])
 		}
-		b, ok := fromHexChar(src[i*2+1])
+		b, ok := fromHexChar(src[j])
 		if !ok {
-			return i, InvalidByteError(src[i*2+1])
+			return i, InvalidByteError(src[j])
 		}
 		dst[i] = (a << 4) | b
+		i++
 	}
 	if len(src)%2 == 1 {
 		// Check for invalid char before reporting bad length,
 		// since the invalid char (if present) is an earlier problem.
-		if _, ok := fromHexChar(src[i*2]); !ok {
-			return i, InvalidByteError(src[i*2])
+		if _, ok := fromHexChar(src[j-1]); !ok {
+			return i, InvalidByteError(src[j-1])
 		}
 		return i, ErrLength
 	}

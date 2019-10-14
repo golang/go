@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"math"
 	"sort"
 )
 
@@ -155,4 +156,25 @@ func ExampleSign() {
 	//  1 1
 	//  1 (0 + 1i)
 	//  1 (1 + 1i)
+}
+
+func ExampleVal() {
+	maxint := constant.MakeInt64(math.MaxInt64)
+	fmt.Printf("%v\n", constant.Val(maxint))
+
+	e := constant.MakeFloat64(math.E)
+	fmt.Printf("%v\n", constant.Val(e))
+
+	b := constant.MakeBool(true)
+	fmt.Printf("%v\n", constant.Val(b))
+
+	b = constant.Make(false)
+	fmt.Printf("%v\n", constant.Val(b))
+
+	// Output:
+	//
+	// 9223372036854775807
+	// 6121026514868073/2251799813685248
+	// true
+	// false
 }

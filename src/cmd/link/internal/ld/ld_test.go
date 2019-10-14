@@ -14,6 +14,7 @@ import (
 )
 
 func TestUndefinedRelocErrors(t *testing.T) {
+	t.Parallel()
 	testenv.MustHaveGoBuild(t)
 	dir, err := ioutil.TempDir("", "go-build")
 	if err != nil {

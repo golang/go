@@ -29,6 +29,7 @@ const (
 //go:cgo_import_dynamic runtime._GetProcessAffinityMask GetProcessAffinityMask%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetQueuedCompletionStatus GetQueuedCompletionStatus%5 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetStdHandle GetStdHandle%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetSystemDirectoryA GetSystemDirectoryA%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetSystemInfo GetSystemInfo%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetThreadContext GetThreadContext%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW%1 "kernel32.dll"
@@ -43,15 +44,14 @@ const (
 //go:cgo_import_dynamic runtime._SetWaitableTimer SetWaitableTimer%6 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SuspendThread SuspendThread%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SwitchToThread SwitchToThread%0 "kernel32.dll"
+//go:cgo_import_dynamic runtime._TlsAlloc TlsAlloc%0 "kernel32.dll"
 //go:cgo_import_dynamic runtime._VirtualAlloc VirtualAlloc%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._VirtualFree VirtualFree%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._VirtualQuery VirtualQuery%3 "kernel32.dll"
-//go:cgo_import_dynamic runtime._WSAGetOverlappedResult WSAGetOverlappedResult%5 "ws2_32.dll"
 //go:cgo_import_dynamic runtime._WaitForSingleObject WaitForSingleObject%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._WaitForMultipleObjects WaitForMultipleObjects%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WriteConsoleW WriteConsoleW%5 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WriteFile WriteFile%5 "kernel32.dll"
-//go:cgo_import_dynamic runtime._timeBeginPeriod timeBeginPeriod%1 "winmm.dll"
-//go:cgo_import_dynamic runtime._timeEndPeriod timeEndPeriod%1 "winmm.dll"
 
 type stdFunction unsafe.Pointer
 
@@ -74,6 +74,7 @@ var (
 	_GetProcessAffinityMask,
 	_GetQueuedCompletionStatus,
 	_GetStdHandle,
+	_GetSystemDirectoryA,
 	_GetSystemInfo,
 	_GetSystemTimeAsFileTime,
 	_GetThreadContext,
@@ -91,15 +92,14 @@ var (
 	_SetWaitableTimer,
 	_SuspendThread,
 	_SwitchToThread,
+	_TlsAlloc,
 	_VirtualAlloc,
 	_VirtualFree,
 	_VirtualQuery,
-	_WSAGetOverlappedResult,
 	_WaitForSingleObject,
+	_WaitForMultipleObjects,
 	_WriteConsoleW,
 	_WriteFile,
-	_timeBeginPeriod,
-	_timeEndPeriod,
 	_ stdFunction
 
 	// Following syscalls are only available on some Windows PCs.
@@ -107,6 +107,7 @@ var (
 	_AddDllDirectory,
 	_AddVectoredContinueHandler,
 	_GetQueuedCompletionStatusEx,
+	_LoadLibraryExA,
 	_LoadLibraryExW,
 	_ stdFunction
 
@@ -124,16 +125,24 @@ var (
 	// links wrong printf function to cgo executable (see issue
 	// 12030 for details).
 	_NtWaitForSingleObject stdFunction
+
+	// These are from non-kernel32.dll, so we prefer to LoadLibraryEx them.
+	_timeBeginPeriod,
+	_timeEndPeriod,
+	_WSAGetOverlappedResult,
+	_ stdFunction
 )
 
 // Function to be called by windows CreateThread
 // to start new os thread.
-func tstart_stdcall(newm *m) uint32
+func tstart_stdcall(newm *m)
 
-func ctrlhandler(_type uint32) uint32
+// Called by OS using stdcall ABI.
+func ctrlhandler()
 
 type mOS struct {
-	waitsema uintptr // semaphore for parking on locks
+	waitsema   uintptr // semaphore for parking on locks
+	resumesema uintptr // semaphore to indicate suspend/resume
 }
 
 //go:linkname os_sigpipe os.sigpipe
@@ -171,6 +180,26 @@ func windowsFindfunc(lib uintptr, name []byte) stdFunction {
 	return stdFunction(unsafe.Pointer(f))
 }
 
+var sysDirectory [521]byte
+var sysDirectoryLen uintptr
+
+func windowsLoadSystemLib(name []byte) uintptr {
+	if useLoadLibraryEx {
+		return stdcall3(_LoadLibraryExA, uintptr(unsafe.Pointer(&name[0])), 0, _LOAD_LIBRARY_SEARCH_SYSTEM32)
+	} else {
+		if sysDirectoryLen == 0 {
+			l := stdcall2(_GetSystemDirectoryA, uintptr(unsafe.Pointer(&sysDirectory[0])), uintptr(len(sysDirectory)-1))
+			if l == 0 || l > uintptr(len(sysDirectory)-1) {
+				throw("Unable to determine system directory")
+			}
+			sysDirectory[l] = '\\'
+			sysDirectoryLen = l + 1
+		}
+		absName := append(sysDirectory[:sysDirectoryLen], name...)
+		return stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&absName[0])))
+	}
+}
+
 func loadOptionalSyscalls() {
 	var kernel32dll = []byte("kernel32.dll\000")
 	k32 := stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&kernel32dll[0])))
@@ -180,25 +209,89 @@ func loadOptionalSyscalls() {
 	_AddDllDirectory = windowsFindfunc(k32, []byte("AddDllDirectory\000"))
 	_AddVectoredContinueHandler = windowsFindfunc(k32, []byte("AddVectoredContinueHandler\000"))
 	_GetQueuedCompletionStatusEx = windowsFindfunc(k32, []byte("GetQueuedCompletionStatusEx\000"))
+	_LoadLibraryExA = windowsFindfunc(k32, []byte("LoadLibraryExA\000"))
 	_LoadLibraryExW = windowsFindfunc(k32, []byte("LoadLibraryExW\000"))
+	useLoadLibraryEx = (_LoadLibraryExW != nil && _LoadLibraryExA != nil && _AddDllDirectory != nil)
 
 	var advapi32dll = []byte("advapi32.dll\000")
-	a32 := stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&advapi32dll[0])))
+	a32 := windowsLoadSystemLib(advapi32dll)
 	if a32 == 0 {
 		throw("advapi32.dll not found")
 	}
 	_RtlGenRandom = windowsFindfunc(a32, []byte("SystemFunction036\000"))
 
 	var ntdll = []byte("ntdll.dll\000")
-	n32 := stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&ntdll[0])))
+	n32 := windowsLoadSystemLib(ntdll)
 	if n32 == 0 {
 		throw("ntdll.dll not found")
 	}
 	_NtWaitForSingleObject = windowsFindfunc(n32, []byte("NtWaitForSingleObject\000"))
 
+	if GOARCH == "arm" {
+		_QueryPerformanceCounter = windowsFindfunc(k32, []byte("QueryPerformanceCounter\000"))
+		if _QueryPerformanceCounter == nil {
+			throw("could not find QPC syscalls")
+		}
+	}
+
+	var winmmdll = []byte("winmm.dll\000")
+	m32 := windowsLoadSystemLib(winmmdll)
+	if m32 == 0 {
+		throw("winmm.dll not found")
+	}
+	_timeBeginPeriod = windowsFindfunc(m32, []byte("timeBeginPeriod\000"))
+	_timeEndPeriod = windowsFindfunc(m32, []byte("timeEndPeriod\000"))
+	if _timeBeginPeriod == nil || _timeEndPeriod == nil {
+		throw("timeBegin/EndPeriod not found")
+	}
+
+	var ws232dll = []byte("ws2_32.dll\000")
+	ws232 := windowsLoadSystemLib(ws232dll)
+	if ws232 == 0 {
+		throw("ws2_32.dll not found")
+	}
+	_WSAGetOverlappedResult = windowsFindfunc(ws232, []byte("WSAGetOverlappedResult\000"))
+	if _WSAGetOverlappedResult == nil {
+		throw("WSAGetOverlappedResult not found")
+	}
+
 	if windowsFindfunc(n32, []byte("wine_get_version\000")) != nil {
 		// running on Wine
 		initWine(k32)
+	}
+}
+
+func monitorSuspendResume() {
+	const _DEVICE_NOTIFY_CALLBACK = 2
+	type _DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS struct {
+		callback uintptr
+		context  uintptr
+	}
+
+	powrprof := windowsLoadSystemLib([]byte("powrprof.dll\000"))
+	if powrprof == 0 {
+		return // Running on Windows 7, where we don't need it anyway.
+	}
+	powerRegisterSuspendResumeNotification := windowsFindfunc(powrprof, []byte("PowerRegisterSuspendResumeNotification\000"))
+	if powerRegisterSuspendResumeNotification == nil {
+		return // Running on Windows 7, where we don't need it anyway.
+	}
+	var fn interface{} = func(context uintptr, changeType uint32, setting uintptr) uintptr {
+		for mp := (*m)(atomic.Loadp(unsafe.Pointer(&allm))); mp != nil; mp = mp.alllink {
+			if mp.resumesema != 0 {
+				stdcall1(_SetEvent, mp.resumesema)
+			}
+		}
+		return 0
+	}
+	params := _DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS{
+		callback: compileCallback(*efaceOf(&fn), true),
+	}
+	handle := uintptr(0)
+	if stdcall3(powerRegisterSuspendResumeNotification, _DEVICE_NOTIFY_CALLBACK,
+		uintptr(unsafe.Pointer(&params)),
+		uintptr(unsafe.Pointer(&handle))) != 0 {
+		throw("PowerRegisterSuspendResumeNotification failure")
 	}
 }
 
@@ -302,8 +395,6 @@ func osinit() {
 
 	loadOptionalSyscalls()
 
-	useLoadLibraryEx = (_LoadLibraryExW != nil && _AddDllDirectory != nil)
-
 	disableWER()
 
 	initExceptionHandler()
@@ -322,8 +413,6 @@ func osinit() {
 	// In such context dynamic priority boosting does nothing but harm, so we turn it off.
 	stdcall2(_SetProcessPriorityBoost, currentProcess, 1)
 }
-
-func nanotime() int64
 
 // useQPCTime controls whether time.now and nanotime use QueryPerformanceCounter.
 // This is only set to 1 when running under Wine.
@@ -434,6 +523,10 @@ func goenvs() {
 	}
 
 	stdcall1(_FreeEnvironmentStringsW, uintptr(strings))
+
+	// We call this all the way here, late in init, so that malloc works
+	// for the callback function this generates.
+	monitorSuspendResume()
 }
 
 // exiting is set to non-zero when the process is exiting.
@@ -445,8 +538,12 @@ func exit(code int32) {
 	stdcall1(_ExitProcess, uintptr(code))
 }
 
+// write1 must be nosplit because it's used as a last resort in
+// functions like badmorestackg0. In such cases, we'll always take the
+// ASCII path.
+//
 //go:nosplit
-func write(fd uintptr, buf unsafe.Pointer, n int32) int32 {
+func write1(fd uintptr, buf unsafe.Pointer, n int32) int32 {
 	const (
 		_STD_OUTPUT_HANDLE = ^uintptr(10) // -11
 		_STD_ERROR_HANDLE  = ^uintptr(11) // -12
@@ -543,6 +640,9 @@ func writeConsoleUTF16(handle uintptr, b []uint16) {
 	return
 }
 
+// walltime1 isn't implemented on Windows, but will never be called.
+func walltime1() (sec int64, nsec int32)
+
 //go:nosplit
 func semasleep(ns int64) int32 {
 	const (
@@ -552,19 +652,32 @@ func semasleep(ns int64) int32 {
 		_WAIT_FAILED    = 0xFFFFFFFF
 	)
 
-	// store ms in ns to save stack space
+	var result uintptr
 	if ns < 0 {
-		ns = _INFINITE
+		result = stdcall2(_WaitForSingleObject, getg().m.waitsema, uintptr(_INFINITE))
 	} else {
-		ns = int64(timediv(ns, 1000000, nil))
-		if ns == 0 {
-			ns = 1
+		start := nanotime()
+		elapsed := int64(0)
+		for {
+			ms := int64(timediv(ns-elapsed, 1000000, nil))
+			if ms == 0 {
+				ms = 1
+			}
+			result = stdcall4(_WaitForMultipleObjects, 2,
+				uintptr(unsafe.Pointer(&[2]uintptr{getg().m.waitsema, getg().m.resumesema})),
+				0, uintptr(ms))
+			if result != _WAIT_OBJECT_0+1 {
+				// Not a suspend/resume event
+				break
+			}
+			elapsed = nanotime() - start
+			if elapsed >= ns {
+				return -1
+			}
 		}
 	}
-
-	result := stdcall2(_WaitForSingleObject, getg().m.waitsema, uintptr(ns))
 	switch result {
-	case _WAIT_OBJECT_0: //signaled
+	case _WAIT_OBJECT_0: // Signaled
 		return 0
 
 	case _WAIT_TIMEOUT:
@@ -613,6 +726,15 @@ func semacreate(mp *m) {
 			throw("runtime.semacreate")
 		})
 	}
+	mp.resumesema = stdcall4(_CreateEventA, 0, 0, 0, 0)
+	if mp.resumesema == 0 {
+		systemstack(func() {
+			print("runtime: createevent failed; errno=", getlasterror(), "\n")
+			throw("runtime.semacreate")
+		})
+		stdcall1(_CloseHandle, mp.waitsema)
+		mp.waitsema = 0
+	}
 }
 
 // May run with m.p==nil, so write barriers are not allowed. This
@@ -651,7 +773,7 @@ func newosproc(mp *m) {
 func newosproc0(mp *m, stk unsafe.Pointer) {
 	// TODO: this is completely broken. The args passed to newosproc0 (in asm_amd64.s)
 	// are stacksize and function, not *m and stack.
-	// Check os_linux.go for an implemention that might actually work.
+	// Check os_linux.go for an implementation that might actually work.
 	throw("bad newosproc0")
 }
 
@@ -840,6 +962,8 @@ func ctrlhandler1(_type uint32) uint32 {
 	switch _type {
 	case _CTRL_C_EVENT, _CTRL_BREAK_EVENT:
 		s = _SIGINT
+	case _CTRL_CLOSE_EVENT, _CTRL_LOGOFF_EVENT, _CTRL_SHUTDOWN_EVENT:
+		s = _SIGTERM
 	default:
 		return 0
 	}
@@ -854,20 +978,33 @@ func ctrlhandler1(_type uint32) uint32 {
 // in sys_windows_386.s and sys_windows_amd64.s
 func profileloop()
 
+// called from zcallback_windows_*.s to sys_windows_*.s
+func callbackasm1()
+
 var profiletimer uintptr
 
-func profilem(mp *m) {
+func profilem(mp *m, thread uintptr) {
 	var r *context
 	rbuf := make([]byte, unsafe.Sizeof(*r)+15)
-
-	tls := &mp.tls[0]
-	gp := *((**g)(unsafe.Pointer(tls)))
 
 	// align Context to 16 bytes
 	r = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&rbuf[15]))) &^ 15))
 	r.contextflags = _CONTEXT_CONTROL
-	stdcall2(_GetThreadContext, mp.thread, uintptr(unsafe.Pointer(r)))
-	sigprof(r.ip(), r.sp(), 0, gp, mp)
+	stdcall2(_GetThreadContext, thread, uintptr(unsafe.Pointer(r)))
+
+	var gp *g
+	switch GOARCH {
+	default:
+		panic("unsupported architecture")
+	case "arm":
+		tls := &mp.tls[0]
+		gp = **((***g)(unsafe.Pointer(tls)))
+	case "386", "amd64":
+		tls := &mp.tls[0]
+		gp = *((**g)(unsafe.Pointer(tls)))
+	}
+
+	sigprof(r.ip(), r.sp(), r.lr(), gp, mp)
 }
 
 func profileloop1(param uintptr) uint32 {
@@ -884,9 +1021,16 @@ func profileloop1(param uintptr) uint32 {
 			if thread == 0 || mp.profilehz == 0 || mp.blocked {
 				continue
 			}
-			stdcall1(_SuspendThread, thread)
+			// mp may exit between the load above and the
+			// SuspendThread, so be careful.
+			if int32(stdcall1(_SuspendThread, thread)) == -1 {
+				// The thread no longer exists.
+				continue
+			}
 			if mp.profilehz != 0 && !mp.blocked {
-				profilem(mp)
+				// Pass the thread handle in case mp
+				// was in the process of shutting down.
+				profilem(mp, thread)
 			}
 			stdcall1(_ResumeThread, thread)
 		}

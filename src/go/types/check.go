@@ -76,8 +76,9 @@ type Checker struct {
 	fset *token.FileSet
 	pkg  *Package
 	*Info
-	objMap map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
-	impMap map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
+	objMap map[Object]*declInfo       // maps package-level objects and (non-interface) methods to declaration info
+	impMap map[importKey]*Package     // maps (import path, source directory) to (complete or fake) package
+	posMap map[*Interface][]token.Pos // maps interface types to lists of embedded interface positions
 
 	// information collected during type-checking of a set of package files
 	// (initialized by Files, valid only for the duration of check.Files;
@@ -85,12 +86,12 @@ type Checker struct {
 	files            []*ast.File                       // package files
 	unusedDotImports map[*Scope]map[*Package]token.Pos // positions of unused dot-imported packages for each file scope
 
-	firstErr   error                    // first error encountered
-	methods    map[*TypeName][]*Func    // maps package scope type names to associated non-blank, non-interface methods
-	interfaces map[*TypeName]*ifaceInfo // maps interface type names to corresponding interface infos
-	untyped    map[ast.Expr]exprInfo    // map of expressions without final type
-	delayed    []func()                 // stack of delayed actions
-	objPath    []Object                 // path of object dependencies during type inference (for cycle reporting)
+	firstErr error                 // first error encountered
+	methods  map[*TypeName][]*Func // maps package scope type names to associated non-blank (non-interface) methods
+	untyped  map[ast.Expr]exprInfo // map of expressions without final type
+	delayed  []func()              // stack of delayed action segments; segments are processed in FIFO order
+	finals   []func()              // list of final actions; processed at the end of type-checking the current set of files
+	objPath  []Object              // path of object dependencies during type inference (for cycle reporting)
 
 	// context within which the current object is type-checked
 	// (valid only for the duration of type-checking a specific object)
@@ -145,6 +146,14 @@ func (check *Checker) later(f func()) {
 	check.delayed = append(check.delayed, f)
 }
 
+// atEnd adds f to the list of actions processed at the end
+// of type-checking, before initialization order computation.
+// Actions added by atEnd are processed after any actions
+// added by later.
+func (check *Checker) atEnd(f func()) {
+	check.finals = append(check.finals, f)
+}
+
 // push pushes obj onto the object path and returns its index in the path.
 func (check *Checker) push(obj Object) int {
 	check.objPath = append(check.objPath, obj)
@@ -180,6 +189,7 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 		Info:   info,
 		objMap: make(map[Object]*declInfo),
 		impMap: make(map[importKey]*Package),
+		posMap: make(map[*Interface][]token.Pos),
 	}
 }
 
@@ -192,9 +202,9 @@ func (check *Checker) initFiles(files []*ast.File) {
 
 	check.firstErr = nil
 	check.methods = nil
-	check.interfaces = nil
 	check.untyped = nil
 	check.delayed = nil
+	check.finals = nil
 
 	// determine package name and collect valid files
 	pkg := check.pkg
@@ -245,6 +255,7 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 	check.packageObjects()
 
 	check.processDelayed(0) // incl. all functions
+	check.processFinals()
 
 	check.initOrder()
 
@@ -256,6 +267,31 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 
 	check.pkg.complete = true
 	return
+}
+
+// processDelayed processes all delayed actions pushed after top.
+func (check *Checker) processDelayed(top int) {
+	// If each delayed action pushes a new action, the
+	// stack will continue to grow during this loop.
+	// However, it is only processing functions (which
+	// are processed in a delayed fashion) that may
+	// add more actions (such as nested functions), so
+	// this is a sufficiently bounded process.
+	for i := top; i < len(check.delayed); i++ {
+		check.delayed[i]() // may append to check.delayed
+	}
+	assert(top <= len(check.delayed)) // stack must not have shrunk
+	check.delayed = check.delayed[:top]
+}
+
+func (check *Checker) processFinals() {
+	n := len(check.finals)
+	for _, f := range check.finals {
+		f() // must not append to check.finals
+	}
+	if len(check.finals) != n {
+		panic("internal error: final action list grew")
+	}
 }
 
 func (check *Checker) recordUntyped() {

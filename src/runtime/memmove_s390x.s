@@ -66,7 +66,7 @@ forwards_fast:
 forwards_small:
 	CMPBEQ	R5, $0, done
 	ADD	$-1, R5
-	EXRL	$runtime·memmove_s390x_exrl_mvc(SB), R5
+	EXRL	$memmove_exrl_mvc<>(SB), R5
 	RET
 
 move0to3:
@@ -182,7 +182,7 @@ done:
 	RET
 
 // DO NOT CALL - target for exrl (execute relative long) instruction.
-TEXT runtime·memmove_s390x_exrl_mvc(SB),NOSPLIT|NOFRAME,$0-0
+TEXT memmove_exrl_mvc<>(SB),NOSPLIT|NOFRAME,$0-0
 	MVC	$1, 0(R4), 0(R6)
 	MOVD	R0, 0(R0)
 	RET

@@ -55,7 +55,7 @@ func (p *Profile) FilterSamplesByName(focus, ignore, hide *regexp.Regexp) (fm, i
 	return
 }
 
-// matchesName returns whether the function name or file in the
+// matchesName reports whether the function name or file in the
 // location matches the regular expression.
 func (loc *Location) matchesName(re *regexp.Regexp) bool {
 	for _, ln := range loc.Line {

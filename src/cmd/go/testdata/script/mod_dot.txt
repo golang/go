@@ -1,0 +1,36 @@
+env GO111MODULE=on
+
+# golang.org/issue/32917 and golang.org/issue/28459: 'go build' and 'go test'
+# in an empty directory should refer to the path '.' and should not attempt
+# to resolve an external module.
+cd dir
+! go get .
+stderr 'go get \.: path .* is not a package in module rooted at .*[/\\]dir$'
+! go list
+! stderr 'cannot find module providing package'
+stderr '^can.t load package: package \.: no Go files in '$WORK'[/\\]gopath[/\\]src[/\\]dir$'
+
+cd subdir
+! go list
+! stderr 'cannot find module providing package'
+stderr '^can.t load package: package \.: no Go files in '$WORK'[/\\]gopath[/\\]src[/\\]dir[/\\]subdir$'
+cd ..
+
+# golang.org/issue/30590: if a package is found in the filesystem
+# but is not in the main module, the error message should not say
+# "cannot find module providing package", and we shouldn't try
+# to find a module providing the package.
+! go list ./othermodule
+! stderr 'cannot find module providing package'
+stderr 'go: directory othermodule is outside main module'
+
+-- dir/go.mod --
+module example.com
+go 1.13
+-- dir/subdir/README --
+There are no Go source files in this directory.
+-- dir/othermodule/go.mod --
+module example.com/othermodule
+go 1.13
+-- dir/othermodule/om.go --
+package othermodule

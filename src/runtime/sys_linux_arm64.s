@@ -36,7 +36,7 @@
 #define SYS_getpid		172
 #define SYS_gettid		178
 #define SYS_kill		129
-#define SYS_tkill		130
+#define SYS_tgkill		131
 #define SYS_futex		98
 #define SYS_sched_getaffinity	123
 #define SYS_exit_group		94
@@ -91,7 +91,7 @@ done:
 	MOVW	R0, ret+8(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT|NOFRAME,$0-28
+TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0-28
 	MOVD	fd+0(FP), R0
 	MOVD	p+8(FP), R1
 	MOVW	n+16(FP), R2
@@ -143,11 +143,15 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT|NOFRAME,$0
+	MOVD	$SYS_getpid, R8
+	SVC
+	MOVW	R0, R19
 	MOVD	$SYS_gettid, R8
 	SVC
-	MOVW	R0, R0	// arg 1 tid
-	MOVW	sig+0(FP), R1	// arg 2
-	MOVD	$SYS_tkill, R8
+	MOVW	R0, R1	// arg 2 tid
+	MOVW	R19, R0	// arg 1 pid
+	MOVW	sig+0(FP), R2	// arg 3
+	MOVD	$SYS_tgkill, R8
 	SVC
 	RET
 
@@ -177,8 +181,8 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	R0, ret+24(FP)
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB),NOSPLIT,$24-12
+// func walltime1() (sec int64, nsec int32)
+TEXT runtime·walltime1(SB),NOSPLIT,$24-12
 	MOVD	RSP, R20	// R20 is unchanged by C code
 	MOVD	RSP, R1
 
@@ -221,7 +225,7 @@ finish:
 	MOVW	R5, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime(SB),NOSPLIT,$24-8
+TEXT runtime·nanotime1(SB),NOSPLIT,$24-8
 	MOVD	RSP, R20	// R20 is unchanged by C code
 	MOVD	RSP, R1
 
@@ -312,7 +316,29 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	BL	(R11)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$24
+TEXT runtime·sigtramp(SB),NOSPLIT,$192
+	// Save callee-save registers in the case of signal forwarding.
+	// Please refer to https://golang.org/issue/31827 .
+	MOVD	R19, 8*4(RSP)
+	MOVD	R20, 8*5(RSP)
+	MOVD	R21, 8*6(RSP)
+	MOVD	R22, 8*7(RSP)
+	MOVD	R23, 8*8(RSP)
+	MOVD	R24, 8*9(RSP)
+	MOVD	R25, 8*10(RSP)
+	MOVD	R26, 8*11(RSP)
+	MOVD	R27, 8*12(RSP)
+	MOVD	g, 8*13(RSP)
+	MOVD	R29, 8*14(RSP)
+	FMOVD	F8, 8*15(RSP)
+	FMOVD	F9, 8*16(RSP)
+	FMOVD	F10, 8*17(RSP)
+	FMOVD	F11, 8*18(RSP)
+	FMOVD	F12, 8*19(RSP)
+	FMOVD	F13, 8*20(RSP)
+	FMOVD	F14, 8*21(RSP)
+	FMOVD	F15, 8*22(RSP)
+
 	// this might be called in external code context,
 	// where g is not set.
 	// first save R0, because runtime·load_g will clobber it
@@ -326,6 +352,28 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$24
 	MOVD	R2, 24(RSP)
 	MOVD	$runtime·sigtrampgo(SB), R0
 	BL	(R0)
+
+	// Restore callee-save registers.
+	MOVD	8*4(RSP), R19
+	MOVD	8*5(RSP), R20
+	MOVD	8*6(RSP), R21
+	MOVD	8*7(RSP), R22
+	MOVD	8*8(RSP), R23
+	MOVD	8*9(RSP), R24
+	MOVD	8*10(RSP), R25
+	MOVD	8*11(RSP), R26
+	MOVD	8*12(RSP), R27
+	MOVD	8*13(RSP), g
+	MOVD	8*14(RSP), R29
+	FMOVD	8*15(RSP), F8
+	FMOVD	8*16(RSP), F9
+	FMOVD	8*17(RSP), F10
+	FMOVD	8*18(RSP), F11
+	FMOVD	8*19(RSP), F12
+	FMOVD	8*20(RSP), F13
+	FMOVD	8*21(RSP), F14
+	FMOVD	8*22(RSP), F15
+
 	RET
 
 TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
@@ -397,7 +445,7 @@ TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
 	MOVW	flags+16(FP), R2
 	MOVD	$SYS_madvise, R8
 	SVC
-	// ignore failure - maybe pages are locked
+	MOVW	R0, ret+24(FP)
 	RET
 
 // int64 futex(int32 *uaddr, int32 op, int32 val,
@@ -594,4 +642,7 @@ TEXT runtime·sbrk0(SB),NOSPLIT,$0-8
 	MOVD	$SYS_brk, R8
 	SVC
 	MOVD	R0, ret+0(FP)
+	RET
+
+TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
 	RET

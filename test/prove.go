@@ -62,7 +62,7 @@ func f1c(a []int, i int64) int {
 }
 
 func f2(a []int) int {
-	for i := range a { // ERROR "Induction variable: limits \[0,\?\), increment 1"
+	for i := range a { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
 		a[i+1] = i
 		a[i+1] = i // ERROR "Proved IsInBounds$"
 	}
@@ -464,7 +464,7 @@ func f16(s []int) []int {
 }
 
 func f17(b []int) {
-	for i := 0; i < len(b); i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1"
+	for i := 0; i < len(b); i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
 		// This tests for i <= cap, which we can only prove
 		// using the derived relation between len and cap.
 		// This depends on finding the contradiction, since we
@@ -488,12 +488,26 @@ func f18(b []int, x int, y uint) {
 	}
 }
 
+func f19() (e int64, err error) {
+	// Issue 29502: slice[:0] is incorrectly disproved.
+	var stack []int64
+	stack = append(stack, 123)
+	if len(stack) > 1 {
+		panic("too many elements")
+	}
+	last := len(stack) - 1
+	e = stack[last]
+	// Buggy compiler prints "Disproved Geq64" for the next line.
+	stack = stack[:last] // ERROR "Proved IsSliceInBounds"
+	return e, nil
+}
+
 func sm1(b []int, x int) {
 	// Test constant argument to slicemask.
 	useSlice(b[2:8]) // ERROR "Proved slicemask not needed$"
 	// Test non-constant argument with known limits.
 	if cap(b) > 10 {
-		useSlice(b[2:]) // ERROR "Proved slicemask not needed$"
+		useSlice(b[2:])
 	}
 }
 
@@ -530,7 +544,7 @@ func fence1(b []int, x, y int) {
 	}
 	if len(b) < cap(b) {
 		// This eliminates the growslice path.
-		b = append(b, 1) // ERROR "Disproved Greater64$"
+		b = append(b, 1) // ERROR "Disproved Greater64U$"
 	}
 }
 
@@ -579,18 +593,18 @@ func fence4(x, y int64) {
 func trans1(x, y int64) {
 	if x > 5 {
 		if y > x {
-			if y > 2 { // ERROR "Proved Greater64"
+			if y > 2 { // ERROR "Proved Greater64$"
 				return
 			}
 		} else if y == x {
-			if y > 5 { // ERROR "Proved Greater64"
+			if y > 5 { // ERROR "Proved Greater64$"
 				return
 			}
 		}
 	}
 	if x >= 10 {
 		if y > x {
-			if y > 10 { // ERROR "Proved Greater64"
+			if y > 10 { // ERROR "Proved Greater64$"
 				return
 			}
 		}
@@ -624,7 +638,7 @@ func natcmp(x, y []uint) (r int) {
 	}
 
 	i := m - 1
-	for i > 0 && // ERROR "Induction variable: limits \(0,\?\], increment 1"
+	for i > 0 && // ERROR "Induction variable: limits \(0,\?\], increment 1$"
 		x[i] == // ERROR "Proved IsInBounds$"
 			y[i] { // ERROR "Proved IsInBounds$"
 		i--
@@ -664,6 +678,30 @@ func oforuntil(b []int) {
 	}
 }
 
+func atexit(foobar []func()) {
+	for i := len(foobar) - 1; i >= 0; i-- { // ERROR "Induction variable: limits \[0,\?\], increment 1"
+		f := foobar[i]
+		foobar = foobar[:i] // ERROR "IsSliceInBounds"
+		f()
+	}
+}
+
+func make1(n int) []int {
+	s := make([]int, n)
+	for i := 0; i < n; i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1"
+		s[i] = 1 // ERROR "Proved IsInBounds$"
+	}
+	return s
+}
+
+func make2(n int) []int {
+	s := make([]int, n)
+	for i := range s { // ERROR "Induction variable: limits \[0,\?\), increment 1"
+		s[i] = 1 // ERROR "Proved IsInBounds$"
+	}
+	return s
+}
+
 // The range tests below test the index variable of range loops.
 
 // range1 compiles to the "efficiently indexable" form of a range loop.
@@ -686,10 +724,236 @@ func range2(b [][32]int) {
 		if i < len(b) {    // ERROR "Proved Less64$"
 			println("x")
 		}
-		if i >= 0 { // ERROR "Proved Geq64"
+		if i >= 0 { // ERROR "Proved Geq64$"
 			println("x")
 		}
 	}
+}
+
+// signhint1-2 test whether the hint (int >= 0) is propagated into the loop.
+func signHint1(i int, data []byte) {
+	if i >= 0 {
+		for i < len(data) { // ERROR "Induction variable: limits \[\?,\?\), increment 1$"
+			_ = data[i] // ERROR "Proved IsInBounds$"
+			i++
+		}
+	}
+}
+
+func signHint2(b []byte, n int) {
+	if n < 0 {
+		panic("")
+	}
+	_ = b[25]
+	for i := n; i <= 25; i++ { // ERROR "Induction variable: limits \[\?,25\], increment 1$"
+		b[i] = 123 // ERROR "Proved IsInBounds$"
+	}
+}
+
+// indexGT0 tests whether prove learns int index >= 0 from bounds check.
+func indexGT0(b []byte, n int) {
+	_ = b[n]
+	_ = b[25]
+
+	for i := n; i <= 25; i++ { // ERROR "Induction variable: limits \[\?,25\], increment 1$"
+		b[i] = 123 // ERROR "Proved IsInBounds$"
+	}
+}
+
+// Induction variable in unrolled loop.
+func unrollUpExcl(a []int) int {
+	var i, x int
+	for i = 0; i < len(a)-1; i += 2 { // ERROR "Induction variable: limits \[0,\?\), increment 2$"
+		x += a[i] // ERROR "Proved IsInBounds$"
+		x += a[i+1]
+	}
+	if i == len(a)-1 {
+		x += a[i]
+	}
+	return x
+}
+
+// Induction variable in unrolled loop.
+func unrollUpIncl(a []int) int {
+	var i, x int
+	for i = 0; i <= len(a)-2; i += 2 { // ERROR "Induction variable: limits \[0,\?\], increment 2$"
+		x += a[i]
+		x += a[i+1]
+	}
+	if i == len(a)-1 {
+		x += a[i]
+	}
+	return x
+}
+
+// Induction variable in unrolled loop.
+func unrollDownExcl0(a []int) int {
+	var i, x int
+	for i = len(a) - 1; i > 0; i -= 2 { // ERROR "Induction variable: limits \(0,\?\], increment 2$"
+		x += a[i]   // ERROR "Proved IsInBounds$"
+		x += a[i-1] // ERROR "Proved IsInBounds$"
+	}
+	if i == 0 {
+		x += a[i]
+	}
+	return x
+}
+
+// Induction variable in unrolled loop.
+func unrollDownExcl1(a []int) int {
+	var i, x int
+	for i = len(a) - 1; i >= 1; i -= 2 { // ERROR "Induction variable: limits \[1,\?\], increment 2$"
+		x += a[i]   // ERROR "Proved IsInBounds$"
+		x += a[i-1] // ERROR "Proved IsInBounds$"
+	}
+	if i == 0 {
+		x += a[i]
+	}
+	return x
+}
+
+// Induction variable in unrolled loop.
+func unrollDownInclStep(a []int) int {
+	var i, x int
+	for i = len(a); i >= 2; i -= 2 { // ERROR "Induction variable: limits \[2,\?\], increment 2$"
+		x += a[i-1] // ERROR "Proved IsInBounds$"
+		x += a[i-2]
+	}
+	if i == 1 {
+		x += a[i-1]
+	}
+	return x
+}
+
+// Not an induction variable (step too large)
+func unrollExclStepTooLarge(a []int) int {
+	var i, x int
+	for i = 0; i < len(a)-1; i += 3 {
+		x += a[i]
+		x += a[i+1]
+	}
+	if i == len(a)-1 {
+		x += a[i]
+	}
+	return x
+}
+
+// Not an induction variable (step too large)
+func unrollInclStepTooLarge(a []int) int {
+	var i, x int
+	for i = 0; i <= len(a)-2; i += 3 {
+		x += a[i]
+		x += a[i+1]
+	}
+	if i == len(a)-1 {
+		x += a[i]
+	}
+	return x
+}
+
+// Not an induction variable (min too small, iterating down)
+func unrollDecMin(a []int) int {
+	var i, x int
+	for i = len(a); i >= math.MinInt64; i -= 2 {
+		x += a[i-1]
+		x += a[i-2]
+	}
+	if i == 1 { // ERROR "Disproved Eq64$"
+		x += a[i-1]
+	}
+	return x
+}
+
+// Not an induction variable (min too small, iterating up -- perhaps could allow, but why bother?)
+func unrollIncMin(a []int) int {
+	var i, x int
+	for i = len(a); i >= math.MinInt64; i += 2 {
+		x += a[i-1]
+		x += a[i-2]
+	}
+	if i == 1 { // ERROR "Disproved Eq64$"
+		x += a[i-1]
+	}
+	return x
+}
+
+// The 4 xxxxExtNto64 functions below test whether prove is looking
+// through value-preserving sign/zero extensions of index values (issue #26292).
+
+// Look through all extensions
+func signExtNto64(x []int, j8 int8, j16 int16, j32 int32) int {
+	if len(x) < 22 {
+		return 0
+	}
+	if j8 >= 0 && j8 < 22 {
+		return x[j8] // ERROR "Proved IsInBounds$"
+	}
+	if j16 >= 0 && j16 < 22 {
+		return x[j16] // ERROR "Proved IsInBounds$"
+	}
+	if j32 >= 0 && j32 < 22 {
+		return x[j32] // ERROR "Proved IsInBounds$"
+	}
+	return 0
+}
+
+func zeroExtNto64(x []int, j8 uint8, j16 uint16, j32 uint32) int {
+	if len(x) < 22 {
+		return 0
+	}
+	if j8 >= 0 && j8 < 22 {
+		return x[j8] // ERROR "Proved IsInBounds$"
+	}
+	if j16 >= 0 && j16 < 22 {
+		return x[j16] // ERROR "Proved IsInBounds$"
+	}
+	if j32 >= 0 && j32 < 22 {
+		return x[j32] // ERROR "Proved IsInBounds$"
+	}
+	return 0
+}
+
+// Process fence-post implications through 32to64 extensions (issue #29964)
+func signExt32to64Fence(x []int, j int32) int {
+	if x[j] != 0 {
+		return 1
+	}
+	if j > 0 && x[j-1] != 0 { // ERROR "Proved IsInBounds$"
+		return 1
+	}
+	return 0
+}
+
+func zeroExt32to64Fence(x []int, j uint32) int {
+	if x[j] != 0 {
+		return 1
+	}
+	if j > 0 && x[j-1] != 0 { // ERROR "Proved IsInBounds$"
+		return 1
+	}
+	return 0
+}
+
+// Ensure that bounds checks with negative indexes are not incorrectly removed.
+func negIndex() {
+	n := make([]int, 1)
+	for i := -1; i <= 0; i++ { // ERROR "Induction variable: limits \[-1,0\], increment 1$"
+		n[i] = 1
+	}
+}
+func negIndex2(n int) {
+	a := make([]int, 5)
+	b := make([]int, 5)
+	c := make([]int, 5)
+	for i := -1; i <= 0; i-- {
+		b[i] = i
+		n++
+		if n > 10 {
+			break
+		}
+	}
+	useSlice(a)
+	useSlice(c)
 }
 
 //go:noinline

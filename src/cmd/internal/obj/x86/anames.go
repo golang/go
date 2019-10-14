@@ -67,7 +67,6 @@ var Anames = []string{
 	"BSRW",
 	"BSWAPL",
 	"BSWAPQ",
-	"BSWAPW",
 	"BTCL",
 	"BTCQ",
 	"BTCW",

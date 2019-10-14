@@ -11,6 +11,13 @@ TEXT ·Load(SB),NOSPLIT,$0-12
 	MOVW	R0, ret+8(FP)
 	RET
 
+// uint8 runtime∕internal∕atomic·Load8(uint8 volatile* addr)
+TEXT ·Load8(SB),NOSPLIT,$0-9
+	MOVD	ptr+0(FP), R0
+	LDARB	(R0), R0
+	MOVB	R0, ret+8(FP)
+	RET
+
 // uint64 runtime∕internal∕atomic·Load64(uint64 volatile* addr)
 TEXT ·Load64(SB),NOSPLIT,$0-16
 	MOVD	ptr+0(FP), R0
@@ -25,8 +32,15 @@ TEXT ·Loadp(SB),NOSPLIT,$0-16
 	MOVD	R0, ret+8(FP)
 	RET
 
+// uint32 runtime∕internal∕atomic·LoadAcq(uint32 volatile* addr)
+TEXT ·LoadAcq(SB),NOSPLIT,$0-12
+	B	·Load(SB)
+
 TEXT runtime∕internal∕atomic·StorepNoWB(SB), NOSPLIT, $0-16
 	B	runtime∕internal∕atomic·Store64(SB)
+
+TEXT runtime∕internal∕atomic·StoreRel(SB), NOSPLIT, $0-12
+	B	runtime∕internal∕atomic·Store(SB)
 
 TEXT runtime∕internal∕atomic·Store(SB), NOSPLIT, $0-12
 	MOVD	ptr+0(FP), R0

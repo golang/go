@@ -126,7 +126,7 @@ func hostArchive(ctxt *Link, name string) {
 
 			libgcc := sym.Library{Pkg: "libgcc"}
 			h := ldobj(ctxt, f, &libgcc, l, pname, name)
-			f.Seek(h.off, 0)
+			f.MustSeek(h.off, 0)
 			h.ld(ctxt, f, h.pkg, h.length, h.pn)
 		}
 

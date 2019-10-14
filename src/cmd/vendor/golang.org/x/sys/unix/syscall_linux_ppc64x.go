@@ -30,6 +30,7 @@ package unix
 //sys	Pause() (err error)
 //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
 //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+//sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
 //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
 //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS__NEWSELECT
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
@@ -44,7 +45,6 @@ package unix
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
 //sys	Stat(path string, stat *Stat_t) (err error)
 //sys	Statfs(path string, buf *Statfs_t) (err error)
-//sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error) = SYS_SYNC_FILE_RANGE2
 //sys	Truncate(path string, length int64) (err error)
 //sys	Ustat(dev int, ubuf *Ustat_t) (err error)
 //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
@@ -128,4 +128,25 @@ func Poll(fds []PollFd, timeout int) (n int, err error) {
 		return poll(nil, 0, timeout)
 	}
 	return poll(&fds[0], len(fds), timeout)
+}
+
+//sys	syncFileRange2(fd int, flags int, off int64, n int64) (err error) = SYS_SYNC_FILE_RANGE2
+
+func SyncFileRange(fd int, off int64, n int64, flags int) error {
+	// The sync_file_range and sync_file_range2 syscalls differ only in the
+	// order of their arguments.
+	return syncFileRange2(fd, flags, off, n)
+}
+
+//sys	kexecFileLoad(kernelFd int, initrdFd int, cmdlineLen int, cmdline string, flags int) (err error)
+
+func KexecFileLoad(kernelFd int, initrdFd int, cmdline string, flags int) error {
+	cmdlineLen := len(cmdline)
+	if cmdlineLen > 0 {
+		// Account for the additional NULL byte added by
+		// BytePtrFromString in kexecFileLoad. The kexec_file_load
+		// syscall expects a NULL-terminated string.
+		cmdlineLen++
+	}
+	return kexecFileLoad(kernelFd, initrdFd, cmdlineLen, cmdline, flags)
 }

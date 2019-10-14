@@ -304,6 +304,18 @@ func mapAppendAssignmentInt32() {
 	// arm64:-".*mapaccess"
 	m[k] = append(m[k], a...)
 
+	// 386:-".*mapaccess"
+	// amd64:-".*mapaccess"
+	// arm:-".*mapaccess"
+	// arm64:-".*mapaccess"
+	m[k+1] = append(m[k+1], a...)
+
+	// 386:-".*mapaccess"
+	// amd64:-".*mapaccess"
+	// arm:-".*mapaccess"
+	// arm64:-".*mapaccess"
+	m[-k] = append(m[-k], a...)
+
 	// Exceptions
 
 	// 386:".*mapaccess"
@@ -348,6 +360,18 @@ func mapAppendAssignmentInt64() {
 	// arm:-".*mapaccess"
 	// arm64:-".*mapaccess"
 	m[k] = append(m[k], a...)
+
+	// 386:-".*mapaccess"
+	// amd64:-".*mapaccess"
+	// arm:-".*mapaccess"
+	// arm64:-".*mapaccess"
+	m[k+1] = append(m[k+1], a...)
+
+	// 386:-".*mapaccess"
+	// amd64:-".*mapaccess"
+	// arm:-".*mapaccess"
+	// arm64:-".*mapaccess"
+	m[-k] = append(m[-k], a...)
 
 	// Exceptions
 

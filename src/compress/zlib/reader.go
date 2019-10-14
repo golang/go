@@ -51,7 +51,7 @@ type reader struct {
 	scratch      [4]byte
 }
 
-// Resetter resets a ReadCloser returned by NewReader or NewReaderDict to
+// Resetter resets a ReadCloser returned by NewReader or NewReaderDict
 // to switch to a new underlying Reader. This permits reusing a ReadCloser
 // instead of allocating a new one.
 type Resetter interface {

@@ -7,13 +7,9 @@ package sanitizers_test
 import (
 	"strings"
 	"testing"
-	"runtime"
 )
 
 func TestTSAN(t *testing.T) {
-	if runtime.GOARCH == "arm64" {
-		t.Skip("skipping test; see https://golang.org/issue/25682")
-	}
 	t.Parallel()
 	requireOvercommit(t)
 	config := configure("thread")

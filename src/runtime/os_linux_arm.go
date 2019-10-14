@@ -4,20 +4,14 @@
 
 package runtime
 
-import (
-	"internal/cpu"
-	"unsafe"
-)
+import "internal/cpu"
 
 const (
-	_AT_PLATFORM = 15 //  introduced in at least 2.6.11
-
 	_HWCAP_VFP   = 1 << 6  // introduced in at least 2.6.11
 	_HWCAP_VFPv3 = 1 << 13 // introduced in 2.6.30
 )
 
 var randomNumber uint32
-var armArch uint8 = 6 // we default to ARMv6
 
 func checkgoarm() {
 	// On Android, /proc/self/auxv might be unreadable and hwcap won't
@@ -46,12 +40,6 @@ func archauxv(tag, val uintptr) {
 		// it as a byte array.
 		randomNumber = uint32(startupRandomData[4]) | uint32(startupRandomData[5])<<8 |
 			uint32(startupRandomData[6])<<16 | uint32(startupRandomData[7])<<24
-
-	case _AT_PLATFORM: // v5l, v6l, v7l
-		t := *(*uint8)(unsafe.Pointer(val + 1))
-		if '5' <= t && t <= '7' {
-			armArch = t - '0'
-		}
 
 	case _AT_HWCAP:
 		cpu.HWCap = uint(val)

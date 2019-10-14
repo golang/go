@@ -706,7 +706,7 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 				}
 			}
 		case cbP8:
-			if len(paletted.Palette) != 255 {
+			if len(paletted.Palette) != 256 {
 				for x := 0; x < width; x++ {
 					if len(paletted.Palette) <= int(cdat[x]) {
 						paletted.Palette = paletted.Palette[:int(cdat[x])+1]

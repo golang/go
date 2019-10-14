@@ -1,3 +1,5 @@
+env GO111MODULE=off
+
 # go command should detect package staleness as source file set changes
 go install mypkg
 ! stale mypkg

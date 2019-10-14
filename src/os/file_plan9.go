@@ -22,9 +22,10 @@ func fixLongPath(path string) string {
 // can overwrite this data, which could cause the finalizer
 // to close the wrong file descriptor.
 type file struct {
-	fd      int
-	name    string
-	dirinfo *dirInfo // nil unless directory being read
+	fd         int
+	name       string
+	dirinfo    *dirInfo // nil unless directory being read
+	appendMode bool     // whether file is opened for appending
 }
 
 // Fd returns the integer Plan 9 file descriptor referencing the open file.
@@ -135,6 +136,7 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 // Close closes the File, rendering it unusable for I/O.
 // On files that support SetDeadline, any pending I/O operations will
 // be canceled and return immediately with an error.
+// Close will return an error if it has already been called.
 func (f *File) Close() error {
 	if err := f.checkValid("close"); err != nil {
 		return err
@@ -533,4 +535,22 @@ func (f *File) checkValid(op string) error {
 		return &PathError{op, f.name, ErrClosed}
 	}
 	return nil
+}
+
+type rawConn struct{}
+
+func (c *rawConn) Control(f func(uintptr)) error {
+	return syscall.EPLAN9
+}
+
+func (c *rawConn) Read(f func(uintptr) bool) error {
+	return syscall.EPLAN9
+}
+
+func (c *rawConn) Write(f func(uintptr) bool) error {
+	return syscall.EPLAN9
+}
+
+func newRawConn(file *File) (*rawConn, error) {
+	return nil, syscall.EPLAN9
 }

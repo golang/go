@@ -1,0 +1,16 @@
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file contains rules used by flagalloc to split
+// a flag-generating merged load op into separate load and op.
+// Unlike with the other rules files, not all of these
+// rules will be applied to all values.
+// Rather, flagalloc will request for rules to be applied
+// to a particular problematic value.
+// These are often the exact inverse of rules in AMD64.rules,
+// only with the conditions removed.
+
+(CMP(Q|L|W|B)load {sym} [off] ptr x mem) -> (CMP(Q|L|W|B) (MOV(Q|L|W|B)load {sym} [off] ptr mem) x)
+
+(CMP(Q|L|W|B)constload {sym} [vo] ptr mem) -> (CMP(Q|L|W|B)const (MOV(Q|L|W|B)load {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])

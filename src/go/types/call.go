@@ -233,6 +233,7 @@ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, 
 	}
 
 	// evaluate arguments
+	context := check.sprintf("argument to %s", call.Fun)
 	for i := 0; i < n; i++ {
 		arg(x, i)
 		if x.mode != invalid {
@@ -240,7 +241,7 @@ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, 
 			if i == n-1 && call.Ellipsis.IsValid() {
 				ellipsis = call.Ellipsis
 			}
-			check.argument(call.Fun, sig, i, x, ellipsis)
+			check.argument(sig, i, x, ellipsis, context)
 		}
 	}
 
@@ -258,7 +259,7 @@ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, 
 
 // argument checks passing of argument x to the i'th parameter of the given signature.
 // If ellipsis is valid, the argument is followed by ... at that position in the call.
-func (check *Checker) argument(fun ast.Expr, sig *Signature, i int, x *operand, ellipsis token.Pos) {
+func (check *Checker) argument(sig *Signature, i int, x *operand, ellipsis token.Pos, context string) {
 	check.singleValue(x)
 	if x.mode == invalid {
 		return
@@ -298,7 +299,7 @@ func (check *Checker) argument(fun ast.Expr, sig *Signature, i int, x *operand, 
 		typ = typ.(*Slice).elem
 	}
 
-	check.assignment(x, typ, check.sprintf("argument to %s", fun))
+	check.assignment(x, typ, context)
 }
 
 func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
@@ -369,25 +370,33 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		goto Error
 	}
 
-	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
+	obj, index, indirect = check.LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
 	if obj == nil {
 		switch {
 		case index != nil:
 			// TODO(gri) should provide actual type where the conflict happens
-			check.invalidOp(e.Sel.Pos(), "ambiguous selector %s", sel)
+			check.errorf(e.Sel.Pos(), "ambiguous selector %s", sel)
 		case indirect:
-			check.invalidOp(e.Sel.Pos(), "%s is not in method set of %s", sel, x.typ)
+			// TODO(gri) be more specific with this error message
+			check.errorf(e.Sel.Pos(), "%s is not in method set of %s", sel, x.typ)
 		default:
-			check.invalidOp(e.Sel.Pos(), "%s has no field or method %s", x, sel)
+			// TODO(gri) should check if capitalization of sel matters and provide better error message in that case
+			check.errorf(e.Sel.Pos(), "%s.%s undefined (type %s has no field or method %s)", x.expr, sel, x.typ, sel)
 		}
 		goto Error
+	}
+
+	// methods may not have a fully set up signature yet
+	if m, _ := obj.(*Func); m != nil {
+		check.objDecl(m, nil)
 	}
 
 	if x.mode == typexpr {
 		// method expression
 		m, _ := obj.(*Func)
 		if m == nil {
-			check.invalidOp(e.Sel.Pos(), "%s has no method %s", x, sel)
+			// TODO(gri) should check if capitalization of sel matters and provide better error message in that case
+			check.errorf(e.Sel.Pos(), "%s.%s undefined (type %s has no method %s)", x.expr, sel, x.typ, sel)
 			goto Error
 		}
 
@@ -428,6 +437,10 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 
 			if debug {
 				// Verify that LookupFieldOrMethod and MethodSet.Lookup agree.
+				// TODO(gri) This only works because we call LookupFieldOrMethod
+				// _before_ calling NewMethodSet: LookupFieldOrMethod completes
+				// any incomplete interfaces so they are available to NewMethodSet
+				// (which assumes that interfaces have been completed already).
 				typ := x.typ
 				if x.mode == variable {
 					// If typ is not an (unnamed) pointer or an interface,
@@ -451,6 +464,11 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 				if m := mset.Lookup(check.pkg, sel); m == nil || m.obj != obj {
 					check.dump("%v: (%s).%v -> %s", e.Pos(), typ, obj.name, m)
 					check.dump("%s\n", mset)
+					// Caution: MethodSets are supposed to be used externally
+					// only (after all interface types were completed). It's
+					// now possible that we get here incorrectly. Not urgent
+					// to fix since we only run this code in debug mode.
+					// TODO(gri) fix this eventually.
 					panic("method sets and lookup don't agree")
 				}
 			}

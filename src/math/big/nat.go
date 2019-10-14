@@ -35,9 +35,10 @@ import (
 type nat []Word
 
 var (
-	natOne = nat{1}
-	natTwo = nat{2}
-	natTen = nat{10}
+	natOne  = nat{1}
+	natTwo  = nat{2}
+	natFive = nat{5}
+	natTen  = nat{10}
 )
 
 func (z nat) clear() {
@@ -57,6 +58,10 @@ func (z nat) norm() nat {
 func (z nat) make(n int) nat {
 	if n <= cap(z) {
 		return z[:n] // reuse z
+	}
+	if n == 1 {
+		// Most nats start small and stay that way; don't over-allocate.
+		return make(nat, 1)
 	}
 	// Choosing a good value for e has significant performance impact
 	// because it increases the chance that a value can be reused.
@@ -1341,7 +1346,7 @@ func (z nat) sqrt(x nat) nat {
 	var z1, z2 nat
 	z1 = z
 	z1 = z1.setUint64(1)
-	z1 = z1.shl(z1, uint(x.bitLen()/2+1)) // must be ≥ √x
+	z1 = z1.shl(z1, uint(x.bitLen()+1)/2) // must be ≥ √x
 	for n := 0; ; n++ {
 		z2, _ = z2.div(nil, x, z1)
 		z2 = z2.add(z2, z1)

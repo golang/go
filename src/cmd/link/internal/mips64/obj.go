@@ -34,7 +34,6 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
-	"fmt"
 )
 
 func Init() (*sys.Arch, ld.Arch) {
@@ -54,6 +53,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Archreloc:        archreloc,
 		Archrelocvariant: archrelocvariant,
 		Asmb:             asmb,
+		Asmb2:            asmb2,
 		Elfreloc1:        elfreloc1,
 		Elfsetupplt:      elfsetupplt,
 		Gentext:          gentext,
@@ -81,9 +81,6 @@ func archinit(ctxt *ld.Link) {
 		if *ld.FlagTextAddr == -1 {
 			*ld.FlagTextAddr = 16*1024 + int64(ld.HEADR)
 		}
-		if *ld.FlagDataAddr == -1 {
-			*ld.FlagDataAddr = 0
-		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 16 * 1024
 		}
@@ -94,29 +91,8 @@ func archinit(ctxt *ld.Link) {
 		if *ld.FlagTextAddr == -1 {
 			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
 		}
-		if *ld.FlagDataAddr == -1 {
-			*ld.FlagDataAddr = 0
-		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 0x10000
 		}
-
-	case objabi.Hnacl:
-		ld.Elfinit(ctxt)
-		ld.HEADR = 0x10000
-		ld.Funcalign = 16
-		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = 0x20000
-		}
-		if *ld.FlagDataAddr == -1 {
-			*ld.FlagDataAddr = 0
-		}
-		if *ld.FlagRound == -1 {
-			*ld.FlagRound = 0x10000
-		}
-	}
-
-	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*ld.FlagDataAddr), uint32(*ld.FlagRound))
 	}
 }

@@ -208,7 +208,7 @@ func (b *profileBuilder) pbMapping(tag int, id, base, limit, offset uint64, file
 }
 
 // locForPC returns the location ID for addr.
-// addr must be a return PC. This returns the location of the call.
+// addr must a return PC or 1 + the PC of an inline marker. This returns the location of the corresponding call.
 // It may emit to b.pb, so there must be no message encoding in progress.
 func (b *profileBuilder) locForPC(addr uintptr) uint64 {
 	id := uint64(b.locs[addr])
@@ -524,6 +524,14 @@ func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file,
 			continue
 		}
 		file := string(line)
+
+		// Trim deleted file marker.
+		deletedStr := " (deleted)"
+		deletedLen := len(deletedStr)
+		if len(file) >= deletedLen && file[len(file)-deletedLen:] == deletedStr {
+			file = file[:len(file)-deletedLen]
+		}
+
 		if len(inode) == 1 && inode[0] == '0' && file == "" {
 			// Huge-page text mappings list the initial fragment of
 			// mapped but unpopulated memory as being inode 0.

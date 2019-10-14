@@ -1,0 +1,61 @@
+[short] skip
+
+env -r GOROOT_REGEXP=$GOROOT
+env -r WORK_REGEXP='$WORK'  # don't expand $WORK; grep replaces $WORK in text before matching.
+env GOROOT GOROOT_REGEXP WORK WORK_REGEXP
+
+# A binary built without -trimpath should contain the current workspace
+# and GOROOT for debugging and stack traces.
+cd a
+go build -o hello.exe hello.go
+grep -q $WORK_REGEXP hello.exe
+grep -q $GOROOT_REGEXP hello.exe
+
+# A binary built with -trimpath should not contain the current workspace
+# or GOROOT.
+go build -trimpath -o hello.exe hello.go
+! grep -q $GOROOT_REGEXP hello.exe
+! grep -q $WORK_REGEXP hello.exe
+
+# A binary from an external module built with -trimpath should not contain
+# the current workspace or GOROOT.
+cd $WORK
+env GO111MODULE=on
+go get -trimpath rsc.io/fortune
+! grep -q $GOROOT_REGEXP $GOPATH/bin/fortune$GOEXE
+! grep -q $WORK_REGEXP $GOPATH/bin/fortune$GOEXE
+
+# Two binaries built from identical packages in different directories
+# should be identical.
+cd $GOPATH/src/a
+go build -trimpath -o $WORK/a-GOPATH.exe .
+cd $WORK/_alt/src/a
+go build -trimpath -o $WORK/a-alt.exe .
+cmp -q $WORK/a-GOPATH.exe $WORK/a-alt.exe
+
+[!exec:gccgo] stop
+
+# Binaries built using gccgo should also be identical to each other.
+env GO111MODULE=off # The current released gccgo does not support builds in module mode.
+cd $GOPATH/src/a
+go build -compiler=gccgo -trimpath -o $WORK/gccgo-GOPATH.exe .
+
+env old_gopath=$GOPATH
+env GOPATH=$WORK/_alt
+cd $WORK/_alt/src/a
+go build -compiler=gccgo -trimpath -o $WORK/gccgo-alt.exe .
+cd $WORK
+! grep -q $GOROOT_REGEXP gccgo-GOPATH.exe
+! grep -q $WORK_REGEXP gccgo-GOPATH.exe
+cmp -q gccgo-GOPATH.exe gccgo-alt.exe
+
+-- $GOPATH/src/a/hello.go --
+package main
+func main() { println("hello") }
+-- $GOPATH/src/a/go.mod --
+module example.com/a
+-- $WORK/_alt/src/a/hello.go --
+package main
+func main() { println("hello") }
+-- $WORK/_alt/src/a/go.mod --
+module example.com/a

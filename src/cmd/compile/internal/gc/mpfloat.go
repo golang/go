@@ -31,12 +31,14 @@ type Mpcplx struct {
 	Imag Mpflt
 }
 
+// Use newMpflt (not new(Mpflt)!) to get the correct default precision.
 func newMpflt() *Mpflt {
 	var a Mpflt
 	a.Val.SetPrec(Mpprec)
 	return &a
 }
 
+// Use newMpcmplx (not new(Mpcplx)!) to get the correct default precision.
 func newMpcmplx() *Mpcplx {
 	var a Mpcplx
 	a.Real = *newMpflt()
@@ -177,11 +179,12 @@ func (a *Mpflt) Neg() {
 }
 
 func (a *Mpflt) SetString(as string) {
+	// TODO(gri) why is this needed?
 	for len(as) > 0 && (as[0] == ' ' || as[0] == '\t') {
 		as = as[1:]
 	}
 
-	f, _, err := a.Val.Parse(as, 10)
+	f, _, err := a.Val.Parse(as, 0)
 	if err != nil {
 		yyerror("malformed constant: %s (%v)", as, err)
 		a.Val.SetFloat64(0)
@@ -201,24 +204,16 @@ func (a *Mpflt) SetString(as string) {
 }
 
 func (f *Mpflt) String() string {
-	return fconv(f, 0)
+	return f.Val.Text('b', 0)
 }
 
-func fconv(fvp *Mpflt, flag FmtFlag) string {
-	if flag&FmtSharp == 0 {
-		return fvp.Val.Text('b', 0)
-	}
-
-	// use decimal format for error messages
-
+func (fvp *Mpflt) GoString() string {
 	// determine sign
+	sign := ""
 	f := &fvp.Val
-	var sign string
 	if f.Sign() < 0 {
 		sign = "-"
 		f = new(big.Float).Abs(f)
-	} else if flag&FmtSign != 0 {
-		sign = "+"
 	}
 
 	// Don't try to convert infinities (will not terminate).
@@ -333,4 +328,35 @@ func (v *Mpcplx) Div(rv *Mpcplx) bool {
 	v.Imag.Quo(&cc_plus_dd) // (bc+ad)/(cc+dd)
 
 	return true
+}
+
+func (v *Mpcplx) String() string {
+	return fmt.Sprintf("(%s+%si)", v.Real.String(), v.Imag.String())
+}
+
+func (v *Mpcplx) GoString() string {
+	var re string
+	sre := v.Real.CmpFloat64(0)
+	if sre != 0 {
+		re = v.Real.GoString()
+	}
+
+	var im string
+	sim := v.Imag.CmpFloat64(0)
+	if sim != 0 {
+		im = v.Imag.GoString()
+	}
+
+	switch {
+	case sre == 0 && sim == 0:
+		return "0"
+	case sre == 0:
+		return im + "i"
+	case sim == 0:
+		return re
+	case sim < 0:
+		return fmt.Sprintf("(%s%si)", re, im)
+	default:
+		return fmt.Sprintf("(%s+%si)", re, im)
+	}
 }

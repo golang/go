@@ -70,6 +70,18 @@ func BenchmarkEfaceCmpDiff(b *testing.B) {
 	}
 }
 
+func BenchmarkEfaceCmpDiffIndirect(b *testing.B) {
+	efaceCmp1 = [2]int{1, 2}
+	efaceCmp2 = [2]int{1, 2}
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < 100; j++ {
+			if efaceCmp1 != efaceCmp2 {
+				b.Fatal("bad comparison")
+			}
+		}
+	}
+}
+
 func BenchmarkDefer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		defer1()
@@ -108,6 +120,21 @@ func BenchmarkDeferMany(b *testing.B) {
 			}
 		}(1, 2, 3)
 	}
+}
+
+func BenchmarkPanicRecover(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		defer3()
+	}
+}
+
+func defer3() {
+	defer func(x, y, z int) {
+		if recover() == nil {
+			panic("failed recover")
+		}
+	}(1, 2, 3)
+	panic("hi")
 }
 
 // golang.org/issue/7063
@@ -166,9 +193,6 @@ func TestSetPanicOnFault(t *testing.T) {
 }
 
 func testSetPanicOnFault(t *testing.T, addr uintptr, nfault *int) {
-	if GOOS == "nacl" {
-		t.Skip("nacl doesn't seem to fault on high addresses")
-	}
 	if GOOS == "js" {
 		t.Skip("js does not support catching faults")
 	}
@@ -267,7 +291,7 @@ func TestTrailingZero(t *testing.T) {
 }
 
 func TestBadOpen(t *testing.T) {
-	if GOOS == "windows" || GOOS == "nacl" || GOOS == "js" {
+	if GOOS == "windows" || GOOS == "js" {
 		t.Skip("skipping OS that doesn't have open/read/write/close")
 	}
 	// make sure we get the correct error code if open fails. Same for

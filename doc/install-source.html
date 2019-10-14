@@ -33,7 +33,7 @@ compiler using the GCC back end, see
 </p>
 
 <p>
-The Go compilers support eight instruction sets.
+The Go compilers support nine instruction sets.
 There are important differences in the quality of the compilers for the different
 architectures.
 </p>
@@ -87,6 +87,12 @@ architectures.
 <dd>
 	Supports Linux binaries. New in 1.7 and not as well exercised as other ports.
 </dd>
+<dt>
+	<code>wasm</code> (WebAssembly)
+</dt>
+<dd>
+	Targets the WebAssembly platform. New in 1.11 and not as well exercised as other ports.
+</dd>
 </dl>
 
 <p>
@@ -134,11 +140,15 @@ For example, <code>$GOROOT_BOOTSTRAP/bin/go</code> should be
 the <code>go</code> command binary for the bootstrap toolchain.
 </p>
 
+<h3 id="bootstrapFromBinaryRelease">Bootstrap toolchain from binary release</h3>
+
 <p>
 To use a binary release as a bootstrap toolchain, see
 <a href="/dl/">the downloads page</a> or use any other
 packaged Go distribution.
 </p>
+
+<h3 id="bootstrapFromSource">Bootstrap toolchain from source</h3>
 
 <p>
 To build a bootstrap toolchain from source, use
@@ -152,6 +162,17 @@ the <code>src</code> subdirectory, set <code>CGO_ENABLED=0</code> in
 the environment, and run <code>make.bash</code> (or,
 on Windows, <code>make.bat</code>).
 </p>
+
+<p>
+Once the Go 1.4 source has been unpacked into your GOROOT_BOOTSTRAP directory,
+you must keep this git clone instance checked out to branch
+<code>release-branch.go1.4</code>.  Specifically, do not attempt to reuse
+this git clone in the later step named "Fetch the repository."  The go1.4
+bootstrap toolchain <b>must be able</b> to properly traverse the go1.4 sources
+that it assumes are present under this repository root.
+</p>
+
+<h3 id="bootstrapFromCrosscompiledSource">Bootstrap toolchain from cross-compiled source</h3>
 
 <p>
 To cross-compile a bootstrap toolchain from source, which is
@@ -174,6 +195,8 @@ combination, leaving the resulting tree in <code>../../go-${GOOS}-${GOARCH}-boot
 That tree can be copied to a machine of the given target type
 and used as <code>GOROOT_BOOTSTRAP</code> to bootstrap a local build.
 </p>
+
+<h3 id="bootstrapFromGccgo">Bootstrap toolchain using gccgo</h3>
 
 <p>
 To use gccgo as the bootstrap toolchain, you need to arrange
@@ -218,21 +241,32 @@ To build without <code>cgo</code>, set the environment variable
 
 <h2 id="fetch">Fetch the repository</h2>
 
-<p>Go will install to a directory named <code>go</code>.
-Change to the directory that will be its parent
-and make sure the <code>go</code> directory does not exist.
-Then clone the repository and check out the latest release tag
-(<code class="versionTag">go1.9</code>, for example):</p>
+<p>Change to the directory where you intend to install Go, and make sure
+the <code>goroot</code> directory does not exist. Then clone the repository
+and check out the latest release tag (<code class="versionTag">go1.12</code>,
+for example):</p>
 
 <pre>
-$ git clone https://go.googlesource.com/go
-$ cd go
+$ git clone https://go.googlesource.com/go goroot
+$ cd goroot
 $ git checkout <span class="versionTag"><i>&lt;tag&gt;</i></span>
 </pre>
 
 <p class="whereTag">
 Where <code>&lt;tag&gt;</code> is the version string of the release.
 </p>
+
+<p>Go will be installed in the directory where it is checked out. For example,
+if Go is checked out in <code>$HOME/goroot</code>, executables will be installed
+in <code>$HOME/goroot/bin</code>. The directory may have any name, but note
+that if Go is checked out in <code>$HOME/go</code>, it will conflict with
+the default location of <code>$GOPATH</code>.
+See <a href="#gopath"><code>GOPATH</code></a> below.</p>
+
+Reminder: If you opted to also compile the bootstrap binaries from source (in an
+earlier section), you still need to <code>git clone</code> again at this point
+(to checkout the latest <code>&lt;tag&gt;</code>), because you must keep your
+go1.4 repository distinct.
 
 <h2 id="head">(Optional) Switch to the master branch</h2>
 
@@ -349,15 +383,7 @@ provides <b>essential setup instructions</b> for using the Go tools.
 <p>
 The source code for several Go tools (including <a href="/cmd/godoc/">godoc</a>)
 is kept in <a href="https://golang.org/x/tools">the go.tools repository</a>.
-To install all of them, run the <code>go</code> <code>get</code> command:
-</p>
-
-<pre>
-$ go get golang.org/x/tools/cmd/...
-</pre>
-
-<p>
-Or if you just want to install a specific command (<code>godoc</code> in this case):
+To install one of the tools (<code>godoc</code> in this case):
 </p>
 
 <pre>
@@ -372,16 +398,6 @@ that <a href="#git">Git</a> be installed locally.
 <p>
 You must also have a workspace (<code>GOPATH</code>) set up;
 see <a href="/doc/code.html">How to Write Go Code</a> for the details.
-</p>
-
-<p>
-<b>Note</b>: The <code>go</code> command will install the <code>godoc</code>
-binary to <code>$GOROOT/bin</code> (or <code>$GOBIN</code>) and the
-<code>cover</code> and <code>vet</code> binaries to
-<code>$GOROOT/pkg/tool/$GOOS_$GOARCH</code>.
-You can access the latter commands with
-"<code>go</code> <code>tool</code> <code>cover</code>" and
-"<code>go</code> <code>tool</code> <code>vet</code>".
 </p>
 
 <h2 id="community">Community resources</h2>
@@ -459,6 +475,43 @@ but move it elsewhere after the build, set
 </p>
 </li>
 
+<li id="gopath"><code>$GOPATH</code>
+<p>
+The directory where Go projects outside the Go distribution are typically
+checked out. For example, <code>golang.org/x/tools</code> might be checked out
+to <code>$GOPATH/src/golang.org/x/tools</code>. Executables outside the
+Go distribution are installed in <code>$GOPATH/bin</code> (or
+<code>$GOBIN</code>, if set). Modules are downloaded and cached in
+<code>$GOPATH/pkg/mod</code>.
+</p>
+
+<p>The default location of <code>$GOPATH</code> is <code>$HOME/go</code>,
+and it's not usually necessary to set <code>GOPATH</code> explicitly. However,
+if you have checked out the Go distribution to <code>$HOME/go</code>,
+you must set <code>GOPATH</code> to another location to avoid conflicts.
+</p>
+</li>
+
+<li><code>$GOBIN</code>
+<p>
+The directory where executables outside the Go distribution are installed
+using the <a href="/cmd/go">go command</a>. For example,
+<code>go get golang.org/x/tools/cmd/godoc</code> downloads, builds, and
+installs <code>$GOBIN/godoc</code>. By default, <code>$GOBIN</code> is
+<code>$GOPATH/bin</code> (or <code>$HOME/go/bin</code> if <code>GOPATH</code>
+is not set). After installing, you will want to add this directory to
+your <code>$PATH</code> so you can use installed tools.
+</p>
+
+<p>
+Note that the Go distribution's executables are installed in
+<code>$GOROOT/bin</code> (for executables invoked by people) or
+<code>$GOTOOLDIR</code> (for executables invoked by the go command;
+defaults to <code>$GOROOT/pkg/$GOOS_GOARCH</code>) instead of
+<code>$GOBIN</code>.
+</p>
+</li>
+
 <li><code>$GOOS</code> and <code>$GOARCH</code>
 <p>
 The name of the target operating system and compilation architecture.
@@ -468,23 +521,43 @@ These default to the values of <code>$GOHOSTOS</code> and
 
 <p>
 Choices for <code>$GOOS</code> are
-<code>darwin</code> (macOS 10.10 and above and iOS), <code>dragonfly</code>, <code>freebsd</code>,
+<code>android</code>, <code>darwin</code> (macOS 10.11 and above and iOS),
+<code>dragonfly</code>, <code>freebsd</code>, <code>illumos</code>, <code>js</code>,
 <code>linux</code>, <code>netbsd</code>, <code>openbsd</code>,
 <code>plan9</code>, <code>solaris</code> and <code>windows</code>.
+</p>
+
+<p>
 Choices for <code>$GOARCH</code> are
 <code>amd64</code> (64-bit x86, the most mature port),
 <code>386</code> (32-bit x86), <code>arm</code> (32-bit ARM), <code>arm64</code> (64-bit ARM),
 <code>ppc64le</code> (PowerPC 64-bit, little-endian), <code>ppc64</code> (PowerPC 64-bit, big-endian),
 <code>mips64le</code> (MIPS 64-bit, little-endian), <code>mips64</code> (MIPS 64-bit, big-endian),
-<code>mipsle</code> (MIPS 32-bit, little-endian), <code>mips</code> (MIPS 32-bit, big-endian), and
-<code>s390x</code> (IBM System z 64-bit, big-endian).
+<code>mipsle</code> (MIPS 32-bit, little-endian), <code>mips</code> (MIPS 32-bit, big-endian),
+<code>s390x</code> (IBM System z 64-bit, big-endian), and
+<code>wasm</code> (WebAssembly 32-bit).
+</p>
+
+<p>
 The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 <table cellpadding="0">
 <tr>
 <th width="50"></th><th align="left" width="100"><code>$GOOS</code></th> <th align="left" width="100"><code>$GOARCH</code></th>
 </tr>
 <tr>
+<td></td><td><code>aix</code></td> <td><code>ppc64</code></td>
+</tr>
+<tr>
+<td></td><td><code>android</code></td> <td><code>386</code></td>
+</tr>
+<tr>
+<td></td><td><code>android</code></td> <td><code>amd64</code></td>
+</tr>
+<tr>
 <td></td><td><code>android</code></td> <td><code>arm</code></td>
+</tr>
+<tr>
+<td></td><td><code>android</code></td> <td><code>arm64</code></td>
 </tr>
 <tr>
 <td></td><td><code>darwin</code></td> <td><code>386</code></td>
@@ -509,6 +582,12 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 </tr>
 <tr>
 <td></td><td><code>freebsd</code></td> <td><code>arm</code></td>
+</tr>
+<tr>
+<td></td><td><code>illumos</code></td> <td><code>amd64</code></td>
+</tr>
+<tr>
+<td></td><td><code>js</code></td> <td><code>wasm</code></td>
 </tr>
 <tr>
 <td></td><td><code>linux</code></td> <td><code>386</code></td>
@@ -562,10 +641,16 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 <td></td><td><code>openbsd</code></td> <td><code>arm</code></td>
 </tr>
 <tr>
+<td></td><td><code>openbsd</code></td> <td><code>arm64</code></td>
+</tr>
+<tr>
 <td></td><td><code>plan9</code></td> <td><code>386</code></td>
 </tr>
 <tr>
 <td></td><td><code>plan9</code></td> <td><code>amd64</code></td>
+</tr>
+<tr>
+<td></td><td><code>plan9</code></td> <td><code>arm</code></td>
 </tr>
 <tr>
 <td></td><td><code>solaris</code></td> <td><code>amd64</code></td>
@@ -594,17 +679,6 @@ The specified values must be compatible with the local system.
 For example, you should not set <code>$GOHOSTARCH</code> to
 <code>arm</code> on an x86 system.
 </p>
-
-<li><code>$GOBIN</code>
-<p>
-The location where Go binaries will be installed.
-The default is <code>$GOROOT/bin</code>.
-After installing, you will want to arrange to add this
-directory to your <code>$PATH</code>, so you can use the tools.
-If <code>$GOBIN</code> is set, the <a href="/cmd/go">go command</a>
-installs all commands there.
-</p>
-</li>
 
 <li><code>$GO386</code> (for <code>386</code> only, default is auto-detected
 if built on either <code>386</code> or <code>amd64</code>, <code>387</code> otherwise)
@@ -639,14 +713,33 @@ contains further details regarding Go's ARM support.
 </p>
 </li>
 
-<li><code>$GOMIPS</code> (for <code>mips</code> and <code>mipsle</code> only)
+<li><code>$GOMIPS</code> (for <code>mips</code> and <code>mipsle</code> only) <br> <code>$GOMIPS64</code> (for <code>mips64</code> and <code>mips64le</code> only)
 <p>
-This sets whether to use floating point instructions.
+	These variables set whether to use floating point instructions. Set to "<code>hardfloat</code>" to use floating point instructions; this is the default.  Set to "<code>softfloat</code>" to use soft floating point.
+</p>
+</li>
+
+<li><code>$GOPPC64</code> (for <code>ppc64</code> and <code>ppc64le</code> only)
+<p>
+This variable sets the processor level (i.e. Instruction Set Architecture version)
+for which the compiler will target. The default is <code>power8</code>.
 </p>
 <ul>
-	<li><code>GOMIPS=hardfloat</code>: use floating point instructions (the default)</li>
-	<li><code>GOMIPS=softfloat</code>: use soft floating point</li>
+	<li><code>GOPPC64=power8</code>: generate ISA v2.07 instructions</li>
+	<li><code>GOPPC64=power9</code>: generate ISA v3.00 instructions</li>
 </ul>
+</li>
+
+
+<li><code>$GOWASM</code> (for <code>wasm</code> only)
+	<p>
+	This variable is a comma separated list of <a href="https://github.com/WebAssembly/proposals">experimental WebAssembly features</a> that the compiled WebAssembly binary is allowed to use.
+	The default is to use no experimental features.
+	</p>
+	<ul>
+		<li><code>GOWASM=satconv</code>: generate <a href="https://github.com/WebAssembly/nontrapping-float-to-int-conversions/blob/master/proposals/nontrapping-float-to-int-conversion/Overview.md">saturating (non-trapping) float-to-int conversions</a></li>
+		<li><code>GOWASM=signext</code>: generate <a href="https://github.com/WebAssembly/sign-extension-ops/blob/master/proposals/sign-extension-ops/Overview.md">sign-extension operators</a></li>
+	</ul>
 </li>
 
 </ul>
@@ -670,7 +763,6 @@ something like this:
 </p>
 
 <pre>
-export GOROOT=$HOME/go1.X
 export GOARCH=amd64
 export GOOS=linux
 </pre>

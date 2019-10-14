@@ -184,8 +184,9 @@
 //     }
 //
 //
-// Pos encodes a file:line pair, incorporating a simple delta encoding
-// scheme within a data object. See exportWriter.pos for details.
+// Pos encodes a file:line:column triple, incorporating a simple delta
+// encoding scheme within a data object. See exportWriter.pos for
+// details.
 //
 //
 // Compiler-specific details.
@@ -202,19 +203,19 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/compile/internal/types"
-	"cmd/internal/obj"
 	"cmd/internal/src"
 	"encoding/binary"
 	"fmt"
-	"go/ast"
 	"io"
 	"math/big"
+	"sort"
 	"strings"
 )
 
 // Current indexed export format version. Increase with each format change.
+// 1: added column details to Pos
 // 0: Go1.11 encoding
-const iexportVersion = 0
+const iexportVersion = 1
 
 // predeclReserved is the number of type offsets reserved for types
 // implicitly declared in the universe block.
@@ -322,12 +323,12 @@ func (w *exportWriter) writeIndex(index map[*Node]uint64, mainIndex bool) {
 	for pkg, objs := range pkgObjs {
 		pkgs = append(pkgs, pkg)
 
-		obj.SortSlice(objs, func(i, j int) bool {
+		sort.Slice(objs, func(i, j int) bool {
 			return objs[i].Sym.Name < objs[j].Sym.Name
 		})
 	}
 
-	obj.SortSlice(pkgs, func(i, j int) bool {
+	sort.Slice(pkgs, func(i, j int) bool {
 		return pkgs[i].Path < pkgs[j].Path
 	})
 
@@ -402,10 +403,11 @@ func (p *iexporter) pushDecl(n *Node) {
 type exportWriter struct {
 	p *iexporter
 
-	data     intWriter
-	currPkg  *types.Pkg
-	prevFile string
-	prevLine int64
+	data       intWriter
+	currPkg    *types.Pkg
+	prevFile   string
+	prevLine   int64
+	prevColumn int64
 }
 
 func (p *iexporter) doDecl(n *Node) {
@@ -439,7 +441,7 @@ func (p *iexporter) doDecl(n *Node) {
 
 	case OLITERAL:
 		// Constant.
-		n = typecheck(n, Erv)
+		n = typecheck(n, ctxExpr)
 		w.tag('C')
 		w.pos(n.Pos)
 		w.value(n.Type, n.Val())
@@ -511,29 +513,39 @@ func (w *exportWriter) pos(pos src.XPos) {
 	p := Ctxt.PosTable.Pos(pos)
 	file := p.Base().AbsFilename()
 	line := int64(p.RelLine())
+	column := int64(p.RelCol())
 
-	// When file is the same as the last position (common case),
-	// we can save a few bytes by delta encoding just the line
-	// number.
+	// Encode position relative to the last position: column
+	// delta, then line delta, then file name. We reserve the
+	// bottom bit of the column and line deltas to encode whether
+	// the remaining fields are present.
 	//
 	// Note: Because data objects may be read out of order (or not
 	// at all), we can only apply delta encoding within a single
-	// object. This is handled implicitly by tracking prevFile and
-	// prevLine as fields of exportWriter.
+	// object. This is handled implicitly by tracking prevFile,
+	// prevLine, and prevColumn as fields of exportWriter.
 
-	if file == w.prevFile {
-		delta := line - w.prevLine
-		w.int64(delta)
-		if delta == deltaNewFile {
-			w.int64(-1)
-		}
-	} else {
-		w.int64(deltaNewFile)
-		w.int64(line) // line >= 0
-		w.string(file)
-		w.prevFile = file
+	deltaColumn := (column - w.prevColumn) << 1
+	deltaLine := (line - w.prevLine) << 1
+
+	if file != w.prevFile {
+		deltaLine |= 1
 	}
+	if deltaLine != 0 {
+		deltaColumn |= 1
+	}
+
+	w.int64(deltaColumn)
+	if deltaColumn&1 != 0 {
+		w.int64(deltaLine)
+		if deltaLine&1 != 0 {
+			w.string(file)
+		}
+	}
+
+	w.prevFile = file
 	w.prevLine = line
+	w.prevColumn = column
 }
 
 func (w *exportWriter) pkg(pkg *types.Pkg) {
@@ -617,7 +629,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
 	}
 
 	switch t.Etype {
-	case TPTR32, TPTR64:
+	case TPTR:
 		w.startType(pointerType)
 		w.typ(t.Elem())
 
@@ -707,7 +719,7 @@ func (w *exportWriter) signature(t *types.Type) {
 	w.paramList(t.Params().FieldSlice())
 	w.paramList(t.Results().FieldSlice())
 	if n := t.Params().NumFields(); n > 0 {
-		w.bool(t.Params().Field(n - 1).Isddd())
+		w.bool(t.Params().Field(n - 1).IsDDD())
 	}
 }
 
@@ -735,15 +747,14 @@ func constTypeOf(typ *types.Type) Ctype {
 	}
 
 	switch typ.Etype {
-	case TCHAN, TFUNC, TMAP, TNIL, TINTER, TSLICE:
+	case TCHAN, TFUNC, TMAP, TNIL, TINTER, TPTR, TSLICE, TUNSAFEPTR:
 		return CTNIL
 	case TBOOL:
 		return CTBOOL
 	case TSTRING:
 		return CTSTR
 	case TINT, TINT8, TINT16, TINT32, TINT64,
-		TUINT, TUINT8, TUINT16, TUINT32, TUINT64, TUINTPTR,
-		TPTR32, TPTR64, TUNSAFEPTR:
+		TUINT, TUINT8, TUINT16, TUINT32, TUINT64, TUINTPTR:
 		return CTINT
 	case TFLOAT32, TFLOAT64:
 		return CTFLT
@@ -909,7 +920,7 @@ func (w *exportWriter) mpfloat(f *big.Float, typ *types.Type) {
 
 	manti, acc := mant.Int(nil)
 	if acc != big.Exact {
-		Fatalf("exporter: internal error")
+		Fatalf("mantissa scaling failed for %f (%s)", f, acc)
 	}
 	w.mpint(manti, typ)
 	if manti.Sign() != 0 {
@@ -1033,11 +1044,17 @@ func (w *exportWriter) stmt(n *Node) {
 			w.expr(n.Right)
 		}
 
-	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+	case OAS2:
 		w.op(OAS2)
 		w.pos(n.Pos)
 		w.exprList(n.List)
 		w.exprList(n.Rlist)
+
+	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+		w.op(OAS2)
+		w.pos(n.Pos)
+		w.exprList(n.List)
+		w.exprList(asNodes([]*Node{n.Right}))
 
 	case ORETURN:
 		w.op(ORETURN)
@@ -1047,7 +1064,7 @@ func (w *exportWriter) stmt(n *Node) {
 	// case ORETJMP:
 	// 	unreachable - generated by compiler for trampolin routines
 
-	case OPROC, ODEFER:
+	case OGO, ODEFER:
 		w.op(op)
 		w.pos(n.Pos)
 		w.expr(n.Left)
@@ -1081,8 +1098,8 @@ func (w *exportWriter) stmt(n *Node) {
 		w.exprsOrNil(n.Left, nil)
 		w.stmtList(n.List)
 
-	case OCASE, OXCASE:
-		w.op(OXCASE)
+	case OCASE:
+		w.op(OCASE)
 		w.pos(n.Pos)
 		w.stmtList(n.List)
 		w.stmtList(n.Nbody)
@@ -1102,7 +1119,7 @@ func (w *exportWriter) stmt(n *Node) {
 	case OGOTO, OLABEL:
 		w.op(op)
 		w.pos(n.Pos)
-		w.expr(n.Left)
+		w.string(n.Sym.Name)
 
 	default:
 		Fatalf("exporter: CANNOT EXPORT: %v\nPlease notify gri@\n", n.Op)
@@ -1127,7 +1144,7 @@ func (w *exportWriter) expr(n *Node) {
 	// }
 
 	// from exprfmt (fmt.go)
-	for n.Op == OPAREN || n.Implicit() && (n.Op == OIND || n.Op == OADDR || n.Op == ODOT || n.Op == ODOTPTR) {
+	for n.Op == OPAREN || n.Implicit() && (n.Op == ODEREF || n.Op == OADDR || n.Op == ODOT || n.Op == ODOTPTR) {
 		n = n.Left
 	}
 
@@ -1183,10 +1200,9 @@ func (w *exportWriter) expr(n *Node) {
 	// 	should have been resolved by typechecking - handled by default case
 
 	case OPTRLIT:
-		w.op(OPTRLIT)
+		w.op(OADDR)
 		w.pos(n.Pos)
 		w.expr(n.Left)
-		w.bool(n.Implicit())
 
 	case OSTRUCTLIT:
 		w.op(OSTRUCTLIT)
@@ -1252,7 +1268,7 @@ func (w *exportWriter) expr(n *Node) {
 		w.expr(n.Right)
 		w.op(OEND)
 
-	case OCONV, OCONVIFACE, OCONVNOP, OARRAYBYTESTR, OARRAYRUNESTR, OSTRARRAYBYTE, OSTRARRAYRUNE, ORUNESTR:
+	case OCONV, OCONVIFACE, OCONVNOP, OBYTES2STR, ORUNES2STR, OSTR2BYTES, OSTR2RUNES, ORUNESTR:
 		w.op(OCONV)
 		w.pos(n.Pos)
 		w.expr(n.Left)
@@ -1269,17 +1285,18 @@ func (w *exportWriter) expr(n *Node) {
 		}
 		// only append() calls may contain '...' arguments
 		if op == OAPPEND {
-			w.bool(n.Isddd())
-		} else if n.Isddd() {
+			w.bool(n.IsDDD())
+		} else if n.IsDDD() {
 			Fatalf("exporter: unexpected '...' with %v call", op)
 		}
 
 	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:
 		w.op(OCALL)
 		w.pos(n.Pos)
+		w.stmtList(n.Ninit)
 		w.expr(n.Left)
 		w.exprList(n.List)
-		w.bool(n.Isddd())
+		w.bool(n.IsDDD())
 
 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
 		w.op(op) // must keep separate from OMAKE for importer
@@ -1301,7 +1318,7 @@ func (w *exportWriter) expr(n *Node) {
 		}
 
 	// unary expressions
-	case OPLUS, OMINUS, OADDR, OCOM, OIND, ONOT, ORECV:
+	case OPLUS, ONEG, OADDR, OBITNOT, ODEREF, ONOT, ORECV:
 		w.op(op)
 		w.pos(n.Pos)
 		w.expr(n.Left)
@@ -1319,19 +1336,13 @@ func (w *exportWriter) expr(n *Node) {
 		w.pos(n.Pos)
 		w.exprList(n.List)
 
-	case OCMPSTR, OCMPIFACE:
-		w.op(n.SubOp())
-		w.pos(n.Pos)
-		w.expr(n.Left)
-		w.expr(n.Right)
-
 	case ODCLCONST:
 		// if exporting, DCLCONST should just be removed as its usage
 		// has already been replaced with literals
 
 	default:
 		Fatalf("cannot export %v (%d) node\n"+
-			"==> please file an issue and assign to gri@\n", n.Op, int(n.Op))
+			"\t==> please file an issue and assign to gri@", n.Op, int(n.Op))
 	}
 }
 
@@ -1393,7 +1404,8 @@ func (w *exportWriter) localIdent(s *types.Sym, v int32) {
 		return
 	}
 
-	if i := strings.LastIndex(name, "."); i >= 0 {
+	// TODO(mdempsky): Fix autotmp hack.
+	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, ".autotmp_") {
 		Fatalf("unexpected dot in identifier: %v", name)
 	}
 
@@ -1404,7 +1416,7 @@ func (w *exportWriter) localIdent(s *types.Sym, v int32) {
 		name = fmt.Sprintf("%s·%d", name, v)
 	}
 
-	if !ast.IsExported(name) && s.Pkg != w.currPkg {
+	if !types.IsExported(name) && s.Pkg != w.currPkg {
 		Fatalf("weird package in name: %v => %v, not %q", s, name, w.currPkg.Path)
 	}
 

@@ -1,3 +1,5 @@
+env GO111MODULE=off
+
 # GOFLAGS sets flags for commands
 
 env GOFLAGS='-e -f={{.Dir}} --test.benchtime=1s -count=10'

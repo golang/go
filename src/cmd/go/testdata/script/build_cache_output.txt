@@ -1,4 +1,8 @@
+env GO111MODULE=off
+env GODEBUG=gocachetest=1
+
 [!gc] skip
+[short] skip # clears cache, rebuilds too much
 
 # Set up fresh GOCACHE.
 env GOCACHE=$WORK/gocache
@@ -29,7 +33,7 @@ stderr 'main.go:2.* can inline main' # from compiler
 stderr '\d+ symbols' # from linker
 
 # Running a test should run the compiler, linker, and the test the first time.
-go test -v -x -gcflags=-m -ldflags=-v p_test.go
+go test -v -x -gcflags=-m -ldflags=-v p
 stderr 'compile( |\.exe"?)'
 stderr 'p_test.go:.*can inline Test' # from compile of p_test
 stderr 'testmain\.go:.*inlin' # from compile of testmain
@@ -39,7 +43,7 @@ stderr 'p\.test( |\.exe"?)'
 stdout 'TEST' # from test
 
 # ... but not the second, even though it still prints the compiler, linker, and test output.
-go test -v -x -gcflags=-m -ldflags=-v p_test.go
+go test -v -x -gcflags=-m -ldflags=-v p
 ! stderr 'compile( |\.exe"?)'
 stderr 'p_test.go:.*can inline Test' # from compile of p_test
 stderr 'testmain\.go:.*inlin' # from compile of testmain
@@ -57,7 +61,7 @@ func f(x *int) *int { return x }
 package main
 func main() {}
 
--- p_test.go --
+-- p/p_test.go --
 package p
 import "testing"
 func Test(t *testing.T) {println("TEST")}

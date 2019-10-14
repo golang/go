@@ -43,8 +43,16 @@ Flags:
 		or initialized to a constant string expression. -X will not work if the initializer makes
 		a function call or refers to other variables.
 		Note that before Go 1.5 this option took two separate arguments.
+	-a
+		Disassemble output.
+	-buildid id
+		Record id as Go toolchain build id.
 	-buildmode mode
 		Set build mode (default exe).
+	-c
+		Dump call graphs.
+	-compressdwarf
+		Compress DWARF if possible (default true).
 	-cpuprofile file
 		Write CPU profile to file.
 	-d
@@ -54,6 +62,10 @@ Flags:
 		The dynamic header is on by default, even without any
 		references to dynamic libraries, because many common
 		system tools now assume the presence of the header.
+	-debugtramp int
+		Debug trampolines.
+	-dumpdep
+		Dump symbol dependency graph.
 	-extar ar
 		Set the external archive program (default "ar").
 		Used only for -buildmode=c-archive.
@@ -65,9 +77,14 @@ Flags:
 		Ignore version mismatch in the linked archives.
 	-g
 		Disable Go package data checks.
+	-importcfg file
+		Read import configuration from file.
+		In the file, set packagefile, packageshlib to specify import resolution.
 	-installsuffix suffix
 		Look for packages in $GOROOT/pkg/$GOOS_$GOARCH_suffix
 		instead of $GOROOT/pkg/$GOOS_$GOARCH.
+	-k symbol
+		Set field tracking symbol. Use this flag when GOEXPERIMENT=fieldtrack is set.
 	-libgcc file
 		Set name of compiler support library.
 		This is only used in internal link mode.
@@ -85,6 +102,8 @@ Flags:
 		Set runtime.MemProfileRate to rate.
 	-msan
 		Link with C/C++ memory sanitizer support.
+	-n
+		Dump symbol table.
 	-o file
 		Write output to file (default a.out, or a.out.exe on Windows).
 	-pluginpath path
@@ -100,6 +119,8 @@ Flags:
 	-tmpdir dir
 		Write temporary files to dir.
 		Temporary files are only used in external linking mode.
+	-u
+		Reject unsafe packages.
 	-v
 		Print trace of linker operations.
 	-w

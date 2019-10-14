@@ -25,11 +25,8 @@ type declInfo struct {
 	alias bool          // type alias declaration
 
 	// The deps field tracks initialization expression dependencies.
-	deps objSet // lazily initialized
+	deps map[Object]bool // lazily initialized
 }
-
-// An objSet is simply a set of objects.
-type objSet map[Object]bool
 
 // hasInitializer reports whether the declared object has an initialization
 // expression or function body.
@@ -41,7 +38,7 @@ func (d *declInfo) hasInitializer() bool {
 func (d *declInfo) addDep(obj Object) {
 	m := d.deps
 	if m == nil {
-		m = make(objSet)
+		m = make(map[Object]bool)
 		d.deps = m
 	}
 	m[obj] = true
@@ -301,15 +298,15 @@ func (check *Checker) collectObjects() {
 								// A package scope may contain non-exported objects,
 								// do not import them!
 								if obj.Exported() {
-									// TODO(gri) When we import a package, we create
-									// a new local package object. We should do the
-									// same for each dot-imported object. That way
-									// they can have correct position information.
-									// (We must not modify their existing position
-									// information because the same package - found
-									// via Config.Packages - may be dot-imported in
-									// another package!)
-									check.declare(fileScope, nil, obj, token.NoPos)
+									// declare dot-imported object
+									// (Do not use check.declare because it modifies the object
+									// via Object.setScopePos, which leads to a race condition;
+									// the object may be imported into more than one file scope
+									// concurrently. See issue #32154.)
+									if alt := fileScope.Insert(obj); alt != nil {
+										check.errorf(s.Name.Pos(), "%s redeclared in this block", obj.Name())
+										check.reportAltDecl(alt)
+									}
 								}
 							}
 							// add position to set of dot-import positions for this file
@@ -317,6 +314,7 @@ func (check *Checker) collectObjects() {
 							check.addUnusedDotImport(fileScope, imp, s.Pos())
 						} else {
 							// declare imported package object in file scope
+							// (no need to provide s.Name since we called check.recordDef earlier)
 							check.declare(fileScope, nil, obj, token.NoPos)
 						}
 
@@ -460,85 +458,79 @@ func (check *Checker) collectObjects() {
 	for _, f := range methods {
 		fdecl := check.objMap[f].fdecl
 		if list := fdecl.Recv.List; len(list) > 0 {
-			// f is a method
-			// receiver may be of the form T or *T, possibly with parentheses
-			typ := unparen(list[0].Type)
-			if ptr, _ := typ.(*ast.StarExpr); ptr != nil {
-				typ = unparen(ptr.X)
-			}
-			if base, _ := typ.(*ast.Ident); base != nil {
-				// base is a potential base type name; determine
-				// "underlying" defined type and associate f with it
-				if tname := check.resolveBaseTypeName(base); tname != nil {
-					check.methods[tname] = append(check.methods[tname], f)
-				}
+			// f is a method.
+			// Determine the receiver base type and associate f with it.
+			ptr, base := check.resolveBaseTypeName(list[0].Type)
+			if base != nil {
+				f.hasPtrRecv = ptr
+				check.methods[base] = append(check.methods[base], f)
 			}
 		}
 	}
 }
 
-// resolveBaseTypeName returns the non-alias receiver base type name,
-// explicitly declared in the package scope, for the given receiver
-// type name; or nil.
-func (check *Checker) resolveBaseTypeName(name *ast.Ident) *TypeName {
-	var path []*TypeName
+// resolveBaseTypeName returns the non-alias base type name for typ, and whether
+// there was a pointer indirection to get to it. The base type name must be declared
+// in package scope, and there can be at most one pointer indirection. If no such type
+// name exists, the returned base is nil.
+func (check *Checker) resolveBaseTypeName(typ ast.Expr) (ptr bool, base *TypeName) {
+	// Algorithm: Starting from a type expression, which may be a name,
+	// we follow that type through alias declarations until we reach a
+	// non-alias type name. If we encounter anything but pointer types or
+	// parentheses we're done. If we encounter more than one pointer type
+	// we're done.
+	var seen map[*TypeName]bool
 	for {
+		typ = unparen(typ)
+
+		// check if we have a pointer type
+		if pexpr, _ := typ.(*ast.StarExpr); pexpr != nil {
+			// if we've already seen a pointer, we're done
+			if ptr {
+				return false, nil
+			}
+			ptr = true
+			typ = unparen(pexpr.X) // continue with pointer base type
+		}
+
+		// typ must be a name
+		name, _ := typ.(*ast.Ident)
+		if name == nil {
+			return false, nil
+		}
+
 		// name must denote an object found in the current package scope
 		// (note that dot-imported objects are not in the package scope!)
 		obj := check.pkg.scope.Lookup(name.Name)
 		if obj == nil {
-			return nil
+			return false, nil
 		}
+
 		// the object must be a type name...
 		tname, _ := obj.(*TypeName)
 		if tname == nil {
-			return nil
+			return false, nil
 		}
 
 		// ... which we have not seen before
-		if check.cycle(tname, path, false) {
-			return nil
+		if seen[tname] {
+			return false, nil
 		}
 
 		// we're done if tdecl defined tname as a new type
 		// (rather than an alias)
 		tdecl := check.objMap[tname] // must exist for objects in package scope
 		if !tdecl.alias {
-			return tname
+			return ptr, tname
 		}
 
-		// Otherwise, if tdecl defined an alias for a (possibly parenthesized)
-		// type which is not an (unqualified) named type, we're done because
-		// receiver base types must be named types declared in this package.
-		typ := unparen(tdecl.typ) // a type may be parenthesized
-		name, _ = typ.(*ast.Ident)
-		if name == nil {
-			return nil
+		// otherwise, continue resolving
+		typ = tdecl.typ
+		if seen == nil {
+			seen = make(map[*TypeName]bool)
 		}
-
-		// continue resolving name
-		path = append(path, tname)
+		seen[tname] = true
 	}
-}
-
-// cycle reports whether obj appears in path or not.
-// If it does, and report is set, it also reports a cycle error.
-func (check *Checker) cycle(obj *TypeName, path []*TypeName, report bool) bool {
-	// (it's ok to iterate forward because each named type appears at most once in path)
-	for i, prev := range path {
-		if prev == obj {
-			if report {
-				check.errorf(obj.pos, "illegal cycle in declaration of %s", obj.name)
-				// print cycle
-				for _, obj := range path[i:] {
-					check.errorf(obj.Pos(), "\t%s refers to", obj.Name()) // secondary error, \t indented
-				}
-				check.errorf(obj.Pos(), "\t%s", obj.Name())
-			}
-			return true
-		}
-	}
-	return false
 }
 
 // packageObjects typechecks all package objects, but not function bodies.
@@ -559,7 +551,25 @@ func (check *Checker) packageObjects() {
 		}
 	}
 
+	// We process non-alias declarations first, in order to avoid situations where
+	// the type of an alias declaration is needed before it is available. In general
+	// this is still not enough, as it is possible to create sufficiently convoluted
+	// recursive type definitions that will cause a type alias to be needed before it
+	// is available (see issue #25838 for examples).
+	// As an aside, the cmd/compiler suffers from the same problem (#25838).
+	var aliasList []*TypeName
+	// phase 1
 	for _, obj := range objList {
+		// If we have a type alias, collect it for the 2nd phase.
+		if tname, _ := obj.(*TypeName); tname != nil && check.objMap[tname].alias {
+			aliasList = append(aliasList, tname)
+			continue
+		}
+
+		check.objDecl(obj, nil)
+	}
+	// phase 2
+	for _, obj := range aliasList {
 		check.objDecl(obj, nil)
 	}
 
@@ -576,16 +586,6 @@ type inSourceOrder []Object
 func (a inSourceOrder) Len() int           { return len(a) }
 func (a inSourceOrder) Less(i, j int) bool { return a[i].order() < a[j].order() }
 func (a inSourceOrder) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-
-// processDelayed processes all delayed actions pushed after top.
-func (check *Checker) processDelayed(top int) {
-	for len(check.delayed) > top {
-		i := len(check.delayed) - 1
-		f := check.delayed[i]
-		check.delayed = check.delayed[:i]
-		f() // may append to check.delayed
-	}
-}
 
 // unusedImports checks for unused imports.
 func (check *Checker) unusedImports() {

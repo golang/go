@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux,!android netbsd openbsd
+// +build aix darwin dragonfly freebsd linux,!android netbsd openbsd
 // +build cgo
 
 // Package pty is a simple pseudo-terminal package for Unix systems,
@@ -37,6 +37,8 @@ func ptyError(name string, err error) *PtyError {
 func (e *PtyError) Error() string {
 	return fmt.Sprintf("%s: %s", e.FuncName, e.ErrorString)
 }
+
+func (e *PtyError) Unwrap() error { return e.Errno }
 
 // Open returns a master pty and the name of the linked slave tty.
 func Open() (master *os.File, slave string, err error) {

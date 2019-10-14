@@ -27,8 +27,7 @@ var protocols = map[string]int{
 }
 
 // services contains minimal mappings between services names and port
-// numbers for platforms that don't have a complete list of port numbers
-// (some Solaris distros, nacl, etc).
+// numbers for platforms that don't have a complete list of port numbers.
 //
 // See https://www.iana.org/assignments/service-names-port-numbers
 //
@@ -95,6 +94,19 @@ func lookupPortMap(network, service string) (port int, error error) {
 		}
 	}
 	return 0, &AddrError{Err: "unknown port", Addr: network + "/" + service}
+}
+
+// ipVersion returns the provided network's IP version: '4', '6' or 0
+// if network does not end in a '4' or '6' byte.
+func ipVersion(network string) byte {
+	if network == "" {
+		return 0
+	}
+	n := network[len(network)-1]
+	if n != '4' && n != '6' {
+		n = 0
+	}
+	return n
 }
 
 // DefaultResolver is the resolver used by the package-level Lookup
@@ -164,7 +176,7 @@ func (r *Resolver) LookupHost(ctx context.Context, host string) (addrs []string,
 	// Make sure that no matter what we do later, host=="" is rejected.
 	// parseIP, for example, does accept empty strings.
 	if host == "" {
-		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host}
+		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host, IsNotFound: true}
 	}
 	if ip, _ := parseIPZone(host); ip != nil {
 		return []string{host}, nil
@@ -189,10 +201,43 @@ func LookupIP(host string) ([]IP, error) {
 // LookupIPAddr looks up host using the local resolver.
 // It returns a slice of that host's IPv4 and IPv6 addresses.
 func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, error) {
+	return r.lookupIPAddr(ctx, "ip", host)
+}
+
+// onlyValuesCtx is a context that uses an underlying context
+// for value lookup if the underlying context hasn't yet expired.
+type onlyValuesCtx struct {
+	context.Context
+	lookupValues context.Context
+}
+
+var _ context.Context = (*onlyValuesCtx)(nil)
+
+// Value performs a lookup if the original context hasn't expired.
+func (ovc *onlyValuesCtx) Value(key interface{}) interface{} {
+	select {
+	case <-ovc.lookupValues.Done():
+		return nil
+	default:
+		return ovc.lookupValues.Value(key)
+	}
+}
+
+// withUnexpiredValuesPreserved returns a context.Context that only uses lookupCtx
+// for its values, otherwise it is never canceled and has no deadline.
+// If the lookup context expires, any looked up values will return nil.
+// See Issue 28600.
+func withUnexpiredValuesPreserved(lookupCtx context.Context) context.Context {
+	return &onlyValuesCtx{Context: context.Background(), lookupValues: lookupCtx}
+}
+
+// lookupIPAddr looks up host using the local resolver and particular network.
+// It returns a slice of that host's IPv4 and IPv6 addresses.
+func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IPAddr, error) {
 	// Make sure that no matter what we do later, host=="" is rejected.
 	// parseIP, for example, does accept empty strings.
 	if host == "" {
-		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host}
+		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host, IsNotFound: true}
 	}
 	if ip, zone := parseIPZone(host); ip != nil {
 		return []IPAddr{{IP: ip, Zone: zone}}, nil
@@ -205,20 +250,22 @@ func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, err
 	// can be overridden by tests. This is needed by net/http, so it
 	// uses a context key instead of unexported variables.
 	resolverFunc := r.lookupIP
-	if alt, _ := ctx.Value(nettrace.LookupIPAltResolverKey{}).(func(context.Context, string) ([]IPAddr, error)); alt != nil {
+	if alt, _ := ctx.Value(nettrace.LookupIPAltResolverKey{}).(func(context.Context, string, string) ([]IPAddr, error)); alt != nil {
 		resolverFunc = alt
 	}
 
-	// We don't want a cancelation of ctx to affect the
+	// We don't want a cancellation of ctx to affect the
 	// lookupGroup operation. Otherwise if our context gets
 	// canceled it might cause an error to be returned to a lookup
-	// using a completely different context.
-	lookupGroupCtx, lookupGroupCancel := context.WithCancel(context.Background())
+	// using a completely different context. However we need to preserve
+	// only the values in context. See Issue 28600.
+	lookupGroupCtx, lookupGroupCancel := context.WithCancel(withUnexpiredValuesPreserved(ctx))
 
+	lookupKey := network + "\000" + host
 	dnsWaitGroup.Add(1)
-	ch, called := r.getLookupGroup().DoChan(host, func() (interface{}, error) {
+	ch, called := r.getLookupGroup().DoChan(lookupKey, func() (interface{}, error) {
 		defer dnsWaitGroup.Done()
-		return testHookLookupIP(lookupGroupCtx, resolverFunc, host)
+		return testHookLookupIP(lookupGroupCtx, resolverFunc, network, host)
 	})
 	if !called {
 		dnsWaitGroup.Done()
@@ -233,7 +280,7 @@ func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, err
 		// let the lookup continue uncanceled, and let later
 		// lookups with the same key share the result.
 		// See issues 8602, 20703, 22724.
-		if r.getLookupGroup().ForgetUnshared(host) {
+		if r.getLookupGroup().ForgetUnshared(lookupKey) {
 			lookupGroupCancel()
 		} else {
 			go func() {
@@ -289,6 +336,13 @@ func LookupPort(network, service string) (port int, err error) {
 func (r *Resolver) LookupPort(ctx context.Context, network, service string) (port int, err error) {
 	port, needsLookup := parsePort(service)
 	if needsLookup {
+		switch network {
+		case "tcp", "tcp4", "tcp6", "udp", "udp4", "udp6":
+		case "": // a hint wildcard for Go 1.0 undocumented behavior
+			network = "ip"
+		default:
+			return 0, &AddrError{Err: "unknown network", Addr: network}
+		}
 		port, err = r.lookupPort(ctx, network, service)
 		if err != nil {
 			return 0, err

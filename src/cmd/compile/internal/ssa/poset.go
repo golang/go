@@ -5,7 +5,6 @@
 package ssa
 
 import (
-	"errors"
 	"fmt"
 	"os"
 )
@@ -106,26 +105,28 @@ type posetNode struct {
 // order so that if we know that A<B<C and later learn that A==D, Ordered will return
 // true for D<C.
 //
+// It is also possible to record inequality relations between nodes with SetNonEqual;
+// non-equality relations are not transitive, but they can still be useful: for instance
+// if we know that A<=B and later we learn that A!=B, we can deduce that A<B.
+// NonEqual can be used to check whether it is known that the nodes are different, either
+// because SetNonEqual was called before, or because we know that they are strictly ordered.
+//
 // poset will refuse to record new relations that contradict existing relations:
 // for instance if A<B<C, calling SetOrder for C<A will fail returning false; also
 // calling SetEqual for C==A will fail.
 //
-// It is also possible to record inequality relations between nodes with SetNonEqual;
-// given that non-equality is not transitive, the only effect is that a later call
-// to SetEqual for the same values will fail. NonEqual checks whether it is known that
-// the nodes are different, either because SetNonEqual was called before, or because
-// we know that that they are strictly ordered.
-//
-// It is implemented as a forest of DAGs; in each DAG, if node A dominates B,
-// it means that A<B. Equality is represented by mapping two SSA values to the same
-// DAG node; when a new equality relation is recorded between two existing nodes,
-// the nodes are merged, adjusting incoming and outgoing edges.
+// poset is implemented as a forest of DAGs; in each DAG, if there is a path (directed)
+// from node A to B, it means that A<B (or A<=B). Equality is represented by mapping
+// two SSA values to the same DAG node; when a new equality relation is recorded
+// between two existing nodes,the nodes are merged, adjusting incoming and outgoing edges.
 //
 // Constants are specially treated. When a constant is added to the poset, it is
 // immediately linked to other constants already present; so for instance if the
 // poset knows that x<=3, and then x is tested against 5, 5 is first added and linked
 // 3 (using 3<5), so that the poset knows that x<=3<5; at that point, it is able
-// to answer x<5 correctly.
+// to answer x<5 correctly. This means that all constants are always within the same
+// DAG; as an implementation detail, we enfoce that the DAG containtining the constants
+// is always the first in the forest.
 //
 // poset is designed to be memory efficient and do little allocations during normal usage.
 // Most internal data structures are pre-allocated and flat, so for instance adding a
@@ -279,10 +280,14 @@ func (po *poset) newconst(n *Value) {
 
 	// If this is the first constant, put it into a new root, as
 	// we can't record an existing connection so we don't have
-	// a specific DAG to add it to.
+	// a specific DAG to add it to. Notice that we want all
+	// constants to be in root #0, so make sure the new root
+	// goes there.
 	if len(po.constants) == 0 {
+		idx := len(po.roots)
 		i := po.newnode(n)
 		po.roots = append(po.roots, i)
+		po.roots[0], po.roots[idx] = po.roots[idx], po.roots[0]
 		po.upush(undoNewRoot, i, 0)
 		po.constants = append(po.constants, n)
 		return
@@ -367,6 +372,9 @@ func (po *poset) newconst(n *Value) {
 		//
 		i2 := po.values[higherptr.ID]
 		r2 := po.findroot(i2)
+		if r2 != po.roots[0] { // all constants should be in root #0
+			panic("constant not in root #0")
+		}
 		dummy := po.newnode(nil)
 		po.changeroot(r2, dummy)
 		po.upush(undoChangeRoot, dummy, newedge(r2, false))
@@ -519,11 +527,11 @@ func (po *poset) dfs(r uint32, strict bool, f func(i uint32) bool) bool {
 	return false
 }
 
-// Returns true if i1 dominates i2.
+// Returns true if there is a path from i1 to i2.
 // If strict ==  true: if the function returns true, then i1 <  i2.
 // If strict == false: if the function returns true, then i1 <= i2.
 // If the function returns false, no relation is known.
-func (po *poset) dominates(i1, i2 uint32, strict bool) bool {
+func (po *poset) reaches(i1, i2 uint32, strict bool) bool {
 	return po.dfs(i1, strict, func(n uint32) bool {
 		return n == i2
 	})
@@ -537,7 +545,7 @@ func (po *poset) findroot(i uint32) uint32 {
 	// storing a bitset for each root using it as a mini bloom filter
 	// of nodes present under that root.
 	for _, r := range po.roots {
-		if po.dominates(r, i, false) {
+		if po.reaches(r, i, false) {
 			return r
 		}
 	}
@@ -546,6 +554,12 @@ func (po *poset) findroot(i uint32) uint32 {
 
 // mergeroot merges two DAGs into one DAG by creating a new dummy root
 func (po *poset) mergeroot(r1, r2 uint32) uint32 {
+	// Root #0 is special as it contains all constants. Since mergeroot
+	// discards r2 as root and keeps r1, make sure that r2 is not root #0,
+	// otherwise constants would move to a different root.
+	if r2 == po.roots[0] {
+		r1, r2 = r2, r1
+	}
 	r := po.newnode(nil)
 	po.setchl(r, newedge(r1, false))
 	po.setchr(r, newedge(r2, false))
@@ -560,7 +574,7 @@ func (po *poset) mergeroot(r1, r2 uint32) uint32 {
 // found, the function does not modify the DAG and returns false.
 func (po *poset) collapsepath(n1, n2 *Value) bool {
 	i1, i2 := po.values[n1.ID], po.values[n2.ID]
-	if po.dominates(i1, i2, true) {
+	if po.reaches(i1, i2, true) {
 		return false
 	}
 
@@ -610,54 +624,43 @@ func (po *poset) setnoneq(id1, id2 ID) {
 
 // CheckIntegrity verifies internal integrity of a poset. It is intended
 // for debugging purposes.
-func (po *poset) CheckIntegrity() (err error) {
+func (po *poset) CheckIntegrity() {
 	// Record which index is a constant
 	constants := newBitset(int(po.lastidx + 1))
 	for _, c := range po.constants {
 		if idx, ok := po.values[c.ID]; !ok {
-			err = errors.New("node missing for constant")
-			return err
+			panic("node missing for constant")
 		} else {
 			constants.Set(idx)
 		}
 	}
 
 	// Verify that each node appears in a single DAG, and that
-	// all constants are within the same DAG
-	var croot uint32
+	// all constants are within the first DAG
 	seen := newBitset(int(po.lastidx + 1))
-	for _, r := range po.roots {
+	for ridx, r := range po.roots {
 		if r == 0 {
-			err = errors.New("empty root")
-			return
+			panic("empty root")
 		}
 
 		po.dfs(r, false, func(i uint32) bool {
 			if seen.Test(i) {
-				err = errors.New("duplicate node")
-				return true
+				panic("duplicate node")
 			}
 			seen.Set(i)
 			if constants.Test(i) {
-				if croot == 0 {
-					croot = r
-				} else if croot != r {
-					err = errors.New("constants are in different DAGs")
-					return true
+				if ridx != 0 {
+					panic("constants not in the first DAG")
 				}
 			}
 			return false
 		})
-		if err != nil {
-			return
-		}
 	}
 
 	// Verify that values contain the minimum set
 	for id, idx := range po.values {
 		if !seen.Test(idx) {
-			err = fmt.Errorf("spurious value [%d]=%d", id, idx)
-			return
+			panic(fmt.Errorf("spurious value [%d]=%d", id, idx))
 		}
 	}
 
@@ -665,17 +668,13 @@ func (po *poset) CheckIntegrity() (err error) {
 	for i, n := range po.nodes {
 		if n.l|n.r != 0 {
 			if !seen.Test(uint32(i)) {
-				err = fmt.Errorf("children of unknown node %d->%v", i, n)
-				return
+				panic(fmt.Errorf("children of unknown node %d->%v", i, n))
 			}
 			if n.l.Target() == uint32(i) || n.r.Target() == uint32(i) {
-				err = fmt.Errorf("self-loop on node %d", i)
-				return
+				panic(fmt.Errorf("self-loop on node %d", i))
 			}
 		}
 	}
-
-	return
 }
 
 // CheckEmpty checks that a poset is completely empty.
@@ -781,7 +780,7 @@ func (po *poset) DotDump(fn string, title string) error {
 	return nil
 }
 
-// Ordered returns true if n1<n2. It returns false either when it is
+// Ordered reports whether n1<n2. It returns false either when it is
 // certain that n1<n2 is false, or if there is not enough information
 // to tell.
 // Complexity is O(n).
@@ -796,10 +795,10 @@ func (po *poset) Ordered(n1, n2 *Value) bool {
 		return false
 	}
 
-	return i1 != i2 && po.dominates(i1, i2, true)
+	return i1 != i2 && po.reaches(i1, i2, true)
 }
 
-// Ordered returns true if n1<=n2. It returns false either when it is
+// Ordered reports whether n1<=n2. It returns false either when it is
 // certain that n1<=n2 is false, or if there is not enough information
 // to tell.
 // Complexity is O(n).
@@ -814,11 +813,10 @@ func (po *poset) OrderedOrEqual(n1, n2 *Value) bool {
 		return false
 	}
 
-	return i1 == i2 || po.dominates(i1, i2, false) ||
-		(po.dominates(i2, i1, false) && !po.dominates(i2, i1, true))
+	return i1 == i2 || po.reaches(i1, i2, false)
 }
 
-// Equal returns true if n1==n2. It returns false either when it is
+// Equal reports whether n1==n2. It returns false either when it is
 // certain that n1==n2 is false, or if there is not enough information
 // to tell.
 // Complexity is O(1).
@@ -832,7 +830,7 @@ func (po *poset) Equal(n1, n2 *Value) bool {
 	return f1 && f2 && i1 == i2
 }
 
-// NonEqual returns true if n1!=n2. It returns false either when it is
+// NonEqual reports whether n1!=n2. It returns false either when it is
 // certain that n1!=n2 is false, or if there is not enough information
 // to tell.
 // Complexity is O(n) (because it internally calls Ordered to see if we
@@ -923,8 +921,8 @@ func (po *poset) setOrder(n1, n2 *Value, strict bool) bool {
 		// Both n1 and n2 are in the poset. This is the complex part of the algorithm
 		// as we need to find many different cases and DAG shapes.
 
-		// Check if n1 somehow dominates n2
-		if po.dominates(i1, i2, false) {
+		// Check if n1 somehow reaches n2
+		if po.reaches(i1, i2, false) {
 			// This is the table of all cases we need to handle:
 			//
 			//      DAG          New      Action
@@ -935,7 +933,7 @@ func (po *poset) setOrder(n1, n2 *Value, strict bool) bool {
 			// #4:  N1<X<N2   |  N1<N2  | do nothing
 
 			// Check if we're in case #2
-			if strict && !po.dominates(i1, i2, true) {
+			if strict && !po.reaches(i1, i2, true) {
 				po.addchild(i1, i2, true)
 				return true
 			}
@@ -944,8 +942,8 @@ func (po *poset) setOrder(n1, n2 *Value, strict bool) bool {
 			return true
 		}
 
-		// Check if n2 somehow dominates n1
-		if po.dominates(i2, i1, false) {
+		// Check if n2 somehow reaches n1
+		if po.reaches(i2, i1, false) {
 			// This is the table of all cases we need to handle:
 			//
 			//      DAG           New      Action
@@ -1033,10 +1031,10 @@ func (po *poset) SetEqual(n1, n2 *Value) bool {
 
 		// If we already knew that n1<=n2, we can collapse the path to
 		// record n1==n2 (and viceversa).
-		if po.dominates(i1, i2, false) {
+		if po.reaches(i1, i2, false) {
 			return po.collapsepath(n1, n2)
 		}
-		if po.dominates(i2, i1, false) {
+		if po.reaches(i2, i1, false) {
 			return po.collapsepath(n2, n1)
 		}
 
@@ -1084,10 +1082,10 @@ func (po *poset) SetNonEqual(n1, n2 *Value) bool {
 	i1, f1 := po.lookup(n1)
 	i2, f2 := po.lookup(n2)
 	if f1 && f2 {
-		if po.dominates(i1, i2, false) && !po.dominates(i1, i2, true) {
+		if po.reaches(i1, i2, false) && !po.reaches(i1, i2, true) {
 			po.addchild(i1, i2, true)
 		}
-		if po.dominates(i2, i1, false) && !po.dominates(i2, i1, true) {
+		if po.reaches(i2, i1, false) && !po.reaches(i2, i1, true) {
 			po.addchild(i2, i1, true)
 		}
 	}

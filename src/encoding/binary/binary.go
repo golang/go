@@ -161,23 +161,17 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
 func Read(r io.Reader, order ByteOrder, data interface{}) error {
 	// Fast path for basic types and slices.
 	if n := intDataSize(data); n != 0 {
-		var b [8]byte
-		var bs []byte
-		if n > len(b) {
-			bs = make([]byte, n)
-		} else {
-			bs = b[:n]
-		}
+		bs := make([]byte, n)
 		if _, err := io.ReadFull(r, bs); err != nil {
 			return err
 		}
 		switch data := data.(type) {
 		case *bool:
-			*data = b[0] != 0
+			*data = bs[0] != 0
 		case *int8:
-			*data = int8(b[0])
+			*data = int8(bs[0])
 		case *uint8:
-			*data = b[0]
+			*data = bs[0]
 		case *int16:
 			*data = int16(order.Uint16(bs))
 		case *uint16:
@@ -260,25 +254,19 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
 func Write(w io.Writer, order ByteOrder, data interface{}) error {
 	// Fast path for basic types and slices.
 	if n := intDataSize(data); n != 0 {
-		var b [8]byte
-		var bs []byte
-		if n > len(b) {
-			bs = make([]byte, n)
-		} else {
-			bs = b[:n]
-		}
+		bs := make([]byte, n)
 		switch v := data.(type) {
 		case *bool:
 			if *v {
-				b[0] = 1
+				bs[0] = 1
 			} else {
-				b[0] = 0
+				bs[0] = 0
 			}
 		case bool:
 			if v {
-				b[0] = 1
+				bs[0] = 1
 			} else {
-				b[0] = 0
+				bs[0] = 0
 			}
 		case []bool:
 			for i, x := range v {
@@ -289,19 +277,19 @@ func Write(w io.Writer, order ByteOrder, data interface{}) error {
 				}
 			}
 		case *int8:
-			b[0] = byte(*v)
+			bs[0] = byte(*v)
 		case int8:
-			b[0] = byte(v)
+			bs[0] = byte(v)
 		case []int8:
 			for i, x := range v {
 				bs[i] = byte(x)
 			}
 		case *uint8:
-			b[0] = *v
+			bs[0] = *v
 		case uint8:
-			b[0] = v
+			bs[0] = v
 		case []uint8:
-			bs = v
+			bs = v // TODO(josharian): avoid allocating bs in this case?
 		case *int16:
 			order.PutUint16(bs, uint16(*v))
 		case int16:

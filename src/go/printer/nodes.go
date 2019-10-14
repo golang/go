@@ -794,8 +794,11 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		p.print(x)
 
 	case *ast.FuncLit:
-		p.expr(x.Type)
-		p.funcBody(p.distanceFrom(x.Type.Pos()), blank, x.Body)
+		p.print(x.Type.Pos(), token.FUNC)
+		// See the comment in funcDecl about how the header size is computed.
+		startCol := p.out.Column - len("func")
+		p.signature(x.Type.Params, x.Type.Results)
+		p.funcBody(p.distanceFrom(x.Type.Pos(), startCol), blank, x.Body)
 
 	case *ast.ParenExpr:
 		if _, hasParens := x.X.(*ast.ParenExpr); hasParens {
@@ -976,7 +979,7 @@ func (p *printer) possibleSelectorExpr(expr ast.Expr, prec1, depth int) bool {
 	return false
 }
 
-// selectorExpr handles an *ast.SelectorExpr node and returns whether x spans
+// selectorExpr handles an *ast.SelectorExpr node and reports whether x spans
 // multiple lines.
 func (p *printer) selectorExpr(x *ast.SelectorExpr, depth int, isMethod bool) bool {
 	p.expr1(x.X, token.HighestPrec, depth)
@@ -1134,7 +1137,7 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
 // than starting at the first line break).
 //
 func (p *printer) indentList(list []ast.Expr) bool {
-	// Heuristic: indentList returns true if there are more than one multi-
+	// Heuristic: indentList reports whether there are more than one multi-
 	// line element in the list, or if there is any element that is not
 	// starting on the same line as the previous one ends.
 	if len(list) >= 2 {
@@ -1237,10 +1240,12 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 			// lead to more nicely formatted code in general.
 			if p.indentList(s.Results) {
 				p.print(indent)
-				p.exprList(s.Pos(), s.Results, 1, noIndent, token.NoPos, false)
+				// Use NoPos so that a newline never goes before
+				// the results (see issue #32854).
+				p.exprList(token.NoPos, s.Results, 1, noIndent, token.NoPos, false)
 				p.print(unindent)
 			} else {
-				p.exprList(s.Pos(), s.Results, 1, 0, token.NoPos, false)
+				p.exprList(token.NoPos, s.Results, 1, 0, token.NoPos, false)
 			}
 		}
 
@@ -1537,7 +1542,7 @@ func (p *printer) genDecl(d *ast.GenDecl) {
 	p.setComment(d.Doc)
 	p.print(d.Pos(), d.Tok, blank)
 
-	if d.Lparen.IsValid() {
+	if d.Lparen.IsValid() || len(d.Specs) > 1 {
 		// group of parenthesized declarations
 		p.print(d.Lparen, token.LPAREN)
 		if n := len(d.Specs); n > 0 {
@@ -1568,7 +1573,7 @@ func (p *printer) genDecl(d *ast.GenDecl) {
 		}
 		p.print(d.Rparen, token.RPAREN)
 
-	} else {
+	} else if len(d.Specs) > 0 {
 		// single declaration
 		p.spec(d.Specs[0], 1, true)
 	}
@@ -1687,14 +1692,12 @@ func (p *printer) funcBody(headerSize int, sep whiteSpace, b *ast.BlockStmt) {
 	p.block(b, 1)
 }
 
-// distanceFrom returns the column difference between from and p.pos (the current
-// estimated position) if both are on the same line; if they are on different lines
-// (or unknown) the result is infinity.
-func (p *printer) distanceFrom(from token.Pos) int {
-	if from.IsValid() && p.pos.IsValid() {
-		if f := p.posFor(from); f.Line == p.pos.Line {
-			return p.pos.Column - f.Column
-		}
+// distanceFrom returns the column difference between p.out (the current output
+// position) and startOutCol. If the start position is on a different line from
+// the current position (or either is unknown), the result is infinity.
+func (p *printer) distanceFrom(startPos token.Pos, startOutCol int) int {
+	if startPos.IsValid() && p.pos.IsValid() && p.posFor(startPos).Line == p.pos.Line {
+		return p.out.Column - startOutCol
 	}
 	return infinity
 }
@@ -1702,13 +1705,17 @@ func (p *printer) distanceFrom(from token.Pos) int {
 func (p *printer) funcDecl(d *ast.FuncDecl) {
 	p.setComment(d.Doc)
 	p.print(d.Pos(), token.FUNC, blank)
+	// We have to save startCol only after emitting FUNC; otherwise it can be on a
+	// different line (all whitespace preceding the FUNC is emitted only when the
+	// FUNC is emitted).
+	startCol := p.out.Column - len("func ")
 	if d.Recv != nil {
 		p.parameters(d.Recv) // method: print receiver
 		p.print(blank)
 	}
 	p.expr(d.Name)
 	p.signature(d.Type.Params, d.Type.Results)
-	p.funcBody(p.distanceFrom(d.Pos()), vtab, d.Body)
+	p.funcBody(p.distanceFrom(d.Pos(), startCol), vtab, d.Body)
 }
 
 func (p *printer) decl(decl ast.Decl) {

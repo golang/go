@@ -7,33 +7,6 @@ package windows
 import "syscall"
 
 const (
-	// Windows errors.
-	ERROR_FILE_NOT_FOUND         syscall.Errno = 2
-	ERROR_PATH_NOT_FOUND         syscall.Errno = 3
-	ERROR_ACCESS_DENIED          syscall.Errno = 5
-	ERROR_NO_MORE_FILES          syscall.Errno = 18
-	ERROR_HANDLE_EOF             syscall.Errno = 38
-	ERROR_NETNAME_DELETED        syscall.Errno = 64
-	ERROR_FILE_EXISTS            syscall.Errno = 80
-	ERROR_BROKEN_PIPE            syscall.Errno = 109
-	ERROR_BUFFER_OVERFLOW        syscall.Errno = 111
-	ERROR_INSUFFICIENT_BUFFER    syscall.Errno = 122
-	ERROR_MOD_NOT_FOUND          syscall.Errno = 126
-	ERROR_PROC_NOT_FOUND         syscall.Errno = 127
-	ERROR_ALREADY_EXISTS         syscall.Errno = 183
-	ERROR_ENVVAR_NOT_FOUND       syscall.Errno = 203
-	ERROR_MORE_DATA              syscall.Errno = 234
-	ERROR_OPERATION_ABORTED      syscall.Errno = 995
-	ERROR_IO_PENDING             syscall.Errno = 997
-	ERROR_SERVICE_SPECIFIC_ERROR syscall.Errno = 1066
-	ERROR_NOT_FOUND              syscall.Errno = 1168
-	ERROR_PRIVILEGE_NOT_HELD     syscall.Errno = 1314
-	WSAEACCES                    syscall.Errno = 10013
-	WSAEMSGSIZE                  syscall.Errno = 10040
-	WSAECONNRESET                syscall.Errno = 10054
-)
-
-const (
 	// Invented values to support what package os expects.
 	O_RDONLY   = 0x00000
 	O_WRONLY   = 0x00001
@@ -94,16 +67,29 @@ const (
 	FILE_APPEND_DATA      = 0x00000004
 	FILE_WRITE_ATTRIBUTES = 0x00000100
 
-	FILE_SHARE_READ              = 0x00000001
-	FILE_SHARE_WRITE             = 0x00000002
-	FILE_SHARE_DELETE            = 0x00000004
-	FILE_ATTRIBUTE_READONLY      = 0x00000001
-	FILE_ATTRIBUTE_HIDDEN        = 0x00000002
-	FILE_ATTRIBUTE_SYSTEM        = 0x00000004
-	FILE_ATTRIBUTE_DIRECTORY     = 0x00000010
-	FILE_ATTRIBUTE_ARCHIVE       = 0x00000020
-	FILE_ATTRIBUTE_NORMAL        = 0x00000080
-	FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400
+	FILE_SHARE_READ   = 0x00000001
+	FILE_SHARE_WRITE  = 0x00000002
+	FILE_SHARE_DELETE = 0x00000004
+
+	FILE_ATTRIBUTE_READONLY              = 0x00000001
+	FILE_ATTRIBUTE_HIDDEN                = 0x00000002
+	FILE_ATTRIBUTE_SYSTEM                = 0x00000004
+	FILE_ATTRIBUTE_DIRECTORY             = 0x00000010
+	FILE_ATTRIBUTE_ARCHIVE               = 0x00000020
+	FILE_ATTRIBUTE_DEVICE                = 0x00000040
+	FILE_ATTRIBUTE_NORMAL                = 0x00000080
+	FILE_ATTRIBUTE_TEMPORARY             = 0x00000100
+	FILE_ATTRIBUTE_SPARSE_FILE           = 0x00000200
+	FILE_ATTRIBUTE_REPARSE_POINT         = 0x00000400
+	FILE_ATTRIBUTE_COMPRESSED            = 0x00000800
+	FILE_ATTRIBUTE_OFFLINE               = 0x00001000
+	FILE_ATTRIBUTE_NOT_CONTENT_INDEXED   = 0x00002000
+	FILE_ATTRIBUTE_ENCRYPTED             = 0x00004000
+	FILE_ATTRIBUTE_INTEGRITY_STREAM      = 0x00008000
+	FILE_ATTRIBUTE_VIRTUAL               = 0x00010000
+	FILE_ATTRIBUTE_NO_SCRUB_DATA         = 0x00020000
+	FILE_ATTRIBUTE_RECALL_ON_OPEN        = 0x00040000
+	FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS = 0x00400000
 
 	INVALID_FILE_ATTRIBUTES = 0xffffffff
 
@@ -113,9 +99,19 @@ const (
 	OPEN_ALWAYS       = 4
 	TRUNCATE_EXISTING = 5
 
-	FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
-	FILE_FLAG_BACKUP_SEMANTICS   = 0x02000000
-	FILE_FLAG_OVERLAPPED         = 0x40000000
+	FILE_FLAG_OPEN_REQUIRING_OPLOCK = 0x00040000
+	FILE_FLAG_FIRST_PIPE_INSTANCE   = 0x00080000
+	FILE_FLAG_OPEN_NO_RECALL        = 0x00100000
+	FILE_FLAG_OPEN_REPARSE_POINT    = 0x00200000
+	FILE_FLAG_SESSION_AWARE         = 0x00800000
+	FILE_FLAG_POSIX_SEMANTICS       = 0x01000000
+	FILE_FLAG_BACKUP_SEMANTICS      = 0x02000000
+	FILE_FLAG_DELETE_ON_CLOSE       = 0x04000000
+	FILE_FLAG_SEQUENTIAL_SCAN       = 0x08000000
+	FILE_FLAG_RANDOM_ACCESS         = 0x10000000
+	FILE_FLAG_NO_BUFFERING          = 0x20000000
+	FILE_FLAG_OVERLAPPED            = 0x40000000
+	FILE_FLAG_WRITE_THROUGH         = 0x80000000
 
 	HANDLE_FLAG_INHERIT    = 0x00000001
 	STARTF_USESTDHANDLES   = 0x00000100
@@ -154,7 +150,6 @@ const (
 	IGNORE                = 0
 	INFINITE              = 0xffffffff
 
-	WAIT_TIMEOUT   = 258
 	WAIT_ABANDONED = 0x00000080
 	WAIT_OBJECT_0  = 0x00000000
 	WAIT_FAILED    = 0xFFFFFFFF
@@ -257,15 +252,87 @@ const (
 	USAGE_MATCH_TYPE_AND = 0
 	USAGE_MATCH_TYPE_OR  = 1
 
+	/* msgAndCertEncodingType values for CertOpenStore function */
 	X509_ASN_ENCODING   = 0x00000001
 	PKCS_7_ASN_ENCODING = 0x00010000
 
-	CERT_STORE_PROV_MEMORY = 2
+	/* storeProvider values for CertOpenStore function */
+	CERT_STORE_PROV_MSG               = 1
+	CERT_STORE_PROV_MEMORY            = 2
+	CERT_STORE_PROV_FILE              = 3
+	CERT_STORE_PROV_REG               = 4
+	CERT_STORE_PROV_PKCS7             = 5
+	CERT_STORE_PROV_SERIALIZED        = 6
+	CERT_STORE_PROV_FILENAME_A        = 7
+	CERT_STORE_PROV_FILENAME_W        = 8
+	CERT_STORE_PROV_FILENAME          = CERT_STORE_PROV_FILENAME_W
+	CERT_STORE_PROV_SYSTEM_A          = 9
+	CERT_STORE_PROV_SYSTEM_W          = 10
+	CERT_STORE_PROV_SYSTEM            = CERT_STORE_PROV_SYSTEM_W
+	CERT_STORE_PROV_COLLECTION        = 11
+	CERT_STORE_PROV_SYSTEM_REGISTRY_A = 12
+	CERT_STORE_PROV_SYSTEM_REGISTRY_W = 13
+	CERT_STORE_PROV_SYSTEM_REGISTRY   = CERT_STORE_PROV_SYSTEM_REGISTRY_W
+	CERT_STORE_PROV_PHYSICAL_W        = 14
+	CERT_STORE_PROV_PHYSICAL          = CERT_STORE_PROV_PHYSICAL_W
+	CERT_STORE_PROV_SMART_CARD_W      = 15
+	CERT_STORE_PROV_SMART_CARD        = CERT_STORE_PROV_SMART_CARD_W
+	CERT_STORE_PROV_LDAP_W            = 16
+	CERT_STORE_PROV_LDAP              = CERT_STORE_PROV_LDAP_W
+	CERT_STORE_PROV_PKCS12            = 17
 
-	CERT_STORE_ADD_ALWAYS = 4
-
+	/* store characteristics (low WORD of flag) for CertOpenStore function */
+	CERT_STORE_NO_CRYPT_RELEASE_FLAG            = 0x00000001
+	CERT_STORE_SET_LOCALIZED_NAME_FLAG          = 0x00000002
 	CERT_STORE_DEFER_CLOSE_UNTIL_LAST_FREE_FLAG = 0x00000004
+	CERT_STORE_DELETE_FLAG                      = 0x00000010
+	CERT_STORE_UNSAFE_PHYSICAL_FLAG             = 0x00000020
+	CERT_STORE_SHARE_STORE_FLAG                 = 0x00000040
+	CERT_STORE_SHARE_CONTEXT_FLAG               = 0x00000080
+	CERT_STORE_MANIFOLD_FLAG                    = 0x00000100
+	CERT_STORE_ENUM_ARCHIVED_FLAG               = 0x00000200
+	CERT_STORE_UPDATE_KEYID_FLAG                = 0x00000400
+	CERT_STORE_BACKUP_RESTORE_FLAG              = 0x00000800
+	CERT_STORE_MAXIMUM_ALLOWED_FLAG             = 0x00001000
+	CERT_STORE_CREATE_NEW_FLAG                  = 0x00002000
+	CERT_STORE_OPEN_EXISTING_FLAG               = 0x00004000
+	CERT_STORE_READONLY_FLAG                    = 0x00008000
 
+	/* store locations (high WORD of flag) for CertOpenStore function */
+	CERT_SYSTEM_STORE_CURRENT_USER               = 0x00010000
+	CERT_SYSTEM_STORE_LOCAL_MACHINE              = 0x00020000
+	CERT_SYSTEM_STORE_CURRENT_SERVICE            = 0x00040000
+	CERT_SYSTEM_STORE_SERVICES                   = 0x00050000
+	CERT_SYSTEM_STORE_USERS                      = 0x00060000
+	CERT_SYSTEM_STORE_CURRENT_USER_GROUP_POLICY  = 0x00070000
+	CERT_SYSTEM_STORE_LOCAL_MACHINE_GROUP_POLICY = 0x00080000
+	CERT_SYSTEM_STORE_LOCAL_MACHINE_ENTERPRISE   = 0x00090000
+	CERT_SYSTEM_STORE_UNPROTECTED_FLAG           = 0x40000000
+	CERT_SYSTEM_STORE_RELOCATE_FLAG              = 0x80000000
+
+	/* Miscellaneous high-WORD flags for CertOpenStore function */
+	CERT_REGISTRY_STORE_REMOTE_FLAG      = 0x00010000
+	CERT_REGISTRY_STORE_SERIALIZED_FLAG  = 0x00020000
+	CERT_REGISTRY_STORE_ROAMING_FLAG     = 0x00040000
+	CERT_REGISTRY_STORE_MY_IE_DIRTY_FLAG = 0x00080000
+	CERT_REGISTRY_STORE_LM_GPT_FLAG      = 0x01000000
+	CERT_REGISTRY_STORE_CLIENT_GPT_FLAG  = 0x80000000
+	CERT_FILE_STORE_COMMIT_ENABLE_FLAG   = 0x00010000
+	CERT_LDAP_STORE_SIGN_FLAG            = 0x00010000
+	CERT_LDAP_STORE_AREC_EXCLUSIVE_FLAG  = 0x00020000
+	CERT_LDAP_STORE_OPENED_FLAG          = 0x00040000
+	CERT_LDAP_STORE_UNBIND_FLAG          = 0x00080000
+
+	/* addDisposition values for CertAddCertificateContextToStore function */
+	CERT_STORE_ADD_NEW                                 = 1
+	CERT_STORE_ADD_USE_EXISTING                        = 2
+	CERT_STORE_ADD_REPLACE_EXISTING                    = 3
+	CERT_STORE_ADD_ALWAYS                              = 4
+	CERT_STORE_ADD_REPLACE_EXISTING_INHERIT_PROPERTIES = 5
+	CERT_STORE_ADD_NEWER                               = 6
+	CERT_STORE_ADD_NEWER_INHERIT_PROPERTIES            = 7
+
+	/* ErrorStatus values for CertTrustStatus struct */
 	CERT_TRUST_NO_ERROR                          = 0x00000000
 	CERT_TRUST_IS_NOT_TIME_VALID                 = 0x00000001
 	CERT_TRUST_IS_REVOKED                        = 0x00000004
@@ -282,11 +349,31 @@ const (
 	CERT_TRUST_HAS_NOT_DEFINED_NAME_CONSTRAINT   = 0x00002000
 	CERT_TRUST_HAS_NOT_PERMITTED_NAME_CONSTRAINT = 0x00004000
 	CERT_TRUST_HAS_EXCLUDED_NAME_CONSTRAINT      = 0x00008000
+	CERT_TRUST_IS_PARTIAL_CHAIN                  = 0x00010000
+	CERT_TRUST_CTL_IS_NOT_TIME_VALID             = 0x00020000
+	CERT_TRUST_CTL_IS_NOT_SIGNATURE_VALID        = 0x00040000
+	CERT_TRUST_CTL_IS_NOT_VALID_FOR_USAGE        = 0x00080000
+	CERT_TRUST_HAS_WEAK_SIGNATURE                = 0x00100000
 	CERT_TRUST_IS_OFFLINE_REVOCATION             = 0x01000000
 	CERT_TRUST_NO_ISSUANCE_CHAIN_POLICY          = 0x02000000
 	CERT_TRUST_IS_EXPLICIT_DISTRUST              = 0x04000000
 	CERT_TRUST_HAS_NOT_SUPPORTED_CRITICAL_EXT    = 0x08000000
 
+	/* InfoStatus values for CertTrustStatus struct */
+	CERT_TRUST_HAS_EXACT_MATCH_ISSUER        = 0x00000001
+	CERT_TRUST_HAS_KEY_MATCH_ISSUER          = 0x00000002
+	CERT_TRUST_HAS_NAME_MATCH_ISSUER         = 0x00000004
+	CERT_TRUST_IS_SELF_SIGNED                = 0x00000008
+	CERT_TRUST_HAS_PREFERRED_ISSUER          = 0x00000100
+	CERT_TRUST_HAS_ISSUANCE_CHAIN_POLICY     = 0x00000400
+	CERT_TRUST_HAS_VALID_NAME_CONSTRAINTS    = 0x00000400
+	CERT_TRUST_IS_PEER_TRUSTED               = 0x00000800
+	CERT_TRUST_HAS_CRL_VALIDITY_EXTENDED     = 0x00001000
+	CERT_TRUST_IS_FROM_EXCLUSIVE_TRUST_STORE = 0x00002000
+	CERT_TRUST_IS_CA_TRUSTED                 = 0x00004000
+	CERT_TRUST_IS_COMPLEX_CHAIN              = 0x00010000
+
+	/* policyOID values for CertVerifyCertificateChainPolicy function */
 	CERT_CHAIN_POLICY_BASE              = 1
 	CERT_CHAIN_POLICY_AUTHENTICODE      = 2
 	CERT_CHAIN_POLICY_AUTHENTICODE_TS   = 3
@@ -295,15 +382,18 @@ const (
 	CERT_CHAIN_POLICY_NT_AUTH           = 6
 	CERT_CHAIN_POLICY_MICROSOFT_ROOT    = 7
 	CERT_CHAIN_POLICY_EV                = 8
+	CERT_CHAIN_POLICY_SSL_F12           = 9
 
-	CERT_E_EXPIRED       = 0x800B0101
-	CERT_E_ROLE          = 0x800B0103
-	CERT_E_PURPOSE       = 0x800B0106
-	CERT_E_UNTRUSTEDROOT = 0x800B0109
-	CERT_E_CN_NO_MATCH   = 0x800B010F
-
+	/* AuthType values for SSLExtraCertChainPolicyPara struct */
 	AUTHTYPE_CLIENT = 1
 	AUTHTYPE_SERVER = 2
+
+	/* Checks values for SSLExtraCertChainPolicyPara struct */
+	SECURITY_FLAG_IGNORE_REVOCATION        = 0x00000080
+	SECURITY_FLAG_IGNORE_UNKNOWN_CA        = 0x00000100
+	SECURITY_FLAG_IGNORE_WRONG_USAGE       = 0x00000200
+	SECURITY_FLAG_IGNORE_CERT_CN_INVALID   = 0x00001000
+	SECURITY_FLAG_IGNORE_CERT_DATE_INVALID = 0x00002000
 )
 
 var (
@@ -311,6 +401,14 @@ var (
 	OID_SERVER_GATED_CRYPTO = []byte("1.3.6.1.4.1.311.10.3.3\x00")
 	OID_SGC_NETSCAPE        = []byte("2.16.840.1.113730.4.1\x00")
 )
+
+// Pointer represents a pointer to an arbitrary Windows type.
+//
+// Pointer-typed fields may point to one of many different types. It's
+// up to the caller to provide a pointer to the appropriate type, cast
+// to Pointer. The caller must obey the unsafe.Pointer rules while
+// doing so.
+type Pointer *struct{}
 
 // Invented values to support what package os expects.
 type Timeval struct {
@@ -728,10 +826,6 @@ const (
 )
 
 const (
-	DNS_INFO_NO_RECORDS = 0x251D
-)
-
-const (
 	// flags inside DNSRecord.Dw
 	DnsSectionQuestion   = 0x0000
 	DnsSectionAnswer     = 0x0001
@@ -880,11 +974,15 @@ type MibIfRow struct {
 	Descr           [MAXLEN_IFDESCR]byte
 }
 
+type CertInfo struct {
+	// Not implemented
+}
+
 type CertContext struct {
 	EncodingType uint32
 	EncodedCert  *byte
 	Length       uint32
-	CertInfo     uintptr
+	CertInfo     *CertInfo
 	Store        Handle
 }
 
@@ -899,12 +997,16 @@ type CertChainContext struct {
 	RevocationFreshnessTime    uint32
 }
 
+type CertTrustListInfo struct {
+	// Not implemented
+}
+
 type CertSimpleChain struct {
 	Size                       uint32
 	TrustStatus                CertTrustStatus
 	NumElements                uint32
 	Elements                   **CertChainElement
-	TrustListInfo              uintptr
+	TrustListInfo              *CertTrustListInfo
 	HasRevocationFreshnessTime uint32
 	RevocationFreshnessTime    uint32
 }
@@ -919,14 +1021,18 @@ type CertChainElement struct {
 	ExtendedErrorInfo *uint16
 }
 
+type CertRevocationCrlInfo struct {
+	// Not implemented
+}
+
 type CertRevocationInfo struct {
 	Size             uint32
 	RevocationResult uint32
 	RevocationOid    *byte
-	OidSpecificInfo  uintptr
+	OidSpecificInfo  Pointer
 	HasFreshnessTime uint32
 	FreshnessTime    uint32
-	CrlInfo          uintptr // *CertRevocationCrlInfo
+	CrlInfo          *CertRevocationCrlInfo
 }
 
 type CertTrustStatus struct {
@@ -957,7 +1063,7 @@ type CertChainPara struct {
 type CertChainPolicyPara struct {
 	Size            uint32
 	Flags           uint32
-	ExtraPolicyPara uintptr
+	ExtraPolicyPara Pointer
 }
 
 type SSLExtraCertChainPolicyPara struct {
@@ -972,7 +1078,7 @@ type CertChainPolicyStatus struct {
 	Error             uint32
 	ChainIndex        uint32
 	ElementIndex      uint32
-	ExtraPolicyStatus uintptr
+	ExtraPolicyStatus Pointer
 }
 
 const (
@@ -1319,7 +1425,7 @@ type SmallRect struct {
 	Bottom int16
 }
 
-// Used with GetConsoleScreenBuffer to retreive information about a console
+// Used with GetConsoleScreenBuffer to retrieve information about a console
 // screen buffer. See
 // https://docs.microsoft.com/en-us/windows/console/console-screen-buffer-info-str
 // for details.
@@ -1331,3 +1437,5 @@ type ConsoleScreenBufferInfo struct {
 	Window            SmallRect
 	MaximumWindowSize Coord
 }
+
+const UNIX_PATH_MAX = 108 // defined in afunix.h

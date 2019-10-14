@@ -33,8 +33,8 @@ type Reader struct {
 	rd           io.Reader // reader provided by the client
 	r, w         int       // buf read and write positions
 	err          error
-	lastByte     int
-	lastRuneSize int
+	lastByte     int // last byte read for UnreadByte; -1 means invalid
+	lastRuneSize int // size of last rune read for UnreadRune; -1 means invalid
 }
 
 const minReadBufferSize = 16
@@ -123,10 +123,16 @@ func (b *Reader) readErr() error {
 // being valid at the next read call. If Peek returns fewer than n bytes, it
 // also returns an error explaining why the read is short. The error is
 // ErrBufferFull if n is larger than b's buffer size.
+//
+// Calling Peek prevents a UnreadByte or UnreadRune call from succeeding
+// until the next read operation.
 func (b *Reader) Peek(n int) ([]byte, error) {
 	if n < 0 {
 		return nil, ErrNegativeCount
 	}
+
+	b.lastByte = -1
+	b.lastRuneSize = -1
 
 	for b.w-b.r < n && b.w-b.r < len(b.buf) && b.err == nil {
 		b.fill() // b.w-b.r < len(b.buf) => buffer is not full
@@ -186,10 +192,14 @@ func (b *Reader) Discard(n int) (discarded int, err error) {
 // It returns the number of bytes read into p.
 // The bytes are taken from at most one Read on the underlying Reader,
 // hence n may be less than len(p).
+// To read exactly len(p) bytes, use io.ReadFull(b, p).
 // At EOF, the count will be zero and err will be io.EOF.
 func (b *Reader) Read(p []byte) (n int, err error) {
 	n = len(p)
 	if n == 0 {
+		if b.Buffered() > 0 {
+			return 0, nil
+		}
 		return 0, b.readErr()
 	}
 	if b.r == b.w {
@@ -248,6 +258,10 @@ func (b *Reader) ReadByte() (byte, error) {
 }
 
 // UnreadByte unreads the last byte. Only the most recently read byte can be unread.
+//
+// UnreadByte returns an error if the most recent method called on the
+// Reader was not a read operation. Notably, Peek is not considered a
+// read operation.
 func (b *Reader) UnreadByte() error {
 	if b.lastByte < 0 || b.r == 0 && b.w > 0 {
 		return ErrInvalidUnreadByte
@@ -286,8 +300,8 @@ func (b *Reader) ReadRune() (r rune, size int, err error) {
 	return r, size, nil
 }
 
-// UnreadRune unreads the last rune. If the most recent read operation on
-// the buffer was not a ReadRune, UnreadRune returns an error.  (In this
+// UnreadRune unreads the last rune. If the most recent method called on
+// the Reader was not a ReadRune, UnreadRune returns an error. (In this
 // regard it is stricter than UnreadByte, which will unread the last byte
 // from any read operation.)
 func (b *Reader) UnreadRune() error {
@@ -418,6 +432,7 @@ func (b *Reader) ReadBytes(delim byte) ([]byte, error) {
 	var frag []byte
 	var full [][]byte
 	var err error
+	n := 0
 	for {
 		var e error
 		frag, e = b.ReadSlice(delim)
@@ -433,18 +448,15 @@ func (b *Reader) ReadBytes(delim byte) ([]byte, error) {
 		buf := make([]byte, len(frag))
 		copy(buf, frag)
 		full = append(full, buf)
+		n += len(buf)
 	}
 
-	// Allocate new buffer to hold the full pieces and the fragment.
-	n := 0
-	for i := range full {
-		n += len(full[i])
-	}
 	n += len(frag)
 
-	// Copy full pieces and fragment in.
+	// Allocate new buffer to hold the full pieces and the fragment.
 	buf := make([]byte, n)
 	n = 0
+	// Copy full pieces and fragment in.
 	for i := range full {
 		n += copy(buf[n:], full[i])
 	}

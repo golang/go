@@ -456,3 +456,15 @@ each collection, summarizing the amount of memory collected
 and the length of the pause.</li>
 <li>GODEBUG=schedtrace=X prints scheduling events every X milliseconds.</li>
 </ul>
+
+<p>The GODEBUG environmental variable can be used to disable use of
+instruction set extensions in the standard library and runtime.</p>
+
+<ul>
+<li>GODEBUG=cpu.all=off disables the use of all optional
+instruction set extensions.</li>
+<li>GODEBUG=cpu.<em>extension</em>=off disables use of instructions from the
+specified instruction set extension.<br>
+<em>extension</em> is the lower case name for the instruction set extension
+such as <em>sse41</em> or <em>avx</em>.</li>
+</ul>

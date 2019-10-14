@@ -26,6 +26,7 @@
 		%c	the character represented by the corresponding Unicode code point
 		%d	base 10
 		%o	base 8
+		%O	base 8 with 0o prefix
 		%q	a single-quoted character literal safely escaped with Go syntax.
 		%x	base 16, with lower-case letters for a-f
 		%X	base 16, with upper-case letters for A-F
@@ -40,6 +41,8 @@
 		%F	synonym for %f
 		%g	%e for large exponents, %f otherwise. Precision is discussed below.
 		%G	%E for large exponents, %F otherwise
+		%x	hexadecimal notation (with decimal power of two exponent), e.g. -0x1.23abcp+20
+		%X	upper-case hexadecimal notation, e.g. -0X1.23ABCP+20
 	String and slice of bytes (treated equivalently with these verbs):
 		%s	the uninterpreted bytes of the string or slice
 		%q	a double-quoted string safely escaped with Go syntax
@@ -111,8 +114,8 @@
 		+	always print a sign for numeric values;
 			guarantee ASCII-only output for %q (%+q)
 		-	pad with spaces on the right rather than the left (left-justify the field)
-		#	alternate format: add leading 0 for octal (%#o), 0x for hex (%#x);
-			0X for hex (%#X); suppress 0x for %p (%#p);
+		#	alternate format: add leading 0b for binary (%#b), 0 for octal (%#o),
+			0x or 0X for hex (%#x or %#X); suppress 0x for %p (%#p);
 			for %q, print a raw (backquoted) string if strconv.CanBackquote
 			returns true;
 			always print a decimal point for %e, %E, %f, %F, %g and %G;
@@ -214,7 +217,7 @@
 	description of the problem, as in these examples:
 
 		Wrong type or unknown verb: %!verb(type=value)
-			Printf("%d", hi):          %!d(string=hi)
+			Printf("%d", "hi"):        %!d(string=hi)
 		Too many arguments: %!(EXTRA type=value)
 			Printf("hi", "guys"):      hi%!(EXTRA string=guys)
 		Too few arguments: %!verb(MISSING)
@@ -283,10 +286,10 @@
 	For example, %x will scan an integer as a hexadecimal number,
 	and %v will scan the default representation format for the value.
 	The Printf verbs %p and %T and the flags # and + are not implemented.
-	The verbs %e %E %f %F %g and %G are all equivalent and scan any
-	floating-point or complex value. For float and complex literals in
-	scientific notation, both the decimal (e) and binary (p) exponent
-	formats are supported (for example: "2.3e+7" and "4.5p-8").
+	For floating-point and complex values, all valid formatting verbs
+	(%b %e %E %f %F %g %G %x %X and %v) are equivalent and accept
+	both decimal and hexadecimal notation (for example: "2.3e+7", "0x4.5p-8")
+	and digit-separating underscores (for example: "3.14159_26535_89793").
 
 	Input processed by verbs is implicitly space-delimited: the
 	implementation of every verb except %c starts by discarding
@@ -294,9 +297,10 @@
 	(and %v reading into a string) stops consuming input at the first
 	space or newline character.
 
-	The familiar base-setting prefixes 0 (octal) and 0x
-	(hexadecimal) are accepted when scanning integers without
-	a format or with the %v verb.
+	The familiar base-setting prefixes 0b (binary), 0o and 0 (octal),
+	and 0x (hexadecimal) are accepted when scanning integers
+	without a format or with the %v verb, as are digit-separating
+	underscores.
 
 	Width is interpreted in the input text but there is no
 	syntax for scanning with a precision (no %5.2f, just %5f).

@@ -25,25 +25,24 @@ type Error struct {
 	Err error
 }
 
-func (e *Error) Error() string { return e.Op + " " + e.URL + ": " + e.Err.Error() }
-
-type timeout interface {
-	Timeout() bool
-}
+func (e *Error) Unwrap() error { return e.Err }
+func (e *Error) Error() string { return fmt.Sprintf("%s %q: %s", e.Op, e.URL, e.Err) }
 
 func (e *Error) Timeout() bool {
-	t, ok := e.Err.(timeout)
+	t, ok := e.Err.(interface {
+		Timeout() bool
+	})
 	return ok && t.Timeout()
 }
 
-type temporary interface {
-	Temporary() bool
-}
-
 func (e *Error) Temporary() bool {
-	t, ok := e.Err.(temporary)
+	t, ok := e.Err.(interface {
+		Temporary() bool
+	})
 	return ok && t.Temporary()
 }
+
+const upperhex = "0123456789ABCDEF"
 
 func ishex(c byte) bool {
 	switch {
@@ -100,7 +99,7 @@ func (e InvalidHostError) Error() string {
 // reserved characters correctly. See golang.org/issue/5684.
 func shouldEscape(c byte, mode encoding) bool {
 	// §2.3 Unreserved characters (alphanum)
-	if 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' {
+	if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9' {
 		return false
 	}
 
@@ -250,29 +249,24 @@ func unescape(s string, mode encoding) (string, error) {
 		return s, nil
 	}
 
-	t := make([]byte, len(s)-2*n)
-	j := 0
-	for i := 0; i < len(s); {
+	var t strings.Builder
+	t.Grow(len(s) - 2*n)
+	for i := 0; i < len(s); i++ {
 		switch s[i] {
 		case '%':
-			t[j] = unhex(s[i+1])<<4 | unhex(s[i+2])
-			j++
-			i += 3
+			t.WriteByte(unhex(s[i+1])<<4 | unhex(s[i+2]))
+			i += 2
 		case '+':
 			if mode == encodeQueryComponent {
-				t[j] = ' '
+				t.WriteByte(' ')
 			} else {
-				t[j] = '+'
+				t.WriteByte('+')
 			}
-			j++
-			i++
 		default:
-			t[j] = s[i]
-			j++
-			i++
+			t.WriteByte(s[i])
 		}
 	}
-	return string(t), nil
+	return t.String(), nil
 }
 
 // QueryEscape escapes the string so it can be safely placed
@@ -281,8 +275,8 @@ func QueryEscape(s string) string {
 	return escape(s, encodeQueryComponent)
 }
 
-// PathEscape escapes the string so it can be safely placed
-// inside a URL path segment.
+// PathEscape escapes the string so it can be safely placed inside a URL path segment,
+// replacing special characters (including /) with %XX sequences as needed.
 func PathEscape(s string) string {
 	return escape(s, encodePathSegment)
 }
@@ -304,7 +298,26 @@ func escape(s string, mode encoding) string {
 		return s
 	}
 
-	t := make([]byte, len(s)+2*hexCount)
+	var buf [64]byte
+	var t []byte
+
+	required := len(s) + 2*hexCount
+	if required <= len(buf) {
+		t = buf[:required]
+	} else {
+		t = make([]byte, required)
+	}
+
+	if hexCount == 0 {
+		copy(t, s)
+		for i := 0; i < len(s); i++ {
+			if s[i] == ' ' {
+				t[i] = '+'
+			}
+		}
+		return string(t)
+	}
+
 	j := 0
 	for i := 0; i < len(s); i++ {
 		switch c := s[i]; {
@@ -313,8 +326,8 @@ func escape(s string, mode encoding) string {
 			j++
 		case shouldEscape(c, mode):
 			t[j] = '%'
-			t[j+1] = "0123456789ABCDEF"[c>>4]
-			t[j+2] = "0123456789ABCDEF"[c&15]
+			t[j+1] = upperhex[c>>4]
+			t[j+2] = upperhex[c&15]
 			j += 3
 		default:
 			t[j] = s[i]
@@ -337,10 +350,11 @@ func escape(s string, mode encoding) string {
 // Note that the Path field is stored in decoded form: /%47%6f%2f becomes /Go/.
 // A consequence is that it is impossible to tell which slashes in the Path were
 // slashes in the raw URL and which were %2f. This distinction is rarely important,
-// but when it is, code must not use Path directly.
-// The Parse function sets both Path and RawPath in the URL it returns,
-// and URL's String method uses RawPath if it is a valid encoding of Path,
-// by calling the EscapedPath method.
+// but when it is, the code should use RawPath, an optional field which only gets
+// set if the default encoding is different from Path.
+//
+// URL's String method uses the EscapedPath method to obtain the path. See the
+// EscapedPath method for more details.
 type URL struct {
 	Scheme     string
 	Opaque     string    // encoded opaque data
@@ -437,16 +451,16 @@ func getscheme(rawurl string) (scheme, path string, err error) {
 	return "", rawurl, nil
 }
 
-// Maybe s is of the form t c u.
-// If so, return t, c u (or t, u if cutc == true).
-// If not, return s, "".
-func split(s string, c string, cutc bool) (string, string) {
-	i := strings.Index(s, c)
+// split slices s into two substrings separated by the first occurrence of
+// sep. If cutc is true then sep is included with the second substring.
+// If sep does not occur in s then s and the empty string is returned.
+func split(s string, sep byte, cutc bool) (string, string) {
+	i := strings.IndexByte(s, sep)
 	if i < 0 {
 		return s, ""
 	}
 	if cutc {
-		return s[:i], s[i+len(c):]
+		return s[:i], s[i+1:]
 	}
 	return s[:i], s[i:]
 }
@@ -459,7 +473,7 @@ func split(s string, c string, cutc bool) (string, string) {
 // error, due to parsing ambiguities.
 func Parse(rawurl string) (*URL, error) {
 	// Cut off #frag
-	u, frag := split(rawurl, "#", true)
+	u, frag := split(rawurl, '#', true)
 	url, err := parse(u, false)
 	if err != nil {
 		return nil, &Error{"parse", u, err}
@@ -494,6 +508,10 @@ func parse(rawurl string, viaRequest bool) (*URL, error) {
 	var rest string
 	var err error
 
+	if stringContainsCTLByte(rawurl) {
+		return nil, errors.New("net/url: invalid control character in URL")
+	}
+
 	if rawurl == "" && viaRequest {
 		return nil, errors.New("empty url")
 	}
@@ -515,13 +533,7 @@ func parse(rawurl string, viaRequest bool) (*URL, error) {
 		url.ForceQuery = true
 		rest = rest[:len(rest)-1]
 	} else {
-		var q string
-		rest, q = split(rest, "?", true)
-		if validQuery(q) {
-			url.RawQuery = q
-		} else {
-			url.RawQuery = QueryEscape(q)
-		}
+		rest, url.RawQuery = split(rest, '?', true)
 	}
 
 	if !strings.HasPrefix(rest, "/") {
@@ -550,7 +562,7 @@ func parse(rawurl string, viaRequest bool) (*URL, error) {
 
 	if (url.Scheme != "" || !viaRequest && !strings.HasPrefix(rest, "///")) && strings.HasPrefix(rest, "//") {
 		var authority string
-		authority, rest = split(rest[2:], "/", false)
+		authority, rest = split(rest[2:], '/', false)
 		url.User, url.Host, err = parseAuthority(authority)
 		if err != nil {
 			return nil, err
@@ -589,7 +601,7 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
 		}
 		user = User(userinfo)
 	} else {
-		username, password := split(userinfo, ":", true)
+		username, password := split(userinfo, ':', true)
 		if username, err = unescape(username, encodeUserPassword); err != nil {
 			return nil, "", err
 		}
@@ -637,6 +649,11 @@ func parseHost(host string) (string, error) {
 				return "", err
 			}
 			return host1 + host2 + host3, nil
+		}
+	} else if i := strings.LastIndex(host, ":"); i != -1 {
+		colonPort := host[i:]
+		if !validOptionalPort(colonPort) {
+			return "", fmt.Errorf("invalid port %q after host", colonPort)
 		}
 	}
 
@@ -742,6 +759,7 @@ func validOptionalPort(port string) bool {
 //
 // If u.Opaque is non-empty, String uses the first form;
 // otherwise it uses the second form.
+// Any non-ASCII characters in host are escaped.
 // To obtain the path, String uses u.EscapedPath().
 //
 // In the second form, the following rules apply:
@@ -1035,44 +1053,39 @@ func (u *URL) RequestURI() string {
 	return result
 }
 
-// Hostname returns u.Host, without any port number.
+// Hostname returns u.Host, stripping any valid port number if present.
 //
-// If Host is an IPv6 literal with a port number, Hostname returns the
-// IPv6 literal without the square brackets. IPv6 literals may include
-// a zone identifier.
+// If the result is enclosed in square brackets, as literal IPv6 addresses are,
+// the square brackets are removed from the result.
 func (u *URL) Hostname() string {
-	return stripPort(u.Host)
+	host, _ := splitHostPort(u.Host)
+	return host
 }
 
 // Port returns the port part of u.Host, without the leading colon.
-// If u.Host doesn't contain a port, Port returns an empty string.
+//
+// If u.Host doesn't contain a valid numeric port, Port returns an empty string.
 func (u *URL) Port() string {
-	return portOnly(u.Host)
+	_, port := splitHostPort(u.Host)
+	return port
 }
 
-func stripPort(hostport string) string {
-	colon := strings.IndexByte(hostport, ':')
-	if colon == -1 {
-		return hostport
-	}
-	if i := strings.IndexByte(hostport, ']'); i != -1 {
-		return strings.TrimPrefix(hostport[:i], "[")
-	}
-	return hostport[:colon]
-}
+// splitHostPort separates host and port. If the port is not valid, it returns
+// the entire input as host, and it doesn't check the validity of the host.
+// Unlike net.SplitHostPort, but per RFC 3986, it requires ports to be numeric.
+func splitHostPort(hostport string) (host, port string) {
+	host = hostport
 
-func portOnly(hostport string) string {
-	colon := strings.IndexByte(hostport, ':')
-	if colon == -1 {
-		return ""
+	colon := strings.LastIndexByte(host, ':')
+	if colon != -1 && validOptionalPort(host[colon:]) {
+		host, port = host[:colon], host[colon+1:]
 	}
-	if i := strings.Index(hostport, "]:"); i != -1 {
-		return hostport[i+len("]:"):]
+
+	if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") {
+		host = host[1 : len(host)-1]
 	}
-	if strings.Contains(hostport, "]") {
-		return ""
-	}
-	return hostport[colon+len(":"):]
+
+	return
 }
 
 // Marshaling interface implementations.
@@ -1121,45 +1134,13 @@ func validUserinfo(s string) bool {
 	return true
 }
 
-// validQuery reports whether s is a valid query string per RFC 3986
-// Section 3.4:
-//     query       = *( pchar / "/" / "?" )
-//     pchar       = unreserved / pct-encoded / sub-delims / ":" / "@"
-//     unreserved  = ALPHA / DIGIT / "-" / "." / "_" / "~"
-//     sub-delims  = "!" / "$" / "&" / "'" / "(" / ")"
-//                   / "*" / "+" / "," / ";" / "="
-func validQuery(s string) bool {
-	pctEnc := 0
-
-	for _, r := range s {
-		if pctEnc > 0 {
-			if uint32(r) > 255 || !ishex(byte(r)) {
-				return false
-			}
-			pctEnc--
-			continue
-		} else if r == '%' {
-			pctEnc = 2
-			continue
-		}
-
-		if 'A' <= r && r <= 'Z' {
-			continue
-		}
-		if 'a' <= r && r <= 'z' {
-			continue
-		}
-		if '0' <= r && r <= '9' {
-			continue
-		}
-		switch r {
-		case '-', '.', '_', '~', '!', '$', '&', '\'', '(', ')',
-			'*', '+', ',', ';', '=', ':', '@', '/', '?':
-			continue
-		default:
-			return false
+// stringContainsCTLByte reports whether s contains any ASCII control character.
+func stringContainsCTLByte(s string) bool {
+	for i := 0; i < len(s); i++ {
+		b := s[i]
+		if b < ' ' || b == 0x7f {
+			return true
 		}
 	}
-
-	return true
+	return false
 }

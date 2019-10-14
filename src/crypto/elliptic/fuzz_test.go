@@ -22,7 +22,7 @@ func TestFuzz(t *testing.T) {
 	var timeout *time.Timer
 
 	if testing.Short() {
-		timeout = time.NewTimer(500 * time.Millisecond)
+		timeout = time.NewTimer(10 * time.Millisecond)
 	} else {
 		timeout = time.NewTimer(2 * time.Second)
 	}

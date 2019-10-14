@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd netbsd openbsd
+// +build dragonfly freebsd netbsd openbsd
 
 package syscall
 
 import (
-	"runtime"
 	"unsafe"
 )
 
@@ -43,7 +42,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// Declare all variables at top in case any
 	// declarations require heap allocation (e.g., err1).
 	var (
-		r1, r2 uintptr
+		r1     uintptr
 		err1   Errno
 		nextfd int
 		i      int
@@ -62,23 +61,13 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	}
 	nextfd++
 
-	darwin := runtime.GOOS == "darwin"
-
 	// About to call fork.
 	// No more allocation or calls of non-assembly functions.
 	runtime_BeforeFork()
-	r1, r2, err1 = RawSyscall(SYS_FORK, 0, 0, 0)
+	r1, _, err1 = RawSyscall(SYS_FORK, 0, 0, 0)
 	if err1 != 0 {
 		runtime_AfterFork()
 		return 0, err1
-	}
-
-	// On Darwin:
-	//	r1 = child pid in both parent and child.
-	//	r2 = 0 in parent, 1 in child.
-	// Convert to normal Unix r1 = 0 in child.
-	if darwin && r2 == 1 {
-		r1 = 0
 	}
 
 	if r1 != 0 {

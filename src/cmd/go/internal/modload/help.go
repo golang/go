@@ -19,34 +19,28 @@ including recording and resolving dependencies on other modules.
 Modules replace the old GOPATH-based approach to specifying
 which source files are used in a given build.
 
-Preliminary module support
+Module support
 
-Go 1.11 includes preliminary support for Go modules,
-including a new module-aware 'go get' command.
-We intend to keep revising this support, while preserving compatibility,
-until it can be declared official (no longer preliminary),
-and then at a later point we may remove support for work
-in GOPATH and the old 'go get' command.
+Go 1.13 includes support for Go modules. Module-aware mode is active by default
+whenever a go.mod file is found in, or in a parent of, the current directory.
 
-The quickest way to take advantage of the new Go 1.11 module support
-is to check out your repository into a directory outside GOPATH/src,
-create a go.mod file (described in the next section) there, and run
+The quickest way to take advantage of module support is to check out your
+repository, create a go.mod file (described in the next section) there, and run
 go commands from within that file tree.
 
-For more fine-grained control, the module support in Go 1.11 respects
+For more fine-grained control, Go 1.13 continues to respect
 a temporary environment variable, GO111MODULE, which can be set to one
 of three string values: off, on, or auto (the default).
-If GO111MODULE=off, then the go command never uses the
-new module support. Instead it looks in vendor directories and GOPATH
-to find dependencies; we now refer to this as "GOPATH mode."
 If GO111MODULE=on, then the go command requires the use of modules,
-never consulting GOPATH. We refer to this as the command being
-module-aware or running in "module-aware mode".
-If GO111MODULE=auto or is unset, then the go command enables or
-disables module support based on the current directory.
-Module support is enabled only when the current directory is outside
-GOPATH/src and itself contains a go.mod file or is below a directory
-containing a go.mod file.
+never consulting GOPATH. We refer to this as the command
+being module-aware or running in "module-aware mode".
+If GO111MODULE=off, then the go command never uses
+module support. Instead it looks in vendor directories and GOPATH
+to find dependencies; we now refer to this as "GOPATH mode."
+If GO111MODULE=auto or is unset, then the go command enables or disables
+module support based on the current directory.
+Module support is enabled only when the current directory contains a
+go.mod file or is below a directory containing a go.mod file.
 
 In module-aware mode, GOPATH no longer defines the meaning of imports
 during a build, but it still stores downloaded dependencies (in GOPATH/pkg/mod)
@@ -237,12 +231,25 @@ evaluates to the available tagged version nearest to the comparison target
 The string "latest" matches the latest available tagged version,
 or else the underlying source repository's latest untagged revision.
 
-A revision identifier for the underlying source repository,
-such as a commit hash prefix, revision tag, or branch name,
-selects that specific code revision. If the revision is
-also tagged with a semantic version, the query evaluates to
-that semantic version. Otherwise the query evaluates to a
-pseudo-version for the commit.
+The string "upgrade" is like "latest", but if the module is
+currently required at a later version than the version "latest"
+would select (for example, a newer pre-release version), "upgrade"
+will select the later version instead.
+
+The string "patch" matches the latest available tagged version
+of a module with the same major and minor version numbers as the
+currently required version. If no version is currently required,
+"patch" is equivalent to "latest".
+
+A revision identifier for the underlying source repository, such as
+a commit hash prefix, revision tag, or branch name, selects that
+specific code revision. If the revision is also tagged with a
+semantic version, the query evaluates to that semantic version.
+Otherwise the query evaluates to a pseudo-version for the commit.
+Note that branches and tags with names that are matched by other
+query syntax cannot be selected this way. For example, the query
+"v2" means the latest version starting with "v2", not the branch
+named "v2".
 
 All queries prefer release versions to pre-release versions.
 For example, "<v1.2.3" will prefer to return "v1.2.2"
@@ -337,26 +344,35 @@ module file trees.
 
 Module downloading and verification
 
-The go command maintains, in the main module's root directory alongside
-go.mod, a file named go.sum containing the expected cryptographic checksums
-of the content of specific module versions. Each time a dependency is
-used, its checksum is added to go.sum if missing or else required to match
-the existing entry in go.sum.
+The go command can fetch modules from a proxy or connect to source control
+servers directly, according to the setting of the GOPROXY environment
+variable (see 'go help env'). The default setting for GOPROXY is
+"https://proxy.golang.org,direct", which means to try the
+Go module mirror run by Google and fall back to a direct connection
+if the proxy reports that it does not have the module (HTTP error 404 or 410).
+See https://proxy.golang.org/privacy for the service's privacy policy.
+If GOPROXY is set to the string "direct", downloads use a direct connection
+to source control servers. Setting GOPROXY to "off" disallows downloading
+modules from any source. Otherwise, GOPROXY is expected to be a comma-separated
+list of the URLs of module proxies, in which case the go command will fetch
+modules from those proxies. For each request, the go command tries each proxy
+in sequence, only moving to the next if the current proxy returns a 404 or 410
+HTTP response. The string "direct" may appear in the proxy list,
+to cause a direct connection to be attempted at that point in the search.
+Any proxies listed after "direct" are never consulted.
 
-The go command maintains a cache of downloaded packages and computes
-and records the cryptographic checksum of each package at download time.
-In normal operation, the go command checks these pre-computed checksums
-against the main module's go.sum file, instead of recomputing them on
-each command invocation. The 'go mod verify' command checks that
-the cached copies of module downloads still match both their recorded
-checksums and the entries in go.sum.
+The GOPRIVATE and GONOPROXY environment variables allow bypassing
+the proxy for selected modules. See 'go help module-private' for details.
 
-The go command can fetch modules from a proxy instead of connecting
-to source control systems directly, according to the setting of the GOPROXY
-environment variable.
+No matter the source of the modules, the go command checks downloads against
+known checksums, to detect unexpected changes in the content of any specific
+module version from one day to the next. This check first consults the current
+module's go.sum file but falls back to the Go checksum database, controlled by
+the GOSUMDB and GONOSUMDB environment variables. See 'go help module-auth'
+for details.
 
-See 'go help goproxy' for details about the proxy and also the format of
-the cached downloaded packages.
+See 'go help goproxy' for details about the proxy protocol and also
+the format of the cached downloaded packages.
 
 Modules and vendoring
 
@@ -393,17 +409,20 @@ no /* */ comments. Each line holds a single directive, made up of a
 verb followed by arguments. For example:
 
 	module my/thing
+	go 1.12
 	require other/thing v1.0.2
-	require new/thing v2.3.4
+	require new/thing/v2 v2.3.4
 	exclude old/thing v1.2.3
 	replace bad/thing v1.4.5 => good/thing v1.4.5
 
-The verbs are module, to define the module path; require, to require
-a particular module at a given version or later; exclude, to exclude
-a particular module version from use; and replace, to replace a module
-version with a different module version. Exclude and replace apply only
-in the main module's go.mod and are ignored in dependencies.
-See https://research.swtch.com/vgo-mvs for details.
+The verbs are
+	module, to define the module path;
+	go, to set the expected language version;
+	require, to require a particular module at a given version or later;
+	exclude, to exclude a particular module version from use; and
+	replace, to replace a module version with a different module version.
+Exclude and replace apply only in the main module's go.mod and are ignored
+in dependencies.  See https://research.swtch.com/vgo-mvs for details.
 
 The leading verb can be factored out of adjacent lines to create a block,
 like in Go imports:
@@ -458,5 +477,12 @@ Because the module graph defines the meaning of import statements, any
 commands that load packages also use and therefore update go.mod,
 including go build, go get, go install, go list, go test, go mod graph,
 go mod tidy, and go mod why.
+
+The expected language version, set by the go directive, determines
+which language features are available when compiling the module.
+Language features available in that version will be available for use.
+Language features removed in earlier versions, or added in later versions,
+will not be available. Note that the language version does not affect
+build tags, which are determined by the Go release being used.
 	`,
 }

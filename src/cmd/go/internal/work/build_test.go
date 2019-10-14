@@ -221,12 +221,12 @@ func pkgImportPath(pkgpath string) *load.Package {
 // See https://golang.org/issue/18878.
 func TestRespectSetgidDir(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl":
-		t.Skip("can't set SetGID bit with chmod on nacl")
 	case "darwin":
 		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
 			t.Skip("can't set SetGID bit with chmod on iOS")
 		}
+	case "windows", "plan9":
+		t.Skip("chown/chmod setgid are not supported on Windows or Plan 9")
 	}
 
 	var b Builder
@@ -245,11 +245,13 @@ func TestRespectSetgidDir(t *testing.T) {
 	}
 	defer os.RemoveAll(setgiddir)
 
-	if runtime.GOOS == "freebsd" {
-		err = os.Chown(setgiddir, os.Getuid(), os.Getgid())
-		if err != nil {
-			t.Fatal(err)
-		}
+	// BSD mkdir(2) inherits the parent directory group, and other platforms
+	// can inherit the parent directory group via setgid. The test setup (chmod
+	// setgid) will fail if the process does not have the group permission to
+	// the new temporary directory.
+	err = os.Chown(setgiddir, os.Getuid(), os.Getgid())
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	// Change setgiddir's permissions to include the SetGID bit.

@@ -17,6 +17,7 @@ type Library struct {
 	DupTextSyms   []*Symbol // dupok text symbols defined in this library
 	Main          bool
 	Safe          bool
+	Units         []*CompilationUnit
 }
 
 func (l Library) String() string {

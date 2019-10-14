@@ -1,14 +1,18 @@
 package ssa_test
 
 import (
+	cmddwarf "cmd/internal/dwarf"
 	"debug/dwarf"
 	"debug/elf"
 	"debug/macho"
 	"debug/pe"
 	"fmt"
 	"internal/testenv"
+	"internal/xcoff"
 	"io"
+	"os"
 	"runtime"
+	"sort"
 	"testing"
 )
 
@@ -22,6 +26,10 @@ func open(path string) (*dwarf.Data, error) {
 	}
 
 	if fh, err := macho.Open(path); err == nil {
+		return fh.DWARF()
+	}
+
+	if fh, err := xcoff.Open(path); err == nil {
 		return fh.DWARF()
 	}
 
@@ -44,6 +52,20 @@ func TestStmtLines(t *testing.T) {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
+	if runtime.GOOS == "aix" {
+		extld := os.Getenv("CC")
+		if extld == "" {
+			extld = "gcc"
+		}
+		enabled, err := cmddwarf.IsDWARFEnabledOnAIXLd(extld)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !enabled {
+			t.Skip("skipping on aix: no DWARF with ld version < 7.2.2 ")
+		}
+	}
+
 	lines := map[Line]bool{}
 	dw, err := open(testenv.GoToolPath(t))
 	must(err)
@@ -60,6 +82,9 @@ func TestStmtLines(t *testing.T) {
 		}
 		pkgname, _ := e.Val(dwarf.AttrName).(string)
 		if pkgname == "runtime" {
+			continue
+		}
+		if e.Val(dwarf.AttrStmtList) == nil {
 			continue
 		}
 		lrdr, err := dw.LineReader(e)
@@ -85,11 +110,23 @@ func TestStmtLines(t *testing.T) {
 		}
 	}
 
-	if runtime.GOARCH == "amd64" && len(nonStmtLines)*100 > len(lines) { // > 99% obtained on amd64, no backsliding
-		t.Errorf("Saw too many (amd64, > 1%%) lines without statement marks, total=%d, nostmt=%d\n", len(lines), len(nonStmtLines))
+	if runtime.GOARCH == "amd64" {
+		if len(nonStmtLines)*100 > len(lines) { // > 99% obtained on amd64, no backsliding
+			t.Errorf("Saw too many (amd64, > 1%%) lines without statement marks, total=%d, nostmt=%d ('-run TestStmtLines -v' lists failing lines)\n", len(lines), len(nonStmtLines))
+		}
+	} else if len(nonStmtLines)*100 > 2*len(lines) { // expect 98% elsewhere.
+		t.Errorf("Saw too many (not amd64, > 2%%) lines without statement marks, total=%d, nostmt=%d ('-run TestStmtLines -v' lists failing lines)\n", len(lines), len(nonStmtLines))
 	}
-	if len(nonStmtLines)*100 > 2*len(lines) { // expect 98% elsewhere.
-		t.Errorf("Saw too many (not amd64, > 2%%) lines without statement marks, total=%d, nostmt=%d\n", len(lines), len(nonStmtLines))
+	if testing.Verbose() {
+		sort.Slice(nonStmtLines, func(i, j int) bool {
+			if nonStmtLines[i].File != nonStmtLines[j].File {
+				return nonStmtLines[i].File < nonStmtLines[j].File
+			}
+			return nonStmtLines[i].Line < nonStmtLines[j].Line
+		})
+		for _, l := range nonStmtLines {
+			t.Logf("%s:%d has no DWARF is_stmt mark\n", l.File, l.Line)
+		}
 	}
 	t.Logf("total=%d, nostmt=%d\n", len(lines), len(nonStmtLines))
 }

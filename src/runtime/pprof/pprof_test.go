@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !nacl,!js
+// +build !js
 
 package pprof
 
@@ -159,12 +159,27 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
 		t.Skip("skipping on plan9")
 	}
 
-	const maxDuration = 5 * time.Second
+	broken := false
+	switch runtime.GOOS {
+	case "darwin", "dragonfly", "netbsd", "illumos", "solaris":
+		broken = true
+	case "openbsd":
+		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+			broken = true
+		}
+	}
+
+	maxDuration := 5 * time.Second
+	if testing.Short() && broken {
+		// If it's expected to be broken, no point waiting around.
+		maxDuration /= 10
+	}
+
 	// If we're running a long test, start with a long duration
 	// for tests that try to make sure something *doesn't* happen.
 	duration := 5 * time.Second
 	if testing.Short() {
-		duration = 200 * time.Millisecond
+		duration = 100 * time.Millisecond
 	}
 
 	// Profiling tests are inherently flaky, especially on a
@@ -190,10 +205,10 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
 		}
 	}
 
-	switch runtime.GOOS {
-	case "darwin", "dragonfly", "netbsd", "solaris":
-		t.Skipf("ignoring failure on %s; see golang.org/issue/13841", runtime.GOOS)
+	if broken {
+		t.Skipf("ignoring failure on %s/%s; see golang.org/issue/13841", runtime.GOOS, runtime.GOARCH)
 	}
+
 	// Ignore the failure if the tests are running in a QEMU-based emulator,
 	// QEMU is not perfect at emulating everything.
 	// IN_QEMU environmental variable is set by some of the Go builders.
@@ -319,6 +334,10 @@ func TestCPUProfileWithFork(t *testing.T) {
 	heap := 1 << 30
 	if runtime.GOOS == "android" {
 		// Use smaller size for Android to avoid crash.
+		heap = 100 << 20
+	}
+	if runtime.GOOS == "windows" && runtime.GOARCH == "arm" {
+		// Use smaller heap for Windows/ARM to avoid crash.
 		heap = 100 << 20
 	}
 	if testing.Short() {
@@ -602,7 +621,7 @@ func TestBlockProfile(t *testing.T) {
 		}
 
 		for _, test := range tests {
-			if !regexp.MustCompile(strings.Replace(test.re, "\t", "\t+", -1)).MatchString(prof) {
+			if !regexp.MustCompile(strings.ReplaceAll(test.re, "\t", "\t+")).MatchString(prof) {
 				t.Errorf("Bad %v entry, expect:\n%v\ngot:\n%v", test.name, test.re, prof)
 			}
 		}
@@ -1001,4 +1020,39 @@ func TestAtomicLoadStore64(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	atomic.StoreUint64(&flag, 1)
 	<-done
+}
+
+func TestTracebackAll(t *testing.T) {
+	// With gccgo, if a profiling signal arrives at the wrong time
+	// during traceback, it may crash or hang. See issue #29448.
+	f, err := ioutil.TempFile("", "proftraceback")
+	if err != nil {
+		t.Fatalf("TempFile: %v", err)
+	}
+	defer os.Remove(f.Name())
+	defer f.Close()
+
+	if err := StartCPUProfile(f); err != nil {
+		t.Fatal(err)
+	}
+	defer StopCPUProfile()
+
+	ch := make(chan int)
+	defer close(ch)
+
+	count := 10
+	for i := 0; i < count; i++ {
+		go func() {
+			<-ch // block
+		}()
+	}
+
+	N := 10000
+	if testing.Short() {
+		N = 500
+	}
+	buf := make([]byte, 10*1024)
+	for i := 0; i < N; i++ {
+		runtime.Stack(buf, true)
+	}
 }

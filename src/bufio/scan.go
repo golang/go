@@ -73,7 +73,7 @@ var (
 
 const (
 	// MaxScanTokenSize is the maximum size used to buffer a token
-	// unless the user provides an explicit buffer with Scan.Buffer.
+	// unless the user provides an explicit buffer with Scanner.Buffer.
 	// The actual maximum token size may be smaller as the buffer
 	// may need to include, for instance, a newline.
 	MaxScanTokenSize = 64 * 1024

@@ -19,6 +19,7 @@ package runtime
 #include <sys/time.h>
 #include <signal.h>
 #include <errno.h>
+#define _WANT_FREEBSD11_KEVENT 1
 #include <sys/event.h>
 #include <sys/mman.h>
 #include <sys/ucontext.h>
@@ -149,7 +150,7 @@ type Itimerval C.struct_itimerval
 
 type Umtx_time C.struct__umtx_time
 
-type Kevent C.struct_kevent
+type Kevent C.struct_kevent_freebsd11
 
 type bintime C.struct_bintime
 type vdsoTimehands C.struct_vdso_timehands

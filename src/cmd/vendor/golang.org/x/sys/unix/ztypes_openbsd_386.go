@@ -6,11 +6,11 @@
 package unix
 
 const (
-	sizeofPtr      = 0x4
-	sizeofShort    = 0x2
-	sizeofInt      = 0x4
-	sizeofLong     = 0x4
-	sizeofLongLong = 0x8
+	SizeofPtr      = 0x4
+	SizeofShort    = 0x2
+	SizeofInt      = 0x4
+	SizeofLong     = 0x4
+	SizeofLongLong = 0x8
 )
 
 type (
@@ -55,23 +55,6 @@ type Rlimit struct {
 }
 
 type _Gid_t uint32
-
-const (
-	S_IFMT   = 0xf000
-	S_IFIFO  = 0x1000
-	S_IFCHR  = 0x2000
-	S_IFDIR  = 0x4000
-	S_IFBLK  = 0x6000
-	S_IFREG  = 0x8000
-	S_IFLNK  = 0xa000
-	S_IFSOCK = 0xc000
-	S_ISUID  = 0x800
-	S_ISGID  = 0x400
-	S_ISVTX  = 0x200
-	S_IRUSR  = 0x100
-	S_IWUSR  = 0x80
-	S_IXUSR  = 0x40
-)
 
 type Stat_t struct {
 	Mode           uint32
@@ -475,10 +458,113 @@ const (
 	POLLWRNORM = 0x4
 )
 
+type Sigset_t uint32
+
 type Utsname struct {
 	Sysname  [256]byte
 	Nodename [256]byte
 	Release  [256]byte
 	Version  [256]byte
 	Machine  [256]byte
+}
+
+const SizeofUvmexp = 0x158
+
+type Uvmexp struct {
+	Pagesize           int32
+	Pagemask           int32
+	Pageshift          int32
+	Npages             int32
+	Free               int32
+	Active             int32
+	Inactive           int32
+	Paging             int32
+	Wired              int32
+	Zeropages          int32
+	Reserve_pagedaemon int32
+	Reserve_kernel     int32
+	Anonpages          int32
+	Vnodepages         int32
+	Vtextpages         int32
+	Freemin            int32
+	Freetarg           int32
+	Inactarg           int32
+	Wiredmax           int32
+	Anonmin            int32
+	Vtextmin           int32
+	Vnodemin           int32
+	Anonminpct         int32
+	Vtextminpct        int32
+	Vnodeminpct        int32
+	Nswapdev           int32
+	Swpages            int32
+	Swpginuse          int32
+	Swpgonly           int32
+	Nswget             int32
+	Nanon              int32
+	Nanonneeded        int32
+	Nfreeanon          int32
+	Faults             int32
+	Traps              int32
+	Intrs              int32
+	Swtch              int32
+	Softs              int32
+	Syscalls           int32
+	Pageins            int32
+	Obsolete_swapins   int32
+	Obsolete_swapouts  int32
+	Pgswapin           int32
+	Pgswapout          int32
+	Forks              int32
+	Forks_ppwait       int32
+	Forks_sharevm      int32
+	Pga_zerohit        int32
+	Pga_zeromiss       int32
+	Zeroaborts         int32
+	Fltnoram           int32
+	Fltnoanon          int32
+	Fltnoamap          int32
+	Fltpgwait          int32
+	Fltpgrele          int32
+	Fltrelck           int32
+	Fltrelckok         int32
+	Fltanget           int32
+	Fltanretry         int32
+	Fltamcopy          int32
+	Fltnamap           int32
+	Fltnomap           int32
+	Fltlget            int32
+	Fltget             int32
+	Flt_anon           int32
+	Flt_acow           int32
+	Flt_obj            int32
+	Flt_prcopy         int32
+	Flt_przero         int32
+	Pdwoke             int32
+	Pdrevs             int32
+	Pdswout            int32
+	Pdfreed            int32
+	Pdscans            int32
+	Pdanscan           int32
+	Pdobscan           int32
+	Pdreact            int32
+	Pdbusy             int32
+	Pdpageouts         int32
+	Pdpending          int32
+	Pddeact            int32
+	Pdreanon           int32
+	Pdrevnode          int32
+	Pdrevtext          int32
+	Fpswtch            int32
+	Kmapent            int32
+}
+
+const SizeofClockinfo = 0x14
+
+type Clockinfo struct {
+	Hz      int32
+	Tick    int32
+	Tickadj int32
+	Stathz  int32
+	Profhz  int32
 }

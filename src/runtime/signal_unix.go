@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package runtime
 
@@ -242,10 +242,26 @@ func setProcessCPUProfiler(hz int32) {
 		}
 	} else {
 		// If the Go signal handler should be disabled by default,
-		// disable it if it is enabled.
+		// switch back to the signal handler that was installed
+		// when we enabled profiling. We don't try to handle the case
+		// of a program that changes the SIGPROF handler while Go
+		// profiling is enabled.
+		//
+		// If no signal handler was installed before, then start
+		// ignoring SIGPROF signals. We do this, rather than change
+		// to SIG_DFL, because there may be a pending SIGPROF
+		// signal that has not yet been delivered to some other thread.
+		// If we change to SIG_DFL here, the program will crash
+		// when that SIGPROF is delivered. We assume that programs
+		// that use profiling don't want to crash on a stray SIGPROF.
+		// See issue 19320.
 		if !sigInstallGoHandler(_SIGPROF) {
 			if atomic.Cas(&handlingSig[_SIGPROF], 1, 0) {
-				setsig(_SIGPROF, atomic.Loaduintptr(&fwdSig[_SIGPROF]))
+				h := atomic.Loaduintptr(&fwdSig[_SIGPROF])
+				if h == _SIG_DFL {
+					h = _SIG_IGN
+				}
+				setsig(_SIGPROF, h)
 			}
 		}
 	}
@@ -268,10 +284,25 @@ func setThreadCPUProfiler(hz int32) {
 }
 
 func sigpipe() {
-	if sigsend(_SIGPIPE) {
+	if signal_ignored(_SIGPIPE) || sigsend(_SIGPIPE) {
 		return
 	}
 	dieFromSignal(_SIGPIPE)
+}
+
+// sigFetchG fetches the value of G safely when running in a signal handler.
+// On some architectures, the g value may be clobbered when running in a VDSO.
+// See issue #32912.
+//
+//go:nosplit
+func sigFetchG(c *sigctxt) *g {
+	switch GOARCH {
+	case "arm", "arm64":
+		if inVDSOPage(c.sigpc()) {
+			return nil
+		}
+	}
+	return getg()
 }
 
 // sigtrampgo is called from the signal handler function, sigtramp,
@@ -289,13 +320,14 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 	if sigfwdgo(sig, info, ctx) {
 		return
 	}
-	g := getg()
+	c := &sigctxt{info, ctx}
+	g := sigFetchG(c)
 	if g == nil {
-		c := &sigctxt{info, ctx}
 		if sig == _SIGPROF {
 			sigprofNonGoPC(c.sigpc())
 			return
 		}
+		c.fixsigcode(sig)
 		badsignal(uintptr(sig), c)
 		return
 	}
@@ -346,13 +378,155 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 		signalDuringFork(sig)
 	}
 
-	c := &sigctxt{info, ctx}
 	c.fixsigcode(sig)
 	sighandler(sig, info, ctx, g)
 	setg(g)
 	if setStack {
 		restoreGsignalStack(&gsignalStack)
 	}
+}
+
+// crashing is the number of m's we have waited for when implementing
+// GOTRACEBACK=crash when a signal is received.
+var crashing int32
+
+// testSigtrap is used by the runtime tests. If non-nil, it is called
+// on SIGTRAP. If it returns true, the normal behavior on SIGTRAP is
+// suppressed.
+var testSigtrap func(info *siginfo, ctxt *sigctxt, gp *g) bool
+
+// sighandler is invoked when a signal occurs. The global g will be
+// set to a gsignal goroutine and we will be running on the alternate
+// signal stack. The parameter g will be the value of the global g
+// when the signal occurred. The sig, info, and ctxt parameters are
+// from the system signal handler: they are the parameters passed when
+// the SA is passed to the sigaction system call.
+//
+// The garbage collector may have stopped the world, so write barriers
+// are not allowed.
+//
+//go:nowritebarrierrec
+func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+	_g_ := getg()
+	c := &sigctxt{info, ctxt}
+
+	if sig == _SIGPROF {
+		sigprof(c.sigpc(), c.sigsp(), c.siglr(), gp, _g_.m)
+		return
+	}
+
+	if sig == _SIGTRAP && testSigtrap != nil && testSigtrap(info, (*sigctxt)(noescape(unsafe.Pointer(c))), gp) {
+		return
+	}
+
+	flags := int32(_SigThrow)
+	if sig < uint32(len(sigtable)) {
+		flags = sigtable[sig].flags
+	}
+	if flags&_SigPanic != 0 && gp.throwsplit {
+		// We can't safely sigpanic because it may grow the
+		// stack. Abort in the signal handler instead.
+		flags = (flags &^ _SigPanic) | _SigThrow
+	}
+	if isAbortPC(c.sigpc()) {
+		// On many architectures, the abort function just
+		// causes a memory fault. Don't turn that into a panic.
+		flags = _SigThrow
+	}
+	if c.sigcode() != _SI_USER && flags&_SigPanic != 0 {
+		// The signal is going to cause a panic.
+		// Arrange the stack so that it looks like the point
+		// where the signal occurred made a call to the
+		// function sigpanic. Then set the PC to sigpanic.
+
+		// Have to pass arguments out of band since
+		// augmenting the stack frame would break
+		// the unwinding code.
+		gp.sig = sig
+		gp.sigcode0 = uintptr(c.sigcode())
+		gp.sigcode1 = uintptr(c.fault())
+		gp.sigpc = c.sigpc()
+
+		c.preparePanic(sig, gp)
+		return
+	}
+
+	if c.sigcode() == _SI_USER || flags&_SigNotify != 0 {
+		if sigsend(sig) {
+			return
+		}
+	}
+
+	if c.sigcode() == _SI_USER && signal_ignored(sig) {
+		return
+	}
+
+	if flags&_SigKill != 0 {
+		dieFromSignal(sig)
+	}
+
+	if flags&_SigThrow == 0 {
+		return
+	}
+
+	_g_.m.throwing = 1
+	_g_.m.caughtsig.set(gp)
+
+	if crashing == 0 {
+		startpanic_m()
+	}
+
+	if sig < uint32(len(sigtable)) {
+		print(sigtable[sig].name, "\n")
+	} else {
+		print("Signal ", sig, "\n")
+	}
+
+	print("PC=", hex(c.sigpc()), " m=", _g_.m.id, " sigcode=", c.sigcode(), "\n")
+	if _g_.m.lockedg != 0 && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
+		print("signal arrived during cgo execution\n")
+		gp = _g_.m.lockedg.ptr()
+	}
+	print("\n")
+
+	level, _, docrash := gotraceback()
+	if level > 0 {
+		goroutineheader(gp)
+		tracebacktrap(c.sigpc(), c.sigsp(), c.siglr(), gp)
+		if crashing > 0 && gp != _g_.m.curg && _g_.m.curg != nil && readgstatus(_g_.m.curg)&^_Gscan == _Grunning {
+			// tracebackothers on original m skipped this one; trace it now.
+			goroutineheader(_g_.m.curg)
+			traceback(^uintptr(0), ^uintptr(0), 0, _g_.m.curg)
+		} else if crashing == 0 {
+			tracebackothers(gp)
+			print("\n")
+		}
+		dumpregs(c)
+	}
+
+	if docrash {
+		crashing++
+		if crashing < mcount()-int32(extraMCount) {
+			// There are other m's that need to dump their stacks.
+			// Relay SIGQUIT to the next m by sending it to the current process.
+			// All m's that have already received SIGQUIT have signal masks blocking
+			// receipt of any signals, so the SIGQUIT will go to an m that hasn't seen it yet.
+			// When the last m receives the SIGQUIT, it will fall through to the call to
+			// crash below. Just in case the relaying gets botched, each m involved in
+			// the relay sleeps for 5 seconds and then does the crash/exit itself.
+			// In expected operation, the last m has received the SIGQUIT and run
+			// crash/exit and the process is gone, all long before any of the
+			// 5-second sleeps have finished.
+			print("\n-----\n\n")
+			raiseproc(_SIGQUIT)
+			usleep(5 * 1000 * 1000)
+		}
+		crash()
+	}
+
+	printDebugLog()
+
+	exit(2)
 }
 
 // sigpanic turns a synchronous signal into a run-time panic.
@@ -368,6 +542,9 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 //
 // The signal handler must not inject a call to sigpanic if
 // getg().throwsplit, since sigpanic may need to grow the stack.
+//
+// This is exported via linkname to assembly in runtime/cgo.
+//go:linkname sigpanic
 func sigpanic() {
 	g := getg()
 	if !canpanic(g) {
@@ -503,16 +680,14 @@ func raisebadsignal(sig uint32, c *sigctxt) {
 
 //go:nosplit
 func crash() {
-	if GOOS == "darwin" {
-		// OS X core dumps are linear dumps of the mapped memory,
-		// from the first virtual byte to the last, with zeros in the gaps.
-		// Because of the way we arrange the address space on 64-bit systems,
-		// this means the OS X core file will be >128 GB and even on a zippy
-		// workstation can take OS X well over an hour to write (uninterruptible).
-		// Save users from making that mistake.
-		if GOARCH == "amd64" {
-			return
-		}
+	// OS X core dumps are linear dumps of the mapped memory,
+	// from the first virtual byte to the last, with zeros in the gaps.
+	// Because of the way we arrange the address space on 64-bit systems,
+	// this means the OS X core file will be >128 GB and even on a zippy
+	// workstation can take OS X well over an hour to write (uninterruptible).
+	// Save users from making that mistake.
+	if GOOS == "darwin" && GOARCH == "amd64" {
+		return
 	}
 
 	dieFromSignal(_SIGABRT)
@@ -634,6 +809,13 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 		return true
 	}
 
+	// This function and its caller sigtrampgo assumes SIGPIPE is delivered on the
+	// originating thread. This property does not hold on macOS (golang.org/issue/33384),
+	// so we have no choice but to ignore SIGPIPE.
+	if GOOS == "darwin" && sig == _SIGPIPE {
+		return true
+	}
+
 	// If there is no handler to forward to, no need to forward.
 	if fwdFn == _SIG_DFL {
 		return false
@@ -648,9 +830,10 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 		return false
 	}
 	// Determine if the signal occurred inside Go code. We test that:
-	//   (1) we were in a goroutine (i.e., m.curg != nil), and
-	//   (2) we weren't in CGO.
-	g := getg()
+	//   (1) we weren't in VDSO page,
+	//   (2) we were in a goroutine (i.e., m.curg != nil), and
+	//   (3) we weren't in CGO.
+	g := sigFetchG(c)
 	if g != nil && g.m != nil && g.m.curg != nil && !g.m.incgo {
 		return false
 	}
@@ -773,7 +956,7 @@ func unminitSignals() {
 	}
 }
 
-// blockableSig returns whether sig may be blocked by the signal mask.
+// blockableSig reports whether sig may be blocked by the signal mask.
 // We never want to block the signals marked _SigUnblock;
 // these are the synchronous signals that turn into a Go panic.
 // In a Go program--not a c-archive/c-shared--we never want to block
@@ -844,7 +1027,11 @@ func signalstack(s *stack) {
 }
 
 // setsigsegv is used on darwin/arm{,64} to fake a segmentation fault.
+//
+// This is exported via linkname to assembly in runtime/cgo.
+//
 //go:nosplit
+//go:linkname setsigsegv
 func setsigsegv(pc uintptr) {
 	g := getg()
 	g.sig = _SIGSEGV

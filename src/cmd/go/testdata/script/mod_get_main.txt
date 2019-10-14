@@ -1,0 +1,38 @@
+env GO111MODULE=on
+[short] skip
+
+# @patch and @latest within the main module refer to the current version.
+# The main module won't be upgraded, but missing dependencies will be added.
+cp go.mod.orig go.mod
+go get -d rsc.io/x
+grep 'rsc.io/quote v1.5.2' go.mod
+go get -d rsc.io/x@upgrade
+grep 'rsc.io/quote v1.5.2' go.mod
+cp go.mod.orig go.mod
+go get -d rsc.io/x@patch
+grep 'rsc.io/quote v1.5.2' go.mod
+cp go.mod.orig go.mod
+
+# The main module cannot be updated to @latest, which is a specific version.
+! go get -d rsc.io/x@latest
+stderr '^go get rsc.io/x@latest: can.t request explicit version of path in main module$'
+
+# The main module cannot be updated to a specific version.
+! go get rsc.io/x@v0.1.0
+stderr '^go get rsc.io/x@v0.1.0: can.t request explicit version of path in main module$'
+! go get -d rsc.io/x@v0.1.0
+stderr '^go get rsc.io/x@v0.1.0: can.t request explicit version of path in main module$'
+
+# Upgrading a package pattern not contained in the main module should not
+# attempt to upgrade the main module.
+go get -d rsc.io/quote/...@v1.5.1
+grep 'rsc.io/quote v1.5.1' go.mod
+
+-- go.mod.orig --
+module rsc.io
+
+go 1.13
+-- x/x.go --
+package x
+
+import _ "rsc.io/quote"

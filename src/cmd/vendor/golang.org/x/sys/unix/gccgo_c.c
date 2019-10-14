@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build gccgo
+// +build !aix
 
 #include <errno.h>
 #include <stdint.h>

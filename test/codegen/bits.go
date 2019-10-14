@@ -270,6 +270,12 @@ func bitOpOnMem(a []uint32) {
 	a[1] |= 220
 	// amd64:`XORL\s[$]240,\s8\([A-Z]+\)`
 	a[2] ^= 240
+	// amd64:`BTRL\s[$]15,\s12\([A-Z]+\)`,-`ANDL`
+	a[3] &= 0xffff7fff
+	// amd64:`BTSL\s[$]14,\s16\([A-Z]+\)`,-`ORL`
+	a[4] |= 0x4000
+	// amd64:`BTCL\s[$]13,\s20\([A-Z]+\)`,-`XORL`
+	a[5] ^= 0x2000
 }
 
 // Check AND masking on arm64 (Issue #19857)
@@ -284,9 +290,12 @@ func and_mask_2(a uint64) uint64 {
 	return a & (1 << 63)
 }
 
-func and_mask_3(a uint32) uint32 {
+func and_mask_3(a, b uint32) (uint32, uint32) {
 	// arm/7:`BIC`,-`AND`
-	return a & 0xffff0000
+	a &= 0xffffaaaa
+	// arm/7:`BFC`,-`AND`,-`BIC`
+	b &= 0xffc003ff
+	return a, b
 }
 
 // Check generation of arm64 BIC/EON/ORN instructions
@@ -304,4 +313,16 @@ func op_eon(x, y uint32) uint32 {
 func op_orn(x, y uint32) uint32 {
 	// arm64:`ORN\t`,-`ORR`
 	return x | ^y
+}
+
+// check bitsets
+func bitSetPowerOf2Test(x int) bool {
+	// amd64:"BTL\t[$]3"
+	return x&8 == 8
+}
+
+func bitSetTest(x int) bool {
+	// amd64:"ANDQ\t[$]9, AX"
+	// amd64:"CMPQ\tAX, [$]9"
+	return x&9 == 9
 }

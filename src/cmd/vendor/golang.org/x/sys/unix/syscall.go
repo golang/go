@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 // Package unix contains an interface to the low-level operating system
 // primitives. OS details vary depending on the underlying system, and
@@ -50,5 +50,4 @@ func BytePtrFromString(s string) (*byte, error) {
 }
 
 // Single-word zero for use when we need a valid pointer to 0 bytes.
-// See mkunix.pl.
 var _zero uintptr

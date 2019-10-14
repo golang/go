@@ -382,6 +382,7 @@ func dotColor(score float64, isBackground bool) string {
 
 func multilinePrintableName(info *NodeInfo) string {
 	infoCopy := *info
+	infoCopy.Name = ShortenFunctionName(infoCopy.Name)
 	infoCopy.Name = strings.Replace(infoCopy.Name, "::", `\n`, -1)
 	infoCopy.Name = strings.Replace(infoCopy.Name, ".", `\n`, -1)
 	if infoCopy.File != "" {

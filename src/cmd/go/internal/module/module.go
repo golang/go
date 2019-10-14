@@ -2,8 +2,86 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package module defines the module.Version type
-// along with support code.
+// Package module defines the module.Version type along with support code.
+//
+// The module.Version type is a simple Path, Version pair:
+//
+//	type Version struct {
+//		Path string
+//		Version string
+//	}
+//
+// There are no restrictions imposed directly by use of this structure,
+// but additional checking functions, most notably Check, verify that
+// a particular path, version pair is valid.
+//
+// Escaped Paths
+//
+// Module paths appear as substrings of file system paths
+// (in the download cache) and of web server URLs in the proxy protocol.
+// In general we cannot rely on file systems to be case-sensitive,
+// nor can we rely on web servers, since they read from file systems.
+// That is, we cannot rely on the file system to keep rsc.io/QUOTE
+// and rsc.io/quote separate. Windows and macOS don't.
+// Instead, we must never require two different casings of a file path.
+// Because we want the download cache to match the proxy protocol,
+// and because we want the proxy protocol to be possible to serve
+// from a tree of static files (which might be stored on a case-insensitive
+// file system), the proxy protocol must never require two different casings
+// of a URL path either.
+//
+// One possibility would be to make the escaped form be the lowercase
+// hexadecimal encoding of the actual path bytes. This would avoid ever
+// needing different casings of a file path, but it would be fairly illegible
+// to most programmers when those paths appeared in the file system
+// (including in file paths in compiler errors and stack traces)
+// in web server logs, and so on. Instead, we want a safe escaped form that
+// leaves most paths unaltered.
+//
+// The safe escaped form is to replace every uppercase letter
+// with an exclamation mark followed by the letter's lowercase equivalent.
+//
+// For example,
+//
+//	github.com/Azure/azure-sdk-for-go ->  github.com/!azure/azure-sdk-for-go.
+//	github.com/GoogleCloudPlatform/cloudsql-proxy -> github.com/!google!cloud!platform/cloudsql-proxy
+//	github.com/Sirupsen/logrus -> github.com/!sirupsen/logrus.
+//
+// Import paths that avoid upper-case letters are left unchanged.
+// Note that because import paths are ASCII-only and avoid various
+// problematic punctuation (like : < and >), the escaped form is also ASCII-only
+// and avoids the same problematic punctuation.
+//
+// Import paths have never allowed exclamation marks, so there is no
+// need to define how to escape a literal !.
+//
+// Unicode Restrictions
+//
+// Today, paths are disallowed from using Unicode.
+//
+// Although paths are currently disallowed from using Unicode,
+// we would like at some point to allow Unicode letters as well, to assume that
+// file systems and URLs are Unicode-safe (storing UTF-8), and apply
+// the !-for-uppercase convention for escaping them in the file system.
+// But there are at least two subtle considerations.
+//
+// First, note that not all case-fold equivalent distinct runes
+// form an upper/lower pair.
+// For example, U+004B ('K'), U+006B ('k'), and U+212A ('K' for Kelvin)
+// are three distinct runes that case-fold to each other.
+// When we do add Unicode letters, we must not assume that upper/lower
+// are the only case-equivalent pairs.
+// Perhaps the Kelvin symbol would be disallowed entirely, for example.
+// Or perhaps it would escape as "!!k", or perhaps as "(212A)".
+//
+// Second, it would be nice to allow Unicode marks as well as letters,
+// but marks include combining marks, and then we must deal not
+// only with case folding but also normalization: both U+00E9 ('é')
+// and U+0065 U+0301 ('e' followed by combining acute accent)
+// look the same on the page and are treated by some file systems
+// as the same path. If we do allow Unicode marks in paths, there
+// must be some kind of normalization to allow only one canonical
+// encoding of any character used in an import path.
 package module
 
 // IMPORTANT NOTE
@@ -18,6 +96,7 @@ package module
 // Changes to the semantics in this file require approval from rsc.
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -27,18 +106,86 @@ import (
 	"cmd/go/internal/semver"
 )
 
-// A Version is defined by a module path and version pair.
+// A Version (for clients, a module.Version) is defined by a module path and version pair.
+// These are stored in their plain (unescaped) form.
 type Version struct {
+	// Path is a module path, like "golang.org/x/text" or "rsc.io/quote/v2".
 	Path string
 
 	// Version is usually a semantic version in canonical form.
-	// There are two exceptions to this general rule.
+	// There are three exceptions to this general rule.
 	// First, the top-level target of a build has no specific version
 	// and uses Version = "".
 	// Second, during MVS calculations the version "none" is used
 	// to represent the decision to take no version of a given module.
+	// Third, filesystem paths found in "replace" directives are
+	// represented by a path with an empty version.
 	Version string `json:",omitempty"`
 }
+
+// String returns the module version syntax Path@Version.
+func (m Version) String() string {
+	return m.Path + "@" + m.Version
+}
+
+// A ModuleError indicates an error specific to a module.
+type ModuleError struct {
+	Path    string
+	Version string
+	Err     error
+}
+
+// VersionError returns a ModuleError derived from a Version and error,
+// or err itself if it is already such an error.
+func VersionError(v Version, err error) error {
+	var mErr *ModuleError
+	if errors.As(err, &mErr) && mErr.Path == v.Path && mErr.Version == v.Version {
+		return err
+	}
+	return &ModuleError{
+		Path:    v.Path,
+		Version: v.Version,
+		Err:     err,
+	}
+}
+
+func (e *ModuleError) Error() string {
+	if v, ok := e.Err.(*InvalidVersionError); ok {
+		return fmt.Sprintf("%s@%s: invalid %s: %v", e.Path, v.Version, v.noun(), v.Err)
+	}
+	if e.Version != "" {
+		return fmt.Sprintf("%s@%s: %v", e.Path, e.Version, e.Err)
+	}
+	return fmt.Sprintf("module %s: %v", e.Path, e.Err)
+}
+
+func (e *ModuleError) Unwrap() error { return e.Err }
+
+// An InvalidVersionError indicates an error specific to a version, with the
+// module path unknown or specified externally.
+//
+// A ModuleError may wrap an InvalidVersionError, but an InvalidVersionError
+// must not wrap a ModuleError.
+type InvalidVersionError struct {
+	Version string
+	Pseudo  bool
+	Err     error
+}
+
+// noun returns either "version" or "pseudo-version", depending on whether
+// e.Version is a pseudo-version.
+func (e *InvalidVersionError) noun() string {
+	if e.Pseudo {
+		return "pseudo-version"
+	}
+	return "version"
+}
+
+func (e *InvalidVersionError) Error() string {
+	return fmt.Sprintf("%s %q invalid: %s", e.noun(), e.Version, e.Err)
+}
+
+func (e *InvalidVersionError) Unwrap() error { return e.Err }
 
 // Check checks that a given module path, version pair is valid.
 // In addition to the path being a valid module path
@@ -51,17 +198,14 @@ func Check(path, version string) error {
 		return err
 	}
 	if !semver.IsValid(version) {
-		return fmt.Errorf("malformed semantic version %v", version)
+		return &ModuleError{
+			Path: path,
+			Err:  &InvalidVersionError{Version: version, Err: errors.New("not a semantic version")},
+		}
 	}
 	_, pathMajor, _ := SplitPathVersion(path)
-	if !MatchPathMajor(version, pathMajor) {
-		if pathMajor == "" {
-			pathMajor = "v0 or v1"
-		}
-		if pathMajor[0] == '.' { // .v1
-			pathMajor = pathMajor[1:]
-		}
-		return fmt.Errorf("mismatched module path %v and version %v (want %v)", path, version, pathMajor)
+	if err := CheckPathMajor(version, pathMajor); err != nil {
+		return &ModuleError{Path: path, Err: err}
 	}
 	return nil
 }
@@ -79,7 +223,7 @@ func firstPathOK(r rune) bool {
 // Paths can be ASCII letters, ASCII digits, and limited ASCII punctuation: + - . _ and ~.
 // This matches what "go get" has historically recognized in import paths.
 // TODO(rsc): We would like to allow Unicode letters, but that requires additional
-// care in the safe encoding (see note below).
+// care in the safe encoding (see "escaped paths" above).
 func pathOK(r rune) bool {
 	if r < utf8.RuneSelf {
 		return r == '+' || r == '-' || r == '.' || r == '_' || r == '~' ||
@@ -94,7 +238,7 @@ func pathOK(r rune) bool {
 // For now we allow all Unicode letters but otherwise limit to pathOK plus a few more punctuation characters.
 // If we expand the set of allowed characters here, we have to
 // work harder at detecting potential case-folding and normalization collisions.
-// See note about "safe encoding" below.
+// See note about "escaped paths" above.
 func fileNameOK(r rune) bool {
 	if r < utf8.RuneSelf {
 		// Entire set of ASCII punctuation, from which we remove characters:
@@ -120,6 +264,17 @@ func fileNameOK(r rune) bool {
 }
 
 // CheckPath checks that a module path is valid.
+// A valid module path is a valid import path, as checked by CheckImportPath,
+// with two additional constraints.
+// First, the leading path element (up to the first slash, if any),
+// by convention a domain name, must contain only lower-case ASCII letters,
+// ASCII digits, dots (U+002E), and dashes (U+002D);
+// it must contain at least one dot and cannot start with a dash.
+// Second, for a final path element of the form /vN, where N looks numeric
+// (ASCII digits and dots) must not begin with a leading zero, must not be /v1,
+// and must not contain any dots. For paths beginning with "gopkg.in/",
+// this second requirement is replaced by a requirement that the path
+// follow the gopkg.in server's conventions.
 func CheckPath(path string) error {
 	if err := checkPath(path, false); err != nil {
 		return fmt.Errorf("malformed module path %q: %v", path, err)
@@ -149,6 +304,20 @@ func CheckPath(path string) error {
 }
 
 // CheckImportPath checks that an import path is valid.
+//
+// A valid import path consists of one or more valid path elements
+// separated by slashes (U+002F). (It must not begin with nor end in a slash.)
+//
+// A valid path element is a non-empty string made up of
+// ASCII letters, ASCII digits, and limited ASCII punctuation: + - . _ and ~.
+// It must not begin or end with a dot (U+002E), nor contain two dots in a row.
+//
+// The element prefix up to the first dot must not be a reserved file name
+// on Windows, regardless of case (CON, com1, NuL, and so on).
+//
+// CheckImportPath may be less restrictive in the future, but see the
+// top-level package documentation for additional information about
+// subtleties of Unicode.
 func CheckImportPath(path string) error {
 	if err := checkPath(path, false); err != nil {
 		return fmt.Errorf("malformed import path %q: %v", path, err)
@@ -169,8 +338,8 @@ func checkPath(path string, fileName bool) error {
 	if path == "" {
 		return fmt.Errorf("empty string")
 	}
-	if strings.Contains(path, "..") {
-		return fmt.Errorf("double dot")
+	if path[0] == '-' {
+		return fmt.Errorf("leading dash")
 	}
 	if strings.Contains(path, "//") {
 		return fmt.Errorf("double slash")
@@ -226,13 +395,24 @@ func checkElem(elem string, fileName bool) error {
 	}
 	for _, bad := range badWindowsNames {
 		if strings.EqualFold(bad, short) {
-			return fmt.Errorf("disallowed path element %q", elem)
+			return fmt.Errorf("%q disallowed as path element component on Windows", short)
 		}
 	}
 	return nil
 }
 
-// CheckFilePath checks whether a slash-separated file path is valid.
+// CheckFilePath checks that a slash-separated file path is valid.
+// The definition of a valid file path is the same as the definition
+// of a valid import path except that the set of allowed characters is larger:
+// all Unicode letters, ASCII digits, the ASCII space character (U+0020),
+// and the ASCII punctuation characters
+// “!#$%&()+,-.=@[]^_{}~”.
+// (The excluded punctuation characters, " * < > ? ` ' | / \ and :,
+// have special meanings in certain shells or operating systems.)
+//
+// CheckFilePath may be less restrictive in the future, but see the
+// top-level package documentation for additional information about
+// subtleties of Unicode.
 func CheckFilePath(path string) error {
 	if err := checkPath(path, true); err != nil {
 		return fmt.Errorf("malformed file path %q: %v", path, err)
@@ -271,6 +451,9 @@ var badWindowsNames = []string{
 // and version is either empty or "/vN" for N >= 2.
 // As a special case, gopkg.in paths are recognized directly;
 // they require ".vN" instead of "/vN", and for all N, not just N >= 2.
+// SplitPathVersion returns with ok = false when presented with
+// a path whose last path element does not satisfy the constraints
+// applied by CheckPath, such as "example.com/pkg/v1" or "example.com/pkg/v1.2".
 func SplitPathVersion(path string) (prefix, pathMajor string, ok bool) {
 	if strings.HasPrefix(path, "gopkg.in/") {
 		return splitGopkgIn(path)
@@ -284,7 +467,7 @@ func SplitPathVersion(path string) (prefix, pathMajor string, ok bool) {
 		}
 		i--
 	}
-	if i <= 1 || path[i-1] != 'v' || path[i-2] != '/' {
+	if i <= 1 || i == len(path) || path[i-1] != 'v' || path[i-2] != '/' {
 		return path, "", true
 	}
 	prefix, pathMajor = path[:i-2], path[i-2:]
@@ -319,20 +502,62 @@ func splitGopkgIn(path string) (prefix, pathMajor string, ok bool) {
 
 // MatchPathMajor reports whether the semantic version v
 // matches the path major version pathMajor.
+//
+// MatchPathMajor returns true if and only if CheckPathMajor returns non-nil.
 func MatchPathMajor(v, pathMajor string) bool {
+	return CheckPathMajor(v, pathMajor) != nil
+}
+
+// CheckPathMajor returns a non-nil error if the semantic version v
+// does not match the path major version pathMajor.
+func CheckPathMajor(v, pathMajor string) error {
 	if strings.HasPrefix(pathMajor, ".v") && strings.HasSuffix(pathMajor, "-unstable") {
 		pathMajor = strings.TrimSuffix(pathMajor, "-unstable")
 	}
 	if strings.HasPrefix(v, "v0.0.0-") && pathMajor == ".v1" {
 		// Allow old bug in pseudo-versions that generated v0.0.0- pseudoversion for gopkg .v1.
 		// For example, gopkg.in/yaml.v2@v2.2.1's go.mod requires gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405.
-		return true
+		return nil
 	}
 	m := semver.Major(v)
 	if pathMajor == "" {
-		return m == "v0" || m == "v1" || semver.Build(v) == "+incompatible"
+		if m == "v0" || m == "v1" || semver.Build(v) == "+incompatible" {
+			return nil
+		}
+		pathMajor = "v0 or v1"
+	} else if pathMajor[0] == '/' || pathMajor[0] == '.' {
+		if m == pathMajor[1:] {
+			return nil
+		}
+		pathMajor = pathMajor[1:]
 	}
-	return (pathMajor[0] == '/' || pathMajor[0] == '.') && m == pathMajor[1:]
+	return &InvalidVersionError{
+		Version: v,
+		Err:     fmt.Errorf("should be %s, not %s", pathMajor, semver.Major(v)),
+	}
+}
+
+// PathMajorPrefix returns the major-version tag prefix implied by pathMajor.
+// An empty PathMajorPrefix allows either v0 or v1.
+//
+// Note that MatchPathMajor may accept some versions that do not actually begin
+// with this prefix: namely, it accepts a 'v0.0.0-' prefix for a '.v1'
+// pathMajor, even though that pathMajor implies 'v1' tagging.
+func PathMajorPrefix(pathMajor string) string {
+	if pathMajor == "" {
+		return ""
+	}
+	if pathMajor[0] != '/' && pathMajor[0] != '.' {
+		panic("pathMajor suffix " + pathMajor + " passed to PathMajorPrefix lacks separator")
+	}
+	if strings.HasPrefix(pathMajor, ".v") && strings.HasSuffix(pathMajor, "-unstable") {
+		pathMajor = strings.TrimSuffix(pathMajor, "-unstable")
+	}
+	m := pathMajor[1:]
+	if m != semver.Major(m) {
+		panic("pathMajor suffix " + pathMajor + "passed to PathMajorPrefix is not a valid major version")
+	}
+	return m
 }
 
 // CanonicalVersion returns the canonical form of the version string v.
@@ -345,7 +570,10 @@ func CanonicalVersion(v string) string {
 	return cv
 }
 
-// Sort sorts the list by Path, breaking ties by comparing Versions.
+// Sort sorts the list by Path, breaking ties by comparing Version fields.
+// The Version fields are interpreted as semantic versions (using semver.Compare)
+// optionally followed by a tie-breaking suffix introduced by a slash character,
+// like in "v0.0.1/go.mod".
 func Sort(list []Version) {
 	sort.Slice(list, func(i, j int) bool {
 		mi := list[i]
@@ -372,93 +600,36 @@ func Sort(list []Version) {
 	})
 }
 
-// Safe encodings
-//
-// Module paths appear as substrings of file system paths
-// (in the download cache) and of web server URLs in the proxy protocol.
-// In general we cannot rely on file systems to be case-sensitive,
-// nor can we rely on web servers, since they read from file systems.
-// That is, we cannot rely on the file system to keep rsc.io/QUOTE
-// and rsc.io/quote separate. Windows and macOS don't.
-// Instead, we must never require two different casings of a file path.
-// Because we want the download cache to match the proxy protocol,
-// and because we want the proxy protocol to be possible to serve
-// from a tree of static files (which might be stored on a case-insensitive
-// file system), the proxy protocol must never require two different casings
-// of a URL path either.
-//
-// One possibility would be to make the safe encoding be the lowercase
-// hexadecimal encoding of the actual path bytes. This would avoid ever
-// needing different casings of a file path, but it would be fairly illegible
-// to most programmers when those paths appeared in the file system
-// (including in file paths in compiler errors and stack traces)
-// in web server logs, and so on. Instead, we want a safe encoding that
-// leaves most paths unaltered.
-//
-// The safe encoding is this:
-// replace every uppercase letter with an exclamation mark
-// followed by the letter's lowercase equivalent.
-//
-// For example,
-// github.com/Azure/azure-sdk-for-go ->  github.com/!azure/azure-sdk-for-go.
-// github.com/GoogleCloudPlatform/cloudsql-proxy -> github.com/!google!cloud!platform/cloudsql-proxy
-// github.com/Sirupsen/logrus -> github.com/!sirupsen/logrus.
-//
-// Import paths that avoid upper-case letters are left unchanged.
-// Note that because import paths are ASCII-only and avoid various
-// problematic punctuation (like : < and >), the safe encoding is also ASCII-only
-// and avoids the same problematic punctuation.
-//
-// Import paths have never allowed exclamation marks, so there is no
-// need to define how to encode a literal !.
-//
-// Although paths are disallowed from using Unicode (see pathOK above),
-// the eventual plan is to allow Unicode letters as well, to assume that
-// file systems and URLs are Unicode-safe (storing UTF-8), and apply
-// the !-for-uppercase convention. Note however that not all runes that
-// are different but case-fold equivalent are an upper/lower pair.
-// For example, U+004B ('K'), U+006B ('k'), and U+212A ('K' for Kelvin)
-// are considered to case-fold to each other. When we do add Unicode
-// letters, we must not assume that upper/lower are the only case-equivalent pairs.
-// Perhaps the Kelvin symbol would be disallowed entirely, for example.
-// Or perhaps it would encode as "!!k", or perhaps as "(212A)".
-//
-// Also, it would be nice to allow Unicode marks as well as letters,
-// but marks include combining marks, and then we must deal not
-// only with case folding but also normalization: both U+00E9 ('é')
-// and U+0065 U+0301 ('e' followed by combining acute accent)
-// look the same on the page and are treated by some file systems
-// as the same path. If we do allow Unicode marks in paths, there
-// must be some kind of normalization to allow only one canonical
-// encoding of any character used in an import path.
-
-// EncodePath returns the safe encoding of the given module path.
+// EscapePath returns the escaped form of the given module path.
 // It fails if the module path is invalid.
-func EncodePath(path string) (encoding string, err error) {
+func EscapePath(path string) (escaped string, err error) {
 	if err := CheckPath(path); err != nil {
 		return "", err
 	}
 
-	return encodeString(path)
+	return escapeString(path)
 }
 
-// EncodeVersion returns the safe encoding of the given module version.
+// EscapeVersion returns the escaped form of the given module version.
 // Versions are allowed to be in non-semver form but must be valid file names
 // and not contain exclamation marks.
-func EncodeVersion(v string) (encoding string, err error) {
+func EscapeVersion(v string) (escaped string, err error) {
 	if err := checkElem(v, true); err != nil || strings.Contains(v, "!") {
-		return "", fmt.Errorf("disallowed version string %q", v)
+		return "", &InvalidVersionError{
+			Version: v,
+			Err:     fmt.Errorf("disallowed version string"),
+		}
 	}
-	return encodeString(v)
+	return escapeString(v)
 }
 
-func encodeString(s string) (encoding string, err error) {
+func escapeString(s string) (escaped string, err error) {
 	haveUpper := false
 	for _, r := range s {
 		if r == '!' || r >= utf8.RuneSelf {
 			// This should be disallowed by CheckPath, but diagnose anyway.
-			// The correctness of the encoding loop below depends on it.
-			return "", fmt.Errorf("internal error: inconsistency in EncodePath")
+			// The correctness of the escaping loop below depends on it.
+			return "", fmt.Errorf("internal error: inconsistency in EscapePath")
 		}
 		if 'A' <= r && r <= 'Z' {
 			haveUpper = true
@@ -480,39 +651,39 @@ func encodeString(s string) (encoding string, err error) {
 	return string(buf), nil
 }
 
-// DecodePath returns the module path of the given safe encoding.
-// It fails if the encoding is invalid or encodes an invalid path.
-func DecodePath(encoding string) (path string, err error) {
-	path, ok := decodeString(encoding)
+// UnescapePath returns the module path for the given escaped path.
+// It fails if the escaped path is invalid or describes an invalid path.
+func UnescapePath(escaped string) (path string, err error) {
+	path, ok := unescapeString(escaped)
 	if !ok {
-		return "", fmt.Errorf("invalid module path encoding %q", encoding)
+		return "", fmt.Errorf("invalid escaped module path %q", escaped)
 	}
 	if err := CheckPath(path); err != nil {
-		return "", fmt.Errorf("invalid module path encoding %q: %v", encoding, err)
+		return "", fmt.Errorf("invalid escaped module path %q: %v", escaped, err)
 	}
 	return path, nil
 }
 
-// DecodeVersion returns the version string for the given safe encoding.
-// It fails if the encoding is invalid or encodes an invalid version.
+// UnescapeVersion returns the version string for the given escaped version.
+// It fails if the escaped form is invalid or describes an invalid version.
 // Versions are allowed to be in non-semver form but must be valid file names
 // and not contain exclamation marks.
-func DecodeVersion(encoding string) (v string, err error) {
-	v, ok := decodeString(encoding)
+func UnescapeVersion(escaped string) (v string, err error) {
+	v, ok := unescapeString(escaped)
 	if !ok {
-		return "", fmt.Errorf("invalid version encoding %q", encoding)
+		return "", fmt.Errorf("invalid escaped version %q", escaped)
 	}
 	if err := checkElem(v, true); err != nil {
-		return "", fmt.Errorf("disallowed version string %q", v)
+		return "", fmt.Errorf("invalid escaped version %q: %v", v, err)
 	}
 	return v, nil
 }
 
-func decodeString(encoding string) (string, bool) {
+func unescapeString(escaped string) (string, bool) {
 	var buf []byte
 
 	bang := false
-	for _, r := range encoding {
+	for _, r := range escaped {
 		if r >= utf8.RuneSelf {
 			return "", false
 		}

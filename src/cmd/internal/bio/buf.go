@@ -7,6 +7,7 @@ package bio
 
 import (
 	"bufio"
+	"io"
 	"log"
 	"os"
 )
@@ -42,7 +43,7 @@ func Open(name string) (*Reader, error) {
 	return &Reader{f: f, Reader: bufio.NewReader(f)}, nil
 }
 
-func (r *Reader) Seek(offset int64, whence int) int64 {
+func (r *Reader) MustSeek(offset int64, whence int) int64 {
 	if whence == 1 {
 		offset -= int64(r.Buffered())
 	}
@@ -54,7 +55,7 @@ func (r *Reader) Seek(offset int64, whence int) int64 {
 	return off
 }
 
-func (w *Writer) Seek(offset int64, whence int) int64 {
+func (w *Writer) MustSeek(offset int64, whence int) int64 {
 	if err := w.Flush(); err != nil {
 		log.Fatalf("writing output: %v", err)
 	}
@@ -104,4 +105,39 @@ func (r *Reader) File() *os.File {
 
 func (w *Writer) File() *os.File {
 	return w.f
+}
+
+// Slice reads the next length bytes of r into a slice.
+//
+// This slice may be backed by mmap'ed memory. Currently, this memory
+// will never be unmapped. The second result reports whether the
+// backing memory is read-only.
+func (r *Reader) Slice(length uint64) ([]byte, bool, error) {
+	if length == 0 {
+		return []byte{}, false, nil
+	}
+
+	data, ok := r.sliceOS(length)
+	if ok {
+		return data, true, nil
+	}
+
+	data = make([]byte, length)
+	_, err := io.ReadFull(r, data)
+	if err != nil {
+		return nil, false, err
+	}
+	return data, false, nil
+}
+
+// SliceRO returns a slice containing the next length bytes of r
+// backed by a read-only mmap'd data. If the mmap cannot be
+// established (limit exceeded, region too small, etc) a nil slice
+// will be returned. If mmap succeeds, it will never be unmapped.
+func (r *Reader) SliceRO(length uint64) []byte {
+	data, ok := r.sliceOS(length)
+	if ok {
+		return data
+	}
+	return nil
 }

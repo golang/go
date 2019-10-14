@@ -40,12 +40,13 @@ type Symbols struct {
 }
 
 func NewSymbols() *Symbols {
+	hash := make([]map[string]*Symbol, SymVerStatic)
+	// Preallocate about 2mb for hash of non static symbols
+	hash[0] = make(map[string]*Symbol, 100000)
+	// And another 1mb for internal ABI text symbols.
+	hash[SymVerABIInternal] = make(map[string]*Symbol, 50000)
 	return &Symbols{
-		hash: []map[string]*Symbol{
-			// preallocate about 2mb for hash of
-			// non static symbols
-			make(map[string]*Symbol, 100000),
-		},
+		hash:   hash,
 		Allsym: make([]*Symbol, 0, 100000),
 	}
 }

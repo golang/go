@@ -28,9 +28,6 @@ const (
 
 // GetRandom calls the FreeBSD getrandom system call.
 func GetRandom(p []byte, flags GetRandomFlag) (n int, err error) {
-	if randomTrap == 0 {
-		return 0, syscall.ENOSYS
-	}
 	if len(p) == 0 {
 		return 0, nil
 	}

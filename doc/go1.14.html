@@ -1,0 +1,193 @@
+<!--{
+        "Title": "Go 1.14 Release Notes",
+        "Path":  "/doc/go1.14",
+        "Template": true
+}-->
+
+<!--
+NOTE: In this document and others in this directory, the convention is to
+set fixed-width phrases with non-fixed-width spaces, as in
+<code>hello</code> <code>world</code>.
+Do not send CLs removing the interior tags from such phrases.
+-->
+
+<style>
+  main ul li { margin: 0.5em 0; }
+</style>
+
+<h2 id="introduction">DRAFT RELEASE NOTES — Introduction to Go 1.14</h2>
+
+<p>
+  <strong>
+    Go 1.14 is not yet released. These are work-in-progress
+    release notes. Go 1.14 is expected to be released in February 2020.
+  </strong>
+</p>
+
+<h2 id="language">Changes to the language</h2>
+
+<p>
+TODO
+</p>
+
+<h2 id="ports">Ports</h2>
+
+<p>
+TODO
+</p>
+
+<h3 id="nacl">Native Client (NaCl)</h3>
+
+<p><!-- golang.org/issue/30439 -->
+  As <a href="go1.13#ports">announced</a> in the Go 1.13 release notes,
+  Go 1.14 drops support for the Native Client platform (<code>GOOS=nacl</code>).
+</p>
+
+<h2 id="tools">Tools</h2>
+
+<p>
+TODO
+</p>
+
+<h3 id="go-command">Go command</h3>
+
+<!-- golang.org/issue/33848 -->
+<p>
+  When the main module contains a top-level <code>vendor</code> directory and
+  its <code>go.mod</code> file specifies <code>go</code> <code>1.14</code> or
+  higher, the <code>go</code> command now defaults to <code>-mod=vendor</code>
+  for operations that accept that flag. A new value for that flag,
+  <code>-mod=mod</code>, causes the <code>go</code> command to instead load
+  modules from the module cache (as when no <code>vendor</code> directory is
+  present).
+</p>
+
+<p>
+  When <code>-mod=vendor</code> is set (explicitly or by default), the
+  <code>go</code> command now verifies that the main module's
+  <code>vendor/modules.txt</code> file is consistent with its
+  <code>go.mod</code> file.
+</p>
+
+<p>
+  <code>go</code> <code>list</code> <code>-m</code> no longer silently omits
+  transitive dependencies that do not provide packages in
+  the <code>vendor</code> directory. It now fails explicitly if
+  <code>-mod=vendor</code> is set.
+</p>
+
+<p><!-- golang.org/issue/32502, golang.org/issue/30345 -->
+  The <code>go</code> <code>get</code> command no longer accepts
+  the <code>-mod</code> flag. Previously, the flag's setting either
+  <a href="https://golang.org/issue/30345">was ignored</a> or
+  <a href="https://golang.org/issue/32502">caused the build to fail</a>.
+</p>
+
+<p><!-- golang.org/issue/30748 -->
+  The <code>go</code> command now includes snippets of plain-text error messages
+  from module proxies and other HTTP servers.
+  An error message will only be shown if it is valid UTF-8 and consists of only
+  graphic characters and spaces.
+</p>
+
+<h2 id="runtime">Runtime</h2>
+
+<p>
+TODO
+</p>
+
+
+<h2 id="library">Core library</h2>
+
+<p>
+TODO
+</p>
+
+<dl id="bytes/hash"><dt><a href="/pkg/bytes/hash/">bytes/hash</a></dt>
+  <dd>
+    <p><!-- CL 186877 -->
+      TODO: <a href="https://golang.org/cl/186877">https://golang.org/cl/186877</a>: add hashing package for bytes and strings
+    </p>
+
+</dl><!-- bytes/hash -->
+
+<dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+  <dd>
+    <p><!-- CL 191976 -->
+      TODO: <a href="https://golang.org/cl/191976">https://golang.org/cl/191976</a>: remove SSLv3 support
+    </p>
+
+    <p><!-- CL 191999 -->
+      TODO: <a href="https://golang.org/cl/191999">https://golang.org/cl/191999</a>: remove TLS 1.3 opt-out
+    </p>
+
+    <p><!-- CL 174329 -->
+      The <code>tls</code> package no longer supports NPN and now only
+      supports ALPN. In previous releases it supported both. There are
+      no API changes and code should function identically as before.
+      Most other clients & servers have already removed NPN support in
+      favor of the standardized ALPN.
+    </p>
+
+</dl><!-- crypto/tls -->
+
+<dl id="encoding/asn1"><dt><a href="/pkg/encoding/asn1/">encoding/asn1</a></dt>
+  <dd>
+    <p><!-- CL 126624 -->
+      TODO: <a href="https://golang.org/cl/126624">https://golang.org/cl/126624</a>: handle ASN1&#39;s string type BMPString
+    </p>
+
+</dl><!-- encoding/asn1 -->
+
+<dl id="mime"><dt><a href="/pkg/mime/">mime</a></dt>
+  <dd>
+    <p><!-- CL 186927 -->
+      TODO: <a href="https://golang.org/cl/186927">https://golang.org/cl/186927</a>: update type of .js and .mjs files to text/javascript
+    </p>
+
+</dl><!-- mime -->
+
+<dl id="plugin"><dt><a href="/pkg/plugin/">plugin</a></dt>
+  <dd>
+    <p><!-- CL 191617 -->
+      TODO: <a href="https://golang.org/cl/191617">https://golang.org/cl/191617</a>: add freebsd/amd64 plugin support
+    </p>
+
+</dl><!-- plugin -->
+
+<dl id="reflect">
+
+<dt><a href="/pkg/reflect/">reflect</a></dt>
+  <dd>
+    <p><!-- CL 85661 -->
+      <a href="/pkg/reflect#StructOf"><code>StructOf</code></a> now
+      supports creating struct types with unexported fields, by
+      setting the <code>PkgPath</code> field in
+      a <code>StructField</code> element.
+    </p>
+
+</dl><!-- reflect -->
+
+<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+  <dd>
+    <p><!-- CL 187739 -->
+      TODO: <a href="https://golang.org/cl/187739">https://golang.org/cl/187739</a>: treat CTRL_CLOSE_EVENT, CTRL_LOGOFF_EVENT, CTRL_SHUTDOWN_EVENT as SIGTERM on Windows
+    </p>
+
+    <p><!-- CL 188297 -->
+      TODO: <a href="https://golang.org/cl/188297">https://golang.org/cl/188297</a>: don&#39;t forward SIGPIPE on macOS
+    </p>
+
+</dl><!-- runtime -->
+
+<h3 id="minor_library_changes">Minor changes to the library</h3>
+
+<p>
+  As always, there are various minor changes and updates to the library,
+  made with the Go 1 <a href="/doc/go1compat">promise of compatibility</a>
+  in mind.
+</p>
+
+<p>
+TODO
+</p>

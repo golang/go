@@ -20,6 +20,8 @@ package cgo
 #cgo !android,linux LDFLAGS: -lpthread
 #cgo netbsd LDFLAGS: -lpthread
 #cgo openbsd LDFLAGS: -lpthread
+#cgo aix LDFLAGS: -Wl,-berok
+#cgo solaris LDFLAGS: -lxnet
 
 #cgo CFLAGS: -Wall -Werror
 

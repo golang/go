@@ -156,7 +156,7 @@ func futexsleep1(addr *uint32, val uint32, ns int64) {
 	if ns >= 0 {
 		var ut umtx_time
 		ut._clockid = _CLOCK_MONOTONIC
-		ut._timeout.set_sec(int64(timediv(ns, 1000000000, (*int32)(unsafe.Pointer(&ut._timeout.tv_nsec)))))
+		ut._timeout.setNsec(ns)
 		utp = &ut
 	}
 	ret := sys_umtx_op(addr, _UMTX_OP_WAIT_UINT_PRIVATE, val, unsafe.Sizeof(*utp), utp)
@@ -365,6 +365,7 @@ func sigdelset(mask *sigset, i int) {
 	mask.__bits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
 }
 
+//go:nosplit
 func (c *sigctxt) fixsigcode(sig uint32) {
 }
 

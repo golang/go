@@ -1,4 +1,5 @@
 env GO111MODULE=on
+[short] skip
 
 # list {{.Dir}} shows main module and go.mod but not not-yet-downloaded dependency dir.
 go list -m -f '{{.Path}} {{.Main}} {{.GoMod}} {{.Dir}}' all
@@ -33,12 +34,12 @@ go list rsc.io/quote/buggy
 
 # rsc.io/quote/buggy should not be listable as a module
 go list -m -e -f '{{.Error.Err}}' nonexist rsc.io/quote/buggy
-stdout '^module "nonexist" is not a known dependency'
-stdout '^module "rsc.io/quote/buggy" is not a known dependency'
+stdout '^module nonexist: not a known dependency$'
+stdout '^module rsc.io/quote/buggy: not a known dependency$'
 
 ! go list -m nonexist rsc.io/quote/buggy
-stderr '^go list -m nonexist: module "nonexist" is not a known dependency'
-stderr '^go list -m rsc.io/quote/buggy: module "rsc.io/quote/buggy" is not a known dependency'
+stderr '^go list -m: module nonexist: not a known dependency'
+stderr '^go list -m: module rsc.io/quote/buggy: not a known dependency'
 
 # Module loader does not interfere with list -e (golang.org/issue/24149).
 go list -e -f '{{.Error.Err}}' database

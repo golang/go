@@ -59,7 +59,7 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0
 	MOVW	fd+0(FP), R0		// arg 1 - fd
 	MOVW	p+4(FP), R1		// arg 2 - buf
 	MOVW	n+8(FP), R2		// arg 3 - nbyte
@@ -86,8 +86,8 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT,$12
-	MOVW	$0x12B, R12
-	SWI	$0			// sys_getthrid
+	MOVW	$299, R12		// sys_getthrid
+	SWI	$0
 					// arg 1 - tid, already in R0
 	MOVW	sig+0(FP), R1		// arg 2 - signum
 	MOVW	$0, R2			// arg 3 - tcb
@@ -143,8 +143,8 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVW	flags+8(FP), R2		// arg 2 - flags
 	MOVW	$75, R12		// sys_madvise
 	SWI	$0
-	MOVW.CS	$0, R8			// crash on syscall failure
-	MOVW.CS	R8, (R8)
+	MOVW.CS	$-1, R0
+	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·setitimer(SB),NOSPLIT,$0
@@ -155,8 +155,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
 	SWI	$0
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB), NOSPLIT, $32
+// func walltime1() (sec int64, nsec int32)
+TEXT runtime·walltime1(SB), NOSPLIT, $32
 	MOVW	CLOCK_REALTIME, R0	// arg 1 - clock_id
 	MOVW	$8(R13), R1		// arg 2 - tp
 	MOVW	$87, R12		// sys_clock_gettime
@@ -172,9 +172,9 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 
 	RET
 
-// int64 nanotime(void) so really
-// void nanotime(int64 *nsec)
-TEXT runtime·nanotime(SB),NOSPLIT,$32
+// int64 nanotime1(void) so really
+// void nanotime1(int64 *nsec)
+TEXT runtime·nanotime1(SB),NOSPLIT,$32
 	MOVW	CLOCK_MONOTONIC, R0	// arg 1 - clock_id
 	MOVW	$8(R13), R1		// arg 2 - tp
 	MOVW	$87, R12		// sys_clock_gettime
@@ -371,8 +371,9 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
 	B	runtime·armPublicationBarrier(SB)
 
-// TODO(jsing): Implement.
 TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
-	MOVW	$5, R0
-	MOVW	R0, (R0)
+	MOVM.WP	[R1, R2, R3, R12], (R13)
+	MOVW	$330, R12		// sys___get_tcb
+	SWI	$0
+	MOVM.IAW (R13), [R1, R2, R3, R12]
 	RET

@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/str"
 )
 
@@ -78,14 +79,16 @@ type Repo interface {
 	// nested in a single top-level directory, whose name is not specified.
 	ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error)
 
-	// RecentTag returns the most recent tag at or before the given rev
-	// with the given prefix. It should make a best-effort attempt to
-	// find a tag that is a valid semantic version (following the prefix),
-	// or else the result is not useful to the caller, but it need not
-	// incur great expense in doing so. For example, the git implementation
-	// of RecentTag limits git's search to tags matching the glob expression
-	// "v[0-9]*.[0-9]*.[0-9]*" (after the prefix).
-	RecentTag(rev, prefix string) (tag string, err error)
+	// RecentTag returns the most recent tag on rev or one of its predecessors
+	// with the given prefix and major version.
+	// An empty major string matches any major version.
+	RecentTag(rev, prefix, major string) (tag string, err error)
+
+	// DescendsFrom reports whether rev or any of its ancestors has the given tag.
+	//
+	// DescendsFrom must return true for any tag returned by RecentTag for the
+	// same revision.
+	DescendsFrom(rev, tag string) (bool, error)
 }
 
 // A Rev describes a single revision in a source code repository.
@@ -102,6 +105,32 @@ type FileRev struct {
 	Rev  string // requested revision
 	Data []byte // file data
 	Err  error  // error if any; os.IsNotExist(Err)==true if rev exists but file does not exist in that rev
+}
+
+// UnknownRevisionError is an error equivalent to os.ErrNotExist, but for a
+// revision rather than a file.
+type UnknownRevisionError struct {
+	Rev string
+}
+
+func (e *UnknownRevisionError) Error() string {
+	return "unknown revision " + e.Rev
+}
+func (UnknownRevisionError) Is(err error) bool {
+	return err == os.ErrNotExist
+}
+
+// ErrNoCommits is an error equivalent to os.ErrNotExist indicating that a given
+// repository or module contains no commits.
+var ErrNoCommits error = noCommitsError{}
+
+type noCommitsError struct{}
+
+func (noCommitsError) Error() string {
+	return "no commits"
+}
+func (noCommitsError) Is(err error) bool {
+	return err == os.ErrNotExist
 }
 
 // AllHex reports whether the revision rev is entirely lower-case hexadecimal digits.
@@ -131,9 +160,9 @@ var WorkRoot string
 
 // WorkDir returns the name of the cached work directory to use for the
 // given repository type and name.
-func WorkDir(typ, name string) (string, error) {
+func WorkDir(typ, name string) (dir, lockfile string, err error) {
 	if WorkRoot == "" {
-		return "", fmt.Errorf("codehost.WorkRoot not set")
+		return "", "", fmt.Errorf("codehost.WorkRoot not set")
 	}
 
 	// We name the work directory for the SHA256 hash of the type and name.
@@ -142,22 +171,41 @@ func WorkDir(typ, name string) (string, error) {
 	// that one checkout is never nested inside another. That nesting has
 	// led to security problems in the past.
 	if strings.Contains(typ, ":") {
-		return "", fmt.Errorf("codehost.WorkDir: type cannot contain colon")
+		return "", "", fmt.Errorf("codehost.WorkDir: type cannot contain colon")
 	}
 	key := typ + ":" + name
-	dir := filepath.Join(WorkRoot, fmt.Sprintf("%x", sha256.Sum256([]byte(key))))
+	dir = filepath.Join(WorkRoot, fmt.Sprintf("%x", sha256.Sum256([]byte(key))))
+
+	if cfg.BuildX {
+		fmt.Fprintf(os.Stderr, "mkdir -p %s # %s %s\n", filepath.Dir(dir), typ, name)
+	}
+	if err := os.MkdirAll(filepath.Dir(dir), 0777); err != nil {
+		return "", "", err
+	}
+
+	lockfile = dir + ".lock"
+	if cfg.BuildX {
+		fmt.Fprintf(os.Stderr, "# lock %s", lockfile)
+	}
+
+	unlock, err := lockedfile.MutexAt(lockfile).Lock()
+	if err != nil {
+		return "", "", fmt.Errorf("codehost.WorkDir: can't find or create lock file: %v", err)
+	}
+	defer unlock()
+
 	data, err := ioutil.ReadFile(dir + ".info")
 	info, err2 := os.Stat(dir)
 	if err == nil && err2 == nil && info.IsDir() {
 		// Info file and directory both already exist: reuse.
 		have := strings.TrimSuffix(string(data), "\n")
 		if have != key {
-			return "", fmt.Errorf("%s exists with wrong content (have %q want %q)", dir+".info", have, key)
+			return "", "", fmt.Errorf("%s exists with wrong content (have %q want %q)", dir+".info", have, key)
 		}
 		if cfg.BuildX {
 			fmt.Fprintf(os.Stderr, "# %s for %s %s\n", dir, typ, name)
 		}
-		return dir, nil
+		return dir, lockfile, nil
 	}
 
 	// Info file or directory missing. Start from scratch.
@@ -166,26 +214,30 @@ func WorkDir(typ, name string) (string, error) {
 	}
 	os.RemoveAll(dir)
 	if err := os.MkdirAll(dir, 0777); err != nil {
-		return "", err
+		return "", "", err
 	}
 	if err := ioutil.WriteFile(dir+".info", []byte(key), 0666); err != nil {
 		os.RemoveAll(dir)
-		return "", err
+		return "", "", err
 	}
-	return dir, nil
+	return dir, lockfile, nil
 }
 
 type RunError struct {
-	Cmd    string
-	Err    error
-	Stderr []byte
+	Cmd      string
+	Err      error
+	Stderr   []byte
+	HelpText string
 }
 
 func (e *RunError) Error() string {
 	text := e.Cmd + ": " + e.Err.Error()
 	stderr := bytes.TrimRight(e.Stderr, "\n")
 	if len(stderr) > 0 {
-		text += ":\n\t" + strings.Replace(string(stderr), "\n", "\n\t", -1)
+		text += ":\n\t" + strings.ReplaceAll(string(stderr), "\n", "\n\t")
+	}
+	if len(e.HelpText) > 0 {
+		text += "\n" + e.HelpText
 	}
 	return text
 }

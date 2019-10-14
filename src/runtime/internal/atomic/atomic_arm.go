@@ -11,6 +11,10 @@ import (
 	"unsafe"
 )
 
+// Export some functions via linkname to assembly in sync/atomic.
+//go:linkname Xchg
+//go:linkname Xchguintptr
+
 type spinlock struct {
 	v uint32
 }
@@ -73,6 +77,9 @@ func StorepNoWB(addr unsafe.Pointer, v unsafe.Pointer)
 
 //go:noescape
 func Store(addr *uint32, v uint32)
+
+//go:noescape
+func StoreRel(addr *uint32, v uint32)
 
 //go:nosplit
 func goCas64(addr *uint64, old, new uint64) bool {
@@ -178,11 +185,20 @@ func armcas(ptr *uint32, old, new uint32) bool
 //go:noescape
 func Load(addr *uint32) uint32
 
-//go:noescape
+// NO go:noescape annotation; *addr escapes if result escapes (#31525)
 func Loadp(addr unsafe.Pointer) unsafe.Pointer
 
 //go:noescape
+func Load8(addr *uint8) uint8
+
+//go:noescape
+func LoadAcq(addr *uint32) uint32
+
+//go:noescape
 func Cas64(addr *uint64, old, new uint64) bool
+
+//go:noescape
+func CasRel(addr *uint32, old, new uint32) bool
 
 //go:noescape
 func Xadd64(addr *uint64, delta int64) uint64

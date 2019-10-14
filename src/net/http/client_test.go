@@ -221,27 +221,27 @@ func TestClientRedirects(t *testing.T) {
 
 	c := ts.Client()
 	_, err := c.Get(ts.URL)
-	if e, g := "Get /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
+	if e, g := `Get "/?n=10": stopped after 10 redirects`, fmt.Sprintf("%v", err); e != g {
 		t.Errorf("with default client Get, expected error %q, got %q", e, g)
 	}
 
 	// HEAD request should also have the ability to follow redirects.
 	_, err = c.Head(ts.URL)
-	if e, g := "Head /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
+	if e, g := `Head "/?n=10": stopped after 10 redirects`, fmt.Sprintf("%v", err); e != g {
 		t.Errorf("with default client Head, expected error %q, got %q", e, g)
 	}
 
 	// Do should also follow redirects.
 	greq, _ := NewRequest("GET", ts.URL, nil)
 	_, err = c.Do(greq)
-	if e, g := "Get /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
+	if e, g := `Get "/?n=10": stopped after 10 redirects`, fmt.Sprintf("%v", err); e != g {
 		t.Errorf("with default client Do, expected error %q, got %q", e, g)
 	}
 
 	// Requests with an empty Method should also redirect (Issue 12705)
 	greq.Method = ""
 	_, err = c.Do(greq)
-	if e, g := "Get /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
+	if e, g := `Get "/?n=10": stopped after 10 redirects`, fmt.Sprintf("%v", err); e != g {
 		t.Errorf("with default client Do and empty Method, expected error %q, got %q", e, g)
 	}
 
@@ -317,8 +317,7 @@ func TestClientRedirectContext(t *testing.T) {
 			return errors.New("redirected request's context never expired after root request canceled")
 		}
 	}
-	req, _ := NewRequest("GET", ts.URL, nil)
-	req = req.WithContext(ctx)
+	req, _ := NewRequestWithContext(ctx, "GET", ts.URL, nil)
 	_, err := c.Do(req)
 	ue, ok := err.(*url.Error)
 	if !ok {
@@ -977,6 +976,7 @@ func TestResponseSetsTLSConnectionState(t *testing.T) {
 	c := ts.Client()
 	tr := c.Transport.(*Transport)
 	tr.TLSClientConfig.CipherSuites = []uint16{tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA}
+	tr.TLSClientConfig.MaxVersion = tls.VersionTLS12 // to get to pick the cipher suite
 	tr.Dial = func(netw, addr string) (net.Conn, error) {
 		return net.Dial(netw, ts.Listener.Addr().String())
 	}
@@ -1172,17 +1172,22 @@ func TestStripPasswordFromError(t *testing.T) {
 		{
 			desc: "Strip password from error message",
 			in:   "http://user:password@dummy.faketld/",
-			out:  "Get http://user:***@dummy.faketld/: dummy impl",
+			out:  `Get "http://user:***@dummy.faketld/": dummy impl`,
 		},
 		{
 			desc: "Don't Strip password from domain name",
 			in:   "http://user:password@password.faketld/",
-			out:  "Get http://user:***@password.faketld/: dummy impl",
+			out:  `Get "http://user:***@password.faketld/": dummy impl`,
 		},
 		{
 			desc: "Don't Strip password from path",
 			in:   "http://user:password@dummy.faketld/password",
-			out:  "Get http://user:***@dummy.faketld/password: dummy impl",
+			out:  `Get "http://user:***@dummy.faketld/password": dummy impl`,
+		},
+		{
+			desc: "Strip escaped password",
+			in:   "http://user:pa%2Fssword@dummy.faketld/",
+			out:  `Get "http://user:***@dummy.faketld/": dummy impl`,
 		},
 	}
 	for _, tC := range testCases {
@@ -1269,7 +1274,7 @@ func testClientTimeout(t *testing.T, h2 bool) {
 		} else if !ne.Timeout() {
 			t.Errorf("net.Error.Timeout = false; want true")
 		}
-		if got := ne.Error(); !strings.Contains(got, "Client.Timeout exceeded") {
+		if got := ne.Error(); !strings.Contains(got, "(Client.Timeout") {
 			t.Errorf("error string = %q; missing timeout substring", got)
 		}
 	case <-time.After(failTime):
@@ -1287,7 +1292,7 @@ func testClientTimeout_Headers(t *testing.T, h2 bool) {
 	donec := make(chan bool, 1)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		<-donec
-	}))
+	}), optQuietLog)
 	defer cst.close()
 	// Note that we use a channel send here and not a close.
 	// The race detector doesn't know that we're waiting for a timeout
@@ -1911,4 +1916,23 @@ func TestClientCloseIdleConnections(t *testing.T) {
 	if !closed {
 		t.Error("not closed")
 	}
+}
+
+func TestClientPropagatesTimeoutToContext(t *testing.T) {
+	errDial := errors.New("not actually dialing")
+	c := &Client{
+		Timeout: 5 * time.Second,
+		Transport: &Transport{
+			DialContext: func(ctx context.Context, netw, addr string) (net.Conn, error) {
+				deadline, ok := ctx.Deadline()
+				if !ok {
+					t.Error("no deadline")
+				} else {
+					t.Logf("deadline in %v", deadline.Sub(time.Now()).Round(time.Second/10))
+				}
+				return nil, errDial
+			},
+		},
+	}
+	c.Get("https://example.tld/")
 }

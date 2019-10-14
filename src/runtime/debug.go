@@ -26,12 +26,12 @@ func GOMAXPROCS(n int) int {
 		return ret
 	}
 
-	stopTheWorld("GOMAXPROCS")
+	stopTheWorldGC("GOMAXPROCS")
 
 	// newprocs will be processed by startTheWorld
 	newprocs = int32(n)
 
-	startTheWorld()
+	startTheWorldGC()
 	return ret
 }
 
@@ -56,4 +56,9 @@ func NumCgoCall() int64 {
 // NumGoroutine returns the number of goroutines that currently exist.
 func NumGoroutine() int {
 	return int(gcount())
+}
+
+//go:linkname debug_modinfo runtime/debug.modinfo
+func debug_modinfo() string {
+	return modinfo
 }

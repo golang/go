@@ -106,7 +106,7 @@ func TestMatch(t *testing.T) {
 	}
 }
 
-// contains returns true if vector contains the string s.
+// contains reports whether vector contains the string s.
 func contains(vector []string, s string) bool {
 	for _, elem := range vector {
 		if elem == s {

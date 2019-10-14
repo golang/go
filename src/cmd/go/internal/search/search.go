@@ -190,7 +190,7 @@ func MatchPackagesInFS(pattern string) *Match {
 
 		if !top && cfg.ModulesEnabled {
 			// Ignore other modules found in subdirectories.
-			if _, err := os.Stat(filepath.Join(path, "go.mod")); err == nil {
+			if fi, err := os.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
 				return filepath.SkipDir
 			}
 		}
@@ -241,7 +241,7 @@ func TreeCanMatchPattern(pattern string) func(name string) bool {
 //
 // First, /... at the end of the pattern can match an empty string,
 // so that net/... matches both net and packages in its subdirectories, like net/http.
-// Second, any slash-separted pattern element containing a wildcard never
+// Second, any slash-separated pattern element containing a wildcard never
 // participates in a match of the "vendor" element in the path of a vendored
 // package, so that ./... does not match packages in subdirectories of
 // ./vendor or ./mycode/vendor, but ./vendor/... and ./mycode/vendor/... do.
@@ -275,7 +275,7 @@ func MatchPattern(pattern string) func(name string) bool {
 	case strings.HasSuffix(re, `/\.\.\.`):
 		re = strings.TrimSuffix(re, `/\.\.\.`) + `(/\.\.\.)?`
 	}
-	re = strings.Replace(re, `\.\.\.`, `[^`+vendorChar+`]*`, -1)
+	re = strings.ReplaceAll(re, `\.\.\.`, `[^`+vendorChar+`]*`)
 
 	reg := regexp.MustCompile(`^` + re + `$`)
 
@@ -327,14 +327,35 @@ func ImportPathsQuiet(patterns []string) []*Match {
 			out = append(out, MatchPackages(a))
 			continue
 		}
-		if strings.Contains(a, "...") {
-			if build.IsLocalImport(a) {
-				out = append(out, MatchPackagesInFS(a))
+
+		if build.IsLocalImport(a) || filepath.IsAbs(a) {
+			var m *Match
+			if strings.Contains(a, "...") {
+				m = MatchPackagesInFS(a)
 			} else {
-				out = append(out, MatchPackages(a))
+				m = &Match{Pattern: a, Literal: true, Pkgs: []string{a}}
 			}
+
+			// Change the file import path to a regular import path if the package
+			// is in GOPATH or GOROOT. We don't report errors here; LoadImport
+			// (or something similar) will report them later.
+			for i, dir := range m.Pkgs {
+				if !filepath.IsAbs(dir) {
+					dir = filepath.Join(base.Cwd, dir)
+				}
+				if bp, _ := cfg.BuildContext.ImportDir(dir, build.FindOnly); bp.ImportPath != "" && bp.ImportPath != "." {
+					m.Pkgs[i] = bp.ImportPath
+				}
+			}
+			out = append(out, m)
 			continue
 		}
+
+		if strings.Contains(a, "...") {
+			out = append(out, MatchPackages(a))
+			continue
+		}
+
 		out = append(out, &Match{Pattern: a, Literal: true, Pkgs: []string{a}})
 	}
 	return out
@@ -342,30 +363,40 @@ func ImportPathsQuiet(patterns []string) []*Match {
 
 // CleanPatterns returns the patterns to use for the given
 // command line. It canonicalizes the patterns but does not
-// evaluate any matches.
+// evaluate any matches. It preserves text after '@' for commands
+// that accept versions.
 func CleanPatterns(patterns []string) []string {
 	if len(patterns) == 0 {
 		return []string{"."}
 	}
 	var out []string
 	for _, a := range patterns {
+		var p, v string
+		if i := strings.IndexByte(a, '@'); i < 0 {
+			p = a
+		} else {
+			p = a[:i]
+			v = a[i:]
+		}
+
 		// Arguments are supposed to be import paths, but
 		// as a courtesy to Windows developers, rewrite \ to /
 		// in command-line arguments. Handles .\... and so on.
 		if filepath.Separator == '\\' {
-			a = strings.Replace(a, `\`, `/`, -1)
+			p = strings.ReplaceAll(p, `\`, `/`)
 		}
 
 		// Put argument in canonical form, but preserve leading ./.
-		if strings.HasPrefix(a, "./") {
-			a = "./" + path.Clean(a)
-			if a == "./." {
-				a = "."
+		if strings.HasPrefix(p, "./") {
+			p = "./" + path.Clean(p)
+			if p == "./." {
+				p = "."
 			}
 		} else {
-			a = path.Clean(a)
+			p = path.Clean(p)
 		}
-		out = append(out, a)
+
+		out = append(out, p+v)
 	}
 	return out
 }

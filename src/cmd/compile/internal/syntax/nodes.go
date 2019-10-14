@@ -139,6 +139,7 @@ type (
 	BasicLit struct {
 		Value string
 		Kind  LitKind
+		Bad   bool // true means the literal Value has syntax errors
 		expr
 	}
 

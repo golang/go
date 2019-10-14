@@ -240,6 +240,7 @@ const (
 	AMULLD
 	AMULHD
 	AMULHDU
+	AMLGR
 	ASUB
 	ASUBC
 	ASUBV
@@ -267,9 +268,14 @@ const (
 	AMOVDLE
 	AMOVDLT
 	AMOVDNE
+	ALOCR
+	ALOCGR
 
 	// find leftmost one
 	AFLOGR
+
+	// population count
+	APOPCNT
 
 	// integer bitwise
 	AAND
@@ -286,6 +292,20 @@ const (
 	ASRAD
 	ARLL
 	ARLLG
+	ARNSBG
+	ARXSBG
+	AROSBG
+	ARNSBGT
+	ARXSBGT
+	AROSBGT
+	ARISBG
+	ARISBGN
+	ARISBGZ
+	ARISBGNZ
+	ARISBHG
+	ARISBLG
+	ARISBHGZ
+	ARISBLGZ
 
 	// floating point
 	AFABS
@@ -363,6 +383,9 @@ const (
 	ATMLH
 	ATMLL
 
+	// insert program mask
+	AIPM
+
 	// compare and swap
 	ACS
 	ACSG
@@ -373,6 +396,7 @@ const (
 	// branch
 	ABC
 	ABCL
+	ABRC
 	ABEQ
 	ABGE
 	ABGT
@@ -385,7 +409,19 @@ const (
 	ABVS
 	ASYSCALL
 
+	// branch on count
+	ABRCT
+	ABRCTG
+
 	// compare and branch
+	ACRJ
+	ACGRJ
+	ACLRJ
+	ACLGRJ
+	ACIJ
+	ACGIJ
+	ACLIJ
+	ACLGIJ
 	ACMPBEQ
 	ACMPBGE
 	ACMPBGT
@@ -942,6 +978,11 @@ const (
 	AVUPLHW
 	AVUPLF
 	AVMSLG
+	AVMSLEG
+	AVMSLOG
+	AVMSLEOG
+
+	ANOPH // NOP
 
 	// binary
 	ABYTE

@@ -507,7 +507,7 @@ func (task *taskDesc) overlappingGCDuration(evs []*trace.Event) (overlapping tim
 	return overlapping
 }
 
-// overlappingInstant returns true if the instantaneous event, ev, occurred during
+// overlappingInstant reports whether the instantaneous event, ev, occurred during
 // any of the task's region if ev is a goroutine-local event, or overlaps with the
 // task's lifetime if ev is a global event.
 func (task *taskDesc) overlappingInstant(ev *trace.Event) bool {
@@ -538,7 +538,7 @@ func (task *taskDesc) overlappingInstant(ev *trace.Event) bool {
 	return false
 }
 
-// overlappingDuration returns whether the durational event, ev, overlaps with
+// overlappingDuration reports whether the durational event, ev, overlaps with
 // any of the task's region if ev is a goroutine-local event, or overlaps with
 // the task's lifetime if ev is a global event. It returns the overlapping time
 // as well.
@@ -1159,17 +1159,17 @@ var templUserRegionType = template.Must(template.New("").Funcs(template.FuncMap{
 		d := time.Duration(nsec) * time.Nanosecond
 		return template.HTML(niceDuration(d))
 	},
-	"percent": func(dividened, divisor int64) template.HTML {
+	"percent": func(dividend, divisor int64) template.HTML {
 		if divisor == 0 {
 			return ""
 		}
-		return template.HTML(fmt.Sprintf("(%.1f%%)", float64(dividened)/float64(divisor)*100))
+		return template.HTML(fmt.Sprintf("(%.1f%%)", float64(dividend)/float64(divisor)*100))
 	},
-	"barLen": func(dividened, divisor int64) template.HTML {
+	"barLen": func(dividend, divisor int64) template.HTML {
 		if divisor == 0 {
 			return "0"
 		}
-		return template.HTML(fmt.Sprintf("%.2f%%", float64(dividened)/float64(divisor)*100))
+		return template.HTML(fmt.Sprintf("%.2f%%", float64(dividend)/float64(divisor)*100))
 	},
 	"unknownTime": func(desc regionDesc) int64 {
 		sum := desc.ExecTime + desc.IOTime + desc.BlockTime + desc.SyscallTime + desc.SchedWaitTime

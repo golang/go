@@ -19,7 +19,7 @@ import (
 // FormatMediaType returns the empty string.
 func FormatMediaType(t string, param map[string]string) string {
 	var b strings.Builder
-	if slash := strings.Index(t, "/"); slash == -1 {
+	if slash := strings.IndexByte(t, '/'); slash == -1 {
 		if !isToken(t) {
 			return ""
 		}
@@ -48,7 +48,38 @@ func FormatMediaType(t string, param map[string]string) string {
 			return ""
 		}
 		b.WriteString(strings.ToLower(attribute))
+
+		needEnc := needsEncoding(value)
+		if needEnc {
+			// RFC 2231 section 4
+			b.WriteByte('*')
+		}
 		b.WriteByte('=')
+
+		if needEnc {
+			b.WriteString("utf-8''")
+
+			offset := 0
+			for index := 0; index < len(value); index++ {
+				ch := value[index]
+				// {RFC 2231 section 7}
+				// attribute-char := <any (US-ASCII) CHAR except SPACE, CTLs, "*", "'", "%", or tspecials>
+				if ch <= ' ' || ch >= 0x7F ||
+					ch == '*' || ch == '\'' || ch == '%' ||
+					isTSpecial(rune(ch)) {
+
+					b.WriteString(value[offset:index])
+					offset = index + 1
+
+					b.WriteByte('%')
+					b.WriteByte(upperhex[ch>>4])
+					b.WriteByte(upperhex[ch&0x0F])
+				}
+			}
+			b.WriteString(value[offset:])
+			continue
+		}
+
 		if isToken(value) {
 			b.WriteString(value)
 			continue
@@ -56,14 +87,12 @@ func FormatMediaType(t string, param map[string]string) string {
 
 		b.WriteByte('"')
 		offset := 0
-		for index, character := range value {
+		for index := 0; index < len(value); index++ {
+			character := value[index]
 			if character == '"' || character == '\\' {
 				b.WriteString(value[offset:index])
 				offset = index
 				b.WriteByte('\\')
-			}
-			if character&0x80 != 0 {
-				return ""
 			}
 		}
 		b.WriteString(value[offset:])
@@ -280,7 +309,7 @@ func consumeValue(v string) (value, rest string) {
 		// and intended as a literal backslash. This makes Go servers deal better
 		// with MSIE without affecting the way they handle conforming MIME
 		// generators.
-		if r == '\\' && i+1 < len(v) && !isTokenChar(rune(v[i+1])) {
+		if r == '\\' && i+1 < len(v) && isTSpecial(rune(v[i+1])) {
 			buffer.WriteByte(v[i+1])
 			i++
 			continue

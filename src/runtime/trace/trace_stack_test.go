@@ -233,6 +233,7 @@ func TestTraceSymbolize(t *testing.T) {
 		}},
 		{trace.EvGomaxprocs, []frame{
 			{"runtime.startTheWorld", 0}, // this is when the current gomaxprocs is logged.
+			{"runtime.startTheWorldGC", 0},
 			{"runtime.GOMAXPROCS", 0},
 			{"runtime/trace_test.TestTraceSymbolize", 0},
 			{"testing.tRunner", 0},

@@ -166,7 +166,7 @@ func ToSlash(path string) string {
 	if Separator == '/' {
 		return path
 	}
-	return strings.Replace(path, string(Separator), "/", -1)
+	return strings.ReplaceAll(path, string(Separator), "/")
 }
 
 // FromSlash returns the result of replacing each slash ('/') character
@@ -176,7 +176,7 @@ func FromSlash(path string) string {
 	if Separator == '/' {
 		return path
 	}
-	return strings.Replace(path, "/", string(Separator), -1)
+	return strings.ReplaceAll(path, "/", string(Separator))
 }
 
 // SplitList splits a list of paths joined by the OS-specific ListSeparator,

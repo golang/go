@@ -19,14 +19,14 @@ func A(sp *string, spp **string) U { // ERROR "leaking param: sp to result ~r2 l
 	return U{sp, spp}
 }
 
-func B(spp **string) U { // ERROR "leaking param: spp to result ~r1 level=0$" "leaking param: spp to result ~r1 level=1$"
+func B(spp **string) U { // ERROR "leaking param: spp to result ~r1 level=0$"
 	return U{*spp, spp}
 }
 
 func tA1() {
 	s := "cat"
-	sp := &s   // ERROR "tA1 &s does not escape$"
-	spp := &sp // ERROR "tA1 &sp does not escape$"
+	sp := &s
+	spp := &sp
 	u := A(sp, spp)
 	_ = u
 	println(s)
@@ -34,24 +34,24 @@ func tA1() {
 
 func tA2() {
 	s := "cat"
-	sp := &s   // ERROR "tA2 &s does not escape$"
-	spp := &sp // ERROR "tA2 &sp does not escape$"
+	sp := &s
+	spp := &sp
 	u := A(sp, spp)
 	println(*u._sp)
 }
 
 func tA3() {
 	s := "cat"
-	sp := &s   // ERROR "tA3 &s does not escape$"
-	spp := &sp // ERROR "tA3 &sp does not escape$"
+	sp := &s
+	spp := &sp
 	u := A(sp, spp)
 	println(**u._spp)
 }
 
 func tB1() {
 	s := "cat"
-	sp := &s   // ERROR "tB1 &s does not escape$"
-	spp := &sp // ERROR "tB1 &sp does not escape$"
+	sp := &s
+	spp := &sp
 	u := B(spp)
 	_ = u
 	println(s)
@@ -59,16 +59,16 @@ func tB1() {
 
 func tB2() {
 	s := "cat"
-	sp := &s   // ERROR "tB2 &s does not escape$"
-	spp := &sp // ERROR "tB2 &sp does not escape$"
+	sp := &s
+	spp := &sp
 	u := B(spp)
 	println(*u._sp)
 }
 
 func tB3() {
 	s := "cat"
-	sp := &s   // ERROR "tB3 &s does not escape$"
-	spp := &sp // ERROR "tB3 &sp does not escape$"
+	sp := &s
+	spp := &sp
 	u := B(spp)
 	println(**u._spp)
 }

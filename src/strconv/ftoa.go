@@ -32,12 +32,14 @@ var float64info = floatInfo{52, 11, -1023}
 // 'e' (-d.dddde±dd, a decimal exponent),
 // 'E' (-d.ddddE±dd, a decimal exponent),
 // 'f' (-ddd.dddd, no exponent),
-// 'g' ('e' for large exponents, 'f' otherwise), or
-// 'G' ('E' for large exponents, 'f' otherwise).
+// 'g' ('e' for large exponents, 'f' otherwise),
+// 'G' ('E' for large exponents, 'f' otherwise),
+// 'x' (-0xd.ddddp±ddd, a hexadecimal fraction and binary exponent), or
+// 'X' (-0Xd.ddddP±ddd, a hexadecimal fraction and binary exponent).
 //
 // The precision prec controls the number of digits (excluding the exponent)
-// printed by the 'e', 'E', 'f', 'g', and 'G' formats.
-// For 'e', 'E', and 'f' it is the number of digits after the decimal point.
+// printed by the 'e', 'E', 'f', 'g', 'G', 'x', and 'X' formats.
+// For 'e', 'E', 'f', 'x', and 'X', it is the number of digits after the decimal point.
 // For 'g' and 'G' it is the maximum number of significant digits (trailing
 // zeros are removed).
 // The special precision -1 uses the smallest number of digits
@@ -94,9 +96,12 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 	}
 	exp += flt.bias
 
-	// Pick off easy binary format.
+	// Pick off easy binary, hex formats.
 	if fmt == 'b' {
 		return fmtB(dst, neg, mant, exp, flt)
+	}
+	if fmt == 'x' || fmt == 'X' {
+		return fmtX(dst, prec, fmt, neg, mant, exp, flt)
 	}
 
 	if !optimize {
@@ -284,39 +289,80 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
 	// would round to the original mantissa and not the neighbors.
 	inclusive := mant%2 == 0
 
+	// As we walk the digits we want to know whether rounding up would fall
+	// within the upper bound. This is tracked by upperdelta:
+	//
+	// If upperdelta == 0, the digits of d and upper are the same so far.
+	//
+	// If upperdelta == 1, we saw a difference of 1 between d and upper on a
+	// previous digit and subsequently only 9s for d and 0s for upper.
+	// (Thus rounding up may fall outside the bound, if it is exclusive.)
+	//
+	// If upperdelta == 2, then the difference is greater than 1
+	// and we know that rounding up falls within the bound.
+	var upperdelta uint8
+
 	// Now we can figure out the minimum number of digits required.
 	// Walk along until d has distinguished itself from upper and lower.
-	for i := 0; i < d.nd; i++ {
-		l := byte('0') // lower digit
-		if i < lower.nd {
-			l = lower.d[i]
+	for ui := 0; ; ui++ {
+		// lower, d, and upper may have the decimal points at different
+		// places. In this case upper is the longest, so we iterate from
+		// ui==0 and start li and mi at (possibly) -1.
+		mi := ui - upper.dp + d.dp
+		if mi >= d.nd {
+			break
 		}
-		m := d.d[i]    // middle digit
+		li := ui - upper.dp + lower.dp
+		l := byte('0') // lower digit
+		if li >= 0 && li < lower.nd {
+			l = lower.d[li]
+		}
+		m := byte('0') // middle digit
+		if mi >= 0 {
+			m = d.d[mi]
+		}
 		u := byte('0') // upper digit
-		if i < upper.nd {
-			u = upper.d[i]
+		if ui < upper.nd {
+			u = upper.d[ui]
 		}
 
 		// Okay to round down (truncate) if lower has a different digit
 		// or if lower is inclusive and is exactly the result of rounding
 		// down (i.e., and we have reached the final digit of lower).
-		okdown := l != m || inclusive && i+1 == lower.nd
+		okdown := l != m || inclusive && li+1 == lower.nd
 
+		switch {
+		case upperdelta == 0 && m+1 < u:
+			// Example:
+			// m = 12345xxx
+			// u = 12347xxx
+			upperdelta = 2
+		case upperdelta == 0 && m != u:
+			// Example:
+			// m = 12345xxx
+			// u = 12346xxx
+			upperdelta = 1
+		case upperdelta == 1 && (m != '9' || u != '0'):
+			// Example:
+			// m = 1234598x
+			// u = 1234600x
+			upperdelta = 2
+		}
 		// Okay to round up if upper has a different digit and either upper
 		// is inclusive or upper is bigger than the result of rounding up.
-		okup := m != u && (inclusive || m+1 < u || i+1 < upper.nd)
+		okup := upperdelta > 0 && (inclusive || upperdelta > 1 || ui+1 < upper.nd)
 
 		// If it's okay to do either, then round to the nearest one.
 		// If it's okay to do only one, do it.
 		switch {
 		case okdown && okup:
-			d.Round(i + 1)
+			d.Round(mi + 1)
 			return
 		case okdown:
-			d.RoundDown(i + 1)
+			d.RoundDown(mi + 1)
 			return
 		case okup:
-			d.RoundUp(i + 1)
+			d.RoundUp(mi + 1)
 			return
 		}
 	}
@@ -435,6 +481,89 @@ func fmtB(dst []byte, neg bool, mant uint64, exp int, flt *floatInfo) []byte {
 		dst = append(dst, '+')
 	}
 	dst, _ = formatBits(dst, uint64(exp), 10, exp < 0, true)
+
+	return dst
+}
+
+// %x: -0x1.yyyyyyyyp±ddd or -0x0p+0. (y is hex digit, d is decimal digit)
+func fmtX(dst []byte, prec int, fmt byte, neg bool, mant uint64, exp int, flt *floatInfo) []byte {
+	if mant == 0 {
+		exp = 0
+	}
+
+	// Shift digits so leading 1 (if any) is at bit 1<<60.
+	mant <<= 60 - flt.mantbits
+	for mant != 0 && mant&(1<<60) == 0 {
+		mant <<= 1
+		exp--
+	}
+
+	// Round if requested.
+	if prec >= 0 && prec < 15 {
+		shift := uint(prec * 4)
+		extra := (mant << shift) & (1<<60 - 1)
+		mant >>= 60 - shift
+		if extra|(mant&1) > 1<<59 {
+			mant++
+		}
+		mant <<= 60 - shift
+		if mant&(1<<61) != 0 {
+			// Wrapped around.
+			mant >>= 1
+			exp++
+		}
+	}
+
+	hex := lowerhex
+	if fmt == 'X' {
+		hex = upperhex
+	}
+
+	// sign, 0x, leading digit
+	if neg {
+		dst = append(dst, '-')
+	}
+	dst = append(dst, '0', fmt, '0'+byte((mant>>60)&1))
+
+	// .fraction
+	mant <<= 4 // remove leading 0 or 1
+	if prec < 0 && mant != 0 {
+		dst = append(dst, '.')
+		for mant != 0 {
+			dst = append(dst, hex[(mant>>60)&15])
+			mant <<= 4
+		}
+	} else if prec > 0 {
+		dst = append(dst, '.')
+		for i := 0; i < prec; i++ {
+			dst = append(dst, hex[(mant>>60)&15])
+			mant <<= 4
+		}
+	}
+
+	// p±
+	ch := byte('P')
+	if fmt == lower(fmt) {
+		ch = 'p'
+	}
+	dst = append(dst, ch)
+	if exp < 0 {
+		ch = '-'
+		exp = -exp
+	} else {
+		ch = '+'
+	}
+	dst = append(dst, ch)
+
+	// dd or ddd or dddd
+	switch {
+	case exp < 100:
+		dst = append(dst, byte(exp/10)+'0', byte(exp%10)+'0')
+	case exp < 1000:
+		dst = append(dst, byte(exp/100)+'0', byte((exp/10)%10)+'0', byte(exp%10)+'0')
+	default:
+		dst = append(dst, byte(exp/1000)+'0', byte(exp/100)%10+'0', byte((exp/10)%10)+'0', byte(exp%10)+'0')
+	}
 
 	return dst
 }

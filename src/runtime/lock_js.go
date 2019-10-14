@@ -11,8 +11,6 @@ import (
 )
 
 // js/wasm has no support for threads yet. There is no preemption.
-// Waiting for a mutex is implemented by allowing other goroutines
-// to run until the mutex gets unlocked.
 
 const (
 	mutex_unlocked = 0
@@ -28,15 +26,27 @@ const (
 )
 
 func lock(l *mutex) {
-	for l.key == mutex_locked {
-		mcall(gosched_m)
+	if l.key == mutex_locked {
+		// js/wasm is single-threaded so we should never
+		// observe this.
+		throw("self deadlock")
 	}
+	gp := getg()
+	if gp.m.locks < 0 {
+		throw("lock count")
+	}
+	gp.m.locks++
 	l.key = mutex_locked
 }
 
 func unlock(l *mutex) {
 	if l.key == mutex_unlocked {
 		throw("unlock of unlocked lock")
+	}
+	gp := getg()
+	gp.m.locks--
+	if gp.m.locks < 0 {
+		throw("lock count")
 	}
 	l.key = mutex_unlocked
 }
@@ -92,7 +102,7 @@ func notetsleepg(n *note, ns int64) bool {
 			delay = 1<<31 - 1 // cap to max int32
 		}
 
-		id := scheduleCallback(delay)
+		id := scheduleTimeoutEvent(delay)
 		mp := acquirem()
 		notes[n] = gp
 		notesWithTimeout[n] = noteWithTimeout{gp: gp, deadline: deadline}
@@ -100,7 +110,7 @@ func notetsleepg(n *note, ns int64) bool {
 
 		gopark(nil, nil, waitReasonSleep, traceEvNone, 1)
 
-		clearScheduledCallback(id) // note might have woken early, clear timeout
+		clearTimeoutEvent(id) // note might have woken early, clear timeout
 		mp = acquirem()
 		delete(notes, n)
 		delete(notesWithTimeout, n)
@@ -127,46 +137,77 @@ func notetsleepg(n *note, ns int64) bool {
 func checkTimeouts() {
 	now := nanotime()
 	for n, nt := range notesWithTimeout {
-		if n.key == note_cleared && now > nt.deadline {
+		if n.key == note_cleared && now >= nt.deadline {
 			n.key = note_timeout
 			goready(nt.gp, 1)
 		}
 	}
 }
 
-var waitingForCallback *g
+var isHandlingEvent = false
+var nextEventIsAsync = false
+var returnedEventHandler *g
 
-// sleepUntilCallback puts the current goroutine to sleep until a callback is triggered.
-// It is currently only used by the callback routine of the syscall/js package.
-//go:linkname sleepUntilCallback syscall/js.sleepUntilCallback
-func sleepUntilCallback() {
-	waitingForCallback = getg()
+// beforeIdle gets called by the scheduler if no goroutine is awake.
+// If we are not already handling an event, then we pause for an async event.
+// If an event handler returned, we resume it and it will pause the execution.
+func beforeIdle() bool {
+	if !isHandlingEvent {
+		nextEventIsAsync = true
+		pause(getcallersp() - 16)
+		return true
+	}
+	if returnedEventHandler != nil {
+		goready(returnedEventHandler, 1)
+		return true
+	}
+	return false
+}
+
+// pause sets SP to newsp and pauses the execution of Go's WebAssembly code until an event is triggered.
+func pause(newsp uintptr)
+
+// scheduleTimeoutEvent tells the WebAssembly environment to trigger an event after ms milliseconds.
+// It returns a timer id that can be used with clearTimeoutEvent.
+func scheduleTimeoutEvent(ms int64) int32
+
+// clearTimeoutEvent clears a timeout event scheduled by scheduleTimeoutEvent.
+func clearTimeoutEvent(id int32)
+
+func handleEvent() {
+	if nextEventIsAsync {
+		nextEventIsAsync = false
+		checkTimeouts()
+		go handleAsyncEvent()
+		return
+	}
+
+	prevIsHandlingEvent := isHandlingEvent
+	isHandlingEvent = true
+	prevReturnedEventHandler := returnedEventHandler
+	returnedEventHandler = nil
+
+	eventHandler()
+
+	// wait until all goroutines are idle
+	returnedEventHandler = getg()
 	gopark(nil, nil, waitReasonZero, traceEvNone, 1)
-	waitingForCallback = nil
+
+	isHandlingEvent = prevIsHandlingEvent
+	returnedEventHandler = prevReturnedEventHandler
+
+	pause(getcallersp() - 16)
 }
 
-// pauseSchedulerUntilCallback gets called from the scheduler and pauses the execution
-// of Go's WebAssembly code until a callback is triggered. Then it checks for note timeouts
-// and resumes goroutines that are waiting for a callback.
-func pauseSchedulerUntilCallback() bool {
-	if waitingForCallback == nil && len(notesWithTimeout) == 0 {
-		return false
-	}
-
-	pause()
-	checkTimeouts()
-	if waitingForCallback != nil {
-		goready(waitingForCallback, 1)
-	}
-	return true
+func handleAsyncEvent() {
+	isHandlingEvent = true
+	eventHandler()
+	isHandlingEvent = false
 }
 
-// pause pauses the execution of Go's WebAssembly code until a callback is triggered.
-func pause()
+var eventHandler func()
 
-// scheduleCallback tells the WebAssembly environment to trigger a callback after ms milliseconds.
-// It returns a timer id that can be used with clearScheduledCallback.
-func scheduleCallback(ms int64) int32
-
-// clearScheduledCallback clears a callback scheduled by scheduleCallback.
-func clearScheduledCallback(id int32)
+//go:linkname setEventHandler syscall/js.setEventHandler
+func setEventHandler(fn func()) {
+	eventHandler = fn
+}

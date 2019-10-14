@@ -13,8 +13,28 @@ import (
 )
 
 const (
-	BADWIDTH        = types.BADWIDTH
-	maxStackVarSize = 10 * 1024 * 1024
+	BADWIDTH = types.BADWIDTH
+)
+
+var (
+	// maximum size variable which we will allocate on the stack.
+	// This limit is for explicit variable declarations like "var x T" or "x := ...".
+	// Note: the flag smallframes can update this value.
+	maxStackVarSize = int64(10 * 1024 * 1024)
+
+	// maximum size of implicit variables that we will allocate on the stack.
+	//   p := new(T)          allocating T on the stack
+	//   p := &T{}            allocating T on the stack
+	//   s := make([]T, n)    allocating [n]T on the stack
+	//   s := []byte("...")   allocating [n]byte on the stack
+	// Note: the flag smallframes can update this value.
+	maxImplicitStackVarSize = int64(64 * 1024)
+
+	// smallArrayBytes is the maximum size of an array which is considered small.
+	// Small arrays will be initialized directly with a sequence of constant stores.
+	// Large arrays will be initialized by copying from a static temp.
+	// 256 bytes was chosen to minimize generated code + statictmp size.
+	smallArrayBytes = int64(256)
 )
 
 // isRuntimePkg reports whether p is package runtime.
@@ -40,16 +60,9 @@ const (
 	PPARAMOUT              // output results
 	PFUNC                  // global function
 
-	PDISCARD // discard during parse of duplicate import
 	// Careful: Class is stored in three bits in Node.flags.
-	// Adding a new Class will overflow that.
+	_ = uint((1 << 3) - iota) // static assert for iota <= (1 << 3)
 )
-
-func init() {
-	if PDISCARD != 7 {
-		panic("PDISCARD changed; does all Class values still fit in three bits?")
-	}
-}
 
 // note this is the runtime representation
 // of the compilers arrays.
@@ -82,7 +95,6 @@ var pragcgobuf [][]string
 
 var outfile string
 var linkobj string
-var dolinkobj bool
 
 // nerrors is the number of compiler errors reported
 // since the last call to saveerrors.
@@ -95,8 +107,6 @@ var nsavederrors int
 var nsyntaxerrors int
 
 var decldepth int32
-
-var safemode bool
 
 var nolocalimports bool
 
@@ -140,7 +150,6 @@ var asmhdr string
 var simtype [NTYPE]types.EType
 
 var (
-	isforw    [NTYPE]bool
 	isInt     [NTYPE]bool
 	isFloat   [NTYPE]bool
 	isComplex [NTYPE]bool
@@ -201,8 +210,6 @@ var compiling_runtime bool
 // Compiling the standard library
 var compiling_std bool
 
-var compiling_wrappers bool
-
 var use_writebarrier bool
 
 var pure_go bool
@@ -233,8 +240,6 @@ var Ctxt *obj.Link
 
 var writearchive bool
 
-var Nacl bool
-
 var nodfp *Node
 
 var disable_checknil int
@@ -251,9 +256,10 @@ type Arch struct {
 	Use387    bool // should 386 backend use 387 FP instructions instead of sse2.
 	SoftFloat bool
 
-	PadFrame  func(int64) int64
-	ZeroRange func(*Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
-	Ginsnop   func(*Progs)
+	PadFrame     func(int64) int64
+	ZeroRange    func(*Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
+	Ginsnop      func(*Progs) *obj.Prog
+	Ginsnopdefer func(*Progs) *obj.Prog // special ginsnop for deferreturn
 
 	// SSAMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
 	SSAMarkMoves func(*SSAGenState, *ssa.Block)
@@ -282,6 +288,7 @@ var (
 	assertI2I,
 	assertI2I2,
 	deferproc,
+	deferprocStack,
 	Deferreturn,
 	Duffcopy,
 	Duffzero,
@@ -290,24 +297,29 @@ var (
 	growslice,
 	msanread,
 	msanwrite,
+	newobject,
 	newproc,
 	panicdivide,
+	panicshift,
 	panicdottypeE,
 	panicdottypeI,
-	panicindex,
 	panicnildottype,
-	panicslice,
+	panicoverflow,
 	raceread,
 	racereadrange,
 	racewrite,
 	racewriterange,
-	supportPopcnt,
-	supportSSE41,
-	arm64SupportAtomics,
+	x86HasPOPCNT,
+	x86HasSSE41,
+	arm64HasATOMICS,
 	typedmemclr,
 	typedmemmove,
 	Udiv,
-	writeBarrier *obj.LSym
+	writeBarrier,
+	zerobaseSym *obj.LSym
+
+	BoundsCheckFunc [ssa.BoundsKindCount]*obj.LSym
+	ExtendCheckFunc [ssa.BoundsKindCount]*obj.LSym
 
 	// GO386=387
 	ControlWord64trunc,

@@ -107,7 +107,7 @@ func Build(v string) string {
 }
 
 // Compare returns an integer comparing two versions according to
-// according to semantic version precedence.
+// semantic version precedence.
 // The result will be 0 if v == w, -1 if v < w, or +1 if v > w.
 //
 // An invalid semantic version string is considered less than a valid one.
@@ -263,7 +263,7 @@ func parseBuild(v string) (t, rest string, ok bool) {
 	i := 1
 	start := 1
 	for i < len(v) {
-		if !isIdentChar(v[i]) {
+		if !isIdentChar(v[i]) && v[i] != '.' {
 			return
 		}
 		if v[i] == '.' {

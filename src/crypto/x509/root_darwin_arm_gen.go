@@ -154,9 +154,9 @@ func fetchCertIDs() ([]certID, error) {
 		values := regexp.MustCompile("(?s)<td>(.*?)</td>").FindAllStringSubmatch(row, -1)
 		name := values[cols["Certificate name"]][1]
 		fingerprint := values[cols["Fingerprint (SHA-256)"]][1]
-		fingerprint = strings.Replace(fingerprint, "<br>", "", -1)
-		fingerprint = strings.Replace(fingerprint, "\n", "", -1)
-		fingerprint = strings.Replace(fingerprint, " ", "", -1)
+		fingerprint = strings.ReplaceAll(fingerprint, "<br>", "")
+		fingerprint = strings.ReplaceAll(fingerprint, "\n", "")
+		fingerprint = strings.ReplaceAll(fingerprint, " ", "")
 		fingerprint = strings.ToLower(fingerprint)
 
 		ids = append(ids, certID{

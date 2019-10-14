@@ -133,7 +133,7 @@ var reqTests = []reqTest{
 		nil,
 		noBodyStr,
 		noTrailer,
-		"parse ../../../../etc/passwd: invalid URI for request",
+		`parse "../../../../etc/passwd": invalid URI for request`,
 	},
 
 	// Tests missing URL:
@@ -143,7 +143,7 @@ var reqTests = []reqTest{
 		nil,
 		noBodyStr,
 		noTrailer,
-		"parse : empty url",
+		`parse "": empty url`,
 	},
 
 	// Tests chunked body with trailer:
@@ -438,7 +438,7 @@ func TestReadRequest(t *testing.T) {
 // reqBytes treats req as a request (with \n delimiters) and returns it with \r\n delimiters,
 // ending in \r\n\r\n
 func reqBytes(req string) []byte {
-	return []byte(strings.Replace(strings.TrimSpace(req), "\n", "\r\n", -1) + "\r\n\r\n")
+	return []byte(strings.ReplaceAll(strings.TrimSpace(req), "\n", "\r\n") + "\r\n\r\n")
 }
 
 var badRequestTests = []struct {

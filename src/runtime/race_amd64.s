@@ -398,7 +398,7 @@ TEXT	runtime·racecallbackthunk(SB), NOSPLIT, $56-8
 	MOVQ	g(RARG0), RARG0
 	MOVQ	g_m(RARG0), RARG0
 	MOVQ	m_p(RARG0), RARG0
-	MOVQ	p_racectx(RARG0), RARG0
+	MOVQ	p_raceprocctx(RARG0), RARG0
 	MOVQ	RARG0, (RARG1)
 	RET
 

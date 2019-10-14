@@ -146,6 +146,13 @@ type Conn interface {
 	// the deadline after successful Read or Write calls.
 	//
 	// A zero value for t means I/O operations will not time out.
+	//
+	// Note that if a TCP connection has keep-alive turned on,
+	// which is the default unless overridden by Dialer.KeepAlive
+	// or ListenConfig.KeepAlive, then a keep-alive failure may
+	// also return a timeout error. On Unix systems a keep-alive
+	// failure on I/O can be detected using
+	// errors.Is(err, syscall.ETIMEDOUT).
 	SetDeadline(t time.Time) error
 
 	// SetReadDeadline sets the deadline for future Read calls
@@ -282,7 +289,7 @@ func (c *conn) SetWriteBuffer(bytes int) error {
 	return nil
 }
 
-// File returns a copy of the underlying os.File
+// File returns a copy of the underlying os.File.
 // It is the caller's responsibility to close f when finished.
 // Closing c does not affect f, and closing f does not affect c.
 //
@@ -448,6 +455,8 @@ type OpError struct {
 	Err error
 }
 
+func (e *OpError) Unwrap() error { return e.Err }
+
 func (e *OpError) Error() string {
 	if e == nil {
 		return "<nil>"
@@ -473,7 +482,7 @@ func (e *OpError) Error() string {
 
 var (
 	// aLongTimeAgo is a non-zero time, far in the past, used for
-	// immediate cancelation of dials.
+	// immediate cancellation of dials.
 	aLongTimeAgo = time.Unix(1, 0)
 
 	// nonDeadline and noCancel are just zero values for
@@ -563,6 +572,7 @@ type DNSConfigError struct {
 	Err error
 }
 
+func (e *DNSConfigError) Unwrap() error   { return e.Err }
 func (e *DNSConfigError) Error() string   { return "error reading DNS config: " + e.Err.Error() }
 func (e *DNSConfigError) Timeout() bool   { return false }
 func (e *DNSConfigError) Temporary() bool { return false }
@@ -579,6 +589,7 @@ type DNSError struct {
 	Server      string // server used
 	IsTimeout   bool   // if true, timed out; not all timeouts set this
 	IsTemporary bool   // if true, error is temporary; not all errors set this
+	IsNotFound  bool   // if true, host could not be found
 }
 
 func (e *DNSError) Error() string {

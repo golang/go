@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package unix
 
 import (
 	"bytes"
-	"runtime"
 	"sort"
 	"sync"
 	"syscall"
@@ -21,19 +20,17 @@ var (
 	Stderr = 2
 )
 
-const (
-	darwin64Bit    = runtime.GOOS == "darwin" && sizeofPtr == 8
-	dragonfly64Bit = runtime.GOOS == "dragonfly" && sizeofPtr == 8
-	netbsd32Bit    = runtime.GOOS == "netbsd" && sizeofPtr == 4
-	solaris64Bit   = runtime.GOOS == "solaris" && sizeofPtr == 8
-)
-
 // Do the interface allocations only once for common
 // Errno values.
 var (
 	errEAGAIN error = syscall.EAGAIN
 	errEINVAL error = syscall.EINVAL
 	errENOENT error = syscall.ENOENT
+)
+
+var (
+	signalNameMapOnce sync.Once
+	signalNameMap     map[string]syscall.Signal
 )
 
 // errnoErr returns common boxed Errno values, to prevent
@@ -72,6 +69,19 @@ func SignalName(s syscall.Signal) string {
 		return signalList[i].name
 	}
 	return ""
+}
+
+// SignalNum returns the syscall.Signal for signal named s,
+// or 0 if a signal with such name is not found.
+// The signal name should start with "SIG".
+func SignalNum(s string) syscall.Signal {
+	signalNameMapOnce.Do(func() {
+		signalNameMap = make(map[string]syscall.Signal)
+		for _, signal := range signalList {
+			signalNameMap[signal.name] = signal.num
+		}
+	})
+	return signalNameMap[s]
 }
 
 // clen returns the index of the first NULL byte in n or len(n) if n contains no NULL byte.
@@ -219,7 +229,7 @@ func Getpeername(fd int) (sa Sockaddr, err error) {
 	if err = getpeername(fd, &rsa, &len); err != nil {
 		return
 	}
-	return anyToSockaddr(&rsa)
+	return anyToSockaddr(fd, &rsa)
 }
 
 func GetsockoptByte(fd, level, opt int) (value byte, err error) {
@@ -284,6 +294,13 @@ func GetsockoptTimeval(fd, level, opt int) (*Timeval, error) {
 	return &tv, err
 }
 
+func GetsockoptUint64(fd, level, opt int) (value uint64, err error) {
+	var n uint64
+	vallen := _Socklen(8)
+	err = getsockopt(fd, level, opt, unsafe.Pointer(&n), &vallen)
+	return n, err
+}
+
 func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {
 	var rsa RawSockaddrAny
 	var len _Socklen = SizeofSockaddrAny
@@ -291,7 +308,7 @@ func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {
 		return
 	}
 	if rsa.Addr.Family != AF_UNSPEC {
-		from, err = anyToSockaddr(&rsa)
+		from, err = anyToSockaddr(fd, &rsa)
 	}
 	return
 }
@@ -334,11 +351,19 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (err error) {
 }
 
 func SetsockoptString(fd, level, opt int, s string) (err error) {
-	return setsockopt(fd, level, opt, unsafe.Pointer(&[]byte(s)[0]), uintptr(len(s)))
+	var p unsafe.Pointer
+	if len(s) > 0 {
+		p = unsafe.Pointer(&[]byte(s)[0])
+	}
+	return setsockopt(fd, level, opt, p, uintptr(len(s)))
 }
 
 func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (err error) {
 	return setsockopt(fd, level, opt, unsafe.Pointer(tv), unsafe.Sizeof(*tv))
+}
+
+func SetsockoptUint64(fd, level, opt int, value uint64) (err error) {
+	return setsockopt(fd, level, opt, unsafe.Pointer(&value), 8)
 }
 
 func Socket(domain, typ, proto int) (fd int, err error) {
@@ -357,13 +382,6 @@ func Socketpair(domain, typ, proto int) (fd [2]int, err error) {
 		fd[1] = int(fdx[1])
 	}
 	return
-}
-
-func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
-	if raceenabled {
-		raceReleaseMerge(unsafe.Pointer(&ioSync))
-	}
-	return sendfile(outfd, infd, offset, count)
 }
 
 var ioSync int64
@@ -391,4 +409,23 @@ func SetNonblock(fd int, nonblocking bool) (err error) {
 // process (["USER=go", "PWD=/tmp"]).
 func Exec(argv0 string, argv []string, envv []string) error {
 	return syscall.Exec(argv0, argv, envv)
+}
+
+// Lutimes sets the access and modification times tv on path. If path refers to
+// a symlink, it is not dereferenced and the timestamps are set on the symlink.
+// If tv is nil, the access and modification times are set to the current time.
+// Otherwise tv must contain exactly 2 elements, with access time as the first
+// element and modification time as the second element.
+func Lutimes(path string, tv []Timeval) error {
+	if tv == nil {
+		return UtimesNanoAt(AT_FDCWD, path, nil, AT_SYMLINK_NOFOLLOW)
+	}
+	if len(tv) != 2 {
+		return EINVAL
+	}
+	ts := []Timespec{
+		NsecToTimespec(TimevalToNsec(tv[0])),
+		NsecToTimespec(TimevalToNsec(tv[1])),
+	}
+	return UtimesNanoAt(AT_FDCWD, path, ts, AT_SYMLINK_NOFOLLOW)
 }

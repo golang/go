@@ -1,4 +1,0 @@
-v1;
-package alias;
-pkgpath alias;
-type <type 115 "I1" <type 116 interface { M1 (? <type 117 "IntAlias2" = <type 118 "IntAlias" = <type 119 "Int" <type -11>>>>) < type 114>; M2 () <type 1>; }>>;

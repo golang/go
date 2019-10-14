@@ -55,7 +55,7 @@ func (ui *webInterface) flamegraph(w http.ResponseWriter, req *http.Request) {
 		v := n.CumValue()
 		fullName := n.Info.PrintableName()
 		node := &treeNode{
-			Name:      getNodeShortName(fullName),
+			Name:      graph.ShortenFunctionName(fullName),
 			FullName:  fullName,
 			Cum:       v,
 			CumFormat: config.FormatValue(v),
@@ -100,20 +100,4 @@ func (ui *webInterface) flamegraph(w http.ResponseWriter, req *http.Request) {
 		FlameGraph: template.JS(b),
 		Nodes:      nodeArr,
 	})
-}
-
-// getNodeShortName builds a short node name from fullName.
-func getNodeShortName(name string) string {
-	chunks := strings.SplitN(name, "(", 2)
-	head := chunks[0]
-	pathSep := strings.LastIndexByte(head, '/')
-	if pathSep == -1 || pathSep+1 >= len(head) {
-		return name
-	}
-	// Check if name is a stdlib package, i.e. doesn't have "." before "/"
-	if dot := strings.IndexByte(head, '.'); dot == -1 || dot > pathSep {
-		return name
-	}
-	// Trim package path prefix from node name
-	return name[pathSep+1:]
 }

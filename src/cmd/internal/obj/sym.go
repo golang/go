@@ -41,6 +41,7 @@ import (
 func Linknew(arch *LinkArch) *Link {
 	ctxt := new(Link)
 	ctxt.hash = make(map[string]*LSym)
+	ctxt.funchash = make(map[string]*LSym)
 	ctxt.statichash = make(map[string]*LSym)
 	ctxt.Arch = arch
 	ctxt.Pathname = objabi.WorkingDir()
@@ -71,6 +72,30 @@ func (ctxt *Link) LookupStatic(name string) *LSym {
 		s = &LSym{Name: name, Attribute: AttrStatic}
 		ctxt.statichash[name] = s
 	}
+	return s
+}
+
+// LookupABI looks up a symbol with the given ABI.
+// If it does not exist, it creates it.
+func (ctxt *Link) LookupABI(name string, abi ABI) *LSym {
+	var hash map[string]*LSym
+	switch abi {
+	case ABI0:
+		hash = ctxt.hash
+	case ABIInternal:
+		hash = ctxt.funchash
+	default:
+		panic("unknown ABI")
+	}
+
+	ctxt.hashmu.Lock()
+	s := hash[name]
+	if s == nil {
+		s = &LSym{Name: name}
+		s.SetABI(abi)
+		hash[name] = s
+	}
+	ctxt.hashmu.Unlock()
 	return s
 }
 

@@ -62,6 +62,9 @@ cas64_fail:
 TEXT ·Casuintptr(SB), NOSPLIT, $0-25
 	JMP	·Cas64(SB)
 
+TEXT ·CasRel(SB), NOSPLIT, $0-17
+	JMP	·Cas(SB)
+
 TEXT ·Loaduintptr(SB),  NOSPLIT|NOFRAME, $0-16
 	JMP	·Load64(SB)
 
@@ -151,6 +154,9 @@ TEXT ·Xchguintptr(SB), NOSPLIT, $0-24
 
 TEXT ·StorepNoWB(SB), NOSPLIT, $0-16
 	JMP	·Store64(SB)
+
+TEXT ·StoreRel(SB), NOSPLIT, $0-12
+	JMP	·Store(SB)
 
 TEXT ·Store(SB), NOSPLIT, $0-12
 	MOVV	ptr+0(FP), R1

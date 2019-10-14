@@ -5,6 +5,9 @@ go mod tidy -v
 stderr '^unused y.1'
 ! stderr '^unused [^y]'
 
+# tidy should not touch existing go line
+grep 'go 1.10' go.mod
+
 go list -m all
 ! stdout '^y'
 stdout '^w.1 v1.2.0'
@@ -12,10 +15,16 @@ stdout '^z.1 v1.2.0'
 
 # empty tidy should not crash
 cd triv
+! grep 'go ' go.mod
 go mod tidy
+
+# tidy should add missing go line
+grep 'go ' go.mod
 
 -- go.mod --
 module m
+
+go 1.10
 
 require (
 	x.1 v1.0.0

@@ -36,7 +36,7 @@
 #define SYS_setitimer (SYS_BASE + 104)
 #define SYS_mincore (SYS_BASE + 219)
 #define SYS_gettid (SYS_BASE + 224)
-#define SYS_tkill (SYS_BASE + 238)
+#define SYS_tgkill (SYS_BASE + 268)
 #define SYS_sched_yield (SYS_BASE + 158)
 #define SYS_nanosleep (SYS_BASE + 162)
 #define SYS_sched_getaffinity (SYS_BASE + 242)
@@ -75,7 +75,7 @@ TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVW	R0, ret+4(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$0
+TEXT runtime·write1(SB),NOSPLIT,$0
 	MOVW	fd+0(FP), R0
 	MOVW	p+4(FP), R1
 	MOVW	n+8(FP), R2
@@ -138,11 +138,15 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
 	RET
 
 TEXT	runtime·raise(SB),NOSPLIT|NOFRAME,$0
+	MOVW	$SYS_getpid, R7
+	SWI	$0
+	MOVW	R0, R4
 	MOVW	$SYS_gettid, R7
 	SWI	$0
-	// arg 1 tid already in R0 from gettid
-	MOVW	sig+0(FP), R1	// arg 2 - signal
-	MOVW	$SYS_tkill, R7
+	MOVW	R0, R1	// arg 2 tid
+	MOVW	R4, R0	// arg 1 pid
+	MOVW	sig+0(FP), R2	// arg 3
+	MOVW	$SYS_tgkill, R7
 	SWI	$0
 	RET
 
@@ -191,7 +195,7 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVW	flags+8(FP), R2
 	MOVW	$SYS_madvise, R7
 	SWI	$0
-	// ignore failure - maybe pages are locked
+	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·setitimer(SB),NOSPLIT,$0
@@ -211,7 +215,7 @@ TEXT runtime·mincore(SB),NOSPLIT,$0
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·walltime(SB),NOSPLIT,$0-12
+TEXT runtime·walltime1(SB),NOSPLIT,$0-12
 	// We don't know how much stack space the VDSO code will need,
 	// so switch to g0.
 
@@ -262,8 +266,8 @@ finish:
 	MOVW	R2, nsec+8(FP)
 	RET
 
-// int64 nanotime(void)
-TEXT runtime·nanotime(SB),NOSPLIT,$0-8
+// int64 nanotime1(void)
+TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
 	// Switch to g0 stack. See comment above in runtime·walltime.
 
 	// Save old SP. Use R13 instead of SP to avoid linker rewriting the offsets.
@@ -341,7 +345,6 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVW	$0, R5
 
 	// Copy mp, gp, fn off parent stack for use by child.
-	// TODO(kaib): figure out which registers are clobbered by clone and avoid stack copying
 	MOVW	$-16(R1), R1
 	MOVW	mp+8(FP), R6
 	MOVW	R6, 0(R1)
@@ -362,6 +365,7 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	RET
 
 	// Paranoia: check that SP is as we expect. Use R13 to avoid linker 'fixup'
+	NOP	R13	// tell vet SP/R13 changed - stop checking offsets
 	MOVW	12(R13), R0
 	MOVW	$1234, R1
 	CMP	R0, R1
@@ -601,4 +605,7 @@ TEXT runtime·sbrk0(SB),NOSPLIT,$0-4
 	MOVW	$SYS_brk, R7
 	SWI	$0
 	MOVW	R0, ret+0(FP)
+	RET
+
+TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
 	RET

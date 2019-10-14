@@ -22,7 +22,7 @@ type ytab struct {
 
 // Returns true if yt is compatible with args.
 //
-// Elements from args and yt.args are used to
+// Elements from args and yt.args are used
 // to index ycover table like `ycover[args[i]+yt.args[i]]`.
 // This means that args should contain values that already
 // multiplied by Ymax.

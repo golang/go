@@ -178,7 +178,7 @@ func (w *Writer) Close() error {
 			return err
 		}
 
-		// store max values in the regular end record to signal that
+		// store max values in the regular end record to signal
 		// that the zip64 values should be used instead
 		records = uint16max
 		size = uint32max

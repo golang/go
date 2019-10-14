@@ -48,6 +48,9 @@ import "math"
 //	Pow(0, c) for real(c)<0 returns Inf+0i if imag(c) is zero, otherwise Inf+Inf i.
 func Pow(x, y complex128) complex128 {
 	if x == 0 { // Guaranteed also true for x == -0.
+		if IsNaN(y) {
+			return NaN()
+		}
 		r, i := real(y), imag(y)
 		switch {
 		case r == 0:

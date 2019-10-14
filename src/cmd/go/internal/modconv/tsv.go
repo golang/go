@@ -13,8 +13,7 @@ import (
 
 func ParseDependenciesTSV(file string, data []byte) (*modfile.File, error) {
 	mf := new(modfile.File)
-	for lineno, line := range strings.Split(string(data), "\n") {
-		lineno++
+	for _, line := range strings.Split(string(data), "\n") {
 		f := strings.Split(line, "\t")
 		if len(f) >= 3 {
 			mf.Require = append(mf.Require, &modfile.Require{Mod: module.Version{Path: f[0], Version: f[2]}})

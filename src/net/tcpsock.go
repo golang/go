@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// BUG(mikio): On JS, NaCl and Windows, the File method of TCPConn and
+// BUG(mikio): On JS and Windows, the File method of TCPConn and
 // TCPListener is not implemented.
 
 // TCPAddr represents the address of a TCP end point.
@@ -154,7 +154,7 @@ func (c *TCPConn) SetLinger(sec int) error {
 }
 
 // SetKeepAlive sets whether the operating system should send
-// keepalive messages on the connection.
+// keep-alive messages on the connection.
 func (c *TCPConn) SetKeepAlive(keepalive bool) error {
 	if !c.ok() {
 		return syscall.EINVAL
@@ -165,7 +165,7 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
 	return nil
 }
 
-// SetKeepAlivePeriod sets period between keep alives.
+// SetKeepAlivePeriod sets period between keep-alives.
 func (c *TCPConn) SetKeepAlivePeriod(d time.Duration) error {
 	if !c.ok() {
 		return syscall.EINVAL
@@ -224,6 +224,7 @@ func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 // use variables of type Listener instead of assuming TCP.
 type TCPListener struct {
 	fd *netFD
+	lc ListenConfig
 }
 
 // SyscallConn returns a raw network connection.
@@ -335,4 +336,9 @@ func ListenTCP(network string, laddr *TCPAddr) (*TCPListener, error) {
 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}
 	return ln, nil
+}
+
+// roundDurationUp rounds d to the next multiple of to.
+func roundDurationUp(d time.Duration, to time.Duration) time.Duration {
+	return (d + to - 1) / to
 }

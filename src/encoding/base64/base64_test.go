@@ -11,6 +11,7 @@ import (
 	"io"
 	"io/ioutil"
 	"reflect"
+	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
@@ -53,8 +54,8 @@ func stdRef(ref string) string {
 
 // Convert a reference string to URL-encoding
 func urlRef(ref string) string {
-	ref = strings.Replace(ref, "+", "-", -1)
-	ref = strings.Replace(ref, "/", "_", -1)
+	ref = strings.ReplaceAll(ref, "+", "-")
+	ref = strings.ReplaceAll(ref, "/", "_")
 	return ref
 }
 
@@ -72,7 +73,7 @@ func rawURLRef(ref string) string {
 var funnyEncoding = NewEncoding(encodeStd).WithPadding(rune('@'))
 
 func funnyRef(ref string) string {
-	return strings.Replace(ref, "=", "@", -1)
+	return strings.ReplaceAll(ref, "=", "@")
 }
 
 type encodingTest struct {
@@ -175,7 +176,7 @@ func TestDecoder(t *testing.T) {
 		testEqual(t, "Read from %q = length %v, want %v", p.encoded, count, len(p.decoded))
 		testEqual(t, "Decoding of %q = %q, want %q", p.encoded, string(dbuf[0:count]), p.decoded)
 		if err != io.EOF {
-			count, err = decoder.Read(dbuf)
+			_, err = decoder.Read(dbuf)
 		}
 		testEqual(t, "Read from %q = %v, want %v", p.encoded, err, io.EOF)
 	}
@@ -244,6 +245,20 @@ func TestDecodeCorrupt(t *testing.T) {
 		default:
 			t.Error("Decoder failed to detect corruption in", tc)
 		}
+	}
+}
+
+func TestDecodeBounds(t *testing.T) {
+	var buf [32]byte
+	s := StdEncoding.EncodeToString(buf[:])
+	defer func() {
+		if err := recover(); err != nil {
+			t.Fatalf("Decode panicked unexpectedly: %v\n%s", err, debug.Stack())
+		}
+	}()
+	n, err := StdEncoding.Decode(buf[:], []byte(s))
+	if n != len(buf) || err != nil {
+		t.Fatalf("StdEncoding.Decode = %d, %v, want %d, nil", n, err, len(buf))
 	}
 }
 
@@ -418,7 +433,7 @@ j+mSARB/17pKVXYWHXjsj7yIex0PadzXMO1zT5KHoNA3HT8ietoGhgjsfA+CSnvvqh/jJtqsrwOv
 2b6NGNzXfTYexzJ+nU7/ALkf4P8Awv6P9KvTQQ4AgyDqCF85Pho3CTB7eHwXoH+LT65uZbX9X+o2
 bqbPb06551Y4
 `
-	encodedShort := strings.Replace(encoded, "\n", "", -1)
+	encodedShort := strings.ReplaceAll(encoded, "\n", "")
 
 	dec := NewDecoder(StdEncoding, strings.NewReader(encoded))
 	res1, err := ioutil.ReadAll(dec)

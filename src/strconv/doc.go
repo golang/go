@@ -46,8 +46,8 @@
 // The latter guarantees that the result is an ASCII string, by escaping
 // any non-ASCII Unicode with \u:
 //
-//	q := Quote("Hello, 世界")
-//	q := QuoteToASCII("Hello, 世界")
+//	q := strconv.Quote("Hello, 世界")
+//	q := strconv.QuoteToASCII("Hello, 世界")
 //
 // QuoteRune and QuoteRuneToASCII are similar but accept runes and
 // return quoted Go rune literals.

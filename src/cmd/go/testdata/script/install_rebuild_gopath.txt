@@ -1,3 +1,5 @@
+env GO111MODULE=off
+
 # GOPATH with p1 in d1, p2 in d2
 env GOPATH=$WORK/d1${:}$WORK/d2
 

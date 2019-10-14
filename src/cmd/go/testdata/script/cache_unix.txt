@@ -1,0 +1,36 @@
+env GO111MODULE=off
+
+# Integration test for cache directory calculation (cmd/go/internal/cache).
+
+[windows] skip
+[darwin] skip
+[plan9] skip
+
+mkdir $WORK/gocache
+mkdir $WORK/xdg
+mkdir $WORK/home
+
+# Set GOCACHE, XDG_CACHE_HOME, and HOME.
+env GOCACHE=$WORK/gocache
+env XDG_CACHE_HOME=$WORK/xdg
+env HOME=$WORK/home
+
+# With all three set, we should prefer GOCACHE.
+go env GOCACHE
+stdout '\$WORK/gocache$'
+
+# Without GOCACHE, we should prefer XDG_CACHE_HOME over HOME.
+env GOCACHE=
+go env GOCACHE
+stdout '\$WORK/xdg/go-build$$'
+
+# With only HOME set, we should use $HOME/.cache.
+env XDG_CACHE_HOME=
+go env GOCACHE
+stdout '\$WORK/home/.cache/go-build$'
+
+# With no guidance from the environment, we must disable the cache, but that
+# should not cause commands that do not write to the cache to fail.
+env HOME=
+go env GOCACHE
+stdout 'off'

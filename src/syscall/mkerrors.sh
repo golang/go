@@ -20,6 +20,17 @@ fi
 
 uname=$(uname)
 
+includes_AIX='
+#include <net/if.h>
+#include <net/netopt.h>
+#include <netinet/ip_mroute.h>
+#include <sys/mman.h>
+#include <sys/protosw.h>
+#include <sys/ptrace.h>
+#include <sys/stropts.h>
+#include <termios.h>
+'
+
 includes_Darwin='
 #define _DARWIN_C_SOURCE
 #define KERNEL
