@@ -35,7 +35,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
-	"cmd/link/internal/objfile"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
 	"fmt"
@@ -98,7 +98,7 @@ type Link struct {
 
 	relocbuf []byte // temporary buffer for applying relocations
 
-	loader  *objfile.Loader
+	loader  *loader.Loader
 	cgodata []cgodata // cgo directives to load, three strings are args for loadcgo
 
 	cgo_export_static  map[string]bool

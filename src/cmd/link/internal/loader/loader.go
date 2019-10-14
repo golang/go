@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package objfile
+package loader
 
 import (
 	"bytes"
@@ -87,8 +87,6 @@ func makeBitmap(n int) bitmap {
 }
 
 // A Loader loads new object files and resolves indexed symbol references.
-//
-// TODO: describe local-global index mapping.
 type Loader struct {
 	start    map[*oReader]Sym // map from object file to its start index
 	objs     []objIdx         // sorted by start index (i.e. objIdx.i)
@@ -117,12 +115,12 @@ func NewLoader() *Loader {
 }
 
 // Return the start index in the global index space for a given object file.
-func (l *Loader) StartIndex(r *oReader) Sym {
+func (l *Loader) startIndex(r *oReader) Sym {
 	return l.start[r]
 }
 
 // Add object file r, return the start index.
-func (l *Loader) AddObj(pkg string, r *oReader) Sym {
+func (l *Loader) addObj(pkg string, r *oReader) Sym {
 	if _, ok := l.start[r]; ok {
 		panic("already added")
 	}
@@ -148,10 +146,10 @@ func (l *Loader) AddSym(name string, ver int, i Sym, r *oReader, dupok bool, typ
 		if dupok {
 			return false
 		}
-		overwrite := r.DataSize(int(i-l.StartIndex(r))) != 0
+		overwrite := r.DataSize(int(i-l.startIndex(r))) != 0
 		if overwrite {
 			// new symbol overwrites old symbol.
-			oldr, li := l.ToLocal(oldi)
+			oldr, li := l.toLocal(oldi)
 			oldsym := goobj2.Sym{}
 			oldsym.Read(oldr.Reader, oldr.SymOff(li))
 			oldtyp := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type)]
@@ -190,8 +188,8 @@ func (l *Loader) AddExtSym(name string, ver int) Sym {
 }
 
 // Convert a local index to a global index.
-func (l *Loader) ToGlobal(r *oReader, i int) Sym {
-	g := l.StartIndex(r) + Sym(i)
+func (l *Loader) toGlobal(r *oReader, i int) Sym {
+	g := l.startIndex(r) + Sym(i)
 	if ov, ok := l.overwrite[g]; ok {
 		return ov
 	}
@@ -199,7 +197,7 @@ func (l *Loader) ToGlobal(r *oReader, i int) Sym {
 }
 
 // Convert a global index to a local index.
-func (l *Loader) ToLocal(i Sym) (*oReader, int) {
+func (l *Loader) toLocal(i Sym) (*oReader, int) {
 	if ov, ok := l.overwrite[i]; ok {
 		i = ov
 	}
@@ -216,7 +214,7 @@ func (l *Loader) ToLocal(i Sym) (*oReader, int) {
 }
 
 // Resolve a local symbol reference. Return global index.
-func (l *Loader) Resolve(r *oReader, s goobj2.SymRef) Sym {
+func (l *Loader) resolve(r *oReader, s goobj2.SymRef) Sym {
 	var rr *oReader
 	switch p := s.PkgIdx; p {
 	case goobj2.PkgIdxInvalid:
@@ -245,7 +243,7 @@ func (l *Loader) Resolve(r *oReader, s goobj2.SymRef) Sym {
 			log.Fatalf("reference of nonexisted package %s, from %v", pkg, r.unit.Lib)
 		}
 	}
-	return l.ToGlobal(rr, int(s.SymIdx))
+	return l.toGlobal(rr, int(s.SymIdx))
 }
 
 // Look up a symbol by name, return global index, or 0 if not found.
@@ -266,7 +264,7 @@ func (l *Loader) RawSymName(i Sym) string {
 	if l.extStart != 0 && i >= l.extStart {
 		return ""
 	}
-	r, li := l.ToLocal(i)
+	r, li := l.toLocal(i)
 	osym := goobj2.Sym{}
 	osym.Read(r.Reader, r.SymOff(li))
 	return osym.Name
@@ -277,7 +275,7 @@ func (l *Loader) SymName(i Sym) string {
 	if l.extStart != 0 && i >= l.extStart {
 		return ""
 	}
-	r, li := l.ToLocal(i)
+	r, li := l.toLocal(i)
 	osym := goobj2.Sym{}
 	osym.Read(r.Reader, r.SymOff(li))
 	return strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
@@ -288,7 +286,7 @@ func (l *Loader) SymType(i Sym) sym.SymKind {
 	if l.extStart != 0 && i >= l.extStart {
 		return 0
 	}
-	r, li := l.ToLocal(i)
+	r, li := l.toLocal(i)
 	osym := goobj2.Sym{}
 	osym.Read(r.Reader, r.SymOff(li))
 	return sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)]
@@ -299,7 +297,7 @@ func (l *Loader) SymAttr(i Sym) uint8 {
 	if l.extStart != 0 && i >= l.extStart {
 		return 0
 	}
-	r, li := l.ToLocal(i)
+	r, li := l.toLocal(i)
 	osym := goobj2.Sym{}
 	osym.Read(r.Reader, r.SymOff(li))
 	return osym.Flag
@@ -315,7 +313,7 @@ func (l *Loader) Data(i Sym) []byte {
 	if l.extStart != 0 && i >= l.extStart {
 		return nil
 	}
-	r, li := l.ToLocal(i)
+	r, li := l.toLocal(i)
 	return r.Data(li)
 }
 
@@ -324,7 +322,7 @@ func (l *Loader) NAux(i Sym) int {
 	if l.extStart != 0 && i >= l.extStart {
 		return 0
 	}
-	r, li := l.ToLocal(i)
+	r, li := l.toLocal(i)
 	return r.NAux(li)
 }
 
@@ -334,10 +332,10 @@ func (l *Loader) AuxSym(i Sym, j int) Sym {
 	if l.extStart != 0 && i >= l.extStart {
 		return 0
 	}
-	r, li := l.ToLocal(i)
+	r, li := l.toLocal(i)
 	a := goobj2.Aux{}
 	a.Read(r.Reader, r.AuxOff(li, j))
-	return l.Resolve(r, a.Sym)
+	return l.resolve(r, a.Sym)
 }
 
 // Initialize Reachable bitmap for running deadcode pass.
@@ -349,7 +347,7 @@ func (l *Loader) InitReachable() {
 func (relocs *Relocs) At(j int) Reloc {
 	rel := goobj2.Reloc{}
 	rel.Read(relocs.r.Reader, relocs.r.RelocOff(relocs.li, j))
-	target := relocs.l.Resolve(relocs.r, rel.Sym)
+	target := relocs.l.resolve(relocs.r, rel.Sym)
 	return Reloc{
 		Off:  rel.Off,
 		Size: rel.Siz,
@@ -364,7 +362,7 @@ func (l *Loader) Relocs(i Sym) Relocs {
 	if l.extStart != 0 && i >= l.extStart {
 		return Relocs{}
 	}
-	r, li := l.ToLocal(i)
+	r, li := l.toLocal(i)
 	return l.relocs(r, li)
 }
 
@@ -380,7 +378,7 @@ func (l *Loader) relocs(r *oReader, li int) Relocs {
 
 // Preload a package: add autolibs, add symbols to the symbol table.
 // Does not read symbol data yet.
-func LoadNew(l *Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64, pn string, flags int) {
+func (l *Loader) Preload(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64, pn string, flags int) {
 	roObject, readonly, err := f.Slice(uint64(length))
 	if err != nil {
 		log.Fatal("cannot read object file:", err)
@@ -403,7 +401,7 @@ func LoadNew(l *Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *s
 		unit.DWARFFileTable[i] = r.DwarfFile(i)
 	}
 
-	istart := l.AddObj(lib.Pkg, or)
+	istart := l.addObj(lib.Pkg, or)
 
 	ndef := r.NSym()
 	nnonpkgdef := r.NNonpkgdef()
@@ -425,7 +423,7 @@ func LoadNew(l *Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *s
 
 // Make sure referenced symbols are added. Most of them should already be added.
 // This should only be needed for referenced external symbols.
-func LoadRefs(l *Loader, arch *sys.Arch, syms *sym.Symbols) {
+func (l *Loader) LoadRefs(arch *sys.Arch, syms *sym.Symbols) {
 	for _, o := range l.objs[1:] {
 		loadObjRefs(l, o.r, arch, syms)
 	}
@@ -479,7 +477,7 @@ func preprocess(arch *sys.Arch, s *sym.Symbol) {
 }
 
 // Load full contents.
-func LoadFull(l *Loader, arch *sys.Arch, syms *sym.Symbols) {
+func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 	// create all Symbols first.
 	l.Syms = make([]*sym.Symbol, l.NSym())
 	for _, o := range l.objs[1:] {
@@ -505,7 +503,7 @@ func LoadFull(l *Loader, arch *sys.Arch, syms *sym.Symbols) {
 
 func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) {
 	lib := r.unit.Lib
-	istart := l.StartIndex(r)
+	istart := l.startIndex(r)
 
 	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
 		osym := goobj2.Sym{}
@@ -550,10 +548,10 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) {
 
 func loadObjFull(l *Loader, r *oReader) {
 	lib := r.unit.Lib
-	istart := l.StartIndex(r)
+	istart := l.startIndex(r)
 
 	resolveSymRef := func(s goobj2.SymRef) *sym.Symbol {
-		i := l.Resolve(r, s)
+		i := l.resolve(r, s)
 		return l.Syms[i]
 	}
 
@@ -735,7 +733,7 @@ func loadObjFull(l *Loader, r *oReader) {
 				Parent:   inl.Parent,
 				File:     resolveSymRef(inl.File),
 				Line:     inl.Line,
-				Func:     l.SymName(l.Resolve(r, inl.Func)),
+				Func:     l.SymName(l.resolve(r, inl.Func)),
 				ParentPC: inl.ParentPC,
 			}
 		}
@@ -753,6 +751,8 @@ func loadObjFull(l *Loader, r *oReader) {
 		}
 	}
 }
+
+var emptyPkg = []byte(`"".`)
 
 func patchDWARFName(s *sym.Symbol, r *oReader) {
 	// This is kind of ugly. Really the package name should not
