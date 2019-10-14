@@ -87,7 +87,7 @@ func (r *objReader) readNew() {
 		sym := Sym{
 			SymID: symID,
 			Kind:  objabi.SymKind(osym.Type),
-			DupOK: osym.Flag&goobj2.SymFlagDupok != 0,
+			DupOK: osym.Dupok(),
 			Size:  int64(osym.Siz),
 			Data:  Data{int64(start + dataOff), siz},
 		}
@@ -145,8 +145,8 @@ func (r *objReader) readNew() {
 			Args:     int64(info.Args),
 			Frame:    int64(info.Locals),
 			NoSplit:  info.NoSplit != 0,
-			Leaf:     osym.Flag&goobj2.SymFlagLeaf != 0,
-			TopFrame: osym.Flag&goobj2.SymFlagTopFrame != 0,
+			Leaf:     osym.Leaf(),
+			TopFrame: osym.TopFrame(),
 			PCSP:     Data{int64(pcdataBase + info.Pcsp), int64(info.Pcfile - info.Pcsp)},
 			PCFile:   Data{int64(pcdataBase + info.Pcfile), int64(info.Pcline - info.Pcfile)},
 			PCLine:   Data{int64(pcdataBase + info.Pcline), int64(info.Pcinline - info.Pcline)},

@@ -155,7 +155,7 @@ func (l *Loader) AddSym(name string, ver int, i Sym, r *oReader, dupok bool, typ
 			oldsym := goobj2.Sym{}
 			oldsym.Read(oldr.Reader, oldr.SymOff(li))
 			oldtyp := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type)]
-			if oldsym.Flag&goobj2.SymFlagDupok == 0 && !((oldtyp == sym.SDATA || oldtyp == sym.SNOPTRDATA || oldtyp == sym.SBSS || oldtyp == sym.SNOPTRBSS) && oldr.DataSize(li) == 0) { // only allow overwriting 0-sized data symbol
+			if !oldsym.Dupok() && !((oldtyp == sym.SDATA || oldtyp == sym.SNOPTRDATA || oldtyp == sym.SBSS || oldtyp == sym.SNOPTRBSS) && oldr.DataSize(li) == 0) { // only allow overwriting 0-sized data symbol
 				log.Fatalf("duplicated definition of symbol " + name)
 			}
 			l.overwrite[oldi] = i
@@ -415,7 +415,7 @@ func LoadNew(l *Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *s
 			continue // don't add unnamed aux symbol
 		}
 		v := abiToVer(osym.ABI, localSymVersion)
-		dupok := osym.Flag&goobj2.SymFlagDupok != 0
+		dupok := osym.Dupok()
 		l.AddSym(name, v, istart+Sym(i), or, dupok, sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)])
 	}
 
@@ -566,7 +566,7 @@ func loadObjFull(l *Loader, r *oReader) {
 			continue
 		}
 		ver := abiToVer(osym.ABI, r.version)
-		dupok := osym.Flag&goobj2.SymFlagDupok != 0
+		dupok := osym.Dupok()
 		if dupsym := l.symsByName[nameVer{name, ver}]; dupsym != istart+Sym(i) {
 			if dupok && l.Reachable.Has(dupsym) {
 				// A dupok symbol is resolved to another package. We still need
@@ -589,8 +589,8 @@ func loadObjFull(l *Loader, r *oReader) {
 			panic("name mismatch")
 		}
 
-		local := osym.Flag&goobj2.SymFlagLocal != 0
-		makeTypelink := osym.Flag&goobj2.SymFlagTypelink != 0
+		local := osym.Local()
+		makeTypelink := osym.Typelink()
 		size := osym.Siz
 
 		// Symbol data
@@ -694,13 +694,13 @@ func loadObjFull(l *Loader, r *oReader) {
 		if info.NoSplit != 0 {
 			s.Attr |= sym.AttrNoSplit
 		}
-		if osym.Flag&goobj2.SymFlagReflectMethod != 0 {
+		if osym.ReflectMethod() {
 			s.Attr |= sym.AttrReflectMethod
 		}
-		if osym.Flag&goobj2.SymFlagShared != 0 {
+		if osym.Shared() {
 			s.Attr |= sym.AttrShared
 		}
-		if osym.Flag&goobj2.SymFlagTopFrame != 0 {
+		if osym.TopFrame() {
 			s.Attr |= sym.AttrTopFrame
 		}
 
