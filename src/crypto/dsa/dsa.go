@@ -279,6 +279,9 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 	}
 
 	w := new(big.Int).ModInverse(s, pub.Q)
+	if w == nil {
+		return false
+	}
 
 	n := pub.Q.BitLen()
 	if n%8 != 0 {
