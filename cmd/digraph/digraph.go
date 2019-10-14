@@ -143,11 +143,11 @@ func main() {
 type nodelist []string
 
 func (l nodelist) println(sep string) {
-	for i, label := range l {
+	for i, node := range l {
 		if i > 0 {
 			fmt.Fprint(stdout, sep)
 		}
-		fmt.Fprint(stdout, label)
+		fmt.Fprint(stdout, node)
 	}
 	fmt.Fprintln(stdout)
 }
@@ -155,30 +155,30 @@ func (l nodelist) println(sep string) {
 type nodeset map[string]bool
 
 func (s nodeset) sort() nodelist {
-	labels := make(nodelist, len(s))
+	nodes := make(nodelist, len(s))
 	var i int
-	for label := range s {
-		labels[i] = label
+	for node := range s {
+		nodes[i] = node
 		i++
 	}
-	sort.Strings(labels)
-	return labels
+	sort.Strings(nodes)
+	return nodes
 }
 
 func (s nodeset) addAll(x nodeset) {
-	for label := range x {
-		s[label] = true
+	for node := range x {
+		s[node] = true
 	}
 }
 
 // A graph maps nodes to the non-nil set of their immediate successors.
 type graph map[string]nodeset
 
-func (g graph) addNode(label string) nodeset {
-	edges := g[label]
+func (g graph) addNode(node string) nodeset {
+	edges := g[node]
 	if edges == nil {
 		edges = make(nodeset)
-		g[label] = edges
+		g[node] = edges
 	}
 	return edges
 }
@@ -193,11 +193,11 @@ func (g graph) addEdges(from string, to ...string) {
 
 func (g graph) reachableFrom(roots nodeset) nodeset {
 	seen := make(nodeset)
-	var visit func(label string)
-	visit = func(label string) {
-		if !seen[label] {
-			seen[label] = true
-			for e := range g[label] {
+	var visit func(node string)
+	visit = func(node string) {
+		if !seen[node] {
+			seen[node] = true
+			for e := range g[node] {
 				visit(e)
 			}
 		}
@@ -210,10 +210,10 @@ func (g graph) reachableFrom(roots nodeset) nodeset {
 
 func (g graph) transpose() graph {
 	rev := make(graph)
-	for label, edges := range g {
-		rev.addNode(label)
+	for node, edges := range g {
+		rev.addNode(node)
 		for succ := range edges {
-			rev.addEdges(succ, label)
+			rev.addEdges(succ, node)
 		}
 	}
 	return rev
@@ -225,30 +225,30 @@ func (g graph) sccs() []nodeset {
 	// Forward pass.
 	S := make(nodelist, 0, len(g)) // postorder stack
 	seen := make(nodeset)
-	var visit func(label string)
-	visit = func(label string) {
-		if !seen[label] {
-			seen[label] = true
-			for e := range g[label] {
+	var visit func(node string)
+	visit = func(node string) {
+		if !seen[node] {
+			seen[node] = true
+			for e := range g[node] {
 				visit(e)
 			}
-			S = append(S, label)
+			S = append(S, node)
 		}
 	}
-	for label := range g {
-		visit(label)
+	for node := range g {
+		visit(node)
 	}
 
 	// Reverse pass.
 	rev := g.transpose()
 	var scc nodeset
 	seen = make(nodeset)
-	var rvisit func(label string)
-	rvisit = func(label string) {
-		if !seen[label] {
-			seen[label] = true
-			scc[label] = true
-			for e := range rev[label] {
+	var rvisit func(node string)
+	rvisit = func(node string) {
+		if !seen[node] {
+			seen[node] = true
+			scc[node] = true
+			for e := range rev[node] {
 				rvisit(e)
 			}
 		}
@@ -377,8 +377,8 @@ func digraph(cmd string, args []string) error {
 			return fmt.Errorf("usage: digraph nodes")
 		}
 		nodes := make(nodeset)
-		for label := range g {
-			nodes[label] = true
+		for node := range g {
+			nodes[node] = true
 		}
 		nodes.sort().println("\n")
 
@@ -387,12 +387,12 @@ func digraph(cmd string, args []string) error {
 			return fmt.Errorf("usage: digraph degree")
 		}
 		nodes := make(nodeset)
-		for label := range g {
-			nodes[label] = true
+		for node := range g {
+			nodes[node] = true
 		}
 		rev := g.transpose()
-		for _, label := range nodes.sort() {
-			fmt.Fprintf(stdout, "%d\t%d\t%s\n", len(rev[label]), len(g[label]), label)
+		for _, node := range nodes.sort() {
+			fmt.Fprintf(stdout, "%d\t%d\t%s\n", len(rev[node]), len(g[node]), node)
 		}
 
 	case "transpose":
@@ -412,7 +412,7 @@ func digraph(cmd string, args []string) error {
 
 	case "succs", "preds":
 		if len(args) == 0 {
-			return fmt.Errorf("usage: digraph %s <label> ...", cmd)
+			return fmt.Errorf("usage: digraph %s <node> ...", cmd)
 		}
 		g := g
 		if cmd == "preds" {
@@ -430,7 +430,7 @@ func digraph(cmd string, args []string) error {
 
 	case "forward", "reverse":
 		if len(args) == 0 {
-			return fmt.Errorf("usage: digraph %s <label> ...", cmd)
+			return fmt.Errorf("usage: digraph %s <node> ...", cmd)
 		}
 		roots := make(nodeset)
 		for _, root := range args {
@@ -485,14 +485,14 @@ func digraph(cmd string, args []string) error {
 
 	case "scc":
 		if len(args) != 1 {
-			return fmt.Errorf("usage: digraph scc <label>")
+			return fmt.Errorf("usage: digraph scc <node>")
 		}
-		label := args[0]
-		if g[label] == nil {
-			return fmt.Errorf("no such node %q", label)
+		node := args[0]
+		if g[node] == nil {
+			return fmt.Errorf("no such node %q", node)
 		}
 		for _, scc := range g.sccs() {
-			if scc[label] {
+			if scc[node] {
 				scc.sort().println("\n")
 				break
 			}
