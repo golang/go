@@ -23,9 +23,10 @@ type pkg struct {
 	view *view
 
 	// ID and package path have their own types to avoid being used interchangeably.
-	id         packageID
-	mode       source.ParseMode
-	pkgPath    packagePath
+	id      packageID
+	pkgPath packagePath
+	mode    source.ParseMode
+
 	files      []source.ParseGoHandle
 	errors     []packages.Error
 	imports    map[packagePath]*pkg

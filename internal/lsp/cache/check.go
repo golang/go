@@ -174,9 +174,6 @@ func (cph *checkPackageHandle) Check(ctx context.Context) (source.Package, error
 }
 
 func (cph *checkPackageHandle) check(ctx context.Context) (*pkg, error) {
-	ctx, done := trace.StartSpan(ctx, "cache.checkPackageHandle.check", telemetry.Package.Of(cph.m.id))
-	defer done()
-
 	v := cph.handle.Get(ctx)
 	if v == nil {
 		return nil, errors.Errorf("no package for %s", cph.m.id)
