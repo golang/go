@@ -17,11 +17,6 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-type actionKey struct {
-	pkg      packageKey
-	analyzer string // analyzer name
-}
-
 func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*analysis.Analyzer) (map[*analysis.Analyzer][]*analysis.Diagnostic, error) {
 	var roots []*actionHandle
 
@@ -84,7 +79,7 @@ type packageFactKey struct {
 }
 
 func (s *snapshot) actionHandle(ctx context.Context, id packageID, mode source.ParseMode, a *analysis.Analyzer) (*actionHandle, error) {
-	ah := s.getAction(id, mode, a.Name)
+	ah := s.getAction(id, mode, a)
 	if ah != nil {
 		return ah, nil
 	}
@@ -133,6 +128,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, mode source.P
 		return data
 	})
 	ah.handle = h
+
 	s.addAction(ah)
 	return ah, nil
 }
@@ -147,7 +143,7 @@ func (ah *actionHandle) analyze(ctx context.Context) ([]*analysis.Diagnostic, in
 }
 
 func buildActionKey(a *analysis.Analyzer, cph *checkPackageHandle) string {
-	return hashContents([]byte(fmt.Sprintf("%s %s", a, string(cph.key))))
+	return hashContents([]byte(fmt.Sprintf("%p %s", a, string(cph.key))))
 }
 
 func (act *actionHandle) String() string {

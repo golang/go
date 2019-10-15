@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 )
@@ -35,6 +36,16 @@ type snapshot struct {
 
 	// actions maps an actionkey to its actionHandle.
 	actions map[actionKey]*actionHandle
+}
+
+type packageKey struct {
+	mode source.ParseMode
+	id   packageID
+}
+
+type actionKey struct {
+	pkg      packageKey
+	analyzer *analysis.Analyzer
 }
 
 func (s *snapshot) View() source.View {
@@ -96,7 +107,7 @@ func (s *snapshot) getPackage(id packageID, m source.ParseMode) *checkPackageHan
 	return s.packages[key]
 }
 
-func (s *snapshot) getAction(id packageID, m source.ParseMode, analyzer string) *actionHandle {
+func (s *snapshot) getAction(id packageID, m source.ParseMode, a *analysis.Analyzer) *actionHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -105,7 +116,7 @@ func (s *snapshot) getAction(id packageID, m source.ParseMode, analyzer string) 
 			id:   id,
 			mode: m,
 		},
-		analyzer: analyzer,
+		analyzer: a,
 	}
 	return s.actions[key]
 }
@@ -115,7 +126,7 @@ func (s *snapshot) addAction(ah *actionHandle) {
 	defer s.mu.Unlock()
 
 	key := actionKey{
-		analyzer: ah.analyzer.Name,
+		analyzer: ah.analyzer,
 		pkg: packageKey{
 			id:   ah.pkg.id,
 			mode: ah.pkg.mode,

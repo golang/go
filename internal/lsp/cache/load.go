@@ -19,11 +19,6 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-type packageKey struct {
-	mode source.ParseMode
-	id   packageID
-}
-
 type metadata struct {
 	id          packageID
 	pkgPath     packagePath
