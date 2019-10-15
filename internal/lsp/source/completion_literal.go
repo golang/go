@@ -5,12 +5,17 @@
 package source
 
 import (
+	"go/ast"
+	"go/token"
 	"go/types"
 	"strings"
 	"unicode"
 
+	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
+	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/telemetry/log"
 )
 
 // literal generates composite literal, function literal, and make()
@@ -64,7 +69,18 @@ func (c *completer) literal(literalType types.Type) {
 		literalType = ptr.Elem()
 	}
 
-	typeName := types.TypeString(literalType, c.qf)
+	var (
+		qf  = c.qf
+		sel = enclosingSelector(c.path, c.pos)
+	)
+
+	// Don't qualify the type name if we are in a selector expression
+	// since the package name is already present.
+	if sel != nil {
+		qf = func(_ *types.Package) string { return "" }
+	}
+
+	typeName := types.TypeString(literalType, qf)
 
 	// A type name of "[]int" doesn't work very will with the matcher
 	// since "[" isn't a valid identifier prefix. Here we strip off the
@@ -72,26 +88,41 @@ func (c *completer) literal(literalType types.Type) {
 	matchName := typeName
 	switch t := literalType.(type) {
 	case *types.Slice:
-		matchName = types.TypeString(t.Elem(), c.qf)
+		matchName = types.TypeString(t.Elem(), qf)
 	case *types.Array:
-		matchName = types.TypeString(t.Elem(), c.qf)
+		matchName = types.TypeString(t.Elem(), qf)
 	}
 
 	// If prefix matches the type name, client may want a composite literal.
 	if score := c.matcher.Score(matchName); score >= 0 {
+		var protocolEdits []protocol.TextEdit
+
 		if isPointer {
-			typeName = "&" + typeName
+			if sel != nil {
+				// If we are in a selector we must place the "&" before the selector.
+				// For example, "foo.B<>" must complete to "&foo.Bar{}", not
+				// "foo.&Bar{}".
+				edits, err := referenceEdit(c.view.Session().Cache().FileSet(), c.mapper, sel)
+				if err != nil {
+					log.Error(c.ctx, "error making edit for literal pointer completion", err)
+					return
+				}
+				protocolEdits = append(protocolEdits, edits...)
+			} else {
+				// Otherwise we can stick the "&" directly before the type name.
+				typeName = "&" + typeName
+			}
 		}
 
 		switch t := literalType.Underlying().(type) {
 		case *types.Struct, *types.Array, *types.Slice, *types.Map:
-			c.compositeLiteral(t, typeName, float64(score))
+			c.compositeLiteral(t, typeName, float64(score), protocolEdits)
 		case *types.Basic:
 			// Add a literal completion for basic types that implement our
 			// expected interface (e.g. named string type http.Dir
 			// implements http.FileSystem).
 			if isInterface(c.expectedType.objType) {
-				c.basicLiteral(t, typeName, float64(score))
+				c.basicLiteral(t, typeName, float64(score), protocolEdits)
 			}
 		}
 	}
@@ -118,6 +149,24 @@ func (c *completer) literal(literalType types.Type) {
 			c.functionLiteral(t, float64(score))
 		}
 	}
+}
+
+// referenceEdit produces text edits that prepend a "&" operator to the
+// specified node.
+func referenceEdit(fset *token.FileSet, m *protocol.ColumnMapper, node ast.Node) ([]protocol.TextEdit, error) {
+	rng := span.Range{
+		FileSet: fset,
+		Start:   node.Pos(),
+		End:     node.Pos(),
+	}
+	spn, err := rng.Span()
+	if err != nil {
+		return nil, err
+	}
+	return ToProtocolEdits(m, []diff.TextEdit{{
+		Span:    spn,
+		NewText: "&",
+	}})
 }
 
 // literalCandidateScore is the base score for literal candidates.
@@ -248,7 +297,7 @@ func abbreviateCamel(s string) string {
 }
 
 // compositeLiteral adds a composite literal completion item for the given typeName.
-func (c *completer) compositeLiteral(T types.Type, typeName string, matchScore float64) {
+func (c *completer) compositeLiteral(T types.Type, typeName string, matchScore float64, edits []protocol.TextEdit) {
 	snip := &snippet.Builder{}
 	snip.WriteText(typeName + "{")
 	// Don't put the tab stop inside the composite literal curlies "{}"
@@ -261,17 +310,18 @@ func (c *completer) compositeLiteral(T types.Type, typeName string, matchScore f
 	nonSnippet := typeName + "{}"
 
 	c.items = append(c.items, CompletionItem{
-		Label:      nonSnippet,
-		InsertText: nonSnippet,
-		Score:      matchScore * literalCandidateScore,
-		Kind:       protocol.VariableCompletion,
-		snippet:    snip,
+		Label:               nonSnippet,
+		InsertText:          nonSnippet,
+		Score:               matchScore * literalCandidateScore,
+		Kind:                protocol.VariableCompletion,
+		AdditionalTextEdits: edits,
+		snippet:             snip,
 	})
 }
 
 // basicLiteral adds a literal completion item for the given basic
 // type name typeName.
-func (c *completer) basicLiteral(T types.Type, typeName string, matchScore float64) {
+func (c *completer) basicLiteral(T types.Type, typeName string, matchScore float64, edits []protocol.TextEdit) {
 	snip := &snippet.Builder{}
 	snip.WriteText(typeName + "(")
 	snip.WriteFinalTabstop()
@@ -280,12 +330,13 @@ func (c *completer) basicLiteral(T types.Type, typeName string, matchScore float
 	nonSnippet := typeName + "()"
 
 	c.items = append(c.items, CompletionItem{
-		Label:      nonSnippet,
-		InsertText: nonSnippet,
-		Detail:     T.String(),
-		Score:      matchScore * literalCandidateScore,
-		Kind:       protocol.VariableCompletion,
-		snippet:    snip,
+		Label:               nonSnippet,
+		InsertText:          nonSnippet,
+		Detail:              T.String(),
+		Score:               matchScore * literalCandidateScore,
+		Kind:                protocol.VariableCompletion,
+		AdditionalTextEdits: edits,
+		snippet:             snip,
 	})
 }
 

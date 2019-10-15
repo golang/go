@@ -3,6 +3,8 @@ package snippets
 import (
 	"net/http"
 	"sort"
+
+	"golang.org/x/tools/internal/lsp/foo"
 )
 
 func _() {
@@ -128,4 +130,16 @@ func _() {
 
 	var duplicateParams func(myImpl, int, myImpl)
 	duplicateParams = f //@snippet(" //", litFunc, "", "func(${1:mi} myImpl, ${2:_} int, ${3:_} myImpl) {$0\\}")
+}
+
+func _() {
+	StructFoo{} //@item(litStructFoo, "StructFoo{}", "struct{...}", "struct")
+
+	var sfp *foo.StructFoo
+	// Don't insert the "&" before "StructFoo{}".
+	sfp = foo.Str //@snippet(" //", litStructFoo, "StructFoo{$0\\}", "StructFoo{$0\\}")
+
+	var sf foo.StructFoo
+	sf = foo.Str //@snippet(" //", litStructFoo, "StructFoo{$0\\}", "StructFoo{$0\\}")
+	sf = foo. //@snippet(" //", litStructFoo, "StructFoo{$0\\}", "StructFoo{$0\\}")
 }

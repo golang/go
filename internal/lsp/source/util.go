@@ -340,6 +340,26 @@ func isEmptyInterface(T types.Type) bool {
 	return intf != nil && intf.NumMethods() == 0
 }
 
+// isSelector returns the enclosing *ast.SelectorExpr when pos is in the
+// selector.
+func enclosingSelector(path []ast.Node, pos token.Pos) *ast.SelectorExpr {
+	if len(path) == 0 {
+		return nil
+	}
+
+	if sel, ok := path[0].(*ast.SelectorExpr); ok {
+		return sel
+	}
+
+	if _, ok := path[0].(*ast.Ident); ok && len(path) > 1 {
+		if sel, ok := path[1].(*ast.SelectorExpr); ok && pos >= sel.Sel.Pos() {
+			return sel
+		}
+	}
+
+	return nil
+}
+
 // typeConversion returns the type being converted to if call is a type
 // conversion expression.
 func typeConversion(call *ast.CallExpr, info *types.Info) types.Type {
