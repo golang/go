@@ -678,3 +678,29 @@ func BenchmarkRatCmp(b *testing.B) {
 		x.Cmp(y)
 	}
 }
+
+// TestIssue34919 verifies that a Rat's denominator is not modified
+// when simply accessing the Rat value.
+func TestIssue34919(t *testing.T) {
+	for _, acc := range []struct {
+		name string
+		f    func(*Rat)
+	}{
+		{"Float32", func(x *Rat) { x.Float32() }},
+		{"Float64", func(x *Rat) { x.Float64() }},
+		{"Inv", func(x *Rat) { new(Rat).Inv(x) }},
+		{"Sign", func(x *Rat) { x.Sign() }},
+		{"IsInt", func(x *Rat) { x.IsInt() }},
+		{"Num", func(x *Rat) { x.Num() }},
+		// {"Denom", func(x *Rat) { x.Denom() }}, TODO(gri) should we change the API? See issue #33792.
+	} {
+		// A denominator of length 0 is interpreted as 1. Make sure that
+		// "materialization" of the denominator doesn't lead to setting
+		// the underlying array element 0 to 1.
+		r := &Rat{Int{abs: nat{991}}, Int{abs: make(nat, 0, 1)}}
+		acc.f(r)
+		if d := r.b.abs[:1][0]; d != 0 {
+			t.Errorf("%s modified denominator: got %d, want 0", acc.name, d)
+		}
+	}
+}
