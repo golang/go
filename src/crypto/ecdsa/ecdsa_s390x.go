@@ -15,7 +15,7 @@ import (
 
 // s390x accelerated signatures
 //go:noescape
-func kdsaSig(fc uint64, block *[1720]byte) (errn uint64)
+func kdsaSig(fc uint64, block *[4096]byte) (errn uint64)
 
 type signverify int
 
@@ -109,7 +109,7 @@ func zeroExtendAndCopy(dst, src []byte, size int) {
 func sign(priv *PrivateKey, csprng *cipher.StreamReader, c elliptic.Curve, e *big.Int) (r, s *big.Int, err error) {
 	var bo bufferOffsets
 	if canUseKDSA(signing, c, &bo) && e.Sign() != 0 {
-		var buffer [1720]byte
+		var buffer [4096]byte
 		for {
 			var k *big.Int
 			k, err = randFieldElement(c, csprng)
@@ -140,7 +140,7 @@ func sign(priv *PrivateKey, csprng *cipher.StreamReader, c elliptic.Curve, e *bi
 func verify(pub *PublicKey, c elliptic.Curve, e, r, s *big.Int) bool {
 	var bo bufferOffsets
 	if canUseKDSA(verifying, c, &bo) && e.Sign() != 0 {
-		var buffer [1720]byte
+		var buffer [4096]byte
 		zeroExtendAndCopy(buffer[bo.offsetR:], r.Bytes(), bo.baseSize)
 		zeroExtendAndCopy(buffer[bo.offsetS:], s.Bytes(), bo.baseSize)
 		zeroExtendAndCopy(buffer[bo.offsetHash:], e.Bytes(), bo.hashSize)

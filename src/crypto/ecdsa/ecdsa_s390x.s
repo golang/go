@@ -4,7 +4,7 @@
 
 #include "textflag.h"
 
-// func kdsaSig(fc uint64, block *[1720]byte) (errn uint64)
+// func kdsaSig(fc uint64, block *[4096]byte) (errn uint64)
 TEXT ·kdsaSig(SB), NOSPLIT|NOFRAME, $0-24
 	MOVD fc+0(FP), R0    // function code
 	MOVD block+8(FP), R1 // address parameter block
