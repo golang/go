@@ -257,7 +257,7 @@ func (t Time) Before(u Time) bool {
 
 // Equal reports whether t and u represent the same time instant.
 // Two times can be equal even if they are in different locations.
-// For example, 6:00 +0200 CEST and 4:00 UTC are Equal.
+// For example, 6:00 +0200 and 4:00 UTC are Equal.
 // See the documentation on the Time type for the pitfalls of using == with
 // Time values; most code should use Equal instead.
 func (t Time) Equal(u Time) bool {
