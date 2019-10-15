@@ -412,10 +412,11 @@ func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
 // GOTRACEBACK=crash when a signal is received.
 var crashing int32
 
-// testSigtrap is used by the runtime tests. If non-nil, it is called
-// on SIGTRAP. If it returns true, the normal behavior on SIGTRAP is
-// suppressed.
+// testSigtrap and testSigusr1 are used by the runtime tests. If
+// non-nil, it is called on SIGTRAP/SIGUSR1. If it returns true, the
+// normal behavior on this signal is suppressed.
 var testSigtrap func(info *siginfo, ctxt *sigctxt, gp *g) bool
+var testSigusr1 func(gp *g) bool
 
 // sighandler is invoked when a signal occurs. The global g will be
 // set to a gsignal goroutine and we will be running on the alternate
@@ -438,6 +439,10 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	}
 
 	if sig == _SIGTRAP && testSigtrap != nil && testSigtrap(info, (*sigctxt)(noescape(unsafe.Pointer(c))), gp) {
+		return
+	}
+
+	if sig == _SIGUSR1 && testSigusr1 != nil && testSigusr1(gp) {
 		return
 	}
 
