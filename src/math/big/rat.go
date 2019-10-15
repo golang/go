@@ -271,7 +271,7 @@ func quotToFloat64(a, b nat) (f float64, exact bool) {
 func (x *Rat) Float32() (f float32, exact bool) {
 	b := x.b.abs
 	if len(b) == 0 {
-		b = b.set(natOne) // materialize denominator
+		b = natOne
 	}
 	f, exact = quotToFloat32(x.a.abs, b)
 	if x.a.neg {
@@ -287,7 +287,7 @@ func (x *Rat) Float32() (f float32, exact bool) {
 func (x *Rat) Float64() (f float64, exact bool) {
 	b := x.b.abs
 	if len(b) == 0 {
-		b = b.set(natOne) // materialize denominator
+		b = natOne
 	}
 	f, exact = quotToFloat64(x.a.abs, b)
 	if x.a.neg {
@@ -377,7 +377,7 @@ func (z *Rat) Inv(x *Rat) *Rat {
 	z.Set(x)
 	a := z.b.abs
 	if len(a) == 0 {
-		a = a.set(natOne) // materialize numerator
+		a = a.set(natOne) // materialize numerator (a is part of z!)
 	}
 	b := z.a.abs
 	if b.cmp(natOne) == 0 {
@@ -418,7 +418,7 @@ func (x *Rat) Num() *Int {
 func (x *Rat) Denom() *Int {
 	x.b.neg = false // the result is always >= 0
 	if len(x.b.abs) == 0 {
-		x.b.abs = x.b.abs.set(natOne) // materialize denominator
+		x.b.abs = x.b.abs.set(natOne) // materialize denominator (see issue #33792)
 	}
 	return &x.b
 }
