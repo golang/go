@@ -37,7 +37,7 @@ import (
 //
 // addNamedImport only returns edits that affect the import declarations.
 func addNamedImport(fset *token.FileSet, f *ast.File, name, path string) (edits []diff.TextEdit, err error) {
-	if alreadyImports(f, name, path) {
+	if alreadyImportsNamed(f, name, path) {
 		return nil, nil
 	}
 
@@ -198,8 +198,19 @@ func isThirdParty(importPath string) bool {
 	return strings.Contains(importPath, ".")
 }
 
-// alreadyImports reports whether f has an import with the specified name and path.
-func alreadyImports(f *ast.File, name, path string) bool {
+// alreadyImports reports whether f has an import with the specified path.
+func alreadyImports(f *ast.File, path string) bool {
+	for _, s := range f.Imports {
+		if importPath(s) == path {
+			return true
+		}
+	}
+	return false
+}
+
+// alreadyImportsNamed reports whether f has an import with the specified name
+// and path.
+func alreadyImportsNamed(f *ast.File, name, path string) bool {
 	for _, s := range f.Imports {
 		if importName(s) == name && importPath(s) == path {
 			return true

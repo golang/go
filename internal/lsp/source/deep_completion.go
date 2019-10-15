@@ -8,6 +8,8 @@ import (
 	"go/types"
 	"strings"
 	"time"
+
+	"golang.org/x/tools/internal/imports"
 )
 
 // Limit deep completion results because in most cases there are too many
@@ -140,7 +142,7 @@ func (c *completer) shouldPrune() bool {
 
 // deepSearch searches through obj's subordinate objects for more
 // completion items.
-func (c *completer) deepSearch(obj types.Object) {
+func (c *completer) deepSearch(obj types.Object, imp *imports.ImportInfo) {
 	if c.deepState.maxDepth == 0 {
 		return
 	}
@@ -170,7 +172,7 @@ func (c *completer) deepSearch(obj types.Object) {
 			// the deep chain.
 			c.deepState.push(obj, true)
 			// The result of a function call is not addressable.
-			c.methodsAndFields(sig.Results().At(0).Type(), false)
+			c.methodsAndFields(sig.Results().At(0).Type(), false, imp)
 			c.deepState.pop()
 		}
 	}
@@ -180,11 +182,11 @@ func (c *completer) deepSearch(obj types.Object) {
 
 	switch obj := obj.(type) {
 	case *types.PkgName:
-		c.packageMembers(obj)
+		c.packageMembers(obj.Imported(), imp)
 	default:
 		// For now it is okay to assume obj is addressable since we don't search beyond
 		// function calls.
-		c.methodsAndFields(obj.Type(), true)
+		c.methodsAndFields(obj.Type(), true, imp)
 	}
 
 	// Pop the object off our search stack.

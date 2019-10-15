@@ -11,6 +11,7 @@ import (
 	"strings"
 	"unicode"
 
+	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
@@ -20,7 +21,7 @@ import (
 
 // literal generates composite literal, function literal, and make()
 // completion items.
-func (c *completer) literal(literalType types.Type) {
+func (c *completer) literal(literalType types.Type, imp *imports.ImportInfo) {
 	if c.expectedType.objType == nil {
 		return
 	}
@@ -93,10 +94,14 @@ func (c *completer) literal(literalType types.Type) {
 		matchName = types.TypeString(t.Elem(), qf)
 	}
 
+	addlEdits, err := c.importEdits(imp)
+	if err != nil {
+		log.Error(c.ctx, "error adding import for literal candidate", err)
+		return
+	}
+
 	// If prefix matches the type name, client may want a composite literal.
 	if score := c.matcher.Score(matchName); score >= 0 {
-		var protocolEdits []protocol.TextEdit
-
 		if isPointer {
 			if sel != nil {
 				// If we are in a selector we must place the "&" before the selector.
@@ -107,7 +112,7 @@ func (c *completer) literal(literalType types.Type) {
 					log.Error(c.ctx, "error making edit for literal pointer completion", err)
 					return
 				}
-				protocolEdits = append(protocolEdits, edits...)
+				addlEdits = append(addlEdits, edits...)
 			} else {
 				// Otherwise we can stick the "&" directly before the type name.
 				typeName = "&" + typeName
@@ -116,13 +121,13 @@ func (c *completer) literal(literalType types.Type) {
 
 		switch t := literalType.Underlying().(type) {
 		case *types.Struct, *types.Array, *types.Slice, *types.Map:
-			c.compositeLiteral(t, typeName, float64(score), protocolEdits)
+			c.compositeLiteral(t, typeName, float64(score), addlEdits)
 		case *types.Basic:
 			// Add a literal completion for basic types that implement our
 			// expected interface (e.g. named string type http.Dir
 			// implements http.FileSystem).
 			if isInterface(c.expectedType.objType) {
-				c.basicLiteral(t, typeName, float64(score), protocolEdits)
+				c.basicLiteral(t, typeName, float64(score), addlEdits)
 			}
 		}
 	}
@@ -134,11 +139,11 @@ func (c *completer) literal(literalType types.Type) {
 		switch literalType.Underlying().(type) {
 		case *types.Slice:
 			// The second argument to "make()" for slices is required, so default to "0".
-			c.makeCall(typeName, "0", float64(score))
+			c.makeCall(typeName, "0", float64(score), addlEdits)
 		case *types.Map, *types.Chan:
 			// Maps and channels don't require the second argument, so omit
 			// to keep things simple for now.
-			c.makeCall(typeName, "", float64(score))
+			c.makeCall(typeName, "", float64(score), addlEdits)
 		}
 	}
 
@@ -341,7 +346,7 @@ func (c *completer) basicLiteral(T types.Type, typeName string, matchScore float
 }
 
 // makeCall adds a completion item for a "make()" call given a specific type.
-func (c *completer) makeCall(typeName string, secondArg string, matchScore float64) {
+func (c *completer) makeCall(typeName string, secondArg string, matchScore float64, edits []protocol.TextEdit) {
 	// Keep it simple and don't add any placeholders for optional "make()" arguments.
 
 	snip := &snippet.Builder{}
@@ -365,10 +370,11 @@ func (c *completer) makeCall(typeName string, secondArg string, matchScore float
 	nonSnippet.WriteByte(')')
 
 	c.items = append(c.items, CompletionItem{
-		Label:      nonSnippet.String(),
-		InsertText: nonSnippet.String(),
-		Score:      matchScore * literalCandidateScore,
-		Kind:       protocol.FunctionCompletion,
-		snippet:    snip,
+		Label:               nonSnippet.String(),
+		InsertText:          nonSnippet.String(),
+		Score:               matchScore * literalCandidateScore,
+		Kind:                protocol.FunctionCompletion,
+		AdditionalTextEdits: edits,
+		snippet:             snip,
 	})
 }

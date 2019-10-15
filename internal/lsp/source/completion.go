@@ -325,7 +325,7 @@ func (c *completer) found(obj types.Object, score float64, imp *imports.ImportIn
 	} else if isTypeName(obj) {
 		// If obj is a *types.TypeName that didn't otherwise match, check
 		// if a literal object of this type makes a good candidate.
-		c.literal(obj.Type())
+		c.literal(obj.Type(), imp)
 	}
 
 	// Favor shallow matches by lowering weight according to depth.
@@ -350,7 +350,7 @@ func (c *completer) found(obj types.Object, score float64, imp *imports.ImportIn
 		}
 	}
 
-	c.deepSearch(obj)
+	c.deepSearch(obj, imp)
 }
 
 // candidate represents a completion candidate.
@@ -570,7 +570,7 @@ func (c *completer) selector(sel *ast.SelectorExpr) error {
 	// Is sel a qualified identifier?
 	if id, ok := sel.X.(*ast.Ident); ok {
 		if pkgname, ok := c.pkg.GetTypesInfo().Uses[id].(*types.PkgName); ok {
-			c.packageMembers(pkgname)
+			c.packageMembers(pkgname.Imported(), nil)
 			return nil
 		}
 	}
@@ -581,17 +581,17 @@ func (c *completer) selector(sel *ast.SelectorExpr) error {
 		return errors.Errorf("cannot resolve %s", sel.X)
 	}
 
-	return c.methodsAndFields(tv.Type, tv.Addressable())
+	return c.methodsAndFields(tv.Type, tv.Addressable(), nil)
 }
 
-func (c *completer) packageMembers(pkg *types.PkgName) {
-	scope := pkg.Imported().Scope()
+func (c *completer) packageMembers(pkg *types.Package, imp *imports.ImportInfo) {
+	scope := pkg.Scope()
 	for _, name := range scope.Names() {
-		c.found(scope.Lookup(name), stdScore, nil)
+		c.found(scope.Lookup(name), stdScore, imp)
 	}
 }
 
-func (c *completer) methodsAndFields(typ types.Type, addressable bool) error {
+func (c *completer) methodsAndFields(typ types.Type, addressable bool, imp *imports.ImportInfo) error {
 	mset := c.methodSetCache[methodSetKey{typ, addressable}]
 	if mset == nil {
 		if addressable && !types.IsInterface(typ) && !isPointer(typ) {
@@ -605,12 +605,12 @@ func (c *completer) methodsAndFields(typ types.Type, addressable bool) error {
 	}
 
 	for i := 0; i < mset.Len(); i++ {
-		c.found(mset.At(i).Obj(), stdScore, nil)
+		c.found(mset.At(i).Obj(), stdScore, imp)
 	}
 
 	// Add fields of T.
 	for _, f := range fieldSelections(typ) {
-		c.found(f, stdScore, nil)
+		c.found(f, stdScore, imp)
 	}
 	return nil
 }
@@ -681,6 +681,28 @@ func (c *completer) lexical() error {
 		}
 	}
 
+	if c.expectedType.objType != nil {
+		if named, _ := deref(c.expectedType.objType).(*types.Named); named != nil {
+			// If we expected a named type, check the type's package for
+			// completion items. This is useful when the current file hasn't
+			// imported the type's package yet.
+
+			if named.Obj() != nil && named.Obj().Pkg() != nil {
+				pkg := named.Obj().Pkg()
+
+				// Make sure the package name isn't already in use by another
+				// object, and that this file doesn't import the package yet.
+				if _, ok := seen[pkg.Name()]; !ok && pkg != c.pkg.GetTypes() && !alreadyImports(c.file, pkg.Path()) {
+					seen[pkg.Name()] = struct{}{}
+					obj := types.NewPkgName(0, nil, pkg.Name(), pkg)
+					c.found(obj, stdScore, &imports.ImportInfo{
+						ImportPath: pkg.Path(),
+					})
+				}
+			}
+		}
+	}
+
 	if c.opts.Unimported {
 		// Suggest packages that have not been imported yet.
 		pkgs, err := CandidateImports(c.ctx, c.view, c.filename)
@@ -703,12 +725,11 @@ func (c *completer) lexical() error {
 
 	if c.expectedType.objType != nil {
 		// If we have an expected type and it is _not_ a named type, see
-		// if an object literal makes a good candidate. Named types are
-		// handled during the normal lexical object search. For example,
-		// if our expected type is "[]int", this will add a candidate of
+		// if an object literal makes a good candidate. For example, if
+		// our expected type is "[]int", this will add a candidate of
 		// "[]int{}".
 		if _, named := deref(c.expectedType.objType).(*types.Named); !named {
-			c.literal(c.expectedType.objType)
+			c.literal(c.expectedType.objType, nil)
 		}
 	}
 

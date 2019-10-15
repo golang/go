@@ -8,6 +8,8 @@ import (
 	f "golang.org/x/tools/internal/lsp/foo"
 )
 
+var FooStruct f.StructFoo
+
 func Baz() {
 	defer bar.Bar() //@complete("B", Bar)
 	// TODO(rstambler): Test completion here.
