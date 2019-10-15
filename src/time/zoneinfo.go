@@ -14,7 +14,8 @@ import (
 
 // A Location maps time instants to the zone in use at that time.
 // Typically, the Location represents the collection of time offsets
-// in use in a geographical area, such as CEST and CET for central Europe.
+// in use in a geographical area. For many Locations the time offset varies
+// depending on whether daylight savings time is in use at the time instant.
 type Location struct {
 	name string
 	zone []zone
@@ -34,7 +35,7 @@ type Location struct {
 	cacheZone  *zone
 }
 
-// A zone represents a single time zone such as CEST or CET.
+// A zone represents a single time zone such as CET.
 type zone struct {
 	name   string // abbreviated name, "CET"
 	offset int    // seconds east of UTC
