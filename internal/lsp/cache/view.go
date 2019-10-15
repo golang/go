@@ -18,6 +18,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/debug"
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
@@ -348,9 +349,9 @@ func (v *view) getFile(ctx context.Context, uri span.URI, kind source.FileKind) 
 		fname: uri.Filename(),
 		kind:  source.Go,
 	}
-	v.session.filesWatchMap.Watch(uri, func() {
+	v.session.filesWatchMap.Watch(uri, func(changeType protocol.FileChangeType) bool {
 		ctx := xcontext.Detach(ctx)
-		v.invalidateContent(ctx, uri, kind)
+		return v.invalidateContent(ctx, f, kind, changeType)
 	})
 	v.mapFile(uri, f)
 	return f, nil

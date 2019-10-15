@@ -2,9 +2,11 @@ package cache
 
 import (
 	"context"
+	"os"
 	"sync"
 
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 )
@@ -286,26 +288,60 @@ func (s *snapshot) clone(ctx context.Context, withoutURI *span.URI, withoutTypes
 
 // invalidateContent invalidates the content of a Go file,
 // including any position and type information that depends on it.
-func (v *view) invalidateContent(ctx context.Context, uri span.URI, kind source.FileKind) {
-	withoutTypes := make(map[span.URI]struct{})
-	withoutMetadata := make(map[span.URI]struct{})
+func (v *view) invalidateContent(ctx context.Context, f source.File, kind source.FileKind, changeType protocol.FileChangeType) bool {
+	var (
+		withoutTypes    = make(map[span.URI]struct{})
+		withoutMetadata = make(map[span.URI]struct{})
+		ids             = make(map[packageID]struct{})
+	)
 
 	// This should be the only time we hold the view's snapshot lock for any period of time.
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock()
 
-	ids := v.snapshot.getIDs(uri)
+	for _, id := range v.snapshot.getIDs(f.URI()) {
+		ids[id] = struct{}{}
+	}
+
+	switch changeType {
+	case protocol.Created:
+		// If this is a file we don't yet know about,
+		// then we do not yet know what packages it should belong to.
+		// Make a rough estimate of what metadata to invalidate by finding the package IDs
+		// of all of the files in the same directory as this one.
+		// TODO(rstambler): Speed this up by mapping directories to filenames.
+		if dirStat, err := os.Stat(dir(f.URI().Filename())); err == nil {
+			for uri := range v.snapshot.files {
+				if fdirStat, err := os.Stat(dir(uri.Filename())); err == nil {
+					if os.SameFile(dirStat, fdirStat) {
+						for _, id := range v.snapshot.ids[uri] {
+							ids[id] = struct{}{}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if len(ids) == 0 {
+		return false
+	}
 
 	// Remove the package and all of its reverse dependencies from the cache.
-	for _, id := range ids {
+	for id := range ids {
 		v.snapshot.reverseDependencies(id, withoutTypes, map[packageID]struct{}{})
 	}
 
 	// Get the original FileHandle for the URI, if it exists.
-	originalFH := v.snapshot.getFile(uri)
+	originalFH := v.snapshot.getFile(f.URI())
+
+	// Make sure to clear out the content if there has been a deletion.
+	if changeType == protocol.Deleted {
+		v.session.clearOverlay(f.URI())
+	}
 
 	// Get the current FileHandle for the URI.
-	currentFH := v.session.GetFile(uri, kind)
+	currentFH := v.session.GetFile(f.URI(), kind)
 
 	// Check if the file's package name or imports have changed,
 	// and if so, invalidate metadata.
@@ -315,25 +351,9 @@ func (v *view) invalidateContent(ctx context.Context, uri span.URI, kind source.
 		// TODO: If a package's name has changed,
 		// we should invalidate the metadata for the new package name (if it exists).
 	}
+	uri := f.URI()
 	v.snapshot = v.snapshot.clone(ctx, &uri, withoutTypes, withoutMetadata)
-}
-
-// invalidateMetadata invalidates package metadata for all files in f's
-// package. This forces f's package's metadata to be reloaded next
-// time the package is checked.
-//
-// TODO: This function shouldn't be necessary.
-// We should be able to handle its use cases more efficiently.
-func (v *view) invalidateMetadata(ctx context.Context, uri span.URI) {
-	v.snapshotMu.Lock()
-	defer v.snapshotMu.Unlock()
-
-	withoutMetadata := make(map[span.URI]struct{})
-
-	for _, id := range v.snapshot.getIDs(uri) {
-		v.snapshot.reverseDependencies(id, withoutMetadata, map[packageID]struct{}{})
-	}
-	v.snapshot = v.snapshot.clone(ctx, nil, withoutMetadata, withoutMetadata)
+	return true
 }
 
 // reverseDependencies populates the uris map with file URIs belonging to the

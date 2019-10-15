@@ -217,7 +217,7 @@ func (s *session) removeView(ctx context.Context, view *view) error {
 }
 
 // TODO: Propagate the language ID through to the view.
-func (s *session) DidOpen(ctx context.Context, uri span.URI, kind source.FileKind, text []byte) {
+func (s *session) DidOpen(ctx context.Context, uri span.URI, kind source.FileKind, text []byte) error {
 	ctx = telemetry.File.With(ctx, uri)
 
 	// Files with _ prefixes are ignored.
@@ -227,7 +227,13 @@ func (s *session) DidOpen(ctx context.Context, uri span.URI, kind source.FileKin
 			view.ignoredURIs[uri] = struct{}{}
 			view.ignoredURIsMu.Unlock()
 		}
-		return
+		return nil
+	}
+
+	// Make sure that the file gets added to the session's file watch map.
+	view := s.bestView(uri)
+	if _, err := view.GetFile(ctx, uri); err != nil {
+		return err
 	}
 
 	// Mark the file as open.
@@ -236,15 +242,7 @@ func (s *session) DidOpen(ctx context.Context, uri span.URI, kind source.FileKin
 	// Read the file on disk and compare it to the text provided.
 	// If it is the same as on disk, we can avoid sending it as an overlay to go/packages.
 	s.openOverlay(ctx, uri, kind, text)
-
-	// Mark the file as just opened so that we know to re-run packages.Load on it.
-	// We do this because we may not be aware of all of the packages the file belongs to.
-	// A file may be in multiple views.
-	for _, view := range s.views {
-		if strings.HasPrefix(string(uri), string(view.Folder())) {
-			view.invalidateMetadata(ctx, uri)
-		}
-	}
+	return nil
 }
 
 func (s *session) DidSave(uri span.URI) {
@@ -277,7 +275,7 @@ func (s *session) SetOverlay(uri span.URI, kind source.FileKind, data []byte) bo
 	s.overlayMu.Lock()
 	defer func() {
 		s.overlayMu.Unlock()
-		s.filesWatchMap.Notify(uri)
+		s.filesWatchMap.Notify(uri, protocol.Changed)
 	}()
 
 	if data == nil {
@@ -299,13 +297,20 @@ func (s *session) SetOverlay(uri span.URI, kind source.FileKind, data []byte) bo
 	return firstChange
 }
 
+func (s *session) clearOverlay(uri span.URI) {
+	s.overlayMu.Lock()
+	defer s.overlayMu.Unlock()
+
+	delete(s.overlays, uri)
+}
+
 // openOverlay adds the file content to the overlay.
 // It also checks if the provided content is equivalent to the file's content on disk.
 func (s *session) openOverlay(ctx context.Context, uri span.URI, kind source.FileKind, data []byte) {
 	s.overlayMu.Lock()
 	defer func() {
 		s.overlayMu.Unlock()
-		s.filesWatchMap.Notify(uri)
+		s.filesWatchMap.Notify(uri, protocol.Created)
 	}()
 	s.overlays[uri] = &overlay{
 		session:   s,
@@ -350,16 +355,8 @@ func (s *session) buildOverlay() map[string][]byte {
 	return overlays
 }
 
-func (s *session) DidChangeOutOfBand(ctx context.Context, uri span.URI, changeType protocol.FileChangeType) {
-	if changeType == protocol.Deleted {
-		// After a deletion we must invalidate the package's metadata to
-		// force a go/packages invocation to refresh the package's file list.
-		views := s.viewsOf(uri)
-		for _, v := range views {
-			v.invalidateMetadata(ctx, uri)
-		}
-	}
-	s.filesWatchMap.Notify(uri)
+func (s *session) DidChangeOutOfBand(ctx context.Context, uri span.URI, changeType protocol.FileChangeType) bool {
+	return s.filesWatchMap.Notify(uri, changeType)
 }
 
 func (o *overlay) FileSystem() source.FileSystem {

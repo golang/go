@@ -164,7 +164,7 @@ type Session interface {
 	FileSystem
 
 	// DidOpen is invoked each time a file is opened in the editor.
-	DidOpen(ctx context.Context, uri span.URI, kind FileKind, text []byte)
+	DidOpen(ctx context.Context, uri span.URI, kind FileKind, text []byte) error
 
 	// DidSave is invoked each time an open file is saved in the editor.
 	DidSave(uri span.URI)
@@ -178,9 +178,9 @@ type Session interface {
 	// Called to set the effective contents of a file from this session.
 	SetOverlay(uri span.URI, kind FileKind, data []byte) (wasFirstChange bool)
 
-	// DidChangeOutOfBand is called when a file under the root folder
-	// changes. The file is not necessarily open in the editor.
-	DidChangeOutOfBand(ctx context.Context, uri span.URI, change protocol.FileChangeType)
+	// DidChangeOutOfBand is called when a file under the root folder changes.
+	// If the file was open in the editor, it returns true.
+	DidChangeOutOfBand(ctx context.Context, uri span.URI, change protocol.FileChangeType) bool
 
 	// Options returns a copy of the SessionOptions for this session.
 	Options() Options

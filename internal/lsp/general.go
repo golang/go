@@ -149,7 +149,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 			RegisterOptions: protocol.DidChangeWatchedFilesRegistrationOptions{
 				Watchers: []protocol.FileSystemWatcher{{
 					GlobPattern: "**/*.go",
-					Kind:        float64(protocol.WatchChange),
+					Kind:        float64(protocol.WatchChange + protocol.WatchDelete + protocol.WatchCreate),
 				}},
 			},
 		})

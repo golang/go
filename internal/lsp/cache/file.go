@@ -31,6 +31,10 @@ type fileBase struct {
 	view *view
 }
 
+func dir(filename string) string {
+	return strings.ToLower(filepath.Dir(filename))
+}
+
 func basename(filename string) string {
 	return strings.ToLower(filepath.Base(filename))
 }

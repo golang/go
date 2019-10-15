@@ -250,7 +250,7 @@ func (imp *importer) Import(pkgPath string) (*types.Package, error) {
 	}
 	cph := imp.snapshot.getPackage(id, source.ParseExported)
 	if cph == nil {
-		return nil, errors.Errorf("no package for %s", id)
+		return nil, errors.Errorf("no cached package for %s", id)
 	}
 	pkg, err := cph.check(ctx)
 	if err != nil {
