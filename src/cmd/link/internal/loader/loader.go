@@ -442,6 +442,51 @@ func (relocs *Relocs) At(j int) Reloc {
 	}
 }
 
+// ReadAll method reads all relocations for a symbol into the
+// specified slice. If the slice capacity is not large enough, a new
+// larger slice will be allocated. Final slice is returned.
+func (relocs *Relocs) ReadAll(dst []Reloc) []Reloc {
+	if relocs.Count == 0 {
+		return dst
+	}
+
+	if cap(dst) < relocs.Count {
+		dst = make([]Reloc, relocs.Count)
+	}
+	dst = dst[:0]
+
+	if relocs.ext != nil {
+		for i := 0; i < relocs.Count; i++ {
+			erel := &relocs.ext.R[i]
+			rel := Reloc{
+				Off:  erel.Off,
+				Size: erel.Siz,
+				Type: erel.Type,
+				Add:  erel.Add,
+				Sym:  relocs.l.Lookup(erel.Sym.Name, int(erel.Sym.Version)),
+			}
+			dst = append(dst, rel)
+		}
+		return dst
+	}
+
+	off := relocs.r.RelocOff(relocs.li, 0)
+	for i := 0; i < relocs.Count; i++ {
+		rel := goobj2.Reloc{}
+		rel.Read(relocs.r.Reader, off)
+		off += uint32(rel.Size())
+		target := relocs.l.resolve(relocs.r, rel.Sym)
+		dst = append(dst, Reloc{
+			Off:  rel.Off,
+			Size: rel.Siz,
+			Type: objabi.RelocType(rel.Type),
+			Add:  rel.Add,
+			Sym:  target,
+		})
+	}
+	return dst
+}
+
 // Relocs returns a Relocs object for the given global sym.
 func (l *Loader) Relocs(i Sym) Relocs {
 	if l.isExternal(i) {
@@ -651,6 +696,7 @@ func loadObjFull(l *Loader, r *oReader) {
 	}
 
 	pcdataBase := r.PcdataBase()
+	rslice := []Reloc{}
 	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
 		osym := goobj2.Sym{}
 		osym.Read(r.Reader, r.SymOff(i))
@@ -692,9 +738,10 @@ func loadObjFull(l *Loader, r *oReader) {
 
 		// Relocs
 		relocs := l.relocs(r, i)
+		rslice = relocs.ReadAll(rslice)
 		s.R = make([]sym.Reloc, relocs.Count)
 		for j := range s.R {
-			r := relocs.At(j)
+			r := rslice[j]
 			rs := r.Sym
 			sz := r.Size
 			rt := r.Type
