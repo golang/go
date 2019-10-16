@@ -133,10 +133,10 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, mode source.P
 	return ah, nil
 }
 
-func (ah *actionHandle) analyze(ctx context.Context) ([]*analysis.Diagnostic, interface{}, error) {
-	v := ah.handle.Get(ctx)
+func (act *actionHandle) analyze(ctx context.Context) ([]*analysis.Diagnostic, interface{}, error) {
+	v := act.handle.Get(ctx)
 	if v == nil {
-		return nil, nil, errors.Errorf("no analyses for %s", ah.pkg.ID())
+		return nil, nil, errors.Errorf("no analyses for %s", act.pkg.ID())
 	}
 	data := v.(*actionData)
 	return data.diagnostics, data.result, data.err

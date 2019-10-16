@@ -20,7 +20,7 @@ func TestMarker(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	const expectNotes = 12
+	const expectNotes = 13
 	expectMarkers := map[string]string{
 		"αSimpleMarker": "α",
 		"OffsetMarker":  "β",
@@ -32,6 +32,7 @@ func TestMarker(t *testing.T) {
 		"Comment":       "ι",
 		"LineComment":   "someFunc",
 		"NonIdentifier": "+",
+		"StringMarker":  "\"hello\"",
 	}
 	expectChecks := map[string][]interface{}{
 		"αSimpleMarker": nil,
@@ -44,7 +45,7 @@ func TestMarker(t *testing.T) {
 	for name, tok := range expectMarkers {
 		offset := bytes.Index(content, []byte(tok))
 		markers[name] = token.Pos(offset + 1)
-		end := bytes.Index(content[offset+1:], []byte(tok))
+		end := bytes.Index(content[offset:], []byte(tok))
 		if end > 0 {
 			markers[name+"@"] = token.Pos(offset + end + 2)
 		}
@@ -129,10 +130,6 @@ func checkMarker(t *testing.T, fset *token.FileSet, readFile expect.ReadFile, ma
 	}
 	if start != expectStart {
 		t.Errorf("%v: Expected %v got %v", fset.Position(pos), fset.Position(expectStart), fset.Position(start))
-	}
-	// Don't check the end for the LineComment test.
-	if name == "LineComment" {
-		return
 	}
 	if expectEnd, ok := markers[name+"@"]; ok && end != expectEnd {
 		t.Errorf("%v: Expected end %v got %v", fset.Position(pos), fset.Position(expectEnd), fset.Position(end))

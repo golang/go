@@ -13,7 +13,7 @@ import (
 
 // DiffDiagnostics prints the diff between expected and actual diagnostics test
 // results.
-func DiffDiagnostics(uri span.URI, want, got []source.Diagnostic) string {
+func DiffDiagnostics(want, got []source.Diagnostic) string {
 	sortDiagnostics(want)
 	sortDiagnostics(got)
 
@@ -25,11 +25,21 @@ func DiffDiagnostics(uri span.URI, want, got []source.Diagnostic) string {
 		if w.Message != g.Message {
 			return summarizeDiagnostics(i, want, got, "incorrect Message got %v want %v", g.Message, w.Message)
 		}
+		if w.Severity != g.Severity {
+			return summarizeDiagnostics(i, want, got, "incorrect Severity got %v want %v", g.Severity, w.Severity)
+		}
+		if w.Source != g.Source {
+			return summarizeDiagnostics(i, want, got, "incorrect Source got %v want %v", g.Source, w.Source)
+		}
+		// Don't check the range on the badimport test.
+		if strings.Contains(string(g.URI), "badimport") {
+			continue
+		}
 		if protocol.ComparePosition(w.Range.Start, g.Range.Start) != 0 {
 			return summarizeDiagnostics(i, want, got, "incorrect Start got %v want %v", g.Range.Start, w.Range.Start)
 		}
 		// Special case for diagnostics on parse errors.
-		if strings.Contains(string(uri), "noparse") {
+		if strings.Contains(string(g.URI), "noparse") {
 			if protocol.ComparePosition(g.Range.Start, g.Range.End) != 0 || protocol.ComparePosition(w.Range.Start, g.Range.End) != 0 {
 				return summarizeDiagnostics(i, want, got, "incorrect End got %v want %v", g.Range.End, w.Range.Start)
 			}
@@ -37,12 +47,6 @@ func DiffDiagnostics(uri span.URI, want, got []source.Diagnostic) string {
 			if protocol.ComparePosition(w.Range.End, g.Range.End) != 0 {
 				return summarizeDiagnostics(i, want, got, "incorrect End got %v want %v", g.Range.End, w.Range.End)
 			}
-		}
-		if w.Severity != g.Severity {
-			return summarizeDiagnostics(i, want, got, "incorrect Severity got %v want %v", g.Severity, w.Severity)
-		}
-		if w.Source != g.Source {
-			return summarizeDiagnostics(i, want, got, "incorrect Source got %v want %v", g.Source, w.Source)
 		}
 	}
 	return ""

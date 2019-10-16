@@ -18,6 +18,7 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/memoize"
+	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/trace"
 	errors "golang.org/x/xerrors"
 )
@@ -107,7 +108,6 @@ func (imp *importer) buildKey(ctx context.Context, id packageID, mode source.Par
 	if m == nil {
 		return nil, errors.Errorf("no metadata for %s", id)
 	}
-
 	phs, err := imp.parseGoHandles(ctx, m, mode)
 	if err != nil {
 		return nil, err
@@ -135,7 +135,12 @@ func (imp *importer) buildKey(ctx context.Context, id packageID, mode source.Par
 	for _, dep := range deps {
 		depHandle, err := depImporter.checkPackageHandle(ctx, dep)
 		if err != nil {
-			return nil, errors.Errorf("no dep handle for %s: %+v", dep, err)
+			log.Error(ctx, "no dep handle", err, telemetry.Package.Of(dep))
+
+			// One bad dependency should not prevent us from checking the entire package.
+			// Add a special key to mark a bad dependency.
+			depKeys = append(depKeys, []byte(fmt.Sprintf("%s import not found", id)))
+			continue
 		}
 		cph.imports[depHandle.m.pkgPath] = depHandle.m.id
 		depKeys = append(depKeys, depHandle.key)

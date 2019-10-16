@@ -88,7 +88,7 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnosti
 		}
 		return
 	}
-	if diff := tests.DiffDiagnostics(uri, want, got); diff != "" {
+	if diff := tests.DiffDiagnostics(want, got); diff != "" {
 		t.Error(diff)
 	}
 }

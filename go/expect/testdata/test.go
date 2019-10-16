@@ -19,6 +19,7 @@ const (
 )
 
 /*Marker ι inside ι a comment*/ //@mark(Comment,"ι inside ")
+var x = "hello"                 //@mark(StringMarker, `"hello"`)
 
 // someFunc is a function. //@mark(LineComment, "someFunc")
 func someFunc(a, b int) int {
