@@ -108,9 +108,7 @@ func (d *deadcodePass2) flood() {
 		symIdx := d.wq.pop()
 
 		d.reflectSeen = d.reflectSeen || d.ldr.IsReflectMethod(symIdx)
-
-		name := d.ldr.RawSymName(symIdx)
-		if strings.HasPrefix(name, "type.") && name[5] != '.' { // TODO: use an attribute instead of checking name
+		if d.ldr.IsGoType(symIdx) {
 			p := d.ldr.Data(symIdx)
 			if len(p) != 0 && decodetypeKind(d.ctxt.Arch, p)&kindMask == kindInterface {
 				for _, sig := range decodeIfaceMethods2(d.ldr, d.ctxt.Arch, symIdx) {

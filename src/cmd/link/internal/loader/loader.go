@@ -364,6 +364,11 @@ func (l *Loader) IsReflectMethod(i Sym) bool {
 	return l.SymAttr(i)&goobj2.SymFlagReflectMethod != 0
 }
 
+// Returns whether this is a Go type symbol.
+func (l *Loader) IsGoType(i Sym) bool {
+	return l.SymAttr(i)&goobj2.SymFlagGoType != 0
+}
+
 // Returns the symbol content of the i-th symbol. i is global index.
 func (l *Loader) Data(i Sym) []byte {
 	if l.isExternal(i) {
