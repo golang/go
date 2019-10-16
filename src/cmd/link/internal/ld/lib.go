@@ -1169,12 +1169,12 @@ func (ctxt *Link) hostlink() {
 
 	switch ctxt.HeadType {
 	case objabi.Hdarwin:
-		argv = append(argv, "-Wl,-headerpad,1144")
+		if !ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
+			// -headerpad is incompatible with -fembed-bitcode.
+			argv = append(argv, "-Wl,-headerpad,1144")
+		}
 		if ctxt.DynlinkingGo() && !ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
 			argv = append(argv, "-Wl,-flat_namespace")
-		}
-		if ctxt.BuildMode == BuildModeExe && !ctxt.Arch.InFamily(sys.ARM64) {
-			argv = append(argv, "-Wl,-no_pie")
 		}
 	case objabi.Hopenbsd:
 		argv = append(argv, "-Wl,-nopie")
@@ -1209,11 +1209,10 @@ func (ctxt *Link) hostlink() {
 	switch ctxt.BuildMode {
 	case BuildModeExe:
 		if ctxt.HeadType == objabi.Hdarwin {
-			if ctxt.Arch.Family == sys.ARM64 {
-				// __PAGEZERO segment size determined empirically.
-				// XCode 9.0.1 successfully uploads an iOS app with this value.
-				argv = append(argv, "-Wl,-pagezero_size,100000000")
-			} else {
+			if ctxt.Arch.Family != sys.ARM64 {
+				argv = append(argv, "-Wl,-no_pie")
+			}
+			if !ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
 				argv = append(argv, "-Wl,-pagezero_size,4000000")
 			}
 		}
