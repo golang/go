@@ -156,7 +156,7 @@ func (e *Exported) getNotes() error {
 			}
 			l, err := expect.Parse(e.ExpectFileSet, filename, content)
 			if err != nil {
-				return fmt.Errorf("Failed to extract expectations: %v", err)
+				return fmt.Errorf("failed to extract expectations: %v", err)
 			}
 			notes = append(notes, l...)
 		}

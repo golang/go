@@ -465,6 +465,10 @@ func runNamedQueries(cfg *Config, driver driver, response *responseDeduper, quer
 		}
 
 		files, err := ioutil.ReadDir(modRoot)
+		if err != nil {
+			panic(err) // See above.
+		}
+
 		for _, f := range files {
 			if strings.HasSuffix(f.Name(), ".go") {
 				simpleMatches = append(simpleMatches, rel)
@@ -532,7 +536,7 @@ func runNamedQueries(cfg *Config, driver driver, response *responseDeduper, quer
 		// We're only trying to look at stuff in the module cache, so
 		// disable the network. This should speed things up, and has
 		// prevented errors in at least one case, #28518.
-		tmpCfg.Env = append(append([]string{"GOPROXY=off"}, cfg.Env...))
+		tmpCfg.Env = append([]string{"GOPROXY=off"}, cfg.Env...)
 
 		var err error
 		tmpCfg.Dir, err = ioutil.TempDir("", "gopackages-modquery")
@@ -580,17 +584,29 @@ func roots(cfg *Config) ([]gopathwalk.Root, string, error) {
 
 	var roots []gopathwalk.Root
 	// Always add GOROOT.
-	roots = append(roots, gopathwalk.Root{filepath.Join(goroot, "/src"), gopathwalk.RootGOROOT})
+	roots = append(roots, gopathwalk.Root{
+		Path: filepath.Join(goroot, "/src"),
+		Type: gopathwalk.RootGOROOT,
+	})
 	// If modules are enabled, scan the module dir.
 	if modDir != "" {
-		roots = append(roots, gopathwalk.Root{modDir, gopathwalk.RootCurrentModule})
+		roots = append(roots, gopathwalk.Root{
+			Path: modDir,
+			Type: gopathwalk.RootCurrentModule,
+		})
 	}
 	// Add either GOPATH/src or GOPATH/pkg/mod, depending on module mode.
 	for _, p := range gopath {
 		if modDir != "" {
-			roots = append(roots, gopathwalk.Root{filepath.Join(p, "/pkg/mod"), gopathwalk.RootModuleCache})
+			roots = append(roots, gopathwalk.Root{
+				Path: filepath.Join(p, "/pkg/mod"),
+				Type: gopathwalk.RootModuleCache,
+			})
 		} else {
-			roots = append(roots, gopathwalk.Root{filepath.Join(p, "/src"), gopathwalk.RootGOPATH})
+			roots = append(roots, gopathwalk.Root{
+				Path: filepath.Join(p, "/src"),
+				Type: gopathwalk.RootGOPATH,
+			})
 		}
 	}
 
@@ -983,7 +999,7 @@ func invokeGo(cfg *Config, args ...string) (*bytes.Buffer, error) {
 			//    (the Graphic characters without spaces) and may also exclude the
 			//    characters !"#$%&'()*,:;<=>?[\]^`{|} and the Unicode replacement character U+FFFD.
 			return unicode.IsOneOf([]*unicode.RangeTable{unicode.L, unicode.M, unicode.N, unicode.P, unicode.S}, r) &&
-				strings.IndexRune("!\"#$%&'()*,:;<=>?[\\]^`{|}\uFFFD", r) == -1
+				!strings.ContainsRune("!\"#$%&'()*,:;<=>?[\\]^`{|}\uFFFD", r)
 		}
 		if len(stderr.String()) > 0 && strings.HasPrefix(stderr.String(), "# ") {
 			if strings.HasPrefix(strings.TrimLeftFunc(stderr.String()[len("# "):], isPkgPathRune), "\n") {

@@ -96,7 +96,7 @@ func testLoadImportsGraph(t *testing.T, exporter packagestest.Exporter) {
 	}
 
 	// Check graph topology.
-	graph, all := importGraph(initial)
+	graph, _ := importGraph(initial)
 	wantGraph := `
   container/list
   golang.org/fake/a
@@ -135,7 +135,7 @@ func testLoadImportsGraph(t *testing.T, exporter packagestest.Exporter) {
 	}
 
 	// Check graph topology.
-	graph, all = importGraph(initial)
+	graph, all := importGraph(initial)
 	wantGraph = `
   container/list
   golang.org/fake/a
@@ -227,7 +227,7 @@ func testLoadImportsGraph(t *testing.T, exporter packagestest.Exporter) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		graph, all = importGraph(initial)
+		graph, _ = importGraph(initial)
 		wantGraph = `
 * golang.org/fake/subdir/d
 * golang.org/fake/subdir/d [golang.org/fake/subdir/d.test]
@@ -1576,11 +1576,11 @@ func testSizes(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
-// TestContains_FallbackSticks ensures that when there are both contains and non-contains queries
+// TestContainsFallbackSticks ensures that when there are both contains and non-contains queries
 // the decision whether to fallback to the pre-1.11 go list sticks across both sets of calls to
 // go list.
-func TestContains_FallbackSticks(t *testing.T) { packagestest.TestAll(t, testContains_FallbackSticks) }
-func testContains_FallbackSticks(t *testing.T, exporter packagestest.Exporter) {
+func TestContainsFallbackSticks(t *testing.T) { packagestest.TestAll(t, testContainsFallbackSticks) }
+func testContainsFallbackSticks(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
 		Files: map[string]interface{}{
@@ -2590,7 +2590,7 @@ func constant(p *packages.Package, name string) *types.Const {
 }
 
 func copyAll(srcPath, dstPath string) error {
-	return filepath.Walk(srcPath, func(path string, info os.FileInfo, err error) error {
+	return filepath.Walk(srcPath, func(path string, info os.FileInfo, _ error) error {
 		if info.IsDir() {
 			return nil
 		}
