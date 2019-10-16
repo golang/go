@@ -15,7 +15,11 @@ import (
 // the data to the current goobj API.
 func (r *objReader) readNew() {
 	start := uint32(r.offset)
-	rr := goobj2.NewReader(r.f, start)
+
+	length := r.limit - r.offset
+	objbytes := make([]byte, length)
+	r.readFull(objbytes)
+	rr := goobj2.NewReaderFromBytes(objbytes, false)
 	if rr == nil {
 		panic("cannot read object file")
 	}
