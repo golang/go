@@ -52,7 +52,6 @@ var (
 	Debug_typecheckinl int
 	Debug_gendwarfinl  int
 	Debug_softfloat    int
-	Debug_defer        int
 )
 
 // Debug arguments.
@@ -82,7 +81,6 @@ var debugtab = []struct {
 	{"typecheckinl", "eager typechecking of inline function bodies", &Debug_typecheckinl},
 	{"dwarfinl", "print information about DWARF inlined function creation", &Debug_gendwarfinl},
 	{"softfloat", "force compiler to emit soft-float code", &Debug_softfloat},
-	{"defer", "print information about defer compilation", &Debug_defer},
 }
 
 const debugHelpHeader = `usage: -d arg[,arg]* and arg is <key>[=<value>]

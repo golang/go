@@ -89,7 +89,7 @@ func BenchmarkDefer(b *testing.B) {
 }
 
 func defer1() {
-	func(x, y, z int) {
+	defer func(x, y, z int) {
 		if recover() != nil || x != 1 || y != 2 || z != 3 {
 			panic("bad recover")
 		}

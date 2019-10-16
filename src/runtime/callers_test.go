@@ -5,7 +5,6 @@
 package runtime_test
 
 import (
-	"internal/race"
 	"reflect"
 	"runtime"
 	"strings"
@@ -13,19 +12,19 @@ import (
 )
 
 func f1(pan bool) []uintptr {
-	return f2(pan) // line 16
+	return f2(pan) // line 15
 }
 
 func f2(pan bool) []uintptr {
-	return f3(pan) // line 20
+	return f3(pan) // line 19
 }
 
 func f3(pan bool) []uintptr {
 	if pan {
-		panic("f3") // line 25
+		panic("f3") // line 24
 	}
 	ret := make([]uintptr, 20)
-	return ret[:runtime.Callers(0, ret)] // line 28
+	return ret[:runtime.Callers(0, ret)] // line 27
 }
 
 func testCallers(t *testing.T, pcs []uintptr, pan bool) {
@@ -49,16 +48,16 @@ func testCallers(t *testing.T, pcs []uintptr, pan bool) {
 
 	var f3Line int
 	if pan {
-		f3Line = 25
+		f3Line = 24
 	} else {
-		f3Line = 28
+		f3Line = 27
 	}
 	want := []struct {
 		name string
 		line int
 	}{
-		{"f1", 16},
-		{"f2", 20},
+		{"f1", 15},
+		{"f2", 19},
 		{"f3", f3Line},
 	}
 	for _, w := range want {
@@ -188,37 +187,4 @@ func TestCallersDivZeroPanic(t *testing.T) {
 	if 5/n == 1 {
 		t.Fatal("did not see divide-by-sizer panic")
 	}
-}
-
-// This test will have a slightly different callstack if non-open-coded defers are
-// called (e.g. if race checks enabled), because of a difference in the way the
-// defer function is invoked.
-func TestCallersDeferNilFuncPanic(t *testing.T) {
-	if race.Enabled {
-		t.Skip("skipping TestCallersDeferNilFuncPanic under race detector")
-	}
-	// Make sure we don't have any extra frames on the stack (due to
-	// open-coded defer processing)
-	state := 1
-	want := []string{"runtime.Callers", "runtime_test.TestCallersDeferNilFuncPanic.func1",
-		"runtime.gopanic", "runtime.panicmem", "runtime.sigpanic",
-		"runtime_test.TestCallersDeferNilFuncPanic"}
-
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("did not panic")
-		}
-		pcs := make([]uintptr, 20)
-		pcs = pcs[:runtime.Callers(0, pcs)]
-		testCallersEqual(t, pcs, want)
-		if state == 1 {
-			t.Fatal("nil defer func panicked at defer time rather than function exit time")
-		}
-
-	}()
-	var f func()
-	defer f()
-	// Use the value of 'state' to make sure nil defer func f causes panic at
-	// function exit, rather than at the defer statement.
-	state = 2
 }

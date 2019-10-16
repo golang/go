@@ -371,7 +371,6 @@ func (e *Escape) stmt(n *Node) {
 		e.stmts(n.Right.Ninit)
 		e.call(e.addrs(n.List), n.Right, nil)
 	case ORETURN:
-		e.curfn.Func.numReturns++
 		results := e.curfn.Type.Results().FieldSlice()
 		for i, v := range n.List.Slice() {
 			e.assign(asNode(results[i].Nname), v, "return", n)
@@ -379,16 +378,6 @@ func (e *Escape) stmt(n *Node) {
 	case OCALLFUNC, OCALLMETH, OCALLINTER, OCLOSE, OCOPY, ODELETE, OPANIC, OPRINT, OPRINTN, ORECOVER:
 		e.call(nil, n, nil)
 	case OGO, ODEFER:
-		if n.Op == ODEFER {
-			e.curfn.Func.SetHasDefer(true)
-			e.curfn.Func.numDefers++
-			if e.curfn.Func.numDefers > maxOpenDefers {
-				// Don't allow open defers if there are more than
-				// 8 defers in the function, since we use a single
-				// byte to record active defers.
-				e.curfn.Func.SetOpenCodedDeferDisallowed(true)
-			}
-		}
 		e.stmts(n.Left.Ninit)
 		e.call(nil, n.Left, n)
 
@@ -883,13 +872,8 @@ func (e *Escape) augmentParamHole(k EscHole, where *Node) EscHole {
 	// non-transient location to avoid arguments from being
 	// transiently allocated.
 	if where.Op == ODEFER && e.loopDepth == 1 {
-		// force stack allocation of defer record, unless open-coded
-		// defers are used (see ssa.go)
-		where.Esc = EscNever
+		where.Esc = EscNever // force stack allocation of defer record (see ssa.go)
 		return e.later(k)
-	} else if where.Op == ODEFER {
-		// If any defer occurs in a loop, open-coded defers cannot be used
-		e.curfn.Func.SetOpenCodedDeferDisallowed(true)
 	}
 
 	return e.heapHole()

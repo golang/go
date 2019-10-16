@@ -491,9 +491,7 @@ type Func struct {
 
 	Pragma syntax.Pragma // go:xxx function annotations
 
-	flags      bitset16
-	numDefers  int // number of defer calls in the function
-	numReturns int // number of explicit returns in the function
+	flags bitset16
 
 	// nwbrCalls records the LSyms of functions called by this
 	// function for go:nowritebarrierrec analysis. Only filled in
@@ -529,37 +527,34 @@ const (
 	funcNeedctxt                  // function uses context register (has closure variables)
 	funcReflectMethod             // function calls reflect.Type.Method or MethodByName
 	funcIsHiddenClosure
-	funcHasDefer                 // contains a defer statement
-	funcNilCheckDisabled         // disable nil checks when compiling this function
-	funcInlinabilityChecked      // inliner has already determined whether the function is inlinable
-	funcExportInline             // include inline body in export data
-	funcInstrumentBody           // add race/msan instrumentation during SSA construction
-	funcOpenCodedDeferDisallowed // can't do open-coded defers
+	funcHasDefer            // contains a defer statement
+	funcNilCheckDisabled    // disable nil checks when compiling this function
+	funcInlinabilityChecked // inliner has already determined whether the function is inlinable
+	funcExportInline        // include inline body in export data
+	funcInstrumentBody      // add race/msan instrumentation during SSA construction
 )
 
-func (f *Func) Dupok() bool                    { return f.flags&funcDupok != 0 }
-func (f *Func) Wrapper() bool                  { return f.flags&funcWrapper != 0 }
-func (f *Func) Needctxt() bool                 { return f.flags&funcNeedctxt != 0 }
-func (f *Func) ReflectMethod() bool            { return f.flags&funcReflectMethod != 0 }
-func (f *Func) IsHiddenClosure() bool          { return f.flags&funcIsHiddenClosure != 0 }
-func (f *Func) HasDefer() bool                 { return f.flags&funcHasDefer != 0 }
-func (f *Func) NilCheckDisabled() bool         { return f.flags&funcNilCheckDisabled != 0 }
-func (f *Func) InlinabilityChecked() bool      { return f.flags&funcInlinabilityChecked != 0 }
-func (f *Func) ExportInline() bool             { return f.flags&funcExportInline != 0 }
-func (f *Func) InstrumentBody() bool           { return f.flags&funcInstrumentBody != 0 }
-func (f *Func) OpenCodedDeferDisallowed() bool { return f.flags&funcOpenCodedDeferDisallowed != 0 }
+func (f *Func) Dupok() bool               { return f.flags&funcDupok != 0 }
+func (f *Func) Wrapper() bool             { return f.flags&funcWrapper != 0 }
+func (f *Func) Needctxt() bool            { return f.flags&funcNeedctxt != 0 }
+func (f *Func) ReflectMethod() bool       { return f.flags&funcReflectMethod != 0 }
+func (f *Func) IsHiddenClosure() bool     { return f.flags&funcIsHiddenClosure != 0 }
+func (f *Func) HasDefer() bool            { return f.flags&funcHasDefer != 0 }
+func (f *Func) NilCheckDisabled() bool    { return f.flags&funcNilCheckDisabled != 0 }
+func (f *Func) InlinabilityChecked() bool { return f.flags&funcInlinabilityChecked != 0 }
+func (f *Func) ExportInline() bool        { return f.flags&funcExportInline != 0 }
+func (f *Func) InstrumentBody() bool      { return f.flags&funcInstrumentBody != 0 }
 
-func (f *Func) SetDupok(b bool)                    { f.flags.set(funcDupok, b) }
-func (f *Func) SetWrapper(b bool)                  { f.flags.set(funcWrapper, b) }
-func (f *Func) SetNeedctxt(b bool)                 { f.flags.set(funcNeedctxt, b) }
-func (f *Func) SetReflectMethod(b bool)            { f.flags.set(funcReflectMethod, b) }
-func (f *Func) SetIsHiddenClosure(b bool)          { f.flags.set(funcIsHiddenClosure, b) }
-func (f *Func) SetHasDefer(b bool)                 { f.flags.set(funcHasDefer, b) }
-func (f *Func) SetNilCheckDisabled(b bool)         { f.flags.set(funcNilCheckDisabled, b) }
-func (f *Func) SetInlinabilityChecked(b bool)      { f.flags.set(funcInlinabilityChecked, b) }
-func (f *Func) SetExportInline(b bool)             { f.flags.set(funcExportInline, b) }
-func (f *Func) SetInstrumentBody(b bool)           { f.flags.set(funcInstrumentBody, b) }
-func (f *Func) SetOpenCodedDeferDisallowed(b bool) { f.flags.set(funcOpenCodedDeferDisallowed, b) }
+func (f *Func) SetDupok(b bool)               { f.flags.set(funcDupok, b) }
+func (f *Func) SetWrapper(b bool)             { f.flags.set(funcWrapper, b) }
+func (f *Func) SetNeedctxt(b bool)            { f.flags.set(funcNeedctxt, b) }
+func (f *Func) SetReflectMethod(b bool)       { f.flags.set(funcReflectMethod, b) }
+func (f *Func) SetIsHiddenClosure(b bool)     { f.flags.set(funcIsHiddenClosure, b) }
+func (f *Func) SetHasDefer(b bool)            { f.flags.set(funcHasDefer, b) }
+func (f *Func) SetNilCheckDisabled(b bool)    { f.flags.set(funcNilCheckDisabled, b) }
+func (f *Func) SetInlinabilityChecked(b bool) { f.flags.set(funcInlinabilityChecked, b) }
+func (f *Func) SetExportInline(b bool)        { f.flags.set(funcExportInline, b) }
+func (f *Func) SetInstrumentBody(b bool)      { f.flags.set(funcInstrumentBody, b) }
 
 func (f *Func) setWBPos(pos src.XPos) {
 	if Debug_wb != 0 {
