@@ -100,6 +100,8 @@ type Loader struct {
 	symsByName map[nameVer]Sym // map symbol name to index
 	overwrite  map[Sym]Sym     // overwrite[i]=j if symbol j overwrites symbol i
 
+	itablink map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
+
 	objByPkg map[string]*oReader // map package path to its Go object reader
 
 	Syms []*sym.Symbol // indexed symbols. XXX we still make sym.Symbol for now.
@@ -114,6 +116,7 @@ func NewLoader() *Loader {
 		symsByName: make(map[nameVer]Sym),
 		objByPkg:   make(map[string]*oReader),
 		overwrite:  make(map[Sym]Sym),
+		itablink:   make(map[Sym]struct{}),
 	}
 }
 
@@ -369,6 +372,14 @@ func (l *Loader) IsGoType(i Sym) bool {
 	return l.SymAttr(i)&goobj2.SymFlagGoType != 0
 }
 
+// Returns whether this is a "go.itablink.*" symbol.
+func (l *Loader) IsItabLink(i Sym) bool {
+	if _, ok := l.itablink[i]; ok {
+		return true
+	}
+	return false
+}
+
 // Returns the symbol content of the i-th symbol. i is global index.
 func (l *Loader) Data(i Sym) []byte {
 	if l.isExternal(i) {
@@ -491,7 +502,10 @@ func (l *Loader) Preload(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *
 		}
 		v := abiToVer(osym.ABI, localSymVersion)
 		dupok := osym.Dupok()
-		l.AddSym(name, v, istart+Sym(i), or, dupok, sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)])
+		added := l.AddSym(name, v, istart+Sym(i), or, dupok, sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)])
+		if added && strings.HasPrefix(name, "go.itablink.") {
+			l.itablink[istart+Sym(i)] = struct{}{}
+		}
 	}
 
 	// The caller expects us consuming all the data
