@@ -329,8 +329,6 @@ var optab = []Optab{
 	{obj.ANOP, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0, 0},
 	{obj.ADUFFZERO, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0, 0}, // same as ABL
 	{obj.ADUFFCOPY, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0, 0}, // same as ABL
-	{ADATABUNDLE, C_NONE, C_NONE, C_NONE, 100, 4, 0, 0, 0, 0},
-	{ADATABUNDLEEND, C_NONE, C_NONE, C_NONE, 100, 0, 0, 0, 0, 0},
 	{obj.AXXX, C_NONE, C_NONE, C_NONE, 0, 4, 0, 0, 0, 0},
 }
 
@@ -434,7 +432,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			}
 		}
 
-		if m == 0 && (p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != ADATABUNDLEEND && p.As != obj.ANOP) {
+		if m == 0 && (p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != obj.ANOP) {
 			ctxt.Diag("zero-width instruction\n%v", p)
 			continue
 		}
@@ -522,7 +520,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if m/4 > len(out) {
 				ctxt.Diag("instruction size too large: %d > %d", m/4, len(out))
 			}
-			if m == 0 && (p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != ADATABUNDLEEND && p.As != obj.ANOP) {
+			if m == 0 && (p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != obj.ANOP) {
 				if p.As == obj.ATEXT {
 					c.autosize = p.To.Offset + 4
 					continue
@@ -615,7 +613,6 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 func (c *ctxt5) checkpool(p *obj.Prog, nextpc int32) bool {
 	poolLast := nextpc
 	poolLast += 4                      // the AB instruction to jump around the pool
-	poolLast += 12                     // the maximum nacl alignment padding for ADATABUNDLE
 	poolLast += int32(c.pool.size) - 4 // the offset of the last pool entry
 
 	refPC := int32(c.pool.start) // PC of the first pool reference
@@ -643,7 +640,7 @@ func (c *ctxt5) flushpool(p *obj.Prog, skip int, force int) bool {
 			q.Link = c.blitrl
 			q.Pos = p.Pos
 			c.blitrl = q
-		} else if force == 0 && (p.Pc+int64(12+c.pool.size)-int64(c.pool.start) < 2048) { // 12 take into account the maximum nacl literal pool alignment padding size
+		} else if force == 0 && (p.Pc+int64(c.pool.size)-int64(c.pool.start) < 2048) {
 			return false
 		}
 
@@ -1424,9 +1421,7 @@ func buildop(ctxt *obj.Link) {
 			obj.AUNDEF,
 			obj.AFUNCDATA,
 			obj.APCDATA,
-			obj.ANOP,
-			ADATABUNDLE,
-			ADATABUNDLEEND:
+			obj.ANOP:
 			break
 		}
 	}
@@ -2480,13 +2475,6 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (uint32(p.From.Reg) & 15) << 8
 		o1 |= (uint32(p.Reg) & 15) << 0
 		o1 |= uint32((p.To.Offset & 15) << 12)
-
-	// DATABUNDLE: BKPT $0x5be0, signify the start of NaCl data bundle;
-	// DATABUNDLEEND: zero width alignment marker
-	case 100:
-		if p.As == ADATABUNDLE {
-			o1 = 0xe125be70
-		}
 
 	case 105: /* divhw r,[r,]r */
 		o1 = c.oprrr(p, p.As, int(p.Scond))
