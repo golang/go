@@ -11,7 +11,6 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"fmt"
-	"strings"
 	"unicode"
 )
 
@@ -226,7 +225,7 @@ func deadcode2(ctxt *Link) {
 		// (When BuildModeShared, always keep itablinks.)
 		for i := 1; i < n; i++ {
 			s := loader.Sym(i)
-			if strings.HasPrefix(ldr.RawSymName(s), "go.itablink.") { // TODO: use an attribute instread of checking name
+			if ldr.IsItabLink(s) {
 				relocs := ldr.Relocs(s)
 				if relocs.Count > 0 && ldr.Reachable.Has(relocs.At(0).Sym) {
 					ldr.Reachable.Set(s)
