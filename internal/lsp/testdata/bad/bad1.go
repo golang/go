@@ -2,10 +2,6 @@
 
 package bad
 
-// import (
-// 	"github.com/bob/pkg" //@diag("\"github.com/bob/pkg\"", "LSP", "unable to import "\"github.com/bob/pkg\"")
-// )
-
 var a unknown //@item(global_a, "a", "unknown", "var"),diag("unknown", "LSP", "undeclared name: unknown")
 
 func random() int { //@item(random, "random", "func() int", "func")

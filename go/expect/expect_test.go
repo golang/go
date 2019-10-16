@@ -20,7 +20,7 @@ func TestMarker(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	const expectNotes = 11
+	const expectNotes = 12
 	expectMarkers := map[string]string{
 		"αSimpleMarker": "α",
 		"OffsetMarker":  "β",
@@ -30,6 +30,7 @@ func TestMarker(t *testing.T) {
 		"ηBlockMarker":  "η",
 		"Declared":      "η",
 		"Comment":       "ι",
+		"LineComment":   "someFunc",
 		"NonIdentifier": "+",
 	}
 	expectChecks := map[string][]interface{}{
@@ -128,6 +129,10 @@ func checkMarker(t *testing.T, fset *token.FileSet, readFile expect.ReadFile, ma
 	}
 	if start != expectStart {
 		t.Errorf("%v: Expected %v got %v", fset.Position(pos), fset.Position(expectStart), fset.Position(start))
+	}
+	// Don't check the end for the LineComment test.
+	if name == "LineComment" {
+		return
 	}
 	if expectEnd, ok := markers[name+"@"]; ok && end != expectEnd {
 		t.Errorf("%v: Expected end %v got %v", fset.Position(pos), fset.Position(expectEnd), fset.Position(end))

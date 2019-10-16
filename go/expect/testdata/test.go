@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package fake1 is used to test the expect package.
 package fake1
 
 // The greek letters in this file mark points we use for marker tests.
@@ -19,6 +20,7 @@ const (
 
 /*Marker ι inside ι a comment*/ //@mark(Comment,"ι inside ")
 
+// someFunc is a function. //@mark(LineComment, "someFunc")
 func someFunc(a, b int) int {
 	// The line below must be the first occurrence of the plus operator
 	return a + b + 1 //@mark(NonIdentifier, re`\+[^\+]*`)
