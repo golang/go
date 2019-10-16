@@ -35,6 +35,8 @@ type Relocs struct {
 	li int      // local index of symbol whose relocs we're examining
 	r  *oReader // object reader for containing package
 	l  *Loader  // loader
+
+	ext *sym.Symbol // external symbol if not nil
 }
 
 // Reloc contains the payload for a specific relocation.
@@ -184,7 +186,22 @@ func (l *Loader) AddExtSym(name string, ver int) Sym {
 		l.extStart = i
 	}
 	l.extSyms = append(l.extSyms, nv)
+	l.growSyms(int(i))
 	return i
+}
+
+// Returns whether i is an external symbol.
+func (l *Loader) isExternal(i Sym) bool {
+	return l.extStart != 0 && i >= l.extStart
+}
+
+// Ensure Syms slice als enough space.
+func (l *Loader) growSyms(i int) {
+	n := len(l.Syms)
+	if n > i {
+		return
+	}
+	l.Syms = append(l.Syms, make([]*sym.Symbol, i+1-n)...)
 }
 
 // Convert a local index to a global index.
@@ -201,7 +218,7 @@ func (l *Loader) toLocal(i Sym) (*oReader, int) {
 	if ov, ok := l.overwrite[i]; ok {
 		i = ov
 	}
-	if l.extStart != 0 && i >= l.extStart {
+	if l.isExternal(i) {
 		return nil, int(i - l.extStart)
 	}
 	// Search for the local object holding index i.
@@ -254,14 +271,45 @@ func (l *Loader) Lookup(name string, ver int) Sym {
 	return l.symsByName[nv]
 }
 
+// Returns whether i is a dup of another symbol, and i is not
+// "primary", i.e. Lookup i by name will not return i.
+func (l *Loader) IsDup(i Sym) bool {
+	if _, ok := l.overwrite[i]; ok {
+		return true
+	}
+	if l.isExternal(i) {
+		return false
+	}
+	r, li := l.toLocal(i)
+	osym := goobj2.Sym{}
+	osym.Read(r.Reader, r.SymOff(li))
+	if !osym.Dupok() {
+		return false
+	}
+	if osym.Name == "" {
+		return false
+	}
+	name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
+	ver := abiToVer(osym.ABI, r.version)
+	return l.symsByName[nameVer{name, ver}] != i
+}
+
 // Number of total symbols.
 func (l *Loader) NSym() int {
 	return int(l.max + 1)
 }
 
+// Number of defined Go symbols.
+func (l *Loader) NDef() int {
+	return int(l.extStart)
+}
+
 // Returns the raw (unpatched) name of the i-th symbol.
 func (l *Loader) RawSymName(i Sym) string {
-	if l.extStart != 0 && i >= l.extStart {
+	if l.isExternal(i) {
+		if s := l.Syms[i]; s != nil {
+			return s.Name
+		}
 		return ""
 	}
 	r, li := l.toLocal(i)
@@ -272,7 +320,10 @@ func (l *Loader) RawSymName(i Sym) string {
 
 // Returns the (patched) name of the i-th symbol.
 func (l *Loader) SymName(i Sym) string {
-	if l.extStart != 0 && i >= l.extStart {
+	if l.isExternal(i) {
+		if s := l.Syms[i]; s != nil {
+			return s.Name // external name should already be patched?
+		}
 		return ""
 	}
 	r, li := l.toLocal(i)
@@ -283,7 +334,10 @@ func (l *Loader) SymName(i Sym) string {
 
 // Returns the type of the i-th symbol.
 func (l *Loader) SymType(i Sym) sym.SymKind {
-	if l.extStart != 0 && i >= l.extStart {
+	if l.isExternal(i) {
+		if s := l.Syms[i]; s != nil {
+			return s.Type
+		}
 		return 0
 	}
 	r, li := l.toLocal(i)
@@ -294,7 +348,8 @@ func (l *Loader) SymType(i Sym) sym.SymKind {
 
 // Returns the attributes of the i-th symbol.
 func (l *Loader) SymAttr(i Sym) uint8 {
-	if l.extStart != 0 && i >= l.extStart {
+	if l.isExternal(i) {
+		// TODO: do something? External symbols have different representation of attributes. For now, ReflectMethod is the only thing matters and it cannot be set by external symbol.
 		return 0
 	}
 	r, li := l.toLocal(i)
@@ -310,7 +365,10 @@ func (l *Loader) IsReflectMethod(i Sym) bool {
 
 // Returns the symbol content of the i-th symbol. i is global index.
 func (l *Loader) Data(i Sym) []byte {
-	if l.extStart != 0 && i >= l.extStart {
+	if l.isExternal(i) {
+		if s := l.Syms[i]; s != nil {
+			return s.P
+		}
 		return nil
 	}
 	r, li := l.toLocal(i)
@@ -319,7 +377,7 @@ func (l *Loader) Data(i Sym) []byte {
 
 // Returns the number of aux symbols given a global index.
 func (l *Loader) NAux(i Sym) int {
-	if l.extStart != 0 && i >= l.extStart {
+	if l.isExternal(i) {
 		return 0
 	}
 	r, li := l.toLocal(i)
@@ -329,7 +387,7 @@ func (l *Loader) NAux(i Sym) int {
 // Returns the referred symbol of the j-th aux symbol of the i-th
 // symbol.
 func (l *Loader) AuxSym(i Sym, j int) Sym {
-	if l.extStart != 0 && i >= l.extStart {
+	if l.isExternal(i) {
 		return 0
 	}
 	r, li := l.toLocal(i)
@@ -345,6 +403,16 @@ func (l *Loader) InitReachable() {
 
 // At method returns the j-th reloc for a global symbol.
 func (relocs *Relocs) At(j int) Reloc {
+	if relocs.ext != nil {
+		rel := &relocs.ext.R[j]
+		return Reloc{
+			Off:  rel.Off,
+			Size: rel.Siz,
+			Type: rel.Type,
+			Add:  rel.Add,
+			Sym:  relocs.l.Lookup(rel.Sym.Name, int(rel.Sym.Version)),
+		}
+	}
 	rel := goobj2.Reloc{}
 	rel.Read(relocs.r.Reader, relocs.r.RelocOff(relocs.li, j))
 	target := relocs.l.resolve(relocs.r, rel.Sym)
@@ -359,7 +427,10 @@ func (relocs *Relocs) At(j int) Reloc {
 
 // Relocs returns a Relocs object for the given global sym.
 func (l *Loader) Relocs(i Sym) Relocs {
-	if l.extStart != 0 && i >= l.extStart {
+	if l.isExternal(i) {
+		if s := l.Syms[i]; s != nil {
+			return Relocs{Count: len(s.R), l: l, ext: s}
+		}
 		return Relocs{}
 	}
 	r, li := l.toLocal(i)
@@ -479,13 +550,17 @@ func preprocess(arch *sys.Arch, s *sym.Symbol) {
 // Load full contents.
 func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 	// create all Symbols first.
-	l.Syms = make([]*sym.Symbol, l.NSym())
+	l.growSyms(l.NSym())
 	for _, o := range l.objs[1:] {
 		loadObjSyms(l, syms, o.r)
 	}
 
 	// external symbols
 	for i := l.extStart; i <= l.max; i++ {
+		if s := l.Syms[i]; s != nil {
+			s.Attr.Set(sym.AttrReachable, l.Reachable.Has(i))
+			continue // already loaded from external object
+		}
 		nv := l.extSyms[i-l.extStart]
 		if l.Reachable.Has(i) || strings.HasPrefix(nv.name, "gofile..") { // XXX file symbols are used but not marked
 			s := syms.Newsym(nv.name, nv.v)
@@ -780,5 +855,31 @@ func patchDWARFName(s *sym.Symbol, r *oReader) {
 		if r.Off > int32(e) {
 			r.Off += int32(delta)
 		}
+	}
+}
+
+// For debugging.
+func (l *Loader) Dump() {
+	fmt.Println("objs")
+	for _, obj := range l.objs {
+		if obj.r != nil {
+			fmt.Println(obj.i, obj.r.unit.Lib)
+		}
+	}
+	fmt.Println("syms")
+	for i, s := range l.Syms {
+		if i == 0 {
+			continue
+		}
+		if s != nil {
+			fmt.Println(i, s, s.Type)
+		} else {
+			fmt.Println(i, l.SymName(Sym(i)), "<not loaded>")
+		}
+	}
+	fmt.Println("overwrite:", l.overwrite)
+	fmt.Println("symsByName")
+	for nv, i := range l.symsByName {
+		fmt.Println(i, nv.name, nv.v)
 	}
 }

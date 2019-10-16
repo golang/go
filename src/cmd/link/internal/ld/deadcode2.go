@@ -18,9 +18,6 @@ import (
 var _ = fmt.Print
 
 // TODO:
-// - Shared object support:
-//   It basically marks everything. We could consider using
-//   a different mechanism to represent it.
 // - Field tracking support:
 //   It needs to record from where the symbol is referenced.
 // - Debug output:
@@ -45,6 +42,19 @@ type deadcodePass2 struct {
 func (d *deadcodePass2) init() {
 	d.ldr.InitReachable()
 	d.ifaceMethod = make(map[methodsig]bool)
+
+	if d.ctxt.BuildMode == BuildModeShared {
+		// Mark all symbols defined in this library as reachable when
+		// building a shared library.
+		n := d.ldr.NDef()
+		for i := 1; i < n; i++ {
+			s := loader.Sym(i)
+			if !d.ldr.IsDup(s) {
+				d.mark(s)
+			}
+		}
+		return
+	}
 
 	var names []string
 
