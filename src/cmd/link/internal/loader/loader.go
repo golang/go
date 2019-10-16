@@ -56,7 +56,8 @@ type Reloc struct {
 type oReader struct {
 	*goobj2.Reader
 	unit      *sym.CompilationUnit
-	version   int // version of static symbol
+	version   int    // version of static symbol
+	flags     uint32 // read from object file
 	pkgprefix string
 }
 
@@ -460,7 +461,7 @@ func (l *Loader) Preload(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *
 	}
 	localSymVersion := syms.IncVersion()
 	pkgprefix := objabi.PathToPrefix(lib.Pkg) + "."
-	or := &oReader{r, unit, localSymVersion, pkgprefix}
+	or := &oReader{r, unit, localSymVersion, r.Flags(), pkgprefix}
 
 	// Autolib
 	lib.ImportStrings = append(lib.ImportStrings, r.Autolib()...)
@@ -770,7 +771,7 @@ func loadObjFull(l *Loader, r *oReader) {
 		if osym.ReflectMethod() {
 			s.Attr |= sym.AttrReflectMethod
 		}
-		if osym.Shared() {
+		if r.Flags()&goobj2.ObjFlagShared != 0 {
 			s.Attr |= sym.AttrShared
 		}
 		if osym.TopFrame() {
