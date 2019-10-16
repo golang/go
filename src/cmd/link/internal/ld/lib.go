@@ -433,6 +433,15 @@ func (ctxt *Link) loadlib() {
 		}
 	}
 
+	for _, lib := range ctxt.Library {
+		if lib.Shlib != "" {
+			if ctxt.Debugvlog > 1 {
+				ctxt.Logf("%5.2f autolib: %s (from %s)\n", Cputime(), lib.Shlib, lib.Objref)
+			}
+			ldshlibsyms(ctxt, lib.Shlib)
+		}
+	}
+
 	if *flagNewobj {
 		// Add references of externally defined symbols.
 		ctxt.loader.LoadRefs(ctxt.Arch, ctxt.Syms)
@@ -441,15 +450,6 @@ func (ctxt *Link) loadlib() {
 	// Now that we know the link mode, set the dynexp list.
 	if !*flagNewobj { // set this later in newobj mode
 		setupdynexp(ctxt)
-	}
-
-	for _, lib := range ctxt.Library {
-		if lib.Shlib != "" {
-			if ctxt.Debugvlog > 1 {
-				ctxt.Logf("%5.2f autolib: %s (from %s)\n", Cputime(), lib.Shlib, lib.Objref)
-			}
-			ldshlibsyms(ctxt, lib.Shlib)
-		}
 	}
 
 	// In internal link mode, read the host object files.
@@ -1931,7 +1931,17 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 			ver = sym.SymVerABIInternal
 		}
 
-		lsym := ctxt.Syms.Lookup(elfsym.Name, ver)
+		var lsym *sym.Symbol
+		if *flagNewobj {
+			i := ctxt.loader.AddExtSym(elfsym.Name, ver)
+			if i == 0 {
+				continue
+			}
+			lsym = ctxt.Syms.Newsym(elfsym.Name, ver)
+			ctxt.loader.Syms[i] = lsym
+		} else {
+			lsym = ctxt.Syms.Lookup(elfsym.Name, ver)
+		}
 		// Because loadlib above loads all .a files before loading any shared
 		// libraries, any non-dynimport symbols we find that duplicate symbols
 		// already loaded should be ignored (the symbols from the .a files
@@ -1960,7 +1970,17 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		// mangle Go function names in the .so to include the
 		// ABI.
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
-			alias := ctxt.Syms.Lookup(elfsym.Name, sym.SymVerABIInternal)
+			var alias *sym.Symbol
+			if *flagNewobj {
+				i := ctxt.loader.AddExtSym(elfsym.Name, sym.SymVerABIInternal)
+				if i == 0 {
+					continue
+				}
+				alias = ctxt.Syms.Newsym(elfsym.Name, sym.SymVerABIInternal)
+				ctxt.loader.Syms[i] = alias
+			} else {
+				alias = ctxt.Syms.Lookup(elfsym.Name, sym.SymVerABIInternal)
+			}
 			if alias.Type != 0 {
 				continue
 			}
