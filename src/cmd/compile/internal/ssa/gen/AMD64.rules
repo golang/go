@@ -226,9 +226,6 @@
 (NeqPtr x y) && config.PtrSize == 4 -> (SETNE (CMPL x y))
 (Neq(32|64)F x y) -> (SETNEF (UCOMIS(S|D) x y))
 
-(Int64Hi x) -> (SHRQconst [32] x)         // needed for amd64p32
-(Int64Lo x) -> x
-
 // Lowering loads
 (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t) && config.PtrSize == 8) -> (MOVQload ptr mem)
 (Load <t> ptr mem) && (is32BitInt(t) || isPtr(t) && config.PtrSize == 4) -> (MOVLload ptr mem)
