@@ -63,6 +63,8 @@ var regNamesAMD64 = []string{
 	"X14",
 	"X15",
 
+	// If you add registers, update asyncPreempt in runtime
+
 	// pseudo-registers
 	"SB",
 }

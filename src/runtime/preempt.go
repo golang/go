@@ -232,3 +232,18 @@ func resumeG(state suspendGState) {
 func canPreemptM(mp *m) bool {
 	return mp.locks == 0 && mp.mallocing == 0 && mp.preemptoff == "" && mp.p.ptr().status == _Prunning
 }
+
+//go:generate go run mkpreempt.go
+
+// asyncPreempt saves all user registers and calls asyncPreempt2.
+//
+// When stack scanning encounters an asyncPreempt frame, it scans that
+// frame and its parent frame conservatively.
+//
+// asyncPreempt is implemented in assembly.
+func asyncPreempt()
+
+//go:nosplit
+func asyncPreempt2() {
+	// TODO: Enter scheduler
+}
