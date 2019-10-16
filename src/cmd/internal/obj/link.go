@@ -405,11 +405,10 @@ type FuncInfo struct {
 	dwarfAbsFnSym      *LSym
 	dwarfDebugLinesSym *LSym
 
-	GCArgs             *LSym
-	GCLocals           *LSym
-	GCRegs             *LSym
-	StackObjects       *LSym
-	OpenCodedDeferInfo *LSym
+	GCArgs       *LSym
+	GCLocals     *LSym
+	GCRegs       *LSym
+	StackObjects *LSym
 }
 
 type InlMark struct {

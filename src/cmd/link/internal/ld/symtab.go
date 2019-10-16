@@ -498,8 +498,7 @@ func (ctxt *Link) symtab() {
 		case strings.HasPrefix(s.Name, "gcargs."),
 			strings.HasPrefix(s.Name, "gclocals."),
 			strings.HasPrefix(s.Name, "gclocals·"),
-			strings.HasPrefix(s.Name, "inltree."),
-			strings.HasSuffix(s.Name, ".opendefer"):
+			strings.HasPrefix(s.Name, "inltree."):
 			s.Type = sym.SGOFUNC
 			s.Attr |= sym.AttrNotInSymbolTable
 			s.Outer = symgofunc

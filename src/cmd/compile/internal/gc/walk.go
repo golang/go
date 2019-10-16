@@ -213,6 +213,7 @@ func walkstmt(n *Node) *Node {
 		yyerror("case statement out of place")
 
 	case ODEFER:
+		Curfn.Func.SetHasDefer(true)
 		fallthrough
 	case OGO:
 		switch n.Left.Op {
