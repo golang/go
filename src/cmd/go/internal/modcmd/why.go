@@ -5,12 +5,14 @@
 package modcmd
 
 import (
-	"cmd/go/internal/base"
-	"cmd/go/internal/modload"
-	"cmd/go/internal/module"
-	"cmd/go/internal/work"
 	"fmt"
 	"strings"
+
+	"cmd/go/internal/base"
+	"cmd/go/internal/modload"
+	"cmd/go/internal/work"
+
+	"golang.org/x/mod/module"
 )
 
 var cmdWhy = &base.Command{

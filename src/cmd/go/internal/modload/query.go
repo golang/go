@@ -14,10 +14,11 @@ import (
 
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modfetch"
-	"cmd/go/internal/module"
 	"cmd/go/internal/search"
-	"cmd/go/internal/semver"
 	"cmd/go/internal/str"
+
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 )
 
 // Query looks up a revision of a given module given a version query string.

@@ -7,8 +7,8 @@ package modconv
 import (
 	"encoding/json"
 
-	"cmd/go/internal/modfile"
-	"cmd/go/internal/module"
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 )
 
 func ParseVendorJSON(file string, data []byte) (*modfile.File, error) {

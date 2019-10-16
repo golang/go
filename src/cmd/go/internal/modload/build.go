@@ -6,13 +6,6 @@ package modload
 
 import (
 	"bytes"
-	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
-	"cmd/go/internal/modfetch"
-	"cmd/go/internal/modinfo"
-	"cmd/go/internal/module"
-	"cmd/go/internal/search"
-	"cmd/go/internal/semver"
 	"encoding/hex"
 	"fmt"
 	"internal/goroot"
@@ -20,6 +13,15 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"strings"
+
+	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/modfetch"
+	"cmd/go/internal/modinfo"
+	"cmd/go/internal/search"
+
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 )
 
 var (

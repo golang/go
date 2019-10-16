@@ -6,17 +6,18 @@ package modcmd
 
 import (
 	"bytes"
-	"cmd/go/internal/cfg"
 	"fmt"
 	"io/ioutil"
 	"os"
 
 	"cmd/go/internal/base"
-	"cmd/go/internal/dirhash"
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/module"
 	"cmd/go/internal/work"
+
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/sumdb/dirhash"
 )
 
 var cmdVerify = &base.Command{

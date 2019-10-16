@@ -18,9 +18,10 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/module"
-	"cmd/go/internal/semver"
 	"cmd/go/internal/work"
+
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 )
 
 var cmdVendor = &base.Command{

@@ -24,11 +24,11 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/get"
 	"cmd/go/internal/lockedfile"
-	"cmd/go/internal/module"
-	"cmd/go/internal/note"
 	"cmd/go/internal/str"
-	"cmd/go/internal/sumdb"
 	"cmd/go/internal/web"
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/sumdb"
+	"golang.org/x/mod/sumdb/note"
 )
 
 // useSumDB reports whether to use the Go checksum database for the given module.
