@@ -205,6 +205,7 @@ const (
 	SymFlagLeaf
 	SymFlagCFunc
 	SymFlagReflectMethod
+	SymFlagGoType
 	SymFlagTopFrame
 )
 
@@ -234,6 +235,7 @@ func (s *Sym) Typelink() bool      { return s.Flag&SymFlagTypelink != 0 }
 func (s *Sym) Leaf() bool          { return s.Flag&SymFlagLeaf != 0 }
 func (s *Sym) CFunc() bool         { return s.Flag&SymFlagCFunc != 0 }
 func (s *Sym) ReflectMethod() bool { return s.Flag&SymFlagReflectMethod != 0 }
+func (s *Sym) IsGoType() bool      { return s.Flag&SymFlagGoType != 0 }
 func (s *Sym) TopFrame() bool      { return s.Flag&SymFlagTopFrame != 0 }
 
 // Symbol reference.
