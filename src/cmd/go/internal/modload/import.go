@@ -18,11 +18,12 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modfetch"
-	"cmd/go/internal/module"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
-	"cmd/go/internal/semver"
 	"cmd/go/internal/str"
+
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 )
 
 type ImportMissingError struct {

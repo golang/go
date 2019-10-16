@@ -8,15 +8,16 @@ package modcmd
 
 import (
 	"bufio"
-	"cmd/go/internal/cfg"
 	"os"
 	"sort"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/module"
 	"cmd/go/internal/par"
 	"cmd/go/internal/work"
+
+	"golang.org/x/mod/module"
 )
 
 var cmdGraph = &base.Command{

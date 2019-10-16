@@ -22,8 +22,9 @@ import (
 
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/par"
-	"cmd/go/internal/semver"
 	"cmd/go/internal/web"
+
+	"golang.org/x/mod/semver"
 )
 
 // GitRepo returns the code repository at the given Git remote reference.

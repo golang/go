@@ -23,14 +23,15 @@ import (
 	"sync"
 	"testing"
 
-	"cmd/go/internal/dirhash"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modfetch/codehost"
-	"cmd/go/internal/module"
 	"cmd/go/internal/par"
-	"cmd/go/internal/semver"
-	"cmd/go/internal/sumdb"
 	"cmd/go/internal/txtar"
+
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
+	"golang.org/x/mod/sumdb"
+	"golang.org/x/mod/sumdb/dirhash"
 )
 
 var (

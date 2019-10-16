@@ -14,8 +14,9 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/module"
 	"cmd/go/internal/work"
+
+	"golang.org/x/mod/module"
 )
 
 var cmdTidy = &base.Command{

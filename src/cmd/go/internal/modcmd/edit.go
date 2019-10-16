@@ -16,10 +16,11 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/modfetch"
-	"cmd/go/internal/modfile"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/module"
 	"cmd/go/internal/work"
+
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 )
 
 var cmdEdit = &base.Command{
