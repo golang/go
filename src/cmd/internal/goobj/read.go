@@ -502,12 +502,15 @@ func (r *objReader) parseObject(prefix []byte) error {
 	}
 	// TODO: extract OS + build ID if/when we need it
 
-	r.readFull(r.tmp[:8])
-	if bytes.Equal(r.tmp[:8], []byte("\x00go114LD")) {
-		r.offset -= 8
+	p, err := r.peek(8)
+	if err != nil {
+		return err
+	}
+	if bytes.Equal(p, []byte("\x00go114LD")) {
 		r.readNew()
 		return nil
 	}
+	r.readFull(r.tmp[:8])
 	if !bytes.Equal(r.tmp[:8], []byte("\x00go114ld")) {
 		return r.error(errCorruptObject)
 	}
