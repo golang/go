@@ -35,7 +35,11 @@ func WriteObjFile2(ctxt *Link, b *bio.Writer, pkgpath string) {
 
 	// Header
 	// We just reserve the space. We'll fill in the offsets later.
-	h := goobj2.Header{Magic: goobj2.Magic}
+	flags := uint32(0)
+	if ctxt.Flag_shared {
+		flags |= goobj2.ObjFlagShared
+	}
+	h := goobj2.Header{Magic: goobj2.Magic, Flags: flags}
 	h.Write(w.Writer)
 
 	// String table
@@ -230,9 +234,6 @@ func (w *writer) Sym(s *LSym) {
 	}
 	if s.ReflectMethod() {
 		flag |= goobj2.SymFlagReflectMethod
-	}
-	if w.ctxt.Flag_shared { // This is really silly
-		flag |= goobj2.SymFlagShared
 	}
 	if s.TopFrame() {
 		flag |= goobj2.SymFlagTopFrame

@@ -20,6 +20,7 @@ import (
 //
 //    Header struct {
 //       Magic   [...]byte   // "\x00go114LD"
+//       Flags   uint32
 //       // TODO: Fingerprint
 //       Offsets [...]uint32 // byte offset of each block below
 //    }
@@ -148,6 +149,7 @@ const (
 // TODO: probably no need to export this.
 type Header struct {
 	Magic   string
+	Flags   uint32
 	Offsets [NBlk]uint32
 }
 
@@ -155,6 +157,7 @@ const Magic = "\x00go114LD"
 
 func (h *Header) Write(w *Writer) {
 	w.RawString(h.Magic)
+	w.Uint32(h.Flags)
 	for _, x := range h.Offsets {
 		w.Uint32(x)
 	}
@@ -167,6 +170,8 @@ func (h *Header) Read(r *Reader) error {
 		return errors.New("wrong magic, not a Go object file")
 	}
 	off := uint32(len(h.Magic))
+	h.Flags = r.uint32At(off)
+	off += 4
 	for i := range h.Offsets {
 		h.Offsets[i] = r.uint32At(off)
 		off += 4
@@ -175,7 +180,7 @@ func (h *Header) Read(r *Reader) error {
 }
 
 func (h *Header) Size() int {
-	return len(h.Magic) + 4*len(h.Offsets)
+	return len(h.Magic) + 4 + 4*len(h.Offsets)
 }
 
 // Symbol definition.
@@ -190,13 +195,16 @@ type Sym struct {
 const SymABIstatic = ^uint16(0)
 
 const (
+	ObjFlagShared = 1 << iota
+)
+
+const (
 	SymFlagDupok = 1 << iota
 	SymFlagLocal
 	SymFlagTypelink
 	SymFlagLeaf
 	SymFlagCFunc
 	SymFlagReflectMethod
-	SymFlagShared // This is really silly
 	SymFlagTopFrame
 )
 
@@ -226,7 +234,6 @@ func (s *Sym) Typelink() bool      { return s.Flag&SymFlagTypelink != 0 }
 func (s *Sym) Leaf() bool          { return s.Flag&SymFlagLeaf != 0 }
 func (s *Sym) CFunc() bool         { return s.Flag&SymFlagCFunc != 0 }
 func (s *Sym) ReflectMethod() bool { return s.Flag&SymFlagReflectMethod != 0 }
-func (s *Sym) Shared() bool        { return s.Flag&SymFlagShared != 0 }
 func (s *Sym) TopFrame() bool      { return s.Flag&SymFlagTopFrame != 0 }
 
 // Symbol reference.
@@ -595,4 +602,9 @@ func (r *Reader) PcdataBase() uint32 {
 // ReadOnly returns whether r.BytesAt returns read-only bytes.
 func (r *Reader) ReadOnly() bool {
 	return r.readonly
+}
+
+// Flags returns the flag bits read from the object file header.
+func (r *Reader) Flags() uint32 {
+	return r.h.Flags
 }
