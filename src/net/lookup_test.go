@@ -972,10 +972,11 @@ func (lcr *lookupCustomResolver) dial() func(ctx context.Context, network, addre
 // TestConcurrentPreferGoResolversDial tests that multiple resolvers with the
 // PreferGo option used concurrently are all dialed properly.
 func TestConcurrentPreferGoResolversDial(t *testing.T) {
-	// The windows implementation of the resolver does not use the Dial
-	// function.
-	if runtime.GOOS == "windows" {
-		t.Skip("skip on windows")
+	// The windows and plan9 implementation of the resolver does not use
+	// the Dial function.
+	switch runtime.GOOS {
+	case "windows", "plan9":
+		t.Skipf("skip on %v", runtime.GOOS)
 	}
 
 	testenv.MustHaveExternalNetwork(t)
