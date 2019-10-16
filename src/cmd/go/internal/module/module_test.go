@@ -318,3 +318,26 @@ func TestUnescapePath(t *testing.T) {
 		}
 	}
 }
+
+func TestMatchPathMajor(t *testing.T) {
+	for _, test := range []struct {
+		v, pathMajor string
+		want         bool
+	}{
+		{"v0.0.0", "", true},
+		{"v0.0.0", "/v2", false},
+		{"v0.0.0", ".v0", true},
+		{"v0.0.0-20190510104115-cbcb75029529", ".v1", true},
+		{"v1.0.0", "/v2", false},
+		{"v1.0.0", ".v1", true},
+		{"v1.0.0", ".v1-unstable", true},
+		{"v2.0.0+incompatible", "", true},
+		{"v2.0.0", "", false},
+		{"v2.0.0", "/v2", true},
+		{"v2.0.0", ".v2", true},
+	} {
+		if got := MatchPathMajor(test.v, test.pathMajor); got != test.want {
+			t.Errorf("MatchPathMajor(%q, %q) = %v, want %v", test.v, test.pathMajor, got, test.want)
+		}
+	}
+}

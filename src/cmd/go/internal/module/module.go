@@ -503,14 +503,17 @@ func splitGopkgIn(path string) (prefix, pathMajor string, ok bool) {
 // MatchPathMajor reports whether the semantic version v
 // matches the path major version pathMajor.
 //
-// MatchPathMajor returns true if and only if CheckPathMajor returns non-nil.
+// MatchPathMajor returns true if and only if CheckPathMajor returns nil.
 func MatchPathMajor(v, pathMajor string) bool {
-	return CheckPathMajor(v, pathMajor) != nil
+	return CheckPathMajor(v, pathMajor) == nil
 }
 
 // CheckPathMajor returns a non-nil error if the semantic version v
 // does not match the path major version pathMajor.
 func CheckPathMajor(v, pathMajor string) error {
+	// TODO(jayconrod): return errors or panic for invalid inputs. This function
+	// (and others) was covered by integration tests for cmd/go, and surrounding
+	// code protected against invalid inputs like non-canonical versions.
 	if strings.HasPrefix(pathMajor, ".v") && strings.HasSuffix(pathMajor, "-unstable") {
 		pathMajor = strings.TrimSuffix(pathMajor, "-unstable")
 	}
