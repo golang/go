@@ -443,6 +443,10 @@ func (ctxt *Link) loadlib() {
 		}
 	}
 
+	// Conditionally load host objects, or setup for external linking.
+	hostobjs(ctxt)
+	hostlinksetup(ctxt)
+
 	if *flagNewobj {
 		// Add references of externally defined symbols.
 		ctxt.loader.LoadRefs(ctxt.Arch, ctxt.Syms)
@@ -453,7 +457,6 @@ func (ctxt *Link) loadlib() {
 		setupdynexp(ctxt)
 	}
 
-	// In internal link mode, read the host object files.
 	if ctxt.LinkMode == LinkInternal && len(hostobj) != 0 {
 		// Drop all the cgo_import_static declarations.
 		// Turns out we won't be needing them.
@@ -470,8 +473,6 @@ func (ctxt *Link) loadlib() {
 				}
 			}
 		}
-
-		hostobjs(ctxt)
 
 		// If we have any undefined symbols in external
 		// objects, try to read them from the libgcc file.
@@ -520,8 +521,6 @@ func (ctxt *Link) loadlib() {
 				*/
 			}
 		}
-	} else if ctxt.LinkMode == LinkExternal {
-		hostlinksetup(ctxt)
 	}
 
 	// We've loaded all the code now.
@@ -977,6 +976,9 @@ func ldhostobj(ld func(*Link, *bio.Reader, string, int64, string), headType obja
 }
 
 func hostobjs(ctxt *Link) {
+	if ctxt.LinkMode != LinkInternal {
+		return
+	}
 	var h *Hostobj
 
 	for i := 0; i < len(hostobj); i++ {
@@ -1623,16 +1625,29 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 
 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
 	if magic == 0x7f454c46 { // \x7F E L F
-		ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-			textp, flags, err := loadelf.Load(ctxt.Arch, ctxt.Syms, f, pkg, length, pn, ehdr.flags)
-			if err != nil {
-				Errorf(nil, "%v", err)
-				return
+		if *flagNewobj {
+			ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+				textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.Syms, f, pkg, length, pn, ehdr.flags)
+				if err != nil {
+					Errorf(nil, "%v", err)
+					return
+				}
+				ehdr.flags = flags
+				ctxt.Textp = append(ctxt.Textp, textp...)
 			}
-			ehdr.flags = flags
-			ctxt.Textp = append(ctxt.Textp, textp...)
+			return ldhostobj(ldelf, ctxt.HeadType, f, pkg, length, pn, file)
+		} else {
+			ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+				textp, flags, err := loadelf.LoadOld(ctxt.Arch, ctxt.Syms, f, pkg, length, pn, ehdr.flags)
+				if err != nil {
+					Errorf(nil, "%v", err)
+					return
+				}
+				ehdr.flags = flags
+				ctxt.Textp = append(ctxt.Textp, textp...)
+			}
+			return ldhostobj(ldelf, ctxt.HeadType, f, pkg, length, pn, file)
 		}
-		return ldhostobj(ldelf, ctxt.HeadType, f, pkg, length, pn, file)
 	}
 
 	if magic&^1 == 0xfeedface || magic&^0x01000000 == 0xcefaedfe {
@@ -2379,6 +2394,9 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 			put(ctxt, s, s.Name, BSSSym, Symaddr(s), s.Gotype)
 
 		case sym.SHOSTOBJ:
+			if !s.Attr.Reachable() {
+				continue
+			}
 			if ctxt.HeadType == objabi.Hwindows || ctxt.IsELF {
 				put(ctxt, s, s.Name, UndefinedSym, s.Value, nil)
 			}
@@ -2580,12 +2598,8 @@ func (ctxt *Link) loadlibfull() {
 	// Load full symbol contents, resolve indexed references.
 	ctxt.loader.LoadFull(ctxt.Arch, ctxt.Syms)
 
-	// For now, add all symbols to ctxt.Syms.
-	for _, s := range ctxt.loader.Syms {
-		if s != nil && s.Name != "" {
-			ctxt.Syms.Add(s)
-		}
-	}
+	// Pull the symbols out.
+	ctxt.loader.ExtractSymbols(ctxt.Syms)
 
 	// Load cgo directives.
 	for _, d := range ctxt.cgodata {

@@ -162,6 +162,14 @@ func (d *deadcodePass2) flood() {
 		for i := 0; i < len(auxSyms); i++ {
 			d.mark(auxSyms[i])
 		}
+		// Some host object symbols have an outer object, which acts like a
+		// "carrier" symbol, or it holds all the symbols for a particular
+		// section. We need to mark all "referenced" symbols from that carrier,
+		// so we make sure we're pulling in all outer symbols, and their sub
+		// symbols. This is not ideal, and these carrier/section symbols could
+		// be removed.
+		d.mark(d.ldr.OuterSym(symIdx))
+		d.mark(d.ldr.SubSym(symIdx))
 
 		if len(methods) != 0 {
 			// Decode runtime type information for type methods
