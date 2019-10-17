@@ -89,25 +89,10 @@ type mheap struct {
 	// TODO(austin): pagesInUse should be a uintptr, but the 386
 	// compiler can't 8-byte align fields.
 
-	// Scavenger pacing parameters
-	//
-	// The two basis parameters and the scavenge ratio parallel the proportional
-	// sweeping implementation, the primary differences being that:
-	//  * Scavenging concerns itself with RSS, estimated as heapRetained()
-	//  * Rather than pacing the scavenger to the GC, it is paced to a
-	//    time-based rate computed in gcPaceScavenger.
-	//
-	// scavengeRetainedGoal represents our goal RSS.
-	//
-	// All fields must be accessed with lock.
-	//
-	// TODO(mknyszek): Consider abstracting the basis fields and the scavenge ratio
-	// into its own type so that this logic may be shared with proportional sweeping.
-	scavengeTimeBasis     int64
-	scavengeRetainedBasis uint64
-	scavengeBytesPerNS    float64
-	scavengeRetainedGoal  uint64
-	scavengeGen           uint64 // incremented on each pacing update
+	// scavengeGoal is the amount of total retained heap memory (measured by
+	// heapRetained) that the runtime will try to maintain by returning memory
+	// to the OS.
+	scavengeGoal uint64
 
 	// Page reclaimer state
 
@@ -1561,17 +1546,17 @@ func (h *mheap) scavengeLocked(nbytes uintptr) uintptr {
 	return released
 }
 
-// scavengeIfNeededLocked calls scavengeLocked if we're currently above the
-// scavenge goal in order to prevent the mutator from out-running the
-// the scavenger.
+// scavengeIfNeededLocked scavenges memory assuming that size bytes of memory
+// will become unscavenged soon. It only scavenges enough to bring heapRetained
+// back down to the scavengeGoal.
 //
 // h must be locked.
 func (h *mheap) scavengeIfNeededLocked(size uintptr) {
-	if r := heapRetained(); r+uint64(size) > h.scavengeRetainedGoal {
+	if r := heapRetained(); r+uint64(size) > h.scavengeGoal {
 		todo := uint64(size)
 		// If we're only going to go a little bit over, just request what
 		// we actually need done.
-		if overage := r + uint64(size) - h.scavengeRetainedGoal; overage < todo {
+		if overage := r + uint64(size) - h.scavengeGoal; overage < todo {
 			todo = overage
 		}
 		h.scavengeLocked(uintptr(todo))
