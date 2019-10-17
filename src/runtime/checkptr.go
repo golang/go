@@ -9,18 +9,19 @@ import "unsafe"
 type ptrAlign struct {
 	ptr  unsafe.Pointer
 	elem *_type
+	n    uintptr
 }
 
-func checkptrAlignment(p unsafe.Pointer, elem *_type) {
-	// Check that (*T)(p) is appropriately aligned.
+func checkptrAlignment(p unsafe.Pointer, elem *_type, n uintptr) {
+	// Check that (*[n]elem)(p) is appropriately aligned.
 	// TODO(mdempsky): What about fieldAlign?
 	if uintptr(p)&(uintptr(elem.align)-1) != 0 {
-		panic(ptrAlign{p, elem})
+		panic(ptrAlign{p, elem, n})
 	}
 
-	// Check that (*T)(p) doesn't straddle multiple heap objects.
-	if elem.size != 1 && checkptrBase(p) != checkptrBase(add(p, elem.size-1)) {
-		panic(ptrAlign{p, elem})
+	// Check that (*[n]elem)(p) doesn't straddle multiple heap objects.
+	if size := n * elem.size; size > 1 && checkptrBase(p) != checkptrBase(add(p, size-1)) {
+		panic(ptrAlign{p, elem, n})
 	}
 }
 
@@ -34,6 +35,9 @@ func checkptrArithmetic(p unsafe.Pointer, originals []unsafe.Pointer) {
 		panic(ptrArith{p, originals})
 	}
 
+	// Check that if the computed pointer p points into a heap
+	// object, then one of the original pointers must have pointed
+	// into the same object.
 	base := checkptrBase(p)
 	if base == 0 {
 		return
