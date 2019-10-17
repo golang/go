@@ -465,6 +465,10 @@ func TestReadMemStats(t *testing.T) {
 }
 
 func TestUnscavHugePages(t *testing.T) {
+	if !runtime.OldPageAllocator {
+		// This test is only relevant for the old page allocator.
+		return
+	}
 	// Allocate 20 MiB and immediately free it a few times to increase
 	// the chance that unscavHugePages isn't zero and that some kind of
 	// accounting had to happen in the runtime.
