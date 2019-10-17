@@ -489,14 +489,18 @@ func (check *Checker) underlying(typ Type) Type {
 	}
 
 	// Otherwise, follow the forward chain.
-	seen := map[*Named]int{n0: 0, n: 1}
-	path := []Object{n0.obj, n.obj}
+	seen := map[*Named]int{n0: 0}
+	path := []Object{n0.obj}
 	for {
 		typ = n.underlying
-		n, _ = typ.(*Named)
-		if n == nil {
+		n1, _ := typ.(*Named)
+		if n1 == nil {
 			break // end of chain
 		}
+
+		seen[n] = len(seen)
+		path = append(path, n.obj)
+		n = n1
 
 		if i, ok := seen[n]; ok {
 			// cycle
@@ -504,12 +508,15 @@ func (check *Checker) underlying(typ Type) Type {
 			typ = Typ[Invalid]
 			break
 		}
-
-		seen[n] = len(seen)
-		path = append(path, n.obj)
 	}
 
 	for n := range seen {
+		// We should never have to update the underlying type of an imported type;
+		// those underlying types should have been resolved during the import.
+		// Also, doing so would lead to a race condition (was issue #31749).
+		if n.obj.pkg != check.pkg {
+			panic("internal error: imported type with unresolved underlying type")
+		}
 		n.underlying = typ
 	}
 
