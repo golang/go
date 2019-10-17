@@ -75,7 +75,7 @@ func pragmaValue(verb string) syntax.Pragma {
 	case "go:yeswritebarrierrec":
 		return Yeswritebarrierrec
 	case "go:cgo_unsafe_args":
-		return CgoUnsafeArgs
+		return CgoUnsafeArgs | NoCheckPtr // implies NoCheckPtr (see #34968)
 	case "go:uintptrescapes":
 		// For the next function declared in the file
 		// any uintptr arguments may be pointer values
