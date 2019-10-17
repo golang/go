@@ -7,14 +7,20 @@ package runtime
 import "unsafe"
 
 type ptrAlign struct {
-	ptr   unsafe.Pointer
-	align uintptr
+	ptr  unsafe.Pointer
+	elem *_type
 }
 
 func checkptrAlignment(p unsafe.Pointer, elem *_type) {
+	// Check that (*T)(p) is appropriately aligned.
 	// TODO(mdempsky): What about fieldAlign?
 	if uintptr(p)&(uintptr(elem.align)-1) != 0 {
-		panic(ptrAlign{p, uintptr(elem.align)})
+		panic(ptrAlign{p, elem})
+	}
+
+	// Check that (*T)(p) doesn't straddle multiple heap objects.
+	if elem.size != 1 && checkptrBase(p) != checkptrBase(add(p, elem.size-1)) {
+		panic(ptrAlign{p, elem})
 	}
 }
 

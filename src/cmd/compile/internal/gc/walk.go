@@ -3910,7 +3910,7 @@ func isRuneCount(n *Node) bool {
 }
 
 func walkCheckPtrAlignment(n *Node, init *Nodes) *Node {
-	if n.Type.Elem().Alignment() == 1 {
+	if n.Type.Elem().Alignment() == 1 && n.Type.Elem().Size() == 1 {
 		return n
 	}
 
