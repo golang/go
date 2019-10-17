@@ -32,6 +32,7 @@ type deadcodePass2 struct {
 	ctxt *Link
 	ldr  *loader.Loader
 	wq   workQueue
+	rtmp []loader.Reloc
 
 	ifaceMethod     map[methodsig]bool // methods declared in reached interfaces
 	markableMethods []methodref2       // methods of reached types
@@ -78,9 +79,9 @@ func (d *deadcodePass2) init() {
 			// but we do keep the symbols it refers to.
 			exportsIdx := d.ldr.Lookup("go.plugin.exports", 0)
 			if exportsIdx != 0 {
-				relocs := d.ldr.Relocs(exportsIdx)
-				for i := 0; i < relocs.Count; i++ {
-					d.mark(relocs.At(i).Sym)
+				d.ReadRelocs(exportsIdx)
+				for i := 0; i < len(d.rtmp); i++ {
+					d.mark(d.rtmp[i].Sym)
 				}
 			}
 		}
@@ -103,14 +104,19 @@ func (d *deadcodePass2) init() {
 }
 
 func (d *deadcodePass2) flood() {
+	symRelocs := []loader.Reloc{}
 	for !d.wq.empty() {
 		symIdx := d.wq.pop()
 
 		d.reflectSeen = d.reflectSeen || d.ldr.IsReflectMethod(symIdx)
+
+		relocs := d.ldr.Relocs(symIdx)
+		symRelocs = relocs.ReadAll(symRelocs)
+
 		if d.ldr.IsGoType(symIdx) {
 			p := d.ldr.Data(symIdx)
 			if len(p) != 0 && decodetypeKind(d.ctxt.Arch, p)&kindMask == kindInterface {
-				for _, sig := range decodeIfaceMethods2(d.ldr, d.ctxt.Arch, symIdx) {
+				for _, sig := range d.decodeIfaceMethods2(d.ldr, d.ctxt.Arch, symIdx, symRelocs) {
 					if d.ctxt.Debugvlog > 1 {
 						d.ctxt.Logf("reached iface method: %s\n", sig)
 					}
@@ -120,9 +126,8 @@ func (d *deadcodePass2) flood() {
 		}
 
 		var methods []methodref2
-		relocs := d.ldr.Relocs(symIdx)
 		for i := 0; i < relocs.Count; i++ {
-			r := relocs.At(i)
+			r := symRelocs[i]
 			if r.Type == objabi.R_WEAKADDROFF {
 				continue
 			}
@@ -151,7 +156,7 @@ func (d *deadcodePass2) flood() {
 			// Decode runtime type information for type methods
 			// to help work out which methods can be called
 			// dynamically via interfaces.
-			methodsigs := decodetypeMethods2(d.ldr, d.ctxt.Arch, symIdx)
+			methodsigs := d.decodetypeMethods2(d.ldr, d.ctxt.Arch, symIdx, symRelocs)
 			if len(methods) != len(methodsigs) {
 				panic(fmt.Sprintf("%q has %d method relocations for %d methods", d.ldr.SymName(symIdx), len(methods), len(methodsigs)))
 			}
@@ -171,10 +176,10 @@ func (d *deadcodePass2) mark(symIdx loader.Sym) {
 }
 
 func (d *deadcodePass2) markMethod(m methodref2) {
-	relocs := d.ldr.Relocs(m.src)
-	d.mark(relocs.At(m.r).Sym)
-	d.mark(relocs.At(m.r + 1).Sym)
-	d.mark(relocs.At(m.r + 2).Sym)
+	d.ReadRelocs(m.src)
+	d.mark(d.rtmp[m.r].Sym)
+	d.mark(d.rtmp[m.r+1].Sym)
+	d.mark(d.rtmp[m.r+2].Sym)
 }
 
 func deadcode2(ctxt *Link) {
@@ -257,12 +262,15 @@ func (m methodref2) isExported() bool {
 // the function type.
 //
 // Conveniently this is the layout of both runtime.method and runtime.imethod.
-func decodeMethodSig2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, off, size, count int) []methodsig {
+func (d *deadcodePass2) decodeMethodSig2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, symRelocs []loader.Reloc, off, size, count int) []methodsig {
 	var buf bytes.Buffer
 	var methods []methodsig
 	for i := 0; i < count; i++ {
-		buf.WriteString(decodetypeName2(ldr, symIdx, off))
-		mtypSym := decodeRelocSym2(ldr, symIdx, int32(off+4))
+		buf.WriteString(decodetypeName2(ldr, symIdx, symRelocs, off))
+		mtypSym := decodeRelocSym2(ldr, symIdx, symRelocs, int32(off+4))
+		// FIXME: add some sort of caching here, since we may see some of the
+		// same symbols over time for param types.
+		d.ReadRelocs(mtypSym)
 		mp := ldr.Data(mtypSym)
 
 		buf.WriteRune('(')
@@ -271,7 +279,7 @@ func decodeMethodSig2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, off
 			if i > 0 {
 				buf.WriteString(", ")
 			}
-			a := decodetypeFuncInType2(ldr, arch, mtypSym, i)
+			a := d.decodetypeFuncInType2(ldr, arch, mtypSym, d.rtmp, i)
 			buf.WriteString(ldr.SymName(a))
 		}
 		buf.WriteString(") (")
@@ -280,7 +288,7 @@ func decodeMethodSig2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, off
 			if i > 0 {
 				buf.WriteString(", ")
 			}
-			a := decodetypeFuncOutType2(ldr, arch, mtypSym, i)
+			a := d.decodetypeFuncOutType2(ldr, arch, mtypSym, d.rtmp, i)
 			buf.WriteString(ldr.SymName(a))
 		}
 		buf.WriteRune(')')
@@ -292,12 +300,12 @@ func decodeMethodSig2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, off
 	return methods
 }
 
-func decodeIfaceMethods2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) []methodsig {
+func (d *deadcodePass2) decodeIfaceMethods2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, symRelocs []loader.Reloc) []methodsig {
 	p := ldr.Data(symIdx)
 	if decodetypeKind(arch, p)&kindMask != kindInterface {
 		panic(fmt.Sprintf("symbol %q is not an interface", ldr.SymName(symIdx)))
 	}
-	rel := decodeReloc2(ldr, symIdx, int32(commonsize(arch)+arch.PtrSize))
+	rel := decodeReloc2(ldr, symIdx, symRelocs, int32(commonsize(arch)+arch.PtrSize))
 	if rel.Sym == 0 {
 		return nil
 	}
@@ -307,10 +315,10 @@ func decodeIfaceMethods2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) 
 	off := int(rel.Add) // array of reflect.imethod values
 	numMethods := int(decodetypeIfaceMethodCount(arch, p))
 	sizeofIMethod := 4 + 4
-	return decodeMethodSig2(ldr, arch, symIdx, off, sizeofIMethod, numMethods)
+	return d.decodeMethodSig2(ldr, arch, symIdx, symRelocs, off, sizeofIMethod, numMethods)
 }
 
-func decodetypeMethods2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) []methodsig {
+func (d *deadcodePass2) decodetypeMethods2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, symRelocs []loader.Reloc) []methodsig {
 	p := ldr.Data(symIdx)
 	if !decodetypeHasUncommon(arch, p) {
 		panic(fmt.Sprintf("no methods on %q", ldr.SymName(symIdx)))
@@ -341,13 +349,12 @@ func decodetypeMethods2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) [
 	moff := int(decodeInuxi(arch, p[off+4+2+2:], 4))
 	off += moff                // offset to array of reflect.method values
 	const sizeofMethod = 4 * 4 // sizeof reflect.method in program
-	return decodeMethodSig2(ldr, arch, symIdx, off, sizeofMethod, mcount)
+	return d.decodeMethodSig2(ldr, arch, symIdx, symRelocs, off, sizeofMethod, mcount)
 }
 
-func decodeReloc2(ldr *loader.Loader, symIdx loader.Sym, off int32) loader.Reloc {
-	relocs := ldr.Relocs(symIdx)
-	for j := 0; j < relocs.Count; j++ {
-		rel := relocs.At(j)
+func decodeReloc2(ldr *loader.Loader, symIdx loader.Sym, symRelocs []loader.Reloc, off int32) loader.Reloc {
+	for j := 0; j < len(symRelocs); j++ {
+		rel := symRelocs[j]
 		if rel.Off == off {
 			return rel
 		}
@@ -355,13 +362,13 @@ func decodeReloc2(ldr *loader.Loader, symIdx loader.Sym, off int32) loader.Reloc
 	return loader.Reloc{}
 }
 
-func decodeRelocSym2(ldr *loader.Loader, symIdx loader.Sym, off int32) loader.Sym {
-	return decodeReloc2(ldr, symIdx, off).Sym
+func decodeRelocSym2(ldr *loader.Loader, symIdx loader.Sym, symRelocs []loader.Reloc, off int32) loader.Sym {
+	return decodeReloc2(ldr, symIdx, symRelocs, off).Sym
 }
 
 // decodetypeName2 decodes the name from a reflect.name.
-func decodetypeName2(ldr *loader.Loader, symIdx loader.Sym, off int) string {
-	r := decodeRelocSym2(ldr, symIdx, int32(off))
+func decodetypeName2(ldr *loader.Loader, symIdx loader.Sym, symRelocs []loader.Reloc, off int) string {
+	r := decodeRelocSym2(ldr, symIdx, symRelocs, int32(off))
 	if r == 0 {
 		return ""
 	}
@@ -371,7 +378,7 @@ func decodetypeName2(ldr *loader.Loader, symIdx loader.Sym, off int) string {
 	return string(data[3 : 3+namelen])
 }
 
-func decodetypeFuncInType2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, i int) loader.Sym {
+func (d *deadcodePass2) decodetypeFuncInType2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, symRelocs []loader.Reloc, i int) loader.Sym {
 	uadd := commonsize(arch) + 4
 	if arch.PtrSize == 8 {
 		uadd += 4
@@ -379,9 +386,17 @@ func decodetypeFuncInType2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym
 	if decodetypeHasUncommon(arch, ldr.Data(symIdx)) {
 		uadd += uncommonSize()
 	}
-	return decodeRelocSym2(ldr, symIdx, int32(uadd+i*arch.PtrSize))
+	return decodeRelocSym2(ldr, symIdx, symRelocs, int32(uadd+i*arch.PtrSize))
 }
 
-func decodetypeFuncOutType2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, i int) loader.Sym {
-	return decodetypeFuncInType2(ldr, arch, symIdx, i+decodetypeFuncInCount(arch, ldr.Data(symIdx)))
+func (d *deadcodePass2) decodetypeFuncOutType2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, symRelocs []loader.Reloc, i int) loader.Sym {
+	return d.decodetypeFuncInType2(ldr, arch, symIdx, symRelocs, i+decodetypeFuncInCount(arch, ldr.Data(symIdx)))
+}
+
+// readRelocs reads the relocations for the specified symbol into the
+// deadcode relocs work array. Use with care, since the work array
+// is a singleton.
+func (d *deadcodePass2) ReadRelocs(symIdx loader.Sym) {
+	relocs := d.ldr.Relocs(symIdx)
+	d.rtmp = relocs.ReadAll(d.rtmp)
 }
