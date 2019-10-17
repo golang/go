@@ -164,6 +164,13 @@ func (mode *LinkMode) String() string {
 	return fmt.Sprintf("LinkMode(%d)", uint8(*mode))
 }
 
+func canLinkHostObj(ctxt *Link) bool {
+	if !*flagNewobj {
+		return true
+	}
+	return ctxt.IsELF
+}
+
 // mustLinkExternal reports whether the program being linked requires
 // the external linker be used to complete the link.
 func mustLinkExternal(ctxt *Link) (res bool, reason string) {
@@ -183,7 +190,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		return true, "msan"
 	}
 
-	if iscgo { // TODO: internal linking cgo doesn't work yet
+	if iscgo && !canLinkHostObj(ctxt) {
 		return true, "TODO: newobj"
 	}
 
