@@ -648,6 +648,7 @@ type Link struct {
 	Debugpcln          string
 	Flag_shared        bool
 	Flag_dynlink       bool
+	Flag_linkshared    bool
 	Flag_optimize      bool
 	Flag_locationlists bool
 	Flag_newobj        bool // use new object file format
