@@ -434,13 +434,13 @@ TEXT	runtime·racecallbackthunk(SB), NOSPLIT|NOFRAME, $0
 rest:
 	// Save callee-saved registers (Go code won't respect that).
 	// 8(RSP) and 16(RSP) are for args passed through racecallback
-	SUB	$96, RSP
+	SUB	$112, RSP
 	MOVD	LR, 0(RSP)
 	STP	(R19, R20), 24(RSP)
 	STP	(R21, R22), 40(RSP)
 	STP	(R23, R24), 56(RSP)
 	STP	(R25, R26), 72(RSP)
-	MOVD	R27, 88(RSP)
+	STP	(R27,   g), 88(RSP)
 	// Set g = g0.
 	// load_g will clobber R0, Save R0
 	MOVD	R0, R13
@@ -463,8 +463,8 @@ rest:
 	LDP	40(RSP), (R21, R22)
 	LDP	56(RSP), (R23, R24)
 	LDP	72(RSP), (R25, R26)
-	MOVD	88(RSP), R27
-	ADD	$96, RSP
+	LDP	88(RSP), (R27,   g)
+	ADD	$112, RSP
 	JMP	(LR)
 
 // tls_g, g value for each thread in TLS
