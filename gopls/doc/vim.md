@@ -68,7 +68,8 @@ let g:lsc_server_commands = {
 ```
 
 The `log_level` and `suppress_stderr` parts are needed to prevent breakage from logging. See
-[natebosch/vim-lsc#180] and [natebosch/vim-lsc#213].
+issues [#180](https://github.com/natebosch/vim-lsc/issues/180) and
+[#213](https://github.com/natebosch/vim-lsc/issues/213).
 
 ## coc.nvim
 
