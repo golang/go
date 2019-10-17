@@ -953,7 +953,7 @@ opswitch:
 		n.Left = walkexpr(n.Left, init)
 		if n.Op == OCONVNOP && checkPtr(Curfn, 1) {
 			if n.Type.IsPtr() && n.Left.Type.Etype == TUNSAFEPTR { // unsafe.Pointer to *T
-				n = walkCheckPtrAlignment(n, init)
+				n = walkCheckPtrAlignment(n, init, nil)
 				break
 			}
 			if n.Type.Etype == TUNSAFEPTR && n.Left.Type.Etype == TUINTPTR { // uintptr to unsafe.Pointer
@@ -1120,7 +1120,12 @@ opswitch:
 		n.List.SetSecond(walkexpr(n.List.Second(), init))
 
 	case OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
-		n.Left = walkexpr(n.Left, init)
+		checkSlice := checkPtr(Curfn, 1) && n.Op == OSLICE3ARR && n.Left.Op == OCONVNOP && n.Left.Left.Type.Etype == TUNSAFEPTR
+		if checkSlice {
+			n.Left.Left = walkexpr(n.Left.Left, init)
+		} else {
+			n.Left = walkexpr(n.Left, init)
+		}
 		low, high, max := n.SliceBounds()
 		low = walkexpr(low, init)
 		if low != nil && isZero(low) {
@@ -1130,6 +1135,9 @@ opswitch:
 		high = walkexpr(high, init)
 		max = walkexpr(max, init)
 		n.SetSliceBounds(low, high, max)
+		if checkSlice {
+			n.Left = walkCheckPtrAlignment(n.Left, init, max)
+		}
 		if n.Op.IsSlice3() {
 			if max != nil && max.Op == OCAP && samesafeexpr(n.Left, max.Left) {
 				// Reduce x[i:j:cap(x)] to x[i:j].
@@ -3912,13 +3920,29 @@ func isRuneCount(n *Node) bool {
 	return Debug['N'] == 0 && !instrumenting && n.Op == OLEN && n.Left.Op == OSTR2RUNES
 }
 
-func walkCheckPtrAlignment(n *Node, init *Nodes) *Node {
-	if n.Type.Elem().Alignment() == 1 && n.Type.Elem().Size() == 1 {
+func walkCheckPtrAlignment(n *Node, init *Nodes, count *Node) *Node {
+	if !n.Type.IsPtr() {
+		Fatalf("expected pointer type: %v", n.Type)
+	}
+	elem := n.Type.Elem()
+	if count != nil {
+		if !elem.IsArray() {
+			Fatalf("expected array type: %v", elem)
+		}
+		elem = elem.Elem()
+	}
+
+	size := elem.Size()
+	if elem.Alignment() == 1 && (size == 0 || size == 1 && count == nil) {
 		return n
 	}
 
+	if count == nil {
+		count = nodintconst(1)
+	}
+
 	n.Left = cheapexpr(n.Left, init)
-	init.Append(mkcall("checkptrAlignment", nil, init, convnop(n.Left, types.Types[TUNSAFEPTR]), typename(n.Type.Elem())))
+	init.Append(mkcall("checkptrAlignment", nil, init, convnop(n.Left, types.Types[TUNSAFEPTR]), typename(elem), conv(count, types.Types[TUINTPTR])))
 	return n
 }
 
