@@ -109,6 +109,9 @@ stderr 'unsupported GOOS/GOARCH.*/amd644$'
 # check -w doesn't allow invalid GOOS with valid GOARCH
 ! go env -w GOOS=linuxx GOARCH=amd64
 stderr 'unsupported GOOS/GOARCH pair linuxx'
+# check a valid GOOS and GOARCH values but an incompatible combinations
+! go env -w GOOS=android GOARCH=s390x
+stderr 'unsupported GOOS/GOARCH pair android/s390x'
 # check that -u considers explicit envs
 go env -w GOOS=linux GOARCH=mips
 env GOOS=windows
