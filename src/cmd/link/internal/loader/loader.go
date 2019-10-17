@@ -152,14 +152,17 @@ func (l *Loader) AddSym(name string, ver int, i Sym, r *oReader, dupok bool, typ
 		if dupok {
 			return false
 		}
+		oldr, li := l.toLocal(oldi)
+		oldsym := goobj2.Sym{}
+		oldsym.Read(oldr.Reader, oldr.SymOff(li))
+		if oldsym.Dupok() {
+			return false
+		}
 		overwrite := r.DataSize(int(i-l.startIndex(r))) != 0
 		if overwrite {
 			// new symbol overwrites old symbol.
-			oldr, li := l.toLocal(oldi)
-			oldsym := goobj2.Sym{}
-			oldsym.Read(oldr.Reader, oldr.SymOff(li))
 			oldtyp := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type)]
-			if !oldsym.Dupok() && !((oldtyp == sym.SDATA || oldtyp == sym.SNOPTRDATA || oldtyp == sym.SBSS || oldtyp == sym.SNOPTRBSS) && oldr.DataSize(li) == 0) { // only allow overwriting 0-sized data symbol
+			if !((oldtyp == sym.SDATA || oldtyp == sym.SNOPTRDATA || oldtyp == sym.SBSS || oldtyp == sym.SNOPTRBSS) && oldr.DataSize(li) == 0) { // only allow overwriting 0-sized data symbol
 				log.Fatalf("duplicated definition of symbol " + name)
 			}
 			l.overwrite[oldi] = i
