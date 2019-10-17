@@ -224,6 +224,7 @@ func buildModeInit() {
 				base.Fatalf("-linkshared not supported on %s\n", platform)
 			}
 			codegenArg = "-dynlink"
+			forcedGcflags = append(forcedGcflags, "-linkshared")
 			// TODO(mwhudson): remove -w when that gets fixed in linker.
 			forcedLdflags = append(forcedLdflags, "-linkshared", "-w")
 		}

@@ -184,7 +184,7 @@ func (ctxt *Link) NumberSyms(asm bool) {
 
 	var idx, nonpkgidx int32 = 0, 0
 	ctxt.traverseSyms(traverseDefs, func(s *LSym) {
-		if asm || s.Pkg == "_" || s.DuplicateOK() {
+		if asm || s.Pkg == "_" || s.DuplicateOK() || ctxt.Flag_linkshared {
 			s.PkgIdx = goobj2.PkgIdxNone
 			s.SymIdx = nonpkgidx
 			if nonpkgidx != int32(len(ctxt.nonpkgdefs)) {

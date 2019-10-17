@@ -145,8 +145,8 @@
 // 	-ldflags '[pattern=]arg list'
 // 		arguments to pass on each go tool link invocation.
 // 	-linkshared
-// 		link against shared libraries previously created with
-// 		-buildmode=shared.
+// 		build code that will be linked against shared libraries previously
+// 		created with -buildmode=shared.
 // 	-mod mode
 // 		module download mode to use: readonly or vendor.
 // 		See 'go help modules' for more.
