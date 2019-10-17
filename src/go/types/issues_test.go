@@ -493,3 +493,33 @@ func (h importHelper) Import(path string) (*Package, error) {
 	}
 	return h.pkg, nil
 }
+
+// TestIssue34921 verifies that we don't update an imported type's underlying
+// type when resolving an underlying type. Specifically, when determining the
+// underlying type of b.T (which is the underlying type of a.T, which is int)
+// we must not set the underlying type of a.T again since that would lead to
+// a race condition if package b is imported elsewhere, in a package that is
+// concurrently type-checked.
+func TestIssue34921(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Error(r)
+		}
+	}()
+
+	var sources = []string{
+		`package a; type T int`,
+		`package b; import "a"; type T a.T`,
+	}
+
+	var pkg *Package
+	for _, src := range sources {
+		f := mustParse(t, src)
+		conf := Config{Importer: importHelper{pkg}}
+		res, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, nil)
+		if err != nil {
+			t.Errorf("%q failed to typecheck: %v", src, err)
+		}
+		pkg = res // res is imported by the next package in this test
+	}
+}
