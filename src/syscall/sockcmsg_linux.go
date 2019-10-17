@@ -17,7 +17,7 @@ func UnixCredentials(ucred *Ucred) []byte {
 	h.Level = SOL_SOCKET
 	h.Type = SCM_CREDENTIALS
 	h.SetLen(CmsgLen(SizeofUcred))
-	*((*Ucred)(cmsgData(h))) = *ucred
+	*(*Ucred)(h.data(0)) = *ucred
 	return b
 }
 
