@@ -681,7 +681,7 @@ func (t *tester) registerTests() {
 		if t.supportedBuildmode("c-shared") {
 			t.registerHostTest("testcshared", "../misc/cgo/testcshared", "misc/cgo/testcshared", ".")
 		}
-		if t.supportedBuildmode("shared") && false { // TODO: newobj
+		if t.supportedBuildmode("shared") {
 			t.registerTest("testshared", "../misc/cgo/testshared", t.goTest(), t.timeout(600), ".")
 		}
 		if t.supportedBuildmode("plugin") {
