@@ -12,6 +12,8 @@ import (
 	"unsafe"
 )
 
+const OldPageAllocator = oldPageAllocator
+
 var Fadd64 = fadd64
 var Fsub64 = fsub64
 var Fmul64 = fmul64
@@ -354,8 +356,15 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 			slow.BySize[i].Frees = bySize[i].Frees
 		}
 
-		for i := mheap_.free.start(0, 0); i.valid(); i = i.next() {
-			slow.HeapReleased += uint64(i.span().released())
+		if oldPageAllocator {
+			for i := mheap_.free.start(0, 0); i.valid(); i = i.next() {
+				slow.HeapReleased += uint64(i.span().released())
+			}
+		} else {
+			for i := mheap_.pages.start; i < mheap_.pages.end; i++ {
+				pg := mheap_.pages.chunks[i].scavenged.popcntRange(0, pallocChunkPages)
+				slow.HeapReleased += uint64(pg) * pageSize
+			}
 		}
 
 		// Unused space in the current arena also counts as released space.
@@ -973,4 +982,50 @@ var BaseChunkIdx = ChunkIdx(chunkIndex((0xc000*pageAlloc64Bit + 0x200*pageAlloc3
 // relative to that chunk.
 func PageBase(c ChunkIdx, pageIdx uint) uintptr {
 	return chunkBase(chunkIdx(c)) + uintptr(pageIdx)*pageSize
+}
+
+type BitsMismatch struct {
+	Base      uintptr
+	Got, Want uint64
+}
+
+func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
+	ok = true
+
+	// Run on the system stack to avoid stack growth allocation.
+	systemstack(func() {
+		getg().m.mallocing++
+
+		// Lock so that we can safely access the bitmap.
+		lock(&mheap_.lock)
+	chunkLoop:
+		for i := mheap_.pages.start; i < mheap_.pages.end; i++ {
+			chunk := &mheap_.pages.chunks[i]
+			for j := 0; j < pallocChunkPages/64; j++ {
+				// Run over each 64-bit bitmap section and ensure
+				// scavenged is being cleared properly on allocation.
+				// If a used bit and scavenged bit are both set, that's
+				// an error, and could indicate a larger problem, or
+				// an accounting problem.
+				want := chunk.scavenged[j] &^ chunk.pallocBits[j]
+				got := chunk.scavenged[j]
+				if want != got {
+					ok = false
+					if n >= len(mismatches) {
+						break chunkLoop
+					}
+					mismatches[n] = BitsMismatch{
+						Base: chunkBase(i) + uintptr(j)*64*pageSize,
+						Got:  got,
+						Want: want,
+					}
+					n++
+				}
+			}
+		}
+		unlock(&mheap_.lock)
+
+		getg().m.mallocing--
+	})
+	return
 }
