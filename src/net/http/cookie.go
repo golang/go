@@ -353,9 +353,15 @@ func sanitizeCookieName(n string) string {
 	return cookieNameSanitizer.Replace(n)
 }
 
-// https://tools.ietf.org/html/rfc6265#page-9
-// According to RFC, spaces or commas are not allowed in cookie value.
-// Discussion in issues #7243 and #18627.
+// sanitizeCookieValue produces a quoted cookie-value in when the value contains spaces or commas.
+// https://tools.ietf.org/html/rfc6265#section-4.1.1
+// cookie-value      = *cookie-octet / ( DQUOTE *cookie-octet DQUOTE )
+// cookie-octet      = %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E
+//           ; US-ASCII characters excluding CTLs,
+//           ; whitespace DQUOTE, comma, semicolon,
+//           ; and backslash
+// Cause of quoted cookie-value we loosen this as spaces and commas are common in cookie values.
+// See https://golang.org/issue/7243 for the discussion.
 func sanitizeCookieValue(v string) string {
 	v = sanitizeOrWarn("Cookie.Value", validCookieValueByte, v)
 	if len(v) == 0 {
