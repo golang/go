@@ -471,7 +471,15 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
 		e.discard(max)
 
 	case OCONV, OCONVNOP:
-		if n.Type.Etype == TUNSAFEPTR && n.Left.Type.Etype == TUINTPTR {
+		if checkPtr(e.curfn) && n.Type.Etype == TUNSAFEPTR && n.Left.Type.IsPtr() {
+			// When -d=checkptr is enabled, treat
+			// conversions to unsafe.Pointer as an
+			// escaping operation. This allows better
+			// runtime instrumentation, since we can more
+			// easily detect object boundaries on the heap
+			// than the stack.
+			e.assignHeap(n.Left, "conversion to unsafe.Pointer", n)
+		} else if n.Type.Etype == TUNSAFEPTR && n.Left.Type.Etype == TUINTPTR {
 			e.unsafeValue(k, n.Left)
 		} else {
 			e.expr(k, n.Left)

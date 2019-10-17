@@ -951,7 +951,7 @@ opswitch:
 
 	case OCONV, OCONVNOP:
 		n.Left = walkexpr(n.Left, init)
-		if n.Op == OCONVNOP && Debug_checkptr != 0 && Curfn.Func.Pragma&NoCheckPtr == 0 {
+		if n.Op == OCONVNOP && checkPtr(Curfn) {
 			if n.Type.IsPtr() && n.Left.Type.Etype == TUNSAFEPTR { // unsafe.Pointer to *T
 				n = walkCheckPtrAlignment(n, init)
 				break
@@ -3970,4 +3970,10 @@ func walkCheckPtrArithmetic(n *Node, init *Nodes) *Node {
 
 	init.Append(mkcall("checkptrArithmetic", nil, init, n, slice))
 	return n
+}
+
+// checkPtr reports whether pointer checking should be enabled for
+// function fn.
+func checkPtr(fn *Node) bool {
+	return Debug_checkptr != 0 && fn.Func.Pragma&NoCheckPtr == 0
 }
