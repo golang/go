@@ -471,8 +471,8 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
 		e.discard(max)
 
 	case OCONV, OCONVNOP:
-		if checkPtr(e.curfn) && n.Type.Etype == TUNSAFEPTR && n.Left.Type.IsPtr() {
-			// When -d=checkptr is enabled, treat
+		if checkPtr(e.curfn, 2) && n.Type.Etype == TUNSAFEPTR && n.Left.Type.IsPtr() {
+			// When -d=checkptr=2 is enabled, treat
 			// conversions to unsafe.Pointer as an
 			// escaping operation. This allows better
 			// runtime instrumentation, since we can more

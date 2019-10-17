@@ -94,6 +94,11 @@ const debugHelpHeader = `usage: -d arg[,arg]* and arg is <key>[=<value>]
 const debugHelpFooter = `
 <value> is key-specific.
 
+Key "checkptr" supports values:
+	"0": instrumentation disabled
+	"1": conversions involving unsafe.Pointer are instrumented
+	"2": conversions to unsafe.Pointer force heap allocation
+
 Key "pctab" supports values:
 	"pctospadj", "pctofile", "pctoline", "pctoinline", "pctopcdata"
 `
