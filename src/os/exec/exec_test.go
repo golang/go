@@ -40,7 +40,7 @@ func helperCommandContext(t *testing.T, ctx context.Context, s ...string) (cmd *
 	} else {
 		cmd = exec.Command(os.Args[0], cs...)
 	}
-	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	return cmd
 }
 
@@ -656,7 +656,7 @@ func TestExtraFiles(t *testing.T) {
 	c.ExtraFiles = []*os.File{tf}
 	err = c.Run()
 	if err != nil {
-		t.Fatalf("Run: %v; stdout %q, stderr %q", err, stdout.Bytes(), stderr.Bytes())
+		t.Fatalf("Run: %v\n--- stdout:\n%s--- stderr:\n%s", err, stdout.Bytes(), stderr.Bytes())
 	}
 	if stdout.String() != text {
 		t.Errorf("got stdout %q, stderr %q; want %q on stdout", stdout.String(), stderr.String(), text)
@@ -861,8 +861,12 @@ func TestHelperProcess(*testing.T) {
 					default:
 						args = []string{"-p", fmt.Sprint(os.Getpid())}
 					}
-					out, _ := exec.Command(ofcmd, args...).CombinedOutput()
-					fmt.Print(string(out))
+					cmd := exec.Command(ofcmd, args...)
+					out, err := cmd.CombinedOutput()
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "%s failed: %v\n", strings.Join(cmd.Args, " "), err)
+					}
+					fmt.Printf("%s", out)
 					os.Exit(1)
 				}
 				files = append(files, f)
