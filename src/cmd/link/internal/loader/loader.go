@@ -147,6 +147,12 @@ func (l *Loader) AddSym(name string, ver int, i Sym, r *oReader, dupok bool, typ
 	if l.extStart != 0 {
 		panic("AddSym called after AddExtSym is called")
 	}
+	if ver == r.version {
+		// Static symbol. Add its global index but don't
+		// add to name lookup table, as it cannot be
+		// referenced by name.
+		return true
+	}
 	nv := nameVer{name, ver}
 	if oldi, ok := l.symsByName[nv]; ok {
 		if dupok {
@@ -294,7 +300,10 @@ func (l *Loader) IsDup(i Sym) bool {
 		return false
 	}
 	if osym.Name == "" {
-		return false
+		return false // Unnamed aux symbol cannot be dup.
+	}
+	if osym.ABI == goobj2.SymABIstatic {
+		return false // Static symbol cannot be dup.
 	}
 	name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
 	ver := abiToVer(osym.ABI, r.version)
@@ -656,7 +665,7 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) {
 			continue
 		}
 		ver := abiToVer(osym.ABI, r.version)
-		if l.symsByName[nameVer{name, ver}] != istart+Sym(i) {
+		if osym.ABI != goobj2.SymABIstatic && l.symsByName[nameVer{name, ver}] != istart+Sym(i) {
 			continue
 		}
 
@@ -709,17 +718,19 @@ func loadObjFull(l *Loader, r *oReader) {
 		}
 		ver := abiToVer(osym.ABI, r.version)
 		dupok := osym.Dupok()
-		if dupsym := l.symsByName[nameVer{name, ver}]; dupsym != istart+Sym(i) {
-			if dupok && l.Reachable.Has(dupsym) {
-				// A dupok symbol is resolved to another package. We still need
-				// to record its presence in the current package, as the trampoline
-				// pass expects packages are laid out in dependency order.
-				s := l.Syms[dupsym]
-				if s.Type == sym.STEXT {
-					lib.DupTextSyms = append(lib.DupTextSyms, s)
+		if dupok {
+			if dupsym := l.symsByName[nameVer{name, ver}]; dupsym != istart+Sym(i) {
+				if l.Reachable.Has(dupsym) {
+					// A dupok symbol is resolved to another package. We still need
+					// to record its presence in the current package, as the trampoline
+					// pass expects packages are laid out in dependency order.
+					s := l.Syms[dupsym]
+					if s.Type == sym.STEXT {
+						lib.DupTextSyms = append(lib.DupTextSyms, s)
+					}
 				}
+				continue
 			}
-			continue
 		}
 
 		s := l.Syms[istart+Sym(i)]
