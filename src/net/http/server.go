@@ -1696,11 +1696,10 @@ func (c *conn) closeWriteAndWait() {
 	time.Sleep(rstAvoidanceDelay)
 }
 
-// validNPN reports whether the proto is not a blacklisted Next
-// Protocol Negotiation protocol. Empty and built-in protocol types
-// are blacklisted and can't be overridden with alternate
-// implementations.
-func validNPN(proto string) bool {
+// validNextProto reports whether the proto is not a blacklisted ALPN
+// protocol name. Empty and built-in protocol types are blacklisted
+// and can't be overridden with alternate implementations.
+func validNextProto(proto string) bool {
 	switch proto {
 	case "", "http/1.1", "http/1.0":
 		return false
@@ -1799,9 +1798,9 @@ func (c *conn) serve(ctx context.Context) {
 		}
 		c.tlsState = new(tls.ConnectionState)
 		*c.tlsState = tlsConn.ConnectionState()
-		if proto := c.tlsState.NegotiatedProtocol; validNPN(proto) {
+		if proto := c.tlsState.NegotiatedProtocol; validNextProto(proto) {
 			if fn := c.server.TLSNextProto[proto]; fn != nil {
-				h := initNPNRequest{ctx, tlsConn, serverHandler{c.server}}
+				h := initALPNRequest{ctx, tlsConn, serverHandler{c.server}}
 				fn(c.server, tlsConn, h)
 			}
 			return
@@ -2547,7 +2546,7 @@ type Server struct {
 	MaxHeaderBytes int
 
 	// TLSNextProto optionally specifies a function to take over
-	// ownership of the provided TLS connection when an NPN/ALPN
+	// ownership of the provided TLS connection when an ALPN
 	// protocol upgrade has occurred. The map key is the protocol
 	// name negotiated. The Handler argument should be used to
 	// handle HTTP requests and will initialize the Request's TLS
@@ -2697,7 +2696,7 @@ func (srv *Server) Shutdown(ctx context.Context) error {
 
 // RegisterOnShutdown registers a function to call on Shutdown.
 // This can be used to gracefully shutdown connections that have
-// undergone NPN/ALPN protocol upgrade or that have been hijacked.
+// undergone ALPN protocol upgrade or that have been hijacked.
 // This function should start protocol-specific graceful shutdown,
 // but should not wait for shutdown to complete.
 func (srv *Server) RegisterOnShutdown(f func()) {
@@ -3346,10 +3345,10 @@ func (globalOptionsHandler) ServeHTTP(w ResponseWriter, r *Request) {
 	}
 }
 
-// initNPNRequest is an HTTP handler that initializes certain
+// initALPNRequest is an HTTP handler that initializes certain
 // uninitialized fields in its *Request. Such partially-initialized
-// Requests come from NPN protocol handlers.
-type initNPNRequest struct {
+// Requests come from ALPN protocol handlers.
+type initALPNRequest struct {
 	ctx context.Context
 	c   *tls.Conn
 	h   serverHandler
@@ -3359,9 +3358,9 @@ type initNPNRequest struct {
 // recognized by x/net/http2 to pass down a context; the TLSNextProto
 // API predates context support so we shoehorn through the only
 // interface we have available.
-func (h initNPNRequest) BaseContext() context.Context { return h.ctx }
+func (h initALPNRequest) BaseContext() context.Context { return h.ctx }
 
-func (h initNPNRequest) ServeHTTP(rw ResponseWriter, req *Request) {
+func (h initALPNRequest) ServeHTTP(rw ResponseWriter, req *Request) {
 	if req.TLS == nil {
 		req.TLS = &tls.ConnectionState{}
 		*req.TLS = h.c.ConnectionState()

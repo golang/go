@@ -5,7 +5,7 @@
 // Parallel cache.
 // This file is copied from cmd/go/internal/par.
 
-package sumweb
+package sumdb
 
 import (
 	"sync"

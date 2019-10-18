@@ -6,6 +6,7 @@ env GO111MODULE=on
 
 cd $WORK/auto
 cp go.mod go.mod.orig
+cp $WORK/modules-1.13.txt $WORK/auto/modules.txt
 
 # An explicit -mod=vendor should force use of the vendor directory.
 env GOFLAGS=-mod=vendor
@@ -145,19 +146,23 @@ stderr '^go: inconsistent vendoring in '$WORK/auto':$'
 stderr '^\texample.com/printversion@v1.0.0: is explicitly required in go.mod, but vendor/modules.txt indicates example.com/printversion@v1.1.0$'
 stderr '\n\nrun .go mod vendor. to sync, or use -mod=mod or -mod=readonly to ignore the vendor directory$'
 
-# 'go mod vendor' should write a 1.14 vendor/modules.txt even if
-# the go version is still 1.13.
+# If the go version is still 1.13, 'go mod vendor' should write a
+# matching vendor/modules.txt containing the corrected 1.13 data.
 go mod vendor
-cmp $WORK/modules-1.14.txt vendor/modules.txt
+cmp $WORK/modules-1.13.txt vendor/modules.txt
 
 go list -mod=vendor -f {{.Dir}} -tags tools all
 stdout '^'$WORK'[/\\]auto$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
 
-# When the version is upgraded to 1.14, -mod=vendor should kick in
-# automatically and succeed.
+# When the version is upgraded to 1.14, 'go mod vendor' should write a
+# vendor/modules.txt with the updated 1.14 annotations.
 go mod edit -go=1.14
+go mod vendor
+cmp $WORK/modules-1.14.txt vendor/modules.txt
+
+# Then, -mod=vendor should kick in automatically and succeed.
 go list -f {{.Dir}} -tags tools all
 stdout '^'$WORK'[/\\]auto$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
@@ -203,7 +208,7 @@ example.com/printversion
 example.com/version
 # example.com/unused => nonexistent.example.com/unused v1.0.0-whatever
 # example.com/version v1.2.0 => nonexistent.example.com/version v1.2.0
--- $WORK/auto/vendor/modules.txt --
+-- $WORK/modules-1.13.txt --
 # example.com/printversion v1.0.0
 example.com/printversion
 # example.com/version v1.0.0 => ./replacement-version

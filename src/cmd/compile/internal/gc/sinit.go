@@ -388,7 +388,7 @@ func isLiteral(n *Node) bool {
 }
 
 func (n *Node) isSimpleName() bool {
-	return n.Op == ONAME && n.Addable() && n.Class() != PAUTOHEAP && n.Class() != PEXTERN
+	return n.Op == ONAME && n.Class() != PAUTOHEAP && n.Class() != PEXTERN
 }
 
 func litas(l *Node, r *Node, init *Nodes) {
@@ -1018,7 +1018,7 @@ func stataddr(nam *Node, n *Node) bool {
 	switch n.Op {
 	case ONAME:
 		*nam = *n
-		return n.Addable()
+		return true
 
 	case ODOT:
 		if !stataddr(nam, n.Left) {

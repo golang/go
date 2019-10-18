@@ -168,13 +168,13 @@ func TestDateParsingCFWS(t *testing.T) {
 		// FWS is allowed before zone but HTAB is not handled. Obsolete timezone is handled.
 		{
 			"Fri, 21 Nov 1997 09:55:06           CST",
-			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("CST", 0)),
+			time.Time{},
 			true,
 		},
 		// FWS is allowed after date and a CRLF is already replaced.
 		{
 			"Fri, 21 Nov 1997 09:55:06           CST (no leading FWS and a trailing CRLF) \r\n",
-			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("CST", 0)),
+			time.Time{},
 			true,
 		},
 		// CFWS is a reduced set of US-ASCII where space and accentuated are obsolete. No error.
@@ -229,7 +229,7 @@ func TestDateParsingCFWS(t *testing.T) {
 		// Invalid month : OCT iso Oct
 		{
 			"Fri, 21 OCT 1997 09:55:06 CST",
-			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+			time.Time{},
 			false,
 		},
 		// A too short time zone.
@@ -252,6 +252,9 @@ func TestDateParsingCFWS(t *testing.T) {
 		date, err := hdr.Date()
 		if err != nil && test.valid {
 			t.Errorf("Header(Date: %s).Date(): %v", test.dateStr, err)
+		} else if err == nil && test.exp.IsZero() {
+			// OK.  Used when exact result depends on the
+			// system's local zoneinfo.
 		} else if err == nil && !date.Equal(test.exp) && test.valid {
 			t.Errorf("Header(Date: %s).Date() = %+v, want %+v", test.dateStr, date, test.exp)
 		} else if err == nil && !test.valid { // an invalid expression was tested
@@ -261,6 +264,9 @@ func TestDateParsingCFWS(t *testing.T) {
 		date, err = ParseDate(test.dateStr)
 		if err != nil && test.valid {
 			t.Errorf("ParseDate(%s): %v", test.dateStr, err)
+		} else if err == nil && test.exp.IsZero() {
+			// OK.  Used when exact result depends on the
+			// system's local zoneinfo.
 		} else if err == nil && !test.valid { // an invalid expression was tested
 			t.Errorf("ParseDate(%s) did not return an error but %v", test.dateStr, date)
 		} else if err == nil && test.valid && !date.Equal(test.exp) {

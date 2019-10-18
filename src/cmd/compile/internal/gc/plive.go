@@ -908,7 +908,7 @@ func (lv *Liveness) epilogue() {
 	if lv.fn.Func.HasDefer() {
 		for i, n := range lv.vars {
 			if n.Class() == PPARAMOUT {
-				if n.IsOutputParamHeapAddr() {
+				if n.Name.IsOutputParamHeapAddr() {
 					// Just to be paranoid.  Heap addresses are PAUTOs.
 					Fatalf("variable %v both output param and heap output param", n)
 				}
@@ -920,7 +920,7 @@ func (lv *Liveness) epilogue() {
 				// Note: zeroing is handled by zeroResults in walk.go.
 				livedefer.Set(int32(i))
 			}
-			if n.IsOutputParamHeapAddr() {
+			if n.Name.IsOutputParamHeapAddr() {
 				// This variable will be overwritten early in the function
 				// prologue (from the result of a mallocgc) but we need to
 				// zero it in case that malloc causes a stack scan.

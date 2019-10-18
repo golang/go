@@ -934,6 +934,28 @@ func zeroExt32to64Fence(x []int, j uint32) int {
 	return 0
 }
 
+// Ensure that bounds checks with negative indexes are not incorrectly removed.
+func negIndex() {
+	n := make([]int, 1)
+	for i := -1; i <= 0; i++ { // ERROR "Induction variable: limits \[-1,0\], increment 1$"
+		n[i] = 1
+	}
+}
+func negIndex2(n int) {
+	a := make([]int, 5)
+	b := make([]int, 5)
+	c := make([]int, 5)
+	for i := -1; i <= 0; i-- {
+		b[i] = i
+		n++
+		if n > 10 {
+			break
+		}
+	}
+	useSlice(a)
+	useSlice(c)
+}
+
 //go:noinline
 func useInt(a int) {
 }

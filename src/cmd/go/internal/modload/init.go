@@ -848,7 +848,7 @@ func fixVersion(path, vers string) (string, error) {
 		}
 	}
 	if vers != "" && module.CanonicalVersion(vers) == vers {
-		if err := module.MatchPathMajor(vers, pathMajor); err == nil {
+		if err := module.CheckPathMajor(vers, pathMajor); err == nil {
 			return vers, nil
 		}
 	}

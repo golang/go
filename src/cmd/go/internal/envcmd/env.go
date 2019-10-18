@@ -343,6 +343,18 @@ func checkEnvWrite(key, val string, env []cfg.EnvVar) error {
 		return fmt.Errorf("unknown go command variable %s", key)
 	}
 
+	// Some variables can only have one of a few valid values. If set to an
+	// invalid value, the next cmd/go invocation might fail immediately,
+	// even 'go env -w' itself.
+	switch key {
+	case "GO111MODULE":
+		switch val {
+		case "", "auto", "on", "off":
+		default:
+			return fmt.Errorf("invalid %s value %q", key, val)
+		}
+	}
+
 	if !utf8.ValidString(val) {
 		return fmt.Errorf("invalid UTF-8 in %s=... value", key)
 	}

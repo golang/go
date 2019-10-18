@@ -415,6 +415,8 @@ func rewriteValueMIPS64(v *Value) bool {
 		return rewriteValueMIPS64_OpMul64_0(v)
 	case OpMul64F:
 		return rewriteValueMIPS64_OpMul64F_0(v)
+	case OpMul64uhilo:
+		return rewriteValueMIPS64_OpMul64uhilo_0(v)
 	case OpMul8:
 		return rewriteValueMIPS64_OpMul8_0(v)
 	case OpNeg16:
@@ -6791,6 +6793,18 @@ func rewriteValueMIPS64_OpMul64F_0(v *Value) bool {
 		y := v.Args[1]
 		x := v.Args[0]
 		v.reset(OpMIPS64MULD)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueMIPS64_OpMul64uhilo_0(v *Value) bool {
+	// match: (Mul64uhilo x y)
+	// result: (MULVU x y)
+	for {
+		y := v.Args[1]
+		x := v.Args[0]
+		v.reset(OpMIPS64MULVU)
 		v.AddArg(x)
 		v.AddArg(y)
 		return true

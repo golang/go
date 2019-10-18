@@ -1407,6 +1407,11 @@ func (v Value) OverflowUint(x uint64) bool {
 	panic(&ValueError{"reflect.Value.OverflowUint", v.kind()})
 }
 
+//go:nocheckptr
+// This prevents inlining Value.Pointer when -d=checkptr is enabled,
+// which ensures cmd/compile can recognize unsafe.Pointer(v.Pointer())
+// and make an exception.
+
 // Pointer returns v's value as a uintptr.
 // It returns uintptr instead of unsafe.Pointer so that
 // code using reflect cannot obtain unsafe.Pointers
@@ -1913,6 +1918,11 @@ func (v Value) Uint() uint64 {
 	}
 	panic(&ValueError{"reflect.Value.Uint", v.kind()})
 }
+
+//go:nocheckptr
+// This prevents inlining Value.UnsafeAddr when -d=checkptr is enabled,
+// which ensures cmd/compile can recognize unsafe.Pointer(v.UnsafeAddr())
+// and make an exception.
 
 // UnsafeAddr returns a pointer to v's data.
 // It is for advanced clients that also import the "unsafe" package.

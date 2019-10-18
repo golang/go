@@ -947,13 +947,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Sym = gc.BoundsCheckFunc[v.AuxInt]
 		s.UseArgs(int64(2 * gc.Widthptr)) // space used in callee args area by assembly stubs
 
-	case ssa.OpAMD64LoweredPanicExtendA, ssa.OpAMD64LoweredPanicExtendB, ssa.OpAMD64LoweredPanicExtendC:
-		p := s.Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = gc.ExtendCheckFunc[v.AuxInt]
-		s.UseArgs(int64(3 * gc.Widthptr)) // space used in callee args area by assembly stubs
-
 	case ssa.OpAMD64NEGQ, ssa.OpAMD64NEGL,
 		ssa.OpAMD64BSWAPQ, ssa.OpAMD64BSWAPL,
 		ssa.OpAMD64NOTQ, ssa.OpAMD64NOTL:

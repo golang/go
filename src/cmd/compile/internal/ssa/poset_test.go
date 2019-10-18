@@ -184,7 +184,7 @@ func TestPoset(t *testing.T) {
 		{OrderedOrEqual, 4, 12},
 		{OrderedOrEqual_Fail, 12, 4},
 		{OrderedOrEqual, 4, 7},
-		{OrderedOrEqual, 7, 4},
+		{OrderedOrEqual_Fail, 7, 4},
 
 		// Dag #1: 1<4<=7<12
 		{Checkpoint, 0, 0},
@@ -448,7 +448,7 @@ func TestSetEqual(t *testing.T) {
 		{SetOrderOrEqual, 20, 100},
 		{SetOrder, 100, 110},
 		{OrderedOrEqual, 10, 30},
-		{OrderedOrEqual, 30, 10},
+		{OrderedOrEqual_Fail, 30, 10},
 		{Ordered_Fail, 10, 30},
 		{Ordered_Fail, 30, 10},
 		{Ordered, 10, 40},

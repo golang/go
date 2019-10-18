@@ -868,9 +868,6 @@ const (
 	OpAMD64LoweredPanicBoundsA
 	OpAMD64LoweredPanicBoundsB
 	OpAMD64LoweredPanicBoundsC
-	OpAMD64LoweredPanicExtendA
-	OpAMD64LoweredPanicExtendB
-	OpAMD64LoweredPanicExtendC
 	OpAMD64FlagEQ
 	OpAMD64FlagLT_ULT
 	OpAMD64FlagLT_UGT
@@ -11314,42 +11311,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1}, // AX
 				{1, 2}, // CX
-			},
-		},
-	},
-	{
-		name:    "LoweredPanicExtendA",
-		auxType: auxInt64,
-		argLen:  4,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 64}, // SI
-				{1, 4},  // DX
-				{2, 8},  // BX
-			},
-		},
-	},
-	{
-		name:    "LoweredPanicExtendB",
-		auxType: auxInt64,
-		argLen:  4,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 64}, // SI
-				{1, 2},  // CX
-				{2, 4},  // DX
-			},
-		},
-	},
-	{
-		name:    "LoweredPanicExtendC",
-		auxType: auxInt64,
-		argLen:  4,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 64}, // SI
-				{1, 1},  // AX
-				{2, 2},  // CX
 			},
 		},
 	},

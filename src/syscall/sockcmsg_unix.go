@@ -50,8 +50,8 @@ func CmsgSpace(datalen int) int {
 	return cmsgAlignOf(SizeofCmsghdr) + cmsgAlignOf(datalen)
 }
 
-func cmsgData(h *Cmsghdr) unsafe.Pointer {
-	return unsafe.Pointer(uintptr(unsafe.Pointer(h)) + uintptr(cmsgAlignOf(SizeofCmsghdr)))
+func (h *Cmsghdr) data(offset uintptr) unsafe.Pointer {
+	return unsafe.Pointer(uintptr(unsafe.Pointer(h)) + uintptr(cmsgAlignOf(SizeofCmsghdr)) + offset)
 }
 
 // SocketControlMessage represents a socket control message.
@@ -94,10 +94,8 @@ func UnixRights(fds ...int) []byte {
 	h.Level = SOL_SOCKET
 	h.Type = SCM_RIGHTS
 	h.SetLen(CmsgLen(datalen))
-	data := cmsgData(h)
-	for _, fd := range fds {
-		*(*int32)(data) = int32(fd)
-		data = unsafe.Pointer(uintptr(data) + 4)
+	for i, fd := range fds {
+		*(*int32)(h.data(4 * uintptr(i))) = int32(fd)
 	}
 	return b
 }

@@ -1038,6 +1038,8 @@ again:
 	FSTPS	(F3, F4), 1024(RSP) // fb0310916313002d
 	FSTPS	(F3, F4), x(SB)
 	FSTPS	(F3, F4), x+8(SB)
+	NOOP                        // 1f2003d5
+	HINT $0                     // 1f2003d5
 
 // System Register
 	MSR	$1, SPSel                          // bf4100d5
