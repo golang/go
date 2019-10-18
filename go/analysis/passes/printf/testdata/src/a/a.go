@@ -84,8 +84,8 @@ func PrintfTests() {
 	fmt.Printf("%T %T", 3, i)
 	fmt.Printf("%U %U", 3, i)
 	fmt.Printf("%v %v", 3, i)
-	fmt.Printf("%x %x %x %x", 3, i, "hi", s)
-	fmt.Printf("%X %X %X %X", 3, i, "hi", s)
+	fmt.Printf("%x %x %x %x %x %x %x", 3, i, "hi", s, x, c, fslice)
+	fmt.Printf("%X %X %X %X %X %X %X", 3, i, "hi", s, x, c, fslice)
 	fmt.Printf("%.*s %d %g", 3, "hi", 23, 2.3)
 	fmt.Printf("%s", &stringerv)
 	fmt.Printf("%v", &stringerv)
@@ -128,7 +128,6 @@ func PrintfTests() {
 	fmt.Printf("%t", 23)                        // want "Printf format %t has arg 23 of wrong type int"
 	fmt.Printf("%U", x)                         // want "Printf format %U has arg x of wrong type float64"
 	fmt.Printf("%x", nil)                       // want "Printf format %x has arg nil of wrong type untyped nil"
-	fmt.Printf("%X", 2.3)                       // want "Printf format %X has arg 2.3 of wrong type float64"
 	fmt.Printf("%s", stringerv)                 // want "Printf format %s has arg stringerv of wrong type a.ptrStringer"
 	fmt.Printf("%t", stringerv)                 // want "Printf format %t has arg stringerv of wrong type a.ptrStringer"
 	fmt.Printf("%s", embeddedStringerv)         // want "Printf format %s has arg embeddedStringerv of wrong type a.embeddedStringer"
