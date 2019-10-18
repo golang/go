@@ -97,8 +97,9 @@ type Loader struct {
 	extStart Sym              // from this index on, the symbols are externally defined
 	extSyms  []nameVer        // externally defined symbols
 
-	symsByName map[nameVer]Sym // map symbol name to index
-	overwrite  map[Sym]Sym     // overwrite[i]=j if symbol j overwrites symbol i
+	symsByName    [2]map[string]Sym // map symbol name to index, two maps are for ABI0 and ABIInternal
+	extStaticSyms map[nameVer]Sym   // externally defined static symbols, keyed by name
+	overwrite     map[Sym]Sym       // overwrite[i]=j if symbol j overwrites symbol i
 
 	itablink map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
 
@@ -111,12 +112,13 @@ type Loader struct {
 
 func NewLoader() *Loader {
 	return &Loader{
-		start:      make(map[*oReader]Sym),
-		objs:       []objIdx{{nil, 0}},
-		symsByName: make(map[nameVer]Sym),
-		objByPkg:   make(map[string]*oReader),
-		overwrite:  make(map[Sym]Sym),
-		itablink:   make(map[Sym]struct{}),
+		start:         make(map[*oReader]Sym),
+		objs:          []objIdx{{nil, 0}},
+		symsByName:    [2]map[string]Sym{make(map[string]Sym), make(map[string]Sym)},
+		objByPkg:      make(map[string]*oReader),
+		overwrite:     make(map[Sym]Sym),
+		itablink:      make(map[Sym]struct{}),
+		extStaticSyms: make(map[nameVer]Sym),
 	}
 }
 
@@ -153,8 +155,7 @@ func (l *Loader) AddSym(name string, ver int, i Sym, r *oReader, dupok bool, typ
 		// referenced by name.
 		return true
 	}
-	nv := nameVer{name, ver}
-	if oldi, ok := l.symsByName[nv]; ok {
+	if oldi, ok := l.symsByName[ver][name]; ok {
 		if dupok {
 			return false
 		}
@@ -181,24 +182,34 @@ func (l *Loader) AddSym(name string, ver int, i Sym, r *oReader, dupok bool, typ
 			return false
 		}
 	}
-	l.symsByName[nv] = i
+	l.symsByName[ver][name] = i
 	return true
 }
 
 // Add an external symbol (without index). Return the index of newly added
 // symbol, or 0 if not added.
 func (l *Loader) AddExtSym(name string, ver int) Sym {
-	nv := nameVer{name, ver}
-	if _, ok := l.symsByName[nv]; ok {
-		return 0
+	static := ver >= sym.SymVerStatic
+	if static {
+		if _, ok := l.extStaticSyms[nameVer{name, ver}]; ok {
+			return 0
+		}
+	} else {
+		if _, ok := l.symsByName[ver][name]; ok {
+			return 0
+		}
 	}
 	i := l.max + 1
-	l.symsByName[nv] = i
+	if static {
+		l.extStaticSyms[nameVer{name, ver}] = i
+	} else {
+		l.symsByName[ver][name] = i
+	}
 	l.max++
 	if l.extStart == 0 {
 		l.extStart = i
 	}
-	l.extSyms = append(l.extSyms, nv)
+	l.extSyms = append(l.extSyms, nameVer{name, ver})
 	l.growSyms(int(i))
 	return i
 }
@@ -259,8 +270,7 @@ func (l *Loader) resolve(r *oReader, s goobj2.SymRef) Sym {
 		osym.Read(r.Reader, r.SymOff(i))
 		name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
 		v := abiToVer(osym.ABI, r.version)
-		nv := nameVer{name, v}
-		return l.symsByName[nv]
+		return l.Lookup(name, v)
 	case goobj2.PkgIdxBuiltin:
 		panic("PkgIdxBuiltin not used")
 	case goobj2.PkgIdxSelf:
@@ -280,8 +290,10 @@ func (l *Loader) resolve(r *oReader, s goobj2.SymRef) Sym {
 // This is more like Syms.ROLookup than Lookup -- it doesn't create
 // new symbol.
 func (l *Loader) Lookup(name string, ver int) Sym {
-	nv := nameVer{name, ver}
-	return l.symsByName[nv]
+	if ver >= sym.SymVerStatic {
+		return l.extStaticSyms[nameVer{name, ver}]
+	}
+	return l.symsByName[ver][name]
 }
 
 // Returns whether i is a dup of another symbol, and i is not
@@ -307,7 +319,7 @@ func (l *Loader) IsDup(i Sym) bool {
 	}
 	name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
 	ver := abiToVer(osym.ABI, r.version)
-	return l.symsByName[nameVer{name, ver}] != i
+	return l.symsByName[ver][name] != i
 }
 
 // Number of total symbols.
@@ -665,7 +677,7 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) {
 			continue
 		}
 		ver := abiToVer(osym.ABI, r.version)
-		if osym.ABI != goobj2.SymABIstatic && l.symsByName[nameVer{name, ver}] != istart+Sym(i) {
+		if osym.ABI != goobj2.SymABIstatic && l.symsByName[ver][name] != istart+Sym(i) {
 			continue
 		}
 
@@ -719,7 +731,7 @@ func loadObjFull(l *Loader, r *oReader) {
 		ver := abiToVer(osym.ABI, r.version)
 		dupok := osym.Dupok()
 		if dupok {
-			if dupsym := l.symsByName[nameVer{name, ver}]; dupsym != istart+Sym(i) {
+			if dupsym := l.symsByName[ver][name]; dupsym != istart+Sym(i) {
 				if l.Reachable.Has(dupsym) {
 					// A dupok symbol is resolved to another package. We still need
 					// to record its presence in the current package, as the trampoline
@@ -960,7 +972,10 @@ func (l *Loader) Dump() {
 	}
 	fmt.Println("overwrite:", l.overwrite)
 	fmt.Println("symsByName")
-	for nv, i := range l.symsByName {
-		fmt.Println(i, nv.name, nv.v)
+	for name, i := range l.symsByName[0] {
+		fmt.Println(i, name, 0)
+	}
+	for name, i := range l.symsByName[1] {
+		fmt.Println(i, name, 1)
 	}
 }
