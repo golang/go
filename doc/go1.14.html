@@ -112,6 +112,17 @@ TODO
   graphic characters and spaces.
 </p>
 
+<p><!-- golang.org/issue/31481 -->
+  The <code>go</code> command now accepts a new flag, <code>-modcacherw</code>,
+  which leaves newly-created directories in the module cache at their default
+  permissions rather than making them read-only.
+  The use of this flag makes it more likely that tests or other tools will
+  accidentally add files not included in the module's verified checksum.
+  However, it allows the use of <code>rm</code> <code>-rf</code>
+  (instead of <code>go</code> <code>clean</code> <code>-modcache</code>)
+  to remove the module cache.
+</p>
+
 <h2 id="runtime">Runtime</h2>
 
 <p>
