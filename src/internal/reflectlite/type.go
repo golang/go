@@ -629,7 +629,7 @@ func (t *funcType) in() []*rtype {
 	if t.inCount == 0 {
 		return nil
 	}
-	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "t.inCount > 0"))[:t.inCount]
+	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "t.inCount > 0"))[:t.inCount:t.inCount]
 }
 
 func (t *funcType) out() []*rtype {
@@ -641,7 +641,7 @@ func (t *funcType) out() []*rtype {
 	if outCount == 0 {
 		return nil
 	}
-	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "outCount > 0"))[t.inCount : t.inCount+outCount]
+	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "outCount > 0"))[t.inCount : t.inCount+outCount : t.inCount+outCount]
 }
 
 // add returns p+x.
