@@ -71,7 +71,8 @@ func newProgs(fn *Node, worker int) *Progs {
 	pp.pos = fn.Pos
 	pp.settext(fn)
 	pp.nextLive = LivenessInvalid
-	pp.prevLive = LivenessInvalid
+	// PCDATA tables implicitly start with index -1.
+	pp.prevLive = LivenessIndex{-1, -1}
 	return pp
 }
 
