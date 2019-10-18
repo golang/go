@@ -184,7 +184,7 @@ func (ctxt *Link) NumberSyms(asm bool) {
 
 	var idx, nonpkgidx int32 = 0, 0
 	ctxt.traverseSyms(traverseDefs, func(s *LSym) {
-		if asm || s.Pkg == "_" || s.DuplicateOK() || ctxt.Flag_linkshared {
+		if isNonPkgSym(ctxt, asm, s) {
 			s.PkgIdx = goobj2.PkgIdxNone
 			s.SymIdx = nonpkgidx
 			if nonpkgidx != int32(len(ctxt.nonpkgdefs)) {
@@ -230,6 +230,31 @@ func (ctxt *Link) NumberSyms(asm bool) {
 		ctxt.pkgIdx[pkg] = ipkg
 		ipkg++
 	})
+}
+
+// Returns whether s is a non-package symbol, which needs to be referenced
+// by name instead of by index.
+func isNonPkgSym(ctxt *Link, asm bool, s *LSym) bool {
+	if asm && !s.Static() {
+		// asm symbols are referenced by name only, except static symbols
+		// which are file-local and can be referenced by index.
+		return true
+	}
+	if ctxt.Flag_linkshared {
+		// The referenced symbol may be in a different shared library so
+		// the linker cannot see its index.
+		return true
+	}
+	if s.Pkg == "_" {
+		// The frontend uses package "_" to mark symbols that should not
+		// be referenced by index, e.g. linkname'd symbols.
+		return true
+	}
+	if s.DuplicateOK() {
+		// Dupok symbol needs to be dedup'd by name.
+		return true
+	}
+	return false
 }
 
 type traverseFlag uint32
