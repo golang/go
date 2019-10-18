@@ -49,7 +49,8 @@ func (r *objReader) readNew() {
 		case goobj2.PkgIdxNone:
 			i = int(s.SymIdx) + rr.NSym()
 		case goobj2.PkgIdxBuiltin:
-			panic("PkgIdxBuiltin is unused")
+			name, abi := goobj2.BuiltinName(int(s.SymIdx))
+			return SymID{name, int64(abi)}
 		case goobj2.PkgIdxSelf:
 			i = int(s.SymIdx)
 		default:

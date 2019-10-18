@@ -91,11 +91,12 @@ func makeBitmap(n int) bitmap {
 
 // A Loader loads new object files and resolves indexed symbol references.
 type Loader struct {
-	start    map[*oReader]Sym // map from object file to its start index
-	objs     []objIdx         // sorted by start index (i.e. objIdx.i)
-	max      Sym              // current max index
-	extStart Sym              // from this index on, the symbols are externally defined
-	extSyms  []nameVer        // externally defined symbols
+	start       map[*oReader]Sym // map from object file to its start index
+	objs        []objIdx         // sorted by start index (i.e. objIdx.i)
+	max         Sym              // current max index
+	extStart    Sym              // from this index on, the symbols are externally defined
+	extSyms     []nameVer        // externally defined symbols
+	builtinSyms []Sym            // global index of builtin symbols
 
 	symsByName    [2]map[string]Sym // map symbol name to index, two maps are for ABI0 and ABIInternal
 	extStaticSyms map[nameVer]Sym   // externally defined static symbols, keyed by name
@@ -111,6 +112,7 @@ type Loader struct {
 }
 
 func NewLoader() *Loader {
+	nbuiltin := goobj2.NBuiltin()
 	return &Loader{
 		start:         make(map[*oReader]Sym),
 		objs:          []objIdx{{nil, 0}},
@@ -119,6 +121,7 @@ func NewLoader() *Loader {
 		overwrite:     make(map[Sym]Sym),
 		itablink:      make(map[Sym]struct{}),
 		extStaticSyms: make(map[nameVer]Sym),
+		builtinSyms:   make([]Sym, nbuiltin),
 	}
 }
 
@@ -272,7 +275,7 @@ func (l *Loader) resolve(r *oReader, s goobj2.SymRef) Sym {
 		v := abiToVer(osym.ABI, r.version)
 		return l.Lookup(name, v)
 	case goobj2.PkgIdxBuiltin:
-		panic("PkgIdxBuiltin not used")
+		return l.builtinSyms[s.SymIdx]
 	case goobj2.PkgIdxSelf:
 		rr = r
 	default:
@@ -574,6 +577,12 @@ func (l *Loader) Preload(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *
 		added := l.AddSym(name, v, istart+Sym(i), or, dupok, sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)])
 		if added && strings.HasPrefix(name, "go.itablink.") {
 			l.itablink[istart+Sym(i)] = struct{}{}
+		}
+		if added && strings.HasPrefix(name, "runtime.") {
+			if bi := goobj2.BuiltinIdx(name, v); bi != -1 {
+				// This is a definition of a builtin symbol. Record where it is.
+				l.builtinSyms[bi] = istart + Sym(i)
+			}
 		}
 	}
 
