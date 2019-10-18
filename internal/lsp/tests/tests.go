@@ -257,8 +257,10 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		filename := data.Exported.File(testModule, fragment)
 		data.fragments[filename] = fragment
 	}
-	data.Exported.Config.Logf = t.Logf
-	data.Config.Logf = t.Logf
+
+	// Turn off go/packages debug logging.
+	data.Exported.Config.Logf = nil
+	data.Config.Logf = nil
 
 	// Merge the exported.Config with the view.Config.
 	data.Config = *data.Exported.Config
