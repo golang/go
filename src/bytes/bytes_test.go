@@ -1483,6 +1483,7 @@ var TitleTests = []TitleTest{
 	{"ÿøû", "Ÿøû"},
 	{"with_underscore", "With_underscore"},
 	{"unicode \xe2\x80\xa8 line separator", "Unicode \xe2\x80\xa8 Line Separator"},
+	{"^unicode\u2026punctuation", "^Unicode\u2026Punctuation"},
 }
 
 func TestTitle(t *testing.T) {

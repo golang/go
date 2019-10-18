@@ -683,10 +683,9 @@ func ToValidUTF8(s, replacement string) string {
 }
 
 // isSeparator reports whether the rune could mark a word boundary.
-// TODO: update when package unicode captures more of the properties.
 func isSeparator(r rune) bool {
 	// ASCII alphanumerics and underscore are not separators
-	if r <= 0x7F {
+	if r <= unicode.MaxASCII {
 		switch {
 		case '0' <= r && r <= '9':
 			return false
@@ -699,18 +698,12 @@ func isSeparator(r rune) bool {
 		}
 		return true
 	}
-	// Letters and digits are not separators
-	if unicode.IsLetter(r) || unicode.IsDigit(r) {
-		return false
-	}
-	// Otherwise, all we can do for now is treat spaces as separators.
-	return unicode.IsSpace(r)
+	// Spaces and Unicode punctuation characters are treated as separators.
+	return unicode.IsSpace(r) || unicode.IsPunct(r)
 }
 
 // Title returns a copy of the string s with all Unicode letters that begin words
 // mapped to their Unicode title case.
-//
-// BUG(rsc): The rule Title uses for word boundaries does not handle Unicode punctuation properly.
 func Title(s string) string {
 	// Use a closure here to remember state.
 	// Hackish but effective. Depends on Map scanning in order and calling
