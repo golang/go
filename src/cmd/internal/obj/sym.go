@@ -210,6 +210,17 @@ func (ctxt *Link) NumberSyms(asm bool) {
 		if rs.PkgIdx != goobj2.PkgIdxInvalid {
 			return
 		}
+		if !ctxt.Flag_linkshared {
+			// Assign special index for builtin symbols.
+			// Don't do it when linking against shared libraries, as the runtime
+			// may be in a different library.
+			if i := goobj2.BuiltinIdx(rs.Name, int(rs.ABI())); i != -1 {
+				rs.PkgIdx = goobj2.PkgIdxBuiltin
+				rs.SymIdx = int32(i)
+				rs.Set(AttrIndexed, true)
+				return
+			}
+		}
 		pkg := rs.Pkg
 		if pkg == "" || pkg == "\"\"" || pkg == "_" || !rs.Indexed() {
 			rs.PkgIdx = goobj2.PkgIdxNone
