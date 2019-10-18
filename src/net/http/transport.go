@@ -540,10 +540,15 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		if err == nil {
 			return resp, nil
 		}
-		if http2isNoCachedConnError(err) {
+
+		// Failed. Clean up and determine whether to retry.
+
+		_, isH2DialError := pconn.alt.(http2erringRoundTripper)
+		if http2isNoCachedConnError(err) || isH2DialError {
 			t.removeIdleConn(pconn)
 			t.decConnsPerHost(pconn.cacheKey)
-		} else if !pconn.shouldRetryRequest(req, err) {
+		}
+		if !pconn.shouldRetryRequest(req, err) {
 			// Issue 16465: return underlying net.Conn.Read error from peek,
 			// as we've historically done.
 			if e, ok := err.(transportReadFromServerError); ok {

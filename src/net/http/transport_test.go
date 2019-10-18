@@ -5814,3 +5814,78 @@ func TestTransportClosesBodyOnInvalidRequests(t *testing.T) {
 		})
 	}
 }
+
+// breakableConn is a net.Conn wrapper with a Write method
+// that will fail when its brokenState is true.
+type breakableConn struct {
+	net.Conn
+	*brokenState
+}
+
+type brokenState struct {
+	sync.Mutex
+	broken bool
+}
+
+func (w *breakableConn) Write(b []byte) (n int, err error) {
+	w.Lock()
+	defer w.Unlock()
+	if w.broken {
+		return 0, errors.New("some write error")
+	}
+	return w.Conn.Write(b)
+}
+
+// Issue 34978: don't cache a broken HTTP/2 connection
+func TestDontCacheBrokenHTTP2Conn(t *testing.T) {
+	cst := newClientServerTest(t, h2Mode, HandlerFunc(func(w ResponseWriter, r *Request) {}), optQuietLog)
+	defer cst.close()
+
+	var brokenState brokenState
+
+	cst.tr.Dial = func(netw, addr string) (net.Conn, error) {
+		c, err := net.Dial(netw, addr)
+		if err != nil {
+			t.Errorf("unexpected Dial error: %v", err)
+			return nil, err
+		}
+		return &breakableConn{c, &brokenState}, err
+	}
+
+	const numReqs = 5
+	var gotConns uint32 // atomic
+	for i := 1; i <= numReqs; i++ {
+		brokenState.Lock()
+		brokenState.broken = false
+		brokenState.Unlock()
+
+		// doBreak controls whether we break the TCP connection after the TLS
+		// handshake (before the HTTP/2 handshake). We test a few failures
+		// in a row followed by a final success.
+		doBreak := i != numReqs
+
+		ctx := httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
+			GotConn: func(info httptrace.GotConnInfo) {
+				atomic.AddUint32(&gotConns, 1)
+			},
+			TLSHandshakeDone: func(cfg tls.ConnectionState, err error) {
+				brokenState.Lock()
+				defer brokenState.Unlock()
+				if doBreak {
+					brokenState.broken = true
+				}
+			},
+		})
+		req, err := NewRequestWithContext(ctx, "GET", cst.ts.URL, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = cst.c.Do(req)
+		if doBreak != (err != nil) {
+			t.Errorf("for iteration %d, doBreak=%v; unexpected error %v", i, doBreak, err)
+		}
+	}
+	if got, want := atomic.LoadUint32(&gotConns), 1; int(got) != want {
+		t.Errorf("GotConn calls = %v; want %v", got, want)
+	}
+}
