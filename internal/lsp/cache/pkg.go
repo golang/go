@@ -20,7 +20,7 @@ import (
 
 // pkg contains the type information needed by the source package.
 type pkg struct {
-	view *view
+	snapshot *snapshot
 
 	// ID and package path have their own types to avoid being used interchangeably.
 	id      packageID
@@ -43,6 +43,10 @@ type pkg struct {
 // result in confusing errors because package IDs often look like package paths.
 type packageID string
 type packagePath string
+
+func (p *pkg) Snapshot() source.Snapshot {
+	return p.snapshot
+}
 
 func (p *pkg) ID() string {
 	return string(p.id)
@@ -136,8 +140,8 @@ func (p *pkg) FindDiagnostic(pdiag protocol.Diagnostic) (*source.Diagnostic, err
 
 func (p *pkg) FindFile(ctx context.Context, uri span.URI) (source.ParseGoHandle, source.Package, error) {
 	// Special case for ignored files.
-	if p.view.Ignore(uri) {
-		return p.view.findIgnoredFile(ctx, uri)
+	if p.snapshot.view.Ignore(uri) {
+		return p.snapshot.view.findIgnoredFile(ctx, uri)
 	}
 
 	queue := []*pkg{p}

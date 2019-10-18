@@ -266,7 +266,7 @@ func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle) (*p
 	defer done()
 
 	pkg := &pkg{
-		view:       imp.snapshot.view,
+		snapshot:   imp.snapshot,
 		id:         cph.m.id,
 		mode:       cph.mode,
 		pkgPath:    cph.m.pkgPath,

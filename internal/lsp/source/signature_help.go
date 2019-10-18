@@ -121,11 +121,11 @@ FindCall:
 		comment *ast.CommentGroup
 	)
 	if obj != nil {
-		node, err := objToNode(ctx, view, pkg, obj)
+		node, err := objToNode(ctx, pkg, obj)
 		if err != nil {
 			return nil, err
 		}
-		rng, err := objToMappedRange(ctx, view, pkg, obj)
+		rng, err := objToMappedRange(ctx, pkg, obj)
 		if err != nil {
 			return nil, err
 		}

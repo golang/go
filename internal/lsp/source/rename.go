@@ -151,7 +151,7 @@ func (i *IdentifierInfo) Rename(ctx context.Context, view View, newName string) 
 		if err != nil {
 			return nil, err
 		}
-		fh := i.snapshot.Handle(ctx, f)
+		fh := i.Snapshot().Handle(ctx, f)
 		data, _, err := fh.Read(ctx)
 		if err != nil {
 			return nil, err
@@ -218,16 +218,14 @@ func getPkgNameIdentifier(ctx context.Context, ident *IdentifierInfo, pkgName *t
 		wasImplicit: true,
 	}
 	var err error
-	if decl.mappedRange, err = objToMappedRange(ctx, ident.View, ident.pkg, decl.obj); err != nil {
+	if decl.mappedRange, err = objToMappedRange(ctx, ident.pkg, decl.obj); err != nil {
 		return nil, err
 	}
-	if decl.node, err = objToNode(ctx, ident.View, ident.pkg, decl.obj); err != nil {
+	if decl.node, err = objToNode(ctx, ident.pkg, decl.obj); err != nil {
 		return nil, err
 	}
 	return &IdentifierInfo{
 		Name:             pkgName.Name(),
-		View:             ident.View,
-		snapshot:         ident.snapshot,
 		mappedRange:      decl.mappedRange,
 		File:             ident.File,
 		Declaration:      decl,
