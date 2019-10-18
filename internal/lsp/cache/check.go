@@ -99,6 +99,9 @@ func (imp *importer) checkPackageHandle(ctx context.Context, id packageID) (*che
 	})
 	cph.handle = h
 
+	// Cache the CheckPackageHandle in the snapshot.
+	imp.snapshot.addPackage(cph)
+
 	return cph, nil
 }
 
@@ -146,9 +149,6 @@ func (imp *importer) buildKey(ctx context.Context, id packageID, mode source.Par
 		depKeys = append(depKeys, depHandle.key)
 	}
 	cph.key = checkPackageKey(cph.m.id, cph.files, m.config, depKeys)
-
-	// Cache the CheckPackageHandle in the snapshot.
-	imp.snapshot.addPackage(cph)
 
 	return cph, nil
 }
