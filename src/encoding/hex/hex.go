@@ -49,6 +49,7 @@ func (e InvalidByteError) Error() string {
 func DecodedLen(x int) int { return x / 2 }
 
 // Decode decodes src into DecodedLen(len(src)) bytes,
+// writting up to len(dst) bytes into dst,
 // returning the actual number of bytes written to dst.
 //
 // Decode expects that src contains only hexadecimal
@@ -57,7 +58,7 @@ func DecodedLen(x int) int { return x / 2 }
 // of bytes decoded before the error.
 func Decode(dst, src []byte) (int, error) {
 	i, j := 0, 1
-	for ; j < len(src); j += 2 {
+	for ; j < len(src) && i < len(dst); j += 2 {
 		a, ok := fromHexChar(src[j-1])
 		if !ok {
 			return i, InvalidByteError(src[j-1])
