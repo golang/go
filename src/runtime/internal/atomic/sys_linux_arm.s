@@ -29,9 +29,9 @@ TEXT runtime∕internal∕atomic·Cas(SB),NOSPLIT|NOFRAME,$0
 	CMP	$7, R11
 	BLT	2(PC)
 	JMP	·armcas(SB)
-	JMP	·kernelcas<>(SB)
+	JMP	kernelcas<>(SB)
 
-TEXT runtime∕internal∕atomic·kernelcas<>(SB),NOSPLIT,$0
+TEXT kernelcas<>(SB),NOSPLIT,$0
 	MOVW	ptr+0(FP), R2
 	// trigger potential paging fault here,
 	// because we don't know how to traceback through __kuser_cmpxchg
