@@ -33,6 +33,7 @@ var (
 	BuildN                 bool               // -n flag
 	BuildO                 string             // -o flag
 	BuildP                 = runtime.NumCPU() // -p flag
+	BuildModcacheRW        bool               // -modcacherw flag
 	BuildPkgdir            string             // -pkgdir flag
 	BuildRace              bool               // -race flag
 	BuildToolexec          []string           // -toolexec flag

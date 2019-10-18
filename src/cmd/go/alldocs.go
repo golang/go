@@ -150,6 +150,9 @@
 // 	-mod mode
 // 		module download mode to use: readonly or vendor.
 // 		See 'go help modules' for more.
+// 	-modcacherw
+// 		leave newly-created directories in the module cache read-write
+// 		instead of making them read-only.
 // 	-pkgdir dir
 // 		install and load all packages from dir instead of the usual locations.
 // 		For example, when building with a non-standard configuration,
