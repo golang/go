@@ -240,7 +240,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
 		username := u.Username()
 		password, _ := u.Password()
 		forkReq()
-		req.Header = ireq.Header.Clone()
+		req.Header = cloneOrMakeHeader(ireq.Header)
 		req.Header.Set("Authorization", "Basic "+basicAuth(username, password))
 	}
 
@@ -434,8 +434,8 @@ func Get(url string) (resp *Response, err error) {
 // An error is returned if the Client's CheckRedirect function fails
 // or if there was an HTTP protocol error. A non-2xx response doesn't
 // cause an error. Any returned error will be of type *url.Error. The
-// url.Error value's Timeout method will report true if request timed
-// out or was canceled.
+// url.Error value's Timeout method will report true if the request
+// timed out.
 //
 // When err is nil, resp always contains a non-nil resp.Body.
 // Caller should close resp.Body when done reading from it.
@@ -719,7 +719,7 @@ func (c *Client) makeHeadersCopier(ireq *Request) func(*Request) {
 	// The headers to copy are from the very initial request.
 	// We use a closured callback to keep a reference to these original headers.
 	var (
-		ireqhdr  = ireq.Header.Clone()
+		ireqhdr  = cloneOrMakeHeader(ireq.Header)
 		icookies map[string][]*Cookie
 	)
 	if c.Jar != nil && ireq.Header.Get("Cookie") != "" {

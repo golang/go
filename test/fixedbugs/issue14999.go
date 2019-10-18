@@ -7,11 +7,11 @@
 package p
 
 func f(x int) func(int) int {
-	return func(y int) int { return x + y } // ERROR "heap-allocated closure, not allowed in runtime."
+	return func(y int) int { return x + y } // ERROR "heap-allocated closure, not allowed in runtime"
 }
 
-func g(x int) func(int) int { // ERROR "x escapes to heap, not allowed in runtime."
-	return func(y int) int { // ERROR "heap-allocated closure, not allowed in runtime."
+func g(x int) func(int) int { // ERROR "x escapes to heap, not allowed in runtime"
+	return func(y int) int { // ERROR "heap-allocated closure, not allowed in runtime"
 		x += y
 		return x + y
 	}

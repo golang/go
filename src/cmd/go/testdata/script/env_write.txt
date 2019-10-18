@@ -85,3 +85,7 @@ stderr 'multiple values for key: GOOS'
 # go env -w rejects missing variables
 ! go env -w GOOS
 stderr 'arguments must be KEY=VALUE: invalid argument: GOOS'
+
+# go env -w rejects invalid GO111MODULE values, as otherwise cmd/go would break
+! go env -w GO111MODULE=badvalue
+stderr 'invalid GO111MODULE value "badvalue"'

@@ -1264,7 +1264,7 @@ func (s *state) stmt(n *Node) {
 
 	case OVARLIVE:
 		// Insert a varlive op to record that a variable is still live.
-		if !n.Left.Addrtaken() {
+		if !n.Left.Name.Addrtaken() {
 			s.Fatalf("VARLIVE variable %v must have Addrtaken set", n.Left)
 		}
 		switch n.Left.Class() {
@@ -3600,8 +3600,8 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpMul64uhilo, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1])
 		},
-		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X)
-	alias("math/bits", "Mul", "math/bits", "Mul64", sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64, sys.ArchS390X)
+		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.MIPS64)
+	alias("math/bits", "Mul", "math/bits", "Mul64", sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64, sys.ArchS390X, sys.ArchMIPS64, sys.ArchMIPS64LE)
 	addF("math/bits", "Add64",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssa.OpAdd64carry, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
@@ -3779,7 +3779,8 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 			break
 		}
 		closure = s.expr(fn)
-		if thearch.LinkArch.Family == sys.Wasm || objabi.GOOS == "aix" && k != callGo {
+		if k != callDefer && k != callDeferStack && (thearch.LinkArch.Family == sys.Wasm || objabi.GOOS == "aix" && k != callGo) {
+			// Deferred nil function needs to panic when the function is invoked, not the point of defer statement.
 			// On AIX, the closure needs to be verified as fn can be nil, except if it's a call go. This needs to be handled by the runtime to have the "go of nil func value" error.
 			// TODO(neelance): On other architectures this should be eliminated by the optimization steps
 			s.nilCheck(closure)
@@ -4090,7 +4091,7 @@ func (s *state) canSSA(n *Node) bool {
 	if n.Op != ONAME {
 		return false
 	}
-	if n.Addrtaken() {
+	if n.Name.Addrtaken() {
 		return false
 	}
 	if n.isParamHeapCopy() {
@@ -5257,7 +5258,7 @@ func (s byXoffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func emitStackObjects(e *ssafn, pp *Progs) {
 	var vars []*Node
 	for _, n := range e.curfn.Func.Dcl {
-		if livenessShouldTrack(n) && n.Addrtaken() {
+		if livenessShouldTrack(n) && n.Name.Addrtaken() {
 			vars = append(vars, n)
 		}
 	}
@@ -6015,7 +6016,7 @@ func (e *ssafn) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
 	n := name.N.(*Node)
 	ptrType := types.NewPtr(types.Types[TUINT8])
 	lenType := types.Types[TINT]
-	if n.Class() == PAUTO && !n.Addrtaken() {
+	if n.Class() == PAUTO && !n.Name.Addrtaken() {
 		// Split this string up into two separate variables.
 		p := e.splitSlot(&name, ".ptr", 0, ptrType)
 		l := e.splitSlot(&name, ".len", ptrType.Size(), lenType)
@@ -6029,7 +6030,7 @@ func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot
 	n := name.N.(*Node)
 	u := types.Types[TUINTPTR]
 	t := types.NewPtr(types.Types[TUINT8])
-	if n.Class() == PAUTO && !n.Addrtaken() {
+	if n.Class() == PAUTO && !n.Name.Addrtaken() {
 		// Split this interface up into two separate variables.
 		f := ".itab"
 		if n.Type.IsEmptyInterface() {
@@ -6047,7 +6048,7 @@ func (e *ssafn) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ss
 	n := name.N.(*Node)
 	ptrType := types.NewPtr(name.Type.Elem())
 	lenType := types.Types[TINT]
-	if n.Class() == PAUTO && !n.Addrtaken() {
+	if n.Class() == PAUTO && !n.Name.Addrtaken() {
 		// Split this slice up into three separate variables.
 		p := e.splitSlot(&name, ".ptr", 0, ptrType)
 		l := e.splitSlot(&name, ".len", ptrType.Size(), lenType)
@@ -6069,7 +6070,7 @@ func (e *ssafn) SplitComplex(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) 
 	} else {
 		t = types.Types[TFLOAT32]
 	}
-	if n.Class() == PAUTO && !n.Addrtaken() {
+	if n.Class() == PAUTO && !n.Name.Addrtaken() {
 		// Split this complex up into two separate variables.
 		r := e.splitSlot(&name, ".real", 0, t)
 		i := e.splitSlot(&name, ".imag", t.Size(), t)
@@ -6087,7 +6088,7 @@ func (e *ssafn) SplitInt64(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
 	} else {
 		t = types.Types[TUINT32]
 	}
-	if n.Class() == PAUTO && !n.Addrtaken() {
+	if n.Class() == PAUTO && !n.Name.Addrtaken() {
 		// Split this int64 up into two separate variables.
 		if thearch.LinkArch.ByteOrder == binary.BigEndian {
 			return e.splitSlot(&name, ".hi", 0, t), e.splitSlot(&name, ".lo", t.Size(), types.Types[TUINT32])
@@ -6109,7 +6110,7 @@ func (e *ssafn) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
 	for f := 0; f < i; f++ {
 		offset += st.FieldType(f).Size()
 	}
-	if n.Class() == PAUTO && !n.Addrtaken() {
+	if n.Class() == PAUTO && !n.Name.Addrtaken() {
 		// Note: the _ field may appear several times.  But
 		// have no fear, identically-named but distinct Autos are
 		// ok, albeit maybe confusing for a debugger.
@@ -6125,7 +6126,7 @@ func (e *ssafn) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
 		e.Fatalf(n.Pos, "bad array size")
 	}
 	et := at.Elem()
-	if n.Class() == PAUTO && !n.Addrtaken() {
+	if n.Class() == PAUTO && !n.Name.Addrtaken() {
 		return e.splitSlot(&name, "[0]", 0, et)
 	}
 	return ssa.LocalSlot{N: n, Type: et, Off: name.Off}
@@ -6151,7 +6152,6 @@ func (e *ssafn) splitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t 
 	n.Sym = s
 	n.Type = t
 	n.SetClass(PAUTO)
-	n.SetAddable(true)
 	n.Esc = EscNever
 	n.Name.Curfn = e.curfn
 	e.curfn.Func.Dcl = append(e.curfn.Func.Dcl, n)

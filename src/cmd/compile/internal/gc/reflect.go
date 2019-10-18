@@ -1024,7 +1024,6 @@ func typename(t *types.Type) *Node {
 
 	n := nod(OADDR, asNode(s.Def), nil)
 	n.Type = types.NewPtr(asNode(s.Def).Type)
-	n.SetAddable(true)
 	n.SetTypecheck(1)
 	return n
 }
@@ -1045,7 +1044,6 @@ func itabname(t, itype *types.Type) *Node {
 
 	n := nod(OADDR, asNode(s.Def), nil)
 	n.Type = types.NewPtr(asNode(s.Def).Type)
-	n.SetAddable(true)
 	n.SetTypecheck(1)
 	return n
 }
@@ -1886,7 +1884,6 @@ func zeroaddr(size int64) *Node {
 	}
 	z := nod(OADDR, asNode(s.Def), nil)
 	z.Type = types.NewPtr(types.Types[TUINT8])
-	z.SetAddable(true)
 	z.SetTypecheck(1)
 	return z
 }

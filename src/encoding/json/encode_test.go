@@ -1064,3 +1064,30 @@ func TestMarshalUncommonFieldNames(t *testing.T) {
 		t.Fatalf("Marshal: got %s want %s", got, want)
 	}
 }
+
+func TestMarshalerError(t *testing.T) {
+	s := "test variable"
+	st := reflect.TypeOf(s)
+	errText := "json: test error"
+
+	tests := []struct {
+		err  *MarshalerError
+		want string
+	}{
+		{
+			&MarshalerError{st, fmt.Errorf(errText), ""},
+			"json: error calling MarshalJSON for type " + st.String() + ": " + errText,
+		},
+		{
+			&MarshalerError{st, fmt.Errorf(errText), "TestMarshalerError"},
+			"json: error calling TestMarshalerError for type " + st.String() + ": " + errText,
+		},
+	}
+
+	for i, tt := range tests {
+		got := tt.err.Error()
+		if got != tt.want {
+			t.Errorf("MarshalerError test %d, got: %s, want: %s", i, got, tt.want)
+		}
+	}
+}

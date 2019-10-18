@@ -7,6 +7,7 @@
 package os
 
 import (
+	"runtime"
 	"syscall"
 )
 
@@ -49,9 +50,14 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 	}
 
 	pid, h, e := syscall.StartProcess(name, argv, sysattr)
+
+	// Make sure we don't run the finalizers of attr.Files.
+	runtime.KeepAlive(attr)
+
 	if e != nil {
 		return nil, &PathError{"fork/exec", name, e}
 	}
+
 	return newProcess(pid, h), nil
 }
 

@@ -40,7 +40,7 @@ func helperCommandContext(t *testing.T, ctx context.Context, s ...string) (cmd *
 	} else {
 		cmd = exec.Command(os.Args[0], cs...)
 	}
-	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	return cmd
 }
 
@@ -656,7 +656,7 @@ func TestExtraFiles(t *testing.T) {
 	c.ExtraFiles = []*os.File{tf}
 	err = c.Run()
 	if err != nil {
-		t.Fatalf("Run: %v; stdout %q, stderr %q", err, stdout.Bytes(), stderr.Bytes())
+		t.Fatalf("Run: %v\n--- stdout:\n%s--- stderr:\n%s", err, stdout.Bytes(), stderr.Bytes())
 	}
 	if stdout.String() != text {
 		t.Errorf("got stdout %q, stderr %q; want %q on stdout", stdout.String(), stderr.String(), text)
@@ -821,55 +821,40 @@ func TestHelperProcess(*testing.T) {
 			fmt.Printf("ReadAll from fd 3: %v", err)
 			os.Exit(1)
 		}
-		switch runtime.GOOS {
-		case "dragonfly":
-			// TODO(jsing): Determine why DragonFly is leaking
-			// file descriptors...
-		case "darwin":
-			// TODO(bradfitz): broken? Sometimes.
-			// https://golang.org/issue/2603
-			// Skip this additional part of the test for now.
-		case "netbsd":
-			// TODO(jsing): This currently fails on NetBSD due to
-			// the cloned file descriptors that result from opening
-			// /dev/urandom.
-			// https://golang.org/issue/3955
-		case "illumos", "solaris":
-			// TODO(aram): This fails on Solaris because libc opens
-			// its own files, as it sees fit. Darwin does the same,
-			// see: https://golang.org/issue/2603
-		default:
-			// Now verify that there are no other open fds.
-			var files []*os.File
-			for wantfd := basefds() + 1; wantfd <= 100; wantfd++ {
-				if poll.IsPollDescriptor(wantfd) {
-					continue
+		// Now verify that there are no other open fds.
+		var files []*os.File
+		for wantfd := basefds() + 1; wantfd <= 100; wantfd++ {
+			if poll.IsPollDescriptor(wantfd) {
+				continue
+			}
+			f, err := os.Open(os.Args[0])
+			if err != nil {
+				fmt.Printf("error opening file with expected fd %d: %v", wantfd, err)
+				os.Exit(1)
+			}
+			if got := f.Fd(); got != wantfd {
+				fmt.Printf("leaked parent file. fd = %d; want %d\n", got, wantfd)
+				var args []string
+				switch runtime.GOOS {
+				case "plan9":
+					args = []string{fmt.Sprintf("/proc/%d/fd", os.Getpid())}
+				case "aix":
+					args = []string{fmt.Sprint(os.Getpid())}
+				default:
+					args = []string{"-p", fmt.Sprint(os.Getpid())}
 				}
-				f, err := os.Open(os.Args[0])
+				cmd := exec.Command(ofcmd, args...)
+				out, err := cmd.CombinedOutput()
 				if err != nil {
-					fmt.Printf("error opening file with expected fd %d: %v", wantfd, err)
-					os.Exit(1)
+					fmt.Fprintf(os.Stderr, "%s failed: %v\n", strings.Join(cmd.Args, " "), err)
 				}
-				if got := f.Fd(); got != wantfd {
-					fmt.Printf("leaked parent file. fd = %d; want %d\n", got, wantfd)
-					var args []string
-					switch runtime.GOOS {
-					case "plan9":
-						args = []string{fmt.Sprintf("/proc/%d/fd", os.Getpid())}
-					case "aix":
-						args = []string{fmt.Sprint(os.Getpid())}
-					default:
-						args = []string{"-p", fmt.Sprint(os.Getpid())}
-					}
-					out, _ := exec.Command(ofcmd, args...).CombinedOutput()
-					fmt.Print(string(out))
-					os.Exit(1)
-				}
-				files = append(files, f)
+				fmt.Printf("%s", out)
+				os.Exit(1)
 			}
-			for _, f := range files {
-				f.Close()
-			}
+			files = append(files, f)
+		}
+		for _, f := range files {
+			f.Close()
 		}
 		// Referring to fd3 here ensures that it is not
 		// garbage collected, and therefore closed, while

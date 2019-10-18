@@ -97,7 +97,7 @@ func paramoutheap(fn *Node) bool {
 	for _, ln := range fn.Func.Dcl {
 		switch ln.Class() {
 		case PPARAMOUT:
-			if ln.isParamStackCopy() || ln.Addrtaken() {
+			if ln.isParamStackCopy() || ln.Name.Addrtaken() {
 				return true
 			}
 
@@ -195,7 +195,7 @@ func walkstmt(n *Node) *Node {
 		v := n.Left
 		if v.Class() == PAUTOHEAP {
 			if compiling_runtime {
-				yyerror("%v escapes to heap, not allowed in runtime.", v)
+				yyerror("%v escapes to heap, not allowed in runtime", v)
 			}
 			if prealloc[v] == nil {
 				prealloc[v] = callnew(v.Type)
@@ -564,7 +564,6 @@ opswitch:
 		n = mkcall("gorecover", n.Type, init, nod(OADDR, nodfp, nil))
 
 	case OCLOSUREVAR, OCFUNC:
-		n.SetAddable(true)
 
 	case OCALLINTER, OCALLFUNC, OCALLMETH:
 		if n.Op == OCALLINTER {
@@ -705,7 +704,7 @@ opswitch:
 		n = liststmt(ll)
 
 	// x, y = <-c
-	// orderstmt made sure x is addressable.
+	// order.stmt made sure x is addressable or blank.
 	case OAS2RECV:
 		init.AppendNodes(&n.Ninit)
 
@@ -720,7 +719,7 @@ opswitch:
 		}
 		fn := chanfn("chanrecv2", 2, r.Left.Type)
 		ok := n.List.Second()
-		call := mkcall1(fn, ok.Type, init, r.Left, n1)
+		call := mkcall1(fn, types.Types[TBOOL], init, r.Left, n1)
 		n = nod(OAS, ok, call)
 		n = typecheck(n, ctxStmt)
 
@@ -952,6 +951,16 @@ opswitch:
 
 	case OCONV, OCONVNOP:
 		n.Left = walkexpr(n.Left, init)
+		if n.Op == OCONVNOP && checkPtr(Curfn) {
+			if n.Type.IsPtr() && n.Left.Type.Etype == TUNSAFEPTR { // unsafe.Pointer to *T
+				n = walkCheckPtrAlignment(n, init)
+				break
+			}
+			if n.Type.Etype == TUNSAFEPTR && n.Left.Type.Etype == TUINTPTR { // uintptr to unsafe.Pointer
+				n = walkCheckPtrArithmetic(n, init)
+				break
+			}
+		}
 		param, result := rtconvfn(n.Left.Type, n.Type)
 		if param == Txxx {
 			break
@@ -2098,7 +2107,7 @@ func aliased(n *Node, all []*Node, i int) bool {
 			continue
 
 		case PAUTO, PPARAM, PPARAMOUT:
-			if n.Addrtaken() {
+			if n.Name.Addrtaken() {
 				varwrite = true
 				continue
 			}
@@ -2146,7 +2155,7 @@ func varexpr(n *Node) bool {
 	case ONAME:
 		switch n.Class() {
 		case PAUTO, PPARAM, PPARAMOUT:
-			if !n.Addrtaken() {
+			if !n.Name.Addrtaken() {
 				return true
 			}
 		}
@@ -2383,6 +2392,9 @@ func conv(n *Node, t *types.Type) *Node {
 // convnop converts node n to type t using the OCONVNOP op
 // and typechecks the result with ctxExpr.
 func convnop(n *Node, t *types.Type) *Node {
+	if types.Identical(n.Type, t) {
+		return n
+	}
 	n = nod(OCONVNOP, n, nil)
 	n.Type = t
 	n = typecheck(n, ctxExpr)
@@ -3898,4 +3910,73 @@ func canMergeLoads() bool {
 // These are optimized into a call to runtime.countrunes.
 func isRuneCount(n *Node) bool {
 	return Debug['N'] == 0 && !instrumenting && n.Op == OLEN && n.Left.Op == OSTR2RUNES
+}
+
+func walkCheckPtrAlignment(n *Node, init *Nodes) *Node {
+	if n.Type.Elem().Alignment() == 1 && n.Type.Elem().Size() == 1 {
+		return n
+	}
+
+	n.Left = cheapexpr(n.Left, init)
+	init.Append(mkcall("checkptrAlignment", nil, init, convnop(n.Left, types.Types[TUNSAFEPTR]), typename(n.Type.Elem())))
+	return n
+}
+
+var walkCheckPtrArithmeticMarker byte
+
+func walkCheckPtrArithmetic(n *Node, init *Nodes) *Node {
+	// Calling cheapexpr(n, init) below leads to a recursive call
+	// to walkexpr, which leads us back here again. Use n.Opt to
+	// prevent infinite loops.
+	if n.Opt() == &walkCheckPtrArithmeticMarker {
+		return n
+	}
+	n.SetOpt(&walkCheckPtrArithmeticMarker)
+	defer n.SetOpt(nil)
+
+	// TODO(mdempsky): Make stricter. We only need to exempt
+	// reflect.Value.Pointer and reflect.Value.UnsafeAddr.
+	switch n.Left.Op {
+	case OCALLFUNC, OCALLMETH, OCALLINTER:
+		return n
+	}
+
+	// Find original unsafe.Pointer operands involved in this
+	// arithmetic expression.
+	//
+	// "It is valid both to add and to subtract offsets from a
+	// pointer in this way. It is also valid to use &^ to round
+	// pointers, usually for alignment."
+	var originals []*Node
+	var walk func(n *Node)
+	walk = func(n *Node) {
+		switch n.Op {
+		case OADD:
+			walk(n.Left)
+			walk(n.Right)
+		case OSUB, OANDNOT:
+			walk(n.Left)
+		case OCONVNOP:
+			if n.Left.Type.Etype == TUNSAFEPTR {
+				n.Left = cheapexpr(n.Left, init)
+				originals = append(originals, convnop(n.Left, types.Types[TUNSAFEPTR]))
+			}
+		}
+	}
+	walk(n.Left)
+
+	n = cheapexpr(n, init)
+
+	slice := mkdotargslice(types.NewSlice(types.Types[TUNSAFEPTR]), originals, init, nil)
+	slice.Esc = EscNone
+	slice.SetTransient(true)
+
+	init.Append(mkcall("checkptrArithmetic", nil, init, convnop(n, types.Types[TUNSAFEPTR]), slice))
+	return n
+}
+
+// checkPtr reports whether pointer checking should be enabled for
+// function fn.
+func checkPtr(fn *Node) bool {
+	return Debug_checkptr != 0 && fn.Func.Pragma&NoCheckPtr == 0
 }

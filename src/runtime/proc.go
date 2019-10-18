@@ -1116,7 +1116,7 @@ func stopTheWorldWithSema() {
 func startTheWorldWithSema(emitTraceEvent bool) int64 {
 	mp := acquirem() // disable preemption because it can be holding p in a local var
 	if netpollinited() {
-		list := netpoll(false) // non-blocking
+		list := netpoll(0) // non-blocking
 		injectglist(&list)
 	}
 	lock(&sched.lock)
@@ -2252,7 +2252,7 @@ top:
 	// not set lastpoll yet), this thread will do blocking netpoll below
 	// anyway.
 	if netpollinited() && atomic.Load(&netpollWaiters) > 0 && atomic.Load64(&sched.lastpoll) != 0 {
-		if list := netpoll(false); !list.empty() { // non-blocking
+		if list := netpoll(0); !list.empty() { // non-blocking
 			gp := list.pop()
 			injectglist(&list)
 			casgstatus(gp, _Gwaiting, _Grunnable)
@@ -2406,14 +2406,16 @@ stop:
 		if _g_.m.spinning {
 			throw("findrunnable: netpoll with spinning")
 		}
-		list := netpoll(true) // block until new work is available
+		list := netpoll(-1) // block until new work is available
 		atomic.Store64(&sched.lastpoll, uint64(nanotime()))
-		if !list.empty() {
-			lock(&sched.lock)
-			_p_ = pidleget()
-			unlock(&sched.lock)
-			if _p_ != nil {
-				acquirep(_p_)
+		lock(&sched.lock)
+		_p_ = pidleget()
+		unlock(&sched.lock)
+		if _p_ == nil {
+			injectglist(&list)
+		} else {
+			acquirep(_p_)
+			if !list.empty() {
 				gp := list.pop()
 				injectglist(&list)
 				casgstatus(gp, _Gwaiting, _Grunnable)
@@ -2422,7 +2424,11 @@ stop:
 				}
 				return gp, false
 			}
-			injectglist(&list)
+			if wasSpinning {
+				_g_.m.spinning = true
+				atomic.Xadd(&sched.nmspinning, 1)
+			}
+			goto top
 		}
 	}
 	stopm()
@@ -2442,7 +2448,7 @@ func pollWork() bool {
 		return true
 	}
 	if netpollinited() && atomic.Load(&netpollWaiters) > 0 && sched.lastpoll != 0 {
-		if list := netpoll(false); !list.empty() {
+		if list := netpoll(0); !list.empty() {
 			injectglist(&list)
 			return true
 		}
@@ -4371,7 +4377,7 @@ func sysmon() {
 		now := nanotime()
 		if netpollinited() && lastpoll != 0 && lastpoll+10*1000*1000 < now {
 			atomic.Cas64(&sched.lastpoll, uint64(lastpoll), uint64(now))
-			list := netpoll(false) // non-blocking - returns list of goroutines
+			list := netpoll(0) // non-blocking - returns list of goroutines
 			if !list.empty() {
 				// Need to decrement number of idle locked M's
 				// (pretending that one more is running) before injectglist.

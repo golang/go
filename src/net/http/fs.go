@@ -384,15 +384,18 @@ func checkIfUnmodifiedSince(r *Request, modtime time.Time) condResult {
 	if ius == "" || isZeroTime(modtime) {
 		return condNone
 	}
-	if t, err := ParseTime(ius); err == nil {
-		// The Date-Modified header truncates sub-second precision, so
-		// use mtime < t+1s instead of mtime <= t to check for unmodified.
-		if modtime.Before(t.Add(1 * time.Second)) {
-			return condTrue
-		}
-		return condFalse
+	t, err := ParseTime(ius)
+	if err != nil {
+		return condNone
 	}
-	return condNone
+
+	// The Last-Modified header truncates sub-second precision so
+	// the modtime needs to be truncated too.
+	modtime = modtime.Truncate(time.Second)
+	if modtime.Before(t) || modtime.Equal(t) {
+		return condTrue
+	}
+	return condFalse
 }
 
 func checkIfNoneMatch(w ResponseWriter, r *Request) condResult {
@@ -436,9 +439,10 @@ func checkIfModifiedSince(r *Request, modtime time.Time) condResult {
 	if err != nil {
 		return condNone
 	}
-	// The Date-Modified header truncates sub-second precision, so
-	// use mtime < t+1s instead of mtime <= t to check for unmodified.
-	if modtime.Before(t.Add(1 * time.Second)) {
+	// The Last-Modified header truncates sub-second precision so
+	// the modtime needs to be truncated too.
+	modtime = modtime.Truncate(time.Second)
+	if modtime.Before(t) || modtime.Equal(t) {
 		return condFalse
 	}
 	return condTrue

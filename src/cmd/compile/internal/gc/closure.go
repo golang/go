@@ -101,7 +101,7 @@ func typecheckclosure(clo *Node, top int) {
 			// Ignore assignments to the variable in straightline code
 			// preceding the first capturing by a closure.
 			if n.Name.Decldepth == decldepth {
-				n.SetAssigned(false)
+				n.Name.SetAssigned(false)
 			}
 		}
 	}
@@ -192,10 +192,10 @@ func capturevars(xfunc *Node) {
 		outermost := v.Name.Defn
 
 		// out parameters will be assigned to implicitly upon return.
-		if outermost.Class() != PPARAMOUT && !outermost.Addrtaken() && !outermost.Assigned() && v.Type.Width <= 128 {
+		if outermost.Class() != PPARAMOUT && !outermost.Name.Addrtaken() && !outermost.Name.Assigned() && v.Type.Width <= 128 {
 			v.Name.SetByval(true)
 		} else {
-			outermost.SetAddrtaken(true)
+			outermost.Name.SetAddrtaken(true)
 			outer = nod(OADDR, outer, nil)
 		}
 
@@ -208,7 +208,7 @@ func capturevars(xfunc *Node) {
 			if v.Name.Byval() {
 				how = "value"
 			}
-			Warnl(v.Pos, "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, outermost.Addrtaken(), outermost.Assigned(), int32(v.Type.Width))
+			Warnl(v.Pos, "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, outermost.Name.Addrtaken(), outermost.Name.Assigned(), int32(v.Type.Width))
 		}
 
 		outer = typecheck(outer, ctxExpr)
@@ -345,7 +345,7 @@ func closuredebugruntimecheck(clo *Node) {
 		}
 	}
 	if compiling_runtime && clo.Esc == EscHeap {
-		yyerrorl(clo.Pos, "heap-allocated closure, not allowed in runtime.")
+		yyerrorl(clo.Pos, "heap-allocated closure, not allowed in runtime")
 	}
 }
 

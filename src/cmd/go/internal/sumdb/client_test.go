@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package sumweb
+package sumdb
 
 import (
 	"bytes"
@@ -21,7 +21,7 @@ const (
 	testSignerKey   = "PRIVATE+KEY+localhost.localdev/sumdb+00000c67+AXu6+oaVaOYuQOFrf1V59JK1owcFlJcHwwXHDfDGxSPk"
 )
 
-func TestConnLookup(t *testing.T) {
+func TestClientLookup(t *testing.T) {
 	tc := newTestClient(t)
 	tc.mustHaveLatest(1)
 
@@ -49,7 +49,7 @@ func TestConnLookup(t *testing.T) {
 	tc.mustHaveLatest(4)
 }
 
-func TestConnBadTiles(t *testing.T) {
+func TestClientBadTiles(t *testing.T) {
 	tc := newTestClient(t)
 
 	flipBits := func() {
@@ -65,33 +65,33 @@ func TestConnBadTiles(t *testing.T) {
 	// Bad tiles in initial download.
 	tc.mustHaveLatest(1)
 	flipBits()
-	_, err := tc.conn.Lookup("rsc.io/sampler", "v1.3.0")
-	tc.mustError(err, "rsc.io/sampler@v1.3.0: initializing sumweb.Conn: checking tree#1: downloaded inconsistent tile")
+	_, err := tc.client.Lookup("rsc.io/sampler", "v1.3.0")
+	tc.mustError(err, "rsc.io/sampler@v1.3.0: initializing sumdb.Client: checking tree#1: downloaded inconsistent tile")
 	flipBits()
-	tc.newConn()
+	tc.newClient()
 	tc.mustLookup("rsc.io/sampler", "v1.3.0", "rsc.io/sampler v1.3.0 h1:7uVkIFmeBqHfdjD+gZwtXXI+RODJ2Wc4O7MPEh/QiW4=")
 
 	// Bad tiles after initial download.
 	flipBits()
-	_, err = tc.conn.Lookup("rsc.io/Quote", "v1.5.2")
+	_, err = tc.client.Lookup("rsc.io/Quote", "v1.5.2")
 	tc.mustError(err, "rsc.io/Quote@v1.5.2: checking tree#3 against tree#4: downloaded inconsistent tile")
 	flipBits()
-	tc.newConn()
+	tc.newClient()
 	tc.mustLookup("rsc.io/Quote", "v1.5.2", "rsc.io/Quote v1.5.2 h1:uppercase!=")
 
 	// Bad starting tree hash looks like bad tiles.
-	tc.newConn()
+	tc.newClient()
 	text := tlog.FormatTree(tlog.Tree{N: 1, Hash: tlog.Hash{}})
 	data, err := note.Sign(&note.Note{Text: string(text)}, tc.signer)
 	if err != nil {
 		tc.t.Fatal(err)
 	}
 	tc.config[testName+"/latest"] = data
-	_, err = tc.conn.Lookup("rsc.io/sampler", "v1.3.0")
-	tc.mustError(err, "rsc.io/sampler@v1.3.0: initializing sumweb.Conn: checking tree#1: downloaded inconsistent tile")
+	_, err = tc.client.Lookup("rsc.io/sampler", "v1.3.0")
+	tc.mustError(err, "rsc.io/sampler@v1.3.0: initializing sumdb.Client: checking tree#1: downloaded inconsistent tile")
 }
 
-func TestConnFork(t *testing.T) {
+func TestClientFork(t *testing.T) {
 	tc := newTestClient(t)
 	tc2 := tc.fork()
 
@@ -109,7 +109,7 @@ func TestConnFork(t *testing.T) {
 
 	key := "/lookup/rsc.io/pkg1@v1.5.2"
 	tc2.remote[key] = tc.remote[key]
-	_, err := tc2.conn.Lookup("rsc.io/pkg1", "v1.5.2")
+	_, err := tc2.client.Lookup("rsc.io/pkg1", "v1.5.2")
 	tc2.mustError(err, ErrSecurity.Error())
 
 	/*
@@ -154,10 +154,10 @@ func TestConnFork(t *testing.T) {
 	}
 }
 
-func TestConnGONOSUMDB(t *testing.T) {
+func TestClientGONOSUMDB(t *testing.T) {
 	tc := newTestClient(t)
-	tc.conn.SetGONOSUMDB("p,*/q")
-	tc.conn.Lookup("rsc.io/sampler", "v1.3.0") // initialize before we turn off network
+	tc.client.SetGONOSUMDB("p,*/q")
+	tc.client.Lookup("rsc.io/sampler", "v1.3.0") // initialize before we turn off network
 	tc.getOK = false
 
 	ok := []string{
@@ -175,13 +175,13 @@ func TestConnGONOSUMDB(t *testing.T) {
 	}
 
 	for _, path := range ok {
-		_, err := tc.conn.Lookup(path, "v1.0.0")
+		_, err := tc.client.Lookup(path, "v1.0.0")
 		if err == ErrGONOSUMDB {
 			t.Errorf("Lookup(%q): ErrGONOSUMDB, wanted failed actual lookup", path)
 		}
 	}
 	for _, path := range skip {
-		_, err := tc.conn.Lookup(path, "v1.0.0")
+		_, err := tc.client.Lookup(path, "v1.0.0")
 		if err != ErrGONOSUMDB {
 			t.Errorf("Lookup(%q): %v, wanted ErrGONOSUMDB", path, err)
 		}
@@ -191,7 +191,7 @@ func TestConnGONOSUMDB(t *testing.T) {
 // A testClient is a self-contained client-side testing environment.
 type testClient struct {
 	t          *testing.T // active test
-	conn       *Conn      // conn being tested
+	client     *Client    // client being tested
 	tileHeight int        // tile height to use (default 2)
 	getOK      bool       // should tc.GetURL succeed?
 	getTileOK  bool       // should tc.GetURL of tiles succeed?
@@ -202,12 +202,12 @@ type testClient struct {
 
 	// mu protects config, cache, log, security
 	// during concurrent use of the exported methods
-	// by the conn itself (testClient is the Conn's Client,
+	// by the client itself (testClient is the Client's ClientOps,
 	// and the Client methods can both read and write these fields).
 	// Unexported methods invoked directly by the test
 	// (for example, addRecord) need not hold the mutex:
 	// for proper test execution those methods should only
-	// be called when the Conn is idle and not using its Client.
+	// be called when the Client is idle and not using its ClientOps.
 	// Not holding the mutex in those methods ensures
 	// that if a mistake is made, go test -race will report it.
 	// (Holding the mutex would eliminate the race report but
@@ -240,7 +240,7 @@ func newTestClient(t *testing.T) *testClient {
 		t.Fatal(err)
 	}
 
-	tc.newConn()
+	tc.newClient()
 
 	tc.addRecord("rsc.io/quote@v1.5.2", `rsc.io/quote v1.5.2 h1:w5fcysjrx7yqtD/aO+QwRjYZOKnaM9Uh2b40tElTs3Y=
 rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
@@ -260,18 +260,18 @@ rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
 	return tc
 }
 
-// newConn resets the Conn associated with tc.
-// This clears any in-memory cache from the Conn
+// newClient resets the Client associated with tc.
+// This clears any in-memory cache from the Client
 // but not tc's on-disk cache.
-func (tc *testClient) newConn() {
-	tc.conn = NewConn(tc)
-	tc.conn.SetTileHeight(tc.tileHeight)
+func (tc *testClient) newClient() {
+	tc.client = NewClient(tc)
+	tc.client.SetTileHeight(tc.tileHeight)
 }
 
 // mustLookup does a lookup for path@vers and checks that the lines that come back match want.
 func (tc *testClient) mustLookup(path, vers, want string) {
 	tc.t.Helper()
-	lines, err := tc.conn.Lookup(path, vers)
+	lines, err := tc.client.Lookup(path, vers)
 	if err != nil {
 		tc.t.Fatal(err)
 	}
@@ -315,7 +315,7 @@ func (tc *testClient) fork() *testClient {
 		cache:      copyMap(tc.cache),
 		remote:     copyMap(tc.remote),
 	}
-	tc2.newConn()
+	tc2.newClient()
 	return tc2
 }
 

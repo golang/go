@@ -19,6 +19,7 @@ import (
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/module"
+	"cmd/go/internal/semver"
 )
 
 var cmdVendor = &base.Command{
@@ -59,9 +60,16 @@ func runVendor(cmd *base.Command, args []string) {
 		modpkgs[m] = append(modpkgs[m], pkg)
 	}
 
+	includeAllReplacements := false
 	isExplicit := map[module.Version]bool{}
-	for _, r := range modload.ModFile().Require {
-		isExplicit[r.Mod] = true
+	if gv := modload.ModFile().Go; gv != nil && semver.Compare("v"+gv.Version, "v1.14") >= 0 {
+		// If the Go version is at least 1.14, annotate all explicit 'require' and
+		// 'replace' targets found in the go.mod file so that we can perform a
+		// stronger consistency check when -mod=vendor is set.
+		for _, r := range modload.ModFile().Require {
+			isExplicit[r.Mod] = true
+		}
+		includeAllReplacements = true
 	}
 
 	var buf bytes.Buffer
@@ -89,20 +97,22 @@ func runVendor(cmd *base.Command, args []string) {
 		}
 	}
 
-	// Record unused and wildcard replacements at the end of the modules.txt file:
-	// without access to the complete build list, the consumer of the vendor
-	// directory can't otherwise determine that those replacements had no effect.
-	for _, r := range modload.ModFile().Replace {
-		if len(modpkgs[r.Old]) > 0 {
-			// We we already recorded this replacement in the entry for the replaced
-			// module with the packages it provides.
-			continue
-		}
+	if includeAllReplacements {
+		// Record unused and wildcard replacements at the end of the modules.txt file:
+		// without access to the complete build list, the consumer of the vendor
+		// directory can't otherwise determine that those replacements had no effect.
+		for _, r := range modload.ModFile().Replace {
+			if len(modpkgs[r.Old]) > 0 {
+				// We we already recorded this replacement in the entry for the replaced
+				// module with the packages it provides.
+				continue
+			}
 
-		line := moduleLine(r.Old, r.New)
-		buf.WriteString(line)
-		if cfg.BuildV {
-			os.Stderr.WriteString(line)
+			line := moduleLine(r.Old, r.New)
+			buf.WriteString(line)
+			if cfg.BuildV {
+				os.Stderr.WriteString(line)
+			}
 		}
 	}
 

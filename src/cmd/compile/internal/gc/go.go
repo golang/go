@@ -60,16 +60,9 @@ const (
 	PPARAMOUT              // output results
 	PFUNC                  // global function
 
-	PDISCARD // discard during parse of duplicate import
 	// Careful: Class is stored in three bits in Node.flags.
-	// Adding a new Class will overflow that.
+	_ = uint((1 << 3) - iota) // static assert for iota <= (1 << 3)
 )
-
-func init() {
-	if PDISCARD != 7 {
-		panic("PDISCARD changed; does all Class values still fit in three bits?")
-	}
-}
 
 // note this is the runtime representation
 // of the compilers arrays.

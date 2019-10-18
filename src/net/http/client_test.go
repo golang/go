@@ -1936,3 +1936,58 @@ func TestClientPropagatesTimeoutToContext(t *testing.T) {
 	}
 	c.Get("https://example.tld/")
 }
+
+func TestClientDoCanceledVsTimeout_h1(t *testing.T) {
+	testClientDoCanceledVsTimeout(t, h1Mode)
+}
+
+func TestClientDoCanceledVsTimeout_h2(t *testing.T) {
+	testClientDoCanceledVsTimeout(t, h2Mode)
+}
+
+// Issue 33545: lock-in the behavior promised by Client.Do's
+// docs about request cancelation vs timing out.
+func testClientDoCanceledVsTimeout(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Write([]byte("Hello, World!"))
+	}))
+	defer cst.close()
+
+	cases := []string{"timeout", "canceled"}
+
+	for _, name := range cases {
+		t.Run(name, func(t *testing.T) {
+			var ctx context.Context
+			var cancel func()
+			if name == "timeout" {
+				ctx, cancel = context.WithTimeout(context.Background(), -time.Nanosecond)
+			} else {
+				ctx, cancel = context.WithCancel(context.Background())
+				cancel()
+			}
+			defer cancel()
+
+			req, _ := NewRequestWithContext(ctx, "GET", cst.ts.URL, nil)
+			_, err := cst.c.Do(req)
+			if err == nil {
+				t.Fatal("Unexpectedly got a nil error")
+			}
+
+			ue := err.(*url.Error)
+
+			var wantIsTimeout bool
+			var wantErr error = context.Canceled
+			if name == "timeout" {
+				wantErr = context.DeadlineExceeded
+				wantIsTimeout = true
+			}
+			if g, w := ue.Timeout(), wantIsTimeout; g != w {
+				t.Fatalf("url.Timeout() = %t, want %t", g, w)
+			}
+			if g, w := ue.Err, wantErr; g != w {
+				t.Errorf("url.Error.Err = %v; want %v", g, w)
+			}
+		})
+	}
+}

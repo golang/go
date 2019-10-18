@@ -555,3 +555,34 @@ func Div64(hi, lo, y uint64) (quo, rem uint64) {
 
 	return q1*two32 + q0, (un21*two32 + un0 - q0*y) >> s
 }
+
+// Rem returns the remainder of (hi, lo) divided by y. Rem panics for
+// y == 0 (division by zero) but, unlike Div, it doesn't panic on a
+// quotient overflow.
+func Rem(hi, lo, y uint) uint {
+	if UintSize == 32 {
+		return uint(Rem32(uint32(hi), uint32(lo), uint32(y)))
+	}
+	return uint(Rem64(uint64(hi), uint64(lo), uint64(y)))
+}
+
+// Rem32 returns the remainder of (hi, lo) divided by y. Rem32 panics
+// for y == 0 (division by zero) but, unlike Div32, it doesn't panic
+// on a quotient overflow.
+func Rem32(hi, lo, y uint32) uint32 {
+	return uint32((uint64(hi)<<32 | uint64(lo)) % uint64(y))
+}
+
+// Rem64 returns the remainder of (hi, lo) divided by y. Rem64 panics
+// for y == 0 (division by zero) but, unlike Div64, it doesn't panic
+// on a quotient overflow.
+func Rem64(hi, lo, y uint64) uint64 {
+	// We scale down hi so that hi < y, then use Div64 to compute the
+	// rem with the guarantee that it won't panic on quotient overflow.
+	// Given that
+	//   hi ≡ hi%y    (mod y)
+	// we have
+	//   hi<<64 + lo ≡ (hi%y)<<64 + lo    (mod y)
+	_, rem := Div64(hi%y, lo, y)
+	return rem
+}

@@ -129,6 +129,7 @@ var (
 	morestackNoCtxt *obj.LSym
 	gcWriteBarrier  *obj.LSym
 	sigpanic        *obj.LSym
+	sigpanic0       *obj.LSym
 	deferreturn     *obj.LSym
 	jmpdefer        *obj.LSym
 )
@@ -143,6 +144,7 @@ func instinit(ctxt *obj.Link) {
 	morestackNoCtxt = ctxt.Lookup("runtime.morestack_noctxt")
 	gcWriteBarrier = ctxt.Lookup("runtime.gcWriteBarrier")
 	sigpanic = ctxt.LookupABI("runtime.sigpanic", obj.ABIInternal)
+	sigpanic0 = ctxt.LookupABI("runtime.sigpanic", 0) // sigpanic called from assembly, which has ABI0
 	deferreturn = ctxt.LookupABI("runtime.deferreturn", obj.ABIInternal)
 	// jmpdefer is defined in assembly as ABI0, but what we're
 	// looking for is the *call* to jmpdefer from the Go function
@@ -491,7 +493,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			}
 
 			// return value of call is on the top of the stack, indicating whether to unwind the WebAssembly stack
-			if call.As == ACALLNORESUME && call.To.Sym != sigpanic { // sigpanic unwinds the stack, but it never resumes
+			if call.As == ACALLNORESUME && call.To.Sym != sigpanic && call.To.Sym != sigpanic0 { // sigpanic unwinds the stack, but it never resumes
 				// trying to unwind WebAssembly stack but call has no resume point, terminate with error
 				p = appendp(p, AIf)
 				p = appendp(p, obj.AUNDEF)
@@ -1152,6 +1154,10 @@ func align(as obj.As) uint64 {
 }
 
 func writeUleb128(w io.ByteWriter, v uint64) {
+	if v < 128 {
+		w.WriteByte(uint8(v))
+		return
+	}
 	more := true
 	for more {
 		c := uint8(v & 0x7f)

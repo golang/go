@@ -10,7 +10,7 @@ var netpollWaiters uint32
 
 // Polls for ready network connections.
 // Returns list of goroutines that become runnable.
-func netpoll(block bool) gList {
+func netpoll(delay int64) gList {
 	// Implementation for platforms that do not support
 	// integrated network poller.
 	return gList{}

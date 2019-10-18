@@ -370,7 +370,6 @@ func newnamel(pos src.XPos, s *types.Sym) *Node {
 	n.Orig = n
 
 	n.Sym = s
-	n.SetAddable(true)
 	return n
 }
 

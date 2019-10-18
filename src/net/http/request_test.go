@@ -826,6 +826,34 @@ func TestWithContextDeepCopiesURL(t *testing.T) {
 	}
 }
 
+func TestNoPanicOnRoundTripWithBasicAuth_h1(t *testing.T) {
+	testNoPanicWithBasicAuth(t, h1Mode)
+}
+
+func TestNoPanicOnRoundTripWithBasicAuth_h2(t *testing.T) {
+	testNoPanicWithBasicAuth(t, h2Mode)
+}
+
+// Issue 34878: verify we don't panic when including basic auth (Go 1.13 regression)
+func testNoPanicWithBasicAuth(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {}))
+	defer cst.close()
+
+	u, err := url.Parse(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u.User = url.UserPassword("foo", "bar")
+	req := &Request{
+		URL:    u,
+		Method: "GET",
+	}
+	if _, err := cst.c.Do(req); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+}
+
 // verify that NewRequest sets Request.GetBody and that it works
 func TestNewRequestGetBody(t *testing.T) {
 	tests := []struct {
