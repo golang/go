@@ -545,8 +545,9 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 
 		_, isH2DialError := pconn.alt.(http2erringRoundTripper)
 		if http2isNoCachedConnError(err) || isH2DialError {
-			t.removeIdleConn(pconn)
-			t.decConnsPerHost(pconn.cacheKey)
+			if t.removeIdleConn(pconn) {
+				t.decConnsPerHost(pconn.cacheKey)
+			}
 		}
 		if !pconn.shouldRetryRequest(req, err) {
 			// Issue 16465: return underlying net.Conn.Read error from peek,
@@ -958,26 +959,28 @@ func (t *Transport) queueForIdleConn(w *wantConn) (delivered bool) {
 }
 
 // removeIdleConn marks pconn as dead.
-func (t *Transport) removeIdleConn(pconn *persistConn) {
+func (t *Transport) removeIdleConn(pconn *persistConn) bool {
 	t.idleMu.Lock()
 	defer t.idleMu.Unlock()
-	t.removeIdleConnLocked(pconn)
+	return t.removeIdleConnLocked(pconn)
 }
 
 // t.idleMu must be held.
-func (t *Transport) removeIdleConnLocked(pconn *persistConn) {
+func (t *Transport) removeIdleConnLocked(pconn *persistConn) bool {
 	if pconn.idleTimer != nil {
 		pconn.idleTimer.Stop()
 	}
 	t.idleLRU.remove(pconn)
 	key := pconn.cacheKey
 	pconns := t.idleConn[key]
+	var removed bool
 	switch len(pconns) {
 	case 0:
 		// Nothing
 	case 1:
 		if pconns[0] == pconn {
 			delete(t.idleConn, key)
+			removed = true
 		}
 	default:
 		for i, v := range pconns {
@@ -988,9 +991,11 @@ func (t *Transport) removeIdleConnLocked(pconn *persistConn) {
 			// conns at the end.
 			copy(pconns[i:], pconns[i+1:])
 			t.idleConn[key] = pconns[:len(pconns)-1]
+			removed = true
 			break
 		}
 	}
+	return removed
 }
 
 func (t *Transport) setReqCanceler(r *Request, fn func(error)) {
