@@ -1467,10 +1467,25 @@ func (ctxt *Link) dodata() {
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
 		datsize += s.Size
 	}
-
 	sect.Length = uint64(datsize) - sect.Vaddr
 	ctxt.Syms.Lookup("runtime.end", 0).Sect = sect
 	checkdatsize(ctxt, datsize, sym.SNOPTRBSS)
+
+	// Coverage instrumentation counters for libfuzzer.
+	if len(data[sym.SLIBFUZZER_EXTRA_COUNTER]) > 0 {
+		sect := addsection(ctxt.Arch, &Segdata, "__libfuzzer_extra_counters", 06)
+		sect.Align = dataMaxAlign[sym.SLIBFUZZER_EXTRA_COUNTER]
+		datsize = Rnd(datsize, int64(sect.Align))
+		sect.Vaddr = uint64(datsize)
+		for _, s := range data[sym.SLIBFUZZER_EXTRA_COUNTER] {
+			datsize = aligndatsize(datsize, s)
+			s.Sect = sect
+			s.Value = int64(uint64(datsize) - sect.Vaddr)
+			datsize += s.Size
+		}
+		sect.Length = uint64(datsize) - sect.Vaddr
+		checkdatsize(ctxt, datsize, sym.SLIBFUZZER_EXTRA_COUNTER)
+	}
 
 	if len(data[sym.STLSBSS]) > 0 {
 		var sect *sym.Section

@@ -297,6 +297,9 @@ func ggloblnod(nam *Node) {
 		flags |= obj.NOPTR
 	}
 	Ctxt.Globl(s, nam.Type.Width, flags)
+	if nam.Name.LibfuzzerExtraCounter() {
+		s.Type = objabi.SLIBFUZZER_EXTRA_COUNTER
+	}
 }
 
 func ggloblsym(s *obj.LSym, width int32, flags int16) {
