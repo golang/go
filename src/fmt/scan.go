@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"sync"
 	"unicode/utf8"
+        "bufio"
 )
 
 // ScanState represents the scanner state passed to custom scanners.
@@ -1222,4 +1223,18 @@ func (s *ss) doScanf(format string, a []interface{}) (numProcessed int, err erro
 		s.errorString("too many operands")
 	}
 	return
+}
+
+// getline in go
+// for simple :
+//   var a string
+//   fmt.Getline(&a)
+func GetLine(a *string) error {
+        data := bufio.NewReader(os.Stdin)
+        line, _, err := data.ReadLine()
+        if err != nil {
+                return err
+        }
+        *a = string(line)
+        return nil
 }
