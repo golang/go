@@ -2375,7 +2375,7 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 			}
 			put(ctxt, s, s.Name, DataSym, Symaddr(s), s.Gotype)
 
-		case sym.SBSS, sym.SNOPTRBSS:
+		case sym.SBSS, sym.SNOPTRBSS, sym.SLIBFUZZER_EXTRA_COUNTER:
 			if !s.Attr.Reachable() {
 				continue
 			}
