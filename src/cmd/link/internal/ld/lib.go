@@ -582,6 +582,11 @@ func (ctxt *Link) loadlib() {
 				if p := ctxt.findLibPath("libmingw32.a"); p != "none" {
 					hostArchive(ctxt, p)
 				}
+				// Link libmsvcrt.a to resolve '__acrt_iob_func' symbol
+				// (see https://golang.org/issue/23649 for details).
+				if p := ctxt.findLibPath("libmsvcrt.a"); p != "none" {
+					hostArchive(ctxt, p)
+				}
 				// TODO: maybe do something similar to peimporteddlls to collect all lib names
 				// and try link them all to final exe just like libmingwex.a and libmingw32.a:
 				/*
