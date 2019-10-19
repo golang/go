@@ -566,7 +566,7 @@ func (r *runner) Highlight(t *testing.T, name string, locations []span.Span) {
 	}
 }
 
-func (r *runner) Reference(t *testing.T, src span.Span, itemList []span.Span) {
+func (r *runner) References(t *testing.T, src span.Span, itemList []span.Span) {
 	ctx := r.ctx
 	f, err := r.view.GetFile(ctx, src.URI())
 	if err != nil {

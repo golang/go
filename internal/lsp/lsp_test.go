@@ -458,7 +458,7 @@ func (r *runner) Highlight(t *testing.T, name string, locations []span.Span) {
 	}
 }
 
-func (r *runner) Reference(t *testing.T, src span.Span, itemList []span.Span) {
+func (r *runner) References(t *testing.T, src span.Span, itemList []span.Span) {
 	sm, err := r.data.Mapper(src.URI())
 	if err != nil {
 		t.Fatal(err)

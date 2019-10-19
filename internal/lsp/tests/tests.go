@@ -110,7 +110,7 @@ type Tests interface {
 	SuggestedFix(*testing.T, span.Span)
 	Definition(*testing.T, span.Span, Definition)
 	Highlight(*testing.T, string, []span.Span)
-	Reference(*testing.T, span.Span, []span.Span)
+	References(*testing.T, span.Span, []span.Span)
 	Rename(*testing.T, span.Span, string)
 	PrepareRename(*testing.T, span.Span, *source.PrepareItem)
 	Symbol(*testing.T, span.URI, []protocol.DocumentSymbol)
@@ -484,7 +484,7 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		for src, itemList := range data.References {
 			t.Run(spanName(src), func(t *testing.T) {
 				t.Helper()
-				tests.Reference(t, src, itemList)
+				tests.References(t, src, itemList)
 			})
 		}
 	})
