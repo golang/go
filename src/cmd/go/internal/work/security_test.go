@@ -12,6 +12,7 @@ import (
 var goodCompilerFlags = [][]string{
 	{"-DFOO"},
 	{"-Dfoo=bar"},
+	{"-Ufoo"},
 	{"-F/Qt"},
 	{"-I/"},
 	{"-I/etc/passwd"},
@@ -67,6 +68,7 @@ var goodCompilerFlags = [][]string{
 var badCompilerFlags = [][]string{
 	{"-D@X"},
 	{"-D-X"},
+	{"-Ufoo=bar"},
 	{"-F@dir"},
 	{"-F-dir"},
 	{"-I@dir"},
