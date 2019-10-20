@@ -99,7 +99,7 @@ Will be expanded to:
 
 When the Go tool sees that one or more Go files use the special import
 "C", it will look for other non-Go files in the directory and compile
-them as part of the Go package. Any .c, .s, or .S files will be
+them as part of the Go package. Any .c, .s, .S or .sx files will be
 compiled with the C compiler. Any .cc, .cpp, or .cxx files will be
 compiled with the C++ compiler. Any .f, .F, .for or .f90 files will be
 compiled with the fortran compiler. Any .h, .hh, .hpp, or .hxx files will
