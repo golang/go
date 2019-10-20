@@ -5730,21 +5730,87 @@ func (bc *bodyCloser) Read(b []byte) (n int, err error) {
 	return 0, io.EOF
 }
 
-func TestInvalidMethodClosesBody(t *testing.T) {
-	cst := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+// Issue 35015: ensure that Transport closes the body on any error
+// with an invalid request, as promised by Client.Do docs.
+func TestTransportClosesBodyOnInvalidRequests(t *testing.T) {
+	cst := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		t.Errorf("Should not have been invoked")
+	}))
 	defer cst.Close()
-	var bc bodyCloser
+
 	u, _ := url.Parse(cst.URL)
-	req := &Request{
-		Method: " ",
-		URL:    u,
-		Body:   &bc,
+
+	tests := []struct {
+		name    string
+		req     *Request
+		wantErr string
+	}{
+		{
+			name: "invalid method",
+			req: &Request{
+				Method: " ",
+				URL:    u,
+			},
+			wantErr: "invalid method",
+		},
+		{
+			name: "nil URL",
+			req: &Request{
+				Method: "GET",
+			},
+			wantErr: "nil Request.URL",
+		},
+		{
+			name: "invalid header key",
+			req: &Request{
+				Method: "GET",
+				Header: Header{"💡": {"emoji"}},
+				URL:    u,
+			},
+			wantErr: "invalid header field name",
+		},
+		{
+			name: "invalid header value",
+			req: &Request{
+				Method: "POST",
+				Header: Header{"key": {"\x19"}},
+				URL:    u,
+			},
+			wantErr: "invalid header field value",
+		},
+		{
+			name: "non HTTP(s) scheme",
+			req: &Request{
+				Method: "POST",
+				URL:    &url.URL{Scheme: "faux"},
+			},
+			wantErr: "unsupported protocol scheme",
+		},
+		{
+			name: "no Host in URL",
+			req: &Request{
+				Method: "POST",
+				URL:    &url.URL{Scheme: "http"},
+			},
+			wantErr: "no Host",
+		},
 	}
-	_, err := DefaultClient.Do(req)
-	if err == nil {
-		t.Fatal("Expected an error")
-	}
-	if !bc {
-		t.Fatal("Expected body to have been closed")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var bc bodyCloser
+			req := tt.req
+			req.Body = &bc
+			_, err := DefaultClient.Do(tt.req)
+			if err == nil {
+				t.Fatal("Expected an error")
+			}
+			if !bc {
+				t.Fatal("Expected body to have been closed")
+			}
+			if g, w := err.Error(), tt.wantErr; !strings.Contains(g, w) {
+				t.Fatalf("Error mismatch\n\t%q\ndoes not contain\n\t%q", g, w)
+			}
+		})
 	}
 }
