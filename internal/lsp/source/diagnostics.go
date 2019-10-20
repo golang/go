@@ -5,10 +5,8 @@
 package source
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
@@ -76,7 +74,7 @@ func Diagnostics(ctx context.Context, view View, f File, disabledAnalyses map[st
 		if err.Kind != packages.ListError {
 			continue
 		}
-		clearReports(view, reports, packagesErrorSpan(err).URI())
+		clearReports(view, reports, err.URI)
 	}
 
 	// Run diagnostics for the package that this URI belongs to.
@@ -111,11 +109,10 @@ func diagnostics(ctx context.Context, view View, pkg Package, reports map[span.U
 
 	diagSets := make(map[span.URI]*diagnosticSet)
 	for _, err := range pkg.GetErrors() {
-		spn := packagesErrorSpan(err)
 		diag := &Diagnostic{
-			URI:      spn.URI(),
+			URI:      err.URI,
 			Message:  err.Msg,
-			Source:   "LSP",
+			Range:    err.Range,
 			Severity: protocol.SeverityError,
 		}
 		set, ok := diagSets[diag.URI]
@@ -126,17 +123,14 @@ func diagnostics(ctx context.Context, view View, pkg Package, reports map[span.U
 		switch err.Kind {
 		case packages.ParseError:
 			set.parseErrors = append(set.parseErrors, diag)
+			diag.Source = "syntax"
 		case packages.TypeError:
 			set.typeErrors = append(set.typeErrors, diag)
+			diag.Source = "compiler"
 		default:
 			set.listErrors = append(set.listErrors, diag)
+			diag.Source = "go list"
 		}
-		rng, err := spanToRange(ctx, view, pkg, spn, err.Kind == packages.TypeError)
-		if err != nil {
-			log.Error(ctx, "failed to convert span to range", err)
-			continue
-		}
-		diag.Range = rng
 	}
 	var nonEmptyDiagnostics bool // track if we actually send non-empty diagnostics
 	for uri, set := range diagSets {
@@ -159,35 +153,6 @@ func diagnostics(ctx context.Context, view View, pkg Package, reports map[span.U
 	return nonEmptyDiagnostics
 }
 
-// spanToRange converts a span.Span to a protocol.Range,
-// assuming that the span belongs to the package whose diagnostics are being computed.
-func spanToRange(ctx context.Context, view View, pkg Package, spn span.Span, isTypeError bool) (protocol.Range, error) {
-	ph, err := pkg.File(spn.URI())
-	if err != nil {
-		return protocol.Range{}, err
-	}
-	_, m, _, err := ph.Cached(ctx)
-	if err != nil {
-		return protocol.Range{}, err
-	}
-	data, _, err := ph.File().Read(ctx)
-	if err != nil {
-		return protocol.Range{}, err
-	}
-	// Try to get a range for the diagnostic.
-	// TODO: Don't just limit ranges to type errors.
-	if spn.IsPoint() && isTypeError {
-		if s, err := spn.WithOffset(m.Converter); err == nil {
-			start := s.Start()
-			offset := start.Offset()
-			if width := bytes.IndexAny(data[offset:], " \n,():;[]"); width > 0 {
-				spn = span.New(spn.URI(), start, span.NewPoint(start.Line(), start.Column()+width, offset+width))
-			}
-		}
-	}
-	return m.Range(spn)
-}
-
 func analyses(ctx context.Context, snapshot Snapshot, cph CheckPackageHandle, disabledAnalyses map[string]struct{}, reports map[span.URI][]Diagnostic) error {
 	// Type checking and parsing succeeded. Run analyses.
 	if err := runAnalyses(ctx, snapshot, cph, disabledAnalyses, func(diags []*analysis.Diagnostic, a *analysis.Analyzer) error {
@@ -206,10 +171,8 @@ func analyses(ctx context.Context, snapshot Snapshot, cph CheckPackageHandle, di
 }
 
 func toDiagnostic(ctx context.Context, view View, diag *analysis.Diagnostic, category string) (Diagnostic, error) {
-	r := span.NewRange(view.Session().Cache().FileSet(), diag.Pos, diag.End)
-	spn, err := r.Span()
+	spn, err := span.NewRange(view.Session().Cache().FileSet(), diag.Pos, diag.End).Span()
 	if err != nil {
-		// The diagnostic has an invalid position, so we don't have a valid span.
 		return Diagnostic{}, err
 	}
 	f, err := view.GetFile(ctx, spn.URI())
@@ -230,7 +193,15 @@ func toDiagnostic(ctx context.Context, view View, diag *analysis.Diagnostic, cat
 	if err != nil {
 		return Diagnostic{}, err
 	}
-	rng, err := spanToRange(ctx, view, pkg, spn, false)
+	ph, err := pkg.File(spn.URI())
+	if err != nil {
+		return Diagnostic{}, err
+	}
+	_, m, _, err := ph.Cached(ctx)
+	if err != nil {
+		return Diagnostic{}, err
+	}
+	rng, err := m.Range(spn)
 	if err != nil {
 		return Diagnostic{}, err
 	}
@@ -273,30 +244,6 @@ func addReport(v View, reports map[span.URI][]Diagnostic, uri span.URI, diagnost
 	if _, ok := reports[uri]; ok {
 		reports[uri] = append(reports[uri], diagnostic)
 	}
-}
-
-func packagesErrorSpan(err packages.Error) span.Span {
-	if err.Pos == "" {
-		return parseDiagnosticMessage(err.Msg)
-	}
-	return span.Parse(err.Pos)
-}
-
-// parseDiagnosticMessage attempts to parse a standard `go list` error message
-// by stripping off the trailing error message.
-//
-// It works only on errors whose message is prefixed by colon,
-// followed by a space (": "). For example:
-//
-//   attributes.go:13:1: expected 'package', found 'type'
-//
-func parseDiagnosticMessage(input string) span.Span {
-	input = strings.TrimSpace(input)
-	msgIndex := strings.Index(input, ": ")
-	if msgIndex < 0 {
-		return span.Parse(input)
-	}
-	return span.Parse(input[:msgIndex])
 }
 
 func singleDiagnostic(uri span.URI, format string, a ...interface{}) map[span.URI][]Diagnostic {

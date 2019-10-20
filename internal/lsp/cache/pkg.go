@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -28,7 +27,7 @@ type pkg struct {
 	mode    source.ParseMode
 
 	files      []source.ParseGoHandle
-	errors     []packages.Error
+	errors     []source.Error
 	imports    map[packagePath]*pkg
 	types      *types.Package
 	typesInfo  *types.Info
@@ -80,7 +79,7 @@ func (p *pkg) GetSyntax(ctx context.Context) []*ast.File {
 	return syntax
 }
 
-func (p *pkg) GetErrors() []packages.Error {
+func (p *pkg) GetErrors() []source.Error {
 	return p.errors
 }
 

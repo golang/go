@@ -8,4 +8,4 @@ func stuff() {
 	x := 5
 }
 
-func .() {} //@diag(".", "LSP", "expected 'IDENT', found '.'")
+func .() {} //@diag(".", "syntax", "expected 'IDENT', found '.'")

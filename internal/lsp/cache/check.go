@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
-	"go/scanner"
 	"go/types"
 	"sort"
 	"sync"
@@ -265,6 +264,11 @@ func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle) (*p
 	ctx, done := trace.StartSpan(ctx, "cache.importer.typeCheck", telemetry.Package.Of(cph.m.id))
 	defer done()
 
+	var rawErrors []error
+	for _, err := range cph.m.errors {
+		rawErrors = append(rawErrors, err)
+	}
+
 	pkg := &pkg{
 		snapshot:   imp.snapshot,
 		id:         cph.m.id,
@@ -282,11 +286,6 @@ func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle) (*p
 			Scopes:     make(map[ast.Node]*types.Scope),
 		},
 	}
-	// If the package comes back with errors from `go list`,
-	// don't bother type-checking it.
-	for _, err := range cph.m.errors {
-		pkg.errors = append(cph.m.errors, err)
-	}
 	var (
 		files       = make([]*ast.File, len(pkg.files))
 		parseErrors = make([]error, len(pkg.files))
@@ -302,9 +301,9 @@ func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle) (*p
 	}
 	wg.Wait()
 
-	for _, err := range parseErrors {
-		if err != nil {
-			imp.snapshot.view.session.cache.appendPkgError(pkg, err)
+	for _, e := range parseErrors {
+		if e != nil {
+			rawErrors = append(rawErrors, e)
 		}
 	}
 
@@ -318,7 +317,7 @@ func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle) (*p
 	files = files[:i]
 
 	// Use the default type information for the unsafe package.
-	if cph.m.pkgPath == "unsafe" {
+	if pkg.pkgPath == "unsafe" {
 		pkg.types = types.Unsafe
 	} else if len(files) == 0 { // not the unsafe package, no parsed files
 		return nil, errors.Errorf("no parsed files for package %s", pkg.pkgPath)
@@ -327,8 +326,8 @@ func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle) (*p
 	}
 
 	cfg := &types.Config{
-		Error: func(err error) {
-			imp.snapshot.view.session.cache.appendPkgError(pkg, err)
+		Error: func(e error) {
+			rawErrors = append(rawErrors, e)
 		},
 		Importer: imp.depImporter(ctx, cph, pkg),
 	}
@@ -336,6 +335,14 @@ func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle) (*p
 
 	// Type checking errors are handled via the config, so ignore them here.
 	_ = check.Files(files)
+
+	for _, e := range rawErrors {
+		srcErr, err := sourceError(ctx, imp.snapshot.view, pkg, e)
+		if err != nil {
+			return nil, err
+		}
+		pkg.errors = append(pkg.errors, *srcErr)
+	}
 
 	return pkg, nil
 }
@@ -355,35 +362,4 @@ func (imp *importer) depImporter(ctx context.Context, cph *checkPackageHandle, p
 		seen:                     seen,
 		ctx:                      ctx,
 	}
-}
-
-func (c *cache) appendPkgError(pkg *pkg, err error) {
-	if err == nil {
-		return
-	}
-	var errs []packages.Error
-	switch err := err.(type) {
-	case *scanner.Error:
-		errs = append(errs, packages.Error{
-			Pos:  err.Pos.String(),
-			Msg:  err.Msg,
-			Kind: packages.ParseError,
-		})
-	case scanner.ErrorList:
-		// The first parser error is likely the root cause of the problem.
-		if err.Len() > 0 {
-			errs = append(errs, packages.Error{
-				Pos:  err[0].Pos.String(),
-				Msg:  err[0].Msg,
-				Kind: packages.ParseError,
-			})
-		}
-	case types.Error:
-		errs = append(errs, packages.Error{
-			Pos:  c.FileSet().Position(err.Pos).String(),
-			Msg:  err.Msg,
-			Kind: packages.TypeError,
-		})
-	}
-	pkg.errors = append(pkg.errors, errs...)
 }

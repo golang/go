@@ -280,7 +280,7 @@ type Package interface {
 	Files() []ParseGoHandle
 	File(uri span.URI) (ParseGoHandle, error)
 	GetSyntax(context.Context) []*ast.File
-	GetErrors() []packages.Error
+	GetErrors() []Error
 	GetTypes() *types.Package
 	GetTypesInfo() *types.Info
 	GetTypesSizes() types.Sizes
@@ -295,6 +295,17 @@ type Package interface {
 	// FindFile returns the AST and type information for a file that may
 	// belong to or be part of a dependency of the given package.
 	FindFile(ctx context.Context, uri span.URI) (ParseGoHandle, Package, error)
+}
+
+type Error struct {
+	Msg   string
+	URI   span.URI
+	Range protocol.Range
+	Kind  packages.ErrorKind
+}
+
+func (e *Error) Error() string {
+	return fmt.Sprintf("%s:%s: %s", e.URI, e.Range, e.Msg)
 }
 
 type BuiltinPackage interface {

@@ -4,6 +4,6 @@ package noparse_format //@format("package")
 
 func what() {
 	var b int
-	if {		hi() //@diag("{", "LSP", "missing condition in if statement")
+	if {		hi() //@diag("{", "syntax", "missing condition in if statement")
 	}
 }

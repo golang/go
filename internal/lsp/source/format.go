@@ -49,7 +49,7 @@ func Format(ctx context.Context, view View, f File) ([]protocol.TextEdit, error)
 	if err != nil {
 		return nil, err
 	}
-	if hasListErrors(pkg.GetErrors()) || hasParseErrors(pkg, f.URI()) {
+	if hasListErrors(pkg) || hasParseErrors(pkg, f.URI()) {
 		// Even if this package has list or parse errors, this file may not
 		// have any parse errors and can still be formatted. Using format.Node
 		// on an ast with errors may result in code being added or removed.
@@ -102,7 +102,7 @@ func Imports(ctx context.Context, view View, f File) ([]protocol.TextEdit, error
 	if err != nil {
 		return nil, err
 	}
-	if hasListErrors(pkg.GetErrors()) {
+	if hasListErrors(pkg) {
 		return nil, errors.Errorf("%s has list errors, not running goimports", f.URI())
 	}
 	ph, err := pkg.File(f.URI())
@@ -168,7 +168,7 @@ func AllImportsFixes(ctx context.Context, view View, f File) (edits []protocol.T
 	if err != nil {
 		return nil, nil, err
 	}
-	if hasListErrors(pkg.GetErrors()) {
+	if hasListErrors(pkg) {
 		return nil, nil, errors.Errorf("%s has list errors, not running goimports", f.URI())
 	}
 	options := &imports.Options{
@@ -269,16 +269,15 @@ func CandidateImports(ctx context.Context, view View, filename string) (pkgs []i
 // hasParseErrors returns true if the given file has parse errors.
 func hasParseErrors(pkg Package, uri span.URI) bool {
 	for _, err := range pkg.GetErrors() {
-		spn := packagesErrorSpan(err)
-		if spn.URI() == uri && err.Kind == packages.ParseError {
+		if err.URI == uri && err.Kind == packages.ParseError {
 			return true
 		}
 	}
 	return false
 }
 
-func hasListErrors(errors []packages.Error) bool {
-	for _, err := range errors {
+func hasListErrors(pkg Package) bool {
+	for _, err := range pkg.GetErrors() {
 		if err.Kind == packages.ListError {
 			return true
 		}

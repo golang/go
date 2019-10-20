@@ -1,5 +1,5 @@
 package generated
 
 func _() {
-	var x int //@diag("x", "LSP", "x declared but not used")
+	var x int //@diag("x", "compiler", "x declared but not used")
 }

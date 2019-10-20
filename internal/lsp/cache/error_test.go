@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package source
+package cache
 
 import (
 	"strings"
@@ -28,7 +28,7 @@ func TestParseErrorMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			spn := parseDiagnosticMessage(tt.in)
+			spn := parseGoListError(tt.in)
 			fn := spn.URI().Filename()
 
 			if !strings.HasSuffix(fn, tt.expectedFileName) {
