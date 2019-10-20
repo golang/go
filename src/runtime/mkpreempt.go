@@ -78,7 +78,7 @@ var out io.Writer
 var arches = map[string]func(){
 	"386":     gen386,
 	"amd64":   genAMD64,
-	"arm":     notImplemented,
+	"arm":     genARM,
 	"arm64":   notImplemented,
 	"mips64x": notImplemented,
 	"mipsx":   notImplemented,
@@ -133,9 +133,14 @@ func p(f string, args ...interface{}) {
 	fmt.Fprintf(out, "\t%s\n", strings.Replace(fmted, "\n", "\n\t", -1))
 }
 
+func label(l string) {
+	fmt.Fprintf(out, "%s\n", l)
+}
+
 type layout struct {
 	stack int
 	regs  []regPos
+	sp    string // stack pointer register
 }
 
 type regPos struct {
@@ -165,7 +170,7 @@ func (l *layout) save() {
 		if reg.save != "" {
 			p(reg.save, reg.pos)
 		} else {
-			p("%s %s, %d(SP)", reg.op, reg.reg, reg.pos)
+			p("%s %s, %d(%s)", reg.op, reg.reg, reg.pos, l.sp)
 		}
 	}
 }
@@ -176,7 +181,7 @@ func (l *layout) restore() {
 		if reg.restore != "" {
 			p(reg.restore, reg.pos)
 		} else {
-			p("%s %d(SP), %s", reg.op, reg.pos, reg.reg)
+			p("%s %d(%s), %s", reg.op, reg.pos, l.sp, reg.reg)
 		}
 	}
 }
@@ -185,7 +190,7 @@ func gen386() {
 	p("PUSHFL")
 
 	// Save general purpose registers.
-	var l layout
+	var l = layout{sp: "SP"}
 	for _, reg := range regNames386 {
 		if reg == "SP" || strings.HasPrefix(reg, "X") {
 			continue
@@ -200,7 +205,7 @@ func gen386() {
 		108)
 
 	// Save SSE state only if supported.
-	lSSE := layout{stack: l.stack}
+	lSSE := layout{stack: l.stack, sp: "SP"}
 	for i := 0; i < 8; i++ {
 		lSSE.add("MOVUPS", fmt.Sprintf("X%d", i), 16)
 	}
@@ -210,11 +215,11 @@ func gen386() {
 	l.save()
 	p("CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1\nJNE nosse")
 	lSSE.save()
-	p("nosse:")
+	label("nosse:")
 	p("CALL ·asyncPreempt2(SB)")
 	p("CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1\nJNE nosse2")
 	lSSE.restore()
-	p("nosse2:")
+	label("nosse2:")
 	l.restore()
 	p("ADJSP $%d", -lSSE.stack)
 
@@ -224,7 +229,7 @@ func gen386() {
 
 func genAMD64() {
 	// Assign stack offsets.
-	var l layout
+	var l = layout{sp: "SP"}
 	for _, reg := range regNamesAMD64 {
 		if reg == "SP" || reg == "BP" {
 			continue
@@ -253,6 +258,50 @@ func genAMD64() {
 	p("POPFQ")
 	p("POPQ BP")
 	p("RET")
+}
+
+func genARM() {
+	// Add integer registers R0-R12.
+	// R13 (SP), R14 (LR), R15 (PC) are special and not saved here.
+	var l = layout{sp: "R13", stack: 4} // add LR slot
+	for i := 0; i <= 12; i++ {
+		reg := fmt.Sprintf("R%d", i)
+		if i == 10 {
+			continue // R10 is g register, no need to save/restore
+		}
+		l.add("MOVW", reg, 4)
+	}
+	// Add flag register.
+	l.addSpecial(
+		"MOVW CPSR, R0\nMOVW R0, %d(R13)",
+		"MOVW %d(R13), R0\nMOVW R0, CPSR",
+		4)
+
+	// Add floating point registers F0-F15 and flag register.
+	var lfp = layout{stack: l.stack, sp: "R13"}
+	lfp.addSpecial(
+		"MOVW FPCR, R0\nMOVW R0, %d(R13)",
+		"MOVW %d(R13), R0\nMOVW R0, FPCR",
+		4)
+	for i := 0; i <= 15; i++ {
+		reg := fmt.Sprintf("F%d", i)
+		lfp.add("MOVD", reg, 8)
+	}
+
+	p("MOVW.W R14, -%d(R13)", lfp.stack) // allocate frame, save LR
+	l.save()
+	p("MOVB ·goarm(SB), R0\nCMP $6, R0\nBLT nofp") // test goarm, and skip FP registers if goarm=5.
+	lfp.save()
+	label("nofp:")
+	p("CALL ·asyncPreempt2(SB)")
+	p("MOVB ·goarm(SB), R0\nCMP $6, R0\nBLT nofp2") // test goarm, and skip FP registers if goarm=5.
+	lfp.restore()
+	label("nofp2:")
+	l.restore()
+
+	p("MOVW %d(R13), R14", lfp.stack)     // sigctxt.pushCall pushes LR on stack, restore it
+	p("MOVW.P %d(R13), R15", lfp.stack+4) // load PC, pop frame (including the space pushed by sigctxt.pushCall)
+	p("UNDEF")                            // shouldn't get here
 }
 
 func genWasm() {

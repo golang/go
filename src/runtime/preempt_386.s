@@ -26,7 +26,7 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVUPS X5, 216(SP)
 	MOVUPS X6, 232(SP)
 	MOVUPS X7, 248(SP)
-	nosse:
+nosse:
 	CALL ·asyncPreempt2(SB)
 	CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
 	JNE nosse2
@@ -38,7 +38,7 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVUPS 168(SP), X2
 	MOVUPS 152(SP), X1
 	MOVUPS 136(SP), X0
-	nosse2:
+nosse2:
 	FRSTOR 28(SP)
 	MOVL 24(SP), DI
 	MOVL 20(SP), SI

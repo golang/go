@@ -462,6 +462,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		}
 
 		waspanic = f.funcID == funcID_sigpanic
+		injectedCall := waspanic || f.funcID == funcID_asyncPreempt
 
 		// Do not unwind past the bottom of the stack.
 		if !flr.valid() {
@@ -477,8 +478,8 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		frame.argmap = nil
 
 		// On link register architectures, sighandler saves the LR on stack
-		// before faking a call to sigpanic.
-		if usesLR && waspanic {
+		// before faking a call.
+		if usesLR && injectedCall {
 			x := *(*uintptr)(unsafe.Pointer(frame.sp))
 			frame.sp += sys.MinFrameSize
 			if GOARCH == "arm64" {
