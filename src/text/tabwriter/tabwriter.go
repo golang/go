@@ -203,8 +203,8 @@ const (
 	// actual Control Sequence Introducer is "\x1b[" but we use only
 	// '\x1b' and terminates with 'm'.
 	// https://en.wikipedia.org/wiki/ANSI_escape_code#SGR
-	ANSISGRStartCharacter = '\x1b'
-	ANSISGREndCharacter   = 'm'
+	ansiSGRStartCharacter = '\x1b'
+	ansiSGREndCharacter   = 'm'
 )
 
 // A Writer must be initialized with a call to Init. The first parameter (output)
@@ -452,8 +452,8 @@ func (b *Writer) startEscape(ch byte) {
 		b.endChar = '>'
 	case '&':
 		b.endChar = ';'
-	case ANSISGRStartCharacter:
-		b.endChar = ANSISGREndCharacter
+	case ansiSGRStartCharacter:
+		b.endChar = ansiSGREndCharacter
 	}
 }
 
@@ -472,7 +472,7 @@ func (b *Writer) endEscape() {
 	case '>': // tag of zero width
 	case ';':
 		b.cell.width++ // entity, count as one rune
-	case ANSISGREndCharacter:
+	case ansiSGREndCharacter:
 		b.pos++
 		b.endChar = 0
 		return
@@ -597,7 +597,7 @@ func (b *Writer) Write(buf []byte) (n int, err error) {
 					n = i
 					b.startEscape(ch)
 				}
-			case ANSISGRStartCharacter:
+			case ansiSGRStartCharacter:
 				// do not include ANSI SGR characters in the width count
 				if b.flags&ANSIGraphicsRendition != 0 {
 					b.append(buf[n:i])
@@ -618,7 +618,7 @@ func (b *Writer) Write(buf []byte) (n int, err error) {
 				b.append(buf[n:j])
 				n = i + 1 // ch consumed
 				b.endEscape()
-			} else if b.endChar == ANSISGREndCharacter {
+			} else if b.endChar == ansiSGREndCharacter {
 				b.append(buf[n:i]) // ANSI characters must not be escaped
 				b.pos++            // only their width is discarded
 				n = i
