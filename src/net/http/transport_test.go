@@ -5719,3 +5719,32 @@ func TestInvalidHeaderResponse(t *testing.T) {
 		t.Errorf(`bad "Foo " header value: %q, want %q`, v, "bar")
 	}
 }
+
+type bodyCloser bool
+
+func (bc *bodyCloser) Close() error {
+	*bc = true
+	return nil
+}
+func (bc *bodyCloser) Read(b []byte) (n int, err error) {
+	return 0, io.EOF
+}
+
+func TestInvalidMethodClosesBody(t *testing.T) {
+	cst := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+	defer cst.Close()
+	var bc bodyCloser
+	u, _ := url.Parse(cst.URL)
+	req := &Request{
+		Method: " ",
+		URL:    u,
+		Body:   &bc,
+	}
+	_, err := DefaultClient.Do(req)
+	if err == nil {
+		t.Fatal("Expected an error")
+	}
+	if !bc {
+		t.Fatal("Expected body to have been closed")
+	}
+}
