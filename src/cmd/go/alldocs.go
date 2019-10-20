@@ -1510,8 +1510,8 @@
 // extension will be passed to SWIG. Any file with a .swigcxx extension
 // will be passed to SWIG with the -c++ option.
 //
-// When either cgo or SWIG is used, go build will pass any .c, .m, .s,
-// or .S files to the C compiler, and any .cc, .cpp, .cxx files to the C++
+// When either cgo or SWIG is used, go build will pass any .c, .m, .s, .S
+// or .sx files to the C compiler, and any .cc, .cpp, .cxx files to the C++
 // compiler. The CC or CXX environment variables may be set to determine
 // the C or C++ compiler, respectively, to use.
 //
@@ -1730,7 +1730,7 @@
 // 	.m
 // 		Objective-C source files. Only useful with cgo, and always
 // 		compiled with the OS-native compiler.
-// 	.s, .S
+// 	.s, .S, .sx
 // 		Assembler source files.
 // 		If the package uses cgo or SWIG, these will be assembled with the
 // 		OS-native assembler (typically gcc (sic)); otherwise they

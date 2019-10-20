@@ -773,7 +773,7 @@ Found:
 	}
 
 	var badGoError error
-	var Sfiles []string // files with ".S" (capital S)
+	var Sfiles []string // files with ".S"(capital S)/.sx(capital s equivalent for case insensitive filesystems)
 	var firstFile, firstCommentFile string
 	imported := make(map[string][]token.Position)
 	testImported := make(map[string][]token.Position)
@@ -827,7 +827,7 @@ Found:
 		case ".s":
 			p.SFiles = append(p.SFiles, name)
 			continue
-		case ".S":
+		case ".S", ".sx":
 			Sfiles = append(Sfiles, name)
 			continue
 		case ".swig":
@@ -967,7 +967,7 @@ Found:
 	p.TestImports, p.TestImportPos = cleanImports(testImported)
 	p.XTestImports, p.XTestImportPos = cleanImports(xTestImported)
 
-	// add the .S files only if we are using cgo
+	// add the .S/.sx files only if we are using cgo
 	// (which means gcc will compile them).
 	// The standard assemblers expect .s files.
 	if len(p.CgoFiles) > 0 {
@@ -1274,7 +1274,7 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
 	}
 
 	switch ext {
-	case ".go", ".c", ".cc", ".cxx", ".cpp", ".m", ".s", ".h", ".hh", ".hpp", ".hxx", ".f", ".F", ".f90", ".S", ".swig", ".swigcxx":
+	case ".go", ".c", ".cc", ".cxx", ".cpp", ".m", ".s", ".h", ".hh", ".hpp", ".hxx", ".f", ".F", ".f90", ".S", ".sx", ".swig", ".swigcxx":
 		// tentatively okay - read to make sure
 	case ".syso":
 		// binary, no reading
