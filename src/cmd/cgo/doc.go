@@ -55,7 +55,7 @@ For example:
 
 The default pkg-config tool may be changed by setting the PKG_CONFIG environment variable.
 
-For security reasons, only a limited set of flags are allowed, notably -D, -I, and -l.
+For security reasons, only a limited set of flags are allowed, notably -D, -U, -I, and -l.
 To allow additional flags, set CGO_CFLAGS_ALLOW to a regular expression
 matching the new flags. To disallow flags that would otherwise be allowed,
 set CGO_CFLAGS_DISALLOW to a regular expression matching arguments
