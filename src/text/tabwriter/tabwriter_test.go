@@ -609,6 +609,38 @@ var tests = []struct {
 			"a\t|b\t|c\t|d\n" +
 			"a\t|b\t|c\t|d\t|e\n",
 	},
+
+	{
+		"17a one line color",
+		2, 0, 0, ' ', ANSIGraphicsRendition,
+		"\x1b[38;5;140mfoo\x1b[0m bar",
+
+		"\x1b[38;5;140mfoo\x1b[0m bar",
+	},
+
+	{
+		"17b multi line colored",
+		2, 0, 0, ' ', ANSIGraphicsRendition,
+		"a\tb\tc\n" +
+			"\x1b[38;5;140maa\x1b[0m\tbbb\tcccc\n" +
+			"aaa\tbbbb\n",
+
+		"a  b  c\n" +
+			"\x1b[38;5;140maa\x1b[0m bbbcccc\n" +
+			"aaabbbb\n",
+	},
+
+	{
+		"17c multi-colored line",
+		2, 0, 0, ' ', ANSIGraphicsRendition,
+		"a\tb\tc\n" +
+			"aa\tbbb\tcccc\n" +
+			"a\x1b[38;5;140ma\x1b[0ma\tb\x1b[38;5;140mb\x1b[0mb\x1b[38;5;140mb\x1b[0m\n",
+
+		"a  b  c\n" +
+			"aa bbbcccc\n" +
+			"a\x1b[38;5;140ma\x1b[0mab\x1b[38;5;140mb\x1b[0mb\x1b[38;5;140mb\x1b[0m\n",
+	},
 }
 
 func Test(t *testing.T) {

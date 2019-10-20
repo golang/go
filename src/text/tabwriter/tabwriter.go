@@ -192,6 +192,19 @@ const (
 	// Print a vertical bar ('|') between columns (after formatting).
 	// Discarded columns appear as zero-width columns ("||").
 	Debug
+
+	// Print ANSI Select Graphics Rendition parameters (starting with
+	// '\x1b' and ending in 'm') as zero-width sequence.
+	ANSIGraphicsRendition
+)
+
+const (
+	// SGR (Select Graphic Rendition) sets display attributes. The
+	// actual Control Sequence Introducer is "\x1b[" but we use only
+	// '\x1b' and terminates with 'm'.
+	// https://en.wikipedia.org/wiki/ANSI_escape_code#SGR
+	ANSISGRStartCharacter = '\x1b'
+	ANSISGREndCharacter   = 'm'
 )
 
 // A Writer must be initialized with a call to Init. The first parameter (output)
@@ -439,6 +452,8 @@ func (b *Writer) startEscape(ch byte) {
 		b.endChar = '>'
 	case '&':
 		b.endChar = ';'
+	case ANSISGRStartCharacter:
+		b.endChar = ANSISGREndCharacter
 	}
 }
 
@@ -457,6 +472,10 @@ func (b *Writer) endEscape() {
 	case '>': // tag of zero width
 	case ';':
 		b.cell.width++ // entity, count as one rune
+	case ANSISGREndCharacter:
+		b.pos++
+		b.endChar = 0
+		return
 	}
 	b.pos = len(b.buf)
 	b.endChar = 0
@@ -578,6 +597,14 @@ func (b *Writer) Write(buf []byte) (n int, err error) {
 					n = i
 					b.startEscape(ch)
 				}
+			case ANSISGRStartCharacter:
+				// do not include ANSI SGR characters in the width count
+				if b.flags&ANSIGraphicsRendition != 0 {
+					b.append(buf[n:i])
+					b.pos++
+					n = i
+					b.startEscape(ch)
+				}
 			}
 
 		} else {
@@ -591,6 +618,10 @@ func (b *Writer) Write(buf []byte) (n int, err error) {
 				b.append(buf[n:j])
 				n = i + 1 // ch consumed
 				b.endEscape()
+			} else if b.endChar == ANSISGREndCharacter {
+				b.append(buf[n:i]) // ANSI characters must not be escaped
+				b.pos++            // only their width is discarded
+				n = i
 			}
 		}
 	}
