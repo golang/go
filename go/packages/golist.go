@@ -361,6 +361,7 @@ func adHocPackage(cfg *Config, driver driver, pattern, query string) (*driverRes
 			PkgPath:         query,
 			GoFiles:         []string{query},
 			CompiledGoFiles: []string{query},
+			Imports:         make(map[string]*Package),
 		})
 		dirResponse.Roots = append(dirResponse.Roots, "command-line-arguments")
 	}
