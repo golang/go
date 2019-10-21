@@ -45,7 +45,7 @@ func ParseRIB(typ RIBType, b []byte) ([]Message, error) {
 		if len(b) < l {
 			return nil, errMessageTooShort
 		}
-		if b[2] != sysRTM_VERSION {
+		if b[2] != rtmVersion {
 			b = b[l:]
 			continue
 		}
