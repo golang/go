@@ -765,12 +765,12 @@ package x
 import _ "rsc.io/quote"
 `, "")
 	defer mt.cleanup()
-	want := filepath.Join(mt.resolver.env.GOPATH, "pkg/mod", "rsc.io/quote@v1.5.2", "go.mod")
+	want := filepath.Join(mt.resolver.env.GOPATH, "pkg/mod", "rsc.io/quote@v1.5.2")
 
 	found := mt.assertScanFinds("rsc.io/quote", "quote")
-	modFile := mt.resolver.findModFile(found.dir)
-	if modFile != want {
-		t.Errorf("expected: %s, got: %s", want, modFile)
+	modDir, _ := mt.resolver.modInfo(found.dir)
+	if modDir != want {
+		t.Errorf("expected: %s, got: %s", want, modDir)
 	}
 }
 

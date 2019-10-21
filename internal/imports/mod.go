@@ -249,28 +249,41 @@ func (r *ModuleResolver) dirIsNestedModule(dir string, mod *ModuleJSON) bool {
 		// so it cannot be a nested module.
 		return false
 	}
-	mf := r.findModFile(dir)
-	if mf == "" {
+	modDir, _ := r.modInfo(dir)
+	if modDir == "" {
 		return false
 	}
-	return filepath.Dir(mf) != mod.Dir
+	return modDir != mod.Dir
 }
 
-func (r *ModuleResolver) findModFile(dir string) string {
+func (r *ModuleResolver) modInfo(dir string) (modDir string, modName string) {
+	readModName := func(modFile string) string {
+		modBytes, err := ioutil.ReadFile(modFile)
+		if err != nil {
+			return ""
+		}
+		return modulePath(modBytes)
+	}
+
 	if r.dirInModuleCache(dir) {
 		matches := modCacheRegexp.FindStringSubmatch(dir)
 		index := strings.Index(dir, matches[1]+"@"+matches[2])
-		return filepath.Join(dir[:index], matches[1]+"@"+matches[2], "go.mod")
+		modDir := filepath.Join(dir[:index], matches[1]+"@"+matches[2])
+		return modDir, readModName(filepath.Join(modDir, "go.mod"))
 	}
 	for {
+		if info, ok := r.cacheLoad(dir); ok {
+			return info.moduleDir, info.moduleName
+		}
 		f := filepath.Join(dir, "go.mod")
 		info, err := os.Stat(f)
 		if err == nil && !info.IsDir() {
-			return f
+			return dir, readModName(f)
 		}
+
 		d := filepath.Dir(dir)
 		if len(d) >= len(dir) {
-			return "" // reached top of file system, no go.mod
+			return "", "" // reached top of file system, no go.mod
 		}
 		dir = d
 	}
@@ -478,22 +491,22 @@ func (r *ModuleResolver) scanDirForPackage(root gopathwalk.Root, dir string) dir
 		importPath = subdir
 	}
 
+	modDir, modName := r.modInfo(dir)
 	result := directoryPackageInfo{
 		status:                 directoryScanned,
 		dir:                    dir,
 		rootType:               root.Type,
 		nonCanonicalImportPath: importPath,
 		needsReplace:           false,
+		moduleDir:              modDir,
+		moduleName:             modName,
 	}
 	if root.Type == gopathwalk.RootGOROOT {
 		// stdlib packages are always in scope, despite the confusing go.mod
 		return result
 	}
 	// Check that this package is not obviously impossible to import.
-	modFile := r.findModFile(dir)
-
-	modBytes, err := ioutil.ReadFile(modFile)
-	if err == nil && !strings.HasPrefix(importPath, modulePath(modBytes)) {
+	if !strings.HasPrefix(importPath, modName) {
 		// The module's declared path does not match
 		// its expected path. It probably needs a
 		// replace directive we don't have.

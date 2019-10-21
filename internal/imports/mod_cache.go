@@ -51,6 +51,10 @@ type directoryPackageInfo struct {
 	// replace directive.
 	needsReplace bool
 
+	// Module-related information.
+	moduleDir  string // The directory that is the module root of this dir.
+	moduleName string // The module name that contains this dir.
+
 	// Set when status >= nameLoaded.
 
 	packageName string // the package name, as declared in the source.
