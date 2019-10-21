@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/textproto"
 	"net/url"
+	urlpkg "net/url"
 	"os"
 	"path"
 	"runtime"
@@ -2065,8 +2066,7 @@ func StripPrefix(prefix string, h Handler) Handler {
 // Setting the Content-Type header to any value, including nil,
 // disables that behavior.
 func Redirect(w ResponseWriter, r *Request, url string, code int) {
-	// parseURL is just url.Parse (url is shadowed for godoc).
-	if u, err := parseURL(url); err == nil {
+	if u, err := urlpkg.Parse(url); err == nil {
 		// If url was relative, make its path absolute by
 		// combining with request path.
 		// The client would probably do this for us,
@@ -2119,10 +2119,6 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
 		fmt.Fprintln(w, body)
 	}
 }
-
-// parseURL is just url.Parse. It exists only so that url.Parse can be called
-// in places where url is shadowed for godoc. See https://golang.org/cl/49930.
-var parseURL = url.Parse
 
 var htmlReplacer = strings.NewReplacer(
 	"&", "&amp;",
