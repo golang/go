@@ -27,7 +27,7 @@ type pkg struct {
 	mode    source.ParseMode
 
 	files      []source.ParseGoHandle
-	errors     []source.Error
+	errors     []*source.Error
 	imports    map[packagePath]*pkg
 	types      *types.Package
 	typesInfo  *types.Info
@@ -79,7 +79,7 @@ func (p *pkg) GetSyntax(ctx context.Context) []*ast.File {
 	return syntax
 }
 
-func (p *pkg) GetErrors() []source.Error {
+func (p *pkg) GetErrors() []*source.Error {
 	return p.errors
 }
 

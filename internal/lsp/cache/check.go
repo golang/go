@@ -337,11 +337,11 @@ func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle) (*p
 	_ = check.Files(files)
 
 	for _, e := range rawErrors {
-		srcErr, err := sourceError(ctx, imp.snapshot.view, pkg, e)
+		srcErr, err := sourceError(ctx, pkg, e)
 		if err != nil {
 			return nil, err
 		}
-		pkg.errors = append(pkg.errors, *srcErr)
+		pkg.errors = append(pkg.errors, srcErr)
 	}
 
 	return pkg, nil

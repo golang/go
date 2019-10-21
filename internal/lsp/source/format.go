@@ -10,7 +10,6 @@ import (
 	"context"
 	"go/format"
 
-	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -269,7 +268,7 @@ func CandidateImports(ctx context.Context, view View, filename string) (pkgs []i
 // hasParseErrors returns true if the given file has parse errors.
 func hasParseErrors(pkg Package, uri span.URI) bool {
 	for _, err := range pkg.GetErrors() {
-		if err.URI == uri && err.Kind == packages.ParseError {
+		if err.URI == uri && err.Kind == ParseError {
 			return true
 		}
 	}
@@ -278,7 +277,7 @@ func hasParseErrors(pkg Package, uri span.URI) bool {
 
 func hasListErrors(pkg Package) bool {
 	for _, err := range pkg.GetErrors() {
-		if err.Kind == packages.ListError {
+		if err.Kind == ListError {
 			return true
 		}
 	}

@@ -5,12 +5,10 @@
 package source
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
@@ -30,18 +28,16 @@ type Diagnostic struct {
 	Related        []RelatedInformation
 }
 
+type SuggestedFix struct {
+	Title string
+	Edits map[span.URI][]protocol.TextEdit
+}
+
 type RelatedInformation struct {
 	URI     span.URI
 	Range   protocol.Range
 	Message string
 }
-
-type DiagnosticSeverity int
-
-const (
-	SeverityWarning DiagnosticSeverity = iota
-	SeverityError
-)
 
 func Diagnostics(ctx context.Context, view View, f File, disabledAnalyses map[string]struct{}) (map[span.URI][]Diagnostic, string, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Diagnostics", telemetry.File.Of(f.URI()))
@@ -79,7 +75,7 @@ func Diagnostics(ctx context.Context, view View, f File, disabledAnalyses map[st
 
 	// Prepare any additional reports for the errors in this package.
 	for _, err := range pkg.GetErrors() {
-		if err.Kind != packages.ListError {
+		if err.Kind != ListError {
 			continue
 		}
 		clearReports(view, reports, err.URI)
@@ -119,7 +115,7 @@ func diagnostics(ctx context.Context, view View, pkg Package, reports map[span.U
 	for _, err := range pkg.GetErrors() {
 		diag := &Diagnostic{
 			URI:      err.URI,
-			Message:  err.Msg,
+			Message:  err.Message,
 			Range:    err.Range,
 			Severity: protocol.SeverityError,
 		}
@@ -129,13 +125,13 @@ func diagnostics(ctx context.Context, view View, pkg Package, reports map[span.U
 			diagSets[diag.URI] = set
 		}
 		switch err.Kind {
-		case packages.ParseError:
+		case ParseError:
 			set.parseErrors = append(set.parseErrors, diag)
 			diag.Source = "syntax"
-		case packages.TypeError:
+		case TypeError:
 			set.typeErrors = append(set.typeErrors, diag)
 			diag.Source = "compiler"
-		default:
+		case ListError:
 			set.listErrors = append(set.listErrors, diag)
 			diag.Source = "go list"
 		}
@@ -162,146 +158,37 @@ func diagnostics(ctx context.Context, view View, pkg Package, reports map[span.U
 }
 
 func analyses(ctx context.Context, snapshot Snapshot, cph CheckPackageHandle, disabledAnalyses map[string]struct{}, reports map[span.URI][]Diagnostic) error {
-	// Type checking and parsing succeeded. Run analyses.
-	if err := runAnalyses(ctx, snapshot, cph, disabledAnalyses, func(diags []*analysis.Diagnostic, a *analysis.Analyzer) error {
-		for _, diag := range diags {
-			diagnostic, err := toDiagnostic(ctx, snapshot.View(), diag, a.Name)
-			if err != nil {
-				return err
-			}
-			addReport(snapshot.View(), reports, diagnostic.URI, diagnostic)
+	var analyzers []*analysis.Analyzer
+	for _, a := range snapshot.View().Options().Analyzers {
+		if _, ok := disabledAnalyses[a.Name]; ok {
+			continue
 		}
-		return nil
-	}); err != nil {
+		analyzers = append(analyzers, a)
+	}
+
+	diagnostics, err := snapshot.Analyze(ctx, cph.ID(), analyzers)
+	if err != nil {
 		return err
 	}
+
+	// For caching diagnostics.
+	// TODO(https://golang.org/issue/32443): Cache diagnostics on the snapshot.
+	pkg, err := cph.Check(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Report diagnostics and errors from root analyzers.
+	var sdiags []Diagnostic
+	for a, diags := range diagnostics {
+		for _, diag := range diags {
+			sdiag := toDiagnostic(diag, a.Name)
+			addReport(snapshot.View(), reports, sdiag)
+			sdiags = append(sdiags, sdiag)
+		}
+		pkg.SetDiagnostics(a, sdiags)
+	}
 	return nil
-}
-
-func packageForSpan(ctx context.Context, view View, spn span.Span) (Package, error) {
-	f, err := view.GetFile(ctx, spn.URI())
-	if err != nil {
-		return nil, err
-	}
-	// If the package has changed since these diagnostics were computed,
-	// this may be incorrect. Should the package be associated with the diagnostic?
-	_, cphs, err := view.CheckPackageHandles(ctx, f)
-	if err != nil {
-		return nil, err
-	}
-	cph, err := NarrowestCheckPackageHandle(cphs)
-	if err != nil {
-		return nil, err
-	}
-	return cph.Cached(ctx)
-}
-
-func toDiagnostic(ctx context.Context, view View, diag *analysis.Diagnostic, category string) (Diagnostic, error) {
-	spn, err := span.NewRange(view.Session().Cache().FileSet(), diag.Pos, diag.End).Span()
-	if err != nil {
-		return Diagnostic{}, err
-	}
-	pkg, err := packageForSpan(ctx, view, spn)
-	if err != nil {
-		return Diagnostic{}, err
-	}
-	ph, err := pkg.File(spn.URI())
-	if err != nil {
-		return Diagnostic{}, err
-	}
-	_, m, _, err := ph.Cached(ctx)
-	if err != nil {
-		return Diagnostic{}, err
-	}
-	rng, err := m.Range(spn)
-	if err != nil {
-		return Diagnostic{}, err
-	}
-	fixes, err := suggestedFixes(ctx, view, pkg, diag)
-	if err != nil {
-		return Diagnostic{}, err
-	}
-
-	related, err := relatedInformation(ctx, view, diag)
-	if err != nil {
-		return Diagnostic{}, err
-	}
-
-	// This is a bit of a hack, but clients > 3.15 will be able to grey out unnecessary code.
-	// If we are deleting code as part of all of our suggested fixes, assume that this is dead code.
-	// TODO(golang/go/#34508): Return these codes from the diagnostics themselves.
-	var tags []protocol.DiagnosticTag
-	if onlyDeletions(fixes) {
-		tags = append(tags, protocol.Unnecessary)
-	}
-	if diag.Category != "" {
-		category += "." + diag.Category
-	}
-	return Diagnostic{
-		URI:            spn.URI(),
-		Range:          rng,
-		Source:         category,
-		Message:        diag.Message,
-		Severity:       protocol.SeverityWarning,
-		SuggestedFixes: fixes,
-		Tags:           tags,
-		Related:        related,
-	}, nil
-}
-
-func relatedInformation(ctx context.Context, view View, diag *analysis.Diagnostic) ([]RelatedInformation, error) {
-	var out []RelatedInformation
-	for _, related := range diag.Related {
-		r := span.NewRange(view.Session().Cache().FileSet(), related.Pos, related.End)
-		spn, err := r.Span()
-		if err != nil {
-			return nil, err
-		}
-		pkg, err := packageForSpan(ctx, view, spn)
-		if err != nil {
-			return nil, err
-		}
-		rng, err := spanToRange(ctx, view, pkg, spn, false)
-		if err != nil {
-			return nil, err
-		}
-
-		out = append(out, RelatedInformation{
-			URI:     spn.URI(),
-			Range:   rng,
-			Message: related.Message,
-		})
-	}
-	return out, nil
-}
-
-// spanToRange converts a span.Span to a protocol.Range,
-// assuming that the span belongs to the package whose diagnostics are being computed.
-func spanToRange(ctx context.Context, view View, pkg Package, spn span.Span, isTypeError bool) (protocol.Range, error) {
-	ph, err := pkg.File(spn.URI())
-	if err != nil {
-		return protocol.Range{}, err
-	}
-	_, m, _, err := ph.Cached(ctx)
-	if err != nil {
-		return protocol.Range{}, err
-	}
-	data, _, err := ph.File().Read(ctx)
-	if err != nil {
-		return protocol.Range{}, err
-	}
-	// Try to get a range for the diagnostic.
-	// TODO: Don't just limit ranges to type errors.
-	if spn.IsPoint() && isTypeError {
-		if s, err := spn.WithOffset(m.Converter); err == nil {
-			start := s.Start()
-			offset := start.Offset()
-			if width := bytes.IndexAny(data[offset:], " \n,():;[]"); width > 0 {
-				spn = span.New(spn.URI(), start, span.NewPoint(start.Line(), start.Column()+width, offset+width))
-			}
-		}
-	}
-	return m.Range(spn)
 }
 
 func clearReports(v View, reports map[span.URI][]Diagnostic, uri span.URI) {
@@ -311,12 +198,12 @@ func clearReports(v View, reports map[span.URI][]Diagnostic, uri span.URI) {
 	reports[uri] = []Diagnostic{}
 }
 
-func addReport(v View, reports map[span.URI][]Diagnostic, uri span.URI, diagnostic Diagnostic) {
-	if v.Ignore(uri) {
+func addReport(v View, reports map[span.URI][]Diagnostic, diagnostic Diagnostic) {
+	if v.Ignore(diagnostic.URI) {
 		return
 	}
-	if _, ok := reports[uri]; ok {
-		reports[uri] = append(reports[uri], diagnostic)
+	if _, ok := reports[diagnostic.URI]; ok {
+		reports[diagnostic.URI] = append(reports[diagnostic.URI], diagnostic)
 	}
 }
 
@@ -332,38 +219,42 @@ func singleDiagnostic(uri span.URI, format string, a ...interface{}) map[span.UR
 	}
 }
 
-func runAnalyses(ctx context.Context, snapshot Snapshot, cph CheckPackageHandle, disabledAnalyses map[string]struct{}, report func(diag []*analysis.Diagnostic, a *analysis.Analyzer) error) error {
-	var analyzers []*analysis.Analyzer
-	for _, a := range snapshot.View().Options().Analyzers {
-		if _, ok := disabledAnalyses[a.Name]; ok {
-			continue
-		}
-		analyzers = append(analyzers, a)
+func toDiagnostic(e *Error, category string) Diagnostic {
+	// This is a bit of a hack, but clients > 3.15 will be able to grey out unnecessary code.
+	// If we are deleting code as part of all of our suggested fixes, assume that this is dead code.
+	// TODO(golang/go/#34508): Return these codes from the diagnostics themselves.
+	var tags []protocol.DiagnosticTag
+	if onlyDeletions(e.SuggestedFixes) {
+		tags = append(tags, protocol.Unnecessary)
 	}
-
-	diagnostics, err := snapshot.Analyze(ctx, cph.ID(), analyzers)
-	if err != nil {
-		return err
+	if e.Category != "" {
+		category += "." + e.Category
 	}
+	return Diagnostic{
+		URI:            e.URI,
+		Range:          e.Range,
+		Message:        e.Message,
+		Source:         category,
+		Severity:       protocol.SeverityWarning,
+		Tags:           tags,
+		SuggestedFixes: e.SuggestedFixes,
+		Related:        e.Related,
+	}
+}
 
-	// Report diagnostics and errors from root analyzers.
-	var sdiags []Diagnostic
-	for a, diags := range diagnostics {
-		if err := report(diags, a); err != nil {
-			return err
-		}
-		for _, diag := range diags {
-			sdiag, err := toDiagnostic(ctx, snapshot.View(), diag, a.Name)
-			if err != nil {
-				return err
+// onlyDeletions returns true if all of the suggested fixes are deletions.
+func onlyDeletions(fixes []SuggestedFix) bool {
+	for _, fix := range fixes {
+		for _, edits := range fix.Edits {
+			for _, edit := range edits {
+				if edit.NewText != "" {
+					return false
+				}
+				if protocol.ComparePosition(edit.Range.Start, edit.Range.End) == 0 {
+					return false
+				}
 			}
-			sdiags = append(sdiags, sdiag)
 		}
-		pkg, err := cph.Check(ctx)
-		if err != nil {
-			return err
-		}
-		pkg.SetDiagnostics(a, sdiags)
 	}
-	return nil
+	return true
 }

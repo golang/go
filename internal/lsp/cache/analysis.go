@@ -17,7 +17,7 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*analysis.Analyzer) (map[*analysis.Analyzer][]*analysis.Diagnostic, error) {
+func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*analysis.Analyzer) (map[*analysis.Analyzer][]*source.Error, error) {
 	var roots []*actionHandle
 
 	for _, a := range analyzers {
@@ -34,7 +34,7 @@ func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*analysis
 		return nil, ctx.Err()
 	}
 
-	results := make(map[*analysis.Analyzer][]*analysis.Diagnostic)
+	results := make(map[*analysis.Analyzer][]*source.Error)
 	for _, ah := range roots {
 		diagnostics, _, err := ah.analyze(ctx)
 		if err != nil {
@@ -63,7 +63,7 @@ type actionHandle struct {
 }
 
 type actionData struct {
-	diagnostics []*analysis.Diagnostic
+	diagnostics []*source.Error
 	result      interface{}
 	err         error
 }
@@ -133,7 +133,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, mode source.P
 	return ah, nil
 }
 
-func (act *actionHandle) analyze(ctx context.Context) ([]*analysis.Diagnostic, interface{}, error) {
+func (act *actionHandle) analyze(ctx context.Context) ([]*source.Error, interface{}, error) {
 	v := act.handle.Get(ctx)
 	if v == nil {
 		return nil, nil, errors.Errorf("no analyses for %s", act.pkg.ID())
@@ -150,10 +150,10 @@ func (act *actionHandle) String() string {
 	return fmt.Sprintf("%s@%s", act.analyzer, act.pkg.PkgPath())
 }
 
-func execAll(ctx context.Context, fset *token.FileSet, actions []*actionHandle) (map[*actionHandle][]*analysis.Diagnostic, map[*actionHandle]interface{}, error) {
+func execAll(ctx context.Context, fset *token.FileSet, actions []*actionHandle) (map[*actionHandle][]*source.Error, map[*actionHandle]interface{}, error) {
 	var (
 		mu          sync.Mutex
-		diagnostics = make(map[*actionHandle][]*analysis.Diagnostic)
+		diagnostics = make(map[*actionHandle][]*source.Error)
 		results     = make(map[*actionHandle]interface{})
 	)
 
@@ -178,7 +178,7 @@ func execAll(ctx context.Context, fset *token.FileSet, actions []*actionHandle) 
 	return diagnostics, results, g.Wait()
 }
 
-func (act *actionHandle) exec(ctx context.Context, fset *token.FileSet) (diagnostics []*analysis.Diagnostic, result interface{}, err error) {
+func (act *actionHandle) exec(ctx context.Context, fset *token.FileSet) ([]*source.Error, interface{}, error) {
 	// Analyze dependencies.
 	_, depResults, err := execAll(ctx, fset, act.deps)
 	if err != nil {
@@ -204,6 +204,8 @@ func (act *actionHandle) exec(ctx context.Context, fset *token.FileSet) (diagnos
 		}
 	}
 
+	var diagnostics []*analysis.Diagnostic
+
 	// Run the analysis.
 	pass := &analysis.Pass{
 		Analyzer:          act.analyzer,
@@ -225,14 +227,13 @@ func (act *actionHandle) exec(ctx context.Context, fset *token.FileSet) (diagnos
 
 	if act.pkg.IsIllTyped() {
 		return nil, nil, errors.Errorf("analysis skipped due to errors in package: %v", act.pkg.GetErrors())
-	} else {
-		result, err = pass.Analyzer.Run(pass)
-		if err == nil {
-			if got, want := reflect.TypeOf(result), pass.Analyzer.ResultType; got != want {
-				err = errors.Errorf(
-					"internal error: on package %s, analyzer %s returned a result of type %v, but declared ResultType %v",
-					pass.Pkg.Path(), pass.Analyzer, got, want)
-			}
+	}
+	result, err := pass.Analyzer.Run(pass)
+	if err == nil {
+		if got, want := reflect.TypeOf(result), pass.Analyzer.ResultType; got != want {
+			err = errors.Errorf(
+				"internal error: on package %s, analyzer %s returned a result of type %v, but declared ResultType %v",
+				pass.Pkg.Path(), pass.Analyzer, got, want)
 		}
 	}
 
@@ -240,7 +241,15 @@ func (act *actionHandle) exec(ctx context.Context, fset *token.FileSet) (diagnos
 	pass.ExportObjectFact = nil
 	pass.ExportPackageFact = nil
 
-	return diagnostics, result, err
+	var errors []*source.Error
+	for _, diag := range diagnostics {
+		srcErr, err := sourceError(ctx, act.pkg, diag)
+		if err != nil {
+			return nil, nil, err
+		}
+		errors = append(errors, srcErr)
+	}
+	return errors, result, err
 }
 
 // inheritFacts populates act.facts with

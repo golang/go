@@ -7,17 +7,21 @@ import (
 	"go/types"
 	"strings"
 
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 )
 
-func sourceError(ctx context.Context, view *view, pkg *pkg, e error) (*source.Error, error) {
+func sourceError(ctx context.Context, pkg *pkg, e interface{}) (*source.Error, error) {
 	var (
-		spn  span.Span
-		msg  string
-		kind packages.ErrorKind
+		spn           span.Span
+		err           error
+		msg, category string
+		kind          source.ErrorKind
+		fixes         []source.SuggestedFix
+		related       []source.RelatedInformation
 	)
 	switch e := e.(type) {
 	case packages.Error:
@@ -27,33 +31,111 @@ func sourceError(ctx context.Context, view *view, pkg *pkg, e error) (*source.Er
 			spn = span.Parse(e.Pos)
 		}
 		msg = e.Msg
-		kind = e.Kind
+		kind = toSourceErrorKind(e.Kind)
 	case *scanner.Error:
 		msg = e.Msg
-		kind = packages.ParseError
+		kind = source.ParseError
 		spn = span.Parse(e.Pos.String())
 	case scanner.ErrorList:
 		// The first parser error is likely the root cause of the problem.
 		if e.Len() > 0 {
 			spn = span.Parse(e[0].Pos.String())
 			msg = e[0].Msg
-			kind = packages.ParseError
+			kind = source.ParseError
 		}
 	case types.Error:
-		spn = span.Parse(view.session.cache.fset.Position(e.Pos).String())
+		spn = span.Parse(pkg.snapshot.view.session.cache.fset.Position(e.Pos).String())
 		msg = e.Msg
-		kind = packages.TypeError
+		kind = source.TypeError
+	case *analysis.Diagnostic:
+		spn, err = span.NewRange(pkg.snapshot.view.session.cache.fset, e.Pos, e.End).Span()
+		if err != nil {
+			return nil, err
+		}
+		msg = e.Message
+		kind = source.Analysis
+		category = e.Category
+		fixes, err = suggestedFixes(ctx, pkg, e)
+		if err != nil {
+			return nil, err
+		}
+		related, err = relatedInformation(ctx, pkg, e)
+		if err != nil {
+			return nil, err
+		}
 	}
-	rng, err := spanToRange(ctx, pkg, spn, kind == packages.TypeError)
+	rng, err := spanToRange(ctx, pkg, spn, kind == source.TypeError)
 	if err != nil {
 		return nil, err
 	}
 	return &source.Error{
-		URI:   spn.URI(),
-		Range: rng,
-		Msg:   msg,
-		Kind:  kind,
+		URI:            spn.URI(),
+		Range:          rng,
+		Message:        msg,
+		Kind:           kind,
+		Category:       category,
+		SuggestedFixes: fixes,
+		Related:        related,
 	}, nil
+}
+
+func suggestedFixes(ctx context.Context, pkg *pkg, diag *analysis.Diagnostic) ([]source.SuggestedFix, error) {
+	var fixes []source.SuggestedFix
+	for _, fix := range diag.SuggestedFixes {
+		edits := make(map[span.URI][]protocol.TextEdit)
+		for _, e := range fix.TextEdits {
+			spn, err := span.NewRange(pkg.Snapshot().View().Session().Cache().FileSet(), e.Pos, e.End).Span()
+			if err != nil {
+				return nil, err
+			}
+			rng, err := spanToRange(ctx, pkg, spn, false)
+			if err != nil {
+				return nil, err
+			}
+			edits[spn.URI()] = append(edits[spn.URI()], protocol.TextEdit{
+				Range:   rng,
+				NewText: string(e.NewText),
+			})
+		}
+		fixes = append(fixes, source.SuggestedFix{
+			Title: fix.Message,
+			Edits: edits,
+		})
+	}
+	return fixes, nil
+}
+
+func relatedInformation(ctx context.Context, pkg *pkg, diag *analysis.Diagnostic) ([]source.RelatedInformation, error) {
+	var out []source.RelatedInformation
+	for _, related := range diag.Related {
+		spn, err := span.NewRange(pkg.Snapshot().View().Session().Cache().FileSet(), related.Pos, related.End).Span()
+		if err != nil {
+			return nil, err
+		}
+		rng, err := spanToRange(ctx, pkg, spn, false)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, source.RelatedInformation{
+			URI:     spn.URI(),
+			Range:   rng,
+			Message: related.Message,
+		})
+	}
+	return out, nil
+}
+
+func toSourceErrorKind(kind packages.ErrorKind) source.ErrorKind {
+	switch kind {
+	case packages.ListError:
+		return source.ListError
+	case packages.ParseError:
+		return source.ParseError
+	case packages.TypeError:
+		return source.TypeError
+	default:
+		return source.UnknownError
+	}
 }
 
 // spanToRange converts a span.Span to a protocol.Range,
@@ -67,11 +149,11 @@ func spanToRange(ctx context.Context, pkg *pkg, spn span.Span, isTypeError bool)
 	if err != nil {
 		return protocol.Range{}, err
 	}
-	data, _, err := ph.File().Read(ctx)
-	if err != nil {
-		return protocol.Range{}, err
-	}
 	if spn.IsPoint() && isTypeError {
+		data, _, err := ph.File().Read(ctx)
+		if err != nil {
+			return protocol.Range{}, err
+		}
 		if s, err := spn.WithOffset(m.Converter); err == nil {
 			start := s.Start()
 			offset := start.Offset()

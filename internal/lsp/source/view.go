@@ -262,7 +262,7 @@ type Snapshot interface {
 	View() View
 
 	// Analyze runs the analyses for the given package at this snapshot.
-	Analyze(ctx context.Context, id string, analyzers []*analysis.Analyzer) (map[*analysis.Analyzer][]*analysis.Diagnostic, error)
+	Analyze(ctx context.Context, id string, analyzers []*analysis.Analyzer) (map[*analysis.Analyzer][]*Error, error)
 }
 
 // File represents a source file of any type.
@@ -280,7 +280,7 @@ type Package interface {
 	Files() []ParseGoHandle
 	File(uri span.URI) (ParseGoHandle, error)
 	GetSyntax(context.Context) []*ast.File
-	GetErrors() []Error
+	GetErrors() []*Error
 	GetTypes() *types.Package
 	GetTypesInfo() *types.Info
 	GetTypesSizes() types.Sizes
@@ -298,14 +298,27 @@ type Package interface {
 }
 
 type Error struct {
-	Msg   string
-	URI   span.URI
-	Range protocol.Range
-	Kind  packages.ErrorKind
+	URI            span.URI
+	Range          protocol.Range
+	Kind           ErrorKind
+	Message        string
+	Category       string
+	SuggestedFixes []SuggestedFix
+	Related        []RelatedInformation
 }
 
+type ErrorKind int
+
+const (
+	UnknownError = ErrorKind(iota)
+	ListError
+	ParseError
+	TypeError
+	Analysis
+)
+
 func (e *Error) Error() string {
-	return fmt.Sprintf("%s:%s: %s", e.URI, e.Range, e.Msg)
+	return fmt.Sprintf("%s:%s: %s", e.URI, e.Range, e.Message)
 }
 
 type BuiltinPackage interface {
