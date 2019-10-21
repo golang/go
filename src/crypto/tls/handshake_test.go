@@ -17,6 +17,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -243,19 +244,29 @@ func localServer(l net.Listener) {
 	}
 }
 
+var isConnRefused = func(err error) bool { return false }
+
 func localPipe(t testing.TB) (net.Conn, net.Conn) {
 	localListener.mu.Lock()
 	defer localListener.mu.Unlock()
 
 	addr := localListener.addr
 
+	var err error
 Dialing:
 	// We expect a rare mismatch, but probably not 5 in a row.
 	for i := 0; i < 5; i++ {
 		tooSlow := time.NewTimer(1 * time.Second)
 		defer tooSlow.Stop()
-		c1, err := net.Dial(addr.Network(), addr.String())
+		var c1 net.Conn
+		c1, err = net.Dial(addr.Network(), addr.String())
 		if err != nil {
+			if runtime.GOOS == "dragonfly" && isConnRefused(err) {
+				// golang.org/issue/29583: Dragonfly sometimes returned a spurious
+				// ECONNREFUSED.
+				<-tooSlow.C
+				continue
+			}
 			t.Fatalf("localPipe: %v", err)
 		}
 		if localFlakes == 2 && i == 0 {
@@ -279,7 +290,7 @@ Dialing:
 		}
 	}
 
-	t.Fatalf("localPipe: failed to connect")
+	t.Fatalf("localPipe: failed to connect: %v", err)
 	panic("unreachable")
 }
 
