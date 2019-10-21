@@ -8,7 +8,6 @@ package net
 
 import (
 	"fmt"
-	"internal/testenv"
 	"reflect"
 	"runtime"
 	"testing"
@@ -58,8 +57,6 @@ func condSkipInterfaceTest(t *testing.T) {
 		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
 			t.Skipf("sysctl is not supported on iOS")
 		}
-	case "dragonfly":
-		testenv.SkipFlaky(t, 34368)
 	}
 }
 
