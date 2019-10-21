@@ -22,24 +22,6 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-type importer struct {
-	snapshot *snapshot
-	ctx      context.Context
-
-	// seen maintains the set of previously imported packages.
-	// If we have seen a package that is already in this map, we have a circular import.
-	seen map[packageID]struct{}
-
-	// topLevelPackageID is the ID of the package from which type-checking began.
-	topLevelPackageID packageID
-
-	// parentPkg is the package that imports the current package.
-	parentPkg *pkg
-
-	// parentCheckPackageHandle is the check package handle that imports the current package.
-	parentCheckPackageHandle *checkPackageHandle
-}
-
 // checkPackageHandle implements source.CheckPackageHandle.
 type checkPackageHandle struct {
 	handle *memoize.Handle
@@ -76,41 +58,47 @@ type checkPackageData struct {
 }
 
 // checkPackageHandle returns a source.CheckPackageHandle for a given package and config.
-func (imp *importer) checkPackageHandle(ctx context.Context, id packageID) (*checkPackageHandle, error) {
-	// Determine the mode that the files should be parsed in.
-	mode := imp.mode(id)
-
+func (s *snapshot) checkPackageHandle(ctx context.Context, id packageID, mode source.ParseMode) (*checkPackageHandle, error) {
 	// Check if we already have this CheckPackageHandle cached.
-	if cph := imp.snapshot.getPackage(id, mode); cph != nil {
+	if cph := s.getPackage(id, mode); cph != nil {
 		return cph, nil
 	}
 
 	// Build the CheckPackageHandle for this ID and its dependencies.
-	cph, err := imp.buildKey(ctx, id, mode)
+	cph, err := s.buildKey(ctx, id, mode)
 	if err != nil {
 		return nil, err
 	}
-
-	h := imp.snapshot.view.session.cache.store.Bind(string(cph.key), func(ctx context.Context) interface{} {
+	h := s.view.session.cache.store.Bind(string(cph.key), func(ctx context.Context) interface{} {
+		// Begin loading the direct dependencies, in parallel.
+		for _, impID := range cph.imports {
+			dep := s.getPackage(impID, source.ParseExported)
+			if dep == nil {
+				continue
+			}
+			go func(dep *checkPackageHandle) {
+				dep.check(ctx)
+			}(dep)
+		}
 		data := &checkPackageData{}
-		data.pkg, data.err = imp.typeCheck(ctx, cph)
+		data.pkg, data.err = s.typeCheck(ctx, cph)
 		return data
 	})
 	cph.handle = h
 
 	// Cache the CheckPackageHandle in the snapshot.
-	imp.snapshot.addPackage(cph)
+	s.addPackage(cph)
 
 	return cph, nil
 }
 
 // buildKey computes the checkPackageKey for a given checkPackageHandle.
-func (imp *importer) buildKey(ctx context.Context, id packageID, mode source.ParseMode) (*checkPackageHandle, error) {
-	m := imp.snapshot.getMetadata(id)
+func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.ParseMode) (*checkPackageHandle, error) {
+	m := s.getMetadata(id)
 	if m == nil {
 		return nil, errors.Errorf("no metadata for %s", id)
 	}
-	phs, err := imp.parseGoHandles(ctx, m, mode)
+	phs, err := s.parseGoHandles(ctx, m, mode)
 	if err != nil {
 		return nil, err
 	}
@@ -127,17 +115,12 @@ func (imp *importer) buildKey(ctx context.Context, id packageID, mode source.Par
 		return deps[i] < deps[j]
 	})
 
-	// Create the dep importer for use on the dependency handles.
-	depImporter := &importer{
-		snapshot:          imp.snapshot,
-		topLevelPackageID: imp.topLevelPackageID,
-	}
 	// Begin computing the key by getting the depKeys for all dependencies.
 	var depKeys [][]byte
-	for _, dep := range deps {
-		depHandle, err := depImporter.checkPackageHandle(ctx, dep)
+	for _, depID := range deps {
+		depHandle, err := s.checkPackageHandle(ctx, depID, source.ParseExported)
 		if err != nil {
-			log.Error(ctx, "no dep handle", err, telemetry.Package.Of(dep))
+			log.Error(ctx, "no dep handle", err, telemetry.Package.Of(depID))
 
 			// One bad dependency should not prevent us from checking the entire package.
 			// Add a special key to mark a bad dependency.
@@ -215,52 +198,20 @@ func (cph *checkPackageHandle) cached() (*pkg, error) {
 	return data.pkg, data.err
 }
 
-func (imp *importer) parseGoHandles(ctx context.Context, m *metadata, mode source.ParseMode) ([]source.ParseGoHandle, error) {
+func (s *snapshot) parseGoHandles(ctx context.Context, m *metadata, mode source.ParseMode) ([]source.ParseGoHandle, error) {
 	phs := make([]source.ParseGoHandle, 0, len(m.files))
 	for _, uri := range m.files {
-		f, err := imp.snapshot.view.GetFile(ctx, uri)
+		f, err := s.view.GetFile(ctx, uri)
 		if err != nil {
 			return nil, err
 		}
-		fh := imp.snapshot.Handle(ctx, f)
-		phs = append(phs, imp.snapshot.view.session.cache.ParseGoHandle(fh, mode))
+		fh := s.Handle(ctx, f)
+		phs = append(phs, s.view.session.cache.ParseGoHandle(fh, mode))
 	}
 	return phs, nil
 }
 
-func (imp *importer) mode(id packageID) source.ParseMode {
-	if imp.topLevelPackageID == id {
-		return source.ParseFull
-	}
-	return source.ParseExported
-}
-
-func (imp *importer) Import(pkgPath string) (*types.Package, error) {
-	ctx, done := trace.StartSpan(imp.ctx, "cache.importer.Import", telemetry.PackagePath.Of(pkgPath))
-	defer done()
-
-	// We need to set the parent package's imports, so there should always be one.
-	if imp.parentPkg == nil {
-		return nil, errors.Errorf("no parent package for import %s", pkgPath)
-	}
-	// Get the CheckPackageHandle from the importing package.
-	id, ok := imp.parentCheckPackageHandle.imports[packagePath(pkgPath)]
-	if !ok {
-		return nil, errors.Errorf("no package data for import path %s", pkgPath)
-	}
-	cph := imp.snapshot.getPackage(id, source.ParseExported)
-	if cph == nil {
-		return nil, errors.Errorf("no cached package for %s", id)
-	}
-	pkg, err := cph.check(ctx)
-	if err != nil {
-		return nil, err
-	}
-	imp.parentPkg.imports[packagePath(pkgPath)] = pkg
-	return pkg.GetTypes(), nil
-}
-
-func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle) (*pkg, error) {
+func (s *snapshot) typeCheck(ctx context.Context, cph *checkPackageHandle) (*pkg, error) {
 	ctx, done := trace.StartSpan(ctx, "cache.importer.typeCheck", telemetry.Package.Of(cph.m.id))
 	defer done()
 
@@ -270,7 +221,7 @@ func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle) (*p
 	}
 
 	pkg := &pkg{
-		view:       imp.snapshot.view,
+		view:       s.view,
 		id:         cph.m.id,
 		mode:       cph.mode,
 		pkgPath:    cph.m.pkgPath,
@@ -329,9 +280,24 @@ func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle) (*p
 		Error: func(e error) {
 			rawErrors = append(rawErrors, e)
 		},
-		Importer: imp.depImporter(ctx, cph, pkg),
+		Importer: importerFunc(func(pkgPath string) (*types.Package, error) {
+			impID, ok := cph.imports[packagePath(pkgPath)]
+			if !ok {
+				return nil, errors.Errorf("no package data for import %s", pkgPath)
+			}
+			dep := s.getPackage(impID, source.ParseExported)
+			if dep == nil {
+				return nil, errors.Errorf("no package for import %s", impID)
+			}
+			depPkg, err := dep.check(ctx)
+			if err != nil {
+				return nil, err
+			}
+			pkg.imports[depPkg.pkgPath] = depPkg
+			return depPkg.types, nil
+		}),
 	}
-	check := types.NewChecker(cfg, imp.snapshot.view.session.cache.FileSet(), pkg.types, pkg.typesInfo)
+	check := types.NewChecker(cfg, s.view.session.cache.FileSet(), pkg.types, pkg.typesInfo)
 
 	// Type checking errors are handled via the config, so ignore them here.
 	_ = check.Files(files)
@@ -350,19 +316,8 @@ func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle) (*p
 	return pkg, nil
 }
 
-func (imp *importer) depImporter(ctx context.Context, cph *checkPackageHandle, pkg *pkg) *importer {
-	// Handle circular imports by copying previously seen imports.
-	seen := make(map[packageID]struct{})
-	for k, v := range imp.seen {
-		seen[k] = v
-	}
-	seen[pkg.id] = struct{}{}
-	return &importer{
-		snapshot:                 imp.snapshot,
-		topLevelPackageID:        imp.topLevelPackageID,
-		parentPkg:                pkg,
-		parentCheckPackageHandle: cph,
-		seen:                     seen,
-		ctx:                      ctx,
-	}
-}
+// An importFunc is an implementation of the single-method
+// types.Importer interface based on a function value.
+type importerFunc func(path string) (*types.Package, error)
+
+func (f importerFunc) Import(path string) (*types.Package, error) { return f(path) }

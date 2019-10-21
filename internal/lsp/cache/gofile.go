@@ -52,12 +52,7 @@ func (s *snapshot) CheckPackageHandles(ctx context.Context, f source.File) ([]so
 	if check {
 		var results []source.CheckPackageHandle
 		for _, m := range m {
-			imp := &importer{
-				snapshot:          s,
-				topLevelPackageID: m.id,
-				seen:              make(map[packageID]struct{}),
-			}
-			cph, err := imp.checkPackageHandle(ctx, m.id)
+			cph, err := s.checkPackageHandle(ctx, m.id, source.ParseFull)
 			if err != nil {
 				return nil, err
 			}
