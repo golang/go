@@ -49,8 +49,15 @@ var BigEndian bigEndian
 type littleEndian struct{}
 
 func (littleEndian) Uint16(b []byte) uint16 {
-	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
-	return uint16(b[0]) | uint16(b[1])<<8
+	// The previous implementation wouldn't allow an empty slice
+	switch len(b) {
+	case 0:
+		return 0
+	case 1:
+		return uint16(b[0])
+	default:
+		return uint16(b[0]) | uint16(b[1])<<8
+	}
 }
 
 func (littleEndian) PutUint16(b []byte, v uint16) {
@@ -60,8 +67,19 @@ func (littleEndian) PutUint16(b []byte, v uint16) {
 }
 
 func (littleEndian) Uint32(b []byte) uint32 {
-	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
-	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
+	// The previous implementation wouldn't allow for example a 3 byte slice
+	switch len(b) {
+	case 0:
+		return 0
+	case 1:
+		return uint32(b[0])
+	case 2:
+		return uint32(b[0]) | uint32(b[1])<<8
+	case 3:
+		return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16
+	default:
+		return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
+	}
 }
 
 func (littleEndian) PutUint32(b []byte, v uint32) {
@@ -73,9 +91,30 @@ func (littleEndian) PutUint32(b []byte, v uint32) {
 }
 
 func (littleEndian) Uint64(b []byte) uint64 {
-	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
-	return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
-		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
+	switch len(b) {
+	case 0:
+		return 0
+	case 1:
+		return uint64(b[0])
+	case 2:
+		return uint64(b[0]) | uint64(b[1])<<8
+	case 3:
+		return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16
+	case 4:
+		return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24
+	case 5:
+		return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
+			uint64(b[4])<<32
+	case 6:
+		return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
+			uint64(b[4])<<32 | uint64(b[5])<<40
+	case 7:
+		return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
+			uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48
+	default:
+		return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
+			uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
+	}
 }
 
 func (littleEndian) PutUint64(b []byte, v uint64) {
