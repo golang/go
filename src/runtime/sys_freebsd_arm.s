@@ -117,7 +117,7 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
 	MOVW n+8(FP), R2	// arg 3 count
 	MOVW $SYS_read, R7
 	SWI $0
-	SUB.CS	$0, R0, R0	// caller expects negative errno
+	RSB.CS	$0, R0		// caller expects negative errno
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -153,7 +153,7 @@ TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0
 	MOVW n+8(FP), R2	// arg 3 count
 	MOVW $SYS_write, R7
 	SWI $0
-	SUB.CS	$0, R0, R0	// caller expects negative errno
+	RSB.CS	$0, R0		// caller expects negative errno
 	MOVW	R0, ret+12(FP)
 	RET
 
