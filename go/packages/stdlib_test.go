@@ -19,10 +19,6 @@ import (
 
 // This test loads the metadata for the standard library,
 func TestStdlibMetadata(t *testing.T) {
-	if v := runtime.Version(); strings.Contains(v, "devel") && race {
-		t.Skip("golang.org/issue/31749: This test is broken on tip in race mode. Skip until it's fixed.")
-	}
-
 	// TODO(adonovan): see if we can get away without this hack.
 	// if runtime.GOOS == "android" {
 	// 	t.Skipf("incomplete std lib on %s", runtime.GOOS)

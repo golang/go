@@ -262,13 +262,7 @@ func TestLoad_FromSource_Success(t *testing.T) {
 	}
 }
 
-var race = false
-
 func TestLoad_FromImports_Success(t *testing.T) {
-	if v := runtime.Version(); strings.Contains(v, "devel") && race {
-		t.Skip("golang.org/issue/31749: This test is broken on tip in race mode. Skip until it's fixed.")
-	}
-
 	if runtime.Compiler == "gccgo" {
 		t.Skip("gccgo has no standard library test files")
 	}
