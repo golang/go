@@ -3965,8 +3965,12 @@ func walkCheckPtrArithmetic(n *Node, init *Nodes) *Node {
 	// Calling cheapexpr(n, init) below leads to a recursive call
 	// to walkexpr, which leads us back here again. Use n.Opt to
 	// prevent infinite loops.
-	if n.Opt() == &walkCheckPtrArithmeticMarker {
+	if opt := n.Opt(); opt == &walkCheckPtrArithmeticMarker {
 		return n
+	} else if opt != nil {
+		// We use n.Opt() here because today it's not used for OCONVNOP. If that changes,
+		// there's no guarantee that temporarily replacing it is safe, so just hard fail here.
+		Fatalf("unexpected Opt: %v", opt)
 	}
 	n.SetOpt(&walkCheckPtrArithmeticMarker)
 	defer n.SetOpt(nil)
