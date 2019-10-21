@@ -52335,7 +52335,6 @@ func rewriteValueAMD64_OpFloor_0(v *Value) bool {
 }
 func rewriteValueAMD64_OpFma_0(v *Value) bool {
 	// match: (Fma x y z)
-	// cond:
 	// result: (VFMADD231SD z x y)
 	for {
 		z := v.Args[2]

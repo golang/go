@@ -17163,7 +17163,6 @@ func rewriteValueARM_OpEqPtr_0(v *Value) bool {
 }
 func rewriteValueARM_OpFma_0(v *Value) bool {
 	// match: (Fma x y z)
-	// cond:
 	// result: (FMULAD z x y)
 	for {
 		z := v.Args[2]

@@ -1992,7 +1992,6 @@ func rewriteValuePPC64_OpFloor_0(v *Value) bool {
 }
 func rewriteValuePPC64_OpFma_0(v *Value) bool {
 	// match: (Fma x y z)
-	// cond:
 	// result: (FMADD x y z)
 	for {
 		z := v.Args[2]
