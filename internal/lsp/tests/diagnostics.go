@@ -38,12 +38,7 @@ func DiffDiagnostics(want, got []source.Diagnostic) string {
 		if protocol.ComparePosition(w.Range.Start, g.Range.Start) != 0 {
 			return summarizeDiagnostics(i, want, got, "incorrect Start got %v want %v", g.Range.Start, w.Range.Start)
 		}
-		// Special case for diagnostics on parse errors.
-		if strings.Contains(string(g.URI), "noparse") {
-			if protocol.ComparePosition(g.Range.Start, g.Range.End) != 0 || protocol.ComparePosition(w.Range.Start, g.Range.End) != 0 {
-				return summarizeDiagnostics(i, want, got, "incorrect End got %v want %v", g.Range.End, w.Range.Start)
-			}
-		} else if !protocol.IsPoint(g.Range) { // Accept any 'want' range if the diagnostic returns a zero-length range.
+		if !protocol.IsPoint(g.Range) { // Accept any 'want' range if the diagnostic returns a zero-length range.
 			if protocol.ComparePosition(w.Range.End, g.Range.End) != 0 {
 				return summarizeDiagnostics(i, want, got, "incorrect End got %v want %v", g.Range.End, w.Range.End)
 			}
