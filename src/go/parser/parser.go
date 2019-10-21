@@ -2439,8 +2439,18 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	var body *ast.BlockStmt
 	if p.tok == token.LBRACE {
 		body = p.parseBody(scope)
+		p.expectSemi()
+	} else if p.tok == token.SEMICOLON {
+		p.next()
+		if p.tok == token.LBRACE {
+			// opening { of function declaration on next line
+			p.error(p.pos, "unexpected semicolon or newline before {")
+			body = p.parseBody(scope)
+			p.expectSemi()
+		}
+	} else {
+		p.expectSemi()
 	}
-	p.expectSemi()
 
 	decl := &ast.FuncDecl{
 		Doc:  doc,
