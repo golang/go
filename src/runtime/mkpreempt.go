@@ -79,7 +79,7 @@ var arches = map[string]func(){
 	"386":     gen386,
 	"amd64":   genAMD64,
 	"arm":     genARM,
-	"arm64":   notImplemented,
+	"arm64":   genARM64,
 	"mips64x": notImplemented,
 	"mipsx":   notImplemented,
 	"ppc64x":  notImplemented,
@@ -302,6 +302,58 @@ func genARM() {
 	p("MOVW %d(R13), R14", lfp.stack)     // sigctxt.pushCall pushes LR on stack, restore it
 	p("MOVW.P %d(R13), R15", lfp.stack+4) // load PC, pop frame (including the space pushed by sigctxt.pushCall)
 	p("UNDEF")                            // shouldn't get here
+}
+
+func genARM64() {
+	// Add integer registers R0-R26
+	// R27 (REGTMP), R28 (g), R29 (FP), R30 (LR), R31 (SP) are special
+	// and not saved here.
+	var l = layout{sp: "RSP", stack: 8} // add slot to save PC of interrupted instruction
+	for i := 0; i <= 26; i++ {
+		if i == 18 {
+			continue // R18 is not used, skip
+		}
+		reg := fmt.Sprintf("R%d", i)
+		l.add("MOVD", reg, 8)
+	}
+	// Add flag registers.
+	l.addSpecial(
+		"MOVD NZCV, R0\nMOVD R0, %d(RSP)",
+		"MOVD %d(RSP), R0\nMOVD R0, NZCV",
+		8)
+	l.addSpecial(
+		"MOVD FPSR, R0\nMOVD R0, %d(RSP)",
+		"MOVD %d(RSP), R0\nMOVD R0, FPSR",
+		8)
+	// TODO: FPCR? I don't think we'll change it, so no need to save.
+	// Add floating point registers F0-F31.
+	for i := 0; i <= 31; i++ {
+		reg := fmt.Sprintf("F%d", i)
+		l.add("FMOVD", reg, 8)
+	}
+	if l.stack%16 != 0 {
+		l.stack += 8 // SP needs 16-byte alignment
+	}
+
+	// allocate frame, save PC of interrupted instruction (in LR)
+	p("MOVD R30, %d(RSP)", -l.stack)
+	p("SUB $%d, RSP", l.stack)
+	p("#ifdef GOOS_linux")
+	p("MOVD R29, -8(RSP)") // save frame pointer (only used on Linux)
+	p("SUB $8, RSP, R29")  // set up new frame pointer
+	p("#endif")
+
+	l.save()
+	p("CALL ·asyncPreempt2(SB)")
+	l.restore()
+
+	p("MOVD %d(RSP), R30", l.stack) // sigctxt.pushCall has pushed LR (at interrupt) on stack, restore it
+	p("#ifdef GOOS_linux")
+	p("MOVD -8(RSP), R29") // restore frame pointer
+	p("#endif")
+	p("MOVD (RSP), R27")          // load PC to REGTMP
+	p("ADD $%d, RSP", l.stack+16) // pop frame (including the space pushed by sigctxt.pushCall)
+	p("JMP (R27)")
 }
 
 func genWasm() {
