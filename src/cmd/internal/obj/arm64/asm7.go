@@ -258,8 +258,10 @@ func MOVCONST(d int64, s int, rt int) uint32 {
 }
 
 const (
-	LFROM = 1 << 0
-	LTO   = 1 << 1
+	// Optab.flag
+	LFROM     = 1 << 0 // p.From uses constant pool
+	LTO       = 1 << 1 // p.To uses constant pool
+	NOTUSETMP = 1 << 2 // p expands to multiple instructions, but does NOT use REGTMP
 )
 
 var optab = []Optab{
@@ -383,10 +385,10 @@ var optab = []Optab{
 	{AMOVD, C_MOVCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
 	{AMOVW, C_BITCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
 	{AMOVD, C_BITCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
-	{AMOVW, C_MOVCON2, C_NONE, C_NONE, C_REG, 12, 8, 0, 0, 0},
-	{AMOVD, C_MOVCON2, C_NONE, C_NONE, C_REG, 12, 8, 0, 0, 0},
-	{AMOVD, C_MOVCON3, C_NONE, C_NONE, C_REG, 12, 12, 0, 0, 0},
-	{AMOVD, C_VCON, C_NONE, C_NONE, C_REG, 12, 16, 0, 0, 0},
+	{AMOVW, C_MOVCON2, C_NONE, C_NONE, C_REG, 12, 8, 0, NOTUSETMP, 0},
+	{AMOVD, C_MOVCON2, C_NONE, C_NONE, C_REG, 12, 8, 0, NOTUSETMP, 0},
+	{AMOVD, C_MOVCON3, C_NONE, C_NONE, C_REG, 12, 12, 0, NOTUSETMP, 0},
+	{AMOVD, C_VCON, C_NONE, C_NONE, C_REG, 12, 16, 0, NOTUSETMP, 0},
 
 	{AMOVK, C_VCON, C_NONE, C_NONE, C_REG, 33, 4, 0, 0, 0},
 	{AMOVD, C_AACON, C_NONE, C_NONE, C_REG, 4, 4, REGFROM, 0, 0},
@@ -420,15 +422,15 @@ var optab = []Optab{
 	{ALSL, C_REG, C_REG, C_NONE, C_REG, 9, 4, 0, 0, 0},
 	{ASVC, C_VCON, C_NONE, C_NONE, C_NONE, 10, 4, 0, 0, 0},
 	{ASVC, C_NONE, C_NONE, C_NONE, C_NONE, 10, 4, 0, 0, 0},
-	{ADWORD, C_NONE, C_NONE, C_NONE, C_VCON, 11, 8, 0, 0, 0},
-	{ADWORD, C_NONE, C_NONE, C_NONE, C_LEXT, 11, 8, 0, 0, 0},
-	{ADWORD, C_NONE, C_NONE, C_NONE, C_ADDR, 11, 8, 0, 0, 0},
-	{ADWORD, C_NONE, C_NONE, C_NONE, C_LACON, 11, 8, 0, 0, 0},
+	{ADWORD, C_NONE, C_NONE, C_NONE, C_VCON, 11, 8, 0, NOTUSETMP, 0},
+	{ADWORD, C_NONE, C_NONE, C_NONE, C_LEXT, 11, 8, 0, NOTUSETMP, 0},
+	{ADWORD, C_NONE, C_NONE, C_NONE, C_ADDR, 11, 8, 0, NOTUSETMP, 0},
+	{ADWORD, C_NONE, C_NONE, C_NONE, C_LACON, 11, 8, 0, NOTUSETMP, 0},
 	{AWORD, C_NONE, C_NONE, C_NONE, C_LCON, 14, 4, 0, 0, 0},
 	{AWORD, C_NONE, C_NONE, C_NONE, C_LEXT, 14, 4, 0, 0, 0},
 	{AWORD, C_NONE, C_NONE, C_NONE, C_ADDR, 14, 4, 0, 0, 0},
-	{AMOVW, C_VCONADDR, C_NONE, C_NONE, C_REG, 68, 8, 0, 0, 0},
-	{AMOVD, C_VCONADDR, C_NONE, C_NONE, C_REG, 68, 8, 0, 0, 0},
+	{AMOVW, C_VCONADDR, C_NONE, C_NONE, C_REG, 68, 8, 0, NOTUSETMP, 0},
+	{AMOVD, C_VCONADDR, C_NONE, C_NONE, C_REG, 68, 8, 0, NOTUSETMP, 0},
 	{AMOVB, C_REG, C_NONE, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
 	{AMOVBU, C_REG, C_NONE, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
 	{AMOVH, C_REG, C_NONE, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
@@ -1022,6 +1024,23 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			psz += 4
 		}
 	}
+
+	// Mark nonpreemptible instruction sequences.
+	// We use REGTMP as a scratch register during call injection,
+	// so instruction sequences that use REGTMP are unsafe to
+	// preempt asynchronously.
+	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint)
+}
+
+// Return whether p is an unsafe point.
+func (c *ctxt7) isUnsafePoint(p *obj.Prog) bool {
+	if p.From.Reg == REGTMP || p.To.Reg == REGTMP || p.Reg == REGTMP {
+		return true
+	}
+	// Most of the multi-instruction sequence uses REGTMP, except
+	// ones marked safe.
+	o := c.oplook(p)
+	return o.size > 4 && o.flag&NOTUSETMP == 0
 }
 
 /*
@@ -3069,6 +3088,8 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 	case 12: /* movT $vcon, reg */
+		// NOTE: this case does not use REGTMP. If it ever does,
+		// remove the NOTUSETMP flag in optab.
 		num := c.omovlconst(p.As, p, &p.From, int(p.To.Reg), os[:])
 		if num == 0 {
 			c.ctxt.Diag("invalid constant: %v", p)
@@ -4017,6 +4038,8 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.opldpstp(p, o, v, uint32(r), uint32(p.From.Reg), uint32(p.From.Offset), 0)
 
 	case 68: /* movT $vconaddr(SB), reg -> adrp + add + reloc */
+		// NOTE: this case does not use REGTMP. If it ever does,
+		// remove the NOTUSETMP flag in optab.
 		if p.As == AMOVW {
 			c.ctxt.Diag("invalid load of 32-bit address: %v", p)
 		}
