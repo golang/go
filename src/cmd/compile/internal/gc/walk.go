@@ -3941,6 +3941,10 @@ func walkCheckPtrArithmetic(n *Node, init *Nodes) *Node {
 		return n
 	}
 
+	if n.Left.Op == ODOTPTR && isReflectHeaderDataField(n.Left) {
+		return n
+	}
+
 	// Find original unsafe.Pointer operands involved in this
 	// arithmetic expression.
 	//
