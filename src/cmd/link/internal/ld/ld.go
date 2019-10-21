@@ -148,7 +148,7 @@ func findlib(ctxt *Link, lib string) (string, bool) {
 				}
 			}
 		}
-		pname = path.Clean(pname)
+		pname = filepath.Clean(pname)
 	}
 
 	return pname, isshlib
