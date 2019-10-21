@@ -1066,7 +1066,14 @@ func invokeGo(cfg *Config, args ...string) (*bytes.Buffer, error) {
 				// TODO(matloob): command-line-arguments isn't correct here.
 				"command-line-arguments", strings.Trim(stderr.String(), "\n"))
 			return bytes.NewBufferString(output), nil
+		}
 
+		// Another variation of the previous error
+		if len(stderr.String()) > 0 && strings.Contains(stderr.String(), "outside module root") {
+			output := fmt.Sprintf(`{"ImportPath": %q,"Incomplete": true,"Error": {"Pos": "","Err": %q}}`,
+				// TODO(matloob): command-line-arguments isn't correct here.
+				"command-line-arguments", strings.Trim(stderr.String(), "\n"))
+			return bytes.NewBufferString(output), nil
 		}
 
 		// Workaround for an instance of golang.org/issue/26755: go list -e  will return a non-zero exit
