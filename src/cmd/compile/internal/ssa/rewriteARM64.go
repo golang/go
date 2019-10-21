@@ -28569,7 +28569,6 @@ func rewriteValueARM64_OpFloor_0(v *Value) bool {
 }
 func rewriteValueARM64_OpFma_0(v *Value) bool {
 	// match: (Fma x y z)
-	// cond:
 	// result: (FMADDD z x y)
 	for {
 		z := v.Args[2]
