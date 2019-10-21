@@ -5,6 +5,7 @@
 package source
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
@@ -272,6 +273,35 @@ func relatedInformation(ctx context.Context, view View, diag *analysis.Diagnosti
 		})
 	}
 	return out, nil
+}
+
+// spanToRange converts a span.Span to a protocol.Range,
+// assuming that the span belongs to the package whose diagnostics are being computed.
+func spanToRange(ctx context.Context, view View, pkg Package, spn span.Span, isTypeError bool) (protocol.Range, error) {
+	ph, err := pkg.File(spn.URI())
+	if err != nil {
+		return protocol.Range{}, err
+	}
+	_, m, _, err := ph.Cached(ctx)
+	if err != nil {
+		return protocol.Range{}, err
+	}
+	data, _, err := ph.File().Read(ctx)
+	if err != nil {
+		return protocol.Range{}, err
+	}
+	// Try to get a range for the diagnostic.
+	// TODO: Don't just limit ranges to type errors.
+	if spn.IsPoint() && isTypeError {
+		if s, err := spn.WithOffset(m.Converter); err == nil {
+			start := s.Start()
+			offset := start.Offset()
+			if width := bytes.IndexAny(data[offset:], " \n,():;[]"); width > 0 {
+				spn = span.New(spn.URI(), start, span.NewPoint(start.Line(), start.Column()+width, offset+width))
+			}
+		}
+	}
+	return m.Range(spn)
 }
 
 func clearReports(v View, reports map[span.URI][]Diagnostic, uri span.URI) {
