@@ -258,6 +258,9 @@ func buildModeInit() {
 		if cfg.ModCacheRW && !inGOFLAGS("-modcacherw") {
 			base.Fatalf("build flag -modcacherw only valid when using modules")
 		}
+		if cfg.ModFile != "" && !inGOFLAGS("-mod") {
+			base.Fatalf("build flag -modfile only valid when using modules")
+		}
 	}
 }
 
