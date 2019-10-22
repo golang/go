@@ -78,8 +78,6 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
-	checkStaleRuntime(t)
-
 	t.Parallel()
 
 	dir, err := ioutil.TempDir("", "go-build")

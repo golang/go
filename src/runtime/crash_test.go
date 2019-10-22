@@ -104,8 +104,6 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 		t.Skip("-quick")
 	}
 
-	checkStaleRuntime(t)
-
 	testprog.Lock()
 	defer testprog.Unlock()
 	if testprog.dir == "" {
@@ -149,34 +147,6 @@ func TestVDSO(t *testing.T) {
 	want := "success\n"
 	if output != want {
 		t.Fatalf("output:\n%s\n\nwanted:\n%s", output, want)
-	}
-}
-
-var (
-	staleRuntimeOnce sync.Once // guards init of staleRuntimeErr
-	staleRuntimeErr  error
-)
-
-func checkStaleRuntime(t *testing.T) {
-	staleRuntimeOnce.Do(func() {
-		// 'go run' uses the installed copy of runtime.a, which may be out of date.
-		out, err := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "list", "-gcflags=all="+os.Getenv("GO_GCFLAGS"), "-f", "{{.Stale}}", "runtime")).CombinedOutput()
-		if err != nil {
-			staleRuntimeErr = fmt.Errorf("failed to execute 'go list': %v\n%v", err, string(out))
-			return
-		}
-		if string(out) != "false\n" {
-			t.Logf("go list -f {{.Stale}} runtime:\n%s", out)
-			out, err := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "list", "-gcflags=all="+os.Getenv("GO_GCFLAGS"), "-f", "{{.StaleReason}}", "runtime")).CombinedOutput()
-			if err != nil {
-				t.Logf("go list -f {{.StaleReason}} failed: %v", err)
-			}
-			t.Logf("go list -f {{.StaleReason}} runtime:\n%s", out)
-			staleRuntimeErr = fmt.Errorf("Stale runtime.a. Run 'go install runtime'.")
-		}
-	})
-	if staleRuntimeErr != nil {
-		t.Fatal(staleRuntimeErr)
 	}
 }
 
