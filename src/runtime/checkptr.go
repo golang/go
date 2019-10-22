@@ -64,9 +64,41 @@ func checkptrArithmetic(p unsafe.Pointer, originals []unsafe.Pointer) {
 	panic(ptrArithError{p, originals})
 }
 
+// checkptrBase returns the base address for the allocation containing
+// the address p.
+//
+// Importantly, if p1 and p2 point into the same variable, then
+// checkptrBase(p1) == checkptrBase(p2). However, the converse/inverse
+// is not necessarily true as allocations can have trailing padding,
+// and multiple variables may be packed into a single allocation.
 func checkptrBase(p unsafe.Pointer) uintptr {
-	base, _, _ := findObject(uintptr(p), 0, 0)
-	// TODO(mdempsky): If base == 0, then check if p points to the
-	// stack or a global variable.
-	return base
+	// stack
+	if gp := getg(); gp.stack.lo <= uintptr(p) && uintptr(p) < gp.stack.hi {
+		// TODO(mdempsky): Walk the stack to identify the
+		// specific stack frame or even stack object that p
+		// points into.
+		//
+		// In the mean time, use "1" as a pseudo-address to
+		// represent the stack. This is an invalid address on
+		// all platforms, so it's guaranteed to be distinct
+		// from any of the addresses we might return below.
+		return 1
+	}
+
+	// heap (must check after stack because of #35068)
+	if base, _, _ := findObject(uintptr(p), 0, 0); base != 0 {
+		return base
+	}
+
+	// data or bss
+	for _, datap := range activeModules() {
+		if datap.data <= uintptr(p) && uintptr(p) < datap.edata {
+			return datap.data
+		}
+		if datap.bss <= uintptr(p) && uintptr(p) < datap.ebss {
+			return datap.bss
+		}
+	}
+
+	return 0
 }
