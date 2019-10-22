@@ -43,7 +43,8 @@ func runInit(cmd *base.Command, args []string) {
 	if os.Getenv("GO111MODULE") == "off" {
 		base.Fatalf("go mod init: modules disabled by GO111MODULE=off; see 'go help modules'")
 	}
-	if _, err := os.Stat("go.mod"); err == nil {
+	modFilePath := modload.ModFilePath()
+	if _, err := os.Stat(modFilePath); err == nil {
 		base.Fatalf("go mod init: go.mod already exists")
 	}
 	if strings.Contains(modload.CmdModModule, "@") {

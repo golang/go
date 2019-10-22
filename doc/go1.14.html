@@ -113,14 +113,24 @@ TODO
 </p>
 
 <p><!-- golang.org/issue/31481 -->
-  The <code>go</code> command now accepts a new flag, <code>-modcacherw</code>,
-  which leaves newly-created directories in the module cache at their default
-  permissions rather than making them read-only.
+  <code>-modcacherw</code> is a new flag that instructs the <code>go</code>
+  command to leave newly-created directories in the module cache at their
+  default permissions rather than making them read-only.
   The use of this flag makes it more likely that tests or other tools will
   accidentally add files not included in the module's verified checksum.
   However, it allows the use of <code>rm</code> <code>-rf</code>
   (instead of <code>go</code> <code>clean</code> <code>-modcache</code>)
   to remove the module cache.
+</p>
+
+<p><!-- golang.org/issue/34506 -->
+  <code>-modfile=file</code> is a new flag that instructs the <code>go</code>
+  command to read (and possibly write) an alternate go.mod file instead of the
+  one in the module root directory. A file named "go.mod" must still be present
+  in order to determine the module root directory, but it is not
+  accessed. When <code>-modfile</code> is specified, an alternate go.sum file
+  is also used: its path is derived from the <code>-modfile</code> flag by
+  trimming the ".mod" extension and appending ".sum".
 </p>
 
 <h2 id="runtime">Runtime</h2>

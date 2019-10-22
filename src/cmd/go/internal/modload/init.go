@@ -91,6 +91,9 @@ func Init() {
 	}
 	initialized = true
 
+	// Keep in sync with WillBeEnabled. We perform extra validation here, and
+	// there are lots of diagnostics and side effects, so we can't use
+	// WillBeEnabled directly.
 	env := cfg.Getenv("GO111MODULE")
 	switch env {
 	default:
@@ -137,6 +140,9 @@ func Init() {
 	} else {
 		modRoot = findModuleRoot(base.Cwd)
 		if modRoot == "" {
+			if cfg.ModFile != "" {
+				base.Fatalf("go: cannot find main module, but -modfile was set.\n\t-modfile cannot be used to set the module root directory.")
+			}
 			if !mustUseModules {
 				// GO111MODULE is 'auto', and we can't find a module root.
 				// Stay in GOPATH mode.
@@ -151,6 +157,9 @@ func Init() {
 			modRoot = ""
 			fmt.Fprintf(os.Stderr, "go: warning: ignoring go.mod in system temp root %v\n", os.TempDir())
 		}
+	}
+	if cfg.ModFile != "" && !strings.HasSuffix(cfg.ModFile, ".mod") {
+		base.Fatalf("go: -modfile=%s: file does not have .mod extension", cfg.ModFile)
 	}
 
 	// We're in module mode. Install the hooks to make it work.
@@ -210,7 +219,7 @@ func Init() {
 		//
 		// See golang.org/issue/32027.
 	} else {
-		modfetch.GoSumFile = filepath.Join(modRoot, "go.sum")
+		modfetch.GoSumFile = strings.TrimSuffix(ModFilePath(), ".mod") + ".sum"
 		search.SetModRoot(modRoot)
 	}
 }
@@ -224,6 +233,54 @@ func init() {
 		modfetch.PkgMod = filepath.Join(list[0], "pkg/mod")
 		codehost.WorkRoot = filepath.Join(list[0], "pkg/mod/cache/vcs")
 	}
+}
+
+// WillBeEnabled checks whether modules should be enabled but does not
+// initialize modules by installing hooks. If Init has already been called,
+// WillBeEnabled returns the same result as Enabled.
+//
+// This function is needed to break a cycle. The main package needs to know
+// whether modules are enabled in order to install the module or GOPATH version
+// of 'go get', but Init reads the -modfile flag in 'go get', so it shouldn't
+// be called until the command is installed and flags are parsed. Instead of
+// calling Init and Enabled, the main package can call this function.
+func WillBeEnabled() bool {
+	if modRoot != "" || mustUseModules {
+		return true
+	}
+	if initialized {
+		return false
+	}
+
+	// Keep in sync with Init. Init does extra validation and prints warnings or
+	// exits, so it can't call this function directly.
+	env := cfg.Getenv("GO111MODULE")
+	switch env {
+	case "on":
+		return true
+	case "auto", "":
+		break
+	default:
+		return false
+	}
+
+	if CmdModInit {
+		// Running 'go mod init': go.mod will be created in current directory.
+		return true
+	}
+	if modRoot := findModuleRoot(base.Cwd); modRoot == "" {
+		// GO111MODULE is 'auto', and we can't find a module root.
+		// Stay in GOPATH mode.
+		return false
+	} else if search.InDir(modRoot, os.TempDir()) == "." {
+		// If you create /tmp/go.mod for experimenting,
+		// then any tests that create work directories under /tmp
+		// will find it and get modules when they're not expecting them.
+		// It's a bit of a peculiar thing to disallow but quite mysterious
+		// when it happens. See golang.org/issue/26708.
+		return false
+	}
+	return true
 }
 
 // Enabled reports whether modules are (or must be) enabled.
@@ -250,6 +307,20 @@ func ModRoot() string {
 func HasModRoot() bool {
 	Init()
 	return modRoot != ""
+}
+
+// ModFilePath returns the effective path of the go.mod file. Normally, this
+// "go.mod" in the directory returned by ModRoot, but the -modfile flag may
+// change its location. ModFilePath calls base.Fatalf if there is no main
+// module, even if -modfile is set.
+func ModFilePath() string {
+	if !HasModRoot() {
+		die()
+	}
+	if cfg.ModFile != "" {
+		return cfg.ModFile
+	}
+	return filepath.Join(modRoot, "go.mod")
 }
 
 // printStackInDie causes die to print a stack trace.
@@ -305,7 +376,7 @@ func InitMod() {
 		return
 	}
 
-	gomod := filepath.Join(modRoot, "go.mod")
+	gomod := ModFilePath()
 	data, err := renameio.ReadFile(gomod)
 	if err != nil {
 		base.Fatalf("go: %v", err)
@@ -801,7 +872,7 @@ func WriteGoMod() {
 	unlock := modfetch.SideLock()
 	defer unlock()
 
-	file := filepath.Join(modRoot, "go.mod")
+	file := ModFilePath()
 	old, err := renameio.ReadFile(file)
 	if !bytes.Equal(old, modFileData) {
 		if bytes.Equal(old, new) {
@@ -819,7 +890,6 @@ func WriteGoMod() {
 		// want to run concurrent commands, they need to start with a complete,
 		// consistent module definition.
 		base.Fatalf("go: updates to go.mod needed, but contents have changed")
-
 	}
 
 	if err := renameio.WriteFile(file, new, 0666); err != nil {
