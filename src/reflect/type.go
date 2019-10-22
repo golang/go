@@ -2178,34 +2178,12 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 		base := bucketSize / ptrSize
 
 		if ktyp.ptrdata != 0 {
-			if ktyp.kind&kindGCProg != 0 {
-				panic("reflect: unexpected GC program in MapOf")
-			}
-			kmask := (*[16]byte)(unsafe.Pointer(ktyp.gcdata))
-			for i := uintptr(0); i < ktyp.ptrdata/ptrSize; i++ {
-				if (kmask[i/8]>>(i%8))&1 != 0 {
-					for j := uintptr(0); j < bucketSize; j++ {
-						word := base + j*ktyp.size/ptrSize + i
-						mask[word/8] |= 1 << (word % 8)
-					}
-				}
-			}
+			emitGCMask(mask, base, ktyp, bucketSize)
 		}
 		base += bucketSize * ktyp.size / ptrSize
 
 		if etyp.ptrdata != 0 {
-			if etyp.kind&kindGCProg != 0 {
-				panic("reflect: unexpected GC program in MapOf")
-			}
-			emask := (*[16]byte)(unsafe.Pointer(etyp.gcdata))
-			for i := uintptr(0); i < etyp.ptrdata/ptrSize; i++ {
-				if (emask[i/8]>>(i%8))&1 != 0 {
-					for j := uintptr(0); j < bucketSize; j++ {
-						word := base + j*etyp.size/ptrSize + i
-						mask[word/8] |= 1 << (word % 8)
-					}
-				}
-			}
+			emitGCMask(mask, base, etyp, bucketSize)
 		}
 		base += bucketSize * etyp.size / ptrSize
 		base += overflowPad / ptrSize
@@ -2234,6 +2212,55 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 	s := "bucket(" + ktyp.String() + "," + etyp.String() + ")"
 	b.str = resolveReflectName(newName(s, "", false))
 	return b
+}
+
+func (t *rtype) gcSlice(begin, end uintptr) []byte {
+	return (*[1 << 30]byte)(unsafe.Pointer(t.gcdata))[begin:end:end]
+}
+
+// emitGCMask writes the GC mask for [n]typ into out, starting at bit
+// offset base.
+func emitGCMask(out []byte, base uintptr, typ *rtype, n uintptr) {
+	if typ.kind&kindGCProg != 0 {
+		panic("reflect: unexpected GC program")
+	}
+	ptrs := typ.ptrdata / ptrSize
+	words := typ.size / ptrSize
+	mask := typ.gcSlice(0, (ptrs+7)/8)
+	for j := uintptr(0); j < ptrs; j++ {
+		if (mask[j/8]>>(j%8))&1 != 0 {
+			for i := uintptr(0); i < n; i++ {
+				k := base + i*words + j
+				out[k/8] |= 1 << (k % 8)
+			}
+		}
+	}
+}
+
+// appendGCProg appends the GC program for the first ptrdata bytes of
+// typ to dst and returns the extended slice.
+func appendGCProg(dst []byte, typ *rtype) []byte {
+	if typ.kind&kindGCProg != 0 {
+		// Element has GC program; emit one element.
+		n := uintptr(*(*uint32)(unsafe.Pointer(typ.gcdata)))
+		prog := typ.gcSlice(4, 4+n-1)
+		return append(dst, prog...)
+	}
+
+	// Element is small with pointer mask; use as literal bits.
+	ptrs := typ.ptrdata / ptrSize
+	mask := typ.gcSlice(0, (ptrs+7)/8)
+
+	// Emit 120-bit chunks of full bytes (max is 127 but we avoid using partial bytes).
+	for ; ptrs > 120; ptrs -= 120 {
+		dst = append(dst, 120)
+		dst = append(dst, mask[:15]...)
+		mask = mask[15:]
+	}
+
+	dst = append(dst, byte(ptrs))
+	dst = append(dst, mask...)
+	return dst
 }
 
 // SliceOf returns the slice type with element type t.
@@ -2666,25 +2693,7 @@ func StructOf(fields []StructField) Type {
 				off = ft.offset()
 			}
 
-			elemGC := (*[1 << 30]byte)(unsafe.Pointer(ft.typ.gcdata))[:]
-			elemPtrs := ft.typ.ptrdata / ptrSize
-			if ft.typ.kind&kindGCProg == 0 {
-				// Element is small with pointer mask; use as literal bits.
-				mask := elemGC
-				// Emit 120-bit chunks of full bytes (max is 127 but we avoid using partial bytes).
-				var n uintptr
-				for n = elemPtrs; n > 120; n -= 120 {
-					prog = append(prog, 120)
-					prog = append(prog, mask[:15]...)
-					mask = mask[15:]
-				}
-				prog = append(prog, byte(n))
-				prog = append(prog, mask[:(n+7)/8]...)
-			} else {
-				// Element has GC program; emit one element.
-				elemProg := elemGC[4 : 4+*(*uint32)(unsafe.Pointer(&elemGC[0]))-1]
-				prog = append(prog, elemProg...)
-			}
+			prog = appendGCProg(prog, ft.typ)
 			off += ft.typ.ptrdata
 		}
 		prog = append(prog, 0)
@@ -2850,42 +2859,16 @@ func ArrayOf(count int, elem Type) Type {
 		// Create direct pointer mask by turning each 1 bit in elem
 		// into count 1 bits in larger mask.
 		mask := make([]byte, (array.ptrdata/ptrSize+7)/8)
-		elemMask := (*[1 << 30]byte)(unsafe.Pointer(typ.gcdata))[:]
-		elemWords := typ.size / ptrSize
-		for j := uintptr(0); j < typ.ptrdata/ptrSize; j++ {
-			if (elemMask[j/8]>>(j%8))&1 != 0 {
-				for i := uintptr(0); i < array.len; i++ {
-					k := i*elemWords + j
-					mask[k/8] |= 1 << (k % 8)
-				}
-			}
-		}
+		emitGCMask(mask, 0, typ, array.len)
 		array.gcdata = &mask[0]
 
 	default:
 		// Create program that emits one element
 		// and then repeats to make the array.
 		prog := []byte{0, 0, 0, 0} // will be length of prog
-		elemGC := (*[1 << 30]byte)(unsafe.Pointer(typ.gcdata))[:]
-		elemPtrs := typ.ptrdata / ptrSize
-		if typ.kind&kindGCProg == 0 {
-			// Element is small with pointer mask; use as literal bits.
-			mask := elemGC
-			// Emit 120-bit chunks of full bytes (max is 127 but we avoid using partial bytes).
-			var n uintptr
-			for n = elemPtrs; n > 120; n -= 120 {
-				prog = append(prog, 120)
-				prog = append(prog, mask[:15]...)
-				mask = mask[15:]
-			}
-			prog = append(prog, byte(n))
-			prog = append(prog, mask[:(n+7)/8]...)
-		} else {
-			// Element has GC program; emit one element.
-			elemProg := elemGC[4 : 4+*(*uint32)(unsafe.Pointer(&elemGC[0]))-1]
-			prog = append(prog, elemProg...)
-		}
+		prog = appendGCProg(prog, typ)
 		// Pad from ptrdata to size.
+		elemPtrs := typ.ptrdata / ptrSize
 		elemWords := typ.size / ptrSize
 		if elemPtrs < elemWords {
 			// Emit literal 0 bit, then repeat as needed.
