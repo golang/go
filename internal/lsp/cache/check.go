@@ -336,12 +336,15 @@ func (imp *importer) typeCheck(ctx context.Context, cph *checkPackageHandle) (*p
 	// Type checking errors are handled via the config, so ignore them here.
 	_ = check.Files(files)
 
-	for _, e := range rawErrors {
-		srcErr, err := sourceError(ctx, pkg, e)
-		if err != nil {
-			return nil, err
+	// We don't care about a package's errors unless we have parsed it in full.
+	if cph.mode == source.ParseFull {
+		for _, e := range rawErrors {
+			srcErr, err := sourceError(ctx, pkg, e)
+			if err != nil {
+				return nil, err
+			}
+			pkg.errors = append(pkg.errors, srcErr)
 		}
-		pkg.errors = append(pkg.errors, srcErr)
 	}
 
 	return pkg, nil

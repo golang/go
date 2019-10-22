@@ -62,6 +62,9 @@ func sourceError(ctx context.Context, pkg *pkg, e interface{}) (*source.Error, e
 		msg = e.Msg
 		kind = source.TypeError
 		spn, err = typeErrorRange(ctx, fset, pkg, e.Pos)
+		if err != nil {
+			return nil, err
+		}
 
 	case *analysis.Diagnostic:
 		spn, err = span.NewRange(fset, e.Pos, e.End).Span()
@@ -162,25 +165,25 @@ func typeErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, pos toke
 	posn := fset.Position(pos)
 	ph, _, err := pkg.FindFile(ctx, span.FileURI(posn.Filename))
 	if err != nil {
-		return span.Span{}, err
+		return spn, nil // ignore errors
 	}
 	file, m, _, err := ph.Cached(ctx)
 	if err != nil {
-		return span.Span{}, err
+		return spn, nil
 	}
 	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
 	if len(path) > 0 {
-		if s, err := span.NewRange(fset, path[0].Pos(), path[0].End()).Span(); err == nil {
-			return s, nil
+		if spn, err := span.NewRange(fset, path[0].Pos(), path[0].End()).Span(); err == nil {
+			return spn, nil
 		}
 	}
 	s, err := spn.WithOffset(m.Converter)
 	if err != nil {
-		return span.Span{}, err
+		return spn, nil // ignore errors
 	}
 	data, _, err := ph.File().Read(ctx)
 	if err != nil {
-		return span.Span{}, err
+		return spn, nil // ignore errors
 	}
 	start := s.Start()
 	offset := start.Offset()
