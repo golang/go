@@ -8,6 +8,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/module"
+	"cmd/go/internal/work"
 	"fmt"
 	"strings"
 )
@@ -54,6 +55,7 @@ var (
 
 func init() {
 	cmdWhy.Run = runWhy // break init cycle
+	work.AddModCommonFlags(cmdWhy)
 }
 
 func runWhy(cmd *base.Command, args []string) {

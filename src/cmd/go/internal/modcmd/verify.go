@@ -16,6 +16,7 @@ import (
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/module"
+	"cmd/go/internal/work"
 )
 
 var cmdVerify = &base.Command{
@@ -30,6 +31,10 @@ modules have been changed and causes 'go mod' to exit with a
 non-zero status.
 	`,
 	Run: runVerify,
+}
+
+func init() {
+	work.AddModCommonFlags(cmdVerify)
 }
 
 func runVerify(cmd *base.Command, args []string) {

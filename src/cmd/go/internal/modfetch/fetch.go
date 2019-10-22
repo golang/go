@@ -125,7 +125,7 @@ func download(mod module.Version, dir string) (err error) {
 		return err
 	}
 
-	if !cfg.BuildModcacheRW {
+	if !cfg.ModCacheRW {
 		// Make dir read-only only *after* renaming it.
 		// os.Rename was observed to fail for read-only directories on macOS.
 		makeDirsReadOnly(dir)

@@ -15,6 +15,7 @@ import (
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/module"
+	"cmd/go/internal/work"
 )
 
 var cmdTidy = &base.Command{
@@ -35,6 +36,7 @@ to standard error.
 func init() {
 	cmdTidy.Run = runTidy // break init cycle
 	cmdTidy.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+	work.AddModCommonFlags(cmdTidy)
 }
 
 func runTidy(cmd *base.Command, args []string) {

@@ -20,6 +20,7 @@ import (
 	"cmd/go/internal/modfile"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/module"
+	"cmd/go/internal/work"
 )
 
 var cmdEdit = &base.Command{
@@ -130,6 +131,7 @@ func init() {
 	cmdEdit.Flag.Var(flagFunc(flagReplace), "replace", "")
 	cmdEdit.Flag.Var(flagFunc(flagDropExclude), "dropexclude", "")
 
+	work.AddModCommonFlags(cmdEdit)
 	base.AddBuildFlagsNX(&cmdEdit.Flag)
 }
 

@@ -9,6 +9,7 @@ package modcmd
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/work"
 	"os"
 	"strings"
 )
@@ -25,6 +26,10 @@ If possible, init will guess the module path from import comments
 To override this guess, supply the module path as an argument.
 	`,
 	Run: runInit,
+}
+
+func init() {
+	work.AddModCommonFlags(cmdInit)
 }
 
 func runInit(cmd *base.Command, args []string) {
