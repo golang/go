@@ -71,10 +71,10 @@ func (c *completer) labels(lt labelType) {
 				return
 			case *ast.LabeledStmt:
 				switch p.Stmt.(type) {
-				case *ast.ForStmt:
+				case *ast.ForStmt, *ast.RangeStmt:
 					// Loop labels can be used for "break" or "continue".
 					addLabel(p)
-				case *ast.SwitchStmt, *ast.SelectStmt:
+				case *ast.SwitchStmt, *ast.SelectStmt, *ast.TypeSwitchStmt:
 					// Switch and select labels can be used only for "break".
 					if lt == labelBreak {
 						addLabel(p)
