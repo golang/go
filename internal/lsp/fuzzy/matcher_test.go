@@ -35,6 +35,12 @@ var (
 		},
 		descr: ">=",
 	}
+	gt = comparator{
+		f: func(val, ref float32) bool {
+			return val > ref
+		},
+		descr: ">",
+	}
 )
 
 func (c comparator) eval(val, ref float32) bool {
@@ -82,6 +88,13 @@ var matcherTests = []struct {
 			{"Ab stuff c", ge, 0},
 		},
 	},
+	{
+		pattern: "U",
+		tests: []scoreTest{
+			{"ErrUnexpectedEOF", gt, 0},
+			{"ErrUnexpectedEOF.Error", eq, 0},
+		},
+	},
 }
 
 func TestScore(t *testing.T) {
@@ -110,15 +123,22 @@ var compareCandidatesTestCases = []struct {
 		pattern: "Foo",
 		orderedCandidates: []string{
 			"Barfoo",
-			"FaoFooa",
-			"BarFoo",
 			"Faoo",
 			"F_o_o",
+			"FaoFooa",
+			"BarFoo",
 			"F__oo",
 			"F_oo",
 			"FooA",
 			"FooBar",
 			"Foo",
+		},
+	},
+	{
+		pattern: "U",
+		orderedCandidates: []string{
+			"ErrUnexpectedEOF.Error",
+			"ErrUnexpectedEOF",
 		},
 	},
 }
@@ -211,15 +231,15 @@ var scoreTestCases = []struct {
 	{p: "strc", str: "StrCat", want: 1},
 	{p: "abc_def", str: "abc_def_xyz", want: 1},
 	{p: "abcdef", str: "abc_def_xyz", want: 0.91667},
-	{p: "abcxyz", str: "abc_def_xyz", want: 0.875},
+	{p: "abcxyz", str: "abc_def_xyz", want: 0.91667},
 	{p: "sc", str: "StrCat", want: 0.75},
-	{p: "abc", str: "AbstrBasicCtor", want: 0.75},
-	{p: "foo", str: "abc::foo", want: 1},
+	{p: "abc", str: "AbstrBasicCtor", want: 0.83333},
+	{p: "foo", str: "abc::foo", want: 0.91667},
 	{p: "afoo", str: "abc::foo", want: 0.9375},
 	{p: "abr", str: "abc::bar", want: 0.5},
-	{p: "br", str: "abc::bar", want: 0.375},
-	{p: "aar", str: "abc::bar", want: 0.16667},
-	{p: "edin", str: "foo.TexteditNum", want: 0},
+	{p: "br", str: "abc::bar", want: 0.25},
+	{p: "aar", str: "abc::bar", want: 0.41667},
+	{p: "edin", str: "foo.TexteditNum", want: 0.125},
 	{p: "ediu", str: "foo.TexteditNum", want: 0},
 	// We want the next two items to have roughly similar scores.
 	{p: "up", str: "unique_ptr", want: 0.75},

@@ -225,13 +225,9 @@ func (m *Matcher) computeScore(candidate string, candidateLower []byte) int {
 		}
 
 		var skipPenalty int
-		if segmentsLeft == 1 && isHead {
-			// Skipping a word.
-			skipPenalty++
-		}
-		if i-1 == lastSegStart {
-			// Skipping the start of the last segment.
-			skipPenalty += 3
+		if i == 1 || (i-1) == lastSegStart {
+			// Skipping the start of first or last segment.
+			skipPenalty += 1
 		}
 
 		for j := 0; j <= pattLen; j++ {
