@@ -353,6 +353,7 @@ func sanitizeCookieName(n string) string {
 	return cookieNameSanitizer.Replace(n)
 }
 
+// sanitizeCookieValue produces a suitable cookie-value from v.
 // https://tools.ietf.org/html/rfc6265#section-4.1.1
 // cookie-value      = *cookie-octet / ( DQUOTE *cookie-octet DQUOTE )
 // cookie-octet      = %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E
@@ -360,8 +361,8 @@ func sanitizeCookieName(n string) string {
 //           ; whitespace DQUOTE, comma, semicolon,
 //           ; and backslash
 // We loosen this as spaces and commas are common in cookie values
-// but we produce a quoted cookie-value in when value starts or ends
-// with a comma or space.
+// but we produce a quoted cookie-value if and only if v contains
+// commas or spaces.
 // See https://golang.org/issue/7243 for the discussion.
 func sanitizeCookieValue(v string) string {
 	v = sanitizeOrWarn("Cookie.Value", validCookieValueByte, v)
