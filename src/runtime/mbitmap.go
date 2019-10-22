@@ -361,12 +361,15 @@ func heapBitsForAddr(addr uintptr) (h heapBits) {
 // was found. These are used for error reporting.
 func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex uintptr) {
 	s = spanOf(p)
+	// If s is nil, the virtual address has never been part of the heap.
+	// This pointer may be to some mmap'd region, so we allow it.
+	if s == nil {
+		return
+	}
 	// If p is a bad pointer, it may not be in s's bounds.
-	if s == nil || p < s.base() || p >= s.limit || s.state != mSpanInUse {
-		if s == nil || s.state == mSpanManual {
-			// If s is nil, the virtual address has never been part of the heap.
-			// This pointer may be to some mmap'd region, so we allow it.
-			// Pointers into stacks are also ok, the runtime manages these explicitly.
+	if p < s.base() || p >= s.limit || s.state != mSpanInUse {
+		// Pointers into stacks are also ok, the runtime manages these explicitly.
+		if s.state == mSpanManual {
 			return
 		}
 
