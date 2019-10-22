@@ -3330,6 +3330,11 @@ func init() {
 		sys.ARM64, sys.PPC64, sys.S390X)
 	addF("math", "Fma",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			if !s.config.UseFMA {
+				a := s.call(n, callNormal)
+				s.vars[n] = s.load(types.Types[TFLOAT64], a)
+				return s.variable(n, types.Types[TFLOAT64])
+			}
 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), x86HasFMA, s.sb)
 			v := s.load(types.Types[TBOOL], addr)
 			b := s.endBlock()
@@ -3360,6 +3365,11 @@ func init() {
 		sys.AMD64)
 	addF("math", "Fma",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			if !s.config.UseFMA {
+				a := s.call(n, callNormal)
+				s.vars[n] = s.load(types.Types[TFLOAT64], a)
+				return s.variable(n, types.Types[TFLOAT64])
+			}
 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), armHasVFPv4, s.sb)
 			v := s.load(types.Types[TBOOL], addr)
 			b := s.endBlock()

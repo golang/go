@@ -43,6 +43,7 @@ type Config struct {
 	Race           bool          // race detector enabled
 	NeedsFpScratch bool          // No direct move between GP and FP register sets
 	BigEndian      bool          //
+	UseFMA         bool          // Use hardware FMA operation
 }
 
 type (
@@ -326,12 +327,18 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 	c.ctxt = ctxt
 	c.optimize = optimize
 	c.useSSE = true
+	c.UseFMA = true
 
-	// Don't use Duff's device nor SSE on Plan 9 AMD64, because
-	// floating point operations are not allowed in note handler.
-	if objabi.GOOS == "plan9" && arch == "amd64" {
-		c.noDuffDevice = true
-		c.useSSE = false
+	// On Plan 9, floating point operations are not allowed in note handler.
+	if objabi.GOOS == "plan9" {
+		// Don't use FMA on Plan 9
+		c.UseFMA = false
+
+		// Don't use Duff's device and SSE on Plan 9 AMD64.
+		if arch == "amd64" {
+			c.noDuffDevice = true
+			c.useSSE = false
+		}
 	}
 
 	if ctxt.Flag_shared {
