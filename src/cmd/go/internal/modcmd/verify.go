@@ -43,7 +43,7 @@ func runVerify(cmd *base.Command, args []string) {
 		base.Fatalf("go mod verify: verify takes no arguments")
 	}
 	// Checks go mod expected behavior
-	if !modload.Enabled() {
+	if !modload.Enabled() || !modload.HasModRoot() {
 		if cfg.Getenv("GO111MODULE") == "off" {
 			base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
 		} else {
