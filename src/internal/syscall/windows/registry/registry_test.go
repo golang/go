@@ -551,7 +551,9 @@ func walkKey(t *testing.T, k registry.Key, kname string) {
 		case registry.DWORD, registry.QWORD:
 			_, _, err := k.GetIntegerValue(name)
 			if err != nil {
-				t.Error(err)
+				// Sometimes legitimate keys have the wrong sizes, which don't correspond with
+				// their required size, due to Windows bugs.
+				t.Logf("warning: GetIntegerValue for type %d of %s of %s failed: %v", valtype, name, kname, err)
 			}
 		case registry.BINARY:
 			_, _, err := k.GetBinaryValue(name)
@@ -566,7 +568,8 @@ func walkKey(t *testing.T, k registry.Key, kname string) {
 		case registry.FULL_RESOURCE_DESCRIPTOR, registry.RESOURCE_LIST, registry.RESOURCE_REQUIREMENTS_LIST:
 			// TODO: not implemented
 		default:
-			t.Fatalf("value type %d of %s of %s failed: %v", valtype, name, kname, err)
+			// Sometimes legitimate keys have the wrong value type, due to Windows bugs.
+			t.Logf("warning: value type %d of %s of %s failed: %v", valtype, name, kname, err)
 		}
 	}
 
