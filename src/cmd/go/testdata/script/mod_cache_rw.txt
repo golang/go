@@ -33,6 +33,16 @@ go get -d rsc.io/quote@latest
 [!windows] [!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
 ! exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
 
+
+# Repeat part of the test with 'go mod download' instead of 'go get' to verify
+# -modcacherw is supported on 'go mod' subcommands.
+go clean -modcache
+go mod download -modcacherw rsc.io/quote
+cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
+! go mod verify
+[!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
+
+
 -- $WORK/extraneous.txt --
 module oops
 -- go.mod --

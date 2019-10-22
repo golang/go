@@ -108,7 +108,7 @@ var (
 )
 
 func init() {
-	work.AddBuildFlags(CmdGet, work.OmitModFlag)
+	work.AddBuildFlags(CmdGet, work.OmitModFlag|work.OmitModCommonFlags)
 	CmdGet.Run = runGet // break init loop
 	CmdGet.Flag.BoolVar(&Insecure, "insecure", Insecure, "")
 }
