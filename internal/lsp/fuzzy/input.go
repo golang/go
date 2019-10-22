@@ -8,19 +8,6 @@ import (
 	"unicode"
 )
 
-// Input specifies the type of the input. This influences how the runes are interpreted wrt to
-// segmenting the input.
-type Input int
-
-const (
-	// Text represents a text input type. Input is not segmented.
-	Text Input = iota
-	// Filename represents a filepath input type with '/' segment delimitors.
-	Filename
-	// Symbol represents a symbol input type with '.' and ':' segment delimitors.
-	Symbol
-)
-
 // RuneRole specifies the role of a rune in the context of an input.
 type RuneRole byte
 
@@ -40,7 +27,7 @@ const (
 // RuneRoles detects the roles of each byte rune in an input string and stores it in the output
 // slice. The rune role depends on the input type. Stops when it parsed all the runes in the string
 // or when it filled the output. If output is nil, then it gets created.
-func RuneRoles(str string, input Input, reuse []RuneRole) []RuneRole {
+func RuneRoles(str string, reuse []RuneRole) []RuneRole {
 	var output []RuneRole
 	if cap(reuse) < len(str) {
 		output = make([]RuneRole, 0, len(str))
@@ -78,12 +65,8 @@ func RuneRoles(str string, input Input, reuse []RuneRole) []RuneRole {
 				}
 			}
 		} else if curr == rtPunct {
-			switch {
-			case input == Filename && r == '/':
-				role = RSep
-			case input == Symbol && r == '.':
-				role = RSep
-			case input == Symbol && r == ':':
+			switch r {
+			case '.', ':':
 				role = RSep
 			}
 		}

@@ -13,38 +13,16 @@ import (
 )
 
 var rolesTests = []struct {
-	str   string
-	input fuzzy.Input
-	want  string
+	str  string
+	want string
 }{
-	{str: "abc", want: "Ccc", input: fuzzy.Text},
-	{str: ".abc", want: " Ccc", input: fuzzy.Text},
-	{str: "abc def", want: "Ccc Ccc", input: fuzzy.Text},
-	{str: "SWT MyID", want: "Cuu CcCu", input: fuzzy.Text},
-	{str: "ID", want: "Cu", input: fuzzy.Text},
-	{str: "IDD", want: "Cuu", input: fuzzy.Text},
-	{str: " ID ", want: " Cu ", input: fuzzy.Text},
-	{str: "IDSome", want: "CuCccc", input: fuzzy.Text},
-	{str: "0123456789", want: "Cccccccccc", input: fuzzy.Text},
-	{str: "abcdefghigklmnopqrstuvwxyz", want: "Cccccccccccccccccccccccccc", input: fuzzy.Text},
-	{str: "ABCDEFGHIGKLMNOPQRSTUVWXYZ", want: "Cuuuuuuuuuuuuuuuuuuuuuuuuu", input: fuzzy.Text},
-	{str: "こんにちは", want: "Ccccccccccccccc", input: fuzzy.Text}, // We don't parse unicode
-	{str: ":/.", want: "   ", input: fuzzy.Text},
-
-	// Filenames
-	{str: "abc/def", want: "Ccc/Ccc", input: fuzzy.Filename},
-	{str: " abc_def", want: " Ccc Ccc", input: fuzzy.Filename},
-	{str: " abc_DDf", want: " Ccc CCc", input: fuzzy.Filename},
-	{str: ":.", want: "  ", input: fuzzy.Filename},
-
-	// Symbols
-	{str: "abc::def::goo", want: "Ccc//Ccc//Ccc", input: fuzzy.Symbol},
-	{str: "proto::Message", want: "Ccccc//Ccccccc", input: fuzzy.Symbol},
-	{str: "AbstractSWTFactory", want: "CcccccccCuuCcccccc", input: fuzzy.Symbol},
-	{str: "Abs012", want: "Cccccc", input: fuzzy.Symbol},
-	{str: "/", want: " ", input: fuzzy.Symbol},
-	{str: "fOO", want: "CCu", input: fuzzy.Symbol},
-	{str: "fo_oo.o_oo", want: "Cc Cc/C Cc", input: fuzzy.Symbol},
+	{str: "abc::def::goo", want: "Ccc//Ccc//Ccc"},
+	{str: "proto::Message", want: "Ccccc//Ccccccc"},
+	{str: "AbstractSWTFactory", want: "CcccccccCuuCcccccc"},
+	{str: "Abs012", want: "Cccccc"},
+	{str: "/", want: " "},
+	{str: "fOO", want: "CCu"},
+	{str: "fo_oo.o_oo", want: "Cc Cc/C Cc"},
 }
 
 func rolesString(roles []fuzzy.RuneRole) string {
@@ -58,7 +36,7 @@ func rolesString(roles []fuzzy.RuneRole) string {
 func TestRoles(t *testing.T) {
 	for _, tc := range rolesTests {
 		gotRoles := make([]fuzzy.RuneRole, len(tc.str))
-		fuzzy.RuneRoles(tc.str, tc.input, gotRoles)
+		fuzzy.RuneRoles(tc.str, gotRoles)
 		got := rolesString(gotRoles)
 		if got != tc.want {
 			t.Errorf("roles(%s) = %v; want %v", tc.str, got, tc.want)
@@ -98,7 +76,7 @@ var wordSplitTests = []struct {
 
 func TestWordSplit(t *testing.T) {
 	for _, tc := range wordSplitTests {
-		roles := fuzzy.RuneRoles(tc.input, fuzzy.Symbol, nil)
+		roles := fuzzy.RuneRoles(tc.input, nil)
 
 		var got []string
 		consumer := func(i, j int) {
@@ -127,45 +105,30 @@ func diffStringLists(a, b []string) bool {
 }
 
 var lastSegmentSplitTests = []struct {
-	str   string
-	input fuzzy.Input
-	want  string
+	str  string
+	want string
 }{
 	{
-		str:   "identifier",
-		input: fuzzy.Symbol,
-		want:  "identifier",
+		str:  "identifier",
+		want: "identifier",
 	},
 	{
-		str:   "two_words",
-		input: fuzzy.Symbol,
-		want:  "two_words",
+		str:  "two_words",
+		want: "two_words",
 	},
 	{
-		str:   "first::second",
-		input: fuzzy.Symbol,
-		want:  "second",
+		str:  "first::second",
+		want: "second",
 	},
 	{
-		str:   "foo.bar.FOOBar_buz123_test",
-		input: fuzzy.Symbol,
-		want:  "FOOBar_buz123_test",
-	},
-	{
-		str:   "golang.org/x/tools/internal/lsp/fuzzy_matcher.go",
-		input: fuzzy.Filename,
-		want:  "fuzzy_matcher.go",
-	},
-	{
-		str:   "golang.org/x/tools/internal/lsp/fuzzy_matcher.go",
-		input: fuzzy.Text,
-		want:  "golang.org/x/tools/internal/lsp/fuzzy_matcher.go",
+		str:  "foo.bar.FOOBar_buz123_test",
+		want: "FOOBar_buz123_test",
 	},
 }
 
 func TestLastSegment(t *testing.T) {
 	for _, tc := range lastSegmentSplitTests {
-		roles := fuzzy.RuneRoles(tc.str, tc.input, nil)
+		roles := fuzzy.RuneRoles(tc.str, nil)
 
 		got := fuzzy.LastSegment(tc.str, roles)
 
@@ -180,7 +143,7 @@ func BenchmarkRoles(b *testing.B) {
 	out := make([]fuzzy.RuneRole, len(str))
 
 	for i := 0; i < b.N; i++ {
-		fuzzy.RuneRoles(str, fuzzy.Symbol, out)
+		fuzzy.RuneRoles(str, out)
 	}
 	b.SetBytes(int64(len(str)))
 }

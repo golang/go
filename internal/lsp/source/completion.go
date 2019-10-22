@@ -259,7 +259,7 @@ func (c *completer) setSurrounding(ident *ast.Ident) {
 	}
 
 	if c.opts.FuzzyMatching {
-		c.matcher = fuzzy.NewMatcher(c.surrounding.Prefix(), fuzzy.Symbol)
+		c.matcher = fuzzy.NewMatcher(c.surrounding.Prefix())
 	} else if c.opts.CaseSensitive {
 		c.matcher = prefixMatcher(c.surrounding.Prefix())
 	} else {

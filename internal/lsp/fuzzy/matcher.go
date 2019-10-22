@@ -36,8 +36,6 @@ func score(val int, prevK int /*0 or 1*/) scoreVal {
 // Matcher implements a fuzzy matching algorithm for scoring candidates against a pattern.
 // The matcher does not support parallel usage.
 type Matcher struct {
-	input Input
-
 	pattern       string
 	patternLower  []byte // lower-case version of the pattern
 	patternShort  []byte // first characters of the pattern
@@ -67,13 +65,12 @@ func (m *Matcher) bestK(i, j int) int {
 }
 
 // NewMatcher returns a new fuzzy matcher for scoring candidates against the provided pattern.
-func NewMatcher(pattern string, input Input) *Matcher {
+func NewMatcher(pattern string) *Matcher {
 	if len(pattern) > MaxPatternSize {
 		pattern = pattern[:MaxPatternSize]
 	}
 
 	m := &Matcher{
-		input:        input,
 		pattern:      pattern,
 		patternLower: ToLower(pattern, nil),
 	}
@@ -91,26 +88,14 @@ func NewMatcher(pattern string, input Input) *Matcher {
 		m.patternShort = m.patternLower
 	}
 
-	m.patternRoles = RuneRoles(pattern, input, nil)
+	m.patternRoles = RuneRoles(pattern, nil)
 
 	if len(pattern) > 0 {
 		maxCharScore := 4
-		if input == Text {
-			maxCharScore = 6
-		}
 		m.scoreScale = 1 / float32(maxCharScore*len(pattern))
 	}
 
 	return m
-}
-
-// SetInput updates the input type for subsequent scoring attempts.
-func (m *Matcher) SetInput(input Input) {
-	if m.input == input {
-		return
-	}
-	m.input = input
-	m.patternRoles = RuneRoles(m.pattern, input, m.patternRoles)
 }
 
 // Score returns the score returned by matching the candidate to the pattern.
@@ -202,7 +187,7 @@ func (m *Matcher) match(candidate string, candidateLower []byte) bool {
 
 	// The input passes the simple test against pattern, so it is time to classify its characters.
 	// Character roles are used below to find the last segment.
-	m.roles = RuneRoles(candidate, m.input, m.rolesBuf[:])
+	m.roles = RuneRoles(candidate, m.rolesBuf[:])
 
 	return true
 }
@@ -226,10 +211,6 @@ func (m *Matcher) computeScore(candidate string, candidateLower []byte) int {
 
 	// A per-character bonus for a consecutive match.
 	consecutiveBonus := 2
-	if m.input == Text {
-		// Consecutive matches for text are more important.
-		consecutiveBonus = 4
-	}
 	wordIdx := 0 // Word count within segment.
 	for i := 1; i <= candLen; i++ {
 
@@ -244,7 +225,7 @@ func (m *Matcher) computeScore(candidate string, candidateLower []byte) int {
 		}
 
 		var skipPenalty int
-		if segmentsLeft == 1 && isHead && m.input != Text {
+		if segmentsLeft == 1 && isHead {
 			// Skipping a word.
 			skipPenalty++
 		}
@@ -317,7 +298,7 @@ func (m *Matcher) computeScore(candidate string, candidateLower []byte) int {
 				sc := m.scores[i-1][j-1][k].val() + charScore
 
 				isConsecutive := k == 1 || i-1 == 0 || i-1 == lastSegStart
-				if isConsecutive || (m.input == Text && j-1 == 0) {
+				if isConsecutive {
 					// Bonus 3: a consecutive match. First character match also gets a bonus to
 					// ensure prefix final match score normalizes to 1.0.
 					// Logically, this is a part of charScore, but we have to compute it here because it

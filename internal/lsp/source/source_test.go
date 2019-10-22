@@ -154,7 +154,7 @@ func (r *runner) DeepCompletion(t *testing.T, src span.Span, test tests.Completi
 	if !strings.Contains(string(src.URI()), "builtins") {
 		list = tests.FilterBuiltins(list)
 	}
-	fuzzyMatcher := fuzzy.NewMatcher(prefix, fuzzy.Symbol)
+	fuzzyMatcher := fuzzy.NewMatcher(prefix)
 	var got []protocol.CompletionItem
 	for _, item := range list {
 		if fuzzyMatcher.Score(item.Label) < 0 {
@@ -182,7 +182,7 @@ func (r *runner) FuzzyCompletion(t *testing.T, src span.Span, test tests.Complet
 	}
 	var fuzzyMatcher *fuzzy.Matcher
 	if prefix != "" {
-		fuzzyMatcher = fuzzy.NewMatcher(prefix, fuzzy.Symbol)
+		fuzzyMatcher = fuzzy.NewMatcher(prefix)
 	}
 	var got []protocol.CompletionItem
 	for _, item := range list {
@@ -225,7 +225,7 @@ func (r *runner) RankCompletion(t *testing.T, src span.Span, test tests.Completi
 	if !strings.Contains(string(src.URI()), "builtins") {
 		list = tests.FilterBuiltins(list)
 	}
-	fuzzyMatcher := fuzzy.NewMatcher(prefix, fuzzy.Symbol)
+	fuzzyMatcher := fuzzy.NewMatcher(prefix)
 	var got []protocol.CompletionItem
 	for _, item := range list {
 		if fuzzyMatcher.Score(item.Label) < 0 {
