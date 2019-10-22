@@ -333,43 +333,10 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 	}
 
 	// If some non-Go code called sigaltstack, adjust.
-	setStack := false
 	var gsignalStack gsignalStack
-	sp := uintptr(unsafe.Pointer(&sig))
-	if sp < g.m.gsignal.stack.lo || sp >= g.m.gsignal.stack.hi {
-		if sp >= g.m.g0.stack.lo && sp < g.m.g0.stack.hi {
-			// The signal was delivered on the g0 stack.
-			// This can happen when linked with C code
-			// using the thread sanitizer, which collects
-			// signals then delivers them itself by calling
-			// the signal handler directly when C code,
-			// including C code called via cgo, calls a
-			// TSAN-intercepted function such as malloc.
-			st := stackt{ss_size: g.m.g0.stack.hi - g.m.g0.stack.lo}
-			setSignalstackSP(&st, g.m.g0.stack.lo)
-			setGsignalStack(&st, &gsignalStack)
-			g.m.gsignal.stktopsp = getcallersp()
-			setStack = true
-		} else {
-			var st stackt
-			sigaltstack(nil, &st)
-			if st.ss_flags&_SS_DISABLE != 0 {
-				setg(nil)
-				needm(0)
-				noSignalStack(sig)
-				dropm()
-			}
-			stsp := uintptr(unsafe.Pointer(st.ss_sp))
-			if sp < stsp || sp >= stsp+st.ss_size {
-				setg(nil)
-				needm(0)
-				sigNotOnStack(sig)
-				dropm()
-			}
-			setGsignalStack(&st, &gsignalStack)
-			g.m.gsignal.stktopsp = getcallersp()
-			setStack = true
-		}
+	setStack := adjustSignalStack(sig, g.m, &gsignalStack)
+	if setStack {
+		g.m.gsignal.stktopsp = getcallersp()
 	}
 
 	setg(g.m.gsignal)
@@ -384,6 +351,51 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 	if setStack {
 		restoreGsignalStack(&gsignalStack)
 	}
+}
+
+// adjustSignalStack adjusts the current stack guard based on the
+// stack pointer that is actually in use while handling a signal.
+// We do this in case some non-Go code called sigaltstack.
+// This reports whether the stack was adjusted, and if so stores the old
+// signal stack in *gsigstack.
+//go:nosplit
+func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
+	sp := uintptr(unsafe.Pointer(&sig))
+	if sp >= mp.gsignal.stack.lo && sp < mp.gsignal.stack.hi {
+		return false
+	}
+
+	if sp >= mp.g0.stack.lo && sp < mp.g0.stack.hi {
+		// The signal was delivered on the g0 stack.
+		// This can happen when linked with C code
+		// using the thread sanitizer, which collects
+		// signals then delivers them itself by calling
+		// the signal handler directly when C code,
+		// including C code called via cgo, calls a
+		// TSAN-intercepted function such as malloc.
+		st := stackt{ss_size: mp.g0.stack.hi - mp.g0.stack.lo}
+		setSignalstackSP(&st, mp.g0.stack.lo)
+		setGsignalStack(&st, gsigStack)
+		return true
+	}
+
+	var st stackt
+	sigaltstack(nil, &st)
+	if st.ss_flags&_SS_DISABLE != 0 {
+		setg(nil)
+		needm(0)
+		noSignalStack(sig)
+		dropm()
+	}
+	stsp := uintptr(unsafe.Pointer(st.ss_sp))
+	if sp < stsp || sp >= stsp+st.ss_size {
+		setg(nil)
+		needm(0)
+		sigNotOnStack(sig)
+		dropm()
+	}
+	setGsignalStack(&st, gsigStack)
+	return true
 }
 
 // crashing is the number of m's we have waited for when implementing
