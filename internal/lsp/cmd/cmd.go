@@ -304,7 +304,8 @@ func (c *cmdClient) Configuration(ctx context.Context, p *protocol.ParamConfig) 
 			env[l[0]] = l[1]
 		}
 		results[i] = map[string]interface{}{
-			"env": env,
+			"env":     env,
+			"go-diff": true,
 		}
 	}
 	return results, nil
