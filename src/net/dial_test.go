@@ -639,9 +639,11 @@ func TestDialerLocalAddr(t *testing.T) {
 		}
 		c, err := d.Dial(tt.network, addr)
 		if err == nil && tt.error != nil || err != nil && tt.error == nil {
-			// On Darwin this occasionally times out.
-			// We don't know why. Issue #22019.
-			if runtime.GOOS == "darwin" && tt.error == nil && os.IsTimeout(err) {
+			// A suspected kernel bug in macOS 10.12 occasionally results in
+			// timeout errors when dialing address ::1. The errors have not
+			// been observed on newer versions of the OS, so we don't plan to work
+			// around them. See https://golang.org/issue/22019.
+			if tt.raddr == "::1" && os.Getenv("GO_BUILDER_NAME") == "darwin-amd64-10_12" && os.IsTimeout(err) {
 				t.Logf("ignoring timeout error on Darwin; see https://golang.org/issue/22019")
 			} else {
 				t.Errorf("%s %v->%s: got %v; want %v", tt.network, tt.laddr, tt.raddr, err, tt.error)
