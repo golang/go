@@ -12,6 +12,7 @@ import (
 	"strings"
 )
 
+// Format returns a go.mod file as a byte slice, formatted in standard style.
 func Format(f *FileSyntax) []byte {
 	pr := &printer{}
 	pr.file(f)
