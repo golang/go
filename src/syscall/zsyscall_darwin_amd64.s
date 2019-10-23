@@ -229,6 +229,8 @@ TEXT ·libc_execve_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_execve(SB)
 TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_exit(SB)
+TEXT ·libc_sysctl_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_sysctl(SB)
 TEXT ·libc_unlinkat_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_unlinkat(SB)
 TEXT ·libc_openat_trampoline(SB),NOSPLIT,$0-0
@@ -249,5 +251,3 @@ TEXT ·libc_fstatat64_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_fstatat64(SB)
 TEXT ·libc_ptrace_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_ptrace(SB)
-TEXT ·libc_sysctl_trampoline(SB),NOSPLIT,$0-0
-	JMP	libc_sysctl(SB)

@@ -29,10 +29,6 @@ func ptrace(request int, pid int, addr uintptr, data uintptr) error {
 	return ENOTSUP
 }
 
-func sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) error {
-	return ENOTSUP
-}
-
 func SetKevent(k *Kevent_t, fd, mode, flags int) {
 	k.Ident = uint32(fd)
 	k.Filter = int16(mode)
