@@ -166,6 +166,14 @@ TEXT ·Store(SB), NOSPLIT, $0-12
 	SYNC
 	RET
 
+TEXT ·Store8(SB), NOSPLIT, $0-9
+	MOVV	ptr+0(FP), R1
+	MOVB	val+8(FP), R2
+	SYNC
+	MOVB	R2, 0(R1)
+	SYNC
+	RET
+
 TEXT ·Store64(SB), NOSPLIT, $0-16
 	MOVV	ptr+0(FP), R1
 	MOVV	val+8(FP), R2
