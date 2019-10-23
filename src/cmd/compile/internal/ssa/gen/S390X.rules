@@ -167,6 +167,36 @@
 (AtomicCompareAndSwap32 ptr old new_ mem) -> (LoweredAtomicCas32 ptr old new_ mem)
 (AtomicCompareAndSwap64 ptr old new_ mem) -> (LoweredAtomicCas64 ptr old new_ mem)
 
+// Atomic and: *(*uint8)(ptr) &= val
+//
+// Round pointer down to nearest word boundary and pad value with ones before
+// applying atomic AND operation to target word.
+//
+// *(*uint32)(ptr &^ 3) &= rotateleft(uint32(val) | 0xffffff00, ((3 << 3) ^ ((ptr & 3) << 3))
+//
+(AtomicAnd8 ptr val mem)
+  -> (LANfloor
+       ptr
+       (RLL <typ.UInt32>
+         (ORWconst <typ.UInt32> val [-1<<8])
+         (RXSBG <typ.UInt32> {s390x.NewRotateParams(59, 60, 3)} (MOVDconst [3<<3]) ptr))
+       mem)
+
+// Atomic or: *(*uint8)(ptr) |= val
+//
+// Round pointer down to nearest word boundary and pad value with zeros before
+// applying atomic OR operation to target word.
+//
+// *(*uint32)(ptr &^ 3) |= uint32(val) << ((3 << 3) ^ ((ptr & 3) << 3))
+//
+(AtomicOr8  ptr val mem)
+  -> (LAOfloor
+       ptr
+       (SLW <typ.UInt32>
+         (MOVBZreg <typ.UInt32> val)
+         (RXSBG <typ.UInt32> {s390x.NewRotateParams(59, 60, 3)} (MOVDconst [3<<3]) ptr))
+       mem)
+
 // Lowering extension
 // Note: we always extend to 64 bits even though some ops don't need that many result bits.
 (SignExt8to(16|32|64)  x) -> (MOVBreg x)
