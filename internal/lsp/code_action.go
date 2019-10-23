@@ -102,7 +102,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 				}
 			}
 		}
-		if wanted[protocol.SourceOrganizeImports] {
+		if wanted[protocol.SourceOrganizeImports] && len(edits) > 0 {
 			codeActions = append(codeActions, protocol.CodeAction{
 				Title: "Organize Imports",
 				Kind:  protocol.SourceOrganizeImports,
