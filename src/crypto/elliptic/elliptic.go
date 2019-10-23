@@ -52,11 +52,8 @@ func (curve *CurveParams) Params() *CurveParams {
 	return curve
 }
 
-func (curve *CurveParams) IsOnCurve(x, y *big.Int) bool {
-	// y² = x³ - 3x + b
-	y2 := new(big.Int).Mul(y, y)
-	y2.Mod(y2, curve.P)
-
+// polynomial returns x³ - 3x + b
+func (curve *CurveParams) polynomial(x *big.Int) *big.Int {
 	x3 := new(big.Int).Mul(x, x)
 	x3.Mul(x3, x)
 
@@ -67,7 +64,15 @@ func (curve *CurveParams) IsOnCurve(x, y *big.Int) bool {
 	x3.Add(x3, curve.B)
 	x3.Mod(x3, curve.P)
 
-	return x3.Cmp(y2) == 0
+	return x3
+}
+
+func (curve *CurveParams) IsOnCurve(x, y *big.Int) bool {
+	// y² = x³ - 3x + b
+	y2 := new(big.Int).Mul(y, y)
+	y2.Mod(y2, curve.P)
+
+	return curve.polynomial(x).Cmp(y2) == 0
 }
 
 // zForAffine returns a Jacobian Z value for the affine point (x, y). If x and
@@ -316,6 +321,19 @@ func Marshal(curve Curve, x, y *big.Int) []byte {
 	return ret
 }
 
+// MarshalCompressed converts a point into the compressed form specified in section 4.3.6 of ANSI X9.62.
+func MarshalCompressed(_ Curve, x, y *big.Int) []byte {
+	byteLen := (p256.Params().BitSize + 7) >> 3
+	compressed := make([]byte, 1+byteLen)
+	compressed[0] = 3
+	if y.Bit(0) == 0 {
+		compressed[0] = 2
+	}
+	i := byteLen + 1 - len(x.Bytes())
+	copy(compressed[i:], x.Bytes())
+	return compressed
+}
+
 // Unmarshal converts a point, serialized by Marshal, into an x, y pair.
 // It is an error if the point is not in uncompressed form or is not on the curve.
 // On error, x = nil.
@@ -334,6 +352,32 @@ func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
 		return nil, nil
 	}
 	if !curve.IsOnCurve(x, y) {
+		return nil, nil
+	}
+	return
+}
+
+// UnmarshalCompressed converts a point, serialized by MarshalCompressed, into an x, y pair.
+// It is an error if the point is not in compressed form or is not on the curve.
+// On error, x = nil.
+func UnmarshalCompressed(curve Curve, data []byte) (x, y *big.Int) {
+	byteLen := (curve.Params().BitSize + 7) >> 3
+	if len(data) != 1+byteLen {
+		return
+	}
+	if data[0] != 2 && data[0] != 3 { // compressed form
+		return
+	}
+	x = new(big.Int).SetBytes(data[1:])
+	x3 := curve.Params().polynomial(x)
+	y = new(big.Int).ModSqrt(x3, curve.Params().P)
+	// Jacobi(x, p) == -1
+	if y == nil {
+		return nil, nil
+	} else if y.Bit(0) != uint(data[0]&0x1) {
+		y.Neg(y)
+		y.Mod(y, curve.Params().P)
+	} else if !curve.IsOnCurve(x, y) {
 		return nil, nil
 	}
 	return

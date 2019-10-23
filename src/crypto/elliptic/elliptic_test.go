@@ -5,6 +5,7 @@
 package elliptic
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -626,5 +627,37 @@ func TestUnmarshalToLargeCoordinates(t *testing.T) {
 
 	if X, Y := Unmarshal(curve, invalidY); X != nil || Y != nil {
 		t.Errorf("Unmarshal accepts invalid Y coordinate")
+	}
+}
+
+// See https://golang.org/issues/34105
+func TestUnmarshalCompressed(t *testing.T) {
+	p256 := P256()
+	data, _ := hex.DecodeString("031e3987d9f9ea9d7dd7155a56a86b2009e1e0ab332f962d10d8beb6406ab1ad79")
+	expectX := "13671033352574878777044637384712060483119675368076128232297328793087057702265"
+	expectY := "66200849279091436748794323380043701364391950689352563629885086590854940586447"
+
+	x, y := UnmarshalCompressed(p256, data)
+	if x == nil || y == nil {
+		t.Error("P256 failed unmarshal point")
+	} else if !p256.IsOnCurve(x, y) {
+		t.Error("P256 failed to validate a correct point")
+	} else if x.String() != expectX || y.String() != expectY {
+		t.Errorf("Unmarshalled wrong point:\n\tX: expect %s, actual %s\n\tY: expect %s, actual %s",
+			expectX, x.String(),
+			expectY, y.String())
+	}
+}
+
+// See https://golang.org/issues/34105
+func TestMarshalCompressed(t *testing.T) {
+	p256 := P256()
+	expect, _ := hex.DecodeString("031e3987d9f9ea9d7dd7155a56a86b2009e1e0ab332f962d10d8beb6406ab1ad79")
+	x, _ := new(big.Int).SetString("13671033352574878777044637384712060483119675368076128232297328793087057702265", 10)
+	y, _ := new(big.Int).SetString("66200849279091436748794323380043701364391950689352563629885086590854940586447", 10)
+
+	actual := MarshalCompressed(p256, x, y)
+	if !bytes.Equal(expect, actual) {
+		t.Error("P256 failed correctly marshal point")
 	}
 }
