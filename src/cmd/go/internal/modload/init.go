@@ -34,7 +34,6 @@ import (
 )
 
 var (
-	cwd            string // TODO(bcmills): Is this redundant with base.Cwd?
 	mustUseModules = false
 	initialized    bool
 
@@ -132,17 +131,11 @@ func Init() {
 		os.Setenv("GIT_SSH_COMMAND", "ssh -o ControlMaster=no")
 	}
 
-	var err error
-	cwd, err = os.Getwd()
-	if err != nil {
-		base.Fatalf("go: %v", err)
-	}
-
 	if CmdModInit {
 		// Running 'go mod init': go.mod will be created in current directory.
-		modRoot = cwd
+		modRoot = base.Cwd
 	} else {
-		modRoot = findModuleRoot(cwd)
+		modRoot = findModuleRoot(base.Cwd)
 		if modRoot == "" {
 			if !mustUseModules {
 				// GO111MODULE is 'auto', and we can't find a module root.
@@ -272,18 +265,16 @@ func die() {
 	if cfg.Getenv("GO111MODULE") == "off" {
 		base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
 	}
-	if cwd != "" {
-		if dir, name := findAltConfig(cwd); dir != "" {
-			rel, err := filepath.Rel(cwd, dir)
-			if err != nil {
-				rel = dir
-			}
-			cdCmd := ""
-			if rel != "." {
-				cdCmd = fmt.Sprintf("cd %s && ", rel)
-			}
-			base.Fatalf("go: cannot find main module, but found %s in %s\n\tto create a module there, run:\n\t%sgo mod init", name, dir, cdCmd)
+	if dir, name := findAltConfig(base.Cwd); dir != "" {
+		rel, err := filepath.Rel(base.Cwd, dir)
+		if err != nil {
+			rel = dir
 		}
+		cdCmd := ""
+		if rel != "." {
+			cdCmd = fmt.Sprintf("cd %s && ", rel)
+		}
+		base.Fatalf("go: cannot find main module, but found %s in %s\n\tto create a module there, run:\n\t%sgo mod init", name, dir, cdCmd)
 	}
 	base.Fatalf("go: cannot find main module; see 'go help modules'")
 }
@@ -370,7 +361,7 @@ func AllowMissingModuleImports() {
 func modFileToBuildList() {
 	Target = modFile.Module.Mod
 	targetPrefix = Target.Path
-	if rel := search.InDir(cwd, cfg.GOROOTsrc); rel != "" {
+	if rel := search.InDir(base.Cwd, cfg.GOROOTsrc); rel != "" {
 		targetInGorootSrc = true
 		if Target.Path == "std" {
 			targetPrefix = ""
@@ -584,6 +575,9 @@ var altConfigs = []string{
 }
 
 func findModuleRoot(dir string) (root string) {
+	if dir == "" {
+		panic("dir not set")
+	}
 	dir = filepath.Clean(dir)
 
 	// Look for enclosing go.mod.
@@ -601,6 +595,9 @@ func findModuleRoot(dir string) (root string) {
 }
 
 func findAltConfig(dir string) (root, name string) {
+	if dir == "" {
+		panic("dir not set")
+	}
 	dir = filepath.Clean(dir)
 	for {
 		for _, name := range altConfigs {

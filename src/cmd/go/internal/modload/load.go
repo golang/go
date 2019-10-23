@@ -95,7 +95,7 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 				for _, pkg := range pkgs {
 					dir := pkg
 					if !filepath.IsAbs(dir) {
-						dir = filepath.Join(cwd, pkg)
+						dir = filepath.Join(base.Cwd, pkg)
 					} else {
 						dir = filepath.Clean(dir)
 					}
@@ -321,7 +321,7 @@ func DirImportPath(dir string) string {
 	}
 
 	if !filepath.IsAbs(dir) {
-		dir = filepath.Join(cwd, dir)
+		dir = filepath.Join(base.Cwd, dir)
 	} else {
 		dir = filepath.Clean(dir)
 	}
