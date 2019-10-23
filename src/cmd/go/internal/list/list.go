@@ -381,12 +381,20 @@ func runList(cmd *base.Command, args []string) {
 			base.Fatalf("go list -test cannot be used with -m")
 		}
 
+		buildModIsDefault := (cfg.BuildMod == "")
 		if modload.Init(); !modload.Enabled() {
 			base.Fatalf("go list -m: not using modules")
 		}
+
+		modload.InitMod() // Parses go.mod and sets cfg.BuildMod.
 		if cfg.BuildMod == "vendor" {
-			base.Fatalf("go list -m: can't list modules with -mod=vendor\n\tuse -mod=mod or -mod=readonly to ignore the vendor directory")
+			if buildModIsDefault {
+				base.Fatalf("go list -m: can't list modules using the vendor directory\n\tUse -mod=mod or -mod=readonly to ignore it.")
+			} else {
+				base.Fatalf("go list -m: can't list modules with -mod=vendor\n\tUse -mod=mod or -mod=readonly to ignore the vendor directory.")
+			}
 		}
+
 		modload.LoadBuildList()
 
 		mods := modload.ListModules(args, *listU, *listVersions)
