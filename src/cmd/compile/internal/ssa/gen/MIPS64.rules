@@ -403,6 +403,7 @@
 (AtomicLoad64  ptr mem) -> (LoweredAtomicLoad64 ptr mem)
 (AtomicLoadPtr ptr mem) -> (LoweredAtomicLoad64 ptr mem)
 
+(AtomicStore8       ptr val mem) -> (LoweredAtomicStore8  ptr val mem)
 (AtomicStore32      ptr val mem) -> (LoweredAtomicStore32 ptr val mem)
 (AtomicStore64      ptr val mem) -> (LoweredAtomicStore64 ptr val mem)
 (AtomicStorePtrNoWB ptr val mem) -> (LoweredAtomicStore64 ptr val mem)

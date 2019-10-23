@@ -646,6 +646,8 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAtomicStore32_0(v)
 	case OpAtomicStore64:
 		return rewriteValueAMD64_OpAtomicStore64_0(v)
+	case OpAtomicStore8:
+		return rewriteValueAMD64_OpAtomicStore8_0(v)
 	case OpAtomicStorePtrNoWB:
 		return rewriteValueAMD64_OpAtomicStorePtrNoWB_0(v)
 	case OpAvg64u:
@@ -50384,6 +50386,24 @@ func rewriteValueAMD64_OpAtomicStore64_0(v *Value) bool {
 		val := v.Args[1]
 		v.reset(OpSelect1)
 		v0 := b.NewValue0(v.Pos, OpAMD64XCHGQ, types.NewTuple(typ.UInt64, types.TypeMem))
+		v0.AddArg(val)
+		v0.AddArg(ptr)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpAtomicStore8_0(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (AtomicStore8 ptr val mem)
+	// result: (Select1 (XCHGB <types.NewTuple(typ.UInt8,types.TypeMem)> val ptr mem))
+	for {
+		mem := v.Args[2]
+		ptr := v.Args[0]
+		val := v.Args[1]
+		v.reset(OpSelect1)
+		v0 := b.NewValue0(v.Pos, OpAMD64XCHGB, types.NewTuple(typ.UInt8, types.TypeMem))
 		v0.AddArg(val)
 		v0.AddArg(ptr)
 		v0.AddArg(mem)

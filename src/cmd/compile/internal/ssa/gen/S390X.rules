@@ -146,7 +146,7 @@
 // reordering. Other sequences of memory operations (load-load,
 // store-store and load-store) are already guaranteed not to be reordered.
 (AtomicLoad(8|32|Acq32|64|Ptr) ptr mem) -> (MOV(BZ|WZ|WZ|D|D)atomicload ptr mem)
-(AtomicStore(32|64|PtrNoWB) ptr val mem) -> (SYNC (MOV(W|D|D)atomicstore ptr val mem))
+(AtomicStore(8|32|64|PtrNoWB) ptr val mem) -> (SYNC (MOV(B|W|D|D)atomicstore ptr val mem))
 
 // Store-release doesn't require store-load ordering.
 (AtomicStoreRel32 ptr val mem) -> (MOVWatomicstore ptr val mem)
