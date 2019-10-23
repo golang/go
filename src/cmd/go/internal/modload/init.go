@@ -290,6 +290,9 @@ func die() {
 
 // InitMod sets Target and, if there is a main module, parses the initial build
 // list from its go.mod file, creating and populating that file if needed.
+//
+// As a side-effect, InitMod sets a default for cfg.BuildMod if it does not
+// already have an explicit value.
 func InitMod() {
 	if len(buildList) > 0 {
 		return

@@ -35,7 +35,7 @@ stdout 'src[\\/]vendor[\\/]x'
 # 'go list -mod=vendor -m' does not have enough information to list modules
 # accurately, and should fail.
 ! go list -mod=vendor -f {{.Dir}} -m x
-stderr 'can''t list modules with -mod=vendor\n\tuse -mod=mod or -mod=readonly to ignore the vendor directory'
+stderr 'can''t list modules with -mod=vendor\n\tUse -mod=mod or -mod=readonly to ignore the vendor directory.'
 
 # 'go list -mod=mod' should report packages outside the import graph,
 # but 'go list -mod=vendor' should error out for them.
