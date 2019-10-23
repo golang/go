@@ -1049,10 +1049,20 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	return !t.failed
 }
 
+// Deadline reports the time at which the test binary will have
+// exceeded the timeout specified by the -timeout flag.
+//
+// The ok result is false if the -timeout flag indicates “no timeout” (0).
+func (t *T) Deadline() (deadline time.Time, ok bool) {
+	deadline = t.context.deadline
+	return deadline, !deadline.IsZero()
+}
+
 // testContext holds all fields that are common to all tests. This includes
 // synchronization primitives to run at most *parallel tests.
 type testContext struct {
-	match *matcher
+	match    *matcher
+	deadline time.Time
 
 	mu sync.Mutex
 
@@ -1195,9 +1205,9 @@ func (m *M) Run() int {
 
 	m.before()
 	defer m.after()
-	m.startAlarm()
+	deadline := m.startAlarm()
 	haveExamples = len(m.examples) > 0
-	testRan, testOk := runTests(m.deps.MatchString, m.tests)
+	testRan, testOk := runTests(m.deps.MatchString, m.tests, deadline)
 	exampleRan, exampleOk := runExamples(m.deps.MatchString, m.examples)
 	m.stopAlarm()
 	if !testRan && !exampleRan && *matchBenchmarks == "" {
@@ -1255,14 +1265,18 @@ func listTests(matchString func(pat, str string) (bool, error), tests []Internal
 // RunTests is an internal function but exported because it is cross-package;
 // it is part of the implementation of the "go test" command.
 func RunTests(matchString func(pat, str string) (bool, error), tests []InternalTest) (ok bool) {
-	ran, ok := runTests(matchString, tests)
+	var deadline time.Time
+	if *timeout > 0 {
+		deadline = time.Now().Add(*timeout)
+	}
+	ran, ok := runTests(matchString, tests, deadline)
 	if !ran && !haveExamples {
 		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
 	}
 	return ok
 }
 
-func runTests(matchString func(pat, str string) (bool, error), tests []InternalTest) (ran, ok bool) {
+func runTests(matchString func(pat, str string) (bool, error), tests []InternalTest, deadline time.Time) (ran, ok bool) {
 	ok = true
 	for _, procs := range cpuList {
 		runtime.GOMAXPROCS(procs)
@@ -1271,6 +1285,7 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
 				break
 			}
 			ctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run"))
+			ctx.deadline = deadline
 			t := &T{
 				common: common{
 					signal:  make(chan bool),
@@ -1452,14 +1467,18 @@ func toOutputDir(path string) string {
 }
 
 // startAlarm starts an alarm if requested.
-func (m *M) startAlarm() {
-	if *timeout > 0 {
-		m.timer = time.AfterFunc(*timeout, func() {
-			m.after()
-			debug.SetTraceback("all")
-			panic(fmt.Sprintf("test timed out after %v", *timeout))
-		})
+func (m *M) startAlarm() time.Time {
+	if *timeout <= 0 {
+		return time.Time{}
 	}
+
+	deadline := time.Now().Add(*timeout)
+	m.timer = time.AfterFunc(*timeout, func() {
+		m.after()
+		debug.SetTraceback("all")
+		panic(fmt.Sprintf("test timed out after %v", *timeout))
+	})
+	return deadline
 }
 
 // stopAlarm turns off the alarm.
