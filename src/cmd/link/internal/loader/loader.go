@@ -459,7 +459,7 @@ func (relocs *Relocs) At(j int) Reloc {
 // larger slice will be allocated. Final slice is returned.
 func (relocs *Relocs) ReadAll(dst []Reloc) []Reloc {
 	if relocs.Count == 0 {
-		return dst
+		return dst[:0]
 	}
 
 	if cap(dst) < relocs.Count {
