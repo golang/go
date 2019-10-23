@@ -27,7 +27,7 @@ func sourceError(ctx context.Context, pkg *pkg, e interface{}) (*source.Error, e
 		fixes         []source.SuggestedFix
 		related       []source.RelatedInformation
 	)
-	fset := pkg.snapshot.view.session.cache.fset
+	fset := pkg.view.session.cache.fset
 	switch e := e.(type) {
 	case packages.Error:
 		if e.Pos == "" {
@@ -64,18 +64,18 @@ func sourceError(ctx context.Context, pkg *pkg, e interface{}) (*source.Error, e
 		spn, err = typeErrorRange(ctx, fset, pkg, e.Pos)
 
 	case *analysis.Diagnostic:
-		spn, err = span.NewRange(pkg.snapshot.view.session.cache.fset, e.Pos, e.End).Span()
+		spn, err = span.NewRange(fset, e.Pos, e.End).Span()
 		if err != nil {
 			return nil, err
 		}
 		msg = e.Message
 		kind = source.Analysis
 		category = e.Category
-		fixes, err = suggestedFixes(ctx, pkg, e)
+		fixes, err = suggestedFixes(ctx, fset, pkg, e)
 		if err != nil {
 			return nil, err
 		}
-		related, err = relatedInformation(ctx, pkg, e)
+		related, err = relatedInformation(ctx, fset, pkg, e)
 		if err != nil {
 			return nil, err
 		}
@@ -95,12 +95,12 @@ func sourceError(ctx context.Context, pkg *pkg, e interface{}) (*source.Error, e
 	}, nil
 }
 
-func suggestedFixes(ctx context.Context, pkg *pkg, diag *analysis.Diagnostic) ([]source.SuggestedFix, error) {
+func suggestedFixes(ctx context.Context, fset *token.FileSet, pkg *pkg, diag *analysis.Diagnostic) ([]source.SuggestedFix, error) {
 	var fixes []source.SuggestedFix
 	for _, fix := range diag.SuggestedFixes {
 		edits := make(map[span.URI][]protocol.TextEdit)
 		for _, e := range fix.TextEdits {
-			spn, err := span.NewRange(pkg.Snapshot().View().Session().Cache().FileSet(), e.Pos, e.End).Span()
+			spn, err := span.NewRange(fset, e.Pos, e.End).Span()
 			if err != nil {
 				return nil, err
 			}
@@ -121,10 +121,10 @@ func suggestedFixes(ctx context.Context, pkg *pkg, diag *analysis.Diagnostic) ([
 	return fixes, nil
 }
 
-func relatedInformation(ctx context.Context, pkg *pkg, diag *analysis.Diagnostic) ([]source.RelatedInformation, error) {
+func relatedInformation(ctx context.Context, fset *token.FileSet, pkg *pkg, diag *analysis.Diagnostic) ([]source.RelatedInformation, error) {
 	var out []source.RelatedInformation
 	for _, related := range diag.Related {
-		spn, err := span.NewRange(pkg.Snapshot().View().Session().Cache().FileSet(), related.Pos, related.End).Span()
+		spn, err := span.NewRange(fset, related.Pos, related.End).Span()
 		if err != nil {
 			return nil, err
 		}

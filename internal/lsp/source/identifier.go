@@ -20,8 +20,9 @@ import (
 
 // IdentifierInfo holds information about an identifier in Go source.
 type IdentifierInfo struct {
-	Name string
-	File ParseGoHandle
+	Name     string
+	File     ParseGoHandle
+	Snapshot Snapshot
 	mappedRange
 
 	Type struct {
@@ -37,10 +38,6 @@ type IdentifierInfo struct {
 	qf               types.Qualifier
 }
 
-func (i *IdentifierInfo) Snapshot() Snapshot {
-	return i.pkg.Snapshot()
-}
-
 type Declaration struct {
 	mappedRange
 	node        ast.Node
@@ -51,7 +48,7 @@ type Declaration struct {
 // Identifier returns identifier information for a position
 // in a file, accounting for a potentially incomplete selector.
 func Identifier(ctx context.Context, view View, f File, pos protocol.Position) (*IdentifierInfo, error) {
-	_, cphs, err := view.CheckPackageHandles(ctx, f)
+	snapshot, cphs, err := view.CheckPackageHandles(ctx, f)
 	if err != nil {
 		return nil, err
 	}
@@ -79,17 +76,17 @@ func Identifier(ctx context.Context, view View, f File, pos protocol.Position) (
 	if err != nil {
 		return nil, err
 	}
-	return findIdentifier(ctx, pkg, file, rng.Start)
+	return findIdentifier(ctx, snapshot, pkg, file, rng.Start)
 }
 
-func findIdentifier(ctx context.Context, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
-	if result, err := identifier(ctx, pkg, file, pos); err != nil || result != nil {
+func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
+	if result, err := identifier(ctx, snapshot, pkg, file, pos); err != nil || result != nil {
 		return result, err
 	}
 	// If the position is not an identifier but immediately follows
 	// an identifier or selector period (as is common when
 	// requesting a completion), use the path to the preceding node.
-	ident, err := identifier(ctx, pkg, file, pos-1)
+	ident, err := identifier(ctx, snapshot, pkg, file, pos-1)
 	if ident == nil && err == nil {
 		err = errors.New("no identifier found")
 	}
@@ -97,21 +94,21 @@ func findIdentifier(ctx context.Context, pkg Package, file *ast.File, pos token.
 }
 
 // identifier checks a single position for a potential identifier.
-func identifier(ctx context.Context, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
+func identifier(ctx context.Context, snapshot Snapshot, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
 	ctx, done := trace.StartSpan(ctx, "source.identifier")
 	defer done()
 
 	var err error
 
 	// Handle import specs separately, as there is no formal position for a package declaration.
-	if result, err := importSpec(ctx, pkg, file, pos); result != nil || err != nil {
+	if result, err := importSpec(ctx, snapshot, pkg, file, pos); result != nil || err != nil {
 		return result, err
 	}
 	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
 	if path == nil {
 		return nil, errors.Errorf("can't find node enclosing position")
 	}
-	view := pkg.Snapshot().View()
+	view := pkg.View()
 	uri := span.FileURI(view.Session().Cache().FileSet().Position(pos).Filename)
 	var ph ParseGoHandle
 	for _, h := range pkg.Files() {
@@ -120,10 +117,11 @@ func identifier(ctx context.Context, pkg Package, file *ast.File, pos token.Pos)
 		}
 	}
 	result := &IdentifierInfo{
-		File:  ph,
-		qf:    qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo()),
-		pkg:   pkg,
-		ident: searchForIdent(path[0]),
+		File:     ph,
+		Snapshot: snapshot,
+		qf:       qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo()),
+		pkg:      pkg,
+		ident:    searchForIdent(path[0]),
 	}
 	// No identifier at the given position.
 	if result.ident == nil {
@@ -244,7 +242,7 @@ func hasErrorType(obj types.Object) bool {
 }
 
 func objToNode(ctx context.Context, pkg Package, obj types.Object) (ast.Decl, error) {
-	view := pkg.Snapshot().View()
+	view := pkg.View()
 	uri := span.FileURI(view.Session().Cache().FileSet().Position(obj.Pos()).Filename)
 	ph, _, err := pkg.FindFile(ctx, uri)
 	if err != nil {
@@ -280,7 +278,7 @@ func objToNode(ctx context.Context, pkg Package, obj types.Object) (ast.Decl, er
 }
 
 // importSpec handles positions inside of an *ast.ImportSpec.
-func importSpec(ctx context.Context, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
+func importSpec(ctx context.Context, snapshot Snapshot, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
 	var imp *ast.ImportSpec
 	for _, spec := range file.Imports {
 		if spec.Path.Pos() <= pos && pos < spec.Path.End() {
@@ -294,7 +292,7 @@ func importSpec(ctx context.Context, pkg Package, file *ast.File, pos token.Pos)
 	if err != nil {
 		return nil, errors.Errorf("import path not quoted: %s (%v)", imp.Path.Value, err)
 	}
-	uri := span.FileURI(pkg.Snapshot().View().Session().Cache().FileSet().Position(pos).Filename)
+	uri := span.FileURI(pkg.View().Session().Cache().FileSet().Position(pos).Filename)
 	var ph ParseGoHandle
 	for _, h := range pkg.Files() {
 		if h.File().Identity().URI == uri {
@@ -302,9 +300,10 @@ func importSpec(ctx context.Context, pkg Package, file *ast.File, pos token.Pos)
 		}
 	}
 	result := &IdentifierInfo{
-		File: ph,
-		Name: importPath,
-		pkg:  pkg,
+		File:     ph,
+		Snapshot: snapshot,
+		Name:     importPath,
+		pkg:      pkg,
 	}
 	if result.mappedRange, err = posToMappedRange(ctx, pkg, imp.Path.Pos(), imp.Path.End()); err != nil {
 		return nil, err

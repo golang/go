@@ -274,7 +274,6 @@ type File interface {
 // Package represents a Go package that has been type-checked. It maintains
 // only the relevant fields of a *go/packages.Package.
 type Package interface {
-	Snapshot() Snapshot
 	ID() string
 	PkgPath() string
 	Files() []ParseGoHandle
@@ -295,6 +294,8 @@ type Package interface {
 	// FindFile returns the AST and type information for a file that may
 	// belong to or be part of a dependency of the given package.
 	FindFile(ctx context.Context, uri span.URI) (ParseGoHandle, Package, error)
+
+	View() View
 }
 
 type Error struct {

@@ -136,7 +136,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	if !(file.Pos() <= obj.Pos() && obj.Pos() <= file.End()) {
 		return CompletionItem{}, errors.Errorf("no file for %s", obj.Name())
 	}
-	ident, err := findIdentifier(c.ctx, pkg, file, obj.Pos())
+	ident, err := findIdentifier(c.ctx, c.snapshot, pkg, file, obj.Pos())
 	if err != nil {
 		return CompletionItem{}, err
 	}

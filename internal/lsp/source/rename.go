@@ -151,7 +151,7 @@ func (i *IdentifierInfo) Rename(ctx context.Context, view View, newName string) 
 		if err != nil {
 			return nil, err
 		}
-		fh := i.Snapshot().Handle(ctx, f)
+		fh := i.Snapshot.Handle(ctx, f)
 		data, _, err := fh.Read(ctx)
 		if err != nil {
 			return nil, err
@@ -225,6 +225,7 @@ func getPkgNameIdentifier(ctx context.Context, ident *IdentifierInfo, pkgName *t
 		return nil, err
 	}
 	return &IdentifierInfo{
+		Snapshot:         ident.Snapshot,
 		Name:             pkgName.Name(),
 		mappedRange:      decl.mappedRange,
 		File:             ident.File,

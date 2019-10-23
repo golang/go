@@ -159,7 +159,7 @@ func posToMappedRange(ctx context.Context, pkg Package, pos, end token.Pos) (map
 	if err != nil {
 		return mappedRange{}, err
 	}
-	return posToRange(ctx, pkg.Snapshot().View(), m, pos, end)
+	return posToRange(ctx, pkg.View(), m, pos, end)
 }
 
 func posToRange(ctx context.Context, view View, m *protocol.ColumnMapper, pos, end token.Pos) (mappedRange, error) {
@@ -176,7 +176,7 @@ func posToRange(ctx context.Context, view View, m *protocol.ColumnMapper, pos, e
 }
 
 func posToMapper(ctx context.Context, pkg Package, pos token.Pos) (*protocol.ColumnMapper, error) {
-	posn := pkg.Snapshot().View().Session().Cache().FileSet().Position(pos)
+	posn := pkg.View().Session().Cache().FileSet().Position(pos)
 	ph, _, err := pkg.FindFile(ctx, span.FileURI(posn.Filename))
 	if err != nil {
 		return nil, err
