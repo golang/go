@@ -14,10 +14,10 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"golang.org/x/tools/internal/gopathwalk"
 	"golang.org/x/tools/internal/module"
+	"golang.org/x/tools/internal/semver"
 )
 
 // ModuleResolver implements resolver for modules using the go command as little
@@ -25,6 +25,7 @@ import (
 type ModuleResolver struct {
 	env            *ProcessEnv
 	moduleCacheDir string
+	dummyVendorMod *ModuleJSON // If vendoring is enabled, the pseudo-module that represents the /vendor directory.
 
 	Initialized   bool
 	Main          *ModuleJSON
@@ -37,49 +38,39 @@ type ModuleResolver struct {
 }
 
 type ModuleJSON struct {
-	Path     string           // module path
-	Version  string           // module version
-	Versions []string         // available module versions (with -versions)
-	Replace  *ModuleJSON      // replaced by this module
-	Time     *time.Time       // time version was created
-	Update   *ModuleJSON      // available update, if any (with -u)
-	Main     bool             // is this the main module?
-	Indirect bool             // is this module only an indirect dependency of main module?
-	Dir      string           // directory holding files for this module, if any
-	GoMod    string           // path to go.mod file for this module, if any
-	Error    *ModuleErrorJSON // error loading module
-}
-
-type ModuleErrorJSON struct {
-	Err string // the error itself
+	Path      string      // module path
+	Replace   *ModuleJSON // replaced by this module
+	Main      bool        // is this the main module?
+	Dir       string      // directory holding files for this module, if any
+	GoMod     string      // path to go.mod file for this module, if any
+	GoVersion string      // go version used in module
 }
 
 func (r *ModuleResolver) init() error {
 	if r.Initialized {
 		return nil
 	}
-	stdout, err := r.env.invokeGo("list", "-m", "-json", "...")
+	mainMod, vendorEnabled, err := vendorEnabled(r.env)
 	if err != nil {
 		return err
 	}
-	for dec := json.NewDecoder(stdout); dec.More(); {
-		mod := &ModuleJSON{}
-		if err := dec.Decode(mod); err != nil {
-			return err
+
+	if mainMod != nil && vendorEnabled {
+		// Vendor mode is on, so all the non-Main modules are irrelevant,
+		// and we need to search /vendor for everything.
+		r.Main = mainMod
+		r.dummyVendorMod = &ModuleJSON{
+			Path: "",
+			Dir:  filepath.Join(mainMod.Dir, "vendor"),
 		}
-		if mod.Dir == "" {
-			if r.env.Debug {
-				r.env.Logf("module %v has not been downloaded and will be ignored", mod.Path)
-			}
-			// Can't do anything with a module that's not downloaded.
-			continue
-		}
-		r.ModsByModPath = append(r.ModsByModPath, mod)
-		r.ModsByDir = append(r.ModsByDir, mod)
-		if mod.Main {
-			r.Main = mod
-		}
+		r.ModsByModPath = []*ModuleJSON{mainMod, r.dummyVendorMod}
+		r.ModsByDir = []*ModuleJSON{mainMod, r.dummyVendorMod}
+	} else {
+		// Vendor mode is off, so run go list -m ... to find everything.
+		r.initAllMods()
 	}
+
+	r.moduleCacheDir = filepath.Join(filepath.SplitList(r.env.GOPATH)[0], "/pkg/mod")
 
 	sort.Slice(r.ModsByModPath, func(i, j int) bool {
 		count := func(x int) int {
@@ -104,8 +95,33 @@ func (r *ModuleResolver) init() error {
 			dirs: map[string]*directoryPackageInfo{},
 		}
 	}
-
 	r.Initialized = true
+	return nil
+}
+
+func (r *ModuleResolver) initAllMods() error {
+	stdout, err := r.env.invokeGo("list", "-m", "-json", "...")
+	if err != nil {
+		return err
+	}
+	for dec := json.NewDecoder(stdout); dec.More(); {
+		mod := &ModuleJSON{}
+		if err := dec.Decode(mod); err != nil {
+			return err
+		}
+		if mod.Dir == "" {
+			if r.env.Debug {
+				r.env.Logf("module %v has not been downloaded and will be ignored", mod.Path)
+			}
+			// Can't do anything with a module that's not downloaded.
+			continue
+		}
+		r.ModsByModPath = append(r.ModsByModPath, mod)
+		r.ModsByDir = append(r.ModsByDir, mod)
+		if mod.Main {
+			r.Main = mod
+		}
+	}
 	return nil
 }
 
@@ -249,6 +265,10 @@ func (r *ModuleResolver) dirIsNestedModule(dir string, mod *ModuleJSON) bool {
 		// so it cannot be a nested module.
 		return false
 	}
+	if mod != nil && mod == r.dummyVendorMod {
+		// The /vendor pseudomodule is flattened and doesn't actually count.
+		return false
+	}
 	modDir, _ := r.modInfo(dir)
 	if modDir == "" {
 		return false
@@ -327,15 +347,15 @@ func (r *ModuleResolver) scan(_ references, loadNames bool, exclude []gopathwalk
 	if r.Main != nil {
 		roots = append(roots, gopathwalk.Root{r.Main.Dir, gopathwalk.RootCurrentModule})
 	}
-	if r.moduleCacheDir == "" {
-		r.moduleCacheDir = filepath.Join(filepath.SplitList(r.env.GOPATH)[0], "/pkg/mod")
-	}
-	roots = append(roots, gopathwalk.Root{r.moduleCacheDir, gopathwalk.RootModuleCache})
-
-	// Walk replace targets, just in case they're not in any of the above.
-	for _, mod := range r.ModsByModPath {
-		if mod.Replace != nil {
-			roots = append(roots, gopathwalk.Root{mod.Dir, gopathwalk.RootOther})
+	if r.dummyVendorMod != nil {
+		roots = append(roots, gopathwalk.Root{r.dummyVendorMod.Dir, gopathwalk.RootOther})
+	} else {
+		roots = append(roots, gopathwalk.Root{r.moduleCacheDir, gopathwalk.RootModuleCache})
+		// Walk replace targets, just in case they're not in any of the above.
+		for _, mod := range r.ModsByModPath {
+			if mod.Replace != nil {
+				roots = append(roots, gopathwalk.Root{mod.Dir, gopathwalk.RootOther})
+			}
 		}
 	}
 
@@ -429,7 +449,7 @@ func (r *ModuleResolver) canonicalize(info directoryPackageInfo) (*pkg, error) {
 	}
 
 	res := &pkg{
-		importPathShort: VendorlessPath(importPath),
+		importPathShort: importPath,
 		dir:             info.dir,
 		packageName:     info.packageName, // may not be populated if the caller didn't ask for it
 	}
@@ -455,14 +475,10 @@ func (r *ModuleResolver) scanDirForPackage(root gopathwalk.Root, dir string) dir
 	}
 	importPath := filepath.ToSlash(subdir)
 	if strings.HasPrefix(importPath, "vendor/") {
-		// Ignore vendor dirs. If -mod=vendor is on, then things
-		// should mostly just work, but when it's not vendor/
-		// is a mess. There's no easy way to tell if it's on.
-		// We can still find things in the mod cache and
-		// map them into /vendor when -mod=vendor is on.
+		// Only enter vendor directories if they're explicitly requested as a root.
 		return directoryPackageInfo{
 			status: directoryScanned,
-			err:    fmt.Errorf("vendor directory"),
+			err:    fmt.Errorf("unwanted vendor directory"),
 		}
 	}
 	switch root.Type {
@@ -487,8 +503,6 @@ func (r *ModuleResolver) scanDirForPackage(root gopathwalk.Root, dir string) dir
 			}
 		}
 		importPath = path.Join(modPath, filepath.ToSlash(matches[3]))
-	case gopathwalk.RootGOROOT:
-		importPath = subdir
 	}
 
 	modDir, modName := r.modInfo(dir)
@@ -561,4 +575,64 @@ func modulePath(mod []byte) string {
 		return string(line)
 	}
 	return "" // missing module path
+}
+
+var modFlagRegexp = regexp.MustCompile(`-mod[ =](\w+)`)
+
+// vendorEnabled indicates if vendoring is enabled.
+// Inspired by setDefaultBuildMod in modload/init.go
+func vendorEnabled(env *ProcessEnv) (*ModuleJSON, bool, error) {
+	mainMod, go114, err := getMainModuleAnd114(env)
+	if err != nil {
+		return nil, false, err
+	}
+	matches := modFlagRegexp.FindStringSubmatch(env.GOFLAGS)
+	var modFlag string
+	if len(matches) != 0 {
+		modFlag = matches[1]
+	}
+	if modFlag != "" {
+		// Don't override an explicit '-mod=' argument.
+		return mainMod, modFlag == "vendor", nil
+	}
+	if mainMod == nil || !go114 {
+		return mainMod, false, nil
+	}
+	// Check 1.14's automatic vendor mode.
+	if fi, err := os.Stat(filepath.Join(mainMod.Dir, "vendor")); err == nil && fi.IsDir() {
+		if mainMod.GoVersion != "" && semver.Compare("v"+mainMod.GoVersion, "v1.14") >= 0 {
+			// The Go version is at least 1.14, and a vendor directory exists.
+			// Set -mod=vendor by default.
+			return mainMod, true, nil
+		}
+	}
+	return mainMod, false, nil
+}
+
+// getMainModuleAnd114 gets the main module's information and whether the
+// go command in use is 1.14+. This is the information needed to figure out
+// if vendoring should be enabled.
+func getMainModuleAnd114(env *ProcessEnv) (*ModuleJSON, bool, error) {
+	const format = `{{.Path}}
+{{.Dir}}
+{{.GoMod}}
+{{.GoVersion}}
+{{range context.ReleaseTags}}{{if eq . "go1.14"}}{{.}}{{end}}{{end}}
+`
+	stdout, err := env.invokeGo("list", "-m", "-f", format)
+	if err != nil {
+		return nil, false, nil
+	}
+	lines := strings.Split(stdout.String(), "\n")
+	if len(lines) < 5 {
+		return nil, false, fmt.Errorf("unexpected stdout: %q", stdout)
+	}
+	mod := &ModuleJSON{
+		Path:      lines[0],
+		Dir:       lines[1],
+		GoMod:     lines[2],
+		GoVersion: lines[3],
+		Main:      true,
+	}
+	return mod, lines[4] == "go1.14", nil
 }
