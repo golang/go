@@ -123,7 +123,7 @@ func TestRewrite(t *testing.T) {
 }
 
 func tdiff(t *testing.T, a, b string) {
-	data, err := diff([]byte(a), []byte(b))
+	data, err := diff("go-fix-test", []byte(a), []byte(b))
 	if err != nil {
 		t.Error(err)
 		return

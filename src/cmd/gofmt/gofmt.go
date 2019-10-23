@@ -48,11 +48,6 @@ var (
 	parserMode parser.Mode
 )
 
-func report(err error) {
-	scanner.PrintError(os.Stderr, err)
-	exitCode = 2
-}
-
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: gofmt [flags] [path ...]\n")
 	flag.PrintDefaults()
@@ -63,12 +58,6 @@ func initParserMode() {
 	if *allErrors {
 		parserMode |= parser.AllErrors
 	}
-}
-
-func isGoFile(f os.FileInfo) bool {
-	// ignore non-Go files
-	name := f.Name()
-	return !f.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go")
 }
 
 // If in == nil, the source is the contents of the file with the given filename.
@@ -141,7 +130,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 			}
 		}
 		if *doDiff {
-			data, err := diff(src, res, filename)
+			data, err := diffWithReplaceTempFile(src, res, filename)
 			if err != nil {
 				return fmt.Errorf("computing diff: %s", err)
 			}
@@ -157,6 +146,14 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 	return err
 }
 
+func diffWithReplaceTempFile(b1, b2 []byte, filename string) (data []byte, err error) {
+	data, err = diff("gofmt", b1, b2)
+	if len(data) > 0 {
+		return replaceTempFilename(data, filename)
+	}
+	return
+}
+
 func visitFile(path string, f os.FileInfo, err error) error {
 	if err == nil && isGoFile(f) {
 		err = processFile(path, nil, os.Stdout, false)
@@ -168,6 +165,7 @@ func visitFile(path string, f os.FileInfo, err error) error {
 	}
 	return nil
 }
+
 
 func walkDir(path string) {
 	filepath.Walk(path, visitFile)
@@ -227,48 +225,6 @@ func gofmtMain() {
 	}
 }
 
-func writeTempFile(dir, prefix string, data []byte) (string, error) {
-	file, err := ioutil.TempFile(dir, prefix)
-	if err != nil {
-		return "", err
-	}
-	_, err = file.Write(data)
-	if err1 := file.Close(); err == nil {
-		err = err1
-	}
-	if err != nil {
-		os.Remove(file.Name())
-		return "", err
-	}
-	return file.Name(), nil
-}
-
-func diff(b1, b2 []byte, filename string) (data []byte, err error) {
-	f1, err := writeTempFile("", "gofmt", b1)
-	if err != nil {
-		return
-	}
-	defer os.Remove(f1)
-
-	f2, err := writeTempFile("", "gofmt", b2)
-	if err != nil {
-		return
-	}
-	defer os.Remove(f2)
-
-	cmd := "diff"
-	if runtime.GOOS == "plan9" {
-		cmd = "/bin/ape/diff"
-	}
-
-	data, err = exec.Command(cmd, "-u", f1, f2).CombinedOutput()
-	if len(data) > 0 {
-		// diff exits with a non-zero status when the files don't match.
-		// Ignore that failure as long as we get output.
-		return replaceTempFilename(data, filename)
-	}
-	return
-}
 
 // replaceTempFilename replaces temporary filenames in diff with actual one.
 //
