@@ -259,7 +259,23 @@ noswitch:
 	CMP	$0, R11
 	B.EQ	fallback
 
+	// Store g on gsignal's stack, so if we receive a signal
+	// during VDSO code we can find the g.
+	// If we don't have a signal stack, we won't receive signal,
+	// so don't bother saving g.
+	MOVW	m_gsignal(R5), R6          // g.m.gsignal
+	CMP	$0, R6
+	BEQ	3(PC)
+	MOVW	(g_stack+stack_lo)(R6), R6 // g.m.gsignal.stack.lo
+	MOVW	g, (R6)
+
 	BL	(R11)
+
+	CMP	$0, R6   // R6 is unchanged by C code
+	BEQ	3(PC)
+	MOVW	$0, R1
+	MOVW	R1, (R6) // clear g slot
+
 	JMP	finish
 
 fallback:
@@ -310,7 +326,23 @@ noswitch:
 	CMP	$0, R11
 	B.EQ	fallback
 
+	// Store g on gsignal's stack, so if we receive a signal
+	// during VDSO code we can find the g.
+	// If we don't have a signal stack, we won't receive signal,
+	// so don't bother saving g.
+	MOVW	m_gsignal(R5), R6          // g.m.gsignal
+	CMP	$0, R6
+	BEQ	3(PC)
+	MOVW	(g_stack+stack_lo)(R6), R6 // g.m.gsignal.stack.lo
+	MOVW	g, (R6)
+
 	BL	(R11)
+
+	CMP	$0, R6   // R6 is unchanged by C code
+	BEQ	3(PC)
+	MOVW	$0, R1
+	MOVW	R1, (R6) // clear g slot
+
 	JMP	finish
 
 fallback:

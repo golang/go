@@ -3420,6 +3420,9 @@ func malg(stacksize int32) *g {
 		})
 		newg.stackguard0 = newg.stack.lo + _StackGuard
 		newg.stackguard1 = ^uintptr(0)
+		// Clear the bottom word of the stack. We record g
+		// there on gsignal stack during VDSO on ARM and ARM64.
+		*(*uintptr)(unsafe.Pointer(newg.stack.lo)) = 0
 	}
 	return newg
 }
