@@ -1401,6 +1401,10 @@ func writeinfo(ctxt *Link, syms []*sym.Symbol, units []*sym.CompilationUnit, abb
 		compunit := u.DWInfo
 		s := dtolsym(compunit.Sym)
 
+		if s == nil {
+			continue
+		}
+
 		if len(u.Textp) == 0 && u.DWInfo.Child == nil {
 			continue
 		}
