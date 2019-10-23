@@ -35,7 +35,7 @@ func netpollinit() {
 	*(*uintptr)(unsafe.Pointer(&ev.ident)) = uintptr(r)
 	n := kevent(kq, &ev, 1, nil, 0, nil)
 	if n < 0 {
-		println("runtime: kevent failed with", -errno)
+		println("runtime: kevent failed with", -n)
 		throw("runtime: kevent failed")
 	}
 	netpollBreakRd = uintptr(r)
