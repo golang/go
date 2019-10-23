@@ -385,6 +385,10 @@ func badPointer(s *mspan, p, refBase, refOff uintptr) {
 // refBase and refOff optionally give the base address of the object
 // in which the pointer p was found and the byte offset at which it
 // was found. These are used for error reporting.
+//
+// It is nosplit so it is safe for p to be a pointer to the current goroutine's stack.
+// Since p is a uintptr, it would not be adjusted if the stack were to move.
+//go:nosplit
 func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex uintptr) {
 	s = spanOf(p)
 	// If s is nil, the virtual address has never been part of the heap.
