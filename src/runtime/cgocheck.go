@@ -133,7 +133,7 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
 	}
 
 	s := spanOfUnchecked(uintptr(src))
-	if s.state == mSpanManual {
+	if s.state.get() == mSpanManual {
 		// There are no heap bits for value stored on the stack.
 		// For a channel receive src might be on the stack of some
 		// other goroutine, so we can't unwind the stack even if

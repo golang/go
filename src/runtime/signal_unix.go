@@ -305,7 +305,7 @@ func sigFetchG(c *sigctxt) *g {
 			// work.
 			sp := getcallersp()
 			s := spanOf(sp)
-			if s != nil && s.state == mSpanManual && s.base() < sp && sp < s.limit {
+			if s != nil && s.state.get() == mSpanManual && s.base() < sp && sp < s.limit {
 				gp := *(**g)(unsafe.Pointer(s.base()))
 				return gp
 			}

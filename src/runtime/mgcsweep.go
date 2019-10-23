@@ -114,12 +114,12 @@ func sweepone() uintptr {
 			atomic.Store(&mheap_.sweepdone, 1)
 			break
 		}
-		if s.state != mSpanInUse {
+		if state := s.state.get(); state != mSpanInUse {
 			// This can happen if direct sweeping already
 			// swept this span, but in that case the sweep
 			// generation should always be up-to-date.
 			if !(s.sweepgen == sg || s.sweepgen == sg+3) {
-				print("runtime: bad span s.state=", s.state, " s.sweepgen=", s.sweepgen, " sweepgen=", sg, "\n")
+				print("runtime: bad span s.state=", state, " s.sweepgen=", s.sweepgen, " sweepgen=", sg, "\n")
 				throw("non in-use span in unswept list")
 			}
 			continue
@@ -211,8 +211,8 @@ func (s *mspan) sweep(preserve bool) bool {
 		throw("mspan.sweep: m is not locked")
 	}
 	sweepgen := mheap_.sweepgen
-	if s.state != mSpanInUse || s.sweepgen != sweepgen-1 {
-		print("mspan.sweep: state=", s.state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
+	if state := s.state.get(); state != mSpanInUse || s.sweepgen != sweepgen-1 {
+		print("mspan.sweep: state=", state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
 		throw("mspan.sweep: bad span state")
 	}
 
@@ -351,8 +351,8 @@ func (s *mspan) sweep(preserve bool) bool {
 	if freeToHeap || nfreed == 0 {
 		// The span must be in our exclusive ownership until we update sweepgen,
 		// check for potential races.
-		if s.state != mSpanInUse || s.sweepgen != sweepgen-1 {
-			print("mspan.sweep: state=", s.state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
+		if state := s.state.get(); state != mSpanInUse || s.sweepgen != sweepgen-1 {
+			print("mspan.sweep: state=", state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
 			throw("mspan.sweep: bad span state after sweep")
 		}
 		// Serialization point.

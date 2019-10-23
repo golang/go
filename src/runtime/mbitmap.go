@@ -243,6 +243,10 @@ func (s *mspan) nextFreeIndex() uintptr {
 }
 
 // isFree reports whether the index'th object in s is unallocated.
+//
+// The caller must ensure s.state is mSpanInUse, and there must have
+// been no preemption points since ensuring this (which could allow a
+// GC transition, which would allow the state to change).
 func (s *mspan) isFree(index uintptr) bool {
 	if index < s.freeindex {
 		return false
@@ -361,12 +365,13 @@ func badPointer(s *mspan, p, refBase, refOff uintptr) {
 	// in allocated spans.
 	printlock()
 	print("runtime: pointer ", hex(p))
-	if s.state != mSpanInUse {
+	state := s.state.get()
+	if state != mSpanInUse {
 		print(" to unallocated span")
 	} else {
 		print(" to unused region of span")
 	}
-	print(" span.base()=", hex(s.base()), " span.limit=", hex(s.limit), " span.state=", s.state, "\n")
+	print(" span.base()=", hex(s.base()), " span.limit=", hex(s.limit), " span.state=", state, "\n")
 	if refBase != 0 {
 		print("runtime: found in object at *(", hex(refBase), "+", hex(refOff), ")\n")
 		gcDumpObject("object", refBase, refOff)
@@ -397,9 +402,12 @@ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex ui
 		return
 	}
 	// If p is a bad pointer, it may not be in s's bounds.
-	if p < s.base() || p >= s.limit || s.state != mSpanInUse {
+	//
+	// Check s.state to synchronize with span initialization
+	// before checking other fields. See also spanOfHeap.
+	if state := s.state.get(); state != mSpanInUse || p < s.base() || p >= s.limit {
 		// Pointers into stacks are also ok, the runtime manages these explicitly.
-		if s.state == mSpanManual {
+		if state == mSpanManual {
 			return
 		}
 		// The following ensures that we are rigorous about what data
@@ -620,7 +628,7 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
 			}
 		}
 		return
-	} else if s.state != mSpanInUse || dst < s.base() || s.limit <= dst {
+	} else if s.state.get() != mSpanInUse || dst < s.base() || s.limit <= dst {
 		// dst was heap memory at some point, but isn't now.
 		// It can't be a global. It must be either our stack,
 		// or in the case of direct channel sends, it could be
