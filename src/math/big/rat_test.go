@@ -329,18 +329,40 @@ func TestIssue3521(t *testing.T) {
 		t.Errorf("0) got %s want %s", zero.Denom(), one)
 	}
 
-	// 1a) a zero value remains zero independent of denominator
-	x := new(Rat)
-	x.Denom().Set(new(Int).Neg(b))
-	if x.Cmp(zero) != 0 {
-		t.Errorf("1a) got %s want %s", x, zero)
+	// 1a) the denominator of an (uninitialized) zero value is not shared with the value
+	s := &zero.b
+	d := zero.Denom()
+	if d == s {
+		t.Errorf("1a) got %s (%p) == %s (%p) want different *Int values", d, d, s, s)
 	}
 
-	// 1b) a zero value may have a denominator != 0 and != 1
+	// 1b) the denominator of an (uninitialized) value is a new 1 each time
+	d1 := zero.Denom()
+	d2 := zero.Denom()
+	if d1 == d2 {
+		t.Errorf("1b) got %s (%p) == %s (%p) want different *Int values", d1, d1, d2, d2)
+	}
+
+	// 1c) the denominator of an initialized zero value is shared with the value
+	x := new(Rat)
+	x.Set(x) // initialize x (any operation that sets x explicitly will do)
+	s = &x.b
+	d = x.Denom()
+	if d != s {
+		t.Errorf("1c) got %s (%p) != %s (%p) want identical *Int values", d, d, s, s)
+	}
+
+	// 1d) a zero value remains zero independent of denominator
+	x.Denom().Set(new(Int).Neg(b))
+	if x.Cmp(zero) != 0 {
+		t.Errorf("1d) got %s want %s", x, zero)
+	}
+
+	// 1e) a zero value may have a denominator != 0 and != 1
 	x.Num().Set(a)
 	qab := new(Rat).SetFrac(a, b)
 	if x.Cmp(qab) != 0 {
-		t.Errorf("1b) got %s want %s", x, qab)
+		t.Errorf("1e) got %s want %s", x, qab)
 	}
 
 	// 2a) an integral value becomes a fraction depending on denominator
