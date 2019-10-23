@@ -469,3 +469,52 @@ func atomicStopTestProgram() {
 
 	os.Exit(0)
 }
+
+func TestTime(t *testing.T) {
+	// Test that signal works fine when we are in a call to get time,
+	// which on some platforms is using VDSO. See issue #34391.
+	dur := 3 * time.Second
+	if testing.Short() {
+		dur = 100 * time.Millisecond
+	}
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+	done := make(chan bool)
+	finished := make(chan bool)
+	go func() {
+		sig := make(chan os.Signal, 1)
+		Notify(sig, syscall.SIGUSR1)
+		defer Stop(sig)
+	Loop:
+		for {
+			select {
+			case <-sig:
+			case <-done:
+				break Loop
+			}
+		}
+		finished <- true
+	}()
+	go func() {
+	Loop:
+		for {
+			select {
+			case <-done:
+				break Loop
+			default:
+				syscall.Kill(syscall.Getpid(), syscall.SIGUSR1)
+				runtime.Gosched()
+			}
+		}
+		finished <- true
+	}()
+	t0 := time.Now()
+	for t1 := t0; t1.Sub(t0) < dur; t1 = time.Now() {
+	} // hammering on getting time
+	close(done)
+	<-finished
+	<-finished
+	// When run with 'go test -cpu=1,2,4' SIGUSR1 from this test can slip
+	// into subsequent TestSignal() causing failure.
+	// Sleep for a while to reduce the possibility of the failure.
+	time.Sleep(10 * time.Millisecond)
+}

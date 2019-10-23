@@ -218,7 +218,21 @@ noswitch:
 	MOVW	$CLOCK_REALTIME, R0
 	MOVD	runtime·vdsoClockgettimeSym(SB), R2
 	CBZ	R2, fallback
+
+	// Store g on gsignal's stack, so if we receive a signal
+	// during VDSO code we can find the g.
+	// If we don't have a signal stack, we won't receive signal,
+	// so don't bother saving g.
+	MOVD	m_gsignal(R21), R22          // g.m.gsignal
+	CBZ	R22, 3(PC)
+	MOVD	(g_stack+stack_lo)(R22), R22 // g.m.gsignal.stack.lo
+	MOVD	g, (R22)
+
 	BL	(R2)
+
+	CBZ	R22, 2(PC) // R22 is unchanged by C code
+	MOVD	ZR, (R22)  // clear g slot
+
 	B	finish
 
 fallback:
@@ -261,7 +275,21 @@ noswitch:
 	MOVW	$CLOCK_MONOTONIC, R0
 	MOVD	runtime·vdsoClockgettimeSym(SB), R2
 	CBZ	R2, fallback
+
+	// Store g on gsignal's stack, so if we receive a signal
+	// during VDSO code we can find the g.
+	// If we don't have a signal stack, we won't receive signal,
+	// so don't bother saving g.
+	MOVD	m_gsignal(R21), R22          // g.m.gsignal
+	CBZ	R22, 3(PC)
+	MOVD	(g_stack+stack_lo)(R22), R22 // g.m.gsignal.stack.lo
+	MOVD	g, (R22)
+
 	BL	(R2)
+
+	CBZ	R22, 2(PC) // R22 is unchanged by C code
+	MOVD	ZR, (R22)  // clear g slot
+
 	B	finish
 
 fallback:
