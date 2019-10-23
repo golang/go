@@ -1346,7 +1346,15 @@ func (c *completer) matchingCandidate(cand *candidate) bool {
 					// Check that their constant kind (bool|int|float|complex|string) matches.
 					// This doesn't take into account the constant value, so there will be some
 					// false positives due to integer sign and overflow.
-					return candBasic.Info()&types.IsConstType == wantBasic.Info()&types.IsConstType
+					if candBasic.Info()&types.IsConstType == wantBasic.Info()&types.IsConstType {
+						// Lower candidate score if the types are not identical.
+						// This avoids ranking untyped integer constants above
+						// candidates with an exact type match.
+						if !types.Identical(candType, c.expectedType.objType) {
+							cand.score /= 2
+						}
+						return true
+					}
 				}
 				return false
 			}

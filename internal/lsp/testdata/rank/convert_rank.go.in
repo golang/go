@@ -12,28 +12,31 @@ func _() {
 }
 
 func _() {
+
+	type myInt int
+
 	const (
 		convC        = "hi"    //@item(convertC, "convC", "string", "const")
 		convD        = 123     //@item(convertD, "convD", "int", "const")
 		convE int    = 123     //@item(convertE, "convE", "int", "const")
 		convF string = "there" //@item(convertF, "convF", "string", "const")
+		convG myInt  = 123     //@item(convertG, "convG", "myInt", "const")
 	)
 
 	var foo int
-	foo = conv //@complete(" //", convertD, convertE, convertC, convertF)
+	foo = conv //@rank(" //", convertE, convertD)
 
-	type myInt int
 	var mi myInt
-	mi = conv //@complete(" //", convertD, convertC, convertE, convertF)
-	mi + conv //@complete(" //", convertD, convertC, convertE, convertF)
+	mi = conv //@rank(" //", convertG, convertD, convertE)
+	mi + conv //@rank(" //", convertG, convertD, convertE)
 
-	1 + conv //@complete(" //", convertD, convertE, convertC, convertF)
+	1 + conv //@rank(" //", convertD, convertE, convertG)
 
 	type myString string
 	var ms myString
-	ms = conv //@complete(" //", convertC, convertD, convertE, convertF)
+	ms = conv //@rank(" //", convertC, convertF)
 
 	type myUint uint32
 	var mu myUint
-	mu = conv //@complete(" //", convertD, convertC, convertE, convertF)
+	mu = conv //@rank(" //", convertD, convertE)
 }
