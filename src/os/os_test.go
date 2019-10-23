@@ -1521,9 +1521,6 @@ func testWindowsHostname(t *testing.T, hostname string) {
 }
 
 func TestHostname(t *testing.T) {
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
-		t.Skipf("sysctl is not supported on iOS")
-	}
 	hostname, err := Hostname()
 	if err != nil {
 		t.Fatal(err)
