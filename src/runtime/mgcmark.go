@@ -321,7 +321,9 @@ func markrootSpans(gcw *gcWork, shard int) {
 	// entered the scan phase, so addfinalizer will have ensured
 	// the above invariants for them.
 	for _, s := range spans {
-		if s.state != mSpanInUse {
+		// This is racing with spans being initialized, so
+		// check the state carefully.
+		if s.state.get() != mSpanInUse {
 			continue
 		}
 		// Check that this span was swept (it may be cached or uncached).
@@ -1310,15 +1312,15 @@ func gcDumpObject(label string, obj, off uintptr) {
 		return
 	}
 	print(" s.base()=", hex(s.base()), " s.limit=", hex(s.limit), " s.spanclass=", s.spanclass, " s.elemsize=", s.elemsize, " s.state=")
-	if 0 <= s.state && int(s.state) < len(mSpanStateNames) {
-		print(mSpanStateNames[s.state], "\n")
+	if state := s.state.get(); 0 <= state && int(state) < len(mSpanStateNames) {
+		print(mSpanStateNames[state], "\n")
 	} else {
-		print("unknown(", s.state, ")\n")
+		print("unknown(", state, ")\n")
 	}
 
 	skipped := false
 	size := s.elemsize
-	if s.state == mSpanManual && size == 0 {
+	if s.state.get() == mSpanManual && size == 0 {
 		// We're printing something from a stack frame. We
 		// don't know how big it is, so just show up to an
 		// including off.
@@ -1406,7 +1408,7 @@ var useCheckmark = false
 func initCheckmarks() {
 	useCheckmark = true
 	for _, s := range mheap_.allspans {
-		if s.state == mSpanInUse {
+		if s.state.get() == mSpanInUse {
 			heapBitsForAddr(s.base()).initCheckmarkSpan(s.layout())
 		}
 	}
@@ -1415,7 +1417,7 @@ func initCheckmarks() {
 func clearCheckmarks() {
 	useCheckmark = false
 	for _, s := range mheap_.allspans {
-		if s.state == mSpanInUse {
+		if s.state.get() == mSpanInUse {
 			heapBitsForAddr(s.base()).clearCheckmarkSpan(s.layout())
 		}
 	}

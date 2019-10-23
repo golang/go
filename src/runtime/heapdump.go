@@ -435,7 +435,7 @@ func dumproots() {
 
 	// mspan.types
 	for _, s := range mheap_.allspans {
-		if s.state == mSpanInUse {
+		if s.state.get() == mSpanInUse {
 			// Finalizers
 			for sp := s.specials; sp != nil; sp = sp.next {
 				if sp.kind != _KindSpecialFinalizer {
@@ -458,7 +458,7 @@ var freemark [_PageSize / 8]bool
 
 func dumpobjs() {
 	for _, s := range mheap_.allspans {
-		if s.state != mSpanInUse {
+		if s.state.get() != mSpanInUse {
 			continue
 		}
 		p := s.base()
@@ -621,7 +621,7 @@ func dumpmemprof_callback(b *bucket, nstk uintptr, pstk *uintptr, size, allocs, 
 func dumpmemprof() {
 	iterate_memprof(dumpmemprof_callback)
 	for _, s := range mheap_.allspans {
-		if s.state != mSpanInUse {
+		if s.state.get() != mSpanInUse {
 			continue
 		}
 		for sp := s.specials; sp != nil; sp = sp.next {
@@ -642,7 +642,7 @@ var dumphdr = []byte("go1.7 heap dump\n")
 func mdump() {
 	// make sure we're done sweeping
 	for _, s := range mheap_.allspans {
-		if s.state == mSpanInUse {
+		if s.state.get() == mSpanInUse {
 			s.ensureSwept()
 		}
 	}

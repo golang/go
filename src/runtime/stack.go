@@ -219,7 +219,7 @@ func stackpoolalloc(order uint8) gclinkptr {
 // Adds stack x to the free pool. Must be called with stackpool[order].item.mu held.
 func stackpoolfree(x gclinkptr, order uint8) {
 	s := spanOfUnchecked(uintptr(x))
-	if s.state != mSpanManual {
+	if s.state.get() != mSpanManual {
 		throw("freeing stack not in a stack span")
 	}
 	if s.manualFreeList.ptr() == nil {
@@ -467,7 +467,7 @@ func stackfree(stk stack) {
 		}
 	} else {
 		s := spanOfUnchecked(uintptr(v))
-		if s.state != mSpanManual {
+		if s.state.get() != mSpanManual {
 			println(hex(s.base()), v)
 			throw("bad span state")
 		}
