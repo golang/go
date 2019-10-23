@@ -3490,13 +3490,13 @@ func init() {
 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicAnd8, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
-		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64)
+		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X)
 	addF("runtime/internal/atomic", "Or8",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicOr8, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
-		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64)
+		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X)
 
 	alias("runtime/internal/atomic", "Loadint64", "runtime/internal/atomic", "Load64", all...)
 	alias("runtime/internal/atomic", "Xaddint64", "runtime/internal/atomic", "Xadd64", all...)

@@ -170,6 +170,7 @@ func init() {
 		gpstoreidx   = regInfo{inputs: []regMask{ptrsp, ptrsp, gpsp, 0}}
 		gpstorebr    = regInfo{inputs: []regMask{ptrsp, gpsp, 0}}
 		gpstorelaa   = regInfo{inputs: []regMask{ptrspsb, gpsp, 0}, outputs: gponly}
+		gpstorelab   = regInfo{inputs: []regMask{r1, gpsp, 0}, clobbers: r1}
 
 		gpmvc = regInfo{inputs: []regMask{ptrsp, ptrsp, 0}}
 
@@ -347,6 +348,27 @@ func init() {
 		{name: "RLLGconst", argLength: 1, reg: gp11, asm: "RLLG", aux: "Int8"}, // arg0 rotate left auxint, rotate amount 0-63
 		{name: "RLLconst", argLength: 1, reg: gp11, asm: "RLL", aux: "Int8"},   // arg0 rotate left auxint, rotate amount 0-31
 
+		// Rotate then (and|or|xor|insert) selected bits instructions.
+		//
+		// Aux is an s390x.RotateParams struct containing Start, End and rotation
+		// Amount fields.
+		//
+		// arg1 is rotated left by the rotation amount then the bits from the start
+		// bit to the end bit (inclusive) are combined with arg0 using the logical
+		// operation specified. Bit indices are specified from left to right - the
+		// MSB is 0 and the LSB is 63.
+		//
+		// Examples:
+		//               |          aux         |
+		// | instruction | start | end | amount |          arg0         |          arg1         |         result        |
+		// +-------------+-------+-----+--------+-----------------------+-----------------------+-----------------------+
+		// | RXSBG (XOR) |     0 |   1 |      0 | 0xffff_ffff_ffff_ffff | 0xffff_ffff_ffff_ffff | 0x3fff_ffff_ffff_ffff |
+		// | RXSBG (XOR) |    62 |  63 |      0 | 0xffff_ffff_ffff_ffff | 0xffff_ffff_ffff_ffff | 0xffff_ffff_ffff_fffc |
+		// | RXSBG (XOR) |     0 |  47 |     16 | 0xffff_ffff_ffff_ffff | 0x0000_0000_0000_ffff | 0xffff_ffff_0000_ffff |
+		// +-------------+-------+-----+--------+-----------------------+-----------------------+-----------------------+
+		//
+		{name: "RXSBG", argLength: 2, reg: gp21, asm: "RXSBG", resultInArg0: true, aux: "ArchSpecific", clobberFlags: true}, // rotate then xor selected bits
+
 		// unary ops
 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG", clobberFlags: true},   // -arg0
 		{name: "NEGW", argLength: 1, reg: gp11, asm: "NEGW", clobberFlags: true}, // -arg0
@@ -508,6 +530,12 @@ func init() {
 		{name: "LAAG", argLength: 3, reg: gpstorelaa, asm: "LAAG", typ: "(UInt64,Mem)", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},
 		{name: "AddTupleFirst32", argLength: 2}, // arg1=tuple <x,y>.  Returns <x+arg0,y>.
 		{name: "AddTupleFirst64", argLength: 2}, // arg1=tuple <x,y>.  Returns <x+arg0,y>.
+
+		// Atomic bitwise operations.
+		// Note: 'floor' operations round the pointer down to the nearest word boundary
+		// which reflects how they are used in the runtime.
+		{name: "LAOfloor", argLength: 3, reg: gpstorelab, asm: "LAO", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *(floor(arg0, 4)) |= arg1. arg2 = mem.
+		{name: "LANfloor", argLength: 3, reg: gpstorelab, asm: "LAN", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *(floor(arg0, 4)) &= arg1. arg2 = mem.
 
 		// Compare and swap.
 		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory.

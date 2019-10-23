@@ -38,6 +38,8 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpAtomicAdd32_0(v)
 	case OpAtomicAdd64:
 		return rewriteValueS390X_OpAtomicAdd64_0(v)
+	case OpAtomicAnd8:
+		return rewriteValueS390X_OpAtomicAnd8_0(v)
 	case OpAtomicCompareAndSwap32:
 		return rewriteValueS390X_OpAtomicCompareAndSwap32_0(v)
 	case OpAtomicCompareAndSwap64:
@@ -56,6 +58,8 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpAtomicLoadAcq32_0(v)
 	case OpAtomicLoadPtr:
 		return rewriteValueS390X_OpAtomicLoadPtr_0(v)
+	case OpAtomicOr8:
+		return rewriteValueS390X_OpAtomicOr8_0(v)
 	case OpAtomicStore32:
 		return rewriteValueS390X_OpAtomicStore32_0(v)
 	case OpAtomicStore64:
@@ -1001,6 +1005,34 @@ func rewriteValueS390X_OpAtomicAdd64_0(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueS390X_OpAtomicAnd8_0(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (AtomicAnd8 ptr val mem)
+	// result: (LANfloor ptr (RLL <typ.UInt32> (ORWconst <typ.UInt32> val [-1<<8]) (RXSBG <typ.UInt32> {s390x.NewRotateParams(59, 60, 3)} (MOVDconst [3<<3]) ptr)) mem)
+	for {
+		mem := v.Args[2]
+		ptr := v.Args[0]
+		val := v.Args[1]
+		v.reset(OpS390XLANfloor)
+		v.AddArg(ptr)
+		v0 := b.NewValue0(v.Pos, OpS390XRLL, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpS390XORWconst, typ.UInt32)
+		v1.AuxInt = -1 << 8
+		v1.AddArg(val)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Pos, OpS390XRXSBG, typ.UInt32)
+		v2.Aux = s390x.NewRotateParams(59, 60, 3)
+		v3 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
+		v3.AuxInt = 3 << 3
+		v2.AddArg(v3)
+		v2.AddArg(ptr)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+}
 func rewriteValueS390X_OpAtomicCompareAndSwap32_0(v *Value) bool {
 	// match: (AtomicCompareAndSwap32 ptr old new_ mem)
 	// result: (LoweredAtomicCas32 ptr old new_ mem)
@@ -1117,6 +1149,33 @@ func rewriteValueS390X_OpAtomicLoadPtr_0(v *Value) bool {
 		ptr := v.Args[0]
 		v.reset(OpS390XMOVDatomicload)
 		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueS390X_OpAtomicOr8_0(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (AtomicOr8 ptr val mem)
+	// result: (LAOfloor ptr (SLW <typ.UInt32> (MOVBZreg <typ.UInt32> val) (RXSBG <typ.UInt32> {s390x.NewRotateParams(59, 60, 3)} (MOVDconst [3<<3]) ptr)) mem)
+	for {
+		mem := v.Args[2]
+		ptr := v.Args[0]
+		val := v.Args[1]
+		v.reset(OpS390XLAOfloor)
+		v.AddArg(ptr)
+		v0 := b.NewValue0(v.Pos, OpS390XSLW, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpS390XMOVBZreg, typ.UInt32)
+		v1.AddArg(val)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Pos, OpS390XRXSBG, typ.UInt32)
+		v2.Aux = s390x.NewRotateParams(59, 60, 3)
+		v3 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
+		v3.AuxInt = 3 << 3
+		v2.AddArg(v3)
+		v2.AddArg(ptr)
+		v0.AddArg(v2)
+		v.AddArg(v0)
 		v.AddArg(mem)
 		return true
 	}
