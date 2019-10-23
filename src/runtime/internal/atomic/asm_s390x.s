@@ -12,6 +12,14 @@ TEXT ·Store(SB), NOSPLIT, $0
 	SYNC
 	RET
 
+// func Store8(ptr *uint8, val uint8)
+TEXT ·Store8(SB), NOSPLIT, $0
+	MOVD	ptr+0(FP), R2
+	MOVB	val+8(FP), R3
+	MOVB	R3, 0(R2)
+	SYNC
+	RET
+
 // func Store64(ptr *uint64, val uint64)
 TEXT ·Store64(SB), NOSPLIT, $0
 	MOVD	ptr+0(FP), R2
