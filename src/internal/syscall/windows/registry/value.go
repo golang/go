@@ -108,7 +108,7 @@ func (k Key) GetStringValue(name string) (val string, valtype uint32, err error)
 	if len(data) == 0 {
 		return "", typ, nil
 	}
-	u := (*[1 << 29]uint16)(unsafe.Pointer(&data[0]))[:]
+	u := (*[1 << 29]uint16)(unsafe.Pointer(&data[0]))[:len(data)/2]
 	return syscall.UTF16ToString(u), typ, nil
 }
 
