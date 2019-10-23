@@ -361,10 +361,10 @@ func ImportPathsQuiet(patterns []string) []*Match {
 	return out
 }
 
-// CleanPatterns returns the patterns to use for the given
-// command line. It canonicalizes the patterns but does not
-// evaluate any matches. It preserves text after '@' for commands
-// that accept versions.
+// CleanPatterns returns the patterns to use for the given command line. It
+// canonicalizes the patterns but does not evaluate any matches. For patterns
+// that are not local or absolute paths, it preserves text after '@' to avoid
+// modifying version queries.
 func CleanPatterns(patterns []string) []string {
 	if len(patterns) == 0 {
 		return []string{"."}
@@ -372,7 +372,9 @@ func CleanPatterns(patterns []string) []string {
 	var out []string
 	for _, a := range patterns {
 		var p, v string
-		if i := strings.IndexByte(a, '@'); i < 0 {
+		if build.IsLocalImport(a) || filepath.IsAbs(a) {
+			p = a
+		} else if i := strings.IndexByte(a, '@'); i < 0 {
 			p = a
 		} else {
 			p = a[:i]
