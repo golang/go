@@ -57,6 +57,8 @@ func rewriteValueMIPS64(v *Value) bool {
 		return rewriteValueMIPS64_OpAtomicStore32_0(v)
 	case OpAtomicStore64:
 		return rewriteValueMIPS64_OpAtomicStore64_0(v)
+	case OpAtomicStore8:
+		return rewriteValueMIPS64_OpAtomicStore8_0(v)
 	case OpAtomicStorePtrNoWB:
 		return rewriteValueMIPS64_OpAtomicStorePtrNoWB_0(v)
 	case OpAvg64u:
@@ -932,6 +934,20 @@ func rewriteValueMIPS64_OpAtomicStore64_0(v *Value) bool {
 		ptr := v.Args[0]
 		val := v.Args[1]
 		v.reset(OpMIPS64LoweredAtomicStore64)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueMIPS64_OpAtomicStore8_0(v *Value) bool {
+	// match: (AtomicStore8 ptr val mem)
+	// result: (LoweredAtomicStore8 ptr val mem)
+	for {
+		mem := v.Args[2]
+		ptr := v.Args[0]
+		val := v.Args[1]
+		v.reset(OpMIPS64LoweredAtomicStore8)
 		v.AddArg(ptr)
 		v.AddArg(val)
 		v.AddArg(mem)

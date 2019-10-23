@@ -533,6 +533,7 @@
 
 // Atomic stores.  We use XCHG to prevent the hardware reordering a subsequent load.
 // TODO: most runtime uses of atomic stores don't need that property.  Use normal stores for those?
+(AtomicStore8 ptr val mem) -> (Select1 (XCHGB <types.NewTuple(typ.UInt8,types.TypeMem)> val ptr mem))
 (AtomicStore32 ptr val mem) -> (Select1 (XCHGL <types.NewTuple(typ.UInt32,types.TypeMem)> val ptr mem))
 (AtomicStore64 ptr val mem) -> (Select1 (XCHGQ <types.NewTuple(typ.UInt64,types.TypeMem)> val ptr mem))
 (AtomicStorePtrNoWB ptr val mem) && config.PtrSize == 8 -> (Select1 (XCHGQ <types.NewTuple(typ.BytePtr,types.TypeMem)> val ptr mem))

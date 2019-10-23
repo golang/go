@@ -495,6 +495,7 @@ func init() {
 
 		// Atomic stores. These are just normal stores.
 		// store arg1 to arg0+auxint+aux. arg2=mem.
+		{name: "MOVBatomicstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "Write"},
 		{name: "MOVWatomicstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "Write"},
 		{name: "MOVDatomicstore", argLength: 3, reg: gpstore, asm: "MOVD", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "Write"},
 
