@@ -43,11 +43,29 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	sort.SliceStable(candidates, func(i, j int) bool {
 		return candidates[i].Score > candidates[j].Score
 	})
+
+	// When using deep completions/fuzzy matching, report results as incomplete so
+	// client fetches updated completions after every key stroke.
+	incompleteResults := options.Completion.Deep || options.Completion.FuzzyMatching
+
+	items := toProtocolCompletionItems(candidates, rng, options)
+
+	if incompleteResults {
+		prefix := surrounding.Prefix()
+		for i := range items {
+			// We send the prefix as the filterText to trick VSCode into not
+			// reordering our candidates. All the candidates will appear to
+			// be a perfect match, so VSCode's fuzzy matching/ranking just
+			// maintains the natural "sortText" ordering. We can only do
+			// this in tandem with "incompleteResults" since otherwise
+			// client side filtering is important.
+			items[i].FilterText = prefix
+		}
+	}
+
 	return &protocol.CompletionList{
-		// When using deep completions/fuzzy matching, report results as incomplete so
-		// client fetches updated completions after every key stroke.
-		IsIncomplete: options.Completion.Deep || options.Completion.FuzzyMatching,
-		Items:        toProtocolCompletionItems(candidates, rng, options),
+		IsIncomplete: incompleteResults,
+		Items:        items,
 	}, nil
 }
 
