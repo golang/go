@@ -780,19 +780,16 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
 		}
 	}
 
-	rev, dir, _, err := r.findDir(version)
+	rev, subdir, _, err := r.findDir(version)
 	if err != nil {
 		return err
 	}
-	dl, actualDir, err := r.code.ReadZip(rev, dir, codehost.MaxZipFile)
+	dl, err := r.code.ReadZip(rev, subdir, codehost.MaxZipFile)
 	if err != nil {
 		return err
 	}
 	defer dl.Close()
-	if actualDir != "" && !hasPathPrefix(dir, actualDir) {
-		return fmt.Errorf("internal error: downloading %v %v: dir=%q but actualDir=%q", r.modPath, rev, dir, actualDir)
-	}
-	subdir := strings.Trim(strings.TrimPrefix(dir, actualDir), "/")
+	subdir = strings.Trim(subdir, "/")
 
 	// Spool to local file.
 	f, err := ioutil.TempFile("", "go-codehost-")
