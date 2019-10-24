@@ -56,7 +56,6 @@ type actionHandle struct {
 	analyzer     *analysis.Analyzer
 	deps         []*actionHandle
 	pkg          *pkg
-	pass         *analysis.Pass
 	isroot       bool
 	objectFacts  map[objectFactKey]analysis.Fact
 	packageFacts map[packageFactKey]analysis.Fact
@@ -223,7 +222,6 @@ func (act *actionHandle) exec(ctx context.Context, fset *token.FileSet) ([]*sour
 		AllObjectFacts:    act.allObjectFacts,
 		AllPackageFacts:   act.allPackageFacts,
 	}
-	act.pass = pass
 
 	if act.pkg.IsIllTyped() {
 		return nil, nil, errors.Errorf("analysis skipped due to errors in package: %v", act.pkg.GetErrors())
@@ -238,8 +236,12 @@ func (act *actionHandle) exec(ctx context.Context, fset *token.FileSet) ([]*sour
 	}
 
 	// disallow calls after Run
-	pass.ExportObjectFact = nil
-	pass.ExportPackageFact = nil
+	pass.ExportObjectFact = func(obj types.Object, fact analysis.Fact) {
+		panic(fmt.Sprintf("%s: Pass.ExportObjectFact(%s, %T) called after Run", act, obj, fact))
+	}
+	pass.ExportPackageFact = func(fact analysis.Fact) {
+		panic(fmt.Sprintf("%s: Pass.ExportPackageFact(%T) called after Run", act, fact))
+	}
 
 	var errors []*source.Error
 	for _, diag := range diagnostics {
@@ -313,10 +315,6 @@ func (act *actionHandle) importObjectFact(obj types.Object, ptr analysis.Fact) b
 
 // exportObjectFact implements Pass.ExportObjectFact.
 func (act *actionHandle) exportObjectFact(obj types.Object, fact analysis.Fact) {
-	if act.pass.ExportObjectFact == nil {
-		panic(fmt.Sprintf("%s: Pass.ExportObjectFact(%s, %T) called after Run", act, obj, fact))
-	}
-
 	if obj.Pkg() != act.pkg.types {
 		panic(fmt.Sprintf("internal error: in analysis %s of package %s: Fact.Set(%s, %T): can't set facts on objects belonging another package",
 			act.analyzer, act.pkg.ID(), obj, fact))
@@ -352,11 +350,7 @@ func (act *actionHandle) importPackageFact(pkg *types.Package, ptr analysis.Fact
 
 // exportPackageFact implements Pass.ExportPackageFact.
 func (act *actionHandle) exportPackageFact(fact analysis.Fact) {
-	if act.pass.ExportPackageFact == nil {
-		panic(fmt.Sprintf("%s: Pass.ExportPackageFact(%T) called after Run", act, fact))
-	}
-
-	key := packageFactKey{act.pass.Pkg, factType(fact)}
+	key := packageFactKey{act.pkg.types, factType(fact)}
 	act.packageFacts[key] = fact // clobber any existing entry
 }
 
