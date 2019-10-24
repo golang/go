@@ -792,29 +792,19 @@ func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
 // words to pointer/scan.
 // Otherwise, it initializes all words to scalar/dead.
 func (h heapBits) initSpan(s *mspan) {
-	size, n, total := s.layout()
-
-	// Init the markbit structures
-	s.freeindex = 0
-	s.allocCache = ^uint64(0) // all 1s indicating all free.
-	s.nelems = n
-	s.allocBits = nil
-	s.gcmarkBits = nil
-	s.gcmarkBits = newMarkBits(s.nelems)
-	s.allocBits = newAllocBits(s.nelems)
-
 	// Clear bits corresponding to objects.
-	nw := total / sys.PtrSize
+	nw := (s.npages << _PageShift) / sys.PtrSize
 	if nw%wordsPerBitmapByte != 0 {
 		throw("initSpan: unaligned length")
 	}
 	if h.shift != 0 {
 		throw("initSpan: unaligned base")
 	}
+	isPtrs := sys.PtrSize == 8 && s.elemsize == sys.PtrSize
 	for nw > 0 {
 		hNext, anw := h.forwardOrBoundary(nw)
 		nbyte := anw / wordsPerBitmapByte
-		if sys.PtrSize == 8 && size == sys.PtrSize {
+		if isPtrs {
 			bitp := h.bitp
 			for i := uintptr(0); i < nbyte; i++ {
 				*bitp = bitPointerAll | bitScanAll
