@@ -1205,6 +1205,11 @@ func (*mvsReqs) next(m module.Version) (module.Version, error) {
 	return module.Version{Path: m.Path, Version: "none"}, nil
 }
 
+// fetch downloads the given module (or its replacement)
+// and returns its location.
+//
+// The isLocal return value reports whether the replacement,
+// if any, is local to the filesystem.
 func fetch(mod module.Version) (dir string, isLocal bool, err error) {
 	if mod == Target {
 		return ModRoot(), true, nil

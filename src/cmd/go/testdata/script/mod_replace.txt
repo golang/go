@@ -38,6 +38,13 @@ grep 'not-rsc.io/quote/v3 v3.1.0' go.mod
 exec ./a5.exe
 stdout 'Concurrency is not parallelism.'
 
+# Error messages for modules not found in replacements should
+# indicate the replacement module.
+cp go.mod.orig go.mod
+go mod edit -replace=rsc.io/quote/v3=./local/rsc.io/quote/v3
+! go get -d rsc.io/quote/v3/missing-package
+stderr 'module rsc.io/quote/v3@upgrade found \(v3.0.0, replaced by ./local/rsc.io/quote/v3\), but does not contain package'
+
 -- go.mod --
 module quoter
 

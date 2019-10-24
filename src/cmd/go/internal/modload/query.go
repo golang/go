@@ -381,9 +381,10 @@ func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]Q
 			r.Packages = match(r.Mod, root, isLocal)
 			if len(r.Packages) == 0 {
 				return r, &PackageNotInModuleError{
-					Mod:     r.Mod,
-					Query:   query,
-					Pattern: pattern,
+					Mod:         r.Mod,
+					Replacement: Replacement(r.Mod),
+					Query:       query,
+					Pattern:     pattern,
 				}
 			}
 			return r, nil
@@ -471,7 +472,17 @@ func queryPrefixModules(candidateModules []string, queryModule func(path string)
 					notExistErr = rErr
 				}
 			} else if err == nil {
-				err = r.err
+				if len(found) > 0 || noPackage != nil {
+					// golang.org/issue/34094: If we have already found a module that
+					// could potentially contain the target package, ignore unclassified
+					// errors for modules with shorter paths.
+
+					// golang.org/issue/34383 is a special case of this: if we have
+					// already found example.com/foo/v2@v2.0.0 with a matching go.mod
+					// file, ignore the error from example.com/foo@v2.0.0.
+				} else {
+					err = r.err
+				}
 			}
 		}
 	}
@@ -526,21 +537,32 @@ func (e *NoMatchingVersionError) Error() string {
 // code for the versions it knows about, and thus did not have the opportunity
 // to return a non-400 status code to suppress fallback.
 type PackageNotInModuleError struct {
-	Mod     module.Version
-	Query   string
-	Pattern string
+	Mod         module.Version
+	Replacement module.Version
+	Query       string
+	Pattern     string
 }
 
 func (e *PackageNotInModuleError) Error() string {
 	found := ""
-	if e.Query != e.Mod.Version {
+	if r := e.Replacement; r.Path != "" {
+		replacement := r.Path
+		if r.Version != "" {
+			replacement = fmt.Sprintf("%s@%s", r.Path, r.Version)
+		}
+		if e.Query == e.Mod.Version {
+			found = fmt.Sprintf(" (replaced by %s)", replacement)
+		} else {
+			found = fmt.Sprintf(" (%s, replaced by %s)", e.Mod.Version, replacement)
+		}
+	} else if e.Query != e.Mod.Version {
 		found = fmt.Sprintf(" (%s)", e.Mod.Version)
 	}
 
 	if strings.Contains(e.Pattern, "...") {
-		return fmt.Sprintf("module %s@%s%s found, but does not contain packages matching %s", e.Mod.Path, e.Query, found, e.Pattern)
+		return fmt.Sprintf("module %s@%s found%s, but does not contain packages matching %s", e.Mod.Path, e.Query, found, e.Pattern)
 	}
-	return fmt.Sprintf("module %s@%s%s found, but does not contain package %s", e.Mod.Path, e.Query, found, e.Pattern)
+	return fmt.Sprintf("module %s@%s found%s, but does not contain package %s", e.Mod.Path, e.Query, found, e.Pattern)
 }
 
 // ModuleHasRootPackage returns whether module m contains a package m.Path.

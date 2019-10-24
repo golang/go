@@ -904,7 +904,7 @@ func metaImportsForPrefix(importPrefix string, mod ModuleMode, security web.Secu
 		}
 		resp, err := web.Get(security, url)
 		if err != nil {
-			return setCache(fetchResult{url: url, err: fmt.Errorf("fetch %s: %v", resp.URL, err)})
+			return setCache(fetchResult{url: url, err: fmt.Errorf("fetching %s: %v", importPrefix, err)})
 		}
 		body := resp.Body
 		defer body.Close()
@@ -913,7 +913,7 @@ func metaImportsForPrefix(importPrefix string, mod ModuleMode, security web.Secu
 			return setCache(fetchResult{url: url, err: fmt.Errorf("parsing %s: %v", resp.URL, err)})
 		}
 		if len(imports) == 0 {
-			err = fmt.Errorf("fetch %s: no go-import meta tag", url)
+			err = fmt.Errorf("fetching %s: no go-import meta tag found in %s", importPrefix, resp.URL)
 		}
 		return setCache(fetchResult{url: url, imports: imports, err: err})
 	})

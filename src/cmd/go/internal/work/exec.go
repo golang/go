@@ -200,12 +200,12 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	// same compiler settings and can reuse each other's results.
 	// If not, the reason is already recorded in buildGcflags.
 	fmt.Fprintf(h, "compile\n")
+	// Only include the package directory if it may affect the output.
+	// We trim workspace paths for all packages when -trimpath is set.
 	// The compiler hides the exact value of $GOROOT
-	// when building things in GOROOT,
-	// but it does not hide the exact value of $GOPATH.
-	// Include the full dir in that case.
+	// when building things in GOROOT.
 	// Assume b.WorkDir is being trimmed properly.
-	if !p.Goroot && !strings.HasPrefix(p.Dir, b.WorkDir) {
+	if !p.Goroot && !cfg.BuildTrimpath && !strings.HasPrefix(p.Dir, b.WorkDir) {
 		fmt.Fprintf(h, "dir %s\n", p.Dir)
 	}
 	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
@@ -1030,7 +1030,7 @@ func (b *Builder) vet(a *Action) error {
 	// dependency tree turn on *more* analysis, as here.
 	// (The unsafeptr check does not write any facts for use by
 	// later vet runs.)
-	if a.Package.Goroot && !VetExplicit {
+	if a.Package.Goroot && !VetExplicit && VetTool == "" {
 		// Note that $GOROOT/src/buildall.bash
 		// does the same for the misc-compile trybots
 		// and should be updated if these flags are

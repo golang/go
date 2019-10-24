@@ -17,7 +17,29 @@
 // scavenger's primary goal is to bring the estimated heap RSS of the
 // application down to a goal.
 //
-// That goal is defined as (retainExtraPercent+100) / 100 * next_gc.
+// That goal is defined as:
+//   (retainExtraPercent+100) / 100 * (next_gc / last_next_gc) * last_heap_inuse
+//
+// Essentially, we wish to have the application's RSS track the heap goal, but
+// the heap goal is defined in terms of bytes of objects, rather than pages like
+// RSS. As a result, we need to take into account for fragmentation internal to
+// spans. next_gc / last_next_gc defines the ratio between the current heap goal
+// and the last heap goal, which tells us by how much the heap is growing and
+// shrinking. We estimate what the heap will grow to in terms of pages by taking
+// this ratio and multiplying it by heap_inuse at the end of the last GC, which
+// allows us to account for this additional fragmentation. Note that this
+// procedure makes the assumption that the degree of fragmentation won't change
+// dramatically over the next GC cycle. Overestimating the amount of
+// fragmentation simply results in higher memory use, which will be accounted
+// for by the next pacing up date. Underestimating the fragmentation however
+// could lead to performance degradation. Handling this case is not within the
+// scope of the scavenger. Situations where the amount of fragmentation balloons
+// over the course of a single GC cycle should be considered pathologies,
+// flagged as bugs, and fixed appropriately.
+//
+// An additional factor of retainExtraPercent is added as a buffer to help ensure
+// that there's more unscavenged memory to allocate out of, since each allocation
+// out of scavenged memory incurs a potentially expensive page fault.
 //
 // The goal is updated after each GC and the scavenger's pacing parameters
 // (which live in mheap_) are updated to match. The pacing parameters work much
@@ -81,14 +103,24 @@ func heapRetained() uint64 {
 //
 // mheap_.lock must be held or the world must be stopped.
 func gcPaceScavenger() {
-	// Compute our scavenging goal and align it to a physical page boundary
-	// to make the following calculations more exact.
-	retainedGoal := memstats.next_gc
+	// If we're called before the first GC completed, disable scavenging.
+	// We never scavenge before the 2nd GC cycle anyway (we don't have enough
+	// information about the heap yet) so this is fine, and avoids a fault
+	// or garbage data later.
+	if memstats.last_next_gc == 0 {
+		mheap_.scavengeBytesPerNS = 0
+		return
+	}
+	// Compute our scavenging goal.
+	goalRatio := float64(memstats.next_gc) / float64(memstats.last_next_gc)
+	retainedGoal := uint64(float64(memstats.last_heap_inuse) * goalRatio)
 	// Add retainExtraPercent overhead to retainedGoal. This calculation
 	// looks strange but the purpose is to arrive at an integer division
 	// (e.g. if retainExtraPercent = 12.5, then we get a divisor of 8)
 	// that also avoids the overflow from a multiplication.
 	retainedGoal += retainedGoal / (1.0 / (retainExtraPercent / 100.0))
+	// Align it to a physical page boundary to make the following calculations
+	// a bit more exact.
 	retainedGoal = (retainedGoal + uint64(physPageSize) - 1) &^ (uint64(physPageSize) - 1)
 
 	// Represents where we are now in the heap's contribution to RSS in bytes.
@@ -154,36 +186,41 @@ func gcPaceScavenger() {
 
 	now := nanotime()
 
-	lock(&scavenge.lock)
-
 	// Update all the pacing parameters in mheap with scavenge.lock held,
 	// so that scavenge.gen is kept in sync with the updated values.
 	mheap_.scavengeRetainedGoal = retainedGoal
 	mheap_.scavengeRetainedBasis = retainedNow
 	mheap_.scavengeTimeBasis = now
 	mheap_.scavengeBytesPerNS = float64(totalWork) / float64(totalTime)
-	scavenge.gen++ // increase scavenge generation
-
-	// Wake up background scavenger if needed, since the pacing was just updated.
-	wakeScavengerLocked()
-
-	unlock(&scavenge.lock)
+	mheap_.scavengeGen++ // increase scavenge generation
 }
 
-// State of the background scavenger.
+// Sleep/wait state of the background scavenger.
 var scavenge struct {
 	lock   mutex
 	g      *g
 	parked bool
 	timer  *timer
-	gen    uint32 // read with either lock or mheap_.lock, write with both
+
+	// Generation counter.
+	//
+	// It represents the last generation count (as defined by
+	// mheap_.scavengeGen) checked by the scavenger and is updated
+	// each time the scavenger checks whether it is on-pace.
+	//
+	// Skew between this field and mheap_.scavengeGen is used to
+	// determine whether a new update is available.
+	//
+	// Protected by mheap_.lock.
+	gen uint64
 }
 
-// wakeScavengerLocked unparks the scavenger if necessary. It must be called
+// wakeScavenger unparks the scavenger if necessary. It must be called
 // after any pacing update.
 //
-// scavenge.lock must be held.
-func wakeScavengerLocked() {
+// mheap_.lock and scavenge.lock must not be held.
+func wakeScavenger() {
+	lock(&scavenge.lock)
 	if scavenge.parked {
 		// Try to stop the timer but we don't really care if we succeed.
 		// It's possible that either a timer was never started, or that
@@ -198,11 +235,10 @@ func wakeScavengerLocked() {
 		scavenge.parked = false
 		ready(scavenge.g, 0, true)
 	}
+	unlock(&scavenge.lock)
 }
 
 // scavengeSleep attempts to put the scavenger to sleep for ns.
-// It also checks to see if gen != scavenge.gen before going to sleep,
-// and aborts if true (meaning an update had occurred).
 //
 // Note that this function should only be called by the scavenger.
 //
@@ -210,24 +246,32 @@ func wakeScavengerLocked() {
 // to sleep at all if there's a pending pacing change.
 //
 // Returns false if awoken early (i.e. true means a complete sleep).
-func scavengeSleep(gen uint32, ns int64) bool {
+func scavengeSleep(ns int64) bool {
 	lock(&scavenge.lock)
 
-	// If there was an update, just abort the sleep.
-	if scavenge.gen != gen {
+	// First check if there's a pending update.
+	// If there is one, don't bother sleeping.
+	var hasUpdate bool
+	systemstack(func() {
+		lock(&mheap_.lock)
+		hasUpdate = mheap_.scavengeGen != scavenge.gen
+		unlock(&mheap_.lock)
+	})
+	if hasUpdate {
 		unlock(&scavenge.lock)
 		return false
 	}
 
 	// Set the timer.
+	//
+	// This must happen here instead of inside gopark
+	// because we can't close over any variables without
+	// failing escape analysis.
 	now := nanotime()
 	scavenge.timer.when = now + ns
 	startTimer(scavenge.timer)
 
-	// Park the goroutine. It's fine that we don't publish the
-	// fact that the timer was set; even if the timer wakes up
-	// and fire scavengeReady before we park, it'll block on
-	// scavenge.lock.
+	// Mark ourself as asleep and go to sleep.
 	scavenge.parked = true
 	goparkunlock(&scavenge.lock, waitReasonSleep, traceEvGoSleep, 2)
 
@@ -248,9 +292,7 @@ func bgscavenge(c chan int) {
 
 	scavenge.timer = new(timer)
 	scavenge.timer.f = func(_ interface{}, _ uintptr) {
-		lock(&scavenge.lock)
-		wakeScavengerLocked()
-		unlock(&scavenge.lock)
+		wakeScavenger()
 	}
 
 	c <- 1
@@ -279,14 +321,14 @@ func bgscavenge(c chan int) {
 		released := uintptr(0)
 		park := false
 		ttnext := int64(0)
-		gen := uint32(0)
 
 		// Run on the system stack since we grab the heap lock,
 		// and a stack growth with the heap lock means a deadlock.
 		systemstack(func() {
 			lock(&mheap_.lock)
 
-			gen = scavenge.gen
+			// Update the last generation count that the scavenger has handled.
+			scavenge.gen = mheap_.scavengeGen
 
 			// If background scavenging is disabled or if there's no work to do just park.
 			retained := heapRetained()
@@ -343,7 +385,7 @@ func bgscavenge(c chan int) {
 		if released == 0 {
 			// If we were unable to release anything this may be because there's
 			// no free memory available to scavenge. Go to sleep and try again.
-			if scavengeSleep(gen, retryDelayNS) {
+			if scavengeSleep(retryDelayNS) {
 				// If we successfully slept through the delay, back off exponentially.
 				retryDelayNS *= 2
 			}
@@ -355,7 +397,7 @@ func bgscavenge(c chan int) {
 			// If there's an appreciable amount of time until the next scavenging
 			// goal, just sleep. We'll get woken up if anything changes and this
 			// way we avoid spinning.
-			scavengeSleep(gen, ttnext)
+			scavengeSleep(ttnext)
 			continue
 		}
 

@@ -3562,6 +3562,76 @@ func TestTransportCloseIdleConnsThenReturn(t *testing.T) {
 	wantIdle("after final put", 1)
 }
 
+// Test for issue 34282
+// Ensure that getConn doesn't call the GotConn trace hook on a HTTP/2 idle conn
+func TestTransportTraceGotConnH2IdleConns(t *testing.T) {
+	tr := &Transport{}
+	wantIdle := func(when string, n int) bool {
+		got := tr.IdleConnCountForTesting("https", "example.com:443") // key used by PutIdleTestConnH2
+		if got == n {
+			return true
+		}
+		t.Errorf("%s: idle conns = %d; want %d", when, got, n)
+		return false
+	}
+	wantIdle("start", 0)
+	alt := funcRoundTripper(func() {})
+	if !tr.PutIdleTestConnH2("https", "example.com:443", alt) {
+		t.Fatal("put failed")
+	}
+	wantIdle("after put", 1)
+	ctx := httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
+		GotConn: func(httptrace.GotConnInfo) {
+			// tr.getConn should leave it for the HTTP/2 alt to call GotConn.
+			t.Error("GotConn called")
+		},
+	})
+	req, _ := NewRequestWithContext(ctx, MethodGet, "https://example.com", nil)
+	_, err := tr.RoundTrip(req)
+	if err != errFakeRoundTrip {
+		t.Errorf("got error: %v; want %q", err, errFakeRoundTrip)
+	}
+	wantIdle("after round trip", 1)
+}
+
+func TestTransportRemovesH2ConnsAfterIdle(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
+	trFunc := func(tr *Transport) {
+		tr.MaxConnsPerHost = 1
+		tr.MaxIdleConnsPerHost = 1
+		tr.IdleConnTimeout = 10 * time.Millisecond
+	}
+	cst := newClientServerTest(t, h2Mode, HandlerFunc(func(w ResponseWriter, r *Request) {}), trFunc)
+	defer cst.close()
+
+	if _, err := cst.c.Get(cst.ts.URL); err != nil {
+		t.Fatalf("got error: %s", err)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	got := make(chan error)
+	go func() {
+		if _, err := cst.c.Get(cst.ts.URL); err != nil {
+			got <- err
+		}
+		close(got)
+	}()
+
+	timeout := time.NewTimer(5 * time.Second)
+	defer timeout.Stop()
+	select {
+	case err := <-got:
+		if err != nil {
+			t.Fatalf("got error: %s", err)
+		}
+	case <-timeout.C:
+		t.Fatal("request never completed")
+	}
+}
+
 // This tests that an client requesting a content range won't also
 // implicitly ask for gzip support. If they want that, they need to do it
 // on their own.

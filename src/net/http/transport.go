@@ -539,6 +539,7 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		}
 		if http2isNoCachedConnError(err) {
 			t.removeIdleConn(pconn)
+			t.decConnsPerHost(pconn.cacheKey)
 		} else if !pconn.shouldRetryRequest(req, err) {
 			// Issue 16465: return underlying net.Conn.Read error from peek,
 			// as we've historically done.
@@ -1206,7 +1207,9 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (pc *persi
 	// Queue for idle connection.
 	if delivered := t.queueForIdleConn(w); delivered {
 		pc := w.pc
-		if trace != nil && trace.GotConn != nil {
+		// Trace only for HTTP/1.
+		// HTTP/2 calls trace.GotConn itself.
+		if pc.alt == nil && trace != nil && trace.GotConn != nil {
 			trace.GotConn(pc.gotIdleConnTrace(pc.idleAt))
 		}
 		// set request canceler to some non-nil function so we
