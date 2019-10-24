@@ -121,6 +121,8 @@ func (s *Store) Cached(key interface{}) interface{} {
 	return h.Cached()
 }
 
+//go:nocheckptr
+// nocheckptr because: https://github.com/golang/go/issues/35125#issuecomment-545671062
 func (s *Store) get(key interface{}) *Handle {
 	// this must be called with the store mutex already held
 	e, found := s.entries[key]
