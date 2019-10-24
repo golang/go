@@ -5,14 +5,14 @@
 package gc
 
 import (
-	"bufio"
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"html"
 	"os"
 	"sort"
 
+	"bufio"
+	"bytes"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
