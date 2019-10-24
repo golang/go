@@ -315,15 +315,21 @@ func markrootSpans(gcw *gcWork, shard int) {
 	sg := mheap_.sweepgen
 	spans := mheap_.sweepSpans[mheap_.sweepgen/2%2].block(shard)
 	// Note that work.spans may not include spans that were
-	// allocated between entering the scan phase and now. This is
-	// okay because any objects with finalizers in those spans
-	// must have been allocated and given finalizers after we
-	// entered the scan phase, so addfinalizer will have ensured
-	// the above invariants for them.
-	for _, s := range spans {
+	// allocated between entering the scan phase and now. We may
+	// also race with spans being added into sweepSpans when they're
+	// just created, and as a result we may see nil pointers in the
+	// spans slice. This is okay because any objects with finalizers
+	// in those spans must have been allocated and given finalizers
+	// after we entered the scan phase, so addfinalizer will have
+	// ensured the above invariants for them.
+	for i := 0; i < len(spans); i++ {
+		// sweepBuf.block requires that we read pointers from the block atomically.
+		// It also requires that we ignore nil pointers.
+		s := (*mspan)(atomic.Loadp(unsafe.Pointer(&spans[i])))
+
 		// This is racing with spans being initialized, so
 		// check the state carefully.
-		if s.state.get() != mSpanInUse {
+		if s == nil || s.state.get() != mSpanInUse {
 			continue
 		}
 		// Check that this span was swept (it may be cached or uncached).

@@ -111,8 +111,9 @@ retry:
 		unlock(&b.spineLock)
 	}
 
-	// We have a block. Insert the span.
-	block.spans[bottom] = s
+	// We have a block. Insert the span atomically, since there may be
+	// concurrent readers via the block API.
+	atomic.StorepNoWB(unsafe.Pointer(&block.spans[bottom]), unsafe.Pointer(s))
 }
 
 // pop removes and returns a span from buffer b, or nil if b is empty.
@@ -147,7 +148,9 @@ func (b *gcSweepBuf) numBlocks() int {
 }
 
 // block returns the spans in the i'th block of buffer b. block is
-// safe to call concurrently with push.
+// safe to call concurrently with push. The block may contain nil
+// pointers that must be ignored, and each entry in the block must be
+// loaded atomically.
 func (b *gcSweepBuf) block(i int) []*mspan {
 	// Perform bounds check before loading spine address since
 	// push ensures the allocated length is at least spineLen.
@@ -168,12 +171,6 @@ func (b *gcSweepBuf) block(i int) []*mspan {
 		spans = block.spans[:]
 	} else {
 		spans = block.spans[:bottom]
-	}
-
-	// push may have reserved a slot but not filled it yet, so
-	// trim away unused entries.
-	for len(spans) > 0 && spans[len(spans)-1] == nil {
-		spans = spans[:len(spans)-1]
 	}
 	return spans
 }
