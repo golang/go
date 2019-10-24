@@ -1012,6 +1012,23 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
 		h.reclaim(npage)
 	}
 
+	// Compute size information.
+	nbytes := npage << _PageShift
+	var elemSize, nelems uintptr
+	if sizeclass := spanclass.sizeclass(); sizeclass == 0 {
+		elemSize = nbytes
+		nelems = 1
+	} else {
+		elemSize = uintptr(class_to_size[sizeclass])
+		nelems = nbytes / elemSize
+	}
+
+	// Allocate mark and allocation bits before we take the heap
+	// lock. We'll drop these on the floor if we fail to allocate
+	// the span, but in that case we'll panic soon.
+	gcmarkBits := newMarkBits(nelems)
+	allocBits := newAllocBits(nelems)
+
 	lock(&h.lock)
 	// transfer stats from cache to global
 	memstats.heap_scan += uint64(_g_.m.mcache.local_scan)
@@ -1028,20 +1045,26 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
 		s.state = mSpanInUse
 		s.allocCount = 0
 		s.spanclass = spanclass
+		s.elemsize = elemSize
 		if sizeclass := spanclass.sizeclass(); sizeclass == 0 {
-			s.elemsize = s.npages << _PageShift
 			s.divShift = 0
 			s.divMul = 0
 			s.divShift2 = 0
 			s.baseMask = 0
 		} else {
-			s.elemsize = uintptr(class_to_size[sizeclass])
 			m := &class_to_divmagic[sizeclass]
 			s.divShift = m.shift
 			s.divMul = m.mul
 			s.divShift2 = m.shift2
 			s.baseMask = m.baseMask
 		}
+
+		// Initialize mark and allocation structures.
+		s.freeindex = 0
+		s.allocCache = ^uint64(0) // all 1s indicating all free.
+		s.nelems = nelems
+		s.gcmarkBits = gcmarkBits
+		s.allocBits = allocBits
 
 		// Mark in-use span in arena page bitmap.
 		arena, pageIdx, pageMask := pageIndexOf(s.base())
