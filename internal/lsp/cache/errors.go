@@ -167,7 +167,7 @@ func typeErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, pos toke
 	if err != nil {
 		return spn, nil // ignore errors
 	}
-	file, m, _, err := ph.Cached(ctx)
+	file, m, _, err := ph.Cached()
 	if err != nil {
 		return spn, nil
 	}
@@ -200,7 +200,7 @@ func scannerErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, posn 
 	if err != nil {
 		return span.Span{}, err
 	}
-	file, _, _, err := ph.Cached(ctx)
+	file, _, _, err := ph.Cached()
 	if err != nil {
 		return span.Span{}, err
 	}
@@ -228,7 +228,7 @@ func spanToRange(ctx context.Context, pkg *pkg, spn span.Span) (protocol.Range, 
 	if err != nil {
 		return protocol.Range{}, err
 	}
-	_, m, _, err := ph.Cached(ctx)
+	_, m, _, err := ph.Cached()
 	if err != nil {
 		return protocol.Range{}, err
 	}

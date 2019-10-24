@@ -129,7 +129,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	if err != nil {
 		return CompletionItem{}, err
 	}
-	file, _, _, err := ph.Cached(c.ctx)
+	file, _, _, err := ph.Cached()
 	if err != nil {
 		return CompletionItem{}, err
 	}

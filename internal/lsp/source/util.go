@@ -181,7 +181,7 @@ func posToMapper(ctx context.Context, pkg Package, pos token.Pos) (*protocol.Col
 	if err != nil {
 		return nil, err
 	}
-	_, m, _, err := ph.Cached(ctx)
+	_, m, _, err := ph.Cached()
 	return m, err
 }
 

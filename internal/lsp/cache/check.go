@@ -202,11 +202,11 @@ func (cph *checkPackageHandle) MissingDependencies() []string {
 	return md
 }
 
-func (cph *checkPackageHandle) Cached(ctx context.Context) (source.Package, error) {
-	return cph.cached(ctx)
+func (cph *checkPackageHandle) Cached() (source.Package, error) {
+	return cph.cached()
 }
 
-func (cph *checkPackageHandle) cached(ctx context.Context) (*pkg, error) {
+func (cph *checkPackageHandle) cached() (*pkg, error) {
 	v := cph.handle.Cached()
 	if v == nil {
 		return nil, errors.Errorf("no cached type information for %s", cph.m.pkgPath)

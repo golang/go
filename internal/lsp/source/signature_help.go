@@ -47,7 +47,7 @@ func SignatureHelp(ctx context.Context, view View, f File, pos protocol.Position
 	if err != nil {
 		return nil, err
 	}
-	file, m, _, err := ph.Cached(ctx)
+	file, m, _, err := ph.Cached()
 	if err != nil {
 		return nil, err
 	}

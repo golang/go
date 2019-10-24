@@ -81,7 +81,7 @@ func (h *parseGoHandle) Parse(ctx context.Context) (*ast.File, *protocol.ColumnM
 	return data.ast, data.mapper, data.parseError, data.err
 }
 
-func (h *parseGoHandle) Cached(ctx context.Context) (*ast.File, *protocol.ColumnMapper, error, error) {
+func (h *parseGoHandle) Cached() (*ast.File, *protocol.ColumnMapper, error, error) {
 	v := h.handle.Cached()
 	if v == nil {
 		return nil, nil, nil, errors.Errorf("no cached AST for %s", h.file.Identity().URI)

@@ -109,6 +109,19 @@ func (s *snapshot) getPackage(id packageID, m source.ParseMode) *checkPackageHan
 	return s.packages[key]
 }
 
+func (s *snapshot) getActionHandles(id packageID, m source.ParseMode) []*actionHandle {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var acts []*actionHandle
+	for k, v := range s.actions {
+		if k.pkg.id == id && k.pkg.mode == m {
+			acts = append(acts, v)
+		}
+	}
+	return acts
+}
+
 func (s *snapshot) getAction(id packageID, m source.ParseMode, a *analysis.Analyzer) *actionHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()

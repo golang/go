@@ -171,22 +171,27 @@ func analyses(ctx context.Context, snapshot Snapshot, cph CheckPackageHandle, di
 		return err
 	}
 
-	// For caching diagnostics.
-	// TODO(https://golang.org/issue/32443): Cache diagnostics on the snapshot.
-	pkg, err := cph.Check(ctx)
-	if err != nil {
-		return err
-	}
-
 	// Report diagnostics and errors from root analyzers.
-	var sdiags []Diagnostic
-	for a, diags := range diagnostics {
-		for _, diag := range diags {
-			sdiag := toDiagnostic(diag, a.Name)
-			addReport(snapshot.View(), reports, sdiag)
-			sdiags = append(sdiags, sdiag)
+	for _, diags := range diagnostics {
+		for _, e := range diags {
+			// This is a bit of a hack, but clients > 3.15 will be able to grey out unnecessary code.
+			// If we are deleting code as part of all of our suggested fixes, assume that this is dead code.
+			// TODO(golang/go/#34508): Return these codes from the diagnostics themselves.
+			var tags []protocol.DiagnosticTag
+			if onlyDeletions(e.SuggestedFixes) {
+				tags = append(tags, protocol.Unnecessary)
+			}
+			addReport(snapshot.View(), reports, Diagnostic{
+				URI:            e.URI,
+				Range:          e.Range,
+				Message:        e.Message,
+				Source:         e.Category,
+				Severity:       protocol.SeverityWarning,
+				Tags:           tags,
+				SuggestedFixes: e.SuggestedFixes,
+				Related:        e.Related,
+			})
 		}
-		pkg.SetDiagnostics(a, sdiags)
 	}
 	return nil
 }
@@ -216,29 +221,6 @@ func singleDiagnostic(uri span.URI, format string, a ...interface{}) map[span.UR
 			Message:  fmt.Sprintf(format, a...),
 			Severity: protocol.SeverityError,
 		}},
-	}
-}
-
-func toDiagnostic(e *Error, category string) Diagnostic {
-	// This is a bit of a hack, but clients > 3.15 will be able to grey out unnecessary code.
-	// If we are deleting code as part of all of our suggested fixes, assume that this is dead code.
-	// TODO(golang/go/#34508): Return these codes from the diagnostics themselves.
-	var tags []protocol.DiagnosticTag
-	if onlyDeletions(e.SuggestedFixes) {
-		tags = append(tags, protocol.Unnecessary)
-	}
-	if e.Category != "" {
-		category += "." + e.Category
-	}
-	return Diagnostic{
-		URI:            e.URI,
-		Range:          e.Range,
-		Message:        e.Message,
-		Source:         category,
-		Severity:       protocol.SeverityWarning,
-		Tags:           tags,
-		SuggestedFixes: e.SuggestedFixes,
-		Related:        e.Related,
 	}
 }
 

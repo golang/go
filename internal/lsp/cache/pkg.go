@@ -8,9 +8,7 @@ import (
 	"context"
 	"go/ast"
 	"go/types"
-	"sync"
 
-	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -32,9 +30,6 @@ type pkg struct {
 	types      *types.Package
 	typesInfo  *types.Info
 	typesSizes types.Sizes
-
-	diagMu      sync.Mutex
-	diagnostics map[*analysis.Analyzer][]source.Diagnostic
 }
 
 // Declare explicit types for package paths and IDs to ensure that we never use
@@ -68,10 +63,10 @@ func (p *pkg) File(uri span.URI) (source.ParseGoHandle, error) {
 	return nil, errors.Errorf("no ParseGoHandle for %s", uri)
 }
 
-func (p *pkg) GetSyntax(ctx context.Context) []*ast.File {
+func (p *pkg) GetSyntax() []*ast.File {
 	var syntax []*ast.File
 	for _, ph := range p.files {
-		file, _, _, err := ph.Cached(ctx)
+		file, _, _, err := ph.Cached()
 		if err == nil {
 			syntax = append(syntax, file)
 		}
@@ -107,34 +102,27 @@ func (p *pkg) GetImport(ctx context.Context, pkgPath string) (source.Package, er
 	return nil, errors.Errorf("no imported package for %s", pkgPath)
 }
 
-func (p *pkg) SetDiagnostics(a *analysis.Analyzer, diags []source.Diagnostic) {
-	p.diagMu.Lock()
-	defer p.diagMu.Unlock()
-	if p.diagnostics == nil {
-		p.diagnostics = make(map[*analysis.Analyzer][]source.Diagnostic)
-	}
-	p.diagnostics[a] = diags
-}
-
-func (p *pkg) FindDiagnostic(pdiag protocol.Diagnostic) (*source.Diagnostic, error) {
-	p.diagMu.Lock()
-	defer p.diagMu.Unlock()
-
-	for a, diagnostics := range p.diagnostics {
-		if a.Name != pdiag.Source {
-			continue
+func (s *snapshot) FindAnalysisError(ctx context.Context, id string, diag protocol.Diagnostic) (*source.Error, error) {
+	acts := s.getActionHandles(packageID(id), source.ParseFull)
+	for _, act := range acts {
+		errors, _, err := act.analyze(ctx)
+		if err != nil {
+			return nil, err
 		}
-		for _, d := range diagnostics {
-			if d.Message != pdiag.Message {
+		for _, err := range errors {
+			if err.Category != diag.Source {
 				continue
 			}
-			if protocol.CompareRange(d.Range, pdiag.Range) != 0 {
+			if err.Message != diag.Message {
 				continue
 			}
-			return &d, nil
+			if protocol.CompareRange(err.Range, diag.Range) != 0 {
+				continue
+			}
+			return err, nil
 		}
 	}
-	return nil, errors.Errorf("no matching diagnostic for %v", pdiag)
+	return nil, errors.Errorf("no matching diagnostic for %v", diag)
 }
 
 func (p *pkg) FindFile(ctx context.Context, uri span.URI) (source.ParseGoHandle, source.Package, error) {

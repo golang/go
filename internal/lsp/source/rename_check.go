@@ -117,7 +117,7 @@ func (r *renamer) checkInPackageBlock(from types.Object) {
 	}
 
 	// Check for conflicts between package block and all file blocks.
-	for _, f := range pkg.GetSyntax(r.ctx) {
+	for _, f := range pkg.GetSyntax() {
 		fileScope := pkg.GetTypesInfo().Scopes[f]
 		b, prev := fileScope.LookupParent(r.to, token.NoPos)
 		if b == fileScope {
@@ -331,7 +331,7 @@ func forEachLexicalRef(ctx context.Context, pkg Package, obj types.Object, fn fu
 		return true
 	}
 
-	for _, f := range pkg.GetSyntax(ctx) {
+	for _, f := range pkg.GetSyntax() {
 		ast.Inspect(f, visit)
 		if len(stack) != 0 {
 			panic(stack)
@@ -808,7 +808,7 @@ func (r *renamer) satisfy() map[satisfy.Constraint]bool {
 					r.from, r.to, pkg.PkgPath())
 				return nil
 			}
-			f.Find(pkg.GetTypesInfo(), pkg.GetSyntax(r.ctx))
+			f.Find(pkg.GetTypesInfo(), pkg.GetSyntax())
 		}
 		r.satisfyConstraints = f.Result
 	}
@@ -841,7 +841,7 @@ func someUse(info *types.Info, obj types.Object) *ast.Ident {
 //
 func pathEnclosingInterval(ctx context.Context, fset *token.FileSet, pkg Package, start, end token.Pos) (resPkg Package, path []ast.Node, exact bool) {
 	var pkgs = []Package{pkg}
-	for _, f := range pkg.GetSyntax(ctx) {
+	for _, f := range pkg.GetSyntax() {
 		for _, imp := range f.Imports {
 			if imp == nil {
 				continue
@@ -858,7 +858,7 @@ func pathEnclosingInterval(ctx context.Context, fset *token.FileSet, pkg Package
 		}
 	}
 	for _, p := range pkgs {
-		for _, f := range p.GetSyntax(ctx) {
+		for _, f := range p.GetSyntax() {
 			if f.Pos() == token.NoPos {
 				// This can happen if the parser saw
 				// too many errors and bailed out.

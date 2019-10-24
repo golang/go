@@ -17,7 +17,7 @@ func (v *view) CheckPackageHandles(ctx context.Context, f source.File) (source.S
 	// Get the snapshot that will be used for type-checking.
 	s := v.getSnapshot()
 
-	cphs, err := s.checkPackageHandles(ctx, f)
+	cphs, err := s.CheckPackageHandles(ctx, f)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -27,7 +27,7 @@ func (v *view) CheckPackageHandles(ctx context.Context, f source.File) (source.S
 	return s, cphs, nil
 }
 
-func (s *snapshot) checkPackageHandles(ctx context.Context, f source.File) ([]source.CheckPackageHandle, error) {
+func (s *snapshot) CheckPackageHandles(ctx context.Context, f source.File) ([]source.CheckPackageHandle, error) {
 	ctx = telemetry.File.With(ctx, f.URI())
 
 	fh := s.Handle(ctx, f)
@@ -64,6 +64,9 @@ func (s *snapshot) checkPackageHandles(ctx context.Context, f source.File) ([]so
 			results = append(results, cph)
 		}
 		cphs = results
+	}
+	if len(cphs) == 0 {
+		return nil, errors.Errorf("no CheckPackageHandles for %s", f.URI())
 	}
 	return cphs, nil
 }
@@ -106,7 +109,7 @@ func (v *view) GetActiveReverseDeps(ctx context.Context, f source.File) (results
 		if _, ok := seen[f.URI()]; ok {
 			continue
 		}
-		cphs, err := s.checkPackageHandles(ctx, f)
+		cphs, err := s.CheckPackageHandles(ctx, f)
 		if err != nil {
 			continue
 		}

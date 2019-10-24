@@ -123,7 +123,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, mode source.P
 	}
 	h := s.view.session.cache.store.Bind(buildActionKey(a, cph), func(ctx context.Context) interface{} {
 		data := &actionData{}
-		data.diagnostics, data.result, data.err = ah.exec(ctx, s.view.session.cache.fset)
+		data.diagnostics, data.result, data.err = run(ctx, s.view.session.cache.fset, ah)
 		return data
 	})
 	ah.handle = h
@@ -134,6 +134,15 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, mode source.P
 
 func (act *actionHandle) analyze(ctx context.Context) ([]*source.Error, interface{}, error) {
 	v := act.handle.Get(ctx)
+	if v == nil {
+		return nil, nil, errors.Errorf("no analyses for %s", act.pkg.ID())
+	}
+	data := v.(*actionData)
+	return data.diagnostics, data.result, data.err
+}
+
+func (act *actionHandle) cached() ([]*source.Error, interface{}, error) {
+	v := act.handle.Cached()
 	if v == nil {
 		return nil, nil, errors.Errorf("no analyses for %s", act.pkg.ID())
 	}
@@ -177,7 +186,7 @@ func execAll(ctx context.Context, fset *token.FileSet, actions []*actionHandle) 
 	return diagnostics, results, g.Wait()
 }
 
-func (act *actionHandle) exec(ctx context.Context, fset *token.FileSet) ([]*source.Error, interface{}, error) {
+func run(ctx context.Context, fset *token.FileSet, act *actionHandle) ([]*source.Error, interface{}, error) {
 	// Analyze dependencies.
 	_, depResults, err := execAll(ctx, fset, act.deps)
 	if err != nil {
@@ -207,14 +216,22 @@ func (act *actionHandle) exec(ctx context.Context, fset *token.FileSet) ([]*sour
 
 	// Run the analysis.
 	pass := &analysis.Pass{
-		Analyzer:          act.analyzer,
-		Fset:              fset,
-		Files:             act.pkg.GetSyntax(ctx),
-		Pkg:               act.pkg.GetTypes(),
-		TypesInfo:         act.pkg.GetTypesInfo(),
-		TypesSizes:        act.pkg.GetTypesSizes(),
-		ResultOf:          inputs,
-		Report:            func(d analysis.Diagnostic) { diagnostics = append(diagnostics, &d) },
+		Analyzer:   act.analyzer,
+		Fset:       fset,
+		Files:      act.pkg.GetSyntax(),
+		Pkg:        act.pkg.GetTypes(),
+		TypesInfo:  act.pkg.GetTypesInfo(),
+		TypesSizes: act.pkg.GetTypesSizes(),
+		ResultOf:   inputs,
+		Report: func(d analysis.Diagnostic) {
+			// Prefix the diagnostic category with the analyzer's name.
+			if d.Category == "" {
+				d.Category = act.analyzer.Name
+			} else {
+				d.Category = act.analyzer.Name + "." + d.Category
+			}
+			diagnostics = append(diagnostics, &d)
+		},
 		ImportObjectFact:  act.importObjectFact,
 		ExportObjectFact:  act.exportObjectFact,
 		ImportPackageFact: act.importPackageFact,

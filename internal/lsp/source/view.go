@@ -73,7 +73,7 @@ type ParseGoHandle interface {
 	Parse(ctx context.Context) (*ast.File, *protocol.ColumnMapper, error, error)
 
 	// Cached returns the AST for this handle, if it has already been stored.
-	Cached(ctx context.Context) (*ast.File, *protocol.ColumnMapper, error, error)
+	Cached() (*ast.File, *protocol.ColumnMapper, error, error)
 }
 
 // ParseMode controls the content of the AST produced when parsing a source file.
@@ -109,7 +109,7 @@ type CheckPackageHandle interface {
 	Check(ctx context.Context) (Package, error)
 
 	// Cached returns the Package for the CheckPackageHandle if it has already been stored.
-	Cached(ctx context.Context) (Package, error)
+	Cached() (Package, error)
 
 	// MissingDependencies reports any unresolved imports.
 	MissingDependencies() []string
@@ -263,6 +263,14 @@ type Snapshot interface {
 
 	// Analyze runs the analyses for the given package at this snapshot.
 	Analyze(ctx context.Context, id string, analyzers []*analysis.Analyzer) (map[*analysis.Analyzer][]*Error, error)
+
+	// FindAnalysisError returns the analysis error represented by the diagnostic.
+	// This is used to get the SuggestedFixes associated with that error.
+	FindAnalysisError(ctx context.Context, id string, diag protocol.Diagnostic) (*Error, error)
+
+	// CheckPackageHandles returns the CheckPackageHandles for the packages
+	// that this file belongs to.
+	CheckPackageHandles(ctx context.Context, f File) ([]CheckPackageHandle, error)
 }
 
 // File represents a source file of any type.
@@ -278,15 +286,12 @@ type Package interface {
 	PkgPath() string
 	Files() []ParseGoHandle
 	File(uri span.URI) (ParseGoHandle, error)
-	GetSyntax(context.Context) []*ast.File
+	GetSyntax() []*ast.File
 	GetErrors() []*Error
 	GetTypes() *types.Package
 	GetTypesInfo() *types.Info
 	GetTypesSizes() types.Sizes
 	IsIllTyped() bool
-
-	SetDiagnostics(*analysis.Analyzer, []Diagnostic)
-	FindDiagnostic(protocol.Diagnostic) (*Diagnostic, error)
 
 	// GetImport returns the CheckPackageHandle for a package imported by this package.
 	GetImport(ctx context.Context, pkgPath string) (Package, error)
@@ -303,7 +308,7 @@ type Error struct {
 	Range          protocol.Range
 	Kind           ErrorKind
 	Message        string
-	Category       string
+	Category       string // only used by analysis errors so far
 	SuggestedFixes []SuggestedFix
 	Related        []RelatedInformation
 }

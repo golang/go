@@ -64,7 +64,7 @@ func Identifier(ctx context.Context, view View, f File, pos protocol.Position) (
 	if err != nil {
 		return nil, err
 	}
-	file, m, _, err := ph.Cached(ctx)
+	file, m, _, err := ph.Cached()
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +248,7 @@ func objToNode(ctx context.Context, pkg Package, obj types.Object) (ast.Decl, er
 	if err != nil {
 		return nil, err
 	}
-	declAST, _, _, err := ph.Cached(ctx)
+	declAST, _, _, err := ph.Cached()
 	if declAST == nil {
 		return nil, err
 	}
@@ -313,12 +313,12 @@ func importSpec(ctx context.Context, snapshot Snapshot, pkg Package, file *ast.F
 	if err != nil {
 		return nil, err
 	}
-	if importedPkg.GetSyntax(ctx) == nil {
+	if importedPkg.GetSyntax() == nil {
 		return nil, errors.Errorf("no syntax for for %q", importPath)
 	}
 	// Heuristic: Jump to the longest (most "interesting") file of the package.
 	var dest *ast.File
-	for _, f := range importedPkg.GetSyntax(ctx) {
+	for _, f := range importedPkg.GetSyntax() {
 		if dest == nil || f.End()-f.Pos() > dest.End()-dest.Pos() {
 			dest = f
 		}

@@ -180,7 +180,7 @@ func (i *IdentifierInfo) getPkgName(ctx context.Context) (*IdentifierInfo, error
 	if err != nil {
 		return nil, err
 	}
-	file, _, _, err := ph.Cached(ctx)
+	file, _, _, err := ph.Cached()
 	if err != nil {
 		return nil, err
 	}

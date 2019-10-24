@@ -416,7 +416,7 @@ func Completion(ctx context.Context, view View, f File, pos protocol.Position, o
 	if err != nil {
 		return nil, nil, err
 	}
-	file, m, _, err := ph.Cached(ctx)
+	file, m, _, err := ph.Cached()
 	if err != nil {
 		return nil, nil, err
 	}
