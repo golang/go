@@ -9,6 +9,7 @@ package gc
 import (
 	"bufio"
 	"bytes"
+	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
@@ -203,6 +204,7 @@ func Main(archInit func(*Arch)) {
 	// Whether the limit for stack-allocated objects is much smaller than normal.
 	// This can be helpful for diagnosing certain causes of GC latency. See #27732.
 	smallFrames := false
+	jsonLogOpt := ""
 
 	flag.BoolVar(&compiling_runtime, "+", false, "compiling runtime")
 	flag.BoolVar(&compiling_std, "std", false, "compiling standard library")
@@ -276,6 +278,7 @@ func Main(archInit func(*Arch)) {
 	flag.BoolVar(&smallFrames, "smallframes", false, "reduce the size limit for stack allocated objects")
 	flag.BoolVar(&Ctxt.UseBASEntries, "dwarfbasentries", Ctxt.UseBASEntries, "use base address selection entries in DWARF")
 	flag.BoolVar(&Ctxt.Flag_newobj, "newobj", false, "use new object file format")
+	flag.StringVar(&jsonLogOpt, "json", "", "version,destination for JSON compiler/optimizer logging")
 
 	objabi.Flagparse(usage)
 
@@ -476,6 +479,10 @@ func Main(archInit func(*Arch)) {
 	//	-l=2, -l=3: inlining on again, with extra debugging (debug['l'] > 1)
 	if Debug['l'] <= 1 {
 		Debug['l'] = 1 - Debug['l']
+	}
+
+	if jsonLogOpt != "" { // parse version,destination from json logging optimization.
+		logopt.LogJsonOption(jsonLogOpt)
 	}
 
 	ssaDump = os.Getenv("GOSSAFUNC")
@@ -771,6 +778,8 @@ func Main(archInit func(*Arch)) {
 	if len(compilequeue) != 0 {
 		Fatalf("%d uncompiled functions", len(compilequeue))
 	}
+
+	logopt.FlushLoggedOpts(Ctxt, myimportpath)
 
 	if nerrors+nsavederrors != 0 {
 		errorexit()
