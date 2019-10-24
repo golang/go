@@ -1544,6 +1544,7 @@ func TestFindStdlib(t *testing.T) {
 
 // https://golang.org/issue/31814
 func TestStdlibNotPrefixed(t *testing.T) {
+	t.Skip("'go list -m -mod=vendor' currently not allowed: see golang.org/issue/34826")
 	const input = `package p
 var _ = bytes.Buffer
 `
