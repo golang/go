@@ -940,6 +940,15 @@ const (
 	uintptrBits = 32 << (^uintptr(0) >> 63)
 )
 
+// scanPercent scans a literal percent character.
+func (s *ss) scanPercent() {
+	s.SkipSpace()
+	s.notEOF()
+	if !s.accept("%") {
+		s.errorString("missing literal %")
+	}
+}
+
 // scanOne scans a single value, deriving the scanner from the type of the argument.
 func (s *ss) scanOne(verb rune, arg interface{}) {
 	s.buf = s.buf[:0]
@@ -1202,6 +1211,10 @@ func (s *ss) doScanf(format string, a []interface{}) (numProcessed int, err erro
 
 		if c != 'c' {
 			s.SkipSpace()
+		}
+		if c == '%' {
+			s.scanPercent()
+			continue // Do not consume an argument.
 		}
 		s.argLimit = s.limit
 		if f := s.count + s.maxWid; f < s.argLimit {
