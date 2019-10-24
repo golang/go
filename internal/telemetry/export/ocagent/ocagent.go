@@ -114,7 +114,7 @@ func (e *exporter) Log(context.Context, telemetry.Event) {}
 func (e *exporter) Metric(ctx context.Context, data telemetry.MetricData) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.metrics = append(e.metrics, convertMetric(data))
+	e.metrics = append(e.metrics, convertMetric(data, e.config.Start))
 }
 
 func (e *exporter) Flush() {
@@ -202,9 +202,9 @@ func convertSpan(span *telemetry.Span) *wire.Span {
 	return result
 }
 
-func convertMetric(data telemetry.MetricData) *wire.Metric {
+func convertMetric(data telemetry.MetricData, start time.Time) *wire.Metric {
 	descriptor := dataToMetricDescriptor(data)
-	timeseries := dataToTimeseries(data)
+	timeseries := dataToTimeseries(data, start)
 
 	if descriptor == nil && timeseries == nil {
 		return nil

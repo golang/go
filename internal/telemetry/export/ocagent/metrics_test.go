@@ -3,6 +3,7 @@ package ocagent
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"golang.org/x/tools/internal/telemetry"
 	"golang.org/x/tools/internal/telemetry/export/ocagent/wire"
@@ -318,14 +319,22 @@ func TestDataToMetricDescriptorType(t *testing.T) {
 }
 
 func TestDataToTimeseries(t *testing.T) {
+	epoch := time.Unix(0, 0)
+	epochTimestamp := convertTimestamp(epoch)
+
+	end := time.Unix(30, 0)
+	endTimestamp := convertTimestamp(end)
+
 	tests := []struct {
-		name string
-		data telemetry.MetricData
-		want []*wire.TimeSeries
+		name  string
+		data  telemetry.MetricData
+		start time.Time
+		want  []*wire.TimeSeries
 	}{
 		{
 			"nil data",
 			nil,
+			time.Time{},
 			nil,
 		},
 		{
@@ -336,28 +345,36 @@ func TestDataToTimeseries(t *testing.T) {
 					2,
 					3,
 				},
+				EndTime: &end,
 			},
+			epoch,
 			[]*wire.TimeSeries{
 				&wire.TimeSeries{
 					Points: []*wire.Point{
 						&wire.Point{
-							Value: wire.PointInt64Value{Int64Value: 1},
+							Value:     wire.PointInt64Value{Int64Value: 1},
+							Timestamp: &endTimestamp,
 						},
 					},
+					StartTimestamp: &epochTimestamp,
 				},
 				&wire.TimeSeries{
 					Points: []*wire.Point{
 						&wire.Point{
-							Value: wire.PointInt64Value{Int64Value: 2},
+							Value:     wire.PointInt64Value{Int64Value: 2},
+							Timestamp: &endTimestamp,
 						},
 					},
+					StartTimestamp: &epochTimestamp,
 				},
 				&wire.TimeSeries{
 					Points: []*wire.Point{
 						&wire.Point{
-							Value: wire.PointInt64Value{Int64Value: 3},
+							Value:     wire.PointInt64Value{Int64Value: 3},
+							Timestamp: &endTimestamp,
 						},
 					},
+					StartTimestamp: &epochTimestamp,
 				},
 			},
 		},
@@ -368,21 +385,27 @@ func TestDataToTimeseries(t *testing.T) {
 					1.5,
 					4.5,
 				},
+				EndTime: &end,
 			},
+			epoch,
 			[]*wire.TimeSeries{
 				&wire.TimeSeries{
 					Points: []*wire.Point{
 						&wire.Point{
-							Value: wire.PointDoubleValue{DoubleValue: 1.5},
+							Value:     wire.PointDoubleValue{DoubleValue: 1.5},
+							Timestamp: &endTimestamp,
 						},
 					},
+					StartTimestamp: &epochTimestamp,
 				},
 				&wire.TimeSeries{
 					Points: []*wire.Point{
 						&wire.Point{
-							Value: wire.PointDoubleValue{DoubleValue: 4.5},
+							Value:     wire.PointDoubleValue{DoubleValue: 4.5},
+							Timestamp: &endTimestamp,
 						},
 					},
+					StartTimestamp: &epochTimestamp,
 				},
 			},
 		},
@@ -405,7 +428,9 @@ func TestDataToTimeseries(t *testing.T) {
 						0, 5, 10,
 					},
 				},
+				EndTime: &end,
 			},
+			epoch,
 			[]*wire.TimeSeries{
 				&wire.TimeSeries{
 					Points: []*wire.Point{
@@ -432,8 +457,10 @@ func TestDataToTimeseries(t *testing.T) {
 									},
 								},
 							},
+							Timestamp: &endTimestamp,
 						},
 					},
+					StartTimestamp: &epochTimestamp,
 				},
 			},
 		},
@@ -455,7 +482,9 @@ func TestDataToTimeseries(t *testing.T) {
 						0, 5,
 					},
 				},
+				EndTime: &end,
 			},
+			epoch,
 			[]*wire.TimeSeries{
 				&wire.TimeSeries{
 					Points: []*wire.Point{
@@ -479,8 +508,10 @@ func TestDataToTimeseries(t *testing.T) {
 									},
 								},
 							},
+							Timestamp: &endTimestamp,
 						},
 					},
+					StartTimestamp: &epochTimestamp,
 				},
 			},
 		},
@@ -488,7 +519,7 @@ func TestDataToTimeseries(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := dataToTimeseries(tt.data)
+			got := dataToTimeseries(tt.data, tt.start)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Fatalf("Got:\n%s\nWant:\n%s", marshaled(got), marshaled(tt.want))
 			}
@@ -559,11 +590,15 @@ func TestNumRows(t *testing.T) {
 }
 
 func TestDataToPoints(t *testing.T) {
+	end := time.Unix(30, 0)
+	endTimestamp := convertTimestamp(end)
+
 	int64Data := &metric.Int64Data{
 		Rows: []int64{
 			0,
 			10,
 		},
+		EndTime: &end,
 	}
 
 	float64Data := &metric.Float64Data{
@@ -571,6 +606,7 @@ func TestDataToPoints(t *testing.T) {
 			0.5,
 			0.25,
 		},
+		EndTime: &end,
 	}
 
 	histogramInt64Data := &metric.HistogramInt64Data{
@@ -599,6 +635,7 @@ func TestDataToPoints(t *testing.T) {
 				0, 5, 10,
 			},
 		},
+		EndTime: &end,
 	}
 
 	histogramFloat64Data := &metric.HistogramFloat64Data{
@@ -627,6 +664,7 @@ func TestDataToPoints(t *testing.T) {
 				0, 5, 10,
 			},
 		},
+		EndTime: &end,
 	}
 
 	tests := []struct {
@@ -650,6 +688,7 @@ func TestDataToPoints(t *testing.T) {
 					Value: wire.PointInt64Value{
 						Int64Value: 0,
 					},
+					Timestamp: &endTimestamp,
 				},
 			},
 		},
@@ -662,6 +701,7 @@ func TestDataToPoints(t *testing.T) {
 					Value: wire.PointInt64Value{
 						Int64Value: 10,
 					},
+					Timestamp: &endTimestamp,
 				},
 			},
 		},
@@ -674,6 +714,7 @@ func TestDataToPoints(t *testing.T) {
 					Value: wire.PointDoubleValue{
 						DoubleValue: 0.5,
 					},
+					Timestamp: &endTimestamp,
 				},
 			},
 		},
@@ -686,6 +727,7 @@ func TestDataToPoints(t *testing.T) {
 					Value: wire.PointDoubleValue{
 						DoubleValue: 0.25,
 					},
+					Timestamp: &endTimestamp,
 				},
 			},
 		},
@@ -717,6 +759,7 @@ func TestDataToPoints(t *testing.T) {
 							},
 						},
 					},
+					Timestamp: &endTimestamp,
 				},
 			},
 		},
@@ -748,6 +791,7 @@ func TestDataToPoints(t *testing.T) {
 							},
 						},
 					},
+					Timestamp: &endTimestamp,
 				},
 			},
 		},
@@ -779,6 +823,7 @@ func TestDataToPoints(t *testing.T) {
 							},
 						},
 					},
+					Timestamp: &endTimestamp,
 				},
 			},
 		},
@@ -810,6 +855,7 @@ func TestDataToPoints(t *testing.T) {
 							},
 						},
 					},
+					Timestamp: &endTimestamp,
 				},
 			},
 		},
@@ -826,12 +872,16 @@ func TestDataToPoints(t *testing.T) {
 }
 
 func TestDistributionToPoints(t *testing.T) {
+	end := time.Unix(30, 0)
+	endTimestamp := convertTimestamp(end)
+
 	tests := []struct {
 		name    string
 		counts  []int64
 		count   int64
 		sum     float64
 		buckets []float64
+		end     time.Time
 		want    []*wire.Point
 	}{
 		{
@@ -846,6 +896,7 @@ func TestDistributionToPoints(t *testing.T) {
 			buckets: []float64{
 				0, 5, 10,
 			},
+			end: end,
 			want: []*wire.Point{
 				{
 					Value: wire.PointDistributionValue{
@@ -871,6 +922,7 @@ func TestDistributionToPoints(t *testing.T) {
 							},
 						},
 					},
+					Timestamp: &endTimestamp,
 				},
 			},
 		},
@@ -878,7 +930,7 @@ func TestDistributionToPoints(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := distributionToPoints(tt.counts, tt.count, tt.sum, tt.buckets)
+			got := distributionToPoints(tt.counts, tt.count, tt.sum, tt.buckets, tt.end)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Fatalf("Got:\n%s\nWant:\n%s", marshaled(got), marshaled(tt.want))
 			}

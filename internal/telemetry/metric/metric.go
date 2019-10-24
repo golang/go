@@ -131,6 +131,8 @@ type Int64Data struct {
 	IsGauge bool
 	// Rows holds the per group values for the metric.
 	Rows []int64
+	// End is the last time this metric was updated.
+	EndTime *time.Time
 
 	groups []telemetry.TagList
 }
@@ -143,6 +145,8 @@ type Float64Data struct {
 	IsGauge bool
 	// Rows holds the per group values for the metric.
 	Rows []float64
+	// End is the last time this metric was updated.
+	EndTime *time.Time
 
 	groups []telemetry.TagList
 }
@@ -153,6 +157,8 @@ type HistogramInt64Data struct {
 	Info *HistogramInt64
 	// Rows holds the per group values for the metric.
 	Rows []*HistogramInt64Row
+	// End is the last time this metric was updated.
+	EndTime *time.Time
 
 	groups []telemetry.TagList
 }
@@ -177,6 +183,8 @@ type HistogramFloat64Data struct {
 	Info *HistogramFloat64
 	// Rows holds the per group values for the metric.
 	Rows []*HistogramFloat64Row
+	// End is the last time this metric was updated.
+	EndTime *time.Time
 
 	groups []telemetry.TagList
 }
@@ -215,7 +223,7 @@ func getGroup(ctx context.Context, g *[]telemetry.TagList, keys []interface{}) (
 func (data *Int64Data) Handle() string              { return data.Info.Name }
 func (data *Int64Data) Groups() []telemetry.TagList { return data.groups }
 
-func (data *Int64Data) modify(ctx context.Context, f func(v int64) int64) {
+func (data *Int64Data) modify(ctx context.Context, at time.Time, f func(v int64) int64) {
 	index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
 	old := data.Rows
 	if insert {
@@ -227,34 +235,31 @@ func (data *Int64Data) modify(ctx context.Context, f func(v int64) int64) {
 		copy(data.Rows, old)
 	}
 	data.Rows[index] = f(data.Rows[index])
+	data.EndTime = &at
 	frozen := *data
 	export.Metric(ctx, &frozen)
 }
 
 func (data *Int64Data) countInt64(ctx context.Context, measure *stats.Int64Measure, value int64, at time.Time) {
-	// TODO: Use at.
-	data.modify(ctx, func(v int64) int64 { return v + 1 })
+	data.modify(ctx, at, func(v int64) int64 { return v + 1 })
 }
 
 func (data *Int64Data) countFloat64(ctx context.Context, measure *stats.Float64Measure, value float64, at time.Time) {
-	// TODO: Use at.
-	data.modify(ctx, func(v int64) int64 { return v + 1 })
+	data.modify(ctx, at, func(v int64) int64 { return v + 1 })
 }
 
 func (data *Int64Data) sum(ctx context.Context, measure *stats.Int64Measure, value int64, at time.Time) {
-	// TODO: Use at.
-	data.modify(ctx, func(v int64) int64 { return v + value })
+	data.modify(ctx, at, func(v int64) int64 { return v + value })
 }
 
 func (data *Int64Data) latest(ctx context.Context, measure *stats.Int64Measure, value int64, at time.Time) {
-	// TODO: Use at.
-	data.modify(ctx, func(v int64) int64 { return value })
+	data.modify(ctx, at, func(v int64) int64 { return value })
 }
 
 func (data *Float64Data) Handle() string              { return data.Info.Name }
 func (data *Float64Data) Groups() []telemetry.TagList { return data.groups }
 
-func (data *Float64Data) modify(ctx context.Context, f func(v float64) float64) {
+func (data *Float64Data) modify(ctx context.Context, at time.Time, f func(v float64) float64) {
 	index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
 	old := data.Rows
 	if insert {
@@ -266,23 +271,23 @@ func (data *Float64Data) modify(ctx context.Context, f func(v float64) float64) 
 		copy(data.Rows, old)
 	}
 	data.Rows[index] = f(data.Rows[index])
+	data.EndTime = &at
 	frozen := *data
 	export.Metric(ctx, &frozen)
 }
 
 func (data *Float64Data) sum(ctx context.Context, measure *stats.Float64Measure, value float64, at time.Time) {
-	data.modify(ctx, func(v float64) float64 { return v + value })
+	data.modify(ctx, at, func(v float64) float64 { return v + value })
 }
 
 func (data *Float64Data) latest(ctx context.Context, measure *stats.Float64Measure, value float64, at time.Time) {
-	// TODO: Use at.
-	data.modify(ctx, func(v float64) float64 { return value })
+	data.modify(ctx, at, func(v float64) float64 { return value })
 }
 
 func (data *HistogramInt64Data) Handle() string              { return data.Info.Name }
 func (data *HistogramInt64Data) Groups() []telemetry.TagList { return data.groups }
 
-func (data *HistogramInt64Data) modify(ctx context.Context, f func(v *HistogramInt64Row)) {
+func (data *HistogramInt64Data) modify(ctx context.Context, at time.Time, f func(v *HistogramInt64Row)) {
 	index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
 	old := data.Rows
 	var v HistogramInt64Row
@@ -300,13 +305,13 @@ func (data *HistogramInt64Data) modify(ctx context.Context, f func(v *HistogramI
 	copy(v.Values, oldValues)
 	f(&v)
 	data.Rows[index] = &v
+	data.EndTime = &at
 	frozen := *data
 	export.Metric(ctx, &frozen)
 }
 
 func (data *HistogramInt64Data) record(ctx context.Context, measure *stats.Int64Measure, value int64, at time.Time) {
-	// TODO: Use at.
-	data.modify(ctx, func(v *HistogramInt64Row) {
+	data.modify(ctx, at, func(v *HistogramInt64Row) {
 		v.Sum += value
 		if v.Min > value || v.Count == 0 {
 			v.Min = value
@@ -326,7 +331,7 @@ func (data *HistogramInt64Data) record(ctx context.Context, measure *stats.Int64
 func (data *HistogramFloat64Data) Handle() string              { return data.Info.Name }
 func (data *HistogramFloat64Data) Groups() []telemetry.TagList { return data.groups }
 
-func (data *HistogramFloat64Data) modify(ctx context.Context, f func(v *HistogramFloat64Row)) {
+func (data *HistogramFloat64Data) modify(ctx context.Context, at time.Time, f func(v *HistogramFloat64Row)) {
 	index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
 	old := data.Rows
 	var v HistogramFloat64Row
@@ -344,13 +349,13 @@ func (data *HistogramFloat64Data) modify(ctx context.Context, f func(v *Histogra
 	copy(v.Values, oldValues)
 	f(&v)
 	data.Rows[index] = &v
+	data.EndTime = &at
 	frozen := *data
 	export.Metric(ctx, &frozen)
 }
 
 func (data *HistogramFloat64Data) record(ctx context.Context, measure *stats.Float64Measure, value float64, at time.Time) {
-	// TODO: Use at.
-	data.modify(ctx, func(v *HistogramFloat64Row) {
+	data.modify(ctx, at, func(v *HistogramFloat64Row) {
 		v.Sum += value
 		if v.Min > value || v.Count == 0 {
 			v.Min = value

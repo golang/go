@@ -6,6 +6,7 @@ package ocagent
 
 import (
 	"fmt"
+	"time"
 
 	"golang.org/x/tools/internal/telemetry"
 	"golang.org/x/tools/internal/telemetry/export/ocagent/wire"
@@ -95,17 +96,18 @@ func dataToMetricDescriptorType(data telemetry.MetricData) wire.MetricDescriptor
 
 // dataToTimeseries returns a slice of *wire.TimeSeries based on the
 // points in data.
-func dataToTimeseries(data telemetry.MetricData) []*wire.TimeSeries {
+func dataToTimeseries(data telemetry.MetricData, start time.Time) []*wire.TimeSeries {
 	if data == nil {
 		return nil
 	}
 
 	numRows := numRows(data)
+	startTimestamp := convertTimestamp(start)
 	timeseries := make([]*wire.TimeSeries, 0, numRows)
 
 	for i := 0; i < numRows; i++ {
 		timeseries = append(timeseries, &wire.TimeSeries{
-			// TODO: attach StartTimestamp
+			StartTimestamp: &startTimestamp,
 			// TODO: labels?
 			Points: dataToPoints(data, i),
 		})
@@ -135,21 +137,23 @@ func numRows(data telemetry.MetricData) int {
 func dataToPoints(data telemetry.MetricData, i int) []*wire.Point {
 	switch d := data.(type) {
 	case *metric.Int64Data:
+		timestamp := convertTimestamp(*d.EndTime)
 		return []*wire.Point{
 			{
 				Value: wire.PointInt64Value{
 					Int64Value: d.Rows[i],
 				},
-				// TODO: attach Timestamp
+				Timestamp: &timestamp,
 			},
 		}
 	case *metric.Float64Data:
+		timestamp := convertTimestamp(*d.EndTime)
 		return []*wire.Point{
 			{
 				Value: wire.PointDoubleValue{
 					DoubleValue: d.Rows[i],
 				},
-				// TODO: attach Timestamp
+				Timestamp: &timestamp,
 			},
 		}
 	case *metric.HistogramInt64Data:
@@ -158,10 +162,10 @@ func dataToPoints(data telemetry.MetricData, i int) []*wire.Point {
 		for i, val := range d.Info.Buckets {
 			bucketBounds[i] = float64(val)
 		}
-		return distributionToPoints(row.Values, row.Count, float64(row.Sum), bucketBounds)
+		return distributionToPoints(row.Values, row.Count, float64(row.Sum), bucketBounds, *d.EndTime)
 	case *metric.HistogramFloat64Data:
 		row := d.Rows[i]
-		return distributionToPoints(row.Values, row.Count, row.Sum, d.Info.Buckets)
+		return distributionToPoints(row.Values, row.Count, row.Sum, d.Info.Buckets, *d.EndTime)
 	}
 
 	return nil
@@ -170,13 +174,14 @@ func dataToPoints(data telemetry.MetricData, i int) []*wire.Point {
 // distributionToPoints returns an array of *wire.Points containing a
 // wire.PointDistributionValue representing a distribution with the
 // supplied counts, count, and sum.
-func distributionToPoints(counts []int64, count int64, sum float64, bucketBounds []float64) []*wire.Point {
+func distributionToPoints(counts []int64, count int64, sum float64, bucketBounds []float64, end time.Time) []*wire.Point {
 	buckets := make([]*wire.Bucket, len(counts))
 	for i := 0; i < len(counts); i++ {
 		buckets[i] = &wire.Bucket{
 			Count: counts[i],
 		}
 	}
+	timestamp := convertTimestamp(end)
 	return []*wire.Point{
 		{
 			Value: wire.PointDistributionValue{
@@ -190,6 +195,7 @@ func distributionToPoints(counts []int64, count int64, sum float64, bucketBounds
 					},
 				},
 			},
+			Timestamp: &timestamp,
 		},
 	}
 }
