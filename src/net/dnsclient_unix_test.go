@@ -1621,3 +1621,50 @@ func TestTXTRecordTwoStrings(t *testing.T) {
 		t.Errorf("txt[1], got %q, want %q", txt[1], want)
 	}
 }
+
+// Issue 34660: PTR response with non-PTR answers should ignore non-PTR
+func TestPTRandNonPTR(t *testing.T) {
+	fake := fakeDNSServer{
+		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+			r := dnsmessage.Message{
+				Header: dnsmessage.Header{
+					ID:       q.Header.ID,
+					Response: true,
+					RCode:    dnsmessage.RCodeSuccess,
+				},
+				Questions: q.Questions,
+				Answers: []dnsmessage.Resource{
+					{
+						Header: dnsmessage.ResourceHeader{
+							Name:  q.Questions[0].Name,
+							Type:  dnsmessage.TypePTR,
+							Class: dnsmessage.ClassINET,
+						},
+						Body: &dnsmessage.PTRResource{
+							PTR: mustNewName("golang.org."),
+						},
+					},
+					{
+						Header: dnsmessage.ResourceHeader{
+							Name:  q.Questions[0].Name,
+							Type:  dnsmessage.TypeTXT,
+							Class: dnsmessage.ClassINET,
+						},
+						Body: &dnsmessage.TXTResource{
+							TXT: []string{"PTR 8 6 60 ..."}, // fake RRSIG
+						},
+					},
+				},
+			}
+			return r, nil
+		},
+	}
+	r := Resolver{PreferGo: true, Dial: fake.DialContext}
+	names, err := r.lookupAddr(context.Background(), "192.0.2.123")
+	if err != nil {
+		t.Fatalf("LookupAddr: %v", err)
+	}
+	if want := []string{"golang.org."}; !reflect.DeepEqual(names, want) {
+		t.Errorf("names = %q; want %q", names, want)
+	}
+}

@@ -24,6 +24,8 @@ func TestMain(m *testing.M) {
 }
 
 func testMain(m *testing.M) int {
+	SetProxy("direct")
+
 	dir, err := ioutil.TempDir("", "gitrepo-test-")
 	if err != nil {
 		log.Fatal(err)
@@ -284,10 +286,10 @@ var codeRepoTests = []struct {
 	{
 		path:    "gopkg.in/yaml.v2",
 		rev:     "v2",
-		version: "v2.2.2",
-		name:    "51d6538a90f86fe93ac480b35f37b2be17fef232",
-		short:   "51d6538a90f8",
-		time:    time.Date(2018, 11, 15, 11, 05, 04, 0, time.UTC),
+		version: "v2.2.5-0.20191002202810-970885f01c8b",
+		name:    "970885f01c8bc1fecb7ab1c8ce8e7609bda45530",
+		short:   "970885f01c8b",
+		time:    time.Date(2019, 10, 2, 20, 28, 10, 0, time.UTC),
 		gomod:   "module \"gopkg.in/yaml.v2\"\n\nrequire (\n\t\"gopkg.in/check.v1\" v0.0.0-20161208181325-20d25e280405\n)\n",
 	},
 	{
