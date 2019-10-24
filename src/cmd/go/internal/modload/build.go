@@ -179,11 +179,12 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 		} else {
 			info.Replace.Dir = filepath.Join(ModRoot(), r.Path)
 		}
+		info.Replace.GoMod = filepath.Join(info.Replace.Dir, "go.mod")
 	}
 	if cfg.BuildMod != "vendor" {
 		completeFromModCache(info.Replace)
 		info.Dir = info.Replace.Dir
-		info.GoMod = filepath.Join(info.Dir, "go.mod")
+		info.GoMod = info.Replace.GoMod
 	}
 	return info
 }
