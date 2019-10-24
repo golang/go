@@ -66,14 +66,10 @@ func testGetdirentries(t *testing.T, count int) {
 		}
 		data := buf[:n]
 		for len(data) > 0 {
-			// syscall.Getdirentries's return value may be (and usually is) much
-			// smaller than a syscall.Dirent, which has lots of padding for
-			// the name at the end. The compiler's checkptr validation doesn't like
-			// that. So allocate direntMem that's always big enough, and use that
-			// when converting to *syscall.Dirent.
-			var direntMem [unsafe.Sizeof(syscall.Dirent{})]byte
-			copy(direntMem[:], data)
-			dirent := (*syscall.Dirent)(unsafe.Pointer(&direntMem[0]))
+			// If multiple Dirents are written into buf, sometimes when we reach the final one,
+			// we have cap(buf) < Sizeof(Dirent). So use an appropriate slice to copy from data.
+			var dirent syscall.Dirent
+			copy((*[unsafe.Sizeof(dirent)]byte)(unsafe.Pointer(&dirent))[:], data)
 
 			data = data[dirent.Reclen:]
 			name := make([]byte, dirent.Namlen)
