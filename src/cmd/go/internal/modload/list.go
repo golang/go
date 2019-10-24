@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/modinfo"
 	"cmd/go/internal/module"
 	"cmd/go/internal/par"
@@ -124,10 +125,20 @@ func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
 					}
 					continue
 				}
-				mods = append(mods, &modinfo.ModulePublic{
-					Path:  arg,
-					Error: modinfoError(arg, "", errors.New("not a known dependency")),
-				})
+				if cfg.BuildMod == "vendor" {
+					// In vendor mode, we can't determine whether a missing module is “a
+					// known dependency” because the module graph is incomplete.
+					// Give a more explicit error message.
+					mods = append(mods, &modinfo.ModulePublic{
+						Path:  arg,
+						Error: modinfoError(arg, "", errors.New("can't resolve module using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)")),
+					})
+				} else {
+					mods = append(mods, &modinfo.ModulePublic{
+						Path:  arg,
+						Error: modinfoError(arg, "", errors.New("not a known dependency")),
+					})
+				}
 			} else {
 				fmt.Fprintf(os.Stderr, "warning: pattern %q matched no module dependencies\n", arg)
 			}
