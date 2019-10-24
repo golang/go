@@ -117,6 +117,8 @@ type Loader struct {
 	// field tracking is enabled. Reachparent[K] contains the index of
 	// the symbol that triggered the marking of symbol K as live.
 	Reachparent []Sym
+
+	relocBatch []sym.Reloc // for bulk allocation of relocations
 }
 
 func NewLoader() *Loader {
@@ -229,7 +231,7 @@ func (l *Loader) IsExternal(i Sym) bool {
 	return l.extStart != 0 && i >= l.extStart
 }
 
-// Ensure Syms slice als enough space.
+// Ensure Syms slice has enough space.
 func (l *Loader) growSyms(i int) {
 	n := len(l.Syms)
 	if n > i {
@@ -735,9 +737,14 @@ func preprocess(arch *sys.Arch, s *sym.Symbol) {
 func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 	// create all Symbols first.
 	l.growSyms(l.NSym())
+
+	nr := 0 // total number of sym.Reloc's we'll need
 	for _, o := range l.objs[1:] {
-		loadObjSyms(l, syms, o.r)
+		nr += loadObjSyms(l, syms, o.r)
 	}
+
+	// allocate a single large slab of relocations for all live symbols
+	l.relocBatch = make([]sym.Reloc, nr)
 
 	// external symbols
 	for i := l.extStart; i <= l.max; i++ {
@@ -811,14 +818,19 @@ func (l *Loader) addNewSym(i Sym, syms *sym.Symbols, name string, ver int, unit 
 	return s
 }
 
-func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) {
+// loadObjSyms creates sym.Symbol objects for the live Syms in the
+// object corresponding to object reader "r". Return value is the
+// number of sym.Reloc entries required for all the new symbols.
+func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
 	istart := l.startIndex(r)
+	nr := 0
 
 	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
 		// If it's been previously loaded in host object loading, we don't need to do it again.
 		if s := l.Syms[istart+Sym(i)]; s != nil {
 			// Mark symbol as reachable as it wasn't marked as such before.
 			s.Attr.Set(sym.AttrReachable, l.Reachable.Has(istart+Sym(i)))
+			nr += r.NReloc(i)
 			continue
 		}
 		osym := goobj2.Sym{}
@@ -848,7 +860,28 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) {
 
 		s := l.addNewSym(istart+Sym(i), syms, name, ver, r.unit, t)
 		s.Attr.Set(sym.AttrReachable, l.Reachable.Has(istart+Sym(i)))
+		nr += r.NReloc(i)
 	}
+	return nr
+}
+
+// funcInfoSym records the sym.Symbol for a function, along with a copy
+// of the corresponding goobj2.Sym and the index of its FuncInfo aux sym.
+// We use this to delay populating FuncInfo until we can batch-allocate
+// slices for their sub-objects.
+type funcInfoSym struct {
+	s    *sym.Symbol // sym.Symbol for a live function
+	osym goobj2.Sym  // object file symbol data for that function
+	isym int         // global symbol index of FuncInfo aux sym for func
+}
+
+// funcAllocInfo records totals/counts for all functions in an objfile;
+// used to help with bulk allocation of sym.Symbol sub-objects.
+type funcAllocInfo struct {
+	symPtr  uint32 // number of *sym.Symbol's needed in file slices
+	inlCall uint32 // number of sym.InlinedCall's needed in inltree slices
+	pcData  uint32 // number of sym.Pcdata's needed in pdata slices
+	fdOff   uint32 // number of int64's needed in all Funcdataoff slices
 }
 
 // LoadSymbol loads a single symbol by name.
@@ -884,6 +917,9 @@ func loadObjFull(l *Loader, r *oReader) {
 		return l.Syms[i]
 	}
 
+	funcs := []funcInfoSym{}
+	fdsyms := []*sym.Symbol{}
+	var funcAllocCounts funcAllocInfo
 	pcdataBase := r.PcdataBase()
 	rslice := []Reloc{}
 	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
@@ -930,7 +966,9 @@ func loadObjFull(l *Loader, r *oReader) {
 		// Relocs
 		relocs := l.relocs(r, i)
 		rslice = relocs.ReadAll(rslice)
-		s.R = make([]sym.Reloc, relocs.Count)
+		batch := l.relocBatch
+		s.R = batch[:relocs.Count:relocs.Count]
+		l.relocBatch = batch[relocs.Count:]
 		for j := range s.R {
 			r := rslice[j]
 			rs := r.Sym
@@ -974,12 +1012,7 @@ func loadObjFull(l *Loader, r *oReader) {
 					s.Gotype = typ
 				}
 			case goobj2.AuxFuncdata:
-				pc := s.FuncInfo
-				if pc == nil {
-					pc = &sym.FuncInfo{Funcdata: make([]*sym.Symbol, 0, 4)}
-					s.FuncInfo = pc
-				}
-				pc.Funcdata = append(pc.Funcdata, resolveSymRef(a.Sym))
+				fdsyms = append(fdsyms, resolveSymRef(a.Sym))
 			case goobj2.AuxFuncInfo:
 				if a.Sym.PkgIdx != goobj2.PkgIdxSelf {
 					panic("funcinfo symbol not defined in current package")
@@ -1014,10 +1047,44 @@ func loadObjFull(l *Loader, r *oReader) {
 			continue
 		}
 
-		// FuncInfo
 		if isym == -1 {
 			continue
 		}
+
+		// Record function sym and associated info for additional
+		// processing in the loop below.
+		fwis := funcInfoSym{s: s, isym: isym, osym: osym}
+		funcs = append(funcs, fwis)
+
+		// Read the goobj2.FuncInfo for this text symbol so that we can
+		// collect allocation counts. We'll read it again in the loop
+		// below.
+		b := r.Data(isym)
+		info := goobj2.FuncInfo{}
+		info.Read(b)
+		funcAllocCounts.symPtr += uint32(len(info.File))
+		funcAllocCounts.pcData += uint32(len(info.Pcdata))
+		funcAllocCounts.inlCall += uint32(len(info.InlTree))
+		funcAllocCounts.fdOff += uint32(len(info.Funcdataoff))
+	}
+
+	// At this point we can do batch allocation of the sym.FuncInfo's,
+	// along with the slices of sub-objects they use.
+	fiBatch := make([]sym.FuncInfo, len(funcs))
+	inlCallBatch := make([]sym.InlinedCall, funcAllocCounts.inlCall)
+	symPtrBatch := make([]*sym.Symbol, funcAllocCounts.symPtr)
+	pcDataBatch := make([]sym.Pcdata, funcAllocCounts.pcData)
+	fdOffBatch := make([]int64, funcAllocCounts.fdOff)
+
+	// Populate FuncInfo contents for func symbols.
+	for fi := 0; fi < len(funcs); fi++ {
+		s := funcs[fi].s
+		isym := funcs[fi].isym
+		osym := funcs[fi].osym
+
+		s.FuncInfo = &fiBatch[0]
+		fiBatch = fiBatch[1:]
+
 		b := r.Data(isym)
 		info := goobj2.FuncInfo{}
 		info.Read(b)
@@ -1035,18 +1102,34 @@ func loadObjFull(l *Loader, r *oReader) {
 			s.Attr |= sym.AttrTopFrame
 		}
 
-		info.Pcdata = append(info.Pcdata, info.PcdataEnd) // for the ease of knowing where it ends
 		pc := s.FuncInfo
-		if pc == nil {
-			pc = &sym.FuncInfo{}
-			s.FuncInfo = pc
+
+		if len(info.Funcdataoff) != 0 {
+			nfd := len(info.Funcdataoff)
+			pc.Funcdata = fdsyms[:nfd:nfd]
+			fdsyms = fdsyms[nfd:]
 		}
+
+		info.Pcdata = append(info.Pcdata, info.PcdataEnd) // for the ease of knowing where it ends
 		pc.Args = int32(info.Args)
 		pc.Locals = int32(info.Locals)
-		pc.Pcdata = make([]sym.Pcdata, len(info.Pcdata)-1) // -1 as we appended one above
-		pc.Funcdataoff = make([]int64, len(info.Funcdataoff))
-		pc.File = make([]*sym.Symbol, len(info.File))
-		pc.InlTree = make([]sym.InlinedCall, len(info.InlTree))
+
+		npc := len(info.Pcdata) - 1 // -1 as we appended one above
+		pc.Pcdata = pcDataBatch[:npc:npc]
+		pcDataBatch = pcDataBatch[npc:]
+
+		nfd := len(info.Funcdataoff)
+		pc.Funcdataoff = fdOffBatch[:nfd:nfd]
+		fdOffBatch = fdOffBatch[nfd:]
+
+		nsp := len(info.File)
+		pc.File = symPtrBatch[:nsp:nsp]
+		symPtrBatch = symPtrBatch[nsp:]
+
+		nic := len(info.InlTree)
+		pc.InlTree = inlCallBatch[:nic:nic]
+		inlCallBatch = inlCallBatch[nic:]
+
 		pc.Pcsp.P = r.BytesAt(pcdataBase+info.Pcsp, int(info.Pcfile-info.Pcsp))
 		pc.Pcfile.P = r.BytesAt(pcdataBase+info.Pcfile, int(info.Pcline-info.Pcfile))
 		pc.Pcline.P = r.BytesAt(pcdataBase+info.Pcline, int(info.Pcinline-info.Pcline))
@@ -1071,6 +1154,7 @@ func loadObjFull(l *Loader, r *oReader) {
 			}
 		}
 
+		dupok := osym.Dupok()
 		if !dupok {
 			if s.Attr.OnList() {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
@@ -1078,7 +1162,7 @@ func loadObjFull(l *Loader, r *oReader) {
 			s.Attr.Set(sym.AttrOnList, true)
 			lib.Textp = append(lib.Textp, s)
 		} else {
-			// there may ba a dup in another package
+			// there may be a dup in another package
 			// put into a temp list and add to text later
 			lib.DupTextSyms = append(lib.DupTextSyms, s)
 		}
