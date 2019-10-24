@@ -15,11 +15,11 @@ import (
 	"go/token"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
+
+	"cmd/internal/utils"
 )
 
 var (
@@ -186,7 +186,7 @@ func processFile(filename string, useStdin bool) error {
 	}
 
 	if *doDiff {
-		data, err := diff(src, newSrc)
+		data, err := utils.Diff("go-fix", src, newSrc)
 		if err != nil {
 			return fmt.Errorf("computing diff: %s", err)
 		}
@@ -213,17 +213,12 @@ func gofmt(n interface{}) string {
 	return gofmtBuf.String()
 }
 
-func report(err error) {
-	scanner.PrintError(os.Stderr, err)
-	exitCode = 2
-}
-
 func walkDir(path string) {
 	filepath.Walk(path, visitFile)
 }
 
 func visitFile(path string, f os.FileInfo, err error) error {
-	if err == nil && isGoFile(f) {
+	if err == nil && utils.IsGoFile(f) {
 		err = processFile(path, false)
 	}
 	if err != nil {
@@ -232,51 +227,7 @@ func visitFile(path string, f os.FileInfo, err error) error {
 	return nil
 }
 
-func isGoFile(f os.FileInfo) bool {
-	// ignore non-Go files
-	name := f.Name()
-	return !f.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go")
-}
-
-func writeTempFile(dir, prefix string, data []byte) (string, error) {
-	file, err := ioutil.TempFile(dir, prefix)
-	if err != nil {
-		return "", err
-	}
-	_, err = file.Write(data)
-	if err1 := file.Close(); err == nil {
-		err = err1
-	}
-	if err != nil {
-		os.Remove(file.Name())
-		return "", err
-	}
-	return file.Name(), nil
-}
-
-func diff(b1, b2 []byte) (data []byte, err error) {
-	f1, err := writeTempFile("", "go-fix", b1)
-	if err != nil {
-		return
-	}
-	defer os.Remove(f1)
-
-	f2, err := writeTempFile("", "go-fix", b2)
-	if err != nil {
-		return
-	}
-	defer os.Remove(f2)
-
-	cmd := "diff"
-	if runtime.GOOS == "plan9" {
-		cmd = "/bin/ape/diff"
-	}
-
-	data, err = exec.Command(cmd, "-u", f1, f2).CombinedOutput()
-	if len(data) > 0 {
-		// diff exits with a non-zero status when the files don't match.
-		// Ignore that failure as long as we get output.
-		err = nil
-	}
-	return
+func report(err error) {
+	scanner.PrintError(os.Stderr, err)
+	exitCode = 2
 }
