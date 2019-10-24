@@ -59,6 +59,7 @@ type oReader struct {
 	version   int    // version of static symbol
 	flags     uint32 // read from object file
 	pkgprefix string
+	rcache    []Sym // cache mapping local PkgNone symbol to resolved Sym
 }
 
 type objIdx struct {
@@ -257,6 +258,26 @@ func (l *Loader) toLocal(i Sym) (*oReader, int) {
 	return l.objs[k-1].r, int(i - l.objs[k-1].i)
 }
 
+// rcacheGet checks for a valid entry for 's' in the readers cache,
+// where 's' is a local PkgIdxNone ref or def, or zero if
+// the cache is empty or doesn't contain a value for 's'.
+func (or *oReader) rcacheGet(symIdx uint32) Sym {
+	if len(or.rcache) > 0 {
+		return or.rcache[symIdx]
+	}
+	return 0
+}
+
+// rcacheSet installs a new entry in the oReader's PkgNone
+// resolver cache for the specified PkgIdxNone ref or def,
+// allocating a new cache if needed.
+func (or *oReader) rcacheSet(symIdx uint32, gsym Sym) {
+	if len(or.rcache) == 0 {
+		or.rcache = make([]Sym, or.NNonpkgdef()+or.NNonpkgref())
+	}
+	or.rcache[symIdx] = gsym
+}
+
 // Resolve a local symbol reference. Return global index.
 func (l *Loader) resolve(r *oReader, s goobj2.SymRef) Sym {
 	var rr *oReader
@@ -267,13 +288,20 @@ func (l *Loader) resolve(r *oReader, s goobj2.SymRef) Sym {
 		}
 		return 0
 	case goobj2.PkgIdxNone:
+		// Check for cached version first
+		if cached := r.rcacheGet(s.SymIdx); cached != 0 {
+			return cached
+		}
 		// Resolve by name
 		i := int(s.SymIdx) + r.NSym()
 		osym := goobj2.Sym{}
 		osym.Read(r.Reader, r.SymOff(i))
 		name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
 		v := abiToVer(osym.ABI, r.version)
-		return l.Lookup(name, v)
+		gsym := l.Lookup(name, v)
+		// Add to cache, then return.
+		r.rcacheSet(s.SymIdx, gsym)
+		return gsym
 	case goobj2.PkgIdxBuiltin:
 		return l.builtinSyms[s.SymIdx]
 	case goobj2.PkgIdxSelf:
@@ -549,7 +577,7 @@ func (l *Loader) Preload(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *
 	}
 	localSymVersion := syms.IncVersion()
 	pkgprefix := objabi.PathToPrefix(lib.Pkg) + "."
-	or := &oReader{r, unit, localSymVersion, r.Flags(), pkgprefix}
+	or := &oReader{r, unit, localSymVersion, r.Flags(), pkgprefix, nil}
 
 	// Autolib
 	lib.ImportStrings = append(lib.ImportStrings, r.Autolib()...)
