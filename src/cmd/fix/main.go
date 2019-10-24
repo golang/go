@@ -19,7 +19,7 @@ import (
 	"sort"
 	"strings"
 
-	"cmd/internal/utils"
+	"cmd/internal/diff"
 )
 
 var (
@@ -186,7 +186,7 @@ func processFile(filename string, useStdin bool) error {
 	}
 
 	if *doDiff {
-		data, err := utils.Diff("go-fix", src, newSrc)
+		data, err := diff.Diff("go-fix", src, newSrc)
 		if err != nil {
 			return fmt.Errorf("computing diff: %s", err)
 		}
@@ -213,12 +213,17 @@ func gofmt(n interface{}) string {
 	return gofmtBuf.String()
 }
 
+func report(err error) {
+	scanner.PrintError(os.Stderr, err)
+	exitCode = 2
+}
+
 func walkDir(path string) {
 	filepath.Walk(path, visitFile)
 }
 
 func visitFile(path string, f os.FileInfo, err error) error {
-	if err == nil && utils.IsGoFile(f) {
+	if err == nil && isGoFile(f) {
 		err = processFile(path, false)
 	}
 	if err != nil {
@@ -227,7 +232,8 @@ func visitFile(path string, f os.FileInfo, err error) error {
 	return nil
 }
 
-func report(err error) {
-	scanner.PrintError(os.Stderr, err)
-	exitCode = 2
+func isGoFile(f os.FileInfo) bool {
+	// ignore non-Go files
+	name := f.Name()
+	return !f.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go")
 }

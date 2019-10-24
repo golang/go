@@ -21,7 +21,7 @@ import (
 	"runtime/pprof"
 	"strings"
 
-	"cmd/internal/utils"
+	"cmd/internal/diff"
 )
 
 var (
@@ -49,6 +49,11 @@ var (
 	parserMode parser.Mode
 )
 
+func report(err error) {
+	scanner.PrintError(os.Stderr, err)
+	exitCode = 2
+}
+
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: gofmt [flags] [path ...]\n")
 	flag.PrintDefaults()
@@ -59,6 +64,12 @@ func initParserMode() {
 	if *allErrors {
 		parserMode |= parser.AllErrors
 	}
+}
+
+func isGoFile(f os.FileInfo) bool {
+	// ignore non-Go files
+	name := f.Name()
+	return !f.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go")
 }
 
 // If in == nil, the source is the contents of the file with the given filename.
@@ -147,16 +158,8 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 	return err
 }
 
-func diffWithReplaceTempFile(b1, b2 []byte, filename string) (data []byte, err error) {
-	data, err = utils.Diff("gofmt", b1, b2)
-	if len(data) > 0 {
-		return replaceTempFilename(data, filename)
-	}
-	return
-}
-
 func visitFile(path string, f os.FileInfo, err error) error {
-	if err == nil && utils.IsGoFile(f) {
+	if err == nil && isGoFile(f) {
 		err = processFile(path, nil, os.Stdout, false)
 	}
 	// Don't complain if a file was deleted in the meantime (i.e.
@@ -223,6 +226,14 @@ func gofmtMain() {
 			}
 		}
 	}
+}
+
+func diffWithReplaceTempFile(b1, b2 []byte, filename string) (data []byte, err error) {
+	data, err = diff.Diff("gofmt", b1, b2)
+	if len(data) > 0 {
+		return replaceTempFilename(data, filename)
+	}
+	return
 }
 
 // replaceTempFilename replaces temporary filenames in diff with actual one.
@@ -335,9 +346,4 @@ func normalizeNumbers(n ast.Node) bool {
 
 	lit.Value = x
 	return false
-}
-
-func report(err error) {
-	scanner.PrintError(os.Stderr, err)
-	exitCode = 2
 }

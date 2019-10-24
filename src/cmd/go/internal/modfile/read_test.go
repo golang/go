@@ -14,7 +14,7 @@ import (
 	"strings"
 	"testing"
 
-	"cmd/internal/utils"
+	"cmd/internal/diff"
 )
 
 // exists reports whether the named file exists.
@@ -285,7 +285,7 @@ func (eq *eqchecker) checkValue(v, w reflect.Value) error {
 
 // tdiff logs the diff output to t.Error.
 func tdiff(t *testing.T, a, b string) {
-	data, err := utils.Diff("modfile-test", []byte(a), []byte(b))
+	data, err := diff.Diff("modfile-test", []byte(a), []byte(b))
 	if err != nil {
 		t.Error(err)
 		return

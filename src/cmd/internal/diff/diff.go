@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package utils
+package diff
 
 import (
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"runtime"
-	"strings"
 )
 
 func Diff(prefix string, b1, b2 []byte) (data []byte, err error) {
@@ -53,10 +52,4 @@ func writeTempFile(dir, prefix string, data []byte) (string, error) {
 		return "", err
 	}
 	return file.Name(), nil
-}
-
-func IsGoFile(f os.FileInfo) bool {
-	// ignore non-Go files
-	name := f.Name()
-	return !f.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go")
 }

@@ -21,8 +21,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-
-	"cmd/internal/utils"
 )
 
 var (
@@ -114,7 +112,7 @@ func genFilenames(t *testing.T, filenames chan<- string) {
 			t.Error(err)
 			return nil
 		}
-		if utils.IsGoFile(fi) {
+		if isGoFile(fi) {
 			filenames <- filename
 			nfiles++
 		}
