@@ -17,7 +17,7 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*analysis.Analyzer) (map[*analysis.Analyzer][]*source.Error, error) {
+func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*analysis.Analyzer) ([]*source.Error, error) {
 	var roots []*actionHandle
 
 	for _, a := range analyzers {
@@ -34,14 +34,14 @@ func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*analysis
 		return nil, ctx.Err()
 	}
 
-	results := make(map[*analysis.Analyzer][]*source.Error)
+	var results []*source.Error
 	for _, ah := range roots {
 		diagnostics, _, err := ah.analyze(ctx)
 		if err != nil {
 			log.Error(ctx, "no results", err)
 			continue
 		}
-		results[ah.analyzer] = diagnostics
+		results = append(results, diagnostics...)
 	}
 	return results, nil
 }
@@ -123,7 +123,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, mode source.P
 	}
 	h := s.view.session.cache.store.Bind(buildActionKey(a, cph), func(ctx context.Context) interface{} {
 		data := &actionData{}
-		data.diagnostics, data.result, data.err = run(ctx, s.view.session.cache.fset, ah)
+		data.diagnostics, data.result, data.err = runAnalysis(ctx, s.view.session.cache.fset, ah)
 		return data
 	})
 	ah.handle = h
@@ -186,7 +186,7 @@ func execAll(ctx context.Context, fset *token.FileSet, actions []*actionHandle) 
 	return diagnostics, results, g.Wait()
 }
 
-func run(ctx context.Context, fset *token.FileSet, act *actionHandle) ([]*source.Error, interface{}, error) {
+func runAnalysis(ctx context.Context, fset *token.FileSet, act *actionHandle) ([]*source.Error, interface{}, error) {
 	// Analyze dependencies.
 	_, depResults, err := execAll(ctx, fset, act.deps)
 	if err != nil {

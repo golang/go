@@ -172,26 +172,24 @@ func analyses(ctx context.Context, snapshot Snapshot, cph CheckPackageHandle, di
 	}
 
 	// Report diagnostics and errors from root analyzers.
-	for _, diags := range diagnostics {
-		for _, e := range diags {
-			// This is a bit of a hack, but clients > 3.15 will be able to grey out unnecessary code.
-			// If we are deleting code as part of all of our suggested fixes, assume that this is dead code.
-			// TODO(golang/go/#34508): Return these codes from the diagnostics themselves.
-			var tags []protocol.DiagnosticTag
-			if onlyDeletions(e.SuggestedFixes) {
-				tags = append(tags, protocol.Unnecessary)
-			}
-			addReport(snapshot.View(), reports, Diagnostic{
-				URI:            e.URI,
-				Range:          e.Range,
-				Message:        e.Message,
-				Source:         e.Category,
-				Severity:       protocol.SeverityWarning,
-				Tags:           tags,
-				SuggestedFixes: e.SuggestedFixes,
-				Related:        e.Related,
-			})
+	for _, e := range diagnostics {
+		// This is a bit of a hack, but clients > 3.15 will be able to grey out unnecessary code.
+		// If we are deleting code as part of all of our suggested fixes, assume that this is dead code.
+		// TODO(golang/go/#34508): Return these codes from the diagnostics themselves.
+		var tags []protocol.DiagnosticTag
+		if onlyDeletions(e.SuggestedFixes) {
+			tags = append(tags, protocol.Unnecessary)
 		}
+		addReport(snapshot.View(), reports, Diagnostic{
+			URI:            e.URI,
+			Range:          e.Range,
+			Message:        e.Message,
+			Source:         e.Category,
+			Severity:       protocol.SeverityWarning,
+			Tags:           tags,
+			SuggestedFixes: e.SuggestedFixes,
+			Related:        e.Related,
+		})
 	}
 	return nil
 }

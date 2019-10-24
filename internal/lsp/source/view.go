@@ -262,7 +262,7 @@ type Snapshot interface {
 	View() View
 
 	// Analyze runs the analyses for the given package at this snapshot.
-	Analyze(ctx context.Context, id string, analyzers []*analysis.Analyzer) (map[*analysis.Analyzer][]*Error, error)
+	Analyze(ctx context.Context, id string, analyzers []*analysis.Analyzer) ([]*Error, error)
 
 	// FindAnalysisError returns the analysis error represented by the diagnostic.
 	// This is used to get the SuggestedFixes associated with that error.
