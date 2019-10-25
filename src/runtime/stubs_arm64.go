@@ -7,4 +7,3 @@ package runtime
 // Called from assembly only; declared for go vet.
 func load_g()
 func save_g()
-func emptyfunc()

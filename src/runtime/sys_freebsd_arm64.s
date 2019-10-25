@@ -48,7 +48,7 @@
 #define SYS_cpuset_getaffinity	487
 #define SYS_pipe2 		542
 
-TEXT runtime·emptyfunc(SB),0,$0-0
+TEXT emptyfunc<>(SB),0,$0-0
 	RET
 
 // func sys_umtx_op(addr *uint32, mode int32, val uint32, uaddr1 uintptr, ut *umtx_time) int32
@@ -77,7 +77,7 @@ TEXT runtime·thr_start(SB),NOSPLIT,$0
 	// set up g
 	MOVD	m_g0(R0), g
 	MOVD	R0, g_m(g)
-	BL	runtime·emptyfunc(SB)	 // fault if stack check is wrong
+	BL	emptyfunc<>(SB)	 // fault if stack check is wrong
 	BL	runtime·mstart(SB)
 
 	MOVD	$2, R8	// crash (not reached)
