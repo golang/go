@@ -47,27 +47,6 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, r0 *uint32) *obj.Prog 
 	return p
 }
 
-func zeroAuto(pp *gc.Progs, n *gc.Node) {
-	// Note: this code must not clobber any registers.
-	sym := n.Sym.Linksym()
-	size := n.Type.Size()
-	p := pp.Prog(arm.AMOVW)
-	p.From.Type = obj.TYPE_CONST
-	p.From.Offset = 0
-	p.To.Type = obj.TYPE_REG
-	p.To.Reg = arm.REGTMP
-	for i := int64(0); i < size; i += 4 {
-		p := pp.Prog(arm.AMOVW)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = arm.REGTMP
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_AUTO
-		p.To.Reg = arm.REGSP
-		p.To.Offset = n.Xoffset + i
-		p.To.Sym = sym
-	}
-}
-
 func ginsnop(pp *gc.Progs) *obj.Prog {
 	p := pp.Prog(arm.AAND)
 	p.From.Type = obj.TYPE_REG
