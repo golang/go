@@ -475,6 +475,33 @@ func (l *Loader) AuxSym(i Sym, j int) Sym {
 	return l.resolve(r, a.Sym)
 }
 
+// ReadAuxSyms reads the aux symbol ids for the specified symbol into the
+// slice passed as a parameter. If the slice capacity is not large enough, a new
+// larger slice will be allocated. Final slice is returned.
+func (l *Loader) ReadAuxSyms(symIdx Sym, dst []Sym) []Sym {
+	if l.isExternal(symIdx) {
+		return dst[:0]
+	}
+	naux := l.NAux(symIdx)
+	if naux == 0 {
+		return dst[:0]
+	}
+
+	if cap(dst) < naux {
+		dst = make([]Sym, naux)
+	}
+	dst = dst[:0]
+
+	r, li := l.toLocal(symIdx)
+	for i := 0; i < naux; i++ {
+		a := goobj2.Aux{}
+		a.Read(r.Reader, r.AuxOff(li, i))
+		dst = append(dst, l.resolve(r, a.Sym))
+	}
+
+	return dst
+}
+
 // Initialize Reachable bitmap for running deadcode pass.
 func (l *Loader) InitReachable() {
 	l.Reachable = makeBitmap(l.NSym())

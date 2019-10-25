@@ -105,6 +105,7 @@ func (d *deadcodePass2) init() {
 
 func (d *deadcodePass2) flood() {
 	symRelocs := []loader.Reloc{}
+	auxSyms := []loader.Sym{}
 	for !d.wq.empty() {
 		symIdx := d.wq.pop()
 
@@ -147,9 +148,10 @@ func (d *deadcodePass2) flood() {
 			}
 			d.mark(r.Sym)
 		}
-		naux := d.ldr.NAux(symIdx)
-		for i := 0; i < naux; i++ {
-			d.mark(d.ldr.AuxSym(symIdx, i))
+
+		auxSyms = d.ldr.ReadAuxSyms(symIdx, auxSyms)
+		for i := 0; i < len(auxSyms); i++ {
+			d.mark(auxSyms[i])
 		}
 
 		if len(methods) != 0 {
