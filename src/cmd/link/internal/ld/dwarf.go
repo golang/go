@@ -1402,7 +1402,7 @@ func writeinfo(ctxt *Link, syms []*sym.Symbol, units []*sym.CompilationUnit, abb
 		s := dtolsym(compunit.Sym)
 
 		if s == nil {
-			continue
+			log.Fatalf("compilation unit symbol is nil")
 		}
 
 		if len(u.Textp) == 0 && u.DWInfo.Child == nil {
