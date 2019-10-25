@@ -124,7 +124,6 @@ func removeAll(path string) error {
 
 	// Remove directory.
 	err1 := Remove(path)
-	err1 = removeAllTestHook(err1)
 	if err1 == nil || IsNotExist(err1) {
 		return nil
 	}
