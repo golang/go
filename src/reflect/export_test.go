@@ -36,11 +36,14 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, 
 	if ft.kind&kindGCProg != 0 {
 		panic("can't handle gc programs")
 	}
-	gcdata := (*[1000]byte)(unsafe.Pointer(ft.gcdata))
-	for i := uintptr(0); i < ft.ptrdata/ptrSize; i++ {
-		gc = append(gc, gcdata[i/8]>>(i%8)&1)
-	}
 	ptrs = ft.ptrdata != 0
+	if ptrs {
+		nptrs := ft.ptrdata / ptrSize
+		gcdata := ft.gcSlice(0, (nptrs+7)/8)
+		for i := uintptr(0); i < nptrs; i++ {
+			gc = append(gc, gcdata[i/8]>>(i%8)&1)
+		}
+	}
 	return
 }
 

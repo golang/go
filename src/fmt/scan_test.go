@@ -318,13 +318,15 @@ var scanfTests = []ScanfTest{
 	{"%2s", "sssss", &xVal, Xs("ss")},
 
 	// Fixed bugs
-	{"%d\n", "27\n", &intVal, 27},      // ok
-	{"%d\n", "28 \n", &intVal, 28},     // was: "unexpected newline"
-	{"%v", "0", &intVal, 0},            // was: "EOF"; 0 was taken as base prefix and not counted.
-	{"%v", "0", &uintVal, uint(0)},     // was: "EOF"; 0 was taken as base prefix and not counted.
-	{"%c", " ", &uintVal, uint(' ')},   // %c must accept a blank.
-	{"%c", "\t", &uintVal, uint('\t')}, // %c must accept any space.
-	{"%c", "\n", &uintVal, uint('\n')}, // %c must accept any space.
+	{"%d\n", "27\n", &intVal, 27},         // ok
+	{"%d\n", "28 \n", &intVal, 28},        // was: "unexpected newline"
+	{"%v", "0", &intVal, 0},               // was: "EOF"; 0 was taken as base prefix and not counted.
+	{"%v", "0", &uintVal, uint(0)},        // was: "EOF"; 0 was taken as base prefix and not counted.
+	{"%c", " ", &uintVal, uint(' ')},      // %c must accept a blank.
+	{"%c", "\t", &uintVal, uint('\t')},    // %c must accept any space.
+	{"%c", "\n", &uintVal, uint('\n')},    // %c must accept any space.
+	{"%d%%", "23%\n", &uintVal, uint(23)}, // %% matches literal %.
+	{"%%%d", "%23\n", &uintVal, uint(23)}, // %% matches literal %.
 
 	// space handling
 	{"%d", "27", &intVal, 27},
@@ -467,6 +469,9 @@ var multiTests = []ScanfMultiTest{
 	{"X%d", "10X", args(&intVal), nil, "input does not match format"},
 	{"%d%", "42%", args(&intVal), args(42), "missing verb: % at end of format string"},
 	{"%d% ", "42%", args(&intVal), args(42), "too few operands for format '% '"}, // Slightly odd error, but correct.
+	{"%%%d", "xxx 42", args(&intVal), args(42), "missing literal %"},
+	{"%%%d", "x42", args(&intVal), args(42), "missing literal %"},
+	{"%%%d", "42", args(&intVal), args(42), "missing literal %"},
 
 	// Bad UTF-8: should see every byte.
 	{"%c%c%c", "\xc2X\xc2", args(&r1, &r2, &r3), args(utf8.RuneError, 'X', utf8.RuneError), ""},

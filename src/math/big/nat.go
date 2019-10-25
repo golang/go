@@ -463,7 +463,8 @@ func (z nat) mul(x, y nat) nat {
 	// be a larger valid threshold contradicting the assumption about k.
 	//
 	if k < n || m != n {
-		var t nat
+		tp := getNat(3 * k)
+		t := *tp
 
 		// add x0*y1*b
 		x0 := x0.norm()
@@ -484,6 +485,8 @@ func (z nat) mul(x, y nat) nat {
 			t = t.mul(xi, y1)
 			addAt(z, t, i+k)
 		}
+
+		putNat(tp)
 	}
 
 	return z.norm()
@@ -495,7 +498,9 @@ func (z nat) mul(x, y nat) nat {
 // The (non-normalized) result is placed in z.
 func basicSqr(z, x nat) {
 	n := len(x)
-	t := make(nat, 2*n)            // temporary variable to hold the products
+	tp := getNat(2 * n)
+	t := *tp // temporary variable to hold the products
+	t.clear()
 	z[1], z[0] = mulWW(x[0], x[0]) // the initial square
 	for i := 1; i < n; i++ {
 		d := x[i]
@@ -506,6 +511,7 @@ func basicSqr(z, x nat) {
 	}
 	t[2*n-1] = shlVU(t[1:2*n-1], t[1:2*n-1], 1) // double the j < i products
 	addVV(z, z, t)                              // combine the result
+	putNat(tp)
 }
 
 // karatsubaSqr squares x and leaves the result in z.
@@ -592,7 +598,8 @@ func (z nat) sqr(x nat) nat {
 	z[2*k:].clear()
 
 	if k < n {
-		var t nat
+		tp := getNat(2 * k)
+		t := *tp
 		x0 := x0.norm()
 		x1 := x[k:]
 		t = t.mul(x0, x1)
@@ -600,6 +607,7 @@ func (z nat) sqr(x nat) nat {
 		addAt(z, t, k) // z = 2*x1*x0*b + x0^2
 		t = t.sqr(x1)
 		addAt(z, t, 2*k) // z = x1^2*b^2 + 2*x1*x0*b + x0^2
+		putNat(tp)
 	}
 
 	return z.norm()

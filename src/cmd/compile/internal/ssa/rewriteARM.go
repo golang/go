@@ -538,6 +538,8 @@ func rewriteValueARM(v *Value) bool {
 		return rewriteValueARM_OpEqB_0(v)
 	case OpEqPtr:
 		return rewriteValueARM_OpEqPtr_0(v)
+	case OpFma:
+		return rewriteValueARM_OpFma_0(v)
 	case OpGeq16:
 		return rewriteValueARM_OpGeq16_0(v)
 	case OpGeq16U:
@@ -17156,6 +17158,20 @@ func rewriteValueARM_OpEqPtr_0(v *Value) bool {
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpFma_0(v *Value) bool {
+	// match: (Fma x y z)
+	// result: (FMULAD z x y)
+	for {
+		z := v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMFMULAD)
+		v.AddArg(z)
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
 }

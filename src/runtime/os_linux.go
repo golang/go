@@ -372,6 +372,8 @@ func raiseproc(sig uint32)
 func sched_getaffinity(pid, len uintptr, buf *byte) int32
 func osyield()
 
+func setNonblock(fd int32)
+
 //go:nosplit
 //go:nowritebarrierrec
 func setsig(i uint32, fn uintptr) {

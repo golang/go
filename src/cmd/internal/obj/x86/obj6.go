@@ -419,6 +419,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		// to a PLT, so make sure the GOT pointer is loaded into BX.
 		// RegTo2 is set on the replacement call insn to stop it being
 		// processed when it is in turn passed to progedit.
+		//
+		// We disable open-coded defers in buildssa() on 386 ONLY with shared
+		// libraries because of this extra code added before deferreturn calls.
 		if ctxt.Arch.Family == sys.AMD64 || (p.To.Sym != nil && p.To.Sym.Local()) || p.RegTo2 != 0 {
 			return
 		}
@@ -660,8 +663,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		markedPrologue = true
 	}
 
-	deltasp := autoffset
-
 	if bpsize > 0 {
 		// Save caller's BP
 		p = obj.Appendp(p, newprog)
@@ -806,7 +807,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p = end
 	}
 
-	for ; p != nil; p = p.Link {
+	var deltasp int32
+	for p = cursym.Func.Text; p != nil; p = p.Link {
 		pcsize := ctxt.Arch.RegSize
 		switch p.From.Name {
 		case obj.NAME_AUTO:
@@ -861,6 +863,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		case APOPW, APOPFW:
 			deltasp -= 2
 			p.Spadj = -2
+			continue
+
+		case AADJSP:
+			p.Spadj = int32(p.From.Offset)
+			deltasp += int32(p.From.Offset)
 			continue
 
 		case obj.ARET:

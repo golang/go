@@ -210,6 +210,9 @@
 
 (Round(32|64)F x) -> x
 
+// fused-multiply-add
+(Fma x y z) -> (FMULAD z x y)
+
 // comparisons
 (Eq8 x y)  -> (Equal (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Eq16 x y) -> (Equal (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))

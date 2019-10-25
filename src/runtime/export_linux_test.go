@@ -10,6 +10,9 @@ import "unsafe"
 
 var NewOSProc0 = newosproc0
 var Mincore = mincore
+var Add = add
+
+type EpollEvent epollevent
 
 func Epollctl(epfd, op, fd int32, ev unsafe.Pointer) int32 {
 	return epollctl(epfd, op, fd, (*epollevent)(ev))

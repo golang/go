@@ -122,6 +122,16 @@ func sysvicall2(fn *libcFunc, a1, a2 uintptr) uintptr {
 
 //go:nosplit
 func sysvicall3(fn *libcFunc, a1, a2, a3 uintptr) uintptr {
+	r1, _ := sysvicall3Err(fn, a1, a2, a3)
+	return r1
+}
+
+//go:nosplit
+//go:cgo_unsafe_args
+
+// sysvicall3Err returns both the system call result and the errno value.
+// This is used by sysicall3 and write1.
+func sysvicall3Err(fn *libcFunc, a1, a2, a3 uintptr) (r1, err uintptr) {
 	// Leave caller's PC/SP around for traceback.
 	gp := getg()
 	var mp *m
@@ -146,7 +156,7 @@ func sysvicall3(fn *libcFunc, a1, a2, a3 uintptr) uintptr {
 	if mp != nil {
 		mp.libcallsp = 0
 	}
-	return libcall.r1
+	return libcall.r1, libcall.err
 }
 
 //go:nosplit

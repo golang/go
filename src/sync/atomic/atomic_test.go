@@ -1140,6 +1140,9 @@ func hammerStoreLoadUintptr(t *testing.T, paddr unsafe.Pointer) {
 	StoreUintptr(addr, new)
 }
 
+//go:nocheckptr
+// This code is just testing that LoadPointer/StorePointer operate
+// atomically; it's not actually calculating pointers.
 func hammerStoreLoadPointer(t *testing.T, paddr unsafe.Pointer) {
 	addr := (*unsafe.Pointer)(paddr)
 	v := uintptr(LoadPointer(addr))

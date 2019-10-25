@@ -11,6 +11,7 @@ import (
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
 	"encoding/binary"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -255,13 +256,23 @@ func (ctxt *Link) pclntab() {
 			}
 			if r.Type.IsDirectJump() && r.Sym != nil && r.Sym.Name == "runtime.deferreturn" {
 				if ctxt.Arch.Family == sys.Wasm {
-					deferreturn = lastWasmAddr
+					deferreturn = lastWasmAddr - 1
 				} else {
 					// Note: the relocation target is in the call instruction, but
 					// is not necessarily the whole instruction (for instance, on
 					// x86 the relocation applies to bytes [1:5] of the 5 byte call
 					// instruction).
 					deferreturn = uint32(r.Off)
+					switch ctxt.Arch.Family {
+					case sys.AMD64, sys.I386:
+						deferreturn--
+					case sys.PPC64, sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64, sys.RISCV64:
+						// no change
+					case sys.S390X:
+						deferreturn -= 2
+					default:
+						panic(fmt.Sprint("Unhandled architecture:", ctxt.Arch.Family))
+					}
 				}
 				break // only need one
 			}

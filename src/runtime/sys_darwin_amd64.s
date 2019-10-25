@@ -46,6 +46,12 @@ TEXT runtime·read_trampoline(SB),NOSPLIT,$0
 	MOVL	16(DI), DX		// arg 3 count
 	MOVL	0(DI), DI		// arg 1 fd
 	CALL	libc_read(SB)
+	TESTL	AX, AX
+	JGE	noerr
+	CALL	libc_error(SB)
+	MOVL	(AX), AX
+	NEGL	AX			// caller expects negative errno value
+noerr:
 	POPQ	BP
 	RET
 
@@ -56,6 +62,12 @@ TEXT runtime·write_trampoline(SB),NOSPLIT,$0
 	MOVL	16(DI), DX		// arg 3 count
 	MOVQ	0(DI), DI		// arg 1 fd
 	CALL	libc_write(SB)
+	TESTL	AX, AX
+	JGE	noerr
+	CALL	libc_error(SB)
+	MOVL	(AX), AX
+	NEGL	AX			// caller expects negative errno value
+noerr:
 	POPQ	BP
 	RET
 

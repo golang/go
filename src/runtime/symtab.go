@@ -216,11 +216,12 @@ const (
 	_PCDATA_StackMapIndex = 1
 	_PCDATA_InlTreeIndex  = 2
 
-	_FUNCDATA_ArgsPointerMaps   = 0
-	_FUNCDATA_LocalsPointerMaps = 1
-	_FUNCDATA_RegPointerMaps    = 2
-	_FUNCDATA_StackObjects      = 3
-	_FUNCDATA_InlTree           = 4
+	_FUNCDATA_ArgsPointerMaps    = 0
+	_FUNCDATA_LocalsPointerMaps  = 1
+	_FUNCDATA_RegPointerMaps     = 2
+	_FUNCDATA_StackObjects       = 3
+	_FUNCDATA_InlTree            = 4
+	_FUNCDATA_OpenCodedDeferInfo = 5
 
 	_ArgsSizeUnknown = -0x80000000
 )

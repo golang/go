@@ -53,6 +53,7 @@ var (
 	Debug_typecheckinl int
 	Debug_gendwarfinl  int
 	Debug_softfloat    int
+	Debug_defer        int
 )
 
 // Debug arguments.
@@ -83,6 +84,7 @@ var debugtab = []struct {
 	{"typecheckinl", "eager typechecking of inline function bodies", &Debug_typecheckinl},
 	{"dwarfinl", "print information about DWARF inlined function creation", &Debug_gendwarfinl},
 	{"softfloat", "force compiler to emit soft-float code", &Debug_softfloat},
+	{"defer", "print information about defer compilation", &Debug_defer},
 }
 
 const debugHelpHeader = `usage: -d arg[,arg]* and arg is <key>[=<value>]
@@ -93,6 +95,11 @@ const debugHelpHeader = `usage: -d arg[,arg]* and arg is <key>[=<value>]
 
 const debugHelpFooter = `
 <value> is key-specific.
+
+Key "checkptr" supports values:
+	"0": instrumentation disabled
+	"1": conversions involving unsafe.Pointer are instrumented
+	"2": conversions to unsafe.Pointer force heap allocation
 
 Key "pctab" supports values:
 	"pctospadj", "pctofile", "pctoline", "pctoinline", "pctopcdata"
@@ -337,6 +344,11 @@ func Main(archInit func(*Arch)) {
 
 	if flag_race && flag_msan {
 		log.Fatal("cannot use both -race and -msan")
+	}
+	if (flag_race || flag_msan) && objabi.GOOS != "windows" {
+		// -race and -msan imply -d=checkptr for now (except on windows).
+		// TODO(mdempsky): Re-evaluate before Go 1.14. See #34964.
+		Debug_checkptr = 1
 	}
 	if ispkgin(omit_pkgs) {
 		flag_race = false

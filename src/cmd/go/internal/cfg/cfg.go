@@ -44,6 +44,9 @@ var (
 	BuildWork              bool // -work flag
 	BuildX                 bool // -x flag
 
+	ModCacheRW bool   // -modcacherw flag
+	ModFile    string // -modfile flag
+
 	CmdName string // "build", "install", "list", "mod tidy", etc.
 
 	DebugActiongraph string // -debug-actiongraph flag (undocumented, unstable)

@@ -743,6 +743,7 @@ const (
 	OpAMD64POPCNTL
 	OpAMD64SQRTSD
 	OpAMD64ROUNDSD
+	OpAMD64VFMADD231SD
 	OpAMD64SBBQcarrymask
 	OpAMD64SBBLcarrymask
 	OpAMD64SETEQ
@@ -924,6 +925,7 @@ const (
 	OpARMMULAD
 	OpARMMULSF
 	OpARMMULSD
+	OpARMFMULAD
 	OpARMAND
 	OpARMANDconst
 	OpARMOR
@@ -2419,6 +2421,7 @@ const (
 	OpRoundToEven
 	OpAbs
 	OpCopysign
+	OpFma
 	OpPhi
 	OpCopy
 	OpConvert
@@ -9625,6 +9628,22 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:         "VFMADD231SD",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADD231SD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{2, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+		},
+	},
+	{
 		name:   "SBBQcarrymask",
 		argLen: 1,
 		asm:    x86.ASBBQ,
@@ -12090,6 +12109,22 @@ var opcodeTable = [...]opInfo{
 		argLen:       3,
 		resultInArg0: true,
 		asm:          arm.AMULSD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+				{2, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		name:         "FMULAD",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          arm.AFMULAD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -30591,6 +30626,11 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "Copysign",
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Fma",
+		argLen:  3,
 		generic: true,
 	},
 	{

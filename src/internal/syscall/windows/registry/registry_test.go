@@ -522,57 +522,75 @@ func TestValues(t *testing.T) {
 	deleteValues(t, k)
 }
 
+// These are known to be broken due to Windows bugs. See https://golang.org/issue/35084
+var blackListedKeys = map[string]bool{
+	`HKCU\Software\Microsoft\Windows\CurrentVersion\Group Policy\`:             true,
+	`HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Group Policy\`:             true,
+	`HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Group Policy\`: true,
+	`HKLM\SYSTEM\ControlSet001\`:                                               true,
+	`HKLM\SYSTEM\ControlSet002\`:                                               true,
+	`HKLM\SYSTEM\CurrentControlSet\`:                                           true,
+	`HKLM\SYSTEM\DriverDatabase\`:                                              true,
+	`HKU\`:                                                                     true, // Rather unfortunate, but SIDs are hard to predict.
+}
+
 func walkKey(t *testing.T, k registry.Key, kname string) {
+	if blackListedKeys[kname+`\`] {
+		return
+	}
 	names, err := k.ReadValueNames(-1)
 	if err != nil {
-		t.Fatalf("reading value names of %s failed: %v", kname, err)
+		t.Fatalf("reading value names of %#q failed: %v", kname+`\`, err)
 	}
 	for _, name := range names {
+		if blackListedKeys[kname+`\`+name] {
+			continue
+		}
 		_, valtype, err := k.GetValue(name, nil)
 		if err != nil {
-			t.Fatalf("reading value type of %s of %s failed: %v", name, kname, err)
+			t.Fatalf("reading value type of %#q in %#q failed: %v", name, kname+`\`, err)
 		}
 		switch valtype {
 		case registry.NONE:
 		case registry.SZ:
 			_, _, err := k.GetStringValue(name)
 			if err != nil {
-				t.Error(err)
+				t.Errorf("getting %#q string value in %#q failed: %v", name, kname+`\`, err)
 			}
 		case registry.EXPAND_SZ:
 			s, _, err := k.GetStringValue(name)
 			if err != nil {
-				t.Error(err)
+				t.Errorf("getting %#q expand string value in %#q failed: %v", name, kname+`\`, err)
 			}
 			_, err = registry.ExpandString(s)
 			if err != nil {
-				t.Error(err)
+				t.Errorf("expanding %#q value in %#q failed: %v", name, kname+`\`, err)
 			}
 		case registry.DWORD, registry.QWORD:
 			_, _, err := k.GetIntegerValue(name)
 			if err != nil {
-				t.Error(err)
+				t.Errorf("getting %#q integer value in %#q failed: %v", name, kname+`\`, err)
 			}
 		case registry.BINARY:
 			_, _, err := k.GetBinaryValue(name)
 			if err != nil {
-				t.Error(err)
+				t.Errorf("getting %#q binary value in %#q failed: %v", name, kname+`\`, err)
 			}
 		case registry.MULTI_SZ:
 			_, _, err := k.GetStringsValue(name)
 			if err != nil {
-				t.Error(err)
+				t.Errorf("getting %#q strings value in %#q failed: %v", name, kname+`\`, err)
 			}
 		case registry.FULL_RESOURCE_DESCRIPTOR, registry.RESOURCE_LIST, registry.RESOURCE_REQUIREMENTS_LIST:
 			// TODO: not implemented
 		default:
-			t.Fatalf("value type %d of %s of %s failed: %v", valtype, name, kname, err)
+			t.Fatalf("%#q in %#q has unknown value type %d", name, kname+`\`, valtype)
 		}
 	}
 
 	names, err = k.ReadSubKeyNames(-1)
 	if err != nil {
-		t.Fatalf("reading sub-keys of %s failed: %v", kname, err)
+		t.Fatalf("reading sub-keys of %#q failed: %v", kname+`\`, err)
 	}
 	for _, name := range names {
 		func() {
@@ -582,7 +600,7 @@ func walkKey(t *testing.T, k registry.Key, kname string) {
 					// ignore error, if we are not allowed to access this key
 					return
 				}
-				t.Fatalf("opening sub-keys %s of %s failed: %v", name, kname, err)
+				t.Fatalf("opening sub-keys %#q in %#q failed: %v", name, kname+`\`, err)
 			}
 			defer subk.Close()
 
@@ -595,11 +613,11 @@ func TestWalkFullRegistry(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping long running test in short mode")
 	}
-	walkKey(t, registry.CLASSES_ROOT, "CLASSES_ROOT")
-	walkKey(t, registry.CURRENT_USER, "CURRENT_USER")
-	walkKey(t, registry.LOCAL_MACHINE, "LOCAL_MACHINE")
-	walkKey(t, registry.USERS, "USERS")
-	walkKey(t, registry.CURRENT_CONFIG, "CURRENT_CONFIG")
+	walkKey(t, registry.CLASSES_ROOT, "HKCR")
+	walkKey(t, registry.CURRENT_USER, "HKCU")
+	walkKey(t, registry.LOCAL_MACHINE, "HKLM")
+	walkKey(t, registry.USERS, "HKU")
+	walkKey(t, registry.CURRENT_CONFIG, "HKCC")
 }
 
 func TestExpandString(t *testing.T) {

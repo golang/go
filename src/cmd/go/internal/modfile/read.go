@@ -17,7 +17,8 @@ import (
 	"unicode/utf8"
 )
 
-// A Position describes the position between two bytes of input.
+// A Position describes an arbitrary source position in a file, including the
+// file, line, column, and byte offset.
 type Position struct {
 	Line     int // line in input (starting at 1)
 	LineRune int // rune in line (starting at 1)

@@ -469,10 +469,12 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 	if isHTTP {
 		for k, vv := range req.Header {
 			if !httpguts.ValidHeaderFieldName(k) {
+				req.closeBody()
 				return nil, fmt.Errorf("net/http: invalid header field name %q", k)
 			}
 			for _, v := range vv {
 				if !httpguts.ValidHeaderFieldValue(v) {
+					req.closeBody()
 					return nil, fmt.Errorf("net/http: invalid header field value %q for key %v", v, k)
 				}
 			}
@@ -492,6 +494,7 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		return nil, &badStringError{"unsupported protocol scheme", scheme}
 	}
 	if req.Method != "" && !validMethod(req.Method) {
+		req.closeBody()
 		return nil, fmt.Errorf("net/http: invalid method %q", req.Method)
 	}
 	if req.URL.Host == "" {
@@ -537,10 +540,15 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		if err == nil {
 			return resp, nil
 		}
-		if http2isNoCachedConnError(err) {
+
+		// Failed. Clean up and determine whether to retry.
+
+		_, isH2DialError := pconn.alt.(http2erringRoundTripper)
+		if http2isNoCachedConnError(err) || isH2DialError {
 			t.removeIdleConn(pconn)
 			t.decConnsPerHost(pconn.cacheKey)
-		} else if !pconn.shouldRetryRequest(req, err) {
+		}
+		if !pconn.shouldRetryRequest(req, err) {
 			// Issue 16465: return underlying net.Conn.Read error from peek,
 			// as we've historically done.
 			if e, ok := err.(transportReadFromServerError); ok {

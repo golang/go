@@ -68,6 +68,7 @@
 (Round x) -> (FROUND x)
 (Copysign x y) -> (FCPSGN y x)
 (Abs x) -> (FABS x)
+(Fma x y z) -> (FMADD x y z)
 
 // Lowering constants
 (Const(64|32|16|8)  [val]) -> (MOVDconst [val])

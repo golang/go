@@ -130,7 +130,9 @@ func MakeSeed(s uint64) Seed {
 // New returns a new Hash object. Different hash objects allocated by
 // this function will very likely have different seeds.
 func New() *Hash {
-	seed := Seed{s: uint64(runtime_fastrand())}
+	s1 := uint64(runtime_fastrand())
+	s2 := uint64(runtime_fastrand())
+	seed := Seed{s: s1<<32 + s2}
 	return &Hash{
 		seed:  seed,
 		state: seed,

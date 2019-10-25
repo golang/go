@@ -453,13 +453,13 @@ var testedAlreadyLeaked = false
 
 // basefds returns the number of expected file descriptors
 // to be present in a process at start.
-// stdin, stdout, stderr, epoll/kqueue, maybe testlog
+// stdin, stdout, stderr, epoll/kqueue, epoll/kqueue pipe, maybe testlog
 func basefds() uintptr {
 	n := os.Stderr.Fd() + 1
 	// The poll (epoll/kqueue) descriptor can be numerically
 	// either between stderr and the testlog-fd, or after
 	// testlog-fd.
-	if poll.IsPollDescriptor(n) {
+	for poll.IsPollDescriptor(n) {
 		n++
 	}
 	for _, arg := range os.Args {

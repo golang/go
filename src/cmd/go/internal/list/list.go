@@ -384,9 +384,22 @@ func runList(cmd *base.Command, args []string) {
 		if modload.Init(); !modload.Enabled() {
 			base.Fatalf("go list -m: not using modules")
 		}
+
+		modload.InitMod() // Parses go.mod and sets cfg.BuildMod.
 		if cfg.BuildMod == "vendor" {
-			base.Fatalf("go list -m: can't list modules with -mod=vendor\n\tuse -mod=mod or -mod=readonly to ignore the vendor directory")
+			for _, arg := range args {
+				// In vendor mode, the module graph is incomplete: it contains only the
+				// explicit module dependencies and the modules that supply packages in
+				// the import graph. Reject queries that imply more information than that.
+				if arg == "all" {
+					base.Fatalf("go list -m: can't compute 'all' using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)")
+				}
+				if strings.Contains(arg, "...") {
+					base.Fatalf("go list -m: can't match module patterns using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)")
+				}
+			}
 		}
+
 		modload.LoadBuildList()
 
 		mods := modload.ListModules(args, *listU, *listVersions)

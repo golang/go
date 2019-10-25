@@ -399,16 +399,23 @@ func write1(fd uintptr, p unsafe.Pointer, n int32) int32 {
 	// Check the validity of g because without a g during
 	// newosproc0.
 	if _g_ != nil {
-		r, _ := syscall3(&libc_write, uintptr(fd), uintptr(p), uintptr(n))
+		r, errno := syscall3(&libc_write, uintptr(fd), uintptr(p), uintptr(n))
+		if int32(r) < 0 {
+			return -int32(errno)
+		}
 		return int32(r)
 	}
+	// Note that in this case we can't return a valid errno value.
 	return write2(fd, uintptr(p), n)
 
 }
 
 //go:nosplit
 func read(fd int32, p unsafe.Pointer, n int32) int32 {
-	r, _ := syscall3(&libc_read, uintptr(fd), uintptr(p), uintptr(n))
+	r, errno := syscall3(&libc_read, uintptr(fd), uintptr(p), uintptr(n))
+	if int32(r) < 0 {
+		return -int32(errno)
+	}
 	return int32(r)
 }
 
@@ -425,9 +432,10 @@ func closefd(fd int32) int32 {
 }
 
 //go:nosplit
-func pipe(fd *int32) int32 {
-	r, _ := syscall1(&libc_pipe, uintptr(unsafe.Pointer(fd)))
-	return int32(r)
+func pipe() (r, w int32, errno int32) {
+	var p [2]int32
+	_, err := syscall1(&libc_pipe, uintptr(noescape(unsafe.Pointer(&p[0]))))
+	return p[0], p[1], int32(err)
 }
 
 // mmap calls the mmap system call.

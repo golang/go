@@ -17,10 +17,10 @@ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
 
 ! go list -m all
-stderr 'can''t list modules with -mod=vendor'
+stderr 'go list -m: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
 
 ! go list -m -f '{{.Dir}}' all
-stderr 'can''t list modules with -mod=vendor'
+stderr 'go list -m: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
 
 # An explicit -mod=mod should force the vendor directory to be ignored.
 env GOFLAGS=-mod=mod
@@ -102,6 +102,15 @@ go list -f {{.Dir}} -tags tools all
 stdout '^'$WORK'[/\\]auto$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
+
+# ...but 'go list -m' should continue to fail, this time without
+# referring to a -mod default that the user didn't set.
+! go list -m all
+stderr 'go list -m: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+
+! go list -m -f '{{.Dir}}' all
+stderr 'go list -m: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+
 
 # 'go mod init' should work if there is already a GOPATH-mode vendor directory
 # present. If there are no module dependencies, -mod=vendor should be used by

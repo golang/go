@@ -117,6 +117,7 @@ func (ts *testScript) setup() {
 		"GOSUMDB=" + testSumDBVerifierKey,
 		"GONOPROXY=",
 		"GONOSUMDB=",
+		"PWD=" + ts.cd,
 		tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
 		"devnull=" + os.DevNull,
 		"goversion=" + goVersion(ts),
@@ -414,6 +415,7 @@ func (ts *testScript) cmdCd(neg bool, args []string) {
 		ts.fatalf("%s is not a directory", dir)
 	}
 	ts.cd = dir
+	ts.envMap["PWD"] = dir
 	fmt.Fprintf(&ts.log, "%s\n", ts.cd)
 }
 
@@ -502,9 +504,6 @@ func (ts *testScript) doCmdCmp(args []string, env, quiet bool) {
 
 // cp copies files, maybe eventually directories.
 func (ts *testScript) cmdCp(neg bool, args []string) {
-	if neg {
-		ts.fatalf("unsupported: ! cp")
-	}
 	if len(args) < 2 {
 		ts.fatalf("usage: cp src... dst")
 	}
@@ -543,7 +542,14 @@ func (ts *testScript) cmdCp(neg bool, args []string) {
 		if dstDir {
 			targ = filepath.Join(dst, filepath.Base(src))
 		}
-		ts.check(ioutil.WriteFile(targ, data, mode))
+		err := ioutil.WriteFile(targ, data, mode)
+		if neg {
+			if err == nil {
+				ts.fatalf("unexpected command success")
+			}
+		} else {
+			ts.check(err)
+		}
 	}
 }
 

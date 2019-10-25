@@ -16,6 +16,7 @@ import (
 	"cmd/go/internal/modload"
 	"cmd/go/internal/module"
 	"cmd/go/internal/par"
+	"cmd/go/internal/work"
 )
 
 var cmdGraph = &base.Command{
@@ -28,6 +29,10 @@ and one of its requirements. Each module is identified as a string of the form
 path@version, except for the main module, which has no @version suffix.
 	`,
 	Run: runGraph,
+}
+
+func init() {
+	work.AddModCommonFlags(cmdGraph)
 }
 
 func runGraph(cmd *base.Command, args []string) {

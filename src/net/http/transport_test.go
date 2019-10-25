@@ -5719,3 +5719,173 @@ func TestInvalidHeaderResponse(t *testing.T) {
 		t.Errorf(`bad "Foo " header value: %q, want %q`, v, "bar")
 	}
 }
+
+type bodyCloser bool
+
+func (bc *bodyCloser) Close() error {
+	*bc = true
+	return nil
+}
+func (bc *bodyCloser) Read(b []byte) (n int, err error) {
+	return 0, io.EOF
+}
+
+// Issue 35015: ensure that Transport closes the body on any error
+// with an invalid request, as promised by Client.Do docs.
+func TestTransportClosesBodyOnInvalidRequests(t *testing.T) {
+	cst := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		t.Errorf("Should not have been invoked")
+	}))
+	defer cst.Close()
+
+	u, _ := url.Parse(cst.URL)
+
+	tests := []struct {
+		name    string
+		req     *Request
+		wantErr string
+	}{
+		{
+			name: "invalid method",
+			req: &Request{
+				Method: " ",
+				URL:    u,
+			},
+			wantErr: "invalid method",
+		},
+		{
+			name: "nil URL",
+			req: &Request{
+				Method: "GET",
+			},
+			wantErr: "nil Request.URL",
+		},
+		{
+			name: "invalid header key",
+			req: &Request{
+				Method: "GET",
+				Header: Header{"💡": {"emoji"}},
+				URL:    u,
+			},
+			wantErr: "invalid header field name",
+		},
+		{
+			name: "invalid header value",
+			req: &Request{
+				Method: "POST",
+				Header: Header{"key": {"\x19"}},
+				URL:    u,
+			},
+			wantErr: "invalid header field value",
+		},
+		{
+			name: "non HTTP(s) scheme",
+			req: &Request{
+				Method: "POST",
+				URL:    &url.URL{Scheme: "faux"},
+			},
+			wantErr: "unsupported protocol scheme",
+		},
+		{
+			name: "no Host in URL",
+			req: &Request{
+				Method: "POST",
+				URL:    &url.URL{Scheme: "http"},
+			},
+			wantErr: "no Host",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var bc bodyCloser
+			req := tt.req
+			req.Body = &bc
+			_, err := DefaultClient.Do(tt.req)
+			if err == nil {
+				t.Fatal("Expected an error")
+			}
+			if !bc {
+				t.Fatal("Expected body to have been closed")
+			}
+			if g, w := err.Error(), tt.wantErr; !strings.Contains(g, w) {
+				t.Fatalf("Error mismatch\n\t%q\ndoes not contain\n\t%q", g, w)
+			}
+		})
+	}
+}
+
+// breakableConn is a net.Conn wrapper with a Write method
+// that will fail when its brokenState is true.
+type breakableConn struct {
+	net.Conn
+	*brokenState
+}
+
+type brokenState struct {
+	sync.Mutex
+	broken bool
+}
+
+func (w *breakableConn) Write(b []byte) (n int, err error) {
+	w.Lock()
+	defer w.Unlock()
+	if w.broken {
+		return 0, errors.New("some write error")
+	}
+	return w.Conn.Write(b)
+}
+
+// Issue 34978: don't cache a broken HTTP/2 connection
+func TestDontCacheBrokenHTTP2Conn(t *testing.T) {
+	cst := newClientServerTest(t, h2Mode, HandlerFunc(func(w ResponseWriter, r *Request) {}), optQuietLog)
+	defer cst.close()
+
+	var brokenState brokenState
+
+	cst.tr.Dial = func(netw, addr string) (net.Conn, error) {
+		c, err := net.Dial(netw, addr)
+		if err != nil {
+			t.Errorf("unexpected Dial error: %v", err)
+			return nil, err
+		}
+		return &breakableConn{c, &brokenState}, err
+	}
+
+	const numReqs = 5
+	var gotConns uint32 // atomic
+	for i := 1; i <= numReqs; i++ {
+		brokenState.Lock()
+		brokenState.broken = false
+		brokenState.Unlock()
+
+		// doBreak controls whether we break the TCP connection after the TLS
+		// handshake (before the HTTP/2 handshake). We test a few failures
+		// in a row followed by a final success.
+		doBreak := i != numReqs
+
+		ctx := httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
+			GotConn: func(info httptrace.GotConnInfo) {
+				atomic.AddUint32(&gotConns, 1)
+			},
+			TLSHandshakeDone: func(cfg tls.ConnectionState, err error) {
+				brokenState.Lock()
+				defer brokenState.Unlock()
+				if doBreak {
+					brokenState.broken = true
+				}
+			},
+		})
+		req, err := NewRequestWithContext(ctx, "GET", cst.ts.URL, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = cst.c.Do(req)
+		if doBreak != (err != nil) {
+			t.Errorf("for iteration %d, doBreak=%v; unexpected error %v", i, doBreak, err)
+		}
+	}
+	if got, want := atomic.LoadUint32(&gotConns), 1; int(got) != want {
+		t.Errorf("GotConn calls = %v; want %v", got, want)
+	}
+}

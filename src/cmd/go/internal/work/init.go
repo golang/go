@@ -249,11 +249,19 @@ func buildModeInit() {
 	case "":
 		// ok
 	case "readonly", "vendor", "mod":
-		if load.ModLookup == nil && !inGOFLAGS("-mod") {
+		if !cfg.ModulesEnabled && !inGOFLAGS("-mod") {
 			base.Fatalf("build flag -mod=%s only valid when using modules", cfg.BuildMod)
 		}
 	default:
 		base.Fatalf("-mod=%s not supported (can be '', 'mod', 'readonly', or 'vendor')", cfg.BuildMod)
+	}
+	if !cfg.ModulesEnabled {
+		if cfg.ModCacheRW && !inGOFLAGS("-modcacherw") {
+			base.Fatalf("build flag -modcacherw only valid when using modules")
+		}
+		if cfg.ModFile != "" && !inGOFLAGS("-mod") {
+			base.Fatalf("build flag -modfile only valid when using modules")
+		}
 	}
 }
 

@@ -795,7 +795,7 @@ func (r *gitRepo) DescendsFrom(rev, tag string) (bool, error) {
 	return false, err
 }
 
-func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error) {
+func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, err error) {
 	// TODO: Use maxSize or drop it.
 	args := []string{}
 	if subdir != "" {
@@ -803,17 +803,17 @@ func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
 	}
 	info, err := r.Stat(rev) // download rev into local git repo
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	unlock, err := r.mu.Lock()
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	defer unlock()
 
 	if err := ensureGitAttributes(r.dir); err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	// Incredibly, git produces different archives depending on whether
@@ -824,12 +824,12 @@ func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
 	archive, err := Run(r.dir, "git", "-c", "core.autocrlf=input", "-c", "core.eol=lf", "archive", "--format=zip", "--prefix=prefix/", info.Name, args)
 	if err != nil {
 		if bytes.Contains(err.(*RunError).Stderr, []byte("did not match any files")) {
-			return nil, "", os.ErrNotExist
+			return nil, os.ErrNotExist
 		}
-		return nil, "", err
+		return nil, err
 	}
 
-	return ioutil.NopCloser(bytes.NewReader(archive)), "", nil
+	return ioutil.NopCloser(bytes.NewReader(archive)), nil
 }
 
 // ensureGitAttributes makes sure export-subst and export-ignore features are

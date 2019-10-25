@@ -8,6 +8,11 @@ import "unsafe"
 const (
 	_EINTR  = 0x4
 	_EFAULT = 0xe
+	_EAGAIN = 0x23
+	_ENOSYS = 0x4e
+
+	_O_NONBLOCK = 0x4
+	_O_CLOEXEC  = 0x10000
 
 	_PROT_NONE  = 0x0
 	_PROT_READ  = 0x1

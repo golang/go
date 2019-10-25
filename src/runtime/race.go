@@ -460,6 +460,11 @@ func racegoend() {
 }
 
 //go:nosplit
+func racectxend(racectx uintptr) {
+	racecall(&__tsan_go_end, racectx, 0, 0, 0)
+}
+
+//go:nosplit
 func racewriterangepc(addr unsafe.Pointer, sz, callpc, pc uintptr) {
 	_g_ := getg()
 	if _g_ != _g_.m.curg {
@@ -504,6 +509,14 @@ func raceacquireg(gp *g, addr unsafe.Pointer) {
 		return
 	}
 	racecall(&__tsan_acquire, gp.racectx, uintptr(addr), 0, 0)
+}
+
+//go:nosplit
+func raceacquirectx(racectx uintptr, addr unsafe.Pointer) {
+	if !isvalidaddr(addr) {
+		return
+	}
+	racecall(&__tsan_acquire, racectx, uintptr(addr), 0, 0)
 }
 
 //go:nosplit

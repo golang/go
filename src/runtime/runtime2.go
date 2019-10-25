@@ -40,7 +40,7 @@ const (
 
 	// _Grunning means this goroutine may execute user code. The
 	// stack is owned by this goroutine. It is not on a run queue.
-	// It is assigned an M and a P.
+	// It is assigned an M and a P (g.m and g.m.p are valid).
 	_Grunning // 2
 
 	// _Gsyscall means this goroutine is executing a system call.
@@ -598,13 +598,32 @@ type p struct {
 
 	runSafePointFn uint32 // if 1, run sched.safePointFn at next safe point
 
+	// Lock for timers. We normally access the timers while running
+	// on this P, but the scheduler can also do it from a different P.
+	timersLock mutex
+
+	// Actions to take at some time. This is used to implement the
+	// standard library's time package.
+	// Must hold timersLock to access.
+	timers []*timer
+
+	// Number of timerModifiedEarlier timers on P's heap.
+	// This should only be modified while holding timersLock,
+	// or while the timer status is in a transient state
+	// such as timerModifying.
+	adjustTimers uint32
+
+	// Race context used while executing timer functions.
+	timerRaceCtx uintptr
+
 	pad cpu.CacheLinePad
 }
 
 type schedt struct {
 	// accessed atomically. keep at top to ensure alignment on 32-bit systems.
-	goidgen  uint64
-	lastpoll uint64
+	goidgen   uint64
+	lastpoll  uint64 // time of last network poll, 0 if currently polling
+	pollUntil uint64 // time to which current poll is sleeping
 
 	lock mutex
 
@@ -701,7 +720,7 @@ type _func struct {
 	nameoff int32   // function name
 
 	args        int32  // in/out args size
-	deferreturn uint32 // offset of a deferreturn block from entry, if any.
+	deferreturn uint32 // offset of start of a deferreturn call instruction from entry, if any.
 
 	pcsp      int32
 	pcfile    int32
@@ -774,7 +793,7 @@ func extendRandom(r []byte, n int) {
 }
 
 // A _defer holds an entry on the list of deferred calls.
-// If you add a field here, add code to clear it in freedefer.
+// If you add a field here, add code to clear it in freedefer and deferProcStack
 // This struct must match the code in cmd/compile/internal/gc/reflect.go:deferstruct
 // and cmd/compile/internal/gc/ssa.go:(*state).call.
 // Some defers will be allocated on the stack and some on the heap.
@@ -785,11 +804,27 @@ type _defer struct {
 	siz     int32 // includes both arguments and results
 	started bool
 	heap    bool
-	sp      uintptr // sp at time of defer
-	pc      uintptr
-	fn      *funcval
-	_panic  *_panic // panic that is running defer
-	link    *_defer
+	// openDefer indicates that this _defer is for a frame with open-coded
+	// defers. We have only one defer record for the entire frame (which may
+	// currently have 0, 1, or more defers active).
+	openDefer bool
+	sp        uintptr // sp at time of defer
+	pc        uintptr // pc at time of defer
+	fn        *funcval
+	_panic    *_panic // panic that is running defer
+	link      *_defer
+
+	// If openDefer is true, the fields below record values about the stack
+	// frame and associated function that has the open-coded defer(s). sp
+	// above will be the sp for the frame, and pc will be address of the
+	// deferreturn call in the function.
+	fd   unsafe.Pointer // funcdata for the function associated with the frame
+	varp uintptr        // value of varp for the stack frame
+	// framepc is the current pc associated with the stack frame. Together,
+	// with sp above (which is the sp associated with the stack frame),
+	// framepc/sp can be used as pc/sp pair to continue a stack trace via
+	// gentraceback().
+	framepc uintptr
 }
 
 // A _panic holds information about an active panic.
