@@ -119,7 +119,7 @@ type CompletionOptions struct {
 	// requests finish in a couple milliseconds, but in some cases deep
 	// completions can take much longer. As we use up our budget we
 	// dynamically reduce the search scope to ensure we return timely
-	// results.
+	// results. Zero means unlimited.
 	Budget time.Duration
 }
 

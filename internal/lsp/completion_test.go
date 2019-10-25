@@ -3,7 +3,6 @@ package lsp
 import (
 	"strings"
 	"testing"
-	"time"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -30,7 +29,6 @@ func (r *runner) CompletionSnippet(t *testing.T, src span.Span, expected tests.C
 	list := r.callCompletion(t, src, source.CompletionOptions{
 		Placeholders:  placeholders,
 		Deep:          true,
-		Budget:        5 * time.Second,
 		FuzzyMatching: true,
 	})
 	got := tests.FindItem(list, *items[expected.CompletionItem])
@@ -59,7 +57,6 @@ func (r *runner) UnimportedCompletion(t *testing.T, src span.Span, test tests.Co
 func (r *runner) DeepCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
 	got := r.callCompletion(t, src, source.CompletionOptions{
 		Deep:          true,
-		Budget:        5 * time.Second,
 		Documentation: true,
 	})
 	if !strings.Contains(string(src.URI()), "builtins") {
@@ -75,7 +72,6 @@ func (r *runner) FuzzyCompletion(t *testing.T, src span.Span, test tests.Complet
 	got := r.callCompletion(t, src, source.CompletionOptions{
 		FuzzyMatching: true,
 		Deep:          true,
-		Budget:        5 * time.Second,
 	})
 	if !strings.Contains(string(src.URI()), "builtins") {
 		got = tests.FilterBuiltins(got)
@@ -103,7 +99,6 @@ func (r *runner) RankCompletion(t *testing.T, src span.Span, test tests.Completi
 	got := r.callCompletion(t, src, source.CompletionOptions{
 		FuzzyMatching: true,
 		Deep:          true,
-		Budget:        5 * time.Second,
 	})
 	want := expected(t, test, items)
 	if msg := tests.CheckCompletionOrder(want, got); msg != "" {
@@ -121,6 +116,7 @@ func expected(t *testing.T, test tests.Completion, items tests.CompletionItems) 
 	}
 	return want
 }
+
 func (r *runner) callCompletion(t *testing.T, src span.Span, options source.CompletionOptions) []protocol.CompletionItem {
 	t.Helper()
 

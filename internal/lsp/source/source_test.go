@@ -14,7 +14,6 @@ import (
 	"sort"
 	"strings"
 	"testing"
-	"time"
 
 	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/cache"
@@ -113,7 +112,6 @@ func (r *runner) CompletionSnippet(t *testing.T, src span.Span, expected tests.C
 	_, list := r.callCompletion(t, src, source.CompletionOptions{
 		Placeholders: placeholders,
 		Deep:         true,
-		Budget:       5 * time.Second,
 	})
 	got := tests.FindItem(list, *items[expected.CompletionItem])
 	want := expected.PlainSnippet
@@ -148,7 +146,6 @@ func (r *runner) DeepCompletion(t *testing.T, src span.Span, test tests.Completi
 	}
 	prefix, list := r.callCompletion(t, src, source.CompletionOptions{
 		Deep:          true,
-		Budget:        5 * time.Second,
 		Documentation: true,
 	})
 	if !strings.Contains(string(src.URI()), "builtins") {
@@ -175,7 +172,6 @@ func (r *runner) FuzzyCompletion(t *testing.T, src span.Span, test tests.Complet
 	prefix, list := r.callCompletion(t, src, source.CompletionOptions{
 		FuzzyMatching: true,
 		Deep:          true,
-		Budget:        5 * time.Second,
 	})
 	if !strings.Contains(string(src.URI()), "builtins") {
 		list = tests.FilterBuiltins(list)
@@ -220,7 +216,6 @@ func (r *runner) RankCompletion(t *testing.T, src span.Span, test tests.Completi
 	prefix, list := r.callCompletion(t, src, source.CompletionOptions{
 		FuzzyMatching: true,
 		Deep:          true,
-		Budget:        5 * time.Second,
 	})
 	fuzzyMatcher := fuzzy.NewMatcher(prefix)
 	var got []protocol.CompletionItem
