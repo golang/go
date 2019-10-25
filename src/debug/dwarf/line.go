@@ -806,7 +806,7 @@ func pathJoin(dirname, filename string) string {
 	// DOS-style path.
 	drive2, filename := splitDrive(filename)
 	if drive2 != "" {
-		if strings.ToLower(drive) != strings.ToLower(drive2) {
+		if !strings.EqualFold(drive, drive2) {
 			// Different drives. There's not much we can
 			// do here, so just ignore the directory.
 			return drive2 + filename
