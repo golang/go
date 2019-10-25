@@ -26,7 +26,7 @@ const (
 	encodeQueryComponent
 	encodeFragment
 
-	_tableCount  // Used only inside this file
+	_tableCount // Used only inside this file
 )
 
 func main() {
@@ -52,10 +52,9 @@ func main() {
 			t[i] = false
 		}
 
-		t['-'] = false
-		t['.'] = false
-		t['_'] = false
-		t['~'] = false
+		for _, v := range `-._~` {
+			t[v] = false
+		}
 
 		return t
 	}()
@@ -68,7 +67,7 @@ func main() {
 		// last three as well. That leaves only ? to escape.
 		var t = unreservedCharactersTable
 
-		for _, v := range `:@&=+$/;,`{
+		for _, v := range `:@&=+$/;,` {
 			t[v] = false
 		}
 		return t
@@ -146,24 +145,19 @@ func main() {
 	// shouldEscapeTable concatenates all these tables into a string to speed up the conversion in the generated code
 	shouldEscapeTable := make([]byte, _tableCount*256)
 
-	encodes := []string{"", // Our encoding start with 1
-		"shouldEscapePathTable", "shouldEscapePathSegmentTable",
-		"shouldEscapeHostTable", "shouldEscapeZoneTable", "shouldEscapeUserPasswordTable",
-		"shouldEscapeQueryComponentTable", "shouldEscapeFragmentTable"}
-	encodesM := map[string][256]bool{
-		"shouldEscapePathTable":           shouldEscapePathTable,
-		"shouldEscapePathSegmentTable":    shouldEscapePathSegmentTable,
-		"shouldEscapeHostTable":           shouldEscapeHostTable,
-		"shouldEscapeZoneTable":           shouldEscapeZoneTable,
-		"shouldEscapeUserPasswordTable":   shouldEscapeUserPasswordTable,
-		"shouldEscapeQueryComponentTable": shouldEscapeQueryComponentTable,
-		"shouldEscapeFragmentTable":       shouldEscapeFragmentTable}
+	encodes := map[encoding][256]bool{
+		encodePath:           shouldEscapePathTable,
+		encodePathSegment:    shouldEscapePathSegmentTable,
+		encodeHost:           shouldEscapeHostTable,
+		encodeZone:           shouldEscapeZoneTable,
+		encodeUserPassword:   shouldEscapeUserPasswordTable,
+		encodeQueryComponent: shouldEscapeQueryComponentTable,
+		encodeFragment:       shouldEscapeFragmentTable}
 
 	for i := 1; i < int(_tableCount); i++ {
-		tableName := encodes[i]
-		tableVar := encodesM[tableName]
+		table := encodes[encoding(i)]
 		for j := 0; j < 256; j++ {
-			if tableVar[j] {
+			if table[j] {
 				shouldEscapeTable[i*256+j] = 1
 			}
 		}
