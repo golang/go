@@ -73,11 +73,10 @@ type Repo interface {
 	// ReadZip downloads a zip file for the subdir subdirectory
 	// of the given revision to a new file in a given temporary directory.
 	// It should refuse to read more than maxSize bytes.
-	// It returns a ReadCloser for a streamed copy of the zip file,
-	// along with the actual subdirectory (possibly shorter than subdir)
-	// contained in the zip file. All files in the zip file are expected to be
+	// It returns a ReadCloser for a streamed copy of the zip file.
+	// All files in the zip file are expected to be
 	// nested in a single top-level directory, whose name is not specified.
-	ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error)
+	ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, err error)
 
 	// RecentTag returns the most recent tag on rev or one of its predecessors
 	// with the given prefix and major version.

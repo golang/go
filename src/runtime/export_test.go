@@ -35,6 +35,8 @@ var Atoi = atoi
 var Atoi32 = atoi32
 
 var Nanotime = nanotime
+var NetpollBreak = netpollBreak
+var Usleep = usleep
 
 var PhysHugePageSize = physHugePageSize
 
@@ -49,6 +51,12 @@ func LFStackPush(head *uint64, node *LFNode) {
 
 func LFStackPop(head *uint64) *LFNode {
 	return (*LFNode)(unsafe.Pointer((*lfstack)(head).pop()))
+}
+
+func Netpoll(delta int64) {
+	systemstack(func() {
+		netpoll(delta)
+	})
 }
 
 func GCMask(x interface{}) (ret []byte) {

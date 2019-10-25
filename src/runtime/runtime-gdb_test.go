@@ -66,8 +66,8 @@ func checkGdbVersion(t *testing.T) {
 }
 
 func checkGdbPython(t *testing.T) {
-	if runtime.GOOS == "solaris" && testenv.Builder() != "solaris-amd64-smartosbuildlet" {
-		t.Skip("skipping gdb python tests on solaris; see golang.org/issue/20821")
+	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" {
+		t.Skip("skipping gdb python tests on illumos and solaris; see golang.org/issue/20821")
 	}
 
 	cmd := exec.Command("gdb", "-nx", "-q", "--batch", "-iex", "python import sys; print('go gdb python support')")

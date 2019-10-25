@@ -107,7 +107,7 @@ The commands are:
   Like cmp, but environment variables are substituted in the file contents
   before the comparison. For example, $GOOS is replaced by the target GOOS.
 
-- cp src... dst
+- [!] cp src... dst
   Copy the listed files to the target file or existing directory.
   src can include "stdout" or "stderr" to use the standard output or standard error
   from the most recent exec or go command.

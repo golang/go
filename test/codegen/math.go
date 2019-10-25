@@ -107,6 +107,16 @@ func copysign(a, b, c float64) {
 	sink64[3] = math.Copysign(-1, c)
 }
 
+func fma(x, y, z float64) float64 {
+	// amd64:"VFMADD231SD"
+	// arm/6:"FMULAD"
+	// arm64:"FMADDD"
+	// s390x:"FMADD"
+	// ppc64:"FMADD"
+	// ppc64le:"FMADD"
+	return math.Fma(x, y, z)
+}
+
 func fromFloat64(f64 float64) uint64 {
 	// amd64:"MOVQ\tX.*, [^X].*"
 	// arm64:"FMOVD\tF.*, R.*"

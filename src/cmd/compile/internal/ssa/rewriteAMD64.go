@@ -768,6 +768,8 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpEqPtr_0(v)
 	case OpFloor:
 		return rewriteValueAMD64_OpFloor_0(v)
+	case OpFma:
+		return rewriteValueAMD64_OpFma_0(v)
 	case OpGeq16:
 		return rewriteValueAMD64_OpGeq16_0(v)
 	case OpGeq16U:
@@ -824,10 +826,6 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpHmul64_0(v)
 	case OpHmul64u:
 		return rewriteValueAMD64_OpHmul64u_0(v)
-	case OpInt64Hi:
-		return rewriteValueAMD64_OpInt64Hi_0(v)
-	case OpInt64Lo:
-		return rewriteValueAMD64_OpInt64Lo_0(v)
 	case OpInterCall:
 		return rewriteValueAMD64_OpInterCall_0(v)
 	case OpIsInBounds:
@@ -52331,6 +52329,20 @@ func rewriteValueAMD64_OpFloor_0(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueAMD64_OpFma_0(v *Value) bool {
+	// match: (Fma x y z)
+	// result: (VFMADD231SD z x y)
+	for {
+		z := v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpAMD64VFMADD231SD)
+		v.AddArg(z)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
 func rewriteValueAMD64_OpGeq16_0(v *Value) bool {
 	b := v.Block
 	// match: (Geq16 x y)
@@ -52710,28 +52722,6 @@ func rewriteValueAMD64_OpHmul64u_0(v *Value) bool {
 		v.reset(OpAMD64HMULQU)
 		v.AddArg(x)
 		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueAMD64_OpInt64Hi_0(v *Value) bool {
-	// match: (Int64Hi x)
-	// result: (SHRQconst [32] x)
-	for {
-		x := v.Args[0]
-		v.reset(OpAMD64SHRQconst)
-		v.AuxInt = 32
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValueAMD64_OpInt64Lo_0(v *Value) bool {
-	// match: (Int64Lo x)
-	// result: x
-	for {
-		x := v.Args[0]
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
 		return true
 	}
 }

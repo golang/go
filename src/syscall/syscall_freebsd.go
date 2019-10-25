@@ -381,8 +381,12 @@ func convertFromDirents11(buf []byte, old []byte) int {
 	dstPos := 0
 	srcPos := 0
 	for dstPos+fixedSize < len(buf) && srcPos+oldFixedSize < len(old) {
-		dstDirent := (*Dirent)(unsafe.Pointer(&buf[dstPos]))
-		srcDirent := (*dirent_freebsd11)(unsafe.Pointer(&old[srcPos]))
+		var dstDirent Dirent
+		var srcDirent dirent_freebsd11
+
+		// If multiple direntries are written, sometimes when we reach the final one,
+		// we may have cap of old less than size of dirent_freebsd11.
+		copy((*[unsafe.Sizeof(srcDirent)]byte)(unsafe.Pointer(&srcDirent))[:], old[srcPos:])
 
 		reclen := roundup(fixedSize+int(srcDirent.Namlen)+1, 8)
 		if dstPos+reclen > len(buf) {
@@ -398,6 +402,7 @@ func convertFromDirents11(buf []byte, old []byte) int {
 		dstDirent.Pad1 = 0
 
 		copy(dstDirent.Name[:], srcDirent.Name[:srcDirent.Namlen])
+		copy(buf[dstPos:], (*[unsafe.Sizeof(dstDirent)]byte)(unsafe.Pointer(&dstDirent))[:])
 		padding := buf[dstPos+fixedSize+int(dstDirent.Namlen) : dstPos+reclen]
 		for i := range padding {
 			padding[i] = 0

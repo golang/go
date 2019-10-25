@@ -5,6 +5,7 @@ const (
 	_EINTR  = 0x4
 	_ENOMEM = 0xc
 	_EAGAIN = 0xb
+	_ENOSYS = 0x26
 
 	_PROT_NONE  = 0
 	_PROT_READ  = 0x1
@@ -71,6 +72,7 @@ const (
 	_ITIMER_PROF    = 0x2
 	_ITIMER_VIRTUAL = 0x1
 	_O_RDONLY       = 0
+	_O_NONBLOCK     = 0x800
 	_O_CLOEXEC      = 0x80000
 
 	_EPOLLIN       = 0x1

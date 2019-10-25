@@ -22,6 +22,7 @@ import (
 	"net/http/httptrace"
 	"net/textproto"
 	"net/url"
+	urlpkg "net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -850,7 +851,7 @@ func NewRequestWithContext(ctx context.Context, method, url string, body io.Read
 	if ctx == nil {
 		return nil, errors.New("net/http: nil Context")
 	}
-	u, err := parseURL(url) // Just url.Parse (url is shadowed for godoc).
+	u, err := urlpkg.Parse(url)
 	if err != nil {
 		return nil, err
 	}

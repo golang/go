@@ -61,6 +61,20 @@ func TestHashBytesVsString(t *testing.T) {
 	}
 }
 
+func TestHashHighBytes(t *testing.T) {
+	// See issue 34925.
+	const N = 10
+	m := map[uint64]struct{}{}
+	for i := 0; i < N; i++ {
+		h := hash.New()
+		h.AddString("foo")
+		m[h.Hash()>>32] = struct{}{}
+	}
+	if len(m) < N/2 {
+		t.Errorf("from %d seeds, wanted at least %d different hashes; got %d", N, N/2, len(m))
+	}
+}
+
 // Make sure a Hash implements the hash.Hash and hash.Hash64 interfaces.
 var _ basehash.Hash = &hash.Hash{}
 var _ basehash.Hash64 = &hash.Hash{}

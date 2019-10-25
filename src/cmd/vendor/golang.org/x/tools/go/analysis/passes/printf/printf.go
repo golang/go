@@ -766,8 +766,8 @@ var printVerbs = []printVerb{
 	{'U', "-#", argRune | argInt},
 	{'v', allFlags, anyType},
 	{'w', allFlags, argError},
-	{'x', sharpNumFlag, argRune | argInt | argString | argPointer},
-	{'X', sharpNumFlag, argRune | argInt | argString | argPointer},
+	{'x', sharpNumFlag, argRune | argInt | argString | argPointer | argFloat | argComplex},
+	{'X', sharpNumFlag, argRune | argInt | argString | argPointer | argFloat | argComplex},
 }
 
 // okPrintfArg compares the formatState to the arguments actually present,

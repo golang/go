@@ -113,6 +113,7 @@
 (Floor x)	-> (ROUNDSD [1] x)
 (Ceil x)  	-> (ROUNDSD [2] x)
 (Trunc x) 	-> (ROUNDSD [3] x)
+(Fma x y z) -> (VFMADD231SD z x y)
 
 // Lowering extension
 // Note: we always extend to 64 bits even though some ops don't need that many result bits.
@@ -224,9 +225,6 @@
 (NeqPtr x y) && config.PtrSize == 8 -> (SETNE (CMPQ x y))
 (NeqPtr x y) && config.PtrSize == 4 -> (SETNE (CMPL x y))
 (Neq(32|64)F x y) -> (SETNEF (UCOMIS(S|D) x y))
-
-(Int64Hi x) -> (SHRQconst [32] x)         // needed for amd64p32
-(Int64Lo x) -> x
 
 // Lowering loads
 (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t) && config.PtrSize == 8) -> (MOVQload ptr mem)

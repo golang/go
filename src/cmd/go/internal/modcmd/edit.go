@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"cmd/go/internal/base"
@@ -20,6 +19,7 @@ import (
 	"cmd/go/internal/modfile"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/module"
+	"cmd/go/internal/work"
 )
 
 var cmdEdit = &base.Command{
@@ -130,6 +130,7 @@ func init() {
 	cmdEdit.Flag.Var(flagFunc(flagReplace), "replace", "")
 	cmdEdit.Flag.Var(flagFunc(flagDropExclude), "dropexclude", "")
 
+	work.AddModCommonFlags(cmdEdit)
 	base.AddBuildFlagsNX(&cmdEdit.Flag)
 }
 
@@ -157,7 +158,7 @@ func runEdit(cmd *base.Command, args []string) {
 	if len(args) == 1 {
 		gomod = args[0]
 	} else {
-		gomod = filepath.Join(modload.ModRoot(), "go.mod")
+		gomod = modload.ModFilePath()
 	}
 
 	if *editModule != "" {

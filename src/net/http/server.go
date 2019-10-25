@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/textproto"
 	"net/url"
+	urlpkg "net/url"
 	"os"
 	"path"
 	"runtime"
@@ -2065,8 +2066,7 @@ func StripPrefix(prefix string, h Handler) Handler {
 // Setting the Content-Type header to any value, including nil,
 // disables that behavior.
 func Redirect(w ResponseWriter, r *Request, url string, code int) {
-	// parseURL is just url.Parse (url is shadowed for godoc).
-	if u, err := parseURL(url); err == nil {
+	if u, err := urlpkg.Parse(url); err == nil {
 		// If url was relative, make its path absolute by
 		// combining with request path.
 		// The client would probably do this for us,
@@ -2119,10 +2119,6 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
 		fmt.Fprintln(w, body)
 	}
 }
-
-// parseURL is just url.Parse. It exists only so that url.Parse can be called
-// in places where url is shadowed for godoc. See https://golang.org/cl/49930.
-var parseURL = url.Parse
 
 var htmlReplacer = strings.NewReplacer(
 	"&", "&amp;",
@@ -3227,8 +3223,9 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
 	r = r.WithContext(ctx)
 	done := make(chan struct{})
 	tw := &timeoutWriter{
-		w: w,
-		h: make(Header),
+		w:   w,
+		h:   make(Header),
+		req: r,
 	}
 	panicChan := make(chan interface{}, 1)
 	go func() {
@@ -3268,6 +3265,7 @@ type timeoutWriter struct {
 	w    ResponseWriter
 	h    Header
 	wbuf bytes.Buffer
+	req  *Request
 
 	mu          sync.Mutex
 	timedOut    bool
@@ -3294,24 +3292,32 @@ func (tw *timeoutWriter) Write(p []byte) (int, error) {
 		return 0, ErrHandlerTimeout
 	}
 	if !tw.wroteHeader {
-		tw.writeHeader(StatusOK)
+		tw.writeHeaderLocked(StatusOK)
 	}
 	return tw.wbuf.Write(p)
 }
 
-func (tw *timeoutWriter) WriteHeader(code int) {
+func (tw *timeoutWriter) writeHeaderLocked(code int) {
 	checkWriteHeaderCode(code)
-	tw.mu.Lock()
-	defer tw.mu.Unlock()
-	if tw.timedOut || tw.wroteHeader {
+
+	switch {
+	case tw.timedOut:
 		return
+	case tw.wroteHeader:
+		if tw.req != nil {
+			caller := relevantCaller()
+			logf(tw.req, "http: superfluous response.WriteHeader call from %s (%s:%d)", caller.Function, path.Base(caller.File), caller.Line)
+		}
+	default:
+		tw.wroteHeader = true
+		tw.code = code
 	}
-	tw.writeHeader(code)
 }
 
-func (tw *timeoutWriter) writeHeader(code int) {
-	tw.wroteHeader = true
-	tw.code = code
+func (tw *timeoutWriter) WriteHeader(code int) {
+	tw.mu.Lock()
+	defer tw.mu.Unlock()
+	tw.writeHeaderLocked(code)
 }
 
 // onceCloseListener wraps a net.Listener, protecting it from

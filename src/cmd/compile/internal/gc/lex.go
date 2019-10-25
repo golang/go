@@ -61,7 +61,7 @@ func pragmaValue(verb string) syntax.Pragma {
 	case "go:norace":
 		return Norace
 	case "go:nosplit":
-		return Nosplit
+		return Nosplit | NoCheckPtr // implies NoCheckPtr (see #34972)
 	case "go:noinline":
 		return Noinline
 	case "go:nocheckptr":

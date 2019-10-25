@@ -417,14 +417,14 @@ func (r *vcsRepo) DescendsFrom(rev, tag string) (bool, error) {
 	return false, vcsErrorf("DescendsFrom not implemented")
 }
 
-func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error) {
+func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, err error) {
 	if r.cmd.readZip == nil {
-		return nil, "", vcsErrorf("ReadZip not implemented for %s", r.cmd.vcs)
+		return nil, vcsErrorf("ReadZip not implemented for %s", r.cmd.vcs)
 	}
 
 	unlock, err := r.mu.Lock()
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	defer unlock()
 
@@ -433,7 +433,7 @@ func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
 	}
 	f, err := ioutil.TempFile("", "go-readzip-*.zip")
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	if r.cmd.vcs == "fossil" {
 		// If you run
@@ -454,9 +454,9 @@ func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
 	if err != nil {
 		f.Close()
 		os.Remove(f.Name())
-		return nil, "", err
+		return nil, err
 	}
-	return &deleteCloser{f}, "", nil
+	return &deleteCloser{f}, nil
 }
 
 // deleteCloser is a file that gets deleted on Close.

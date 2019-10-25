@@ -863,7 +863,16 @@ func (lv *Liveness) solve() {
 					newliveout.vars.Set(pos)
 				}
 			case ssa.BlockExit:
-				// panic exit - nothing to do
+				if lv.fn.Func.HasDefer() && !lv.fn.Func.OpenCodedDeferDisallowed() {
+					// All stack slots storing args for open-coded
+					// defers are live at panic exit (since they
+					// will be used in running defers)
+					for i, n := range lv.vars {
+						if n.Name.OpenDeferSlot() {
+							newliveout.vars.Set(int32(i))
+						}
+					}
+				}
 			default:
 				// A variable is live on output from this block
 				// if it is live on input to some successor.

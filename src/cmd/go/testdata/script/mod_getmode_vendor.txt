@@ -11,9 +11,16 @@ stdout '^rsc.io/quote v1.5.1 .*vendor[\\/]rsc.io[\\/]quote$'
 stdout '^golang.org/x/text v0.0.0.* .*vendor[\\/]golang.org[\\/]x[\\/]text[\\/]language$'
 
 ! go list -mod=vendor -m rsc.io/quote@latest
-stderr 'go list -m: can''t list modules with -mod=vendor\n\tuse -mod=mod or -mod=readonly to ignore the vendor directory'
+stderr 'go list -m: rsc.io/quote@latest: module lookup disabled by -mod=vendor'
 ! go get -mod=vendor -u
 stderr 'flag provided but not defined: -mod'
+
+# Since we don't have a complete module graph, 'go list -m' queries
+# that require the complete graph should fail with a useful error.
+! go list -mod=vendor -m all
+stderr 'go list -m: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+! go list -mod=vendor -m ...
+stderr 'go list -m: can''t match module patterns using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
 
 -- go.mod --
 module x

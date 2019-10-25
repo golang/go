@@ -82,6 +82,10 @@ stderr 'cannot find main module'
 stderr 'cannot find main module'
 
 
+# 'go mod download' without arguments should report an error.
+! go mod download
+stderr 'no modules specified'
+
 # 'go mod download' should download exactly the requested module without dependencies.
 rm -r $GOPATH/pkg/mod/cache/download/example.com
 go mod download example.com/printversion@v1.0.0
@@ -92,15 +96,16 @@ exists $GOPATH/pkg/mod/cache/download/example.com/printversion/@v/v1.0.0.zip
 ! go mod download all
 stderr 'go: cannot match "all": working directory is not part of a module'
 
+
 # 'go mod vendor' should fail: it starts by clearing the existing vendor
 # directory, and we don't know where that is.
 ! go mod vendor
 stderr 'cannot find main module'
 
-# 'go mod verify' should succeed: we have no modules to verify.
-go mod verify
-stdout 'all modules verified'
-! stderr .
+
+# 'go mod verify' should fail: we have no modules to verify.
+! go mod verify
+stderr 'cannot find main module'
 
 
 # 'go get' without arguments implicitly operates on the main module, and thus

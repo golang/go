@@ -8,7 +8,6 @@ package net
 
 import (
 	"fmt"
-	"internal/testenv"
 	"reflect"
 	"runtime"
 	"testing"
@@ -51,20 +50,7 @@ func ipv6LinkLocalUnicastAddr(ifi *Interface) string {
 	return ""
 }
 
-func condSkipInterfaceTest(t *testing.T) {
-	t.Helper()
-	switch runtime.GOOS {
-	case "darwin":
-		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
-			t.Skipf("sysctl is not supported on iOS")
-		}
-	case "dragonfly":
-		testenv.SkipFlaky(t, 34368)
-	}
-}
-
 func TestInterfaces(t *testing.T) {
-	condSkipInterfaceTest(t)
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)
@@ -96,7 +82,6 @@ func TestInterfaces(t *testing.T) {
 }
 
 func TestInterfaceAddrs(t *testing.T) {
-	condSkipInterfaceTest(t)
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)
@@ -116,7 +101,6 @@ func TestInterfaceAddrs(t *testing.T) {
 }
 
 func TestInterfaceUnicastAddrs(t *testing.T) {
-	condSkipInterfaceTest(t)
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)
@@ -144,7 +128,6 @@ func TestInterfaceUnicastAddrs(t *testing.T) {
 }
 
 func TestInterfaceMulticastAddrs(t *testing.T) {
-	condSkipInterfaceTest(t)
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)

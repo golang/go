@@ -91,7 +91,7 @@ const (
 
 	// The stack guard is a pointer this many bytes above the
 	// bottom of the stack.
-	_StackGuard = 880*sys.StackGuardMultiplier + _StackSystem
+	_StackGuard = 896*sys.StackGuardMultiplier + _StackSystem
 
 	// After a stack split check the SP is allowed to be this
 	// many bytes below the stack guard. This saves an instruction
@@ -736,6 +736,8 @@ func adjustdefers(gp *g, adjinfo *adjustinfo) {
 		adjustpointer(adjinfo, unsafe.Pointer(&d.sp))
 		adjustpointer(adjinfo, unsafe.Pointer(&d._panic))
 		adjustpointer(adjinfo, unsafe.Pointer(&d.link))
+		adjustpointer(adjinfo, unsafe.Pointer(&d.varp))
+		adjustpointer(adjinfo, unsafe.Pointer(&d.fd))
 	}
 
 	// Adjust defer argument blocks the same way we adjust active stack frames.
@@ -1096,6 +1098,12 @@ func shrinkstack(gp *g) {
 	if gstatus&_Gscan == 0 {
 		throw("bad status in shrinkstack")
 	}
+	// Check for self-shrinks while in a libcall. These may have
+	// pointers into the stack disguised as uintptrs, but these
+	// code paths should all be nosplit.
+	if gp == getg().m.curg && gp.m.libcallsp != 0 {
+		throw("shrinking stack in libcall")
+	}
 
 	if debug.gcshrinkstackoff > 0 {
 		return
@@ -1127,9 +1135,6 @@ func shrinkstack(gp *g) {
 	// We can't copy the stack if we're in a syscall.
 	// The syscall might have pointers into the stack.
 	if gp.syscallsp != 0 {
-		return
-	}
-	if sys.GoosWindows != 0 && gp.m != nil && gp.m.libcallsp != 0 {
 		return
 	}
 

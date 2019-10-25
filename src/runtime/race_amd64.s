@@ -416,9 +416,11 @@ rest:
 	// Set g = g0.
 	get_tls(R12)
 	MOVQ	g(R12), R13
-	MOVQ	g_m(R13), R13
-	MOVQ	m_g0(R13), R14
-	MOVQ	R14, g(R12)	// g = m->g0
+	MOVQ	g_m(R13), R14
+	MOVQ	m_g0(R14), R15
+	CMPQ	R13, R15
+	JEQ	noswitch	// branch if already on g0
+	MOVQ	R15, g(R12)	// g = m->g0
 	PUSHQ	RARG1	// func arg
 	PUSHQ	RARG0	// func arg
 	CALL	runtime·racecallback(SB)
@@ -430,6 +432,7 @@ rest:
 	MOVQ	g_m(R13), R13
 	MOVQ	m_curg(R13), R14
 	MOVQ	R14, g(R12)	// g = m->curg
+ret:
 	// Restore callee-saved registers.
 	POPQ	R15
 	POPQ	R14
@@ -440,3 +443,12 @@ rest:
 	POPQ	BP
 	POPQ	BX
 	RET
+
+noswitch:
+	// already on g0
+	PUSHQ	RARG1	// func arg
+	PUSHQ	RARG0	// func arg
+	CALL	runtime·racecallback(SB)
+	POPQ	R12
+	POPQ	R12
+	JMP	ret

@@ -16,6 +16,7 @@ import (
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/module"
+	"cmd/go/internal/work"
 )
 
 var cmdVerify = &base.Command{
@@ -32,13 +33,17 @@ non-zero status.
 	Run: runVerify,
 }
 
+func init() {
+	work.AddModCommonFlags(cmdVerify)
+}
+
 func runVerify(cmd *base.Command, args []string) {
 	if len(args) != 0 {
 		// NOTE(rsc): Could take a module pattern.
 		base.Fatalf("go mod verify: verify takes no arguments")
 	}
 	// Checks go mod expected behavior
-	if !modload.Enabled() {
+	if !modload.Enabled() || !modload.HasModRoot() {
 		if cfg.Getenv("GO111MODULE") == "off" {
 			base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
 		} else {

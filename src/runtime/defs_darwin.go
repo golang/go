@@ -30,6 +30,7 @@ import "C"
 const (
 	EINTR     = C.EINTR
 	EFAULT    = C.EFAULT
+	EAGAIN    = C.EAGAIN
 	ETIMEDOUT = C.ETIMEDOUT
 
 	PROT_NONE  = C.PROT_NONE

@@ -111,6 +111,8 @@ func notetsleepg(n *note, ns int64) bool {
 		gopark(nil, nil, waitReasonSleep, traceEvNone, 1)
 
 		clearTimeoutEvent(id) // note might have woken early, clear timeout
+		clearIdleID()
+
 		mp = acquirem()
 		delete(notes, n)
 		delete(notesWithTimeout, n)
@@ -148,10 +150,25 @@ var isHandlingEvent = false
 var nextEventIsAsync = false
 var returnedEventHandler *g
 
+// The timeout event started by beforeIdle.
+var idleID int32
+
 // beforeIdle gets called by the scheduler if no goroutine is awake.
 // If we are not already handling an event, then we pause for an async event.
 // If an event handler returned, we resume it and it will pause the execution.
-func beforeIdle() bool {
+func beforeIdle(delay int64) bool {
+	if delay > 0 {
+		if delay < 1e6 {
+			delay = 1
+		} else if delay < 1e15 {
+			delay = delay / 1e6
+		} else {
+			// An arbitrary cap on how long to wait for a timer.
+			// 1e9 ms == ~11.5 days.
+			delay = 1e9
+		}
+		idleID = scheduleTimeoutEvent(delay)
+	}
 	if !isHandlingEvent {
 		nextEventIsAsync = true
 		pause(getcallersp() - 16)
@@ -162,6 +179,14 @@ func beforeIdle() bool {
 		return true
 	}
 	return false
+}
+
+// clearIdleID clears our record of the timeout started by beforeIdle.
+func clearIdleID() {
+	if idleID != 0 {
+		clearTimeoutEvent(idleID)
+		idleID = 0
+	}
 }
 
 // pause sets SP to newsp and pauses the execution of Go's WebAssembly code until an event is triggered.
@@ -188,6 +213,8 @@ func handleEvent() {
 	returnedEventHandler = nil
 
 	eventHandler()
+
+	clearIdleID()
 
 	// wait until all goroutines are idle
 	returnedEventHandler = getg()
