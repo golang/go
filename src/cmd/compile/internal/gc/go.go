@@ -270,11 +270,6 @@ type Arch struct {
 	// SSAGenBlock emits end-of-block Progs. SSAGenValue should be called
 	// for all values in the block before SSAGenBlock.
 	SSAGenBlock func(s *SSAGenState, b, next *ssa.Block)
-
-	// ZeroAuto emits code to zero the given auto stack variable.
-	// ZeroAuto must not use any non-temporary registers.
-	// ZeroAuto will only be called for variables which contain a pointer.
-	ZeroAuto func(*Progs, *Node)
 }
 
 var thearch Arch
