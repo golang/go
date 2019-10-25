@@ -1,7 +1,9 @@
-// Copyright 2017 The Go Authors. All rights reserved.
+// Copyright 2019 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package diff implements Diff function that compares two byte[]
+// using linux 'diff' tool in temp files
 package diff
 
 import (
@@ -11,16 +13,18 @@ import (
 	"runtime"
 )
 
-func Diff(prefix string, b1, b2 []byte) (data []byte, err error) {
+// Returns diff of two arrays of bytes in diff tool format
+func Diff(prefix string, b1, b2 []byte) ([]byte, error) {
+	data := make([]byte, 0)
 	f1, err := writeTempFile("", prefix, b1)
 	if err != nil {
-		return
+		return data, err
 	}
 	defer os.Remove(f1)
 
 	f2, err := writeTempFile("", prefix, b2)
 	if err != nil {
-		return
+		return data, err
 	}
 	defer os.Remove(f2)
 
@@ -35,7 +39,7 @@ func Diff(prefix string, b1, b2 []byte) (data []byte, err error) {
 		// Ignore that failure as long as we get output.
 		err = nil
 	}
-	return
+	return data, err
 }
 
 func writeTempFile(dir, prefix string, data []byte) (string, error) {
