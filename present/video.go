@@ -24,6 +24,9 @@ func (v Video) TemplateName() string { return "video" }
 
 func parseVideo(ctx *Context, fileName string, lineno int, text string) (Elem, error) {
 	args := strings.Fields(text)
+	if len(args) < 3 {
+		return nil, fmt.Errorf("incorrect video invocation: %q", text)
+	}
 	vid := Video{URL: args[1], SourceType: args[2]}
 	a, err := parseArgs(fileName, lineno, args[3:])
 	if err != nil {
