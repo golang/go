@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package diff implements Diff function that compares two []byte
-// using 'diff' tool in temp files.
+// using 'diff' tool.
 package diff
 
 import (
@@ -15,7 +15,6 @@ import (
 
 // Returns diff of two arrays of bytes in diff tool format.
 func Diff(prefix string, b1, b2 []byte) ([]byte, error) {
-
 	f1, err := writeTempFile("", prefix, b1)
 	if err != nil {
 		return nil, err
