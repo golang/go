@@ -8,6 +8,7 @@ package os
 
 import (
 	"io"
+	"runtime"
 	"syscall"
 )
 
@@ -126,6 +127,13 @@ func removeAll(path string) error {
 	err1 := Remove(path)
 	if err1 == nil || IsNotExist(err1) {
 		return nil
+	}
+	if runtime.GOOS == "windows" && IsPermission(err1) {
+		if fs, err := Stat(path); err == nil {
+			if err = Chmod(path, FileMode(0200 | int(fs.Mode()))); err == nil {
+				err1 = Remove(path)
+			}
+		}
 	}
 	if err == nil {
 		err = err1
