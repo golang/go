@@ -371,7 +371,12 @@ func dumpgoroutine(gp *g) {
 		dumpint(uint64(d.sp))
 		dumpint(uint64(d.pc))
 		dumpint(uint64(uintptr(unsafe.Pointer(d.fn))))
-		dumpint(uint64(uintptr(unsafe.Pointer(d.fn.fn))))
+		if d.fn == nil {
+			// d.fn can be nil for open-coded defers
+			dumpint(uint64(0))
+		} else {
+			dumpint(uint64(uintptr(unsafe.Pointer(d.fn.fn))))
+		}
 		dumpint(uint64(uintptr(unsafe.Pointer(d.link))))
 	}
 	for p := gp._panic; p != nil; p = p.link {

@@ -824,10 +824,10 @@ type _defer struct {
 	// defers. We have only one defer record for the entire frame (which may
 	// currently have 0, 1, or more defers active).
 	openDefer bool
-	sp        uintptr // sp at time of defer
-	pc        uintptr // pc at time of defer
-	fn        *funcval
-	_panic    *_panic // panic that is running defer
+	sp        uintptr  // sp at time of defer
+	pc        uintptr  // pc at time of defer
+	fn        *funcval // can be nil for open-coded defers
+	_panic    *_panic  // panic that is running defer
 	link      *_defer
 
 	// If openDefer is true, the fields below record values about the stack
