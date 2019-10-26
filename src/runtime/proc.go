@@ -543,6 +543,7 @@ func schedinit() {
 	moduledataverify()
 	stackinit()
 	mallocinit()
+	fastrandinit() // must run before mcommoninit
 	mcommoninit(_g_.m)
 	cpuinit()       // must run before alginit
 	alginit()       // maps must not be used before this call
@@ -620,8 +621,8 @@ func mcommoninit(mp *m) {
 	sched.mnext++
 	checkmcount()
 
-	mp.fastrand[0] = 1597334677 * uint32(mp.id)
-	mp.fastrand[1] = uint32(cputicks())
+	mp.fastrand[0] = uint32(int64Hash(uint64(mp.id), fastrandseed))
+	mp.fastrand[1] = uint32(int64Hash(uint64(cputicks()), ^fastrandseed))
 	if mp.fastrand[0]|mp.fastrand[1] == 0 {
 		mp.fastrand[1] = 1
 	}
@@ -644,6 +645,13 @@ func mcommoninit(mp *m) {
 	if iscgo || GOOS == "solaris" || GOOS == "illumos" || GOOS == "windows" {
 		mp.cgoCallers = new(cgoCallers)
 	}
+}
+
+var fastrandseed uintptr
+
+func fastrandinit() {
+	s := (*[unsafe.Sizeof(fastrandseed)]byte)(unsafe.Pointer(&fastrandseed))[:]
+	getRandomData(s)
 }
 
 // Mark gp ready to run.
