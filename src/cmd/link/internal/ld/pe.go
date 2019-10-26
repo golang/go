@@ -861,13 +861,17 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 
 	switch ctxt.Arch.Family {
 	case sys.ARM:
-		oh64.DllCharacteristics = IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE | IMAGE_DLLCHARACTERISTICS_NX_COMPAT
-		oh.DllCharacteristics = IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE | IMAGE_DLLCHARACTERISTICS_NX_COMPAT
+		oh64.DllCharacteristics = IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
+		oh.DllCharacteristics = IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
 	}
 
 	// Mark as having awareness of terminal services, to avoid ancient compatibility hacks.
 	oh64.DllCharacteristics |= IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE
 	oh.DllCharacteristics |= IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE
+
+	// Enable DEP
+	oh64.DllCharacteristics |= IMAGE_DLLCHARACTERISTICS_NX_COMPAT
+	oh.DllCharacteristics |= IMAGE_DLLCHARACTERISTICS_NX_COMPAT
 
 	// Disable stack growth as we don't want Windows to
 	// fiddle with the thread stack limits, which we set

@@ -1188,6 +1188,9 @@ func (ctxt *Link) hostlink() {
 		// ancient compatibility hacks.
 		argv = append(argv, "-Wl,--tsaware")
 
+		// Enable DEP
+		argv = append(argv, "-Wl,--nxcompat")
+
 		argv = append(argv, fmt.Sprintf("-Wl,--major-os-version=%d", PeMinimumTargetMajorVersion))
 		argv = append(argv, fmt.Sprintf("-Wl,--minor-os-version=%d", PeMinimumTargetMinorVersion))
 		argv = append(argv, fmt.Sprintf("-Wl,--major-subsystem-version=%d", PeMinimumTargetMajorVersion))
