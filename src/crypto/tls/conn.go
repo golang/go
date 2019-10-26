@@ -1064,10 +1064,10 @@ func (c *Conn) Write(b []byte) (int, error) {
 			return 0, errClosed
 		}
 		if atomic.CompareAndSwapInt32(&c.activeCall, x, x+2) {
-			defer atomic.AddInt32(&c.activeCall, -2)
 			break
 		}
 	}
+	defer atomic.AddInt32(&c.activeCall, -2)
 
 	if err := c.Handshake(); err != nil {
 		return 0, err
