@@ -1384,6 +1384,8 @@ func buildop(ctxt *obj.Link) {
 			opset(AVSRAB, r)
 			opset(AVSRL, r)
 			opset(AVSRLB, r)
+			opset(AVSB, r)
+			opset(AVSH, r)
 			opset(AVSF, r)
 			opset(AVSG, r)
 			opset(AVSQ, r)
