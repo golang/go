@@ -228,12 +228,12 @@ func gofmtMain() {
 	}
 }
 
-func diffWithReplaceTempFile(b1, b2 []byte, filename string) (data []byte, err error) {
-	data, err = diff.Diff("gofmt", b1, b2)
+func diffWithReplaceTempFile(b1, b2 []byte, filename string) ([]byte, error) {
+	data, err := diff.Diff("gofmt", b1, b2)
 	if len(data) > 0 {
 		return replaceTempFilename(data, filename)
 	}
-	return
+	return data, err
 }
 
 // replaceTempFilename replaces temporary filenames in diff with actual one.
