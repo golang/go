@@ -687,7 +687,7 @@ type dsnConnector struct {
 func (t dsnConnector) Connect(_ context.Context) (driver.Conn, error) {
 	conn, err := t.driver.Open(t.dsn)
 	if err == driver.ErrBadConn {
-		return conn, fmt.Errorf("sql: driver open() returned ErrBadConn. ErrBadConn should only be returned from existing connections")
+		return conn, fmt.Errorf("sql: driver Open() returned ErrBadConn. ErrBadConn should only be returned from existing connections")
 	}
 	return conn, err
 }
