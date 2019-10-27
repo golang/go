@@ -150,6 +150,7 @@ func (app *Application) commands() []tool.Application {
 		&rename{app: app},
 		&signature{app: app},
 		&suggestedfix{app: app},
+		&symbols{app: app},
 		&version{app: app},
 	}
 }

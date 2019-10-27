@@ -116,7 +116,7 @@ type Tests interface {
 	References(*testing.T, span.Span, []span.Span)
 	Rename(*testing.T, span.Span, string)
 	PrepareRename(*testing.T, span.Span, *source.PrepareItem)
-	Symbol(*testing.T, span.URI, []protocol.DocumentSymbol)
+	Symbols(*testing.T, span.URI, []protocol.DocumentSymbol)
 	SignatureHelp(*testing.T, span.Span, *source.SignatureInformation)
 	Link(*testing.T, span.URI, []Link)
 }
@@ -534,7 +534,7 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		for uri, expectedSymbols := range data.Symbols {
 			t.Run(uriName(uri), func(t *testing.T) {
 				t.Helper()
-				tests.Symbol(t, uri, expectedSymbols)
+				tests.Symbols(t, uri, expectedSymbols)
 			})
 		}
 	})

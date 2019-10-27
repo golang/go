@@ -16,7 +16,6 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/packages/packagestest"
-	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/span"
@@ -76,10 +75,6 @@ func (r *runner) Highlight(t *testing.T, name string, locations []span.Span) {
 
 func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.PrepareItem) {
 	//TODO: add command line prepare rename tests when it works
-}
-
-func (r *runner) Symbol(t *testing.T, uri span.URI, expectedSymbols []protocol.DocumentSymbol) {
-	//TODO: add command line symbol tests when it works
 }
 
 func (r *runner) Implementation(t *testing.T, spn span.Span, imp tests.Implementations) {
