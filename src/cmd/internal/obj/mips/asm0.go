@@ -72,15 +72,20 @@ type Optab struct {
 	flag   uint8
 }
 
+const (
+	// Optab.flag
+	NOTUSETMP = 1 << iota // p expands to multiple instructions, but does NOT use REGTMP
+)
+
 var optab = []Optab{
 	{obj.ATEXT, C_LEXT, C_NONE, C_TEXTSIZE, 0, 0, 0, sys.MIPS64, 0},
 	{obj.ATEXT, C_ADDR, C_NONE, C_TEXTSIZE, 0, 0, 0, 0, 0},
 
 	{AMOVW, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
 	{AMOVV, C_REG, C_NONE, C_REG, 1, 4, 0, sys.MIPS64, 0},
-	{AMOVB, C_REG, C_NONE, C_REG, 12, 8, 0, 0, 0},
+	{AMOVB, C_REG, C_NONE, C_REG, 12, 8, 0, 0, NOTUSETMP},
 	{AMOVBU, C_REG, C_NONE, C_REG, 13, 4, 0, 0, 0},
-	{AMOVWU, C_REG, C_NONE, C_REG, 14, 8, 0, sys.MIPS64, 0},
+	{AMOVWU, C_REG, C_NONE, C_REG, 14, 8, 0, sys.MIPS64, NOTUSETMP},
 
 	{ASUB, C_REG, C_REG, C_REG, 2, 4, 0, 0, 0},
 	{ASUBV, C_REG, C_REG, C_REG, 2, 4, 0, sys.MIPS64, 0},
@@ -182,11 +187,11 @@ var optab = []Optab{
 	{AMOVB, C_REG, C_NONE, C_ADDR, 50, 12, 0, sys.MIPS64, 0},
 	{AMOVBU, C_REG, C_NONE, C_ADDR, 50, 8, 0, sys.MIPS, 0},
 	{AMOVBU, C_REG, C_NONE, C_ADDR, 50, 12, 0, sys.MIPS64, 0},
-	{AMOVW, C_REG, C_NONE, C_TLS, 53, 8, 0, 0, 0},
-	{AMOVWU, C_REG, C_NONE, C_TLS, 53, 8, 0, sys.MIPS64, 0},
-	{AMOVV, C_REG, C_NONE, C_TLS, 53, 8, 0, sys.MIPS64, 0},
-	{AMOVB, C_REG, C_NONE, C_TLS, 53, 8, 0, 0, 0},
-	{AMOVBU, C_REG, C_NONE, C_TLS, 53, 8, 0, 0, 0},
+	{AMOVW, C_REG, C_NONE, C_TLS, 53, 8, 0, 0, NOTUSETMP},
+	{AMOVWU, C_REG, C_NONE, C_TLS, 53, 8, 0, sys.MIPS64, NOTUSETMP},
+	{AMOVV, C_REG, C_NONE, C_TLS, 53, 8, 0, sys.MIPS64, NOTUSETMP},
+	{AMOVB, C_REG, C_NONE, C_TLS, 53, 8, 0, 0, NOTUSETMP},
+	{AMOVBU, C_REG, C_NONE, C_TLS, 53, 8, 0, 0, NOTUSETMP},
 
 	{AMOVW, C_LEXT, C_NONE, C_REG, 36, 12, REGSB, sys.MIPS64, 0},
 	{AMOVWU, C_LEXT, C_NONE, C_REG, 36, 12, REGSB, sys.MIPS64, 0},
@@ -211,19 +216,19 @@ var optab = []Optab{
 	{AMOVB, C_ADDR, C_NONE, C_REG, 51, 12, 0, sys.MIPS64, 0},
 	{AMOVBU, C_ADDR, C_NONE, C_REG, 51, 8, 0, sys.MIPS, 0},
 	{AMOVBU, C_ADDR, C_NONE, C_REG, 51, 12, 0, sys.MIPS64, 0},
-	{AMOVW, C_TLS, C_NONE, C_REG, 54, 8, 0, 0, 0},
-	{AMOVWU, C_TLS, C_NONE, C_REG, 54, 8, 0, sys.MIPS64, 0},
-	{AMOVV, C_TLS, C_NONE, C_REG, 54, 8, 0, sys.MIPS64, 0},
-	{AMOVB, C_TLS, C_NONE, C_REG, 54, 8, 0, 0, 0},
-	{AMOVBU, C_TLS, C_NONE, C_REG, 54, 8, 0, 0, 0},
+	{AMOVW, C_TLS, C_NONE, C_REG, 54, 8, 0, 0, NOTUSETMP},
+	{AMOVWU, C_TLS, C_NONE, C_REG, 54, 8, 0, sys.MIPS64, NOTUSETMP},
+	{AMOVV, C_TLS, C_NONE, C_REG, 54, 8, 0, sys.MIPS64, NOTUSETMP},
+	{AMOVB, C_TLS, C_NONE, C_REG, 54, 8, 0, 0, NOTUSETMP},
+	{AMOVBU, C_TLS, C_NONE, C_REG, 54, 8, 0, 0, NOTUSETMP},
 
 	{AMOVW, C_SECON, C_NONE, C_REG, 3, 4, REGSB, sys.MIPS64, 0},
 	{AMOVV, C_SECON, C_NONE, C_REG, 3, 4, REGSB, sys.MIPS64, 0},
 	{AMOVW, C_SACON, C_NONE, C_REG, 3, 4, REGSP, 0, 0},
 	{AMOVV, C_SACON, C_NONE, C_REG, 3, 4, REGSP, sys.MIPS64, 0},
-	{AMOVW, C_LECON, C_NONE, C_REG, 52, 8, REGSB, sys.MIPS, 0},
-	{AMOVW, C_LECON, C_NONE, C_REG, 52, 12, REGSB, sys.MIPS64, 0},
-	{AMOVV, C_LECON, C_NONE, C_REG, 52, 12, REGSB, sys.MIPS64, 0},
+	{AMOVW, C_LECON, C_NONE, C_REG, 52, 8, REGSB, sys.MIPS, NOTUSETMP},
+	{AMOVW, C_LECON, C_NONE, C_REG, 52, 12, REGSB, sys.MIPS64, NOTUSETMP},
+	{AMOVV, C_LECON, C_NONE, C_REG, 52, 12, REGSB, sys.MIPS64, NOTUSETMP},
 
 	{AMOVW, C_LACON, C_NONE, C_REG, 26, 12, REGSP, 0, 0},
 	{AMOVV, C_LACON, C_NONE, C_REG, 26, 12, REGSP, sys.MIPS64, 0},
@@ -231,13 +236,13 @@ var optab = []Optab{
 	{AMOVV, C_ADDCON, C_NONE, C_REG, 3, 4, REGZERO, sys.MIPS64, 0},
 	{AMOVW, C_ANDCON, C_NONE, C_REG, 3, 4, REGZERO, 0, 0},
 	{AMOVV, C_ANDCON, C_NONE, C_REG, 3, 4, REGZERO, sys.MIPS64, 0},
-	{AMOVW, C_STCON, C_NONE, C_REG, 55, 8, 0, 0, 0},
-	{AMOVV, C_STCON, C_NONE, C_REG, 55, 8, 0, sys.MIPS64, 0},
+	{AMOVW, C_STCON, C_NONE, C_REG, 55, 8, 0, 0, NOTUSETMP},
+	{AMOVV, C_STCON, C_NONE, C_REG, 55, 8, 0, sys.MIPS64, NOTUSETMP},
 
 	{AMOVW, C_UCON, C_NONE, C_REG, 24, 4, 0, 0, 0},
 	{AMOVV, C_UCON, C_NONE, C_REG, 24, 4, 0, sys.MIPS64, 0},
-	{AMOVW, C_LCON, C_NONE, C_REG, 19, 8, 0, 0, 0},
-	{AMOVV, C_LCON, C_NONE, C_REG, 19, 8, 0, sys.MIPS64, 0},
+	{AMOVW, C_LCON, C_NONE, C_REG, 19, 8, 0, 0, NOTUSETMP},
+	{AMOVV, C_LCON, C_NONE, C_REG, 19, 8, 0, sys.MIPS64, NOTUSETMP},
 
 	{AMOVW, C_HI, C_NONE, C_REG, 20, 4, 0, 0, 0},
 	{AMOVV, C_HI, C_NONE, C_REG, 20, 4, 0, sys.MIPS64, 0},
@@ -292,7 +297,7 @@ var optab = []Optab{
 	{ABEQ, C_REG, C_REG, C_SBRA, 6, 4, 0, 0, 0},
 	{ABEQ, C_REG, C_NONE, C_SBRA, 6, 4, 0, 0, 0},
 	{ABLEZ, C_REG, C_NONE, C_SBRA, 6, 4, 0, 0, 0},
-	{ABFPT, C_NONE, C_NONE, C_SBRA, 6, 8, 0, 0, 0},
+	{ABFPT, C_NONE, C_NONE, C_SBRA, 6, 8, 0, 0, NOTUSETMP},
 
 	{AJMP, C_NONE, C_NONE, C_LBRA, 11, 4, 0, 0, 0},
 	{AJAL, C_NONE, C_NONE, C_LBRA, 11, 4, 0, 0, 0},
@@ -506,6 +511,23 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			bp = bp[4:]
 		}
 	}
+
+	// Mark nonpreemptible instruction sequences.
+	// We use REGTMP as a scratch register during call injection,
+	// so instruction sequences that use REGTMP are unsafe to
+	// preempt asynchronously.
+	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint)
+}
+
+// Return whether p is an unsafe point.
+func (c *ctxt0) isUnsafePoint(p *obj.Prog) bool {
+	if p.From.Reg == REGTMP || p.To.Reg == REGTMP || p.Reg == REGTMP {
+		return true
+	}
+	// Most of the multi-instruction sequence uses REGTMP, except
+	// ones marked safe.
+	o := c.oplook(p)
+	return o.size > 4 && o.flag&NOTUSETMP == 0
 }
 
 func isint32(v int64) bool {
@@ -1253,6 +1275,8 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 	case 12: /* movbs r,r */
+		// NOTE: this case does not use REGTMP. If it ever does,
+		// remove the NOTUSETMP flag in optab.
 		v := 16
 		if p.As == AMOVB {
 			v = 24
@@ -1268,6 +1292,8 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 	case 14: /* movwu r,r */
+		// NOTE: this case does not use REGTMP. If it ever does,
+		// remove the NOTUSETMP flag in optab.
 		o1 = OP_SRR(c.opirr(-ASLLV), uint32(0), uint32(p.From.Reg), uint32(p.To.Reg))
 		o2 = OP_SRR(c.opirr(-ASRLV), uint32(0), uint32(p.To.Reg), uint32(p.To.Reg))
 
@@ -1309,6 +1335,8 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Type = objabi.R_CALLIND
 
 	case 19: /* mov $lcon,r ==> lu+or */
+		// NOTE: this case does not use REGTMP. If it ever does,
+		// remove the NOTUSETMP flag in optab.
 		v := c.regoff(&p.From)
 		o1 = OP_IRR(c.opirr(ALUI), uint32(v>>16), uint32(REGZERO), uint32(p.To.Reg))
 		o2 = OP_IRR(c.opirr(AOR), uint32(v), uint32(p.To.Reg), uint32(p.To.Reg))
@@ -1539,6 +1567,8 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 	case 52: /* mov $lext, r ==> lu + add REGSB, r + add */
+		// NOTE: this case does not use REGTMP. If it ever does,
+		// remove the NOTUSETMP flag in optab.
 		o1 = OP_IRR(c.opirr(ALUI), uint32(0), uint32(REGZERO), uint32(p.To.Reg))
 		rel := obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc)
@@ -1563,6 +1593,8 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 53: /* mov r, tlsvar ==> rdhwr + sw o(r3) */
 		// clobbers R3 !
 		// load thread pointer with RDHWR, R3 is used for fast kernel emulation on Linux
+		// NOTE: this case does not use REGTMP. If it ever does,
+		// remove the NOTUSETMP flag in optab.
 		o1 = (037<<26 + 073) | (29 << 11) | (3 << 16) // rdhwr $29, r3
 		o2 = OP_IRR(c.opirr(p.As), uint32(0), uint32(REG_R3), uint32(p.From.Reg))
 		rel := obj.Addrel(c.cursym)
@@ -1574,6 +1606,8 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 54: /* mov tlsvar, r ==> rdhwr + lw o(r3) */
 		// clobbers R3 !
+		// NOTE: this case does not use REGTMP. If it ever does,
+		// remove the NOTUSETMP flag in optab.
 		o1 = (037<<26 + 073) | (29 << 11) | (3 << 16) // rdhwr $29, r3
 		o2 = OP_IRR(c.opirr(-p.As), uint32(0), uint32(REG_R3), uint32(p.To.Reg))
 		rel := obj.Addrel(c.cursym)
@@ -1585,6 +1619,8 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 55: /* mov $tlsvar, r ==> rdhwr + add */
 		// clobbers R3 !
+		// NOTE: this case does not use REGTMP. If it ever does,
+		// remove the NOTUSETMP flag in optab.
 		o1 = (037<<26 + 073) | (29 << 11) | (3 << 16) // rdhwr $29, r3
 		o2 = OP_IRR(c.opirr(add), uint32(0), uint32(REG_R3), uint32(p.To.Reg))
 		rel := obj.Addrel(c.cursym)
