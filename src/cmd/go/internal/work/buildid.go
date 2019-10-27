@@ -15,7 +15,6 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/load"
 	"cmd/go/internal/str"
 	"cmd/internal/buildid"
 )
@@ -421,7 +420,7 @@ func (b *Builder) fileHash(file string) string {
 // during a's work. The caller should defer b.flushOutput(a), to make sure
 // that flushOutput is eventually called regardless of whether the action
 // succeeds. The flushOutput call must happen after updateBuildID.
-func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID, target string) bool {
+func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string) bool {
 	// The second half of the build ID here is a placeholder for the content hash.
 	// It's important that the overall buildID be unlikely verging on impossible
 	// to appear in the output by chance, but that should be taken care of by

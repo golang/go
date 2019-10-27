@@ -237,7 +237,7 @@ func runEnv(cmd *base.Command, args []string) {
 				base.Fatalf("go env -w: arguments must be KEY=VALUE: invalid argument: %s", arg)
 			}
 			key, val := arg[:i], arg[i+1:]
-			if err := checkEnvWrite(key, val, env); err != nil {
+			if err := checkEnvWrite(key, val); err != nil {
 				base.Fatalf("go env -w: %v", err)
 			}
 			if _, ok := add[key]; ok {
@@ -259,7 +259,7 @@ func runEnv(cmd *base.Command, args []string) {
 		}
 		del := make(map[string]bool)
 		for _, arg := range args {
-			if err := checkEnvWrite(arg, "", env); err != nil {
+			if err := checkEnvWrite(arg, ""); err != nil {
 				base.Fatalf("go env -u: %v", err)
 			}
 			del[arg] = true
@@ -330,7 +330,7 @@ func printEnvAsJSON(env []cfg.EnvVar) {
 	}
 }
 
-func checkEnvWrite(key, val string, env []cfg.EnvVar) error {
+func checkEnvWrite(key, val string) error {
 	switch key {
 	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOTOOLDIR":
 		return fmt.Errorf("%s cannot be modified", key)

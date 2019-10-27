@@ -592,12 +592,13 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 			return p, fmt.Errorf("import %q: cannot import absolute path", path)
 		}
 
-		gopath := ctxt.gopath() // needed by both importGo and below; avoid computing twice
-		if err := ctxt.importGo(p, path, srcDir, mode, gopath); err == nil {
+		if err := ctxt.importGo(p, path, srcDir, mode); err == nil {
 			goto Found
 		} else if err != errNoModules {
 			return p, err
 		}
+
+		gopath := ctxt.gopath() // needed twice below; avoid computing many times
 
 		// tried records the location of unsuccessful package lookups
 		var tried struct {
@@ -990,7 +991,7 @@ var errNoModules = errors.New("not using modules")
 // about the requested package and all dependencies and then only reports about the requested package.
 // Then we reinvoke it for every dependency. But this is still better than not working at all.
 // See golang.org/issue/26504.
-func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode, gopath []string) error {
+func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) error {
 	const debugImportGo = false
 
 	// To invoke the go command, we must know the source directory,
