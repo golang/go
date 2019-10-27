@@ -1294,6 +1294,19 @@ func (ctxt *Link) hostlink() {
 		}
 	}
 
+	if ctxt.Arch.Family == sys.ARM64 && objabi.GOOS == "freebsd" {
+		// Switch to ld.bfd on freebsd/arm64.
+		argv = append(argv, "-fuse-ld=bfd")
+
+		// Provide a useful error if ld.bfd is missing.
+		cmd := exec.Command(*flagExtld, "-fuse-ld=bfd", "-Wl,--version")
+		if out, err := cmd.CombinedOutput(); err == nil {
+			if !bytes.Contains(out, []byte("GNU ld")) {
+				log.Fatalf("ARM64 external linker must be ld.bfd (issue #35197), please install devel/binutils")
+			}
+		}
+	}
+
 	if ctxt.IsELF && len(buildinfo) > 0 {
 		argv = append(argv, fmt.Sprintf("-Wl,--build-id=0x%x", buildinfo))
 	}
