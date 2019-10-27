@@ -80,8 +80,8 @@ var arches = map[string]func(){
 	"amd64":   genAMD64,
 	"arm":     genARM,
 	"arm64":   genARM64,
-	"mips64x": notImplemented,
-	"mipsx":   notImplemented,
+	"mips64x": func() { genMIPS(true) },
+	"mipsx":   func() { genMIPS(false) },
 	"ppc64x":  notImplemented,
 	"s390x":   genS390X,
 	"wasm":    genWasm,
@@ -354,6 +354,67 @@ func genARM64() {
 	p("MOVD (RSP), R27")          // load PC to REGTMP
 	p("ADD $%d, RSP", l.stack+16) // pop frame (including the space pushed by sigctxt.pushCall)
 	p("JMP (R27)")
+}
+
+func genMIPS(_64bit bool) {
+	mov := "MOVW"
+	movf := "MOVF"
+	add := "ADD"
+	sub := "SUB"
+	r28 := "R28"
+	regsize := 4
+	if _64bit {
+		mov = "MOVV"
+		movf = "MOVD"
+		add = "ADDV"
+		sub = "SUBV"
+		r28 = "RSB"
+		regsize = 8
+	}
+
+	// Add integer registers R1-R22, R24-R25, R28
+	// R0 (zero), R23 (REGTMP), R29 (SP), R30 (g), R31 (LR) are special,
+	// and not saved here. R26 and R27 are reserved by kernel and not used.
+	var l = layout{sp: "R29", stack: regsize} // add slot to save PC of interrupted instruction (in LR)
+	for i := 1; i <= 25; i++ {
+		if i == 23 {
+			continue // R23 is REGTMP
+		}
+		reg := fmt.Sprintf("R%d", i)
+		l.add(mov, reg, regsize)
+	}
+	l.add(mov, r28, regsize)
+	l.addSpecial(
+		mov+" HI, R1\n"+mov+" R1, %d(R29)",
+		mov+" %d(R29), R1\n"+mov+" R1, HI",
+		regsize)
+	l.addSpecial(
+		mov+" LO, R1\n"+mov+" R1, %d(R29)",
+		mov+" %d(R29), R1\n"+mov+" R1, LO",
+		regsize)
+	// Add floating point control/status register FCR31 (FCR0-FCR30 are irrelevant)
+	l.addSpecial(
+		mov+" FCR31, R1\n"+mov+" R1, %d(R29)",
+		mov+" %d(R29), R1\n"+mov+" R1, FCR31",
+		regsize)
+	// Add floating point registers F0-F31.
+	for i := 0; i <= 31; i++ {
+		reg := fmt.Sprintf("F%d", i)
+		l.add(movf, reg, regsize)
+	}
+
+	// allocate frame, save PC of interrupted instruction (in LR)
+	p(mov+" R31, -%d(R29)", l.stack)
+	p(sub+" $%d, R29", l.stack)
+
+	l.save()
+	p("CALL ·asyncPreempt2(SB)")
+	l.restore()
+
+	p(mov+" %d(R29), R31", l.stack)     // sigctxt.pushCall has pushed LR (at interrupt) on stack, restore it
+	p(mov + " (R29), R23")              // load PC to REGTMP
+	p(add+" $%d, R29", l.stack+regsize) // pop frame (including the space pushed by sigctxt.pushCall)
+	p("JMP (R23)")
 }
 
 func genS390X() {

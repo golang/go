@@ -337,7 +337,7 @@ func wantAsyncPreempt(gp *g) bool {
 // 3. It's generally safe to interact with the runtime, even if we're
 // in a signal handler stopped here. For example, there are no runtime
 // locks held, so acquiring a runtime lock won't self-deadlock.
-func isAsyncSafePoint(gp *g, pc, sp uintptr) bool {
+func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) bool {
 	mp := gp.m
 
 	// Only user Gs can have safe-points. We check this first
@@ -361,6 +361,17 @@ func isAsyncSafePoint(gp *g, pc, sp uintptr) bool {
 	f := findfunc(pc)
 	if !f.valid() {
 		// Not Go code.
+		return false
+	}
+	if (GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "mips64" || GOARCH == "mips64le") && lr == pc+8 && funcspdelta(f, pc, nil) == 0 {
+		// We probably stopped at a half-executed CALL instruction,
+		// where the LR is updated but the PC has not. If we preempt
+		// here we'll see a seemingly self-recursive call, which is in
+		// fact not.
+		// This is normally ok, as we use the return address saved on
+		// stack for unwinding, not the LR value. But if this is a
+		// call to morestack, we haven't created the frame, and we'll
+		// use the LR for unwinding, which will be bad.
 		return false
 	}
 	smi := pcdatavalue(f, _PCDATA_StackMapIndex, pc, nil)

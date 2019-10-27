@@ -84,6 +84,8 @@ var regNamesMIPS = []string{
 	"HI", // high bits of multiplication
 	"LO", // low bits of multiplication
 
+	// If you add registers, update asyncPreempt in runtime.
+
 	// pseudo-registers
 	"SB",
 }
