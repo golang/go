@@ -426,6 +426,44 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	}
 }
 
+func (r *runner) Implementation(t *testing.T, spn span.Span, m tests.Implementations) {
+	sm, err := r.data.Mapper(m.Src.URI())
+	if err != nil {
+		t.Fatal(err)
+	}
+	loc, err := sm.Location(m.Src)
+	if err != nil {
+		t.Fatalf("failed for %v: %v", m.Src, err)
+	}
+	tdpp := protocol.TextDocumentPositionParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
+		Position:     loc.Range.Start,
+	}
+	var locs []protocol.Location
+	params := &protocol.ImplementationParams{
+		TextDocumentPositionParams: tdpp,
+	}
+	locs, err = r.server.Implementation(r.ctx, params)
+	if err != nil {
+		t.Fatalf("failed for %v: %v", m.Src, err)
+	}
+	if len(locs) != len(m.Implementations) {
+		t.Fatalf("got %d locations for implementation, expected %d", len(locs), len(m.Implementations))
+	}
+	for i := range locs {
+		locURI := span.NewURI(locs[i].URI)
+		lm, err := r.data.Mapper(locURI)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if imp, err := lm.Span(locs[i]); err != nil {
+			t.Fatalf("failed for %v: %v", locs[i], err)
+		} else if imp != m.Implementations[i] {
+			t.Errorf("for %dth implementation of %v got %v want %v", i, m.Src, imp, m.Implementations[i])
+		}
+	}
+}
+
 func (r *runner) Highlight(t *testing.T, name string, locations []span.Span) {
 	m, err := r.data.Mapper(locations[0].URI())
 	if err != nil {

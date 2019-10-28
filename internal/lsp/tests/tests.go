@@ -51,6 +51,7 @@ type Formats []span.Span
 type Imports []span.Span
 type SuggestedFixes []span.Span
 type Definitions map[span.Span]Definition
+type Implementationses map[span.Span]Implementations
 type Highlights map[string][]span.Span
 type References map[span.Span][]span.Span
 type Renames map[span.Span]string
@@ -77,6 +78,7 @@ type Data struct {
 	Imports                  Imports
 	SuggestedFixes           SuggestedFixes
 	Definitions              Definitions
+	Implementationses        Implementationses
 	Highlights               Highlights
 	References               References
 	Renames                  Renames
@@ -109,6 +111,7 @@ type Tests interface {
 	Import(*testing.T, span.Span)
 	SuggestedFix(*testing.T, span.Span)
 	Definition(*testing.T, span.Span, Definition)
+	Implementation(*testing.T, span.Span, Implementations)
 	Highlight(*testing.T, string, []span.Span)
 	References(*testing.T, span.Span, []span.Span)
 	Rename(*testing.T, span.Span, string)
@@ -123,6 +126,11 @@ type Definition struct {
 	IsType    bool
 	OnlyHover bool
 	Src, Def  span.Span
+}
+
+type Implementations struct {
+	Src             span.Span
+	Implementations []span.Span
 }
 
 type CompletionTestType int
@@ -202,6 +210,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		RankCompletions:          make(RankCompletions),
 		CaseSensitiveCompletions: make(CaseSensitiveCompletions),
 		Definitions:              make(Definitions),
+		Implementationses:        make(Implementationses),
 		Highlights:               make(Highlights),
 		References:               make(References),
 		Renames:                  make(Renames),
@@ -287,29 +296,30 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 
 	// Collect any data that needs to be used by subsequent tests.
 	if err := data.Exported.Expect(map[string]interface{}{
-		"diag":          data.collectDiagnostics,
-		"item":          data.collectCompletionItems,
-		"complete":      data.collectCompletions(CompletionDefault),
-		"unimported":    data.collectCompletions(CompletionUnimported),
-		"deep":          data.collectCompletions(CompletionDeep),
-		"fuzzy":         data.collectCompletions(CompletionFuzzy),
-		"casesensitive": data.collectCompletions(CompletionCaseSensitve),
-		"rank":          data.collectCompletions(CompletionRank),
-		"snippet":       data.collectCompletionSnippets,
-		"fold":          data.collectFoldingRanges,
-		"format":        data.collectFormats,
-		"import":        data.collectImports,
-		"godef":         data.collectDefinitions,
-		"typdef":        data.collectTypeDefinitions,
-		"hover":         data.collectHoverDefinitions,
-		"highlight":     data.collectHighlights,
-		"refs":          data.collectReferences,
-		"rename":        data.collectRenames,
-		"prepare":       data.collectPrepareRenames,
-		"symbol":        data.collectSymbols,
-		"signature":     data.collectSignatures,
-		"link":          data.collectLinks,
-		"suggestedfix":  data.collectSuggestedFixes,
+		"diag":            data.collectDiagnostics,
+		"item":            data.collectCompletionItems,
+		"complete":        data.collectCompletions(CompletionDefault),
+		"unimported":      data.collectCompletions(CompletionUnimported),
+		"deep":            data.collectCompletions(CompletionDeep),
+		"fuzzy":           data.collectCompletions(CompletionFuzzy),
+		"casesensitive":   data.collectCompletions(CompletionCaseSensitve),
+		"rank":            data.collectCompletions(CompletionRank),
+		"snippet":         data.collectCompletionSnippets,
+		"fold":            data.collectFoldingRanges,
+		"format":          data.collectFormats,
+		"import":          data.collectImports,
+		"godef":           data.collectDefinitions,
+		"implementations": data.collectImplementations,
+		"typdef":          data.collectTypeDefinitions,
+		"hover":           data.collectHoverDefinitions,
+		"highlight":       data.collectHighlights,
+		"refs":            data.collectReferences,
+		"rename":          data.collectRenames,
+		"prepare":         data.collectPrepareRenames,
+		"symbol":          data.collectSymbols,
+		"signature":       data.collectSignatures,
+		"link":            data.collectLinks,
+		"suggestedfix":    data.collectSuggestedFixes,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -465,6 +475,16 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			t.Run(spanName(spn), func(t *testing.T) {
 				t.Helper()
 				tests.Definition(t, spn, d)
+			})
+		}
+	})
+
+	t.Run("Implementation", func(t *testing.T) {
+		t.Helper()
+		for spn, m := range data.Implementationses {
+			t.Run(spanName(spn), func(t *testing.T) {
+				t.Helper()
+				tests.Implementation(t, spn, m)
 			})
 		}
 	})
@@ -774,6 +794,14 @@ func (data *Data) collectDefinitions(src, target span.Span) {
 		Src: src,
 		Def: target,
 	}
+}
+
+func (data *Data) collectImplementations(src, target span.Span) {
+	// Add target to the list of expected implementations for src
+	imps := data.Implementationses[src]
+	imps.Src = src // Src is already set if imps already exists, but then we're setting it to the same thing.
+	imps.Implementations = append(imps.Implementations, target)
+	data.Implementationses[src] = imps
 }
 
 func (data *Data) collectHoverDefinitions(src, target span.Span) {

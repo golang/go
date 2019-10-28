@@ -181,8 +181,8 @@ func (s *Server) TypeDefinition(ctx context.Context, params *protocol.TypeDefini
 	return s.typeDefinition(ctx, params)
 }
 
-func (s *Server) Implementation(context.Context, *protocol.ImplementationParams) ([]protocol.Location, error) {
-	return nil, notImplemented("Implementation")
+func (s *Server) Implementation(ctx context.Context, params *protocol.ImplementationParams) ([]protocol.Location, error) {
+	return s.implementation(ctx, params)
 }
 
 func (s *Server) References(ctx context.Context, params *protocol.ReferenceParams) ([]protocol.Location, error) {
