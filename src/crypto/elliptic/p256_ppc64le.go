@@ -8,6 +8,7 @@ package elliptic
 
 import (
 	"crypto/subtle"
+	"encoding/binary"
 	"math/big"
 )
 
@@ -77,10 +78,6 @@ func p256Select(point *p256Point, table []p256Point, idx int)
 //go:noescape
 func p256SelectBase(point *p256Point, table []p256Point, idx int)
 
-// Reverse the bytes (endianness)
-//go:noescape
-func p256ReverseBytes(res, in []byte)
-
 // Point add with P2 being affine point
 // If sign == 1 -> P2 = -P2
 // If sel == 0 -> P3 = P1
@@ -143,6 +140,25 @@ func maybeReduceModP(in *big.Int) *big.Int {
 		return in
 	}
 	return new(big.Int).Mod(in, p256Params.P)
+}
+
+// p256ReverseBytes copies the first 32 bytes from in to res in reverse order.
+func p256ReverseBytes(res, in []byte) {
+	// remove bounds check
+	in = in[:32]
+	res = res[:32]
+
+	// Load in reverse order
+	a := binary.BigEndian.Uint64(in[0:])
+	b := binary.BigEndian.Uint64(in[8:])
+	c := binary.BigEndian.Uint64(in[16:])
+	d := binary.BigEndian.Uint64(in[24:])
+
+	// Store in normal order
+	binary.LittleEndian.PutUint64(res[0:], d)
+	binary.LittleEndian.PutUint64(res[8:], c)
+	binary.LittleEndian.PutUint64(res[16:], b)
+	binary.LittleEndian.PutUint64(res[24:], a)
 }
 
 func (curve p256CurveFast) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int) {

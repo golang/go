@@ -105,10 +105,10 @@ GLOBL byteswap<>+0(SB), RODATA, $16
 #define VMULT_LOW(x1, x2, out_low) \
 	VMULUWM x1, x2, out_low
 
-	//
-	// Vector multiply high word
-	//
-	//	VMLHF x0, x1, out_hi
+//
+// Vector multiply high word
+//
+//	VMLHF x0, x1, out_hi
 #define VMULT_HI(x1, x2, out_hi) \
 	VMULEUW x1, x2, TMP1;                  \
 	VMULOUW x1, x2, TMP2;                  \
@@ -166,27 +166,6 @@ GLOBL byteswap<>+0(SB), RODATA, $16
 
 #define res_ptr R3
 #define a_ptr R4
-
-// func p256ReverseBytes(res, in []byte)
-// Reuse of target and destination OK
-TEXT ·p256ReverseBytes(SB), NOSPLIT, $0-48
-	MOVD res+0(FP), res_ptr
-	MOVD in+24(FP), a_ptr
-
-	MOVD $8, R5
-	MOVD $16, R6
-	MOVD $24, R7
-
-	MOVDBR (R0+a_ptr), R8
-	MOVDBR (R5+a_ptr), R9
-	MOVDBR (R6+a_ptr), R10
-	MOVDBR (R7+a_ptr), R11
-
-	MOVD R11, (R0+res_ptr)
-	MOVD R10, (R5+res_ptr)
-	MOVD R9, (R6+res_ptr)
-	MOVD R8, (R7+res_ptr)
-	RET
 
 #undef res_ptr
 #undef a_ptr
@@ -1624,8 +1603,6 @@ TEXT ·p256PointAddAffineAsm(SB), NOSPLIT, $16-48
 	VPERM  X1, X1, SWAP, X1
 	CALL   p256MulInternal<>(SB)
 
-	// VST T1, 64(P3ptr)
-	// VST T0, 80(P3ptr)
 	VOR T0, T0, Z3L
 	VOR T1, T1, Z3H
 
