@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -701,6 +702,13 @@ func (e *ProcessEnv) buildContext() *build.Context {
 	ctx := build.Default
 	ctx.GOROOT = e.GOROOT
 	ctx.GOPATH = e.GOPATH
+
+	// As of Go 1.14, build.Context has a WorkingDir field
+	// (see golang.org/issue/34860).
+	// Populate it only if present.
+	if wd := reflect.ValueOf(&ctx).Elem().FieldByName("WorkingDir"); wd.IsValid() && wd.Kind() == reflect.String {
+		wd.SetString(e.WorkingDir)
+	}
 	return &ctx
 }
 
