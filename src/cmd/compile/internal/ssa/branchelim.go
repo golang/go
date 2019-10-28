@@ -220,7 +220,7 @@ func elimIf(f *Func, loadAddr *sparseSet, dom *Block) bool {
 	// that has the same line number as the Pos for b itself, and
 	// puts a statement mark on it, and returns whether it succeeded
 	// in this operation.
-	setBlockPos := func (b *Block) bool {
+	setBlockPos := func(b *Block) bool {
 		pos := b.Pos
 		for _, v := range b.Values {
 			if pos.SameFileAndLine(v.Pos) && !isPoorStatementOp(v.Op) {
