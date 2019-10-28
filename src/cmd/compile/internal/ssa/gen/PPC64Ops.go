@@ -83,6 +83,8 @@ var regNamesPPC64 = []string{
 	"F30",
 	"F31",
 
+	// If you add registers, update asyncPreempt in runtime.
+
 	// "CR0",
 	// "CR1",
 	// "CR2",

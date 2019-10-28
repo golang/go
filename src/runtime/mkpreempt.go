@@ -82,7 +82,7 @@ var arches = map[string]func(){
 	"arm64":   genARM64,
 	"mips64x": func() { genMIPS(true) },
 	"mipsx":   func() { genMIPS(false) },
-	"ppc64x":  notImplemented,
+	"ppc64x":  genPPC64,
 	"s390x":   genS390X,
 	"wasm":    genWasm,
 }
@@ -415,6 +415,61 @@ func genMIPS(_64bit bool) {
 	p(mov + " (R29), R23")              // load PC to REGTMP
 	p(add+" $%d, R29", l.stack+regsize) // pop frame (including the space pushed by sigctxt.pushCall)
 	p("JMP (R23)")
+}
+
+func genPPC64() {
+	// Add integer registers R3-R29
+	// R0 (zero), R1 (SP), R30 (g) are special and not saved here.
+	// R2 (TOC pointer in PIC mode), R12 (function entry address in PIC mode) have been saved in sigctxt.pushCall.
+	// R31 (REGTMP) will be saved manually.
+	var l = layout{sp: "R1", stack: 32 + 8} // MinFrameSize on PPC64, plus one word for saving R31
+	for i := 3; i <= 29; i++ {
+		if i == 12 || i == 13 {
+			// R12 has been saved in sigctxt.pushCall.
+			// R13 is TLS pointer, not used by Go code. we must NOT
+			// restore it, otherwise if we parked and resumed on a
+			// different thread we'll mess up TLS addresses.
+			continue
+		}
+		reg := fmt.Sprintf("R%d", i)
+		l.add("MOVD", reg, 8)
+	}
+	l.addSpecial(
+		"MOVW CR, R31\nMOVW R31, %d(R1)",
+		"MOVW %d(R1), R31\nMOVFL R31, $0xff", // this is MOVW R31, CR
+		8)                                    // CR is 4-byte wide, but just keep the alignment
+	l.addSpecial(
+		"MOVD XER, R31\nMOVD R31, %d(R1)",
+		"MOVD %d(R1), R31\nMOVD R31, XER",
+		8)
+	// Add floating point registers F0-F31.
+	for i := 0; i <= 31; i++ {
+		reg := fmt.Sprintf("F%d", i)
+		l.add("FMOVD", reg, 8)
+	}
+	// Add floating point control/status register FPSCR.
+	l.addSpecial(
+		"MOVFL FPSCR, F0\nFMOVD F0, %d(R1)",
+		"FMOVD %d(R1), F0\nMOVFL F0, FPSCR",
+		8)
+
+	p("MOVD R31, -%d(R1)", l.stack-32) // save R31 first, we'll use R31 for saving LR
+	p("MOVD LR, R31")
+	p("MOVDU R31, -%d(R1)", l.stack) // allocate frame, save PC of interrupted instruction (in LR)
+
+	l.save()
+	p("CALL ·asyncPreempt2(SB)")
+	l.restore()
+
+	p("MOVD %d(R1), R31", l.stack) // sigctxt.pushCall has pushed LR, R2, R12 (at interrupt) on stack, restore them
+	p("MOVD R31, LR")
+	p("MOVD %d(R1), R2", l.stack+8)
+	p("MOVD %d(R1), R12", l.stack+16)
+	p("MOVD (R1), R31") // load PC to CTR
+	p("MOVD R31, CTR")
+	p("MOVD 32(R1), R31")        // restore R31
+	p("ADD $%d, R1", l.stack+32) // pop frame (including the space pushed by sigctxt.pushCall)
+	p("JMP (CTR)")
 }
 
 func genS390X() {
