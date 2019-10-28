@@ -130,8 +130,8 @@ func (c *ctxt9) rewriteToUseTOC(p *obj.Prog) {
 		// becomes
 		//     MOVD runtime.duffxxx@TOC, R12
 		//     ADD $offset, R12
-		//     MOVD R12, CTR
-		//     BL (CTR)
+		//     MOVD R12, LR
+		//     BL (LR)
 		var sym *obj.LSym
 		if p.As == obj.ADUFFZERO {
 			sym = c.ctxt.Lookup("runtime.duffzero")
@@ -167,13 +167,11 @@ func (c *ctxt9) rewriteToUseTOC(p *obj.Prog) {
 		p2.From.Type = obj.TYPE_REG
 		p2.From.Reg = REG_R12
 		p2.To.Type = obj.TYPE_REG
-		p2.To.Reg = REG_CTR
+		p2.To.Reg = REG_LR
 		p3 := obj.Appendp(p2, c.newprog)
 		p3.As = obj.ACALL
-		p3.From.Type = obj.TYPE_REG
-		p3.From.Reg = REG_R12
 		p3.To.Type = obj.TYPE_REG
-		p3.To.Reg = REG_CTR
+		p3.To.Reg = REG_LR
 	}
 
 	var source *obj.Addr
@@ -288,8 +286,8 @@ func (c *ctxt9) rewriteToUseGot(p *obj.Prog) {
 		// becomes
 		//     MOVD runtime.duffxxx@GOT, R12
 		//     ADD $offset, R12
-		//     MOVD R12, CTR
-		//     BL (CTR)
+		//     MOVD R12, LR
+		//     BL (LR)
 		var sym *obj.LSym
 		if p.As == obj.ADUFFZERO {
 			sym = c.ctxt.Lookup("runtime.duffzero")
@@ -317,13 +315,11 @@ func (c *ctxt9) rewriteToUseGot(p *obj.Prog) {
 		p2.From.Type = obj.TYPE_REG
 		p2.From.Reg = REG_R12
 		p2.To.Type = obj.TYPE_REG
-		p2.To.Reg = REG_CTR
+		p2.To.Reg = REG_LR
 		p3 := obj.Appendp(p2, c.newprog)
 		p3.As = obj.ACALL
-		p3.From.Type = obj.TYPE_REG
-		p3.From.Reg = REG_R12
 		p3.To.Type = obj.TYPE_REG
-		p3.To.Reg = REG_CTR
+		p3.To.Reg = REG_LR
 	}
 
 	// We only care about global data: NAME_EXTERN means a global
@@ -1196,21 +1192,19 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R12
 
-		// MOVD R12, CTR
+		// MOVD R12, LR
 		p = obj.Appendp(p, c.newprog)
 		p.As = AMOVD
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_R12
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_CTR
+		p.To.Reg = REG_LR
 
-		// BL CTR
+		// BL LR
 		p = obj.Appendp(p, c.newprog)
 		p.As = obj.ACALL
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R12
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_CTR
+		p.To.Reg = REG_LR
 	} else {
 		// BL	runtime.morestack(SB)
 		p = obj.Appendp(p, c.newprog)
