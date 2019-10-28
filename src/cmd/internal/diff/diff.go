@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package diff implements Diff function that compares two []byte
-// using 'diff' tool.
+// Package diff implements a Diff function that compare two inputs
+// using the 'diff' tool.
 package diff
 
 import (
@@ -15,13 +15,13 @@ import (
 
 // Returns diff of two arrays of bytes in diff tool format.
 func Diff(prefix string, b1, b2 []byte) ([]byte, error) {
-	f1, err := writeTempFile("", prefix, b1)
+	f1, err := writeTempFile(prefix, b1)
 	if err != nil {
 		return nil, err
 	}
 	defer os.Remove(f1)
 
-	f2, err := writeTempFile("", prefix, b2)
+	f2, err := writeTempFile(prefix, b2)
 	if err != nil {
 		return nil, err
 	}
@@ -41,8 +41,8 @@ func Diff(prefix string, b1, b2 []byte) ([]byte, error) {
 	return data, err
 }
 
-func writeTempFile(dir, prefix string, data []byte) (string, error) {
-	file, err := ioutil.TempFile(dir, prefix)
+func writeTempFile(prefix string, data []byte) (string, error) {
+	file, err := ioutil.TempFile("", prefix)
 	if err != nil {
 		return "", err
 	}
