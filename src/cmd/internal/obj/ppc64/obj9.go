@@ -702,6 +702,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					// Store link register before decrementing SP, so if a signal comes
 					// during the execution of the function prologue, the traceback
 					// code will not see a half-updated stack frame.
+					// This sequence is not async preemptible, as if we open a frame
+					// at the current SP, it will clobber the saved LR.
 					q = obj.Appendp(q, c.newprog)
 					q.As = AMOVD
 					q.Pos = p.Pos
@@ -709,6 +711,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					q.From.Reg = REG_LR
 					q.To.Type = obj.TYPE_REG
 					q.To.Reg = REG_R29 // REGTMP may be used to synthesize large offset in the next instruction
+
+					q = c.ctxt.StartUnsafePoint(q, c.newprog)
 
 					q = obj.Appendp(q, c.newprog)
 					q.As = AMOVD
@@ -727,6 +731,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					q.To.Type = obj.TYPE_REG
 					q.To.Reg = REGSP
 					q.Spadj = +autosize
+
+					q = c.ctxt.EndUnsafePoint(q, c.newprog, -1)
+
 				}
 			} else if c.cursym.Func.Text.Mark&LEAF == 0 {
 				// A very few functions that do not return to their caller
