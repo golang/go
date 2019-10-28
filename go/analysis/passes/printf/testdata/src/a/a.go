@@ -160,6 +160,7 @@ func PrintfTests() {
 	fmt.Printf("%*% x", 0.22)                   // want `Printf format %\*% uses non-int 0.22 as argument of \*`
 	fmt.Printf("%q %q", multi()...)             // ok
 	fmt.Printf("%#q", `blah`)                   // ok
+	fmt.Printf("%#b", 3)                        // ok
 	// printf("now is the time", "buddy")          // no error "printf call has arguments but no formatting directives"
 	Printf("now is the time", "buddy") // want "Printf call has arguments but no formatting directives"
 	Printf("hi")                       // ok
