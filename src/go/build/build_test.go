@@ -320,7 +320,15 @@ func TestShellSafety(t *testing.T) {
 func TestImportDirNotExist(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // really must just have source
 	ctxt := Default
-	ctxt.GOPATH = ""
+
+	emptyDir, err := ioutil.TempDir("", t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(emptyDir)
+
+	ctxt.GOPATH = emptyDir
+	ctxt.WorkingDir = emptyDir
 
 	tests := []struct {
 		label        string
@@ -451,6 +459,7 @@ func TestImportPackageOutsideModule(t *testing.T) {
 	os.Setenv("GOPATH", gopath)
 	ctxt := Default
 	ctxt.GOPATH = gopath
+	ctxt.WorkingDir = filepath.Join(gopath, "src/example.com/p")
 
 	want := "cannot find module providing package"
 	if _, err := ctxt.Import("example.com/p", gopath, FindOnly); err == nil {
@@ -507,8 +516,11 @@ func TestMissingImportErrorRepetition(t *testing.T) {
 	defer os.Setenv("GOPROXY", os.Getenv("GOPROXY"))
 	os.Setenv("GOPROXY", "off")
 
+	ctxt := Default
+	ctxt.WorkingDir = tmp
+
 	pkgPath := "example.com/hello"
-	if _, err = Import(pkgPath, tmp, FindOnly); err == nil {
+	if _, err = ctxt.Import(pkgPath, tmp, FindOnly); err == nil {
 		t.Fatal("unexpected success")
 	} else if n := strings.Count(err.Error(), pkgPath); n != 1 {
 		t.Fatalf("package path %q appears in error %d times; should appear once\nerror: %v", pkgPath, n, err)
