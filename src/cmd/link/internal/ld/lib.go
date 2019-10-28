@@ -294,13 +294,16 @@ func libinit(ctxt *Link) {
 	}
 }
 
+func exitIfErrors() {
+	if nerrors != 0 || checkStrictDups > 1 && strictDupMsgCount > 0 {
+		mayberemoveoutfile()
+		Exit(2)
+	}
+
+}
+
 func errorexit() {
-	if nerrors != 0 {
-		Exit(2)
-	}
-	if checkStrictDups > 1 && strictDupMsgCount > 0 {
-		Exit(2)
-	}
+	exitIfErrors()
 	Exit(0)
 }
 
@@ -1021,6 +1024,7 @@ func hostlinksetup(ctxt *Link) {
 			log.Fatal(err)
 		}
 		*flagTmpdir = dir
+		ownTmpDir = true
 		AtExit(func() {
 			ctxt.Out.f.Close()
 			os.RemoveAll(*flagTmpdir)
@@ -1114,6 +1118,8 @@ func (ctxt *Link) archive() {
 		return
 	}
 
+	exitIfErrors()
+
 	if *flagExtar == "" {
 		*flagExtar = "ar"
 	}
@@ -1140,6 +1146,18 @@ func (ctxt *Link) archive() {
 		ctxt.Logf("archive: %s\n", strings.Join(argv, " "))
 	}
 
+	// If supported, use syscall.Exec() to invoke the archive command,
+	// which should be the final remaining step needed for the link.
+	// This will reduce peak RSS for the link (and speed up linking of
+	// large applications), since when the archive command runs we
+	// won't be holding onto all of the linker's live memory.
+	if syscallExecSupported && !ownTmpDir {
+		runAtExitFuncs()
+		ctxt.execArchive(argv)
+		panic("should not get here")
+	}
+
+	// Otherwise invoke 'ar' in the usual way (fork + exec).
 	if out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput(); err != nil {
 		Exitf("running %s failed: %v\n%s", argv[0], err, out)
 	}
