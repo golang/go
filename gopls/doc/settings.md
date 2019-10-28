@@ -40,7 +40,7 @@ Authors of editor clients may wish to handle hover text differently, and so migh
 
 Default: `"SynopsisDocumentation"`.
 
-## **usePlaceholders** *boolean*
+### **usePlaceholders** *boolean*
 
 If true, then completion responses may contain placeholders for function parameters or struct fields.
 
@@ -64,7 +64,7 @@ If false, indicates that the user does not want documentation with completion re
 
 Default value: `true`.
 
-**completeUnimported** *boolean*
+### **completeUnimported** *boolean*
 
 If true, the completion engine is allowed to make suggestions for packages that you do not currently import.
 
