@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"sort"
 	"strings"
 	"time"
 
@@ -147,8 +148,7 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
 		}
 	}
 
-	list := []string{}
-	var incompatible []string
+	var list, incompatible []string
 	for _, tag := range tags {
 		if !strings.HasPrefix(tag, p) {
 			continue
@@ -160,35 +160,114 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
 		if v == "" || v != module.CanonicalVersion(v) || IsPseudoVersion(v) {
 			continue
 		}
+
 		if err := module.CheckPathMajor(v, r.pathMajor); err != nil {
 			if r.codeDir == "" && r.pathMajor == "" && semver.Major(v) > "v1" {
 				incompatible = append(incompatible, v)
 			}
 			continue
 		}
+
 		list = append(list, v)
 	}
+	SortVersions(list)
+	SortVersions(incompatible)
 
-	if len(incompatible) > 0 {
-		// Check for later versions that were created not following semantic import versioning,
-		// as indicated by the absence of a go.mod file. Those versions can be addressed
-		// by referring to them with a +incompatible suffix, as in v17.0.0+incompatible.
-		files, err := r.code.ReadFileRevs(incompatible, "go.mod", codehost.MaxGoMod)
-		if err != nil {
-			return nil, &module.ModuleError{
+	return r.appendIncompatibleVersions(list, incompatible)
+}
+
+// appendIncompatibleVersions appends "+incompatible" versions to list if
+// appropriate, returning the final list.
+//
+// The incompatible list contains candidate versions without the '+incompatible'
+// prefix.
+//
+// Both list and incompatible must be sorted in semantic order.
+func (r *codeRepo) appendIncompatibleVersions(list, incompatible []string) ([]string, error) {
+	if len(incompatible) == 0 || r.pathMajor != "" {
+		// No +incompatible versions are possible, so no need to check them.
+		return list, nil
+	}
+
+	// We assume that if the latest release of any major version has a go.mod
+	// file, all subsequent major versions will also have go.mod files (and thus
+	// be ineligible for use as +incompatible versions).
+	// If we're wrong about a major version, users will still be able to 'go get'
+	// specific higher versions explicitly — they just won't affect 'latest' or
+	// appear in 'go list'.
+	//
+	// Conversely, we assume that if the latest release of any major version lacks
+	// a go.mod file, all versions also lack go.mod files. If we're wrong, we may
+	// include a +incompatible version that isn't really valid, but most
+	// operations won't try to use that version anyway.
+	//
+	// These optimizations bring
+	// 'go list -versions -m github.com/openshift/origin' down from 1m58s to 0m37s.
+	// That's still not great, but a substantial improvement.
+
+	versionHasGoMod := func(v string) (bool, error) {
+		_, err := r.code.ReadFile(v, "go.mod", codehost.MaxGoMod)
+		if err == nil {
+			return true, nil
+		}
+		if !os.IsNotExist(err) {
+			return false, &module.ModuleError{
 				Path: r.modPath,
 				Err:  err,
 			}
 		}
-		for _, rev := range incompatible {
-			f := files[rev]
-			if os.IsNotExist(f.Err) {
-				list = append(list, rev+"+incompatible")
-			}
+		return false, nil
+	}
+
+	if len(list) > 0 {
+		ok, err := versionHasGoMod(list[len(list)-1])
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			// The latest compatible version has a go.mod file, so assume that all
+			// subsequent versions do as well, and do not include any +incompatible
+			// versions. Even if we are wrong, the author clearly intends module
+			// consumers to be on the v0/v1 line instead of a higher +incompatible
+			// version. (See https://golang.org/issue/34189.)
+			//
+			// We know of at least two examples where this behavior is desired
+			// (github.com/russross/blackfriday@v2.0.0 and
+			// github.com/libp2p/go-libp2p@v6.0.23), and (as of 2019-10-29) have no
+			// concrete examples for which it is undesired.
+			return list, nil
 		}
 	}
 
-	SortVersions(list)
+	var lastMajor string
+	for i, v := range incompatible {
+		major := semver.Major(v)
+		if major == lastMajor {
+			list = append(list, v+"+incompatible")
+			continue
+		}
+
+		rem := incompatible[i:]
+		j := sort.Search(len(rem), func(j int) bool {
+			return semver.Major(rem[j]) != major
+		})
+		latestAtMajor := rem[j-1]
+
+		ok, err := versionHasGoMod(latestAtMajor)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			// This major version has a go.mod file, so it is not allowed as
+			// +incompatible. Subsequent major versions are likely to also have
+			// go.mod files, so stop here.
+			break
+		}
+
+		lastMajor = major
+		list = append(list, v+"+incompatible")
+	}
+
 	return list, nil
 }
 
