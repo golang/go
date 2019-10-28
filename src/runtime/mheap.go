@@ -206,10 +206,6 @@ var mheap_ mheap
 // A heapArena stores metadata for a heap arena. heapArenas are stored
 // outside of the Go heap and accessed via the mheap_.arenas index.
 //
-// This gets allocated directly from the OS, so ideally it should be a
-// multiple of the system page size. For example, avoid adding small
-// fields.
-//
 //go:notinheap
 type heapArena struct {
 	// bitmap stores the pointer/scalar bitmap for the words in
@@ -252,6 +248,18 @@ type heapArena struct {
 	// faster scanning, but we don't have 64-bit atomic bit
 	// operations.
 	pageMarks [pagesPerArena / 8]uint8
+
+	// zeroedBase marks the first byte of the first page in this
+	// arena which hasn't been used yet and is therefore already
+	// zero. zeroedBase is relative to the arena base.
+	// Increases monotonically until it hits heapArenaBytes.
+	//
+	// This field is sufficient to determine if an allocation
+	// needs to be zeroed because the page allocator follows an
+	// address-ordered first-fit policy.
+	//
+	// Reads and writes are protected by mheap_.lock.
+	zeroedBase uintptr
 }
 
 // arenaHint is a hint for where to grow the heap arenas. See
@@ -1209,6 +1217,59 @@ func (h *mheap) setSpans(base, npage uintptr, s *mspan) {
 	}
 }
 
+// allocNeedsZero checks if the region of address space [base, base+npage*pageSize),
+// assumed to be allocated, needs to be zeroed, updating heap arena metadata for
+// future allocations.
+//
+// This must be called each time pages are allocated from the heap, even if the page
+// allocator can otherwise prove the memory it's allocating is already zero because
+// they're fresh from the operating system. It updates heapArena metadata that is
+// critical for future page allocations.
+//
+// h must be locked.
+func (h *mheap) allocNeedsZero(base, npage uintptr) (needZero bool) {
+	for npage > 0 {
+		ai := arenaIndex(base)
+		ha := h.arenas[ai.l1()][ai.l2()]
+
+		arenaBase := base % heapArenaBytes
+		if arenaBase > ha.zeroedBase {
+			// zeroedBase relies on an address-ordered first-fit allocation policy
+			// for pages. We ended up past the zeroedBase, which means we could be
+			// allocating in the middle of an arena, and so the assumption
+			// zeroedBase relies on has been violated.
+			print("runtime: base = ", hex(base), ", npages = ", npage, "\n")
+			print("runtime: ai = ", ai, ", ha.zeroedBase = ", ha.zeroedBase, "\n")
+			throw("pages considered for zeroing in the middle of an arena")
+		} else if arenaBase < ha.zeroedBase {
+			// We extended into the non-zeroed part of the
+			// arena, so this region needs to be zeroed before use.
+			//
+			// We still need to update zeroedBase for this arena, and
+			// potentially more arenas.
+			needZero = true
+		}
+
+		// Compute how far into the arena we extend into, capped
+		// at heapArenaBytes.
+		arenaLimit := arenaBase + npage*pageSize
+		if arenaLimit > heapArenaBytes {
+			arenaLimit = heapArenaBytes
+		}
+		if arenaLimit > ha.zeroedBase {
+			// This allocation extends past the zeroed section in
+			// this arena, so we should bump up the zeroedBase.
+			ha.zeroedBase = arenaLimit
+		}
+
+		// Move base forward and subtract from npage to move into
+		// the next arena, or finish.
+		base += arenaLimit - arenaBase
+		npage -= (arenaLimit - arenaBase) / pageSize
+	}
+	return
+}
+
 // Allocates a span of the given size.  h must be locked.
 // The returned span has been removed from the
 // free structures, but its state is still mSpanFree.
@@ -1239,9 +1300,9 @@ HaveBase:
 
 	s := (*mspan)(h.spanalloc.alloc())
 	s.init(base, npage)
-	// TODO(mknyszek): Add code to compute whether the newly-allocated
-	// region needs to be zeroed.
-	s.needzero = 1
+	if h.allocNeedsZero(base, npage) {
+		s.needzero = 1
+	}
 	h.setSpans(s.base(), npage, s)
 
 	*stat += uint64(npage << _PageShift)
