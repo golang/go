@@ -119,14 +119,6 @@ var (
 
 var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}}
 
-func getncpu() int32 {
-	n := int32(sysconf(__SC_NPROCESSORS_ONLN))
-	if n < 1 {
-		return 1
-	}
-	return n
-}
-
 func getPageSize() uintptr {
 	n := int32(sysconf(__SC_PAGESIZE))
 	if n <= 0 {
