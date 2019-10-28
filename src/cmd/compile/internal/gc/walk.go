@@ -3139,6 +3139,52 @@ func walkcompare(n *Node, init *Nodes) *Node {
 
 	switch t.Etype {
 	default:
+		if Debug_libfuzzer != 0 && t.IsInteger() {
+			n.Left = cheapexpr(n.Left, init)
+			n.Right = cheapexpr(n.Right, init)
+
+			// If exactly one comparison operand is
+			// constant, invoke the constcmp functions
+			// instead, and arrange for the constant
+			// operand to be the first argument.
+			l, r := n.Left, n.Right
+			if r.Op == OLITERAL {
+				l, r = r, l
+			}
+			constcmp := l.Op == OLITERAL && r.Op != OLITERAL
+
+			var fn string
+			var paramType *types.Type
+			switch t.Size() {
+			case 1:
+				fn = "libfuzzerTraceCmp1"
+				if constcmp {
+					fn = "libfuzzerTraceConstCmp1"
+				}
+				paramType = types.Types[TUINT8]
+			case 2:
+				fn = "libfuzzerTraceCmp2"
+				if constcmp {
+					fn = "libfuzzerTraceConstCmp2"
+				}
+				paramType = types.Types[TUINT16]
+			case 4:
+				fn = "libfuzzerTraceCmp4"
+				if constcmp {
+					fn = "libfuzzerTraceConstCmp4"
+				}
+				paramType = types.Types[TUINT32]
+			case 8:
+				fn = "libfuzzerTraceCmp8"
+				if constcmp {
+					fn = "libfuzzerTraceConstCmp8"
+				}
+				paramType = types.Types[TUINT64]
+			default:
+				Fatalf("unexpected integer size %d for %v", t.Size(), t)
+			}
+			init.Append(mkcall(fn, nil, init, tracecmpArg(l, paramType, init), tracecmpArg(r, paramType, init)))
+		}
 		return n
 	case TARRAY:
 		// We can compare several elements at once with 2/4/8 byte integer compares
@@ -3274,6 +3320,15 @@ func walkcompare(n *Node, init *Nodes) *Node {
 	}
 	n = finishcompare(n, expr, init)
 	return n
+}
+
+func tracecmpArg(n *Node, t *types.Type, init *Nodes) *Node {
+	// Ugly hack to avoid "constant -1 overflows uintptr" errors, etc.
+	if n.Op == OLITERAL && n.Type.IsSigned() && n.Int64() < 0 {
+		n = copyexpr(n, n.Type, init)
+	}
+
+	return conv(n, t)
 }
 
 func walkcompareInterface(n *Node, init *Nodes) *Node {
