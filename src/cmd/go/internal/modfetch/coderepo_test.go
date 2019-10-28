@@ -637,7 +637,7 @@ var codeRepoVersionsTests = []struct {
 	{
 		vcs:      "git",
 		path:     "github.com/rsc/vgotest1",
-		versions: []string{"v0.0.0", "v0.0.1", "v1.0.0", "v1.0.1", "v1.0.2", "v1.0.3", "v1.1.0", "v2.0.0+incompatible"},
+		versions: []string{"v0.0.0", "v0.0.1", "v1.0.0", "v1.0.1", "v1.0.2", "v1.0.3", "v1.1.0"},
 	},
 	{
 		vcs:      "git",

@@ -34,7 +34,7 @@ type Repo interface {
 	// Pseudo-versions are not included.
 	// Versions should be returned sorted in semver order
 	// (implementations can use SortVersions).
-	Versions(prefix string) (tags []string, err error)
+	Versions(prefix string) ([]string, error)
 
 	// Stat returns information about the revision rev.
 	// A revision can be any identifier known to the underlying service:
