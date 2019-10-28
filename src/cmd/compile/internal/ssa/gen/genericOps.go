@@ -316,8 +316,7 @@ var genericOps = []opData{
 	// See section 7.2 in ieee754.
 	{name: "Fma", argLength: 3}, // compute (a*b)+c without intermediate rounding
 
-	// Data movement, max argument length for Phi is indefinite so just pick
-	// a really large number
+	// Data movement. Max argument length for Phi is indefinite.
 	{name: "Phi", argLength: -1, zeroWidth: true}, // select an argument based on which predecessor block we came from
 	{name: "Copy", argLength: 1},                  // output = arg0
 	// Convert converts between pointers and integers.
