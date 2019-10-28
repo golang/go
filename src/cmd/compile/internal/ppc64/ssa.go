@@ -1239,14 +1239,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = ppc64.REG_CTR
+		p.To.Reg = ppc64.REG_LR
 
 		if v.Args[0].Reg() != ppc64.REG_R12 {
 			v.Fatalf("Function address for %v should be in R12 %d but is in %d", v.LongString(), ppc64.REG_R12, p.From.Reg)
 		}
 
 		pp := s.Call(v)
-		pp.To.Reg = ppc64.REG_CTR
+		pp.To.Reg = ppc64.REG_LR
 
 		if gc.Ctxt.Flag_shared {
 			// When compiling Go into PIC, the function we just
