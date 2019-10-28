@@ -582,6 +582,9 @@ Architecture-specific environment variables:
 	GO386
 		For GOARCH=386, the floating point instruction set.
 		Valid values are 387, sse2.
+	GOAMD64
+		For GOARCH=amd64, jumps can be optionally be aligned such that they do not end on
+		or cross 32 byte boundaries.  Valid values are alignedjumps (default), normaljumps.
 	GOMIPS
 		For GOARCH=mips{,le}, whether to use floating point instructions.
 		Valid values are hardfloat (default), softfloat.

@@ -31,6 +31,7 @@ var (
 	goos             string
 	goarm            string
 	go386            string
+	goamd64          string
 	gomips           string
 	gomips64         string
 	goppc64          string
@@ -151,6 +152,12 @@ func xinit() {
 	}
 	go386 = b
 
+	b = os.Getenv("GOAMD64")
+	if b == "" {
+		b = "alignedjumps"
+	}
+	goamd64 = b
+
 	b = os.Getenv("GOMIPS")
 	if b == "" {
 		b = "hardfloat"
@@ -223,6 +230,7 @@ func xinit() {
 
 	// For tools being invoked but also for os.ExpandEnv.
 	os.Setenv("GO386", go386)
+	os.Setenv("GOAMD64", goamd64)
 	os.Setenv("GOARCH", goarch)
 	os.Setenv("GOARM", goarm)
 	os.Setenv("GOHOSTARCH", gohostarch)
@@ -1162,6 +1170,9 @@ func cmdenv() {
 	}
 	if goarch == "386" {
 		xprintf(format, "GO386", go386)
+	}
+	if goarch == "amd64" {
+		xprintf(format, "GOAMD64", goamd64)
 	}
 	if goarch == "mips" || goarch == "mipsle" {
 		xprintf(format, "GOMIPS", gomips)
