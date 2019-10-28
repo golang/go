@@ -292,7 +292,7 @@ func (t *_type) textOff(off textOff) unsafe.Pointer {
 		for i := range md.textsectmap {
 			sectaddr := md.textsectmap[i].vaddr
 			sectlen := md.textsectmap[i].length
-			if uintptr(off) >= sectaddr && uintptr(off) <= sectaddr+sectlen {
+			if uintptr(off) >= sectaddr && uintptr(off) < sectaddr+sectlen {
 				res = md.textsectmap[i].baseaddr + uintptr(off) - uintptr(md.textsectmap[i].vaddr)
 				break
 			}
