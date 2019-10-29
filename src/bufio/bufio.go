@@ -706,6 +706,9 @@ func (b *Writer) WriteString(s string) (int, error) {
 // supports the ReadFrom method, and b has no buffered data yet,
 // this calls the underlying ReadFrom without buffering.
 func (b *Writer) ReadFrom(r io.Reader) (n int64, err error) {
+	if b.err != nil {
+		return 0, b.err
+	}
 	if b.Buffered() == 0 {
 		if w, ok := b.wr.(io.ReaderFrom); ok {
 			n, err = w.ReadFrom(r)
