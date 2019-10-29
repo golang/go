@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/types"
 	"fmt"
 	"math"
@@ -1379,8 +1380,13 @@ func (e *Escape) finish(fns []*Node) {
 		// Update n.Esc based on escape analysis results.
 
 		if loc.escapes {
-			if Debug['m'] != 0 && n.Op != ONAME {
-				Warnl(n.Pos, "%S escapes to heap", n)
+			if n.Op != ONAME {
+				if Debug['m'] != 0 {
+					Warnl(n.Pos, "%S escapes to heap", n)
+				}
+				if logopt.Enabled() {
+					logopt.LogOpt(n.Pos, "escape", "escape", e.curfn.funcname())
+				}
 			}
 			n.Esc = EscHeap
 			addrescapes(n)
