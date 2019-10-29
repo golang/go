@@ -418,7 +418,7 @@ func (t *tester) registerTests() {
 			cmd.Args = append(cmd.Args, "-tags=race")
 		}
 		cmd.Args = append(cmd.Args, "std")
-		if !t.race {
+		if t.shouldTestCmd() {
 			cmd.Args = append(cmd.Args, "cmd")
 		}
 		cmd.Stderr = new(bytes.Buffer)
@@ -1450,6 +1450,17 @@ func (t *tester) shouldUsePrecompiledStdTest() bool {
 	}
 	_, err := os.Stat(bin)
 	return err == nil
+}
+
+func (t *tester) shouldTestCmd() bool {
+	if t.race {
+		return false
+	}
+	if goos == "js" && goarch == "wasm" {
+		// Issues 25911, 35220
+		return false
+	}
+	return true
 }
 
 // prebuiltGoPackageTestBinary returns the path where we'd expect
