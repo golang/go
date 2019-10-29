@@ -168,7 +168,7 @@ func canLinkHostObj(ctxt *Link) bool {
 	if !*flagNewobj {
 		return true
 	}
-	return ctxt.IsELF || objabi.GOOS == "darwin"
+	return ctxt.IsELF || objabi.GOOS == "darwin" || objabi.GOOS == "aix"
 }
 
 // mustLinkExternal reports whether the program being linked requires
