@@ -620,9 +620,8 @@ func (hs *serverHandshakeStateTLS13) sendServerCertificate() error {
 	certVerifyMsg.hasSignatureAlgorithm = true
 	certVerifyMsg.signatureAlgorithm = hs.sigAlg
 
-	sigType := signatureFromSignatureScheme(hs.sigAlg)
-	sigHash, err := hashFromSignatureScheme(hs.sigAlg)
-	if sigType == 0 || err != nil {
+	sigType, sigHash, err := typeAndHashFromSignatureScheme(hs.sigAlg)
+	if err != nil {
 		return c.sendAlert(alertInternalError)
 	}
 
@@ -801,23 +800,21 @@ func (hs *serverHandshakeStateTLS13) readClientCertificate() error {
 		// See RFC 8446, Section 4.4.3.
 		if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms) {
 			c.sendAlert(alertIllegalParameter)
-			return errors.New("tls: invalid certificate signature algorithm")
+			return errors.New("tls: client certificate used with invalid signature algorithm")
 		}
-		sigType := signatureFromSignatureScheme(certVerify.signatureAlgorithm)
-		sigHash, err := hashFromSignatureScheme(certVerify.signatureAlgorithm)
-		if sigType == 0 || err != nil {
-			c.sendAlert(alertInternalError)
-			return err
+		sigType, sigHash, err := typeAndHashFromSignatureScheme(certVerify.signatureAlgorithm)
+		if err != nil {
+			return c.sendAlert(alertInternalError)
 		}
 		if sigType == signaturePKCS1v15 || sigHash == crypto.SHA1 {
 			c.sendAlert(alertIllegalParameter)
-			return errors.New("tls: invalid certificate signature algorithm")
+			return errors.New("tls: client certificate used with invalid signature algorithm")
 		}
 		signed := signedMessage(sigHash, clientSignatureContext, hs.transcript)
 		if err := verifyHandshakeSignature(sigType, c.peerCertificates[0].PublicKey,
 			sigHash, signed, certVerify.signature); err != nil {
 			c.sendAlert(alertDecryptError)
-			return errors.New("tls: invalid certificate signature")
+			return errors.New("tls: invalid signature by the client certificate: " + err.Error())
 		}
 
 		hs.transcript.Write(certVerify.marshal())

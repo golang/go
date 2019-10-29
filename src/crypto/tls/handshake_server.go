@@ -560,13 +560,10 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 			return err
 		}
 
-		signed, err := hs.finishedHash.hashForClientCertificate(sigType, hashFunc, hs.masterSecret)
-		if err == nil {
-			err = verifyHandshakeSignature(sigType, pub, hashFunc, signed, certVerify.signature)
-		}
-		if err != nil {
-			c.sendAlert(alertBadCertificate)
-			return errors.New("tls: could not validate signature of connection nonces: " + err.Error())
+		signed := hs.finishedHash.hashForClientCertificate(sigType, hashFunc, hs.masterSecret)
+		if err := verifyHandshakeSignature(sigType, pub, hashFunc, signed, certVerify.signature); err != nil {
+			c.sendAlert(alertDecryptError)
+			return errors.New("tls: invalid signature by the client certificate: " + err.Error())
 		}
 
 		hs.finishedHash.Write(certVerify.marshal())
@@ -717,7 +714,7 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 		chains, err := certs[0].Verify(opts)
 		if err != nil {
 			c.sendAlert(alertBadCertificate)
-			return errors.New("tls: failed to verify client's certificate: " + err.Error())
+			return errors.New("tls: failed to verify client certificate: " + err.Error())
 		}
 
 		c.verifiedChains = chains
@@ -738,7 +735,7 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 	case *ecdsa.PublicKey, *rsa.PublicKey, ed25519.PublicKey:
 	default:
 		c.sendAlert(alertUnsupportedCertificate)
-		return fmt.Errorf("tls: client's certificate contains an unsupported public key of type %T", certs[0].PublicKey)
+		return fmt.Errorf("tls: client certificate contains an unsupported public key of type %T", certs[0].PublicKey)
 	}
 
 	c.peerCertificates = certs
