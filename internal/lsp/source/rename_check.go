@@ -850,7 +850,7 @@ func pathEnclosingInterval(ctx context.Context, fset *token.FileSet, pkg Package
 			if err != nil {
 				continue
 			}
-			importPkg, err := pkg.GetImport(ctx, importPath)
+			importPkg, err := pkg.GetImport(importPath)
 			if err != nil {
 				return nil, nil, false
 			}

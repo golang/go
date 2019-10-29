@@ -55,7 +55,7 @@ func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, erro
 		if obj == nil || !sameObj(obj, i.Declaration.obj) {
 			continue
 		}
-		rng, err := posToMappedRange(ctx, i.pkg, ident.Pos(), ident.End())
+		rng, err := posToMappedRange(ctx, i.Snapshot.View(), i.pkg, ident.Pos(), ident.End())
 		if err != nil {
 			return nil, err
 		}
@@ -73,7 +73,7 @@ func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, erro
 		if obj == nil || !sameObj(obj, i.Declaration.obj) {
 			continue
 		}
-		rng, err := posToMappedRange(ctx, i.pkg, ident.Pos(), ident.End())
+		rng, err := posToMappedRange(ctx, i.Snapshot.View(), i.pkg, ident.Pos(), ident.End())
 		if err != nil {
 			return nil, err
 		}

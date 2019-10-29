@@ -17,8 +17,6 @@ import (
 
 // pkg contains the type information needed by the source package.
 type pkg struct {
-	view *view
-
 	// ID and package path have their own types to avoid being used interchangeably.
 	id      packageID
 	pkgPath packagePath
@@ -37,10 +35,6 @@ type pkg struct {
 // result in confusing errors because package IDs often look like package paths.
 type packageID string
 type packagePath string
-
-func (p *pkg) View() source.View {
-	return p.view
-}
 
 func (p *pkg) ID() string {
 	return string(p.id)
@@ -94,12 +88,20 @@ func (p *pkg) IsIllTyped() bool {
 	return p.types == nil || p.typesInfo == nil || p.typesSizes == nil
 }
 
-func (p *pkg) GetImport(ctx context.Context, pkgPath string) (source.Package, error) {
+func (p *pkg) GetImport(pkgPath string) (source.Package, error) {
 	if imp := p.imports[packagePath(pkgPath)]; imp != nil {
 		return imp, nil
 	}
 	// Don't return a nil pointer because that still satisfies the interface.
 	return nil, errors.Errorf("no imported package for %s", pkgPath)
+}
+
+func (p *pkg) Imports() []source.Package {
+	var result []source.Package
+	for _, imp := range p.imports {
+		result = append(result, imp)
+	}
+	return result
 }
 
 func (s *snapshot) FindAnalysisError(ctx context.Context, id string, diag protocol.Diagnostic) (*source.Error, error) {
@@ -125,13 +127,8 @@ func (s *snapshot) FindAnalysisError(ctx context.Context, id string, diag protoc
 	return nil, errors.Errorf("no matching diagnostic for %v", diag)
 }
 
-func (p *pkg) FindFile(ctx context.Context, uri span.URI) (source.ParseGoHandle, source.Package, error) {
-	// Special case for ignored files.
-	if p.view.Ignore(uri) {
-		return p.view.findIgnoredFile(ctx, uri)
-	}
-
-	queue := []*pkg{p}
+func findFileInPackage(ctx context.Context, uri span.URI, pkg source.Package) (source.ParseGoHandle, source.Package, error) {
+	queue := []source.Package{pkg}
 	seen := make(map[string]bool)
 
 	for len(queue) > 0 {
@@ -139,12 +136,12 @@ func (p *pkg) FindFile(ctx context.Context, uri span.URI) (source.ParseGoHandle,
 		queue = queue[1:]
 		seen[pkg.ID()] = true
 
-		for _, ph := range pkg.files {
+		for _, ph := range pkg.Files() {
 			if ph.File().Identity().URI == uri {
 				return ph, pkg, nil
 			}
 		}
-		for _, dep := range pkg.imports {
+		for _, dep := range pkg.Imports() {
 			if !seen[dep.ID()] {
 				queue = append(queue, dep)
 			}

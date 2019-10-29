@@ -262,7 +262,7 @@ func runAnalysis(ctx context.Context, fset *token.FileSet, act *actionHandle) ([
 
 	var errors []*source.Error
 	for _, diag := range diagnostics {
-		srcErr, err := sourceError(ctx, act.pkg, diag)
+		srcErr, err := sourceError(ctx, fset, act.pkg, diag)
 		if err != nil {
 			return nil, nil, err
 		}

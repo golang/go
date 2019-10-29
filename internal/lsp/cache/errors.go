@@ -18,7 +18,7 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-func sourceError(ctx context.Context, pkg *pkg, e interface{}) (*source.Error, error) {
+func sourceError(ctx context.Context, fset *token.FileSet, pkg *pkg, e interface{}) (*source.Error, error) {
 	var (
 		spn           span.Span
 		err           error
@@ -27,7 +27,6 @@ func sourceError(ctx context.Context, pkg *pkg, e interface{}) (*source.Error, e
 		fixes         []source.SuggestedFix
 		related       []source.RelatedInformation
 	)
-	fset := pkg.view.session.cache.fset
 	switch e := e.(type) {
 	case packages.Error:
 		if e.Pos == "" {
@@ -163,7 +162,7 @@ func typeErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, pos toke
 		return span.Span{}, err
 	}
 	posn := fset.Position(pos)
-	ph, _, err := pkg.FindFile(ctx, span.FileURI(posn.Filename))
+	ph, _, err := findFileInPackage(ctx, span.FileURI(posn.Filename), pkg)
 	if err != nil {
 		return spn, nil // ignore errors
 	}
@@ -196,7 +195,7 @@ func typeErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, pos toke
 }
 
 func scannerErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, posn token.Position) (span.Span, error) {
-	ph, _, err := pkg.FindFile(ctx, span.FileURI(posn.Filename))
+	ph, _, err := findFileInPackage(ctx, span.FileURI(posn.Filename), pkg)
 	if err != nil {
 		return span.Span{}, err
 	}
@@ -224,7 +223,7 @@ func scannerErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, posn 
 // spanToRange converts a span.Span to a protocol.Range,
 // assuming that the span belongs to the package whose diagnostics are being computed.
 func spanToRange(ctx context.Context, pkg *pkg, spn span.Span) (protocol.Range, error) {
-	ph, _, err := pkg.FindFile(ctx, spn.URI())
+	ph, _, err := findFileInPackage(ctx, spn.URI(), pkg)
 	if err != nil {
 		return protocol.Range{}, err
 	}

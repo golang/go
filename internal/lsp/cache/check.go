@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
+	"go/token"
 	"go/types"
 	"sort"
 	"sync"
@@ -69,6 +70,7 @@ func (s *snapshot) checkPackageHandle(ctx context.Context, id packageID, mode so
 	if err != nil {
 		return nil, err
 	}
+	fset := s.View().Session().Cache().FileSet()
 	h := s.view.session.cache.store.Bind(string(cph.key), func(ctx context.Context) interface{} {
 		// Begin loading the direct dependencies, in parallel.
 		for _, impID := range cph.imports {
@@ -81,7 +83,7 @@ func (s *snapshot) checkPackageHandle(ctx context.Context, id packageID, mode so
 			}(dep)
 		}
 		data := &checkPackageData{}
-		data.pkg, data.err = s.typeCheck(ctx, cph)
+		data.pkg, data.err = s.typeCheck(ctx, fset, cph)
 		return data
 	})
 	cph.handle = h
@@ -211,7 +213,7 @@ func (s *snapshot) parseGoHandles(ctx context.Context, m *metadata, mode source.
 	return phs, nil
 }
 
-func (s *snapshot) typeCheck(ctx context.Context, cph *checkPackageHandle) (*pkg, error) {
+func (s *snapshot) typeCheck(ctx context.Context, fset *token.FileSet, cph *checkPackageHandle) (*pkg, error) {
 	ctx, done := trace.StartSpan(ctx, "cache.importer.typeCheck", telemetry.Package.Of(cph.m.id))
 	defer done()
 
@@ -221,7 +223,6 @@ func (s *snapshot) typeCheck(ctx context.Context, cph *checkPackageHandle) (*pkg
 	}
 
 	pkg := &pkg{
-		view:       s.view,
 		id:         cph.m.id,
 		mode:       cph.mode,
 		pkgPath:    cph.m.pkgPath,
@@ -305,7 +306,7 @@ func (s *snapshot) typeCheck(ctx context.Context, cph *checkPackageHandle) (*pkg
 	// We don't care about a package's errors unless we have parsed it in full.
 	if cph.mode == source.ParseFull {
 		for _, e := range rawErrors {
-			srcErr, err := sourceError(ctx, pkg, e)
+			srcErr, err := sourceError(ctx, fset, pkg, e)
 			if err != nil {
 				return nil, err
 			}

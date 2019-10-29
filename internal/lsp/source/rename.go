@@ -218,10 +218,10 @@ func getPkgNameIdentifier(ctx context.Context, ident *IdentifierInfo, pkgName *t
 		wasImplicit: true,
 	}
 	var err error
-	if decl.mappedRange, err = objToMappedRange(ctx, ident.pkg, decl.obj); err != nil {
+	if decl.mappedRange, err = objToMappedRange(ctx, ident.Snapshot.View(), ident.pkg, decl.obj); err != nil {
 		return nil, err
 	}
-	if decl.node, err = objToNode(ctx, ident.pkg, decl.obj); err != nil {
+	if decl.node, err = objToNode(ctx, ident.Snapshot.View(), ident.pkg, decl.obj); err != nil {
 		return nil, err
 	}
 	return &IdentifierInfo{

@@ -249,6 +249,10 @@ type View interface {
 	// dependencies of this file's package.
 	GetActiveReverseDeps(ctx context.Context, f File) []CheckPackageHandle
 
+	// FindFileInPackage returns the AST and type information for a file that may
+	// belong to or be part of a dependency of the given package.
+	FindFileInPackage(ctx context.Context, uri span.URI, pkg Package) (ParseGoHandle, Package, error)
+
 	// Snapshot returns the current snapshot for the view.
 	Snapshot() Snapshot
 }
@@ -292,15 +296,8 @@ type Package interface {
 	GetTypesInfo() *types.Info
 	GetTypesSizes() types.Sizes
 	IsIllTyped() bool
-
-	// GetImport returns the CheckPackageHandle for a package imported by this package.
-	GetImport(ctx context.Context, pkgPath string) (Package, error)
-
-	// FindFile returns the AST and type information for a file that may
-	// belong to or be part of a dependency of the given package.
-	FindFile(ctx context.Context, uri span.URI) (ParseGoHandle, Package, error)
-
-	View() View
+	GetImport(pkgPath string) (Package, error)
+	Imports() []Package
 }
 
 type Error struct {

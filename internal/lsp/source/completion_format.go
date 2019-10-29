@@ -125,7 +125,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		return item, nil
 	}
 	uri := span.FileURI(pos.Filename)
-	ph, pkg, err := c.pkg.FindFile(c.ctx, uri)
+	ph, pkg, err := c.view.FindFileInPackage(c.ctx, uri, c.pkg)
 	if err != nil {
 		return CompletionItem{}, err
 	}

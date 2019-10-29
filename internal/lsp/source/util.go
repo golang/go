@@ -127,7 +127,7 @@ func nodeToProtocolRange(ctx context.Context, view View, m *protocol.ColumnMappe
 	return mrng.Range()
 }
 
-func objToMappedRange(ctx context.Context, pkg Package, obj types.Object) (mappedRange, error) {
+func objToMappedRange(ctx context.Context, v View, pkg Package, obj types.Object) (mappedRange, error) {
 	if pkgName, ok := obj.(*types.PkgName); ok {
 		// An imported Go package has a package-local, unqualified name.
 		// When the name matches the imported package name, there is no
@@ -140,26 +140,26 @@ func objToMappedRange(ctx context.Context, pkg Package, obj types.Object) (mappe
 		// When the identifier does not appear in the source, have the range
 		// of the object be the point at the beginning of the declaration.
 		if pkgName.Imported().Name() == pkgName.Name() {
-			return nameToMappedRange(ctx, pkg, obj.Pos(), "")
+			return nameToMappedRange(ctx, v, pkg, obj.Pos(), "")
 		}
 	}
-	return nameToMappedRange(ctx, pkg, obj.Pos(), obj.Name())
+	return nameToMappedRange(ctx, v, pkg, obj.Pos(), obj.Name())
 }
 
-func nameToMappedRange(ctx context.Context, pkg Package, pos token.Pos, name string) (mappedRange, error) {
-	return posToMappedRange(ctx, pkg, pos, pos+token.Pos(len(name)))
+func nameToMappedRange(ctx context.Context, v View, pkg Package, pos token.Pos, name string) (mappedRange, error) {
+	return posToMappedRange(ctx, v, pkg, pos, pos+token.Pos(len(name)))
 }
 
 func nodeToMappedRange(ctx context.Context, view View, m *protocol.ColumnMapper, n ast.Node) (mappedRange, error) {
 	return posToRange(ctx, view, m, n.Pos(), n.End())
 }
 
-func posToMappedRange(ctx context.Context, pkg Package, pos, end token.Pos) (mappedRange, error) {
-	m, err := posToMapper(ctx, pkg, pos)
+func posToMappedRange(ctx context.Context, v View, pkg Package, pos, end token.Pos) (mappedRange, error) {
+	m, err := posToMapper(ctx, v, pkg, pos)
 	if err != nil {
 		return mappedRange{}, err
 	}
-	return posToRange(ctx, pkg.View(), m, pos, end)
+	return posToRange(ctx, v, m, pos, end)
 }
 
 func posToRange(ctx context.Context, view View, m *protocol.ColumnMapper, pos, end token.Pos) (mappedRange, error) {
@@ -175,9 +175,9 @@ func posToRange(ctx context.Context, view View, m *protocol.ColumnMapper, pos, e
 	}, nil
 }
 
-func posToMapper(ctx context.Context, pkg Package, pos token.Pos) (*protocol.ColumnMapper, error) {
-	posn := pkg.View().Session().Cache().FileSet().Position(pos)
-	ph, _, err := pkg.FindFile(ctx, span.FileURI(posn.Filename))
+func posToMapper(ctx context.Context, v View, pkg Package, pos token.Pos) (*protocol.ColumnMapper, error) {
+	posn := v.Session().Cache().FileSet().Position(pos)
+	ph, _, err := v.FindFileInPackage(ctx, span.FileURI(posn.Filename), pkg)
 	if err != nil {
 		return nil, err
 	}

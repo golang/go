@@ -108,7 +108,7 @@ func identifier(ctx context.Context, snapshot Snapshot, pkg Package, file *ast.F
 	if path == nil {
 		return nil, errors.Errorf("can't find node enclosing position")
 	}
-	view := pkg.View()
+	view := snapshot.View()
 	uri := span.FileURI(view.Session().Cache().FileSet().Position(pos).Filename)
 	var ph ParseGoHandle
 	for _, h := range pkg.Files() {
@@ -134,7 +134,7 @@ func identifier(ctx context.Context, snapshot Snapshot, pkg Package, file *ast.F
 		}
 	}
 	result.Name = result.ident.Name
-	if result.mappedRange, err = posToMappedRange(ctx, pkg, result.ident.Pos(), result.ident.End()); err != nil {
+	if result.mappedRange, err = posToMappedRange(ctx, view, pkg, result.ident.Pos(), result.ident.End()); err != nil {
 		return nil, err
 	}
 	result.Declaration.obj = pkg.GetTypesInfo().ObjectOf(result.ident)
@@ -165,7 +165,7 @@ func identifier(ctx context.Context, snapshot Snapshot, pkg Package, file *ast.F
 			return nil, errors.Errorf("no declaration for %s", result.Name)
 		}
 		result.Declaration.node = decl
-		if result.Declaration.mappedRange, err = nameToMappedRange(ctx, pkg, decl.Pos(), result.Name); err != nil {
+		if result.Declaration.mappedRange, err = nameToMappedRange(ctx, view, pkg, decl.Pos(), result.Name); err != nil {
 			return nil, err
 		}
 		return result, nil
@@ -190,10 +190,10 @@ func identifier(ctx context.Context, snapshot Snapshot, pkg Package, file *ast.F
 		}
 	}
 
-	if result.Declaration.mappedRange, err = objToMappedRange(ctx, pkg, result.Declaration.obj); err != nil {
+	if result.Declaration.mappedRange, err = objToMappedRange(ctx, view, pkg, result.Declaration.obj); err != nil {
 		return nil, err
 	}
-	if result.Declaration.node, err = objToNode(ctx, pkg, result.Declaration.obj); err != nil {
+	if result.Declaration.node, err = objToNode(ctx, snapshot.View(), pkg, result.Declaration.obj); err != nil {
 		return nil, err
 	}
 	typ := pkg.GetTypesInfo().TypeOf(result.ident)
@@ -207,7 +207,7 @@ func identifier(ctx context.Context, snapshot Snapshot, pkg Package, file *ast.F
 		if hasErrorType(result.Type.Object) {
 			return result, nil
 		}
-		if result.Type.mappedRange, err = objToMappedRange(ctx, pkg, result.Type.Object); err != nil {
+		if result.Type.mappedRange, err = objToMappedRange(ctx, view, pkg, result.Type.Object); err != nil {
 			return nil, err
 		}
 	}
@@ -241,10 +241,9 @@ func hasErrorType(obj types.Object) bool {
 	return types.IsInterface(obj.Type()) && obj.Pkg() == nil && obj.Name() == "error"
 }
 
-func objToNode(ctx context.Context, pkg Package, obj types.Object) (ast.Decl, error) {
-	view := pkg.View()
-	uri := span.FileURI(view.Session().Cache().FileSet().Position(obj.Pos()).Filename)
-	ph, _, err := pkg.FindFile(ctx, uri)
+func objToNode(ctx context.Context, v View, pkg Package, obj types.Object) (ast.Decl, error) {
+	uri := span.FileURI(v.Session().Cache().FileSet().Position(obj.Pos()).Filename)
+	ph, _, err := v.FindFileInPackage(ctx, uri, pkg)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +291,7 @@ func importSpec(ctx context.Context, snapshot Snapshot, pkg Package, file *ast.F
 	if err != nil {
 		return nil, errors.Errorf("import path not quoted: %s (%v)", imp.Path.Value, err)
 	}
-	uri := span.FileURI(pkg.View().Session().Cache().FileSet().Position(pos).Filename)
+	uri := span.FileURI(snapshot.View().Session().Cache().FileSet().Position(pos).Filename)
 	var ph ParseGoHandle
 	for _, h := range pkg.Files() {
 		if h.File().Identity().URI == uri {
@@ -305,11 +304,11 @@ func importSpec(ctx context.Context, snapshot Snapshot, pkg Package, file *ast.F
 		Name:     importPath,
 		pkg:      pkg,
 	}
-	if result.mappedRange, err = posToMappedRange(ctx, pkg, imp.Path.Pos(), imp.Path.End()); err != nil {
+	if result.mappedRange, err = posToMappedRange(ctx, snapshot.View(), pkg, imp.Path.Pos(), imp.Path.End()); err != nil {
 		return nil, err
 	}
 	// Consider the "declaration" of an import spec to be the imported package.
-	importedPkg, err := pkg.GetImport(ctx, importPath)
+	importedPkg, err := pkg.GetImport(importPath)
 	if err != nil {
 		return nil, err
 	}
@@ -326,7 +325,7 @@ func importSpec(ctx context.Context, snapshot Snapshot, pkg Package, file *ast.F
 	if dest == nil {
 		return nil, errors.Errorf("package %q has no files", importPath)
 	}
-	if result.Declaration.mappedRange, err = posToMappedRange(ctx, pkg, dest.Pos(), dest.End()); err != nil {
+	if result.Declaration.mappedRange, err = posToMappedRange(ctx, snapshot.View(), pkg, dest.Pos(), dest.End()); err != nil {
 		return nil, err
 	}
 	result.Declaration.node = imp

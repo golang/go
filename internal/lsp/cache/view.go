@@ -418,6 +418,14 @@ func (v *view) openFiles(ctx context.Context, uris []span.URI) (results []source
 	return results
 }
 
+func (v *view) FindFileInPackage(ctx context.Context, uri span.URI, pkg source.Package) (source.ParseGoHandle, source.Package, error) {
+	// Special case for ignored files.
+	if v.Ignore(uri) {
+		return v.findIgnoredFile(ctx, uri)
+	}
+	return findFileInPackage(ctx, uri, pkg)
+}
+
 type debugView struct{ *view }
 
 func (v debugView) ID() string             { return v.id }
