@@ -803,7 +803,7 @@
 
 // Putting struct{*byte} and similar into direct interfaces.
 (IMake typ (StructMake1 val)) -> (IMake typ val)
-(StructSelect [0] x:(IData _)) -> x
+(StructSelect [0] (IData x)) -> (IData x)
 
 // un-SSAable values use mem->mem copies
 (Store {t} dst (Load src mem) mem) && !fe.CanSSA(t.(*types.Type)) ->
@@ -823,9 +823,9 @@
 (Store _ (ArrayMake0) mem) -> mem
 (Store dst (ArrayMake1 e) mem) -> (Store {e.Type} dst e mem)
 
-// Putting [1]{*byte} and similar into direct interfaces.
+// Putting [1]*byte and similar into direct interfaces.
 (IMake typ (ArrayMake1 val)) -> (IMake typ val)
-(ArraySelect [0] x:(IData _)) -> x
+(ArraySelect [0] (IData x)) -> (IData x)
 
 // string ops
 // Decomposing StringMake and lowering of StringPtr and StringLen
