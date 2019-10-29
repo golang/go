@@ -339,6 +339,38 @@ const (
 	ECDSAWithSHA1 SignatureScheme = 0x0203
 )
 
+// typeAndHashFromSignatureScheme returns the corresponding signature type and
+// crypto.Hash for a given TLS SignatureScheme.
+func typeAndHashFromSignatureScheme(signatureAlgorithm SignatureScheme) (sigType uint8, hash crypto.Hash, err error) {
+	switch signatureAlgorithm {
+	case PKCS1WithSHA1, PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512:
+		sigType = signaturePKCS1v15
+	case PSSWithSHA256, PSSWithSHA384, PSSWithSHA512:
+		sigType = signatureRSAPSS
+	case ECDSAWithSHA1, ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512:
+		sigType = signatureECDSA
+	case Ed25519:
+		sigType = signatureEd25519
+	default:
+		return 0, 0, fmt.Errorf("unsupported signature algorithm: %#04x", signatureAlgorithm)
+	}
+	switch signatureAlgorithm {
+	case PKCS1WithSHA1, ECDSAWithSHA1:
+		hash = crypto.SHA1
+	case PKCS1WithSHA256, PSSWithSHA256, ECDSAWithP256AndSHA256:
+		hash = crypto.SHA256
+	case PKCS1WithSHA384, PSSWithSHA384, ECDSAWithP384AndSHA384:
+		hash = crypto.SHA384
+	case PKCS1WithSHA512, PSSWithSHA512, ECDSAWithP521AndSHA512:
+		hash = crypto.SHA512
+	case Ed25519:
+		hash = directSigning
+	default:
+		return 0, 0, fmt.Errorf("unsupported signature algorithm: %#04x", signatureAlgorithm)
+	}
+	return sigType, hash, nil
+}
+
 // ClientHelloInfo contains information from a ClientHello message in order to
 // guide certificate selection in the GetCertificate callback.
 type ClientHelloInfo struct {
@@ -1150,21 +1182,4 @@ func isSupportedSignatureAlgorithm(sigAlg SignatureScheme, supportedSignatureAlg
 		}
 	}
 	return false
-}
-
-// signatureFromSignatureScheme maps a signature algorithm to the underlying
-// signature method (without hash function).
-func signatureFromSignatureScheme(signatureAlgorithm SignatureScheme) uint8 {
-	switch signatureAlgorithm {
-	case PKCS1WithSHA1, PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512:
-		return signaturePKCS1v15
-	case PSSWithSHA256, PSSWithSHA384, PSSWithSHA512:
-		return signatureRSAPSS
-	case ECDSAWithSHA1, ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512:
-		return signatureECDSA
-	case Ed25519:
-		return signatureEd25519
-	default:
-		return 0
-	}
 }

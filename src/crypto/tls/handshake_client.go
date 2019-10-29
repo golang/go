@@ -581,11 +581,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 		if certVerify.hasSignatureAlgorithm {
 			certVerify.signatureAlgorithm = signatureAlgorithm
 		}
-		signed, err := hs.finishedHash.hashForClientCertificate(sigType, hashFunc, hs.masterSecret)
-		if err != nil {
-			c.sendAlert(alertInternalError)
-			return err
-		}
+		signed := hs.finishedHash.hashForClientCertificate(sigType, hashFunc, hs.masterSecret)
 		signOpts := crypto.SignerOpts(hashFunc)
 		if sigType == signatureRSAPSS {
 			signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: hashFunc}
@@ -878,7 +874,11 @@ func certificateRequestInfoFromMsg(certReq *certificateRequestMsg) *CertificateR
 	// See RFC 5246, Section 7.4.4 (where it calls this "somewhat complicated").
 	cri.SignatureSchemes = make([]SignatureScheme, 0, len(certReq.supportedSignatureAlgorithms))
 	for _, sigScheme := range certReq.supportedSignatureAlgorithms {
-		switch signatureFromSignatureScheme(sigScheme) {
+		sigType, _, err := typeAndHashFromSignatureScheme(sigScheme)
+		if err != nil {
+			continue
+		}
+		switch sigType {
 		case signatureECDSA, signatureEd25519:
 			if ecAvail {
 				cri.SignatureSchemes = append(cri.SignatureSchemes, sigScheme)
