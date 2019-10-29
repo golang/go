@@ -90,10 +90,6 @@ func (r *runner) Link(t *testing.T, uri span.URI, wantLinks []tests.Link) {
 	//TODO: add command line link tests when it works
 }
 
-func (r *runner) Import(t *testing.T, spn span.Span) {
-	//TODO: add command line imports tests when it works
-}
-
 func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 	//TODO: add suggested fix tests when it works
 }
