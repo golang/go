@@ -449,6 +449,11 @@ func TestRemoveAllWithMoreErrorThanReqSize(t *testing.T) {
 		return
 	}
 	if err == nil {
+		if runtime.GOOS == "windows" {
+			// Marking a directory as read-only in Windows does not prevent the RemoveAll
+			// from creating or removing files within it.
+			return
+		}
 		t.Fatal("RemoveAll(<read-only directory>) = nil; want error")
 	}
 
@@ -457,13 +462,6 @@ func TestRemoveAllWithMoreErrorThanReqSize(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer dir.Close()
-
-	if runtime.GOOS == "windows" {
-		// Marking a directory in Windows does not prevent the os package from
-		// creating or removing files within it.
-		// (See https://golang.org/issue/35042.)
-		return
-	}
 
 	names, _ := dir.Readdirnames(1025)
 	if len(names) < 1025 {
