@@ -27,6 +27,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
@@ -115,10 +116,15 @@ func caninl(fn *Node) {
 	}
 
 	var reason string // reason, if any, that the function was not inlined
-	if Debug['m'] > 1 {
+	if Debug['m'] > 1 || logopt.Enabled() {
 		defer func() {
 			if reason != "" {
-				fmt.Printf("%v: cannot inline %v: %s\n", fn.Line(), fn.Func.Nname, reason)
+				if Debug['m'] > 1 {
+					fmt.Printf("%v: cannot inline %v: %s\n", fn.Line(), fn.Func.Nname, reason)
+				}
+				if logopt.Enabled() {
+					logopt.LogOpt(fn.Pos, "cannotInlineFunction", "inline", fn.funcname(), reason)
+				}
 			}
 		}()
 	}
@@ -222,6 +228,9 @@ func caninl(fn *Node) {
 		fmt.Printf("%v: can inline %#v as: %#v { %#v }\n", fn.Line(), n, fn.Type, asNodes(n.Func.Inl.Body))
 	} else if Debug['m'] != 0 {
 		fmt.Printf("%v: can inline %v\n", fn.Line(), n)
+	}
+	if logopt.Enabled() {
+		logopt.LogOpt(fn.Pos, "canInlineFunction", "inline", fn.funcname(), fmt.Sprintf("cost: %d", inlineMaxBudget-visitor.budget))
 	}
 }
 
@@ -412,7 +421,7 @@ func (v *hairyVisitor) visit(n *Node) bool {
 	v.budget--
 
 	// When debugging, don't stop early, to get full cost of inlining this function
-	if v.budget < 0 && Debug['m'] < 2 {
+	if v.budget < 0 && Debug['m'] < 2 && !logopt.Enabled() {
 		return true
 	}
 
@@ -826,11 +835,18 @@ func mkinlcall(n, fn *Node, maxCost int32) *Node {
 	if fn.Func.Inl.Cost > maxCost {
 		// The inlined function body is too big. Typically we use this check to restrict
 		// inlining into very big functions.  See issue 26546 and 17566.
+		if logopt.Enabled() {
+			logopt.LogOpt(n.Pos, "cannotInlineCall", "inline", Curfn.funcname(),
+				fmt.Sprintf("cost %d of %s exceeds max large caller cost %d", fn.Func.Inl.Cost, fn.pkgFuncName(), maxCost))
+		}
 		return n
 	}
 
 	if fn == Curfn || fn.Name.Defn == Curfn {
 		// Can't recursively inline a function into itself.
+		if logopt.Enabled() {
+			logopt.LogOpt(n.Pos, "cannotInlineCall", "inline", fmt.Sprintf("recursive call to %s", Curfn.funcname()))
+		}
 		return n
 	}
 
@@ -856,6 +872,9 @@ func mkinlcall(n, fn *Node, maxCost int32) *Node {
 	}
 	if Debug['m'] > 2 {
 		fmt.Printf("%v: Before inlining: %+v\n", n.Line(), n)
+	}
+	if logopt.Enabled() {
+		logopt.LogOpt(n.Pos, "inlineCall", "inline", Curfn.funcname(), fn.pkgFuncName())
 	}
 
 	if ssaDump != "" && ssaDump == Curfn.funcname() {
