@@ -157,15 +157,13 @@ func LookupSID(system, account string) (sid *SID, domain string, accType uint32,
 // String converts sid to a string format
 // suitable for display, storage, or transmission.
 func (sid *SID) String() (string, error) {
-	// From https://docs.microsoft.com/en-us/windows/win32/secbiomet/general-constants
-	const SecurityMaxSidSize = 68
 	var s *uint16
 	e := ConvertSidToStringSid(sid, &s)
 	if e != nil {
 		return "", e
 	}
 	defer LocalFree((Handle)(unsafe.Pointer(s)))
-	return UTF16ToString((*[SecurityMaxSidSize]uint16)(unsafe.Pointer(s))[:]), nil
+	return UTF16ToString((*[256]uint16)(unsafe.Pointer(s))[:]), nil
 }
 
 // Len returns the length, in bytes, of a valid security identifier sid.
