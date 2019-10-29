@@ -1705,18 +1705,33 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	}
 
 	if c1 == 0x4c && c2 == 0x01 || c1 == 0x64 && c2 == 0x86 {
-		ldpe := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-			textp, rsrc, err := loadpe.Load(ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
-			if err != nil {
-				Errorf(nil, "%v", err)
-				return
+		if *flagNewobj {
+			ldpe := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+				textp, rsrc, err := loadpe.Load(ctxt.loader, ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
+				if err != nil {
+					Errorf(nil, "%v", err)
+					return
+				}
+				if rsrc != nil {
+					setpersrc(ctxt, rsrc)
+				}
+				ctxt.Textp = append(ctxt.Textp, textp...)
 			}
-			if rsrc != nil {
-				setpersrc(ctxt, rsrc)
+			return ldhostobj(ldpe, ctxt.HeadType, f, pkg, length, pn, file)
+		} else {
+			ldpe := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+				textp, rsrc, err := loadpe.LoadOld(ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
+				if err != nil {
+					Errorf(nil, "%v", err)
+					return
+				}
+				if rsrc != nil {
+					setpersrc(ctxt, rsrc)
+				}
+				ctxt.Textp = append(ctxt.Textp, textp...)
 			}
-			ctxt.Textp = append(ctxt.Textp, textp...)
+			return ldhostobj(ldpe, ctxt.HeadType, f, pkg, length, pn, file)
 		}
-		return ldhostobj(ldpe, ctxt.HeadType, f, pkg, length, pn, file)
 	}
 
 	if c1 == 0x01 && (c2 == 0xD7 || c2 == 0xF7) {

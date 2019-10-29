@@ -9,6 +9,7 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/pe"
 	"encoding/binary"
@@ -144,12 +145,21 @@ func (f *peBiobuf) ReadAt(p []byte, off int64) (int, error) {
 	return n, nil
 }
 
-// Load loads the PE file pn from input.
+func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, rsrc *sym.Symbol, err error) {
+	lookup := func(name string, version int) *sym.Symbol {
+		return l.LookupOrCreate(name, version, syms)
+	}
+	return load(arch, lookup, syms.IncVersion(), input, pkg, length, pn)
+}
+
+func LoadOld(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, rsrc *sym.Symbol, err error) {
+	return load(arch, syms.Lookup, syms.IncVersion(), input, pkg, length, pn)
+}
+
+// load loads the PE file pn from input.
 // Symbols are written into syms, and a slice of the text symbols is returned.
 // If an .rsrc section is found, its symbol is returned as rsrc.
-func Load(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, rsrc *sym.Symbol, err error) {
-	localSymVersion := syms.IncVersion()
-
+func load(arch *sys.Arch, lookup func(string, int) *sym.Symbol, localSymVersion int, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, rsrc *sym.Symbol, err error) {
 	sectsyms := make(map[*pe.Section]*sym.Symbol)
 	sectdata := make(map[*pe.Section][]byte)
 
@@ -181,7 +191,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, leng
 		}
 
 		name := fmt.Sprintf("%s(%s)", pkg, sect.Name)
-		s := syms.Lookup(name, localSymVersion)
+		s := lookup(name, localSymVersion)
 
 		switch sect.Characteristics & (IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE) {
 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ: //.rdata
@@ -239,7 +249,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, leng
 				return nil, nil, fmt.Errorf("relocation number %d symbol index idx=%d cannot be large then number of symbols %d", j, r.SymbolTableIndex, len(f.COFFSymbols))
 			}
 			pesym := &f.COFFSymbols[r.SymbolTableIndex]
-			gosym, err := readpesym(arch, syms, f, pesym, sectsyms, localSymVersion)
+			gosym, err := readpesym(arch, lookup, f, pesym, sectsyms, localSymVersion)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -351,7 +361,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, leng
 			}
 		}
 
-		s, err := readpesym(arch, syms, f, pesym, sectsyms, localSymVersion)
+		s, err := readpesym(arch, lookup, f, pesym, sectsyms, localSymVersion)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -435,7 +445,7 @@ func issect(s *pe.COFFSymbol) bool {
 	return s.StorageClass == IMAGE_SYM_CLASS_STATIC && s.Type == 0 && s.Name[0] == '.'
 }
 
-func readpesym(arch *sys.Arch, syms *sym.Symbols, f *pe.File, pesym *pe.COFFSymbol, sectsyms map[*pe.Section]*sym.Symbol, localSymVersion int) (*sym.Symbol, error) {
+func readpesym(arch *sys.Arch, lookup func(string, int) *sym.Symbol, f *pe.File, pesym *pe.COFFSymbol, sectsyms map[*pe.Section]*sym.Symbol, localSymVersion int) (*sym.Symbol, error) {
 	symname, err := pesym.FullName(f.StringTable)
 	if err != nil {
 		return nil, err
@@ -481,10 +491,10 @@ func readpesym(arch *sys.Arch, syms *sym.Symbols, f *pe.File, pesym *pe.COFFSymb
 	case IMAGE_SYM_DTYPE_FUNCTION, IMAGE_SYM_DTYPE_NULL:
 		switch pesym.StorageClass {
 		case IMAGE_SYM_CLASS_EXTERNAL: //global
-			s = syms.Lookup(name, 0)
+			s = lookup(name, 0)
 
 		case IMAGE_SYM_CLASS_NULL, IMAGE_SYM_CLASS_STATIC, IMAGE_SYM_CLASS_LABEL:
-			s = syms.Lookup(name, localSymVersion)
+			s = lookup(name, localSymVersion)
 			s.Attr |= sym.AttrDuplicateOK
 
 		default:
