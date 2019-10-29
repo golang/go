@@ -403,7 +403,7 @@ func (p *parser) expect2(tok token.Token) (pos token.Pos) {
 	if p.tok == tok {
 		pos = p.pos
 	} else {
-		p.errorExpected(pos, "'"+tok.String()+"'")
+		p.errorExpected(p.pos, "'"+tok.String()+"'")
 	}
 	p.next() // make progress
 	return
