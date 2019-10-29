@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"unsafe"
@@ -307,5 +308,28 @@ func TestSignalDuringExec(t *testing.T) {
 	want := "OK\n"
 	if output != want {
 		t.Fatalf("want %s, got %s\n", want, output)
+	}
+}
+
+func TestSignalM(t *testing.T) {
+	var want, got int64
+	var wg sync.WaitGroup
+	ready := make(chan *runtime.M)
+	wg.Add(1)
+	go func() {
+		runtime.LockOSThread()
+		want, got = runtime.WaitForSigusr1(func(mp *runtime.M) {
+			ready <- mp
+		}, 1e9)
+		runtime.UnlockOSThread()
+		wg.Done()
+	}()
+	waitingM := <-ready
+	runtime.SendSigusr1(waitingM)
+	wg.Wait()
+	if got == -1 {
+		t.Fatal("signalM signal not received")
+	} else if want != got {
+		t.Fatalf("signal sent to M %d, but received on M %d", want, got)
 	}
 }
