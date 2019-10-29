@@ -1190,6 +1190,11 @@ func mexit(osStack bool) {
 	// Free the gsignal stack.
 	if m.gsignal != nil {
 		stackfree(m.gsignal.stack)
+		// On some platforms, when calling into VDSO (e.g. nanotime)
+		// we store our g on the gsignal stack, if there is one.
+		// Now the stack is freed, unlink it from the m, so we
+		// won't write to it when calling VDSO code.
+		m.gsignal = nil
 	}
 
 	// Remove m from allm.
