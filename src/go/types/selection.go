@@ -31,11 +31,11 @@ const (
 //
 // the following relations exist:
 //
-//	Selector    Kind          Recv    Obj    Type               Index     Indirect
+//	Selector    Kind          Recv    Obj    Type       Index     Indirect
 //
-//	p.x         FieldVal      T       x      int                {0}       true
-//	p.m         MethodVal     *T      m      func (e *T) m()    {1, 0}    true
-//	T.m         MethodExpr    T       m      func m(_ T)        {1, 0}    false
+//	p.x         FieldVal      T       x      int        {0}       true
+//	p.m         MethodVal     *T      m      func()     {1, 0}    true
+//	T.m         MethodExpr    T       m      func(T)    {1, 0}    false
 //
 type Selection struct {
 	kind     SelectionKind

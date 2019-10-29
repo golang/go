@@ -77,7 +77,7 @@ func (s *Scope) Lookup(name string) Object {
 //
 // Note that obj.Parent() may be different from the returned scope if the
 // object was inserted into the scope and already had a parent at that
-// time (see Insert, below). This can only happen for dot-imported objects
+// time (see Insert). This can only happen for dot-imported objects
 // whose scope is the scope of the package that exported them.
 func (s *Scope) LookupParent(name string, pos token.Pos) (*Scope, Object) {
 	for ; s != nil; s = s.parent {
