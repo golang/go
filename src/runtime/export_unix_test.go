@@ -33,6 +33,10 @@ var waitForSigusr1 struct {
 // the ID of the M the SIGUSR1 was received on. If no SIGUSR1 is
 // received for timeoutNS nanoseconds, it returns -1.
 func WaitForSigusr1(ready func(mp *M), timeoutNS int64) (int64, int64) {
+	lockOSThread()
+	// Make sure we can receive SIGUSR1.
+	unblocksig(_SIGUSR1)
+
 	mp := getg().m
 	testSigusr1 = func(gp *g) bool {
 		waitForSigusr1.mp = gp.m
@@ -45,6 +49,8 @@ func WaitForSigusr1(ready func(mp *M), timeoutNS int64) (int64, int64) {
 	gotM := waitForSigusr1.mp
 	waitForSigusr1.mp = nil
 	testSigusr1 = nil
+
+	unlockOSThread()
 
 	if !ok {
 		return -1, -1
