@@ -360,8 +360,8 @@ func setupSystemConf() {
 }
 
 //go:nosplit
-func fcntl(fd, cmd int32, arg uintptr) int32 {
-	r, _ := syscall3(&libc_fcntl, uintptr(fd), uintptr(cmd), arg)
+func fcntl(fd, cmd, arg int32) int32 {
+	r, _ := syscall3(&libc_fcntl, uintptr(fd), uintptr(cmd), uintptr(arg))
 	return int32(r)
 }
 
@@ -373,5 +373,5 @@ func closeonexec(fd int32) {
 //go:nosplit
 func setNonblock(fd int32) {
 	flags := fcntl(fd, _F_GETFL, 0)
-	fcntl(fd, _F_SETFL, uintptr(flags|_O_NONBLOCK))
+	fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
 }
