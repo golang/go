@@ -6142,18 +6142,18 @@ func rewriteValuegeneric_OpArraySelect_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: (ArraySelect [0] x:(IData _))
-	// result: x
+	// match: (ArraySelect [0] (IData x))
+	// result: (IData x)
 	for {
 		if v.AuxInt != 0 {
 			break
 		}
-		x := v.Args[0]
-		if x.Op != OpIData {
+		v_0 := v.Args[0]
+		if v_0.Op != OpIData {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
+		x := v_0.Args[0]
+		v.reset(OpIData)
 		v.AddArg(x)
 		return true
 	}
@@ -43502,18 +43502,18 @@ func rewriteValuegeneric_OpStructSelect_10(v *Value) bool {
 		v0.AddArg(mem)
 		return true
 	}
-	// match: (StructSelect [0] x:(IData _))
-	// result: x
+	// match: (StructSelect [0] (IData x))
+	// result: (IData x)
 	for {
 		if v.AuxInt != 0 {
 			break
 		}
-		x := v.Args[0]
-		if x.Op != OpIData {
+		v_0 := v.Args[0]
+		if v_0.Op != OpIData {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
+		x := v_0.Args[0]
+		v.reset(OpIData)
 		v.AddArg(x)
 		return true
 	}
