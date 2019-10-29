@@ -1537,8 +1537,10 @@ const (
 	OpMIPSCALLstatic
 	OpMIPSCALLclosure
 	OpMIPSCALLinter
-	OpMIPSLoweredAtomicLoad
-	OpMIPSLoweredAtomicStore
+	OpMIPSLoweredAtomicLoad8
+	OpMIPSLoweredAtomicLoad32
+	OpMIPSLoweredAtomicStore8
+	OpMIPSLoweredAtomicStore32
 	OpMIPSLoweredAtomicStorezero
 	OpMIPSLoweredAtomicExchange
 	OpMIPSLoweredAtomicAdd
@@ -20316,7 +20318,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "LoweredAtomicLoad",
+		name:           "LoweredAtomicLoad8",
 		argLen:         2,
 		faultOnNilArg0: true,
 		reg: regInfo{
@@ -20329,7 +20331,32 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "LoweredAtomicStore",
+		name:           "LoweredAtomicLoad32",
+		argLen:         2,
+		faultOnNilArg0: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 140738025226238}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 SP g R31 SB
+			},
+			outputs: []outputInfo{
+				{0, 335544318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 R31
+			},
+		},
+	},
+	{
+		name:           "LoweredAtomicStore8",
+		argLen:         3,
+		faultOnNilArg0: true,
+		hasSideEffects: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 469762046},       // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31
+				{0, 140738025226238}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 SP g R31 SB
+			},
+		},
+	},
+	{
+		name:           "LoweredAtomicStore32",
 		argLen:         3,
 		faultOnNilArg0: true,
 		hasSideEffects: true,

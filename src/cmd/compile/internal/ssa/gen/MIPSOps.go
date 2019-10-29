@@ -262,15 +262,17 @@ func init() {
 		// load from arg0. arg1=mem.
 		// returns <value,memory> so they can be properly ordered with other loads.
 		// SYNC
-		// MOVW	(Rarg0), Rout
+		// MOV(B|W)	(Rarg0), Rout
 		// SYNC
-		{name: "LoweredAtomicLoad", argLength: 2, reg: gpload, faultOnNilArg0: true},
+		{name: "LoweredAtomicLoad8", argLength: 2, reg: gpload, faultOnNilArg0: true},
+		{name: "LoweredAtomicLoad32", argLength: 2, reg: gpload, faultOnNilArg0: true},
 
 		// store arg1 to arg0. arg2=mem. returns memory.
 		// SYNC
-		// MOVW	Rarg1, (Rarg0)
+		// MOV(B|W)	Rarg1, (Rarg0)
 		// SYNC
-		{name: "LoweredAtomicStore", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicStore8", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicStore32", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
 		{name: "LoweredAtomicStorezero", argLength: 2, reg: gpstore0, faultOnNilArg0: true, hasSideEffects: true},
 
 		// atomic exchange.

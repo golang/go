@@ -497,20 +497,36 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = gc.ExtendCheckFunc[v.AuxInt]
 		s.UseArgs(12) // space used in callee args area by assembly stubs
-	case ssa.OpMIPSLoweredAtomicLoad:
+	case ssa.OpMIPSLoweredAtomicLoad8,
+		ssa.OpMIPSLoweredAtomicLoad32:
 		s.Prog(mips.ASYNC)
 
-		p := s.Prog(mips.AMOVW)
+		var op obj.As
+		switch v.Op {
+		case ssa.OpMIPSLoweredAtomicLoad8:
+			op = mips.AMOVB
+		case ssa.OpMIPSLoweredAtomicLoad32:
+			op = mips.AMOVW
+		}
+		p := s.Prog(op)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
 
 		s.Prog(mips.ASYNC)
-	case ssa.OpMIPSLoweredAtomicStore:
+	case ssa.OpMIPSLoweredAtomicStore8,
+		ssa.OpMIPSLoweredAtomicStore32:
 		s.Prog(mips.ASYNC)
 
-		p := s.Prog(mips.AMOVW)
+		var op obj.As
+		switch v.Op {
+		case ssa.OpMIPSLoweredAtomicStore8:
+			op = mips.AMOVB
+		case ssa.OpMIPSLoweredAtomicStore32:
+			op = mips.AMOVW
+		}
+		p := s.Prog(op)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_MEM
