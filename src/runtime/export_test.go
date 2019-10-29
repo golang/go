@@ -40,6 +40,8 @@ var Usleep = usleep
 
 var PhysHugePageSize = physHugePageSize
 
+var NetpollGenericInit = netpollGenericInit
+
 type LFNode struct {
 	Next    uint64
 	Pushcnt uintptr
