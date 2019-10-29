@@ -1535,6 +1535,26 @@ func TestPartialReadEOF(t *testing.T) {
 	}
 }
 
+type writerWithReadFromError struct{}
+
+func (w writerWithReadFromError) ReadFrom(r io.Reader) (int64, error) {
+	return 0, errors.New("writerWithReadFromError error")
+}
+
+func (w writerWithReadFromError) Write(b []byte) (n int, err error) {
+	return 10, nil
+}
+
+func TestWriterReadFromMustSetUnderlyingError(t *testing.T) {
+	var wr = NewWriter(writerWithReadFromError{})
+	if _, err := wr.ReadFrom(strings.NewReader("test2")); err == nil {
+		t.Fatal("expected ReadFrom returns error, got nil")
+	}
+	if _, err := wr.Write([]byte("123")); err == nil {
+		t.Fatal("expected Write returns error, got nil")
+	}
+}
+
 func BenchmarkReaderCopyOptimal(b *testing.B) {
 	// Optimal case is where the underlying reader implements io.WriterTo
 	srcBuf := bytes.NewBuffer(make([]byte, 8192))
