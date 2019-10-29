@@ -1707,15 +1707,27 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	}
 
 	if c1 == 0x01 && (c2 == 0xD7 || c2 == 0xF7) {
-		ldxcoff := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-			textp, err := loadxcoff.Load(ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
-			if err != nil {
-				Errorf(nil, "%v", err)
-				return
+		if *flagNewobj {
+			ldxcoff := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+				textp, err := loadxcoff.Load(ctxt.loader, ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
+				if err != nil {
+					Errorf(nil, "%v", err)
+					return
+				}
+				ctxt.Textp = append(ctxt.Textp, textp...)
 			}
-			ctxt.Textp = append(ctxt.Textp, textp...)
+			return ldhostobj(ldxcoff, ctxt.HeadType, f, pkg, length, pn, file)
+		} else {
+			ldxcoff := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+				textp, err := loadxcoff.LoadOld(ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
+				if err != nil {
+					Errorf(nil, "%v", err)
+					return
+				}
+				ctxt.Textp = append(ctxt.Textp, textp...)
+			}
+			return ldhostobj(ldxcoff, ctxt.HeadType, f, pkg, length, pn, file)
 		}
-		return ldhostobj(ldxcoff, ctxt.HeadType, f, pkg, length, pn, file)
 	}
 
 	/* check the header */

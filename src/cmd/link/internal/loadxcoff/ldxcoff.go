@@ -9,6 +9,7 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"errors"
 	"fmt"
@@ -38,13 +39,34 @@ func (f *xcoffBiobuf) ReadAt(p []byte, off int64) (int, error) {
 	return n, nil
 }
 
-// Load loads the Xcoff file pn from f.
+// Load loads xcoff files with the indexed object files.
+func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
+	lookup := func(name string, version int) *sym.Symbol {
+		i := l.Lookup(name, version)
+		if i != 0 {
+			return l.LoadSymbol(name, version, syms)
+		}
+		if i = l.AddExtSym(name, version); i == 0 {
+			panic("AddExtSym returned bad index")
+		}
+		newSym := syms.Newsym(name, version)
+		l.Syms[i] = newSym
+		return newSym
+	}
+	return load(arch, lookup, syms.IncVersion(), input, pkg, length, pn)
+}
+
+// LoadOld uses the old version of object loading.
+func LoadOld(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
+	return load(arch, syms.Lookup, syms.IncVersion(), input, pkg, length, pn)
+}
+
+// loads the Xcoff file pn from f.
 // Symbols are written into syms, and a slice of the text symbols is returned.
-func Load(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
+func load(arch *sys.Arch, lookup func(string, int) *sym.Symbol, localSymVersion int, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
 	errorf := func(str string, args ...interface{}) ([]*sym.Symbol, error) {
 		return nil, fmt.Errorf("loadxcoff: %v: %v", pn, fmt.Sprintf(str, args...))
 	}
-	localSymVersion := syms.IncVersion()
 
 	var ldSections []*ldSection
 
@@ -62,7 +84,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, leng
 		lds := new(ldSection)
 		lds.Section = *sect
 		name := fmt.Sprintf("%s(%s)", pkg, lds.Name)
-		s := syms.Lookup(name, localSymVersion)
+		s := lookup(name, localSymVersion)
 
 		switch lds.Type {
 		default:
@@ -100,7 +122,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, leng
 			continue
 		}
 
-		s := syms.Lookup(sx.Name, 0)
+		s := lookup(sx.Name, 0)
 
 		// Text symbol
 		if s.Type == sym.STEXT {
@@ -122,7 +144,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, leng
 		for i, rx := range sect.Relocs {
 			r := &rs[i]
 
-			r.Sym = syms.Lookup(rx.Symbol.Name, 0)
+			r.Sym = lookup(rx.Symbol.Name, 0)
 			if uint64(int32(rx.VirtualAddress)) != rx.VirtualAddress {
 				return errorf("virtual address of a relocation is too big: 0x%x", rx.VirtualAddress)
 			}
