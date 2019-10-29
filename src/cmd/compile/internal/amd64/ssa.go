@@ -5,11 +5,11 @@
 package amd64
 
 import (
-	"cmd/compile/internal/logopt"
 	"fmt"
 	"math"
 
 	"cmd/compile/internal/gc"
+	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
