@@ -9,12 +9,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
-
-	"cmd/internal/diff"
 )
 
 // exists reports whether the named file exists.
@@ -283,9 +282,37 @@ func (eq *eqchecker) checkValue(v, w reflect.Value) error {
 	return nil
 }
 
+// diff returns the output of running diff on b1 and b2.
+func diff(b1, b2 []byte) (data []byte, err error) {
+	f1, err := ioutil.TempFile("", "testdiff")
+	if err != nil {
+		return nil, err
+	}
+	defer os.Remove(f1.Name())
+	defer f1.Close()
+
+	f2, err := ioutil.TempFile("", "testdiff")
+	if err != nil {
+		return nil, err
+	}
+	defer os.Remove(f2.Name())
+	defer f2.Close()
+
+	f1.Write(b1)
+	f2.Write(b2)
+
+	data, err = exec.Command("diff", "-u", f1.Name(), f2.Name()).CombinedOutput()
+	if len(data) > 0 {
+		// diff exits with a non-zero status when the files don't match.
+		// Ignore that failure as long as we get output.
+		err = nil
+	}
+	return
+}
+
 // tdiff logs the diff output to t.Error.
 func tdiff(t *testing.T, a, b string) {
-	data, err := diff.Diff("modfile-test", []byte(a), []byte(b))
+	data, err := diff([]byte(a), []byte(b))
 	if err != nil {
 		t.Error(err)
 		return
