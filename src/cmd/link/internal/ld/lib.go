@@ -1653,11 +1653,12 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	if magic&^1 == 0xfeedface || magic&^0x01000000 == 0xcefaedfe {
 		if *flagNewobj {
 			ldmacho := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-				err := loadmacho.Load(ctxt.loader, ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
+				textp, err := loadmacho.Load(ctxt.loader, ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
 				if err != nil {
 					Errorf(nil, "%v", err)
 					return
 				}
+				ctxt.Textp = append(ctxt.Textp, textp...)
 			}
 			return ldhostobj(ldmacho, ctxt.HeadType, f, pkg, length, pn, file)
 		} else {

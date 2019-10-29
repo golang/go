@@ -511,7 +511,7 @@ func (l *Loader) OuterSym(i Sym) Sym {
 	return 0
 }
 
-// SubSym gets sub symbols for a previously loaded host object symbol.
+// SubSym gets the subsymbol for host object loaded symbols.
 func (l *Loader) SubSym(i Sym) Sym {
 	sym := l.Syms[i]
 	if sym != nil && sym.Sub != nil {
