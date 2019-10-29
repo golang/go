@@ -147,6 +147,7 @@ func (app *Application) commands() []tool.Application {
 		&query{app: app},
 		&references{app: app},
 		&rename{app: app},
+		&signature{app: app},
 		&suggestedfix{app: app},
 		&version{app: app},
 	}

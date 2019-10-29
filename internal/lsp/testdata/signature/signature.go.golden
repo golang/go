@@ -1,0 +1,40 @@
+-- -signature --
+
+-- Bar(float64, ...byte)-signature --
+Bar(float64, ...byte)
+
+-- Foo(a string, b int) (c bool)-signature --
+Foo(a string, b int) (c bool)
+
+-- Next(n int) []byte-signature --
+Next(n int) []byte
+
+Next returns a slice containing the next n bytes from the buffer, advancing the buffer as if the bytes had been returned by Read.
+
+-- fn(hi string, there string) func(i int) rune-signature --
+fn(hi string, there string) func(i int) rune
+
+-- foo(e *json.Decoder) (*big.Int, error)-signature --
+foo(e *json.Decoder) (*big.Int, error)
+
+-- func(hi string, there string) func(i int) rune-signature --
+func(hi string, there string) func(i int) rune
+
+-- func(i int) rune-signature --
+func(i int) rune
+
+-- func(string, int) bool-signature --
+func(string, int) bool
+
+-- make(t Type, size ...int) Type-signature --
+make(t Type, size ...int) Type
+
+-- myFunc(foo int) string-signature --
+myFunc(foo int) string
+
+-- panic(v interface{})-signature --
+panic(v interface{})
+
+-- println(args ...Type)-signature --
+println(args ...Type)
+
