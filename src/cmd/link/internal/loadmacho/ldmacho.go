@@ -424,31 +424,24 @@ func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
 	return 0
 }
 
-func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string) error {
-	lookup := func(name string, version int) *sym.Symbol {
-		// Check to see if we've already defined the symbol.
-		if i := l.Lookup(name, version); i != 0 {
-			return l.Syms[i]
+func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string) ([]*sym.Symbol, error) {
+	newSym := func(name string, version int) *sym.Symbol {
+		i := l.Lookup(name, version)
+		if i != 0 {
+			return l.LoadSymbol(name, version, syms)
 		}
-		// Not defined, let's make one.
-		if s := l.AddExtSym(name, version); s == 0 {
+		if i = l.AddExtSym(name, version); i == 0 {
 			panic("AddExtSym returned bad index")
-		} else if int(s) != len(l.Syms) {
-			panic("unexpected length of loaded symbols")
 		}
 		newSym := syms.Newsym(name, version)
-		l.Syms = append(l.Syms, newSym)
+		l.Syms[i] = newSym
 		return newSym
 	}
-	_, err := load(arch, syms.IncVersion(), lookup, f, pkg, length, pn)
-	return err
+	return load(arch, syms.IncVersion(), newSym, f, pkg, length, pn)
 }
 
 func LoadOld(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
-	lookup := func(name string, version int) *sym.Symbol {
-		return syms.Lookup(name, version)
-	}
-	return load(arch, syms.IncVersion(), lookup, f, pkg, length, pn)
+	return load(arch, syms.IncVersion(), syms.Lookup, f, pkg, length, pn)
 }
 
 // load the Mach-O file pn from f.
