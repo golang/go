@@ -49,7 +49,7 @@ func checkIsPipe(t *testing.T, r, w int32) {
 
 func checkNonblocking(t *testing.T, fd int32, name string) {
 	t.Helper()
-	flags, _, errno := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fd), syscall.F_GETFL, 0)
+	flags, errno := fcntl(uintptr(fd), syscall.F_GETFL, 0)
 	if errno != 0 {
 		t.Errorf("fcntl(%s, F_GETFL) failed: %v", name, syscall.Errno(errno))
 	} else if flags&syscall.O_NONBLOCK == 0 {
@@ -59,7 +59,7 @@ func checkNonblocking(t *testing.T, fd int32, name string) {
 
 func checkCloseonexec(t *testing.T, fd int32, name string) {
 	t.Helper()
-	flags, _, errno := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fd), syscall.F_GETFD, 0)
+	flags, errno := fcntl(uintptr(fd), syscall.F_GETFD, 0)
 	if errno != 0 {
 		t.Errorf("fcntl(%s, F_GETFD) failed: %v", name, syscall.Errno(errno))
 	} else if flags&syscall.FD_CLOEXEC == 0 {
