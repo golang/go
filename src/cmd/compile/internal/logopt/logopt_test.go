@@ -20,12 +20,15 @@ type pair struct {a,b int}
 func bar(y *pair) *int {
 	return &y.b
 }
-
+var a []int
 func foo(w, z *pair) *int {
 	if *bar(w) > 0 {
 		return bar(z)
 	}
-	return nil
+	if a[1] > 0 {
+		a = a[:2]
+	}
+	return &a[0]
 }
 `
 
@@ -102,6 +105,7 @@ func TestLogOpt(t *testing.T) {
 		t.Logf("%s", slogged)
 		// below shows proper inlining and nilcheck
 		want(t, slogged, `{"range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}},"severity":3,"code":"nilcheck","source":"go compiler","message":"","relatedInformation":[{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"}]}`)
+		want(t, slogged, `{"range":{"start":{"line":11,"character":6},"end":{"line":11,"character":6}},"severity":3,"code":"isInBounds","source":"go compiler","message":""}`)
 	})
 }
 
