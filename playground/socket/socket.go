@@ -29,12 +29,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
 
 	"golang.org/x/net/websocket"
+	"golang.org/x/tools/txtar"
 )
 
 // RunScripts specifies whether the socket handler should execute shell scripts
@@ -162,7 +162,7 @@ type process struct {
 	out  chan<- *Message
 	done chan struct{} // closed when wait completes
 	run  *exec.Cmd
-	bin  string
+	path string
 }
 
 // startProcess builds and runs the given program, sending its output
@@ -203,8 +203,8 @@ func startProcess(id, body string, dest chan<- *Message, opt *Options) *process 
 // end sends an "end" message to the client, containing the process id and the
 // given error value. It also removes the binary, if present.
 func (p *process) end(err error) {
-	if p.bin != "" {
-		defer os.Remove(p.bin)
+	if p.path != "" {
+		defer os.RemoveAll(p.path)
 	}
 	m := &Message{Kind: "end"}
 	if err != nil {
@@ -355,22 +355,37 @@ func (p *process) start(body string, opt *Options) error {
 	// (rather than the go tool process).
 	// This makes Kill work.
 
-	bin := filepath.Join(tmpdir, "compile"+strconv.Itoa(<-uniq))
-	src := bin + ".go"
-	if runtime.GOOS == "windows" {
-		bin += ".exe"
-	}
-
-	// write body to x.go
-	defer os.Remove(src)
-	err := ioutil.WriteFile(src, []byte(body), 0666)
+	path, err := ioutil.TempDir("", "present-")
 	if err != nil {
 		return err
 	}
+	defer os.RemoveAll(path)
+
+	out := "prog"
+	if runtime.GOOS == "windows" {
+		out = "prog.exe"
+	}
+	bin := filepath.Join(path, out)
+
+	// write body to x.go files
+	a := txtar.Parse([]byte(body))
+	if len(a.Comment) != 0 {
+		a.Files = append(a.Files, txtar.File{Name: "prog.go", Data: a.Comment})
+		a.Comment = nil
+	}
+	hasModfile := false
+	for _, f := range a.Files {
+		err = ioutil.WriteFile(filepath.Join(path, f.Name), f.Data, 0666)
+		if err != nil {
+			return err
+		}
+		if f.Name == "go.mod" {
+			hasModfile = true
+		}
+	}
 
 	// build x.go, creating x
-	p.bin = bin // to be removed by p.end
-	dir, file := filepath.Split(src)
+	p.path = path // to be removed by p.end
 	args := []string{"go", "build", "-tags", "OMIT"}
 	if opt != nil && opt.Race {
 		p.out <- &Message{
@@ -379,8 +394,11 @@ func (p *process) start(body string, opt *Options) error {
 		}
 		args = append(args, "-race")
 	}
-	args = append(args, "-o", bin, file)
-	cmd := p.cmd(dir, args...)
+	args = append(args, "-o", bin)
+	cmd := p.cmd(path, args...)
+	if !hasModfile {
+		cmd.Env = append(cmd.Env, "GO111MODULE=off")
+	}
 	cmd.Stdout = cmd.Stderr // send compiler output to stderr
 	if err := cmd.Run(); err != nil {
 		return err
@@ -500,25 +518,4 @@ func safeString(b []byte) string {
 		buf.WriteRune(r)
 	}
 	return buf.String()
-}
-
-var tmpdir string
-
-func init() {
-	// find real path to temporary directory
-	var err error
-	tmpdir, err = filepath.EvalSymlinks(os.TempDir())
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-var uniq = make(chan int) // a source of numbers for naming temporary files
-
-func init() {
-	go func() {
-		for i := 0; ; i++ {
-			uniq <- i
-		}
-	}()
 }
