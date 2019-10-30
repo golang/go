@@ -989,10 +989,12 @@ func addAdjustedTimers(pp *p, moved []*timer) {
 			case timerDeleted:
 				// Timer has been deleted since we adjusted it.
 				// This timer is already out of the heap.
-				if !atomic.Cas(&t.status, s, timerRemoved) {
-					badTimer()
+				if atomic.Cas(&t.status, s, timerRemoving) {
+					if !atomic.Cas(&t.status, timerRemoving, timerRemoved) {
+						badTimer()
+					}
+					break loop
 				}
-				break loop
 			case timerModifiedEarlier, timerModifiedLater:
 				// Timer has been modified again since
 				// we adjusted it.
@@ -1007,8 +1009,8 @@ func addAdjustedTimers(pp *p, moved []*timer) {
 					if s == timerModifiedEarlier {
 						atomic.Xadd(&pp.adjustTimers, -1)
 					}
+					break loop
 				}
-				break loop
 			case timerNoStatus, timerRunning, timerRemoving, timerRemoved, timerMoving:
 				badTimer()
 			case timerModifying:
