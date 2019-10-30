@@ -2611,6 +2611,22 @@ func (ctxt *Link) loadlibfull() {
 
 	setupdynexp(ctxt)
 
+	// Populate ctxt.Reachparent if appropriate.
+	if ctxt.Reachparent != nil {
+		for i := 0; i < len(ctxt.loader.Reachparent); i++ {
+			p := ctxt.loader.Reachparent[i]
+			if p == 0 {
+				continue
+			}
+			if p == loader.Sym(i) {
+				panic("self-cycle in reachparent")
+			}
+			sym := ctxt.loader.Syms[i]
+			psym := ctxt.loader.Syms[p]
+			ctxt.Reachparent[sym] = psym
+		}
+	}
+
 	// Drop the reference.
 	ctxt.loader = nil
 	ctxt.cgodata = nil
