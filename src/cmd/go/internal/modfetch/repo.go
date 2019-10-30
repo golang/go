@@ -55,7 +55,7 @@ type Repo interface {
 
 // A Rev describes a single revision in a module repository.
 type RevInfo struct {
-	Version string    // version string
+	Version string    // suggested version string for this revision
 	Time    time.Time // commit time
 
 	// These fields are used for Stat of arbitrary rev,
