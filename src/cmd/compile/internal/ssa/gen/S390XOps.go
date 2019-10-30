@@ -83,6 +83,8 @@ var regNamesS390X = []string{
 	"F14",
 	"F15",
 
+	// If you add registers, update asyncPreempt in runtime.
+
 	//pseudo-registers
 	"SB",
 }
