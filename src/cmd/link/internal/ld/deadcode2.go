@@ -6,6 +6,7 @@ package ld
 
 import (
 	"bytes"
+	"cmd/internal/dwarf"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
@@ -93,6 +94,14 @@ func (d *deadcodePass2) init() {
 	}
 	for exp := range dynexpMap {
 		names = append(names, exp)
+	}
+
+	// DWARF constant DIE symbols are not referenced, but needed by
+	// the dwarf pass.
+	if !*FlagW {
+		for _, lib := range d.ctxt.Library {
+			names = append(names, dwarf.ConstInfoPrefix+lib.Pkg)
+		}
 	}
 
 	for _, name := range names {
