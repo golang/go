@@ -589,15 +589,6 @@ func getFixes(fset *token.FileSet, f *ast.File, filename string, env *ProcessEnv
 func getAllCandidates(filename string, env *ProcessEnv) ([]ImportFix, error) {
 	// TODO(heschi): filter out current package. (Don't forget x_test can import x.)
 
-	// Exclude goroot results -- getting them is relatively expensive, not cached,
-	// and generally redundant with the in-memory version.
-	exclude := []gopathwalk.RootType{gopathwalk.RootGOROOT}
-	// Only the go/packages resolver uses the first argument, and nobody uses that resolver.
-	pkgs, err := env.GetResolver().scan(nil, true, exclude)
-	if err != nil {
-		return nil, err
-	}
-
 	// Start off with the standard library.
 	var imports []ImportFix
 	for importPath := range stdlib {
@@ -609,6 +600,31 @@ func getAllCandidates(filename string, env *ProcessEnv) ([]ImportFix, error) {
 			FixType:   AddImport,
 		})
 	}
+	// Sort the stdlib bits solely by name.
+	sort.Slice(imports, func(i int, j int) bool {
+		return imports[i].StmtInfo.ImportPath < imports[j].StmtInfo.ImportPath
+	})
+
+	// Exclude goroot results -- getting them is relatively expensive, not cached,
+	// and generally redundant with the in-memory version.
+	exclude := []gopathwalk.RootType{gopathwalk.RootGOROOT}
+	// Only the go/packages resolver uses the first argument, and nobody uses that resolver.
+	pkgs, err := env.GetResolver().scan(nil, true, exclude)
+	if err != nil {
+		return nil, err
+	}
+	// Sort first by relevance, then by name, so that when we add them they're
+	// still in order.
+	sort.Slice(pkgs, func(i, j int) bool {
+		pi, pj := pkgs[i], pkgs[j]
+		if pi.relevance < pj.relevance {
+			return true
+		}
+		if pi.relevance > pj.relevance {
+			return false
+		}
+		return pi.packageName < pj.packageName
+	})
 
 	dupCheck := map[string]struct{}{}
 	for _, pkg := range pkgs {
@@ -627,9 +643,6 @@ func getAllCandidates(filename string, env *ProcessEnv) ([]ImportFix, error) {
 			FixType:   AddImport,
 		})
 	}
-	sort.Slice(imports, func(i int, j int) bool {
-		return imports[i].StmtInfo.ImportPath < imports[j].StmtInfo.ImportPath
-	})
 	return imports, nil
 }
 
@@ -1036,6 +1049,7 @@ type pkg struct {
 	dir             string // absolute file path to pkg directory ("/usr/lib/go/src/net/http")
 	importPathShort string // vendorless import path ("net/http", "a/b")
 	packageName     string // package name loaded from source if requested
+	relevance       int    // a weakly-defined score of how relevant a package is. 0 is most relevant.
 }
 
 type pkgDistance struct {
@@ -1097,6 +1111,10 @@ func (r *gopathResolver) scan(_ references, loadNames bool, exclude []gopathwalk
 		p := &pkg{
 			importPathShort: VendorlessPath(importpath),
 			dir:             dir,
+			relevance:       1,
+		}
+		if root.Type == gopathwalk.RootGOROOT {
+			p.relevance = 0
 		}
 		if loadNames {
 			var err error

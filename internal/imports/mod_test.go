@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -829,6 +830,54 @@ func TestInvalidModCache(t *testing.T) {
 	}
 	resolver := &ModuleResolver{env: env}
 	resolver.scan(nil, true, nil)
+}
+
+func TestGetCandidatesRanking(t *testing.T) {
+	mt := setup(t, `
+-- go.mod --
+module example.com
+
+require rsc.io/quote v1.5.1
+
+-- rpackage/x.go --
+package rpackage
+import _ "rsc.io/quote"
+`, "")
+	defer mt.cleanup()
+
+	if _, err := mt.env.invokeGo("mod", "download", "rsc.io/quote/v2@v2.0.1"); err != nil {
+		t.Fatal(err)
+	}
+
+	type res struct {
+		name, path string
+	}
+	want := []res{
+		// Stdlib
+		{"bytes", "bytes"},
+		{"http", "net/http"},
+		// In scope modules
+		{"language", "golang.org/x/text/language"},
+		{"quote", "rsc.io/quote"},
+		{"rpackage", "example.com/rpackage"},
+		// Out of scope modules
+		{"quote", "rsc.io/quote/v2"},
+	}
+	candidates, err := getAllCandidates("foo.go", mt.env)
+	if err != nil {
+		t.Fatalf("getAllCandidates() = %v", err)
+	}
+	var got []res
+	for _, c := range candidates {
+		for _, w := range want {
+			if c.StmtInfo.ImportPath == w.path {
+				got = append(got, res{c.IdentName, c.StmtInfo.ImportPath})
+			}
+		}
+	}
+	if !reflect.DeepEqual(want, got) {
+		t.Errorf("wanted candidates in order %v, got %v", want, got)
+	}
 }
 
 func BenchmarkScanModCache(b *testing.B) {

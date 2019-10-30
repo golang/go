@@ -2521,12 +2521,12 @@ func TestGetCandidates(t *testing.T) {
 		name, path string
 	}
 	want := []res{
-		{"bar", "bar.com/bar"},
 		{"bytes", "bytes"},
 		{"rand", "crypto/rand"},
-		{"foo", "foo.com/foo"},
 		{"rand", "math/rand"},
 		{"http", "net/http"},
+		{"bar", "bar.com/bar"},
+		{"foo", "foo.com/foo"},
 	}
 
 	testConfig{
