@@ -364,6 +364,15 @@ func uriIfy(f string) DocumentURI {
 	return DocumentURI(url.String())
 }
 
+// Return filename, replacing a first occurrence of $GOROOT with the
+// actual value of the GOROOT (because LSP does not speak "$GOROOT").
+func uprootedPath(filename string) string {
+	if ! strings.HasPrefix(filename, "$GOROOT/") {
+		return filename
+	}
+	return objabi.GOROOT + filename[len("$GOROOT"):]
+}
+
 // FlushLoggedOpts flushes all the accumulated optimization log entries.
 func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
 	if Format == None {
@@ -399,12 +408,12 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
 			}
 
 			p0 := posTmp[0]
-
-			if currentFile != p0.Filename() {
+			p0f := uprootedPath(p0.Filename())
+			if currentFile != p0f {
 				if w != nil {
 					w.Close()
 				}
-				currentFile = p0.Filename()
+				currentFile = p0f
 				w = writerForLSP(subdirpath, currentFile)
 				encoder = json.NewEncoder(w)
 				encoder.Encode(VersionHeader{Version: 0, Package: slashPkgPath, Goos: objabi.GOOS, Goarch: objabi.GOARCH, GcVersion: objabi.Version, File: currentFile})
@@ -424,7 +433,7 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
 
 			for i := 1; i < l; i++ {
 				p := posTmp[i]
-				loc := Location{URI: uriIfy(p.Filename()),
+				loc := Location{URI: uriIfy(uprootedPath(p.Filename())),
 					Range: Range{Start: Position{p.Line(), p.Col()},
 						End: Position{p.Line(), p.Col()}}}
 				diagnostic.RelatedInformation = append(diagnostic.RelatedInformation, DiagnosticRelatedInformation{Location: loc, Message: "inlineLoc"})
