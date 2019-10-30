@@ -185,13 +185,12 @@ retry:
 			for read(rdwake, unsafe.Pointer(&b[0]), 1) == 1 {
 			}
 		}
-		// Do not look at the other fds in this case as the mode may have changed
-		// XXX only additions of flags are made, so maybe it is ok
-		unlock(&mtxset)
-		goto retry
+		// Still look at the other fds even if the mode may have
+		// changed, as netpollBreak might have been called.
+		n--
 	}
 	var toRun gList
-	for i := 0; i < len(pfds) && n > 0; i++ {
+	for i := 1; i < len(pfds) && n > 0; i++ {
 		pfd := &pfds[i]
 
 		var mode int32
