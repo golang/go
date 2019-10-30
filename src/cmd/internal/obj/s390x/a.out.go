@@ -186,6 +186,7 @@ const (
 	// mark flags
 	LEAF = 1 << iota
 	BRANCH
+	USETMP // generated code of this Prog uses REGTMP
 )
 
 const ( // comments from func aclass in asmz.go

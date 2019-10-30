@@ -490,6 +490,25 @@ func spanz(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 	c.cursym.Grow(c.cursym.Size)
 	copy(c.cursym.P, buffer)
+
+	// Mark nonpreemptible instruction sequences.
+	// We use REGTMP as a scratch register during call injection,
+	// so instruction sequences that use REGTMP are unsafe to
+	// preempt asynchronously.
+	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint)
+}
+
+// Return whether p is an unsafe point.
+func (c *ctxtz) isUnsafePoint(p *obj.Prog) bool {
+	if p.From.Reg == REGTMP || p.To.Reg == REGTMP || p.Reg == REGTMP {
+		return true
+	}
+	for _, a := range p.RestArgs {
+		if a.Reg == REGTMP {
+			return true
+		}
+	}
+	return p.Mark&USETMP != 0
 }
 
 func isint32(v int64) bool {
@@ -2679,12 +2698,20 @@ func (c *ctxtz) branchMask(p *obj.Prog) CCMask {
 	return Always
 }
 
+func regtmp(p *obj.Prog) uint32 {
+	p.Mark |= USETMP
+	return REGTMP
+}
+
 func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 	o := c.oplook(p)
 
 	if o == nil {
 		return
 	}
+
+	// If REGTMP is used in generated code, we need to set USETMP on p.Mark.
+	// So we use regtmp(p) for REGTMP.
 
 	switch o.i {
 	default:
@@ -2778,19 +2805,19 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 
 		case ADIVW, ADIVWU, ADIVD, ADIVDU:
 			if p.As == ADIVWU || p.As == ADIVDU {
-				zRI(op_LGHI, REGTMP, 0, asm)
+				zRI(op_LGHI, regtmp(p), 0, asm)
 			}
 			zRRE(op_LGR, REGTMP2, uint32(r), asm)
-			zRRE(opcode, REGTMP, uint32(p.From.Reg), asm)
+			zRRE(opcode, regtmp(p), uint32(p.From.Reg), asm)
 			zRRE(op_LGR, uint32(p.To.Reg), REGTMP2, asm)
 
 		case AMODW, AMODWU, AMODD, AMODDU:
 			if p.As == AMODWU || p.As == AMODDU {
-				zRI(op_LGHI, REGTMP, 0, asm)
+				zRI(op_LGHI, regtmp(p), 0, asm)
 			}
 			zRRE(op_LGR, REGTMP2, uint32(r), asm)
-			zRRE(opcode, REGTMP, uint32(p.From.Reg), asm)
-			zRRE(op_LGR, uint32(p.To.Reg), REGTMP, asm)
+			zRRE(opcode, regtmp(p), uint32(p.From.Reg), asm)
+			zRRE(op_LGR, uint32(p.To.Reg), regtmp(p), asm)
 
 		}
 
@@ -2835,20 +2862,20 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			r = p.To.Reg
 		}
 		zRRE(op_LGR, REGTMP2, uint32(r), asm)
-		zRRE(op_MLGR, REGTMP, uint32(p.From.Reg), asm)
+		zRRE(op_MLGR, regtmp(p), uint32(p.From.Reg), asm)
 		switch p.As {
 		case AMULHDU:
 			// Unsigned: move result into correct register.
-			zRRE(op_LGR, uint32(p.To.Reg), REGTMP, asm)
+			zRRE(op_LGR, uint32(p.To.Reg), regtmp(p), asm)
 		case AMULHD:
 			// Signed: need to convert result.
 			// See Hacker's Delight 8-3.
 			zRSY(op_SRAG, REGTMP2, uint32(p.From.Reg), 0, 63, asm)
 			zRRE(op_NGR, REGTMP2, uint32(r), asm)
-			zRRE(op_SGR, REGTMP, REGTMP2, asm)
+			zRRE(op_SGR, regtmp(p), REGTMP2, asm)
 			zRSY(op_SRAG, REGTMP2, uint32(r), 0, 63, asm)
 			zRRE(op_NGR, REGTMP2, uint32(p.From.Reg), asm)
-			zRRF(op_SGRK, REGTMP2, 0, uint32(p.To.Reg), REGTMP, asm)
+			zRRF(op_SGRK, REGTMP2, 0, uint32(p.To.Reg), regtmp(p), asm)
 		}
 
 	case 5: // syscall
@@ -2950,9 +2977,9 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			if r == int(p.To.Reg) {
 				zRRE(op_SLBGR, uint32(p.To.Reg), uint32(p.From.Reg), asm)
 			} else if p.From.Reg == p.To.Reg {
-				zRRE(op_LGR, REGTMP, uint32(p.From.Reg), asm)
+				zRRE(op_LGR, regtmp(p), uint32(p.From.Reg), asm)
 				zRRE(op_LGR, uint32(p.To.Reg), uint32(r), asm)
-				zRRE(op_SLBGR, uint32(p.To.Reg), REGTMP, asm)
+				zRRE(op_SLBGR, uint32(p.To.Reg), regtmp(p), asm)
 			} else {
 				zRRE(op_LGR, uint32(p.To.Reg), uint32(r), asm)
 				zRRE(op_SLBGR, uint32(p.To.Reg), uint32(p.From.Reg), asm)
@@ -2994,11 +3021,11 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		}
 		x2 := p.From.Index
 		if -DISP20/2 > d2 || d2 >= DISP20/2 {
-			zRIL(_a, op_LGFI, REGTMP, uint32(d2), asm)
+			zRIL(_a, op_LGFI, regtmp(p), uint32(d2), asm)
 			if x2 != 0 {
-				zRX(op_LA, REGTMP, REGTMP, uint32(x2), 0, asm)
+				zRX(op_LA, regtmp(p), regtmp(p), uint32(x2), 0, asm)
 			}
-			x2 = REGTMP
+			x2 = int16(regtmp(p))
 			d2 = 0
 		}
 		var opx, opxy uint32
@@ -3128,8 +3155,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		}
 		switch p.As {
 		case ASUB:
-			zRIL(_a, op_LGFI, uint32(REGTMP), uint32(v), asm)
-			zRRF(op_SLGRK, uint32(REGTMP), 0, uint32(p.To.Reg), uint32(r), asm)
+			zRIL(_a, op_LGFI, uint32(regtmp(p)), uint32(v), asm)
+			zRRF(op_SLGRK, uint32(regtmp(p)), 0, uint32(p.To.Reg), uint32(r), asm)
 		case ASUBC:
 			if r != p.To.Reg {
 				zRRE(op_LGR, uint32(p.To.Reg), uint32(r), asm)
@@ -3193,8 +3220,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			c.ctxt.Diag("%v is not supported", p)
 		case AAND:
 			if v >= 0 { // needs zero extend
-				zRIL(_a, op_LGFI, REGTMP, uint32(v), asm)
-				zRRE(op_NGR, uint32(p.To.Reg), REGTMP, asm)
+				zRIL(_a, op_LGFI, regtmp(p), uint32(v), asm)
+				zRRE(op_NGR, uint32(p.To.Reg), regtmp(p), asm)
 			} else if int64(int16(v)) == v {
 				zRI(op_NILL, uint32(p.To.Reg), uint32(v), asm)
 			} else { //  r.To.Reg & 0xffffffff00000000 & uint32(v)
@@ -3202,8 +3229,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			}
 		case AOR:
 			if int64(uint32(v)) != v { // needs sign extend
-				zRIL(_a, op_LGFI, REGTMP, uint32(v), asm)
-				zRRE(op_OGR, uint32(p.To.Reg), REGTMP, asm)
+				zRIL(_a, op_LGFI, regtmp(p), uint32(v), asm)
+				zRRE(op_OGR, uint32(p.To.Reg), regtmp(p), asm)
 			} else if int64(uint16(v)) == v {
 				zRI(op_OILL, uint32(p.To.Reg), uint32(v), asm)
 			} else {
@@ -3211,8 +3238,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			}
 		case AXOR:
 			if int64(uint32(v)) != v { // needs sign extend
-				zRIL(_a, op_LGFI, REGTMP, uint32(v), asm)
-				zRRE(op_XGR, uint32(p.To.Reg), REGTMP, asm)
+				zRIL(_a, op_LGFI, regtmp(p), uint32(v), asm)
+				zRRE(op_XGR, uint32(p.To.Reg), regtmp(p), asm)
 			} else {
 				zRIL(_a, op_XILF, uint32(p.To.Reg), uint32(v), asm)
 			}
@@ -3264,8 +3291,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		} else if v >= -DISP20/2 && v < DISP20/2 {
 			zRXY(op_LAY, uint32(p.To.Reg), uint32(r), uint32(i), uint32(v), asm)
 		} else {
-			zRIL(_a, op_LGFI, REGTMP, uint32(v), asm)
-			zRX(op_LA, uint32(p.To.Reg), uint32(r), REGTMP, uint32(i), asm)
+			zRIL(_a, op_LGFI, regtmp(p), uint32(v), asm)
+			zRX(op_LA, uint32(p.To.Reg), uint32(r), regtmp(p), uint32(i), asm)
 		}
 
 	case 31: // dword
@@ -3359,11 +3386,11 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		}
 		x2 := p.To.Index
 		if d2 < -DISP20/2 || d2 >= DISP20/2 {
-			zRIL(_a, op_LGFI, REGTMP, uint32(d2), asm)
+			zRIL(_a, op_LGFI, regtmp(p), uint32(d2), asm)
 			if x2 != 0 {
-				zRX(op_LA, REGTMP, REGTMP, uint32(x2), 0, asm)
+				zRX(op_LA, regtmp(p), regtmp(p), uint32(x2), 0, asm)
 			}
-			x2 = REGTMP
+			x2 = int16(regtmp(p))
 			d2 = 0
 		}
 		// Emits an RX instruction if an appropriate one exists and the displacement fits in 12 bits. Otherwise use an RXY instruction.
@@ -3381,11 +3408,11 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		}
 		x2 := p.From.Index
 		if d2 < -DISP20/2 || d2 >= DISP20/2 {
-			zRIL(_a, op_LGFI, REGTMP, uint32(d2), asm)
+			zRIL(_a, op_LGFI, regtmp(p), uint32(d2), asm)
 			if x2 != 0 {
-				zRX(op_LA, REGTMP, REGTMP, uint32(x2), 0, asm)
+				zRX(op_LA, regtmp(p), regtmp(p), uint32(x2), 0, asm)
 			}
-			x2 = REGTMP
+			x2 = int16(regtmp(p))
 			d2 = 0
 		}
 		// Emits an RX instruction if an appropriate one exists and the displacement fits in 12 bits. Otherwise use an RXY instruction.
@@ -3539,21 +3566,21 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			opcode = op_MVI
 		}
 		if d < 0 || d >= DISP12 {
-			if r == REGTMP {
+			if r == int16(regtmp(p)) {
 				c.ctxt.Diag("displacement must be in range [0, 4096) to use %v", r)
 			}
 			if d >= -DISP20/2 && d < DISP20/2 {
 				if opcode == op_MVI {
 					opcode = op_MVIY
 				} else {
-					zRXY(op_LAY, uint32(REGTMP), 0, uint32(r), uint32(d), asm)
-					r = REGTMP
+					zRXY(op_LAY, uint32(regtmp(p)), 0, uint32(r), uint32(d), asm)
+					r = int16(regtmp(p))
 					d = 0
 				}
 			} else {
-				zRIL(_a, op_LGFI, REGTMP, uint32(d), asm)
-				zRX(op_LA, REGTMP, REGTMP, uint32(r), 0, asm)
-				r = REGTMP
+				zRIL(_a, op_LGFI, regtmp(p), uint32(d), asm)
+				zRX(op_LA, regtmp(p), regtmp(p), uint32(r), 0, asm)
+				r = int16(regtmp(p))
 				d = 0
 			}
 		}
@@ -3576,19 +3603,19 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		case AMOVH, AMOVHZ: // The zero extension doesn't affect store instructions
 			zRIL(_b, op_STHRL, uint32(p.From.Reg), 0, asm)
 		case AMOVB, AMOVBZ: // The zero extension doesn't affect store instructions
-			zRIL(_b, op_LARL, REGTMP, 0, asm)
+			zRIL(_b, op_LARL, regtmp(p), 0, asm)
 			adj := uint32(0) // adjustment needed for odd addresses
 			if i2&1 != 0 {
 				i2 -= 1
 				adj = 1
 			}
-			zRX(op_STC, uint32(p.From.Reg), 0, REGTMP, adj, asm)
+			zRX(op_STC, uint32(p.From.Reg), 0, regtmp(p), adj, asm)
 		case AFMOVD:
-			zRIL(_b, op_LARL, REGTMP, 0, asm)
-			zRX(op_STD, uint32(p.From.Reg), 0, REGTMP, 0, asm)
+			zRIL(_b, op_LARL, regtmp(p), 0, asm)
+			zRX(op_STD, uint32(p.From.Reg), 0, regtmp(p), 0, asm)
 		case AFMOVS:
-			zRIL(_b, op_LARL, REGTMP, 0, asm)
-			zRX(op_STE, uint32(p.From.Reg), 0, REGTMP, 0, asm)
+			zRIL(_b, op_LARL, regtmp(p), 0, asm)
+			zRX(op_STE, uint32(p.From.Reg), 0, regtmp(p), 0, asm)
 		}
 		c.addrilreloc(p.To.Sym, int64(i2))
 
@@ -3597,8 +3624,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		switch p.As {
 		case AMOVD:
 			if i2&1 != 0 {
-				zRIL(_b, op_LARL, REGTMP, 0, asm)
-				zRXY(op_LG, uint32(p.To.Reg), REGTMP, 0, 1, asm)
+				zRIL(_b, op_LARL, regtmp(p), 0, asm)
+				zRXY(op_LG, uint32(p.To.Reg), regtmp(p), 0, 1, asm)
 				i2 -= 1
 			} else {
 				zRIL(_b, op_LGRL, uint32(p.To.Reg), 0, asm)
@@ -3612,7 +3639,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		case AMOVHZ:
 			zRIL(_b, op_LLGHRL, uint32(p.To.Reg), 0, asm)
 		case AMOVB, AMOVBZ:
-			zRIL(_b, op_LARL, REGTMP, 0, asm)
+			zRIL(_b, op_LARL, regtmp(p), 0, asm)
 			adj := uint32(0) // adjustment needed for odd addresses
 			if i2&1 != 0 {
 				i2 -= 1
@@ -3620,16 +3647,16 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			}
 			switch p.As {
 			case AMOVB:
-				zRXY(op_LGB, uint32(p.To.Reg), 0, REGTMP, adj, asm)
+				zRXY(op_LGB, uint32(p.To.Reg), 0, regtmp(p), adj, asm)
 			case AMOVBZ:
-				zRXY(op_LLGC, uint32(p.To.Reg), 0, REGTMP, adj, asm)
+				zRXY(op_LLGC, uint32(p.To.Reg), 0, regtmp(p), adj, asm)
 			}
 		case AFMOVD:
-			zRIL(_a, op_LARL, REGTMP, 0, asm)
-			zRX(op_LD, uint32(p.To.Reg), 0, REGTMP, 0, asm)
+			zRIL(_a, op_LARL, regtmp(p), 0, asm)
+			zRX(op_LD, uint32(p.To.Reg), 0, regtmp(p), 0, asm)
 		case AFMOVS:
-			zRIL(_a, op_LARL, REGTMP, 0, asm)
-			zRX(op_LE, uint32(p.To.Reg), 0, REGTMP, 0, asm)
+			zRIL(_a, op_LARL, regtmp(p), 0, asm)
+			zRX(op_LE, uint32(p.To.Reg), 0, regtmp(p), 0, asm)
 		}
 		c.addrilreloc(p.From.Sym, int64(i2))
 
@@ -3744,19 +3771,19 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		d1 := c.regoff(&p.To)
 		d2 := c.regoff(p.GetFrom3())
 		if d1 < 0 || d1 >= DISP12 {
-			if b2 == REGTMP {
-				c.ctxt.Diag("REGTMP conflict")
+			if b2 == int16(regtmp(p)) {
+				c.ctxt.Diag("regtmp(p) conflict")
 			}
-			if b1 != REGTMP {
-				zRRE(op_LGR, REGTMP, uint32(b1), asm)
+			if b1 != int16(regtmp(p)) {
+				zRRE(op_LGR, regtmp(p), uint32(b1), asm)
 			}
-			zRIL(_a, op_AGFI, REGTMP, uint32(d1), asm)
+			zRIL(_a, op_AGFI, regtmp(p), uint32(d1), asm)
 			if d1 == d2 && b1 == b2 {
 				d2 = 0
-				b2 = REGTMP
+				b2 = int16(regtmp(p))
 			}
 			d1 = 0
-			b1 = REGTMP
+			b1 = int16(regtmp(p))
 		}
 		if d2 < 0 || d2 >= DISP12 {
 			if b1 == REGTMP2 {
@@ -3962,8 +3989,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		rel.Add = 2 + int64(rel.Siz)
 
 	case 94: // TLS local exec model
-		zRIL(_b, op_LARL, REGTMP, (sizeRIL+sizeRXY+sizeRI)>>1, asm)
-		zRXY(op_LG, uint32(p.To.Reg), REGTMP, 0, 0, asm)
+		zRIL(_b, op_LARL, regtmp(p), (sizeRIL+sizeRXY+sizeRI)>>1, asm)
+		zRXY(op_LG, uint32(p.To.Reg), regtmp(p), 0, 0, asm)
 		zRI(op_BRC, 0xF, (sizeRI+8)>>1, asm)
 		*asm = append(*asm, 0, 0, 0, 0, 0, 0, 0, 0)
 		rel := obj.Addrel(c.cursym)
@@ -3985,7 +4012,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		// --------------------------------------------------------------
 
 		// R_390_TLS_IEENT
-		zRIL(_b, op_LARL, REGTMP, 0, asm)
+		zRIL(_b, op_LARL, regtmp(p), 0, asm)
 		ieent := obj.Addrel(c.cursym)
 		ieent.Off = int32(c.pc + 2)
 		ieent.Siz = 4
@@ -3994,7 +4021,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		ieent.Add = 2 + int64(ieent.Siz)
 
 		// R_390_TLS_LOAD
-		zRXY(op_LGF, uint32(p.To.Reg), REGTMP, 0, 0, asm)
+		zRXY(op_LGF, uint32(p.To.Reg), regtmp(p), 0, 0, asm)
 		// TODO(mundaym): add R_390_TLS_LOAD relocation here
 		// not strictly required but might allow the linker to optimize
 
@@ -4011,14 +4038,14 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		for length > 0 {
 			if offset < 0 || offset >= DISP12 {
 				if offset >= -DISP20/2 && offset < DISP20/2 {
-					zRXY(op_LAY, REGTMP, uint32(reg), 0, uint32(offset), asm)
+					zRXY(op_LAY, regtmp(p), uint32(reg), 0, uint32(offset), asm)
 				} else {
-					if reg != REGTMP {
-						zRRE(op_LGR, REGTMP, uint32(reg), asm)
+					if reg != int16(regtmp(p)) {
+						zRRE(op_LGR, regtmp(p), uint32(reg), asm)
 					}
-					zRIL(_a, op_AGFI, REGTMP, uint32(offset), asm)
+					zRIL(_a, op_AGFI, regtmp(p), uint32(offset), asm)
 				}
-				reg = REGTMP
+				reg = int16(regtmp(p))
 				offset = 0
 			}
 			size := length
@@ -4052,11 +4079,11 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			reg = REGSP
 		}
 		if offset < -DISP20/2 || offset >= DISP20/2 {
-			if reg != REGTMP {
-				zRRE(op_LGR, REGTMP, uint32(reg), asm)
+			if reg != int16(regtmp(p)) {
+				zRRE(op_LGR, regtmp(p), uint32(reg), asm)
 			}
-			zRIL(_a, op_AGFI, REGTMP, uint32(offset), asm)
-			reg = REGTMP
+			zRIL(_a, op_AGFI, regtmp(p), uint32(offset), asm)
+			reg = int16(regtmp(p))
 			offset = 0
 		}
 		switch p.As {
@@ -4079,11 +4106,11 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			reg = REGSP
 		}
 		if offset < -DISP20/2 || offset >= DISP20/2 {
-			if reg != REGTMP {
-				zRRE(op_LGR, REGTMP, uint32(reg), asm)
+			if reg != int16(regtmp(p)) {
+				zRRE(op_LGR, regtmp(p), uint32(reg), asm)
 			}
-			zRIL(_a, op_AGFI, REGTMP, uint32(offset), asm)
-			reg = REGTMP
+			zRIL(_a, op_AGFI, regtmp(p), uint32(offset), asm)
+			reg = int16(regtmp(p))
 			offset = 0
 		}
 		switch p.As {
