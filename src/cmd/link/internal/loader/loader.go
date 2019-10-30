@@ -112,6 +112,11 @@ type Loader struct {
 	Syms []*sym.Symbol // indexed symbols. XXX we still make sym.Symbol for now.
 
 	Reachable bitmap // bitmap of reachable symbols, indexed by global index
+
+	// Used to implement field tracking; created during deadcode if
+	// field tracking is enabled. Reachparent[K] contains the index of
+	// the symbol that triggered the marking of symbol K as live.
+	Reachparent []Sym
 }
 
 func NewLoader() *Loader {

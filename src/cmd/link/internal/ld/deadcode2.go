@@ -18,8 +18,6 @@ import (
 var _ = fmt.Print
 
 // TODO:
-// - Field tracking support:
-//   It needs to record from where the symbol is referenced.
 // - Debug output:
 //   Emit messages about which symbols are kept or deleted.
 
@@ -43,6 +41,9 @@ type deadcodePass2 struct {
 func (d *deadcodePass2) init() {
 	d.ldr.InitReachable()
 	d.ifaceMethod = make(map[methodsig]bool)
+	if d.ctxt.Reachparent != nil {
+		d.ldr.Reachparent = make([]loader.Sym, d.ldr.NSym())
+	}
 
 	if d.ctxt.BuildMode == BuildModeShared {
 		// Mark all symbols defined in this library as reachable when
@@ -51,7 +52,7 @@ func (d *deadcodePass2) init() {
 		for i := 1; i < n; i++ {
 			s := loader.Sym(i)
 			if !d.ldr.IsDup(s) {
-				d.mark(s)
+				d.mark(s, 0)
 			}
 		}
 		return
@@ -82,7 +83,7 @@ func (d *deadcodePass2) init() {
 			if exportsIdx != 0 {
 				d.ReadRelocs(exportsIdx)
 				for i := 0; i < len(d.rtmp); i++ {
-					d.mark(d.rtmp[i].Sym)
+					d.mark(d.rtmp[i].Sym, 0)
 				}
 			}
 		}
@@ -106,9 +107,9 @@ func (d *deadcodePass2) init() {
 
 	for _, name := range names {
 		// Mark symbol as an data/ABI0 symbol.
-		d.mark(d.ldr.Lookup(name, 0))
+		d.mark(d.ldr.Lookup(name, 0), 0)
 		// Also mark any Go functions (internal ABI).
-		d.mark(d.ldr.Lookup(name, sym.SymVerABIInternal))
+		d.mark(d.ldr.Lookup(name, sym.SymVerABIInternal), 0)
 	}
 }
 
@@ -155,12 +156,11 @@ func (d *deadcodePass2) flood() {
 				// do nothing for now as we still load all type symbols.
 				continue
 			}
-			d.mark(r.Sym)
+			d.mark(r.Sym, symIdx)
 		}
-
 		auxSyms = d.ldr.ReadAuxSyms(symIdx, auxSyms)
 		for i := 0; i < len(auxSyms); i++ {
-			d.mark(auxSyms[i])
+			d.mark(auxSyms[i], symIdx)
 		}
 		// Some host object symbols have an outer object, which acts like a
 		// "carrier" symbol, or it holds all the symbols for a particular
@@ -168,8 +168,8 @@ func (d *deadcodePass2) flood() {
 		// so we make sure we're pulling in all outer symbols, and their sub
 		// symbols. This is not ideal, and these carrier/section symbols could
 		// be removed.
-		d.mark(d.ldr.OuterSym(symIdx))
-		d.mark(d.ldr.SubSym(symIdx))
+		d.mark(d.ldr.OuterSym(symIdx), symIdx)
+		d.mark(d.ldr.SubSym(symIdx), symIdx)
 
 		if len(methods) != 0 {
 			// Decode runtime type information for type methods
@@ -187,18 +187,21 @@ func (d *deadcodePass2) flood() {
 	}
 }
 
-func (d *deadcodePass2) mark(symIdx loader.Sym) {
+func (d *deadcodePass2) mark(symIdx, parent loader.Sym) {
 	if symIdx != 0 && !d.ldr.Reachable.Has(symIdx) {
 		d.wq.push(symIdx)
 		d.ldr.Reachable.Set(symIdx)
+		if d.ctxt.Reachparent != nil {
+			d.ldr.Reachparent[symIdx] = parent
+		}
 	}
 }
 
 func (d *deadcodePass2) markMethod(m methodref2) {
 	d.ReadRelocs(m.src)
-	d.mark(d.rtmp[m.r].Sym)
-	d.mark(d.rtmp[m.r+1].Sym)
-	d.mark(d.rtmp[m.r+2].Sym)
+	d.mark(d.rtmp[m.r].Sym, m.src)
+	d.mark(d.rtmp[m.r+1].Sym, m.src)
+	d.mark(d.rtmp[m.r+2].Sym, m.src)
 }
 
 func deadcode2(ctxt *Link) {
