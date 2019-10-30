@@ -489,8 +489,6 @@ func main() {
 `
 
 func TestGdbConst(t *testing.T) {
-	t.Skip("TODO: newobj") // XXX the constant DIEs are not referenced, so they are not pulled in. Maybe it'll be fine if we rewrite linker's dwarf pass to index?
-
 	checkGdbEnvironment(t)
 	t.Parallel()
 	checkGdbVersion(t)
