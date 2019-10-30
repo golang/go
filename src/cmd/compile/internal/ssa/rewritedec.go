@@ -41,9 +41,7 @@ func rewriteValuedec_OpComplexImag(v *Value) bool {
 			break
 		}
 		imag := v_0.Args[1]
-		v.reset(OpCopy)
-		v.Type = imag.Type
-		v.AddArg(imag)
+		v.copyOf(imag)
 		return true
 	}
 	return false
@@ -58,9 +56,7 @@ func rewriteValuedec_OpComplexReal(v *Value) bool {
 		}
 		_ = v_0.Args[1]
 		real := v_0.Args[0]
-		v.reset(OpCopy)
-		v.Type = real.Type
-		v.AddArg(real)
+		v.copyOf(real)
 		return true
 	}
 	return false
@@ -74,9 +70,7 @@ func rewriteValuedec_OpIData(v *Value) bool {
 			break
 		}
 		data := v_0.Args[1]
-		v.reset(OpCopy)
-		v.Type = data.Type
-		v.AddArg(data)
+		v.copyOf(data)
 		return true
 	}
 	return false
@@ -91,9 +85,7 @@ func rewriteValuedec_OpITab(v *Value) bool {
 		}
 		_ = v_0.Args[1]
 		itab := v_0.Args[0]
-		v.reset(OpCopy)
-		v.Type = itab.Type
-		v.AddArg(itab)
+		v.copyOf(itab)
 		return true
 	}
 	return false
@@ -225,9 +217,7 @@ func rewriteValuedec_OpSliceCap(v *Value) bool {
 			break
 		}
 		cap := v_0.Args[2]
-		v.reset(OpCopy)
-		v.Type = cap.Type
-		v.AddArg(cap)
+		v.copyOf(cap)
 		return true
 	}
 	return false
@@ -242,9 +232,7 @@ func rewriteValuedec_OpSliceLen(v *Value) bool {
 		}
 		_ = v_0.Args[2]
 		len := v_0.Args[1]
-		v.reset(OpCopy)
-		v.Type = len.Type
-		v.AddArg(len)
+		v.copyOf(len)
 		return true
 	}
 	return false
@@ -259,9 +247,7 @@ func rewriteValuedec_OpSlicePtr(v *Value) bool {
 		}
 		_ = v_0.Args[2]
 		ptr := v_0.Args[0]
-		v.reset(OpCopy)
-		v.Type = ptr.Type
-		v.AddArg(ptr)
+		v.copyOf(ptr)
 		return true
 	}
 	return false
@@ -406,9 +392,7 @@ func rewriteValuedec_OpStringLen(v *Value) bool {
 			break
 		}
 		len := v_0.Args[1]
-		v.reset(OpCopy)
-		v.Type = len.Type
-		v.AddArg(len)
+		v.copyOf(len)
 		return true
 	}
 	return false
@@ -423,9 +407,7 @@ func rewriteValuedec_OpStringPtr(v *Value) bool {
 		}
 		_ = v_0.Args[1]
 		ptr := v_0.Args[0]
-		v.reset(OpCopy)
-		v.Type = ptr.Type
-		v.AddArg(ptr)
+		v.copyOf(ptr)
 		return true
 	}
 	return false
