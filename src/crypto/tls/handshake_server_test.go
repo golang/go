@@ -729,25 +729,19 @@ func (test *serverTest) run(t *testing.T, write bool) {
 }
 
 func runServerTestForVersion(t *testing.T, template *serverTest, version, option string) {
-	t.Run(version, func(t *testing.T) {
-		// Make a deep copy of the template before going parallel.
-		test := *template
-		if template.config != nil {
-			test.config = template.config.Clone()
-		}
+	// Make a deep copy of the template before going parallel.
+	test := *template
+	if template.config != nil {
+		test.config = template.config.Clone()
+	}
+	test.name = version + "-" + test.name
+	if len(test.command) == 0 {
+		test.command = defaultClientCommand
+	}
+	test.command = append([]string(nil), test.command...)
+	test.command = append(test.command, option)
 
-		if !*update && !template.wait {
-			t.Parallel()
-		}
-
-		test.name = version + "-" + test.name
-		if len(test.command) == 0 {
-			test.command = defaultClientCommand
-		}
-		test.command = append([]string(nil), test.command...)
-		test.command = append(test.command, option)
-		test.run(t, *update)
-	})
+	runTestAndUpdateIfNeeded(t, version, test.run, test.wait)
 }
 
 func runServerTestTLS10(t *testing.T, template *serverTest) {
