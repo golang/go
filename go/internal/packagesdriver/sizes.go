@@ -81,13 +81,13 @@ func GetSizesGolist(ctx context.Context, buildFlags, env []string, dir string, u
 	args := []string{"list", "-f", "{{context.GOARCH}} {{context.Compiler}}"}
 	args = append(args, buildFlags...)
 	args = append(args, "--", "unsafe")
-	stdout, err := InvokeGo(ctx, env, dir, usesExportData, args...)
+	stdout, stderr, err := invokeGo(ctx, env, dir, usesExportData, args...)
 	var goarch, compiler string
 	if err != nil {
 		if strings.Contains(err.Error(), "cannot find main module") {
 			// User's running outside of a module. All bets are off. Get GOARCH and guess compiler is gc.
 			// TODO(matloob): Is this a problem in practice?
-			envout, enverr := InvokeGo(ctx, env, dir, usesExportData, "env", "GOARCH")
+			envout, _, enverr := invokeGo(ctx, env, dir, usesExportData, "env", "GOARCH")
 			if enverr != nil {
 				return nil, err
 			}
@@ -99,7 +99,8 @@ func GetSizesGolist(ctx context.Context, buildFlags, env []string, dir string, u
 	} else {
 		fields := strings.Fields(stdout.String())
 		if len(fields) < 2 {
-			return nil, fmt.Errorf("could not determine GOARCH and Go compiler")
+			return nil, fmt.Errorf("could not parse GOARCH and Go compiler in format \"<GOARCH> <compiler>\" from stdout of go command:\n%s\ndir: %s\nstdout: <<%s>>\nstderr: <<%s>>",
+				cmdDebugStr(env, args...), dir, stdout.String(), stderr.String())
 		}
 		goarch = fields[0]
 		compiler = fields[1]
@@ -107,8 +108,8 @@ func GetSizesGolist(ctx context.Context, buildFlags, env []string, dir string, u
 	return types.SizesFor(compiler, goarch), nil
 }
 
-// InvokeGo returns the stdout of a go command invocation.
-func InvokeGo(ctx context.Context, env []string, dir string, usesExportData bool, args ...string) (*bytes.Buffer, error) {
+// invokeGo returns the stdout and stderr of a go command invocation.
+func invokeGo(ctx context.Context, env []string, dir string, usesExportData bool, args ...string) (*bytes.Buffer, *bytes.Buffer, error) {
 	if debug {
 		defer func(start time.Time) { log.Printf("%s for %v", time.Since(start), cmdDebugStr(env, args...)) }(time.Now())
 	}
@@ -131,7 +132,7 @@ func InvokeGo(ctx context.Context, env []string, dir string, usesExportData bool
 			// Catastrophic error:
 			// - executable not found
 			// - context cancellation
-			return nil, fmt.Errorf("couldn't exec 'go %v': %s %T", args, err, err)
+			return nil, nil, fmt.Errorf("couldn't exec 'go %v': %s %T", args, err, err)
 		}
 
 		// Export mode entails a build.
@@ -139,7 +140,7 @@ func InvokeGo(ctx context.Context, env []string, dir string, usesExportData bool
 		// (despite the -e flag) and the Export field is blank.
 		// Do not fail in that case.
 		if !usesExportData {
-			return nil, fmt.Errorf("go %v: %s: %s", args, exitErr, stderr)
+			return nil, nil, fmt.Errorf("go %v: %s: %s", args, exitErr, stderr)
 		}
 	}
 
@@ -158,7 +159,7 @@ func InvokeGo(ctx context.Context, env []string, dir string, usesExportData bool
 		fmt.Fprintf(os.Stderr, "%s stdout: <<%s>>\n", cmdDebugStr(env, args...), stdout)
 	}
 
-	return stdout, nil
+	return stdout, stderr, nil
 }
 
 func cmdDebugStr(envlist []string, args ...string) string {
