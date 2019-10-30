@@ -5361,6 +5361,7 @@ func gcd(a, b uint32) uint32 {
 }
 
 // An initTask represents the set of initializations that need to be done for a package.
+// Keep in sync with ../../test/initempty.go:initTask
 type initTask struct {
 	// TODO: pack the first 3 fields more tightly?
 	state uintptr // 0 = uninitialized, 1 = in progress, 2 = done
