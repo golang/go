@@ -1127,3 +1127,8 @@ func indexRabinKarp(s, substr string) int {
 	}
 	return -1
 }
+
+func isEmpty(s string) bool {
+	return !(len(s) > 0)
+}
+
