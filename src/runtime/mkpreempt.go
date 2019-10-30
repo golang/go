@@ -83,7 +83,7 @@ var arches = map[string]func(){
 	"mips64x": notImplemented,
 	"mipsx":   notImplemented,
 	"ppc64x":  notImplemented,
-	"s390x":   notImplemented,
+	"s390x":   genS390X,
 	"wasm":    genWasm,
 }
 var beLe = map[string]bool{"mips64x": true, "mipsx": true, "ppc64x": true}
@@ -354,6 +354,39 @@ func genARM64() {
 	p("MOVD (RSP), R27")          // load PC to REGTMP
 	p("ADD $%d, RSP", l.stack+16) // pop frame (including the space pushed by sigctxt.pushCall)
 	p("JMP (R27)")
+}
+
+func genS390X() {
+	// Add integer registers R0-R12
+	// R13 (g), R14 (LR), R15 (SP) are special, and not saved here.
+	// Saving R10 (REGTMP) is not necessary, but it is saved anyway.
+	var l = layout{sp: "R15", stack: 16} // add slot to save PC of interrupted instruction and flags
+	l.addSpecial(
+		"STMG R0, R12, %d(R15)",
+		"LMG %d(R15), R0, R12",
+		13*8)
+	// Add floating point registers F0-F31.
+	for i := 0; i <= 15; i++ {
+		reg := fmt.Sprintf("F%d", i)
+		l.add("FMOVD", reg, 8)
+	}
+
+	// allocate frame, save PC of interrupted instruction (in LR) and flags (condition code)
+	p("IPM R10") // save flags upfront, as ADD will clobber flags
+	p("MOVD R14, -%d(R15)", l.stack)
+	p("ADD $-%d, R15", l.stack)
+	p("MOVW R10, 8(R15)") // save flags
+
+	l.save()
+	p("CALL ·asyncPreempt2(SB)")
+	l.restore()
+
+	p("MOVD %d(R15), R14", l.stack)    // sigctxt.pushCall has pushed LR (at interrupt) on stack, restore it
+	p("ADD $%d, R15", l.stack+8)       // pop frame (including the space pushed by sigctxt.pushCall)
+	p("MOVWZ -%d(R15), R10", l.stack)  // load flags to REGTMP
+	p("TMLH R10, $(3<<12)")            // restore flags
+	p("MOVD -%d(R15), R10", l.stack+8) // load PC to REGTMP
+	p("JMP (R10)")
 }
 
 func genWasm() {
