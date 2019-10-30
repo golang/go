@@ -386,6 +386,9 @@ const (
 	// insert program mask
 	AIPM
 
+	// set program mask
+	ASPM
+
 	// compare and swap
 	ACS
 	ACSG

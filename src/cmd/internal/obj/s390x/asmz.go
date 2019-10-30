@@ -286,6 +286,9 @@ var optab = []Optab{
 	// insert program mask
 	{i: 92, as: AIPM, a1: C_REG},
 
+	// set program mask
+	{i: 76, as: ASPM, a1: C_REG},
+
 	// 32-bit access registers
 	{i: 68, as: AMOVW, a1: C_AREG, a6: C_REG},
 	{i: 68, as: AMOVWZ, a1: C_AREG, a6: C_REG},
@@ -3629,6 +3632,9 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			zRX(op_LE, uint32(p.To.Reg), 0, REGTMP, 0, asm)
 		}
 		c.addrilreloc(p.From.Sym, int64(i2))
+
+	case 76: // set program mask
+		zRR(op_SPM, uint32(p.From.Reg), 0, asm)
 
 	case 77: // syscall $constant
 		if p.From.Offset > 255 || p.From.Offset < 1 {
