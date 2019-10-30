@@ -284,6 +284,9 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	IPM	R3                     // b2220030
 	IPM	R12                    // b22200c0
 
+	SPM	R1                     // 0410
+	SPM	R10                    // 04a0
+
 	BRC	$7, 0(PC)              // a7740000
 	BNE	0(PC)                  // a7740000
 	BEQ	0(PC)                  // a7840000
