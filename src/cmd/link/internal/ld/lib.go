@@ -58,6 +58,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -540,6 +541,7 @@ func setupdynexp(ctxt *Link) {
 		s := ctxt.Syms.Lookup(exp, 0)
 		dynexp = append(dynexp, s)
 	}
+	sort.Sort(byName(dynexp))
 
 	// Resolve ABI aliases in the list of cgo-exported functions.
 	// This is necessary because we load the ABI0 symbol for all
