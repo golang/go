@@ -13,7 +13,7 @@ func _() {
 
 func _() {
 	var pineapple int //@item(pineapple, "pineapple", "int", "var")
-	pineapple =     //@complete(" /", pineapple, apple, pear)
+	pineapple = 1    //@complete(" 1", pineapple, apple, pear)
 
-	y :=  //@complete(" /", pineapple, apple, pear)
+	y := //@complete(" /", pineapple, apple, pear)
 }
