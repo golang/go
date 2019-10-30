@@ -103,3 +103,120 @@ func TestUnaligned64(t *testing.T) {
 	shouldPanic(t, "Xchg64", func() { atomic.Xchg64(up64, 1) })
 	shouldPanic(t, "Cas64", func() { atomic.Cas64(up64, 1, 2) })
 }
+
+func TestAnd8(t *testing.T) {
+	// Basic sanity check.
+	x := uint8(0xff)
+	for i := uint8(0); i < 8; i++ {
+		atomic.And8(&x, ^(1 << i))
+		if r := uint8(0xff) << (i + 1); x != r {
+			t.Fatalf("clearing bit %#x: want %#x, got %#x", uint8(1<<i), r, x)
+		}
+	}
+
+	// Set every bit in array to 1.
+	a := make([]uint8, 1<<12)
+	for i := range a {
+		a[i] = 0xff
+	}
+
+	// Clear array bit-by-bit in different goroutines.
+	done := make(chan bool)
+	for i := 0; i < 8; i++ {
+		m := ^uint8(1 << i)
+		go func() {
+			for i := range a {
+				atomic.And8(&a[i], m)
+			}
+			done <- true
+		}()
+	}
+	for i := 0; i < 8; i++ {
+		<-done
+	}
+
+	// Check that the array has been totally cleared.
+	for i, v := range a {
+		if v != 0 {
+			t.Fatalf("a[%v] not cleared: want %#x, got %#x", i, uint8(0), v)
+		}
+	}
+}
+
+func TestOr8(t *testing.T) {
+	// Basic sanity check.
+	x := uint8(0)
+	for i := uint8(0); i < 8; i++ {
+		atomic.Or8(&x, 1<<i)
+		if r := (uint8(1) << (i + 1)) - 1; x != r {
+			t.Fatalf("setting bit %#x: want %#x, got %#x", uint8(1)<<i, r, x)
+		}
+	}
+
+	// Start with every bit in array set to 0.
+	a := make([]uint8, 1<<12)
+
+	// Set every bit in array bit-by-bit in different goroutines.
+	done := make(chan bool)
+	for i := 0; i < 8; i++ {
+		m := uint8(1 << i)
+		go func() {
+			for i := range a {
+				atomic.Or8(&a[i], m)
+			}
+			done <- true
+		}()
+	}
+	for i := 0; i < 8; i++ {
+		<-done
+	}
+
+	// Check that the array has been totally set.
+	for i, v := range a {
+		if v != 0xff {
+			t.Fatalf("a[%v] not fully set: want %#x, got %#x", i, uint8(0xff), v)
+		}
+	}
+}
+
+func TestBitwiseContended(t *testing.T) {
+	// Start with every bit in array set to 0.
+	a := make([]uint8, 16)
+
+	// Iterations to try.
+	N := 1 << 16
+	if testing.Short() {
+		N = 1 << 10
+	}
+
+	// Set and then clear every bit in the array bit-by-bit in different goroutines.
+	done := make(chan bool)
+	for i := 0; i < 8; i++ {
+		m := uint8(1 << i)
+		go func() {
+			for n := 0; n < N; n++ {
+				for i := range a {
+					atomic.Or8(&a[i], m)
+					if atomic.Load8(&a[i])&m != m {
+						t.Errorf("a[%v] bit %#x not set", i, m)
+					}
+					atomic.And8(&a[i], ^m)
+					if atomic.Load8(&a[i])&m != 0 {
+						t.Errorf("a[%v] bit %#x not clear", i, m)
+					}
+				}
+			}
+			done <- true
+		}()
+	}
+	for i := 0; i < 8; i++ {
+		<-done
+	}
+
+	// Check that the array has been totally cleared.
+	for i, v := range a {
+		if v != 0 {
+			t.Fatalf("a[%v] not cleared: want %#x, got %#x", i, uint8(0), v)
+		}
+	}
+}
