@@ -32,8 +32,9 @@ func TestLoadImportsC(t *testing.T) {
 	testenv.NeedsGoPackages(t)
 
 	cfg := &packages.Config{
-		Mode:  packages.LoadImports,
-		Tests: true,
+		Context: testCtx,
+		Mode:    packages.LoadImports,
+		Tests:   true,
 	}
 	initial, err := packages.Load(cfg, "syscall", "net")
 	if err != nil {
