@@ -1853,9 +1853,7 @@ func rewriteValueWasm_OpMove(v *Value) bool {
 			break
 		}
 		mem := v_2
-		v.reset(OpCopy)
-		v.Type = mem.Type
-		v.AddArg(mem)
+		v.copyOf(mem)
 		return true
 	}
 	// match: (Move [1] dst src mem)
@@ -3099,9 +3097,7 @@ func rewriteValueWasm_OpSignExt16to32(v *Value) bool {
 			break
 		}
 		_ = x.Args[1]
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (SignExt16to32 x)
@@ -3143,9 +3139,7 @@ func rewriteValueWasm_OpSignExt16to64(v *Value) bool {
 			break
 		}
 		_ = x.Args[1]
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (SignExt16to64 x)
@@ -3187,9 +3181,7 @@ func rewriteValueWasm_OpSignExt32to64(v *Value) bool {
 			break
 		}
 		_ = x.Args[1]
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (SignExt32to64 x)
@@ -3231,9 +3223,7 @@ func rewriteValueWasm_OpSignExt8to16(v *Value) bool {
 			break
 		}
 		_ = x.Args[1]
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (SignExt8to16 x)
@@ -3275,9 +3265,7 @@ func rewriteValueWasm_OpSignExt8to32(v *Value) bool {
 			break
 		}
 		_ = x.Args[1]
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (SignExt8to32 x)
@@ -3319,9 +3307,7 @@ func rewriteValueWasm_OpSignExt8to64(v *Value) bool {
 			break
 		}
 		_ = x.Args[1]
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (SignExt8to64 x)
@@ -3596,9 +3582,7 @@ func rewriteValueWasm_OpWasmI64AddConst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (I64AddConst [off] (LoweredAddr {sym} [off2] base))
@@ -4350,9 +4334,7 @@ func rewriteValueWasm_OpZero(v *Value) bool {
 			break
 		}
 		mem := v_1
-		v.reset(OpCopy)
-		v.Type = mem.Type
-		v.AddArg(mem)
+		v.copyOf(mem)
 		return true
 	}
 	// match: (Zero [1] destptr mem)
@@ -4610,9 +4592,7 @@ func rewriteValueWasm_OpZeroExt16to32(v *Value) bool {
 			break
 		}
 		_ = x.Args[1]
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (ZeroExt16to32 x)
@@ -4638,9 +4618,7 @@ func rewriteValueWasm_OpZeroExt16to64(v *Value) bool {
 			break
 		}
 		_ = x.Args[1]
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (ZeroExt16to64 x)
@@ -4666,9 +4644,7 @@ func rewriteValueWasm_OpZeroExt32to64(v *Value) bool {
 			break
 		}
 		_ = x.Args[1]
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (ZeroExt32to64 x)
@@ -4694,9 +4670,7 @@ func rewriteValueWasm_OpZeroExt8to16(v *Value) bool {
 			break
 		}
 		_ = x.Args[1]
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (ZeroExt8to16 x)
@@ -4722,9 +4696,7 @@ func rewriteValueWasm_OpZeroExt8to32(v *Value) bool {
 			break
 		}
 		_ = x.Args[1]
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (ZeroExt8to32 x)
@@ -4750,9 +4722,7 @@ func rewriteValueWasm_OpZeroExt8to64(v *Value) bool {
 			break
 		}
 		_ = x.Args[1]
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (ZeroExt8to64 x)

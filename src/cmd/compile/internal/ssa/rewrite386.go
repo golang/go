@@ -1235,9 +1235,7 @@ func rewriteValue386_Op386ADDLconst(v *Value) bool {
 		if !(int32(c) == 0) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (ADDLconst [c] (MOVLconst [d]))
@@ -1950,9 +1948,7 @@ func rewriteValue386_Op386ANDL(v *Value) bool {
 		if x != v_1 {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	return false
@@ -1994,9 +1990,7 @@ func rewriteValue386_Op386ANDLconst(v *Value) bool {
 		if !(int32(c) == -1) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (ANDLconst [c] (MOVLconst [d]))
@@ -2706,8 +2700,7 @@ func rewriteValue386_Op386CMPBconst(v *Value) bool {
 		}
 		b = l.Block
 		v0 := b.NewValue0(l.Pos, Op386CMPBconstload, types.TypeFlags)
-		v.reset(OpCopy)
-		v.AddArg(v0)
+		v.copyOf(v0)
 		v0.AuxInt = makeValAndOff(c, off)
 		v0.Aux = sym
 		v0.AddArg2(ptr, mem)
@@ -3015,8 +3008,7 @@ func rewriteValue386_Op386CMPLconst(v *Value) bool {
 		}
 		b = l.Block
 		v0 := b.NewValue0(l.Pos, Op386CMPLconstload, types.TypeFlags)
-		v.reset(OpCopy)
-		v.AddArg(v0)
+		v.copyOf(v0)
 		v0.AuxInt = makeValAndOff(c, off)
 		v0.Aux = sym
 		v0.AddArg2(ptr, mem)
@@ -3309,8 +3301,7 @@ func rewriteValue386_Op386CMPWconst(v *Value) bool {
 		}
 		b = l.Block
 		v0 := b.NewValue0(l.Pos, Op386CMPWconstload, types.TypeFlags)
-		v.reset(OpCopy)
-		v.AddArg(v0)
+		v.copyOf(v0)
 		v0.AuxInt = makeValAndOff(c, off)
 		v0.Aux = sym
 		v0.AddArg2(ptr, mem)
@@ -4054,8 +4045,7 @@ func rewriteValue386_Op386MOVBLSX(v *Value) bool {
 		}
 		b = x.Block
 		v0 := b.NewValue0(x.Pos, Op386MOVBLSXload, v.Type)
-		v.reset(OpCopy)
-		v.AddArg(v0)
+		v.copyOf(v0)
 		v0.AuxInt = off
 		v0.Aux = sym
 		v0.AddArg2(ptr, mem)
@@ -4151,8 +4141,7 @@ func rewriteValue386_Op386MOVBLZX(v *Value) bool {
 		}
 		b = x.Block
 		v0 := b.NewValue0(x.Pos, Op386MOVBload, v.Type)
-		v.reset(OpCopy)
-		v.AddArg(v0)
+		v.copyOf(v0)
 		v0.AuxInt = off
 		v0.Aux = sym
 		v0.AddArg2(ptr, mem)
@@ -4176,8 +4165,7 @@ func rewriteValue386_Op386MOVBLZX(v *Value) bool {
 		}
 		b = x.Block
 		v0 := b.NewValue0(v.Pos, Op386MOVBloadidx1, v.Type)
-		v.reset(OpCopy)
-		v.AddArg(v0)
+		v.copyOf(v0)
 		v0.AuxInt = off
 		v0.Aux = sym
 		v0.AddArg3(ptr, idx, mem)
@@ -5127,9 +5115,7 @@ func rewriteValue386_Op386MOVLload(v *Value) bool {
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (MOVLload [off1] {sym} (ADDLconst [off2] ptr) mem)
@@ -7495,8 +7481,7 @@ func rewriteValue386_Op386MOVWLSX(v *Value) bool {
 		}
 		b = x.Block
 		v0 := b.NewValue0(x.Pos, Op386MOVWLSXload, v.Type)
-		v.reset(OpCopy)
-		v.AddArg(v0)
+		v.copyOf(v0)
 		v0.AuxInt = off
 		v0.Aux = sym
 		v0.AddArg2(ptr, mem)
@@ -7592,8 +7577,7 @@ func rewriteValue386_Op386MOVWLZX(v *Value) bool {
 		}
 		b = x.Block
 		v0 := b.NewValue0(x.Pos, Op386MOVWload, v.Type)
-		v.reset(OpCopy)
-		v.AddArg(v0)
+		v.copyOf(v0)
 		v0.AuxInt = off
 		v0.Aux = sym
 		v0.AddArg2(ptr, mem)
@@ -7617,8 +7601,7 @@ func rewriteValue386_Op386MOVWLZX(v *Value) bool {
 		}
 		b = x.Block
 		v0 := b.NewValue0(v.Pos, Op386MOVWloadidx1, v.Type)
-		v.reset(OpCopy)
-		v.AddArg(v0)
+		v.copyOf(v0)
 		v0.AuxInt = off
 		v0.Aux = sym
 		v0.AddArg3(ptr, idx, mem)
@@ -7642,8 +7625,7 @@ func rewriteValue386_Op386MOVWLZX(v *Value) bool {
 		}
 		b = x.Block
 		v0 := b.NewValue0(v.Pos, Op386MOVWloadidx2, v.Type)
-		v.reset(OpCopy)
-		v.AddArg(v0)
+		v.copyOf(v0)
 		v0.AuxInt = off
 		v0.Aux = sym
 		v0.AddArg3(ptr, idx, mem)
@@ -8899,9 +8881,7 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (MULLconst [3] x)
@@ -9750,9 +9730,7 @@ func rewriteValue386_Op386ORL(v *Value) bool {
 		if x != v_1 {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (ORL x0:(MOVBload [i0] {s} p mem) s0:(SHLLconst [8] x1:(MOVBload [i1] {s} p mem)))
@@ -9786,8 +9764,7 @@ func rewriteValue386_Op386ORL(v *Value) bool {
 			}
 			b = mergePoint(b, x0, x1)
 			v0 := b.NewValue0(x1.Pos, Op386MOVWload, typ.UInt16)
-			v.reset(OpCopy)
-			v.AddArg(v0)
+			v.copyOf(v0)
 			v0.AuxInt = i0
 			v0.Aux = s
 			v0.AddArg2(p, mem)
@@ -9850,8 +9827,7 @@ func rewriteValue386_Op386ORL(v *Value) bool {
 				}
 				b = mergePoint(b, x0, x1, x2)
 				v0 := b.NewValue0(x2.Pos, Op386MOVLload, typ.UInt32)
-				v.reset(OpCopy)
-				v.AddArg(v0)
+				v.copyOf(v0)
 				v0.AuxInt = i0
 				v0.Aux = s
 				v0.AddArg2(p, mem)
@@ -9898,8 +9874,7 @@ func rewriteValue386_Op386ORL(v *Value) bool {
 					}
 					b = mergePoint(b, x0, x1)
 					v0 := b.NewValue0(v.Pos, Op386MOVWloadidx1, v.Type)
-					v.reset(OpCopy)
-					v.AddArg(v0)
+					v.copyOf(v0)
 					v0.AuxInt = i0
 					v0.Aux = s
 					v0.AddArg3(p, idx, mem)
@@ -9974,8 +9949,7 @@ func rewriteValue386_Op386ORL(v *Value) bool {
 							}
 							b = mergePoint(b, x0, x1, x2)
 							v0 := b.NewValue0(v.Pos, Op386MOVLloadidx1, v.Type)
-							v.reset(OpCopy)
-							v.AddArg(v0)
+							v.copyOf(v0)
 							v0.AuxInt = i0
 							v0.Aux = s
 							v0.AddArg3(p, idx, mem)
@@ -10000,9 +9974,7 @@ func rewriteValue386_Op386ORLconst(v *Value) bool {
 		if !(int32(c) == 0) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (ORLconst [c] _)
@@ -10489,9 +10461,7 @@ func rewriteValue386_Op386ROLBconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	return false
@@ -10519,9 +10489,7 @@ func rewriteValue386_Op386ROLLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	return false
@@ -10549,9 +10517,7 @@ func rewriteValue386_Op386ROLWconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	return false
@@ -10583,9 +10549,7 @@ func rewriteValue386_Op386SARBconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (SARBconst [c] (MOVLconst [d]))
@@ -10641,9 +10605,7 @@ func rewriteValue386_Op386SARLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (SARLconst [c] (MOVLconst [d]))
@@ -10687,9 +10649,7 @@ func rewriteValue386_Op386SARWconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (SARWconst [c] (MOVLconst [d]))
@@ -11469,9 +11429,7 @@ func rewriteValue386_Op386SHLLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	return false
@@ -11522,9 +11480,7 @@ func rewriteValue386_Op386SHRBconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	return false
@@ -11568,9 +11524,7 @@ func rewriteValue386_Op386SHRLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	return false
@@ -11621,9 +11575,7 @@ func rewriteValue386_Op386SHRWconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	return false
@@ -11747,9 +11699,7 @@ func rewriteValue386_Op386SUBLconst(v *Value) bool {
 		if !(int32(c) == 0) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (SUBLconst [c] x)
@@ -12419,9 +12369,7 @@ func rewriteValue386_Op386XORLconst(v *Value) bool {
 		if !(int32(c) == 0) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (XORLconst [c] (MOVLconst [d]))
@@ -14043,9 +13991,7 @@ func rewriteValue386_OpMove(v *Value) bool {
 			break
 		}
 		mem := v_2
-		v.reset(OpCopy)
-		v.Type = mem.Type
-		v.AddArg(mem)
+		v.copyOf(mem)
 		return true
 	}
 	// match: (Move [1] dst src mem)
@@ -15773,9 +15719,7 @@ func rewriteValue386_OpZero(v *Value) bool {
 			break
 		}
 		mem := v_1
-		v.reset(OpCopy)
-		v.Type = mem.Type
-		v.AddArg(mem)
+		v.copyOf(mem)
 		return true
 	}
 	// match: (Zero [1] destptr mem)

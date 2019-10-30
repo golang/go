@@ -310,15 +310,27 @@ func (v *Value) resetArgs() {
 	v.Args = v.argstorage[:0]
 }
 
+// reset is called from most rewrite rules.
+// Allowing it to be inlined increases the size
+// of cmd/compile by almost 10%, and slows it down.
+//go:noinline
 func (v *Value) reset(op Op) {
 	v.Op = op
-	if op != OpCopy && notStmtBoundary(op) {
-		// Special case for OpCopy because of how it is used in rewrite
-		v.Pos = v.Pos.WithNotStmt()
-	}
 	v.resetArgs()
 	v.AuxInt = 0
 	v.Aux = nil
+}
+
+// copyOf is called from rewrite rules.
+// It modifies v to be (Copy a).
+//go:noinline
+func (v *Value) copyOf(a *Value) {
+	v.Op = OpCopy
+	v.resetArgs()
+	v.AddArg(a)
+	v.AuxInt = 0
+	v.Aux = nil
+	v.Type = a.Type
 }
 
 // copyInto makes a new value identical to v and adds it to the end of b.

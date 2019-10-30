@@ -1938,9 +1938,7 @@ func rewriteValueARM_OpARMADDconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (ADDconst [c] x)
@@ -2440,9 +2438,7 @@ func rewriteValueARM_OpARMAND(v *Value) bool {
 		if x != v_1 {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (AND x (MVN y))
@@ -2534,9 +2530,7 @@ func rewriteValueARM_OpARMANDconst(v *Value) bool {
 		if !(int32(c) == -1) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (ANDconst [c] x)
@@ -2644,9 +2638,7 @@ func rewriteValueARM_OpARMANDshiftLL(v *Value) bool {
 		if x != y.Args[0] || !(c == d) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = y.Type
-		v.AddArg(y)
+		v.copyOf(y)
 		return true
 	}
 	return false
@@ -2737,9 +2729,7 @@ func rewriteValueARM_OpARMANDshiftRA(v *Value) bool {
 		if x != y.Args[0] || !(c == d) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = y.Type
-		v.AddArg(y)
+		v.copyOf(y)
 		return true
 	}
 	return false
@@ -2830,9 +2820,7 @@ func rewriteValueARM_OpARMANDshiftRL(v *Value) bool {
 		if x != y.Args[0] || !(c == d) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = y.Type
-		v.AddArg(y)
+		v.copyOf(y)
 		return true
 	}
 	return false
@@ -3025,9 +3013,7 @@ func rewriteValueARM_OpARMBICconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (BICconst [c] _)
@@ -3723,9 +3709,7 @@ func rewriteValueARM_OpARMCMOVWHSconst(v *Value) bool {
 		if v_1.Op != OpARMFlagLT_ULT {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (CMOVWHSconst _ (FlagLT_UGT) [c])
@@ -3746,9 +3730,7 @@ func rewriteValueARM_OpARMCMOVWHSconst(v *Value) bool {
 		if v_1.Op != OpARMFlagGT_ULT {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (CMOVWHSconst _ (FlagGT_UGT) [c])
@@ -3810,9 +3792,7 @@ func rewriteValueARM_OpARMCMOVWLSconst(v *Value) bool {
 		if v_1.Op != OpARMFlagLT_UGT {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (CMOVWLSconst _ (FlagGT_ULT) [c])
@@ -3833,9 +3813,7 @@ func rewriteValueARM_OpARMCMOVWLSconst(v *Value) bool {
 		if v_1.Op != OpARMFlagGT_UGT {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (CMOVWLSconst x (InvertFlags flags) [c])
@@ -5779,9 +5757,7 @@ func rewriteValueARM_OpARMMOVDload(v *Value) bool {
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	return false
@@ -5928,9 +5904,7 @@ func rewriteValueARM_OpARMMOVFload(v *Value) bool {
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	return false
@@ -6747,9 +6721,7 @@ func rewriteValueARM_OpARMMOVWload(v *Value) bool {
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (MOVWload [0] {sym} (ADD ptr idx) mem)
@@ -6879,9 +6851,7 @@ func rewriteValueARM_OpARMMOVWloadidx(v *Value) bool {
 		if !(isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (MOVWloadidx ptr (MOVWconst [c]) mem)
@@ -7028,9 +6998,7 @@ func rewriteValueARM_OpARMMOVWloadshiftLL(v *Value) bool {
 		if !(c == d && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (MOVWloadshiftLL ptr (MOVWconst [c]) [d] mem)
@@ -7074,9 +7042,7 @@ func rewriteValueARM_OpARMMOVWloadshiftRA(v *Value) bool {
 		if !(c == d && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (MOVWloadshiftRA ptr (MOVWconst [c]) [d] mem)
@@ -7120,9 +7086,7 @@ func rewriteValueARM_OpARMMOVWloadshiftRL(v *Value) bool {
 		if !(c == d && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (MOVWloadshiftRL ptr (MOVWconst [c]) [d] mem)
@@ -7575,9 +7539,7 @@ func rewriteValueARM_OpARMMUL(v *Value) bool {
 			if v_1.Op != OpARMMOVWconst || v_1.AuxInt != 1 {
 				continue
 			}
-			v.reset(OpCopy)
-			v.Type = x.Type
-			v.AddArg(x)
+			v.copyOf(x)
 			return true
 		}
 		break
@@ -7783,9 +7745,7 @@ func rewriteValueARM_OpARMMULA(v *Value) bool {
 			break
 		}
 		a := v_2
-		v.reset(OpCopy)
-		v.Type = a.Type
-		v.AddArg(a)
+		v.copyOf(a)
 		return true
 	}
 	// match: (MULA x (MOVWconst [1]) a)
@@ -7976,9 +7936,7 @@ func rewriteValueARM_OpARMMULA(v *Value) bool {
 			break
 		}
 		a := v_2
-		v.reset(OpCopy)
-		v.Type = a.Type
-		v.AddArg(a)
+		v.copyOf(a)
 		return true
 	}
 	// match: (MULA (MOVWconst [1]) x a)
@@ -8241,9 +8199,7 @@ func rewriteValueARM_OpARMMULS(v *Value) bool {
 			break
 		}
 		a := v_2
-		v.reset(OpCopy)
-		v.Type = a.Type
-		v.AddArg(a)
+		v.copyOf(a)
 		return true
 	}
 	// match: (MULS x (MOVWconst [1]) a)
@@ -8434,9 +8390,7 @@ func rewriteValueARM_OpARMMULS(v *Value) bool {
 			break
 		}
 		a := v_2
-		v.reset(OpCopy)
-		v.Type = a.Type
-		v.AddArg(a)
+		v.copyOf(a)
 		return true
 	}
 	// match: (MULS (MOVWconst [1]) x a)
@@ -9084,9 +9038,7 @@ func rewriteValueARM_OpARMOR(v *Value) bool {
 		if x != v_1 {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	return false
@@ -9100,9 +9052,7 @@ func rewriteValueARM_OpARMORconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (ORconst [c] _)
@@ -9244,9 +9194,7 @@ func rewriteValueARM_OpARMORshiftLL(v *Value) bool {
 		if x != y.Args[0] || !(c == d) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = y.Type
-		v.AddArg(y)
+		v.copyOf(y)
 		return true
 	}
 	return false
@@ -9337,9 +9285,7 @@ func rewriteValueARM_OpARMORshiftRA(v *Value) bool {
 		if x != y.Args[0] || !(c == d) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = y.Type
-		v.AddArg(y)
+		v.copyOf(y)
 		return true
 	}
 	return false
@@ -9446,9 +9392,7 @@ func rewriteValueARM_OpARMORshiftRL(v *Value) bool {
 		if x != y.Args[0] || !(c == d) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = y.Type
-		v.AddArg(y)
+		v.copyOf(y)
 		return true
 	}
 	return false
@@ -11952,9 +11896,7 @@ func rewriteValueARM_OpARMSUBconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (SUBconst [c] x)
@@ -13253,9 +13195,7 @@ func rewriteValueARM_OpARMXORconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (XORconst [c] (MOVWconst [d]))
@@ -15168,9 +15108,7 @@ func rewriteValueARM_OpMove(v *Value) bool {
 			break
 		}
 		mem := v_2
-		v.reset(OpCopy)
-		v.Type = mem.Type
-		v.AddArg(mem)
+		v.copyOf(mem)
 		return true
 	}
 	// match: (Move [1] dst src mem)
@@ -16402,9 +16340,7 @@ func rewriteValueARM_OpSelect0(v *Value) bool {
 		if v_0_1.Op != OpARMMOVWconst || v_0_1.AuxInt != 1 {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
+		v.copyOf(x)
 		return true
 	}
 	// match: (Select0 (CALLudiv x (MOVWconst [c])))
@@ -16637,9 +16573,7 @@ func rewriteValueARM_OpZero(v *Value) bool {
 			break
 		}
 		mem := v_1
-		v.reset(OpCopy)
-		v.Type = mem.Type
-		v.AddArg(mem)
+		v.copyOf(mem)
 		return true
 	}
 	// match: (Zero [1] ptr mem)

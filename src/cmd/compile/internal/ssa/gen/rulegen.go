@@ -1093,9 +1093,7 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 			// It in not safe in general to move a variable between blocks
 			// (and particularly not a phi node).
 			// Introduce a copy.
-			rr.add(stmtf("v.reset(OpCopy)"))
-			rr.add(stmtf("v.Type = %s.Type", result))
-			rr.add(stmtf("v.AddArg(%s)", result))
+			rr.add(stmtf("v.copyOf(%s)", result))
 		}
 		return result
 	}
@@ -1123,8 +1121,7 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 		rr.add(declf(v, "b.NewValue0(%s, Op%s%s, %s)", pos, oparch, op.name, typ))
 		if move && top {
 			// Rewrite original into a copy
-			rr.add(stmtf("v.reset(OpCopy)"))
-			rr.add(stmtf("v.AddArg(%s)", v))
+			rr.add(stmtf("v.copyOf(%s)", v))
 		}
 	}
 
