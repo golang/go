@@ -16,6 +16,7 @@ var netpollNote note
 var netpollBroken uint32
 
 func netpollGenericInit() {
+	atomic.Store(&netpollInited, 1)
 }
 
 func netpollBreak() {
@@ -30,13 +31,17 @@ func netpoll(delay int64) gList {
 	// Implementation for platforms that do not support
 	// integrated network poller.
 	if delay != 0 {
+		// This lock ensures that only one goroutine tries to use
+		// the note. It should normally be completely uncontended.
+		lock(&netpollStubLock)
 		noteclear(&netpollNote)
 		atomic.Store(&netpollBroken, 0)
 		notetsleep(&netpollNote, delay)
+		unlock(&netpollStubLock)
 	}
 	return gList{}
 }
 
 func netpollinited() bool {
-	return false
+	return atomic.Load(&netpollInited) != 0
 }
