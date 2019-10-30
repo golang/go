@@ -81,7 +81,9 @@ TODO
 
 <h3 id="go-command">Go command</h3>
 
+<h4 id="vendor">Vendoring</h4>
 <!-- golang.org/issue/33848 -->
+
 <p>
   When the main module contains a top-level <code>vendor</code> directory and
   its <code>go.mod</code> file specifies <code>go</code> <code>1.14</code> or
@@ -106,18 +108,13 @@ TODO
   <code>-mod=vendor</code> is set.
 </p>
 
+<h4 id="go-flags">Flags</h4>
+
 <p><!-- golang.org/issue/32502, golang.org/issue/30345 -->
   The <code>go</code> <code>get</code> command no longer accepts
   the <code>-mod</code> flag. Previously, the flag's setting either
   <a href="https://golang.org/issue/30345">was ignored</a> or
   <a href="https://golang.org/issue/32502">caused the build to fail</a>.
-</p>
-
-<p><!-- golang.org/issue/30748 -->
-  The <code>go</code> command now includes snippets of plain-text error messages
-  from module proxies and other HTTP servers.
-  An error message will only be shown if it is valid UTF-8 and consists of only
-  graphic characters and spaces.
 </p>
 
 <p><!-- golang.org/issue/31481 -->
@@ -141,8 +138,31 @@ TODO
   trimming the ".mod" extension and appending ".sum".
 </p>
 
+<h4 id="incompatible-versions"><code>+incompatible</code> versions</h4>
+<!-- golang.org/issue/34165 -->
+
+<p>
+  If the latest version of a module contains a <code>go.mod</code> file,
+  <code>go</code> <code>get</code> will no longer upgrade to an
+  <a href="/cmd/go/#hdr-Module_compatibility_and_semantic_versioning">incompatible</a>
+  major version of that module unless such a version is requested explicitly
+  or is already required.
+  <code>go</code> <code>list</code> also omits incompatible major versions
+  for such a module when fetching directly from version control, but may
+  include them if reported by a proxy.
+</p>
+
+<h4 id="module-downloading">Module downloading</h4>
+
 <p><!-- golang.org/issue/26092 -->
   The <code>go</code> command now supports Subversion repositories in module mode.
+</p>
+
+<p><!-- golang.org/issue/30748 -->
+  The <code>go</code> command now includes snippets of plain-text error messages
+  from module proxies and other HTTP servers.
+  An error message will only be shown if it is valid UTF-8 and consists of only
+  graphic characters and spaces.
 </p>
 
 <h2 id="runtime">Runtime</h2>

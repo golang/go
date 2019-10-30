@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	pathpkg "path"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -90,10 +91,20 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 	badVersion := func(v string) (*modfetch.RevInfo, error) {
 		return nil, fmt.Errorf("invalid semantic version %q in range %q", v, query)
 	}
-	var ok func(module.Version) bool
-	var prefix string
-	var preferOlder bool
-	var mayUseLatest bool
+	matchesMajor := func(v string) bool {
+		_, pathMajor, ok := module.SplitPathVersion(path)
+		if !ok {
+			return false
+		}
+		return module.CheckPathMajor(v, pathMajor) == nil
+	}
+	var (
+		ok                 func(module.Version) bool
+		prefix             string
+		preferOlder        bool
+		mayUseLatest       bool
+		preferIncompatible bool = strings.HasSuffix(current, "+incompatible")
+	)
 	switch {
 	case query == "latest":
 		ok = allowed
@@ -126,6 +137,9 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 		ok = func(m module.Version) bool {
 			return semver.Compare(m.Version, v) <= 0 && allowed(m)
 		}
+		if !matchesMajor(v) {
+			preferIncompatible = true
+		}
 
 	case strings.HasPrefix(query, "<"):
 		v := query[len("<"):]
@@ -134,6 +148,9 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 		}
 		ok = func(m module.Version) bool {
 			return semver.Compare(m.Version, v) < 0 && allowed(m)
+		}
+		if !matchesMajor(v) {
+			preferIncompatible = true
 		}
 
 	case strings.HasPrefix(query, ">="):
@@ -145,6 +162,9 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 			return semver.Compare(m.Version, v) >= 0 && allowed(m)
 		}
 		preferOlder = true
+		if !matchesMajor(v) {
+			preferIncompatible = true
+		}
 
 	case strings.HasPrefix(query, ">"):
 		v := query[len(">"):]
@@ -159,12 +179,18 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 			return semver.Compare(m.Version, v) > 0 && allowed(m)
 		}
 		preferOlder = true
+		if !matchesMajor(v) {
+			preferIncompatible = true
+		}
 
 	case semver.IsValid(query) && isSemverPrefix(query):
 		ok = func(m module.Version) bool {
 			return matchSemverPrefix(query, m.Version) && allowed(m)
 		}
 		prefix = query + "."
+		if !matchesMajor(query) {
+			preferIncompatible = true
+		}
 
 	default:
 		// Direct lookup of semantic version or commit identifier.
@@ -217,6 +243,10 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 	if err != nil {
 		return nil, err
 	}
+	releases, prereleases, err := filterVersions(path, versions, ok, preferIncompatible)
+	if err != nil {
+		return nil, err
+	}
 
 	lookup := func(v string) (*modfetch.RevInfo, error) {
 		rev, err := repo.Stat(v)
@@ -237,28 +267,18 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 	}
 
 	if preferOlder {
-		for _, v := range versions {
-			if semver.Prerelease(v) == "" && ok(module.Version{Path: path, Version: v}) {
-				return lookup(v)
-			}
+		if len(releases) > 0 {
+			return lookup(releases[0])
 		}
-		for _, v := range versions {
-			if semver.Prerelease(v) != "" && ok(module.Version{Path: path, Version: v}) {
-				return lookup(v)
-			}
+		if len(prereleases) > 0 {
+			return lookup(prereleases[0])
 		}
 	} else {
-		for i := len(versions) - 1; i >= 0; i-- {
-			v := versions[i]
-			if semver.Prerelease(v) == "" && ok(module.Version{Path: path, Version: v}) {
-				return lookup(v)
-			}
+		if len(releases) > 0 {
+			return lookup(releases[len(releases)-1])
 		}
-		for i := len(versions) - 1; i >= 0; i-- {
-			v := versions[i]
-			if semver.Prerelease(v) != "" && ok(module.Version{Path: path, Version: v}) {
-				return lookup(v)
-			}
+		if len(prereleases) > 0 {
+			return lookup(prereleases[len(prereleases)-1])
 		}
 	}
 
@@ -300,6 +320,52 @@ func isSemverPrefix(v string) bool {
 // matches the full-width (non-shortened) semantic version v.
 func matchSemverPrefix(p, v string) bool {
 	return len(v) > len(p) && v[len(p)] == '.' && v[:len(p)] == p && semver.Prerelease(v) == ""
+}
+
+// filterVersions classifies versions into releases and pre-releases, filtering
+// out:
+// 	1. versions that do not satisfy the 'ok' predicate, and
+// 	2. "+incompatible" versions, if a compatible one satisfies the predicate
+// 	   and the incompatible version is not preferred.
+func filterVersions(path string, versions []string, ok func(module.Version) bool, preferIncompatible bool) (releases, prereleases []string, err error) {
+	var lastCompatible string
+	for _, v := range versions {
+		if !ok(module.Version{Path: path, Version: v}) {
+			continue
+		}
+
+		if !preferIncompatible {
+			if !strings.HasSuffix(v, "+incompatible") {
+				lastCompatible = v
+			} else if lastCompatible != "" {
+				// If the latest compatible version is allowed and has a go.mod file,
+				// ignore any version with a higher (+incompatible) major version. (See
+				// https://golang.org/issue/34165.) Note that we even prefer a
+				// compatible pre-release over an incompatible release.
+
+				ok, err := versionHasGoMod(module.Version{Path: path, Version: lastCompatible})
+				if err != nil {
+					return nil, nil, err
+				}
+				if ok {
+					break
+				}
+
+				// No acceptable compatible release has a go.mod file, so the versioning
+				// for the module might not be module-aware, and we should respect
+				// legacy major-version tags.
+				preferIncompatible = true
+			}
+		}
+
+		if semver.Prerelease(v) != "" {
+			prereleases = append(prereleases, v)
+		} else {
+			releases = append(releases, v)
+		}
+	}
+
+	return releases, prereleases, nil
 }
 
 type QueryResult struct {
@@ -589,4 +655,13 @@ func ModuleHasRootPackage(m module.Version) (bool, error) {
 	}
 	_, ok := dirInModule(m.Path, m.Path, root, isLocal)
 	return ok, nil
+}
+
+func versionHasGoMod(m module.Version) (bool, error) {
+	root, _, err := fetch(m)
+	if err != nil {
+		return false, err
+	}
+	fi, err := os.Stat(filepath.Join(root, "go.mod"))
+	return err == nil && !fi.IsDir(), nil
 }
