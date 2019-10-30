@@ -65,6 +65,7 @@ type oReader struct {
 type objIdx struct {
 	r *oReader
 	i Sym // start index
+	e Sym // end index
 }
 
 type nameVer struct {
@@ -98,6 +99,7 @@ type Loader struct {
 	extStart    Sym              // from this index on, the symbols are externally defined
 	extSyms     []nameVer        // externally defined symbols
 	builtinSyms []Sym            // global index of builtin symbols
+	ocache      int              // index (into 'objs') of most recent lookup
 
 	symsByName    [2]map[string]Sym // map symbol name to index, two maps are for ABI0 and ABIInternal
 	extStaticSyms map[nameVer]Sym   // externally defined static symbols, keyed by name
@@ -116,7 +118,7 @@ func NewLoader() *Loader {
 	nbuiltin := goobj2.NBuiltin()
 	return &Loader{
 		start:         make(map[*oReader]Sym),
-		objs:          []objIdx{{nil, 0}},
+		objs:          []objIdx{{nil, 0, 0}},
 		symsByName:    [2]map[string]Sym{make(map[string]Sym), make(map[string]Sym)},
 		objByPkg:      make(map[string]*oReader),
 		overwrite:     make(map[Sym]Sym),
@@ -143,7 +145,7 @@ func (l *Loader) addObj(pkg string, r *oReader) Sym {
 	n := r.NSym() + r.NNonpkgdef()
 	i := l.max + 1
 	l.start[r] = i
-	l.objs = append(l.objs, objIdx{r, i})
+	l.objs = append(l.objs, objIdx{r, i, i + Sym(n) - 1})
 	l.max += Sym(n)
 	return i
 }
@@ -249,12 +251,17 @@ func (l *Loader) toLocal(i Sym) (*oReader, int) {
 	if l.isExternal(i) {
 		return nil, int(i - l.extStart)
 	}
+	oc := l.ocache
+	if oc != 0 && i >= l.objs[oc].i && i <= l.objs[oc].e {
+		return l.objs[oc].r, int(i - l.objs[oc].i)
+	}
 	// Search for the local object holding index i.
 	// Below k is the first one that has its start index > i,
 	// so k-1 is the one we want.
 	k := sort.Search(len(l.objs), func(k int) bool {
 		return l.objs[k].i > i
 	})
+	l.ocache = k - 1
 	return l.objs[k-1].r, int(i - l.objs[k-1].i)
 }
 
