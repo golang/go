@@ -585,49 +585,39 @@ func getFixes(fset *token.FileSet, f *ast.File, filename string, env *ProcessEnv
 	return fixes, nil
 }
 
-// getAllCandidates gets all of the candidates to be imported, regardless of if they are needed.
-func getAllCandidates(filename string, env *ProcessEnv) ([]ImportFix, error) {
+// getCandidatePkgs returns the list of pkgs that are accessible from filename,
+// optionall filtered to only packages named pkgName.
+func getCandidatePkgs(pkgName, filename string, env *ProcessEnv) ([]*pkg, error) {
 	// TODO(heschi): filter out current package. (Don't forget x_test can import x.)
 
+	var result []*pkg
 	// Start off with the standard library.
-	var imports []ImportFix
 	for importPath := range stdlib {
-		imports = append(imports, ImportFix{
-			StmtInfo: ImportInfo{
-				ImportPath: importPath,
-			},
-			IdentName: path.Base(importPath),
-			FixType:   AddImport,
+		if pkgName != "" && path.Base(importPath) != pkgName {
+			continue
+		}
+		result = append(result, &pkg{
+			dir:             filepath.Join(env.GOROOT, "src", importPath),
+			importPathShort: importPath,
+			packageName:     path.Base(importPath),
+			relevance:       0,
 		})
 	}
-	// Sort the stdlib bits solely by name.
-	sort.Slice(imports, func(i int, j int) bool {
-		return imports[i].StmtInfo.ImportPath < imports[j].StmtInfo.ImportPath
-	})
 
 	// Exclude goroot results -- getting them is relatively expensive, not cached,
 	// and generally redundant with the in-memory version.
 	exclude := []gopathwalk.RootType{gopathwalk.RootGOROOT}
 	// Only the go/packages resolver uses the first argument, and nobody uses that resolver.
-	pkgs, err := env.GetResolver().scan(nil, true, exclude)
+	scannedPkgs, err := env.GetResolver().scan(nil, true, exclude)
 	if err != nil {
 		return nil, err
 	}
-	// Sort first by relevance, then by name, so that when we add them they're
-	// still in order.
-	sort.Slice(pkgs, func(i, j int) bool {
-		pi, pj := pkgs[i], pkgs[j]
-		if pi.relevance < pj.relevance {
-			return true
-		}
-		if pi.relevance > pj.relevance {
-			return false
-		}
-		return pi.packageName < pj.packageName
-	})
 
 	dupCheck := map[string]struct{}{}
-	for _, pkg := range pkgs {
+	for _, pkg := range scannedPkgs {
+		if pkgName != "" && pkg.packageName != pkgName {
+			continue
+		}
 		if !canUse(filename, pkg.dir) {
 			continue
 		}
@@ -635,7 +625,33 @@ func getAllCandidates(filename string, env *ProcessEnv) ([]ImportFix, error) {
 			continue
 		}
 		dupCheck[pkg.importPathShort] = struct{}{}
-		imports = append(imports, ImportFix{
+		result = append(result, pkg)
+	}
+
+	// Sort first by relevance, then by package name, with import path as a tiebreaker.
+	sort.Slice(result, func(i, j int) bool {
+		pi, pj := result[i], result[j]
+		if pi.relevance != pj.relevance {
+			return pi.relevance < pj.relevance
+		}
+		if pi.packageName != pj.packageName {
+			return pi.packageName < pj.packageName
+		}
+		return pi.importPathShort < pj.importPathShort
+	})
+
+	return result, nil
+}
+
+// getAllCandidates gets all of the candidates to be imported, regardless of if they are needed.
+func getAllCandidates(filename string, env *ProcessEnv) ([]ImportFix, error) {
+	pkgs, err := getCandidatePkgs("", filename, env)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]ImportFix, 0, len(pkgs))
+	for _, pkg := range pkgs {
+		result = append(result, ImportFix{
 			StmtInfo: ImportInfo{
 				ImportPath: pkg.importPathShort,
 			},
@@ -643,7 +659,54 @@ func getAllCandidates(filename string, env *ProcessEnv) ([]ImportFix, error) {
 			FixType:   AddImport,
 		})
 	}
-	return imports, nil
+	return result, nil
+}
+
+// A PackageExport is a package and its exports.
+type PackageExport struct {
+	Fix     *ImportFix
+	Exports []string
+}
+
+func getPackageExports(completePackage, filename string, env *ProcessEnv) ([]PackageExport, error) {
+	pkgs, err := getCandidatePkgs(completePackage, filename, env)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]PackageExport, 0, len(pkgs))
+	for _, pkg := range pkgs {
+		fix := &ImportFix{
+			StmtInfo: ImportInfo{
+				ImportPath: pkg.importPathShort,
+			},
+			IdentName: pkg.packageName,
+			FixType:   AddImport,
+		}
+		var exportsMap map[string]bool
+		if e, ok := stdlib[pkg.importPathShort]; ok {
+			exportsMap = e
+		} else {
+			exportsMap, err = env.GetResolver().loadExports(context.TODO(), completePackage, pkg)
+			if err != nil {
+				if env.Debug {
+					env.Logf("while completing %q, error loading exports from %q: %v", completePackage, pkg.importPathShort, err)
+				}
+				continue
+			}
+		}
+		var exports []string
+		for export := range exportsMap {
+			exports = append(exports, export)
+		}
+		sort.Strings(exports)
+		results = append(results, PackageExport{
+			Fix:     fix,
+			Exports: exports,
+		})
+	}
+
+	return results, nil
 }
 
 // ProcessEnv contains environment variables and settings that affect the use of

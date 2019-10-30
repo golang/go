@@ -2522,9 +2522,9 @@ func TestGetCandidates(t *testing.T) {
 	}
 	want := []res{
 		{"bytes", "bytes"},
+		{"http", "net/http"},
 		{"rand", "crypto/rand"},
 		{"rand", "math/rand"},
-		{"http", "net/http"},
 		{"bar", "bar.com/bar"},
 		{"foo", "foo.com/foo"},
 	}
@@ -2551,6 +2551,45 @@ func TestGetCandidates(t *testing.T) {
 			for _, w := range want {
 				if c.StmtInfo.ImportPath == w.path {
 					got = append(got, res{c.IdentName, c.StmtInfo.ImportPath})
+				}
+			}
+		}
+		if !reflect.DeepEqual(want, got) {
+			t.Errorf("wanted stdlib results in order %v, got %v", want, got)
+		}
+	})
+}
+
+func TestGetPackageCompletions(t *testing.T) {
+	type res struct {
+		name, path, symbol string
+	}
+	want := []res{
+		{"rand", "crypto/rand", "Prime"},
+		{"rand", "math/rand", "Seed"},
+		{"rand", "bar.com/rand", "Bar"},
+	}
+
+	testConfig{
+		modules: []packagestest.Module{
+			{
+				Name:  "bar.com",
+				Files: fm{"rand/bar.go": "package rand\nvar Bar int\n"},
+			},
+		},
+		goPackagesIncompatible: true, // getPackageCompletions doesn't support the go/packages resolver.
+	}.test(t, func(t *goimportTest) {
+		candidates, err := getPackageExports("rand", "x.go", t.env)
+		if err != nil {
+			t.Fatalf("getPackageCompletions() = %v", err)
+		}
+		var got []res
+		for _, c := range candidates {
+			for _, csym := range c.Exports {
+				for _, w := range want {
+					if c.Fix.StmtInfo.ImportPath == w.path && csym == w.symbol {
+						got = append(got, res{c.Fix.IdentName, c.Fix.StmtInfo.ImportPath, csym})
+					}
 				}
 			}
 		}

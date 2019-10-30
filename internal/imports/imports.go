@@ -105,11 +105,20 @@ func ApplyFixes(fixes []*ImportFix, filename string, src []byte, opt *Options) (
 // GetAllCandidates gets all of the standard library candidate packages to import in
 // sorted order on import path.
 func GetAllCandidates(filename string, opt *Options) (pkgs []ImportFix, err error) {
-	_, opt, err = initialize(filename, []byte{}, opt)
+	_, opt, err = initialize(filename, nil, opt)
 	if err != nil {
 		return nil, err
 	}
 	return getAllCandidates(filename, opt.Env)
+}
+
+// GetPackageExports returns all known packages with name pkg and their exports.
+func GetPackageExports(pkg, filename string, opt *Options) (exports []PackageExport, err error) {
+	_, opt, err = initialize(filename, nil, opt)
+	if err != nil {
+		return nil, err
+	}
+	return getPackageExports(pkg, filename, opt.Env)
 }
 
 // initialize sets the values for opt and src.
