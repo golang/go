@@ -661,6 +661,10 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
 				src = 4
 				break
 			}
+			if op == "MOVO" || op == "MOVOU" {
+				src = 16
+				break
+			}
 			if strings.HasPrefix(op, "SET") {
 				// SETEQ, etc
 				src = 1
@@ -736,6 +740,11 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
 		vk = v.inner[0].kind
 		vs = v.inner[0].size
 		vt = v.inner[0].typ
+	case asmComplex:
+		// Allow a single instruction to load both parts of a complex.
+		if int(kind) == vs {
+			kind = asmComplex
+		}
 	}
 	if addr {
 		vk = asmKind(archDef.ptrSize)
