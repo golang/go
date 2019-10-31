@@ -478,7 +478,7 @@ func (l *Loader) AuxSym(i Sym, j int) Sym {
 // slice passed as a parameter. If the slice capacity is not large enough, a new
 // larger slice will be allocated. Final slice is returned.
 func (l *Loader) ReadAuxSyms(symIdx Sym, dst []Sym) []Sym {
-	if l.isExternal(symIdx) {
+	if l.IsExternal(symIdx) {
 		return dst[:0]
 	}
 	naux := l.NAux(symIdx)
