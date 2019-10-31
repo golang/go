@@ -386,6 +386,29 @@ func typeAndHashFromSignatureScheme(signatureAlgorithm SignatureScheme) (sigType
 	return sigType, hash, nil
 }
 
+var signatureSchemes = map[SignatureScheme]string{
+	PKCS1WithSHA256:        "PKCS1WithSHA256",
+	PKCS1WithSHA384:        "PKCS1WithSHA384",
+	PKCS1WithSHA512:        "PKCS1WithSHA512",
+	PSSWithSHA256:          "PSSWithSHA256",
+	PSSWithSHA384:          "PSSWithSHA384",
+	PSSWithSHA512:          "PSSWithSHA512",
+	ECDSAWithP256AndSHA256: "ECDSAWithP256AndSHA256",
+	ECDSAWithP384AndSHA384: "ECDSAWithP384AndSHA384",
+	ECDSAWithP521AndSHA512: "ECDSAWithP521AndSHA512",
+	Ed25519:                "Ed25519",
+	PKCS1WithSHA1:          "PKCS1WithSHA1",
+	ECDSAWithSHA1:          "ECDSAWithSHA1",
+}
+
+func (ss SignatureScheme) String() string {
+	s, ok := signatureSchemes[ss]
+	if !ok {
+		return "unsupported SignatureScheme"
+	}
+	return s
+}
+
 // ClientHelloInfo contains information from a ClientHello message in order to
 // guide certificate selection in the GetCertificate callback.
 type ClientHelloInfo struct {
