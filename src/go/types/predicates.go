@@ -291,7 +291,7 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 		// Two named types are identical if their type names originate
 		// in the same type declaration.
 		if y, ok := y.(*Named); ok {
-			return x.obj == y.obj
+			return x.obj.String() == y.obj.String()
 		}
 
 	case nil:
