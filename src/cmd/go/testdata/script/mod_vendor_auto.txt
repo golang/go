@@ -48,7 +48,6 @@ go list -f {{.Dir}} -tags tools all
 stdout '^'$WORK'[/\\]auto$'
 stdout '^'$GOPATH'[/\\]pkg[/\\]mod[/\\]example.com[/\\]printversion@v1.0.0$'
 stdout '^'$WORK'[/\\]auto[/\\]replacement-version$'
-stderr '^go: not defaulting to -mod=vendor because go.mod .go. version is 1.13$'
 
 go list -m -f '{{.Dir}}' all
 stdout '^'$WORK'[/\\]auto$'
@@ -146,7 +145,6 @@ go list -mod=vendor -f {{.Dir}} -tags tools all
 stdout '^'$WORK'[/\\]auto$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
-! stderr 'not defaulting to -mod=vendor'
 
 # ...but a version mismatch for an explicit dependency should be noticed.
 cp $WORK/modules-bad-1.13.txt vendor/modules.txt
