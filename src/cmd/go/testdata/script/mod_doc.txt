@@ -41,6 +41,30 @@ env GOPROXY=off
 ! go doc example.com/hello
 stderr '^doc: cannot find module providing package example.com/hello: module lookup disabled by GOPROXY=off$'
 
+# When in a module with a vendor directory, doc should use the vendored copies
+# of the packages. 'std' and 'cmd' are convenient examples of such modules.
+#
+# When in those modules, the "// import" comment should refer to the same import
+# path used in source code, not to the absolute path relative to GOROOT.
+
+cd $GOROOT/src
+go doc cryptobyte
+stdout '// import "golang.org/x/crypto/cryptobyte"'
+
+cd $GOROOT/src/cmd/go
+go doc modfile
+stdout '// import "golang.org/x/mod/modfile"'
+
+# When outside of the 'std' module, its vendored packages
+# remain accessible using the 'vendor/' prefix, but report
+# the correct "// import" comment as used within std.
+cd $GOPATH
+go doc vendor/golang.org/x/crypto/cryptobyte
+stdout '// import "vendor/golang.org/x/crypto/cryptobyte"'
+
+go doc cmd/vendor/golang.org/x/mod/modfile
+stdout '// import "cmd/vendor/golang.org/x/mod/modfile"'
+
 -- go.mod --
 module x
 require rsc.io/quote v1.5.2
