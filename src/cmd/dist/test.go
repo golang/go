@@ -904,9 +904,6 @@ func (t *tester) extLink() bool {
 }
 
 func (t *tester) internalLink() bool {
-	if true { // appease vet...
-		return false // TODO: newobj
-	}
 	if gohostos == "dragonfly" {
 		// linkmode=internal fails on dragonfly since errno is a TLS relocation.
 		return false
