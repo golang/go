@@ -443,20 +443,6 @@ func (ctxt *Link) loadlib() {
 		}
 	}
 
-	// Conditionally load host objects, or setup for external linking.
-	hostobjs(ctxt)
-	hostlinksetup(ctxt)
-
-	if *flagNewobj {
-		// Add references of externally defined symbols.
-		ctxt.loader.LoadRefs(ctxt.Arch, ctxt.Syms)
-	}
-
-	// Now that we know the link mode, set the dynexp list.
-	if !*flagNewobj { // set this later in newobj mode
-		setupdynexp(ctxt)
-	}
-
 	if ctxt.LinkMode == LinkInternal && len(hostobj) != 0 {
 		// Drop all the cgo_import_static declarations.
 		// Turns out we won't be needing them.
@@ -473,7 +459,23 @@ func (ctxt *Link) loadlib() {
 				}
 			}
 		}
+	}
 
+	// Conditionally load host objects, or setup for external linking.
+	hostobjs(ctxt)
+	hostlinksetup(ctxt)
+
+	if *flagNewobj {
+		// Add references of externally defined symbols.
+		ctxt.loader.LoadRefs(ctxt.Arch, ctxt.Syms)
+	}
+
+	// Now that we know the link mode, set the dynexp list.
+	if !*flagNewobj { // set this later in newobj mode
+		setupdynexp(ctxt)
+	}
+
+	if ctxt.LinkMode == LinkInternal && len(hostobj) != 0 {
 		// If we have any undefined symbols in external
 		// objects, try to read them from the libgcc file.
 		any := false
