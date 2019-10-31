@@ -460,25 +460,36 @@ func setDefaultBuildMod() {
 		// manipulate the build list.
 		return
 	}
-	if modRoot != "" {
-		if fi, err := os.Stat(filepath.Join(modRoot, "vendor")); err == nil && fi.IsDir() {
-			modGo := "unspecified"
-			if modFile.Go != nil {
-				if semver.Compare("v"+modFile.Go.Version, "v1.14") >= 0 {
-					// The Go version is at least 1.14, and a vendor directory exists.
-					// Set -mod=vendor by default.
-					cfg.BuildMod = "vendor"
-					return
-				} else {
-					modGo = modFile.Go.Version
-				}
-			}
-			fmt.Fprintf(os.Stderr, "go: not defaulting to -mod=vendor because go.mod 'go' version is %s\n", modGo)
-		}
+	if modRoot == "" {
+		return
 	}
 
-	// TODO(golang.org/issue/33326): set -mod=readonly implicitly if the go.mod
-	// file is itself read-only?
+	if fi, err := os.Stat(filepath.Join(modRoot, "vendor")); err == nil && fi.IsDir() {
+		modGo := "unspecified"
+		if modFile.Go != nil {
+			if semver.Compare("v"+modFile.Go.Version, "v1.14") >= 0 {
+				// The Go version is at least 1.14, and a vendor directory exists.
+				// Set -mod=vendor by default.
+				cfg.BuildMod = "vendor"
+				cfg.BuildModReason = "Go version in go.mod is at least 1.14 and vendor directory exists."
+				return
+			} else {
+				modGo = modFile.Go.Version
+			}
+		}
+
+		// Since a vendor directory exists, we have a non-trivial reason for
+		// choosing -mod=mod, although it probably won't be used for anything.
+		// Record the reason anyway for consistency.
+		// It may be overridden if we switch to mod=readonly below.
+		cfg.BuildModReason = fmt.Sprintf("Go version in go.mod is %s.", modGo)
+	}
+
+	p := ModFilePath()
+	if fi, err := os.Stat(p); err == nil && !hasWritePerm(p, fi) {
+		cfg.BuildMod = "readonly"
+		cfg.BuildModReason = "go.mod file is read-only."
+	}
 }
 
 // checkVendorConsistency verifies that the vendor/modules.txt file matches (if
@@ -858,7 +869,11 @@ func WriteGoMod() {
 	if dirty && cfg.BuildMod == "readonly" {
 		// If we're about to fail due to -mod=readonly,
 		// prefer to report a dirty go.mod over a dirty go.sum
-		base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly")
+		if cfg.BuildModReason != "" {
+			base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly\n\t(%s)", cfg.BuildModReason)
+		} else {
+			base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly")
+		}
 	}
 	// Always update go.sum, even if we didn't change go.mod: we may have
 	// downloaded modules that we didn't have before.

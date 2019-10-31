@@ -12,6 +12,14 @@ cp go.mod go.mod.empty
 stderr 'import lookup disabled by -mod=readonly'
 cmp go.mod go.mod.empty
 
+# -mod=readonly should be set implicitly if the go.mod file is read-only
+chmod 0400 go.mod
+env GOFLAGS=
+! go list all
+
+chmod 0600 go.mod
+env GOFLAGS=-mod=readonly
+
 # update go.mod - go get allowed
 go get rsc.io/quote
 grep rsc.io/quote go.mod
@@ -21,11 +29,11 @@ cp go.mod.empty go.mod
 go mod tidy
 
 # -mod=readonly must succeed once go.mod is up-to-date...
-go list
+go list all
 
 # ... even if it needs downloads
 go clean -modcache
-go list
+go list all
 
 # -mod=readonly should reject inconsistent go.mod files
 # (ones that would be rewritten).
