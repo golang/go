@@ -130,7 +130,7 @@ func removeAll(path string) error {
 	}
 	if runtime.GOOS == "windows" && IsPermission(err1) {
 		if fs, err := Stat(path); err == nil {
-			if err = Chmod(path, FileMode(0200 | int(fs.Mode()))); err == nil {
+			if err = Chmod(path, FileMode(0200|int(fs.Mode()))); err == nil {
 				err1 = Remove(path)
 			}
 		}
