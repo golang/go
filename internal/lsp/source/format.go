@@ -197,6 +197,10 @@ func AllImportsFixes(ctx context.Context, view View, f File) (edits []protocol.T
 		if err != nil {
 			return err
 		}
+		// Do not change the file if there are no import fixes.
+		if len(fixes) == 0 {
+			return nil
+		}
 		// Apply all of the import fixes to the file.
 		formatted, err := imports.ApplyFixes(fixes, f.URI().Filename(), data, options)
 		if err != nil {
