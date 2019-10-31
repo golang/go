@@ -3,14 +3,12 @@ package cache
 import (
 	"bytes"
 	"context"
-	"go/ast"
 	"go/scanner"
 	"go/token"
 	"go/types"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -166,15 +164,9 @@ func typeErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, pos toke
 	if err != nil {
 		return spn, nil // ignore errors
 	}
-	file, m, _, err := ph.Cached()
+	_, m, _, err := ph.Cached()
 	if err != nil {
 		return spn, nil
-	}
-	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
-	if len(path) > 0 {
-		if spn, err := span.NewRange(fset, path[0].Pos(), path[0].End()).Span(); err == nil {
-			return spn, nil
-		}
 	}
 	s, err := spn.WithOffset(m.Converter)
 	if err != nil {
@@ -208,15 +200,6 @@ func scannerErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, posn 
 		return span.Span{}, errors.Errorf("no token.File for %s", ph.File().Identity().URI)
 	}
 	pos := tok.Pos(posn.Offset)
-	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
-	if len(path) > 0 {
-		switch n := path[0].(type) {
-		case *ast.BadDecl, *ast.BadExpr, *ast.BadStmt:
-			if s, err := span.NewRange(fset, n.Pos(), n.End()).Span(); err == nil {
-				return s, nil
-			}
-		}
-	}
 	return span.NewRange(fset, pos, pos).Span()
 }
 
