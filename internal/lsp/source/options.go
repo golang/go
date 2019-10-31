@@ -68,6 +68,7 @@ var (
 		},
 		ComputeEdits: myers.ComputeEdits,
 		Analyzers:    defaultAnalyzers,
+		GoDiff:       true,
 	}
 )
 

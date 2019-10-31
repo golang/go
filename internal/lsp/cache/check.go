@@ -117,10 +117,7 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 	}
 
 	// Make sure all of the depList are sorted.
-	var depList []packageID
-	for _, id := range m.deps {
-		depList = append(depList, id)
-	}
+	depList := append([]packageID{}, m.deps...)
 	sort.Slice(depList, func(i, j int) bool {
 		return depList[i] < depList[j]
 	})
