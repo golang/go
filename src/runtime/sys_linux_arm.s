@@ -277,19 +277,26 @@ noswitch:
 	// during VDSO code we can find the g.
 	// If we don't have a signal stack, we won't receive signal,
 	// so don't bother saving g.
+	// When using cgo, we already saved g on TLS, also don't save
+	// g here.
+	MOVB	runtime·iscgo(SB), R6
+	CMP	$0, R6
+	BNE	nosaveg
 	MOVW	m_gsignal(R5), R6          // g.m.gsignal
 	CMP	$0, R6
-	BEQ	3(PC)
+	BEQ	nosaveg
 	MOVW	(g_stack+stack_lo)(R6), R6 // g.m.gsignal.stack.lo
 	MOVW	g, (R6)
 
 	BL	(R11)
 
-	CMP	$0, R6   // R6 is unchanged by C code
-	BEQ	3(PC)
 	MOVW	$0, R1
-	MOVW	R1, (R6) // clear g slot
+	MOVW	R1, (R6) // clear g slot, R6 is unchanged by C code
 
+	JMP	finish
+
+nosaveg:
+	BL	(R11)
 	JMP	finish
 
 fallback:
@@ -344,19 +351,26 @@ noswitch:
 	// during VDSO code we can find the g.
 	// If we don't have a signal stack, we won't receive signal,
 	// so don't bother saving g.
+	// When using cgo, we already saved g on TLS, also don't save
+	// g here.
+	MOVB	runtime·iscgo(SB), R6
+	CMP	$0, R6
+	BNE	nosaveg
 	MOVW	m_gsignal(R5), R6          // g.m.gsignal
 	CMP	$0, R6
-	BEQ	3(PC)
+	BEQ	nosaveg
 	MOVW	(g_stack+stack_lo)(R6), R6 // g.m.gsignal.stack.lo
 	MOVW	g, (R6)
 
 	BL	(R11)
 
-	CMP	$0, R6   // R6 is unchanged by C code
-	BEQ	3(PC)
 	MOVW	$0, R1
-	MOVW	R1, (R6) // clear g slot
+	MOVW	R1, (R6) // clear g slot, R6 is unchanged by C code
 
+	JMP	finish
+
+nosaveg:
+	BL	(R11)
 	JMP	finish
 
 fallback:

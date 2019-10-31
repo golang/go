@@ -360,9 +360,11 @@ func preemptM(mp *m) {
 func sigFetchG(c *sigctxt) *g {
 	switch GOARCH {
 	case "arm", "arm64":
-		if inVDSOPage(c.sigpc()) {
-			// Before making a VDSO call we save the g to the bottom of the
-			// signal stack. Fetch from there.
+		if !iscgo && inVDSOPage(c.sigpc()) {
+			// When using cgo, we save the g on TLS and load it from there
+			// in sigtramp. Just use that.
+			// Otherwise, before making a VDSO call we save the g to the
+			// bottom of the signal stack. Fetch from there.
 			// TODO: in efence mode, stack is sysAlloc'd, so this wouldn't
 			// work.
 			sp := getcallersp()
