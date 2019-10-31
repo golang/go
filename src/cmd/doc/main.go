@@ -227,19 +227,28 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
 		return nil, args[0], args[1], false
 	}
 	// Usual case: one argument.
-	// If it contains slashes, it begins with a package path.
+	// If it contains slashes, it begins with either a package path
+	// or an absolute directory.
 	// First, is it a complete package path as it is? If so, we are done.
 	// This avoids confusion over package paths that have other
 	// package paths as their prefix.
-	pkg, importErr := build.Import(arg, wd, build.ImportComment)
-	if importErr == nil {
-		return pkg, arg, "", false
+	var importErr error
+	if filepath.IsAbs(arg) {
+		pkg, importErr = build.ImportDir(arg, build.ImportComment)
+		if importErr == nil {
+			return pkg, arg, "", false
+		}
+	} else {
+		pkg, importErr = build.Import(arg, wd, build.ImportComment)
+		if importErr == nil {
+			return pkg, arg, "", false
+		}
 	}
-	// Another disambiguator: If the symbol starts with an upper
+	// Another disambiguator: If the argument starts with an upper
 	// case letter, it can only be a symbol in the current directory.
 	// Kills the problem caused by case-insensitive file systems
 	// matching an upper case name as a package name.
-	if token.IsExported(arg) {
+	if !strings.ContainsAny(arg, `/\`) && token.IsExported(arg) {
 		pkg, err := build.ImportDir(".", build.ImportComment)
 		if err == nil {
 			return pkg, "", arg, false
@@ -373,14 +382,14 @@ func isExported(name string) bool {
 // findNextPackage returns the next full file name path that matches the
 // (perhaps partial) package path pkg. The boolean reports if any match was found.
 func findNextPackage(pkg string) (string, bool) {
-	if pkg == "" || token.IsExported(pkg) { // Upper case symbol cannot be a package name.
-		return "", false
-	}
 	if filepath.IsAbs(pkg) {
 		if dirs.offset == 0 {
 			dirs.offset = -1
 			return pkg, true
 		}
+		return "", false
+	}
+	if pkg == "" || token.IsExported(pkg) { // Upper case symbol cannot be a package name.
 		return "", false
 	}
 	pkg = path.Clean(pkg)
