@@ -394,6 +394,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 	}
 	c := &sigctxt{info, ctx}
 	g := sigFetchG(c)
+	setg(g)
 	if g == nil {
 		if sig == _SIGPROF {
 			sigprofNonGoPC(c.sigpc())
