@@ -50037,70 +50037,28 @@ func rewriteValueAMD64_OpAdd8_0(v *Value) bool {
 	}
 }
 func rewriteValueAMD64_OpAddPtr_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (AddPtr x y)
-	// cond: config.PtrSize == 8
 	// result: (ADDQ x y)
 	for {
 		y := v.Args[1]
 		x := v.Args[0]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64ADDQ)
 		v.AddArg(x)
 		v.AddArg(y)
 		return true
 	}
-	// match: (AddPtr x y)
-	// cond: config.PtrSize == 4
-	// result: (ADDL x y)
-	for {
-		y := v.Args[1]
-		x := v.Args[0]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64ADDL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpAddr_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (Addr {sym} base)
-	// cond: config.PtrSize == 8
 	// result: (LEAQ {sym} base)
 	for {
 		sym := v.Aux
 		base := v.Args[0]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64LEAQ)
 		v.Aux = sym
 		v.AddArg(base)
 		return true
 	}
-	// match: (Addr {sym} base)
-	// cond: config.PtrSize == 4
-	// result: (LEAL {sym} base)
-	for {
-		sym := v.Aux
-		base := v.Args[0]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64LEAL)
-		v.Aux = sym
-		v.AddArg(base)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpAnd16_0(v *Value) bool {
 	// match: (And16 x y)
@@ -50311,37 +50269,16 @@ func rewriteValueAMD64_OpAtomicLoad8_0(v *Value) bool {
 	}
 }
 func rewriteValueAMD64_OpAtomicLoadPtr_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (AtomicLoadPtr ptr mem)
-	// cond: config.PtrSize == 8
 	// result: (MOVQatomicload ptr mem)
 	for {
 		mem := v.Args[1]
 		ptr := v.Args[0]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64MOVQatomicload)
 		v.AddArg(ptr)
 		v.AddArg(mem)
 		return true
 	}
-	// match: (AtomicLoadPtr ptr mem)
-	// cond: config.PtrSize == 4
-	// result: (MOVLatomicload ptr mem)
-	for {
-		mem := v.Args[1]
-		ptr := v.Args[0]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64MOVLatomicload)
-		v.AddArg(ptr)
-		v.AddArg(mem)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpAtomicOr8_0(v *Value) bool {
 	// match: (AtomicOr8 ptr val mem)
@@ -50413,18 +50350,13 @@ func rewriteValueAMD64_OpAtomicStore8_0(v *Value) bool {
 }
 func rewriteValueAMD64_OpAtomicStorePtrNoWB_0(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	typ := &b.Func.Config.Types
 	// match: (AtomicStorePtrNoWB ptr val mem)
-	// cond: config.PtrSize == 8
 	// result: (Select1 (XCHGQ <types.NewTuple(typ.BytePtr,types.TypeMem)> val ptr mem))
 	for {
 		mem := v.Args[2]
 		ptr := v.Args[0]
 		val := v.Args[1]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpSelect1)
 		v0 := b.NewValue0(v.Pos, OpAMD64XCHGQ, types.NewTuple(typ.BytePtr, types.TypeMem))
 		v0.AddArg(val)
@@ -50433,25 +50365,6 @@ func rewriteValueAMD64_OpAtomicStorePtrNoWB_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (AtomicStorePtrNoWB ptr val mem)
-	// cond: config.PtrSize == 4
-	// result: (Select1 (XCHGL <types.NewTuple(typ.BytePtr,types.TypeMem)> val ptr mem))
-	for {
-		mem := v.Args[2]
-		ptr := v.Args[0]
-		val := v.Args[1]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpSelect1)
-		v0 := b.NewValue0(v.Pos, OpAMD64XCHGL, types.NewTuple(typ.BytePtr, types.TypeMem))
-		v0.AddArg(val)
-		v0.AddArg(ptr)
-		v0.AddArg(mem)
-		v.AddArg(v0)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpAvg64u_0(v *Value) bool {
 	// match: (Avg64u x y)
@@ -51774,31 +51687,13 @@ func rewriteValueAMD64_OpConstBool_0(v *Value) bool {
 	}
 }
 func rewriteValueAMD64_OpConstNil_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (ConstNil)
-	// cond: config.PtrSize == 8
 	// result: (MOVQconst [0])
 	for {
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64MOVQconst)
 		v.AuxInt = 0
 		return true
 	}
-	// match: (ConstNil)
-	// cond: config.PtrSize == 4
-	// result: (MOVLconst [0])
-	for {
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64MOVLconst)
-		v.AuxInt = 0
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpCtz16_0(v *Value) bool {
 	b := v.Block
@@ -52303,16 +52198,11 @@ func rewriteValueAMD64_OpEqB_0(v *Value) bool {
 }
 func rewriteValueAMD64_OpEqPtr_0(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	// match: (EqPtr x y)
-	// cond: config.PtrSize == 8
 	// result: (SETEQ (CMPQ x y))
 	for {
 		y := v.Args[1]
 		x := v.Args[0]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64SETEQ)
 		v0 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
 		v0.AddArg(x)
@@ -52320,23 +52210,6 @@ func rewriteValueAMD64_OpEqPtr_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (EqPtr x y)
-	// cond: config.PtrSize == 4
-	// result: (SETEQ (CMPL x y))
-	for {
-		y := v.Args[1]
-		x := v.Args[0]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64SETEQ)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPL, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpFloor_0(v *Value) bool {
 	// match: (Floor x)
@@ -52761,16 +52634,11 @@ func rewriteValueAMD64_OpInterCall_0(v *Value) bool {
 }
 func rewriteValueAMD64_OpIsInBounds_0(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	// match: (IsInBounds idx len)
-	// cond: config.PtrSize == 8
 	// result: (SETB (CMPQ idx len))
 	for {
 		len := v.Args[1]
 		idx := v.Args[0]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64SETB)
 		v0 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
 		v0.AddArg(idx)
@@ -52778,35 +52646,13 @@ func rewriteValueAMD64_OpIsInBounds_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (IsInBounds idx len)
-	// cond: config.PtrSize == 4
-	// result: (SETB (CMPL idx len))
-	for {
-		len := v.Args[1]
-		idx := v.Args[0]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64SETB)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPL, types.TypeFlags)
-		v0.AddArg(idx)
-		v0.AddArg(len)
-		v.AddArg(v0)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpIsNonNil_0(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	// match: (IsNonNil p)
-	// cond: config.PtrSize == 8
 	// result: (SETNE (TESTQ p p))
 	for {
 		p := v.Args[0]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64SETNE)
 		v0 := b.NewValue0(v.Pos, OpAMD64TESTQ, types.TypeFlags)
 		v0.AddArg(p)
@@ -52814,35 +52660,14 @@ func rewriteValueAMD64_OpIsNonNil_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (IsNonNil p)
-	// cond: config.PtrSize == 4
-	// result: (SETNE (TESTL p p))
-	for {
-		p := v.Args[0]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64SETNE)
-		v0 := b.NewValue0(v.Pos, OpAMD64TESTL, types.TypeFlags)
-		v0.AddArg(p)
-		v0.AddArg(p)
-		v.AddArg(v0)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpIsSliceInBounds_0(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	// match: (IsSliceInBounds idx len)
-	// cond: config.PtrSize == 8
 	// result: (SETBE (CMPQ idx len))
 	for {
 		len := v.Args[1]
 		idx := v.Args[0]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64SETBE)
 		v0 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
 		v0.AddArg(idx)
@@ -52850,23 +52675,6 @@ func rewriteValueAMD64_OpIsSliceInBounds_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (IsSliceInBounds idx len)
-	// cond: config.PtrSize == 4
-	// result: (SETBE (CMPL idx len))
-	for {
-		len := v.Args[1]
-		idx := v.Args[0]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64SETBE)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPL, types.TypeFlags)
-		v0.AddArg(idx)
-		v0.AddArg(len)
-		v.AddArg(v0)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpLeq16_0(v *Value) bool {
 	b := v.Block
@@ -53169,16 +52977,14 @@ func rewriteValueAMD64_OpLess8U_0(v *Value) bool {
 	}
 }
 func rewriteValueAMD64_OpLoad_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (Load <t> ptr mem)
-	// cond: (is64BitInt(t) || isPtr(t) && config.PtrSize == 8)
+	// cond: (is64BitInt(t) || isPtr(t))
 	// result: (MOVQload ptr mem)
 	for {
 		t := v.Type
 		mem := v.Args[1]
 		ptr := v.Args[0]
-		if !(is64BitInt(t) || isPtr(t) && config.PtrSize == 8) {
+		if !(is64BitInt(t) || isPtr(t)) {
 			break
 		}
 		v.reset(OpAMD64MOVQload)
@@ -53187,13 +52993,13 @@ func rewriteValueAMD64_OpLoad_0(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: (is32BitInt(t) || isPtr(t) && config.PtrSize == 4)
+	// cond: is32BitInt(t)
 	// result: (MOVLload ptr mem)
 	for {
 		t := v.Type
 		mem := v.Args[1]
 		ptr := v.Args[0]
-		if !(is32BitInt(t) || isPtr(t) && config.PtrSize == 4) {
+		if !(is32BitInt(t)) {
 			break
 		}
 		v.reset(OpAMD64MOVLload)
@@ -53264,39 +53070,17 @@ func rewriteValueAMD64_OpLoad_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpLocalAddr_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (LocalAddr {sym} base _)
-	// cond: config.PtrSize == 8
 	// result: (LEAQ {sym} base)
 	for {
 		sym := v.Aux
 		_ = v.Args[1]
 		base := v.Args[0]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64LEAQ)
 		v.Aux = sym
 		v.AddArg(base)
 		return true
 	}
-	// match: (LocalAddr {sym} base _)
-	// cond: config.PtrSize == 4
-	// result: (LEAL {sym} base)
-	for {
-		sym := v.Aux
-		_ = v.Args[1]
-		base := v.Args[0]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64LEAL)
-		v.Aux = sym
-		v.AddArg(base)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpLsh16x16_0(v *Value) bool {
 	b := v.Block
@@ -54959,16 +54743,11 @@ func rewriteValueAMD64_OpNeqB_0(v *Value) bool {
 }
 func rewriteValueAMD64_OpNeqPtr_0(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	// match: (NeqPtr x y)
-	// cond: config.PtrSize == 8
 	// result: (SETNE (CMPQ x y))
 	for {
 		y := v.Args[1]
 		x := v.Args[0]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64SETNE)
 		v0 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
 		v0.AddArg(x)
@@ -54976,23 +54755,6 @@ func rewriteValueAMD64_OpNeqPtr_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (NeqPtr x y)
-	// cond: config.PtrSize == 4
-	// result: (SETNE (CMPL x y))
-	for {
-		y := v.Args[1]
-		x := v.Args[0]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64SETNE)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPL, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpNilCheck_0(v *Value) bool {
 	// match: (NilCheck ptr mem)
@@ -55019,15 +54781,14 @@ func rewriteValueAMD64_OpNot_0(v *Value) bool {
 }
 func rewriteValueAMD64_OpOffPtr_0(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	typ := &b.Func.Config.Types
 	// match: (OffPtr [off] ptr)
-	// cond: config.PtrSize == 8 && is32Bit(off)
+	// cond: is32Bit(off)
 	// result: (ADDQconst [off] ptr)
 	for {
 		off := v.AuxInt
 		ptr := v.Args[0]
-		if !(config.PtrSize == 8 && is32Bit(off)) {
+		if !(is32Bit(off)) {
 			break
 		}
 		v.reset(OpAMD64ADDQconst)
@@ -55036,14 +54797,10 @@ func rewriteValueAMD64_OpOffPtr_0(v *Value) bool {
 		return true
 	}
 	// match: (OffPtr [off] ptr)
-	// cond: config.PtrSize == 8
 	// result: (ADDQ (MOVQconst [off]) ptr)
 	for {
 		off := v.AuxInt
 		ptr := v.Args[0]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64ADDQ)
 		v0 := b.NewValue0(v.Pos, OpAMD64MOVQconst, typ.UInt64)
 		v0.AuxInt = off
@@ -55051,21 +54808,6 @@ func rewriteValueAMD64_OpOffPtr_0(v *Value) bool {
 		v.AddArg(ptr)
 		return true
 	}
-	// match: (OffPtr [off] ptr)
-	// cond: config.PtrSize == 4
-	// result: (ADDLconst [off] ptr)
-	for {
-		off := v.AuxInt
-		ptr := v.Args[0]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64ADDLconst)
-		v.AuxInt = off
-		v.AddArg(ptr)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpOr16_0(v *Value) bool {
 	// match: (Or16 x y)
@@ -57223,37 +56965,16 @@ func rewriteValueAMD64_OpSub8_0(v *Value) bool {
 	}
 }
 func rewriteValueAMD64_OpSubPtr_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (SubPtr x y)
-	// cond: config.PtrSize == 8
 	// result: (SUBQ x y)
 	for {
 		y := v.Args[1]
 		x := v.Args[0]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64SUBQ)
 		v.AddArg(x)
 		v.AddArg(y)
 		return true
 	}
-	// match: (SubPtr x y)
-	// cond: config.PtrSize == 4
-	// result: (SUBL x y)
-	for {
-		y := v.Args[1]
-		x := v.Args[0]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64SUBL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpTrunc_0(v *Value) bool {
 	// match: (Trunc x)

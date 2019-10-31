@@ -4,13 +4,11 @@
 
 // Lowering arithmetic
 (Add(64|32|16|8)  x y) -> (ADD(Q|L|L|L)  x y)
-(AddPtr x y) && config.PtrSize == 8 -> (ADDQ x y)
-(AddPtr x y) && config.PtrSize == 4 -> (ADDL x y)
+(AddPtr x y) -> (ADDQ x y)
 (Add(32|64)F x y) -> (ADDS(S|D) x y)
 
 (Sub(64|32|16|8)  x y) -> (SUB(Q|L|L|L)  x y)
-(SubPtr x y) && config.PtrSize == 8 -> (SUBQ x y)
-(SubPtr x y) && config.PtrSize == 4 -> (SUBL x y)
+(SubPtr x y) -> (SUBQ x y)
 (Sub(32|64)F x y) -> (SUBS(S|D) x y)
 
 (Mul(64|32|16|8)  x y) -> (MUL(Q|L|L|L)  x y)
@@ -76,9 +74,8 @@
 (Not x) -> (XORLconst [1] x)
 
 // Lowering pointer arithmetic
-(OffPtr [off] ptr) && config.PtrSize == 8 && is32Bit(off) -> (ADDQconst [off] ptr)
-(OffPtr [off] ptr) && config.PtrSize == 8 -> (ADDQ (MOVQconst [off]) ptr)
-(OffPtr [off] ptr) && config.PtrSize == 4 -> (ADDLconst [off] ptr)
+(OffPtr [off] ptr) && is32Bit(off) -> (ADDQconst [off] ptr)
+(OffPtr [off] ptr) -> (ADDQ (MOVQconst [off]) ptr)
 
 // Lowering other arithmetic
 (Ctz64 <t> x) -> (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <types.TypeFlags> (BSFQ x)))
@@ -217,18 +214,16 @@
 (Geq(32|64)F x y) -> (SETGEF (UCOMIS(S|D) x y))
 
 (Eq(64|32|16|8|B)  x y) -> (SETEQ (CMP(Q|L|W|B|B) x y))
-(EqPtr x y) && config.PtrSize == 8 -> (SETEQ (CMPQ x y))
-(EqPtr x y) && config.PtrSize == 4 -> (SETEQ (CMPL x y))
+(EqPtr x y) -> (SETEQ (CMPQ x y))
 (Eq(32|64)F x y) -> (SETEQF (UCOMIS(S|D) x y))
 
 (Neq(64|32|16|8|B)  x y) -> (SETNE (CMP(Q|L|W|B|B) x y))
-(NeqPtr x y) && config.PtrSize == 8 -> (SETNE (CMPQ x y))
-(NeqPtr x y) && config.PtrSize == 4 -> (SETNE (CMPL x y))
+(NeqPtr x y) -> (SETNE (CMPQ x y))
 (Neq(32|64)F x y) -> (SETNEF (UCOMIS(S|D) x y))
 
 // Lowering loads
-(Load <t> ptr mem) && (is64BitInt(t) || isPtr(t) && config.PtrSize == 8) -> (MOVQload ptr mem)
-(Load <t> ptr mem) && (is32BitInt(t) || isPtr(t) && config.PtrSize == 4) -> (MOVLload ptr mem)
+(Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVQload ptr mem)
+(Load <t> ptr mem) && is32BitInt(t) -> (MOVLload ptr mem)
 (Load <t> ptr mem) && is16BitInt(t) -> (MOVWload ptr mem)
 (Load <t> ptr mem) && (t.IsBoolean() || is8BitInt(t)) -> (MOVBload ptr mem)
 (Load <t> ptr mem) && is32BitFloat(t) -> (MOVSSload ptr mem)
@@ -420,8 +415,7 @@
 (Const64  [val]) -> (MOVQconst [val])
 (Const32F [val]) -> (MOVSSconst [val])
 (Const64F [val]) -> (MOVSDconst [val])
-(ConstNil) && config.PtrSize == 8 -> (MOVQconst [0])
-(ConstNil) && config.PtrSize == 4 -> (MOVLconst [0])
+(ConstNil) -> (MOVQconst [0])
 (ConstBool [b]) -> (MOVLconst [b])
 
 // Lowering calls
@@ -476,21 +470,16 @@
 (CMOV(QEQ|QGT|QGE|QCS|QLS|LEQ|LGT|LGE|LCS|LLS|WEQ|WGT|WGE|WCS|WLS) y _ (FlagLT_UGT)) -> y
 
 // Miscellaneous
-(IsNonNil p) && config.PtrSize == 8 -> (SETNE (TESTQ p p))
-(IsNonNil p) && config.PtrSize == 4 -> (SETNE (TESTL p p))
-(IsInBounds idx len) && config.PtrSize == 8 -> (SETB (CMPQ idx len))
-(IsInBounds idx len) && config.PtrSize == 4 -> (SETB (CMPL idx len))
-(IsSliceInBounds idx len) && config.PtrSize == 8 -> (SETBE (CMPQ idx len))
-(IsSliceInBounds idx len) && config.PtrSize == 4 -> (SETBE (CMPL idx len))
+(IsNonNil p) -> (SETNE (TESTQ p p))
+(IsInBounds idx len) -> (SETB (CMPQ idx len))
+(IsSliceInBounds idx len) -> (SETBE (CMPQ idx len))
 (NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
 (GetG mem) -> (LoweredGetG mem)
 (GetClosurePtr) -> (LoweredGetClosurePtr)
 (GetCallerPC) -> (LoweredGetCallerPC)
 (GetCallerSP) -> (LoweredGetCallerSP)
-(Addr {sym} base) && config.PtrSize == 8 -> (LEAQ {sym} base)
-(Addr {sym} base) && config.PtrSize == 4 -> (LEAL {sym} base)
-(LocalAddr {sym} base _) && config.PtrSize == 8 -> (LEAQ {sym} base)
-(LocalAddr {sym} base _) && config.PtrSize == 4 -> (LEAL {sym} base)
+(Addr {sym} base) -> (LEAQ {sym} base)
+(LocalAddr {sym} base _) -> (LEAQ {sym} base)
 
 (MOVBstore [off] {sym} ptr y:(SETL x) mem) && y.Uses == 1 -> (SETLstore [off] {sym} ptr x mem)
 (MOVBstore [off] {sym} ptr y:(SETLE x) mem) && y.Uses == 1 -> (SETLEstore [off] {sym} ptr x mem)
@@ -528,16 +517,14 @@
 (AtomicLoad8 ptr mem) -> (MOVBatomicload ptr mem)
 (AtomicLoad32 ptr mem) -> (MOVLatomicload ptr mem)
 (AtomicLoad64 ptr mem) -> (MOVQatomicload ptr mem)
-(AtomicLoadPtr ptr mem) && config.PtrSize == 8 -> (MOVQatomicload ptr mem)
-(AtomicLoadPtr ptr mem) && config.PtrSize == 4 -> (MOVLatomicload ptr mem)
+(AtomicLoadPtr ptr mem) -> (MOVQatomicload ptr mem)
 
 // Atomic stores.  We use XCHG to prevent the hardware reordering a subsequent load.
 // TODO: most runtime uses of atomic stores don't need that property.  Use normal stores for those?
 (AtomicStore8 ptr val mem) -> (Select1 (XCHGB <types.NewTuple(typ.UInt8,types.TypeMem)> val ptr mem))
 (AtomicStore32 ptr val mem) -> (Select1 (XCHGL <types.NewTuple(typ.UInt32,types.TypeMem)> val ptr mem))
 (AtomicStore64 ptr val mem) -> (Select1 (XCHGQ <types.NewTuple(typ.UInt64,types.TypeMem)> val ptr mem))
-(AtomicStorePtrNoWB ptr val mem) && config.PtrSize == 8 -> (Select1 (XCHGQ <types.NewTuple(typ.BytePtr,types.TypeMem)> val ptr mem))
-(AtomicStorePtrNoWB ptr val mem) && config.PtrSize == 4 -> (Select1 (XCHGL <types.NewTuple(typ.BytePtr,types.TypeMem)> val ptr mem))
+(AtomicStorePtrNoWB ptr val mem) -> (Select1 (XCHGQ <types.NewTuple(typ.BytePtr,types.TypeMem)> val ptr mem))
 
 // Atomic exchanges.
 (AtomicExchange32 ptr val mem) -> (XCHGL val ptr mem)
