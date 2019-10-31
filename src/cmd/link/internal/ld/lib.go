@@ -384,7 +384,19 @@ func (ctxt *Link) loadlib() {
 	ctxt.cgo_export_static = make(map[string]bool)
 	ctxt.cgo_export_dynamic = make(map[string]bool)
 
-	loadinternal(ctxt, "runtime")
+	// ctxt.Library grows during the loop, so not a range loop.
+	i := 0
+	for ; i < len(ctxt.Library); i++ {
+		lib := ctxt.Library[i]
+		if lib.Shlib == "" {
+			if ctxt.Debugvlog > 1 {
+				ctxt.Logf("autolib: %s (from %s)\n", lib.File, lib.Objref)
+			}
+			loadobjfile(ctxt, lib)
+		}
+	}
+
+	// load internal packages, if not already
 	if ctxt.Arch.Family == sys.ARM {
 		loadinternal(ctxt, "math")
 	}
@@ -394,14 +406,10 @@ func (ctxt *Link) loadlib() {
 	if *flagMsan {
 		loadinternal(ctxt, "runtime/msan")
 	}
-
-	// ctxt.Library grows during the loop, so not a range loop.
-	for i := 0; i < len(ctxt.Library); i++ {
+	loadinternal(ctxt, "runtime")
+	for ; i < len(ctxt.Library); i++ {
 		lib := ctxt.Library[i]
 		if lib.Shlib == "" {
-			if ctxt.Debugvlog > 1 {
-				ctxt.Logf("autolib: %s (from %s)\n", lib.File, lib.Objref)
-			}
 			loadobjfile(ctxt, lib)
 		}
 	}
