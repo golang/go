@@ -118,6 +118,21 @@ const (
 	X25519    CurveID = 29
 )
 
+var curveIDs = map[CurveID]string{
+	CurveP256: "CurveP256",
+	CurveP384: "CurveP384",
+	CurveP521: "CurveP521",
+	X25519:    "X25519",
+}
+
+func (c CurveID) String() string {
+	s, ok := curveIDs[c]
+	if !ok {
+		return "unsupported CurveID"
+	}
+	return s
+}
+
 // TLS 1.3 Key Share. See RFC 8446, Section 4.2.8.
 type keyShare struct {
 	group CurveID
