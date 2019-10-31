@@ -80,6 +80,8 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitia) (
 				TriggerCharacters: []string{"."},
 			},
 			DefinitionProvider:         true,
+			TypeDefinitionProvider:     true,
+			ImplementationProvider:     true,
 			DocumentFormattingProvider: true,
 			DocumentSymbolProvider:     true,
 			ExecuteCommandProvider: &protocol.ExecuteCommandOptions{
@@ -101,7 +103,6 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitia) (
 					IncludeText: false,
 				},
 			},
-			TypeDefinitionProvider: true,
 			Workspace: &struct {
 				WorkspaceFolders *struct {
 					Supported           bool   "json:\"supported,omitempty\""
