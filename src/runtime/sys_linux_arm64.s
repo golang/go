@@ -237,16 +237,23 @@ noswitch:
 	// during VDSO code we can find the g.
 	// If we don't have a signal stack, we won't receive signal,
 	// so don't bother saving g.
+	// When using cgo, we already saved g on TLS, also don't save
+	// g here.
+	MOVBU	runtime·iscgo(SB), R22
+	CBNZ	R22, nosaveg
 	MOVD	m_gsignal(R21), R22          // g.m.gsignal
-	CBZ	R22, 3(PC)
+	CBZ	R22, nosaveg
 	MOVD	(g_stack+stack_lo)(R22), R22 // g.m.gsignal.stack.lo
 	MOVD	g, (R22)
 
 	BL	(R2)
 
-	CBZ	R22, 2(PC) // R22 is unchanged by C code
-	MOVD	ZR, (R22)  // clear g slot
+	MOVD	ZR, (R22)  // clear g slot, R22 is unchanged by C code
 
+	B	finish
+
+nosaveg:
+	BL	(R2)
 	B	finish
 
 fallback:
@@ -294,16 +301,23 @@ noswitch:
 	// during VDSO code we can find the g.
 	// If we don't have a signal stack, we won't receive signal,
 	// so don't bother saving g.
+	// When using cgo, we already saved g on TLS, also don't save
+	// g here.
+	MOVBU	runtime·iscgo(SB), R22
+	CBNZ	R22, nosaveg
 	MOVD	m_gsignal(R21), R22          // g.m.gsignal
-	CBZ	R22, 3(PC)
+	CBZ	R22, nosaveg
 	MOVD	(g_stack+stack_lo)(R22), R22 // g.m.gsignal.stack.lo
 	MOVD	g, (R22)
 
 	BL	(R2)
 
-	CBZ	R22, 2(PC) // R22 is unchanged by C code
-	MOVD	ZR, (R22)  // clear g slot
+	MOVD	ZR, (R22)  // clear g slot, R22 is unchanged by C code
 
+	B	finish
+
+nosaveg:
+	BL	(R2)
 	B	finish
 
 fallback:
