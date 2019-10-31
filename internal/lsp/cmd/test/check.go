@@ -61,7 +61,7 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnosti
 		}
 		_, found := got[expect]
 		if !found {
-			t.Errorf("missing diagnostic %q", expect)
+			t.Errorf("missing diagnostic %q, %v", expect, got)
 		} else {
 			delete(got, expect)
 		}

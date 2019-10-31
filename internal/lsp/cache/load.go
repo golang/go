@@ -45,7 +45,6 @@ func (s *snapshot) load(ctx context.Context, uri span.URI) ([]*metadata, error) 
 	if err == context.Canceled {
 		return nil, errors.Errorf("no metadata for %s: %v", uri.Filename(), err)
 	}
-
 	log.Print(ctx, "go/packages.Load", tag.Of("packages", len(pkgs)))
 	if len(pkgs) == 0 {
 		if err == nil {
@@ -149,7 +148,7 @@ func (s *snapshot) updateMetadata(ctx context.Context, uri span.URI, pkgs []*pac
 		log.Print(ctx, "go/packages.Load", tag.Of("package", pkg.PkgPath), tag.Of("files", pkg.CompiledGoFiles))
 
 		// Set the metadata for this package.
-		if err := s.updateImports(ctx, packagePath(pkg.PkgPath), pkg, cfg); err != nil {
+		if err := s.updateImports(ctx, packagePath(pkg.PkgPath), pkg, cfg, map[packageID]struct{}{}); err != nil {
 			return nil, nil, err
 		}
 		m := s.getMetadata(packageID(pkg.ID))
@@ -167,16 +166,21 @@ func (s *snapshot) updateMetadata(ctx context.Context, uri span.URI, pkgs []*pac
 	return results, prevMissingImports, nil
 }
 
-func (s *snapshot) updateImports(ctx context.Context, pkgPath packagePath, pkg *packages.Package, cfg *packages.Config) error {
+func (s *snapshot) updateImports(ctx context.Context, pkgPath packagePath, pkg *packages.Package, cfg *packages.Config, seen map[packageID]struct{}) error {
+	id := packageID(pkg.ID)
+	if _, ok := seen[id]; ok {
+		return errors.Errorf("import cycle detected: %q", id)
+	}
 	// Recreate the metadata rather than reusing it to avoid locking.
 	m := &metadata{
-		id:         packageID(pkg.ID),
+		id:         id,
 		pkgPath:    pkgPath,
 		name:       pkg.Name,
 		typesSizes: pkg.TypesSizes,
 		errors:     pkg.Errors,
 		config:     cfg,
 	}
+	seen[id] = struct{}{}
 	for _, filename := range pkg.CompiledGoFiles {
 		uri := span.FileURI(filename)
 		m.files = append(m.files, uri)
@@ -184,16 +188,14 @@ func (s *snapshot) updateImports(ctx context.Context, pkgPath packagePath, pkg *
 		s.addID(uri, m.id)
 	}
 
-	// Add the metadata to the cache.
-	s.setMetadata(m)
-
+	copied := make(map[packageID]struct{})
+	for k, v := range seen {
+		copied[k] = v
+	}
 	for importPath, importPkg := range pkg.Imports {
 		importPkgPath := packagePath(importPath)
 		importID := packageID(importPkg.ID)
 
-		if importPkgPath == pkgPath {
-			return errors.Errorf("cycle detected in %s", importPath)
-		}
 		m.deps = append(m.deps, importID)
 
 		// Don't remember any imports with significant errors.
@@ -206,10 +208,14 @@ func (s *snapshot) updateImports(ctx context.Context, pkgPath packagePath, pkg *
 		}
 		dep := s.getMetadata(importID)
 		if dep == nil {
-			if err := s.updateImports(ctx, importPkgPath, importPkg, cfg); err != nil {
+			if err := s.updateImports(ctx, importPkgPath, importPkg, cfg, copied); err != nil {
 				log.Error(ctx, "error in dependency", err)
 			}
 		}
 	}
+
+	// Add the metadata to the cache.
+	s.setMetadata(m)
+
 	return nil
 }
