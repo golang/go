@@ -273,7 +273,7 @@ func Main(archInit func(*Arch)) {
 	flag.StringVar(&benchfile, "bench", "", "append benchmark times to `file`")
 	flag.BoolVar(&smallFrames, "smallframes", false, "reduce the size limit for stack allocated objects")
 	flag.BoolVar(&Ctxt.UseBASEntries, "dwarfbasentries", Ctxt.UseBASEntries, "use base address selection entries in DWARF")
-	flag.BoolVar(&Ctxt.Flag_newobj, "newobj", true, "use new object file format")
+	flag.BoolVar(&Ctxt.Flag_newobj, "newobj", false, "use new object file format")
 
 	objabi.Flagparse(usage)
 
