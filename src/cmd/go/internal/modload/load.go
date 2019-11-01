@@ -428,6 +428,37 @@ func SetBuildList(list []module.Version) {
 	buildList = append([]module.Version{}, list...)
 }
 
+// TidyBuildList trims the build list to the minimal requirements needed to
+// retain the same versions of all packages from the preceding Load* or
+// ImportPaths* call.
+func TidyBuildList() {
+	used := map[module.Version]bool{Target: true}
+	for _, pkg := range loaded.pkgs {
+		used[pkg.mod] = true
+	}
+
+	keep := []module.Version{Target}
+	var direct []string
+	for _, m := range buildList[1:] {
+		if used[m] {
+			keep = append(keep, m)
+			if loaded.direct[m.Path] {
+				direct = append(direct, m.Path)
+			}
+		} else if cfg.BuildV {
+			if _, ok := index.require[m]; ok {
+				fmt.Fprintf(os.Stderr, "unused %s\n", m.Path)
+			}
+		}
+	}
+
+	min, err := mvs.Req(Target, direct, &mvsReqs{buildList: keep})
+	if err != nil {
+		base.Fatalf("go: %v", err)
+	}
+	buildList = append([]module.Version{Target}, min...)
+}
+
 // ImportMap returns the actual package import path
 // for an import path found in source code.
 // If the given import path does not appear in the source code
@@ -966,21 +997,15 @@ func WhyDepth(path string) int {
 // If there is no replacement for mod, Replacement returns
 // a module.Version with Path == "".
 func Replacement(mod module.Version) module.Version {
-	if modFile == nil {
-		// Happens during testing and if invoking 'go get' or 'go list' outside a module.
-		return module.Version{}
-	}
-
-	var found *modfile.Replace
-	for _, r := range modFile.Replace {
-		if r.Old.Path == mod.Path && (r.Old.Version == "" || r.Old.Version == mod.Version) {
-			found = r // keep going
+	if index != nil {
+		if r, ok := index.replace[mod]; ok {
+			return r
+		}
+		if r, ok := index.replace[module.Version{Path: mod.Path}]; ok {
+			return r
 		}
 	}
-	if found == nil {
-		return module.Version{}
-	}
-	return found.New
+	return module.Version{}
 }
 
 // mvsReqs implements mvs.Reqs for module semantic versions,
@@ -1013,15 +1038,17 @@ func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
 			return cached{nil, err}
 		}
 		for i, mv := range list {
-			for excluded[mv] {
-				mv1, err := r.next(mv)
-				if err != nil {
-					return cached{nil, err}
+			if index != nil {
+				for index.exclude[mv] {
+					mv1, err := r.next(mv)
+					if err != nil {
+						return cached{nil, err}
+					}
+					if mv1.Version == "none" {
+						return cached{nil, fmt.Errorf("%s(%s) depends on excluded %s(%s) with no newer version available", mod.Path, mod.Version, mv.Path, mv.Version)}
+					}
+					mv = mv1
 				}
-				if mv1.Version == "none" {
-					return cached{nil, fmt.Errorf("%s(%s) depends on excluded %s(%s) with no newer version available", mod.Path, mod.Version, mv.Path, mv.Version)}
-				}
-				mv = mv1
 			}
 			list[i] = mv
 		}
