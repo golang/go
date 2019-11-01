@@ -587,7 +587,15 @@ func (c *completer) selector(sel *ast.SelectorExpr) error {
 		if err != nil {
 			return err
 		}
+		known := c.snapshot.KnownImportPaths()
 		for _, pkgExport := range pkgExports {
+			// If we've seen this import path, use the fully-typed version.
+			if knownPkg, ok := known[pkgExport.Fix.StmtInfo.ImportPath]; ok {
+				c.packageMembers(knownPkg.GetTypes(), &pkgExport.Fix.StmtInfo)
+				continue
+			}
+
+			// Otherwise, continue with untyped proposals.
 			pkg := types.NewPackage(pkgExport.Fix.StmtInfo.ImportPath, pkgExport.Fix.IdentName)
 			for _, export := range pkgExport.Exports {
 				c.found(types.NewVar(0, pkg, export, nil), 0.07, &pkgExport.Fix.StmtInfo)

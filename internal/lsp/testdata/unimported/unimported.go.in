@@ -2,7 +2,9 @@ package unimported
 
 func _() {
 	//@unimported("", bytes, context, cryptoslashrand, time, unsafe, externalpackage)
-	bytes. //@unimported(" /", bytesbuffer)
+	// container/ring is extremely unlikely to be imported by anything, so shouldn't have type information.
+	ring.Ring //@unimported("Ring", ringring)
+	signature.Foo //@unimported("Foo", signaturefoo)
 }
 
 // Create markers for unimported std lib packages. Only for use by this test.
@@ -11,6 +13,8 @@ func _() {
 /* rand */ //@item(cryptoslashrand, "rand", "\"crypto/rand\"", "package")
 /* time */ //@item(time, "time", "\"time\"", "package")
 /* unsafe */ //@item(unsafe, "unsafe", "\"unsafe\"", "package")
-/* pkg */ //@item(externalpackage, "pkg", "\"example.com/extramodule/pkg\"", "package" )
+/* pkg */ //@item(externalpackage, "pkg", "\"example.com/extramodule/pkg\"", "package")
 
-/* bytes.Buffer */ //@item(bytesbuffer, "Buffer", "(from \"bytes\")", "var" )
+/* ring.Ring */ //@item(ringring, "Ring", "(from \"container/ring\")", "var")
+
+/* signature.Foo */ //@item(signaturefoo, "Foo", "func(a string, b int) (c bool) (from \"golang.org/x/tools/internal/lsp/signature\")", "func")

@@ -98,6 +98,30 @@ func (s *snapshot) getPackages(uri span.URI, m source.ParseMode) (cphs []source.
 	return cphs
 }
 
+func (s *snapshot) KnownImportPaths() map[string]source.Package {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	results := map[string]source.Package{}
+	for _, cph := range s.packages {
+		cachedPkg, err := cph.cached()
+		if err != nil {
+			continue
+		}
+		for importPath, newPkg := range cachedPkg.imports {
+			if oldPkg, ok := results[string(importPath)]; ok {
+				// Using the same trick as NarrowestPackageHandle, prefer non-variants.
+				if len(newPkg.files) < len(oldPkg.(*pkg).files) {
+					results[string(importPath)] = newPkg
+				}
+			} else {
+				results[string(importPath)] = newPkg
+			}
+		}
+	}
+	return results
+}
+
 func (s *snapshot) getPackage(id packageID, m source.ParseMode) *checkPackageHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()

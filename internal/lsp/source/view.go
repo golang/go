@@ -275,6 +275,10 @@ type Snapshot interface {
 	// CheckPackageHandles returns the CheckPackageHandles for the packages
 	// that this file belongs to.
 	CheckPackageHandles(ctx context.Context, f File) ([]CheckPackageHandle, error)
+
+	// KnownImportPaths returns all the packages loaded in this snapshot,
+	// indexed by their import path.
+	KnownImportPaths() map[string]Package
 }
 
 // File represents a source file of any type.
