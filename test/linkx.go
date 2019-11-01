@@ -32,8 +32,6 @@ func main() {
 
 	// Check non-string symbols are not overwritten.
 	// This also make them used.
-	// TODO: decide if we need to issue an error if -X
-	// is applied to a non-string unreachable symbol.
 	if b || x != 0 {
 		panic("b or x overwritten")
 	}
