@@ -555,6 +555,8 @@ func (f *File) SetRequire(req []*Require) {
 		if v, ok := need[r.Mod.Path]; ok {
 			r.Mod.Version = v
 			r.Indirect = indirect[r.Mod.Path]
+		} else {
+			*r = Require{}
 		}
 	}
 
