@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/search"
@@ -62,9 +63,23 @@ func Query(path, query, current string, allowed func(module.Version) bool) (*mod
 	return info, err
 }
 
+var errQueryDisabled error = queryDisabledError{}
+
+type queryDisabledError struct{}
+
+func (queryDisabledError) Error() string {
+	if cfg.BuildModReason == "" {
+		return fmt.Sprintf("cannot query module due to -mod=%s", cfg.BuildMod)
+	}
+	return fmt.Sprintf("cannot query module due to -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
+}
+
 func queryProxy(proxy, path, query, current string, allowed func(module.Version) bool) (*modfetch.RevInfo, error) {
 	if current != "" && !semver.IsValid(current) {
 		return nil, fmt.Errorf("invalid previous version %q", current)
+	}
+	if cfg.BuildMod != "" && cfg.BuildMod != "mod" {
+		return nil, errQueryDisabled
 	}
 	if allowed == nil {
 		allowed = func(module.Version) bool { return true }
