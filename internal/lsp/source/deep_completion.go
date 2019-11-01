@@ -158,6 +158,10 @@ func (c *completer) deepSearch(obj types.Object, imp *imports.ImportInfo) {
 		return
 	}
 
+	if obj.Type() == nil {
+		return
+	}
+
 	// Don't search embedded fields because they were already included in their
 	// parent's fields.
 	if v, ok := obj.(*types.Var); ok && v.Embedded() {

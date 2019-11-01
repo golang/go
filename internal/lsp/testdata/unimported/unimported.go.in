@@ -2,6 +2,7 @@ package unimported
 
 func _() {
 	//@unimported("", bytes, context, cryptoslashrand, time, unsafe, externalpackage)
+	bytes. //@unimported(" /", bytesbuffer)
 }
 
 // Create markers for unimported std lib packages. Only for use by this test.
@@ -11,3 +12,5 @@ func _() {
 /* time */ //@item(time, "time", "\"time\"", "package")
 /* unsafe */ //@item(unsafe, "unsafe", "\"unsafe\"", "package")
 /* pkg */ //@item(externalpackage, "pkg", "\"example.com/extramodule/pkg\"", "package" )
+
+/* bytes.Buffer */ //@item(bytesbuffer, "Buffer", "(from \"bytes\")", "var" )

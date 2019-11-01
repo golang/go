@@ -577,11 +577,24 @@ func (c *completer) selector(sel *ast.SelectorExpr) error {
 
 	// Invariant: sel is a true selector.
 	tv, ok := c.pkg.GetTypesInfo().Types[sel.X]
-	if !ok {
-		return errors.Errorf("cannot resolve %s", sel.X)
+	if ok {
+		return c.methodsAndFields(tv.Type, tv.Addressable(), nil)
 	}
 
-	return c.methodsAndFields(tv.Type, tv.Addressable(), nil)
+	// Try unimported packages.
+	if id, ok := sel.X.(*ast.Ident); ok {
+		pkgExports, err := PackageExports(c.ctx, c.view, id.Name, c.filename)
+		if err != nil {
+			return err
+		}
+		for _, pkgExport := range pkgExports {
+			pkg := types.NewPackage(pkgExport.Fix.StmtInfo.ImportPath, pkgExport.Fix.IdentName)
+			for _, export := range pkgExport.Exports {
+				c.found(types.NewVar(0, pkg, export, nil), 0.07, &pkgExport.Fix.StmtInfo)
+			}
+		}
+	}
+	return nil
 }
 
 func (c *completer) packageMembers(pkg *types.Package, imp *imports.ImportInfo) {
@@ -1347,6 +1360,9 @@ func (c *completer) matchingCandidate(cand *candidate) bool {
 	}
 
 	objType := cand.obj.Type()
+	if objType == nil {
+		return true
+	}
 
 	// Default to invoking *types.Func candidates. This is so function
 	// completions in an empty statement (or other cases with no expected type)

@@ -39,6 +39,9 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		snip          *snippet.Builder
 		protocolEdits []protocol.TextEdit
 	)
+	if obj.Type() == nil {
+		detail = ""
+	}
 
 	// expandFuncCall mutates the completion label, detail, and snippet
 	// to that of an invocation of sig.
@@ -63,6 +66,9 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 			snip = c.structFieldSnippet(label, detail)
 		} else {
 			kind = protocol.VariableCompletion
+		}
+		if obj.Type() == nil {
+			break
 		}
 
 		if sig, ok := obj.Type().Underlying().(*types.Signature); ok && cand.expandFuncCall {
@@ -91,11 +97,20 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 
 	// If this candidate needs an additional import statement,
 	// add the additional text edits needed.
-	addlEdits, err := c.importEdits(cand.imp)
-	if err != nil {
-		return CompletionItem{}, err
+	if cand.imp != nil {
+		addlEdits, err := c.importEdits(cand.imp)
+		if err != nil {
+			return CompletionItem{}, err
+		}
+
+		protocolEdits = append(protocolEdits, addlEdits...)
+		if kind != protocol.ModuleCompletion {
+			if detail != "" {
+				detail += " "
+			}
+			detail += fmt.Sprintf("(from %q)", cand.imp.ImportPath)
+		}
 	}
-	protocolEdits = append(protocolEdits, addlEdits...)
 
 	detail = strings.TrimPrefix(detail, "untyped ")
 	item := CompletionItem{
@@ -146,7 +161,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	return item, nil
 }
 
-// importEdits produces the text eddits necessary to add the given import to the current file.
+// importEdits produces the text edits necessary to add the given import to the current file.
 func (c *completer) importEdits(imp *imports.ImportInfo) ([]protocol.TextEdit, error) {
 	if imp == nil {
 		return nil, nil

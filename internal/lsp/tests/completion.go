@@ -19,7 +19,7 @@ func ToProtocolCompletionItems(items []source.CompletionItem) []protocol.Complet
 }
 
 func ToProtocolCompletionItem(item source.CompletionItem) protocol.CompletionItem {
-	return protocol.CompletionItem{
+	pItem := protocol.CompletionItem{
 		Label:         item.Label,
 		Kind:          item.Kind,
 		Detail:        item.Detail,
@@ -29,6 +29,10 @@ func ToProtocolCompletionItem(item source.CompletionItem) protocol.CompletionIte
 			NewText: item.Snippet(),
 		},
 	}
+	if pItem.InsertText == "" {
+		pItem.InsertText = pItem.Label
+	}
+	return pItem
 }
 
 func FilterBuiltins(items []protocol.CompletionItem) []protocol.CompletionItem {
