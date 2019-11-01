@@ -7,9 +7,11 @@ package binary
 import (
 	"bytes"
 	"io"
+	"io/ioutil"
 	"math"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -296,6 +298,58 @@ func TestBlankFields(t *testing.T) {
 	}
 }
 
+func TestSizeStructCache(t *testing.T) {
+	// Reset the cache, otherwise multiple test runs fail.
+	structSize = sync.Map{}
+
+	count := func() int {
+		var i int
+		structSize.Range(func(_, _ interface{}) bool {
+			i++
+			return true
+		})
+		return i
+	}
+
+	var total int
+	added := func() int {
+		delta := count() - total
+		total += delta
+		return delta
+	}
+
+	type foo struct {
+		A uint32
+	}
+
+	type bar struct {
+		A Struct
+		B foo
+		C Struct
+	}
+
+	testcases := []struct {
+		val  interface{}
+		want int
+	}{
+		{new(foo), 1},
+		{new(bar), 1},
+		{new(bar), 0},
+		{new(struct{ A Struct }), 1},
+		{new(struct{ A Struct }), 0},
+	}
+
+	for _, tc := range testcases {
+		if Size(tc.val) == -1 {
+			t.Fatalf("Can't get the size of %T", tc.val)
+		}
+
+		if n := added(); n != tc.want {
+			t.Errorf("Sizing %T added %d entries to the cache, want %d", tc.val, n, tc.want)
+		}
+	}
+}
+
 // An attempt to read into a struct with an unexported field will
 // panic. This is probably not the best choice, but at this point
 // anything else would be an API change.
@@ -433,6 +487,14 @@ func BenchmarkReadStruct(b *testing.B) {
 	b.StopTimer()
 	if b.N > 0 && !reflect.DeepEqual(s, t) {
 		b.Fatalf("struct doesn't match:\ngot  %v;\nwant %v", t, s)
+	}
+}
+
+func BenchmarkWriteStruct(b *testing.B) {
+	b.SetBytes(int64(Size(&s)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Write(ioutil.Discard, BigEndian, &s)
 	}
 }
 
