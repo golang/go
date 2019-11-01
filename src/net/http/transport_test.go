@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"go/token"
 	"internal/nettrace"
-	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"log"
@@ -2355,9 +2354,6 @@ func TestCancelRequestWithChannel(t *testing.T) {
 }
 
 func TestCancelRequestWithChannelBeforeDo_Cancel(t *testing.T) {
-	if os.Getenv("GO_BUILDER_NAME") == "windows-amd64-longtest" {
-		testenv.SkipFlaky(t, 35122)
-	}
 	testCancelRequestWithChannelBeforeDo(t, false)
 }
 func TestCancelRequestWithChannelBeforeDo_Context(t *testing.T) {
