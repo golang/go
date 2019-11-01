@@ -33,7 +33,7 @@ import (
 //    Autolib  [...]stringOff // imported packages (for file loading) // TODO: add fingerprints
 //    PkgIndex [...]stringOff // referenced packages by index
 //
-//    DwarfFiles [...]stringOff // XXX as a separate block for now
+//    DwarfFiles [...]stringOff
 //
 //    SymbolDefs [...]struct {
 //       Name stringOff
