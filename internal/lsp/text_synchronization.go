@@ -155,6 +155,7 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 	f, err := view.GetFile(ctx, uri)
 	if err != nil {
 		log.Error(ctx, "no file", err, telemetry.URI)
+		return nil
 	}
 	_, cphs, err := view.CheckPackageHandles(ctx, f)
 	if err != nil {
