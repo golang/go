@@ -122,7 +122,7 @@ func afterTest(t testing.TB) {
 		").noteClientGone(":     "a closenotifier sender",
 	}
 	var stacks string
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 10; i++ {
 		bad = ""
 		stacks = strings.Join(interestingGoroutines(), "\n\n")
 		for substr, what := range badSubstring {
