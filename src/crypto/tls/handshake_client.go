@@ -562,9 +562,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 	}
 
 	if chainToSend != nil && len(chainToSend.Certificate) > 0 {
-		certVerify := &certificateVerifyMsg{
-			hasSignatureAlgorithm: c.vers >= VersionTLS12,
-		}
+		certVerify := &certificateVerifyMsg{}
 
 		key, ok := chainToSend.PrivateKey.(crypto.Signer)
 		if !ok {
@@ -572,19 +570,32 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 			return fmt.Errorf("tls: client certificate private key of type %T does not implement crypto.Signer", chainToSend.PrivateKey)
 		}
 
-		signatureAlgorithm, sigType, hashFunc, err := pickSignatureAlgorithm(key.Public(), certReq.supportedSignatureAlgorithms, supportedSignatureAlgorithmsTLS12, c.vers)
-		if err != nil {
-			c.sendAlert(alertInternalError)
-			return err
-		}
-		// SignatureAndHashAlgorithm was introduced in TLS 1.2.
-		if certVerify.hasSignatureAlgorithm {
+		var sigType uint8
+		var sigHash crypto.Hash
+		if c.vers >= VersionTLS12 {
+			signatureAlgorithm, err := selectSignatureScheme(c.vers, chainToSend, certReq.supportedSignatureAlgorithms)
+			if err != nil {
+				c.sendAlert(alertIllegalParameter)
+				return err
+			}
+			sigType, sigHash, err = typeAndHashFromSignatureScheme(signatureAlgorithm)
+			if err != nil {
+				return c.sendAlert(alertInternalError)
+			}
+			certVerify.hasSignatureAlgorithm = true
 			certVerify.signatureAlgorithm = signatureAlgorithm
+		} else {
+			sigType, sigHash, err = legacyTypeAndHashFromPublicKey(key.Public())
+			if err != nil {
+				c.sendAlert(alertIllegalParameter)
+				return err
+			}
 		}
-		signed := hs.finishedHash.hashForClientCertificate(sigType, hashFunc, hs.masterSecret)
-		signOpts := crypto.SignerOpts(hashFunc)
+
+		signed := hs.finishedHash.hashForClientCertificate(sigType, sigHash, hs.masterSecret)
+		signOpts := crypto.SignerOpts(sigHash)
 		if sigType == signatureRSAPSS {
-			signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: hashFunc}
+			signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: sigHash}
 		}
 		certVerify.signature, err = key.Sign(c.config.rand(), signed, signOpts)
 		if err != nil {

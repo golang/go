@@ -1182,7 +1182,7 @@ func TestHandshakeServerRSAPSS(t *testing.T) {
 	test := &serverTest{
 		name:                          "RSA-RSAPSS",
 		command:                       []string{"openssl", "s_client", "-no_ticket", "-sigalgs", "rsa_pss_rsae_sha256"},
-		expectHandshakeErrorIncluding: "peer doesn't support any common signature algorithms", // See Issue 32425.
+		expectHandshakeErrorIncluding: "peer doesn't support any of the certificate's signature algorithms", // See Issue 32425.
 	}
 	runServerTestTLS12(t, test)
 

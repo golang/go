@@ -356,6 +356,11 @@ func (hs *serverHandshakeStateTLS13) pickCertificate() error {
 		return nil
 	}
 
+	// signature_algorithms is required in TLS 1.3. See RFC 8446, Section 4.2.3.
+	if len(hs.clientHello.supportedSignatureAlgorithms) == 0 {
+		return c.sendAlert(alertMissingExtension)
+	}
+
 	// This implements a very simplistic certificate selection strategy for now:
 	// getCertificate delegates to the application Config.GetCertificate, or
 	// selects based on the server_name only. If the selected certificate's
@@ -368,24 +373,12 @@ func (hs *serverHandshakeStateTLS13) pickCertificate() error {
 		c.sendAlert(alertInternalError)
 		return err
 	}
-	supportedAlgs := signatureSchemesForCertificate(c.vers, certificate)
-	if supportedAlgs == nil {
-		c.sendAlert(alertInternalError)
-		return unsupportedCertificateError(certificate)
-	}
-	// Pick signature scheme in client preference order, as the server
-	// preference order is not configurable.
-	for _, preferredAlg := range hs.clientHello.supportedSignatureAlgorithms {
-		if isSupportedSignatureAlgorithm(preferredAlg, supportedAlgs) {
-			hs.sigAlg = preferredAlg
-			break
-		}
-	}
-	if hs.sigAlg == 0 {
-		// getCertificate returned a certificate incompatible with the
-		// ClientHello supported signature algorithms.
+	hs.sigAlg, err = selectSignatureScheme(c.vers, certificate, hs.clientHello.supportedSignatureAlgorithms)
+	if err != nil {
+		// getCertificate returned a certificate that is unsupported or
+		// incompatible with the client's signature algorithms.
 		c.sendAlert(alertHandshakeFailure)
-		return errors.New("tls: client doesn't support selected certificate")
+		return err
 	}
 	hs.cert = certificate
 
