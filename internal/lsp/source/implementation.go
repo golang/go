@@ -11,6 +11,7 @@ package source
 
 import (
 	"context"
+	"errors"
 	"go/types"
 	"sort"
 
@@ -64,6 +65,9 @@ func Implementation(ctx context.Context, view View, f File, position protocol.Po
 }
 
 func (i *IdentifierInfo) implementations(ctx context.Context) (implementsResult, error) {
+	if i.Type.Object == nil {
+		return implementsResult{}, errors.New("no type info object for identifier")
+	}
 	T := i.Type.Object.Type()
 
 	// Find all named types, even local types (which can have
