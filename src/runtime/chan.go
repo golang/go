@@ -249,7 +249,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	gp.waiting = mysg
 	gp.param = nil
 	c.sendq.enqueue(mysg)
-	goparkunlock(&c.lock, waitReasonChanSend, traceEvGoBlockSend, 3)
+	gopark(chanparkcommit, unsafe.Pointer(&c.lock), waitReasonChanSend, traceEvGoBlockSend, 2)
 	// Ensure the value being sent is kept alive until the
 	// receiver copies it out. The sudog has a pointer to the
 	// stack object, but sudogs aren't considered as roots of the
@@ -261,6 +261,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 		throw("G waiting list is corrupted")
 	}
 	gp.waiting = nil
+	gp.activeStackChans = false
 	if gp.param == nil {
 		if c.closed == 0 {
 			throw("chansend: spurious wakeup")
@@ -559,13 +560,14 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 	mysg.c = c
 	gp.param = nil
 	c.recvq.enqueue(mysg)
-	goparkunlock(&c.lock, waitReasonChanReceive, traceEvGoBlockRecv, 3)
+	gopark(chanparkcommit, unsafe.Pointer(&c.lock), waitReasonChanReceive, traceEvGoBlockRecv, 2)
 
 	// someone woke us up
 	if mysg != gp.waiting {
 		throw("G waiting list is corrupted")
 	}
 	gp.waiting = nil
+	gp.activeStackChans = false
 	if mysg.releasetime > 0 {
 		blockevent(mysg.releasetime-t0, 2)
 	}
@@ -630,6 +632,14 @@ func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 		sg.releasetime = cputicks()
 	}
 	goready(gp, skip+1)
+}
+
+func chanparkcommit(gp *g, chanLock unsafe.Pointer) bool {
+	// There are unlocked sudogs that point into gp's stack. Stack
+	// copying must lock the channels of those sudogs.
+	gp.activeStackChans = true
+	unlock((*mutex)(chanLock))
+	return true
 }
 
 // compiler implements

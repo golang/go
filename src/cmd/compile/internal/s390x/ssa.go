@@ -725,7 +725,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
-	case ssa.OpS390XMOVWatomicstore, ssa.OpS390XMOVDatomicstore:
+	case ssa.OpS390XMOVBatomicstore, ssa.OpS390XMOVWatomicstore, ssa.OpS390XMOVDatomicstore:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()

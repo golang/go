@@ -1091,7 +1091,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
-	case ssa.OpAMD64XCHGL, ssa.OpAMD64XCHGQ:
+	case ssa.OpAMD64XCHGB, ssa.OpAMD64XCHGL, ssa.OpAMD64XCHGQ:
 		r := v.Reg0()
 		if r != v.Args[0].Reg() {
 			v.Fatalf("input[0] and output[0] not in same register %s", v.LongString())

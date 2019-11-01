@@ -13,8 +13,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"cmd/go/internal/module"
 	"cmd/go/internal/par"
+
+	"golang.org/x/mod/module"
 )
 
 // A Reqs is the requirement graph on which Minimal Version Selection (MVS) operates.

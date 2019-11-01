@@ -2782,7 +2782,7 @@ func typecheckcomplit(n *Node) (res *Node) {
 		}
 		elemType := n.Right.Right.Type
 
-		length := typecheckarraylit(elemType, -1, n.List.Slice())
+		length := typecheckarraylit(elemType, -1, n.List.Slice(), "array literal")
 
 		n.Op = OARRAYLIT
 		n.Type = types.NewArray(elemType, length)
@@ -2804,12 +2804,12 @@ func typecheckcomplit(n *Node) (res *Node) {
 		n.Type = nil
 
 	case TARRAY:
-		typecheckarraylit(t.Elem(), t.NumElem(), n.List.Slice())
+		typecheckarraylit(t.Elem(), t.NumElem(), n.List.Slice(), "array literal")
 		n.Op = OARRAYLIT
 		n.Right = nil
 
 	case TSLICE:
-		length := typecheckarraylit(t.Elem(), -1, n.List.Slice())
+		length := typecheckarraylit(t.Elem(), -2, n.List.Slice(), "slice literal")
 		n.Op = OSLICELIT
 		n.Right = nodintconst(length)
 
@@ -2960,7 +2960,8 @@ func typecheckcomplit(n *Node) (res *Node) {
 	return n
 }
 
-func typecheckarraylit(elemType *types.Type, bound int64, elts []*Node) int64 {
+// typecheckarraylit type-checks a sequence of slice/array literal elements.
+func typecheckarraylit(elemType *types.Type, bound int64, elts []*Node, ctx string) int64 {
 	// If there are key/value pairs, create a map to keep seen
 	// keys so we can check for duplicate indices.
 	var indices map[int64]bool
@@ -2995,12 +2996,12 @@ func typecheckarraylit(elemType *types.Type, bound int64, elts []*Node) int64 {
 		r := *vp
 		r = pushtype(r, elemType)
 		r = typecheck(r, ctxExpr)
-		*vp = assignconv(r, elemType, "array or slice literal")
+		*vp = assignconv(r, elemType, ctx)
 
 		if key >= 0 {
 			if indices != nil {
 				if indices[key] {
-					yyerror("duplicate index in array literal: %d", key)
+					yyerror("duplicate index in %s: %d", ctx, key)
 				} else {
 					indices[key] = true
 				}

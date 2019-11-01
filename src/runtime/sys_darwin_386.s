@@ -653,6 +653,31 @@ TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
 	POPL	BP
 	RET
 
+TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	NOP	SP	// hide SP from vet
+	CALL	libc_pthread_self(SB)
+	MOVL	8(SP), CX
+	MOVL	AX, 0(CX)		// return value
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$8, SP
+	MOVL	16(SP), CX
+	MOVL	0(CX), AX	// arg 1 thread
+	MOVL	AX, 0(SP)
+	MOVL	4(CX), AX	// arg 2 sig
+	MOVL	AX, 4(SP)
+	CALL	libc_pthread_kill(SB)
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
 // syscall calls a function in libc on behalf of the syscall package.
 // syscall takes a pointer to a struct like:
 // struct {

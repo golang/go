@@ -589,6 +589,7 @@
 (AtomicLoad64  ptr mem) -> (LDAR  ptr mem)
 (AtomicLoadPtr ptr mem) -> (LDAR  ptr mem)
 
+(AtomicStore8       ptr val mem) -> (STLRB ptr val mem)
 (AtomicStore32      ptr val mem) -> (STLRW ptr val mem)
 (AtomicStore64      ptr val mem) -> (STLR  ptr val mem)
 (AtomicStorePtrNoWB ptr val mem) -> (STLR  ptr val mem)

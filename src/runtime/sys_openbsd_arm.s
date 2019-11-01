@@ -102,11 +102,15 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 	SWI	$0
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$12
+TEXT runtime·getthrid(SB),NOSPLIT,$0-4
 	MOVW	$299, R12		// sys_getthrid
 	SWI	$0
-					// arg 1 - tid, already in R0
-	MOVW	sig+0(FP), R1		// arg 2 - signum
+	MOVW	R0, ret+0(FP)
+	RET
+
+TEXT runtime·thrkill(SB),NOSPLIT,$0-8
+	MOVW	tid+0(FP), R0		// arg 1 - tid
+	MOVW	sig+4(FP), R1		// arg 2 - signum
 	MOVW	$0, R2			// arg 3 - tcb
 	MOVW	$119, R12		// sys_thrkill
 	SWI	$0
@@ -243,7 +247,11 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
 	MOVW	R4, R13
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$12
+TEXT runtime·sigtramp(SB),NOSPLIT,$0
+	// Reserve space for callee-save registers and arguments.
+	MOVM.DB.W [R4-R11], (R13)
+	SUB	$16, R13
+
 	// If called from an external code context, g will not be set.
 	// Save R0, since runtime·load_g will clobber it.
 	MOVW	R0, 4(R13)		// signum
@@ -254,6 +262,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$12
 	MOVW	R1, 8(R13)
 	MOVW	R2, 12(R13)
 	BL	runtime·sigtrampgo(SB)
+
+	// Restore callee-save registers.
+	ADD	$16, R13
+	MOVM.IA.W (R13), [R4-R11]
+
 	RET
 
 // int32 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));

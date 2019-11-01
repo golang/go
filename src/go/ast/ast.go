@@ -634,7 +634,7 @@ type (
 	BlockStmt struct {
 		Lbrace token.Pos // position of "{"
 		List   []Stmt
-		Rbrace token.Pos // position of "}"
+		Rbrace token.Pos // position of "}", if any (may be absent due to syntax error)
 	}
 
 	// An IfStmt node represents an if statement.
@@ -757,7 +757,15 @@ func (s *BranchStmt) End() token.Pos {
 	}
 	return token.Pos(int(s.TokPos) + len(s.Tok.String()))
 }
-func (s *BlockStmt) End() token.Pos { return s.Rbrace + 1 }
+func (s *BlockStmt) End() token.Pos {
+	if s.Rbrace.IsValid() {
+		return s.Rbrace + 1
+	}
+	if n := len(s.List); n > 0 {
+		return s.List[n-1].End()
+	}
+	return s.Lbrace + 1
+}
 func (s *IfStmt) End() token.Pos {
 	if s.Else != nil {
 		return s.Else.End()

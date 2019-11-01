@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"go/token"
 	"internal/nettrace"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"log"
@@ -2354,6 +2355,9 @@ func TestCancelRequestWithChannel(t *testing.T) {
 }
 
 func TestCancelRequestWithChannelBeforeDo_Cancel(t *testing.T) {
+	if os.Getenv("GO_BUILDER_NAME") == "windows-amd64-longtest" {
+		testenv.SkipFlaky(t, 35122)
+	}
 	testCancelRequestWithChannelBeforeDo(t, false)
 }
 func TestCancelRequestWithChannelBeforeDo_Context(t *testing.T) {
@@ -5887,5 +5891,61 @@ func TestDontCacheBrokenHTTP2Conn(t *testing.T) {
 	}
 	if got, want := atomic.LoadUint32(&gotConns), 1; int(got) != want {
 		t.Errorf("GotConn calls = %v; want %v", got, want)
+	}
+}
+
+// Issue 34941
+// When the client has too many concurrent requests on a single connection,
+// http.http2noCachedConnError is reported on multiple requests. There should
+// only be one decrement regardless of the number of failures.
+func TestTransportDecrementConnWhenIdleConnRemoved(t *testing.T) {
+	defer afterTest(t)
+
+	h := HandlerFunc(func(w ResponseWriter, r *Request) {
+		_, err := w.Write([]byte("foo"))
+		if err != nil {
+			t.Fatalf("Write: %v", err)
+		}
+	})
+
+	ts := httptest.NewUnstartedServer(h)
+	ts.EnableHTTP2 = true
+	ts.StartTLS()
+	defer ts.Close()
+
+	c := ts.Client()
+	tr := c.Transport.(*Transport)
+	tr.MaxConnsPerHost = 1
+	if err := ExportHttp2ConfigureTransport(tr); err != nil {
+		t.Fatalf("ExportHttp2ConfigureTransport: %v", err)
+	}
+
+	errCh := make(chan error, 300)
+	doReq := func() {
+		resp, err := c.Get(ts.URL)
+		if err != nil {
+			errCh <- fmt.Errorf("request failed: %v", err)
+			return
+		}
+		defer resp.Body.Close()
+		_, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			errCh <- fmt.Errorf("read body failed: %v", err)
+		}
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 300; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			doReq()
+		}()
+	}
+	wg.Wait()
+	close(errCh)
+
+	for err := range errCh {
+		t.Errorf("error occurred: %v", err)
 	}
 }

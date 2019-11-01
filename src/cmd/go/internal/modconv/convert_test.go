@@ -19,8 +19,9 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modfetch/codehost"
-	"cmd/go/internal/modfile"
-	"cmd/go/internal/module"
+
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 )
 
 func TestMain(m *testing.M) {

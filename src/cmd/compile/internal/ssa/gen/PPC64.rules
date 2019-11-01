@@ -931,7 +931,7 @@
 (AtomicLoad(8|32|64|Ptr)  ptr mem) -> (LoweredAtomicLoad(8|32|64|Ptr) [1] ptr mem)
 (AtomicLoadAcq32        ptr mem) -> (LoweredAtomicLoad32 [0] ptr mem)
 
-(AtomicStore(32|64)      ptr val mem) -> (LoweredAtomicStore(32|64) [1] ptr val mem)
+(AtomicStore(8|32|64)    ptr val mem) -> (LoweredAtomicStore(8|32|64) [1] ptr val mem)
 (AtomicStoreRel32        ptr val mem) -> (LoweredAtomicStore32 [0] ptr val mem)
 //(AtomicStorePtrNoWB ptr val mem) -> (STLR  ptr val mem)
 

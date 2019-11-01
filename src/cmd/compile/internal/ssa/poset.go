@@ -407,56 +407,82 @@ func (po *poset) newconst(n *Value) {
 	po.upushconst(i, 0)
 }
 
-// aliasnode records that n2 is an alias of n1
-func (po *poset) aliasnode(n1, n2 *Value) {
+// aliasnewnode records that a single node n2 (not in the poset yet) is an alias
+// of the master node n1.
+func (po *poset) aliasnewnode(n1, n2 *Value) {
+	i1, i2 := po.values[n1.ID], po.values[n2.ID]
+	if i1 == 0 || i2 != 0 {
+		panic("aliasnewnode invalid arguments")
+	}
+
+	po.values[n2.ID] = i1
+	po.upushalias(n2.ID, 0)
+}
+
+// aliasnodes records that all the nodes i2s are aliases of a single master node n1.
+// aliasnodes takes care of rearranging the DAG, changing references of parent/children
+// of nodes in i2s, so that they point to n1 instead.
+// Complexity is O(n) (with n being the total number of nodes in the poset, not just
+// the number of nodes being aliased).
+func (po *poset) aliasnodes(n1 *Value, i2s bitset) {
 	i1 := po.values[n1.ID]
 	if i1 == 0 {
 		panic("aliasnode for non-existing node")
 	}
+	if i2s.Test(i1) {
+		panic("aliasnode i2s contains n1 node")
+	}
 
-	i2 := po.values[n2.ID]
-	if i2 != 0 {
-		// Rename all references to i2 into i1
-		// (do not touch i1 itself, otherwise we can create useless self-loops)
-		for idx, n := range po.nodes {
-			if uint32(idx) != i1 {
-				l, r := n.l, n.r
-				if l.Target() == i2 {
-					po.setchl(uint32(idx), newedge(i1, l.Strict()))
-					po.upush(undoSetChl, uint32(idx), l)
-				}
-				if r.Target() == i2 {
-					po.setchr(uint32(idx), newedge(i1, r.Strict()))
-					po.upush(undoSetChr, uint32(idx), r)
-				}
-			}
+	// Go through all the nodes to adjust parent/chidlren of nodes in i2s
+	for idx, n := range po.nodes {
+		// Do not touch i1 itself, otherwise we can create useless self-loops
+		if uint32(idx) == i1 {
+			continue
+		}
+		l, r := n.l, n.r
+
+		// Rename all references to i2s into i1
+		if i2s.Test(l.Target()) {
+			po.setchl(uint32(idx), newedge(i1, l.Strict()))
+			po.upush(undoSetChl, uint32(idx), l)
+		}
+		if i2s.Test(r.Target()) {
+			po.setchr(uint32(idx), newedge(i1, r.Strict()))
+			po.upush(undoSetChr, uint32(idx), r)
 		}
 
-		// Reassign all existing IDs that point to i2 to i1.
-		// This includes n2.ID.
-		for k, v := range po.values {
-			if v == i2 {
-				po.values[k] = i1
-				po.upushalias(k, i2)
+		// Connect all chidren of i2s to i1 (unless those children
+		// are in i2s as well, in which case it would be useless)
+		if i2s.Test(uint32(idx)) {
+			if l != 0 && !i2s.Test(l.Target()) {
+				po.addchild(i1, l.Target(), l.Strict())
 			}
+			if r != 0 && !i2s.Test(r.Target()) {
+				po.addchild(i1, r.Target(), r.Strict())
+			}
+			po.setchl(uint32(idx), 0)
+			po.setchr(uint32(idx), 0)
+			po.upush(undoSetChl, uint32(idx), l)
+			po.upush(undoSetChr, uint32(idx), r)
 		}
+	}
 
-		if n2.isGenericIntConst() {
-			val := n2.AuxInt
-			if po.flags&posetFlagUnsigned != 0 {
-				val = int64(n2.AuxUnsigned())
-			}
-			if po.constants[val] != i2 {
-				panic("aliasing constant which is not registered")
-			}
+	// Reassign all existing IDs that point to i2 to i1.
+	// This includes n2.ID.
+	for k, v := range po.values {
+		if i2s.Test(v) {
+			po.values[k] = i1
+			po.upushalias(k, v)
+		}
+	}
+
+	// If one of the aliased nodes is a constant, then make sure
+	// po.constants is updated to point to the master node.
+	for val, idx := range po.constants {
+		if i2s.Test(idx) {
 			po.constants[val] = i1
-			po.upushconst(i1, i2)
+			po.upushconst(i1, idx)
 		}
-
-	} else {
-		// n2.ID wasn't seen before, so record it as alias to i1
-		po.values[n2.ID] = i1
-		po.upushalias(n2.ID, 0)
 	}
 }
 
@@ -603,23 +629,54 @@ func (po *poset) mergeroot(r1, r2 uint32) uint32 {
 	return r
 }
 
-// collapsepath marks i1 and i2 as equal and collapses as equal all
-// nodes across all paths between i1 and i2. If a strict edge is
+// collapsepath marks n1 and n2 as equal and collapses as equal all
+// nodes across all paths between n1 and n2. If a strict edge is
 // found, the function does not modify the DAG and returns false.
+// Complexity is O(n).
 func (po *poset) collapsepath(n1, n2 *Value) bool {
 	i1, i2 := po.values[n1.ID], po.values[n2.ID]
 	if po.reaches(i1, i2, true) {
 		return false
 	}
 
-	// TODO: for now, only handle the simple case of i2 being child of i1
-	l, r := po.children(i1)
-	if l.Target() == i2 || r.Target() == i2 {
-		po.aliasnode(n1, n2)
-		po.addchild(i1, i2, false)
-		return true
-	}
+	// Find all the paths from i1 to i2
+	paths := po.findpaths(i1, i2)
+	// Mark all nodes in all the paths as aliases of n1
+	// (excluding n1 itself)
+	paths.Clear(i1)
+	po.aliasnodes(n1, paths)
 	return true
+}
+
+// findpaths is a recursive function that calculates all paths from cur to dst
+// and return them as a bitset (the index of a node is set in the bitset if
+// that node is on at least one path from cur to dst).
+// We do a DFS from cur (stopping going deep any time we reach dst, if ever),
+// and mark as part of the paths any node that has a children which is already
+// part of the path (or is dst itself).
+func (po *poset) findpaths(cur, dst uint32) bitset {
+	seen := newBitset(int(po.lastidx + 1))
+	path := newBitset(int(po.lastidx + 1))
+	path.Set(dst)
+	po.findpaths1(cur, dst, seen, path)
+	return path
+}
+
+func (po *poset) findpaths1(cur, dst uint32, seen bitset, path bitset) {
+	if cur == dst {
+		return
+	}
+	seen.Set(cur)
+	l, r := po.chl(cur), po.chr(cur)
+	if !seen.Test(l) {
+		po.findpaths1(l, dst, seen, path)
+	}
+	if !seen.Test(r) {
+		po.findpaths1(r, dst, seen, path)
+	}
+	if path.Test(l) || path.Test(r) {
+		path.Set(cur)
+	}
 }
 
 // Check whether it is recorded that i1!=i2
@@ -1093,11 +1150,11 @@ func (po *poset) SetEqual(n1, n2 *Value) bool {
 		i1 = po.newnode(n1)
 		po.roots = append(po.roots, i1)
 		po.upush(undoNewRoot, i1, 0)
-		po.aliasnode(n1, n2)
+		po.aliasnewnode(n1, n2)
 	case f1 && !f2:
-		po.aliasnode(n1, n2)
+		po.aliasnewnode(n1, n2)
 	case !f1 && f2:
-		po.aliasnode(n2, n1)
+		po.aliasnewnode(n2, n1)
 	case f1 && f2:
 		if i1 == i2 {
 			// Already aliased, ignore
@@ -1127,11 +1184,9 @@ func (po *poset) SetEqual(n1, n2 *Value) bool {
 
 		// Set n2 as alias of n1. This will also update all the references
 		// to n2 to become references to n1
-		po.aliasnode(n1, n2)
-
-		// Connect i2 (now dummy) as child of i1. This allows to keep the correct
-		// order with its children.
-		po.addchild(i1, i2, false)
+		i2s := newBitset(int(po.lastidx) + 1)
+		i2s.Set(i2)
+		po.aliasnodes(n1, i2s)
 	}
 	return true
 }

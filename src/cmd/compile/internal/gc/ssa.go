@@ -3337,7 +3337,7 @@ func init() {
 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT8], v)
 		},
-		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS64, sys.PPC64)
+		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.MIPS64, sys.PPC64)
 	addF("runtime/internal/atomic", "Load64",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			v := s.newValue2(ssa.OpAtomicLoad64, types.NewTuple(types.Types[TUINT64], types.TypeMem), args[0], s.mem())
@@ -3363,6 +3363,12 @@ func init() {
 	addF("runtime/internal/atomic", "Store",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStore32, types.TypeMem, args[0], args[1], s.mem())
+			return nil
+		},
+		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.MIPS64, sys.PPC64)
+	addF("runtime/internal/atomic", "Store8",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStore8, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.MIPS64, sys.PPC64)
@@ -4099,7 +4105,7 @@ func (s *state) openDeferRecord(n *Node) {
 		// runtime panic code to use. But in the defer exit code, we will
 		// call the function directly if it is a static function.
 		closureVal := s.expr(fn)
-		closure := s.openDeferSave(fn, fn.Type, closureVal)
+		closure := s.openDeferSave(nil, fn.Type, closureVal)
 		opendefer.closureNode = closure.Aux.(*Node)
 		if !(fn.Op == ONAME && fn.Class() == PFUNC) {
 			opendefer.closure = closure
@@ -4112,14 +4118,14 @@ func (s *state) openDeferRecord(n *Node) {
 		// We must always store the function value in a stack slot for the
 		// runtime panic code to use. But in the defer exit code, we will
 		// call the method directly.
-		closure := s.openDeferSave(fn, fn.Type, closureVal)
+		closure := s.openDeferSave(nil, fn.Type, closureVal)
 		opendefer.closureNode = closure.Aux.(*Node)
 	} else {
 		if fn.Op != ODOTINTER {
 			Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op)
 		}
 		closure, rcvr := s.getClosureAndRcvr(fn)
-		opendefer.closure = s.openDeferSave(fn, closure.Type, closure)
+		opendefer.closure = s.openDeferSave(nil, closure.Type, closure)
 		// Important to get the receiver type correct, so it is recognized
 		// as a pointer for GC purposes.
 		opendefer.rcvr = s.openDeferSave(nil, fn.Type.Recv().Type, rcvr)
@@ -4127,7 +4133,12 @@ func (s *state) openDeferRecord(n *Node) {
 		opendefer.rcvrNode = opendefer.rcvr.Aux.(*Node)
 	}
 	for _, argn := range n.Rlist.Slice() {
-		v := s.openDeferSave(argn, argn.Type, s.expr(argn))
+		var v *ssa.Value
+		if canSSAType(argn.Type) {
+			v = s.openDeferSave(nil, argn.Type, s.expr(argn))
+		} else {
+			v = s.openDeferSave(argn, argn.Type, nil)
+		}
 		args = append(args, v)
 		argNodes = append(argNodes, v.Aux.(*Node))
 	}
@@ -4144,13 +4155,22 @@ func (s *state) openDeferRecord(n *Node) {
 	s.store(types.Types[TUINT8], s.deferBitsAddr, newDeferBits)
 }
 
-// openDeferSave generates SSA nodes to store a value val (with type t) for an
-// open-coded defer on the stack at an explicit autotmp location, so it can be
-// reloaded and used for the appropriate call on exit. n is the associated node,
-// which is only needed if the associated type is non-SSAable. It returns an SSA
-// value representing a pointer to the stack location.
+// openDeferSave generates SSA nodes to store a value (with type t) for an
+// open-coded defer at an explicit autotmp location on the stack, so it can be
+// reloaded and used for the appropriate call on exit. If type t is SSAable, then
+// val must be non-nil (and n should be nil) and val is the value to be stored. If
+// type t is non-SSAable, then n must be non-nil (and val should be nil) and n is
+// evaluated (via s.addr() below) to get the value that is to be stored. The
+// function returns an SSA value representing a pointer to the autotmp location.
 func (s *state) openDeferSave(n *Node, t *types.Type, val *ssa.Value) *ssa.Value {
-	argTemp := tempAt(val.Pos.WithNotStmt(), s.curfn, t)
+	canSSA := canSSAType(t)
+	var pos src.XPos
+	if canSSA {
+		pos = val.Pos
+	} else {
+		pos = n.Pos
+	}
+	argTemp := tempAt(pos.WithNotStmt(), s.curfn, t)
 	argTemp.Name.SetOpenDeferSlot(true)
 	var addrArgTemp *ssa.Value
 	// Use OpVarLive to make sure stack slots for the args, etc. are not
@@ -4179,10 +4199,7 @@ func (s *state) openDeferSave(n *Node, t *types.Type, val *ssa.Value) *ssa.Value
 		// uninitialized pointer value.
 		argTemp.Name.SetNeedzero(true)
 	}
-	if !canSSAType(t) {
-		if n.Op != ONAME {
-			panic(fmt.Sprintf("Non-SSAable value should be a named location: %v", n))
-		}
+	if !canSSA {
 		a := s.addr(n, false)
 		s.move(t, addrArgTemp, a)
 		return addrArgTemp

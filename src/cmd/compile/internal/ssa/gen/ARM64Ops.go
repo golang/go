@@ -611,6 +611,7 @@ func init() {
 
 		// atomic stores.
 		// store arg1 to arg0. arg2=mem. returns memory. auxint must be zero.
+		{name: "STLRB", argLength: 3, reg: gpstore, asm: "STLRB", faultOnNilArg0: true, hasSideEffects: true},
 		{name: "STLR", argLength: 3, reg: gpstore, asm: "STLR", faultOnNilArg0: true, hasSideEffects: true},
 		{name: "STLRW", argLength: 3, reg: gpstore, asm: "STLRW", faultOnNilArg0: true, hasSideEffects: true},
 

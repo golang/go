@@ -351,11 +351,11 @@
 (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
 
 // atomic intrinsics
-(AtomicLoad32  ptr mem) -> (LoweredAtomicLoad ptr mem)
-(AtomicLoadPtr ptr mem) -> (LoweredAtomicLoad  ptr mem)
+(AtomicLoad(8|32) ptr mem) -> (LoweredAtomicLoad(8|32) ptr mem)
+(AtomicLoadPtr    ptr mem) -> (LoweredAtomicLoad32     ptr mem)
 
-(AtomicStore32      ptr val mem) -> (LoweredAtomicStore ptr val mem)
-(AtomicStorePtrNoWB ptr val mem) -> (LoweredAtomicStore  ptr val mem)
+(AtomicStore(8|32)  ptr val mem) -> (LoweredAtomicStore(8|32) ptr val mem)
+(AtomicStorePtrNoWB ptr val mem) -> (LoweredAtomicStore32     ptr val mem)
 
 (AtomicExchange32 ptr val mem) -> (LoweredAtomicExchange ptr val mem)
 (AtomicAdd32 ptr val mem) -> (LoweredAtomicAdd ptr val mem)
@@ -708,6 +708,6 @@
 (CMOVZ a (MOVWconst [0]) c) -> (CMOVZzero a c)
 
 // atomic
-(LoweredAtomicStore ptr (MOVWconst [0]) mem) -> (LoweredAtomicStorezero ptr mem)
+(LoweredAtomicStore32 ptr (MOVWconst [0]) mem) -> (LoweredAtomicStorezero ptr mem)
 (LoweredAtomicAdd ptr (MOVWconst [c]) mem) && is16Bit(c) -> (LoweredAtomicAddconst [c] ptr mem)
 

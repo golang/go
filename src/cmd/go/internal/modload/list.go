@@ -13,9 +13,10 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modinfo"
-	"cmd/go/internal/module"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
+
+	"golang.org/x/mod/module"
 )
 
 func ListModules(args []string, listU, listVersions bool) []*modinfo.ModulePublic {

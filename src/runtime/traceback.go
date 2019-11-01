@@ -860,6 +860,7 @@ var gStatusStrings = [...]string{
 	_Gwaiting:   "waiting",
 	_Gdead:      "dead",
 	_Gcopystack: "copystack",
+	_Gpreempted: "preempted",
 }
 
 func goroutineheader(gp *g) {

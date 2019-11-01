@@ -19,10 +19,11 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/dirhash"
-	"cmd/go/internal/module"
 	"cmd/go/internal/par"
 	"cmd/go/internal/renameio"
+
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/sumdb/dirhash"
 )
 
 var downloadCache par.Cache

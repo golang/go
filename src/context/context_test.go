@@ -253,6 +253,7 @@ func XTestChildFinishesFirst(t testingT) {
 }
 
 func testDeadline(c Context, name string, failAfter time.Duration, t testingT) {
+	t.Helper()
 	select {
 	case <-time.After(failAfter):
 		t.Fatalf("%s: context should have timed out", name)

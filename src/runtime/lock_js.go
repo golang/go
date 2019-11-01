@@ -158,6 +158,7 @@ var idleID int32
 // If an event handler returned, we resume it and it will pause the execution.
 func beforeIdle(delay int64) bool {
 	if delay > 0 {
+		clearIdleID()
 		if delay < 1e6 {
 			delay = 1
 		} else if delay < 1e15 {
@@ -229,6 +230,7 @@ func handleEvent() {
 func handleAsyncEvent() {
 	isHandlingEvent = true
 	eventHandler()
+	clearIdleID()
 	isHandlingEvent = false
 }
 

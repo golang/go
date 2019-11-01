@@ -17,9 +17,10 @@ import (
 	"cmd/go/internal/get"
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/par"
-	"cmd/go/internal/semver"
 	"cmd/go/internal/str"
 	web "cmd/go/internal/web"
+
+	"golang.org/x/mod/semver"
 )
 
 const traceRepo = false // trace all repo actions, for debugging

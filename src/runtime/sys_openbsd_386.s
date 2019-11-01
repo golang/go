@@ -97,12 +97,17 @@ TEXT runtime·usleep(SB),NOSPLIT,$24
 	INT	$0x80
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$16
+TEXT runtime·getthrid(SB),NOSPLIT,$0-4
 	MOVL	$299, AX		// sys_getthrid
 	INT	$0x80
+	MOVL	AX, ret+0(FP)
+	RET
+
+TEXT runtime·thrkill(SB),NOSPLIT,$16-8
 	MOVL	$0, 0(SP)
+	MOVL	tid+0(FP), AX
 	MOVL	AX, 4(SP)		// arg 1 - tid
-	MOVL	sig+0(FP), AX
+	MOVL	sig+4(FP), AX
 	MOVL	AX, 8(SP)		// arg 2 - signum
 	MOVL	$0, 12(SP)		// arg 3 - tcb
 	MOVL	$119, AX		// sys_thrkill

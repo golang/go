@@ -18,13 +18,10 @@ env GO111MODULE=on
 env GOPROXY=direct
 env GOSUMDB=off
 
-# Attempting to get a module zip using svn should fail with a reasonable
-# message instead of a panic.
-# TODO(golang.org/issue/26092): Really, it shouldn't fail at all.
-! go get -d vcs-test.golang.org/svn/hello.svn
-stderr 'ReadZip not implemented for svn'
-! go install .
-stderr 'ReadZip not implemented for svn'
+# Attempting to get a module zip using svn should succeed.
+go get vcs-test.golang.org/svn/hello.svn@000000000001
+exists $GOPATH/pkg/mod/cache/download/vcs-test.golang.org/svn/hello.svn/@v/v0.0.0-20170922011245-000000000001.zip
+exists $GOPATH/bin/hello.svn$GOEXE
 
 # Attempting to get a nonexistent module using svn should fail with a
 # reasonable message instead of a panic.
@@ -34,7 +31,6 @@ stderr 'go get vcs-test.golang.org/svn/nonexistent.svn: no matching versions for
 
 -- go.mod --
 module golang/go/issues/28943/main
--- main.go --
-package main
-import _ "vcs-test.golang.org/svn/hello.svn"
-func main() {}
+-- go.sum --
+vcs-test.golang.org/svn/hello.svn v0.0.0-20170922011245-000000000001 h1:rZjvboXMfQICKXdhx/QHqJ2Y/AQsJVrXnwGqwcTxQiw=
+vcs-test.golang.org/svn/hello.svn v0.0.0-20170922011245-000000000001/go.mod h1:0memnh/BRLuxiK2zF4rvUgz6ts/fhhB28l3ULFWPusc=

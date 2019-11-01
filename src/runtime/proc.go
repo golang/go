@@ -710,18 +710,6 @@ func readgstatus(gp *g) uint32 {
 	return atomic.Load(&gp.atomicstatus)
 }
 
-// Ownership of gcscanvalid:
-//
-// If gp is running (meaning status == _Grunning or _Grunning|_Gscan),
-// then gp owns gp.gcscanvalid, and other goroutines must not modify it.
-//
-// Otherwise, a second goroutine can lock the scan state by setting _Gscan
-// in the status bit and then modify gcscanvalid, and then unlock the scan state.
-//
-// Note that the first condition implies an exception to the second:
-// if a second goroutine changes gp's status to _Grunning|_Gscan,
-// that second goroutine still does not have the right to modify gcscanvalid.
-
 // The Gscanstatuses are acting like locks and this releases them.
 // If it proves to be a performance hit we should be able to make these
 // simple atomic stores but for now we are going to throw if
@@ -738,7 +726,8 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
 	case _Gscanrunnable,
 		_Gscanwaiting,
 		_Gscanrunning,
-		_Gscansyscall:
+		_Gscansyscall,
+		_Gscanpreempted:
 		if newval == oldval&^_Gscan {
 			success = atomic.Cas(&gp.atomicstatus, oldval, newval)
 		}
@@ -780,17 +769,6 @@ func casgstatus(gp *g, oldval, newval uint32) {
 		})
 	}
 
-	if oldval == _Grunning && gp.gcscanvalid {
-		// If oldvall == _Grunning, then the actual status must be
-		// _Grunning or _Grunning|_Gscan; either way,
-		// we own gp.gcscanvalid, so it's safe to read.
-		// gp.gcscanvalid must not be true when we are running.
-		systemstack(func() {
-			print("runtime: casgstatus ", hex(oldval), "->", hex(newval), " gp.status=", hex(gp.atomicstatus), " gp.gcscanvalid=true\n")
-			throw("casgstatus")
-		})
-	}
-
 	// See https://golang.org/cl/21503 for justification of the yield delay.
 	const yieldDelay = 5 * 1000
 	var nextYield int64
@@ -801,14 +779,6 @@ func casgstatus(gp *g, oldval, newval uint32) {
 		if oldval == _Gwaiting && gp.atomicstatus == _Grunnable {
 			throw("casgstatus: waiting for Gwaiting but is Grunnable")
 		}
-		// Help GC if needed.
-		// if gp.preemptscan && !gp.gcworkdone && (oldval == _Grunning || oldval == _Gsyscall) {
-		// 	gp.preemptscan = false
-		// 	systemstack(func() {
-		// 		gcphasework(gp)
-		// 	})
-		// }
-		// But meanwhile just yield.
 		if i == 0 {
 			nextYield = nanotime() + yieldDelay
 		}
@@ -820,9 +790,6 @@ func casgstatus(gp *g, oldval, newval uint32) {
 			osyield()
 			nextYield = nanotime() + yieldDelay/2
 		}
-	}
-	if newval == _Grunning {
-		gp.gcscanvalid = false
 	}
 }
 
@@ -844,109 +811,26 @@ func casgcopystack(gp *g) uint32 {
 	}
 }
 
-// scang blocks until gp's stack has been scanned.
-// It might be scanned by scang or it might be scanned by the goroutine itself.
-// Either way, the stack scan has completed when scang returns.
-func scang(gp *g, gcw *gcWork) {
-	// Invariant; we (the caller, markroot for a specific goroutine) own gp.gcscandone.
-	// Nothing is racing with us now, but gcscandone might be set to true left over
-	// from an earlier round of stack scanning (we scan twice per GC).
-	// We use gcscandone to record whether the scan has been done during this round.
-
-	gp.gcscandone = false
-
-	// See https://golang.org/cl/21503 for justification of the yield delay.
-	const yieldDelay = 10 * 1000
-	var nextYield int64
-
-	// Endeavor to get gcscandone set to true,
-	// either by doing the stack scan ourselves or by coercing gp to scan itself.
-	// gp.gcscandone can transition from false to true when we're not looking
-	// (if we asked for preemption), so any time we lock the status using
-	// castogscanstatus we have to double-check that the scan is still not done.
-loop:
-	for i := 0; !gp.gcscandone; i++ {
-		switch s := readgstatus(gp); s {
-		default:
-			dumpgstatus(gp)
-			throw("stopg: invalid status")
-
-		case _Gdead:
-			// No stack.
-			gp.gcscandone = true
-			break loop
-
-		case _Gcopystack:
-		// Stack being switched. Go around again.
-
-		case _Grunnable, _Gsyscall, _Gwaiting:
-			// Claim goroutine by setting scan bit.
-			// Racing with execution or readying of gp.
-			// The scan bit keeps them from running
-			// the goroutine until we're done.
-			if castogscanstatus(gp, s, s|_Gscan) {
-				if !gp.gcscandone {
-					scanstack(gp, gcw)
-					gp.gcscandone = true
-				}
-				restartg(gp)
-				break loop
-			}
-
-		case _Gscanwaiting:
-		// newstack is doing a scan for us right now. Wait.
-
-		case _Grunning:
-			// Goroutine running. Try to preempt execution so it can scan itself.
-			// The preemption handler (in newstack) does the actual scan.
-
-			// Optimization: if there is already a pending preemption request
-			// (from the previous loop iteration), don't bother with the atomics.
-			if gp.preemptscan && gp.preempt && gp.stackguard0 == stackPreempt {
-				break
-			}
-
-			// Ask for preemption and self scan.
-			if castogscanstatus(gp, _Grunning, _Gscanrunning) {
-				if !gp.gcscandone {
-					gp.preemptscan = true
-					gp.preempt = true
-					gp.stackguard0 = stackPreempt
-				}
-				casfrom_Gscanstatus(gp, _Gscanrunning, _Grunning)
-			}
-		}
-
-		if i == 0 {
-			nextYield = nanotime() + yieldDelay
-		}
-		if nanotime() < nextYield {
-			procyield(10)
-		} else {
-			osyield()
-			nextYield = nanotime() + yieldDelay/2
-		}
+// casGToPreemptScan transitions gp from _Grunning to _Gscan|_Gpreempted.
+//
+// TODO(austin): This is the only status operation that both changes
+// the status and locks the _Gscan bit. Rethink this.
+func casGToPreemptScan(gp *g, old, new uint32) {
+	if old != _Grunning || new != _Gscan|_Gpreempted {
+		throw("bad g transition")
 	}
-
-	gp.preemptscan = false // cancel scan request if no longer needed
+	for !atomic.Cas(&gp.atomicstatus, _Grunning, _Gscan|_Gpreempted) {
+	}
 }
 
-// The GC requests that this routine be moved from a scanmumble state to a mumble state.
-func restartg(gp *g) {
-	s := readgstatus(gp)
-	switch s {
-	default:
-		dumpgstatus(gp)
-		throw("restartg: unexpected status")
-
-	case _Gdead:
-	// ok
-
-	case _Gscanrunnable,
-		_Gscanwaiting,
-		_Gscansyscall:
-		casfrom_Gscanstatus(gp, s, s&^_Gscan)
+// casGFromPreempted attempts to transition gp from _Gpreempted to
+// _Gwaiting. If successful, the caller is responsible for
+// re-scheduling gp.
+func casGFromPreempted(gp *g, old, new uint32) bool {
+	if old != _Gpreempted || new != _Gwaiting {
+		throw("bad g transition")
 	}
+	return atomic.Cas(&gp.atomicstatus, _Gpreempted, _Gwaiting)
 }
 
 // stopTheWorld stops all P's from executing goroutines, interrupting
@@ -1306,6 +1190,11 @@ func mexit(osStack bool) {
 	// Free the gsignal stack.
 	if m.gsignal != nil {
 		stackfree(m.gsignal.stack)
+		// On some platforms, when calling into VDSO (e.g. nanotime)
+		// we store our g on the gsignal stack, if there is one.
+		// Now the stack is freed, unlink it from the m, so we
+		// won't write to it when calling VDSO code.
+		m.gsignal = nil
 	}
 
 	// Remove m from allm.
@@ -1675,8 +1564,6 @@ func oneNewExtraM() {
 	gp.syscallpc = gp.sched.pc
 	gp.syscallsp = gp.sched.sp
 	gp.stktopsp = gp.sched.sp
-	gp.gcscanvalid = true
-	gp.gcscandone = true
 	// malg returns status as _Gidle. Change to _Gdead before
 	// adding to allg where GC can see it. We use _Gdead to hide
 	// this from tracebacks and stack scans since it isn't a
@@ -2821,7 +2708,7 @@ func gosched_m(gp *g) {
 // goschedguarded is a forbidden-states-avoided version of gosched_m
 func goschedguarded_m(gp *g) {
 
-	if gp.m.locks != 0 || gp.m.mallocing != 0 || gp.m.preemptoff != "" || gp.m.p.ptr().status != _Prunning {
+	if !canPreemptM(gp.m) {
 		gogo(&gp.sched) // never return
 	}
 
@@ -2836,6 +2723,32 @@ func gopreempt_m(gp *g) {
 		traceGoPreempt()
 	}
 	goschedImpl(gp)
+}
+
+// preemptPark parks gp and puts it in _Gpreempted.
+//
+//go:systemstack
+func preemptPark(gp *g) {
+	if trace.enabled {
+		traceGoPark(traceEvGoBlock, 0)
+	}
+	status := readgstatus(gp)
+	if status&^_Gscan != _Grunning {
+		dumpgstatus(gp)
+		throw("bad g status")
+	}
+	gp.waitreason = waitReasonPreempted
+	// Transition from _Grunning to _Gscan|_Gpreempted. We can't
+	// be in _Grunning when we dropg because then we'd be running
+	// without an M, but the moment we're in _Gpreempted,
+	// something could claim this G before we've fully cleaned it
+	// up. Hence, we set the scan bit to lock down further
+	// transitions until we can dropg.
+	casGToPreemptScan(gp, _Grunning, _Gscan|_Gpreempted)
+	dropg()
+	casfrom_Gscanstatus(gp, _Gscan|_Gpreempted, _Gpreempted)
+
+	schedule()
 }
 
 // Finishes execution of the current goroutine.
@@ -2861,6 +2774,7 @@ func goexit0(gp *g) {
 	locked := gp.lockedm != 0
 	gp.lockedm = 0
 	_g_.m.lockedg = 0
+	gp.preemptStop = false
 	gp.paniconfault = false
 	gp._defer = nil // should be true already but just in case.
 	gp._panic = nil // non-nil for Goexit during panic. points at stack-allocated data.
@@ -2879,9 +2793,6 @@ func goexit0(gp *g) {
 		gp.gcAssistBytes = 0
 	}
 
-	// Note that gp's stack scan is now "valid" because it has no
-	// stack.
-	gp.gcscanvalid = true
 	dropg()
 
 	if GOARCH == "wasm" { // no threads yet on wasm
@@ -3526,7 +3437,6 @@ func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerp
 	if isSystemGoroutine(newg, false) {
 		atomic.Xadd(&sched.ngsys, +1)
 	}
-	newg.gcscanvalid = false
 	casgstatus(newg, _Gdead, _Grunnable)
 
 	if _p_.goidcache == _p_.goidcacheend {
@@ -4436,7 +4346,8 @@ func checkdead() {
 		}
 		s := readgstatus(gp)
 		switch s &^ _Gscan {
-		case _Gwaiting:
+		case _Gwaiting,
+			_Gpreempted:
 			grunning++
 		case _Grunnable,
 			_Grunning,

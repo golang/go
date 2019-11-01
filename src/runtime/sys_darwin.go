@@ -162,6 +162,14 @@ func pthread_self() (t pthread) {
 }
 func pthread_self_trampoline()
 
+//go:nosplit
+//go:cgo_unsafe_args
+func pthread_kill(t pthread, sig uint32) {
+	libcCall(unsafe.Pointer(funcPC(pthread_kill_trampoline)), unsafe.Pointer(&t))
+	return
+}
+func pthread_kill_trampoline()
+
 func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
 	args := struct {
 		addr            unsafe.Pointer
@@ -415,6 +423,8 @@ func setNonblock(fd int32) {
 //go:cgo_import_dynamic libc_pthread_attr_getstacksize pthread_attr_getstacksize "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_attr_setdetachstate pthread_attr_setdetachstate "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_create pthread_create "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_self pthread_self "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_kill pthread_kill "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_exit exit "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_raise raise "/usr/lib/libSystem.B.dylib"
 

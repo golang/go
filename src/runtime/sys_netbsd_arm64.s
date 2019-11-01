@@ -205,10 +205,9 @@ TEXT runtime·usleep(SB),NOSPLIT,$24-4
 	SVC	$SYS___nanosleep50
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$16
-	SVC	$SYS__lwp_self
-					// arg 1 - target (lwp_self)
-	MOVW	sig+0(FP), R1		// arg 2 - signo
+TEXT runtime·lwp_kill(SB),NOSPLIT,$0-16
+	MOVW	tid+0(FP), R0		// arg 1 - target
+	MOVD	sig+8(FP), R1		// arg 2 - signo
 	SVC	$SYS__lwp_kill
 	RET
 
