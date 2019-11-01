@@ -25,6 +25,7 @@ import (
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/sumdb/dirhash"
+	modzip "golang.org/x/mod/zip"
 )
 
 var downloadCache par.Cache
@@ -113,8 +114,7 @@ func download(mod module.Version, dir string) (err error) {
 		}
 	}()
 
-	modpath := mod.Path + "@" + mod.Version
-	if err := Unzip(tmpDir, zipfile, modpath, 0); err != nil {
+	if err := modzip.Unzip(tmpDir, mod, zipfile); err != nil {
 		fmt.Fprintf(os.Stderr, "-> %s\n", err)
 		return err
 	}
@@ -264,6 +264,45 @@ func downloadZip(mod module.Version, zipfile string) (err error) {
 	// TODO(bcmills): Should we make the .zip and .ziphash files read-only to discourage tampering?
 
 	return nil
+}
+
+// makeDirsReadOnly makes a best-effort attempt to remove write permissions for dir
+// and its transitive contents.
+func makeDirsReadOnly(dir string) {
+	type pathMode struct {
+		path string
+		mode os.FileMode
+	}
+	var dirs []pathMode // in lexical order
+	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err == nil && info.Mode()&0222 != 0 {
+			if info.IsDir() {
+				dirs = append(dirs, pathMode{path, info.Mode()})
+			}
+		}
+		return nil
+	})
+
+	// Run over list backward to chmod children before parents.
+	for i := len(dirs) - 1; i >= 0; i-- {
+		os.Chmod(dirs[i].path, dirs[i].mode&^0222)
+	}
+}
+
+// RemoveAll removes a directory written by Download or Unzip, first applying
+// any permission changes needed to do so.
+func RemoveAll(dir string) error {
+	// Module cache has 0555 directories; make them writable in order to remove content.
+	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // ignore errors walking in file system
+		}
+		if info.IsDir() {
+			os.Chmod(path, 0777)
+		}
+		return nil
+	})
+	return os.RemoveAll(dir)
 }
 
 var GoSumFile string // path to go.sum; set by package modload
