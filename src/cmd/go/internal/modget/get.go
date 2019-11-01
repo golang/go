@@ -372,7 +372,7 @@ func runGet(cmd *base.Command, args []string) {
 			continue
 
 		default:
-			// The argument is a package path.
+			// The argument is a package or module path.
 			if pkgs := modload.TargetPackages(path); len(pkgs) != 0 {
 				// The path is in the main module. Nothing to query.
 				if vers != "upgrade" && vers != "patch" {
@@ -763,6 +763,9 @@ func getQuery(path, vers string, prevM module.Version, forceModulePath bool) (mo
 
 		info, err := modload.Query(path, vers, prevM.Version, modload.Allowed)
 		if err == nil {
+			if info.Version != vers && info.Version != prevM.Version {
+				logOncef("go: %s %s => %s", path, vers, info.Version)
+			}
 			return module.Version{Path: path, Version: info.Version}, nil
 		}
 
@@ -791,6 +794,9 @@ func getQuery(path, vers string, prevM module.Version, forceModulePath bool) (mo
 		if !strings.Contains(path, "...") {
 			var modErr *modload.PackageNotInModuleError
 			if errors.As(err, &modErr) && modErr.Mod.Path == path {
+				if modErr.Mod.Version != vers {
+					logOncef("go: %s %s => %s", path, vers, modErr.Mod.Version)
+				}
 				return modErr.Mod, nil
 			}
 		}
@@ -798,7 +804,13 @@ func getQuery(path, vers string, prevM module.Version, forceModulePath bool) (mo
 		return module.Version{}, err
 	}
 
-	return results[0].Mod, nil
+	m := results[0].Mod
+	if m.Path != path {
+		logOncef("go: found %s in %s %s", path, m.Path, m.Version)
+	} else if m.Version != vers {
+		logOncef("go: %s %s => %s", path, vers, m.Version)
+	}
+	return m, nil
 }
 
 // An upgrader adapts an underlying mvs.Reqs to apply an
@@ -955,6 +967,9 @@ func (u *upgrader) Upgrade(m module.Version) (module.Version, error) {
 		return m, nil
 	}
 
+	if info.Version != m.Version {
+		logOncef("go: %s %s => %s", m.Path, getU, info.Version)
+	}
 	return module.Version{Path: m.Path, Version: info.Version}, nil
 }
 
@@ -982,4 +997,13 @@ func (r *lostUpgradeReqs) Required(mod module.Version) ([]module.Version, error)
 		return []module.Version{r.lost}, nil
 	}
 	return r.Reqs.Required(mod)
+}
+
+var loggedLines sync.Map
+
+func logOncef(format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	if _, dup := loggedLines.LoadOrStore(msg, true); !dup {
+		fmt.Fprintln(os.Stderr, msg)
+	}
 }

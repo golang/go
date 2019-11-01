@@ -71,10 +71,6 @@ func download(mod module.Version, dir string) (err error) {
 		return err
 	}
 
-	if cfg.CmdName != "mod download" {
-		fmt.Fprintf(os.Stderr, "go: extracting %s %s\n", mod.Path, mod.Version)
-	}
-
 	unlock, err := lockVersion(mod)
 	if err != nil {
 		return err
