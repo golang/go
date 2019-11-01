@@ -13,8 +13,9 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/imports"
-	"cmd/go/internal/module"
 	"cmd/go/internal/search"
+
+	"golang.org/x/mod/module"
 )
 
 // matchPackages returns a list of packages in the list of modules

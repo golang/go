@@ -992,7 +992,7 @@ func TestNetpollBreak(t *testing.T) {
 	}
 
 	// Make sure that netpoll is initialized.
-	time.Sleep(1)
+	runtime.NetpollGenericInit()
 
 	start := time.Now()
 	c := make(chan bool, 2)

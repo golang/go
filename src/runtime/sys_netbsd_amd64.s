@@ -209,11 +209,9 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 	SYSCALL
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$16
-	MOVL	$SYS__lwp_self, AX
-	SYSCALL
-	MOVQ	AX, DI			// arg 1 - target
-	MOVL	sig+0(FP), SI		// arg 2 - signo
+TEXT runtime·lwp_kill(SB),NOSPLIT,$0-16
+	MOVL	tid+0(FP), DI		// arg 1 - target
+	MOVQ	sig+8(FP), SI		// arg 2 - signo
 	MOVL	$SYS__lwp_kill, AX
 	SYSCALL
 	RET

@@ -96,10 +96,6 @@ func asmb(ctxt *ld.Link) {} // dummy
 // asmb writes the final WebAssembly module binary.
 // Spec: https://webassembly.github.io/spec/core/binary/modules.html
 func asmb2(ctxt *ld.Link) {
-	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f asmb\n", ld.Cputime())
-	}
-
 	types := []*wasmFuncType{
 		// For normal Go functions, the single parameter is PC_B,
 		// the return value is

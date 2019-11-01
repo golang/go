@@ -182,14 +182,8 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
 
 TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	// Reserve space for callee-save registers and arguments.
-	SUB	$40, R13
-
-	MOVW	R4, 16(R13)
-	MOVW	R5, 20(R13)
-	MOVW	R6, 24(R13)
-	MOVW	R7, 28(R13)
-	MOVW	R8, 32(R13)
-	MOVW	R11, 36(R13)
+	MOVM.DB.W [R4-R11], (R13)
+	SUB	$16, R13
 
 	// Save arguments.
 	MOVW	R0, 4(R13)	// sig
@@ -238,14 +232,8 @@ nog:
 	MOVW	R5, R13
 
 	// Restore callee-save registers.
-	MOVW	16(R13), R4
-	MOVW	20(R13), R5
-	MOVW	24(R13), R6
-	MOVW	28(R13), R7
-	MOVW	32(R13), R8
-	MOVW	36(R13), R11
-
-	ADD	$40, R13
+	ADD	$16, R13
+	MOVM.IA.W (R13), [R4-R11]
 
 	RET
 
@@ -403,6 +391,18 @@ TEXT runtime·pthread_cond_timedwait_relative_np_trampoline(SB),NOSPLIT,$0
 TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
 	MOVW	0(R0), R0	// arg 1 cond
 	BL	libc_pthread_cond_signal(SB)
+	RET
+
+TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
+	MOVW	R0, R4		// R4 is callee-save
+	BL	libc_pthread_self(SB)
+	MOVW	R0, 0(R4)	// return value
+	RET
+
+TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
+	MOVW	4(R0), R1	// arg 2 sig
+	MOVW	0(R0), R0	// arg 1 thread
+	BL	libc_pthread_kill(SB)
 	RET
 
 // syscall calls a function in libc on behalf of the syscall package.

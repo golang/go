@@ -131,17 +131,16 @@ TEXT runtime·write1(SB),NOSPLIT,$-4
 	MOVL	AX, ret+12(FP)
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$16
-	// thr_self(&8(SP))
-	LEAL	8(SP), AX
+TEXT runtime·thr_self(SB),NOSPLIT,$8-4
+	// thr_self(&0(FP))
+	LEAL	ret+0(FP), AX
 	MOVL	AX, 4(SP)
 	MOVL	$432, AX
 	INT	$0x80
-	// thr_kill(self, SIGPIPE)
-	MOVL	8(SP), AX
-	MOVL	AX, 4(SP)
-	MOVL	sig+0(FP), AX
-	MOVL	AX, 8(SP)
+	RET
+
+TEXT runtime·thr_kill(SB),NOSPLIT,$-4
+	// thr_kill(tid, sig)
 	MOVL	$433, AX
 	INT	$0x80
 	RET

@@ -110,7 +110,7 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
 	}
 
 	var elfshnum int
-	if xo.Type == sym.SDYNIMPORT || xo.Type == sym.SHOSTOBJ {
+	if xo.Type == sym.SDYNIMPORT || xo.Type == sym.SHOSTOBJ || xo.Type == sym.SUNDEFEXT {
 		elfshnum = SHN_UNDEF
 	} else {
 		if xo.Sect == nil {

@@ -15,8 +15,8 @@ import (
 	"strings"
 
 	"cmd/go/internal/modfetch/codehost"
-	"cmd/go/internal/module"
 	"cmd/go/internal/str"
+	"golang.org/x/mod/module"
 )
 
 func Unzip(dir, zipfile, prefix string, maxSize int64) error {

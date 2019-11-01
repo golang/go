@@ -121,26 +121,6 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Pr
 	return p
 }
 
-func zeroAuto(pp *gc.Progs, n *gc.Node) {
-	// Note: this code must not clobber any registers.
-	op := x86.AMOVQ
-	if gc.Widthptr == 4 {
-		op = x86.AMOVL
-	}
-	sym := n.Sym.Linksym()
-	size := n.Type.Size()
-	for i := int64(0); i < size; i += int64(gc.Widthptr) {
-		p := pp.Prog(op)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 0
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_AUTO
-		p.To.Reg = x86.REG_SP
-		p.To.Offset = n.Xoffset + i
-		p.To.Sym = sym
-	}
-}
-
 func ginsnop(pp *gc.Progs) *obj.Prog {
 	// This is a hardware nop (1-byte 0x90) instruction,
 	// even though we describe it as an explicit XCHGL here.

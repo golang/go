@@ -40,6 +40,8 @@ var Usleep = usleep
 
 var PhysHugePageSize = physHugePageSize
 
+var NetpollGenericInit = netpollGenericInit
+
 type LFNode struct {
 	Next    uint64
 	Pushcnt uintptr
@@ -254,7 +256,7 @@ func CountPagesInUse() (pagesInUse, counted uintptr) {
 	pagesInUse = uintptr(mheap_.pagesInUse)
 
 	for _, s := range mheap_.allspans {
-		if s.state == mSpanInUse {
+		if s.state.get() == mSpanInUse {
 			counted += s.npages
 		}
 	}
@@ -316,7 +318,7 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 
 		// Add up current allocations in spans.
 		for _, s := range mheap_.allspans {
-			if s.state != mSpanInUse {
+			if s.state.get() != mSpanInUse {
 				continue
 			}
 			if sizeclass := s.spanclass.sizeclass(); sizeclass == 0 {
@@ -540,7 +542,7 @@ func UnscavHugePagesSlow() (uintptr, uintptr) {
 		lock(&mheap_.lock)
 		base = mheap_.free.unscavHugePages
 		for _, s := range mheap_.allspans {
-			if s.state == mSpanFree && !s.scavenged {
+			if s.state.get() == mSpanFree && !s.scavenged {
 				slow += s.hugePages()
 			}
 		}

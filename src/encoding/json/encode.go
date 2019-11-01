@@ -399,18 +399,21 @@ var (
 // newTypeEncoder constructs an encoderFunc for a type.
 // The returned encoder only checks CanAddr when allowAddr is true.
 func newTypeEncoder(t reflect.Type, allowAddr bool) encoderFunc {
-	if t.Implements(marshalerType) {
-		return marshalerEncoder
-	}
+	// If we have a non-pointer value whose type implements
+	// Marshaler with a value receiver, then we're better off taking
+	// the address of the value - otherwise we end up with an
+	// allocation as we cast the value to an interface.
 	if t.Kind() != reflect.Ptr && allowAddr && reflect.PtrTo(t).Implements(marshalerType) {
 		return newCondAddrEncoder(addrMarshalerEncoder, newTypeEncoder(t, false))
 	}
-
-	if t.Implements(textMarshalerType) {
-		return textMarshalerEncoder
+	if t.Implements(marshalerType) {
+		return marshalerEncoder
 	}
 	if t.Kind() != reflect.Ptr && allowAddr && reflect.PtrTo(t).Implements(textMarshalerType) {
 		return newCondAddrEncoder(addrTextMarshalerEncoder, newTypeEncoder(t, false))
+	}
+	if t.Implements(textMarshalerType) {
+		return textMarshalerEncoder
 	}
 
 	switch t.Kind() {

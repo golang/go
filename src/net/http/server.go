@@ -3182,8 +3182,8 @@ func (srv *Server) onceSetNextProtoDefaults() {
 // After such a timeout, writes by h to its ResponseWriter will return
 // ErrHandlerTimeout.
 //
-// TimeoutHandler supports the Flusher and Pusher interfaces but does not
-// support the Hijacker interface.
+// TimeoutHandler supports the Pusher interface but does not support
+// the Hijacker or Flusher interfaces.
 func TimeoutHandler(h Handler, dt time.Duration, msg string) Handler {
 	return &timeoutHandler{
 		handler: h,

@@ -141,6 +141,9 @@ func Or8(ptr *uint8, val uint8)
 //go:noescape
 func Store(ptr *uint32, val uint32)
 
+//go:noescape
+func Store8(ptr *uint8, val uint8)
+
 // NO go:noescape annotation; see atomic_pointer.go.
 func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
 

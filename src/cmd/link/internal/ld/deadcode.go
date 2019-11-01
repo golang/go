@@ -47,7 +47,7 @@ import (
 // Any unreached text symbols are removed from ctxt.Textp.
 func deadcode(ctxt *Link) {
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f deadcode\n", Cputime())
+		ctxt.Logf("deadcode\n")
 	}
 
 	if *flagNewobj {

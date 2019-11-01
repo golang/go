@@ -6,17 +6,6 @@
 package modget
 
 import (
-	"cmd/go/internal/base"
-	"cmd/go/internal/get"
-	"cmd/go/internal/imports"
-	"cmd/go/internal/load"
-	"cmd/go/internal/modload"
-	"cmd/go/internal/module"
-	"cmd/go/internal/mvs"
-	"cmd/go/internal/par"
-	"cmd/go/internal/search"
-	"cmd/go/internal/semver"
-	"cmd/go/internal/work"
 	"errors"
 	"fmt"
 	"os"
@@ -24,6 +13,19 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	"cmd/go/internal/base"
+	"cmd/go/internal/get"
+	"cmd/go/internal/imports"
+	"cmd/go/internal/load"
+	"cmd/go/internal/modload"
+	"cmd/go/internal/mvs"
+	"cmd/go/internal/par"
+	"cmd/go/internal/search"
+	"cmd/go/internal/work"
+
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 )
 
 var CmdGet = &base.Command{

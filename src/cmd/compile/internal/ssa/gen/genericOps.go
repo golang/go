@@ -316,8 +316,7 @@ var genericOps = []opData{
 	// See section 7.2 in ieee754.
 	{name: "Fma", argLength: 3}, // compute (a*b)+c without intermediate rounding
 
-	// Data movement, max argument length for Phi is indefinite so just pick
-	// a really large number
+	// Data movement. Max argument length for Phi is indefinite.
 	{name: "Phi", argLength: -1, zeroWidth: true}, // select an argument based on which predecessor block we came from
 	{name: "Copy", argLength: 1},                  // output = arg0
 	// Convert converts between pointers and integers.
@@ -546,6 +545,7 @@ var genericOps = []opData{
 	{name: "AtomicLoad64", argLength: 2, typ: "(UInt64,Mem)"},                                  // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
 	{name: "AtomicLoadPtr", argLength: 2, typ: "(BytePtr,Mem)"},                                // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
 	{name: "AtomicLoadAcq32", argLength: 2, typ: "(UInt32,Mem)"},                               // Load from arg0.  arg1=memory.  Lock acquisition, returns loaded value and new memory.
+	{name: "AtomicStore8", argLength: 3, typ: "Mem", hasSideEffects: true},                     // Store arg1 to *arg0.  arg2=memory.  Returns memory.
 	{name: "AtomicStore32", argLength: 3, typ: "Mem", hasSideEffects: true},                    // Store arg1 to *arg0.  arg2=memory.  Returns memory.
 	{name: "AtomicStore64", argLength: 3, typ: "Mem", hasSideEffects: true},                    // Store arg1 to *arg0.  arg2=memory.  Returns memory.
 	{name: "AtomicStorePtrNoWB", argLength: 3, typ: "Mem", hasSideEffects: true},               // Store arg1 to *arg0.  arg2=memory.  Returns memory.

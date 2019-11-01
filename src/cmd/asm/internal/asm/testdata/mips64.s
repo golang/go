@@ -130,27 +130,27 @@ TEXT foo(SB),DUPOK|NOSPLIT,$0
 //	{
 //		outcode(int($1), &$2, 0, &$4);
 //	}
-	MOVW	FCR0, R1
+	MOVW	FCR31, R1 // 4441f800
 
 //	LMOVW freg ','  fpscr
 //	{
 //		outcode(int($1), &$2, 0, &$4);
 //	}
-	MOVW	R1, FCR0
+	MOVW	R1, FCR31 // 44c1f800
 
 //	LMOVW rreg ',' mreg
 //	{
 //		outcode(int($1), &$2, 0, &$4);
 //	}
-	MOVW	R1, M1
-	MOVV	R1, M1
+	MOVW	R1, M1 // 40810800
+	MOVV	R1, M1 // 40a10800
 
 //	LMOVW mreg ',' rreg
 //	{
 //		outcode(int($1), &$2, 0, &$4);
 //	}
-	MOVW	M1, R1
-	MOVV	M1, R1
+	MOVW	M1, R1 // 40010800
+	MOVV	M1, R1 // 40210800
 
 
 //
@@ -406,6 +406,7 @@ label4:
 
 	NEGW	R1, R2 // 00011023
 	NEGV	R1, R2 // 0001102f
+	RET
 
 // END
 //

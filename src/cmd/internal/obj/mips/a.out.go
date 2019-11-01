@@ -46,7 +46,7 @@ const (
 )
 
 const (
-	REG_R0 = obj.RBaseMIPS + iota
+	REG_R0 = obj.RBaseMIPS + iota // must be a multiple of 32
 	REG_R1
 	REG_R2
 	REG_R3
@@ -79,7 +79,7 @@ const (
 	REG_R30
 	REG_R31
 
-	REG_F0
+	REG_F0 // must be a multiple of 32
 	REG_F1
 	REG_F2
 	REG_F3
@@ -112,11 +112,8 @@ const (
 	REG_F30
 	REG_F31
 
-	REG_HI
-	REG_LO
-
 	// co-processor 0 control registers
-	REG_M0
+	REG_M0 // must be a multiple of 32
 	REG_M1
 	REG_M2
 	REG_M3
@@ -150,7 +147,7 @@ const (
 	REG_M31
 
 	// FPU control registers
-	REG_FCR0
+	REG_FCR0 // must be a multiple of 32
 	REG_FCR1
 	REG_FCR2
 	REG_FCR3
@@ -183,7 +180,10 @@ const (
 	REG_FCR30
 	REG_FCR31
 
-	REG_LAST = REG_FCR31 // the last defined register
+	REG_HI
+	REG_LO
+
+	REG_LAST = REG_LO // the last defined register
 
 	REG_SPECIAL = REG_M0
 
@@ -412,3 +412,22 @@ const (
 	AJAL = obj.ACALL
 	ARET = obj.ARET
 )
+
+func init() {
+	// The asm encoder generally assumes that the lowest 5 bits of the
+	// REG_XX constants match the machine instruction encoding, i.e.
+	// the lowest 5 bits is the register number.
+	// Check this here.
+	if REG_R0%32 != 0 {
+		panic("REG_R0 is not a multiple of 32")
+	}
+	if REG_F0%32 != 0 {
+		panic("REG_F0 is not a multiple of 32")
+	}
+	if REG_M0%32 != 0 {
+		panic("REG_M0 is not a multiple of 32")
+	}
+	if REG_FCR0%32 != 0 {
+		panic("REG_FCR0 is not a multiple of 32")
+	}
+}

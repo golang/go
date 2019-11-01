@@ -286,7 +286,10 @@ func (d *Decoder) Token() (Token, error) {
 		t = d.nextToken
 		d.nextToken = nil
 	} else if t, err = d.rawToken(); err != nil {
-		if err == io.EOF && d.stk != nil && d.stk.kind != stkEOF {
+		switch {
+		case err == io.EOF && d.t != nil:
+			err = nil
+		case err == io.EOF && d.stk != nil && d.stk.kind != stkEOF:
 			err = d.syntaxError("unexpected EOF")
 		}
 		return t, err

@@ -57,11 +57,10 @@ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []S
 		if !isSupportedSignatureAlgorithm(sigAlg, ourSigAlgs) {
 			continue
 		}
-		hashAlg, err := hashFromSignatureScheme(sigAlg)
+		sigType, hashAlg, err := typeAndHashFromSignatureScheme(sigAlg)
 		if err != nil {
-			panic("tls: supported signature algorithm has an unknown hash function")
+			return 0, 0, 0, fmt.Errorf("tls: internal error: %v", err)
 		}
-		sigType := signatureFromSignatureScheme(sigAlg)
 		switch pubkey.(type) {
 		case *rsa.PublicKey:
 			if sigType == signaturePKCS1v15 || sigType == signatureRSAPSS {
@@ -89,30 +88,30 @@ func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc c
 	case signatureECDSA:
 		pubKey, ok := pubkey.(*ecdsa.PublicKey)
 		if !ok {
-			return errors.New("tls: ECDSA signing requires a ECDSA public key")
+			return fmt.Errorf("expected an ECDSA public key, got %T", pubkey)
 		}
 		ecdsaSig := new(ecdsaSignature)
 		if _, err := asn1.Unmarshal(sig, ecdsaSig); err != nil {
 			return err
 		}
 		if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
-			return errors.New("tls: ECDSA signature contained zero or negative values")
+			return errors.New("ECDSA signature contained zero or negative values")
 		}
 		if !ecdsa.Verify(pubKey, signed, ecdsaSig.R, ecdsaSig.S) {
-			return errors.New("tls: ECDSA verification failure")
+			return errors.New("ECDSA verification failure")
 		}
 	case signatureEd25519:
 		pubKey, ok := pubkey.(ed25519.PublicKey)
 		if !ok {
-			return errors.New("tls: Ed25519 signing requires a Ed25519 public key")
+			return fmt.Errorf("expected an Ed25519 public key, got %T", pubkey)
 		}
 		if !ed25519.Verify(pubKey, signed, sig) {
-			return errors.New("tls: Ed25519 verification failure")
+			return errors.New("Ed25519 verification failure")
 		}
 	case signaturePKCS1v15:
 		pubKey, ok := pubkey.(*rsa.PublicKey)
 		if !ok {
-			return errors.New("tls: RSA signing requires a RSA public key")
+			return fmt.Errorf("expected an RSA public key, got %T", pubkey)
 		}
 		if err := rsa.VerifyPKCS1v15(pubKey, hashFunc, signed, sig); err != nil {
 			return err
@@ -120,14 +119,14 @@ func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc c
 	case signatureRSAPSS:
 		pubKey, ok := pubkey.(*rsa.PublicKey)
 		if !ok {
-			return errors.New("tls: RSA signing requires a RSA public key")
+			return fmt.Errorf("expected an RSA public key, got %T", pubkey)
 		}
 		signOpts := &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash}
 		if err := rsa.VerifyPSS(pubKey, hashFunc, signed, sig, signOpts); err != nil {
 			return err
 		}
 	default:
-		return errors.New("tls: unknown signature algorithm")
+		return errors.New("internal error: unknown signature type")
 	}
 	return nil
 }

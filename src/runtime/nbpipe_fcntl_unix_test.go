@@ -1,0 +1,14 @@
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// +build darwin dragonfly freebsd linux netbsd openbsd
+
+package runtime_test
+
+import "syscall"
+
+func fcntl(fd uintptr, cmd int, arg uintptr) (uintptr, syscall.Errno) {
+	res, _, err := syscall.Syscall(syscall.SYS_FCNTL, fd, uintptr(cmd), arg)
+	return res, err
+}

@@ -335,12 +335,16 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		pisync.To.Type = obj.TYPE_NONE
 		gc.Patch(p2, pisync)
 
-	case ssa.OpPPC64LoweredAtomicStore32,
+	case ssa.OpPPC64LoweredAtomicStore8,
+		ssa.OpPPC64LoweredAtomicStore32,
 		ssa.OpPPC64LoweredAtomicStore64:
 		// SYNC or LWSYNC
-		// MOVD/MOVW arg1,(arg0)
+		// MOVB/MOVW/MOVD arg1,(arg0)
 		st := ppc64.AMOVD
-		if v.Op == ssa.OpPPC64LoweredAtomicStore32 {
+		switch v.Op {
+		case ssa.OpPPC64LoweredAtomicStore8:
+			st = ppc64.AMOVB
+		case ssa.OpPPC64LoweredAtomicStore32:
 			st = ppc64.AMOVW
 		}
 		arg0 := v.Args[0].Reg()

@@ -136,6 +136,12 @@ TEXT runtime∕internal∕atomic·Store(SB), NOSPLIT, $0-12
 TEXT runtime∕internal∕atomic·StoreRel(SB), NOSPLIT, $0-12
 	JMP	runtime∕internal∕atomic·Store(SB)
 
+TEXT runtime∕internal∕atomic·Store8(SB), NOSPLIT, $0-9
+	MOVQ	ptr+0(FP), BX
+	MOVB	val+8(FP), AX
+	XCHGB	AX, 0(BX)
+	RET
+
 TEXT runtime∕internal∕atomic·Store64(SB), NOSPLIT, $0-16
 	MOVQ	ptr+0(FP), BX
 	MOVQ	val+8(FP), AX

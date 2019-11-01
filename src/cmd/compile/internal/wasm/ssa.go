@@ -19,7 +19,6 @@ func Init(arch *gc.Arch) {
 	arch.MAXWIDTH = 1 << 50
 
 	arch.ZeroRange = zeroRange
-	arch.ZeroAuto = zeroAuto
 	arch.Ginsnop = ginsnop
 	arch.Ginsnopdefer = ginsnop
 
@@ -43,21 +42,6 @@ func zeroRange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Pr
 	}
 
 	return p
-}
-
-func zeroAuto(pp *gc.Progs, n *gc.Node) {
-	sym := n.Sym.Linksym()
-	size := n.Type.Size()
-	for i := int64(0); i < size; i += 8 {
-		p := pp.Prog(wasm.AGet)
-		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: wasm.REG_SP}
-
-		p = pp.Prog(wasm.AI64Const)
-		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
-
-		p = pp.Prog(wasm.AI64Store)
-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_AUTO, Offset: n.Xoffset + i, Sym: sym}
-	}
 }
 
 func ginsnop(pp *gc.Progs) *obj.Prog {

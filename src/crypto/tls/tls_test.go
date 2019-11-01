@@ -1045,3 +1045,20 @@ func TestBuildNameToCertificate_doesntModifyCertificates(t *testing.T) {
 }
 
 func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
+
+// TestSupportedSignatureAlgorithms checks that all supportedSignatureAlgorithms
+// have valid type and hash information.
+func TestSupportedSignatureAlgorithms(t *testing.T) {
+	for _, sigAlg := range supportedSignatureAlgorithms {
+		sigType, hash, err := typeAndHashFromSignatureScheme(sigAlg)
+		if err != nil {
+			t.Errorf("%#04x: unexpected error: %v", sigAlg, err)
+		}
+		if sigType == 0 {
+			t.Errorf("%#04x: missing signature type", sigAlg)
+		}
+		if hash == 0 && sigAlg != Ed25519 {
+			t.Errorf("%#04x: missing hash", sigAlg)
+		}
+	}
+}

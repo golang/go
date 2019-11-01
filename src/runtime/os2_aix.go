@@ -64,6 +64,8 @@ var (
 //go:cgo_import_dynamic libpthread_attr_setstackaddr pthread_attr_setstackaddr "libpthread.a/shr_xpg5_64.o"
 //go:cgo_import_dynamic libpthread_create pthread_create "libpthread.a/shr_xpg5_64.o"
 //go:cgo_import_dynamic libpthread_sigthreadmask sigthreadmask "libpthread.a/shr_xpg5_64.o"
+//go:cgo_import_dynamic libpthread_self pthread_self "libpthread.a/shr_xpg5_64.o"
+//go:cgo_import_dynamic libpthread_kill pthread_kill "libpthread.a/shr_xpg5_64.o"
 
 //go:linkname libc__Errno libc__Errno
 //go:linkname libc_clock_gettime libc_clock_gettime
@@ -101,6 +103,8 @@ var (
 //go:linkname libpthread_attr_setstackaddr libpthread_attr_setstackaddr
 //go:linkname libpthread_create libpthread_create
 //go:linkname libpthread_sigthreadmask libpthread_sigthreadmask
+//go:linkname libpthread_self libpthread_self
+//go:linkname libpthread_kill libpthread_kill
 
 var (
 	//libc
@@ -139,7 +143,9 @@ var (
 	libpthread_attr_setdetachstate,
 	libpthread_attr_setstackaddr,
 	libpthread_create,
-	libpthread_sigthreadmask libFunc
+	libpthread_sigthreadmask,
+	libpthread_self,
+	libpthread_kill libFunc
 )
 
 type libFunc uintptr
@@ -723,4 +729,15 @@ func sigprocmask(how int32, new, old *sigset) {
 	}
 	sigprocmask1(uintptr(how), uintptr(unsafe.Pointer(new)), uintptr(unsafe.Pointer(old)))
 
+}
+
+//go:nosplit
+func pthread_self() pthread {
+	r, _ := syscall0(&libpthread_self)
+	return pthread(r)
+}
+
+//go:nosplit
+func signalM(mp *m, sig int) {
+	syscall2(&libpthread_kill, uintptr(pthread(mp.procid)), uintptr(sig))
 }

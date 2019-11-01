@@ -516,9 +516,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
 		s.Prog(mips.ASYNC)
-	case ssa.OpMIPS64LoweredAtomicStore32, ssa.OpMIPS64LoweredAtomicStore64:
+	case ssa.OpMIPS64LoweredAtomicStore8, ssa.OpMIPS64LoweredAtomicStore32, ssa.OpMIPS64LoweredAtomicStore64:
 		as := mips.AMOVV
-		if v.Op == ssa.OpMIPS64LoweredAtomicStore32 {
+		switch v.Op {
+		case ssa.OpMIPS64LoweredAtomicStore8:
+			as = mips.AMOVB
+		case ssa.OpMIPS64LoweredAtomicStore32:
 			as = mips.AMOVW
 		}
 		s.Prog(mips.ASYNC)

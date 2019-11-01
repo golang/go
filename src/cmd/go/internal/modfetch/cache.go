@@ -18,10 +18,11 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch/codehost"
-	"cmd/go/internal/module"
 	"cmd/go/internal/par"
 	"cmd/go/internal/renameio"
-	"cmd/go/internal/semver"
+
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 )
 
 var QuietLookup bool // do not print about lookups

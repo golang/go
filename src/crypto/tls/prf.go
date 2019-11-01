@@ -140,25 +140,6 @@ func keysFromMasterSecret(version uint16, suite *cipherSuite, masterSecret, clie
 	return
 }
 
-// hashFromSignatureScheme returns the corresponding crypto.Hash for a given
-// hash from a TLS SignatureScheme.
-func hashFromSignatureScheme(signatureAlgorithm SignatureScheme) (crypto.Hash, error) {
-	switch signatureAlgorithm {
-	case PKCS1WithSHA1, ECDSAWithSHA1:
-		return crypto.SHA1, nil
-	case PKCS1WithSHA256, PSSWithSHA256, ECDSAWithP256AndSHA256:
-		return crypto.SHA256, nil
-	case PKCS1WithSHA384, PSSWithSHA384, ECDSAWithP384AndSHA384:
-		return crypto.SHA384, nil
-	case PKCS1WithSHA512, PSSWithSHA512, ECDSAWithP521AndSHA512:
-		return crypto.SHA512, nil
-	case Ed25519:
-		return directSigning, nil
-	default:
-		return 0, fmt.Errorf("tls: unsupported signature algorithm: %#04x", signatureAlgorithm)
-	}
-}
-
 func newFinishedHash(version uint16, cipherSuite *cipherSuite) finishedHash {
 	var buffer []byte
 	if version >= VersionTLS12 {
@@ -234,26 +215,26 @@ func (h finishedHash) serverSum(masterSecret []byte) []byte {
 
 // hashForClientCertificate returns the handshake messages so far, pre-hashed if
 // necessary, suitable for signing by a TLS client certificate.
-func (h finishedHash) hashForClientCertificate(sigType uint8, hashAlg crypto.Hash, masterSecret []byte) ([]byte, error) {
+func (h finishedHash) hashForClientCertificate(sigType uint8, hashAlg crypto.Hash, masterSecret []byte) []byte {
 	if (h.version >= VersionTLS12 || sigType == signatureEd25519) && h.buffer == nil {
 		panic("tls: handshake hash for a client certificate requested after discarding the handshake buffer")
 	}
 
 	if sigType == signatureEd25519 {
-		return h.buffer, nil
+		return h.buffer
 	}
 
 	if h.version >= VersionTLS12 {
 		hash := hashAlg.New()
 		hash.Write(h.buffer)
-		return hash.Sum(nil), nil
+		return hash.Sum(nil)
 	}
 
 	if sigType == signatureECDSA {
-		return h.server.Sum(nil), nil
+		return h.server.Sum(nil)
 	}
 
-	return h.Sum(), nil
+	return h.Sum()
 }
 
 // discardHandshakeBuffer is called when there is no more need to

@@ -397,6 +397,18 @@ func (p *parser) expect(tok token.Token) token.Pos {
 	return pos
 }
 
+// expect2 is like expect, but it returns an invalid position
+// if the expected token is not found.
+func (p *parser) expect2(tok token.Token) (pos token.Pos) {
+	if p.tok == tok {
+		pos = p.pos
+	} else {
+		p.errorExpected(p.pos, "'"+tok.String()+"'")
+	}
+	p.next() // make progress
+	return
+}
+
 // expectClosing is like expect but provides a better error message
 // for the common case of a missing comma before a newline.
 //
@@ -1082,7 +1094,7 @@ func (p *parser) parseBody(scope *ast.Scope) *ast.BlockStmt {
 	list := p.parseStmtList()
 	p.closeLabelScope()
 	p.closeScope()
-	rbrace := p.expect(token.RBRACE)
+	rbrace := p.expect2(token.RBRACE)
 
 	return &ast.BlockStmt{Lbrace: lbrace, List: list, Rbrace: rbrace}
 }
@@ -1096,7 +1108,7 @@ func (p *parser) parseBlockStmt() *ast.BlockStmt {
 	p.openScope()
 	list := p.parseStmtList()
 	p.closeScope()
-	rbrace := p.expect(token.RBRACE)
+	rbrace := p.expect2(token.RBRACE)
 
 	return &ast.BlockStmt{Lbrace: lbrace, List: list, Rbrace: rbrace}
 }

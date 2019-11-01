@@ -16,9 +16,10 @@ import (
 	"time"
 
 	"cmd/go/internal/modfetch/codehost"
-	"cmd/go/internal/modfile"
-	"cmd/go/internal/module"
-	"cmd/go/internal/semver"
+
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 )
 
 // A codeRepo implements modfetch.Repo using an underlying codehost.Repo.

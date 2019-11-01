@@ -362,8 +362,8 @@ var optab = []Optab{
 
 	{AWORD, C_LCON, C_NONE, C_NONE, 40, 4, 0, 0},
 
-	{AMOVW, C_REG, C_NONE, C_FCREG, 41, 8, 0, 0},
-	{AMOVV, C_REG, C_NONE, C_FCREG, 41, 8, 0, sys.MIPS64},
+	{AMOVW, C_REG, C_NONE, C_FCREG, 41, 4, 0, 0},
+	{AMOVV, C_REG, C_NONE, C_FCREG, 41, 4, 0, sys.MIPS64},
 	{AMOVW, C_FCREG, C_NONE, C_REG, 42, 4, 0, 0},
 	{AMOVV, C_FCREG, C_NONE, C_REG, 42, 4, 0, sys.MIPS64},
 
@@ -1476,8 +1476,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = uint32(c.regoff(&p.From))
 
 	case 41: /* movw f,fcr */
-		o1 = OP_RRR(SP(2, 1)|(2<<21), uint32(REGZERO), uint32(0), uint32(p.To.Reg))    /* mfcc1 */
-		o2 = OP_RRR(SP(2, 1)|(6<<21), uint32(p.From.Reg), uint32(0), uint32(p.To.Reg)) /* mtcc1 */
+		o1 = OP_RRR(SP(2, 1)|(6<<21), uint32(p.From.Reg), uint32(0), uint32(p.To.Reg)) /* mtcc1 */
 
 	case 42: /* movw fcr,r */
 		o1 = OP_RRR(SP(2, 1)|(2<<21), uint32(p.To.Reg), uint32(0), uint32(p.From.Reg)) /* mfcc1 */

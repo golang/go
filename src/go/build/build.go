@@ -31,10 +31,19 @@ import (
 
 // A Context specifies the supporting context for a build.
 type Context struct {
-	GOARCH      string // target architecture
-	GOOS        string // target operating system
-	GOROOT      string // Go root
-	GOPATH      string // Go path
+	GOARCH string // target architecture
+	GOOS   string // target operating system
+	GOROOT string // Go root
+	GOPATH string // Go path
+
+	// WorkingDir is the caller's working directory, or the empty string to use
+	// the current directory of the running process. In module mode, this is used
+	// to locate the main module.
+	//
+	// If WorkingDir is non-empty, directories passed to Import and ImportDir must
+	// be absolute.
+	WorkingDir string
+
 	CgoEnabled  bool   // whether cgo files are included
 	UseAllFiles bool   // use files regardless of +build lines, file names
 	Compiler    string // compiler to assume when computing target paths
@@ -592,12 +601,13 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 			return p, fmt.Errorf("import %q: cannot import absolute path", path)
 		}
 
-		gopath := ctxt.gopath() // needed by both importGo and below; avoid computing twice
-		if err := ctxt.importGo(p, path, srcDir, mode, gopath); err == nil {
+		if err := ctxt.importGo(p, path, srcDir, mode); err == nil {
 			goto Found
 		} else if err != errNoModules {
 			return p, err
 		}
+
+		gopath := ctxt.gopath() // needed twice below; avoid computing many times
 
 		// tried records the location of unsuccessful package lookups
 		var tried struct {
@@ -990,21 +1000,14 @@ var errNoModules = errors.New("not using modules")
 // about the requested package and all dependencies and then only reports about the requested package.
 // Then we reinvoke it for every dependency. But this is still better than not working at all.
 // See golang.org/issue/26504.
-func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode, gopath []string) error {
+func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) error {
 	const debugImportGo = false
 
-	// To invoke the go command, we must know the source directory,
+	// To invoke the go command,
 	// we must not being doing special things like AllowBinary or IgnoreVendor,
 	// and all the file system callbacks must be nil (we're meant to use the local file system).
-	if srcDir == "" || mode&AllowBinary != 0 || mode&IgnoreVendor != 0 ||
+	if mode&AllowBinary != 0 || mode&IgnoreVendor != 0 ||
 		ctxt.JoinPath != nil || ctxt.SplitPathList != nil || ctxt.IsAbsPath != nil || ctxt.IsDir != nil || ctxt.HasSubdir != nil || ctxt.ReadDir != nil || ctxt.OpenFile != nil || !equal(ctxt.ReleaseTags, defaultReleaseTags) {
-		return errNoModules
-	}
-
-	// Find the absolute source directory. hasSubdir does not handle
-	// relative paths (and can't because the callbacks don't support this).
-	absSrcDir, err := filepath.Abs(srcDir)
-	if err != nil {
 		return errNoModules
 	}
 
@@ -1020,11 +1023,28 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode, 
 		// Maybe use modules.
 	}
 
-	// If the source directory is in GOROOT, then the in-process code works fine
-	// and we should keep using it. Moreover, the 'go list' approach below doesn't
-	// take standard-library vendoring into account and will fail.
-	if _, ok := ctxt.hasSubdir(filepath.Join(ctxt.GOROOT, "src"), absSrcDir); ok {
-		return errNoModules
+	if srcDir != "" {
+		var absSrcDir string
+		if filepath.IsAbs(srcDir) {
+			absSrcDir = srcDir
+		} else if ctxt.WorkingDir != "" {
+			return fmt.Errorf("go/build: WorkingDir is non-empty, so relative srcDir is not allowed: %v", srcDir)
+		} else {
+			// Find the absolute source directory. hasSubdir does not handle
+			// relative paths (and can't because the callbacks don't support this).
+			var err error
+			absSrcDir, err = filepath.Abs(srcDir)
+			if err != nil {
+				return errNoModules
+			}
+		}
+
+		// If the source directory is in GOROOT, then the in-process code works fine
+		// and we should keep using it. Moreover, the 'go list' approach below doesn't
+		// take standard-library vendoring into account and will fail.
+		if _, ok := ctxt.hasSubdir(filepath.Join(ctxt.GOROOT, "src"), absSrcDir); ok {
+			return errNoModules
+		}
 	}
 
 	// For efficiency, if path is a standard library package, let the usual lookup code handle it.
@@ -1038,7 +1058,24 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode, 
 	// Unless GO111MODULE=on, look to see if there is a go.mod.
 	// Since go1.13, it doesn't matter if we're inside GOPATH.
 	if go111Module != "on" {
-		parent := absSrcDir
+		var (
+			parent string
+			err    error
+		)
+		if ctxt.WorkingDir == "" {
+			parent, err = os.Getwd()
+			if err != nil {
+				// A nonexistent working directory can't be in a module.
+				return errNoModules
+			}
+		} else {
+			parent, err = filepath.Abs(ctxt.WorkingDir)
+			if err != nil {
+				// If the caller passed a bogus WorkingDir explicitly, that's materially
+				// different from not having modules enabled.
+				return err
+			}
+		}
 		for {
 			info, err := os.Stat(filepath.Join(parent, "go.mod"))
 			if err == nil && !info.IsDir() {
@@ -1054,10 +1091,9 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode, 
 
 	cmd := exec.Command("go", "list", "-e", "-compiler="+ctxt.Compiler, "-tags="+strings.Join(ctxt.BuildTags, ","), "-installsuffix="+ctxt.InstallSuffix, "-f={{.Dir}}\n{{.ImportPath}}\n{{.Root}}\n{{.Goroot}}\n{{if .Error}}{{.Error}}{{end}}\n", "--", path)
 
-	// TODO(bcmills): This is wrong if srcDir is in a vendor directory, or if
-	// srcDir is in some module dependency of the main module. The main module
-	// chooses what the import paths mean: individual packages don't.
-	cmd.Dir = srcDir
+	if ctxt.WorkingDir != "" {
+		cmd.Dir = ctxt.WorkingDir
+	}
 
 	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
@@ -1076,7 +1112,7 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode, 
 	)
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("go/build: importGo %s: %v\n%s\n", path, err, stderr.String())
+		return fmt.Errorf("go/build: go list %s: %v\n%s\n", path, err, stderr.String())
 	}
 
 	f := strings.SplitN(stdout.String(), "\n", 5)

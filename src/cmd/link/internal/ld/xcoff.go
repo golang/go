@@ -955,7 +955,7 @@ func putaixsym(ctxt *Link, x *sym.Symbol, str string, t SymbolType, addr int64, 
 		syms = append(syms, a4)
 
 	case UndefinedSym:
-		if x.Type != sym.SDYNIMPORT && x.Type != sym.SHOSTOBJ {
+		if x.Type != sym.SDYNIMPORT && x.Type != sym.SHOSTOBJ && x.Type != sym.SUNDEFEXT {
 			return
 		}
 		s := &XcoffSymEnt64{
