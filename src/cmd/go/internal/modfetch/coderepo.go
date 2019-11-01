@@ -6,6 +6,7 @@ package modfetch
 
 import (
 	"archive/zip"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -21,6 +22,7 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
+	modzip "golang.org/x/mod/zip"
 )
 
 // A codeRepo implements modfetch.Repo using an underlying codehost.Repo.
@@ -900,13 +902,12 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
 		return err
 	}
 
-	zw := zip.NewWriter(dst)
+	var files []modzip.File
 	if subdir != "" {
 		subdir += "/"
 	}
 	haveLICENSE := false
 	topPrefix := ""
-	haveGoMod := make(map[string]bool)
 	for _, zf := range zr.File {
 		if topPrefix == "" {
 			i := strings.Index(zf.Name, "/")
@@ -914,44 +915,6 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
 				return fmt.Errorf("missing top-level directory prefix")
 			}
 			topPrefix = zf.Name[:i+1]
-		}
-		if !strings.HasPrefix(zf.Name, topPrefix) {
-			return fmt.Errorf("zip file contains more than one top-level directory")
-		}
-		dir, file := path.Split(zf.Name)
-		if file == "go.mod" {
-			haveGoMod[dir] = true
-		}
-	}
-	root := topPrefix + subdir
-	inSubmodule := func(name string) bool {
-		for {
-			dir, _ := path.Split(name)
-			if len(dir) <= len(root) {
-				return false
-			}
-			if haveGoMod[dir] {
-				return true
-			}
-			name = dir[:len(dir)-1]
-		}
-	}
-
-	for _, zf := range zr.File {
-		if !zf.FileInfo().Mode().IsRegular() {
-			// Skip symlinks (golang.org/issue/27093).
-			continue
-		}
-
-		if topPrefix == "" {
-			i := strings.Index(zf.Name, "/")
-			if i < 0 {
-				return fmt.Errorf("missing top-level directory prefix")
-			}
-			topPrefix = zf.Name[:i+1]
-		}
-		if strings.HasSuffix(zf.Name, "/") { // drop directory dummy entries
-			continue
 		}
 		if !strings.HasPrefix(zf.Name, topPrefix) {
 			return fmt.Errorf("zip file contains more than one top-level directory")
@@ -960,63 +923,56 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
 		if !strings.HasPrefix(name, subdir) {
 			continue
 		}
-		if name == ".hg_archival.txt" {
-			// Inserted by hg archive.
-			// Not correct to drop from other version control systems, but too bad.
-			continue
-		}
 		name = strings.TrimPrefix(name, subdir)
-		if isVendoredPackage(name) {
+		if name == "" || strings.HasSuffix(name, "/") {
 			continue
 		}
-		if inSubmodule(zf.Name) {
-			continue
-		}
-		base := path.Base(name)
-		if strings.ToLower(base) == "go.mod" && base != "go.mod" {
-			return fmt.Errorf("zip file contains %s, want all lower-case go.mod", zf.Name)
-		}
+		files = append(files, zipFile{name: name, f: zf})
 		if name == "LICENSE" {
 			haveLICENSE = true
-		}
-		size := int64(zf.UncompressedSize64)
-		if size < 0 || maxSize < size {
-			return fmt.Errorf("module source tree too big")
-		}
-		maxSize -= size
-
-		rc, err := zf.Open()
-		if err != nil {
-			return err
-		}
-		w, err := zw.Create(r.modPrefix(version) + "/" + name)
-		if err != nil {
-			return err
-		}
-		lr := &io.LimitedReader{R: rc, N: size + 1}
-		if _, err := io.Copy(w, lr); err != nil {
-			return err
-		}
-		if lr.N <= 0 {
-			return fmt.Errorf("individual file too large")
 		}
 	}
 
 	if !haveLICENSE && subdir != "" {
 		data, err := r.code.ReadFile(rev, "LICENSE", codehost.MaxLICENSE)
 		if err == nil {
-			w, err := zw.Create(r.modPrefix(version) + "/LICENSE")
-			if err != nil {
-				return err
-			}
-			if _, err := w.Write(data); err != nil {
-				return err
-			}
+			files = append(files, dataFile{name: "LICENSE", data: data})
 		}
 	}
 
-	return zw.Close()
+	return modzip.Create(dst, module.Version{Path: r.modPath, Version: version}, files)
 }
+
+type zipFile struct {
+	name string
+	f    *zip.File
+}
+
+func (f zipFile) Path() string                 { return f.name }
+func (f zipFile) Lstat() (os.FileInfo, error)  { return f.f.FileInfo(), nil }
+func (f zipFile) Open() (io.ReadCloser, error) { return f.f.Open() }
+
+type dataFile struct {
+	name string
+	data []byte
+}
+
+func (f dataFile) Path() string                { return f.name }
+func (f dataFile) Lstat() (os.FileInfo, error) { return dataFileInfo{f}, nil }
+func (f dataFile) Open() (io.ReadCloser, error) {
+	return ioutil.NopCloser(bytes.NewReader(f.data)), nil
+}
+
+type dataFileInfo struct {
+	f dataFile
+}
+
+func (fi dataFileInfo) Name() string       { return path.Base(fi.f.name) }
+func (fi dataFileInfo) Size() int64        { return int64(len(fi.f.data)) }
+func (fi dataFileInfo) Mode() os.FileMode  { return 0644 }
+func (fi dataFileInfo) ModTime() time.Time { return time.Time{} }
+func (fi dataFileInfo) IsDir() bool        { return false }
+func (fi dataFileInfo) Sys() interface{}   { return nil }
 
 // hasPathPrefix reports whether the path s begins with the
 // elements in prefix.

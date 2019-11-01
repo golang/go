@@ -39,6 +39,7 @@ golang.org/x/mod/sumdb
 golang.org/x/mod/sumdb/dirhash
 golang.org/x/mod/sumdb/note
 golang.org/x/mod/sumdb/tlog
+golang.org/x/mod/zip
 # golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82
 ## explicit
 golang.org/x/sys/unix
