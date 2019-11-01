@@ -683,7 +683,7 @@ func (s *regAllocState) init(f *Func) {
 	s.endRegs = make([][]endReg, f.NumBlocks())
 	s.startRegs = make([][]startReg, f.NumBlocks())
 	s.spillLive = make([][]ID, f.NumBlocks())
-	s.sdom = f.sdom()
+	s.sdom = f.Sdom()
 
 	// wasm: Mark instructions that can be optimized to have their values only on the WebAssembly stack.
 	if f.Config.ctxt.Arch.Arch == sys.ArchWasm {
@@ -1916,7 +1916,7 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
 	for _, spillID := range stacklive {
 		v := e.s.orig[spillID]
 		spill := e.s.values[v.ID].spill
-		if !e.s.sdom.isAncestorEq(spill.Block, e.p) {
+		if !e.s.sdom.IsAncestorEq(spill.Block, e.p) {
 			// Spills were placed that only dominate the uses found
 			// during the first regalloc pass. The edge fixup code
 			// can't use a spill location if the spill doesn't dominate
