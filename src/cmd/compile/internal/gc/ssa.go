@@ -3216,7 +3216,7 @@ func init() {
 	var p4 []*sys.Arch
 	var p8 []*sys.Arch
 	var lwatomics []*sys.Arch
-	for _, a := range sys.Archs {
+	for _, a := range &sys.Archs {
 		all = append(all, a)
 		if a.PtrSize == 4 {
 			p4 = append(p4, a)

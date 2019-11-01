@@ -419,7 +419,7 @@ func (lv *Liveness) regEffects(v *ssa.Value) (uevar, kill liveRegMask) {
 			if v.Type.Etype != types.TTUPLE {
 				v.Fatalf("location pair %s has non-tuple type %v", loc, v.Type)
 			}
-			for i, loc1 := range loc {
+			for i, loc1 := range &loc {
 				if loc1 == nil {
 					continue
 				}
