@@ -660,7 +660,7 @@ func (r *importReader) funcExt(n *Node) {
 	r.symIdx(n.Sym)
 
 	// Escape analysis.
-	for _, fs := range types.RecvsParams {
+	for _, fs := range &types.RecvsParams {
 		for _, f := range fs(n.Type).FieldSlice() {
 			f.Note = r.string()
 		}
