@@ -12,6 +12,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/telemetry/log"
 	errors "golang.org/x/xerrors"
@@ -123,14 +124,14 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, mode source.P
 	fset := s.view.session.cache.fset
 
 	h := s.view.session.cache.store.Bind(buildActionKey(a, cph), func(ctx context.Context) interface{} {
-		data := &actionData{}
-		// Analyze dependencies.
+		// Analyze dependencies first.
 		results, err := execAll(ctx, fset, deps)
 		if err != nil {
-			data.err = err
-			return nil
+			return &actionData{
+				err: err,
+			}
 		}
-		data.diagnostics, data.result, data.objectFacts, data.packageFacts, data.err = runAnalysis(ctx, fset, a, pkg, results)
+		data := runAnalysis(ctx, fset, a, pkg, results)
 		return data
 	})
 	ah.handle = h
@@ -192,7 +193,18 @@ func execAll(ctx context.Context, fset *token.FileSet, actions []*actionHandle) 
 	return results, g.Wait()
 }
 
-func runAnalysis(ctx context.Context, fset *token.FileSet, analyzer *analysis.Analyzer, pkg *pkg, deps map[*actionHandle]*actionData) ([]*source.Error, interface{}, map[objectFactKey]analysis.Fact, map[packageFactKey]analysis.Fact, error) {
+func runAnalysis(ctx context.Context, fset *token.FileSet, analyzer *analysis.Analyzer, pkg *pkg, deps map[*actionHandle]*actionData) (data *actionData) {
+	data = &actionData{
+		objectFacts:  make(map[objectFactKey]analysis.Fact),
+		packageFacts: make(map[packageFactKey]analysis.Fact),
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			log.Print(ctx, fmt.Sprintf("analysis panicked: %s", r), telemetry.Package.Of(pkg.PkgPath))
+			data.err = errors.Errorf("analysis %s for package %s panicked: %v", analyzer.Name, pkg.PkgPath())
+		}
+	}()
+
 	// Plumb the output values of the dependencies
 	// into the inputs of this action.  Also facts.
 	inputs := make(map[*analysis.Analyzer]interface{})
@@ -300,14 +312,16 @@ func runAnalysis(ctx context.Context, fset *token.FileSet, analyzer *analysis.An
 	}
 
 	if pkg.IsIllTyped() {
-		return nil, nil, nil, nil, errors.Errorf("analysis skipped due to errors in package: %v", pkg.GetErrors())
+		data.err = errors.Errorf("analysis skipped due to errors in package: %v", pkg.GetErrors())
+		return data
 	}
-	result, err := pass.Analyzer.Run(pass)
-	if err == nil {
-		if got, want := reflect.TypeOf(result), pass.Analyzer.ResultType; got != want {
-			err = errors.Errorf(
+	data.result, data.err = pass.Analyzer.Run(pass)
+	if data.err == nil {
+		if got, want := reflect.TypeOf(data.result), pass.Analyzer.ResultType; got != want {
+			data.err = errors.Errorf(
 				"internal error: on package %s, analyzer %s returned a result of type %v, but declared ResultType %v",
 				pass.Pkg.Path(), pass.Analyzer, got, want)
+			return data
 		}
 	}
 
@@ -319,15 +333,14 @@ func runAnalysis(ctx context.Context, fset *token.FileSet, analyzer *analysis.An
 		panic(fmt.Sprintf("%s:%s: Pass.ExportPackageFact(%T) called after Run", analyzer.Name, pkg.PkgPath(), fact))
 	}
 
-	var errors []*source.Error
 	for _, diag := range diagnostics {
 		srcErr, err := sourceError(ctx, fset, pkg, diag)
 		if err != nil {
-			return nil, nil, nil, nil, err
+			return nil
 		}
-		errors = append(errors, srcErr)
+		data.diagnostics = append(data.diagnostics, srcErr)
 	}
-	return errors, result, objectFacts, packageFacts, err
+	return data
 }
 
 // exportedFrom reports whether obj may be visible to a package that imports pkg.
