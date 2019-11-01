@@ -254,3 +254,30 @@ func TestNonSSAableArgs(t *testing.T) {
 		save4 = element.z
 	}(sideeffect2(foo).element)
 }
+
+//go:noinline
+func doPanic() {
+	panic("Test panic")
+}
+
+func TestDeferForFuncWithNoExit(t *testing.T) {
+	cond := 1
+	defer func() {
+		if cond != 2 {
+			t.Fatal(fmt.Sprintf("cond: wanted 2, got %v", cond))
+		}
+		if recover() != "Test panic" {
+			t.Fatal("Didn't find expected panic")
+		}
+	}()
+	x := 0
+	// Force a stack copy, to make sure that the &cond pointer passed to defer
+	// function is properly updated.
+	growStackIter(&x, 1000)
+	cond = 2
+	doPanic()
+
+	// This function has no exit/return, since it ends with an infinite loop
+	for {
+	}
+}

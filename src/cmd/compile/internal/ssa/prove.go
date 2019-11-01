@@ -848,7 +848,7 @@ func prove(f *Func) {
 	})
 
 	idom := f.Idom()
-	sdom := f.sdom()
+	sdom := f.Sdom()
 
 	// DFS on the dominator tree.
 	//
@@ -948,10 +948,10 @@ func getBranch(sdom SparseTree, p *Block, b *Block) branch {
 	// has one predecessor then (apart from the degenerate case),
 	// there is no path from entry that can reach b through p.Succs[1].
 	// TODO: how about p->yes->b->yes, i.e. a loop in yes.
-	if sdom.isAncestorEq(p.Succs[0].b, b) && len(p.Succs[0].b.Preds) == 1 {
+	if sdom.IsAncestorEq(p.Succs[0].b, b) && len(p.Succs[0].b.Preds) == 1 {
 		return positive
 	}
-	if sdom.isAncestorEq(p.Succs[1].b, b) && len(p.Succs[1].b.Preds) == 1 {
+	if sdom.IsAncestorEq(p.Succs[1].b, b) && len(p.Succs[1].b.Preds) == 1 {
 		return negative
 	}
 	return unknown
