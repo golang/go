@@ -142,7 +142,7 @@ type Cache interface {
 // A session may have many active views at any given time.
 type Session interface {
 	// NewView creates a new View and returns it.
-	NewView(ctx context.Context, name string, folder span.URI, options Options) View
+	NewView(ctx context.Context, name string, folder span.URI, options Options) (View, error)
 
 	// Cache returns the cache that created this session.
 	Cache() Cache
@@ -285,6 +285,22 @@ type Snapshot interface {
 type File interface {
 	URI() span.URI
 	Kind() FileKind
+}
+
+type FileURI span.URI
+
+func (f FileURI) URI() span.URI {
+	return span.URI(f)
+}
+
+type DirectoryURI span.URI
+
+func (d DirectoryURI) URI() span.URI {
+	return span.URI(d)
+}
+
+type Scope interface {
+	URI() span.URI
 }
 
 // Package represents a Go package that has been type-checked. It maintains

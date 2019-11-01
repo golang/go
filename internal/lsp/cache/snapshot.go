@@ -79,11 +79,11 @@ func (s *snapshot) addPackage(cph *checkPackageHandle) {
 	s.packages[cph.packageKey()] = cph
 }
 
-func (s *snapshot) getPackages(uri span.URI, m source.ParseMode) (cphs []source.CheckPackageHandle) {
+func (s *snapshot) getPackages(uri source.FileURI, m source.ParseMode) (cphs []source.CheckPackageHandle) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if ids, ok := s.ids[uri]; ok {
+	if ids, ok := s.ids[uri.URI()]; ok {
 		for _, id := range ids {
 			key := packageKey{
 				id:   id,
@@ -178,6 +178,8 @@ func (s *snapshot) addAction(ah *actionHandle) {
 }
 
 func (s *snapshot) getMetadataForURI(uri span.URI) (metadata []*metadata) {
+	// TODO(matloob): uri can be a file or directory. Should we update the mappings
+	// to map directories to their contained packages?
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -340,6 +342,9 @@ func (v *view) invalidateContent(ctx context.Context, f source.File, kind source
 		ids[id] = struct{}{}
 	}
 
+	// Get the original FileHandle for the URI, if it exists.
+	originalFH := v.snapshot.getFile(f.URI())
+
 	switch changeType {
 	case protocol.Created:
 		// If this is a file we don't yet know about,
@@ -358,6 +363,8 @@ func (v *view) invalidateContent(ctx context.Context, f source.File, kind source
 				}
 			}
 		}
+		// If a file has been explicitly created, make sure that its original file handle is nil.
+		originalFH = nil
 	}
 
 	if len(ids) == 0 {
@@ -368,9 +375,6 @@ func (v *view) invalidateContent(ctx context.Context, f source.File, kind source
 	for id := range ids {
 		v.snapshot.reverseDependencies(id, withoutTypes, map[packageID]struct{}{})
 	}
-
-	// Get the original FileHandle for the URI, if it exists.
-	originalFH := v.snapshot.getFile(f.URI())
 
 	// Make sure to clear out the content if there has been a deletion.
 	if changeType == protocol.Deleted {

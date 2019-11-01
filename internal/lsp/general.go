@@ -167,7 +167,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	log.Print(ctx, buf.String())
 
 	for _, folder := range s.pendingFolders {
-		if err := s.addView(ctx, folder.Name, span.NewURI(folder.URI)); err != nil {
+		if _, err := s.addView(ctx, folder.Name, span.NewURI(folder.URI)); err != nil {
 			return err
 		}
 	}

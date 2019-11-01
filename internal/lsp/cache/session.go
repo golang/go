@@ -78,7 +78,7 @@ func (s *session) Cache() source.Cache {
 	return s.cache
 }
 
-func (s *session) NewView(ctx context.Context, name string, folder span.URI, options source.Options) source.View {
+func (s *session) NewView(ctx context.Context, name string, folder span.URI, options source.Options) (source.View, error) {
 	index := atomic.AddInt64(&viewIndex, 1)
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
@@ -118,11 +118,32 @@ func (s *session) NewView(ctx context.Context, name string, folder span.URI, opt
 	// so we immediately add builtin.go to the list of ignored files.
 	v.buildBuiltinPackage(ctx)
 
+	// Preemptively load everything in this directory.
+	// TODO(matloob): Determine if this can be done in parallel with something else.
+	// Perhaps different calls to NewView can be run in parallel?
+	// TODO(matloob): By default when a new file is opened, its data is invalidated
+	// and it's loaded again. Determine if the redundant reload can be avoided.
+	v.snapshotMu.Lock()
+	defer v.snapshotMu.Unlock() // The code after the snapshot is used isn't expensive.
+	m, err := v.snapshot.load(ctx, source.DirectoryURI(folder))
+	if err != nil {
+		return nil, err
+	}
+	// Prepare CheckPackageHandles for every package that's been loaded.
+	// (*snapshot).CheckPackageHandle makes the assumption that every package that's
+	// been loaded has an existing checkPackageHandle.
+	for _, m := range m {
+		_, err := v.snapshot.checkPackageHandle(ctx, m.id, source.ParseFull)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	s.views = append(s.views, v)
 	// we always need to drop the view map
 	s.viewMap = make(map[span.URI]source.View)
 	debug.AddView(debugView{v})
-	return v
+	return v, nil
 }
 
 // View returns the view by name.

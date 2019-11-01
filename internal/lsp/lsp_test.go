@@ -53,7 +53,10 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	options := tests.DefaultOptions()
 	session.SetOptions(options)
 	options.Env = data.Config.Env
-	session.NewView(ctx, viewName, span.FileURI(data.Config.Dir), options)
+	_, err := session.NewView(ctx, viewName, span.FileURI(data.Config.Dir), options)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for filename, content := range data.Config.Overlay {
 		session.SetOverlay(span.FileURI(filename), source.DetectLanguage("", filename), content)
 	}

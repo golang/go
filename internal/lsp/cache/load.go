@@ -33,27 +33,43 @@ type metadata struct {
 	config *packages.Config
 }
 
-func (s *snapshot) load(ctx context.Context, uri span.URI) ([]*metadata, error) {
+func (s *snapshot) load(ctx context.Context, scope source.Scope) ([]*metadata, error) {
+	uri := scope.URI()
+	var query string
+	switch scope.(type) {
+	case source.FileURI:
+		query = fmt.Sprintf("file=%s", scope.URI().Filename())
+	case source.DirectoryURI:
+		query = fmt.Sprintf("%s/...", scope.URI().Filename())
+		// Simplify the query if it will be run in the requested directory.
+		// This ensures compatibility with Go 1.12 that doesn't allow
+		// <directory>/... in GOPATH mode.
+		if s.view.folder.Filename() == scope.URI().Filename() {
+			query = "./..."
+		}
+	default:
+		panic(fmt.Errorf("unsupported scope type %T", scope))
+	}
 	ctx, done := trace.StartSpan(ctx, "cache.view.load", telemetry.URI.Of(uri))
 	defer done()
 
 	cfg := s.view.Config(ctx)
-	pkgs, err := packages.Load(cfg, fmt.Sprintf("file=%s", uri.Filename()))
+	pkgs, err := packages.Load(cfg, query)
 
 	// If the context was canceled, return early.
 	// Otherwise, we might be type-checking an incomplete result.
 	if err == context.Canceled {
-		return nil, errors.Errorf("no metadata for %s: %v", uri.Filename(), err)
+		return nil, errors.Errorf("no metadata for %s: %v", uri, err)
 	}
 	log.Print(ctx, "go/packages.Load", tag.Of("packages", len(pkgs)))
 	if len(pkgs) == 0 {
 		if err == nil {
-			err = errors.Errorf("go/packages.Load: no packages found for %s", uri)
+			err = errors.Errorf("go/packages.Load: no packages found for %s", query)
 		}
 		// Return this error as a diagnostic to the user.
 		return nil, err
 	}
-	m, prevMissingImports, err := s.updateMetadata(ctx, uri, pkgs, cfg)
+	m, prevMissingImports, err := s.updateMetadata(ctx, scope, pkgs, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +81,7 @@ func (s *snapshot) load(ctx context.Context, uri span.URI) ([]*metadata, error) 
 }
 
 func validateMetadata(ctx context.Context, metadata []*metadata, prevMissingImports map[packageID]map[packagePath]struct{}) ([]*metadata, error) {
-	// If we saw incorrect metadata for this package previously, don't both rechecking it.
+	// If we saw incorrect metadata for this package previously, don't bother rechecking it.
 	for _, m := range metadata {
 		if len(m.missingDeps) > 0 {
 			prev, ok := prevMissingImports[m.id]
@@ -132,11 +148,22 @@ func (c *cache) shouldLoad(ctx context.Context, s *snapshot, originalFH, current
 	return false
 }
 
-func (s *snapshot) updateMetadata(ctx context.Context, uri span.URI, pkgs []*packages.Package, cfg *packages.Config) ([]*metadata, map[packageID]map[packagePath]struct{}, error) {
+func (s *snapshot) updateMetadata(ctx context.Context, uri source.Scope, pkgs []*packages.Package, cfg *packages.Config) ([]*metadata, map[packageID]map[packagePath]struct{}, error) {
 	// Clear metadata since we are re-running go/packages.
+	var m []*metadata
+	switch uri.(type) {
+	case source.FileURI:
+		m = s.getMetadataForURI(uri.URI())
+	case source.DirectoryURI:
+		for _, pkg := range pkgs {
+			if pkgMetadata := s.getMetadata(packageID(pkg.ID)); pkgMetadata != nil {
+				m = append(m, pkgMetadata)
+			}
+		}
+	default:
+		panic(fmt.Errorf("unsupported Scope type %T", uri))
+	}
 	prevMissingImports := make(map[packageID]map[packagePath]struct{})
-	m := s.getMetadataForURI(uri)
-
 	for _, m := range m {
 		if len(m.missingDeps) > 0 {
 			prevMissingImports[m.id] = m.missingDeps

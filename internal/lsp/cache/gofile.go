@@ -39,7 +39,7 @@ func (s *snapshot) CheckPackageHandles(ctx context.Context, f source.File) ([]so
 	// We only need to this if it has been invalidated, and is therefore unvailable.
 	if load {
 		var err error
-		m, err = s.load(ctx, f.URI())
+		m, err = s.load(ctx, source.FileURI(f.URI()))
 		if err != nil {
 			return nil, err
 		}
@@ -61,7 +61,7 @@ func (s *snapshot) CheckPackageHandles(ctx context.Context, f source.File) ([]so
 		cphs = results
 	}
 	if len(cphs) == 0 {
-		return nil, errors.Errorf("no CheckPackageHandles for %s", f.URI())
+		return nil, errors.Errorf("no CheckPackageHandles for %s", f)
 	}
 	return cphs, nil
 }
@@ -86,7 +86,7 @@ func (s *snapshot) shouldCheck(fh source.FileHandle) (m []*metadata, cphs []sour
 	}
 	// We expect to see a checked package for each package ID,
 	// and it should be parsed in full mode.
-	cphs = s.getPackages(fh.Identity().URI, source.ParseFull)
+	cphs = s.getPackages(source.FileURI(fh.Identity().URI), source.ParseFull)
 	if len(cphs) < len(m) {
 		return m, nil, load, true
 	}
