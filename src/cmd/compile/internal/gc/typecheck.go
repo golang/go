@@ -2809,7 +2809,7 @@ func typecheckcomplit(n *Node) (res *Node) {
 		n.Right = nil
 
 	case TSLICE:
-		length := typecheckarraylit(t.Elem(), -2, n.List.Slice(), "slice literal")
+		length := typecheckarraylit(t.Elem(), -1, n.List.Slice(), "slice literal")
 		n.Op = OSLICELIT
 		n.Right = nodintconst(length)
 
