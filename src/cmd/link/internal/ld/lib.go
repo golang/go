@@ -2620,7 +2620,7 @@ func (ctxt *Link) loadlibfull() {
 
 func (ctxt *Link) dumpsyms() {
 	for _, s := range ctxt.Syms.Allsym {
-		fmt.Printf("%s %s %p\n", s, s.Type, s)
+		fmt.Printf("%s %s %p %v %v\n", s, s.Type, s, s.Attr.Reachable(), s.Attr.OnList())
 		for i := range s.R {
 			fmt.Println("\t", s.R[i].Type, s.R[i].Sym)
 		}
