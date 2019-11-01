@@ -18,69 +18,6 @@ import (
 	"io"
 )
 
-// pickSignatureAlgorithm selects a signature algorithm that is compatible with
-// the given public key and the list of algorithms from the peer and this side.
-// The lists of signature algorithms (peerSigAlgs and ourSigAlgs) are ignored
-// for tlsVersion < VersionTLS12.
-//
-// The returned SignatureScheme codepoint is only meaningful for TLS 1.2,
-// previous TLS versions have a fixed hash function.
-func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []SignatureScheme, tlsVersion uint16) (sigAlg SignatureScheme, sigType uint8, hashFunc crypto.Hash, err error) {
-	if tlsVersion < VersionTLS12 || len(peerSigAlgs) == 0 {
-		// For TLS 1.1 and before, the signature algorithm could not be
-		// negotiated and the hash is fixed based on the signature type. For TLS
-		// 1.2, if the client didn't send signature_algorithms extension then we
-		// can assume that it supports SHA1. See RFC 5246, Section 7.4.1.4.1.
-		switch pubkey.(type) {
-		case *rsa.PublicKey:
-			if tlsVersion < VersionTLS12 {
-				return 0, signaturePKCS1v15, crypto.MD5SHA1, nil
-			} else {
-				return PKCS1WithSHA1, signaturePKCS1v15, crypto.SHA1, nil
-			}
-		case *ecdsa.PublicKey:
-			return ECDSAWithSHA1, signatureECDSA, crypto.SHA1, nil
-		case ed25519.PublicKey:
-			if tlsVersion < VersionTLS12 {
-				// RFC 8422 specifies support for Ed25519 in TLS 1.0 and 1.1,
-				// but it requires holding on to a handshake transcript to do a
-				// full signature, and not even OpenSSL bothers with the
-				// complexity, so we can't even test it properly.
-				return 0, 0, 0, fmt.Errorf("tls: Ed25519 public keys are not supported before TLS 1.2")
-			}
-			return Ed25519, signatureEd25519, directSigning, nil
-		default:
-			return 0, 0, 0, fmt.Errorf("tls: unsupported public key: %T", pubkey)
-		}
-	}
-	for _, sigAlg := range peerSigAlgs {
-		if !isSupportedSignatureAlgorithm(sigAlg, ourSigAlgs) {
-			continue
-		}
-		sigType, hashAlg, err := typeAndHashFromSignatureScheme(sigAlg)
-		if err != nil {
-			return 0, 0, 0, fmt.Errorf("tls: internal error: %v", err)
-		}
-		switch pubkey.(type) {
-		case *rsa.PublicKey:
-			if sigType == signaturePKCS1v15 || sigType == signatureRSAPSS {
-				return sigAlg, sigType, hashAlg, nil
-			}
-		case *ecdsa.PublicKey:
-			if sigType == signatureECDSA {
-				return sigAlg, sigType, hashAlg, nil
-			}
-		case ed25519.PublicKey:
-			if sigType == signatureEd25519 {
-				return sigAlg, sigType, hashAlg, nil
-			}
-		default:
-			return 0, 0, 0, fmt.Errorf("tls: unsupported public key: %T", pubkey)
-		}
-	}
-	return 0, 0, 0, errors.New("tls: peer doesn't support any common signature algorithms")
-}
-
 // verifyHandshakeSignature verifies a signature against pre-hashed
 // (if required) handshake contents.
 func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc crypto.Hash, signed, sig []byte) error {
@@ -164,12 +101,62 @@ func signedMessage(sigHash crypto.Hash, context string, transcript hash.Hash) []
 	return h.Sum(nil)
 }
 
+// typeAndHashFromSignatureScheme returns the corresponding signature type and
+// crypto.Hash for a given TLS SignatureScheme.
+func typeAndHashFromSignatureScheme(signatureAlgorithm SignatureScheme) (sigType uint8, hash crypto.Hash, err error) {
+	switch signatureAlgorithm {
+	case PKCS1WithSHA1, PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512:
+		sigType = signaturePKCS1v15
+	case PSSWithSHA256, PSSWithSHA384, PSSWithSHA512:
+		sigType = signatureRSAPSS
+	case ECDSAWithSHA1, ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512:
+		sigType = signatureECDSA
+	case Ed25519:
+		sigType = signatureEd25519
+	default:
+		return 0, 0, fmt.Errorf("unsupported signature algorithm: %#04x", signatureAlgorithm)
+	}
+	switch signatureAlgorithm {
+	case PKCS1WithSHA1, ECDSAWithSHA1:
+		hash = crypto.SHA1
+	case PKCS1WithSHA256, PSSWithSHA256, ECDSAWithP256AndSHA256:
+		hash = crypto.SHA256
+	case PKCS1WithSHA384, PSSWithSHA384, ECDSAWithP384AndSHA384:
+		hash = crypto.SHA384
+	case PKCS1WithSHA512, PSSWithSHA512, ECDSAWithP521AndSHA512:
+		hash = crypto.SHA512
+	case Ed25519:
+		hash = directSigning
+	default:
+		return 0, 0, fmt.Errorf("unsupported signature algorithm: %#04x", signatureAlgorithm)
+	}
+	return sigType, hash, nil
+}
+
+// legacyTypeAndHashFromPublicKey returns the fixed signature type and crypto.Hash for
+// a given public key used with TLS 1.0 and 1.1, before the introduction of
+// signature algorithm negotiation.
+func legacyTypeAndHashFromPublicKey(pub crypto.PublicKey) (sigType uint8, hash crypto.Hash, err error) {
+	switch pub.(type) {
+	case *rsa.PublicKey:
+		return signaturePKCS1v15, crypto.MD5SHA1, nil
+	case *ecdsa.PublicKey:
+		return signatureECDSA, crypto.SHA1, nil
+	case ed25519.PublicKey:
+		// RFC 8422 specifies support for Ed25519 in TLS 1.0 and 1.1,
+		// but it requires holding on to a handshake transcript to do a
+		// full signature, and not even OpenSSL bothers with the
+		// complexity, so we can't even test it properly.
+		return 0, 0, fmt.Errorf("tls: Ed25519 public keys are not supported before TLS 1.2")
+	default:
+		return 0, 0, fmt.Errorf("tls: unsupported public key: %T", pub)
+	}
+}
+
 // signatureSchemesForCertificate returns the list of supported SignatureSchemes
 // for a given certificate, based on the public key and the protocol version.
 //
-// It does not support the crypto.Decrypter interface, so shouldn't be used for
-// server certificates in TLS 1.2 and earlier, and it must be kept in sync with
-// supportedSignatureAlgorithms.
+// This function must be kept in sync with supportedSignatureAlgorithms.
 func signatureSchemesForCertificate(version uint16, cert *Certificate) []SignatureScheme {
 	priv, ok := cert.PrivateKey.(crypto.Signer)
 	if !ok {
@@ -201,12 +188,17 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 	case *rsa.PublicKey:
 		if version != VersionTLS13 {
 			return []SignatureScheme{
+				// Temporarily disable RSA-PSS in TLS 1.2, see Issue 32425.
+				// PSSWithSHA256,
+				// PSSWithSHA384,
+				// PSSWithSHA512,
 				PKCS1WithSHA256,
 				PKCS1WithSHA384,
 				PKCS1WithSHA512,
 				PKCS1WithSHA1,
 			}
 		}
+		// TLS 1.3 dropped support for PKCS#1 v1.5 in favor of RSA-PSS.
 		return []SignatureScheme{
 			PSSWithSHA256,
 			PSSWithSHA384,
@@ -217,6 +209,29 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 	default:
 		return nil
 	}
+}
+
+// selectSignatureScheme picks a SignatureScheme from the peer's preference list
+// that works with the selected certificate. It's only called for protocol
+// versions that support signature algorithms, so TLS 1.2 and 1.3.
+func selectSignatureScheme(vers uint16, c *Certificate, peerAlgs []SignatureScheme) (SignatureScheme, error) {
+	supportedAlgs := signatureSchemesForCertificate(vers, c)
+	if supportedAlgs == nil {
+		return 0, unsupportedCertificateError(c)
+	}
+	if len(peerAlgs) == 0 && vers == VersionTLS12 {
+		// For TLS 1.2, if the client didn't send signature_algorithms then we
+		// can assume that it supports SHA1. See RFC 5246, Section 7.4.1.4.1.
+		peerAlgs = []SignatureScheme{PKCS1WithSHA1, ECDSAWithSHA1}
+	}
+	// Pick signature scheme in the peer's preference order, as our
+	// preference order is not configurable.
+	for _, preferredAlg := range peerAlgs {
+		if isSupportedSignatureAlgorithm(preferredAlg, supportedAlgs) {
+			return preferredAlg, nil
+		}
+	}
+	return 0, errors.New("tls: peer doesn't support any of the certificate's signature algorithms")
 }
 
 // unsupportedCertificateError returns a helpful error for certificates with

@@ -24,7 +24,7 @@ type serverHandshakeState struct {
 	clientHello  *clientHelloMsg
 	hello        *serverHelloMsg
 	suite        *cipherSuite
-	ecdhOk       bool
+	ecdheOk      bool
 	ecSignOk     bool
 	rsaDecryptOk bool
 	rsaSignOk    bool
@@ -175,36 +175,6 @@ func (hs *serverHandshakeState) processClientHello() error {
 	hs.hello = new(serverHelloMsg)
 	hs.hello.vers = c.vers
 
-	supportedCurve := false
-	preferredCurves := c.config.curvePreferences()
-Curves:
-	for _, curve := range hs.clientHello.supportedCurves {
-		for _, supported := range preferredCurves {
-			if supported == curve {
-				supportedCurve = true
-				break Curves
-			}
-		}
-	}
-
-	supportedPointFormat := false
-	for _, pointFormat := range hs.clientHello.supportedPoints {
-		if pointFormat == pointFormatUncompressed {
-			supportedPointFormat = true
-			break
-		}
-	}
-	hs.ecdhOk = supportedCurve && supportedPointFormat
-
-	if supportedPointFormat {
-		// Although omiting the ec_point_formats extension is permitted, some
-		// old OpenSSL version will refuse to handshake if not present.
-		//
-		// Per RFC 4492, section 5.1.2, implementations MUST support the
-		// uncompressed point format. See golang.org/issue/31943.
-		hs.hello.supportedPoints = []uint8{pointFormatUncompressed}
-	}
-
 	foundCompression := false
 	// We only support null compression, so check that the client offered it.
 	for _, compression := range hs.clientHello.compressionMethods {
@@ -264,6 +234,17 @@ Curves:
 		hs.hello.scts = hs.cert.SignedCertificateTimestamps
 	}
 
+	hs.ecdheOk = supportsECDHE(c.config, hs.clientHello.supportedCurves, hs.clientHello.supportedPoints)
+
+	if hs.ecdheOk {
+		// Although omiting the ec_point_formats extension is permitted, some
+		// old OpenSSL version will refuse to handshake if not present.
+		//
+		// Per RFC 4492, section 5.1.2, implementations MUST support the
+		// uncompressed point format. See golang.org/issue/31943.
+		hs.hello.supportedPoints = []uint8{pointFormatUncompressed}
+	}
+
 	if priv, ok := hs.cert.PrivateKey.(crypto.Signer); ok {
 		switch priv.Public().(type) {
 		case *ecdsa.PublicKey:
@@ -290,6 +271,28 @@ Curves:
 	return nil
 }
 
+// supportsECDHE returns whether ECDHE key exchanges can be used with this
+// pre-TLS 1.3 client.
+func supportsECDHE(c *Config, supportedCurves []CurveID, supportedPoints []uint8) bool {
+	supportsCurve := false
+	for _, curve := range supportedCurves {
+		if c.supportsCurve(curve) {
+			supportsCurve = true
+			break
+		}
+	}
+
+	supportsPointFormat := false
+	for _, pointFormat := range supportedPoints {
+		if pointFormat == pointFormatUncompressed {
+			supportsPointFormat = true
+			break
+		}
+	}
+
+	return supportsCurve && supportsPointFormat
+}
+
 func (hs *serverHandshakeState) pickCipherSuite() error {
 	c := hs.c
 
@@ -302,12 +305,7 @@ func (hs *serverHandshakeState) pickCipherSuite() error {
 		supportedList = c.config.cipherSuites()
 	}
 
-	for _, id := range preferenceList {
-		if hs.setCipherSuite(id, supportedList, c.vers) {
-			break
-		}
-	}
-
+	hs.suite = selectCipherSuite(preferenceList, supportedList, hs.cipherSuiteOk)
 	if hs.suite == nil {
 		c.sendAlert(alertHandshakeFailure)
 		return errors.New("tls: no cipher suite supported by both client and server")
@@ -325,6 +323,27 @@ func (hs *serverHandshakeState) pickCipherSuite() error {
 	}
 
 	return nil
+}
+
+func (hs *serverHandshakeState) cipherSuiteOk(c *cipherSuite) bool {
+	if c.flags&suiteECDHE != 0 {
+		if !hs.ecdheOk {
+			return false
+		}
+		if c.flags&suiteECSign != 0 {
+			if !hs.ecSignOk {
+				return false
+			}
+		} else if !hs.rsaSignOk {
+			return false
+		}
+	} else if !hs.rsaDecryptOk {
+		return false
+	}
+	if hs.c.vers < VersionTLS12 && c.flags&suiteTLS12 != 0 {
+		return false
+	}
+	return true
 }
 
 // checkForResumption reports whether we should perform resumption on this connection.
@@ -363,7 +382,9 @@ func (hs *serverHandshakeState) checkForResumption() bool {
 	}
 
 	// Check that we also support the ciphersuite from the session.
-	if !hs.setCipherSuite(hs.sessionState.cipherSuite, c.config.cipherSuites(), hs.sessionState.vers) {
+	hs.suite = selectCipherSuite([]uint16{hs.sessionState.cipherSuite},
+		c.config.cipherSuites(), hs.cipherSuiteOk)
+	if hs.suite == nil {
 		return false
 	}
 
@@ -562,15 +583,27 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 			return unexpectedMessageError(certVerify, msg)
 		}
 
-		// Determine the signature type.
-		_, sigType, hashFunc, err := pickSignatureAlgorithm(pub, []SignatureScheme{certVerify.signatureAlgorithm}, certReq.supportedSignatureAlgorithms, c.vers)
-		if err != nil {
-			c.sendAlert(alertIllegalParameter)
-			return err
+		var sigType uint8
+		var sigHash crypto.Hash
+		if c.vers >= VersionTLS12 {
+			if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, certReq.supportedSignatureAlgorithms) {
+				c.sendAlert(alertIllegalParameter)
+				return errors.New("tls: client certificate used with invalid signature algorithm")
+			}
+			sigType, sigHash, err = typeAndHashFromSignatureScheme(certVerify.signatureAlgorithm)
+			if err != nil {
+				return c.sendAlert(alertInternalError)
+			}
+		} else {
+			sigType, sigHash, err = legacyTypeAndHashFromPublicKey(pub)
+			if err != nil {
+				c.sendAlert(alertIllegalParameter)
+				return err
+			}
 		}
 
-		signed := hs.finishedHash.hashForClientCertificate(sigType, hashFunc, hs.masterSecret)
-		if err := verifyHandshakeSignature(sigType, pub, hashFunc, signed, certVerify.signature); err != nil {
+		signed := hs.finishedHash.hashForClientCertificate(sigType, sigHash, hs.masterSecret)
+		if err := verifyHandshakeSignature(sigType, pub, sigHash, signed, certVerify.signature); err != nil {
 			c.sendAlert(alertDecryptError)
 			return errors.New("tls: invalid signature by the client certificate: " + err.Error())
 		}
@@ -751,43 +784,6 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 	c.ocspResponse = certificate.OCSPStaple
 	c.scts = certificate.SignedCertificateTimestamps
 	return nil
-}
-
-// setCipherSuite sets a cipherSuite with the given id as the serverHandshakeState
-// suite if that cipher suite is acceptable to use.
-// It returns a bool indicating if the suite was set.
-func (hs *serverHandshakeState) setCipherSuite(id uint16, supportedCipherSuites []uint16, version uint16) bool {
-	for _, supported := range supportedCipherSuites {
-		if id != supported {
-			continue
-		}
-		candidate := cipherSuiteByID(id)
-		if candidate == nil {
-			continue
-		}
-		// Don't select a ciphersuite which we can't
-		// support for this client.
-		if candidate.flags&suiteECDHE != 0 {
-			if !hs.ecdhOk {
-				continue
-			}
-			if candidate.flags&suiteECSign != 0 {
-				if !hs.ecSignOk {
-					continue
-				}
-			} else if !hs.rsaSignOk {
-				continue
-			}
-		} else if !hs.rsaDecryptOk {
-			continue
-		}
-		if version < VersionTLS12 && candidate.flags&suiteTLS12 != 0 {
-			continue
-		}
-		hs.suite = candidate
-		return true
-	}
-	return false
 }
 
 func clientHelloInfo(c *Conn, clientHello *clientHelloMsg) *ClientHelloInfo {

@@ -339,40 +339,8 @@ const (
 	ECDSAWithSHA1 SignatureScheme = 0x0203
 )
 
-// typeAndHashFromSignatureScheme returns the corresponding signature type and
-// crypto.Hash for a given TLS SignatureScheme.
-func typeAndHashFromSignatureScheme(signatureAlgorithm SignatureScheme) (sigType uint8, hash crypto.Hash, err error) {
-	switch signatureAlgorithm {
-	case PKCS1WithSHA1, PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512:
-		sigType = signaturePKCS1v15
-	case PSSWithSHA256, PSSWithSHA384, PSSWithSHA512:
-		sigType = signatureRSAPSS
-	case ECDSAWithSHA1, ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512:
-		sigType = signatureECDSA
-	case Ed25519:
-		sigType = signatureEd25519
-	default:
-		return 0, 0, fmt.Errorf("unsupported signature algorithm: %#04x", signatureAlgorithm)
-	}
-	switch signatureAlgorithm {
-	case PKCS1WithSHA1, ECDSAWithSHA1:
-		hash = crypto.SHA1
-	case PKCS1WithSHA256, PSSWithSHA256, ECDSAWithP256AndSHA256:
-		hash = crypto.SHA256
-	case PKCS1WithSHA384, PSSWithSHA384, ECDSAWithP384AndSHA384:
-		hash = crypto.SHA384
-	case PKCS1WithSHA512, PSSWithSHA512, ECDSAWithP521AndSHA512:
-		hash = crypto.SHA512
-	case Ed25519:
-		hash = directSigning
-	default:
-		return 0, 0, fmt.Errorf("unsupported signature algorithm: %#04x", signatureAlgorithm)
-	}
-	return sigType, hash, nil
-}
-
 // ClientHelloInfo contains information from a ClientHello message in order to
-// guide certificate selection in the GetCertificate callback.
+// guide application logic in the GetCertificate and GetConfigForClient callbacks.
 type ClientHelloInfo struct {
 	// CipherSuites lists the CipherSuites supported by the client (e.g.
 	// TLS_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256).
@@ -866,6 +834,15 @@ func (c *Config) curvePreferences() []CurveID {
 	return c.CurvePreferences
 }
 
+func (c *Config) supportsCurve(curve CurveID) bool {
+	for _, cc := range c.curvePreferences() {
+		if cc == curve {
+			return true
+		}
+	}
+	return false
+}
+
 // mutualVersion returns the protocol version to use given the advertised
 // versions of the peer. Priority is given to the peer preference order.
 func (c *Config) mutualVersion(peerVersions []uint16) (uint16, bool) {
@@ -931,13 +908,9 @@ func (c *Config) BuildNameToCertificate() {
 	c.NameToCertificate = make(map[string]*Certificate)
 	for i := range c.Certificates {
 		cert := &c.Certificates[i]
-		x509Cert := cert.Leaf
-		if x509Cert == nil {
-			var err error
-			x509Cert, err = x509.ParseCertificate(cert.Certificate[0])
-			if err != nil {
-				continue
-			}
+		x509Cert, err := cert.leaf()
+		if err != nil {
+			continue
 		}
 		if len(x509Cert.Subject.CommonName) > 0 {
 			c.NameToCertificate[x509Cert.Subject.CommonName] = cert
@@ -988,11 +961,19 @@ type Certificate struct {
 	// SignedCertificateTimestamps contains an optional list of Signed
 	// Certificate Timestamps which will be served to clients that request it.
 	SignedCertificateTimestamps [][]byte
-	// Leaf is the parsed form of the leaf certificate, which may be
-	// initialized using x509.ParseCertificate to reduce per-handshake
-	// processing for TLS clients doing client authentication. If nil, the
-	// leaf certificate will be parsed as needed.
+	// Leaf is the parsed form of the leaf certificate, which may be initialized
+	// using x509.ParseCertificate to reduce per-handshake processing. If nil,
+	// the leaf certificate will be parsed as needed.
 	Leaf *x509.Certificate
+}
+
+// leaf returns the parsed leaf certificate, either from c.Leaf or by parsing
+// the corresponding c.Certificate[0].
+func (c *Certificate) leaf() (*x509.Certificate, error) {
+	if c.Leaf != nil {
+		return c.Leaf, nil
+	}
+	return x509.ParseCertificate(c.Certificate[0])
 }
 
 type handshakeMessage interface {
