@@ -57,7 +57,7 @@ foo/foo.go:1:1-30:16: defined here as myFoo "golang.org/x/tools/internal/lsp/foo
 		"end": {
 			"line": 30,
 			"column": 16,
-			"offset": 844
+			"offset": 922
 		}
 	},
 	"description": "myFoo \"golang.org/x/tools/internal/lsp/foo\" //@mark(myFoo, \"myFoo\"),godef(\"foo\", PackageFoo),godef(\"myFoo\", myFoo)"
