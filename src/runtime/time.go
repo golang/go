@@ -585,9 +585,10 @@ loop:
 		case timerNoStatus, timerRemoved:
 			// Timer was already run and t is no longer in a heap.
 			// Act like addtimer.
-			wasRemoved = true
-			atomic.Store(&t.status, timerWaiting)
-			break loop
+			if atomic.Cas(&t.status, status, timerWaiting) {
+				wasRemoved = true
+				break loop
+			}
 		case timerRunning, timerRemoving, timerMoving:
 			// The timer is being run or moved, by a different P.
 			// Wait for it to complete.
@@ -687,10 +688,11 @@ func resettimer(t *timer, when int64) {
 	for {
 		switch s := atomic.Load(&t.status); s {
 		case timerNoStatus, timerRemoved:
-			atomic.Store(&t.status, timerWaiting)
-			t.when = when
-			addInitializedTimer(t)
-			return
+			if atomic.Cas(&t.status, s, timerWaiting) {
+				t.when = when
+				addInitializedTimer(t)
+				return
+			}
 		case timerDeleted:
 			if atomic.Cas(&t.status, s, timerModifying) {
 				t.nextwhen = when
