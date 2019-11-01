@@ -4359,6 +4359,7 @@ func checkdead() {
 	}
 	unlock(&allglock)
 	if grunning == 0 { // possible if main goroutine calls runtime·Goexit()
+		unlock(&sched.lock) // unlock so that GODEBUG=scheddetail=1 doesn't hang
 		throw("no goroutines (main called runtime.Goexit) - deadlock!")
 	}
 
@@ -4411,6 +4412,7 @@ func checkdead() {
 	}
 
 	getg().m.throwing = -1 // do not dump full stacks
+	unlock(&sched.lock)    // unlock so that GODEBUG=scheddetail=1 doesn't hang
 	throw("all goroutines are asleep - deadlock!")
 }
 
