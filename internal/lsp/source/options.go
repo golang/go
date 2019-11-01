@@ -105,6 +105,9 @@ type Options struct {
 	ComputeEdits diff.ComputeEdits
 
 	Analyzers []*analysis.Analyzer
+
+	// LocalPrefix is used to specify goimports's -local behavior.
+	LocalPrefix string
 }
 
 type CompletionOptions struct {
@@ -243,7 +246,7 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 	case "hoverKind":
 		hoverKind, ok := value.(string)
 		if !ok {
-			result.errorf("Invalid type %T for string option %q", value, name)
+			result.errorf("invalid type %T for string option %q", value, name)
 			break
 		}
 		switch hoverKind {
@@ -277,6 +280,14 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 
 	case "go-diff":
 		result.setBool(&o.GoDiff)
+
+	case "local":
+		localPrefix, ok := value.(string)
+		if !ok {
+			result.errorf("invalid type %T for string option %q", value, name)
+			break
+		}
+		o.LocalPrefix = localPrefix
 
 	// Deprecated settings.
 	case "wantSuggestedFixes":

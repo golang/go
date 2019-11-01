@@ -185,7 +185,8 @@ func (v *view) buildProcessEnv(ctx context.Context) (*imports.ProcessEnv, error)
 		Logf: func(format string, args ...interface{}) {
 			log.Print(ctx, fmt.Sprintf(format, args...))
 		},
-		Debug: true,
+		LocalPrefix: v.options.LocalPrefix,
+		Debug:       true,
 	}
 	for _, kv := range cfg.Env {
 		split := strings.Split(kv, "=")
