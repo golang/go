@@ -753,6 +753,21 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 	for _, o := range l.objs[1:] {
 		loadObjFull(l, o.r)
 	}
+
+	// Resolve ABI aliases for external symbols. This is only
+	// needed for internal cgo linking.
+	// (The old code does this in deadcode, but deadcode2 doesn't
+	// do this.)
+	for i := l.extStart; i <= l.max; i++ {
+		if s := l.Syms[i]; s != nil && s.Attr.Reachable() {
+			for ri := range s.R {
+				r := &s.R[ri]
+				if r.Sym != nil && r.Sym.Type == sym.SABIALIAS {
+					r.Sym = r.Sym.R[0].Sym
+				}
+			}
+		}
+	}
 }
 
 // ExtractSymbols grabs the symbols out of the loader for work that hasn't been
