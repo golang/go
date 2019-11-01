@@ -42,16 +42,7 @@ func (f *xcoffBiobuf) ReadAt(p []byte, off int64) (int, error) {
 // Load loads xcoff files with the indexed object files.
 func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
 	lookup := func(name string, version int) *sym.Symbol {
-		i := l.Lookup(name, version)
-		if i != 0 {
-			return l.LoadSymbol(name, version, syms)
-		}
-		if i = l.AddExtSym(name, version); i == 0 {
-			panic("AddExtSym returned bad index")
-		}
-		newSym := syms.Newsym(name, version)
-		l.Syms[i] = newSym
-		return newSym
+		return l.LookupOrCreate(name, version, syms)
 	}
 	return load(arch, lookup, syms.IncVersion(), input, pkg, length, pn)
 }

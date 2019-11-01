@@ -814,6 +814,7 @@ func (l *Loader) addNewSym(i Sym, syms *sym.Symbols, name string, ver int, unit 
 	}
 	s.Type = t
 	s.Unit = unit
+	l.growSyms(int(i))
 	l.Syms[i] = s
 	return s
 }
@@ -891,7 +892,7 @@ func (l *Loader) LoadSymbol(name string, version int, syms *sym.Symbols) *sym.Sy
 	global := l.Lookup(name, version)
 
 	// If we're already loaded, bail.
-	if global != 0 && l.Syms[global] != nil {
+	if global != 0 && int(global) < len(l.Syms) && l.Syms[global] != nil {
 		return l.Syms[global]
 	}
 
@@ -906,6 +907,28 @@ func (l *Loader) LoadSymbol(name string, version int, syms *sym.Symbols) *sym.Sy
 	}
 
 	return l.addNewSym(istart+Sym(i), syms, name, version, r.unit, sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)])
+}
+
+// LookupOrCreate looks up a symbol by name, and creates one if not found.
+// Either way, it will also create a sym.Symbol for it, if not already.
+// This should only be called when interacting with parts of the linker
+// that still works on sym.Symbols (i.e. internal cgo linking, for now).
+func (l *Loader) LookupOrCreate(name string, version int, syms *sym.Symbols) *sym.Symbol {
+	i := l.Lookup(name, version)
+	if i != 0 {
+		// symbol exists
+		if int(i) < len(l.Syms) && l.Syms[i] != nil {
+			return l.Syms[i] // already loaded
+		}
+		if l.IsExternal(i) {
+			panic("Can't load an external symbol.")
+		}
+		return l.LoadSymbol(name, version, syms)
+	}
+	i = l.AddExtSym(name, version)
+	s := syms.Newsym(name, version)
+	l.Syms[i] = s
+	return s
 }
 
 func loadObjFull(l *Loader, r *oReader) {
