@@ -82,10 +82,6 @@ func (r *runner) Symbol(t *testing.T, uri span.URI, expectedSymbols []protocol.D
 	//TODO: add command line symbol tests when it works
 }
 
-func (r *runner) Link(t *testing.T, uri span.URI, wantLinks []tests.Link) {
-	//TODO: add command line link tests when it works
-}
-
 func (r *runner) Implementation(t *testing.T, spn span.Span, imp tests.Implementations) {
 	//TODO: add implements tests when it works
 }

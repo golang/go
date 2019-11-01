@@ -797,7 +797,7 @@ func (r *runner) Link(t *testing.T, uri span.URI, wantLinks []tests.Link) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gotLinks, err := r.server.DocumentLink(r.ctx, &protocol.DocumentLinkParams{
+	got, err := r.server.DocumentLink(r.ctx, &protocol.DocumentLinkParams{
 		TextDocument: protocol.TextDocumentIdentifier{
 			URI: protocol.NewURI(uri),
 		},
@@ -805,41 +805,8 @@ func (r *runner) Link(t *testing.T, uri span.URI, wantLinks []tests.Link) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var notePositions []token.Position
-	links := make(map[span.Span]string, len(wantLinks))
-	for _, link := range wantLinks {
-		links[link.Src] = link.Target
-		notePositions = append(notePositions, link.NotePosition)
-	}
-
-	for _, link := range gotLinks {
-		spn, err := m.RangeSpan(link.Range)
-		if err != nil {
-			t.Fatal(err)
-		}
-		linkInNote := false
-		for _, notePosition := range notePositions {
-			// Drop the links found inside expectation notes arguments as this links are not collected by expect package
-			if notePosition.Line == spn.Start().Line() &&
-				notePosition.Column <= spn.Start().Column() {
-				delete(links, spn)
-				linkInNote = true
-			}
-		}
-		if linkInNote {
-			continue
-		}
-		if target, ok := links[spn]; ok {
-			delete(links, spn)
-			if target != link.Target {
-				t.Errorf("for %v want %v, got %v\n", spn, link.Target, target)
-			}
-		} else {
-			t.Errorf("unexpected link %v:%v\n", spn, link.Target)
-		}
-	}
-	for spn, target := range links {
-		t.Errorf("missing link %v:%v\n", spn, target)
+	if diff := tests.DiffLinks(m, wantLinks, got); diff != "" {
+		t.Error(diff)
 	}
 }
 
