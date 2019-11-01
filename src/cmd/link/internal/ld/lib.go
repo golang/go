@@ -444,6 +444,19 @@ func (ctxt *Link) loadlib() {
 	}
 
 	if ctxt.LinkMode == LinkInternal && len(hostobj) != 0 {
+		if *flagNewobj {
+			// In newobj mode, we typically create sym.Symbols later therefore
+			// also set cgo attributes later. However, for internal cgo linking,
+			// the host object loaders still work with sym.Symbols (for now),
+			// and they need cgo attributes set to work properly. So process
+			// them now.
+			lookup := func(name string, ver int) *sym.Symbol { return ctxt.loader.LookupOrCreate(name, ver, ctxt.Syms) }
+			for _, d := range ctxt.cgodata {
+				setCgoAttr(ctxt, lookup, d.file, d.pkg, d.directives)
+			}
+			ctxt.cgodata = nil
+		}
+
 		// Drop all the cgo_import_static declarations.
 		// Turns out we won't be needing them.
 		for _, s := range ctxt.Syms.Allsym {
@@ -2638,7 +2651,7 @@ func (ctxt *Link) loadlibfull() {
 
 	// Load cgo directives.
 	for _, d := range ctxt.cgodata {
-		setCgoAttr(ctxt, d.file, d.pkg, d.directives)
+		setCgoAttr(ctxt, ctxt.Syms.Lookup, d.file, d.pkg, d.directives)
 	}
 
 	setupdynexp(ctxt)

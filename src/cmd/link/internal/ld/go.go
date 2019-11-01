@@ -149,12 +149,12 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 		// Record the directives. We'll process them later after Symbols are created.
 		ctxt.cgodata = append(ctxt.cgodata, cgodata{file, pkg, directives})
 	} else {
-		setCgoAttr(ctxt, file, pkg, directives)
+		setCgoAttr(ctxt, ctxt.Syms.Lookup, file, pkg, directives)
 	}
 }
 
 // Set symbol attributes or flags based on cgo directives.
-func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string) {
+func setCgoAttr(ctxt *Link, lookup func(string, int) *sym.Symbol, file string, pkg string, directives [][]string) {
 	for _, f := range directives {
 		switch f[0] {
 		case "cgo_import_dynamic":
@@ -196,7 +196,7 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string) {
 			if i := strings.Index(remote, "#"); i >= 0 {
 				remote, q = remote[:i], remote[i+1:]
 			}
-			s := ctxt.Syms.Lookup(local, 0)
+			s := lookup(local, 0)
 			if s.Type == 0 || s.Type == sym.SXREF || s.Type == sym.SBSS || s.Type == sym.SNOPTRBSS || s.Type == sym.SHOSTOBJ {
 				s.SetDynimplib(lib)
 				s.SetExtname(remote)
@@ -215,7 +215,7 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string) {
 			}
 			local := f[1]
 
-			s := ctxt.Syms.Lookup(local, 0)
+			s := lookup(local, 0)
 			s.Type = sym.SHOSTOBJ
 			s.Size = 0
 			continue
@@ -236,11 +236,11 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string) {
 			// functions. Link.loadlib will resolve any
 			// ABI aliases we find here (since we may not
 			// yet know it's an alias).
-			s := ctxt.Syms.Lookup(local, 0)
+			s := lookup(local, 0)
 
 			switch ctxt.BuildMode {
 			case BuildModeCShared, BuildModeCArchive, BuildModePlugin:
-				if s == ctxt.Syms.Lookup("main", 0) {
+				if s == lookup("main", 0) {
 					continue
 				}
 			}

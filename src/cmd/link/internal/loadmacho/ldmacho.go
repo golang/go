@@ -426,16 +426,7 @@ func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
 
 func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string) ([]*sym.Symbol, error) {
 	newSym := func(name string, version int) *sym.Symbol {
-		i := l.Lookup(name, version)
-		if i != 0 {
-			return l.LoadSymbol(name, version, syms)
-		}
-		if i = l.AddExtSym(name, version); i == 0 {
-			panic("AddExtSym returned bad index")
-		}
-		newSym := syms.Newsym(name, version)
-		l.Syms[i] = newSym
-		return newSym
+		return l.LookupOrCreate(name, version, syms)
 	}
 	return load(arch, syms.IncVersion(), newSym, f, pkg, length, pn)
 }

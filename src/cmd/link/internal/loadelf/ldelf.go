@@ -454,24 +454,7 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) (found bool, ehdrFlags 
 
 func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string, flags uint32) ([]*sym.Symbol, uint32, error) {
 	newSym := func(name string, version int) *sym.Symbol {
-		// If we've seen the symbol, we might need to load it.
-		i := l.Lookup(name, version)
-		if i != 0 {
-			// Already loaded.
-			if l.Syms[i] != nil {
-				return l.Syms[i]
-			}
-			if l.IsExternal(i) {
-				panic("Can't load an external symbol.")
-			}
-			return l.LoadSymbol(name, version, syms)
-		}
-		if i = l.AddExtSym(name, version); i == 0 {
-			panic("AddExtSym returned bad index")
-		}
-		newSym := syms.Newsym(name, version)
-		l.Syms[i] = newSym
-		return newSym
+		return l.LookupOrCreate(name, version, syms)
 	}
 	return load(arch, syms.IncVersion(), newSym, newSym, f, pkg, length, pn, flags)
 }
