@@ -49,8 +49,12 @@ var (
 // Must not call other functions nor access heap/globals in the loop,
 // otherwise under race detector the samples will be in the race runtime.
 func cpuHog1(x int) int {
+	return cpuHog0(x, 1e5)
+}
+
+func cpuHog0(x, n int) int {
 	foo := x
-	for i := 0; i < 1e5; i++ {
+	for i := 0; i < n; i++ {
 		if foo > 0 {
 			foo *= foo
 		} else {
@@ -101,34 +105,69 @@ func TestCPUProfileMultithreaded(t *testing.T) {
 }
 
 func TestCPUProfileInlining(t *testing.T) {
-	testCPUProfile(t, stackContains, []string{"runtime/pprof.inlinedCallee", "runtime/pprof.inlinedCaller"}, avoidFunctions(), func(dur time.Duration) {
+	p := testCPUProfile(t, stackContains, []string{"runtime/pprof.inlinedCallee", "runtime/pprof.inlinedCaller"}, avoidFunctions(), func(dur time.Duration) {
 		cpuHogger(inlinedCaller, &salt1, dur)
 	})
+
+	// Check if inlined function locations are encoded correctly. The inlinedCalee and inlinedCaller should be in one location.
+	for _, loc := range p.Location {
+		hasInlinedCallerAfterInlinedCallee, hasInlinedCallee := false, false
+		for _, line := range loc.Line {
+			if line.Function.Name == "runtime/pprof.inlinedCallee" {
+				hasInlinedCallee = true
+			}
+			if hasInlinedCallee && line.Function.Name == "runtime/pprof.inlinedCaller" {
+				hasInlinedCallerAfterInlinedCallee = true
+			}
+		}
+		if hasInlinedCallee != hasInlinedCallerAfterInlinedCallee {
+			t.Fatalf("want inlinedCallee followed by inlinedCaller, got separate Location entries:\n%v", p)
+		}
+	}
 }
 
 func inlinedCaller(x int) int {
-	x = inlinedCallee(x)
+	x = inlinedCallee(x, 1e5)
 	return x
 }
 
-func inlinedCallee(x int) int {
-	// We could just use cpuHog1, but for loops prevent inlining
-	// right now. :(
-	foo := x
-	i := 0
-loop:
-	if foo > 0 {
-		foo *= foo
-	} else {
-		foo *= foo + 1
-	}
-	if i++; i < 1e5 {
-		goto loop
-	}
-	return foo
+func inlinedCallee(x, n int) int {
+	return cpuHog0(x, n)
 }
 
-func parseProfile(t *testing.T, valBytes []byte, f func(uintptr, []*profile.Location, map[string][]string)) {
+func TestCPUProfileRecursion(t *testing.T) {
+	p := testCPUProfile(t, stackContains, []string{"runtime/pprof.inlinedCallee", "runtime/pprof.recursionCallee", "runtime/pprof.recursionCaller"}, avoidFunctions(), func(dur time.Duration) {
+		cpuHogger(recursionCaller, &salt1, dur)
+	})
+
+	// check the Location encoding was not confused by recursive calls.
+	for i, loc := range p.Location {
+		recursionFunc := 0
+		for _, line := range loc.Line {
+			if name := line.Function.Name; name == "runtime/pprof.recursionCaller" || name == "runtime/pprof.recursionCallee" {
+				recursionFunc++
+			}
+		}
+		if recursionFunc > 1 {
+			t.Fatalf("want at most one recursionCaller or recursionCallee in one Location, got a violating Location (index: %d):\n%v", i, p)
+		}
+	}
+}
+
+func recursionCaller(x int) int {
+	y := recursionCallee(3, x)
+	return y
+}
+
+func recursionCallee(n, x int) int {
+	if n == 0 {
+		return 1
+	}
+	y := inlinedCallee(x, 1e4)
+	return y * recursionCallee(n-1, x)
+}
+
+func parseProfile(t *testing.T, valBytes []byte, f func(uintptr, []*profile.Location, map[string][]string)) *profile.Profile {
 	p, err := profile.Parse(bytes.NewReader(valBytes))
 	if err != nil {
 		t.Fatal(err)
@@ -137,11 +176,12 @@ func parseProfile(t *testing.T, valBytes []byte, f func(uintptr, []*profile.Loca
 		count := uintptr(sample.Value[0])
 		f(count, sample.Location, sample.Label)
 	}
+	return p
 }
 
 // testCPUProfile runs f under the CPU profiler, checking for some conditions specified by need,
-// as interpreted by matches.
-func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []string, f func(dur time.Duration)) {
+// as interpreted by matches, and returns the parsed profile.
+func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []string, f func(dur time.Duration)) *profile.Profile {
 	switch runtime.GOOS {
 	case "darwin":
 		switch runtime.GOARCH {
@@ -195,8 +235,8 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
 		f(duration)
 		StopCPUProfile()
 
-		if profileOk(t, matches, need, avoid, prof, duration) {
-			return
+		if p, ok := profileOk(t, matches, need, avoid, prof, duration); ok {
+			return p
 		}
 
 		duration *= 2
@@ -217,6 +257,7 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
 		t.Skip("ignore the failure in QEMU; see golang.org/issue/9605")
 	}
 	t.FailNow()
+	return nil
 }
 
 func contains(slice []string, s string) bool {
@@ -242,7 +283,7 @@ func stackContains(spec string, count uintptr, stk []*profile.Location, labels m
 
 type matchFunc func(spec string, count uintptr, stk []*profile.Location, labels map[string][]string) bool
 
-func profileOk(t *testing.T, matches matchFunc, need []string, avoid []string, prof bytes.Buffer, duration time.Duration) (ok bool) {
+func profileOk(t *testing.T, matches matchFunc, need []string, avoid []string, prof bytes.Buffer, duration time.Duration) (_ *profile.Profile, ok bool) {
 	ok = true
 
 	// Check that profile is well formed, contains 'need', and does not contain
@@ -251,7 +292,7 @@ func profileOk(t *testing.T, matches matchFunc, need []string, avoid []string, p
 	avoidSamples := make([]uintptr, len(avoid))
 	var samples uintptr
 	var buf bytes.Buffer
-	parseProfile(t, prof.Bytes(), func(count uintptr, stk []*profile.Location, labels map[string][]string) {
+	p := parseProfile(t, prof.Bytes(), func(count uintptr, stk []*profile.Location, labels map[string][]string) {
 		fmt.Fprintf(&buf, "%d:", count)
 		fprintStack(&buf, stk)
 		samples += count
@@ -278,7 +319,7 @@ func profileOk(t *testing.T, matches matchFunc, need []string, avoid []string, p
 		// not enough samples due to coarse timer
 		// resolution. Let it go.
 		t.Log("too few samples on Windows (golang.org/issue/10842)")
-		return false
+		return p, false
 	}
 
 	// Check that we got a reasonable number of samples.
@@ -300,7 +341,7 @@ func profileOk(t *testing.T, matches matchFunc, need []string, avoid []string, p
 	}
 
 	if len(need) == 0 {
-		return ok
+		return p, ok
 	}
 
 	var total uintptr
@@ -323,7 +364,7 @@ func profileOk(t *testing.T, matches matchFunc, need []string, avoid []string, p
 			ok = false
 		}
 	}
-	return ok
+	return p, ok
 }
 
 // Fork can hang if preempted with signals frequently enough (see issue 5517).
