@@ -119,9 +119,18 @@ type Loader struct {
 	Reachparent []Sym
 
 	relocBatch []sym.Reloc // for bulk allocation of relocations
+
+	flags uint32
+
+	strictDupMsgs int // number of strict-dup warning/errors, when FlagStrictDups is enabled
 }
 
-func NewLoader() *Loader {
+const (
+	// Loader.flags
+	FlagStrictDups = 1 << iota
+)
+
+func NewLoader(flags uint32) *Loader {
 	nbuiltin := goobj2.NBuiltin()
 	return &Loader{
 		start:         make(map[*oReader]Sym),
@@ -132,6 +141,7 @@ func NewLoader() *Loader {
 		itablink:      make(map[Sym]struct{}),
 		extStaticSyms: make(map[nameVer]Sym),
 		builtinSyms:   make([]Sym, nbuiltin),
+		flags:         flags,
 	}
 }
 
@@ -170,6 +180,9 @@ func (l *Loader) AddSym(name string, ver int, i Sym, r *oReader, dupok bool, typ
 	}
 	if oldi, ok := l.symsByName[ver][name]; ok {
 		if dupok {
+			if l.flags&FlagStrictDups != 0 {
+				l.checkdup(name, i, r, oldi)
+			}
 			return false
 		}
 		oldr, li := l.toLocal(oldi)
@@ -365,6 +378,42 @@ func (l *Loader) IsDup(i Sym) bool {
 	ver := abiToVer(osym.ABI, r.version)
 	return l.symsByName[ver][name] != i
 }
+
+// Check that duplicate symbols have same contents.
+func (l *Loader) checkdup(name string, i Sym, r *oReader, dup Sym) {
+	li := int(i - l.startIndex(r))
+	p := r.Data(li)
+	if strings.HasPrefix(name, "go.info.") {
+		p, _ = patchDWARFName1(p, r)
+	}
+	rdup, ldup := l.toLocal(dup)
+	pdup := rdup.Data(ldup)
+	if strings.HasPrefix(name, "go.info.") {
+		pdup, _ = patchDWARFName1(pdup, rdup)
+	}
+	if bytes.Equal(p, pdup) {
+		return
+	}
+	reason := "same length but different contents"
+	if len(p) != len(pdup) {
+		reason = fmt.Sprintf("new length %d != old length %d", len(p), len(pdup))
+	}
+	fmt.Fprintf(os.Stderr, "cmd/link: while reading object for '%v': duplicate symbol '%s', previous def at '%v', with mismatched payload: %s\n", r.unit.Lib, name, rdup.unit.Lib, reason)
+
+	// For the moment, whitelist DWARF subprogram DIEs for
+	// auto-generated wrapper functions. What seems to happen
+	// here is that we get different line numbers on formal
+	// params; I am guessing that the pos is being inherited
+	// from the spot where the wrapper is needed.
+	whitelist := strings.HasPrefix(name, "go.info.go.interface") ||
+		strings.HasPrefix(name, "go.info.go.builtin") ||
+		strings.HasPrefix(name, "go.debuglines")
+	if !whitelist {
+		l.strictDupMsgs++
+	}
+}
+
+func (l *Loader) NStrictDupMsgs() int { return l.strictDupMsgs }
 
 // Number of total symbols.
 func (l *Loader) NSym() int {
@@ -1194,24 +1243,30 @@ func loadObjFull(l *Loader, r *oReader) {
 
 var emptyPkg = []byte(`"".`)
 
-func patchDWARFName(s *sym.Symbol, r *oReader) {
+func patchDWARFName1(p []byte, r *oReader) ([]byte, int) {
 	// This is kind of ugly. Really the package name should not
 	// even be included here.
-	if s.Size < 1 || s.P[0] != dwarf.DW_ABRV_FUNCTION {
-		return
+	if len(p) < 1 || p[0] != dwarf.DW_ABRV_FUNCTION {
+		return p, -1
 	}
-	e := bytes.IndexByte(s.P, 0)
+	e := bytes.IndexByte(p, 0)
+	if e == -1 {
+		return p, -1
+	}
+	if !bytes.Contains(p[:e], emptyPkg) {
+		return p, -1
+	}
+	pkgprefix := []byte(r.pkgprefix)
+	patched := bytes.Replace(p[:e], emptyPkg, pkgprefix, -1)
+	return append(patched, p[e:]...), e
+}
+
+func patchDWARFName(s *sym.Symbol, r *oReader) {
+	patched, e := patchDWARFName1(s.P, r)
 	if e == -1 {
 		return
 	}
-	p := bytes.Index(s.P[:e], emptyPkg)
-	if p == -1 {
-		return
-	}
-	pkgprefix := []byte(r.pkgprefix)
-	patched := bytes.Replace(s.P[:e], emptyPkg, pkgprefix, -1)
-
-	s.P = append(patched, s.P[e:]...)
+	s.P = patched
 	s.Attr.Set(sym.AttrReadOnly, false)
 	delta := int64(len(s.P)) - s.Size
 	s.Size = int64(len(s.P))

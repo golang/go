@@ -378,7 +378,16 @@ func (ctxt *Link) findLibPath(libname string) string {
 
 func (ctxt *Link) loadlib() {
 	if *flagNewobj {
-		ctxt.loader = loader.NewLoader()
+		var flags uint32
+		switch *FlagStrictDups {
+		case 0:
+			// nothing to do
+		case 1, 2:
+			flags = loader.FlagStrictDups
+		default:
+			log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
+		}
+		ctxt.loader = loader.NewLoader(flags)
 	}
 
 	ctxt.cgo_export_static = make(map[string]bool)
@@ -550,6 +559,10 @@ func (ctxt *Link) loadlib() {
 	ctxt.Loaded = true
 
 	importcycles()
+
+	if *flagNewobj {
+		strictDupMsgCount = ctxt.loader.NStrictDupMsgs()
+	}
 }
 
 // Set up dynexp list.
