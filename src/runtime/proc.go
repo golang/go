@@ -1625,6 +1625,7 @@ func dropm() {
 
 	// Return mp.curg to dead state.
 	casgstatus(mp.curg, _Gsyscall, _Gdead)
+	mp.curg.preemptStop = false
 	atomic.Xadd(&sched.ngsys, +1)
 
 	// Block signals before unminit.
