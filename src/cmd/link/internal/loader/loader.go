@@ -1058,7 +1058,7 @@ func loadObjFull(l *Loader, r *oReader) {
 				rs = 0
 				sz = 0
 			}
-			if rs != 0 && l.SymType(rs) == sym.SABIALIAS {
+			if rs != 0 && l.Syms[rs] != nil && l.Syms[rs].Type == sym.SABIALIAS {
 				rsrelocs := l.Relocs(rs)
 				rs = rsrelocs.At(0).Sym
 			}
