@@ -457,19 +457,26 @@ type Config struct {
 	// If Time is nil, TLS uses time.Now.
 	Time func() time.Time
 
-	// Certificates contains one or more certificate chains to present to
-	// the other side of the connection. Server configurations must include
-	// at least one certificate or else set GetCertificate. Clients doing
-	// client-authentication may set either Certificates or
-	// GetClientCertificate.
+	// Certificates contains one or more certificate chains to present to the
+	// other side of the connection. The first certificate compatible with the
+	// peer's requirements is selected automatically.
+	//
+	// Server configurations must set one of Certificates, GetCertificate or
+	// GetConfigForClient. Clients doing client-authentication may set either
+	// Certificates or GetClientCertificate.
+	//
+	// Note: if there are multiple Certificates, and they don't have the
+	// optional field Leaf set, certificate selection will incur a significant
+	// per-handshake performance cost.
 	Certificates []Certificate
 
 	// NameToCertificate maps from a certificate name to an element of
 	// Certificates. Note that a certificate name can be of the form
 	// '*.example.com' and so doesn't have to be a domain name as such.
-	// See Config.BuildNameToCertificate
-	// The nil value causes the first element of Certificates to be used
-	// for all connections.
+	//
+	// Deprecated: NameToCertificate only allows associating a single
+	// certificate with a given name. Leave this field nil to let the library
+	// select the first compatible chain from Certificates.
 	NameToCertificate map[string]*Certificate
 
 	// GetCertificate returns a Certificate based on the given
@@ -478,7 +485,7 @@ type Config struct {
 	//
 	// If GetCertificate is nil or returns nil, then the certificate is
 	// retrieved from NameToCertificate. If NameToCertificate is nil, the
-	// first element of Certificates will be used.
+	// best element of Certificates will be used.
 	GetCertificate func(*ClientHelloInfo) (*Certificate, error)
 
 	// GetClientCertificate, if not nil, is called when a server requests a
@@ -869,6 +876,8 @@ func (c *Config) mutualVersion(peerVersions []uint16) (uint16, bool) {
 	return 0, false
 }
 
+var errNoCertificates = errors.New("tls: no certificates configured")
+
 // getCertificate returns the best certificate for the given ClientHelloInfo,
 // defaulting to the first element of c.Certificates.
 func (c *Config) getCertificate(clientHello *ClientHelloInfo) (*Certificate, error) {
@@ -881,31 +890,32 @@ func (c *Config) getCertificate(clientHello *ClientHelloInfo) (*Certificate, err
 	}
 
 	if len(c.Certificates) == 0 {
-		return nil, errors.New("tls: no certificates configured")
+		return nil, errNoCertificates
 	}
 
-	if len(c.Certificates) == 1 || c.NameToCertificate == nil {
+	if len(c.Certificates) == 1 {
 		// There's only one choice, so no point doing any work.
 		return &c.Certificates[0], nil
 	}
 
-	name := strings.ToLower(clientHello.ServerName)
-	for len(name) > 0 && name[len(name)-1] == '.' {
-		name = name[:len(name)-1]
-	}
-
-	if cert, ok := c.NameToCertificate[name]; ok {
-		return cert, nil
-	}
-
-	// try replacing labels in the name with wildcards until we get a
-	// match.
-	labels := strings.Split(name, ".")
-	for i := range labels {
-		labels[i] = "*"
-		candidate := strings.Join(labels, ".")
-		if cert, ok := c.NameToCertificate[candidate]; ok {
+	if c.NameToCertificate != nil {
+		name := strings.ToLower(clientHello.ServerName)
+		if cert, ok := c.NameToCertificate[name]; ok {
 			return cert, nil
+		}
+		if len(name) > 0 {
+			labels := strings.Split(name, ".")
+			labels[0] = "*"
+			wildcardName := strings.Join(labels, ".")
+			if cert, ok := c.NameToCertificate[wildcardName]; ok {
+				return cert, nil
+			}
+		}
+	}
+
+	for _, cert := range c.Certificates {
+		if err := clientHello.SupportsCertificate(&cert); err == nil {
+			return &cert, nil
 		}
 	}
 
@@ -1109,6 +1119,10 @@ func (cri *CertificateRequestInfo) SupportsCertificate(c *Certificate) error {
 // BuildNameToCertificate parses c.Certificates and builds c.NameToCertificate
 // from the CommonName and SubjectAlternateName fields of each of the leaf
 // certificates.
+//
+// Deprecated: NameToCertificate only allows associating a single certificate
+// with a given name. Leave that field nil to let the library select the first
+// compatible chain from Certificates.
 func (c *Config) BuildNameToCertificate() {
 	c.NameToCertificate = make(map[string]*Certificate)
 	for i := range c.Certificates {
