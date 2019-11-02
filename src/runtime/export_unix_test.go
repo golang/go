@@ -22,7 +22,7 @@ type M = m
 
 var waitForSigusr1 struct {
 	park note
-	mp   *m
+	mID  int64
 }
 
 // WaitForSigusr1 blocks until a SIGUSR1 is received. It calls ready
@@ -38,16 +38,11 @@ func WaitForSigusr1(ready func(mp *M), timeoutNS int64) (int64, int64) {
 	unblocksig(_SIGUSR1)
 
 	mp := getg().m
-	testSigusr1 = func(gp *g) bool {
-		waitForSigusr1.mp = gp.m
-		notewakeup(&waitForSigusr1.park)
-		return true
-	}
+	testSigusr1 = waitForSigusr1Callback
 	ready(mp)
 	ok := notetsleepg(&waitForSigusr1.park, timeoutNS)
 	noteclear(&waitForSigusr1.park)
-	gotM := waitForSigusr1.mp
-	waitForSigusr1.mp = nil
+	gotM := waitForSigusr1.mID
 	testSigusr1 = nil
 
 	unlockOSThread()
@@ -55,7 +50,22 @@ func WaitForSigusr1(ready func(mp *M), timeoutNS int64) (int64, int64) {
 	if !ok {
 		return -1, -1
 	}
-	return mp.id, gotM.id
+	return mp.id, gotM
+}
+
+// waitForSigusr1Callback is called from the signal handler during
+// WaitForSigusr1. It must not have write barriers because there may
+// not be a P.
+//
+//go:nowritebarrierrec
+func waitForSigusr1Callback(gp *g) bool {
+	if gp == nil || gp.m == nil {
+		waitForSigusr1.mID = -1
+	} else {
+		waitForSigusr1.mID = gp.m.id
+	}
+	notewakeup(&waitForSigusr1.park)
+	return true
 }
 
 // SendSigusr1 sends SIGUSR1 to mp.
