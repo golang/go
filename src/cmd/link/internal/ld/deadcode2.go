@@ -18,10 +18,6 @@ import (
 
 var _ = fmt.Print
 
-// TODO:
-// - Debug output:
-//   Emit messages about which symbols are kept or deleted.
-
 type workQueue []loader.Sym
 
 // Implement container/heap.Interface.
@@ -204,6 +200,16 @@ func (d *deadcodePass2) mark(symIdx, parent loader.Sym) {
 		d.ldr.Reachable.Set(symIdx)
 		if d.ctxt.Reachparent != nil {
 			d.ldr.Reachparent[symIdx] = parent
+		}
+		if *flagDumpDep {
+			to := d.ldr.SymName(symIdx)
+			if to != "" {
+				from := "_"
+				if parent != 0 {
+					from = d.ldr.SymName(parent)
+				}
+				fmt.Printf("%s -> %s\n", from, to)
+			}
 		}
 	}
 }
