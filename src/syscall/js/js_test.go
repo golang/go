@@ -419,6 +419,25 @@ func TestInvokeFunction(t *testing.T) {
 	}
 }
 
+func TestInterleavedFunctions(t *testing.T) {
+	c1 := make(chan struct{})
+	c2 := make(chan struct{})
+
+	js.Global().Get("setTimeout").Invoke(js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		c1 <- struct{}{}
+		<-c2
+		return nil
+	}), 0)
+
+	<-c1
+	c2 <- struct{}{}
+	// this goroutine is running, but the callback of setTimeout did not return yet, invoke another function now
+	f := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		return nil
+	})
+	f.Invoke()
+}
+
 func ExampleFuncOf() {
 	var cb js.Func
 	cb = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
