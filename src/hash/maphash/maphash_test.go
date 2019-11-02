@@ -2,18 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package hash_test
+package maphash_test
 
 import (
-	"bytes/hash"
-	basehash "hash"
+	"hash"
+	"hash/maphash"
 	"testing"
 )
 
 func TestUnseededHash(t *testing.T) {
 	m := map[uint64]struct{}{}
 	for i := 0; i < 1000; i++ {
-		h := hash.New()
+		h := maphash.New()
 		m[h.Hash()] = struct{}{}
 	}
 	if len(m) < 900 {
@@ -22,10 +22,10 @@ func TestUnseededHash(t *testing.T) {
 }
 
 func TestSeededHash(t *testing.T) {
-	s := hash.MakeSeed(1234)
+	s := maphash.MakeSeed(1234)
 	m := map[uint64]struct{}{}
 	for i := 0; i < 1000; i++ {
-		h := hash.New()
+		h := maphash.New()
 		h.SetSeed(s)
 		m[h.Hash()] = struct{}{}
 	}
@@ -36,8 +36,8 @@ func TestSeededHash(t *testing.T) {
 
 func TestHashGrouping(t *testing.T) {
 	b := []byte("foo")
-	h1 := hash.New()
-	h2 := hash.New()
+	h1 := maphash.New()
+	h2 := maphash.New()
 	h2.SetSeed(h1.Seed())
 	h1.AddBytes(b)
 	for _, x := range b {
@@ -51,8 +51,8 @@ func TestHashGrouping(t *testing.T) {
 func TestHashBytesVsString(t *testing.T) {
 	s := "foo"
 	b := []byte(s)
-	h1 := hash.New()
-	h2 := hash.New()
+	h1 := maphash.New()
+	h2 := maphash.New()
 	h2.SetSeed(h1.Seed())
 	h1.AddString(s)
 	h2.AddBytes(b)
@@ -66,7 +66,7 @@ func TestHashHighBytes(t *testing.T) {
 	const N = 10
 	m := map[uint64]struct{}{}
 	for i := 0; i < N; i++ {
-		h := hash.New()
+		h := maphash.New()
 		h.AddString("foo")
 		m[h.Hash()>>32] = struct{}{}
 	}
@@ -76,5 +76,5 @@ func TestHashHighBytes(t *testing.T) {
 }
 
 // Make sure a Hash implements the hash.Hash and hash.Hash64 interfaces.
-var _ basehash.Hash = &hash.Hash{}
-var _ basehash.Hash64 = &hash.Hash{}
+var _ hash.Hash = &maphash.Hash{}
+var _ hash.Hash64 = &maphash.Hash{}

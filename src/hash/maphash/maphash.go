@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package bytes/hash provides hash functions on byte sequences. These
+// Package hash/maphash provides hash functions on byte sequences. These
 // hash functions are intended to be used to implement hash tables or
 // other data structures that need to map arbitrary strings or byte
 // sequences to a uniform distribution of integers. The hash functions
@@ -29,7 +29,7 @@
 // All bits of the Hash result are close to uniformly and
 // independently distributed, so can be safely restricted to a range
 // using bit masking, shifting, or modular arithmetic.
-package hash
+package maphash
 
 import (
 	"unsafe"
@@ -161,7 +161,7 @@ func rthash(b []byte, seed uint64) uint64 {
 //go:linkname runtime_memhash runtime.memhash
 func runtime_memhash(p unsafe.Pointer, seed, s uintptr) uintptr
 
-// Wrapper functions so that a bytes/hash.Hash implements
+// Wrapper functions so that a hash/maphash.Hash implements
 // the hash.Hash and hash.Hash64 interfaces.
 
 func (h *Hash) Write(b []byte) (int, error) {
