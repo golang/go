@@ -1372,7 +1372,13 @@ func PutDefaultFunc(ctxt Context, s *FnState) error {
 	abbrev := DW_ABRV_FUNCTION
 	Uleb128put(ctxt, s.Info, int64(abbrev))
 
-	putattr(ctxt, s.Info, DW_ABRV_FUNCTION, DW_FORM_string, DW_CLS_STRING, int64(len(s.Name)), s.Name)
+	// Expand '"".' to import path.
+	name := s.Name
+	if s.Importpath != "" {
+		name = strings.Replace(name, "\"\".", objabi.PathToPrefix(s.Importpath)+".", -1)
+	}
+
+	putattr(ctxt, s.Info, DW_ABRV_FUNCTION, DW_FORM_string, DW_CLS_STRING, int64(len(name)), name)
 	putattr(ctxt, s.Info, abbrev, DW_FORM_addr, DW_CLS_ADDRESS, 0, s.StartPC)
 	putattr(ctxt, s.Info, abbrev, DW_FORM_addr, DW_CLS_ADDRESS, s.Size, s.StartPC)
 	putattr(ctxt, s.Info, abbrev, DW_FORM_block1, DW_CLS_BLOCK, 1, []byte{DW_OP_call_frame_cfa})
