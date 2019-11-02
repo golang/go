@@ -813,3 +813,52 @@ func TestCachedInstall(t *testing.T) {
 		t.Errorf("p.h not installed in second run: %v", err)
 	}
 }
+
+// Issue 35294.
+func TestManyCalls(t *testing.T) {
+	t.Parallel()
+
+	defer func() {
+		os.Remove("testp7" + exeSuffix)
+		os.Remove("libgo7.a")
+		os.Remove("libgo7.h")
+	}()
+
+	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo7.a", "./libgo7")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+	checkLineComments(t, "libgo7.h")
+
+	ccArgs := append(cc, "-o", "testp7"+exeSuffix, "main7.c", "libgo7.a")
+	if runtime.Compiler == "gccgo" {
+		ccArgs = append(ccArgs, "-lgo")
+	}
+	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+
+	argv := cmdToRun("./testp7")
+	cmd = exec.Command(argv[0], argv[1:]...)
+	var sb strings.Builder
+	cmd.Stdout = &sb
+	cmd.Stderr = &sb
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	timer := time.AfterFunc(time.Minute,
+		func() {
+			t.Error("test program timed out")
+			cmd.Process.Kill()
+		},
+	)
+	defer timer.Stop()
+
+	if err := cmd.Wait(); err != nil {
+		t.Log(sb.String())
+		t.Error(err)
+	}
+}
