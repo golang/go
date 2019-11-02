@@ -358,6 +358,17 @@ func TestMapping(t *testing.T) {
 					continue
 				}
 			}
+
+			if traceback == "Go+C" {
+				// The test code was arranged to have PCs from C and
+				// they are not symbolized.
+				// Check no Location containing those unsymbolized PCs contains multiple lines.
+				for i, loc := range prof.Location {
+					if !symbolized(loc) && len(loc.Line) > 1 {
+						t.Errorf("Location[%d] contains unsymbolized PCs and multiple lines: %v", i, loc)
+					}
+				}
+			}
 		})
 	}
 }
