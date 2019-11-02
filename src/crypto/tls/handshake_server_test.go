@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/elliptic"
+	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -1661,4 +1662,27 @@ T+E0J8wlH24pgwQHzy7Ko2qLwn1b5PW8ecrlvP1g
 	serverConfig.Certificates = []Certificate{cert}
 	serverConfig.MaxVersion = VersionTLS12
 	testHandshake(t, testConfig, serverConfig)
+}
+
+func TestMultipleCertificates(t *testing.T) {
+	clientConfig := testConfig.Clone()
+	clientConfig.CipherSuites = []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256}
+	clientConfig.MaxVersion = VersionTLS12
+
+	serverConfig := testConfig.Clone()
+	serverConfig.Certificates = []Certificate{{
+		Certificate: [][]byte{testECDSACertificate},
+		PrivateKey:  testECDSAPrivateKey,
+	}, {
+		Certificate: [][]byte{testRSACertificate},
+		PrivateKey:  testRSAPrivateKey,
+	}}
+
+	_, clientState, err := testHandshake(t, clientConfig, serverConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := clientState.PeerCertificates[0].PublicKeyAlgorithm; got != x509.RSA {
+		t.Errorf("expected RSA certificate, got %v", got)
+	}
 }

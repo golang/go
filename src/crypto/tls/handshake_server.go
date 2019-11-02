@@ -227,7 +227,11 @@ func (hs *serverHandshakeState) processClientHello() error {
 
 	hs.cert, err = c.config.getCertificate(clientHelloInfo(c, hs.clientHello))
 	if err != nil {
-		c.sendAlert(alertInternalError)
+		if err == errNoCertificates {
+			c.sendAlert(alertUnrecognizedName)
+		} else {
+			c.sendAlert(alertInternalError)
+		}
 		return err
 	}
 	if hs.clientHello.scts {
