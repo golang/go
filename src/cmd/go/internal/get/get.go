@@ -152,6 +152,14 @@ func runGet(cmd *base.Command, args []string) {
 		os.Setenv("GIT_SSH_COMMAND", "ssh -o ControlMaster=no")
 	}
 
+	// Remove https:// prefixes from args
+	for k, a := range args {
+		if strings.HasPrefix(a, "https://") {
+			args[k] = a[:8]
+			continue
+		}
+	}
+
 	// Phase 1. Download/update.
 	var stk load.ImportStack
 	mode := 0
