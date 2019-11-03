@@ -22,6 +22,7 @@ package riscv
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"fmt"
 )
@@ -30,6 +31,45 @@ import (
 var RISCV64DWARFRegisters = map[int16]int16{}
 
 func buildop(ctxt *obj.Link) {}
+
+// jalrToSym replaces p with a set of Progs needed to jump to the Sym in p.
+// lr is the link register to use for the JALR.
+// p must be a CALL, JMP or RET.
+func jalrToSym(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, lr int16) *obj.Prog {
+	if p.As != obj.ACALL && p.As != obj.AJMP && p.As != obj.ARET {
+		ctxt.Diag("unexpected Prog in jalrToSym: %v", p)
+		return p
+	}
+
+	// TODO(jsing): Consider using a single JAL instruction and teaching
+	// the linker to provide trampolines for the case where the destination
+	// offset is too large. This would potentially reduce instructions for
+	// the common case, but would require three instructions to go via the
+	// trampoline.
+
+	to := p.To
+
+	// This offset isn't really encoded with either instruction. It will be
+	// extracted for a relocation later.
+	p.As = AAUIPC
+	p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: to.Offset, Sym: to.Sym}
+	p.Reg = 0
+	p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+	p.Mark |= NEED_PCREL_ITYPE_RELOC
+	p = obj.Appendp(p, newprog)
+
+	// Leave p.To.Sym only for the CALL reloc in assemble.
+	p.As = AJALR
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = lr
+	p.Reg = 0
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = REG_TMP
+	p.To.Sym = to.Sym
+	lowerJALR(p)
+
+	return p
+}
 
 // lowerJALR normalizes a JALR instruction.
 func lowerJALR(p *obj.Prog) {
@@ -104,6 +144,42 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.To.Type, p.To.Offset = obj.TYPE_REG, 0
 		default:
 			p.Ctxt.Diag("%v\tmemory required for destination", p)
+		}
+
+	case obj.AJMP:
+		// Turn JMP into JAL ZERO or JALR ZERO.
+		// p.From is actually an _output_ for this instruction.
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REG_ZERO
+
+		switch p.To.Type {
+		case obj.TYPE_BRANCH:
+			p.As = AJAL
+		case obj.TYPE_MEM:
+			switch p.To.Name {
+			case obj.NAME_NONE:
+				p.As = AJALR
+				lowerJALR(p)
+			case obj.NAME_EXTERN:
+				// Handled in preprocess.
+			default:
+				ctxt.Diag("progedit: unsupported name %d for %v", p.To.Name, p)
+			}
+		default:
+			panic(fmt.Sprintf("unhandled type %+v", p.To.Type))
+		}
+
+	case obj.ACALL:
+		switch p.To.Type {
+		case obj.TYPE_MEM:
+			// Handled in preprocess.
+		case obj.TYPE_REG:
+			p.As = AJALR
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = REG_LR
+			lowerJALR(p)
+		default:
+			ctxt.Diag("unknown destination type %+v in CALL: %v", p.To.Type, p)
 		}
 
 	case AJALR:
@@ -390,6 +466,26 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 	}
 }
 
+// invertBranch inverts the condition of a conditional branch.
+func invertBranch(i obj.As) obj.As {
+	switch i {
+	case ABEQ:
+		return ABNE
+	case ABNE:
+		return ABEQ
+	case ABLT:
+		return ABGE
+	case ABGE:
+		return ABLT
+	case ABLTU:
+		return ABGEU
+	case ABGEU:
+		return ABLTU
+	default:
+		panic("invertBranch: not a branch")
+	}
+}
+
 // setPCs sets the Pc field in all instructions reachable from p.
 // It uses pc as the initial value.
 func setPCs(p *obj.Prog, pc int64) {
@@ -483,6 +579,22 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			// progedit, as SP offsets need to be applied before we split
 			// up some of the Addrs.
 			rewriteMOV(ctxt, newprog, p)
+
+		case obj.ACALL:
+			switch p.To.Type {
+			case obj.TYPE_MEM:
+				jalrToSym(ctxt, p, newprog, REG_LR)
+			}
+
+		case obj.AJMP:
+			switch p.To.Type {
+			case obj.TYPE_MEM:
+				switch p.To.Name {
+				case obj.NAME_EXTERN:
+					// JMP to symbol.
+					jalrToSym(ctxt, p, newprog, REG_ZERO)
+				}
+			}
 		}
 	}
 
@@ -596,9 +708,71 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
-	setPCs(cursym.Func.Text, 0)
+	// Compute instruction addresses.  Once we do that, we need to check for
+	// overextended jumps and branches.  Within each iteration, Pc differences
+	// are always lower bounds (since the program gets monotonically longer,
+	// a fixed point will be reached).  No attempt to handle functions > 2GiB.
+	for {
+		rescan := false
+		setPCs(cursym.Func.Text, 0)
 
-	// Resolve branch and jump targets.
+		for p := cursym.Func.Text; p != nil; p = p.Link {
+			switch p.As {
+			case ABEQ, ABNE, ABLT, ABGE, ABLTU, ABGEU:
+				if p.To.Type != obj.TYPE_BRANCH {
+					panic("assemble: instruction with branch-like opcode lacks destination")
+				}
+				offset := p.Pcond.Pc - p.Pc
+				if offset < -4096 || 4096 <= offset {
+					// Branch is long.  Replace it with a jump.
+					jmp := obj.Appendp(p, newprog)
+					jmp.As = AJAL
+					jmp.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
+					jmp.To = obj.Addr{Type: obj.TYPE_BRANCH}
+					jmp.Pcond = p.Pcond
+
+					p.As = invertBranch(p.As)
+					p.Pcond = jmp.Link
+
+					// We may have made previous branches too long,
+					// so recheck them.
+					rescan = true
+				}
+			case AJAL:
+				if p.Pcond == nil {
+					panic("intersymbol jumps should be expressed as AUIPC+JALR")
+				}
+				offset := p.Pcond.Pc - p.Pc
+				if offset < -(1<<20) || (1<<20) <= offset {
+					// Replace with 2-instruction sequence. This assumes
+					// that TMP is not live across J instructions, since
+					// it is reserved by SSA.
+					jmp := obj.Appendp(p, newprog)
+					jmp.As = AJALR
+					jmp.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
+					jmp.To = p.From
+					jmp.Reg = REG_TMP
+
+					// p.From is not generally valid, however will be
+					// fixed up in the next loop.
+					p.As = AAUIPC
+					p.From = obj.Addr{Type: obj.TYPE_BRANCH, Sym: p.From.Sym}
+					p.Reg = 0
+					p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+
+					rescan = true
+				}
+			}
+		}
+
+		if !rescan {
+			break
+		}
+	}
+
+	// Now that there are no long branches, resolve branch and jump targets.
+	// At this point, instruction rewriting which changes the number of
+	// instructions will break everything--don't do it!
 	for p := cursym.Func.Text; p != nil; p = p.Link {
 		switch p.As {
 		case AJAL, ABEQ, ABNE, ABLT, ABLTU, ABGE, ABGEU:
@@ -607,6 +781,16 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.To.Type, p.To.Offset = obj.TYPE_CONST, p.Pcond.Pc-p.Pc
 			case obj.TYPE_MEM:
 				panic("unhandled type")
+			}
+
+		case AAUIPC:
+			if p.From.Type == obj.TYPE_BRANCH {
+				low, high, err := Split32BitImmediate(p.Pcond.Pc - p.Pc)
+				if err != nil {
+					ctxt.Diag("%v: jump displacement %d too large", p, p.Pcond.Pc-p.Pc)
+				}
+				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: high, Sym: cursym}
+				p.Link.From.Offset = low
 			}
 		}
 	}
@@ -864,6 +1048,13 @@ func validateB(p *obj.Prog) {
 }
 
 func validateU(p *obj.Prog) {
+	if p.As == AAUIPC && p.Mark&(NEED_PCREL_ITYPE_RELOC|NEED_PCREL_STYPE_RELOC) != 0 {
+		// TODO(sorear): Hack.  The Offset is being used here to temporarily
+		// store the relocation addend, not as an actual offset to assemble,
+		// so it's OK for it to be out of range.  Is there a more valid way
+		// to represent this state?
+		return
+	}
 	wantImmU(p, "from", p.From, 20)
 	wantIntRegAddr(p, "to", &p.To)
 }
@@ -1281,6 +1472,49 @@ func encodingForProg(p *obj.Prog) encoding {
 func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	var symcode []uint32
 	for p := cursym.Func.Text; p != nil; p = p.Link {
+		switch p.As {
+		case AJALR:
+			if p.To.Sym != nil {
+				// This is a CALL/JMP. We add a relocation only
+				// for linker stack checking. No actual
+				// relocation is needed.
+				rel := obj.Addrel(cursym)
+				rel.Off = int32(p.Pc)
+				rel.Siz = 4
+				rel.Sym = p.To.Sym
+				rel.Add = p.To.Offset
+				rel.Type = objabi.R_CALLRISCV
+			}
+		case AAUIPC:
+			var rt objabi.RelocType
+			if p.Mark&NEED_PCREL_ITYPE_RELOC == NEED_PCREL_ITYPE_RELOC {
+				rt = objabi.R_RISCV_PCREL_ITYPE
+			} else if p.Mark&NEED_PCREL_STYPE_RELOC == NEED_PCREL_STYPE_RELOC {
+				rt = objabi.R_RISCV_PCREL_STYPE
+			} else {
+				break
+			}
+			if p.Link == nil {
+				ctxt.Diag("AUIPC needing PC-relative reloc missing following instruction")
+				break
+			}
+			if p.From.Sym == nil {
+				ctxt.Diag("AUIPC needing PC-relative reloc missing symbol")
+				break
+			}
+
+			// The relocation offset can be larger than the maximum
+			// size of an AUIPC, so zero p.From.Offset to avoid any
+			// attempt to assemble it.
+			rel := obj.Addrel(cursym)
+			rel.Off = int32(p.Pc)
+			rel.Siz = 8
+			rel.Sym = p.From.Sym
+			rel.Add = p.From.Offset
+			p.From.Offset = 0
+			rel.Type = rt
+		}
+
 		enc := encodingForProg(p)
 		if enc.length > 0 {
 			symcode = append(symcode, enc.encode(p))

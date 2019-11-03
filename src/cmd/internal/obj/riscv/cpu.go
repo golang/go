@@ -141,6 +141,7 @@ const (
 	// Go runtime register names.
 	REG_G    = REG_TP // G pointer.
 	REG_CTXT = REG_S4 // Context for closures.
+	REG_LR   = REG_RA // Link register.
 	REG_TMP  = REG_T6 // Reserved for assembler use.
 
 	// ABI names for floating point registers.
