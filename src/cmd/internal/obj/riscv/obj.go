@@ -324,7 +324,7 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 		off := p.From.Offset
 		to := p.To
 
-		low, high, err := split32BitImmediate(off)
+		low, high, err := Split32BitImmediate(off)
 		if err != nil {
 			ctxt.Diag("%v: constant %d too large: %v", p, off, err)
 		}
@@ -512,11 +512,11 @@ func signExtend(val int64, bit uint) int64 {
 	return val << (64 - bit) >> (64 - bit)
 }
 
-// split32BitImmediate splits a signed 32-bit immediate into a signed 20-bit
+// Split32BitImmediate splits a signed 32-bit immediate into a signed 20-bit
 // upper immediate and a signed 12-bit lower immediate to be added to the upper
 // result. For example, high may be used in LUI and low in a following ADDI to
 // generate a full 32-bit constant.
-func split32BitImmediate(imm int64) (low, high int64, err error) {
+func Split32BitImmediate(imm int64) (low, high int64, err error) {
 	if !immIFits(imm, 32) {
 		return 0, 0, fmt.Errorf("immediate does not fit in 32-bits: %d", imm)
 	}
@@ -907,6 +907,27 @@ func encodeRaw(p *obj.Prog) uint32 {
 		panic(fmt.Sprintf("immediate %d in %v cannot fit in 32 bits", a.Offset, a))
 	}
 	return uint32(a.Offset)
+}
+
+func EncodeIImmediate(imm int64) (int64, error) {
+	if !immIFits(imm, 12) {
+		return 0, fmt.Errorf("immediate %#x does not fit in 12 bits", imm)
+	}
+	return imm << 20, nil
+}
+
+func EncodeSImmediate(imm int64) (int64, error) {
+	if !immIFits(imm, 12) {
+		return 0, fmt.Errorf("immediate %#x does not fit in 12 bits", imm)
+	}
+	return ((imm >> 5) << 25) | ((imm & 0x1f) << 7), nil
+}
+
+func EncodeUImmediate(imm int64) (int64, error) {
+	if !immUFits(imm, 20) {
+		return 0, fmt.Errorf("immediate %#x does not fit in 20 bits", imm)
+	}
+	return imm << 12, nil
 }
 
 type encoding struct {

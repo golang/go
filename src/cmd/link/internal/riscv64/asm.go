@@ -5,6 +5,7 @@
 package riscv64
 
 import (
+	"cmd/internal/obj/riscv"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
@@ -40,8 +41,53 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 }
 
 func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
-	// TODO(jsing): Implement.
-	log.Fatalf("archreloc not implemented")
+	switch r.Type {
+	case objabi.R_CALLRISCV:
+		// Nothing to do.
+		return val, true
+
+	case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE:
+		pc := s.Value + int64(r.Off)
+		off := ld.Symaddr(r.Sym) + r.Add - pc
+
+		// Generate AUIPC and second instruction immediates.
+		low, high, err := riscv.Split32BitImmediate(off)
+		if err != nil {
+			ld.Errorf(s, "R_RISCV_PCREL_ relocation does not fit in 32-bits: %d", off)
+		}
+
+		auipcImm, err := riscv.EncodeUImmediate(high)
+		if err != nil {
+			ld.Errorf(s, "cannot encode R_RISCV_PCREL_ AUIPC relocation offset for %s: %v", r.Sym.Name, err)
+		}
+
+		var secondImm, secondImmMask int64
+		switch r.Type {
+		case objabi.R_RISCV_PCREL_ITYPE:
+			secondImmMask = riscv.ITypeImmMask
+			secondImm, err = riscv.EncodeIImmediate(low)
+			if err != nil {
+				ld.Errorf(s, "cannot encode R_RISCV_PCREL_ITYPE I-type instruction relocation offset for %s: %v", r.Sym.Name, err)
+			}
+		case objabi.R_RISCV_PCREL_STYPE:
+			secondImmMask = riscv.STypeImmMask
+			secondImm, err = riscv.EncodeSImmediate(low)
+			if err != nil {
+				ld.Errorf(s, "cannot encode R_RISCV_PCREL_STYPE S-type instruction relocation offset for %s: %v", r.Sym.Name, err)
+			}
+		default:
+			panic(fmt.Sprintf("Unknown relocation type: %v", r.Type))
+		}
+
+		auipc := int64(uint32(val))
+		second := int64(uint32(val >> 32))
+
+		auipc = (auipc &^ riscv.UTypeImmMask) | int64(uint32(auipcImm))
+		second = (second &^ secondImmMask) | int64(uint32(secondImm))
+
+		return second<<32 | auipc, true
+	}
+
 	return val, false
 }
 
