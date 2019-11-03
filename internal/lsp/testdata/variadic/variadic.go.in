@@ -1,0 +1,23 @@
+package variadic
+
+func foo(i int, strs ...string) {}
+
+func bar() []string { //@item(vFunc, "bar", "func() []string", "func")
+	return nil
+}
+
+func _() {
+	var (
+		i  int      //@item(vInt, "i", "int", "var")
+		s  string   //@item(vStr, "s", "string", "var")
+		ss []string //@item(vStrSlice, "ss", "[]string", "var")
+	)
+
+	foo()          //@rank(")", vInt, vStr),rank(")", vInt, vStrSlice)
+	foo(123, )     //@rank(")", vStr, vInt),rank(")", vStrSlice, vInt)
+	foo(123, "", ) //@rank(")", vStr, vInt),rank(")", vStr, vStrSlice)
+	foo(123, , "") //@rank(" ,", vStr, vInt),rank(")", vStr, vStrSlice)
+
+  // snippet will add the "..." for you
+	foo(123, ) //@snippet(")", vStrSlice, "ss...", "ss..."),snippet(")", vFunc, "bar()...", "bar()..."),snippet(")", vStr, "s", "s")
+}

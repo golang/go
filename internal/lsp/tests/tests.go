@@ -15,6 +15,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -39,13 +40,13 @@ var UpdateGolden = flag.Bool("golden", false, "Update golden files")
 
 type Diagnostics map[span.URI][]source.Diagnostic
 type CompletionItems map[token.Pos]*source.CompletionItem
-type Completions map[span.Span]Completion
-type CompletionSnippets map[span.Span]CompletionSnippet
-type UnimportedCompletions map[span.Span]Completion
-type DeepCompletions map[span.Span]Completion
-type FuzzyCompletions map[span.Span]Completion
-type CaseSensitiveCompletions map[span.Span]Completion
-type RankCompletions map[span.Span]Completion
+type Completions map[span.Span][]Completion
+type CompletionSnippets map[span.Span][]CompletionSnippet
+type UnimportedCompletions map[span.Span][]Completion
+type DeepCompletions map[span.Span][]Completion
+type FuzzyCompletions map[span.Span][]Completion
+type CaseSensitiveCompletions map[span.Span][]Completion
+type RankCompletions map[span.Span][]Completion
 type FoldingRanges []span.Span
 type Formats []span.Span
 type Imports []span.Span
@@ -343,80 +344,67 @@ func Run(t *testing.T, tests Tests, data *Data) {
 	t.Helper()
 	checkData(t, data)
 
+	eachCompletion := func(t *testing.T, cases map[span.Span][]Completion, test func(*testing.T, span.Span, Completion, CompletionItems)) {
+		t.Helper()
+
+		for src, exp := range cases {
+			for i, e := range exp {
+				t.Run(spanName(src)+"_"+strconv.Itoa(i), func(t *testing.T) {
+					t.Helper()
+					test(t, src, e, data.CompletionItems)
+				})
+			}
+
+		}
+	}
+
 	t.Run("Completion", func(t *testing.T) {
 		t.Helper()
-		for src, test := range data.Completions {
-			t.Run(spanName(src), func(t *testing.T) {
-				t.Helper()
-				tests.Completion(t, src, test, data.CompletionItems)
-			})
-		}
+		eachCompletion(t, data.Completions, tests.Completion)
 	})
 
 	t.Run("CompletionSnippets", func(t *testing.T) {
 		t.Helper()
 		for _, placeholders := range []bool{true, false} {
-			for src, expected := range data.CompletionSnippets {
-				name := spanName(src)
-				if placeholders {
-					name += "_placeholders"
+			for src, expecteds := range data.CompletionSnippets {
+				for i, expected := range expecteds {
+					name := spanName(src) + "_" + strconv.Itoa(i+1)
+					if placeholders {
+						name += "_placeholders"
+					}
+
+					t.Run(name, func(t *testing.T) {
+						t.Helper()
+						tests.CompletionSnippet(t, src, expected, placeholders, data.CompletionItems)
+					})
 				}
-				t.Run(name, func(t *testing.T) {
-					t.Helper()
-					tests.CompletionSnippet(t, src, expected, placeholders, data.CompletionItems)
-				})
 			}
 		}
 	})
 
 	t.Run("UnimportedCompletion", func(t *testing.T) {
 		t.Helper()
-		for src, test := range data.UnimportedCompletions {
-			t.Run(spanName(src), func(t *testing.T) {
-				t.Helper()
-				tests.UnimportedCompletion(t, src, test, data.CompletionItems)
-			})
-		}
+		eachCompletion(t, data.UnimportedCompletions, tests.UnimportedCompletion)
 	})
 
 	t.Run("DeepCompletion", func(t *testing.T) {
 		t.Helper()
-		for src, test := range data.DeepCompletions {
-			t.Run(spanName(src), func(t *testing.T) {
-				t.Helper()
-				tests.DeepCompletion(t, src, test, data.CompletionItems)
-			})
-		}
+		eachCompletion(t, data.DeepCompletions, tests.DeepCompletion)
 	})
 
 	t.Run("FuzzyCompletion", func(t *testing.T) {
 		t.Helper()
-		for src, test := range data.FuzzyCompletions {
-			t.Run(spanName(src), func(t *testing.T) {
-				t.Helper()
-				tests.FuzzyCompletion(t, src, test, data.CompletionItems)
-			})
-		}
+		eachCompletion(t, data.FuzzyCompletions, tests.FuzzyCompletion)
 	})
 
 	t.Run("CaseSensitiveCompletion", func(t *testing.T) {
 		t.Helper()
-		for src, test := range data.CaseSensitiveCompletions {
-			t.Run(spanName(src), func(t *testing.T) {
-				t.Helper()
-				tests.CaseSensitiveCompletion(t, src, test, data.CompletionItems)
-			})
-		}
+		eachCompletion(t, data.CaseSensitiveCompletions, tests.CaseSensitiveCompletion)
 	})
 
 	t.Run("RankCompletions", func(t *testing.T) {
 		t.Helper()
-		for src, test := range data.RankCompletions {
-			t.Run(spanName(src), func(t *testing.T) {
-				t.Helper()
-				tests.RankCompletion(t, src, test, data.CompletionItems)
-			})
-		}
+		eachCompletion(t, data.RankCompletions, tests.RankCompletion)
 	})
 
 	t.Run("Diagnostics", func(t *testing.T) {
@@ -594,13 +582,25 @@ func checkData(t *testing.T, data *Data) {
 		}
 	}
 
-	fmt.Fprintf(buf, "CompletionsCount = %v\n", len(data.Completions))
-	fmt.Fprintf(buf, "CompletionSnippetCount = %v\n", len(data.CompletionSnippets))
-	fmt.Fprintf(buf, "UnimportedCompletionsCount = %v\n", len(data.UnimportedCompletions))
-	fmt.Fprintf(buf, "DeepCompletionsCount = %v\n", len(data.DeepCompletions))
-	fmt.Fprintf(buf, "FuzzyCompletionsCount = %v\n", len(data.FuzzyCompletions))
-	fmt.Fprintf(buf, "RankedCompletionsCount = %v\n", len(data.RankCompletions))
-	fmt.Fprintf(buf, "CaseSensitiveCompletionsCount = %v\n", len(data.CaseSensitiveCompletions))
+	snippetCount := 0
+	for _, want := range data.CompletionSnippets {
+		snippetCount += len(want)
+	}
+
+	countCompletions := func(c map[span.Span][]Completion) (count int) {
+		for _, want := range c {
+			count += len(want)
+		}
+		return count
+	}
+
+	fmt.Fprintf(buf, "CompletionsCount = %v\n", countCompletions(data.Completions))
+	fmt.Fprintf(buf, "CompletionSnippetCount = %v\n", snippetCount)
+	fmt.Fprintf(buf, "UnimportedCompletionsCount = %v\n", countCompletions(data.UnimportedCompletions))
+	fmt.Fprintf(buf, "DeepCompletionsCount = %v\n", countCompletions(data.DeepCompletions))
+	fmt.Fprintf(buf, "FuzzyCompletionsCount = %v\n", countCompletions(data.FuzzyCompletions))
+	fmt.Fprintf(buf, "RankedCompletionsCount = %v\n", countCompletions(data.RankCompletions))
+	fmt.Fprintf(buf, "CaseSensitiveCompletionsCount = %v\n", countCompletions(data.CaseSensitiveCompletions))
 	fmt.Fprintf(buf, "DiagnosticsCount = %v\n", diagnosticsCount)
 	fmt.Fprintf(buf, "FoldingRangesCount = %v\n", len(data.FoldingRanges))
 	fmt.Fprintf(buf, "FormatCount = %v\n", len(data.Formats))
@@ -723,10 +723,10 @@ func (data *Data) collectDiagnostics(spn span.Span, msgSource, msg string) {
 }
 
 func (data *Data) collectCompletions(typ CompletionTestType) func(span.Span, []token.Pos) {
-	result := func(m map[span.Span]Completion, src span.Span, expected []token.Pos) {
-		m[src] = Completion{
+	result := func(m map[span.Span][]Completion, src span.Span, expected []token.Pos) {
+		m[src] = append(m[src], Completion{
 			CompletionItems: expected,
-		}
+		})
 	}
 	switch typ {
 	case CompletionDeep:
@@ -896,11 +896,11 @@ func (data *Data) collectSignatures(spn span.Span, signature string, activeParam
 }
 
 func (data *Data) collectCompletionSnippets(spn span.Span, item token.Pos, plain, placeholder string) {
-	data.CompletionSnippets[spn] = CompletionSnippet{
+	data.CompletionSnippets[spn] = append(data.CompletionSnippets[spn], CompletionSnippet{
 		CompletionItem:     item,
 		PlainSnippet:       plain,
 		PlaceholderSnippet: placeholder,
-	}
+	})
 }
 
 func (data *Data) collectLinks(spn span.Span, link string, note *expect.Note, fset *token.FileSet) {

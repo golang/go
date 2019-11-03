@@ -49,6 +49,11 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		snip = c.functionCallSnippet(label, params)
 		results, writeParens := formatResults(sig.Results(), c.qf)
 		detail = "func" + formatFunction(params, results, writeParens)
+
+		// Add variadic "..." if we are using a function result to fill in a variadic parameter.
+		if sig.Results().Len() == 1 && c.expectedType.matchesVariadic(sig.Results().At(0).Type()) {
+			snip.WriteText("...")
+		}
 	}
 
 	switch obj := obj.(type) {
@@ -72,6 +77,12 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 
 		if sig, ok := obj.Type().Underlying().(*types.Signature); ok && cand.expandFuncCall {
 			expandFuncCall(sig)
+		}
+
+		// Add variadic "..." if we are using a variable to fill in a variadic parameter.
+		if c.expectedType.matchesVariadic(obj.Type()) {
+			snip = &snippet.Builder{}
+			snip.WriteText(insert + "...")
 		}
 	case *types.Func:
 		sig, ok := obj.Type().Underlying().(*types.Signature)
