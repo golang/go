@@ -1209,10 +1209,8 @@ func (ctxt *Link) hostlink() {
 	switch ctxt.BuildMode {
 	case BuildModeExe:
 		if ctxt.HeadType == objabi.Hdarwin {
-			if ctxt.Arch.Family != sys.ARM64 {
-				argv = append(argv, "-Wl,-no_pie")
-			}
 			if !ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
+				argv = append(argv, "-Wl,-no_pie")
 				argv = append(argv, "-Wl,-pagezero_size,4000000")
 			}
 		}
