@@ -5263,7 +5263,7 @@ func rewriteValueMIPS_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] {t} dst src mem)
-	// cond: (s > 16 || t.(*types.Type).Alignment()%4 != 0)
+	// cond: (s > 16 && logLargeCopy(v, s) || t.(*types.Type).Alignment()%4 != 0)
 	// result: (LoweredMove [t.(*types.Type).Alignment()] dst src (ADDconst <src.Type> src [s-moveSize(t.(*types.Type).Alignment(), config)]) mem)
 	for {
 		s := v.AuxInt
@@ -5271,7 +5271,7 @@ func rewriteValueMIPS_OpMove(v *Value) bool {
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s > 16 || t.(*types.Type).Alignment()%4 != 0) {
+		if !(s > 16 && logLargeCopy(v, s) || t.(*types.Type).Alignment()%4 != 0) {
 			break
 		}
 		v.reset(OpMIPSLoweredMove)

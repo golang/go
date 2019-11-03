@@ -3303,14 +3303,14 @@ func rewriteValueS390X_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s > 0 && s <= 256
+	// cond: s > 0 && s <= 256 && logLargeCopy(v, s)
 	// result: (MVC [makeValAndOff(s, 0)] dst src mem)
 	for {
 		s := v.AuxInt
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s > 0 && s <= 256) {
+		if !(s > 0 && s <= 256 && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(OpS390XMVC)
@@ -3319,14 +3319,14 @@ func rewriteValueS390X_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s > 256 && s <= 512
+	// cond: s > 256 && s <= 512 && logLargeCopy(v, s)
 	// result: (MVC [makeValAndOff(s-256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem))
 	for {
 		s := v.AuxInt
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s > 256 && s <= 512) {
+		if !(s > 256 && s <= 512 && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(OpS390XMVC)
@@ -3338,14 +3338,14 @@ func rewriteValueS390X_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s > 512 && s <= 768
+	// cond: s > 512 && s <= 768 && logLargeCopy(v, s)
 	// result: (MVC [makeValAndOff(s-512, 512)] dst src (MVC [makeValAndOff(256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem)))
 	for {
 		s := v.AuxInt
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s > 512 && s <= 768) {
+		if !(s > 512 && s <= 768 && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(OpS390XMVC)
@@ -3360,14 +3360,14 @@ func rewriteValueS390X_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s > 768 && s <= 1024
+	// cond: s > 768 && s <= 1024 && logLargeCopy(v, s)
 	// result: (MVC [makeValAndOff(s-768, 768)] dst src (MVC [makeValAndOff(256, 512)] dst src (MVC [makeValAndOff(256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem))))
 	for {
 		s := v.AuxInt
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s > 768 && s <= 1024) {
+		if !(s > 768 && s <= 1024 && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(OpS390XMVC)
@@ -3385,14 +3385,14 @@ func rewriteValueS390X_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s > 1024
+	// cond: s > 1024 && logLargeCopy(v, s)
 	// result: (LoweredMove [s%256] dst src (ADD <src.Type> src (MOVDconst [(s/256)*256])) mem)
 	for {
 		s := v.AuxInt
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s > 1024) {
+		if !(s > 1024 && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(OpS390XLoweredMove)

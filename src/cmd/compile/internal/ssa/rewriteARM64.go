@@ -23742,14 +23742,14 @@ func rewriteValueARM64_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s > 32 && s <= 16*64 && s%16 == 8 && !config.noDuffDevice
+	// cond: s > 32 && s <= 16*64 && s%16 == 8 && !config.noDuffDevice && logLargeCopy(v, s)
 	// result: (MOVDstore [s-8] dst (MOVDload [s-8] src mem) (DUFFCOPY <types.TypeMem> [8*(64-(s-8)/16)] dst src mem))
 	for {
 		s := v.AuxInt
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s > 32 && s <= 16*64 && s%16 == 8 && !config.noDuffDevice) {
+		if !(s > 32 && s <= 16*64 && s%16 == 8 && !config.noDuffDevice && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(OpARM64MOVDstore)
@@ -23764,14 +23764,14 @@ func rewriteValueARM64_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s > 32 && s <= 16*64 && s%16 == 0 && !config.noDuffDevice
+	// cond: s > 32 && s <= 16*64 && s%16 == 0 && !config.noDuffDevice && logLargeCopy(v, s)
 	// result: (DUFFCOPY [8 * (64 - s/16)] dst src mem)
 	for {
 		s := v.AuxInt
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s > 32 && s <= 16*64 && s%16 == 0 && !config.noDuffDevice) {
+		if !(s > 32 && s <= 16*64 && s%16 == 0 && !config.noDuffDevice && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(OpARM64DUFFCOPY)
@@ -23780,14 +23780,14 @@ func rewriteValueARM64_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s > 24 && s%8 == 0
+	// cond: s > 24 && s%8 == 0 && logLargeCopy(v, s)
 	// result: (LoweredMove dst src (ADDconst <src.Type> src [s-8]) mem)
 	for {
 		s := v.AuxInt
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s > 24 && s%8 == 0) {
+		if !(s > 24 && s%8 == 0 && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(OpARM64LoweredMove)

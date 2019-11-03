@@ -325,7 +325,7 @@
 
 // large or unaligned move uses a loop
 (Move [s] {t} dst src mem)
-	&& (s > 16 || t.(*types.Type).Alignment()%4 != 0) ->
+	&& (s > 16 && logLargeCopy(v, s) || t.(*types.Type).Alignment()%4 != 0) ->
 	(LoweredMove [t.(*types.Type).Alignment()]
 		dst
 		src

@@ -15228,7 +15228,7 @@ func rewriteValueARM_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] {t} dst src mem)
-	// cond: s%4 == 0 && s > 4 && s <= 512 && t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice
+	// cond: s%4 == 0 && s > 4 && s <= 512 && t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice && logLargeCopy(v, s)
 	// result: (DUFFCOPY [8 * (128 - s/4)] dst src mem)
 	for {
 		s := v.AuxInt
@@ -15236,7 +15236,7 @@ func rewriteValueARM_OpMove(v *Value) bool {
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s%4 == 0 && s > 4 && s <= 512 && t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice) {
+		if !(s%4 == 0 && s > 4 && s <= 512 && t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(OpARMDUFFCOPY)
@@ -15245,7 +15245,7 @@ func rewriteValueARM_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] {t} dst src mem)
-	// cond: (s > 512 || config.noDuffDevice) || t.(*types.Type).Alignment()%4 != 0
+	// cond: ((s > 512 || config.noDuffDevice) || t.(*types.Type).Alignment()%4 != 0) && logLargeCopy(v, s)
 	// result: (LoweredMove [t.(*types.Type).Alignment()] dst src (ADDconst <src.Type> src [s-moveSize(t.(*types.Type).Alignment(), config)]) mem)
 	for {
 		s := v.AuxInt
@@ -15253,7 +15253,7 @@ func rewriteValueARM_OpMove(v *Value) bool {
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !((s > 512 || config.noDuffDevice) || t.(*types.Type).Alignment()%4 != 0) {
+		if !(((s > 512 || config.noDuffDevice) || t.(*types.Type).Alignment()%4 != 0) && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(OpARMLoweredMove)
