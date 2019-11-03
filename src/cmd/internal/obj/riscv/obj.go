@@ -504,6 +504,24 @@ func InvertBranch(i obj.As) obj.As {
 	}
 }
 
+// containsCall reports whether the symbol contains a CALL (or equivalent)
+// instruction. Must be called after progedit.
+func containsCall(sym *obj.LSym) bool {
+	// CALLs are CALL or JAL(R) with link register LR.
+	for p := sym.Func.Text; p != nil; p = p.Link {
+		switch p.As {
+		case obj.ACALL:
+			return true
+		case AJAL, AJALR:
+			if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_LR {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 // setPCs sets the Pc field in all instructions reachable from p.
 // It uses pc as the initial value.
 func setPCs(p *obj.Prog, pc int64) {
@@ -551,11 +569,20 @@ func stackOffset(a *obj.Addr, stacksize int64) {
 	}
 }
 
+// preprocess generates prologue and epilogue code, computes PC-relative branch
+// and jump offsets, and resolves pseudo-registers.
+//
+// preprocess is called once per linker symbol.
+//
+// When preprocess finishes, all instructions in the symbol are either
+// concrete, real RISC-V instructions or directive pseudo-ops like TEXT,
+// PCDATA, and FUNCDATA.
 func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	if cursym.Func.Text == nil || cursym.Func.Text.Link == nil {
 		return
 	}
 
+	// Generate the prologue.
 	text := cursym.Func.Text
 	if text.As != obj.ATEXT {
 		ctxt.Diag("preprocess: found symbol that does not start with TEXT directive")
@@ -577,10 +604,126 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
+	if !containsCall(cursym) {
+		text.From.Sym.Set(obj.AttrLeaf, true)
+		if stacksize == 0 {
+			// A leaf function with no locals has no frame.
+			text.From.Sym.Set(obj.AttrNoFrame, true)
+		}
+	}
+
+	// Save LR unless there is no frame.
+	if !text.From.Sym.NoFrame() {
+		stacksize += ctxt.FixedFrameSize()
+	}
+
 	cursym.Func.Args = text.To.Val.(int32)
 	cursym.Func.Locals = int32(stacksize)
 
-	// TODO(jsing): Implement.
+	prologue := text
+
+	if !cursym.Func.Text.From.Sym.NoSplit() {
+		prologue = stacksplit(ctxt, prologue, cursym, newprog, stacksize) // emit split check
+	}
+
+	if stacksize != 0 {
+		prologue = ctxt.StartUnsafePoint(prologue, newprog)
+
+		// Actually save LR.
+		prologue = obj.Appendp(prologue, newprog)
+		prologue.As = AMOV
+		prologue.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
+		prologue.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: -stacksize}
+
+		// Insert stack adjustment.
+		prologue = obj.Appendp(prologue, newprog)
+		prologue.As = AADDI
+		prologue.From = obj.Addr{Type: obj.TYPE_CONST, Offset: -stacksize}
+		prologue.Reg = REG_SP
+		prologue.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_SP}
+		prologue.Spadj = int32(stacksize)
+
+		prologue = ctxt.EndUnsafePoint(prologue, newprog, -1)
+	}
+
+	if cursym.Func.Text.From.Sym.Wrapper() {
+		// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
+		//
+		//   MOV g_panic(g), X11
+		//   BNE X11, ZERO, adjust
+		// end:
+		//   NOP
+		// ...rest of function..
+		// adjust:
+		//   MOV panic_argp(X11), X12
+		//   ADD $(autosize+FIXED_FRAME), SP, X13
+		//   BNE X12, X13, end
+		//   ADD $FIXED_FRAME, SP, X12
+		//   MOV X12, panic_argp(X11)
+		//   JMP end
+		//
+		// The NOP is needed to give the jumps somewhere to land.
+
+		ldpanic := obj.Appendp(prologue, newprog)
+
+		ldpanic.As = AMOV
+		ldpanic.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REGG, Offset: 4 * int64(ctxt.Arch.PtrSize)} // G.panic
+		ldpanic.Reg = 0
+		ldpanic.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X11}
+
+		bneadj := obj.Appendp(ldpanic, newprog)
+		bneadj.As = ABNE
+		bneadj.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X11}
+		bneadj.Reg = REG_ZERO
+		bneadj.To.Type = obj.TYPE_BRANCH
+
+		endadj := obj.Appendp(bneadj, newprog)
+		endadj.As = obj.ANOP
+
+		last := endadj
+		for last.Link != nil {
+			last = last.Link
+		}
+
+		getargp := obj.Appendp(last, newprog)
+		getargp.As = AMOV
+		getargp.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_X11, Offset: 0} // Panic.argp
+		getargp.Reg = 0
+		getargp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X12}
+
+		bneadj.Pcond = getargp
+
+		calcargp := obj.Appendp(getargp, newprog)
+		calcargp.As = AADDI
+		calcargp.From = obj.Addr{Type: obj.TYPE_CONST, Offset: stacksize + ctxt.FixedFrameSize()}
+		calcargp.Reg = REG_SP
+		calcargp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X13}
+
+		testargp := obj.Appendp(calcargp, newprog)
+		testargp.As = ABNE
+		testargp.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X12}
+		testargp.Reg = REG_X13
+		testargp.To.Type = obj.TYPE_BRANCH
+		testargp.Pcond = endadj
+
+		adjargp := obj.Appendp(testargp, newprog)
+		adjargp.As = AADDI
+		adjargp.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(ctxt.Arch.PtrSize)}
+		adjargp.Reg = REG_SP
+		adjargp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X12}
+
+		setargp := obj.Appendp(adjargp, newprog)
+		setargp.As = AMOV
+		setargp.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X12}
+		setargp.Reg = 0
+		setargp.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_X11, Offset: 0} // Panic.argp
+
+		godone := obj.Appendp(setargp, newprog)
+		godone.As = AJAL
+		godone.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
+		godone.To.Type = obj.TYPE_BRANCH
+		godone.Pcond = endadj
+	}
 
 	// Update stack-based offsets.
 	for p := cursym.Func.Text; p != nil; p = p.Link {
@@ -588,8 +731,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		stackOffset(&p.To, stacksize)
 	}
 
-	// Additional instruction rewriting. Any rewrites that change the number
-	// of instructions must occur here (before jump target resolution).
+	// Additional instruction rewriting.
 	for p := cursym.Func.Text; p != nil; p = p.Link {
 		switch p.As {
 		case obj.AGETCALLERPC:
@@ -620,6 +762,46 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					jalrToSym(ctxt, p, newprog, REG_ZERO)
 				}
 			}
+
+		case obj.ARET:
+			// Replace RET with epilogue.
+			retJMP := p.To.Sym
+
+			if stacksize != 0 {
+				// Restore LR.
+				p.As = AMOV
+				p.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: 0}
+				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
+				p = obj.Appendp(p, newprog)
+
+				p.As = AADDI
+				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: stacksize}
+				p.Reg = REG_SP
+				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_SP}
+				p.Spadj = int32(-stacksize)
+				p = obj.Appendp(p, newprog)
+			}
+
+			if retJMP != nil {
+				p.As = obj.ARET
+				p.To.Sym = retJMP
+				p = jalrToSym(ctxt, p, newprog, REG_ZERO)
+			} else {
+				p.As = AJALR
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = 0
+				p.Reg = REG_LR
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = REG_ZERO
+			}
+
+			// "Add back" the stack removed in the previous instruction.
+			//
+			// This is to avoid confusing pctospadj, which sums
+			// Spadj from function entry to each PC, and shouldn't
+			// count adjustments from earlier epilogues, since they
+			// won't affect later PCs.
+			p.Spadj = int32(stacksize)
 
 		// Replace FNE[SD] with FEQ[SD] and NOT.
 		case AFNES:
@@ -862,6 +1044,152 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	for p := cursym.Func.Text; p != nil; p = p.Link {
 		encodingForProg(p).validate(p)
 	}
+}
+
+func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgAlloc, framesize int64) *obj.Prog {
+	// Leaf function with no frame is effectively NOSPLIT.
+	if framesize == 0 {
+		return p
+	}
+
+	// MOV	g_stackguard(g), X10
+	p = obj.Appendp(p, newprog)
+	p.As = AMOV
+	p.From.Type = obj.TYPE_MEM
+	p.From.Reg = REGG
+	p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
+	if cursym.CFunc() {
+		p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
+	}
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = REG_X10
+
+	var to_done, to_more *obj.Prog
+
+	if framesize <= objabi.StackSmall {
+		// small stack: SP < stackguard
+		//	BLTU	SP, stackguard, done
+		p = obj.Appendp(p, newprog)
+		p.As = ABLTU
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REG_X10
+		p.Reg = REG_SP
+		p.To.Type = obj.TYPE_BRANCH
+		to_done = p
+	} else if framesize <= objabi.StackBig {
+		// large stack: SP-framesize < stackguard-StackSmall
+		//	ADD	$-(framesize-StackSmall), SP, X11
+		//	BLTU	X11, stackguard, done
+		p = obj.Appendp(p, newprog)
+		// TODO(sorear): logic inconsistent with comment, but both match all non-x86 arches
+		p.As = AADDI
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = -(int64(framesize) - objabi.StackSmall)
+		p.Reg = REG_SP
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_X11
+
+		p = obj.Appendp(p, newprog)
+		p.As = ABLTU
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REG_X10
+		p.Reg = REG_X11
+		p.To.Type = obj.TYPE_BRANCH
+		to_done = p
+	} else {
+		// Such a large stack we need to protect against wraparound.
+		// If SP is close to zero:
+		//	SP-stackguard+StackGuard <= framesize + (StackGuard-StackSmall)
+		// The +StackGuard on both sides is required to keep the left side positive:
+		// SP is allowed to be slightly below stackguard. See stack.h.
+		//
+		// Preemption sets stackguard to StackPreempt, a very large value.
+		// That breaks the math above, so we have to check for that explicitly.
+		//	// stackguard is X10
+		//	MOV	$StackPreempt, X11
+		//	BEQ	X10, X11, more
+		//	ADD	$StackGuard, SP, X11
+		//	SUB	X10, X11
+		//	MOV	$(framesize+(StackGuard-StackSmall)), X10
+		//	BGTU	X11, X10, done
+		p = obj.Appendp(p, newprog)
+		p.As = AMOV
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = objabi.StackPreempt
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_X11
+
+		p = obj.Appendp(p, newprog)
+		to_more = p
+		p.As = ABEQ
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REG_X10
+		p.Reg = REG_X11
+		p.To.Type = obj.TYPE_BRANCH
+
+		p = obj.Appendp(p, newprog)
+		p.As = AADDI
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = int64(objabi.StackGuard)
+		p.Reg = REG_SP
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_X11
+
+		p = obj.Appendp(p, newprog)
+		p.As = ASUB
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REG_X10
+		p.Reg = REG_X11
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_X11
+
+		p = obj.Appendp(p, newprog)
+		p.As = AMOV
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = int64(framesize) + int64(objabi.StackGuard) - objabi.StackSmall
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_X10
+
+		p = obj.Appendp(p, newprog)
+		p.As = ABLTU
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REG_X10
+		p.Reg = REG_X11
+		p.To.Type = obj.TYPE_BRANCH
+		to_done = p
+	}
+
+	p = ctxt.EmitEntryLiveness(cursym, p, newprog)
+
+	// CALL runtime.morestack(SB)
+	p = obj.Appendp(p, newprog)
+	p.As = obj.ACALL
+	p.To.Type = obj.TYPE_BRANCH
+	if cursym.CFunc() {
+		p.To.Sym = ctxt.Lookup("runtime.morestackc")
+	} else if !cursym.Func.Text.From.Sym.NeedCtxt() {
+		p.To.Sym = ctxt.Lookup("runtime.morestack_noctxt")
+	} else {
+		p.To.Sym = ctxt.Lookup("runtime.morestack")
+	}
+	if to_more != nil {
+		to_more.Pcond = p
+	}
+	p = jalrToSym(ctxt, p, newprog, REG_X5)
+
+	// JMP start
+	p = obj.Appendp(p, newprog)
+	p.As = AJAL
+	p.To = obj.Addr{Type: obj.TYPE_BRANCH}
+	p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
+	p.Pcond = cursym.Func.Text.Link
+
+	// placeholder for to_done's jump target
+	p = obj.Appendp(p, newprog)
+	p.As = obj.ANOP // zero-width place holder
+	to_done.Pcond = p
+
+	return p
 }
 
 // signExtend sign extends val starting at bit bit.
