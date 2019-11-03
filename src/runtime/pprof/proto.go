@@ -44,6 +44,7 @@ type profileBuilder struct {
 	locs      map[uintptr]locInfo // list of locInfo starting with the given PC.
 	funcs     map[string]int      // Package path-qualified function name to Function.ID
 	mem       []memMap
+	deck      pcDeck
 }
 
 type memMap struct {
@@ -428,8 +429,6 @@ func (b *profileBuilder) build() {
 	}
 
 	values := []int64{0, 0}
-
-	var deck = &pcDeck{}
 	var locs []uint64
 
 	for e := b.m.all; e != nil; e = e.nextAll {
@@ -445,61 +444,13 @@ func (b *profileBuilder) build() {
 			}
 		}
 
-		deck.reset()
-		locs = locs[:0]
-
 		// Addresses from stack traces point to the next instruction after each call,
 		// except for the leaf, which points to where the signal occurred.
-		// deck.add+emitLocation expects return PCs so increment the leaf address to
+		// appendLocsForStack expects return PCs so increment the leaf address to
 		// look like a return PC.
 		e.stk[0] += 1
-		for stk := e.stk; len(stk) > 0; {
-			addr := stk[0]
-			if l, ok := b.locs[addr]; ok {
-				// first record the location if there is any pending accumulated info.
-				if id := b.emitLocation(deck); id > 0 {
-					locs = append(locs, id)
-				}
-
-				// then, record the cached location.
-				locs = append(locs, l.id)
-				stk = stk[len(l.pcs):] // skip the matching pcs.
-				continue
-			}
-
-			frames, symbolizeResult := allFrames(addr)
-			if len(frames) == 0 { // runtime.goexit.
-				if id := b.emitLocation(deck); id > 0 {
-					locs = append(locs, id)
-				}
-				stk = stk[1:]
-				continue
-			}
-
-			if added := deck.tryAdd(addr, frames, symbolizeResult); added {
-				stk = stk[1:]
-				continue
-			}
-			// add failed because this addr is not inlined with
-			// the existing PCs in the deck. Flush the deck and retry to
-			// handle this pc.
-			if id := b.emitLocation(deck); id > 0 {
-				locs = append(locs, id)
-			}
-
-			// check cache again - previous emitLocation added a new entry
-			if l, ok := b.locs[addr]; ok {
-				locs = append(locs, l.id)
-				stk = stk[len(l.pcs):] // skip the matching pcs.
-			} else {
-				deck.tryAdd(addr, frames, symbolizeResult) // must succeed.
-				stk = stk[1:]
-			}
-		}
-		if id := b.emitLocation(deck); id > 0 { // emit remaining location.
-			locs = append(locs, id)
-		}
-		e.stk[0] -= 1 // undo the adjustment on the leaf done before the loop.
+		locs = b.appendLocsForStack(locs[:0], e.stk)
+		e.stk[0] -= 1 // undo the adjustment on the leaf.
 
 		b.pbSample(values, locs, labels)
 	}
@@ -515,6 +466,62 @@ func (b *profileBuilder) build() {
 	b.pb.strings(tagProfile_StringTable, b.strings)
 	b.zw.Write(b.pb.data)
 	b.zw.Close()
+}
+
+// appendLocsForStack appends the location IDs for the given stack trace to the given
+// location ID slice, locs. The addresses in the stack are return PCs or 1 + the PC of
+// an inline marker as the runtime traceback function returns.
+//
+// It may emit to b.pb, so there must be no message encoding in progress.
+func (b *profileBuilder) appendLocsForStack(locs []uint64, stk []uintptr) (newLocs []uint64) {
+	b.deck.reset()
+	for len(stk) > 0 {
+		addr := stk[0]
+		if l, ok := b.locs[addr]; ok {
+			// first record the location if there is any pending accumulated info.
+			if id := b.emitLocation(); id > 0 {
+				locs = append(locs, id)
+			}
+
+			// then, record the cached location.
+			locs = append(locs, l.id)
+			stk = stk[len(l.pcs):] // skip the matching pcs.
+			continue
+		}
+
+		frames, symbolizeResult := allFrames(addr)
+		if len(frames) == 0 { // runtime.goexit.
+			if id := b.emitLocation(); id > 0 {
+				locs = append(locs, id)
+			}
+			stk = stk[1:]
+			continue
+		}
+
+		if added := b.deck.tryAdd(addr, frames, symbolizeResult); added {
+			stk = stk[1:]
+			continue
+		}
+		// add failed because this addr is not inlined with
+		// the existing PCs in the deck. Flush the deck and retry to
+		// handle this pc.
+		if id := b.emitLocation(); id > 0 {
+			locs = append(locs, id)
+		}
+
+		// check cache again - previous emitLocation added a new entry
+		if l, ok := b.locs[addr]; ok {
+			locs = append(locs, l.id)
+			stk = stk[len(l.pcs):] // skip the matching pcs.
+		} else {
+			b.deck.tryAdd(addr, frames, symbolizeResult) // must succeed.
+			stk = stk[1:]
+		}
+	}
+	if id := b.emitLocation(); id > 0 { // emit remaining location.
+		locs = append(locs, id)
+	}
+	return locs
 }
 
 // pcDeck is a helper to detect a sequence of inlined functions from
@@ -583,15 +590,14 @@ func (d *pcDeck) tryAdd(pc uintptr, frames []runtime.Frame, symbolizeResult symb
 // and returns the location ID encoded in the profile protobuf.
 // It emits to b.pb, so there must be no message encoding in progress.
 // It resets the deck.
-func (b *profileBuilder) emitLocation(deck *pcDeck) uint64 {
-	defer deck.reset()
-
-	if len(deck.pcs) == 0 {
+func (b *profileBuilder) emitLocation() uint64 {
+	if len(b.deck.pcs) == 0 {
 		return 0
 	}
+	defer b.deck.reset()
 
-	addr := deck.pcs[0]
-	firstFrame := deck.frames[0]
+	addr := b.deck.pcs[0]
+	firstFrame := b.deck.frames[0]
 
 	// We can't write out functions while in the middle of the
 	// Location message, so record new functions we encounter and
@@ -603,12 +609,12 @@ func (b *profileBuilder) emitLocation(deck *pcDeck) uint64 {
 	newFuncs := make([]newFunc, 0, 8)
 
 	id := uint64(len(b.locs)) + 1
-	b.locs[addr] = locInfo{id: id, pcs: append([]uintptr{}, deck.pcs...)}
+	b.locs[addr] = locInfo{id: id, pcs: append([]uintptr{}, b.deck.pcs...)}
 
 	start := b.pb.startMessage()
 	b.pb.uint64Opt(tagLocation_ID, id)
 	b.pb.uint64Opt(tagLocation_Address, uint64(firstFrame.PC))
-	for _, frame := range deck.frames {
+	for _, frame := range b.deck.frames {
 		// Write out each line in frame expansion.
 		funcID := uint64(b.funcs[frame.Function])
 		if funcID == 0 {
@@ -623,7 +629,7 @@ func (b *profileBuilder) emitLocation(deck *pcDeck) uint64 {
 			b.pb.uint64Opt(tagLocation_MappingID, uint64(i+1))
 
 			m := b.mem[i]
-			m.funcs |= deck.symbolizeResult
+			m.funcs |= b.deck.symbolizeResult
 			b.mem[i] = m
 			break
 		}
