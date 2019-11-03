@@ -626,6 +626,7 @@ func (ld *loader) load(roots func() []string) {
 				added[pkg.path] = true
 				numAdded++
 				if !haveMod[err.Module] {
+					fmt.Fprintf(os.Stderr, "go: found %s in %s %s\n", pkg.path, err.Module.Path, err.Module.Version)
 					haveMod[err.Module] = true
 					modAddedBy[err.Module] = pkg
 					buildList = append(buildList, err.Module)

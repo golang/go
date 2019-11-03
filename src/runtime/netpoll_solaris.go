@@ -229,13 +229,21 @@ func netpoll(delay int64) gList {
 	var events [128]portevent
 retry:
 	var n uint32 = 1
-	if port_getn(portfd, &events[0], uint32(len(events)), &n, wait) < 0 {
-		if e := errno(); e != _EINTR && e != _ETIME {
+	r := port_getn(portfd, &events[0], uint32(len(events)), &n, wait)
+	e := errno()
+	if r < 0 && e == _ETIME && n > 0 {
+		// As per port_getn(3C), an ETIME failure does not preclude the
+		// delivery of some number of events.  Treat a timeout failure
+		// with delivered events as a success.
+		r = 0
+	}
+	if r < 0 {
+		if e != _EINTR && e != _ETIME {
 			print("runtime: port_getn on fd ", portfd, " failed (errno=", e, ")\n")
 			throw("runtime: netpoll failed")
 		}
-		// If a timed sleep was interrupted, just return to
-		// recalculate how long we should sleep now.
+		// If a timed sleep was interrupted and there are no events,
+		// just return to recalculate how long we should sleep now.
 		if delay > 0 {
 			return gList{}
 		}

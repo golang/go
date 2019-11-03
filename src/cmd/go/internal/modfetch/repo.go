@@ -5,7 +5,6 @@
 package modfetch
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -215,7 +214,7 @@ func Lookup(proxy, path string) (Repo, error) {
 // lookup returns the module with the given module path.
 func lookup(proxy, path string) (r Repo, err error) {
 	if cfg.BuildMod == "vendor" {
-		return nil, errModVendor
+		return nil, errLookupDisabled
 	}
 
 	if str.GlobsMatchPath(cfg.GONOPROXY, path) {
@@ -239,11 +238,21 @@ func lookup(proxy, path string) (r Repo, err error) {
 	}
 }
 
+type lookupDisabledError struct{}
+
+func (lookupDisabledError) Error() string {
+	if cfg.BuildModReason == "" {
+		return fmt.Sprintf("module lookup disabled by -mod=%s", cfg.BuildMod)
+	}
+	return fmt.Sprintf("module lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
+}
+
+var errLookupDisabled error = lookupDisabledError{}
+
 var (
-	errModVendor       = errors.New("module lookup disabled by -mod=vendor")
-	errProxyOff        = notExistError("module lookup disabled by GOPROXY=off")
-	errNoproxy   error = notExistError("disabled by GOPRIVATE/GONOPROXY")
-	errUseProxy  error = notExistError("path does not match GOPRIVATE/GONOPROXY")
+	errProxyOff       = notExistError("module lookup disabled by GOPROXY=off")
+	errNoproxy  error = notExistError("disabled by GOPRIVATE/GONOPROXY")
+	errUseProxy error = notExistError("path does not match GOPRIVATE/GONOPROXY")
 )
 
 func lookupDirect(path string) (Repo, error) {

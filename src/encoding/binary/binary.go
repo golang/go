@@ -26,6 +26,7 @@ import (
 	"io"
 	"math"
 	"reflect"
+	"sync"
 )
 
 // A ByteOrder specifies how to convert byte sequences into
@@ -363,18 +364,32 @@ func Size(v interface{}) int {
 	return dataSize(reflect.Indirect(reflect.ValueOf(v)))
 }
 
+var structSize sync.Map // map[reflect.Type]int
+
 // dataSize returns the number of bytes the actual data represented by v occupies in memory.
 // For compound structures, it sums the sizes of the elements. Thus, for instance, for a slice
 // it returns the length of the slice times the element size and does not count the memory
 // occupied by the header. If the type of v is not acceptable, dataSize returns -1.
 func dataSize(v reflect.Value) int {
-	if v.Kind() == reflect.Slice {
+	switch v.Kind() {
+	case reflect.Slice:
 		if s := sizeof(v.Type().Elem()); s >= 0 {
 			return s * v.Len()
 		}
 		return -1
+
+	case reflect.Struct:
+		t := v.Type()
+		if size, ok := structSize.Load(t); ok {
+			return size.(int)
+		}
+		size := sizeof(t)
+		structSize.Store(t, size)
+		return size
+
+	default:
+		return sizeof(v.Type())
 	}
-	return sizeof(v.Type())
 }
 
 // sizeof returns the size >= 0 of variables for the given type or -1 if the type is not acceptable.

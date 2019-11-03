@@ -11,7 +11,7 @@ stdout '^rsc.io/quote v1.5.1 .*vendor[\\/]rsc.io[\\/]quote$'
 stdout '^golang.org/x/text v0.0.0.* .*vendor[\\/]golang.org[\\/]x[\\/]text[\\/]language$'
 
 ! go list -mod=vendor -m rsc.io/quote@latest
-stderr 'go list -m: rsc.io/quote@latest: module lookup disabled by -mod=vendor'
+stderr 'go list -m: rsc.io/quote@latest: cannot query module due to -mod=vendor'
 ! go get -mod=vendor -u
 stderr 'flag provided but not defined: -mod'
 
