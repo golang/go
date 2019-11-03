@@ -27,6 +27,7 @@ var (
 	BuildBuildmode         string // -buildmode flag
 	BuildContext           = defaultContext()
 	BuildMod               string             // -mod flag
+	BuildModReason         string             // reason -mod flag is set, if set by default
 	BuildI                 bool               // -i flag
 	BuildLinkshared        bool               // -linkshared flag
 	BuildMSan              bool               // -msan flag

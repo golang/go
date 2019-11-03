@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package hash_test
+package maphash_test
 
 import (
-	"bytes/hash"
 	"fmt"
+	"hash/maphash"
 	"math"
 	"math/rand"
 	"runtime"
@@ -45,14 +45,14 @@ func TestSmhasherSanity(t *testing.T) {
 }
 
 func bytesHash(b []byte, seed uint64) uint64 {
-	h := hash.New()
-	h.SetSeed(hash.MakeSeed(seed))
+	h := maphash.New()
+	h.SetSeed(maphash.MakeSeed(seed))
 	h.AddBytes(b)
 	return h.Hash()
 }
 func stringHash(s string, seed uint64) uint64 {
-	h := hash.New()
-	h.SetSeed(hash.MakeSeed(seed))
+	h := maphash.New()
+	h.SetSeed(maphash.MakeSeed(seed))
 	h.AddString(s)
 	return h.Hash()
 }

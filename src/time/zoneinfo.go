@@ -65,6 +65,11 @@ var UTC *Location = &utcLoc
 var utcLoc = Location{name: "UTC"}
 
 // Local represents the system's local time zone.
+// On Unix systems, Local consults the TZ environment
+// variable to find the time zone to use. No TZ means
+// use the system default /etc/localtime.
+// TZ="" means use UTC.
+// TZ="foo" means use file foo in the system timezone directory.
 var Local *Location = &localLoc
 
 // localLoc is separate so that initLocal can initialize
