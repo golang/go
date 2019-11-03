@@ -486,6 +486,116 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
+	// Split immediates larger than 12-bits.
+	for p := cursym.Func.Text; p != nil; p = p.Link {
+		switch p.As {
+		// <opi> $imm, REG, TO
+		case AADDI, AANDI, AORI, AXORI:
+			// LUI $high, TMP
+			// ADDI $low, TMP, TMP
+			// <op> TMP, REG, TO
+			q := *p
+			low, high, err := Split32BitImmediate(p.From.Offset)
+			if err != nil {
+				ctxt.Diag("%v: constant %d too large", p, p.From.Offset, err)
+			}
+			if high == 0 {
+				break // no need to split
+			}
+
+			p.As = ALUI
+			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: high}
+			p.Reg = 0
+			p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+			p.Spadj = 0 // needed if TO is SP
+			p = obj.Appendp(p, newprog)
+
+			p.As = AADDIW
+			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: low}
+			p.Reg = REG_TMP
+			p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+			p = obj.Appendp(p, newprog)
+
+			switch q.As {
+			case AADDI:
+				p.As = AADD
+			case AANDI:
+				p.As = AAND
+			case AORI:
+				p.As = AOR
+			case AXORI:
+				p.As = AXOR
+			default:
+				ctxt.Diag("progedit: unsupported inst %v for splitting", q)
+			}
+			p.Spadj = q.Spadj
+			p.To = q.To
+			p.Reg = q.Reg
+			p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+
+		// <load> $imm, REG, TO (load $imm+(REG), TO)
+		// <store> $imm, REG, TO (store $imm+(TO), REG)
+		case ALD, ALB, ALH, ALW, ALBU, ALHU, ALWU,
+			ASD, ASB, ASH, ASW:
+			// LUI $high, TMP
+			// ADDI $low, TMP, TMP
+			q := *p
+			low, high, err := Split32BitImmediate(p.From.Offset)
+			if err != nil {
+				ctxt.Diag("%v: constant %d too large", p, p.From.Offset)
+			}
+			if high == 0 {
+				break // no need to split
+			}
+
+			switch q.As {
+			case ALD, ALB, ALH, ALW, ALBU, ALHU, ALWU:
+				// LUI $high, TMP
+				// ADD TMP, REG, TMP
+				// <load> $low, TMP, TO
+				p.As = ALUI
+				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: high}
+				p.Reg = 0
+				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+				p.Spadj = 0 // needed if TO is SP
+				p = obj.Appendp(p, newprog)
+
+				p.As = AADD
+				p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+				p.Reg = q.Reg
+				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+				p = obj.Appendp(p, newprog)
+
+				p.As = q.As
+				p.To = q.To
+				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: low}
+				p.Reg = REG_TMP
+
+			case ASD, ASB, ASH, ASW:
+				// LUI $high, TMP
+				// ADD TMP, TO, TMP
+				// <store> $low, REG, TMP
+				p.As = ALUI
+				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: high}
+				p.Reg = 0
+				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+				p.Spadj = 0 // needed if TO is SP
+				p = obj.Appendp(p, newprog)
+
+				p.As = AADD
+				p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+				p.Reg = q.To.Reg
+				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+				p = obj.Appendp(p, newprog)
+
+				p.As = q.As
+				p.Reg = q.Reg
+				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: low}
+			}
+		}
+	}
+
 	setPCs(cursym.Func.Text, 0)
 
 	// Resolve branch and jump targets.
