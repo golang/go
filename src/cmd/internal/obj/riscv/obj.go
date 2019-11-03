@@ -594,6 +594,22 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// Additional instruction rewriting. Any rewrites that change the number
 	// of instructions must occur here (before jump target resolution).
 	for p := cursym.Func.Text; p != nil; p = p.Link {
+		if p.As == obj.AGETCALLERPC {
+			// Handle AGETCALLERPC early so we can use AMOV, which is then
+			// rewritten below.
+			if cursym.Leaf() {
+				// MOV LR, Rd
+				p.As = AMOV
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = REG_LR
+			} else {
+				// MOV (RSP), Rd
+				p.As = AMOV
+				p.From.Type = obj.TYPE_MEM
+				p.From.Reg = REG_SP
+			}
+		}
+
 		switch p.As {
 		case AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
 			// Rewrite MOV pseudo-instructions. This cannot be done in
