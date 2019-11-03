@@ -3486,14 +3486,14 @@ func rewriteValuePPC64_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s > 8
+	// cond: s > 8 && logLargeCopy(v, s)
 	// result: (LoweredMove [s] dst src mem)
 	for {
 		s := v.AuxInt
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s > 8) {
+		if !(s > 8 && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(OpPPC64LoweredMove)

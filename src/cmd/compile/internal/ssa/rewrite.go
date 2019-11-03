@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -1082,6 +1083,19 @@ func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
 		return sz <= 4
 	}
 	return false
+}
+
+// logLargeCopy logs the occurrence of a large copy.
+// The best place to do this is in the rewrite rules where the size of the move is easy to find.
+// "Large" is arbitrarily chosen to be 128 bytes; this may change.
+func logLargeCopy(v *Value, s int64) bool {
+	if s < 128 {
+		return true
+	}
+	if logopt.Enabled() {
+		logopt.LogOpt(v.Pos, "copy", "lower", v.Block.Func.Name, fmt.Sprintf("%d bytes", s))
+	}
+	return true
 }
 
 // hasSmallRotate reports whether the architecture has rotate instructions

@@ -608,7 +608,7 @@
 
 // Large move uses a loop. Since the address is computed and the
 // offset is zero, any alignment can be used.
-(Move [s] dst src mem) && s > 8 ->
+(Move [s] dst src mem) && s > 8 && logLargeCopy(v, s) ->
         (LoweredMove [s] dst src mem)
 
 // Calls

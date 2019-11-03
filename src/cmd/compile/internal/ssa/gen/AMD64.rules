@@ -317,7 +317,7 @@
 // Medium copying uses a duff device.
 (Move [s] dst src mem)
 	&& s > 64 && s <= 16*64 && s%16 == 0
-	&& !config.noDuffDevice ->
+	&& !config.noDuffDevice && logLargeCopy(v, s) ->
 	(DUFFCOPY [14*(64-s/16)] dst src mem)
 // 14 and 64 are magic constants.  14 is the number of bytes to encode:
 //	MOVUPS	(SI), X0
@@ -327,7 +327,7 @@
 // and 64 is the number of such blocks. See src/runtime/duff_amd64.s:duffcopy.
 
 // Large copying uses REP MOVSQ.
-(Move [s] dst src mem) && (s > 16*64 || config.noDuffDevice) && s%8 == 0 ->
+(Move [s] dst src mem) && (s > 16*64 || config.noDuffDevice) && s%8 == 0 && logLargeCopy(v, s) ->
 	(REPMOVSQ dst src (MOVQconst [s/8]) mem)
 
 // Lowering Zero instructions

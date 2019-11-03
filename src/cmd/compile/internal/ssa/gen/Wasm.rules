@@ -253,7 +253,7 @@
 			(I64Store dst (I64Load src mem) mem)))
 
 // Large copying uses helper.
-(Move [s] dst src mem) && s%8 == 0 ->
+(Move [s] dst src mem) && s%8 == 0 && logLargeCopy(v, s) ->
 	(LoweredMove [s/8] dst src mem)
 
 // Lowering Zero instructions
