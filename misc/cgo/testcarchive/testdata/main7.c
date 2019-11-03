@@ -14,4 +14,5 @@ int main() {
 	for (i = 0; i < 100000; i++) {
 		GoFunction7();
 	}
+	return 0;
 }
