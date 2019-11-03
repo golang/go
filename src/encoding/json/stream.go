@@ -179,9 +179,10 @@ func nonSpace(b []byte) bool {
 
 // An Encoder writes JSON values to an output stream.
 type Encoder struct {
-	w          io.Writer
-	err        error
-	escapeHTML bool
+	w              io.Writer
+	err            error
+	escapeHTML     bool
+	trustMarshaler bool
 
 	indentBuf    *bytes.Buffer
 	indentPrefix string
@@ -203,7 +204,7 @@ func (enc *Encoder) Encode(v interface{}) error {
 		return enc.err
 	}
 	e := newEncodeState()
-	err := e.marshal(v, encOpts{escapeHTML: enc.escapeHTML})
+	err := e.marshal(v, encOpts{escapeHTML: enc.escapeHTML, trustMarshaler: enc.trustMarshaler})
 	if err != nil {
 		return err
 	}
@@ -252,6 +253,15 @@ func (enc *Encoder) SetIndent(prefix, indent string) {
 // of the output, SetEscapeHTML(false) disables this behavior.
 func (enc *Encoder) SetEscapeHTML(on bool) {
 	enc.escapeHTML = on
+}
+
+// SetTrustMarshaler specifies whether fields implement Marshaler
+// should be computed such as escape, compact.
+// The default behavior is to run compact on output of Marshaler.
+// SetTrustMarshaler(true) just copies output of Marshaler
+// and makes better performance.
+func (enc *Encoder) SetTrustMarshaler(on bool) {
+	enc.trustMarshaler = on
 }
 
 // RawMessage is a raw encoded JSON value.

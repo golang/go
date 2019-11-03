@@ -349,6 +349,8 @@ type encOpts struct {
 	quoted bool
 	// escapeHTML causes '<', '>', and '&' to be escaped in JSON strings.
 	escapeHTML bool
+	// trustMarshaler causes Marshaler not to be compacted, escaped and validated.
+	trustMarshaler bool
 }
 
 type encoderFunc func(e *encodeState, v reflect.Value, opts encOpts)
@@ -462,8 +464,12 @@ func marshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 	}
 	b, err := m.MarshalJSON()
 	if err == nil {
-		// copy JSON into buffer, checking validity.
-		err = compact(&e.Buffer, b, opts.escapeHTML)
+		// copy JSON in to buffer.
+		if opts.trustMarshaler {
+			_, err = e.Buffer.Write(b)
+		} else {
+			err = compact(&e.Buffer, b, opts.escapeHTML)
+		}
 	}
 	if err != nil {
 		e.error(&MarshalerError{v.Type(), err, "MarshalJSON"})
@@ -479,8 +485,12 @@ func addrMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 	m := va.Interface().(Marshaler)
 	b, err := m.MarshalJSON()
 	if err == nil {
-		// copy JSON into buffer, checking validity.
-		err = compact(&e.Buffer, b, opts.escapeHTML)
+		// copy JSON in to buffer.
+		if opts.trustMarshaler {
+			_, err = e.Buffer.Write(b)
+		} else {
+			err = compact(&e.Buffer, b, opts.escapeHTML)
+		}
 	}
 	if err != nil {
 		e.error(&MarshalerError{v.Type(), err, "MarshalJSON"})
