@@ -221,6 +221,27 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	case AFCVTWS, AFCVTLS, AFCVTWUS, AFCVTLUS, AFCVTWD, AFCVTLD, AFCVTWUD, AFCVTLUD:
 		// Set the rounding mode in funct3 to round to zero.
 		p.Scond = 1
+
+	case ASEQZ:
+		// SEQZ rs, rd -> SLTIU $1, rs, rd
+		p.As = ASLTIU
+		p.Reg = p.From.Reg
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 1}
+
+	case ASNEZ:
+		// SNEZ rs, rd -> SLTU rs, x0, rd
+		p.As = ASLTU
+		p.Reg = REG_ZERO
+
+	case AFNEGS:
+		// FNEGS rs, rd -> FSGNJNS rs, rs, rd
+		p.As = AFSGNJNS
+		p.Reg = p.From.Reg
+
+	case AFNEGD:
+		// FNEGD rs, rd -> FSGNJND rs, rs, rd
+		p.As = AFSGNJND
+		p.Reg = p.From.Reg
 	}
 }
 
@@ -595,6 +616,37 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					jalrToSym(ctxt, p, newprog, REG_ZERO)
 				}
 			}
+
+		// Replace FNE[SD] with FEQ[SD] and NOT.
+		case AFNES:
+			if p.To.Type != obj.TYPE_REG {
+				ctxt.Diag("progedit: FNES needs an integer register output")
+			}
+			dst := p.To.Reg
+			p.As = AFEQS
+			p = obj.Appendp(p, newprog)
+
+			p.As = AXORI // [bit] xor 1 = not [bit]
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = 1
+			p.Reg = dst
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = dst
+
+		case AFNED:
+			if p.To.Type != obj.TYPE_REG {
+				ctxt.Diag("progedit: FNED needs an integer register output")
+			}
+			dst := p.To.Reg
+			p.As = AFEQD
+			p = obj.Appendp(p, newprog)
+
+			p.As = AXORI // [bit] xor 1 = not [bit]
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = 1
+			p.Reg = dst
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = dst
 		}
 	}
 
