@@ -76,14 +76,9 @@ func TestUndefinedRelocErrors(t *testing.T) {
 const carchiveSrcText = `
 package main
 
-// int fortytwo;
-import "C"
-
-var v int
-
 //export GoFunc
 func GoFunc() {
-	v = int(C.fortytwo)
+	println(42)
 }
 
 func main() {
