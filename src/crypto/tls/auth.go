@@ -153,6 +153,25 @@ func legacyTypeAndHashFromPublicKey(pub crypto.PublicKey) (sigType uint8, hash c
 	}
 }
 
+var rsaSignatureSchemes = []struct {
+	scheme          SignatureScheme
+	minModulusBytes int
+	maxVersion      uint16
+}{
+	// RSA-PSS is used with PSSSaltLengthEqualsHash, and requires
+	//    emLen >= hLen + sLen + 2
+	{PSSWithSHA256, crypto.SHA256.Size()*2 + 2, VersionTLS13},
+	{PSSWithSHA384, crypto.SHA384.Size()*2 + 2, VersionTLS13},
+	{PSSWithSHA512, crypto.SHA512.Size()*2 + 2, VersionTLS13},
+	// PKCS#1 v1.5 uses prefixes from hashPrefixes in crypto/rsa, and requires
+	//    emLen >= len(prefix) + hLen + 11
+	// TLS 1.3 dropped support for PKCS#1 v1.5 in favor of RSA-PSS.
+	{PKCS1WithSHA256, 19 + crypto.SHA256.Size() + 11, VersionTLS12},
+	{PKCS1WithSHA384, 19 + crypto.SHA384.Size() + 11, VersionTLS12},
+	{PKCS1WithSHA512, 19 + crypto.SHA512.Size() + 11, VersionTLS12},
+	{PKCS1WithSHA1, 15 + crypto.SHA1.Size() + 11, VersionTLS12},
+}
+
 // signatureSchemesForCertificate returns the list of supported SignatureSchemes
 // for a given certificate, based on the public key and the protocol version,
 // and optionally filtered by its explicit SupportedSignatureAlgorithms.
@@ -189,23 +208,12 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 			return nil
 		}
 	case *rsa.PublicKey:
-		if version != VersionTLS13 {
-			sigAlgs = []SignatureScheme{
-				PSSWithSHA256,
-				PSSWithSHA384,
-				PSSWithSHA512,
-				PKCS1WithSHA256,
-				PKCS1WithSHA384,
-				PKCS1WithSHA512,
-				PKCS1WithSHA1,
+		size := pub.Size()
+		sigAlgs = make([]SignatureScheme, 0, len(rsaSignatureSchemes))
+		for _, candidate := range rsaSignatureSchemes {
+			if size >= candidate.minModulusBytes && version <= candidate.maxVersion {
+				sigAlgs = append(sigAlgs, candidate.scheme)
 			}
-			break
-		}
-		// TLS 1.3 dropped support for PKCS#1 v1.5 in favor of RSA-PSS.
-		sigAlgs = []SignatureScheme{
-			PSSWithSHA256,
-			PSSWithSHA384,
-			PSSWithSHA512,
 		}
 	case ed25519.PublicKey:
 		sigAlgs = []SignatureScheme{Ed25519}
@@ -275,6 +283,7 @@ func unsupportedCertificateError(cert *Certificate) error {
 			return fmt.Errorf("tls: unsupported certificate curve (%s)", pub.Curve.Params().Name)
 		}
 	case *rsa.PublicKey:
+		return fmt.Errorf("tls: certificate RSA key size too small for supported signature algorithms")
 	case ed25519.PublicKey:
 	default:
 		return fmt.Errorf("tls: unsupported certificate key (%T)", pub)

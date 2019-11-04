@@ -108,6 +108,8 @@ func TestSignatureSelection(t *testing.T) {
 		{rsaCert, []SignatureScheme{PKCS1WithSHA256}, VersionTLS13},
 		{pkcs1Cert, []SignatureScheme{PSSWithSHA256, PKCS1WithSHA256}, VersionTLS13},
 		{ecdsaCert, []SignatureScheme{ECDSAWithSHA1}, VersionTLS13},
+		// The key can be too small for the hash.
+		{rsaCert, []SignatureScheme{PSSWithSHA512}, VersionTLS12},
 	}
 
 	for testNo, test := range badTests {
