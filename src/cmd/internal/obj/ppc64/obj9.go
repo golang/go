@@ -961,6 +961,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.From.Type == obj.TYPE_CONST {
 				p.Spadj = int32(-p.From.Offset)
 			}
+		case AMOVDU:
+			if p.To.Type == obj.TYPE_MEM && p.To.Reg == REGSP {
+				p.Spadj = int32(-p.To.Offset)
+			}
+			if p.From.Type == obj.TYPE_MEM && p.From.Reg == REGSP {
+				p.Spadj = int32(-p.From.Offset)
+			}
 		case obj.AGETCALLERPC:
 			if cursym.Leaf() {
 				/* MOVD LR, Rd */
