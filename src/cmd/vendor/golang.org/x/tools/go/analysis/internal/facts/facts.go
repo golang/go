@@ -101,11 +101,13 @@ func (s *Set) ExportObjectFact(obj types.Object, fact analysis.Fact) {
 
 func (s *Set) AllObjectFacts(filter map[reflect.Type]bool) []analysis.ObjectFact {
 	var facts []analysis.ObjectFact
+	s.mu.Lock()
 	for k, v := range s.m {
 		if k.obj != nil && filter[k.t] {
 			facts = append(facts, analysis.ObjectFact{Object: k.obj, Fact: v})
 		}
 	}
+	s.mu.Unlock()
 	return facts
 }
 
@@ -134,11 +136,13 @@ func (s *Set) ExportPackageFact(fact analysis.Fact) {
 
 func (s *Set) AllPackageFacts(filter map[reflect.Type]bool) []analysis.PackageFact {
 	var facts []analysis.PackageFact
+	s.mu.Lock()
 	for k, v := range s.m {
 		if k.obj == nil && filter[k.t] {
 			facts = append(facts, analysis.PackageFact{Package: k.pkg, Fact: v})
 		}
 	}
+	s.mu.Unlock()
 	return facts
 }
 
@@ -227,7 +231,6 @@ func Decode(pkg *types.Package, read func(packagePath string) ([]byte, error)) (
 // It may fail if one of the Facts could not be gob-encoded, but this is
 // a sign of a bug in an Analyzer.
 func (s *Set) Encode() []byte {
-
 	// TODO(adonovan): opt: use a more efficient encoding
 	// that avoids repeating PkgPath for each fact.
 
