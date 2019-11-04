@@ -131,8 +131,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, mode source.P
 				err: err,
 			}
 		}
-		data := runAnalysis(ctx, fset, a, pkg, results)
-		return data
+		return runAnalysis(ctx, fset, a, pkg, results)
 	})
 	ah.handle = h
 
@@ -145,7 +144,10 @@ func (act *actionHandle) analyze(ctx context.Context) ([]*source.Error, interfac
 	if v == nil {
 		return nil, nil, errors.Errorf("no analyses for %s", act.pkg.ID())
 	}
-	data := v.(*actionData)
+	data, ok := v.(*actionData)
+	if !ok {
+		return nil, nil, errors.Errorf("unexpected type for %s:%s", act.pkg.ID(), act.analyzer.Name)
+	}
 	return data.diagnostics, data.result, data.err
 }
 
@@ -154,7 +156,10 @@ func (act *actionHandle) cached() ([]*source.Error, interface{}, error) {
 	if v == nil {
 		return nil, nil, errors.Errorf("no analyses for %s", act.pkg.ID())
 	}
-	data := v.(*actionData)
+	data, ok := v.(*actionData)
+	if !ok {
+		return nil, nil, errors.Errorf("unexpected type for %s:%s", act.pkg.ID(), act.analyzer.Name)
+	}
 	return data.diagnostics, data.result, data.err
 }
 
