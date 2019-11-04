@@ -406,6 +406,10 @@ func loadAll(testAll bool) []string {
 // matching pattern, which may be relative to the working directory, under all
 // build tag settings.
 func TargetPackages(pattern string) []string {
+	// TargetPackages is relative to the main module, so ensure that the main
+	// module is a thing that can contain packages.
+	ModRoot()
+
 	return matchPackages(pattern, imports.AnyTags(), false, []module.Version{Target})
 }
 
