@@ -1180,11 +1180,21 @@ func TestHandshakeServerRSAPKCS1v15(t *testing.T) {
 }
 
 func TestHandshakeServerRSAPSS(t *testing.T) {
+	// We send rsa_pss_rsae_sha512 first, as the test key won't fit, and we
+	// verify the server implementation will disregard the client preference in
+	// that case. See Issue 29793.
 	test := &serverTest{
 		name:    "RSA-RSAPSS",
-		command: []string{"openssl", "s_client", "-no_ticket", "-sigalgs", "rsa_pss_rsae_sha256"},
+		command: []string{"openssl", "s_client", "-no_ticket", "-sigalgs", "rsa_pss_rsae_sha512:rsa_pss_rsae_sha256"},
 	}
 	runServerTestTLS12(t, test)
+	runServerTestTLS13(t, test)
+
+	test = &serverTest{
+		name:                          "RSA-RSAPSS-TooSmall",
+		command:                       []string{"openssl", "s_client", "-no_ticket", "-sigalgs", "rsa_pss_rsae_sha512"},
+		expectHandshakeErrorIncluding: "peer doesn't support any of the certificate's signature algorithms",
+	}
 	runServerTestTLS13(t, test)
 }
 
@@ -1637,7 +1647,7 @@ T+E0J8wlH24pgwQHzy7Ko2qLwn1b5PW8ecrlvP1g
 		config.MinVersion = VersionTLS13
 		server := Server(serverConn, config)
 		err := server.Handshake()
-		expectError(t, err, "key size too small for PSS signature")
+		expectError(t, err, "key size too small")
 		close(done)
 	}()
 	err = client.Handshake()
