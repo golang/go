@@ -1141,10 +1141,21 @@ func (h *mheap) allocSpan(npages uintptr, manual bool, spanclass spanClass, sysS
 		// which may only be done with the heap locked.
 
 		// Transfer stats from mcache to global.
-		memstats.heap_scan += uint64(gp.m.mcache.local_scan)
-		gp.m.mcache.local_scan = 0
-		memstats.tinyallocs += uint64(gp.m.mcache.local_tinyallocs)
-		gp.m.mcache.local_tinyallocs = 0
+		var c *mcache
+		if gp.m.p != 0 {
+			c = gp.m.p.ptr().mcache
+		} else {
+			// This case occurs while bootstrapping.
+			// See the similar code in mallocgc.
+			c = mcache0
+			if c == nil {
+				throw("mheap.allocSpan called with no P")
+			}
+		}
+		memstats.heap_scan += uint64(c.local_scan)
+		c.local_scan = 0
+		memstats.tinyallocs += uint64(c.local_tinyallocs)
+		c.local_tinyallocs = 0
 
 		// Do some additional accounting if it's a large allocation.
 		if spanclass.sizeclass() == 0 {
@@ -1342,12 +1353,12 @@ func (h *mheap) grow(npage uintptr) bool {
 // Free the span back into the heap.
 func (h *mheap) freeSpan(s *mspan) {
 	systemstack(func() {
-		mp := getg().m
+		c := getg().m.p.ptr().mcache
 		lock(&h.lock)
-		memstats.heap_scan += uint64(mp.mcache.local_scan)
-		mp.mcache.local_scan = 0
-		memstats.tinyallocs += uint64(mp.mcache.local_tinyallocs)
-		mp.mcache.local_tinyallocs = 0
+		memstats.heap_scan += uint64(c.local_scan)
+		c.local_scan = 0
+		memstats.tinyallocs += uint64(c.local_tinyallocs)
+		c.local_tinyallocs = 0
 		if msanenabled {
 			// Tell msan that this entire span is no longer in use.
 			base := unsafe.Pointer(s.base())
