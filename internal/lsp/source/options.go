@@ -108,6 +108,8 @@ type Options struct {
 
 	// LocalPrefix is used to specify goimports's -local behavior.
 	LocalPrefix string
+
+	VerboseOutput bool
 }
 
 type CompletionOptions struct {
@@ -288,6 +290,9 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 			break
 		}
 		o.LocalPrefix = localPrefix
+
+	case "verboseOutput":
+		result.setBool(&o.VerboseOutput)
 
 	// Deprecated settings.
 	case "wantSuggestedFixes":
