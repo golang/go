@@ -248,8 +248,6 @@ func Serve(ctx context.Context, addr string) error {
 
 func Render(tmpl *template.Template, fun func(*http.Request) interface{}) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		mu.Lock()
-		defer mu.Unlock()
 		var data interface{}
 		if fun != nil {
 			data = fun(r)
