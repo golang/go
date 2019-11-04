@@ -51,7 +51,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			return // not enough arguments, e.g. called with return values of another function
 		}
 		if fn.FullName() == "errors.As" && !pointerToInterfaceOrError(pass, call.Args[1]) {
-			pass.Reportf(call.Pos(), "second argument to errors.As must be a pointer to an interface or a type implementing error")
+			pass.ReportRangef(call, "second argument to errors.As must be a pointer to an interface or a type implementing error")
 		}
 	})
 	return nil, nil

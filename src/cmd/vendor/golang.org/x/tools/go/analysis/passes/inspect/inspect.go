@@ -16,7 +16,7 @@
 //
 //	var Analyzer = &analysis.Analyzer{
 //		...
-//		Requires:       reflect.TypeOf(new(inspect.Analyzer)),
+//		Requires:       []*analysis.Analyzer{inspect.Analyzer},
 //	}
 //
 // 	func run(pass *analysis.Pass) (interface{}, error) {
