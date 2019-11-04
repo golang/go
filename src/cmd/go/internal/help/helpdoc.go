@@ -506,6 +506,10 @@ General-purpose environment variables:
 		Because the entries are space-separated, flag values must
 		not contain spaces. Flags listed on the command line
 		are applied after this list and therefore override it.
+	GOINSECURE
+		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
+		of module path prefixes that should always be fetched in an insecure
+		manner. Only applies to dependencies that are being fetched directly.
 	GOOS
 		The operating system for which to compile code.
 		Examples are linux, darwin, windows, netbsd.
