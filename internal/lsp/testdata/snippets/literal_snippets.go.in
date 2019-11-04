@@ -119,6 +119,13 @@ func _() {
 
 	http.HandleFunc("", f) //@snippet(")", litFunc, "", "func(${1:rw} http.ResponseWriter, ${2:r} *http.Request) {$0\\}")
 
+	// no literal "func" completions
+	http.Handle("", fun) //@complete(")")
+
+	http.HandlerFunc() //@item(handlerFunc, "http.HandlerFunc()", "", "var")
+	http.Handle("", h) //@snippet(")", handlerFunc, "http.HandlerFunc($0)", "http.HandlerFunc($0)")
+	http.Handle("", http.HandlerFunc()) //@snippet("))", litFunc, "", "func(${1:rw} http.ResponseWriter, ${2:r} *http.Request) {$0\\}")
+
 	var namedReturn func(s string) (b bool)
 	namedReturn = f //@snippet(" //", litFunc, "func(s string) (b bool) {$0\\}", "func(s string) (b bool) {$0\\}")
 

@@ -930,9 +930,9 @@ func isPackageLevel(obj types.Object) bool {
 	return obj.Pkg().Scope().Lookup(obj.Name()) == obj
 }
 
-// -- Plundered from golang.org/x/tools/go/ssa -----------------
-
-func isInterface(T types.Type) bool { return types.IsInterface(T) }
+func isInterface(T types.Type) bool {
+	return T != nil && types.IsInterface(T)
+}
 
 // -- Plundered from go/scanner: ---------------------------------------
 

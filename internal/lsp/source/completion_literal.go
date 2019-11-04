@@ -21,20 +21,18 @@ import (
 // literal generates composite literal, function literal, and make()
 // completion items.
 func (c *completer) literal(literalType types.Type, imp *importInfo) {
-	if c.expectedType.objType == nil {
-		return
-	}
-
 	// Don't provide literal candidates for variadic function arguments.
 	// For example, don't provide "[]interface{}{}" in "fmt.Print(<>)".
 	if c.expectedType.variadic {
 		return
 	}
 
+	expType := c.expectedType.objType
+
 	// Avoid literal candidates if the expected type is an empty
 	// interface. It isn't very useful to suggest a literal candidate of
 	// every possible type.
-	if isEmptyInterface(c.expectedType.objType) {
+	if expType != nil && isEmptyInterface(expType) {
 		return
 	}
 
@@ -48,8 +46,8 @@ func (c *completer) literal(literalType types.Type, imp *importInfo) {
 	//
 	// don't offer "mySlice{}" since we have already added a candidate
 	// of "[]int{}".
-	if _, named := literalType.(*types.Named); named {
-		if _, named := deref(c.expectedType.objType).(*types.Named); !named {
+	if _, named := literalType.(*types.Named); named && expType != nil {
+		if _, named := deref(expType).(*types.Named); !named {
 			return
 		}
 	}
@@ -121,11 +119,11 @@ func (c *completer) literal(literalType types.Type, imp *importInfo) {
 		switch t := literalType.Underlying().(type) {
 		case *types.Struct, *types.Array, *types.Slice, *types.Map:
 			c.compositeLiteral(t, typeName, float64(score), addlEdits)
-		case *types.Basic:
+		case *types.Basic, *types.Signature:
 			// Add a literal completion for basic types that implement our
 			// expected interface (e.g. named string type http.Dir
 			// implements http.FileSystem).
-			if isInterface(c.expectedType.objType) {
+			if isInterface(expType) {
 				c.basicLiteral(t, typeName, float64(score), addlEdits)
 			}
 		}
@@ -147,7 +145,7 @@ func (c *completer) literal(literalType types.Type, imp *importInfo) {
 	}
 
 	// If prefix matches "func", client may want a function literal.
-	if score := c.matcher.Score("func"); !isPointer && score >= 0 {
+	if score := c.matcher.Score("func"); !isPointer && score >= 0 && !isInterface(expType) {
 		switch t := literalType.Underlying().(type) {
 		case *types.Signature:
 			c.functionLiteral(t, float64(score))
