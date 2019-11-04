@@ -846,12 +846,16 @@ type Resolver interface {
 	// loadExports returns the set of exported symbols in the package at dir.
 	// loadExports may be called concurrently.
 	loadExports(ctx context.Context, pkg *pkg) (string, []string, error)
+
+	ClearForNewScan()
 }
 
 // gopackagesResolver implements resolver for GOPATH and module workspaces using go/packages.
 type goPackagesResolver struct {
 	env *ProcessEnv
 }
+
+func (r *goPackagesResolver) ClearForNewScan() {}
 
 func (r *goPackagesResolver) loadPackageNames(importPaths []string, srcDir string) (map[string]string, error) {
 	if len(importPaths) == 0 {
@@ -1030,6 +1034,10 @@ func (r *gopathResolver) init() {
 			dirs: map[string]*directoryPackageInfo{},
 		}
 	}
+}
+
+func (r *gopathResolver) ClearForNewScan() {
+	r.cache = nil
 }
 
 func (r *gopathResolver) loadPackageNames(importPaths []string, srcDir string) (map[string]string, error) {
