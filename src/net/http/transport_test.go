@@ -591,6 +591,7 @@ func TestTransportMaxConnsPerHostIncludeDialInProgress(t *testing.T) {
 
 func TestTransportMaxConnsPerHost(t *testing.T) {
 	defer afterTest(t)
+	CondSkipHTTP2(t)
 
 	h := HandlerFunc(func(w ResponseWriter, r *Request) {
 		_, err := w.Write([]byte("foo"))
@@ -3994,6 +3995,7 @@ func TestTransportAutomaticHTTP2_DialTLS(t *testing.T) {
 }
 
 func testTransportAutoHTTP(t *testing.T, tr *Transport, wantH2 bool) {
+	CondSkipHTTP2(t)
 	_, err := tr.RoundTrip(new(Request))
 	if err == nil {
 		t.Error("expected error from RoundTrip")
@@ -5896,6 +5898,7 @@ func TestDontCacheBrokenHTTP2Conn(t *testing.T) {
 // only be one decrement regardless of the number of failures.
 func TestTransportDecrementConnWhenIdleConnRemoved(t *testing.T) {
 	defer afterTest(t)
+	CondSkipHTTP2(t)
 
 	h := HandlerFunc(func(w ResponseWriter, r *Request) {
 		_, err := w.Write([]byte("foo"))
