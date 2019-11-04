@@ -7,7 +7,6 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -52,14 +51,18 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 		return nil
 	}
 
-	if reserveEnd < lastmoduledatap.end {
-		reserveEnd = lastmoduledatap.end
+	// Round up the initial reserveEnd to 64 KiB so that
+	// reservations are always aligned to the page size.
+	initReserveEnd := alignUp(lastmoduledatap.end, physPageSize)
+	if reserveEnd < initReserveEnd {
+		reserveEnd = initReserveEnd
 	}
 	v = unsafe.Pointer(reserveEnd)
-	reserveEnd += n
+	reserveEnd += alignUp(n, physPageSize)
 
 	current := currentMemory()
-	needed := int32(reserveEnd/sys.DefaultPhysPageSize + 1)
+	// reserveEnd is always at a page boundary.
+	needed := int32(reserveEnd / physPageSize)
 	if current < needed {
 		if growMemory(needed-current) == -1 {
 			return nil
