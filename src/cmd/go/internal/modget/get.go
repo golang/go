@@ -454,6 +454,7 @@ func runGet(cmd *base.Command, args []string) {
 	// This includes explicitly requested modules that don't have a root package
 	// and modules with a target version of "none".
 	var wg sync.WaitGroup
+	var modOnlyMu sync.Mutex
 	modOnly := make(map[string]*query)
 	for _, q := range queries {
 		if q.m.Version == "none" {
@@ -466,7 +467,9 @@ func runGet(cmd *base.Command, args []string) {
 				if hasPkg, err := modload.ModuleHasRootPackage(q.m); err != nil {
 					base.Errorf("go get: %v", err)
 				} else if !hasPkg {
+					modOnlyMu.Lock()
 					modOnly[q.m.Path] = q
+					modOnlyMu.Unlock()
 				}
 				wg.Done()
 			}(q)
