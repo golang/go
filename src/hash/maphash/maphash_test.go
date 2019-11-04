@@ -2,19 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package maphash_test
+package maphash
 
 import (
 	"hash"
-	"hash/maphash"
 	"testing"
 )
 
 func TestUnseededHash(t *testing.T) {
 	m := map[uint64]struct{}{}
 	for i := 0; i < 1000; i++ {
-		h := maphash.New()
-		m[h.Hash()] = struct{}{}
+		h := new(Hash)
+		m[h.Sum64()] = struct{}{}
 	}
 	if len(m) < 900 {
 		t.Errorf("empty hash not sufficiently random: got %d, want 1000", len(m))
@@ -22,12 +21,12 @@ func TestUnseededHash(t *testing.T) {
 }
 
 func TestSeededHash(t *testing.T) {
-	s := maphash.MakeSeed(1234)
+	s := MakeSeed()
 	m := map[uint64]struct{}{}
 	for i := 0; i < 1000; i++ {
-		h := maphash.New()
+		h := new(Hash)
 		h.SetSeed(s)
-		m[h.Hash()] = struct{}{}
+		m[h.Sum64()] = struct{}{}
 	}
 	if len(m) != 1 {
 		t.Errorf("seeded hash is random: got %d, want 1", len(m))
@@ -36,14 +35,17 @@ func TestSeededHash(t *testing.T) {
 
 func TestHashGrouping(t *testing.T) {
 	b := []byte("foo")
-	h1 := maphash.New()
-	h2 := maphash.New()
+	h1 := new(Hash)
+	h2 := new(Hash)
 	h2.SetSeed(h1.Seed())
-	h1.AddBytes(b)
+	h1.Write(b)
 	for _, x := range b {
-		h2.AddByte(x)
+		err := h2.WriteByte(x)
+		if err != nil {
+			t.Fatalf("WriteByte: %v", err)
+		}
 	}
-	if h1.Hash() != h2.Hash() {
+	if h1.Sum64() != h2.Sum64() {
 		t.Errorf("hash of \"foo\" and \"f\",\"o\",\"o\" not identical")
 	}
 }
@@ -51,13 +53,19 @@ func TestHashGrouping(t *testing.T) {
 func TestHashBytesVsString(t *testing.T) {
 	s := "foo"
 	b := []byte(s)
-	h1 := maphash.New()
-	h2 := maphash.New()
+	h1 := new(Hash)
+	h2 := new(Hash)
 	h2.SetSeed(h1.Seed())
-	h1.AddString(s)
-	h2.AddBytes(b)
-	if h1.Hash() != h2.Hash() {
-		t.Errorf("hash of string and byts not identical")
+	n1, err1 := h1.WriteString(s)
+	if n1 != len(s) || err1 != nil {
+		t.Fatalf("WriteString(s) = %d, %v, want %d, nil", n1, err1, len(s))
+	}
+	n2, err2 := h2.Write(b)
+	if n2 != len(b) || err2 != nil {
+		t.Fatalf("Write(b) = %d, %v, want %d, nil", n2, err2, len(b))
+	}
+	if h1.Sum64() != h2.Sum64() {
+		t.Errorf("hash of string and bytes not identical")
 	}
 }
 
@@ -66,9 +74,9 @@ func TestHashHighBytes(t *testing.T) {
 	const N = 10
 	m := map[uint64]struct{}{}
 	for i := 0; i < N; i++ {
-		h := maphash.New()
-		h.AddString("foo")
-		m[h.Hash()>>32] = struct{}{}
+		h := new(Hash)
+		h.WriteString("foo")
+		m[h.Sum64()>>32] = struct{}{}
 	}
 	if len(m) < N/2 {
 		t.Errorf("from %d seeds, wanted at least %d different hashes; got %d", N, N/2, len(m))
@@ -76,5 +84,5 @@ func TestHashHighBytes(t *testing.T) {
 }
 
 // Make sure a Hash implements the hash.Hash and hash.Hash64 interfaces.
-var _ hash.Hash = &maphash.Hash{}
-var _ hash.Hash64 = &maphash.Hash{}
+var _ hash.Hash = &Hash{}
+var _ hash.Hash64 = &Hash{}
