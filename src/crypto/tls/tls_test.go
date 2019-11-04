@@ -6,6 +6,7 @@ package tls
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/x509"
 	"encoding/json"
 	"errors"
@@ -1051,6 +1052,11 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 		Certificate: [][]byte{testRSACertificate},
 		PrivateKey:  testRSAPrivateKey,
 	}
+	pkcs1Cert := &Certificate{
+		Certificate:                  [][]byte{testRSACertificate},
+		PrivateKey:                   testRSAPrivateKey,
+		SupportedSignatureAlgorithms: []SignatureScheme{PKCS1WithSHA1, PKCS1WithSHA256},
+	}
 	ecdsaCert := &Certificate{
 		// ECDSA P-256 certificate
 		Certificate: [][]byte{testP256Certificate},
@@ -1082,6 +1088,10 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 		}, "not valid for requested server name"},
 		{ecdsaCert, &ClientHelloInfo{
 			SignatureSchemes:  []SignatureScheme{ECDSAWithP384AndSHA384},
+			SupportedVersions: []uint16{VersionTLS13},
+		}, "signature algorithms"},
+		{pkcs1Cert, &ClientHelloInfo{
+			SignatureSchemes:  []SignatureScheme{PSSWithSHA256, ECDSAWithP256AndSHA256},
 			SupportedVersions: []uint16{VersionTLS13},
 		}, "signature algorithms"},
 
@@ -1202,5 +1212,40 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 		case tt.wantErr != "" && !strings.Contains(err.Error(), tt.wantErr):
 			t.Errorf("%d: got error %q, expected %q", i, err, tt.wantErr)
 		}
+	}
+}
+
+type brokenSigner struct{ crypto.Signer }
+
+func (s brokenSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (signature []byte, err error) {
+	// Replace opts with opts.HashFunc(), so rsa.PSSOptions are discarded.
+	return s.Signer.Sign(rand, digest, opts.HashFunc())
+}
+
+// TestPKCS1OnlyCert uses a client certificate with a broken crypto.Signer that
+// always makes PKCS#1 v1.5 signatures, so can't be used with RSA-PSS.
+func TestPKCS1OnlyCert(t *testing.T) {
+	clientConfig := testConfig.Clone()
+	clientConfig.Certificates = []Certificate{{
+		Certificate: [][]byte{testRSACertificate},
+		PrivateKey:  brokenSigner{testRSAPrivateKey},
+	}}
+	serverConfig := testConfig.Clone()
+	serverConfig.MaxVersion = VersionTLS12 // TLS 1.3 doesn't support PKCS#1 v1.5
+	serverConfig.ClientAuth = RequireAnyClientCert
+
+	// If RSA-PSS is selected, the handshake should fail.
+	if _, _, err := testHandshake(t, clientConfig, serverConfig); err == nil {
+		// RSA-PSS is temporarily disabled in TLS 1.2. See Issue 32425.
+		// t.Fatal("expected broken certificate to cause connection to fail")
+	}
+
+	clientConfig.Certificates[0].SupportedSignatureAlgorithms =
+		[]SignatureScheme{PKCS1WithSHA1, PKCS1WithSHA256}
+
+	// But if the certificate restricts supported algorithms, RSA-PSS should not
+	// be selected, and the handshake should succeed.
+	if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
+		t.Error(err)
 	}
 }
