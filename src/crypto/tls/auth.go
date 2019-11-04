@@ -191,10 +191,9 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 	case *rsa.PublicKey:
 		if version != VersionTLS13 {
 			sigAlgs = []SignatureScheme{
-				// Temporarily disable RSA-PSS in TLS 1.2, see Issue 32425.
-				// PSSWithSHA256,
-				// PSSWithSHA384,
-				// PSSWithSHA512,
+				PSSWithSHA256,
+				PSSWithSHA384,
+				PSSWithSHA512,
 				PKCS1WithSHA256,
 				PKCS1WithSHA384,
 				PKCS1WithSHA512,

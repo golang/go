@@ -1236,8 +1236,7 @@ func TestPKCS1OnlyCert(t *testing.T) {
 
 	// If RSA-PSS is selected, the handshake should fail.
 	if _, _, err := testHandshake(t, clientConfig, serverConfig); err == nil {
-		// RSA-PSS is temporarily disabled in TLS 1.2. See Issue 32425.
-		// t.Fatal("expected broken certificate to cause connection to fail")
+		t.Fatal("expected broken certificate to cause connection to fail")
 	}
 
 	clientConfig.Certificates[0].SupportedSignatureAlgorithms =

@@ -1181,16 +1181,10 @@ func TestHandshakeServerRSAPKCS1v15(t *testing.T) {
 
 func TestHandshakeServerRSAPSS(t *testing.T) {
 	test := &serverTest{
-		name:                          "RSA-RSAPSS",
-		command:                       []string{"openssl", "s_client", "-no_ticket", "-sigalgs", "rsa_pss_rsae_sha256"},
-		expectHandshakeErrorIncluding: "peer doesn't support any of the certificate's signature algorithms", // See Issue 32425.
-	}
-	runServerTestTLS12(t, test)
-
-	test = &serverTest{
 		name:    "RSA-RSAPSS",
 		command: []string{"openssl", "s_client", "-no_ticket", "-sigalgs", "rsa_pss_rsae_sha256"},
 	}
+	runServerTestTLS12(t, test)
 	runServerTestTLS13(t, test)
 }
 
@@ -1354,16 +1348,9 @@ func TestClientAuth(t *testing.T) {
 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
 			"-cert", certPath, "-key", keyPath, "-client_sigalgs", "rsa_pss_rsae_sha256"},
 		config:            config,
-		expectedPeerCerts: []string{}, // See Issue 32425.
-	}
-	runServerTestTLS12(t, test)
-	test = &serverTest{
-		name: "ClientAuthRequestedAndGiven",
-		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
-			"-cert", certPath, "-key", keyPath, "-client_sigalgs", "rsa_pss_rsae_sha256"},
-		config:            config,
 		expectedPeerCerts: []string{clientCertificatePEM},
 	}
+	runServerTestTLS12(t, test)
 	runServerTestTLS13(t, test)
 
 	test = &serverTest{
@@ -1656,12 +1643,6 @@ T+E0J8wlH24pgwQHzy7Ko2qLwn1b5PW8ecrlvP1g
 	err = client.Handshake()
 	expectError(t, err, "handshake failure")
 	<-done
-
-	// In TLS 1.2 RSA-PSS is not used, so this should succeed. See Issue 32425.
-	serverConfig := testConfig.Clone()
-	serverConfig.Certificates = []Certificate{cert}
-	serverConfig.MaxVersion = VersionTLS12
-	testHandshake(t, testConfig, serverConfig)
 }
 
 func TestMultipleCertificates(t *testing.T) {
