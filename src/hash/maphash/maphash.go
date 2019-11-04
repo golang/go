@@ -2,65 +2,89 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package hash/maphash provides hash functions on byte sequences. These
-// hash functions are intended to be used to implement hash tables or
+// Package maphash provides hash functions on byte sequences.
+// These hash functions are intended to be used to implement hash tables or
 // other data structures that need to map arbitrary strings or byte
-// sequences to a uniform distribution of integers. The hash functions
-// are collision-resistant but are not cryptographically secure (use
-// one of the hash functions in crypto/* if you need that).
+// sequences to a uniform distribution of integers.
 //
-// The produced hashes depend only on the sequence of bytes provided
-// to the Hash object, not on the way in which they are provided. For
-// example, the calls
-//     h.AddString("foo")
-//     h.AddBytes([]byte{'f','o','o'})
-//     h.AddByte('f'); h.AddByte('o'); h.AddByte('o')
-// will all have the same effect.
-//
-// Two Hash instances in the same process using the same seed
-// behave identically.
-//
-// Two Hash instances with the same seed in different processes are
-// not guaranteed to behave identically, even if the processes share
-// the same binary.
-//
-// Hashes are intended to be collision-resistant, even for situations
-// where an adversary controls the byte sequences being hashed.
-// All bits of the Hash result are close to uniformly and
-// independently distributed, so can be safely restricted to a range
-// using bit masking, shifting, or modular arithmetic.
+// The hash functions are collision-resistant but not cryptographically secure.
+// (See crypto/sha256 and crypto/sha512 for cryptographic use.)
 package maphash
 
-import (
-	"unsafe"
-)
+import "unsafe"
 
-// A Seed controls the behavior of a Hash.  Two Hash objects with the
-// same seed in the same process will behave identically.  Two Hash
-// objects with different seeds will very likely behave differently.
+// A Seed is a random value that selects the specific hash function
+// computed by a Hash. If two Hashes use the same Seeds, they
+// will compute the same hash values for any given input.
+// If two Hashes use different Seeds, they are very likely to compute
+// distinct hash values for any given input.
+//
+// A Seed must be initialized by calling MakeSeed.
+// The zero seed is uninitialized and not valid for use with Hash's SetSeed method.
+//
+// Each Seed value is local to a single process and cannot be serialized
+// or otherwise recreated in a different process.
 type Seed struct {
 	s uint64
 }
 
-// A Hash object is used to compute the hash of a byte sequence.
+// A Hash computes a seeded hash of a byte sequence.
+//
+// The zero Hash is a valid Hash ready to use.
+// A zero Hash chooses a random seed for itself during
+// the first call to a Reset, Write, Seed, Sum64, or Seed method.
+// For control over the seed, use SetSeed.
+//
+// The computed hash values depend only on the initial seed and
+// the sequence of bytes provided to the Hash object, not on the way
+// in which the bytes are provided. For example, the three sequences
+//
+//     h.Write([]byte{'f','o','o'})
+//     h.WriteByte('f'); h.WriteByte('o'); h.WriteByte('o')
+//     h.WriteString("foo")
+//
+// all have the same effect.
+//
+// Hashes are intended to be collision-resistant, even for situations
+// where an adversary controls the byte sequences being hashed.
+//
+// A Hash is not safe for concurrent use by multiple goroutines, but a Seed is.
+// If multiple goroutines must compute the same seeded hash,
+// each can declare its own Hash and call SetSeed with a common Seed.
 type Hash struct {
-	seed  Seed     // initial seed used for this hash
-	state Seed     // current hash of all flushed bytes
-	buf   [64]byte // unflushed byte buffer
-	n     int      // number of unflushed bytes
+	_     [0]func() // not comparable
+	seed  Seed      // initial seed used for this hash
+	state Seed      // current hash of all flushed bytes
+	buf   [64]byte  // unflushed byte buffer
+	n     int       // number of unflushed bytes
 }
 
-// AddByte adds b to the sequence of bytes hashed by h.
-func (h *Hash) AddByte(b byte) {
+// initSeed seeds the hash if necessary.
+// initSeed is called lazily before any operation that actually uses h.seed/h.state.
+// Note that this does not include Write/WriteByte/WriteString in the case
+// where they only add to h.buf. (If they write too much, they call h.flush,
+// which does call h.initSeed.)
+func (h *Hash) initSeed() {
+	if h.seed.s == 0 {
+		h.SetSeed(MakeSeed())
+	}
+}
+
+// WriteByte adds b to the sequence of bytes hashed by h.
+// It never fails; the error result is for implementing io.ByteWriter.
+func (h *Hash) WriteByte(b byte) error {
 	if h.n == len(h.buf) {
 		h.flush()
 	}
 	h.buf[h.n] = b
 	h.n++
+	return nil
 }
 
-// AddBytes adds b to the sequence of bytes hashed by h.
-func (h *Hash) AddBytes(b []byte) {
+// Write adds b to the sequence of bytes hashed by h.
+// It always writes all of b and never fails; the count and error result are for implementing io.Writer.
+func (h *Hash) Write(b []byte) (int, error) {
+	size := len(b)
 	for h.n+len(b) > len(h.buf) {
 		k := copy(h.buf[h.n:], b)
 		h.n = len(h.buf)
@@ -68,10 +92,13 @@ func (h *Hash) AddBytes(b []byte) {
 		h.flush()
 	}
 	h.n += copy(h.buf[h.n:], b)
+	return size, nil
 }
 
-// AddString adds the bytes of s to the sequence of bytes hashed by h.
-func (h *Hash) AddString(s string) {
+// WriteString adds the bytes of s to the sequence of bytes hashed by h.
+// It always writes all of s and never fails; the count and error result are for implementing io.StringWriter.
+func (h *Hash) WriteString(s string) (int, error) {
+	size := len(s)
 	for h.n+len(s) > len(h.buf) {
 		k := copy(h.buf[h.n:], s)
 		h.n = len(h.buf)
@@ -79,19 +106,24 @@ func (h *Hash) AddString(s string) {
 		h.flush()
 	}
 	h.n += copy(h.buf[h.n:], s)
+	return size, nil
 }
 
-// Seed returns the seed value specified in the most recent call to
-// SetSeed, or the initial seed if SetSeed was never called.
+// Seed returns h's seed value.
 func (h *Hash) Seed() Seed {
+	h.initSeed()
 	return h.seed
 }
 
-// SetSeed sets the seed used by h. Two Hash objects with the same
-// seed in the same process will behave identically.  Two Hash objects
-// with different seeds will very likely behave differently.  Any
-// bytes added to h previous to this call will be discarded.
+// SetSeed sets h to use seed, which must have been returned by MakeSeed
+// or by another Hash's Seed method.
+// Two Hash objects with the same seed behave identically.
+// Two Hash objects with different seeds will very likely behave differently.
+// Any bytes added to h before this call will be discarded.
 func (h *Hash) SetSeed(seed Seed) {
+	if seed.s == 0 {
+		panic("maphash: use of uninitialized Seed")
+	}
 	h.seed = seed
 	h.state = seed
 	h.n = 0
@@ -100,6 +132,7 @@ func (h *Hash) SetSeed(seed Seed) {
 // Reset discards all bytes added to h.
 // (The seed remains the same.)
 func (h *Hash) Reset() {
+	h.initSeed()
 	h.state = h.seed
 	h.n = 0
 }
@@ -107,36 +140,38 @@ func (h *Hash) Reset() {
 // precondition: buffer is full.
 func (h *Hash) flush() {
 	if h.n != len(h.buf) {
-		panic("flush of partially full buffer")
+		panic("maphash: flush of partially full buffer")
 	}
+	h.initSeed()
 	h.state.s = rthash(h.buf[:], h.state.s)
 	h.n = 0
 }
 
-// Hash returns a value which depends on h's seed and the sequence of
-// bytes added to h (since the last call to Reset or SetSeed).
-func (h *Hash) Hash() uint64 {
+// Sum64 returns h's current 64-bit value, which depends on
+// h's seed and the sequence of bytes added to h since the
+// last call to Reset or SetSeed.
+//
+// All bits of the Sum64 result are close to uniformly and
+// independently distributed, so it can be safely reduced
+// by using bit masking, shifting, or modular arithmetic.
+func (h *Hash) Sum64() uint64 {
+	h.initSeed()
 	return rthash(h.buf[:h.n], h.state.s)
 }
 
-// MakeSeed returns a Seed initialized using the bits in s.
-// Two seeds generated with the same s are guaranteed to be equal.
-// Two seeds generated with different s are very likely to be different.
-// TODO: disallow this? See Alan's comment in the issue.
-func MakeSeed(s uint64) Seed {
-	return Seed{s: s}
-}
-
-// New returns a new Hash object. Different hash objects allocated by
-// this function will very likely have different seeds.
-func New() *Hash {
-	s1 := uint64(runtime_fastrand())
-	s2 := uint64(runtime_fastrand())
-	seed := Seed{s: s1<<32 + s2}
-	return &Hash{
-		seed:  seed,
-		state: seed,
+// MakeSeed returns a new random seed.
+func MakeSeed() Seed {
+	var s1, s2 uint64
+	for {
+		s1 = uint64(runtime_fastrand())
+		s2 = uint64(runtime_fastrand())
+		// We use seed 0 to indicate an uninitialized seed/hash,
+		// so keep trying until we get a non-zero seed.
+		if s1|s2 != 0 {
+			break
+		}
 	}
+	return Seed{s: s1<<32 + s2}
 }
 
 //go:linkname runtime_fastrand runtime.fastrand
@@ -154,22 +189,17 @@ func rthash(b []byte, seed uint64) uint64 {
 	}
 	lo := runtime_memhash(unsafe.Pointer(&b[0]), uintptr(seed), uintptr(len(b)))
 	hi := runtime_memhash(unsafe.Pointer(&b[0]), uintptr(seed>>32), uintptr(len(b)))
-	// TODO: mix lo/hi? Get 64 bits some other way?
 	return uint64(hi)<<32 | uint64(lo)
 }
 
 //go:linkname runtime_memhash runtime.memhash
 func runtime_memhash(p unsafe.Pointer, seed, s uintptr) uintptr
 
-// Wrapper functions so that a hash/maphash.Hash implements
-// the hash.Hash and hash.Hash64 interfaces.
-
-func (h *Hash) Write(b []byte) (int, error) {
-	h.AddBytes(b)
-	return len(b), nil
-}
+// Sum appends the hash's current 64-bit value to b.
+// It exists for implementing hash.Hash.
+// For direct calls, it is more efficient to use Sum64.
 func (h *Hash) Sum(b []byte) []byte {
-	x := h.Hash()
+	x := h.Sum64()
 	return append(b,
 		byte(x>>0),
 		byte(x>>8),
@@ -180,8 +210,9 @@ func (h *Hash) Sum(b []byte) []byte {
 		byte(x>>48),
 		byte(x>>56))
 }
-func (h *Hash) Sum64() uint64 {
-	return h.Hash()
-}
-func (h *Hash) Size() int      { return 8 }
+
+// Size returns h's hash value size, 8 bytes.
+func (h *Hash) Size() int { return 8 }
+
+// BlockSize returns h's block size.
 func (h *Hash) BlockSize() int { return len(h.buf) }
