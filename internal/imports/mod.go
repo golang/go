@@ -169,7 +169,7 @@ func (r *ModuleResolver) findPackage(importPath string) (*ModuleJSON, string) {
 			// resolution. package main or _test files should count but
 			// don't.
 			// TODO(heschi): fix this.
-			if _, err := r.cachePackageName(pkgDir); err == nil {
+			if _, err := r.cachePackageName(info); err == nil {
 				return m, pkgDir
 			}
 		}
@@ -211,20 +211,18 @@ func (r *ModuleResolver) cacheKeys() []string {
 }
 
 // cachePackageName caches the package name for a dir already in the cache.
-func (r *ModuleResolver) cachePackageName(dir string) (directoryPackageInfo, error) {
-	info, ok := r.cacheLoad(dir)
-	if !ok {
-		panic("cachePackageName on uncached dir " + dir)
+func (r *ModuleResolver) cachePackageName(info directoryPackageInfo) (directoryPackageInfo, error) {
+	if info.rootType == gopathwalk.RootModuleCache {
+		return r.moduleCacheCache.CachePackageName(info)
 	}
+	return r.otherCache.CachePackageName(info)
+}
 
-	loaded, err := info.reachedStatus(nameLoaded)
-	if loaded {
-		return info, err
+func (r *ModuleResolver) cacheExports(ctx context.Context, env *ProcessEnv, info directoryPackageInfo) (string, []string, error) {
+	if info.rootType == gopathwalk.RootModuleCache {
+		return r.moduleCacheCache.CacheExports(ctx, env, info)
 	}
-	info.packageName, info.err = packageDirToName(info.dir)
-	info.status = nameLoaded
-	r.cacheStore(info)
-	return info, info.err
+	return r.otherCache.CacheExports(ctx, env, info)
 }
 
 // findModuleByDir returns the module that contains dir, or nil if no such
@@ -406,7 +404,7 @@ func (r *ModuleResolver) scan(_ references, loadNames bool, exclude []gopathwalk
 		// If we want package names, make sure the cache has them.
 		if loadNames {
 			var err error
-			if info, err = r.cachePackageName(info.dir); err != nil {
+			if info, err = r.cachePackageName(info); err != nil {
 				continue
 			}
 		}
@@ -465,11 +463,14 @@ func (r *ModuleResolver) canonicalize(info directoryPackageInfo) (*pkg, error) {
 	return res, nil
 }
 
-func (r *ModuleResolver) loadExports(ctx context.Context, expectPackage string, pkg *pkg) (map[string]bool, error) {
+func (r *ModuleResolver) loadExports(ctx context.Context, pkg *pkg) (string, []string, error) {
 	if err := r.init(); err != nil {
-		return nil, err
+		return "", nil, err
 	}
-	return loadExportsFromFiles(ctx, r.env, expectPackage, pkg.dir)
+	if info, ok := r.cacheLoad(pkg.dir); ok {
+		return r.cacheExports(ctx, r.env, info)
+	}
+	return loadExportsFromFiles(ctx, r.env, pkg.dir)
 }
 
 func (r *ModuleResolver) scanDirForPackage(root gopathwalk.Root, dir string) directoryPackageInfo {

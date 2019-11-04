@@ -1556,7 +1556,7 @@ var _ = bytes.Buffer
 	// Force a scan of the stdlib.
 	savedStdlib := stdlib
 	defer func() { stdlib = savedStdlib }()
-	stdlib = map[string]map[string]bool{}
+	stdlib = map[string][]string{}
 
 	testConfig{
 		module: packagestest.Module{
