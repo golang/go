@@ -467,7 +467,7 @@ func newLoader(cfg *Config) *loader {
 	ld.requestedMode = ld.Mode
 	ld.Mode = impliedLoadMode(ld.Mode)
 
-	if ld.Mode&NeedTypes != 0 {
+	if ld.Mode&NeedTypes != 0 || ld.Mode&NeedSyntax != 0 {
 		if ld.Fset == nil {
 			ld.Fset = token.NewFileSet()
 		}
@@ -609,9 +609,9 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 			}
 		}
 	}
-	// Load type data if needed, starting at
+	// Load type data and syntax if needed, starting at
 	// the initial packages (roots of the import DAG).
-	if ld.Mode&NeedTypes != 0 {
+	if ld.Mode&NeedTypes != 0 || ld.Mode&NeedSyntax != 0 {
 		var wg sync.WaitGroup
 		for _, lpkg := range initial {
 			wg.Add(1)
@@ -770,7 +770,7 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 		lpkg.Errors = append(lpkg.Errors, errs...)
 	}
 
-	if len(lpkg.CompiledGoFiles) == 0 && lpkg.ExportFile != "" {
+	if ld.Config.Mode&NeedTypes != 0 && len(lpkg.CompiledGoFiles) == 0 && lpkg.ExportFile != "" {
 		// The config requested loading sources and types, but sources are missing.
 		// Add an error to the package and fall back to loading from export data.
 		appendError(Error{"-", fmt.Sprintf("sources missing for package %s", lpkg.ID), ParseError})
@@ -784,6 +784,9 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 	}
 
 	lpkg.Syntax = files
+	if ld.Config.Mode&NeedTypes == 0 {
+		return
+	}
 
 	lpkg.TypesInfo = &types.Info{
 		Types:      make(map[ast.Expr]types.TypeAndValue),

@@ -2498,6 +2498,34 @@ func testImpliedLoadMode(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
+func TestIssue35331(t *testing.T) {
+	packagestest.TestAll(t, testIssue35331)
+}
+func testIssue35331(t *testing.T, exporter packagestest.Exporter) {
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/fake",
+	}})
+	defer exported.Cleanup()
+
+	exported.Config.Mode = packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles |
+		packages.NeedImports | packages.NeedDeps | packages.NeedSyntax
+	exported.Config.Tests = false
+	pkgs, err := packages.Load(exported.Config, "strconv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pkgs) != 1 {
+		t.Fatalf("Expected 1 package, got %v", pkgs)
+	}
+	pkg := pkgs[0]
+	if len(pkg.Errors) > 0 {
+		t.Fatalf("Expected no errors in package, got %v", pkg.Errors)
+	}
+	if len(pkg.Syntax) == 0 {
+		t.Fatalf("Expected syntax on package, got none.")
+	}
+}
+
 func errorMessages(errors []packages.Error) []string {
 	var msgs []string
 	for _, err := range errors {
