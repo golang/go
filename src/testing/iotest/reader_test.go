@@ -62,31 +62,54 @@ func TestOneByteReader_emptyReader(t *testing.T) {
 	}
 }
 
-var halfReaderTests = []struct {
-	data []byte
-	p    []byte
-	n    int
-}{
-	{[]byte("h"), []byte("h"), 1},
-	{[]byte("hello, world"), []byte("hello,"), 6},
+func TestHalfReader_nonEmptyReader(t *testing.T) {
+	msg := "Hello, World!"
+	buf := new(bytes.Buffer)
+	buf.WriteString(msg)
+	// empty read buffer
+	hr := HalfReader(buf)
+	var b []byte
+	n, err := hr.Read(b)
+	if err != nil || n != 0 {
+		t.Errorf("Empty buffer read returned n=%d err=%v", n, err)
+	}
+	// non empty read buffer
+	b = make([]byte, 2)
+	got := new(bytes.Buffer)
+	for i := 0; ; i++ {
+		n, err = hr.Read(b)
+		if err != nil {
+			break
+		}
+		if g, w := n, 1; g != w {
+			t.Errorf("Iteration #%d read %d bytes, want %d", i, g, w)
+		}
+		got.Write(b[:n])
+	}
+	if g, w := err, io.EOF; g != w {
+		t.Errorf("Unexpected error after reading all bytes\n\tGot:  %v\n\tWant: %v", g, w)
+	}
+	if g, w := got.String(), "Hello, World!"; g != w {
+		t.Errorf("Read mismatch\n\tGot:  %q\n\tWant: %q", g, w)
+	}
 }
 
-func TestHalfReader(t *testing.T) {
-	for _, tt := range halfReaderTests {
-		r := HalfReader(bytes.NewReader(tt.data))
-		p := make([]byte, len(tt.data))
-		n, err := r.Read(p)
-		if err != nil {
-			t.Error(err)
-		}
-		if n != tt.n {
-			t.Errorf("read %d, but expected to have read %d bytes", n, tt.n)
-		}
-		got := p[:n]
-		want := tt.p
-		if !bytes.Equal(got, want) {
-			t.Errorf("got %q, expected %q", got, want)
-		}
+func TestHalfReader_emptyReader(t *testing.T) {
+	r := new(bytes.Buffer)
+
+	hr := HalfReader(r)
+	var b []byte
+	if n, err := hr.Read(b); err != nil || n != 0 {
+		t.Errorf("Empty buffer read returned n=%d err=%v", n, err)
+	}
+
+	b = make([]byte, 5)
+	n, err := hr.Read(b)
+	if g, w := err, io.EOF; g != w {
+		t.Errorf("Error mismatch\n\tGot:  %v\n\tWant: %v", g, w)
+	}
+	if g, w := n, 0; g != w {
+		t.Errorf("Unexpectedly read %d bytes, wanted %d", g, w)
 	}
 }
 
