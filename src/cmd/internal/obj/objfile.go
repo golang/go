@@ -8,6 +8,7 @@ package obj
 
 import (
 	"bufio"
+	"cmd/internal/bio"
 	"cmd/internal/dwarf"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
@@ -80,7 +81,13 @@ func newObjWriter(ctxt *Link, b *bufio.Writer, pkgpath string) *objWriter {
 	}
 }
 
-func WriteObjFile(ctxt *Link, b *bufio.Writer, pkgpath string) {
+func WriteObjFile(ctxt *Link, bout *bio.Writer, pkgpath string) {
+	if ctxt.Flag_newobj {
+		WriteObjFile2(ctxt, bout, pkgpath)
+		return
+	}
+
+	b := bout.Writer
 	w := newObjWriter(ctxt, b, pkgpath)
 
 	// Magic header
@@ -221,8 +228,7 @@ func (w *objWriter) writeRefs(s *LSym) {
 	}
 }
 
-func (w *objWriter) writeSymDebug(s *LSym) {
-	ctxt := w.ctxt
+func (ctxt *Link) writeSymDebug(s *LSym) {
 	fmt.Fprintf(ctxt.Bso, "%s ", s.Name)
 	if s.Type != 0 {
 		fmt.Fprintf(ctxt.Bso, "%v ", s.Type)
@@ -302,7 +308,7 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 func (w *objWriter) writeSym(s *LSym) {
 	ctxt := w.ctxt
 	if ctxt.Debugasm > 0 {
-		w.writeSymDebug(s)
+		w.ctxt.writeSymDebug(s)
 	}
 
 	w.wr.WriteByte(symPrefix)
