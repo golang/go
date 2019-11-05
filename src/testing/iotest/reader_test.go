@@ -124,6 +124,7 @@ func TestTimeOutReader_nonEmptyReader(t *testing.T) {
 	if err != nil || n != 0 {
 		t.Errorf("Empty buffer read returned n=%d err=%v", n, err)
 	}
+	// Second call should timeout
 	n, err = tor.Read(b)
 	if g, w := err, ErrTimeout; g != w {
 		t.Errorf("Error mismatch\n\tGot:  %v\n\tWant: %v", g, w)
