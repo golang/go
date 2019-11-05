@@ -1,6 +1,9 @@
 package imports //@import("package")
 
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+)
 
 func _() {
 	fmt.Println("")

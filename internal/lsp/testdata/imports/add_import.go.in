@@ -1,0 +1,10 @@
+package imports //@import("package")
+
+import (
+	"fmt"
+)
+
+func _() {
+	fmt.Println("")
+	bytes.NewBuffer(nil)
+}

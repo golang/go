@@ -1,4 +1,3 @@
--- goimports --
 package imports //@import("package")
 
 import "fmt"
@@ -6,4 +5,3 @@ import "fmt"
 func _() {
 fmt.Println("")
 }
-

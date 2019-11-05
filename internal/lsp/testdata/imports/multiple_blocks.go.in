@@ -1,9 +1,9 @@
--- goimports --
 package imports //@import("package")
 
 import "fmt"
 
-func _() {
-fmt.Println("")
-}
+import "bytes"
 
+func _() {
+	fmt.Println("")
+}

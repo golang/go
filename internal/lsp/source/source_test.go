@@ -450,22 +450,14 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 	ctx := r.ctx
 	uri := spn.URI()
 	filename := uri.Filename()
-	goimported := string(r.data.Golden("goimports", filename, func() ([]byte, error) {
-		cmd := exec.Command("goimports", filename)
-		out, _ := cmd.Output() // ignore error, sometimes we have intentionally ungofmt-able files
-		return out, nil
-	}))
 	f, err := r.view.GetFile(ctx, uri)
 	if err != nil {
 		t.Fatalf("failed for %v: %v", spn, err)
 	}
 	fh := r.view.Snapshot().Handle(r.ctx, f)
-	edits, err := source.Imports(ctx, r.view, f)
+	edits, _, err := source.AllImportsFixes(ctx, r.view, f)
 	if err != nil {
-		if goimported != "" {
-			t.Error(err)
-		}
-		return
+		t.Error(err)
 	}
 	data, _, err := fh.Read(ctx)
 	if err != nil {
@@ -480,8 +472,11 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 		t.Error(err)
 	}
 	got := diff.ApplyEdits(string(data), diffEdits)
-	if goimported != got {
-		t.Errorf("import failed for %s, expected:\n%v\ngot:\n%v", filename, goimported, got)
+	want := string(r.data.Golden("goimports", filename, func() ([]byte, error) {
+		return []byte(got), nil
+	}))
+	if want != got {
+		t.Errorf("import failed for %s, expected:\n%v\ngot:\n%v", filename, want, got)
 	}
 }
 
