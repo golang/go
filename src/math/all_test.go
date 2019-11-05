@@ -3053,11 +3053,17 @@ func TestYn(t *testing.T) {
 	}
 }
 
+var PortableFMA = FMA // hide call from compiler intrinsic; falls back to portable code
+
 func TestFMA(t *testing.T) {
 	for _, c := range fmaC {
 		got := FMA(c.x, c.y, c.z)
 		if !alike(got, c.want) {
 			t.Errorf("FMA(%g,%g,%g) == %g; want %g", c.x, c.y, c.z, got, c.want)
+		}
+		got = PortableFMA(c.x, c.y, c.z)
+		if !alike(got, c.want) {
+			t.Errorf("PortableFMA(%g,%g,%g) == %g; want %g", c.x, c.y, c.z, got, c.want)
 		}
 	}
 }
