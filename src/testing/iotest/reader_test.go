@@ -113,33 +113,69 @@ func TestHalfReader_emptyReader(t *testing.T) {
 	}
 }
 
-func TestTimeoutReader(t *testing.T) {
-	data := []byte("hello, world")
-	r := TimeoutReader(bytes.NewReader(data))
-	p := make([]byte, 2)
+func TestTimeOutReader_nonEmptyReader(t *testing.T) {
+	msg := "Hello, World!"
+	buf := new(bytes.Buffer)
+	buf.WriteString(msg)
+	// empty read buffer
+	tor := TimeoutReader(buf)
+	var b []byte
+	n, err := tor.Read(b)
+	if err != nil || n != 0 {
+		t.Errorf("Empty buffer read returned n=%d err=%v", n, err)
+	}
+	n, err = tor.Read(b)
+	if g, w := err, ErrTimeout; g != w {
+		t.Errorf("Error mismatch\n\tGot:  %v\n\tWant: %v", g, w)
+	}
+	if g, w := n, 0; g != w {
+		t.Errorf("Unexpectedly read %d bytes, wanted %d", g, w)
+	}
+	// non empty read buffer
+	tor2 := TimeoutReader(buf)
+	b = make([]byte, 3)
+	if n, err := tor2.Read(b); err != nil || n == 0 {
+		t.Errorf("Empty buffer read returned n=%d err=%v", n, err)
+	}
+	// Second call should timeout
+	n, err = tor2.Read(b)
+	if g, w := err, ErrTimeout; g != w {
+		t.Errorf("Error mismatch\n\tGot:  %v\n\tWant: %v", g, w)
+	}
+	if g, w := n, 0; g != w {
+		t.Errorf("Unexpectedly read %d bytes, wanted %d", g, w)
+	}
+}
 
-	n, err := r.Read(p)
-	if err != nil {
-		t.Error(err)
+func TestTimeOutReader_emptyReader(t *testing.T) {
+	r := new(bytes.Buffer)
+	// empty read buffer
+	tor := TimeoutReader(r)
+	var b []byte
+	if n, err := tor.Read(b); err != nil || n != 0 {
+		t.Errorf("Empty buffer read returned n=%d err=%v", n, err)
 	}
-	if n != 2 {
-		t.Errorf("read %d, but expected to have read %d bytes", n, 2)
+	// Second call should timeout
+	n, err := tor.Read(b)
+	if g, w := err, ErrTimeout; g != w {
+		t.Errorf("Error mismatch\n\tGot:  %v\n\tWant: %v", g, w)
 	}
-
-	n, err = r.Read(p)
-	if err != ErrTimeout {
-		t.Errorf("got %v, but second call to Read should return %v", err, ErrTimeout)
+	if g, w := n, 0; g != w {
+		t.Errorf("Unexpectedly read %d bytes, wanted %d", g, w)
 	}
-	if n != 0 {
-		t.Errorf("read %d, but expected to have read %d bytes", n, 0)
+	// non empty read buffer
+	tor2 := TimeoutReader(r)
+	b = make([]byte, 5)
+	if n, err := tor2.Read(b); err != io.EOF || n != 0 {
+		t.Errorf("Empty buffer read returned n=%d err=%v", n, err)
 	}
-
-	n, err = r.Read(p)
-	if err != nil {
-		t.Errorf("got %v, but subsequent call to Read should succeed.", err)
+	// Second call should timeout
+	n, err = tor2.Read(b)
+	if g, w := err, ErrTimeout; g != w {
+		t.Errorf("Error mismatch\n\tGot:  %v\n\tWant: %v", g, w)
 	}
-	if n != 2 {
-		t.Errorf("read %d, but expected to have read %d bytes", n, 2)
+	if g, w := n, 0; g != w {
+		t.Errorf("Unexpectedly read %d bytes, wanted %d", g, w)
 	}
 }
 
