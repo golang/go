@@ -231,6 +231,7 @@ func Decode(pkg *types.Package, read func(packagePath string) ([]byte, error)) (
 // It may fail if one of the Facts could not be gob-encoded, but this is
 // a sign of a bug in an Analyzer.
 func (s *Set) Encode() []byte {
+
 	// TODO(adonovan): opt: use a more efficient encoding
 	// that avoids repeating PkgPath for each fact.
 
