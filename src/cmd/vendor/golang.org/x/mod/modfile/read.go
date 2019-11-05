@@ -90,6 +90,19 @@ func (x *FileSyntax) Span() (start, end Position) {
 	return start, end
 }
 
+// addLine adds a line containing the given tokens to the file.
+//
+// If the first token of the hint matches the first token of the
+// line, the new line is added at the end of the block containing hint,
+// extracting hint into a new block if it is not yet in one.
+//
+// If the hint is non-nil buts its first token does not match,
+// the new line is added after the block containing hint
+// (or hint itself, if not in a block).
+//
+// If no hint is provided, addLine appends the line to the end of
+// the last block with a matching first token,
+// or to the end of the file if no such block exists.
 func (x *FileSyntax) addLine(hint Expr, tokens ...string) *Line {
 	if hint == nil {
 		// If no hint given, add to the last statement of the given type.
@@ -111,11 +124,27 @@ func (x *FileSyntax) addLine(hint Expr, tokens ...string) *Line {
 		}
 	}
 
+	newLineAfter := func(i int) *Line {
+		new := &Line{Token: tokens}
+		if i == len(x.Stmt) {
+			x.Stmt = append(x.Stmt, new)
+		} else {
+			x.Stmt = append(x.Stmt, nil)
+			copy(x.Stmt[i+2:], x.Stmt[i+1:])
+			x.Stmt[i+1] = new
+		}
+		return new
+	}
+
 	if hint != nil {
 		for i, stmt := range x.Stmt {
 			switch stmt := stmt.(type) {
 			case *Line:
 				if stmt == hint {
+					if stmt.Token == nil || stmt.Token[0] != tokens[0] {
+						return newLineAfter(i)
+					}
+
 					// Convert line to line block.
 					stmt.InBlock = true
 					block := &LineBlock{Token: stmt.Token[:1], Line: []*Line{stmt}}
@@ -125,15 +154,25 @@ func (x *FileSyntax) addLine(hint Expr, tokens ...string) *Line {
 					block.Line = append(block.Line, new)
 					return new
 				}
+
 			case *LineBlock:
 				if stmt == hint {
+					if stmt.Token[0] != tokens[0] {
+						return newLineAfter(i)
+					}
+
 					new := &Line{Token: tokens[1:], InBlock: true}
 					stmt.Line = append(stmt.Line, new)
 					return new
 				}
+
 				for j, line := range stmt.Line {
 					if line == hint {
-						// Add new line after hint.
+						if stmt.Token[0] != tokens[0] {
+							return newLineAfter(i)
+						}
+
+						// Add new line after hint within the block.
 						stmt.Line = append(stmt.Line, nil)
 						copy(stmt.Line[j+2:], stmt.Line[j+1:])
 						new := &Line{Token: tokens[1:], InBlock: true}
