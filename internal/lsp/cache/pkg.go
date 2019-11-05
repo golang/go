@@ -147,5 +147,5 @@ func findFileInPackage(ctx context.Context, uri span.URI, pkg source.Package) (s
 			}
 		}
 	}
-	return nil, nil, errors.Errorf("no file for %s", uri)
+	return nil, nil, errors.Errorf("no file for %s in package %s", uri, pkg.ID())
 }

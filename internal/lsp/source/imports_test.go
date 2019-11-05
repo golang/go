@@ -35,11 +35,11 @@ type test struct {
 	renamedPkg string
 	pkg        string
 	in         string
-	want       []importInfo
+	want       []imp
 	unchanged  bool // Expect added/deleted return value to be false.
 }
 
-type importInfo struct {
+type imp struct {
 	name string
 	path string
 }
@@ -54,8 +54,8 @@ import (
 	"os"
 )
 `,
-		want: []importInfo{
-			importInfo{
+		want: []imp{
+			{
 				name: "",
 				path: "os",
 			},
@@ -67,8 +67,8 @@ import (
 		pkg:  "os",
 		in: `package main
 `,
-		want: []importInfo{
-			importInfo{
+		want: []imp{
+			{
 				name: "",
 				path: "os",
 			},
@@ -78,8 +78,8 @@ import (
 		name: "package statement no new line",
 		pkg:  "os",
 		in:   `package main`,
-		want: []importInfo{
-			importInfo{
+		want: []imp{
+			{
 				name: "",
 				path: "os",
 			},
@@ -92,8 +92,8 @@ import (
 		in: `// Here is a comment before
 package main
 `,
-		want: []importInfo{
-			importInfo{
+		want: []imp{
+			{
 				name: "",
 				path: "os",
 			},
@@ -104,8 +104,8 @@ package main
 		pkg:  "os",
 		in: `package main // Here is a comment after
 `,
-		want: []importInfo{
-			importInfo{
+		want: []imp{
+			{
 				name: "",
 				path: "os",
 			},
@@ -116,8 +116,8 @@ package main
 		pkg:  "os",
 		in: `// Here is a comment before
 package main // Here is a comment after`,
-		want: []importInfo{
-			importInfo{
+		want: []imp{
+			{
 				name: "",
 				path: "os",
 			},
@@ -129,8 +129,8 @@ package main // Here is a comment after`,
 		in: `package main /* This is a multiline comment
 and it extends
 further down*/`,
-		want: []importInfo{
-			importInfo{
+		want: []imp{
+			{
 				name: "",
 				path: "os",
 			},
@@ -143,12 +143,12 @@ further down*/`,
 
 import "C"
 `,
-		want: []importInfo{
-			importInfo{
+		want: []imp{
+			{
 				name: "",
 				path: "os",
 			},
-			importInfo{
+			{
 				name: "",
 				path: "C",
 			},
@@ -161,12 +161,12 @@ import "C"
 
 import "io"
 `,
-		want: []importInfo{
-			importInfo{
+		want: []imp{
+			{
 				name: "",
 				path: "os",
 			},
-			importInfo{
+			{
 				name: "",
 				path: "io",
 			},
@@ -179,12 +179,12 @@ import "io"
 
 import "io" // A comment
 `,
-		want: []importInfo{
-			importInfo{
+		want: []imp{
+			{
 				name: "",
 				path: "os",
 			},
-			importInfo{
+			{
 				name: "",
 				path: "io",
 			},
@@ -199,12 +199,12 @@ import "io" /* A comment
 that
 extends */
 `,
-		want: []importInfo{
-			importInfo{
+		want: []imp{
+			{
 				name: "",
 				path: "os",
 			},
-			importInfo{
+			{
 				name: "",
 				path: "io",
 			},
@@ -216,8 +216,8 @@ extends */
 		pkg:        "os",
 		in: `package main
 `,
-		want: []importInfo{
-			importInfo{
+		want: []imp{
+			{
 				name: "o",
 				path: "os",
 			},
@@ -280,12 +280,12 @@ func TestDoubleAddNamedImport(t *testing.T) {
 	got = applyEdits(got, edits)
 	gotFile = parse(t, name, got)
 
-	want := []importInfo{
-		importInfo{
+	want := []imp{
+		{
 			name: "o",
 			path: "os",
 		},
-		importInfo{
+		{
 			name: "i",
 			path: "io",
 		},
@@ -293,7 +293,7 @@ func TestDoubleAddNamedImport(t *testing.T) {
 	compareImports(t, "", gotFile.Imports, want)
 }
 
-func compareImports(t *testing.T, prefix string, got []*ast.ImportSpec, want []importInfo) {
+func compareImports(t *testing.T, prefix string, got []*ast.ImportSpec, want []imp) {
 	if len(got) != len(want) {
 		t.Errorf("%s\ngot %d imports\nwant %d", prefix, len(got), len(want))
 		return

@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"golang.org/x/tools/go/ast/astutil"
-	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/fuzzy"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
@@ -221,6 +220,12 @@ type compLitInfo struct {
 	maybeInFieldName bool
 }
 
+type importInfo struct {
+	importPath string
+	name       string
+	pkg        Package
+}
+
 type methodSetKey struct {
 	typ         types.Type
 	addressable bool
@@ -284,7 +289,7 @@ func (c *completer) getSurrounding() *Selection {
 
 // found adds a candidate completion. We will also search through the object's
 // members for more candidates.
-func (c *completer) found(obj types.Object, score float64, imp *imports.ImportInfo) {
+func (c *completer) found(obj types.Object, score float64, imp *importInfo) {
 	if obj.Pkg() != nil && obj.Pkg() != c.pkg.GetTypes() && !obj.Exported() {
 		// obj is not accessible because it lives in another package and is not
 		// exported. Don't treat it as a completion candidate.
@@ -370,7 +375,7 @@ type candidate struct {
 
 	// imp is the import that needs to be added to this package in order
 	// for this candidate to be valid. nil if no import needed.
-	imp *imports.ImportInfo
+	imp *importInfo
 }
 
 // ErrIsDefinition is an error that informs the user they got no
@@ -591,28 +596,35 @@ func (c *completer) selector(sel *ast.SelectorExpr) error {
 		for _, pkgExport := range pkgExports {
 			// If we've seen this import path, use the fully-typed version.
 			if knownPkg, ok := known[pkgExport.Fix.StmtInfo.ImportPath]; ok {
-				c.packageMembers(knownPkg.GetTypes(), &pkgExport.Fix.StmtInfo)
+				c.packageMembers(knownPkg.GetTypes(), &importInfo{
+					importPath: pkgExport.Fix.StmtInfo.ImportPath,
+					name:       pkgExport.Fix.StmtInfo.Name,
+					pkg:        knownPkg,
+				})
 				continue
 			}
 
 			// Otherwise, continue with untyped proposals.
 			pkg := types.NewPackage(pkgExport.Fix.StmtInfo.ImportPath, pkgExport.Fix.IdentName)
 			for _, export := range pkgExport.Exports {
-				c.found(types.NewVar(0, pkg, export, nil), 0.07, &pkgExport.Fix.StmtInfo)
+				c.found(types.NewVar(0, pkg, export, nil), 0.07, &importInfo{
+					importPath: pkgExport.Fix.StmtInfo.ImportPath,
+					name:       pkgExport.Fix.StmtInfo.Name,
+				})
 			}
 		}
 	}
 	return nil
 }
 
-func (c *completer) packageMembers(pkg *types.Package, imp *imports.ImportInfo) {
+func (c *completer) packageMembers(pkg *types.Package, imp *importInfo) {
 	scope := pkg.Scope()
 	for _, name := range scope.Names() {
 		c.found(scope.Lookup(name), stdScore, imp)
 	}
 }
 
-func (c *completer) methodsAndFields(typ types.Type, addressable bool, imp *imports.ImportInfo) error {
+func (c *completer) methodsAndFields(typ types.Type, addressable bool, imp *importInfo) error {
 	mset := c.methodSetCache[methodSetKey{typ, addressable}]
 	if mset == nil {
 		if addressable && !types.IsInterface(typ) && !isPointer(typ) {
@@ -716,8 +728,9 @@ func (c *completer) lexical() error {
 				if _, ok := seen[pkg.Name()]; !ok && pkg != c.pkg.GetTypes() && !alreadyImports(c.file, pkg.Path()) {
 					seen[pkg.Name()] = struct{}{}
 					obj := types.NewPkgName(0, nil, pkg.Name(), pkg)
-					c.found(obj, stdScore, &imports.ImportInfo{
-						ImportPath: pkg.Path(),
+					c.found(obj, stdScore, &importInfo{
+						importPath: pkg.Path(),
+						name:       pkg.Name(),
 					})
 				}
 			}
@@ -739,7 +752,10 @@ func (c *completer) lexical() error {
 				// multiple packages of the same name as completion suggestions, since
 				// only one will be chosen.
 				obj := types.NewPkgName(0, nil, pkg.IdentName, types.NewPackage(pkg.StmtInfo.ImportPath, pkg.IdentName))
-				c.found(obj, score, &pkg.StmtInfo)
+				c.found(obj, score, &importInfo{
+					importPath: pkg.StmtInfo.ImportPath,
+					name:       pkg.StmtInfo.Name,
+				})
 			}
 		}
 	}

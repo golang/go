@@ -13,7 +13,6 @@ import (
 	"go/types"
 	"strings"
 
-	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
 	"golang.org/x/tools/internal/span"
@@ -108,7 +107,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 			if detail != "" {
 				detail += " "
 			}
-			detail += fmt.Sprintf("(from %q)", cand.imp.ImportPath)
+			detail += fmt.Sprintf("(from %q)", cand.imp.importPath)
 		}
 	}
 
@@ -135,7 +134,14 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		return item, nil
 	}
 	uri := span.FileURI(pos.Filename)
-	ph, pkg, err := c.view.FindFileInPackage(c.ctx, uri, c.pkg)
+
+	// Find the source file of the candidate, starting from a package
+	// that should have it in its dependencies.
+	searchPkg := c.pkg
+	if cand.imp != nil && cand.imp.pkg != nil {
+		searchPkg = cand.imp.pkg
+	}
+	ph, pkg, err := c.view.FindFileInPackage(c.ctx, uri, searchPkg)
 	if err != nil {
 		return CompletionItem{}, err
 	}
@@ -144,7 +150,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		return CompletionItem{}, err
 	}
 	if !(file.Pos() <= obj.Pos() && obj.Pos() <= file.End()) {
-		return CompletionItem{}, errors.Errorf("no file for %s", obj.Name())
+		return CompletionItem{}, errors.Errorf("no file for completion object %s", obj.Name())
 	}
 	ident, err := findIdentifier(c.ctx, c.snapshot, pkg, file, obj.Pos())
 	if err != nil {
@@ -162,12 +168,12 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 }
 
 // importEdits produces the text edits necessary to add the given import to the current file.
-func (c *completer) importEdits(imp *imports.ImportInfo) ([]protocol.TextEdit, error) {
+func (c *completer) importEdits(imp *importInfo) ([]protocol.TextEdit, error) {
 	if imp == nil {
 		return nil, nil
 	}
 
-	edit, err := addNamedImport(c.view.Session().Cache().FileSet(), c.file, imp.Name, imp.ImportPath)
+	edit, err := addNamedImport(c.view.Session().Cache().FileSet(), c.file, imp.name, imp.importPath)
 	if err != nil {
 		return nil, err
 	}

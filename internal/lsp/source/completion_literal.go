@@ -11,7 +11,6 @@ import (
 	"strings"
 	"unicode"
 
-	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
@@ -21,7 +20,7 @@ import (
 
 // literal generates composite literal, function literal, and make()
 // completion items.
-func (c *completer) literal(literalType types.Type, imp *imports.ImportInfo) {
+func (c *completer) literal(literalType types.Type, imp *importInfo) {
 	if c.expectedType.objType == nil {
 		return
 	}
