@@ -216,7 +216,7 @@ func walkrange(n *Node) *Node {
 			return n
 		}
 
-		// orderstmt arranged for a copy of the array/slice variable if needed.
+		// order.stmt arranged for a copy of the array/slice variable if needed.
 		ha := a
 
 		hv1 := temp(types.Types[TINT])
@@ -291,7 +291,7 @@ func walkrange(n *Node) *Node {
 		n.List.Set1(a)
 
 	case TMAP:
-		// orderstmt allocated the iterator for us.
+		// order.stmt allocated the iterator for us.
 		// we only use a once, so no copy needed.
 		ha := a
 
@@ -327,7 +327,7 @@ func walkrange(n *Node) *Node {
 		}
 
 	case TCHAN:
-		// orderstmt arranged for a copy of the channel variable.
+		// order.stmt arranged for a copy of the channel variable.
 		ha := a
 
 		n.Left = nil
@@ -371,7 +371,7 @@ func walkrange(n *Node) *Node {
 		//   // original body
 		// }
 
-		// orderstmt arranged for a copy of the string variable.
+		// order.stmt arranged for a copy of the string variable.
 		ha := a
 
 		hv1 := temp(types.Types[TINT])
