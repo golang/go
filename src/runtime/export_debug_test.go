@@ -67,6 +67,7 @@ func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int) error) (in
 			case "retry _Grunnable", "executing on Go runtime stack":
 				// These are transient states. Try to get out of them.
 				if i < 100 {
+					usleep(100)
 					Gosched()
 					continue
 				}
