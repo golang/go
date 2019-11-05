@@ -168,8 +168,8 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpEqPtr_0(v)
 	case OpFloor:
 		return rewriteValueS390X_OpFloor_0(v)
-	case OpFma:
-		return rewriteValueS390X_OpFma_0(v)
+	case OpFMA:
+		return rewriteValueS390X_OpFMA_0(v)
 	case OpGeq16:
 		return rewriteValueS390X_OpGeq16_0(v)
 	case OpGeq16U:
@@ -1939,8 +1939,8 @@ func rewriteValueS390X_OpFloor_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueS390X_OpFma_0(v *Value) bool {
-	// match: (Fma x y z)
+func rewriteValueS390X_OpFMA_0(v *Value) bool {
+	// match: (FMA x y z)
 	// result: (FMADD z x y)
 	for {
 		z := v.Args[2]
