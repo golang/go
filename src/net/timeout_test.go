@@ -1033,3 +1033,43 @@ func TestReadWriteDeadlineRace(t *testing.T) {
 	}()
 	wg.Wait() // wait for tester goroutine to stop
 }
+
+// Issue 35367.
+func TestConcurrentSetDeadline(t *testing.T) {
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	const goroutines = 8
+	const conns = 10
+	const tries = 100
+
+	var c [conns]Conn
+	for i := 0; i < conns; i++ {
+		c[i], err = Dial(ln.Addr().Network(), ln.Addr().String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer c[i].Close()
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	now := time.Now()
+	for i := 0; i < goroutines; i++ {
+		go func(i int) {
+			defer wg.Done()
+			// Make the deadlines steadily earlier,
+			// to trigger runtime adjusttimers calls.
+			for j := tries; j > 0; j-- {
+				for k := 0; k < conns; k++ {
+					c[k].SetReadDeadline(now.Add(2*time.Hour + time.Duration(i*j*k)*time.Second))
+					c[k].SetWriteDeadline(now.Add(1*time.Hour + time.Duration(i*j*k)*time.Second))
+				}
+			}
+		}(i)
+	}
+	wg.Wait()
+}
