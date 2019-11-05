@@ -305,10 +305,10 @@ func (ctxt *Link) pclntab() {
 				// appears in the Pcfile table. In that case, this assigns
 				// the outer file a number.
 				numberfile(ctxt, call.File)
-				nameoff := nameToOffset(call.Func.Name)
+				nameoff := nameToOffset(call.Func)
 
 				inlTreeSym.SetUint16(ctxt.Arch, int64(i*20+0), uint16(call.Parent))
-				inlTreeSym.SetUint8(ctxt.Arch, int64(i*20+2), uint8(objabi.GetFuncID(call.Func.Name, call.Func.File)))
+				inlTreeSym.SetUint8(ctxt.Arch, int64(i*20+2), uint8(objabi.GetFuncID(call.Func, "")))
 				// byte 3 is unused
 				inlTreeSym.SetUint32(ctxt.Arch, int64(i*20+4), uint32(call.File.Value))
 				inlTreeSym.SetUint32(ctxt.Arch, int64(i*20+8), uint32(call.Line))

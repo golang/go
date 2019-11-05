@@ -29,4 +29,10 @@ func main() {
 	fmt.Println(overwrite)
 	fmt.Println(overwritecopy)
 	fmt.Println(arraycopy[1])
+
+	// Check non-string symbols are not overwritten.
+	// This also make them used.
+	if b || x != 0 {
+		panic("b or x overwritten")
+	}
 }
