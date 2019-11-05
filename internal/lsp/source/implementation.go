@@ -11,7 +11,7 @@ package source
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"go/types"
 	"sort"
 
@@ -31,44 +31,71 @@ func Implementation(ctx context.Context, view View, f File, position protocol.Po
 		return nil, err
 	}
 
+	var objs []types.Object
+
+	if res.toMethod != nil {
+		// If we looked up a method, results are in toMethod.
+		for _, s := range res.toMethod {
+			objs = append(objs, s.Obj())
+		}
+	} else {
+		// Otherwise, the results are in to.
+		for _, t := range res.to {
+			// We'll provide implementations that are named types and pointers to named types.
+			if p, ok := t.(*types.Pointer); ok {
+				t = p.Elem()
+			}
+			if n, ok := t.(*types.Named); ok {
+				objs = append(objs, n.Obj())
+			}
+		}
+	}
+
 	var locations []protocol.Location
-	for _, t := range res.to {
-		// We'll provide implementations that are named types and pointers to named types.
-		if p, ok := t.(*types.Pointer); ok {
-			t = p.Elem()
+	ph, pkg, err := view.FindFileInPackage(ctx, f.URI(), ident.pkg)
+	if err != nil {
+		return nil, err
+	}
+	af, _, _, err := ph.Cached()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, obj := range objs {
+		ident, err := findIdentifier(ctx, view.Snapshot(), pkg, af, obj.Pos())
+		if err != nil {
+			return nil, err
 		}
-		if n, ok := t.(*types.Named); ok {
-			ph, pkg, err := view.FindFileInPackage(ctx, f.URI(), ident.pkg)
-			if err != nil {
-				return nil, err
-			}
-			f, _, _, err := ph.Cached()
-			if err != nil {
-				return nil, err
-			}
-			ident, err := findIdentifier(ctx, view.Snapshot(), pkg, f, n.Obj().Pos())
-			if err != nil {
-				return nil, err
-			}
-			decRange, err := ident.Declaration.Range()
-			if err != nil {
-				return nil, err
-			}
-			locations = append(locations, protocol.Location{
-				URI:   protocol.NewURI(ident.Declaration.URI()),
-				Range: decRange,
-			})
+		decRange, err := ident.Declaration.Range()
+		if err != nil {
+			return nil, err
 		}
+		locations = append(locations, protocol.Location{
+			URI:   protocol.NewURI(ident.Declaration.URI()),
+			Range: decRange,
+		})
 	}
 
 	return locations, nil
 }
-
 func (i *IdentifierInfo) implementations(ctx context.Context) (implementsResult, error) {
+	var T types.Type
+	var method *types.Func
 	if i.Type.Object == nil {
-		return implementsResult{}, errors.New("no type info object for identifier")
+		// This isn't a type. Is it a method?
+		obj, ok := i.Declaration.obj.(*types.Func)
+		if !ok {
+			return implementsResult{}, fmt.Errorf("no type info object for identifier %q", i.Name)
+		}
+		recv := obj.Type().(*types.Signature).Recv()
+		if recv == nil {
+			return implementsResult{}, fmt.Errorf("this function is not a method")
+		}
+		method = obj
+		T = recv.Type()
+	} else {
+		T = i.Type.Object.Type()
 	}
-	T := i.Type.Object.Type()
 
 	// Find all named types, even local types (which can have
 	// methods due to promotion) and the built-in "error".
@@ -88,7 +115,7 @@ func (i *IdentifierInfo) implementations(ctx context.Context) (implementsResult,
 
 	var msets typeutil.MethodSetCache
 
-	// TODO(matloob): We only use the to result for now. Figure out if we want to
+	// TODO(matloob): We only use the to and toMethod result for now. Figure out if we want to
 	// surface the from and fromPtr results to users.
 	// Test each named type.
 	var to, from, fromPtr []types.Type
@@ -138,17 +165,23 @@ func (i *IdentifierInfo) implementations(ctx context.Context) (implementsResult,
 	sort.Sort(typesByString(from))
 	sort.Sort(typesByString(fromPtr))
 
-	// TODO(matloob): Perhaps support calling implements on methods instead of just interface types,
-	// as guru does.
+	var toMethod []*types.Selection // contain nils
+	if method != nil {
+		for _, t := range to {
+			toMethod = append(toMethod,
+				types.NewMethodSet(t).Lookup(method.Pkg(), method.Name()))
+		}
+	}
 
-	return implementsResult{to, from, fromPtr}, nil
+	return implementsResult{to, from, fromPtr, toMethod}, nil
 }
 
 // implementsResult contains the results of an implements query.
 type implementsResult struct {
-	to      []types.Type // named or ptr-to-named types assignable to interface T
-	from    []types.Type // named interfaces assignable from T
-	fromPtr []types.Type // named interfaces assignable only from *T
+	to       []types.Type // named or ptr-to-named types assignable to interface T
+	from     []types.Type // named interfaces assignable from T
+	fromPtr  []types.Type // named interfaces assignable only from *T
+	toMethod []*types.Selection
 }
 
 type typesByString []types.Type
