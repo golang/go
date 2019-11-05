@@ -143,32 +143,47 @@ func TestTimeoutReader(t *testing.T) {
 	}
 }
 
-var dataErrReaderTests = []struct {
-	data []byte
-	p    []byte
-	n    int
-}{
-	{[]byte("hello"), []byte("o"), 1},
-	{[]byte("abcdef"), []byte("ef"), 2},
+func TestDataErrReader_nonEmptyReader(t *testing.T) {
+	msg := "Hello, World!"
+	buf := new(bytes.Buffer)
+	buf.WriteString(msg)
+
+	der := DataErrReader(buf)
+
+	b := make([]byte, 3)
+	got := new(bytes.Buffer)
+	var n int
+	var err error
+	for {
+		n, err = der.Read(b)
+		got.Write(b[:n])
+		if err != nil {
+			break
+		}
+	}
+	if err != io.EOF || n == 0 {
+		t.Errorf("Last Read returned n=%d err=%v", n, err)
+	}
+	if g, w := got.String(), "Hello, World!"; g != w {
+		t.Errorf("Read mismatch\n\tGot:  %q\n\tWant: %q", g, w)
+	}
 }
 
-func TestDataErrReader(t *testing.T) {
-	for _, tt := range dataErrReaderTests {
-		var n int
-		var err error
-		p := make([]byte, 2)
-		r := DataErrReader(bytes.NewReader(tt.data))
-		for {
-			n, err = r.Read(p)
-			if err == io.EOF {
-				break
-			}
-		}
-		if n != tt.n {
-			t.Errorf("Last call to Read should have read %d bytes instead of %d", n, tt.n)
-		}
-		if !bytes.Equal(p[:n], tt.p) {
-			t.Errorf("got %q, expected %q ", p[:n], tt.p)
-		}
+func TestDataErrReader_emptyReader(t *testing.T) {
+	r := new(bytes.Buffer)
+
+	der := DataErrReader(r)
+	var b []byte
+	if n, err := der.Read(b); err != io.EOF || n != 0 {
+		t.Errorf("Empty buffer read returned n=%d err=%v", n, err)
+	}
+
+	b = make([]byte, 5)
+	n, err := der.Read(b)
+	if g, w := err, io.EOF; g != w {
+		t.Errorf("Error mismatch\n\tGot:  %v\n\tWant: %v", g, w)
+	}
+	if g, w := n, 0; g != w {
+		t.Errorf("Unexpectedly read %d bytes, wanted %d", g, w)
 	}
 }
