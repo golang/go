@@ -3561,12 +3561,12 @@ func init() {
 			return s.newValue2(ssa.OpCopysign, types.Types[TFLOAT64], args[0], args[1])
 		},
 		sys.PPC64, sys.Wasm)
-	addF("math", "Fma",
+	addF("math", "FMA",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			return s.newValue3(ssa.OpFma, types.Types[TFLOAT64], args[0], args[1], args[2])
+			return s.newValue3(ssa.OpFMA, types.Types[TFLOAT64], args[0], args[1], args[2])
 		},
 		sys.ARM64, sys.PPC64, sys.S390X)
-	addF("math", "Fma",
+	addF("math", "FMA",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			if !s.config.UseFMA {
 				a := s.call(n, callNormal)
@@ -3587,7 +3587,7 @@ func init() {
 
 			// We have the intrinsic - use it directly.
 			s.startBlock(bTrue)
-			s.vars[n] = s.newValue3(ssa.OpFma, types.Types[TFLOAT64], args[0], args[1], args[2])
+			s.vars[n] = s.newValue3(ssa.OpFMA, types.Types[TFLOAT64], args[0], args[1], args[2])
 			s.endBlock().AddEdgeTo(bEnd)
 
 			// Call the pure Go version.
@@ -3601,7 +3601,7 @@ func init() {
 			return s.variable(n, types.Types[TFLOAT64])
 		},
 		sys.AMD64)
-	addF("math", "Fma",
+	addF("math", "FMA",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			if !s.config.UseFMA {
 				a := s.call(n, callNormal)
@@ -3622,7 +3622,7 @@ func init() {
 
 			// We have the intrinsic - use it directly.
 			s.startBlock(bTrue)
-			s.vars[n] = s.newValue3(ssa.OpFma, types.Types[TFLOAT64], args[0], args[1], args[2])
+			s.vars[n] = s.newValue3(ssa.OpFMA, types.Types[TFLOAT64], args[0], args[1], args[2])
 			s.endBlock().AddEdgeTo(bEnd)
 
 			// Call the pure Go version.

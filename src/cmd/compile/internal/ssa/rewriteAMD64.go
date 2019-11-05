@@ -770,8 +770,8 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpEqPtr_0(v)
 	case OpFloor:
 		return rewriteValueAMD64_OpFloor_0(v)
-	case OpFma:
-		return rewriteValueAMD64_OpFma_0(v)
+	case OpFMA:
+		return rewriteValueAMD64_OpFMA_0(v)
 	case OpGeq16:
 		return rewriteValueAMD64_OpGeq16_0(v)
 	case OpGeq16U:
@@ -52222,8 +52222,8 @@ func rewriteValueAMD64_OpFloor_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpFma_0(v *Value) bool {
-	// match: (Fma x y z)
+func rewriteValueAMD64_OpFMA_0(v *Value) bool {
+	// match: (FMA x y z)
 	// result: (VFMADD231SD z x y)
 	for {
 		z := v.Args[2]
