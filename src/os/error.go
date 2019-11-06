@@ -110,7 +110,7 @@ func IsTimeout(err error) bool {
 func underlyingErrorIs(err, target error) bool {
 	// Note that this function is not errors.Is:
 	// underlyingError only unwraps the specific error-wrapping types
-	// that it historically did, not all errors.Wrapper implementations.
+	// that it historically did, not all errors implementing Unwrap().
 	err = underlyingError(err)
 	if err == target {
 		return true
