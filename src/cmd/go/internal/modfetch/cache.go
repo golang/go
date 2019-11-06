@@ -95,22 +95,21 @@ func lockVersion(mod module.Version) (unlock func(), err error) {
 	return lockedfile.MutexAt(path).Lock()
 }
 
-// SideLock locks a file within the module cache that that guards edits to files
-// outside the cache, such as go.sum and go.mod files in the user's working
-// directory. It returns a function that must be called to unlock the file.
-func SideLock() (unlock func()) {
+// SideLock locks a file within the module cache that that previously guarded
+// edits to files outside the cache, such as go.sum and go.mod files in the
+// user's working directory.
+// If err is nil, the caller MUST eventually call the unlock function.
+func SideLock() (unlock func(), err error) {
 	if PkgMod == "" {
 		base.Fatalf("go: internal error: modfetch.PkgMod not set")
 	}
+
 	path := filepath.Join(PkgMod, "cache", "lock")
 	if err := os.MkdirAll(filepath.Dir(path), 0777); err != nil {
-		base.Fatalf("go: failed to create cache directory %s: %v", filepath.Dir(path), err)
+		return nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}
-	unlock, err := lockedfile.MutexAt(path).Lock()
-	if err != nil {
-		base.Fatalf("go: failed to lock file at %v", path)
-	}
-	return unlock
+
+	return lockedfile.MutexAt(path).Lock()
 }
 
 // A cachingRepo is a cache around an underlying Repo,
