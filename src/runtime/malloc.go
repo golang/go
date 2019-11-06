@@ -206,8 +206,16 @@ const (
 	// mips32 only has access to the low 2GB of virtual memory, so
 	// we further limit it to 31 bits.
 	//
+	// On darwin/arm64, although 64-bit pointers are presumably
+	// available, pointers are truncated to 33 bits. Furthermore,
+	// only the top 4 GiB of the address space are actually available
+	// to the application, but we allow the whole 33 bits anyway for
+	// simplicity.
+	// TODO(mknyszek): Consider limiting it to 32 bits and using
+	// arenaBaseOffset to offset into the top 4 GiB.
+	//
 	// WebAssembly currently has a limit of 4GB linear memory.
-	heapAddrBits = (_64bit*(1-sys.GoarchWasm)*(1-sys.GoosAix))*48 + (1-_64bit+sys.GoarchWasm)*(32-(sys.GoarchMips+sys.GoarchMipsle)) + 60*sys.GoosAix
+	heapAddrBits = (_64bit*(1-sys.GoarchWasm)*(1-sys.GoosAix)*(1-sys.GoosDarwin*sys.GoarchArm64))*48 + (1-_64bit+sys.GoarchWasm)*(32-(sys.GoarchMips+sys.GoarchMipsle)) + 60*sys.GoosAix + 33*sys.GoosDarwin*sys.GoarchArm64
 
 	// maxAlloc is the maximum size of an allocation. On 64-bit,
 	// it's theoretically possible to allocate 1<<heapAddrBits bytes. On
