@@ -730,7 +730,6 @@ func (c *completer) lexical() error {
 					obj := types.NewPkgName(0, nil, pkg.Name(), pkg)
 					c.found(obj, stdScore, &importInfo{
 						importPath: pkg.Path(),
-						name:       pkg.Name(),
 					})
 				}
 			}
