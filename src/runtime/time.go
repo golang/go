@@ -1234,6 +1234,8 @@ func timejumpLocked() *g {
 	return tb.gp
 }
 
+// timeSleepUntil returns the time when the next timer should fire.
+// This is only called by sysmon.
 func timeSleepUntil() int64 {
 	if oldTimers {
 		return timeSleepUntilOld()
@@ -1241,7 +1243,15 @@ func timeSleepUntil() int64 {
 
 	next := int64(maxWhen)
 
+	// Prevent allp slice changes. This is like retake.
+	lock(&allpLock)
 	for _, pp := range allp {
+		if pp == nil {
+			// This can happen if procresize has grown
+			// allp but not yet created new Ps.
+			continue
+		}
+
 		lock(&pp.timersLock)
 		c := atomic.Load(&pp.adjustTimers)
 		for _, t := range pp.timers {
@@ -1276,6 +1286,7 @@ func timeSleepUntil() int64 {
 		}
 		unlock(&pp.timersLock)
 	}
+	unlock(&allpLock)
 
 	return next
 }
