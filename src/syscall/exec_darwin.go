@@ -210,8 +210,8 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	}
 
 	// By convention, we don't close-on-exec the fds we are
-	// started with, so if len(fd) < 3, close 0, 1, 2 as needed.
-	// Programs that know they inherit fds >= 3 will need
+	// started with, so if len(fd) <= 3, close 0, 1, 2 as needed.
+	// Programs that know they inherit fds > 3 will need
 	// to set them close-on-exec.
 	for i = len(fd); i < 3; i++ {
 		rawSyscall(funcPC(libc_close_trampoline), uintptr(i), 0, 0)
