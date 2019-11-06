@@ -7,6 +7,7 @@ package modload
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/build"
 	"internal/lazyregexp"
@@ -22,6 +23,7 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modconv"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modfetch/codehost"
@@ -950,32 +952,36 @@ func WriteGoMod() {
 		index = indexModFile(new, modFile, false)
 	}()
 
-	unlock := modfetch.SideLock()
-	defer unlock()
-
-	file := ModFilePath()
-	old, err := renameio.ReadFile(file)
-	if bytes.Equal(old, new) {
-		// The go.mod file is already equal to new, possibly as the result of some
-		// other process.
-		return
+	// Make a best-effort attempt to acquire the side lock, only to exclude
+	// previous versions of the 'go' command from making simultaneous edits.
+	if unlock, err := modfetch.SideLock(); err == nil {
+		defer unlock()
 	}
 
-	if index != nil && !bytes.Equal(old, index.data) {
-		if err != nil {
-			base.Fatalf("go: can't determine whether go.mod has changed: %v", err)
+	errNoChange := errors.New("no update needed")
+
+	err = lockedfile.Transform(ModFilePath(), func(old []byte) ([]byte, error) {
+		if bytes.Equal(old, new) {
+			// The go.mod file is already equal to new, possibly as the result of some
+			// other process.
+			return nil, errNoChange
 		}
-		// The contents of the go.mod file have changed. In theory we could add all
-		// of the new modules to the build list, recompute, and check whether any
-		// module in *our* build list got bumped to a different version, but that's
-		// a lot of work for marginal benefit. Instead, fail the command: if users
-		// want to run concurrent commands, they need to start with a complete,
-		// consistent module definition.
-		base.Fatalf("go: updates to go.mod needed, but contents have changed")
-	}
 
-	if err := renameio.WriteFile(file, new, 0666); err != nil {
-		base.Fatalf("error writing go.mod: %v", err)
+		if index != nil && !bytes.Equal(old, index.data) {
+			// The contents of the go.mod file have changed. In theory we could add all
+			// of the new modules to the build list, recompute, and check whether any
+			// module in *our* build list got bumped to a different version, but that's
+			// a lot of work for marginal benefit. Instead, fail the command: if users
+			// want to run concurrent commands, they need to start with a complete,
+			// consistent module definition.
+			return nil, fmt.Errorf("existing contents have changed since last read")
+		}
+
+		return new, nil
+	})
+
+	if err != nil && err != errNoChange {
+		base.Fatalf("go: updating go.mod: %v", err)
 	}
 }
 
