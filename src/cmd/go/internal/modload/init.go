@@ -441,7 +441,7 @@ func InitMod() {
 // fixVersion returns a modfile.VersionFixer implemented using the Query function.
 //
 // It resolves commit hashes and branch names to versions,
-// canonicalizes verisons that appeared in early vgo drafts,
+// canonicalizes versions that appeared in early vgo drafts,
 // and does nothing for versions that already appear to be canonical.
 //
 // The VersionFixer sets 'fixed' if it ever returns a non-canonical version.
