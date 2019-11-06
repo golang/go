@@ -126,7 +126,7 @@ func TestDebugCall(t *testing.T) {
 		return x + 1
 	}
 	args.x = 42
-	if _, err := runtime.InjectDebugCall(g, fn, &args, debugCallTKill); err != nil {
+	if _, err := runtime.InjectDebugCall(g, fn, &args, debugCallTKill, false); err != nil {
 		t.Fatal(err)
 	}
 	if args.yRet != 43 {
@@ -155,7 +155,7 @@ func TestDebugCallLarge(t *testing.T) {
 		args.in[i] = i
 		want[i] = i + 1
 	}
-	if _, err := runtime.InjectDebugCall(g, fn, &args, debugCallTKill); err != nil {
+	if _, err := runtime.InjectDebugCall(g, fn, &args, debugCallTKill, false); err != nil {
 		t.Fatal(err)
 	}
 	if want != args.out {
@@ -168,7 +168,7 @@ func TestDebugCallGC(t *testing.T) {
 	defer after()
 
 	// Inject a call that performs a GC.
-	if _, err := runtime.InjectDebugCall(g, runtime.GC, nil, debugCallTKill); err != nil {
+	if _, err := runtime.InjectDebugCall(g, runtime.GC, nil, debugCallTKill, false); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -179,7 +179,7 @@ func TestDebugCallGrowStack(t *testing.T) {
 
 	// Inject a call that grows the stack. debugCallWorker checks
 	// for stack pointer breakage.
-	if _, err := runtime.InjectDebugCall(g, func() { growStack(nil) }, nil, debugCallTKill); err != nil {
+	if _, err := runtime.InjectDebugCall(g, func() { growStack(nil) }, nil, debugCallTKill, false); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -215,7 +215,7 @@ func TestDebugCallUnsafePoint(t *testing.T) {
 		runtime.Gosched()
 	}
 
-	_, err := runtime.InjectDebugCall(g, func() {}, nil, debugCallTKill)
+	_, err := runtime.InjectDebugCall(g, func() {}, nil, debugCallTKill, true)
 	if msg := "call not at safe point"; err == nil || err.Error() != msg {
 		t.Fatalf("want %q, got %s", msg, err)
 	}
@@ -239,7 +239,7 @@ func TestDebugCallPanic(t *testing.T) {
 	}()
 	g := <-ready
 
-	p, err := runtime.InjectDebugCall(g, func() { panic("test") }, nil, debugCallTKill)
+	p, err := runtime.InjectDebugCall(g, func() { panic("test") }, nil, debugCallTKill, false)
 	if err != nil {
 		t.Fatal(err)
 	}
