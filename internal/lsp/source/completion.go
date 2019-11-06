@@ -1053,10 +1053,8 @@ type typeNameInference struct {
 
 // expectedType returns information about the expected type for an expression at
 // the query position.
-func expectedType(c *completer) typeInference {
-	inf := typeInference{
-		typeName: expectTypeName(c),
-	}
+func expectedType(c *completer) (inf typeInference) {
+	inf.typeName = expectTypeName(c)
 
 	if c.enclosingCompositeLiteral != nil {
 		inf.objType = c.expectedCompositeLiteralType()
@@ -1137,6 +1135,39 @@ Nodes:
 						}
 
 						break Nodes
+					}
+				}
+
+				if funIdent, ok := node.Fun.(*ast.Ident); ok {
+					switch c.pkg.GetTypesInfo().ObjectOf(funIdent) {
+					case types.Universe.Lookup("append"):
+						defer func() {
+							exprIdx := indexExprAtPos(c.pos, node.Args)
+
+							// Check if we are completing the variadic append()
+							// param. We defer this since we don't want to inherit
+							// variadicity from the next node.
+							inf.variadic = exprIdx == 1 && len(node.Args) <= 2
+
+							// If we are completing an individual element of the
+							// variadic param, "deslice" the expected type.
+							if !inf.variadic && exprIdx > 0 {
+								if slice, ok := inf.objType.(*types.Slice); ok {
+									inf.objType = slice.Elem()
+								}
+							}
+						}()
+
+						// The expected type of append() arguments is the expected
+						// type of the append() call itself. For example:
+						//
+						// var foo []int
+						// foo = append(<>)
+						//
+						// To find the expected type at <> we "skip" the append()
+						// node and get the expected type one level up, which is
+						// []int.
+						continue Nodes
 					}
 				}
 			}
