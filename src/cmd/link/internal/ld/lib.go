@@ -1187,7 +1187,7 @@ func (ctxt *Link) hostlink() {
 
 	switch ctxt.HeadType {
 	case objabi.Hdarwin:
-		if !ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
+		if machoPlatform == PLATFORM_MACOS {
 			// -headerpad is incompatible with -fembed-bitcode.
 			argv = append(argv, "-Wl,-headerpad,1144")
 		}
@@ -1227,7 +1227,7 @@ func (ctxt *Link) hostlink() {
 	switch ctxt.BuildMode {
 	case BuildModeExe:
 		if ctxt.HeadType == objabi.Hdarwin {
-			if !ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
+			if machoPlatform == PLATFORM_MACOS {
 				argv = append(argv, "-Wl,-no_pie")
 				argv = append(argv, "-Wl,-pagezero_size,4000000")
 			}
