@@ -246,6 +246,7 @@ type mapType struct {
 	rtype
 	key        *rtype // map key type
 	elem       *rtype // map element (value) type
+	bucket     *rtype // internal bucket structure
 	keysize    uint8  // size of key slot
 	valuesize  uint8  // size of value slot
 	bucketsize uint16 // size of bucket
