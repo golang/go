@@ -830,7 +830,10 @@ func FreePageAlloc(pp *PageAlloc) {
 // BaseChunkIdx is a convenient chunkIdx value which works on both
 // 64 bit and 32 bit platforms, allowing the tests to share code
 // between the two.
-var BaseChunkIdx = ChunkIdx(chunkIndex((0xc000*pageAlloc64Bit + 0x200*pageAlloc32Bit) * pallocChunkBytes))
+//
+// This should not be higher than 0x100*pallocChunkBytes to support
+// mips and mipsle, which only have 31-bit address spaces.
+var BaseChunkIdx = ChunkIdx(chunkIndex((0xc000*pageAlloc64Bit + 0x100*pageAlloc32Bit) * pallocChunkBytes))
 
 // PageBase returns an address given a chunk index and a page index
 // relative to that chunk.
