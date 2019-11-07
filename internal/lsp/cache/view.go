@@ -273,8 +273,8 @@ func (v *view) storeModFileVersions() {
 
 func (v *view) fileVersion(filename string, kind source.FileKind) string {
 	uri := span.FileURI(filename)
-	f := v.session.GetFile(uri, kind)
-	return f.Identity().Identifier
+	fh := v.session.GetFile(uri, kind)
+	return fh.Identity().String()
 }
 
 func (v *view) Shutdown(ctx context.Context) {
@@ -324,7 +324,7 @@ func (v *view) getSnapshot() *snapshot {
 }
 
 // SetContent sets the overlay contents for a file.
-func (v *view) SetContent(ctx context.Context, uri span.URI, content []byte) (bool, error) {
+func (v *view) SetContent(ctx context.Context, uri span.URI, version float64, content []byte) (bool, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
@@ -338,7 +338,7 @@ func (v *view) SetContent(ctx context.Context, uri span.URI, content []byte) (bo
 	}
 
 	kind := source.DetectLanguage("", uri.Filename())
-	return v.session.SetOverlay(uri, kind, content), nil
+	return v.session.SetOverlay(uri, kind, version, content), nil
 }
 
 // FindFile returns the file if the given URI is already a part of the view.
@@ -374,11 +374,11 @@ func (v *view) getFile(ctx context.Context, uri span.URI, kind source.FileKind) 
 	f = &fileBase{
 		view:  v,
 		fname: uri.Filename(),
-		kind:  source.Go,
+		kind:  kind,
 	}
 	v.session.filesWatchMap.Watch(uri, func(changeType protocol.FileChangeType) bool {
 		ctx := xcontext.Detach(ctx)
-		return v.invalidateContent(ctx, f, kind, changeType)
+		return v.invalidateContent(ctx, f, changeType)
 	})
 	v.mapFile(uri, f)
 	return f, nil

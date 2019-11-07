@@ -352,7 +352,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURI *span.URI, withoutTypes
 
 // invalidateContent invalidates the content of a Go file,
 // including any position and type information that depends on it.
-func (v *view) invalidateContent(ctx context.Context, f source.File, kind source.FileKind, changeType protocol.FileChangeType) bool {
+func (v *view) invalidateContent(ctx context.Context, f source.File, changeType protocol.FileChangeType) bool {
 	var (
 		withoutTypes    = make(map[span.URI]struct{})
 		withoutMetadata = make(map[span.URI]struct{})
@@ -407,7 +407,7 @@ func (v *view) invalidateContent(ctx context.Context, f source.File, kind source
 	}
 
 	// Get the current FileHandle for the URI.
-	currentFH := v.session.GetFile(f.URI(), kind)
+	currentFH := v.session.GetFile(f.URI(), f.Kind())
 
 	// Check if the file's package name or imports have changed,
 	// and if so, invalidate metadata.

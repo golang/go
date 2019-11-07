@@ -57,6 +57,12 @@ type FileSystem interface {
 	GetFile(uri span.URI, kind FileKind) FileHandle
 }
 
+// File represents a source file of any type.
+type File interface {
+	URI() span.URI
+	Kind() FileKind
+}
+
 // FileKind describes the kind of the file in question.
 // It can be one of Go, mod, or sum.
 type FileKind int
@@ -172,10 +178,10 @@ type Session interface {
 	FileSystem
 
 	// DidOpen is invoked each time a file is opened in the editor.
-	DidOpen(ctx context.Context, uri span.URI, kind FileKind, text []byte) error
+	DidOpen(ctx context.Context, uri span.URI, kind FileKind, version float64, text []byte) error
 
 	// DidSave is invoked each time an open file is saved in the editor.
-	DidSave(uri span.URI)
+	DidSave(uri span.URI, version float64)
 
 	// DidClose is invoked each time an open file is closed in the editor.
 	DidClose(uri span.URI)
@@ -184,7 +190,7 @@ type Session interface {
 	IsOpen(uri span.URI) bool
 
 	// Called to set the effective contents of a file from this session.
-	SetOverlay(uri span.URI, kind FileKind, data []byte) (wasFirstChange bool)
+	SetOverlay(uri span.URI, kind FileKind, version float64, data []byte) (wasFirstChange bool)
 
 	// DidChangeOutOfBand is called when a file under the root folder changes.
 	// If the file was open in the editor, it returns true.
@@ -222,7 +228,7 @@ type View interface {
 	FindFile(ctx context.Context, uri span.URI) File
 
 	// Called to set the effective contents of a file from this view.
-	SetContent(ctx context.Context, uri span.URI, content []byte) (wasFirstChange bool, err error)
+	SetContent(ctx context.Context, uri span.URI, version float64, content []byte) (wasFirstChange bool, err error)
 
 	// BackgroundContext returns a context used for all background processing
 	// on behalf of this view.
@@ -291,12 +297,6 @@ type Snapshot interface {
 
 	// KnownPackages returns all the packages loaded in this snapshot.
 	KnownPackages(ctx context.Context) []Package
-}
-
-// File represents a source file of any type.
-type File interface {
-	URI() span.URI
-	Kind() FileKind
 }
 
 type FileURI span.URI

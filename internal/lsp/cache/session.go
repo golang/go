@@ -279,7 +279,7 @@ func (s *session) dropView(ctx context.Context, view *view) (int, error) {
 }
 
 // TODO: Propagate the language ID through to the view.
-func (s *session) DidOpen(ctx context.Context, uri span.URI, kind source.FileKind, text []byte) error {
+func (s *session) DidOpen(ctx context.Context, uri span.URI, kind source.FileKind, version float64, text []byte) error {
 	ctx = telemetry.File.With(ctx, uri)
 
 	// Files with _ prefixes are ignored.
@@ -303,16 +303,17 @@ func (s *session) DidOpen(ctx context.Context, uri span.URI, kind source.FileKin
 
 	// Read the file on disk and compare it to the text provided.
 	// If it is the same as on disk, we can avoid sending it as an overlay to go/packages.
-	s.openOverlay(ctx, uri, kind, text)
+	s.openOverlay(ctx, uri, kind, version, text)
 	return nil
 }
 
-func (s *session) DidSave(uri span.URI) {
+func (s *session) DidSave(uri span.URI, version float64) {
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
 
 	if overlay, ok := s.overlays[uri]; ok {
 		overlay.sameContentOnDisk = true
+		overlay.version = version
 	}
 }
 
@@ -333,7 +334,7 @@ func (s *session) GetFile(uri span.URI, kind source.FileKind) source.FileHandle 
 	return s.cache.GetFile(uri, kind)
 }
 
-func (s *session) SetOverlay(uri span.URI, kind source.FileKind, data []byte) bool {
+func (s *session) SetOverlay(uri span.URI, kind source.FileKind, version float64, data []byte) bool {
 	s.overlayMu.Lock()
 	defer func() {
 		s.overlayMu.Unlock()
@@ -354,6 +355,7 @@ func (s *session) SetOverlay(uri span.URI, kind source.FileKind, data []byte) bo
 		kind:      kind,
 		data:      data,
 		hash:      hashContents(data),
+		version:   version,
 		unchanged: o == nil,
 	}
 	return firstChange
@@ -368,7 +370,7 @@ func (s *session) clearOverlay(uri span.URI) {
 
 // openOverlay adds the file content to the overlay.
 // It also checks if the provided content is equivalent to the file's content on disk.
-func (s *session) openOverlay(ctx context.Context, uri span.URI, kind source.FileKind, data []byte) {
+func (s *session) openOverlay(ctx context.Context, uri span.URI, kind source.FileKind, version float64, data []byte) {
 	s.overlayMu.Lock()
 	defer func() {
 		s.overlayMu.Unlock()
@@ -381,6 +383,7 @@ func (s *session) openOverlay(ctx context.Context, uri span.URI, kind source.Fil
 		data:      data,
 		hash:      hashContents(data),
 		unchanged: true,
+		version:   version,
 	}
 	// If the file is on disk, check if its content is the same as the overlay.
 	if _, hash, err := s.cache.GetFile(uri, kind).Read(ctx); err == nil {

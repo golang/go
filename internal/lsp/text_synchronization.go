@@ -21,12 +21,13 @@ import (
 func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) error {
 	uri := span.NewURI(params.TextDocument.URI)
 	text := []byte(params.TextDocument.Text)
+	version := params.TextDocument.Version
 
 	// Confirm that the file's language ID is related to Go.
 	fileKind := source.DetectLanguage(params.TextDocument.LanguageID, uri.Filename())
 
 	// Open the file.
-	s.session.DidOpen(ctx, uri, fileKind, text)
+	s.session.DidOpen(ctx, uri, fileKind, version, text)
 
 	view := s.session.ViewOf(uri)
 
@@ -64,7 +65,7 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 	}
 	// Cache the new file content and send fresh diagnostics.
 	view := s.session.ViewOf(uri)
-	wasFirstChange, err := view.SetContent(ctx, uri, []byte(text))
+	wasFirstChange, err := view.SetContent(ctx, uri, params.TextDocument.Version, []byte(text))
 	if err != nil {
 		return err
 	}
@@ -130,7 +131,7 @@ func (s *Server) applyChanges(ctx context.Context, uri span.URI, changes []proto
 }
 
 func (s *Server) didSave(ctx context.Context, params *protocol.DidSaveTextDocumentParams) error {
-	s.session.DidSave(span.NewURI(params.TextDocument.URI))
+	s.session.DidSave(span.NewURI(params.TextDocument.URI), params.TextDocument.Version)
 	return nil
 }
 
@@ -139,7 +140,7 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 	ctx = telemetry.URI.With(ctx, uri)
 	s.session.DidClose(uri)
 	view := s.session.ViewOf(uri)
-	if _, err := view.SetContent(ctx, uri, nil); err != nil {
+	if _, err := view.SetContent(ctx, uri, -1, nil); err != nil {
 		return err
 	}
 	clear := []span.URI{uri} // by default, clear the closed URI
