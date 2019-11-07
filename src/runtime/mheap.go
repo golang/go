@@ -15,10 +15,19 @@ import (
 	"unsafe"
 )
 
-// minPhysPageSize is a lower-bound on the physical page size. The
-// true physical page size may be larger than this. In contrast,
-// sys.PhysPageSize is an upper-bound on the physical page size.
-const minPhysPageSize = 4096
+const (
+	// minPhysPageSize is a lower-bound on the physical page size. The
+	// true physical page size may be larger than this. In contrast,
+	// sys.PhysPageSize is an upper-bound on the physical page size.
+	minPhysPageSize = 4096
+
+	// maxPhysPageSize is the maximum page size the runtime supports.
+	maxPhysPageSize = 512 << 10
+
+	// maxPhysHugePageSize sets an upper-bound on the maximum huge page size
+	// that the runtime supports.
+	maxPhysHugePageSize = pallocChunkBytes
+)
 
 // Main malloc heap.
 // The heap itself is the "free" and "scav" treaps,
