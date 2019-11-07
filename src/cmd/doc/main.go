@@ -358,17 +358,11 @@ func parseSymbol(str string) (symbol, method string) {
 	case 1:
 	case 2:
 		method = elem[1]
-		if !token.IsIdentifier(method) {
-			log.Fatalf("invalid identifier %q", method)
-		}
 	default:
 		log.Printf("too many periods in symbol specification")
 		usage()
 	}
 	symbol = elem[0]
-	if !token.IsIdentifier(symbol) {
-		log.Fatalf("invalid identifier %q", symbol)
-	}
 	return
 }
 
