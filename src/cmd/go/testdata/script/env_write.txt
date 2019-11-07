@@ -89,3 +89,10 @@ stderr 'arguments must be KEY=VALUE: invalid argument: GOOS'
 # go env -w rejects invalid GO111MODULE values, as otherwise cmd/go would break
 ! go env -w GO111MODULE=badvalue
 stderr 'invalid GO111MODULE value "badvalue"'
+
+# go env -w rejects invalid GOPATH values
+! go env -w GOPATH=~/go
+stderr 'GOPATH entry cannot start with shell metacharacter'
+
+! go env -w GOPATH=./go
+stderr 'GOPATH entry is relative; must be absolute path'
