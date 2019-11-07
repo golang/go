@@ -14,7 +14,6 @@ import (
 	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"sort"
 )
 
@@ -320,10 +319,9 @@ func macholoadrel(m *ldMachoObj, sect *ldMachoSect) int {
 		return 0
 	}
 	rel := make([]ldMachoRel, sect.nreloc)
-	n := int(sect.nreloc * 8)
-	buf := make([]byte, n)
 	m.f.MustSeek(m.base+int64(sect.reloff), 0)
-	if _, err := io.ReadFull(m.f, buf); err != nil {
+	buf, _, err := m.f.Slice(uint64(sect.nreloc * 8))
+	if err != nil {
 		return -1
 	}
 	for i := uint32(0); i < sect.nreloc; i++ {
@@ -364,10 +362,9 @@ func macholoadrel(m *ldMachoObj, sect *ldMachoSect) int {
 
 func macholoaddsym(m *ldMachoObj, d *ldMachoDysymtab) int {
 	n := int(d.nindirectsyms)
-
-	p := make([]byte, n*4)
 	m.f.MustSeek(m.base+int64(d.indirectsymoff), 0)
-	if _, err := io.ReadFull(m.f, p); err != nil {
+	p, _, err := m.f.Slice(uint64(n * 4))
+	if err != nil {
 		return -1
 	}
 
@@ -383,9 +380,9 @@ func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
 		return 0
 	}
 
-	strbuf := make([]byte, symtab.strsize)
 	m.f.MustSeek(m.base+int64(symtab.stroff), 0)
-	if _, err := io.ReadFull(m.f, strbuf); err != nil {
+	strbuf, _, err := m.f.Slice(uint64(symtab.strsize))
+	if err != nil {
 		return -1
 	}
 
@@ -394,9 +391,9 @@ func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
 		symsize = 16
 	}
 	n := int(symtab.nsym * uint32(symsize))
-	symbuf := make([]byte, n)
 	m.f.MustSeek(m.base+int64(symtab.symoff), 0)
-	if _, err := io.ReadFull(m.f, symbuf); err != nil {
+	symbuf, _, err := m.f.Slice(uint64(n))
+	if err != nil {
 		return -1
 	}
 	sym := make([]ldMachoSym, symtab.nsym)
@@ -444,8 +441,8 @@ func load(arch *sys.Arch, localSymVersion int, lookup func(string, int) *sym.Sym
 
 	base := f.Offset()
 
-	var hdr [7 * 4]uint8
-	if _, err := io.ReadFull(f, hdr[:]); err != nil {
+	hdr, _, err := f.Slice(7 * 4)
+	if err != nil {
 		return errorf("reading hdr: %v", err)
 	}
 
@@ -499,8 +496,8 @@ func load(arch *sys.Arch, localSymVersion int, lookup func(string, int) *sym.Sym
 	}
 
 	m.cmd = make([]ldMachoCmd, ncmd)
-	cmdp := make([]byte, cmdsz)
-	if _, err := io.ReadFull(f, cmdp); err != nil {
+	cmdp, _, err := f.Slice(uint64(cmdsz))
+	if err != nil {
 		return errorf("reading cmds: %v", err)
 	}
 
@@ -559,8 +556,8 @@ func load(arch *sys.Arch, localSymVersion int, lookup func(string, int) *sym.Sym
 	}
 
 	f.MustSeek(m.base+int64(c.seg.fileoff), 0)
-	dat := make([]byte, c.seg.filesz)
-	if _, err := io.ReadFull(f, dat); err != nil {
+	dat, readOnly, err := f.Slice(uint64(c.seg.filesz))
+	if err != nil {
 		return errorf("cannot load object data: %v", err)
 	}
 
@@ -581,6 +578,7 @@ func load(arch *sys.Arch, localSymVersion int, lookup func(string, int) *sym.Sym
 		if sect.flags&0xff == 1 { // S_ZEROFILL
 			s.P = make([]byte, sect.size)
 		} else {
+			s.Attr.Set(sym.AttrReadOnly, readOnly)
 			s.P = dat[sect.addr-c.seg.vmaddr:][:sect.size]
 		}
 		s.Size = int64(len(s.P))

@@ -98,6 +98,14 @@ func gentext(ctxt *ld.Link) {
 	initarray_entry.AddAddr(ctxt.Arch, initfunc)
 }
 
+// makeWritable makes a readonly symbol writable if we do opcode rewriting.
+func makeWritable(s *sym.Symbol) {
+	if s.Attr.ReadOnly() {
+		s.Attr.Set(sym.AttrReadOnly, false)
+		s.P = append([]byte(nil), s.P...)
+	}
+}
+
 func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 	targ := r.Sym
 
@@ -219,6 +227,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 				return false
 			}
 
+			makeWritable(s)
 			s.P[r.Off-2] = 0x8d
 			r.Type = objabi.R_PCREL
 			return true
