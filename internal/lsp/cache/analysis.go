@@ -148,6 +148,9 @@ func (act *actionHandle) analyze(ctx context.Context) ([]*source.Error, interfac
 	if !ok {
 		return nil, nil, errors.Errorf("unexpected type for %s:%s", act.pkg.ID(), act.analyzer.Name)
 	}
+	if data == nil {
+		return nil, nil, errors.Errorf("unexpected nil analysis for %s:%s", act.pkg.ID(), act.analyzer.Name)
+	}
 	return data.diagnostics, data.result, data.err
 }
 
@@ -159,6 +162,9 @@ func (act *actionHandle) cached() ([]*source.Error, interface{}, error) {
 	data, ok := v.(*actionData)
 	if !ok {
 		return nil, nil, errors.Errorf("unexpected type for %s:%s", act.pkg.ID(), act.analyzer.Name)
+	}
+	if data == nil {
+		return nil, nil, errors.Errorf("unexpected nil cached analysis for %s:%s", act.pkg.ID(), act.analyzer.Name)
 	}
 	return data.diagnostics, data.result, data.err
 }
@@ -213,8 +219,6 @@ func runAnalysis(ctx context.Context, fset *token.FileSet, analyzer *analysis.An
 	// Plumb the output values of the dependencies
 	// into the inputs of this action.  Also facts.
 	inputs := make(map[*analysis.Analyzer]interface{})
-	objectFacts := make(map[objectFactKey]analysis.Fact)
-	packageFacts := make(map[packageFactKey]analysis.Fact)
 
 	for depHandle, depData := range deps {
 		if depHandle.pkg == pkg {
@@ -233,14 +237,14 @@ func runAnalysis(ctx context.Context, fset *token.FileSet, analyzer *analysis.An
 				if !exportedFrom(key.obj, depHandle.pkg.types) {
 					continue
 				}
-				objectFacts[key] = fact
+				data.objectFacts[key] = fact
 			}
 			for key, fact := range depData.packageFacts {
 				// TODO: filter out facts that belong to
 				// packages not mentioned in the export data
 				// to prevent side channels.
 
-				packageFacts[key] = fact
+				data.packageFacts[key] = fact
 			}
 		}
 	}
@@ -271,7 +275,7 @@ func runAnalysis(ctx context.Context, fset *token.FileSet, analyzer *analysis.An
 			}
 			key := objectFactKey{obj, factType(ptr)}
 
-			if v, ok := objectFacts[key]; ok {
+			if v, ok := data.objectFacts[key]; ok {
 				reflect.ValueOf(ptr).Elem().Set(reflect.ValueOf(v).Elem())
 				return true
 			}
@@ -283,14 +287,14 @@ func runAnalysis(ctx context.Context, fset *token.FileSet, analyzer *analysis.An
 					analyzer, pkg.ID(), obj, fact))
 			}
 			key := objectFactKey{obj, factType(fact)}
-			objectFacts[key] = fact // clobber any existing entry
+			data.objectFacts[key] = fact // clobber any existing entry
 		},
 		ImportPackageFact: func(pkg *types.Package, ptr analysis.Fact) bool {
 			if pkg == nil {
 				panic("nil package")
 			}
 			key := packageFactKey{pkg, factType(ptr)}
-			if v, ok := packageFacts[key]; ok {
+			if v, ok := data.packageFacts[key]; ok {
 				reflect.ValueOf(ptr).Elem().Set(reflect.ValueOf(v).Elem())
 				return true
 			}
@@ -298,19 +302,19 @@ func runAnalysis(ctx context.Context, fset *token.FileSet, analyzer *analysis.An
 		},
 		ExportPackageFact: func(fact analysis.Fact) {
 			key := packageFactKey{pkg.types, factType(fact)}
-			packageFacts[key] = fact // clobber any existing entry
+			data.packageFacts[key] = fact // clobber any existing entry
 		},
 		AllObjectFacts: func() []analysis.ObjectFact {
-			facts := make([]analysis.ObjectFact, 0, len(objectFacts))
-			for k := range objectFacts {
-				facts = append(facts, analysis.ObjectFact{Object: k.obj, Fact: objectFacts[k]})
+			facts := make([]analysis.ObjectFact, 0, len(data.objectFacts))
+			for k := range data.objectFacts {
+				facts = append(facts, analysis.ObjectFact{Object: k.obj, Fact: data.objectFacts[k]})
 			}
 			return facts
 		},
 		AllPackageFacts: func() []analysis.PackageFact {
-			facts := make([]analysis.PackageFact, 0, len(packageFacts))
-			for k := range packageFacts {
-				facts = append(facts, analysis.PackageFact{Package: k.pkg, Fact: packageFacts[k]})
+			facts := make([]analysis.PackageFact, 0, len(data.packageFacts))
+			for k := range data.packageFacts {
+				facts = append(facts, analysis.PackageFact{Package: k.pkg, Fact: data.packageFacts[k]})
 			}
 			return facts
 		},
@@ -341,7 +345,8 @@ func runAnalysis(ctx context.Context, fset *token.FileSet, analyzer *analysis.An
 	for _, diag := range diagnostics {
 		srcErr, err := sourceError(ctx, fset, pkg, diag)
 		if err != nil {
-			return nil
+			data.err = err
+			return data
 		}
 		data.diagnostics = append(data.diagnostics, srcErr)
 	}
