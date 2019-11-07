@@ -15,6 +15,7 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
+	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/tag"
@@ -154,22 +155,27 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	}
 	ph, pkg, err := c.view.FindFileInPackage(c.ctx, uri, searchPkg)
 	if err != nil {
-		return CompletionItem{}, err
+		log.Error(c.ctx, "error finding file in package", err, telemetry.URI.Of(uri), telemetry.Package.Of(searchPkg.ID()))
+		return item, nil
 	}
 	file, _, _, err := ph.Cached()
 	if err != nil {
-		return CompletionItem{}, err
+		log.Error(c.ctx, "no cached file", err, telemetry.URI.Of(uri))
+		return item, nil
 	}
 	if !(file.Pos() <= obj.Pos() && obj.Pos() <= file.End()) {
-		return CompletionItem{}, errors.Errorf("no file for completion object %s", obj.Name())
+		log.Error(c.ctx, "no file for object", errors.Errorf("no file for completion object %s", obj.Name()), telemetry.URI.Of(uri))
+		return item, nil
 	}
 	ident, err := findIdentifier(c.ctx, c.snapshot, pkg, file, obj.Pos())
 	if err != nil {
-		return CompletionItem{}, err
+		log.Error(c.ctx, "failed to findIdentifier", err, telemetry.URI.Of(uri))
+		return item, nil
 	}
 	hover, err := ident.Hover(c.ctx)
 	if err != nil {
-		return CompletionItem{}, err
+		log.Error(c.ctx, "failed to find Hover", err, telemetry.URI.Of(uri))
+		return item, nil
 	}
 	item.Documentation = hover.Synopsis
 	if c.opts.FullDocumentation {
