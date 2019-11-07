@@ -216,8 +216,7 @@ func (m *Mutex) unlockSlow(new int32) {
 			old = m.state
 		}
 	} else {
-		// Starving mode: handoff mutex ownership to the next waiter, and yield
-		// our time slice so that the next waiter can start to run immediately.
+		// Starving mode: handoff mutex ownership to the next waiter.
 		// Note: mutexLocked is not set, the waiter will set it after wakeup.
 		// But mutex is still considered locked if mutexStarving is set,
 		// so new coming goroutines won't acquire it.
