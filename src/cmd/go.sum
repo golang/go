@@ -1,5 +1,5 @@
-github.com/google/pprof v0.0.0-20190515194954-54271f7e092f h1:Jnx61latede7zDD3DiiP4gmNz33uK0U5HDUaF0a/HVQ=
-github.com/google/pprof v0.0.0-20190515194954-54271f7e092f/go.mod h1:zfwlbNMJ+OItoe0UupaVj+oy1omPYYDuagoSzA8v9mc=
+github.com/google/pprof v0.0.0-20191105193234-27840fff0d09 h1:k2LrtvxLSqJVi/o6O71W+AdZgHzU/mNX7kOXzWUORn0=
+github.com/google/pprof v0.0.0-20191105193234-27840fff0d09/go.mod h1:zfwlbNMJ+OItoe0UupaVj+oy1omPYYDuagoSzA8v9mc=
 github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44 h1:pKqc8lAAA6rcwpvsephnRuZp4VHbfszZRClvqAE6Sq8=
 github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
 golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1 h1:A71BZbKSu+DtCNry/x5JKn20C+64DirDHmePEA8k0FY=
