@@ -229,8 +229,8 @@ func TestPallocDataFindScavengeCandidate(t *testing.T) {
 			max:   3, // Make it so that max would have us try to break the huge page.
 			want:  BitRange{0, bits + 2},
 		}
-		if bits >= 3*PallocChunkPages {
-			// We need at least 3 huge pages in an arena for this test to make sense.
+		if 3*bits < PallocChunkPages {
+			// We need at least 3 huge pages in a chunk for this test to make sense.
 			tests["PreserveHugePageMiddle"] = test{
 				alloc: []BitRange{{0, bits - 10}, {2*bits + 10, PallocChunkPages - (2*bits + 10)}},
 				min:   1,

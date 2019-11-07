@@ -436,6 +436,10 @@ func mallocinit() {
 		// The OS init code failed to fetch the physical page size.
 		throw("failed to get system page size")
 	}
+	if physPageSize > maxPhysPageSize {
+		print("system page size (", physPageSize, ") is larger than maximum page size (", maxPhysPageSize, ")\n")
+		throw("bad system page size")
+	}
 	if physPageSize < minPhysPageSize {
 		print("system page size (", physPageSize, ") is smaller than minimum page size (", minPhysPageSize, ")\n")
 		throw("bad system page size")
@@ -447,6 +451,13 @@ func mallocinit() {
 	if physHugePageSize&(physHugePageSize-1) != 0 {
 		print("system huge page size (", physHugePageSize, ") must be a power of 2\n")
 		throw("bad system huge page size")
+	}
+	if physHugePageSize > maxPhysHugePageSize {
+		// physHugePageSize is greater than the maximum supported huge page size.
+		// Don't throw here, like in the other cases, since a system configured
+		// in this way isn't wrong, we just don't have the code to support them.
+		// Instead, silently set the huge page size to zero.
+		physHugePageSize = 0
 	}
 	if physHugePageSize != 0 {
 		// Since physHugePageSize is a power of 2, it suffices to increase
