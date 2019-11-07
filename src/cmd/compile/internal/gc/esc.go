@@ -170,11 +170,28 @@ func mayAffectMemory(n *Node) bool {
 }
 
 func mustHeapAlloc(n *Node) bool {
-	// TODO(mdempsky): Cleanup this mess.
-	return n.Type != nil &&
-		(n.Type.Width > maxStackVarSize ||
-			(n.Op == ONEW || n.Op == OPTRLIT) && n.Type.Elem().Width >= maxImplicitStackVarSize ||
-			n.Op == OMAKESLICE && !isSmallMakeSlice(n))
+	if n.Type == nil {
+		return false
+	}
+
+	// Parameters are always passed via the stack.
+	if n.Op == ONAME && (n.Class() == PPARAM || n.Class() == PPARAMOUT) {
+		return false
+	}
+
+	if n.Type.Width > maxStackVarSize {
+		return true
+	}
+
+	if (n.Op == ONEW || n.Op == OPTRLIT) && n.Type.Elem().Width >= maxImplicitStackVarSize {
+		return true
+	}
+
+	if n.Op == OMAKESLICE && !isSmallMakeSlice(n) {
+		return true
+	}
+
+	return false
 }
 
 // addrescapes tags node n as having had its address taken

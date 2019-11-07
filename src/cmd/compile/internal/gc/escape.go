@@ -1062,8 +1062,12 @@ func (e *Escape) newLoc(n *Node, transient bool) *EscLocation {
 		}
 		n.SetOpt(loc)
 
-		if mustHeapAlloc(n) && !loc.isName(PPARAM) && !loc.isName(PPARAMOUT) {
-			loc.escapes = true
+		if mustHeapAlloc(n) {
+			why := "too large for stack"
+			if n.Op == OMAKESLICE && (!Isconst(n.Left, CTINT) || !Isconst(n.Right, CTINT)) {
+				why = "non-constant size"
+			}
+			e.flow(e.heapHole().addr(n, why), loc)
 		}
 	}
 	return loc
@@ -1087,6 +1091,11 @@ func (e *Escape) flow(k EscHole, src *EscLocation) {
 		return
 	}
 	if dst.escapes && k.derefs < 0 { // dst = &src
+		if Debug['m'] >= 2 {
+			pos := linestr(src.n.Pos)
+			fmt.Printf("%s: %v escapes to heap:\n", pos, src.n)
+			e.explainFlow(pos, dst, src, k.derefs, k.notes)
+		}
 		src.escapes = true
 		return
 	}
@@ -1224,20 +1233,24 @@ func (e *Escape) explainPath(root, src *EscLocation) {
 			Fatalf("path inconsistency: %v != %v", edge.src, src)
 		}
 
-		derefs := "&"
-		if edge.derefs >= 0 {
-			derefs = strings.Repeat("*", edge.derefs)
-		}
-
-		fmt.Printf("%s:   flow: %s = %s%v:\n", pos, e.explainLoc(dst), derefs, e.explainLoc(src))
-		for notes := edge.notes; notes != nil; notes = notes.next {
-			fmt.Printf("%s:     from %v (%v) at %s\n", pos, notes.where, notes.why, linestr(notes.where.Pos))
-		}
+		e.explainFlow(pos, dst, src, edge.derefs, edge.notes)
 
 		if dst == root {
 			break
 		}
 		src = dst
+	}
+}
+
+func (e *Escape) explainFlow(pos string, dst, src *EscLocation, derefs int, notes *EscNote) {
+	ops := "&"
+	if derefs >= 0 {
+		ops = strings.Repeat("*", derefs)
+	}
+
+	fmt.Printf("%s:   flow: %s = %s%v:\n", pos, e.explainLoc(dst), ops, e.explainLoc(src))
+	for note := notes; note != nil; note = note.next {
+		fmt.Printf("%s:     from %v (%v) at %s\n", pos, note.where, note.why, linestr(note.where.Pos))
 	}
 }
 
@@ -1364,8 +1377,6 @@ func (e *Escape) finish(fns []*Node) {
 		n.SetOpt(nil)
 
 		// Update n.Esc based on escape analysis results.
-		//
-		// TODO(mdempsky): Describe path when Debug['m'] >= 2.
 
 		if loc.escapes {
 			if Debug['m'] != 0 && n.Op != ONAME {
