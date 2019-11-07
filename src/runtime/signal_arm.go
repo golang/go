@@ -63,7 +63,9 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	c.set_pc(uint32(funcPC(sigpanic)))
 }
 
-const pushCallSupported = true
+// TODO(issue 35439): enabling async preemption causes failures on darwin/arm.
+// Disable for now.
+const pushCallSupported = GOOS != "darwin"
 
 func (c *sigctxt) pushCall(targetPC uintptr) {
 	// Push the LR to stack, as we'll clobber it in order to
