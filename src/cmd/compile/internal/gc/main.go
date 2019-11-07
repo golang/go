@@ -1477,8 +1477,18 @@ type lang struct {
 // any language version is supported.
 var langWant lang
 
-// langSupported reports whether language version major.minor is supported.
-func langSupported(major, minor int) bool {
+// langSupported reports whether language version major.minor is
+// supported in a particular package.
+func langSupported(major, minor int, pkg *types.Pkg) bool {
+	if pkg == nil {
+		// TODO(mdempsky): Set Pkg for local types earlier.
+		pkg = localpkg
+	}
+	if pkg != localpkg {
+		// Assume imported packages passed type-checking.
+		return true
+	}
+
 	if langWant.major == 0 && langWant.minor == 0 {
 		return true
 	}
