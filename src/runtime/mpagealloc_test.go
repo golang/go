@@ -279,24 +279,24 @@ func TestPageAllocAlloc(t *testing.T) {
 		},
 		"NotContiguousPallocChunkPages*2": {
 			before: map[ChunkIdx][]BitRange{
-				BaseChunkIdx:         {},
-				BaseChunkIdx + 0x100: {},
-				BaseChunkIdx + 0x101: {},
+				BaseChunkIdx:        {},
+				BaseChunkIdx + 0x40: {},
+				BaseChunkIdx + 0x41: {},
 			},
 			scav: map[ChunkIdx][]BitRange{
-				BaseChunkIdx:         {{0, PallocChunkPages}},
-				BaseChunkIdx + 0x100: {},
-				BaseChunkIdx + 0x101: {},
+				BaseChunkIdx:        {{0, PallocChunkPages}},
+				BaseChunkIdx + 0x40: {},
+				BaseChunkIdx + 0x41: {},
 			},
 			hits: []hit{
-				{PallocChunkPages * 2, PageBase(BaseChunkIdx+0x100, 0), 0},
+				{PallocChunkPages * 2, PageBase(BaseChunkIdx+0x40, 0), 0},
 				{21, PageBase(BaseChunkIdx, 0), 21 * PageSize},
 				{1, PageBase(BaseChunkIdx, 21), PageSize},
 			},
 			after: map[ChunkIdx][]BitRange{
-				BaseChunkIdx:         {{0, 22}},
-				BaseChunkIdx + 0x100: {{0, PallocChunkPages}},
-				BaseChunkIdx + 0x101: {{0, PallocChunkPages}},
+				BaseChunkIdx:        {{0, 22}},
+				BaseChunkIdx + 0x40: {{0, PallocChunkPages}},
+				BaseChunkIdx + 0x41: {{0, PallocChunkPages}},
 			},
 		},
 		"StraddlePallocChunkPages*2": {
