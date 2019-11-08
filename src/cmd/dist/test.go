@@ -585,7 +585,7 @@ func (t *tester) registerTests() {
 			},
 		})
 		// Also test a cgo package.
-		if t.cgoEnabled {
+		if t.cgoEnabled && t.internalLink() {
 			t.tests = append(t.tests, distTest{
 				name:    "pie_internal_cgo",
 				heading: "internal linking of -buildmode=pie",

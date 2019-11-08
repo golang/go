@@ -10,6 +10,7 @@ package gc
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
+	"cmd/internal/obj"
 	"cmd/internal/src"
 	"encoding/binary"
 	"fmt"
@@ -651,10 +652,12 @@ func (r *importReader) byte() byte {
 
 func (r *importReader) varExt(n *Node) {
 	r.linkname(n.Sym)
+	r.symIdx(n.Sym)
 }
 
 func (r *importReader) funcExt(n *Node) {
 	r.linkname(n.Sym)
+	r.symIdx(n.Sym)
 
 	// Escape analysis.
 	for _, fs := range types.RecvsParams {
@@ -681,6 +684,20 @@ func (r *importReader) methExt(m *types.Field) {
 
 func (r *importReader) linkname(s *types.Sym) {
 	s.Linkname = r.string()
+}
+
+func (r *importReader) symIdx(s *types.Sym) {
+	if Ctxt.Flag_newobj {
+		lsym := s.Linksym()
+		idx := int32(r.int64())
+		if idx != -1 {
+			if s.Linkname != "" {
+				Fatalf("bad index for linknamed symbol: %v %d\n", lsym, idx)
+			}
+			lsym.SymIdx = idx
+			lsym.Set(obj.AttrIndexed, true)
+		}
+	}
 }
 
 func (r *importReader) doInline(n *Node) {
