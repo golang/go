@@ -1129,22 +1129,3 @@ func TestBMPString(t *testing.T) {
 		}
 	}
 }
-
-func TestSequenceOfSet(t *testing.T) {
-	type someSetSET struct {
-		A int `asn1:"tag:0"`
-	}
-
-	type someStruct struct {
-		B int          `asn1:"tag:0"`
-		C []someSetSET `asn1:"tag:1"`
-	}
-
-	der := []byte{0x30, 0x0F, 0x80, 0x01, 0x01, 0xA1, 0x0A, 0x31, 0x03, 0x80, 0x01, 0x01, 0x31, 0x03, 0x80, 0x01, 0x02}
-
-	var b someStruct
-	if _, err := Unmarshal(der, &b); err != nil {
-		t.Errorf("Unmarshal failed: %v", err)
-	}
-
-}
