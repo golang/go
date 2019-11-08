@@ -299,6 +299,14 @@ func TestSyscallNoError(t *testing.T) {
 		t.Skip("skipping on non-32bit architecture")
 	}
 
+	// See https://golang.org/issue/35422
+	// On MIPS, Linux returns whether the syscall had an error in a separate
+	// register (R7), not using a negative return value as on other
+	// architectures.
+	if runtime.GOARCH == "mips" || runtime.GOARCH == "mipsle" {
+		t.Skipf("skipping on %s", runtime.GOARCH)
+	}
+
 	if os.Getuid() != 0 {
 		t.Skip("skipping root only test")
 	}
@@ -363,7 +371,8 @@ func TestSyscallNoError(t *testing.T) {
 		if filesystemIsNoSUID(tmpBinary) {
 			t.Skip("skipping test when temp dir is mounted nosuid")
 		}
-		t.Errorf("expected %s, got %s", want, got)
+		// formatted so the values are aligned for easier comparison
+		t.Errorf("expected %s,\ngot      %s", want, got)
 	}
 }
 
