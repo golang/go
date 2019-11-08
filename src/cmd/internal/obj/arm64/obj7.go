@@ -812,22 +812,27 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 				aoffset := c.autosize
 
-				if aoffset > 0xF0 {
-					aoffset = 0xF0
-				}
-				p.As = AMOVD
-				p.From.Type = obj.TYPE_MEM
-				p.Scond = C_XPOST
-				p.From.Offset = int64(aoffset)
-				p.From.Reg = REGSP
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = REGLINK
-				p.Spadj = -aoffset
-				if c.autosize > aoffset {
+				if aoffset <= 0xF0 {
+					p.As = AMOVD
+					p.From.Type = obj.TYPE_MEM
+					p.Scond = C_XPOST
+					p.From.Offset = int64(aoffset)
+					p.From.Reg = REGSP
+					p.To.Type = obj.TYPE_REG
+					p.To.Reg = REGLINK
+					p.Spadj = -aoffset
+				} else {
+					p.As = AMOVD
+					p.From.Type = obj.TYPE_MEM
+					p.From.Offset = 0
+					p.From.Reg = REGSP
+					p.To.Type = obj.TYPE_REG
+					p.To.Reg = REGLINK
+
 					q = newprog()
 					q.As = AADD
 					q.From.Type = obj.TYPE_CONST
-					q.From.Offset = int64(c.autosize) - int64(aoffset)
+					q.From.Offset = int64(aoffset)
 					q.To.Type = obj.TYPE_REG
 					q.To.Reg = REGSP
 					q.Link = p.Link
