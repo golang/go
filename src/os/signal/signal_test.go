@@ -81,8 +81,10 @@ func TestSignal(t *testing.T) {
 	syscall.Kill(syscall.Getpid(), syscall.SIGHUP)
 	waitSig(t, c, syscall.SIGHUP)
 
-	// Ask for everything we can get.
-	c1 := make(chan os.Signal, 1)
+	// Ask for everything we can get. The buffer size has to be
+	// more than 1, since the runtime might send SIGURG signals.
+	// Using 10 is arbitrary.
+	c1 := make(chan os.Signal, 10)
 	Notify(c1)
 
 	// Send this process a SIGWINCH
