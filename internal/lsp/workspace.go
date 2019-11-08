@@ -43,5 +43,14 @@ func (s *Server) addView(ctx context.Context, name string, uri span.URI) (source
 	s.fetchConfig(ctx, name, uri, &options)
 
 	return s.session.NewView(ctx, name, uri, options)
+}
 
+func (s *Server) updateConfiguration(ctx context.Context, changed interface{}) error {
+	// go through all the views getting the config
+	for _, view := range s.session.Views() {
+		options := s.session.Options()
+		s.fetchConfig(ctx, view.Name(), view.Folder(), &options)
+		view.SetOptions(ctx, options)
+	}
+	return nil
 }

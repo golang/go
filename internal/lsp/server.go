@@ -113,8 +113,8 @@ func (s *Server) DidChangeWorkspaceFolders(ctx context.Context, params *protocol
 	return s.changeFolders(ctx, params.Event)
 }
 
-func (s *Server) DidChangeConfiguration(context.Context, *protocol.DidChangeConfigurationParams) error {
-	return notImplemented("DidChangeConfiguration")
+func (s *Server) DidChangeConfiguration(ctx context.Context, params *protocol.DidChangeConfigurationParams) error {
+	return s.updateConfiguration(ctx, params.Settings)
 }
 
 func (s *Server) DidChangeWatchedFiles(ctx context.Context, params *protocol.DidChangeWatchedFilesParams) error {
