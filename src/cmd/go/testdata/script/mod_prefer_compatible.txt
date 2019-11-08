@@ -34,6 +34,7 @@ stdout '^github.com/russross/blackfriday v1\.'
 # order to determine whether it contains a go.mod file, and part of the point of
 # the proxy is to avoid fetching unnecessary data.)
 
+[!exec:git] stop
 env GOPROXY=direct
 
 go list -versions -m github.com/russross/blackfriday github.com/russross/blackfriday

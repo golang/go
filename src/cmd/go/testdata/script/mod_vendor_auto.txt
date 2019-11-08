@@ -62,7 +62,7 @@ stdout '^'$WORK'[/\\]auto[/\\]replacement-version$'
 go mod edit -go=1.14
 
 ! go list -f {{.Dir}} -tags tools all
-stderr '^go: inconsistent vendoring in '$WORK/auto':$'
+stderr '^go: inconsistent vendoring in '$WORK[/\\]auto':$'
 stderr '^\texample.com/printversion@v1.0.0: is explicitly required in go.mod, but not marked as explicit in vendor/modules.txt'
 stderr '^\texample.com/unused: is replaced in go.mod, but not marked as replaced in vendor/modules.txt'
 stderr '^\texample.com/version@v1.2.0: is replaced in go.mod, but not marked as replaced in vendor/modules.txt'
@@ -131,7 +131,7 @@ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
 cp go.mod.orig go.mod
 go mod edit -go=1.14
 ! go list -f {{.Dir}} -tags tools all
-stderr '^go: inconsistent vendoring in '$WORK/auto':$'
+stderr '^go: inconsistent vendoring in '$WORK[/\\]auto':$'
 stderr '^\texample.com/printversion@v1.0.0: is explicitly required in go.mod, but not marked as explicit in vendor/modules.txt'
 stderr '^\texample.com/unused: is replaced in go.mod, but not marked as replaced in vendor/modules.txt'
 stderr '^\texample.com/version@v1.2.0: is replaced in go.mod, but not marked as replaced in vendor/modules.txt'
@@ -149,7 +149,7 @@ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
 # ...but a version mismatch for an explicit dependency should be noticed.
 cp $WORK/modules-bad-1.13.txt vendor/modules.txt
 ! go list -mod=vendor -f {{.Dir}} -tags tools all
-stderr '^go: inconsistent vendoring in '$WORK/auto':$'
+stderr '^go: inconsistent vendoring in '$WORK[/\\]auto':$'
 stderr '^\texample.com/printversion@v1.0.0: is explicitly required in go.mod, but vendor/modules.txt indicates example.com/printversion@v1.1.0$'
 stderr '\n\nrun .go mod vendor. to sync, or use -mod=mod or -mod=readonly to ignore the vendor directory$'
 
