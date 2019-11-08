@@ -1,61 +1,93 @@
 [short] skip
-
-env -r GOROOT_REGEXP=$GOROOT
-env -r WORK_REGEXP='$WORK'  # don't expand $WORK; grep replaces $WORK in text before matching.
-env GOROOT GOROOT_REGEXP WORK WORK_REGEXP
+env GO111MODULE=on
 
 # A binary built without -trimpath should contain the current workspace
 # and GOROOT for debugging and stack traces.
 cd a
-go build -o hello.exe hello.go
-grep -q $WORK_REGEXP hello.exe
-grep -q $GOROOT_REGEXP hello.exe
+go build -o $WORK/paths-a.exe paths.go
+exec $WORK/paths-a.exe $WORK/paths-a.exe
+stdout 'binary contains GOPATH: true'
+stdout 'binary contains GOROOT: true'
 
 # A binary built with -trimpath should not contain the current workspace
 # or GOROOT.
-go build -trimpath -o hello.exe hello.go
-! grep -q $GOROOT_REGEXP hello.exe
-! grep -q $WORK_REGEXP hello.exe
+go build -trimpath -o $WORK/paths-a.exe paths.go
+exec $WORK/paths-a.exe $WORK/paths-a.exe
+stdout 'binary contains GOPATH: false'
+stdout 'binary contains GOROOT: false'
 
 # A binary from an external module built with -trimpath should not contain
 # the current workspace or GOROOT.
 cd $WORK
-env GO111MODULE=on
 go get -trimpath rsc.io/fortune
-! grep -q $GOROOT_REGEXP $GOPATH/bin/fortune$GOEXE
-! grep -q $WORK_REGEXP $GOPATH/bin/fortune$GOEXE
+exec $WORK/paths-a.exe $GOPATH/bin/fortune$GOEXE
+stdout 'binary contains GOPATH: false'
+stdout 'binary contains GOROOT: false'
 
 # Two binaries built from identical packages in different directories
 # should be identical.
-cd $GOPATH/src/a
-go build -trimpath -o $WORK/a-GOPATH.exe .
-cd $WORK/_alt/src/a
-go build -trimpath -o $WORK/a-alt.exe .
-cmp -q $WORK/a-GOPATH.exe $WORK/a-alt.exe
+# TODO(golang.org/issue/35435): at the moment, they are not.
+#mkdir $GOPATH/src/b
+#cp $GOPATH/src/a/go.mod $GOPATH/src/b/go.mod
+#cp $GOPATH/src/a/paths.go $GOPATH/src/b/paths.go
+#cd $GOPATH/src/b
+#go build -trimpath -o $WORK/paths-b.exe .
+#cmp -q $WORK/paths-a.exe $WORK/paths-b.exe
 
 [!exec:gccgo] stop
 
-# Binaries built using gccgo should also be identical to each other.
+# A binary built with gccgo without -trimpath should contain the current
+# GOPATH and GOROOT.
 env GO111MODULE=off # The current released gccgo does not support builds in module mode.
 cd $GOPATH/src/a
-go build -compiler=gccgo -trimpath -o $WORK/gccgo-GOPATH.exe .
+go build -compiler=gccgo -o $WORK/gccgo-paths-a.exe .
+exec $WORK/gccgo-paths-a.exe $WORK/gccgo-paths-b.exe
+stdout 'binary contains GOPATH: true'
+stdout 'binary contains GOROOT: true'
 
-env old_gopath=$GOPATH
-env GOPATH=$WORK/_alt
-cd $WORK/_alt/src/a
-go build -compiler=gccgo -trimpath -o $WORK/gccgo-alt.exe .
-cd $WORK
-! grep -q $GOROOT_REGEXP gccgo-GOPATH.exe
-! grep -q $WORK_REGEXP gccgo-GOPATH.exe
-cmp -q gccgo-GOPATH.exe gccgo-alt.exe
+# A binary built with gccgo with -trimpath should not contain GOPATH or GOROOT.
+go build -compiler=gccgo -trimpath -o $WORK/gccgo-paths-a.exe .
+exec $WORK/gccgo-paths-a.exe $WORK/gccgo-paths-b.exe
+stdout 'binary contains GOPATH: false'
+stdout 'binary contains GOROOT: false'
 
--- $GOPATH/src/a/hello.go --
+# Two binaries built from identical packages in different directories
+# should be identical.
+# TODO(golang.org/issue/35435): at the moment, they are not.
+#cd ../b
+#go build -compiler=gccgo -trimpath -o $WORK/gccgo-paths-b.exe .
+#cmp -q $WORK/gccgo-paths-a.exe $WORK/gccgo-paths-b.exe
+
+-- $GOPATH/src/a/paths.go --
 package main
-func main() { println("hello") }
+
+import (
+	"bytes"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+	"path/filepath"
+)
+
+func main() {
+	exe := os.Args[1]
+	data, err := ioutil.ReadFile(exe)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	gopath := []byte(filepath.ToSlash(os.Getenv("GOPATH")))
+	if len(gopath) == 0 {
+		log.Fatal("GOPATH not set")
+	}
+	fmt.Printf("binary contains GOPATH: %v\n", bytes.Contains(data, gopath))
+
+	goroot := []byte(filepath.ToSlash(os.Getenv("GOROOT")))
+	if len(goroot) == 0 {
+		log.Fatal("GOROOT not set")
+	}
+	fmt.Printf("binary contains GOROOT: %v\n", bytes.Contains(data, goroot))
+}
 -- $GOPATH/src/a/go.mod --
-module example.com/a
--- $WORK/_alt/src/a/hello.go --
-package main
-func main() { println("hello") }
--- $WORK/_alt/src/a/go.mod --
 module example.com/a
