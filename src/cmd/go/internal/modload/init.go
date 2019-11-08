@@ -28,7 +28,6 @@ import (
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/mvs"
-	"cmd/go/internal/renameio"
 	"cmd/go/internal/search"
 
 	"golang.org/x/mod/modfile"
@@ -398,7 +397,7 @@ func InitMod() {
 	}
 
 	gomod := ModFilePath()
-	data, err := renameio.ReadFile(gomod)
+	data, err := lockedfile.Read(gomod)
 	if err != nil {
 		base.Fatalf("go: %v", err)
 	}
