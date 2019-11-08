@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/testenv"
 	"math"
 	"net"
 	"runtime"
@@ -422,6 +423,7 @@ func TestPingPongHog(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in -short mode")
 	}
+	testenv.SkipFlaky(t, 35271)
 
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 	done := make(chan bool)
