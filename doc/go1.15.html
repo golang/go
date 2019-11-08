@@ -81,6 +81,20 @@ TODO
 TODO
 </p>
 
+<dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
+  <dd>
+    <p><!-- golang.org/issue/33762 -->
+      The new method
+      <a href="/pkg/sync#Map.LoadAndDelete"><code>Map.LoadAndDelete</code></a>
+      atomically deletes a key and returns the previous value if present.
+    </p>
+    <p><!-- CL 205899 -->
+      The method
+      <a href="/pkg/sync#Map.Delete"><code>Map.Delete</code></a>
+      is more efficient.
+    </p>
+</dl><!-- sync -->
+
 <dl id="time"><dt><a href="/pkg/time/">time</a></dt>
   <dd>
     <p><!-- golang.org/issue/33184 -->
