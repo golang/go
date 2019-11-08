@@ -291,190 +291,48 @@ var tanh = []complex128{
 	(-1.0000000491604982429364892e+00 - 2.901873195374433112227349e-08i),
 }
 
-// special cases conform to C99 standard appendix G.6 Complex arithmetic
-var inf, nan = math.Inf(1), math.NaN()
-
+// special cases
 var vcAbsSC = []complex128{
 	NaN(),
 }
 var absSC = []float64{
 	math.NaN(),
 }
-var acosSC = []struct {
-	in,
-	want complex128
-}{
-	// G.6.1.1
-	{complex(zero, zero),
-		complex(math.Pi/2, -zero)},
-	{complex(-zero, zero),
-		complex(math.Pi/2, -zero)},
-	{complex(zero, nan),
-		complex(math.Pi/2, nan)},
-	{complex(-zero, nan),
-		complex(math.Pi/2, nan)},
-	{complex(1.0, inf),
-		complex(math.Pi/2, -inf)},
-	{complex(1.0, nan),
-		NaN()},
-	{complex(-inf, 1.0),
-		complex(math.Pi, -inf)},
-	{complex(inf, 1.0),
-		complex(0.0, -inf)},
-	{complex(-inf, inf),
-		complex(3*math.Pi/4, -inf)},
-	{complex(inf, inf),
-		complex(math.Pi/4, -inf)},
-	{complex(inf, nan),
-		complex(nan, -inf)}, // imaginary sign unspecified
-	{complex(-inf, nan),
-		complex(nan, inf)}, // imaginary sign unspecified
-	{complex(nan, 1.0),
-		NaN()},
-	{complex(nan, inf),
-		complex(nan, -inf)},
-	{NaN(),
-		NaN()},
+var vcAcosSC = []complex128{
+	NaN(),
 }
-var acoshSC = []struct {
-	in,
-	want complex128
-}{
-	// G.6.2.1
-	{complex(zero, zero),
-		complex(zero, math.Pi/2)},
-	{complex(-zero, zero),
-		complex(zero, math.Pi/2)},
-	{complex(1.0, inf),
-		complex(inf, math.Pi/2)},
-	{complex(1.0, nan),
-		NaN()},
-	{complex(-inf, 1.0),
-		complex(inf, math.Pi)},
-	{complex(inf, 1.0),
-		complex(inf, zero)},
-	{complex(-inf, inf),
-		complex(inf, 3*math.Pi/4)},
-	{complex(inf, inf),
-		complex(inf, math.Pi/4)},
-	{complex(inf, nan),
-		complex(inf, nan)},
-	{complex(-inf, nan),
-		complex(inf, nan)},
-	{complex(nan, 1.0),
-		NaN()},
-	{complex(nan, inf),
-		complex(inf, nan)},
-	{NaN(),
-		NaN()},
+var acosSC = []complex128{
+	NaN(),
 }
-var asinSC = []struct {
-	in,
-	want complex128
-}{
-	// Derived from Asin(z) = -i * Asinh(i * z), G.6 #7
-	{complex(zero, zero),
-		complex(zero, zero)},
-	{complex(1.0, inf),
-		complex(0, inf)},
-	{complex(1.0, nan),
-		NaN()},
-	{complex(inf, 1),
-		complex(math.Pi/2, inf)},
-	{complex(inf, inf),
-		complex(math.Pi/4, inf)},
-	{complex(inf, nan),
-		complex(nan, inf)}, // imaginary sign unspecified
-	{complex(nan, zero),
-		NaN()},
-	{complex(nan, 1),
-		NaN()},
-	{complex(nan, inf),
-		complex(nan, inf)},
-	{NaN(),
-		NaN()},
+var vcAcoshSC = []complex128{
+	NaN(),
 }
-var asinhSC = []struct {
-	in,
-	want complex128
-}{
-	// G.6.2.2
-	{complex(zero, zero),
-		complex(zero, zero)},
-	{complex(1.0, inf),
-		complex(inf, math.Pi/2)},
-	{complex(1.0, nan),
-		NaN()},
-	{complex(inf, 1.0),
-		complex(inf, zero)},
-	{complex(inf, inf),
-		complex(inf, math.Pi/4)},
-	{complex(inf, nan),
-		complex(inf, nan)},
-	{complex(nan, zero),
-		complex(nan, zero)},
-	{complex(nan, 1.0),
-		NaN()},
-	{complex(nan, inf),
-		complex(inf, nan)}, // sign of real part unspecified
-	{NaN(),
-		NaN()},
+var acoshSC = []complex128{
+	NaN(),
 }
-var atanSC = []struct {
-	in,
-	want complex128
-}{
-	// Derived from Atan(z) = -i * Atanh(i * z), G.6 #7
-	{complex(0, zero),
-		complex(0, zero)},
-	{complex(0, nan),
-		NaN()},
-	{complex(1.0, zero),
-		complex(math.Pi/4, zero)},
-	{complex(1.0, inf),
-		complex(math.Pi/2, zero)},
-	{complex(1.0, nan),
-		NaN()},
-	{complex(inf, 1),
-		complex(math.Pi/2, zero)},
-	{complex(inf, inf),
-		complex(math.Pi/2, zero)},
-	{complex(inf, nan),
-		complex(math.Pi/2, zero)},
-	{complex(nan, 1),
-		NaN()},
-	{complex(nan, inf),
-		complex(nan, zero)},
-	{NaN(),
-		NaN()},
+var vcAsinSC = []complex128{
+	NaN(),
 }
-var atanhSC = []struct {
-	in,
-	want complex128
-}{
-	// G.6.2.3
-	{complex(zero, zero),
-		complex(zero, zero)},
-	{complex(zero, nan),
-		complex(zero, nan)},
-	{complex(1.0, zero),
-		complex(inf, zero)},
-	{complex(1.0, inf),
-		complex(0, math.Pi/2)},
-	{complex(1.0, nan),
-		NaN()},
-	{complex(inf, 1.0),
-		complex(zero, math.Pi/2)},
-	{complex(inf, inf),
-		complex(zero, math.Pi/2)},
-	{complex(inf, nan),
-		complex(0, nan)},
-	{complex(nan, 1.0),
-		NaN()},
-	{complex(nan, inf),
-		complex(zero, math.Pi/2)}, // sign of real part not specified.
-	{NaN(),
-		NaN()},
+var asinSC = []complex128{
+	NaN(),
+}
+var vcAsinhSC = []complex128{
+	NaN(),
+}
+var asinhSC = []complex128{
+	NaN(),
+}
+var vcAtanSC = []complex128{
+	NaN(),
+}
+var atanSC = []complex128{
+	NaN(),
+}
+var vcAtanhSC = []complex128{
+	NaN(),
+}
+var atanhSC = []complex128{
+	NaN(),
 }
 var vcConjSC = []complex128{
 	NaN(),
@@ -482,105 +340,23 @@ var vcConjSC = []complex128{
 var conjSC = []complex128{
 	NaN(),
 }
-var cosSC = []struct {
-	in,
-	want complex128
-}{
-	// Derived from Cos(z) = Cosh(i * z), G.6 #7
-	{complex(zero, zero),
-		complex(1.0, -zero)},
-	{complex(zero, inf),
-		complex(inf, -zero)},
-	{complex(zero, nan),
-		complex(nan, zero)}, // imaginary sign unspecified
-	{complex(1.0, inf),
-		complex(inf, -inf)},
-	{complex(1.0, nan),
-		NaN()},
-	{complex(inf, zero),
-		complex(nan, -zero)},
-	{complex(inf, 1.0),
-		NaN()},
-	{complex(inf, inf),
-		complex(inf, nan)}, // real sign unspecified
-	{complex(inf, nan),
-		NaN()},
-	{complex(nan, zero),
-		complex(nan, -zero)}, // imaginary sign unspecified
-	{complex(nan, 1.0),
-		NaN()},
-	{complex(nan, inf),
-		complex(inf, nan)},
-	{NaN(),
-		NaN()},
+var vcCosSC = []complex128{
+	NaN(),
 }
-var coshSC = []struct {
-	in,
-	want complex128
-}{
-	// G.6.2.4
-	{complex(zero, zero),
-		complex(1.0, zero)},
-	{complex(zero, inf),
-		complex(nan, zero)}, // imaginary sign unspecified
-	{complex(zero, nan),
-		complex(nan, zero)}, // imaginary sign unspecified
-	{complex(1.0, inf),
-		NaN()},
-	{complex(1.0, nan),
-		NaN()},
-	{complex(inf, zero),
-		complex(inf, zero)},
-	{complex(inf, 1.0),
-		complex(inf*math.Cos(1.0), inf*math.Sin(1.0))}, // +inf  cis(y)
-	{complex(inf, inf),
-		complex(inf, nan)}, // real sign unspecified
-	{complex(inf, nan),
-		complex(inf, nan)},
-	{complex(nan, zero),
-		complex(nan, zero)}, // imaginary sign unspecified
-	{complex(nan, 1.0),
-		NaN()},
-	{complex(nan, inf),
-		NaN()},
-	{NaN(),
-		NaN()},
+var cosSC = []complex128{
+	NaN(),
 }
-var expSC = []struct {
-	in,
-	want complex128
-}{
-	// G.6.3.1
-	{complex(zero, zero),
-		complex(1.0, zero)},
-	{complex(-zero, zero),
-		complex(1.0, zero)},
-	{complex(1.0, inf),
-		NaN()},
-	{complex(1.0, nan),
-		NaN()},
-	{complex(inf, zero),
-		complex(inf, zero)},
-	{complex(-inf, 1.0),
-		complex(math.Copysign(0.0, math.Cos(1.0)), math.Copysign(0.0, math.Sin(1.0)))}, // +0 cis(y)
-	{complex(inf, 1.0),
-		complex(inf*math.Cos(1.0), inf*math.Sin(1.0))}, // +inf  cis(y)
-	{complex(-inf, inf),
-		complex(zero, zero)}, // real and imaginary sign unspecified
-	{complex(inf, inf),
-		complex(inf, nan)}, // real sign unspecified
-	{complex(-inf, nan),
-		complex(zero, zero)}, // real and imaginary sign unspecified
-	{complex(inf, nan),
-		complex(inf, nan)}, // real sign unspecified
-	{complex(nan, zero),
-		complex(nan, zero)},
-	{complex(nan, 1.0),
-		NaN()},
-	{complex(nan, inf),
-		NaN()},
-	{NaN(),
-		NaN()},
+var vcCoshSC = []complex128{
+	NaN(),
+}
+var coshSC = []complex128{
+	NaN(),
+}
+var vcExpSC = []complex128{
+	NaN(),
+}
+var expSC = []complex128{
+	NaN(),
 }
 var vcIsNaNSC = []complex128{
 	complex(math.Inf(-1), math.Inf(-1)),
@@ -604,70 +380,17 @@ var isNaNSC = []bool{
 	false,
 	true,
 }
-
-var logSC = []struct {
-	in,
-	want complex128
-}{
-	// G.6.3.2
-	{complex(zero, zero),
-		complex(-inf, zero)},
-	{complex(-zero, zero),
-		complex(-inf, math.Pi)},
-	{complex(1.0, inf),
-		complex(inf, math.Pi/2)},
-	{complex(1.0, nan),
-		NaN()},
-	{complex(-inf, 1.0),
-		complex(inf, math.Pi)},
-	{complex(inf, 1.0),
-		complex(inf, 0.0)},
-	{complex(-inf, inf),
-		complex(inf, 3*math.Pi/4)},
-	{complex(inf, inf),
-		complex(inf, math.Pi/4)},
-	{complex(-inf, nan),
-		complex(inf, nan)},
-	{complex(inf, nan),
-		complex(inf, nan)},
-	{complex(nan, 1.0),
-		NaN()},
-	{complex(nan, inf),
-		complex(inf, nan)},
-	{NaN(),
-		NaN()},
+var vcLogSC = []complex128{
+	NaN(),
 }
-var log10SC = []struct {
-	in,
-	want complex128
-}{
-	// derived from Log special cases via Log10(x) = math.Log10E*Log(x)
-	{complex(zero, zero),
-		complex(-inf, zero)},
-	{complex(-zero, zero),
-		complex(-inf, float64(math.Log10E)*float64(math.Pi))},
-	{complex(1.0, inf),
-		complex(inf, float64(math.Log10E)*float64(math.Pi/2))},
-	{complex(1.0, nan),
-		NaN()},
-	{complex(-inf, 1.0),
-		complex(inf, float64(math.Log10E)*float64(math.Pi))},
-	{complex(inf, 1.0),
-		complex(inf, 0.0)},
-	{complex(-inf, inf),
-		complex(inf, float64(math.Log10E)*float64(3*math.Pi/4))},
-	{complex(inf, inf),
-		complex(inf, float64(math.Log10E)*float64(math.Pi/4))},
-	{complex(-inf, nan),
-		complex(inf, nan)},
-	{complex(inf, nan),
-		complex(inf, nan)},
-	{complex(nan, 1.0),
-		NaN()},
-	{complex(nan, inf),
-		complex(inf, nan)},
-	{NaN(),
-		NaN()},
+var logSC = []complex128{
+	NaN(),
+}
+var vcLog10SC = []complex128{
+	NaN(),
+}
+var log10SC = []complex128{
+	NaN(),
 }
 var vcPolarSC = []complex128{
 	NaN(),
@@ -683,153 +406,35 @@ var powSC = []complex128{
 	NaN(),
 	NaN(),
 }
-var sinSC = []struct {
-	in,
-	want complex128
-}{
-	// Derived from Sin(z) = -i * Sinh(i * z), G.6 #7
-	{complex(zero, zero),
-		complex(zero, zero)},
-	{complex(zero, inf),
-		complex(zero, inf)},
-	{complex(zero, nan),
-		complex(zero, nan)},
-	{complex(1.0, inf),
-		complex(inf, inf)},
-	{complex(1.0, nan),
-		NaN()},
-	{complex(inf, zero),
-		complex(nan, zero)},
-	{complex(inf, 1.0),
-		NaN()},
-	{complex(inf, inf),
-		complex(nan, inf)},
-	{complex(inf, nan),
-		NaN()},
-	{complex(nan, zero),
-		complex(nan, zero)},
-	{complex(nan, 1.0),
-		NaN()},
-	{complex(nan, inf),
-		complex(nan, inf)},
-	{NaN(),
-		NaN()},
+var vcSinSC = []complex128{
+	NaN(),
 }
-
-var sinhSC = []struct {
-	in,
-	want complex128
-}{
-	// G.6.2.5
-	{complex(zero, zero),
-		complex(zero, zero)},
-	{complex(zero, inf),
-		complex(zero, nan)}, // real sign unspecified
-	{complex(zero, nan),
-		complex(zero, nan)}, // real sign unspecified
-	{complex(1.0, inf),
-		NaN()},
-	{complex(1.0, nan),
-		NaN()},
-	{complex(inf, zero),
-		complex(inf, zero)},
-	{complex(inf, 1.0),
-		complex(inf*math.Cos(1.0), inf*math.Sin(1.0))}, // +inf  cis(y)
-	{complex(inf, inf),
-		complex(inf, nan)}, // real sign unspecified
-	{complex(inf, nan),
-		complex(inf, nan)}, // real sign unspecified
-	{complex(nan, zero),
-		complex(nan, zero)},
-	{complex(nan, 1.0),
-		NaN()},
-	{complex(nan, inf),
-		NaN()},
-	{NaN(),
-		NaN()},
+var sinSC = []complex128{
+	NaN(),
 }
-
-var sqrtSC = []struct {
-	in,
-	want complex128
-}{
-	// G.6.4.2
-	{complex(zero, zero),
-		complex(zero, zero)},
-	{complex(-zero, zero),
-		complex(zero, zero)},
-	{complex(1.0, inf),
-		complex(inf, inf)},
-	{complex(nan, inf),
-		complex(inf, inf)},
-	{complex(1.0, nan),
-		NaN()},
-	{complex(-inf, 1.0),
-		complex(zero, inf)},
-	{complex(inf, 1.0),
-		complex(inf, zero)},
-	{complex(-inf, nan),
-		complex(nan, inf)}, // imaginary sign unspecified
-	{complex(inf, nan),
-		complex(inf, nan)},
-	{complex(nan, 1.0),
-		NaN()},
-	{NaN(),
-		NaN()},
+var vcSinhSC = []complex128{
+	NaN(),
 }
-var tanSC = []struct {
-	in,
-	want complex128
-}{
-	// Derived from Tan(z) = -i * Tanh(i * z), G.6 #7
-	{complex(zero, zero),
-		complex(zero, zero)},
-	{complex(zero, nan),
-		complex(zero, nan)},
-	{complex(1.0, inf),
-		complex(zero, 1.0)},
-	{complex(1.0, nan),
-		NaN()},
-	{complex(inf, 1.0),
-		NaN()},
-	{complex(inf, inf),
-		complex(zero, 1.0)},
-	{complex(inf, nan),
-		NaN()},
-	{complex(nan, zero),
-		NaN()},
-	{complex(nan, 1.0),
-		NaN()},
-	{complex(nan, inf),
-		complex(zero, 1.0)},
-	{NaN(),
-		NaN()},
+var sinhSC = []complex128{
+	NaN(),
 }
-var tanhSC = []struct {
-	in,
-	want complex128
-}{
-	// G.6.2.6
-	{complex(zero, zero),
-		complex(zero, zero)},
-	{complex(1.0, inf),
-		NaN()},
-	{complex(1.0, nan),
-		NaN()},
-	{complex(inf, 1.0),
-		complex(1.0, math.Copysign(0.0, math.Sin(2*1.0)))}, // 1 + i 0 sin(2y)
-	{complex(inf, inf),
-		complex(1.0, zero)}, // imaginary sign unspecified
-	{complex(inf, nan),
-		complex(1.0, zero)}, // imaginary sign unspecified
-	{complex(nan, zero),
-		complex(nan, zero)},
-	{complex(nan, 1.0),
-		NaN()},
-	{complex(nan, inf),
-		NaN()},
-	{NaN(),
-		NaN()},
+var vcSqrtSC = []complex128{
+	NaN(),
+}
+var sqrtSC = []complex128{
+	NaN(),
+}
+var vcTanSC = []complex128{
+	NaN(),
+}
+var tanSC = []complex128{
+	NaN(),
+}
+var vcTanhSC = []complex128{
+	NaN(),
+}
+var tanhSC = []complex128{
+	NaN(),
 }
 
 // branch cut continuity checks
@@ -891,7 +496,13 @@ func cTolerance(a, b complex128, e float64) bool {
 func cSoclose(a, b complex128, e float64) bool { return cTolerance(a, b, e) }
 func cVeryclose(a, b complex128) bool          { return cTolerance(a, b, 4e-16) }
 func cAlike(a, b complex128) bool {
-	return alike(real(a), real(b)) && alike(imag(a), imag(b))
+	switch {
+	case IsNaN(a) && IsNaN(b):
+		return true
+	case a == b:
+		return math.Signbit(real(a)) == math.Signbit(real(b)) && math.Signbit(imag(a)) == math.Signbit(imag(b))
+	}
+	return false
 }
 
 func TestAbs(t *testing.T) {
@@ -912,13 +523,9 @@ func TestAcos(t *testing.T) {
 			t.Errorf("Acos(%g) = %g, want %g", vc[i], f, acos[i])
 		}
 	}
-	for _, v := range acosSC {
-		if f := Acos(v.in); !cAlike(v.want, f) {
-			t.Errorf("Acos(%g) = %g, want %g", v.in, f, v.want)
-		}
-		// Acos(Conj(z))  == Conj(Acos(z))
-		if f := Acos(Conj(v.in)); !cAlike(Conj(v.want), f) && !cAlike(v.in, Conj(v.in)) {
-			t.Errorf("Acos(%g) = %g, want %g", Conj(v.in), f, Conj(v.want))
+	for i := 0; i < len(vcAcosSC); i++ {
+		if f := Acos(vcAcosSC[i]); !cAlike(acosSC[i], f) {
+			t.Errorf("Acos(%g) = %g, want %g", vcAcosSC[i], f, acosSC[i])
 		}
 	}
 	for _, pt := range branchPoints {
@@ -933,15 +540,10 @@ func TestAcosh(t *testing.T) {
 			t.Errorf("Acosh(%g) = %g, want %g", vc[i], f, acosh[i])
 		}
 	}
-	for _, v := range acoshSC {
-		if f := Acosh(v.in); !cAlike(v.want, f) {
-			t.Errorf("Acosh(%g) = %g, want %g", v.in, f, v.want)
+	for i := 0; i < len(vcAcoshSC); i++ {
+		if f := Acosh(vcAcoshSC[i]); !cAlike(acoshSC[i], f) {
+			t.Errorf("Acosh(%g) = %g, want %g", vcAcoshSC[i], f, acoshSC[i])
 		}
-		// Acosh(Conj(z))  == Conj(Acosh(z))
-		if f := Acosh(Conj(v.in)); !cAlike(Conj(v.want), f) && !cAlike(v.in, Conj(v.in)) {
-			t.Errorf("Acosh(%g) = %g, want %g", Conj(v.in), f, Conj(v.want))
-		}
-
 	}
 	for _, pt := range branchPoints {
 		if f0, f1 := Acosh(pt[0]), Acosh(pt[1]); !cVeryclose(f0, f1) {
@@ -955,21 +557,9 @@ func TestAsin(t *testing.T) {
 			t.Errorf("Asin(%g) = %g, want %g", vc[i], f, asin[i])
 		}
 	}
-	for _, v := range asinSC {
-		if f := Asin(v.in); !cAlike(v.want, f) {
-			t.Errorf("Asin(%g) = %g, want %g", v.in, f, v.want)
-		}
-		if cAlike(-v.in, Conj(v.in)) && !cAlike(-v.want, Conj(v.want)) {
-			// The following conditions can't simultaneously be satisfied for this input.
-			continue
-		}
-		// Asin(Conj(z))  == Asin(Sinh(z))
-		if f := Asin(Conj(v.in)); !cAlike(Conj(v.want), f) && !cAlike(v.in, Conj(v.in)) {
-			t.Errorf("Asin(%g) = %g, want %g", Conj(v.in), f, Conj(v.want))
-		}
-		// Asin(-z)  == -Asin(z)
-		if f := Asin(-v.in); !cAlike(-v.want, f) && !cAlike(v.in, -v.in) {
-			t.Errorf("Asin(%g) = %g, want %g", -v.in, f, -v.want)
+	for i := 0; i < len(vcAsinSC); i++ {
+		if f := Asin(vcAsinSC[i]); !cAlike(asinSC[i], f) {
+			t.Errorf("Asin(%g) = %g, want %g", vcAsinSC[i], f, asinSC[i])
 		}
 	}
 	for _, pt := range branchPoints {
@@ -984,21 +574,9 @@ func TestAsinh(t *testing.T) {
 			t.Errorf("Asinh(%g) = %g, want %g", vc[i], f, asinh[i])
 		}
 	}
-	for _, v := range asinhSC {
-		if f := Asinh(v.in); !cAlike(v.want, f) {
-			t.Errorf("Asinh(%g) = %g, want %g", v.in, f, v.want)
-		}
-		if cAlike(-v.in, Conj(v.in)) && !cAlike(-v.want, Conj(v.want)) {
-			// The following conditions can't simultaneously be satisfied for this input.
-			continue
-		}
-		// Asinh(Conj(z))  == Asinh(Sinh(z))
-		if f := Asinh(Conj(v.in)); !cAlike(Conj(v.want), f) && !cAlike(v.in, Conj(v.in)) {
-			t.Errorf("Asinh(%g) = %g, want %g", Conj(v.in), f, Conj(v.want))
-		}
-		// Asinh(-z)  == -Asinh(z)
-		if f := Asinh(-v.in); !cAlike(-v.want, f) && !cAlike(v.in, -v.in) {
-			t.Errorf("Asinh(%g) = %g, want %g", -v.in, f, -v.want)
+	for i := 0; i < len(vcAsinhSC); i++ {
+		if f := Asinh(vcAsinhSC[i]); !cAlike(asinhSC[i], f) {
+			t.Errorf("Asinh(%g) = %g, want %g", vcAsinhSC[i], f, asinhSC[i])
 		}
 	}
 	for _, pt := range branchPoints {
@@ -1013,21 +591,9 @@ func TestAtan(t *testing.T) {
 			t.Errorf("Atan(%g) = %g, want %g", vc[i], f, atan[i])
 		}
 	}
-	for _, v := range atanSC {
-		if f := Atan(v.in); !cAlike(v.want, f) {
-			t.Errorf("Atan(%g) = %g, want %g", v.in, f, v.want)
-		}
-		if cAlike(-v.in, Conj(v.in)) && !cAlike(-v.want, Conj(v.want)) {
-			// The following conditions can't simultaneously be satisfied for this input.
-			continue
-		}
-		// Atan(Conj(z))  == Conj(Atan(z))
-		if f := Atan(Conj(v.in)); !cAlike(Conj(v.want), f) && !cAlike(v.in, Conj(v.in)) {
-			t.Errorf("Atan(%g) = %g, want %g", Conj(v.in), f, Conj(v.want))
-		}
-		// Atan(-z)  == -Atan(z)
-		if f := Atan(-v.in); !cAlike(-v.want, f) && !cAlike(v.in, -v.in) {
-			t.Errorf("Atan(%g) = %g, want %g", -v.in, f, -v.want)
+	for i := 0; i < len(vcAtanSC); i++ {
+		if f := Atan(vcAtanSC[i]); !cAlike(atanSC[i], f) {
+			t.Errorf("Atan(%g) = %g, want %g", vcAtanSC[i], f, atanSC[i])
 		}
 	}
 	for _, pt := range branchPoints {
@@ -1042,21 +608,9 @@ func TestAtanh(t *testing.T) {
 			t.Errorf("Atanh(%g) = %g, want %g", vc[i], f, atanh[i])
 		}
 	}
-	for _, v := range atanhSC {
-		if f := Atanh(v.in); !cAlike(v.want, f) {
-			t.Errorf("Atanh(%g) = %g, want %g", v.in, f, v.want)
-		}
-		if cAlike(-v.in, Conj(v.in)) && !cAlike(-v.want, Conj(v.want)) {
-			// The following conditions can't simultaneously be satisfied for this input.
-			continue
-		}
-		// Atanh(Conj(z))  == Conj(Atanh(z))
-		if f := Atanh(Conj(v.in)); !cAlike(Conj(v.want), f) && !cAlike(v.in, Conj(v.in)) {
-			t.Errorf("Atanh(%g) = %g, want %g", Conj(v.in), f, Conj(v.want))
-		}
-		// Atanh(-z)  == -Atanh(z)
-		if f := Atanh(-v.in); !cAlike(-v.want, f) && !cAlike(v.in, -v.in) {
-			t.Errorf("Atanh(%g) = %g, want %g", -v.in, f, -v.want)
+	for i := 0; i < len(vcAtanhSC); i++ {
+		if f := Atanh(vcAtanhSC[i]); !cAlike(atanhSC[i], f) {
+			t.Errorf("Atanh(%g) = %g, want %g", vcAtanhSC[i], f, atanhSC[i])
 		}
 	}
 	for _, pt := range branchPoints {
@@ -1083,21 +637,9 @@ func TestCos(t *testing.T) {
 			t.Errorf("Cos(%g) = %g, want %g", vc[i], f, cos[i])
 		}
 	}
-	for _, v := range cosSC {
-		if f := Cos(v.in); !cAlike(v.want, f) {
-			t.Errorf("Cos(%g) = %g, want %g", v.in, f, v.want)
-		}
-		if cAlike(-v.in, Conj(v.in)) && !cAlike(v.want, Conj(v.want)) {
-			// The following conditions can't simultaneously be satisfied for this input.
-			continue
-		}
-		// Cos(Conj(z))  == Cos(Cosh(z))
-		if f := Cos(Conj(v.in)); !cAlike(Conj(v.want), f) && !cAlike(v.in, Conj(v.in)) {
-			t.Errorf("Cos(%g) = %g, want %g", Conj(v.in), f, Conj(v.want))
-		}
-		// Cos(-z)  == Cos(z)
-		if f := Cos(-v.in); !cAlike(v.want, f) && !cAlike(v.in, -v.in) {
-			t.Errorf("Cos(%g) = %g, want %g", -v.in, f, v.want)
+	for i := 0; i < len(vcCosSC); i++ {
+		if f := Cos(vcCosSC[i]); !cAlike(cosSC[i], f) {
+			t.Errorf("Cos(%g) = %g, want %g", vcCosSC[i], f, cosSC[i])
 		}
 	}
 }
@@ -1107,21 +649,9 @@ func TestCosh(t *testing.T) {
 			t.Errorf("Cosh(%g) = %g, want %g", vc[i], f, cosh[i])
 		}
 	}
-	for _, v := range coshSC {
-		if f := Cosh(v.in); !cAlike(v.want, f) {
-			t.Errorf("Cosh(%g) = %g, want %g", v.in, f, v.want)
-		}
-		if cAlike(-v.in, Conj(v.in)) && !cAlike(v.want, Conj(v.want)) {
-			// The following conditions can't simultaneously be satisfied for this input.
-			continue
-		}
-		// Cosh(Conj(z))  == Conj(Cosh(z))
-		if f := Cosh(Conj(v.in)); !cAlike(Conj(v.want), f) && !cAlike(v.in, Conj(v.in)) {
-			t.Errorf("Cosh(%g) = %g, want %g", Conj(v.in), f, Conj(v.want))
-		}
-		// Cosh(-z)  == Cosh(z)
-		if f := Cosh(-v.in); !cAlike(v.want, f) && !cAlike(v.in, -v.in) {
-			t.Errorf("Cosh(%g) = %g, want %g", -v.in, f, v.want)
+	for i := 0; i < len(vcCoshSC); i++ {
+		if f := Cosh(vcCoshSC[i]); !cAlike(coshSC[i], f) {
+			t.Errorf("Cosh(%g) = %g, want %g", vcCoshSC[i], f, coshSC[i])
 		}
 	}
 }
@@ -1131,13 +661,9 @@ func TestExp(t *testing.T) {
 			t.Errorf("Exp(%g) = %g, want %g", vc[i], f, exp[i])
 		}
 	}
-	for _, v := range expSC {
-		if f := Exp(v.in); !cAlike(v.want, f) {
-			t.Errorf("Exp(%g) = %g, want %g", v.in, f, v.want)
-		}
-		// Exp(Conj(z))  == Exp(Cosh(z))
-		if f := Exp(Conj(v.in)); !cAlike(Conj(v.want), f) && !cAlike(v.in, Conj(v.in)) {
-			t.Errorf("Exp(%g) = %g, want %g", Conj(v.in), f, Conj(v.want))
+	for i := 0; i < len(vcExpSC); i++ {
+		if f := Exp(vcExpSC[i]); !cAlike(expSC[i], f) {
+			t.Errorf("Exp(%g) = %g, want %g", vcExpSC[i], f, expSC[i])
 		}
 	}
 }
@@ -1154,13 +680,9 @@ func TestLog(t *testing.T) {
 			t.Errorf("Log(%g) = %g, want %g", vc[i], f, log[i])
 		}
 	}
-	for _, v := range logSC {
-		if f := Log(v.in); !cAlike(v.want, f) {
-			t.Errorf("Log(%g) = %g, want %g", v.in, f, v.want)
-		}
-		// Log(Conj(z))  == Conj(Log(z))
-		if f := Log(Conj(v.in)); !cAlike(Conj(v.want), f) && !cAlike(v.in, Conj(v.in)) {
-			t.Errorf("Log(%g) = %g, want %g", Conj(v.in), f, Conj(v.want))
+	for i := 0; i < len(vcLogSC); i++ {
+		if f := Log(vcLogSC[i]); !cAlike(logSC[i], f) {
+			t.Errorf("Log(%g) = %g, want %g", vcLogSC[i], f, logSC[i])
 		}
 	}
 	for _, pt := range branchPoints {
@@ -1175,13 +697,9 @@ func TestLog10(t *testing.T) {
 			t.Errorf("Log10(%g) = %g, want %g", vc[i], f, log10[i])
 		}
 	}
-	for _, v := range log10SC {
-		if f := Log10(v.in); !cAlike(v.want, f) {
-			t.Errorf("Log10(%g) = %g, want %g", v.in, f, v.want)
-		}
-		// Log10(Conj(z))  == Conj(Log10(z))
-		if f := Log10(Conj(v.in)); !cAlike(Conj(v.want), f) && !cAlike(v.in, Conj(v.in)) {
-			t.Errorf("Log10(%g) = %g, want %g", Conj(v.in), f, Conj(v.want))
+	for i := 0; i < len(vcLog10SC); i++ {
+		if f := Log10(vcLog10SC[i]); !cAlike(log10SC[i], f) {
+			t.Errorf("Log10(%g) = %g, want %g", vcLog10SC[i], f, log10SC[i])
 		}
 	}
 }
@@ -1246,22 +764,9 @@ func TestSin(t *testing.T) {
 			t.Errorf("Sin(%g) = %g, want %g", vc[i], f, sin[i])
 		}
 	}
-	for _, v := range sinSC {
-		if f := Sin(v.in); !cAlike(v.want, f) {
-			t.Errorf("Sin(%g) = %g, want %g", v.in, f, v.want)
-		}
-
-		if cAlike(-v.in, Conj(v.in)) && !cAlike(-v.want, Conj(v.want)) {
-			// The following conditions can't simultaneously be satisfied for this input.
-			continue
-		}
-		// Sin(Conj(z))  == Conj(Sin(z))
-		if f := Sin(Conj(v.in)); !cAlike(Conj(v.want), f) && !cAlike(v.in, Conj(v.in)) {
-			t.Errorf("Sinh(%g) = %g, want %g", Conj(v.in), f, Conj(v.want))
-		}
-		// Sin(-z)  == -Sin(z)
-		if f := Sin(-v.in); !cAlike(-v.want, f) && !cAlike(v.in, -v.in) {
-			t.Errorf("Sinh(%g) = %g, want %g", -v.in, f, -v.want)
+	for i := 0; i < len(vcSinSC); i++ {
+		if f := Sin(vcSinSC[i]); !cAlike(sinSC[i], f) {
+			t.Errorf("Sin(%g) = %g, want %g", vcSinSC[i], f, sinSC[i])
 		}
 	}
 }
@@ -1271,21 +776,9 @@ func TestSinh(t *testing.T) {
 			t.Errorf("Sinh(%g) = %g, want %g", vc[i], f, sinh[i])
 		}
 	}
-	for _, v := range sinhSC {
-		if f := Sinh(v.in); !cAlike(v.want, f) {
-			t.Errorf("Sinh(%g) = %g, want %g", v.in, f, v.want)
-		}
-		if cAlike(-v.in, Conj(v.in)) && !cAlike(-v.want, Conj(v.want)) {
-			// The following conditions can't simultaneously be satisfied for this input.
-			continue
-		}
-		// Sinh(Conj(z))  == Conj(Sinh(z))
-		if f := Sinh(Conj(v.in)); !cAlike(Conj(v.want), f) && !cAlike(v.in, Conj(v.in)) {
-			t.Errorf("Sinh(%g) = %g, want %g", Conj(v.in), f, Conj(v.want))
-		}
-		// Sinh(-z)  == -Sinh(z)
-		if f := Sinh(-v.in); !cAlike(-v.want, f) && !cAlike(v.in, -v.in) {
-			t.Errorf("Sinh(%g) = %g, want %g", -v.in, f, -v.want)
+	for i := 0; i < len(vcSinhSC); i++ {
+		if f := Sinh(vcSinhSC[i]); !cAlike(sinhSC[i], f) {
+			t.Errorf("Sinh(%g) = %g, want %g", vcSinhSC[i], f, sinhSC[i])
 		}
 	}
 }
@@ -1295,13 +788,9 @@ func TestSqrt(t *testing.T) {
 			t.Errorf("Sqrt(%g) = %g, want %g", vc[i], f, sqrt[i])
 		}
 	}
-	for _, v := range sqrtSC {
-		if f := Sqrt(v.in); !cAlike(v.want, f) {
-			t.Errorf("Sqrt(%g) = %g, want %g", v.in, f, v.want)
-		}
-		// Sqrt(Conj(z)) == Conj(Sqrt(z))
-		if f := Sqrt(Conj(v.in)); !cAlike(Conj(v.want), f) && !cAlike(v.in, Conj(v.in)) {
-			t.Errorf("Sqrt(%g) = %g, want %g", Conj(v.in), f, Conj(v.want))
+	for i := 0; i < len(vcSqrtSC); i++ {
+		if f := Sqrt(vcSqrtSC[i]); !cAlike(sqrtSC[i], f) {
+			t.Errorf("Sqrt(%g) = %g, want %g", vcSqrtSC[i], f, sqrtSC[i])
 		}
 	}
 	for _, pt := range branchPoints {
@@ -1316,21 +805,9 @@ func TestTan(t *testing.T) {
 			t.Errorf("Tan(%g) = %g, want %g", vc[i], f, tan[i])
 		}
 	}
-	for _, v := range tanSC {
-		if f := Tan(v.in); !cAlike(v.want, f) {
-			t.Errorf("Tan(%g) = %g, want %g", v.in, f, v.want)
-		}
-		if cAlike(-v.in, Conj(v.in)) && !cAlike(-v.want, Conj(v.want)) {
-			// The following conditions can't simultaneously be satisfied for this input.
-			continue
-		}
-		// Tan(Conj(z))  == Conj(Tan(z))
-		if f := Tan(Conj(v.in)); !cAlike(Conj(v.want), f) && !cAlike(v.in, Conj(v.in)) {
-			t.Errorf("Tan(%g) = %g, want %g", Conj(v.in), f, Conj(v.want))
-		}
-		// Tan(-z)  == -Tan(z)
-		if f := Tan(-v.in); !cAlike(-v.want, f) && !cAlike(v.in, -v.in) {
-			t.Errorf("Tan(%g) = %g, want %g", -v.in, f, -v.want)
+	for i := 0; i < len(vcTanSC); i++ {
+		if f := Tan(vcTanSC[i]); !cAlike(tanSC[i], f) {
+			t.Errorf("Tan(%g) = %g, want %g", vcTanSC[i], f, tanSC[i])
 		}
 	}
 }
@@ -1340,21 +817,9 @@ func TestTanh(t *testing.T) {
 			t.Errorf("Tanh(%g) = %g, want %g", vc[i], f, tanh[i])
 		}
 	}
-	for _, v := range tanhSC {
-		if f := Tanh(v.in); !cAlike(v.want, f) {
-			t.Errorf("Tanh(%g) = %g, want %g", v.in, f, v.want)
-		}
-		if cAlike(-v.in, Conj(v.in)) && !cAlike(-v.want, Conj(v.want)) {
-			// The following conditions can't simultaneously be satisfied for this input.
-			continue
-		}
-		// Tanh(Conj(z))  == Conj(Tanh(z))
-		if f := Tanh(Conj(v.in)); !cAlike(Conj(v.want), f) && !cAlike(v.in, Conj(v.in)) {
-			t.Errorf("Tanh(%g) = %g, want %g", Conj(v.in), f, Conj(v.want))
-		}
-		// Tanh(-z)  == -Tanh(z)
-		if f := Tanh(-v.in); !cAlike(-v.want, f) && !cAlike(v.in, -v.in) {
-			t.Errorf("Tanh(%g) = %g, want %g", -v.in, f, -v.want)
+	for i := 0; i < len(vcTanhSC); i++ {
+		if f := Tanh(vcTanhSC[i]); !cAlike(tanhSC[i], f) {
+			t.Errorf("Tanh(%g) = %g, want %g", vcTanhSC[i], f, tanhSC[i])
 		}
 	}
 }

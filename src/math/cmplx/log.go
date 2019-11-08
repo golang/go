@@ -60,6 +60,5 @@ func Log(x complex128) complex128 {
 
 // Log10 returns the decimal logarithm of x.
 func Log10(x complex128) complex128 {
-	z := Log(x)
-	return complex(math.Log10E*real(z), math.Log10E*imag(z))
+	return math.Log10E * Log(x)
 }

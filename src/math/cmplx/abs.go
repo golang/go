@@ -3,8 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package cmplx provides basic constants and mathematical functions for
-// complex numbers. Special case handling conforms to the C99 standard
-// Annex G IEC 60559-compatible complex arithmetic.
+// complex numbers.
 package cmplx
 
 import "math"
