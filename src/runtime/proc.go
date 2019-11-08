@@ -2753,7 +2753,22 @@ func preemptPark(gp *g) {
 	casGToPreemptScan(gp, _Grunning, _Gscan|_Gpreempted)
 	dropg()
 	casfrom_Gscanstatus(gp, _Gscan|_Gpreempted, _Gpreempted)
+	schedule()
+}
 
+// goyield is like Gosched, but it:
+// - does not emit a GoSched trace event
+// - puts the current G on the runq of the current P instead of the globrunq
+func goyield() {
+	checkTimeouts()
+	mcall(goyield_m)
+}
+
+func goyield_m(gp *g) {
+	pp := gp.m.p.ptr()
+	casgstatus(gp, _Grunning, _Grunnable)
+	dropg()
+	runqput(pp, gp, false)
 	schedule()
 }
 
