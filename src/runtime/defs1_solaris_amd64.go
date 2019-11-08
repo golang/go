@@ -13,6 +13,7 @@ const (
 	_ETIMEDOUT   = 0x91
 	_EWOULDBLOCK = 0xb
 	_EINPROGRESS = 0x96
+	_ENOSYS      = 0x59
 
 	_PROT_NONE  = 0x0
 	_PROT_READ  = 0x1
@@ -91,6 +92,7 @@ const (
 	_MAXHOSTNAMELEN = 0x100
 
 	_O_NONBLOCK = 0x80
+	_O_CLOEXEC  = 0x800000
 	_FD_CLOEXEC = 0x1
 	_F_GETFL    = 0x3
 	_F_SETFL    = 0x4

@@ -16,7 +16,6 @@ var (
 	libc_gethostname,
 	libc_getpid,
 	libc_ioctl,
-	libc_pipe,
 	libc_setgid,
 	libc_setgroups,
 	libc_setsid,

@@ -6,6 +6,11 @@
 
 package runtime
 
+var NonblockingPipe = nonblockingPipe
+var Pipe = pipe
+var SetNonblock = setNonblock
+var Closeonexec = closeonexec
+
 func sigismember(mask *sigset, i int) bool {
 	clear := *mask
 	sigdelset(&clear, i)

@@ -374,6 +374,8 @@ func raiseproc(sig uint32)
 func sched_getaffinity(pid, len uintptr, buf *byte) int32
 func osyield()
 
+func pipe() (r, w int32, errno int32)
+func pipe2(flags int32) (r, w int32, errno int32)
 func setNonblock(fd int32)
 
 //go:nosplit
