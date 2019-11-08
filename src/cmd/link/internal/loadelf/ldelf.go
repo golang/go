@@ -10,6 +10,7 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
 	"encoding/binary"
@@ -451,7 +452,20 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) (found bool, ehdrFlags 
 	return found, ehdrFlags, nil
 }
 
-// Load loads the ELF file pn from f.
+func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string, flags uint32) ([]*sym.Symbol, uint32, error) {
+	newSym := func(name string, version int) *sym.Symbol {
+		return l.LookupOrCreate(name, version, syms)
+	}
+	return load(arch, syms.IncVersion(), newSym, newSym, f, pkg, length, pn, flags)
+}
+
+func LoadOld(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string, flags uint32) ([]*sym.Symbol, uint32, error) {
+	return load(arch, syms.IncVersion(), syms.Newsym, syms.Lookup, f, pkg, length, pn, flags)
+}
+
+type lookupFunc func(string, int) *sym.Symbol
+
+// load loads the ELF file pn from f.
 // Symbols are written into syms, and a slice of the text symbols is returned.
 //
 // On ARM systems, Load will attempt to determine what ELF header flags to
@@ -459,12 +473,11 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) (found bool, ehdrFlags 
 // parameter initEhdrFlags contains the current header flags for the output
 // object, and the returned ehdrFlags contains what this Load function computes.
 // TODO: find a better place for this logic.
-func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string, initEhdrFlags uint32) (textp []*sym.Symbol, ehdrFlags uint32, err error) {
+func load(arch *sys.Arch, localSymVersion int, newSym, lookup lookupFunc, f *bio.Reader, pkg string, length int64, pn string, initEhdrFlags uint32) (textp []*sym.Symbol, ehdrFlags uint32, err error) {
 	errorf := func(str string, args ...interface{}) ([]*sym.Symbol, uint32, error) {
 		return nil, 0, fmt.Errorf("loadelf: %s: %v", pn, fmt.Sprintf(str, args...))
 	}
 
-	localSymVersion := syms.IncVersion()
 	base := f.Offset()
 
 	var hdrbuf [64]uint8
@@ -715,7 +728,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 		}
 		sectsymNames[name] = true
 
-		s := syms.Lookup(name, localSymVersion)
+		s := lookup(name, localSymVersion)
 
 		switch int(sect.flags) & (ElfSectFlagAlloc | ElfSectFlagWrite | ElfSectFlagExec) {
 		default:
@@ -754,7 +767,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 
 	for i := 1; i < elfobj.nsymtab; i++ {
 		var elfsym ElfSym
-		if err := readelfsym(arch, syms, elfobj, i, &elfsym, 1, localSymVersion); err != nil {
+		if err := readelfsym(newSym, lookup, arch, elfobj, i, &elfsym, 1, localSymVersion); err != nil {
 			return errorf("%s: malformed elf file: %v", pn, err)
 		}
 		symbols[i] = elfsym.sym
@@ -925,7 +938,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 				rp.Sym = nil
 			} else {
 				var elfsym ElfSym
-				if err := readelfsym(arch, syms, elfobj, int(info>>32), &elfsym, 0, 0); err != nil {
+				if err := readelfsym(newSym, lookup, arch, elfobj, int(info>>32), &elfsym, 0, 0); err != nil {
 					return errorf("malformed elf file: %v", err)
 				}
 				elfsym.sym = symbols[info>>32]
@@ -1002,7 +1015,7 @@ func elfmap(elfobj *ElfObj, sect *ElfSect) (err error) {
 	return nil
 }
 
-func readelfsym(arch *sys.Arch, syms *sym.Symbols, elfobj *ElfObj, i int, elfsym *ElfSym, needSym int, localSymVersion int) (err error) {
+func readelfsym(newSym, lookup lookupFunc, arch *sys.Arch, elfobj *ElfObj, i int, elfsym *ElfSym, needSym int, localSymVersion int) (err error) {
 	if i >= elfobj.nsymtab || i < 0 {
 		err = fmt.Errorf("invalid elf symbol index")
 		return err
@@ -1052,7 +1065,7 @@ func readelfsym(arch *sys.Arch, syms *sym.Symbols, elfobj *ElfObj, i int, elfsym
 		switch elfsym.bind {
 		case ElfSymBindGlobal:
 			if needSym != 0 {
-				s = syms.Lookup(elfsym.name, 0)
+				s = lookup(elfsym.name, 0)
 
 				// for global scoped hidden symbols we should insert it into
 				// symbol hash table, but mark them as hidden.
@@ -1077,7 +1090,7 @@ func readelfsym(arch *sys.Arch, syms *sym.Symbols, elfobj *ElfObj, i int, elfsym
 				// We need to be able to look this up,
 				// so put it in the hash table.
 				if needSym != 0 {
-					s = syms.Lookup(elfsym.name, localSymVersion)
+					s = lookup(elfsym.name, localSymVersion)
 					s.Attr |= sym.AttrVisibilityHidden
 				}
 
@@ -1088,14 +1101,14 @@ func readelfsym(arch *sys.Arch, syms *sym.Symbols, elfobj *ElfObj, i int, elfsym
 				// local names and hidden global names are unique
 				// and should only be referenced by their index, not name, so we
 				// don't bother to add them into the hash table
-				s = syms.Newsym(elfsym.name, localSymVersion)
+				s = newSym(elfsym.name, localSymVersion)
 
 				s.Attr |= sym.AttrVisibilityHidden
 			}
 
 		case ElfSymBindWeak:
 			if needSym != 0 {
-				s = syms.Lookup(elfsym.name, 0)
+				s = lookup(elfsym.name, 0)
 				if elfsym.other == 2 {
 					s.Attr |= sym.AttrVisibilityHidden
 				}

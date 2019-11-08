@@ -376,3 +376,68 @@ func TestIssue34788Android386TLSSequence(t *testing.T) {
 		}
 	}
 }
+
+const testStrictDupGoSrc = `
+package main
+func f()
+func main() { f() }
+`
+
+const testStrictDupAsmSrc1 = `
+#include "textflag.h"
+TEXT	·f(SB), NOSPLIT|DUPOK, $0-0
+	RET
+`
+
+const testStrictDupAsmSrc2 = `
+#include "textflag.h"
+TEXT	·f(SB), NOSPLIT|DUPOK, $0-0
+	JMP	0(PC)
+`
+
+func TestStrictDup(t *testing.T) {
+	// Check that -strictdups flag works.
+	testenv.MustHaveGoBuild(t)
+
+	tmpdir, err := ioutil.TempDir("", "TestStrictDup")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join(tmpdir, "x.go")
+	err = ioutil.WriteFile(src, []byte(testStrictDupGoSrc), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src = filepath.Join(tmpdir, "a.s")
+	err = ioutil.WriteFile(src, []byte(testStrictDupAsmSrc1), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src = filepath.Join(tmpdir, "b.s")
+	err = ioutil.WriteFile(src, []byte(testStrictDupAsmSrc2), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-strictdups=1")
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("linking with -strictdups=1 failed: %v", err)
+	}
+	if !bytes.Contains(out, []byte("mismatched payload")) {
+		t.Errorf("unexpected output:\n%s", out)
+	}
+
+	cmd = exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-strictdups=2")
+	cmd.Dir = tmpdir
+	out, err = cmd.CombinedOutput()
+	if err == nil {
+		t.Errorf("linking with -strictdups=2 did not fail")
+	}
+	if !bytes.Contains(out, []byte("mismatched payload")) {
+		t.Errorf("unexpected output:\n%s", out)
+	}
+}

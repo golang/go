@@ -422,8 +422,8 @@ func defgotype(ctxt *Link, gotype *sym.Symbol) *sym.Symbol {
 
 func newtype(ctxt *Link, gotype *sym.Symbol) *dwarf.DWDie {
 	name := gotype.Name[5:] // could also decode from Type.string
-	kind := decodetypeKind(ctxt.Arch, gotype)
-	bytesize := decodetypeSize(ctxt.Arch, gotype)
+	kind := decodetypeKind(ctxt.Arch, gotype.P)
+	bytesize := decodetypeSize(ctxt.Arch, gotype.P)
 
 	var die, typedefdie *dwarf.DWDie
 	switch kind {
@@ -488,17 +488,17 @@ func newtype(ctxt *Link, gotype *sym.Symbol) *dwarf.DWDie {
 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_FUNCTYPE, name, 0)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 		typedefdie = dotypedef(ctxt, &dwtypes, name, die)
-		nfields := decodetypeFuncInCount(ctxt.Arch, gotype)
+		nfields := decodetypeFuncInCount(ctxt.Arch, gotype.P)
 		for i := 0; i < nfields; i++ {
 			s := decodetypeFuncInType(ctxt.Arch, gotype, i)
 			fld := newdie(ctxt, die, dwarf.DW_ABRV_FUNCTYPEPARAM, s.Name[5:], 0)
 			newrefattr(fld, dwarf.DW_AT_type, defgotype(ctxt, s))
 		}
 
-		if decodetypeFuncDotdotdot(ctxt.Arch, gotype) {
+		if decodetypeFuncDotdotdot(ctxt.Arch, gotype.P) {
 			newdie(ctxt, die, dwarf.DW_ABRV_DOTDOTDOT, "...", 0)
 		}
-		nfields = decodetypeFuncOutCount(ctxt.Arch, gotype)
+		nfields = decodetypeFuncOutCount(ctxt.Arch, gotype.P)
 		for i := 0; i < nfields; i++ {
 			s := decodetypeFuncOutType(ctxt.Arch, gotype, i)
 			fld := newdie(ctxt, die, dwarf.DW_ABRV_FUNCTYPEPARAM, s.Name[5:], 0)
@@ -508,7 +508,7 @@ func newtype(ctxt *Link, gotype *sym.Symbol) *dwarf.DWDie {
 	case objabi.KindInterface:
 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_IFACETYPE, name, 0)
 		typedefdie = dotypedef(ctxt, &dwtypes, name, die)
-		nfields := int(decodetypeIfaceMethodCount(ctxt.Arch, gotype))
+		nfields := int(decodetypeIfaceMethodCount(ctxt.Arch, gotype.P))
 		var s *sym.Symbol
 		if nfields == 0 {
 			s = lookupOrDiag(ctxt, "type.runtime.eface")
@@ -733,7 +733,7 @@ func synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
 		gotype := getattr(die, dwarf.DW_AT_type).Data.(*sym.Symbol)
 		keytype := decodetypeMapKey(ctxt.Arch, gotype)
 		valtype := decodetypeMapValue(ctxt.Arch, gotype)
-		keysize, valsize := decodetypeSize(ctxt.Arch, keytype), decodetypeSize(ctxt.Arch, valtype)
+		keysize, valsize := decodetypeSize(ctxt.Arch, keytype.P), decodetypeSize(ctxt.Arch, valtype.P)
 		keytype, valtype = walksymtypedef(ctxt, defgotype(ctxt, keytype)), walksymtypedef(ctxt, defgotype(ctxt, valtype))
 
 		// compute size info like hashmap.c does.
