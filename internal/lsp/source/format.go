@@ -277,7 +277,7 @@ func trimToFirstNonImport(fset *token.FileSet, f *ast.File, src []byte) []byte {
 	if firstDecl != nil {
 		end = fset.File(f.Pos()).LineStart(fset.Position(firstDecl.Pos()).Line - 1)
 	}
-	return src[fset.Position(f.Pos()).Offset:fset.Position(end).Offset]
+	return src[0:fset.Position(end).Offset]
 }
 
 // CandidateImports returns every import that could be added to filename.

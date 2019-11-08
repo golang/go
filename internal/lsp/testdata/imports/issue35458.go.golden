@@ -1,0 +1,14 @@
+-- goimports --
+package imports //@import("package")
+
+func _() {
+	println("Hello, world!")
+}
+
+
+
+
+
+
+      
+
