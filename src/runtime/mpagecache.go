@@ -5,7 +5,7 @@
 package runtime
 
 import (
-	"math/bits"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -40,7 +40,7 @@ func (c *pageCache) alloc(npages uintptr) (uintptr, uintptr) {
 		return 0, 0
 	}
 	if npages == 1 {
-		i := uintptr(bits.TrailingZeros64(c.cache))
+		i := uintptr(sys.TrailingZeros64(c.cache))
 		scav := (c.scav >> i) & 1
 		c.cache &^= 1 << i // set bit to mark in-use
 		c.scav &^= 1 << i  // clear bit to mark unscavenged
@@ -61,7 +61,7 @@ func (c *pageCache) allocN(npages uintptr) (uintptr, uintptr) {
 		return 0, 0
 	}
 	mask := ((uint64(1) << npages) - 1) << i
-	scav := bits.OnesCount64(c.scav & mask)
+	scav := sys.OnesCount64(c.scav & mask)
 	c.cache &^= mask // mark in-use bits
 	c.scav &^= mask  // clear scavenged bits
 	return c.base + uintptr(i*pageSize), uintptr(scav) * pageSize

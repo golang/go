@@ -56,8 +56,8 @@
 package runtime
 
 import (
-	"math/bits"
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -637,12 +637,12 @@ func (m *pallocData) findScavengeCandidate(searchIdx uint, min, max uintptr) (ui
 
 	// 1s are scavenged OR non-free => 0s are unscavenged AND free
 	x := fillAligned(m.scavenged[i]|m.pallocBits[i], uint(min))
-	z1 := uint(bits.LeadingZeros64(^x))
+	z1 := uint(sys.LeadingZeros64(^x))
 	run, end := uint(0), uint(i)*64+(64-z1)
 	if x<<z1 != 0 {
 		// After shifting out z1 bits, we still have 1s,
 		// so the run ends inside this word.
-		run = uint(bits.LeadingZeros64(x << z1))
+		run = uint(sys.LeadingZeros64(x << z1))
 	} else {
 		// After shifting out z1 bits, we have no more 1s.
 		// This means the run extends to the bottom of the
@@ -650,7 +650,7 @@ func (m *pallocData) findScavengeCandidate(searchIdx uint, min, max uintptr) (ui
 		run = 64 - z1
 		for j := i - 1; j >= 0; j-- {
 			x := fillAligned(m.scavenged[j]|m.pallocBits[j], uint(min))
-			run += uint(bits.LeadingZeros64(x))
+			run += uint(sys.LeadingZeros64(x))
 			if x != 0 {
 				// The run stopped in this word.
 				break

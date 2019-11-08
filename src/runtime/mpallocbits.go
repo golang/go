@@ -5,7 +5,7 @@
 package runtime
 
 import (
-	"math/bits"
+	"runtime/internal/sys"
 )
 
 // pageBits is a bitmap representing one bit per page in a palloc chunk.
@@ -102,14 +102,14 @@ func (b *pageBits) popcntRange(i, n uint) (s uint) {
 	_ = b[i/64]
 	j := i + n - 1
 	if i/64 == j/64 {
-		return uint(bits.OnesCount64((b[i/64] >> (i % 64)) & ((1 << n) - 1)))
+		return uint(sys.OnesCount64((b[i/64] >> (i % 64)) & ((1 << n) - 1)))
 	}
 	_ = b[j/64]
-	s += uint(bits.OnesCount64(b[i/64] >> (i % 64)))
+	s += uint(sys.OnesCount64(b[i/64] >> (i % 64)))
 	for k := i/64 + 1; k < j/64; k++ {
-		s += uint(bits.OnesCount64(b[k]))
+		s += uint(sys.OnesCount64(b[k]))
 	}
-	s += uint(bits.OnesCount64(b[j/64] & ((1 << (j%64 + 1)) - 1)))
+	s += uint(sys.OnesCount64(b[j/64] & ((1 << (j%64 + 1)) - 1)))
 	return
 }
 
@@ -170,7 +170,7 @@ func (b *pallocBits) summarize() pallocSum {
 			k := uint8(a >> j)
 
 			// Compute start.
-			si := uint(bits.TrailingZeros8(k))
+			si := uint(sys.TrailingZeros8(k))
 			if start == uint(i*64+j) {
 				start += si
 			}
@@ -187,7 +187,7 @@ func (b *pallocBits) summarize() pallocSum {
 			if k == 0 {
 				end += 8
 			} else {
-				end = uint(bits.LeadingZeros8(k))
+				end = uint(sys.LeadingZeros8(k))
 			}
 		}
 	}
@@ -229,7 +229,7 @@ func (b *pallocBits) find1(searchIdx uint) uint {
 		if x == ^uint64(0) {
 			continue
 		}
-		return i*64 + uint(bits.TrailingZeros64(^x))
+		return i*64 + uint(sys.TrailingZeros64(^x))
 	}
 	return ^uint(0)
 }
@@ -254,11 +254,11 @@ func (b *pallocBits) findSmallN(npages uintptr, searchIdx uint) (uint, uint) {
 		}
 		// First see if we can pack our allocation in the trailing
 		// zeros plus the end of the last 64 bits.
-		start := uint(bits.TrailingZeros64(bi))
+		start := uint(sys.TrailingZeros64(bi))
 		if newSearchIdx == ^uint(0) {
 			// The new searchIdx is going to be at these 64 bits after any
 			// 1s we file, so count trailing 1s.
-			newSearchIdx = i*64 + uint(bits.TrailingZeros64(^bi))
+			newSearchIdx = i*64 + uint(sys.TrailingZeros64(^bi))
 		}
 		if end+start >= uint(npages) {
 			return i*64 - end, newSearchIdx
@@ -268,7 +268,7 @@ func (b *pallocBits) findSmallN(npages uintptr, searchIdx uint) (uint, uint) {
 		if j < 64 {
 			return i*64 + j, newSearchIdx
 		}
-		end = uint(bits.LeadingZeros64(bi))
+		end = uint(sys.LeadingZeros64(bi))
 	}
 	return ^uint(0), newSearchIdx
 }
@@ -294,20 +294,20 @@ func (b *pallocBits) findLargeN(npages uintptr, searchIdx uint) (uint, uint) {
 		if newSearchIdx == ^uint(0) {
 			// The new searchIdx is going to be at these 64 bits after any
 			// 1s we file, so count trailing 1s.
-			newSearchIdx = i*64 + uint(bits.TrailingZeros64(^x))
+			newSearchIdx = i*64 + uint(sys.TrailingZeros64(^x))
 		}
 		if size == 0 {
-			size = uint(bits.LeadingZeros64(x))
+			size = uint(sys.LeadingZeros64(x))
 			start = i*64 + 64 - size
 			continue
 		}
-		s := uint(bits.TrailingZeros64(x))
+		s := uint(sys.TrailingZeros64(x))
 		if s+size >= uint(npages) {
 			size += s
 			return start, newSearchIdx
 		}
 		if s < 64 {
-			size = uint(bits.LeadingZeros64(x))
+			size = uint(sys.LeadingZeros64(x))
 			start = i*64 + 64 - size
 			continue
 		}
@@ -356,11 +356,11 @@ func (b *pallocBits) pages64(i uint) uint64 {
 // size n may be found in c, then it returns an integer >= 64.
 func findBitRange64(c uint64, n uint) uint {
 	i := uint(0)
-	cont := uint(bits.TrailingZeros64(^c))
+	cont := uint(sys.TrailingZeros64(^c))
 	for cont < n && i < 64 {
 		i += cont
-		i += uint(bits.TrailingZeros64(c >> i))
-		cont = uint(bits.TrailingZeros64(^(c >> i)))
+		i += uint(sys.TrailingZeros64(c >> i))
+		cont = uint(sys.TrailingZeros64(^(c >> i)))
 	}
 	return i
 }
