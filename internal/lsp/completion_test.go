@@ -125,8 +125,12 @@ func (r *runner) callCompletion(t *testing.T, src span.Span, options source.Comp
 	modified := original
 	modified.InsertTextFormat = protocol.SnippetTextFormat
 	modified.Completion = options
-	view.SetOptions(modified)
-	defer view.SetOptions(original)
+	view, err := view.SetOptions(r.ctx, modified)
+	if err != nil {
+		t.Error(err)
+		return nil
+	}
+	defer view.SetOptions(r.ctx, original)
 
 	list, err := r.server.Completion(r.ctx, &protocol.CompletionParams{
 		TextDocumentPositionParams: protocol.TextDocumentPositionParams{

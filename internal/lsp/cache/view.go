@@ -12,6 +12,7 @@ import (
 	"go/token"
 	"os"
 	"os/exec"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -103,8 +104,26 @@ func (v *view) Options() source.Options {
 	return v.options
 }
 
-func (v *view) SetOptions(options source.Options) {
-	v.options = options
+func minorOptionsChange(a, b source.Options) bool {
+	// Check if any of the settings that modify our understanding of files have been changed
+	if !reflect.DeepEqual(a.Env, b.Env) {
+		return false
+	}
+	if !reflect.DeepEqual(a.BuildFlags, b.BuildFlags) {
+		return false
+	}
+	// the rest of the options are benign
+	return true
+}
+
+func (v *view) SetOptions(ctx context.Context, options source.Options) (source.View, error) {
+	// no need to rebuild the view if the options were not materially changed
+	if minorOptionsChange(v.options, options) {
+		v.options = options
+		return v, nil
+	}
+	newView, err := v.session.updateView(ctx, v, options)
+	return newView, err
 }
 
 // Config returns the configuration used for the view's interaction with the

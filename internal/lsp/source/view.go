@@ -237,9 +237,10 @@ type View interface {
 	Options() Options
 
 	// SetOptions sets the options of this view to new values.
-	// Warning: Do not use this, unless in a test.
-	// This function does not correctly invalidate the view when needed.
-	SetOptions(Options)
+	// Calling this may cause the view to be invalidated and a replacement view
+	// added to the session. If so the new view will be returned, otherwise the
+	// original one will be.
+	SetOptions(context.Context, Options) (View, error)
 
 	// CheckPackageHandles returns the CheckPackageHandles for the packages
 	// that this file belongs to.

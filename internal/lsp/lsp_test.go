@@ -104,7 +104,11 @@ func (r *runner) FoldingRanges(t *testing.T, spn span.Span) {
 
 	// Test all folding ranges.
 	modified.LineFoldingOnly = false
-	view.SetOptions(modified)
+	view, err := view.SetOptions(r.ctx, modified)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	ranges, err := r.server.FoldingRange(r.ctx, &protocol.FoldingRangeParams{
 		TextDocument: protocol.TextDocumentIdentifier{
 			URI: protocol.NewURI(uri),
@@ -118,7 +122,11 @@ func (r *runner) FoldingRanges(t *testing.T, spn span.Span) {
 
 	// Test folding ranges with lineFoldingOnly = true.
 	modified.LineFoldingOnly = true
-	view.SetOptions(modified)
+	view, err = view.SetOptions(r.ctx, modified)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	ranges, err = r.server.FoldingRange(r.ctx, &protocol.FoldingRangeParams{
 		TextDocument: protocol.TextDocumentIdentifier{
 			URI: protocol.NewURI(uri),
@@ -129,7 +137,7 @@ func (r *runner) FoldingRanges(t *testing.T, spn span.Span) {
 		return
 	}
 	r.foldingRanges(t, "foldingRange-lineFolding", uri, ranges)
-	view.SetOptions(original)
+	view.SetOptions(r.ctx, original)
 }
 
 func (r *runner) foldingRanges(t *testing.T, prefix string, uri span.URI, ranges []protocol.FoldingRange) {

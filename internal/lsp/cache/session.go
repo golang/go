@@ -80,9 +80,20 @@ func (s *session) Cache() source.Cache {
 }
 
 func (s *session) NewView(ctx context.Context, name string, folder span.URI, options source.Options) (source.View, error) {
-	index := atomic.AddInt64(&viewIndex, 1)
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
+	v, err := s.createView(ctx, name, folder, options)
+	if err != nil {
+		return nil, err
+	}
+	s.views = append(s.views, v)
+	// we always need to drop the view map
+	s.viewMap = make(map[span.URI]source.View)
+	return v, nil
+}
+
+func (s *session) createView(ctx context.Context, name string, folder span.URI, options source.Options) (*view, error) {
+	index := atomic.AddInt64(&viewIndex, 1)
 	// We want a true background context and not a detached context here
 	// the spans need to be unrelated and no tag values should pollute it.
 	baseCtx := trace.Detach(xcontext.Detach(ctx))
@@ -141,10 +152,6 @@ func (s *session) NewView(ctx context.Context, name string, folder span.URI, opt
 			return nil, err
 		}
 	}
-
-	s.views = append(s.views, v)
-	// we always need to drop the view map
-	s.viewMap = make(map[span.URI]source.View)
 	debug.AddView(debugView{v})
 	return v, loadErr
 }
@@ -223,20 +230,51 @@ func (s *session) bestView(uri span.URI) source.View {
 func (s *session) removeView(ctx context.Context, view *view) error {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
+	i, err := s.dropView(ctx, view)
+	if err != nil {
+		return err
+	}
+	// delete this view... we don't care about order but we do want to make
+	// sure we can garbage collect the view
+	s.views[i] = s.views[len(s.views)-1]
+	s.views[len(s.views)-1] = nil
+	s.views = s.views[:len(s.views)-1]
+	return nil
+}
+
+func (s *session) updateView(ctx context.Context, view *view, options source.Options) (*view, error) {
+	s.viewMu.Lock()
+	defer s.viewMu.Unlock()
+	i, err := s.dropView(ctx, view)
+	if err != nil {
+		return nil, err
+	}
+	v, err := s.createView(ctx, view.name, view.folder, options)
+	if err != nil {
+		// we have dropped the old view, but could not create the new one
+		// this should not happen and is very bad, but we still need to clean
+		// up the view array if it happens
+		s.views[i] = s.views[len(s.views)-1]
+		s.views[len(s.views)-1] = nil
+		s.views = s.views[:len(s.views)-1]
+	}
+	// substitute the new view into the array where the old view was
+	s.views[i] = v
+	return v, nil
+}
+
+func (s *session) dropView(ctx context.Context, view *view) (int, error) {
 	// we always need to drop the view map
 	s.viewMap = make(map[span.URI]source.View)
 	for i, v := range s.views {
 		if view == v {
-			// delete this view... we don't care about order but we do want to make
-			// sure we can garbage collect the view
-			s.views[i] = s.views[len(s.views)-1]
-			s.views[len(s.views)-1] = nil
-			s.views = s.views[:len(s.views)-1]
+			// we found the view, drop it and return the index it was found at
+			s.views[i] = nil
 			v.shutdown(ctx)
-			return nil
+			return i, nil
 		}
 	}
-	return errors.Errorf("view %s for %v not found", view.Name(), view.Folder())
+	return -1, errors.Errorf("view %s for %v not found", view.Name(), view.Folder())
 }
 
 // TODO: Propagate the language ID through to the view.
