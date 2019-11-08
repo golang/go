@@ -245,11 +245,12 @@ var (
 	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", objabi.GOPPC64))
 	GOWASM   = envOr("GOWASM", fmt.Sprint(objabi.GOWASM))
 
-	GOPROXY   = envOr("GOPROXY", "https://proxy.golang.org,direct")
-	GOSUMDB   = envOr("GOSUMDB", "sum.golang.org")
-	GOPRIVATE = Getenv("GOPRIVATE")
-	GONOPROXY = envOr("GONOPROXY", GOPRIVATE)
-	GONOSUMDB = envOr("GONOSUMDB", GOPRIVATE)
+	GOPROXY    = envOr("GOPROXY", "https://proxy.golang.org,direct")
+	GOSUMDB    = envOr("GOSUMDB", "sum.golang.org")
+	GOPRIVATE  = Getenv("GOPRIVATE")
+	GONOPROXY  = envOr("GONOPROXY", GOPRIVATE)
+	GONOSUMDB  = envOr("GONOSUMDB", GOPRIVATE)
+	GOINSECURE = Getenv("GOINSECURE")
 )
 
 // GetArchEnv returns the name and setting of the
