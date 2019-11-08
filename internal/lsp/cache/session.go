@@ -126,9 +126,10 @@ func (s *session) NewView(ctx context.Context, name string, folder span.URI, opt
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock() // The code after the snapshot is used isn't expensive.
 	m, err := v.snapshot.load(ctx, source.DirectoryURI(folder))
-	if err != nil {
+	if err != nil && err != errNoPackagesFound {
 		return nil, err
 	}
+
 	// Prepare CheckPackageHandles for every package that's been loaded.
 	// (*snapshot).CheckPackageHandle makes the assumption that every package that's
 	// been loaded has an existing checkPackageHandle.

@@ -33,6 +33,8 @@ type metadata struct {
 	config *packages.Config
 }
 
+var errNoPackagesFound = errors.New("no packages found for query")
+
 func (s *snapshot) load(ctx context.Context, scope source.Scope) ([]*metadata, error) {
 	uri := scope.URI()
 	var query string
@@ -62,11 +64,10 @@ func (s *snapshot) load(ctx context.Context, scope source.Scope) ([]*metadata, e
 		return nil, errors.Errorf("no metadata for %s: %v", uri, err)
 	}
 	log.Print(ctx, "go/packages.Load", tag.Of("packages", len(pkgs)))
-	if len(pkgs) == 0 {
+	if _, ok := scope.(source.FileURI); len(pkgs) == 0 && ok {
 		if err == nil {
-			err = errors.Errorf("go/packages.Load: no packages found for %s", query)
+			err = errNoPackagesFound
 		}
-		// Return this error as a diagnostic to the user.
 		return nil, err
 	}
 	m, prevMissingImports, err := s.updateMetadata(ctx, scope, pkgs, cfg)
