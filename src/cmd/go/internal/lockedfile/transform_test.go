@@ -10,8 +10,10 @@ package lockedfile_test
 import (
 	"bytes"
 	"encoding/binary"
+	"internal/testenv"
 	"math/rand"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -35,6 +37,10 @@ func roundDownToPowerOf2(x int) int {
 }
 
 func TestTransform(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		testenv.SkipFlaky(t, 35471)
+	}
+
 	dir, remove := mustTempDir(t)
 	defer remove()
 	path := filepath.Join(dir, "blob.bin")
