@@ -7,8 +7,28 @@ package windows
 import (
 	"sync"
 	"syscall"
+	"unicode/utf16"
 	"unsafe"
 )
+
+// UTF16PtrToString is like UTF16ToString, but takes *uint16
+// as a parameter instead of []uint16.
+// max is how many times p can be advanced looking for the null terminator.
+// If max is hit, the string is truncated at that point.
+func UTF16PtrToString(p *uint16, max int) string {
+	if p == nil {
+		return ""
+	}
+	// Find NUL terminator.
+	end := unsafe.Pointer(p)
+	n := 0
+	for *(*uint16)(end) != 0 && n < max {
+		end = unsafe.Pointer(uintptr(end) + unsafe.Sizeof(*p))
+		n++
+	}
+	s := (*[(1 << 30) - 1]uint16)(unsafe.Pointer(p))[:n:n]
+	return string(utf16.Decode(s))
+}
 
 const (
 	ERROR_SHARING_VIOLATION      syscall.Errno = 32
