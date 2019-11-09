@@ -151,6 +151,12 @@ func TestMemoryProfiler(t *testing.T) {
 				t.Fatalf("No matching stack entry for %q\n\nProfile:\n%v\n", test.stk, p)
 			}
 		}
+
+		if !containsInlinedCall(TestMemoryProfiler, 4<<10) {
+			t.Logf("Can't determine whether allocateTransient2MInline was inlined into TestMemoryProfiler.")
+			return
+		}
+
 		// Check the inlined function location is encoded correctly.
 		for _, loc := range p.Location {
 			inlinedCaller, inlinedCallee := false, false
