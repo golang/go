@@ -16,6 +16,7 @@ import (
 	"math/big"
 	"os"
 	"os/exec"
+	"reflect"
 	"regexp"
 	"runtime"
 	"runtime/pprof/internal/profile"
@@ -104,7 +105,44 @@ func TestCPUProfileMultithreaded(t *testing.T) {
 	})
 }
 
+// containsInlinedCall reports whether the function body for the function f is
+// known to contain an inlined function call within the first maxBytes bytes.
+func containsInlinedCall(f interface{}, maxBytes int) bool {
+	rf := reflect.ValueOf(f)
+	if rf.Kind() != reflect.Func {
+		panic(fmt.Sprintf("%T is not a function", f))
+	}
+	fFunc := runtime.FuncForPC(rf.Pointer())
+	if fFunc == nil || fFunc.Entry() == 0 {
+		panic("failed to locate function entry")
+	}
+
+	for offset := 0; offset < maxBytes; offset++ {
+		inner := runtime.FuncForPC(fFunc.Entry() + uintptr(offset))
+		if inner == nil {
+			// No function known for this PC value.
+			// It might simply be misaligned, so keep searching.
+			continue
+		}
+		if inner.Entry() != fFunc.Entry() {
+			// Scanned past f and didn't find any inlined functions.
+			break
+		}
+		if inner.Name() != fFunc.Name() {
+			// This PC has f as its entry-point, but is not f. Therefore, it must be a
+			// function inlined into f.
+			return true
+		}
+	}
+
+	return false
+}
+
 func TestCPUProfileInlining(t *testing.T) {
+	if !containsInlinedCall(inlinedCaller, 4<<10) {
+		t.Skipf("Can't determine whether inlinedCallee was inlined into inlinedCaller.")
+	}
+
 	p := testCPUProfile(t, stackContains, []string{"runtime/pprof.inlinedCallee", "runtime/pprof.inlinedCaller"}, avoidFunctions(), func(dur time.Duration) {
 		cpuHogger(inlinedCaller, &salt1, dur)
 	})
