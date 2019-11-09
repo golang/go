@@ -602,9 +602,10 @@ func (m *pallocData) hasScavengeCandidate(min uintptr) bool {
 // findScavengeCandidate effectively returns entire free and unscavenged regions.
 // If max < pallocChunkPages, it may truncate the returned region such that size is
 // max. However, findScavengeCandidate may still return a larger region if, for
-// example, it chooses to preserve huge pages. That is, even if max is small,
-// size is not guaranteed to be equal to max. max is allowed to be less than min,
-// in which case it is as if max == min.
+// example, it chooses to preserve huge pages, or if max is not aligned to min (it
+// will round up). That is, even if max is small, the returned size is not guaranteed
+// to be equal to max. max is allowed to be less than min, in which case it is as if
+// max == min.
 func (m *pallocData) findScavengeCandidate(searchIdx uint, min, max uintptr) (uint, uint) {
 	if min&(min-1) != 0 || min == 0 {
 		print("runtime: min = ", min, "\n")
@@ -613,10 +614,15 @@ func (m *pallocData) findScavengeCandidate(searchIdx uint, min, max uintptr) (ui
 		print("runtime: min = ", min, "\n")
 		throw("min too large")
 	}
-	// max is allowed to be less than min, but we need to ensure
-	// we never truncate further than min.
-	if max < min {
+	// max may not be min-aligned, so we might accidentally truncate to
+	// a max value which causes us to return a non-min-aligned value.
+	// To prevent this, align max up to a multiple of min (which is always
+	// a power of 2). This also prevents max from ever being less than
+	// min, unless it's zero, so handle that explicitly.
+	if max == 0 {
 		max = min
+	} else {
+		max = alignUp(max, min)
 	}
 
 	i := int(searchIdx / 64)
