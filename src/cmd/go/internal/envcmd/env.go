@@ -8,6 +8,7 @@ package envcmd
 import (
 	"encoding/json"
 	"fmt"
+	"go/build"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -249,6 +250,21 @@ func runEnv(cmd *base.Command, args []string) {
 				fmt.Fprintf(os.Stderr, "warning: go env -w %s=... does not override conflicting OS environment variable\n", key)
 			}
 		}
+
+		goos, okGOOS := add["GOOS"]
+		goarch, okGOARCH := add["GOARCH"]
+		if okGOOS || okGOARCH {
+			if !okGOOS {
+				goos = cfg.Goos
+			}
+			if !okGOARCH {
+				goarch = cfg.Goarch
+			}
+			if err := work.CheckGOOSARCHPair(goos, goarch); err != nil {
+				base.Fatalf("go env -w: %v", err)
+			}
+		}
+
 		updateEnvFile(add, nil)
 		return
 	}
@@ -264,6 +280,24 @@ func runEnv(cmd *base.Command, args []string) {
 				base.Fatalf("go env -u: %v", err)
 			}
 			del[arg] = true
+		}
+		if del["GOOS"] || del["GOARCH"] {
+			goos, goarch := cfg.Goos, cfg.Goarch
+			if del["GOOS"] {
+				goos = getOrigEnv("GOOS")
+				if goos == "" {
+					goos = build.Default.GOOS
+				}
+			}
+			if del["GOARCH"] {
+				goarch = getOrigEnv("GOARCH")
+				if goarch == "" {
+					goarch = build.Default.GOARCH
+				}
+			}
+			if err := work.CheckGOOSARCHPair(goos, goarch); err != nil {
+				base.Fatalf("go env -u: %v", err)
+			}
 		}
 		updateEnvFile(nil, del)
 		return
@@ -329,6 +363,15 @@ func printEnvAsJSON(env []cfg.EnvVar) {
 	if err := enc.Encode(m); err != nil {
 		base.Fatalf("go env -json: %s", err)
 	}
+}
+
+func getOrigEnv(key string) string {
+	for _, v := range cfg.OrigEnv {
+		if strings.HasPrefix(v, key+"=") {
+			return strings.TrimPrefix(v, key+"=")
+		}
+	}
+	return ""
 }
 
 func checkEnvWrite(key, val string) error {
