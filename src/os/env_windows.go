@@ -23,16 +23,20 @@ func environForSysProcAttr(sys *syscall.SysProcAttr) (env []string, err error) {
 	defer windows.DestroyEnvironmentBlock(block)
 	blockp := uintptr(unsafe.Pointer(block))
 	for {
-		entry := (*[(1 << 30) - 1]uint16)(unsafe.Pointer(blockp))[:]
-		for i, v := range entry {
-			if v == 0 {
-				entry = entry[:i]
-				break
-			}
+
+		// find NUL terminator
+		end := unsafe.Pointer(blockp)
+		for *(*uint16)(end) != 0 {
+			end = unsafe.Pointer(uintptr(end) + 2)
 		}
-		if len(entry) == 0 {
+
+		n := (uintptr(end) - uintptr(unsafe.Pointer(blockp))) / 2
+		if n == 0 {
+			// environment block ends with empty string
 			break
 		}
+
+		entry := (*[(1 << 30) - 1]uint16)(unsafe.Pointer(blockp))[:n:n]
 		env = append(env, string(utf16.Decode(entry)))
 		blockp += 2 * (uintptr(len(entry)) + 1)
 	}

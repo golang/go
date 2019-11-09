@@ -151,7 +151,7 @@ var pkgDeps = map[string][]string{
 	"syscall/js":                        {"L0"},
 	"internal/oserror":                  {"L0"},
 	"internal/syscall/unix":             {"L0", "syscall"},
-	"internal/syscall/windows":          {"L0", "syscall", "internal/syscall/windows/sysdll"},
+	"internal/syscall/windows":          {"L0", "syscall", "internal/syscall/windows/sysdll", "unicode/utf16"},
 	"internal/syscall/windows/registry": {"L0", "syscall", "internal/syscall/windows/sysdll", "unicode/utf16"},
 	"time": {
 		// "L0" without the "io" package:
