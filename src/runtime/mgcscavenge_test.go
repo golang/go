@@ -184,6 +184,12 @@ func TestPallocDataFindScavengeCandidate(t *testing.T) {
 			max:       3 * m,
 			want:      BitRange{128, 3 * uint(m)},
 		}
+		tests["Max0"+suffix] = test{
+			scavenged: []BitRange{{0, PallocChunkPages - uint(m)}},
+			min:       m,
+			max:       0,
+			want:      BitRange{PallocChunkPages - uint(m), uint(m)},
+		}
 		if m <= 8 {
 			tests["OneFree"] = test{
 				alloc: []BitRange{{0, 40}, {40 + uint(m), PallocChunkPages - (40 + uint(m))}},
@@ -200,6 +206,12 @@ func TestPallocDataFindScavengeCandidate(t *testing.T) {
 			}
 		}
 		if m > 1 {
+			tests["MaxUnaligned"+suffix] = test{
+				scavenged: []BitRange{{0, PallocChunkPages - uint(m*2-1)}},
+				min:       m,
+				max:       m - 2,
+				want:      BitRange{PallocChunkPages - uint(m), uint(m)},
+			}
 			tests["SkipSmall"+suffix] = test{
 				alloc: []BitRange{{0, 64 - uint(m)}, {64, 5}, {70, 11}, {82, PallocChunkPages - 82}},
 				min:   m,
