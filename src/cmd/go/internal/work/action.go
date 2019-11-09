@@ -249,49 +249,7 @@ func (b *Builder) Init() {
 	if cfg.BuildN {
 		b.WorkDir = "$WORK"
 	} else {
-		goTmpDir := cfg.Getenv("GOTMPDIR")
-		if err := os.MkdirAll(goTmpDir, 0777); err != nil {
-			fatalf("failed to create GOTMPDIR at %s: %s\n", goTmpDir, err)
-		}
-		tmp, err := ioutil.TempDir(goTmpDir, "go-build")
-		if err != nil {
-			base.Fatalf("go: creating work dir: %v", err)
-		}
-		if !filepath.IsAbs(tmp) {
-			abs, err := filepath.Abs(tmp)
-			if err != nil {
-				os.RemoveAll(tmp)
-				base.Fatalf("go: creating work dir: %v", err)
-			}
-			tmp = abs
-		}
-		b.WorkDir = tmp
-		if cfg.BuildX || cfg.BuildWork {
-			fmt.Fprintf(os.Stderr, "WORK=%s\n", b.WorkDir)
-		}
-		if !cfg.BuildWork {
-			workdir := b.WorkDir
-			base.AtExit(func() {
-				start := time.Now()
-				for {
-					err := os.RemoveAll(workdir)
-					if err == nil {
-						return
-					}
-
-					// On some configurations of Windows, directories containing executable
-					// files may be locked for a while after the executable exits (perhaps
-					// due to antivirus scans?). It's probably worth a little extra latency
-					// on exit to avoid filling up the user's temporary directory with leaked
-					// files. (See golang.org/issue/30789.)
-					if runtime.GOOS != "windows" || time.Since(start) >= 500*time.Millisecond {
-						fmt.Fprintf(os.Stderr, "go: failed to remove work dir: %s\n", err)
-						return
-					}
-					time.Sleep(5 * time.Millisecond)
-				}
-			})
-		}
+		b.initWorkDir()
 	}
 
 	if err := CheckGOOSARCHPair(cfg.Goos, cfg.Goarch); err != nil {
@@ -314,6 +272,58 @@ func CheckGOOSARCHPair(goos, goarch string) error {
 		return fmt.Errorf("unsupported GOOS/GOARCH pair %s/%s", goos, goarch)
 	}
 	return nil
+}
+
+// initWorkDir prepares GOTMPDIR env specified (if empty a random Temp Dir)
+// as Builder's WorkDir, also provides clean-up instructions.
+func (b *Builder) initWorkDir() {
+	goTmpDir := cfg.Getenv("GOTMPDIR")
+	if err := os.MkdirAll(goTmpDir, 0777); err != nil {
+		// To manage cases where even if GOTMPDIR
+		// is set but not to a writeable path.
+		goTmpDir = ""
+	}
+
+	tmp, err := ioutil.TempDir(goTmpDir, "go-build")
+	if err != nil {
+		base.Fatalf("go: creating work dir: %v", err)
+	}
+	if !filepath.IsAbs(tmp) {
+		abs, err := filepath.Abs(tmp)
+		if err != nil {
+			os.RemoveAll(tmp)
+			base.Fatalf("go: creating work dir: %v", err)
+		}
+		tmp = abs
+	}
+	b.WorkDir = tmp
+
+	if cfg.BuildX || cfg.BuildWork {
+		fmt.Fprintf(os.Stderr, "WORK=%s\n", b.WorkDir)
+	}
+	if !cfg.BuildWork {
+		workdir := b.WorkDir
+		base.AtExit(func() {
+			start := time.Now()
+			for {
+				err := os.RemoveAll(workdir)
+				if err == nil {
+					return
+				}
+
+				// On some configurations of Windows, directories containing executable
+				// files may be locked for a while after the executable exits (perhaps
+				// due to antivirus scans?). It's probably worth a little extra latency
+				// on exit to avoid filling up the user's temporary directory with leaked
+				// files. (See golang.org/issue/30789.)
+				if runtime.GOOS != "windows" || time.Since(start) >= 500*time.Millisecond {
+					fmt.Fprintf(os.Stderr, "go: failed to remove work dir: %s\n", err)
+					return
+				}
+				time.Sleep(5 * time.Millisecond)
+			}
+		})
+	}
 }
 
 // NewObjdir returns the name of a fresh object directory under b.WorkDir.
