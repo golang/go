@@ -142,6 +142,7 @@ func (app *Application) commands() []tool.Application {
 		&app.Serve,
 		&bug{},
 		&check{app: app},
+		&foldingRanges{app: app},
 		&format{app: app},
 		&links{app: app},
 		&imports{app: app},

@@ -273,7 +273,7 @@ func (r *runner) callCompletion(t *testing.T, src span.Span, options source.Comp
 	return prefix, tests.ToProtocolCompletionItems(items)
 }
 
-func (r *runner) FoldingRange(t *testing.T, spn span.Span) {
+func (r *runner) FoldingRanges(t *testing.T, spn span.Span) {
 	uri := spn.URI()
 
 	f, err := r.view.GetFile(r.ctx, uri)

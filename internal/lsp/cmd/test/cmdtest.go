@@ -65,10 +65,6 @@ func (r *runner) RankCompletion(t *testing.T, src span.Span, test tests.Completi
 	//TODO: add command line completions tests when it works
 }
 
-func (r *runner) FoldingRange(t *testing.T, spn span.Span) {
-	//TODO: add command line folding range tests when it works
-}
-
 func (r *runner) Highlight(t *testing.T, name string, locations []span.Span) {
 	//TODO: add command line highlight tests when it works
 }

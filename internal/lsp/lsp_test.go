@@ -96,7 +96,7 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnosti
 	}
 }
 
-func (r *runner) FoldingRange(t *testing.T, spn span.Span) {
+func (r *runner) FoldingRanges(t *testing.T, spn span.Span) {
 	uri := spn.URI()
 	view := r.server.session.ViewOf(uri)
 	original := view.Options()

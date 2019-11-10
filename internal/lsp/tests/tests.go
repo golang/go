@@ -107,7 +107,7 @@ type Tests interface {
 	FuzzyCompletion(*testing.T, span.Span, Completion, CompletionItems)
 	CaseSensitiveCompletion(*testing.T, span.Span, Completion, CompletionItems)
 	RankCompletion(*testing.T, span.Span, Completion, CompletionItems)
-	FoldingRange(*testing.T, span.Span)
+	FoldingRanges(*testing.T, span.Span)
 	Format(*testing.T, span.Span)
 	Import(*testing.T, span.Span)
 	SuggestedFix(*testing.T, span.Span)
@@ -422,7 +422,7 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		for _, spn := range data.FoldingRanges {
 			t.Run(uriName(spn.URI()), func(t *testing.T) {
 				t.Helper()
-				tests.FoldingRange(t, spn)
+				tests.FoldingRanges(t, spn)
 			})
 		}
 	})

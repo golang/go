@@ -44,6 +44,16 @@ func badBar() string { x := true
 	return
 }
 
+-- foldingRange-cmd --
+3:9-5:0
+7:9-8:8
+11:13-11:12
+11:23-18:0
+12:8-15:1
+14:15-14:20
+15:10-16:23
+16:15-16:21
+
 -- foldingRange-imports-0 --
 package folding //@fold("package")
 
