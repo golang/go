@@ -46,18 +46,14 @@ var parseIPTests = []struct {
 
 func TestParseIP(t *testing.T) {
 	for _, tt := range parseIPTests {
-		out := ParseIP(tt.in)
-		if !reflect.DeepEqual(out, tt.out) {
+		if out := ParseIP(tt.in); !reflect.DeepEqual(out, tt.out) {
 			t.Errorf("ParseIP(%q) = %v, want %v", tt.in, out, tt.out)
-		}
-		if exp, got := cap(out), len(out); exp != got {
-			t.Fatalf("ParseIP(%q) cap %v; want %v", tt.in, exp, got)
 		}
 		if tt.in == "" {
 			// Tested in TestMarshalEmptyIP below.
 			continue
 		}
-		out = nil
+		var out IP
 		if err := out.UnmarshalText([]byte(tt.in)); !reflect.DeepEqual(out, tt.out) || (tt.out == nil) != (err != nil) {
 			t.Errorf("IP.UnmarshalText(%q) = %v, %v, want %v", tt.in, out, err, tt.out)
 		}
@@ -111,7 +107,6 @@ func BenchmarkParseIP(b *testing.B) {
 	testHookUninstaller.Do(uninstallTestHooks)
 
 	for i := 0; i < b.N; i++ {
-		b.ReportAllocs()
 		for _, tt := range parseIPTests {
 			ParseIP(tt.in)
 		}
@@ -371,39 +366,10 @@ func TestParseCIDR(t *testing.T) {
 		if !reflect.DeepEqual(err, tt.err) {
 			t.Errorf("ParseCIDR(%q) = %v, %v; want %v, %v", tt.in, ip, net, tt.ip, tt.net)
 		}
-		if err != nil {
-			continue
-		}
-		if !tt.ip.Equal(ip) || !tt.net.IP.Equal(net.IP) || !reflect.DeepEqual(net.Mask, tt.net.Mask) {
+		if err == nil && (!tt.ip.Equal(ip) || !tt.net.IP.Equal(net.IP) || !reflect.DeepEqual(net.Mask, tt.net.Mask)) {
 			t.Errorf("ParseCIDR(%q) = %v, {%v, %v}; want %v, {%v, %v}", tt.in, ip, net.IP, net.Mask, tt.ip, tt.net.IP, tt.net.Mask)
 		}
-		if exp, got := cap(ip), len(ip); exp != got {
-			t.Fatalf("ParseCIDR(%q) ip cap %v; want %v", tt.in, exp, got)
-		}
-		if exp, got := cap(net.IP), len(net.IP); exp != got {
-			t.Fatalf("ParseCIDR(%q) net.IP cap %v; want %v", tt.in, exp, got)
-		}
-		if exp, got := cap(net.Mask), len(net.Mask); exp != got {
-			t.Fatalf("ParseCIDR(%q) net.Mask cap %v; want %v", tt.in, exp, got)
-		}
 	}
-}
-
-func BenchmarkParseCIDR(b *testing.B) {
-	testHookUninstaller.Do(uninstallTestHooks)
-
-	b.Run("IPv4", func(b *testing.B) {
-		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
-			ParseCIDR("135.104.0.1/24")
-		}
-	})
-	b.Run("IPv6", func(b *testing.B) {
-		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
-			ParseCIDR("2001:DB8::1/48")
-		}
-	})
 }
 
 var ipNetContainsTests = []struct {
