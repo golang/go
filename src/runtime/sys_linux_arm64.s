@@ -239,10 +239,14 @@ noswitch:
 	// so don't bother saving g.
 	// When using cgo, we already saved g on TLS, also don't save
 	// g here.
+	// Also don't save g if we are already on the signal stack.
+	// We won't get a nested signal.
 	MOVBU	runtime·iscgo(SB), R22
 	CBNZ	R22, nosaveg
 	MOVD	m_gsignal(R21), R22          // g.m.gsignal
 	CBZ	R22, nosaveg
+	CMP	g, R22
+	BEQ	nosaveg
 	MOVD	(g_stack+stack_lo)(R22), R22 // g.m.gsignal.stack.lo
 	MOVD	g, (R22)
 
@@ -303,10 +307,14 @@ noswitch:
 	// so don't bother saving g.
 	// When using cgo, we already saved g on TLS, also don't save
 	// g here.
+	// Also don't save g if we are already on the signal stack.
+	// We won't get a nested signal.
 	MOVBU	runtime·iscgo(SB), R22
 	CBNZ	R22, nosaveg
 	MOVD	m_gsignal(R21), R22          // g.m.gsignal
 	CBZ	R22, nosaveg
+	CMP	g, R22
+	BEQ	nosaveg
 	MOVD	(g_stack+stack_lo)(R22), R22 // g.m.gsignal.stack.lo
 	MOVD	g, (R22)
 
