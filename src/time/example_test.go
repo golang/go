@@ -167,8 +167,8 @@ func statusUpdate() string { return "" }
 
 func ExampleTick() {
 	c := time.Tick(5 * time.Second)
-	for now := range c {
-		fmt.Printf("%v %s\n", now, statusUpdate())
+	for next := range c {
+		fmt.Printf("%v %s\n", next, statusUpdate())
 	}
 }
 
