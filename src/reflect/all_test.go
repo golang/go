@@ -3380,12 +3380,12 @@ type MyFunc func()
 type MyByte byte
 
 type IntChan chan int
-type IntChanRcv <-chan int
-type IntChanSnd chan<- int
+type IntChanRecv <-chan int
+type IntChanSend chan<- int
 type NoDup *NoDup
 type NoDupChan chan NoDup
-type NoDupChanRcv <-chan NoDup
-type NoDupChanSnd chan<- NoDup
+type NoDupChanRecv <-chan NoDup
+type NoDupChanSend chan<- NoDup
 
 var convertTests = []struct {
 	in  Value
@@ -3735,11 +3735,11 @@ var convertTests = []struct {
 	{V((chan byte)(nil)), V((chan byte)(nil))},
 	{V((chan MyByte)(nil)), V((chan MyByte)(nil))},
 	{V(NoDupChan(nil)), V(NoDupChan(nil))},
-	{V(NoDupChanRcv(nil)), V(NoDupChanRcv(nil))},
-	{V(NoDupChanSnd(nil)), V(NoDupChanSnd(nil))},
+	{V(NoDupChanRecv(nil)), V(NoDupChanRecv(nil))},
+	{V(NoDupChanSend(nil)), V(NoDupChanSend(nil))},
 	{V((*NoDupChan)(nil)), V((*NoDupChan)(nil))},
-	{V((*NoDupChanRcv)(nil)), V((*NoDupChanRcv)(nil))},
-	{V((*NoDupChanSnd)(nil)), V((*NoDupChanSnd)(nil))},
+	{V((*NoDupChanRecv)(nil)), V((*NoDupChanRecv)(nil))},
+	{V((*NoDupChanSend)(nil)), V((*NoDupChanSend)(nil))},
 	{V(([]byte)(nil)), V(([]byte)(nil))},
 	{V(([]MyByte)(nil)), V(([]MyByte)(nil))},
 	{V((map[int]byte)(nil)), V((map[int]byte)(nil))},
@@ -3752,12 +3752,12 @@ var convertTests = []struct {
 	// channel
 	{V(IntChan(nil)), V((chan<- int)(nil))},
 	{V(IntChan(nil)), V((<-chan int)(nil))},
-	{V((chan int)(nil)), V(IntChanRcv(nil))},
-	{V((chan int)(nil)), V(IntChanSnd(nil))},
-	{V(IntChanRcv(nil)), V((<-chan int)(nil))},
-	{V((<-chan int)(nil)), V(IntChanRcv(nil))},
-	{V(IntChanSnd(nil)), V((chan<- int)(nil))},
-	{V((chan<- int)(nil)), V(IntChanSnd(nil))},
+	{V((chan int)(nil)), V(IntChanRecv(nil))},
+	{V((chan int)(nil)), V(IntChanSend(nil))},
+	{V(IntChanRecv(nil)), V((<-chan int)(nil))},
+	{V((<-chan int)(nil)), V(IntChanRecv(nil))},
+	{V(IntChanSend(nil)), V((chan<- int)(nil))},
+	{V((chan<- int)(nil)), V(IntChanSend(nil))},
 	{V(IntChan(nil)), V((chan int)(nil))},
 	{V((chan int)(nil)), V(IntChan(nil))},
 	{V((chan int)(nil)), V((<-chan int)(nil))},
