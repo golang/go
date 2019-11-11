@@ -5704,14 +5704,6 @@ func TestInstallDeps(t *testing.T) {
 	tg.mustExist(p1)
 }
 
-func TestFmtLoadErrors(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.runFail("fmt", "does-not-exist")
-	tg.run("fmt", "-n", "exclude")
-}
-
 func TestGoTestMinusN(t *testing.T) {
 	// Intent here is to verify that 'go test -n' works without crashing.
 	// This reuses flag_test.go, but really any test would do.
