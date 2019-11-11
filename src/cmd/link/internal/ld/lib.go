@@ -42,7 +42,6 @@ import (
 	"cmd/link/internal/loadmacho"
 	"cmd/link/internal/loadpe"
 	"cmd/link/internal/loadxcoff"
-	"cmd/link/internal/objfile"
 	"cmd/link/internal/sym"
 	"crypto/sha1"
 	"debug/elf"
@@ -380,18 +379,16 @@ func (ctxt *Link) findLibPath(libname string) string {
 }
 
 func (ctxt *Link) loadlib() {
-	if *flagNewobj {
-		var flags uint32
-		switch *FlagStrictDups {
-		case 0:
-			// nothing to do
-		case 1, 2:
-			flags = loader.FlagStrictDups
-		default:
-			log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
-		}
-		ctxt.loader = loader.NewLoader(flags)
+	var flags uint32
+	switch *FlagStrictDups {
+	case 0:
+		// nothing to do
+	case 1, 2:
+		flags = loader.FlagStrictDups
+	default:
+		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
 	}
+	ctxt.loader = loader.NewLoader(flags)
 
 	ctxt.cgo_export_static = make(map[string]bool)
 	ctxt.cgo_export_dynamic = make(map[string]bool)
@@ -426,13 +423,8 @@ func (ctxt *Link) loadlib() {
 		}
 	}
 
-	if *flagNewobj {
-		iscgo = ctxt.loader.Lookup("x_cgo_init", 0) != 0
-		ctxt.canUsePlugins = ctxt.loader.Lookup("plugin.Open", sym.SymVerABIInternal) != 0
-	} else {
-		iscgo = ctxt.Syms.ROLookup("x_cgo_init", 0) != nil
-		ctxt.canUsePlugins = ctxt.Syms.ROLookup("plugin.Open", sym.SymVerABIInternal) != nil
-	}
+	iscgo = ctxt.loader.Lookup("x_cgo_init", 0) != 0
+	ctxt.canUsePlugins = ctxt.loader.Lookup("plugin.Open", sym.SymVerABIInternal) != 0
 
 	// We now have enough information to determine the link mode.
 	determineLinkMode(ctxt)
@@ -464,18 +456,16 @@ func (ctxt *Link) loadlib() {
 	}
 
 	if ctxt.LinkMode == LinkInternal && len(hostobj) != 0 {
-		if *flagNewobj {
-			// In newobj mode, we typically create sym.Symbols later therefore
-			// also set cgo attributes later. However, for internal cgo linking,
-			// the host object loaders still work with sym.Symbols (for now),
-			// and they need cgo attributes set to work properly. So process
-			// them now.
-			lookup := func(name string, ver int) *sym.Symbol { return ctxt.loader.LookupOrCreate(name, ver, ctxt.Syms) }
-			for _, d := range ctxt.cgodata {
-				setCgoAttr(ctxt, lookup, d.file, d.pkg, d.directives)
-			}
-			ctxt.cgodata = nil
+		// In newobj mode, we typically create sym.Symbols later therefore
+		// also set cgo attributes later. However, for internal cgo linking,
+		// the host object loaders still work with sym.Symbols (for now),
+		// and they need cgo attributes set to work properly. So process
+		// them now.
+		lookup := func(name string, ver int) *sym.Symbol { return ctxt.loader.LookupOrCreate(name, ver, ctxt.Syms) }
+		for _, d := range ctxt.cgodata {
+			setCgoAttr(ctxt, lookup, d.file, d.pkg, d.directives)
 		}
+		ctxt.cgodata = nil
 
 		// Drop all the cgo_import_static declarations.
 		// Turns out we won't be needing them.
@@ -498,15 +488,8 @@ func (ctxt *Link) loadlib() {
 	hostobjs(ctxt)
 	hostlinksetup(ctxt)
 
-	if *flagNewobj {
-		// Add references of externally defined symbols.
-		ctxt.loader.LoadRefs(ctxt.Arch, ctxt.Syms)
-	}
-
-	// Now that we know the link mode, set the dynexp list.
-	if !*flagNewobj { // set this later in newobj mode
-		setupdynexp(ctxt)
-	}
+	// Add references of externally defined symbols.
+	ctxt.loader.LoadRefs(ctxt.Arch, ctxt.Syms)
 
 	if ctxt.LinkMode == LinkInternal && len(hostobj) != 0 {
 		// If we have any undefined symbols in external
@@ -563,9 +546,7 @@ func (ctxt *Link) loadlib() {
 
 	importcycles()
 
-	if *flagNewobj {
-		strictDupMsgCount = ctxt.loader.NStrictDupMsgs()
-	}
+	strictDupMsgCount = ctxt.loader.NStrictDupMsgs()
 }
 
 // Set up dynexp list.
@@ -1825,24 +1806,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	ldpkg(ctxt, f, lib, import1-import0-2, pn) // -2 for !\n
 	f.MustSeek(import1, 0)
 
-	flags := 0
-	switch *FlagStrictDups {
-	case 0:
-		break
-	case 1:
-		flags = objfile.StrictDupsWarnFlag
-	case 2:
-		flags = objfile.StrictDupsErrFlag
-	default:
-		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
-	}
-	var c int
-	if *flagNewobj {
-		ctxt.loader.Preload(ctxt.Arch, ctxt.Syms, f, lib, unit, eof-f.Offset(), pn, flags)
-	} else {
-		c = objfile.Load(ctxt.Arch, ctxt.Syms, f, lib, unit, eof-f.Offset(), pn, flags)
-	}
-	strictDupMsgCount += c
+	ctxt.loader.Preload(ctxt.Arch, ctxt.Syms, f, lib, unit, eof-f.Offset(), pn, 0)
 	addImports(ctxt, lib, pn)
 	return nil
 }
@@ -1996,17 +1960,13 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 			ver = sym.SymVerABIInternal
 		}
 
-		var lsym *sym.Symbol
-		if *flagNewobj {
-			i := ctxt.loader.AddExtSym(elfsym.Name, ver)
-			if i == 0 {
-				continue
-			}
-			lsym = ctxt.Syms.Newsym(elfsym.Name, ver)
-			ctxt.loader.Syms[i] = lsym
-		} else {
-			lsym = ctxt.Syms.Lookup(elfsym.Name, ver)
+		i := ctxt.loader.AddExtSym(elfsym.Name, ver)
+		if i == 0 {
+			continue
 		}
+		lsym := ctxt.Syms.Newsym(elfsym.Name, ver)
+		ctxt.loader.Syms[i] = lsym
+
 		// Because loadlib above loads all .a files before loading any shared
 		// libraries, any non-dynimport symbols we find that duplicate symbols
 		// already loaded should be ignored (the symbols from the .a files
@@ -2035,17 +1995,12 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		// mangle Go function names in the .so to include the
 		// ABI.
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
-			var alias *sym.Symbol
-			if *flagNewobj {
-				i := ctxt.loader.AddExtSym(elfsym.Name, sym.SymVerABIInternal)
-				if i == 0 {
-					continue
-				}
-				alias = ctxt.Syms.Newsym(elfsym.Name, sym.SymVerABIInternal)
-				ctxt.loader.Syms[i] = alias
-			} else {
-				alias = ctxt.Syms.Lookup(elfsym.Name, sym.SymVerABIInternal)
+			i := ctxt.loader.AddExtSym(elfsym.Name, sym.SymVerABIInternal)
+			if i == 0 {
+				continue
 			}
+			alias := ctxt.Syms.Newsym(elfsym.Name, sym.SymVerABIInternal)
+			ctxt.loader.Syms[i] = alias
 			if alias.Type != 0 {
 				continue
 			}
