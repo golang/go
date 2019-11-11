@@ -64,10 +64,12 @@ func (s *snapshot) load(ctx context.Context, scope source.Scope) ([]*metadata, e
 		return nil, errors.Errorf("no metadata for %s: %v", uri, err)
 	}
 	log.Print(ctx, "go/packages.Load", tag.Of("packages", len(pkgs)))
-	if _, ok := scope.(source.FileURI); len(pkgs) == 0 && ok {
+	if len(pkgs) == 0 {
 		if err == nil {
 			err = errNoPackagesFound
 		}
+	}
+	if err != nil {
 		return nil, err
 	}
 	m, prevMissingImports, err := s.updateMetadata(ctx, scope, pkgs, cfg)

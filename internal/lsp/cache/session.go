@@ -6,6 +6,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -126,8 +127,9 @@ func (s *session) NewView(ctx context.Context, name string, folder span.URI, opt
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock() // The code after the snapshot is used isn't expensive.
 	m, err := v.snapshot.load(ctx, source.DirectoryURI(folder))
+	var loadErr error
 	if err != nil && err != errNoPackagesFound {
-		return nil, err
+		loadErr = fmt.Errorf("Error loading packages: %v", err)
 	}
 
 	// Prepare CheckPackageHandles for every package that's been loaded.
@@ -144,7 +146,7 @@ func (s *session) NewView(ctx context.Context, name string, folder span.URI, opt
 	// we always need to drop the view map
 	s.viewMap = make(map[span.URI]source.View)
 	debug.AddView(debugView{v})
-	return v, nil
+	return v, loadErr
 }
 
 // View returns the view by name.
