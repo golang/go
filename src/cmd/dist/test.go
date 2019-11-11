@@ -1007,13 +1007,31 @@ func (t *tester) registerHostTest(name, heading, dir, pkg string) {
 }
 
 func (t *tester) runHostTest(dir, pkg string) error {
-	defer os.Remove(filepath.Join(goroot, dir, "test.test"))
-	cmd := t.dirCmd(dir, t.goTest(), "-c", "-o", "test.test", pkg)
+	out, err := exec.Command("go", "env", "GOEXE", "GOTMPDIR").Output()
+	if err != nil {
+		return err
+	}
+
+	parts := strings.Split(string(out), "\n")
+	if len(parts) < 2 {
+		return fmt.Errorf("'go env GOEXE GOTMPDIR' output contains <2 lines")
+	}
+	GOEXE := strings.TrimSpace(parts[0])
+	GOTMPDIR := strings.TrimSpace(parts[1])
+
+	f, err := ioutil.TempFile(GOTMPDIR, "test.test-*"+GOEXE)
+	if err != nil {
+		return err
+	}
+	f.Close()
+	defer os.Remove(f.Name())
+
+	cmd := t.dirCmd(dir, t.goTest(), "-c", "-o", f.Name(), pkg)
 	cmd.Env = append(os.Environ(), "GOARCH="+gohostarch, "GOOS="+gohostos)
 	if err := cmd.Run(); err != nil {
 		return err
 	}
-	return t.dirCmd(dir, "./test.test", "-test.short").Run()
+	return t.dirCmd(dir, f.Name(), "-test.short").Run()
 }
 
 func (t *tester) cgoTest(dt *distTest) error {
