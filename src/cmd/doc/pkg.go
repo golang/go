@@ -53,14 +53,18 @@ type pkgBuffer struct {
 }
 
 func (pb *pkgBuffer) Write(p []byte) (int, error) {
-	if !pb.printed && len(p) > 0 {
+	pb.packageClause()
+	return pb.Buffer.Write(p)
+}
+
+func (pb *pkgBuffer) packageClause() {
+	if !pb.printed {
 		pb.printed = true
 		// Only show package clause for commands if requested explicitly.
 		if pb.pkg.pkg.Name != "main" || showCmd {
 			pb.pkg.packageClause()
 		}
 	}
-	return pb.Buffer.Write(p)
 }
 
 type PackageError string // type returned by pkg.Fatalf.
@@ -210,6 +214,8 @@ func (pkg *Package) Printf(format string, args ...interface{}) {
 }
 
 func (pkg *Package) flush() {
+	// Print the package clause in case it wasn't written already.
+	pkg.buf.packageClause()
 	_, err := pkg.writer.Write(pkg.buf.Bytes())
 	if err != nil {
 		log.Fatal(err)

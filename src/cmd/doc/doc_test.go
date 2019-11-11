@@ -211,6 +211,13 @@ var tests = []test{
 			`func \(unexportedType\)`,
 		},
 	},
+	// Package with just the package declaration. Issue 31457.
+	{
+		"only package declaration",
+		[]string{"-all", p + "/nested/empty"},
+		[]string{`package empty .*import`},
+		nil,
+	},
 	// Package dump -short
 	{
 		"full package with -short",
