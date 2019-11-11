@@ -310,7 +310,8 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 		for _, e := range rawErrors {
 			srcErr, err := sourceError(ctx, fset, pkg, e)
 			if err != nil {
-				return nil, err
+				log.Error(ctx, "unable to compute error positions", err, telemetry.Package.Of(pkg.ID()))
+				continue
 			}
 			pkg.errors = append(pkg.errors, srcErr)
 		}
