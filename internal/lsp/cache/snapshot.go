@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"sync"
 
@@ -9,6 +10,7 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/telemetry/log"
 )
 
 type snapshot struct {
@@ -96,6 +98,29 @@ func (s *snapshot) getPackages(uri source.FileURI, m source.ParseMode) (cphs []s
 		}
 	}
 	return cphs
+}
+
+func (s *snapshot) KnownPackages(ctx context.Context) []source.Package {
+	// TODO(matloob): This function exists because KnownImportPaths can't
+	// determine the import paths of all packages. Remove this function
+	// if KnownImportPaths gains that ability. That could happen if
+	// go list or go packages provide that information.
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var results []source.Package
+	for _, cph := range s.packages {
+		// Check the package now if it's not checked yet.
+		// TODO(matloob): is this too slow?
+		pkg, err := cph.check(ctx)
+		if err != nil {
+			log.Error(ctx, fmt.Sprintf("cph.Check of %v", cph.m.pkgPath), err)
+			continue
+		}
+		results = append(results, pkg)
+	}
+
+	return results
 }
 
 func (s *snapshot) KnownImportPaths() map[string]source.Package {

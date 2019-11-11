@@ -32,10 +32,21 @@ func Implementation(ctx context.Context, view View, f File, position protocol.Po
 	}
 
 	var objs []types.Object
+	pkgs := map[types.Object]Package{}
 
 	if res.toMethod != nil {
 		// If we looked up a method, results are in toMethod.
 		for _, s := range res.toMethod {
+			// Determine package of receiver.
+			recv := s.Recv()
+			if p, ok := recv.(*types.Pointer); ok {
+				recv = p.Elem()
+			}
+			if n, ok := recv.(*types.Named); ok {
+				pkg := res.pkgs[n]
+				pkgs[s.Obj()] = pkg
+			}
+			// Add object to objs.
 			objs = append(objs, s.Obj())
 		}
 	} else {
@@ -46,26 +57,49 @@ func Implementation(ctx context.Context, view View, f File, position protocol.Po
 				t = p.Elem()
 			}
 			if n, ok := t.(*types.Named); ok {
+				pkg := res.pkgs[n]
 				objs = append(objs, n.Obj())
+				pkgs[n.Obj()] = pkg
 			}
 		}
 	}
 
 	var locations []protocol.Location
-	ph, pkg, err := view.FindFileInPackage(ctx, f.URI(), ident.pkg)
-	if err != nil {
-		return nil, err
-	}
-	af, _, _, err := ph.Cached()
-	if err != nil {
-		return nil, err
-	}
 
 	for _, obj := range objs {
-		ident, err := findIdentifier(ctx, view.Snapshot(), pkg, af, obj.Pos())
+		pkg := pkgs[obj]
+		if pkgs[obj] == nil || len(pkg.Files()) == 0 {
+			continue
+		}
+		// Search for the identifier in each of the package's files.
+		var ident *IdentifierInfo
+
+		fset := view.Session().Cache().FileSet()
+		file := fset.File(obj.Pos())
+		var containingFile FileHandle
+		for _, f := range pkg.Files() {
+			if f.File().Identity().URI.Filename() == file.Name() {
+				containingFile = f.File()
+			}
+		}
+		if containingFile == nil {
+			return nil, fmt.Errorf("Failed to find file %q in package %v", file.Name(), pkg.PkgPath())
+		}
+
+		uri := containingFile.Identity().URI
+		ph, _, err := view.FindFileInPackage(ctx, uri, pkgs[obj])
 		if err != nil {
 			return nil, err
 		}
+		astFile, _, _, err := ph.Cached()
+		if err != nil {
+			return nil, err
+		}
+		ident, err = findIdentifier(ctx, view.Snapshot(), pkg, astFile, obj.Pos())
+		if err != nil {
+			return nil, err
+		}
+
 		decRange, err := ident.Declaration.Range()
 		if err != nil {
 			return nil, err
@@ -102,11 +136,15 @@ func (i *IdentifierInfo) implementations(ctx context.Context) (implementsResult,
 	// We ignore aliases 'type M = N' to avoid duplicate
 	// reporting of the Named type N.
 	var allNamed []*types.Named
-	info := i.pkg.GetTypesInfo()
-	for _, obj := range info.Defs {
-		if obj, ok := obj.(*types.TypeName); ok && !obj.IsAlias() {
-			if named, ok := obj.Type().(*types.Named); ok {
-				allNamed = append(allNamed, named)
+	pkgs := map[*types.Named]Package{}
+	for _, pkg := range i.Snapshot.KnownPackages(ctx) {
+		info := pkg.GetTypesInfo()
+		for _, obj := range info.Defs {
+			if obj, ok := obj.(*types.TypeName); ok && !obj.IsAlias() {
+				if named, ok := obj.Type().(*types.Named); ok {
+					allNamed = append(allNamed, named)
+					pkgs[named] = pkg
+				}
 			}
 		}
 	}
@@ -173,11 +211,12 @@ func (i *IdentifierInfo) implementations(ctx context.Context) (implementsResult,
 		}
 	}
 
-	return implementsResult{to, from, fromPtr, toMethod}, nil
+	return implementsResult{pkgs, to, from, fromPtr, toMethod}, nil
 }
 
 // implementsResult contains the results of an implements query.
 type implementsResult struct {
+	pkgs     map[*types.Named]Package
 	to       []types.Type // named or ptr-to-named types assignable to interface T
 	from     []types.Type // named interfaces assignable from T
 	fromPtr  []types.Type // named interfaces assignable only from *T
