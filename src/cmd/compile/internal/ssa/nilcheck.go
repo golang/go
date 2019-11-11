@@ -15,7 +15,7 @@ func nilcheckelim(f *Func) {
 	// A nil check is redundant if the same nil check was successful in a
 	// dominating block. The efficacy of this pass depends heavily on the
 	// efficacy of the cse pass.
-	sdom := f.sdom()
+	sdom := f.Sdom()
 
 	// TODO: Eliminate more nil checks.
 	// We can recursively remove any chain of fixed offset calculations,

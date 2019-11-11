@@ -83,6 +83,8 @@ var regNamesPPC64 = []string{
 	"F30",
 	"F31",
 
+	// If you add registers, update asyncPreempt in runtime.
+
 	// "CR0",
 	// "CR1",
 	// "CR2",
@@ -447,6 +449,7 @@ func init() {
 			clobberFlags:   true,
 			typ:            "Mem",
 			faultOnNilArg0: true,
+			unsafePoint:    true,
 		},
 		// R31 is temp register
 		// Loop code:
@@ -493,6 +496,7 @@ func init() {
 			typ:            "Mem",
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
+			unsafePoint:    true,
 		},
 
 		{name: "LoweredAtomicStore8", argLength: 3, reg: gpstore, typ: "Mem", aux: "Int64", faultOnNilArg0: true, hasSideEffects: true},

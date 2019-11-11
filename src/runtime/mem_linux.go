@@ -70,11 +70,11 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 		var head, tail uintptr
 		if uintptr(v)&(physHugePageSize-1) != 0 {
 			// Compute huge page containing v.
-			head = uintptr(v) &^ (physHugePageSize - 1)
+			head = alignDown(uintptr(v), physHugePageSize)
 		}
 		if (uintptr(v)+n)&(physHugePageSize-1) != 0 {
 			// Compute huge page containing v+n-1.
-			tail = (uintptr(v) + n - 1) &^ (physHugePageSize - 1)
+			tail = alignDown(uintptr(v)+n-1, physHugePageSize)
 		}
 
 		// Note that madvise will return EINVAL if the flag is
@@ -131,9 +131,9 @@ func sysUsed(v unsafe.Pointer, n uintptr) {
 func sysHugePage(v unsafe.Pointer, n uintptr) {
 	if physHugePageSize != 0 {
 		// Round v up to a huge page boundary.
-		beg := (uintptr(v) + (physHugePageSize - 1)) &^ (physHugePageSize - 1)
+		beg := alignUp(uintptr(v), physHugePageSize)
 		// Round v+n down to a huge page boundary.
-		end := (uintptr(v) + n) &^ (physHugePageSize - 1)
+		end := alignDown(uintptr(v)+n, physHugePageSize)
 
 		if beg < end {
 			madvise(unsafe.Pointer(beg), end-beg, _MADV_HUGEPAGE)

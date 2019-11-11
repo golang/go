@@ -19,11 +19,13 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/par"
 	"cmd/go/internal/renameio"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/sumdb/dirhash"
+	modzip "golang.org/x/mod/zip"
 )
 
 var downloadCache par.Cache
@@ -112,8 +114,7 @@ func download(mod module.Version, dir string) (err error) {
 		}
 	}()
 
-	modpath := mod.Path + "@" + mod.Version
-	if err := Unzip(tmpDir, zipfile, modpath, 0); err != nil {
+	if err := modzip.Unzip(tmpDir, mod, zipfile); err != nil {
 		fmt.Fprintf(os.Stderr, "-> %s\n", err)
 		return err
 	}
@@ -265,6 +266,45 @@ func downloadZip(mod module.Version, zipfile string) (err error) {
 	return nil
 }
 
+// makeDirsReadOnly makes a best-effort attempt to remove write permissions for dir
+// and its transitive contents.
+func makeDirsReadOnly(dir string) {
+	type pathMode struct {
+		path string
+		mode os.FileMode
+	}
+	var dirs []pathMode // in lexical order
+	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err == nil && info.Mode()&0222 != 0 {
+			if info.IsDir() {
+				dirs = append(dirs, pathMode{path, info.Mode()})
+			}
+		}
+		return nil
+	})
+
+	// Run over list backward to chmod children before parents.
+	for i := len(dirs) - 1; i >= 0; i-- {
+		os.Chmod(dirs[i].path, dirs[i].mode&^0222)
+	}
+}
+
+// RemoveAll removes a directory written by Download or Unzip, first applying
+// any permission changes needed to do so.
+func RemoveAll(dir string) error {
+	// Module cache has 0555 directories; make them writable in order to remove content.
+	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // ignore errors walking in file system
+		}
+		if info.IsDir() {
+			os.Chmod(path, 0777)
+		}
+		return nil
+	})
+	return os.RemoveAll(dir)
+}
+
 var GoSumFile string // path to go.sum; set by package modload
 
 type modSum struct {
@@ -296,7 +336,7 @@ func initGoSum() (bool, error) {
 
 	goSum.m = make(map[module.Version][]string)
 	goSum.checked = make(map[modSum]bool)
-	data, err := renameio.ReadFile(GoSumFile)
+	data, err := lockedfile.Read(GoSumFile)
 	if err != nil && !os.IsNotExist(err) {
 		return false, err
 	}
@@ -529,60 +569,45 @@ func WriteGoSum() {
 		base.Fatalf("go: updates to go.sum needed, disabled by -mod=readonly")
 	}
 
-	// We want to avoid races between creating the lockfile and deleting it, but
-	// we also don't want to leave a permanent lockfile in the user's repository.
-	//
-	// On top of that, if we crash while writing go.sum, we don't want to lose the
-	// sums that were already present in the file, so it's important that we write
-	// the file by renaming rather than truncating — which means that we can't
-	// lock the go.sum file itself.
-	//
-	// Instead, we'll lock a distinguished file in the cache directory: that will
-	// only race if the user runs `go clean -modcache` concurrently with a command
-	// that updates go.sum, and that's already racy to begin with.
-	//
-	// We'll end up slightly over-synchronizing go.sum writes if the user runs a
-	// bunch of go commands that update sums in separate modules simultaneously,
-	// but that's unlikely to matter in practice.
-
-	unlock := SideLock()
-	defer unlock()
-
-	if !goSum.overwrite {
-		// Re-read the go.sum file to incorporate any sums added by other processes
-		// in the meantime.
-		data, err := renameio.ReadFile(GoSumFile)
-		if err != nil && !os.IsNotExist(err) {
-			base.Fatalf("go: re-reading go.sum: %v", err)
-		}
-
-		// Add only the sums that we actually checked: the user may have edited or
-		// truncated the file to remove erroneous hashes, and we shouldn't restore
-		// them without good reason.
-		goSum.m = make(map[module.Version][]string, len(goSum.m))
-		readGoSum(goSum.m, GoSumFile, data)
-		for ms := range goSum.checked {
-			addModSumLocked(ms.mod, ms.sum)
-			goSum.dirty = true
-		}
+	// Make a best-effort attempt to acquire the side lock, only to exclude
+	// previous versions of the 'go' command from making simultaneous edits.
+	if unlock, err := SideLock(); err == nil {
+		defer unlock()
 	}
 
-	var mods []module.Version
-	for m := range goSum.m {
-		mods = append(mods, m)
-	}
-	module.Sort(mods)
-	var buf bytes.Buffer
-	for _, m := range mods {
-		list := goSum.m[m]
-		sort.Strings(list)
-		for _, h := range list {
-			fmt.Fprintf(&buf, "%s %s %s\n", m.Path, m.Version, h)
+	err := lockedfile.Transform(GoSumFile, func(data []byte) ([]byte, error) {
+		if !goSum.overwrite {
+			// Incorporate any sums added by other processes in the meantime.
+			// Add only the sums that we actually checked: the user may have edited or
+			// truncated the file to remove erroneous hashes, and we shouldn't restore
+			// them without good reason.
+			goSum.m = make(map[module.Version][]string, len(goSum.m))
+			readGoSum(goSum.m, GoSumFile, data)
+			for ms := range goSum.checked {
+				addModSumLocked(ms.mod, ms.sum)
+				goSum.dirty = true
+			}
 		}
-	}
 
-	if err := renameio.WriteFile(GoSumFile, buf.Bytes(), 0666); err != nil {
-		base.Fatalf("go: writing go.sum: %v", err)
+		var mods []module.Version
+		for m := range goSum.m {
+			mods = append(mods, m)
+		}
+		module.Sort(mods)
+
+		var buf bytes.Buffer
+		for _, m := range mods {
+			list := goSum.m[m]
+			sort.Strings(list)
+			for _, h := range list {
+				fmt.Fprintf(&buf, "%s %s %s\n", m.Path, m.Version, h)
+			}
+		}
+		return buf.Bytes(), nil
+	})
+
+	if err != nil {
+		base.Fatalf("go: updating go.sum: %v", err)
 	}
 
 	goSum.checked = make(map[modSum]bool)

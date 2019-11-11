@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package maphash_test
+package maphash
 
 import (
 	"fmt"
-	"hash/maphash"
 	"math"
 	"math/rand"
 	"runtime"
@@ -18,6 +17,8 @@ import (
 // Smhasher is a torture test for hash functions.
 // https://code.google.com/p/smhasher/
 // This code is a port of some of the Smhasher tests to Go.
+
+var fixedSeed = MakeSeed()
 
 // Sanity checks.
 // hash should not depend on values outside key.
@@ -36,7 +37,7 @@ func TestSmhasherSanity(t *testing.T) {
 				randBytes(r, b[:])
 				randBytes(r, c[:])
 				copy(c[PAD+i:PAD+i+n], b[PAD:PAD+n])
-				if bytesHash(b[PAD:PAD+n], 0) != bytesHash(c[PAD+i:PAD+i+n], 0) {
+				if bytesHash(b[PAD:PAD+n]) != bytesHash(c[PAD+i:PAD+i+n]) {
 					t.Errorf("hash depends on bytes outside key")
 				}
 			}
@@ -44,17 +45,17 @@ func TestSmhasherSanity(t *testing.T) {
 	}
 }
 
-func bytesHash(b []byte, seed uint64) uint64 {
-	h := maphash.New()
-	h.SetSeed(maphash.MakeSeed(seed))
-	h.AddBytes(b)
-	return h.Hash()
+func bytesHash(b []byte) uint64 {
+	var h Hash
+	h.SetSeed(fixedSeed)
+	h.Write(b)
+	return h.Sum64()
 }
-func stringHash(s string, seed uint64) uint64 {
-	h := maphash.New()
-	h.SetSeed(maphash.MakeSeed(seed))
-	h.AddString(s)
-	return h.Hash()
+func stringHash(s string) uint64 {
+	var h Hash
+	h.SetSeed(fixedSeed)
+	h.WriteString(s)
+	return h.Sum64()
 }
 
 const hashSize = 64
@@ -77,13 +78,16 @@ func (s *hashSet) add(h uint64) {
 	s.n++
 }
 func (s *hashSet) addS(x string) {
-	s.add(stringHash(x, 0))
+	s.add(stringHash(x))
 }
 func (s *hashSet) addB(x []byte) {
-	s.add(bytesHash(x, 0))
+	s.add(bytesHash(x))
 }
-func (s *hashSet) addS_seed(x string, seed uint64) {
-	s.add(stringHash(x, seed))
+func (s *hashSet) addS_seed(x string, seed Seed) {
+	var h Hash
+	h.SetSeed(seed)
+	h.WriteString(x)
+	s.add(h.Sum64())
 }
 func (s *hashSet) check(t *testing.T) {
 	const SLOP = 10.0
@@ -312,7 +316,7 @@ func (k *bytesKey) flipBit(i int) {
 	k.b[i>>3] ^= byte(1 << uint(i&7))
 }
 func (k *bytesKey) hash() uint64 {
-	return bytesHash(k.b, 0)
+	return bytesHash(k.b)
 }
 func (k *bytesKey) name() string {
 	return fmt.Sprintf("bytes%d", len(k.b))
@@ -458,8 +462,8 @@ func TestSmhasherSeed(t *testing.T) {
 	const N = 100000
 	s := "hello"
 	for i := 0; i < N; i++ {
-		h.addS_seed(s, uint64(i))
-		h.addS_seed(s, uint64(i)<<32) // make sure high bits are used
+		h.addS_seed(s, Seed{s: uint64(i + 1)})
+		h.addS_seed(s, Seed{s: uint64(i+1) << 32}) // make sure high bits are used
 	}
 	h.check(t)
 }

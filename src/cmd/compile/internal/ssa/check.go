@@ -284,7 +284,7 @@ func checkFunc(f *Func) {
 	if f.RegAlloc == nil {
 		// Note: regalloc introduces non-dominating args.
 		// See TODO in regalloc.go.
-		sdom := f.sdom()
+		sdom := f.Sdom()
 		for _, b := range f.Blocks {
 			for _, v := range b.Values {
 				for i, arg := range v.Args {
@@ -500,11 +500,11 @@ func memCheck(f *Func) {
 
 // domCheck reports whether x dominates y (including x==y).
 func domCheck(f *Func, sdom SparseTree, x, y *Block) bool {
-	if !sdom.isAncestorEq(f.Entry, y) {
+	if !sdom.IsAncestorEq(f.Entry, y) {
 		// unreachable - ignore
 		return true
 	}
-	return sdom.isAncestorEq(x, y)
+	return sdom.IsAncestorEq(x, y)
 }
 
 // isExactFloat32 reports whether x can be exactly represented as a float32.

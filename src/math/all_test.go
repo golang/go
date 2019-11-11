@@ -3053,11 +3053,17 @@ func TestYn(t *testing.T) {
 	}
 }
 
-func TestFma(t *testing.T) {
+var PortableFMA = FMA // hide call from compiler intrinsic; falls back to portable code
+
+func TestFMA(t *testing.T) {
 	for _, c := range fmaC {
-		got := Fma(c.x, c.y, c.z)
+		got := FMA(c.x, c.y, c.z)
 		if !alike(got, c.want) {
-			t.Errorf("Fma(%g,%g,%g) == %g; want %g", c.x, c.y, c.z, got, c.want)
+			t.Errorf("FMA(%g,%g,%g) == %g; want %g", c.x, c.y, c.z, got, c.want)
+		}
+		got = PortableFMA(c.x, c.y, c.z)
+		if !alike(got, c.want) {
+			t.Errorf("PortableFMA(%g,%g,%g) == %g; want %g", c.x, c.y, c.z, got, c.want)
 		}
 	}
 }
@@ -3793,10 +3799,10 @@ func BenchmarkFloat32frombits(b *testing.B) {
 	GlobalF = float64(x)
 }
 
-func BenchmarkFma(b *testing.B) {
+func BenchmarkFMA(b *testing.B) {
 	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = Fma(E, Pi, x)
+		x = FMA(E, Pi, x)
 	}
 	GlobalF = x
 }

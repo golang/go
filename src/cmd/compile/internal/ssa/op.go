@@ -36,6 +36,7 @@ type opInfo struct {
 	usesScratch       bool      // this op requires scratch memory space
 	hasSideEffects    bool      // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
 	zeroWidth         bool      // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
+	unsafePoint       bool      // this op is an unsafe point, i.e. not safe for async preemption
 	symEffect         SymEffect // effect this op has on symbol in aux
 	scale             uint8     // amd64/386 indexed load scale
 }

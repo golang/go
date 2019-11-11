@@ -950,8 +950,8 @@ func resolvePath(base, ref string) string {
 	if full == "" {
 		return ""
 	}
-	var dst []string
 	src := strings.Split(full, "/")
+	dst := make([]string, 0, len(src))
 	for _, elem := range src {
 		switch elem {
 		case ".":

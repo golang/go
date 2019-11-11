@@ -63,6 +63,15 @@ func sysvicall0(fn *libcFunc) uintptr {
 
 //go:nosplit
 func sysvicall1(fn *libcFunc, a1 uintptr) uintptr {
+	r1, _ := sysvicall1Err(fn, a1)
+	return r1
+}
+
+//go:nosplit
+
+// sysvicall1Err returns both the system call result and the errno value.
+// This is used by sysvicall1 and pipe.
+func sysvicall1Err(fn *libcFunc, a1 uintptr) (r1, err uintptr) {
 	// Leave caller's PC/SP around for traceback.
 	gp := getg()
 	var mp *m
@@ -88,11 +97,21 @@ func sysvicall1(fn *libcFunc, a1 uintptr) uintptr {
 	if mp != nil {
 		mp.libcallsp = 0
 	}
-	return libcall.r1
+	return libcall.r1, libcall.err
 }
 
 //go:nosplit
 func sysvicall2(fn *libcFunc, a1, a2 uintptr) uintptr {
+	r1, _ := sysvicall2Err(fn, a1, a2)
+	return r1
+}
+
+//go:nosplit
+//go:cgo_unsafe_args
+
+// sysvicall2Err returns both the system call result and the errno value.
+// This is used by sysvicall2 and pipe2.
+func sysvicall2Err(fn *libcFunc, a1, a2 uintptr) (uintptr, uintptr) {
 	// Leave caller's PC/SP around for traceback.
 	gp := getg()
 	var mp *m
@@ -117,7 +136,7 @@ func sysvicall2(fn *libcFunc, a1, a2 uintptr) uintptr {
 	if mp != nil {
 		mp.libcallsp = 0
 	}
-	return libcall.r1
+	return libcall.r1, libcall.err
 }
 
 //go:nosplit

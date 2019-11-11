@@ -21,6 +21,7 @@ package main_test
 // An empty new format means that the format should remain unchanged.
 var knownFormats = map[string]string{
 	"*bytes.Buffer %s":                                "",
+	"*cmd/compile/internal/gc.EscLocation %v":         "",
 	"*cmd/compile/internal/gc.Mpflt %v":               "",
 	"*cmd/compile/internal/gc.Mpint %v":               "",
 	"*cmd/compile/internal/gc.Node %#v":               "",

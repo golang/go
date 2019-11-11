@@ -83,6 +83,9 @@ func optWithServerLog(lg *log.Logger) func(*httptest.Server) {
 }
 
 func newClientServerTest(t *testing.T, h2 bool, h Handler, opts ...interface{}) *clientServerTest {
+	if h2 {
+		CondSkipHTTP2(t)
+	}
 	cst := &clientServerTest{
 		t:  t,
 		h2: h2,

@@ -17,11 +17,17 @@ func AtExit(f func()) {
 	atExitFuncs = append(atExitFuncs, f)
 }
 
-// Exit exits with code after executing all atExitFuncs.
-func Exit(code int) {
+// runAtExitFuncs runs the queued set of AtExit functions.
+func runAtExitFuncs() {
 	for i := len(atExitFuncs) - 1; i >= 0; i-- {
 		atExitFuncs[i]()
 	}
+	atExitFuncs = nil
+}
+
+// Exit exits with code after executing all atExitFuncs.
+func Exit(code int) {
+	runAtExitFuncs()
 	os.Exit(code)
 }
 

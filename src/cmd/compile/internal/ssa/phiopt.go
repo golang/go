@@ -24,7 +24,7 @@ package ssa
 //
 // In this case we can replace x with a copy of b.
 func phiopt(f *Func) {
-	sdom := f.sdom()
+	sdom := f.Sdom()
 	for _, b := range f.Blocks {
 		if len(b.Preds) != 2 || len(b.Values) == 0 {
 			// TODO: handle more than 2 predecessors, e.g. a || b || c.
@@ -93,7 +93,7 @@ func phiopt(f *Func) {
 			// value is always computed. This guarantees that the side effects
 			// of value are not seen if a is false.
 			if v.Args[reverse].Op == OpConstBool && v.Args[reverse].AuxInt == 1 {
-				if tmp := v.Args[1-reverse]; sdom.isAncestorEq(tmp.Block, b) {
+				if tmp := v.Args[1-reverse]; sdom.IsAncestorEq(tmp.Block, b) {
 					v.reset(OpOrB)
 					v.SetArgs2(b0.Controls[0], tmp)
 					if f.pass.debug > 0 {
@@ -109,7 +109,7 @@ func phiopt(f *Func) {
 			// value is always computed. This guarantees that the side effects
 			// of value are not seen if a is false.
 			if v.Args[1-reverse].Op == OpConstBool && v.Args[1-reverse].AuxInt == 0 {
-				if tmp := v.Args[reverse]; sdom.isAncestorEq(tmp.Block, b) {
+				if tmp := v.Args[reverse]; sdom.IsAncestorEq(tmp.Block, b) {
 					v.reset(OpAndB)
 					v.SetArgs2(b0.Controls[0], tmp)
 					if f.pass.debug > 0 {

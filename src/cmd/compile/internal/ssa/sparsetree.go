@@ -179,7 +179,7 @@ func (t SparseTree) Child(x *Block) *Block {
 }
 
 // isAncestorEq reports whether x is an ancestor of or equal to y.
-func (t SparseTree) isAncestorEq(x, y *Block) bool {
+func (t SparseTree) IsAncestorEq(x, y *Block) bool {
 	if x == y {
 		return true
 	}

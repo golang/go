@@ -38,9 +38,12 @@ var Nanotime = nanotime
 var NetpollBreak = netpollBreak
 var Usleep = usleep
 
+var PhysPageSize = physPageSize
 var PhysHugePageSize = physHugePageSize
 
 var NetpollGenericInit = netpollGenericInit
+
+const PreemptMSupported = preemptMSupported
 
 type LFNode struct {
 	Next    uint64
@@ -351,8 +354,13 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 			slow.BySize[i].Frees = bySize[i].Frees
 		}
 
-		for i := mheap_.free.start(0, 0); i.valid(); i = i.next() {
-			slow.HeapReleased += uint64(i.span().released())
+		for i := mheap_.pages.start; i < mheap_.pages.end; i++ {
+			pg := mheap_.pages.chunks[i].scavenged.popcntRange(0, pallocChunkPages)
+			slow.HeapReleased += uint64(pg) * pageSize
+		}
+		for _, p := range allp {
+			pg := sys.OnesCount64(p.pcache.scav)
+			slow.HeapReleased += uint64(pg) * pageSize
 		}
 
 		// Unused space in the current arena also counts as released space.
@@ -531,170 +539,6 @@ func MapTombstoneCheck(m map[int]int) {
 	}
 }
 
-// UnscavHugePagesSlow returns the value of mheap_.freeHugePages
-// and the number of unscavenged huge pages calculated by
-// scanning the heap.
-func UnscavHugePagesSlow() (uintptr, uintptr) {
-	var base, slow uintptr
-	// Run on the system stack to avoid deadlock from stack growth
-	// trying to acquire the heap lock.
-	systemstack(func() {
-		lock(&mheap_.lock)
-		base = mheap_.free.unscavHugePages
-		for _, s := range mheap_.allspans {
-			if s.state.get() == mSpanFree && !s.scavenged {
-				slow += s.hugePages()
-			}
-		}
-		unlock(&mheap_.lock)
-	})
-	return base, slow
-}
-
-// Span is a safe wrapper around an mspan, whose memory
-// is managed manually.
-type Span struct {
-	*mspan
-}
-
-func AllocSpan(base, npages uintptr, scavenged bool) Span {
-	var s *mspan
-	systemstack(func() {
-		lock(&mheap_.lock)
-		s = (*mspan)(mheap_.spanalloc.alloc())
-		unlock(&mheap_.lock)
-	})
-	s.init(base, npages)
-	s.scavenged = scavenged
-	return Span{s}
-}
-
-func (s *Span) Free() {
-	systemstack(func() {
-		lock(&mheap_.lock)
-		mheap_.spanalloc.free(unsafe.Pointer(s.mspan))
-		unlock(&mheap_.lock)
-	})
-	s.mspan = nil
-}
-
-func (s Span) Base() uintptr {
-	return s.mspan.base()
-}
-
-func (s Span) Pages() uintptr {
-	return s.mspan.npages
-}
-
-type TreapIterType treapIterType
-
-const (
-	TreapIterScav TreapIterType = TreapIterType(treapIterScav)
-	TreapIterHuge               = TreapIterType(treapIterHuge)
-	TreapIterBits               = treapIterBits
-)
-
-type TreapIterFilter treapIterFilter
-
-func TreapFilter(mask, match TreapIterType) TreapIterFilter {
-	return TreapIterFilter(treapFilter(treapIterType(mask), treapIterType(match)))
-}
-
-func (s Span) MatchesIter(mask, match TreapIterType) bool {
-	return treapFilter(treapIterType(mask), treapIterType(match)).matches(s.treapFilter())
-}
-
-type TreapIter struct {
-	treapIter
-}
-
-func (t TreapIter) Span() Span {
-	return Span{t.span()}
-}
-
-func (t TreapIter) Valid() bool {
-	return t.valid()
-}
-
-func (t TreapIter) Next() TreapIter {
-	return TreapIter{t.next()}
-}
-
-func (t TreapIter) Prev() TreapIter {
-	return TreapIter{t.prev()}
-}
-
-// Treap is a safe wrapper around mTreap for testing.
-//
-// It must never be heap-allocated because mTreap is
-// notinheap.
-//
-//go:notinheap
-type Treap struct {
-	mTreap
-}
-
-func (t *Treap) Start(mask, match TreapIterType) TreapIter {
-	return TreapIter{t.start(treapIterType(mask), treapIterType(match))}
-}
-
-func (t *Treap) End(mask, match TreapIterType) TreapIter {
-	return TreapIter{t.end(treapIterType(mask), treapIterType(match))}
-}
-
-func (t *Treap) Insert(s Span) {
-	// mTreap uses a fixalloc in mheap_ for treapNode
-	// allocation which requires the mheap_ lock to manipulate.
-	// Locking here is safe because the treap itself never allocs
-	// or otherwise ends up grabbing this lock.
-	systemstack(func() {
-		lock(&mheap_.lock)
-		t.insert(s.mspan)
-		unlock(&mheap_.lock)
-	})
-	t.CheckInvariants()
-}
-
-func (t *Treap) Find(npages uintptr) TreapIter {
-	return TreapIter{t.find(npages)}
-}
-
-func (t *Treap) Erase(i TreapIter) {
-	// mTreap uses a fixalloc in mheap_ for treapNode
-	// freeing which requires the mheap_ lock to manipulate.
-	// Locking here is safe because the treap itself never allocs
-	// or otherwise ends up grabbing this lock.
-	systemstack(func() {
-		lock(&mheap_.lock)
-		t.erase(i.treapIter)
-		unlock(&mheap_.lock)
-	})
-	t.CheckInvariants()
-}
-
-func (t *Treap) RemoveSpan(s Span) {
-	// See Erase about locking.
-	systemstack(func() {
-		lock(&mheap_.lock)
-		t.removeSpan(s.mspan)
-		unlock(&mheap_.lock)
-	})
-	t.CheckInvariants()
-}
-
-func (t *Treap) Size() int {
-	i := 0
-	t.mTreap.treap.walkTreap(func(t *treapNode) {
-		i++
-	})
-	return i
-}
-
-func (t *Treap) CheckInvariants() {
-	t.mTreap.treap.walkTreap(checkTreapNode)
-	t.mTreap.treap.validateInvariants()
-}
-
 func RunGetgThreadSwitchTest() {
 	// Test that getg works correctly with thread switch.
 	// With gccgo, if we generate getg inlined, the backend
@@ -727,4 +571,343 @@ func RunGetgThreadSwitchTest() {
 	if g1 != g3 {
 		panic("g1 != g3")
 	}
+}
+
+const (
+	PageSize         = pageSize
+	PallocChunkPages = pallocChunkPages
+)
+
+// Expose pallocSum for testing.
+type PallocSum pallocSum
+
+func PackPallocSum(start, max, end uint) PallocSum { return PallocSum(packPallocSum(start, max, end)) }
+func (m PallocSum) Start() uint                    { return pallocSum(m).start() }
+func (m PallocSum) Max() uint                      { return pallocSum(m).max() }
+func (m PallocSum) End() uint                      { return pallocSum(m).end() }
+
+// Expose pallocBits for testing.
+type PallocBits pallocBits
+
+func (b *PallocBits) Find(npages uintptr, searchIdx uint) (uint, uint) {
+	return (*pallocBits)(b).find(npages, searchIdx)
+}
+func (b *PallocBits) AllocRange(i, n uint)       { (*pallocBits)(b).allocRange(i, n) }
+func (b *PallocBits) Free(i, n uint)             { (*pallocBits)(b).free(i, n) }
+func (b *PallocBits) Summarize() PallocSum       { return PallocSum((*pallocBits)(b).summarize()) }
+func (b *PallocBits) PopcntRange(i, n uint) uint { return (*pageBits)(b).popcntRange(i, n) }
+
+// SummarizeSlow is a slow but more obviously correct implementation
+// of (*pallocBits).summarize. Used for testing.
+func SummarizeSlow(b *PallocBits) PallocSum {
+	var start, max, end uint
+
+	const N = uint(len(b)) * 64
+	for start < N && (*pageBits)(b).get(start) == 0 {
+		start++
+	}
+	for end < N && (*pageBits)(b).get(N-end-1) == 0 {
+		end++
+	}
+	run := uint(0)
+	for i := uint(0); i < N; i++ {
+		if (*pageBits)(b).get(i) == 0 {
+			run++
+		} else {
+			run = 0
+		}
+		if run > max {
+			max = run
+		}
+	}
+	return PackPallocSum(start, max, end)
+}
+
+// Expose non-trivial helpers for testing.
+func FindBitRange64(c uint64, n uint) uint { return findBitRange64(c, n) }
+
+// Given two PallocBits, returns a set of bit ranges where
+// they differ.
+func DiffPallocBits(a, b *PallocBits) []BitRange {
+	ba := (*pageBits)(a)
+	bb := (*pageBits)(b)
+
+	var d []BitRange
+	base, size := uint(0), uint(0)
+	for i := uint(0); i < uint(len(ba))*64; i++ {
+		if ba.get(i) != bb.get(i) {
+			if size == 0 {
+				base = i
+			}
+			size++
+		} else {
+			if size != 0 {
+				d = append(d, BitRange{base, size})
+			}
+			size = 0
+		}
+	}
+	if size != 0 {
+		d = append(d, BitRange{base, size})
+	}
+	return d
+}
+
+// StringifyPallocBits gets the bits in the bit range r from b,
+// and returns a string containing the bits as ASCII 0 and 1
+// characters.
+func StringifyPallocBits(b *PallocBits, r BitRange) string {
+	str := ""
+	for j := r.I; j < r.I+r.N; j++ {
+		if (*pageBits)(b).get(j) != 0 {
+			str += "1"
+		} else {
+			str += "0"
+		}
+	}
+	return str
+}
+
+// Expose pallocData for testing.
+type PallocData pallocData
+
+func (d *PallocData) FindScavengeCandidate(searchIdx uint, min, max uintptr) (uint, uint) {
+	return (*pallocData)(d).findScavengeCandidate(searchIdx, min, max)
+}
+func (d *PallocData) AllocRange(i, n uint) { (*pallocData)(d).allocRange(i, n) }
+func (d *PallocData) ScavengedSetRange(i, n uint) {
+	(*pallocData)(d).scavenged.setRange(i, n)
+}
+func (d *PallocData) PallocBits() *PallocBits {
+	return (*PallocBits)(&(*pallocData)(d).pallocBits)
+}
+func (d *PallocData) Scavenged() *PallocBits {
+	return (*PallocBits)(&(*pallocData)(d).scavenged)
+}
+
+// Expose fillAligned for testing.
+func FillAligned(x uint64, m uint) uint64 { return fillAligned(x, m) }
+
+// Expose pageCache for testing.
+type PageCache pageCache
+
+const PageCachePages = pageCachePages
+
+func NewPageCache(base uintptr, cache, scav uint64) PageCache {
+	return PageCache(pageCache{base: base, cache: cache, scav: scav})
+}
+func (c *PageCache) Empty() bool   { return (*pageCache)(c).empty() }
+func (c *PageCache) Base() uintptr { return (*pageCache)(c).base }
+func (c *PageCache) Cache() uint64 { return (*pageCache)(c).cache }
+func (c *PageCache) Scav() uint64  { return (*pageCache)(c).scav }
+func (c *PageCache) Alloc(npages uintptr) (uintptr, uintptr) {
+	return (*pageCache)(c).alloc(npages)
+}
+func (c *PageCache) Flush(s *PageAlloc) {
+	(*pageCache)(c).flush((*pageAlloc)(s))
+}
+
+// Expose chunk index type.
+type ChunkIdx chunkIdx
+
+// Expose pageAlloc for testing. Note that because pageAlloc is
+// not in the heap, so is PageAlloc.
+type PageAlloc pageAlloc
+
+func (p *PageAlloc) Alloc(npages uintptr) (uintptr, uintptr) {
+	return (*pageAlloc)(p).alloc(npages)
+}
+func (p *PageAlloc) AllocToCache() PageCache {
+	return PageCache((*pageAlloc)(p).allocToCache())
+}
+func (p *PageAlloc) Free(base, npages uintptr) {
+	(*pageAlloc)(p).free(base, npages)
+}
+func (p *PageAlloc) Bounds() (ChunkIdx, ChunkIdx) {
+	return ChunkIdx((*pageAlloc)(p).start), ChunkIdx((*pageAlloc)(p).end)
+}
+func (p *PageAlloc) PallocData(i ChunkIdx) *PallocData {
+	return (*PallocData)(&((*pageAlloc)(p).chunks[i]))
+}
+func (p *PageAlloc) Scavenge(nbytes uintptr, locked bool) (r uintptr) {
+	systemstack(func() {
+		r = (*pageAlloc)(p).scavenge(nbytes, locked)
+	})
+	return
+}
+
+// BitRange represents a range over a bitmap.
+type BitRange struct {
+	I, N uint // bit index and length in bits
+}
+
+// NewPageAlloc creates a new page allocator for testing and
+// initializes it with the scav and chunks maps. Each key in these maps
+// represents a chunk index and each value is a series of bit ranges to
+// set within each bitmap's chunk.
+//
+// The initialization of the pageAlloc preserves the invariant that if a
+// scavenged bit is set the alloc bit is necessarily unset, so some
+// of the bits described by scav may be cleared in the final bitmap if
+// ranges in chunks overlap with them.
+//
+// scav is optional, and if nil, the scavenged bitmap will be cleared
+// (as opposed to all 1s, which it usually is). Furthermore, every
+// chunk index in scav must appear in chunks; ones that do not are
+// ignored.
+func NewPageAlloc(chunks, scav map[ChunkIdx][]BitRange) *PageAlloc {
+	p := new(pageAlloc)
+
+	// We've got an entry, so initialize the pageAlloc.
+	p.init(new(mutex), nil)
+	p.test = true
+
+	for i, init := range chunks {
+		addr := chunkBase(chunkIdx(i))
+
+		// Mark the chunk's existence in the pageAlloc.
+		p.grow(addr, pallocChunkBytes)
+
+		// Initialize the bitmap and update pageAlloc metadata.
+		chunk := &p.chunks[chunkIndex(addr)]
+
+		// Clear all the scavenged bits which grow set.
+		chunk.scavenged.clearRange(0, pallocChunkPages)
+
+		// Apply scavenge state if applicable.
+		if scav != nil {
+			if scvg, ok := scav[i]; ok {
+				for _, s := range scvg {
+					// Ignore the case of s.N == 0. setRange doesn't handle
+					// it and it's a no-op anyway.
+					if s.N != 0 {
+						chunk.scavenged.setRange(s.I, s.N)
+					}
+				}
+			}
+		}
+		p.resetScavengeAddr()
+
+		// Apply alloc state.
+		for _, s := range init {
+			// Ignore the case of s.N == 0. allocRange doesn't handle
+			// it and it's a no-op anyway.
+			if s.N != 0 {
+				chunk.allocRange(s.I, s.N)
+			}
+		}
+
+		// Update heap metadata for the allocRange calls above.
+		p.update(addr, pallocChunkPages, false, false)
+	}
+	return (*PageAlloc)(p)
+}
+
+// FreePageAlloc releases hard OS resources owned by the pageAlloc. Once this
+// is called the pageAlloc may no longer be used. The object itself will be
+// collected by the garbage collector once it is no longer live.
+func FreePageAlloc(pp *PageAlloc) {
+	p := (*pageAlloc)(pp)
+
+	// Free all the mapped space for the summary levels.
+	if pageAlloc64Bit != 0 {
+		for l := 0; l < summaryLevels; l++ {
+			sysFree(unsafe.Pointer(&p.summary[l][0]), uintptr(cap(p.summary[l]))*pallocSumBytes, nil)
+		}
+	} else {
+		resSize := uintptr(0)
+		for _, s := range p.summary {
+			resSize += uintptr(cap(s)) * pallocSumBytes
+		}
+		sysFree(unsafe.Pointer(&p.summary[0][0]), alignUp(resSize, physPageSize), nil)
+	}
+
+	// Free the mapped space for chunks.
+	chunksLen := uintptr(cap(p.chunks)) * unsafe.Sizeof(p.chunks[0])
+	sysFree(unsafe.Pointer(&p.chunks[0]), alignUp(chunksLen, physPageSize), nil)
+}
+
+// BaseChunkIdx is a convenient chunkIdx value which works on both
+// 64 bit and 32 bit platforms, allowing the tests to share code
+// between the two.
+//
+// This should not be higher than 0x100*pallocChunkBytes to support
+// mips and mipsle, which only have 31-bit address spaces.
+var BaseChunkIdx = ChunkIdx(chunkIndex((0xc000*pageAlloc64Bit + 0x100*pageAlloc32Bit) * pallocChunkBytes))
+
+// PageBase returns an address given a chunk index and a page index
+// relative to that chunk.
+func PageBase(c ChunkIdx, pageIdx uint) uintptr {
+	return chunkBase(chunkIdx(c)) + uintptr(pageIdx)*pageSize
+}
+
+type BitsMismatch struct {
+	Base      uintptr
+	Got, Want uint64
+}
+
+func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
+	ok = true
+
+	// Run on the system stack to avoid stack growth allocation.
+	systemstack(func() {
+		getg().m.mallocing++
+
+		// Lock so that we can safely access the bitmap.
+		lock(&mheap_.lock)
+	chunkLoop:
+		for i := mheap_.pages.start; i < mheap_.pages.end; i++ {
+			chunk := &mheap_.pages.chunks[i]
+			for j := 0; j < pallocChunkPages/64; j++ {
+				// Run over each 64-bit bitmap section and ensure
+				// scavenged is being cleared properly on allocation.
+				// If a used bit and scavenged bit are both set, that's
+				// an error, and could indicate a larger problem, or
+				// an accounting problem.
+				want := chunk.scavenged[j] &^ chunk.pallocBits[j]
+				got := chunk.scavenged[j]
+				if want != got {
+					ok = false
+					if n >= len(mismatches) {
+						break chunkLoop
+					}
+					mismatches[n] = BitsMismatch{
+						Base: chunkBase(i) + uintptr(j)*64*pageSize,
+						Got:  got,
+						Want: want,
+					}
+					n++
+				}
+			}
+		}
+		unlock(&mheap_.lock)
+
+		getg().m.mallocing--
+	})
+	return
+}
+
+func PageCachePagesLeaked() (leaked uintptr) {
+	stopTheWorld("PageCachePagesLeaked")
+
+	// Walk over destroyed Ps and look for unflushed caches.
+	deadp := allp[len(allp):cap(allp)]
+	for _, p := range deadp {
+		// Since we're going past len(allp) we may see nil Ps.
+		// Just ignore them.
+		if p != nil {
+			leaked += uintptr(sys.OnesCount64(p.pcache.cache))
+		}
+	}
+
+	startTheWorld()
+	return
+}
+
+var Semacquire = semacquire
+var Semrelease1 = semrelease1
+
+func SemNwait(addr *uint32) uint32 {
+	root := semroot(addr)
+	return atomic.Load(&root.nwait)
 }

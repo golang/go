@@ -130,8 +130,8 @@ func (c *ctxt9) rewriteToUseTOC(p *obj.Prog) {
 		// becomes
 		//     MOVD runtime.duffxxx@TOC, R12
 		//     ADD $offset, R12
-		//     MOVD R12, CTR
-		//     BL (CTR)
+		//     MOVD R12, LR
+		//     BL (LR)
 		var sym *obj.LSym
 		if p.As == obj.ADUFFZERO {
 			sym = c.ctxt.Lookup("runtime.duffzero")
@@ -167,13 +167,11 @@ func (c *ctxt9) rewriteToUseTOC(p *obj.Prog) {
 		p2.From.Type = obj.TYPE_REG
 		p2.From.Reg = REG_R12
 		p2.To.Type = obj.TYPE_REG
-		p2.To.Reg = REG_CTR
+		p2.To.Reg = REG_LR
 		p3 := obj.Appendp(p2, c.newprog)
 		p3.As = obj.ACALL
-		p3.From.Type = obj.TYPE_REG
-		p3.From.Reg = REG_R12
 		p3.To.Type = obj.TYPE_REG
-		p3.To.Reg = REG_CTR
+		p3.To.Reg = REG_LR
 	}
 
 	var source *obj.Addr
@@ -288,8 +286,8 @@ func (c *ctxt9) rewriteToUseGot(p *obj.Prog) {
 		// becomes
 		//     MOVD runtime.duffxxx@GOT, R12
 		//     ADD $offset, R12
-		//     MOVD R12, CTR
-		//     BL (CTR)
+		//     MOVD R12, LR
+		//     BL (LR)
 		var sym *obj.LSym
 		if p.As == obj.ADUFFZERO {
 			sym = c.ctxt.Lookup("runtime.duffzero")
@@ -317,13 +315,11 @@ func (c *ctxt9) rewriteToUseGot(p *obj.Prog) {
 		p2.From.Type = obj.TYPE_REG
 		p2.From.Reg = REG_R12
 		p2.To.Type = obj.TYPE_REG
-		p2.To.Reg = REG_CTR
+		p2.To.Reg = REG_LR
 		p3 := obj.Appendp(p2, c.newprog)
 		p3.As = obj.ACALL
-		p3.From.Type = obj.TYPE_REG
-		p3.From.Reg = REG_R12
 		p3.To.Type = obj.TYPE_REG
-		p3.To.Reg = REG_CTR
+		p3.To.Reg = REG_LR
 	}
 
 	// We only care about global data: NAME_EXTERN means a global
@@ -706,6 +702,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					// Store link register before decrementing SP, so if a signal comes
 					// during the execution of the function prologue, the traceback
 					// code will not see a half-updated stack frame.
+					// This sequence is not async preemptible, as if we open a frame
+					// at the current SP, it will clobber the saved LR.
 					q = obj.Appendp(q, c.newprog)
 					q.As = AMOVD
 					q.Pos = p.Pos
@@ -713,6 +711,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					q.From.Reg = REG_LR
 					q.To.Type = obj.TYPE_REG
 					q.To.Reg = REG_R29 // REGTMP may be used to synthesize large offset in the next instruction
+
+					q = c.ctxt.StartUnsafePoint(q, c.newprog)
 
 					q = obj.Appendp(q, c.newprog)
 					q.As = AMOVD
@@ -731,6 +731,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					q.To.Type = obj.TYPE_REG
 					q.To.Reg = REGSP
 					q.Spadj = +autosize
+
+					q = c.ctxt.EndUnsafePoint(q, c.newprog, -1)
+
 				}
 			} else if c.cursym.Func.Text.Mark&LEAF == 0 {
 				// A very few functions that do not return to their caller
@@ -956,6 +959,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			prev.Link = q1
 		case AADD:
 			if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.From.Type == obj.TYPE_CONST {
+				p.Spadj = int32(-p.From.Offset)
+			}
+		case AMOVDU:
+			if p.To.Type == obj.TYPE_MEM && p.To.Reg == REGSP {
+				p.Spadj = int32(-p.To.Offset)
+			}
+			if p.From.Type == obj.TYPE_MEM && p.From.Reg == REGSP {
 				p.Spadj = int32(-p.From.Offset)
 			}
 		case obj.AGETCALLERPC:
@@ -1196,21 +1206,19 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R12
 
-		// MOVD R12, CTR
+		// MOVD R12, LR
 		p = obj.Appendp(p, c.newprog)
 		p.As = AMOVD
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_R12
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_CTR
+		p.To.Reg = REG_LR
 
-		// BL CTR
+		// BL LR
 		p = obj.Appendp(p, c.newprog)
 		p.As = obj.ACALL
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R12
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_CTR
+		p.To.Reg = REG_LR
 	} else {
 		// BL	runtime.morestack(SB)
 		p = obj.Appendp(p, c.newprog)

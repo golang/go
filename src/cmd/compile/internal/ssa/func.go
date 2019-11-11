@@ -647,7 +647,7 @@ func (f *Func) Idom() []*Block {
 
 // sdom returns a sparse tree representing the dominator relationships
 // among the blocks of f.
-func (f *Func) sdom() SparseTree {
+func (f *Func) Sdom() SparseTree {
 	if f.cachedSdom == nil {
 		f.cachedSdom = newSparseTree(f, f.Idom())
 	}

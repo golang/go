@@ -205,26 +205,31 @@
 						return;
 				}
 
-				let ref = this._refs.get(v);
-				if (ref === undefined) {
-					ref = this._values.length;
-					this._values.push(v);
-					this._refs.set(v, ref);
+				let id = this._ids.get(v);
+				if (id === undefined) {
+					id = this._idPool.pop();
+					if (id === undefined) {
+						id = this._values.length;
+					}
+					this._values[id] = v;
+					this._goRefCounts[id] = 0;
+					this._ids.set(v, id);
 				}
-				let typeFlag = 0;
+				this._goRefCounts[id]++;
+				let typeFlag = 1;
 				switch (typeof v) {
 					case "string":
-						typeFlag = 1;
-						break;
-					case "symbol":
 						typeFlag = 2;
 						break;
-					case "function":
+					case "symbol":
 						typeFlag = 3;
+						break;
+					case "function":
+						typeFlag = 4;
 						break;
 				}
 				this.mem.setUint32(addr + 4, nanHead | typeFlag, true);
-				this.mem.setUint32(addr, ref, true);
+				this.mem.setUint32(addr, id, true);
 			}
 
 			const loadSlice = (addr) => {
@@ -263,7 +268,9 @@
 						this.exited = true;
 						delete this._inst;
 						delete this._values;
-						delete this._refs;
+						delete this._goRefCounts;
+						delete this._ids;
+						delete this._idPool;
 						this.exit(code);
 					},
 
@@ -321,6 +328,18 @@
 					// func getRandomData(r []byte)
 					"runtime.getRandomData": (sp) => {
 						crypto.getRandomValues(loadSlice(sp + 8));
+					},
+
+					// func finalizeRef(v ref)
+					"syscall/js.finalizeRef": (sp) => {
+						const id = this.mem.getUint32(sp + 8, true);
+						this._goRefCounts[id]--;
+						if (this._goRefCounts[id] === 0) {
+							const v = this._values[id];
+							this._values[id] = null;
+							this._ids.delete(v);
+							this._idPool.push(id);
+						}
 					},
 
 					// func stringVal(value string) ref
@@ -462,7 +481,7 @@
 		async run(instance) {
 			this._inst = instance;
 			this.mem = new DataView(this._inst.exports.mem.buffer);
-			this._values = [ // TODO: garbage collection
+			this._values = [ // JS values that Go currently has references to, indexed by reference id
 				NaN,
 				0,
 				null,
@@ -471,8 +490,10 @@
 				global,
 				this,
 			];
-			this._refs = new Map();
-			this.exited = false;
+			this._goRefCounts = []; // number of references that Go has to a JS value, indexed by reference id
+			this._ids = new Map();  // mapping from JS values to reference ids
+			this._idPool = [];      // unused ids that have been garbage collected
+			this.exited = false;    // whether the Go program has exited
 
 			// Pass command line arguments and environment variables to WebAssembly by writing them to the linear memory.
 			let offset = 4096;

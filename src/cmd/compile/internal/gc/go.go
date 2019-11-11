@@ -65,21 +65,21 @@ const (
 )
 
 // note this is the runtime representation
-// of the compilers arrays.
+// of the compilers slices.
 //
 // typedef	struct
 // {				// must not move anything
 // 	uchar	array[8];	// pointer to data
 // 	uchar	nel[4];		// number of elements
 // 	uchar	cap[4];		// allocated number of elements
-// } Array;
-var array_array int // runtime offsetof(Array,array) - same for String
+// } Slice;
+var slice_array int // runtime offsetof(Slice,array) - same for String
 
-var array_nel int // runtime offsetof(Array,nel) - same for String
+var slice_nel int // runtime offsetof(Slice,nel) - same for String
 
-var array_cap int // runtime offsetof(Array,cap)
+var slice_cap int // runtime offsetof(Slice,cap)
 
-var sizeof_Array int // runtime sizeof(Array)
+var sizeof_Slice int // runtime sizeof(Slice)
 
 // note this is the runtime representation
 // of the compilers strings.
@@ -256,8 +256,12 @@ type Arch struct {
 	Use387    bool // should 386 backend use 387 FP instructions instead of sse2.
 	SoftFloat bool
 
-	PadFrame     func(int64) int64
-	ZeroRange    func(*Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
+	PadFrame func(int64) int64
+
+	// ZeroRange zeroes a range of memory on stack. It is only inserted
+	// at function entry, and it is ok to clobber registers.
+	ZeroRange func(*Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
+
 	Ginsnop      func(*Progs) *obj.Prog
 	Ginsnopdefer func(*Progs) *obj.Prog // special ginsnop for deferreturn
 

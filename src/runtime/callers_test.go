@@ -147,6 +147,68 @@ func TestCallersAfterRecovery(t *testing.T) {
 	panic(1)
 }
 
+func TestCallersAbortedPanic(t *testing.T) {
+	want := []string{"runtime.Callers", "runtime_test.TestCallersAbortedPanic.func2", "runtime_test.TestCallersAbortedPanic"}
+
+	defer func() {
+		r := recover()
+		if r != nil {
+			t.Fatalf("should be no panic remaining to recover")
+		}
+	}()
+
+	defer func() {
+		// panic2 was aborted/replaced by panic1, so when panic2 was
+		// recovered, there is no remaining panic on the stack.
+		pcs := make([]uintptr, 20)
+		pcs = pcs[:runtime.Callers(0, pcs)]
+		testCallersEqual(t, pcs, want)
+	}()
+	defer func() {
+		r := recover()
+		if r != "panic2" {
+			t.Fatalf("got %v, wanted %v", r, "panic2")
+		}
+	}()
+	defer func() {
+		// panic2 aborts/replaces panic1, because it is a recursive panic
+		// that is not recovered within the defer function called by
+		// panic1 panicking sequence
+		panic("panic2")
+	}()
+	panic("panic1")
+}
+
+func TestCallersAbortedPanic2(t *testing.T) {
+	want := []string{"runtime.Callers", "runtime_test.TestCallersAbortedPanic2.func2", "runtime_test.TestCallersAbortedPanic2"}
+	defer func() {
+		r := recover()
+		if r != nil {
+			t.Fatalf("should be no panic remaining to recover")
+		}
+	}()
+	defer func() {
+		pcs := make([]uintptr, 20)
+		pcs = pcs[:runtime.Callers(0, pcs)]
+		testCallersEqual(t, pcs, want)
+	}()
+	func() {
+		defer func() {
+			r := recover()
+			if r != "panic2" {
+				t.Fatalf("got %v, wanted %v", r, "panic2")
+			}
+		}()
+		func() {
+			defer func() {
+				// Again, panic2 aborts/replaces panic1
+				panic("panic2")
+			}()
+			panic("panic1")
+		}()
+	}()
+}
+
 func TestCallersNilPointerPanic(t *testing.T) {
 	// Make sure we don't have any extra frames on the stack (due to
 	// open-coded defer processing)

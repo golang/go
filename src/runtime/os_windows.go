@@ -1062,3 +1062,11 @@ func setThreadCPUProfiler(hz int32) {
 	stdcall6(_SetWaitableTimer, profiletimer, uintptr(unsafe.Pointer(&due)), uintptr(ms), 0, 0, 0)
 	atomic.Store((*uint32)(unsafe.Pointer(&getg().m.profilehz)), uint32(hz))
 }
+
+const preemptMSupported = false
+
+func preemptM(mp *m) {
+	// Not currently supported.
+	//
+	// TODO: Use SuspendThread/GetThreadContext/ResumeThread
+}

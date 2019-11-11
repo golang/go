@@ -6,6 +6,7 @@ package wasm
 
 import (
 	"cmd/compile/internal/gc"
+	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -160,6 +161,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(wasm.ACALLNORESUME)
 		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.SigPanic}
 		s.Prog(wasm.AEnd)
+		if logopt.Enabled() {
+			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
+		}
 		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
 			gc.Warnl(v.Pos, "generated nil check")
 		}

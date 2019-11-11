@@ -68,7 +68,7 @@
 (Round x) -> (FROUND x)
 (Copysign x y) -> (FCPSGN y x)
 (Abs x) -> (FABS x)
-(Fma x y z) -> (FMADD x y z)
+(FMA x y z) -> (FMADD x y z)
 
 // Lowering constants
 (Const(64|32|16|8)  [val]) -> (MOVDconst [val])
@@ -1349,7 +1349,7 @@
 
 // The 2 byte store appears after the 4 byte store so that the
 // match for the 2 byte store is not done first.
-// If the 4 byte store is based on the 2 byte store then there are 
+// If the 4 byte store is based on the 2 byte store then there are
 // variations on the MOVDaddr subrule that would require additional
 // rules to be written.
 

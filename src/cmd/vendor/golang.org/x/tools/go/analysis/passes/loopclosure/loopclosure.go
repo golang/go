@@ -119,7 +119,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			}
 			for _, v := range vars {
 				if v.Obj == id.Obj {
-					pass.Reportf(id.Pos(), "loop variable %s captured by func literal",
+					pass.ReportRangef(id, "loop variable %s captured by func literal",
 						id.Name)
 				}
 			}

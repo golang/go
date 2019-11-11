@@ -9,6 +9,7 @@ package gc
 import (
 	"bufio"
 	"bytes"
+	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
@@ -44,6 +45,7 @@ var (
 	Debug_closure      int
 	Debug_compilelater int
 	debug_dclstack     int
+	Debug_libfuzzer    int
 	Debug_panic        int
 	Debug_slice        int
 	Debug_vlog         bool
@@ -73,6 +75,7 @@ var debugtab = []struct {
 	{"disablenil", "disable nil checks", &disable_checknil},
 	{"dclstack", "run internal dclstack check", &debug_dclstack},
 	{"gcprog", "print dump of GC programs", &Debug_gcprog},
+	{"libfuzzer", "coverage instrumentation for libfuzzer", &Debug_libfuzzer},
 	{"nil", "print information about nil checks", &Debug_checknil},
 	{"panic", "do not hide any compiler panic", &Debug_panic},
 	{"slice", "print information about slice compilation", &Debug_slice},
@@ -201,6 +204,7 @@ func Main(archInit func(*Arch)) {
 	// Whether the limit for stack-allocated objects is much smaller than normal.
 	// This can be helpful for diagnosing certain causes of GC latency. See #27732.
 	smallFrames := false
+	jsonLogOpt := ""
 
 	flag.BoolVar(&compiling_runtime, "+", false, "compiling runtime")
 	flag.BoolVar(&compiling_std, "std", false, "compiling standard library")
@@ -274,6 +278,7 @@ func Main(archInit func(*Arch)) {
 	flag.BoolVar(&smallFrames, "smallframes", false, "reduce the size limit for stack allocated objects")
 	flag.BoolVar(&Ctxt.UseBASEntries, "dwarfbasentries", Ctxt.UseBASEntries, "use base address selection entries in DWARF")
 	flag.BoolVar(&Ctxt.Flag_newobj, "newobj", false, "use new object file format")
+	flag.StringVar(&jsonLogOpt, "json", "", "version,destination for JSON compiler/optimizer logging")
 
 	objabi.Flagparse(usage)
 
@@ -450,9 +455,12 @@ func Main(archInit func(*Arch)) {
 		}
 	}
 
-	// Runtime can't use -d=checkptr, at least not yet.
 	if compiling_runtime {
+		// Runtime can't use -d=checkptr, at least not yet.
 		Debug_checkptr = 0
+
+		// Fuzzing the runtime isn't interesting either.
+		Debug_libfuzzer = 0
 	}
 
 	// set via a -d flag
@@ -471,6 +479,10 @@ func Main(archInit func(*Arch)) {
 	//	-l=2, -l=3: inlining on again, with extra debugging (debug['l'] > 1)
 	if Debug['l'] <= 1 {
 		Debug['l'] = 1 - Debug['l']
+	}
+
+	if jsonLogOpt != "" { // parse version,destination from json logging optimization.
+		logopt.LogJsonOption(jsonLogOpt)
 	}
 
 	ssaDump = os.Getenv("GOSSAFUNC")
@@ -766,6 +778,8 @@ func Main(archInit func(*Arch)) {
 	if len(compilequeue) != 0 {
 		Fatalf("%d uncompiled functions", len(compilequeue))
 	}
+
+	logopt.FlushLoggedOpts(Ctxt, myimportpath)
 
 	if nerrors+nsavederrors != 0 {
 		errorexit()
@@ -1472,8 +1486,18 @@ type lang struct {
 // any language version is supported.
 var langWant lang
 
-// langSupported reports whether language version major.minor is supported.
-func langSupported(major, minor int) bool {
+// langSupported reports whether language version major.minor is
+// supported in a particular package.
+func langSupported(major, minor int, pkg *types.Pkg) bool {
+	if pkg == nil {
+		// TODO(mdempsky): Set Pkg for local types earlier.
+		pkg = localpkg
+	}
+	if pkg != localpkg {
+		// Assume imported packages passed type-checking.
+		return true
+	}
+
 	if langWant.major == 0 && langWant.minor == 0 {
 		return true
 	}

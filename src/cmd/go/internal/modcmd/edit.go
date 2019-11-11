@@ -9,12 +9,13 @@ package modcmd
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
@@ -174,7 +175,7 @@ func runEdit(cmd *base.Command, args []string) {
 		}
 	}
 
-	data, err := ioutil.ReadFile(gomod)
+	data, err := lockedfile.Read(gomod)
 	if err != nil {
 		base.Fatalf("go: %v", err)
 	}
@@ -217,13 +218,19 @@ func runEdit(cmd *base.Command, args []string) {
 		return
 	}
 
-	unlock := modfetch.SideLock()
-	defer unlock()
-	lockedData, err := ioutil.ReadFile(gomod)
-	if err == nil && !bytes.Equal(lockedData, data) {
-		base.Fatalf("go: go.mod changed during editing; not overwriting")
+	// Make a best-effort attempt to acquire the side lock, only to exclude
+	// previous versions of the 'go' command from making simultaneous edits.
+	if unlock, err := modfetch.SideLock(); err == nil {
+		defer unlock()
 	}
-	if err := ioutil.WriteFile(gomod, out, 0666); err != nil {
+
+	err = lockedfile.Transform(gomod, func(lockedData []byte) ([]byte, error) {
+		if !bytes.Equal(lockedData, data) {
+			return nil, errors.New("go.mod changed during editing; not overwriting")
+		}
+		return out, nil
+	})
+	if err != nil {
 		base.Fatalf("go: %v", err)
 	}
 }

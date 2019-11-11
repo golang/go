@@ -5,14 +5,14 @@
 package gc
 
 import (
-	"bufio"
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"html"
 	"os"
 	"sort"
 
+	"bufio"
+	"bytes"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -2815,7 +2815,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 			// Tell liveness we're about to build a new slice
 			s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, sn, s.mem())
 		}
-		capaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, int64(array_cap), addr)
+		capaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, int64(slice_cap), addr)
 		s.store(types.Types[TINT], capaddr, r[2])
 		s.store(pt, addr, r[0])
 		// load the value we just stored to avoid having to spill it
@@ -2836,7 +2836,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 	if inplace {
 		l = s.variable(&lenVar, types.Types[TINT]) // generates phi for len
 		nl = s.newValue2(s.ssaOp(OADD, types.Types[TINT]), types.Types[TINT], l, s.constInt(types.Types[TINT], nargs))
-		lenaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, int64(array_nel), addr)
+		lenaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, int64(slice_nel), addr)
 		s.store(types.Types[TINT], lenaddr, nl)
 	}
 
@@ -3490,13 +3490,13 @@ func init() {
 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicAnd8, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
-		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64)
+		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X)
 	addF("runtime/internal/atomic", "Or8",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicOr8, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
-		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64)
+		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X)
 
 	alias("runtime/internal/atomic", "Loadint64", "runtime/internal/atomic", "Load64", all...)
 	alias("runtime/internal/atomic", "Xaddint64", "runtime/internal/atomic", "Xadd64", all...)
@@ -3519,6 +3519,11 @@ func init() {
 	alias("runtime/internal/atomic", "CasRel", "runtime/internal/atomic", "Cas", lwatomics...)
 
 	alias("runtime/internal/sys", "Ctz8", "math/bits", "TrailingZeros8", all...)
+	alias("runtime/internal/sys", "TrailingZeros8", "math/bits", "TrailingZeros8", all...)
+	alias("runtime/internal/sys", "TrailingZeros64", "math/bits", "TrailingZeros64", all...)
+	alias("runtime/internal/sys", "Len8", "math/bits", "Len8", all...)
+	alias("runtime/internal/sys", "Len64", "math/bits", "Len64", all...)
+	alias("runtime/internal/sys", "OnesCount64", "math/bits", "OnesCount64", all...)
 
 	/******** math ********/
 	addF("math", "Sqrt",
@@ -3561,12 +3566,12 @@ func init() {
 			return s.newValue2(ssa.OpCopysign, types.Types[TFLOAT64], args[0], args[1])
 		},
 		sys.PPC64, sys.Wasm)
-	addF("math", "Fma",
+	addF("math", "FMA",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			return s.newValue3(ssa.OpFma, types.Types[TFLOAT64], args[0], args[1], args[2])
+			return s.newValue3(ssa.OpFMA, types.Types[TFLOAT64], args[0], args[1], args[2])
 		},
 		sys.ARM64, sys.PPC64, sys.S390X)
-	addF("math", "Fma",
+	addF("math", "FMA",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			if !s.config.UseFMA {
 				a := s.call(n, callNormal)
@@ -3587,7 +3592,7 @@ func init() {
 
 			// We have the intrinsic - use it directly.
 			s.startBlock(bTrue)
-			s.vars[n] = s.newValue3(ssa.OpFma, types.Types[TFLOAT64], args[0], args[1], args[2])
+			s.vars[n] = s.newValue3(ssa.OpFMA, types.Types[TFLOAT64], args[0], args[1], args[2])
 			s.endBlock().AddEdgeTo(bEnd)
 
 			// Call the pure Go version.
@@ -3601,7 +3606,7 @@ func init() {
 			return s.variable(n, types.Types[TFLOAT64])
 		},
 		sys.AMD64)
-	addF("math", "Fma",
+	addF("math", "FMA",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			if !s.config.UseFMA {
 				a := s.call(n, callNormal)
@@ -3622,7 +3627,7 @@ func init() {
 
 			// We have the intrinsic - use it directly.
 			s.startBlock(bTrue)
-			s.vars[n] = s.newValue3(ssa.OpFma, types.Types[TFLOAT64], args[0], args[1], args[2])
+			s.vars[n] = s.newValue3(ssa.OpFMA, types.Types[TFLOAT64], args[0], args[1], args[2])
 			s.endBlock().AddEdgeTo(bEnd)
 
 			// Call the pure Go version.

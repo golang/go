@@ -40,6 +40,9 @@ func kqueue() int32
 
 //go:noescape
 func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
+
+func pipe() (r, w int32, errno int32)
+func pipe2(flags int32) (r, w int32, errno int32)
 func closeonexec(fd int32)
 func setNonblock(fd int32)
 

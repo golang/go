@@ -446,7 +446,7 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
 	}
 
 	nod := p.nod(decl, ODCLTYPE, n, nil)
-	if param.Alias && !langSupported(1, 9) {
+	if param.Alias && !langSupported(1, 9, localpkg) {
 		yyerrorl(nod.Pos, "type aliases only supported as of -lang=go1.9")
 	}
 	return nod
@@ -1321,7 +1321,7 @@ func (p *noder) binOp(op syntax.Operator) Op {
 // literal is not compatible with the current language version.
 func checkLangCompat(lit *syntax.BasicLit) {
 	s := lit.Value
-	if len(s) <= 2 || langSupported(1, 13) {
+	if len(s) <= 2 || langSupported(1, 13, localpkg) {
 		return
 	}
 	// len(s) > 2

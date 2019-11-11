@@ -423,6 +423,11 @@ type g struct {
 	preemptStop   bool // transition to _Gpreempted on preemption; otherwise, just deschedule
 	preemptShrink bool // shrink stack at synchronous safe point
 
+	// asyncSafePoint is set if g is stopped at an asynchronous
+	// safe point. This means there are frames on the stack
+	// without precise pointer information.
+	asyncSafePoint bool
+
 	paniconfault bool // panic (instead of crash) on unexpected fault address
 	gcscandone   bool // g has scanned stack; protected by _Gscan bit in status
 	throwsplit   bool // must not split stack
@@ -531,6 +536,11 @@ type m struct {
 	vdsoSP uintptr // SP for traceback while in VDSO call (0 if not in call)
 	vdsoPC uintptr // PC for traceback while in VDSO call
 
+	// preemptGen counts the number of completed preemption
+	// signals. This is used to detect when a preemption is
+	// requested, but fails. Accessed atomically.
+	preemptGen uint32
+
 	dlogPerM
 
 	mOS
@@ -545,6 +555,7 @@ type p struct {
 	sysmontick  sysmontick // last tick observed by sysmon
 	m           muintptr   // back-link to associated m (nil if idle)
 	mcache      *mcache
+	pcache      pageCache
 	raceprocctx uintptr
 
 	deferpool    [5][]*_defer // pool of available defer structs of different sizes (see panic.go)
@@ -577,6 +588,17 @@ type p struct {
 
 	sudogcache []*sudog
 	sudogbuf   [128]*sudog
+
+	// Cache of mspan objects from the heap.
+	mspancache struct {
+		// We need an explicit length here because this field is used
+		// in allocation codepaths where write barriers are not allowed,
+		// and eliminating the write barrier/keeping it eliminated from
+		// slice updates is tricky, moreso than just managing the length
+		// ourselves.
+		len int
+		buf [128]*mspan
+	}
 
 	tracebuf traceBufPtr
 
@@ -631,6 +653,10 @@ type p struct {
 
 	// Race context used while executing timer functions.
 	timerRaceCtx uintptr
+
+	// preempt is set to indicate that this P should be enter the
+	// scheduler ASAP (regardless of what G is running on it).
+	preempt bool
 
 	pad cpu.CacheLinePad
 }
@@ -858,8 +884,11 @@ type _panic struct {
 	argp      unsafe.Pointer // pointer to arguments of deferred call run during panic; cannot move - known to liblink
 	arg       interface{}    // argument to panic
 	link      *_panic        // link to earlier panic
+	pc        uintptr        // where to return to in runtime if this panic is bypassed
+	sp        unsafe.Pointer // where to return to in runtime if this panic is bypassed
 	recovered bool           // whether this panic is over
 	aborted   bool           // the panic was aborted
+	goexit    bool
 }
 
 // stack traces

@@ -483,3 +483,11 @@ func signame(sig uint32) string {
 	}
 	return sigtable[sig].name
 }
+
+const preemptMSupported = false
+
+func preemptM(mp *m) {
+	// Not currently supported.
+	//
+	// TODO: Use a note like we use signals on POSIX OSes
+}

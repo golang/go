@@ -286,7 +286,6 @@ func (t *Transport) Clone() *Transport {
 		DialContext:            t.DialContext,
 		Dial:                   t.Dial,
 		DialTLS:                t.DialTLS,
-		TLSClientConfig:        t.TLSClientConfig.Clone(),
 		TLSHandshakeTimeout:    t.TLSHandshakeTimeout,
 		DisableKeepAlives:      t.DisableKeepAlives,
 		DisableCompression:     t.DisableCompression,
@@ -301,6 +300,9 @@ func (t *Transport) Clone() *Transport {
 		ForceAttemptHTTP2:      t.ForceAttemptHTTP2,
 		WriteBufferSize:        t.WriteBufferSize,
 		ReadBufferSize:         t.ReadBufferSize,
+	}
+	if t.TLSClientConfig != nil {
+		t2.TLSClientConfig = t.TLSClientConfig.Clone()
 	}
 	if !t.tlsNextProtoWasNil {
 		npm := map[string]func(authority string, c *tls.Conn) RoundTripper{}
@@ -357,6 +359,9 @@ func (t *Transport) onceSetNextProtoDefaults() {
 		// http2.ConfigureTransport so we don't surprise them
 		// by modifying their tls.Config. Issue 14275.
 		// However, if ForceAttemptHTTP2 is true, it overrides the above checks.
+		return
+	}
+	if omitBundledHTTP2 {
 		return
 	}
 	t2, err := http2configureTransport(t)

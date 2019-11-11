@@ -5,7 +5,6 @@ go mod tidy -v
 stderr '^unused y.1'
 ! stderr '^unused [^y]'
 
-# tidy should not touch existing go line
 grep 'go 1.10' go.mod
 
 go list -m all

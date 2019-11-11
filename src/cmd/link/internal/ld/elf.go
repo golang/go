@@ -1439,6 +1439,7 @@ func (ctxt *Link) doelf() {
 	Addstring(shstrtab, ".data")
 	Addstring(shstrtab, ".bss")
 	Addstring(shstrtab, ".noptrbss")
+	Addstring(shstrtab, "__libfuzzer_extra_counters")
 	Addstring(shstrtab, ".go.buildinfo")
 
 	// generate .tbss section for dynamic internal linker or external

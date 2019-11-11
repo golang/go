@@ -6,6 +6,7 @@ package ppc64
 
 import (
 	"cmd/compile/internal/gc"
+	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -1239,14 +1240,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = ppc64.REG_CTR
+		p.To.Reg = ppc64.REG_LR
 
 		if v.Args[0].Reg() != ppc64.REG_R12 {
 			v.Fatalf("Function address for %v should be in R12 %d but is in %d", v.LongString(), ppc64.REG_R12, p.From.Reg)
 		}
 
 		pp := s.Call(v)
-		pp.To.Reg = ppc64.REG_CTR
+		pp.To.Reg = ppc64.REG_LR
 
 		if gc.Ctxt.Flag_shared {
 			// When compiling Go into PIC, the function we just
@@ -1312,6 +1313,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			gc.AddAux(&p.From, v)
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = ppc64.REGTMP
+		}
+		if logopt.Enabled() {
+			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
 		}
 		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
 			gc.Warnl(v.Pos, "generated nil check")

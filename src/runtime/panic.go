@@ -577,8 +577,15 @@ func Goexit() {
 	// This code is similar to gopanic, see that implementation
 	// for detailed comments.
 	gp := getg()
-	addOneOpenDeferFrame(gp, getcallerpc(), unsafe.Pointer(getcallersp()))
 
+	// Create a panic object for Goexit, so we can recognize when it might be
+	// bypassed by a recover().
+	var p _panic
+	p.goexit = true
+	p.link = gp._panic
+	gp._panic = (*_panic)(noescape(unsafe.Pointer(&p)))
+
+	addOneOpenDeferFrame(gp, getcallerpc(), unsafe.Pointer(getcallersp()))
 	for {
 		d := gp._defer
 		if d == nil {
@@ -597,6 +604,7 @@ func Goexit() {
 			}
 		}
 		d.started = true
+		d._panic = (*_panic)(noescape(unsafe.Pointer(&p)))
 		if d.openDefer {
 			done := runOpenDeferFrame(gp, d)
 			if !done {
@@ -605,9 +613,29 @@ func Goexit() {
 				// defer that can be recovered.
 				throw("unfinished open-coded defers in Goexit")
 			}
-			addOneOpenDeferFrame(gp, 0, nil)
+			if p.aborted {
+				// Since our current defer caused a panic and may
+				// have been already freed, just restart scanning
+				// for open-coded defers from this frame again.
+				addOneOpenDeferFrame(gp, getcallerpc(), unsafe.Pointer(getcallersp()))
+			} else {
+				addOneOpenDeferFrame(gp, 0, nil)
+			}
 		} else {
-			reflectcall(nil, unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz), uint32(d.siz))
+
+			// Save the pc/sp in reflectcallSave(), so we can "recover" back to this
+			// loop if necessary.
+			reflectcallSave(&p, unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz))
+		}
+		if p.aborted {
+			// We had a recursive panic in the defer d we started, and
+			// then did a recover in a defer that was further down the
+			// defer chain than d. In the case of an outstanding Goexit,
+			// we force the recover to return back to this loop. d will
+			// have already been freed if completed, so just continue
+			// immediately to the next defer on the chain.
+			p.aborted = false
+			continue
 		}
 		if gp._defer != d {
 			throw("bad defer entry in Goexit")
@@ -645,7 +673,12 @@ func preprintpanics(p *_panic) {
 func printpanics(p *_panic) {
 	if p.link != nil {
 		printpanics(p.link)
-		print("\t")
+		if !p.link.goexit {
+			print("\t")
+		}
+	}
+	if p.goexit {
+		return
 	}
 	print("panic: ")
 	printany(p.arg)
@@ -810,10 +843,11 @@ func runOpenDeferFrame(gp *g, d *_defer) bool {
 		}
 		deferBits = deferBits &^ (1 << i)
 		*(*uint8)(unsafe.Pointer(d.varp - uintptr(deferBitsOffset))) = deferBits
-		if d._panic != nil {
-			d._panic.argp = unsafe.Pointer(getargp(0))
+		p := d._panic
+		reflectcallSave(p, unsafe.Pointer(closure), deferArgs, argWidth)
+		if p != nil && p.aborted {
+			break
 		}
-		reflectcall(nil, unsafe.Pointer(closure), deferArgs, argWidth, argWidth)
 		d.fn = nil
 		// These args are just a copy, so can be cleared immediately
 		memclrNoHeapPointers(deferArgs, uintptr(argWidth))
@@ -824,6 +858,23 @@ func runOpenDeferFrame(gp *g, d *_defer) bool {
 	}
 
 	return done
+}
+
+// reflectcallSave calls reflectcall after saving the caller's pc and sp in the
+// panic record. This allows the runtime to return to the Goexit defer processing
+// loop, in the unusual case where the Goexit may be bypassed by a successful
+// recover.
+func reflectcallSave(p *_panic, fn, arg unsafe.Pointer, argsize uint32) {
+	if p != nil {
+		p.argp = unsafe.Pointer(getargp(0))
+		p.pc = getcallerpc()
+		p.sp = unsafe.Pointer(getcallersp())
+	}
+	reflectcall(nil, fn, arg, argsize, argsize)
+	if p != nil {
+		p.pc = 0
+		p.sp = unsafe.Pointer(nil)
+	}
 }
 
 // The implementation of the predeclared function panic.
@@ -876,7 +927,8 @@ func gopanic(e interface{}) {
 		}
 
 		// If defer was started by earlier panic or Goexit (and, since we're back here, that triggered a new panic),
-		// take defer off list. The earlier panic or Goexit will not continue running.
+		// take defer off list. An earlier panic will not continue running, but we will make sure below that an
+		// earlier Goexit does continue running.
 		if d.started {
 			if d._panic != nil {
 				d._panic.aborted = true
@@ -933,6 +985,15 @@ func gopanic(e interface{}) {
 			freedefer(d)
 		}
 		if p.recovered {
+			gp._panic = p.link
+			if gp._panic != nil && gp._panic.goexit && gp._panic.aborted {
+				// A normal recover would bypass/abort the Goexit.  Instead,
+				// we return to the processing loop of the Goexit.
+				gp.sigcode0 = uintptr(gp._panic.sp)
+				gp.sigcode1 = uintptr(gp._panic.pc)
+				mcall(recovery)
+				throw("bypassed recovery failed") // mcall should not return
+			}
 			atomic.Xadd(&runningPanicDefers, -1)
 
 			if done {
@@ -1019,7 +1080,7 @@ func gorecover(argp uintptr) interface{} {
 	// If they match, the caller is the one who can recover.
 	gp := getg()
 	p := gp._panic
-	if p != nil && !p.recovered && argp == uintptr(p.argp) {
+	if p != nil && !p.goexit && !p.recovered && argp == uintptr(p.argp) {
 		p.recovered = true
 		return p.arg
 	}

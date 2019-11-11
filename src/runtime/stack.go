@@ -337,7 +337,7 @@ func stackalloc(n uint32) stack {
 	}
 
 	if debug.efence != 0 || stackFromSystem != 0 {
-		n = uint32(round(uintptr(n), physPageSize))
+		n = uint32(alignUp(uintptr(n), physPageSize))
 		v := sysAlloc(uintptr(n), &memstats.stacks_sys)
 		if v == nil {
 			throw("out of memory (stackalloc)")
@@ -1072,7 +1072,11 @@ func isShrinkStackSafe(gp *g) bool {
 	// The syscall might have pointers into the stack and
 	// often we don't have precise pointer maps for the innermost
 	// frames.
-	return gp.syscallsp == 0
+	//
+	// We also can't copy the stack if we're at an asynchronous
+	// safe-point because we don't have precise pointer maps for
+	// all frames.
+	return gp.syscallsp == 0 && !gp.asyncSafePoint
 }
 
 // Maybe shrink the stack being used by gp.

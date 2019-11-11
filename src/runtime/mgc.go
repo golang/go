@@ -139,6 +139,10 @@ const (
 	_ConcurrentSweep = true
 	_FinBlockSize    = 4 * 1024
 
+	// debugScanConservative enables debug logging for stack
+	// frames that are scanned conservatively.
+	debugScanConservative = false
+
 	// sweepMinHeapDistance is a lower bound on the heap distance
 	// (in bytes) reserved for concurrent sweeping between GC
 	// cycles.
@@ -765,11 +769,25 @@ func gcSetTriggerRatio(triggerRatio float64) {
 		goal = memstats.heap_marked + memstats.heap_marked*uint64(gcpercent)/100
 	}
 
+	// If we let triggerRatio go too low, then if the application
+	// is allocating very rapidly we might end up in a situation
+	// where we're allocating black during a nearly always-on GC.
+	// The result of this is a growing heap and ultimately an
+	// increase in RSS. By capping us at a point >0, we're essentially
+	// saying that we're OK using more CPU during the GC to prevent
+	// this growth in RSS.
+	//
+	// The current constant was chosen empirically: given a sufficiently
+	// fast/scalable allocator with 48 Ps that could drive the trigger ratio
+	// to <0.05, this constant causes applications to retain the same peak
+	// RSS compared to not having this allocator.
+	const minTriggerRatio = 0.6
+
 	// Set the trigger ratio, capped to reasonable bounds.
-	if triggerRatio < 0 {
+	if triggerRatio < minTriggerRatio {
 		// This can happen if the mutator is allocating very
 		// quickly or the GC is scanning very slowly.
-		triggerRatio = 0
+		triggerRatio = minTriggerRatio
 	} else if gcpercent >= 0 {
 		// Ensure there's always a little margin so that the
 		// mutator assist ratio isn't infinity.
@@ -847,7 +865,8 @@ func gcSetTriggerRatio(triggerRatio float64) {
 			heapDistance = _PageSize
 		}
 		pagesSwept := atomic.Load64(&mheap_.pagesSwept)
-		sweepDistancePages := int64(mheap_.pagesInUse) - int64(pagesSwept)
+		pagesInUse := atomic.Load64(&mheap_.pagesInUse)
+		sweepDistancePages := int64(pagesInUse) - int64(pagesSwept)
 		if sweepDistancePages <= 0 {
 			mheap_.sweepPagesPerByte = 0
 		} else {

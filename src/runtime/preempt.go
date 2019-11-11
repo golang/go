@@ -13,6 +13,11 @@
 // 2. Synchronous safe-points occur when a running goroutine checks
 //    for a preemption request.
 //
+// 3. Asynchronous safe-points occur at any instruction in user code
+//    where the goroutine can be safely paused and a conservative
+//    stack and register scan can find stack roots. The runtime can
+//    stop a goroutine at an async safe-point using a signal.
+//
 // At both blocked and synchronous safe-points, a goroutine's CPU
 // state is minimal and the garbage collector has complete information
 // about its entire stack. This makes it possible to deschedule a
@@ -26,8 +31,32 @@
 // to fail and enter the stack growth implementation, which will
 // detect that it was actually a preemption and redirect to preemption
 // handling.
+//
+// Preemption at asynchronous safe-points is implemented by suspending
+// the thread using an OS mechanism (e.g., signals) and inspecting its
+// state to determine if the goroutine was at an asynchronous
+// safe-point. Since the thread suspension itself is generally
+// asynchronous, it also checks if the running goroutine wants to be
+// preempted, since this could have changed. If all conditions are
+// satisfied, it adjusts the signal context to make it look like the
+// signaled thread just called asyncPreempt and resumes the thread.
+// asyncPreempt spills all registers and enters the scheduler.
+//
+// (An alternative would be to preempt in the signal handler itself.
+// This would let the OS save and restore the register state and the
+// runtime would only need to know how to extract potentially
+// pointer-containing registers from the signal context. However, this
+// would consume an M for every preempted G, and the scheduler itself
+// is not designed to run from a signal handler, as it tends to
+// allocate memory and start threads in the preemption path.)
 
 package runtime
+
+import (
+	"runtime/internal/atomic"
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 type suspendGState struct {
 	g *g
@@ -87,6 +116,8 @@ func suspendG(gp *g) suspendGState {
 
 	// Drive the goroutine to a preemption point.
 	stopped := false
+	var asyncM *m
+	var asyncGen uint32
 	for i := 0; ; i++ {
 		switch s := readgstatus(gp); s {
 		default:
@@ -160,7 +191,7 @@ func suspendG(gp *g) suspendGState {
 		case _Grunning:
 			// Optimization: if there is already a pending preemption request
 			// (from the previous loop iteration), don't bother with the atomics.
-			if gp.preemptStop && gp.preempt && gp.stackguard0 == stackPreempt {
+			if gp.preemptStop && gp.preempt && gp.stackguard0 == stackPreempt && asyncM == gp.m && atomic.Load(&asyncM.preemptGen) == asyncGen {
 				break
 			}
 
@@ -174,7 +205,12 @@ func suspendG(gp *g) suspendGState {
 			gp.preempt = true
 			gp.stackguard0 = stackPreempt
 
-			// TODO: Inject asynchronous preemption.
+			// Send asynchronous preemption.
+			asyncM = gp.m
+			asyncGen = atomic.Load(&asyncM.preemptGen)
+			if preemptMSupported && debug.asyncpreemptoff == 0 {
+				preemptM(asyncM)
+			}
 
 			casfrom_Gscanstatus(gp, _Gscanrunning, _Grunning)
 		}
@@ -232,3 +268,147 @@ func resumeG(state suspendGState) {
 func canPreemptM(mp *m) bool {
 	return mp.locks == 0 && mp.mallocing == 0 && mp.preemptoff == "" && mp.p.ptr().status == _Prunning
 }
+
+//go:generate go run mkpreempt.go
+
+// asyncPreempt saves all user registers and calls asyncPreempt2.
+//
+// When stack scanning encounters an asyncPreempt frame, it scans that
+// frame and its parent frame conservatively.
+//
+// asyncPreempt is implemented in assembly.
+func asyncPreempt()
+
+//go:nosplit
+func asyncPreempt2() {
+	gp := getg()
+	gp.asyncSafePoint = true
+	if gp.preemptStop {
+		mcall(preemptPark)
+	} else {
+		mcall(gopreempt_m)
+	}
+	gp.asyncSafePoint = false
+}
+
+// asyncPreemptStack is the bytes of stack space required to inject an
+// asyncPreempt call.
+var asyncPreemptStack = ^uintptr(0)
+
+func init() {
+	f := findfunc(funcPC(asyncPreempt))
+	total := funcMaxSPDelta(f)
+	f = findfunc(funcPC(asyncPreempt2))
+	total += funcMaxSPDelta(f)
+	// Add some overhead for return PCs, etc.
+	asyncPreemptStack = uintptr(total) + 8*sys.PtrSize
+	if asyncPreemptStack > _StackLimit {
+		// We need more than the nosplit limit. This isn't
+		// unsafe, but it may limit asynchronous preemption.
+		//
+		// This may be a problem if we start using more
+		// registers. In that case, we should store registers
+		// in a context object. If we pre-allocate one per P,
+		// asyncPreempt can spill just a few registers to the
+		// stack, then grab its context object and spill into
+		// it. When it enters the runtime, it would allocate a
+		// new context for the P.
+		print("runtime: asyncPreemptStack=", asyncPreemptStack, "\n")
+		throw("async stack too large")
+	}
+}
+
+// wantAsyncPreempt returns whether an asynchronous preemption is
+// queued for gp.
+func wantAsyncPreempt(gp *g) bool {
+	// Check both the G and the P.
+	return (gp.preempt || gp.m.p != 0 && gp.m.p.ptr().preempt) && readgstatus(gp)&^_Gscan == _Grunning
+}
+
+// isAsyncSafePoint reports whether gp at instruction PC is an
+// asynchronous safe point. This indicates that:
+//
+// 1. It's safe to suspend gp and conservatively scan its stack and
+// registers. There are no potentially hidden pointer values and it's
+// not in the middle of an atomic sequence like a write barrier.
+//
+// 2. gp has enough stack space to inject the asyncPreempt call.
+//
+// 3. It's generally safe to interact with the runtime, even if we're
+// in a signal handler stopped here. For example, there are no runtime
+// locks held, so acquiring a runtime lock won't self-deadlock.
+func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) bool {
+	mp := gp.m
+
+	// Only user Gs can have safe-points. We check this first
+	// because it's extremely common that we'll catch mp in the
+	// scheduler processing this G preemption.
+	if mp.curg != gp {
+		return false
+	}
+
+	// Check M state.
+	if mp.p == 0 || !canPreemptM(mp) {
+		return false
+	}
+
+	// Check stack space.
+	if sp < gp.stack.lo || sp-gp.stack.lo < asyncPreemptStack {
+		return false
+	}
+
+	// Check if PC is an unsafe-point.
+	f := findfunc(pc)
+	if !f.valid() {
+		// Not Go code.
+		return false
+	}
+	if (GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "mips64" || GOARCH == "mips64le") && lr == pc+8 && funcspdelta(f, pc, nil) == 0 {
+		// We probably stopped at a half-executed CALL instruction,
+		// where the LR is updated but the PC has not. If we preempt
+		// here we'll see a seemingly self-recursive call, which is in
+		// fact not.
+		// This is normally ok, as we use the return address saved on
+		// stack for unwinding, not the LR value. But if this is a
+		// call to morestack, we haven't created the frame, and we'll
+		// use the LR for unwinding, which will be bad.
+		return false
+	}
+	smi := pcdatavalue(f, _PCDATA_StackMapIndex, pc, nil)
+	if smi == -2 {
+		// Unsafe-point marked by compiler. This includes
+		// atomic sequences (e.g., write barrier) and nosplit
+		// functions (except at calls).
+		return false
+	}
+	if fd := funcdata(f, _FUNCDATA_LocalsPointerMaps); fd == nil || fd == unsafe.Pointer(&no_pointers_stackmap) {
+		// This is assembly code. Don't assume it's
+		// well-formed. We identify assembly code by
+		// checking that it has either no stack map, or
+		// no_pointers_stackmap, which is the stack map
+		// for ones marked as NO_LOCAL_POINTERS.
+		//
+		// TODO: Are there cases that are safe but don't have a
+		// locals pointer map, like empty frame functions?
+		return false
+	}
+	if hasPrefix(funcname(f), "runtime.") ||
+		hasPrefix(funcname(f), "runtime/internal/") ||
+		hasPrefix(funcname(f), "reflect.") {
+		// For now we never async preempt the runtime or
+		// anything closely tied to the runtime. Known issues
+		// include: various points in the scheduler ("don't
+		// preempt between here and here"), much of the defer
+		// implementation (untyped info on stack), bulk write
+		// barriers (write barrier check),
+		// reflect.{makeFuncStub,methodValueCall}.
+		//
+		// TODO(austin): We should improve this, or opt things
+		// in incrementally.
+		return false
+	}
+
+	return true
+}
+
+var no_pointers_stackmap uint64 // defined in assembly, for NO_LOCAL_POINTERS macro

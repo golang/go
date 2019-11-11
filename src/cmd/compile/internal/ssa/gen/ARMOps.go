@@ -60,6 +60,8 @@ var regNamesARM = []string{
 	"F14",
 	"F15", // tmp
 
+	// If you add registers, update asyncPreempt in runtime.
+
 	// pseudo-registers
 	"SB",
 }

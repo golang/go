@@ -14,6 +14,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -759,10 +760,6 @@ func TestDialerKeepAlive(t *testing.T) {
 }
 
 func TestDialCancel(t *testing.T) {
-	switch testenv.Builder() {
-	case "linux-arm64-buildlet":
-		t.Skip("skipping on linux-arm64-buildlet; incompatible network config? issue 15191")
-	}
 	mustHaveExternalNetwork(t)
 
 	blackholeIPPort := JoinHostPort(slowDst4, "1234")
@@ -807,6 +804,11 @@ func TestDialCancel(t *testing.T) {
 				t.Error(perr)
 			}
 			if ticks < cancelTick {
+				// Using strings.Contains is ugly but
+				// may work on plan9 and windows.
+				if strings.Contains(err.Error(), "connection refused") {
+					t.Skipf("connection to %v failed fast with %v", blackholeIPPort, err)
+				}
 				t.Fatalf("dial error after %d ticks (%d before cancel sent): %v",
 					ticks, cancelTick-ticks, err)
 			}

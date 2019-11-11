@@ -39,11 +39,25 @@ func TestMain(m *testing.M) {
 }
 
 func waitSig(t *testing.T, c <-chan os.Signal, sig os.Signal) {
+	waitSig1(t, c, sig, false)
+}
+func waitSigAll(t *testing.T, c <-chan os.Signal, sig os.Signal) {
+	waitSig1(t, c, sig, true)
+}
+
+func waitSig1(t *testing.T, c <-chan os.Signal, sig os.Signal, all bool) {
 	// Sleep multiple times to give the kernel more tries to
 	// deliver the signal.
 	for i := 0; i < 10; i++ {
 		select {
 		case s := <-c:
+			// If the caller notified for all signals on
+			// c, filter out SIGURG, which is used for
+			// runtime preemption and can come at
+			// unpredictable times.
+			if all && s == syscall.SIGURG {
+				continue
+			}
 			if s != sig {
 				t.Fatalf("signal was %v, want %v", s, sig)
 			}
@@ -67,24 +81,26 @@ func TestSignal(t *testing.T) {
 	syscall.Kill(syscall.Getpid(), syscall.SIGHUP)
 	waitSig(t, c, syscall.SIGHUP)
 
-	// Ask for everything we can get.
-	c1 := make(chan os.Signal, 1)
+	// Ask for everything we can get. The buffer size has to be
+	// more than 1, since the runtime might send SIGURG signals.
+	// Using 10 is arbitrary.
+	c1 := make(chan os.Signal, 10)
 	Notify(c1)
 
 	// Send this process a SIGWINCH
 	t.Logf("sigwinch...")
 	syscall.Kill(syscall.Getpid(), syscall.SIGWINCH)
-	waitSig(t, c1, syscall.SIGWINCH)
+	waitSigAll(t, c1, syscall.SIGWINCH)
 
 	// Send two more SIGHUPs, to make sure that
 	// they get delivered on c1 and that not reading
 	// from c does not block everything.
 	t.Logf("sighup...")
 	syscall.Kill(syscall.Getpid(), syscall.SIGHUP)
-	waitSig(t, c1, syscall.SIGHUP)
+	waitSigAll(t, c1, syscall.SIGHUP)
 	t.Logf("sighup...")
 	syscall.Kill(syscall.Getpid(), syscall.SIGHUP)
-	waitSig(t, c1, syscall.SIGHUP)
+	waitSigAll(t, c1, syscall.SIGHUP)
 
 	// The first SIGHUP should be waiting for us on c.
 	waitSig(t, c, syscall.SIGHUP)

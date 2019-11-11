@@ -45,6 +45,8 @@ var regNames386 = []string{
 	"X6",
 	"X7",
 
+	// If you add registers, update asyncPreempt in runtime
+
 	// pseudo-registers
 	"SB",
 }

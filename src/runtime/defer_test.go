@@ -121,18 +121,16 @@ func TestDisappearingDefer(t *testing.T) {
 }
 
 // This tests an extra recursive panic behavior that is only specified in the
-// code.  Suppose a first panic P1 happens and starts processing defer calls.  If
-// a second panic P2 happens while processing defer call D in frame F, then defer
+// code. Suppose a first panic P1 happens and starts processing defer calls. If a
+// second panic P2 happens while processing defer call D in frame F, then defer
 // call processing is restarted (with some potentially new defer calls created by
-// D or its callees).  If the defer processing reaches the started defer call D
+// D or its callees). If the defer processing reaches the started defer call D
 // again in the defer stack, then the original panic P1 is aborted and cannot
-// continue panic processing or be recovered.  If the panic P2 does a recover at
-// some point, it will naturally the original panic P1 from the stack, since the
-// original panic had to be in frame F or a descendant of F.
+// continue panic processing or be recovered. If the panic P2 does a recover at
+// some point, it will naturally remove the original panic P1 from the stack
+// (since the original panic had to be in frame F or a descendant of F).
 func TestAbortedPanic(t *testing.T) {
 	defer func() {
-		// The first panic should have been "aborted", so there is
-		// no other panic to recover
 		r := recover()
 		if r != nil {
 			t.Fatal(fmt.Sprintf("wanted nil recover, got %v", r))
@@ -255,4 +253,31 @@ func TestNonSSAableArgs(t *testing.T) {
 	defer func(element bigStruct) {
 		save4 = element.z
 	}(sideeffect2(foo).element)
+}
+
+//go:noinline
+func doPanic() {
+	panic("Test panic")
+}
+
+func TestDeferForFuncWithNoExit(t *testing.T) {
+	cond := 1
+	defer func() {
+		if cond != 2 {
+			t.Fatal(fmt.Sprintf("cond: wanted 2, got %v", cond))
+		}
+		if recover() != "Test panic" {
+			t.Fatal("Didn't find expected panic")
+		}
+	}()
+	x := 0
+	// Force a stack copy, to make sure that the &cond pointer passed to defer
+	// function is properly updated.
+	growStackIter(&x, 1000)
+	cond = 2
+	doPanic()
+
+	// This function has no exit/return, since it ends with an infinite loop
+	for {
+	}
 }
