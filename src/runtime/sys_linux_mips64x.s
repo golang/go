@@ -211,23 +211,88 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 
 // func walltime1() (sec int64, nsec int32)
 TEXT runtime·walltime1(SB),NOSPLIT,$16
+	MOVV	R29, R16	// R16 is unchanged by C code
+	MOVV	R29, R1
+
+	MOVV	g_m(g), R17	// R17 = m
+
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	MOVV	R31, m_vdsoPC(R17)
+	MOVV	R29, m_vdsoSP(R17)
+
+	MOVV	m_curg(R17), R4
+	MOVV	g, R5
+	BNE	R4, R5, noswitch
+
+	MOVV	m_g0(R17), R4
+	MOVV	(g_sched+gobuf_sp)(R4), R1	// Set SP to g0 stack
+
+noswitch:
+	SUBV	$16, R1
+	AND	$~15, R1	// Align for C code
+	MOVV	R1, R29
+
 	MOVW	$0, R4 // CLOCK_REALTIME
 	MOVV	$0(R29), R5
-	MOVV	$SYS_clock_gettime, R2
-	SYSCALL
+
+	MOVV	runtime·vdsoClockgettimeSym(SB), R25
+	BEQ	R25, fallback
+
+	JAL	(R25)
+
+finish:
 	MOVV	0(R29), R3	// sec
 	MOVV	8(R29), R5	// nsec
+
+	MOVV	R16, R29	// restore SP
+	MOVV	R0, m_vdsoSP(R17)	// clear vdsoSP
+
 	MOVV	R3, sec+0(FP)
 	MOVW	R5, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime1(SB),NOSPLIT,$16
-	MOVW	$1, R4 // CLOCK_MONOTONIC
-	MOVV	$0(R29), R5
+fallback:
 	MOVV	$SYS_clock_gettime, R2
 	SYSCALL
+	JMP finish
+
+TEXT runtime·nanotime1(SB),NOSPLIT,$16
+	MOVV	R29, R16	// R16 is unchanged by C code
+	MOVV	R29, R1
+
+	MOVV	g_m(g), R17	// R17 = m
+
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	MOVV	R31, m_vdsoPC(R17)
+	MOVV	R29, m_vdsoSP(R17)
+
+	MOVV	m_curg(R17), R4
+	MOVV	g, R5
+	BNE	R4, R5, noswitch
+
+	MOVV	m_g0(R17), R4
+	MOVV	(g_sched+gobuf_sp)(R4), R1	// Set SP to g0 stack
+
+noswitch:
+	SUBV	$16, R1
+	AND	$~15, R1	// Align for C code
+	MOVV	R1, R29
+
+	MOVW	$1, R4 // CLOCK_MONOTONIC
+	MOVV	$0(R29), R5
+
+	MOVV	runtime·vdsoClockgettimeSym(SB), R25
+	BEQ	R25, fallback
+
+	JAL	(R25)
+
+finish:
 	MOVV	0(R29), R3	// sec
 	MOVV	8(R29), R5	// nsec
+
+	MOVV	R16, R29	// restore SP
+	MOVV	R0, m_vdsoSP(R17)	// clear vdsoSP
+
 	// sec is in R3, nsec in R5
 	// return nsec in R3
 	MOVV	$1000000000, R4
@@ -236,6 +301,11 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16
 	ADDVU	R5, R3
 	MOVV	R3, ret+0(FP)
 	RET
+
+fallback:
+	MOVV	$SYS_clock_gettime, R2
+	SYSCALL
+	JMP	finish
 
 TEXT runtime·rtsigprocmask(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	how+0(FP), R4

@@ -947,9 +947,6 @@ func adjusttimers(pp *p) {
 					badTimer()
 				}
 				moved = append(moved, t)
-				if !atomic.Cas(&t.status, timerMoving, timerWaiting) {
-					badTimer()
-				}
 				if s == timerModifiedEarlier {
 					if n := atomic.Xadd(&pp.adjustTimers, -1); int32(n) <= 0 {
 						addAdjustedTimers(pp, moved)
@@ -979,49 +976,34 @@ func adjusttimers(pp *p) {
 // back to the timer heap.
 func addAdjustedTimers(pp *p, moved []*timer) {
 	for _, t := range moved {
-	loop:
-		for {
-			switch s := atomic.Load(&t.status); s {
-			case timerWaiting:
-				// This is the normal case.
-				if !doaddtimer(pp, t) {
-					badTimer()
-				}
-				break loop
-			case timerDeleted:
-				// Timer has been deleted since we adjusted it.
-				// This timer is already out of the heap.
-				if atomic.Cas(&t.status, s, timerRemoving) {
-					if !atomic.Cas(&t.status, timerRemoving, timerRemoved) {
-						badTimer()
-					}
-					break loop
-				}
-			case timerModifiedEarlier, timerModifiedLater:
-				// Timer has been modified again since
-				// we adjusted it.
-				if atomic.Cas(&t.status, s, timerMoving) {
-					t.when = t.nextwhen
-					if !doaddtimer(pp, t) {
-						badTimer()
-					}
-					if !atomic.Cas(&t.status, timerMoving, timerWaiting) {
-						badTimer()
-					}
-					if s == timerModifiedEarlier {
-						atomic.Xadd(&pp.adjustTimers, -1)
-					}
-					break loop
-				}
-			case timerNoStatus, timerRunning, timerRemoving, timerRemoved, timerMoving:
-				badTimer()
-			case timerModifying:
-				// Wait and try again.
-				osyield()
-				continue
-			}
+		if !doaddtimer(pp, t) {
+			badTimer()
+		}
+		if !atomic.Cas(&t.status, timerMoving, timerWaiting) {
+			badTimer()
 		}
 	}
+}
+
+// nobarrierWakeTime looks at P's timers and returns the time when we
+// should wake up the netpoller. It returns 0 if there are no timers.
+// This function is invoked when dropping a P, and must run without
+// any write barriers. Therefore, if there are any timers that needs
+// to be moved earlier, it conservatively returns the current time.
+// The netpoller M will wake up and adjust timers before sleeping again.
+//go:nowritebarrierrec
+func nobarrierWakeTime(pp *p) int64 {
+	lock(&pp.timersLock)
+	ret := int64(0)
+	if len(pp.timers) > 0 {
+		if atomic.Load(&pp.adjustTimers) > 0 {
+			ret = nanotime()
+		} else {
+			ret = pp.timers[0].when
+		}
+	}
+	unlock(&pp.timersLock)
+	return ret
 }
 
 // runtimer examines the first timer in timers. If it is ready based on now,
@@ -1252,6 +1234,8 @@ func timejumpLocked() *g {
 	return tb.gp
 }
 
+// timeSleepUntil returns the time when the next timer should fire.
+// This is only called by sysmon.
 func timeSleepUntil() int64 {
 	if oldTimers {
 		return timeSleepUntilOld()
@@ -1259,7 +1243,15 @@ func timeSleepUntil() int64 {
 
 	next := int64(maxWhen)
 
+	// Prevent allp slice changes. This is like retake.
+	lock(&allpLock)
 	for _, pp := range allp {
+		if pp == nil {
+			// This can happen if procresize has grown
+			// allp but not yet created new Ps.
+			continue
+		}
+
 		lock(&pp.timersLock)
 		c := atomic.Load(&pp.adjustTimers)
 		for _, t := range pp.timers {
@@ -1294,6 +1286,7 @@ func timeSleepUntil() int64 {
 		}
 		unlock(&pp.timersLock)
 	}
+	unlock(&allpLock)
 
 	return next
 }

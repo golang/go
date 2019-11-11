@@ -111,6 +111,32 @@ func TestCmdGoNoHTTPServer(t *testing.T) {
 	}
 }
 
+// Tests that the nethttpomithttp2 build tag doesn't rot too much,
+// even if there's not a regular builder on it.
+func TestOmitHTTP2(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+	t.Parallel()
+	goTool := testenv.GoToolPath(t)
+	out, err := exec.Command(goTool, "test", "-short", "-tags=nethttpomithttp2", "net/http").CombinedOutput()
+	if err != nil {
+		t.Fatalf("go test -short failed: %v, %s", err, out)
+	}
+}
+
+// Tests that the nethttpomithttp2 build tag at least type checks
+// in short mode.
+// The TestOmitHTTP2 test above actually runs tests (in long mode).
+func TestOmitHTTP2Vet(t *testing.T) {
+	t.Parallel()
+	goTool := testenv.GoToolPath(t)
+	out, err := exec.Command(goTool, "vet", "-tags=nethttpomithttp2", "net/http").CombinedOutput()
+	if err != nil {
+		t.Fatalf("go vet failed: %v, %s", err, out)
+	}
+}
+
 var valuesCount int
 
 func BenchmarkCopyValues(b *testing.B) {

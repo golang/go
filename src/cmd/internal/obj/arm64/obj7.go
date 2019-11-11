@@ -599,6 +599,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				// Store link register before decrementing SP, so if a signal comes
 				// during the execution of the function prologue, the traceback
 				// code will not see a half-updated stack frame.
+				// This sequence is not async preemptible, as if we open a frame
+				// at the current SP, it will clobber the saved LR.
+				q = c.ctxt.StartUnsafePoint(q, c.newprog)
+
 				q = obj.Appendp(q, c.newprog)
 				q.Pos = p.Pos
 				q.As = ASUB
@@ -624,6 +628,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q1.To.Type = obj.TYPE_REG
 				q1.To.Reg = REGSP
 				q1.Spadj = c.autosize
+
+				q1 = c.ctxt.EndUnsafePoint(q1, c.newprog, -1)
 			} else {
 				// small frame, update SP and save LR in a single MOVD.W instruction
 				q1 = obj.Appendp(q, c.newprog)
@@ -806,22 +812,27 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 				aoffset := c.autosize
 
-				if aoffset > 0xF0 {
-					aoffset = 0xF0
-				}
-				p.As = AMOVD
-				p.From.Type = obj.TYPE_MEM
-				p.Scond = C_XPOST
-				p.From.Offset = int64(aoffset)
-				p.From.Reg = REGSP
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = REGLINK
-				p.Spadj = -aoffset
-				if c.autosize > aoffset {
+				if aoffset <= 0xF0 {
+					p.As = AMOVD
+					p.From.Type = obj.TYPE_MEM
+					p.Scond = C_XPOST
+					p.From.Offset = int64(aoffset)
+					p.From.Reg = REGSP
+					p.To.Type = obj.TYPE_REG
+					p.To.Reg = REGLINK
+					p.Spadj = -aoffset
+				} else {
+					p.As = AMOVD
+					p.From.Type = obj.TYPE_MEM
+					p.From.Offset = 0
+					p.From.Reg = REGSP
+					p.To.Type = obj.TYPE_REG
+					p.To.Reg = REGLINK
+
 					q = newprog()
 					q.As = AADD
 					q.From.Type = obj.TYPE_CONST
-					q.From.Offset = int64(c.autosize) - int64(aoffset)
+					q.From.Offset = int64(aoffset)
 					q.To.Type = obj.TYPE_REG
 					q.To.Reg = REGSP
 					q.Link = p.Link

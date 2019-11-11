@@ -917,6 +917,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 		"src/runtime",
 		"src/internal/bytealg",
 		"src/internal/cpu",
+		"src/math/bits",
 		"src/unsafe",
 		filepath.Join("pkg", runtime.GOOS+"_"+runtime.GOARCH),
 		filepath.Join("pkg/tool", runtime.GOOS+"_"+runtime.GOARCH),
@@ -4687,23 +4688,19 @@ func copyFile(src, dst string, perm os.FileMode) error {
 	return err2
 }
 
+// TestExecutableGOROOT verifies that the cmd/go binary itself uses
+// os.Executable (when available) to locate GOROOT.
 func TestExecutableGOROOT(t *testing.T) {
 	skipIfGccgo(t, "gccgo has no GOROOT")
-	if runtime.GOOS == "openbsd" {
-		t.Skipf("test case does not work on %s, missing os.Executable", runtime.GOOS)
-	}
 
-	// Env with no GOROOT.
-	var env []string
-	for _, e := range os.Environ() {
-		if !strings.HasPrefix(e, "GOROOT=") {
-			env = append(env, e)
-		}
-	}
+	// Note: Must not call tg methods inside subtests: tg is attached to outer t.
+	tg := testgo(t)
+	tg.unsetenv("GOROOT")
+	defer tg.cleanup()
 
 	check := func(t *testing.T, exe, want string) {
 		cmd := exec.Command(exe, "env", "GOROOT")
-		cmd.Env = env
+		cmd.Env = tg.env
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("%s env GOROOT: %v, %s", exe, err, out)
@@ -4722,10 +4719,6 @@ func TestExecutableGOROOT(t *testing.T) {
 			t.Logf("go env GOROOT: %s", goroot)
 		}
 	}
-
-	// Note: Must not call tg methods inside subtests: tg is attached to outer t.
-	tg := testgo(t)
-	defer tg.cleanup()
 
 	tg.makeTempdir()
 	tg.tempDir("new/bin")
@@ -4773,8 +4766,9 @@ func TestExecutableGOROOT(t *testing.T) {
 		}
 
 		cmd := exec.Command(newGoTool, "run", "testdata/print_goroot.go")
-		cmd.Env = env
-		out, err := cmd.CombinedOutput()
+		cmd.Env = tg.env
+		cmd.Stderr = os.Stderr
+		out, err := cmd.Output()
 		if err != nil {
 			t.Fatalf("%s run testdata/print_goroot.go: %v, %s", newGoTool, err, out)
 		}
@@ -5188,52 +5182,6 @@ func TestUpxCompression(t *testing.T) {
 	}
 	if string(out) != "hello upx" {
 		t.Fatalf("bad output from compressed go binary:\ngot %q; want %q", out, "hello upx")
-	}
-}
-
-// Test that Go binaries can be run under QEMU in user-emulation mode
-// (See issue #13024).
-func TestQEMUUserMode(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" {
-		t.Skipf("skipping in -short mode on non-builder")
-	}
-
-	testArchs := []struct {
-		g, qemu string
-	}{
-		{"arm", "arm"},
-		{"arm64", "aarch64"},
-	}
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.tempFile("main.go", `package main; import "fmt"; func main() { fmt.Print("hello qemu-user") }`)
-	tg.parallel()
-	src, obj := tg.path("main.go"), tg.path("main")
-
-	for _, arch := range testArchs {
-		arch := arch
-		t.Run(arch.g, func(t *testing.T) {
-			qemu := "qemu-" + arch.qemu
-			testenv.MustHaveExecPath(t, qemu)
-
-			out, err := exec.Command(qemu, "--version").CombinedOutput()
-			if err != nil {
-				t.Fatalf("%s --version failed: %v", qemu, err)
-			}
-
-			tg.setenv("GOARCH", arch.g)
-			tg.run("build", "-o", obj, src)
-
-			out, err = exec.Command(qemu, obj).CombinedOutput()
-			if err != nil {
-				t.Logf("%s output:\n%s\n", qemu, out)
-				t.Fatalf("%s failed with %v", qemu, err)
-			}
-			if want := "hello qemu-user"; string(out) != want {
-				t.Errorf("bad output from %s:\ngot %s; want %s", qemu, out, want)
-			}
-		})
 	}
 }
 

@@ -37,16 +37,30 @@ import (
 // implementation.
 //
 // Tests can be updated by running them with the -update flag. This will cause
-// the test files to be regenerated. Generally one should combine the -update
-// flag with -test.run to updated a specific test. Since the reference
-// implementation will always generate fresh random numbers, large parts of
-// the reference connection will always change.
+// the test files for failing tests to be regenerated. Since the reference
+// implementation will always generate fresh random numbers, large parts of the
+// reference connection will always change.
 
 var (
-	update  = flag.Bool("update", false, "update golden files on disk")
+	update  = flag.Bool("update", false, "update golden files on failure")
 	fast    = flag.Bool("fast", false, "impose a quick, possibly flaky timeout on recorded tests")
 	keyFile = flag.String("keylog", "", "destination file for KeyLogWriter")
 )
+
+func runTestAndUpdateIfNeeded(t *testing.T, name string, run func(t *testing.T, update bool), wait bool) {
+	success := t.Run(name, func(t *testing.T) {
+		if !*update && !wait {
+			t.Parallel()
+		}
+		run(t, false)
+	})
+
+	if !success && *update {
+		t.Run(name+"#update", func(t *testing.T) {
+			run(t, true)
+		})
+	}
+}
 
 // checkOpenSSLVersion ensures that the version of OpenSSL looks reasonable
 // before updating the test data.

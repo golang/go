@@ -17,4 +17,4 @@ else
 	exit 1
 fi
 
-exec $CLANG -arch $CLANGARCH -isysroot $SDK_PATH -mios-version-min=6.0 "$@"
+exec $CLANG -arch $CLANGARCH -isysroot $SDK_PATH -mios-version-min=10.0 "$@"

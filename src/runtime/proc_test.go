@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/testenv"
 	"math"
 	"net"
 	"runtime"
@@ -356,6 +357,17 @@ func TestPreemptionGC(t *testing.T) {
 	atomic.StoreUint32(&stop, 1)
 }
 
+func TestAsyncPreempt(t *testing.T) {
+	if !runtime.PreemptMSupported {
+		t.Skip("asynchronous preemption not supported on this platform")
+	}
+	output := runTestProg(t, "testprog", "AsyncPreempt")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("want %s, got %s\n", want, output)
+	}
+}
+
 func TestGCFairness(t *testing.T) {
 	output := runTestProg(t, "testprog", "GCFairness")
 	want := "OK\n"
@@ -411,6 +423,7 @@ func TestPingPongHog(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in -short mode")
 	}
+	testenv.SkipFlaky(t, 35271)
 
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 	done := make(chan bool)

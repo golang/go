@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build aix solaris
+
 package runtime_test
 
 import (
@@ -9,8 +11,7 @@ import (
 	"syscall"
 )
 
-// We can't call syscall.Syscall on AIX. Therefore, fcntl is exported from the
-// runtime in export_aix_test.go.
+// Call fcntl libc function rather than calling syscall.
 func fcntl(fd uintptr, cmd int, arg uintptr) (uintptr, syscall.Errno) {
 	res, errno := runtime.Fcntl(fd, uintptr(cmd), arg)
 	return res, syscall.Errno(errno)

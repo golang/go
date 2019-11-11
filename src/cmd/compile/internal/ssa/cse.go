@@ -155,7 +155,7 @@ func cse(f *Func) {
 		}
 	}
 
-	sdom := f.sdom()
+	sdom := f.Sdom()
 
 	// Compute substitutions we would like to do. We substitute v for w
 	// if v and w are in the same equivalence class and v dominates w.
@@ -179,7 +179,7 @@ func cse(f *Func) {
 				if w == nil {
 					continue
 				}
-				if sdom.isAncestorEq(v.Block, w.Block) {
+				if sdom.IsAncestorEq(v.Block, w.Block) {
 					rewrite[w.ID] = v
 					e[j] = nil
 				} else {

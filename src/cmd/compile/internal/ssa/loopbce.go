@@ -83,7 +83,7 @@ func parseIndVar(ind *Value) (min, inc, nxt *Value) {
 // TODO: handle 32 bit operations
 func findIndVar(f *Func) []indVar {
 	var iv []indVar
-	sdom := f.sdom()
+	sdom := f.Sdom()
 
 	for _, b := range f.Blocks {
 		if b.Kind != BlockIf || len(b.Preds) != 2 {
@@ -187,7 +187,7 @@ func findIndVar(f *Func) []indVar {
 
 		// Second condition: b.Succs[0] dominates nxt so that
 		// nxt is computed when inc < max, meaning nxt <= max.
-		if !sdom.isAncestorEq(b.Succs[0].b, nxt.Block) {
+		if !sdom.IsAncestorEq(b.Succs[0].b, nxt.Block) {
 			// inc+ind can only be reached through the branch that enters the loop.
 			continue
 		}

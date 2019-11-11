@@ -33,80 +33,64 @@ compiler using the GCC back end, see
 </p>
 
 <p>
-The Go compilers support nine instruction sets.
-There are important differences in the quality of the compilers for the different
-architectures.
-</p>
+The Go compilers support twelve instruction sets:
 
 <dl>
 <dt>
-	<code>amd64</code> (also known as <code>x86-64</code>)
+  <code>amd64</code>, <code>386</code>
 </dt>
 <dd>
-	A mature implementation.
+  The <code>x86</code> instruction set, 64- and 32-bit.
 </dd>
 <dt>
-	<code>386</code> (<code>x86</code> or <code>x86-32</code>)
+  <code>arm64</code>, <code>arm</code>
 </dt>
 <dd>
-	Comparable to the <code>amd64</code> port.
+  The <code>ARM</code> instruction set, 64-bit (<code>AArch64</code>) and 32-bit.
 </dd>
 <dt>
-	<code>arm</code> (<code>ARM</code>)
+  <code>ppc64</code>, <code>ppc64le</code>
 </dt>
 <dd>
-	Supports Linux, FreeBSD, NetBSD, OpenBSD and Darwin binaries. Less widely used than the other ports.
+  The 64-bit PowerPC instruction set, big- and little-endian.
 </dd>
 <dt>
-	<code>arm64</code> (<code>AArch64</code>)
+  <code>s390x</code>
 </dt>
 <dd>
-	Supports Linux and Darwin binaries. New in 1.5 and not as well exercised as other ports.
+  The IBM z/Architecture.
 </dd>
 <dt>
-	<code>ppc64, ppc64le</code> (64-bit PowerPC big- and little-endian)
+  <code>mips64</code>, <code>mips64le</code>, <code>mips</code>,  <code>mipsle</code>
 </dt>
 <dd>
-	Supports Linux binaries. New in 1.5 and not as well exercised as other ports.
+  The <code>MIPS</code> instruction set, big- and little-endian, 64- and 32-bit.
 </dd>
 <dt>
-	<code>mips, mipsle</code> (32-bit MIPS big- and little-endian)
+  <code>wasm</code>
 </dt>
 <dd>
-	Supports Linux binaries. New in 1.8 and not as well exercised as other ports.
-</dd>
-<dt>
-	<code>mips64, mips64le</code> (64-bit MIPS big- and little-endian)
-</dt>
-<dd>
-	Supports Linux binaries. New in 1.6 and not as well exercised as other ports.
-</dd>
-<dt>
-	<code>s390x</code> (IBM System z)
-</dt>
-<dd>
-	Supports Linux binaries. New in 1.7 and not as well exercised as other ports.
-</dd>
-<dt>
-	<code>wasm</code> (WebAssembly)
-</dt>
-<dd>
-	Targets the WebAssembly platform. New in 1.11 and not as well exercised as other ports.
+  <a href="https://webassembly.org">WebAssembly</a>.
 </dd>
 </dl>
-
-<p>
-Except for things like low-level operating system interface code, the run-time
-support is the same in all ports and includes a mark-and-sweep garbage
-collector, efficient array and string slicing, and support for efficient
-goroutines, such as stacks that grow and shrink on demand.
 </p>
 
 <p>
-The compilers can target the DragonFly BSD, FreeBSD, Linux, NetBSD, OpenBSD,
-macOS (Darwin), Plan 9, Solaris and Windows operating systems.
-The full set of supported combinations is listed in the discussion of
-<a href="#environment">environment variables</a> below.
+The compilers can target the AIX, Android, DragonFly BSD, FreeBSD,
+Illumos, Linux, macOS/iOS (Darwin), NetBSD, OpenBSD, Plan 9, Solaris,
+and Windows operating systems (although not all operating systems
+support all architectures).
+</p>
+
+<p>
+A list of ports which are considered "first class" is available at the
+<a href="/wiki/PortingPolicy#first-class-ports">first class ports</a>
+wiki page.
+</p>
+
+<p>
+The full set of supported combinations is listed in the
+discussion of <a href="#environment">environment variables</a> below.
 </p>
 
 <p>

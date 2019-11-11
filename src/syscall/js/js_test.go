@@ -18,6 +18,7 @@ package js_test
 import (
 	"fmt"
 	"math"
+	"runtime"
 	"syscall/js"
 	"testing"
 )
@@ -53,7 +54,7 @@ func TestBool(t *testing.T) {
 	if got := dummys.Get("otherBool").Bool(); got != want {
 		t.Errorf("got %#v, want %#v", got, want)
 	}
-	if dummys.Get("someBool") != dummys.Get("someBool") {
+	if !dummys.Get("someBool").Equal(dummys.Get("someBool")) {
 		t.Errorf("same value not equal")
 	}
 }
@@ -68,7 +69,7 @@ func TestString(t *testing.T) {
 	if got := dummys.Get("otherString").String(); got != want {
 		t.Errorf("got %#v, want %#v", got, want)
 	}
-	if dummys.Get("someString") != dummys.Get("someString") {
+	if !dummys.Get("someString").Equal(dummys.Get("someString")) {
 		t.Errorf("same value not equal")
 	}
 
@@ -105,7 +106,7 @@ func TestInt(t *testing.T) {
 	if got := dummys.Get("otherInt").Int(); got != want {
 		t.Errorf("got %#v, want %#v", got, want)
 	}
-	if dummys.Get("someInt") != dummys.Get("someInt") {
+	if !dummys.Get("someInt").Equal(dummys.Get("someInt")) {
 		t.Errorf("same value not equal")
 	}
 	if got := dummys.Get("zero").Int(); got != 0 {
@@ -141,20 +142,20 @@ func TestFloat(t *testing.T) {
 	if got := dummys.Get("otherFloat").Float(); got != want {
 		t.Errorf("got %#v, want %#v", got, want)
 	}
-	if dummys.Get("someFloat") != dummys.Get("someFloat") {
+	if !dummys.Get("someFloat").Equal(dummys.Get("someFloat")) {
 		t.Errorf("same value not equal")
 	}
 }
 
 func TestObject(t *testing.T) {
-	if dummys.Get("someArray") != dummys.Get("someArray") {
+	if !dummys.Get("someArray").Equal(dummys.Get("someArray")) {
 		t.Errorf("same value not equal")
 	}
 
 	// An object and its prototype should not be equal.
 	proto := js.Global().Get("Object").Get("prototype")
 	o := js.Global().Call("eval", "new Object()")
-	if proto == o {
+	if proto.Equal(o) {
 		t.Errorf("object equals to its prototype")
 	}
 }
@@ -167,26 +168,66 @@ func TestFrozenObject(t *testing.T) {
 	}
 }
 
+func TestEqual(t *testing.T) {
+	if !dummys.Get("someFloat").Equal(dummys.Get("someFloat")) {
+		t.Errorf("same float is not equal")
+	}
+	if !dummys.Get("emptyObj").Equal(dummys.Get("emptyObj")) {
+		t.Errorf("same object is not equal")
+	}
+	if dummys.Get("someFloat").Equal(dummys.Get("someInt")) {
+		t.Errorf("different values are not unequal")
+	}
+}
+
 func TestNaN(t *testing.T) {
-	want := js.ValueOf(math.NaN())
-	got := dummys.Get("NaN")
-	if got != want {
-		t.Errorf("got %#v, want %#v", got, want)
+	if !dummys.Get("NaN").IsNaN() {
+		t.Errorf("JS NaN is not NaN")
+	}
+	if !js.ValueOf(math.NaN()).IsNaN() {
+		t.Errorf("Go NaN is not NaN")
+	}
+	if dummys.Get("NaN").Equal(dummys.Get("NaN")) {
+		t.Errorf("NaN is equal to NaN")
 	}
 }
 
 func TestUndefined(t *testing.T) {
-	dummys.Set("test", js.Undefined())
-	if dummys == js.Undefined() || dummys.Get("test") != js.Undefined() || dummys.Get("xyz") != js.Undefined() {
-		t.Errorf("js.Undefined expected")
+	if !js.Undefined().IsUndefined() {
+		t.Errorf("undefined is not undefined")
+	}
+	if !js.Undefined().Equal(js.Undefined()) {
+		t.Errorf("undefined is not equal to undefined")
+	}
+	if dummys.IsUndefined() {
+		t.Errorf("object is undefined")
+	}
+	if js.Undefined().IsNull() {
+		t.Errorf("undefined is null")
+	}
+	if dummys.Set("test", js.Undefined()); !dummys.Get("test").IsUndefined() {
+		t.Errorf("could not set undefined")
 	}
 }
 
 func TestNull(t *testing.T) {
-	dummys.Set("test1", nil)
-	dummys.Set("test2", js.Null())
-	if dummys == js.Null() || dummys.Get("test1") != js.Null() || dummys.Get("test2") != js.Null() {
-		t.Errorf("js.Null expected")
+	if !js.Null().IsNull() {
+		t.Errorf("null is not null")
+	}
+	if !js.Null().Equal(js.Null()) {
+		t.Errorf("null is not equal to null")
+	}
+	if dummys.IsNull() {
+		t.Errorf("object is null")
+	}
+	if js.Null().IsUndefined() {
+		t.Errorf("null is undefined")
+	}
+	if dummys.Set("test", js.Null()); !dummys.Get("test").IsNull() {
+		t.Errorf("could not set null")
+	}
+	if dummys.Set("test", nil); !dummys.Get("test").IsNull() {
+		t.Errorf("could not set nil")
 	}
 }
 
@@ -340,7 +381,7 @@ func TestValueOf(t *testing.T) {
 
 func TestZeroValue(t *testing.T) {
 	var v js.Value
-	if v != js.Undefined() {
+	if !v.IsUndefined() {
 		t.Error("zero js.Value is not js.Undefined()")
 	}
 }
@@ -497,12 +538,24 @@ func TestCopyBytesToJS(t *testing.T) {
 	}
 }
 
+func TestGarbageCollection(t *testing.T) {
+	before := js.JSGo.Get("_values").Length()
+	for i := 0; i < 1000; i++ {
+		_ = js.Global().Get("Object").New().Call("toString").String()
+		runtime.GC()
+	}
+	after := js.JSGo.Get("_values").Length()
+	if after-before > 500 {
+		t.Errorf("garbage collection ineffective")
+	}
+}
+
 // BenchmarkDOM is a simple benchmark which emulates a webapp making DOM operations.
 // It creates a div, and sets its id. Then searches by that id and sets some data.
 // Finally it removes that div.
 func BenchmarkDOM(b *testing.B) {
 	document := js.Global().Get("document")
-	if document == js.Undefined() {
+	if document.IsUndefined() {
 		b.Skip("Not a browser environment. Skipping.")
 	}
 	const data = "someString"

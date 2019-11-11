@@ -34,7 +34,7 @@ func expandiface(t *types.Type) {
 		switch prev := seen[m.Sym]; {
 		case prev == nil:
 			seen[m.Sym] = m
-		case langSupported(1, 14) && !explicit && types.Identical(m.Type, prev.Type):
+		case langSupported(1, 14, t.Pkg()) && !explicit && types.Identical(m.Type, prev.Type):
 			return
 		default:
 			yyerrorl(m.Pos, "duplicate method %s", m.Sym.Name)
@@ -344,7 +344,7 @@ func dowidth(t *types.Type) {
 		if t.Elem() == nil {
 			break
 		}
-		w = int64(sizeof_Array)
+		w = int64(sizeof_Slice)
 		checkwidth(t.Elem())
 		t.Align = uint8(Widthptr)
 

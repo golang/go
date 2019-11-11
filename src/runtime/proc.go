@@ -1964,6 +1964,9 @@ func handoffp(_p_ *p) {
 		startm(_p_, false)
 		return
 	}
+	if when := nobarrierWakeTime(_p_); when != 0 {
+		wakeNetPoller(when)
+	}
 	pidleput(_p_)
 	unlock(&sched.lock)
 }
@@ -2487,11 +2490,13 @@ func schedule() {
 	}
 
 top:
+	pp := _g_.m.p.ptr()
+	pp.preempt = false
+
 	if sched.gcwaiting != 0 {
 		gcstopm()
 		goto top
 	}
-	pp := _g_.m.p.ptr()
 	if pp.runSafePointFn != 0 {
 		runSafePointFn()
 	}
@@ -2748,7 +2753,22 @@ func preemptPark(gp *g) {
 	casGToPreemptScan(gp, _Grunning, _Gscan|_Gpreempted)
 	dropg()
 	casfrom_Gscanstatus(gp, _Gscan|_Gpreempted, _Gpreempted)
+	schedule()
+}
 
+// goyield is like Gosched, but it:
+// - does not emit a GoSched trace event
+// - puts the current G on the runq of the current P instead of the globrunq
+func goyield() {
+	checkTimeouts()
+	mcall(goyield_m)
+}
+
+func goyield_m(gp *g) {
+	pp := gp.m.p.ptr()
+	casgstatus(gp, _Grunning, _Grunnable)
+	dropg()
+	runqput(pp, gp, false)
 	schedule()
 }
 
@@ -4077,6 +4097,14 @@ func (pp *p) destroy() {
 		}
 		pp.deferpool[i] = pp.deferpoolbuf[i][:0]
 	}
+	systemstack(func() {
+		for i := 0; i < pp.mspancache.len; i++ {
+			// Safe to call since the world is stopped.
+			mheap_.spanalloc.free(unsafe.Pointer(pp.mspancache.buf[i]))
+		}
+		pp.mspancache.len = 0
+		pp.pcache.flush(&mheap_.pages)
+	})
 	freemcache(pp.mcache)
 	pp.mcache = nil
 	gfpurge(pp)
@@ -4446,32 +4474,34 @@ func sysmon() {
 			delay = 10 * 1000
 		}
 		usleep(delay)
+		now := nanotime()
+		next := timeSleepUntil()
 		if debug.schedtrace <= 0 && (sched.gcwaiting != 0 || atomic.Load(&sched.npidle) == uint32(gomaxprocs)) {
 			lock(&sched.lock)
 			if atomic.Load(&sched.gcwaiting) != 0 || atomic.Load(&sched.npidle) == uint32(gomaxprocs) {
-				atomic.Store(&sched.sysmonwait, 1)
-				unlock(&sched.lock)
-				// Make wake-up period small enough
-				// for the sampling to be correct.
-				maxsleep := forcegcperiod / 2
-				shouldRelax := true
-				if osRelaxMinNS > 0 {
-					next := timeSleepUntil()
-					now := nanotime()
-					if next-now < osRelaxMinNS {
-						shouldRelax = false
+				if next > now {
+					atomic.Store(&sched.sysmonwait, 1)
+					unlock(&sched.lock)
+					// Make wake-up period small enough
+					// for the sampling to be correct.
+					sleep := forcegcperiod / 2
+					if next-now < sleep {
+						sleep = next - now
 					}
+					shouldRelax := sleep >= osRelaxMinNS
+					if shouldRelax {
+						osRelax(true)
+					}
+					notetsleep(&sched.sysmonnote, sleep)
+					if shouldRelax {
+						osRelax(false)
+					}
+					now = nanotime()
+					next = timeSleepUntil()
+					lock(&sched.lock)
+					atomic.Store(&sched.sysmonwait, 0)
+					noteclear(&sched.sysmonnote)
 				}
-				if shouldRelax {
-					osRelax(true)
-				}
-				notetsleep(&sched.sysmonnote, maxsleep)
-				if shouldRelax {
-					osRelax(false)
-				}
-				lock(&sched.lock)
-				atomic.Store(&sched.sysmonwait, 0)
-				noteclear(&sched.sysmonnote)
 				idle = 0
 				delay = 20
 			}
@@ -4483,7 +4513,6 @@ func sysmon() {
 		}
 		// poll network if not polled for more than 10ms
 		lastpoll := int64(atomic.Load64(&sched.lastpoll))
-		now := nanotime()
 		if netpollinited() && lastpoll != 0 && lastpoll+10*1000*1000 < now {
 			atomic.Cas64(&sched.lastpoll, uint64(lastpoll), uint64(now))
 			list := netpoll(0) // non-blocking - returns list of goroutines
@@ -4500,7 +4529,7 @@ func sysmon() {
 				incidlelocked(1)
 			}
 		}
-		if timeSleepUntil() < now {
+		if next < now {
 			// There are timers that should have already run,
 			// perhaps because there is an unpreemptible P.
 			// Try to start an M to run them.
@@ -4654,6 +4683,13 @@ func preemptone(_p_ *p) bool {
 	// Setting gp->stackguard0 to StackPreempt folds
 	// preemption into the normal stack overflow check.
 	gp.stackguard0 = stackPreempt
+
+	// Request an async preemption of this P.
+	if preemptMSupported && debug.asyncpreemptoff == 0 {
+		_p_.preempt = true
+		preemptM(mp)
+	}
+
 	return true
 }
 
@@ -4682,7 +4718,7 @@ func schedtrace(detailed bool) {
 			if mp != nil {
 				id = mp.id
 			}
-			print("  P", i, ": status=", _p_.status, " schedtick=", _p_.schedtick, " syscalltick=", _p_.syscalltick, " m=", id, " runqsize=", t-h, " gfreecnt=", _p_.gFree.n, "\n")
+			print("  P", i, ": status=", _p_.status, " schedtick=", _p_.schedtick, " syscalltick=", _p_.syscalltick, " m=", id, " runqsize=", t-h, " gfreecnt=", _p_.gFree.n, " timerslen=", len(_p_.timers), "\n")
 		} else {
 			// In non-detailed mode format lengths of per-P run queues as:
 			// [len1 len2 len3 len4]
@@ -5352,6 +5388,7 @@ func gcd(a, b uint32) uint32 {
 }
 
 // An initTask represents the set of initializations that need to be done for a package.
+// Keep in sync with ../../test/initempty.go:initTask
 type initTask struct {
 	// TODO: pack the first 3 fields more tightly?
 	state uintptr // 0 = uninitialized, 1 = in progress, 2 = done

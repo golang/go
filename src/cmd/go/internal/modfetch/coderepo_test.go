@@ -370,18 +370,6 @@ var codeRepoTests = []codeRepoTest{
 	},
 	{
 		vcs:         "git",
-		path:        "gopkg.in/yaml.v2",
-		rev:         "v2",
-		version:     "v2.2.5-0.20191002202810-970885f01c8b",
-		name:        "970885f01c8bc1fecb7ab1c8ce8e7609bda45530",
-		short:       "970885f01c8b",
-		time:        time.Date(2019, 10, 2, 20, 28, 10, 0, time.UTC),
-		gomod:       "module \"gopkg.in/yaml.v2\"\n\nrequire (\n\t\"gopkg.in/check.v1\" v0.0.0-20161208181325-20d25e280405\n)\n",
-		zipSum:      "h1:c7zdkYUaqShimBvZzvhOA+Absl0aDaGKX267vSm0Z7E=",
-		zipFileHash: "5856a108e1aa8ec9c35f4479f8e806652b326b648c80abd08fc403707f4eb5f1",
-	},
-	{
-		vcs:         "git",
 		path:        "vcs-test.golang.org/go/mod/gitrepo1",
 		rev:         "master",
 		version:     "v1.2.4-annotated",
@@ -649,7 +637,7 @@ var codeRepoVersionsTests = []struct {
 	{
 		vcs:      "git",
 		path:     "github.com/rsc/vgotest1",
-		versions: []string{"v0.0.0", "v0.0.1", "v1.0.0", "v1.0.1", "v1.0.2", "v1.0.3", "v1.1.0", "v2.0.0+incompatible"},
+		versions: []string{"v0.0.0", "v0.0.1", "v1.0.0", "v1.0.1", "v1.0.2", "v1.0.3", "v1.1.0"},
 	},
 	{
 		vcs:      "git",

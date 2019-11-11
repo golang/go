@@ -180,7 +180,7 @@ func semrelease1(addr *uint32, handoff bool, skipframes int) {
 		atomic.Xadd(&root.nwait, -1)
 	}
 	unlock(&root.lock)
-	if s != nil { // May be slow, so unlock first
+	if s != nil { // May be slow or even yield, so unlock first
 		acquiretime := s.acquiretime
 		if acquiretime != 0 {
 			mutexevent(t0-acquiretime, 3+skipframes)
@@ -192,6 +192,25 @@ func semrelease1(addr *uint32, handoff bool, skipframes int) {
 			s.ticket = 1
 		}
 		readyWithTime(s, 5+skipframes)
+		if s.ticket == 1 && getg().m.locks == 0 {
+			// Direct G handoff
+			// readyWithTime has added the waiter G as runnext in the
+			// current P; we now call the scheduler so that we start running
+			// the waiter G immediately.
+			// Note that waiter inherits our time slice: this is desirable
+			// to avoid having a highly contended semaphore hog the P
+			// indefinitely. goyield is like Gosched, but it does not emit a
+			// GoSched trace event and, more importantly, puts the current G
+			// on the local runq instead of the global one.
+			// We only do this in the starving regime (handoff=true), as in
+			// the non-starving case it is possible for a different waiter
+			// to acquire the semaphore while we are yielding/scheduling,
+			// and this would be wasteful. We wait instead to enter starving
+			// regime, and then we start to do direct handoffs of ticket and
+			// P.
+			// See issue 33747 for discussion.
+			goyield()
+		}
 	}
 }
 

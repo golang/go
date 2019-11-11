@@ -407,9 +407,9 @@ okarg:
 	// compute size needed for return parameters
 	nret := uintptr(0)
 	for _, t := range ft.out() {
-		nret = round(nret, uintptr(t.align)) + uintptr(t.size)
+		nret = alignUp(nret, uintptr(t.align)) + uintptr(t.size)
 	}
-	nret = round(nret, sys.PtrSize)
+	nret = alignUp(nret, sys.PtrSize)
 
 	// make sure we have a finalizer goroutine
 	createfing()

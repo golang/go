@@ -79,3 +79,19 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	c.set_r30(uint32(uintptr(unsafe.Pointer(gp))))
 	c.set_pc(uint32(funcPC(sigpanic)))
 }
+
+const pushCallSupported = true
+
+func (c *sigctxt) pushCall(targetPC uintptr) {
+	// Push the LR to stack, as we'll clobber it in order to
+	// push the call. The function being pushed is responsible
+	// for restoring the LR and setting the SP back.
+	// This extra slot is known to gentraceback.
+	sp := c.sp() - 4
+	c.set_sp(sp)
+	*(*uint32)(unsafe.Pointer(uintptr(sp))) = c.link()
+	// Set up PC and LR to pretend the function being signaled
+	// calls targetPC at the faulting PC.
+	c.set_link(c.pc())
+	c.set_pc(uint32(targetPC))
+}

@@ -608,7 +608,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 				n.Type = nil
 				return n
 			}
-			if t.IsSigned() && !langSupported(1, 13) {
+			if t.IsSigned() && !langSupported(1, 13, curpkg()) {
 				yyerrorv("go1.13", "invalid operation: %v (signed shift count type %v)", n, r.Type)
 				n.Type = nil
 				return n
@@ -3950,4 +3950,21 @@ func getIotaValue() int64 {
 	}
 
 	return -1
+}
+
+// curpkg returns the current package, based on Curfn.
+func curpkg() *types.Pkg {
+	fn := Curfn
+	if fn == nil {
+		// Initialization expressions for package-scope variables.
+		return localpkg
+	}
+
+	// TODO(mdempsky): Standardize on either ODCLFUNC or ONAME for
+	// Curfn, rather than mixing them.
+	if fn.Op == ODCLFUNC {
+		fn = fn.Func.Nname
+	}
+
+	return fnpkg(fn)
 }

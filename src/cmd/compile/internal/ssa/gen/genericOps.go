@@ -314,7 +314,7 @@ var genericOps = []opData{
 	//
 	// When the multiply is an infinity times a zero, the result is NaN.
 	// See section 7.2 in ieee754.
-	{name: "Fma", argLength: 3}, // compute (a*b)+c without intermediate rounding
+	{name: "FMA", argLength: 3}, // compute (a*b)+c without intermediate rounding
 
 	// Data movement. Max argument length for Phi is indefinite.
 	{name: "Phi", argLength: -1, zeroWidth: true}, // select an argument based on which predecessor block we came from

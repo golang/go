@@ -505,9 +505,13 @@ func (f *File) AddGoStmt(version string) error {
 		return fmt.Errorf("invalid language version string %q", version)
 	}
 	if f.Go == nil {
+		var hint Expr
+		if f.Module != nil && f.Module.Syntax != nil {
+			hint = f.Module.Syntax
+		}
 		f.Go = &Go{
 			Version: version,
-			Syntax:  f.Syntax.addLine(nil, "go", version),
+			Syntax:  f.Syntax.addLine(hint, "go", version),
 		}
 	} else {
 		f.Go.Version = version
@@ -555,6 +559,8 @@ func (f *File) SetRequire(req []*Require) {
 		if v, ok := need[r.Mod.Path]; ok {
 			r.Mod.Version = v
 			r.Indirect = indirect[r.Mod.Path]
+		} else {
+			*r = Require{}
 		}
 	}
 

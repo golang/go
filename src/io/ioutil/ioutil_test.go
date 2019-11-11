@@ -72,6 +72,9 @@ func TestReadOnlyWriteFile(t *testing.T) {
 
 	// We don't want to use TempFile directly, since that opens a file for us as 0600.
 	tempDir, err := TempDir("", t.Name())
+	if err != nil {
+		t.Fatalf("TempDir %s: %v", t.Name(), err)
+	}
 	defer os.RemoveAll(tempDir)
 	filename := filepath.Join(tempDir, "blurp.txt")
 

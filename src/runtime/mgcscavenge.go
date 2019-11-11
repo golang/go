@@ -55,25 +55,18 @@
 
 package runtime
 
+import (
+	"runtime/internal/atomic"
+	"runtime/internal/sys"
+	"unsafe"
+)
+
 const (
 	// The background scavenger is paced according to these parameters.
 	//
 	// scavengePercent represents the portion of mutator time we're willing
 	// to spend on scavenging in percent.
-	//
-	// scavengePageLatency is a worst-case estimate (order-of-magnitude) of
-	// the time it takes to scavenge one (regular-sized) page of memory.
-	// scavengeHugePageLatency is the same but for huge pages.
-	//
-	// scavengePagePeriod is derived from scavengePercent and scavengePageLatency,
-	// and represents the average time between scavenging one page that we're
-	// aiming for. scavengeHugePagePeriod is the same but for huge pages.
-	// These constants are core to the scavenge pacing algorithm.
-	scavengePercent         = 1    // 1%
-	scavengePageLatency     = 10e3 // 10µs
-	scavengeHugePageLatency = 10e3 // 10µs
-	scavengePagePeriod      = scavengePageLatency / (scavengePercent / 100.0)
-	scavengeHugePagePeriod  = scavengePageLatency / (scavengePercent / 100.0)
+	scavengePercent = 1 // 1%
 
 	// retainExtraPercent represents the amount of memory over the heap goal
 	// that the scavenger should keep as a buffer space for the allocator.
@@ -83,13 +76,15 @@ const (
 	// incurs an additional cost), to account for heap fragmentation and
 	// the ever-changing layout of the heap.
 	retainExtraPercent = 10
+
+	// maxPagesPerPhysPage is the maximum number of supported runtime pages per
+	// physical page, based on maxPhysPageSize.
+	maxPagesPerPhysPage = maxPhysPageSize / pageSize
 )
 
 // heapRetained returns an estimate of the current heap RSS.
-//
-// mheap_.lock must be held or the world must be stopped.
 func heapRetained() uint64 {
-	return memstats.heap_sys - memstats.heap_released
+	return atomic.Load64(&memstats.heap_sys) - atomic.Load64(&memstats.heap_released)
 }
 
 // gcPaceScavenger updates the scavenger's pacing, particularly
@@ -108,7 +103,7 @@ func gcPaceScavenger() {
 	// information about the heap yet) so this is fine, and avoids a fault
 	// or garbage data later.
 	if memstats.last_next_gc == 0 {
-		mheap_.scavengeBytesPerNS = 0
+		mheap_.scavengeGoal = ^uint64(0)
 		return
 	}
 	// Compute our scavenging goal.
@@ -136,67 +131,15 @@ func gcPaceScavenger() {
 	// physical page.
 	retainedNow := heapRetained()
 
-	// If we're already below our goal or there's less the one physical page
-	// worth of work to do, publish the goal in case it changed then disable
+	// If we're already below our goal, or within one page of our goal, then disable
 	// the background scavenger. We disable the background scavenger if there's
-	// less than one physical page of work to do to avoid a potential divide-by-zero
-	// in the calculations below (totalTime will be zero), and it's not worth
-	// turning on the scavenger for less than one page of work.
+	// less than one physical page of work to do because it's not worth it.
 	if retainedNow <= retainedGoal || retainedNow-retainedGoal < uint64(physPageSize) {
-		mheap_.scavengeRetainedGoal = retainedGoal
-		mheap_.scavengeBytesPerNS = 0
+		mheap_.scavengeGoal = ^uint64(0)
 		return
 	}
-
-	// Now we start to compute the total amount of work necessary and the total
-	// amount of time we're willing to give the scavenger to complete this work.
-	// This will involve calculating how much of the work consists of huge pages
-	// and how much consists of regular pages since the former can let us scavenge
-	// more memory in the same time.
-	totalWork := retainedNow - retainedGoal
-
-	// On systems without huge page support, all work is regular work.
-	regularWork := totalWork
-	hugeTime := uint64(0)
-
-	// On systems where we have huge pages, we want to do as much of the
-	// scavenging work as possible on huge pages, because the costs are the
-	// same per page, but we can give back more more memory in a shorter
-	// period of time.
-	if physHugePageSize != 0 {
-		// Start by computing the amount of free memory we have in huge pages
-		// in total. Trivially, this is all the huge page work we need to do.
-		hugeWork := uint64(mheap_.free.unscavHugePages) << physHugePageShift
-
-		// ...but it could turn out that there's more huge work to do than
-		// total work, so cap it at total work. This might happen for very large
-		// heaps where the additional factor of retainExtraPercent can make it so
-		// that there are free chunks of memory larger than a huge page that we don't want
-		// to scavenge.
-		if hugeWork >= totalWork {
-			hugePages := totalWork >> physHugePageShift
-			hugeWork = hugePages << physHugePageShift
-		}
-		// Everything that's not huge work is regular work. At this point we
-		// know huge work so we can calculate how much time that will take
-		// based on scavengePageRate (which applies to pages of any size).
-		regularWork = totalWork - hugeWork
-		hugeTime = (hugeWork >> physHugePageShift) * scavengeHugePagePeriod
-	}
-	// Finally, we can compute how much time it'll take to do the regular work
-	// and the total time to do all the work.
-	regularTime := regularWork / uint64(physPageSize) * scavengePagePeriod
-	totalTime := hugeTime + regularTime
-
-	now := nanotime()
-
-	// Update all the pacing parameters in mheap with scavenge.lock held,
-	// so that scavenge.gen is kept in sync with the updated values.
-	mheap_.scavengeRetainedGoal = retainedGoal
-	mheap_.scavengeRetainedBasis = retainedNow
-	mheap_.scavengeTimeBasis = now
-	mheap_.scavengeBytesPerNS = float64(totalWork) / float64(totalTime)
-	mheap_.scavengeGen++ // increase scavenge generation
+	mheap_.scavengeGoal = retainedGoal
+	mheap_.pages.resetScavengeAddr()
 }
 
 // Sleep/wait state of the background scavenger.
@@ -205,18 +148,6 @@ var scavenge struct {
 	g      *g
 	parked bool
 	timer  *timer
-
-	// Generation counter.
-	//
-	// It represents the last generation count (as defined by
-	// mheap_.scavengeGen) checked by the scavenger and is updated
-	// each time the scavenger checks whether it is on-pace.
-	//
-	// Skew between this field and mheap_.scavengeGen is used to
-	// determine whether a new update is available.
-	//
-	// Protected by mheap_.lock.
-	gen uint64
 }
 
 // wakeScavenger unparks the scavenger if necessary. It must be called
@@ -249,37 +180,24 @@ func wakeScavenger() {
 // The scavenger may be woken up earlier by a pacing change, and it may not go
 // to sleep at all if there's a pending pacing change.
 //
-// Returns false if awoken early (i.e. true means a complete sleep).
-func scavengeSleep(ns int64) bool {
+// Returns the amount of time actually slept.
+func scavengeSleep(ns int64) int64 {
 	lock(&scavenge.lock)
-
-	// First check if there's a pending update.
-	// If there is one, don't bother sleeping.
-	var hasUpdate bool
-	systemstack(func() {
-		lock(&mheap_.lock)
-		hasUpdate = mheap_.scavengeGen != scavenge.gen
-		unlock(&mheap_.lock)
-	})
-	if hasUpdate {
-		unlock(&scavenge.lock)
-		return false
-	}
 
 	// Set the timer.
 	//
 	// This must happen here instead of inside gopark
 	// because we can't close over any variables without
 	// failing escape analysis.
-	now := nanotime()
-	resetTimer(scavenge.timer, now+ns)
+	start := nanotime()
+	resetTimer(scavenge.timer, start+ns)
 
 	// Mark ourself as asleep and go to sleep.
 	scavenge.parked = true
 	goparkunlock(&scavenge.lock, waitReasonSleep, traceEvGoSleep, 2)
 
-	// Return true if we completed the full sleep.
-	return (nanotime() - now) >= ns
+	// Return how long we actually slept for.
+	return nanotime() - start
 }
 
 // Background scavenger.
@@ -301,110 +219,483 @@ func bgscavenge(c chan int) {
 	c <- 1
 	goparkunlock(&scavenge.lock, waitReasonGCScavengeWait, traceEvGoBlock, 1)
 
-	// Parameters for sleeping.
+	// Exponentially-weighted moving average of the fraction of time this
+	// goroutine spends scavenging (that is, percent of a single CPU).
+	// It represents a measure of scheduling overheads which might extend
+	// the sleep or the critical time beyond what's expected. Assume no
+	// overhead to begin with.
 	//
-	// If we end up doing more work than we need, we should avoid spinning
-	// until we have more work to do: instead, we know exactly how much time
-	// until more work will need to be done, so we sleep.
-	//
-	// We should avoid sleeping for less than minSleepNS because Gosched()
-	// overheads among other things will work out better in that case.
-	//
-	// There's no reason to set a maximum on sleep time because we'll always
-	// get woken up earlier if there's any kind of update that could change
-	// the scavenger's pacing.
-	//
-	// retryDelayNS tracks how much to sleep next time we fail to do any
-	// useful work.
-	const minSleepNS = int64(100 * 1000) // 100 µs
-
-	retryDelayNS := minSleepNS
+	// TODO(mknyszek): Consider making this based on total CPU time of the
+	// application (i.e. scavengePercent * GOMAXPROCS). This isn't really
+	// feasible now because the scavenger acquires the heap lock over the
+	// scavenging operation, which means scavenging effectively blocks
+	// allocators and isn't scalable. However, given a scalable allocator,
+	// it makes sense to also make the scavenger scale with it; if you're
+	// allocating more frequently, then presumably you're also generating
+	// more work for the scavenger.
+	const idealFraction = scavengePercent / 100.0
+	scavengeEWMA := float64(idealFraction)
 
 	for {
 		released := uintptr(0)
-		park := false
-		ttnext := int64(0)
+
+		// Time in scavenging critical section.
+		crit := int64(0)
 
 		// Run on the system stack since we grab the heap lock,
 		// and a stack growth with the heap lock means a deadlock.
 		systemstack(func() {
 			lock(&mheap_.lock)
 
-			// Update the last generation count that the scavenger has handled.
-			scavenge.gen = mheap_.scavengeGen
-
 			// If background scavenging is disabled or if there's no work to do just park.
-			retained := heapRetained()
-			if mheap_.scavengeBytesPerNS == 0 || retained <= mheap_.scavengeRetainedGoal {
+			retained, goal := heapRetained(), mheap_.scavengeGoal
+			if retained <= goal {
 				unlock(&mheap_.lock)
-				park = true
 				return
-			}
-
-			// Calculate how big we want the retained heap to be
-			// at this point in time.
-			//
-			// The formula is for that of a line, y = b - mx
-			// We want y (want),
-			//   m = scavengeBytesPerNS (> 0)
-			//   x = time between scavengeTimeBasis and now
-			//   b = scavengeRetainedBasis
-			rate := mheap_.scavengeBytesPerNS
-			tdist := nanotime() - mheap_.scavengeTimeBasis
-			rdist := uint64(rate * float64(tdist))
-			want := mheap_.scavengeRetainedBasis - rdist
-
-			// If we're above the line, scavenge to get below the
-			// line.
-			if retained > want {
-				released = mheap_.scavengeLocked(uintptr(retained - want))
 			}
 			unlock(&mheap_.lock)
 
-			// If we over-scavenged a bit, calculate how much time it'll
-			// take at the current rate for us to make that up. We definitely
-			// won't have any work to do until at least that amount of time
-			// passes.
-			if released > uintptr(retained-want) {
-				extra := released - uintptr(retained-want)
-				ttnext = int64(float64(extra) / rate)
-			}
+			// Scavenge one page, and measure the amount of time spent scavenging.
+			start := nanotime()
+			released = mheap_.pages.scavengeOne(physPageSize, false)
+			crit = nanotime() - start
 		})
 
-		if park {
+		if debug.gctrace > 0 {
+			if released > 0 {
+				print("scvg: ", released>>10, " KB released\n")
+			}
+			print("scvg: inuse: ", memstats.heap_inuse>>20, ", idle: ", memstats.heap_idle>>20, ", sys: ", memstats.heap_sys>>20, ", released: ", memstats.heap_released>>20, ", consumed: ", (memstats.heap_sys-memstats.heap_released)>>20, " (MB)\n")
+		}
+
+		if released == 0 {
 			lock(&scavenge.lock)
 			scavenge.parked = true
 			goparkunlock(&scavenge.lock, waitReasonGCScavengeWait, traceEvGoBlock, 1)
 			continue
 		}
 
-		if debug.gctrace > 0 {
-			if released > 0 {
-				print("scvg: ", released>>20, " MB released\n")
-			}
-			print("scvg: inuse: ", memstats.heap_inuse>>20, ", idle: ", memstats.heap_idle>>20, ", sys: ", memstats.heap_sys>>20, ", released: ", memstats.heap_released>>20, ", consumed: ", (memstats.heap_sys-memstats.heap_released)>>20, " (MB)\n")
+		// If we spent more than 10 ms (for example, if the OS scheduled us away, or someone
+		// put their machine to sleep) in the critical section, bound the time we use to
+		// calculate at 10 ms to avoid letting the sleep time get arbitrarily high.
+		const maxCrit = 10e6
+		if crit > maxCrit {
+			crit = maxCrit
 		}
 
-		if released == 0 {
-			// If we were unable to release anything this may be because there's
-			// no free memory available to scavenge. Go to sleep and try again.
-			if scavengeSleep(retryDelayNS) {
-				// If we successfully slept through the delay, back off exponentially.
-				retryDelayNS *= 2
-			}
-			continue
-		}
-		retryDelayNS = minSleepNS
+		// Compute the amount of time to sleep, assuming we want to use at most
+		// scavengePercent of CPU time. Take into account scheduling overheads
+		// that may extend the length of our sleep by multiplying by how far
+		// off we are from the ideal ratio. For example, if we're sleeping too
+		// much, then scavengeEMWA < idealFraction, so we'll adjust the sleep time
+		// down.
+		adjust := scavengeEWMA / idealFraction
+		sleepTime := int64(adjust * float64(crit) / (scavengePercent / 100.0))
 
-		if ttnext > 0 && ttnext > minSleepNS {
-			// If there's an appreciable amount of time until the next scavenging
-			// goal, just sleep. We'll get woken up if anything changes and this
-			// way we avoid spinning.
-			scavengeSleep(ttnext)
-			continue
+		// Go to sleep.
+		slept := scavengeSleep(sleepTime)
+
+		// Compute the new ratio.
+		fraction := float64(crit) / float64(crit+slept)
+
+		// Set a lower bound on the fraction.
+		// Due to OS-related anomalies we may "sleep" for an inordinate amount
+		// of time. Let's avoid letting the ratio get out of hand by bounding
+		// the sleep time we use in our EWMA.
+		const minFraction = 1 / 1000
+		if fraction < minFraction {
+			fraction = minFraction
 		}
 
-		// Give something else a chance to run, no locks are held.
-		Gosched()
+		// Update scavengeEWMA by merging in the new crit/slept ratio.
+		const alpha = 0.5
+		scavengeEWMA = alpha*fraction + (1-alpha)*scavengeEWMA
 	}
+}
+
+// scavenge scavenges nbytes worth of free pages, starting with the
+// highest address first. Successive calls continue from where it left
+// off until the heap is exhausted. Call resetScavengeAddr to bring it
+// back to the top of the heap.
+//
+// Returns the amount of memory scavenged in bytes.
+//
+// If locked == false, s.mheapLock must not be locked. If locked == true,
+// s.mheapLock must be locked.
+//
+// Must run on the system stack because scavengeOne must run on the
+// system stack.
+//
+//go:systemstack
+func (s *pageAlloc) scavenge(nbytes uintptr, locked bool) uintptr {
+	released := uintptr(0)
+	for released < nbytes {
+		r := s.scavengeOne(nbytes-released, locked)
+		if r == 0 {
+			// Nothing left to scavenge! Give up.
+			break
+		}
+		released += r
+	}
+	return released
+}
+
+// resetScavengeAddr sets the scavenge start address to the top of the heap's
+// address space. This should be called each time the scavenger's pacing
+// changes.
+//
+// s.mheapLock must be held.
+func (s *pageAlloc) resetScavengeAddr() {
+	s.scavAddr = chunkBase(s.end) - 1
+}
+
+// scavengeOne starts from s.scavAddr and walks down the heap until it finds
+// a contiguous run of pages to scavenge. It will try to scavenge at most
+// max bytes at once, but may scavenge more to avoid breaking huge pages. Once
+// it scavenges some memory it returns how much it scavenged and updates s.scavAddr
+// appropriately. s.scavAddr must be reset manually and externally.
+//
+// Should it exhaust the heap, it will return 0 and set s.scavAddr to minScavAddr.
+//
+// If locked == false, s.mheapLock must not be locked.
+// If locked == true, s.mheapLock must be locked.
+//
+// Must be run on the system stack because it either acquires the heap lock
+// or executes with the heap lock acquired.
+//
+//go:systemstack
+func (s *pageAlloc) scavengeOne(max uintptr, locked bool) uintptr {
+	// Calculate the maximum number of pages to scavenge.
+	//
+	// This should be alignUp(max, pageSize) / pageSize but max can and will
+	// be ^uintptr(0), so we need to be very careful not to overflow here.
+	// Rather than use alignUp, calculate the number of pages rounded down
+	// first, then add back one if necessary.
+	maxPages := max / pageSize
+	if max%pageSize != 0 {
+		maxPages++
+	}
+
+	// Calculate the minimum number of pages we can scavenge.
+	//
+	// Because we can only scavenge whole physical pages, we must
+	// ensure that we scavenge at least minPages each time, aligned
+	// to minPages*pageSize.
+	minPages := physPageSize / pageSize
+	if minPages < 1 {
+		minPages = 1
+	}
+
+	// Helpers for locking and unlocking only if locked == false.
+	lockHeap := func() {
+		if !locked {
+			lock(s.mheapLock)
+		}
+	}
+	unlockHeap := func() {
+		if !locked {
+			unlock(s.mheapLock)
+		}
+	}
+
+	lockHeap()
+	top := chunkIndex(s.scavAddr)
+	if top < s.start {
+		unlockHeap()
+		return 0
+	}
+
+	// Check the chunk containing the scav addr, starting at the addr
+	// and see if there are any free and unscavenged pages.
+	ci := chunkIndex(s.scavAddr)
+	base, npages := s.chunks[ci].findScavengeCandidate(chunkPageIndex(s.scavAddr), minPages, maxPages)
+
+	// If we found something, scavenge it and return!
+	if npages != 0 {
+		s.scavengeRangeLocked(ci, base, npages)
+		unlockHeap()
+		return uintptr(npages) * pageSize
+	}
+	unlockHeap()
+
+	// Slow path: iterate optimistically looking for any free and unscavenged page.
+	// If we think we see something, stop and verify it!
+	for i := top - 1; i >= s.start; i-- {
+		// If this chunk is totally in-use or has no unscavenged pages, don't bother
+		// doing a  more sophisticated check.
+		//
+		// Note we're accessing the summary and the chunks without a lock, but
+		// that's fine. We're being optimistic anyway.
+
+		// Check if there are enough free pages at all. It's imperative that we
+		// check this before the chunk itself so that we quickly skip over
+		// unused parts of the address space, which may have a cleared bitmap
+		// but a zero'd summary which indicates not to allocate from there.
+		if s.summary[len(s.summary)-1][i].max() < uint(minPages) {
+			continue
+		}
+
+		// Run over the chunk looking harder for a candidate. Again, we could
+		// race with a lot of different pieces of code, but we're just being
+		// optimistic.
+		if !s.chunks[i].hasScavengeCandidate(minPages) {
+			continue
+		}
+
+		// We found a candidate, so let's lock and verify it.
+		lockHeap()
+
+		// Find, verify, and scavenge if we can.
+		chunk := &s.chunks[i]
+		base, npages := chunk.findScavengeCandidate(pallocChunkPages-1, minPages, maxPages)
+		if npages > 0 {
+			// We found memory to scavenge! Mark the bits and report that up.
+			s.scavengeRangeLocked(i, base, npages)
+			unlockHeap()
+			return uintptr(npages) * pageSize
+		}
+
+		// We were fooled, let's take this opportunity to move the scavAddr
+		// all the way down to where we searched as scavenged for future calls
+		// and keep iterating.
+		s.scavAddr = chunkBase(i-1) + pallocChunkPages*pageSize - 1
+		unlockHeap()
+	}
+
+	lockHeap()
+	// We couldn't find anything, so signal that there's nothing left
+	// to scavenge.
+	s.scavAddr = minScavAddr
+	unlockHeap()
+
+	return 0
+}
+
+// scavengeRangeLocked scavenges the given region of memory.
+//
+// s.mheapLock must be held.
+func (s *pageAlloc) scavengeRangeLocked(ci chunkIdx, base, npages uint) {
+	s.chunks[ci].scavenged.setRange(base, npages)
+
+	// Compute the full address for the start of the range.
+	addr := chunkBase(ci) + uintptr(base)*pageSize
+
+	// Update the scav pointer.
+	s.scavAddr = addr - 1
+
+	// Only perform the actual scavenging if we're not in a test.
+	// It's dangerous to do so otherwise.
+	if s.test {
+		return
+	}
+	sysUnused(unsafe.Pointer(addr), uintptr(npages)*pageSize)
+
+	// Update global accounting only when not in test, otherwise
+	// the runtime's accounting will be wrong.
+	mSysStatInc(&memstats.heap_released, uintptr(npages)*pageSize)
+}
+
+// fillAligned returns x but with all zeroes in m-aligned
+// groups of m bits set to 1 if any bit in the group is non-zero.
+//
+// For example, fillAligned(0x0100a3, 8) == 0xff00ff.
+//
+// Note that if m == 1, this is a no-op.
+//
+// m must be a power of 2 <= maxPagesPerPhysPage.
+func fillAligned(x uint64, m uint) uint64 {
+	apply := func(x uint64, c uint64) uint64 {
+		// The technique used it here is derived from
+		// https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord
+		// and extended for more than just bytes (like nibbles
+		// and uint16s) by using an appropriate constant.
+		//
+		// To summarize the technique, quoting from that page:
+		// "[It] works by first zeroing the high bits of the [8]
+		// bytes in the word. Subsequently, it adds a number that
+		// will result in an overflow to the high bit of a byte if
+		// any of the low bits were initialy set. Next the high
+		// bits of the original word are ORed with these values;
+		// thus, the high bit of a byte is set iff any bit in the
+		// byte was set. Finally, we determine if any of these high
+		// bits are zero by ORing with ones everywhere except the
+		// high bits and inverting the result."
+		return ^((((x & c) + c) | x) | c)
+	}
+	// Transform x to contain a 1 bit at the top of each m-aligned
+	// group of m zero bits.
+	switch m {
+	case 1:
+		return x
+	case 2:
+		x = apply(x, 0x5555555555555555)
+	case 4:
+		x = apply(x, 0x7777777777777777)
+	case 8:
+		x = apply(x, 0x7f7f7f7f7f7f7f7f)
+	case 16:
+		x = apply(x, 0x7fff7fff7fff7fff)
+	case 32:
+		x = apply(x, 0x7fffffff7fffffff)
+	case 64: // == maxPagesPerPhysPage
+		x = apply(x, 0x7fffffffffffffff)
+	default:
+		throw("bad m value")
+	}
+	// Now, the top bit of each m-aligned group in x is set
+	// that group was all zero in the original x.
+
+	// From each group of m bits subtract 1.
+	// Because we know only the top bits of each
+	// m-aligned group are set, we know this will
+	// set each group to have all the bits set except
+	// the top bit, so just OR with the original
+	// result to set all the bits.
+	return ^((x - (x >> (m - 1))) | x)
+}
+
+// hasScavengeCandidate returns true if there's any min-page-aligned groups of
+// min pages of free-and-unscavenged memory in the region represented by this
+// pallocData.
+//
+// min must be a non-zero power of 2 <= maxPagesPerPhysPage.
+func (m *pallocData) hasScavengeCandidate(min uintptr) bool {
+	if min&(min-1) != 0 || min == 0 {
+		print("runtime: min = ", min, "\n")
+		throw("min must be a non-zero power of 2")
+	} else if min > maxPagesPerPhysPage {
+		print("runtime: min = ", min, "\n")
+		throw("min too large")
+	}
+
+	// The goal of this search is to see if the chunk contains any free and unscavenged memory.
+	for i := len(m.scavenged) - 1; i >= 0; i-- {
+		// 1s are scavenged OR non-free => 0s are unscavenged AND free
+		//
+		// TODO(mknyszek): Consider splitting up fillAligned into two
+		// functions, since here we technically could get by with just
+		// the first half of its computation. It'll save a few instructions
+		// but adds some additional code complexity.
+		x := fillAligned(m.scavenged[i]|m.pallocBits[i], uint(min))
+
+		// Quickly skip over chunks of non-free or scavenged pages.
+		if x != ^uint64(0) {
+			return true
+		}
+	}
+	return false
+}
+
+// findScavengeCandidate returns a start index and a size for this pallocData
+// segment which represents a contiguous region of free and unscavenged memory.
+//
+// searchIdx indicates the page index within this chunk to start the search, but
+// note that findScavengeCandidate searches backwards through the pallocData. As a
+// a result, it will return the highest scavenge candidate in address order.
+//
+// min indicates a hard minimum size and alignment for runs of pages. That is,
+// findScavengeCandidate will not return a region smaller than min pages in size,
+// or that is min pages or greater in size but not aligned to min. min must be
+// a non-zero power of 2 <= maxPagesPerPhysPage.
+//
+// max is a hint for how big of a region is desired. If max >= pallocChunkPages, then
+// findScavengeCandidate effectively returns entire free and unscavenged regions.
+// If max < pallocChunkPages, it may truncate the returned region such that size is
+// max. However, findScavengeCandidate may still return a larger region if, for
+// example, it chooses to preserve huge pages. That is, even if max is small,
+// size is not guaranteed to be equal to max. max is allowed to be less than min,
+// in which case it is as if max == min.
+func (m *pallocData) findScavengeCandidate(searchIdx uint, min, max uintptr) (uint, uint) {
+	if min&(min-1) != 0 || min == 0 {
+		print("runtime: min = ", min, "\n")
+		throw("min must be a non-zero power of 2")
+	} else if min > maxPagesPerPhysPage {
+		print("runtime: min = ", min, "\n")
+		throw("min too large")
+	}
+	// max is allowed to be less than min, but we need to ensure
+	// we never truncate further than min.
+	if max < min {
+		max = min
+	}
+
+	i := int(searchIdx / 64)
+	// Start by quickly skipping over blocks of non-free or scavenged pages.
+	for ; i >= 0; i-- {
+		// 1s are scavenged OR non-free => 0s are unscavenged AND free
+		x := fillAligned(m.scavenged[i]|m.pallocBits[i], uint(min))
+		if x != ^uint64(0) {
+			break
+		}
+	}
+	if i < 0 {
+		// Failed to find any free/unscavenged pages.
+		return 0, 0
+	}
+	// We have something in the 64-bit chunk at i, but it could
+	// extend further. Loop until we find the extent of it.
+
+	// 1s are scavenged OR non-free => 0s are unscavenged AND free
+	x := fillAligned(m.scavenged[i]|m.pallocBits[i], uint(min))
+	z1 := uint(sys.LeadingZeros64(^x))
+	run, end := uint(0), uint(i)*64+(64-z1)
+	if x<<z1 != 0 {
+		// After shifting out z1 bits, we still have 1s,
+		// so the run ends inside this word.
+		run = uint(sys.LeadingZeros64(x << z1))
+	} else {
+		// After shifting out z1 bits, we have no more 1s.
+		// This means the run extends to the bottom of the
+		// word so it may extend into further words.
+		run = 64 - z1
+		for j := i - 1; j >= 0; j-- {
+			x := fillAligned(m.scavenged[j]|m.pallocBits[j], uint(min))
+			run += uint(sys.LeadingZeros64(x))
+			if x != 0 {
+				// The run stopped in this word.
+				break
+			}
+		}
+	}
+
+	// Split the run we found if it's larger than max but hold on to
+	// our original length, since we may need it later.
+	size := run
+	if size > uint(max) {
+		size = uint(max)
+	}
+	start := end - size
+
+	// Each huge page is guaranteed to fit in a single palloc chunk.
+	//
+	// TODO(mknyszek): Support larger huge page sizes.
+	// TODO(mknyszek): Consider taking pages-per-huge-page as a parameter
+	// so we can write tests for this.
+	if physHugePageSize > pageSize && physHugePageSize > physPageSize {
+		// We have huge pages, so let's ensure we don't break one by scavenging
+		// over a huge page boundary. If the range [start, start+size) overlaps with
+		// a free-and-unscavenged huge page, we want to grow the region we scavenge
+		// to include that huge page.
+
+		// Compute the huge page boundary above our candidate.
+		pagesPerHugePage := uintptr(physHugePageSize / pageSize)
+		hugePageAbove := uint(alignUp(uintptr(start), pagesPerHugePage))
+
+		// If that boundary is within our current candidate, then we may be breaking
+		// a huge page.
+		if hugePageAbove <= end {
+			// Compute the huge page boundary below our candidate.
+			hugePageBelow := uint(alignDown(uintptr(start), pagesPerHugePage))
+
+			if hugePageBelow >= end-run {
+				// We're in danger of breaking apart a huge page since start+size crosses
+				// a huge page boundary and rounding down start to the nearest huge
+				// page boundary is included in the full run we found. Include the entire
+				// huge page in the bound by rounding down to the huge page size.
+				size = size + (start - hugePageBelow)
+				start = hugePageBelow
+			}
+		}
+	}
+	return start, size
 }

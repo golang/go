@@ -27,7 +27,10 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
-	dirsInit(Dir{"testdata", testdataDir}, Dir{"testdata/nested", filepath.Join(testdataDir, "nested")}, Dir{"testdata/nested/nested", filepath.Join(testdataDir, "nested", "nested")})
+	dirsInit(
+		Dir{importPath: "testdata", dir: testdataDir},
+		Dir{importPath: "testdata/nested", dir: filepath.Join(testdataDir, "nested")},
+		Dir{importPath: "testdata/nested/nested", dir: filepath.Join(testdataDir, "nested", "nested")})
 
 	os.Exit(m.Run())
 }

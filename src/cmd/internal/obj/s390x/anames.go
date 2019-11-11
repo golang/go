@@ -138,6 +138,7 @@ var Anames = []string{
 	"TMLH",
 	"TMLL",
 	"IPM",
+	"SPM",
 	"CS",
 	"CSG",
 	"SYNC",

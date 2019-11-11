@@ -571,10 +571,10 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpEqB_0(v)
 	case OpEqPtr:
 		return rewriteValueARM64_OpEqPtr_0(v)
+	case OpFMA:
+		return rewriteValueARM64_OpFMA_0(v)
 	case OpFloor:
 		return rewriteValueARM64_OpFloor_0(v)
-	case OpFma:
-		return rewriteValueARM64_OpFma_0(v)
 	case OpGeq16:
 		return rewriteValueARM64_OpGeq16_0(v)
 	case OpGeq16U:
@@ -28573,18 +28573,8 @@ func rewriteValueARM64_OpEqPtr_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueARM64_OpFloor_0(v *Value) bool {
-	// match: (Floor x)
-	// result: (FRINTMD x)
-	for {
-		x := v.Args[0]
-		v.reset(OpARM64FRINTMD)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValueARM64_OpFma_0(v *Value) bool {
-	// match: (Fma x y z)
+func rewriteValueARM64_OpFMA_0(v *Value) bool {
+	// match: (FMA x y z)
 	// result: (FMADDD z x y)
 	for {
 		z := v.Args[2]
@@ -28594,6 +28584,16 @@ func rewriteValueARM64_OpFma_0(v *Value) bool {
 		v.AddArg(z)
 		v.AddArg(x)
 		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM64_OpFloor_0(v *Value) bool {
+	// match: (Floor x)
+	// result: (FRINTMD x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARM64FRINTMD)
+		v.AddArg(x)
 		return true
 	}
 }

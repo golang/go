@@ -7,9 +7,6 @@
 package modcmd
 
 import (
-	"fmt"
-	"os"
-
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch"
@@ -45,28 +42,8 @@ func runTidy(cmd *base.Command, args []string) {
 		base.Fatalf("go mod tidy: no arguments allowed")
 	}
 
-	// LoadALL adds missing modules.
-	// Remove unused modules.
-	used := make(map[module.Version]bool)
-	for _, pkg := range modload.LoadALL() {
-		used[modload.PackageModule(pkg)] = true
-	}
-	used[modload.Target] = true // note: LoadALL initializes Target
-
-	inGoMod := make(map[string]bool)
-	for _, r := range modload.ModFile().Require {
-		inGoMod[r.Mod.Path] = true
-	}
-
-	var keep []module.Version
-	for _, m := range modload.BuildList() {
-		if used[m] {
-			keep = append(keep, m)
-		} else if cfg.BuildV && inGoMod[m.Path] {
-			fmt.Fprintf(os.Stderr, "unused %s\n", m.Path)
-		}
-	}
-	modload.SetBuildList(keep)
+	modload.LoadALL()
+	modload.TidyBuildList()
 	modTidyGoSum() // updates memory copy; WriteGoMod on next line flushes it out
 	modload.WriteGoMod()
 }
