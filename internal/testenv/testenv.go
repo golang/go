@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"sync"
 )
 
 // Testing is an abstraction of a *testing.T.
@@ -32,11 +33,17 @@ type helperer interface {
 // be development versions.
 var packageMainIsDevel = func() bool { return true }
 
+var checkGoGoroot struct {
+	once sync.Once
+	err  error
+}
+
 func hasTool(tool string) error {
 	_, err := exec.LookPath(tool)
 	if err != nil {
 		return err
 	}
+
 	switch tool {
 	case "patch":
 		// check that the patch tools supports the -o argument
@@ -50,7 +57,28 @@ func hasTool(tool string) error {
 		if err := cmd.Run(); err != nil {
 			return err
 		}
+
+	case "go":
+		checkGoGoroot.once.Do(func() {
+			// Ensure that the 'go' command found by exec.LookPath is from the correct
+			// GOROOT. Otherwise, 'some/path/go test ./...' will test against some
+			// version of the 'go' binary other than 'some/path/go', which is almost
+			// certainly not what the user intended.
+			out, err := exec.Command(tool, "env", "GOROOT").CombinedOutput()
+			if err != nil {
+				checkGoGoroot.err = err
+				return
+			}
+			GOROOT := strings.TrimSpace(string(out))
+			if GOROOT != runtime.GOROOT() {
+				checkGoGoroot.err = fmt.Errorf("'go env GOROOT' does not match runtime.GOROOT:\n\tgo env: %s\n\tGOROOT: %s", GOROOT, runtime.GOROOT())
+			}
+		})
+		if checkGoGoroot.err != nil {
+			return checkGoGoroot.err
+		}
 	}
+
 	return nil
 }
 
