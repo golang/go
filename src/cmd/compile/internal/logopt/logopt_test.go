@@ -41,8 +41,11 @@ func n() int {
 `
 
 func want(t *testing.T, out string, desired string) {
-	if !strings.Contains(out, desired) {
-		t.Errorf("did not see phrase %s in \n%s", desired, out)
+	// On Windows, Unicode escapes in the JSON output end up "normalized" elsewhere to /u....,
+	// so "normalize" what we're looking for to match that.
+	s := strings.ReplaceAll(desired, string(os.PathSeparator), "/")
+	if !strings.Contains(out, s) {
+		t.Errorf("did not see phrase %s in \n%s", s, out)
 	}
 }
 
@@ -178,7 +181,20 @@ func s15a8(x *[15]int64) [15]int64 {
 		want(t, slogged, `{"range":{"start":{"line":11,"character":6},"end":{"line":11,"character":6}},"severity":3,"code":"isInBounds","source":"go compiler","message":""}`)
 		want(t, slogged, `{"range":{"start":{"line":7,"character":6},"end":{"line":7,"character":6}},"severity":3,"code":"canInlineFunction","source":"go compiler","message":"cost: 35"}`)
 		want(t, slogged, `{"range":{"start":{"line":21,"character":21},"end":{"line":21,"character":21}},"severity":3,"code":"cannotInlineCall","source":"go compiler","message":"foo cannot be inlined (escaping closure variable)"}`)
-
+		// escape analysis explanation
+		want(t, slogged, `{"range":{"start":{"line":7,"character":13},"end":{"line":7,"character":13}},"severity":3,"code":"leak","source":"go compiler","message":"parameter z leaks to ~r2 with derefs=0",`+
+			`"relatedInformation":[`+
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: y = z:"},`+
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from y = \u003cN\u003e (assign-pair)"},`+
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: ~r1 = y:"},`+
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"},`+
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from y.b (dot of pointer)"},`+
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"},`+
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from \u0026y.b (address-of)"},`+
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":9},"end":{"line":4,"character":9}}},"message":"inlineLoc"},`+
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from ~r1 = \u003cN\u003e (assign-pair)"},`+
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:    flow: ~r2 = ~r1:"},`+
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:      from return (*int)(~r1) (return)"}]}`)
 	})
 }
 
