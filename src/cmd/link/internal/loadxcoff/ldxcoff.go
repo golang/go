@@ -39,22 +39,10 @@ func (f *xcoffBiobuf) ReadAt(p []byte, off int64) (int, error) {
 	return n, nil
 }
 
-// Load loads xcoff files with the indexed object files.
-func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
-	lookup := func(name string, version int) *sym.Symbol {
-		return l.LookupOrCreate(name, version, syms)
-	}
-	return load(arch, lookup, syms.IncVersion(), input, pkg, length, pn)
-}
-
-// LoadOld uses the old version of object loading.
-func LoadOld(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
-	return load(arch, syms.Lookup, syms.IncVersion(), input, pkg, length, pn)
-}
-
 // loads the Xcoff file pn from f.
 // Symbols are written into syms, and a slice of the text symbols is returned.
-func load(arch *sys.Arch, lookup func(string, int) *sym.Symbol, localSymVersion int, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
+func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
+	localSymVersion := syms.IncVersion()
 	errorf := func(str string, args ...interface{}) ([]*sym.Symbol, error) {
 		return nil, fmt.Errorf("loadxcoff: %v: %v", pn, fmt.Sprintf(str, args...))
 	}
@@ -75,7 +63,7 @@ func load(arch *sys.Arch, lookup func(string, int) *sym.Symbol, localSymVersion 
 		lds := new(ldSection)
 		lds.Section = *sect
 		name := fmt.Sprintf("%s(%s)", pkg, lds.Name)
-		s := lookup(name, localSymVersion)
+		s := l.LookupOrCreate(name, localSymVersion, syms)
 
 		switch lds.Type {
 		default:
@@ -113,7 +101,7 @@ func load(arch *sys.Arch, lookup func(string, int) *sym.Symbol, localSymVersion 
 			continue
 		}
 
-		s := lookup(sx.Name, 0)
+		s := l.LookupOrCreate(sx.Name, 0, syms)
 
 		// Text symbol
 		if s.Type == sym.STEXT {
@@ -135,7 +123,7 @@ func load(arch *sys.Arch, lookup func(string, int) *sym.Symbol, localSymVersion 
 		for i, rx := range sect.Relocs {
 			r := &rs[i]
 
-			r.Sym = lookup(rx.Symbol.Name, 0)
+			r.Sym = l.LookupOrCreate(rx.Symbol.Name, 0, syms)
 			if uint64(int32(rx.VirtualAddress)) != rx.VirtualAddress {
 				return errorf("virtual address of a relocation is too big: 0x%x", rx.VirtualAddress)
 			}
