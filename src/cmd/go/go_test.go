@@ -1436,17 +1436,6 @@ func TestRelativeImportsInCommandLinePackage(t *testing.T) {
 	tg.run(append([]string{"test"}, files...)...)
 }
 
-func TestNonCanonicalImportPaths(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.runFail("build", "canonical/d")
-	tg.grepStderr("package canonical/d", "did not report canonical/d")
-	tg.grepStderr("imports canonical/b", "did not report canonical/b")
-	tg.grepStderr("imports canonical/a/: non-canonical", "did not report canonical/a/")
-}
-
 func TestVersionControlErrorMessageIncludesCorrectDirectory(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
