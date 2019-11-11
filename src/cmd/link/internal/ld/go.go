@@ -145,12 +145,8 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 		}
 	}
 
-	if *flagNewobj {
-		// Record the directives. We'll process them later after Symbols are created.
-		ctxt.cgodata = append(ctxt.cgodata, cgodata{file, pkg, directives})
-	} else {
-		setCgoAttr(ctxt, ctxt.Syms.Lookup, file, pkg, directives)
-	}
+	// Record the directives. We'll process them later after Symbols are created.
+	ctxt.cgodata = append(ctxt.cgodata, cgodata{file, pkg, directives})
 }
 
 // Set symbol attributes or flags based on cgo directives.
