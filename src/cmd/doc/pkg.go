@@ -172,18 +172,18 @@ func parsePackage(writer io.Writer, pkg *build.Package, userPath string) *Packag
 	constructor := make(map[*doc.Func]bool)
 	for _, typ := range docPkg.Types {
 		docPkg.Consts = append(docPkg.Consts, typ.Consts...)
-		for _, value := range typ.Consts {
-			typedValue[value] = true
-		}
 		docPkg.Vars = append(docPkg.Vars, typ.Vars...)
-		for _, value := range typ.Vars {
-			typedValue[value] = true
-		}
 		docPkg.Funcs = append(docPkg.Funcs, typ.Funcs...)
-		for _, fun := range typ.Funcs {
-			// We don't count it as a constructor bound to the type
-			// if the type itself is not exported.
-			if isExported(typ.Name) {
+		if isExported(typ.Name) {
+			for _, value := range typ.Consts {
+				typedValue[value] = true
+			}
+			for _, value := range typ.Vars {
+				typedValue[value] = true
+			}
+			for _, fun := range typ.Funcs {
+				// We don't count it as a constructor bound to the type
+				// if the type itself is not exported.
 				constructor[fun] = true
 			}
 		}

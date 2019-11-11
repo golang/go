@@ -176,6 +176,7 @@ var tests = []test{
 			`Comment about block of variables`,
 			`VarFive = 5`,
 			`var ExportedVariable = 1`,
+			`var ExportedVarOfUnExported unexportedType`,
 			`var LongLine = newLongLine\(`,
 			`var MultiLineVar = map\[struct {`,
 			`FUNCTIONS`,
