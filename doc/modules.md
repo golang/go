@@ -65,7 +65,7 @@ compatible with previous versions.
   `v1.2.3`.
 * The build metadata suffix is ignored for the purpose of comparing versions.
   Tags with build metadata are ignored in version control repositories, but
-  build metadata is preserved in versions specified in `go.mod` files.  The
+  build metadata is preserved in versions specified in `go.mod` files. The
   suffix `+incompatible` denotes a version released before migrating to modules
   version major version 2 or later (see [Compatibility with non-module
   repositories](#non-module-compat).
@@ -90,6 +90,53 @@ non-canonical version like `master` appears in a `go.mod` file.
 
 <a id="major-version-suffixes"></a>
 ### Major version suffixes
+
+Starting with major version 2, module paths must have a [*major version
+suffix*](#glos-major-version-suffix) like `/v2` that matches the major
+version. For example, if a module has the path `example.com/mod` at `v1.0.0`, it
+must have the path `example.com/mod/v2` at version `v2.0.0`.
+
+Major version suffixes implement the [*import compatibility
+rule*](https://research.swtch.com/vgo-import):
+
+> If an old package and a new package have the same import path,
+> the new package must be backwards compatible with the old package.
+
+By definition, packages in a new major version of a module are not backwards
+compatible with the corresponding packages in the previous major version.
+Consequently, starting with `v2`, packages need new import paths. This is
+accomplished by adding a major version suffix to the module path. Since the
+module path is a prefix of the import path for each package within the module,
+adding the major version suffix to the module path provides a distinct import
+path for each incompatible version.
+
+Major version suffixes are not allowed at major versions `v0` or `v1`. There is
+no need to change the module path between `v0` and `v1` because `v0` versions
+are unstable and have no compatibility guarantee. Additionally, for most
+modules, `v1` is backwards compatible with the last `v0` version; a `v1` version
+acts as a commitment to compatibility, rather than an indication of
+incompatible changes compared with `v0`.
+
+As a special case, modules paths starting with `gopkg.in/` must always have a
+major version suffix, even at `v0` and `v1`. The suffix must start with a dot
+rather than a slash (for example, `gopkg.in/yaml.v2`).
+
+Major version suffixes let multiple major versions of a module coexist in the
+same build. This may be necessary due to a [diamond dependency
+problem](https://research.swtch.com/vgo-import#dependency_story). Ordinarily, if
+a module is required at two different versions by transitive dependencies, the
+higher version will be used. However, if the two versions are incompatible,
+neither version will satisfy all clients. Since incompatible versions must have
+different major version numbers, they must also have different module paths due
+to major version suffixes. This resolves the conflict: modules with distinct
+suffixes are treated as separate modules, and their packages—even packages in
+same subdirectory relative to their module roots—are distinct.
+
+Many Go projects released versions at `v2` or higher without using a major
+version suffix before migrating to modules (perhaps before modules were even
+introduced). These versions are annotated with a `+incompatible` build tag (for
+example, `v2.0.0+incompatible`). See [Compatibility with non-module
+repositories](#compatibility-with-non-module-repositories) for more information.
 
 <a id="resolve-pkg-mod"></a>
 ### Resolving a package to a module
