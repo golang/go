@@ -652,7 +652,6 @@ type Link struct {
 	Flag_linkshared    bool
 	Flag_optimize      bool
 	Flag_locationlists bool
-	Flag_newobj        bool // use new object file format
 	Bso                *bufio.Writer
 	Pathname           string
 	hashmu             sync.Mutex       // protects hash, funchash
