@@ -13,8 +13,80 @@ this document to HTML before Go 1.14. -->
 <a id="modules-overview"></a>
 ## Modules, packages, and versions
 
+A [*module*](#glos-module) is a collection of packages that are released,
+versioned, and distributed together. A module is identified by a [*module
+path*](#glos-module-path), which is declared in a [`go.mod`
+file](#go.mod-files), together with information about the module's
+dependencies. The [*module root directory*](#glos-module-root-directory) is the
+directory that contains the `go.mod` file. The [*main
+module*](#glos-main-module) is the module containing the directory where the
+`go` command is invoked.
+
+Each [*package*](#glos-package) within a module is a collection of source files
+in the same directory that are compiled together. A [*package
+path*](#glos-package-path) is the module path joined with the subdirectory
+containing the package (relative to the module root). For example, the module
+`"golang.org/x/net"` contains a package in the directory `"html"`. That
+package's path is `"golang.org/x/net/html"`.
+
 <a id="versions"></a>
 ### Versions
+
+A [*version*](#glos-version) identifies an immutable snapshot of a module, which
+may be either a [release](#glos-release-version) or a
+[pre-release](#glos-pre-release-version). Each version starts with the letter
+`v`, followed by a semantic version. See [Semantic Versioning
+2.0.0](https://semver.org/spec/v2.0.0.html) for details on how versions are
+formatted, interpreted, and compared.
+
+To summarize, a semantic version consists of three non-negative integers (the
+major, minor, and patch versions, from left to right) separated by dots. The
+patch version may be followed by an optional pre-release string starting with a
+hyphen. The pre-release string or patch version may be followed by a build
+metadata string starting with a plus. For example, `v0.0.0`, `v1.12.134`,
+`v8.0.5-pre`, and `v2.0.9+meta` are valid versions.
+
+Each part of a version indicates whether the version is stable and whether it is
+compatible with previous versions.
+
+* The [major version](#glos-major-version) must be incremented and the minor
+  and patch versions must be set to zero after a backwards incompatible change
+  is made to the module's public interface or documented functionality, for
+  example, after a package is removed.
+* The [minor version](#glos-minor-version) must be incremented and the patch
+  version set to zero after a backwards compatible change, for example, after a
+  new function is added.
+* The [patch version](#glos-patch-version) must be incremented after a change
+  that does not affect the module's public interface, such as a bug fix or
+  optimization.
+* The pre-release suffix indicates a version is a
+  [pre-release](#glos-pre-release-version). Pre-release versions sort before
+  the corresponding release versions. For example, `v1.2.3-pre` comes before
+  `v1.2.3`.
+* The build metadata suffix is ignored for the purpose of comparing versions.
+  Tags with build metadata are ignored in version control repositories, but
+  build metadata is preserved in versions specified in `go.mod` files.  The
+  suffix `+incompatible` denotes a version released before migrating to modules
+  version major version 2 or later (see [Compatibility with non-module
+  repositories](#non-module-compat).
+
+A version is considered unstable if its major version is 0 or it has a
+pre-release suffix. Unstable versions are not subject to compatibility
+requirements. For example, `v0.2.0` may not be compatible with `v0.1.0`, and
+`v1.5.0-beta` may not be compatible with `v1.5.0`.
+
+Go may access modules in version control systems using tags, branches, or
+revisions that don't follow these conventions. However, within the main module,
+the `go` command will automatically convert revision names that don't follow
+this standard into canonical versions. The `go` command will also remove build
+metadata suffixes (except for `+incompatible`) as part of this process. This may
+result in a [*pseudo-version*](#glos-pseudo-version), a pre-release version that
+encodes a revision identifier (such as a Git commit hash) and a timestamp from a
+version control system. For example, the command `go get -d
+golang.org/x/net@daa7c041` will convert the commit hash `daa7c041` into the
+pseudo-version `v0.0.0-20191109021931-daa7c04131f5`. Canonical versions are
+required outside the main module, and the `go` command will report an error if a
+non-canonical version like `master` appears in a `go.mod` file.
 
 <a id="major-version-suffixes"></a>
 ### Major version suffixes
