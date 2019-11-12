@@ -70,15 +70,19 @@ func (t *imports) Run(ctx context.Context, args ...string) error {
 	}
 	var edits []protocol.TextEdit
 	for _, a := range actions {
-		if a.Title == "Organize Imports" {
-			edits = (*a.Edit.Changes)[string(uri)]
+		if a.Title != "Organize Imports" {
+			continue
+		}
+		for _, c := range a.Edit.DocumentChanges {
+			if c.TextDocument.URI == string(uri) {
+				edits = append(edits, c.Edits...)
+			}
 		}
 	}
 	sedits, err := source.FromProtocolEdits(file.mapper, edits)
 	if err != nil {
 		return errors.Errorf("%v: %v", edits, err)
 	}
-
 	newContent := diff.ApplyEdits(string(file.mapper.Content), sedits)
 
 	filename := file.uri.Filename()

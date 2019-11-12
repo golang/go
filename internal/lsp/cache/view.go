@@ -274,7 +274,7 @@ func (v *view) storeModFileVersions() {
 func (v *view) fileVersion(filename string, kind source.FileKind) string {
 	uri := span.FileURI(filename)
 	f := v.session.GetFile(uri, kind)
-	return f.Identity().Version
+	return f.Identity().Identifier
 }
 
 func (v *view) Shutdown(ctx context.Context) {

@@ -663,7 +663,7 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 		t.Error(err)
 		return
 	}
-	changes, err := ident.Rename(r.ctx, r.view, newText)
+	changes, err := ident.Rename(r.ctx, newText)
 	if err != nil {
 		renamed := string(r.data.Golden(tag, spn.URI().Filename(), func() ([]byte, error) {
 			return []byte(err.Error()), nil
@@ -747,7 +747,14 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 		t.Fatal(err)
 	}
 	// Find the identifier at the position.
-	item, err := source.PrepareRename(ctx, r.view, f, srcRng.Start)
+	ident, err := source.Identifier(ctx, r.view, f, srcRng.Start)
+	if err != nil {
+		if want.Text != "" { // expected an ident.
+			t.Errorf("prepare rename failed for %v: got error: %v", src, err)
+		}
+		return
+	}
+	item, err := ident.PrepareRename(ctx)
 	if err != nil {
 		if want.Text != "" { // expected an ident.
 			t.Errorf("prepare rename failed for %v: got error: %v", src, err)

@@ -109,6 +109,7 @@ type diagnosticSet struct {
 
 func diagnostics(ctx context.Context, view View, pkg Package, reports map[span.URI][]Diagnostic) bool {
 	ctx, done := trace.StartSpan(ctx, "source.diagnostics", telemetry.Package.Of(pkg.ID()))
+	_ = ctx // circumvent SA4006
 	defer done()
 
 	diagSets := make(map[span.URI]*diagnosticSet)

@@ -46,6 +46,7 @@ type overlay struct {
 	uri     span.URI
 	data    []byte
 	hash    string
+	version float64
 	kind    source.FileKind
 
 	// sameContentOnDisk is true if a file has been saved on disk,
@@ -424,9 +425,10 @@ func (o *overlay) FileSystem() source.FileSystem {
 
 func (o *overlay) Identity() source.FileIdentity {
 	return source.FileIdentity{
-		URI:     o.uri,
-		Version: o.hash,
-		Kind:    o.kind,
+		URI:        o.uri,
+		Identifier: o.hash,
+		Version:    o.version,
+		Kind:       o.kind,
 	}
 }
 func (o *overlay) Read(ctx context.Context) ([]byte, string, error) {

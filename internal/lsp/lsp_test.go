@@ -310,17 +310,14 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var edits []protocol.TextEdit
-	for _, a := range actions {
-		if a.Title == "Organize Imports" {
-			edits = (*a.Edit.Changes)[string(uri)]
+	got := string(m.Content)
+	if len(actions) > 0 {
+		res, err := applyWorkspaceEdits(r, actions[0].Edit)
+		if err != nil {
+			t.Fatal(err)
 		}
+		got = res[uri]
 	}
-	sedits, err := source.FromProtocolEdits(m, edits)
-	if err != nil {
-		t.Error(err)
-	}
-	got := diff.ApplyEdits(string(m.Content), sedits)
 	if goimported != got {
 		t.Errorf("import failed for %s, expected:\n%v\ngot:\n%v", filename, goimported, got)
 	}
@@ -348,24 +345,17 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 		},
 	})
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
-	m, err := r.data.Mapper(f.URI())
+	// TODO: This test should probably be able to handle multiple code actions.
+	if len(actions) > 1 {
+		t.Fatal("expected only 1 code action")
+	}
+	res, err := applyWorkspaceEdits(r, actions[0].Edit)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var edits []protocol.TextEdit
-	for _, a := range actions {
-		if a.Title == "Remove" {
-			edits = (*a.Edit.Changes)[string(uri)]
-		}
-	}
-	sedits, err := source.FromProtocolEdits(m, edits)
-	if err != nil {
-		t.Error(err)
-	}
-	got := diff.ApplyEdits(string(m.Content), sedits)
+	got := res[uri]
 	fixed := string(r.data.Golden("suggestedfix", filename, func() ([]byte, error) {
 		return []byte(got), nil
 	}))
@@ -563,7 +553,7 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 		t.Fatalf("failed for %v: %v", spn, err)
 	}
 
-	workspaceEdits, err := r.server.Rename(r.ctx, &protocol.RenameParams{
+	wedit, err := r.server.Rename(r.ctx, &protocol.RenameParams{
 		TextDocument: protocol.TextDocumentIdentifier{
 			URI: protocol.NewURI(uri),
 		},
@@ -579,33 +569,26 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 		}
 		return
 	}
-
-	var res []string
-	for uri, edits := range *workspaceEdits.Changes {
-		m, err := r.data.Mapper(span.URI(uri))
-		if err != nil {
-			t.Fatal(err)
-		}
-		sedits, err := source.FromProtocolEdits(m, edits)
-		if err != nil {
-			t.Error(err)
-		}
-		filename := filepath.Base(m.URI.Filename())
-		contents := applyEdits(string(m.Content), sedits)
-		if len(*workspaceEdits.Changes) > 1 {
-			contents = fmt.Sprintf("%s:\n%s", filename, contents)
-		}
-		res = append(res, contents)
+	res, err := applyWorkspaceEdits(r, wedit)
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	// Sort on filename
-	sort.Strings(res)
+	var orderedURIs []string
+	for uri := range res {
+		orderedURIs = append(orderedURIs, string(uri))
+	}
+	sort.Strings(orderedURIs)
 
 	var got string
-	for i, val := range res {
+	for i := 0; i < len(res); i++ {
 		if i != 0 {
 			got += "\n"
 		}
+		uri := span.URI(orderedURIs[i])
+		if len(res) > 1 {
+			got += filepath.Base(uri.Filename()) + ":\n"
+		}
+		val := res[uri]
 		got += val
 	}
 
@@ -648,6 +631,24 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 	if protocol.CompareRange(*got, want.Range) != 0 {
 		t.Errorf("prepare rename failed: incorrect range got %v want %v", *got, want.Range)
 	}
+}
+
+func applyWorkspaceEdits(r *runner, wedit *protocol.WorkspaceEdit) (map[span.URI]string, error) {
+	res := map[span.URI]string{}
+	for _, docEdits := range wedit.DocumentChanges {
+		uri := span.URI(docEdits.TextDocument.URI)
+		m, err := r.data.Mapper(uri)
+		if err != nil {
+			return nil, err
+		}
+		res[uri] = string(m.Content)
+		sedits, err := source.FromProtocolEdits(m, docEdits.Edits)
+		if err != nil {
+			return nil, err
+		}
+		res[uri] = applyEdits(res[uri], sedits)
+	}
+	return res, nil
 }
 
 func applyEdits(contents string, edits []diff.TextEdit) string {

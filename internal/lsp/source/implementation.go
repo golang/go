@@ -83,7 +83,7 @@ func Implementation(ctx context.Context, view View, f File, position protocol.Po
 			}
 		}
 		if containingFile == nil {
-			return nil, fmt.Errorf("Failed to find file %q in package %v", file.Name(), pkg.PkgPath())
+			return nil, fmt.Errorf("failed to find file %q in package %v", file.Name(), pkg.PkgPath())
 		}
 
 		uri := containingFile.Identity().URI

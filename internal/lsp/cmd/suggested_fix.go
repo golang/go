@@ -88,8 +88,13 @@ func (s *suggestedfix) Run(ctx context.Context, args ...string) error {
 	}
 	var edits []protocol.TextEdit
 	for _, a := range actions {
-		if a.IsPreferred || s.All {
-			edits = (*a.Edit.Changes)[string(uri)]
+		if !a.IsPreferred && !s.All {
+			continue
+		}
+		for _, c := range a.Edit.DocumentChanges {
+			if c.TextDocument.URI == string(uri) {
+				edits = append(edits, c.Edits...)
+			}
 		}
 	}
 

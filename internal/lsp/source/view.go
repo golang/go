@@ -20,13 +20,21 @@ import (
 
 // FileIdentity uniquely identifies a file at a version from a FileSystem.
 type FileIdentity struct {
-	URI     span.URI
-	Version string
-	Kind    FileKind
+	URI span.URI
+
+	// Version is the version of the file, as specified by the client.
+	Version float64
+
+	// Identifier represents a unique identifier for the file.
+	// It could be a file's modification time or its SHA1 hash if it is not on disk.
+	Identifier string
+
+	// Kind is the file's kind.
+	Kind FileKind
 }
 
 func (identity FileIdentity) String() string {
-	return fmt.Sprintf("%s%s%s", identity.URI, identity.Version, identity.Kind)
+	return fmt.Sprintf("%s%f%s%s", identity.URI, identity.Version, identity.Identifier, identity.Kind)
 }
 
 // FileHandle represents a handle to a specific version of a single file from

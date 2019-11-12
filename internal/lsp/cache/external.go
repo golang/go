@@ -28,16 +28,16 @@ type nativeFileHandle struct {
 }
 
 func (fs *nativeFileSystem) GetFile(uri span.URI, kind source.FileKind) source.FileHandle {
-	version := "DOES NOT EXIST"
+	identifier := "DOES NOT EXIST"
 	if fi, err := os.Stat(uri.Filename()); err == nil {
-		version = fi.ModTime().String()
+		identifier = fi.ModTime().String()
 	}
 	return &nativeFileHandle{
 		fs: fs,
 		identity: source.FileIdentity{
-			URI:     uri,
-			Version: version,
-			Kind:    kind,
+			URI:        uri,
+			Identifier: identifier,
+			Kind:       kind,
 		},
 	}
 }
