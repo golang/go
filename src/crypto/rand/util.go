@@ -125,6 +125,9 @@ func Int(rand io.Reader, max *big.Int) (n *big.Int, err error) {
 
 	bytes := make([]byte, k)
 
+	// Important:
+	// b should never be 0 at this point, otherwise the first byte of the
+	// output will be biased towards low values, which is a security risk
 	for {
 		_, err = io.ReadFull(rand, bytes)
 		if err != nil {
@@ -133,6 +136,7 @@ func Int(rand io.Reader, max *big.Int) (n *big.Int, err error) {
 
 		// Clear bits in the first byte to increase the probability
 		// that the candidate is < max.
+		// If b == 0 (which should never happen), this will bias the output.
 		bytes[0] &= uint8(int(1<<b) - 1)
 
 		n.SetBytes(bytes)
