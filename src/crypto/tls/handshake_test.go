@@ -275,9 +275,9 @@ Dialing:
 		var c1 net.Conn
 		c1, err = net.Dial(addr.Network(), addr.String())
 		if err != nil {
-			if runtime.GOOS == "dragonfly" && isConnRefused(err) {
-				// golang.org/issue/29583: Dragonfly sometimes returned a spurious
-				// ECONNREFUSED.
+			if runtime.GOOS == "dragonfly" && (isConnRefused(err) || os.IsTimeout(err)) {
+				// golang.org/issue/29583: Dragonfly sometimes returns a spurious
+				// ECONNREFUSED or ETIMEDOUT.
 				<-tooSlow.C
 				continue
 			}
