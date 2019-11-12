@@ -5930,7 +5930,11 @@ func TestDontCacheBrokenHTTP2Conn(t *testing.T) {
 
 	var brokenState brokenState
 
+	const numReqs = 5
+	var numDials, gotConns uint32 // atomic
+
 	cst.tr.Dial = func(netw, addr string) (net.Conn, error) {
+		atomic.AddUint32(&numDials, 1)
 		c, err := net.Dial(netw, addr)
 		if err != nil {
 			t.Errorf("unexpected Dial error: %v", err)
@@ -5939,8 +5943,6 @@ func TestDontCacheBrokenHTTP2Conn(t *testing.T) {
 		return &breakableConn{c, &brokenState}, err
 	}
 
-	const numReqs = 5
-	var gotConns uint32 // atomic
 	for i := 1; i <= numReqs; i++ {
 		brokenState.Lock()
 		brokenState.broken = false
@@ -5953,6 +5955,7 @@ func TestDontCacheBrokenHTTP2Conn(t *testing.T) {
 
 		ctx := httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
 			GotConn: func(info httptrace.GotConnInfo) {
+				t.Logf("got conn: %v, reused=%v, wasIdle=%v, idleTime=%v", info.Conn.LocalAddr(), info.Reused, info.WasIdle, info.IdleTime)
 				atomic.AddUint32(&gotConns, 1)
 			},
 			TLSHandshakeDone: func(cfg tls.ConnectionState, err error) {
@@ -5974,6 +5977,9 @@ func TestDontCacheBrokenHTTP2Conn(t *testing.T) {
 	}
 	if got, want := atomic.LoadUint32(&gotConns), 1; int(got) != want {
 		t.Errorf("GotConn calls = %v; want %v", got, want)
+	}
+	if got, want := atomic.LoadUint32(&numDials), numReqs; int(got) != want {
+		t.Errorf("Dials = %v; want %v", got, want)
 	}
 }
 
