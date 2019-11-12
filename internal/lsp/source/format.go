@@ -161,65 +161,12 @@ func computeImportEdits(ctx context.Context, view View, ph ParseGoHandle, option
 	}
 	origImports, origImportOffset := trimToImports(view.Session().Cache().FileSet(), origAST, origData)
 
-	computeFixEdits := func(fixes []*imports.ImportFix) ([]protocol.TextEdit, error) {
-		// Apply the fixes and re-parse the file so that we can locate the
-		// new imports.
-		fixedData, err := imports.ApplyFixes(fixes, filename, origData, options)
-		if err != nil {
-			return nil, err
-		}
-		fixedFset := token.NewFileSet()
-		fixedAST, err := parser.ParseFile(fixedFset, filename, fixedData, parser.ImportsOnly)
-		if err != nil {
-			return nil, err
-		}
-		fixedImports, fixedImportsOffset := trimToImports(fixedFset, fixedAST, fixedData)
-
-		// Prepare the diff. If both sides had import statements, we can diff
-		// just those sections against each other, then shift the resulting
-		// edits to the right lines in the original file.
-		left, right := origImports, fixedImports
-		converter := span.NewContentConverter(filename, origImports)
-		offset := origImportOffset
-
-		// If one side or the other has no imports, we won't know where to
-		// anchor the diffs. Instead, use the beginning of the file, up to its
-		// first non-imports decl. We know the imports code will insert
-		// somewhere before that.
-		if origImportOffset == 0 || fixedImportsOffset == 0 {
-			left = trimToFirstNonImport(view.Session().Cache().FileSet(), origAST, origData)
-			// We need the whole AST here, not just the ImportsOnly AST we parsed above.
-			fixedAST, err = parser.ParseFile(fixedFset, filename, fixedData, 0)
-			if err != nil {
-				return nil, err
-			}
-			right = trimToFirstNonImport(fixedFset, fixedAST, fixedData)
-			// We're now working with a prefix of the original file, so we can
-			// use the original converter, and there is no offset on the edits.
-			converter = origMapper.Converter
-			offset = 0
-		}
-
-		// Perform the diff and adjust the results for the trimming, if any.
-		edits := view.Options().ComputeEdits(ph.File().Identity().URI, string(left), string(right))
-		for i := range edits {
-			s, err := edits[i].Span.WithPosition(converter)
-			if err != nil {
-				return nil, err
-			}
-			start := span.NewPoint(s.Start().Line()+offset, s.Start().Column(), -1)
-			end := span.NewPoint(s.End().Line()+offset, s.End().Column(), -1)
-			edits[i].Span = span.New(s.URI(), start, end)
-		}
-		return ToProtocolEdits(origMapper, edits)
-	}
-
 	allFixes, err := imports.FixImports(filename, origData, options)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	allFixEdits, err = computeFixEdits(allFixes)
+	allFixEdits, err = computeFixEdits(view, ph, options, origData, origAST, origMapper, origImports, origImportOffset, allFixes)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -227,7 +174,7 @@ func computeImportEdits(ctx context.Context, view View, ph ParseGoHandle, option
 	// Apply all of the import fixes to the file.
 	// Add the edits for each fix to the result.
 	for _, fix := range allFixes {
-		edits, err := computeFixEdits([]*imports.ImportFix{fix})
+		edits, err := computeFixEdits(view, ph, options, origData, origAST, origMapper, origImports, origImportOffset, []*imports.ImportFix{fix})
 		if err != nil {
 			return nil, nil, err
 		}
@@ -237,6 +184,83 @@ func computeImportEdits(ctx context.Context, view View, ph ParseGoHandle, option
 		})
 	}
 	return allFixEdits, editsPerFix, nil
+}
+
+func computeOneImportFixEdits(ctx context.Context, view View, ph ParseGoHandle, fix *imports.ImportFix) ([]protocol.TextEdit, error) {
+	origData, _, err := ph.File().Read(ctx)
+	if err != nil {
+		return nil, err
+	}
+	origAST, origMapper, _, err := ph.Parse(ctx)
+	if err != nil {
+		return nil, err
+	}
+	origImports, origImportOffset := trimToImports(view.Session().Cache().FileSet(), origAST, origData)
+
+	options := &imports.Options{
+		// Defaults.
+		AllErrors:  true,
+		Comments:   true,
+		Fragment:   true,
+		FormatOnly: false,
+		TabIndent:  true,
+		TabWidth:   8,
+	}
+	return computeFixEdits(view, ph, options, origData, origAST, origMapper, origImports, origImportOffset, []*imports.ImportFix{fix})
+}
+
+func computeFixEdits(view View, ph ParseGoHandle, options *imports.Options, origData []byte, origAST *ast.File, origMapper *protocol.ColumnMapper, origImports []byte, origImportOffset int, fixes []*imports.ImportFix) ([]protocol.TextEdit, error) {
+	filename := ph.File().Identity().URI.Filename()
+	// Apply the fixes and re-parse the file so that we can locate the
+	// new imports.
+	fixedData, err := imports.ApplyFixes(fixes, filename, origData, options)
+	if err != nil {
+		return nil, err
+	}
+	fixedFset := token.NewFileSet()
+	fixedAST, err := parser.ParseFile(fixedFset, filename, fixedData, parser.ImportsOnly)
+	if err != nil {
+		return nil, err
+	}
+	fixedImports, fixedImportsOffset := trimToImports(fixedFset, fixedAST, fixedData)
+
+	// Prepare the diff. If both sides had import statements, we can diff
+	// just those sections against each other, then shift the resulting
+	// edits to the right lines in the original file.
+	left, right := origImports, fixedImports
+	converter := span.NewContentConverter(filename, origImports)
+	offset := origImportOffset
+
+	// If one side or the other has no imports, we won't know where to
+	// anchor the diffs. Instead, use the beginning of the file, up to its
+	// first non-imports decl. We know the imports code will insert
+	// somewhere before that.
+	if origImportOffset == 0 || fixedImportsOffset == 0 {
+		left = trimToFirstNonImport(view.Session().Cache().FileSet(), origAST, origData)
+		// We need the whole AST here, not just the ImportsOnly AST we parsed above.
+		fixedAST, err = parser.ParseFile(fixedFset, filename, fixedData, 0)
+		if err != nil {
+			return nil, err
+		}
+		right = trimToFirstNonImport(fixedFset, fixedAST, fixedData)
+		// We're now working with a prefix of the original file, so we can
+		// use the original converter, and there is no offset on the edits.
+		converter = origMapper.Converter
+		offset = 0
+	}
+
+	// Perform the diff and adjust the results for the trimming, if any.
+	edits := view.Options().ComputeEdits(ph.File().Identity().URI, string(left), string(right))
+	for i := range edits {
+		s, err := edits[i].Span.WithPosition(converter)
+		if err != nil {
+			return nil, err
+		}
+		start := span.NewPoint(s.Start().Line()+offset, s.Start().Column(), -1)
+		end := span.NewPoint(s.End().Line()+offset, s.End().Column(), -1)
+		edits[i].Span = span.New(s.URI(), start, end)
+	}
+	return ToProtocolEdits(origMapper, edits)
 }
 
 // trimToImports returns a section of the source file that covers all of the

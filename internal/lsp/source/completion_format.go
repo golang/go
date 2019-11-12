@@ -13,6 +13,7 @@ import (
 	"go/types"
 	"strings"
 
+	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
 	"golang.org/x/tools/internal/lsp/telemetry"
@@ -190,12 +191,25 @@ func (c *completer) importEdits(imp *importInfo) ([]protocol.TextEdit, error) {
 		return nil, nil
 	}
 
-	edit, err := addNamedImport(c.view.Session().Cache().FileSet(), c.file, imp.name, imp.importPath)
-	if err != nil {
-		return nil, err
+	uri := span.FileURI(c.filename)
+	var ph ParseGoHandle
+	for _, h := range c.pkg.Files() {
+		if h.File().Identity().URI == uri {
+			ph = h
+		}
+	}
+	if ph == nil {
+		return nil, errors.Errorf("no ParseGoHandle for %s", c.filename)
 	}
 
-	return ToProtocolEdits(c.mapper, edit)
+	return computeOneImportFixEdits(c.ctx, c.view, ph, &imports.ImportFix{
+		StmtInfo: imports.ImportInfo{
+			ImportPath: imp.importPath,
+			Name:       imp.name,
+		},
+		// IdentName is unused on this path and is difficult to get.
+		FixType: imports.AddImport,
+	})
 }
 
 func (c *completer) formatBuiltin(cand candidate) CompletionItem {

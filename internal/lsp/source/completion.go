@@ -10,6 +10,7 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
+	"strconv"
 	"strings"
 	"time"
 
@@ -770,6 +771,26 @@ func (c *completer) lexical() error {
 	}
 
 	return nil
+}
+
+// alreadyImports reports whether f has an import with the specified path.
+func alreadyImports(f *ast.File, path string) bool {
+	for _, s := range f.Imports {
+		if importPath(s) == path {
+			return true
+		}
+	}
+	return false
+}
+
+// importPath returns the unquoted import path of s,
+// or "" if the path is not properly quoted.
+func importPath(s *ast.ImportSpec) string {
+	t, err := strconv.Unquote(s.Path.Value)
+	if err != nil {
+		return ""
+	}
+	return t
 }
 
 func nodeContains(n ast.Node, pos token.Pos) bool {
