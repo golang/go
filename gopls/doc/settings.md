@@ -72,7 +72,11 @@ Default: `false`.
 
 ### **deepCompletion** *boolean*
 
-If true, this turns on the ability to return completions from deep inside relevant entities, rather than just the locally accessible ones. Consider this example:
+If true, this turns on the ability to return completions from deep inside relevant entities, rather than just the locally accessible ones.
+
+Default: `true`.
+
+Consider this example:
 
 ```go
 package main
@@ -90,3 +94,9 @@ func main() {
 ```
 
 At the location of the `<>` in this program, deep completion would suggest the result `x.str`.
+
+### **fuzzyMatching** *boolean*
+
+If true, this enables server side fuzzy matching of completion candidates.
+
+Default: `true`.
