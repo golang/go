@@ -16,7 +16,6 @@ import (
 	"math/big"
 	"os"
 	"os/exec"
-	"reflect"
 	"regexp"
 	"runtime"
 	"runtime/pprof/internal/profile"
@@ -108,17 +107,21 @@ func TestCPUProfileMultithreaded(t *testing.T) {
 // containsInlinedCall reports whether the function body for the function f is
 // known to contain an inlined function call within the first maxBytes bytes.
 func containsInlinedCall(f interface{}, maxBytes int) bool {
-	rf := reflect.ValueOf(f)
-	if rf.Kind() != reflect.Func {
-		panic(fmt.Sprintf("%T is not a function", f))
-	}
-	fFunc := runtime.FuncForPC(rf.Pointer())
+	_, found := findInlinedCall(f, maxBytes)
+	return found
+}
+
+// findInlinedCall returns the PC of an inlined function call within
+// the funtion body for the function f if any.
+func findInlinedCall(f interface{}, maxBytes int) (pc uint64, found bool) {
+	fFunc := runtime.FuncForPC(uintptr(funcPC(f)))
 	if fFunc == nil || fFunc.Entry() == 0 {
 		panic("failed to locate function entry")
 	}
 
 	for offset := 0; offset < maxBytes; offset++ {
-		inner := runtime.FuncForPC(fFunc.Entry() + uintptr(offset))
+		innerPC := fFunc.Entry() + uintptr(offset)
+		inner := runtime.FuncForPC(innerPC)
 		if inner == nil {
 			// No function known for this PC value.
 			// It might simply be misaligned, so keep searching.
@@ -131,16 +134,16 @@ func containsInlinedCall(f interface{}, maxBytes int) bool {
 		if inner.Name() != fFunc.Name() {
 			// This PC has f as its entry-point, but is not f. Therefore, it must be a
 			// function inlined into f.
-			return true
+			return uint64(innerPC), true
 		}
 	}
 
-	return false
+	return 0, false
 }
 
 func TestCPUProfileInlining(t *testing.T) {
 	if !containsInlinedCall(inlinedCaller, 4<<10) {
-		t.Skipf("Can't determine whether inlinedCallee was inlined into inlinedCaller.")
+		t.Skip("Can't determine whether inlinedCallee was inlined into inlinedCaller.")
 	}
 
 	p := testCPUProfile(t, stackContains, []string{"runtime/pprof.inlinedCallee", "runtime/pprof.inlinedCaller"}, avoidFunctions(), func(dur time.Duration) {
@@ -1133,5 +1136,87 @@ func TestTracebackAll(t *testing.T) {
 	buf := make([]byte, 10*1024)
 	for i := 0; i < N; i++ {
 		runtime.Stack(buf, true)
+	}
+}
+
+// TestTryAdd tests the cases that's hard to test with real program execution.
+// For example, the current go compilers may not inline functions involved in recursion
+// but that may not be true in the future compilers. This tests such cases by
+// using fake call sequences and forcing the profile build utilizing
+// translateCPUProfile defined in proto_test.go
+func TestTryAdd(t *testing.T) {
+	inlinedCallerPtr := uint64(funcPC(inlinedCaller)) + 1
+	inlinedCalleePtr, found := findInlinedCall(inlinedCaller, 4<<10)
+	if !found {
+		t.Skip("Can't determine whether inlinedCallee was inlined into inlinedCaller.")
+	}
+	inlinedCalleePtr += 1 // +1 to be safely inside of the function body.
+
+	period := int64(2000 * 1000) // 1/500*1e9 nanosec.
+
+	testCases := []struct {
+		name        string
+		input       []uint64          // following the input format assumed by profileBuilder.addCPUData.
+		wantLocs    [][]string        // ordered location entries with function names.
+		wantSamples []*profile.Sample // ordered samples, we care only about Value and the profile location IDs.
+	}{{
+		name: "bug35538",
+		input: []uint64{
+			3, 0, 500, // hz = 500. Must match the period.
+			7, 0, 10, inlinedCalleePtr, inlinedCallerPtr, inlinedCalleePtr, inlinedCallerPtr,
+			5, 0, 20, inlinedCalleePtr, inlinedCallerPtr,
+		},
+		wantLocs: [][]string{{"runtime/pprof.inlinedCallee", "runtime/pprof.inlinedCaller"}},
+		wantSamples: []*profile.Sample{
+			{Value: []int64{10, 10 * period}, Location: []*profile.Location{{ID: 1}, {ID: 1}}},
+			{Value: []int64{20, 20 * period}, Location: []*profile.Location{{ID: 1}}},
+		},
+	}, {
+		name: "recursive_inlined_funcs",
+		input: []uint64{
+			3, 0, 500, // hz = 500. Must match the period.
+			5, 0, 30, inlinedCalleePtr, inlinedCalleePtr,
+			4, 0, 40, inlinedCalleePtr,
+		},
+		wantLocs: [][]string{{"runtime/pprof.inlinedCallee"}},
+		wantSamples: []*profile.Sample{
+			{Value: []int64{30, 30 * period}, Location: []*profile.Location{{ID: 1}, {ID: 1}}},
+			{Value: []int64{40, 40 * period}, Location: []*profile.Location{{ID: 1}}},
+		},
+	}}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			p, err := translateCPUProfile(tc.input)
+			if err != nil {
+				t.Fatalf("translating profile: %v", err)
+			}
+			t.Logf("Profile: %v\n", p)
+
+			// One location entry with all inlined functions.
+			var gotLoc [][]string
+			for _, loc := range p.Location {
+				var names []string
+				for _, line := range loc.Line {
+					names = append(names, line.Function.Name)
+				}
+				gotLoc = append(gotLoc, names)
+			}
+			if got, want := fmtJSON(gotLoc), fmtJSON(tc.wantLocs); got != want {
+				t.Errorf("Got Location = %+v\n\twant %+v", got, want)
+			}
+			// All samples should point to one location.
+			var gotSamples []*profile.Sample
+			for _, sample := range p.Sample {
+				var locs []*profile.Location
+				for _, loc := range sample.Location {
+					locs = append(locs, &profile.Location{ID: loc.ID})
+				}
+				gotSamples = append(gotSamples, &profile.Sample{Value: sample.Value, Location: locs})
+			}
+			if got, want := fmtJSON(gotSamples), fmtJSON(tc.wantSamples); got != want {
+				t.Errorf("Got Samples = %+v\n\twant %+v", got, want)
+			}
+		})
 	}
 }
