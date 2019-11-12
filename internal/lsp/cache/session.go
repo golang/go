@@ -141,7 +141,7 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 	m, err := v.snapshot.load(ctx, source.DirectoryURI(folder))
 	var loadErr error
 	if err != nil && err != errNoPackagesFound {
-		loadErr = fmt.Errorf("Error loading packages: %v", err)
+		loadErr = fmt.Errorf("error loading packages: %v", err)
 	}
 
 	// Prepare CheckPackageHandles for every package that's been loaded.

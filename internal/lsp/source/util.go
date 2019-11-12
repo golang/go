@@ -155,7 +155,7 @@ func nodeToMappedRange(ctx context.Context, view View, m *protocol.ColumnMapper,
 }
 
 func posToMappedRange(ctx context.Context, v View, pkg Package, pos, end token.Pos) (mappedRange, error) {
-	m, err := posToMapper(ctx, v, pkg, pos)
+	_, m, _, err := v.FindPosInPackage(pkg, pos)
 	if err != nil {
 		return mappedRange{}, err
 	}
@@ -173,16 +173,6 @@ func posToRange(ctx context.Context, view View, m *protocol.ColumnMapper, pos, e
 		m:         m,
 		spanRange: span.NewRange(view.Session().Cache().FileSet(), pos, end),
 	}, nil
-}
-
-func posToMapper(ctx context.Context, v View, pkg Package, pos token.Pos) (*protocol.ColumnMapper, error) {
-	posn := v.Session().Cache().FileSet().Position(pos)
-	ph, _, err := v.FindFileInPackage(ctx, span.FileURI(posn.Filename), pkg)
-	if err != nil {
-		return nil, err
-	}
-	_, m, _, err := ph.Cached()
-	return m, err
 }
 
 // Matches cgo generated comment as well as the proposed standard:

@@ -163,7 +163,7 @@ func typeErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, pos toke
 		return span.Span{}, err
 	}
 	posn := fset.Position(pos)
-	ph, _, err := findFileInPackage(ctx, span.FileURI(posn.Filename), pkg)
+	ph, _, err := findFileInPackage(pkg, span.FileURI(posn.Filename))
 	if err != nil {
 		return spn, nil // ignore errors
 	}
@@ -190,7 +190,7 @@ func typeErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, pos toke
 }
 
 func scannerErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, posn token.Position) (span.Span, error) {
-	ph, _, err := findFileInPackage(ctx, span.FileURI(posn.Filename), pkg)
+	ph, _, err := findFileInPackage(pkg, span.FileURI(posn.Filename))
 	if err != nil {
 		return span.Span{}, err
 	}
@@ -209,7 +209,7 @@ func scannerErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, posn 
 // spanToRange converts a span.Span to a protocol.Range,
 // assuming that the span belongs to the package whose diagnostics are being computed.
 func spanToRange(ctx context.Context, pkg *pkg, spn span.Span) (protocol.Range, error) {
-	ph, _, err := findFileInPackage(ctx, spn.URI(), pkg)
+	ph, _, err := findFileInPackage(pkg, spn.URI())
 	if err != nil {
 		return protocol.Range{}, err
 	}

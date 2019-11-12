@@ -19,14 +19,8 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 )
 
-func Implementation(ctx context.Context, view View, f File, position protocol.Position) ([]protocol.Location, error) {
-	// Find all references to the identifier at the position.
-	ident, err := Identifier(ctx, view, f, position)
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := ident.implementations(ctx)
+func (i *IdentifierInfo) Implementation(ctx context.Context) ([]protocol.Location, error) {
+	res, err := i.implementations(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -71,35 +65,14 @@ func Implementation(ctx context.Context, view View, f File, position protocol.Po
 		if pkgs[obj] == nil || len(pkg.Files()) == 0 {
 			continue
 		}
-		// Search for the identifier in each of the package's files.
-		var ident *IdentifierInfo
-
-		fset := view.Session().Cache().FileSet()
-		file := fset.File(obj.Pos())
-		var containingFile FileHandle
-		for _, f := range pkg.Files() {
-			if f.File().Identity().URI.Filename() == file.Name() {
-				containingFile = f.File()
-			}
-		}
-		if containingFile == nil {
-			return nil, fmt.Errorf("failed to find file %q in package %v", file.Name(), pkg.PkgPath())
-		}
-
-		uri := containingFile.Identity().URI
-		ph, _, err := view.FindFileInPackage(ctx, uri, pkgs[obj])
+		file, _, _, err := i.Snapshot.View().FindPosInPackage(pkgs[obj], obj.Pos())
 		if err != nil {
 			return nil, err
 		}
-		astFile, _, _, err := ph.Cached()
+		ident, err := findIdentifier(ctx, i.Snapshot, pkg, file, obj.Pos())
 		if err != nil {
 			return nil, err
 		}
-		ident, err = findIdentifier(ctx, view.Snapshot(), pkg, astFile, obj.Pos())
-		if err != nil {
-			return nil, err
-		}
-
 		decRange, err := ident.Declaration.Range()
 		if err != nil {
 			return nil, err

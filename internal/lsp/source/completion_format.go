@@ -154,18 +154,9 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	if cand.imp != nil && cand.imp.pkg != nil {
 		searchPkg = cand.imp.pkg
 	}
-	ph, pkg, err := c.view.FindFileInPackage(c.ctx, uri, searchPkg)
+	file, _, pkg, err := c.view.FindPosInPackage(searchPkg, obj.Pos())
 	if err != nil {
 		log.Error(c.ctx, "error finding file in package", err, telemetry.URI.Of(uri), telemetry.Package.Of(searchPkg.ID()))
-		return item, nil
-	}
-	file, _, _, err := ph.Cached()
-	if err != nil {
-		log.Error(c.ctx, "no cached file", err, telemetry.URI.Of(uri))
-		return item, nil
-	}
-	if !(file.Pos() <= obj.Pos() && obj.Pos() <= file.End()) {
-		log.Error(c.ctx, "no file for object", errors.Errorf("no file for completion object %s", obj.Name()), telemetry.URI.Of(uri))
 		return item, nil
 	}
 	ident, err := findIdentifier(c.ctx, c.snapshot, pkg, file, obj.Pos())

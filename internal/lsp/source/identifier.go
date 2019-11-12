@@ -242,17 +242,9 @@ func hasErrorType(obj types.Object) bool {
 }
 
 func objToNode(ctx context.Context, v View, pkg Package, obj types.Object) (ast.Decl, error) {
-	uri := span.FileURI(v.Session().Cache().FileSet().Position(obj.Pos()).Filename)
-	ph, _, err := v.FindFileInPackage(ctx, uri, pkg)
+	declAST, _, _, err := v.FindPosInPackage(pkg, obj.Pos())
 	if err != nil {
 		return nil, err
-	}
-	declAST, _, _, err := ph.Cached()
-	if declAST == nil {
-		return nil, err
-	}
-	if !(declAST.Pos() <= obj.Pos() && obj.Pos() <= declAST.End()) {
-		return nil, errors.Errorf("no file for %s", obj.Name())
 	}
 	path, _ := astutil.PathEnclosingInterval(declAST, obj.Pos(), obj.Pos())
 	if path == nil {

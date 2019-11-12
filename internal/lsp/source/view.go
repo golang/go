@@ -260,7 +260,7 @@ type View interface {
 
 	// FindFileInPackage returns the AST and type information for a file that may
 	// belong to or be part of a dependency of the given package.
-	FindFileInPackage(ctx context.Context, uri span.URI, pkg Package) (ParseGoHandle, Package, error)
+	FindPosInPackage(pkg Package, pos token.Pos) (*ast.File, *protocol.ColumnMapper, Package, error)
 
 	// Snapshot returns the current snapshot for the view.
 	Snapshot() Snapshot

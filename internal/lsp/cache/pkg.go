@@ -126,26 +126,3 @@ func (s *snapshot) FindAnalysisError(ctx context.Context, id string, diag protoc
 	}
 	return nil, errors.Errorf("no matching diagnostic for %v", diag)
 }
-
-func findFileInPackage(ctx context.Context, uri span.URI, pkg source.Package) (source.ParseGoHandle, source.Package, error) {
-	queue := []source.Package{pkg}
-	seen := make(map[string]bool)
-
-	for len(queue) > 0 {
-		pkg := queue[0]
-		queue = queue[1:]
-		seen[pkg.ID()] = true
-
-		for _, ph := range pkg.Files() {
-			if ph.File().Identity().URI == uri {
-				return ph, pkg, nil
-			}
-		}
-		for _, dep := range pkg.Imports() {
-			if !seen[dep.ID()] {
-				queue = append(queue, dep)
-			}
-		}
-	}
-	return nil, nil, errors.Errorf("no file for %s in package %s", uri, pkg.ID())
-}

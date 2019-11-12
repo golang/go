@@ -19,6 +19,9 @@ func (s *Server) implementation(ctx context.Context, params *protocol.Implementa
 	if err != nil {
 		return nil, err
 	}
-
-	return source.Implementation(ctx, view, f, params.Position)
+	ident, err := source.Identifier(ctx, view, f, params.Position)
+	if err != nil {
+		return nil, err
+	}
+	return ident.Implementation(ctx)
 }

@@ -301,16 +301,6 @@ func (v *view) Ignore(uri span.URI) bool {
 	return ok
 }
 
-func (v *view) findIgnoredFile(ctx context.Context, uri span.URI) (source.ParseGoHandle, source.Package, error) {
-	// Check the builtin package.
-	for _, h := range v.BuiltinPackage().Files() {
-		if h.File().Identity().URI == uri {
-			return h, nil, nil
-		}
-	}
-	return nil, nil, errors.Errorf("no ignored file for %s", uri)
-}
-
 func (v *view) BackgroundContext() context.Context {
 	v.mu.Lock()
 	defer v.mu.Unlock()
@@ -455,12 +445,68 @@ func (v *view) openFiles(ctx context.Context, uris []span.URI) (results []source
 	return results
 }
 
-func (v *view) FindFileInPackage(ctx context.Context, uri span.URI, pkg source.Package) (source.ParseGoHandle, source.Package, error) {
-	// Special case for ignored files.
-	if v.Ignore(uri) {
-		return v.findIgnoredFile(ctx, uri)
+func (v *view) FindPosInPackage(searchpkg source.Package, pos token.Pos) (*ast.File, *protocol.ColumnMapper, source.Package, error) {
+	tok := v.session.cache.fset.File(pos)
+	if tok == nil {
+		return nil, nil, nil, errors.Errorf("no file for pos in package %s", searchpkg.ID())
 	}
-	return findFileInPackage(ctx, uri, pkg)
+	uri := span.FileURI(tok.Name())
+
+	// Special case for ignored files.
+	var (
+		ph  source.ParseGoHandle
+		pkg source.Package
+		err error
+	)
+	if v.Ignore(uri) {
+		ph, pkg, err = v.findIgnoredFile(uri)
+	} else {
+		ph, pkg, err = findFileInPackage(searchpkg, uri)
+	}
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	file, m, _, err := ph.Cached()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if !(file.Pos() <= pos && pos <= file.End()) {
+		return nil, nil, nil, err
+	}
+	return file, m, pkg, nil
+}
+
+func (v *view) findIgnoredFile(uri span.URI) (source.ParseGoHandle, source.Package, error) {
+	// Check the builtin package.
+	for _, h := range v.BuiltinPackage().Files() {
+		if h.File().Identity().URI == uri {
+			return h, nil, nil
+		}
+	}
+	return nil, nil, errors.Errorf("no ignored file for %s", uri)
+}
+
+func findFileInPackage(pkg source.Package, uri span.URI) (source.ParseGoHandle, source.Package, error) {
+	queue := []source.Package{pkg}
+	seen := make(map[string]bool)
+
+	for len(queue) > 0 {
+		pkg := queue[0]
+		queue = queue[1:]
+		seen[pkg.ID()] = true
+
+		for _, ph := range pkg.Files() {
+			if ph.File().Identity().URI == uri {
+				return ph, pkg, nil
+			}
+		}
+		for _, dep := range pkg.Imports() {
+			if !seen[dep.ID()] {
+				queue = append(queue, dep)
+			}
+		}
+	}
+	return nil, nil, errors.Errorf("no file for %s in package %s", uri, pkg.ID())
 }
 
 type debugView struct{ *view }
