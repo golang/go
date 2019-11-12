@@ -34,3 +34,11 @@ func f2() {
 	m := n2 // ERROR "."
 	sink = &m
 }
+
+func f3() {
+	var n1, n2 Node // ERROR "."
+	n1.Orig = &n1
+	n1.Orig = &n2
+
+	sink = n1.Orig.Orig
+}
