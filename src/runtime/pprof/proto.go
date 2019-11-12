@@ -471,13 +471,12 @@ func (d *pcDeck) reset() {
 func (d *pcDeck) tryAdd(pc uintptr, frames []runtime.Frame, symbolizeResult symbolizeFlag) (success bool) {
 	if existing := len(d.pcs); existing > 0 {
 		// 'frames' are all expanded from one 'pc' and represent all inlined functions
-		// so we check only the first one.
+		// so we check only the last one.
 		newFrame := frames[0]
 		last := d.frames[existing-1]
-		if last.Func != nil && newFrame.Func != nil { // Can't be an inlined frame.
+		if last.Func != nil { // the last frame can't be inlined. Flush.
 			return false
 		}
-
 		if last.Entry == 0 || newFrame.Entry == 0 { // Possibly not a Go function. Don't try to merge.
 			return false
 		}
