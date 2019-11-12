@@ -4,9 +4,7 @@
 
 package chacha20
 
-import (
-	"runtime"
-)
+import "runtime"
 
 // Platforms that have fast unaligned 32-bit little endian accesses.
 const unaligned = runtime.GOARCH == "386" ||

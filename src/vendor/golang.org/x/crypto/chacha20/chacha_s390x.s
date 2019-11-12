@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build s390x,!gccgo,!appengine
+// +build !gccgo,!appengine
 
 #include "go_asm.h"
 #include "textflag.h"
@@ -23,15 +23,6 @@ DATA ·constants<>+0x10(SB)/4, $0x61707865
 DATA ·constants<>+0x14(SB)/4, $0x3320646e
 DATA ·constants<>+0x18(SB)/4, $0x79622d32
 DATA ·constants<>+0x1c(SB)/4, $0x6b206574
-
-// EXRL targets:
-TEXT ·mvcSrcToBuf(SB), NOFRAME|NOSPLIT, $0
-	MVC $1, (R1), (R8)
-	RET
-
-TEXT ·mvcBufToDst(SB), NOFRAME|NOSPLIT, $0
-	MVC $1, (R8), (R9)
-	RET
 
 #define BSWAP V5
 #define J0    V6
@@ -144,7 +135,7 @@ TEXT ·mvcBufToDst(SB), NOFRAME|NOSPLIT, $0
 	VMRHF v, w, c \ // c = {a[2], b[2], c[2], d[2]}
 	VMRLF v, w, d // d = {a[3], b[3], c[3], d[3]}
 
-// func xorKeyStreamVX(dst, src []byte, key *[8]uint32, nonce *[3]uint32, counter *uint32, buf *[256]byte, len *int)
+// func xorKeyStreamVX(dst, src []byte, key *[8]uint32, nonce *[3]uint32, counter *uint32)
 TEXT ·xorKeyStreamVX(SB), NOSPLIT, $0
 	MOVD $·constants<>(SB), R1
 	MOVD dst+0(FP), R2         // R2=&dst[0]
@@ -152,25 +143,10 @@ TEXT ·xorKeyStreamVX(SB), NOSPLIT, $0
 	MOVD key+48(FP), R5        // R5=key
 	MOVD nonce+56(FP), R6      // R6=nonce
 	MOVD counter+64(FP), R7    // R7=counter
-	MOVD buf+72(FP), R8        // R8=buf
-	MOVD len+80(FP), R9        // R9=len
 
 	// load BSWAP and J0
 	VLM (R1), BSWAP, J0
 
-	// set up tail buffer
-	ADD     $-1, R4, R12
-	MOVBZ   R12, R12
-	CMPUBEQ R12, $255, aligned
-	MOVD    R4, R1
-	AND     $~255, R1
-	MOVD    $(R3)(R1*1), R1
-	EXRL    $·mvcSrcToBuf(SB), R12
-	MOVD    $255, R0
-	SUB     R12, R0
-	MOVD    R0, (R9)               // update len
-
-aligned:
 	// setup
 	MOVD  $95, R0
 	VLM   (R5), KEY0, KEY1
@@ -217,9 +193,7 @@ loop:
 
 	// decrement length
 	ADD $-256, R4
-	BLT tail
 
-continue:
 	// rearrange vectors
 	SHUFFLE(X0, X1, X2, X3, M0, M1, M2, M3)
 	ADDV(J0, X0, X1, X2, X3)
@@ -245,16 +219,6 @@ continue:
 	MOVD $256(R3), R3
 
 	CMPBNE  R4, $0, chacha
-	CMPUBEQ R12, $255, return
-	EXRL    $·mvcBufToDst(SB), R12 // len was updated during setup
 
-return:
 	VSTEF $0, CTR, (R7)
 	RET
-
-tail:
-	MOVD R2, R9
-	MOVD R8, R2
-	MOVD R8, R3
-	MOVD $0, R4
-	JMP  continue
