@@ -77,6 +77,7 @@ should only run when the condition is satisfied. The available conditions are:
    - [root] for os.Geteuid() == 0
    - [symlink] for testenv.HasSymlink()
    - [exec:prog] for whether prog is available for execution (found by exec.LookPath)
+   - [GODEBUG:value] for whether value is one of the comma-separated entries in the GODEBUG variable
 
 A condition can be negated: [!short] means to run the rest of the line
 when testing.Short() is false. Multiple conditions may be given for a single

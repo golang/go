@@ -292,6 +292,17 @@ Script:
 					}).(bool)
 					break
 				}
+				if strings.HasPrefix(cond.tag, "GODEBUG:") {
+					value := strings.TrimPrefix(cond.tag, "GODEBUG:")
+					parts := strings.Split(os.Getenv("GODEBUG"), ",")
+					for _, p := range parts {
+						if strings.TrimSpace(p) == value {
+							ok = true
+							break
+						}
+					}
+					break
+				}
 				if !imports.KnownArch[cond.tag] && !imports.KnownOS[cond.tag] && cond.tag != "gc" && cond.tag != "gccgo" {
 					ts.fatalf("unknown condition %q", cond.tag)
 				}
