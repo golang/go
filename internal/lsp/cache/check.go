@@ -304,6 +304,11 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 
 	// Type checking errors are handled via the config, so ignore them here.
 	_ = check.Files(files)
+	// If the context was cancelled, we may have returned a ton of transient
+	// errors to the type checker. Swallow them.
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 
 	// We don't care about a package's errors unless we have parsed it in full.
 	if mode == source.ParseFull {

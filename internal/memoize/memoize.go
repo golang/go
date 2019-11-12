@@ -35,23 +35,42 @@ type Store struct {
 // The result must be a pointer.
 type Function func(ctx context.Context) interface{}
 
+type state int
+
+const (
+	stateIdle = iota
+	stateRunning
+	stateCompleted
+)
+
 // Handle is returned from a store when a key is bound to a function.
 // It is then used to access the results of that function.
+//
+// A Handle starts out in idle state, waiting for something to demand its
+// evaluation. It then transitions into running state. While it's running,
+// waiters tracks the number of Get calls waiting for a result, and the done
+// channel is used to notify waiters of the next state transition. Once the
+// evaluation finishes, value is set, state changes to completed, and done
+// is closed, unblocking waiters. Alternatively, as Get calls are cancelled,
+// they decrement waiters. If it drops to zero, the inner context is cancelled,
+// computation is abandoned, and state resets to idle to start the process over
+// again.
 type Handle struct {
-	mu    sync.Mutex
 	store *Store
 	key   interface{}
+
+	mu    sync.Mutex
+	state state
+	// done is set in running state, and closed when exiting it.
+	done chan struct{}
+	// cancel is set in running state. It cancels computation.
+	cancel context.CancelFunc
+	// waiters is the number of Gets outstanding.
+	waiters uint
 	// the function that will be used to populate the value
 	function Function
-	// the lazily poplulated value
+	// value is set in completed state.
 	value interface{}
-	// wait is used to block until the value is ready
-	// will only be non nil if the generator is already running
-	wait chan interface{}
-	// the cancel function for the context being used by the generator
-	// it can be used to abort the generator if the handle is garbage
-	// collected.
-	cancel context.CancelFunc
 }
 
 // Has returns true if they key is currently valid for this store.
@@ -139,51 +158,92 @@ func (s *Store) get(key interface{}) *Handle {
 func (h *Handle) Cached() interface{} {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return h.value
+	if h.state == stateCompleted {
+		return h.value
+	}
+	return nil
 }
 
 // Get returns the value associated with a handle.
 //
 // If the value is not yet ready, the underlying function will be invoked.
 // This activates the handle, and it will remember the value for as long as it exists.
+// If ctx is cancelled, Get returns nil.
 func (h *Handle) Get(ctx context.Context) interface{} {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if h.function == nil {
-		return h.value
-	}
-	// value not ready yet
-	select {
-	case h.value = <-h.run(ctx):
-		// successfully got the value
-		h.function = nil
-		h.cancel = nil
-		return h.value
-	case <-ctx.Done():
-		// cancelled outer context, leave the generator running
-		// for someone else to pick up later
+	if ctx.Err() != nil {
 		return nil
+	}
+	h.mu.Lock()
+	switch h.state {
+	case stateIdle:
+		return h.run(ctx)
+	case stateRunning:
+		return h.wait(ctx)
+	case stateCompleted:
+		defer h.mu.Unlock()
+		return h.value
+	default:
+		panic("unknown state")
 	}
 }
 
-// run starts the generator if necessary and returns the value channel.
-func (h *Handle) run(ctx context.Context) chan interface{} {
-	if h.wait != nil {
-		// generator already running
-		return h.wait
-	}
-	// we use a length one "postbox" so the go routine can quit even if
-	// nobody wants the result yet
-	h.wait = make(chan interface{}, 1)
-	ctx, cancel := context.WithCancel(xcontext.Detach(ctx))
+// run starts h.function and returns the result. h.mu must be locked.
+func (h *Handle) run(ctx context.Context) interface{} {
+	childCtx, cancel := context.WithCancel(xcontext.Detach(ctx))
 	h.cancel = cancel
+	h.state = stateRunning
+	h.done = make(chan struct{})
 	go func() {
-		// in here the handle lock is not held
-		// we post the value back to the first caller that waits for it
-		h.wait <- h.function(ctx)
-		close(h.wait)
+		v := h.function(childCtx)
+		if childCtx.Err() != nil {
+			return
+		}
+
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		// It's theoretically possible that the handle has been cancelled out
+		// of the run that started us, and then started running again since we
+		// checked childCtx above. Even so, that should be harmless, since each
+		// run should produce the same results.
+		if h.state != stateRunning {
+			return
+		}
+		h.value = v
+		h.function = nil
+		h.state = stateCompleted
+		close(h.done)
 	}()
-	return h.wait
+
+	return h.wait(ctx)
+}
+
+// wait waits for the value to be computed, or ctx to be cancelled. h.mu must be locked.
+func (h *Handle) wait(ctx context.Context) interface{} {
+	h.waiters++
+	done := h.done
+	h.mu.Unlock()
+
+	select {
+	case <-done:
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		if h.state == stateCompleted {
+			return h.value
+		}
+		return nil
+	case <-ctx.Done():
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		h.waiters--
+		if h.waiters == 0 && h.state == stateRunning {
+			h.cancel()
+			close(h.done)
+			h.state = stateIdle
+			h.done = nil
+			h.cancel = nil
+		}
+		return nil
+	}
 }
 
 func release(p interface{}) {
