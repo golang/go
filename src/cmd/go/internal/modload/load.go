@@ -94,11 +94,11 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 				pkgs := m.Pkgs
 				m.Pkgs = m.Pkgs[:0]
 				for _, pkg := range pkgs {
-					dir := pkg
-					if !filepath.IsAbs(dir) {
+					var dir string
+					if !filepath.IsAbs(pkg) {
 						dir = filepath.Join(base.Cwd, pkg)
 					} else {
-						dir = filepath.Clean(dir)
+						dir = filepath.Clean(pkg)
 					}
 
 					// golang.org/issue/32917: We should resolve a relative path to a

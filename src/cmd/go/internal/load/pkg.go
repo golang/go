@@ -670,6 +670,11 @@ func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd
 	// we create from the full directory to the package.
 	// Otherwise it is the usual import path.
 	// For vendored imports, it is the expanded form.
+	//
+	// Note that when modules are enabled, local import paths are normally
+	// canonicalized by modload.ImportPaths before now. However, if there's an
+	// error resolving a local path, it will be returned untransformed
+	// so that 'go list -e' reports something useful.
 	importKey := importSpec{
 		path:        path,
 		parentPath:  parentPath,
