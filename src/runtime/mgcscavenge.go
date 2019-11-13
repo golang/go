@@ -408,13 +408,20 @@ func (s *pageAlloc) scavengeOne(max uintptr, locked bool) uintptr {
 	// Check the chunk containing the scav addr, starting at the addr
 	// and see if there are any free and unscavenged pages.
 	ci := chunkIndex(s.scavAddr)
-	base, npages := s.chunks[ci].findScavengeCandidate(chunkPageIndex(s.scavAddr), minPages, maxPages)
+	if s.summary[len(s.summary)-1][ci].max() >= uint(minPages) {
+		// We only bother looking for a candidate if there at least
+		// minPages free pages at all. It's important that we only
+		// continue if the summary says we can because that's how
+		// we can tell if parts of the address space are unused.
+		// See the comment on s.chunks in mpagealloc.go.
+		base, npages := s.chunks[ci].findScavengeCandidate(chunkPageIndex(s.scavAddr), minPages, maxPages)
 
-	// If we found something, scavenge it and return!
-	if npages != 0 {
-		s.scavengeRangeLocked(ci, base, npages)
-		unlockHeap()
-		return uintptr(npages) * pageSize
+		// If we found something, scavenge it and return!
+		if npages != 0 {
+			s.scavengeRangeLocked(ci, base, npages)
+			unlockHeap()
+			return uintptr(npages) * pageSize
+		}
 	}
 	unlockHeap()
 
