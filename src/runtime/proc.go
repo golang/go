@@ -4073,10 +4073,17 @@ func (pp *p) destroy() {
 	}
 	if len(pp.timers) > 0 {
 		plocal := getg().m.p.ptr()
-		// The world is stopped so we don't need to hold timersLock.
+		// The world is stopped, but we acquire timersLock to
+		// protect against sysmon calling timeSleepUntil.
+		// This is the only case where we hold the timersLock of
+		// more than one P, so there are no deadlock concerns.
+		lock(&plocal.timersLock)
+		lock(&pp.timersLock)
 		moveTimers(plocal, pp.timers)
 		pp.timers = nil
 		pp.adjustTimers = 0
+		unlock(&pp.timersLock)
+		unlock(&plocal.timersLock)
 	}
 	// If there's a background worker, make it runnable and put
 	// it on the global queue so it can clean itself up.
