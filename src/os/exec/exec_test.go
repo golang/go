@@ -47,6 +47,9 @@ func init() {
 		return
 	}
 	for fd := uintptr(3); fd <= 100; fd++ {
+		if poll.IsPollDescriptor(fd) {
+			continue
+		}
 		// We have no good portable way to check whether an FD is open.
 		// We use NewFile to create a *os.File, which lets us
 		// know whether it is open, but then we have to cope with
