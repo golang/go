@@ -6,17 +6,24 @@ package cmdtest
 
 import (
 	"fmt"
+	"sort"
+	"testing"
+
 	"golang.org/x/tools/internal/lsp/cmd"
 	"golang.org/x/tools/internal/tool"
-	"testing"
 
 	"golang.org/x/tools/internal/span"
 )
 
 func (r *runner) References(t *testing.T, spn span.Span, itemList []span.Span) {
-	var expect string
+	var itemStrings []string
 	for _, i := range itemList {
-		expect += fmt.Sprintln(i)
+		itemStrings = append(itemStrings, fmt.Sprint(i))
+	}
+	sort.Strings(itemStrings)
+	var expect string
+	for _, i := range itemStrings {
+		expect += i + "\n"
 	}
 
 	uri := spn.URI()

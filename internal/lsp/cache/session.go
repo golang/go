@@ -110,12 +110,13 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 		filesByURI:    make(map[span.URI]viewFile),
 		filesByBase:   make(map[string][]viewFile),
 		snapshot: &snapshot{
-			packages:   make(map[packageKey]*checkPackageHandle),
-			ids:        make(map[span.URI][]packageID),
-			metadata:   make(map[packageID]*metadata),
-			files:      make(map[span.URI]source.FileHandle),
-			importedBy: make(map[packageID][]packageID),
-			actions:    make(map[actionKey]*actionHandle),
+			packages:          make(map[packageKey]*checkPackageHandle),
+			ids:               make(map[span.URI][]packageID),
+			metadata:          make(map[packageID]*metadata),
+			files:             make(map[span.URI]source.FileHandle),
+			importedBy:        make(map[packageID][]packageID),
+			actions:           make(map[actionKey]*actionHandle),
+			workspacePackages: make(map[packageID]bool),
 		},
 		ignoredURIs: make(map[span.URI]struct{}),
 		builtin:     &builtinPkg{},
@@ -146,12 +147,10 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 	// Prepare CheckPackageHandles for every package that's been loaded.
 	// (*snapshot).CheckPackageHandle makes the assumption that every package that's
 	// been loaded has an existing checkPackageHandle.
-	for _, m := range m {
-		_, err := v.snapshot.checkPackageHandle(ctx, m.id, source.ParseFull)
-		if err != nil {
-			return nil, err
-		}
+	if err := v.snapshot.checkWorkspacePackages(ctx, m); err != nil {
+		return nil, err
 	}
+
 	debug.AddView(debugView{v})
 	return v, loadErr
 }

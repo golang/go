@@ -8,10 +8,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"sort"
+
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/tool"
-	"sort"
 )
 
 // references implements the references verb for gopls

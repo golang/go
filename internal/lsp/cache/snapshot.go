@@ -39,6 +39,10 @@ type snapshot struct {
 
 	// actions maps an actionkey to its actionHandle.
 	actions map[actionKey]*actionHandle
+
+	// workspacePackages contains the workspace's packages, which are loaded
+	// when the view is created.
+	workspacePackages map[packageID]bool
 }
 
 type packageKey struct {
@@ -99,16 +103,50 @@ func (s *snapshot) getPackages(uri source.FileURI, m source.ParseMode) (cphs []s
 	return cphs
 }
 
+// checkWorkspacePackages checks the initial set of packages loaded when
+// the view is created. This is needed because
+// (*snapshot).CheckPackageHandle makes the assumption that every package that's
+// been loaded has an existing checkPackageHandle.
+func (s *snapshot) checkWorkspacePackages(ctx context.Context, m []*metadata) error {
+	for _, m := range m {
+		_, err := s.checkPackageHandle(ctx, m.id, source.ParseFull)
+		if err != nil {
+			return err
+		}
+		s.workspacePackages[m.id] = true
+	}
+	return nil
+}
+
 func (s *snapshot) KnownPackages(ctx context.Context) []source.Package {
 	// TODO(matloob): This function exists because KnownImportPaths can't
 	// determine the import paths of all packages. Remove this function
 	// if KnownImportPaths gains that ability. That could happen if
 	// go list or go packages provide that information.
+	pkgIDs := make(map[packageID]bool)
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	for _, m := range s.metadata {
+		pkgIDs[m.id] = true
+	}
+	// Add in all the workspacePackages in case the've been invalidated
+	// in the metadata since their initial load.
+	for id := range s.workspacePackages {
+		pkgIDs[id] = true
+	}
+	s.mu.Unlock()
 
 	var results []source.Package
-	for _, cph := range s.packages {
+	for pkgID := range pkgIDs {
+		mode := source.ParseExported
+		if s.workspacePackages[pkgID] {
+			// Any package in our workspace should be loaded with ParseFull.
+			mode = source.ParseFull
+		}
+		cph, err := s.checkPackageHandle(ctx, pkgID, mode)
+		if err != nil {
+			log.Error(ctx, fmt.Sprintf("cph.Check of %v", cph.m.pkgPath), err)
+			continue
+		}
 		// Check the package now if it's not checked yet.
 		// TODO(matloob): is this too slow?
 		pkg, err := cph.check(ctx)
@@ -279,14 +317,15 @@ func (s *snapshot) clone(ctx context.Context, withoutURI *span.URI, withoutTypes
 	defer s.mu.Unlock()
 
 	result := &snapshot{
-		id:         s.id + 1,
-		view:       s.view,
-		ids:        make(map[span.URI][]packageID),
-		importedBy: make(map[packageID][]packageID),
-		metadata:   make(map[packageID]*metadata),
-		packages:   make(map[packageKey]*checkPackageHandle),
-		actions:    make(map[actionKey]*actionHandle),
-		files:      make(map[span.URI]source.FileHandle),
+		id:                s.id + 1,
+		view:              s.view,
+		ids:               make(map[span.URI][]packageID),
+		importedBy:        make(map[packageID][]packageID),
+		metadata:          make(map[packageID]*metadata),
+		packages:          make(map[packageKey]*checkPackageHandle),
+		actions:           make(map[actionKey]*actionHandle),
+		files:             make(map[span.URI]source.FileHandle),
+		workspacePackages: make(map[packageID]bool),
 	}
 	// Copy all of the FileHandles except for the one that was invalidated.
 	for k, v := range s.files {
@@ -343,6 +382,10 @@ func (s *snapshot) clone(ctx context.Context, withoutURI *span.URI, withoutTypes
 			continue
 		}
 		result.metadata[k] = v
+	}
+	// Copy the set of initally loaded packages
+	for k, v := range s.workspacePackages {
+		result.workspacePackages[k] = v
 	}
 	// Don't bother copying the importedBy graph,
 	// as it changes each time we update metadata.
