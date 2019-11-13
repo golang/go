@@ -283,7 +283,7 @@ func deferprocStack(d *_defer) {
 	d.varp = 0
 	// The lines below implement:
 	//   d.panic = nil
-	//   d.fp = nil
+	//   d.fd = nil
 	//   d.link = gp._defer
 	//   gp._defer = d
 	// But without write barriers. The first three are writes to
