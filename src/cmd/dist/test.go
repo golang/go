@@ -195,7 +195,8 @@ func (t *tester) run() {
 	restoreGOROOT := func() {}
 	if strings.HasPrefix(os.Getenv("GO_BUILDER_NAME"), "linux-") {
 		if os.Getuid() == 0 {
-			log.Printf("Not making GOROOT unwritable: running as root, so permissions would have no effect.")
+			// Don't bother making GOROOT unwritable:
+			// we're running as root, so permissions would have no effect.
 		} else {
 			restoreGOROOT = t.makeGOROOTUnwritable()
 		}
