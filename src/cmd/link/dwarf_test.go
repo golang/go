@@ -139,13 +139,6 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 				}
 			}
 
-			// Until there is a fix for issue 35512, don't try to use
-			// SeekPC or look at the line table on Windows under
-			// c-archive build mode.
-			if buildmode == "c-archive" && runtime.GOOS == "windows" {
-				t.Skip("avoiding SeekPC until 35512 fixed")
-			}
-
 			// TODO: We'd like to use filepath.Join here.
 			// Also related: golang.org/issue/19784.
 			wantFile := path.Join(prog, "main.go")
@@ -175,6 +168,9 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 func TestDWARF(t *testing.T) {
 	testDWARF(t, "", true)
 	if !testing.Short() {
+		if runtime.GOOS == "windows" {
+			t.Skip("skipping Windows/c-archive; see Issue 35512 for more.")
+		}
 		t.Run("c-archive", func(t *testing.T) {
 			testDWARF(t, "c-archive", true)
 		})
