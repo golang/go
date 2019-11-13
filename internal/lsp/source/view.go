@@ -194,7 +194,7 @@ type Session interface {
 
 	// DidChangeOutOfBand is called when a file under the root folder changes.
 	// If the file was open in the editor, it returns true.
-	DidChangeOutOfBand(ctx context.Context, uri span.URI, change protocol.FileChangeType) bool
+	DidChangeOutOfBand(ctx context.Context, uri span.URI, action FileAction) bool
 
 	// Options returns a copy of the SessionOptions for this session.
 	Options() Options
@@ -202,6 +202,17 @@ type Session interface {
 	// SetOptions sets the options of this session to new values.
 	SetOptions(Options)
 }
+
+type FileAction int
+
+const (
+	Open = FileAction(iota)
+	Close
+	Change
+	Create
+	Delete
+	UnknownFileAction
+)
 
 // View represents a single workspace.
 // This is the level at which we maintain configuration like working directory

@@ -376,9 +376,9 @@ func (v *view) getFile(ctx context.Context, uri span.URI, kind source.FileKind) 
 		fname: uri.Filename(),
 		kind:  kind,
 	}
-	v.session.filesWatchMap.Watch(uri, func(changeType protocol.FileChangeType) bool {
+	v.session.filesWatchMap.Watch(uri, func(action source.FileAction) bool {
 		ctx := xcontext.Detach(ctx)
-		return v.invalidateContent(ctx, f, changeType)
+		return v.invalidateContent(ctx, f, kind, action)
 	})
 	v.mapFile(uri, f)
 	return f, nil

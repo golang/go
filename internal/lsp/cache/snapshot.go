@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
@@ -352,7 +351,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURI *span.URI, withoutTypes
 
 // invalidateContent invalidates the content of a Go file,
 // including any position and type information that depends on it.
-func (v *view) invalidateContent(ctx context.Context, f source.File, changeType protocol.FileChangeType) bool {
+func (v *view) invalidateContent(ctx context.Context, f source.File, kind source.FileKind, action source.FileAction) bool {
 	var (
 		withoutTypes    = make(map[span.URI]struct{})
 		withoutMetadata = make(map[span.URI]struct{})
@@ -370,8 +369,8 @@ func (v *view) invalidateContent(ctx context.Context, f source.File, changeType 
 	// Get the original FileHandle for the URI, if it exists.
 	originalFH := v.snapshot.getFile(f.URI())
 
-	switch changeType {
-	case protocol.Created:
+	switch action {
+	case source.Create:
 		// If this is a file we don't yet know about,
 		// then we do not yet know what packages it should belong to.
 		// Make a rough estimate of what metadata to invalidate by finding the package IDs
@@ -388,7 +387,6 @@ func (v *view) invalidateContent(ctx context.Context, f source.File, changeType 
 				}
 			}
 		}
-		// If a file has been explicitly created, make sure that its original file handle is nil.
 		originalFH = nil
 	}
 
@@ -402,7 +400,7 @@ func (v *view) invalidateContent(ctx context.Context, f source.File, changeType 
 	}
 
 	// Make sure to clear out the content if there has been a deletion.
-	if changeType == protocol.Deleted {
+	if action == source.Delete {
 		v.session.clearOverlay(f.URI())
 	}
 

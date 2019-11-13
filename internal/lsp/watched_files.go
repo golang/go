@@ -23,19 +23,20 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 			if !view.Options().WatchFileChanges {
 				continue
 			}
-			switch change.Type {
-			case protocol.Changed, protocol.Created:
+			action := toFileAction(change.Type)
+			switch action {
+			case source.Change, source.Create:
 				// If client has this file open, don't do anything.
 				// The client's contents must remain the source of truth.
 				if s.session.IsOpen(uri) {
 					break
 				}
-				if s.session.DidChangeOutOfBand(ctx, uri, change.Type) {
+				if s.session.DidChangeOutOfBand(ctx, uri, action) {
 					// If we had been tracking the given file,
 					// recompute diagnostics to reflect updated file contents.
 					go s.diagnostics(view, uri)
 				}
-			case protocol.Deleted:
+			case source.Delete:
 				f := view.FindFile(ctx, uri)
 				// If we have never seen this file before, there is nothing to do.
 				if f == nil {
@@ -65,7 +66,7 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 				}
 
 				// Notify the view of the deletion of the file.
-				s.session.DidChangeOutOfBand(ctx, uri, change.Type)
+				s.session.DidChangeOutOfBand(ctx, uri, action)
 
 				// If this was the only file in the package, clear its diagnostics.
 				if otherFile == nil {
@@ -81,4 +82,16 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 		}
 	}
 	return nil
+}
+
+func toFileAction(ct protocol.FileChangeType) source.FileAction {
+	switch ct {
+	case protocol.Changed:
+		return source.Change
+	case protocol.Created:
+		return source.Create
+	case protocol.Deleted:
+		return source.Delete
+	}
+	return source.UnknownFileAction
 }

@@ -33,25 +33,30 @@ func (s *snapshot) CheckPackageHandles(ctx context.Context, f source.File) ([]so
 	fh := s.Handle(ctx, f)
 
 	// Determine if we need to type-check the package.
-	m, cphs, load, check := s.shouldCheck(fh)
+	metadata, cphs, load, check := s.shouldCheck(fh)
 
 	// We may need to re-load package metadata.
 	// We only need to this if it has been invalidated, and is therefore unvailable.
 	if load {
 		var err error
-		m, err = s.load(ctx, source.FileURI(f.URI()))
+		m, err := s.load(ctx, source.FileURI(f.URI()))
 		if err != nil {
 			return nil, err
 		}
 		// If load has explicitly returned nil metadata and no error,
 		// it means that we should not re-type-check the packages.
-		if m == nil {
+		// Return the cached CheckPackageHandles, if we had them.
+		if m == nil && len(cphs) > 0 {
 			return cphs, nil
+		}
+		// If metadata was returned, from the load call, use it.
+		if m != nil {
+			metadata = m
 		}
 	}
 	if check {
 		var results []source.CheckPackageHandle
-		for _, m := range m {
+		for _, m := range metadata {
 			cph, err := s.checkPackageHandle(ctx, m.id, source.ParseFull)
 			if err != nil {
 				return nil, err

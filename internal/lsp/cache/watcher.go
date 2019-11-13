@@ -7,12 +7,12 @@ package cache
 import (
 	"sync"
 
-	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/source"
 )
 
 type watcher struct {
 	id       uint64
-	callback func(changeType protocol.FileChangeType) bool
+	callback func(action source.FileAction) bool
 }
 
 type WatchMap struct {
@@ -24,7 +24,8 @@ type WatchMap struct {
 func NewWatchMap() *WatchMap {
 	return &WatchMap{watchers: make(map[interface{}][]watcher)}
 }
-func (w *WatchMap) Watch(key interface{}, callback func(protocol.FileChangeType) bool) func() {
+
+func (w *WatchMap) Watch(key interface{}, callback func(source.FileAction) bool) func() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	id := w.nextID
@@ -49,7 +50,7 @@ func (w *WatchMap) Watch(key interface{}, callback func(protocol.FileChangeType)
 	}
 }
 
-func (w *WatchMap) Notify(key interface{}, changeType protocol.FileChangeType) bool {
+func (w *WatchMap) Notify(key interface{}, action source.FileAction) bool {
 	// Make a copy of the watcher callbacks so we don't need to hold
 	// the mutex during the callbacks (to avoid deadlocks).
 	w.mu.Lock()
@@ -60,7 +61,7 @@ func (w *WatchMap) Notify(key interface{}, changeType protocol.FileChangeType) b
 
 	var result bool
 	for _, entry := range entriesCopy {
-		result = entry.callback(changeType) || result
+		result = entry.callback(action) || result
 	}
 	return result
 }

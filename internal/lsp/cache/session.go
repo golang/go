@@ -15,7 +15,6 @@ import (
 	"sync/atomic"
 
 	"golang.org/x/tools/internal/lsp/debug"
-	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
@@ -338,7 +337,7 @@ func (s *session) SetOverlay(uri span.URI, kind source.FileKind, version float64
 	s.overlayMu.Lock()
 	defer func() {
 		s.overlayMu.Unlock()
-		s.filesWatchMap.Notify(uri, protocol.Changed)
+		s.filesWatchMap.Notify(uri, source.Change)
 	}()
 
 	if data == nil {
@@ -374,7 +373,7 @@ func (s *session) openOverlay(ctx context.Context, uri span.URI, kind source.Fil
 	s.overlayMu.Lock()
 	defer func() {
 		s.overlayMu.Unlock()
-		s.filesWatchMap.Notify(uri, protocol.Created)
+		s.filesWatchMap.Notify(uri, source.Open)
 	}()
 	s.overlays[uri] = &overlay{
 		session:   s,
@@ -418,8 +417,8 @@ func (s *session) buildOverlay() map[string][]byte {
 	return overlays
 }
 
-func (s *session) DidChangeOutOfBand(ctx context.Context, uri span.URI, changeType protocol.FileChangeType) bool {
-	return s.filesWatchMap.Notify(uri, changeType)
+func (s *session) DidChangeOutOfBand(ctx context.Context, uri span.URI, action source.FileAction) bool {
+	return s.filesWatchMap.Notify(uri, action)
 }
 
 func (o *overlay) FileSystem() source.FileSystem {
