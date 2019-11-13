@@ -719,9 +719,6 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
 		// because of replacement modules. This might be a fork of
 		// the real module, found at a different path, usable only in
 		// a replace directive.
-		//
-		// TODO(bcmills): This doesn't seem right. Investigate further.
-		// (Notably: why can't we replace foo/v2 with fork-of-foo/v3?)
 		dir2 := path.Join(r.codeDir, r.pathMajor[1:])
 		file2 = path.Join(dir2, "go.mod")
 		gomod2, err2 := r.code.ReadFile(rev, file2, codehost.MaxGoMod)
@@ -747,11 +744,11 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
 
 	// Not v2/go.mod, so it's either go.mod or nothing. Which is it?
 	if found1 {
-		// Explicit go.mod with matching module path OK.
+		// Explicit go.mod with matching major version ok.
 		return rev, r.codeDir, gomod1, nil
 	}
 	if err1 == nil {
-		// Explicit go.mod with non-matching module path disallowed.
+		// Explicit go.mod with non-matching major version disallowed.
 		suffix := ""
 		if file2 != "" {
 			suffix = fmt.Sprintf(" (and ...%s/go.mod does not exist)", r.pathMajor)
@@ -761,6 +758,9 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
 		}
 		if r.pathMajor != "" { // ".v1", ".v2" for gopkg.in
 			return "", "", nil, fmt.Errorf("%s has non-...%s module path %q%s at revision %s", file1, r.pathMajor, mpath1, suffix, rev)
+		}
+		if _, _, ok := module.SplitPathVersion(mpath1); !ok {
+			return "", "", nil, fmt.Errorf("%s has malformed module path %q%s at revision %s", file1, mpath1, suffix, rev)
 		}
 		return "", "", nil, fmt.Errorf("%s has post-%s module path %q%s at revision %s", file1, semver.Major(version), mpath1, suffix, rev)
 	}
@@ -778,24 +778,43 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
 	return "", "", nil, fmt.Errorf("missing %s/go.mod at revision %s", r.pathPrefix, rev)
 }
 
+// isMajor reports whether the versions allowed for mpath are compatible with
+// the major version(s) implied by pathMajor, or false if mpath has an invalid
+// version suffix.
 func isMajor(mpath, pathMajor string) bool {
 	if mpath == "" {
+		// If we don't have a path, we don't know what version(s) it is compatible with.
+		return false
+	}
+	_, mpathMajor, ok := module.SplitPathVersion(mpath)
+	if !ok {
+		// An invalid module path is not compatible with any version.
 		return false
 	}
 	if pathMajor == "" {
-		// mpath must NOT have version suffix.
-		i := len(mpath)
-		for i > 0 && '0' <= mpath[i-1] && mpath[i-1] <= '9' {
-			i--
-		}
-		if i < len(mpath) && i >= 2 && mpath[i-1] == 'v' && mpath[i-2] == '/' {
-			// Found valid suffix.
+		// All of the valid versions for a gopkg.in module that requires major
+		// version v0 or v1 are compatible with the "v0 or v1" implied by an empty
+		// pathMajor.
+		switch module.PathMajorPrefix(mpathMajor) {
+		case "", "v0", "v1":
+			return true
+		default:
 			return false
 		}
-		return true
 	}
-	// Otherwise pathMajor is ".v1", ".v2" (gopkg.in), or "/v2", "/v3" etc.
-	return strings.HasSuffix(mpath, pathMajor)
+	if mpathMajor == "" {
+		// Even if pathMajor is ".v0" or ".v1", we can't be sure that a module
+		// without a suffix is tagged appropriately. Besides, we don't expect clones
+		// of non-gopkg.in modules to have gopkg.in paths, so a non-empty,
+		// non-gopkg.in mpath is probably the wrong module for any such pathMajor
+		// anyway.
+		return false
+	}
+	// If both pathMajor and mpathMajor are non-empty, then we only care that they
+	// have the same major-version validation rules. A clone fetched via a /v2
+	// path might replace a module with path gopkg.in/foo.v2-unstable, and that's
+	// ok.
+	return pathMajor[1:] == mpathMajor[1:]
 }
 
 func (r *codeRepo) GoMod(version string) (data []byte, err error) {
