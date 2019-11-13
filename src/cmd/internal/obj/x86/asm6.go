@@ -1984,6 +1984,22 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			fmt.Printf(" rel %#.4x/%d %s%+d\n", uint32(r.Off), r.Siz, r.Sym.Name, r.Add)
 		}
 	}
+
+	// Mark nonpreemptible instruction sequences.
+	// The 2-instruction TLS access sequence
+	//	MOVQ TLS, BX
+	//	MOVQ 0(BX)(TLS*1), BX
+	// is not async preemptible, as if it is preempted and resumed on
+	// a different thread, the TLS address may become invalid.
+	if !CanUse1InsnTLS(ctxt) {
+		useTLS := func(p *obj.Prog) bool {
+			// Only need to mark the second instruction, which has
+			// REG_TLS as Index. (It is okay to interrupt and restart
+			// the first instruction.)
+			return p.From.Index == REG_TLS
+		}
+		obj.MarkUnsafePoints(ctxt, s.Func.Text, newprog, useTLS)
+	}
 }
 
 func instinit(ctxt *obj.Link) {
