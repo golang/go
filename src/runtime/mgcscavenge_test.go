@@ -373,6 +373,25 @@ func TestPageAllocScavenge(t *testing.T) {
 				BaseChunkIdx + 1: {{0, PallocChunkPages}},
 			},
 		},
+		"ScavDiscontiguous": {
+			beforeAlloc: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:       {},
+				BaseChunkIdx + 0xe: {},
+			},
+			beforeScav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:       {{uint(minPages), PallocChunkPages - uint(2*minPages)}},
+				BaseChunkIdx + 0xe: {{uint(2 * minPages), PallocChunkPages - uint(2*minPages)}},
+			},
+			expect: []test{
+				{2 * minPages * PageSize, 2 * minPages * PageSize},
+				{^uintptr(0), 2 * minPages * PageSize},
+				{^uintptr(0), 0},
+			},
+			afterScav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:       {{0, PallocChunkPages}},
+				BaseChunkIdx + 0xe: {{0, PallocChunkPages}},
+			},
+		},
 	}
 	for name, v := range tests {
 		v := v
