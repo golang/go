@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/fuzzy"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
@@ -715,9 +716,13 @@ func (c *completer) lexical() error {
 				if _, ok := seen[pkg.Name()]; !ok && pkg != c.pkg.GetTypes() && !alreadyImports(c.file, pkg.Path()) {
 					seen[pkg.Name()] = struct{}{}
 					obj := types.NewPkgName(0, nil, pkg.Name(), pkg)
-					c.found(obj, stdScore, &importInfo{
+					imp := &importInfo{
 						importPath: pkg.Path(),
-					})
+					}
+					if imports.ImportPathToAssumedName(pkg.Path()) != pkg.Name() {
+						imp.name = pkg.Name()
+					}
+					c.found(obj, stdScore, imp)
 				}
 			}
 		}
