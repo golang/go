@@ -941,7 +941,7 @@ func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
 	}
 	c := subVV(u[0:len(qhatv)], u[0:len(qhatv)], qhatv)
 	if c > 0 {
-		c = subVW(u[len(qhatv):B+n], u[len(qhatv):B+n], c)
+		c = subVW(u[len(qhatv):], u[len(qhatv):], c)
 	}
 	if c > 0 {
 		panic("impossible")

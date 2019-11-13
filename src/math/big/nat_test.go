@@ -765,16 +765,23 @@ func TestNatDiv(t *testing.T) {
 			if len(b) == 1 && b[0] == 1 {
 				b[0] = 2
 			}
+			// choose a remainder c < b
+			c := rndNat1(len(b))
+			if len(c) == len(b) && c[len(c)-1] >= b[len(b)-1] {
+				c[len(c)-1] = 0
+				c = c.norm()
+			}
+			// compute x = a*b+c
 			x := nat(nil).mul(a, b)
-			addVW(x, x, 1)
+			x = x.add(x, c)
 
 			var q, r nat
 			q, r = q.div(r, x, b)
 			if q.cmp(a) != 0 {
 				t.Fatalf("wrong quotient: got %s; want %s for %s/%s", q.utoa(10), a.utoa(10), x.utoa(10), b.utoa(10))
 			}
-			if len(r) != 1 || r[0] != 1 {
-				t.Fatalf("wrong remainder: got %s; want 1 for %s/%s", r.utoa(10), x.utoa(10), b.utoa(10))
+			if r.cmp(c) != 0 {
+				t.Fatalf("wrong remainder: got %s; want %s for %s/%s", r.utoa(10), c.utoa(10), x.utoa(10), b.utoa(10))
 			}
 		}
 	}
