@@ -855,8 +855,8 @@ func cleantimers(pp *p) bool {
 
 // moveTimers moves a slice of timers to pp. The slice has been taken
 // from a different P.
-// This is currently called when the world is stopped, but it could
-// work as long as the timers for pp are locked.
+// This is currently called when the world is stopped, but the caller
+// is expected to have locked the timers for pp.
 func moveTimers(pp *p, timers []*timer) {
 	for _, t := range timers {
 	loop:
