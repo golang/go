@@ -182,7 +182,7 @@ func TestURL(t *testing.T) {
 			cmd.Stderr = stderr
 			cmd.Args[0] = "godoc"
 
-			// Set GOPATH variable to non-existing absolute path
+			// Set GOPATH variable to a non-existing absolute path
 			// and GOPROXY=off to disable module fetches.
 			// We cannot just unset GOPATH variable because godoc would default it to ~/go.
 			// (We don't want the indexer looking at the local workspace during tests.)
@@ -441,6 +441,38 @@ package a; import _ "godoc.test/repo2/a"; const Name = "repo1a"`,
 		if isErr {
 			t.Errorf("GET %s: got:\n%s", url, body)
 		}
+	}
+}
+
+// Test for golang.org/issue/35476.
+func TestNoMainModule(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in -short mode")
+	}
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; for consistency with other tests that build godoc binary")
+	}
+	bin, cleanup := buildGodoc(t)
+	defer cleanup()
+	tempDir, err := ioutil.TempDir("", "godoc-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Run godoc in an empty directory with module mode explicitly on,
+	// so that 'go env GOMOD' reports os.DevNull.
+	cmd := exec.Command(bin, "-url=/")
+	cmd.Dir = tempDir
+	cmd.Env = append(os.Environ(), "GO111MODULE=on")
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(stderr.String(), "go mod download") {
+		t.Errorf("stderr contains 'go mod download', is that intentional?\nstderr=%q", stderr.String())
 	}
 }
 

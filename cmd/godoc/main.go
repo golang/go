@@ -222,7 +222,7 @@ func main() {
 		// This may fail if module downloading is disallowed (GOPROXY=off) or due to
 		// limited connectivity, in which case we print errors to stderr and show
 		// documentation only for packages that are available.
-		fillModuleCache(os.Stderr)
+		fillModuleCache(os.Stderr, goModFile)
 
 		// Determine modules in the build list.
 		mods, err := buildList()
@@ -414,7 +414,12 @@ func goMod() (string, error) {
 // It should only be used when operating in module mode.
 //
 // See https://golang.org/cmd/go/#hdr-Download_modules_to_local_cache.
-func fillModuleCache(w io.Writer) {
+func fillModuleCache(w io.Writer, goMod string) {
+	if goMod == os.DevNull {
+		// No module requirements, nothing to do.
+		return
+	}
+
 	cmd := exec.Command("go", "mod", "download", "-json")
 	var out bytes.Buffer
 	cmd.Stdout = &out
