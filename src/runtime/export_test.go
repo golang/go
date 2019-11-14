@@ -790,6 +790,7 @@ func NewPageAlloc(chunks, scav map[ChunkIdx][]BitRange) *PageAlloc {
 
 	// We've got an entry, so initialize the pageAlloc.
 	p.init(new(mutex), nil)
+	lockInit(p.mheapLock, lockRankMheap)
 	p.test = true
 
 	for i, init := range chunks {
