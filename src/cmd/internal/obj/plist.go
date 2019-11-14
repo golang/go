@@ -215,11 +215,9 @@ func (ctxt *Link) StartUnsafePoint(p *Prog, newprog ProgAlloc) *Prog {
 	pcdata := Appendp(p, newprog)
 	pcdata.As = APCDATA
 	pcdata.From.Type = TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
+	pcdata.From.Offset = objabi.PCDATA_RegMapIndex
 	pcdata.To.Type = TYPE_CONST
 	pcdata.To.Offset = -2 // pcdata -2 marks unsafe point
-
-	// TODO: register map?
 
 	return pcdata
 }
@@ -232,7 +230,7 @@ func (ctxt *Link) EndUnsafePoint(p *Prog, newprog ProgAlloc, oldval int64) *Prog
 	pcdata := Appendp(p, newprog)
 	pcdata.As = APCDATA
 	pcdata.From.Type = TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
+	pcdata.From.Offset = objabi.PCDATA_RegMapIndex
 	pcdata.To.Type = TYPE_CONST
 	pcdata.To.Offset = oldval
 
@@ -248,7 +246,7 @@ func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint fun
 	prev := p0
 	oldval := int64(-1) // entry pcdata
 	for p := prev.Link; p != nil; p, prev = p.Link, p {
-		if p.As == APCDATA && p.From.Offset == objabi.PCDATA_StackMapIndex {
+		if p.As == APCDATA && p.From.Offset == objabi.PCDATA_RegMapIndex {
 			oldval = p.To.Offset
 			continue
 		}

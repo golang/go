@@ -393,7 +393,7 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) bool {
 		// use the LR for unwinding, which will be bad.
 		return false
 	}
-	smi := pcdatavalue(f, _PCDATA_StackMapIndex, pc, nil)
+	smi := pcdatavalue(f, _PCDATA_RegMapIndex, pc, nil)
 	if smi == -2 {
 		// Unsafe-point marked by compiler. This includes
 		// atomic sequences (e.g., write barrier) and nosplit
