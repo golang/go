@@ -355,7 +355,7 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 		}
 
 		for i := mheap_.pages.start; i < mheap_.pages.end; i++ {
-			pg := mheap_.pages.chunks[i].scavenged.popcntRange(0, pallocChunkPages)
+			pg := mheap_.pages.chunkOf(i).scavenged.popcntRange(0, pallocChunkPages)
 			slow.HeapReleased += uint64(pg) * pageSize
 		}
 		for _, p := range allp {
@@ -726,14 +726,21 @@ func (p *PageAlloc) Free(base, npages uintptr) {
 func (p *PageAlloc) Bounds() (ChunkIdx, ChunkIdx) {
 	return ChunkIdx((*pageAlloc)(p).start), ChunkIdx((*pageAlloc)(p).end)
 }
-func (p *PageAlloc) PallocData(i ChunkIdx) *PallocData {
-	return (*PallocData)(&((*pageAlloc)(p).chunks[i]))
-}
 func (p *PageAlloc) Scavenge(nbytes uintptr, locked bool) (r uintptr) {
 	systemstack(func() {
 		r = (*pageAlloc)(p).scavenge(nbytes, locked)
 	})
 	return
+}
+
+// Returns nil if the PallocData's L2 is missing.
+func (p *PageAlloc) PallocData(i ChunkIdx) *PallocData {
+	ci := chunkIdx(i)
+	l2 := (*pageAlloc)(p).chunks[ci.l1()]
+	if l2 == nil {
+		return nil
+	}
+	return (*PallocData)(&l2[ci.l2()])
 }
 
 // BitRange represents a range over a bitmap.
@@ -769,7 +776,7 @@ func NewPageAlloc(chunks, scav map[ChunkIdx][]BitRange) *PageAlloc {
 		p.grow(addr, pallocChunkBytes)
 
 		// Initialize the bitmap and update pageAlloc metadata.
-		chunk := &p.chunks[chunkIndex(addr)]
+		chunk := p.chunkOf(chunkIndex(addr))
 
 		// Clear all the scavenged bits which grow set.
 		chunk.scavenged.clearRange(0, pallocChunkPages)
@@ -823,8 +830,13 @@ func FreePageAlloc(pp *PageAlloc) {
 	}
 
 	// Free the mapped space for chunks.
-	chunksLen := uintptr(cap(p.chunks)) * unsafe.Sizeof(p.chunks[0])
-	sysFree(unsafe.Pointer(&p.chunks[0]), alignUp(chunksLen, physPageSize), nil)
+	for i := range p.chunks {
+		if x := p.chunks[i]; x != nil {
+			p.chunks[i] = nil
+			// This memory comes from sysAlloc and will always be page-aligned.
+			sysFree(unsafe.Pointer(x), unsafe.Sizeof(*p.chunks[0]), nil)
+		}
+	}
 }
 
 // BaseChunkIdx is a convenient chunkIdx value which works on both
@@ -861,7 +873,7 @@ func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
 		lock(&mheap_.lock)
 	chunkLoop:
 		for i := mheap_.pages.start; i < mheap_.pages.end; i++ {
-			chunk := &mheap_.pages.chunks[i]
+			chunk := mheap_.pages.chunkOf(i)
 			for j := 0; j < pallocChunkPages/64; j++ {
 				// Run over each 64-bit bitmap section and ensure
 				// scavenged is being cleared properly on allocation.

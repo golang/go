@@ -420,7 +420,7 @@ func (s *pageAlloc) scavengeOne(max uintptr, locked bool) uintptr {
 		// continue if the summary says we can because that's how
 		// we can tell if parts of the address space are unused.
 		// See the comment on s.chunks in mpagealloc.go.
-		base, npages := s.chunks[ci].findScavengeCandidate(chunkPageIndex(s.scavAddr), minPages, maxPages)
+		base, npages := s.chunkOf(ci).findScavengeCandidate(chunkPageIndex(s.scavAddr), minPages, maxPages)
 
 		// If we found something, scavenge it and return!
 		if npages != 0 {
@@ -450,8 +450,12 @@ func (s *pageAlloc) scavengeOne(max uintptr, locked bool) uintptr {
 
 		// Run over the chunk looking harder for a candidate. Again, we could
 		// race with a lot of different pieces of code, but we're just being
-		// optimistic.
-		if !s.chunks[i].hasScavengeCandidate(minPages) {
+		// optimistic. Make sure we load the l2 pointer atomically though, to
+		// avoid races with heap growth. It may or may not be possible to also
+		// see a nil pointer in this case if we do race with heap growth, but
+		// just defensively ignore the nils. This operation is optimistic anyway.
+		l2 := (*[1 << pallocChunksL2Bits]pallocData)(atomic.Loadp(unsafe.Pointer(&s.chunks[i.l1()])))
+		if l2 == nil || !l2[i.l2()].hasScavengeCandidate(minPages) {
 			continue
 		}
 
@@ -459,7 +463,7 @@ func (s *pageAlloc) scavengeOne(max uintptr, locked bool) uintptr {
 		lockHeap()
 
 		// Find, verify, and scavenge if we can.
-		chunk := &s.chunks[i]
+		chunk := s.chunkOf(i)
 		base, npages := chunk.findScavengeCandidate(pallocChunkPages-1, minPages, maxPages)
 		if npages > 0 {
 			// We found memory to scavenge! Mark the bits and report that up.
@@ -488,7 +492,7 @@ func (s *pageAlloc) scavengeOne(max uintptr, locked bool) uintptr {
 //
 // s.mheapLock must be held.
 func (s *pageAlloc) scavengeRangeLocked(ci chunkIdx, base, npages uint) {
-	s.chunks[ci].scavenged.setRange(base, npages)
+	s.chunkOf(ci).scavenged.setRange(base, npages)
 
 	// Compute the full address for the start of the range.
 	addr := chunkBase(ci) + uintptr(base)*pageSize
