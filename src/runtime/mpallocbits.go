@@ -369,6 +369,9 @@ func findBitRange64(c uint64, n uint) uint {
 // whether or not a given page is scavenged in a single
 // structure. It's effectively a pallocBits with
 // additional functionality.
+//
+// Update the comment on (*pageAlloc).chunks should this
+// structure change.
 type pallocData struct {
 	pallocBits
 	scavenged pageBits

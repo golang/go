@@ -22,8 +22,14 @@ func checkPageAlloc(t *testing.T, want, got *PageAlloc) {
 	}
 
 	for i := gotStart; i < gotEnd; i++ {
-		// Check the bitmaps.
+		// Check the bitmaps. Note that we may have nil data.
 		gb, wb := got.PallocData(i), want.PallocData(i)
+		if gb == nil && wb == nil {
+			continue
+		}
+		if (gb == nil && wb != nil) || (gb != nil && wb == nil) {
+			t.Errorf("chunk %d nilness mismatch", i)
+		}
 		if !checkPallocBits(t, gb.PallocBits(), wb.PallocBits()) {
 			t.Logf("in chunk %d (mallocBits)", i)
 		}
