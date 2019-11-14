@@ -1,0 +1,40 @@
+-- Dolphin-rename --
+crosspkg.go:
+package crosspkg
+
+func Dolphin() { //@rename("Foo", "Dolphin")
+
+}
+
+var Bar int //@rename("Bar", "Tomato")
+
+other.go:
+package other
+
+import "golang.org/x/tools/internal/lsp/rename/crosspkg"
+
+func Other() {
+	crosspkg.Bar
+	crosspkg.Dolphin()
+}
+
+-- Tomato-rename --
+crosspkg.go:
+package crosspkg
+
+func Foo() { //@rename("Foo", "Dolphin")
+
+}
+
+var Tomato int //@rename("Bar", "Tomato")
+
+other.go:
+package other
+
+import "golang.org/x/tools/internal/lsp/rename/crosspkg"
+
+func Other() {
+	crosspkg.Tomato
+	crosspkg.Foo()
+}
+
