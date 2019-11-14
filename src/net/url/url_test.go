@@ -765,6 +765,73 @@ func TestURLString(t *testing.T) {
 	}
 }
 
+func TestURLRedacted(t *testing.T) {
+	cases := []struct {
+		name string
+		url  *URL
+		want string
+	}{
+		{
+			name: "non-blank Password",
+			url: &URL{
+				Scheme: "http",
+				Host:   "host.tld",
+				Path:   "this:that",
+				User:   UserPassword("user", "password"),
+			},
+			want: "http://user:xxxxx@host.tld/this:that",
+		},
+		{
+			name: "blank Password",
+			url: &URL{
+				Scheme: "http",
+				Host:   "host.tld",
+				Path:   "this:that",
+				User:   User("user"),
+			},
+			want: "http://user@host.tld/this:that",
+		},
+		{
+			name: "nil User",
+			url: &URL{
+				Scheme: "http",
+				Host:   "host.tld",
+				Path:   "this:that",
+				User:   UserPassword("", "password"),
+			},
+			want: "http://:xxxxx@host.tld/this:that",
+		},
+		{
+			name: "blank Username, blank Password",
+			url: &URL{
+				Scheme: "http",
+				Host:   "host.tld",
+				Path:   "this:that",
+			},
+			want: "http://host.tld/this:that",
+		},
+		{
+			name: "empty URL",
+			url:  &URL{},
+			want: "",
+		},
+		{
+			name: "nil URL",
+			url:  nil,
+			want: "",
+		},
+	}
+
+	for _, tt := range cases {
+		t := t
+		t.Run(tt.name, func(t *testing.T) {
+			if g, w := tt.url.Redacted(), tt.want; g != w {
+				t.Fatalf("got: %q\nwant: %q", g, w)
+			}
+		})
+	}
+}
+
 type EscapeTest struct {
 	in  string
 	out string
