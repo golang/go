@@ -529,20 +529,21 @@ func (sd *sysDialer) dialSerial(ctx context.Context, ras addrList) (Conn, error)
 		default:
 		}
 
-		deadline, _ := ctx.Deadline()
-		partialDeadline, err := partialDeadline(time.Now(), deadline, len(ras)-i)
-		if err != nil {
-			// Ran out of time.
-			if firstErr == nil {
-				firstErr = &OpError{Op: "dial", Net: sd.network, Source: sd.LocalAddr, Addr: ra, Err: err}
-			}
-			break
-		}
 		dialCtx := ctx
-		if partialDeadline.Before(deadline) {
-			var cancel context.CancelFunc
-			dialCtx, cancel = context.WithDeadline(ctx, partialDeadline)
-			defer cancel()
+		if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
+			partialDeadline, err := partialDeadline(time.Now(), deadline, len(ras)-i)
+			if err != nil {
+				// Ran out of time.
+				if firstErr == nil {
+					firstErr = &OpError{Op: "dial", Net: sd.network, Source: sd.LocalAddr, Addr: ra, Err: err}
+				}
+				break
+			}
+			if partialDeadline.Before(deadline) {
+				var cancel context.CancelFunc
+				dialCtx, cancel = context.WithDeadline(ctx, partialDeadline)
+				defer cancel()
+			}
 		}
 
 		c, err := sd.dialSingle(dialCtx, ra)

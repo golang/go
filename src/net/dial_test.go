@@ -980,3 +980,32 @@ func mustHaveExternalNetwork(t *testing.T) {
 		testenv.MustHaveExternalNetwork(t)
 	}
 }
+
+type contextWithNonZeroDeadline struct {
+	context.Context
+}
+
+func (contextWithNonZeroDeadline) Deadline() (time.Time, bool) {
+	// Return non-zero time.Time value with false indicating that no deadline is set.
+	return time.Unix(0, 0), false
+}
+
+func TestDialWithNonZeroDeadline(t *testing.T) {
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	_, port, err := SplitHostPort(ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := contextWithNonZeroDeadline{Context: context.Background()}
+	var dialer Dialer
+	c, err := dialer.DialContext(ctx, "tcp", JoinHostPort("", port))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Close()
+}

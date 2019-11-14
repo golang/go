@@ -96,7 +96,7 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (rsa sysc
 	if err := fd.pfd.Init(fd.net, true); err != nil {
 		return nil, err
 	}
-	if deadline, _ := ctx.Deadline(); !deadline.IsZero() {
+	if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
 		fd.pfd.SetWriteDeadline(deadline)
 		defer fd.pfd.SetWriteDeadline(noDeadline)
 	}
