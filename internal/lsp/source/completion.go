@@ -19,7 +19,6 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/trace"
 	errors "golang.org/x/xerrors"
 )
@@ -350,8 +349,6 @@ func (c *completer) found(obj types.Object, score float64, imp *importInfo) {
 		if !c.inDeepCompletion() || c.deepState.isHighScore(cand.score) {
 			if item, err := c.item(cand); err == nil {
 				c.items = append(c.items, item)
-			} else {
-				log.Error(c.ctx, "error generating completion item", err)
 			}
 		}
 	}

@@ -11,6 +11,7 @@ import (
 	"go/ast"
 	"go/format"
 	"go/parser"
+	"go/scanner"
 	"go/token"
 
 	"golang.org/x/tools/internal/imports"
@@ -219,6 +220,7 @@ func computeFixEdits(view View, ph ParseGoHandle, options *imports.Options, orig
 	}
 	fixedFset := token.NewFileSet()
 	fixedAST, err := parser.ParseFile(fixedFset, filename, fixedData, parser.ImportsOnly)
+	// Any error here prevents us from computing the edits.
 	if err != nil {
 		return nil, err
 	}
@@ -236,13 +238,17 @@ func computeFixEdits(view View, ph ParseGoHandle, options *imports.Options, orig
 	// first non-imports decl. We know the imports code will insert
 	// somewhere before that.
 	if origImportOffset == 0 || fixedImportsOffset == 0 {
-		left = trimToFirstNonImport(view.Session().Cache().FileSet(), origAST, origData)
+		left, _ = trimToFirstNonImport(view.Session().Cache().FileSet(), origAST, origData, nil)
 		// We need the whole AST here, not just the ImportsOnly AST we parsed above.
 		fixedAST, err = parser.ParseFile(fixedFset, filename, fixedData, 0)
-		if err != nil {
+		if fixedAST == nil {
 			return nil, err
 		}
-		right = trimToFirstNonImport(fixedFset, fixedAST, fixedData)
+		var ok bool
+		right, ok = trimToFirstNonImport(fixedFset, fixedAST, fixedData, err)
+		if !ok {
+			return nil, errors.Errorf("error %v detected in the import block", err)
+		}
 		// We're now working with a prefix of the original file, so we can
 		// use the original converter, and there is no offset on the edits.
 		converter = origMapper.Converter
@@ -287,7 +293,7 @@ func trimToImports(fset *token.FileSet, f *ast.File, src []byte) ([]byte, int) {
 
 // trimToFirstNonImport returns src from the beginning to the first non-import
 // declaration, or the end of the file if there is no such decl.
-func trimToFirstNonImport(fset *token.FileSet, f *ast.File, src []byte) []byte {
+func trimToFirstNonImport(fset *token.FileSet, f *ast.File, src []byte, err error) ([]byte, bool) {
 	var firstDecl ast.Decl
 	for _, decl := range f.Decls {
 		if gen, ok := decl.(*ast.GenDecl); ok && gen.Tok == token.IMPORT {
@@ -296,12 +302,30 @@ func trimToFirstNonImport(fset *token.FileSet, f *ast.File, src []byte) []byte {
 		firstDecl = decl
 		break
 	}
-
+	tok := fset.File(f.Pos())
+	if tok == nil {
+		return nil, false
+	}
 	end := f.End()
 	if firstDecl != nil {
-		end = fset.File(f.Pos()).LineStart(fset.Position(firstDecl.Pos()).Line - 1)
+		end = tok.LineStart(fset.Position(firstDecl.Pos()).Line - 1)
 	}
-	return src[0:fset.Position(end).Offset]
+	// Any errors in the file must be after the part of the file that we care about.
+	switch err := err.(type) {
+	case *scanner.Error:
+		pos := tok.Pos(err.Pos.Offset)
+		if pos <= end {
+			return nil, false
+		}
+	case scanner.ErrorList:
+		if err.Len() > 0 {
+			pos := tok.Pos(err[0].Pos.Offset)
+			if pos <= end {
+				return nil, false
+			}
+		}
+	}
+	return src[0:fset.Position(end).Offset], true
 }
 
 // CandidateImports returns every import that could be added to filename.
