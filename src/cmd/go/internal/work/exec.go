@@ -206,8 +206,12 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	// The compiler hides the exact value of $GOROOT
 	// when building things in GOROOT.
 	// Assume b.WorkDir is being trimmed properly.
+	// When -trimpath is used with a package built from the module cache,
+	// use the module path and version instead of the directory.
 	if !p.Goroot && !cfg.BuildTrimpath && !strings.HasPrefix(p.Dir, b.WorkDir) {
 		fmt.Fprintf(h, "dir %s\n", p.Dir)
+	} else if cfg.BuildTrimpath && p.Module != nil {
+		fmt.Fprintf(h, "module %s@%s\n", p.Module.Path, p.Module.Version)
 	}
 	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
 	fmt.Fprintf(h, "import %q\n", p.ImportPath)
