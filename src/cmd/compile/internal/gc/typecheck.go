@@ -1805,7 +1805,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 	case OPRINT, OPRINTN:
 		ok |= ctxStmt
-		typecheckslice(n.List.Slice(), ctxExpr)
+		typecheckargs(n)
 		ls := n.List.Slice()
 		for i1, n1 := range ls {
 			// Special case for print: int constant is int64, not int.
