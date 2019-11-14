@@ -243,6 +243,7 @@ imethods:
 }
 
 func itabsinit() {
+	lockInit(&itabLock, lockRankItab)
 	lock(&itabLock)
 	for _, md := range activeModules() {
 		for _, i := range md.itablinks {
