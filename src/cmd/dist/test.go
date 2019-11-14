@@ -710,10 +710,10 @@ func (t *tester) registerTests() {
 
 	// Doc tests only run on builders.
 	// They find problems approximately never.
-	if t.hasBash() && goos != "js" && goos != "android" && !t.iOS() && os.Getenv("GO_BUILDER_NAME") != "" {
-		t.registerTest("doc_progs", "../doc/progs", "time", "go", "run", "run.go")
-		t.registerTest("wiki", "../doc/articles/wiki", "./test.bash")
-		t.registerTest("codewalk", "../doc/codewalk", "time", "./run")
+	if goos != "js" && goos != "android" && !t.iOS() && os.Getenv("GO_BUILDER_NAME") != "" {
+		t.registerTest("doc_progs", "../doc/progs", "go", "run", "run.go")
+		t.registerTest("wiki", "../doc/articles/wiki", t.goTest(), ".")
+		t.registerTest("codewalk", "../doc/codewalk", t.goTest(), "codewalk_test.go")
 	}
 
 	if goos != "android" && !t.iOS() {
