@@ -158,9 +158,12 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	viewErrors := make(map[span.URI]error)
 	for _, folder := range s.pendingFolders {
 		uri := span.NewURI(folder.URI)
-		if _, err := s.addView(ctx, folder.Name, span.NewURI(folder.URI)); err != nil {
+		view, workspacePackages, err := s.addView(ctx, folder.Name, span.NewURI(folder.URI))
+		if err != nil {
 			viewErrors[uri] = err
+			continue
 		}
+		s.diagnoseView(view, workspacePackages)
 	}
 	if len(viewErrors) > 0 {
 		errMsg := fmt.Sprintf("Error loading workspace folders (expected %v, got %v)\n", len(s.pendingFolders), len(s.session.Views()))

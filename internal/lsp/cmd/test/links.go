@@ -20,7 +20,7 @@ func (r *runner) Link(t *testing.T, uri span.URI, wantLinks []tests.Link) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	args := []string{"links", "-json", uri.Filename()}
+	args := []string{"-remote=internal", "links", "-json", uri.Filename()}
 	app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Exported.Config.Env, r.options)
 	out := CaptureStdOut(t, func() {
 		_ = tool.Run(r.ctx, app, args)

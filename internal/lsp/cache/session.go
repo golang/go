@@ -79,20 +79,20 @@ func (s *session) Cache() source.Cache {
 	return s.cache
 }
 
-func (s *session) NewView(ctx context.Context, name string, folder span.URI, options source.Options) (source.View, error) {
+func (s *session) NewView(ctx context.Context, name string, folder span.URI, options source.Options) (source.View, []source.CheckPackageHandle, error) {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
-	v, err := s.createView(ctx, name, folder, options)
+	v, cphs, err := s.createView(ctx, name, folder, options)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	s.views = append(s.views, v)
 	// we always need to drop the view map
 	s.viewMap = make(map[span.URI]source.View)
-	return v, nil
+	return v, cphs, nil
 }
 
-func (s *session) createView(ctx context.Context, name string, folder span.URI, options source.Options) (*view, error) {
+func (s *session) createView(ctx context.Context, name string, folder span.URI, options source.Options) (*view, []source.CheckPackageHandle, error) {
 	index := atomic.AddInt64(&viewIndex, 1)
 	// We want a true background context and not a detached context here
 	// the spans need to be unrelated and no tag values should pollute it.
@@ -147,12 +147,13 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 	// Prepare CheckPackageHandles for every package that's been loaded.
 	// (*snapshot).CheckPackageHandle makes the assumption that every package that's
 	// been loaded has an existing checkPackageHandle.
-	if err := v.snapshot.checkWorkspacePackages(ctx, m); err != nil {
-		return nil, err
+	cphs, err := v.snapshot.checkWorkspacePackages(ctx, m)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	debug.AddView(debugView{v})
-	return v, loadErr
+	return v, cphs, loadErr
 }
 
 // View returns the view by name.
@@ -247,14 +248,14 @@ func (s *session) removeView(ctx context.Context, view *view) error {
 	return nil
 }
 
-func (s *session) updateView(ctx context.Context, view *view, options source.Options) (*view, error) {
+func (s *session) updateView(ctx context.Context, view *view, options source.Options) (*view, []source.CheckPackageHandle, error) {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 	i, err := s.dropView(ctx, view)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	v, err := s.createView(ctx, view.name, view.folder, options)
+	v, cphs, err := s.createView(ctx, view.name, view.folder, options)
 	if err != nil {
 		// we have dropped the old view, but could not create the new one
 		// this should not happen and is very bad, but we still need to clean
@@ -265,7 +266,7 @@ func (s *session) updateView(ctx context.Context, view *view, options source.Opt
 	}
 	// substitute the new view into the array where the old view was
 	s.views[i] = v
-	return v, nil
+	return v, cphs, nil
 }
 
 func (s *session) dropView(ctx context.Context, view *view) (int, error) {

@@ -122,7 +122,7 @@ func (v *view) SetOptions(ctx context.Context, options source.Options) (source.V
 		v.options = options
 		return v, nil
 	}
-	newView, err := v.session.updateView(ctx, v, options)
+	newView, _, err := v.session.updateView(ctx, v, options)
 	return newView, err
 }
 

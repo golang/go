@@ -107,15 +107,17 @@ func (s *snapshot) getPackages(uri source.FileURI, m source.ParseMode) (cphs []s
 // the view is created. This is needed because
 // (*snapshot).CheckPackageHandle makes the assumption that every package that's
 // been loaded has an existing checkPackageHandle.
-func (s *snapshot) checkWorkspacePackages(ctx context.Context, m []*metadata) error {
+func (s *snapshot) checkWorkspacePackages(ctx context.Context, m []*metadata) ([]source.CheckPackageHandle, error) {
+	var cphs []source.CheckPackageHandle
 	for _, m := range m {
-		_, err := s.checkPackageHandle(ctx, m.id, source.ParseFull)
+		cph, err := s.checkPackageHandle(ctx, m.id, source.ParseFull)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		s.workspacePackages[m.id] = true
+		cphs = append(cphs, cph)
 	}
-	return nil
+	return cphs, nil
 }
 
 func (s *snapshot) KnownPackages(ctx context.Context) []source.Package {
@@ -392,9 +394,20 @@ func (s *snapshot) clone(ctx context.Context, withoutURI *span.URI, withoutTypes
 	return result
 }
 
+func (s *snapshot) ID() uint64 {
+	return s.id
+}
+
 // invalidateContent invalidates the content of a Go file,
 // including any position and type information that depends on it.
+// It returns true if we were already tracking the given file, false otherwise.
 func (v *view) invalidateContent(ctx context.Context, f source.File, kind source.FileKind, action source.FileAction) bool {
+	// TODO: Handle the possibility of opening a file outside of the current view.
+	// For now, return early if we open a file.
+	// We assume that we are already tracking any files within the given view.
+	if action == source.Open {
+		return true
+	}
 	var (
 		withoutTypes    = make(map[span.URI]struct{})
 		withoutMetadata = make(map[span.URI]struct{})

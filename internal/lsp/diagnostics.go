@@ -16,6 +16,20 @@ import (
 	"golang.org/x/tools/internal/telemetry/trace"
 )
 
+func (s *Server) diagnoseView(view source.View, cphs []source.CheckPackageHandle) {
+	for _, cph := range cphs {
+		if len(cph.Files()) == 0 {
+			continue
+		}
+		f := cph.Files()[0]
+
+		// Run diagnostics on the workspace package.
+		go func(view source.View, uri span.URI) {
+			s.diagnostics(view, uri)
+		}(view, f.File().Identity().URI)
+	}
+}
+
 func (s *Server) diagnostics(view source.View, uri span.URI) error {
 	ctx := view.BackgroundContext()
 	ctx, done := trace.StartSpan(ctx, "lsp:background-worker")

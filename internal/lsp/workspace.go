@@ -24,19 +24,21 @@ func (s *Server) changeFolders(ctx context.Context, event protocol.WorkspaceFold
 	}
 
 	for _, folder := range event.Added {
-		if _, err := s.addView(ctx, folder.Name, span.NewURI(folder.URI)); err != nil {
+		view, cphs, err := s.addView(ctx, folder.Name, span.NewURI(folder.URI))
+		if err != nil {
 			return err
 		}
+		go s.diagnoseView(view, cphs)
 	}
 	return nil
 }
 
-func (s *Server) addView(ctx context.Context, name string, uri span.URI) (source.View, error) {
+func (s *Server) addView(ctx context.Context, name string, uri span.URI) (source.View, []source.CheckPackageHandle, error) {
 	s.stateMu.Lock()
 	state := s.state
 	s.stateMu.Unlock()
 	if state < serverInitialized {
-		return nil, errors.Errorf("addView called before server initialized")
+		return nil, nil, errors.Errorf("addView called before server initialized")
 	}
 
 	options := s.session.Options()

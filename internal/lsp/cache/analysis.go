@@ -157,11 +157,11 @@ func (act *actionHandle) analyze(ctx context.Context) ([]*source.Error, interfac
 func (act *actionHandle) cached() ([]*source.Error, interface{}, error) {
 	v := act.handle.Cached()
 	if v == nil {
-		return nil, nil, errors.Errorf("no analyses for %s", act.pkg.ID())
+		return nil, nil, errors.Errorf("no cached analyses for %s", act.pkg.ID())
 	}
 	data, ok := v.(*actionData)
 	if !ok {
-		return nil, nil, errors.Errorf("unexpected type for %s:%s", act.pkg.ID(), act.analyzer.Name)
+		return nil, nil, errors.Errorf("unexpected type for cached analysis %s:%s", act.pkg.ID(), act.analyzer.Name)
 	}
 	if data == nil {
 		return nil, nil, errors.Errorf("unexpected nil cached analysis for %s:%s", act.pkg.ID(), act.analyzer.Name)

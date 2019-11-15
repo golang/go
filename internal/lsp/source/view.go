@@ -156,7 +156,7 @@ type Cache interface {
 // A session may have many active views at any given time.
 type Session interface {
 	// NewView creates a new View and returns it.
-	NewView(ctx context.Context, name string, folder span.URI, options Options) (View, error)
+	NewView(ctx context.Context, name string, folder span.URI, options Options) (View, []CheckPackageHandle, error)
 
 	// Cache returns the cache that created this session.
 	Cache() Cache
@@ -285,6 +285,8 @@ type View interface {
 
 // Snapshot represents the current state for the given view.
 type Snapshot interface {
+	ID() uint64
+
 	// Handle returns the FileHandle for the given file.
 	Handle(ctx context.Context, f File) FileHandle
 

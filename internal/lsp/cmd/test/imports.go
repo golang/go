@@ -16,7 +16,7 @@ import (
 func (r *runner) Import(t *testing.T, spn span.Span) {
 	uri := spn.URI()
 	filename := uri.Filename()
-	args := []string{"imports", filename}
+	args := []string{"-remote=internal", "imports", filename}
 	app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Exported.Config.Env, r.options)
 	got := CaptureStdOut(t, func() {
 		_ = tool.Run(r.ctx, app, args)

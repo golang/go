@@ -106,6 +106,9 @@ func (p *pkg) Imports() []source.Package {
 
 func (s *snapshot) FindAnalysisError(ctx context.Context, id string, diag protocol.Diagnostic) (*source.Error, error) {
 	acts := s.getActionHandles(packageID(id), source.ParseFull)
+	if len(acts) == 0 {
+		return nil, errors.Errorf("no action handles for %v", id)
+	}
 	for _, act := range acts {
 		errors, _, err := act.analyze(ctx)
 		if err != nil {
