@@ -40,6 +40,119 @@ func checkPageAlloc(t *testing.T, want, got *PageAlloc) {
 	// TODO(mknyszek): Verify summaries too?
 }
 
+func TestPageAllocGrow(t *testing.T) {
+	tests := map[string]struct {
+		chunks []ChunkIdx
+		inUse  []AddrRange
+	}{
+		"One": {
+			chunks: []ChunkIdx{
+				BaseChunkIdx,
+			},
+			inUse: []AddrRange{
+				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0)},
+			},
+		},
+		"Contiguous2": {
+			chunks: []ChunkIdx{
+				BaseChunkIdx,
+				BaseChunkIdx + 1,
+			},
+			inUse: []AddrRange{
+				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+2, 0)},
+			},
+		},
+		"Contiguous5": {
+			chunks: []ChunkIdx{
+				BaseChunkIdx,
+				BaseChunkIdx + 1,
+				BaseChunkIdx + 2,
+				BaseChunkIdx + 3,
+				BaseChunkIdx + 4,
+			},
+			inUse: []AddrRange{
+				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+5, 0)},
+			},
+		},
+		"Discontiguous": {
+			chunks: []ChunkIdx{
+				BaseChunkIdx,
+				BaseChunkIdx + 2,
+				BaseChunkIdx + 4,
+			},
+			inUse: []AddrRange{
+				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0)},
+				{PageBase(BaseChunkIdx+2, 0), PageBase(BaseChunkIdx+3, 0)},
+				{PageBase(BaseChunkIdx+4, 0), PageBase(BaseChunkIdx+5, 0)},
+			},
+		},
+		"Mixed": {
+			chunks: []ChunkIdx{
+				BaseChunkIdx,
+				BaseChunkIdx + 1,
+				BaseChunkIdx + 2,
+				BaseChunkIdx + 4,
+			},
+			inUse: []AddrRange{
+				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+3, 0)},
+				{PageBase(BaseChunkIdx+4, 0), PageBase(BaseChunkIdx+5, 0)},
+			},
+		},
+		"WildlyDiscontiguous": {
+			chunks: []ChunkIdx{
+				BaseChunkIdx,
+				BaseChunkIdx + 1,
+				BaseChunkIdx + 0x10,
+				BaseChunkIdx + 0x21,
+			},
+			inUse: []AddrRange{
+				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+2, 0)},
+				{PageBase(BaseChunkIdx+0x10, 0), PageBase(BaseChunkIdx+0x11, 0)},
+				{PageBase(BaseChunkIdx+0x21, 0), PageBase(BaseChunkIdx+0x22, 0)},
+			},
+		},
+	}
+	for name, v := range tests {
+		v := v
+		t.Run(name, func(t *testing.T) {
+			// By creating a new pageAlloc, we will
+			// grow it for each chunk defined in x.
+			x := make(map[ChunkIdx][]BitRange)
+			for _, c := range v.chunks {
+				x[c] = []BitRange{}
+			}
+			b := NewPageAlloc(x, nil)
+			defer FreePageAlloc(b)
+
+			got := b.InUse()
+			want := v.inUse
+
+			// Check for mismatches.
+			if len(got) != len(want) {
+				t.Fail()
+			} else {
+				for i := range want {
+					if want[i] != got[i] {
+						t.Fail()
+						break
+					}
+				}
+			}
+			if t.Failed() {
+				t.Logf("found inUse mismatch")
+				t.Logf("got:")
+				for i, r := range got {
+					t.Logf("\t#%d [0x%x, 0x%x)", i, r.Base, r.Limit)
+				}
+				t.Logf("want:")
+				for i, r := range want {
+					t.Logf("\t#%d [0x%x, 0x%x)", i, r.Base, r.Limit)
+				}
+			}
+		})
+	}
+}
+
 func TestPageAllocAlloc(t *testing.T) {
 	type hit struct {
 		npages, base, scav uintptr
