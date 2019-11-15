@@ -101,6 +101,7 @@ type Arch struct {
 	Minalign       int
 	Dwarfregsp     int
 	Dwarfreglr     int
+	Androiddynld   string
 	Linuxdynld     string
 	Freebsddynld   string
 	Netbsddynld    string

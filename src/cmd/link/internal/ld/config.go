@@ -189,6 +189,9 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 	if iscgo && ctxt.Arch.InFamily(sys.MIPS64, sys.MIPS, sys.PPC64) {
 		return true, objabi.GOARCH + " does not support internal cgo"
 	}
+	if iscgo && objabi.GOOS == "android" {
+		return true, objabi.GOOS + " does not support internal cgo"
+	}
 
 	// When the race flag is set, the LLVM tsan relocatable file is linked
 	// into the final binary, which means external linking is required because
@@ -205,7 +208,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		return true, "buildmode=c-shared"
 	case BuildModePIE:
 		switch objabi.GOOS + "/" + objabi.GOARCH {
-		case "linux/amd64", "linux/arm64":
+		case "linux/amd64", "linux/arm64", "android/arm64":
 		default:
 			// Internal linking does not support TLS_IE.
 			return true, "buildmode=pie"
@@ -244,10 +247,16 @@ func determineLinkMode(ctxt *Link) {
 			ctxt.LinkMode = LinkExternal
 			via = "via GO_EXTLINK_ENABLED "
 		default:
-			if extNeeded || (iscgo && externalobj) {
+			ctxt.LinkMode = LinkInternal
+			switch {
+			case extNeeded, iscgo && externalobj:
 				ctxt.LinkMode = LinkExternal
-			} else {
-				ctxt.LinkMode = LinkInternal
+			case ctxt.BuildMode == BuildModePIE:
+				// Android always use BuildModePIE, and needs internal linking for
+				// bootstrapping.
+				if objabi.GOOS != "android" || objabi.GOARCH != "arm64" {
+					ctxt.LinkMode = LinkExternal
+				}
 			}
 		}
 	}

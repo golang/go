@@ -1851,7 +1851,14 @@ func Asmbelf(ctxt *Link, symo int64) {
 		if interpreter == "" {
 			switch ctxt.HeadType {
 			case objabi.Hlinux:
-				interpreter = thearch.Linuxdynld
+				if objabi.GOOS == "android" {
+					interpreter = thearch.Androiddynld
+					if interpreter == "" {
+						Exitf("ELF interpreter not set")
+					}
+				} else {
+					interpreter = thearch.Linuxdynld
+				}
 
 			case objabi.Hfreebsd:
 				interpreter = thearch.Freebsddynld
