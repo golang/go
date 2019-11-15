@@ -2,12 +2,12 @@ package cache
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"sync"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
 )
@@ -144,14 +144,14 @@ func (s *snapshot) KnownPackages(ctx context.Context) []source.Package {
 		}
 		cph, err := s.checkPackageHandle(ctx, pkgID, mode)
 		if err != nil {
-			log.Error(ctx, fmt.Sprintf("cph.Check of %v", cph.m.pkgPath), err)
+			log.Error(ctx, "failed to create CheckPackageHandle", err, telemetry.Package.Of(pkgID))
 			continue
 		}
 		// Check the package now if it's not checked yet.
 		// TODO(matloob): is this too slow?
 		pkg, err := cph.check(ctx)
 		if err != nil {
-			log.Error(ctx, fmt.Sprintf("cph.Check of %v", cph.m.pkgPath), err)
+			log.Error(ctx, "failed to check package", err, telemetry.Package.Of(pkgID))
 			continue
 		}
 		results = append(results, pkg)
