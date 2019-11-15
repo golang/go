@@ -45,11 +45,19 @@ func findStandardImportPath(path string) string {
 	return ""
 }
 
+// PackageModuleInfo returns information about the module that provides
+// a given package. If modules are not enabled or if the package is in the
+// standard library or if the package was not successfully loaded with
+// ImportPaths or a similar loading function, nil is returned.
 func PackageModuleInfo(pkgpath string) *modinfo.ModulePublic {
 	if isStandardImportPath(pkgpath) || !Enabled() {
 		return nil
 	}
-	return moduleInfo(findModule(pkgpath, pkgpath), true)
+	m, ok := findModule(pkgpath)
+	if !ok {
+		return nil
+	}
+	return moduleInfo(m, true)
 }
 
 func ModuleInfo(path string) *modinfo.ModulePublic {
@@ -199,12 +207,11 @@ func PackageBuildInfo(path string, deps []string) string {
 	if isStandardImportPath(path) || !Enabled() {
 		return ""
 	}
-
-	target := findModule(path, path)
+	target := mustFindModule(path, path)
 	mdeps := make(map[module.Version]bool)
 	for _, dep := range deps {
 		if !isStandardImportPath(dep) {
-			mdeps[findModule(path, dep)] = true
+			mdeps[mustFindModule(path, dep)] = true
 		}
 	}
 	var mods []module.Version
@@ -239,9 +246,12 @@ func PackageBuildInfo(path string, deps []string) string {
 	return buf.String()
 }
 
-// findModule returns the module containing the package at path,
-// needed to build the package at target.
-func findModule(target, path string) module.Version {
+// mustFindModule is like findModule, but it calls base.Fatalf if the
+// module can't be found.
+//
+// TODO(jayconrod): remove this. Callers should use findModule and return
+// errors instead of relying on base.Fatalf.
+func mustFindModule(target, path string) module.Version {
 	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
 	if ok {
 		if pkg.err != nil {
@@ -259,6 +269,20 @@ func findModule(target, path string) module.Version {
 	}
 	base.Fatalf("build %v: cannot find module for path %v", target, path)
 	panic("unreachable")
+}
+
+// findModule searches for the module that contains the package at path.
+// If the package was loaded with ImportPaths or one of the other loading
+// functions, its containing module and true are returned. Otherwise,
+// module.Version{} and false are returend.
+func findModule(path string) (module.Version, bool) {
+	if pkg, ok := loaded.pkgCache.Get(path).(*loadPkg); ok {
+		return pkg.mod, pkg.mod != module.Version{}
+	}
+	if path == "command-line-arguments" {
+		return Target, true
+	}
+	return module.Version{}, false
 }
 
 func ModInfoProg(info string, isgccgo bool) []byte {

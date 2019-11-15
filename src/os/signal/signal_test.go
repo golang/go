@@ -422,6 +422,19 @@ func TestAtomicStop(t *testing.T) {
 
 	testenv.MustHaveExec(t)
 
+	// Call Notify for SIGINT before starting the child process.
+	// That ensures that SIGINT is not ignored for the child.
+	// This is necessary because if SIGINT is ignored when a
+	// Go program starts, then it remains ignored, and closing
+	// the last notification channel for SIGINT will switch it
+	// back to being ignored. In that case the assumption of
+	// atomicStopTestProgram, that it will either die from SIGINT
+	// or have it be reported, breaks down, as there is a third
+	// option: SIGINT might be ignored.
+	cs := make(chan os.Signal, 1)
+	Notify(cs, syscall.SIGINT)
+	defer Stop(cs)
+
 	const execs = 10
 	for i := 0; i < execs; i++ {
 		timeout := "0"
@@ -466,6 +479,12 @@ func TestAtomicStop(t *testing.T) {
 // It tries to trigger a signal delivery race. This function should
 // either catch a signal or die from it.
 func atomicStopTestProgram() {
+	// This test won't work if SIGINT is ignored here.
+	if Ignored(syscall.SIGINT) {
+		fmt.Println("SIGINT is ignored")
+		os.Exit(1)
+	}
+
 	const tries = 10
 
 	timeout := 2 * time.Second

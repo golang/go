@@ -526,6 +526,7 @@ func (hs *clientHandshakeStateTLS13) sendClientCertificate() error {
 	cert, err := c.getClientCertificate(&CertificateRequestInfo{
 		AcceptableCAs:    hs.certReq.certificateAuthorities,
 		SignatureSchemes: hs.certReq.supportedSignatureAlgorithms,
+		Version:          c.vers,
 	})
 	if err != nil {
 		return err
@@ -550,24 +551,12 @@ func (hs *clientHandshakeStateTLS13) sendClientCertificate() error {
 	certVerifyMsg := new(certificateVerifyMsg)
 	certVerifyMsg.hasSignatureAlgorithm = true
 
-	supportedAlgs := signatureSchemesForCertificate(c.vers, cert)
-	if supportedAlgs == nil {
-		c.sendAlert(alertInternalError)
-		return unsupportedCertificateError(cert)
-	}
-	// Pick signature scheme in server preference order, as the client
-	// preference order is not configurable.
-	for _, preferredAlg := range hs.certReq.supportedSignatureAlgorithms {
-		if isSupportedSignatureAlgorithm(preferredAlg, supportedAlgs) {
-			certVerifyMsg.signatureAlgorithm = preferredAlg
-			break
-		}
-	}
-	if certVerifyMsg.signatureAlgorithm == 0 {
+	certVerifyMsg.signatureAlgorithm, err = selectSignatureScheme(c.vers, cert, hs.certReq.supportedSignatureAlgorithms)
+	if err != nil {
 		// getClientCertificate returned a certificate incompatible with the
 		// CertificateRequestInfo supported signature algorithms.
 		c.sendAlert(alertHandshakeFailure)
-		return errors.New("tls: server doesn't support selected certificate")
+		return err
 	}
 
 	sigType, sigHash, err := typeAndHashFromSignatureScheme(certVerifyMsg.signatureAlgorithm)

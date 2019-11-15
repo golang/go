@@ -5,9 +5,14 @@
 package tls
 
 import (
+	"bytes"
 	"container/list"
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha512"
 	"crypto/x509"
 	"errors"
@@ -187,21 +192,6 @@ var supportedSignatureAlgorithms = []SignatureScheme{
 	ECDSAWithSHA1,
 }
 
-// supportedSignatureAlgorithmsTLS12 contains the signature and hash algorithms
-// that are supported in TLS 1.2, where it is possible to distinguish the
-// protocol version. This is temporary, see Issue 32425.
-var supportedSignatureAlgorithmsTLS12 = []SignatureScheme{
-	PKCS1WithSHA256,
-	ECDSAWithP256AndSHA256,
-	Ed25519,
-	PKCS1WithSHA384,
-	PKCS1WithSHA512,
-	ECDSAWithP384AndSHA384,
-	ECDSAWithP521AndSHA512,
-	PKCS1WithSHA1,
-	ECDSAWithSHA1,
-}
-
 // helloRetryRequestRandom is set as the Random value of a ServerHello
 // to signal that the message is actually a HelloRetryRequest.
 var helloRetryRequestRandom = []byte{ // See RFC 8446, Section 4.1.3.
@@ -339,40 +329,8 @@ const (
 	ECDSAWithSHA1 SignatureScheme = 0x0203
 )
 
-// typeAndHashFromSignatureScheme returns the corresponding signature type and
-// crypto.Hash for a given TLS SignatureScheme.
-func typeAndHashFromSignatureScheme(signatureAlgorithm SignatureScheme) (sigType uint8, hash crypto.Hash, err error) {
-	switch signatureAlgorithm {
-	case PKCS1WithSHA1, PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512:
-		sigType = signaturePKCS1v15
-	case PSSWithSHA256, PSSWithSHA384, PSSWithSHA512:
-		sigType = signatureRSAPSS
-	case ECDSAWithSHA1, ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512:
-		sigType = signatureECDSA
-	case Ed25519:
-		sigType = signatureEd25519
-	default:
-		return 0, 0, fmt.Errorf("unsupported signature algorithm: %#04x", signatureAlgorithm)
-	}
-	switch signatureAlgorithm {
-	case PKCS1WithSHA1, ECDSAWithSHA1:
-		hash = crypto.SHA1
-	case PKCS1WithSHA256, PSSWithSHA256, ECDSAWithP256AndSHA256:
-		hash = crypto.SHA256
-	case PKCS1WithSHA384, PSSWithSHA384, ECDSAWithP384AndSHA384:
-		hash = crypto.SHA384
-	case PKCS1WithSHA512, PSSWithSHA512, ECDSAWithP521AndSHA512:
-		hash = crypto.SHA512
-	case Ed25519:
-		hash = directSigning
-	default:
-		return 0, 0, fmt.Errorf("unsupported signature algorithm: %#04x", signatureAlgorithm)
-	}
-	return sigType, hash, nil
-}
-
 // ClientHelloInfo contains information from a ClientHello message in order to
-// guide certificate selection in the GetCertificate callback.
+// guide application logic in the GetCertificate and GetConfigForClient callbacks.
 type ClientHelloInfo struct {
 	// CipherSuites lists the CipherSuites supported by the client (e.g.
 	// TLS_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256).
@@ -416,6 +374,10 @@ type ClientHelloInfo struct {
 	// from, or write to, this connection; that will cause the TLS
 	// connection to fail.
 	Conn net.Conn
+
+	// config is embedded by the GetCertificate or GetConfigForClient caller,
+	// for use with SupportsCertificate.
+	config *Config
 }
 
 // CertificateRequestInfo contains information from a server's
@@ -431,6 +393,9 @@ type CertificateRequestInfo struct {
 	// SignatureSchemes lists the signature schemes that the server is
 	// willing to verify.
 	SignatureSchemes []SignatureScheme
+
+	// Version is the TLS version that was negotiated for this connection.
+	Version uint16
 }
 
 // RenegotiationSupport enumerates the different levels of support for TLS
@@ -477,19 +442,26 @@ type Config struct {
 	// If Time is nil, TLS uses time.Now.
 	Time func() time.Time
 
-	// Certificates contains one or more certificate chains to present to
-	// the other side of the connection. Server configurations must include
-	// at least one certificate or else set GetCertificate. Clients doing
-	// client-authentication may set either Certificates or
-	// GetClientCertificate.
+	// Certificates contains one or more certificate chains to present to the
+	// other side of the connection. The first certificate compatible with the
+	// peer's requirements is selected automatically.
+	//
+	// Server configurations must set one of Certificates, GetCertificate or
+	// GetConfigForClient. Clients doing client-authentication may set either
+	// Certificates or GetClientCertificate.
+	//
+	// Note: if there are multiple Certificates, and they don't have the
+	// optional field Leaf set, certificate selection will incur a significant
+	// per-handshake performance cost.
 	Certificates []Certificate
 
 	// NameToCertificate maps from a certificate name to an element of
 	// Certificates. Note that a certificate name can be of the form
 	// '*.example.com' and so doesn't have to be a domain name as such.
-	// See Config.BuildNameToCertificate
-	// The nil value causes the first element of Certificates to be used
-	// for all connections.
+	//
+	// Deprecated: NameToCertificate only allows associating a single
+	// certificate with a given name. Leave this field nil to let the library
+	// select the first compatible chain from Certificates.
 	NameToCertificate map[string]*Certificate
 
 	// GetCertificate returns a Certificate based on the given
@@ -498,7 +470,7 @@ type Config struct {
 	//
 	// If GetCertificate is nil or returns nil, then the certificate is
 	// retrieved from NameToCertificate. If NameToCertificate is nil, the
-	// first element of Certificates will be used.
+	// best element of Certificates will be used.
 	GetCertificate func(*ClientHelloInfo) (*Certificate, error)
 
 	// GetClientCertificate, if not nil, is called when a server requests a
@@ -866,6 +838,15 @@ func (c *Config) curvePreferences() []CurveID {
 	return c.CurvePreferences
 }
 
+func (c *Config) supportsCurve(curve CurveID) bool {
+	for _, cc := range c.curvePreferences() {
+		if cc == curve {
+			return true
+		}
+	}
+	return false
+}
+
 // mutualVersion returns the protocol version to use given the advertised
 // versions of the peer. Priority is given to the peer preference order.
 func (c *Config) mutualVersion(peerVersions []uint16) (uint16, bool) {
@@ -880,6 +861,8 @@ func (c *Config) mutualVersion(peerVersions []uint16) (uint16, bool) {
 	return 0, false
 }
 
+var errNoCertificates = errors.New("tls: no certificates configured")
+
 // getCertificate returns the best certificate for the given ClientHelloInfo,
 // defaulting to the first element of c.Certificates.
 func (c *Config) getCertificate(clientHello *ClientHelloInfo) (*Certificate, error) {
@@ -892,31 +875,32 @@ func (c *Config) getCertificate(clientHello *ClientHelloInfo) (*Certificate, err
 	}
 
 	if len(c.Certificates) == 0 {
-		return nil, errors.New("tls: no certificates configured")
+		return nil, errNoCertificates
 	}
 
-	if len(c.Certificates) == 1 || c.NameToCertificate == nil {
+	if len(c.Certificates) == 1 {
 		// There's only one choice, so no point doing any work.
 		return &c.Certificates[0], nil
 	}
 
-	name := strings.ToLower(clientHello.ServerName)
-	for len(name) > 0 && name[len(name)-1] == '.' {
-		name = name[:len(name)-1]
-	}
-
-	if cert, ok := c.NameToCertificate[name]; ok {
-		return cert, nil
-	}
-
-	// try replacing labels in the name with wildcards until we get a
-	// match.
-	labels := strings.Split(name, ".")
-	for i := range labels {
-		labels[i] = "*"
-		candidate := strings.Join(labels, ".")
-		if cert, ok := c.NameToCertificate[candidate]; ok {
+	if c.NameToCertificate != nil {
+		name := strings.ToLower(clientHello.ServerName)
+		if cert, ok := c.NameToCertificate[name]; ok {
 			return cert, nil
+		}
+		if len(name) > 0 {
+			labels := strings.Split(name, ".")
+			labels[0] = "*"
+			wildcardName := strings.Join(labels, ".")
+			if cert, ok := c.NameToCertificate[wildcardName]; ok {
+				return cert, nil
+			}
+		}
+	}
+
+	for _, cert := range c.Certificates {
+		if err := clientHello.SupportsCertificate(&cert); err == nil {
+			return &cert, nil
 		}
 	}
 
@@ -924,20 +908,213 @@ func (c *Config) getCertificate(clientHello *ClientHelloInfo) (*Certificate, err
 	return &c.Certificates[0], nil
 }
 
+// SupportsCertificate returns nil if the provided certificate is supported by
+// the client that sent the ClientHello. Otherwise, it returns an error
+// describing the reason for the incompatibility.
+//
+// If this ClientHelloInfo was passed to a GetConfigForClient or GetCertificate
+// callback, this method will take into account the associated Config. Note that
+// if GetConfigForClient returns a different Config, the change can't be
+// accounted for by this method.
+//
+// This function will call x509.ParseCertificate unless c.Leaf is set, which can
+// incur a significant performance cost.
+func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
+	// Note we don't currently support certificate_authorities nor
+	// signature_algorithms_cert, and don't check the algorithms of the
+	// signatures on the chain (which anyway are a SHOULD, see RFC 8446,
+	// Section 4.4.2.2).
+
+	config := chi.config
+	if config == nil {
+		config = &Config{}
+	}
+	vers, ok := config.mutualVersion(chi.SupportedVersions)
+	if !ok {
+		return errors.New("no mutually supported protocol versions")
+	}
+
+	// If the client specified the name they are trying to connect to, the
+	// certificate needs to be valid for it.
+	if chi.ServerName != "" {
+		x509Cert, err := c.leaf()
+		if err != nil {
+			return fmt.Errorf("failed to parse certificate: %w", err)
+		}
+		if err := x509Cert.VerifyHostname(chi.ServerName); err != nil {
+			return fmt.Errorf("certificate is not valid for requested server name: %w", err)
+		}
+	}
+
+	// supportsRSAFallback returns nil if the certificate and connection support
+	// the static RSA key exchange, and unsupported otherwise. The logic for
+	// supporting static RSA is completely disjoint from the logic for
+	// supporting signed key exchanges, so we just check it as a fallback.
+	supportsRSAFallback := func(unsupported error) error {
+		// TLS 1.3 dropped support for the static RSA key exchange.
+		if vers == VersionTLS13 {
+			return unsupported
+		}
+		// The static RSA key exchange works by decrypting a challenge with the
+		// RSA private key, not by signing, so check the PrivateKey implements
+		// crypto.Decrypter, like *rsa.PrivateKey does.
+		if priv, ok := c.PrivateKey.(crypto.Decrypter); ok {
+			if _, ok := priv.Public().(*rsa.PublicKey); !ok {
+				return unsupported
+			}
+		} else {
+			return unsupported
+		}
+		// Finally, there needs to be a mutual cipher suite that uses the static
+		// RSA key exchange instead of ECDHE.
+		rsaCipherSuite := selectCipherSuite(chi.CipherSuites, config.cipherSuites(), func(c *cipherSuite) bool {
+			if c.flags&suiteECDHE != 0 {
+				return false
+			}
+			if vers < VersionTLS12 && c.flags&suiteTLS12 != 0 {
+				return false
+			}
+			return true
+		})
+		if rsaCipherSuite == nil {
+			return unsupported
+		}
+		return nil
+	}
+
+	// If the client sent the signature_algorithms extension, ensure it supports
+	// schemes we can use with this certificate and TLS version.
+	if len(chi.SignatureSchemes) > 0 {
+		if _, err := selectSignatureScheme(vers, c, chi.SignatureSchemes); err != nil {
+			return supportsRSAFallback(err)
+		}
+	}
+
+	// In TLS 1.3 we are done because supported_groups is only relevant to the
+	// ECDHE computation, point format negotiation is removed, cipher suites are
+	// only relevant to the AEAD choice, and static RSA does not exist.
+	if vers == VersionTLS13 {
+		return nil
+	}
+
+	// The only signed key exchange we support is ECDHE.
+	if !supportsECDHE(config, chi.SupportedCurves, chi.SupportedPoints) {
+		return supportsRSAFallback(errors.New("client doesn't support ECDHE, can only use legacy RSA key exchange"))
+	}
+
+	var ecdsaCipherSuite bool
+	if priv, ok := c.PrivateKey.(crypto.Signer); ok {
+		switch pub := priv.Public().(type) {
+		case *ecdsa.PublicKey:
+			var curve CurveID
+			switch pub.Curve {
+			case elliptic.P256():
+				curve = CurveP256
+			case elliptic.P384():
+				curve = CurveP384
+			case elliptic.P521():
+				curve = CurveP521
+			default:
+				return supportsRSAFallback(unsupportedCertificateError(c))
+			}
+			var curveOk bool
+			for _, c := range chi.SupportedCurves {
+				if c == curve && config.supportsCurve(c) {
+					curveOk = true
+					break
+				}
+			}
+			if !curveOk {
+				return errors.New("client doesn't support certificate curve")
+			}
+			ecdsaCipherSuite = true
+		case ed25519.PublicKey:
+			if vers < VersionTLS12 || len(chi.SignatureSchemes) == 0 {
+				return errors.New("connection doesn't support Ed25519")
+			}
+			ecdsaCipherSuite = true
+		case *rsa.PublicKey:
+		default:
+			return supportsRSAFallback(unsupportedCertificateError(c))
+		}
+	} else {
+		return supportsRSAFallback(unsupportedCertificateError(c))
+	}
+
+	// Make sure that there is a mutually supported cipher suite that works with
+	// this certificate. Cipher suite selection will then apply the logic in
+	// reverse to pick it. See also serverHandshakeState.cipherSuiteOk.
+	cipherSuite := selectCipherSuite(chi.CipherSuites, config.cipherSuites(), func(c *cipherSuite) bool {
+		if c.flags&suiteECDHE == 0 {
+			return false
+		}
+		if c.flags&suiteECSign != 0 {
+			if !ecdsaCipherSuite {
+				return false
+			}
+		} else {
+			if ecdsaCipherSuite {
+				return false
+			}
+		}
+		if vers < VersionTLS12 && c.flags&suiteTLS12 != 0 {
+			return false
+		}
+		return true
+	})
+	if cipherSuite == nil {
+		return supportsRSAFallback(errors.New("client doesn't support any cipher suites compatible with the certificate"))
+	}
+
+	return nil
+}
+
+// SupportsCertificate returns nil if the provided certificate is supported by
+// the server that sent the CertificateRequest. Otherwise, it returns an error
+// describing the reason for the incompatibility.
+func (cri *CertificateRequestInfo) SupportsCertificate(c *Certificate) error {
+	if _, err := selectSignatureScheme(cri.Version, c, cri.SignatureSchemes); err != nil {
+		return err
+	}
+
+	if len(cri.AcceptableCAs) == 0 {
+		return nil
+	}
+
+	for j, cert := range c.Certificate {
+		x509Cert := c.Leaf
+		// Parse the certificate if this isn't the leaf node, or if
+		// chain.Leaf was nil.
+		if j != 0 || x509Cert == nil {
+			var err error
+			if x509Cert, err = x509.ParseCertificate(cert); err != nil {
+				return fmt.Errorf("failed to parse certificate #%d in the chain: %w", j, err)
+			}
+		}
+
+		for _, ca := range cri.AcceptableCAs {
+			if bytes.Equal(x509Cert.RawIssuer, ca) {
+				return nil
+			}
+		}
+	}
+	return errors.New("chain is not signed by an acceptable CA")
+}
+
 // BuildNameToCertificate parses c.Certificates and builds c.NameToCertificate
 // from the CommonName and SubjectAlternateName fields of each of the leaf
 // certificates.
+//
+// Deprecated: NameToCertificate only allows associating a single certificate
+// with a given name. Leave that field nil to let the library select the first
+// compatible chain from Certificates.
 func (c *Config) BuildNameToCertificate() {
 	c.NameToCertificate = make(map[string]*Certificate)
 	for i := range c.Certificates {
 		cert := &c.Certificates[i]
-		x509Cert := cert.Leaf
-		if x509Cert == nil {
-			var err error
-			x509Cert, err = x509.ParseCertificate(cert.Certificate[0])
-			if err != nil {
-				continue
-			}
+		x509Cert, err := cert.leaf()
+		if err != nil {
+			continue
 		}
 		if len(x509Cert.Subject.CommonName) > 0 {
 			c.NameToCertificate[x509Cert.Subject.CommonName] = cert
@@ -982,17 +1159,28 @@ type Certificate struct {
 	// For a server up to TLS 1.2, it can also implement crypto.Decrypter with
 	// an RSA PublicKey.
 	PrivateKey crypto.PrivateKey
+	// SupportedSignatureAlgorithms is an optional list restricting what
+	// signature algorithms the PrivateKey can be used for.
+	SupportedSignatureAlgorithms []SignatureScheme
 	// OCSPStaple contains an optional OCSP response which will be served
 	// to clients that request it.
 	OCSPStaple []byte
 	// SignedCertificateTimestamps contains an optional list of Signed
 	// Certificate Timestamps which will be served to clients that request it.
 	SignedCertificateTimestamps [][]byte
-	// Leaf is the parsed form of the leaf certificate, which may be
-	// initialized using x509.ParseCertificate to reduce per-handshake
-	// processing for TLS clients doing client authentication. If nil, the
-	// leaf certificate will be parsed as needed.
+	// Leaf is the parsed form of the leaf certificate, which may be initialized
+	// using x509.ParseCertificate to reduce per-handshake processing. If nil,
+	// the leaf certificate will be parsed as needed.
 	Leaf *x509.Certificate
+}
+
+// leaf returns the parsed leaf certificate, either from c.Leaf or by parsing
+// the corresponding c.Certificate[0].
+func (c *Certificate) leaf() (*x509.Certificate, error) {
+	if c.Leaf != nil {
+		return c.Leaf, nil
+	}
+	return x509.ParseCertificate(c.Certificate[0])
 }
 
 type handshakeMessage interface {

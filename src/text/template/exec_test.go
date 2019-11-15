@@ -352,6 +352,12 @@ var execTests = []execTest{
 	{"field on interface", "{{.foo}}", "<no value>", nil, true},
 	{"field on parenthesized interface", "{{(.).foo}}", "<no value>", nil, true},
 
+	// Issue 31810: Parenthesized first element of pipeline with arguments.
+	// See also TestIssue31810.
+	{"unparenthesized non-function", "{{1 2}}", "", nil, false},
+	{"parenthesized non-function", "{{(1) 2}}", "", nil, false},
+	{"parenthesized non-function with no args", "{{(1)}}", "1", nil, true}, // This is fine.
+
 	// Method calls.
 	{".Method0", "-{{.Method0}}-", "-M0-", tVal, true},
 	{".Method1(1234)", "-{{.Method1 1234}}-", "-1234-", tVal, true},
@@ -1646,5 +1652,43 @@ func TestExecutePanicDuringCall(t *testing.T) {
 			}
 			t.Errorf("%s: expected error:\n%s\ngot:\n%s", tc.name, tc.wantErr, err)
 		}
+	}
+}
+
+// Issue 31810. Check that a parenthesized first argument behaves properly.
+func TestIssue31810(t *testing.T) {
+	// A simple value with no arguments is fine.
+	var b bytes.Buffer
+	const text = "{{ (.)  }}"
+	tmpl, err := New("").Parse(text)
+	if err != nil {
+		t.Error(err)
+	}
+	err = tmpl.Execute(&b, "result")
+	if err != nil {
+		t.Error(err)
+	}
+	if b.String() != "result" {
+		t.Errorf("%s got %q, expected %q", text, b.String(), "result")
+	}
+
+	// Even a plain function fails - need to use call.
+	f := func() string { return "result" }
+	b.Reset()
+	err = tmpl.Execute(&b, f)
+	if err == nil {
+		t.Error("expected error with no call, got none")
+	}
+
+	// Works if the function is explicitly called.
+	const textCall = "{{ (call .)  }}"
+	tmpl, err = New("").Parse(textCall)
+	b.Reset()
+	err = tmpl.Execute(&b, f)
+	if err != nil {
+		t.Error(err)
+	}
+	if b.String() != "result" {
+		t.Errorf("%s got %q, expected %q", textCall, b.String(), "result")
 	}
 }

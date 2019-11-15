@@ -294,7 +294,7 @@ func TestNilcheckKeepRemove(t *testing.T) {
 	}
 }
 
-// TestNilcheckInFalseBranch tests that nil checks in the false branch of an nilcheck
+// TestNilcheckInFalseBranch tests that nil checks in the false branch of a nilcheck
 // block are *not* removed.
 func TestNilcheckInFalseBranch(t *testing.T) {
 	c := testConfig(t)

@@ -8,7 +8,7 @@
 Input to cgo -godefs
 GOARCH=ppc64 go tool cgo -godefs defs_aix.go > defs_aix_ppc64_tmp.go
 
-This is only an helper to create defs_aix_ppc64.go
+This is only a helper to create defs_aix_ppc64.go
 Go runtime functions require the "linux" name of fields (ss_sp, si_addr, etc)
 However, AIX structures don't provide such names and must be modified.
 

@@ -269,6 +269,35 @@ func (n *Node) funcname() string {
 	return n.Func.Nname.Sym.Name
 }
 
+// pkgFuncName returns the name of the function referenced by n, with package prepended.
+// This differs from the compiler's internal convention where local functions lack a package
+// because the ultimate consumer of this is a human looking at an IDE; package is only empty
+// if the compilation package is actually the empty string.
+func (n *Node) pkgFuncName() string {
+	var s *types.Sym
+	if n == nil {
+		return "<nil>"
+	}
+	if n.Op == ONAME {
+		s = n.Sym
+	} else {
+		if n.Func == nil || n.Func.Nname == nil {
+			return "<nil>"
+		}
+		s = n.Func.Nname.Sym
+	}
+	pkg := s.Pkg
+
+	p := myimportpath
+	if pkg != nil && pkg.Path != "" {
+		p = pkg.Path
+	}
+	if p == "" {
+		return s.Name
+	}
+	return p + "." + s.Name
+}
+
 // Name holds Node fields used only by named nodes (ONAME, OTYPE, OPACK, OLABEL, some OLITERAL).
 type Name struct {
 	Pack      *Node      // real package for import . names

@@ -1,0 +1,21 @@
+env GO111MODULE=off
+
+! go build canonical/d
+stderr 'package canonical/d'
+stderr 'imports canonical/b'
+stderr 'imports canonical/a/: non-canonical'
+
+-- canonical/a/a.go --
+package a
+
+import _ "c"
+-- canonical/b/b.go --
+package b
+
+import _ "canonical/a/"
+-- canonical/a/vendor/c/c.go --
+package c
+-- canonical/d/d.go --
+package d
+
+import _ "canonical/b"

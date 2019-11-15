@@ -34,7 +34,7 @@ type Options struct {
 	UI      UI
 
 	// HTTPServer is a function that should block serving http requests,
-	// including the handlers specfied in args.  If non-nil, pprof will
+	// including the handlers specified in args.  If non-nil, pprof will
 	// invoke this function if necessary to provide a web interface.
 	//
 	// If HTTPServer is nil, pprof will use its own internal HTTP server.

@@ -179,6 +179,9 @@ If invoked with -mod=vendor, the go command assumes that the vendor
 directory holds the correct copies of dependencies and ignores
 the dependency descriptions in go.mod.
 
+If invoked with -mod=mod, the go command loads modules from the module cache
+even if there is a vendor directory present.
+
 Pseudo-versions
 
 The go.mod file and the go command more generally use semantic versions as

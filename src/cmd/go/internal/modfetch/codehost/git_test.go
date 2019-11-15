@@ -78,7 +78,16 @@ func testMain(m *testing.M) int {
 
 func testRepo(remote string) (Repo, error) {
 	if remote == "localGitRepo" {
-		return LocalGitRepo(filepath.ToSlash(localGitRepo))
+		// Convert absolute path to file URL. LocalGitRepo will not accept
+		// Windows absolute paths because they look like a host:path remote.
+		// TODO(golang.org/issue/32456): use url.FromFilePath when implemented.
+		var url string
+		if strings.HasPrefix(localGitRepo, "/") {
+			url = "file://" + localGitRepo
+		} else {
+			url = "file:///" + filepath.ToSlash(localGitRepo)
+		}
+		return LocalGitRepo(url)
 	}
 	kind := "git"
 	for _, k := range []string{"hg"} {

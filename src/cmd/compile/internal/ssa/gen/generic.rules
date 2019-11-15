@@ -1180,7 +1180,7 @@
 
 // Divisibility checks x%c == 0 convert to multiply and rotate.
 // Note, x%c == 0 is rewritten as x == c*(x/c) during the opt pass
-// where (x/c) is peformed using multiplication with magic constants.
+// where (x/c) is performed using multiplication with magic constants.
 // To rewrite x%c == 0 requires pattern matching the rewritten expression
 // and checking that the division by the same constant wasn't already calculated.
 // This check is made by counting uses of the magic constant multiplication.

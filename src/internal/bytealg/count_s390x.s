@@ -95,7 +95,7 @@ TEXT countbytebody<>(SB), NOSPLIT|NOFRAME, $0-0
 vxchunks:
 	// Load 0x01 into every byte element in the 16-byte mask vector.
 	VREPIB $1, V_MASK // V_MASK = [16]byte{1, 1, ..., 1, 1}
-	VZERO  V_CNT      // intial uint128 count of 0
+	VZERO  V_CNT      // initial uint128 count of 0
 
 vxloop:
 	// Load input bytes in 16-byte chunks.

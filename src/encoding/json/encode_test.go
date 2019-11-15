@@ -138,10 +138,45 @@ func TestEncodeRenamedByteSlice(t *testing.T) {
 	}
 }
 
+type SamePointerNoCycle struct {
+	Ptr1, Ptr2 *SamePointerNoCycle
+}
+
+var samePointerNoCycle = &SamePointerNoCycle{}
+
+type PointerCycle struct {
+	Ptr *PointerCycle
+}
+
+var pointerCycle = &PointerCycle{}
+
+type PointerCycleIndirect struct {
+	Ptrs []interface{}
+}
+
+var pointerCycleIndirect = &PointerCycleIndirect{}
+
+func init() {
+	ptr := &SamePointerNoCycle{}
+	samePointerNoCycle.Ptr1 = ptr
+	samePointerNoCycle.Ptr2 = ptr
+
+	pointerCycle.Ptr = pointerCycle
+	pointerCycleIndirect.Ptrs = []interface{}{pointerCycleIndirect}
+}
+
+func TestSamePointerNoCycle(t *testing.T) {
+	if _, err := Marshal(samePointerNoCycle); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 var unsupportedValues = []interface{}{
 	math.NaN(),
 	math.Inf(-1),
 	math.Inf(1),
+	pointerCycle,
+	pointerCycleIndirect,
 }
 
 func TestUnsupportedValues(t *testing.T) {

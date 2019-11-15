@@ -837,19 +837,8 @@ func TestHandshakeClientCertRSAPSS(t *testing.T) {
 		cert:   testRSAPSSCertificate,
 		key:    testRSAPrivateKey,
 	}
-	runClientTestTLS13(t, test)
-
-	// In our TLS 1.2 client, RSA-PSS is only supported for server certificates.
-	// See Issue 32425.
-	test = &clientTest{
-		name: "ClientCert-RSA-RSAPSS",
-		args: []string{"-cipher", "AES128", "-Verify", "1", "-client_sigalgs",
-			"rsa_pkcs1_sha256", "-sigalgs", "rsa_pss_rsae_sha256"},
-		config: config,
-		cert:   testRSAPSSCertificate,
-		key:    testRSAPrivateKey,
-	}
 	runClientTestTLS12(t, test)
+	runClientTestTLS13(t, test)
 }
 
 func TestHandshakeClientCertRSAPKCS1v15(t *testing.T) {

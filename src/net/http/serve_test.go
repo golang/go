@@ -4352,7 +4352,7 @@ func TestCloseWrite(t *testing.T) {
 
 // This verifies that a handler can Flush and then Hijack.
 //
-// An similar test crashed once during development, but it was only
+// A similar test crashed once during development, but it was only
 // testing this tangentially and temporarily until another TODO was
 // fixed.
 //

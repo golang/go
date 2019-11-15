@@ -184,6 +184,12 @@ func TestPallocDataFindScavengeCandidate(t *testing.T) {
 			max:       3 * m,
 			want:      BitRange{128, 3 * uint(m)},
 		}
+		tests["Max0"+suffix] = test{
+			scavenged: []BitRange{{0, PallocChunkPages - uint(m)}},
+			min:       m,
+			max:       0,
+			want:      BitRange{PallocChunkPages - uint(m), uint(m)},
+		}
 		if m <= 8 {
 			tests["OneFree"] = test{
 				alloc: []BitRange{{0, 40}, {40 + uint(m), PallocChunkPages - (40 + uint(m))}},
@@ -200,6 +206,12 @@ func TestPallocDataFindScavengeCandidate(t *testing.T) {
 			}
 		}
 		if m > 1 {
+			tests["MaxUnaligned"+suffix] = test{
+				scavenged: []BitRange{{0, PallocChunkPages - uint(m*2-1)}},
+				min:       m,
+				max:       m - 2,
+				want:      BitRange{PallocChunkPages - uint(m), uint(m)},
+			}
 			tests["SkipSmall"+suffix] = test{
 				alloc: []BitRange{{0, 64 - uint(m)}, {64, 5}, {70, 11}, {82, PallocChunkPages - 82}},
 				min:   m,
@@ -359,6 +371,25 @@ func TestPageAllocScavenge(t *testing.T) {
 			afterScav: map[ChunkIdx][]BitRange{
 				BaseChunkIdx:     {{0, PallocChunkPages}},
 				BaseChunkIdx + 1: {{0, PallocChunkPages}},
+			},
+		},
+		"ScavDiscontiguous": {
+			beforeAlloc: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:       {},
+				BaseChunkIdx + 0xe: {},
+			},
+			beforeScav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:       {{uint(minPages), PallocChunkPages - uint(2*minPages)}},
+				BaseChunkIdx + 0xe: {{uint(2 * minPages), PallocChunkPages - uint(2*minPages)}},
+			},
+			expect: []test{
+				{2 * minPages * PageSize, 2 * minPages * PageSize},
+				{^uintptr(0), 2 * minPages * PageSize},
+				{^uintptr(0), 0},
+			},
+			afterScav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:       {{0, PallocChunkPages}},
+				BaseChunkIdx + 0xe: {{0, PallocChunkPages}},
 			},
 		},
 	}

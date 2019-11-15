@@ -11,6 +11,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,16 +21,19 @@ func main() {
 	err := os.Chdir(filepath.Join(".", "fixedbugs", "bug369.dir"))
 	check(err)
 
-	run("go", "tool", "compile", "-N", "-o", "slow.o", "pkg.go")
-	run("go", "tool", "compile", "-o", "fast.o", "pkg.go")
-	run("go", "tool", "compile", "-o", "main.o", "main.go")
-	run("go", "tool", "link", "-o", "a.exe", "main.o")
-	run("." + string(filepath.Separator) + "a.exe")
+	tmpDir, err := ioutil.TempDir("", "bug369")
+	check(err)
+	defer os.RemoveAll(tmpDir)
 
-	os.Remove("slow.o")
-	os.Remove("fast.o")
-	os.Remove("main.o")
-	os.Remove("a.exe")
+	tmp := func(name string) string {
+		return filepath.Join(tmpDir, name)
+	}
+
+	run("go", "tool", "compile", "-N", "-o", tmp("slow.o"), "pkg.go")
+	run("go", "tool", "compile", "-o", tmp("fast.o"), "pkg.go")
+	run("go", "tool", "compile", "-D", tmpDir, "-o", tmp("main.o"), "main.go")
+	run("go", "tool", "link", "-o", tmp("a.exe"), tmp("main.o"))
+	run(tmp("a.exe"))
 }
 
 func run(name string, args ...string) {
