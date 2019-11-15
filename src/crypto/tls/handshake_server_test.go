@@ -274,7 +274,7 @@ func TestTLS12OnlyCipherSuites(t *testing.T) {
 }
 
 func TestTLSPointFormats(t *testing.T) {
-	// Test that a Server returns the ec_point_format extention when ECC is
+	// Test that a Server returns the ec_point_format extension when ECC is
 	// negotiated, and not returned on RSA handshake.
 	tests := []struct {
 		name                string

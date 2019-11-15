@@ -652,7 +652,7 @@ func (lv *Liveness) markUnsafePoints() {
 
 	lv.unsafePoints = bvalloc(int32(lv.f.NumValues()))
 
-	// Mark architecture-specific unsafe pointes.
+	// Mark architecture-specific unsafe points.
 	for _, b := range lv.f.Blocks {
 		for _, v := range b.Values {
 			if v.Op.UnsafePoint() {

@@ -89,7 +89,7 @@ const DefaultMaxIdleConnsPerHost = 2
 // Request.GetBody defined. HTTP requests are considered idempotent if
 // they have HTTP methods GET, HEAD, OPTIONS, or TRACE; or if their
 // Header map contains an "Idempotency-Key" or "X-Idempotency-Key"
-// entry. If the idempotency key value is an zero-length slice, the
+// entry. If the idempotency key value is a zero-length slice, the
 // request is treated as idempotent but the header is not sent on the
 // wire.
 type Transport struct {

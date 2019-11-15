@@ -375,7 +375,7 @@ func validRecs(r *syscall.DNSRecord, dnstype uint16, name string) []*syscall.DNS
 
 // returns the last CNAME in chain
 func resolveCNAME(name *uint16, r *syscall.DNSRecord) *uint16 {
-	// limit cname resolving to 10 in case of a infinite CNAME loop
+	// limit cname resolving to 10 in case of an infinite CNAME loop
 Cname:
 	for cnameloop := 0; cnameloop < 10; cnameloop++ {
 		for p := r; p != nil; p = p.Next {

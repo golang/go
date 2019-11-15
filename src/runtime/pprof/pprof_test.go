@@ -112,7 +112,7 @@ func containsInlinedCall(f interface{}, maxBytes int) bool {
 }
 
 // findInlinedCall returns the PC of an inlined function call within
-// the funtion body for the function f if any.
+// the function body for the function f if any.
 func findInlinedCall(f interface{}, maxBytes int) (pc uint64, found bool) {
 	fFunc := runtime.FuncForPC(uintptr(funcPC(f)))
 	if fFunc == nil || fFunc.Entry() == 0 {

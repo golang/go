@@ -633,11 +633,11 @@ func chunked(te []string) bool { return len(te) > 0 && te[len(te)-1] == "chunked
 // implicitlyChunked is a helper to check for implicity of chunked, because
 // RFC 7230 Section 3.3.1 says that the sender MUST apply chunked as the final
 // payload body to ensure that the message is framed for both the request
-// and the body. Since "identity" is incompatabile with any other transformational
+// and the body. Since "identity" is incompatible with any other transformational
 // encoding cannot co-exist, the presence of "identity" will cause implicitlyChunked
 // to return false.
 func implicitlyChunked(te []string) bool {
-	if len(te) == 0 { // No transfer-encodings passed in, so not implicity chunked.
+	if len(te) == 0 { // No transfer-encodings passed in, so not implicitly chunked.
 		return false
 	}
 	for _, tei := range te {

@@ -88,7 +88,7 @@ func (e plainError) Error() string {
 	return string(e)
 }
 
-// An boundsError represents a an indexing or slicing operation gone wrong.
+// A boundsError represents an indexing or slicing operation gone wrong.
 type boundsError struct {
 	x int64
 	y int
