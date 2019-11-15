@@ -3717,7 +3717,7 @@ func TestTransportRemovesH2ConnsAfterIdle(t *testing.T) {
 	}
 }
 
-// This tests that an client requesting a content range won't also
+// This tests that a client requesting a content range won't also
 // implicitly ask for gzip support. If they want that, they need to do it
 // on their own.
 // golang.org/issue/8923

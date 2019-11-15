@@ -223,7 +223,7 @@ func (b *Block) CopyControls(from *Block) {
 }
 
 // Reset sets the block to the provided kind and clears all the blocks control
-// and auxilliary values. Other properties of the block, such as its successors,
+// and auxiliary values. Other properties of the block, such as its successors,
 // predecessors and values are left unmodified.
 func (b *Block) Reset(kind BlockKind) {
 	b.Kind = kind

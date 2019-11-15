@@ -521,7 +521,7 @@ func fillAligned(x uint64, m uint) uint64 {
 		// "[It] works by first zeroing the high bits of the [8]
 		// bytes in the word. Subsequently, it adds a number that
 		// will result in an overflow to the high bit of a byte if
-		// any of the low bits were initialy set. Next the high
+		// any of the low bits were initially set. Next the high
 		// bits of the original word are ORed with these values;
 		// thus, the high bit of a byte is set iff any bit in the
 		// byte was set. Finally, we determine if any of these high

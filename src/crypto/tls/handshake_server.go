@@ -241,7 +241,7 @@ func (hs *serverHandshakeState) processClientHello() error {
 	hs.ecdheOk = supportsECDHE(c.config, hs.clientHello.supportedCurves, hs.clientHello.supportedPoints)
 
 	if hs.ecdheOk {
-		// Although omiting the ec_point_formats extension is permitted, some
+		// Although omitting the ec_point_formats extension is permitted, some
 		// old OpenSSL version will refuse to handshake if not present.
 		//
 		// Per RFC 4492, section 5.1.2, implementations MUST support the

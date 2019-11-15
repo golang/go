@@ -886,7 +886,7 @@ func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
 		//    u = q̂ (v - v_l) + rh << s + u_l
 		// After the above step, u contains a remainder:
 		//    u = rh << s + u_l
-		// and we need to substract q̂ v_l
+		// and we need to subtract q̂ v_l
 		//
 		// But it may be a bit too large, in which case q̂ needs to be smaller.
 		qhatv := tmp.make(3 * n)
