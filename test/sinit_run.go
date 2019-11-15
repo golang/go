@@ -17,18 +17,15 @@ import (
 )
 
 func main() {
-	cmd := exec.Command("go", "tool", "compile", "-o", os.DevNull, "-S", "sinit.go")
+	cmd := exec.Command("go", "tool", "compile", "-S", "sinit.go")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Println(string(out))
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	os.Remove("sinit.o")
 
-	if len(bytes.TrimSpace(out)) == 0 {
-		fmt.Println("'go tool compile -S sinit.go' printed no output")
-		os.Exit(1)
-	}
 	if bytes.Contains(out, []byte("initdone")) {
 		fmt.Println("sinit generated an init function")
 		os.Exit(1)
