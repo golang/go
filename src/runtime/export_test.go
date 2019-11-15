@@ -734,6 +734,16 @@ func (p *PageAlloc) Scavenge(nbytes uintptr, locked bool) (r uintptr) {
 	})
 	return
 }
+func (p *PageAlloc) InUse() []AddrRange {
+	ranges := make([]AddrRange, 0, len(p.inUse.ranges))
+	for _, r := range p.inUse.ranges {
+		ranges = append(ranges, AddrRange{
+			Base:  r.base,
+			Limit: r.limit,
+		})
+	}
+	return ranges
+}
 
 // Returns nil if the PallocData's L2 is missing.
 func (p *PageAlloc) PallocData(i ChunkIdx) *PallocData {
@@ -743,6 +753,12 @@ func (p *PageAlloc) PallocData(i ChunkIdx) *PallocData {
 		return nil
 	}
 	return (*PallocData)(&l2[ci.l2()])
+}
+
+// AddrRange represents a range over addresses.
+// Specifically, it represents the range [Base, Limit).
+type AddrRange struct {
+	Base, Limit uintptr
 }
 
 // BitRange represents a range over a bitmap.

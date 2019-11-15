@@ -245,6 +245,19 @@ type pageAlloc struct {
 	// currently ready to use.
 	start, end chunkIdx
 
+	// inUse is a slice of ranges of address space which are
+	// known by the page allocator to be currently in-use (passed
+	// to grow).
+	//
+	// This field is currently unused on 32-bit architectures but
+	// is harmless to track. We care much more about having a
+	// contiguous heap in these cases and take additional measures
+	// to ensure that, so in nearly all cases this should have just
+	// 1 element.
+	//
+	// All access is protected by the mheapLock.
+	inUse addrRanges
+
 	// mheap_.lock. This level of indirection makes it possible
 	// to test pageAlloc indepedently of the runtime allocator.
 	mheapLock *mutex
@@ -267,6 +280,9 @@ func (s *pageAlloc) init(mheapLock *mutex, sysStat *uint64) {
 		throw("root level max pages doesn't fit in summary")
 	}
 	s.sysStat = sysStat
+
+	// Initialize s.inUse.
+	s.inUse.init(sysStat)
 
 	// System-dependent initialization.
 	s.sysInit()
@@ -381,6 +397,10 @@ func (s *pageAlloc) grow(base, size uintptr) {
 	if end > s.end {
 		s.end = end
 	}
+	// Note that [base, limit) will never overlap with any existing
+	// range inUse because grow only ever adds never-used memory
+	// regions to the page allocator.
+	s.inUse.add(addrRange{base, limit})
 
 	// A grow operation is a lot like a free operation, so if our
 	// chunk ends up below the (linearized) s.searchAddr, update
