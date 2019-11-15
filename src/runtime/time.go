@@ -1011,6 +1011,8 @@ func nobarrierWakeTime(pp *p) int64 {
 // Returns 0 if it ran a timer, -1 if there are no more timers, or the time
 // when the first timer should run.
 // The caller must have locked the timers for pp.
+// If a timer is run, this will temporarily unlock the timers.
+//go:systemstack
 func runtimer(pp *p, now int64) int64 {
 	for {
 		t := pp.timers[0]
@@ -1027,6 +1029,8 @@ func runtimer(pp *p, now int64) int64 {
 			if !atomic.Cas(&t.status, s, timerRunning) {
 				continue
 			}
+			// Note that runOneTimer may temporarily unlock
+			// pp.timersLock.
 			runOneTimer(pp, t, now)
 			return 0
 
@@ -1081,6 +1085,8 @@ func runtimer(pp *p, now int64) int64 {
 
 // runOneTimer runs a single timer.
 // The caller must have locked the timers for pp.
+// This will temporarily unlock the timers while running the timer function.
+//go:systemstack
 func runOneTimer(pp *p, t *timer, now int64) {
 	if raceenabled {
 		if pp.timerRaceCtx == 0 {
@@ -1122,10 +1128,11 @@ func runOneTimer(pp *p, t *timer, now int64) {
 		gp.racectx = pp.timerRaceCtx
 	}
 
-	// Note that since timers are locked here, f may not call
-	// addtimer or resettimer.
+	unlock(&pp.timersLock)
 
 	f(arg, seq)
+
+	lock(&pp.timersLock)
 
 	if raceenabled {
 		gp := getg()
