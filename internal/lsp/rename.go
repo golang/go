@@ -14,7 +14,10 @@ import (
 
 func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*protocol.WorkspaceEdit, error) {
 	uri := span.NewURI(params.TextDocument.URI)
-	view := s.session.ViewOf(uri)
+	view, err := s.session.ViewOf(uri)
+	if err != nil {
+		return nil, err
+	}
 	f, err := view.GetFile(ctx, uri)
 	if err != nil {
 		return nil, err
@@ -43,7 +46,10 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 
 func (s *Server) prepareRename(ctx context.Context, params *protocol.PrepareRenameParams) (*protocol.Range, error) {
 	uri := span.NewURI(params.TextDocument.URI)
-	view := s.session.ViewOf(uri)
+	view, err := s.session.ViewOf(uri)
+	if err != nil {
+		return nil, err
+	}
 	f, err := view.GetFile(ctx, uri)
 	if err != nil {
 		return nil, err

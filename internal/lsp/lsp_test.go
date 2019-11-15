@@ -98,13 +98,16 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnosti
 
 func (r *runner) FoldingRanges(t *testing.T, spn span.Span) {
 	uri := spn.URI()
-	view := r.server.session.ViewOf(uri)
+	view, err := r.server.session.ViewOf(uri)
+	if err != nil {
+		t.Fatal(err)
+	}
 	original := view.Options()
 	modified := original
 
 	// Test all folding ranges.
 	modified.LineFoldingOnly = false
-	view, err := view.SetOptions(r.ctx, modified)
+	view, err = view.SetOptions(r.ctx, modified)
 	if err != nil {
 		t.Error(err)
 		return
@@ -326,7 +329,10 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 	uri := spn.URI()
 	filename := uri.Filename()
-	view := r.server.session.ViewOf(uri)
+	view, err := r.server.session.ViewOf(uri)
+	if err != nil {
+		t.Fatal(err)
+	}
 	f, err := view.GetFile(r.ctx, uri)
 	if err != nil {
 		t.Fatal(err)

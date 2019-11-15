@@ -29,7 +29,10 @@ func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocume
 	// Open the file.
 	s.session.DidOpen(ctx, uri, fileKind, version, text)
 
-	view := s.session.ViewOf(uri)
+	view, err := s.session.ViewOf(uri)
+	if err != nil {
+		return err
+	}
 
 	// Run diagnostics on the newly-changed file.
 	go s.diagnostics(view, uri)
@@ -64,7 +67,10 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 		}
 	}
 	// Cache the new file content and send fresh diagnostics.
-	view := s.session.ViewOf(uri)
+	view, err := s.session.ViewOf(uri)
+	if err != nil {
+		return err
+	}
 	wasFirstChange, err := view.SetContent(ctx, uri, params.TextDocument.Version, []byte(text))
 	if err != nil {
 		return err
@@ -139,7 +145,10 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 	uri := span.NewURI(params.TextDocument.URI)
 	ctx = telemetry.URI.With(ctx, uri)
 	s.session.DidClose(uri)
-	view := s.session.ViewOf(uri)
+	view, err := s.session.ViewOf(uri)
+	if err != nil {
+		return err
+	}
 	if _, err := view.SetContent(ctx, uri, -1, nil); err != nil {
 		return err
 	}

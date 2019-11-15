@@ -120,12 +120,15 @@ func expected(t *testing.T, test tests.Completion, items tests.CompletionItems) 
 func (r *runner) callCompletion(t *testing.T, src span.Span, options source.CompletionOptions) []protocol.CompletionItem {
 	t.Helper()
 
-	view := r.server.session.ViewOf(src.URI())
+	view, err := r.server.session.ViewOf(src.URI())
+	if err != nil {
+		t.Fatal(err)
+	}
 	original := view.Options()
 	modified := original
 	modified.InsertTextFormat = protocol.SnippetTextFormat
 	modified.Completion = options
-	view, err := view.SetOptions(r.ctx, modified)
+	view, err = view.SetOptions(r.ctx, modified)
 	if err != nil {
 		t.Error(err)
 		return nil

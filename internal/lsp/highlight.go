@@ -16,7 +16,10 @@ import (
 
 func (s *Server) documentHighlight(ctx context.Context, params *protocol.DocumentHighlightParams) ([]protocol.DocumentHighlight, error) {
 	uri := span.NewURI(params.TextDocument.URI)
-	view := s.session.ViewOf(uri)
+	view, err := s.session.ViewOf(uri)
+	if err != nil {
+		return nil, err
+	}
 	rngs, err := source.Highlight(ctx, view, uri, params.Position)
 	if err != nil {
 		log.Error(ctx, "no highlight", err, telemetry.URI.Of(uri))

@@ -165,7 +165,7 @@ type Session interface {
 	View(name string) View
 
 	// ViewOf returns a view corresponding to the given URI.
-	ViewOf(uri span.URI) View
+	ViewOf(uri span.URI) (View, error)
 
 	// Views returns the set of active views built by this session.
 	Views() []View

@@ -166,10 +166,22 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	debug.PrintVersionInfo(buf, true, debug.PlainText)
 	log.Print(ctx, buf.String())
 
+	viewErrors := make(map[span.URI]error)
 	for _, folder := range s.pendingFolders {
+		uri := span.NewURI(folder.URI)
 		if _, err := s.addView(ctx, folder.Name, span.NewURI(folder.URI)); err != nil {
-			return err
+			viewErrors[uri] = err
 		}
+	}
+	if len(viewErrors) > 0 {
+		errMsg := fmt.Sprintf("Error loading workspace folders (expected %v, got %v)\n", len(s.pendingFolders), len(s.session.Views()))
+		for uri, err := range viewErrors {
+			errMsg += fmt.Sprintf("failed to load view for %s: %v\n", uri, err)
+		}
+		s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+			Type:    protocol.Error,
+			Message: errMsg,
+		})
 	}
 	s.pendingFolders = nil
 

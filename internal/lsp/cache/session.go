@@ -169,18 +169,21 @@ func (s *session) View(name string) source.View {
 
 // ViewOf returns a view corresponding to the given URI.
 // If the file is not already associated with a view, pick one using some heuristics.
-func (s *session) ViewOf(uri span.URI) source.View {
+func (s *session) ViewOf(uri span.URI) (source.View, error) {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 
 	// Check if we already know this file.
 	if v, found := s.viewMap[uri]; found {
-		return v
+		return v, nil
 	}
 	// Pick the best view for this file and memoize the result.
-	v := s.bestView(uri)
+	v, err := s.bestView(uri)
+	if err != nil {
+		return nil, err
+	}
 	s.viewMap[uri] = v
-	return v
+	return v, nil
 }
 
 func (s *session) viewsOf(uri span.URI) []*view {
@@ -208,7 +211,10 @@ func (s *session) Views() []source.View {
 
 // bestView finds the best view to associate a given URI with.
 // viewMu must be held when calling this method.
-func (s *session) bestView(uri span.URI) source.View {
+func (s *session) bestView(uri span.URI) (source.View, error) {
+	if len(s.views) == 0 {
+		return nil, errors.Errorf("no views in the session")
+	}
 	// we need to find the best view for this file
 	var longest source.View
 	for _, view := range s.views {
@@ -220,10 +226,10 @@ func (s *session) bestView(uri span.URI) source.View {
 		}
 	}
 	if longest != nil {
-		return longest
+		return longest, nil
 	}
 	// TODO: are there any more heuristics we can use?
-	return s.views[0]
+	return s.views[0], nil
 }
 
 func (s *session) removeView(ctx context.Context, view *view) error {
@@ -291,7 +297,10 @@ func (s *session) DidOpen(ctx context.Context, uri span.URI, kind source.FileKin
 	}
 
 	// Make sure that the file gets added to the session's file watch map.
-	view := s.bestView(uri)
+	view, err := s.bestView(uri)
+	if err != nil {
+		return err
+	}
 	if _, err := view.GetFile(ctx, uri); err != nil {
 		return err
 	}
