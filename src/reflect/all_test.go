@@ -3379,6 +3379,9 @@ type MyRunes []int32
 type MyFunc func()
 type MyByte byte
 
+type IntChan chan int
+type IntChanRecv <-chan int
+type IntChanSend chan<- int
 type BytesChan chan []byte
 type BytesChanRecv <-chan []byte
 type BytesChanSend chan<- []byte
@@ -3730,9 +3733,6 @@ var convertTests = []struct {
 	{V((**MyByte)(nil)), V((**MyByte)(nil))},
 	{V((chan byte)(nil)), V((chan byte)(nil))},
 	{V((chan MyByte)(nil)), V((chan MyByte)(nil))},
-	{V(BytesChan(nil)), V(BytesChan(nil))},
-	{V(BytesChanRecv(nil)), V(BytesChanRecv(nil))},
-	{V(BytesChanSend(nil)), V(BytesChanSend(nil))},
 	{V(([]byte)(nil)), V(([]byte)(nil))},
 	{V(([]MyByte)(nil)), V(([]MyByte)(nil))},
 	{V((map[int]byte)(nil)), V((map[int]byte)(nil))},
@@ -3758,7 +3758,19 @@ var convertTests = []struct {
 	{V(new(io.Reader)), V(new(io.Reader))},
 	{V(new(io.Writer)), V(new(io.Writer))},
 
-	// channel
+	// channels
+	{V(IntChan(nil)), V((chan<- int)(nil))},
+	{V(IntChan(nil)), V((<-chan int)(nil))},
+	{V((chan int)(nil)), V(IntChanRecv(nil))},
+	{V((chan int)(nil)), V(IntChanSend(nil))},
+	{V(IntChanRecv(nil)), V((<-chan int)(nil))},
+	{V((<-chan int)(nil)), V(IntChanRecv(nil))},
+	{V(IntChanSend(nil)), V((chan<- int)(nil))},
+	{V((chan<- int)(nil)), V(IntChanSend(nil))},
+	{V(IntChan(nil)), V((chan int)(nil))},
+	{V((chan int)(nil)), V(IntChan(nil))},
+	{V((chan int)(nil)), V((<-chan int)(nil))},
+	{V((chan int)(nil)), V((chan<- int)(nil))},
 	{V(BytesChan(nil)), V((chan<- []byte)(nil))},
 	{V(BytesChan(nil)), V((<-chan []byte)(nil))},
 	{V((chan []byte)(nil)), V(BytesChanRecv(nil))},
@@ -3771,6 +3783,14 @@ var convertTests = []struct {
 	{V((chan []byte)(nil)), V(BytesChan(nil))},
 	{V((chan []byte)(nil)), V((<-chan []byte)(nil))},
 	{V((chan []byte)(nil)), V((chan<- []byte)(nil))},
+
+	// cannot convert other instances (channels)
+	{V(IntChan(nil)), V(IntChan(nil))},
+	{V(IntChanRecv(nil)), V(IntChanRecv(nil))},
+	{V(IntChanSend(nil)), V(IntChanSend(nil))},
+	{V(BytesChan(nil)), V(BytesChan(nil))},
+	{V(BytesChanRecv(nil)), V(BytesChanRecv(nil))},
+	{V(BytesChanSend(nil)), V(BytesChanSend(nil))},
 
 	// interfaces
 	{V(int(1)), EmptyInterfaceV(int(1))},
