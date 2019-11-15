@@ -148,7 +148,7 @@
 // 		build code that will be linked against shared libraries previously
 // 		created with -buildmode=shared.
 // 	-mod mode
-// 		module download mode to use: readonly or vendor.
+// 		module download mode to use: readonly, vendor, or mod.
 // 		See 'go help modules' for more.
 // 	-modcacherw
 // 		leave newly-created directories in the module cache read-write
@@ -2494,6 +2494,9 @@
 // If invoked with -mod=vendor, the go command assumes that the vendor
 // directory holds the correct copies of dependencies and ignores
 // the dependency descriptions in go.mod.
+//
+// If invoked with -mod=mod, the go command loads modules from the module cache
+// even if there is a vendor directory present.
 //
 // Pseudo-versions
 //
