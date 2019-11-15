@@ -101,7 +101,7 @@ func typecheckrangeExpr(n *Node) {
 		v2 = n.List.Second()
 	}
 
-	// this is not only a optimization but also a requirement in the spec.
+	// this is not only an optimization but also a requirement in the spec.
 	// "if the second iteration variable is the blank identifier, the range
 	// clause is equivalent to the same clause with only the first variable
 	// present."

@@ -1133,7 +1133,7 @@ func writelines(ctxt *Link, unit *sym.CompilationUnit, ls *sym.Symbol) {
 		lastAddr = addr
 
 		// Output the line table.
-		// TODO: Now that we have all the debug information in seperate
+		// TODO: Now that we have all the debug information in separate
 		// symbols, it would make sense to use a rope, and concatenate them all
 		// together rather then the append() below. This would allow us to have
 		// the compiler emit the DW_LNE_set_address and a rope data structure
