@@ -1542,6 +1542,18 @@ func implements(T, V *rtype) bool {
 	return false
 }
 
+// specialChannelAssignability reports whether a value x of channel type V
+// can be directly assigned (using memmove) to another channel type T.
+// https://golang.org/doc/go_spec.html#Assignability
+// T and V must be both of Chan kind.
+func specialChannelAssignability(T, V *rtype) bool {
+	// Special case:
+	// x is a bidirectional channel value, T is a channel type,
+	// x's type V and T have identical element types,
+	// and at least one of V or T is not a defined type.
+	return V.ChanDir() == BothDir && (T.Name() == "" || V.Name() == "") && haveIdenticalType(T.Elem(), V.Elem(), true)
+}
+
 // directlyAssignable reports whether a value x of type V can be directly
 // assigned (using memmove) to a value of type T.
 // https://golang.org/doc/go_spec.html#Assignability
@@ -1559,7 +1571,11 @@ func directlyAssignable(T, V *rtype) bool {
 		return false
 	}
 
-	// x's type T and V must  have identical underlying types.
+	if T.Kind() == Chan && specialChannelAssignability(T, V) {
+		return true
+	}
+
+	// x's type T and V must have identical underlying types.
 	return haveIdenticalUnderlyingType(T, V, true)
 }
 
@@ -1597,14 +1613,6 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 		return T.Len() == V.Len() && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
 
 	case Chan:
-		// Special case:
-		// x is a bidirectional channel value, T is a channel type,
-		// and x's type V and T have identical element types.
-		if V.ChanDir() == BothDir && haveIdenticalType(T.Elem(), V.Elem(), cmpTags) {
-			return true
-		}
-
-		// Otherwise continue test for identical underlying type.
 		return V.ChanDir() == T.ChanDir() && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
 
 	case Func:
