@@ -18,9 +18,10 @@ import (
 	"unicode/utf8"
 )
 
-// An Example represents an example function found in a source files.
+// An Example represents an example function found in a test source file.
 type Example struct {
-	Name        string // name of the item being exemplified
+	Name        string // name of the item being exemplified (including optional suffix)
+	Suffix      string // example suffix, without leading '_' (only populated by NewFromFiles)
 	Doc         string // example function doc string
 	Code        ast.Node
 	Play        *ast.File // a whole program version of the example
@@ -31,8 +32,10 @@ type Example struct {
 	Order       int  // original source code order
 }
 
-// Examples returns the examples found in the files, sorted by Name field.
+// Examples returns the examples found in testFiles, sorted by Name field.
 // The Order fields record the order in which the examples were encountered.
+// The Suffix field is not populated when Examples is called directly, it is
+// only populated by NewFromFiles for examples it finds in _test.go files.
 //
 // Playable Examples must be in a package whose name ends in "_test".
 // An Example is "playable" (the Play field is non-nil) in either of these
@@ -44,9 +47,9 @@ type Example struct {
 //     example function, zero test or benchmark functions, and at least one
 //     top-level function, type, variable, or constant declaration other
 //     than the example function.
-func Examples(files ...*ast.File) []*Example {
+func Examples(testFiles ...*ast.File) []*Example {
 	var list []*Example
-	for _, file := range files {
+	for _, file := range testFiles {
 		hasTests := false // file contains tests or benchmarks
 		numDecl := 0      // number of non-import declarations in the file
 		var flist []*Example
@@ -440,4 +443,102 @@ func lastComment(b *ast.BlockStmt, c []*ast.CommentGroup) (i int, last *ast.Comm
 		i, last = j, cg
 	}
 	return
+}
+
+// classifyExamples classifies examples and assigns them to the Examples field
+// of the relevant Func, Type, or Package that the example is associated with.
+//
+// The classification process is ambiguous in some cases:
+//
+// 	- ExampleFoo_Bar matches a type named Foo_Bar
+// 	  or a method named Foo.Bar.
+// 	- ExampleFoo_bar matches a type named Foo_bar
+// 	  or Foo (with a "bar" suffix).
+//
+// Examples with malformed names are not associated with anything.
+//
+func classifyExamples(p *Package, examples []*Example) {
+	if len(examples) == 0 {
+		return
+	}
+
+	// Mapping of names for funcs, types, and methods to the example listing.
+	ids := make(map[string]*[]*Example)
+	ids[""] = &p.Examples // package-level examples have an empty name
+	for _, f := range p.Funcs {
+		if !token.IsExported(f.Name) {
+			continue
+		}
+		ids[f.Name] = &f.Examples
+	}
+	for _, t := range p.Types {
+		if !token.IsExported(t.Name) {
+			continue
+		}
+		ids[t.Name] = &t.Examples
+		for _, f := range t.Funcs {
+			if !token.IsExported(f.Name) {
+				continue
+			}
+			ids[f.Name] = &f.Examples
+		}
+		for _, m := range t.Methods {
+			if !token.IsExported(m.Name) || m.Level != 0 { // avoid forwarded methods from embedding
+				continue
+			}
+			ids[strings.TrimPrefix(m.Recv, "*")+"_"+m.Name] = &m.Examples
+		}
+	}
+
+	// Group each example with the associated func, type, or method.
+	for _, ex := range examples {
+		// Consider all possible split points for the suffix
+		// by starting at the end of string (no suffix case),
+		// then trying all positions that contain a '_' character.
+		//
+		// An association is made on the first successful match.
+		// Examples with malformed names that match nothing are skipped.
+		for i := len(ex.Name); i >= 0; i = strings.LastIndexByte(ex.Name[:i], '_') {
+			prefix, suffix, ok := splitExampleName(ex.Name, i)
+			if !ok {
+				continue
+			}
+			exs, ok := ids[prefix]
+			if !ok {
+				continue
+			}
+			ex.Suffix = suffix
+			*exs = append(*exs, ex)
+			break
+		}
+	}
+
+	// Sort list of example according to the user-specified suffix name.
+	for _, exs := range ids {
+		sort.Slice((*exs), func(i, j int) bool {
+			return (*exs)[i].Suffix < (*exs)[j].Suffix
+		})
+	}
+}
+
+// splitExampleName attempts to split example name s at index i,
+// and reports if that produces a valid split. The suffix may be
+// absent. Otherwise, it must start with a lower-case letter and
+// be preceded by '_'.
+//
+// One of i == len(s) or s[i] == '_' must be true.
+func splitExampleName(s string, i int) (prefix, suffix string, ok bool) {
+	if i == len(s) {
+		return s, "", true
+	}
+	if i == len(s)-1 {
+		return "", "", false
+	}
+	prefix, suffix = s[:i], s[i+1:]
+	return prefix, suffix, isExampleSuffix(suffix)
+}
+
+func isExampleSuffix(s string) bool {
+	r, size := utf8.DecodeRuneInString(s)
+	return size > 0 && unicode.IsLower(r)
 }

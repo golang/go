@@ -1419,7 +1419,7 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool) {
 // unscav and adds it into scav before continuing.
 func (h *mheap) scavengeAll() {
 	// Disallow malloc or panic while holding the heap lock. We do
-	// this here because this is an non-mallocgc entry-point to
+	// this here because this is a non-mallocgc entry-point to
 	// the mheap API.
 	gp := getg()
 	gp.m.mallocing++

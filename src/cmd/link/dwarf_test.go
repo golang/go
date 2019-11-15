@@ -168,6 +168,9 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 func TestDWARF(t *testing.T) {
 	testDWARF(t, "", true)
 	if !testing.Short() {
+		if runtime.GOOS == "windows" {
+			t.Skip("skipping Windows/c-archive; see Issue 35512 for more.")
+		}
 		t.Run("c-archive", func(t *testing.T) {
 			testDWARF(t, "c-archive", true)
 		})

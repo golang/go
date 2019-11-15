@@ -1,11 +1,11 @@
-# golang.org/x/crypto v0.0.0-20190611184440-5c40567a22f8
+# golang.org/x/crypto v0.0.0-20191111213947-16651526fdb4
 ## explicit
+golang.org/x/crypto/chacha20
 golang.org/x/crypto/chacha20poly1305
 golang.org/x/crypto/cryptobyte
 golang.org/x/crypto/cryptobyte/asn1
 golang.org/x/crypto/curve25519
 golang.org/x/crypto/hkdf
-golang.org/x/crypto/internal/chacha20
 golang.org/x/crypto/internal/subtle
 golang.org/x/crypto/poly1305
 # golang.org/x/net v0.0.0-20191105084925-a882066a44e0

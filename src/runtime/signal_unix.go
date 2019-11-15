@@ -861,11 +861,22 @@ func signalDuringFork(sig uint32) {
 	throw("signal received during fork")
 }
 
+var badginsignalMsg = "fatal: bad g in signal handler\n"
+
 // This runs on a foreign stack, without an m or a g. No stack split.
 //go:nosplit
 //go:norace
 //go:nowritebarrierrec
 func badsignal(sig uintptr, c *sigctxt) {
+	if !iscgo && !cgoHasExtraM {
+		// There is no extra M. needm will not be able to grab
+		// an M. Instead of hanging, just crash.
+		// Cannot call split-stack function as there is no G.
+		s := stringStructOf(&badginsignalMsg)
+		write(2, s.str, int32(s.len))
+		exit(2)
+		*(*uintptr)(unsafe.Pointer(uintptr(123))) = 2
+	}
 	needm(0)
 	if !sigsend(uint32(sig)) {
 		// A foreign thread received the signal sig, and the

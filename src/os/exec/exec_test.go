@@ -30,6 +30,45 @@ import (
 	"time"
 )
 
+// haveUnexpectedFDs is set at init time to report whether any
+// file descriptors were open at program start.
+var haveUnexpectedFDs bool
+
+// unfinalizedFiles holds files that should not be finalized,
+// because that would close the associated file descriptor,
+// which we don't want to do.
+var unfinalizedFiles []*os.File
+
+func init() {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		return
+	}
+	if runtime.GOOS == "windows" {
+		return
+	}
+	for fd := uintptr(3); fd <= 100; fd++ {
+		if poll.IsPollDescriptor(fd) {
+			continue
+		}
+		// We have no good portable way to check whether an FD is open.
+		// We use NewFile to create a *os.File, which lets us
+		// know whether it is open, but then we have to cope with
+		// the finalizer on the *os.File.
+		f := os.NewFile(fd, "")
+		if _, err := f.Stat(); err != nil {
+			// Close the file to clear the finalizer.
+			// We expect the Close to fail.
+			f.Close()
+		} else {
+			fmt.Printf("fd %d open at test start\n", fd)
+			haveUnexpectedFDs = true
+			// Use a global variable to avoid running
+			// the finalizer, which would close the FD.
+			unfinalizedFiles = append(unfinalizedFiles, f)
+		}
+	}
+}
+
 func helperCommandContext(t *testing.T, ctx context.Context, s ...string) (cmd *exec.Cmd) {
 	testenv.MustHaveExec(t)
 
@@ -449,8 +488,6 @@ func numOpenFDsAndroid(t *testing.T) (n int, lsof []byte) {
 	return bytes.Count(lsof, []byte("\n")), lsof
 }
 
-var testedAlreadyLeaked = false
-
 // basefds returns the number of expected file descriptors
 // to be present in a process at start.
 // stdin, stdout, stderr, epoll/kqueue, epoll/kqueue pipe, maybe testlog
@@ -470,29 +507,9 @@ func basefds() uintptr {
 	return n
 }
 
-func closeUnexpectedFds(t *testing.T, m string) {
-	for fd := basefds(); fd <= 101; fd++ {
-		if poll.IsPollDescriptor(fd) {
-			continue
-		}
-		err := os.NewFile(fd, "").Close()
-		if err == nil {
-			t.Logf("%s: Something already leaked - closed fd %d", m, fd)
-		}
-	}
-}
-
 func TestExtraFilesFDShuffle(t *testing.T) {
 	t.Skip("flaky test; see https://golang.org/issue/5780")
 	switch runtime.GOOS {
-	case "darwin":
-		// TODO(cnicolaou): https://golang.org/issue/2603
-		// leads to leaked file descriptors in this test when it's
-		// run from a builder.
-		closeUnexpectedFds(t, "TestExtraFilesFDShuffle")
-	case "netbsd":
-		// https://golang.org/issue/3955
-		closeUnexpectedFds(t, "TestExtraFilesFDShuffle")
 	case "windows":
 		t.Skip("no operating system support; skipping")
 	}
@@ -587,17 +604,27 @@ func TestExtraFilesFDShuffle(t *testing.T) {
 }
 
 func TestExtraFiles(t *testing.T) {
+	if haveUnexpectedFDs {
+		// The point of this test is to make sure that any
+		// descriptors we open are marked close-on-exec.
+		// If haveUnexpectedFDs is true then there were other
+		// descriptors open when we started the test,
+		// so those descriptors are clearly not close-on-exec,
+		// and they will confuse the test. We could modify
+		// the test to expect those descriptors to remain open,
+		// but since we don't know where they came from or what
+		// they are doing, that seems fragile. For example,
+		// perhaps they are from the startup code on this
+		// system for some reason. Also, this test is not
+		// system-specific; as long as most systems do not skip
+		// the test, we will still be testing what we care about.
+		t.Skip("skipping test because test was run with FDs open")
+	}
+
 	testenv.MustHaveExec(t)
 
 	if runtime.GOOS == "windows" {
 		t.Skipf("skipping test on %q", runtime.GOOS)
-	}
-
-	// Ensure that file descriptors have not already been leaked into
-	// our environment.
-	if !testedAlreadyLeaked {
-		testedAlreadyLeaked = true
-		closeUnexpectedFds(t, "TestExtraFiles")
 	}
 
 	// Force network usage, to verify the epoll (or whatever) fd

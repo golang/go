@@ -1436,17 +1436,6 @@ func TestRelativeImportsInCommandLinePackage(t *testing.T) {
 	tg.run(append([]string{"test"}, files...)...)
 }
 
-func TestNonCanonicalImportPaths(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.runFail("build", "canonical/d")
-	tg.grepStderr("package canonical/d", "did not report canonical/d")
-	tg.grepStderr("imports canonical/b", "did not report canonical/b")
-	tg.grepStderr("imports canonical/a/: non-canonical", "did not report canonical/a/")
-}
-
 func TestVersionControlErrorMessageIncludesCorrectDirectory(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -5225,38 +5214,6 @@ func TestCacheCoverage(t *testing.T) {
 	tg.run("test", "-cover", "-short", "math", "strings")
 }
 
-func TestCacheVet(t *testing.T) {
-	skipIfGccgo(t, "gccgo has no standard packages")
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-
-	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
-		t.Skip("GODEBUG gocacheverify")
-	}
-	if testing.Short() {
-		// In short mode, reuse cache.
-		// Test failures may be masked if the cache has just the right entries already
-		// (not a concern during all.bash, which runs in a clean cache).
-		if cfg.Getenv("GOCACHE") == "off" {
-			tooSlow(t)
-		}
-	} else {
-		tg.makeTempdir()
-		tg.setenv("GOCACHE", tg.path("cache"))
-	}
-
-	// Check that second vet reuses cgo-derived inputs.
-	// The first command could be build instead of vet,
-	// except that if the cache is empty and there's a net.a
-	// in GOROOT/pkg, the build will not bother to regenerate
-	// and cache the cgo outputs, whereas vet always will.
-	tg.run("vet", "os/user")
-	tg.run("vet", "-x", "os/user")
-	tg.grepStderrNot(`^(clang|gcc)`, "should not have run compiler")
-	tg.grepStderrNot(`[\\/]cgo `, "should not have run cgo")
-}
-
 func TestIssue22588(t *testing.T) {
 	// Don't get confused by stderr coming from tools.
 	tg := testgo(t)
@@ -5702,14 +5659,6 @@ func TestInstallDeps(t *testing.T) {
 
 	tg.run("install", "-i", "p2")
 	tg.mustExist(p1)
-}
-
-func TestFmtLoadErrors(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.runFail("fmt", "does-not-exist")
-	tg.run("fmt", "-n", "exclude")
 }
 
 func TestGoTestMinusN(t *testing.T) {

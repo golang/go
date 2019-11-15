@@ -629,6 +629,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q1.To.Reg = REGSP
 				q1.Spadj = c.autosize
 
+				if c.ctxt.Headtype == objabi.Hdarwin {
+					// iOS does not support SA_ONSTACK. We will run the signal handler
+					// on the G stack. If we write below SP, it may be clobbered by
+					// the signal handler. So we save LR after decrementing SP.
+					q1 = obj.Appendp(q1, c.newprog)
+					q1.Pos = p.Pos
+					q1.As = AMOVD
+					q1.From.Type = obj.TYPE_REG
+					q1.From.Reg = REGLINK
+					q1.To.Type = obj.TYPE_MEM
+					q1.To.Reg = REGSP
+				}
+
 				q1 = c.ctxt.EndUnsafePoint(q1, c.newprog, -1)
 			} else {
 				// small frame, update SP and save LR in a single MOVD.W instruction

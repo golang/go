@@ -1226,8 +1226,17 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
 
 // explainPath prints an explanation of how src flows to the walk root.
 func (e *Escape) explainPath(root, src *EscLocation) {
+	visited := make(map[*EscLocation]bool)
+
 	pos := linestr(src.n.Pos)
 	for {
+		// Prevent infinite loop.
+		if visited[src] {
+			fmt.Printf("%s:   warning: truncated explanation due to assignment cycle; see golang.org/issue/35518\n", pos)
+			break
+		}
+		visited[src] = true
+
 		dst := src.dst
 		edge := &dst.edges[src.dstEdgeIdx]
 		if edge.src != src {

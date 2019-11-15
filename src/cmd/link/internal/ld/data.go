@@ -157,8 +157,8 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 		if r.Sym != nil && ((r.Sym.Type == sym.Sxxx && !r.Sym.Attr.VisibilityHidden()) || r.Sym.Type == sym.SXREF) {
 			// When putting the runtime but not main into a shared library
 			// these symbols are undefined and that's OK.
-			if ctxt.BuildMode == BuildModeShared {
-				if r.Sym.Name == "main.main" || r.Sym.Name == "main..inittask" {
+			if ctxt.BuildMode == BuildModeShared || ctxt.BuildMode == BuildModePlugin {
+				if r.Sym.Name == "main.main" || (ctxt.BuildMode != BuildModePlugin && r.Sym.Name == "main..inittask") {
 					r.Sym.Type = sym.SDYNIMPORT
 				} else if strings.HasPrefix(r.Sym.Name, "go.info.") {
 					// Skip go.info symbols. They are only needed to communicate

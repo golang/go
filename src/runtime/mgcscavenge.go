@@ -408,13 +408,20 @@ func (s *pageAlloc) scavengeOne(max uintptr, locked bool) uintptr {
 	// Check the chunk containing the scav addr, starting at the addr
 	// and see if there are any free and unscavenged pages.
 	ci := chunkIndex(s.scavAddr)
-	base, npages := s.chunks[ci].findScavengeCandidate(chunkPageIndex(s.scavAddr), minPages, maxPages)
+	if s.summary[len(s.summary)-1][ci].max() >= uint(minPages) {
+		// We only bother looking for a candidate if there at least
+		// minPages free pages at all. It's important that we only
+		// continue if the summary says we can because that's how
+		// we can tell if parts of the address space are unused.
+		// See the comment on s.chunks in mpagealloc.go.
+		base, npages := s.chunks[ci].findScavengeCandidate(chunkPageIndex(s.scavAddr), minPages, maxPages)
 
-	// If we found something, scavenge it and return!
-	if npages != 0 {
-		s.scavengeRangeLocked(ci, base, npages)
-		unlockHeap()
-		return uintptr(npages) * pageSize
+		// If we found something, scavenge it and return!
+		if npages != 0 {
+			s.scavengeRangeLocked(ci, base, npages)
+			unlockHeap()
+			return uintptr(npages) * pageSize
+		}
 	}
 	unlockHeap()
 
@@ -514,7 +521,7 @@ func fillAligned(x uint64, m uint) uint64 {
 		// "[It] works by first zeroing the high bits of the [8]
 		// bytes in the word. Subsequently, it adds a number that
 		// will result in an overflow to the high bit of a byte if
-		// any of the low bits were initialy set. Next the high
+		// any of the low bits were initially set. Next the high
 		// bits of the original word are ORed with these values;
 		// thus, the high bit of a byte is set iff any bit in the
 		// byte was set. Finally, we determine if any of these high
@@ -602,9 +609,10 @@ func (m *pallocData) hasScavengeCandidate(min uintptr) bool {
 // findScavengeCandidate effectively returns entire free and unscavenged regions.
 // If max < pallocChunkPages, it may truncate the returned region such that size is
 // max. However, findScavengeCandidate may still return a larger region if, for
-// example, it chooses to preserve huge pages. That is, even if max is small,
-// size is not guaranteed to be equal to max. max is allowed to be less than min,
-// in which case it is as if max == min.
+// example, it chooses to preserve huge pages, or if max is not aligned to min (it
+// will round up). That is, even if max is small, the returned size is not guaranteed
+// to be equal to max. max is allowed to be less than min, in which case it is as if
+// max == min.
 func (m *pallocData) findScavengeCandidate(searchIdx uint, min, max uintptr) (uint, uint) {
 	if min&(min-1) != 0 || min == 0 {
 		print("runtime: min = ", min, "\n")
@@ -613,10 +621,15 @@ func (m *pallocData) findScavengeCandidate(searchIdx uint, min, max uintptr) (ui
 		print("runtime: min = ", min, "\n")
 		throw("min too large")
 	}
-	// max is allowed to be less than min, but we need to ensure
-	// we never truncate further than min.
-	if max < min {
+	// max may not be min-aligned, so we might accidentally truncate to
+	// a max value which causes us to return a non-min-aligned value.
+	// To prevent this, align max up to a multiple of min (which is always
+	// a power of 2). This also prevents max from ever being less than
+	// min, unless it's zero, so handle that explicitly.
+	if max == 0 {
 		max = min
+	} else {
+		max = alignUp(max, min)
 	}
 
 	i := int(searchIdx / 64)

@@ -429,7 +429,7 @@ func (ctxt *Link) loadlib() {
 	// We now have enough information to determine the link mode.
 	determineLinkMode(ctxt)
 
-	if ctxt.LinkMode == LinkExternal && !iscgo && ctxt.LibraryByPkg["runtime/cgo"] == nil && !(objabi.GOOS == "darwin" && (ctxt.Arch.Family == sys.AMD64 || ctxt.Arch.Family == sys.I386)) {
+	if ctxt.LinkMode == LinkExternal && !iscgo && ctxt.LibraryByPkg["runtime/cgo"] == nil && !(objabi.GOOS == "darwin" && ctxt.BuildMode != BuildModePlugin && (ctxt.Arch.Family == sys.AMD64 || ctxt.Arch.Family == sys.I386)) {
 		// This indicates a user requested -linkmode=external.
 		// The startup code uses an import of runtime/cgo to decide
 		// whether to initialize the TLS.  So give it one. This could
@@ -1294,7 +1294,7 @@ func (ctxt *Link) hostlink() {
 		// from the beginning of the section (like sym.STYPE).
 		argv = append(argv, "-Wl,-znocopyreloc")
 
-		if ctxt.Arch.InFamily(sys.ARM, sys.ARM64) && (objabi.GOOS == "linux" || objabi.GOOS == "android") {
+		if ctxt.Arch.InFamily(sys.ARM, sys.ARM64) && objabi.GOOS == "linux" {
 			// On ARM, the GNU linker will generate COPY relocations
 			// even with -znocopyreloc set.
 			// https://sourceware.org/bugzilla/show_bug.cgi?id=19962

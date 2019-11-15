@@ -106,6 +106,9 @@ func TestLogOpt(t *testing.T) {
 		// below shows proper inlining and nilcheck
 		want(t, slogged, `{"range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}},"severity":3,"code":"nilcheck","source":"go compiler","message":"","relatedInformation":[{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"}]}`)
 		want(t, slogged, `{"range":{"start":{"line":11,"character":6},"end":{"line":11,"character":6}},"severity":3,"code":"isInBounds","source":"go compiler","message":""}`)
+		want(t, slogged, `{"range":{"start":{"line":7,"character":6},"end":{"line":7,"character":6}},"severity":3,"code":"canInlineFunction","source":"go compiler","message":"cost: 35"}`)
+		want(t, slogged, `{"range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}},"severity":3,"code":"inlineCall","source":"go compiler","message":"x.bar"}`)
+		want(t, slogged, `{"range":{"start":{"line":8,"character":9},"end":{"line":8,"character":9}},"severity":3,"code":"inlineCall","source":"go compiler","message":"x.bar"}`)
 	})
 }
 

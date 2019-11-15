@@ -22,8 +22,14 @@ import "crypto/subtle"
 // TagSize is the size, in bytes, of a poly1305 authenticator.
 const TagSize = 16
 
-// Verify returns true if mac is a valid authenticator for m with the given
-// key.
+// Sum generates an authenticator for msg using a one-time key and puts the
+// 16-byte result into out. Authenticating two different messages with the same
+// key allows an attacker to forge messages at will.
+func Sum(out *[16]byte, m []byte, key *[32]byte) {
+	sum(out, m, key)
+}
+
+// Verify returns true if mac is a valid authenticator for m with the given key.
 func Verify(mac *[16]byte, m []byte, key *[32]byte) bool {
 	var tmp [16]byte
 	Sum(&tmp, m, key)

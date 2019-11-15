@@ -656,9 +656,16 @@ func TestSendMailWithAuth(t *testing.T) {
 		tc := textproto.NewConn(conn)
 		tc.PrintfLine("220 hello world")
 		msg, err := tc.ReadLine()
-		if msg == "EHLO localhost" {
-			tc.PrintfLine("250 mx.google.com at your service")
+		if err != nil {
+			errCh <- fmt.Errorf("ReadLine error: %v", err)
+			return
 		}
+		const wantMsg = "EHLO localhost"
+		if msg != wantMsg {
+			errCh <- fmt.Errorf("unexpected response %q; want %q", msg, wantMsg)
+			return
+		}
+		err = tc.PrintfLine("250 mx.google.com at your service")
 		if err != nil {
 			errCh <- fmt.Errorf("PrintfLine: %v", err)
 			return
