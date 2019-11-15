@@ -1449,7 +1449,25 @@ func (t *tester) makeGOROOTUnwritable() (undo func()) {
 		}
 	}
 
+	gocache := os.Getenv("GOCACHE")
+	if gocache == "" {
+		panic("GOCACHE not set")
+	}
+	gocacheSubdir, _ := filepath.Rel(dir, gocache)
+
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if suffix := strings.TrimPrefix(path, dir+string(filepath.Separator)); suffix != "" {
+			if suffix == gocacheSubdir {
+				// Leave GOCACHE writable: we may need to write test binaries into it.
+				return filepath.SkipDir
+			}
+			if suffix == ".git" {
+				// Leave Git metadata in whatever state it was in. It may contain a lot
+				// of files, and it is highly unlikely that a test will try to modify
+				// anything within that directory.
+				return filepath.SkipDir
+			}
+		}
 		if err == nil {
 			mode := info.Mode()
 			if mode&0222 != 0 && (mode.IsDir() || mode.IsRegular()) {
