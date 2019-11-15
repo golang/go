@@ -23,7 +23,8 @@ func main() {
 	err := os.Chdir(filepath.Join("fixedbugs", "issue9355.dir"))
 	check(err)
 
-	out := run("go", "tool", "compile", "-o", os.DevNull, "-S", "a.go")
+	out := run("go", "tool", "compile", "-S", "a.go")
+	os.Remove("a.o")
 
 	// 6g/8g print the offset as dec, but 5g/9g print the offset as hex.
 	patterns := []string{
