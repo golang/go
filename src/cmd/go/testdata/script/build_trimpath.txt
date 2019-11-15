@@ -41,12 +41,12 @@ stdout 'binary contains GOROOT: false'
 env GO111MODULE=off # The current released gccgo does not support builds in module mode.
 cd $GOPATH/src/a
 go build -compiler=gccgo -o $WORK/gccgo-paths-a.exe .
-exec $WORK/gccgo-paths-a.exe $WORK/gccgo-paths-b.exe
+exec $WORK/gccgo-paths-a.exe $WORK/gccgo-paths-a.exe
 stdout 'binary contains GOPATH: true'
-stdout 'binary contains GOROOT: true'
+stdout 'binary contains GOROOT: false' # gccgo doesn't load std from GOROOT.
 
 # A binary built with gccgo with -trimpath should not contain GOPATH or GOROOT.
-go build -compiler=gccgo -trimpath -o $WORK/gccgo-paths-a.exe .
+go build -compiler=gccgo -trimpath -o $WORK/gccgo-paths-b.exe .
 exec $WORK/gccgo-paths-a.exe $WORK/gccgo-paths-b.exe
 stdout 'binary contains GOPATH: false'
 stdout 'binary contains GOROOT: false'
