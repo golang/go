@@ -2632,7 +2632,7 @@ func TestRedirect(t *testing.T) {
 
 // Test that Redirect sets Content-Type header for GET and HEAD requests
 // and writes a short HTML body, unless the request already has a Content-Type header.
-func TestRedirect_contentTypeAndBody(t *testing.T) {
+func TestRedirectContentTypeAndBody(t *testing.T) {
 	type ctHeader struct {
 		Values []string
 	}
@@ -2911,7 +2911,7 @@ func TestStripPrefix(t *testing.T) {
 }
 
 // https://golang.org/issue/18952.
-func TestStripPrefix_notModifyRequest(t *testing.T) {
+func TestStripPrefixNotModifyRequest(t *testing.T) {
 	h := StripPrefix("/foo", NotFoundHandler())
 	req := httptest.NewRequest("GET", "/foo/bar", nil)
 	h.ServeHTTP(httptest.NewRecorder(), req)
