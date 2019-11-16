@@ -1016,13 +1016,15 @@ func minitSignals() {
 // stack to the gsignal stack. If the alternate signal stack is set
 // for the thread (the case when a non-Go thread sets the alternate
 // signal stack and then calls a Go function) then set the gsignal
-// stack to the alternate signal stack. Record which choice was made
-// in newSigstack, so that it can be undone in unminit.
+// stack to the alternate signal stack. We also set the alternate
+// signal stack to the gsignal stack if cgo is not used (regardless
+// of whether it is already set). Record which choice was made in
+// newSigstack, so that it can be undone in unminit.
 func minitSignalStack() {
 	_g_ := getg()
 	var st stackt
 	sigaltstack(nil, &st)
-	if st.ss_flags&_SS_DISABLE != 0 {
+	if st.ss_flags&_SS_DISABLE != 0 || !iscgo {
 		signalstack(&_g_.m.gsignal.stack)
 		_g_.m.newSigstack = true
 	} else {
