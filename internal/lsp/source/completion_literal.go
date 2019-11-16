@@ -21,13 +21,21 @@ import (
 // literal generates composite literal, function literal, and make()
 // completion items.
 func (c *completer) literal(literalType types.Type, imp *importInfo) {
-	// Don't provide literal candidates for variadic function arguments.
-	// For example, don't provide "[]interface{}{}" in "fmt.Print(<>)".
-	if c.expectedType.variadic {
-		return
-	}
-
 	expType := c.expectedType.objType
+
+	if c.expectedType.variadic {
+		// Don't offer literal slice candidates for variadic arguments.
+		// For example, don't offer "[]interface{}{}" in "fmt.Print(<>)".
+		if c.expectedType.matchesVariadic(literalType) {
+			return
+		}
+
+		// Otherwise, consider our expected type to be the variadic
+		// element type, not the slice type.
+		if slice, ok := expType.(*types.Slice); ok {
+			expType = slice.Elem()
+		}
+	}
 
 	// Avoid literal candidates if the expected type is an empty
 	// interface. It isn't very useful to suggest a literal candidate of
@@ -54,17 +62,12 @@ func (c *completer) literal(literalType types.Type, imp *importInfo) {
 
 	// Check if an object of type literalType or *literalType would
 	// match our expected type.
+	var isPointer bool
 	if !c.matchingType(literalType) {
-		literalType = types.NewPointer(literalType)
-
-		if !c.matchingType(literalType) {
+		isPointer = true
+		if !c.matchingType(types.NewPointer(literalType)) {
 			return
 		}
-	}
-
-	ptr, isPointer := literalType.(*types.Pointer)
-	if isPointer {
-		literalType = ptr.Elem()
 	}
 
 	var (
@@ -303,8 +306,8 @@ func (c *completer) compositeLiteral(T types.Type, typeName string, matchScore f
 	snip := &snippet.Builder{}
 	snip.WriteText(typeName + "{")
 	// Don't put the tab stop inside the composite literal curlies "{}"
-	// for structs that have no fields.
-	if strct, ok := T.(*types.Struct); !ok || strct.NumFields() > 0 {
+	// for structs that have no accessible fields.
+	if strct, ok := T.(*types.Struct); !ok || fieldsAccessible(strct, c.pkg.GetTypes()) {
 		snip.WriteFinalTabstop()
 	}
 	snip.WriteText("}")

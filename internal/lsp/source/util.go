@@ -380,6 +380,17 @@ func typeConversion(call *ast.CallExpr, info *types.Info) types.Type {
 	return nil
 }
 
+// fieldsAccessible returns whether s has at least one field accessible by p.
+func fieldsAccessible(s *types.Struct, p *types.Package) bool {
+	for i := 0; i < s.NumFields(); i++ {
+		f := s.Field(i)
+		if f.Exported() || f.Pkg() == p {
+			return true
+		}
+	}
+	return false
+}
+
 func formatParams(s Snapshot, pkg Package, sig *types.Signature, qf types.Qualifier) []string {
 	params := make([]string, 0, sig.Params().Len())
 	for i := 0; i < sig.Params().Len(); i++ {

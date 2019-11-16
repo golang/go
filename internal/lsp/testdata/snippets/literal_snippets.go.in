@@ -1,6 +1,7 @@
 package snippets
 
 import (
+	"bytes"
 	"net/http"
 	"sort"
 
@@ -105,11 +106,20 @@ func _() {
 }
 
 func _() {
-	type myStruct struct{ i int } //@item(litStructType, "myStruct", "struct{...}", "struct")
+	type myStruct struct{ i int } //@item(litMyStructType, "myStruct", "struct{...}", "struct")
+	myStruct{} //@item(litMyStruct, "myStruct{}", "", "var")
 
 	foo := func(s string, args ...myStruct) {}
 	// Don't give literal slice candidate for variadic arg.
-	foo("", myStruct) //@complete(")", litStructType)
+	// Do give literal candidates for variadic element.
+	foo("", myStruct) //@complete(")", litMyStruct, litMyStructType)
+}
+
+func _() {
+	Buffer{} //@item(litBuffer, "Buffer{}", "", "var")
+
+	var b *bytes.Buffer
+	b = bytes.Bu //@snippet(" //", litBuffer, "Buffer{\\}", "Buffer{\\}")
 }
 
 func _() {
