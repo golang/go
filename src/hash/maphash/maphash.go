@@ -193,6 +193,7 @@ func rthash(b []byte, seed uint64) uint64 {
 }
 
 //go:linkname runtime_memhash runtime.memhash
+//go:noescape
 func runtime_memhash(p unsafe.Pointer, seed, s uintptr) uintptr
 
 // Sum appends the hash's current 64-bit value to b.
