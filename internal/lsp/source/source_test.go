@@ -138,7 +138,7 @@ func (r *runner) UnimportedCompletion(t *testing.T, src span.Span, test tests.Co
 	if !strings.Contains(string(src.URI()), "builtins") {
 		got = tests.FilterBuiltins(got)
 	}
-	if diff := tests.CheckCompletionOrder(want, got); diff != "" {
+	if diff := tests.CheckCompletionOrder(want, got, false); diff != "" {
 		t.Errorf("%s: %s", src, diff)
 	}
 }
@@ -229,7 +229,7 @@ func (r *runner) RankCompletion(t *testing.T, src span.Span, test tests.Completi
 		}
 		got = append(got, item)
 	}
-	if msg := tests.CheckCompletionOrder(want, got); msg != "" {
+	if msg := tests.CheckCompletionOrder(want, got, true); msg != "" {
 		t.Errorf("%s: %s", src, msg)
 	}
 }

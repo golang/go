@@ -29,7 +29,7 @@ func _() {
 	context.Background() //@item(ctxBackground, "context.Background", "func() context.Context", "func", "Background returns a non-nil, empty Context.")
 	context.TODO()       //@item(ctxTODO, "context.TODO", "func() context.Context", "func", "TODO returns a non-nil, empty Context.")
 
-	wantsContext(c) //@rank(")", ctxBackground, ctxTODO)
+	wantsContext(c) //@rank(")", ctxBackground),rank(")", ctxTODO)
 }
 
 func _() {

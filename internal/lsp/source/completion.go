@@ -1462,8 +1462,8 @@ func (c *completer) matchingCandidate(cand *candidate) bool {
 		return false
 	}
 
-	objType := cand.obj.Type()
-	if objType == nil {
+	candType := cand.obj.Type()
+	if candType == nil {
 		return true
 	}
 
@@ -1472,17 +1472,20 @@ func (c *completer) matchingCandidate(cand *candidate) bool {
 	// are invoked by default.
 	cand.expandFuncCall = isFunc(cand.obj)
 
-	typeMatches := func(candType types.Type) bool {
+	typeMatches := func(expType, candType types.Type) bool {
+		if expType == nil {
+			return false
+		}
+
 		// Take into account any type modifiers on the expected type.
 		candType = c.expectedType.applyTypeModifiers(candType)
 
-		if c.expectedType.objType != nil {
-			wantType := types.Default(c.expectedType.objType)
-
-			// Handle untyped values specially since AssignableTo gives false negatives
-			// for them (see https://golang.org/issue/32146).
-			if candBasic, ok := candType.(*types.Basic); ok && candBasic.Info()&types.IsUntyped > 0 {
-				if wantBasic, ok := wantType.Underlying().(*types.Basic); ok {
+		// Handle untyped values specially since AssignableTo gives false negatives
+		// for them (see https://golang.org/issue/32146).
+		if candBasic, ok := candType.Underlying().(*types.Basic); ok {
+			if wantBasic, ok := expType.Underlying().(*types.Basic); ok {
+				// Make sure at least one of them is untyped.
+				if isUntyped(candType) || isUntyped(expType) {
 					// Check that their constant kind (bool|int|float|complex|string) matches.
 					// This doesn't take into account the constant value, so there will be some
 					// false positives due to integer sign and overflow.
@@ -1490,32 +1493,29 @@ func (c *completer) matchingCandidate(cand *candidate) bool {
 						// Lower candidate score if the types are not identical.
 						// This avoids ranking untyped integer constants above
 						// candidates with an exact type match.
-						if !types.Identical(candType, c.expectedType.objType) {
+						if !types.Identical(candType, expType) {
 							cand.score /= 2
 						}
 						return true
 					}
 				}
-				return false
 			}
-
-			// AssignableTo covers the case where the types are equal, but also handles
-			// cases like assigning a concrete type to an interface type.
-			return types.AssignableTo(candType, wantType)
 		}
 
-		return false
+		// AssignableTo covers the case where the types are equal, but also handles
+		// cases like assigning a concrete type to an interface type.
+		return types.AssignableTo(candType, expType)
 	}
 
-	if typeMatches(objType) {
+	if typeMatches(c.expectedType.objType, candType) {
 		// If obj's type matches, we don't want to expand to an invocation of obj.
 		cand.expandFuncCall = false
 		return true
 	}
 
 	// Try using a function's return type as its type.
-	if sig, ok := objType.Underlying().(*types.Signature); ok && sig.Results().Len() == 1 {
-		if typeMatches(sig.Results().At(0).Type()) {
+	if sig, ok := candType.Underlying().(*types.Signature); ok && sig.Results().Len() == 1 {
+		if typeMatches(c.expectedType.objType, sig.Results().At(0).Type()) {
 			// If obj's return value matches the expected type, we need to invoke obj
 			// in the completion.
 			cand.expandFuncCall = true
@@ -1523,15 +1523,16 @@ func (c *completer) matchingCandidate(cand *candidate) bool {
 		}
 	}
 
-	// When completing the variadic parameter, say objType matches if
-	// []objType matches. This is because you can use []T or T for the
-	// variadic parameter.
-	if c.expectedType.variadic && typeMatches(types.NewSlice(objType)) {
-		return true
+	// When completing the variadic parameter, if the expected type is
+	// []T then check candType against T.
+	if c.expectedType.variadic {
+		if slice, ok := c.expectedType.objType.(*types.Slice); ok && typeMatches(slice.Elem(), candType) {
+			return true
+		}
 	}
 
 	if c.expectedType.convertibleTo != nil {
-		return types.ConvertibleTo(objType, c.expectedType.convertibleTo)
+		return types.ConvertibleTo(candType, c.expectedType.convertibleTo)
 	}
 
 	return false

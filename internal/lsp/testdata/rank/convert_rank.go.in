@@ -30,7 +30,7 @@ func _() {
 	mi = conv //@rank(" //", convertG, convertD, convertE)
 	mi + conv //@rank(" //", convertG, convertD, convertE)
 
-	1 + conv //@rank(" //", convertD, convertE, convertG)
+	1 + conv //@rank(" //", convertD, convertC),rank(" //", convertE, convertC),rank(" //", convertG, convertC)
 
 	type myString string
 	var ms myString

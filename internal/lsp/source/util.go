@@ -330,6 +330,13 @@ func isEmptyInterface(T types.Type) bool {
 	return intf != nil && intf.NumMethods() == 0
 }
 
+func isUntyped(T types.Type) bool {
+	if basic, ok := T.(*types.Basic); ok {
+		return basic.Info()&types.IsUntyped > 0
+	}
+	return false
+}
+
 // isSelector returns the enclosing *ast.SelectorExpr when pos is in the
 // selector.
 func enclosingSelector(path []ast.Node, pos token.Pos) *ast.SelectorExpr {
