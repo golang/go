@@ -74,7 +74,7 @@ func (w *Writer) SetBoundary(boundary string) error {
 func (w *Writer) FormDataContentType() string {
 	b := w.boundary
 	// We must quote the boundary if it contains any of the
-	// tspecials characters defined by RFC 2045, or space.
+	// special characters defined by RFC 2045, or space.
 	if strings.ContainsAny(b, `()<>@,;:\"/[]?= `) {
 		b = `"` + b + `"`
 	}
