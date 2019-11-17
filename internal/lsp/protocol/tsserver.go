@@ -1,5 +1,10 @@
 package protocol
 
+// Package protocol contains data types and code for LSP jsonrpcs
+// generated automatically from vscode-languageserver-node
+// commit: 635ab1fe6f8c57ce9402e573d007f24d6d290fd3
+// last fetched Sun Oct 13 2019 10:14:32 GMT-0400 (Eastern Daylight Time)
+
 // Code generated (see typescript/README.md) DO NOT EDIT.
 
 import (
@@ -22,39 +27,40 @@ type Server interface {
 	DidSave(context.Context, *DidSaveTextDocumentParams) error
 	WillSave(context.Context, *WillSaveTextDocumentParams) error
 	DidChangeWatchedFiles(context.Context, *DidChangeWatchedFilesParams) error
+	CancelRequest(context.Context, *CancelParams) error
 	Progress(context.Context, *ProgressParams) error
 	SetTraceNotification(context.Context, *SetTraceParams) error
 	LogTraceNotification(context.Context, *LogTraceParams) error
-	Implementation(context.Context, *ImplementationParams) ([]Location, error)
-	TypeDefinition(context.Context, *TypeDefinitionParams) ([]Location, error)
+	Implementation(context.Context, *ImplementationParams) (Definition /*Definition | DefinitionLink[] | null*/, error)
+	TypeDefinition(context.Context, *TypeDefinitionParams) (Definition /*Definition | DefinitionLink[] | null*/, error)
 	DocumentColor(context.Context, *DocumentColorParams) ([]ColorInformation, error)
 	ColorPresentation(context.Context, *ColorPresentationParams) ([]ColorPresentation, error)
-	FoldingRange(context.Context, *FoldingRangeParams) ([]FoldingRange, error)
-	Declaration(context.Context, *DeclarationParams) ([]DeclarationLink, error)
-	SelectionRange(context.Context, *SelectionRangeParams) ([]SelectionRange, error)
-	Initialize(context.Context, *ParamInitia) (*InitializeResult, error)
+	FoldingRange(context.Context, *FoldingRangeParams) ([]FoldingRange /*FoldingRange[] | null*/, error)
+	Declaration(context.Context, *DeclarationParams) (Declaration /*Declaration | DeclarationLink[] | null*/, error)
+	SelectionRange(context.Context, *SelectionRangeParams) ([]SelectionRange /*SelectionRange[] | null*/, error)
+	Initialize(context.Context, *ParamInitialize) (*InitializeResult, error)
 	Shutdown(context.Context) error
-	WillSaveWaitUntil(context.Context, *WillSaveTextDocumentParams) ([]TextEdit, error)
-	Completion(context.Context, *CompletionParams) (*CompletionList, error)
+	WillSaveWaitUntil(context.Context, *WillSaveTextDocumentParams) ([]TextEdit /*TextEdit[] | null*/, error)
+	Completion(context.Context, *CompletionParams) (*CompletionList /*CompletionItem[] | CompletionList | null*/, error)
 	Resolve(context.Context, *CompletionItem) (*CompletionItem, error)
-	Hover(context.Context, *HoverParams) (*Hover, error)
-	SignatureHelp(context.Context, *SignatureHelpParams) (*SignatureHelp, error)
-	Definition(context.Context, *DefinitionParams) ([]Location, error)
-	References(context.Context, *ReferenceParams) ([]Location, error)
-	DocumentHighlight(context.Context, *DocumentHighlightParams) ([]DocumentHighlight, error)
-	DocumentSymbol(context.Context, *DocumentSymbolParams) ([]DocumentSymbol, error)
-	CodeAction(context.Context, *CodeActionParams) ([]CodeAction, error)
-	Symbol(context.Context, *WorkspaceSymbolParams) ([]SymbolInformation, error)
-	CodeLens(context.Context, *CodeLensParams) ([]CodeLens, error)
+	Hover(context.Context, *HoverParams) (*Hover /*Hover | null*/, error)
+	SignatureHelp(context.Context, *SignatureHelpParams) (*SignatureHelp /*SignatureHelp | null*/, error)
+	Definition(context.Context, *DefinitionParams) (Definition /*Definition | DefinitionLink[] | null*/, error)
+	References(context.Context, *ReferenceParams) ([]Location /*Location[] | null*/, error)
+	DocumentHighlight(context.Context, *DocumentHighlightParams) ([]DocumentHighlight /*DocumentHighlight[] | null*/, error)
+	DocumentSymbol(context.Context, *DocumentSymbolParams) ([]DocumentSymbol /*SymbolInformation[] | DocumentSymbol[] | null*/, error)
+	CodeAction(context.Context, *CodeActionParams) (interface{} /*Command | CodeAction*/ /*(Command | CodeAction)[] | null*/, error)
+	Symbol(context.Context, *WorkspaceSymbolParams) ([]SymbolInformation /*SymbolInformation[] | null*/, error)
+	CodeLens(context.Context, *CodeLensParams) ([]CodeLens /*CodeLens[] | null*/, error)
 	ResolveCodeLens(context.Context, *CodeLens) (*CodeLens, error)
-	DocumentLink(context.Context, *DocumentLinkParams) ([]DocumentLink, error)
+	DocumentLink(context.Context, *DocumentLinkParams) ([]DocumentLink /*DocumentLink[] | null*/, error)
 	ResolveDocumentLink(context.Context, *DocumentLink) (*DocumentLink, error)
-	Formatting(context.Context, *DocumentFormattingParams) ([]TextEdit, error)
-	RangeFormatting(context.Context, *DocumentRangeFormattingParams) ([]TextEdit, error)
-	OnTypeFormatting(context.Context, *DocumentOnTypeFormattingParams) ([]TextEdit, error)
-	Rename(context.Context, *RenameParams) (*WorkspaceEdit, error)
-	PrepareRename(context.Context, *PrepareRenameParams) (*Range, error)
-	ExecuteCommand(context.Context, *ExecuteCommandParams) (interface{}, error)
+	Formatting(context.Context, *DocumentFormattingParams) ([]TextEdit /*TextEdit[] | null*/, error)
+	RangeFormatting(context.Context, *DocumentRangeFormattingParams) ([]TextEdit /*TextEdit[] | null*/, error)
+	OnTypeFormatting(context.Context, *DocumentOnTypeFormattingParams) ([]TextEdit /*TextEdit[] | null*/, error)
+	Rename(context.Context, *RenameParams) (*WorkspaceEdit /*WorkspaceEdit | null*/, error)
+	PrepareRename(context.Context, *PrepareRenameParams) (interface{} /* Range | struct{;  Range Range`json:"range"`;  Placeholder string`json:"placeholder"`; } | nil*/, error)
+	ExecuteCommand(context.Context, *ExecuteCommandParams) (interface{} /*any | null*/, error)
 }
 
 func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, delivered bool) bool {
@@ -159,6 +165,16 @@ func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 			return true
 		}
 		if err := h.server.DidChangeWatchedFiles(ctx, &params); err != nil {
+			log.Error(ctx, "", err)
+		}
+		return true
+	case "$/cancelRequest": // notif
+		var params CancelParams
+		if err := json.Unmarshal(*r.Params, &params); err != nil {
+			sendParseError(ctx, r, err)
+			return true
+		}
+		if err := h.server.CancelRequest(ctx, &params); err != nil {
 			log.Error(ctx, "", err)
 		}
 		return true
@@ -270,7 +286,7 @@ func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 		}
 		return true
 	case "initialize": // req
-		var params ParamInitia
+		var params ParamInitialize
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
 			sendParseError(ctx, r, err)
 			return true
@@ -571,6 +587,10 @@ func (s *serverDispatcher) DidChangeWatchedFiles(ctx context.Context, params *Di
 	return s.Conn.Notify(ctx, "workspace/didChangeWatchedFiles", params)
 }
 
+func (s *serverDispatcher) CancelRequest(ctx context.Context, params *CancelParams) error {
+	return s.Conn.Notify(ctx, "$/cancelRequest", params)
+}
+
 func (s *serverDispatcher) Progress(ctx context.Context, params *ProgressParams) error {
 	return s.Conn.Notify(ctx, "$/progress", params)
 }
@@ -582,16 +602,16 @@ func (s *serverDispatcher) SetTraceNotification(ctx context.Context, params *Set
 func (s *serverDispatcher) LogTraceNotification(ctx context.Context, params *LogTraceParams) error {
 	return s.Conn.Notify(ctx, "$/logTraceNotification", params)
 }
-func (s *serverDispatcher) Implementation(ctx context.Context, params *ImplementationParams) ([]Location, error) {
-	var result []Location
+func (s *serverDispatcher) Implementation(ctx context.Context, params *ImplementationParams) (Definition /*Definition | DefinitionLink[] | null*/, error) {
+	var result Definition /*Definition | DefinitionLink[] | null*/
 	if err := s.Conn.Call(ctx, "textDocument/implementation", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func (s *serverDispatcher) TypeDefinition(ctx context.Context, params *TypeDefinitionParams) ([]Location, error) {
-	var result []Location
+func (s *serverDispatcher) TypeDefinition(ctx context.Context, params *TypeDefinitionParams) (Definition /*Definition | DefinitionLink[] | null*/, error) {
+	var result Definition /*Definition | DefinitionLink[] | null*/
 	if err := s.Conn.Call(ctx, "textDocument/typeDefinition", params, &result); err != nil {
 		return nil, err
 	}
@@ -614,31 +634,31 @@ func (s *serverDispatcher) ColorPresentation(ctx context.Context, params *ColorP
 	return result, nil
 }
 
-func (s *serverDispatcher) FoldingRange(ctx context.Context, params *FoldingRangeParams) ([]FoldingRange, error) {
-	var result []FoldingRange
+func (s *serverDispatcher) FoldingRange(ctx context.Context, params *FoldingRangeParams) ([]FoldingRange /*FoldingRange[] | null*/, error) {
+	var result []FoldingRange /*FoldingRange[] | null*/
 	if err := s.Conn.Call(ctx, "textDocument/foldingRange", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func (s *serverDispatcher) Declaration(ctx context.Context, params *DeclarationParams) ([]DeclarationLink, error) {
-	var result []DeclarationLink
+func (s *serverDispatcher) Declaration(ctx context.Context, params *DeclarationParams) (Declaration /*Declaration | DeclarationLink[] | null*/, error) {
+	var result Declaration /*Declaration | DeclarationLink[] | null*/
 	if err := s.Conn.Call(ctx, "textDocument/declaration", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func (s *serverDispatcher) SelectionRange(ctx context.Context, params *SelectionRangeParams) ([]SelectionRange, error) {
-	var result []SelectionRange
+func (s *serverDispatcher) SelectionRange(ctx context.Context, params *SelectionRangeParams) ([]SelectionRange /*SelectionRange[] | null*/, error) {
+	var result []SelectionRange /*SelectionRange[] | null*/
 	if err := s.Conn.Call(ctx, "textDocument/selectionRange", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func (s *serverDispatcher) Initialize(ctx context.Context, params *ParamInitia) (*InitializeResult, error) {
+func (s *serverDispatcher) Initialize(ctx context.Context, params *ParamInitialize) (*InitializeResult, error) {
 	var result InitializeResult
 	if err := s.Conn.Call(ctx, "initialize", params, &result); err != nil {
 		return nil, err
@@ -650,16 +670,16 @@ func (s *serverDispatcher) Shutdown(ctx context.Context) error {
 	return s.Conn.Call(ctx, "shutdown", nil, nil)
 }
 
-func (s *serverDispatcher) WillSaveWaitUntil(ctx context.Context, params *WillSaveTextDocumentParams) ([]TextEdit, error) {
-	var result []TextEdit
+func (s *serverDispatcher) WillSaveWaitUntil(ctx context.Context, params *WillSaveTextDocumentParams) ([]TextEdit /*TextEdit[] | null*/, error) {
+	var result []TextEdit /*TextEdit[] | null*/
 	if err := s.Conn.Call(ctx, "textDocument/willSaveWaitUntil", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func (s *serverDispatcher) Completion(ctx context.Context, params *CompletionParams) (*CompletionList, error) {
-	var result CompletionList
+func (s *serverDispatcher) Completion(ctx context.Context, params *CompletionParams) (*CompletionList /*CompletionItem[] | CompletionList | null*/, error) {
+	var result CompletionList /*CompletionItem[] | CompletionList | null*/
 	if err := s.Conn.Call(ctx, "textDocument/completion", params, &result); err != nil {
 		return nil, err
 	}
@@ -674,72 +694,72 @@ func (s *serverDispatcher) Resolve(ctx context.Context, params *CompletionItem) 
 	return &result, nil
 }
 
-func (s *serverDispatcher) Hover(ctx context.Context, params *HoverParams) (*Hover, error) {
-	var result Hover
+func (s *serverDispatcher) Hover(ctx context.Context, params *HoverParams) (*Hover /*Hover | null*/, error) {
+	var result Hover /*Hover | null*/
 	if err := s.Conn.Call(ctx, "textDocument/hover", params, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
 }
 
-func (s *serverDispatcher) SignatureHelp(ctx context.Context, params *SignatureHelpParams) (*SignatureHelp, error) {
-	var result SignatureHelp
+func (s *serverDispatcher) SignatureHelp(ctx context.Context, params *SignatureHelpParams) (*SignatureHelp /*SignatureHelp | null*/, error) {
+	var result SignatureHelp /*SignatureHelp | null*/
 	if err := s.Conn.Call(ctx, "textDocument/signatureHelp", params, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
 }
 
-func (s *serverDispatcher) Definition(ctx context.Context, params *DefinitionParams) ([]Location, error) {
-	var result []Location
+func (s *serverDispatcher) Definition(ctx context.Context, params *DefinitionParams) (Definition /*Definition | DefinitionLink[] | null*/, error) {
+	var result Definition /*Definition | DefinitionLink[] | null*/
 	if err := s.Conn.Call(ctx, "textDocument/definition", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func (s *serverDispatcher) References(ctx context.Context, params *ReferenceParams) ([]Location, error) {
-	var result []Location
+func (s *serverDispatcher) References(ctx context.Context, params *ReferenceParams) ([]Location /*Location[] | null*/, error) {
+	var result []Location /*Location[] | null*/
 	if err := s.Conn.Call(ctx, "textDocument/references", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func (s *serverDispatcher) DocumentHighlight(ctx context.Context, params *DocumentHighlightParams) ([]DocumentHighlight, error) {
-	var result []DocumentHighlight
+func (s *serverDispatcher) DocumentHighlight(ctx context.Context, params *DocumentHighlightParams) ([]DocumentHighlight /*DocumentHighlight[] | null*/, error) {
+	var result []DocumentHighlight /*DocumentHighlight[] | null*/
 	if err := s.Conn.Call(ctx, "textDocument/documentHighlight", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func (s *serverDispatcher) DocumentSymbol(ctx context.Context, params *DocumentSymbolParams) ([]DocumentSymbol, error) {
-	var result []DocumentSymbol
+func (s *serverDispatcher) DocumentSymbol(ctx context.Context, params *DocumentSymbolParams) ([]DocumentSymbol /*SymbolInformation[] | DocumentSymbol[] | null*/, error) {
+	var result []DocumentSymbol /*SymbolInformation[] | DocumentSymbol[] | null*/
 	if err := s.Conn.Call(ctx, "textDocument/documentSymbol", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func (s *serverDispatcher) CodeAction(ctx context.Context, params *CodeActionParams) ([]CodeAction, error) {
-	var result []CodeAction
+func (s *serverDispatcher) CodeAction(ctx context.Context, params *CodeActionParams) (interface{} /*Command | CodeAction*/ /*(Command | CodeAction)[] | null*/, error) {
+	var result interface{} /*Command | CodeAction*/ /*(Command | CodeAction)[] | null*/
 	if err := s.Conn.Call(ctx, "textDocument/codeAction", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func (s *serverDispatcher) Symbol(ctx context.Context, params *WorkspaceSymbolParams) ([]SymbolInformation, error) {
-	var result []SymbolInformation
+func (s *serverDispatcher) Symbol(ctx context.Context, params *WorkspaceSymbolParams) ([]SymbolInformation /*SymbolInformation[] | null*/, error) {
+	var result []SymbolInformation /*SymbolInformation[] | null*/
 	if err := s.Conn.Call(ctx, "workspace/symbol", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func (s *serverDispatcher) CodeLens(ctx context.Context, params *CodeLensParams) ([]CodeLens, error) {
-	var result []CodeLens
+func (s *serverDispatcher) CodeLens(ctx context.Context, params *CodeLensParams) ([]CodeLens /*CodeLens[] | null*/, error) {
+	var result []CodeLens /*CodeLens[] | null*/
 	if err := s.Conn.Call(ctx, "textDocument/codeLens", params, &result); err != nil {
 		return nil, err
 	}
@@ -754,8 +774,8 @@ func (s *serverDispatcher) ResolveCodeLens(ctx context.Context, params *CodeLens
 	return &result, nil
 }
 
-func (s *serverDispatcher) DocumentLink(ctx context.Context, params *DocumentLinkParams) ([]DocumentLink, error) {
-	var result []DocumentLink
+func (s *serverDispatcher) DocumentLink(ctx context.Context, params *DocumentLinkParams) ([]DocumentLink /*DocumentLink[] | null*/, error) {
+	var result []DocumentLink /*DocumentLink[] | null*/
 	if err := s.Conn.Call(ctx, "textDocument/documentLink", params, &result); err != nil {
 		return nil, err
 	}
@@ -770,63 +790,50 @@ func (s *serverDispatcher) ResolveDocumentLink(ctx context.Context, params *Docu
 	return &result, nil
 }
 
-func (s *serverDispatcher) Formatting(ctx context.Context, params *DocumentFormattingParams) ([]TextEdit, error) {
-	var result []TextEdit
+func (s *serverDispatcher) Formatting(ctx context.Context, params *DocumentFormattingParams) ([]TextEdit /*TextEdit[] | null*/, error) {
+	var result []TextEdit /*TextEdit[] | null*/
 	if err := s.Conn.Call(ctx, "textDocument/formatting", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func (s *serverDispatcher) RangeFormatting(ctx context.Context, params *DocumentRangeFormattingParams) ([]TextEdit, error) {
-	var result []TextEdit
+func (s *serverDispatcher) RangeFormatting(ctx context.Context, params *DocumentRangeFormattingParams) ([]TextEdit /*TextEdit[] | null*/, error) {
+	var result []TextEdit /*TextEdit[] | null*/
 	if err := s.Conn.Call(ctx, "textDocument/rangeFormatting", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func (s *serverDispatcher) OnTypeFormatting(ctx context.Context, params *DocumentOnTypeFormattingParams) ([]TextEdit, error) {
-	var result []TextEdit
+func (s *serverDispatcher) OnTypeFormatting(ctx context.Context, params *DocumentOnTypeFormattingParams) ([]TextEdit /*TextEdit[] | null*/, error) {
+	var result []TextEdit /*TextEdit[] | null*/
 	if err := s.Conn.Call(ctx, "textDocument/onTypeFormatting", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func (s *serverDispatcher) Rename(ctx context.Context, params *RenameParams) (*WorkspaceEdit, error) {
-	var result WorkspaceEdit
+func (s *serverDispatcher) Rename(ctx context.Context, params *RenameParams) (*WorkspaceEdit /*WorkspaceEdit | null*/, error) {
+	var result WorkspaceEdit /*WorkspaceEdit | null*/
 	if err := s.Conn.Call(ctx, "textDocument/rename", params, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
 }
 
-func (s *serverDispatcher) PrepareRename(ctx context.Context, params *PrepareRenameParams) (*Range, error) {
-	var result Range
+func (s *serverDispatcher) PrepareRename(ctx context.Context, params *PrepareRenameParams) (interface{} /* Range | struct{;  Range Range`json:"range"`;  Placeholder string`json:"placeholder"`; } | nil*/, error) {
+	var result interface{} /* Range | struct{;  Range Range`json:"range"`;  Placeholder string`json:"placeholder"`; } | nil*/
 	if err := s.Conn.Call(ctx, "textDocument/prepareRename", params, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-func (s *serverDispatcher) ExecuteCommand(ctx context.Context, params *ExecuteCommandParams) (interface{}, error) {
-	var result interface{}
-	if err := s.Conn.Call(ctx, "workspace/executeCommand", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-type CancelParams struct {
-	/**
-	 * The request id to cancel.
-	 */
-	ID jsonrpc2.ID `json:"id"`
-}
-
-// Types constructed to avoid structs as formal argument types
-type ParamInitia struct {
-	InitializeParams
-	WorkDoneProgressParams
+func (s *serverDispatcher) ExecuteCommand(ctx context.Context, params *ExecuteCommandParams) (interface{} /*any | null*/, error) {
+	var result interface{} /*any | null*/
+	if err := s.Conn.Call(ctx, "workspace/executeCommand", params, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }

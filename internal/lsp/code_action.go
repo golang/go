@@ -63,7 +63,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		codeActions = append(codeActions, protocol.CodeAction{
 			Title: "Tidy",
 			Kind:  protocol.SourceOrganizeImports,
-			Command: &protocol.Command{
+			Command: protocol.Command{
 				Title:   "Tidy",
 				Command: "tidy",
 				Arguments: []interface{}{
@@ -94,7 +94,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 						codeActions = append(codeActions, protocol.CodeAction{
 							Title: importFixTitle(importFix.Fix),
 							Kind:  protocol.QuickFix,
-							Edit: &protocol.WorkspaceEdit{
+							Edit: protocol.WorkspaceEdit{
 								DocumentChanges: documentChanges(fh, importFix.Edits),
 							},
 							Diagnostics: fixDiagnostics,
@@ -107,7 +107,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			codeActions = append(codeActions, protocol.CodeAction{
 				Title: "Organize Imports",
 				Kind:  protocol.SourceOrganizeImports,
-				Edit: &protocol.WorkspaceEdit{
+				Edit: protocol.WorkspaceEdit{
 					DocumentChanges: documentChanges(fh, edits),
 				},
 			})
@@ -226,7 +226,7 @@ func quickFixes(ctx context.Context, s source.Snapshot, f source.File, diagnosti
 				Title:       fix.Title,
 				Kind:        protocol.QuickFix,
 				Diagnostics: []protocol.Diagnostic{diag},
-				Edit:        &protocol.WorkspaceEdit{},
+				Edit:        protocol.WorkspaceEdit{},
 			}
 			for uri, edits := range fix.Edits {
 				f, err := s.View().GetFile(ctx, uri)

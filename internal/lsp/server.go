@@ -91,7 +91,7 @@ type Server struct {
 
 // General
 
-func (s *Server) Initialize(ctx context.Context, params *protocol.ParamInitia) (*protocol.InitializeResult, error) {
+func (s *Server) Initialize(ctx context.Context, params *protocol.ParamInitialize) (*protocol.InitializeResult, error) {
 	return s.initialize(ctx, params)
 }
 
@@ -105,6 +105,10 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 func (s *Server) Exit(ctx context.Context) error {
 	return s.exit(ctx)
+}
+
+func (s *Server) CancelRequest(ctx context.Context, params *protocol.CancelParams) error {
+	return s.CancelRequest(ctx, params)
 }
 
 // Workspace
@@ -173,15 +177,15 @@ func (s *Server) SignatureHelp(ctx context.Context, params *protocol.SignatureHe
 	return s.signatureHelp(ctx, params)
 }
 
-func (s *Server) Definition(ctx context.Context, params *protocol.DefinitionParams) ([]protocol.Location, error) {
+func (s *Server) Definition(ctx context.Context, params *protocol.DefinitionParams) (protocol.Definition, error) {
 	return s.definition(ctx, params)
 }
 
-func (s *Server) TypeDefinition(ctx context.Context, params *protocol.TypeDefinitionParams) ([]protocol.Location, error) {
+func (s *Server) TypeDefinition(ctx context.Context, params *protocol.TypeDefinitionParams) (protocol.Definition, error) {
 	return s.typeDefinition(ctx, params)
 }
 
-func (s *Server) Implementation(ctx context.Context, params *protocol.ImplementationParams) ([]protocol.Location, error) {
+func (s *Server) Implementation(ctx context.Context, params *protocol.ImplementationParams) (protocol.Definition, error) {
 	return s.implementation(ctx, params)
 }
 
@@ -197,7 +201,7 @@ func (s *Server) DocumentSymbol(ctx context.Context, params *protocol.DocumentSy
 	return s.documentSymbol(ctx, params)
 }
 
-func (s *Server) CodeAction(ctx context.Context, params *protocol.CodeActionParams) ([]protocol.CodeAction, error) {
+func (s *Server) CodeAction(ctx context.Context, params *protocol.CodeActionParams) (interface{}, error) {
 	return s.codeAction(ctx, params)
 }
 
@@ -241,7 +245,7 @@ func (s *Server) Rename(ctx context.Context, params *protocol.RenameParams) (*pr
 	return s.rename(ctx, params)
 }
 
-func (s *Server) Declaration(context.Context, *protocol.DeclarationParams) ([]protocol.DeclarationLink, error) {
+func (s *Server) Declaration(context.Context, *protocol.DeclarationParams) (protocol.Declaration, error) {
 	return nil, notImplemented("Declaration")
 }
 
@@ -253,7 +257,7 @@ func (s *Server) LogTraceNotification(context.Context, *protocol.LogTraceParams)
 	return notImplemented("LogtraceNotification")
 }
 
-func (s *Server) PrepareRename(ctx context.Context, params *protocol.PrepareRenameParams) (*protocol.Range, error) {
+func (s *Server) PrepareRename(ctx context.Context, params *protocol.PrepareRenameParams) (interface{}, error) {
 	// TODO(suzmue): support sending placeholder text.
 	return s.prepareRename(ctx, params)
 }

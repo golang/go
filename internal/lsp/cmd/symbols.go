@@ -52,7 +52,6 @@ func (r *symbols) Run(ctx context.Context, args ...string) error {
 	if err != nil {
 		return err
 	}
-
 	for _, s := range symbols {
 		fmt.Println(symbolToString(s))
 		// Sort children for consistency

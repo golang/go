@@ -32,7 +32,7 @@ func toProtocolHighlight(rngs []protocol.Range) []protocol.DocumentHighlight {
 	kind := protocol.Text
 	for _, rng := range rngs {
 		result = append(result, protocol.DocumentHighlight{
-			Kind:  &kind,
+			Kind:  kind,
 			Range: rng,
 		})
 	}

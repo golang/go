@@ -40,7 +40,7 @@ func (s *Server) hover(ctx context.Context, params *protocol.HoverParams) (*prot
 	contents := s.toProtocolHoverContents(ctx, hover, view.Options())
 	return &protocol.Hover{
 		Contents: contents,
-		Range:    &rng,
+		Range:    rng,
 	}, nil
 }
 

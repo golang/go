@@ -96,7 +96,7 @@ func fullChange(changes []protocol.TextDocumentContentChangeEvent) (string, bool
 		return "", false
 	}
 	// The length of the changes must be 1 at this point.
-	if changes[0].Range == nil && changes[0].RangeLength == 0 {
+	if changes[0].RangeLength == 0 { // used to check changes[0].Range == nil
 		return changes[0].Text, true
 	}
 	return "", false
@@ -116,7 +116,7 @@ func (s *Server) applyChanges(ctx context.Context, uri span.URI, changes []proto
 			Content:   content,
 		}
 
-		spn, err := m.RangeSpan(*change.Range)
+		spn, err := m.RangeSpan(change.Range)
 		if err != nil {
 			return "", err
 		}

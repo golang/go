@@ -314,8 +314,9 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 		t.Fatal(err)
 	}
 	got := string(m.Content)
-	if len(actions) > 0 {
-		res, err := applyWorkspaceEdits(r, actions[0].Edit)
+	xact := actions.([]protocol.CodeAction)
+	if len(xact) > 0 {
+		res, err := applyWorkspaceEdits(r, xact[0].Edit)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -354,10 +355,11 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 		t.Fatal(err)
 	}
 	// TODO: This test should probably be able to handle multiple code actions.
-	if len(actions) > 1 {
+	xact := actions.([]protocol.CodeAction)
+	if len(xact) > 1 {
 		t.Fatal("expected only 1 code action")
 	}
-	res, err := applyWorkspaceEdits(r, actions[0].Edit)
+	res, err := applyWorkspaceEdits(r, xact[0].Edit)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -575,7 +577,7 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 		}
 		return
 	}
-	res, err := applyWorkspaceEdits(r, wedit)
+	res, err := applyWorkspaceEdits(r, *wedit)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -628,18 +630,23 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 		t.Errorf("prepare rename failed for %v: got error: %v", src, err)
 		return
 	}
-	if got == nil {
+	// we all love typed nils
+	if got == nil || got.(*protocol.Range) == nil {
 		if want.Text != "" { // expected an ident.
 			t.Errorf("prepare rename failed for %v: got nil", src)
 		}
 		return
 	}
-	if protocol.CompareRange(*got, want.Range) != 0 {
-		t.Errorf("prepare rename failed: incorrect range got %v want %v", *got, want.Range)
+	xx, ok := got.(*protocol.Range)
+	if !ok {
+		t.Fatalf("got %T, wanted Range", got)
+	}
+	if protocol.CompareRange(*xx, want.Range) != 0 {
+		t.Errorf("prepare rename failed: incorrect range got %v want %v", *xx, want.Range)
 	}
 }
 
-func applyWorkspaceEdits(r *runner, wedit *protocol.WorkspaceEdit) (map[span.URI]string, error) {
+func applyWorkspaceEdits(r *runner, wedit protocol.WorkspaceEdit) (map[span.URI]string, error) {
 	res := map[span.URI]string{}
 	for _, docEdits := range wedit.DocumentChanges {
 		uri := span.URI(docEdits.TextDocument.URI)
@@ -682,7 +689,6 @@ func (r *runner) Symbols(t *testing.T, uri span.URI, expectedSymbols []protocol.
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	if len(symbols) != len(expectedSymbols) {
 		t.Errorf("want %d top-level symbols in %v, got %d", len(expectedSymbols), uri, len(symbols))
 		return

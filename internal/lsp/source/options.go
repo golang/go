@@ -183,7 +183,7 @@ func SetOptions(options *Options, opts interface{}) OptionResults {
 
 func (o *Options) ForClientCapabilities(caps protocol.ClientCapabilities) {
 	// Check if the client supports snippets in completion items.
-	if c := caps.TextDocument.Completion; c != nil && c.CompletionItem != nil && c.CompletionItem.SnippetSupport {
+	if c := caps.TextDocument.Completion; c.CompletionItem.SnippetSupport {
 		o.InsertTextFormat = protocol.SnippetTextFormat
 	}
 	// Check if the client supports configuration messages.
@@ -192,13 +192,12 @@ func (o *Options) ForClientCapabilities(caps protocol.ClientCapabilities) {
 	o.DynamicWatchedFilesSupported = caps.Workspace.DidChangeWatchedFiles.DynamicRegistration
 
 	// Check which types of content format are supported by this client.
-	if hover := caps.TextDocument.Hover; hover != nil && len(hover.ContentFormat) > 0 {
+	if hover := caps.TextDocument.Hover; len(hover.ContentFormat) > 0 {
 		o.PreferredContentFormat = hover.ContentFormat[0]
 	}
 	// Check if the client supports only line folding.
-	if fr := caps.TextDocument.FoldingRange; fr != nil {
-		o.LineFoldingOnly = fr.LineFoldingOnly
-	}
+	fr := caps.TextDocument.FoldingRange
+	o.LineFoldingOnly = fr.LineFoldingOnly
 }
 
 func (o *Options) set(name string, value interface{}) OptionResult {

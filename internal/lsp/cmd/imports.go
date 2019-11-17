@@ -69,7 +69,11 @@ func (t *imports) Run(ctx context.Context, args ...string) error {
 		return errors.Errorf("%v: %v", from, err)
 	}
 	var edits []protocol.TextEdit
-	for _, a := range actions {
+	v, ok := actions.([]protocol.CodeAction)
+	if !ok {
+		return errors.Errorf("expected CodeAction, got %T", actions)
+	}
+	for _, a := range v {
 		if a.Title != "Organize Imports" {
 			continue
 		}

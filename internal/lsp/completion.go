@@ -104,7 +104,7 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, rng protocol.
 			Label:  candidate.Label,
 			Detail: candidate.Detail,
 			Kind:   candidate.Kind,
-			TextEdit: &protocol.TextEdit{
+			TextEdit: protocol.TextEdit{
 				NewText: insertText,
 				Range:   rng,
 			},
@@ -123,7 +123,7 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, rng protocol.
 		// since we show return types as well.
 		switch item.Kind {
 		case protocol.FunctionCompletion, protocol.MethodCompletion:
-			item.Command = &protocol.Command{
+			item.Command = protocol.Command{
 				Command: "editor.action.triggerParameterHints",
 			}
 		}

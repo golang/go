@@ -20,7 +20,7 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitia) (*protocol.InitializeResult, error) {
+func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitialize) (*protocol.InitializeResult, error) {
 	s.stateMu.Lock()
 	state := s.state
 	s.stateMu.Unlock()
@@ -53,8 +53,7 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitia) (
 	}
 
 	var codeActionProvider interface{}
-	if ca := params.Capabilities.TextDocument.CodeAction; ca != nil && ca.CodeActionLiteralSupport != nil &&
-		len(ca.CodeActionLiteralSupport.CodeActionKind.ValueSet) > 0 {
+	if ca := params.Capabilities.TextDocument.CodeAction; len(ca.CodeActionLiteralSupport.CodeActionKind.ValueSet) > 0 {
 		// If the client has specified CodeActionLiteralSupport,
 		// send the code actions we support.
 		//
@@ -65,18 +64,16 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitia) (
 	} else {
 		codeActionProvider = true
 	}
-	var renameOpts interface{}
-	if r := params.Capabilities.TextDocument.Rename; r != nil {
-		renameOpts = &protocol.RenameOptions{
-			PrepareProvider: r.PrepareSupport,
-		}
-	} else {
-		renameOpts = true
+	// This used to be interface{}, when r could be nil
+	var renameOpts protocol.RenameOptions
+	r := params.Capabilities.TextDocument.Rename
+	renameOpts = protocol.RenameOptions{
+		PrepareProvider: r.PrepareSupport,
 	}
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
 			CodeActionProvider: codeActionProvider,
-			CompletionProvider: &protocol.CompletionOptions{
+			CompletionProvider: protocol.CompletionOptions{
 				TriggerCharacters: []string{"."},
 			},
 			DefinitionProvider:         true,
@@ -84,35 +81,27 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitia) (
 			ImplementationProvider:     true,
 			DocumentFormattingProvider: true,
 			DocumentSymbolProvider:     true,
-			ExecuteCommandProvider: &protocol.ExecuteCommandOptions{
+			ExecuteCommandProvider: protocol.ExecuteCommandOptions{
 				Commands: options.SupportedCommands,
 			},
 			FoldingRangeProvider:      true,
 			HoverProvider:             true,
 			DocumentHighlightProvider: true,
-			DocumentLinkProvider:      &protocol.DocumentLinkOptions{},
+			DocumentLinkProvider:      protocol.DocumentLinkOptions{},
 			ReferencesProvider:        true,
 			RenameProvider:            renameOpts,
-			SignatureHelpProvider: &protocol.SignatureHelpOptions{
+			SignatureHelpProvider: protocol.SignatureHelpOptions{
 				TriggerCharacters: []string{"(", ","},
 			},
 			TextDocumentSync: &protocol.TextDocumentSyncOptions{
 				Change:    options.TextDocumentSyncKind,
 				OpenClose: true,
-				Save: &protocol.SaveOptions{
+				Save: protocol.SaveOptions{
 					IncludeText: false,
 				},
 			},
-			Workspace: &struct {
-				WorkspaceFolders *struct {
-					Supported           bool   "json:\"supported,omitempty\""
-					ChangeNotifications string "json:\"changeNotifications,omitempty\""
-				} "json:\"workspaceFolders,omitempty\""
-			}{
-				WorkspaceFolders: &struct {
-					Supported           bool   "json:\"supported,omitempty\""
-					ChangeNotifications string "json:\"changeNotifications,omitempty\""
-				}{
+			Workspace: protocol.WorkspaceGn{
+				protocol.WorkspaceFoldersGn{
 					Supported:           true,
 					ChangeNotifications: "workspace/didChangeWorkspaceFolders",
 				},
@@ -192,7 +181,7 @@ func (s *Server) fetchConfig(ctx context.Context, name string, folder span.URI, 
 	if !s.session.Options().ConfigurationSupported {
 		return nil
 	}
-	v := protocol.ParamConfig{
+	v := protocol.ParamConfiguration{
 		ConfigurationParams: protocol.ConfigurationParams{
 			Items: []protocol.ConfigurationItem{{
 				ScopeURI: protocol.NewURI(folder),
