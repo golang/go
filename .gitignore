@@ -19,6 +19,10 @@ _obj
 _test
 _testmain.go
 
+.idea
+.idea/
+
+
 /VERSION.cache
 /bin/
 /build.out
