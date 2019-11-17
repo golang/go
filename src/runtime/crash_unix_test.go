@@ -326,13 +326,9 @@ func TestSignalM(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		runtime.LockOSThread()
-		var errno int32
 		want, got = runtime.WaitForSigusr1(r, w, func(mp *runtime.M) {
 			ready <- mp
 		})
-		if errno != 0 {
-			t.Error(syscall.Errno(errno))
-		}
 		runtime.UnlockOSThread()
 		wg.Done()
 	}()
