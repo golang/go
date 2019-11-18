@@ -70,9 +70,16 @@ func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, erro
 			mappedRange:   rng,
 		}}, references...)
 	}
-	// TODO(matloob): This only needs to look into reverse-dependencies.
-	// Avoid checking types of other packages.
-	for _, pkg := range i.Snapshot.KnownPackages(ctx) {
+	var searchpkgs []Package
+	if i.Declaration.obj.Exported() {
+		// Only search all packages if the identifier is exported.
+		// TODO(matloob): This only needs to look into reverse-dependencies.
+		// Avoid checking types of other packages.
+		searchpkgs = i.Snapshot.KnownPackages(ctx)
+	} else {
+		searchpkgs = []Package{i.pkg}
+	}
+	for _, pkg := range searchpkgs {
 		for ident, obj := range pkg.GetTypesInfo().Uses {
 			if obj == nil || !(sameObj(obj, i.Declaration.obj)) {
 				continue
