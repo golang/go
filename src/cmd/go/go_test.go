@@ -1045,48 +1045,6 @@ func TestRunPkg(t *testing.T) {
 	tg.grepStderr("hello, world", "did not find hello, world")
 }
 
-func testMove(t *testing.T, vcs, url, base, config string) {
-	testenv.MustHaveExternalNetwork(t)
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.tempDir("src")
-	tg.must(os.Mkdir(tg.path(".hg"), 0700))
-	tg.must(ioutil.WriteFile(filepath.Join(tg.path(".hg"), "hgrc"), nil, 0600))
-	tg.setenv("GOPATH", tg.path("."))
-	tg.run("get", "-d", url)
-	tg.run("get", "-d", "-u", url)
-	switch vcs {
-	case "svn":
-		// SVN doesn't believe in text files so we can't just edit the config.
-		// Check out a different repo into the wrong place.
-		tg.must(robustio.RemoveAll(tg.path("src/code.google.com/p/rsc-svn")))
-		tg.run("get", "-d", "-u", "code.google.com/p/rsc-svn2/trunk")
-		tg.must(os.Rename(tg.path("src/code.google.com/p/rsc-svn2"), tg.path("src/code.google.com/p/rsc-svn")))
-	default:
-		path := tg.path(filepath.Join("src", config))
-		data, err := ioutil.ReadFile(path)
-		tg.must(err)
-		data = bytes.ReplaceAll(data, []byte(base), []byte(base+"XXX"))
-		tg.must(ioutil.WriteFile(path, data, 0644))
-	}
-	if vcs == "git" {
-		// git will ask for a username and password when we
-		// run go get -d -f -u. An empty username and
-		// password will work. Prevent asking by setting
-		// GIT_ASKPASS.
-		tg.creatingTemp("sink" + exeSuffix)
-		tg.tempFile("src/sink/sink.go", `package main; func main() {}`)
-		tg.run("build", "-o", "sink"+exeSuffix, "sink")
-		tg.setenv("GIT_ASKPASS", filepath.Join(tg.pwd(), "sink"+exeSuffix))
-	}
-	tg.runFail("get", "-d", "-u", url)
-	tg.grepStderr("is a custom import path for", "go get -d -u "+url+" failed for wrong reason")
-	tg.runFail("get", "-d", "-f", "-u", url)
-	tg.grepStderr("validating server certificate|[nN]ot [fF]ound", "go get -d -f -u "+url+" failed for wrong reason")
-}
-
 func TestInternalPackageErrorsAreHandled(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -1100,21 +1058,6 @@ func TestInternalCache(t *testing.T) {
 	tg.runFail("build", "p")
 	tg.grepStderr("internal", "did not fail to build p")
 }
-
-func TestMoveGit(t *testing.T) {
-	testenv.MustHaveExecPath(t, "git")
-	testMove(t, "git", "rsc.io/pdf", "pdf", "rsc.io/pdf/.git/config")
-}
-
-func TestMoveHG(t *testing.T) {
-	testenv.MustHaveExecPath(t, "hg")
-	testMove(t, "hg", "vcs-test.golang.org/go/custom-hg-hello", "custom-hg-hello", "vcs-test.golang.org/go/custom-hg-hello/.hg/hgrc")
-}
-
-// TODO(rsc): Set up a test case on SourceForge (?) for svn.
-// func testMoveSVN(t *testing.T) {
-//	testMove(t, "svn", "code.google.com/p/rsc-svn/trunk", "-", "-")
-// }
 
 func TestImportCommandMatch(t *testing.T) {
 	tg := testgo(t)
