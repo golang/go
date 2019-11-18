@@ -95,10 +95,6 @@ func (r *runner) RankCompletion(t *testing.T, src span.Span, test tests.Completi
 	//TODO: add command line completions tests when it works
 }
 
-func (r *runner) Highlight(t *testing.T, src span.Span, locations []span.Span) {
-	//TODO: add command line highlight tests when it works
-}
-
 func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.PrepareItem) {
 	//TODO: add command line prepare rename tests when it works
 }
