@@ -4387,36 +4387,6 @@ func TestNeedVersion(t *testing.T) {
 	tg.grepStderr("compile", "does not match go tool version")
 }
 
-// Test that user can override default code generation flags.
-func TestUserOverrideFlags(t *testing.T) {
-	skipIfGccgo(t, "gccgo does not use -gcflags")
-	if !canCgo {
-		t.Skip("skipping because cgo not enabled")
-	}
-	if runtime.GOOS != "linux" {
-		// We are testing platform-independent code, so it's
-		// OK to skip cases that work differently.
-		t.Skipf("skipping on %s because test only works if c-archive implies -shared", runtime.GOOS)
-	}
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	// Don't call tg.parallel, as creating override.h and override.a may
-	// confuse other tests.
-	tg.tempFile("override.go", `package main
-
-import "C"
-
-//export GoFunc
-func GoFunc() {}
-
-func main() {}`)
-	tg.creatingTemp("override.a")
-	tg.creatingTemp("override.h")
-	tg.run("build", "-x", "-buildmode=c-archive", "-gcflags=all=-shared=false", tg.path("override.go"))
-	tg.grepStderr("compile .*-shared .*-shared=false", "user can not override code generation flag")
-}
-
 func TestCgoFlagContainsSpace(t *testing.T) {
 	tooSlow(t)
 	if !canCgo {
