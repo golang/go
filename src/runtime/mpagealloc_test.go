@@ -41,10 +41,11 @@ func checkPageAlloc(t *testing.T, want, got *PageAlloc) {
 }
 
 func TestPageAllocGrow(t *testing.T) {
-	tests := map[string]struct {
+	type test struct {
 		chunks []ChunkIdx
 		inUse  []AddrRange
-	}{
+	}
+	tests := map[string]test{
 		"One": {
 			chunks: []ChunkIdx{
 				BaseChunkIdx,
@@ -111,6 +112,18 @@ func TestPageAllocGrow(t *testing.T) {
 				{PageBase(BaseChunkIdx+0x21, 0), PageBase(BaseChunkIdx+0x22, 0)},
 			},
 		},
+	}
+	if PageAlloc64Bit != 0 {
+		tests["ExtremelyDiscontiguous"] = test{
+			chunks: []ChunkIdx{
+				BaseChunkIdx,
+				BaseChunkIdx + 0x100000, // constant translates to O(TiB)
+			},
+			inUse: []AddrRange{
+				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0)},
+				{PageBase(BaseChunkIdx+0x100000, 0), PageBase(BaseChunkIdx+0x100001, 0)},
+			},
+		}
 	}
 	for name, v := range tests {
 		v := v

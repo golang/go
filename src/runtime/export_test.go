@@ -578,6 +578,7 @@ func RunGetgThreadSwitchTest() {
 const (
 	PageSize         = pageSize
 	PallocChunkPages = pallocChunkPages
+	PageAlloc64Bit   = pageAlloc64Bit
 )
 
 // Expose pallocSum for testing.
