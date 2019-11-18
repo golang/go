@@ -84,13 +84,14 @@ func findExternalDriver(cfg *Config) driver {
 		cmd.Stdin = bytes.NewReader(req)
 		cmd.Stdout = buf
 		cmd.Stderr = stderr
-		if len(stderr.Bytes()) != 0 && os.Getenv("GOPACKAGESPRINTDRIVERERRORS") != "" {
-			fmt.Fprintf(os.Stderr, "%s stderr: <<%s>>\n", cmdDebugStr(cmd, words...), stderr)
-		}
 
 		if err := cmd.Run(); err != nil {
 			return nil, fmt.Errorf("%v: %v: %s", tool, err, cmd.Stderr)
 		}
+		if len(stderr.Bytes()) != 0 && os.Getenv("GOPACKAGESPRINTDRIVERERRORS") != "" {
+			fmt.Fprintf(os.Stderr, "%s stderr: <<%s>>\n", cmdDebugStr(cmd, words...), stderr)
+		}
+
 		var response driverResponse
 		if err := json.Unmarshal(buf.Bytes(), &response); err != nil {
 			return nil, err
