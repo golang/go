@@ -683,8 +683,11 @@ func (tg *testgoData) creatingTemp(path string) {
 	// If we have changed the working directory, make sure we have
 	// an absolute path, because we are going to change directory
 	// back before we remove the temporary.
-	if tg.wd != "" && !filepath.IsAbs(path) {
-		path = filepath.Join(tg.pwd(), path)
+	if !filepath.IsAbs(path) {
+		if tg.wd == "" || strings.HasPrefix(tg.wd, testGOROOT) {
+			tg.t.Fatalf("internal testsuite error: creatingTemp(%q) within GOROOT/src", path)
+		}
+		path = filepath.Join(tg.wd, path)
 	}
 	tg.must(robustio.RemoveAll(path))
 	tg.temps = append(tg.temps, path)
