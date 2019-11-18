@@ -1,7 +1,7 @@
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
 // commit: 635ab1fe6f8c57ce9402e573d007f24d6d290fd3
-// last fetched Sun Oct 13 2019 10:14:32 GMT-0400 (Eastern Daylight Time)
+// last fetched Mon Oct 14 2019 09:09:30 GMT-0400 (Eastern Daylight Time)
 package protocol
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
@@ -3178,8 +3178,7 @@ type WorkspaceEdit struct {
 	/**
 	 * Holds changes to existing resources.
 	 */
-	Changes struct {
-	} `json:"changes,omitempty"`
+	Changes map[string][]TextEdit `json:"changes,omitempty"`
 	/**
 	 * Depending on the client capability `workspace.workspaceEdit.resourceOperations` document changes
 	 * are either an array of `TextDocumentEdit`s to express changes to n different text documents
