@@ -1,6 +1,7 @@
 package ocagent
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 	"time"
@@ -990,4 +991,9 @@ func TestInfoKeysToLabelKeys(t *testing.T) {
 			}
 		})
 	}
+}
+
+func marshaled(v interface{}) string {
+	blob, _ := json.MarshalIndent(v, "", "  ")
+	return string(blob)
 }

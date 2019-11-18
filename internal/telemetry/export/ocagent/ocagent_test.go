@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ocagent
+package ocagent_test
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/internal/telemetry"
+	"golang.org/x/tools/internal/telemetry/export/ocagent"
 	"golang.org/x/tools/internal/telemetry/tag"
 )
 
@@ -199,15 +200,25 @@ func TestConvert_annotation(t *testing.T) {
 	ctx := context.TODO()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := marshaled(convertAnnotation(tt.event(ctx)))
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Fatalf("Got:\n%s\nWant:\n%s", got, tt.want)
+			got, err := ocagent.EncodeAnnotation(tt.event(ctx))
+			if err != nil {
+				t.Fatal(err)
 			}
+			checkJSON(t, got, []byte(tt.want))
 		})
 	}
 }
 
-func marshaled(v interface{}) string {
-	blob, _ := json.MarshalIndent(v, "", "  ")
-	return string(blob)
+func checkJSON(t *testing.T, got, want []byte) {
+	// compare the decoded form, to allow for formatting differences
+	var g, w map[string]interface{}
+	if err := json.Unmarshal(got, &g); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(want, &w); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(g, w) {
+		t.Fatalf("Got:\n%s\nWant:\n%s", got, want)
+	}
 }

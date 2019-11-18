@@ -144,6 +144,10 @@ func (e *exporter) Flush() {
 	}
 }
 
+func EncodeAnnotation(a telemetry.Event) ([]byte, error) {
+	return json.Marshal(convertAnnotation(a))
+}
+
 func (e *exporter) send(endpoint string, message interface{}) {
 	blob, err := json.Marshal(message)
 	if err != nil {
