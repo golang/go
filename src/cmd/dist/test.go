@@ -1358,17 +1358,21 @@ var runtest struct {
 
 func (t *tester) testDirTest(dt *distTest, shard, shards int) error {
 	runtest.Do(func() {
-		const exe = "runtest.exe" // named exe for Windows, but harmless elsewhere
-		cmd := t.dirCmd("test", "go", "build", "-o", exe, "run.go")
-		cmd.Env = append(os.Environ(), "GOOS="+gohostos, "GOARCH="+gohostarch)
-		runtest.exe = filepath.Join(cmd.Dir, exe)
-		if err := cmd.Run(); err != nil {
+		f, err := ioutil.TempFile("", "runtest-*.exe") // named exe for Windows, but harmless elsewhere
+		if err != nil {
 			runtest.err = err
 			return
 		}
+		f.Close()
+
+		runtest.exe = f.Name()
 		xatexit(func() {
 			os.Remove(runtest.exe)
 		})
+
+		cmd := t.dirCmd("test", "go", "build", "-o", runtest.exe, "run.go")
+		cmd.Env = append(os.Environ(), "GOOS="+gohostos, "GOARCH="+gohostarch)
+		runtest.err = cmd.Run()
 	})
 	if runtest.err != nil {
 		return runtest.err
