@@ -47,7 +47,7 @@ type exporter struct {
 	mu      sync.Mutex
 	config  Config
 	node    *wire.Node
-	spans   []*wire.Span
+	spans   []*telemetry.Span
 	metrics []*wire.Metric
 }
 
@@ -106,7 +106,7 @@ func (e *exporter) StartSpan(ctx context.Context, span *telemetry.Span) {}
 func (e *exporter) FinishSpan(ctx context.Context, span *telemetry.Span) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.spans = append(e.spans, convertSpan(span))
+	e.spans = append(e.spans, span)
 }
 
 func (e *exporter) Log(context.Context, telemetry.Event) {}
@@ -120,7 +120,10 @@ func (e *exporter) Metric(ctx context.Context, data telemetry.MetricData) {
 func (e *exporter) Flush() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	spans := e.spans
+	spans := make([]*wire.Span, len(e.spans))
+	for i, s := range e.spans {
+		spans[i] = convertSpan(s)
+	}
 	e.spans = nil
 	metrics := e.metrics
 	e.metrics = nil
