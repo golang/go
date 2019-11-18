@@ -206,13 +206,14 @@ func (b *Buffer) ReadFrom(r io.Reader) (n int64, err error) {
 			panic(errNegativeRead)
 		}
 
+		if e != nil && e != io.EOF {
+			return n, e
+		}
+		
 		b.buf = b.buf[:i+m]
 		n += int64(m)
 		if e == io.EOF {
 			return n, nil // e is EOF, so return nil explicitly
-		}
-		if e != nil {
-			return n, e
 		}
 	}
 }
