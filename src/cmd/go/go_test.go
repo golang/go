@@ -1380,44 +1380,6 @@ func TestInstallIntoGOPATH(t *testing.T) {
 	tg.wantExecutable("testdata/bin/go-cmd-test"+exeSuffix, "go install go-cmd-test did not write to testdata/bin/go-cmd-test")
 }
 
-// Issue 12407
-func TestBuildOutputToDevNull(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	fi1, err1 := os.Lstat(os.DevNull)
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.run("build", "-o", os.DevNull, "go-cmd-test")
-	fi2, err2 := os.Lstat(os.DevNull)
-	if err1 == nil {
-		if err2 != nil {
-			t.Errorf("second stat of /dev/null failed: %v", err2)
-		} else if !os.SameFile(fi1, fi2) {
-			t.Errorf("/dev/null changed: now %v was %v", fi1, fi2)
-		}
-	}
-}
-
-// Issue 28549.
-func TestTestOutputToDevNull(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	fi1, err1 := os.Lstat(os.DevNull)
-	tg.makeTempdir()
-	tg.setenv("GOPATH", tg.path("."))
-	tg.tempFile("src/p/p.go", "package p\n")
-	tg.tempFile("src/p/p_test.go", "package p\nimport \"testing\"\nfunc TestX(t *testing.T) {}\n")
-	tg.run("test", "-o", os.DevNull, "-c", "p")
-	tg.mustNotExist("p.test")
-	fi2, err2 := os.Lstat(os.DevNull)
-	if err1 == nil {
-		if err2 != nil {
-			t.Errorf("second stat of /dev/null failed: %v", err2)
-		} else if !os.SameFile(fi1, fi2) {
-			t.Errorf("/dev/null changed: now %v was %v", fi1, fi2)
-		}
-	}
-}
-
 func TestPackageMainTestImportsArchiveNotBinary(t *testing.T) {
 	tooSlow(t)
 	tg := testgo(t)
