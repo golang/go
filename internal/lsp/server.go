@@ -108,7 +108,7 @@ func (s *Server) Exit(ctx context.Context) error {
 }
 
 func (s *Server) CancelRequest(ctx context.Context, params *protocol.CancelParams) error {
-	return s.CancelRequest(ctx, params)
+	return nil
 }
 
 // Workspace
