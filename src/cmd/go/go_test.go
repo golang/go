@@ -2711,19 +2711,6 @@ func TestIssue7108(t *testing.T) {
 	tg.runFail("test", "notest")
 }
 
-// cmd/go: go test -a foo does not rebuild regexp.
-func TestIssue6844(t *testing.T) {
-	if testing.Short() {
-		t.Skip("don't rebuild the standard library in short mode")
-	}
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.creatingTemp("deps.test" + exeSuffix)
-	tg.run("test", "-x", "-a", "-c", "testdata/dep_test.go")
-	tg.grepStderr("regexp", "go test -x -a -c testdata/dep-test.go did not rebuild regexp")
-}
-
 func TestGoBuildTestOnly(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
