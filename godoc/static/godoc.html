@@ -5,31 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#375EAB">
 {{with .Tabtitle}}
-  <title>{{html .}} - The Go Programming Language</title>
+  <title>{{html .}} - Go Documentation Server</title>
 {{else}}
-  <title>The Go Programming Language</title>
+  <title>Go Documentation Server</title>
 {{end}}
 <link type="text/css" rel="stylesheet" href="/lib/godoc/style.css">
-{{if .SearchBox}}
-<link rel="search" type="application/opensearchdescription+xml" title="godoc" href="/opensearch.xml" />
-{{end}}
 {{if .TreeView}}
 <link rel="stylesheet" href="/lib/godoc/jquery.treeview.css">
 {{end}}
 <script>window.initFuncs = [];</script>
-{{with .GoogleAnalytics}}
-<script type="text/javascript">
-var _gaq = _gaq || [];
-_gaq.push(["_setAccount", "{{.}}"]);
-window.trackPageview = function() {
-  _gaq.push(["_trackPageview", location.pathname+location.hash]);
-};
-window.trackPageview();
-window.trackEvent = function(category, action, opt_label, opt_value, opt_noninteraction) {
-  _gaq.push(["_trackEvent", category, action, opt_label, opt_value, opt_noninteraction]);
-};
-</script>
-{{end}}
 <script src="/lib/godoc/jquery.js" defer></script>
 {{if .TreeView}}
 <script src="/lib/godoc/jquery.treeview.js" defer></script>
@@ -49,18 +33,11 @@ window.trackEvent = function(category, action, opt_label, opt_value, opt_noninte
 </div><!-- #lowframe -->
 
 <div id="topbar"{{if .Title}} class="wide"{{end}}><div class="container">
-<div class="top-heading" id="heading-wide"><a href="/">The Go Programming Language</a></div>
-<div class="top-heading" id="heading-narrow"><a href="/">Go</a></div>
+<div class="top-heading" id="heading-wide"><a href="/pkg/">Go Documentation Server</a></div>
+<div class="top-heading" id="heading-narrow"><a href="/pkg/">GoDoc</a></div>
 <a href="#" id="menu-button"><span id="menu-button-arrow">&#9661;</span></a>
 <form method="GET" action="/search">
 <div id="menu">
-<a href="/doc/">Documents</a>
-<a href="/pkg/">Packages</a>
-<a href="/project/">The Project</a>
-<a href="/help/">Help</a>
-{{if not .GoogleCN}}
-<a href="/blog/">Blog</a>
-{{end}}
 {{if (and .Playground .Title)}}
 <a id="playgroundButton" href="http://play.golang.org/" title="Show Go Playground">Play</a>
 {{end}}
@@ -129,15 +106,5 @@ and code is licensed under a <a href="/LICENSE">BSD license</a>.<br>
 
 </div><!-- .container -->
 </div><!-- #page -->
-{{if .GoogleAnalytics}}
-<script type="text/javascript">
-(function() {
-  var ga = document.createElement("script"); ga.type = "text/javascript"; ga.async = true;
-  ga.src = ("https:" == document.location.protocol ? "https://ssl" : "http://www") + ".google-analytics.com/ga.js";
-  var s = document.getElementsByTagName("script")[0]; s.parentNode.insertBefore(ga, s);
-})();
-</script>
-{{end}}
 </body>
 </html>
-

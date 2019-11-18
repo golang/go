@@ -81,7 +81,7 @@ func waitForServerReady(t *testing.T, cmd *exec.Cmd, addr string) {
 	go func() { ch <- fmt.Errorf("server exited early: %v", cmd.Wait()) }()
 	go waitForServer(t, ch,
 		fmt.Sprintf("http://%v/", addr),
-		"The Go Programming Language",
+		"Go Documentation Server",
 		15*time.Second,
 		false)
 	if err := <-ch; err != nil {
@@ -201,7 +201,7 @@ func TestURL(t *testing.T) {
 		}
 	}
 
-	t.Run("index", testcase("/", "Go is an open source programming language"))
+	t.Run("index", testcase("/", "These packages are part of the Go Project but outside the main Go tree."))
 	t.Run("fmt", testcase("/pkg/fmt", "Package fmt implements formatted I/O"))
 }
 
@@ -286,8 +286,12 @@ package a; import _ "godoc.test/repo2/a"; const Name = "repo1a"`,
 		releaseTag  string // optional release tag that must be in go/build.ReleaseTags
 	}{
 		{
-			path:     "/",
-			contains: []string{"Go is an open source programming language"},
+			path: "/",
+			contains: []string{
+				"Go Documentation Server",
+				"Standard library",
+				"These packages are part of the Go Project but outside the main Go tree.",
+			},
 		},
 		{
 			path:     "/pkg/fmt/",

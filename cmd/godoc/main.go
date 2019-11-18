@@ -6,8 +6,7 @@
 
 // Web server tree:
 //
-//	http://godoc/		main landing page
-//	http://godoc/doc/	serve from $GOROOT/doc - spec, mem, etc.
+//	http://godoc/		redirect to /pkg/
 //	http://godoc/src/	serve files from $GOROOT/src; .go gets pretty-printed
 //	http://godoc/cmd/	serve documentation about commands
 //	http://godoc/pkg/	serve documentation about packages
@@ -164,8 +163,6 @@ func main() {
 		certInit()
 	}
 
-	playEnabled = *showPlayground
-
 	// Check usage.
 	if flag.NArg() > 0 {
 		fmt.Fprintln(os.Stderr, `Unexpected arguments. Use "go doc" for command-line help output instead. For example, "go doc fmt.Printf".`)
@@ -276,7 +273,9 @@ func main() {
 		corpus.IndexFullText = false
 	}
 	corpus.IndexFiles = *indexFiles
-	corpus.IndexDirectory = indexDirectoryDefault
+	corpus.IndexDirectory = func(dir string) bool {
+		return dir != "/pkg" && !strings.HasPrefix(dir, "/pkg/")
+	}
 	corpus.IndexThrottle = *indexThrottle
 	corpus.IndexInterval = *indexInterval
 	if *writeIndex || *urlFlag != "" {
