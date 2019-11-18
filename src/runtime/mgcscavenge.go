@@ -405,15 +405,14 @@ func (s *pageAlloc) scavengeOne(max uintptr, locked bool) uintptr {
 	}
 
 	lockHeap()
-	top := chunkIndex(s.scavAddr)
-	if top < s.start {
+	ci := chunkIndex(s.scavAddr)
+	if ci < s.start {
 		unlockHeap()
 		return 0
 	}
 
 	// Check the chunk containing the scav addr, starting at the addr
 	// and see if there are any free and unscavenged pages.
-	ci := chunkIndex(s.scavAddr)
 	if s.summary[len(s.summary)-1][ci].max() >= uint(minPages) {
 		// We only bother looking for a candidate if there at least
 		// minPages free pages at all. It's important that we only
@@ -429,59 +428,97 @@ func (s *pageAlloc) scavengeOne(max uintptr, locked bool) uintptr {
 			return uintptr(npages) * pageSize
 		}
 	}
-	unlockHeap()
 
-	// Slow path: iterate optimistically looking for any free and unscavenged page.
-	// If we think we see something, stop and verify it!
-	for i := top - 1; i >= s.start; i-- {
-		// If this chunk is totally in-use or has no unscavenged pages, don't bother
-		// doing a  more sophisticated check.
-		//
-		// Note we're accessing the summary and the chunks without a lock, but
-		// that's fine. We're being optimistic anyway.
-
-		// Check if there are enough free pages at all. It's imperative that we
-		// check this before the chunk itself so that we quickly skip over
-		// unused parts of the address space, which may have a cleared bitmap
-		// but a zero'd summary which indicates not to allocate from there.
-		if s.summary[len(s.summary)-1][i].max() < uint(minPages) {
-			continue
+	// getInUseRange returns the highest range in the
+	// intersection of [0, addr] and s.inUse.
+	//
+	// s.mheapLock must be held.
+	getInUseRange := func(addr uintptr) addrRange {
+		top := s.inUse.findSucc(addr)
+		if top == 0 {
+			return addrRange{}
 		}
-
-		// Run over the chunk looking harder for a candidate. Again, we could
-		// race with a lot of different pieces of code, but we're just being
-		// optimistic. Make sure we load the l2 pointer atomically though, to
-		// avoid races with heap growth. It may or may not be possible to also
-		// see a nil pointer in this case if we do race with heap growth, but
-		// just defensively ignore the nils. This operation is optimistic anyway.
-		l2 := (*[1 << pallocChunksL2Bits]pallocData)(atomic.Loadp(unsafe.Pointer(&s.chunks[i.l1()])))
-		if l2 == nil || !l2[i.l2()].hasScavengeCandidate(minPages) {
-			continue
+		r := s.inUse.ranges[top-1]
+		// addr is inclusive, so treat it as such when
+		// updating the limit, which is exclusive.
+		if r.limit > addr+1 {
+			r.limit = addr + 1
 		}
-
-		// We found a candidate, so let's lock and verify it.
-		lockHeap()
-
-		// Find, verify, and scavenge if we can.
-		chunk := s.chunkOf(i)
-		base, npages := chunk.findScavengeCandidate(pallocChunkPages-1, minPages, maxPages)
-		if npages > 0 {
-			// We found memory to scavenge! Mark the bits and report that up.
-			s.scavengeRangeLocked(i, base, npages)
-			unlockHeap()
-			return uintptr(npages) * pageSize
-		}
-
-		// We were fooled, let's take this opportunity to move the scavAddr
-		// all the way down to where we searched as scavenged for future calls
-		// and keep iterating.
-		s.scavAddr = chunkBase(i-1) + pallocChunkPages*pageSize - 1
-		unlockHeap()
+		return r
 	}
 
-	lockHeap()
-	// We couldn't find anything, so signal that there's nothing left
-	// to scavenge.
+	// Slow path: iterate optimistically over the in-use address space
+	// looking for any free and unscavenged page. If we think we see something,
+	// lock and verify it!
+	//
+	// We iterate over the address space by taking ranges from inUse.
+newRange:
+	for {
+		r := getInUseRange(s.scavAddr)
+		if r.size() == 0 {
+			break
+		}
+		unlockHeap()
+
+		// Iterate over all of the chunks described by r.
+		// Note that r.limit is the exclusive upper bound, but what
+		// we want is the top chunk instead, inclusive, so subtract 1.
+		bot, top := chunkIndex(r.base), chunkIndex(r.limit-1)
+		for i := top; i >= bot; i-- {
+			// If this chunk is totally in-use or has no unscavenged pages, don't bother
+			// doing a  more sophisticated check.
+			//
+			// Note we're accessing the summary and the chunks without a lock, but
+			// that's fine. We're being optimistic anyway.
+
+			// Check quickly if there are enough free pages at all.
+			if s.summary[len(s.summary)-1][i].max() < uint(minPages) {
+				continue
+			}
+
+			// Run over the chunk looking harder for a candidate. Again, we could
+			// race with a lot of different pieces of code, but we're just being
+			// optimistic. Make sure we load the l2 pointer atomically though, to
+			// avoid races with heap growth. It may or may not be possible to also
+			// see a nil pointer in this case if we do race with heap growth, but
+			// just defensively ignore the nils. This operation is optimistic anyway.
+			l2 := (*[1 << pallocChunksL2Bits]pallocData)(atomic.Loadp(unsafe.Pointer(&s.chunks[i.l1()])))
+			if l2 == nil || !l2[i.l2()].hasScavengeCandidate(minPages) {
+				continue
+			}
+
+			// We found a candidate, so let's lock and verify it.
+			lockHeap()
+
+			// Find, verify, and scavenge if we can.
+			chunk := s.chunkOf(i)
+			base, npages := chunk.findScavengeCandidate(pallocChunkPages-1, minPages, maxPages)
+			if npages > 0 {
+				// We found memory to scavenge! Mark the bits and report that up.
+				// scavengeRangeLocked will update scavAddr for us, also.
+				s.scavengeRangeLocked(i, base, npages)
+				unlockHeap()
+				return uintptr(npages) * pageSize
+			}
+
+			// We were fooled, let's take this opportunity to move the scavAddr
+			// all the way down to where we searched as scavenged for future calls
+			// and keep iterating. Then, go get a new range.
+			s.scavAddr = chunkBase(i-1) + pallocChunkPages*pageSize - 1
+			continue newRange
+		}
+		lockHeap()
+
+		// Move the scavenger down the heap, past everything we just searched.
+		// Since we don't check if scavAddr moved while twe let go of the heap lock,
+		// it's possible that it moved down and we're moving it up here. This
+		// raciness could result in us searching parts of the heap unnecessarily.
+		// TODO(mknyszek): Remove this racy behavior through explicit address
+		// space reservations, which are difficult to do with just scavAddr.
+		s.scavAddr = r.base - 1
+	}
+	// We reached the end of the in-use address space and couldn't find anything,
+	// so signal that there's nothing left to scavenge.
 	s.scavAddr = minScavAddr
 	unlockHeap()
 

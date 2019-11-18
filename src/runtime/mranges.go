@@ -21,6 +21,31 @@ type addrRange struct {
 	base, limit uintptr
 }
 
+// size returns the size of the range represented in bytes.
+func (a addrRange) size() uintptr {
+	if a.limit <= a.base {
+		return 0
+	}
+	return a.limit - a.base
+}
+
+// subtract takes the addrRange toPrune and cuts out any overlap with
+// from, then returns the new range. subtract assumes that a and b
+// either don't overlap at all, only overlap on one side, or are equal.
+// If b is strictly contained in a, thus forcing a split, it will throw.
+func (a addrRange) subtract(b addrRange) addrRange {
+	if a.base >= b.base && a.limit <= b.limit {
+		return addrRange{}
+	} else if a.base < b.base && a.limit > b.limit {
+		throw("bad prune")
+	} else if a.limit > b.limit && a.base < b.limit {
+		a.base = b.limit
+	} else if a.base < b.base && a.limit > b.base {
+		a.limit = b.base
+	}
+	return a
+}
+
 // addrRanges is a data structure holding a collection of ranges of
 // address space.
 //
