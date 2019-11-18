@@ -6041,6 +6041,9 @@ func genssa(f *ssa.Func, pp *Progs) {
 		if s.bstart[b.ID] == s.pp.next && len(b.Succs) == 1 && b.Succs[0].Block() == b {
 			p := thearch.Ginsnop(s.pp)
 			p.Pos = p.Pos.WithIsStmt()
+			if b.Pos == src.NoXPos {
+				b.Pos = p.Pos // It needs a file, otherwise a no-file non-zero line causes confusion.  See #35652.
+			}
 			b.Pos = b.Pos.WithBogusLine() // Debuggers are not good about infinite loops, force a change in line number
 		}
 		// Emit control flow instructions for block
