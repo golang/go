@@ -19,9 +19,11 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
+const Doc = "check for non-64-bits-aligned arguments to sync/atomic functions"
+
 var Analyzer = &analysis.Analyzer{
 	Name:     "atomicalign",
-	Doc:      "check for non-64-bits-aligned arguments to sync/atomic functions",
+	Doc:      Doc,
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

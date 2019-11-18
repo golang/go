@@ -16,14 +16,14 @@ import (
 	"golang.org/x/tools/go/types/typeutil"
 )
 
-const doc = `report passing non-pointer or non-error values to errors.As
+const Doc = `report passing non-pointer or non-error values to errors.As
 
 The errorsas analysis reports calls to errors.As where the type
 of the second argument is not a pointer to a type implementing error.`
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "errorsas",
-	Doc:      doc,
+	Doc:      Doc,
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

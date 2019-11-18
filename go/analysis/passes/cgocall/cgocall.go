@@ -23,7 +23,7 @@ import (
 
 const debug = false
 
-const doc = `detect some violations of the cgo pointer passing rules
+const Doc = `detect some violations of the cgo pointer passing rules
 
 Check for invalid cgo pointer passing.
 This looks for code that uses cgo to call C code passing values
@@ -34,7 +34,7 @@ or slice to C, either directly, or via a pointer, array, or struct.`
 
 var Analyzer = &analysis.Analyzer{
 	Name:             "cgocall",
-	Doc:              doc,
+	Doc:              Doc,
 	RunDespiteErrors: true,
 	Run:              run,
 }

@@ -33,14 +33,14 @@ func init() {
 
 var Analyzer = &analysis.Analyzer{
 	Name:       "printf",
-	Doc:        doc,
+	Doc:        Doc,
 	Requires:   []*analysis.Analyzer{inspect.Analyzer},
 	Run:        run,
 	ResultType: reflect.TypeOf((*Result)(nil)),
 	FactTypes:  []analysis.Fact{new(isWrapper)},
 }
 
-const doc = `check consistency of Printf format strings and arguments
+const Doc = `check consistency of Printf format strings and arguments
 
 The check applies to known functions (for example, those in package fmt)
 as well as any detected wrappers of known functions.
