@@ -38,6 +38,7 @@ Scripts also have access to these other environment variables:
 	TMPDIR=$WORK/tmp
 	devnull=<value of os.DevNull>
 	goversion=<current Go version; for example, 1.12>
+	:=<OS-specific path list separator>
 
 The scripts supporting files are unpacked relative to $GOPATH/src (aka $WORK/gopath/src)
 and then the script begins execution in that directory as well. Thus the example above runs
@@ -114,7 +115,8 @@ The commands are:
   from the most recent exec or go command.
 
 - env [-r] [key=value...]
-  With no arguments, print the environment (useful for debugging).
+  With no arguments, print the environment to stdout
+  (useful for debugging and for verifying initial state).
   Otherwise add the listed key=value pairs to the environment.
   The -r flag causes the values to be escaped using regexp.QuoteMeta
   before being recorded.
@@ -163,7 +165,7 @@ The commands are:
 
 - [!] stdout [-count=N] pattern
   Apply the grep command (see above) to the standard output
-  from the most recent exec, go, or wait command.
+  from the most recent exec, go, wait, or env command.
 
 - stop [message]
   Stop the test early (marking it as passing), including the message if given.
