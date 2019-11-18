@@ -1369,17 +1369,6 @@ func TestRelativeGOBINFail(t *testing.T) {
 	tg.grepStderr("cannot install, GOBIN must be an absolute path", "go install must fail if $GOBIN is a relative path")
 }
 
-// Test that without $GOBIN set, binaries get installed
-// into the GOPATH bin directory.
-func TestInstallIntoGOPATH(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.creatingTemp("testdata/bin/go-cmd-test" + exeSuffix)
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.run("install", "go-cmd-test")
-	tg.wantExecutable("testdata/bin/go-cmd-test"+exeSuffix, "go install go-cmd-test did not write to testdata/bin/go-cmd-test")
-}
-
 func TestPackageMainTestImportsArchiveNotBinary(t *testing.T) {
 	tooSlow(t)
 	tg := testgo(t)
@@ -1427,51 +1416,6 @@ func TestPackageNotStaleWithTrailingSlash(t *testing.T) {
 	tg.wantNotStale("runtime", "", "with trailing slash in GOROOT, runtime listed as stale")
 	tg.wantNotStale("os", "", "with trailing slash in GOROOT, os listed as stale")
 	tg.wantNotStale("io", "", "with trailing slash in GOROOT, io listed as stale")
-}
-
-// With $GOBIN set, binaries get installed to $GOBIN.
-func TestInstallIntoGOBIN(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	gobin := filepath.Join(tg.pwd(), "testdata", "bin1")
-	tg.creatingTemp(gobin)
-	tg.setenv("GOBIN", gobin)
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.run("install", "go-cmd-test")
-	tg.wantExecutable("testdata/bin1/go-cmd-test"+exeSuffix, "go install go-cmd-test did not write to testdata/bin1/go-cmd-test")
-}
-
-// Issue 11065
-func TestInstallToCurrentDirectoryCreatesExecutable(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	pkg := filepath.Join(tg.pwd(), "testdata", "src", "go-cmd-test")
-	tg.creatingTemp(filepath.Join(pkg, "go-cmd-test"+exeSuffix))
-	tg.setenv("GOBIN", pkg)
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.cd(pkg)
-	tg.run("install")
-	tg.wantExecutable("go-cmd-test"+exeSuffix, "go install did not write to current directory")
-}
-
-// Without $GOBIN set, installing a program outside $GOPATH should fail
-// (there is nowhere to install it).
-func TestInstallWithoutDestinationFails(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.runFail("install", "testdata/src/go-cmd-test/helloworld.go")
-	tg.grepStderr("no install location for .go files listed on command line", "wrong error")
-}
-
-// With $GOBIN set, should install there.
-func TestInstallToGOBINCommandLinePackage(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	gobin := filepath.Join(tg.pwd(), "testdata", "bin1")
-	tg.creatingTemp(gobin)
-	tg.setenv("GOBIN", gobin)
-	tg.run("install", "testdata/src/go-cmd-test/helloworld.go")
-	tg.wantExecutable("testdata/bin1/helloworld"+exeSuffix, "go install testdata/src/go-cmd-test/helloworld.go did not write testdata/bin1/helloworld")
 }
 
 func TestGoGetNonPkg(t *testing.T) {
@@ -1543,52 +1487,6 @@ func TestInstalls(t *testing.T) {
 	// gopath program installs into GOPATH/bin
 	tg.run("install", "progname")
 	tg.wantExecutable(tg.path("bin/progname")+exeSuffix, "did not install progname to $GOPATH/bin/progname")
-}
-
-func TestRejectRelativeDotPathInGOPATHCommandLinePackage(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.setenv("GOPATH", ".")
-	tg.runFail("build", "testdata/src/go-cmd-test/helloworld.go")
-	tg.grepStderr("GOPATH entry is relative", "expected an error message rejecting relative GOPATH entries")
-}
-
-func TestRejectRelativePathsInGOPATH(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	sep := string(filepath.ListSeparator)
-	tg.setenv("GOPATH", sep+filepath.Join(tg.pwd(), "testdata")+sep+".")
-	tg.runFail("build", "go-cmd-test")
-	tg.grepStderr("GOPATH entry is relative", "expected an error message rejecting relative GOPATH entries")
-}
-
-func TestRejectRelativePathsInGOPATHCommandLinePackage(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.setenv("GOPATH", "testdata")
-	tg.runFail("build", "testdata/src/go-cmd-test/helloworld.go")
-	tg.grepStderr("GOPATH entry is relative", "expected an error message rejecting relative GOPATH entries")
-}
-
-// Issue 21928.
-func TestRejectBlankPathsInGOPATH(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	sep := string(filepath.ListSeparator)
-	tg.setenv("GOPATH", " "+sep+filepath.Join(tg.pwd(), "testdata"))
-	tg.runFail("build", "go-cmd-test")
-	tg.grepStderr("GOPATH entry is relative", "expected an error message rejecting relative GOPATH entries")
-}
-
-// Issue 21928.
-func TestIgnoreEmptyPathsInGOPATH(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.creatingTemp("testdata/bin/go-cmd-test" + exeSuffix)
-	sep := string(filepath.ListSeparator)
-	tg.setenv("GOPATH", ""+sep+filepath.Join(tg.pwd(), "testdata"))
-	tg.run("install", "go-cmd-test")
-	tg.wantExecutable("testdata/bin/go-cmd-test"+exeSuffix, "go install go-cmd-test did not write to testdata/bin/go-cmd-test")
 }
 
 // Issue 4104.
