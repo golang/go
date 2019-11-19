@@ -52,9 +52,10 @@ func (c *cache) ParseGoHandle(fh source.FileHandle, mode source.ParseMode) sourc
 		file: fh.Identity(),
 		mode: mode,
 	}
+	fset := c.fset
 	h := c.store.Bind(key, func(ctx context.Context) interface{} {
 		data := &parseGoData{}
-		data.ast, data.mapper, data.parseError, data.err = parseGo(ctx, c, fh, mode)
+		data.ast, data.mapper, data.parseError, data.err = parseGo(ctx, fset, fh, mode)
 		return data
 	})
 	return &parseGoHandle{
@@ -105,7 +106,7 @@ func hashParseKeys(phs []source.ParseGoHandle) string {
 	return hashContents(b.Bytes())
 }
 
-func parseGo(ctx context.Context, c *cache, fh source.FileHandle, mode source.ParseMode) (file *ast.File, mapper *protocol.ColumnMapper, parseError error, err error) {
+func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mode source.ParseMode) (file *ast.File, mapper *protocol.ColumnMapper, parseError error, err error) {
 	ctx, done := trace.StartSpan(ctx, "cache.parseGo", telemetry.File.Of(fh.Identity().URI.Filename()))
 	defer done()
 
@@ -119,18 +120,21 @@ func parseGo(ctx context.Context, c *cache, fh source.FileHandle, mode source.Pa
 	if mode == source.ParseHeader {
 		parserMode = parser.ImportsOnly | parser.ParseComments
 	}
-	file, parseError = parser.ParseFile(c.fset, fh.Identity().URI.Filename(), buf, parserMode)
+	file, parseError = parser.ParseFile(fset, fh.Identity().URI.Filename(), buf, parserMode)
+	var tok *token.File
 	if file != nil {
+		// Fix any badly parsed parts of the AST.
+		tok = fset.File(file.Pos())
+		if tok == nil {
+			return nil, nil, nil, errors.Errorf("successfully parsed but no token.File for %s (%v)", fh.Identity().URI, parseError)
+		}
 		if mode == source.ParseExported {
 			trimAST(file)
 		}
-		// Fix any badly parsed parts of the AST.
-		tok := c.fset.File(file.Pos())
 		if err := fix(ctx, file, tok, buf); err != nil {
 			log.Error(ctx, "failed to fix AST", err)
 		}
 	}
-
 	if file == nil {
 		// If the file is nil only due to parse errors,
 		// the parse errors are the actual errors.
@@ -140,10 +144,6 @@ func parseGo(ctx context.Context, c *cache, fh source.FileHandle, mode source.Pa
 		}
 		return nil, nil, parseError, err
 	}
-	tok := c.FileSet().File(file.Pos())
-	if tok == nil {
-		return nil, nil, parseError, errors.Errorf("no token.File for %s", fh.Identity().URI)
-	}
 	uri := fh.Identity().URI
 	content, _, err := fh.Read(ctx)
 	if err != nil {
@@ -151,7 +151,7 @@ func parseGo(ctx context.Context, c *cache, fh source.FileHandle, mode source.Pa
 	}
 	m := &protocol.ColumnMapper{
 		URI:       uri,
-		Converter: span.NewTokenConverter(c.FileSet(), tok),
+		Converter: span.NewTokenConverter(fset, tok),
 		Content:   content,
 	}
 	return file, m, parseError, nil

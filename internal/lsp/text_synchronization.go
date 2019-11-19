@@ -96,9 +96,11 @@ func fullChange(changes []protocol.TextDocumentContentChangeEvent) (string, bool
 		return "", false
 	}
 	// The length of the changes must be 1 at this point.
-	if changes[0].RangeLength == 0 { // used to check changes[0].Range == nil
+	// TODO: This breaks if you insert a character at the beginning of the file.
+	if (changes[0].Range == protocol.Range{} && changes[0].RangeLength == 0) {
 		return changes[0].Text, true
 	}
+
 	return "", false
 }
 
