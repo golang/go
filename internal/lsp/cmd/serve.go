@@ -18,6 +18,7 @@ import (
 
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp"
+	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/telemetry"
@@ -87,16 +88,16 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 	}
 	run := func(ctx context.Context, srv *lsp.Server) { go prepare(ctx, srv).Run(ctx) }
 	if s.Address != "" {
-		return lsp.RunServerOnAddress(ctx, s.app.cache, s.Address, run)
+		return lsp.RunServerOnAddress(ctx, cache.New(s.app.options), s.Address, run)
 	}
 	if s.Port != 0 {
-		return lsp.RunServerOnPort(ctx, s.app.cache, s.Port, run)
+		return lsp.RunServerOnPort(ctx, cache.New(s.app.options), s.Port, run)
 	}
 	stream := jsonrpc2.NewHeaderStream(os.Stdin, os.Stdout)
 	if s.Trace {
 		stream = protocol.LoggingStream(stream, out)
 	}
-	ctx, srv := lsp.NewServer(ctx, s.app.cache, stream)
+	ctx, srv := lsp.NewServer(ctx, cache.New(s.app.options), stream)
 	return prepare(ctx, srv).Run(ctx)
 }
 

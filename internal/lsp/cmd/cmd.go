@@ -45,8 +45,8 @@ type Application struct {
 	// TODO: Remove this when we stop allowing the serve verb by default.
 	Serve Serve
 
-	// The base cache to use for sessions from this application.
-	cache source.Cache
+	// the options configuring function to invoke when building a server
+	options func(*source.Options)
 
 	// The name of the binary, used in help and telemetry.
 	name string
@@ -77,7 +77,7 @@ func New(name, wd string, env []string, options func(*source.Options)) *Applicat
 		wd, _ = os.Getwd()
 	}
 	app := &Application{
-		cache:   cache.New(options),
+		options: options,
 		name:    name,
 		wd:      wd,
 		env:     env,
@@ -165,7 +165,7 @@ func (app *Application) connect(ctx context.Context) (*connection, error) {
 	switch app.Remote {
 	case "":
 		connection := newConnection(app)
-		ctx, connection.Server = lsp.NewClientServer(ctx, app.cache, connection.Client)
+		ctx, connection.Server = lsp.NewClientServer(ctx, cache.New(app.options), connection.Client)
 		return connection, connection.initialize(ctx)
 	case "internal":
 		internalMu.Lock()
@@ -181,7 +181,7 @@ func (app *Application) connect(ctx context.Context) (*connection, error) {
 		ctx, jc, connection.Server = protocol.NewClient(ctx, jsonrpc2.NewHeaderStream(cr, cw), connection.Client)
 		go jc.Run(ctx)
 		go func() {
-			ctx, srv := lsp.NewServer(ctx, app.cache, jsonrpc2.NewHeaderStream(sr, sw))
+			ctx, srv := lsp.NewServer(ctx, cache.New(app.options), jsonrpc2.NewHeaderStream(sr, sw))
 			srv.Run(ctx)
 		}()
 		if err := connection.initialize(ctx); err != nil {
