@@ -23,8 +23,27 @@ func Highlight(ctx context.Context, view View, uri span.URI, pos protocol.Positi
 	if err != nil {
 		return nil, err
 	}
-	fh := view.Snapshot().Handle(ctx, f)
-	ph := view.Session().Cache().ParseGoHandle(fh, ParseFull)
+	_, cphs, err := view.CheckPackageHandles(ctx, f)
+	if err != nil {
+		return nil, err
+	}
+	cph, err := WidestCheckPackageHandle(cphs)
+	if err != nil {
+		return nil, err
+	}
+	pkg, err := cph.Check(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var ph ParseGoHandle
+	for _, file := range pkg.Files() {
+		if file.File().Identity().URI == f.URI() {
+			ph = file
+		}
+	}
+	if ph == nil {
+		return nil, errors.Errorf("no ParseGoHandle for %s", f.URI())
+	}
 	file, m, _, err := ph.Parse(ctx)
 	if err != nil {
 		return nil, err
@@ -41,22 +60,35 @@ func Highlight(ctx context.Context, view View, uri span.URI, pos protocol.Positi
 	if len(path) == 0 {
 		return nil, errors.Errorf("no enclosing position found for %v:%v", int(pos.Line), int(pos.Character))
 	}
+	result := []protocol.Range{}
 	id, ok := path[0].(*ast.Ident)
 	if !ok {
 		// If the cursor is not within an identifier, return empty results.
-		return []protocol.Range{}, nil
+		return result, nil
 	}
-	var result []protocol.Range
-	if id.Obj != nil {
-		ast.Inspect(path[len(path)-1], func(n ast.Node) bool {
-			if n, ok := n.(*ast.Ident); ok && n.Obj == id.Obj {
-				rng, err := nodeToProtocolRange(ctx, view, m, n)
-				if err == nil {
-					result = append(result, rng)
-				}
-			}
+	idObj := pkg.GetTypesInfo().ObjectOf(id)
+
+	ast.Inspect(path[len(path)-1], func(node ast.Node) bool {
+		n, ok := node.(*ast.Ident)
+		if !ok {
 			return true
-		})
-	}
+		}
+		if n.Name != id.Name {
+			return true
+		}
+		if n.Obj != id.Obj {
+			return true
+		}
+
+		nodeObj := pkg.GetTypesInfo().ObjectOf(n)
+		if nodeObj != idObj {
+			return false
+		}
+
+		if rng, err := nodeToProtocolRange(ctx, view, m, n); err == nil {
+			result = append(result, rng)
+		}
+		return true
+	})
 	return result, nil
 }

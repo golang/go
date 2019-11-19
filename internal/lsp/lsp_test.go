@@ -470,7 +470,7 @@ func (r *runner) Implementation(t *testing.T, spn span.Span, m tests.Implementat
 	}
 }
 
-func (r *runner) Highlight(t *testing.T, name string, locations []span.Span) {
+func (r *runner) Highlight(t *testing.T, src span.Span, locations []span.Span) {
 	m, err := r.data.Mapper(locations[0].URI())
 	if err != nil {
 		t.Fatal(err)
@@ -491,7 +491,7 @@ func (r *runner) Highlight(t *testing.T, name string, locations []span.Span) {
 		t.Fatal(err)
 	}
 	if len(highlights) != len(locations) {
-		t.Fatalf("got %d highlights for %s, expected %d", len(highlights), name, len(locations))
+		t.Fatalf("got %d highlights for highlight at %v:%v:%v, expected %d", len(highlights), src.URI().Filename(), src.Start().Line(), src.Start().Column(), len(locations))
 	}
 	for i := range highlights {
 		if h, err := m.RangeSpan(highlights[i].Range); err != nil {

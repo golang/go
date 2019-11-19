@@ -580,9 +580,8 @@ func (r *runner) Implementation(t *testing.T, spn span.Span, m tests.Implementat
 	}
 }
 
-func (r *runner) Highlight(t *testing.T, name string, locations []span.Span) {
+func (r *runner) Highlight(t *testing.T, src span.Span, locations []span.Span) {
 	ctx := r.ctx
-	src := locations[0]
 	m, srcRng, err := spanToRange(r.data, src)
 	if err != nil {
 		t.Fatal(err)
@@ -592,7 +591,7 @@ func (r *runner) Highlight(t *testing.T, name string, locations []span.Span) {
 		t.Errorf("highlight failed for %s: %v", src.URI(), err)
 	}
 	if len(highlights) != len(locations) {
-		t.Errorf("got %d highlights for %s, expected %d", len(highlights), name, len(locations))
+		t.Errorf("got %d highlights for highlight at %v:%v:%v, expected %d", len(highlights), src.URI().Filename(), src.Start().Line(), src.Start().Column(), len(locations))
 	}
 	for i, got := range highlights {
 		want, err := m.Range(locations[i])

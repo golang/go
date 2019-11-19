@@ -53,7 +53,7 @@ type Imports []span.Span
 type SuggestedFixes []span.Span
 type Definitions map[span.Span]Definition
 type Implementationses map[span.Span]Implementations
-type Highlights map[string][]span.Span
+type Highlights map[span.Span][]span.Span
 type References map[span.Span][]span.Span
 type Renames map[span.Span]string
 type PrepareRenames map[span.Span]*source.PrepareItem
@@ -113,7 +113,7 @@ type Tests interface {
 	SuggestedFix(*testing.T, span.Span)
 	Definition(*testing.T, span.Span, Definition)
 	Implementation(*testing.T, span.Span, Implementations)
-	Highlight(*testing.T, string, []span.Span)
+	Highlight(*testing.T, span.Span, []span.Span)
 	References(*testing.T, span.Span, []span.Span)
 	Rename(*testing.T, span.Span, string)
 	PrepareRename(*testing.T, span.Span, *source.PrepareItem)
@@ -479,10 +479,10 @@ func Run(t *testing.T, tests Tests, data *Data) {
 
 	t.Run("Highlight", func(t *testing.T) {
 		t.Helper()
-		for name, locations := range data.Highlights {
-			t.Run(name, func(t *testing.T) {
+		for pos, locations := range data.Highlights {
+			t.Run(spanName(pos), func(t *testing.T) {
 				t.Helper()
-				tests.Highlight(t, name, locations)
+				tests.Highlight(t, pos, locations)
 			})
 		}
 	})
@@ -826,8 +826,9 @@ func (data *Data) collectDefinitionNames(src span.Span, name string) {
 	data.Definitions[src] = d
 }
 
-func (data *Data) collectHighlights(name string, rng span.Span) {
-	data.Highlights[name] = append(data.Highlights[name], rng)
+func (data *Data) collectHighlights(src span.Span, expected []span.Span) {
+	// Declaring a highlight in a test file: @highlight(src, expected1, expected2)
+	data.Highlights[src] = append(data.Highlights[src], expected...)
 }
 
 func (data *Data) collectReferences(src span.Span, expected []span.Span) {
