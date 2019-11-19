@@ -51,9 +51,6 @@ func ipv6LinkLocalUnicastAddr(ifi *Interface) string {
 }
 
 func TestInterfaces(t *testing.T) {
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
-		t.Skipf("sysctl is not supported on iOS")
-	}
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)
@@ -85,9 +82,6 @@ func TestInterfaces(t *testing.T) {
 }
 
 func TestInterfaceAddrs(t *testing.T) {
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
-		t.Skipf("sysctl is not supported on iOS")
-	}
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)
@@ -107,9 +101,6 @@ func TestInterfaceAddrs(t *testing.T) {
 }
 
 func TestInterfaceUnicastAddrs(t *testing.T) {
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
-		t.Skipf("sysctl is not supported on iOS")
-	}
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)
@@ -137,9 +128,6 @@ func TestInterfaceUnicastAddrs(t *testing.T) {
 }
 
 func TestInterfaceMulticastAddrs(t *testing.T) {
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
-		t.Skipf("sysctl is not supported on iOS")
-	}
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)

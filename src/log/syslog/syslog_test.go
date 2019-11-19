@@ -134,9 +134,6 @@ func startServer(n, la string, done chan<- string) (addr string, sock io.Closer,
 }
 
 func TestWithSimulated(t *testing.T) {
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
-		t.Skipf("sysctl is not supported on iOS")
-	}
 	t.Parallel()
 	msg := "Test 123"
 	var transport []string
@@ -275,9 +272,6 @@ func check(t *testing.T, in, out string) {
 }
 
 func TestWrite(t *testing.T) {
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
-		t.Skipf("sysctl is not supported on iOS")
-	}
 	t.Parallel()
 	tests := []struct {
 		pri Priority
