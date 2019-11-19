@@ -946,7 +946,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 					return err
 				}
 				tg.tempFile(dest, string(data))
-				if err := os.Chmod(tg.path(dest), info.Mode()); err != nil {
+				if err := os.Chmod(tg.path(dest), info.Mode()|0200); err != nil {
 					return err
 				}
 				return nil
