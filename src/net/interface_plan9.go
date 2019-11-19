@@ -143,8 +143,8 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 		ifcs = []Interface{*ifi}
 	}
 
-	addrs := make([]Addr, len(ifcs))
-	for i, ifc := range ifcs {
+	var addrs []Addr
+	for _, ifc := range ifcs {
 		status := ifc.Name + "/status"
 		statusf, err := open(status)
 		if err != nil {
@@ -157,39 +157,36 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 		if _, ok := statusf.readLine(); !ok {
 			return nil, errors.New("cannot read header line for interface: " + status)
 		}
-		line, ok := statusf.readLine()
-		if !ok {
-			return nil, errors.New("cannot read IP address for interface: " + status)
-		}
 
-		// This assumes only a single address for the interface.
-		fields := getFields(line)
-		if len(fields) < 1 {
-			return nil, errors.New("cannot parse IP address for interface: " + status)
-		}
-		addr := fields[0]
-		ip := ParseIP(addr)
-		if ip == nil {
-			return nil, errors.New("cannot parse IP address for interface: " + status)
-		}
+		for line, ok := statusf.readLine(); ok; line, ok = statusf.readLine() {
+			fields := getFields(line)
+			if len(fields) < 1 {
+				return nil, errors.New("cannot parse IP address for interface: " + status)
+			}
+			addr := fields[0]
+			ip := ParseIP(addr)
+			if ip == nil {
+				return nil, errors.New("cannot parse IP address for interface: " + status)
+			}
 
-		// The mask is represented as CIDR relative to the IPv6 address.
-		// Plan 9 internal representation is always IPv6.
-		maskfld := fields[1]
-		maskfld = maskfld[1:]
-		pfxlen, _, ok := dtoi(maskfld)
-		if !ok {
-			return nil, errors.New("cannot parse network mask for interface: " + status)
-		}
-		var mask IPMask
-		if ip.To4() != nil { // IPv4 or IPv6 IPv4-mapped address
-			mask = CIDRMask(pfxlen-8*len(v4InV6Prefix), 8*IPv4len)
-		}
-		if ip.To16() != nil && ip.To4() == nil { // IPv6 address
-			mask = CIDRMask(pfxlen, 8*IPv6len)
-		}
+			// The mask is represented as CIDR relative to the IPv6 address.
+			// Plan 9 internal representation is always IPv6.
+			maskfld := fields[1]
+			maskfld = maskfld[1:]
+			pfxlen, _, ok := dtoi(maskfld)
+			if !ok {
+				return nil, errors.New("cannot parse network mask for interface: " + status)
+			}
+			var mask IPMask
+			if ip.To4() != nil { // IPv4 or IPv6 IPv4-mapped address
+				mask = CIDRMask(pfxlen-8*len(v4InV6Prefix), 8*IPv4len)
+			}
+			if ip.To16() != nil && ip.To4() == nil { // IPv6 address
+				mask = CIDRMask(pfxlen, 8*IPv6len)
+			}
 
-		addrs[i] = &IPNet{IP: ip, Mask: mask}
+			addrs = append(addrs, &IPNet{IP: ip, Mask: mask})
+		}
 	}
 
 	return addrs, nil

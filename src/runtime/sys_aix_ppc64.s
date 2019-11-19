@@ -258,8 +258,8 @@ TEXT runtime·exit1(SB),NOSPLIT,$0-4
 	CSYSCALL()
 	RET
 
-// Runs on OS stack, called from runtime·write.
-TEXT runtime·write1(SB),NOSPLIT,$0-28
+// Runs on OS stack, called from runtime·write1.
+TEXT runtime·write2(SB),NOSPLIT,$0-28
 	MOVD	fd+0(FP), R3
 	MOVD	p+8(FP), R4
 	MOVW	n+16(FP), R5

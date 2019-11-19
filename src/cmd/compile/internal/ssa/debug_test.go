@@ -959,7 +959,7 @@ func replaceEnv(env []string, ev string, evv string) []string {
 }
 
 // asCommandLine renders cmd as something that could be copy-and-pasted into a command line
-// If cwd is not empty and different from the command's directory, prepend an approprirate "cd"
+// If cwd is not empty and different from the command's directory, prepend an appropriate "cd"
 func asCommandLine(cwd string, cmd *exec.Cmd) string {
 	s := "("
 	if cmd.Dir != "" && cmd.Dir != cwd {

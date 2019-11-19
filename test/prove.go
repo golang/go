@@ -507,7 +507,7 @@ func sm1(b []int, x int) {
 	useSlice(b[2:8]) // ERROR "Proved slicemask not needed$"
 	// Test non-constant argument with known limits.
 	if cap(b) > 10 {
-		useSlice(b[2:]) // ERROR "Proved slicemask not needed$"
+		useSlice(b[2:])
 	}
 }
 
@@ -676,6 +676,30 @@ func oforuntil(b []int) {
 			goto top
 		}
 	}
+}
+
+func atexit(foobar []func()) {
+	for i := len(foobar) - 1; i >= 0; i-- { // ERROR "Induction variable: limits \[0,\?\], increment 1"
+		f := foobar[i]
+		foobar = foobar[:i] // ERROR "IsSliceInBounds"
+		f()
+	}
+}
+
+func make1(n int) []int {
+	s := make([]int, n)
+	for i := 0; i < n; i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1"
+		s[i] = 1 // ERROR "Proved IsInBounds$"
+	}
+	return s
+}
+
+func make2(n int) []int {
+	s := make([]int, n)
+	for i := range s { // ERROR "Induction variable: limits \[0,\?\), increment 1"
+		s[i] = 1 // ERROR "Proved IsInBounds$"
+	}
+	return s
 }
 
 // The range tests below test the index variable of range loops.
@@ -862,13 +886,13 @@ func signExtNto64(x []int, j8 int8, j16 int16, j32 int32) int {
 		return 0
 	}
 	if j8 >= 0 && j8 < 22 {
-		return x[j8]  // ERROR "Proved IsInBounds$"
+		return x[j8] // ERROR "Proved IsInBounds$"
 	}
 	if j16 >= 0 && j16 < 22 {
-		return x[j16]  // ERROR "Proved IsInBounds$"
+		return x[j16] // ERROR "Proved IsInBounds$"
 	}
 	if j32 >= 0 && j32 < 22 {
-		return x[j32]  // ERROR "Proved IsInBounds$"
+		return x[j32] // ERROR "Proved IsInBounds$"
 	}
 	return 0
 }
@@ -878,13 +902,13 @@ func zeroExtNto64(x []int, j8 uint8, j16 uint16, j32 uint32) int {
 		return 0
 	}
 	if j8 >= 0 && j8 < 22 {
-		return x[j8]  // ERROR "Proved IsInBounds$"
+		return x[j8] // ERROR "Proved IsInBounds$"
 	}
 	if j16 >= 0 && j16 < 22 {
-		return x[j16]  // ERROR "Proved IsInBounds$"
+		return x[j16] // ERROR "Proved IsInBounds$"
 	}
 	if j32 >= 0 && j32 < 22 {
-		return x[j32]  // ERROR "Proved IsInBounds$"
+		return x[j32] // ERROR "Proved IsInBounds$"
 	}
 	return 0
 }
@@ -894,7 +918,7 @@ func signExt32to64Fence(x []int, j int32) int {
 	if x[j] != 0 {
 		return 1
 	}
-	if j > 0 && x[j-1] != 0 {  // ERROR "Proved IsInBounds$"
+	if j > 0 && x[j-1] != 0 { // ERROR "Proved IsInBounds$"
 		return 1
 	}
 	return 0
@@ -904,10 +928,32 @@ func zeroExt32to64Fence(x []int, j uint32) int {
 	if x[j] != 0 {
 		return 1
 	}
-	if j > 0 && x[j-1] != 0 {  // ERROR "Proved IsInBounds$"
+	if j > 0 && x[j-1] != 0 { // ERROR "Proved IsInBounds$"
 		return 1
 	}
 	return 0
+}
+
+// Ensure that bounds checks with negative indexes are not incorrectly removed.
+func negIndex() {
+	n := make([]int, 1)
+	for i := -1; i <= 0; i++ { // ERROR "Induction variable: limits \[-1,0\], increment 1$"
+		n[i] = 1
+	}
+}
+func negIndex2(n int) {
+	a := make([]int, 5)
+	b := make([]int, 5)
+	c := make([]int, 5)
+	for i := -1; i <= 0; i-- {
+		b[i] = i
+		n++
+		if n > 10 {
+			break
+		}
+	}
+	useSlice(a)
+	useSlice(c)
 }
 
 //go:noinline

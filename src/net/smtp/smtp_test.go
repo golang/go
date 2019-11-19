@@ -9,13 +9,13 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"internal/testenv"
 	"io"
 	"net"
 	"net/textproto"
 	"runtime"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 )
@@ -642,13 +642,13 @@ func TestSendMailWithAuth(t *testing.T) {
 		t.Fatalf("Unable to create listener: %v", err)
 	}
 	defer l.Close()
-	wg := sync.WaitGroup{}
-	var done = make(chan struct{})
+
+	errCh := make(chan error)
 	go func() {
-		defer wg.Done()
+		defer close(errCh)
 		conn, err := l.Accept()
 		if err != nil {
-			t.Errorf("Accept error: %v", err)
+			errCh <- fmt.Errorf("Accept: %v", err)
 			return
 		}
 		defer conn.Close()
@@ -656,13 +656,21 @@ func TestSendMailWithAuth(t *testing.T) {
 		tc := textproto.NewConn(conn)
 		tc.PrintfLine("220 hello world")
 		msg, err := tc.ReadLine()
-		if msg == "EHLO localhost" {
-			tc.PrintfLine("250 mx.google.com at your service")
+		if err != nil {
+			errCh <- fmt.Errorf("ReadLine error: %v", err)
+			return
 		}
-		// for this test case, there should have no more traffic
-		<-done
+		const wantMsg = "EHLO localhost"
+		if msg != wantMsg {
+			errCh <- fmt.Errorf("unexpected response %q; want %q", msg, wantMsg)
+			return
+		}
+		err = tc.PrintfLine("250 mx.google.com at your service")
+		if err != nil {
+			errCh <- fmt.Errorf("PrintfLine: %v", err)
+			return
+		}
 	}()
-	wg.Add(1)
 
 	err = SendMail(l.Addr().String(), PlainAuth("", "user", "pass", "smtp.google.com"), "test@example.com", []string{"other@example.com"}, []byte(strings.Replace(`From: test@example.com
 To: other@example.com
@@ -676,8 +684,10 @@ SendMail is working for me.
 	if err.Error() != "smtp: server doesn't support AUTH" {
 		t.Errorf("Expected: smtp: server doesn't support AUTH, got: %s", err)
 	}
-	close(done)
-	wg.Wait()
+	err = <-errCh
+	if err != nil {
+		t.Fatalf("server error: %v", err)
+	}
 }
 
 func TestAuthFailed(t *testing.T) {

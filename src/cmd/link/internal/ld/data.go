@@ -74,7 +74,7 @@ func maxSizeTrampolinesPPC64(s *sym.Symbol, isTramp bool) uint64 {
 	n := uint64(0)
 	for ri := range s.R {
 		r := &s.R[ri]
-		if r.Type.IsDirectJump() {
+		if r.Type.IsDirectCallOrJump() {
 			n++
 		}
 	}
@@ -93,10 +93,10 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
 
 	for ri := range s.R {
 		r := &s.R[ri]
-		if !r.Type.IsDirectJump() {
+		if !r.Type.IsDirectCallOrJump() {
 			continue
 		}
-		if Symaddr(r.Sym) == 0 && r.Sym.Type != sym.SDYNIMPORT {
+		if Symaddr(r.Sym) == 0 && (r.Sym.Type != sym.SDYNIMPORT && r.Sym.Type != sym.SUNDEFEXT) {
 			if r.Sym.File != s.File {
 				if !isRuntimeDepPkg(s.File) || !isRuntimeDepPkg(r.Sym.File) {
 					ctxt.ErrorUnresolved(s, r)
@@ -157,8 +157,8 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 		if r.Sym != nil && ((r.Sym.Type == sym.Sxxx && !r.Sym.Attr.VisibilityHidden()) || r.Sym.Type == sym.SXREF) {
 			// When putting the runtime but not main into a shared library
 			// these symbols are undefined and that's OK.
-			if ctxt.BuildMode == BuildModeShared {
-				if r.Sym.Name == "main.main" || r.Sym.Name == "main..inittask" {
+			if ctxt.BuildMode == BuildModeShared || ctxt.BuildMode == BuildModePlugin {
+				if r.Sym.Name == "main.main" || (ctxt.BuildMode != BuildModePlugin && r.Sym.Name == "main..inittask") {
 					r.Sym.Type = sym.SDYNIMPORT
 				} else if strings.HasPrefix(r.Sym.Name, "go.info.") {
 					// Skip go.info symbols. They are only needed to communicate
@@ -298,7 +298,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 					rs = rs.Outer
 				}
 
-				if rs.Type != sym.SHOSTOBJ && rs.Type != sym.SDYNIMPORT && rs.Sect == nil {
+				if rs.Type != sym.SHOSTOBJ && rs.Type != sym.SDYNIMPORT && rs.Type != sym.SUNDEFEXT && rs.Sect == nil {
 					Errorf(s, "missing section for relocation target %s", rs.Name)
 				}
 				r.Xsym = rs
@@ -402,7 +402,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 		case objabi.R_ADDRCUOFF:
 			// debug_range and debug_loc elements use this relocation type to get an
 			// offset from the start of the compile unit.
-			o = Symaddr(r.Sym) + r.Add - Symaddr(r.Sym.Lib.Textp[0])
+			o = Symaddr(r.Sym) + r.Add - Symaddr(r.Sym.Unit.Textp[0])
 
 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
 		case objabi.R_GOTPCREL:
@@ -418,6 +418,17 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			}
 			fallthrough
 		case objabi.R_CALL, objabi.R_PCREL:
+			if ctxt.LinkMode == LinkExternal && r.Sym != nil && r.Sym.Type == sym.SUNDEFEXT {
+				// pass through to the external linker.
+				r.Done = false
+				r.Xadd = 0
+				if ctxt.IsELF {
+					r.Xadd -= int64(r.Siz)
+				}
+				r.Xsym = r.Sym
+				o = 0
+				break
+			}
 			if ctxt.LinkMode == LinkExternal && r.Sym != nil && r.Sym.Type != sym.SCONST && (r.Sym.Sect != s.Sect || r.Type == objabi.R_GOTPCREL) {
 				r.Done = false
 
@@ -559,10 +570,6 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 }
 
 func (ctxt *Link) reloc() {
-	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f reloc\n", Cputime())
-	}
-
 	for _, s := range ctxt.Textp {
 		relocsym(ctxt, s)
 	}
@@ -623,9 +630,6 @@ func (ctxt *Link) windynrelocsyms() {
 	if !(ctxt.HeadType == objabi.Hwindows && iscgo && ctxt.LinkMode == LinkInternal) {
 		return
 	}
-	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f windynrelocsyms\n", Cputime())
-	}
 
 	/* relocation table */
 	rel := ctxt.Syms.Lookup(".rel", 0)
@@ -671,9 +675,6 @@ func dynreloc(ctxt *Link, data *[sym.SXREF][]*sym.Symbol) {
 	// compute these sections or mark their symbols as reachable.
 	if *FlagD {
 		return
-	}
-	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f dynreloc\n", Cputime())
 	}
 
 	for _, s := range ctxt.Textp {
@@ -1085,13 +1086,13 @@ func (p *GCProg) AddSym(s *sym.Symbol) {
 	}
 
 	ptrsize := int64(p.ctxt.Arch.PtrSize)
-	nptr := decodetypePtrdata(p.ctxt.Arch, typ) / ptrsize
+	nptr := decodetypePtrdata(p.ctxt.Arch, typ.P) / ptrsize
 
 	if debugGCProg {
 		fmt.Fprintf(os.Stderr, "gcprog sym: %s at %d (ptr=%d+%d)\n", s.Name, s.Value, s.Value/ptrsize, nptr)
 	}
 
-	if decodetypeUsegcprog(p.ctxt.Arch, typ) == 0 {
+	if decodetypeUsegcprog(p.ctxt.Arch, typ.P) == 0 {
 		// Copy pointers from mask into program.
 		mask := decodetypeGcmask(p.ctxt, typ)
 		for i := int64(0); i < nptr; i++ {
@@ -1143,10 +1144,6 @@ func checkdatsize(ctxt *Link, datsize int64, symn sym.SymKind) {
 var datap []*sym.Symbol
 
 func (ctxt *Link) dodata() {
-	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f dodata\n", Cputime())
-	}
-
 	if (ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) || (ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal) {
 		// The values in moduledata are filled out by relocations
 		// pointing to the addresses of these special symbols.
@@ -1470,10 +1467,25 @@ func (ctxt *Link) dodata() {
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
 		datsize += s.Size
 	}
-
 	sect.Length = uint64(datsize) - sect.Vaddr
 	ctxt.Syms.Lookup("runtime.end", 0).Sect = sect
 	checkdatsize(ctxt, datsize, sym.SNOPTRBSS)
+
+	// Coverage instrumentation counters for libfuzzer.
+	if len(data[sym.SLIBFUZZER_EXTRA_COUNTER]) > 0 {
+		sect := addsection(ctxt.Arch, &Segdata, "__libfuzzer_extra_counters", 06)
+		sect.Align = dataMaxAlign[sym.SLIBFUZZER_EXTRA_COUNTER]
+		datsize = Rnd(datsize, int64(sect.Align))
+		sect.Vaddr = uint64(datsize)
+		for _, s := range data[sym.SLIBFUZZER_EXTRA_COUNTER] {
+			datsize = aligndatsize(datsize, s)
+			s.Sect = sect
+			s.Value = int64(uint64(datsize) - sect.Vaddr)
+			datsize += s.Size
+		}
+		sect.Length = uint64(datsize) - sect.Vaddr
+		checkdatsize(ctxt, datsize, sym.SLIBFUZZER_EXTRA_COUNTER)
+	}
 
 	if len(data[sym.STLSBSS]) > 0 {
 		var sect *sym.Section
@@ -1782,7 +1794,8 @@ func (ctxt *Link) dodata() {
 		case sym.SDWARFLOC:
 			sect = addsection(ctxt.Arch, &Segdwarf, ".debug_loc", 04)
 		default:
-			Errorf(dwarfp[i], "unknown DWARF section %v", curType)
+			// Error is unrecoverable, so panic.
+			panic(fmt.Sprintf("unknown DWARF section %v", curType))
 		}
 
 		sect.Align = 1
@@ -2167,9 +2180,6 @@ func (ctxt *Link) address() []*sym.Segment {
 	}
 
 	Segtext.Length = va - uint64(*FlagTextAddr)
-	if ctxt.HeadType == objabi.Hnacl {
-		va += 32 // room for the "halt sled"
-	}
 
 	if len(Segrodata.Sections) > 0 {
 		// align to page boundary so as not to mix

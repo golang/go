@@ -32,6 +32,7 @@
 #define SYS_getpid		20
 #define SYS_access		33
 #define SYS_kill		37
+#define SYS_pipe		42
 #define SYS_brk 		45
 #define SYS_fcntl		55
 #define SYS_munmap		91
@@ -58,6 +59,7 @@
 #define SYS_clock_gettime	265
 #define SYS_tgkill		270
 #define SYS_epoll_create1	329
+#define SYS_pipe2		331
 
 TEXT runtime·exit(SB),NOSPLIT,$0
 	MOVL	$SYS_exit_group, AX
@@ -107,15 +109,12 @@ TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVL	AX, ret+4(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$0
+TEXT runtime·write1(SB),NOSPLIT,$0
 	MOVL	$SYS_write, AX
 	MOVL	fd+0(FP), BX
 	MOVL	p+4(FP), CX
 	MOVL	n+8(FP), DX
 	INVOKE_SYSCALL
-	CMPL	AX, $0xfffff001
-	JLS	2(PC)
-	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
@@ -125,10 +124,24 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	MOVL	p+4(FP), CX
 	MOVL	n+8(FP), DX
 	INVOKE_SYSCALL
-	CMPL	AX, $0xfffff001
-	JLS	2(PC)
-	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
+	RET
+
+// func pipe() (r, w int32, errno int32)
+TEXT runtime·pipe(SB),NOSPLIT,$0-12
+	MOVL	$SYS_pipe, AX
+	LEAL	r+0(FP), BX
+	INVOKE_SYSCALL
+	MOVL	AX, errno+8(FP)
+	RET
+
+// func pipe2(flags int32) (r, w int32, errno int32)
+TEXT runtime·pipe2(SB),NOSPLIT,$0-16
+	MOVL	$SYS_pipe2, AX
+	LEAL	r+4(FP), BX
+	MOVL	flags+0(FP), CX
+	INVOKE_SYSCALL
+	MOVL	AX, errno+12(FP)
 	RET
 
 TEXT runtime·usleep(SB),NOSPLIT,$8
@@ -175,6 +188,20 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$12
 	INVOKE_SYSCALL
 	RET
 
+TEXT ·getpid(SB),NOSPLIT,$0-4
+	MOVL	$SYS_getpid, AX
+	INVOKE_SYSCALL
+	MOVL	AX, ret+0(FP)
+	RET
+
+TEXT ·tgkill(SB),NOSPLIT,$0
+	MOVL	$SYS_tgkill, AX
+	MOVL	tgid+0(FP), BX
+	MOVL	tid+4(FP), CX
+	MOVL	sig+8(FP), DX
+	INVOKE_SYSCALL
+	RET
+
 TEXT runtime·setitimer(SB),NOSPLIT,$0-12
 	MOVL	$SYS_setittimer, AX
 	MOVL	mode+0(FP), BX
@@ -192,8 +219,8 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-16
 	MOVL	AX, ret+12(FP)
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB), NOSPLIT, $0-12
+// func walltime1() (sec int64, nsec int32)
+TEXT runtime·walltime1(SB), NOSPLIT, $0-12
 	// We don't know how much stack space the VDSO code will need,
 	// so switch to g0.
 
@@ -257,7 +284,7 @@ finish:
 
 // int64 nanotime(void) so really
 // void nanotime(int64 *nsec)
-TEXT runtime·nanotime(SB), NOSPLIT, $0-8
+TEXT runtime·nanotime1(SB), NOSPLIT, $0-8
 	// Switch to g0 stack. See comment above in runtime·walltime.
 
 	MOVL	SP, BP	// Save old SP; BP unchanged by C code.
@@ -692,6 +719,21 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVL	fd+0(FP), BX  // fd
 	MOVL	$2, CX  // F_SETFD
 	MOVL	$1, DX  // FD_CLOEXEC
+	INVOKE_SYSCALL
+	RET
+
+// func runtime·setNonblock(fd int32)
+TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
+	MOVL	$SYS_fcntl, AX
+	MOVL	fd+0(FP), BX // fd
+	MOVL	$3, CX // F_GETFL
+	MOVL	$0, DX
+	INVOKE_SYSCALL
+	MOVL	fd+0(FP), BX // fd
+	MOVL	$4, CX // F_SETFL
+	MOVL	$0x800, DX // O_NONBLOCK
+	ORL	AX, DX
+	MOVL	$SYS_fcntl, AX
 	INVOKE_SYSCALL
 	RET
 

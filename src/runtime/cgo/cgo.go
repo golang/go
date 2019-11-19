@@ -23,6 +23,9 @@ package cgo
 #cgo aix LDFLAGS: -Wl,-berok
 #cgo solaris LDFLAGS: -lxnet
 
+// Issue 35247.
+#cgo darwin CFLAGS: -Wno-nullability-completeness
+
 #cgo CFLAGS: -Wall -Werror
 
 #cgo solaris CPPFLAGS: -D_POSIX_PTHREAD_SEMANTICS

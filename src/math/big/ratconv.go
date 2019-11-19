@@ -123,7 +123,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	// Multiplications are commutative, so we can apply them in any
 	// order. We only have powers of 2 and 10, and we split powers
 	// of 10 into the product of the same powers of 2 and 5. This
-	// may reduce the the size of shift/multiplication factors or
+	// may reduce the size of shift/multiplication factors or
 	// divisors required to create the final fraction, depending
 	// on the actual floating-point value.
 

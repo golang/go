@@ -27,8 +27,7 @@ var protocols = map[string]int{
 }
 
 // services contains minimal mappings between services names and port
-// numbers for platforms that don't have a complete list of port numbers
-// (some Solaris distros, nacl, etc).
+// numbers for platforms that don't have a complete list of port numbers.
 //
 // See https://www.iana.org/assignments/service-names-port-numbers
 //

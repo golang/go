@@ -38,18 +38,14 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
 
 	// Generate a loop of large clears.
 	if cnt > clearLoopCutoff {
-		n := cnt - (cnt % 256)
-		end := int16(s390x.REGRT2)
-		p = pp.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, off+n, obj.TYPE_REG, end, 0)
-		p.Reg = reg
+		ireg := int16(s390x.REGRT2) // register holds number of remaining loop iterations
+		p = pp.Appendpp(p, s390x.AMOVD, obj.TYPE_CONST, 0, cnt/256, obj.TYPE_REG, ireg, 0)
 		p = pp.Appendpp(p, s390x.ACLEAR, obj.TYPE_CONST, 0, 256, obj.TYPE_MEM, reg, off)
 		pl := p
 		p = pp.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, 256, obj.TYPE_REG, reg, 0)
-		p = pp.Appendpp(p, s390x.ACMP, obj.TYPE_REG, reg, 0, obj.TYPE_REG, end, 0)
-		p = pp.Appendpp(p, s390x.ABNE, obj.TYPE_NONE, 0, 0, obj.TYPE_BRANCH, 0, 0)
+		p = pp.Appendpp(p, s390x.ABRCTG, obj.TYPE_REG, ireg, 0, obj.TYPE_BRANCH, 0, 0)
 		gc.Patch(p, pl)
-
-		cnt -= n
+		cnt = cnt % 256
 	}
 
 	// Generate remaining clear instructions without a loop.
@@ -87,26 +83,6 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
 	return p
 }
 
-func zeroAuto(pp *gc.Progs, n *gc.Node) {
-	// Note: this code must not clobber any registers or the
-	// condition code.
-	sym := n.Sym.Linksym()
-	size := n.Type.Size()
-	for i := int64(0); i < size; i += int64(gc.Widthptr) {
-		p := pp.Prog(s390x.AMOVD)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 0
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_AUTO
-		p.To.Reg = s390x.REGSP
-		p.To.Offset = n.Xoffset + i
-		p.To.Sym = sym
-	}
-}
-
 func ginsnop(pp *gc.Progs) *obj.Prog {
-	p := pp.Prog(s390x.AWORD)
-	p.From.Type = obj.TYPE_CONST
-	p.From.Offset = 0x47000000 // nop 0
-	return p
+	return pp.Prog(s390x.ANOPH)
 }

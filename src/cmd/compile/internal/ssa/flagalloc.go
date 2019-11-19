@@ -18,9 +18,17 @@ func flagalloc(f *Func) {
 			// Walk values backwards to figure out what flag
 			// value we want in the flag register at the start
 			// of the block.
-			flag := end[b.ID]
-			if b.Control != nil && b.Control.Type.IsFlags() {
-				flag = b.Control
+			var flag *Value
+			for _, c := range b.ControlValues() {
+				if c.Type.IsFlags() {
+					if flag != nil {
+						panic("cannot have multiple controls using flags")
+					}
+					flag = c
+				}
+			}
+			if flag == nil {
+				flag = end[b.ID]
 			}
 			for j := len(b.Values) - 1; j >= 0; j-- {
 				v := b.Values[j]
@@ -49,13 +57,15 @@ func flagalloc(f *Func) {
 	// we can leave in the flags register at the end of the block. (There
 	// is no place to put a flag regeneration instruction.)
 	for _, b := range f.Blocks {
-		v := b.Control
-		if v != nil && v.Type.IsFlags() && end[b.ID] != v {
-			end[b.ID] = nil
-		}
 		if b.Kind == BlockDefer {
 			// Defer blocks internally use/clobber the flags value.
 			end[b.ID] = nil
+			continue
+		}
+		for _, v := range b.ControlValues() {
+			if v.Type.IsFlags() && end[b.ID] != v {
+				end[b.ID] = nil
+			}
 		}
 	}
 
@@ -85,8 +95,10 @@ func flagalloc(f *Func) {
 				flag = v
 			}
 		}
-		if v := b.Control; v != nil && v != flag && v.Type.IsFlags() {
-			spill[v.ID] = true
+		for _, v := range b.ControlValues() {
+			if v != flag && v.Type.IsFlags() {
+				spill[v.ID] = true
+			}
 		}
 		if v := end[b.ID]; v != nil && v != flag {
 			spill[v.ID] = true
@@ -149,11 +161,13 @@ func flagalloc(f *Func) {
 				flag = v
 			}
 		}
-		if v := b.Control; v != nil && v != flag && v.Type.IsFlags() {
-			// Recalculate control value.
-			c := copyFlags(v, b)
-			b.SetControl(c)
-			flag = v
+		for i, v := range b.ControlValues() {
+			if v != flag && v.Type.IsFlags() {
+				// Recalculate control value.
+				c := copyFlags(v, b)
+				b.ReplaceControl(i, c)
+				flag = v
+			}
 		}
 		if v := end[b.ID]; v != nil && v != flag {
 			// Need to reissue flag generator for use by

@@ -7,6 +7,7 @@ package textproto
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"strconv"
@@ -90,7 +91,7 @@ func (r *Reader) readLineSlice() ([]byte, error) {
 // A line consisting of only white space is never continued.
 //
 func (r *Reader) ReadContinuedLine() (string, error) {
-	line, err := r.readContinuedLineSlice()
+	line, err := r.readContinuedLineSlice(noValidation)
 	return string(line), err
 }
 
@@ -111,7 +112,7 @@ func trim(s []byte) []byte {
 // ReadContinuedLineBytes is like ReadContinuedLine but
 // returns a []byte instead of a string.
 func (r *Reader) ReadContinuedLineBytes() ([]byte, error) {
-	line, err := r.readContinuedLineSlice()
+	line, err := r.readContinuedLineSlice(noValidation)
 	if line != nil {
 		buf := make([]byte, len(line))
 		copy(buf, line)
@@ -120,7 +121,15 @@ func (r *Reader) ReadContinuedLineBytes() ([]byte, error) {
 	return line, err
 }
 
-func (r *Reader) readContinuedLineSlice() ([]byte, error) {
+// readContinuedLineSlice reads continued lines from the reader buffer,
+// returning a byte slice with all lines. The validateFirstLine function
+// is run on the first read line, and if it returns an error then this
+// error is returned from readContinuedLineSlice.
+func (r *Reader) readContinuedLineSlice(validateFirstLine func([]byte) error) ([]byte, error) {
+	if validateFirstLine == nil {
+		return nil, fmt.Errorf("missing validateFirstLine func")
+	}
+
 	// Read the first line.
 	line, err := r.readLineSlice()
 	if err != nil {
@@ -128,6 +137,10 @@ func (r *Reader) readContinuedLineSlice() ([]byte, error) {
 	}
 	if len(line) == 0 { // blank line - no continuation
 		return line, nil
+	}
+
+	if err := validateFirstLine(line); err != nil {
+		return nil, err
 	}
 
 	// Optimistically assume that we have started to buffer the next line
@@ -490,23 +503,17 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 	}
 
 	for {
-		kv, err := r.readContinuedLineSlice()
+		kv, err := r.readContinuedLineSlice(mustHaveFieldNameColon)
 		if len(kv) == 0 {
 			return m, err
 		}
 
-		// Key ends at first colon; should not have trailing spaces
-		// but they appear in the wild, violating specs, so we remove
-		// them if present.
+		// Key ends at first colon.
 		i := bytes.IndexByte(kv, ':')
 		if i < 0 {
 			return m, ProtocolError("malformed MIME header line: " + string(kv))
 		}
-		endKey := i
-		for endKey > 0 && kv[endKey-1] == ' ' {
-			endKey--
-		}
-		key := canonicalMIMEHeaderKey(kv[:endKey])
+		key := canonicalMIMEHeaderKey(kv[:i])
 
 		// As per RFC 7230 field-name is a token, tokens consist of one or more chars.
 		// We could return a ProtocolError here, but better to be liberal in what we
@@ -539,6 +546,20 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 			return m, err
 		}
 	}
+}
+
+// noValidation is a no-op validation func for readContinuedLineSlice
+// that permits any lines.
+func noValidation(_ []byte) error { return nil }
+
+// mustHaveFieldNameColon ensures that, per RFC 7230, the
+// field-name is on a single line, so the first line must
+// contain a colon.
+func mustHaveFieldNameColon(line []byte) error {
+	if bytes.IndexByte(line, ':') < 0 {
+		return ProtocolError(fmt.Sprintf("malformed MIME header: missing colon: %q" + string(line)))
+	}
+	return nil
 }
 
 // upcomingHeaderNewlines returns an approximation of the number of newlines

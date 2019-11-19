@@ -411,9 +411,6 @@ func TestReadTimeoutMustNotReturn(t *testing.T) {
 		if perr := parseReadError(err); perr != nil {
 			t.Error(perr)
 		}
-		if err == io.EOF && runtime.GOOS == "nacl" { // see golang.org/issue/8044
-			return
-		}
 		if nerr, ok := err.(Error); !ok || nerr.Timeout() || nerr.Temporary() {
 			t.Fatal(err)
 		}
@@ -432,11 +429,6 @@ var readFromTimeoutTests = []struct {
 }
 
 func TestReadFromTimeout(t *testing.T) {
-	switch runtime.GOOS {
-	case "nacl":
-		t.Skipf("not supported on %s", runtime.GOOS) // see golang.org/issue/8916
-	}
-
 	ch := make(chan Addr)
 	defer close(ch)
 	handler := func(ls *localPacketServer, c PacketConn) {
@@ -620,11 +612,6 @@ var writeToTimeoutTests = []struct {
 
 func TestWriteToTimeout(t *testing.T) {
 	t.Parallel()
-
-	switch runtime.GOOS {
-	case "nacl":
-		t.Skipf("not supported on %s", runtime.GOOS)
-	}
 
 	c1, err := newLocalPacketListener("udp")
 	if err != nil {
@@ -991,11 +978,6 @@ func TestReadWriteProlongedTimeout(t *testing.T) {
 func TestReadWriteDeadlineRace(t *testing.T) {
 	t.Parallel()
 
-	switch runtime.GOOS {
-	case "nacl":
-		t.Skipf("not supported on %s", runtime.GOOS)
-	}
-
 	N := 1000
 	if testing.Short() {
 		N = 50
@@ -1050,4 +1032,44 @@ func TestReadWriteDeadlineRace(t *testing.T) {
 		}
 	}()
 	wg.Wait() // wait for tester goroutine to stop
+}
+
+// Issue 35367.
+func TestConcurrentSetDeadline(t *testing.T) {
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	const goroutines = 8
+	const conns = 10
+	const tries = 100
+
+	var c [conns]Conn
+	for i := 0; i < conns; i++ {
+		c[i], err = Dial(ln.Addr().Network(), ln.Addr().String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer c[i].Close()
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	now := time.Now()
+	for i := 0; i < goroutines; i++ {
+		go func(i int) {
+			defer wg.Done()
+			// Make the deadlines steadily earlier,
+			// to trigger runtime adjusttimers calls.
+			for j := tries; j > 0; j-- {
+				for k := 0; k < conns; k++ {
+					c[k].SetReadDeadline(now.Add(2*time.Hour + time.Duration(i*j*k)*time.Second))
+					c[k].SetWriteDeadline(now.Add(1*time.Hour + time.Duration(i*j*k)*time.Second))
+				}
+			}
+		}(i)
+	}
+	wg.Wait()
 }

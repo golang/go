@@ -10,6 +10,7 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
@@ -423,14 +424,24 @@ func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
 	return 0
 }
 
-// Load loads the Mach-O file pn from f.
+func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string) ([]*sym.Symbol, error) {
+	newSym := func(name string, version int) *sym.Symbol {
+		return l.LookupOrCreate(name, version, syms)
+	}
+	return load(arch, syms.IncVersion(), newSym, f, pkg, length, pn)
+}
+
+func LoadOld(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
+	return load(arch, syms.IncVersion(), syms.Lookup, f, pkg, length, pn)
+}
+
+// load the Mach-O file pn from f.
 // Symbols are written into syms, and a slice of the text symbols is returned.
-func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
+func load(arch *sys.Arch, localSymVersion int, lookup func(string, int) *sym.Symbol, f *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
 	errorf := func(str string, args ...interface{}) ([]*sym.Symbol, error) {
 		return nil, fmt.Errorf("loadmacho: %v: %v", pn, fmt.Sprintf(str, args...))
 	}
 
-	localSymVersion := syms.IncVersion()
 	base := f.Offset()
 
 	var hdr [7 * 4]uint8
@@ -562,7 +573,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 			continue
 		}
 		name := fmt.Sprintf("%s(%s/%s)", pkg, sect.segname, sect.name)
-		s := syms.Lookup(name, localSymVersion)
+		s := lookup(name, localSymVersion)
 		if s.Type != 0 {
 			return errorf("duplicate %s/%s", sect.segname, sect.name)
 		}
@@ -610,7 +621,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 		if machsym.type_&N_EXT == 0 {
 			v = localSymVersion
 		}
-		s := syms.Lookup(name, v)
+		s := lookup(name, v)
 		if machsym.type_&N_EXT == 0 {
 			s.Attr |= sym.AttrDuplicateOK
 		}

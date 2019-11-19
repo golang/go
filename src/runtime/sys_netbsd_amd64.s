@@ -154,18 +154,42 @@ TEXT runtime·read(SB),NOSPLIT,$-8
 	MOVL	$SYS_read, AX
 	SYSCALL
 	JCC	2(PC)
-	MOVL	$-1, AX
+	NEGQ	AX			// caller expects negative errno
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$-8
+// func pipe() (r, w int32, errno int32)
+TEXT runtime·pipe(SB),NOSPLIT,$0-12
+	MOVL	$42, AX
+	SYSCALL
+	JCC	pipeok
+	MOVL	$-1, r+0(FP)
+	MOVL	$-1, w+4(FP)
+	MOVL	AX, errno+8(FP)
+	RET
+pipeok:
+	MOVL	AX, r+0(FP)
+	MOVL	DX, w+4(FP)
+	MOVL	$0, errno+8(FP)
+	RET
+
+// func pipe2(flags int32) (r, w int32, errno int32)
+TEXT runtime·pipe2(SB),NOSPLIT,$0-20
+	LEAQ	r+8(FP), DI
+	MOVL	flags+0(FP), SI
+	MOVL	$453, AX
+	SYSCALL
+	MOVL	AX, errno+16(FP)
+	RET
+
+TEXT runtime·write1(SB),NOSPLIT,$-8
 	MOVQ	fd+0(FP), DI		// arg 1 - fd
 	MOVQ	p+8(FP), SI		// arg 2 - buf
 	MOVL	n+16(FP), DX		// arg 3 - nbyte
 	MOVL	$SYS_write, AX
 	SYSCALL
 	JCC	2(PC)
-	MOVL	$-1, AX
+	NEGQ	AX			// caller expects negative errno
 	MOVL	AX, ret+24(FP)
 	RET
 
@@ -185,11 +209,9 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 	SYSCALL
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$16
-	MOVL	$SYS__lwp_self, AX
-	SYSCALL
-	MOVQ	AX, DI			// arg 1 - target
-	MOVL	sig+0(FP), SI		// arg 2 - signo
+TEXT runtime·lwp_kill(SB),NOSPLIT,$0-16
+	MOVL	tid+0(FP), DI		// arg 1 - target
+	MOVQ	sig+8(FP), SI		// arg 2 - signo
 	MOVL	$SYS__lwp_kill, AX
 	SYSCALL
 	RET
@@ -211,8 +233,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-8
 	SYSCALL
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB), NOSPLIT, $32
+// func walltime1() (sec int64, nsec int32)
+TEXT runtime·walltime1(SB), NOSPLIT, $32
 	MOVQ	$CLOCK_REALTIME, DI	// arg 1 - clock_id
 	LEAQ	8(SP), SI		// arg 2 - tp
 	MOVL	$SYS___clock_gettime50, AX
@@ -225,7 +247,7 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVL	DX, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime(SB),NOSPLIT,$32
+TEXT runtime·nanotime1(SB),NOSPLIT,$32
 	MOVQ	$CLOCK_MONOTONIC, DI	// arg 1 - clock_id
 	LEAQ	8(SP), SI		// arg 2 - tp
 	MOVL	$SYS___clock_gettime50, AX
@@ -427,5 +449,20 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVQ	$F_SETFD, SI
 	MOVQ	$FD_CLOEXEC, DX
 	MOVL	$SYS_fcntl, AX
+	SYSCALL
+	RET
+
+// func runtime·setNonblock(int32 fd)
+TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
+	MOVL    fd+0(FP), DI  // fd
+	MOVQ    $3, SI  // F_GETFL
+	MOVQ    $0, DX
+	MOVL	$92, AX // fcntl
+	SYSCALL
+	MOVL	fd+0(FP), DI // fd
+	MOVQ	$4, SI // F_SETFL
+	MOVQ	$4, DX // O_NONBLOCK
+	ORL	AX, DX
+	MOVL	$92, AX // fcntl
 	SYSCALL
 	RET

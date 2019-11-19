@@ -215,29 +215,34 @@ func CmpLogicalToZero(a, b, c uint32, d, e uint64) uint64 {
 
 	// ppc64:"ANDCC",-"CMPW"
 	// ppc64le:"ANDCC",-"CMPW"
+	// wasm:"I64Eqz",-"I32Eqz",-"I64ExtendI32U",-"I32WrapI64"
 	if a&63 == 0 {
 		return 1
 	}
 
 	// ppc64:"ANDCC",-"CMP"
 	// ppc64le:"ANDCC",-"CMP"
+	// wasm:"I64Eqz",-"I32Eqz",-"I64ExtendI32U",-"I32WrapI64"
 	if d&255 == 0 {
 		return 1
 	}
 
 	// ppc64:"ANDCC",-"CMP"
 	// ppc64le:"ANDCC",-"CMP"
+	// wasm:"I64Eqz",-"I32Eqz",-"I64ExtendI32U",-"I32WrapI64"
 	if d&e == 0 {
 		return 1
 	}
 	// ppc64:"ORCC",-"CMP"
 	// ppc64le:"ORCC",-"CMP"
+	// wasm:"I64Eqz",-"I32Eqz",-"I64ExtendI32U",-"I32WrapI64"
 	if d|e == 0 {
 		return 1
 	}
 
 	// ppc64:"XORCC",-"CMP"
 	// ppc64le:"XORCC",-"CMP"
+	// wasm:"I64Eqz","I32Eqz",-"I64ExtendI32U",-"I32WrapI64"
 	if e^d == 0 {
 		return 1
 	}

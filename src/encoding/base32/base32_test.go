@@ -445,6 +445,15 @@ LNEBUWIIDFON2CA3DBMJXXE5LNFY==
 	}
 }
 
+func BenchmarkEncode(b *testing.B) {
+	data := make([]byte, 8192)
+	buf := make([]byte, StdEncoding.EncodedLen(len(data)))
+	b.SetBytes(int64(len(data)))
+	for i := 0; i < b.N; i++ {
+		StdEncoding.Encode(buf, data)
+	}
+}
+
 func BenchmarkEncodeToString(b *testing.B) {
 	data := make([]byte, 8192)
 	b.SetBytes(int64(len(data)))
@@ -453,6 +462,15 @@ func BenchmarkEncodeToString(b *testing.B) {
 	}
 }
 
+func BenchmarkDecode(b *testing.B) {
+	data := make([]byte, StdEncoding.EncodedLen(8192))
+	StdEncoding.Encode(data, make([]byte, 8192))
+	buf := make([]byte, 8192)
+	b.SetBytes(int64(len(data)))
+	for i := 0; i < b.N; i++ {
+		StdEncoding.Decode(buf, data)
+	}
+}
 func BenchmarkDecodeString(b *testing.B) {
 	data := StdEncoding.EncodeToString(make([]byte, 8192))
 	b.SetBytes(int64(len(data)))

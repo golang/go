@@ -117,6 +117,7 @@ func (ts *testScript) setup() {
 		"GOSUMDB=" + testSumDBVerifierKey,
 		"GONOPROXY=",
 		"GONOSUMDB=",
+		"PWD=" + ts.cd,
 		tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
 		"devnull=" + os.DevNull,
 		"goversion=" + goVersion(ts),
@@ -414,6 +415,7 @@ func (ts *testScript) cmdCd(neg bool, args []string) {
 		ts.fatalf("%s is not a directory", dir)
 	}
 	ts.cd = dir
+	ts.envMap["PWD"] = dir
 	fmt.Fprintf(&ts.log, "%s\n", ts.cd)
 }
 
@@ -429,7 +431,11 @@ func (ts *testScript) cmdChmod(neg bool, args []string) {
 	if err != nil || perm&uint64(os.ModePerm) != perm {
 		ts.fatalf("invalid mode: %s", args[0])
 	}
-	for _, path := range args[1:] {
+	for _, arg := range args[1:] {
+		path := arg
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(ts.cd, arg)
+		}
 		err := os.Chmod(path, os.FileMode(perm))
 		ts.check(err)
 	}
@@ -441,10 +447,15 @@ func (ts *testScript) cmdCmp(neg bool, args []string) {
 		// It would be strange to say "this file can have any content except this precise byte sequence".
 		ts.fatalf("unsupported: ! cmp")
 	}
+	quiet := false
+	if len(args) > 0 && args[0] == "-q" {
+		quiet = true
+		args = args[1:]
+	}
 	if len(args) != 2 {
 		ts.fatalf("usage: cmp file1 file2")
 	}
-	ts.doCmdCmp(args, false)
+	ts.doCmdCmp(args, false, quiet)
 }
 
 // cmpenv compares two files with environment variable substitution.
@@ -452,13 +463,18 @@ func (ts *testScript) cmdCmpenv(neg bool, args []string) {
 	if neg {
 		ts.fatalf("unsupported: ! cmpenv")
 	}
+	quiet := false
+	if len(args) > 0 && args[0] == "-q" {
+		quiet = true
+		args = args[1:]
+	}
 	if len(args) != 2 {
 		ts.fatalf("usage: cmpenv file1 file2")
 	}
-	ts.doCmdCmp(args, true)
+	ts.doCmdCmp(args, true, quiet)
 }
 
-func (ts *testScript) doCmdCmp(args []string, env bool) {
+func (ts *testScript) doCmdCmp(args []string, env, quiet bool) {
 	name1, name2 := args[0], args[1]
 	var text1, text2 string
 	if name1 == "stdout" {
@@ -484,15 +500,14 @@ func (ts *testScript) doCmdCmp(args []string, env bool) {
 		return
 	}
 
-	fmt.Fprintf(&ts.log, "[diff -%s +%s]\n%s\n", name1, name2, diff(text1, text2))
+	if !quiet {
+		fmt.Fprintf(&ts.log, "[diff -%s +%s]\n%s\n", name1, name2, diff(text1, text2))
+	}
 	ts.fatalf("%s and %s differ", name1, name2)
 }
 
 // cp copies files, maybe eventually directories.
 func (ts *testScript) cmdCp(neg bool, args []string) {
-	if neg {
-		ts.fatalf("unsupported: ! cp")
-	}
 	if len(args) < 2 {
 		ts.fatalf("usage: cp src... dst")
 	}
@@ -531,7 +546,14 @@ func (ts *testScript) cmdCp(neg bool, args []string) {
 		if dstDir {
 			targ = filepath.Join(dst, filepath.Base(src))
 		}
-		ts.check(ioutil.WriteFile(targ, data, mode))
+		err := ioutil.WriteFile(targ, data, mode)
+		if neg {
+			if err == nil {
+				ts.fatalf("unexpected command success")
+			}
+		} else {
+			ts.check(err)
+		}
 	}
 }
 

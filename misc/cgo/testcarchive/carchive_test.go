@@ -282,7 +282,13 @@ func TestEarlySignalHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if out, err := exec.Command(bin[0], bin[1:]...).CombinedOutput(); err != nil {
+	darwin := "0"
+	if runtime.GOOS == "darwin" {
+		darwin = "1"
+	}
+	cmd = exec.Command(bin[0], append(bin[1:], darwin)...)
+
+	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
 	}
@@ -320,12 +326,15 @@ func TestSignalForwarding(t *testing.T) {
 	t.Logf("%s", out)
 	expectSignal(t, err, syscall.SIGSEGV)
 
-	// Test SIGPIPE forwarding
-	cmd = exec.Command(bin[0], append(bin[1:], "3")...)
+	// SIGPIPE is never forwarded on darwin. See golang.org/issue/33384.
+	if runtime.GOOS != "darwin" {
+		// Test SIGPIPE forwarding
+		cmd = exec.Command(bin[0], append(bin[1:], "3")...)
 
-	out, err = cmd.CombinedOutput()
-	t.Logf("%s", out)
-	expectSignal(t, err, syscall.SIGPIPE)
+		out, err = cmd.CombinedOutput()
+		t.Logf("%s", out)
+		expectSignal(t, err, syscall.SIGPIPE)
+	}
 }
 
 func TestSignalForwardingExternal(t *testing.T) {
@@ -744,11 +753,20 @@ func TestCompileWithoutShared(t *testing.T) {
 	}
 	defer os.Remove(exe)
 
-	binArgs := append(cmdToRun(exe), "3")
+	binArgs := append(cmdToRun(exe), "1")
 	t.Log(binArgs)
 	out, err = exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput()
 	t.Logf("%s", out)
-	expectSignal(t, err, syscall.SIGPIPE)
+	expectSignal(t, err, syscall.SIGSEGV)
+
+	// SIGPIPE is never forwarded on darwin. See golang.org/issue/33384.
+	if runtime.GOOS != "darwin" {
+		binArgs := append(cmdToRun(exe), "3")
+		t.Log(binArgs)
+		out, err = exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput()
+		t.Logf("%s", out)
+		expectSignal(t, err, syscall.SIGPIPE)
+	}
 }
 
 // Test that installing a second time recreates the header files.
@@ -793,5 +811,54 @@ func TestCachedInstall(t *testing.T) {
 	}
 	if _, err := os.Stat(h2); err != nil {
 		t.Errorf("p.h not installed in second run: %v", err)
+	}
+}
+
+// Issue 35294.
+func TestManyCalls(t *testing.T) {
+	t.Parallel()
+
+	defer func() {
+		os.Remove("testp7" + exeSuffix)
+		os.Remove("libgo7.a")
+		os.Remove("libgo7.h")
+	}()
+
+	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo7.a", "./libgo7")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+	checkLineComments(t, "libgo7.h")
+
+	ccArgs := append(cc, "-o", "testp7"+exeSuffix, "main7.c", "libgo7.a")
+	if runtime.Compiler == "gccgo" {
+		ccArgs = append(ccArgs, "-lgo")
+	}
+	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+
+	argv := cmdToRun("./testp7")
+	cmd = exec.Command(argv[0], argv[1:]...)
+	var sb strings.Builder
+	cmd.Stdout = &sb
+	cmd.Stderr = &sb
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	timer := time.AfterFunc(time.Minute,
+		func() {
+			t.Error("test program timed out")
+			cmd.Process.Kill()
+		},
+	)
+	defer timer.Stop()
+
+	if err := cmd.Wait(); err != nil {
+		t.Log(sb.String())
+		t.Error(err)
 	}
 }

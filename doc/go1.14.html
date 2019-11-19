@@ -1,0 +1,290 @@
+<!--{
+        "Title": "Go 1.14 Release Notes",
+        "Path":  "/doc/go1.14",
+        "Template": true
+}-->
+
+<!--
+NOTE: In this document and others in this directory, the convention is to
+set fixed-width phrases with non-fixed-width spaces, as in
+<code>hello</code> <code>world</code>.
+Do not send CLs removing the interior tags from such phrases.
+-->
+
+<style>
+  main ul li { margin: 0.5em 0; }
+</style>
+
+<h2 id="introduction">DRAFT RELEASE NOTES — Introduction to Go 1.14</h2>
+
+<p>
+  <strong>
+    Go 1.14 is not yet released. These are work-in-progress
+    release notes. Go 1.14 is expected to be released in February 2020.
+  </strong>
+</p>
+
+<h2 id="language">Changes to the language</h2>
+
+<p>
+TODO
+</p>
+
+<h2 id="ports">Ports</h2>
+
+<p>
+  TODO: is Dragonfly passing? On both Dragonfly release & tip? (ABI
+  change happened) Does the net package's interface APIs work on both?
+  https://golang.org/issue/34368.
+</p>
+
+<p>
+  TODO: is Illumos up with a builder and passing?
+  https://golang.org/issue/15581.
+</p>
+
+<p>
+  TODO: announce something about the Go Solaris port? Solaris itself
+  is unmaintained? The builder is still running at Oracle, but the
+  employee who set it up left the company and we have no way to
+  maintain it.
+</p>
+
+<h3 id="darwin">Darwin</h3>
+
+<p><!-- golang.org/issue/34749 -->
+  Go 1.14 is the last Go release to support 32-bit binaries on
+  macOS (the <code>darwin/386</code> port). They are no longer
+  supported by macOS, starting with macOS 10.15 (Catalina).
+  Go continues to support the 64-bit <code>darwin/amd64</code> port.
+</p>
+
+<p><!-- golang.org/issue/34751 -->
+  Go 1.14 will likely be the last Go release to support 32-bit
+  binaries on iOS, iPadOS, watchOS, and tvOS
+  (the <code>darwin/arm</code> port). Go continues to support the
+  64-bit <code>darwin/arm64</code> port.
+</p>
+
+<h3 id="nacl">Native Client (NaCl)</h3>
+
+<p><!-- golang.org/issue/30439 -->
+  As <a href="go1.13#ports">announced</a> in the Go 1.13 release notes,
+  Go 1.14 drops support for the Native Client platform (<code>GOOS=nacl</code>).
+</p>
+
+<h2 id="tools">Tools</h2>
+
+<p>
+TODO
+</p>
+
+<h3 id="go-command">Go command</h3>
+
+<h4 id="vendor">Vendoring</h4>
+<!-- golang.org/issue/33848 -->
+
+<p>
+  When the main module contains a top-level <code>vendor</code> directory and
+  its <code>go.mod</code> file specifies <code>go</code> <code>1.14</code> or
+  higher, the <code>go</code> command now defaults to <code>-mod=vendor</code>
+  for operations that accept that flag. A new value for that flag,
+  <code>-mod=mod</code>, causes the <code>go</code> command to instead load
+  modules from the module cache (as when no <code>vendor</code> directory is
+  present).
+</p>
+
+<p>
+  When <code>-mod=vendor</code> is set (explicitly or by default), the
+  <code>go</code> command now verifies that the main module's
+  <code>vendor/modules.txt</code> file is consistent with its
+  <code>go.mod</code> file.
+</p>
+
+<p>
+  <code>go</code> <code>list</code> <code>-m</code> no longer silently omits
+  transitive dependencies that do not provide packages in
+  the <code>vendor</code> directory. It now fails explicitly if
+  <code>-mod=vendor</code> is set.
+</p>
+
+<h4 id="go-flags">Flags</h4>
+
+<p><!-- golang.org/issue/32502, golang.org/issue/30345 -->
+  The <code>go</code> <code>get</code> command no longer accepts
+  the <code>-mod</code> flag. Previously, the flag's setting either
+  <a href="https://golang.org/issue/30345">was ignored</a> or
+  <a href="https://golang.org/issue/32502">caused the build to fail</a>.
+</p>
+
+<p><!-- golang.org/issue/31481 -->
+  <code>-modcacherw</code> is a new flag that instructs the <code>go</code>
+  command to leave newly-created directories in the module cache at their
+  default permissions rather than making them read-only.
+  The use of this flag makes it more likely that tests or other tools will
+  accidentally add files not included in the module's verified checksum.
+  However, it allows the use of <code>rm</code> <code>-rf</code>
+  (instead of <code>go</code> <code>clean</code> <code>-modcache</code>)
+  to remove the module cache.
+</p>
+
+<p><!-- golang.org/issue/34506 -->
+  <code>-modfile=file</code> is a new flag that instructs the <code>go</code>
+  command to read (and possibly write) an alternate go.mod file instead of the
+  one in the module root directory. A file named "go.mod" must still be present
+  in order to determine the module root directory, but it is not
+  accessed. When <code>-modfile</code> is specified, an alternate go.sum file
+  is also used: its path is derived from the <code>-modfile</code> flag by
+  trimming the ".mod" extension and appending ".sum".
+</p>
+
+<h4 id="incompatible-versions"><code>+incompatible</code> versions</h4>
+<!-- golang.org/issue/34165 -->
+
+<p>
+  If the latest version of a module contains a <code>go.mod</code> file,
+  <code>go</code> <code>get</code> will no longer upgrade to an
+  <a href="/cmd/go/#hdr-Module_compatibility_and_semantic_versioning">incompatible</a>
+  major version of that module unless such a version is requested explicitly
+  or is already required.
+  <code>go</code> <code>list</code> also omits incompatible major versions
+  for such a module when fetching directly from version control, but may
+  include them if reported by a proxy.
+</p>
+
+<h4 id="module-downloading">Module downloading</h4>
+
+<p><!-- golang.org/issue/26092 -->
+  The <code>go</code> command now supports Subversion repositories in module mode.
+</p>
+
+<p><!-- golang.org/issue/30748 -->
+  The <code>go</code> command now includes snippets of plain-text error messages
+  from module proxies and other HTTP servers.
+  An error message will only be shown if it is valid UTF-8 and consists of only
+  graphic characters and spaces.
+</p>
+
+<h2 id="runtime">Runtime</h2>
+
+<p>
+TODO
+</p>
+
+
+<h2 id="library">Core library</h2>
+
+<p>
+TODO
+</p>
+
+<dl id="bytes/hash"><dt><a href="/pkg/bytes/hash/">bytes/hash</a></dt>
+  <dd>
+    <p><!-- CL 186877 -->
+      TODO: <a href="https://golang.org/cl/186877">https://golang.org/cl/186877</a>: add hashing package for bytes and strings
+    </p>
+
+</dl><!-- bytes/hash -->
+
+<dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+  <dd>
+    <p><!-- CL 191976 -->
+      TODO: <a href="https://golang.org/cl/191976">https://golang.org/cl/191976</a>: remove SSLv3 support
+    </p>
+
+    <p><!-- CL 191999 -->
+      TODO: <a href="https://golang.org/cl/191999">https://golang.org/cl/191999</a>: remove TLS 1.3 opt-out
+    </p>
+
+    <p><!-- CL 174329 -->
+      The <code>tls</code> package no longer supports NPN and now only
+      supports ALPN. In previous releases it supported both. There are
+      no API changes and code should function identically as before.
+      Most other clients & servers have already removed NPN support in
+      favor of the standardized ALPN.
+    </p>
+
+</dl><!-- crypto/tls -->
+
+<dl id="encoding/asn1"><dt><a href="/pkg/encoding/asn1/">encoding/asn1</a></dt>
+  <dd>
+    <p><!-- CL 126624 -->
+      TODO: <a href="https://golang.org/cl/126624">https://golang.org/cl/126624</a>: handle ASN1&#39;s string type BMPString
+    </p>
+
+</dl><!-- encoding/asn1 -->
+
+<dl id="mime"><dt><a href="/pkg/mime/">mime</a></dt>
+  <dd>
+    <p><!-- CL 186927 -->
+      TODO: <a href="https://golang.org/cl/186927">https://golang.org/cl/186927</a>: update type of .js and .mjs files to text/javascript
+    </p>
+
+</dl><!-- mime -->
+
+<dl id="math"><dt><a href="/pkg/math/">math</a></dt>
+  <dd>
+    <p><!-- CL 127458 -->
+      The new <a href="/pkg/math/#FMA"><code>FMA</code></a> function
+      computes <code>x*y+z</code> in floating point with no
+      intermediate rounding of the <code>x*y</code>
+      computation. Several architectures implement this computation
+      using dedicated hardware instructions for additional performance.
+    </p>
+
+</dl><!-- math -->
+
+<dl id="plugin"><dt><a href="/pkg/plugin/">plugin</a></dt>
+  <dd>
+    <p><!-- CL 191617 -->
+      TODO: <a href="https://golang.org/cl/191617">https://golang.org/cl/191617</a>: add freebsd/amd64 plugin support
+    </p>
+
+</dl><!-- plugin -->
+
+<dl id="reflect">
+
+<dt><a href="/pkg/reflect/">reflect</a></dt>
+  <dd>
+    <p><!-- CL 85661 -->
+      <a href="/pkg/reflect#StructOf"><code>StructOf</code></a> now
+      supports creating struct types with unexported fields, by
+      setting the <code>PkgPath</code> field in
+      a <code>StructField</code> element.
+    </p>
+
+</dl><!-- reflect -->
+
+<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+  <dd>
+    <p><!-- CL 187739 -->
+      TODO: <a href="https://golang.org/cl/187739">https://golang.org/cl/187739</a>: treat CTRL_CLOSE_EVENT, CTRL_LOGOFF_EVENT, CTRL_SHUTDOWN_EVENT as SIGTERM on Windows
+    </p>
+
+    <p><!-- CL 188297 -->
+      TODO: <a href="https://golang.org/cl/188297">https://golang.org/cl/188297</a>: don&#39;t forward SIGPIPE on macOS
+    </p>
+
+</dl><!-- runtime -->
+
+<dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
+  <dd>
+    <p><!-- CL 201359 -->
+       The testing package now supports cleanup functions, called after
+       a test or benchmark has finished, by calling
+       <a href="/pkg/testing#T.Cleanup"><code>T.Cleanup</code></a> or
+       <a href="/pkg/testing#B.Cleanup"><code>B.Cleanup</code></a> respectively.
+    </p>
+</dl><!-- testing -->
+
+<h3 id="minor_library_changes">Minor changes to the library</h3>
+
+<p>
+  As always, there are various minor changes and updates to the library,
+  made with the Go 1 <a href="/doc/go1compat">promise of compatibility</a>
+  in mind.
+</p>
+
+<p>
+TODO
+</p>

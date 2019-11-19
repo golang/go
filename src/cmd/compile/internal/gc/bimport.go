@@ -5,7 +5,6 @@
 package gc
 
 import (
-	"cmd/compile/internal/types"
 	"cmd/internal/src"
 )
 
@@ -14,15 +13,6 @@ import (
 // path to disambiguate) if a package that appears multiple times with
 // the same name appears in an error message.
 var numImport = make(map[string]int)
-
-func idealType(typ *types.Type) *types.Type {
-	switch typ {
-	case types.Idealint, types.Idealrune, types.Idealfloat, types.Idealcomplex:
-		// canonicalize ideal types
-		typ = types.Types[TIDEAL]
-	}
-	return typ
-}
 
 func npos(pos src.XPos, n *Node) *Node {
 	n.Pos = pos

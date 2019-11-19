@@ -64,8 +64,7 @@ func CheckRuntimeTimerOverflow() {
 		// once more.
 		stopTimer(r)
 		t.Stop()
-		r.when = 0
-		startTimer(r)
+		resetTimer(r, 0)
 	}()
 
 	// If the test fails, we will hang here until the timeout in the testing package

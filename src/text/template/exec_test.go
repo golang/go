@@ -663,6 +663,12 @@ var execTests = []execTest{
 	{"bug17c", "{{len .NonEmptyInterfacePtS}}", "2", tVal, true},
 	{"bug17d", "{{index .NonEmptyInterfacePtS 0}}", "a", tVal, true},
 	{"bug17e", "{{range .NonEmptyInterfacePtS}}-{{.}}-{{end}}", "-a--b-", tVal, true},
+
+	// More variadic function corner cases. Some runes would get evaluated
+	// as constant floats instead of ints. Issue 34483.
+	{"bug18a", "{{eq . '.'}}", "true", '.', true},
+	{"bug18b", "{{eq . 'e'}}", "true", 'e', true},
+	{"bug18c", "{{eq . 'P'}}", "true", 'P', true},
 }
 
 func zeroArgs() string {
@@ -1156,19 +1162,41 @@ var cmpTests = []cmpTest{
 	{"ge .Uthree .NegOne", "true", true},
 	{"eq (index `x` 0) 'x'", "true", true}, // The example that triggered this rule.
 	{"eq (index `x` 0) 'y'", "false", true},
+	{"eq .V1 .V2", "true", true},
+	{"eq .Ptr .Ptr", "true", true},
+	{"eq .Ptr .NilPtr", "false", true},
+	{"eq .NilPtr .NilPtr", "true", true},
+	{"eq .Iface1 .Iface1", "true", true},
+	{"eq .Iface1 .Iface2", "false", true},
+	{"eq .Iface2 .Iface2", "true", true},
 	// Errors
-	{"eq `xy` 1", "", false},    // Different types.
-	{"eq 2 2.0", "", false},     // Different types.
-	{"lt true true", "", false}, // Unordered types.
-	{"lt 1+0i 1+0i", "", false}, // Unordered types.
+	{"eq `xy` 1", "", false},       // Different types.
+	{"eq 2 2.0", "", false},        // Different types.
+	{"lt true true", "", false},    // Unordered types.
+	{"lt 1+0i 1+0i", "", false},    // Unordered types.
+	{"eq .Ptr 1", "", false},       // Incompatible types.
+	{"eq .Ptr .NegOne", "", false}, // Incompatible types.
+	{"eq .Map .Map", "", false},    // Uncomparable types.
+	{"eq .Map .V1", "", false},     // Uncomparable types.
 }
 
 func TestComparison(t *testing.T) {
 	b := new(bytes.Buffer)
 	var cmpStruct = struct {
-		Uthree, Ufour uint
-		NegOne, Three int
-	}{3, 4, -1, 3}
+		Uthree, Ufour  uint
+		NegOne, Three  int
+		Ptr, NilPtr    *int
+		Map            map[int]int
+		V1, V2         V
+		Iface1, Iface2 fmt.Stringer
+	}{
+		Uthree: 3,
+		Ufour:  4,
+		NegOne: -1,
+		Three:  3,
+		Ptr:    new(int),
+		Iface1: b,
+	}
 	for _, test := range cmpTests {
 		text := fmt.Sprintf("{{if %s}}true{{else}}false{{end}}", test.expr)
 		tmpl, err := New("empty").Parse(text)

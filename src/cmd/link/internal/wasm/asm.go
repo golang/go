@@ -11,7 +11,6 @@ import (
 	"cmd/link/internal/sym"
 	"io"
 	"regexp"
-	"runtime"
 )
 
 const (
@@ -97,10 +96,6 @@ func asmb(ctxt *ld.Link) {} // dummy
 // asmb writes the final WebAssembly module binary.
 // Spec: https://webassembly.github.io/spec/core/binary/modules.html
 func asmb2(ctxt *ld.Link) {
-	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f asmb\n", ld.Cputime())
-	}
-
 	types := []*wasmFuncType{
 		// For normal Go functions, the single parameter is PC_B,
 		// the return value is
@@ -177,7 +172,6 @@ func asmb2(ctxt *ld.Link) {
 		writeBuildID(ctxt, buildid)
 	}
 
-	writeGoVersion(ctxt)
 	writeTypeSec(ctxt, types)
 	writeImportSec(ctxt, hostImports)
 	writeFunctionSec(ctxt, fns)
@@ -188,6 +182,7 @@ func asmb2(ctxt *ld.Link) {
 	writeElementSec(ctxt, uint64(len(hostImports)), uint64(len(fns)))
 	writeCodeSec(ctxt, fns)
 	writeDataSec(ctxt)
+	writeProducerSec(ctxt)
 	if !*ld.FlagS {
 		writeNameSec(ctxt, len(hostImports), fns)
 	}
@@ -223,13 +218,6 @@ func writeBuildID(ctxt *ld.Link, buildid []byte) {
 	sizeOffset := writeSecHeader(ctxt, sectionCustom)
 	writeName(ctxt.Out, "go.buildid")
 	ctxt.Out.Write(buildid)
-	writeSecSize(ctxt, sizeOffset)
-}
-
-func writeGoVersion(ctxt *ld.Link) {
-	sizeOffset := writeSecHeader(ctxt, sectionCustom)
-	writeName(ctxt.Out, "go.version")
-	ctxt.Out.Write([]byte(runtime.Version()))
 	writeSecSize(ctxt, sizeOffset)
 }
 
@@ -304,10 +292,11 @@ func writeTableSec(ctxt *ld.Link, fns []*wasmFunc) {
 func writeMemorySec(ctxt *ld.Link) {
 	sizeOffset := writeSecHeader(ctxt, sectionMemory)
 
-	const (
-		initialSize  = 16 << 20 // 16MB, enough for runtime init without growing
-		wasmPageSize = 64 << 10 // 64KB
-	)
+	dataSection := ctxt.Syms.Lookup("runtime.data", 0).Sect
+	dataEnd := dataSection.Vaddr + dataSection.Length
+	var initialSize = dataEnd + 16<<20 // 16MB, enough for runtime init without growing
+
+	const wasmPageSize = 64 << 10 // 64KB
 
 	writeUleb128(ctxt.Out, 1)                        // number of memories
 	ctxt.Out.WriteByte(0x00)                         // no maximum memory size
@@ -488,6 +477,26 @@ func writeDataSec(ctxt *ld.Link) {
 	writeSecSize(ctxt, sizeOffset)
 }
 
+// writeProducerSec writes an optional section that reports the source language and compiler version.
+func writeProducerSec(ctxt *ld.Link) {
+	sizeOffset := writeSecHeader(ctxt, sectionCustom)
+	writeName(ctxt.Out, "producers")
+
+	writeUleb128(ctxt.Out, 2) // number of fields
+
+	writeName(ctxt.Out, "language")     // field name
+	writeUleb128(ctxt.Out, 1)           // number of values
+	writeName(ctxt.Out, "Go")           // value: name
+	writeName(ctxt.Out, objabi.Version) // value: version
+
+	writeName(ctxt.Out, "processed-by")   // field name
+	writeUleb128(ctxt.Out, 1)             // number of values
+	writeName(ctxt.Out, "Go cmd/compile") // value: name
+	writeName(ctxt.Out, objabi.Version)   // value: version
+
+	writeSecSize(ctxt, sizeOffset)
+}
+
 var nameRegexp = regexp.MustCompile(`[^\w\.]`)
 
 // writeNameSec writes an optional section that assigns names to the functions declared by the "func" section.
@@ -529,6 +538,10 @@ func writeName(w nameWriter, name string) {
 }
 
 func writeUleb128(w io.ByteWriter, v uint64) {
+	if v < 128 {
+		w.WriteByte(uint8(v))
+		return
+	}
 	more := true
 	for more {
 		c := uint8(v & 0x7f)

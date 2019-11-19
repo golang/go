@@ -973,6 +973,67 @@ func TestRenameToDirFailed(t *testing.T) {
 	}
 }
 
+func TestRenameCaseDifference(pt *testing.T) {
+	from, to := "renameFROM", "RENAMEfrom"
+	tests := []struct {
+		name   string
+		create func() error
+	}{
+		{"dir", func() error {
+			return Mkdir(from, 0777)
+		}},
+		{"file", func() error {
+			fd, err := Create(from)
+			if err != nil {
+				return err
+			}
+			return fd.Close()
+		}},
+	}
+
+	for _, test := range tests {
+		pt.Run(test.name, func(t *testing.T) {
+			defer chtmpdir(t)()
+
+			if err := test.create(); err != nil {
+				t.Fatalf("failed to create test file: %s", err)
+			}
+
+			if _, err := Stat(to); err != nil {
+				// Sanity check that the underlying filesystem is not case sensitive.
+				if IsNotExist(err) {
+					t.Skipf("case sensitive filesystem")
+				}
+				t.Fatalf("stat %q, got: %q", to, err)
+			}
+
+			if err := Rename(from, to); err != nil {
+				t.Fatalf("unexpected error when renaming from %q to %q: %s", from, to, err)
+			}
+
+			fd, err := Open(".")
+			if err != nil {
+				t.Fatalf("Open .: %s", err)
+			}
+
+			// Stat does not return the real case of the file (it returns what the called asked for)
+			// So we have to use readdir to get the real name of the file.
+			dirNames, err := fd.Readdirnames(-1)
+			if err != nil {
+				t.Fatalf("readdirnames: %s", err)
+			}
+
+			if dirNamesLen := len(dirNames); dirNamesLen != 1 {
+				t.Fatalf("unexpected dirNames len, got %q, want %q", dirNamesLen, 1)
+			}
+
+			if dirNames[0] != to {
+				t.Errorf("unexpected name, got %q, want %q", dirNames[0], to)
+			}
+		})
+	}
+}
+
 func exec(t *testing.T, dir, cmd string, args []string, expect string) {
 	r, w, err := Pipe()
 	if err != nil {
@@ -1159,9 +1220,7 @@ func testChtimes(t *testing.T, name string) {
 	pmt := postStat.ModTime()
 	if !pat.Before(at) {
 		switch runtime.GOOS {
-		case "plan9", "nacl":
-			// Ignore.
-			// Plan 9, NaCl:
+		case "plan9":
 			// Mtime is the time of the last change of
 			// content.  Similarly, atime is set whenever
 			// the contents are accessed; also, it is set
@@ -1351,10 +1410,6 @@ func TestSeek(t *testing.T) {
 		{0, io.SeekCurrent, 2<<32 - 1},
 	}
 	for i, tt := range tests {
-		if runtime.GOOS == "nacl" && tt.out > 1<<30 {
-			t.Logf("skipping test case #%d on nacl; https://golang.org/issue/21728", i)
-			continue
-		}
 		off, err := f.Seek(tt.in, tt.whence)
 		if off != tt.out || err != nil {
 			if e, ok := err.(*PathError); ok && e.Err == syscall.EINVAL && tt.out > 1<<32 && runtime.GOOS == "linux" {
@@ -1371,7 +1426,7 @@ func TestSeek(t *testing.T) {
 
 func TestSeekError(t *testing.T) {
 	switch runtime.GOOS {
-	case "js", "nacl", "plan9":
+	case "js", "plan9":
 		t.Skipf("skipping test on %v", runtime.GOOS)
 	}
 

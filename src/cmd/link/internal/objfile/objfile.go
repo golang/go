@@ -27,8 +27,8 @@ import (
 )
 
 const (
-	startmagic = "\x00go112ld"
-	endmagic   = "\xffgo112ld"
+	startmagic = "\x00go114ld"
+	endmagic   = "\xffgo114ld"
 )
 
 var emptyPkg = []byte(`"".`)
@@ -39,6 +39,7 @@ type objReader struct {
 	arch            *sys.Arch
 	syms            *sym.Symbols
 	lib             *sym.Library
+	unit            *sym.CompilationUnit
 	pn              string
 	dupSym          *sym.Symbol
 	localSymVersion int
@@ -54,7 +55,6 @@ type objReader struct {
 	data        []byte
 	reloc       []sym.Reloc
 	pcdata      []sym.Pcdata
-	autom       []sym.Auto
 	funcdata    []*sym.Symbol
 	funcdataoff []int64
 	file        []*sym.Symbol
@@ -81,7 +81,7 @@ const (
 
 // Load loads an object file f into library lib.
 // The symbols loaded are added to syms.
-func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, length int64, pn string, flags int) int {
+func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64, pn string, flags int) int {
 	start := f.Offset()
 	roObject := f.SliceRO(uint64(length))
 	if roObject != nil {
@@ -90,6 +90,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, le
 	r := &objReader{
 		rd:              f,
 		lib:             lib,
+		unit:            unit,
 		arch:            arch,
 		syms:            syms,
 		pn:              pn,
@@ -132,6 +133,14 @@ func (r *objReader) loadObjFile() {
 			break
 		}
 		r.lib.ImportStrings = append(r.lib.ImportStrings, lib)
+	}
+
+	// DWARF strings
+	count := r.readInt()
+	r.unit.DWARFFileTable = make([]string, count)
+	for i := 0; i < count; i++ {
+		// TODO: This should probably be a call to mkROString.
+		r.unit.DWARFFileTable[i] = r.readString()
 	}
 
 	// Symbol references
@@ -183,8 +192,7 @@ func (r *objReader) readSlices() {
 	r.reloc = make([]sym.Reloc, n)
 	n = r.readInt()
 	r.pcdata = make([]sym.Pcdata, n)
-	n = r.readInt()
-	r.autom = make([]sym.Auto, n)
+	_ = r.readInt() // TODO: remove on next object file rev (autom count)
 	n = r.readInt()
 	r.funcdata = make([]*sym.Symbol, n)
 	r.funcdataoff = make([]int64, n)
@@ -254,7 +262,7 @@ func (r *objReader) readSym() {
 
 overwrite:
 	s.File = r.pkgpref[:len(r.pkgpref)-1]
-	s.Lib = r.lib
+	s.Unit = r.unit
 	if dupok {
 		s.Attr |= sym.AttrDuplicateOK
 	}
@@ -318,18 +326,8 @@ overwrite:
 			s.Attr |= sym.AttrTopFrame
 		}
 		n := r.readInt()
-		pc.Autom = r.autom[:n:n]
-		if !isdup {
-			r.autom = r.autom[n:]
-		}
-
-		for i := 0; i < n; i++ {
-			pc.Autom[i] = sym.Auto{
-				Asym:    r.readSymIndex(),
-				Aoffset: r.readInt32(),
-				Name:    r.readInt16(),
-				Gotype:  r.readSymIndex(),
-			}
+		if n != 0 {
+			log.Fatalf("stale object file: autom count nonzero")
 		}
 
 		pc.Pcsp.P = r.readData()
@@ -371,7 +369,7 @@ overwrite:
 			pc.InlTree[i].Parent = r.readInt32()
 			pc.InlTree[i].File = r.readSymIndex()
 			pc.InlTree[i].Line = r.readInt32()
-			pc.InlTree[i].Func = r.readSymIndex()
+			pc.InlTree[i].Func = r.readSymIndex().Name
 			pc.InlTree[i].ParentPC = r.readInt32()
 		}
 
@@ -405,7 +403,7 @@ overwrite:
 				reason = fmt.Sprintf("new length %d != old length %d",
 					len(data), len(dup.P))
 			}
-			fmt.Fprintf(os.Stderr, "cmd/link: while reading object for '%v': duplicate symbol '%s', previous def at '%v', with mismatched payload: %s\n", r.lib, dup, dup.Lib, reason)
+			fmt.Fprintf(os.Stderr, "cmd/link: while reading object for '%v': duplicate symbol '%s', previous def at '%v', with mismatched payload: %s\n", r.lib, dup, dup.Unit.Lib, reason)
 
 			// For the moment, whitelist DWARF subprogram DIEs for
 			// auto-generated wrapper functions. What seems to happen
@@ -414,7 +412,8 @@ overwrite:
 			// from the spot where the wrapper is needed.
 			whitelist := (strings.HasPrefix(dup.Name, "go.info.go.interface") ||
 				strings.HasPrefix(dup.Name, "go.info.go.builtin") ||
-				strings.HasPrefix(dup.Name, "go.isstmt.go.builtin"))
+				strings.HasPrefix(dup.Name, "go.isstmt.go.builtin") ||
+				strings.HasPrefix(dup.Name, "go.debuglines"))
 			if !whitelist {
 				r.strictDupMsgs++
 			}

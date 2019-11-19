@@ -17,7 +17,6 @@ func Init(arch *gc.Arch) {
 	arch.MAXWIDTH = (1 << 32) - 1
 	arch.SoftFloat = objabi.GOARM == 5
 	arch.ZeroRange = zerorange
-	arch.ZeroAuto = zeroAuto
 	arch.Ginsnop = ginsnop
 	arch.Ginsnopdefer = ginsnop
 

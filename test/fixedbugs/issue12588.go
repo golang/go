@@ -26,7 +26,7 @@ func f(a A) int {
 	return 0
 }
 
-func g(a *A) int { // ERROR "g a does not escape"
+func g(a *A) int { // ERROR "a does not escape"
 	for i, x := range &a.b {
 		if x != 0 {
 			return 64*i + int(x)

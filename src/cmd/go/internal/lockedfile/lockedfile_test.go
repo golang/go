@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// js and nacl do not support inter-process file locking.
-// +build !js,!nacl
+// js does not support inter-process file locking.
+// +build !js
 
 package lockedfile_test
 

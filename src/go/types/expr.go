@@ -548,9 +548,6 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 			}
 		}
 	case *Interface:
-		if !x.isNil() && !t.Empty() /* empty interfaces are ok */ {
-			goto Error
-		}
 		// Update operand types to the default type rather then
 		// the target (interface) type: values must have concrete
 		// dynamic types. If the value is nil, keep it untyped
@@ -561,6 +558,7 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 			target = Typ[UntypedNil]
 		} else {
 			// cannot assign untyped values to non-empty interfaces
+			check.completeInterface(t)
 			if !t.Empty() {
 				goto Error
 			}
@@ -809,7 +807,7 @@ func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, o
 		return
 	}
 
-	if !Identical(x.typ, y.typ) {
+	if !check.identical(x.typ, y.typ) {
 		// only report an error if we have valid types
 		// (otherwise we had an error reported elsewhere already)
 		if x.typ != Typ[Invalid] && y.typ != Typ[Invalid] {
@@ -1159,12 +1157,9 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			}
 
 		case *Array:
-			// Prevent crash if the array referred to is not yet set up.
-			// This is a stop-gap solution; a better approach would use the mechanism of
-			// Checker.ident (typexpr.go) using a path of types. But that would require
-			// passing the path everywhere (all expression-checking methods, not just
-			// type expression checking), and we're not set up for that (quite possibly
-			// an indication that cycle detection needs to be rethought). Was issue #18643.
+			// Prevent crash if the array referred to is not yet set up. Was issue #18643.
+			// This is a stop-gap solution. Should use Checker.objPath to report entire
+			// path starting with earliest declaration in the source. TODO(gri) fix this.
 			if utyp.elem == nil {
 				check.error(e.Pos(), "illegal cycle in type declaration")
 				goto Error
@@ -1223,7 +1218,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					xkey := keyVal(x.val)
 					if _, ok := utyp.key.Underlying().(*Interface); ok {
 						for _, vtyp := range visited[xkey] {
-							if Identical(vtyp, x.typ) {
+							if check.identical(vtyp, x.typ) {
 								duplicate = true
 								break
 							}

@@ -5,14 +5,8 @@
 package obj
 
 import (
-	"cmd/internal/src"
 	"encoding/binary"
 	"log"
-)
-
-const (
-	PrologueEnd   = 2 + iota // overload "is_stmt" to include prologue_end
-	EpilogueBegin            // overload "is_stmt" to include epilogue_end
 )
 
 // funcpctab writes to dst a pc-value table mapping the code in func to the values
@@ -249,34 +243,6 @@ func pctospadj(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg in
 	return oldval + p.Spadj
 }
 
-// pctostmt returns either,
-// if phase==0, then whether the current instruction is a step-target (Dwarf is_stmt)
-//     bit-or'd with whether the current statement is a prologue end or epilogue begin
-// else (phase == 1), zero.
-//
-func pctostmt(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg interface{}) int32 {
-	if phase == 1 {
-		return 0 // Ignored; also different from initial value of -1, if that ever matters.
-	}
-	s := p.Pos.IsStmt()
-	l := p.Pos.Xlogue()
-
-	var is_stmt int32
-
-	// PrologueEnd, at least, is passed to the next instruction
-	switch l {
-	case src.PosPrologueEnd:
-		is_stmt = PrologueEnd
-	case src.PosEpilogueBegin:
-		is_stmt = EpilogueBegin
-	}
-
-	if s != src.PosNotStmt {
-		is_stmt |= 1 // either PosDefaultStmt from asm, or PosIsStmt from go
-	}
-	return is_stmt
-}
-
 // pctopcdata computes the pcdata value in effect at p.
 // A PCDATA instruction sets the value in effect at future
 // non-PCDATA instructions.
@@ -293,13 +259,6 @@ func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg i
 	}
 
 	return int32(p.To.Offset)
-}
-
-// stmtData writes out pc-linked is_stmt data for eventual use in the DWARF line numbering table.
-func stmtData(ctxt *Link, cursym *LSym) {
-	var pctostmtData Pcdata
-	funcpctab(ctxt, &pctostmtData, cursym, "pctostmt", pctostmt, nil)
-	cursym.Func.dwarfIsStmtSym.P = pctostmtData.P
 }
 
 func linkpcln(ctxt *Link, cursym *LSym) {
@@ -383,4 +342,70 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 			}
 		}
 	}
+}
+
+// PCIter iterates over encoded pcdata tables.
+type PCIter struct {
+	p       []byte
+	PC      uint32
+	NextPC  uint32
+	PCScale uint32
+	Value   int32
+	start   bool
+	Done    bool
+}
+
+// newPCIter creates a PCIter with a scale factor for the PC step size.
+func NewPCIter(pcScale uint32) *PCIter {
+	it := new(PCIter)
+	it.PCScale = pcScale
+	return it
+}
+
+// Next advances it to the Next pc.
+func (it *PCIter) Next() {
+	it.PC = it.NextPC
+	if it.Done {
+		return
+	}
+	if len(it.p) == 0 {
+		it.Done = true
+		return
+	}
+
+	// Value delta
+	val, n := binary.Varint(it.p)
+	if n <= 0 {
+		log.Fatalf("bad Value varint in pciterNext: read %v", n)
+	}
+	it.p = it.p[n:]
+
+	if val == 0 && !it.start {
+		it.Done = true
+		return
+	}
+
+	it.start = false
+	it.Value += int32(val)
+
+	// pc delta
+	pc, n := binary.Uvarint(it.p)
+	if n <= 0 {
+		log.Fatalf("bad pc varint in pciterNext: read %v", n)
+	}
+	it.p = it.p[n:]
+
+	it.NextPC = it.PC + uint32(pc)*it.PCScale
+}
+
+// init prepares it to iterate over p,
+// and advances it to the first pc.
+func (it *PCIter) Init(p []byte) {
+	it.p = p
+	it.PC = 0
+	it.NextPC = 0
+	it.Value = -1
+	it.start = true
+	it.Done = false
+	it.Next()
 }

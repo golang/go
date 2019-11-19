@@ -432,6 +432,7 @@ func (b *Reader) ReadBytes(delim byte) ([]byte, error) {
 	var frag []byte
 	var full [][]byte
 	var err error
+	n := 0
 	for {
 		var e error
 		frag, e = b.ReadSlice(delim)
@@ -447,18 +448,15 @@ func (b *Reader) ReadBytes(delim byte) ([]byte, error) {
 		buf := make([]byte, len(frag))
 		copy(buf, frag)
 		full = append(full, buf)
+		n += len(buf)
 	}
 
-	// Allocate new buffer to hold the full pieces and the fragment.
-	n := 0
-	for i := range full {
-		n += len(full[i])
-	}
 	n += len(frag)
 
-	// Copy full pieces and fragment in.
+	// Allocate new buffer to hold the full pieces and the fragment.
 	buf := make([]byte, n)
 	n = 0
+	// Copy full pieces and fragment in.
 	for i := range full {
 		n += copy(buf[n:], full[i])
 	}
@@ -708,9 +706,14 @@ func (b *Writer) WriteString(s string) (int, error) {
 // supports the ReadFrom method, and b has no buffered data yet,
 // this calls the underlying ReadFrom without buffering.
 func (b *Writer) ReadFrom(r io.Reader) (n int64, err error) {
+	if b.err != nil {
+		return 0, b.err
+	}
 	if b.Buffered() == 0 {
 		if w, ok := b.wr.(io.ReaderFrom); ok {
-			return w.ReadFrom(r)
+			n, err = w.ReadFrom(r)
+			b.err = err
+			return n, err
 		}
 	}
 	var m int

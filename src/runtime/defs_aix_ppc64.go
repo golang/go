@@ -80,7 +80,8 @@ const (
 	_ITIMER_VIRTUAL = 0x1
 	_ITIMER_PROF    = 0x2
 
-	_O_RDONLY = 0x0
+	_O_RDONLY   = 0x0
+	_O_NONBLOCK = 0x4
 
 	_SS_DISABLE  = 0x2
 	_SI_USER     = 0x0

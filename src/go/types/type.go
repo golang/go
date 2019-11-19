@@ -329,14 +329,23 @@ func (t *Interface) Embedded(i int) *Named { tname, _ := t.embeddeds[i].(*Named)
 func (t *Interface) EmbeddedType(i int) Type { return t.embeddeds[i] }
 
 // NumMethods returns the total number of methods of interface t.
-func (t *Interface) NumMethods() int { return len(t.allMethods) }
+// The interface must have been completed.
+func (t *Interface) NumMethods() int { t.assertCompleteness(); return len(t.allMethods) }
+
+func (t *Interface) assertCompleteness() {
+	if t.allMethods == nil {
+		panic("interface is incomplete")
+	}
+}
 
 // Method returns the i'th method of interface t for 0 <= i < t.NumMethods().
 // The methods are ordered by their unique Id.
-func (t *Interface) Method(i int) *Func { return t.allMethods[i] }
+// The interface must have been completed.
+func (t *Interface) Method(i int) *Func { t.assertCompleteness(); return t.allMethods[i] }
 
 // Empty reports whether t is the empty interface.
-func (t *Interface) Empty() bool { return len(t.allMethods) == 0 }
+// The interface must have been completed.
+func (t *Interface) Empty() bool { t.assertCompleteness(); return len(t.allMethods) == 0 }
 
 // Complete computes the interface's method set. It must be called by users of
 // NewInterfaceType and NewInterface after the interface's embedded types are
@@ -439,7 +448,9 @@ func (c *Chan) Elem() Type { return c.elem }
 
 // A Named represents a named type.
 type Named struct {
+	info       typeInfo  // for cycle detection
 	obj        *TypeName // corresponding declared object
+	orig       Type      // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
 	underlying Type      // possibly a *Named during setup; never a *Named once set up completely
 	methods    []*Func   // methods declared for this type (not the method set of this type); signatures are type-checked lazily
 }
@@ -451,7 +462,7 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	if _, ok := underlying.(*Named); ok {
 		panic("types.NewNamed: underlying type must not be *Named")
 	}
-	typ := &Named{obj: obj, underlying: underlying, methods: methods}
+	typ := &Named{obj: obj, orig: underlying, underlying: underlying, methods: methods}
 	if obj.typ == nil {
 		obj.typ = typ
 	}

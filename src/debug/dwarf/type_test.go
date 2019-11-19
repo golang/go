@@ -223,7 +223,7 @@ func TestUnsupportedTypes(t *testing.T) {
 		}
 	}
 	if dumpseen {
-		for k, _ := range seen {
+		for k := range seen {
 			fmt.Printf("seen: %s\n", k)
 		}
 	}

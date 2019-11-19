@@ -41,8 +41,8 @@ func netpollinit() {
 	}
 }
 
-func netpolldescriptor() uintptr {
-	return iocphandle
+func netpollIsPollDescriptor(fd uintptr) bool {
+	return fd == iocphandle
 }
 
 func netpollopen(fd uintptr, pd *pollDesc) int32 {
@@ -61,9 +61,19 @@ func netpollarm(pd *pollDesc, mode int) {
 	throw("runtime: unused")
 }
 
-// Polls for completed network IO.
+func netpollBreak() {
+	if stdcall4(_PostQueuedCompletionStatus, iocphandle, 0, 0, 0) == 0 {
+		println("runtime: netpoll: PostQueuedCompletionStatus failed (errno=", getlasterror(), ")")
+		throw("runtime: netpoll: PostQueuedCompletionStatus failed")
+	}
+}
+
+// netpoll checks for ready network connections.
 // Returns list of goroutines that become runnable.
-func netpoll(block bool) gList {
+// delay < 0: blocks indefinitely
+// delay == 0: does not block, just polls
+// delay > 0: block for up to that many nanoseconds
+func netpoll(delay int64) gList {
 	var entries [64]overlappedEntry
 	var wait, qty, key, flags, n, i uint32
 	var errno int32
@@ -75,23 +85,32 @@ func netpoll(block bool) gList {
 	if iocphandle == _INVALID_HANDLE_VALUE {
 		return gList{}
 	}
-	wait = 0
-	if block {
+	if delay < 0 {
 		wait = _INFINITE
+	} else if delay == 0 {
+		wait = 0
+	} else if delay < 1e6 {
+		wait = 1
+	} else if delay < 1e15 {
+		wait = uint32(delay / 1e6)
+	} else {
+		// An arbitrary cap on how long to wait for a timer.
+		// 1e9 ms == ~11.5 days.
+		wait = 1e9
 	}
-retry:
+
 	if _GetQueuedCompletionStatusEx != nil {
 		n = uint32(len(entries) / int(gomaxprocs))
 		if n < 8 {
 			n = 8
 		}
-		if block {
+		if delay != 0 {
 			mp.blocked = true
 		}
 		if stdcall6(_GetQueuedCompletionStatusEx, iocphandle, uintptr(unsafe.Pointer(&entries[0])), uintptr(n), uintptr(unsafe.Pointer(&n)), uintptr(wait), 0) == 0 {
 			mp.blocked = false
 			errno = int32(getlasterror())
-			if !block && errno == _WAIT_TIMEOUT {
+			if errno == _WAIT_TIMEOUT {
 				return gList{}
 			}
 			println("runtime: GetQueuedCompletionStatusEx failed (errno=", errno, ")")
@@ -100,24 +119,32 @@ retry:
 		mp.blocked = false
 		for i = 0; i < n; i++ {
 			op = entries[i].op
-			errno = 0
-			qty = 0
-			if stdcall5(_WSAGetOverlappedResult, op.pd.fd, uintptr(unsafe.Pointer(op)), uintptr(unsafe.Pointer(&qty)), 0, uintptr(unsafe.Pointer(&flags))) == 0 {
-				errno = int32(getlasterror())
+			if op != nil {
+				errno = 0
+				qty = 0
+				if stdcall5(_WSAGetOverlappedResult, op.pd.fd, uintptr(unsafe.Pointer(op)), uintptr(unsafe.Pointer(&qty)), 0, uintptr(unsafe.Pointer(&flags))) == 0 {
+					errno = int32(getlasterror())
+				}
+				handlecompletion(&toRun, op, errno, qty)
+			} else {
+				if delay == 0 {
+					// Forward the notification to the
+					// blocked poller.
+					netpollBreak()
+				}
 			}
-			handlecompletion(&toRun, op, errno, qty)
 		}
 	} else {
 		op = nil
 		errno = 0
 		qty = 0
-		if block {
+		if delay != 0 {
 			mp.blocked = true
 		}
 		if stdcall5(_GetQueuedCompletionStatus, iocphandle, uintptr(unsafe.Pointer(&qty)), uintptr(unsafe.Pointer(&key)), uintptr(unsafe.Pointer(&op)), uintptr(wait)) == 0 {
 			mp.blocked = false
 			errno = int32(getlasterror())
-			if !block && errno == _WAIT_TIMEOUT {
+			if errno == _WAIT_TIMEOUT {
 				return gList{}
 			}
 			if op == nil {
@@ -127,10 +154,15 @@ retry:
 			// dequeued failed IO packet, so report that
 		}
 		mp.blocked = false
+		if op == nil {
+			if delay == 0 {
+				// Forward the notification to the
+				// blocked poller.
+				netpollBreak()
+			}
+			return gList{}
+		}
 		handlecompletion(&toRun, op, errno, qty)
-	}
-	if block && toRun.empty() {
-		goto retry
 	}
 	return toRun
 }

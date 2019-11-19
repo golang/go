@@ -6,16 +6,42 @@
 
 package runtime
 
+import "runtime/internal/atomic"
+
+var netpollInited uint32
 var netpollWaiters uint32
+
+var netpollStubLock mutex
+var netpollNote note
+var netpollBroken uint32
+
+func netpollGenericInit() {
+	atomic.Store(&netpollInited, 1)
+}
+
+func netpollBreak() {
+	if atomic.Cas(&netpollBroken, 0, 1) {
+		notewakeup(&netpollNote)
+	}
+}
 
 // Polls for ready network connections.
 // Returns list of goroutines that become runnable.
-func netpoll(block bool) gList {
+func netpoll(delay int64) gList {
 	// Implementation for platforms that do not support
 	// integrated network poller.
+	if delay != 0 {
+		// This lock ensures that only one goroutine tries to use
+		// the note. It should normally be completely uncontended.
+		lock(&netpollStubLock)
+		noteclear(&netpollNote)
+		atomic.Store(&netpollBroken, 0)
+		notetsleep(&netpollNote, delay)
+		unlock(&netpollStubLock)
+	}
 	return gList{}
 }
 
 func netpollinited() bool {
-	return false
+	return atomic.Load(&netpollInited) != 0
 }

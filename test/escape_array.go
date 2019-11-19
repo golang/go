@@ -71,7 +71,7 @@ func fuo(x *U, y *U) *string { // ERROR "leaking param: x to result ~r2 level=1$
 // pointers stored in small array literals do not escape;
 // large array literals are heap allocated;
 // pointers stored in large array literals escape.
-func hugeLeaks1(x **string, y **string) { // ERROR "leaking param content: x" "hugeLeaks1 y does not escape"
+func hugeLeaks1(x **string, y **string) { // ERROR "leaking param content: x" "y does not escape"
 	a := [10]*string{*y}
 	_ = a
 	// 4 x 4,000,000 exceeds MaxStackVarSize, therefore it must be heap allocated if pointers are 4 bytes or larger.
@@ -79,7 +79,7 @@ func hugeLeaks1(x **string, y **string) { // ERROR "leaking param content: x" "h
 	_ = b
 }
 
-func hugeLeaks2(x *string, y *string) { // ERROR "leaking param: x" "hugeLeaks2 y does not escape"
+func hugeLeaks2(x *string, y *string) { // ERROR "leaking param: x" "y does not escape"
 	a := [10]*string{y}
 	_ = a
 	// 4 x 4,000,000 exceeds MaxStackVarSize, therefore it must be heap allocated if pointers are 4 bytes or larger.

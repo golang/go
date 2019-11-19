@@ -27,6 +27,7 @@ import (
 	"reflect"
 	"strconv"
 	"time"
+	"unicode/utf16"
 	"unicode/utf8"
 )
 
@@ -475,6 +476,29 @@ func parseUTF8String(bytes []byte) (ret string, err error) {
 	return string(bytes), nil
 }
 
+// BMPString
+
+// parseBMPString parses an ASN.1 BMPString (Basic Multilingual Plane of
+// ISO/IEC/ITU 10646-1) from the given byte slice and returns it.
+func parseBMPString(bmpString []byte) (string, error) {
+	if len(bmpString)%2 != 0 {
+		return "", errors.New("pkcs12: odd-length BMP string")
+	}
+
+	// Strip terminator if present.
+	if l := len(bmpString); l >= 2 && bmpString[l-1] == 0 && bmpString[l-2] == 0 {
+		bmpString = bmpString[:l-2]
+	}
+
+	s := make([]uint16, 0, len(bmpString)/2)
+	for len(bmpString) > 0 {
+		s = append(s, uint16(bmpString[0])<<8+uint16(bmpString[1]))
+		bmpString = bmpString[2:]
+	}
+
+	return string(utf16.Decode(s)), nil
+}
+
 // A RawValue represents an undecoded ASN.1 object.
 type RawValue struct {
 	Class, Tag int
@@ -589,7 +613,7 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
 			return
 		}
 		switch t.tag {
-		case TagIA5String, TagGeneralString, TagT61String, TagUTF8String, TagNumericString:
+		case TagIA5String, TagGeneralString, TagT61String, TagUTF8String, TagNumericString, TagBMPString:
 			// We pretend that various other string types are
 			// PRINTABLE STRINGs so that a sequence of them can be
 			// parsed into a []string.
@@ -691,6 +715,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 				result, err = parseGeneralizedTime(innerBytes)
 			case TagOctetString:
 				result = innerBytes
+			case TagBMPString:
+				result, err = parseBMPString(innerBytes)
 			default:
 				// If we don't know how to handle the type, we just leave Value as nil.
 			}
@@ -759,7 +785,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	if universalTag == TagPrintableString {
 		if t.class == ClassUniversal {
 			switch t.tag {
-			case TagIA5String, TagGeneralString, TagT61String, TagUTF8String, TagNumericString:
+			case TagIA5String, TagGeneralString, TagT61String, TagUTF8String, TagNumericString, TagBMPString:
 				universalTag = t.tag
 			}
 		} else if params.stringType != 0 {
@@ -957,6 +983,9 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			// that allow the encoding to change midstring and
 			// such. We give up and pass it as an 8-bit string.
 			v, err = parseT61String(innerBytes)
+		case TagBMPString:
+			v, err = parseBMPString(innerBytes)
+
 		default:
 			err = SyntaxError{fmt.Sprintf("internal error: unknown string type %d", universalTag)}
 		}

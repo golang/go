@@ -9,6 +9,8 @@ import (
 	"go/parser"
 	"strings"
 	"testing"
+
+	"cmd/internal/diff"
 )
 
 type testCase struct {
@@ -123,7 +125,7 @@ func TestRewrite(t *testing.T) {
 }
 
 func tdiff(t *testing.T, a, b string) {
-	data, err := diff([]byte(a), []byte(b))
+	data, err := diff.Diff("go-fix-test", []byte(a), []byte(b))
 	if err != nil {
 		t.Error(err)
 		return

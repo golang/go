@@ -18,10 +18,8 @@ import (
 // non-EOF error.
 //
 // if handled == false, sendFile performed no work.
-//
-// Note that sendfile for windows does not support >2GB file.
 func sendFile(fd *netFD, r io.Reader) (written int64, err error, handled bool) {
-	var n int64 = 0 // by default, copy until EOF
+	var n int64 = 0 // by default, copy until EOF.
 
 	lr, ok := r.(*io.LimitedReader)
 	if ok {
@@ -29,26 +27,21 @@ func sendFile(fd *netFD, r io.Reader) (written int64, err error, handled bool) {
 		if n <= 0 {
 			return 0, nil, true
 		}
-		// TransmitFile can be invoked in one call with at most
-		// 2,147,483,646 bytes: the maximum value for a 32-bit integer minus 1.
-		// See https://docs.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-transmitfile
-		const maxSendBytes = 0x7fffffff - 1
-		if n > maxSendBytes {
-			return 0, nil, false
-		}
 	}
+
 	f, ok := r.(*os.File)
 	if !ok {
 		return 0, nil, false
 	}
 
-	done, err := poll.SendFile(&fd.pfd, syscall.Handle(f.Fd()), n)
-
+	written, err = poll.SendFile(&fd.pfd, syscall.Handle(f.Fd()), n)
 	if err != nil {
-		return 0, wrapSyscallError("transmitfile", err), false
+		err = wrapSyscallError("transmitfile", err)
 	}
-	if lr != nil {
-		lr.N -= int64(done)
-	}
-	return int64(done), nil, true
+
+	// If any byte was copied, regardless of any error
+	// encountered mid-way, handled must be set to true.
+	handled = written > 0
+
+	return
 }

@@ -110,7 +110,7 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
 	}
 
 	var elfshnum int
-	if xo.Type == sym.SDYNIMPORT || xo.Type == sym.SHOSTOBJ {
+	if xo.Type == sym.SDYNIMPORT || xo.Type == sym.SHOSTOBJ || xo.Type == sym.SUNDEFEXT {
 		elfshnum = SHN_UNDEF
 	} else {
 		if xo.Sect == nil {
@@ -498,7 +498,8 @@ func (ctxt *Link) symtab() {
 		case strings.HasPrefix(s.Name, "gcargs."),
 			strings.HasPrefix(s.Name, "gclocals."),
 			strings.HasPrefix(s.Name, "gclocals·"),
-			strings.HasPrefix(s.Name, "inltree."):
+			strings.HasPrefix(s.Name, "inltree."),
+			strings.HasSuffix(s.Name, ".opendefer"):
 			s.Type = sym.SGOFUNC
 			s.Attr |= sym.AttrNotInSymbolTable
 			s.Outer = symgofunc
@@ -693,7 +694,7 @@ func (ctxt *Link) symtab() {
 	// creating the moduledata from scratch and it does not have a
 	// compiler-provided size, so read it from the type data.
 	moduledatatype := ctxt.Syms.ROLookup("type.runtime.moduledata", 0)
-	moduledata.Size = decodetypeSize(ctxt.Arch, moduledatatype)
+	moduledata.Size = decodetypeSize(ctxt.Arch, moduledatatype.P)
 	moduledata.Grow(moduledata.Size)
 
 	lastmoduledatap := ctxt.Syms.Lookup("runtime.lastmoduledatap", 0)

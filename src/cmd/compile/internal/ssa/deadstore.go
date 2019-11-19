@@ -170,6 +170,11 @@ func elimDeadAutosGeneric(f *Func) {
 			return
 		case OpVarLive:
 			// Don't delete the auto if it needs to be kept alive.
+
+			// We depend on this check to keep the autotmp stack slots
+			// for open-coded defers from being removed (since they
+			// may not be used by the inline code, but will be used by
+			// panic processing).
 			n, ok := v.Aux.(GCNode)
 			if !ok || n.StorageClass() != ClassAuto {
 				return
@@ -180,7 +185,7 @@ func elimDeadAutosGeneric(f *Func) {
 			}
 			return
 		case OpStore, OpMove, OpZero:
-			// v should be elimated if we eliminate the auto.
+			// v should be eliminated if we eliminate the auto.
 			n, ok := addr[args[0]]
 			if ok && elim[v] == nil {
 				elim[v] = n
@@ -264,12 +269,11 @@ func elimDeadAutosGeneric(f *Func) {
 				changed = visit(v) || changed
 			}
 			// keep the auto if its address reaches a control value
-			if b.Control == nil {
-				continue
-			}
-			if n, ok := addr[b.Control]; ok && !used[n] {
-				used[n] = true
-				changed = true
+			for _, c := range b.ControlValues() {
+				if n, ok := addr[c]; ok && !used[n] {
+					used[n] = true
+					changed = true
+				}
 			}
 		}
 		if !changed {

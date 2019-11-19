@@ -85,7 +85,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 
 		if resp.Obj == root.Obj {
-			pass.Reportf(root.Pos(), "using %s before checking for errors", resp.Name)
+			pass.ReportRangef(root, "using %s before checking for errors", resp.Name)
 		}
 		return true
 	})

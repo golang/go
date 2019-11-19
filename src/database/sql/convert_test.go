@@ -525,7 +525,7 @@ func (d *dec) Compose(form byte, negative bool, coefficient []byte, exponent int
 	// This isn't strictly correct, as the extra bytes could be all zero,
 	// ignore this for this test.
 	if len(coefficient) > 16 {
-		return fmt.Errorf("coefficent too large")
+		return fmt.Errorf("coefficient too large")
 	}
 	copy(d.coefficient[:], coefficient)
 
@@ -558,7 +558,7 @@ func (d *decFinite) Compose(form byte, negative bool, coefficient []byte, expone
 	// This isn't strictly correct, as the extra bytes could be all zero,
 	// ignore this for this test.
 	if len(coefficient) > 16 {
-		return fmt.Errorf("coefficent too large")
+		return fmt.Errorf("coefficient too large")
 	}
 	copy(d.coefficient[:], coefficient)
 

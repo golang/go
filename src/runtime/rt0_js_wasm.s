@@ -19,7 +19,7 @@ TEXT _rt0_wasm_js(SB),NOSPLIT,$0
 // R0: argc (i32)
 // R1: argv (i32)
 TEXT wasm_export_run(SB),NOSPLIT,$0
-	MOVD $runtime·wasmStack+m0Stack__size(SB), SP
+	MOVD $runtime·wasmStack+(m0Stack__size-16)(SB), SP
 
 	Get SP
 	Get R0 // argc

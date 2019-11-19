@@ -121,18 +121,9 @@ func (gd *gccgoDirs) isStandard(path string) bool {
 	}
 
 	for _, dir := range gd.dirs {
-		full := filepath.Join(dir, path)
-		pkgdir, pkg := filepath.Split(full)
-		for _, p := range [...]string{
-			full,
-			full + ".gox",
-			pkgdir + "lib" + pkg + ".so",
-			pkgdir + "lib" + pkg + ".a",
-			full + ".o",
-		} {
-			if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
-				return true
-			}
+		full := filepath.Join(dir, path) + ".gox"
+		if fi, err := os.Stat(full); err == nil && !fi.IsDir() {
+			return true
 		}
 	}
 

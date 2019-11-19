@@ -68,7 +68,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			return
 		}
 
-		pass.Reportf(e.Pos(), "comparison of function %v %v nil is always %v", obj.Name(), e.Op, e.Op == token.NEQ)
+		pass.ReportRangef(e, "comparison of function %v %v nil is always %v", obj.Name(), e.Op, e.Op == token.NEQ)
 	})
 	return nil, nil
 }

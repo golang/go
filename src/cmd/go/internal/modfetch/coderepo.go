@@ -6,19 +6,23 @@ package modfetch
 
 import (
 	"archive/zip"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
+	"sort"
 	"strings"
 	"time"
 
 	"cmd/go/internal/modfetch/codehost"
-	"cmd/go/internal/modfile"
-	"cmd/go/internal/module"
-	"cmd/go/internal/semver"
+
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
+	modzip "golang.org/x/mod/zip"
 )
 
 // A codeRepo implements modfetch.Repo using an underlying codehost.Repo.
@@ -140,11 +144,13 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
 	}
 	tags, err := r.code.Tags(p)
 	if err != nil {
-		return nil, err
+		return nil, &module.ModuleError{
+			Path: r.modPath,
+			Err:  err,
+		}
 	}
 
-	list := []string{}
-	var incompatible []string
+	var list, incompatible []string
 	for _, tag := range tags {
 		if !strings.HasPrefix(tag, p) {
 			continue
@@ -156,32 +162,114 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
 		if v == "" || v != module.CanonicalVersion(v) || IsPseudoVersion(v) {
 			continue
 		}
-		if err := module.MatchPathMajor(v, r.pathMajor); err != nil {
+
+		if err := module.CheckPathMajor(v, r.pathMajor); err != nil {
 			if r.codeDir == "" && r.pathMajor == "" && semver.Major(v) > "v1" {
 				incompatible = append(incompatible, v)
 			}
 			continue
 		}
+
 		list = append(list, v)
 	}
+	SortVersions(list)
+	SortVersions(incompatible)
 
-	if len(incompatible) > 0 {
-		// Check for later versions that were created not following semantic import versioning,
-		// as indicated by the absence of a go.mod file. Those versions can be addressed
-		// by referring to them with a +incompatible suffix, as in v17.0.0+incompatible.
-		files, err := r.code.ReadFileRevs(incompatible, "go.mod", codehost.MaxGoMod)
+	return r.appendIncompatibleVersions(list, incompatible)
+}
+
+// appendIncompatibleVersions appends "+incompatible" versions to list if
+// appropriate, returning the final list.
+//
+// The incompatible list contains candidate versions without the '+incompatible'
+// prefix.
+//
+// Both list and incompatible must be sorted in semantic order.
+func (r *codeRepo) appendIncompatibleVersions(list, incompatible []string) ([]string, error) {
+	if len(incompatible) == 0 || r.pathMajor != "" {
+		// No +incompatible versions are possible, so no need to check them.
+		return list, nil
+	}
+
+	// We assume that if the latest release of any major version has a go.mod
+	// file, all subsequent major versions will also have go.mod files (and thus
+	// be ineligible for use as +incompatible versions).
+	// If we're wrong about a major version, users will still be able to 'go get'
+	// specific higher versions explicitly — they just won't affect 'latest' or
+	// appear in 'go list'.
+	//
+	// Conversely, we assume that if the latest release of any major version lacks
+	// a go.mod file, all versions also lack go.mod files. If we're wrong, we may
+	// include a +incompatible version that isn't really valid, but most
+	// operations won't try to use that version anyway.
+	//
+	// These optimizations bring
+	// 'go list -versions -m github.com/openshift/origin' down from 1m58s to 0m37s.
+	// That's still not great, but a substantial improvement.
+
+	versionHasGoMod := func(v string) (bool, error) {
+		_, err := r.code.ReadFile(v, "go.mod", codehost.MaxGoMod)
+		if err == nil {
+			return true, nil
+		}
+		if !os.IsNotExist(err) {
+			return false, &module.ModuleError{
+				Path: r.modPath,
+				Err:  err,
+			}
+		}
+		return false, nil
+	}
+
+	if len(list) > 0 {
+		ok, err := versionHasGoMod(list[len(list)-1])
 		if err != nil {
 			return nil, err
 		}
-		for _, rev := range incompatible {
-			f := files[rev]
-			if os.IsNotExist(f.Err) {
-				list = append(list, rev+"+incompatible")
-			}
+		if ok {
+			// The latest compatible version has a go.mod file, so assume that all
+			// subsequent versions do as well, and do not include any +incompatible
+			// versions. Even if we are wrong, the author clearly intends module
+			// consumers to be on the v0/v1 line instead of a higher +incompatible
+			// version. (See https://golang.org/issue/34189.)
+			//
+			// We know of at least two examples where this behavior is desired
+			// (github.com/russross/blackfriday@v2.0.0 and
+			// github.com/libp2p/go-libp2p@v6.0.23), and (as of 2019-10-29) have no
+			// concrete examples for which it is undesired.
+			return list, nil
 		}
 	}
 
-	SortVersions(list)
+	var lastMajor string
+	for i, v := range incompatible {
+		major := semver.Major(v)
+		if major == lastMajor {
+			list = append(list, v+"+incompatible")
+			continue
+		}
+
+		rem := incompatible[i:]
+		j := sort.Search(len(rem), func(j int) bool {
+			return semver.Major(rem[j]) != major
+		})
+		latestAtMajor := rem[j-1]
+
+		ok, err := versionHasGoMod(latestAtMajor)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			// This major version has a go.mod file, so it is not allowed as
+			// +incompatible. Subsequent major versions are likely to also have
+			// go.mod files, so stop here.
+			break
+		}
+
+		lastMajor = major
+		list = append(list, v+"+incompatible")
+	}
+
 	return list, nil
 }
 
@@ -287,7 +375,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 				}
 			}
 
-			if err := module.MatchPathMajor(strings.TrimSuffix(info2.Version, "+incompatible"), r.pathMajor); err == nil {
+			if err := module.CheckPathMajor(strings.TrimSuffix(info2.Version, "+incompatible"), r.pathMajor); err == nil {
 				return nil, invalidf("+incompatible suffix not allowed: major version %s is compatible", semver.Major(info2.Version))
 			}
 		}
@@ -311,7 +399,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 			return checkGoMod()
 		}
 
-		if err := module.MatchPathMajor(info2.Version, r.pathMajor); err != nil {
+		if err := module.CheckPathMajor(info2.Version, r.pathMajor); err != nil {
 			if canUseIncompatible() {
 				info2.Version += "+incompatible"
 				return checkGoMod()
@@ -359,7 +447,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 			tagIsCanonical = true
 		}
 
-		if err := module.MatchPathMajor(v, r.pathMajor); err != nil {
+		if err := module.CheckPathMajor(v, r.pathMajor); err != nil {
 			if canUseIncompatible() {
 				return v + "+incompatible", tagIsCanonical
 			}
@@ -458,7 +546,7 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
 		}
 	}()
 
-	if err := module.MatchPathMajor(version, r.pathMajor); err != nil {
+	if err := module.CheckPathMajor(version, r.pathMajor); err != nil {
 		return err
 	}
 
@@ -632,7 +720,7 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
 		// the real module, found at a different path, usable only in
 		// a replace directive.
 		//
-		// TODO(bcmills): This doesn't seem right. Investigate futher.
+		// TODO(bcmills): This doesn't seem right. Investigate further.
 		// (Notably: why can't we replace foo/v2 with fork-of-foo/v3?)
 		dir2 := path.Join(r.codeDir, r.pathMajor[1:])
 		file2 = path.Join(dir2, "go.mod")
@@ -774,19 +862,16 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
 		}
 	}
 
-	rev, dir, _, err := r.findDir(version)
+	rev, subdir, _, err := r.findDir(version)
 	if err != nil {
 		return err
 	}
-	dl, actualDir, err := r.code.ReadZip(rev, dir, codehost.MaxZipFile)
+	dl, err := r.code.ReadZip(rev, subdir, codehost.MaxZipFile)
 	if err != nil {
 		return err
 	}
 	defer dl.Close()
-	if actualDir != "" && !hasPathPrefix(dir, actualDir) {
-		return fmt.Errorf("internal error: downloading %v %v: dir=%q but actualDir=%q", r.modPath, rev, dir, actualDir)
-	}
-	subdir := strings.Trim(strings.TrimPrefix(dir, actualDir), "/")
+	subdir = strings.Trim(subdir, "/")
 
 	// Spool to local file.
 	f, err := ioutil.TempFile("", "go-codehost-")
@@ -817,13 +902,12 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
 		return err
 	}
 
-	zw := zip.NewWriter(dst)
+	var files []modzip.File
 	if subdir != "" {
 		subdir += "/"
 	}
 	haveLICENSE := false
 	topPrefix := ""
-	haveGoMod := make(map[string]bool)
 	for _, zf := range zr.File {
 		if topPrefix == "" {
 			i := strings.Index(zf.Name, "/")
@@ -831,44 +915,6 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
 				return fmt.Errorf("missing top-level directory prefix")
 			}
 			topPrefix = zf.Name[:i+1]
-		}
-		if !strings.HasPrefix(zf.Name, topPrefix) {
-			return fmt.Errorf("zip file contains more than one top-level directory")
-		}
-		dir, file := path.Split(zf.Name)
-		if file == "go.mod" {
-			haveGoMod[dir] = true
-		}
-	}
-	root := topPrefix + subdir
-	inSubmodule := func(name string) bool {
-		for {
-			dir, _ := path.Split(name)
-			if len(dir) <= len(root) {
-				return false
-			}
-			if haveGoMod[dir] {
-				return true
-			}
-			name = dir[:len(dir)-1]
-		}
-	}
-
-	for _, zf := range zr.File {
-		if !zf.FileInfo().Mode().IsRegular() {
-			// Skip symlinks (golang.org/issue/27093).
-			continue
-		}
-
-		if topPrefix == "" {
-			i := strings.Index(zf.Name, "/")
-			if i < 0 {
-				return fmt.Errorf("missing top-level directory prefix")
-			}
-			topPrefix = zf.Name[:i+1]
-		}
-		if strings.HasSuffix(zf.Name, "/") { // drop directory dummy entries
-			continue
 		}
 		if !strings.HasPrefix(zf.Name, topPrefix) {
 			return fmt.Errorf("zip file contains more than one top-level directory")
@@ -877,63 +923,56 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
 		if !strings.HasPrefix(name, subdir) {
 			continue
 		}
-		if name == ".hg_archival.txt" {
-			// Inserted by hg archive.
-			// Not correct to drop from other version control systems, but too bad.
-			continue
-		}
 		name = strings.TrimPrefix(name, subdir)
-		if isVendoredPackage(name) {
+		if name == "" || strings.HasSuffix(name, "/") {
 			continue
 		}
-		if inSubmodule(zf.Name) {
-			continue
-		}
-		base := path.Base(name)
-		if strings.ToLower(base) == "go.mod" && base != "go.mod" {
-			return fmt.Errorf("zip file contains %s, want all lower-case go.mod", zf.Name)
-		}
+		files = append(files, zipFile{name: name, f: zf})
 		if name == "LICENSE" {
 			haveLICENSE = true
-		}
-		size := int64(zf.UncompressedSize64)
-		if size < 0 || maxSize < size {
-			return fmt.Errorf("module source tree too big")
-		}
-		maxSize -= size
-
-		rc, err := zf.Open()
-		if err != nil {
-			return err
-		}
-		w, err := zw.Create(r.modPrefix(version) + "/" + name)
-		if err != nil {
-			return err
-		}
-		lr := &io.LimitedReader{R: rc, N: size + 1}
-		if _, err := io.Copy(w, lr); err != nil {
-			return err
-		}
-		if lr.N <= 0 {
-			return fmt.Errorf("individual file too large")
 		}
 	}
 
 	if !haveLICENSE && subdir != "" {
 		data, err := r.code.ReadFile(rev, "LICENSE", codehost.MaxLICENSE)
 		if err == nil {
-			w, err := zw.Create(r.modPrefix(version) + "/LICENSE")
-			if err != nil {
-				return err
-			}
-			if _, err := w.Write(data); err != nil {
-				return err
-			}
+			files = append(files, dataFile{name: "LICENSE", data: data})
 		}
 	}
 
-	return zw.Close()
+	return modzip.Create(dst, module.Version{Path: r.modPath, Version: version}, files)
 }
+
+type zipFile struct {
+	name string
+	f    *zip.File
+}
+
+func (f zipFile) Path() string                 { return f.name }
+func (f zipFile) Lstat() (os.FileInfo, error)  { return f.f.FileInfo(), nil }
+func (f zipFile) Open() (io.ReadCloser, error) { return f.f.Open() }
+
+type dataFile struct {
+	name string
+	data []byte
+}
+
+func (f dataFile) Path() string                { return f.name }
+func (f dataFile) Lstat() (os.FileInfo, error) { return dataFileInfo{f}, nil }
+func (f dataFile) Open() (io.ReadCloser, error) {
+	return ioutil.NopCloser(bytes.NewReader(f.data)), nil
+}
+
+type dataFileInfo struct {
+	f dataFile
+}
+
+func (fi dataFileInfo) Name() string       { return path.Base(fi.f.name) }
+func (fi dataFileInfo) Size() int64        { return int64(len(fi.f.data)) }
+func (fi dataFileInfo) Mode() os.FileMode  { return 0644 }
+func (fi dataFileInfo) ModTime() time.Time { return time.Time{} }
+func (fi dataFileInfo) IsDir() bool        { return false }
+func (fi dataFileInfo) Sys() interface{}   { return nil }
 
 // hasPathPrefix reports whether the path s begins with the
 // elements in prefix.

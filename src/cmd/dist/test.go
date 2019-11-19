@@ -418,7 +418,7 @@ func (t *tester) registerTests() {
 			cmd.Args = append(cmd.Args, "-tags=race")
 		}
 		cmd.Args = append(cmd.Args, "std")
-		if !t.race {
+		if t.shouldTestCmd() {
 			cmd.Args = append(cmd.Args, "cmd")
 		}
 		cmd.Stderr = new(bytes.Buffer)
@@ -585,7 +585,7 @@ func (t *tester) registerTests() {
 			},
 		})
 		// Also test a cgo package.
-		if t.cgoEnabled {
+		if t.cgoEnabled && t.internalLink() {
 			t.tests = append(t.tests, distTest{
 				name:    "pie_internal_cgo",
 				heading: "internal linking of -buildmode=pie",
@@ -703,7 +703,7 @@ func (t *tester) registerTests() {
 
 	// Doc tests only run on builders.
 	// They find problems approximately never.
-	if t.hasBash() && goos != "nacl" && goos != "js" && goos != "android" && !t.iOS() && os.Getenv("GO_BUILDER_NAME") != "" {
+	if t.hasBash() && goos != "js" && goos != "android" && !t.iOS() && os.Getenv("GO_BUILDER_NAME") != "" {
 		t.registerTest("doc_progs", "../doc/progs", "time", "go", "run", "run.go")
 		t.registerTest("wiki", "../doc/articles/wiki", "./test.bash")
 		t.registerTest("codewalk", "../doc/codewalk", "time", "./run")
@@ -735,7 +735,7 @@ func (t *tester) registerTests() {
 			})
 		}
 	}
-	if goos != "nacl" && goos != "android" && !t.iOS() && goos != "js" {
+	if goos != "android" && !t.iOS() && goos != "js" {
 		t.tests = append(t.tests, distTest{
 			name:    "api",
 			heading: "API check",
@@ -972,6 +972,8 @@ func (t *tester) supportedBuildmode(mode string) bool {
 			return true
 		case "darwin-amd64":
 			return true
+		case "freebsd-amd64":
+			return true
 		}
 		return false
 	case "pie":
@@ -1005,13 +1007,31 @@ func (t *tester) registerHostTest(name, heading, dir, pkg string) {
 }
 
 func (t *tester) runHostTest(dir, pkg string) error {
-	defer os.Remove(filepath.Join(goroot, dir, "test.test"))
-	cmd := t.dirCmd(dir, t.goTest(), "-c", "-o", "test.test", pkg)
+	out, err := exec.Command("go", "env", "GOEXE", "GOTMPDIR").Output()
+	if err != nil {
+		return err
+	}
+
+	parts := strings.Split(string(out), "\n")
+	if len(parts) < 2 {
+		return fmt.Errorf("'go env GOEXE GOTMPDIR' output contains <2 lines")
+	}
+	GOEXE := strings.TrimSpace(parts[0])
+	GOTMPDIR := strings.TrimSpace(parts[1])
+
+	f, err := ioutil.TempFile(GOTMPDIR, "test.test-*"+GOEXE)
+	if err != nil {
+		return err
+	}
+	f.Close()
+	defer os.Remove(f.Name())
+
+	cmd := t.dirCmd(dir, t.goTest(), "-c", "-o", f.Name(), pkg)
 	cmd.Env = append(os.Environ(), "GOARCH="+gohostarch, "GOOS="+gohostos)
 	if err := cmd.Run(); err != nil {
 		return err
 	}
-	return t.dirCmd(dir, "./test.test", "-test.short").Run()
+	return t.dirCmd(dir, f.Name(), "-test.short").Run()
 }
 
 func (t *tester) cgoTest(dt *distTest) error {
@@ -1448,6 +1468,17 @@ func (t *tester) shouldUsePrecompiledStdTest() bool {
 	}
 	_, err := os.Stat(bin)
 	return err == nil
+}
+
+func (t *tester) shouldTestCmd() bool {
+	if t.race {
+		return false
+	}
+	if goos == "js" && goarch == "wasm" {
+		// Issues 25911, 35220
+		return false
+	}
+	return true
 }
 
 // prebuiltGoPackageTestBinary returns the path where we'd expect

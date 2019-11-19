@@ -13,12 +13,15 @@ func Sleep(d Duration)
 type runtimeTimer struct {
 	tb uintptr
 	i  int
+	pp uintptr
 
-	when   int64
-	period int64
-	f      func(interface{}, uintptr) // NOTE: must not be closure
-	arg    interface{}
-	seq    uintptr
+	when     int64
+	period   int64
+	f        func(interface{}, uintptr) // NOTE: must not be closure
+	arg      interface{}
+	seq      uintptr
+	nextwhen int64
+	status   uint32
 }
 
 // when is a helper function for setting the 'when' field of a runtimeTimer.
@@ -38,6 +41,7 @@ func when(d Duration) int64 {
 
 func startTimer(*runtimeTimer)
 func stopTimer(*runtimeTimer) bool
+func resetTimer(*runtimeTimer, int64)
 
 // The Timer type represents a single event.
 // When the Timer expires, the current time will be sent on C,
@@ -122,8 +126,7 @@ func (t *Timer) Reset(d Duration) bool {
 	}
 	w := when(d)
 	active := stopTimer(&t.r)
-	t.r.when = w
-	startTimer(&t.r)
+	resetTimer(&t.r, w)
 	return active
 }
 

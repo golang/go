@@ -591,7 +591,7 @@ func TestEndToEnd(t *testing.T) {
 		B:        18,
 		C:        -5,
 		M:        map[string]*float64{"pi": &pi, "e": &e},
-		M2:       map[int]T3{4: T3{X: pi, Z: &meaning}, 10: T3{X: e, Z: &fingers}},
+		M2:       map[int]T3{4: {X: pi, Z: &meaning}, 10: {X: e, Z: &fingers}},
 		Mstring:  map[string]string{"pi": "3.14", "e": "2.71"},
 		Mintptr:  map[int]*int{meaning: &fingers, fingers: &meaning},
 		Mcomp:    map[complex128]complex128{comp1: comp2, comp2: comp1},

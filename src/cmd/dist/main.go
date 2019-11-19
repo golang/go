@@ -66,13 +66,8 @@ func main() {
 		// Since FreeBSD 10 gcc is no longer part of the base system.
 		defaultclang = true
 	case "openbsd":
-		// The gcc available on OpenBSD armv7 is old/inadequate (for example, lacks
-		// __sync_fetch_and_*/__sync_*_and_fetch) and will likely be removed in the
-		// not-to-distant future - use clang instead. OpenBSD arm64 does not ship
-		// with gcc.
-		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
-			defaultclang = true
-		}
+		// OpenBSD ships with GCC 4.2, which is now quite old.
+		defaultclang = true
 	case "plan9":
 		gohostarch = os.Getenv("objtype")
 		if gohostarch == "" {

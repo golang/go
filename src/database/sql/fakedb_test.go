@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"reflect"
 	"sort"
 	"strconv"
@@ -19,8 +18,6 @@ import (
 	"testing"
 	"time"
 )
-
-var _ = log.Printf
 
 // fakeDriver is a fake database that implements Go's driver.Driver
 // interface, just for testing.

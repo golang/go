@@ -83,7 +83,7 @@ type File struct {
 }
 
 func TestFormats(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() && testenv.Builder() == "" {
 		t.Skip("Skipping in short mode")
 	}
 	testenv.MustHaveGoBuild(t) // more restrictive than necessary, but that's ok

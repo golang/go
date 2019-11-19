@@ -20,6 +20,9 @@
 // 		log.Println(http.ListenAndServe("localhost:6060", nil))
 // 	}()
 //
+// If you are not using DefaultServeMux, you will have to register handlers
+// with the mux you are using.
+//
 // Then use the pprof tool to look at the heap profile:
 //
 //	go tool pprof http://localhost:6060/debug/pprof/heap

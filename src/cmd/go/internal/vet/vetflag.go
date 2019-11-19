@@ -114,7 +114,7 @@ func vetFlags(usage func(), args []string) (passToVet, packageNames []string) {
 
 	// Add build flags to vetFlagDefn.
 	var cmd base.Command
-	work.AddBuildFlags(&cmd)
+	work.AddBuildFlags(&cmd, work.DefaultBuildFlags)
 	// This flag declaration is a placeholder:
 	// -vettool is actually parsed by the init function above.
 	cmd.Flag.StringVar(new(string), "vettool", "", "path to vet tool binary")

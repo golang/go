@@ -6,9 +6,11 @@ package codehost
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,7 +22,9 @@ import (
 
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/par"
-	"cmd/go/internal/semver"
+	"cmd/go/internal/web"
+
+	"golang.org/x/mod/semver"
 )
 
 // GitRepo returns the code repository at the given Git remote reference.
@@ -33,6 +37,15 @@ func GitRepo(remote string) (Repo, error) {
 func LocalGitRepo(remote string) (Repo, error) {
 	return newGitRepoCached(remote, true)
 }
+
+// A notExistError wraps another error to retain its original text
+// but makes it opaquely equivalent to os.ErrNotExist.
+type notExistError struct {
+	err error
+}
+
+func (e notExistError) Error() string   { return e.err.Error() }
+func (notExistError) Is(err error) bool { return err == os.ErrNotExist }
 
 const gitWorkDirType = "git3"
 
@@ -85,8 +98,9 @@ func newGitRepo(remote string, localOK bool) (Repo, error) {
 				os.RemoveAll(r.dir)
 				return nil, err
 			}
-			r.remote = "origin"
 		}
+		r.remoteURL = r.remote
+		r.remote = "origin"
 	} else {
 		// Local path.
 		// Disallow colon (not in ://) because sometimes
@@ -113,9 +127,9 @@ func newGitRepo(remote string, localOK bool) (Repo, error) {
 }
 
 type gitRepo struct {
-	remote string
-	local  bool
-	dir    string
+	remote, remoteURL string
+	local             bool
+	dir               string
 
 	mu lockedfile.Mutex // protects fetchLevel and git repo state
 
@@ -166,14 +180,25 @@ func (r *gitRepo) loadRefs() {
 	// The git protocol sends all known refs and ls-remote filters them on the client side,
 	// so we might as well record both heads and tags in one shot.
 	// Most of the time we only care about tags but sometimes we care about heads too.
-	out, err := Run(r.dir, "git", "ls-remote", "-q", r.remote)
-	if err != nil {
-		if rerr, ok := err.(*RunError); ok {
+	out, gitErr := Run(r.dir, "git", "ls-remote", "-q", r.remote)
+	if gitErr != nil {
+		if rerr, ok := gitErr.(*RunError); ok {
 			if bytes.Contains(rerr.Stderr, []byte("fatal: could not read Username")) {
 				rerr.HelpText = "Confirm the import path was entered correctly.\nIf this is a private repository, see https://golang.org/doc/faq#git_https for additional information."
 			}
 		}
-		r.refsErr = err
+
+		// If the remote URL doesn't exist at all, ideally we should treat the whole
+		// repository as nonexistent by wrapping the error in a notExistError.
+		// For HTTP and HTTPS, that's easy to detect: we'll try to fetch the URL
+		// ourselves and see what code it serves.
+		if u, err := url.Parse(r.remoteURL); err == nil && (u.Scheme == "http" || u.Scheme == "https") {
+			if _, err := web.GetBytes(u); errors.Is(err, os.ErrNotExist) {
+				gitErr = notExistError{gitErr}
+			}
+		}
+
+		r.refsErr = gitErr
 		return
 	}
 
@@ -239,13 +264,6 @@ func (r *gitRepo) findRef(hash string) (ref string, ok bool) {
 		}
 	}
 	return "", false
-}
-
-func unshallow(gitDir string) []string {
-	if _, err := os.Stat(filepath.Join(gitDir, "shallow")); err == nil {
-		return []string{"--unshallow"}
-	}
-	return []string{}
 }
 
 // minHashDigits is the minimum number of digits to require
@@ -397,27 +415,25 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
 // fetchRefsLocked requires that r.mu remain locked for the duration of the call.
 func (r *gitRepo) fetchRefsLocked() error {
 	if r.fetchLevel < fetchAll {
-		if err := r.fetchUnshallow("refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
+		// NOTE: To work around a bug affecting Git clients up to at least 2.23.0
+		// (2019-08-16), we must first expand the set of local refs, and only then
+		// unshallow the repository as a separate fetch operation. (See
+		// golang.org/issue/34266 and
+		// https://github.com/git/git/blob/4c86140027f4a0d2caaa3ab4bd8bfc5ce3c11c8a/transport.c#L1303-L1309.)
+
+		if _, err := Run(r.dir, "git", "fetch", "-f", r.remote, "refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
 			return err
 		}
+
+		if _, err := os.Stat(filepath.Join(r.dir, "shallow")); err == nil {
+			if _, err := Run(r.dir, "git", "fetch", "--unshallow", "-f", r.remote); err != nil {
+				return err
+			}
+		}
+
 		r.fetchLevel = fetchAll
 	}
 	return nil
-}
-
-func (r *gitRepo) fetchUnshallow(refSpecs ...string) error {
-	// To work around a protocol version 2 bug that breaks --unshallow,
-	// add -c protocol.version=0.
-	// TODO(rsc): The bug is believed to be server-side, meaning only
-	// on Google's Git servers. Once the servers are fixed, drop the
-	// protocol.version=0. See Google-internal bug b/110495752.
-	var protoFlag []string
-	unshallowFlag := unshallow(r.dir)
-	if len(unshallowFlag) > 0 {
-		protoFlag = []string{"-c", "protocol.version=0"}
-	}
-	_, err := Run(r.dir, "git", protoFlag, "fetch", unshallowFlag, "-f", r.remote, refSpecs)
-	return err
 }
 
 // statLocal returns a RevInfo describing rev in the local git repository.
@@ -539,38 +555,9 @@ func (r *gitRepo) ReadFileRevs(revs []string, file string, maxSize int64) (map[s
 	}
 	defer unlock()
 
-	var refs []string
-	var protoFlag []string
-	var unshallowFlag []string
-	for _, tag := range redo {
-		refs = append(refs, "refs/tags/"+tag+":refs/tags/"+tag)
-	}
-	if len(refs) > 1 {
-		unshallowFlag = unshallow(r.dir)
-		if len(unshallowFlag) > 0 {
-			// To work around a protocol version 2 bug that breaks --unshallow,
-			// add -c protocol.version=0.
-			// TODO(rsc): The bug is believed to be server-side, meaning only
-			// on Google's Git servers. Once the servers are fixed, drop the
-			// protocol.version=0. See Google-internal bug b/110495752.
-			protoFlag = []string{"-c", "protocol.version=0"}
-		}
-	}
-	if _, err := Run(r.dir, "git", protoFlag, "fetch", unshallowFlag, "-f", r.remote, refs); err != nil {
+	if err := r.fetchRefsLocked(); err != nil {
 		return nil, err
 	}
-
-	// TODO(bcmills): after the 1.11 freeze, replace the block above with:
-	//	if r.fetchLevel <= fetchSome {
-	//		r.fetchLevel = fetchSome
-	//		var refs []string
-	//		for _, tag := range redo {
-	//			refs = append(refs, "refs/tags/"+tag+":refs/tags/"+tag)
-	//		}
-	//		if _, err := Run(r.dir, "git", "fetch", "--update-shallow", "-f", r.remote, refs); err != nil {
-	//			return nil, err
-	//		}
-	//	}
 
 	if _, err := r.readFileRevs(redo, file, files); err != nil {
 		return nil, err
@@ -809,7 +796,7 @@ func (r *gitRepo) DescendsFrom(rev, tag string) (bool, error) {
 	return false, err
 }
 
-func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error) {
+func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, err error) {
 	// TODO: Use maxSize or drop it.
 	args := []string{}
 	if subdir != "" {
@@ -817,17 +804,17 @@ func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
 	}
 	info, err := r.Stat(rev) // download rev into local git repo
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	unlock, err := r.mu.Lock()
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	defer unlock()
 
 	if err := ensureGitAttributes(r.dir); err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	// Incredibly, git produces different archives depending on whether
@@ -838,12 +825,12 @@ func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
 	archive, err := Run(r.dir, "git", "-c", "core.autocrlf=input", "-c", "core.eol=lf", "archive", "--format=zip", "--prefix=prefix/", info.Name, args)
 	if err != nil {
 		if bytes.Contains(err.(*RunError).Stderr, []byte("did not match any files")) {
-			return nil, "", os.ErrNotExist
+			return nil, os.ErrNotExist
 		}
-		return nil, "", err
+		return nil, err
 	}
 
-	return ioutil.NopCloser(bytes.NewReader(archive)), "", nil
+	return ioutil.NopCloser(bytes.NewReader(archive)), nil
 }
 
 // ensureGitAttributes makes sure export-subst and export-ignore features are

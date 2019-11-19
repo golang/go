@@ -26,8 +26,10 @@ func setitimer(mode int32, new, old *itimerval)
 //go:noescape
 func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
 
-func raise(sig uint32)
 func raiseproc(sig uint32)
+
+func thr_self() thread
+func thr_kill(tid thread, sig int)
 
 //go:noescape
 func sys_umtx_op(addr *uint32, mode int32, val uint32, uaddr1 uintptr, ut *umtx_time) int32
@@ -38,7 +40,11 @@ func kqueue() int32
 
 //go:noescape
 func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
+
+func pipe() (r, w int32, errno int32)
+func pipe2(flags int32) (r, w int32, errno int32)
 func closeonexec(fd int32)
+func setNonblock(fd int32)
 
 // From FreeBSD's <sys/sysctl.h>
 const (
@@ -194,7 +200,7 @@ func newosproc(mp *m) {
 		arg:        unsafe.Pointer(mp),
 		stack_base: mp.g0.stack.lo,
 		stack_size: uintptr(stk) - mp.g0.stack.lo,
-		child_tid:  unsafe.Pointer(&mp.procid),
+		child_tid:  nil, // minit will record tid
 		parent_tid: nil,
 		tls_base:   unsafe.Pointer(&mp.tls[0]),
 		tls_size:   unsafe.Sizeof(mp.tls),
@@ -230,7 +236,7 @@ func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
 		arg:        nil,
 		stack_base: uintptr(stack), //+stacksize?
 		stack_size: stacksize,
-		child_tid:  unsafe.Pointer(&m0.procid),
+		child_tid:  nil, // minit will record tid
 		parent_tid: nil,
 		tls_base:   unsafe.Pointer(&m0.tls[0]),
 		tls_size:   unsafe.Sizeof(m0.tls),
@@ -289,12 +295,7 @@ func mpreinit(mp *m) {
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, cannot allocate memory.
 func minit() {
-	// m.procid is a uint64, but thr_new writes a uint32 on 32-bit systems.
-	// Fix it up. (Only matters on big-endian, but be clean anyway.)
-	if sys.PtrSize == 4 {
-		_g_ := getg()
-		_g_.m.procid = uint64(*(*uint32)(unsafe.Pointer(&_g_.m.procid)))
-	}
+	getg().m.procid = uint64(thr_self())
 
 	// On FreeBSD before about April 2017 there was a bug such
 	// that calling execve from a thread other than the main
@@ -422,3 +423,17 @@ func sysSigaction(sig uint32, new, old *sigactiont) {
 // asmSigaction is implemented in assembly.
 //go:noescape
 func asmSigaction(sig uintptr, new, old *sigactiont) int32
+
+// raise sends a signal to the calling thread.
+//
+// It must be nosplit because it is used by the signal handler before
+// it definitely has a Go stack.
+//
+//go:nosplit
+func raise(sig uint32) {
+	thr_kill(thr_self(), int(sig))
+}
+
+func signalM(mp *m, sig int) {
+	thr_kill(thread(mp.procid), sig)
+}

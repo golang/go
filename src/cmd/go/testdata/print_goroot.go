@@ -4,8 +4,11 @@
 
 package main
 
-import "runtime"
+import (
+	"fmt"
+	"runtime"
+)
 
 func main() {
-	println(runtime.GOROOT())
+	fmt.Println(runtime.GOROOT())
 }

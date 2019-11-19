@@ -606,8 +606,8 @@ func (c *closeOnce) close() {
 // standard output when the command starts.
 //
 // Wait will close the pipe after seeing the command exit, so most callers
-// need not close the pipe themselves; however, an implication is that
-// it is incorrect to call Wait before all reads from the pipe have completed.
+// need not close the pipe themselves. It is thus incorrect to call Wait
+// before all reads from the pipe have completed.
 // For the same reason, it is incorrect to call Run when using StdoutPipe.
 // See the example for idiomatic usage.
 func (c *Cmd) StdoutPipe() (io.ReadCloser, error) {
@@ -631,8 +631,8 @@ func (c *Cmd) StdoutPipe() (io.ReadCloser, error) {
 // standard error when the command starts.
 //
 // Wait will close the pipe after seeing the command exit, so most callers
-// need not close the pipe themselves; however, an implication is that
-// it is incorrect to call Wait before all reads from the pipe have completed.
+// need not close the pipe themselves. It is thus incorrect to call Wait
+// before all reads from the pipe have completed.
 // For the same reason, it is incorrect to use Run when using StderrPipe.
 // See the StdoutPipe example for idiomatic usage.
 func (c *Cmd) StderrPipe() (io.ReadCloser, error) {

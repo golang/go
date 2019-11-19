@@ -119,7 +119,7 @@ var sortTests = []sortTest{
 		"PTR0:0 PTR1:1 PTR2:2",
 	},
 	{
-		map[toy]string{toy{7, 2}: "72", toy{7, 1}: "71", toy{3, 4}: "34"},
+		map[toy]string{{7, 2}: "72", {7, 1}: "71", {3, 4}: "34"},
 		"{3 4}:34 {7 1}:71 {7 2}:72",
 	},
 	{

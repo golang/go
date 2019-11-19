@@ -62,11 +62,13 @@ and test commands:
 		The default is the number of CPUs available.
 	-race
 		enable data race detection.
-		Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
+		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, windows/amd64,
+		linux/ppc64le and linux/arm64 (only for 48-bit VMA).
 	-msan
 		enable interoperation with memory sanitizer.
 		Supported only on linux/amd64, linux/arm64
 		and only with Clang/LLVM as the host C compiler.
+		On linux/arm64, pie build mode will be used.
 	-v
 		print the names of packages as they are compiled.
 	-work
@@ -95,11 +97,21 @@ and test commands:
 	-ldflags '[pattern=]arg list'
 		arguments to pass on each go tool link invocation.
 	-linkshared
-		link against shared libraries previously created with
-		-buildmode=shared.
+		build code that will be linked against shared libraries previously
+		created with -buildmode=shared.
 	-mod mode
 		module download mode to use: readonly or vendor.
 		See 'go help modules' for more.
+	-modcacherw
+		leave newly-created directories in the module cache read-write
+		instead of making them read-only.
+	-modfile file
+		in module aware mode, read (and possibly write) an alternate go.mod
+		file instead of the one in the module root directory. A file named
+		"go.mod" must still be present in order to determine the module root
+		directory, but it is not accessed. When -modfile is specified, an
+		alternate go.sum file is also used: its path is derived from the
+		-modfile flag by trimming the ".mod" extension and appending ".sum".
 	-pkgdir dir
 		install and load all packages from dir instead of the usual locations.
 		For example, when building with a non-standard configuration,
@@ -165,8 +177,8 @@ func init() {
 
 	CmdInstall.Flag.BoolVar(&cfg.BuildI, "i", false, "")
 
-	AddBuildFlags(CmdBuild)
-	AddBuildFlags(CmdInstall)
+	AddBuildFlags(CmdBuild, DefaultBuildFlags)
+	AddBuildFlags(CmdInstall, DefaultBuildFlags)
 }
 
 // Note that flags consulted by other parts of the code
@@ -214,9 +226,17 @@ func init() {
 	}
 }
 
-// addBuildFlags adds the flags common to the build, clean, get,
+type BuildFlagMask int
+
+const (
+	DefaultBuildFlags BuildFlagMask = 0
+	OmitModFlag       BuildFlagMask = 1 << iota
+	OmitModCommonFlags
+)
+
+// AddBuildFlags adds the flags common to the build, clean, get,
 // install, list, run, and test commands.
-func AddBuildFlags(cmd *base.Command) {
+func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.BoolVar(&cfg.BuildA, "a", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildN, "n", false, "")
 	cmd.Flag.IntVar(&cfg.BuildP, "p", cfg.BuildP, "")
@@ -228,7 +248,12 @@ func AddBuildFlags(cmd *base.Command) {
 	cmd.Flag.StringVar(&cfg.BuildBuildmode, "buildmode", "default", "")
 	cmd.Flag.Var(&load.BuildGcflags, "gcflags", "")
 	cmd.Flag.Var(&load.BuildGccgoflags, "gccgoflags", "")
-	cmd.Flag.StringVar(&cfg.BuildMod, "mod", "", "")
+	if mask&OmitModFlag == 0 {
+		cmd.Flag.StringVar(&cfg.BuildMod, "mod", "", "")
+	}
+	if mask&OmitModCommonFlags == 0 {
+		AddModCommonFlags(cmd)
+	}
 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
 	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
 	cmd.Flag.BoolVar(&cfg.BuildLinkshared, "linkshared", false, "")
@@ -242,6 +267,13 @@ func AddBuildFlags(cmd *base.Command) {
 
 	// Undocumented, unstable debugging flags.
 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
+}
+
+// AddModCommonFlags adds the module-related flags common to build commands
+// and 'go mod' subcommands.
+func AddModCommonFlags(cmd *base.Command) {
+	cmd.Flag.BoolVar(&cfg.ModCacheRW, "modcacherw", false, "")
+	cmd.Flag.StringVar(&cfg.ModFile, "modfile", "", "")
 }
 
 // tagsFlag is the implementation of the -tags flag.
@@ -318,7 +350,7 @@ func runBuild(cmd *base.Command, args []string) {
 	explicitO := len(cfg.BuildO) > 0
 
 	if len(pkgs) == 1 && pkgs[0].Name == "main" && cfg.BuildO == "" {
-		cfg.BuildO = load.DefaultExecName(pkgs[0].ImportPath)
+		cfg.BuildO = pkgs[0].DefaultExecName()
 		cfg.BuildO += cfg.ExeSuffix
 	}
 
@@ -362,7 +394,8 @@ func runBuild(cmd *base.Command, args []string) {
 				if p.Name != "main" {
 					continue
 				}
-				p.Target = filepath.Join(cfg.BuildO, load.DefaultExecName(p.ImportPath))
+
+				p.Target = filepath.Join(cfg.BuildO, p.DefaultExecName())
 				p.Target += cfg.ExeSuffix
 				p.Stale = true
 				p.StaleReason = "build -o flag in use"
@@ -584,7 +617,7 @@ func InstallPackages(patterns []string, pkgs []*load.Package) {
 	if len(patterns) == 0 && len(pkgs) == 1 && pkgs[0].Name == "main" {
 		// Compute file 'go build' would have created.
 		// If it exists and is an executable file, remove it.
-		targ := load.DefaultExecName(pkgs[0].ImportPath)
+		targ := pkgs[0].DefaultExecName()
 		targ += cfg.ExeSuffix
 		if filepath.Join(pkgs[0].Dir, targ) != pkgs[0].Target { // maybe $GOBIN is the current directory
 			fi, err := os.Stat(targ)

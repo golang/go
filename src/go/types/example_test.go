@@ -5,7 +5,7 @@
 // Only run where builders (build.golang.org) have
 // access to compiled packages for import.
 //
-// +build !arm,!arm64,!nacl
+// +build !arm,!arm64
 
 package types_test
 

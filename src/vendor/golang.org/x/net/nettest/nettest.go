@@ -20,11 +20,11 @@ import (
 )
 
 var (
-	stackOnce     sync.Once
-	ipv4Enabled   bool
-	ipv6Enabled   bool
-	rawSocketSess bool
-	aixTechLvl    int
+	stackOnce          sync.Once
+	ipv4Enabled        bool
+	ipv6Enabled        bool
+	unStrmDgramEnabled bool
+	rawSocketSess      bool
 
 	aLongTimeAgo = time.Unix(233431200, 0)
 	neverTimeout = time.Time{}
@@ -43,17 +43,24 @@ func probeStack() {
 		ipv6Enabled = true
 	}
 	rawSocketSess = supportsRawSocket()
-	if runtime.GOOS == "aix" {
-		out, err := exec.Command("oslevel", "-s").Output()
-		if err == nil {
-			aixTechLvl, _ = strconv.Atoi(string(out[5:7]))
+	switch runtime.GOOS {
+	case "aix":
+		// Unix network isn't properly working on AIX 7.2 with
+		// Technical Level < 2.
+		out, _ := exec.Command("oslevel", "-s").Output()
+		if len(out) >= len("7200-XX-ZZ-YYMM") { // AIX 7.2, Tech Level XX, Service Pack ZZ, date YYMM
+			ver := string(out[:4])
+			tl, _ := strconv.Atoi(string(out[5:7]))
+			unStrmDgramEnabled = ver > "7200" || (ver == "7200" && tl >= 2)
 		}
+	default:
+		unStrmDgramEnabled = true
 	}
 }
 
-func aixTechLevel() int {
+func unixStrmDgramEnabled() bool {
 	stackOnce.Do(probeStack)
-	return aixTechLvl
+	return unStrmDgramEnabled
 }
 
 // SupportsIPv4 reports whether the platform supports IPv4 networking
@@ -110,12 +117,7 @@ func TestableNetwork(network string) bool {
 		case "android", "fuchsia", "hurd", "js", "nacl", "plan9", "windows":
 			return false
 		case "aix":
-			// Unix network isn't properly working on AIX
-			// 7.2 with Technical Level < 2.
-			if aixTechLevel() < 2 {
-				return false
-			}
-			return true
+			return unixStrmDgramEnabled()
 		case "darwin":
 			// iOS does not support unix, unixgram.
 			if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {

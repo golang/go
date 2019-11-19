@@ -384,7 +384,7 @@ func (x *Float) fmtX(buf []byte, prec int) []byte {
 	case w > n:
 		m = nat(nil).shr(m, w-n)
 	}
-	exp := x.exp - 1
+	exp64 := int64(x.exp) - 1 // avoid wrap-around
 
 	hm := m.utoa(16)
 	if debugFloat && hm[0] != '1' {
@@ -397,7 +397,6 @@ func (x *Float) fmtX(buf []byte, prec int) []byte {
 	}
 
 	buf = append(buf, 'p')
-	exp64 := int64(exp)
 	if exp64 >= 0 {
 		buf = append(buf, '+')
 	} else {

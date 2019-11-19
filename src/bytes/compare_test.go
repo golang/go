@@ -120,6 +120,39 @@ func TestCompareBytes(t *testing.T) {
 	}
 }
 
+func TestEndianBaseCompare(t *testing.T) {
+	// This test compares byte slices that are almost identical, except one
+	// difference that for some j, a[j]>b[j] and a[j+1]<b[j+1]. If the implementation
+	// compares large chunks with wrong endianness, it gets wrong result.
+	// no vector register is larger than 512 bytes for now
+	const maxLength = 512
+	a := make([]byte, maxLength)
+	b := make([]byte, maxLength)
+	// randomish but deterministic data. No 0 or 255.
+	for i := 0; i < maxLength; i++ {
+		a[i] = byte(1 + 31*i%254)
+		b[i] = byte(1 + 31*i%254)
+	}
+	for i := 2; i <= maxLength; i <<= 1 {
+		for j := 0; j < i-1; j++ {
+			a[j] = b[j] - 1
+			a[j+1] = b[j+1] + 1
+			cmp := Compare(a[:i], b[:i])
+			if cmp != -1 {
+				t.Errorf(`CompareBbigger(%d,%d) = %d`, i, j, cmp)
+			}
+			a[j] = b[j] + 1
+			a[j+1] = b[j+1] - 1
+			cmp = Compare(a[:i], b[:i])
+			if cmp != 1 {
+				t.Errorf(`CompareAbigger(%d,%d) = %d`, i, j, cmp)
+			}
+			a[j] = b[j]
+			a[j+1] = b[j+1]
+		}
+	}
+}
+
 func BenchmarkCompareBytesEqual(b *testing.B) {
 	b1 := []byte("Hello Gophers!")
 	b2 := []byte("Hello Gophers!")

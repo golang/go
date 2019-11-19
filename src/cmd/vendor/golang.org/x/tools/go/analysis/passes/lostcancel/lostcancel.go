@@ -121,7 +121,7 @@ func runFunc(pass *analysis.Pass, node ast.Node) {
 		}
 		if id != nil {
 			if id.Name == "_" {
-				pass.Reportf(id.Pos(),
+				pass.ReportRangef(id,
 					"the cancel function returned by context.%s should be called, not discarded, to avoid a context leak",
 					n.(*ast.SelectorExpr).Sel.Name)
 			} else if v, ok := pass.TypesInfo.Uses[id].(*types.Var); ok {
@@ -174,8 +174,8 @@ func runFunc(pass *analysis.Pass, node ast.Node) {
 	for v, stmt := range cancelvars {
 		if ret := lostCancelPath(pass, g, v, stmt, sig); ret != nil {
 			lineno := pass.Fset.Position(stmt.Pos()).Line
-			pass.Reportf(stmt.Pos(), "the %s function is not used on all paths (possible context leak)", v.Name())
-			pass.Reportf(ret.Pos(), "this return statement may be reached without using the %s var defined on line %d", v.Name(), lineno)
+			pass.ReportRangef(stmt, "the %s function is not used on all paths (possible context leak)", v.Name())
+			pass.ReportRangef(ret, "this return statement may be reached without using the %s var defined on line %d", v.Name(), lineno)
 		}
 	}
 }

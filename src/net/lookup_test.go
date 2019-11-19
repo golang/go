@@ -21,6 +21,10 @@ import (
 	"time"
 )
 
+func hasSuffixFold(s, suffix string) bool {
+	return strings.HasSuffix(strings.ToLower(s), strings.ToLower(suffix))
+}
+
 func lookupLocalhost(ctx context.Context, fn func(context.Context, string, string) ([]IPAddr, error), network, host string) ([]IPAddr, error) {
 	switch host {
 	case "localhost":
@@ -97,11 +101,11 @@ func TestLookupGoogleSRV(t *testing.T) {
 		if len(srvs) == 0 {
 			t.Error("got no record")
 		}
-		if !strings.HasSuffix(cname, tt.cname) {
+		if !hasSuffixFold(cname, tt.cname) {
 			t.Errorf("got %s; want %s", cname, tt.cname)
 		}
 		for _, srv := range srvs {
-			if !strings.HasSuffix(srv.Target, tt.target) {
+			if !hasSuffixFold(srv.Target, tt.target) {
 				t.Errorf("got %v; want a record containing %s", srv, tt.target)
 			}
 		}
@@ -147,7 +151,7 @@ func TestLookupGmailMX(t *testing.T) {
 			t.Error("got no record")
 		}
 		for _, mx := range mxs {
-			if !strings.HasSuffix(mx.Host, tt.host) {
+			if !hasSuffixFold(mx.Host, tt.host) {
 				t.Errorf("got %v; want a record containing %s", mx, tt.host)
 			}
 		}
@@ -193,7 +197,7 @@ func TestLookupGmailNS(t *testing.T) {
 			t.Error("got no record")
 		}
 		for _, ns := range nss {
-			if !strings.HasSuffix(ns.Host, tt.host) {
+			if !hasSuffixFold(ns.Host, tt.host) {
 				t.Errorf("got %v; want a record containing %s", ns, tt.host)
 			}
 		}
@@ -279,7 +283,7 @@ func TestLookupGooglePublicDNSAddr(t *testing.T) {
 			t.Error("got no record")
 		}
 		for _, name := range names {
-			if !strings.HasSuffix(name, ".google.com.") && !strings.HasSuffix(name, ".google.") {
+			if !hasSuffixFold(name, ".google.com.") && !hasSuffixFold(name, ".google.") {
 				t.Errorf("got %q; want a record ending in .google.com. or .google.", name)
 			}
 		}
@@ -371,7 +375,7 @@ func TestLookupCNAME(t *testing.T) {
 			}
 			t.Fatal(err)
 		}
-		if !strings.HasSuffix(cname, tt.cname) {
+		if !hasSuffixFold(cname, tt.cname) {
 			t.Errorf("got %s; want a record containing %s", cname, tt.cname)
 		}
 	}
@@ -656,7 +660,7 @@ func testDots(t *testing.T, mode string) {
 		t.Errorf("LookupAddr(8.8.8.8): %v (mode=%v)", err, mode)
 	} else {
 		for _, name := range names {
-			if !strings.HasSuffix(name, ".google.com.") && !strings.HasSuffix(name, ".google.") {
+			if !hasSuffixFold(name, ".google.com.") && !hasSuffixFold(name, ".google.") {
 				t.Errorf("LookupAddr(8.8.8.8) = %v, want names ending in .google.com or .google with trailing dot (mode=%v)", names, mode)
 				break
 			}
@@ -677,7 +681,7 @@ func testDots(t *testing.T, mode string) {
 		t.Errorf("LookupMX(google.com): %v (mode=%v)", err, mode)
 	} else {
 		for _, mx := range mxs {
-			if !strings.HasSuffix(mx.Host, ".google.com.") {
+			if !hasSuffixFold(mx.Host, ".google.com.") {
 				t.Errorf("LookupMX(google.com) = %v, want names ending in .google.com. with trailing dot (mode=%v)", mxString(mxs), mode)
 				break
 			}
@@ -690,7 +694,7 @@ func testDots(t *testing.T, mode string) {
 		t.Errorf("LookupNS(google.com): %v (mode=%v)", err, mode)
 	} else {
 		for _, ns := range nss {
-			if !strings.HasSuffix(ns.Host, ".google.com.") {
+			if !hasSuffixFold(ns.Host, ".google.com.") {
 				t.Errorf("LookupNS(google.com) = %v, want names ending in .google.com. with trailing dot (mode=%v)", nsString(nss), mode)
 				break
 			}
@@ -702,11 +706,11 @@ func testDots(t *testing.T, mode string) {
 		testenv.SkipFlakyNet(t)
 		t.Errorf("LookupSRV(xmpp-server, tcp, google.com): %v (mode=%v)", err, mode)
 	} else {
-		if !strings.HasSuffix(cname, ".google.com.") {
+		if !hasSuffixFold(cname, ".google.com.") {
 			t.Errorf("LookupSRV(xmpp-server, tcp, google.com) returned cname=%v, want name ending in .google.com. with trailing dot (mode=%v)", cname, mode)
 		}
 		for _, srv := range srvs {
-			if !strings.HasSuffix(srv.Target, ".google.com.") {
+			if !hasSuffixFold(srv.Target, ".google.com.") {
 				t.Errorf("LookupSRV(xmpp-server, tcp, google.com) returned addrs=%v, want names ending in .google.com. with trailing dot (mode=%v)", srvString(srvs), mode)
 				break
 			}
@@ -856,10 +860,6 @@ func TestLookupProtocol_Minimal(t *testing.T) {
 }
 
 func TestLookupNonLDH(t *testing.T) {
-	if runtime.GOOS == "nacl" {
-		t.Skip("skip on nacl")
-	}
-
 	defer dnsWaitGroup.Wait()
 
 	if fixup := forceGoDNS(); fixup != nil {
@@ -884,10 +884,6 @@ func TestLookupNonLDH(t *testing.T) {
 
 func TestLookupContextCancel(t *testing.T) {
 	mustHaveExternalNetwork(t)
-	if runtime.GOOS == "nacl" {
-		t.Skip("skip on nacl")
-	}
-
 	defer dnsWaitGroup.Wait()
 
 	ctx, ctxCancel := context.WithCancel(context.Background())
@@ -909,9 +905,6 @@ func TestLookupContextCancel(t *testing.T) {
 // crashes if nil is used.
 func TestNilResolverLookup(t *testing.T) {
 	mustHaveExternalNetwork(t)
-	if runtime.GOOS == "nacl" {
-		t.Skip("skip on nacl")
-	}
 	var r *Resolver = nil
 	ctx := context.Background()
 
@@ -931,10 +924,6 @@ func TestNilResolverLookup(t *testing.T) {
 // canceled lookups (see golang.org/issue/24178 for details).
 func TestLookupHostCancel(t *testing.T) {
 	mustHaveExternalNetwork(t)
-	if runtime.GOOS == "nacl" {
-		t.Skip("skip on nacl")
-	}
-
 	const (
 		google        = "www.google.com"
 		invalidDomain = "invalid.invalid" // RFC 2606 reserves .invalid
@@ -983,10 +972,11 @@ func (lcr *lookupCustomResolver) dial() func(ctx context.Context, network, addre
 // TestConcurrentPreferGoResolversDial tests that multiple resolvers with the
 // PreferGo option used concurrently are all dialed properly.
 func TestConcurrentPreferGoResolversDial(t *testing.T) {
-	// The windows implementation of the resolver does not use the Dial
-	// function.
-	if runtime.GOOS == "windows" {
-		t.Skip("skip on windows")
+	// The windows and plan9 implementation of the resolver does not use
+	// the Dial function.
+	switch runtime.GOOS {
+	case "windows", "plan9":
+		t.Skipf("skip on %v", runtime.GOOS)
 	}
 
 	testenv.MustHaveExternalNetwork(t)

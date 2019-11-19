@@ -13,26 +13,28 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch/codehost"
-	"cmd/go/internal/module"
 	"cmd/go/internal/par"
 	"cmd/go/internal/renameio"
-	"cmd/go/internal/semver"
+
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 )
 
-var QuietLookup bool // do not print about lookups
-
 var PkgMod string // $GOPATH/pkg/mod; set by package modload
+
+const logFindingDelay = 1 * time.Second
 
 func cacheDir(path string) (string, error) {
 	if PkgMod == "" {
 		return "", fmt.Errorf("internal error: modfetch.PkgMod not set")
 	}
-	enc, err := module.EncodePath(path)
+	enc, err := module.EscapePath(path)
 	if err != nil {
 		return "", err
 	}
@@ -50,7 +52,7 @@ func CachePath(m module.Version, suffix string) (string, error) {
 	if module.CanonicalVersion(m.Version) != m.Version {
 		return "", fmt.Errorf("non-canonical module version %q", m.Version)
 	}
-	encVer, err := module.EncodeVersion(m.Version)
+	encVer, err := module.EscapeVersion(m.Version)
 	if err != nil {
 		return "", err
 	}
@@ -63,7 +65,7 @@ func DownloadDir(m module.Version) (string, error) {
 	if PkgMod == "" {
 		return "", fmt.Errorf("internal error: modfetch.PkgMod not set")
 	}
-	enc, err := module.EncodePath(m.Path)
+	enc, err := module.EscapePath(m.Path)
 	if err != nil {
 		return "", err
 	}
@@ -73,7 +75,7 @@ func DownloadDir(m module.Version) (string, error) {
 	if module.CanonicalVersion(m.Version) != m.Version {
 		return "", fmt.Errorf("non-canonical module version %q", m.Version)
 	}
-	encVer, err := module.EncodeVersion(m.Version)
+	encVer, err := module.EscapeVersion(m.Version)
 	if err != nil {
 		return "", err
 	}
@@ -93,22 +95,21 @@ func lockVersion(mod module.Version) (unlock func(), err error) {
 	return lockedfile.MutexAt(path).Lock()
 }
 
-// SideLock locks a file within the module cache that that guards edits to files
-// outside the cache, such as go.sum and go.mod files in the user's working
-// directory. It returns a function that must be called to unlock the file.
-func SideLock() (unlock func()) {
+// SideLock locks a file within the module cache that that previously guarded
+// edits to files outside the cache, such as go.sum and go.mod files in the
+// user's working directory.
+// If err is nil, the caller MUST eventually call the unlock function.
+func SideLock() (unlock func(), err error) {
 	if PkgMod == "" {
 		base.Fatalf("go: internal error: modfetch.PkgMod not set")
 	}
+
 	path := filepath.Join(PkgMod, "cache", "lock")
 	if err := os.MkdirAll(filepath.Dir(path), 0777); err != nil {
-		base.Fatalf("go: failed to create cache directory %s: %v", filepath.Dir(path), err)
+		return nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}
-	unlock, err := lockedfile.MutexAt(path).Lock()
-	if err != nil {
-		base.Fatalf("go: failed to lock file at %v", path)
-	}
-	return unlock
+
+	return lockedfile.MutexAt(path).Lock()
 }
 
 // A cachingRepo is a cache around an underlying Repo,
@@ -139,6 +140,11 @@ func (r *cachingRepo) Versions(prefix string) ([]string, error) {
 		err  error
 	}
 	c := r.cache.Do("versions:"+prefix, func() interface{} {
+		logTimer := time.AfterFunc(logFindingDelay, func() {
+			fmt.Fprintf(os.Stderr, "go: finding versions for %s\n", r.path)
+		})
+		defer logTimer.Stop()
+
 		list, err := r.r.Versions(prefix)
 		return cached{list, err}
 	}).(cached)
@@ -161,9 +167,11 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
 			return cachedInfo{info, nil}
 		}
 
-		if !QuietLookup {
+		logTimer := time.AfterFunc(logFindingDelay, func() {
 			fmt.Fprintf(os.Stderr, "go: finding %s %s\n", r.path, rev)
-		}
+		})
+		defer logTimer.Stop()
+
 		info, err = r.r.Stat(rev)
 		if err == nil {
 			// If we resolved, say, 1234abcde to v0.0.0-20180604122334-1234abcdef78,
@@ -191,9 +199,11 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
 
 func (r *cachingRepo) Latest() (*RevInfo, error) {
 	c := r.cache.Do("latest:", func() interface{} {
-		if !QuietLookup {
+		logTimer := time.AfterFunc(logFindingDelay, func() {
 			fmt.Fprintf(os.Stderr, "go: finding %s latest\n", r.path)
-		}
+		})
+		defer logTimer.Stop()
+
 		info, err := r.r.Latest()
 
 		// Save info for likely future Stat call.
@@ -230,7 +240,9 @@ func (r *cachingRepo) GoMod(version string) ([]byte, error) {
 
 		text, err = r.r.GoMod(version)
 		if err == nil {
-			checkGoMod(r.path, version, text)
+			if err := checkGoMod(r.path, version, text); err != nil {
+				return cached{text, err}
+			}
 			if err := writeDiskGoMod(file, text); err != nil {
 				fmt.Fprintf(os.Stderr, "go: writing go.mod cache: %v\n", err)
 			}
@@ -490,7 +502,9 @@ func readDiskGoMod(path, rev string) (file string, data []byte, err error) {
 	}
 
 	if err == nil {
-		checkGoMod(path, rev, data)
+		if err := checkGoMod(path, rev, data); err != nil {
+			return "", nil, err
+		}
 	}
 
 	return file, data, err

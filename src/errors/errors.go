@@ -13,15 +13,15 @@
 //
 // If e.Unwrap() returns a non-nil error w, then we say that e wraps w.
 //
+// Unwrap unpacks wrapped errors. If its argument's type has an
+// Unwrap method, it calls the method once. Otherwise, it returns nil.
+//
 // A simple way to create wrapped errors is to call fmt.Errorf and apply the %w verb
 // to the error argument:
 //
-//	fmt.Errorf("... %w ...", ..., err, ...).Unwrap()
+//	errors.Unwrap(fmt.Errorf("... %w ...", ..., err, ...))
 //
 // returns err.
-//
-// Unwrap unpacks wrapped errors. If its argument's type has an
-// Unwrap method, it calls the method once. Otherwise, it returns nil.
 //
 // Is unwraps its first argument sequentially looking for an error that matches the
 // second. It reports whether it finds a match. It should be used in preference to

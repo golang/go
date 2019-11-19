@@ -846,8 +846,8 @@ func (b *Block) LongHTML() string {
 	if b.Aux != nil {
 		s += html.EscapeString(fmt.Sprintf(" {%v}", b.Aux))
 	}
-	if b.Control != nil {
-		s += fmt.Sprintf(" %s", b.Control.HTML())
+	for _, c := range b.ControlValues() {
+		s += fmt.Sprintf(" %s", c.HTML())
 	}
 	if len(b.Succs) > 0 {
 		s += " &#8594;" // right arrow

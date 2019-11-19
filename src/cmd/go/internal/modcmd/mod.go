@@ -5,7 +5,10 @@
 // Package modcmd implements the ``go mod'' command.
 package modcmd
 
-import "cmd/go/internal/base"
+import (
+	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+)
 
 var CmdMod = &base.Command{
 	UsageLine: "go mod",
@@ -28,4 +31,8 @@ See 'go help modules' for an overview of module functionality.
 		cmdVerify,
 		cmdWhy,
 	},
+}
+
+func addModFlags(cmd *base.Command) {
+	cmd.Flag.StringVar(&cfg.ModFile, "modfile", "", "")
 }

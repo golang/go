@@ -259,9 +259,6 @@ type TypeAndValue struct {
 	Value constant.Value
 }
 
-// TODO(gri) Consider eliminating the IsVoid predicate. Instead, report
-// "void" values as regular values but with the empty tuple type.
-
 // IsVoid reports whether the corresponding expression
 // is a function call without results.
 func (tv TypeAndValue) IsVoid() bool {
@@ -373,4 +370,16 @@ func ConvertibleTo(V, T Type) bool {
 func Implements(V Type, T *Interface) bool {
 	f, _ := MissingMethod(V, T, true)
 	return f == nil
+}
+
+// Identical reports whether x and y are identical types.
+// Receivers of Signature types are ignored.
+func Identical(x, y Type) bool {
+	return (*Checker)(nil).identical(x, y)
+}
+
+// IdenticalIgnoreTags reports whether x and y are identical types if tags are ignored.
+// Receivers of Signature types are ignored.
+func IdenticalIgnoreTags(x, y Type) bool {
+	return (*Checker)(nil).identicalIgnoreTags(x, y)
 }

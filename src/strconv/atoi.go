@@ -31,6 +31,8 @@ func (e *NumError) Error() string {
 	return "strconv." + e.Func + ": " + "parsing " + Quote(e.Num) + ": " + e.Err.Error()
 }
 
+func (e *NumError) Unwrap() error { return e.Err }
+
 func syntaxError(fn, str string) *NumError {
 	return &NumError{fn, str, ErrSyntax}
 }
@@ -58,7 +60,7 @@ const maxUint64 = 1<<64 - 1
 func ParseUint(s string, base int, bitSize int) (uint64, error) {
 	const fnParseUint = "ParseUint"
 
-	if s == "" || !underscoreOK(s) {
+	if s == "" {
 		return 0, syntaxError(fnParseUint, s)
 	}
 
@@ -113,12 +115,13 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 
 	maxVal := uint64(1)<<uint(bitSize) - 1
 
+	underscores := false
 	var n uint64
 	for _, c := range []byte(s) {
 		var d byte
 		switch {
 		case c == '_' && base0:
-			// underscoreOK already called
+			underscores = true
 			continue
 		case '0' <= c && c <= '9':
 			d = c - '0'
@@ -144,6 +147,10 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 			return maxVal, rangeError(fnParseUint, s0)
 		}
 		n = n1
+	}
+
+	if underscores && !underscoreOK(s0) {
+		return 0, syntaxError(fnParseUint, s0)
 	}
 
 	return n, nil

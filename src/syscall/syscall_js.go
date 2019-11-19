@@ -45,7 +45,7 @@ const PathMax = 256
 //		err = errno
 //	}
 //
-// Errno values can be tested against error values from the the os package
+// Errno values can be tested against error values from the os package
 // using errors.Is. For example:
 //
 //	_, _, err := syscall.Syscall(...)
@@ -303,9 +303,10 @@ func Getegid() int {
 	return jsProcess.Call("getegid").Int()
 }
 
-func Getgroups() ([]int, error) {
+func Getgroups() (groups []int, err error) {
+	defer recoverErr(&err)
 	array := jsProcess.Call("getgroups")
-	groups := make([]int, array.Length())
+	groups = make([]int, array.Length())
 	for i := range groups {
 		groups[i] = array.Index(i).Int()
 	}

@@ -200,7 +200,7 @@ func (check *Checker) lookupFieldOrMethod(T Type, addressable bool, pkg *Package
 			return
 		}
 
-		current = consolidateMultiples(next)
+		current = check.consolidateMultiples(next)
 	}
 
 	return nil, nil, false // not found
@@ -217,7 +217,7 @@ type embeddedType struct {
 // consolidateMultiples collects multiple list entries with the same type
 // into a single entry marked as containing multiples. The result is the
 // consolidated list.
-func consolidateMultiples(list []embeddedType) []embeddedType {
+func (check *Checker) consolidateMultiples(list []embeddedType) []embeddedType {
 	if len(list) <= 1 {
 		return list // at most one entry - nothing to do
 	}
@@ -225,7 +225,7 @@ func consolidateMultiples(list []embeddedType) []embeddedType {
 	n := 0                     // number of entries w/ unique type
 	prev := make(map[Type]int) // index at which type was previously seen
 	for _, e := range list {
-		if i, found := lookupType(prev, e.typ); found {
+		if i, found := check.lookupType(prev, e.typ); found {
 			list[i].multiples = true
 			// ignore this entry
 		} else {
@@ -237,14 +237,14 @@ func consolidateMultiples(list []embeddedType) []embeddedType {
 	return list[:n]
 }
 
-func lookupType(m map[Type]int, typ Type) (int, bool) {
+func (check *Checker) lookupType(m map[Type]int, typ Type) (int, bool) {
 	// fast path: maybe the types are equal
 	if i, found := m[typ]; found {
 		return i, true
 	}
 
 	for t, i := range m {
-		if Identical(t, typ) {
+		if check.identical(t, typ) {
 			return i, true
 		}
 	}
@@ -278,8 +278,6 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method *
 		return
 	}
 
-	// TODO(gri) Consider using method sets here. Might be more efficient.
-
 	if ityp, _ := V.Underlying().(*Interface); ityp != nil {
 		check.completeInterface(ityp)
 		// TODO(gri) allMethods is sorted - can do this more efficiently
@@ -290,7 +288,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method *
 				if static {
 					return m, false
 				}
-			case !Identical(obj.Type(), m.typ):
+			case !check.identical(obj.Type(), m.typ):
 				return m, true
 			}
 		}
@@ -312,7 +310,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method *
 			check.objDecl(f, nil)
 		}
 
-		if !Identical(f.typ, m.typ) {
+		if !check.identical(f.typ, m.typ) {
 			return m, true
 		}
 	}

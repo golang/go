@@ -25,7 +25,7 @@ func (m *RouteMessage) marshal() ([]byte, error) {
 	b := make([]byte, l)
 	nativeEndian.PutUint16(b[:2], uint16(l))
 	if m.Version == 0 {
-		b[2] = sysRTM_VERSION
+		b[2] = rtmVersion
 	} else {
 		b[2] = byte(m.Version)
 	}

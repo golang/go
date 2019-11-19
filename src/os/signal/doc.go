@@ -211,6 +211,14 @@ will cause os.Interrupt to be sent on the channel, and the program will
 not exit. If Reset is called, or Stop is called on all channels passed
 to Notify, then the default behavior will be restored.
 
+Additionally, if Notify is called, and Windows sends CTRL_CLOSE_EVENT,
+CTRL_LOGOFF_EVENT or CTRL_SHUTDOWN_EVENT to the process, Notify will
+return syscall.SIGTERM. Unlike Control-C and Control-Break, Notify does
+not change process behavior when either CTRL_CLOSE_EVENT,
+CTRL_LOGOFF_EVENT or CTRL_SHUTDOWN_EVENT is received - the process will
+still get terminated unless it exits. But receiving syscall.SIGTERM will
+give the process an opportunity to clean up before termination.
+
 Plan 9
 
 On Plan 9, signals have type syscall.Note, which is a string. Calling

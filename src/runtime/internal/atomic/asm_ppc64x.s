@@ -170,6 +170,13 @@ TEXT runtime∕internal∕atomic·Store(SB), NOSPLIT, $0-12
 	MOVW	R4, 0(R3)
 	RET
 
+TEXT runtime∕internal∕atomic·Store8(SB), NOSPLIT, $0-9
+	MOVD	ptr+0(FP), R3
+	MOVB	val+8(FP), R4
+	SYNC
+	MOVB	R4, 0(R3)
+	RET
+
 TEXT runtime∕internal∕atomic·Store64(SB), NOSPLIT, $0-16
 	MOVD	ptr+0(FP), R3
 	MOVD	val+8(FP), R4

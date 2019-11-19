@@ -36,11 +36,6 @@ type Part struct {
 	// The headers of the body, if any, with the keys canonicalized
 	// in the same fashion that the Go http.Request headers are.
 	// For example, "foo-bar" changes case to "Foo-Bar"
-	//
-	// As a special case, if the "Content-Transfer-Encoding" header
-	// has a value of "quoted-printable", that header is instead
-	// hidden from this map and the body is transparently decoded
-	// during Read calls.
 	Header textproto.MIMEHeader
 
 	mr *Reader
@@ -126,7 +121,7 @@ func (r *stickyErrorReader) Read(p []byte) (n int, _ error) {
 	return n, r.err
 }
 
-func newPart(mr *Reader) (*Part, error) {
+func newPart(mr *Reader, rawPart bool) (*Part, error) {
 	bp := &Part{
 		Header: make(map[string][]string),
 		mr:     mr,
@@ -135,10 +130,14 @@ func newPart(mr *Reader) (*Part, error) {
 		return nil, err
 	}
 	bp.r = partReader{bp}
-	const cte = "Content-Transfer-Encoding"
-	if strings.EqualFold(bp.Header.Get(cte), "quoted-printable") {
-		bp.Header.Del(cte)
-		bp.r = quotedprintable.NewReader(bp.r)
+
+	// rawPart is used to switch between Part.NextPart and Part.NextRawPart.
+	if !rawPart {
+		const cte = "Content-Transfer-Encoding"
+		if strings.EqualFold(bp.Header.Get(cte), "quoted-printable") {
+			bp.Header.Del(cte)
+			bp.r = quotedprintable.NewReader(bp.r)
+		}
 	}
 	return bp, nil
 }
@@ -300,7 +299,24 @@ type Reader struct {
 
 // NextPart returns the next part in the multipart or an error.
 // When there are no more parts, the error io.EOF is returned.
+//
+// As a special case, if the "Content-Transfer-Encoding" header
+// has a value of "quoted-printable", that header is instead
+// hidden and the body is transparently decoded during Read calls.
 func (r *Reader) NextPart() (*Part, error) {
+	return r.nextPart(false)
+}
+
+// NextRawPart returns the next part in the multipart or an error.
+// When there are no more parts, the error io.EOF is returned.
+//
+// Unlike NextPart, it does not have special handling for
+// "Content-Transfer-Encoding: quoted-printable".
+func (r *Reader) NextRawPart() (*Part, error) {
+	return r.nextPart(true)
+}
+
+func (r *Reader) nextPart(rawPart bool) (*Part, error) {
 	if r.currentPart != nil {
 		r.currentPart.Close()
 	}
@@ -325,7 +341,7 @@ func (r *Reader) NextPart() (*Part, error) {
 
 		if r.isBoundaryDelimiterLine(line) {
 			r.partsRead++
-			bp, err := newPart(r)
+			bp, err := newPart(r, rawPart)
 			if err != nil {
 				return nil, err
 			}

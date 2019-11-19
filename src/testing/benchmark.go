@@ -545,7 +545,11 @@ func (ctx *benchContext) processBench(b *B) {
 		for j := uint(0); j < *count; j++ {
 			runtime.GOMAXPROCS(procs)
 			benchName := benchmarkName(b.name, procs)
-			fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
+
+			// If it's chatty, we've already printed this information.
+			if !b.chatty {
+				fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
+			}
 			// Recompute the running time for all but the first iteration.
 			if i > 0 || j > 0 {
 				b = &B{
@@ -569,6 +573,9 @@ func (ctx *benchContext) processBench(b *B) {
 				continue
 			}
 			results := r.String()
+			if b.chatty {
+				fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
+			}
 			if *benchmarkMemory || b.showAllocResult {
 				results += "\t" + r.MemString()
 			}
@@ -627,6 +634,19 @@ func (b *B) Run(name string, f func(b *B)) bool {
 		// Only process sub-benchmarks, if any.
 		atomic.StoreInt32(&sub.hasSub, 1)
 	}
+
+	if b.chatty {
+		labelsOnce.Do(func() {
+			fmt.Printf("goos: %s\n", runtime.GOOS)
+			fmt.Printf("goarch: %s\n", runtime.GOARCH)
+			if b.importPath != "" {
+				fmt.Printf("pkg: %s\n", b.importPath)
+			}
+		})
+
+		fmt.Println(benchName)
+	}
+
 	if sub.run1() {
 		sub.run()
 	}

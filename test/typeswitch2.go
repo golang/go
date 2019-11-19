@@ -35,13 +35,3 @@ func whatis(x interface{}) string {
 	}
 	return ""
 }
-
-func notused(x interface{}) {
-	// The first t is in a different scope than the 2nd t; it cannot
-	// be accessed (=> declared and not used error); but it is legal
-	// to declare it.
-	switch t := 0; t := x.(type) { // ERROR "declared and not used"
-	case int:
-		_ = t // this is using the t of "t := x.(type)"
-	}
-}

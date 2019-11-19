@@ -7,10 +7,13 @@ env GOPATH=$WORK/gopath1
 # With a file-based proxy with an empty checksum directory,
 # downloading a new module should fail, even if a subsequent
 # proxy contains a more complete mirror of the sum database.
+#
+# TODO(bcmills): The error message here is a bit redundant.
+# It comes from the sumweb package, which isn't yet producing structured errors.
 [windows] env GOPROXY=file:///$WORK/sumproxy,https://proxy.golang.org
 [!windows] env GOPROXY=file://$WORK/sumproxy,https://proxy.golang.org
 ! go get -d golang.org/x/text@v0.3.2
-stderr '^verifying golang.org/x/text.*: Not Found'
+stderr '^go get golang.org/x/text@v0.3.2: golang.org/x/text@v0.3.2: verifying module: golang.org/x/text@v0.3.2: reading file://.*/sumdb/sum.golang.org/lookup/golang.org/x/text@v0.3.2: (no such file or directory|.*cannot find the path specified.*)'
 
 # If the proxy does not claim to support the database,
 # checksum verification should fall through to the next proxy,

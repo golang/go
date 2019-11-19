@@ -16,7 +16,6 @@ import (
 	"io"
 	"math/big"
 	"net"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -343,7 +342,7 @@ const (
 )
 
 // ClientHelloInfo contains information from a ClientHello message in order to
-// guide certificate selection in the GetCertificate callback.
+// guide application logic in the GetCertificate and GetConfigForClient callbacks.
 type ClientHelloInfo struct {
 	// CipherSuites lists the CipherSuites supported by the client (e.g.
 	// TLS_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256).
@@ -807,51 +806,9 @@ func (c *Config) supportedVersions() []uint16 {
 		if c != nil && c.MaxVersion != 0 && v > c.MaxVersion {
 			continue
 		}
-		// TLS 1.3 is opt-out in Go 1.13.
-		if v == VersionTLS13 && !isTLS13Supported() {
-			continue
-		}
 		versions = append(versions, v)
 	}
 	return versions
-}
-
-// tls13Support caches the result for isTLS13Supported.
-var tls13Support struct {
-	sync.Once
-	cached bool
-}
-
-// isTLS13Supported returns whether the program enabled TLS 1.3 by not opting
-// out with GODEBUG=tls13=0. It's cached after the first execution.
-func isTLS13Supported() bool {
-	tls13Support.Do(func() {
-		tls13Support.cached = goDebugString("tls13") != "0"
-	})
-	return tls13Support.cached
-}
-
-// goDebugString returns the value of the named GODEBUG key.
-// GODEBUG is of the form "key=val,key2=val2".
-func goDebugString(key string) string {
-	s := os.Getenv("GODEBUG")
-	for i := 0; i < len(s)-len(key)-1; i++ {
-		if i > 0 && s[i-1] != ',' {
-			continue
-		}
-		afterKey := s[i+len(key):]
-		if afterKey[0] != '=' || s[i:i+len(key)] != key {
-			continue
-		}
-		val := afterKey[1:]
-		for i, b := range val {
-			if b == ',' {
-				return val[:i]
-			}
-		}
-		return val
-	}
-	return ""
 }
 
 func (c *Config) maxSupportedVersion() uint16 {
@@ -886,6 +843,15 @@ func (c *Config) curvePreferences() []CurveID {
 		return defaultCurvePreferences
 	}
 	return c.CurvePreferences
+}
+
+func (c *Config) supportsCurve(curve CurveID) bool {
+	for _, cc := range c.curvePreferences() {
+		if cc == curve {
+			return true
+		}
+	}
+	return false
 }
 
 // mutualVersion returns the protocol version to use given the advertised
@@ -953,13 +919,9 @@ func (c *Config) BuildNameToCertificate() {
 	c.NameToCertificate = make(map[string]*Certificate)
 	for i := range c.Certificates {
 		cert := &c.Certificates[i]
-		x509Cert := cert.Leaf
-		if x509Cert == nil {
-			var err error
-			x509Cert, err = x509.ParseCertificate(cert.Certificate[0])
-			if err != nil {
-				continue
-			}
+		x509Cert, err := cert.leaf()
+		if err != nil {
+			continue
 		}
 		if len(x509Cert.Subject.CommonName) > 0 {
 			c.NameToCertificate[x509Cert.Subject.CommonName] = cert
@@ -1010,11 +972,19 @@ type Certificate struct {
 	// SignedCertificateTimestamps contains an optional list of Signed
 	// Certificate Timestamps which will be served to clients that request it.
 	SignedCertificateTimestamps [][]byte
-	// Leaf is the parsed form of the leaf certificate, which may be
-	// initialized using x509.ParseCertificate to reduce per-handshake
-	// processing for TLS clients doing client authentication. If nil, the
-	// leaf certificate will be parsed as needed.
+	// Leaf is the parsed form of the leaf certificate, which may be initialized
+	// using x509.ParseCertificate to reduce per-handshake processing. If nil,
+	// the leaf certificate will be parsed as needed.
 	Leaf *x509.Certificate
+}
+
+// leaf returns the parsed leaf certificate, either from c.Leaf or by parsing
+// the corresponding c.Certificate[0].
+func (c *Certificate) leaf() (*x509.Certificate, error) {
+	if c.Leaf != nil {
+		return c.Leaf, nil
+	}
+	return x509.ParseCertificate(c.Certificate[0])
 }
 
 type handshakeMessage interface {
@@ -1205,21 +1175,4 @@ func isSupportedSignatureAlgorithm(sigAlg SignatureScheme, supportedSignatureAlg
 		}
 	}
 	return false
-}
-
-// signatureFromSignatureScheme maps a signature algorithm to the underlying
-// signature method (without hash function).
-func signatureFromSignatureScheme(signatureAlgorithm SignatureScheme) uint8 {
-	switch signatureAlgorithm {
-	case PKCS1WithSHA1, PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512:
-		return signaturePKCS1v15
-	case PSSWithSHA256, PSSWithSHA384, PSSWithSHA512:
-		return signatureRSAPSS
-	case ECDSAWithSHA1, ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512:
-		return signatureECDSA
-	case Ed25519:
-		return signatureEd25519
-	default:
-		return 0
-	}
 }

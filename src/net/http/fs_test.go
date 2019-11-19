@@ -207,6 +207,18 @@ func TestServeFile_DotDot(t *testing.T) {
 	}
 }
 
+// Tests that this doesn't panic. (Issue 30165)
+func TestServeFileDirPanicEmptyPath(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/", nil)
+	req.URL.Path = ""
+	ServeFile(rec, req, "testdata")
+	res := rec.Result()
+	if res.StatusCode != 301 {
+		t.Errorf("code = %v; want 301", res.Status)
+	}
+}
+
 var fsRedirectTestData = []struct {
 	original, redirect string
 }{
@@ -1110,21 +1122,13 @@ func TestLinuxSendfile(t *testing.T) {
 	}
 	defer ln.Close()
 
-	syscalls := "sendfile,sendfile64"
-	switch runtime.GOARCH {
-	case "mips64", "mips64le", "s390x":
-		// strace on the above platforms doesn't support sendfile64
-		// and will error out if we specify that with `-e trace='.
-		syscalls = "sendfile"
-	}
-
 	// Attempt to run strace, and skip on failure - this test requires SYS_PTRACE.
-	if err := exec.Command("strace", "-f", "-q", "-e", "trace="+syscalls, os.Args[0], "-test.run=^$").Run(); err != nil {
+	if err := exec.Command("strace", "-f", "-q", os.Args[0], "-test.run=^$").Run(); err != nil {
 		t.Skipf("skipping; failed to run strace: %v", err)
 	}
 
 	var buf bytes.Buffer
-	child := exec.Command("strace", "-f", "-q", "-e", "trace="+syscalls, os.Args[0], "-test.run=TestLinuxSendfileChild")
+	child := exec.Command("strace", "-f", "-q", os.Args[0], "-test.run=TestLinuxSendfileChild")
 	child.ExtraFiles = append(child.ExtraFiles, lnf)
 	child.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)
 	child.Stdout = &buf
@@ -1147,7 +1151,7 @@ func TestLinuxSendfile(t *testing.T) {
 	Post(fmt.Sprintf("http://%s/quit", ln.Addr()), "", nil)
 	child.Wait()
 
-	rx := regexp.MustCompile(`sendfile(64)?\(`)
+	rx := regexp.MustCompile(`\b(n64:)?sendfile(64)?\(`)
 	out := buf.String()
 	if !rx.MatchString(out) {
 		t.Errorf("no sendfile system call found in:\n%s", out)

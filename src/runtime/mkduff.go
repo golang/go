@@ -216,5 +216,13 @@ func zeroMIPS64x(w io.Writer) {
 }
 
 func copyMIPS64x(w io.Writer) {
-	fmt.Fprintln(w, "// TODO: Implement runtime·duffcopy.")
+	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0")
+	for i := 0; i < 128; i++ {
+		fmt.Fprintln(w, "\tMOVV\t(R1), R23")
+		fmt.Fprintln(w, "\tADDV\t$8, R1")
+		fmt.Fprintln(w, "\tMOVV\tR23, (R2)")
+		fmt.Fprintln(w, "\tADDV\t$8, R2")
+		fmt.Fprintln(w)
+	}
+	fmt.Fprintln(w, "\tRET")
 }

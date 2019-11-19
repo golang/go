@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// BUG(mikio): On JS, NaCl and Windows, the File method of TCPConn and
+// BUG(mikio): On JS and Windows, the File method of TCPConn and
 // TCPListener is not implemented.
 
 // TCPAddr represents the address of a TCP end point.
@@ -336,4 +336,9 @@ func ListenTCP(network string, laddr *TCPAddr) (*TCPListener, error) {
 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}
 	return ln, nil
+}
+
+// roundDurationUp rounds d to the next multiple of to.
+func roundDurationUp(d time.Duration, to time.Duration) time.Duration {
+	return (d + to - 1) / to
 }

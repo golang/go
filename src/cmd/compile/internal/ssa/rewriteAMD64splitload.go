@@ -28,7 +28,6 @@ func rewriteValueAMD64splitload_OpAMD64CMPBconstload_0(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (CMPBconstload {sym} [vo] ptr mem)
-	// cond:
 	// result: (CMPBconst (MOVBload {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
 	for {
 		vo := v.AuxInt
@@ -50,7 +49,6 @@ func rewriteValueAMD64splitload_OpAMD64CMPBload_0(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (CMPBload {sym} [off] ptr x mem)
-	// cond:
 	// result: (CMPB (MOVBload {sym} [off] ptr mem) x)
 	for {
 		off := v.AuxInt
@@ -73,7 +71,6 @@ func rewriteValueAMD64splitload_OpAMD64CMPLconstload_0(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (CMPLconstload {sym} [vo] ptr mem)
-	// cond:
 	// result: (CMPLconst (MOVLload {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
 	for {
 		vo := v.AuxInt
@@ -95,7 +92,6 @@ func rewriteValueAMD64splitload_OpAMD64CMPLload_0(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (CMPLload {sym} [off] ptr x mem)
-	// cond:
 	// result: (CMPL (MOVLload {sym} [off] ptr mem) x)
 	for {
 		off := v.AuxInt
@@ -118,7 +114,6 @@ func rewriteValueAMD64splitload_OpAMD64CMPQconstload_0(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (CMPQconstload {sym} [vo] ptr mem)
-	// cond:
 	// result: (CMPQconst (MOVQload {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
 	for {
 		vo := v.AuxInt
@@ -140,7 +135,6 @@ func rewriteValueAMD64splitload_OpAMD64CMPQload_0(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (CMPQload {sym} [off] ptr x mem)
-	// cond:
 	// result: (CMPQ (MOVQload {sym} [off] ptr mem) x)
 	for {
 		off := v.AuxInt
@@ -163,7 +157,6 @@ func rewriteValueAMD64splitload_OpAMD64CMPWconstload_0(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (CMPWconstload {sym} [vo] ptr mem)
-	// cond:
 	// result: (CMPWconst (MOVWload {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
 	for {
 		vo := v.AuxInt
@@ -185,7 +178,6 @@ func rewriteValueAMD64splitload_OpAMD64CMPWload_0(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (CMPWload {sym} [off] ptr x mem)
-	// cond:
 	// result: (CMPW (MOVWload {sym} [off] ptr mem) x)
 	for {
 		off := v.AuxInt

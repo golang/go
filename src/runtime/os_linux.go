@@ -332,7 +332,9 @@ func gettid() uint32
 func minit() {
 	minitSignals()
 
-	// for debuggers, in case cgo created the thread
+	// Cgo-created threads and the bootstrap m are missing a
+	// procid. We need this for asynchronous preemption and its
+	// useful in debuggers.
 	getg().m.procid = uint64(gettid())
 }
 
@@ -371,6 +373,10 @@ func raiseproc(sig uint32)
 //go:noescape
 func sched_getaffinity(pid, len uintptr, buf *byte) int32
 func osyield()
+
+func pipe() (r, w int32, errno int32)
+func pipe2(flags int32) (r, w int32, errno int32)
+func setNonblock(fd int32)
 
 //go:nosplit
 //go:nowritebarrierrec
@@ -452,3 +458,11 @@ func sysSigaction(sig uint32, new, old *sigactiont) {
 // rt_sigaction is implemented in assembly.
 //go:noescape
 func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
+
+func getpid() int
+func tgkill(tgid, tid, sig int)
+
+// signalM sends a signal to mp.
+func signalM(mp *m, sig int) {
+	tgkill(getpid(), int(mp.procid), sig)
+}

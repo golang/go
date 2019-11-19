@@ -984,6 +984,76 @@ func TestDiv64PanicZero(t *testing.T) {
 	t.Errorf("undefined q, r = %v, %v calculated when Div64 should have panicked", q, r)
 }
 
+func TestRem32(t *testing.T) {
+	// Sanity check: for non-oveflowing dividends, the result is the
+	// same as the rem returned by Div32
+	hi, lo, y := uint32(510510), uint32(9699690), uint32(510510+1) // ensure hi < y
+	for i := 0; i < 1000; i++ {
+		r := Rem32(hi, lo, y)
+		_, r2 := Div32(hi, lo, y)
+		if r != r2 {
+			t.Errorf("Rem32(%v, %v, %v) returned %v, but Div32 returned rem %v", hi, lo, y, r, r2)
+		}
+		y += 13
+	}
+}
+
+func TestRem32Overflow(t *testing.T) {
+	// To trigger a quotient overflow, we need y <= hi
+	hi, lo, y := uint32(510510), uint32(9699690), uint32(7)
+	for i := 0; i < 1000; i++ {
+		r := Rem32(hi, lo, y)
+		_, r2 := Div64(0, uint64(hi)<<32|uint64(lo), uint64(y))
+		if r != uint32(r2) {
+			t.Errorf("Rem32(%v, %v, %v) returned %v, but Div64 returned rem %v", hi, lo, y, r, r2)
+		}
+		y += 13
+	}
+}
+
+func TestRem64(t *testing.T) {
+	// Sanity check: for non-oveflowing dividends, the result is the
+	// same as the rem returned by Div64
+	hi, lo, y := uint64(510510), uint64(9699690), uint64(510510+1) // ensure hi < y
+	for i := 0; i < 1000; i++ {
+		r := Rem64(hi, lo, y)
+		_, r2 := Div64(hi, lo, y)
+		if r != r2 {
+			t.Errorf("Rem64(%v, %v, %v) returned %v, but Div64 returned rem %v", hi, lo, y, r, r2)
+		}
+		y += 13
+	}
+}
+
+func TestRem64Overflow(t *testing.T) {
+	Rem64Tests := []struct {
+		hi, lo, y uint64
+		rem       uint64
+	}{
+		// Testcases computed using Python 3, as:
+		//   >>> hi = 42; lo = 1119; y = 42
+		//   >>> ((hi<<64)+lo) % y
+		{42, 1119, 42, 27},
+		{42, 1119, 38, 9},
+		{42, 1119, 26, 23},
+		{469, 0, 467, 271},
+		{469, 0, 113, 58},
+		{111111, 111111, 1171, 803},
+		{3968194946088682615, 3192705705065114702, 1000037, 56067},
+	}
+
+	for _, rt := range Rem64Tests {
+		if rt.hi < rt.y {
+			t.Fatalf("Rem64(%v, %v, %v) is not a test with quo overflow", rt.hi, rt.lo, rt.y)
+		}
+		rem := Rem64(rt.hi, rt.lo, rt.y)
+		if rem != rt.rem {
+			t.Errorf("Rem64(%v, %v, %v) returned %v, wanted %v",
+				rt.hi, rt.lo, rt.y, rem, rt.rem)
+		}
+	}
+}
+
 func BenchmarkAdd(b *testing.B) {
 	var z, c uint
 	for i := 0; i < b.N; i++ {

@@ -129,13 +129,14 @@ type InlinedCall struct {
 
 // A Package is a parsed Go object file or archive defining a Go package.
 type Package struct {
-	ImportPath string          // import path denoting this package
-	Imports    []string        // packages imported by this package
-	SymRefs    []SymID         // list of symbol names and versions referred to by this pack
-	Syms       []*Sym          // symbols defined by this package
-	MaxVersion int64           // maximum Version in any SymID in Syms
-	Arch       string          // architecture
-	Native     []*NativeReader // native object data (e.g. ELF)
+	ImportPath    string          // import path denoting this package
+	Imports       []string        // packages imported by this package
+	SymRefs       []SymID         // list of symbol names and versions referred to by this pack
+	Syms          []*Sym          // symbols defined by this package
+	MaxVersion    int64           // maximum Version in any SymID in Syms
+	Arch          string          // architecture
+	Native        []*NativeReader // native object data (e.g. ELF)
+	DWARFFileList []string        // List of files for the DWARF .debug_lines section
 }
 
 type NativeReader struct {
@@ -501,8 +502,16 @@ func (r *objReader) parseObject(prefix []byte) error {
 	}
 	// TODO: extract OS + build ID if/when we need it
 
+	p, err := r.peek(8)
+	if err != nil {
+		return err
+	}
+	if bytes.Equal(p, []byte("\x00go114LD")) {
+		r.readNew()
+		return nil
+	}
 	r.readFull(r.tmp[:8])
-	if !bytes.Equal(r.tmp[:8], []byte("\x00go112ld")) {
+	if !bytes.Equal(r.tmp[:8], []byte("\x00go114ld")) {
 		return r.error(errCorruptObject)
 	}
 
@@ -518,6 +527,12 @@ func (r *objReader) parseObject(prefix []byte) error {
 			break
 		}
 		r.p.Imports = append(r.p.Imports, s)
+	}
+
+	// Read filenames for dwarf info.
+	count := r.readInt()
+	for i := int64(0); i < count; i++ {
+		r.p.DWARFFileList = append(r.p.DWARFFileList, r.readString())
 	}
 
 	r.p.SymRefs = []SymID{{"", 0}}
@@ -619,7 +634,7 @@ func (r *objReader) parseObject(prefix []byte) error {
 	}
 
 	r.readFull(r.tmp[:7])
-	if !bytes.Equal(r.tmp[:7], []byte("go112ld")) {
+	if !bytes.Equal(r.tmp[:7], []byte("go114ld")) {
 		return r.error(errCorruptObject)
 	}
 

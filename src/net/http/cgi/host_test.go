@@ -455,6 +455,23 @@ func TestDirUnix(t *testing.T) {
 	runCgiTest(t, h, "GET /test.cgi HTTP/1.0\nHost: example.com\n\n", expectedMap)
 }
 
+func findPerl(t *testing.T) string {
+	t.Helper()
+	perl, err := exec.LookPath("perl")
+	if err != nil {
+		t.Skip("Skipping test: perl not found.")
+	}
+	perl, _ = filepath.Abs(perl)
+
+	cmd := exec.Command(perl, "-e", "print 123")
+	cmd.Env = []string{"PATH=/garbage"}
+	out, err := cmd.Output()
+	if err != nil || string(out) != "123" {
+		t.Skipf("Skipping test: %s is not functional", perl)
+	}
+	return perl
+}
+
 func TestDirWindows(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		t.Skip("Skipping windows specific test.")
@@ -462,13 +479,7 @@ func TestDirWindows(t *testing.T) {
 
 	cgifile, _ := filepath.Abs("testdata/test.cgi")
 
-	var perl string
-	var err error
-	perl, err = exec.LookPath("perl")
-	if err != nil {
-		t.Skip("Skipping test: perl not found.")
-	}
-	perl, _ = filepath.Abs(perl)
+	perl := findPerl(t)
 
 	cwd, _ := os.Getwd()
 	h := &Handler{
@@ -505,13 +516,7 @@ func TestEnvOverride(t *testing.T) {
 	check(t)
 	cgifile, _ := filepath.Abs("testdata/test.cgi")
 
-	var perl string
-	var err error
-	perl, err = exec.LookPath("perl")
-	if err != nil {
-		t.Skipf("Skipping test: perl not found.")
-	}
-	perl, _ = filepath.Abs(perl)
+	perl := findPerl(t)
 
 	cwd, _ := os.Getwd()
 	h := &Handler{

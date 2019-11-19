@@ -41,12 +41,12 @@ func arithMask() unsafe.Pointer {
 
 // BAD: should be "leaking param: p to result ~r1 level=0$"
 func valuePointer(p *int) unsafe.Pointer { // ERROR "leaking param: p$"
-	return unsafe.Pointer(reflect.ValueOf(p).Pointer()) // ERROR "p escapes to heap"
+	return unsafe.Pointer(reflect.ValueOf(p).Pointer())
 }
 
 // BAD: should be "leaking param: p to result ~r1 level=0$"
 func valueUnsafeAddr(p *int) unsafe.Pointer { // ERROR "leaking param: p$"
-	return unsafe.Pointer(reflect.ValueOf(p).Elem().UnsafeAddr()) // ERROR "p escapes to heap"
+	return unsafe.Pointer(reflect.ValueOf(p).Elem().UnsafeAddr())
 }
 
 // (6) Conversion of a reflect.SliceHeader or reflect.StringHeader
