@@ -143,7 +143,8 @@ func tstart_stdcall(newm *m)
 func ctrlhandler()
 
 type mOS struct {
-	thread uintptr // thread handle; accessed atomically
+	threadLock mutex   // protects "thread" and prevents closing
+	thread     uintptr // thread handle
 
 	waitsema   uintptr // semaphore for parking on locks
 	resumesema uintptr // semaphore to indicate suspend/resume
@@ -814,7 +815,11 @@ func sigblock() {
 func minit() {
 	var thandle uintptr
 	stdcall7(_DuplicateHandle, currentProcess, currentThread, currentProcess, uintptr(unsafe.Pointer(&thandle)), 0, 0, _DUPLICATE_SAME_ACCESS)
-	atomic.Storeuintptr(&getg().m.thread, thandle)
+
+	mp := getg().m
+	lock(&mp.threadLock)
+	mp.thread = thandle
+	unlock(&mp.threadLock)
 
 	// Query the true stack base from the OS. Currently we're
 	// running on a small assumed stack.
@@ -847,9 +852,11 @@ func minit() {
 // Called from dropm to undo the effect of an minit.
 //go:nosplit
 func unminit() {
-	tp := &getg().m.thread
-	stdcall1(_CloseHandle, *tp)
-	*tp = 0
+	mp := getg().m
+	lock(&mp.threadLock)
+	stdcall1(_CloseHandle, mp.thread)
+	mp.thread = 0
+	unlock(&mp.threadLock)
 }
 
 // Calling stdcall on os stack.
@@ -1018,17 +1025,25 @@ func profileloop1(param uintptr) uint32 {
 		stdcall2(_WaitForSingleObject, profiletimer, _INFINITE)
 		first := (*m)(atomic.Loadp(unsafe.Pointer(&allm)))
 		for mp := first; mp != nil; mp = mp.alllink {
-			thread := atomic.Loaduintptr(&mp.thread)
+			lock(&mp.threadLock)
 			// Do not profile threads blocked on Notes,
 			// this includes idle worker threads,
 			// idle timer thread, idle heap scavenger, etc.
-			if thread == 0 || mp.profilehz == 0 || mp.blocked {
+			if mp.thread == 0 || mp.profilehz == 0 || mp.blocked {
+				unlock(&mp.threadLock)
 				continue
 			}
-			// mp may exit between the load above and the
-			// SuspendThread, so be careful.
+			// Acquire our own handle to the thread.
+			var thread uintptr
+			stdcall7(_DuplicateHandle, currentProcess, mp.thread, currentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, _DUPLICATE_SAME_ACCESS)
+			unlock(&mp.threadLock)
+			// mp may exit between the DuplicateHandle
+			// above and the SuspendThread. The handle
+			// will remain valid, but SuspendThread may
+			// fail.
 			if int32(stdcall1(_SuspendThread, thread)) == -1 {
 				// The thread no longer exists.
+				stdcall1(_CloseHandle, thread)
 				continue
 			}
 			if mp.profilehz != 0 && !mp.blocked {
@@ -1037,6 +1052,7 @@ func profileloop1(param uintptr) uint32 {
 				profilem(mp, thread)
 			}
 			stdcall1(_ResumeThread, thread)
+			stdcall1(_CloseHandle, thread)
 		}
 	}
 }
