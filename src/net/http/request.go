@@ -335,6 +335,9 @@ type Request struct {
 // For incoming server requests, the context is canceled when the
 // client's connection closes, the request is canceled (with HTTP/2),
 // or when the ServeHTTP method returns.
+//
+// For request with non-nil body, the context will never be cancelled
+// unless the application starts reading the request body.
 func (r *Request) Context() context.Context {
 	if r.ctx != nil {
 		return r.ctx
