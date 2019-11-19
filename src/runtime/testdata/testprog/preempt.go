@@ -26,6 +26,8 @@ func AsyncPreempt() {
 	go func() {
 		for {
 			atomic.StoreUint32(&ready, 1)
+			dummy()
+			dummy()
 		}
 	}()
 	// Also start one with a frameless function.
@@ -53,8 +55,11 @@ func AsyncPreempt() {
 //go:noinline
 func frameless() {
 	for i := int64(0); i < 1<<62; i++ {
-		out += i
+		out += i * i * i * i * i * 12345
 	}
 }
 
 var out int64
+
+//go:noinline
+func dummy() {}
