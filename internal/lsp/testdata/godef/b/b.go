@@ -1,8 +1,8 @@
 package b
 
 import (
-	myFoo "golang.org/x/tools/internal/lsp/foo" //@mark(myFoo, "myFoo"),godef("foo", PackageFoo),godef("myFoo", myFoo)
-	"golang.org/x/tools/internal/lsp/godef/a"   //@mark(AImport, "\"")
+	myFoo "golang.org/x/tools/internal/lsp/foo" //@mark(myFoo, "myFoo"),godef("myFoo", myFoo)
+	"golang.org/x/tools/internal/lsp/godef/a"   //@mark(AImport, re"\".*\"")
 )
 
 type S1 struct { //@S1
@@ -24,7 +24,7 @@ type S3 struct {
 }
 
 func Bar() {
-	a.Stuff()   //@godef("Stuff", Stuff)
+	a.AStuff()  //@godef("AStuff", AStuff)
 	var x S1    //@godef("S1", S1)
 	_ = x.S2    //@godef("S2", S1S2)
 	_ = x.F1    //@godef("F1", S1F1)

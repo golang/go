@@ -11,12 +11,12 @@ godef/b/b.go:8:6-8: defined here as S1 struct {
 		"start": {
 			"line": 8,
 			"column": 6,
-			"offset": 212
+			"offset": 193
 		},
 		"end": {
 			"line": 8,
 			"column": 8,
-			"offset": 214
+			"offset": 195
 		}
 	},
 	"description": "S1 struct {\n\tF1  int //@mark(S1F1, \"F1\")\n\tS2      //@godef(\"S2\", S2), mark(S1S2, \"S2\")\n\ta.A     //@godef(\"A\", A)\n}"
@@ -38,12 +38,12 @@ field F1 int
 		"start": {
 			"line": 9,
 			"column": 2,
-			"offset": 231
+			"offset": 212
 		},
 		"end": {
 			"line": 9,
 			"column": 4,
-			"offset": 233
+			"offset": 214
 		}
 	},
 	"description": "@mark(S1F1, \"F1\")\nfield F1 int"

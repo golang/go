@@ -6,7 +6,7 @@ import "fmt"
 
 type A string //@A
 
-func Stuff() { //@Stuff
+func AStuff() { //@AStuff
 	x := 5
 	Random2(x) //@godef("dom2", Random2)
 	Random()   //@godef("()", Random)

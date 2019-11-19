@@ -51,12 +51,12 @@ godef/a/a.go:14:6-9: defined here as var err error
 		"start": {
 			"line": 14,
 			"column": 6,
-			"offset": 201
+			"offset": 203
 		},
 		"end": {
 			"line": 14,
 			"column": 9,
-			"offset": 204
+			"offset": 206
 		}
 	},
 	"description": "var err error"

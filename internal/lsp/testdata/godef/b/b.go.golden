@@ -22,7 +22,7 @@ godef/a/a.go:7:6-7: defined here as A string //@A
 A string //@A
 
 -- AImport-definition --
-godef/b/b.go:5:2: defined here as package a ("golang.org/x/tools/internal/lsp/godef/a")
+godef/b/b.go:5:2-43: defined here as package a ("golang.org/x/tools/internal/lsp/godef/a")
 -- AImport-definition-json --
 {
 	"span": {
@@ -30,12 +30,12 @@ godef/b/b.go:5:2: defined here as package a ("golang.org/x/tools/internal/lsp/go
 		"start": {
 			"line": 5,
 			"column": 2,
-			"offset": 137
+			"offset": 112
 		},
 		"end": {
 			"line": 5,
-			"column": 2,
-			"offset": 137
+			"column": 43,
+			"offset": 153
 		}
 	},
 	"description": "package a (\"golang.org/x/tools/internal/lsp/godef/a\")"
@@ -43,6 +43,28 @@ godef/b/b.go:5:2: defined here as package a ("golang.org/x/tools/internal/lsp/go
 
 -- AImport-hover --
 package a ("golang.org/x/tools/internal/lsp/godef/a")
+-- AStuff-definition --
+godef/a/a.go:9:6-12: defined here as func a.AStuff()
+-- AStuff-definition-json --
+{
+	"span": {
+		"uri": "file://godef/a/a.go",
+		"start": {
+			"line": 9,
+			"column": 6,
+			"offset": 95
+		},
+		"end": {
+			"line": 9,
+			"column": 12,
+			"offset": 101
+		}
+	},
+	"description": "func a.AStuff()"
+}
+
+-- AStuff-hover --
+func a.AStuff()
 -- PackageFoo-definition --
 foo/foo.go:1:1-30:16: defined here as myFoo "golang.org/x/tools/internal/lsp/foo" //@mark(myFoo, "myFoo"),godef("foo", PackageFoo),godef("myFoo", myFoo)
 -- PackageFoo-definition-json --
@@ -79,12 +101,12 @@ godef/b/b.go:8:6-8: defined here as S1 struct {
 		"start": {
 			"line": 8,
 			"column": 6,
-			"offset": 212
+			"offset": 193
 		},
 		"end": {
 			"line": 8,
 			"column": 8,
-			"offset": 214
+			"offset": 195
 		}
 	},
 	"description": "S1 struct {\n\tF1  int //@mark(S1F1, \"F1\")\n\tS2      //@godef(\"S2\", S2), mark(S1S2, \"S2\")\n\ta.A     //@godef(\"A\", A)\n}"
@@ -106,12 +128,12 @@ field F1 int
 		"start": {
 			"line": 9,
 			"column": 2,
-			"offset": 231
+			"offset": 212
 		},
 		"end": {
 			"line": 9,
 			"column": 4,
-			"offset": 233
+			"offset": 214
 		}
 	},
 	"description": "@mark(S1F1, \"F1\")\nfield F1 int"
@@ -130,12 +152,12 @@ field S2 S2
 		"start": {
 			"line": 10,
 			"column": 2,
-			"offset": 260
+			"offset": 241
 		},
 		"end": {
 			"line": 10,
 			"column": 4,
-			"offset": 262
+			"offset": 243
 		}
 	},
 	"description": "@godef(\"S2\", S2), mark(S1S2, \"S2\")\nfield S2 S2"
@@ -157,12 +179,12 @@ godef/b/b.go:14:6-8: defined here as S2 struct {
 		"start": {
 			"line": 14,
 			"column": 6,
-			"offset": 339
+			"offset": 320
 		},
 		"end": {
 			"line": 14,
 			"column": 8,
-			"offset": 341
+			"offset": 322
 		}
 	},
 	"description": "S2 struct {\n\tF1   string //@mark(S2F1, \"F1\")\n\tF2   int    //@mark(S2F2, \"F2\")\n\t*a.A        //@godef(\"A\", A),godef(\"a\",AImport)\n}"
@@ -184,12 +206,12 @@ field F1 string
 		"start": {
 			"line": 15,
 			"column": 2,
-			"offset": 358
+			"offset": 339
 		},
 		"end": {
 			"line": 15,
 			"column": 4,
-			"offset": 360
+			"offset": 341
 		}
 	},
 	"description": "@mark(S2F1, \"F1\")\nfield F1 string"
@@ -208,12 +230,12 @@ field F2 int
 		"start": {
 			"line": 16,
 			"column": 2,
-			"offset": 391
+			"offset": 372
 		},
 		"end": {
 			"line": 16,
 			"column": 4,
-			"offset": 393
+			"offset": 374
 		}
 	},
 	"description": "@mark(S2F2, \"F2\")\nfield F2 int"
@@ -253,12 +275,12 @@ godef/b/b.go:37:7-8: defined here as const X untyped int = 0
 		"start": {
 			"line": 37,
 			"column": 7,
-			"offset": 812
+			"offset": 795
 		},
 		"end": {
 			"line": 37,
 			"column": 8,
-			"offset": 813
+			"offset": 796
 		}
 	},
 	"description": "const X untyped int = 0"

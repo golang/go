@@ -138,9 +138,9 @@ func objToMappedRange(ctx context.Context, v View, pkg Package, obj types.Object
 		// 		import a "go/ast"  	// name "a" does not match package name
 		//
 		// When the identifier does not appear in the source, have the range
-		// of the object be the point at the beginning of the declaration.
+		// of the object be the import path, including quotes.
 		if pkgName.Imported().Name() == pkgName.Name() {
-			return nameToMappedRange(ctx, v, pkg, obj.Pos(), "")
+			return posToMappedRange(ctx, v, pkg, obj.Pos(), obj.Pos()+token.Pos(len(pkgName.Imported().Path())+2))
 		}
 	}
 	return nameToMappedRange(ctx, v, pkg, obj.Pos(), obj.Name())

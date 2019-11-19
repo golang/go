@@ -408,7 +408,9 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	if len(locs) != 1 {
 		t.Errorf("got %d locations for definition, expected 1", len(locs))
 	}
+	didSomething := false
 	if hover != nil {
+		didSomething = true
 		tag := fmt.Sprintf("%s-hover", d.Name)
 		expectHover := string(r.data.Golden(tag, d.Src.URI().Filename(), func() ([]byte, error) {
 			return []byte(hover.Contents.Value), nil
@@ -416,7 +418,9 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 		if hover.Contents.Value != expectHover {
 			t.Errorf("for %v got %q want %q", d.Src, hover.Contents.Value, expectHover)
 		}
-	} else if !d.OnlyHover {
+	}
+	if !d.OnlyHover {
+		didSomething = true
 		locURI := span.NewURI(locs[0].URI)
 		lm, err := r.data.Mapper(locURI)
 		if err != nil {
@@ -427,7 +431,8 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 		} else if def != d.Def {
 			t.Errorf("for %v got %v want %v", d.Src, def, d.Def)
 		}
-	} else {
+	}
+	if !didSomething {
 		t.Errorf("no tests ran for %s", d.Src.URI())
 	}
 }
@@ -638,8 +643,16 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 	if !ok {
 		t.Fatalf("got %T, wanted Range", got)
 	}
-	if protocol.CompareRange(*xx, want.Range) != 0 {
-		t.Errorf("prepare rename failed: incorrect range got %v want %v", *xx, want.Range)
+	if xx.Start == xx.End {
+		// Special case for 0-length ranges. Marks can't specify a 0-length range,
+		// so just compare the start.
+		if xx.Start != want.Range.Start {
+			t.Errorf("prepare rename failed: incorrect point, got %v want %v", xx.Start, want.Range.Start)
+		}
+	} else {
+		if protocol.CompareRange(*xx, want.Range) != 0 {
+			t.Errorf("prepare rename failed: incorrect range got %v want %v", *xx, want.Range)
+		}
 	}
 }
 

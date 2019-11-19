@@ -32,10 +32,9 @@ type IdentifierInfo struct {
 
 	Declaration Declaration
 
-	pkg              Package
-	ident            *ast.Ident
-	wasEmbeddedField bool
-	qf               types.Qualifier
+	pkg   Package
+	ident *ast.Ident
+	qf    types.Qualifier
 }
 
 type Declaration struct {
@@ -127,9 +126,10 @@ func identifier(ctx context.Context, snapshot Snapshot, pkg Package, file *ast.F
 	if result.ident == nil {
 		return nil, nil
 	}
+	var wasEmbeddedField bool
 	for _, n := range path[1:] {
 		if field, ok := n.(*ast.Field); ok {
-			result.wasEmbeddedField = len(field.Names) == 0
+			wasEmbeddedField = len(field.Names) == 0
 			break
 		}
 	}
@@ -171,7 +171,7 @@ func identifier(ctx context.Context, snapshot Snapshot, pkg Package, file *ast.F
 		return result, nil
 	}
 
-	if result.wasEmbeddedField {
+	if wasEmbeddedField {
 		// The original position was on the embedded field declaration, so we
 		// try to dig out the type and jump to that instead.
 		if v, ok := result.Declaration.obj.(*types.Var); ok {

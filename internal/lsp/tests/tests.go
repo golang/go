@@ -840,11 +840,6 @@ func (data *Data) collectRenames(src span.Span, newText string) {
 }
 
 func (data *Data) collectPrepareRenames(src span.Span, rng span.Range, placeholder string) {
-	if int(rng.End-rng.Start) != len(placeholder) {
-		// If the length of the placeholder and the length of the range do not match,
-		// make the range just be the start.
-		rng = span.NewRange(rng.FileSet, rng.Start, rng.Start)
-	}
 	m, err := data.Mapper(src.URI())
 	if err != nil {
 		data.t.Fatal(err)

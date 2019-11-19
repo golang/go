@@ -54,7 +54,16 @@ func (i *IdentifierInfo) PrepareRename(ctx context.Context) (*PrepareItem, error
 		if err != nil {
 			return nil, err
 		}
-		i = ident
+		rng, err := ident.mappedRange.Range()
+		if err != nil {
+			return nil, err
+		}
+		// We're not really renaming the import path.
+		rng.End = rng.Start
+		return &PrepareItem{
+			Range: rng,
+			Text:  ident.Name,
+		}, nil
 	}
 
 	// Do not rename builtin identifiers.
@@ -220,14 +229,13 @@ func getPkgNameIdentifier(ctx context.Context, ident *IdentifierInfo, pkgName *t
 		return nil, err
 	}
 	return &IdentifierInfo{
-		Snapshot:         ident.Snapshot,
-		Name:             pkgName.Name(),
-		mappedRange:      decl.mappedRange,
-		File:             ident.File,
-		Declaration:      decl,
-		pkg:              ident.pkg,
-		wasEmbeddedField: false,
-		qf:               ident.qf,
+		Snapshot:    ident.Snapshot,
+		Name:        pkgName.Name(),
+		mappedRange: decl.mappedRange,
+		File:        ident.File,
+		Declaration: decl,
+		pkg:         ident.pkg,
+		qf:          ident.qf,
 	}, nil
 }
 
